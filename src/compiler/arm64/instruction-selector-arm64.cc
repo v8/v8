@@ -2007,19 +2007,17 @@ void EmitBranchOrDeoptimize(InstructionSelector* selector,
 }
 
 // Try to emit TBZ, TBNZ, CBZ or CBNZ for certain comparisons of {node}
-// against zero, depending on the condition.
-bool TryEmitCbzOrTbz(InstructionSelector* selector, Node* node, Node* user,
-                     FlagsCondition cond, FlagsContinuation* cont) {
-  Int32BinopMatcher m_user(user);
-  USE(m_user);
-  DCHECK(m_user.right().Is(0) || m_user.left().Is(0));
-
+// against {value}, depending on the condition.
+bool TryEmitCbzOrTbz(InstructionSelector* selector, Node* node, uint32_t value,
+                     Node* user, FlagsCondition cond, FlagsContinuation* cont) {
   // Only handle branches and deoptimisations.
   if (!cont->IsBranch() && !cont->IsDeoptimize()) return false;
 
   switch (cond) {
     case kSignedLessThan:
     case kSignedGreaterThanOrEqual: {
+      // Here we handle sign tests, aka. comparisons with zero.
+      if (value != 0) return false;
       // We don't generate TBZ/TBNZ for deoptimisations, as they have a
       // shorter range than conditional branches and generating them for
       // deoptimisations results in more veneers.
@@ -2045,9 +2043,29 @@ bool TryEmitCbzOrTbz(InstructionSelector* selector, Node* node, Node* user,
       return true;
     }
     case kEqual:
-    case kNotEqual:
+    case kNotEqual: {
+      if (node->opcode() == IrOpcode::kWord32And) {
+        // Emit a tbz/tbnz if we are comparing with a single-bit mask:
+        //   Branch(Word32Equal(Word32And(x, 1 << N), 1 << N), true, false)
+        Int32BinopMatcher m_and(node);
+        if (cont->IsBranch() && base::bits::IsPowerOfTwo(value) &&
+            m_and.right().Is(value) && selector->CanCover(user, node)) {
+          Arm64OperandGenerator g(selector);
+          // In the code generator, Equal refers to a bit being cleared. We want
+          // the opposite here so negate the condition.
+          cont->Negate();
+          selector->Emit(cont->Encode(kArm64TestAndBranch32), g.NoOutput(),
+                         g.UseRegister(m_and.left().node()),
+                         g.TempImmediate(base::bits::CountTrailingZeros(value)),
+                         g.Label(cont->true_block()),
+                         g.Label(cont->false_block()));
+          return true;
+        }
+      }
+    }  // Fall through.
     case kUnsignedLessThanOrEqual:
     case kUnsignedGreaterThan: {
+      if (value != 0) return false;
       Arm64OperandGenerator g(selector);
       cont->Overwrite(MapForCbz(cond));
       EmitBranchOrDeoptimize(selector, kArm64CompareAndBranch32,
@@ -2062,15 +2080,20 @@ bool TryEmitCbzOrTbz(InstructionSelector* selector, Node* node, Node* user,
 void VisitWord32Compare(InstructionSelector* selector, Node* node,
                         FlagsContinuation* cont) {
   Int32BinopMatcher m(node);
-  ArchOpcode opcode = kArm64Cmp32;
   FlagsCondition cond = cont->condition();
-  if (m.right().Is(0)) {
-    if (TryEmitCbzOrTbz(selector, m.left().node(), node, cond, cont)) return;
-  } else if (m.left().Is(0)) {
-    FlagsCondition commuted_cond = CommuteFlagsCondition(cond);
-    if (TryEmitCbzOrTbz(selector, m.right().node(), node, commuted_cond, cont))
+  if (m.right().HasValue()) {
+    if (TryEmitCbzOrTbz(selector, m.left().node(), m.right().Value(), node,
+                        cond, cont)) {
       return;
+    }
+  } else if (m.left().HasValue()) {
+    FlagsCondition commuted_cond = CommuteFlagsCondition(cond);
+    if (TryEmitCbzOrTbz(selector, m.right().node(), m.left().Value(), node,
+                        commuted_cond, cont)) {
+      return;
+    }
   }
+  ArchOpcode opcode = kArm64Cmp32;
   ImmediateMode immediate_mode = kArithmeticImm;
   if (m.right().Is(0) && (m.left().IsInt32Add() || m.left().IsWord32And())) {
     // Emit flag setting add/and instructions for comparisons against zero.
@@ -2141,7 +2164,7 @@ bool TryEmitTestAndBranch(InstructionSelector* selector, Node* node,
   Arm64OperandGenerator g(selector);
   Matcher m(node);
   if (cont->IsBranch() && m.right().HasValue() &&
-      (base::bits::CountPopulation(m.right().Value()) == 1)) {
+      base::bits::IsPowerOfTwo(m.right().Value())) {
     // If the mask has only one bit set, we can use tbz/tbnz.
     DCHECK((cont->condition() == kEqual) || (cont->condition() == kNotEqual));
     selector->Emit(
