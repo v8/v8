@@ -1344,7 +1344,7 @@ Reduction MachineOperatorReducer::ReduceFloat64InsertLowWord32(Node* node) {
   Uint32Matcher mrhs(node->InputAt(1));
   if (mlhs.HasValue() && mrhs.HasValue()) {
     return ReplaceFloat64(bit_cast<double>(
-        (bit_cast<uint64_t>(mlhs.Value()) & V8_UINT64_C(0xFFFFFFFF00000000)) |
+        (bit_cast<uint64_t>(mlhs.Value()) & uint64_t{0xFFFFFFFF00000000}) |
         mrhs.Value()));
   }
   return NoChange();
@@ -1357,7 +1357,7 @@ Reduction MachineOperatorReducer::ReduceFloat64InsertHighWord32(Node* node) {
   Uint32Matcher mrhs(node->InputAt(1));
   if (mlhs.HasValue() && mrhs.HasValue()) {
     return ReplaceFloat64(bit_cast<double>(
-        (bit_cast<uint64_t>(mlhs.Value()) & V8_UINT64_C(0xFFFFFFFF)) |
+        (bit_cast<uint64_t>(mlhs.Value()) & uint64_t{0xFFFFFFFF}) |
         (static_cast<uint64_t>(mrhs.Value()) << 32)));
   }
   return NoChange();

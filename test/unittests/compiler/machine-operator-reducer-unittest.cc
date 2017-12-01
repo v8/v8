@@ -1946,7 +1946,7 @@ TEST_F(MachineOperatorReducerTest, Float64InsertLowWord32WithConstant) {
       EXPECT_THAT(
           r.replacement(),
           IsFloat64Constant(BitEq(bit_cast<double>(
-              (bit_cast<uint64_t>(x) & V8_UINT64_C(0xFFFFFFFF00000000)) | y))));
+              (bit_cast<uint64_t>(x) & uint64_t{0xFFFFFFFF00000000}) | y))));
     }
   }
 }
@@ -1965,7 +1965,7 @@ TEST_F(MachineOperatorReducerTest, Float64InsertHighWord32WithConstant) {
       ASSERT_TRUE(r.Changed());
       EXPECT_THAT(r.replacement(),
                   IsFloat64Constant(BitEq(bit_cast<double>(
-                      (bit_cast<uint64_t>(x) & V8_UINT64_C(0xFFFFFFFF)) |
+                      (bit_cast<uint64_t>(x) & uint64_t{0xFFFFFFFF}) |
                       (static_cast<uint64_t>(y) << 32)))));
     }
   }

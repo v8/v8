@@ -1982,7 +1982,7 @@ Float32 Simulator::canonicalizeNaN(Float32 value) {
 double Simulator::canonicalizeNaN(double value) {
   // Default NaN value, see "NaN handling" in "IEEE 754 standard implementation
   // choices" of the ARM Reference Manual.
-  constexpr uint64_t kDefaultNaN = V8_UINT64_C(0x7FF8000000000000);
+  constexpr uint64_t kDefaultNaN = uint64_t{0x7FF8000000000000};
   if (FPSCR_default_NaN_mode_ && std::isnan(value)) {
     value = bit_cast<double>(kDefaultNaN);
   }
@@ -1993,7 +1993,7 @@ Float64 Simulator::canonicalizeNaN(Float64 value) {
   // Default NaN value, see "NaN handling" in "IEEE 754 standard implementation
   // choices" of the ARM Reference Manual.
   constexpr Float64 kDefaultNaN =
-      Float64::FromBits(V8_UINT64_C(0x7FF8000000000000));
+      Float64::FromBits(uint64_t{0x7FF8000000000000});
   return FPSCR_default_NaN_mode_ && value.is_nan() ? kDefaultNaN : value;
 }
 

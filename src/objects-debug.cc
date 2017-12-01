@@ -475,11 +475,11 @@ void FixedDoubleArray::FixedDoubleArrayVerify() {
       uint64_t value = get_representation(i);
       uint64_t unexpected =
           bit_cast<uint64_t>(std::numeric_limits<double>::quiet_NaN()) &
-          V8_UINT64_C(0x7FF8000000000000);
+          uint64_t{0x7FF8000000000000};
       // Create implementation specific sNaN by inverting relevant bit.
-      unexpected ^= V8_UINT64_C(0x0008000000000000);
-      CHECK((value & V8_UINT64_C(0x7FF8000000000000)) != unexpected ||
-            (value & V8_UINT64_C(0x0007FFFFFFFFFFFF)) == V8_UINT64_C(0));
+      unexpected ^= uint64_t{0x0008000000000000};
+      CHECK((value & uint64_t{0x7FF8000000000000}) != unexpected ||
+            (value & uint64_t{0x0007FFFFFFFFFFFF}) == uint64_t{0});
     }
   }
 }

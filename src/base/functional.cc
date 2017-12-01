@@ -80,7 +80,7 @@ size_t hash_combine(size_t seed, size_t value) {
   seed = bits::RotateRight32(seed, 13);
   seed = seed * 5 + 0xe6546b64;
 #else
-  const uint64_t m = V8_UINT64_C(0xc6a4a7935bd1e995);
+  const uint64_t m = uint64_t{0xc6a4a7935bd1e995};
   const uint32_t r = 47;
 
   value *= m;

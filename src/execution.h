@@ -162,8 +162,8 @@ class V8_EXPORT_PRIVATE StackGuard final {
   void DisableInterrupts();
 
 #if V8_TARGET_ARCH_64_BIT
-  static const uintptr_t kInterruptLimit = V8_UINT64_C(0xfffffffffffffffe);
-  static const uintptr_t kIllegalLimit = V8_UINT64_C(0xfffffffffffffff8);
+  static const uintptr_t kInterruptLimit = uintptr_t{0xfffffffffffffffe};
+  static const uintptr_t kIllegalLimit = uintptr_t{0xfffffffffffffff8};
 #else
   static const uintptr_t kInterruptLimit = 0xfffffffe;
   static const uintptr_t kIllegalLimit = 0xfffffff8;

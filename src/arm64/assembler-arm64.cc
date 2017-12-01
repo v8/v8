@@ -4526,7 +4526,7 @@ bool Assembler::IsImmLogical(uint64_t value,
     clz_a = CountLeadingZeros(a, kXRegSizeInBits);
     int clz_c = CountLeadingZeros(c, kXRegSizeInBits);
     d = clz_a - clz_c;
-    mask = ((V8_UINT64_C(1) << d) - 1);
+    mask = ((uint64_t{1} << d) - 1);
     out_n = 0;
   } else {
     // Handle degenerate cases.
@@ -4547,7 +4547,7 @@ bool Assembler::IsImmLogical(uint64_t value,
       // the general case above, and set the N bit in the output.
       clz_a = CountLeadingZeros(a, kXRegSizeInBits);
       d = 64;
-      mask = ~V8_UINT64_C(0);
+      mask = ~uint64_t{0};
       out_n = 1;
     }
   }

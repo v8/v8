@@ -92,11 +92,10 @@ const int32_t kInt32Values[] = {
     1062628108, 1087581664, 1488498068, 1534668023, 1661587028, 1696896187,
     1866841746, 2032089723, 2147483647};
 
-
 const double kNaNs[] = {-std::numeric_limits<double>::quiet_NaN(),
                         std::numeric_limits<double>::quiet_NaN(),
-                        bit_cast<double>(V8_UINT64_C(0x7FFFFFFFFFFFFFFF)),
-                        bit_cast<double>(V8_UINT64_C(0xFFFFFFFFFFFFFFFF))};
+                        bit_cast<double>(uint64_t{0x7FFFFFFFFFFFFFFF}),
+                        bit_cast<double>(uint64_t{0xFFFFFFFFFFFFFFFF})};
 
 const CheckForMinusZeroMode kCheckForMinusZeroModes[] = {
     CheckForMinusZeroMode::kDontCheckForMinusZero,

@@ -206,26 +206,26 @@ void* OS::GetRandomMmapAddr() {
   // Currently available CPUs have 48 bits of virtual addressing.  Truncate
   // the hint address to 46 bits to give the kernel a fighting chance of
   // fulfilling our placement request.
-  raw_addr &= V8_UINT64_C(0x3ffffffff000);
+  raw_addr &= uint64_t{0x3ffffffff000};
 #elif V8_TARGET_ARCH_PPC64
 #if V8_OS_AIX
   // AIX: 64 bits of virtual addressing, but we limit address range to:
   //   a) minimize Segment Lookaside Buffer (SLB) misses and
-  raw_addr &= V8_UINT64_C(0x3ffff000);
+  raw_addr &= uint64_t{0x3ffff000};
   // Use extra address space to isolate the mmap regions.
-  raw_addr += V8_UINT64_C(0x400000000000);
+  raw_addr += uint64_t{0x400000000000};
 #elif V8_TARGET_BIG_ENDIAN
   // Big-endian Linux: 44 bits of virtual addressing.
-  raw_addr &= V8_UINT64_C(0x03fffffff000);
+  raw_addr &= uint64_t{0x03fffffff000};
 #else
   // Little-endian Linux: 48 bits of virtual addressing.
-  raw_addr &= V8_UINT64_C(0x3ffffffff000);
+  raw_addr &= uint64_t{0x3ffffffff000};
 #endif
 #elif V8_TARGET_ARCH_S390X
   // Linux on Z uses bits 22-32 for Region Indexing, which translates to 42 bits
   // of virtual addressing.  Truncate to 40 bits to allow kernel chance to
   // fulfill request.
-  raw_addr &= V8_UINT64_C(0xfffffff000);
+  raw_addr &= uint64_t{0xfffffff000};
 #elif V8_TARGET_ARCH_S390
   // 31 bits of virtual addressing.  Truncate to 29 bits to allow kernel chance
   // to fulfill request.

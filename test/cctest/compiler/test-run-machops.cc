@@ -5722,9 +5722,9 @@ TEST(RunFloat64InsertLowWord32) {
   m.Return(m.Float64InsertLowWord32(m.Parameter(0), m.Parameter(1)));
   FOR_FLOAT64_INPUTS(i) {
     FOR_INT32_INPUTS(j) {
-      double expected = bit_cast<double>(
-          (bit_cast<uint64_t>(*i) & ~(V8_UINT64_C(0xFFFFFFFF))) |
-          (static_cast<uint64_t>(bit_cast<uint32_t>(*j))));
+      double expected =
+          bit_cast<double>((bit_cast<uint64_t>(*i) & ~(uint64_t{0xFFFFFFFF})) |
+                           (static_cast<uint64_t>(bit_cast<uint32_t>(*j))));
       CHECK_DOUBLE_EQ(expected, m.Call(*i, *j));
     }
   }

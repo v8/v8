@@ -1596,29 +1596,29 @@ TEST(AssemblerX64AVX_sd) {
     __ j(not_equal, &exit);
 
     // Test vpcmpeqd
-    __ movq(rdx, V8_UINT64_C(0x0123456789abcdef));
-    __ movq(rcx, V8_UINT64_C(0x0123456788888888));
+    __ movq(rdx, uint64_t{0x0123456789abcdef});
+    __ movq(rcx, uint64_t{0x0123456788888888});
     __ vmovq(xmm6, rdx);
     __ vmovq(xmm7, rcx);
     __ vpcmpeqd(xmm8, xmm6, xmm7);
     __ vmovq(rdx, xmm8);
-    __ movq(rcx, V8_UINT64_C(0xffffffff00000000));
+    __ movq(rcx, uint64_t{0xffffffff00000000});
     __ cmpq(rcx, rdx);
     __ movl(rax, Immediate(13));
     __ j(not_equal, &exit);
 
     // Test vpsllq, vpsrlq
     __ movl(rax, Immediate(13));
-    __ movq(rdx, V8_UINT64_C(0x0123456789abcdef));
+    __ movq(rdx, uint64_t{0x0123456789abcdef});
     __ vmovq(xmm6, rdx);
     __ vpsrlq(xmm7, xmm6, 4);
     __ vmovq(rdx, xmm7);
-    __ movq(rcx, V8_UINT64_C(0x00123456789abcde));
+    __ movq(rcx, uint64_t{0x00123456789abcde});
     __ cmpq(rdx, rcx);
     __ j(not_equal, &exit);
     __ vpsllq(xmm7, xmm6, 12);
     __ vmovq(rdx, xmm7);
-    __ movq(rcx, V8_UINT64_C(0x3456789abcdef000));
+    __ movq(rcx, uint64_t{0x3456789abcdef000});
     __ cmpq(rdx, rcx);
     __ j(not_equal, &exit);
 
@@ -1643,7 +1643,7 @@ TEST(AssemblerX64AVX_sd) {
 
     // Test vsqrtsd
     __ movl(rax, Immediate(15));
-    __ movq(rdx, V8_UINT64_C(0x4004000000000000));  // 2.5
+    __ movq(rdx, uint64_t{0x4004000000000000});  // 2.5
     __ vmovq(xmm4, rdx);
     __ vmulsd(xmm5, xmm4, xmm4);
     __ vmovsd(Operand(rsp, 0), xmm5);
@@ -1658,10 +1658,10 @@ TEST(AssemblerX64AVX_sd) {
 
     // Test vroundsd
     __ movl(rax, Immediate(16));
-    __ movq(rdx, V8_UINT64_C(0x4002000000000000));  // 2.25
+    __ movq(rdx, uint64_t{0x4002000000000000});  // 2.25
     __ vmovq(xmm4, rdx);
     __ vroundsd(xmm5, xmm4, xmm4, kRoundUp);
-    __ movq(rcx, V8_UINT64_C(0x4008000000000000));  // 3.0
+    __ movq(rcx, uint64_t{0x4008000000000000});  // 3.0
     __ vmovq(xmm6, rcx);
     __ vucomisd(xmm5, xmm6);
     __ j(not_equal, &exit);
@@ -1669,7 +1669,7 @@ TEST(AssemblerX64AVX_sd) {
     // Test vcvtlsi2sd
     __ movl(rax, Immediate(17));
     __ movl(rdx, Immediate(6));
-    __ movq(rcx, V8_UINT64_C(0x4018000000000000));  // 6.0
+    __ movq(rcx, uint64_t{0x4018000000000000});  // 6.0
     __ vmovq(xmm5, rcx);
     __ vcvtlsi2sd(xmm6, xmm6, rdx);
     __ vucomisd(xmm5, xmm6);
@@ -1681,8 +1681,8 @@ TEST(AssemblerX64AVX_sd) {
 
     // Test vcvtqsi2sd
     __ movl(rax, Immediate(18));
-    __ movq(rdx, V8_UINT64_C(0x2000000000000000));  // 2 << 0x3c
-    __ movq(rcx, V8_UINT64_C(0x43c0000000000000));
+    __ movq(rdx, uint64_t{0x2000000000000000});  // 2 << 0x3c
+    __ movq(rcx, uint64_t{0x43c0000000000000});
     __ vmovq(xmm5, rcx);
     __ vcvtqsi2sd(xmm6, xmm6, rdx);
     __ vucomisd(xmm5, xmm6);
@@ -1690,7 +1690,7 @@ TEST(AssemblerX64AVX_sd) {
 
     // Test vcvtsd2si
     __ movl(rax, Immediate(19));
-    __ movq(rdx, V8_UINT64_C(0x4018000000000000));  // 6.0
+    __ movq(rdx, uint64_t{0x4018000000000000});  // 6.0
     __ vmovq(xmm5, rdx);
     __ vcvtsd2si(rcx, xmm5);
     __ cmpl(rcx, Immediate(6));
@@ -1775,160 +1775,160 @@ TEST(AssemblerX64BMI1) {
     CpuFeatureScope fscope(&masm, BMI1);
     Label exit;
 
-    __ movq(rcx, V8_UINT64_C(0x1122334455667788));  // source operand
+    __ movq(rcx, uint64_t{0x1122334455667788});     // source operand
     __ pushq(rcx);                                  // For memory operand
 
     // andn
-    __ movq(rdx, V8_UINT64_C(0x1000000020000000));
+    __ movq(rdx, uint64_t{0x1000000020000000});
 
     __ movl(rax, Immediate(1));  // Test number
     __ andnq(r8, rdx, rcx);
-    __ movq(r9, V8_UINT64_C(0x0122334455667788));  // expected result
+    __ movq(r9, uint64_t{0x0122334455667788});  // expected result
     __ cmpq(r8, r9);
     __ j(not_equal, &exit);
 
     __ incq(rax);
     __ andnq(r8, rdx, Operand(rsp, 0));
-    __ movq(r9, V8_UINT64_C(0x0122334455667788));  // expected result
+    __ movq(r9, uint64_t{0x0122334455667788});  // expected result
     __ cmpq(r8, r9);
     __ j(not_equal, &exit);
 
     __ incq(rax);
     __ andnl(r8, rdx, rcx);
-    __ movq(r9, V8_UINT64_C(0x0000000055667788));  // expected result
+    __ movq(r9, uint64_t{0x0000000055667788});  // expected result
     __ cmpq(r8, r9);
     __ j(not_equal, &exit);
 
     __ incq(rax);
     __ andnl(r8, rdx, Operand(rsp, 0));
-    __ movq(r9, V8_UINT64_C(0x0000000055667788));  // expected result
+    __ movq(r9, uint64_t{0x0000000055667788});  // expected result
     __ cmpq(r8, r9);
     __ j(not_equal, &exit);
 
     // bextr
-    __ movq(rdx, V8_UINT64_C(0x0000000000002808));
+    __ movq(rdx, uint64_t{0x0000000000002808});
 
     __ incq(rax);
     __ bextrq(r8, rcx, rdx);
-    __ movq(r9, V8_UINT64_C(0x0000003344556677));  // expected result
+    __ movq(r9, uint64_t{0x0000003344556677});  // expected result
     __ cmpq(r8, r9);
     __ j(not_equal, &exit);
 
     __ incq(rax);
     __ bextrq(r8, Operand(rsp, 0), rdx);
-    __ movq(r9, V8_UINT64_C(0x0000003344556677));  // expected result
+    __ movq(r9, uint64_t{0x0000003344556677});  // expected result
     __ cmpq(r8, r9);
     __ j(not_equal, &exit);
 
     __ incq(rax);
     __ bextrl(r8, rcx, rdx);
-    __ movq(r9, V8_UINT64_C(0x0000000000556677));  // expected result
+    __ movq(r9, uint64_t{0x0000000000556677});  // expected result
     __ cmpq(r8, r9);
     __ j(not_equal, &exit);
 
     __ incq(rax);
     __ bextrl(r8, Operand(rsp, 0), rdx);
-    __ movq(r9, V8_UINT64_C(0x0000000000556677));  // expected result
+    __ movq(r9, uint64_t{0x0000000000556677});  // expected result
     __ cmpq(r8, r9);
     __ j(not_equal, &exit);
 
     // blsi
     __ incq(rax);
     __ blsiq(r8, rcx);
-    __ movq(r9, V8_UINT64_C(0x0000000000000008));  // expected result
+    __ movq(r9, uint64_t{0x0000000000000008});  // expected result
     __ cmpq(r8, r9);
     __ j(not_equal, &exit);
 
     __ incq(rax);
     __ blsiq(r8, Operand(rsp, 0));
-    __ movq(r9, V8_UINT64_C(0x0000000000000008));  // expected result
+    __ movq(r9, uint64_t{0x0000000000000008});  // expected result
     __ cmpq(r8, r9);
     __ j(not_equal, &exit);
 
     __ incq(rax);
     __ blsil(r8, rcx);
-    __ movq(r9, V8_UINT64_C(0x0000000000000008));  // expected result
+    __ movq(r9, uint64_t{0x0000000000000008});  // expected result
     __ cmpq(r8, r9);
     __ j(not_equal, &exit);
 
     __ incq(rax);
     __ blsil(r8, Operand(rsp, 0));
-    __ movq(r9, V8_UINT64_C(0x0000000000000008));  // expected result
+    __ movq(r9, uint64_t{0x0000000000000008});  // expected result
     __ cmpq(r8, r9);
     __ j(not_equal, &exit);
 
     // blsmsk
     __ incq(rax);
     __ blsmskq(r8, rcx);
-    __ movq(r9, V8_UINT64_C(0x000000000000000f));  // expected result
+    __ movq(r9, uint64_t{0x000000000000000f});  // expected result
     __ cmpq(r8, r9);
     __ j(not_equal, &exit);
 
     __ incq(rax);
     __ blsmskq(r8, Operand(rsp, 0));
-    __ movq(r9, V8_UINT64_C(0x000000000000000f));  // expected result
+    __ movq(r9, uint64_t{0x000000000000000f});  // expected result
     __ cmpq(r8, r9);
     __ j(not_equal, &exit);
 
     __ incq(rax);
     __ blsmskl(r8, rcx);
-    __ movq(r9, V8_UINT64_C(0x000000000000000f));  // expected result
+    __ movq(r9, uint64_t{0x000000000000000f});  // expected result
     __ cmpq(r8, r9);
     __ j(not_equal, &exit);
 
     __ incq(rax);
     __ blsmskl(r8, Operand(rsp, 0));
-    __ movq(r9, V8_UINT64_C(0x000000000000000f));  // expected result
+    __ movq(r9, uint64_t{0x000000000000000f});  // expected result
     __ cmpq(r8, r9);
     __ j(not_equal, &exit);
 
     // blsr
     __ incq(rax);
     __ blsrq(r8, rcx);
-    __ movq(r9, V8_UINT64_C(0x1122334455667780));  // expected result
+    __ movq(r9, uint64_t{0x1122334455667780});  // expected result
     __ cmpq(r8, r9);
     __ j(not_equal, &exit);
 
     __ incq(rax);
     __ blsrq(r8, Operand(rsp, 0));
-    __ movq(r9, V8_UINT64_C(0x1122334455667780));  // expected result
+    __ movq(r9, uint64_t{0x1122334455667780});  // expected result
     __ cmpq(r8, r9);
     __ j(not_equal, &exit);
 
     __ incq(rax);
     __ blsrl(r8, rcx);
-    __ movq(r9, V8_UINT64_C(0x0000000055667780));  // expected result
+    __ movq(r9, uint64_t{0x0000000055667780});  // expected result
     __ cmpq(r8, r9);
     __ j(not_equal, &exit);
 
     __ incq(rax);
     __ blsrl(r8, Operand(rsp, 0));
-    __ movq(r9, V8_UINT64_C(0x0000000055667780));  // expected result
+    __ movq(r9, uint64_t{0x0000000055667780});  // expected result
     __ cmpq(r8, r9);
     __ j(not_equal, &exit);
 
     // tzcnt
     __ incq(rax);
     __ tzcntq(r8, rcx);
-    __ movq(r9, V8_UINT64_C(0x0000000000000003));  // expected result
+    __ movq(r9, uint64_t{0x0000000000000003});  // expected result
     __ cmpq(r8, r9);
     __ j(not_equal, &exit);
 
     __ incq(rax);
     __ tzcntq(r8, Operand(rsp, 0));
-    __ movq(r9, V8_UINT64_C(0x0000000000000003));  // expected result
+    __ movq(r9, uint64_t{0x0000000000000003});  // expected result
     __ cmpq(r8, r9);
     __ j(not_equal, &exit);
 
     __ incq(rax);
     __ tzcntl(r8, rcx);
-    __ movq(r9, V8_UINT64_C(0x0000000000000003));  // expected result
+    __ movq(r9, uint64_t{0x0000000000000003});  // expected result
     __ cmpq(r8, r9);
     __ j(not_equal, &exit);
 
     __ incq(rax);
     __ tzcntl(r8, Operand(rsp, 0));
-    __ movq(r9, V8_UINT64_C(0x0000000000000003));  // expected result
+    __ movq(r9, uint64_t{0x0000000000000003});  // expected result
     __ cmpq(r8, r9);
     __ j(not_equal, &exit);
 
@@ -1965,30 +1965,30 @@ TEST(AssemblerX64LZCNT) {
     CpuFeatureScope fscope(&masm, LZCNT);
     Label exit;
 
-    __ movq(rcx, V8_UINT64_C(0x1122334455667788));  // source operand
+    __ movq(rcx, uint64_t{0x1122334455667788});     // source operand
     __ pushq(rcx);                                  // For memory operand
 
     __ movl(rax, Immediate(1));  // Test number
     __ lzcntq(r8, rcx);
-    __ movq(r9, V8_UINT64_C(0x0000000000000003));  // expected result
+    __ movq(r9, uint64_t{0x0000000000000003});  // expected result
     __ cmpq(r8, r9);
     __ j(not_equal, &exit);
 
     __ incq(rax);
     __ lzcntq(r8, Operand(rsp, 0));
-    __ movq(r9, V8_UINT64_C(0x0000000000000003));  // expected result
+    __ movq(r9, uint64_t{0x0000000000000003});  // expected result
     __ cmpq(r8, r9);
     __ j(not_equal, &exit);
 
     __ incq(rax);
     __ lzcntl(r8, rcx);
-    __ movq(r9, V8_UINT64_C(0x0000000000000001));  // expected result
+    __ movq(r9, uint64_t{0x0000000000000001});  // expected result
     __ cmpq(r8, r9);
     __ j(not_equal, &exit);
 
     __ incq(rax);
     __ lzcntl(r8, Operand(rsp, 0));
-    __ movq(r9, V8_UINT64_C(0x0000000000000001));  // expected result
+    __ movq(r9, uint64_t{0x0000000000000001});  // expected result
     __ cmpq(r8, r9);
     __ j(not_equal, &exit);
 
@@ -2025,30 +2025,30 @@ TEST(AssemblerX64POPCNT) {
     CpuFeatureScope fscope(&masm, POPCNT);
     Label exit;
 
-    __ movq(rcx, V8_UINT64_C(0x1111111111111100));  // source operand
+    __ movq(rcx, uint64_t{0x1111111111111100});     // source operand
     __ pushq(rcx);                                  // For memory operand
 
     __ movl(rax, Immediate(1));  // Test number
     __ popcntq(r8, rcx);
-    __ movq(r9, V8_UINT64_C(0x000000000000000e));  // expected result
+    __ movq(r9, uint64_t{0x000000000000000e});  // expected result
     __ cmpq(r8, r9);
     __ j(not_equal, &exit);
 
     __ incq(rax);
     __ popcntq(r8, Operand(rsp, 0));
-    __ movq(r9, V8_UINT64_C(0x000000000000000e));  // expected result
+    __ movq(r9, uint64_t{0x000000000000000e});  // expected result
     __ cmpq(r8, r9);
     __ j(not_equal, &exit);
 
     __ incq(rax);
     __ popcntl(r8, rcx);
-    __ movq(r9, V8_UINT64_C(0x0000000000000006));  // expected result
+    __ movq(r9, uint64_t{0x0000000000000006});  // expected result
     __ cmpq(r8, r9);
     __ j(not_equal, &exit);
 
     __ incq(rax);
     __ popcntl(r8, Operand(rsp, 0));
-    __ movq(r9, V8_UINT64_C(0x0000000000000006));  // expected result
+    __ movq(r9, uint64_t{0x0000000000000006});  // expected result
     __ cmpq(r8, r9);
     __ j(not_equal, &exit);
 
@@ -2085,232 +2085,232 @@ TEST(AssemblerX64BMI2) {
     CpuFeatureScope fscope(&masm, BMI2);
     Label exit;
     __ pushq(rbx);                                  // save rbx
-    __ movq(rcx, V8_UINT64_C(0x1122334455667788));  // source operand
+    __ movq(rcx, uint64_t{0x1122334455667788});     // source operand
     __ pushq(rcx);                                  // For memory operand
 
     // bzhi
-    __ movq(rdx, V8_UINT64_C(0x0000000000000009));
+    __ movq(rdx, uint64_t{0x0000000000000009});
 
     __ movl(rax, Immediate(1));  // Test number
     __ bzhiq(r8, rcx, rdx);
-    __ movq(r9, V8_UINT64_C(0x0000000000000188));  // expected result
+    __ movq(r9, uint64_t{0x0000000000000188});  // expected result
     __ cmpq(r8, r9);
     __ j(not_equal, &exit);
 
     __ incq(rax);
     __ bzhiq(r8, Operand(rsp, 0), rdx);
-    __ movq(r9, V8_UINT64_C(0x0000000000000188));  // expected result
+    __ movq(r9, uint64_t{0x0000000000000188});  // expected result
     __ cmpq(r8, r9);
     __ j(not_equal, &exit);
 
     __ incq(rax);
     __ bzhil(r8, rcx, rdx);
-    __ movq(r9, V8_UINT64_C(0x0000000000000188));  // expected result
+    __ movq(r9, uint64_t{0x0000000000000188});  // expected result
     __ cmpq(r8, r9);
     __ j(not_equal, &exit);
 
     __ incq(rax);
     __ bzhil(r8, Operand(rsp, 0), rdx);
-    __ movq(r9, V8_UINT64_C(0x0000000000000188));  // expected result
+    __ movq(r9, uint64_t{0x0000000000000188});  // expected result
     __ cmpq(r8, r9);
     __ j(not_equal, &exit);
 
     // mulx
-    __ movq(rdx, V8_UINT64_C(0x0000000000001000));
+    __ movq(rdx, uint64_t{0x0000000000001000});
 
     __ incq(rax);
     __ mulxq(r8, r9, rcx);
-    __ movq(rbx, V8_UINT64_C(0x0000000000000112));  // expected result
+    __ movq(rbx, uint64_t{0x0000000000000112});  // expected result
     __ cmpq(r8, rbx);
     __ j(not_equal, &exit);
-    __ movq(rbx, V8_UINT64_C(0x2334455667788000));  // expected result
+    __ movq(rbx, uint64_t{0x2334455667788000});  // expected result
     __ cmpq(r9, rbx);
     __ j(not_equal, &exit);
 
     __ incq(rax);
     __ mulxq(r8, r9, Operand(rsp, 0));
-    __ movq(rbx, V8_UINT64_C(0x0000000000000112));  // expected result
+    __ movq(rbx, uint64_t{0x0000000000000112});  // expected result
     __ cmpq(r8, rbx);
     __ j(not_equal, &exit);
-    __ movq(rbx, V8_UINT64_C(0x2334455667788000));  // expected result
+    __ movq(rbx, uint64_t{0x2334455667788000});  // expected result
     __ cmpq(r9, rbx);
     __ j(not_equal, &exit);
 
     __ incq(rax);
     __ mulxl(r8, r9, rcx);
-    __ movq(rbx, V8_UINT64_C(0x0000000000000556));  // expected result
+    __ movq(rbx, uint64_t{0x0000000000000556});  // expected result
     __ cmpq(r8, rbx);
     __ j(not_equal, &exit);
-    __ movq(rbx, V8_UINT64_C(0x0000000067788000));  // expected result
+    __ movq(rbx, uint64_t{0x0000000067788000});  // expected result
     __ cmpq(r9, rbx);
     __ j(not_equal, &exit);
 
     __ incq(rax);
     __ mulxl(r8, r9, Operand(rsp, 0));
-    __ movq(rbx, V8_UINT64_C(0x0000000000000556));  // expected result
+    __ movq(rbx, uint64_t{0x0000000000000556});  // expected result
     __ cmpq(r8, rbx);
     __ j(not_equal, &exit);
-    __ movq(rbx, V8_UINT64_C(0x0000000067788000));  // expected result
+    __ movq(rbx, uint64_t{0x0000000067788000});  // expected result
     __ cmpq(r9, rbx);
     __ j(not_equal, &exit);
 
     // pdep
-    __ movq(rdx, V8_UINT64_C(0xfffffffffffffff0));
+    __ movq(rdx, uint64_t{0xfffffffffffffff0});
 
     __ incq(rax);
     __ pdepq(r8, rdx, rcx);
-    __ movq(r9, V8_UINT64_C(0x1122334455667400));  // expected result
+    __ movq(r9, uint64_t{0x1122334455667400});  // expected result
     __ cmpq(r8, r9);
     __ j(not_equal, &exit);
 
     __ incq(rax);
     __ pdepq(r8, rdx, Operand(rsp, 0));
-    __ movq(r9, V8_UINT64_C(0x1122334455667400));  // expected result
+    __ movq(r9, uint64_t{0x1122334455667400});  // expected result
     __ cmpq(r8, r9);
     __ j(not_equal, &exit);
 
     __ incq(rax);
     __ pdepl(r8, rdx, rcx);
-    __ movq(r9, V8_UINT64_C(0x0000000055667400));  // expected result
+    __ movq(r9, uint64_t{0x0000000055667400});  // expected result
     __ cmpq(r8, r9);
     __ j(not_equal, &exit);
 
     __ incq(rax);
     __ pdepl(r8, rdx, Operand(rsp, 0));
-    __ movq(r9, V8_UINT64_C(0x0000000055667400));  // expected result
+    __ movq(r9, uint64_t{0x0000000055667400});  // expected result
     __ cmpq(r8, r9);
     __ j(not_equal, &exit);
 
     // pext
-    __ movq(rdx, V8_UINT64_C(0xfffffffffffffff0));
+    __ movq(rdx, uint64_t{0xfffffffffffffff0});
 
     __ incq(rax);
     __ pextq(r8, rdx, rcx);
-    __ movq(r9, V8_UINT64_C(0x0000000003fffffe));  // expected result
+    __ movq(r9, uint64_t{0x0000000003fffffe});  // expected result
     __ cmpq(r8, r9);
     __ j(not_equal, &exit);
 
     __ incq(rax);
     __ pextq(r8, rdx, Operand(rsp, 0));
-    __ movq(r9, V8_UINT64_C(0x0000000003fffffe));  // expected result
+    __ movq(r9, uint64_t{0x0000000003fffffe});  // expected result
     __ cmpq(r8, r9);
     __ j(not_equal, &exit);
 
     __ incq(rax);
     __ pextl(r8, rdx, rcx);
-    __ movq(r9, V8_UINT64_C(0x000000000000fffe));  // expected result
+    __ movq(r9, uint64_t{0x000000000000fffe});  // expected result
     __ cmpq(r8, r9);
     __ j(not_equal, &exit);
 
     __ incq(rax);
     __ pextl(r8, rdx, Operand(rsp, 0));
-    __ movq(r9, V8_UINT64_C(0x000000000000fffe));  // expected result
+    __ movq(r9, uint64_t{0x000000000000fffe});  // expected result
     __ cmpq(r8, r9);
     __ j(not_equal, &exit);
 
     // sarx
-    __ movq(rdx, V8_UINT64_C(0x0000000000000004));
+    __ movq(rdx, uint64_t{0x0000000000000004});
 
     __ incq(rax);
     __ sarxq(r8, rcx, rdx);
-    __ movq(r9, V8_UINT64_C(0x0112233445566778));  // expected result
+    __ movq(r9, uint64_t{0x0112233445566778});  // expected result
     __ cmpq(r8, r9);
     __ j(not_equal, &exit);
 
     __ incq(rax);
     __ sarxq(r8, Operand(rsp, 0), rdx);
-    __ movq(r9, V8_UINT64_C(0x0112233445566778));  // expected result
+    __ movq(r9, uint64_t{0x0112233445566778});  // expected result
     __ cmpq(r8, r9);
     __ j(not_equal, &exit);
 
     __ incq(rax);
     __ sarxl(r8, rcx, rdx);
-    __ movq(r9, V8_UINT64_C(0x0000000005566778));  // expected result
+    __ movq(r9, uint64_t{0x0000000005566778});  // expected result
     __ cmpq(r8, r9);
     __ j(not_equal, &exit);
 
     __ incq(rax);
     __ sarxl(r8, Operand(rsp, 0), rdx);
-    __ movq(r9, V8_UINT64_C(0x0000000005566778));  // expected result
+    __ movq(r9, uint64_t{0x0000000005566778});  // expected result
     __ cmpq(r8, r9);
     __ j(not_equal, &exit);
 
     // shlx
-    __ movq(rdx, V8_UINT64_C(0x0000000000000004));
+    __ movq(rdx, uint64_t{0x0000000000000004});
 
     __ incq(rax);
     __ shlxq(r8, rcx, rdx);
-    __ movq(r9, V8_UINT64_C(0x1223344556677880));  // expected result
+    __ movq(r9, uint64_t{0x1223344556677880});  // expected result
     __ cmpq(r8, r9);
     __ j(not_equal, &exit);
 
     __ incq(rax);
     __ shlxq(r8, Operand(rsp, 0), rdx);
-    __ movq(r9, V8_UINT64_C(0x1223344556677880));  // expected result
+    __ movq(r9, uint64_t{0x1223344556677880});  // expected result
     __ cmpq(r8, r9);
     __ j(not_equal, &exit);
 
     __ incq(rax);
     __ shlxl(r8, rcx, rdx);
-    __ movq(r9, V8_UINT64_C(0x0000000056677880));  // expected result
+    __ movq(r9, uint64_t{0x0000000056677880});  // expected result
     __ cmpq(r8, r9);
     __ j(not_equal, &exit);
 
     __ incq(rax);
     __ shlxl(r8, Operand(rsp, 0), rdx);
-    __ movq(r9, V8_UINT64_C(0x0000000056677880));  // expected result
+    __ movq(r9, uint64_t{0x0000000056677880});  // expected result
     __ cmpq(r8, r9);
     __ j(not_equal, &exit);
 
     // shrx
-    __ movq(rdx, V8_UINT64_C(0x0000000000000004));
+    __ movq(rdx, uint64_t{0x0000000000000004});
 
     __ incq(rax);
     __ shrxq(r8, rcx, rdx);
-    __ movq(r9, V8_UINT64_C(0x0112233445566778));  // expected result
+    __ movq(r9, uint64_t{0x0112233445566778});  // expected result
     __ cmpq(r8, r9);
     __ j(not_equal, &exit);
 
     __ incq(rax);
     __ shrxq(r8, Operand(rsp, 0), rdx);
-    __ movq(r9, V8_UINT64_C(0x0112233445566778));  // expected result
+    __ movq(r9, uint64_t{0x0112233445566778});  // expected result
     __ cmpq(r8, r9);
     __ j(not_equal, &exit);
 
     __ incq(rax);
     __ shrxl(r8, rcx, rdx);
-    __ movq(r9, V8_UINT64_C(0x0000000005566778));  // expected result
+    __ movq(r9, uint64_t{0x0000000005566778});  // expected result
     __ cmpq(r8, r9);
     __ j(not_equal, &exit);
 
     __ incq(rax);
     __ shrxl(r8, Operand(rsp, 0), rdx);
-    __ movq(r9, V8_UINT64_C(0x0000000005566778));  // expected result
+    __ movq(r9, uint64_t{0x0000000005566778});  // expected result
     __ cmpq(r8, r9);
     __ j(not_equal, &exit);
 
     // rorx
     __ incq(rax);
     __ rorxq(r8, rcx, 0x4);
-    __ movq(r9, V8_UINT64_C(0x8112233445566778));  // expected result
+    __ movq(r9, uint64_t{0x8112233445566778});  // expected result
     __ cmpq(r8, r9);
     __ j(not_equal, &exit);
 
     __ incq(rax);
     __ rorxq(r8, Operand(rsp, 0), 0x4);
-    __ movq(r9, V8_UINT64_C(0x8112233445566778));  // expected result
+    __ movq(r9, uint64_t{0x8112233445566778});  // expected result
     __ cmpq(r8, r9);
     __ j(not_equal, &exit);
 
     __ incq(rax);
     __ rorxl(r8, rcx, 0x4);
-    __ movq(r9, V8_UINT64_C(0x0000000085566778));  // expected result
+    __ movq(r9, uint64_t{0x0000000085566778});  // expected result
     __ cmpq(r8, r9);
     __ j(not_equal, &exit);
 
     __ incq(rax);
     __ rorxl(r8, Operand(rsp, 0), 0x4);
-    __ movq(r9, V8_UINT64_C(0x0000000085566778));  // expected result
+    __ movq(r9, uint64_t{0x0000000085566778});  // expected result
     __ cmpq(r8, r9);
     __ j(not_equal, &exit);
 
@@ -2444,8 +2444,8 @@ TEST(AssemblerX64PslldWithXmm15) {
 
   CodeDesc desc;
   masm.GetCode(CcTest::i_isolate(), &desc);
-  uint64_t result = FUNCTION_CAST<F5>(buffer)(V8_UINT64_C(0x1122334455667788));
-  CHECK_EQ(V8_UINT64_C(0x22446688aaccef10), result);
+  uint64_t result = FUNCTION_CAST<F5>(buffer)(uint64_t{0x1122334455667788});
+  CHECK_EQ(uint64_t{0x22446688aaccef10}, result);
 }
 
 typedef float (*F9)(float x, float y);

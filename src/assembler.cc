@@ -131,14 +131,14 @@ static struct V8_ALIGNED(16) {
 static struct V8_ALIGNED(16) {
   uint64_t a;
   uint64_t b;
-} double_absolute_constant = {V8_UINT64_C(0x7FFFFFFFFFFFFFFF),
-                              V8_UINT64_C(0x7FFFFFFFFFFFFFFF)};
+} double_absolute_constant = {uint64_t{0x7FFFFFFFFFFFFFFF},
+                              uint64_t{0x7FFFFFFFFFFFFFFF}};
 
 static struct V8_ALIGNED(16) {
   uint64_t a;
   uint64_t b;
-} double_negate_constant = {V8_UINT64_C(0x8000000000000000),
-                            V8_UINT64_C(0x8000000000000000)};
+} double_negate_constant = {uint64_t{0x8000000000000000},
+                            uint64_t{0x8000000000000000}};
 
 const char* const RelocInfo::kFillerCommentString = "DEOPTIMIZATION PADDING";
 

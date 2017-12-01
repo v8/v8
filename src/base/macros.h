@@ -214,7 +214,6 @@ struct Use {
 // than defining __STDC_CONSTANT_MACROS before including <stdint.h>, and it
 // works on compilers that don't have it (like MSVC).
 #if V8_CC_MSVC
-# define V8_UINT64_C(x)   (x ## UI64)
 # define V8_INT64_C(x)    (x ## I64)
 # if V8_HOST_ARCH_64_BIT
 #  define V8_INTPTR_C(x)  (x ## I64)
@@ -224,22 +223,18 @@ struct Use {
 #  define V8_PTR_PREFIX   ""
 # endif  // V8_HOST_ARCH_64_BIT
 #elif V8_CC_MINGW64
-# define V8_UINT64_C(x)   (x ## ULL)
 # define V8_INT64_C(x)    (x ## LL)
 # define V8_INTPTR_C(x)   (x ## LL)
 # define V8_PTR_PREFIX    "I64"
 #elif V8_HOST_ARCH_64_BIT
 # if V8_OS_MACOSX || V8_OS_OPENBSD
-#  define V8_UINT64_C(x)   (x ## ULL)
 #  define V8_INT64_C(x)    (x ## LL)
 # else
-#  define V8_UINT64_C(x)   (x ## UL)
 #  define V8_INT64_C(x)    (x ## L)
 # endif
 # define V8_INTPTR_C(x)   (x ## L)
 # define V8_PTR_PREFIX    "l"
 #else
-# define V8_UINT64_C(x)   (x ## ULL)
 # define V8_INT64_C(x)    (x ## LL)
 # define V8_INTPTR_C(x)   (x)
 #if V8_OS_AIX

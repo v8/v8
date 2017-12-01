@@ -133,16 +133,16 @@ TEST(Bits, IsPowerOfTwo32) {
 
 
 TEST(Bits, IsPowerOfTwo64) {
-  EXPECT_FALSE(IsPowerOfTwo(V8_UINT64_C(0)));
+  EXPECT_FALSE(IsPowerOfTwo(uint64_t{0}));
   TRACED_FORRANGE(uint32_t, shift, 0, 63) {
-    EXPECT_TRUE(IsPowerOfTwo(V8_UINT64_C(1) << shift));
-    EXPECT_FALSE(IsPowerOfTwo((V8_UINT64_C(1) << shift) + 5U));
-    EXPECT_FALSE(IsPowerOfTwo(~(V8_UINT64_C(1) << shift)));
+    EXPECT_TRUE(IsPowerOfTwo(uint64_t{1} << shift));
+    EXPECT_FALSE(IsPowerOfTwo((uint64_t{1} << shift) + 5U));
+    EXPECT_FALSE(IsPowerOfTwo(~(uint64_t{1} << shift)));
   }
   TRACED_FORRANGE(uint32_t, shift, 2, 63) {
-    EXPECT_FALSE(IsPowerOfTwo((V8_UINT64_C(1) << shift) - 1U));
+    EXPECT_FALSE(IsPowerOfTwo((uint64_t{1} << shift) - 1U));
   }
-  EXPECT_FALSE(IsPowerOfTwo(V8_UINT64_C(0xffffffffffffffff)));
+  EXPECT_FALSE(IsPowerOfTwo(uint64_t{0xffffffffffffffff}));
 }
 
 
@@ -206,7 +206,7 @@ TEST(Bits, RotateRight64) {
   }
   EXPECT_EQ(1u, RotateRight64(1, 0));
   EXPECT_EQ(1u, RotateRight64(2, 1));
-  EXPECT_EQ(V8_UINT64_C(0x8000000000000000), RotateRight64(1, 1));
+  EXPECT_EQ(uint64_t{0x8000000000000000}, RotateRight64(1, 1));
 }
 
 

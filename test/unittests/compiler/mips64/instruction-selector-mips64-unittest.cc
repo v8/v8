@@ -445,7 +445,7 @@ TEST_F(InstructionSelectorTest, Word64ShrWithWord64AndWithImmediate) {
       uint64_t jnk = rng()->NextInt64();
       jnk = (lsb > 0) ? (jnk >> (64 - lsb)) : 0;
       uint64_t msk =
-          ((V8_UINT64_C(0xffffffffffffffff) >> (64 - width)) << lsb) | jnk;
+          ((uint64_t{0xffffffffffffffff} >> (64 - width)) << lsb) | jnk;
       StreamBuilder m(this, MachineType::Int64(), MachineType::Int64());
       m.Return(m.Word64Shr(m.Word64And(m.Parameter(0), m.Int64Constant(msk)),
                            m.Int64Constant(shift)));
@@ -463,7 +463,7 @@ TEST_F(InstructionSelectorTest, Word64ShrWithWord64AndWithImmediate) {
       uint64_t jnk = rng()->NextInt64();
       jnk = (lsb > 0) ? (jnk >> (64 - lsb)) : 0;
       uint64_t msk =
-          ((V8_UINT64_C(0xffffffffffffffff) >> (64 - width)) << lsb) | jnk;
+          ((uint64_t{0xffffffffffffffff} >> (64 - width)) << lsb) | jnk;
       StreamBuilder m(this, MachineType::Int64(), MachineType::Int64());
       m.Return(m.Word64Shr(m.Word64And(m.Int64Constant(msk), m.Parameter(0)),
                            m.Int64Constant(shift)));
@@ -690,7 +690,7 @@ TEST_F(InstructionSelectorTest, Word64AndWithImmediateWithWord64Shr) {
   TRACED_FORRANGE(int64_t, shift, -64, 127) {
     int64_t lsb = shift & 0x3f;
     TRACED_FORRANGE(int64_t, width, 1, 63) {
-      uint64_t msk = (V8_UINT64_C(1) << width) - 1;
+      uint64_t msk = (uint64_t{1} << width) - 1;
       StreamBuilder m(this, MachineType::Int64(), MachineType::Int64());
       m.Return(m.Word64And(m.Word64Shr(m.Parameter(0), m.Int64Constant(shift)),
                            m.Int64Constant(msk)));
@@ -706,7 +706,7 @@ TEST_F(InstructionSelectorTest, Word64AndWithImmediateWithWord64Shr) {
   TRACED_FORRANGE(int64_t, shift, -64, 127) {
     int64_t lsb = shift & 0x3f;
     TRACED_FORRANGE(int64_t, width, 1, 63) {
-      uint64_t msk = (V8_UINT64_C(1) << width) - 1;
+      uint64_t msk = (uint64_t{1} << width) - 1;
       StreamBuilder m(this, MachineType::Int64(), MachineType::Int64());
       m.Return(
           m.Word64And(m.Int64Constant(msk),
