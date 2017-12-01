@@ -78,7 +78,7 @@
 
   ##############################################################################
   # No need to waste time for this test.
-  'd8-performance-now': [PASS, NO_VARIANTS],
+  'd8/d8-performance-now': [PASS, NO_VARIANTS],
   'regress/regress-crbug-491062': [PASS, NO_VARIANTS],
 
   # Issue 488: this test sometimes times out.
@@ -109,7 +109,7 @@
   # we cannot run several variants of d8-os simultaneously, since all of them
   # get the same random seed and would generate the same directory name. Besides
   # that, it doesn't make sense to run several variants of d8-os anyways.
-  'd8-os': [PASS, NO_VARIANTS, ['isolates or arch == android_arm or arch == android_arm64 or arch == android_ia32', SKIP]],
+  'd8/d8-os': [PASS, NO_VARIANTS, ['isolates or arch == android_arm or arch == android_arm64 or arch == android_ia32', SKIP]],
   'tools/tickprocessor': [PASS, NO_VARIANTS, ['arch == android_arm or arch == android_arm64 or arch == android_ia32', SKIP]],
   'tools/dumpcpp': [PASS, NO_VARIANTS, ['arch == android_arm or arch == android_arm64 or arch == android_ia32', SKIP]],
 
@@ -205,7 +205,7 @@
   'array-constructor-feedback': [SKIP],
   'array-feedback': [SKIP],
   'array-literal-feedback': [SKIP],
-  'd8-performance-now': [SKIP],
+  'd8/d8-performance-now': [SKIP],
   'elements-kind': [SKIP],
   'elements-transition-hoisting': [SKIP],
   'fast-prototype': [SKIP],
@@ -636,8 +636,8 @@
 ['predictable == True', {
 
   # Skip tests that are known to be non-deterministic.
-  'd8-worker-sharedarraybuffer': [SKIP],
-  'd8-os': [SKIP],
+  'd8/d8-worker-sharedarraybuffer': [SKIP],
+  'd8/d8-os': [SKIP],
 }],  # 'predictable == True'
 
 ##############################################################################
