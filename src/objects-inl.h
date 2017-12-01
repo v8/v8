@@ -34,6 +34,7 @@
 #include "src/objects.h"
 #include "src/objects/arguments-inl.h"
 #include "src/objects/bigint.h"
+#include "src/objects/fixed-array-inl.h"
 #include "src/objects/hash-table-inl.h"
 #include "src/objects/hash-table.h"
 #include "src/objects/js-array-inl.h"
@@ -77,15 +78,12 @@ int PropertyDetails::field_width_in_words() const {
 TYPE_CHECKER(BigInt, BIGINT_TYPE)
 TYPE_CHECKER(BreakPoint, TUPLE2_TYPE)
 TYPE_CHECKER(BreakPointInfo, TUPLE2_TYPE)
-TYPE_CHECKER(ByteArray, BYTE_ARRAY_TYPE)
 TYPE_CHECKER(CallHandlerInfo, TUPLE3_TYPE)
 TYPE_CHECKER(Cell, CELL_TYPE)
 TYPE_CHECKER(ConstantElementsPair, TUPLE2_TYPE)
 TYPE_CHECKER(CoverageInfo, FIXED_ARRAY_TYPE)
 TYPE_CHECKER(DescriptorArray, DESCRIPTOR_ARRAY_TYPE)
 TYPE_CHECKER(FeedbackVector, FEEDBACK_VECTOR_TYPE)
-TYPE_CHECKER(FixedArrayExact, FIXED_ARRAY_TYPE)
-TYPE_CHECKER(FixedDoubleArray, FIXED_DOUBLE_ARRAY_TYPE)
 TYPE_CHECKER(Foreign, FOREIGN_TYPE)
 TYPE_CHECKER(FreeSpace, FREE_SPACE_TYPE)
 TYPE_CHECKER(HashTable, HASH_TABLE_TYPE)
@@ -126,7 +124,6 @@ TYPE_CHECKER(WasmMemoryObject, WASM_MEMORY_TYPE)
 TYPE_CHECKER(WasmModuleObject, WASM_MODULE_TYPE)
 TYPE_CHECKER(WasmTableObject, WASM_TABLE_TYPE)
 TYPE_CHECKER(WeakCell, WEAK_CELL_TYPE)
-TYPE_CHECKER(WeakFixedArray, FIXED_ARRAY_TYPE)
 
 #define TYPED_ARRAY_TYPE_CHECKER(Type, type, TYPE, ctype, size) \
   TYPE_CHECKER(Fixed##Type##Array, FIXED_##TYPE##_ARRAY_TYPE)
@@ -548,21 +545,15 @@ CAST_ACCESSOR(AccessorInfo)
 CAST_ACCESSOR(AccessorPair)
 CAST_ACCESSOR(AllocationMemento)
 CAST_ACCESSOR(AllocationSite)
-CAST_ACCESSOR(ArrayList)
 CAST_ACCESSOR(AsyncGeneratorRequest)
 CAST_ACCESSOR(BigInt)
 CAST_ACCESSOR(BoilerplateDescription)
-CAST_ACCESSOR(ByteArray)
 CAST_ACCESSOR(CallHandlerInfo)
 CAST_ACCESSOR(Cell)
 CAST_ACCESSOR(ConstantElementsPair)
 CAST_ACCESSOR(ContextExtension)
 CAST_ACCESSOR(DescriptorArray)
 CAST_ACCESSOR(EnumCache)
-CAST_ACCESSOR(FixedArray)
-CAST_ACCESSOR(FixedArrayBase)
-CAST_ACCESSOR(FixedDoubleArray)
-CAST_ACCESSOR(FixedTypedArrayBase)
 CAST_ACCESSOR(Foreign)
 CAST_ACCESSOR(FunctionTemplateInfo)
 CAST_ACCESSOR(GlobalDictionary)
@@ -619,14 +610,12 @@ CAST_ACCESSOR(StringSet)
 CAST_ACCESSOR(StringTable)
 CAST_ACCESSOR(Struct)
 CAST_ACCESSOR(TemplateInfo)
-CAST_ACCESSOR(TemplateList)
 CAST_ACCESSOR(TemplateMap)
 CAST_ACCESSOR(TemplateObjectDescription)
 CAST_ACCESSOR(Tuple2)
 CAST_ACCESSOR(Tuple3)
 CAST_ACCESSOR(TypeFeedbackInfo)
 CAST_ACCESSOR(WeakCell)
-CAST_ACCESSOR(WeakFixedArray)
 CAST_ACCESSOR(WeakHashTable)
 
 bool Object::HasValidElements() {
@@ -1093,22 +1082,6 @@ inline Object* OrderedHashMap::ValueAt(int entry) {
 }
 
 ACCESSORS(JSReceiver, raw_properties_or_hash, Object, kPropertiesOrHashOffset)
-
-Object** FixedArray::GetFirstElementAddress() {
-  return reinterpret_cast<Object**>(FIELD_ADDR(this, OffsetOfElementAt(0)));
-}
-
-
-bool FixedArray::ContainsOnlySmisOrHoles() {
-  Object* the_hole = GetHeap()->the_hole_value();
-  Object** current = GetFirstElementAddress();
-  for (int i = 0; i < length(); ++i) {
-    Object* candidate = *current++;
-    if (!candidate->IsSmi() && candidate != the_hole) return false;
-  }
-  return true;
-}
-
 
 FixedArrayBase* JSObject::elements() const {
   Object* array = READ_FIELD(this, kElementsOffset);
@@ -1696,55 +1669,10 @@ void Object::VerifyApiCallResultType() {
 #endif  // DEBUG
 }
 
-
-Object* FixedArray::get(int index) const {
-  SLOW_DCHECK(index >= 0 && index < this->length());
-  return RELAXED_READ_FIELD(this, kHeaderSize + index * kPointerSize);
-}
-
 Object* PropertyArray::get(int index) const {
   DCHECK_GE(index, 0);
   DCHECK_LE(index, this->length());
   return RELAXED_READ_FIELD(this, kHeaderSize + index * kPointerSize);
-}
-
-Handle<Object> FixedArray::get(FixedArray* array, int index, Isolate* isolate) {
-  return handle(array->get(index), isolate);
-}
-
-template <class T>
-MaybeHandle<T> FixedArray::GetValue(Isolate* isolate, int index) const {
-  Object* obj = get(index);
-  if (obj->IsUndefined(isolate)) return MaybeHandle<T>();
-  return Handle<T>(T::cast(obj), isolate);
-}
-
-template <class T>
-Handle<T> FixedArray::GetValueChecked(Isolate* isolate, int index) const {
-  Object* obj = get(index);
-  CHECK(!obj->IsUndefined(isolate));
-  return Handle<T>(T::cast(obj), isolate);
-}
-bool FixedArray::is_the_hole(Isolate* isolate, int index) {
-  return get(index)->IsTheHole(isolate);
-}
-
-void FixedArray::set(int index, Smi* value) {
-  DCHECK_NE(map(), GetHeap()->fixed_cow_array_map());
-  DCHECK_LT(index, this->length());
-  DCHECK(reinterpret_cast<Object*>(value)->IsSmi());
-  int offset = kHeaderSize + index * kPointerSize;
-  RELAXED_WRITE_FIELD(this, offset, value);
-}
-
-void FixedArray::set(int index, Object* value) {
-  DCHECK_NE(GetHeap()->fixed_cow_array_map(), map());
-  DCHECK(IsFixedArray());
-  DCHECK_GE(index, 0);
-  DCHECK_LT(index, this->length());
-  int offset = kHeaderSize + index * kPointerSize;
-  RELAXED_WRITE_FIELD(this, offset, value);
-  WRITE_BARRIER(GetHeap(), this, offset, value);
 }
 
 void PropertyArray::set(int index, Object* value) {
@@ -1754,154 +1682,6 @@ void PropertyArray::set(int index, Object* value) {
   int offset = kHeaderSize + index * kPointerSize;
   RELAXED_WRITE_FIELD(this, offset, value);
   WRITE_BARRIER(GetHeap(), this, offset, value);
-}
-
-double FixedDoubleArray::get_scalar(int index) {
-  DCHECK(map() != GetHeap()->fixed_cow_array_map() &&
-         map() != GetHeap()->fixed_array_map());
-  DCHECK(index >= 0 && index < this->length());
-  DCHECK(!is_the_hole(index));
-  return READ_DOUBLE_FIELD(this, kHeaderSize + index * kDoubleSize);
-}
-
-
-uint64_t FixedDoubleArray::get_representation(int index) {
-  DCHECK(map() != GetHeap()->fixed_cow_array_map() &&
-         map() != GetHeap()->fixed_array_map());
-  DCHECK(index >= 0 && index < this->length());
-  int offset = kHeaderSize + index * kDoubleSize;
-  return READ_UINT64_FIELD(this, offset);
-}
-
-Handle<Object> FixedDoubleArray::get(FixedDoubleArray* array, int index,
-                                     Isolate* isolate) {
-  if (array->is_the_hole(index)) {
-    return isolate->factory()->the_hole_value();
-  } else {
-    return isolate->factory()->NewNumber(array->get_scalar(index));
-  }
-}
-
-
-void FixedDoubleArray::set(int index, double value) {
-  DCHECK(map() != GetHeap()->fixed_cow_array_map() &&
-         map() != GetHeap()->fixed_array_map());
-  int offset = kHeaderSize + index * kDoubleSize;
-  if (std::isnan(value)) {
-    WRITE_DOUBLE_FIELD(this, offset, std::numeric_limits<double>::quiet_NaN());
-  } else {
-    WRITE_DOUBLE_FIELD(this, offset, value);
-  }
-  DCHECK(!is_the_hole(index));
-}
-
-void FixedDoubleArray::set_the_hole(Isolate* isolate, int index) {
-  set_the_hole(index);
-}
-
-void FixedDoubleArray::set_the_hole(int index) {
-  DCHECK(map() != GetHeap()->fixed_cow_array_map() &&
-         map() != GetHeap()->fixed_array_map());
-  int offset = kHeaderSize + index * kDoubleSize;
-  WRITE_UINT64_FIELD(this, offset, kHoleNanInt64);
-}
-
-bool FixedDoubleArray::is_the_hole(Isolate* isolate, int index) {
-  return is_the_hole(index);
-}
-
-bool FixedDoubleArray::is_the_hole(int index) {
-  return get_representation(index) == kHoleNanInt64;
-}
-
-
-double* FixedDoubleArray::data_start() {
-  return reinterpret_cast<double*>(FIELD_ADDR(this, kHeaderSize));
-}
-
-
-void FixedDoubleArray::FillWithHoles(int from, int to) {
-  for (int i = from; i < to; i++) {
-    set_the_hole(i);
-  }
-}
-
-Object* WeakFixedArray::Get(int index) const {
-  Object* raw = FixedArray::cast(this)->get(index + kFirstIndex);
-  if (raw->IsSmi()) return raw;
-  DCHECK(raw->IsWeakCell());
-  return WeakCell::cast(raw)->value();
-}
-
-
-bool WeakFixedArray::IsEmptySlot(int index) const {
-  DCHECK(index < Length());
-  return Get(index)->IsSmi();
-}
-
-
-void WeakFixedArray::Clear(int index) {
-  FixedArray::cast(this)->set(index + kFirstIndex, Smi::kZero);
-}
-
-
-int WeakFixedArray::Length() const {
-  return FixedArray::cast(this)->length() - kFirstIndex;
-}
-
-
-int WeakFixedArray::last_used_index() const {
-  return Smi::ToInt(FixedArray::cast(this)->get(kLastUsedIndexIndex));
-}
-
-
-void WeakFixedArray::set_last_used_index(int index) {
-  FixedArray::cast(this)->set(kLastUsedIndexIndex, Smi::FromInt(index));
-}
-
-
-template <class T>
-T* WeakFixedArray::Iterator::Next() {
-  if (list_ != nullptr) {
-    // Assert that list did not change during iteration.
-    DCHECK_EQ(last_used_index_, list_->last_used_index());
-    while (index_ < list_->Length()) {
-      Object* item = list_->Get(index_++);
-      if (item != Empty()) return T::cast(item);
-    }
-    list_ = nullptr;
-  }
-  return nullptr;
-}
-
-int ArrayList::Length() const {
-  if (FixedArray::cast(this)->length() == 0) return 0;
-  return Smi::ToInt(FixedArray::cast(this)->get(kLengthIndex));
-}
-
-
-void ArrayList::SetLength(int length) {
-  return FixedArray::cast(this)->set(kLengthIndex, Smi::FromInt(length));
-}
-
-Object* ArrayList::Get(int index) const {
-  return FixedArray::cast(this)->get(kFirstIndex + index);
-}
-
-
-Object** ArrayList::Slot(int index) {
-  return data_start() + kFirstIndex + index;
-}
-
-void ArrayList::Set(int index, Object* obj, WriteBarrierMode mode) {
-  FixedArray::cast(this)->set(kFirstIndex + index, obj, mode);
-}
-
-
-void ArrayList::Clear(int index, Object* undefined) {
-  DCHECK(undefined->IsUndefined(GetIsolate()));
-  FixedArray::cast(this)
-      ->set(kFirstIndex + index, undefined, SKIP_WRITE_BARRIER);
 }
 
 int RegExpMatchInfo::NumberOfCaptureRegisters() {
@@ -1987,17 +1767,6 @@ bool HeapObject::NeedsRehashing() const {
   }
 }
 
-void FixedArray::set(int index,
-                     Object* value,
-                     WriteBarrierMode mode) {
-  DCHECK_NE(map(), GetHeap()->fixed_cow_array_map());
-  DCHECK_GE(index, 0);
-  DCHECK_LT(index, this->length());
-  int offset = kHeaderSize + index * kPointerSize;
-  RELAXED_WRITE_FIELD(this, offset, value);
-  CONDITIONAL_WRITE_BARRIER(GetHeap(), this, offset, value, mode);
-}
-
 void PropertyArray::set(int index, Object* value, WriteBarrierMode mode) {
   DCHECK_GE(index, 0);
   DCHECK_LT(index, this->length());
@@ -2006,55 +1775,8 @@ void PropertyArray::set(int index, Object* value, WriteBarrierMode mode) {
   CONDITIONAL_WRITE_BARRIER(GetHeap(), this, offset, value, mode);
 }
 
-void FixedArray::NoWriteBarrierSet(FixedArray* array,
-                                   int index,
-                                   Object* value) {
-  DCHECK_NE(array->map(), array->GetHeap()->fixed_cow_array_map());
-  DCHECK_GE(index, 0);
-  DCHECK_LT(index, array->length());
-  DCHECK(!array->GetHeap()->InNewSpace(value));
-  RELAXED_WRITE_FIELD(array, kHeaderSize + index * kPointerSize, value);
-}
-
-void FixedArray::set_undefined(int index) {
-  set_undefined(GetIsolate(), index);
-}
-
-void FixedArray::set_undefined(Isolate* isolate, int index) {
-  FixedArray::NoWriteBarrierSet(this, index,
-                                isolate->heap()->undefined_value());
-}
-
-void FixedArray::set_null(int index) { set_null(GetIsolate(), index); }
-
-void FixedArray::set_null(Isolate* isolate, int index) {
-  FixedArray::NoWriteBarrierSet(this, index, isolate->heap()->null_value());
-}
-
-void FixedArray::set_the_hole(int index) { set_the_hole(GetIsolate(), index); }
-
-void FixedArray::set_the_hole(Isolate* isolate, int index) {
-  FixedArray::NoWriteBarrierSet(this, index, isolate->heap()->the_hole_value());
-}
-
-void FixedArray::FillWithHoles(int from, int to) {
-  Isolate* isolate = GetIsolate();
-  for (int i = from; i < to; i++) {
-    set_the_hole(isolate, i);
-  }
-}
-
-
-Object** FixedArray::data_start() {
-  return HeapObject::RawField(this, kHeaderSize);
-}
-
 Object** PropertyArray::data_start() {
   return HeapObject::RawField(this, kHeaderSize);
-}
-
-Object** FixedArray::RawFieldOfElementAt(int index) {
-  return HeapObject::RawField(this, OffsetOfElementAt(index));
 }
 
 ACCESSORS(EnumCache, keys, FixedArray, kKeysOffset)
@@ -2534,50 +2256,6 @@ void NumberDictionary::set_requires_slow_elements() {
   set(kMaxNumberKeyIndex, Smi::FromInt(kRequiresSlowElementsMask));
 }
 
-
-template <class T>
-PodArray<T>* PodArray<T>::cast(Object* object) {
-  SLOW_DCHECK(object->IsByteArray());
-  return reinterpret_cast<PodArray<T>*>(object);
-}
-template <class T>
-const PodArray<T>* PodArray<T>::cast(const Object* object) {
-  SLOW_DCHECK(object->IsByteArray());
-  return reinterpret_cast<const PodArray<T>*>(object);
-}
-
-// static
-template <class T>
-Handle<PodArray<T>> PodArray<T>::New(Isolate* isolate, int length,
-                                     PretenureFlag pretenure) {
-  return Handle<PodArray<T>>::cast(
-      isolate->factory()->NewByteArray(length * sizeof(T), pretenure));
-}
-
-// static
-template <class Traits>
-STATIC_CONST_MEMBER_DEFINITION const InstanceType
-    FixedTypedArray<Traits>::kInstanceType;
-
-
-template <class Traits>
-FixedTypedArray<Traits>* FixedTypedArray<Traits>::cast(Object* object) {
-  SLOW_DCHECK(object->IsHeapObject() &&
-              HeapObject::cast(object)->map()->instance_type() ==
-              Traits::kInstanceType);
-  return reinterpret_cast<FixedTypedArray<Traits>*>(object);
-}
-
-
-template <class Traits>
-const FixedTypedArray<Traits>*
-FixedTypedArray<Traits>::cast(const Object* object) {
-  SLOW_DCHECK(object->IsHeapObject() &&
-              HeapObject::cast(object)->map()->instance_type() ==
-              Traits::kInstanceType);
-  return reinterpret_cast<FixedTypedArray<Traits>*>(object);
-}
-
 DEFINE_DEOPT_ELEMENT_ACCESSORS(TranslationByteArray, ByteArray)
 DEFINE_DEOPT_ELEMENT_ACCESSORS(InlinedFunctionCount, Smi)
 DEFINE_DEOPT_ELEMENT_ACCESSORS(LiteralArray, FixedArray)
@@ -2603,10 +2281,6 @@ const HashTable<Derived, Shape>* HashTable<Derived, Shape>::cast(
   SLOW_DCHECK(obj->IsHashTable());
   return reinterpret_cast<const HashTable*>(obj);
 }
-
-
-SMI_ACCESSORS(FixedArrayBase, length, kLengthOffset)
-SYNCHRONIZED_SMI_ACCESSORS(FixedArrayBase, length, kLengthOffset)
 
 int PropertyArray::length() const {
   Object* value_obj = READ_FIELD(this, kLengthAndHashOffset);
@@ -2670,313 +2344,6 @@ FreeSpace* FreeSpace::cast(HeapObject* o) {
   return reinterpret_cast<FreeSpace*>(o);
 }
 
-int ByteArray::Size() { return RoundUp(length() + kHeaderSize, kPointerSize); }
-
-byte ByteArray::get(int index) const {
-  DCHECK(index >= 0 && index < this->length());
-  return READ_BYTE_FIELD(this, kHeaderSize + index * kCharSize);
-}
-
-void ByteArray::set(int index, byte value) {
-  DCHECK(index >= 0 && index < this->length());
-  WRITE_BYTE_FIELD(this, kHeaderSize + index * kCharSize, value);
-}
-
-void ByteArray::copy_in(int index, const byte* buffer, int length) {
-  DCHECK(index >= 0 && length >= 0 && length <= kMaxInt - index &&
-         index + length <= this->length());
-  byte* dst_addr = FIELD_ADDR(this, kHeaderSize + index * kCharSize);
-  memcpy(dst_addr, buffer, length);
-}
-
-void ByteArray::copy_out(int index, byte* buffer, int length) {
-  DCHECK(index >= 0 && length >= 0 && length <= kMaxInt - index &&
-         index + length <= this->length());
-  const byte* src_addr = FIELD_ADDR(this, kHeaderSize + index * kCharSize);
-  memcpy(buffer, src_addr, length);
-}
-
-int ByteArray::get_int(int index) const {
-  DCHECK(index >= 0 && index < this->length() / kIntSize);
-  return READ_INT_FIELD(this, kHeaderSize + index * kIntSize);
-}
-
-void ByteArray::set_int(int index, int value) {
-  DCHECK(index >= 0 && index < this->length() / kIntSize);
-  WRITE_INT_FIELD(this, kHeaderSize + index * kIntSize, value);
-}
-
-uint32_t ByteArray::get_uint32(int index) const {
-  DCHECK(index >= 0 && index < this->length() / kUInt32Size);
-  return READ_UINT32_FIELD(this, kHeaderSize + index * kUInt32Size);
-}
-
-void ByteArray::set_uint32(int index, uint32_t value) {
-  DCHECK(index >= 0 && index < this->length() / kUInt32Size);
-  WRITE_UINT32_FIELD(this, kHeaderSize + index * kUInt32Size, value);
-}
-
-void ByteArray::clear_padding() {
-  int data_size = length() + kHeaderSize;
-  memset(address() + data_size, 0, Size() - data_size);
-}
-
-ByteArray* ByteArray::FromDataStartAddress(Address address) {
-  DCHECK_TAG_ALIGNED(address);
-  return reinterpret_cast<ByteArray*>(address - kHeaderSize + kHeapObjectTag);
-}
-
-int ByteArray::DataSize() const { return RoundUp(length(), kPointerSize); }
-
-int ByteArray::ByteArraySize() { return SizeFor(this->length()); }
-
-Address ByteArray::GetDataStartAddress() {
-  return reinterpret_cast<Address>(this) - kHeapObjectTag + kHeaderSize;
-}
-
-ACCESSORS(FixedTypedArrayBase, base_pointer, Object, kBasePointerOffset)
-
-
-void* FixedTypedArrayBase::external_pointer() const {
-  intptr_t ptr = READ_INTPTR_FIELD(this, kExternalPointerOffset);
-  return reinterpret_cast<void*>(ptr);
-}
-
-
-void FixedTypedArrayBase::set_external_pointer(void* value,
-                                               WriteBarrierMode mode) {
-  intptr_t ptr = reinterpret_cast<intptr_t>(value);
-  WRITE_INTPTR_FIELD(this, kExternalPointerOffset, ptr);
-}
-
-
-void* FixedTypedArrayBase::DataPtr() {
-  return reinterpret_cast<void*>(
-      reinterpret_cast<intptr_t>(base_pointer()) +
-      reinterpret_cast<intptr_t>(external_pointer()));
-}
-
-
-int FixedTypedArrayBase::ElementSize(InstanceType type) {
-  int element_size;
-  switch (type) {
-#define TYPED_ARRAY_CASE(Type, type, TYPE, ctype, size)                       \
-    case FIXED_##TYPE##_ARRAY_TYPE:                                           \
-      element_size = size;                                                    \
-      break;
-
-    TYPED_ARRAYS(TYPED_ARRAY_CASE)
-#undef TYPED_ARRAY_CASE
-    default:
-      UNREACHABLE();
-  }
-  return element_size;
-}
-
-int FixedTypedArrayBase::DataSize(InstanceType type) const {
-  if (base_pointer() == Smi::kZero) return 0;
-  return length() * ElementSize(type);
-}
-
-int FixedTypedArrayBase::DataSize() const {
-  return DataSize(map()->instance_type());
-}
-
-size_t FixedTypedArrayBase::ByteLength() const {
-  return static_cast<size_t>(length()) *
-         static_cast<size_t>(ElementSize(map()->instance_type()));
-}
-
-int FixedTypedArrayBase::size() const {
-  return OBJECT_POINTER_ALIGN(kDataOffset + DataSize());
-}
-
-int FixedTypedArrayBase::TypedArraySize(InstanceType type) const {
-  return OBJECT_POINTER_ALIGN(kDataOffset + DataSize(type));
-}
-
-// static
-int FixedTypedArrayBase::TypedArraySize(InstanceType type, int length) {
-  return OBJECT_POINTER_ALIGN(kDataOffset + length * ElementSize(type));
-}
-
-
-uint8_t Uint8ArrayTraits::defaultValue() { return 0; }
-
-
-uint8_t Uint8ClampedArrayTraits::defaultValue() { return 0; }
-
-
-int8_t Int8ArrayTraits::defaultValue() { return 0; }
-
-
-uint16_t Uint16ArrayTraits::defaultValue() { return 0; }
-
-
-int16_t Int16ArrayTraits::defaultValue() { return 0; }
-
-
-uint32_t Uint32ArrayTraits::defaultValue() { return 0; }
-
-
-int32_t Int32ArrayTraits::defaultValue() { return 0; }
-
-
-float Float32ArrayTraits::defaultValue() {
-  return std::numeric_limits<float>::quiet_NaN();
-}
-
-
-double Float64ArrayTraits::defaultValue() {
-  return std::numeric_limits<double>::quiet_NaN();
-}
-
-template <class Traits>
-typename Traits::ElementType FixedTypedArray<Traits>::get_scalar(int index) {
-  DCHECK((index >= 0) && (index < this->length()));
-  // The JavaScript memory model allows for racy reads and writes to a
-  // SharedArrayBuffer's backing store, which will always be a FixedTypedArray.
-  // ThreadSanitizer will catch these racy accesses and warn about them, so we
-  // disable TSAN for these reads and writes using annotations.
-  //
-  // We don't use relaxed atomics here, as it is not a requirement of the
-  // JavaScript memory model to have tear-free reads of overlapping accesses,
-  // and using relaxed atomics may introduce overhead.
-  auto* ptr = reinterpret_cast<ElementType*>(DataPtr());
-  TSAN_ANNOTATE_IGNORE_READS_BEGIN;
-  auto result = ptr[index];
-  TSAN_ANNOTATE_IGNORE_READS_END;
-  return result;
-}
-
-
-template <class Traits>
-void FixedTypedArray<Traits>::set(int index, ElementType value) {
-  CHECK((index >= 0) && (index < this->length()));
-  // See the comment in FixedTypedArray<Traits>::get_scalar.
-  auto* ptr = reinterpret_cast<ElementType*>(DataPtr());
-  TSAN_ANNOTATE_IGNORE_WRITES_BEGIN;
-  ptr[index] = value;
-  TSAN_ANNOTATE_IGNORE_WRITES_END;
-}
-
-template <class Traits>
-typename Traits::ElementType FixedTypedArray<Traits>::from(int value) {
-  return static_cast<ElementType>(value);
-}
-
-template <>
-inline uint8_t FixedTypedArray<Uint8ClampedArrayTraits>::from(int value) {
-  if (value < 0) return 0;
-  if (value > 0xFF) return 0xFF;
-  return static_cast<uint8_t>(value);
-}
-
-template <class Traits>
-typename Traits::ElementType FixedTypedArray<Traits>::from(uint32_t value) {
-  return static_cast<ElementType>(value);
-}
-
-template <>
-inline uint8_t FixedTypedArray<Uint8ClampedArrayTraits>::from(uint32_t value) {
-  // We need this special case for Uint32 -> Uint8Clamped, because the highest
-  // Uint32 values will be negative as an int, clamping to 0, rather than 255.
-  if (value > 0xFF) return 0xFF;
-  return static_cast<uint8_t>(value);
-}
-
-template <class Traits>
-typename Traits::ElementType FixedTypedArray<Traits>::from(double value) {
-  return static_cast<ElementType>(DoubleToInt32(value));
-}
-
-template <>
-inline uint8_t FixedTypedArray<Uint8ClampedArrayTraits>::from(double value) {
-  // Handle NaNs and less than zero values which clamp to zero.
-  if (!(value > 0)) return 0;
-  if (value > 0xFF) return 0xFF;
-  return static_cast<uint8_t>(lrint(value));
-}
-
-template <>
-inline float FixedTypedArray<Float32ArrayTraits>::from(double value) {
-  return static_cast<float>(value);
-}
-
-template <>
-inline double FixedTypedArray<Float64ArrayTraits>::from(double value) {
-  return value;
-}
-
-template <class Traits>
-Handle<Object> FixedTypedArray<Traits>::get(FixedTypedArray<Traits>* array,
-                                            int index) {
-  return Traits::ToHandle(array->GetIsolate(), array->get_scalar(index));
-}
-
-
-template <class Traits>
-void FixedTypedArray<Traits>::SetValue(uint32_t index, Object* value) {
-  ElementType cast_value = Traits::defaultValue();
-  if (value->IsSmi()) {
-    int int_value = Smi::ToInt(value);
-    cast_value = from(int_value);
-  } else if (value->IsHeapNumber()) {
-    double double_value = HeapNumber::cast(value)->value();
-    cast_value = from(double_value);
-  } else {
-    // Clamp undefined to the default value. All other types have been
-    // converted to a number type further up in the call chain.
-    DCHECK(value->IsUndefined(GetIsolate()));
-  }
-  set(index, cast_value);
-}
-
-
-Handle<Object> Uint8ArrayTraits::ToHandle(Isolate* isolate, uint8_t scalar) {
-  return handle(Smi::FromInt(scalar), isolate);
-}
-
-
-Handle<Object> Uint8ClampedArrayTraits::ToHandle(Isolate* isolate,
-                                                 uint8_t scalar) {
-  return handle(Smi::FromInt(scalar), isolate);
-}
-
-
-Handle<Object> Int8ArrayTraits::ToHandle(Isolate* isolate, int8_t scalar) {
-  return handle(Smi::FromInt(scalar), isolate);
-}
-
-
-Handle<Object> Uint16ArrayTraits::ToHandle(Isolate* isolate, uint16_t scalar) {
-  return handle(Smi::FromInt(scalar), isolate);
-}
-
-
-Handle<Object> Int16ArrayTraits::ToHandle(Isolate* isolate, int16_t scalar) {
-  return handle(Smi::FromInt(scalar), isolate);
-}
-
-
-Handle<Object> Uint32ArrayTraits::ToHandle(Isolate* isolate, uint32_t scalar) {
-  return isolate->factory()->NewNumberFromUint(scalar);
-}
-
-
-Handle<Object> Int32ArrayTraits::ToHandle(Isolate* isolate, int32_t scalar) {
-  return isolate->factory()->NewNumberFromInt(scalar);
-}
-
-
-Handle<Object> Float32ArrayTraits::ToHandle(Isolate* isolate, float scalar) {
-  return isolate->factory()->NewNumber(scalar);
-}
-
-
-Handle<Object> Float64ArrayTraits::ToHandle(Isolate* isolate, double scalar) {
-  return isolate->factory()->NewNumber(scalar);
-}
 
 VisitorId Map::visitor_id() const {
   return static_cast<VisitorId>(READ_BYTE_FIELD(this, kVisitorIdOffset));
@@ -3951,18 +3318,6 @@ bool ObjectTemplateInfo::immutable_proto() const {
 void ObjectTemplateInfo::set_immutable_proto(bool immutable) {
   return set_data(Smi::FromInt(
       IsImmutablePrototype::update(Smi::ToInt(data()), immutable)));
-}
-
-int TemplateList::length() const {
-  return Smi::ToInt(FixedArray::cast(this)->get(kLengthIndex));
-}
-
-Object* TemplateList::get(int index) const {
-  return FixedArray::cast(this)->get(kFirstElementIndex + index);
-}
-
-void TemplateList::set(int index, Object* value) {
-  FixedArray::cast(this)->set(kFirstElementIndex + index, value);
 }
 
 ACCESSORS(AllocationSite, transition_info_or_boilerplate, Object,

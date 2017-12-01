@@ -5,7 +5,7 @@
 #ifndef V8_CONTEXTS_H_
 #define V8_CONTEXTS_H_
 
-#include "src/objects.h"
+#include "src/objects/fixed-array.h"
 
 namespace v8 {
 namespace internal {

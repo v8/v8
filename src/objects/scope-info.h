@@ -7,6 +7,7 @@
 
 #include "src/globals.h"
 #include "src/objects.h"
+#include "src/objects/fixed-array.h"
 #include "src/utils.h"
 
 // Has to be the last include (doesn't have include guards):

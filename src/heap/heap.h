@@ -42,6 +42,7 @@ class BytecodeArray;
 class CodeDataContainer;
 class DeoptimizationData;
 class HandlerTable;
+class IncrementalMarking;
 class JSArrayBuffer;
 
 using v8::MemoryPressureLevel;
