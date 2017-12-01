@@ -13444,6 +13444,10 @@ Handle<JSObject> Script::GetWrapper(Handle<Script> script) {
 MaybeHandle<SharedFunctionInfo> Script::FindSharedFunctionInfo(
     Isolate* isolate, const FunctionLiteral* fun) {
   CHECK_NE(fun->function_literal_id(), FunctionLiteral::kIdTypeInvalid);
+  // If this check fails, the problem is most probably the function id
+  // renumbering done by AstFunctionLiteralIdReindexer; in particular, that
+  // AstTraversalVisitor doesn't recurse properly in the construct which
+  // triggers the mismatch.
   CHECK_LT(fun->function_literal_id(), shared_function_infos()->length());
   Object* shared = shared_function_infos()->get(fun->function_literal_id());
   if (shared->IsUndefined(isolate) || WeakCell::cast(shared)->cleared()) {

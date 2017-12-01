@@ -243,6 +243,7 @@ void AstTraversalVisitor<Subclass>::VisitForStatement(ForStatement* stmt) {
 template <class Subclass>
 void AstTraversalVisitor<Subclass>::VisitForInStatement(ForInStatement* stmt) {
   PROCESS_NODE(stmt);
+  RECURSE(Visit(stmt->each()));
   RECURSE(Visit(stmt->enumerable()));
   RECURSE(Visit(stmt->body()));
 }
