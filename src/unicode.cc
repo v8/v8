@@ -21,7 +21,7 @@ static const uchar kSentinel = static_cast<uchar>(-1);
 
 /**
  * \file
- * Implementations of functions for working with unicode.
+ * Implementations of functions for working with Unicode.
  */
 
 typedef signed short int16_t;  // NOLINT
@@ -46,7 +46,7 @@ static inline bool IsStart(int32_t entry) {
 
 #ifndef V8_INTL_SUPPORT
 /**
- * Look up a character in the unicode table using a mix of binary and
+ * Look up a character in the Unicode table using a mix of binary and
  * interpolation search.  For a uniformly distributed array
  * interpolation search beats binary search by a wide margin.  However,
  * in this case interpolation search degenerates because of some very
@@ -197,7 +197,7 @@ static inline uint8_t NonASCIISequenceLength(byte first) {
   // clang-format off
   static const uint8_t lengths[256] = {
       // The first 128 entries correspond to ASCII characters.
-      0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,  /* OO - Of */
+      0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,  /* 00 - 0f */
       0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,  /* 10 - 1f */
       0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,  /* 20 - 2f */
       0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,  /* 30 - 3f */
@@ -216,7 +216,7 @@ static inline uint8_t NonASCIISequenceLength(byte first) {
       // 16 three-byte sequences.
       3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3,  /* e0-ef */
       // 5 four-byte sequences, followed by sequences that could only encode
-      // code points outside of the unicode range.
+      // code points outside of the Unicode range.
       4, 4, 4, 4, 4, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}; /* f0-f4 + f5-ff */
   // clang-format on
   return lengths[first];
@@ -264,7 +264,7 @@ uchar Utf8::CalculateValue(const byte* str, size_t max_length, size_t* cursor) {
       *cursor += 1;
       return kBadChar;
     } else if (str[0] == 0xF4 && (str[1] < 0x80 || str[1] > 0x8F)) {
-      // Code points outside of the unicode range. The first byte generates a
+      // Code points outside of the Unicode range. The first byte generates a
       // kBadChar.
       *cursor += 1;
       return kBadChar;
@@ -486,7 +486,7 @@ bool Utf8::ValidateEncoding(const byte* bytes, size_t length) {
         // Overlong four-byte sequence.
         return false;
       } else if (cursor[0] == 0xF4 && (cursor[1] < 0x80 || cursor[1] > 0x8F)) {
-        // Code points outside of the unicode range.
+        // Code points outside of the Unicode range.
         return false;
       }
     }
@@ -3333,7 +3333,7 @@ int CanonicalizationRange::Convert(uchar c,
 }
 
 
-const uchar UnicodeData::kMaxCodePoint = 65533;
+const uchar UnicodeData::kMaxCodePoint = 0xFFFD;
 
 int UnicodeData::GetByteCount() {
 #ifndef V8_INTL_SUPPORT                                 // NOLINT
