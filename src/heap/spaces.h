@@ -640,6 +640,8 @@ class MemoryChunk {
   void SetReadAndExecutable();
   void SetReadAndWritable();
 
+  inline void InitializeFreeListCategories();
+
  protected:
   static MemoryChunk* Initialize(Heap* heap, Address base, size_t size,
                                  Address area_start, Address area_end,
@@ -844,8 +846,6 @@ class Page : public MemoryChunk {
   FreeListCategory* free_list_category(FreeListCategoryType type) {
     return &categories_[type];
   }
-
-  inline void InitializeFreeListCategories();
 
   bool is_anchor() { return IsFlagSet(Page::ANCHOR); }
 

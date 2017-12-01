@@ -925,6 +925,7 @@ void MarkCompactCollector::Finish() {
 #endif
 
   sweeper()->StartSweeperTasks();
+  sweeper()->StartIterabilityTasks();
 
   // The hashing of weak_object_to_code_table is no longer valid.
   heap()->weak_object_to_code_table()->Rehash();
@@ -2169,7 +2170,7 @@ void MinorMarkCompactCollector::ProcessMarkingWorklist() {
 void MinorMarkCompactCollector::CollectGarbage() {
   {
     TRACE_GC(heap()->tracer(), GCTracer::Scope::MINOR_MC_SWEEPING);
-    heap()->mark_compact_collector()->sweeper()->EnsureNewSpaceCompleted();
+    heap()->mark_compact_collector()->sweeper()->EnsureIterabilityCompleted();
     CleanupSweepToIteratePages();
   }
 
@@ -3509,12 +3510,11 @@ void MarkCompactCollector::Evacuate() {
     for (Page* p : new_space_evacuation_pages_) {
       if (p->IsFlagSet(Page::PAGE_NEW_NEW_PROMOTION)) {
         p->ClearFlag(Page::PAGE_NEW_NEW_PROMOTION);
-        sweeper()->AddPage(p->owner()->identity(), p, Sweeper::REGULAR);
+        sweeper()->AddPageForIterability(p);
       } else if (p->IsFlagSet(Page::PAGE_NEW_OLD_PROMOTION)) {
         p->ClearFlag(Page::PAGE_NEW_OLD_PROMOTION);
-        p->ForAllFreeListCategories(
-            [](FreeListCategory* category) { DCHECK(!category->is_linked()); });
-        sweeper()->AddPage(p->owner()->identity(), p, Sweeper::REGULAR);
+        DCHECK_EQ(OLD_SPACE, p->owner()->identity());
+        sweeper()->AddPage(OLD_SPACE, p, Sweeper::REGULAR);
       }
     }
     new_space_evacuation_pages_.clear();
