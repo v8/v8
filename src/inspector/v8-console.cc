@@ -284,7 +284,7 @@ void V8Console::Clear(const v8::debug::ConsoleCallArguments& info,
 void V8Console::Count(const v8::debug::ConsoleCallArguments& info,
                       const v8::debug::ConsoleContext& consoleContext) {
   ConsoleHelper helper(info, consoleContext, m_inspector);
-  String16 title = helper.firstArgToString(String16());
+  String16 title = helper.firstArgToString(String16("default"), false);
   String16 identifier;
   if (title.isEmpty()) {
     std::unique_ptr<V8StackTraceImpl> stackTrace =
