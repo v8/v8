@@ -1078,110 +1078,110 @@ TEST(ScopePositions) {
       // Check that 6-byte and 4-byte encodings of UTF-8 strings do not throw
       // the preparser off in terms of byte offsets.
       // 2 surrogates, encode a character that doesn't need a surrogate.
-      {"  'foo\355\240\201\355\260\211';\n"
+      {"  'foo\xED\xA0\x81\xED\xB0\x89';\n"
        "  (function fun",
        "(a,b) { infunction; }", ")();", i::FUNCTION_SCOPE,
        i::LanguageMode::kSloppy},
-      // 4 byte encoding.
-      {"  'foo\360\220\220\212';\n"
+      // 4-byte encoding.
+      {"  'foo\xF0\x90\x90\x8A';\n"
        "  (function fun",
        "(a,b) { infunction; }", ")();", i::FUNCTION_SCOPE,
        i::LanguageMode::kSloppy},
-      // 3 byte encoding of \u0fff.
-      {"  'foo\340\277\277';\n"
+      // 3-byte encoding of \u0FFF.
+      {"  'foo\xE0\xBF\xBF';\n"
        "  (function fun",
        "(a,b) { infunction; }", ")();", i::FUNCTION_SCOPE,
        i::LanguageMode::kSloppy},
-      // 3 byte surrogate, followed by broken 2-byte surrogate w/ impossible 2nd
+      // 3-byte surrogate, followed by broken 2-byte surrogate w/ impossible 2nd
       // byte and last byte missing.
-      {"  'foo\355\240\201\355\211';\n"
+      {"  'foo\xED\xA0\x81\xED\x89';\n"
        "  (function fun",
        "(a,b) { infunction; }", ")();", i::FUNCTION_SCOPE,
        i::LanguageMode::kSloppy},
-      // Broken 3 byte encoding of \u0fff with missing last byte.
-      {"  'foo\340\277';\n"
+      // Broken 3-byte encoding of \u0FFF with missing last byte.
+      {"  'foo\xE0\xBF';\n"
        "  (function fun",
        "(a,b) { infunction; }", ")();", i::FUNCTION_SCOPE,
        i::LanguageMode::kSloppy},
-      // Broken 3 byte encoding of \u0fff with missing 2 last bytes.
-      {"  'foo\340';\n"
+      // Broken 3-byte encoding of \u0FFF with missing 2 last bytes.
+      {"  'foo\xE0';\n"
        "  (function fun",
        "(a,b) { infunction; }", ")();", i::FUNCTION_SCOPE,
        i::LanguageMode::kSloppy},
-      // Broken 3 byte encoding of \u00ff should be a 2 byte encoding.
-      {"  'foo\340\203\277';\n"
+      // Broken 3-byte encoding of \u00FF should be a 2-byte encoding.
+      {"  'foo\xE0\x83\xBF';\n"
        "  (function fun",
        "(a,b) { infunction; }", ")();", i::FUNCTION_SCOPE,
        i::LanguageMode::kSloppy},
-      // Broken 3 byte encoding of \u007f should be a 2 byte encoding.
-      {"  'foo\340\201\277';\n"
+      // Broken 3-byte encoding of \u007F should be a 2-byte encoding.
+      {"  'foo\xE0\x81\xBF';\n"
        "  (function fun",
        "(a,b) { infunction; }", ")();", i::FUNCTION_SCOPE,
        i::LanguageMode::kSloppy},
       // Unpaired lead surrogate.
-      {"  'foo\355\240\201';\n"
+      {"  'foo\xED\xA0\x81';\n"
        "  (function fun",
        "(a,b) { infunction; }", ")();", i::FUNCTION_SCOPE,
        i::LanguageMode::kSloppy},
-      // Unpaired lead surrogate where following code point is a 3 byte
+      // Unpaired lead surrogate where the following code point is a 3-byte
       // sequence.
-      {"  'foo\355\240\201\340\277\277';\n"
+      {"  'foo\xED\xA0\x81\xE0\xBF\xBF';\n"
        "  (function fun",
        "(a,b) { infunction; }", ")();", i::FUNCTION_SCOPE,
        i::LanguageMode::kSloppy},
-      // Unpaired lead surrogate where following code point is a 4 byte encoding
-      // of a trail surrogate.
-      {"  'foo\355\240\201\360\215\260\211';\n"
+      // Unpaired lead surrogate where the following code point is a 4-byte
+      // encoding of a trail surrogate.
+      {"  'foo\xED\xA0\x81\xF0\x8D\xB0\x89';\n"
        "  (function fun",
        "(a,b) { infunction; }", ")();", i::FUNCTION_SCOPE,
        i::LanguageMode::kSloppy},
       // Unpaired trail surrogate.
-      {"  'foo\355\260\211';\n"
+      {"  'foo\xED\xB0\x89';\n"
        "  (function fun",
        "(a,b) { infunction; }", ")();", i::FUNCTION_SCOPE,
        i::LanguageMode::kSloppy},
-      // 2 byte encoding of \u00ff.
-      {"  'foo\303\277';\n"
+      // 2-byte encoding of \u00FF.
+      {"  'foo\xC3\xBF';\n"
        "  (function fun",
        "(a,b) { infunction; }", ")();", i::FUNCTION_SCOPE,
        i::LanguageMode::kSloppy},
-      // Broken 2 byte encoding of \u00ff with missing last byte.
-      {"  'foo\303';\n"
+      // Broken 2-byte encoding of \u00FF with missing last byte.
+      {"  'foo\xC3';\n"
        "  (function fun",
        "(a,b) { infunction; }", ")();", i::FUNCTION_SCOPE,
        i::LanguageMode::kSloppy},
-      // Broken 2 byte encoding of \u007f should be a 1 byte encoding.
-      {"  'foo\301\277';\n"
+      // Broken 2-byte encoding of \u007F should be a 1-byte encoding.
+      {"  'foo\xC1\xBF';\n"
        "  (function fun",
        "(a,b) { infunction; }", ")();", i::FUNCTION_SCOPE,
        i::LanguageMode::kSloppy},
-      // Illegal 5 byte encoding.
-      {"  'foo\370\277\277\277\277';\n"
+      // Illegal 5-byte encoding.
+      {"  'foo\xF8\xBF\xBF\xBF\xBF';\n"
        "  (function fun",
        "(a,b) { infunction; }", ")();", i::FUNCTION_SCOPE,
        i::LanguageMode::kSloppy},
-      // Illegal 6 byte encoding.
-      {"  'foo\374\277\277\277\277\277';\n"
+      // Illegal 6-byte encoding.
+      {"  'foo\xFC\xBF\xBF\xBF\xBF\xBF';\n"
        "  (function fun",
        "(a,b) { infunction; }", ")();", i::FUNCTION_SCOPE,
        i::LanguageMode::kSloppy},
-      // Illegal 0xfe byte
-      {"  'foo\376\277\277\277\277\277\277';\n"
+      // Illegal 0xFE byte
+      {"  'foo\xFE\xBF\xBF\xBF\xBF\xBF\xBF';\n"
        "  (function fun",
        "(a,b) { infunction; }", ")();", i::FUNCTION_SCOPE,
        i::LanguageMode::kSloppy},
-      // Illegal 0xff byte
-      {"  'foo\377\277\277\277\277\277\277\277';\n"
+      // Illegal 0xFF byte
+      {"  'foo\xFF\xBF\xBF\xBF\xBF\xBF\xBF\xBF';\n"
        "  (function fun",
        "(a,b) { infunction; }", ")();", i::FUNCTION_SCOPE,
        i::LanguageMode::kSloppy},
       {"  'foo';\n"
        "  (function fun",
-       "(a,b) { 'bar\355\240\201\355\260\213'; }", ")();", i::FUNCTION_SCOPE,
+       "(a,b) { 'bar\xED\xA0\x81\xED\xB0\x8B'; }", ")();", i::FUNCTION_SCOPE,
        i::LanguageMode::kSloppy},
       {"  'foo';\n"
        "  (function fun",
-       "(a,b) { 'bar\360\220\220\214'; }", ")();", i::FUNCTION_SCOPE,
+       "(a,b) { 'bar\xF0\x90\x90\x8C'; }", ")();", i::FUNCTION_SCOPE,
        i::LanguageMode::kSloppy},
       {nullptr, nullptr, nullptr, i::EVAL_SCOPE, i::LanguageMode::kSloppy}};
 
@@ -2888,7 +2888,7 @@ TEST(FuncNameInferrerTwoByte) {
 
 TEST(FuncNameInferrerEscaped) {
   // The same as FuncNameInferrerTwoByte, except that we express the two-byte
-  // character as a unicode escape.
+  // character as a Unicode escape.
   i::FLAG_allow_natives_syntax = true;
   v8::Isolate* isolate = CcTest::isolate();
   v8::HandleScope scope(isolate);
@@ -5358,9 +5358,9 @@ TEST(InvalidUnicodeEscapes) {
       // Braces gone wrong
       "var foob\\u{c481r = 0;", "var foob\\uc481}r = 0;", "var \\u{0052oo = 0;",
       "var \\u0052}oo = 0;", "\"foob\\u{c481r\"", "var foob\\u{}ar = 0;",
-      // Too high value for the unicode escape
+      // Too high value for the Unicode code point escape
       "\"\\u{110000}\"",
-      // Not an unicode escape
+      // Not a Unicode code point escape
       "var foob\\v1234r = 0;", "var foob\\U1234r = 0;",
       "var foob\\v{1234}r = 0;", "var foob\\U{1234}r = 0;", nullptr};
   RunParserSyncTest(context_data, data, kError);
@@ -5378,11 +5378,10 @@ TEST(UnicodeEscapes) {
       "var foob\\uc481r = 0;", "var foob\\u{c481}r = 0;",
       // String with an escape
       "\"foob\\uc481r\"", "\"foob\\{uc481}r\"",
-      // This character is a valid unicode character, representable as a
-      // surrogate
-      // pair, not representable as 4 hex digits.
+      // This character is a valid Unicode character, representable as a
+      // surrogate pair, not representable as 4 hex digits.
       "\"foo\\u{10e6d}\"",
-      // Max value for the unicode escape
+      // Max value for the Unicode code point escape
       "\"\\u{10ffff}\"", nullptr};
   RunParserSyncTest(context_data, data, kSuccess);
 }
