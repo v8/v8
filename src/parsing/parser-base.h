@@ -4470,6 +4470,7 @@ typename ParserBase<Impl>::ExpressionT ParserBase<Impl>::ParseClassLiteral(
 
   scope()->set_start_position(scanner()->location().end_pos);
   if (Check(Token::EXTENDS)) {
+    FuncNameInferrer::State fni_state(fni_);
     ExpressionClassifier extends_classifier(this);
     class_info.extends = ParseLeftHandSideExpression(CHECK_OK);
     impl()->RewriteNonPattern(CHECK_OK);
