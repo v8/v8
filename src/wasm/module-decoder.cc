@@ -1544,8 +1544,13 @@ std::vector<CustomSectionOffset> DecodeCustomSections(const byte* start,
     uint32_t name_offset = decoder.pc_offset();
     decoder.consume_bytes(name_length, "section name");
     uint32_t payload_offset = decoder.pc_offset();
+    if (section_length < (payload_offset - section_start)) {
+      decoder.error("invalid section length");
+      break;
+    }
     uint32_t payload_length = section_length - (payload_offset - section_start);
     decoder.consume_bytes(payload_length);
+    if (decoder.failed()) break;
     result.push_back({{section_start, section_length},
                       {name_offset, name_length},
                       {payload_offset, payload_length}});
