@@ -748,29 +748,31 @@ void FeedbackVector::FeedbackVectorPrint(std::ostream& os) {  // NOLINT
     return;
   }
 
-  os << "\n SharedFunctionInfo: " << Brief(shared_function_info());
-  os << "\n Optimized Code/Marker: ";
+  os << "\n - shared function info: " << Brief(shared_function_info());
+  os << "\n - optimized code/marker: ";
   if (has_optimized_code()) {
     os << Brief(optimized_code());
   } else {
     os << optimization_marker();
   }
-  os << "\n Invocation Count: " << invocation_count();
-  os << "\n Profiler Ticks: " << profiler_ticks();
+  os << "\n - invocation count: " << invocation_count();
+  os << "\n - profiler ticks: " << profiler_ticks();
 
   FeedbackMetadataIterator iter(metadata());
   while (iter.HasNext()) {
     FeedbackSlot slot = iter.Next();
     FeedbackSlotKind kind = iter.kind();
 
-    os << "\n Slot " << slot << " " << kind << " ";
+    os << "\n - slot " << slot << " " << kind << " ";
     FeedbackSlotPrint(os, slot, kind);
 
     int entry_size = iter.entry_size();
+    if (entry_size > 0) os << " {";
     for (int i = 0; i < entry_size; i++) {
       int index = GetIndex(slot) + i;
-      os << "\n  [" << index << "]: " << Brief(get(index));
+      os << "\n     [" << index << "]: " << Brief(get(index));
     }
+    if (entry_size > 0) os << "\n  }";
   }
   os << "\n";
 }
