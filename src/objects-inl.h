@@ -38,6 +38,7 @@
 #include "src/objects/hash-table-inl.h"
 #include "src/objects/hash-table.h"
 #include "src/objects/js-array-inl.h"
+#include "src/objects/js-collection-inl.h"
 #include "src/objects/js-regexp-inl.h"
 #include "src/objects/literal-objects.h"
 #include "src/objects/module-inl.h"
@@ -97,14 +98,10 @@ TYPE_CHECKER(JSDate, JS_DATE_TYPE)
 TYPE_CHECKER(JSError, JS_ERROR_TYPE)
 TYPE_CHECKER(JSFunction, JS_FUNCTION_TYPE)
 TYPE_CHECKER(JSGlobalObject, JS_GLOBAL_OBJECT_TYPE)
-TYPE_CHECKER(JSMap, JS_MAP_TYPE)
 TYPE_CHECKER(JSMessageObject, JS_MESSAGE_OBJECT_TYPE)
 TYPE_CHECKER(JSPromise, JS_PROMISE_TYPE)
-TYPE_CHECKER(JSSet, JS_SET_TYPE)
 TYPE_CHECKER(JSStringIterator, JS_STRING_ITERATOR_TYPE)
 TYPE_CHECKER(JSValue, JS_VALUE_TYPE)
-TYPE_CHECKER(JSWeakMap, JS_WEAK_MAP_TYPE)
-TYPE_CHECKER(JSWeakSet, JS_WEAK_SET_TYPE)
 TYPE_CHECKER(MutableHeapNumber, MUTABLE_HEAP_NUMBER_TYPE)
 TYPE_CHECKER(Oddball, ODDBALL_TYPE)
 TYPE_CHECKER(PreParsedScopeData, TUPLE2_TYPE)
@@ -567,20 +564,13 @@ CAST_ACCESSOR(JSFunction)
 CAST_ACCESSOR(JSGeneratorObject)
 CAST_ACCESSOR(JSGlobalObject)
 CAST_ACCESSOR(JSGlobalProxy)
-CAST_ACCESSOR(JSMap)
-CAST_ACCESSOR(JSMapIterator)
 CAST_ACCESSOR(JSMessageObject)
 CAST_ACCESSOR(JSObject)
 CAST_ACCESSOR(JSPromise)
 CAST_ACCESSOR(JSProxy)
 CAST_ACCESSOR(JSReceiver)
-CAST_ACCESSOR(JSSet)
-CAST_ACCESSOR(JSSetIterator)
 CAST_ACCESSOR(JSStringIterator)
 CAST_ACCESSOR(JSValue)
-CAST_ACCESSOR(JSWeakCollection)
-CAST_ACCESSOR(JSWeakMap)
-CAST_ACCESSOR(JSWeakSet)
 CAST_ACCESSOR(LayoutDescriptor)
 CAST_ACCESSOR(NameDictionary)
 CAST_ACCESSOR(NormalizedMapCache)
@@ -2718,18 +2708,9 @@ ACCESSORS(JSProxy, handler, Object, kHandlerOffset)
 
 bool JSProxy::IsRevoked() const { return !handler()->IsJSReceiver(); }
 
-ACCESSORS(JSCollection, table, Object, kTableOffset)
-ACCESSORS(JSCollectionIterator, table, Object, kTableOffset)
-ACCESSORS(JSCollectionIterator, index, Object, kIndexOffset)
-
-ACCESSORS(JSWeakCollection, table, Object, kTableOffset)
-ACCESSORS(JSWeakCollection, next, Object, kNextOffset)
-
-
 Address Foreign::foreign_address() {
   return AddressFrom<Address>(READ_INTPTR_FIELD(this, kForeignAddressOffset));
 }
-
 
 void Foreign::set_foreign_address(Address value) {
   WRITE_INTPTR_FIELD(this, kForeignAddressOffset, OffsetFrom(value));
@@ -3540,15 +3521,6 @@ Object* OrderedHashTableIterator<Derived, TableType>::CurrentKey() {
   Object* key = table->KeyAt(index);
   DCHECK(!key->IsTheHole(table->GetIsolate()));
   return key;
-}
-
-
-Object* JSMapIterator::CurrentValue() {
-  OrderedHashMap* table(OrderedHashMap::cast(this->table()));
-  int index = Smi::ToInt(this->index());
-  Object* value = table->ValueAt(index);
-  DCHECK(!value->IsTheHole(table->GetIsolate()));
-  return value;
 }
 
 // Predictably converts HeapObject* or Address to uint32 by calculating

@@ -27,6 +27,8 @@ class HeapIterator;
 class HeapProfiler;
 class HeapSnapshot;
 class JSArrayBuffer;
+class JSCollection;
+class JSWeakCollection;
 class SnapshotFiller;
 
 class HeapGraphEdge BASE_EMBEDDED {

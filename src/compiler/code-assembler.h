@@ -26,6 +26,10 @@ namespace internal {
 class Callable;
 class CallInterfaceDescriptor;
 class Isolate;
+class JSCollection;
+class JSWeakCollection;
+class JSWeakMap;
+class JSWeakSet;
 class Factory;
 class Zone;
 

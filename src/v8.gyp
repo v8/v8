@@ -1175,6 +1175,8 @@
         'objects/intl-objects.h',
         'objects/js-array.h',
         'objects/js-array-inl.h',
+        'objects/js-collection.h',
+        'objects/js-collection-inl.h',
         'objects/js-regexp.h',
         'objects/js-regexp-inl.h',
         'objects/literal-objects.cc',

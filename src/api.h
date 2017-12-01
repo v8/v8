@@ -11,6 +11,7 @@
 #include "src/detachable-vector.h"
 #include "src/factory.h"
 #include "src/isolate.h"
+#include "src/objects/js-collection.h"
 
 namespace v8 {
 

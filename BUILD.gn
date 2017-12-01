@@ -1817,6 +1817,8 @@ v8_source_set("v8_base") {
     "src/objects/intl-objects.h",
     "src/objects/js-array-inl.h",
     "src/objects/js-array.h",
+    "src/objects/js-collection-inl.h",
+    "src/objects/js-collection.h",
     "src/objects/js-regexp-inl.h",
     "src/objects/js-regexp.h",
     "src/objects/literal-objects-inl.h",

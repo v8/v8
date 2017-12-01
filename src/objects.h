@@ -4426,58 +4426,6 @@ class JSProxy: public JSReceiver {
   DISALLOW_IMPLICIT_CONSTRUCTORS(JSProxy);
 };
 
-
-class JSCollection : public JSObject {
- public:
-  // [table]: the backing hash table
-  DECL_ACCESSORS(table, Object)
-
-  static const int kTableOffset = JSObject::kHeaderSize;
-  static const int kSize = kTableOffset + kPointerSize;
-
- private:
-  DISALLOW_IMPLICIT_CONSTRUCTORS(JSCollection);
-};
-
-
-// The JSSet describes EcmaScript Harmony sets
-// TODO(marja): When moving JSSet out of objects.h, move JSSetIterator (from
-// objects/hash-table.h) into the same file.
-class JSSet : public JSCollection {
- public:
-  DECL_CAST(JSSet)
-
-  static void Initialize(Handle<JSSet> set, Isolate* isolate);
-  static void Clear(Handle<JSSet> set);
-
-  // Dispatched behavior.
-  DECL_PRINTER(JSSet)
-  DECL_VERIFIER(JSSet)
-
- private:
-  DISALLOW_IMPLICIT_CONSTRUCTORS(JSSet);
-};
-
-
-// The JSMap describes EcmaScript Harmony maps
-// TODO(marja): When moving JSMap out of objects.h, move JSMapIterator (from
-// objects/hash-table.h) into the same file.
-class JSMap : public JSCollection {
- public:
-  DECL_CAST(JSMap)
-
-  static void Initialize(Handle<JSMap> map, Isolate* isolate);
-  static void Clear(Handle<JSMap> map);
-
-  // Dispatched behavior.
-  DECL_PRINTER(JSMap)
-  DECL_VERIFIER(JSMap)
-
- private:
-  DISALLOW_IMPLICIT_CONSTRUCTORS(JSMap);
-};
-
-
 // The [Async-from-Sync Iterator] object
 // (proposal-async-iteration/#sec-async-from-sync-iterator-objects)
 // An object which wraps an ordinary Iterator and converts it to behave
@@ -4526,76 +4474,6 @@ class JSStringIterator : public JSObject {
  private:
   DISALLOW_IMPLICIT_CONSTRUCTORS(JSStringIterator);
 };
-
-// Base class for both JSWeakMap and JSWeakSet
-class JSWeakCollection: public JSObject {
- public:
-  DECL_CAST(JSWeakCollection)
-
-  // [table]: the backing hash table mapping keys to values.
-  DECL_ACCESSORS(table, Object)
-
-  // [next]: linked list of encountered weak maps during GC.
-  DECL_ACCESSORS(next, Object)
-
-  static void Initialize(Handle<JSWeakCollection> collection, Isolate* isolate);
-  static void Set(Handle<JSWeakCollection> collection, Handle<Object> key,
-                  Handle<Object> value, int32_t hash);
-  static bool Delete(Handle<JSWeakCollection> collection, Handle<Object> key,
-                     int32_t hash);
-  static Handle<JSArray> GetEntries(Handle<JSWeakCollection> holder,
-                                    int max_entries);
-
-  static const int kTableOffset = JSObject::kHeaderSize;
-  static const int kNextOffset = kTableOffset + kPointerSize;
-  static const int kSize = kNextOffset + kPointerSize;
-
-  // Visiting policy defines whether the table and next collection fields
-  // should be visited or not.
-  enum BodyVisitingPolicy { kIgnoreWeakness, kRespectWeakness };
-
-  // Iterates the function object according to the visiting policy.
-  template <BodyVisitingPolicy>
-  class BodyDescriptorImpl;
-
-  // Visit the whole object.
-  typedef BodyDescriptorImpl<kIgnoreWeakness> BodyDescriptor;
-
-  // Don't visit table and next collection fields.
-  typedef BodyDescriptorImpl<kRespectWeakness> BodyDescriptorWeak;
-
- private:
-  DISALLOW_IMPLICIT_CONSTRUCTORS(JSWeakCollection);
-};
-
-
-// The JSWeakMap describes EcmaScript Harmony weak maps
-class JSWeakMap: public JSWeakCollection {
- public:
-  DECL_CAST(JSWeakMap)
-
-  // Dispatched behavior.
-  DECL_PRINTER(JSWeakMap)
-  DECL_VERIFIER(JSWeakMap)
-
- private:
-  DISALLOW_IMPLICIT_CONSTRUCTORS(JSWeakMap);
-};
-
-
-// The JSWeakSet describes EcmaScript Harmony weak sets
-class JSWeakSet: public JSWeakCollection {
- public:
-  DECL_CAST(JSWeakSet)
-
-  // Dispatched behavior.
-  DECL_PRINTER(JSWeakSet)
-  DECL_VERIFIER(JSWeakSet)
-
- private:
-  DISALLOW_IMPLICIT_CONSTRUCTORS(JSWeakSet);
-};
-
 
 // Foreign describes objects pointing from JavaScript to C structures.
 class Foreign: public HeapObject {

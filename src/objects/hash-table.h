@@ -895,37 +895,6 @@ class OrderedHashTableIterator : public JSCollectionIterator {
 
   DISALLOW_IMPLICIT_CONSTRUCTORS(OrderedHashTableIterator);
 };
-
-class JSSetIterator
-    : public OrderedHashTableIterator<JSSetIterator, OrderedHashSet> {
- public:
-  // Dispatched behavior.
-  DECL_PRINTER(JSSetIterator)
-  DECL_VERIFIER(JSSetIterator)
-
-  DECL_CAST(JSSetIterator)
-
- private:
-  DISALLOW_IMPLICIT_CONSTRUCTORS(JSSetIterator);
-};
-
-class JSMapIterator
-    : public OrderedHashTableIterator<JSMapIterator, OrderedHashMap> {
- public:
-  // Dispatched behavior.
-  DECL_PRINTER(JSMapIterator)
-  DECL_VERIFIER(JSMapIterator)
-
-  DECL_CAST(JSMapIterator)
-
-  // Returns the current value of the iterator. This should only be called when
-  // |HasMore| returns true.
-  inline Object* CurrentValue();
-
- private:
-  DISALLOW_IMPLICIT_CONSTRUCTORS(JSMapIterator);
-};
-
 }  // namespace internal
 }  // namespace v8
 
