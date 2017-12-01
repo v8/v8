@@ -137,6 +137,8 @@ int ReclaimInaccessibleMemory(void* address, size_t size) {
   // marks the pages with the reusable bit, which allows both Activity Monitor
   // and memory-infra to correctly track the pages.
   int ret = madvise(address, size, MADV_FREE_REUSABLE);
+#elif defined(_AIX)
+  int ret = madvise(reinterpret_cast<caddr_t>(address), size, MADV_FREE);
 #else
   int ret = madvise(address, size, MADV_FREE);
 #endif
@@ -144,7 +146,11 @@ int ReclaimInaccessibleMemory(void* address, size_t size) {
     // MADV_FREE only works on Linux 4.5+ . If request failed, retry with older
     // MADV_DONTNEED . Note that MADV_FREE being defined at compile time doesn't
     // imply runtime support.
+#if defined(_AIX)
+    ret = madvise(reinterpret_cast<caddr_t>(address), size, MADV_DONTNEED);
+#else
     ret = madvise(address, size, MADV_DONTNEED);
+#endif
   }
   return ret;
 }
