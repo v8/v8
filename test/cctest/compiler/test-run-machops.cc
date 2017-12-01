@@ -5546,11 +5546,11 @@ TEST(RunWord64EqualInBranchP) {
   m.Return(m.Int32Constant(1));
   m.Bind(&blockb);
   m.Return(m.Int32Constant(2));
-  input = V8_INT64_C(0);
+  input = int64_t{0};
   CHECK_EQ(1, m.Call());
-  input = V8_INT64_C(1);
+  input = int64_t{1};
   CHECK_EQ(2, m.Call());
-  input = V8_INT64_C(0x100000000);
+  input = int64_t{0x100000000};
   CHECK_EQ(2, m.Call());
 }
 

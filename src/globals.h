@@ -181,7 +181,8 @@ const size_t kMaxWasmCodeMemory = 256 * MB;
 
 #if V8_HOST_ARCH_64_BIT
 const int kPointerSizeLog2 = 3;
-const intptr_t kIntptrSignBit = V8_INT64_C(0x8000000000000000);
+const intptr_t kIntptrSignBit =
+    static_cast<intptr_t>(uintptr_t{0x8000000000000000});
 const uintptr_t kUintptrAllBitsSet = uintptr_t{0xFFFFFFFFFFFFFFFF};
 const bool kRequiresCodeRange = true;
 #if V8_TARGET_ARCH_MIPS64

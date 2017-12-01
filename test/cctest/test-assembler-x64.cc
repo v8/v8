@@ -1546,7 +1546,7 @@ TEST(AssemblerX64AVX_sd) {
 
     // Test vcvtss2sd & vcvtsd2ss
     __ movl(rax, Immediate(9));
-    __ movq(rdx, V8_INT64_C(0x426D1A0000000000));
+    __ movq(rdx, uint64_t{0x426D1A0000000000});
     __ movq(Operand(rsp, 0), rdx);
     __ vcvtsd2ss(xmm6, xmm6, Operand(rsp, 0));
     __ vcvtss2sd(xmm7, xmm6, xmm6);
@@ -1572,10 +1572,10 @@ TEST(AssemblerX64AVX_sd) {
 
     // Test vcvttsd2siq
     __ movl(rax, Immediate(11));
-    __ movq(rdx, V8_INT64_C(0x426D1A94A2000000));  // 1.0e12
+    __ movq(rdx, uint64_t{0x426D1A94A2000000});  // 1.0e12
     __ vmovq(xmm6, rdx);
     __ vcvttsd2siq(rcx, xmm6);
-    __ movq(rdx, V8_INT64_C(1000000000000));
+    __ movq(rdx, uint64_t{1000000000000});
     __ cmpq(rcx, rdx);
     __ j(not_equal, &exit);
     __ xorq(rcx, rcx);
@@ -1586,9 +1586,9 @@ TEST(AssemblerX64AVX_sd) {
 
     // Test vmovmskpd
     __ movl(rax, Immediate(12));
-    __ movq(rdx, V8_INT64_C(0x426D1A94A2000000));  // 1.0e12
+    __ movq(rdx, uint64_t{0x426D1A94A2000000});  // 1.0e12
     __ vmovq(xmm6, rdx);
-    __ movq(rdx, V8_INT64_C(0xC26D1A94A2000000));  // -1.0e12
+    __ movq(rdx, uint64_t{0xC26D1A94A2000000});  // -1.0e12
     __ vmovq(xmm7, rdx);
     __ shufps(xmm6, xmm7, 0x44);
     __ vmovmskpd(rdx, xmm6);
@@ -1696,7 +1696,7 @@ TEST(AssemblerX64AVX_sd) {
     __ cmpl(rcx, Immediate(6));
     __ j(not_equal, &exit);
 
-    __ movq(rdx, V8_INT64_C(0x3ff0000000000000));  // 1.0
+    __ movq(rdx, uint64_t{0x3ff0000000000000});  // 1.0
     __ vmovq(xmm7, rdx);
     __ vmulsd(xmm1, xmm1, xmm7);
     __ movq(Operand(rsp, 0), rdx);

@@ -2033,7 +2033,7 @@ void MacroAssembler::AssertFixedArray(Register object) {
 void TurboAssembler::AssertZeroExtended(Register int32_register) {
   if (emit_debug_code()) {
     DCHECK_NE(int32_register, kScratchRegister);
-    movq(kScratchRegister, V8_INT64_C(0x0000000100000000));
+    movq(kScratchRegister, int64_t{0x0000000100000000});
     cmpq(kScratchRegister, int32_register);
     Check(above_equal, k32BitValueInRegisterIsNotZeroExtended);
   }
