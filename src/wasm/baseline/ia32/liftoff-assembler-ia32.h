@@ -29,6 +29,8 @@ inline Operand GetContextOperand() { return Operand(ebp, -16); }
 
 }  // namespace liftoff
 
+static constexpr DoubleRegister kScratchDoubleReg = xmm7;
+
 void LiftoffAssembler::ReserveStackSpace(uint32_t space) {
   stack_space_ = space;
   sub(esp, Immediate(space));
@@ -42,6 +44,9 @@ void LiftoffAssembler::LoadConstant(LiftoffRegister reg, WasmValue value) {
       } else {
         mov(reg.gp(), Immediate(value.to_i32()));
       }
+      break;
+    case kWasmF32:
+      TurboAssembler::Move(reg.fp(), value.to_f32_boxed().get_bits());
       break;
     default:
       UNREACHABLE();
@@ -92,8 +97,14 @@ void LiftoffAssembler::Store(Register dst_addr, uint32_t offset_imm,
 
 void LiftoffAssembler::LoadCallerFrameSlot(LiftoffRegister dst,
                                            uint32_t caller_slot_idx) {
-  constexpr int32_t kCallerStackSlotSize = 4;
-  mov(dst.gp(), Operand(ebp, kCallerStackSlotSize * (caller_slot_idx + 1)));
+  constexpr int32_t kStackSlotSize = 4;
+  Operand src(ebp, kStackSlotSize * (caller_slot_idx + 1));
+  // TODO(clemensh): Handle different sizes here.
+  if (dst.is_gp()) {
+    mov(dst.gp(), src);
+  } else {
+    movsd(dst.fp(), src);
+  }
 }
 
 void LiftoffAssembler::MoveStackValue(uint32_t dst_index, uint32_t src_index) {
@@ -109,7 +120,11 @@ void LiftoffAssembler::MoveStackValue(uint32_t dst_index, uint32_t src_index) {
 }
 
 void LiftoffAssembler::MoveToReturnRegister(LiftoffRegister reg) {
-  if (reg.gp() != eax) mov(eax, reg.gp());
+  // TODO(wasm): Extract the destination register from the CallDescriptor.
+  // TODO(wasm): Add multi-return support.
+  LiftoffRegister dst =
+      reg.is_gp() ? LiftoffRegister(eax) : LiftoffRegister(xmm1);
+  if (reg != dst) Move(dst, reg);
 }
 
 void LiftoffAssembler::Move(LiftoffRegister dst, LiftoffRegister src) {
@@ -127,16 +142,37 @@ void LiftoffAssembler::Move(LiftoffRegister dst, LiftoffRegister src) {
 }
 
 void LiftoffAssembler::Spill(uint32_t index, LiftoffRegister reg) {
-  mov(liftoff::GetStackSlot(index), reg.gp());
+  Operand dst = liftoff::GetStackSlot(index);
+  // TODO(clemensh): Handle different sizes here.
+  if (reg.is_gp()) {
+    mov(dst, reg.gp());
+  } else {
+    movsd(dst, reg.fp());
+  }
 }
 
 void LiftoffAssembler::Spill(uint32_t index, WasmValue value) {
-  // TODO(clemensh): Handle different types here.
-  mov(liftoff::GetStackSlot(index), Immediate(value.to_i32()));
+  Operand dst = liftoff::GetStackSlot(index);
+  switch (value.type()) {
+    case kWasmI32:
+      mov(dst, Immediate(value.to_i32()));
+      break;
+    case kWasmF32:
+      mov(dst, Immediate(value.to_f32_boxed().get_bits()));
+      break;
+    default:
+      UNREACHABLE();
+  }
 }
 
 void LiftoffAssembler::Fill(LiftoffRegister reg, uint32_t index) {
-  mov(reg.gp(), liftoff::GetStackSlot(index));
+  Operand src = liftoff::GetStackSlot(index);
+  // TODO(clemensh): Handle different sizes here.
+  if (reg.is_gp()) {
+    mov(reg.gp(), src);
+  } else {
+    movsd(reg.fp(), src);
+  }
 }
 
 void LiftoffAssembler::emit_i32_add(Register dst, Register lhs, Register rhs) {
@@ -176,6 +212,53 @@ COMMUTATIVE_I32_BINOP(xor, xor_)
 // clang-format on
 
 #undef DEFAULT_I32_BINOP
+
+void LiftoffAssembler::emit_f32_add(DoubleRegister dst, DoubleRegister lhs,
+                                    DoubleRegister rhs) {
+  if (CpuFeatures::IsSupported(AVX)) {
+    CpuFeatureScope scope(this, AVX);
+    vaddss(dst, lhs, rhs);
+    return;
+  }
+  if (dst == rhs) {
+    addss(dst, lhs);
+  } else {
+    if (dst != lhs) movss(dst, lhs);
+    addss(dst, rhs);
+  }
+}
+
+void LiftoffAssembler::emit_f32_sub(DoubleRegister dst, DoubleRegister lhs,
+                                    DoubleRegister rhs) {
+  if (CpuFeatures::IsSupported(AVX)) {
+    CpuFeatureScope scope(this, AVX);
+    vsubss(dst, lhs, rhs);
+    return;
+  }
+  if (dst == rhs) {
+    movss(kScratchDoubleReg, rhs);
+    movss(dst, lhs);
+    subss(dst, kScratchDoubleReg);
+  } else {
+    if (dst != lhs) movss(dst, lhs);
+    subss(dst, rhs);
+  }
+}
+
+void LiftoffAssembler::emit_f32_mul(DoubleRegister dst, DoubleRegister lhs,
+                                    DoubleRegister rhs) {
+  if (CpuFeatures::IsSupported(AVX)) {
+    CpuFeatureScope scope(this, AVX);
+    vmulss(dst, lhs, rhs);
+    return;
+  }
+  if (dst == rhs) {
+    mulss(dst, lhs);
+  } else {
+    if (dst != lhs) movss(dst, lhs);
+    mulss(dst, rhs);
+  }
+}
 
 void LiftoffAssembler::JumpIfZero(Register reg, Label* label) {
   test(reg, reg);

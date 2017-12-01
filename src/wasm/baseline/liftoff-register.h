@@ -28,6 +28,13 @@ static inline constexpr RegClass reg_class_for(ValueType type) {
                    : kNoReg;  // other (unsupported) types
 }
 
+// RegForClass<rc>: Register for rc==kGpReg, DoubleRegister for rc==kFpReg, void
+// for all other values of rc.
+template <RegClass rc>
+using RegForClass = typename std::conditional<
+    rc == kGpReg, Register,
+    typename std::conditional<rc == kFpReg, DoubleRegister, void>::type>::type;
+
 // Maximum code of a gp cache register.
 static constexpr int kMaxGpRegCode =
     8 * sizeof(kLiftoffAssemblerGpCacheRegs) -

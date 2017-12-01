@@ -207,6 +207,7 @@ class LiftoffAssembler : public TurboAssembler {
   LiftoffRegister PopToRegister(RegClass, LiftoffRegList pinned = {});
 
   void PushRegister(ValueType type, LiftoffRegister reg) {
+    DCHECK_EQ(reg_class_for(type), reg.reg_class());
     cache_state_.inc_used(reg);
     cache_state_.stack_state.emplace_back(type, reg);
   }
@@ -268,6 +269,13 @@ class LiftoffAssembler : public TurboAssembler {
   inline void emit_i32_and(Register dst, Register lhs, Register rhs);
   inline void emit_i32_or(Register dst, Register lhs, Register rhs);
   inline void emit_i32_xor(Register dst, Register lhs, Register rhs);
+
+  inline void emit_f32_add(DoubleRegister dst, DoubleRegister lhs,
+                           DoubleRegister rhs);
+  inline void emit_f32_sub(DoubleRegister dst, DoubleRegister lhs,
+                           DoubleRegister rhs);
+  inline void emit_f32_mul(DoubleRegister dst, DoubleRegister lhs,
+                           DoubleRegister rhs);
 
   inline void JumpIfZero(Register, Label*);
 

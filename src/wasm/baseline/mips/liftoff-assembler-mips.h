@@ -58,6 +58,12 @@ DEFAULT_I32_BINOP(xor, xor)
 
 #undef DEFAULT_I32_BINOP
 
+void LiftoffAssembler::emit_f32_add(DoubleRegister dst, DoubleRegister lhs,
+                                    DoubleRegister rhs) {}
+void LiftoffAssembler::emit_f32_sub(DoubleRegister dst, DoubleRegister lhs,
+                                    DoubleRegister rhs) {}
+void LiftoffAssembler::emit_f32_mul(DoubleRegister dst, DoubleRegister lhs,
+                                    DoubleRegister rhs) {}
 void LiftoffAssembler::JumpIfZero(Register reg, Label* label) {}
 
 }  // namespace wasm
