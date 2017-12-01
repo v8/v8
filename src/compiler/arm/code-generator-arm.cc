@@ -432,49 +432,49 @@ Condition FlagsConditionToCondition(FlagsCondition condition) {
     __ dmb(ISH);                                                      \
   } while (0)
 
-#define ASSEMBLE_ATOMIC_EXCHANGE_INTEGER(load_instr, store_instr)              \
-  do {                                                                         \
-    Label exchange;                                                            \
-    __ add(i.InputRegister(0), i.InputRegister(0), i.InputRegister(1));        \
-    __ dmb(ISH);                                                               \
-    __ bind(&exchange);                                                        \
-    __ load_instr(i.OutputRegister(0), i.InputRegister(0));                    \
-    __ store_instr(i.TempRegister(0), i.InputRegister(2), i.InputRegister(0)); \
-    __ teq(i.TempRegister(0), Operand(0));                                     \
-    __ b(ne, &exchange);                                                       \
-    __ dmb(ISH);                                                               \
-  } while (0)
-
-#define ASSEMBLE_ATOMIC_COMPARE_EXCHANGE_INTEGER(load_instr, store_instr)      \
-  do {                                                                         \
-    Label compareExchange;                                                     \
-    Label exit;                                                                \
-    __ add(i.InputRegister(0), i.InputRegister(0), i.InputRegister(1));        \
-    __ dmb(ISH);                                                               \
-    __ bind(&compareExchange);                                                 \
-    __ load_instr(i.OutputRegister(0), i.InputRegister(0));                    \
-    __ teq(i.InputRegister(2), Operand(i.OutputRegister(0)));                  \
-    __ b(ne, &exit);                                                           \
-    __ store_instr(i.TempRegister(0), i.InputRegister(3), i.InputRegister(0)); \
-    __ teq(i.TempRegister(0), Operand(0));                                     \
-    __ b(ne, &compareExchange);                                                \
-    __ bind(&exit);                                                            \
-    __ dmb(ISH);                                                               \
-  } while (0)
-
-#define ASSEMBLE_ATOMIC_BINOP(load_instr, store_instr, bin_instr)             \
+#define ASSEMBLE_ATOMIC_EXCHANGE_INTEGER(load_instr, store_instr)             \
   do {                                                                        \
-    Label binop;                                                              \
-    __ add(i.InputRegister(0), i.InputRegister(0), i.InputRegister(1));       \
+    Label exchange;                                                           \
+    __ add(i.TempRegister(1), i.InputRegister(0), i.InputRegister(1));        \
     __ dmb(ISH);                                                              \
-    __ bind(&binop);                                                          \
-    __ load_instr(i.OutputRegister(0), i.InputRegister(0));                   \
-    __ bin_instr(i.TempRegister(0), i.OutputRegister(0),                      \
-                 Operand(i.InputRegister(2)));                                \
-    __ store_instr(i.TempRegister(1), i.TempRegister(0), i.InputRegister(0)); \
-    __ teq(i.TempRegister(1), Operand(0));                                    \
-    __ b(ne, &binop);                                                         \
+    __ bind(&exchange);                                                       \
+    __ load_instr(i.OutputRegister(0), i.TempRegister(1));                    \
+    __ store_instr(i.TempRegister(0), i.InputRegister(2), i.TempRegister(1)); \
+    __ teq(i.TempRegister(0), Operand(0));                                    \
+    __ b(ne, &exchange);                                                      \
     __ dmb(ISH);                                                              \
+  } while (0)
+
+#define ASSEMBLE_ATOMIC_COMPARE_EXCHANGE_INTEGER(load_instr, store_instr,     \
+                                                 cmp_reg)                     \
+  do {                                                                        \
+    Label compareExchange;                                                    \
+    Label exit;                                                               \
+    __ dmb(ISH);                                                              \
+    __ bind(&compareExchange);                                                \
+    __ load_instr(i.OutputRegister(0), i.TempRegister(1));                    \
+    __ teq(cmp_reg, Operand(i.OutputRegister(0)));                            \
+    __ b(ne, &exit);                                                          \
+    __ store_instr(i.TempRegister(0), i.InputRegister(3), i.TempRegister(1)); \
+    __ teq(i.TempRegister(0), Operand(0));                                    \
+    __ b(ne, &compareExchange);                                               \
+    __ bind(&exit);                                                           \
+    __ dmb(ISH);                                                              \
+  } while (0)
+
+#define ASSEMBLE_ATOMIC_BINOP(load_instr, store_instr, bin_instr)            \
+  do {                                                                       \
+    Label binop;                                                             \
+    __ add(i.TempRegister(1), i.InputRegister(0), i.InputRegister(1));       \
+    __ dmb(ISH);                                                             \
+    __ bind(&binop);                                                         \
+    __ load_instr(i.OutputRegister(0), i.TempRegister(1));                   \
+    __ bin_instr(i.TempRegister(0), i.OutputRegister(0),                     \
+                 Operand(i.InputRegister(2)));                               \
+    __ store_instr(i.TempRegister(2), i.TempRegister(0), i.TempRegister(1)); \
+    __ teq(i.TempRegister(2), Operand(0));                                   \
+    __ b(ne, &binop);                                                        \
+    __ dmb(ISH);                                                             \
   } while (0)
 
 #define ASSEMBLE_IEEE754_BINOP(name)                                           \
@@ -2642,25 +2642,35 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       ASSEMBLE_ATOMIC_EXCHANGE_INTEGER(ldrex, strex);
       break;
     case kAtomicCompareExchangeInt8:
-      __ uxtb(i.InputRegister(2), i.InputRegister(2));
-      ASSEMBLE_ATOMIC_COMPARE_EXCHANGE_INTEGER(ldrexb, strexb);
+      __ add(i.TempRegister(1), i.InputRegister(0), i.InputRegister(1));
+      __ uxtb(i.TempRegister(2), i.InputRegister(2));
+      ASSEMBLE_ATOMIC_COMPARE_EXCHANGE_INTEGER(ldrexb, strexb,
+                                               i.TempRegister(2));
       __ sxtb(i.OutputRegister(0), i.OutputRegister(0));
       break;
     case kAtomicCompareExchangeUint8:
-      __ uxtb(i.InputRegister(2), i.InputRegister(2));
-      ASSEMBLE_ATOMIC_COMPARE_EXCHANGE_INTEGER(ldrexb, strexb);
+      __ add(i.TempRegister(1), i.InputRegister(0), i.InputRegister(1));
+      __ uxtb(i.TempRegister(2), i.InputRegister(2));
+      ASSEMBLE_ATOMIC_COMPARE_EXCHANGE_INTEGER(ldrexb, strexb,
+                                               i.TempRegister(2));
       break;
     case kAtomicCompareExchangeInt16:
-      __ uxth(i.InputRegister(2), i.InputRegister(2));
-      ASSEMBLE_ATOMIC_COMPARE_EXCHANGE_INTEGER(ldrexh, strexh);
+      __ add(i.TempRegister(1), i.InputRegister(0), i.InputRegister(1));
+      __ uxth(i.TempRegister(2), i.InputRegister(2));
+      ASSEMBLE_ATOMIC_COMPARE_EXCHANGE_INTEGER(ldrexh, strexh,
+                                               i.TempRegister(2));
       __ sxth(i.OutputRegister(0), i.OutputRegister(0));
       break;
     case kAtomicCompareExchangeUint16:
-      __ uxth(i.InputRegister(2), i.InputRegister(2));
-      ASSEMBLE_ATOMIC_COMPARE_EXCHANGE_INTEGER(ldrexh, strexh);
+      __ add(i.TempRegister(1), i.InputRegister(0), i.InputRegister(1));
+      __ uxth(i.TempRegister(2), i.InputRegister(2));
+      ASSEMBLE_ATOMIC_COMPARE_EXCHANGE_INTEGER(ldrexh, strexh,
+                                               i.TempRegister(2));
       break;
     case kAtomicCompareExchangeWord32:
-      ASSEMBLE_ATOMIC_COMPARE_EXCHANGE_INTEGER(ldrex, strex);
+      __ add(i.TempRegister(1), i.InputRegister(0), i.InputRegister(1));
+      ASSEMBLE_ATOMIC_COMPARE_EXCHANGE_INTEGER(ldrex, strex,
+                                               i.InputRegister(2));
       break;
 #define ATOMIC_BINOP_CASE(op, inst)                    \
   case kAtomic##op##Int8:                              \
