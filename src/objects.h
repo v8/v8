@@ -896,7 +896,6 @@ class RootVisitor;
 class SafepointEntry;
 class SharedFunctionInfo;
 class StringStream;
-class TypeFeedbackInfo;
 class FeedbackMetadata;
 class FeedbackVector;
 class WeakCell;
@@ -1057,7 +1056,6 @@ template <class C> inline bool Is(Object* obj);
   V(TemplateObjectDescription)            \
   V(ThinString)                           \
   V(TransitionArray)                      \
-  V(TypeFeedbackInfo)                     \
   V(Undetectable)                         \
   V(UniqueName)                           \
   V(WasmInstanceObject)                   \
@@ -3879,48 +3877,6 @@ class JSPromise : public JSObject {
   STATIC_ASSERT(v8::Promise::kPending == 0);
   STATIC_ASSERT(v8::Promise::kFulfilled == 1);
   STATIC_ASSERT(v8::Promise::kRejected == 2);
-};
-
-class TypeFeedbackInfo : public Tuple3 {
- public:
-  inline int ic_total_count();
-  inline void set_ic_total_count(int count);
-
-  inline int ic_with_type_info_count();
-  inline void change_ic_with_type_info_count(int delta);
-
-  inline int ic_generic_count();
-  inline void change_ic_generic_count(int delta);
-
-  inline void initialize_storage();
-
-  inline void change_own_type_change_checksum();
-  inline int own_type_change_checksum();
-
-  inline void set_inlined_type_change_checksum(int checksum);
-  inline bool matches_inlined_type_change_checksum(int checksum);
-
-  DECL_CAST(TypeFeedbackInfo)
-
-  static const int kStorage1Offset = kValue1Offset;
-  static const int kStorage2Offset = kValue2Offset;
-  static const int kStorage3Offset = kValue3Offset;
-
- private:
-  static const int kTypeChangeChecksumBits = 7;
-
-  class ICTotalCountField: public BitField<int, 0,
-      kSmiValueSize - kTypeChangeChecksumBits> {};  // NOLINT
-  class OwnTypeChangeChecksum: public BitField<int,
-      kSmiValueSize - kTypeChangeChecksumBits,
-      kTypeChangeChecksumBits> {};  // NOLINT
-  class ICsWithTypeInfoCountField: public BitField<int, 0,
-      kSmiValueSize - kTypeChangeChecksumBits> {};  // NOLINT
-  class InlinedTypeChangeChecksum: public BitField<int,
-      kSmiValueSize - kTypeChangeChecksumBits,
-      kTypeChangeChecksumBits> {};  // NOLINT
-
-  DISALLOW_IMPLICIT_CONSTRUCTORS(TypeFeedbackInfo);
 };
 
 class AllocationSite: public Struct {

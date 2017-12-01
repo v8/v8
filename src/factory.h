@@ -168,9 +168,6 @@ class V8_EXPORT_PRIVATE Factory final {
   // Create a pre-tenured empty AccessorPair.
   Handle<AccessorPair> NewAccessorPair();
 
-  // Create an empty TypeFeedbackInfo.
-  Handle<TypeFeedbackInfo> NewTypeFeedbackInfo();
-
   // Finds the internalized copy for string in the string table.
   // If not found, a new string is added to the table and returned.
   Handle<String> InternalizeUtf8String(Vector<const char> str);

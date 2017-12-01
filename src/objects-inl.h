@@ -114,7 +114,6 @@ TYPE_CHECKER(SourcePositionTableWithFrameCache, TUPLE2_TYPE)
 TYPE_CHECKER(TemplateMap, HASH_TABLE_TYPE)
 TYPE_CHECKER(TemplateObjectDescription, TUPLE3_TYPE)
 TYPE_CHECKER(TransitionArray, TRANSITION_ARRAY_TYPE)
-TYPE_CHECKER(TypeFeedbackInfo, TUPLE3_TYPE)
 TYPE_CHECKER(WasmInstanceObject, WASM_INSTANCE_TYPE)
 TYPE_CHECKER(WasmMemoryObject, WASM_MEMORY_TYPE)
 TYPE_CHECKER(WasmModuleObject, WASM_MODULE_TYPE)
@@ -603,7 +602,6 @@ CAST_ACCESSOR(TemplateMap)
 CAST_ACCESSOR(TemplateObjectDescription)
 CAST_ACCESSOR(Tuple2)
 CAST_ACCESSOR(Tuple3)
-CAST_ACCESSOR(TypeFeedbackInfo)
 CAST_ACCESSOR(WeakCell)
 CAST_ACCESSOR(WeakHashTable)
 
@@ -3405,100 +3403,6 @@ Handle<Object> WeakHashTableShape::AsHandle(Isolate* isolate,
 
 int WeakHashTableShape::GetMapRootIndex() {
   return Heap::kWeakHashTableMapRootIndex;
-}
-
-int TypeFeedbackInfo::ic_total_count() {
-  int current = Smi::ToInt(READ_FIELD(this, kStorage1Offset));
-  return ICTotalCountField::decode(current);
-}
-
-
-void TypeFeedbackInfo::set_ic_total_count(int count) {
-  int value = Smi::ToInt(READ_FIELD(this, kStorage1Offset));
-  value = ICTotalCountField::update(value,
-                                    ICTotalCountField::decode(count));
-  WRITE_FIELD(this, kStorage1Offset, Smi::FromInt(value));
-}
-
-
-int TypeFeedbackInfo::ic_with_type_info_count() {
-  int current = Smi::ToInt(READ_FIELD(this, kStorage2Offset));
-  return ICsWithTypeInfoCountField::decode(current);
-}
-
-
-void TypeFeedbackInfo::change_ic_with_type_info_count(int delta) {
-  if (delta == 0) return;
-  int value = Smi::ToInt(READ_FIELD(this, kStorage2Offset));
-  int new_count = ICsWithTypeInfoCountField::decode(value) + delta;
-  // We can get negative count here when the type-feedback info is
-  // shared between two code objects. The can only happen when
-  // the debugger made a shallow copy of code object (see Heap::CopyCode).
-  // Since we do not optimize when the debugger is active, we can skip
-  // this counter update.
-  if (new_count >= 0) {
-    new_count &= ICsWithTypeInfoCountField::kMask;
-    value = ICsWithTypeInfoCountField::update(value, new_count);
-    WRITE_FIELD(this, kStorage2Offset, Smi::FromInt(value));
-  }
-}
-
-
-int TypeFeedbackInfo::ic_generic_count() {
-  return Smi::ToInt(READ_FIELD(this, kStorage3Offset));
-}
-
-
-void TypeFeedbackInfo::change_ic_generic_count(int delta) {
-  if (delta == 0) return;
-  int new_count = ic_generic_count() + delta;
-  if (new_count >= 0) {
-    new_count &= ~Smi::kMinValue;
-    WRITE_FIELD(this, kStorage3Offset, Smi::FromInt(new_count));
-  }
-}
-
-
-void TypeFeedbackInfo::initialize_storage() {
-  WRITE_FIELD(this, kStorage1Offset, Smi::kZero);
-  WRITE_FIELD(this, kStorage2Offset, Smi::kZero);
-  WRITE_FIELD(this, kStorage3Offset, Smi::kZero);
-}
-
-
-void TypeFeedbackInfo::change_own_type_change_checksum() {
-  int value = Smi::ToInt(READ_FIELD(this, kStorage1Offset));
-  int checksum = OwnTypeChangeChecksum::decode(value);
-  checksum = (checksum + 1) % (1 << kTypeChangeChecksumBits);
-  value = OwnTypeChangeChecksum::update(value, checksum);
-  // Ensure packed bit field is in Smi range.
-  if (value > Smi::kMaxValue) value |= Smi::kMinValue;
-  if (value < Smi::kMinValue) value &= ~Smi::kMinValue;
-  WRITE_FIELD(this, kStorage1Offset, Smi::FromInt(value));
-}
-
-
-void TypeFeedbackInfo::set_inlined_type_change_checksum(int checksum) {
-  int value = Smi::ToInt(READ_FIELD(this, kStorage2Offset));
-  int mask = (1 << kTypeChangeChecksumBits) - 1;
-  value = InlinedTypeChangeChecksum::update(value, checksum & mask);
-  // Ensure packed bit field is in Smi range.
-  if (value > Smi::kMaxValue) value |= Smi::kMinValue;
-  if (value < Smi::kMinValue) value &= ~Smi::kMinValue;
-  WRITE_FIELD(this, kStorage2Offset, Smi::FromInt(value));
-}
-
-
-int TypeFeedbackInfo::own_type_change_checksum() {
-  int value = Smi::ToInt(READ_FIELD(this, kStorage1Offset));
-  return OwnTypeChangeChecksum::decode(value);
-}
-
-
-bool TypeFeedbackInfo::matches_inlined_type_change_checksum(int checksum) {
-  int value = Smi::ToInt(READ_FIELD(this, kStorage2Offset));
-  int mask = (1 << kTypeChangeChecksumBits) - 1;
-  return InlinedTypeChangeChecksum::decode(value) == (checksum & mask);
 }
 
 Relocatable::Relocatable(Isolate* isolate) {

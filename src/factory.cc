@@ -337,14 +337,6 @@ Handle<AccessorPair> Factory::NewAccessorPair() {
 }
 
 
-Handle<TypeFeedbackInfo> Factory::NewTypeFeedbackInfo() {
-  Handle<TypeFeedbackInfo> info =
-      Handle<TypeFeedbackInfo>::cast(NewStruct(TUPLE3_TYPE, TENURED));
-  info->initialize_storage();
-  return info;
-}
-
-
 // Internalized strings are created in the old generation (data space).
 Handle<String> Factory::InternalizeUtf8String(Vector<const char> string) {
   Utf8StringKey key(string, isolate()->heap()->HashSeed());
