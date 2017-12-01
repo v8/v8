@@ -13264,6 +13264,15 @@ bool Script::GetPositionInfo(Handle<Script> script, int position,
 
 bool Script::IsUserJavaScript() { return type() == Script::TYPE_NORMAL; }
 
+bool Script::ContainsAsmModule() {
+  DisallowHeapAllocation no_gc;
+  SharedFunctionInfo::ScriptIterator iter(Handle<Script>(this));
+  while (SharedFunctionInfo* info = iter.Next()) {
+    if (info->HasAsmWasmData()) return true;
+  }
+  return false;
+}
+
 namespace {
 bool GetPositionInfoSlow(const Script* script, int position,
                          Script::PositionInfo* info) {

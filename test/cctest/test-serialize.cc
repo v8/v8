@@ -57,6 +57,8 @@
 namespace v8 {
 namespace internal {
 
+enum CodeCacheType { kLazy, kEager, kAfterExecute };
+
 void DisableLazyDeserialization() {
   // UNINITIALIZED tests do not set up the isolate sufficiently for lazy
   // deserialization to work.
@@ -1838,8 +1840,8 @@ static void SerializerCodeEventListener(const v8::JitCodeEvent* event) {
   }
 }
 
-v8::ScriptCompiler::CachedData* ProduceCache(const char* source,
-                                             bool eager = false) {
+v8::ScriptCompiler::CachedData* ProduceCache(
+    const char* source, CodeCacheType cacheType = CodeCacheType::kLazy) {
   v8::ScriptCompiler::CachedData* cache;
   v8::Isolate::CreateParams create_params;
   create_params.array_buffer_allocator = CcTest::array_buffer_allocator();
@@ -1853,19 +1855,23 @@ v8::ScriptCompiler::CachedData* ProduceCache(const char* source,
     v8::Local<v8::String> source_str = v8_str(source);
     v8::ScriptOrigin origin(v8_str("test"));
     v8::ScriptCompiler::Source source(source_str, origin);
-    v8::ScriptCompiler::CompileOptions options =
-        eager ? v8::ScriptCompiler::kProduceFullCodeCache
-              : v8::ScriptCompiler::kProduceCodeCache;
+    v8::ScriptCompiler::CompileOptions options;
+    switch (cacheType) {
+      case CodeCacheType::kLazy:
+        options = v8::ScriptCompiler::kProduceCodeCache;
+        break;
+      case CodeCacheType::kEager:
+        options = v8::ScriptCompiler::kProduceFullCodeCache;
+        break;
+      case CodeCacheType::kAfterExecute:
+        options = v8::ScriptCompiler::kNoCompileOptions;
+        break;
+      default:
+        UNREACHABLE();
+    }
     v8::Local<v8::UnboundScript> script =
         v8::ScriptCompiler::CompileUnboundScript(isolate1, &source, options)
             .ToLocalChecked();
-    const v8::ScriptCompiler::CachedData* data = source.GetCachedData();
-    CHECK(data);
-    // Persist cached data.
-    uint8_t* buffer = NewArray<uint8_t>(data->length);
-    MemCopy(buffer, data->data, data->length);
-    cache = new v8::ScriptCompiler::CachedData(
-        buffer, data->length, v8::ScriptCompiler::CachedData::BufferOwned);
 
     v8::Local<v8::Value> result = script->BindToCurrentContext()
                                       ->Run(isolate1->GetCurrentContext())
@@ -1874,6 +1880,18 @@ v8::ScriptCompiler::CachedData* ProduceCache(const char* source,
         result->ToString(isolate1->GetCurrentContext()).ToLocalChecked();
     CHECK(result_string->Equals(isolate1->GetCurrentContext(), v8_str("abcdef"))
               .FromJust());
+
+    if (cacheType == CodeCacheType::kAfterExecute) {
+      cache = ScriptCompiler::CreateCodeCache(script, source_str);
+    } else {
+      const ScriptCompiler::CachedData* data = source.GetCachedData();
+      CHECK(data);
+      uint8_t* buffer = NewArray<uint8_t>(data->length);
+      MemCopy(buffer, data->data, data->length);
+      cache = new v8::ScriptCompiler::CachedData(
+          buffer, data->length, v8::ScriptCompiler::CachedData::BufferOwned);
+    }
+    CHECK(cache);
   }
   isolate1->Dispose();
   return cache;
@@ -1936,7 +1954,8 @@ TEST(CodeSerializerIsolatesEager) {
       "  }"
       "}"
       "f()() + 'def'";
-  v8::ScriptCompiler::CachedData* cache = ProduceCache(source, true);
+  v8::ScriptCompiler::CachedData* cache =
+      ProduceCache(source, CodeCacheType::kEager);
 
   v8::Isolate::CreateParams create_params;
   create_params.array_buffer_allocator = CcTest::array_buffer_allocator();
@@ -1972,6 +1991,68 @@ TEST(CodeSerializerIsolatesEager) {
   }
   CHECK(toplevel_test_code_event_found);
   isolate2->Dispose();
+}
+
+TEST(CodeSerializerAfterExecute) {
+  // We test that no compilations happen when running this code. Forcing
+  // to always optimize breaks this test.
+  bool prev_opt_value = FLAG_opt;
+  bool prev_always_opt_value = FLAG_always_opt;
+  FLAG_always_opt = false;
+  FLAG_opt = false;
+  const char* source = "function f() { return 'abc'; }; f() + 'def'";
+  v8::ScriptCompiler::CachedData* cache =
+      ProduceCache(source, CodeCacheType::kAfterExecute);
+
+  v8::Isolate::CreateParams create_params;
+  create_params.array_buffer_allocator = CcTest::array_buffer_allocator();
+  v8::Isolate* isolate2 = v8::Isolate::New(create_params);
+
+  {
+    v8::Isolate::Scope iscope(isolate2);
+    v8::HandleScope scope(isolate2);
+    v8::Local<v8::Context> context = v8::Context::New(isolate2);
+    v8::Context::Scope context_scope(context);
+
+    v8::Local<v8::String> source_str = v8_str(source);
+    v8::ScriptOrigin origin(v8_str("test"));
+    v8::ScriptCompiler::Source source(source_str, origin, cache);
+    v8::Local<v8::UnboundScript> script;
+    {
+      DisallowCompilation no_compile_expected(
+          reinterpret_cast<Isolate*>(isolate2));
+      script = v8::ScriptCompiler::CompileUnboundScript(
+                   isolate2, &source, v8::ScriptCompiler::kConsumeCodeCache)
+                   .ToLocalChecked();
+    }
+    CHECK(!cache->rejected);
+    CheckDeserializedFlag(script);
+
+    Handle<SharedFunctionInfo> sfi = v8::Utils::OpenHandle(*script);
+    CHECK(sfi->HasBytecodeArray());
+    BytecodeArray* bytecode = sfi->bytecode_array();
+    CHECK_EQ(bytecode->interrupt_budget(),
+             interpreter::Interpreter::kInterruptBudget);
+    CHECK_EQ(bytecode->osr_loop_nesting_level(), 0);
+
+    {
+      DisallowCompilation no_compile_expected(
+          reinterpret_cast<Isolate*>(isolate2));
+      v8::Local<v8::Value> result = script->BindToCurrentContext()
+                                        ->Run(isolate2->GetCurrentContext())
+                                        .ToLocalChecked();
+      v8::Local<v8::String> result_string =
+          result->ToString(isolate2->GetCurrentContext()).ToLocalChecked();
+      CHECK(
+          result_string->Equals(isolate2->GetCurrentContext(), v8_str("abcdef"))
+              .FromJust());
+    }
+  }
+  isolate2->Dispose();
+
+  // Restore the flags.
+  FLAG_always_opt = prev_always_opt_value;
+  FLAG_opt = prev_opt_value;
 }
 
 TEST(CodeSerializerFlagChange) {
