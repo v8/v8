@@ -6189,14 +6189,14 @@ Node* CodeStubAssembler::ComputeIntegerHash(Node* key, Node* seed) {
   // See v8::internal::ComputeIntegerHash()
   Node* hash = TruncateWordToWord32(key);
   hash = Word32Xor(hash, seed);
-  hash = Int32Add(Word32Xor(hash, Int32Constant(0xffffffff)),
+  hash = Int32Add(Word32Xor(hash, Int32Constant(0xFFFFFFFF)),
                   Word32Shl(hash, Int32Constant(15)));
   hash = Word32Xor(hash, Word32Shr(hash, Int32Constant(12)));
   hash = Int32Add(hash, Word32Shl(hash, Int32Constant(2)));
   hash = Word32Xor(hash, Word32Shr(hash, Int32Constant(4)));
   hash = Int32Mul(hash, Int32Constant(2057));
   hash = Word32Xor(hash, Word32Shr(hash, Int32Constant(16)));
-  return Word32And(hash, Int32Constant(0x3fffffff));
+  return Word32And(hash, Int32Constant(0x3FFFFFFF));
 }
 
 void CodeStubAssembler::NumberDictionaryLookup(Node* dictionary,
@@ -7569,7 +7569,7 @@ void CodeStubAssembler::StoreElement(Node* elements, ElementsKind kind,
   if (IsFixedTypedArrayElementsKind(kind)) {
     if (kind == UINT8_CLAMPED_ELEMENTS) {
       CSA_ASSERT(this,
-                 Word32Equal(value, Word32And(Int32Constant(0xff), value)));
+                 Word32Equal(value, Word32And(Int32Constant(0xFF), value)));
     }
     Node* offset = ElementOffsetFromIndex(index, kind, mode, 0);
     MachineRepresentation rep = ElementsKindToMachineRepresentation(kind);
@@ -10141,17 +10141,17 @@ Node* CodeStubAssembler::BitwiseOp(Node* left32, Node* right32,
       return ChangeInt32ToTagged(Signed(Word32Xor(left32, right32)));
     case Operation::kShiftLeft:
       if (!Word32ShiftIsSafe()) {
-        right32 = Word32And(right32, Int32Constant(0x1f));
+        right32 = Word32And(right32, Int32Constant(0x1F));
       }
       return ChangeInt32ToTagged(Signed(Word32Shl(left32, right32)));
     case Operation::kShiftRight:
       if (!Word32ShiftIsSafe()) {
-        right32 = Word32And(right32, Int32Constant(0x1f));
+        right32 = Word32And(right32, Int32Constant(0x1F));
       }
       return ChangeInt32ToTagged(Signed(Word32Sar(left32, right32)));
     case Operation::kShiftRightLogical:
       if (!Word32ShiftIsSafe()) {
-        right32 = Word32And(right32, Int32Constant(0x1f));
+        right32 = Word32And(right32, Int32Constant(0x1F));
       }
       return ChangeUint32ToTagged(Unsigned(Word32Shr(left32, right32)));
     default:

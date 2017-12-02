@@ -280,7 +280,7 @@ RegExpTree* RegExpParser::ParseDisjunction() {
           // Everything.
           CharacterRange::AddClassEscape('*', ranges, false, zone());
         } else {
-          // Everything except \x0a, \x0d, \u2028 and \u2029
+          // Everything except \x0A, \x0D, \u2028 and \u2029
           CharacterRange::AddClassEscape('.', ranges, false, zone());
         }
 
@@ -451,7 +451,7 @@ RegExpTree* RegExpParser::ParseDisjunction() {
               builder->AddCharacter('\\');
             } else {
               Advance(2);
-              builder->AddCharacter(controlLetter & 0x1f);
+              builder->AddCharacter(controlLetter & 0x1F);
             }
             break;
           }
@@ -1145,7 +1145,7 @@ bool RegExpParser::ParseUnicodeEscape(uc32* value) {
   if (current() == '{' && unicode()) {
     int start = position();
     Advance();
-    if (ParseUnlimitedLengthHexNumber(0x10ffff, value)) {
+    if (ParseUnlimitedLengthHexNumber(0x10FFFF, value)) {
       if (current() == '}') {
         Advance();
         return true;
@@ -1258,7 +1258,7 @@ bool LookupSpecialPropertyValueName(const char* name,
     if (!negate) result->Add(CharacterRange::Everything(), zone);
   } else if (NameEquals(name, "ASCII")) {
     result->Add(negate ? CharacterRange::Range(0x80, String::kMaxCodePoint)
-                       : CharacterRange::Range(0x0, 0x7f),
+                       : CharacterRange::Range(0x0, 0x7F),
                 zone);
   } else if (NameEquals(name, "Assigned")) {
     return LookupPropertyValueName(UCHAR_GENERAL_CATEGORY, "Unassigned",
@@ -1467,8 +1467,8 @@ uc32 RegExpParser::ParseClassCharacterEscape() {
       if (letter >= 'A' && letter <= 'Z') {
         Advance(2);
         // Control letters mapped to ASCII control characters in the range
-        // 0x00-0x1f.
-        return controlLetter & 0x1f;
+        // 0x00-0x1F.
+        return controlLetter & 0x1F;
       }
       if (unicode()) {
         // With /u, invalid escapes are not treated as identity escapes.
@@ -1478,7 +1478,7 @@ uc32 RegExpParser::ParseClassCharacterEscape() {
       if ((controlLetter >= '0' && controlLetter <= '9') ||
           controlLetter == '_') {
         Advance(2);
-        return controlLetter & 0x1f;
+        return controlLetter & 0x1F;
       }
       // We match JSC in reading the backslash as a literal
       // character instead of as starting an escape.

@@ -160,7 +160,7 @@ void TurboAssembler::LogicalMacro(const Register& rd, const Register& rn,
           UNREACHABLE();
       }
     } else if ((rd.Is64Bits() && (immediate == -1L)) ||
-               (rd.Is32Bits() && (immediate == 0xffffffffL))) {
+               (rd.Is32Bits() && (immediate == 0xFFFFFFFFL))) {
       switch (op) {
         case AND:
           Mov(rd, rn);
@@ -252,15 +252,15 @@ void TurboAssembler::Mov(const Register& rd, uint64_t imm) {
     // Generic immediate case. Imm will be represented by
     //   [imm3, imm2, imm1, imm0], where each imm is 16 bits.
     // A move-zero or move-inverted is generated for the first non-zero or
-    // non-0xffff immX, and a move-keep for subsequent non-zero immX.
+    // non-0xFFFF immX, and a move-keep for subsequent non-zero immX.
 
     uint64_t ignored_halfword = 0;
     bool invert_move = false;
-    // If the number of 0xffff halfwords is greater than the number of 0x0000
+    // If the number of 0xFFFF halfwords is greater than the number of 0x0000
     // halfwords, it's more efficient to use move-inverted.
     if (CountClearHalfWords(~imm, reg_size) >
         CountClearHalfWords(imm, reg_size)) {
-      ignored_halfword = 0xffffL;
+      ignored_halfword = 0xFFFFL;
       invert_move = true;
     }
 
@@ -274,11 +274,11 @@ void TurboAssembler::Mov(const Register& rd, uint64_t imm) {
     DCHECK_EQ(reg_size % 16, 0);
     bool first_mov_done = false;
     for (int i = 0; i < (rd.SizeInBits() / 16); i++) {
-      uint64_t imm16 = (imm >> (16 * i)) & 0xffffL;
+      uint64_t imm16 = (imm >> (16 * i)) & 0xFFFFL;
       if (imm16 != ignored_halfword) {
         if (!first_mov_done) {
           if (invert_move) {
-            movn(temp, (~imm16) & 0xffffL, 16 * i);
+            movn(temp, (~imm16) & 0xFFFFL, 16 * i);
           } else {
             movz(temp, imm16, 16 * i);
           }
@@ -356,18 +356,18 @@ void TurboAssembler::Mov(const Register& rd, const Operand& operand,
 
 void TurboAssembler::Movi16bitHelper(const VRegister& vd, uint64_t imm) {
   DCHECK(is_uint16(imm));
-  int byte1 = (imm & 0xff);
-  int byte2 = ((imm >> 8) & 0xff);
+  int byte1 = (imm & 0xFF);
+  int byte2 = ((imm >> 8) & 0xFF);
   if (byte1 == byte2) {
     movi(vd.Is64Bits() ? vd.V8B() : vd.V16B(), byte1);
   } else if (byte1 == 0) {
     movi(vd, byte2, LSL, 8);
   } else if (byte2 == 0) {
     movi(vd, byte1);
-  } else if (byte1 == 0xff) {
-    mvni(vd, ~byte2 & 0xff, LSL, 8);
-  } else if (byte2 == 0xff) {
-    mvni(vd, ~byte1 & 0xff);
+  } else if (byte1 == 0xFF) {
+    mvni(vd, ~byte2 & 0xFF, LSL, 8);
+  } else if (byte2 == 0xFF) {
+    mvni(vd, ~byte1 & 0xFF);
   } else {
     UseScratchRegisterScope temps(this);
     Register temp = temps.AcquireW();
@@ -382,11 +382,11 @@ void TurboAssembler::Movi32bitHelper(const VRegister& vd, uint64_t imm) {
   uint8_t bytes[sizeof(imm)];
   memcpy(bytes, &imm, sizeof(imm));
 
-  // All bytes are either 0x00 or 0xff.
+  // All bytes are either 0x00 or 0xFF.
   {
     bool all0orff = true;
     for (int i = 0; i < 4; ++i) {
-      if ((bytes[i] != 0) && (bytes[i] != 0xff)) {
+      if ((bytes[i] != 0) && (bytes[i] != 0xFF)) {
         all0orff = false;
         break;
       }
@@ -400,47 +400,47 @@ void TurboAssembler::Movi32bitHelper(const VRegister& vd, uint64_t imm) {
 
   // Of the 4 bytes, only one byte is non-zero.
   for (int i = 0; i < 4; i++) {
-    if ((imm & (0xff << (i * 8))) == imm) {
+    if ((imm & (0xFF << (i * 8))) == imm) {
       movi(vd, bytes[i], LSL, i * 8);
       return;
     }
   }
 
-  // Of the 4 bytes, only one byte is not 0xff.
+  // Of the 4 bytes, only one byte is not 0xFF.
   for (int i = 0; i < 4; i++) {
-    uint32_t mask = ~(0xff << (i * 8));
+    uint32_t mask = ~(0xFF << (i * 8));
     if ((imm & mask) == mask) {
-      mvni(vd, ~bytes[i] & 0xff, LSL, i * 8);
+      mvni(vd, ~bytes[i] & 0xFF, LSL, i * 8);
       return;
     }
   }
 
   // Immediate is of the form 0x00MMFFFF.
-  if ((imm & 0xff00ffff) == 0x0000ffff) {
+  if ((imm & 0xFF00FFFF) == 0x0000FFFF) {
     movi(vd, bytes[2], MSL, 16);
     return;
   }
 
   // Immediate is of the form 0x0000MMFF.
-  if ((imm & 0xffff00ff) == 0x000000ff) {
+  if ((imm & 0xFFFF00FF) == 0x000000FF) {
     movi(vd, bytes[1], MSL, 8);
     return;
   }
 
   // Immediate is of the form 0xFFMM0000.
-  if ((imm & 0xff00ffff) == 0xff000000) {
-    mvni(vd, ~bytes[2] & 0xff, MSL, 16);
+  if ((imm & 0xFF00FFFF) == 0xFF000000) {
+    mvni(vd, ~bytes[2] & 0xFF, MSL, 16);
     return;
   }
   // Immediate is of the form 0xFFFFMM00.
-  if ((imm & 0xffff00ff) == 0xffff0000) {
-    mvni(vd, ~bytes[1] & 0xff, MSL, 8);
+  if ((imm & 0xFFFF00FF) == 0xFFFF0000) {
+    mvni(vd, ~bytes[1] & 0xFF, MSL, 8);
     return;
   }
 
   // Top and bottom 16-bits are equal.
-  if (((imm >> 16) & 0xffff) == (imm & 0xffff)) {
-    Movi16bitHelper(vd.Is64Bits() ? vd.V4H() : vd.V8H(), imm & 0xffff);
+  if (((imm >> 16) & 0xFFFF) == (imm & 0xFFFF)) {
+    Movi16bitHelper(vd.Is64Bits() ? vd.V4H() : vd.V8H(), imm & 0xFFFF);
     return;
   }
 
@@ -454,12 +454,12 @@ void TurboAssembler::Movi32bitHelper(const VRegister& vd, uint64_t imm) {
 }
 
 void TurboAssembler::Movi64bitHelper(const VRegister& vd, uint64_t imm) {
-  // All bytes are either 0x00 or 0xff.
+  // All bytes are either 0x00 or 0xFF.
   {
     bool all0orff = true;
     for (int i = 0; i < 8; ++i) {
-      int byteval = (imm >> (i * 8)) & 0xff;
-      if (byteval != 0 && byteval != 0xff) {
+      int byteval = (imm >> (i * 8)) & 0xFF;
+      if (byteval != 0 && byteval != 0xFF) {
         all0orff = false;
         break;
       }
@@ -471,8 +471,8 @@ void TurboAssembler::Movi64bitHelper(const VRegister& vd, uint64_t imm) {
   }
 
   // Top and bottom 32-bits are equal.
-  if (((imm >> 32) & 0xffffffff) == (imm & 0xffffffff)) {
-    Movi32bitHelper(vd.Is64Bits() ? vd.V2S() : vd.V4S(), imm & 0xffffffff);
+  if (((imm >> 32) & 0xFFFFFFFF) == (imm & 0xFFFFFFFF)) {
+    Movi32bitHelper(vd.Is64Bits() ? vd.V2S() : vd.V4S(), imm & 0xFFFFFFFF);
     return;
   }
 
@@ -547,7 +547,7 @@ unsigned TurboAssembler::CountClearHalfWords(uint64_t imm, unsigned reg_size) {
   DCHECK_EQ(reg_size % 8, 0);
   int count = 0;
   for (unsigned i = 0; i < (reg_size / 16); i++) {
-    if ((imm & 0xffff) == 0) {
+    if ((imm & 0xFFFF) == 0) {
       count++;
     }
     imm >>= 16;
@@ -563,9 +563,8 @@ bool TurboAssembler::IsImmMovz(uint64_t imm, unsigned reg_size) {
   return CountClearHalfWords(imm, reg_size) >= ((reg_size / 16) - 1);
 }
 
-
 // The movn instruction can generate immediates containing an arbitrary 16-bit
-// half-word, with remaining bits set, eg. 0xffff1234, 0xffff1234ffffffff.
+// half-word, with remaining bits set, eg. 0xFFFF1234, 0xFFFF1234FFFFFFFF.
 bool TurboAssembler::IsImmMovn(uint64_t imm, unsigned reg_size) {
   return IsImmMovz(~imm, reg_size);
 }
@@ -1997,10 +1996,10 @@ void TurboAssembler::Call(Address target, RelocInfo::Mode rmode) {
     // Addresses are 48 bits so we never need to load the upper 16 bits.
     uint64_t imm = reinterpret_cast<uint64_t>(target);
     // If we don't use ARM tagged addresses, the 16 higher bits must be 0.
-    DCHECK_EQ((imm >> 48) & 0xffff, 0);
-    movz(temp, (imm >> 0) & 0xffff, 0);
-    movk(temp, (imm >> 16) & 0xffff, 16);
-    movk(temp, (imm >> 32) & 0xffff, 32);
+    DCHECK_EQ((imm >> 48) & 0xFFFF, 0);
+    movz(temp, (imm >> 0) & 0xFFFF, 0);
+    movk(temp, (imm >> 16) & 0xFFFF, 16);
+    movk(temp, (imm >> 32) & 0xFFFF, 32);
   } else {
     Ldr(temp, Immediate(reinterpret_cast<intptr_t>(target), rmode));
   }
@@ -2412,12 +2411,12 @@ void TurboAssembler::TryConvertDoubleToInt64(Register result,
   // the modulo operation on an integer register so we convert to a 64-bit
   // integer.
   //
-  // Fcvtzs will saturate to INT64_MIN (0x800...00) or INT64_MAX (0x7ff...ff)
+  // Fcvtzs will saturate to INT64_MIN (0x800...00) or INT64_MAX (0x7FF...FF)
   // when the double is out of range. NaNs and infinities will be converted to 0
   // (as ECMA-262 requires).
   Fcvtzs(result.X(), double_input);
 
-  // The values INT64_MIN (0x800...00) or INT64_MAX (0x7ff...ff) are not
+  // The values INT64_MIN (0x800...00) or INT64_MAX (0x7FF...FF) are not
   // representable using a double, so if the result is one of those then we know
   // that saturation occurred, and we need to manually handle the conversion.
   //
@@ -2832,7 +2831,7 @@ void MacroAssembler::PushSafepointRegisters() {
 
 int MacroAssembler::SafepointRegisterStackIndex(int reg_code) {
   // Make sure the safepoint registers list is what we expect.
-  DCHECK_EQ(CPURegList::GetSafepointSavedRegisters().list(), 0x6ffcffff);
+  DCHECK_EQ(CPURegList::GetSafepointSavedRegisters().list(), 0x6FFCFFFF);
 
   // Safepoint registers are stored contiguously on the stack, but not all the
   // registers are saved. The following registers are excluded:
@@ -3268,7 +3267,7 @@ void MacroAssembler::PrintfNoPreserve(const char * format,
   // We don't pass any arguments on the stack, but we still need to align the C
   // stack pointer to a 16-byte boundary for PCS compliance.
   if (!csp.Is(StackPointer())) {
-    Bic(csp, StackPointer(), 0xf);
+    Bic(csp, StackPointer(), 0xF);
   }
 
   CallPrintf(arg_count, pcs);

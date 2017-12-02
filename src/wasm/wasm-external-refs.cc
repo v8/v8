@@ -55,7 +55,7 @@ void uint64_to_float32_wrapper(uint64_t* input, float* output) {
   // achieve proper rounding in all cases we have to adjust the high_word
   // with a "rounding bit" sometimes. The rounding bit is stored in the LSB of
   // the high_word if the low_word may affect the rounding of the high_word.
-  uint32_t low_word = static_cast<uint32_t>(*input & 0xffffffff);
+  uint32_t low_word = static_cast<uint32_t>(*input & 0xFFFFFFFF);
   uint32_t high_word = static_cast<uint32_t>(*input >> 32);
 
   float shift = static_cast<float>(1ull << 32);
@@ -65,7 +65,7 @@ void uint64_to_float32_wrapper(uint64_t* input, float* output) {
     shift = static_cast<float>(1ull << 31);
   }
 
-  if ((high_word & 0xfe000000) && low_word) {
+  if ((high_word & 0xFE000000) && low_word) {
     // Set the rounding bit.
     high_word |= 1;
   }
@@ -91,7 +91,7 @@ void uint64_to_float64_wrapper(uint64_t* input, double* output) {
   // static_cast<double>(uint64_t) to achieve round-to-nearest-ties-even
   // semantics. The idea is to calculate
   // static_cast<double>(high_word) * 2^32 + static_cast<double>(low_word).
-  uint32_t low_word = static_cast<uint32_t>(*input & 0xffffffff);
+  uint32_t low_word = static_cast<uint32_t>(*input & 0xFFFFFFFF);
   uint32_t high_word = static_cast<uint32_t>(*input >> 32);
 
   double shift = static_cast<double>(1ull << 32);

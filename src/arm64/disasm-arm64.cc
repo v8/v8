@@ -256,27 +256,26 @@ void DisassemblingDecoder::VisitLogicalImmediate(Instruction* instr) {
 
 bool DisassemblingDecoder::IsMovzMovnImm(unsigned reg_size, uint64_t value) {
   DCHECK((reg_size == kXRegSizeInBits) ||
-         ((reg_size == kWRegSizeInBits) && (value <= 0xffffffff)));
+         ((reg_size == kWRegSizeInBits) && (value <= 0xFFFFFFFF)));
 
   // Test for movz: 16-bits set at positions 0, 16, 32 or 48.
-  if (((value & 0xffffffffffff0000UL) == 0UL) ||
-      ((value & 0xffffffff0000ffffUL) == 0UL) ||
-      ((value & 0xffff0000ffffffffUL) == 0UL) ||
-      ((value & 0x0000ffffffffffffUL) == 0UL)) {
+  if (((value & 0xFFFFFFFFFFFF0000UL) == 0UL) ||
+      ((value & 0xFFFFFFFF0000FFFFUL) == 0UL) ||
+      ((value & 0xFFFF0000FFFFFFFFUL) == 0UL) ||
+      ((value & 0x0000FFFFFFFFFFFFUL) == 0UL)) {
     return true;
   }
 
   // Test for movn: NOT(16-bits set at positions 0, 16, 32 or 48).
   if ((reg_size == kXRegSizeInBits) &&
-      (((value & 0xffffffffffff0000UL) == 0xffffffffffff0000UL) ||
-       ((value & 0xffffffff0000ffffUL) == 0xffffffff0000ffffUL) ||
-       ((value & 0xffff0000ffffffffUL) == 0xffff0000ffffffffUL) ||
-       ((value & 0x0000ffffffffffffUL) == 0x0000ffffffffffffUL))) {
+      (((value & 0xFFFFFFFFFFFF0000UL) == 0xFFFFFFFFFFFF0000UL) ||
+       ((value & 0xFFFFFFFF0000FFFFUL) == 0xFFFFFFFF0000FFFFUL) ||
+       ((value & 0xFFFF0000FFFFFFFFUL) == 0xFFFF0000FFFFFFFFUL) ||
+       ((value & 0x0000FFFFFFFFFFFFUL) == 0x0000FFFFFFFFFFFFUL))) {
     return true;
   }
-  if ((reg_size == kWRegSizeInBits) &&
-      (((value & 0xffff0000) == 0xffff0000) ||
-       ((value & 0x0000ffff) == 0x0000ffff))) {
+  if ((reg_size == kWRegSizeInBits) && (((value & 0xFFFF0000) == 0xFFFF0000) ||
+                                        ((value & 0x0000FFFF) == 0x0000FFFF))) {
     return true;
   }
   return false;
@@ -3469,7 +3468,7 @@ int DisassemblingDecoder::SubstituteRegisterField(Instruction* instr,
     case 'e':
       // This is register Rm, but using a 4-bit specifier. Used in NEON
       // by-element instructions.
-      reg_num = (instr->Rm() & 0xf);
+      reg_num = (instr->Rm() & 0xF);
       break;
     case 'a':
       reg_num = instr->Ra();
@@ -3569,7 +3568,7 @@ int DisassemblingDecoder::SubstituteImmediateField(Instruction* instr,
         uint64_t imm = static_cast<uint64_t>(instr->ImmMoveWide())
                        << (16 * instr->ShiftMoveWide());
         if (format[5] == 'N') imm = ~imm;
-        if (!instr->SixtyFourBits()) imm &= UINT64_C(0xffffffff);
+        if (!instr->SixtyFourBits()) imm &= UINT64_C(0xFFFFFFFF);
         AppendToOutput("#0x%" PRIx64, imm);
       } else {
         DCHECK_EQ(format[5], 'L');
@@ -3743,7 +3742,7 @@ int DisassemblingDecoder::SubstituteImmediateField(Instruction* instr,
             uint64_t imm = 0;
             for (int i = 0; i < 8; ++i) {
               if (imm8 & (1 << i)) {
-                imm |= (UINT64_C(0xff) << (8 * i));
+                imm |= (UINT64_C(0xFF) << (8 * i));
               }
             }
             AppendToOutput("#0x%" PRIx64, imm);

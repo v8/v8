@@ -2734,10 +2734,10 @@ void HeapSnapshotJSONSerializer::SerializeSnapshot() {
 static void WriteUChar(OutputStreamWriter* w, unibrow::uchar u) {
   static const char hex_chars[] = "0123456789ABCDEF";
   w->AddString("\\u");
-  w->AddCharacter(hex_chars[(u >> 12) & 0xf]);
-  w->AddCharacter(hex_chars[(u >> 8) & 0xf]);
-  w->AddCharacter(hex_chars[(u >> 4) & 0xf]);
-  w->AddCharacter(hex_chars[u & 0xf]);
+  w->AddCharacter(hex_chars[(u >> 12) & 0xF]);
+  w->AddCharacter(hex_chars[(u >> 8) & 0xF]);
+  w->AddCharacter(hex_chars[(u >> 4) & 0xF]);
+  w->AddCharacter(hex_chars[u & 0xF]);
 }
 
 

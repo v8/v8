@@ -195,19 +195,19 @@ WASM_I32_BINOP_TEST(Sub, int32_t, a - b)
 WASM_I32_BINOP_TEST(Mul, int32_t, a* b)
 WASM_I32_BINOP_TEST(DivS, int32_t,
                     (a == kMinInt && b == -1) || b == 0
-                        ? static_cast<int32_t>(0xdeadbeef)
+                        ? static_cast<int32_t>(0xDEADBEEF)
                         : a / b)
-WASM_I32_BINOP_TEST(DivU, uint32_t, b == 0 ? 0xdeadbeef : a / b)
-WASM_I32_BINOP_TEST(RemS, int32_t, b == 0 ? 0xdeadbeef : b == -1 ? 0 : a % b)
-WASM_I32_BINOP_TEST(RemU, uint32_t, b == 0 ? 0xdeadbeef : a % b)
+WASM_I32_BINOP_TEST(DivU, uint32_t, b == 0 ? 0xDEADBEEF : a / b)
+WASM_I32_BINOP_TEST(RemS, int32_t, b == 0 ? 0xDEADBEEF : b == -1 ? 0 : a % b)
+WASM_I32_BINOP_TEST(RemU, uint32_t, b == 0 ? 0xDEADBEEF : a % b)
 WASM_I32_BINOP_TEST(And, int32_t, a& b)
 WASM_I32_BINOP_TEST(Ior, int32_t, a | b)
 WASM_I32_BINOP_TEST(Xor, int32_t, a ^ b)
-WASM_I32_BINOP_TEST(Shl, int32_t, a << (b & 0x1f))
-WASM_I32_BINOP_TEST(ShrU, uint32_t, a >> (b & 0x1f))
-WASM_I32_BINOP_TEST(ShrS, int32_t, a >> (b & 0x1f))
-WASM_I32_BINOP_TEST(Ror, uint32_t, (a >> (b & 0x1f)) | (a << (32 - (b & 0x1f))))
-WASM_I32_BINOP_TEST(Rol, uint32_t, (a << (b & 0x1f)) | (a >> (32 - (b & 0x1f))))
+WASM_I32_BINOP_TEST(Shl, int32_t, a << (b & 0x1F))
+WASM_I32_BINOP_TEST(ShrU, uint32_t, a >> (b & 0x1F))
+WASM_I32_BINOP_TEST(ShrS, int32_t, a >> (b & 0x1F))
+WASM_I32_BINOP_TEST(Ror, uint32_t, (a >> (b & 0x1F)) | (a << (32 - (b & 0x1F))))
+WASM_I32_BINOP_TEST(Rol, uint32_t, (a << (b & 0x1F)) | (a >> (32 - (b & 0x1F))))
 WASM_I32_BINOP_TEST(Eq, int32_t, a == b)
 WASM_I32_BINOP_TEST(Ne, int32_t, a != b)
 WASM_I32_BINOP_TEST(LtS, int32_t, a < b)
@@ -245,11 +245,11 @@ WASM_EXEC_TEST(Int32Clz) {
   TestInt32Unop(execution_mode, kExprI32Clz, 4, 0x08050000);
   TestInt32Unop(execution_mode, kExprI32Clz, 5, 0x04006000);
   TestInt32Unop(execution_mode, kExprI32Clz, 6, 0x02000000);
-  TestInt32Unop(execution_mode, kExprI32Clz, 7, 0x010000a0);
-  TestInt32Unop(execution_mode, kExprI32Clz, 8, 0x00800c00);
+  TestInt32Unop(execution_mode, kExprI32Clz, 7, 0x010000A0);
+  TestInt32Unop(execution_mode, kExprI32Clz, 8, 0x00800C00);
   TestInt32Unop(execution_mode, kExprI32Clz, 9, 0x00400000);
-  TestInt32Unop(execution_mode, kExprI32Clz, 10, 0x0020000d);
-  TestInt32Unop(execution_mode, kExprI32Clz, 11, 0x00100f00);
+  TestInt32Unop(execution_mode, kExprI32Clz, 10, 0x0020000D);
+  TestInt32Unop(execution_mode, kExprI32Clz, 11, 0x00100F00);
   TestInt32Unop(execution_mode, kExprI32Clz, 12, 0x00080000);
   TestInt32Unop(execution_mode, kExprI32Clz, 13, 0x00041000);
   TestInt32Unop(execution_mode, kExprI32Clz, 14, 0x00020020);
@@ -279,42 +279,42 @@ WASM_EXEC_TEST(Int32Ctz) {
   TestInt32Unop(execution_mode, kExprI32Ctz, 30, 0x40000000);
   TestInt32Unop(execution_mode, kExprI32Ctz, 29, 0x20000000);
   TestInt32Unop(execution_mode, kExprI32Ctz, 28, 0x10000000);
-  TestInt32Unop(execution_mode, kExprI32Ctz, 27, 0xa8000000);
-  TestInt32Unop(execution_mode, kExprI32Ctz, 26, 0xf4000000);
+  TestInt32Unop(execution_mode, kExprI32Ctz, 27, 0xA8000000);
+  TestInt32Unop(execution_mode, kExprI32Ctz, 26, 0xF4000000);
   TestInt32Unop(execution_mode, kExprI32Ctz, 25, 0x62000000);
   TestInt32Unop(execution_mode, kExprI32Ctz, 24, 0x91000000);
-  TestInt32Unop(execution_mode, kExprI32Ctz, 23, 0xcd800000);
+  TestInt32Unop(execution_mode, kExprI32Ctz, 23, 0xCD800000);
   TestInt32Unop(execution_mode, kExprI32Ctz, 22, 0x09400000);
-  TestInt32Unop(execution_mode, kExprI32Ctz, 21, 0xaf200000);
-  TestInt32Unop(execution_mode, kExprI32Ctz, 20, 0xac100000);
-  TestInt32Unop(execution_mode, kExprI32Ctz, 19, 0xe0b80000);
-  TestInt32Unop(execution_mode, kExprI32Ctz, 18, 0x9ce40000);
-  TestInt32Unop(execution_mode, kExprI32Ctz, 17, 0xc7920000);
-  TestInt32Unop(execution_mode, kExprI32Ctz, 16, 0xb8f10000);
-  TestInt32Unop(execution_mode, kExprI32Ctz, 15, 0x3b9f8000);
-  TestInt32Unop(execution_mode, kExprI32Ctz, 14, 0xdb4c4000);
-  TestInt32Unop(execution_mode, kExprI32Ctz, 13, 0xe9a32000);
-  TestInt32Unop(execution_mode, kExprI32Ctz, 12, 0xfca61000);
-  TestInt32Unop(execution_mode, kExprI32Ctz, 11, 0x6c8a7800);
-  TestInt32Unop(execution_mode, kExprI32Ctz, 10, 0x8ce5a400);
-  TestInt32Unop(execution_mode, kExprI32Ctz, 9, 0xcb7d0200);
-  TestInt32Unop(execution_mode, kExprI32Ctz, 8, 0xcb4dc100);
-  TestInt32Unop(execution_mode, kExprI32Ctz, 7, 0xdfbec580);
-  TestInt32Unop(execution_mode, kExprI32Ctz, 6, 0x27a9db40);
-  TestInt32Unop(execution_mode, kExprI32Ctz, 5, 0xde3bcb20);
-  TestInt32Unop(execution_mode, kExprI32Ctz, 4, 0xd7e8a610);
-  TestInt32Unop(execution_mode, kExprI32Ctz, 3, 0x9afdbc88);
-  TestInt32Unop(execution_mode, kExprI32Ctz, 2, 0x9afdbc84);
-  TestInt32Unop(execution_mode, kExprI32Ctz, 1, 0x9afdbc82);
-  TestInt32Unop(execution_mode, kExprI32Ctz, 0, 0x9afdbc81);
+  TestInt32Unop(execution_mode, kExprI32Ctz, 21, 0xAF200000);
+  TestInt32Unop(execution_mode, kExprI32Ctz, 20, 0xAC100000);
+  TestInt32Unop(execution_mode, kExprI32Ctz, 19, 0xE0B80000);
+  TestInt32Unop(execution_mode, kExprI32Ctz, 18, 0x9CE40000);
+  TestInt32Unop(execution_mode, kExprI32Ctz, 17, 0xC7920000);
+  TestInt32Unop(execution_mode, kExprI32Ctz, 16, 0xB8F10000);
+  TestInt32Unop(execution_mode, kExprI32Ctz, 15, 0x3B9F8000);
+  TestInt32Unop(execution_mode, kExprI32Ctz, 14, 0xDB4C4000);
+  TestInt32Unop(execution_mode, kExprI32Ctz, 13, 0xE9A32000);
+  TestInt32Unop(execution_mode, kExprI32Ctz, 12, 0xFCA61000);
+  TestInt32Unop(execution_mode, kExprI32Ctz, 11, 0x6C8A7800);
+  TestInt32Unop(execution_mode, kExprI32Ctz, 10, 0x8CE5A400);
+  TestInt32Unop(execution_mode, kExprI32Ctz, 9, 0xCB7D0200);
+  TestInt32Unop(execution_mode, kExprI32Ctz, 8, 0xCB4DC100);
+  TestInt32Unop(execution_mode, kExprI32Ctz, 7, 0xDFBEC580);
+  TestInt32Unop(execution_mode, kExprI32Ctz, 6, 0x27A9DB40);
+  TestInt32Unop(execution_mode, kExprI32Ctz, 5, 0xDE3BCB20);
+  TestInt32Unop(execution_mode, kExprI32Ctz, 4, 0xD7E8A610);
+  TestInt32Unop(execution_mode, kExprI32Ctz, 3, 0x9AFDBC88);
+  TestInt32Unop(execution_mode, kExprI32Ctz, 2, 0x9AFDBC84);
+  TestInt32Unop(execution_mode, kExprI32Ctz, 1, 0x9AFDBC82);
+  TestInt32Unop(execution_mode, kExprI32Ctz, 0, 0x9AFDBC81);
 }
 
 WASM_EXEC_TEST(Int32Popcnt) {
-  TestInt32Unop(execution_mode, kExprI32Popcnt, 32, 0xffffffff);
+  TestInt32Unop(execution_mode, kExprI32Popcnt, 32, 0xFFFFFFFF);
   TestInt32Unop(execution_mode, kExprI32Popcnt, 0, 0x00000000);
   TestInt32Unop(execution_mode, kExprI32Popcnt, 1, 0x00008000);
   TestInt32Unop(execution_mode, kExprI32Popcnt, 13, 0x12345678);
-  TestInt32Unop(execution_mode, kExprI32Popcnt, 19, 0xfedcba09);
+  TestInt32Unop(execution_mode, kExprI32Popcnt, 19, 0xFEDCBA09);
 }
 
 WASM_EXEC_TEST(I32Eqz) {
@@ -419,11 +419,11 @@ WASM_EXEC_TEST(Int32AsmjsRemS_byzero_const) {
 }
 
 WASM_EXEC_TEST(Int32DivU_byzero_const) {
-  for (uint32_t denom = 0xfffffffe; denom < 8; ++denom) {
+  for (uint32_t denom = 0xFFFFFFFE; denom < 8; ++denom) {
     WasmRunner<uint32_t, uint32_t> r(execution_mode);
     BUILD(r, WASM_I32_DIVU(WASM_GET_LOCAL(0), WASM_I32V_1(denom)));
 
-    for (uint32_t val = 0xfffffff0; val < 8; ++val) {
+    for (uint32_t val = 0xFFFFFFF0; val < 8; ++val) {
       if (denom == 0) {
         CHECK_TRAP(r.Call(val));
       } else {
@@ -830,7 +830,7 @@ WASM_EXEC_TEST(Regression_660262) {
   WasmRunner<int32_t> r(execution_mode);
   r.builder().AddMemoryElems<int32_t>(8);
   BUILD(r, kExprI32Const, 0x00, kExprI32Const, 0x00, kExprI32LoadMem, 0x00,
-        0x0f, kExprBrTable, 0x00, 0x80, 0x00);  // entries=0
+        0x0F, kExprBrTable, 0x00, 0x80, 0x00);  // entries=0
   r.Call();
 }
 
@@ -1047,10 +1047,10 @@ WASM_EXEC_TEST(SignallingNanSurvivesI32ReinterpretF32) {
   WasmRunner<int32_t> r(execution_mode);
 
   BUILD(r, WASM_I32_REINTERPRET_F32(
-               WASM_SEQ(kExprF32Const, 0x00, 0x00, 0xa0, 0x7f)));
+               WASM_SEQ(kExprF32Const, 0x00, 0x00, 0xA0, 0x7F)));
 
   // This is a signalling nan.
-  CHECK_EQ(0x7fa00000, r.Call());
+  CHECK_EQ(0x7FA00000, r.Call());
 }
 
 #endif
@@ -1062,7 +1062,7 @@ WASM_EXEC_TEST(LoadMaxUint32Offset) {
   r.builder().AddMemoryElems<int32_t>(8);
 
   BUILD(r, WASM_LOAD_MEM_OFFSET(MachineType::Int32(),  // type
-                                U32V_5(0xffffffff),    // offset
+                                U32V_5(0xFFFFFFFF),    // offset
                                 WASM_ZERO));           // index
 
   CHECK_TRAP32(r.Call());
@@ -1485,14 +1485,14 @@ WASM_EXEC_TEST(LoadMemI32_alignment) {
     BUILD(r,
           WASM_LOAD_MEM_ALIGNMENT(MachineType::Int32(), WASM_ZERO, alignment));
 
-    r.builder().WriteMemory(&memory[0], 0x1a2b3c4d);
-    CHECK_EQ(0x1a2b3c4d, r.Call(0));
+    r.builder().WriteMemory(&memory[0], 0x1A2B3C4D);
+    CHECK_EQ(0x1A2B3C4D, r.Call(0));
 
-    r.builder().WriteMemory(&memory[0], 0x5e6f7a8b);
-    CHECK_EQ(0x5e6f7a8b, r.Call(0));
+    r.builder().WriteMemory(&memory[0], 0x5E6F7A8B);
+    CHECK_EQ(0x5E6F7A8B, r.Call(0));
 
-    r.builder().WriteMemory(&memory[0], 0x7ca0b1c2);
-    CHECK_EQ(0x7ca0b1c2, r.Call(0));
+    r.builder().WriteMemory(&memory[0], 0x7CA0B1C2);
+    CHECK_EQ(0x7CA0B1C2, r.Call(0));
   }
 }
 
@@ -1632,7 +1632,7 @@ WASM_EXEC_TEST(StoreMemI32_alignment) {
 WASM_EXEC_TEST(StoreMemI32_offset) {
   WasmRunner<int32_t, int32_t> r(execution_mode);
   int32_t* memory = r.builder().AddMemoryElems<int32_t>(4);
-  const int32_t kWritten = 0xaabbccdd;
+  const int32_t kWritten = 0xAABBCCDD;
 
   BUILD(r, WASM_STORE_MEM_OFFSET(MachineType::Int32(), 4, WASM_GET_LOCAL(0),
                                  WASM_I32V_5(kWritten)),
@@ -2110,20 +2110,20 @@ WASM_EXEC_TEST(MixedGlobals) {
         WASM_SET_GLOBAL(4, WASM_LOAD_MEM(MachineType::Float64(), WASM_ZERO)),
         WASM_ZERO);
 
-  memory[0] = 0xaa;
-  memory[1] = 0xcc;
+  memory[0] = 0xAA;
+  memory[1] = 0xCC;
   memory[2] = 0x55;
-  memory[3] = 0xee;
+  memory[3] = 0xEE;
   memory[4] = 0x33;
   memory[5] = 0x22;
   memory[6] = 0x11;
   memory[7] = 0x99;
   r.Call(1);
 
-  CHECK(static_cast<int32_t>(0xee55ccaa) == *var_int32);
-  CHECK(static_cast<uint32_t>(0xee55ccaa) == *var_uint32);
-  CHECK(bit_cast<float>(0xee55ccaa) == *var_float);
-  CHECK(bit_cast<double>(0x99112233ee55ccaaULL) == *var_double);
+  CHECK(static_cast<int32_t>(0xEE55CCAA) == *var_int32);
+  CHECK(static_cast<uint32_t>(0xEE55CCAA) == *var_uint32);
+  CHECK(bit_cast<float>(0xEE55CCAA) == *var_float);
+  CHECK(bit_cast<double>(0x99112233EE55CCAAULL) == *var_double);
 
   USE(unused);
 }

@@ -1392,7 +1392,7 @@ void MacroAssembler::CompareObjectType(Register object, Register map,
 void MacroAssembler::CompareInstanceType(Register map, Register type_reg,
                                          InstanceType type) {
   STATIC_ASSERT(Map::kInstanceTypeOffset < 4096);
-  STATIC_ASSERT(LAST_TYPE <= 0xffff);
+  STATIC_ASSERT(LAST_TYPE <= 0xFFFF);
   LoadHalfWordP(type_reg, FieldMemOperand(map, Map::kInstanceTypeOffset));
   CmpP(type_reg, Operand(type));
 }
@@ -3301,7 +3301,7 @@ void TurboAssembler::LoadIntLiteral(Register dst, int value) {
 void TurboAssembler::LoadSmiLiteral(Register dst, Smi* smi) {
   intptr_t value = reinterpret_cast<intptr_t>(smi);
 #if V8_TARGET_ARCH_S390X
-  DCHECK_EQ(value & 0xffffffff, 0);
+  DCHECK_EQ(value & 0xFFFFFFFF, 0);
   // The smi value is loaded in upper 32-bits.  Lower 32-bit are zeros.
   llihf(dst, Operand(value >> 32));
 #else
@@ -3402,7 +3402,7 @@ void TurboAssembler::SubSmiLiteral(Register dst, Register src, Smi* smi,
 void TurboAssembler::AndSmiLiteral(Register dst, Register src, Smi* smi) {
   if (dst != src) LoadRR(dst, src);
 #if V8_TARGET_ARCH_S390X
-  DCHECK_EQ(reinterpret_cast<intptr_t>(smi) & 0xffffffff, 0);
+  DCHECK_EQ(reinterpret_cast<intptr_t>(smi) & 0xFFFFFFFF, 0);
   int value = static_cast<int>(reinterpret_cast<intptr_t>(smi) >> 32);
   nihf(dst, Operand(value));
 #else

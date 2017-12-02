@@ -2869,7 +2869,7 @@ TEST(FuncNameInferrerTwoByte) {
       "%FunctionGetInferredName(obj1.oXj2.foo1)");
   uint16_t* two_byte_name = AsciiToTwoByteString("obj1.oXj2.foo1");
   // Make it really non-Latin1 (replace the Xs with a non-Latin1 character).
-  two_byte_source[14] = two_byte_source[78] = two_byte_name[6] = 0x010d;
+  two_byte_source[14] = two_byte_source[78] = two_byte_name[6] = 0x010D;
   v8::Local<v8::String> source =
       v8::String::NewFromTwoByte(isolate, two_byte_source,
                                  v8::NewStringType::kNormal)
@@ -2898,7 +2898,7 @@ TEST(FuncNameInferrerEscaped) {
       "%FunctionGetInferredName(obj1.o\\u010dj2.foo1)");
   uint16_t* two_byte_name = AsciiToTwoByteString("obj1.oXj2.foo1");
   // Fix to correspond to the non-ASCII name in two_byte_source.
-  two_byte_name[6] = 0x010d;
+  two_byte_name[6] = 0x010D;
   v8::Local<v8::String> source =
       v8::String::NewFromTwoByte(isolate, two_byte_source,
                                  v8::NewStringType::kNormal)

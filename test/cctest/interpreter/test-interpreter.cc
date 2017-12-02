@@ -3314,17 +3314,17 @@ TEST(InterpreterForIn) {
       {"var r = 0;\n"
        "for (var a in [0,6,7,9]) { r = r + (1 << a); }\n"
        "return r;\n",
-       0xf},
+       0xF},
       {"var r = 0;\n"
        "for (var a in [0,6,7,9]) { r = r + (1 << a); }\n"
        "var r = 0;\n"
        "for (var a in [0,6,7,9]) { r = r + (1 << a); }\n"
        "return r;\n",
-       0xf},
+       0xF},
       {"var r = 0;\n"
        "for (var a in 'foobar') { r = r + (1 << a); }\n"
        "return r;\n",
-       0x3f},
+       0x3F},
       {"var r = 0;\n"
        "for (var a in {1:0, 10:1, 100:2, 1000:3}) {\n"
        "  r = r + Number(a);\n"
@@ -4491,7 +4491,7 @@ TEST(InterpreterWideParametersPickOne) {
     std::string source = os.str();
     InterpreterTester tester(isolate, source.c_str(), "*");
     auto callable = tester.GetCallable<Handle<Object>>();
-    Handle<Object> arg = handle(Smi::FromInt(0xaa55), isolate);
+    Handle<Object> arg = handle(Smi::FromInt(0xAA55), isolate);
     Handle<Object> return_value = callable(arg).ToHandleChecked();
     Handle<Smi> actual = Handle<Smi>::cast(return_value);
     CHECK_EQ(actual->value(), parameter);

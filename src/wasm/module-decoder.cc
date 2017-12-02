@@ -299,7 +299,7 @@ class ModuleDecoderImpl : public Decoder {
 
     const byte* pos = pc_;
     uint32_t magic_word = consume_u32("wasm magic");
-#define BYTES(x) (x & 0xff), (x >> 8) & 0xff, (x >> 16) & 0xff, (x >> 24) & 0xff
+#define BYTES(x) (x & 0xFF), (x >> 8) & 0xFF, (x >> 16) & 0xFF, (x >> 24) & 0xFF
     if (magic_word != kWasmMagic) {
       errorf(pos,
              "expected magic word %02x %02x %02x %02x, "
@@ -1118,7 +1118,7 @@ class ModuleDecoderImpl : public Decoder {
 
     if (FLAG_experimental_wasm_threads) {
       bool is_memory = (strcmp(name, "memory") == 0);
-      if (flags & 0xfc || (!is_memory && (flags & 0xfe))) {
+      if (flags & 0xFC || (!is_memory && (flags & 0xFE))) {
         errorf(pos - 1, "invalid %s limits flags", name);
       }
       if (flags == 3) {
@@ -1130,7 +1130,7 @@ class ModuleDecoderImpl : public Decoder {
                name);
       }
     } else {
-      if (flags & 0xfe) {
+      if (flags & 0xFE) {
         errorf(pos - 1, "invalid %s limits flags", name);
       }
     }

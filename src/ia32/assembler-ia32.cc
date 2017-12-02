@@ -88,7 +88,7 @@ V8_INLINE uint64_t _xgetbv(unsigned int xcr) {
   // directly because older assemblers do not include support for xgetbv and
   // there is no easy way to conditionally compile based on the assembler
   // used.
-  __asm__ volatile(".byte 0x0f, 0x01, 0xd0" : "=a"(eax), "=d"(edx) : "c"(xcr));
+  __asm__ volatile(".byte 0x0F, 0x01, 0xD0" : "=a"(eax), "=d"(edx) : "c"(xcr));
   return static_cast<uint64_t>(eax) | (static_cast<uint64_t>(edx) << 32);
 }
 
@@ -398,7 +398,7 @@ bool Assembler::IsNop(Address addr) {
   Address a = addr;
   while (*a == 0x66) a++;
   if (*a == 0x90) return true;
-  if (a[0] == 0xf && a[1] == 0x1f) return true;
+  if (a[0] == 0xF && a[1] == 0x1F) return true;
   return false;
 }
 
@@ -415,28 +415,28 @@ void Assembler::Nop(int bytes) {
         EMIT(0x90);
         return;
       case 3:
-        EMIT(0xf);
-        EMIT(0x1f);
+        EMIT(0xF);
+        EMIT(0x1F);
         EMIT(0);
         return;
       case 4:
-        EMIT(0xf);
-        EMIT(0x1f);
+        EMIT(0xF);
+        EMIT(0x1F);
         EMIT(0x40);
         EMIT(0);
         return;
       case 6:
         EMIT(0x66);
       case 5:
-        EMIT(0xf);
-        EMIT(0x1f);
+        EMIT(0xF);
+        EMIT(0x1F);
         EMIT(0x44);
         EMIT(0);
         EMIT(0);
         return;
       case 7:
-        EMIT(0xf);
-        EMIT(0x1f);
+        EMIT(0xF);
+        EMIT(0x1F);
         EMIT(0x80);
         EMIT(0);
         EMIT(0);
@@ -454,8 +454,8 @@ void Assembler::Nop(int bytes) {
         EMIT(0x66);
         bytes--;
       case 8:
-        EMIT(0xf);
-        EMIT(0x1f);
+        EMIT(0xF);
+        EMIT(0x1F);
         EMIT(0x84);
         EMIT(0);
         EMIT(0);
@@ -507,7 +507,7 @@ void Assembler::popfd() {
 void Assembler::push(const Immediate& x) {
   EnsureSpace ensure_space(this);
   if (x.is_int8()) {
-    EMIT(0x6a);
+    EMIT(0x6A);
     EMIT(x.immediate());
   } else {
     EMIT(0x68);
@@ -609,7 +609,7 @@ void Assembler::mov_w(const Operand& dst, const Immediate& src) {
   EMIT(0x66);
   EMIT(0xC7);
   emit_operand(eax, dst);
-  EMIT(static_cast<int8_t>(src.immediate() & 0xff));
+  EMIT(static_cast<int8_t>(src.immediate() & 0xFF));
   EMIT(static_cast<int8_t>(src.immediate() >> 8));
 }
 
@@ -1378,7 +1378,7 @@ void Assembler::test_w(Register reg, Immediate imm16) {
   } else {
     EMIT(0x66);
     EMIT(0xF7);
-    EMIT(0xc0 | reg.code());
+    EMIT(0xC0 | reg.code());
     emit_w(imm16);
   }
 }
@@ -2908,8 +2908,8 @@ void Assembler::sqrtss(XMMRegister dst, const Operand& src) {
 
 void Assembler::ucomiss(XMMRegister dst, const Operand& src) {
   EnsureSpace ensure_space(this);
-  EMIT(0x0f);
-  EMIT(0x2e);
+  EMIT(0x0F);
+  EMIT(0x2E);
   emit_sse_operand(dst, src);
 }
 
@@ -3186,12 +3186,12 @@ void Assembler::emit_sse_operand(XMMRegister dst, Register src) {
 void Assembler::emit_vex_prefix(XMMRegister vreg, VectorLength l, SIMDPrefix pp,
                                 LeadingOpcode mm, VexW w) {
   if (mm != k0F || w != kW0) {
-    EMIT(0xc4);
+    EMIT(0xC4);
     // Change RXB from "110" to "111" to align with gdb disassembler.
-    EMIT(0xe0 | mm);
-    EMIT(w | ((~vreg.code() & 0xf) << 3) | l | pp);
+    EMIT(0xE0 | mm);
+    EMIT(w | ((~vreg.code() & 0xF) << 3) | l | pp);
   } else {
-    EMIT(0xc5);
+    EMIT(0xC5);
     EMIT(((~vreg.code()) << 3) | l | pp);
   }
 }

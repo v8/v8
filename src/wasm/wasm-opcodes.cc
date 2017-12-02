@@ -376,7 +376,7 @@ struct GetAsmJsOpcodeSigIndex {
 
 struct GetSimdOpcodeSigIndex {
   constexpr WasmOpcodeSig operator()(byte opcode) const {
-#define CASE(name, opc, sig) opcode == (opc & 0xff) ? kSigEnum_##sig:
+#define CASE(name, opc, sig) opcode == (opc & 0xFF) ? kSigEnum_##sig:
     return FOREACH_SIMD_0_OPERAND_OPCODE(CASE) kSigEnum_None;
 #undef CASE
   }
@@ -384,7 +384,7 @@ struct GetSimdOpcodeSigIndex {
 
 struct GetAtomicOpcodeSigIndex {
   constexpr WasmOpcodeSig operator()(byte opcode) const {
-#define CASE(name, opc, sig) opcode == (opc & 0xff) ? kSigEnum_##sig:
+#define CASE(name, opc, sig) opcode == (opc & 0xFF) ? kSigEnum_##sig:
     return FOREACH_ATOMIC_OPCODE(CASE) kSigEnum_None;
 #undef CASE
 }
@@ -404,10 +404,10 @@ constexpr std::array<WasmOpcodeSig, 256> kAtomicExprSigTable =
 FunctionSig* WasmOpcodes::Signature(WasmOpcode opcode) {
   if (opcode >> 8 == kSimdPrefix) {
     return const_cast<FunctionSig*>(
-        kSimpleExprSigs[kSimdExprSigTable[opcode & 0xff]]);
+        kSimpleExprSigs[kSimdExprSigTable[opcode & 0xFF]]);
   } else if (opcode >> 8 == kAtomicPrefix) {
     return const_cast<FunctionSig*>(
-        kSimpleExprSigs[kAtomicExprSigTable[opcode & 0xff]]);
+        kSimpleExprSigs[kAtomicExprSigTable[opcode & 0xFF]]);
   } else {
     DCHECK_GT(kSimpleExprSigTable.size(), opcode);
     return const_cast<FunctionSig*>(

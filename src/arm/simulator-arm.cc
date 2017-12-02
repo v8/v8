@@ -259,11 +259,9 @@ void ArmDebugger::Debug() {
             for (int i = 0; i < DwVfpRegister::NumRegisters(); i++) {
               dvalue = GetVFPDoubleRegisterValue(i);
               uint64_t as_words = bit_cast<uint64_t>(dvalue);
-              PrintF("%3s: %f 0x%08x %08x\n",
-                     VFPRegisters::Name(i, true),
-                     dvalue,
-                     static_cast<uint32_t>(as_words >> 32),
-                     static_cast<uint32_t>(as_words & 0xffffffff));
+              PrintF("%3s: %f 0x%08x %08x\n", VFPRegisters::Name(i, true),
+                     dvalue, static_cast<uint32_t>(as_words >> 32),
+                     static_cast<uint32_t>(as_words & 0xFFFFFFFF));
             }
           } else {
             if (GetValue(arg1, &value)) {
@@ -273,11 +271,9 @@ void ArmDebugger::Debug() {
               PrintF("%s: %f 0x%08x\n", arg1, svalue, as_word);
             } else if (GetVFPDoubleValue(arg1, &dvalue)) {
               uint64_t as_words = bit_cast<uint64_t>(dvalue);
-              PrintF("%s: %f 0x%08x %08x\n",
-                     arg1,
-                     dvalue,
+              PrintF("%s: %f 0x%08x %08x\n", arg1, dvalue,
                      static_cast<uint32_t>(as_words >> 32),
-                     static_cast<uint32_t>(as_words & 0xffffffff));
+                     static_cast<uint32_t>(as_words & 0xFFFFFFFF));
             } else {
               PrintF("%s unrecognized\n", arg1);
             }
@@ -727,7 +723,7 @@ class Redirection {
   Redirection(Isolate* isolate, void* external_function,
               ExternalReference::Type type)
       : external_function_(external_function),
-        swi_instruction_(al | (0xf * B24) | kCallRtRedirected),
+        swi_instruction_(al | (0xF * B24) | kCallRtRedirected),
         type_(type),
         next_(nullptr) {
     next_ = isolate->simulator_redirection();
@@ -1035,9 +1031,9 @@ void Simulator::SetFpResult(const double& result) {
 
 void Simulator::TrashCallerSaveRegisters() {
   // We don't trash the registers with the return value.
-  registers_[2] = 0x50Bad4U;
-  registers_[3] = 0x50Bad4U;
-  registers_[12] = 0x50Bad4U;
+  registers_[2] = 0x50BAD4U;
+  registers_[3] = 0x50BAD4U;
+  registers_[12] = 0x50BAD4U;
 }
 
 
@@ -1292,7 +1288,7 @@ void Simulator::SetVFlag(bool val) {
 bool Simulator::CarryFrom(int32_t left, int32_t right, int32_t carry) {
   uint32_t uleft = static_cast<uint32_t>(left);
   uint32_t uright = static_cast<uint32_t>(right);
-  uint32_t urest  = 0xffffffffU - uleft;
+  uint32_t urest = 0xFFFFFFFFU - uleft;
 
   return (uright > urest) ||
          (carry && (((uright + 1) > urest) || (uright > (urest - 1))));
@@ -1409,7 +1405,7 @@ int32_t Simulator::GetShiftRm(Instruction* instr, bool* carry_out) {
       case ASR: {
         if (shift_amount == 0) {
           if (result < 0) {
-            result = 0xffffffff;
+            result = 0xFFFFFFFF;
             *carry_out = true;
           } else {
             result = 0;
@@ -1468,7 +1464,7 @@ int32_t Simulator::GetShiftRm(Instruction* instr, bool* carry_out) {
   } else {
     // by register
     int rs = instr->RsValue();
-    shift_amount = get_register(rs) &0xff;
+    shift_amount = get_register(rs) & 0xFF;
     switch (shift) {
       case ASR: {
         if (shift_amount == 0) {
@@ -1481,7 +1477,7 @@ int32_t Simulator::GetShiftRm(Instruction* instr, bool* carry_out) {
           DCHECK_GE(shift_amount, 32);
           if (result < 0) {
             *carry_out = true;
-            result = 0xffffffff;
+            result = 0xFFFFFFFF;
           } else {
             *carry_out = false;
             result = 0;
@@ -2036,7 +2032,7 @@ void Simulator::DisableStop(uint32_t code) {
 void Simulator::IncreaseStopCounter(uint32_t code) {
   DCHECK_LE(code, kMaxStopCode);
   DCHECK(isWatchedStop(code));
-  if ((watched_stops_[code].count & ~(1 << 31)) == 0x7fffffff) {
+  if ((watched_stops_[code].count & ~(1 << 31)) == 0x7FFFFFFF) {
     PrintF("Stop counter for code %i has overflowed.\n"
            "Enabling this code and reseting the counter to 0.\n", code);
     watched_stops_[code].count = 0;
@@ -2137,14 +2133,14 @@ void Simulator::DecodeType01(Instruction* instr) {
             int64_t right_op = static_cast<int32_t>(rs_val);
             uint64_t result = left_op * right_op;
             hi_res = static_cast<int32_t>(result >> 32);
-            lo_res = static_cast<int32_t>(result & 0xffffffff);
+            lo_res = static_cast<int32_t>(result & 0xFFFFFFFF);
           } else {
             // unsigned multiply
             uint64_t left_op  = static_cast<uint32_t>(rm_val);
             uint64_t right_op = static_cast<uint32_t>(rs_val);
             uint64_t result = left_op * right_op;
             hi_res = static_cast<int32_t>(result >> 32);
-            lo_res = static_cast<int32_t>(result & 0xffffffff);
+            lo_res = static_cast<int32_t>(result & 0xFFFFFFFF);
           }
           set_register(rd_lo, lo_res);
           set_register(rd_hi, hi_res);
@@ -2316,7 +2312,7 @@ void Simulator::DecodeType01(Instruction* instr) {
           }
         }
       }
-      if (((instr->Bits(7, 4) & 0xd) == 0xd) && (instr->Bit(20) == 0)) {
+      if (((instr->Bits(7, 4) & 0xD) == 0xD) && (instr->Bit(20) == 0)) {
         DCHECK_EQ(rd % 2, 0);
         if (instr->HasH()) {
           // The strd instruction.
@@ -2357,7 +2353,7 @@ void Simulator::DecodeType01(Instruction* instr) {
     }
   } else if ((type == 0) && instr->IsMiscType0()) {
     if ((instr->Bits(27, 23) == 2) && (instr->Bits(21, 20) == 2) &&
-        (instr->Bits(15, 4) == 0xf00)) {
+        (instr->Bits(15, 4) == 0xF00)) {
       // MSR
       int rm = instr->RmValue();
       DCHECK_NE(pc, rm);  // UNPREDICTABLE
@@ -2569,8 +2565,8 @@ void Simulator::DecodeType01(Instruction* instr) {
           SetVFlag(OverflowFrom(alu_out, rn_val, shifter_operand, false));
         } else {
           // Format(instr, "movt'cond 'rd, 'imm").
-          alu_out = (get_register(rd) & 0xffff) |
-              (instr->ImmedMovwMovtValue() << 16);
+          alu_out =
+              (get_register(rd) & 0xFFFF) | (instr->ImmedMovwMovtValue() << 16);
           set_register(rd, alu_out);
         }
         break;
@@ -2987,8 +2983,8 @@ void Simulator::DecodeType3(Instruction* instr) {
                 }
               } else {
                 // PU == 0b01, BW == 0b11, Bits(9, 6) != 0b0001
-                if ((instr->Bits(20, 16) == 0x1f) &&
-                    (instr->Bits(11, 4) == 0xf3)) {
+                if ((instr->Bits(20, 16) == 0x1F) &&
+                    (instr->Bits(11, 4) == 0xF3)) {
                   // Rbit.
                   uint32_t rm_val = get_register(instr->RmValue());
                   set_register(rd, base::bits::ReverseBits(rm_val));
@@ -3084,7 +3080,7 @@ void Simulator::DecodeType3(Instruction* instr) {
           uint32_t rd_val =
               static_cast<uint32_t>(get_register(instr->RdValue()));
           uint32_t bitcount = msbit - lsbit + 1;
-          uint32_t mask = 0xffffffffu >> (32 - bitcount);
+          uint32_t mask = 0xFFFFFFFFu >> (32 - bitcount);
           rd_val &= ~(mask << lsbit);
           if (instr->RmValue() != 15) {
             // bfi - bitfield insert.
@@ -3422,7 +3418,7 @@ void Simulator::DecodeTypeVFP(Instruction* instr) {
         int vd = instr->VFPNRegValue(kDoublePrecision);
         int rt = instr->RtValue();
         int opc1_opc2 = (instr->Bits(22, 21) << 2) | instr->Bits(6, 5);
-        if ((opc1_opc2 & 0xb) == 0) {
+        if ((opc1_opc2 & 0xB) == 0) {
           // NeonS32/NeonU32
           uint32_t data[2];
           get_d_register(vd, data);
@@ -3500,7 +3496,7 @@ void Simulator::DecodeTypeVFP(Instruction* instr) {
       int opc1_opc2 = (instr->Bits(22, 21) << 2) | instr->Bits(6, 5);
       uint64_t data;
       get_d_register(vn, &data);
-      if ((opc1_opc2 & 0xb) == 0) {
+      if ((opc1_opc2 & 0xB) == 0) {
         // NeonS32 / NeonU32
         int32_t int_data[2];
         memcpy(int_data, &data, sizeof(int_data));
@@ -3514,14 +3510,14 @@ void Simulator::DecodeTypeVFP(Instruction* instr) {
           int i = opc1_opc2 & 0x7;
           int shift = i * kBitsPerByte;
           uint32_t scalar = (data >> shift) & 0xFFu;
-          if (!u && (scalar & 0x80) != 0) scalar |= 0xffffff00;
+          if (!u && (scalar & 0x80) != 0) scalar |= 0xFFFFFF00;
           set_register(rt, scalar);
         } else if ((opc1_opc2 & 0x1) != 0) {
           // NeonS16 / NeonU16
           int i = (opc1_opc2 >> 1) & 0x3;
           int shift = i * kBitsPerByte * kShortSize;
           uint32_t scalar = (data >> shift) & 0xFFFFu;
-          if (!u && (scalar & 0x8000) != 0) scalar |= 0xffff0000;
+          if (!u && (scalar & 0x8000) != 0) scalar |= 0xFFFF0000;
           set_register(rt, scalar);
         } else {
           UNREACHABLE();  // Not used by V8.
@@ -3702,7 +3698,7 @@ bool get_inv_op_vfp_flag(VFPRoundingMode mode,
                          double val,
                          bool unsigned_) {
   DCHECK((mode == RN) || (mode == RM) || (mode == RZ));
-  double max_uint = static_cast<double>(0xffffffffu);
+  double max_uint = static_cast<double>(0xFFFFFFFFu);
   double max_int = static_cast<double>(kMaxInt);
   double min_int = static_cast<double>(kMinInt);
 
@@ -3744,7 +3740,7 @@ int VFPConversionSaturate(double val, bool unsigned_res) {
     return 0;
   } else {
     if (unsigned_res) {
-      return (val < 0) ? 0 : 0xffffffffu;
+      return (val < 0) ? 0 : 0xFFFFFFFFu;
     } else {
       return (val < 0) ? kMinInt : kMaxInt;
     }
@@ -4496,7 +4492,7 @@ void Simulator::DecodeSpecialCondition(Instruction* instr) {
           }
           break;
         }
-        case 0xa: {
+        case 0xA: {
           // vpmin/vpmax.s<size> Dd, Dm, Dn.
           NeonSize size = static_cast<NeonSize>(instr->Bits(21, 20));
           bool min = instr->Bit(4) != 0;
@@ -4516,7 +4512,7 @@ void Simulator::DecodeSpecialCondition(Instruction* instr) {
           }
           break;
         }
-        case 0xb: {
+        case 0xB: {
           // vpadd.i<size> Dd, Dm, Dn.
           NeonSize size = static_cast<NeonSize>(instr->Bits(21, 20));
           switch (size) {
@@ -4535,7 +4531,7 @@ void Simulator::DecodeSpecialCondition(Instruction* instr) {
           }
           break;
         }
-        case 0xd: {
+        case 0xD: {
           if (instr->Bit(4) == 0) {
             float src1[4], src2[4];
             get_neon_register(Vn, src1);
@@ -4555,7 +4551,7 @@ void Simulator::DecodeSpecialCondition(Instruction* instr) {
           }
           break;
         }
-        case 0xe: {
+        case 0xE: {
           if (instr->Bits(21, 20) == 0 && instr->Bit(4) == 0) {
             // vceq.f32.
             float src1[4], src2[4];
@@ -4571,7 +4567,7 @@ void Simulator::DecodeSpecialCondition(Instruction* instr) {
           }
           break;
         }
-        case 0xf: {
+        case 0xF: {
           if (instr->Bit(20) == 0 && instr->Bit(6) == 1) {
             float src1[4], src2[4];
             get_neon_register(Vn, src1);
@@ -4862,7 +4858,7 @@ void Simulator::DecodeSpecialCondition(Instruction* instr) {
           }
           break;
         }
-        case 0xa: {
+        case 0xA: {
           // vpmin/vpmax.u<size> Dd, Dm, Dn.
           NeonSize size = static_cast<NeonSize>(instr->Bits(21, 20));
           bool min = instr->Bit(4) != 0;
@@ -4882,7 +4878,7 @@ void Simulator::DecodeSpecialCondition(Instruction* instr) {
           }
           break;
         }
-        case 0xd: {
+        case 0xD: {
           if (instr->Bits(21, 20) == 0 && instr->Bit(6) == 1 &&
               instr->Bit(4) == 1) {
             // vmul.f32 Qd, Qn, Qm
@@ -4902,7 +4898,7 @@ void Simulator::DecodeSpecialCondition(Instruction* instr) {
           }
           break;
         }
-        case 0xe: {
+        case 0xE: {
           if (instr->Bit(20) == 0 && instr->Bit(4) == 0) {
             // vcge/vcgt.f32 Qd, Qm, Qn
             bool ge = instr->Bit(21) == 0;
@@ -5014,15 +5010,15 @@ void Simulator::DecodeSpecialCondition(Instruction* instr) {
           if ((imm4 & 0x1) != 0) {
             size = 8;
             index = imm4 >> 1;
-            mask = 0xffu;
+            mask = 0xFFu;
           } else if ((imm4 & 0x2) != 0) {
             size = 16;
             index = imm4 >> 2;
-            mask = 0xffffu;
+            mask = 0xFFFFu;
           } else {
             size = 32;
             index = imm4 >> 3;
-            mask = 0xffffffffu;
+            mask = 0xFFFFFFFFu;
           }
           uint64_t d_data;
           get_d_register(vm, &d_data);
@@ -5275,7 +5271,7 @@ void Simulator::DecodeSpecialCondition(Instruction* instr) {
           int Vd = instr->VFPDRegValue(kSimd128Precision);
           int Vm = instr->VFPMRegValue(kSimd128Precision);
           NeonSize size = static_cast<NeonSize>(instr->Bits(19, 18));
-          if (instr->Bits(9, 6) == 0xd) {
+          if (instr->Bits(9, 6) == 0xD) {
             // vabs<type>.<size> Qd, Qm
             if (instr->Bit(10) != 0) {
               // floating point (clear sign bits)
@@ -5302,7 +5298,7 @@ void Simulator::DecodeSpecialCondition(Instruction* instr) {
                   break;
               }
             }
-          } else if (instr->Bits(9, 6) == 0xf) {
+          } else if (instr->Bits(9, 6) == 0xF) {
             // vneg<type>.<size> Qd, Qm (signed integer)
             if (instr->Bit(10) != 0) {
               // floating point (toggle sign bits)
@@ -5561,7 +5557,7 @@ void Simulator::DecodeSpecialCondition(Instruction* instr) {
       break;
     case 0xA:
     case 0xB:
-      if ((instr->Bits(22, 20) == 5) && (instr->Bits(15, 12) == 0xf)) {
+      if ((instr->Bits(22, 20) == 5) && (instr->Bits(15, 12) == 0xF)) {
         // pld: ignore instruction.
       } else if (instr->SpecialValue() == 0xA && instr->Bits(22, 20) == 7) {
         // dsb, dmb, isb: ignore instruction for now.

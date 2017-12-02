@@ -60,13 +60,13 @@ using compiler::MachineTypeForC;
 using compiler::Node;
 
 // TODO(titzer): check traps more robustly in tests.
-// Currently, in tests, we just return 0xdeadbeef from the function in which
+// Currently, in tests, we just return 0xDEADBEEF from the function in which
 // the trap occurs if the runtime context is not available to throw a JavaScript
 // exception.
 #define CHECK_TRAP32(x) \
-  CHECK_EQ(0xdeadbeef, (bit_cast<uint32_t>(x)) & 0xFFFFFFFF)
+  CHECK_EQ(0xDEADBEEF, (bit_cast<uint32_t>(x)) & 0xFFFFFFFF)
 #define CHECK_TRAP64(x) \
-  CHECK_EQ(0xdeadbeefdeadbeef, (bit_cast<uint64_t>(x)) & 0xFFFFFFFFFFFFFFFF)
+  CHECK_EQ(0xDEADBEEFDEADBEEF, (bit_cast<uint64_t>(x)) & 0xFFFFFFFFFFFFFFFF)
 #define CHECK_TRAP(x) CHECK_TRAP32(x)
 
 #define WASM_WRAPPER_RETURN_VALUE 8754
@@ -465,7 +465,7 @@ class WasmRunner : public WasmRunnerBase {
     DCHECK(compiled_);
     if (interpret()) return CallInterpreter(p...);
 
-    ReturnType return_value = static_cast<ReturnType>(0xdeadbeefdeadbeef);
+    ReturnType return_value = static_cast<ReturnType>(0xDEADBEEFDEADBEEF);
     WasmRunnerBase::trap_happened = false;
     auto trap_callback = []() -> void {
       WasmRunnerBase::trap_happened = true;
@@ -485,7 +485,7 @@ class WasmRunner : public WasmRunnerBase {
                                  static_cast<void*>(&return_value));
     CHECK_EQ(WASM_WRAPPER_RETURN_VALUE, result);
     return WasmRunnerBase::trap_happened
-               ? static_cast<ReturnType>(0xdeadbeefdeadbeef)
+               ? static_cast<ReturnType>(0xDEADBEEFDEADBEEF)
                : return_value;
   }
 
@@ -502,7 +502,7 @@ class WasmRunner : public WasmRunnerBase {
       return val.to<ReturnType>();
     } else if (thread->state() == WasmInterpreter::TRAPPED) {
       // TODO(titzer): return the correct trap code
-      int64_t result = 0xdeadbeefdeadbeef;
+      int64_t result = 0xDEADBEEFDEADBEEF;
       return static_cast<ReturnType>(result);
     } else {
       // TODO(titzer): falling off end

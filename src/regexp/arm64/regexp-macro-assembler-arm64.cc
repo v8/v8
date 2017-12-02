@@ -588,11 +588,11 @@ bool RegExpMacroAssemblerARM64::CheckSpecialCharacterClass(uc16 type,
     if (mode_ == LATIN1) {
       // One byte space characters are '\t'..'\r', ' ' and \u00a0.
       Label success;
-      // Check for ' ' or 0x00a0.
+      // Check for ' ' or 0x00A0.
       __ Cmp(current_character(), ' ');
-      __ Ccmp(current_character(), 0x00a0, ZFlag, ne);
+      __ Ccmp(current_character(), 0x00A0, ZFlag, ne);
       __ B(eq, &success);
-      // Check range 0x09..0x0d.
+      // Check range 0x09..0x0D.
       __ Sub(w10, current_character(), '\t');
       CompareAndBranchOrBacktrack(w10, '\r' - '\t', hi, on_no_match);
       __ Bind(&success);
@@ -613,12 +613,12 @@ bool RegExpMacroAssemblerARM64::CheckSpecialCharacterClass(uc16 type,
     CompareAndBranchOrBacktrack(w10, '9' - '0', ls, on_no_match);
     return true;
   case '.': {
-    // Match non-newlines (not 0x0a('\n'), 0x0d('\r'), 0x2028 and 0x2029)
+    // Match non-newlines (not 0x0A('\n'), 0x0D('\r'), 0x2028 and 0x2029)
     // Here we emit the conditional branch only once at the end to make branch
     // prediction more efficient, even though we could branch out of here
     // as soon as a character matches.
-    __ Cmp(current_character(), 0x0a);
-    __ Ccmp(current_character(), 0x0d, ZFlag, ne);
+    __ Cmp(current_character(), 0x0A);
+    __ Ccmp(current_character(), 0x0D, ZFlag, ne);
     if (mode_ == UC16) {
       __ Sub(w10, current_character(), 0x2028);
       // If the Z flag was set we clear the flags to force a branch.
@@ -631,11 +631,11 @@ bool RegExpMacroAssemblerARM64::CheckSpecialCharacterClass(uc16 type,
     return true;
   }
   case 'n': {
-    // Match newlines (0x0a('\n'), 0x0d('\r'), 0x2028 and 0x2029)
+    // Match newlines (0x0A('\n'), 0x0D('\r'), 0x2028 and 0x2029)
     // We have to check all 4 newline characters before emitting
     // the conditional branch.
-    __ Cmp(current_character(), 0x0a);
-    __ Ccmp(current_character(), 0x0d, ZFlag, ne);
+    __ Cmp(current_character(), 0x0A);
+    __ Ccmp(current_character(), 0x0D, ZFlag, ne);
     if (mode_ == UC16) {
       __ Sub(w10, current_character(), 0x2028);
       // If the Z flag was set we clear the flags to force a fall-through.

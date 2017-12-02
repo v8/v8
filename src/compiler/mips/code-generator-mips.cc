@@ -1203,7 +1203,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       Register dst = i.OutputRegister();
       uint32_t B0 = 0x55555555;     // (T)~(T)0/3
       uint32_t B1 = 0x33333333;     // (T)~(T)0/15*3
-      uint32_t B2 = 0x0f0f0f0f;     // (T)~(T)0/255*15
+      uint32_t B2 = 0x0F0F0F0F;     // (T)~(T)0/255*15
       uint32_t value = 0x01010101;  // (T)~(T)0/255
       uint32_t shift = 24;          // (sizeof(T) - 1) * BITS_PER_BYTE
       __ srl(kScratchReg, src, 1);
@@ -2593,7 +2593,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
 
       if (src0 == src1) {
         // Unary S32x4 shuffles are handled with shf.w instruction
-        unsigned lane = shuffle & 0xff;
+        unsigned lane = shuffle & 0xFF;
         if (FLAG_debug_code) {
           // range of all four lanes, for unary instruction,
           // should belong to the same range, which can be one of these:
@@ -2601,7 +2601,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
           if (lane >= 4) {
             int32_t shuffle_helper = shuffle;
             for (int i = 0; i < 4; ++i) {
-              lane = shuffle_helper & 0xff;
+              lane = shuffle_helper & 0xFF;
               CHECK_GE(lane, 4);
               shuffle_helper >>= 8;
             }
@@ -2609,7 +2609,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
         }
         uint32_t i8 = 0;
         for (int i = 0; i < 4; i++) {
-          lane = shuffle & 0xff;
+          lane = shuffle & 0xFF;
           if (lane >= 4) {
             lane -= 4;
           }

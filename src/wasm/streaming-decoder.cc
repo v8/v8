@@ -66,7 +66,7 @@ void StreamingDecoder::Finish() {
   std::unique_ptr<uint8_t[]> bytes(new uint8_t[total_size_]);
   uint8_t* cursor = bytes.get();
   {
-#define BYTES(x) (x & 0xff), (x >> 8) & 0xff, (x >> 16) & 0xff, (x >> 24) & 0xff
+#define BYTES(x) (x & 0xFF), (x >> 8) & 0xFF, (x >> 16) & 0xFF, (x >> 24) & 0xFF
     uint8_t module_header[]{BYTES(kWasmMagic), BYTES(kWasmVersion)};
 #undef BYTES
     memcpy(cursor, module_header, arraysize(module_header));

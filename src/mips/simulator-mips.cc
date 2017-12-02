@@ -60,8 +60,8 @@ class MipsDebugger {
   void PrintAllRegsIncludingFPU();
 
  private:
-  // We set the breakpoint code to 0xfffff to easily recognize it.
-  static const Instr kBreakpointInstr = SPECIAL | BREAK | 0xfffff << 6;
+  // We set the breakpoint code to 0xFFFFF to easily recognize it.
+  static const Instr kBreakpointInstr = SPECIAL | BREAK | 0xFFFFF << 6;
   static const Instr kNopInstr =  0x0;
 
   Simulator* sim_;
@@ -1105,7 +1105,7 @@ void Simulator::set_fpu_register_double(int fpureg, double value) {
   } else {
     DCHECK((fpureg >= 0) && (fpureg < kNumFPURegisters) && ((fpureg % 2) == 0));
     int64_t i64 = bit_cast<int64_t>(value);
-    set_fpu_register_word(fpureg, i64 & 0xffffffff);
+    set_fpu_register_word(fpureg, i64 & 0xFFFFFFFF);
     set_fpu_register_word(fpureg + 1, i64 >> 32);
   }
 }
@@ -1152,19 +1152,19 @@ int64_t Simulator::get_fpu_register(int fpureg) const {
 
 int32_t Simulator::get_fpu_register_word(int fpureg) const {
   DCHECK((fpureg >= 0) && (fpureg < kNumFPURegisters));
-  return static_cast<int32_t>(FPUregisters_[fpureg * 2] & 0xffffffff);
+  return static_cast<int32_t>(FPUregisters_[fpureg * 2] & 0xFFFFFFFF);
 }
 
 
 int32_t Simulator::get_fpu_register_signed_word(int fpureg) const {
   DCHECK((fpureg >= 0) && (fpureg < kNumFPURegisters));
-  return static_cast<int32_t>(FPUregisters_[fpureg * 2] & 0xffffffff);
+  return static_cast<int32_t>(FPUregisters_[fpureg * 2] & 0xFFFFFFFF);
 }
 
 
 int32_t Simulator::get_fpu_register_hi_word(int fpureg) const {
   DCHECK((fpureg >= 0) && (fpureg < kNumFPURegisters));
-  return static_cast<int32_t>((FPUregisters_[fpureg * 2] >> 32) & 0xffffffff);
+  return static_cast<int32_t>((FPUregisters_[fpureg * 2] >> 32) & 0xFFFFFFFF);
 }
 
 
@@ -2204,7 +2204,7 @@ void Simulator::WriteH(int32_t addr, int16_t value, Instruction* instr) {
 uint32_t Simulator::ReadBU(int32_t addr) {
   uint8_t* ptr = reinterpret_cast<uint8_t*>(addr);
   TraceMemRd(addr, static_cast<int32_t>(*ptr));
-  return *ptr & 0xff;
+  return *ptr & 0xFF;
 }
 
 
@@ -2603,7 +2603,7 @@ void Simulator::DisableStop(uint32_t code) {
 
 void Simulator::IncreaseStopCounter(uint32_t code) {
   DCHECK_LE(code, kMaxStopCode);
-  if ((watched_stops_[code].count & ~(1 << 31)) == 0x7fffffff) {
+  if ((watched_stops_[code].count & ~(1 << 31)) == 0x7FFFFFFF) {
     PrintF("Stop counter for code %i has overflowed.\n"
            "Enabling this code and reseting the counter to 0.\n", code);
     watched_stops_[code].count = 0;
@@ -3102,8 +3102,8 @@ void Simulator::DecodeTypeRegisterDRsType() {
 
       // Extracting sign, exponent and mantissa from the input double
       uint32_t sign = (classed >> 63) & 1;
-      uint32_t exponent = (classed >> 52) & 0x00000000000007ff;
-      uint64_t mantissa = classed & 0x000fffffffffffff;
+      uint32_t exponent = (classed >> 52) & 0x00000000000007FF;
+      uint64_t mantissa = classed & 0x000FFFFFFFFFFFFF;
       uint64_t result;
       double dResult;
 
@@ -3124,7 +3124,7 @@ void Simulator::DecodeTypeRegisterDRsType() {
       // Setting flags if double is NaN
       signalingNan = false;
       quietNan = false;
-      if (!negInf && !posInf && exponent == 0x7ff) {
+      if (!negInf && !posInf && exponent == 0x7FF) {
         quietNan = ((mantissa & 0x0008000000000000) != 0) &&
                    ((mantissa & (0x0008000000000000 - 1)) == 0);
         signalingNan = !quietNan;
@@ -3417,8 +3417,8 @@ void Simulator::DecodeTypeRegisterSRsType() {
 
       // Extracting sign, exponent and mantissa from the input float
       uint32_t sign = (classed >> 31) & 1;
-      uint32_t exponent = (classed >> 23) & 0x000000ff;
-      uint32_t mantissa = classed & 0x007fffff;
+      uint32_t exponent = (classed >> 23) & 0x000000FF;
+      uint32_t mantissa = classed & 0x007FFFFF;
       uint32_t result;
       float fResult;
 
@@ -3439,7 +3439,7 @@ void Simulator::DecodeTypeRegisterSRsType() {
       // Setting flags if float is NaN
       signalingNan = false;
       quietNan = false;
-      if (!negInf && !posInf && (exponent == 0xff)) {
+      if (!negInf && !posInf && (exponent == 0xFF)) {
         quietNan = ((mantissa & 0x00200000) == 0) &&
                    ((mantissa & (0x00200000 - 1)) == 0);
         signalingNan = !quietNan;
@@ -3994,12 +3994,12 @@ void Simulator::DecodeTypeRegisterSPECIAL() {
     case MULT:
       i64hilo = static_cast<int64_t>(rs()) * static_cast<int64_t>(rt());
       if (!IsMipsArchVariant(kMips32r6)) {
-        set_register(LO, static_cast<int32_t>(i64hilo & 0xffffffff));
+        set_register(LO, static_cast<int32_t>(i64hilo & 0xFFFFFFFF));
         set_register(HI, static_cast<int32_t>(i64hilo >> 32));
       } else {
         switch (sa()) {
           case MUL_OP:
-            SetResult(rd_reg(), static_cast<int32_t>(i64hilo & 0xffffffff));
+            SetResult(rd_reg(), static_cast<int32_t>(i64hilo & 0xFFFFFFFF));
             break;
           case MUH_OP:
             SetResult(rd_reg(), static_cast<int32_t>(i64hilo >> 32));
@@ -4013,12 +4013,12 @@ void Simulator::DecodeTypeRegisterSPECIAL() {
     case MULTU:
       u64hilo = static_cast<uint64_t>(rs_u()) * static_cast<uint64_t>(rt_u());
       if (!IsMipsArchVariant(kMips32r6)) {
-        set_register(LO, static_cast<int32_t>(u64hilo & 0xffffffff));
+        set_register(LO, static_cast<int32_t>(u64hilo & 0xFFFFFFFF));
         set_register(HI, static_cast<int32_t>(u64hilo >> 32));
       } else {
         switch (sa()) {
           case MUL_OP:
-            SetResult(rd_reg(), static_cast<int32_t>(u64hilo & 0xffffffff));
+            SetResult(rd_reg(), static_cast<int32_t>(u64hilo & 0xFFFFFFFF));
             break;
           case MUH_OP:
             SetResult(rd_reg(), static_cast<int32_t>(u64hilo >> 32));
@@ -4265,7 +4265,7 @@ void Simulator::DecodeTypeRegisterSPECIAL3() {
           // Reverse the bit in byte for each individual byte
           for (int i = 0; i < 4; i++) {
             output = output >> 8;
-            i_byte = input & 0xff;
+            i_byte = input & 0xFF;
 
             // Fast way to reverse bits in byte
             // Devised by Sean Anderson, July 13, 2001
@@ -5258,8 +5258,8 @@ void Msa3RInstrHelper_shuffle(const uint32_t opcode, T_reg ws, T_reg wt,
       wd_p[2 * i + 1] = ws_p[2 * i + 1];
       break;
     case VSHF: {
-      const int mask_not_valid = 0xc0;
-      const int mask_6_bits = 0x3f;
+      const int mask_not_valid = 0xC0;
+      const int mask_6_bits = 0x3F;
       if ((wd_p[i] & mask_not_valid)) {
         wd_p[i] = 0;
       } else {
@@ -5658,7 +5658,7 @@ void Simulator::DecodeTypeMsa3RF() {
         break;                                                       \
       }                                                              \
       /* Infinity */                                                 \
-      dst = PACK_FLOAT16(aSign, 0x1f, 0);                            \
+      dst = PACK_FLOAT16(aSign, 0x1F, 0);                            \
       break;                                                         \
     } else if (aExp == 0 && aFrac == 0) {                            \
       dst = PACK_FLOAT16(aSign, 0, 0);                               \
@@ -5672,13 +5672,13 @@ void Simulator::DecodeTypeMsa3RF() {
       aExp -= 0x71;                                                  \
       if (aExp < 1) {                                                \
         /* Will be denormal in halfprec */                           \
-        mask = 0x00ffffff;                                           \
+        mask = 0x00FFFFFF;                                           \
         if (aExp >= -11) {                                           \
           mask >>= 11 + aExp;                                        \
         }                                                            \
       } else {                                                       \
         /* Normal number in halfprec */                              \
-        mask = 0x00001fff;                                           \
+        mask = 0x00001FFF;                                           \
       }                                                              \
       switch (MSACSR_ & 3) {                                         \
         case kRoundToNearest:                                        \
@@ -5699,7 +5699,7 @@ void Simulator::DecodeTypeMsa3RF() {
       }                                                              \
       rounding_bumps_exp = (aFrac + increment >= 0x01000000);        \
       if (aExp > maxexp || (aExp == maxexp && rounding_bumps_exp)) { \
-        dst = PACK_FLOAT16(aSign, 0x1f, 0);                          \
+        dst = PACK_FLOAT16(aSign, 0x1F, 0);                          \
         break;                                                       \
       }                                                              \
       aFrac += increment;                                            \
@@ -6213,8 +6213,8 @@ template <typename T_int, typename T_fp, typename T_reg>
 T_int Msa2RFInstrHelper2(uint32_t opcode, T_reg ws, int i) {
   switch (opcode) {
 #define EXTRACT_FLOAT16_SIGN(fp16) (fp16 >> 15)
-#define EXTRACT_FLOAT16_EXP(fp16) (fp16 >> 10 & 0x1f)
-#define EXTRACT_FLOAT16_FRAC(fp16) (fp16 & 0x3ff)
+#define EXTRACT_FLOAT16_EXP(fp16) (fp16 >> 10 & 0x1F)
+#define EXTRACT_FLOAT16_FRAC(fp16) (fp16 & 0x3FF)
 #define PACK_FLOAT32(sign, exp, frac) \
   static_cast<uint32_t>(((sign) << 31) + ((exp) << 23) + (frac))
 #define FEXUP_DF(src_index)                                                   \
@@ -6224,9 +6224,9 @@ T_int Msa2RFInstrHelper2(uint32_t opcode, T_reg ws, int i) {
   aSign = EXTRACT_FLOAT16_SIGN(element);                                      \
   aExp = EXTRACT_FLOAT16_EXP(element);                                        \
   aFrac = EXTRACT_FLOAT16_FRAC(element);                                      \
-  if (V8_LIKELY(aExp && aExp != 0x1f)) {                                      \
+  if (V8_LIKELY(aExp && aExp != 0x1F)) {                                      \
     return PACK_FLOAT32(aSign, aExp + 0x70, aFrac << 13);                     \
-  } else if (aExp == 0x1f) {                                                  \
+  } else if (aExp == 0x1F) {                                                  \
     if (aFrac) {                                                              \
       return bit_cast<int32_t>(std::numeric_limits<float>::quiet_NaN());      \
     } else {                                                                  \
@@ -6389,7 +6389,7 @@ void Simulator::DecodeTypeImmediate() {
   int32_t ft_reg = instr_.FtValue();  // Destination register.
 
   // Zero extended immediate.
-  uint32_t oe_imm16 = 0xffff & imm16;
+  uint32_t oe_imm16 = 0xFFFF & imm16;
   // Sign extended immediate.
   int32_t se_imm16 = imm16;
 
@@ -6438,11 +6438,11 @@ void Simulator::DecodeTypeImmediate() {
     const int32_t bitsIn16Int = sizeof(int16_t) * kBitsPerByte;
     if (do_branch) {
       if (FLAG_debug_code) {
-        int16_t bits = imm16 & 0xfc;
+        int16_t bits = imm16 & 0xFC;
         if (imm16 >= 0) {
           CHECK_EQ(bits, 0);
         } else {
-          CHECK_EQ(bits ^ 0xfc, 0);
+          CHECK_EQ(bits ^ 0xFC, 0);
         }
       }
       // jump range :[pc + kInstrSize - 512 * kInstrSize,
@@ -6899,7 +6899,7 @@ void Simulator::DecodeTypeImmediate() {
               break;
             }
             case ADDIUPC: {
-              int32_t se_imm19 = imm19 | ((imm19 & 0x40000) ? 0xfff80000 : 0);
+              int32_t se_imm19 = imm19 | ((imm19 & 0x40000) ? 0xFFF80000 : 0);
               alu_out = current_pc + (se_imm19 << 2);
               break;
             }
@@ -6987,7 +6987,7 @@ void Simulator::DecodeTypeJump() {
   // Get current pc.
   int32_t current_pc = get_pc();
   // Get unchanged bits of pc.
-  int32_t pc_high_bits = current_pc & 0xf0000000;
+  int32_t pc_high_bits = current_pc & 0xF0000000;
   // Next pc.
 
   int32_t next_pc = pc_high_bits | (simInstr.Imm26Value() << 2);

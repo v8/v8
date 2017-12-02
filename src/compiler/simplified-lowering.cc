@@ -3724,7 +3724,7 @@ void SimplifiedLowering::DoShift(Node* node, Operator const* op,
   if (!rhs_type->Is(type_cache_.kZeroToThirtyOne)) {
     Node* const rhs = NodeProperties::GetValueInput(node, 1);
     node->ReplaceInput(1, graph()->NewNode(machine()->Word32And(), rhs,
-                                           jsgraph()->Int32Constant(0x1f)));
+                                           jsgraph()->Int32Constant(0x1F)));
   }
   ChangeToPureOp(node, op);
 }

@@ -329,7 +329,7 @@ uchar Utf8::ValueOfIncremental(byte next, Utf8IncrementalBuffer* buffer) {
       // The mask for the lower bits depends on the kind, and is
       // 0x1F, 0x0F, 0x07 for kinds 2, 3, 4 respectively. We can get that
       // with one shift.
-      uint8_t mask = 0x7f >> kind;
+      uint8_t mask = 0x7F >> kind;
 
       // Store the kind in the top nibble, and kind - 1 (i.e., remaining bytes)
       // in 2nd nibble, and the value  in the bottom three. The 2nd nibble is
@@ -345,7 +345,7 @@ uchar Utf8::ValueOfIncremental(byte next, Utf8IncrementalBuffer* buffer) {
       *buffer = 0;
       return kBadChar;
     }
-  } else if (*buffer <= 0xff) {
+  } else if (*buffer <= 0xFF) {
     // We have one unprocessed byte left (from the last else case in this if
     // statement).
     uchar previous = *buffer;
@@ -367,22 +367,22 @@ uchar Utf8::ValueOfIncremental(byte next, Utf8IncrementalBuffer* buffer) {
 
     // How many bytes (excluding this one) do we still expect?
     uint8_t bytes_expected = *buffer >> 28;
-    uint8_t bytes_left = (*buffer >> 24) & 0x0f;
+    uint8_t bytes_left = (*buffer >> 24) & 0x0F;
 
     // Two-byte overlong sequence detection is handled by
     // NonASCIISequenceLength, so we don't need to check anything here.
     if (bytes_expected == 3 && bytes_left == 2) {
       // Check that there are at least 12 bytes of payload.
-      uint8_t lead_payload = *buffer & (0x7f >> bytes_expected);
-      DCHECK_LE(lead_payload, 0xf);
-      if (lead_payload == 0 && next < 0xa0) {
-        // 0xa0 = 0b10100000 (payload: 100000). Overlong sequence: 0 bits from
+      uint8_t lead_payload = *buffer & (0x7F >> bytes_expected);
+      DCHECK_LE(lead_payload, 0xF);
+      if (lead_payload == 0 && next < 0xA0) {
+        // 0xA0 = 0b10100000 (payload: 100000). Overlong sequence: 0 bits from
         // the first byte, at most 5 from the second byte, and at most 6 from
         // the third -> in total at most 11.
 
         *buffer = next;
         return kBadChar;
-      } else if (lead_payload == 0xd && next > 0x9f) {
+      } else if (lead_payload == 0xD && next > 0x9F) {
         // The resulting code point would be on a range which is reserved for
         // UTF-16 surrogate halves.
         *buffer = next;
@@ -390,9 +390,9 @@ uchar Utf8::ValueOfIncremental(byte next, Utf8IncrementalBuffer* buffer) {
       }
     } else if (bytes_expected == 4 && bytes_left == 3) {
       // Check that there are at least 17 bytes of payload.
-      uint8_t lead_payload = *buffer & (0x7f >> bytes_expected);
+      uint8_t lead_payload = *buffer & (0x7F >> bytes_expected);
 
-      // If the lead byte was bigger than 0xf4 (payload: 4), it's not a start of
+      // If the lead byte was bigger than 0xF4 (payload: 4), it's not a start of
       // any valid character, and this is detected by NonASCIISequenceLength.
       DCHECK_LE(lead_payload, 0x4);
       if (lead_payload == 0 && next < 0x90) {
@@ -401,9 +401,9 @@ uchar Utf8::ValueOfIncremental(byte next, Utf8IncrementalBuffer* buffer) {
         // and fourth bytes -> in total at most 16.
         *buffer = next;
         return kBadChar;
-      } else if (lead_payload == 4 && next > 0x8f) {
+      } else if (lead_payload == 4 && next > 0x8F) {
         // Invalid code point; value greater than 0b100001111000000000000
-        // (0x10ffff).
+        // (0x10FFFF).
         *buffer = next;
         return kBadChar;
       }
@@ -411,7 +411,7 @@ uchar Utf8::ValueOfIncremental(byte next, Utf8IncrementalBuffer* buffer) {
 
     bytes_left--;
     // Update the value.
-    uint32_t value = ((*buffer & 0xffffff) << 6) | (next & 0x3F);
+    uint32_t value = ((*buffer & 0xFFFFFF) << 6) | (next & 0x3F);
     if (bytes_left) {
       *buffer = (bytes_expected << 28 | bytes_left << 24 | value);
       return kIncomplete;

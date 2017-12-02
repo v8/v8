@@ -751,7 +751,7 @@ TEST(DeleteWeakGlobalHandle) {
 
 TEST(BytecodeArray) {
   if (FLAG_never_compact) return;
-  static const uint8_t kRawBytes[] = {0xc3, 0x7e, 0xa5, 0x5a};
+  static const uint8_t kRawBytes[] = {0xC3, 0x7E, 0xA5, 0x5A};
   static const int kRawBytesSize = sizeof(kRawBytes);
   static const int kFrameSize = 32;
   static const int kParameterCount = 2;
@@ -810,7 +810,7 @@ TEST(BytecodeArray) {
 }
 
 TEST(BytecodeArrayAging) {
-  static const uint8_t kRawBytes[] = {0xc3, 0x7e, 0xa5, 0x5a};
+  static const uint8_t kRawBytes[] = {0xC3, 0x7E, 0xA5, 0x5A};
   static const int kRawBytesSize = sizeof(kRawBytes);
   static const int kFrameSize = 32;
   static const int kParameterCount = 2;
@@ -1176,7 +1176,7 @@ TEST(StringAllocation) {
   Isolate* isolate = CcTest::i_isolate();
   Factory* factory = isolate->factory();
 
-  const unsigned char chars[] = { 0xe5, 0xa4, 0xa7 };
+  const unsigned char chars[] = {0xE5, 0xA4, 0xA7};
   for (int length = 0; length < 100; length++) {
     v8::HandleScope scope(CcTest::isolate());
     char* non_one_byte = NewArray<char>(3 * length + 1);
@@ -5175,7 +5175,7 @@ HEAP_TEST(Regress589413) {
   // Make sure the byte arrays will be promoted on the next GC.
   CcTest::CollectGarbage(NEW_SPACE);
   // This number is close to large free list category threshold.
-  const int N = 0x3eee;
+  const int N = 0x3EEE;
   {
     std::vector<FixedArray*> arrays;
     std::set<Page*> pages;

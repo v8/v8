@@ -197,7 +197,7 @@ TEST(Collector) {
   const int kSequentialSize = 1000;
   const int kBlockSize = 7;
   for (int loop = 0; loop < kLoops; loop++) {
-    Vector<int> block = collector.AddBlock(7, 0xbadcafe);
+    Vector<int> block = collector.AddBlock(7, 0xBADCAFE);
     for (int i = 0; i < kSequentialSize; i++) {
       collector.Add(i);
     }
@@ -212,7 +212,7 @@ TEST(Collector) {
     for (int j = 0; j < kBlockSize - 1; j++) {
       CHECK_EQ(j * 7, result[offset + j]);
     }
-    CHECK_EQ(0xbadcafe, result[offset + kBlockSize - 1]);
+    CHECK_EQ(0xBADCAFE, result[offset + kBlockSize - 1]);
     for (int j = 0; j < kSequentialSize; j++) {
       CHECK_EQ(j, result[offset + kBlockSize + j]);
     }

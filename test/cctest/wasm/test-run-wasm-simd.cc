@@ -195,7 +195,7 @@ template <typename T>
 T UnsignedNarrow(int64_t value) {
   static_assert(sizeof(int64_t) > sizeof(T), "T must be int32_t or smaller");
   using UnsignedT = typename std::make_unsigned<T>::type;
-  return static_cast<T>(Clamp<UnsignedT>(value & 0xffffffffu));
+  return static_cast<T>(Clamp<UnsignedT>(value & 0xFFFFFFFFu));
 }
 
 template <typename T>
@@ -828,7 +828,7 @@ WASM_SIMD_TEST(I8x16ReplaceLane) {
     V8_TARGET_ARCH_MIPS64
 // Determines if conversion from float to int will be valid.
 bool CanRoundToZeroAndConvert(double val, bool unsigned_integer) {
-  const double max_uint = static_cast<double>(0xffffffffu);
+  const double max_uint = static_cast<double>(0xFFFFFFFFu);
   const double max_int = static_cast<double>(kMaxInt);
   const double min_int = static_cast<double>(kMinInt);
 
@@ -849,7 +849,7 @@ int ConvertInvalidValue(double val, bool unsigned_integer) {
     return 0;
   } else {
     if (unsigned_integer) {
-      return (val < 0) ? 0 : 0xffffffffu;
+      return (val < 0) ? 0 : 0xFFFFFFFFu;
     } else {
       return (val < 0) ? kMinInt : kMaxInt;
     }
@@ -1153,7 +1153,7 @@ WASM_SIMD_COMPILED_TEST(I16x8ConvertI32x4) {
     int32_t packed_signed = Narrow<int16_t>(*i);
     int32_t packed_unsigned = UnsignedNarrow<int16_t>(*i);
     // Sign-extend here, since ExtractLane sign extends.
-    if (packed_unsigned & 0x8000) packed_unsigned |= 0xffff0000;
+    if (packed_unsigned & 0x8000) packed_unsigned |= 0xFFFF0000;
     CHECK_EQ(1, r.Call(*i, packed_signed, packed_unsigned));
   }
 }
@@ -1352,7 +1352,7 @@ WASM_SIMD_COMPILED_TEST(I8x16ConvertI16x8) {
     int32_t packed_signed = Narrow<int8_t>(*i);
     int32_t packed_unsigned = UnsignedNarrow<int8_t>(*i);
     // Sign-extend here, since ExtractLane sign extends.
-    if (packed_unsigned & 0x80) packed_unsigned |= 0xffffff00;
+    if (packed_unsigned & 0x80) packed_unsigned |= 0xFFFFFF00;
     CHECK_EQ(1, r.Call(*i, packed_signed, packed_unsigned));
   }
 }
@@ -2024,7 +2024,7 @@ WASM_SIMD_TEST(SimdF32x4ExtractWithI32x4) {
 WASM_SIMD_TEST(SimdF32x4AddWithI32x4) {
   // Choose two floating point values whose sum is normal and exactly
   // representable as a float.
-  const int kOne = 0x3f800000;
+  const int kOne = 0x3F800000;
   const int kTwo = 0x40000000;
   WasmRunner<int32_t> r(execution_mode);
   BUILD(r,

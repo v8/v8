@@ -214,11 +214,11 @@ void ValueSerializer::WriteVarint(T value) {
   uint8_t stack_buffer[sizeof(T) * 8 / 7 + 1];
   uint8_t* next_byte = &stack_buffer[0];
   do {
-    *next_byte = (value & 0x7f) | 0x80;
+    *next_byte = (value & 0x7F) | 0x80;
     next_byte++;
     value >>= 7;
   } while (value);
-  *(next_byte - 1) &= 0x7f;
+  *(next_byte - 1) &= 0x7F;
   WriteRawBytes(stack_buffer, next_byte - stack_buffer);
 }
 
@@ -1032,7 +1032,7 @@ Maybe<T> ValueDeserializer::ReadVarint() {
     if (position_ >= end_) return Nothing<T>();
     uint8_t byte = *position_;
     if (V8_LIKELY(shift < sizeof(T) * 8)) {
-      value |= static_cast<T>(byte & 0x7f) << shift;
+      value |= static_cast<T>(byte & 0x7F) << shift;
       shift += 7;
     }
     has_another_byte = byte & 0x80;

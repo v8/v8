@@ -320,17 +320,17 @@ Node* DummyValue(JSGraph* jsgraph, MachineRepresentation rep) {
   switch (rep) {
     case MachineRepresentation::kTagged:
     case MachineRepresentation::kTaggedSigned:
-      return jsgraph->SmiConstant(0xdead);
+      return jsgraph->SmiConstant(0xDEAD);
     case MachineRepresentation::kTaggedPointer:
       return jsgraph->TheHoleConstant();
     case MachineRepresentation::kWord64:
-      return jsgraph->Int64Constant(0xdead);
+      return jsgraph->Int64Constant(0xDEAD);
     case MachineRepresentation::kWord32:
-      return jsgraph->Int32Constant(0xdead);
+      return jsgraph->Int32Constant(0xDEAD);
     case MachineRepresentation::kFloat64:
-      return jsgraph->Float64Constant(0xdead);
+      return jsgraph->Float64Constant(0xDEAD);
     case MachineRepresentation::kFloat32:
-      return jsgraph->Float32Constant(0xdead);
+      return jsgraph->Float32Constant(0xDEAD);
     case MachineRepresentation::kBit:
       return jsgraph->Int32Constant(0);
     default:
@@ -4221,14 +4221,14 @@ Node* EffectControlLinearizer::LowerFindOrderedHashMapEntry(Node* node) {
 
 Node* EffectControlLinearizer::ComputeIntegerHash(Node* value) {
   // See v8::internal::ComputeIntegerHash()
-  value = __ Int32Add(__ Word32Xor(value, __ Int32Constant(0xffffffff)),
+  value = __ Int32Add(__ Word32Xor(value, __ Int32Constant(0xFFFFFFFF)),
                       __ Word32Shl(value, __ Int32Constant(15)));
   value = __ Word32Xor(value, __ Word32Shr(value, __ Int32Constant(12)));
   value = __ Int32Add(value, __ Word32Shl(value, __ Int32Constant(2)));
   value = __ Word32Xor(value, __ Word32Shr(value, __ Int32Constant(4)));
   value = __ Int32Mul(value, __ Int32Constant(2057));
   value = __ Word32Xor(value, __ Word32Shr(value, __ Int32Constant(16)));
-  value = __ Word32And(value, __ Int32Constant(0x3fffffff));
+  value = __ Word32And(value, __ Int32Constant(0x3FFFFFFF));
   return value;
 }
 

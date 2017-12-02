@@ -116,8 +116,8 @@ void DoubleToIStub::Generate(MacroAssembler* masm) {
   // double_high LSR 31 equals zero.
   // New result = (result eor 0) + 0 = result.
   // If the input was negative, we have to negate the result.
-  // Input_high ASR 31 equals 0xffffffff and double_high LSR 31 equals 1.
-  // New result = (result eor 0xffffffff) + 1 = 0 - result.
+  // Input_high ASR 31 equals 0xFFFFFFFF and double_high LSR 31 equals 1.
+  // New result = (result eor 0xFFFFFFFF) + 1 = 0 - result.
   __ eor(result_reg, result_reg, Operand(double_high, ASR, 31));
   __ add(result_reg, result_reg, Operand(double_high, LSR, 31));
 

@@ -1138,7 +1138,7 @@ RUNTIME_FUNCTION(Runtime_WasmTraceMemory) {
   DCHECK(it.is_wasm());
   WasmCompiledFrame* frame = WasmCompiledFrame::cast(it.frame());
 
-  uint32_t addr = (static_cast<uint32_t>(addr_low) & 0xffff) |
+  uint32_t addr = (static_cast<uint32_t>(addr_low) & 0xFFFF) |
                   (static_cast<uint32_t>(addr_high) << 16);
   uint8_t* mem_start = reinterpret_cast<uint8_t*>(frame->wasm_instance()
                                                       ->memory_object()

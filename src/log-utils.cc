@@ -152,7 +152,7 @@ void Log::MessageBuilder::AppendStringPart(String* str, int len) {
   // TODO(cbruni): unify escaping.
   for (int i = 0; i < len; i++) {
     uc32 c = str->Get(i);
-    if (c <= 0xff) {
+    if (c <= 0xFF) {
       AppendCharacter(static_cast<char>(c));
     } else {
       // Escape any non-ascii range characters.
@@ -174,7 +174,7 @@ void Log::MessageBuilder::AppendCharacter(char c) {
   if (c >= 32 && c <= 126) {
     if (c == ',') {
       // Escape commas (log field separator) directly.
-      os << "\x2c";
+      os << "\x2C";
     } else {
       // Directly append any printable ascii character.
       os << c;

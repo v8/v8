@@ -449,7 +449,7 @@ void Decoder::PrintPCImm21(Instruction* instr, int delta_pc, int n_bits) {
 void Decoder::PrintXImm26(Instruction* instr) {
   uint64_t target = static_cast<uint64_t>(instr->Imm26Value())
                     << kImmFieldShift;
-  target = (reinterpret_cast<uint64_t>(instr) & ~0xfffffff) | target;
+  target = (reinterpret_cast<uint64_t>(instr) & ~0xFFFFFFF) | target;
   out_buffer_pos_ +=
       SNPrintF(out_buffer_ + out_buffer_pos_, "0x%" PRIx64, target);
 }
@@ -485,7 +485,7 @@ void Decoder::PrintPCImm26(Instruction* instr, int delta_pc, int n_bits) {
 //      PC[GPRLEN-1 .. 28] || instr_index26 || 00
 void Decoder::PrintPCImm26(Instruction* instr) {
   int32_t imm26 = instr->Imm26Value();
-  uint64_t pc_mask = ~0xfffffff;
+  uint64_t pc_mask = ~0xFFFFFFF;
   uint64_t pc = ((uint64_t)(instr + 1) & pc_mask) | (imm26 << 2);
   out_buffer_pos_ +=
       SNPrintF(out_buffer_ + out_buffer_pos_, "%s",

@@ -48,92 +48,92 @@ TEST(CompareWrapper) {
   CHECK_EQ(true, wWord32Equal.Int32Compare(257, 257));
   CHECK_EQ(true, wWord32Equal.Int32Compare(65539, 65539));
   CHECK_EQ(true, wWord32Equal.Int32Compare(-1, -1));
-  CHECK_EQ(true, wWord32Equal.Int32Compare(0xffffffff, 0xffffffff));
+  CHECK_EQ(true, wWord32Equal.Int32Compare(0xFFFFFFFF, 0xFFFFFFFF));
 
   CHECK_EQ(false, wWord32Equal.Int32Compare(0, 1));
   CHECK_EQ(false, wWord32Equal.Int32Compare(257, 256));
   CHECK_EQ(false, wWord32Equal.Int32Compare(65539, 65537));
   CHECK_EQ(false, wWord32Equal.Int32Compare(-1, -2));
-  CHECK_EQ(false, wWord32Equal.Int32Compare(0xffffffff, 0xfffffffe));
+  CHECK_EQ(false, wWord32Equal.Int32Compare(0xFFFFFFFF, 0xFFFFFFFE));
 
   CHECK_EQ(false, wInt32LessThan.Int32Compare(0, 0));
   CHECK_EQ(false, wInt32LessThan.Int32Compare(357, 357));
   CHECK_EQ(false, wInt32LessThan.Int32Compare(75539, 75539));
   CHECK_EQ(false, wInt32LessThan.Int32Compare(-1, -1));
-  CHECK_EQ(false, wInt32LessThan.Int32Compare(0xffffffff, 0xffffffff));
+  CHECK_EQ(false, wInt32LessThan.Int32Compare(0xFFFFFFFF, 0xFFFFFFFF));
 
   CHECK_EQ(true, wInt32LessThan.Int32Compare(0, 1));
   CHECK_EQ(true, wInt32LessThan.Int32Compare(456, 457));
   CHECK_EQ(true, wInt32LessThan.Int32Compare(85537, 85539));
   CHECK_EQ(true, wInt32LessThan.Int32Compare(-2, -1));
-  CHECK_EQ(true, wInt32LessThan.Int32Compare(0xfffffffe, 0xffffffff));
+  CHECK_EQ(true, wInt32LessThan.Int32Compare(0xFFFFFFFE, 0xFFFFFFFF));
 
   CHECK_EQ(false, wInt32LessThan.Int32Compare(1, 0));
   CHECK_EQ(false, wInt32LessThan.Int32Compare(457, 456));
   CHECK_EQ(false, wInt32LessThan.Int32Compare(85539, 85537));
   CHECK_EQ(false, wInt32LessThan.Int32Compare(-1, -2));
-  CHECK_EQ(false, wInt32LessThan.Int32Compare(0xffffffff, 0xfffffffe));
+  CHECK_EQ(false, wInt32LessThan.Int32Compare(0xFFFFFFFF, 0xFFFFFFFE));
 
   CHECK_EQ(true, wInt32LessThanOrEqual.Int32Compare(0, 0));
   CHECK_EQ(true, wInt32LessThanOrEqual.Int32Compare(357, 357));
   CHECK_EQ(true, wInt32LessThanOrEqual.Int32Compare(75539, 75539));
   CHECK_EQ(true, wInt32LessThanOrEqual.Int32Compare(-1, -1));
-  CHECK_EQ(true, wInt32LessThanOrEqual.Int32Compare(0xffffffff, 0xffffffff));
+  CHECK_EQ(true, wInt32LessThanOrEqual.Int32Compare(0xFFFFFFFF, 0xFFFFFFFF));
 
   CHECK_EQ(true, wInt32LessThanOrEqual.Int32Compare(0, 1));
   CHECK_EQ(true, wInt32LessThanOrEqual.Int32Compare(456, 457));
   CHECK_EQ(true, wInt32LessThanOrEqual.Int32Compare(85537, 85539));
   CHECK_EQ(true, wInt32LessThanOrEqual.Int32Compare(-2, -1));
-  CHECK_EQ(true, wInt32LessThanOrEqual.Int32Compare(0xfffffffe, 0xffffffff));
+  CHECK_EQ(true, wInt32LessThanOrEqual.Int32Compare(0xFFFFFFFE, 0xFFFFFFFF));
 
   CHECK_EQ(false, wInt32LessThanOrEqual.Int32Compare(1, 0));
   CHECK_EQ(false, wInt32LessThanOrEqual.Int32Compare(457, 456));
   CHECK_EQ(false, wInt32LessThanOrEqual.Int32Compare(85539, 85537));
   CHECK_EQ(false, wInt32LessThanOrEqual.Int32Compare(-1, -2));
-  CHECK_EQ(false, wInt32LessThanOrEqual.Int32Compare(0xffffffff, 0xfffffffe));
+  CHECK_EQ(false, wInt32LessThanOrEqual.Int32Compare(0xFFFFFFFF, 0xFFFFFFFE));
 
   // Unsigned comparisons.
   CHECK_EQ(false, wUint32LessThan.Int32Compare(0, 0));
   CHECK_EQ(false, wUint32LessThan.Int32Compare(357, 357));
   CHECK_EQ(false, wUint32LessThan.Int32Compare(75539, 75539));
   CHECK_EQ(false, wUint32LessThan.Int32Compare(-1, -1));
-  CHECK_EQ(false, wUint32LessThan.Int32Compare(0xffffffff, 0xffffffff));
-  CHECK_EQ(false, wUint32LessThan.Int32Compare(0xffffffff, 0));
+  CHECK_EQ(false, wUint32LessThan.Int32Compare(0xFFFFFFFF, 0xFFFFFFFF));
+  CHECK_EQ(false, wUint32LessThan.Int32Compare(0xFFFFFFFF, 0));
   CHECK_EQ(false, wUint32LessThan.Int32Compare(-2999, 0));
 
   CHECK_EQ(true, wUint32LessThan.Int32Compare(0, 1));
   CHECK_EQ(true, wUint32LessThan.Int32Compare(456, 457));
   CHECK_EQ(true, wUint32LessThan.Int32Compare(85537, 85539));
   CHECK_EQ(true, wUint32LessThan.Int32Compare(-11, -10));
-  CHECK_EQ(true, wUint32LessThan.Int32Compare(0xfffffffe, 0xffffffff));
-  CHECK_EQ(true, wUint32LessThan.Int32Compare(0, 0xffffffff));
+  CHECK_EQ(true, wUint32LessThan.Int32Compare(0xFFFFFFFE, 0xFFFFFFFF));
+  CHECK_EQ(true, wUint32LessThan.Int32Compare(0, 0xFFFFFFFF));
   CHECK_EQ(true, wUint32LessThan.Int32Compare(0, -2996));
 
   CHECK_EQ(false, wUint32LessThan.Int32Compare(1, 0));
   CHECK_EQ(false, wUint32LessThan.Int32Compare(457, 456));
   CHECK_EQ(false, wUint32LessThan.Int32Compare(85539, 85537));
   CHECK_EQ(false, wUint32LessThan.Int32Compare(-10, -21));
-  CHECK_EQ(false, wUint32LessThan.Int32Compare(0xffffffff, 0xfffffffe));
+  CHECK_EQ(false, wUint32LessThan.Int32Compare(0xFFFFFFFF, 0xFFFFFFFE));
 
   CHECK_EQ(true, wUint32LessThanOrEqual.Int32Compare(0, 0));
   CHECK_EQ(true, wUint32LessThanOrEqual.Int32Compare(357, 357));
   CHECK_EQ(true, wUint32LessThanOrEqual.Int32Compare(75539, 75539));
   CHECK_EQ(true, wUint32LessThanOrEqual.Int32Compare(-1, -1));
-  CHECK_EQ(true, wUint32LessThanOrEqual.Int32Compare(0xffffffff, 0xffffffff));
+  CHECK_EQ(true, wUint32LessThanOrEqual.Int32Compare(0xFFFFFFFF, 0xFFFFFFFF));
 
   CHECK_EQ(true, wUint32LessThanOrEqual.Int32Compare(0, 1));
   CHECK_EQ(true, wUint32LessThanOrEqual.Int32Compare(456, 457));
   CHECK_EQ(true, wUint32LessThanOrEqual.Int32Compare(85537, 85539));
   CHECK_EQ(true, wUint32LessThanOrEqual.Int32Compare(-300, -299));
   CHECK_EQ(true, wUint32LessThanOrEqual.Int32Compare(-300, -300));
-  CHECK_EQ(true, wUint32LessThanOrEqual.Int32Compare(0xfffffffe, 0xffffffff));
+  CHECK_EQ(true, wUint32LessThanOrEqual.Int32Compare(0xFFFFFFFE, 0xFFFFFFFF));
   CHECK_EQ(true, wUint32LessThanOrEqual.Int32Compare(0, -2995));
 
   CHECK_EQ(false, wUint32LessThanOrEqual.Int32Compare(1, 0));
   CHECK_EQ(false, wUint32LessThanOrEqual.Int32Compare(457, 456));
   CHECK_EQ(false, wUint32LessThanOrEqual.Int32Compare(85539, 85537));
   CHECK_EQ(false, wUint32LessThanOrEqual.Int32Compare(-130, -170));
-  CHECK_EQ(false, wUint32LessThanOrEqual.Int32Compare(0xffffffff, 0xfffffffe));
+  CHECK_EQ(false, wUint32LessThanOrEqual.Int32Compare(0xFFFFFFFF, 0xFFFFFFFE));
   CHECK_EQ(false, wUint32LessThanOrEqual.Int32Compare(-2997, 0));
 
   CompareWrapper wFloat64Equal(IrOpcode::kFloat64Equal);

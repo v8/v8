@@ -414,7 +414,7 @@ TEST_F(WasmStreamingDecoderTest, TwoFunctions_b) {
       U32_LE(kWasmMagic),    // --
       U32_LE(kWasmVersion),  // --
       kCodeSectionCode,      // Section ID
-      0xb,                   // Section Length
+      0xB,                   // Section Length
       0x2,                   // Number of Functions
       0x1,                   // Function Length
       0x0,                   // Function
@@ -445,7 +445,7 @@ TEST_F(WasmStreamingDecoderTest, CodeSectionLengthTooHigh) {
       U32_LE(kWasmMagic),    // --
       U32_LE(kWasmVersion),  // --
       kCodeSectionCode,      // Section ID
-      0xd,                   // Section Length
+      0xD,                   // Section Length
       0x2,                   // Number of Functions
       0x7,                   // Function Length
       0x0,                   // Function
@@ -466,7 +466,7 @@ TEST_F(WasmStreamingDecoderTest, CodeSectionLengthTooHighZeroFunctions) {
       U32_LE(kWasmMagic),    // --
       U32_LE(kWasmVersion),  // --
       kCodeSectionCode,      // Section ID
-      0xd,                   // Section Length
+      0xD,                   // Section Length
       0x0,                   // Number of Functions
   };
   ExpectFailure(ArrayVector(data));
@@ -546,7 +546,7 @@ TEST_F(WasmStreamingDecoderTest, NumberOfFunctionsTooHigh) {
       U32_LE(kWasmMagic),    // --
       U32_LE(kWasmVersion),  // --
       kCodeSectionCode,      // Section ID
-      0xb,                   // Section Length
+      0xB,                   // Section Length
       0x4,                   // Number of Functions
       0x7,                   // Function Length
       0x0,                   // Function
@@ -567,7 +567,7 @@ TEST_F(WasmStreamingDecoderTest, NumberOfFunctionsTooLow) {
       U32_LE(kWasmMagic),    // --
       U32_LE(kWasmVersion),  // --
       kCodeSectionCode,      // Section ID
-      0xe,                   // Section Length
+      0xE,                   // Section Length
       0x2,                   // Number of Functions
       0x1,                   // Function Length
       0x0,                   // Function

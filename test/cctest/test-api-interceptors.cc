@@ -4387,7 +4387,7 @@ THREADED_TEST(Regress625155) {
   CompileRun(
       "Number.prototype.__proto__ = new Bug;"
       "var x;"
-      "x = 0xdead;"
+      "x = 0xDEAD;"
       "x.boom = 0;"
       "x = 's';"
       "x.boom = 0;"

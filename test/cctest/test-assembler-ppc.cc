@@ -301,7 +301,7 @@ TEST(4) {
     __ vstr(d4, r4, offsetof(T, e));
 
     // Move a literal into a register that requires 64 bits to encode.
-    // 0x3ff0000010000000 = 1.000000059604644775390625
+    // 0x3FF0000010000000 = 1.000000059604644775390625
     __ vmov(d4, 1.000000059604644775390625);
     __ vstr(d4, r4, offsetof(T, d));
 
@@ -597,8 +597,8 @@ TEST(7) {
   TestRoundingMode(u32_f64, RZ, kMinInt - 1.0, 0, true);
 
   // Positive values.
-  // kMaxInt is the maximum *signed* integer: 0x7fffffff.
-  static const uint32_t kMaxUInt = 0xffffffffu;
+  // kMaxInt is the maximum *signed* integer: 0x7FFFFFFF.
+  static const uint32_t kMaxUInt = 0xFFFFFFFFu;
   TestRoundingMode(u32_f64, RZ,  0, 0);
   TestRoundingMode(u32_f64, RZ,  0.5, 0);
   TestRoundingMode(u32_f64, RZ,  123.7,  123);
@@ -990,8 +990,8 @@ TEST(11) {
   } I;
   I i;
 
-  i.a = 0xabcd0001;
-  i.b = 0xabcd0000;
+  i.a = 0xABCD0001;
+  i.b = 0xABCD0000;
 
   Assembler assm(isolate, nullptr, 0);
 
@@ -1007,13 +1007,13 @@ TEST(11) {
   __ str(r2, MemOperand(r0, offsetof(I, b)));
 
   // Test corner cases.
-  __ mov(r1, Operand(0xffffffff));
+  __ mov(r1, Operand(0xFFFFFFFF));
   __ mov(r2, Operand::Zero());
   __ mov(r3, Operand(r1, ASR, 1), SetCC);  // Set the carry.
   __ adc(r3, r1, Operand(r2));
   __ str(r3, MemOperand(r0, offsetof(I, c)));
 
-  __ mov(r1, Operand(0xffffffff));
+  __ mov(r1, Operand(0xFFFFFFFF));
   __ mov(r2, Operand::Zero());
   __ mov(r3, Operand(r2, ASR, 1), SetCC);  // Unset the carry.
   __ adc(r3, r1, Operand(r2));
@@ -1035,10 +1035,10 @@ TEST(11) {
   Object* dummy = CALL_GENERATED_CODE(isolate, f, &i, 0, 0, 0, 0);
   USE(dummy);
 
-  CHECK_EQ(0xabcd0001, i.a);
-  CHECK_EQ(static_cast<int32_t>(0xabcd0000) >> 1, i.b);
+  CHECK_EQ(0xABCD0001, i.a);
+  CHECK_EQ(static_cast<int32_t>(0xABCD0000) >> 1, i.b);
   CHECK_EQ(0x00000000, i.c);
-  CHECK_EQ(0xffffffff, i.d);
+  CHECK_EQ(0xFFFFFFFF, i.d);
 }
 
 

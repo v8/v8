@@ -413,7 +413,7 @@ void StringToIntHelper::ParseInternal(Char start) {
       // in 32 bits. When we can't guarantee that the next iteration
       // will not overflow the multiplier, we stop parsing the part
       // by leaving the loop.
-      const uint32_t kMaximumMultiplier = 0xffffffffU / 36;
+      const uint32_t kMaximumMultiplier = 0xFFFFFFFFU / 36;
       uint32_t m = multiplier * static_cast<uint32_t>(radix_);
       if (m > kMaximumMultiplier) break;
       part = part * radix_ + d;

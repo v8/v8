@@ -327,12 +327,12 @@ ZoneBuffer GetModuleWithInvalidSectionSize(Zone* zone) {
   ZoneBuffer buffer = GetValidModuleBytes(zone);
   // 9 == 4 (wasm magic) + 4 (version) + 1 (section code)
   uint8_t* section_size_address = const_cast<uint8_t*>(buffer.begin()) + 9;
-  // 0x808080800f is an invalid module size in leb encoding.
+  // 0x808080800F is an invalid module size in leb encoding.
   section_size_address[0] = 0x80;
   section_size_address[1] = 0x80;
   section_size_address[2] = 0x80;
   section_size_address[3] = 0x80;
-  section_size_address[4] = 0x0f;
+  section_size_address[4] = 0x0F;
   return buffer;
 }
 

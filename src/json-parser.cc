@@ -696,7 +696,7 @@ Handle<String> JsonParser<seq_one_byte>::SlowScanJsonString(
   String::WriteToFlat(*prefix, dest, start, end);
 
   while (c0_ != '"') {
-    // Check for control character (0x00-0x1f) or unterminated string (<0).
+    // Check for control character (0x00-0x1F) or unterminated string (<0).
     if (c0_ < 0x20) return Handle<String>::null();
     if (count >= length) {
       // We need to create a longer sequential string for the result.
@@ -727,13 +727,13 @@ Handle<String> JsonParser<seq_one_byte>::SlowScanJsonString(
           SeqStringSet(seq_string, count++, '\x08');
           break;
         case 'f':
-          SeqStringSet(seq_string, count++, '\x0c');
+          SeqStringSet(seq_string, count++, '\x0C');
           break;
         case 'n':
-          SeqStringSet(seq_string, count++, '\x0a');
+          SeqStringSet(seq_string, count++, '\x0A');
           break;
         case 'r':
-          SeqStringSet(seq_string, count++, '\x0d');
+          SeqStringSet(seq_string, count++, '\x0D');
           break;
         case 't':
           SeqStringSet(seq_string, count++, '\x09');
@@ -861,7 +861,7 @@ Handle<String> JsonParser<seq_one_byte>::ScanJsonString() {
   int beg_pos = position_;
   // Fast case for Latin1 only without escape characters.
   do {
-    // Check for control character (0x00-0x1f) or unterminated string (<0).
+    // Check for control character (0x00-0x1F) or unterminated string (<0).
     if (c0_ < 0x20) return Handle<String>::null();
     if (c0_ != '\\') {
       if (seq_one_byte || c0_ <= String::kMaxOneByteCharCode) {

@@ -257,7 +257,8 @@ uc32 Scanner::ScanUnlimitedLengthHexNumber(int max_value, int beg_pos) {
 // Ensure that tokens can be stored in a byte.
 STATIC_ASSERT(Token::NUM_TOKENS <= 0x100);
 
-// Table of one-character tokens, by character (0x00..0x7f only).
+// Table of one-character tokens, by character (0x00..0x7F only).
+// clang-format off
 static const byte one_char_tokens[] = {
   Token::ILLEGAL,
   Token::ILLEGAL,
@@ -303,7 +304,7 @@ static const byte one_char_tokens[] = {
   Token::RPAREN,       // 0x29
   Token::ILLEGAL,
   Token::ILLEGAL,
-  Token::COMMA,        // 0x2c
+  Token::COMMA,        // 0x2C
   Token::ILLEGAL,
   Token::ILLEGAL,
   Token::ILLEGAL,
@@ -317,12 +318,12 @@ static const byte one_char_tokens[] = {
   Token::ILLEGAL,
   Token::ILLEGAL,
   Token::ILLEGAL,
-  Token::COLON,        // 0x3a
-  Token::SEMICOLON,    // 0x3b
+  Token::COLON,        // 0x3A
+  Token::SEMICOLON,    // 0x3B
   Token::ILLEGAL,
   Token::ILLEGAL,
   Token::ILLEGAL,
-  Token::CONDITIONAL,  // 0x3f
+  Token::CONDITIONAL,  // 0x3F
   Token::ILLEGAL,
   Token::ILLEGAL,
   Token::ILLEGAL,
@@ -350,9 +351,9 @@ static const byte one_char_tokens[] = {
   Token::ILLEGAL,
   Token::ILLEGAL,
   Token::ILLEGAL,
-  Token::LBRACK,     // 0x5b
+  Token::LBRACK,     // 0x5B
   Token::ILLEGAL,
-  Token::RBRACK,     // 0x5d
+  Token::RBRACK,     // 0x5D
   Token::ILLEGAL,
   Token::ILLEGAL,
   Token::ILLEGAL,
@@ -382,13 +383,13 @@ static const byte one_char_tokens[] = {
   Token::ILLEGAL,
   Token::ILLEGAL,
   Token::ILLEGAL,
-  Token::LBRACE,       // 0x7b
+  Token::LBRACE,       // 0x7B
   Token::ILLEGAL,
-  Token::RBRACE,       // 0x7d
-  Token::BIT_NOT,      // 0x7e
+  Token::RBRACE,       // 0x7D
+  Token::BIT_NOT,      // 0x7E
   Token::ILLEGAL
 };
-
+// clang-format on
 
 Token::Value Scanner::Next() {
   if (next_.token == Token::EOS) {
@@ -405,7 +406,7 @@ Token::Value Scanner::Next() {
   }
   has_line_terminator_before_next_ = false;
   has_multiline_comment_before_next_ = false;
-  if (static_cast<unsigned>(c0_) <= 0x7f) {
+  if (static_cast<unsigned>(c0_) <= 0x7F) {
     Token::Value token = static_cast<Token::Value>(one_char_tokens[c0_]);
     if (token != Token::ILLEGAL) {
       int pos = source_pos();
@@ -1397,7 +1398,7 @@ uc32 Scanner::ScanUnicodeEscape() {
   if (c0_ == '{') {
     int begin = source_pos() - 2;
     Advance<capture_raw>();
-    uc32 cp = ScanUnlimitedLengthHexNumber<capture_raw>(0x10ffff, begin);
+    uc32 cp = ScanUnlimitedLengthHexNumber<capture_raw>(0x10FFFF, begin);
     if (cp < 0 || c0_ != '}') {
       ReportScannerError(source_pos(),
                          MessageTemplate::kInvalidUnicodeEscapeSequence);

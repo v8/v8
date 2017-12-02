@@ -10,7 +10,7 @@
 static int Ucs2CharLength(unibrow::uchar c) {
   if (c == unibrow::Utf8::kIncomplete || c == unibrow::Utf8::kBufferEmpty) {
     return 0;
-  } else if (c < 0xffff) {
+  } else if (c < 0xFFFF) {
     return 1;
   } else {
     return 2;

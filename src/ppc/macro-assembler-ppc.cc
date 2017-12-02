@@ -694,7 +694,7 @@ void TurboAssembler::ShiftLeftPair(Register dst_low, Register dst_high,
   cmpi(shift, Operand(32));
   blt(&less_than_32);
   // If shift >= 32
-  andi(scratch, shift, Operand(0x1f));
+  andi(scratch, shift, Operand(0x1F));
   slw(dst_high, src_low, scratch);
   li(dst_low, Operand::Zero());
   b(&done);
@@ -717,7 +717,7 @@ void TurboAssembler::ShiftLeftPair(Register dst_low, Register dst_high,
     Move(dst_high, src_low);
     li(dst_low, Operand::Zero());
   } else if (shift > 32) {
-    shift &= 0x1f;
+    shift &= 0x1F;
     slwi(dst_high, src_low, Operand(shift));
     li(dst_low, Operand::Zero());
   } else if (shift == 0) {
@@ -741,7 +741,7 @@ void TurboAssembler::ShiftRightPair(Register dst_low, Register dst_high,
   cmpi(shift, Operand(32));
   blt(&less_than_32);
   // If shift >= 32
-  andi(scratch, shift, Operand(0x1f));
+  andi(scratch, shift, Operand(0x1F));
   srw(dst_low, src_high, scratch);
   li(dst_high, Operand::Zero());
   b(&done);
@@ -764,7 +764,7 @@ void TurboAssembler::ShiftRightPair(Register dst_low, Register dst_high,
     Move(dst_low, src_high);
     li(dst_high, Operand::Zero());
   } else if (shift > 32) {
-    shift &= 0x1f;
+    shift &= 0x1F;
     srwi(dst_low, src_high, Operand(shift));
     li(dst_high, Operand::Zero());
   } else if (shift == 0) {
@@ -787,7 +787,7 @@ void TurboAssembler::ShiftRightAlgPair(Register dst_low, Register dst_high,
   cmpi(shift, Operand(32));
   blt(&less_than_32);
   // If shift >= 32
-  andi(scratch, shift, Operand(0x1f));
+  andi(scratch, shift, Operand(0x1F));
   sraw(dst_low, src_high, scratch);
   srawi(dst_high, src_high, 31);
   b(&done);
@@ -810,7 +810,7 @@ void TurboAssembler::ShiftRightAlgPair(Register dst_low, Register dst_high,
     Move(dst_low, src_high);
     srawi(dst_high, src_high, 31);
   } else if (shift > 32) {
-    shift &= 0x1f;
+    shift &= 0x1F;
     srawi(dst_low, src_high, shift);
     srawi(dst_high, src_high, 31);
   } else if (shift == 0) {
@@ -1365,7 +1365,7 @@ void MacroAssembler::CompareObjectType(Register object, Register map,
 void MacroAssembler::CompareInstanceType(Register map, Register type_reg,
                                          InstanceType type) {
   STATIC_ASSERT(Map::kInstanceTypeOffset < 4096);
-  STATIC_ASSERT(LAST_TYPE <= 0xffff);
+  STATIC_ASSERT(LAST_TYPE <= 0xFFFF);
   lhz(type_reg, FieldMemOperand(map, Map::kInstanceTypeOffset));
   cmpi(type_reg, Operand(type));
 }

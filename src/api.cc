@@ -326,9 +326,9 @@ void i::V8::FatalProcessOutOfMemory(const char* location, bool is_heap_oom) {
   if (isolate == nullptr) {
     // On a background thread -> we cannot retrieve memory information from the
     // Isolate. Write easy-to-recognize values on the stack.
-    memset(last_few_messages, 0x0badc0de, Heap::kTraceRingBufferSize + 1);
-    memset(js_stacktrace, 0x0badc0de, Heap::kStacktraceBufferSize + 1);
-    memset(&heap_stats, 0xbadc0de, sizeof(heap_stats));
+    memset(last_few_messages, 0x0BADC0DE, Heap::kTraceRingBufferSize + 1);
+    memset(js_stacktrace, 0x0BADC0DE, Heap::kStacktraceBufferSize + 1);
+    memset(&heap_stats, 0xBADC0DE, sizeof(heap_stats));
     // Note that the embedder's oom handler won't be called in this case. We
     // just crash.
     FATAL("API fatal error handler returned after process out of memory");

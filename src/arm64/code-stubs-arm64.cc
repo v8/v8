@@ -553,7 +553,7 @@ void JSEntryStub::Generate(MacroAssembler* masm) {
   // jssp[1] : C entry FP.
   // jssp[2] : stack frame marker.
   // jssp[3] : stack frame marker.
-  // jssp[4] : bad frame pointer 0xfff...ff   <- fp points here.
+  // jssp[4] : bad frame pointer 0xFFF...FF   <- fp points here.
 
   // Jump to a faked try block that does the invoke, with a faked catch
   // block that sets the pending exception.
@@ -636,7 +636,7 @@ void JSEntryStub::Generate(MacroAssembler* masm) {
   // jssp[1] : C entry FP.
   // jssp[2] : stack frame marker.
   // jssp[3] : stack frmae marker.
-  // jssp[4] : bad frame pointer 0xfff...ff   <- fp points here.
+  // jssp[4] : bad frame pointer 0xFFF...FF   <- fp points here.
 
   // Check if the current stack frame is marked as the outermost JS frame.
   Label non_outermost_js_2;

@@ -198,7 +198,7 @@ int WasmExecutionFuzzer::FuzzWasmModule(const uint8_t* data, size_t size,
   }
 
   bool expect_exception =
-      result_interpreter == static_cast<int32_t>(0xdeadbeef);
+      result_interpreter == static_cast<int32_t>(0xDEADBEEF);
 
   int32_t result_turbofan;
   {

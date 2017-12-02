@@ -2740,7 +2740,7 @@ Node* RegExpBuiltinsAssembler::ReplaceGlobalCallableFastPath(
           TNode<IntPtrT> int_elem = SmiUntag(elem);
           TNode<IntPtrT> new_match_start =
               Signed(IntPtrAdd(WordShr(int_elem, IntPtrConstant(11)),
-                               WordAnd(int_elem, IntPtrConstant(0x7ff))));
+                               WordAnd(int_elem, IntPtrConstant(0x7FF))));
           var_match_start = SmiTag(new_match_start);
           Goto(&loop_epilogue);
         }

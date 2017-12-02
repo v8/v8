@@ -2433,8 +2433,8 @@ bool RegExpNode::EmitQuickCheck(RegExpCompiler* compiler,
   } else {
     // For 2-character preloads in one-byte mode or 1-character preloads in
     // two-byte mode we also use a 16 bit load with zero extend.
-    static const uint32_t kTwoByteMask = 0xffff;
-    static const uint32_t kFourByteMask = 0xffffffff;
+    static const uint32_t kTwoByteMask = 0xFFFF;
+    static const uint32_t kFourByteMask = 0xFFFFFFFF;
     if (details->characters() == 2 && compiler->one_byte()) {
       if ((mask & kTwoByteMask) == kTwoByteMask) need_mask = false;
     } else if (details->characters() == 1 && !compiler->one_byte()) {
@@ -2716,12 +2716,11 @@ RegExpNode* SeqRegExpNode::FilterSuccessor(int depth) {
   return set_replacement(this);
 }
 
-
-// We need to check for the following characters: 0x39c 0x3bc 0x178.
+// We need to check for the following characters: 0x39C 0x3BC 0x178.
 static inline bool RangeContainsLatin1Equivalents(CharacterRange range) {
   // TODO(dcarney): this could be a lot more efficient.
-  return range.Contains(0x39c) ||
-      range.Contains(0x3bc) || range.Contains(0x178);
+  return range.Contains(0x039C) || range.Contains(0x03BC) ||
+         range.Contains(0x0178);
 }
 
 
@@ -2973,7 +2972,7 @@ static void EmitHat(RegExpCompiler* compiler,
                                              new_trace.backtrack())) {
     // Newline means \n, \r, 0x2028 or 0x2029.
     if (!compiler->one_byte()) {
-      assembler->CheckCharacterAfterAnd(0x2028, 0xfffe, &ok);
+      assembler->CheckCharacterAfterAnd(0x2028, 0xFFFE, &ok);
     }
     assembler->CheckCharacter('\n', &ok);
     assembler->CheckNotCharacter('\r', new_trace.backtrack());

@@ -392,7 +392,7 @@ void Simulator::Init(FILE* stream) {
   stack_limit_ = stack_ + stack_protection_size_;
   uintptr_t tos = stack_ + stack_size_ - stack_protection_size_;
   // The stack pointer must be 16-byte aligned.
-  set_sp(tos & ~0xfUL);
+  set_sp(tos & ~0xFUL);
 
   stream_ = stream;
   print_disasm_ = new PrintDisassembler(stream_);
@@ -412,11 +412,11 @@ void Simulator::ResetState() {
   // Reset registers to 0.
   pc_ = nullptr;
   for (unsigned i = 0; i < kNumberOfRegisters; i++) {
-    set_xreg(i, 0xbadbeef);
+    set_xreg(i, 0xBADBEEF);
   }
   for (unsigned i = 0; i < kNumberOfVRegisters; i++) {
     // Set FP registers to a value that is NaN in both 32-bit and 64-bit FP.
-    set_dreg_bits(i, 0x7ff000007f800001UL);
+    set_dreg_bits(i, 0x7FF000007F800001UL);
   }
   // Returning to address 0 exits the Simulator.
   set_lr(kEndOfSimAddress);
@@ -574,7 +574,7 @@ void Simulator::DoRuntimeCall(Instruction* instr) {
            redirection->external_function<void*>());
 
   // SP must be 16-byte-aligned at the call interface.
-  bool stack_alignment_exception = ((sp() & 0xf) != 0);
+  bool stack_alignment_exception = ((sp() & 0xF) != 0);
   if (stack_alignment_exception) {
     TraceSim("  with unaligned stack 0x%016" PRIx64 ".\n", sp());
     FATAL("ALIGNMENT EXCEPTION");
@@ -1294,9 +1294,9 @@ void Simulator::PrintRegister(unsigned code, Reg31Mode r31mode) {
 // a floating-point interpretation or a memory access annotation).
 void Simulator::PrintVRegisterRawHelper(unsigned code, int bytes, int lsb) {
   // The template for vector types:
-  //   "# v{code}: 0xffeeddccbbaa99887766554433221100".
+  //   "# v{code}: 0xFFEEDDCCBBAA99887766554433221100".
   // An example with bytes=4 and lsb=8:
-  //   "# v{code}:         0xbbaa9988                ".
+  //   "# v{code}:         0xBBAA9988                ".
   fprintf(stream_, "# %s%5s: %s", clr_vreg_name, VRegNameForCode(code),
           clr_vreg_value);
 
@@ -1393,8 +1393,8 @@ void Simulator::PrintVRegisterFPHelper(unsigned code,
 void Simulator::PrintRegisterRawHelper(unsigned code, Reg31Mode r31mode,
                                        int size_in_bytes) {
   // The template for all supported sizes.
-  //   "# x{code}: 0xffeeddccbbaa9988"
-  //   "# w{code}:         0xbbaa9988"
+  //   "# x{code}: 0xFFEEDDCCBBAA9988"
+  //   "# w{code}:         0xBBAA9988"
   //   "# w{code}<15:0>:       0x9988"
   //   "# w{code}<7:0>:          0x88"
   unsigned padding_chars = (kXRegSize - size_in_bytes) * 2;
@@ -2367,8 +2367,8 @@ void Simulator::VisitMoveWideImmediate(Instruction* instr) {
         unsigned reg_code = instr->Rd();
         int64_t prev_xn_val = is_64_bits ? xreg(reg_code)
                                          : wreg(reg_code);
-        new_xn_val = (prev_xn_val & ~(0xffffL << shift)) | shifted_imm16;
-      break;
+        new_xn_val = (prev_xn_val & ~(0xFFFFL << shift)) | shifted_imm16;
+        break;
     }
     case MOVZ_w:
     case MOVZ_x: {
@@ -2532,14 +2532,14 @@ static int64_t MultiplyHighSigned(int64_t u, int64_t v) {
   uint64_t u0, v0, w0;
   int64_t u1, v1, w1, w2, t;
 
-  u0 = u & 0xffffffffL;
+  u0 = u & 0xFFFFFFFFL;
   u1 = u >> 32;
-  v0 = v & 0xffffffffL;
+  v0 = v & 0xFFFFFFFFL;
   v1 = v >> 32;
 
   w0 = u0 * v0;
   t = u1 * v0 + (w0 >> 32);
-  w1 = t & 0xffffffffL;
+  w1 = t & 0xFFFFFFFFL;
   w2 = t >> 32;
   w1 = u0 * v1 + w1;
 
@@ -3381,7 +3381,7 @@ void Simulator::Debug() {
             PrintF(" (");
             if ((value & kSmiTagMask) == 0) {
               STATIC_ASSERT(kSmiValueSize == 32);
-              int32_t untagged = (value >> kSmiShift) & 0xffffffff;
+              int32_t untagged = (value >> kSmiShift) & 0xFFFFFFFF;
               PrintF("smi %" PRId32, untagged);
             } else {
               obj->ShortPrint();
@@ -4344,7 +4344,7 @@ void Simulator::VisitNEONByIndexedElement(Instruction* instr) {
   int rm_reg = instr->Rm();
   int index = (instr->NEONH() << 1) | instr->NEONL();
   if (instr->NEONSize() == 1) {
-    rm_reg &= 0xf;
+    rm_reg &= 0xF;
     index = (index << 1) | instr->NEONM();
   }
 
@@ -4909,9 +4909,9 @@ void Simulator::VisitNEONModifiedImmediate(Instruction* instr) {
     case 0x6:
       vform = (q == 1) ? kFormat4S : kFormat2S;
       if (cmode_0 == 0) {
-        imm = imm8 << 8 | 0x000000ff;
+        imm = imm8 << 8 | 0x000000FF;
       } else {
-        imm = imm8 << 16 | 0x0000ffff;
+        imm = imm8 << 16 | 0x0000FFFF;
       }
       break;
     case 0x7:
@@ -4923,10 +4923,10 @@ void Simulator::VisitNEONModifiedImmediate(Instruction* instr) {
         imm = 0;
         for (int i = 0; i < 8; ++i) {
           if (imm8 & (1 << i)) {
-            imm |= (UINT64_C(0xff) << (8 * i));
+            imm |= (UINT64_C(0xFF) << (8 * i));
           }
         }
-      } else {  // cmode_0 == 1, cmode == 0xf.
+      } else {  // cmode_0 == 1, cmode == 0xF.
         if (op_bit == 0) {
           vform = q ? kFormat4S : kFormat2S;
           imm = bit_cast<uint32_t>(instr->ImmNEONFP32());
@@ -4934,7 +4934,7 @@ void Simulator::VisitNEONModifiedImmediate(Instruction* instr) {
           vform = kFormat2D;
           imm = bit_cast<uint64_t>(instr->ImmNEONFP64());
         } else {
-          DCHECK((q == 0) && (op_bit == 1) && (cmode == 0xf));
+          DCHECK((q == 0) && (op_bit == 1) && (cmode == 0xF));
           VisitUnallocated(instr);
         }
       }
@@ -5278,7 +5278,7 @@ void Simulator::VisitNEONScalarByIndexedElement(Instruction* instr) {
   int rm_reg = instr->Rm();
   int index = (instr->NEONH() << 1) | instr->NEONL();
   if (instr->NEONSize() == 1) {
-    rm_reg &= 0xf;
+    rm_reg &= 0xF;
     index = (index << 1) | instr->NEONM();
   }
 

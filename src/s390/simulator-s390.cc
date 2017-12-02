@@ -227,7 +227,7 @@ void S390Debugger::Debug() {
 
         // If at a breakpoint, proceed past it.
         if ((reinterpret_cast<Instruction*>(sim_->get_pc()))
-                ->InstructionBits() == 0x7d821008) {
+                ->InstructionBits() == 0x7D821008) {
           sim_->set_pc(sim_->get_pc() + sizeof(FourByteInstr));
         } else {
           sim_->ExecuteInstruction(
@@ -273,7 +273,7 @@ void S390Debugger::Debug() {
       } else if ((strcmp(cmd, "c") == 0) || (strcmp(cmd, "cont") == 0)) {
         // If at a breakpoint, proceed past it.
         if ((reinterpret_cast<Instruction*>(sim_->get_pc()))
-                ->InstructionBits() == 0x7d821008) {
+                ->InstructionBits() == 0x7D821008) {
           sim_->set_pc(sim_->get_pc() + sizeof(FourByteInstr));
         } else {
           // Execute the one instruction we broke at with breakpoints disabled.
@@ -331,7 +331,7 @@ void S390Debugger::Debug() {
               PrintF("%3s: %f 0x%08x %08x\n",
                      GetRegConfig()->GetDoubleRegisterName(i), dvalue,
                      static_cast<uint32_t>(as_words >> 32),
-                     static_cast<uint32_t>(as_words & 0xffffffff));
+                     static_cast<uint32_t>(as_words & 0xFFFFFFFF));
             }
           } else if (arg1[0] == 'r' &&
                      (arg1[1] >= '0' && arg1[1] <= '2' &&
@@ -353,7 +353,7 @@ void S390Debugger::Debug() {
               uint64_t as_words = bit_cast<uint64_t>(dvalue);
               PrintF("%s: %f 0x%08x %08x\n", arg1, dvalue,
                      static_cast<uint32_t>(as_words >> 32),
-                     static_cast<uint32_t>(as_words & 0xffffffff));
+                     static_cast<uint32_t>(as_words & 0xFFFFFFFF));
             } else {
               PrintF("%s unrecognized\n", arg1);
             }
@@ -1761,9 +1761,9 @@ void Simulator::SetFpResult(const double& result) {
 void Simulator::TrashCallerSaveRegisters() {
 // We don't trash the registers with the return value.
 #if 0  // A good idea to trash volatile registers, needs to be done
-  registers_[2] = 0x50Bad4U;
-  registers_[3] = 0x50Bad4U;
-  registers_[12] = 0x50Bad4U;
+  registers_[2] = 0x50BAD4U;
+  registers_[3] = 0x50BAD4U;
+  registers_[12] = 0x50BAD4U;
 #endif
 }
 
@@ -1884,7 +1884,7 @@ void Simulator::Format(Instruction* instr, const char* format) {
 bool Simulator::CarryFrom(int32_t left, int32_t right, int32_t carry) {
   uint32_t uleft = static_cast<uint32_t>(left);
   uint32_t uright = static_cast<uint32_t>(right);
-  uint32_t urest = 0xffffffffU - uleft;
+  uint32_t urest = 0xFFFFFFFFU - uleft;
 
   return (uright > urest) ||
          (carry && (((uright + 1) > urest) || (uright > (urest - 1))));
@@ -2342,7 +2342,7 @@ void Simulator::DisableStop(uint32_t code) {
 void Simulator::IncreaseStopCounter(uint32_t code) {
   DCHECK_LE(code, kMaxStopCode);
   DCHECK(isWatchedStop(code));
-  if ((watched_stops_[code].count & ~(1 << 31)) == 0x7fffffff) {
+  if ((watched_stops_[code].count & ~(1 << 31)) == 0x7FFFFFFF) {
     PrintF(
         "Stop counter for code %i has overflowed.\n"
         "Enabling this code and reseting the counter to 0.\n",
@@ -2409,7 +2409,7 @@ int16_t Simulator::ByteReverse(int16_t hword) {
 #if defined(__GNUC__)
   return __builtin_bswap16(hword);
 #else
-  return (hword << 8) | ((hword >> 8) & 0x00ff);
+  return (hword << 8) | ((hword >> 8) & 0x00FF);
 #endif
 }
 
@@ -2418,9 +2418,9 @@ int32_t Simulator::ByteReverse(int32_t word) {
   return __builtin_bswap32(word);
 #else
   int32_t result = word << 24;
-  result |= (word << 8) & 0x00ff0000;
-  result |= (word >> 8) & 0x0000ff00;
-  result |= (word >> 24) & 0x00000ff;
+  result |= (word << 8) & 0x00FF0000;
+  result |= (word >> 8) & 0x0000FF00;
+  result |= (word >> 24) & 0x00000FF;
   return result;
 #endif
 }
@@ -3663,7 +3663,7 @@ EVALUATE(EX) {
 
   char new_instr_buf[8];
   char* addr = reinterpret_cast<char*>(&new_instr_buf[0]);
-  the_instr |= static_cast<SixByteInstr>(r1_val & 0xff)
+  the_instr |= static_cast<SixByteInstr>(r1_val & 0xFF)
                << (8 * inst_length - 16);
   Instruction::SetInstructionBits<SixByteInstr>(
       reinterpret_cast<byte*>(addr), static_cast<SixByteInstr>(the_instr));
@@ -5464,7 +5464,7 @@ EVALUATE(TRAP4) {
   int64_t sp_addr = get_register(sp);
   for (int i = 0; i < kCalleeRegisterSaveAreaSize / kPointerSize; ++i) {
     // we dont want to whack the RA (r14)
-    if (i != 14) (reinterpret_cast<intptr_t*>(sp_addr))[i] = 0xdeadbabe;
+    if (i != 14) (reinterpret_cast<intptr_t*>(sp_addr))[i] = 0xDEADBABE;
   }
   SoftwareInterrupt(instr);
   return length;
@@ -6948,7 +6948,7 @@ EVALUATE(LLGFR) {
   DCHECK_OPCODE(LLGFR);
   DECODE_RRE_INSTRUCTION(r1, r2);
   int32_t r2_val = get_low_register<int32_t>(r2);
-  uint64_t r2_finalval = (static_cast<uint64_t>(r2_val) & 0x00000000ffffffff);
+  uint64_t r2_finalval = (static_cast<uint64_t>(r2_val) & 0x00000000FFFFFFFF);
   set_register(r1, r2_finalval);
   return length;
 }
@@ -8017,8 +8017,8 @@ EVALUATE(LRVH) {
   int64_t b2_val = (b2 == 0) ? 0 : get_register(b2);
   intptr_t mem_addr = b2_val + x2_val + d2;
   int16_t mem_val = ReadH(mem_addr, instr);
-  int32_t result = ByteReverse(mem_val) & 0x0000ffff;
-  result |= r1_val & 0xffff0000;
+  int32_t result = ByteReverse(mem_val) & 0x0000FFFF;
+  result |= r1_val & 0xFFFF0000;
   set_low_register(r1, result);
   return length;
 }

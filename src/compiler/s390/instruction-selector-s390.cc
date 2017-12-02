@@ -987,7 +987,7 @@ void InstructionSelector::VisitWord64And(Node* node) {
         if (m.left().IsWord64Shr()) {
           // Adjust the mask such that it doesn't include any rotated bits.
           if (mb > 63 - sh) mb = 63 - sh;
-          sh = (64 - sh) & 0x3f;
+          sh = (64 - sh) & 0x3F;
         } else {
           // Adjust the mask such that it doesn't include any rotated bits.
           if (me < sh) me = sh;
@@ -1075,7 +1075,7 @@ void InstructionSelector::VisitWord64Shr(Node* node) {
         IsContiguousMask64((uint64_t)(mleft.right().Value()) >> sh, &mb, &me)) {
       // Adjust the mask such that it doesn't include any rotated bits.
       if (mb > 63 - sh) mb = 63 - sh;
-      sh = (64 - sh) & 0x3f;
+      sh = (64 - sh) & 0x3F;
       if (mb >= me) {
         bool match = false;
         ArchOpcode opcode;

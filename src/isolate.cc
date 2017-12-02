@@ -332,8 +332,8 @@ void Isolate::PushStackTraceAndDie(unsigned int magic1, void* ptr1, void* ptr2,
       "ptr6=%p ptr7=%p ptr8=%p\n\n%s",
       magic1, magic2, ptr1, ptr2, ptr3, ptr4, ptr5, ptr6, ptr7, ptr8,
       reinterpret_cast<char*>(buffer));
-  PushCodeObjectsAndDie(0xdeadc0de, ptr1, ptr2, ptr3, ptr4, ptr5, ptr6, ptr7,
-                        ptr8, 0xdeadc0de);
+  PushCodeObjectsAndDie(0xDEADC0DE, ptr1, ptr2, ptr3, ptr4, ptr5, ptr6, ptr7,
+                        ptr8, 0xDEADC0DE);
 }
 
 void Isolate::PushCodeObjectsAndDie(unsigned int magic1, void* ptr1, void* ptr2,

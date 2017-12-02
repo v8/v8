@@ -2555,10 +2555,10 @@ void CodeGenerator::AssembleMove(InstructionOperand* source,
       // converts it to qnan on ia32/x64
       if (src.type() == Constant::kFloat32) {
         uint32_t val = src.ToFloat32AsInt();
-        if ((val & 0x7f800000) == 0x7f800000) {
+        if ((val & 0x7F800000) == 0x7F800000) {
           uint64_t dval = static_cast<uint64_t>(val);
-          dval = ((dval & 0xc0000000) << 32) | ((dval & 0x40000000) << 31) |
-                 ((dval & 0x40000000) << 30) | ((dval & 0x7fffffff) << 29);
+          dval = ((dval & 0xC0000000) << 32) | ((dval & 0x40000000) << 31) |
+                 ((dval & 0x40000000) << 30) | ((dval & 0x7FFFFFFF) << 29);
           value = Double(dval);
         } else {
           value = Double(static_cast<double>(src.ToFloat32()));

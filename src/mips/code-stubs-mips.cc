@@ -527,7 +527,7 @@ void JSEntryStub::Generate(MacroAssembler* masm) {
   // caller fp          |
   // function slot      | entry frame
   // context slot       |
-  // bad fp (0xff...f)  |
+  // bad fp (0xFF...F)  |
   // callee saved registers + ra
   // 4 args slots
   // args

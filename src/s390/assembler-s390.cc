@@ -441,7 +441,7 @@ int Assembler::target_at(int pos) {
   } else if (LLILF == opcode || BRCL == opcode || LARL == opcode ||
              BRASL == opcode) {
     int32_t imm32 =
-        static_cast<int32_t>(instr & (static_cast<uint64_t>(0xffffffff)));
+        static_cast<int32_t>(instr & (static_cast<uint64_t>(0xFFFFFFFF)));
     if (LLILF != opcode)
       imm32 <<= 1;  // BR* + LARL treat immediate in # of halfwords
     if (imm32 == 0) return kEndOfChain;
@@ -465,14 +465,14 @@ void Assembler::target_at_put(int pos, int target_pos, bool* is_branch) {
 
   if (BRC == opcode || BRCT == opcode || BRCTG == opcode) {
     int16_t imm16 = target_pos - pos;
-    instr &= (~0xffff);
+    instr &= (~0xFFFF);
     DCHECK(is_int16(imm16));
     instr_at_put<FourByteInstr>(pos, instr | (imm16 >> 1));
     return;
   } else if (BRCL == opcode || LARL == opcode || BRASL == opcode) {
     // Immediate is in # of halfwords
     int32_t imm32 = target_pos - pos;
-    instr &= (~static_cast<uint64_t>(0xffffffff));
+    instr &= (~static_cast<uint64_t>(0xFFFFFFFF));
     instr_at_put<SixByteInstr>(pos, instr | (imm32 >> 1));
     return;
   } else if (LLILF == opcode) {
@@ -480,7 +480,7 @@ void Assembler::target_at_put(int pos, int target_pos, bool* is_branch) {
     // Emitted label constant, not part of a branch.
     // Make label relative to Code* of generated Code object.
     int32_t imm32 = target_pos + (Code::kHeaderSize - kHeapObjectTag);
-    instr &= (~static_cast<uint64_t>(0xffffffff));
+    instr &= (~static_cast<uint64_t>(0xFFFFFFFF));
     instr_at_put<SixByteInstr>(pos, instr | imm32);
     return;
   }
@@ -1491,8 +1491,8 @@ void Assembler::ark(Register r1, Register r2, Register r3) {
 void Assembler::asi(const MemOperand& opnd, const Operand& imm) {
   DCHECK(is_int8(imm.immediate()));
   DCHECK(is_int20(opnd.offset()));
-  siy_form(ASI, Operand(0xff & imm.immediate()), opnd.rb(),
-           0xfffff & opnd.offset());
+  siy_form(ASI, Operand(0xFF & imm.immediate()), opnd.rb(),
+           0xFFFFF & opnd.offset());
 }
 
 // -----------------------
@@ -1515,8 +1515,8 @@ void Assembler::agrk(Register r1, Register r2, Register r3) {
 void Assembler::agsi(const MemOperand& opnd, const Operand& imm) {
   DCHECK(is_int8(imm.immediate()));
   DCHECK(is_int20(opnd.offset()));
-  siy_form(AGSI, Operand(0xff & imm.immediate()), opnd.rb(),
-           0xfffff & opnd.offset());
+  siy_form(AGSI, Operand(0xFF & imm.immediate()), opnd.rb(),
+           0xFFFFF & opnd.offset());
 }
 
 // -------------------------------
@@ -2091,9 +2091,9 @@ void Assembler::fidbra(DoubleRegister d1, DoubleRegister d2, FIDBRA_MASK3 m3) {
 bool Assembler::IsNop(SixByteInstr instr, int type) {
   DCHECK((0 == type) || (DEBUG_BREAK_NOP == type));
   if (DEBUG_BREAK_NOP == type) {
-    return ((instr & 0xffffffff) == 0xa53b0000);  // oill r3, 0
+    return ((instr & 0xFFFFFFFF) == 0xA53B0000);  // oill r3, 0
   }
-  return ((instr & 0xffff) == 0x1800);  // lr r0,r0
+  return ((instr & 0xFFFF) == 0x1800);  // lr r0,r0
 }
 
 // dummy instruction reserved for special use.

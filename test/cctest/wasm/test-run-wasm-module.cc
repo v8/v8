@@ -133,9 +133,9 @@ TEST(Run_WasmModule_ReadLoadedDataSegment) {
     byte code[] = {
         WASM_LOAD_MEM(MachineType::Int32(), WASM_I32V_1(kDataSegmentDest0))};
     EMIT_CODE_WITH_END(f, code);
-    byte data[] = {0xaa, 0xbb, 0xcc, 0xdd};
+    byte data[] = {0xAA, 0xBB, 0xCC, 0xDD};
     builder->AddDataSegment(data, sizeof(data), kDataSegmentDest0);
-    TestModule(&zone, builder, 0xddccbbaa);
+    TestModule(&zone, builder, 0xDDCCBBAA);
   }
   Cleanup();
 }
@@ -256,7 +256,7 @@ class WasmSerializationTest {
     uint32_t* slot = reinterpret_cast<uint32_t*>(
         const_cast<uint8_t*>(serialized_bytes_.first) +
         SerializedCodeData::kPayloadLengthOffset);
-    *slot = FLAG_wasm_jit_to_native ? 0u : 0xfefefefeu;
+    *slot = FLAG_wasm_jit_to_native ? 0u : 0xFEFEFEFEu;
   }
 
   v8::MaybeLocal<v8::WasmCompiledModule> Deserialize() {
@@ -724,7 +724,7 @@ TEST(Run_WasmModule_GrowMemOobOffset) {
     static const int kPageSize = 0x10000;
     // Initial memory size = 16 + GrowMemory(10)
     static const int index = kPageSize * 17 + 4;
-    int value = 0xaced;
+    int value = 0xACED;
     TestSignatures sigs;
     v8::internal::AccountingAllocator allocator;
     Zone zone(&allocator, ZONE_NAME);
@@ -746,7 +746,7 @@ TEST(Run_WasmModule_GrowMemOobFixedIndex) {
     static const int kPageSize = 0x10000;
     // Initial memory size = 16 + GrowMemory(10)
     static const int index = kPageSize * 26 + 4;
-    int value = 0xaced;
+    int value = 0xACED;
     TestSignatures sigs;
     Isolate* isolate = CcTest::InitIsolateOnce();
     Zone zone(isolate->allocator(), ZONE_NAME);
@@ -785,7 +785,7 @@ TEST(Run_WasmModule_GrowMemOobFixedIndex) {
     Handle<Object> params[1] = {Handle<Object>(Smi::FromInt(1), isolate)};
     int32_t result =
         testing::RunWasmModuleForTesting(isolate, instance, 1, params);
-    CHECK_EQ(0xaced, result);
+    CHECK_EQ(0xACED, result);
   }
   Cleanup();
 }
@@ -793,7 +793,7 @@ TEST(Run_WasmModule_GrowMemOobFixedIndex) {
 TEST(Run_WasmModule_GrowMemOobVariableIndex) {
   {
     static const int kPageSize = 0x10000;
-    int value = 0xaced;
+    int value = 0xACED;
     TestSignatures sigs;
     Isolate* isolate = CcTest::InitIsolateOnce();
     v8::internal::AccountingAllocator allocator;
@@ -836,7 +836,7 @@ TEST(Run_WasmModule_GrowMemOobVariableIndex) {
           Handle<Object>(Smi::FromInt((20 + i) * kPageSize - 4), isolate)};
       int32_t result =
           testing::RunWasmModuleForTesting(isolate, instance, 1, params);
-      CHECK_EQ(0xaced, result);
+      CHECK_EQ(0xACED, result);
     }
 
     v8::TryCatch try_catch(reinterpret_cast<v8::Isolate*>(isolate));
@@ -938,7 +938,7 @@ TEST(InitDataAtTheUpperLimit) {
         U32V_1(9),            // section size
         ENTRY_COUNT(1),       // --
         0,                    // linear memory index
-        WASM_I32V_3(0xffff),  // destination offset
+        WASM_I32V_3(0xFFFF),  // destination offset
         kExprEnd,
         U32V_1(1),  // source size
         'c'         // data bytes
@@ -1044,7 +1044,7 @@ TEST(MemoryWithOOBEmptyDataSegment) {
         U32V_1(9),               // section size
         ENTRY_COUNT(1),          // --
         0,                       // linear memory index
-        WASM_I32V_4(0x2468ace),  // destination offset
+        WASM_I32V_4(0x2468ACE),  // destination offset
         kExprEnd,
         U32V_1(0),  // source size
     };

@@ -412,7 +412,7 @@ TEST(Lsa) {
   struct TestCaseLsa tc[] = {// rt, rs, sa, expected_res
                              {0x4, 0x1, 1, 0x6},
                              {0x4, 0x1, 2, 0x8},
-                             {0x4, 0x1, 3, 0xc},
+                             {0x4, 0x1, 3, 0xC},
                              {0x4, 0x1, 4, 0x14},
                              {0x4, 0x1, 5, 0x24},
                              {0x0, 0x1, 1, 0x2},
@@ -429,9 +429,9 @@ TEST(Lsa) {
                              // Shift overflow.
                              {0x4, INT32_MAX, 1, 0x2},
                              {0x4, INT32_MAX >> 1, 2, 0x0},
-                             {0x4, INT32_MAX >> 2, 3, 0xfffffffc},
-                             {0x4, INT32_MAX >> 3, 4, 0xfffffff4},
-                             {0x4, INT32_MAX >> 4, 5, 0xffffffe4},
+                             {0x4, INT32_MAX >> 2, 3, 0xFFFFFFFC},
+                             {0x4, INT32_MAX >> 3, 4, 0xFFFFFFF4},
+                             {0x4, INT32_MAX >> 4, 5, 0xFFFFFFE4},
 
                              // Signed addition overflow.
                              {INT32_MAX - 1, 0x1, 1, 0x80000000},
@@ -457,19 +457,19 @@ TEST(Lsa) {
 }
 
 static const std::vector<uint32_t> cvt_trunc_uint32_test_values() {
-  static const uint32_t kValues[] = {0x00000000, 0x00000001, 0x00ffff00,
-                                     0x7fffffff, 0x80000000, 0x80000001,
-                                     0x80ffff00, 0x8fffffff, 0xffffffff};
+  static const uint32_t kValues[] = {0x00000000, 0x00000001, 0x00FFFF00,
+                                     0x7FFFFFFF, 0x80000000, 0x80000001,
+                                     0x80FFFF00, 0x8FFFFFFF, 0xFFFFFFFF};
   return std::vector<uint32_t>(&kValues[0], &kValues[arraysize(kValues)]);
 }
 
 static const std::vector<int32_t> cvt_trunc_int32_test_values() {
   static const int32_t kValues[] = {
       static_cast<int32_t>(0x00000000), static_cast<int32_t>(0x00000001),
-      static_cast<int32_t>(0x00ffff00), static_cast<int32_t>(0x7fffffff),
+      static_cast<int32_t>(0x00FFFF00), static_cast<int32_t>(0x7FFFFFFF),
       static_cast<int32_t>(0x80000000), static_cast<int32_t>(0x80000001),
-      static_cast<int32_t>(0x80ffff00), static_cast<int32_t>(0x8fffffff),
-      static_cast<int32_t>(0xffffffff)};
+      static_cast<int32_t>(0x80FFFF00), static_cast<int32_t>(0x8FFFFFFF),
+      static_cast<int32_t>(0xFFFFFFFF)};
   return std::vector<int32_t>(&kValues[0], &kValues[arraysize(kValues)]);
 }
 
@@ -553,11 +553,11 @@ TEST(cvt_d_w_Trunc_w_d) {
 
 static const std::vector<int32_t> overflow_int32_test_values() {
   static const int32_t kValues[] = {
-      static_cast<int32_t>(0xf0000000), static_cast<int32_t>(0x00000001),
-      static_cast<int32_t>(0xff000000), static_cast<int32_t>(0x0000f000),
-      static_cast<int32_t>(0x0f000000), static_cast<int32_t>(0x991234ab),
-      static_cast<int32_t>(0xb0ffff01), static_cast<int32_t>(0x00006fff),
-      static_cast<int32_t>(0xffffffff)};
+      static_cast<int32_t>(0xF0000000), static_cast<int32_t>(0x00000001),
+      static_cast<int32_t>(0xFF000000), static_cast<int32_t>(0x0000F000),
+      static_cast<int32_t>(0x0F000000), static_cast<int32_t>(0x991234AB),
+      static_cast<int32_t>(0xB0FFFF01), static_cast<int32_t>(0x00006FFF),
+      static_cast<int32_t>(0xFFFFFFFF)};
   return std::vector<int32_t>(&kValues[0], &kValues[arraysize(kValues)]);
 }
 
@@ -1102,8 +1102,8 @@ bool run_Unaligned(char* memory_buffer, int32_t in_offset, int32_t out_offset,
 
 static const std::vector<uint64_t> unsigned_test_values() {
   static const uint64_t kValues[] = {
-      0x2180f18a06384414, 0x000a714532102277, 0xbc1acccf180649f0,
-      0x8000000080008000, 0x0000000000000001, 0xffffffffffffffff,
+      0x2180F18A06384414, 0x000A714532102277, 0xBC1ACCCF180649F0,
+      0x8000000080008000, 0x0000000000000001, 0xFFFFFFFFFFFFFFFF,
   };
   return std::vector<uint64_t>(&kValues[0], &kValues[arraysize(kValues)]);
 }
@@ -1313,9 +1313,9 @@ TEST(Uldc1) {
 
 static const std::vector<uint32_t> sltu_test_values() {
   static const uint32_t kValues[] = {
-      0,          1,          0x7ffe,     0x7fff,     0x8000,
-      0x8001,     0xfffe,     0xffff,     0xffff7ffe, 0xffff7fff,
-      0xffff8000, 0xffff8001, 0xfffffffe, 0xffffffff,
+      0,          1,          0x7FFE,     0x7FFF,     0x8000,
+      0x8001,     0xFFFE,     0xFFFF,     0xFFFF7FFE, 0xFFFF7FFF,
+      0xFFFF8000, 0xFFFF8001, 0xFFFFFFFE, 0xFFFFFFFF,
   };
   return std::vector<uint32_t>(&kValues[0], &kValues[arraysize(kValues)]);
 }

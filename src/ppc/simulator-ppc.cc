@@ -47,7 +47,7 @@ class PPCDebugger {
   void Debug();
 
  private:
-  static const Instr kBreakpointInstr = (TWI | 0x1f * B21);
+  static const Instr kBreakpointInstr = (TWI | 0x1F * B21);
   static const Instr kNopInstr = (ORI);  // ori, 0,0,0
 
   Simulator* sim_;
@@ -232,7 +232,7 @@ void PPCDebugger::Debug() {
 
         // If at a breakpoint, proceed past it.
         if ((reinterpret_cast<Instruction*>(sim_->get_pc()))
-                ->InstructionBits() == 0x7d821008) {
+                ->InstructionBits() == 0x7D821008) {
           sim_->set_pc(sim_->get_pc() + Instruction::kInstrSize);
         } else {
           sim_->ExecuteInstruction(
@@ -256,7 +256,7 @@ void PPCDebugger::Debug() {
       } else if ((strcmp(cmd, "c") == 0) || (strcmp(cmd, "cont") == 0)) {
         // If at a breakpoint, proceed past it.
         if ((reinterpret_cast<Instruction*>(sim_->get_pc()))
-                ->InstructionBits() == 0x7d821008) {
+                ->InstructionBits() == 0x7D821008) {
           sim_->set_pc(sim_->get_pc() + Instruction::kInstrSize);
         } else {
           // Execute the one instruction we broke at with breakpoints disabled.
@@ -314,7 +314,7 @@ void PPCDebugger::Debug() {
               PrintF("%3s: %f 0x%08x %08x\n",
                      GetRegConfig()->GetDoubleRegisterName(i), dvalue,
                      static_cast<uint32_t>(as_words >> 32),
-                     static_cast<uint32_t>(as_words & 0xffffffff));
+                     static_cast<uint32_t>(as_words & 0xFFFFFFFF));
             }
           } else if (arg1[0] == 'r' &&
                      (arg1[1] >= '0' && arg1[1] <= '9' &&
@@ -336,7 +336,7 @@ void PPCDebugger::Debug() {
               uint64_t as_words = bit_cast<uint64_t>(dvalue);
               PrintF("%s: %f 0x%08x %08x\n", arg1, dvalue,
                      static_cast<uint32_t>(as_words >> 32),
-                     static_cast<uint32_t>(as_words & 0xffffffff));
+                     static_cast<uint32_t>(as_words & 0xFFFFFFFF));
             } else {
               PrintF("%s unrecognized\n", arg1);
             }
@@ -988,9 +988,9 @@ void Simulator::SetFpResult(const double& result) {
 void Simulator::TrashCallerSaveRegisters() {
 // We don't trash the registers with the return value.
 #if 0  // A good idea to trash volatile registers, needs to be done
-  registers_[2] = 0x50Bad4U;
-  registers_[3] = 0x50Bad4U;
-  registers_[12] = 0x50Bad4U;
+  registers_[2] = 0x50BAD4U;
+  registers_[3] = 0x50BAD4U;
+  registers_[12] = 0x50BAD4U;
 #endif
 }
 
@@ -1239,7 +1239,7 @@ void Simulator::Format(Instruction* instr, const char* format) {
 bool Simulator::CarryFrom(int32_t left, int32_t right, int32_t carry) {
   uint32_t uleft = static_cast<uint32_t>(left);
   uint32_t uright = static_cast<uint32_t>(right);
-  uint32_t urest = 0xffffffffU - uleft;
+  uint32_t urest = 0xFFFFFFFFU - uleft;
 
   return (uright > urest) ||
          (carry && (((uright + 1) > urest) || (uright > (urest - 1))));
@@ -1641,7 +1641,7 @@ void Simulator::DisableStop(uint32_t code) {
 void Simulator::IncreaseStopCounter(uint32_t code) {
   DCHECK_LE(code, kMaxStopCode);
   DCHECK(isWatchedStop(code));
-  if ((watched_stops_[code].count & ~(1 << 31)) == 0x7fffffff) {
+  if ((watched_stops_[code].count & ~(1 << 31)) == 0x7FFFFFFF) {
     PrintF(
         "Stop counter for code %i has overflowed.\n"
         "Enabling this code and reseting the counter to 0.\n",
@@ -1958,10 +1958,10 @@ void Simulator::ExecuteGeneric(Instruction* instr) {
           bit >>= 1;
         }
       } else if (mb == me + 1) {
-        mask = 0xffffffff;
+        mask = 0xFFFFFFFF;
       } else {                             // mb > me+1
         int bit = 0x80000000 >> (me + 1);  // needs to be tested
-        mask = 0xffffffff;
+        mask = 0xFFFFFFFF;
         for (; me < mb; me++) {
           mask ^= bit;
           bit >>= 1;
@@ -1987,7 +1987,7 @@ void Simulator::ExecuteGeneric(Instruction* instr) {
       } else {
         int rb = instr->RBValue();
         uint32_t rb_val = get_register(rb);
-        sh = (rb_val & 0x1f);
+        sh = (rb_val & 0x1F);
       }
       int mb = instr->Bits(10, 6);
       int me = instr->Bits(5, 1);
@@ -2000,10 +2000,10 @@ void Simulator::ExecuteGeneric(Instruction* instr) {
           bit >>= 1;
         }
       } else if (mb == me + 1) {
-        mask = 0xffffffff;
+        mask = 0xFFFFFFFF;
       } else {                             // mb > me+1
         int bit = 0x80000000 >> (me + 1);  // needs to be tested
-        mask = 0xffffffff;
+        mask = 0xFFFFFFFF;
         for (; me < mb; me++) {
           mask ^= bit;
           bit >>= 1;
@@ -2078,7 +2078,7 @@ void Simulator::ExecuteGeneric(Instruction* instr) {
       int ra = instr->RAValue();
       int rb = instr->RBValue();
       uint32_t rs_val = get_register(rs);
-      uintptr_t rb_val = get_register(rb) & 0x3f;
+      uintptr_t rb_val = get_register(rb) & 0x3F;
       intptr_t result = (rb_val > 31) ? 0 : rs_val >> rb_val;
       set_register(ra, result);
       if (instr->Bit(0)) {  // RC bit set
@@ -2092,7 +2092,7 @@ void Simulator::ExecuteGeneric(Instruction* instr) {
       int ra = instr->RAValue();
       int rb = instr->RBValue();
       uintptr_t rs_val = get_register(rs);
-      uintptr_t rb_val = get_register(rb) & 0x7f;
+      uintptr_t rb_val = get_register(rb) & 0x7F;
       intptr_t result = (rb_val > 63) ? 0 : rs_val >> rb_val;
       set_register(ra, result);
       if (instr->Bit(0)) {  // RC bit set
@@ -2160,7 +2160,7 @@ void Simulator::ExecuteGeneric(Instruction* instr) {
       int ra = instr->RAValue();
       int rb = instr->RBValue();
       int32_t rs_val = get_register(rs);
-      intptr_t rb_val = get_register(rb) & 0x3f;
+      intptr_t rb_val = get_register(rb) & 0x3F;
       intptr_t result = (rb_val > 31) ? rs_val >> 31 : rs_val >> rb_val;
       set_register(ra, result);
       if (instr->Bit(0)) {  // RC bit set
@@ -2174,7 +2174,7 @@ void Simulator::ExecuteGeneric(Instruction* instr) {
       int ra = instr->RAValue();
       int rb = instr->RBValue();
       intptr_t rs_val = get_register(rs);
-      intptr_t rb_val = get_register(rb) & 0x7f;
+      intptr_t rb_val = get_register(rb) & 0x7F;
       intptr_t result = (rb_val > 63) ? rs_val >> 63 : rs_val >> rb_val;
       set_register(ra, result);
       if (instr->Bit(0)) {  // RC bit set
@@ -2244,10 +2244,10 @@ void Simulator::ExecuteGeneric(Instruction* instr) {
       float* fptr = reinterpret_cast<float*>(&val);
 #if V8_HOST_ARCH_IA32 || V8_HOST_ARCH_X64
       // Conversion using double changes sNan to qNan on ia32/x64
-      if ((val & 0x7f800000) == 0x7f800000) {
+      if ((val & 0x7F800000) == 0x7F800000) {
         int64_t dval = static_cast<int64_t>(val);
-        dval = ((dval & 0xc0000000) << 32) | ((dval & 0x40000000) << 31) |
-               ((dval & 0x40000000) << 30) | ((dval & 0x7fffffff) << 29) | 0x0;
+        dval = ((dval & 0xC0000000) << 32) | ((dval & 0x40000000) << 31) |
+               ((dval & 0x40000000) << 30) | ((dval & 0x7FFFFFFF) << 29) | 0x0;
         set_d_register(frt, dval);
       } else {
         set_d_register_from_double(frt, static_cast<double>(*fptr));
@@ -2289,9 +2289,9 @@ void Simulator::ExecuteGeneric(Instruction* instr) {
         // Conversion using double changes sNan to qNan on ia32/x64
         int32_t sval = 0;
         int64_t dval = get_d_register(frs);
-        if ((dval & 0x7ff0000000000000) == 0x7ff0000000000000) {
-          sval = ((dval & 0xc000000000000000) >> 32) |
-                 ((dval & 0x07ffffffe0000000) >> 29);
+        if ((dval & 0x7FF0000000000000) == 0x7FF0000000000000) {
+          sval = ((dval & 0xC000000000000000) >> 32) |
+                 ((dval & 0x07FFFFFFE0000000) >> 29);
           p = &sval;
         } else {
           p = reinterpret_cast<int32_t*>(&frs_val);
@@ -2625,7 +2625,7 @@ void Simulator::ExecuteGeneric(Instruction* instr) {
       int ra = instr->RAValue();
       int rb = instr->RBValue();
       uint32_t rs_val = get_register(rs);
-      uintptr_t rb_val = get_register(rb) & 0x3f;
+      uintptr_t rb_val = get_register(rb) & 0x3F;
       uint32_t result = (rb_val > 31) ? 0 : rs_val << rb_val;
       set_register(ra, result);
       if (instr->Bit(0)) {  // RC bit set
@@ -2639,7 +2639,7 @@ void Simulator::ExecuteGeneric(Instruction* instr) {
       int ra = instr->RAValue();
       int rb = instr->RBValue();
       uintptr_t rs_val = get_register(rs);
-      uintptr_t rb_val = get_register(rb) & 0x7f;
+      uintptr_t rb_val = get_register(rb) & 0x7F;
       uintptr_t result = (rb_val > 63) ? 0 : rs_val << rb_val;
       set_register(ra, result);
       if (instr->Bit(0)) {  // RC bit set
@@ -3249,7 +3249,7 @@ void Simulator::ExecuteGeneric(Instruction* instr) {
       int rt = instr->RTValue();
       intptr_t ra_val = ra == 0 ? 0 : get_register(ra);
       int offset = SIGN_EXT_IMM16(instr->Bits(15, 0));
-      uintptr_t result = ReadHU(ra_val + offset, instr) & 0xffff;
+      uintptr_t result = ReadHU(ra_val + offset, instr) & 0xFFFF;
       set_register(rt, result);
       if (opcode == LHZU) {
         set_register(ra, ra_val + offset);
@@ -3302,10 +3302,10 @@ void Simulator::ExecuteGeneric(Instruction* instr) {
       float* fptr = reinterpret_cast<float*>(&val);
 #if V8_HOST_ARCH_IA32 || V8_HOST_ARCH_X64
       // Conversion using double changes sNan to qNan on ia32/x64
-      if ((val & 0x7f800000) == 0x7f800000) {
+      if ((val & 0x7F800000) == 0x7F800000) {
         int64_t dval = static_cast<int64_t>(val);
-        dval = ((dval & 0xc0000000) << 32) | ((dval & 0x40000000) << 31) |
-               ((dval & 0x40000000) << 30) | ((dval & 0x7fffffff) << 29) | 0x0;
+        dval = ((dval & 0xC0000000) << 32) | ((dval & 0x40000000) << 31) |
+               ((dval & 0x40000000) << 30) | ((dval & 0x7FFFFFFF) << 29) | 0x0;
         set_d_register(frt, dval);
       } else {
         set_d_register_from_double(frt, static_cast<double>(*fptr));
@@ -3347,9 +3347,9 @@ void Simulator::ExecuteGeneric(Instruction* instr) {
         // Conversion using double changes sNan to qNan on ia32/x64
         int32_t sval = 0;
         int64_t dval = get_d_register(frs);
-        if ((dval & 0x7ff0000000000000) == 0x7ff0000000000000) {
-          sval = ((dval & 0xc000000000000000) >> 32) |
-                 ((dval & 0x07ffffffe0000000) >> 29);
+        if ((dval & 0x7FF0000000000000) == 0x7FF0000000000000) {
+          sval = ((dval & 0xC000000000000000) >> 32) |
+                 ((dval & 0x07FFFFFFE0000000) >> 29);
           p = &sval;
         } else {
           p = reinterpret_cast<int32_t*>(&frs_val);
@@ -3749,7 +3749,7 @@ void Simulator::ExecuteGeneric(Instruction* instr) {
     case MTFSF: {
       int frb = instr->RBValue();
       int64_t frb_dval = get_d_register(frb);
-      int32_t frb_ival = static_cast<int32_t>((frb_dval)&0xffffffff);
+      int32_t frb_ival = static_cast<int32_t>((frb_dval)&0xFFFFFFFF);
       int l = instr->Bits(25, 25);
       if (l == 1) {
         fp_condition_reg_ = frb_ival;
@@ -3774,8 +3774,8 @@ void Simulator::ExecuteGeneric(Instruction* instr) {
       int bfa = instr->Bits(20, 18);
       int cr_shift = (7 - bf) * CRWIDTH;
       int fp_shift = (7 - bfa) * CRWIDTH;
-      int field_val = (fp_condition_reg_ >> fp_shift) & 0xf;
-      condition_reg_ &= ~(0x0f << cr_shift);
+      int field_val = (fp_condition_reg_ >> fp_shift) & 0xF;
+      condition_reg_ &= ~(0x0F << cr_shift);
       condition_reg_ |= (field_val << cr_shift);
       // Clear copied exception bits
       switch (bfa) {
@@ -3826,7 +3826,7 @@ void Simulator::ExecuteGeneric(Instruction* instr) {
       DCHECK(sh >= 0 && sh <= 63);
       DCHECK(mb >= 0 && mb <= 63);
       uintptr_t result = base::bits::RotateLeft64(rs_val, sh);
-      uintptr_t mask = 0xffffffffffffffff >> mb;
+      uintptr_t mask = 0xFFFFFFFFFFFFFFFF >> mb;
       result &= mask;
       set_register(ra, result);
       if (instr->Bit(0)) {  // RC bit set
@@ -3843,7 +3843,7 @@ void Simulator::ExecuteGeneric(Instruction* instr) {
       DCHECK(sh >= 0 && sh <= 63);
       DCHECK(me >= 0 && me <= 63);
       uintptr_t result = base::bits::RotateLeft64(rs_val, sh);
-      uintptr_t mask = 0xffffffffffffffff << (63 - me);
+      uintptr_t mask = 0xFFFFFFFFFFFFFFFF << (63 - me);
       result &= mask;
       set_register(ra, result);
       if (instr->Bit(0)) {  // RC bit set
@@ -3860,7 +3860,7 @@ void Simulator::ExecuteGeneric(Instruction* instr) {
       DCHECK(sh >= 0 && sh <= 63);
       DCHECK(mb >= 0 && mb <= 63);
       uintptr_t result = base::bits::RotateLeft64(rs_val, sh);
-      uintptr_t mask = (0xffffffffffffffff >> mb) & (0xffffffffffffffff << sh);
+      uintptr_t mask = (0xFFFFFFFFFFFFFFFF >> mb) & (0xFFFFFFFFFFFFFFFF << sh);
       result &= mask;
       set_register(ra, result);
       if (instr->Bit(0)) {  // RC bit set
@@ -3885,10 +3885,10 @@ void Simulator::ExecuteGeneric(Instruction* instr) {
           bit >>= 1;
         }
       } else if (mb == me + 1) {
-        mask = 0xffffffffffffffff;
+        mask = 0xFFFFFFFFFFFFFFFF;
       } else {                                           // mb > me+1
         uintptr_t bit = 0x8000000000000000 >> (me + 1);  // needs to be tested
-        mask = 0xffffffffffffffff;
+        mask = 0xFFFFFFFFFFFFFFFF;
         for (; me < mb; me++) {
           mask ^= bit;
           bit >>= 1;
@@ -3909,12 +3909,12 @@ void Simulator::ExecuteGeneric(Instruction* instr) {
       int rb = instr->RBValue();
       uintptr_t rs_val = get_register(rs);
       uintptr_t rb_val = get_register(rb);
-      int sh = (rb_val & 0x3f);
+      int sh = (rb_val & 0x3F);
       int mb = (instr->Bits(10, 6) | (instr->Bit(5) << 5));
       DCHECK(sh >= 0 && sh <= 63);
       DCHECK(mb >= 0 && mb <= 63);
       uintptr_t result = base::bits::RotateLeft64(rs_val, sh);
-      uintptr_t mask = 0xffffffffffffffff >> mb;
+      uintptr_t mask = 0xFFFFFFFFFFFFFFFF >> mb;
       result &= mask;
       set_register(ra, result);
       if (instr->Bit(0)) {  // RC bit set

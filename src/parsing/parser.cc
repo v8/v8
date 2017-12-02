@@ -276,18 +276,18 @@ bool Parser::ShortcutNumericLiteralBinaryExpression(Expression** x,
         return true;
       }
       case Token::SHL: {
-        int value = DoubleToInt32(x_val) << (DoubleToInt32(y_val) & 0x1f);
+        int value = DoubleToInt32(x_val) << (DoubleToInt32(y_val) & 0x1F);
         *x = factory()->NewNumberLiteral(value, pos);
         return true;
       }
       case Token::SHR: {
-        uint32_t shift = DoubleToInt32(y_val) & 0x1f;
+        uint32_t shift = DoubleToInt32(y_val) & 0x1F;
         uint32_t value = DoubleToUint32(x_val) >> shift;
         *x = factory()->NewNumberLiteral(value, pos);
         return true;
       }
       case Token::SAR: {
-        uint32_t shift = DoubleToInt32(y_val) & 0x1f;
+        uint32_t shift = DoubleToInt32(y_val) & 0x1F;
         int value = ArithmeticShiftRight(DoubleToInt32(x_val), shift);
         *x = factory()->NewNumberLiteral(value, pos);
         return true;
@@ -3584,11 +3584,11 @@ namespace {
 
 // http://burtleburtle.net/bob/hash/integer.html
 uint32_t HalfAvalance(uint32_t a) {
-  a = (a + 0x479ab41d) + (a << 8);
-  a = (a ^ 0xe4aa10ce) ^ (a >> 5);
-  a = (a + 0x9942f0a6) - (a << 14);
-  a = (a ^ 0x5aedd67d) ^ (a >> 3);
-  a = (a + 0x17bea992) + (a << 7);
+  a = (a + 0x479AB41D) + (a << 8);
+  a = (a ^ 0xE4AA10CE) ^ (a >> 5);
+  a = (a + 0x9942F0A6) - (a << 14);
+  a = (a ^ 0x5AEDD67D) ^ (a >> 3);
+  a = (a + 0x17BEA992) + (a << 7);
   return a;
 }
 

@@ -275,15 +275,14 @@ const int64_t kInt64Values[] = {std::numeric_limits<int64_t>::min(),
                                 std::numeric_limits<int64_t>::max()};
 
 const uint32_t kUint32Values[] = {
-    0x00000000, 0x00000001, 0xffffffff, 0x1b09788b, 0x04c5fce8, 0xcc0de5bf,
-    0x273a798e, 0x187937a3, 0xece3af83, 0x5495a16b, 0x0b668ecc, 0x11223344,
-    0x0000009e, 0x00000043, 0x0000af73, 0x0000116b, 0x00658ecc, 0x002b3b4c,
-    0x88776655, 0x70000000, 0x07200000, 0x7fffffff, 0x56123761, 0x7fffff00,
-    0x761c4761, 0x80000000, 0x88888888, 0xa0000000, 0xdddddddd, 0xe0000000,
-    0xeeeeeeee, 0xfffffffd, 0xf0000000, 0x007fffff, 0x003fffff, 0x001fffff,
-    0x000fffff, 0x0007ffff, 0x0003ffff, 0x0001ffff, 0x0000ffff, 0x00007fff,
-    0x00003fff, 0x00001fff, 0x00000fff, 0x000007ff, 0x000003ff, 0x000001ff};
-
+    0x00000000, 0x00000001, 0xFFFFFFFF, 0x1B09788B, 0x04C5FCE8, 0xCC0DE5BF,
+    0x273A798E, 0x187937A3, 0xECE3AF83, 0x5495A16B, 0x0B668ECC, 0x11223344,
+    0x0000009E, 0x00000043, 0x0000AF73, 0x0000116B, 0x00658ECC, 0x002B3B4C,
+    0x88776655, 0x70000000, 0x07200000, 0x7FFFFFFF, 0x56123761, 0x7FFFFF00,
+    0x761C4761, 0x80000000, 0x88888888, 0xA0000000, 0xDDDDDDDD, 0xE0000000,
+    0xEEEEEEEE, 0xFFFFFFFD, 0xF0000000, 0x007FFFFF, 0x003FFFFF, 0x001FFFFF,
+    0x000FFFFF, 0x0007FFFF, 0x0003FFFF, 0x0001FFFF, 0x0000FFFF, 0x00007FFF,
+    0x00003FFF, 0x00001FFF, 0x00000FFF, 0x000007FF, 0x000003FF, 0x000001FF};
 
 struct ComparisonBinaryOperator {
   const Operator* (MachineOperatorBuilder::*constructor)();
@@ -1700,7 +1699,7 @@ TEST_F(MachineOperatorReducerTest, Float64DivWithMinusOne) {
 
 TEST_F(MachineOperatorReducerTest, Float64DivWithPowerOfTwo) {
   Node* const p0 = Parameter(0);
-  TRACED_FORRANGE(uint64_t, exponent, 1, 0x7fe) {
+  TRACED_FORRANGE(uint64_t, exponent, 1, 0x7FE) {
     Double divisor = Double(exponent << Double::kPhysicalSignificandSize);
     if (divisor.value() == 1.0) continue;  // Skip x / 1.0 => x.
     Reduction r = Reduce(graph()->NewNode(machine()->Float64Div(), p0,
@@ -2157,7 +2156,7 @@ TEST_F(MachineOperatorReducerTest, StoreRepWord8WithWord32And) {
     Node* const node =
         graph()->NewNode(machine()->Store(rep), base, index,
                          graph()->NewNode(machine()->Word32And(), value,
-                                          Uint32Constant(x | 0xffu)),
+                                          Uint32Constant(x | 0xFFu)),
                          effect, control);
 
     Reduction r = Reduce(node);
@@ -2204,7 +2203,7 @@ TEST_F(MachineOperatorReducerTest, StoreRepWord16WithWord32And) {
     Node* const node =
         graph()->NewNode(machine()->Store(rep), base, index,
                          graph()->NewNode(machine()->Word32And(), value,
-                                          Uint32Constant(x | 0xffffu)),
+                                          Uint32Constant(x | 0xFFFFu)),
                          effect, control);
 
     Reduction r = Reduce(node);

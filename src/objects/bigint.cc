@@ -185,7 +185,7 @@ MaybeHandle<MutableBigInt> MutableBigInt::New(Isolate* isolate, int length) {
   result->set_length(length);
   result->set_sign(false);
 #if DEBUG
-  result->InitializeDigits(length, 0xbf);
+  result->InitializeDigits(length, 0xBF);
 #endif
   return result;
 }

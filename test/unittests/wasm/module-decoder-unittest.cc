@@ -290,7 +290,7 @@ TEST_F(WasmModuleVerifyTest, ExportMutableGlobal) {
 static void AppendUint32v(std::vector<byte>& buffer, uint32_t val) {
   while (true) {
     uint32_t next = val >> 7;
-    uint32_t out = val & 0x7f;
+    uint32_t out = val & 0x7F;
     if (next) {
       buffer.push_back(static_cast<byte>(0x80 | out));
       val = next;
@@ -553,7 +553,7 @@ TEST_F(WasmModuleVerifyTest, DataSegmentWithImmutableGlobal) {
       1,
       kLocalI32,                       // local type
       0,                               // immutable
-      WASM_INIT_EXPR_I32V_3(0x9bbaa),  // init
+      WASM_INIT_EXPR_I32V_3(0x9BBAA),  // init
       SECTION(Data, 9),
       ENTRY_COUNT(1),
       LINEAR_MEMORY_INDEX_0,
@@ -577,7 +577,7 @@ TEST_F(WasmModuleVerifyTest, OneDataSegment) {
       SECTION(Data, 11),
       ENTRY_COUNT(1),
       LINEAR_MEMORY_INDEX_0,
-      WASM_INIT_EXPR_I32V_3(0x9bbaa),  // dest addr
+      WASM_INIT_EXPR_I32V_3(0x9BBAA),  // dest addr
       U32V_1(3),                       // source size
       'a',
       'b',
@@ -595,7 +595,7 @@ TEST_F(WasmModuleVerifyTest, OneDataSegment) {
     const WasmDataSegment* segment = &result.val->data_segments.back();
 
     EXPECT_EQ(WasmInitExpr::kI32Const, segment->dest_addr.kind);
-    EXPECT_EQ(0x9bbaa, segment->dest_addr.val.i32_const);
+    EXPECT_EQ(0x9BBAA, segment->dest_addr.val.i32_const);
     EXPECT_EQ(kDataSegmentSourceOffset, segment->source.offset());
     EXPECT_EQ(3u, segment->source.length());
   }
@@ -616,14 +616,14 @@ TEST_F(WasmModuleVerifyTest, TwoDataSegments) {
       SECTION(Data, 29),
       ENTRY_COUNT(2),  // segment count
       LINEAR_MEMORY_INDEX_0,
-      WASM_INIT_EXPR_I32V_3(0x7ffee),  // #0: dest addr
+      WASM_INIT_EXPR_I32V_3(0x7FFEE),  // #0: dest addr
       U32V_1(4),                       // source size
       1,
       2,
       3,
       4,  // data bytes
       LINEAR_MEMORY_INDEX_0,
-      WASM_INIT_EXPR_I32V_3(0x6ddcc),  // #1: dest addr
+      WASM_INIT_EXPR_I32V_3(0x6DDCC),  // #1: dest addr
       U32V_1(10),                      // source size
       1,
       2,
@@ -648,12 +648,12 @@ TEST_F(WasmModuleVerifyTest, TwoDataSegments) {
     const WasmDataSegment* s1 = &result.val->data_segments[1];
 
     EXPECT_EQ(WasmInitExpr::kI32Const, s0->dest_addr.kind);
-    EXPECT_EQ(0x7ffee, s0->dest_addr.val.i32_const);
+    EXPECT_EQ(0x7FFEE, s0->dest_addr.val.i32_const);
     EXPECT_EQ(kDataSegment0SourceOffset, s0->source.offset());
     EXPECT_EQ(4u, s0->source.length());
 
     EXPECT_EQ(WasmInitExpr::kI32Const, s1->dest_addr.kind);
-    EXPECT_EQ(0x6ddcc, s1->dest_addr.val.i32_const);
+    EXPECT_EQ(0x6DDCC, s1->dest_addr.val.i32_const);
     EXPECT_EQ(kDataSegment1SourceOffset, s1->source.offset());
     EXPECT_EQ(10u, s1->source.length());
   }
@@ -666,7 +666,7 @@ TEST_F(WasmModuleVerifyTest, DataWithoutMemory) {
       SECTION(Data, 11),
       ENTRY_COUNT(1),
       LINEAR_MEMORY_INDEX_0,
-      WASM_INIT_EXPR_I32V_3(0x9bbaa),  // dest addr
+      WASM_INIT_EXPR_I32V_3(0x9BBAA),  // dest addr
       U32V_1(3),                       // source size
       'a',
       'b',
@@ -718,7 +718,7 @@ TEST_F(WasmModuleVerifyTest, DataSegmentEndOverflow) {
       ENTRY_COUNT(1),            // one entry
       LINEAR_MEMORY_INDEX_0,     // mem index
       WASM_INIT_EXPR_I32V_1(0),  // offset
-      U32V_5(0xffffffff)         // size
+      U32V_5(0xFFFFFFFF)         // size
   };
 
   EXPECT_FAILURE(data);
@@ -803,7 +803,7 @@ TEST_F(WasmModuleVerifyTest, Regression_735887) {
       1,  // entry count
       TABLE_INDEX(0), WASM_INIT_EXPR_I32V_1(0),
       1,    // elements count
-      0x9a  // invalid I32V as function index
+      0x9A  // invalid I32V as function index
   };
 
   EXPECT_FAILURE(data);
@@ -1108,11 +1108,11 @@ TEST_F(WasmModuleVerifyTest, OnlyUnknownSectionEmpty) {
 TEST_F(WasmModuleVerifyTest, OnlyUnknownSectionNonEmpty) {
   const byte data[] = {
       UNKNOWN_SECTION(5),
-      0xff,
-      0xff,
-      0xff,
-      0xff,
-      0xff,  // section data
+      0xFF,
+      0xFF,
+      0xFF,
+      0xFF,
+      0xFF,  // section data
   };
   EXPECT_VERIFIES(data);
 }
@@ -1131,7 +1131,7 @@ TEST_F(WasmModuleVerifyTest, SignatureFollowedByUnknownSection) {
       // signatures
       SIGNATURES_SECTION_VOID_VOID,
       // -----------------------------------------------------------
-      UNKNOWN_SECTION(5), 0xff, 0xff, 0xff, 0xff, 0xff,
+      UNKNOWN_SECTION(5), 0xFF, 0xFF, 0xFF, 0xFF, 0xFF,
   };
   EXPECT_VERIFIES(data);
 }
@@ -1497,7 +1497,7 @@ TEST_F(WasmModuleVerifyTest, Regression_738097) {
       FUNCTION_SIGNATURES_SECTION(1, 0),     // --
       SECTION(Code, 1 + 5 + 1),              // --
       1,                                     // --
-      U32V_5(0xffffffff),                    // function size,
+      U32V_5(0xFFFFFFFF),                    // function size,
       0                                      // No real body
   };
   EXPECT_FAILURE(data);
@@ -1620,16 +1620,16 @@ TEST_F(WasmModuleVerifyTest, Names_two_empty) {
 TEST_F(WasmModuleVerifyTest, Regression684855) {
   static const byte data[] = {
       SECTION_NAMES(12),
-      0xfb,  // functions count
+      0xFB,  // functions count
       0x27,  // |
       0x00,  // function name length
-      0xff,  // local names count
-      0xff,  // |
-      0xff,  // |
-      0xff,  // |
-      0xff,  // |
-      0xff,  // error: "varint too large"
-      0xff,  // |
+      0xFF,  // local names count
+      0xFF,  // |
+      0xFF,  // |
+      0xFF,  // |
+      0xFF,  // |
+      0xFF,  // error: "varint too large"
+      0xFF,  // |
       0x00,  // --
       0x00   // --
   };
@@ -1703,7 +1703,7 @@ TEST_F(WasmModuleVerifyTest, Multiple_Named_Sections) {
 }
 
 TEST_F(WasmModuleVerifyTest, Section_Name_No_UTF8) {
-  static const byte data[] = {SECTION(Unknown, 4), 1, 0xff, 17, 18};
+  static const byte data[] = {SECTION(Unknown, 4), 1, 0xFF, 17, 18};
   EXPECT_FAILURE(data);
 }
 

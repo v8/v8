@@ -16,7 +16,7 @@ namespace v8 {
 namespace internal {
 
 namespace {
-const unibrow::uchar kUtf8Bom = 0xfeff;
+const unibrow::uchar kUtf8Bom = 0xFEFF;
 }  // namespace
 
 // ----------------------------------------------------------------------------

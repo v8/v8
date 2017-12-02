@@ -682,7 +682,7 @@ bool JsonStringifier::DoNotEscape(uint8_t c) {
 
 template <>
 bool JsonStringifier::DoNotEscape(uint16_t c) {
-  return c >= '#' && c != '\\' && c != 0x7f;
+  return c >= '#' && c != '\\' && c != 0x7F;
 }
 
 void JsonStringifier::NewLine() {

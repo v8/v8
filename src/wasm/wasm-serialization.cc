@@ -402,7 +402,7 @@ uint32_t NativeModuleSerializer::EncodeBuiltinOrStub(Address address) {
     DCHECK(stub_iter != stub_lookup_.end());
     uint32_t id = stub_iter->second;
     DCHECK_LT(id, std::numeric_limits<uint16_t>::max());
-    tag = id & 0x0000ffff;
+    tag = id & 0x0000FFFF;
   }
   return tag;
 }
@@ -624,12 +624,12 @@ bool NativeModuleDeserializer::ReadCode() {
 }
 
 Address NativeModuleDeserializer::GetTrampolineOrStubFromTag(uint32_t tag) {
-  if ((tag & 0x0000ffff) == 0) {
+  if ((tag & 0x0000FFFF) == 0) {
     int builtin_id = static_cast<int>(tag >> 16);
     v8::internal::Code* builtin = isolate_->builtins()->builtin(builtin_id);
     return native_module_->GetLocalAddressFor(handle(builtin));
   } else {
-    DCHECK_EQ(tag & 0xffff0000, 0);
+    DCHECK_EQ(tag & 0xFFFF0000, 0);
     return stubs_[tag];
   }
 }

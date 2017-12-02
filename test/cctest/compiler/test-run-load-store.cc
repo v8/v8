@@ -80,7 +80,7 @@ void RunLoadInt32Offset(TestAlignment t) {
   int32_t p1 = 0;  // loads directly from this location.
 
   int32_t offsets[] = {-2000000, -100, -101, 1,          3,
-                       7,        120,  2000, 2000000000, 0xff};
+                       7,        120,  2000, 2000000000, 0xFF};
 
   for (size_t i = 0; i < arraysize(offsets); i++) {
     RawMachineAssemblerTester<int32_t> m;
@@ -109,7 +109,7 @@ void RunLoadStoreFloat32Offset(TestAlignment t) {
   float p2 = 0.0f;  // and stores directly into this location.
 
   FOR_INT32_INPUTS(i) {
-    int32_t magic = 0x2342aabb + *i * 3;
+    int32_t magic = 0x2342AABB + *i * 3;
     RawMachineAssemblerTester<int32_t> m;
     int32_t offset = *i;
     byte* from = reinterpret_cast<byte*>(&p1) - offset;
@@ -146,7 +146,7 @@ void RunLoadStoreFloat64Offset(TestAlignment t) {
   double p2 = 0;  // and stores directly into this location.
 
   FOR_INT32_INPUTS(i) {
-    int32_t magic = 0x2342aabb + *i * 3;
+    int32_t magic = 0x2342AABB + *i * 3;
     RawMachineAssemblerTester<int32_t> m;
     int32_t offset = *i;
     byte* from = reinterpret_cast<byte*>(&p1) - offset;
@@ -418,9 +418,9 @@ void RunLoadStoreSignExtend32(TestAlignment t) {
   FOR_INT32_INPUTS(i) {
     buffer[0] = *i;
 
-    CHECK_EQ(static_cast<int8_t>(*i & 0xff), m.Call());
-    CHECK_EQ(static_cast<int8_t>(*i & 0xff), buffer[1]);
-    CHECK_EQ(static_cast<int16_t>(*i & 0xffff), buffer[2]);
+    CHECK_EQ(static_cast<int8_t>(*i & 0xFF), m.Call());
+    CHECK_EQ(static_cast<int8_t>(*i & 0xFF), buffer[1]);
+    CHECK_EQ(static_cast<int16_t>(*i & 0xFFFF), buffer[2]);
     CHECK_EQ(*i, buffer[3]);
   }
 }
@@ -451,9 +451,9 @@ void RunLoadStoreZeroExtend32(TestAlignment t) {
   FOR_UINT32_INPUTS(i) {
     buffer[0] = *i;
 
-    CHECK_EQ((*i & 0xff), m.Call());
-    CHECK_EQ((*i & 0xff), buffer[1]);
-    CHECK_EQ((*i & 0xffff), buffer[2]);
+    CHECK_EQ((*i & 0xFF), m.Call());
+    CHECK_EQ((*i & 0xFF), buffer[1]);
+    CHECK_EQ((*i & 0xFFFF), buffer[2]);
     CHECK_EQ(*i, buffer[3]);
   }
 }
@@ -512,10 +512,10 @@ void RunLoadStoreSignExtend64(TestAlignment t) {
   FOR_INT64_INPUTS(i) {
     buffer[0] = *i;
 
-    CHECK_EQ(static_cast<int8_t>(*i & 0xff), m.Call());
-    CHECK_EQ(static_cast<int8_t>(*i & 0xff), buffer[1]);
-    CHECK_EQ(static_cast<int16_t>(*i & 0xffff), buffer[2]);
-    CHECK_EQ(static_cast<int32_t>(*i & 0xffffffff), buffer[3]);
+    CHECK_EQ(static_cast<int8_t>(*i & 0xFF), m.Call());
+    CHECK_EQ(static_cast<int8_t>(*i & 0xFF), buffer[1]);
+    CHECK_EQ(static_cast<int16_t>(*i & 0xFFFF), buffer[2]);
+    CHECK_EQ(static_cast<int32_t>(*i & 0xFFFFFFFF), buffer[3]);
     CHECK_EQ(*i, buffer[4]);
   }
 }
@@ -555,10 +555,10 @@ void RunLoadStoreZeroExtend64(TestAlignment t) {
   FOR_UINT64_INPUTS(i) {
     buffer[0] = *i;
 
-    CHECK_EQ((*i & 0xff), m.Call());
-    CHECK_EQ((*i & 0xff), buffer[1]);
-    CHECK_EQ((*i & 0xffff), buffer[2]);
-    CHECK_EQ((*i & 0xffffffff), buffer[3]);
+    CHECK_EQ((*i & 0xFF), m.Call());
+    CHECK_EQ((*i & 0xFF), buffer[1]);
+    CHECK_EQ((*i & 0xFFFF), buffer[2]);
+    CHECK_EQ((*i & 0xFFFFFFFF), buffer[3]);
     CHECK_EQ(*i, buffer[4]);
   }
 }
@@ -566,7 +566,7 @@ void RunLoadStoreZeroExtend64(TestAlignment t) {
 }  // namespace
 
 TEST(RunCheckedLoadInt64) {
-  int64_t buffer[] = {0x66bbccddeeff0011LL, 0x1122334455667788LL};
+  int64_t buffer[] = {0x66BBCCDDEEFF0011LL, 0x1122334455667788LL};
   RawMachineAssemblerTester<int64_t> m(MachineType::Int32());
   Node* base = m.PointerConstant(buffer);
   Node* index = m.Parameter(0);
@@ -597,8 +597,8 @@ TEST(RunUnalignedLoadStoreZeroExtend64) {
 }
 
 TEST(RunCheckedStoreInt64) {
-  const int64_t write = 0x5566778899aabbLL;
-  const int64_t before = 0x33bbccddeeff0011LL;
+  const int64_t write = 0x5566778899AABBLL;
+  const int64_t before = 0x33BBCCDDEEFF0011LL;
   int64_t buffer[] = {before, before};
   RawMachineAssemblerTester<int32_t> m(MachineType::Int32());
   Node* base = m.PointerConstant(buffer);
