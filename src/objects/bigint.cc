@@ -1928,12 +1928,13 @@ Handle<BigInt> BigInt::AsIntN(uint64_t n, Handle<BigInt> x) {
   if (x->is_zero()) return x;
   if (n == 0) return MutableBigInt::Zero(x->GetIsolate());
   uint64_t needed_length = (n + kDigitBits - 1) / kDigitBits;
+  uint64_t x_length = static_cast<uint64_t>(x->length());
   // If {x} has less than {n} bits, return it directly.
-  if (static_cast<uint64_t>(x->length()) < needed_length) return x;
+  if (x_length < needed_length) return x;
   DCHECK_LE(needed_length, kMaxInt);
   digit_t top_digit = x->digit(static_cast<int>(needed_length) - 1);
   digit_t compare_digit = static_cast<digit_t>(1) << ((n - 1) % kDigitBits);
-  if (top_digit < compare_digit) return x;
+  if (x_length == needed_length && top_digit < compare_digit) return x;
   // Otherwise we have to truncate (which is a no-op in the special case
   // of x == -2^(n-1)), and determine the right sign. We also might have
   // to subtract from 2^n to simulate having two's complement representation.
