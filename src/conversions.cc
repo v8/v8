@@ -953,6 +953,7 @@ MaybeHandle<BigInt> BigIntParseInt(Isolate* isolate, Handle<String> string,
 }
 
 MaybeHandle<BigInt> StringToBigInt(Isolate* isolate, Handle<String> string) {
+  string = String::Flatten(string);
   BigIntParseIntHelper helper(isolate, string);
   return helper.GetResult();
 }
