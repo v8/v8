@@ -273,13 +273,20 @@ class TestEnvironment : public HandleAndZoneScope {
   static constexpr int kDoubleConstantCount = 4;
 
   TestEnvironment()
-      : blocks_(main_zone()),
+      : blocks_(1, main_zone()),
         code_(main_isolate(), main_zone(), &blocks_),
         rng_(CcTest::random_number_generator()),
         // TODO(planglois): Support kSimd128.
         supported_reps_({MachineRepresentation::kTagged,
                          MachineRepresentation::kFloat32,
                          MachineRepresentation::kFloat64}) {
+    // Create and initialize a single empty block in blocks_.
+    InstructionBlock* block = new (main_zone()) InstructionBlock(
+        main_zone(), RpoNumber::FromInt(0), RpoNumber::Invalid(),
+        RpoNumber::Invalid(), false, false);
+    block->set_ao_number(RpoNumber::FromInt(0));
+    blocks_[0] = block;
+
     // The "teardown" and "test" functions share the same descriptor with the
     // following signature:
     // ~~~
@@ -772,6 +779,14 @@ class CodeGeneratorTester {
     // frame is too big.
   }
 
+  Instruction* CreateTailCall(int stack_slot_delta) {
+    InstructionOperand callee[] = {
+        ImmediateOperand(ImmediateOperand::INLINE, stack_slot_delta)};
+    Instruction* tail_call = Instruction::New(zone_, kArchTailCallCodeObject, 0,
+                                              nullptr, 1, callee, 0, nullptr);
+    return tail_call;
+  }
+
   enum PushTypeFlag {
     kRegisterPush = CodeGenerator::kRegisterPush,
     kStackSlotPush = CodeGenerator::kStackSlotPush,
@@ -819,32 +834,37 @@ class CodeGeneratorTester {
   }
 
   Handle<Code> Finalize() {
-    // The environment expects this code to tail-call to it's first parameter
-    // placed in `kReturnRegister0`.
-    generator_.AssembleArchInstruction(
-        Instruction::New(zone_, kArchPrepareTailCall));
-
-    InstructionOperand callee[] = {
-        AllocatedOperand(LocationOperand::REGISTER,
-                         MachineRepresentation::kTagged,
-                         kReturnRegister0.code()),
-        ImmediateOperand(
-            ImmediateOperand::INLINE,
-            V8_TARGET_ARCH_STORES_RETURN_ADDRESS_ON_STACK ? 1 : 0)};
-    Instruction* tail_call = Instruction::New(zone_, kArchTailCallCodeObject, 0,
-                                              nullptr, 2, callee, 0, nullptr);
-    int first_unused_stack_slot;
-    if (generator_.GetSlotAboveSPBeforeTailCall(tail_call,
-                                                &first_unused_stack_slot)) {
-      generator_.AssembleTailCallBeforeGap(tail_call, first_unused_stack_slot);
-      generator_.AssembleTailCallAfterGap(tail_call, first_unused_stack_slot);
-    }
-    generator_.AssembleArchInstruction(tail_call);
-
     generator_.FinishCode();
     generator_.safepoints()->Emit(generator_.tasm(),
                                   frame_.GetTotalFrameSlotCount());
     return generator_.FinalizeCode();
+  }
+
+  Handle<Code> FinalizeForExecuting() {
+    InstructionSequence* sequence = generator_.code();
+
+    sequence->StartBlock(RpoNumber::FromInt(0));
+    // The environment expects this code to tail-call to it's first parameter
+    // placed in `kReturnRegister0`.
+    sequence->AddInstruction(Instruction::New(zone_, kArchPrepareTailCall));
+
+    // We use either zero or one slots.
+    int first_unused_stack_slot =
+        V8_TARGET_ARCH_STORES_RETURN_ADDRESS_ON_STACK ? 1 : 0;
+    InstructionOperand callee[] = {
+        AllocatedOperand(LocationOperand::REGISTER,
+                         MachineRepresentation::kTagged,
+                         kReturnRegister0.code()),
+        ImmediateOperand(ImmediateOperand::INLINE, first_unused_stack_slot)};
+    Instruction* tail_call = Instruction::New(zone_, kArchTailCallCodeObject, 0,
+                                              nullptr, 2, callee, 0, nullptr);
+    sequence->AddInstruction(tail_call);
+    sequence->EndBlock(RpoNumber::FromInt(0));
+
+    generator_.AssembleBlock(
+        sequence->InstructionBlockAt(RpoNumber::FromInt(0)));
+
+    return Finalize();
   }
 
  private:
@@ -890,7 +910,7 @@ TEST(FuzzAssembleMove) {
     c.CheckAssembleMove(&m->source(), &m->destination());
   }
 
-  Handle<Code> test = c.Finalize();
+  Handle<Code> test = c.FinalizeForExecuting();
   if (FLAG_print_code) {
     test->Print();
   }
@@ -911,7 +931,7 @@ TEST(FuzzAssembleSwap) {
     c.CheckAssembleSwap(&s->source(), &s->destination());
   }
 
-  Handle<Code> test = c.Finalize();
+  Handle<Code> test = c.FinalizeForExecuting();
   if (FLAG_print_code) {
     test->Print();
   }
@@ -943,7 +963,7 @@ TEST(FuzzAssembleMoveAndSwap) {
     }
   }
 
-  Handle<Code> test = c.Finalize();
+  Handle<Code> test = c.FinalizeForExecuting();
   if (FLAG_print_code) {
     test->Print();
   }
@@ -1003,7 +1023,7 @@ TEST(AssembleTailCallGap) {
   {
     // Generate a series of register pushes only.
     CodeGeneratorTester c(&env);
-    Instruction* instr = Instruction::New(env.main_zone(), kArchNop);
+    Instruction* instr = c.CreateTailCall(first_slot + 4);
     instr
         ->GetOrCreateParallelMove(Instruction::FIRST_GAP_POSITION,
                                   env.main_zone())
@@ -1032,7 +1052,7 @@ TEST(AssembleTailCallGap) {
   {
     // Generate a series of stack pushes only.
     CodeGeneratorTester c(&env);
-    Instruction* instr = Instruction::New(env.main_zone(), kArchNop);
+    Instruction* instr = c.CreateTailCall(first_slot + 4);
     instr
         ->GetOrCreateParallelMove(Instruction::FIRST_GAP_POSITION,
                                   env.main_zone())
@@ -1061,7 +1081,7 @@ TEST(AssembleTailCallGap) {
   {
     // Generate a mix of stack and register pushes.
     CodeGeneratorTester c(&env);
-    Instruction* instr = Instruction::New(env.main_zone(), kArchNop);
+    Instruction* instr = c.CreateTailCall(first_slot + 4);
     instr
         ->GetOrCreateParallelMove(Instruction::FIRST_GAP_POSITION,
                                   env.main_zone())
