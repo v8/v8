@@ -126,9 +126,6 @@ void* OS::ReserveAlignedRegion(size_t size, size_t alignment, void* hint,
 
   DCHECK(aligned_size == request_size);
 
-  address_ = static_cast<void*>(aligned_base);
-  size_ = aligned_size;
-
   *allocated = aligned_size;
   return static_cast<void*>(aligned_base);
 }
