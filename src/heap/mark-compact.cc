@@ -625,9 +625,6 @@ void MarkCompactCollector::EnsureSweepingCompleted() {
     verifier.Run();
   }
 #endif
-
-  if (heap()->memory_allocator()->unmapper()->has_delayed_chunks())
-    heap()->memory_allocator()->unmapper()->FreeQueuedChunks();
 }
 
 void MarkCompactCollector::ComputeEvacuationHeuristics(

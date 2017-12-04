@@ -526,7 +526,6 @@ void GCTracer::PrintNVP() const {
           "semi_space_copy_rate=%.1f%% "
           "new_space_allocation_throughput=%.1f "
           "unmapper_chunks=%d "
-          "unmapper_delayed_chunks=%d "
           "context_disposal_rate=%.1f\n",
           duration, spent_in_mutator, current_.TypeName(true),
           current_.reduce_memory, current_.scopes[Scope::HEAP_PROLOGUE],
@@ -560,7 +559,6 @@ void GCTracer::PrintNVP() const {
           heap_->semi_space_copied_rate_,
           NewSpaceAllocationThroughputInBytesPerMillisecond(),
           heap_->memory_allocator()->unmapper()->NumberOfChunks(),
-          heap_->memory_allocator()->unmapper()->NumberOfDelayedChunks(),
           ContextDisposalRateInMilliseconds());
       break;
     case Event::MINOR_MARK_COMPACTOR:
@@ -707,7 +705,6 @@ void GCTracer::PrintNVP() const {
           "semi_space_copy_rate=%.1f%% "
           "new_space_allocation_throughput=%.1f "
           "unmapper_chunks=%d "
-          "unmapper_delayed_chunks=%d "
           "context_disposal_rate=%.1f "
           "compaction_speed=%.f\n",
           duration, spent_in_mutator, current_.TypeName(true),
@@ -791,7 +788,6 @@ void GCTracer::PrintNVP() const {
           heap_->semi_space_copied_rate_,
           NewSpaceAllocationThroughputInBytesPerMillisecond(),
           heap_->memory_allocator()->unmapper()->NumberOfChunks(),
-          heap_->memory_allocator()->unmapper()->NumberOfDelayedChunks(),
           ContextDisposalRateInMilliseconds(),
           CompactionSpeedInBytesPerMillisecond());
       break;

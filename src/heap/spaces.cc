@@ -326,7 +326,6 @@ class MemoryAllocator::Unmapper::UnmapFreeMemoryTask : public CancelableTask {
 };
 
 void MemoryAllocator::Unmapper::FreeQueuedChunks() {
-  ReconsiderDelayedChunks();
   if (heap_->use_tasks() && FLAG_concurrent_sweeping) {
     if (concurrent_unmapping_tasks_active_ >= kMaxUnmapperTasks) {
       // kMaxUnmapperTasks are already running. Avoid creating any more.
@@ -377,20 +376,9 @@ void MemoryAllocator::Unmapper::PerformFreeMemoryOnQueuedChunks() {
 
 void MemoryAllocator::Unmapper::TearDown() {
   CHECK_EQ(0, concurrent_unmapping_tasks_active_);
-  ReconsiderDelayedChunks();
-  CHECK(delayed_regular_chunks_.empty());
   PerformFreeMemoryOnQueuedChunks<FreeMode::kReleasePooled>();
   for (int i = 0; i < kNumberOfChunkQueues; i++) {
     DCHECK(chunks_[i].empty());
-  }
-}
-
-void MemoryAllocator::Unmapper::ReconsiderDelayedChunks() {
-  std::list<MemoryChunk*> delayed_chunks(std::move(delayed_regular_chunks_));
-  // Move constructed, so the permanent list should be empty.
-  DCHECK(delayed_regular_chunks_.empty());
-  for (auto it = delayed_chunks.begin(); it != delayed_chunks.end(); ++it) {
-    AddMemoryChunkSafe<kRegular>(*it);
   }
 }
 
@@ -401,16 +389,6 @@ int MemoryAllocator::Unmapper::NumberOfChunks() {
     result += chunks_[i].size();
   }
   return static_cast<int>(result);
-}
-
-bool MemoryAllocator::CanFreeMemoryChunk(MemoryChunk* chunk) {
-  MarkCompactCollector* mc = isolate_->heap()->mark_compact_collector();
-  // We cannot free a memory chunk in new space while the sweeper is running
-  // because the memory chunk can be in the queue of a sweeper task.
-  // Chunks in old generation are unmapped if they are empty.
-  DCHECK(chunk->InNewSpace() || chunk->SweepingDone());
-  return !chunk->InNewSpace() || mc == nullptr ||
-         !mc->sweeper()->sweeping_in_progress();
 }
 
 bool MemoryAllocator::CommitMemory(Address base, size_t size,
