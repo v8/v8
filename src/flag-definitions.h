@@ -265,7 +265,7 @@ DEFINE_BOOL(future, FUTURE_BOOL,
             "Implies all staged features that we want to ship in the "
             "not-too-far future")
 
-DEFINE_IMPLICATION(future, preparser_scope_analysis)
+DEFINE_IMPLICATION(future, background_compile)
 DEFINE_IMPLICATION(future, write_protect_code_memory)
 
 // Flags for experimental implementation features.
