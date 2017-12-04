@@ -14,6 +14,7 @@
 #include "src/compiler/linkage.h"
 #include "src/compiler/node-matchers.h"
 #include "src/compiler/simplified-operator.h"
+#include "src/compiler/type-cache.h"
 #include "src/feedback-vector-inl.h"
 #include "src/ic/call-optimization.h"
 #include "src/objects-inl.h"
@@ -1397,8 +1398,11 @@ Node* JSCallReducer::DoFilterPostCallbackWork(ElementsKind kind, Node** control,
 
     // We know that {to} is in Unsigned31 range here, being smaller than
     // {original_length} at all times.
-    Node* checked_to =
-        graph()->NewNode(common()->TypeGuard(Type::Unsigned31()), to, if_true);
+    DCHECK(TypeCache::Get().kFixedDoubleArrayLengthType->Is(
+        TypeCache::Get().kFixedArrayLengthType));
+    Node* checked_to = graph()->NewNode(
+        common()->TypeGuard(TypeCache::Get().kFixedArrayLengthType), to,
+        if_true);
     Node* elements_length = etrue = graph()->NewNode(
         simplified()->LoadField(AccessBuilder::ForFixedArrayLength()), elements,
         etrue, if_true);
