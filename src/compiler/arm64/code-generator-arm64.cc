@@ -1652,28 +1652,16 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ Fmov(i.OutputRegister32(), i.InputFloat32Register(0));
       break;
     case kArm64Float64ExtractHighWord32:
-      // TODO(arm64): This should use MOV (to general) when NEON is supported.
-      __ Fmov(i.OutputRegister(), i.InputFloat64Register(0));
-      __ Lsr(i.OutputRegister(), i.OutputRegister(), 32);
+      __ Umov(i.OutputRegister32(), i.InputFloat64Register(0).V2S(), 1);
       break;
-    case kArm64Float64InsertLowWord32: {
-      // TODO(arm64): This should use MOV (from general) when NEON is supported.
-      UseScratchRegisterScope scope(tasm());
-      Register tmp = scope.AcquireX();
-      __ Fmov(tmp, i.InputFloat64Register(0));
-      __ Bfi(tmp, i.InputRegister(1), 0, 32);
-      __ Fmov(i.OutputFloat64Register(), tmp);
+    case kArm64Float64InsertLowWord32:
+      DCHECK(i.OutputFloat64Register().Is(i.InputFloat64Register(0)));
+      __ Ins(i.OutputFloat64Register().V2S(), 0, i.InputRegister32(1));
       break;
-    }
-    case kArm64Float64InsertHighWord32: {
-      // TODO(arm64): This should use MOV (from general) when NEON is supported.
-      UseScratchRegisterScope scope(tasm());
-      Register tmp = scope.AcquireX();
-      __ Fmov(tmp.W(), i.InputFloat32Register(0));
-      __ Bfi(tmp, i.InputRegister(1), 32, 32);
-      __ Fmov(i.OutputFloat64Register(), tmp);
+    case kArm64Float64InsertHighWord32:
+      DCHECK(i.OutputFloat64Register().Is(i.InputFloat64Register(0)));
+      __ Ins(i.OutputFloat64Register().V2S(), 1, i.InputRegister32(1));
       break;
-    }
     case kArm64Float64MoveU64:
       __ Fmov(i.OutputFloat64Register(), i.InputRegister(0));
       break;

@@ -2671,7 +2671,7 @@ void InstructionSelector::VisitFloat64InsertLowWord32(Node* node) {
     Emit(kArm64Float64MoveU64, g.DefineAsRegister(node), g.UseRegister(right));
     return;
   }
-  Emit(kArm64Float64InsertLowWord32, g.DefineAsRegister(node),
+  Emit(kArm64Float64InsertLowWord32, g.DefineSameAsFirst(node),
        g.UseRegister(left), g.UseRegister(right));
 }
 
@@ -2688,7 +2688,7 @@ void InstructionSelector::VisitFloat64InsertHighWord32(Node* node) {
     Emit(kArm64Float64MoveU64, g.DefineAsRegister(node), g.UseRegister(left));
     return;
   }
-  Emit(kArm64Float64InsertHighWord32, g.DefineAsRegister(node),
+  Emit(kArm64Float64InsertHighWord32, g.DefineSameAsFirst(node),
        g.UseRegister(left), g.UseRegister(right));
 }
 
