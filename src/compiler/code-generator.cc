@@ -1014,18 +1014,6 @@ void CodeGenerator::AddTranslationForOperand(Translation* translation,
           }
         }
         break;
-      case Constant::kInt64:
-        // When pointers are 8 bytes, we can use int64 constants to represent
-        // Smis.
-        DCHECK(type.representation() == MachineRepresentation::kWord64 ||
-               type.representation() == MachineRepresentation::kTagged);
-        DCHECK_EQ(8, kPointerSize);
-        {
-          Smi* smi = reinterpret_cast<Smi*>(constant.ToInt64());
-          DCHECK(smi->IsSmi());
-          literal = DeoptimizationLiteral(smi->value());
-        }
-        break;
       case Constant::kFloat32:
         DCHECK(type.representation() == MachineRepresentation::kFloat32 ||
                type.representation() == MachineRepresentation::kTagged);
@@ -1040,8 +1028,15 @@ void CodeGenerator::AddTranslationForOperand(Translation* translation,
         DCHECK_EQ(MachineRepresentation::kTagged, type.representation());
         literal = DeoptimizationLiteral(constant.ToHeapObject());
         break;
-      default:
+      case Constant::kInt64:
         UNREACHABLE();
+        break;
+      case Constant::kExternalReference:
+        UNREACHABLE();
+        break;
+      case Constant::kRpoNumber:
+        UNREACHABLE();
+        break;
     }
     if (literal.object().equals(info()->closure())) {
       translation->StoreJSFrameFunction();
