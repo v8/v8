@@ -773,7 +773,7 @@ Handle<HeapObject> RegExpMacroAssemblerS390::GetCode(Handle<String> source) {
       // and the following use of that register.
       __ lay(r2, MemOperand(r2, num_saved_registers_ * kIntSize));
       for (int i = 0; i < num_saved_registers_;) {
-        if (false && i < num_saved_registers_ - 4) {
+        if ((false) && i < num_saved_registers_ - 4) {
           // TODO(john.yan): Can be optimized by SIMD instructions
           __ LoadMultipleP(r3, r6, register_location(i + 3));
           if (mode_ == UC16) {

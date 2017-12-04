@@ -4004,9 +4004,9 @@ EVALUATE(BXH) {
   DECODE_RS_A_INSTRUCTION(r1, r3, b2, d2);
 
   // r1_val is the first operand, r3_val is the increment
-  int32_t r1_val = r1 == 0 ? 0 : get_register(r1);
-  int32_t r3_val = r2 == 0 ? 0 : get_register(r3);
-  intptr_t b2_val = b2 == 0 ? 0 : get_register(b2);
+  int32_t r1_val = (r1 == 0) ? 0 : get_register(r1);
+  int32_t r3_val = (r3 == 0) ? 0 : get_register(r3);
+  intptr_t b2_val = (b2 == 0) ? 0 : get_register(b2);
   intptr_t branch_address = b2_val + d2;
   // increment r1_val
   r1_val += r3_val;

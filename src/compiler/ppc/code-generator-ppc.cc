@@ -2672,69 +2672,6 @@ void CodeGenerator::AssembleSwap(InstructionOperand* source,
   }
 
   return;
-  // Dispatch on the source and destination operand kinds.  Not all
-  // combinations are possible.
-  if (source->IsRegister()) {
-    // Register-register.
-    Register temp = kScratchReg;
-    Register src = g.ToRegister(source);
-    if (destination->IsRegister()) {
-      Register dst = g.ToRegister(destination);
-      __ mr(temp, src);
-      __ mr(src, dst);
-      __ mr(dst, temp);
-    } else {
-      DCHECK(destination->IsStackSlot());
-      MemOperand dst = g.ToMemOperand(destination);
-      __ mr(temp, src);
-      __ LoadP(src, dst);
-      __ StoreP(temp, dst);
-    }
-#if V8_TARGET_ARCH_PPC64
-  } else if (source->IsStackSlot() || source->IsFPStackSlot()) {
-#else
-  } else if (source->IsStackSlot()) {
-    DCHECK(destination->IsStackSlot());
-#endif
-    Register temp_0 = kScratchReg;
-    Register temp_1 = r0;
-    MemOperand src = g.ToMemOperand(source);
-    MemOperand dst = g.ToMemOperand(destination);
-    __ LoadP(temp_0, src);
-    __ LoadP(temp_1, dst);
-    __ StoreP(temp_0, dst);
-    __ StoreP(temp_1, src);
-  } else if (source->IsFPRegister()) {
-    DoubleRegister temp = kScratchDoubleReg;
-    DoubleRegister src = g.ToDoubleRegister(source);
-    if (destination->IsFPRegister()) {
-      DoubleRegister dst = g.ToDoubleRegister(destination);
-      __ fmr(temp, src);
-      __ fmr(src, dst);
-      __ fmr(dst, temp);
-    } else {
-      DCHECK(destination->IsFPStackSlot());
-      MemOperand dst = g.ToMemOperand(destination);
-      __ fmr(temp, src);
-      __ lfd(src, dst);
-      __ stfd(temp, dst);
-    }
-#if !V8_TARGET_ARCH_PPC64
-  } else if (source->IsFPStackSlot()) {
-    DCHECK(destination->IsFPStackSlot());
-    DoubleRegister temp_0 = kScratchDoubleReg;
-    DoubleRegister temp_1 = d0;
-    MemOperand src = g.ToMemOperand(source);
-    MemOperand dst = g.ToMemOperand(destination);
-    __ lfd(temp_0, src);
-    __ lfd(temp_1, dst);
-    __ stfd(temp_0, dst);
-    __ stfd(temp_1, src);
-#endif
-  } else {
-    // No other combinations are possible.
-    UNREACHABLE();
-  }
 }
 
 
