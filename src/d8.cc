@@ -506,6 +506,7 @@ std::vector<Worker*> Shell::workers_;
 std::vector<ExternalizedContents> Shell::externalized_contents_;
 base::LazyMutex Shell::isolate_status_lock_;
 std::map<v8::Isolate*, bool> Shell::isolate_status_;
+base::LazyMutex Shell::cached_code_mutex_;
 std::map<std::string, std::unique_ptr<ScriptCompiler::CachedData>>
     Shell::cached_code_map_;
 
@@ -570,6 +571,7 @@ class BackgroundCompileThread : public base::Thread {
 
 ScriptCompiler::CachedData* Shell::LookupCodeCache(Isolate* isolate,
                                                    Local<Value> source) {
+  base::LockGuard<base::Mutex> lock_guard(cached_code_mutex_.Pointer());
   CHECK(source->IsString());
   v8::String::Utf8Value key(isolate, source);
   DCHECK(*key);
@@ -587,6 +589,7 @@ ScriptCompiler::CachedData* Shell::LookupCodeCache(Isolate* isolate,
 
 void Shell::StoreInCodeCache(Isolate* isolate, Local<Value> source,
                              const ScriptCompiler::CachedData* cache_data) {
+  base::LockGuard<base::Mutex> lock_guard(cached_code_mutex_.Pointer());
   CHECK(source->IsString());
   if (cache_data == nullptr) return;
   v8::String::Utf8Value key(isolate, source);
@@ -3435,7 +3438,6 @@ int Shell::Main(int argc, char* argv[]) {
 
         result = RunMain(isolate2, argc, argv, true);
       }
-      cached_code_map_.clear();
       isolate2->Dispose();
     } else {
       bool last_run = true;
@@ -3454,6 +3456,7 @@ int Shell::Main(int argc, char* argv[]) {
     }
 
     // Shut down contexts and collect garbage.
+    cached_code_map_.clear();
     evaluation_context_.Reset();
     stringify_function_.Reset();
     CollectGarbage(isolate);
