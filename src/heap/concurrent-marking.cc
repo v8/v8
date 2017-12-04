@@ -7,6 +7,7 @@
 #include <stack>
 #include <unordered_map>
 
+#include "src/heap/gc-tracer.h"
 #include "src/heap/heap-inl.h"
 #include "src/heap/heap.h"
 #include "src/heap/mark-compact-inl.h"
@@ -427,6 +428,7 @@ ConcurrentMarking::ConcurrentMarking(Heap* heap, MarkingWorklist* shared,
 }
 
 void ConcurrentMarking::Run(int task_id, TaskState* task_state) {
+  // TODO(ulan): add GCTracer background scope.
   size_t kBytesUntilInterruptCheck = 64 * KB;
   int kObjectsUntilInterrupCheck = 1000;
   LiveBytesMap* live_bytes = nullptr;

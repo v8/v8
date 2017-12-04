@@ -1868,6 +1868,7 @@ class YoungGenerationMarkingTask : public ItemParallelJob::Task {
   }
 
   void RunInParallel() override {
+    // TODO(ulan): add GCTracer background scope.
     double marking_time = 0.0;
     {
       TimedScope scope(&marking_time);
@@ -3246,6 +3247,7 @@ class PageEvacuationTask : public ItemParallelJob::Task {
       : ItemParallelJob::Task(isolate), evacuator_(evacuator) {}
 
   void RunInParallel() override {
+    // TODO(ulan): add GCTracer background scope.
     PageEvacuationItem* item = nullptr;
     while ((item = GetItem<PageEvacuationItem>()) != nullptr) {
       evacuator_->EvacuatePage(item->page());
@@ -3557,6 +3559,7 @@ class PointersUpdatingTask : public ItemParallelJob::Task {
       : ItemParallelJob::Task(isolate) {}
 
   void RunInParallel() override {
+    // TODO(ulan): add GCTracer background scope.
     UpdatingItem* item = nullptr;
     while ((item = GetItem<UpdatingItem>()) != nullptr) {
       item->Process();

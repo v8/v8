@@ -579,6 +579,7 @@ double AggregatedMemoryHistogram<Histogram>::Aggregate(double current_ms,
 
 class RuntimeCallCounter final {
  public:
+  RuntimeCallCounter() : RuntimeCallCounter(nullptr) {}
   explicit RuntimeCallCounter(const char* name)
       : name_(name), count_(0), time_(0) {}
   V8_NOINLINE void Reset();
@@ -595,8 +596,6 @@ class RuntimeCallCounter final {
 
  private:
   friend class RuntimeCallStats;
-
-  RuntimeCallCounter() {}
 
   const char* name_;
   int64_t count_;
@@ -634,7 +633,9 @@ class RuntimeCallTimer final {
   base::TimeDelta elapsed_;
 };
 
-#define FOR_EACH_GC_COUNTER(V) TRACER_SCOPES(V)
+#define FOR_EACH_GC_COUNTER(V) \
+  TRACER_SCOPES(V)             \
+  TRACER_BACKGROUND_SCOPES(V)
 
 #define FOR_EACH_API_COUNTER(V)                            \
   V(ArrayBuffer_Cast)                                      \

@@ -5,6 +5,7 @@
 #include "src/heap/sweeper.h"
 
 #include "src/heap/array-buffer-tracker-inl.h"
+#include "src/heap/gc-tracer.h"
 #include "src/heap/mark-compact-inl.h"
 #include "src/heap/remembered-set.h"
 #include "src/objects-inl.h"
@@ -68,12 +69,14 @@ class Sweeper::SweeperTask final : public CancelableTask {
         sweeper_(sweeper),
         pending_sweeper_tasks_(pending_sweeper_tasks),
         num_sweeping_tasks_(num_sweeping_tasks),
-        space_to_start_(space_to_start) {}
+        space_to_start_(space_to_start),
+        tracer_(isolate->heap()->tracer()) {}
 
   virtual ~SweeperTask() {}
 
  private:
   void RunInternal() final {
+    // TODO(ulan): add GCTracer background scope.
     DCHECK_GE(space_to_start_, FIRST_PAGED_SPACE);
     DCHECK_LE(space_to_start_, LAST_PAGED_SPACE);
     const int offset = space_to_start_ - FIRST_PAGED_SPACE;
@@ -94,6 +97,7 @@ class Sweeper::SweeperTask final : public CancelableTask {
   base::Semaphore* const pending_sweeper_tasks_;
   base::AtomicNumber<intptr_t>* const num_sweeping_tasks_;
   AllocationSpace space_to_start_;
+  GCTracer* const tracer_;
 
   DISALLOW_COPY_AND_ASSIGN(SweeperTask);
 };
