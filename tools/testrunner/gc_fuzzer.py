@@ -201,6 +201,8 @@ class GCFuzzer(base_runner.BaseTestRunner):
       ]
       s.tests = map(lambda t: t.CopyAddingFlags(t.variant, analysis_flags),
                     s.tests)
+      for t in s.tests:
+        t.cmd = s.GetCommand(t, ctx)
 
     progress_indicator = progress.PROGRESS_INDICATORS[options.progress]()
     runner = execution.Runner(suites, progress_indicator, ctx)
@@ -246,6 +248,9 @@ class GCFuzzer(base_runner.BaseTestRunner):
           if options.stress_compaction:
             fuzzing_flags.append('--stress_compaction_random')
           s.tests.append(t.CopyAddingFlags(t.variant, fuzzing_flags))
+
+      for t in s.tests:
+        t.cmd = s.GetCommand(t, ctx)
       num_tests += len(s.tests)
 
     if num_tests == 0:

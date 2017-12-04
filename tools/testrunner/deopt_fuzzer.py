@@ -315,6 +315,7 @@ class DeoptFuzzer(base_runner.BaseTestRunner):
       num_tests += len(s.tests)
       for t in s.tests:
         t.id = test_id
+        t.cmd = s.GetCommand(t, ctx)
         test_id += 1
 
     if num_tests == 0:
@@ -363,6 +364,7 @@ class DeoptFuzzer(base_runner.BaseTestRunner):
       num_tests += len(s.tests)
       for t in s.tests:
         t.id = test_id
+        t.cmd = s.GetCommand(t, ctx)
         test_id += 1
 
     if num_tests == 0:
