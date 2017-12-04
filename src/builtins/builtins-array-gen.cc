@@ -1176,7 +1176,7 @@ class FastArraySliceCodeStubAssembler : public CodeStubAssembler {
     Node* unmapped_elements_length =
         LoadFixedArrayBaseLength(unmapped_elements);
 
-    GotoIf(SmiGreaterThan(end, unmapped_elements_length), slow);
+    GotoIf(SmiAbove(end, unmapped_elements_length), slow);
 
     Node* array_map = LoadJSArrayElementsMap(HOLEY_ELEMENTS, native_context);
     result.Bind(AllocateJSArray(HOLEY_ELEMENTS, array_map, count, count,
