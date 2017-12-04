@@ -687,9 +687,11 @@ bool WasmCodeManager::Commit(Address start, size_t size) {
     remaining_uncommitted_.Increment(size);
     return false;
   }
-  // TODO(v8:7105) Enable W^X instead of setting W|X permissions below.
-  bool ret = base::OS::SetPermissions(
-      start, size, base::OS::MemoryPermission::kReadWriteExecute);
+  bool ret = base::OS::SetPermissions(start, size,
+                                      base::OS::MemoryPermission::kReadWrite);
+  TRACE_HEAP("Setting rw permissions for %p:%p\n",
+             reinterpret_cast<void*>(start),
+             reinterpret_cast<void*>(start + size));
   if (!ret) {
     // Highly unlikely.
     remaining_uncommitted_.Increment(size);
@@ -781,6 +783,51 @@ std::unique_ptr<NativeModule> WasmCodeManager::NewNativeModule(
   }
 
   return nullptr;
+}
+
+bool NativeModule::SetExecutable(bool executable) {
+  if (is_executable_ == executable) return true;
+  TRACE_HEAP("Setting module %zu as executable: %d.\n", instance_id,
+             executable);
+  base::OS::MemoryPermission permission =
+      executable ? base::OS::MemoryPermission::kReadExecute
+                 : base::OS::MemoryPermission::kReadWrite;
+
+#if V8_OS_WIN
+  // On windows, we need to switch permissions per separate virtual memory
+  // reservation. This is really just a problem when the NativeModule is
+  // growable (meaning can_request_more_memory_). That's 32-bit in production,
+  // or unittests.
+  // For now, in that case, we commit at reserved memory granularity.
+  // Technically, that may be a waste, because we may reserve more than we use.
+  // On 32-bit though, the scarce resource is the address space - committed or
+  // not.
+  if (can_request_more_memory_) {
+    for (auto& vmem : owned_memory_) {
+      if (!base::OS::SetPermissions(vmem.address(), vmem.size(), permission)) {
+        return false;
+      }
+      TRACE_HEAP("Set %p:%p to executable:%d\n", vmem.address(), vmem.end(),
+                 executable);
+    }
+    is_executable_ = executable;
+    return true;
+  }
+#endif
+  for (auto& range : allocated_memory_.ranges()) {
+    // allocated_memory_ is fine-grained, so we need to
+    // page-align it.
+    size_t range_size = RoundUp(static_cast<size_t>(range.second - range.first),
+                                base::OS::AllocatePageSize());
+    if (!base::OS::SetPermissions(range.first, range_size, permission)) {
+      return false;
+    }
+    TRACE_HEAP("Set %p:%p to executable:%d\n",
+               reinterpret_cast<void*>(range.first),
+               reinterpret_cast<void*>(range.second), executable);
+  }
+  is_executable_ = executable;
+  return true;
 }
 
 std::unique_ptr<NativeModule> NativeModule::Clone() {
@@ -911,6 +958,18 @@ intptr_t WasmCodeManager::remaining_uncommitted() const {
 void WasmCodeManager::FlushICache(Address start, size_t size) {
   Assembler::FlushICache(reinterpret_cast<internal::Isolate*>(isolate_), start,
                          size);
+}
+
+NativeModuleModificationScope::NativeModuleModificationScope(
+    NativeModule* native_module)
+    : native_module_(native_module) {
+  bool success = native_module_->SetExecutable(false);
+  CHECK(success);
+}
+
+NativeModuleModificationScope::~NativeModuleModificationScope() {
+  bool success = native_module_->SetExecutable(true);
+  CHECK(success);
 }
 
 }  // namespace wasm

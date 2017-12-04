@@ -6,6 +6,7 @@
 
 #include "src/assembler-inl.h"
 #include "src/assert-scope.h"
+#include "src/base/optional.h"
 #include "src/compiler/wasm-compiler.h"
 #include "src/debug/debug-scopes.h"
 #include "src/debug/debug.h"
@@ -728,7 +729,15 @@ void WasmDebugInfo::RedirectToInterpreter(Handle<WasmDebugInfo> debug_info,
   Handle<FixedArray> code_table = instance->compiled_module()->code_table();
   CodeRelocationMapGC code_to_relocate_gc(isolate->heap());
   // TODO(6792): No longer needed once WebAssembly code is off heap.
-  CodeSpaceMemoryModificationScope modification_scope(isolate->heap());
+  base::Optional<CodeSpaceMemoryModificationScope> modification_scope;
+  base::Optional<wasm::NativeModuleModificationScope>
+      native_module_modification_scope;
+  if (!FLAG_wasm_jit_to_native) {
+    modification_scope.emplace(isolate->heap());
+  } else {
+    native_module_modification_scope.emplace(native_module);
+  }
+
   for (int func_index : func_indexes) {
     DCHECK_LE(0, func_index);
     DCHECK_GT(debug_info->wasm_instance()->module()->functions.size(),

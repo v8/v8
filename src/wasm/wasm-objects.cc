@@ -269,6 +269,8 @@ void WasmTableObject::Grow(Isolate* isolate, uint32_t count) {
           WasmInstanceObject::cast(dispatch_tables->get(i));
       WasmCompiledModule* compiled_module = instance->compiled_module();
       wasm::NativeModule* native_module = compiled_module->GetNativeModule();
+      wasm::NativeModuleModificationScope native_module_modification_scope(
+          native_module);
       GlobalHandleAddress old_function_table_addr =
           native_module->function_tables()[table_index];
       GlobalHandleAddress old_signature_table_addr =
@@ -334,6 +336,7 @@ void WasmTableObject::Set(Isolate* isolate, Handle<WasmTableObject> table,
     WasmCodeWrapper wasm_code = exported_function->GetWasmCode();
     if (!wasm_code.IsCodeObject()) {
       wasm::NativeModule* native_module = wasm_code.GetWasmCode()->owner();
+      wasm::NativeModuleModificationScope modification_scope(native_module);
       // we create the wrapper on the module exporting the function. This
       // wrapper will only be called as indirect call.
       wasm::WasmCode* exported_wrapper =
@@ -1250,6 +1253,8 @@ void WasmCompiledModule::Reset(Isolate* isolate,
   compiled_module->reset_next_instance();
   wasm::NativeModule* native_module = compiled_module->GetNativeModule();
   if (native_module == nullptr) return;
+  native_module->SetExecutable(false);
+
   TRACE("Resetting %zu\n", native_module->instance_id);
   if (trap_handler::UseTrapHandler()) {
     for (uint32_t i = native_module->num_imported_functions(),

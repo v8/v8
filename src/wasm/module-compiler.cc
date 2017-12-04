@@ -497,6 +497,28 @@ void InstanceFinalizer(const v8::WeakCallbackInfo<void>& data) {
   TRACE("}\n");
 }
 
+// This is used in ProcessImports.
+// When importing other modules' exports, we need to ask
+// the exporter for a WasmToWasm wrapper. To do that, we need to
+// switch that module to RW. To avoid flip-floping the same module
+// RW <->RX, we create a scope for a set of NativeModules.
+class SetOfNativeModuleModificationScopes final {
+ public:
+  void Add(NativeModule* module) {
+    module->SetExecutable(false);
+    native_modules_.insert(module);
+  }
+
+  ~SetOfNativeModuleModificationScopes() {
+    for (NativeModule* module : native_modules_) {
+      module->SetExecutable(true);
+    }
+  }
+
+ private:
+  std::unordered_set<NativeModule*> native_modules_;
+};
+
 }  // namespace
 
 bool SyncValidate(Isolate* isolate, const ModuleWireBytes& bytes) {
@@ -779,6 +801,9 @@ Address CompileLazy(Isolate* isolate) {
           compiled_module->shared()->lazy_compilation_orchestrator())
           ->get();
   DCHECK(!orchestrator->IsFrozenForTesting());
+
+  NativeModuleModificationScope native_module_modification_scope(
+      compiled_module->GetNativeModule());
 
   const wasm::WasmCode* result = nullptr;
   // The caller may be js to wasm calling a function
@@ -2278,6 +2303,11 @@ MaybeHandle<WasmInstanceObject> InstanceBuilder::Build() {
     }
     compiled_module_->set_native_context(isolate_->native_context());
   }
+  base::Optional<wasm::NativeModuleModificationScope>
+      native_module_modification_scope;
+  if (native_module != nullptr) {
+    native_module_modification_scope.emplace(native_module);
+  }
 
   //--------------------------------------------------------------------------
   // Allocate the instance object.
@@ -2540,8 +2570,9 @@ MaybeHandle<WasmInstanceObject> InstanceBuilder::Build() {
     RecordStats(startup_code, counters());
     // Call the JS function.
     Handle<Object> undefined = factory->undefined_value();
-    // Close the CodeSpaceMemoryModificationScope to execute the start function.
+    // Close the modification scopes, so we can execute the start function.
     modification_scope.reset();
+    native_module_modification_scope.reset();
     {
       // We're OK with JS execution here. The instance is fully setup.
       AllowJavascriptExecution allow_js(isolate_);
@@ -2767,6 +2798,8 @@ int InstanceBuilder::ProcessImports(Handle<FixedArray> code_table,
   int num_imported_tables = 0;
   Handle<FixedArray> js_imports_table = SetupWasmToJSImportsTable(instance);
   WasmInstanceMap imported_wasm_instances(isolate_->heap());
+  SetOfNativeModuleModificationScopes set_of_native_module_scopes;
+
   DCHECK_EQ(module_->import_table.size(), sanitized_imports_.size());
   for (int index = 0; index < static_cast<int>(module_->import_table.size());
        ++index) {
@@ -2894,6 +2927,7 @@ int InstanceBuilder::ProcessImports(Handle<FixedArray> code_table,
               Handle<Code> wrapper = compiler::CompileWasmToWasmWrapper(
                   isolate_, target->GetWasmCode(), sig,
                   reinterpret_cast<Address>(other_context));
+              set_of_native_module_scopes.Add(exporting_module);
               wrapper_code = exporting_module->AddExportedWrapper(
                   wrapper, exported_code->index());
             }

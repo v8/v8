@@ -222,6 +222,7 @@ class TestingModuleBuilder {
     if (!linked_) {
       native_module_->LinkAll();
       linked_ = true;
+      native_module_->SetExecutable(true);
     }
   }
 
