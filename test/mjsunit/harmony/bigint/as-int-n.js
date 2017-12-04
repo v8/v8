@@ -145,8 +145,6 @@
 }{
   assertThrows(() => BigInt.asIntN(3, 12), TypeError);
   assertEquals(-4n, BigInt.asIntN(3, "12"));
-  assertEquals(0x123456789abcdefn,
-               BigInt.asIntN(64, 0xabcdef0123456789abcdefn));
 }
 
 // BigInt.asUintN
