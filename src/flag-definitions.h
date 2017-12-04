@@ -447,7 +447,6 @@ DEFINE_BOOL(turbo_jt, true, "enable jump threading in TurboFan")
 DEFINE_BOOL(turbo_loop_peeling, true, "Turbofan loop peeling")
 DEFINE_BOOL(turbo_loop_variable, true, "Turbofan loop variable optimization")
 DEFINE_BOOL(turbo_cf_optimization, true, "optimize control flow in TurboFan")
-DEFINE_BOOL(turbo_frame_elision, true, "elide frames in TurboFan")
 DEFINE_BOOL(turbo_escape, true, "enable escape analysis")
 DEFINE_BOOL(turbo_instruction_scheduling, false,
             "enable instruction scheduling in TurboFan")
@@ -562,9 +561,6 @@ DEFINE_NEG_IMPLICATION(wasm_interpret_all, wasm_lazy_compilation)
 DEFINE_INT(frame_count, 1, "number of stack frames inspected by the profiler")
 DEFINE_INT(type_info_threshold, 25,
            "percentage of ICs that must have type info to allow optimization")
-DEFINE_INT(generic_ic_threshold, 30,
-           "max percentage of megamorphic/generic ICs to allow optimization")
-DEFINE_INT(self_opt_count, 130, "call count before self-optimization")
 
 // Garbage collections flags.
 DEFINE_INT(min_semi_space_size, 0,
@@ -882,8 +878,6 @@ DEFINE_IMPLICATION(trace_maps, log_code)
 
 // parser.cc
 DEFINE_BOOL(allow_natives_syntax, false, "allow natives syntax")
-DEFINE_BOOL(trace_parse, false, "trace parsing and preparsing")
-DEFINE_BOOL(trace_preparse, false, "trace preparsing decisions")
 DEFINE_BOOL(lazy_inner_functions, true, "enable lazy parsing inner functions")
 DEFINE_BOOL(aggressive_lazy_inner_functions, false,
             "even lazier inner function parsing")
@@ -913,8 +907,6 @@ DEFINE_INT(sim_stack_alignment, 8,
 DEFINE_INT(sim_stack_size, 2 * MB / KB,
            "Stack size of the ARM64, MIPS64 and PPC64 simulator "
            "in kBytes (default is 2 MB)")
-DEFINE_BOOL(log_regs_modified, true,
-            "When logging register values, only print modified registers.")
 DEFINE_BOOL(log_colour, ENABLE_LOG_COLOUR,
             "When logging, try to use coloured output.")
 DEFINE_BOOL(ignore_asm_unimplemented_break, false,
@@ -1075,8 +1067,6 @@ DEFINE_BOOL(trace_lazy, false, "trace lazy compilation")
 DEFINE_BOOL(collect_heap_spill_statistics, false,
             "report heap spill statistics along with heap_stats "
             "(requires heap_stats)")
-DEFINE_BOOL(trace_live_bytes, false,
-            "trace incrementing and resetting of live bytes")
 DEFINE_BOOL(trace_isolates, false, "trace isolate state changes")
 
 // Regexp
