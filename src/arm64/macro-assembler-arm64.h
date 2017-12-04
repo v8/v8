@@ -1752,10 +1752,6 @@ class MacroAssembler : public TurboAssembler {
   inline void SmiUntagToDouble(VRegister dst, Register src);
   inline void SmiUntagToFloat(VRegister dst, Register src);
 
-  // Tag and push in one step.
-  inline void SmiTagAndPush(Register src);
-  inline void SmiTagAndPush(Register src1, Register src2);
-
   inline void JumpIfNotSmi(Register value, Label* not_smi_label);
   inline void JumpIfBothSmi(Register value1, Register value2,
                             Label* both_smi_label,

@@ -462,8 +462,12 @@ void CEntryStub::Generate(MacroAssembler* masm) {
   // Retrieve the handler context, SP and FP.
   __ Mov(cp, Operand(pending_handler_context_address));
   __ Ldr(cp, MemOperand(cp));
-  __ Mov(jssp, Operand(pending_handler_sp_address));
-  __ Ldr(jssp, MemOperand(jssp));
+  {
+    UseScratchRegisterScope temps(masm);
+    Register scratch = temps.AcquireX();
+    __ Mov(scratch, Operand(pending_handler_sp_address));
+    __ Ldr(jssp, MemOperand(scratch));
+  }
   __ Mov(csp, jssp);
   __ Mov(fp, Operand(pending_handler_fp_address));
   __ Ldr(fp, MemOperand(fp));

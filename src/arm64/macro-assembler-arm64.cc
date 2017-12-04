@@ -2976,11 +2976,9 @@ void TurboAssembler::CallRecordWriteStub(
   Register fp_mode_parameter(callable.descriptor().GetRegisterParameter(
       RecordWriteDescriptor::kFPMode));
 
-  Push(object);
-  Push(address);
+  Push(object, address);
 
-  Pop(slot_parameter);
-  Pop(object_parameter);
+  Pop(slot_parameter, object_parameter);
 
   Mov(isolate_parameter, ExternalReference::isolate_address(isolate()));
   Move(remembered_set_parameter, Smi::FromEnum(remembered_set_action));

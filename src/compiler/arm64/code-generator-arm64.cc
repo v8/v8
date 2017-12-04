@@ -336,14 +336,14 @@ class OutOfLineRecordWrite final : public OutOfLineCode {
         frame()->DidAllocateDoubleRegisters() ? kSaveFPRegs : kDontSaveFPRegs;
     if (must_save_lr_) {
       // We need to save and restore lr if the frame was elided.
-      __ Push(lr);
+      __ Push(lr, padreg);
       unwinding_info_writer_->MarkLinkRegisterOnTopOfStack(__ pc_offset(),
                                                            __ StackPointer());
     }
     __ CallRecordWriteStub(object_, scratch1_, remembered_set_action,
                            save_fp_mode);
     if (must_save_lr_) {
-      __ Pop(lr);
+      __ Pop(padreg, lr);
       unwinding_info_writer_->MarkPopLinkRegisterFromTopOfStack(__ pc_offset());
     }
   }

@@ -1140,22 +1140,6 @@ void MacroAssembler::SmiUntagToFloat(VRegister dst, Register src) {
   Scvtf(dst, src, kSmiShift);
 }
 
-
-void MacroAssembler::SmiTagAndPush(Register src) {
-  STATIC_ASSERT((static_cast<unsigned>(kSmiShift) == kWRegSizeInBits) &&
-                (static_cast<unsigned>(kSmiValueSize) == kWRegSizeInBits) &&
-                (kSmiTag == 0));
-  Push(src.W(), wzr);
-}
-
-
-void MacroAssembler::SmiTagAndPush(Register src1, Register src2) {
-  STATIC_ASSERT((static_cast<unsigned>(kSmiShift) == kWRegSizeInBits) &&
-                (static_cast<unsigned>(kSmiValueSize) == kWRegSizeInBits) &&
-                (kSmiTag == 0));
-  Push(src1.W(), wzr, src2.W(), wzr);
-}
-
 void TurboAssembler::JumpIfSmi(Register value, Label* smi_label,
                                Label* not_smi_label) {
   STATIC_ASSERT((kSmiTagSize == 1) && (kSmiTag == 0));
