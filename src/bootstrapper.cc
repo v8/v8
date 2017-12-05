@@ -1679,6 +1679,10 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
                           DONT_ENUM);
 
     SimpleInstallFunction(proto, "concat", Builtins::kArrayConcat, 1, false);
+    SimpleInstallFunction(proto, "find", Builtins::kArrayPrototypeFind, 1,
+                          false);
+    SimpleInstallFunction(proto, "findIndex",
+                          Builtins::kArrayPrototypeFindIndex, 1, false);
     SimpleInstallFunction(proto, "pop", Builtins::kFastArrayPop, 0, false);
     SimpleInstallFunction(proto, "push", Builtins::kFastArrayPush, 1, false);
     SimpleInstallFunction(proto, "shift", Builtins::kFastArrayShift, 0, false);

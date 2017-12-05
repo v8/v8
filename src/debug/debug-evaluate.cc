@@ -522,6 +522,8 @@ bool BuiltinHasNoSideEffect(Builtins::Name id) {
     case Builtins::kArrayPrototypeValues:
     case Builtins::kArrayIncludes:
     case Builtins::kArrayPrototypeEntries:
+    case Builtins::kArrayPrototypeFind:
+    case Builtins::kArrayPrototypeFindIndex:
     case Builtins::kArrayPrototypeKeys:
     case Builtins::kArrayForEach:
     case Builtins::kArrayEvery:

@@ -316,6 +316,15 @@ namespace internal {
   TFJ(ArrayReduceRight, SharedFunctionInfo::kDontAdaptArgumentsSentinel)       \
   /* ES6 #sec-array.prototype.entries */                                       \
   TFJ(ArrayPrototypeEntries, 0)                                                \
+  /* ES6 #sec-array.prototype.find */                                          \
+  TFS(ArrayFindLoopContinuation, kReceiver, kCallbackFn, kThisArg, kArray,     \
+      kObject, kInitialK, kLength, kTo)                                        \
+  TFJ(ArrayPrototypeFind, SharedFunctionInfo::kDontAdaptArgumentsSentinel)     \
+  /* ES6 #sec-array.prototype.findIndex */                                     \
+  TFS(ArrayFindIndexLoopContinuation, kReceiver, kCallbackFn, kThisArg,        \
+      kArray, kObject, kInitialK, kLength, kTo)                                \
+  TFJ(ArrayPrototypeFindIndex,                                                 \
+      SharedFunctionInfo::kDontAdaptArgumentsSentinel)                         \
   /* ES6 #sec-array.prototype.keys */                                          \
   TFJ(ArrayPrototypeKeys, 0)                                                   \
   /* ES6 #sec-array.prototype.values */                                        \

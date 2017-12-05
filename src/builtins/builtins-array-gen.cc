@@ -31,6 +31,8 @@ class ArrayBuiltinCodeStubAssembler : public CodeStubAssembler {
   typedef std::function<void(ArrayBuiltinCodeStubAssembler* masm)>
       PostLoopAction;
 
+  enum class MissingPropertyMode { kSkip, kUseUndefined };
+
   void FindResultGenerator() { a_.Bind(UndefinedConstant()); }
 
   Node* FindProcessor(Node* k_value, Node* k) {
@@ -383,6 +385,7 @@ class ArrayBuiltinCodeStubAssembler : public CodeStubAssembler {
       const char* name, const BuiltinResultGenerator& generator,
       const CallResultProcessor& processor, const PostLoopAction& action,
       const Callable& slow_case_continuation,
+      MissingPropertyMode missing_property_mode,
       ForEachDirection direction = ForEachDirection::kForward) {
     Label non_array(this), array_changes(this, {&k_, &a_, &to_});
 
@@ -439,7 +442,8 @@ class ArrayBuiltinCodeStubAssembler : public CodeStubAssembler {
 
     generator(this);
 
-    HandleFastElements(processor, action, &fully_spec_compliant_, direction);
+    HandleFastElements(processor, action, &fully_spec_compliant_, direction,
+                       missing_property_mode);
 
     BIND(&fully_spec_compliant_);
 
@@ -550,6 +554,7 @@ class ArrayBuiltinCodeStubAssembler : public CodeStubAssembler {
 
   void GenerateIteratingArrayBuiltinLoopContinuation(
       const CallResultProcessor& processor, const PostLoopAction& action,
+      MissingPropertyMode missing_property_mode,
       ForEachDirection direction = ForEachDirection::kForward) {
     Label loop(this, {&k_, &a_, &to_});
     Label after_loop(this);
@@ -572,12 +577,14 @@ class ArrayBuiltinCodeStubAssembler : public CodeStubAssembler {
       // index in the range [0, 2^32-1).
       CSA_ASSERT(this, IsNumberArrayIndex(k()));
 
-      // b. Let kPresent be HasProperty(O, Pk).
-      // c. ReturnIfAbrupt(kPresent).
-      Node* k_present = HasProperty(o(), k(), context(), kHasProperty);
+      if (missing_property_mode == MissingPropertyMode::kSkip) {
+        // b. Let kPresent be HasProperty(O, Pk).
+        // c. ReturnIfAbrupt(kPresent).
+        Node* k_present = HasProperty(o(), k(), context(), kHasProperty);
 
-      // d. If kPresent is true, then
-      GotoIf(WordNotEqual(k_present, TrueConstant()), &done_element);
+        // d. If kPresent is true, then
+        GotoIf(WordNotEqual(k_present, TrueConstant()), &done_element);
+      }
 
       // i. Let kValue be Get(O, Pk).
       // ii. ReturnIfAbrupt(kValue).
@@ -655,7 +662,8 @@ class ArrayBuiltinCodeStubAssembler : public CodeStubAssembler {
   void VisitAllFastElementsOneKind(ElementsKind kind,
                                    const CallResultProcessor& processor,
                                    Label* array_changed, ParameterMode mode,
-                                   ForEachDirection direction) {
+                                   ForEachDirection direction,
+                                   MissingPropertyMode missing_property_mode) {
     Comment("begin VisitAllFastElementsOneKind");
     VARIABLE(original_map, MachineRepresentation::kTagged);
     original_map.Bind(LoadMap(o()));
@@ -670,7 +678,8 @@ class ArrayBuiltinCodeStubAssembler : public CodeStubAssembler {
         list, start, end,
         [=, &original_map](Node* index) {
           k_.Bind(ParameterToTagged(index, mode));
-          Label one_element_done(this), hole_element(this);
+          Label one_element_done(this), hole_element(this),
+              process_element(this);
 
           // Check if o's map has changed during the callback. If so, we have to
           // fall back to the slower spec implementation for the rest of the
@@ -693,24 +702,32 @@ class ArrayBuiltinCodeStubAssembler : public CodeStubAssembler {
                               ? FixedArray::kHeaderSize
                               : (FixedArray::kHeaderSize - kHeapObjectTag);
           Node* offset = ElementOffsetFromIndex(index, kind, mode, base_size);
-          Node* value = nullptr;
+          VARIABLE(value, MachineRepresentation::kTagged);
           if (kind == PACKED_ELEMENTS) {
-            value = LoadObjectField(elements, offset);
-            GotoIf(WordEqual(value, TheHoleConstant()), &hole_element);
+            value.Bind(LoadObjectField(elements, offset));
+            GotoIf(WordEqual(value.value(), TheHoleConstant()), &hole_element);
           } else {
             Node* double_value =
                 LoadDoubleWithHoleCheck(elements, offset, &hole_element);
-            value = AllocateHeapNumberWithValue(double_value);
+            value.Bind(AllocateHeapNumberWithValue(double_value));
           }
-          a_.Bind(processor(this, value, k()));
-          Goto(&one_element_done);
+          Goto(&process_element);
 
           BIND(&hole_element);
-          // Check if o's prototype change unexpectedly has elements after the
-          // callback in the case of a hole.
-          BranchIfPrototypesHaveNoElements(o_map, &one_element_done,
-                                           array_changed);
-
+          if (missing_property_mode == MissingPropertyMode::kSkip) {
+            // Check if o's prototype change unexpectedly has elements after
+            // the callback in the case of a hole.
+            BranchIfPrototypesHaveNoElements(o_map, &one_element_done,
+                                             array_changed);
+          } else {
+            value.Bind(UndefinedConstant());
+            Goto(&process_element);
+          }
+          BIND(&process_element);
+          {
+            a_.Bind(processor(this, value.value(), k()));
+            Goto(&one_element_done);
+          }
           BIND(&one_element_done);
         },
         1, mode, advance_mode);
@@ -719,7 +736,8 @@ class ArrayBuiltinCodeStubAssembler : public CodeStubAssembler {
 
   void HandleFastElements(const CallResultProcessor& processor,
                           const PostLoopAction& action, Label* slow,
-                          ForEachDirection direction) {
+                          ForEachDirection direction,
+                          MissingPropertyMode missing_property_mode) {
     Label switch_on_elements_kind(this), fast_elements(this),
         maybe_double_elements(this), fast_double_elements(this);
 
@@ -742,7 +760,7 @@ class ArrayBuiltinCodeStubAssembler : public CodeStubAssembler {
     BIND(&fast_elements);
     {
       VisitAllFastElementsOneKind(PACKED_ELEMENTS, processor, slow, mode,
-                                  direction);
+                                  direction, missing_property_mode);
 
       action(this);
 
@@ -757,7 +775,7 @@ class ArrayBuiltinCodeStubAssembler : public CodeStubAssembler {
     BIND(&fast_double_elements);
     {
       VisitAllFastElementsOneKind(PACKED_DOUBLE_ELEMENTS, processor, slow, mode,
-                                  direction);
+                                  direction, missing_property_mode);
 
       action(this);
 
@@ -1619,6 +1637,95 @@ TF_BUILTIN(CloneFastJSArray, ArrayBuiltinCodeStubAssembler) {
   Return(CloneFastJSArray(context, array, mode));
 }
 
+TF_BUILTIN(ArrayFindLoopContinuation, ArrayBuiltinCodeStubAssembler) {
+  Node* context = Parameter(Descriptor::kContext);
+  Node* receiver = Parameter(Descriptor::kReceiver);
+  Node* callbackfn = Parameter(Descriptor::kCallbackFn);
+  Node* this_arg = Parameter(Descriptor::kThisArg);
+  Node* array = Parameter(Descriptor::kArray);
+  Node* object = Parameter(Descriptor::kObject);
+  Node* initial_k = Parameter(Descriptor::kInitialK);
+  Node* len = Parameter(Descriptor::kLength);
+  Node* to = Parameter(Descriptor::kTo);
+
+  InitIteratingArrayBuiltinLoopContinuation(context, receiver, callbackfn,
+                                            this_arg, array, object, initial_k,
+                                            len, to);
+
+  GenerateIteratingArrayBuiltinLoopContinuation(
+      &ArrayBuiltinCodeStubAssembler::FindProcessor,
+      &ArrayBuiltinCodeStubAssembler::NullPostLoopAction,
+      MissingPropertyMode::kUseUndefined, ForEachDirection::kForward);
+}
+
+// ES #sec-get-%typedarray%.prototype.find
+TF_BUILTIN(ArrayPrototypeFind, ArrayBuiltinCodeStubAssembler) {
+  Node* argc =
+      ChangeInt32ToIntPtr(Parameter(BuiltinDescriptor::kArgumentsCount));
+  CodeStubArguments args(this, argc);
+  Node* context = Parameter(BuiltinDescriptor::kContext);
+  Node* new_target = Parameter(BuiltinDescriptor::kNewTarget);
+  Node* receiver = args.GetReceiver();
+  Node* callbackfn = args.GetOptionalArgumentValue(0);
+  Node* this_arg = args.GetOptionalArgumentValue(1);
+
+  InitIteratingArrayBuiltinBody(context, receiver, callbackfn, this_arg,
+                                new_target, argc);
+
+  GenerateIteratingArrayBuiltinBody(
+      "Array.prototype.find",
+      &ArrayBuiltinCodeStubAssembler::FindResultGenerator,
+      &ArrayBuiltinCodeStubAssembler::FindProcessor,
+      &ArrayBuiltinCodeStubAssembler::NullPostLoopAction,
+      Builtins::CallableFor(isolate(), Builtins::kArrayFindLoopContinuation),
+      MissingPropertyMode::kUseUndefined, ForEachDirection::kForward);
+}
+
+TF_BUILTIN(ArrayFindIndexLoopContinuation, ArrayBuiltinCodeStubAssembler) {
+  Node* context = Parameter(Descriptor::kContext);
+  Node* receiver = Parameter(Descriptor::kReceiver);
+  Node* callbackfn = Parameter(Descriptor::kCallbackFn);
+  Node* this_arg = Parameter(Descriptor::kThisArg);
+  Node* array = Parameter(Descriptor::kArray);
+  Node* object = Parameter(Descriptor::kObject);
+  Node* initial_k = Parameter(Descriptor::kInitialK);
+  Node* len = Parameter(Descriptor::kLength);
+  Node* to = Parameter(Descriptor::kTo);
+
+  InitIteratingArrayBuiltinLoopContinuation(context, receiver, callbackfn,
+                                            this_arg, array, object, initial_k,
+                                            len, to);
+
+  GenerateIteratingArrayBuiltinLoopContinuation(
+      &ArrayBuiltinCodeStubAssembler::FindIndexProcessor,
+      &ArrayBuiltinCodeStubAssembler::NullPostLoopAction,
+      MissingPropertyMode::kUseUndefined, ForEachDirection::kForward);
+}
+
+// ES #sec-get-%typedarray%.prototype.findIndex
+TF_BUILTIN(ArrayPrototypeFindIndex, ArrayBuiltinCodeStubAssembler) {
+  Node* argc =
+      ChangeInt32ToIntPtr(Parameter(BuiltinDescriptor::kArgumentsCount));
+  CodeStubArguments args(this, argc);
+  Node* context = Parameter(BuiltinDescriptor::kContext);
+  Node* new_target = Parameter(BuiltinDescriptor::kNewTarget);
+  Node* receiver = args.GetReceiver();
+  Node* callbackfn = args.GetOptionalArgumentValue(0);
+  Node* this_arg = args.GetOptionalArgumentValue(1);
+
+  InitIteratingArrayBuiltinBody(context, receiver, callbackfn, this_arg,
+                                new_target, argc);
+
+  GenerateIteratingArrayBuiltinBody(
+      "Array.prototype.findIndex",
+      &ArrayBuiltinCodeStubAssembler::FindIndexResultGenerator,
+      &ArrayBuiltinCodeStubAssembler::FindIndexProcessor,
+      &ArrayBuiltinCodeStubAssembler::NullPostLoopAction,
+      Builtins::CallableFor(isolate(),
+                            Builtins::kArrayFindIndexLoopContinuation),
+      MissingPropertyMode::kUseUndefined, ForEachDirection::kForward);
+}
+
 // ES #sec-get-%typedarray%.prototype.find
 TF_BUILTIN(TypedArrayPrototypeFind, ArrayBuiltinCodeStubAssembler) {
   Node* argc =
@@ -1678,7 +1785,8 @@ TF_BUILTIN(ArrayForEachLoopContinuation, ArrayBuiltinCodeStubAssembler) {
 
   GenerateIteratingArrayBuiltinLoopContinuation(
       &ArrayBuiltinCodeStubAssembler::ForEachProcessor,
-      &ArrayBuiltinCodeStubAssembler::NullPostLoopAction);
+      &ArrayBuiltinCodeStubAssembler::NullPostLoopAction,
+      MissingPropertyMode::kSkip);
 }
 
 TF_BUILTIN(ArrayForEachLoopEagerDeoptContinuation,
@@ -1731,8 +1839,8 @@ TF_BUILTIN(ArrayForEach, ArrayBuiltinCodeStubAssembler) {
       &ArrayBuiltinCodeStubAssembler::ForEachResultGenerator,
       &ArrayBuiltinCodeStubAssembler::ForEachProcessor,
       &ArrayBuiltinCodeStubAssembler::NullPostLoopAction,
-      Builtins::CallableFor(isolate(),
-                            Builtins::kArrayForEachLoopContinuation));
+      Builtins::CallableFor(isolate(), Builtins::kArrayForEachLoopContinuation),
+      MissingPropertyMode::kSkip);
 }
 
 TF_BUILTIN(TypedArrayPrototypeForEach, ArrayBuiltinCodeStubAssembler) {
@@ -1772,7 +1880,8 @@ TF_BUILTIN(ArraySomeLoopContinuation, ArrayBuiltinCodeStubAssembler) {
 
   GenerateIteratingArrayBuiltinLoopContinuation(
       &ArrayBuiltinCodeStubAssembler::SomeProcessor,
-      &ArrayBuiltinCodeStubAssembler::NullPostLoopAction);
+      &ArrayBuiltinCodeStubAssembler::NullPostLoopAction,
+      MissingPropertyMode::kSkip);
 }
 
 TF_BUILTIN(ArraySome, ArrayBuiltinCodeStubAssembler) {
@@ -1793,7 +1902,8 @@ TF_BUILTIN(ArraySome, ArrayBuiltinCodeStubAssembler) {
       &ArrayBuiltinCodeStubAssembler::SomeResultGenerator,
       &ArrayBuiltinCodeStubAssembler::SomeProcessor,
       &ArrayBuiltinCodeStubAssembler::NullPostLoopAction,
-      Builtins::CallableFor(isolate(), Builtins::kArraySomeLoopContinuation));
+      Builtins::CallableFor(isolate(), Builtins::kArraySomeLoopContinuation),
+      MissingPropertyMode::kSkip);
 }
 
 TF_BUILTIN(TypedArrayPrototypeSome, ArrayBuiltinCodeStubAssembler) {
@@ -1833,7 +1943,8 @@ TF_BUILTIN(ArrayEveryLoopContinuation, ArrayBuiltinCodeStubAssembler) {
 
   GenerateIteratingArrayBuiltinLoopContinuation(
       &ArrayBuiltinCodeStubAssembler::EveryProcessor,
-      &ArrayBuiltinCodeStubAssembler::NullPostLoopAction);
+      &ArrayBuiltinCodeStubAssembler::NullPostLoopAction,
+      MissingPropertyMode::kSkip);
 }
 
 TF_BUILTIN(ArrayEvery, ArrayBuiltinCodeStubAssembler) {
@@ -1854,7 +1965,8 @@ TF_BUILTIN(ArrayEvery, ArrayBuiltinCodeStubAssembler) {
       &ArrayBuiltinCodeStubAssembler::EveryResultGenerator,
       &ArrayBuiltinCodeStubAssembler::EveryProcessor,
       &ArrayBuiltinCodeStubAssembler::NullPostLoopAction,
-      Builtins::CallableFor(isolate(), Builtins::kArrayEveryLoopContinuation));
+      Builtins::CallableFor(isolate(), Builtins::kArrayEveryLoopContinuation),
+      MissingPropertyMode::kSkip);
 }
 
 TF_BUILTIN(TypedArrayPrototypeEvery, ArrayBuiltinCodeStubAssembler) {
@@ -1894,7 +2006,8 @@ TF_BUILTIN(ArrayReduceLoopContinuation, ArrayBuiltinCodeStubAssembler) {
 
   GenerateIteratingArrayBuiltinLoopContinuation(
       &ArrayBuiltinCodeStubAssembler::ReduceProcessor,
-      &ArrayBuiltinCodeStubAssembler::ReducePostLoopAction);
+      &ArrayBuiltinCodeStubAssembler::ReducePostLoopAction,
+      MissingPropertyMode::kSkip);
 }
 
 TF_BUILTIN(ArrayReduce, ArrayBuiltinCodeStubAssembler) {
@@ -1915,7 +2028,8 @@ TF_BUILTIN(ArrayReduce, ArrayBuiltinCodeStubAssembler) {
       &ArrayBuiltinCodeStubAssembler::ReduceResultGenerator,
       &ArrayBuiltinCodeStubAssembler::ReduceProcessor,
       &ArrayBuiltinCodeStubAssembler::ReducePostLoopAction,
-      Builtins::CallableFor(isolate(), Builtins::kArrayReduceLoopContinuation));
+      Builtins::CallableFor(isolate(), Builtins::kArrayReduceLoopContinuation),
+      MissingPropertyMode::kSkip);
 }
 
 TF_BUILTIN(TypedArrayPrototypeReduce, ArrayBuiltinCodeStubAssembler) {
@@ -1956,7 +2070,7 @@ TF_BUILTIN(ArrayReduceRightLoopContinuation, ArrayBuiltinCodeStubAssembler) {
   GenerateIteratingArrayBuiltinLoopContinuation(
       &ArrayBuiltinCodeStubAssembler::ReduceProcessor,
       &ArrayBuiltinCodeStubAssembler::ReducePostLoopAction,
-      ForEachDirection::kReverse);
+      MissingPropertyMode::kSkip, ForEachDirection::kReverse);
 }
 
 TF_BUILTIN(ArrayReduceRight, ArrayBuiltinCodeStubAssembler) {
@@ -1979,7 +2093,7 @@ TF_BUILTIN(ArrayReduceRight, ArrayBuiltinCodeStubAssembler) {
       &ArrayBuiltinCodeStubAssembler::ReducePostLoopAction,
       Builtins::CallableFor(isolate(),
                             Builtins::kArrayReduceRightLoopContinuation),
-      ForEachDirection::kReverse);
+      MissingPropertyMode::kSkip, ForEachDirection::kReverse);
 }
 
 TF_BUILTIN(TypedArrayPrototypeReduceRight, ArrayBuiltinCodeStubAssembler) {
@@ -2020,7 +2134,8 @@ TF_BUILTIN(ArrayFilterLoopContinuation, ArrayBuiltinCodeStubAssembler) {
 
   GenerateIteratingArrayBuiltinLoopContinuation(
       &ArrayBuiltinCodeStubAssembler::FilterProcessor,
-      &ArrayBuiltinCodeStubAssembler::NullPostLoopAction);
+      &ArrayBuiltinCodeStubAssembler::NullPostLoopAction,
+      MissingPropertyMode::kSkip);
 }
 
 TF_BUILTIN(ArrayFilterLoopEagerDeoptContinuation,
@@ -2101,7 +2216,8 @@ TF_BUILTIN(ArrayFilter, ArrayBuiltinCodeStubAssembler) {
       &ArrayBuiltinCodeStubAssembler::FilterResultGenerator,
       &ArrayBuiltinCodeStubAssembler::FilterProcessor,
       &ArrayBuiltinCodeStubAssembler::NullPostLoopAction,
-      Builtins::CallableFor(isolate(), Builtins::kArrayFilterLoopContinuation));
+      Builtins::CallableFor(isolate(), Builtins::kArrayFilterLoopContinuation),
+      MissingPropertyMode::kSkip);
 }
 
 TF_BUILTIN(ArrayMapLoopContinuation, ArrayBuiltinCodeStubAssembler) {
@@ -2121,7 +2237,8 @@ TF_BUILTIN(ArrayMapLoopContinuation, ArrayBuiltinCodeStubAssembler) {
 
   GenerateIteratingArrayBuiltinLoopContinuation(
       &ArrayBuiltinCodeStubAssembler::SpecCompliantMapProcessor,
-      &ArrayBuiltinCodeStubAssembler::NullPostLoopAction);
+      &ArrayBuiltinCodeStubAssembler::NullPostLoopAction,
+      MissingPropertyMode::kSkip);
 }
 
 TF_BUILTIN(ArrayMapLoopEagerDeoptContinuation, ArrayBuiltinCodeStubAssembler) {
@@ -2182,7 +2299,8 @@ TF_BUILTIN(ArrayMap, ArrayBuiltinCodeStubAssembler) {
       "Array.prototype.map", &ArrayBuiltinCodeStubAssembler::MapResultGenerator,
       &ArrayBuiltinCodeStubAssembler::FastMapProcessor,
       &ArrayBuiltinCodeStubAssembler::NullPostLoopAction,
-      Builtins::CallableFor(isolate(), Builtins::kArrayMapLoopContinuation));
+      Builtins::CallableFor(isolate(), Builtins::kArrayMapLoopContinuation),
+      MissingPropertyMode::kSkip);
 }
 
 TF_BUILTIN(TypedArrayPrototypeMap, ArrayBuiltinCodeStubAssembler) {
