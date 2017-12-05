@@ -407,6 +407,8 @@ class Map : public HeapObject {
   static const int kPrototypeChainValid = 0;
   static const int kPrototypeChainInvalid = 1;
 
+  static bool IsPrototypeChainInvalidated(Map* map);
+
   // Return the map of the root of object's prototype chain.
   Map* GetPrototypeChainRootMap(Isolate* isolate) const;
 

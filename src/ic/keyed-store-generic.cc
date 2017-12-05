@@ -882,8 +882,8 @@ void KeyedStoreGenericAssembler::EmitGenericPropertyStore(
     {
       CheckForAssociatedProtector(p->name, slow);
       Label extensible(this);
-      GotoIf(IsPrivateSymbol(p->name), &extensible);
       Node* bitfield2 = LoadMapBitField2(receiver_map);
+      GotoIf(IsPrivateSymbol(p->name), &extensible);
       Branch(IsSetWord32(bitfield2, 1 << Map::kIsExtensible), &extensible,
              slow);
 
@@ -892,6 +892,7 @@ void KeyedStoreGenericAssembler::EmitGenericPropertyStore(
                                      &var_accessor_pair, &var_accessor_holder,
                                      &readonly, slow);
       Label add_dictionary_property_slow(this);
+      InvalidateValidityCellIfPrototype(receiver_map, bitfield2);
       Add<NameDictionary>(properties, p->name, p->value,
                           &add_dictionary_property_slow);
       Return(p->value);

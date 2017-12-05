@@ -1016,6 +1016,9 @@ class ExternalReference BASE_EMBEDDED {
   V8_EXPORT_PRIVATE static ExternalReference runtime_function_table_address(
       Isolate* isolate);
 
+  static ExternalReference invalidate_prototype_chains_function(
+      Isolate* isolate);
+
   Address address() const { return reinterpret_cast<Address>(address_); }
 
   // Used to read out the last step action of the debugger.

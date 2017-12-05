@@ -1524,6 +1524,12 @@ ExternalReference ExternalReference::runtime_function_table_address(
       const_cast<Runtime::Function*>(Runtime::RuntimeFunctionTable(isolate)));
 }
 
+ExternalReference ExternalReference::invalidate_prototype_chains_function(
+    Isolate* isolate) {
+  return ExternalReference(
+      Redirect(isolate, FUNCTION_ADDR(JSObject::InvalidatePrototypeChains)));
+}
+
 double power_helper(Isolate* isolate, double x, double y) {
   int y_int = static_cast<int>(y);
   if (y == y_int) {

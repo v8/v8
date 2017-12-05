@@ -99,6 +99,8 @@ class AccessorAssembler : public CodeStubAssembler {
 
   void BranchIfStrictMode(Node* vector, Node* slot, Label* if_strict);
 
+  void InvalidateValidityCellIfPrototype(Node* map, Node* bitfield2 = nullptr);
+
  private:
   // Stub generation entry points.
 

@@ -1085,6 +1085,9 @@ void AccessorAssembler::HandleStoreICProtoHandler(
       BIND(&not_found);
       {
         Label slow(this);
+        Node* receiver_map = LoadMap(p->receiver);
+        InvalidateValidityCellIfPrototype(receiver_map);
+
         Add<NameDictionary>(properties, p->name, p->value, &slow);
         Return(p->value);
 
@@ -1817,6 +1820,25 @@ void AccessorAssembler::BranchIfStrictMode(Node* vector, Node* slot,
   GotoIfNot(Int32LessThanOrEqual(kind, Int32Constant(static_cast<int>(
                                            FeedbackSlotKind::kLastSloppyKind))),
             if_strict);
+}
+
+void AccessorAssembler::InvalidateValidityCellIfPrototype(Node* map,
+                                                          Node* bitfield2) {
+  Label is_prototype(this), cont(this);
+  if (bitfield2 == nullptr) {
+    bitfield2 = LoadMapBitField2(map);
+  }
+
+  Branch(IsSetWord32(bitfield2, Map::IsPrototypeMapBits::kMask), &is_prototype,
+         &cont);
+
+  BIND(&is_prototype);
+  Node* function = ExternalConstant(
+      ExternalReference::invalidate_prototype_chains_function(isolate()));
+  CallCFunction1(MachineType::AnyTagged(), MachineType::AnyTagged(), function,
+                 map);
+  Goto(&cont);
+  BIND(&cont);
 }
 
 void AccessorAssembler::GenericElementLoad(Node* receiver, Node* receiver_map,

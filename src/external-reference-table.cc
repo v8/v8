@@ -345,6 +345,10 @@ void ExternalReferenceTable::AddReferences(Isolate* isolate) {
       "IncrementalMarking::RecordWrite");
   Add(ExternalReference::store_buffer_overflow_function(isolate).address(),
       "StoreBuffer::StoreBufferOverflow");
+
+  Add(ExternalReference::invalidate_prototype_chains_function(isolate)
+          .address(),
+      "JSObject::InvalidatePrototypeChains()");
 }
 
 void ExternalReferenceTable::AddBuiltins(Isolate* isolate) {

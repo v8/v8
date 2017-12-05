@@ -71,17 +71,6 @@ int InitPrototypeChecks(Isolate* isolate, Handle<Map> receiver_map,
         array->set(first_index + checks_count, *weak_cell);
       }
       checks_count++;
-
-    } else if (current_map->is_dictionary_map()) {
-      DCHECK(!current_map->IsJSGlobalProxyMap());  // Proxy maps are fast.
-      if (fill_array) {
-        DCHECK_EQ(NameDictionary::kNotFound,
-                  current->property_dictionary()->FindEntry(name));
-        Handle<WeakCell> weak_cell =
-            Map::GetOrCreatePrototypeWeakCell(current, isolate);
-        array->set(first_index + checks_count, *weak_cell);
-      }
-      checks_count++;
     }
   }
   return checks_count;

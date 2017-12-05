@@ -2187,6 +2187,8 @@ void JSObject::SetNormalizedProperty(Handle<JSObject> object,
 
     int entry = dictionary->FindEntry(name);
     if (entry == NameDictionary::kNotFound) {
+      DCHECK_IMPLIES(object->map()->is_prototype_map(),
+                     Map::IsPrototypeChainInvalidated(object->map()));
       dictionary = NameDictionary::Add(dictionary, name, value, details);
       object->SetProperties(*dictionary);
     } else {
@@ -4212,6 +4214,9 @@ void MigrateFastToSlow(Handle<JSObject> object, Handle<Map> new_map,
   DCHECK(!object->IsJSGlobalObject());
   // JSGlobalProxy must never be normalized
   DCHECK(!object->IsJSGlobalProxy());
+
+  DCHECK_IMPLIES(new_map->is_prototype_map(),
+                 Map::IsPrototypeChainInvalidated(*new_map));
 
   Isolate* isolate = object->GetIsolate();
   HandleScope scope(isolate);
@@ -12561,9 +12566,10 @@ static void InvalidatePrototypeChainsInternal(Map* map) {
 
 
 // static
-void JSObject::InvalidatePrototypeChains(Map* map) {
+Map* JSObject::InvalidatePrototypeChains(Map* map) {
   DisallowHeapAllocation no_gc;
   InvalidatePrototypeChainsInternal(map);
+  return map;
 }
 
 
@@ -12641,6 +12647,21 @@ Handle<Cell> Map::GetOrCreatePrototypeChainValidityCell(Handle<Map> map,
       handle(Smi::FromInt(Map::kPrototypeChainValid), isolate));
   proto_info->set_validity_cell(*cell);
   return cell;
+}
+
+// static
+bool Map::IsPrototypeChainInvalidated(Map* map) {
+  DCHECK(map->is_prototype_map());
+  Object* maybe_proto_info = map->prototype_info();
+  if (maybe_proto_info->IsPrototypeInfo()) {
+    PrototypeInfo* proto_info = PrototypeInfo::cast(maybe_proto_info);
+    Object* maybe_cell = proto_info->validity_cell();
+    if (maybe_cell->IsCell()) {
+      Cell* cell = Cell::cast(maybe_cell);
+      return cell->value() == Smi::FromInt(Map::kPrototypeChainInvalid);
+    }
+  }
+  return true;
 }
 
 // static

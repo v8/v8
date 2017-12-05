@@ -495,6 +495,9 @@ void LookupIterator::ApplyTransitionToDataProperty(Handle<JSObject> receiver) {
     Handle<NameDictionary> dictionary(receiver->property_dictionary(),
                                       isolate_);
     int entry;
+    if (receiver->map()->is_prototype_map()) {
+      JSObject::InvalidatePrototypeChains(receiver->map());
+    }
     dictionary = NameDictionary::Add(dictionary, name(),
                                      isolate_->factory()->uninitialized_value(),
                                      property_details_, &entry);
@@ -638,9 +641,12 @@ void LookupIterator::TransitionToAccessorPair(Handle<Object> pair,
 
     ReloadPropertyInformation<true>();
   } else {
-    PropertyNormalizationMode mode = receiver->map()->is_prototype_map()
-                                         ? KEEP_INOBJECT_PROPERTIES
-                                         : CLEAR_INOBJECT_PROPERTIES;
+    PropertyNormalizationMode mode = CLEAR_INOBJECT_PROPERTIES;
+    if (receiver->map()->is_prototype_map()) {
+      JSObject::InvalidatePrototypeChains(receiver->map());
+      mode = KEEP_INOBJECT_PROPERTIES;
+    }
+
     // Normalize object to make this operation simple.
     JSObject::NormalizeProperties(receiver, mode, 0,
                                   "TransitionToAccessorPair");
