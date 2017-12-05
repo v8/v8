@@ -483,6 +483,7 @@ DEFINE_DEBUG_BOOL(wasm_trace_native_heap, false,
                   "trace wasm native heap events")
 DEFINE_BOOL(wasm_jit_to_native, false,
             "JIT wasm code to native (not JS GC) memory")
+DEFINE_IMPLICATION(future, wasm_jit_to_native)
 DEFINE_BOOL(wasm_trace_serialization, false,
             "trace serialization/deserialization")
 DEFINE_BOOL(wasm_async_compilation, true,
