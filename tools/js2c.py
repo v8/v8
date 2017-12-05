@@ -365,7 +365,7 @@ class Sources:
 
 
 def IsDebuggerFile(filename):
-  return "debug" in filename
+  return os.path.basename(os.path.dirname(filename)) == "debug"
 
 def IsMacroFile(filename):
   return filename.endswith("macros.py")
