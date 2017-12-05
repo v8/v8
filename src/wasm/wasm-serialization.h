@@ -5,7 +5,6 @@
 #ifndef V8_WASM_SERIALIZATION_H_
 #define V8_WASM_SERIALIZATION_H_
 
-#include "src/wasm/wasm-heap.h"
 #include "src/wasm/wasm-objects.h"
 
 namespace v8 {

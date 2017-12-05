@@ -8,7 +8,7 @@
 #include <memory>
 
 #include "src/wasm/compilation-manager.h"
-#include "src/wasm/wasm-heap.h"
+#include "src/wasm/wasm-code-manager.h"
 
 namespace v8 {
 namespace internal {

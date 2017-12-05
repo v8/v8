@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/wasm/wasm-heap.h"
+#include "src/wasm/wasm-code-manager.h"
 
 #include "src/assembler-inl.h"
 #include "src/base/atomic-utils.h"

@@ -16,8 +16,8 @@
 #include "src/ostreams.h"
 #include "src/regexp/jsregexp.h"
 #include "src/transitions-inl.h"
+#include "src/wasm/wasm-code-manager.h"
 #include "src/wasm/wasm-engine.h"
-#include "src/wasm/wasm-heap.h"
 #include "src/wasm/wasm-objects-inl.h"
 
 namespace v8 {

@@ -186,7 +186,7 @@ v8_source_set("unittests_sources") {
     "wasm/module-decoder-unittest.cc",
     "wasm/streaming-decoder-unittest.cc",
     "wasm/trap-handler-unittest.cc",
-    "wasm/wasm-heap-unittest.cc",
+    "wasm/wasm-code-manager-unittest.cc",
     "wasm/wasm-macro-gen-unittest.cc",
     "wasm/wasm-module-builder-unittest.cc",
     "wasm/wasm-opcodes-unittest.cc",

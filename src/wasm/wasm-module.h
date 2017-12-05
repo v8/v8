@@ -15,7 +15,6 @@
 
 #include "src/wasm/decoder.h"
 #include "src/wasm/signature-map.h"
-#include "src/wasm/wasm-heap.h"
 #include "src/wasm/wasm-opcodes.h"
 
 namespace v8 {
@@ -34,6 +33,7 @@ class CallDescriptor;
 
 namespace wasm {
 class ErrorThrower;
+class NativeModule;
 
 enum WasmExternalKind {
   kExternalFunction = 0,
