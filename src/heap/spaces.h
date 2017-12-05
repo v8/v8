@@ -1229,7 +1229,7 @@ class V8_EXPORT_PRIVATE MemoryAllocator {
 
    private:
     static const int kReservedQueueingSlots = 64;
-    static const int kMaxUnmapperTasks = 24;
+    static const int kMaxUnmapperTasks = 4;
 
     enum ChunkQueueType {
       kRegular,     // Pages of kPageSize that do not live in a CodeRange and
