@@ -54,6 +54,7 @@
 #include "src/visitors.h"
 #include "src/vm-state-inl.h"
 #include "src/wasm/compilation-manager.h"
+#include "src/wasm/wasm-engine.h"
 #include "src/wasm/wasm-heap.h"
 #include "src/wasm/wasm-objects.h"
 #include "src/zone/accounting-allocator.h"
@@ -1303,7 +1304,7 @@ Object* Isolate::UnwindAndFindHandler() {
         set_wasm_caught_exception(exception);
         if (FLAG_wasm_jit_to_native) {
           wasm::WasmCode* wasm_code =
-              wasm_code_manager()->LookupCode(frame->pc());
+              wasm_engine()->code_manager()->LookupCode(frame->pc());
           return FoundHandler(nullptr, wasm_code->instructions().start(),
                               offset, wasm_code->constant_pool(), return_sp,
                               frame->fp());
@@ -2516,7 +2517,6 @@ Isolate::Isolate(bool enable_serializer)
       use_counter_callback_(nullptr),
       basic_block_profiler_(nullptr),
       cancelable_task_manager_(new CancelableTaskManager()),
-      wasm_compilation_manager_(new wasm::CompilationManager()),
       abort_on_uncaught_exception_callback_(nullptr),
       total_regexp_code_generated_(0) {
   {
@@ -2619,7 +2619,7 @@ void Isolate::Deinit() {
     optimizing_compile_dispatcher_ = nullptr;
   }
 
-  wasm_compilation_manager_->TearDown();
+  wasm_engine()->compilation_manager()->TearDown();
 
   heap_.mark_compact_collector()->EnsureSweepingCompleted();
   heap_.memory_allocator()->unmapper()->WaitUntilCompleted();
@@ -2921,16 +2921,15 @@ bool Isolate::Init(StartupDeserializer* des) {
     return false;
   }
 
-  // Setup the wasm code manager. Currently, there's one per Isolate.
-  if (!wasm_code_manager_) {
-    size_t max_code_size = kMaxWasmCodeMemory;
-    if (kRequiresCodeRange) {
-      max_code_size = std::min(max_code_size,
-                               heap_.memory_allocator()->code_range()->size());
-    }
-    wasm_code_manager_.reset(new wasm::WasmCodeManager(
-        reinterpret_cast<v8::Isolate*>(this), max_code_size));
-  }
+  // Setup the wasm engine. Currently, there's one per Isolate.
+  const size_t max_code_size =
+      kRequiresCodeRange
+          ? std::min(kMaxWasmCodeMemory,
+                     heap_.memory_allocator()->code_range()->size())
+          : kMaxWasmCodeMemory;
+  wasm_engine_.reset(new wasm::WasmEngine(
+      std::unique_ptr<wasm::WasmCodeManager>(new wasm::WasmCodeManager(
+          reinterpret_cast<v8::Isolate*>(this), max_code_size))));
 
 // Initialize the interface descriptors ahead of time.
 #define INTERFACE_DESCRIPTOR(Name, ...) \
@@ -3986,10 +3985,6 @@ void Isolate::PrintWithTimestamp(const char* format, ...) {
   va_start(arguments, format);
   base::OS::VPrint(format, arguments);
   va_end(arguments);
-}
-
-wasm::WasmCodeManager* Isolate::wasm_code_manager() {
-  return wasm_code_manager_.get();
 }
 
 bool StackLimitCheck::JsHasOverflowed(uintptr_t gap) const {

@@ -109,8 +109,7 @@ class Interpreter;
 }
 
 namespace wasm {
-class CompilationManager;
-class WasmCodeManager;
+class WasmEngine;
 }
 
 #define RETURN_FAILURE_IF_SCHEDULED_EXCEPTION(isolate) \
@@ -331,7 +330,7 @@ class ThreadLocalTop BASE_EMBEDDED {
   Object* pending_exception_;
   // TODO(kschimpf): Change this to a stack of caught exceptions (rather than
   // just innermost catching try block).
-  Object* wasm_caught_exception_;
+  Object* wasm_caught_exception_ = nullptr;
 
   // Communication channel between Isolate::FindHandler and the CEntryStub.
   Context* pending_handler_context_;
@@ -926,7 +925,7 @@ class Isolate {
   }
   StackGuard* stack_guard() { return &stack_guard_; }
   Heap* heap() { return &heap_; }
-  V8_EXPORT_PRIVATE wasm::WasmCodeManager* wasm_code_manager();
+  wasm::WasmEngine* wasm_engine() const { return wasm_engine_.get(); }
   StubCache* load_stub_cache() { return load_stub_cache_; }
   StubCache* store_stub_cache() { return store_stub_cache_; }
   DeoptimizerData* deoptimizer_data() { return deoptimizer_data_; }
@@ -1286,10 +1285,6 @@ class Isolate {
 
   CancelableTaskManager* cancelable_task_manager() {
     return cancelable_task_manager_;
-  }
-
-  wasm::CompilationManager* wasm_compilation_manager() {
-    return wasm_compilation_manager_.get();
   }
 
   const AstStringConstants* ast_string_constants() const {
@@ -1663,8 +1658,6 @@ class Isolate {
 
   CancelableTaskManager* cancelable_task_manager_;
 
-  std::unique_ptr<wasm::CompilationManager> wasm_compilation_manager_;
-
   debug::ConsoleDelegate* console_delegate_ = nullptr;
 
   v8::Isolate::AbortOnUncaughtExceptionCallback
@@ -1683,7 +1676,7 @@ class Isolate {
 
   size_t elements_deletion_counter_ = 0;
 
-  std::unique_ptr<wasm::WasmCodeManager> wasm_code_manager_;
+  std::unique_ptr<wasm::WasmEngine> wasm_engine_;
 
   // The top entry of the v8::Context::BackupIncumbentScope stack.
   const v8::Context::BackupIncumbentScope* top_backup_incumbent_scope_ =

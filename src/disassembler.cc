@@ -17,6 +17,7 @@
 #include "src/objects-inl.h"
 #include "src/snapshot/serializer-common.h"
 #include "src/string-stream.h"
+#include "src/wasm/wasm-engine.h"
 #include "src/wasm/wasm-heap.h"
 
 namespace v8 {
@@ -54,7 +55,8 @@ const char* V8NameConverter::NameOfAddress(byte* pc) const {
       return v8_buffer_.start();
     }
 
-    wasm::WasmCode* wasm_code = isolate->wasm_code_manager()->LookupCode(pc);
+    wasm::WasmCode* wasm_code =
+        isolate->wasm_engine()->code_manager()->LookupCode(pc);
     if (wasm_code != nullptr) {
       SNPrintF(v8_buffer_, "%p  (%s)", static_cast<void*>(pc),
                GetWasmCodeKindAsString(wasm_code->kind()));

@@ -16,6 +16,7 @@
 #include "src/ostreams.h"
 #include "src/regexp/jsregexp.h"
 #include "src/transitions-inl.h"
+#include "src/wasm/wasm-engine.h"
 #include "src/wasm/wasm-heap.h"
 #include "src/wasm/wasm-objects-inl.h"
 
@@ -1897,8 +1898,9 @@ extern void _v8_internal_Print_Object(void* object) {
 
 extern void _v8_internal_Print_Code(void* object) {
   i::Isolate* isolate = i::Isolate::Current();
-  i::wasm::WasmCode* wasm_code = isolate->wasm_code_manager()->LookupCode(
-      reinterpret_cast<i::Address>(object));
+  i::wasm::WasmCode* wasm_code =
+      isolate->wasm_engine()->code_manager()->LookupCode(
+          reinterpret_cast<i::Address>(object));
   if (wasm_code) {
     wasm_code->Print(isolate);
     return;

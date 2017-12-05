@@ -15,6 +15,7 @@
 #include "src/wasm/module-compiler.h"
 #include "src/wasm/module-decoder.h"
 #include "src/wasm/wasm-code-specialization.h"
+#include "src/wasm/wasm-engine.h"
 #include "src/wasm/wasm-memory.h"
 #include "src/wasm/wasm-module.h"
 #include "src/wasm/wasm-objects-inl.h"
@@ -762,8 +763,9 @@ WasmCodeWrapper WasmExportedFunction::GetWasmCode() {
     DCHECK(!it.done());
     WasmCodeWrapper target;
     if (FLAG_wasm_jit_to_native) {
-      target = WasmCodeWrapper(GetIsolate()->wasm_code_manager()->LookupCode(
-          it.rinfo()->js_to_wasm_address()));
+      target = WasmCodeWrapper(
+          GetIsolate()->wasm_engine()->code_manager()->LookupCode(
+              it.rinfo()->js_to_wasm_address()));
     } else {
       Code* code = Code::GetCodeFromTargetAddress(it.rinfo()->target_address());
       if (!IsWasmFunctionCode(code)) continue;
@@ -1069,7 +1071,7 @@ Handle<WasmCompiledModule> WasmCompiledModule::New(
     wasm::NativeModule* native_module = nullptr;
     {
       std::unique_ptr<wasm::NativeModule> native_module_ptr =
-          isolate->wasm_code_manager()->NewNativeModule(*module);
+          isolate->wasm_engine()->code_manager()->NewNativeModule(*module);
       native_module = native_module_ptr.release();
       Handle<Foreign> native_module_wrapper =
           Managed<wasm::NativeModule>::From(isolate, native_module);

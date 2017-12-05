@@ -19,6 +19,7 @@
 #include "src/wasm/function-body-decoder-impl.h"
 #include "src/wasm/function-body-decoder.h"
 #include "src/wasm/memory-tracing.h"
+#include "src/wasm/wasm-engine.h"
 #include "src/wasm/wasm-external-refs.h"
 #include "src/wasm/wasm-limits.h"
 #include "src/wasm/wasm-module.h"
@@ -2605,7 +2606,8 @@ class ThreadImpl {
             Foreign::cast(fun_table->get(static_cast<int>(entry_index)))
                 ->foreign_address();
         target =
-            isolate->wasm_code_manager()->GetCodeFromStartAddress(first_instr);
+            isolate->wasm_engine()->code_manager()->GetCodeFromStartAddress(
+                first_instr);
       }
     }
 

@@ -16,6 +16,7 @@
 #include "src/string-stream.h"
 #include "src/visitors.h"
 #include "src/vm-state-inl.h"
+#include "src/wasm/wasm-engine.h"
 #include "src/wasm/wasm-heap.h"
 #include "src/wasm/wasm-objects-inl.h"
 #include "src/zone/zone-containers.h"
@@ -439,7 +440,7 @@ StackFrame::Type StackFrame::ComputeType(const StackFrameIteratorBase* iterator,
     // than checking the flag, then getting the code, and then, if both are true
     // (non-null, respectivelly), going down the wasm_code path.
     wasm::WasmCode* wasm_code =
-        iterator->isolate()->wasm_code_manager()->LookupCode(pc);
+        iterator->isolate()->wasm_engine()->code_manager()->LookupCode(pc);
     if (wasm_code != nullptr) {
       switch (wasm_code->kind()) {
         case wasm::WasmCode::kInterpreterStub:
@@ -777,7 +778,7 @@ void StandardFrame::IterateCompiledFrame(RootVisitor* v) const {
   Address inner_pointer = pc();
   const wasm::WasmCode* wasm_code =
       FLAG_wasm_jit_to_native
-          ? isolate()->wasm_code_manager()->LookupCode(inner_pointer)
+          ? isolate()->wasm_engine()->code_manager()->LookupCode(inner_pointer)
           : nullptr;
   SafepointEntry safepoint_entry;
   uint32_t stack_slots;
@@ -1713,7 +1714,7 @@ WasmInstanceObject* WasmCompiledFrame::wasm_instance() const {
   WasmInstanceObject* obj =
       FLAG_wasm_jit_to_native
           ? WasmInstanceObject::GetOwningInstance(
-                isolate()->wasm_code_manager()->LookupCode(pc()))
+                isolate()->wasm_engine()->code_manager()->LookupCode(pc()))
           : WasmInstanceObject::GetOwningInstanceGC(LookupCode());
   // This is a live stack frame; it must have a live instance.
   DCHECK_NOT_NULL(obj);
@@ -1738,7 +1739,8 @@ void WasmCompiledFrame::Summarize(std::vector<FrameSummary>* functions) const {
   Handle<WasmInstanceObject> instance;
   int offset = -1;
   if (FLAG_wasm_jit_to_native) {
-    code = WasmCodeWrapper(isolate()->wasm_code_manager()->LookupCode(pc()));
+    code = WasmCodeWrapper(
+        isolate()->wasm_engine()->code_manager()->LookupCode(pc()));
     offset =
         static_cast<int>(pc() - code.GetWasmCode()->instructions().start());
     instance = Handle<WasmInstanceObject>(
@@ -1765,8 +1767,9 @@ bool WasmCompiledFrame::at_to_number_conversion() const {
   int pos = -1;
   if (FLAG_wasm_jit_to_native) {
     wasm::WasmCode* code =
-        callee_pc ? isolate()->wasm_code_manager()->LookupCode(callee_pc)
-                  : nullptr;
+        callee_pc
+            ? isolate()->wasm_engine()->code_manager()->LookupCode(callee_pc)
+            : nullptr;
     if (!code || code->kind() != wasm::WasmCode::kWasmToJsWrapper) return false;
     int offset = static_cast<int>(callee_pc - code->instructions().start());
     pos = FrameSummary::WasmCompiledFrameSummary::GetWasmSourcePosition(code,
@@ -1791,7 +1794,8 @@ int WasmCompiledFrame::LookupExceptionHandlerInTable(int* stack_slots) {
     *stack_slots = code->stack_slots();
     return table->LookupReturn(pc_offset);
   }
-  wasm::WasmCode* code = isolate()->wasm_code_manager()->LookupCode(pc());
+  wasm::WasmCode* code =
+      isolate()->wasm_engine()->code_manager()->LookupCode(pc());
   if (!code->IsAnonymous()) {
     Object* table_entry =
         code->owner()->compiled_module()->ptr_to_handler_table()->get(
@@ -1845,7 +1849,7 @@ WasmInstanceObject* WasmInterpreterEntryFrame::wasm_instance() const {
   WasmInstanceObject* ret =
       FLAG_wasm_jit_to_native
           ? WasmInstanceObject::GetOwningInstance(
-                isolate()->wasm_code_manager()->LookupCode(pc()))
+                isolate()->wasm_engine()->code_manager()->LookupCode(pc()))
           : WasmInstanceObject::GetOwningInstanceGC(LookupCode());
   // This is a live stack frame, there must be a live wasm instance available.
   DCHECK_NOT_NULL(ret);
@@ -2072,8 +2076,9 @@ void JavaScriptFrame::Iterate(RootVisitor* v) const {
 
 void InternalFrame::Iterate(RootVisitor* v) const {
   wasm::WasmCode* wasm_code =
-      FLAG_wasm_jit_to_native ? isolate()->wasm_code_manager()->LookupCode(pc())
-                              : nullptr;
+      FLAG_wasm_jit_to_native
+          ? isolate()->wasm_engine()->code_manager()->LookupCode(pc())
+          : nullptr;
   if (wasm_code != nullptr) {
     DCHECK(wasm_code->kind() == wasm::WasmCode::kLazyStub);
   } else {

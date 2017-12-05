@@ -10,6 +10,7 @@
 #include "src/wasm/compilation-manager.h"
 #include "src/wasm/module-decoder.h"
 #include "src/wasm/streaming-decoder.h"
+#include "src/wasm/wasm-engine.h"
 #include "src/wasm/wasm-module-builder.h"
 #include "src/wasm/wasm-module.h"
 
@@ -103,8 +104,10 @@ class StreamTester {
 
     i::Handle<i::JSPromise> i_promise = v8::Utils::OpenHandle(*promise_);
 
-    stream_ = i_isolate->wasm_compilation_manager()->StartStreamingCompilation(
-        i_isolate, v8::Utils::OpenHandle(*context), i_promise);
+    stream_ = i_isolate->wasm_engine()
+                  ->compilation_manager()
+                  ->StartStreamingCompilation(
+                      i_isolate, v8::Utils::OpenHandle(*context), i_promise);
   }
 
   std::shared_ptr<StreamingDecoder> stream() { return stream_; }

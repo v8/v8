@@ -84,6 +84,7 @@
 #include "src/vm-state-inl.h"
 #include "src/wasm/compilation-manager.h"
 #include "src/wasm/streaming-decoder.h"
+#include "src/wasm/wasm-engine.h"
 #include "src/wasm/wasm-objects-inl.h"
 #include "src/wasm/wasm-result.h"
 #include "src/wasm/wasm-serialization.h"
@@ -7887,8 +7888,10 @@ WasmModuleObjectBuilderStreaming::WasmModuleObjectBuilderStreaming(
     i::Handle<i::JSPromise> promise = Utils::OpenHandle(*GetPromise());
     i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
     streaming_decoder_ =
-        i_isolate->wasm_compilation_manager()->StartStreamingCompilation(
-            i_isolate, handle(i_isolate->context()), promise);
+        i_isolate->wasm_engine()
+            ->compilation_manager()
+            ->StartStreamingCompilation(i_isolate, handle(i_isolate->context()),
+                                        promise);
   }
 }
 

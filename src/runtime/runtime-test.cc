@@ -20,6 +20,7 @@
 #include "src/trap-handler/trap-handler.h"
 #include "src/wasm/memory-tracing.h"
 #include "src/wasm/module-compiler.h"
+#include "src/wasm/wasm-engine.h"
 #include "src/wasm/wasm-module.h"
 #include "src/wasm/wasm-objects-inl.h"
 #include "src/wasm/wasm-serialization.h"
@@ -500,7 +501,7 @@ RUNTIME_FUNCTION(Runtime_CheckWasmWrapperElision) {
                                  : rinfo->target_address();
     if (FLAG_wasm_jit_to_native) {
       wasm::WasmCode* target =
-          isolate->wasm_code_manager()->LookupCode(target_address);
+          isolate->wasm_engine()->code_manager()->LookupCode(target_address);
       if (target->kind() == wasm::WasmCode::kFunction) {
         ++count;
         export_fct = target;
@@ -524,7 +525,7 @@ RUNTIME_FUNCTION(Runtime_CheckWasmWrapperElision) {
       RelocInfo* rinfo = it.rinfo();
       Address target_address = rinfo->target_address();
       wasm::WasmCode* target =
-          isolate->wasm_code_manager()->LookupCode(target_address);
+          isolate->wasm_engine()->code_manager()->LookupCode(target_address);
       if (target->kind() == wasm::WasmCode::kFunction) {
         ++count;
         intermediate_fct = target;
@@ -560,7 +561,7 @@ RUNTIME_FUNCTION(Runtime_CheckWasmWrapperElision) {
       RelocInfo* rinfo = it.rinfo();
       Address target_address = rinfo->target_address();
       wasm::WasmCode* target =
-          isolate->wasm_code_manager()->LookupCode(target_address);
+          isolate->wasm_engine()->code_manager()->LookupCode(target_address);
       if (target->kind() == target_kind) {
         ++count;
       }

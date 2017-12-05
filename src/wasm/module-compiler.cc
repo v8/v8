@@ -20,6 +20,7 @@
 #include "src/wasm/compilation-manager.h"
 #include "src/wasm/module-decoder.h"
 #include "src/wasm/wasm-code-specialization.h"
+#include "src/wasm/wasm-engine.h"
 #include "src/wasm/wasm-heap.h"
 #include "src/wasm/wasm-js.h"
 #include "src/wasm/wasm-memory.h"
@@ -638,8 +639,10 @@ void AsyncCompile(Isolate* isolate, Handle<JSPromise> promise,
 
   if (FLAG_wasm_test_streaming) {
     std::shared_ptr<StreamingDecoder> streaming_decoder =
-        isolate->wasm_compilation_manager()->StartStreamingCompilation(
-            isolate, handle(isolate->context()), promise);
+        isolate->wasm_engine()
+            ->compilation_manager()
+            ->StartStreamingCompilation(isolate, handle(isolate->context()),
+                                        promise);
     streaming_decoder->OnBytesReceived(bytes.module_bytes());
     streaming_decoder->Finish();
     return;
@@ -648,7 +651,7 @@ void AsyncCompile(Isolate* isolate, Handle<JSPromise> promise,
   // during asynchronous compilation.
   std::unique_ptr<byte[]> copy(new byte[bytes.length()]);
   memcpy(copy.get(), bytes.start(), bytes.length());
-  isolate->wasm_compilation_manager()->StartAsyncCompileJob(
+  isolate->wasm_engine()->compilation_manager()->StartAsyncCompileJob(
       isolate, std::move(copy), bytes.length(), handle(isolate->context()),
       promise);
 }
@@ -758,7 +761,7 @@ Address CompileLazy(Isolate* isolate) {
   Maybe<uint32_t> func_index_to_compile = Nothing<uint32_t>();
   Handle<Object> exp_deopt_data_entry;
   const wasm::WasmCode* lazy_stub_or_copy =
-      isolate->wasm_code_manager()->LookupCode(it.frame()->pc());
+      isolate->wasm_engine()->code_manager()->LookupCode(it.frame()->pc());
   DCHECK_EQ(wasm::WasmCode::kLazyStub, lazy_stub_or_copy->kind());
   if (!lazy_stub_or_copy->IsAnonymous()) {
     // Then it's an indirect call or via JS->wasm wrapper.
@@ -782,7 +785,7 @@ Address CompileLazy(Isolate* isolate) {
     js_to_wasm_caller_code = handle(it.frame()->LookupCode(), isolate);
   } else {
     wasm_caller_code =
-        isolate->wasm_code_manager()->LookupCode(it.frame()->pc());
+        isolate->wasm_engine()->code_manager()->LookupCode(it.frame()->pc());
     offset = Just(static_cast<uint32_t>(
         it.frame()->pc() - wasm_caller_code->instructions().start()));
     if (instance.is_null()) {
@@ -1267,8 +1270,9 @@ const wasm::WasmCode* LazyCompilationOrchestrator::CompileDirectCall(
                           wasm_caller->constant_pool(),
                           RelocInfo::ModeMask(RelocInfo::WASM_CALL));
          !it.done(); it.next()) {
-      const WasmCode* callee = isolate->wasm_code_manager()->LookupCode(
-          it.rinfo()->target_address());
+      const WasmCode* callee =
+          isolate->wasm_engine()->code_manager()->LookupCode(
+              it.rinfo()->target_address());
       if (callee->kind() != WasmCode::kLazyStub) {
         non_compiled_functions.push_back(Nothing<WasmDirectCallData>());
         continue;
@@ -3555,7 +3559,7 @@ void AsyncCompileJob::Abort() {
   background_task_manager_.CancelAndWait();
   if (num_pending_foreground_tasks_ == 0) {
     // No task is pending, we can just remove the AsyncCompileJob.
-    isolate_->wasm_compilation_manager()->RemoveJob(this);
+    isolate_->wasm_engine()->compilation_manager()->RemoveJob(this);
   } else {
     // There is still a compilation task in the task queue. We enter the
     // AbortCompilation state and wait for this compilation task to abort the
@@ -3616,14 +3620,14 @@ void AsyncCompileJob::AsyncCompileFailed(ErrorThrower& thrower) {
   if (stream_) stream_->NotifyError();
   // {job} keeps the {this} pointer alive.
   std::shared_ptr<AsyncCompileJob> job =
-      isolate_->wasm_compilation_manager()->RemoveJob(this);
+      isolate_->wasm_engine()->compilation_manager()->RemoveJob(this);
   RejectPromise(isolate_, context_, thrower, module_promise_);
 }
 
 void AsyncCompileJob::AsyncCompileSucceeded(Handle<Object> result) {
   // {job} keeps the {this} pointer alive.
   std::shared_ptr<AsyncCompileJob> job =
-      isolate_->wasm_compilation_manager()->RemoveJob(this);
+      isolate_->wasm_engine()->compilation_manager()->RemoveJob(this);
   ResolvePromise(isolate_, context_, module_promise_, result);
 }
 
@@ -4077,7 +4081,7 @@ class AsyncCompileJob::FinishModule : public CompileStep {
 class AsyncCompileJob::AbortCompilation : public CompileStep {
   void RunInForeground() override {
     TRACE_COMPILE("Abort asynchronous compilation ...\n");
-    job_->isolate_->wasm_compilation_manager()->RemoveJob(job_);
+    job_->isolate_->wasm_engine()->compilation_manager()->RemoveJob(job_);
   }
 };
 

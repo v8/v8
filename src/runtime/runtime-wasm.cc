@@ -16,6 +16,7 @@
 #include "src/trap-handler/trap-handler.h"
 #include "src/v8memory.h"
 #include "src/wasm/module-compiler.h"
+#include "src/wasm/wasm-engine.h"
 #include "src/wasm/wasm-heap.h"
 #include "src/wasm/wasm-objects.h"
 #include "src/wasm/wasm-opcodes.h"
@@ -33,7 +34,7 @@ WasmInstanceObject* GetWasmInstanceOnStackTop(Isolate* isolate) {
   WasmInstanceObject* owning_instance = nullptr;
   if (FLAG_wasm_jit_to_native) {
     owning_instance = WasmInstanceObject::GetOwningInstance(
-        isolate->wasm_code_manager()->LookupCode(pc));
+        isolate->wasm_engine()->code_manager()->LookupCode(pc));
   } else {
     owning_instance = WasmInstanceObject::GetOwningInstanceGC(
         isolate->inner_pointer_to_code_cache()->GetCacheEntry(pc)->code);
