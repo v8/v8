@@ -163,6 +163,7 @@ static bool DoubleStrtod(Vector<const char> trimmed,
   // therefore accurate.
   // Note that the ARM and MIPS simulators are compiled for 32bits. They
   // therefore exhibit the same problem.
+  USE(exact_powers_of_ten);
   USE(kMaxExactDoubleIntegerDecimalDigits);
   USE(kExactPowersOfTenSize);
   return false;
