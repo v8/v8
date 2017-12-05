@@ -2005,6 +2005,54 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       }
       break;
     }
+    case kSSEF32x4Splat: {
+      DCHECK_EQ(i.OutputDoubleRegister(), i.InputDoubleRegister(0));
+      XMMRegister dst = i.OutputSimd128Register();
+      __ shufps(dst, dst, 0x0);
+      break;
+    }
+    case kAVXF32x4Splat: {
+      CpuFeatureScope avx_scope(tasm(), AVX);
+      XMMRegister src = i.InputFloatRegister(0);
+      __ vshufps(i.OutputSimd128Register(), src, src, 0x0);
+      break;
+    }
+    case kSSEF32x4ExtractLane: {
+      DCHECK_EQ(i.OutputDoubleRegister(), i.InputDoubleRegister(0));
+      XMMRegister dst = i.OutputFloatRegister();
+      int8_t lane = i.InputInt8(1);
+      if (lane != 0) {
+        DCHECK_LT(lane, 4);
+        __ shufps(dst, dst, lane);
+      }
+      break;
+    }
+    case kAVXF32x4ExtractLane: {
+      CpuFeatureScope avx_scope(tasm(), AVX);
+      XMMRegister dst = i.OutputFloatRegister();
+      XMMRegister src = i.InputSimd128Register(0);
+      int8_t lane = i.InputInt8(1);
+      if (lane == 0) {
+        if (dst != src) __ vmovaps(dst, src);
+      } else {
+        DCHECK_LT(lane, 4);
+        __ vshufps(dst, src, src, lane);
+      }
+      break;
+    }
+    case kSSEF32x4ReplaceLane: {
+      DCHECK_EQ(i.OutputSimd128Register(), i.InputSimd128Register(0));
+      CpuFeatureScope sse_scope(tasm(), SSE4_1);
+      __ insertps(i.OutputSimd128Register(), i.InputOperand(2),
+                  i.InputInt8(1) << 4);
+      break;
+    }
+    case kAVXF32x4ReplaceLane: {
+      CpuFeatureScope avx_scope(tasm(), AVX);
+      __ vinsertps(i.OutputSimd128Register(), i.InputSimd128Register(0),
+                   i.InputOperand(2), i.InputInt8(1) << 4);
+      break;
+    }
     case kIA32I32x4Splat: {
       XMMRegister dst = i.OutputSimd128Register();
       __ Movd(dst, i.InputOperand(0));

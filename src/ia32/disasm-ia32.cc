@@ -847,6 +847,13 @@ int DisassemblerIA32::AVXInstruction(byte* data) {
         AppendToBuffer(",%d", *reinterpret_cast<int8_t*>(current));
         current++;
         break;
+      case 0x21:
+        AppendToBuffer("vinsertps %s,%s,", NameOfXMMRegister(regop),
+                       NameOfXMMRegister(vvvv));
+        current += PrintRightXMMOperand(current);
+        AppendToBuffer(",%d", *reinterpret_cast<int8_t*>(current));
+        current++;
+        break;
       case 0x22:
         AppendToBuffer("vpinsrd %s,%s,", NameOfXMMRegister(regop),
                        NameOfXMMRegister(vvvv));
@@ -1038,6 +1045,10 @@ int DisassemblerIA32::AVXInstruction(byte* data) {
     int mod, regop, rm, vvvv = vex_vreg();
     get_modrm(*current, &mod, &regop, &rm);
     switch (opcode) {
+      case 0x28:
+        AppendToBuffer("vmovaps %s,", NameOfXMMRegister(regop));
+        current += PrintRightXMMOperand(current);
+        break;
       case 0x52:
         AppendToBuffer("vrsqrtps %s,", NameOfXMMRegister(regop));
         current += PrintRightXMMOperand(current);
@@ -1100,6 +1111,13 @@ int DisassemblerIA32::AVXInstruction(byte* data) {
         current++;
         break;
       }
+      case 0xC6:
+        AppendToBuffer("vshufps %s,%s,", NameOfXMMRegister(regop),
+                       NameOfXMMRegister(vvvv));
+        current += PrintRightXMMOperand(current);
+        AppendToBuffer(", %d", (*current) & 3);
+        current += 1;
+        break;
       default:
         UnimplementedInstruction();
     }
@@ -1959,6 +1977,14 @@ int DisassemblerIA32::InstructionDecode(v8::internal::Vector<char> out_buffer,
               get_modrm(*data, &mod, &regop, &rm);
               AppendToBuffer("pinsrb %s,", NameOfXMMRegister(regop));
               data += PrintRightOperand(data);
+              AppendToBuffer(",%d", *reinterpret_cast<int8_t*>(data));
+              data++;
+            } else if (*data == 0x21) {
+              data++;
+              int mod, regop, rm;
+              get_modrm(*data, &mod, &regop, &rm);
+              AppendToBuffer("insertps %s,", NameOfXMMRegister(regop));
+              data += PrintRightXMMOperand(data);
               AppendToBuffer(",%d", *reinterpret_cast<int8_t*>(data));
               data++;
             } else if (*data == 0x22) {

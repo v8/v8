@@ -1897,9 +1897,9 @@ VISIT_ATOMIC_BINOP(Or)
 VISIT_ATOMIC_BINOP(Xor)
 #undef VISIT_ATOMIC_BINOP
 
-#define SIMD_TYPES(V) \
-  V(I32x4)            \
-  V(I16x8)            \
+#define SIMD_INT_TYPES(V) \
+  V(I32x4)                \
+  V(I16x8)                \
   V(I8x16)
 
 #define SIMD_BINOP_LIST(V) \
@@ -1966,6 +1966,27 @@ VISIT_ATOMIC_BINOP(Xor)
   V(I16x8ShrS)                \
   V(I16x8ShrU)
 
+void InstructionSelector::VisitF32x4Splat(Node* node) {
+  IA32OperandGenerator g(this);
+  InstructionOperand operand0 = g.UseRegister(node->InputAt(0));
+  if (IsSupported(AVX)) {
+    Emit(kAVXF32x4Splat, g.DefineAsRegister(node), operand0);
+  } else {
+    Emit(kSSEF32x4Splat, g.DefineSameAsFirst(node), operand0);
+  }
+}
+
+void InstructionSelector::VisitF32x4ExtractLane(Node* node) {
+  IA32OperandGenerator g(this);
+  InstructionOperand operand0 = g.UseRegister(node->InputAt(0));
+  InstructionOperand operand1 = g.UseImmediate(OpParameter<int32_t>(node));
+  if (IsSupported(AVX)) {
+    Emit(kAVXF32x4ExtractLane, g.DefineAsRegister(node), operand0, operand1);
+  } else {
+    Emit(kSSEF32x4ExtractLane, g.DefineSameAsFirst(node), operand0, operand1);
+  }
+}
+
 void InstructionSelector::VisitS128Zero(Node* node) {
   IA32OperandGenerator g(this);
   Emit(kIA32S128Zero, g.DefineAsRegister(node));
@@ -1981,7 +2002,7 @@ void InstructionSelector::VisitS128Not(Node* node) {
   void InstructionSelector::Visit##Type##Splat(Node* node) { \
     VisitRO(this, node, kIA32##Type##Splat);                 \
   }
-SIMD_TYPES(VISIT_SIMD_SPLAT)
+SIMD_INT_TYPES(VISIT_SIMD_SPLAT)
 #undef VISIT_SIMD_SPLAT
 
 #define VISIT_SIMD_EXTRACT_LANE(Type)                              \
@@ -1991,7 +2012,7 @@ SIMD_TYPES(VISIT_SIMD_SPLAT)
     Emit(kIA32##Type##ExtractLane, g.DefineAsRegister(node),       \
          g.UseRegister(node->InputAt(0)), g.UseImmediate(lane));   \
   }
-SIMD_TYPES(VISIT_SIMD_EXTRACT_LANE)
+SIMD_INT_TYPES(VISIT_SIMD_EXTRACT_LANE)
 #undef VISIT_SIMD_EXTRACT_LANE
 
 #define VISIT_SIMD_REPLACE_LANE(Type)                                         \
@@ -2008,7 +2029,8 @@ SIMD_TYPES(VISIT_SIMD_EXTRACT_LANE)
            operand1, operand2);                                               \
     }                                                                         \
   }
-SIMD_TYPES(VISIT_SIMD_REPLACE_LANE)
+SIMD_INT_TYPES(VISIT_SIMD_REPLACE_LANE)
+VISIT_SIMD_REPLACE_LANE(F32x4)
 #undef VISIT_SIMD_REPLACE_LANE
 
 #define VISIT_SIMD_SHIFT(Opcode)                                              \

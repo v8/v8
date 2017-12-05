@@ -111,6 +111,12 @@ namespace compiler {
   V(IA32PushFloat64)               \
   V(IA32Poke)                      \
   V(IA32StackCheck)                \
+  V(SSEF32x4Splat)                 \
+  V(AVXF32x4Splat)                 \
+  V(SSEF32x4ExtractLane)           \
+  V(AVXF32x4ExtractLane)           \
+  V(SSEF32x4ReplaceLane)           \
+  V(AVXF32x4ReplaceLane)           \
   V(IA32I32x4Splat)                \
   V(IA32I32x4ExtractLane)          \
   V(SSEI32x4ReplaceLane)           \

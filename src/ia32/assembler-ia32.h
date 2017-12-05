@@ -1149,6 +1149,10 @@ class Assembler : public AssemblerBase {
   }
   void pextrd(const Operand& dst, XMMRegister src, int8_t offset);
 
+  void insertps(XMMRegister dst, XMMRegister src, int8_t offset) {
+    insertps(dst, Operand(src), offset);
+  }
+  void insertps(XMMRegister dst, const Operand& src, int8_t offset);
   void pinsrb(XMMRegister dst, Register src, int8_t offset) {
     pinsrb(dst, Operand(src), offset);
   }
@@ -1397,6 +1401,14 @@ class Assembler : public AssemblerBase {
   void vrsqrtps(XMMRegister dst, const Operand& src) {
     vinstr(0x52, dst, xmm0, src, kNone, k0F, kWIG);
   }
+  void vmovaps(XMMRegister dst, XMMRegister src) {
+    vps(0x28, dst, xmm0, Operand(src));
+  }
+  void vshufps(XMMRegister dst, XMMRegister src1, XMMRegister src2, byte imm8) {
+    vshufps(dst, src1, Operand(src2), imm8);
+  }
+  void vshufps(XMMRegister dst, XMMRegister src1, const Operand& src2,
+               byte imm8);
 
   void vpsllw(XMMRegister dst, XMMRegister src, int8_t imm8);
   void vpslld(XMMRegister dst, XMMRegister src, int8_t imm8);
@@ -1427,6 +1439,12 @@ class Assembler : public AssemblerBase {
   }
   void vpextrd(const Operand& dst, XMMRegister src, int8_t offset);
 
+  void vinsertps(XMMRegister dst, XMMRegister src1, XMMRegister src2,
+                 int8_t offset) {
+    vinsertps(dst, src1, Operand(src2), offset);
+  }
+  void vinsertps(XMMRegister dst, XMMRegister src1, const Operand& src2,
+                 int8_t offset);
   void vpinsrb(XMMRegister dst, XMMRegister src1, Register src2,
                int8_t offset) {
     vpinsrb(dst, src1, Operand(src2), offset);
