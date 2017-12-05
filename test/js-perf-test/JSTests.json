@@ -380,7 +380,7 @@
       "main": "run.js",
       "resources": [
         "filter.js", "map.js", "every.js", "join.js", "some.js",
-        "reduce.js", "reduce-right.js", "to-string.js"
+        "reduce.js", "reduce-right.js", "to-string.js", "find.js"
       ],
       "flags": [
         "--allow-natives-syntax"
@@ -422,7 +422,13 @@
         {"name": "SmiToString"},
         {"name": "StringToString"},
         {"name": "SparseSmiToString"},
-        {"name": "SparseStringToString"}
+        {"name": "SparseStringToString"},
+        {"name": "NaiveFindReplacement"},
+        {"name": "DoubleFind"},
+        {"name": "SmiFind"},
+        {"name": "FastFind"},
+        {"name": "GenericFind"},
+        {"name": "OptFastFind"}
       ]
     },
     {

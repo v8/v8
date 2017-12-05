@@ -13,6 +13,7 @@ load('some.js');
 load('reduce.js');
 load('reduce-right.js');
 load('to-string.js');
+load('find.js');
 
 var success = true;
 
