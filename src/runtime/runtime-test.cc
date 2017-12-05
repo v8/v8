@@ -938,8 +938,7 @@ RUNTIME_FUNCTION(Runtime_IsWasmCode) {
 RUNTIME_FUNCTION(Runtime_IsWasmTrapHandlerEnabled) {
   DisallowHeapAllocation no_gc;
   DCHECK_EQ(0, args.length());
-  bool is_enabled = trap_handler::UseTrapHandler();
-  return isolate->heap()->ToBoolean(is_enabled);
+  return isolate->heap()->ToBoolean(trap_handler::IsTrapHandlerEnabled());
 }
 
 RUNTIME_FUNCTION(Runtime_GetWasmRecoveredTrapCount) {

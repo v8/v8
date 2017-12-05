@@ -3342,7 +3342,7 @@ int Shell::Main(int argc, char* argv[]) {
     create_params.add_histogram_sample_callback = AddHistogramSample;
   }
 
-  if (i::trap_handler::UseTrapHandler()) {
+  if (i::trap_handler::IsTrapHandlerEnabled()) {
     if (!v8::V8::RegisterDefaultSignalHandler()) {
       fprintf(stderr, "Could not register signal handler");
       exit(1);

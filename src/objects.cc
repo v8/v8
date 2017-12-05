@@ -13950,7 +13950,7 @@ void Code::InvalidateEmbeddedObjects() {
 
 
 void Code::Relocate(intptr_t delta) {
-  if (trap_handler::UseTrapHandler() && is_wasm_code()) {
+  if (trap_handler::IsTrapHandlerEnabled() && is_wasm_code()) {
     const int index = trap_handler_index()->value();
     if (index >= 0) {
       trap_handler::UpdateHandlerDataCodePointer(index, instruction_start());

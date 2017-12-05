@@ -345,7 +345,8 @@ void WasmTableObject::Set(Isolate* isolate, Handle<WasmTableObject> table,
           native_module->GetExportedWrapper(wasm_code.GetWasmCode()->index());
       if (exported_wrapper == nullptr) {
         Handle<Code> new_wrapper = compiler::CompileWasmToWasmWrapper(
-            isolate, wasm_code, wasm_function->sig, new_context_address);
+            isolate, wasm_code, wasm_function->sig, new_context_address,
+            exported_function->instance()->UseTrapHandler());
         exported_wrapper = native_module->AddExportedWrapper(
             new_wrapper, wasm_code.GetWasmCode()->index());
       }
@@ -356,7 +357,8 @@ void WasmTableObject::Set(Isolate* isolate, Handle<WasmTableObject> table,
                                           isolate);
       int func_index = exported_function->function_index();
       code = compiler::CompileWasmToWasmWrapper(
-          isolate, wasm_code, wasm_function->sig, new_context_address);
+          isolate, wasm_code, wasm_function->sig, new_context_address,
+          instance->UseTrapHandler());
       // TODO(6792): No longer needed once WebAssembly code is off heap.
       CodeSpaceMemoryModificationScope modification_scope(isolate->heap());
       AttachWasmFunctionInfo(isolate, Handle<Code>::cast(code), instance,
@@ -371,7 +373,8 @@ namespace {
 
 Handle<JSArrayBuffer> GrowMemoryBuffer(Isolate* isolate,
                                        Handle<JSArrayBuffer> old_buffer,
-                                       uint32_t pages, uint32_t maximum_pages) {
+                                       uint32_t pages, uint32_t maximum_pages,
+                                       bool use_trap_handler) {
   if (!old_buffer->is_growable()) return Handle<JSArrayBuffer>::null();
   Address old_mem_start = nullptr;
   uint32_t old_size = 0;
@@ -386,9 +389,8 @@ Handle<JSArrayBuffer> GrowMemoryBuffer(Isolate* isolate,
   if (old_pages > maximum_pages || pages > maximum_pages - old_pages) {
     return Handle<JSArrayBuffer>::null();
   }
-  const bool enable_guard_regions = old_buffer.is_null()
-                                        ? trap_handler::UseTrapHandler()
-                                        : old_buffer->has_guard_region();
+  const bool enable_guard_regions =
+      old_buffer.is_null() ? use_trap_handler : old_buffer->has_guard_region();
   size_t new_size =
       static_cast<size_t>(old_pages + pages) * WasmModule::kPageSize;
   if (enable_guard_regions && old_size != 0) {
@@ -437,6 +439,10 @@ void SetInstanceMemory(Isolate* isolate, Handle<WasmInstanceObject> instance,
 Handle<WasmMemoryObject> WasmMemoryObject::New(
     Isolate* isolate, MaybeHandle<JSArrayBuffer> maybe_buffer,
     int32_t maximum) {
+  // TODO(kschimpf): Do we need to add an argument that defines the
+  // style of memory the user prefers (with/without trap handling), so
+  // that the memory will match the style of the compiled wasm module.
+  // See issue v8:7143
   Handle<JSFunction> memory_ctor(
       isolate->native_context()->wasm_memory_constructor());
   auto memory_obj = Handle<WasmMemoryObject>::cast(
@@ -445,8 +451,11 @@ Handle<WasmMemoryObject> WasmMemoryObject::New(
   Handle<JSArrayBuffer> buffer;
   if (maybe_buffer.is_null()) {
     // If no buffer was provided, create a 0-length one.
+
+    // TODO(kschimpf): Modify to use argument defining style of
+    // memory.  (see above).
     buffer = wasm::SetupArrayBuffer(isolate, nullptr, 0, nullptr, 0, false,
-                                    trap_handler::UseTrapHandler());
+                                    trap_handler::IsTrapHandlerEnabled());
   } else {
     buffer = maybe_buffer.ToHandleChecked();
     // Paranoid check that the buffer size makes sense.
@@ -531,7 +540,10 @@ int32_t WasmMemoryObject::Grow(Isolate* isolate,
     maximum_pages = Min(FLAG_wasm_max_mem_pages,
                         static_cast<uint32_t>(memory_object->maximum_pages()));
   }
-  new_buffer = GrowMemoryBuffer(isolate, old_buffer, pages, maximum_pages);
+  // TODO(kschimpf): We need to fix this by adding a field to WasmMemoryObject
+  // that defines the style of memory being used.
+  new_buffer = GrowMemoryBuffer(isolate, old_buffer, pages, maximum_pages,
+                                trap_handler::IsTrapHandlerEnabled());
   if (new_buffer.is_null()) return -1;
 
   if (memory_object->has_instances()) {
@@ -546,6 +558,10 @@ int32_t WasmMemoryObject::Grow(Isolate* isolate,
   }
   memory_object->set_array_buffer(*new_buffer);
   return old_size / WasmModule::kPageSize;
+}
+
+bool WasmInstanceObject::UseTrapHandler() const {
+  return compiled_module()->use_trap_handler();
 }
 
 WasmModuleObject* WasmInstanceObject::module_object() {
@@ -1025,7 +1041,8 @@ Handle<WasmCompiledModule> WasmCompiledModule::New(
     Isolate* isolate, WasmModule* module, Handle<FixedArray> code_table,
     Handle<FixedArray> export_wrappers,
     const std::vector<GlobalHandleAddress>& function_tables,
-    const std::vector<GlobalHandleAddress>& signature_tables) {
+    const std::vector<GlobalHandleAddress>& signature_tables,
+    bool use_trap_handler) {
   DCHECK_EQ(function_tables.size(), signature_tables.size());
   Handle<FixedArray> ret =
       isolate->factory()->NewFixedArray(PropertyIndices::Count, TENURED);
@@ -1033,6 +1050,7 @@ Handle<WasmCompiledModule> WasmCompiledModule::New(
   Handle<WasmCompiledModule> compiled_module(
       reinterpret_cast<WasmCompiledModule*>(*ret), isolate);
   compiled_module->set_native_context(isolate->native_context());
+  compiled_module->set_use_trap_handler(use_trap_handler);
   if (!FLAG_wasm_jit_to_native) {
     compiled_module->InitId();
     compiled_module->set_native_context(isolate->native_context());
@@ -1259,7 +1277,7 @@ void WasmCompiledModule::Reset(Isolate* isolate,
   native_module->SetExecutable(false);
 
   TRACE("Resetting %zu\n", native_module->instance_id);
-  if (trap_handler::UseTrapHandler()) {
+  if (compiled_module->use_trap_handler()) {
     for (uint32_t i = native_module->num_imported_functions(),
                   e = native_module->FunctionCount();
          i < e; ++i) {

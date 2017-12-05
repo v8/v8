@@ -1057,7 +1057,7 @@ WASM_EXEC_TEST(SignallingNanSurvivesI32ReinterpretF32) {
 
 WASM_EXEC_TEST(LoadMaxUint32Offset) {
   // TODO(eholk): Fix this test for the trap handler.
-  if (trap_handler::UseTrapHandler()) return;
+  if (trap_handler::IsTrapHandlerEnabled()) return;
   WasmRunner<int32_t> r(execution_mode);
   r.builder().AddMemoryElems<int32_t>(8);
 
@@ -1498,7 +1498,7 @@ WASM_EXEC_TEST(LoadMemI32_alignment) {
 
 WASM_EXEC_TEST(LoadMemI32_oob) {
   // TODO(eholk): Fix this test for the trap handler.
-  if (trap_handler::UseTrapHandler()) return;
+  if (trap_handler::IsTrapHandlerEnabled()) return;
   WasmRunner<int32_t, uint32_t> r(execution_mode);
   int32_t* memory = r.builder().AddMemoryElems<int32_t>(8);
   r.builder().RandomizeMemory(1111);
@@ -1518,7 +1518,7 @@ WASM_EXEC_TEST(LoadMemI32_oob) {
 
 WASM_EXEC_TEST(LoadMem_offset_oob) {
   // TODO(eholk): Fix this test for the trap handler.
-  if (trap_handler::UseTrapHandler()) return;
+  if (trap_handler::IsTrapHandlerEnabled()) return;
   static const MachineType machineTypes[] = {
       MachineType::Int8(),   MachineType::Uint8(),  MachineType::Int16(),
       MachineType::Uint16(), MachineType::Int32(),  MachineType::Uint32(),
@@ -1569,7 +1569,7 @@ WASM_EXEC_TEST(LoadMemI32_offset) {
 
 WASM_EXEC_TEST(LoadMemI32_const_oob_misaligned) {
   // TODO(eholk): Fix this test for the trap handler.
-  if (trap_handler::UseTrapHandler()) return;
+  if (trap_handler::IsTrapHandlerEnabled()) return;
   constexpr byte kMemSize = 12;
   // TODO(titzer): Fix misaligned accesses on MIPS and re-enable.
   for (byte offset = 0; offset < kMemSize + 5; ++offset) {
@@ -1592,7 +1592,7 @@ WASM_EXEC_TEST(LoadMemI32_const_oob_misaligned) {
 
 WASM_EXEC_TEST(LoadMemI32_const_oob) {
   // TODO(eholk): Fix this test for the trap handler.
-  if (trap_handler::UseTrapHandler()) return;
+  if (trap_handler::IsTrapHandlerEnabled()) return;
   constexpr byte kMemSize = 24;
   for (byte offset = 0; offset < kMemSize + 5; offset += 4) {
     for (byte index = 0; index < kMemSize + 5; index += 4) {
@@ -1654,7 +1654,7 @@ WASM_EXEC_TEST(StoreMemI32_offset) {
 
 WASM_EXEC_TEST(StoreMem_offset_oob) {
   // TODO(eholk): Fix this test for the trap handler.
-  if (trap_handler::UseTrapHandler()) return;
+  if (trap_handler::IsTrapHandlerEnabled()) return;
   // 64-bit cases are handled in test-run-wasm-64.cc
   static const MachineType machineTypes[] = {
       MachineType::Int8(),    MachineType::Uint8(),  MachineType::Int16(),

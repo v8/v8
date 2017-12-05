@@ -242,7 +242,8 @@ class JSToWasmWrapperCache {
   Handle<Code> CloneOrCompileJSToWasmWrapper(Isolate* isolate,
                                              wasm::WasmModule* module,
                                              WasmCodeWrapper wasm_code,
-                                             uint32_t index) {
+                                             uint32_t index,
+                                             bool use_trap_handler) {
     const wasm::WasmFunction* func = &module->functions[index];
     int cached_idx = sig_map_.Find(func->sig);
     if (cached_idx >= 0) {
@@ -276,7 +277,7 @@ class JSToWasmWrapperCache {
     }
 
     Handle<Code> code = compiler::CompileJSToWasmWrapper(
-        isolate, module, wasm_code, index, context_address_);
+        isolate, module, wasm_code, index, context_address_, use_trap_handler);
     uint32_t new_cache_idx = sig_map_.FindOrInsert(func->sig);
     DCHECK_EQ(code_cache_.size(), new_cache_idx);
     USE(new_cache_idx);
@@ -340,6 +341,8 @@ class InstanceBuilder {
     return async_counters_;
   }
   Counters* counters() const { return async_counters().get(); }
+
+  bool UseTrapHandler() const { return compiled_module_->use_trap_handler(); }
 
 // Helper routines to print out errors with imports.
 #define ERROR_THROWER_WITH_MESSAGE(TYPE)                                      \
@@ -433,7 +436,7 @@ void InstanceFinalizer(const v8::WeakCallbackInfo<void>& data) {
   } else {
     TRACE("Finalizing %d {\n", compiled_module->instance_id());
 
-    if (trap_handler::UseTrapHandler()) {
+    if (compiled_module->use_trap_handler()) {
       // TODO(6792): No longer needed once WebAssembly code is off heap.
       CodeSpaceMemoryModificationScope modification_scope(isolate->heap());
       Handle<FixedArray> code_table = compiled_module->code_table();
@@ -876,7 +879,8 @@ compiler::ModuleEnv CreateModuleEnvFromCompiledModule(
                                   function_tables,   // --
                                   signature_tables,  // --
                                   empty_code,
-                                  BUILTIN_CODE(isolate, WasmCompileLazy)};
+                                  BUILTIN_CODE(isolate, WasmCompileLazy),
+                                  compiled_module->use_trap_handler()};
     return result;
   } else {
     std::vector<GlobalHandleAddress> function_tables;
@@ -896,7 +900,8 @@ compiler::ModuleEnv CreateModuleEnvFromCompiledModule(
                                   function_tables,   // --
                                   signature_tables,  // --
                                   empty_code,        // --
-                                  BUILTIN_CODE(isolate, WasmCompileLazy)};
+                                  BUILTIN_CODE(isolate, WasmCompileLazy),
+                                  compiled_module->use_trap_handler()};
     return result;
   }
 }
@@ -1883,7 +1888,7 @@ WasmCodeWrapper MakeWasmToWasmWrapper(
   if (!FLAG_wasm_jit_to_native) {
     Handle<Code> wrapper_code = compiler::CompileWasmToWasmWrapper(
         isolate, imported_function->GetWasmCode(), *sig,
-        new_wasm_context_address);
+        new_wasm_context_address, instance->UseTrapHandler());
     // Set the deoptimization data for the WasmToWasm wrapper. This is
     // needed by the interpreter to find the imported instance for
     // a cross-instance call.
@@ -1893,7 +1898,7 @@ WasmCodeWrapper MakeWasmToWasmWrapper(
   } else {
     Handle<Code> code = compiler::CompileWasmToWasmWrapper(
         isolate, imported_function->GetWasmCode(), *sig,
-        new_wasm_context_address);
+        new_wasm_context_address, instance->UseTrapHandler());
     return WasmCodeWrapper(
         instance->compiled_module()->GetNativeModule()->AddCodeCopy(
             code, wasm::WasmCode::kWasmToWasmWrapper, index));
@@ -1915,13 +1920,15 @@ WasmCodeWrapper UnwrapExportOrCompileImportWrapper(
   // signature.
   if (FLAG_wasm_jit_to_native) {
     Handle<Code> temp_code = compiler::CompileWasmToJSWrapper(
-        isolate, target, sig, import_index, origin, js_imports_table);
+        isolate, target, sig, import_index, origin, instance->UseTrapHandler(),
+        js_imports_table);
     return WasmCodeWrapper(
         instance->compiled_module()->GetNativeModule()->AddCodeCopy(
             temp_code, wasm::WasmCode::kWasmToJsWrapper, import_index));
   } else {
     return WasmCodeWrapper(compiler::CompileWasmToJSWrapper(
-        isolate, target, sig, import_index, origin, js_imports_table));
+        isolate, target, sig, import_index, origin, instance->UseTrapHandler(),
+        js_imports_table));
   }
 }
 
@@ -1957,13 +1964,14 @@ std::unique_ptr<compiler::ModuleEnv> CreateDefaultModuleEnv(
 
   std::vector<Handle<Code>> empty_code;
 
-  compiler::ModuleEnv result = {
-      module,            // --
-      function_tables,   // --
-      signature_tables,  // --
-      empty_code,        // --
-      illegal_builtin    // --
-  };
+  // TODO(kschimpf): Add module-specific policy handling here (see v8:7143)?
+  bool use_trap_handler = trap_handler::IsTrapHandlerEnabled();
+  compiler::ModuleEnv result = {module,            // --
+                                function_tables,   // --
+                                signature_tables,  // --
+                                empty_code,        // --
+                                illegal_builtin,   // --
+                                use_trap_handler};
   return std::unique_ptr<compiler::ModuleEnv>(new compiler::ModuleEnv(result));
 }
 
@@ -1973,9 +1981,9 @@ Handle<WasmCompiledModule> NewCompiledModule(Isolate* isolate,
                                              Handle<FixedArray> code_table,
                                              Handle<FixedArray> export_wrappers,
                                              compiler::ModuleEnv* env) {
-  Handle<WasmCompiledModule> compiled_module =
-      WasmCompiledModule::New(isolate, module, code_table, export_wrappers,
-                              env->function_tables, env->signature_tables);
+  Handle<WasmCompiledModule> compiled_module = WasmCompiledModule::New(
+      isolate, module, code_table, export_wrappers, env->function_tables,
+      env->signature_tables, env->use_trap_handler);
   return compiled_module;
 }
 
@@ -2381,7 +2389,7 @@ MaybeHandle<WasmInstanceObject> InstanceBuilder::Build() {
     // Set externally passed ArrayBuffer non neuterable.
     memory->set_is_neuterable(false);
 
-    DCHECK_IMPLIES(trap_handler::UseTrapHandler(),
+    DCHECK_IMPLIES(UseTrapHandler(),
                    module_->is_asm_js() || memory->has_guard_region());
   } else if (initial_pages > 0) {
     memory_ = AllocateMemory(initial_pages);
@@ -2509,7 +2517,7 @@ MaybeHandle<WasmInstanceObject> InstanceBuilder::Build() {
   //--------------------------------------------------------------------------
   // Unpack and notify signal handler of protected instructions.
   //--------------------------------------------------------------------------
-  if (trap_handler::UseTrapHandler()) {
+  if (UseTrapHandler()) {
     if (FLAG_wasm_jit_to_native) {
       UnpackAndRegisterProtectedInstructions(isolate_, native_module);
     } else {
@@ -2567,7 +2575,8 @@ MaybeHandle<WasmInstanceObject> InstanceBuilder::Build() {
         isolate_, instance, code_table, native_module, start_index);
     FunctionSig* sig = module_->functions[start_index].sig;
     Handle<Code> wrapper_code = js_to_wasm_cache_.CloneOrCompileJSToWasmWrapper(
-        isolate_, module_, startup_code, start_index);
+        isolate_, module_, startup_code, start_index,
+        compiled_module_->use_trap_handler());
     Handle<WasmExportedFunction> startup_fct = WasmExportedFunction::New(
         isolate_, instance, MaybeHandle<String>(), start_index,
         static_cast<int>(sig->parameter_count()), wrapper_code);
@@ -2930,7 +2939,8 @@ int InstanceBuilder::ProcessImports(Handle<FixedArray> code_table,
                   imported_instance->wasm_context()->get();
               Handle<Code> wrapper = compiler::CompileWasmToWasmWrapper(
                   isolate_, target->GetWasmCode(), sig,
-                  reinterpret_cast<Address>(other_context));
+                  reinterpret_cast<Address>(other_context),
+                  instance->UseTrapHandler());
               set_of_native_module_scopes.Add(exporting_module);
               wrapper_code = exporting_module->AddExportedWrapper(
                   wrapper, exported_code->index());
@@ -3096,7 +3106,7 @@ Handle<JSArrayBuffer> InstanceBuilder::AllocateMemory(uint32_t num_pages) {
     thrower_->RangeError("Out of memory: wasm memory too large");
     return Handle<JSArrayBuffer>::null();
   }
-  const bool enable_guard_regions = trap_handler::UseTrapHandler();
+  const bool enable_guard_regions = UseTrapHandler();
   Handle<JSArrayBuffer> mem_buffer = NewArrayBuffer(
       isolate_, num_pages * WasmModule::kPageSize, enable_guard_regions);
 
@@ -3488,7 +3498,8 @@ void InstanceBuilder::LoadTableSegments(Handle<FixedArray> code_table,
 
             Handle<Code> wrapper_code =
                 js_to_wasm_cache_.CloneOrCompileJSToWasmWrapper(
-                    isolate_, module_, wasm_code, func_index);
+                    isolate_, module_, wasm_code, func_index,
+                    instance->UseTrapHandler());
             MaybeHandle<String> func_name;
             if (module_->is_asm_js()) {
               // For modules arising from asm.js, honor the names section.
@@ -4257,7 +4268,8 @@ void CompileJsToWasmWrappers(Isolate* isolate,
         isolate, Handle<WasmInstanceObject>::null(),
         compiled_module->code_table(), native_module, exp.index);
     Handle<Code> wrapper_code = js_to_wasm_cache.CloneOrCompileJSToWasmWrapper(
-        isolate, compiled_module->module(), wasm_code, exp.index);
+        isolate, compiled_module->module(), wasm_code, exp.index,
+        compiled_module->use_trap_handler());
     export_wrappers->set(wrapper_index, *wrapper_code);
     RecordStats(*wrapper_code, counters);
     ++wrapper_index;

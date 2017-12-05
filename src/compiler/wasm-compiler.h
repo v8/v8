@@ -69,6 +69,9 @@ struct ModuleEnv {
   const std::vector<Handle<Code>> function_code;
   // If the default code is not a null handle, always use it for direct calls.
   const Handle<Code> default_function_code;
+  // True if trap handling should be used in compiled code, rather than
+  // compiling in bounds checks for each memory access.
+  const bool use_trap_handler;
 };
 
 enum RuntimeExceptionSupport : bool {
@@ -108,6 +111,8 @@ class WasmCompilationUnit final {
       CompilationMode = GetDefaultCompilationMode());
 
   size_t memory_cost() const { return memory_cost_; }
+
+  bool UseTrapHandler() const { return use_trap_handler_; }
 
  private:
   void PackProtectedInstructions(Handle<Code> code) const;
@@ -151,6 +156,7 @@ class WasmCompilationUnit final {
   size_t memory_cost_ = 0;
   wasm::NativeModule* native_module_;
   bool lower_simd_;
+  const bool use_trap_handler_;
   std::shared_ptr<std::vector<trap_handler::ProtectedInstructionData>>
       protected_instructions_;
   CompilationMode mode_;
@@ -172,18 +178,20 @@ class WasmCompilationUnit final {
 Handle<Code> CompileWasmToJSWrapper(Isolate* isolate, Handle<JSReceiver> target,
                                     wasm::FunctionSig* sig, uint32_t index,
                                     wasm::ModuleOrigin origin,
+                                    bool use_trap_handler,
                                     Handle<FixedArray> global_js_imports_table);
 
 // Wraps a given wasm code object, producing a code object.
 V8_EXPORT_PRIVATE Handle<Code> CompileJSToWasmWrapper(
     Isolate* isolate, wasm::WasmModule* module, WasmCodeWrapper wasm_code,
-    uint32_t index, Address wasm_context_address);
+    uint32_t index, Address wasm_context_address, bool use_trap_handler);
 
 // Wraps a wasm function, producing a code object that can be called from other
 // wasm instances (the WasmContext address must be changed).
 Handle<Code> CompileWasmToWasmWrapper(Isolate* isolate, WasmCodeWrapper target,
                                       wasm::FunctionSig* sig,
-                                      Address new_wasm_context_address);
+                                      Address new_wasm_context_address,
+                                      bool use_trap_handler);
 
 // Compiles a stub that redirects a call to a wasm function to the wasm
 // interpreter. It's ABI compatible with the compiled wasm function.
@@ -209,9 +217,22 @@ Handle<Code> CompileCWasmEntry(Isolate* isolate, wasm::FunctionSig* sig,
 typedef ZoneVector<Node*> NodeVector;
 class WasmGraphBuilder {
  public:
-  WasmGraphBuilder(ModuleEnv*, Zone*, JSGraph*, Handle<Code> centry_stub_,
-                   wasm::FunctionSig*, compiler::SourcePositionTable* = nullptr,
-                   RuntimeExceptionSupport = kRuntimeExceptionSupport);
+  WasmGraphBuilder(const ModuleEnv* env, Zone* zone, JSGraph* graph,
+                   Handle<Code> centry_stub, wasm::FunctionSig* sig,
+                   compiler::SourcePositionTable* spt = nullptr,
+                   RuntimeExceptionSupport res = kRuntimeExceptionSupport)
+      : WasmGraphBuilder(env, (env && env->use_trap_handler), zone, graph,
+                         centry_stub, sig, spt, res) {
+    DCHECK_NOT_NULL(env);
+  }
+
+  // Same as above, but when no module environment is available.
+  WasmGraphBuilder(bool use_trap_handler, Zone* zone, JSGraph* graph,
+                   Handle<Code> centry_stub, wasm::FunctionSig* sig,
+                   compiler::SourcePositionTable* spt = nullptr,
+                   RuntimeExceptionSupport res = kRuntimeExceptionSupport)
+      : WasmGraphBuilder(nullptr, use_trap_handler, zone, graph, centry_stub,
+                         sig, spt, res) {}
 
   Node** Buffer(size_t count) {
     if (count > cur_bufsize_) {
@@ -390,13 +411,15 @@ class WasmGraphBuilder {
 
   const wasm::WasmModule* module() { return env_ ? env_->module : nullptr; }
 
+  bool UseTrapHandler() const { return use_trap_handler_; }
+
  private:
   static const int kDefaultBufferSize = 16;
 
   Zone* zone_;
   JSGraph* jsgraph_;
   Node* centry_stub_node_;
-  ModuleEnv* env_ = nullptr;
+  const ModuleEnv* env_ = nullptr;
   Node* wasm_context_ = nullptr;
   NodeVector signature_tables_;
   NodeVector function_tables_;
@@ -411,6 +434,7 @@ class WasmGraphBuilder {
   Node* def_buffer_[kDefaultBufferSize];
   bool has_simd_ = false;
   bool needs_stack_check_ = false;
+  const bool use_trap_handler_;
   // If the runtime doesn't support exception propagation,
   // we won't generate stack checks, and trap handling will also
   // be generated differently.
@@ -420,6 +444,10 @@ class WasmGraphBuilder {
   SetOncePointer<const Operator> allocate_heap_number_operator_;
 
   compiler::SourcePositionTable* source_position_table_ = nullptr;
+
+  WasmGraphBuilder(const ModuleEnv*, bool use_trap_handler, Zone*, JSGraph*,
+                   Handle<Code> centry_stub_, wasm::FunctionSig*,
+                   compiler::SourcePositionTable*, RuntimeExceptionSupport);
 
   // Internal helper methods.
   JSGraph* jsgraph() { return jsgraph_; }

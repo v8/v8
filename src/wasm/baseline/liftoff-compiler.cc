@@ -72,7 +72,8 @@ class LiftoffCompiler {
   using Decoder = WasmFullDecoder<validate, LiftoffCompiler>;
 
   LiftoffCompiler(LiftoffAssembler* liftoff_asm,
-                  compiler::CallDescriptor* call_desc, compiler::ModuleEnv* env)
+                  compiler::CallDescriptor* call_desc,
+                  const compiler::ModuleEnv* env)
       : asm_(liftoff_asm), call_desc_(call_desc), env_(env) {}
 
   bool ok() const { return ok_; }
@@ -562,7 +563,7 @@ class LiftoffCompiler {
  private:
   LiftoffAssembler* asm_;
   compiler::CallDescriptor* call_desc_;
-  compiler::ModuleEnv* env_;
+  const compiler::ModuleEnv* env_;
   bool ok_ = true;
 };
 

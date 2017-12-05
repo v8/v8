@@ -53,7 +53,7 @@ class ClearThreadInWasmScope {
  public:
   explicit ClearThreadInWasmScope(bool coming_from_wasm)
       : coming_from_wasm_(coming_from_wasm) {
-    DCHECK_EQ(trap_handler::UseTrapHandler() && coming_from_wasm,
+    DCHECK_EQ(trap_handler::IsTrapHandlerEnabled() && coming_from_wasm,
               trap_handler::IsThreadInWasm());
     if (coming_from_wasm) trap_handler::ClearThreadInWasm();
   }
@@ -276,7 +276,8 @@ RUNTIME_FUNCTION(Runtime_WasmRunInterpreter) {
 RUNTIME_FUNCTION(Runtime_WasmStackGuard) {
   SealHandleScope shs(isolate);
   DCHECK_EQ(0, args.length());
-  DCHECK(!trap_handler::UseTrapHandler() || trap_handler::IsThreadInWasm());
+  DCHECK(!trap_handler::IsTrapHandlerEnabled() ||
+         trap_handler::IsThreadInWasm());
 
   ClearThreadInWasmScope wasm_flag(true);
 

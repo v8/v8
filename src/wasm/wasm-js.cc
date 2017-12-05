@@ -601,7 +601,7 @@ void WebAssemblyMemory(const v8::FunctionCallbackInfo<v8::Value>& args) {
   size_t size = static_cast<size_t>(i::wasm::WasmModule::kPageSize) *
                 static_cast<size_t>(initial);
   i::Handle<i::JSArrayBuffer> buffer = i::wasm::NewArrayBuffer(
-      i_isolate, size, internal::trap_handler::UseTrapHandler(),
+      i_isolate, size, internal::trap_handler::IsTrapHandlerEnabled(),
       is_shared_memory ? i::SharedFlag::kShared : i::SharedFlag::kNotShared);
   if (buffer.is_null()) {
     thrower.RangeError("could not allocate memory");

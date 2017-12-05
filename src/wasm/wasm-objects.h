@@ -214,6 +214,8 @@ class WasmInstanceObject : public JSObject {
   WasmModuleObject* module_object();
   V8_EXPORT_PRIVATE wasm::WasmModule* module();
 
+  bool UseTrapHandler() const;
+
   // Get the debug info associated with the given wasm object.
   // If no debug info exists yet, it is created automatically.
   static Handle<WasmDebugInfo> GetOrCreateDebugInfo(Handle<WasmInstanceObject>);
@@ -393,7 +395,8 @@ class WasmCompiledModule : public FixedArray {
   MACRO(OBJECT, FixedArray, handler_table)              \
   MACRO(OBJECT, FixedArray, source_positions)           \
   MACRO(OBJECT, Foreign, native_module)                 \
-  MACRO(OBJECT, FixedArray, lazy_compile_data)
+  MACRO(OBJECT, FixedArray, lazy_compile_data)          \
+  MACRO(SMALL_CONST_NUMBER, bool, use_trap_handler)
 
 #define GC_WCM_PROPERTY_TABLE(MACRO)                          \
   MACRO(SMALL_CONST_NUMBER, uint32_t, num_imported_functions) \
@@ -432,7 +435,8 @@ class WasmCompiledModule : public FixedArray {
       Isolate* isolate, wasm::WasmModule* module, Handle<FixedArray> code_table,
       Handle<FixedArray> export_wrappers,
       const std::vector<wasm::GlobalHandleAddress>& function_tables,
-      const std::vector<wasm::GlobalHandleAddress>& signature_tables);
+      const std::vector<wasm::GlobalHandleAddress>& signature_tables,
+      bool use_trap_hander);
 
   static Handle<WasmCompiledModule> Clone(Isolate* isolate,
                                           Handle<WasmCompiledModule> module);

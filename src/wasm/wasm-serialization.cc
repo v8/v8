@@ -671,7 +671,7 @@ MaybeHandle<WasmCompiledModule> NativeModuleDeserializer::DeserializeFullBuffer(
 
   Handle<WasmCompiledModule> compiled_module = WasmCompiledModule::New(
       isolate, shared->module(), isolate->factory()->NewFixedArray(0, TENURED),
-      export_wrappers, {}, {});
+      export_wrappers, {}, {}, trap_handler::IsTrapHandlerEnabled());
   compiled_module->OnWasmModuleDecodingComplete(shared);
   NativeModuleDeserializer deserializer(isolate,
                                         compiled_module->GetNativeModule());

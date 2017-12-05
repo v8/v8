@@ -41,7 +41,7 @@ byte* TestingModuleBuilder::AddMemory(uint32_t size) {
   DCHECK(!instance_object_->has_memory_object());
   test_module_.has_memory = true;
   const bool enable_guard_regions =
-      trap_handler::UseTrapHandler() && test_module_.is_wasm();
+      trap_handler::IsTrapHandlerEnabled() && test_module_.is_wasm();
   uint32_t alloc_size =
       enable_guard_regions ? RoundUp(size, base::OS::CommitPageSize()) : size;
   Handle<JSArrayBuffer> new_buffer =
@@ -100,14 +100,16 @@ uint32_t TestingModuleBuilder::AddJsFunction(
   if (FLAG_wasm_jit_to_native) {
     native_module_->ResizeCodeTableForTest(index);
     Handle<Code> wrapper = compiler::CompileWasmToJSWrapper(
-        isolate_, jsfunc, sig, index, test_module_.origin(), js_imports_table);
+        isolate_, jsfunc, sig, index, test_module_.origin(),
+        trap_handler::IsTrapHandlerEnabled(), js_imports_table);
     native_module_->AddCodeCopy(wrapper, wasm::WasmCode::kWasmToJsWrapper,
                                 index);
   } else {
     // TODO(6792): No longer needed once WebAssembly code is off heap.
     CodeSpaceMemoryModificationScope modification_scope(isolate_->heap());
     Handle<Code> code = compiler::CompileWasmToJSWrapper(
-        isolate_, jsfunc, sig, index, test_module_.origin(), js_imports_table);
+        isolate_, jsfunc, sig, index, test_module_.origin(),
+        trap_handler::IsTrapHandlerEnabled(), js_imports_table);
     function_code_[index] = code;
   }
   return index;
@@ -124,7 +126,8 @@ Handle<JSFunction> TestingModuleBuilder::WrapCode(uint32_t index) {
           ? reinterpret_cast<byte*>(instance_object_->wasm_context())
           : nullptr;
   Handle<Code> ret_code = compiler::CompileJSToWasmWrapper(
-      isolate_, &test_module_, code, index, context_address);
+      isolate_, &test_module_, code, index, context_address,
+      trap_handler::IsTrapHandlerEnabled());
   Handle<JSFunction> ret = WasmExportedFunction::New(
       isolate_, instance_object(), MaybeHandle<String>(),
       static_cast<int>(index),
@@ -212,8 +215,9 @@ uint32_t TestingModuleBuilder::AddBytes(Vector<const byte> bytes) {
 }
 
 compiler::ModuleEnv TestingModuleBuilder::CreateModuleEnv() {
-  return {&test_module_, function_tables_, signature_tables_, function_code_,
-          Handle<Code>::null()};
+  return {&test_module_,        function_tables_,
+          signature_tables_,    function_code_,
+          Handle<Code>::null(), trap_handler::IsTrapHandlerEnabled()};
 }
 
 const WasmGlobal* TestingModuleBuilder::AddGlobal(ValueType type) {
@@ -244,7 +248,7 @@ Handle<WasmInstanceObject> TestingModuleBuilder::InitInstanceObject() {
   Handle<FixedArray> export_wrappers = isolate_->factory()->NewFixedArray(0);
   Handle<WasmCompiledModule> compiled_module = WasmCompiledModule::New(
       isolate_, test_module_ptr_, code_table, export_wrappers, function_tables_,
-      signature_tables_);
+      signature_tables_, trap_handler::IsTrapHandlerEnabled());
   compiled_module->OnWasmModuleDecodingComplete(shared_module_data);
   // This method is called when we initialize TestEnvironment. We don't
   // have a memory yet, so we won't create it here. We'll update the
@@ -262,23 +266,17 @@ Handle<WasmInstanceObject> TestingModuleBuilder::InitInstanceObject() {
   return instance;
 }
 
-void TestBuildingGraph(
-    Zone* zone, compiler::JSGraph* jsgraph, compiler::ModuleEnv* module,
-    FunctionSig* sig, compiler::SourcePositionTable* source_position_table,
-    const byte* start, const byte* end,
-    compiler::RuntimeExceptionSupport runtime_exception_support) {
-  compiler::WasmGraphBuilder builder(
-      module, zone, jsgraph, CEntryStub(jsgraph->isolate(), 1).GetCode(), sig,
-      source_position_table, runtime_exception_support);
-
+void TestBuildingGraphWithBuilder(compiler::WasmGraphBuilder* builder,
+                                  Zone* zone, FunctionSig* sig,
+                                  const byte* start, const byte* end) {
   DecodeResult result =
-      BuildTFGraph(zone->allocator(), &builder, sig, start, end);
+      BuildTFGraph(zone->allocator(), builder, sig, start, end);
   if (result.failed()) {
 #ifdef DEBUG
     if (!FLAG_trace_wasm_decoder) {
       // Retry the compilation with the tracing flag on, to help in debugging.
       FLAG_trace_wasm_decoder = true;
-      result = BuildTFGraph(zone->allocator(), &builder, sig, start, end);
+      result = BuildTFGraph(zone->allocator(), builder, sig, start, end);
     }
 #endif
 
@@ -288,9 +286,28 @@ void TestBuildingGraph(
         << ", msg = " << result.error_msg().c_str();
     FATAL(str.str().c_str());
   }
-  builder.LowerInt64();
+  builder->LowerInt64();
   if (!CpuFeatures::SupportsWasmSimd128()) {
-    builder.SimdScalarLoweringForTesting();
+    builder->SimdScalarLoweringForTesting();
+  }
+}
+
+void TestBuildingGraph(
+    Zone* zone, compiler::JSGraph* jsgraph, compiler::ModuleEnv* module,
+    FunctionSig* sig, compiler::SourcePositionTable* source_position_table,
+    const byte* start, const byte* end,
+    compiler::RuntimeExceptionSupport runtime_exception_support) {
+  if (module) {
+    compiler::WasmGraphBuilder builder(
+        module, zone, jsgraph, CEntryStub(jsgraph->isolate(), 1).GetCode(), sig,
+        source_position_table, runtime_exception_support);
+    TestBuildingGraphWithBuilder(&builder, zone, sig, start, end);
+  } else {
+    compiler::WasmGraphBuilder builder(
+        trap_handler::IsTrapHandlerEnabled(), zone, jsgraph,
+        CEntryStub(jsgraph->isolate(), 1).GetCode(), sig, source_position_table,
+        runtime_exception_support);
+    TestBuildingGraphWithBuilder(&builder, zone, sig, start, end);
   }
 }
 
@@ -490,11 +507,11 @@ void WasmFunctionCompiler::Build(const byte* start, const byte* end) {
     DCHECK(code_table->get(static_cast<int>(function_index()))
                ->IsUndefined(isolate()));
     code_table->set(static_cast<int>(function_index()), *code);
-    if (trap_handler::UseTrapHandler()) {
+    if (trap_handler::IsTrapHandlerEnabled()) {
       UnpackAndRegisterProtectedInstructionsGC(isolate(), code_table);
     }
   } else {
-    if (trap_handler::UseTrapHandler()) {
+    if (trap_handler::IsTrapHandlerEnabled()) {
       UnpackAndRegisterProtectedInstructions(isolate(), native_module);
     }
   }
@@ -519,7 +536,7 @@ WasmFunctionCompiler::WasmFunctionCompiler(Zone* zone, FunctionSig* sig,
 
 WasmFunctionCompiler::~WasmFunctionCompiler() {
   if (!FLAG_wasm_jit_to_native) {
-    if (trap_handler::UseTrapHandler() &&
+    if (trap_handler::IsTrapHandlerEnabled() &&
         !builder_->GetFunctionCode(function_index()).is_null()) {
       const int handler_index = builder_->GetFunctionCode(function_index())
                                     .GetCode()

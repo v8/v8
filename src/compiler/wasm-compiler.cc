@@ -72,8 +72,8 @@ void MergeControlToEnd(JSGraph* jsgraph, Node* node) {
 }  // namespace
 
 WasmGraphBuilder::WasmGraphBuilder(
-    ModuleEnv* env, Zone* zone, JSGraph* jsgraph, Handle<Code> centry_stub,
-    wasm::FunctionSig* sig,
+    const ModuleEnv* env, bool use_trap_handler, Zone* zone, JSGraph* jsgraph,
+    Handle<Code> centry_stub, wasm::FunctionSig* sig,
     compiler::SourcePositionTable* source_position_table,
     RuntimeExceptionSupport exception_support)
     : zone_(zone),
@@ -85,9 +85,11 @@ WasmGraphBuilder::WasmGraphBuilder(
       function_table_sizes_(zone),
       cur_buffer_(def_buffer_),
       cur_bufsize_(kDefaultBufferSize),
+      use_trap_handler_(use_trap_handler),
       runtime_exception_support_(exception_support),
       sig_(sig),
       source_position_table_(source_position_table) {
+  DCHECK_IMPLIES(use_trap_handler_, trap_handler::IsTrapHandlerEnabled());
   for (size_t i = sig->parameter_count(); i > 0 && !has_simd_; --i) {
     if (sig->GetParam(i - 1) == wasm::kWasmS128) has_simd_ = true;
   }
@@ -3342,7 +3344,7 @@ void WasmGraphBuilder::EnsureFunctionTableNodes() {
 Node* WasmGraphBuilder::BuildModifyThreadInWasmFlag(bool new_value) {
   // TODO(eholk): generate code to modify the thread-local storage directly,
   // rather than calling the runtime.
-  if (!trap_handler::UseTrapHandler()) {
+  if (!UseTrapHandler()) {
     return *control_;
   }
 
@@ -3555,13 +3557,13 @@ Node* WasmGraphBuilder::LoadMem(wasm::ValueType type, MachineType memtype,
         graph()->NewNode(jsgraph()->machine()->ChangeUint32ToUint64(), index);
   }
   // Wasm semantics throw on OOB. Introduce explicit bounds check.
-  if (!trap_handler::UseTrapHandler()) {
+  if (!UseTrapHandler()) {
     BoundsCheckMem(memtype, index, offset, position);
   }
 
   if (memtype.representation() == MachineRepresentation::kWord8 ||
       jsgraph()->machine()->UnalignedLoadSupported(memtype.representation())) {
-    if (trap_handler::UseTrapHandler()) {
+    if (UseTrapHandler()) {
       load = graph()->NewNode(jsgraph()->machine()->ProtectedLoad(memtype),
                               MemBuffer(offset), index, *effect_, *control_);
       SetSourcePosition(load, position);
@@ -3571,7 +3573,7 @@ Node* WasmGraphBuilder::LoadMem(wasm::ValueType type, MachineType memtype,
     }
   } else {
     // TODO(eholk): Support unaligned loads with trap handlers.
-    DCHECK(!trap_handler::UseTrapHandler());
+    DCHECK(!UseTrapHandler());
     load = graph()->NewNode(jsgraph()->machine()->UnalignedLoad(memtype),
                             MemBuffer(offset), index, *effect_, *control_);
   }
@@ -3614,7 +3616,7 @@ Node* WasmGraphBuilder::StoreMem(MachineType memtype, Node* index,
         graph()->NewNode(jsgraph()->machine()->ChangeUint32ToUint64(), index);
   }
   // Wasm semantics throw on OOB. Introduce explicit bounds check.
-  if (!trap_handler::UseTrapHandler()) {
+  if (!UseTrapHandler()) {
     BoundsCheckMem(memtype, index, offset, position);
   }
 
@@ -3624,7 +3626,7 @@ Node* WasmGraphBuilder::StoreMem(MachineType memtype, Node* index,
 
   if (memtype.representation() == MachineRepresentation::kWord8 ||
       jsgraph()->machine()->UnalignedStoreSupported(memtype.representation())) {
-    if (trap_handler::UseTrapHandler()) {
+    if (UseTrapHandler()) {
       store = graph()->NewNode(
           jsgraph()->machine()->ProtectedStore(memtype.representation()),
           MemBuffer(offset), index, val, *effect_, *control_);
@@ -3637,7 +3639,7 @@ Node* WasmGraphBuilder::StoreMem(MachineType memtype, Node* index,
     }
   } else {
     // TODO(eholk): Support unaligned stores with trap handlers.
-    DCHECK(!trap_handler::UseTrapHandler());
+    DCHECK(!UseTrapHandler());
     UnalignedStoreRepresentation rep(memtype.representation());
     store =
         graph()->NewNode(jsgraph()->machine()->UnalignedStore(rep),
@@ -4247,7 +4249,8 @@ void RecordFunctionCompilation(CodeEventListener::LogEventsAndTags tag,
 
 Handle<Code> CompileJSToWasmWrapper(Isolate* isolate, wasm::WasmModule* module,
                                     WasmCodeWrapper wasm_code, uint32_t index,
-                                    Address wasm_context_address) {
+                                    Address wasm_context_address,
+                                    bool use_trap_handler) {
   const wasm::WasmFunction* func = &module->functions[index];
 
   //----------------------------------------------------------------------------
@@ -4266,15 +4269,14 @@ Handle<Code> CompileJSToWasmWrapper(Isolate* isolate, wasm::WasmModule* module,
   Node* effect = nullptr;
 
   // TODO(titzer): compile JS to WASM wrappers without a {ModuleEnv}.
-  ModuleEnv env = {
-      module,
-      std::vector<Address>(),  // function_tables
-      std::vector<Address>(),  // signature_tables
-      // TODO(mtrofin): remove these 2 lines when we don't need
-      // FLAG_wasm_jit_to_native
-      std::vector<Handle<Code>>(),    // function_code
-      BUILTIN_CODE(isolate, Illegal)  // default_function_code
-  };
+  ModuleEnv env = {module,
+                   std::vector<Address>(),  // function_tables
+                   std::vector<Address>(),  // signature_tables
+                   // TODO(mtrofin): remove these 2 lines when we don't need
+                   // FLAG_wasm_jit_to_native
+                   std::vector<Handle<Code>>(),     // function_code
+                   BUILTIN_CODE(isolate, Illegal),  // default_function_code
+                   use_trap_handler};
 
   WasmGraphBuilder builder(&env, &zone, &jsgraph,
                            CEntryStub(isolate, 1).GetCode(), func->sig);
@@ -4366,7 +4368,7 @@ void ValidateImportWrapperReferencesImmovables(Handle<Code> wrapper) {
 
 Handle<Code> CompileWasmToJSWrapper(
     Isolate* isolate, Handle<JSReceiver> target, wasm::FunctionSig* sig,
-    uint32_t index, wasm::ModuleOrigin origin,
+    uint32_t index, wasm::ModuleOrigin origin, bool use_trap_handler,
     Handle<FixedArray> global_js_imports_table) {
   //----------------------------------------------------------------------------
   // Create the Graph
@@ -4387,7 +4389,7 @@ Handle<Code> CompileWasmToJSWrapper(
       origin == wasm::kAsmJsOrigin ? new (&zone) SourcePositionTable(&graph)
                                    : nullptr;
 
-  WasmGraphBuilder builder(nullptr, &zone, &jsgraph,
+  WasmGraphBuilder builder(use_trap_handler, &zone, &jsgraph,
                            CEntryStub(isolate, 1).GetCode(), sig,
                            source_position_table);
   builder.set_control_ptr(&control);
@@ -4457,7 +4459,8 @@ Handle<Code> CompileWasmToJSWrapper(
 
 Handle<Code> CompileWasmToWasmWrapper(Isolate* isolate, WasmCodeWrapper target,
                                       wasm::FunctionSig* sig,
-                                      Address new_wasm_context_address) {
+                                      Address new_wasm_context_address,
+                                      bool use_trap_handler) {
   //----------------------------------------------------------------------------
   // Create the Graph
   //----------------------------------------------------------------------------
@@ -4473,7 +4476,8 @@ Handle<Code> CompileWasmToWasmWrapper(Isolate* isolate, WasmCodeWrapper target,
   Node* control = nullptr;
   Node* effect = nullptr;
 
-  WasmGraphBuilder builder(nullptr, &zone, &jsgraph, Handle<Code>(), sig);
+  WasmGraphBuilder builder(use_trap_handler, &zone, &jsgraph, Handle<Code>(),
+                           sig);
   builder.set_control_ptr(&control);
   builder.set_effect_ptr(&effect);
   builder.BuildWasmToWasmWrapper(target, new_wasm_context_address);
@@ -4543,7 +4547,7 @@ Handle<Code> CompileWasmInterpreterEntry(Isolate* isolate, uint32_t func_index,
   Node* control = nullptr;
   Node* effect = nullptr;
 
-  WasmGraphBuilder builder(nullptr, &zone, &jsgraph,
+  WasmGraphBuilder builder(instance->UseTrapHandler(), &zone, &jsgraph,
                            CEntryStub(isolate, 1).GetCode(), sig);
   builder.set_control_ptr(&control);
   builder.set_effect_ptr(&effect);
@@ -4610,8 +4614,8 @@ Handle<Code> CompileCWasmEntry(Isolate* isolate, wasm::FunctionSig* sig,
   Node* control = nullptr;
   Node* effect = nullptr;
 
-  WasmGraphBuilder builder(nullptr, &zone, &jsgraph,
-                           CEntryStub(isolate, 1).GetCode(), sig);
+  WasmGraphBuilder builder(trap_handler::IsTrapHandlerEnabled(), &zone,
+                           &jsgraph, CEntryStub(isolate, 1).GetCode(), sig);
   builder.set_control_ptr(&control);
   builder.set_effect_ptr(&effect);
   builder.BuildCWasmEntry(wasm_context_address);
@@ -4680,7 +4684,6 @@ SourcePositionTable* WasmCompilationUnit::BuildGraphForWasmFunction(
                            runtime_exception_support_);
   tf_.graph_construction_result_ =
       wasm::BuildTFGraph(isolate_->allocator(), &builder, func_body_);
-
   if (tf_.graph_construction_result_.failed()) {
     if (FLAG_trace_wasm_compiler) {
       OFStream os(stdout);
@@ -4751,9 +4754,11 @@ WasmCompilationUnit::WasmCompilationUnit(
       runtime_exception_support_(exception_support),
       native_module_(native_module),
       lower_simd_(lower_simd),
+      use_trap_handler_(env && env->use_trap_handler),
       protected_instructions_(
           new std::vector<trap_handler::ProtectedInstructionData>()),
       mode_(mode) {
+  DCHECK_IMPLIES(use_trap_handler_, trap_handler::IsTrapHandlerEnabled());
   switch (mode_) {
     case WasmCompilationUnit::CompilationMode::kLiftoff:
       new (&liftoff_) LiftoffData(isolate);
