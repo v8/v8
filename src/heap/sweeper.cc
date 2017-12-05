@@ -469,6 +469,8 @@ void Sweeper::PrepareToBeSweptPage(AllocationSpace space, Page* page) {
   DCHECK_GE(page->area_size(),
             static_cast<size_t>(marking_state_->live_bytes(page)));
   DCHECK_EQ(Page::kSweepingDone, page->concurrent_sweeping_state().Value());
+  page->ForAllFreeListCategories(
+      [](FreeListCategory* category) { DCHECK(!category->is_linked()); });
   page->concurrent_sweeping_state().SetValue(Page::kSweepingPending);
   heap_->paged_space(space)->IncreaseAllocatedBytes(
       marking_state_->live_bytes(page), page);
@@ -558,8 +560,6 @@ void Sweeper::AddPageForIterability(Page* page) {
   DCHECK(!iterability_task_started_);
   DCHECK(IsValidIterabilitySpace(page->owner()->identity()));
   DCHECK_EQ(Page::kSweepingDone, page->concurrent_sweeping_state().Value());
-  page->ForAllFreeListCategories(
-      [](FreeListCategory* category) { DCHECK(!category->is_linked()); });
 
   iterability_list_.push_back(page);
   page->concurrent_sweeping_state().SetValue(Page::kSweepingPending);
