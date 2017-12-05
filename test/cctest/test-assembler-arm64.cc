@@ -12334,16 +12334,13 @@ enum PushPopMethod {
 static int const kPushPopJsspMaxRegCount = -1;
 
 // Test a simple push-pop pattern:
-//  * Claim <claim> bytes to set the stack alignment.
 //  * Push <reg_count> registers with size <reg_size>.
 //  * Clobber the register contents.
 //  * Pop <reg_count> registers to restore the original contents.
-//  * Drop <claim> bytes to restore the original stack pointer.
 //
 // Different push and pop methods can be specified independently to test for
 // proper word-endian behaviour.
 static void PushPopJsspSimpleHelper(int reg_count,
-                                    int claim,
                                     int reg_size,
                                     PushPopMethod push_method,
                                     PushPopMethod pop_method) {
@@ -12354,7 +12351,9 @@ static void PushPopJsspSimpleHelper(int reg_count,
   // Registers in the TmpList can be used by the macro assembler for debug code
   // (for example in 'Pop'), so we can't use them here. We can't use jssp
   // because it will be the stack pointer for this test.
-  static RegList const allowed = ~(masm.TmpList()->list() | jssp.bit());
+  // TODO(arm): When removing jssp, remove xzr here, too, for alignment.
+  static RegList const allowed =
+      ~(masm.TmpList()->list() | jssp.bit() | xzr.bit());
   if (reg_count == kPushPopJsspMaxRegCount) {
     reg_count = CountSetBits(allowed, kNumberOfRegisters);
   }
@@ -12386,9 +12385,6 @@ static void PushPopJsspSimpleHelper(int reg_count,
         __ Mov(x[i], literal_base * i);
       }
     }
-
-    // Claim memory first, as requested.
-    __ Claim(claim, kByteSizeInBytes);
 
     switch (push_method) {
       case PushPopByFour:
@@ -12435,9 +12431,6 @@ static void PushPopJsspSimpleHelper(int reg_count,
         break;
     }
 
-    // Drop memory to restore jssp.
-    __ Drop(claim, kByteSizeInBytes);
-
     __ Mov(csp, __ StackPointer());
     __ SetStackPointer(csp);
   }
@@ -12464,53 +12457,50 @@ static void PushPopJsspSimpleHelper(int reg_count,
 
 TEST(push_pop_jssp_simple_32) {
   INIT_V8();
-  for (int claim = 0; claim <= 8; claim++) {
-    for (int count = 0; count <= 8; count++) {
-      PushPopJsspSimpleHelper(count, claim, kWRegSizeInBits,
-                              PushPopByFour, PushPopByFour);
-      PushPopJsspSimpleHelper(count, claim, kWRegSizeInBits,
-                              PushPopByFour, PushPopRegList);
-      PushPopJsspSimpleHelper(count, claim, kWRegSizeInBits,
-                              PushPopRegList, PushPopByFour);
-      PushPopJsspSimpleHelper(count, claim, kWRegSizeInBits,
-                              PushPopRegList, PushPopRegList);
-    }
-    // Test with the maximum number of registers.
-    PushPopJsspSimpleHelper(kPushPopJsspMaxRegCount, claim, kWRegSizeInBits,
-                            PushPopByFour, PushPopByFour);
-    PushPopJsspSimpleHelper(kPushPopJsspMaxRegCount, claim, kWRegSizeInBits,
-                            PushPopByFour, PushPopRegList);
-    PushPopJsspSimpleHelper(kPushPopJsspMaxRegCount, claim, kWRegSizeInBits,
-                            PushPopRegList, PushPopByFour);
-    PushPopJsspSimpleHelper(kPushPopJsspMaxRegCount, claim, kWRegSizeInBits,
-                            PushPopRegList, PushPopRegList);
+
+  for (int count = 0; count <= 8; count += 4) {
+    PushPopJsspSimpleHelper(count, kWRegSizeInBits, PushPopByFour,
+                            PushPopByFour);
+    PushPopJsspSimpleHelper(count, kWRegSizeInBits, PushPopByFour,
+                            PushPopRegList);
+    PushPopJsspSimpleHelper(count, kWRegSizeInBits, PushPopRegList,
+                            PushPopByFour);
+    PushPopJsspSimpleHelper(count, kWRegSizeInBits, PushPopRegList,
+                            PushPopRegList);
   }
+  // Test with the maximum number of registers.
+  PushPopJsspSimpleHelper(kPushPopJsspMaxRegCount, kWRegSizeInBits,
+                          PushPopByFour, PushPopByFour);
+  PushPopJsspSimpleHelper(kPushPopJsspMaxRegCount, kWRegSizeInBits,
+                          PushPopByFour, PushPopRegList);
+  PushPopJsspSimpleHelper(kPushPopJsspMaxRegCount, kWRegSizeInBits,
+                          PushPopRegList, PushPopByFour);
+  PushPopJsspSimpleHelper(kPushPopJsspMaxRegCount, kWRegSizeInBits,
+                          PushPopRegList, PushPopRegList);
 }
 
 
 TEST(push_pop_jssp_simple_64) {
   INIT_V8();
-  for (int claim = 0; claim <= 8; claim++) {
-    for (int count = 0; count <= 8; count++) {
-      PushPopJsspSimpleHelper(count, claim, kXRegSizeInBits,
-                              PushPopByFour, PushPopByFour);
-      PushPopJsspSimpleHelper(count, claim, kXRegSizeInBits,
-                              PushPopByFour, PushPopRegList);
-      PushPopJsspSimpleHelper(count, claim, kXRegSizeInBits,
-                              PushPopRegList, PushPopByFour);
-      PushPopJsspSimpleHelper(count, claim, kXRegSizeInBits,
-                              PushPopRegList, PushPopRegList);
-    }
-    // Test with the maximum number of registers.
-    PushPopJsspSimpleHelper(kPushPopJsspMaxRegCount, claim, kXRegSizeInBits,
-                            PushPopByFour, PushPopByFour);
-    PushPopJsspSimpleHelper(kPushPopJsspMaxRegCount, claim, kXRegSizeInBits,
-                            PushPopByFour, PushPopRegList);
-    PushPopJsspSimpleHelper(kPushPopJsspMaxRegCount, claim, kXRegSizeInBits,
-                            PushPopRegList, PushPopByFour);
-    PushPopJsspSimpleHelper(kPushPopJsspMaxRegCount, claim, kXRegSizeInBits,
-                            PushPopRegList, PushPopRegList);
+  for (int count = 0; count <= 8; count += 2) {
+    PushPopJsspSimpleHelper(count, kXRegSizeInBits, PushPopByFour,
+                            PushPopByFour);
+    PushPopJsspSimpleHelper(count, kXRegSizeInBits, PushPopByFour,
+                            PushPopRegList);
+    PushPopJsspSimpleHelper(count, kXRegSizeInBits, PushPopRegList,
+                            PushPopByFour);
+    PushPopJsspSimpleHelper(count, kXRegSizeInBits, PushPopRegList,
+                            PushPopRegList);
   }
+  // Test with the maximum number of registers.
+  PushPopJsspSimpleHelper(kPushPopJsspMaxRegCount, kXRegSizeInBits,
+                          PushPopByFour, PushPopByFour);
+  PushPopJsspSimpleHelper(kPushPopJsspMaxRegCount, kXRegSizeInBits,
+                          PushPopByFour, PushPopRegList);
+  PushPopJsspSimpleHelper(kPushPopJsspMaxRegCount, kXRegSizeInBits,
+                          PushPopRegList, PushPopByFour);
+  PushPopJsspSimpleHelper(kPushPopJsspMaxRegCount, kXRegSizeInBits,
+                          PushPopRegList, PushPopRegList);
 }
 
 
@@ -12519,16 +12509,13 @@ TEST(push_pop_jssp_simple_64) {
 static int const kPushPopFPJsspMaxRegCount = -1;
 
 // Test a simple push-pop pattern:
-//  * Claim <claim> bytes to set the stack alignment.
 //  * Push <reg_count> FP registers with size <reg_size>.
 //  * Clobber the register contents.
 //  * Pop <reg_count> FP registers to restore the original contents.
-//  * Drop <claim> bytes to restore the original stack pointer.
 //
 // Different push and pop methods can be specified independently to test for
 // proper word-endian behaviour.
 static void PushPopFPJsspSimpleHelper(int reg_count,
-                                      int claim,
                                       int reg_size,
                                       PushPopMethod push_method,
                                       PushPopMethod pop_method) {
@@ -12575,9 +12562,6 @@ static void PushPopFPJsspSimpleHelper(int reg_count,
       __ Add(x0, x0, x1);
     }
 
-    // Claim memory first, as requested.
-    __ Claim(claim, kByteSizeInBytes);
-
     switch (push_method) {
       case PushPopByFour:
         // Push high-numbered registers first (to the highest addresses).
@@ -12623,9 +12607,6 @@ static void PushPopFPJsspSimpleHelper(int reg_count,
         break;
     }
 
-    // Drop memory to restore jssp.
-    __ Drop(claim, kByteSizeInBytes);
-
     __ Mov(csp, __ StackPointer());
     __ SetStackPointer(csp);
   }
@@ -12651,59 +12632,55 @@ static void PushPopFPJsspSimpleHelper(int reg_count,
 
 TEST(push_pop_fp_jssp_simple_32) {
   INIT_V8();
-  for (int claim = 0; claim <= 8; claim++) {
-    for (int count = 0; count <= 8; count++) {
-      PushPopFPJsspSimpleHelper(count, claim, kSRegSizeInBits,
-                                PushPopByFour, PushPopByFour);
-      PushPopFPJsspSimpleHelper(count, claim, kSRegSizeInBits,
-                                PushPopByFour, PushPopRegList);
-      PushPopFPJsspSimpleHelper(count, claim, kSRegSizeInBits,
-                                PushPopRegList, PushPopByFour);
-      PushPopFPJsspSimpleHelper(count, claim, kSRegSizeInBits,
-                                PushPopRegList, PushPopRegList);
-    }
-    // Test with the maximum number of registers.
-    PushPopFPJsspSimpleHelper(kPushPopFPJsspMaxRegCount, claim, kSRegSizeInBits,
-                              PushPopByFour, PushPopByFour);
-    PushPopFPJsspSimpleHelper(kPushPopFPJsspMaxRegCount, claim, kSRegSizeInBits,
-                              PushPopByFour, PushPopRegList);
-    PushPopFPJsspSimpleHelper(kPushPopFPJsspMaxRegCount, claim, kSRegSizeInBits,
-                              PushPopRegList, PushPopByFour);
-    PushPopFPJsspSimpleHelper(kPushPopFPJsspMaxRegCount, claim, kSRegSizeInBits,
-                              PushPopRegList, PushPopRegList);
+  for (int count = 0; count <= 8; count += 4) {
+    PushPopFPJsspSimpleHelper(count, kSRegSizeInBits, PushPopByFour,
+                              PushPopByFour);
+    PushPopFPJsspSimpleHelper(count, kSRegSizeInBits, PushPopByFour,
+                              PushPopRegList);
+    PushPopFPJsspSimpleHelper(count, kSRegSizeInBits, PushPopRegList,
+                              PushPopByFour);
+    PushPopFPJsspSimpleHelper(count, kSRegSizeInBits, PushPopRegList,
+                              PushPopRegList);
   }
+  // Test with the maximum number of registers.
+  PushPopFPJsspSimpleHelper(kPushPopFPJsspMaxRegCount, kSRegSizeInBits,
+                            PushPopByFour, PushPopByFour);
+  PushPopFPJsspSimpleHelper(kPushPopFPJsspMaxRegCount, kSRegSizeInBits,
+                            PushPopByFour, PushPopRegList);
+  PushPopFPJsspSimpleHelper(kPushPopFPJsspMaxRegCount, kSRegSizeInBits,
+                            PushPopRegList, PushPopByFour);
+  PushPopFPJsspSimpleHelper(kPushPopFPJsspMaxRegCount, kSRegSizeInBits,
+                            PushPopRegList, PushPopRegList);
 }
 
 
 TEST(push_pop_fp_jssp_simple_64) {
   INIT_V8();
-  for (int claim = 0; claim <= 8; claim++) {
-    for (int count = 0; count <= 8; count++) {
-      PushPopFPJsspSimpleHelper(count, claim, kDRegSizeInBits,
-                                PushPopByFour, PushPopByFour);
-      PushPopFPJsspSimpleHelper(count, claim, kDRegSizeInBits,
-                                PushPopByFour, PushPopRegList);
-      PushPopFPJsspSimpleHelper(count, claim, kDRegSizeInBits,
-                                PushPopRegList, PushPopByFour);
-      PushPopFPJsspSimpleHelper(count, claim, kDRegSizeInBits,
-                                PushPopRegList, PushPopRegList);
-    }
-    // Test with the maximum number of registers.
-    PushPopFPJsspSimpleHelper(kPushPopFPJsspMaxRegCount, claim, kDRegSizeInBits,
-                              PushPopByFour, PushPopByFour);
-    PushPopFPJsspSimpleHelper(kPushPopFPJsspMaxRegCount, claim, kDRegSizeInBits,
-                              PushPopByFour, PushPopRegList);
-    PushPopFPJsspSimpleHelper(kPushPopFPJsspMaxRegCount, claim, kDRegSizeInBits,
-                              PushPopRegList, PushPopByFour);
-    PushPopFPJsspSimpleHelper(kPushPopFPJsspMaxRegCount, claim, kDRegSizeInBits,
-                              PushPopRegList, PushPopRegList);
+  for (int count = 0; count <= 8; count += 2) {
+    PushPopFPJsspSimpleHelper(count, kDRegSizeInBits, PushPopByFour,
+                              PushPopByFour);
+    PushPopFPJsspSimpleHelper(count, kDRegSizeInBits, PushPopByFour,
+                              PushPopRegList);
+    PushPopFPJsspSimpleHelper(count, kDRegSizeInBits, PushPopRegList,
+                              PushPopByFour);
+    PushPopFPJsspSimpleHelper(count, kDRegSizeInBits, PushPopRegList,
+                              PushPopRegList);
   }
+  // Test with the maximum number of registers.
+  PushPopFPJsspSimpleHelper(kPushPopFPJsspMaxRegCount, kDRegSizeInBits,
+                            PushPopByFour, PushPopByFour);
+  PushPopFPJsspSimpleHelper(kPushPopFPJsspMaxRegCount, kDRegSizeInBits,
+                            PushPopByFour, PushPopRegList);
+  PushPopFPJsspSimpleHelper(kPushPopFPJsspMaxRegCount, kDRegSizeInBits,
+                            PushPopRegList, PushPopByFour);
+  PushPopFPJsspSimpleHelper(kPushPopFPJsspMaxRegCount, kDRegSizeInBits,
+                            PushPopRegList, PushPopRegList);
 }
 
 
 // Push and pop data using an overlapping combination of Push/Pop and
 // RegList-based methods.
-static void PushPopJsspMixedMethodsHelper(int claim, int reg_size) {
+static void PushPopJsspMixedMethodsHelper(int reg_size) {
   SETUP();
 
   // Registers x8 and x9 are used by the macro assembler for debug code (for
@@ -12743,9 +12720,6 @@ static void PushPopJsspMixedMethodsHelper(int claim, int reg_size) {
     __ Mov(jssp, __ StackPointer());
     __ SetStackPointer(jssp);
 
-    // Claim memory first, as requested.
-    __ Claim(claim, kByteSizeInBytes);
-
     __ Mov(x[3], literal_base * 3);
     __ Mov(x[2], literal_base * 2);
     __ Mov(x[1], literal_base * 1);
@@ -12763,9 +12737,6 @@ static void PushPopJsspMixedMethodsHelper(int claim, int reg_size) {
     __ Pop(r[4], r[5]);
     Clobber(&masm, r6_to_r9);
     __ Pop(r[6], r[7], r[8], r[9]);
-
-    // Drop memory to restore jssp.
-    __ Drop(claim, kByteSizeInBytes);
 
     __ Mov(csp, __ StackPointer());
     __ SetStackPointer(csp);
@@ -12792,229 +12763,7 @@ static void PushPopJsspMixedMethodsHelper(int claim, int reg_size) {
 
 TEST(push_pop_jssp_mixed_methods_64) {
   INIT_V8();
-  for (int claim = 0; claim <= 8; claim++) {
-    PushPopJsspMixedMethodsHelper(claim, kXRegSizeInBits);
-  }
-}
-
-
-TEST(push_pop_jssp_mixed_methods_32) {
-  INIT_V8();
-  for (int claim = 0; claim <= 8; claim++) {
-    PushPopJsspMixedMethodsHelper(claim, kWRegSizeInBits);
-  }
-}
-
-
-// Push and pop data using overlapping X- and W-sized quantities.
-static void PushPopJsspWXOverlapHelper(int reg_count, int claim) {
-  // This test emits rather a lot of code.
-  SETUP_SIZE(BUF_SIZE * 2);
-
-  // Work out which registers to use, based on reg_size.
-  Register tmp = x8;
-  static RegList const allowed = ~(tmp.bit() | jssp.bit());
-  if (reg_count == kPushPopJsspMaxRegCount) {
-    reg_count = CountSetBits(allowed, kNumberOfRegisters);
-  }
-  auto w = CreateRegisterArray<Register, kNumberOfRegisters>();
-  auto x = CreateRegisterArray<Register, kNumberOfRegisters>();
-  RegList list =
-      PopulateRegisterArray(w.data(), x.data(), nullptr, 0, reg_count, allowed);
-
-  // The number of W-sized slots we expect to pop. When we pop, we alternate
-  // between W and X registers, so we need reg_count*1.5 W-sized slots.
-  int const requested_w_slots = reg_count + reg_count / 2;
-
-  // Track what _should_ be on the stack, using W-sized slots.
-  static int const kMaxWSlots = kNumberOfRegisters + kNumberOfRegisters / 2;
-  uint32_t stack[kMaxWSlots];
-  for (int i = 0; i < kMaxWSlots; i++) {
-    stack[i] = 0xDEADBEEF;
-  }
-
-  // The literal base is chosen to have two useful properties:
-  //  * When multiplied by small values (such as a register index), this value
-  //    is clearly readable in the result.
-  //  * The value is not formed from repeating fixed-size smaller values, so it
-  //    can be used to detect endianness-related errors.
-  static uint64_t const literal_base = 0x0100001000100101UL;
-  static uint64_t const literal_base_hi = literal_base >> 32;
-  static uint64_t const literal_base_lo = literal_base & 0xFFFFFFFF;
-  static uint64_t const literal_base_w = literal_base & 0xFFFFFFFF;
-
-  START();
-  {
-    CHECK(__ StackPointer().Is(csp));
-    __ Mov(jssp, __ StackPointer());
-    __ SetStackPointer(jssp);
-
-    // Initialize the registers.
-    for (int i = 0; i < reg_count; i++) {
-      // Always write into the X register, to ensure that the upper word is
-      // properly ignored by Push when testing W registers.
-      if (!x[i].IsZero()) {
-        __ Mov(x[i], literal_base * i);
-      }
-    }
-
-    // Claim memory first, as requested.
-    __ Claim(claim, kByteSizeInBytes);
-
-    // The push-pop pattern is as follows:
-    // Push:           Pop:
-    //  x[0](hi)   ->   w[0]
-    //  x[0](lo)   ->   x[1](hi)
-    //  w[1]       ->   x[1](lo)
-    //  w[1]       ->   w[2]
-    //  x[2](hi)   ->   x[2](hi)
-    //  x[2](lo)   ->   x[2](lo)
-    //  x[2](hi)   ->   w[3]
-    //  x[2](lo)   ->   x[4](hi)
-    //  x[2](hi)   ->   x[4](lo)
-    //  x[2](lo)   ->   w[5]
-    //  w[3]       ->   x[5](hi)
-    //  w[3]       ->   x[6](lo)
-    //  w[3]       ->   w[7]
-    //  w[3]       ->   x[8](hi)
-    //  x[4](hi)   ->   x[8](lo)
-    //  x[4](lo)   ->   w[9]
-    // ... pattern continues ...
-    //
-    // That is, registers are pushed starting with the lower numbers,
-    // alternating between x and w registers, and pushing i%4+1 copies of each,
-    // where i is the register number.
-    // Registers are popped starting with the higher numbers one-by-one,
-    // alternating between x and w registers, but only popping one at a time.
-    //
-    // This pattern provides a wide variety of alignment effects and overlaps.
-
-    // ---- Push ----
-
-    int active_w_slots = 0;
-    for (int i = 0; active_w_slots < requested_w_slots; i++) {
-      CHECK(i < reg_count);
-      // In order to test various arguments to PushMultipleTimes, and to try to
-      // exercise different alignment and overlap effects, we push each
-      // register a different number of times.
-      int times = i % 4 + 1;
-      if (i & 1) {
-        // Push odd-numbered registers as W registers.
-        __ Mov(tmp.W(), times);
-        __ PushMultipleTimes(w[i], tmp.W());
-
-        // Fill in the expected stack slots.
-        for (int j = 0; j < times; j++) {
-          if (w[i].Is(wzr)) {
-            // The zero register always writes zeroes.
-            stack[active_w_slots++] = 0;
-          } else {
-            stack[active_w_slots++] = literal_base_w * i;
-          }
-        }
-      } else {
-        // Push even-numbered registers as X registers.
-        __ Mov(tmp, times);
-        __ PushMultipleTimes(x[i], tmp);
-
-        // Fill in the expected stack slots.
-        for (int j = 0; j < times; j++) {
-          if (x[i].IsZero()) {
-            // The zero register always writes zeroes.
-            stack[active_w_slots++] = 0;
-            stack[active_w_slots++] = 0;
-          } else {
-            stack[active_w_slots++] = literal_base_hi * i;
-            stack[active_w_slots++] = literal_base_lo * i;
-          }
-        }
-      }
-    }
-    // Because we were pushing several registers at a time, we probably pushed
-    // more than we needed to.
-    if (active_w_slots > requested_w_slots) {
-      __ Drop(active_w_slots - requested_w_slots, kWRegSize);
-      // Bump the number of active W-sized slots back to where it should be,
-      // and fill the empty space with a dummy value.
-      do {
-        stack[active_w_slots--] = 0xDEADBEEF;
-      } while (active_w_slots > requested_w_slots);
-    }
-
-    // ---- Pop ----
-
-    Clobber(&masm, list);
-
-    // If popping an even number of registers, the first one will be X-sized.
-    // Otherwise, the first one will be W-sized.
-    bool next_is_64 = !(reg_count & 1);
-    for (int i = reg_count-1; i >= 0; i--) {
-      if (next_is_64) {
-        __ Pop(x[i]);
-        active_w_slots -= 2;
-      } else {
-        __ Pop(w[i]);
-        active_w_slots -= 1;
-      }
-      next_is_64 = !next_is_64;
-    }
-    CHECK_EQ(active_w_slots, 0);
-
-    // Drop memory to restore jssp.
-    __ Drop(claim, kByteSizeInBytes);
-
-    __ Mov(csp, __ StackPointer());
-    __ SetStackPointer(csp);
-  }
-
-  END();
-
-  RUN();
-
-  int slot = 0;
-  for (int i = 0; i < reg_count; i++) {
-    // Even-numbered registers were written as W registers.
-    // Odd-numbered registers were written as X registers.
-    bool expect_64 = (i & 1);
-    uint64_t expected;
-
-    if (expect_64) {
-      uint64_t hi = stack[slot++];
-      uint64_t lo = stack[slot++];
-      expected = (hi << 32) | lo;
-    } else {
-      expected = stack[slot++];
-    }
-
-    // Always use CHECK_EQUAL_64, even when testing W registers, so we can
-    // test that the upper word was properly cleared by Pop.
-    if (x[i].IsZero()) {
-      CHECK_EQUAL_64(0, x[i]);
-    } else {
-      CHECK_EQUAL_64(expected, x[i]);
-    }
-  }
-  CHECK(slot == requested_w_slots);
-
-  TEARDOWN();
-}
-
-
-TEST(push_pop_jssp_wx_overlap) {
-  INIT_V8();
-  for (int claim = 0; claim <= 8; claim++) {
-    for (int count = 1; count <= 8; count++) {
-      PushPopJsspWXOverlapHelper(count, claim);
-      PushPopJsspWXOverlapHelper(count, claim);
-      PushPopJsspWXOverlapHelper(count, claim);
-      PushPopJsspWXOverlapHelper(count, claim);
-    }
-    // Test with the maximum number of registers.
-    PushPopJsspWXOverlapHelper(kPushPopJsspMaxRegCount, claim);
-    PushPopJsspWXOverlapHelper(kPushPopJsspMaxRegCount, claim);
-    PushPopJsspWXOverlapHelper(kPushPopJsspMaxRegCount, claim);
-    PushPopJsspWXOverlapHelper(kPushPopJsspMaxRegCount, claim);
-  }
+  PushPopJsspMixedMethodsHelper(kXRegSizeInBits);
 }
 
 
@@ -13128,11 +12877,15 @@ TEST(push_queued) {
   queue.Queue(w4);
   queue.Queue(w5);
   queue.Queue(w6);
+  queue.Queue(w7);
 
   queue.Queue(d0);
   queue.Queue(d1);
 
   queue.Queue(s2);
+  queue.Queue(s3);
+  queue.Queue(s4);
+  queue.Queue(s5);
 
   __ Mov(x0, 0x1234000000000000);
   __ Mov(x1, 0x1234000100010001);
@@ -13141,20 +12894,24 @@ TEST(push_queued) {
   __ Mov(w4, 0x12340004);
   __ Mov(w5, 0x12340005);
   __ Mov(w6, 0x12340006);
+  __ Mov(w7, 0x12340007);
   __ Fmov(d0, 123400.0);
   __ Fmov(d1, 123401.0);
   __ Fmov(s2, 123402.0);
+  __ Fmov(s3, 123403.0);
+  __ Fmov(s4, 123404.0);
+  __ Fmov(s5, 123405.0);
 
   // Actually push them.
   queue.PushQueued();
 
-  Clobber(&masm, CPURegList(CPURegister::kRegister, kXRegSizeInBits, 0, 6));
-  Clobber(&masm, CPURegList(CPURegister::kVRegister, kDRegSizeInBits, 0, 2));
+  Clobber(&masm, CPURegList(CPURegister::kRegister, kXRegSizeInBits, 0, 8));
+  Clobber(&masm, CPURegList(CPURegister::kVRegister, kDRegSizeInBits, 0, 6));
 
   // Pop them conventionally.
-  __ Pop(s2);
+  __ Pop(s5, s4, s3, s2);
   __ Pop(d1, d0);
-  __ Pop(w6, w5, w4);
+  __ Pop(w7, w6, w5, w4);
   __ Pop(x3, x2, x1, x0);
 
   __ Mov(csp, __ StackPointer());
@@ -13169,14 +12926,18 @@ TEST(push_queued) {
   CHECK_EQUAL_64(0x1234000200020002, x2);
   CHECK_EQUAL_64(0x1234000300030003, x3);
 
-  CHECK_EQUAL_32(0x12340004, w4);
-  CHECK_EQUAL_32(0x12340005, w5);
-  CHECK_EQUAL_32(0x12340006, w6);
+  CHECK_EQUAL_64(0x0000000012340004, x4);
+  CHECK_EQUAL_64(0x0000000012340005, x5);
+  CHECK_EQUAL_64(0x0000000012340006, x6);
+  CHECK_EQUAL_64(0x0000000012340007, x7);
 
   CHECK_EQUAL_FP64(123400.0, d0);
   CHECK_EQUAL_FP64(123401.0, d1);
 
   CHECK_EQUAL_FP32(123402.0, s2);
+  CHECK_EQUAL_FP32(123403.0, s3);
+  CHECK_EQUAL_FP32(123404.0, s4);
+  CHECK_EQUAL_FP32(123405.0, s5);
 
   TEARDOWN();
 }
@@ -13201,22 +12962,30 @@ TEST(pop_queued) {
   __ Mov(w4, 0x12340004);
   __ Mov(w5, 0x12340005);
   __ Mov(w6, 0x12340006);
+  __ Mov(w7, 0x12340007);
   __ Fmov(d0, 123400.0);
   __ Fmov(d1, 123401.0);
   __ Fmov(s2, 123402.0);
+  __ Fmov(s3, 123403.0);
+  __ Fmov(s4, 123404.0);
+  __ Fmov(s5, 123405.0);
 
   // Push registers conventionally.
   __ Push(x0, x1, x2, x3);
-  __ Push(w4, w5, w6);
+  __ Push(w4, w5, w6, w7);
   __ Push(d0, d1);
-  __ Push(s2);
+  __ Push(s2, s3, s4, s5);
 
   // Queue up a pop.
+  queue.Queue(s5);
+  queue.Queue(s4);
+  queue.Queue(s3);
   queue.Queue(s2);
 
   queue.Queue(d1);
   queue.Queue(d0);
 
+  queue.Queue(w7);
   queue.Queue(w6);
   queue.Queue(w5);
   queue.Queue(w4);
@@ -13226,8 +12995,8 @@ TEST(pop_queued) {
   queue.Queue(x1);
   queue.Queue(x0);
 
-  Clobber(&masm, CPURegList(CPURegister::kRegister, kXRegSizeInBits, 0, 6));
-  Clobber(&masm, CPURegList(CPURegister::kVRegister, kDRegSizeInBits, 0, 2));
+  Clobber(&masm, CPURegList(CPURegister::kRegister, kXRegSizeInBits, 0, 8));
+  Clobber(&masm, CPURegList(CPURegister::kVRegister, kDRegSizeInBits, 0, 6));
 
   // Actually pop them.
   queue.PopQueued();
@@ -13247,11 +13016,15 @@ TEST(pop_queued) {
   CHECK_EQUAL_64(0x0000000012340004, x4);
   CHECK_EQUAL_64(0x0000000012340005, x5);
   CHECK_EQUAL_64(0x0000000012340006, x6);
+  CHECK_EQUAL_64(0x0000000012340007, x7);
 
   CHECK_EQUAL_FP64(123400.0, d0);
   CHECK_EQUAL_FP64(123401.0, d1);
 
   CHECK_EQUAL_FP32(123402.0, s2);
+  CHECK_EQUAL_FP32(123403.0, s3);
+  CHECK_EQUAL_FP32(123404.0, s4);
+  CHECK_EQUAL_FP32(123405.0, s5);
 
   TEARDOWN();
 }
@@ -13279,29 +13052,28 @@ TEST(copy_slots_down) {
   __ Push(x1, x2, x3, x4);
   __ Push(x1, x2, x1, x2);
   __ Push(x3, x4, x3, x4);
-  __ Push(xzr);
+  __ Push(xzr, xzr);
 
-  __ Mov(x5, 0);
-  __ Mov(x6, 1);
+  __ Mov(x5, 1);
+  __ Mov(x6, 2);
   __ Mov(x7, 12);
   __ CopySlots(x5, x6, x7);
 
-  __ Pop(x4, x5, x6, x7);
-  __ Pop(x8, x9, x10, x11);
-  __ Pop(x12, x13, x14, x15);
-  __ Drop(1);
+  __ Pop(xzr, x4, x5, x6);
+  __ Pop(x7, x8, x9, x10);
+  __ Pop(x11, x12, x13, x14);
+  __ Pop(x15, xzr);
 
   // Test copying one slot down one slot.
-  __ Push(x1, xzr, xzr);
+  __ Push(x1, xzr, xzr, xzr);
 
-  __ Mov(x1, 1);
-  __ Mov(x2, 2);
+  __ Mov(x1, 2);
+  __ Mov(x2, 3);
   __ Mov(x3, 1);
   __ CopySlots(x1, x2, x3);
 
-  __ Drop(1);
-  __ Pop(x0);
-  __ Drop(1);
+  __ Drop(2);
+  __ Pop(x0, xzr);
 
   __ Mov(csp, jssp);
   __ SetStackPointer(csp);
@@ -13355,8 +13127,7 @@ TEST(copy_slots_up) {
   __ Mov(x7, 1);
   __ CopySlots(x5, x6, x7);
 
-  __ Drop(1);
-  __ Pop(x10);
+  __ Pop(xzr, x10);
 
   // Test copying two slots to the next two slots higher in memory.
   __ Push(xzr, xzr);
@@ -13371,16 +13142,16 @@ TEST(copy_slots_up) {
   __ Pop(x11, x12);
 
   // Test copying three slots to the next three slots higher in memory.
-  __ Push(xzr, xzr, xzr);
-  __ Push(x1, x2, x3);
+  __ Push(xzr, xzr, xzr, x1);
+  __ Push(x2, x3);
 
   __ Mov(x5, 3);
   __ Mov(x6, 0);
   __ Mov(x7, 3);
   __ CopySlots(x5, x6, x7);
 
-  __ Drop(3);
-  __ Pop(x0, x1, x2);
+  __ Drop(2);
+  __ Pop(xzr, x0, x1, x2);
 
   __ Mov(csp, jssp);
   __ SetStackPointer(csp);
@@ -13419,7 +13190,7 @@ TEST(copy_double_words_downwards_even) {
   __ Mov(x3, threes);
   __ Mov(x4, fours);
 
-  __ Push(xzr);
+  __ Push(xzr, xzr);
   __ Push(x1, x2, x3, x4);
   __ Push(x1, x2, x1, x2);
   __ Push(x3, x4, x3, x4);
@@ -13429,10 +13200,10 @@ TEST(copy_double_words_downwards_even) {
   __ Mov(x7, 12);
   __ CopyDoubleWords(x5, x6, x7, TurboAssembler::kSrcLessThanDst);
 
-  __ Drop(1);
-  __ Pop(x4, x5, x6, x7);
-  __ Pop(x8, x9, x10, x11);
-  __ Pop(x12, x13, x14, x15);
+  __ Pop(xzr, x4, x5, x6);
+  __ Pop(x7, x8, x9, x10);
+  __ Pop(x11, x12, x13, x14);
+  __ Pop(x15, xzr);
 
   __ Mov(csp, jssp);
   __ SetStackPointer(csp);
@@ -13491,8 +13262,7 @@ TEST(copy_double_words_downwards_odd) {
   __ Mov(x7, 13);
   __ CopyDoubleWords(x5, x6, x7, TurboAssembler::kSrcLessThanDst);
 
-  __ Drop(1);
-  __ Pop(x4);
+  __ Pop(xzr, x4);
   __ Pop(x5, x6, x7, x8);
   __ Pop(x9, x10, x11, x12);
   __ Pop(x13, x14, x15, x16);

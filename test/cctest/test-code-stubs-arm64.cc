@@ -62,9 +62,6 @@ ConvertDToIFunc MakeConvertDToIFuncTrampoline(Isolate* isolate,
   __ Mov(jssp, csp);
   __ SetStackPointer(jssp);
 
-  // Push the double argument.
-  __ Push(d0);
-
   MacroAssembler::PushPopQueue queue(&masm);
 
   // Save registers make sure they don't get clobbered.
@@ -73,35 +70,42 @@ ConvertDToIFunc MakeConvertDToIFuncTrampoline(Isolate* isolate,
   for (; reg_num < Register::kNumRegisters; ++reg_num) {
     if (RegisterConfiguration::Default()->IsAllocatableGeneralCode(reg_num)) {
       Register reg = Register::from_code(reg_num);
-      if (!reg.is(destination_reg)) {
-        queue.Queue(reg);
-        source_reg_offset += kPointerSize;
-      }
+      queue.Queue(reg);
+      source_reg_offset += kPointerSize;
     }
   }
-  // Re-push the double argument.
+  // Push the double argument. We push a second copy to maintain sp alignment.
+  queue.Queue(d0);
   queue.Queue(d0);
 
   queue.PushQueued();
 
-  // Call through to the actual stub
+  // Call through to the actual stub.
   __ Call(start, RelocInfo::EXTERNAL_REFERENCE);
 
-  __ Drop(1, kDoubleSize);
+  __ Drop(2, kDoubleSize);
 
-  // // Make sure no registers have been unexpectedly clobbered
-  for (--reg_num; reg_num >= 0; --reg_num) {
-    if (RegisterConfiguration::Default()->IsAllocatableGeneralCode(reg_num)) {
-      Register reg = Register::from_code(reg_num);
-      if (!reg.is(destination_reg)) {
-        __ Pop(ip0);
-        __ cmp(reg, ip0);
-        __ Assert(eq, kRegisterWasClobbered);
+  // Make sure no registers have been unexpectedly clobbered.
+  {
+    UseScratchRegisterScope temps(&masm);
+    Register temp0 = temps.AcquireX();
+    Register temp1 = temps.AcquireX();
+    for (--reg_num; reg_num >= 0; reg_num -= 2) {
+      if (RegisterConfiguration::Default()->IsAllocatableGeneralCode(reg_num)) {
+        Register reg0 = Register::from_code(reg_num);
+        Register reg1 = Register::from_code(reg_num - 1);
+        __ Pop(temp0, temp1);
+        if (!reg0.is(destination_reg)) {
+          __ Cmp(reg0, temp0);
+          __ Assert(eq, kRegisterWasClobbered);
+        }
+        if (!reg1.is(destination_reg)) {
+          __ Cmp(reg1, temp1);
+          __ Assert(eq, kRegisterWasClobbered);
+        }
       }
     }
   }
-
-  __ Drop(1, kDoubleSize);
 
   if (!destination_reg.is(x0))
     __ Mov(x0, destination_reg);
