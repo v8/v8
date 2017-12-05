@@ -1049,27 +1049,25 @@ void Logger::CodeCreateEvent(CodeEventListener::LogEventsAndTags tag,
   // Make sure the script is written to the log file.
   Script* script = Script::cast(script_object);
   int script_id = script->id();
-  if (logged_source_code_.find(script_id) != logged_source_code_.end()) {
-    return;
-  }
+  if (logged_source_code_.find(script_id) == logged_source_code_.end()) {
+    // This script has not been logged yet.
+    logged_source_code_.insert(script_id);
+    Object* source_object = script->source();
+    if (source_object->IsString()) {
+      String* source_code = String::cast(source_object);
+      msg << "script" << kNext << script_id << kNext;
 
-  // This script has not been logged yet.
-  logged_source_code_.insert(script_id);
-  Object* source_object = script->source();
-  if (source_object->IsString()) {
-    String* source_code = String::cast(source_object);
-    msg << "script" << kNext << script_id << kNext;
+      // Log the script name.
+      if (script->name()->IsString()) {
+        msg << String::cast(script->name()) << kNext;
+      } else {
+        msg << "<unknown>" << kNext;
+      }
 
-    // Log the script name.
-    if (script->name()->IsString()) {
-      msg << String::cast(script->name()) << kNext;
-    } else {
-      msg << "<unknown>" << kNext;
+      // Log the source code.
+      msg << source_code;
+      msg.WriteToLogFile();
     }
-
-    // Log the source code.
-    msg << source_code;
-    msg.WriteToLogFile();
   }
 
   // We log source code information in the form:
