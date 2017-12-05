@@ -2163,11 +2163,13 @@ void JSObject::SetNormalizedProperty(Handle<JSObject> object,
   uint32_t hash = name->Hash();
 
   if (object->IsJSGlobalObject()) {
-    Handle<JSGlobalObject> global_obj(JSGlobalObject::cast(*object));
+    Handle<JSGlobalObject> global_obj = Handle<JSGlobalObject>::cast(object);
     Handle<GlobalDictionary> dictionary(global_obj->global_dictionary());
     int entry = dictionary->FindEntry(isolate, name, hash);
 
     if (entry == GlobalDictionary::kNotFound) {
+      DCHECK_IMPLIES(global_obj->map()->is_prototype_map(),
+                     Map::IsPrototypeChainInvalidated(global_obj->map()));
       auto cell = isolate->factory()->NewPropertyCell(name);
       cell->set_value(*value);
       auto cell_type = value->IsUndefined(isolate)

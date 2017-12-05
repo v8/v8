@@ -48,31 +48,6 @@ int InitPrototypeChecks(Isolate* isolate, Handle<Map> receiver_map,
     }
     checks_count++;
   }
-
-  // Create/count entries for each global or dictionary prototype appeared in
-  // the prototype chain contains from receiver till holder.
-  PrototypeIterator::WhereToEnd end = name->IsPrivate()
-                                          ? PrototypeIterator::END_AT_NON_HIDDEN
-                                          : PrototypeIterator::END_AT_NULL;
-  for (PrototypeIterator iter(receiver_map, end); !iter.IsAtEnd();
-       iter.Advance()) {
-    Handle<JSReceiver> current =
-        PrototypeIterator::GetCurrent<JSReceiver>(iter);
-    if (holder.is_identical_to(current)) break;
-    Handle<Map> current_map(current->map(), isolate);
-
-    if (current_map->IsJSGlobalObjectMap()) {
-      if (fill_array) {
-        Handle<JSGlobalObject> global = Handle<JSGlobalObject>::cast(current);
-        Handle<PropertyCell> cell = JSGlobalObject::EnsureEmptyPropertyCell(
-            global, name, PropertyCellType::kInvalidated);
-        DCHECK(cell->value()->IsTheHole(isolate));
-        Handle<WeakCell> weak_cell = isolate->factory()->NewWeakCell(cell);
-        array->set(first_index + checks_count, *weak_cell);
-      }
-      checks_count++;
-    }
-  }
   return checks_count;
 }
 

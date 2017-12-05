@@ -479,6 +479,7 @@ void LookupIterator::ApplyTransitionToDataProperty(Handle<JSObject> receiver) {
   DCHECK(receiver.is_identical_to(GetStoreTarget()));
   holder_ = receiver;
   if (receiver->IsJSGlobalObject()) {
+    JSObject::InvalidatePrototypeChains(receiver->map());
     state_ = DATA;
     return;
   }
