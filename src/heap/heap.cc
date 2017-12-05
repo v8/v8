@@ -1762,6 +1762,7 @@ void Heap::MinorMarkCompact() {
   PauseAllocationObserversScope pause_observers(this);
   IncrementalMarking::PauseBlackAllocationScope pause_black_allocation(
       incremental_marking());
+  CodeSpaceMemoryModificationScope code_modifcation(this);
 
   minor_mark_compact_collector()->CollectGarbage();
 
