@@ -66,136 +66,103 @@ namespace v8 {
 
 namespace {
 
-const int MB = 1024 * 1024;
+const int kMB = 1024 * 1024;
+const size_t kTwoGB = 2u * 1024u * 1024u * 1024u;
+
 const int kMaxWorkers = 50;
-const int kMaxSerializerMemoryUsage = 1 * MB;  // Arbitrary maximum for testing.
+const int kMaxSerializerMemoryUsage =
+    1 * kMB;  // Arbitrary maximum for testing.
 
-#define USE_VM 1
-#define VM_THRESHOLD 65536
-// TODO(titzer): allocations should fail if >= 2gb because of
-// array buffers storing the lengths as a SMI internally.
-#define TWO_GB (2u * 1024u * 1024u * 1024u)
-
-// Forwards memory reservation and protection functions to the V8 default
-// allocator. Used by ShellArrayBufferAllocator and MockArrayBufferAllocator.
+// The ArrayBuffer allocator for the shell. It implements kNormal allocations
+// and delegates kReservation allocations to the default V8 allocator. It also
+// tracks its allocations so it doesn't free externalized ArrayBuffers that it
+// didn't allocate.
+// TODO(bbudge) Figure out why foreign externalized ArrayBuffers are passed into
+// these allocators in mjsunit/wasm/worker-memory.js.
 class ArrayBufferAllocatorBase : public v8::ArrayBuffer::Allocator {
-  std::unique_ptr<Allocator> allocator_ =
-      std::unique_ptr<Allocator>(NewDefaultAllocator());
-
  public:
-  void* Reserve(size_t length) override { return allocator_->Reserve(length); }
+  void* Allocate(size_t length) override {
+    size_t alloc_length = GetAllocLength(length);
+    // TODO(titzer): allocations should fail if >= 2gb because array buffers
+    // store their lengths as a SMI internally.
+    if (alloc_length > kTwoGB) return nullptr;
+#if V8_OS_AIX && _LINUX_SOURCE_COMPAT
+    // Work around for GCC bug on AIX
+    // See: https://gcc.gnu.org/bugzilla/show_bug.cgi?id=79839
+    void* data = __linux_calloc(alloc_length, 1);
+#else
+    void* data = calloc(alloc_length, 1);
+#endif
+    MSAN_MEMORY_IS_INITIALIZED(data, alloc_length);
 
-  void Free(void*, size_t) override = 0;
+    allocations_.insert(std::make_pair(data, alloc_length));
+    return data;
+  }
+
+  void* AllocateUninitialized(size_t length) override {
+    size_t alloc_length = GetAllocLength(length);
+    // TODO(titzer): allocations should fail if >= 2gb because array buffers
+    // store their lengths as a SMI internally.
+    if (alloc_length > kTwoGB) return nullptr;
+#if V8_OS_AIX && _LINUX_SOURCE_COMPAT
+    // Work around for GCC bug on AIX
+    // See: https://gcc.gnu.org/bugzilla/show_bug.cgi?id=79839
+    void* data = __linux_malloc(alloc_length);
+#else
+    void* data = malloc(alloc_length);
+#endif
+    allocations_.insert(std::make_pair(data, alloc_length));
+    return data;
+  }
+
+  void Free(void* data, size_t length) override {
+    if (allocations_.find(data) != allocations_.end()) {
+      DCHECK_EQ(GetAllocLength(length), allocations_[data]);
+      free(data);
+      allocations_.erase(data);
+    }
+  }
 
   void Free(void* data, size_t length, AllocationMode mode) override {
-    switch (mode) {
-      case AllocationMode::kNormal: {
-        return Free(data, length);
-      }
-      case AllocationMode::kReservation: {
-        return allocator_->Free(data, length, mode);
-      }
+    size_t alloc_length = GetAllocLength(length);
+    if (mode == AllocationMode::kNormal) {
+      Free(data, alloc_length);
+    } else {
+      allocator_->Free(data, alloc_length, mode);
     }
+  }
+
+  void* Reserve(size_t length) override {
+    return allocator_->Reserve(GetAllocLength(length));
   }
 
   void SetProtection(void* data, size_t length,
                      Protection protection) override {
     allocator_->SetProtection(data, length, protection);
   }
+
+ private:
+  virtual size_t GetAllocLength(size_t length) const { return length; }
+
+  std::unique_ptr<Allocator> allocator_ =
+      std::unique_ptr<Allocator>(NewDefaultAllocator());
+  std::unordered_map<void*, size_t> allocations_;
 };
 
 class ShellArrayBufferAllocator : public ArrayBufferAllocatorBase {
- public:
-  void* Allocate(size_t length) override {
-#if USE_VM
-    if (RoundToPageSize(&length)) {
-      void* data = VirtualMemoryAllocate(length);
-#if DEBUG
-      if (data) {
-        // In debug mode, check the memory is zero-initialized.
-        size_t limit = length / sizeof(uint64_t);
-        uint64_t* ptr = reinterpret_cast<uint64_t*>(data);
-        for (size_t i = 0; i < limit; i++) {
-          DCHECK_EQ(0u, ptr[i]);
-        }
-      }
-#endif
-      return data;
-    }
-#endif
-    void* data = AllocateUninitialized(length);
-    return data == nullptr ? data : memset(data, 0, length);
-  }
-  void* AllocateUninitialized(size_t length) override {
-#if USE_VM
-    if (RoundToPageSize(&length)) return VirtualMemoryAllocate(length);
-#endif
-// Work around for GCC bug on AIX
-// See: https://gcc.gnu.org/bugzilla/show_bug.cgi?id=79839
-#if V8_OS_AIX && _LINUX_SOURCE_COMPAT
-    return __linux_malloc(length);
-#else
-    return malloc(length);
-#endif
-  }
-  using ArrayBufferAllocatorBase::Free;
-  void Free(void* data, size_t length) override {
-#if USE_VM
-    if (RoundToPageSize(&length)) {
-      CHECK(base::OS::Free(data, length));
-      return;
-    }
-#endif
-    free(data);
-  }
-  // If {length} is at least {VM_THRESHOLD}, round up to next page size and
-  // return {true}. Otherwise return {false}.
-  bool RoundToPageSize(size_t* length) {
-    size_t page_size = base::OS::AllocatePageSize();
-    if (*length >= VM_THRESHOLD && *length < TWO_GB) {
-      *length = RoundUp(*length, page_size);
-      return true;
-    }
-    return false;
-  }
-#if USE_VM
-  void* VirtualMemoryAllocate(size_t length) {
+ private:
+  virtual size_t GetAllocLength(size_t length) const {
     size_t page_size = base::OS::AllocatePageSize();
     size_t alloc_size = RoundUp(length, page_size);
-    void* address = base::OS::Allocate(nullptr, alloc_size, page_size,
-                                       base::OS::MemoryPermission::kReadWrite);
-    if (address != nullptr) {
-#if defined(LEAK_SANITIZER)
-      __lsan_register_root_region(address, alloc_size);
-#endif
-      MSAN_MEMORY_IS_INITIALIZED(address, alloc_size);
-    }
-    return address;
+    return alloc_size;
   }
-#endif
 };
 
 class MockArrayBufferAllocator : public ArrayBufferAllocatorBase {
-  const size_t kAllocationLimit = 10 * MB;
-  size_t get_actual_length(size_t length) const {
+ private:
+  size_t GetAllocLength(size_t length) const override {
+    const size_t kAllocationLimit = 10 * kMB;
     return length > kAllocationLimit ? base::OS::AllocatePageSize() : length;
-  }
-
- public:
-  void* Allocate(size_t length) override {
-    const size_t actual_length = get_actual_length(length);
-    void* data = AllocateUninitialized(actual_length);
-    return data == nullptr ? data : memset(data, 0, actual_length);
-  }
-  void* AllocateUninitialized(size_t length) override {
-    return malloc(get_actual_length(length));
-  }
-  void Free(void* p, size_t) override { free(p); }
-  void Free(void* data, size_t length, AllocationMode mode) override {
-    ArrayBufferAllocatorBase::Free(data, get_actual_length(length), mode);
-  }
-  void* Reserve(size_t length) override {
-    return ArrayBufferAllocatorBase::Reserve(get_actual_length(length));
   }
 };
 
@@ -300,7 +267,7 @@ base::Thread::Options GetThreadOptions(const char* name) {
   // which is not enough to parse the big literal expressions used in tests.
   // The stack size should be at least StackGuard::kLimitSize + some
   // OS-specific padding for thread startup code.  2Mbytes seems to be enough.
-  return base::Thread::Options(name, 2 * MB);
+  return base::Thread::Options(name, 2 * kMB);
 }
 
 }  // namespace
@@ -2570,7 +2537,7 @@ void SourceGroup::JoinThread() {
 }
 
 ExternalizedContents::~ExternalizedContents() {
-  Shell::array_buffer_allocator->Free(data_, size_);
+  Shell::array_buffer_allocator->Free(base_, length_, mode_);
 }
 
 void SerializationDataQueue::Enqueue(std::unique_ptr<SerializationData> data) {
@@ -3479,3 +3446,6 @@ int main(int argc, char* argv[]) {
   return v8::Shell::Main(argc, argv);
 }
 #endif
+
+#undef CHECK
+#undef DCHECK
