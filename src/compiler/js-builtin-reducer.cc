@@ -1451,6 +1451,7 @@ Reduction JSBuiltinReducer::ReduceCollectionIteratorNext(
     index = effect = graph()->NewNode(
         common()->Call(desc), jsgraph()->HeapConstant(callable.code()), table,
         index, jsgraph()->NoContextConstant(), effect);
+    NodeProperties::SetType(index, type_cache_.kFixedArrayLengthType);
 
     // Update the {index} and {table} on the {receiver}.
     effect = graph()->NewNode(
