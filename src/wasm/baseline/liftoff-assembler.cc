@@ -214,7 +214,6 @@ void LiftoffAssembler::CacheState::InitMerge(const CacheState& source,
         reg = unused_register(rc);
       } else {
         // Make this a stack slot.
-        DCHECK(src.is_stack());
         dst = VarState(src.type());
         continue;
       }
@@ -232,17 +231,16 @@ void LiftoffAssembler::CacheState::InitMerge(const CacheState& source,
       if (is_used(src.reg())) {
         // Make this a stack slot.
         dst = VarState(src.type());
-        continue;
+      } else {
+        dst = VarState(src.type(), src.reg());
+        inc_used(src.reg());
       }
-      dst = VarState(src.type(), src.reg());
-      inc_used(src.reg());
     } else if (src.is_const()) {
       dst = src;
     } else {
-      // Keep this a stack slot (which is the initial value).
       DCHECK(src.is_stack());
-      DCHECK(dst.is_stack());
-      continue;
+      // Make this a stack slot.
+      dst = VarState(src.type());
     }
   }
   last_spilled_gp_reg = source.last_spilled_gp_reg;
