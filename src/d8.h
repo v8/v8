@@ -149,36 +149,28 @@ class SourceGroup {
 class ExternalizedContents {
  public:
   explicit ExternalizedContents(const ArrayBuffer::Contents& contents)
-      : base_(contents.AllocationBase()),
-        length_(contents.AllocationLength()),
-        mode_(contents.AllocationMode()) {}
+      : data_(contents.Data()), size_(contents.ByteLength()) {}
   explicit ExternalizedContents(const SharedArrayBuffer::Contents& contents)
-      : base_(contents.AllocationBase()),
-        length_(contents.AllocationLength()),
-        mode_(contents.AllocationMode()) {}
+      : data_(contents.Data()), size_(contents.ByteLength()) {}
   ExternalizedContents(ExternalizedContents&& other)
-      : base_(other.base_), length_(other.length_), mode_(other.mode_) {
-    other.base_ = nullptr;
-    other.length_ = 0;
-    other.mode_ = ArrayBuffer::Allocator::AllocationMode::kNormal;
+      : data_(other.data_), size_(other.size_) {
+    other.data_ = nullptr;
+    other.size_ = 0;
   }
   ExternalizedContents& operator=(ExternalizedContents&& other) {
     if (this != &other) {
-      base_ = other.base_;
-      length_ = other.length_;
-      mode_ = other.mode_;
-      other.base_ = nullptr;
-      other.length_ = 0;
-      other.mode_ = ArrayBuffer::Allocator::AllocationMode::kNormal;
+      data_ = other.data_;
+      size_ = other.size_;
+      other.data_ = nullptr;
+      other.size_ = 0;
     }
     return *this;
   }
   ~ExternalizedContents();
 
  private:
-  void* base_;
-  size_t length_;
-  ArrayBuffer::Allocator::AllocationMode mode_;
+  void* data_;
+  size_t size_;
 
   DISALLOW_COPY_AND_ASSIGN(ExternalizedContents);
 };
