@@ -43,6 +43,7 @@
 #include "src/heap/scavenge-job.h"
 #include "src/heap/scavenger-inl.h"
 #include "src/heap/store-buffer.h"
+#include "src/heap/stress-marking-observer.h"
 #include "src/heap/sweeper.h"
 #include "src/interpreter/interpreter.h"
 #include "src/objects/object-macros.h"
@@ -172,6 +173,7 @@ Heap::Heap()
       gc_post_processing_depth_(0),
       allocations_count_(0),
       raw_allocations_hash_(0),
+      stress_marking_observer_(nullptr),
       ms_count_(0),
       gc_count_(0),
       mmap_region_base_(0),
@@ -5658,6 +5660,10 @@ bool Heap::SetUp() {
 
   if (FLAG_stress_marking > 0) {
     stress_marking_percentage_ = NextStressMarkingLimit();
+
+    stress_marking_observer_ = new StressMarkingObserver(*this);
+    AddAllocationObserversToAllSpaces(stress_marking_observer_,
+                                      stress_marking_observer_);
   }
 
   write_protect_code_memory_ = FLAG_write_protect_code_memory;
@@ -5767,6 +5773,13 @@ void Heap::TearDown() {
   new_space()->RemoveAllocationObserver(idle_scavenge_observer_);
   delete idle_scavenge_observer_;
   idle_scavenge_observer_ = nullptr;
+
+  if (FLAG_stress_marking > 0) {
+    RemoveAllocationObserversFromAllSpaces(stress_marking_observer_,
+                                           stress_marking_observer_);
+    delete stress_marking_observer_;
+    stress_marking_observer_ = nullptr;
+  }
 
   if (mark_compact_collector_ != nullptr) {
     mark_compact_collector_->TearDown();

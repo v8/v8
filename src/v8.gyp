@@ -1044,6 +1044,8 @@
         'heap/spaces.h',
         'heap/store-buffer.cc',
         'heap/store-buffer.h',
+        'heap/stress-marking-observer.cc',
+        'heap/stress-marking-observer.h',
         'heap/sweeper.cc',
         'heap/sweeper.h',
         'heap/worklist.h',

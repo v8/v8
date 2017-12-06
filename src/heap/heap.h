@@ -2403,6 +2403,10 @@ class Heap {
   // is reached.
   int stress_marking_percentage_;
 
+  // Observer that causes more frequent checks for reached incremental marking
+  // limit.
+  AllocationObserver* stress_marking_observer_;
+
   // How many mark-sweep collections happened.
   unsigned int ms_count_;
 
