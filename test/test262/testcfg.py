@@ -42,12 +42,13 @@ from testrunner.objects import testcase
 # TODO(littledan): move the flag mapping into the status file
 FEATURE_FLAGS = {
   'async-iteration': '--harmony-async-iteration',
+  'BigInt': '--harmony-bigint',
   'regexp-named-groups': '--harmony-regexp-named-captures',
   'regexp-unicode-property-escapes': '--harmony-regexp-property',
   'Promise.prototype.finally': '--harmony-promise-finally',
 }
 
-SKIPPED_FEATURES = set(['BigInt', 'class-fields', 'optional-catch-binding'])
+SKIPPED_FEATURES = set(['class-fields', 'optional-catch-binding'])
 
 DATA = os.path.join(os.path.dirname(os.path.abspath(__file__)), "data")
 ARCHIVE = DATA + ".tar"

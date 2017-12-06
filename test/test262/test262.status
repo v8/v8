@@ -514,6 +514,9 @@
   'harness/detachArrayBuffer': [SKIP],
   'harness/detachArrayBuffer-host-detachArrayBuffer': [SKIP],
 
+  # Bogus test. Already fixed upstream.
+  'built-ins/BigInt/prototype/toString/length': [FAIL],
+
   ############################ SKIPPED TESTS #############################
 
   # These tests take a looong time to run.
