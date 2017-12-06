@@ -290,7 +290,7 @@ Code::Kind Code::kind() const {
 
 void Code::initialize_flags(Kind kind, bool has_unwinding_info,
                             bool is_turbofanned, int stack_slots) {
-  CHECK_LE(stack_slots, StackSlotsField::kMax);
+  CHECK(0 <= stack_slots && stack_slots < StackSlotsField::kMax);
   DCHECK_IMPLIES(stack_slots != 0, is_turbofanned);
   static_assert(Code::NUMBER_OF_KINDS <= KindField::kMax + 1, "field overflow");
   uint32_t flags = HasUnwindingInfoField::encode(has_unwinding_info) |
@@ -411,21 +411,21 @@ void Code::set_builtin_index(int index) {
 
 bool Code::is_builtin() const { return builtin_index() != -1; }
 
-unsigned Code::stack_slots() const {
+int Code::stack_slots() const {
   DCHECK(is_turbofanned());
   return StackSlotsField::decode(READ_UINT32_FIELD(this, kFlagsOffset));
 }
 
-unsigned Code::safepoint_table_offset() const {
+int Code::safepoint_table_offset() const {
   DCHECK(is_turbofanned());
-  return READ_UINT32_FIELD(this, kSafepointTableOffsetOffset);
+  return READ_INT32_FIELD(this, kSafepointTableOffsetOffset);
 }
 
-void Code::set_safepoint_table_offset(unsigned offset) {
-  CHECK(offset <= std::numeric_limits<uint32_t>::max());
+void Code::set_safepoint_table_offset(int offset) {
+  CHECK_LE(0, offset);
   DCHECK(is_turbofanned() || offset == 0);  // Allow zero initialization.
   DCHECK(IsAligned(offset, static_cast<unsigned>(kIntSize)));
-  WRITE_UINT32_FIELD(this, kSafepointTableOffsetOffset, offset);
+  WRITE_INT32_FIELD(this, kSafepointTableOffsetOffset, offset);
 }
 
 bool Code::marked_for_deoptimization() const {

@@ -235,12 +235,12 @@ class Code : public HeapObject {
 
   // [stack_slots]: For kind OPTIMIZED_FUNCTION, the number of stack slots
   // reserved in the code prologue.
-  inline unsigned stack_slots() const;
+  inline int stack_slots() const;
 
   // [safepoint_table_start]: For kind OPTIMIZED_FUNCTION, the offset in
   // the instruction stream where the safepoint table starts.
-  inline unsigned safepoint_table_offset() const;
-  inline void set_safepoint_table_offset(unsigned offset);
+  inline int safepoint_table_offset() const;
+  inline void set_safepoint_table_offset(int offset);
 
   // [marked_for_deoptimization]: For kind OPTIMIZED_FUNCTION tells whether
   // the code is going to be deoptimized because of dead embedded maps.
