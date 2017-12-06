@@ -10,12 +10,12 @@ function benchy(name, test, testSetup) {
       ]);
 }
 
-benchy('NaiveFindReplacement', Naive, NaiveSetup);
-benchy('DoubleFind', Double, DoubleSetup);
-benchy('SmiFind', Smi, SmiSetup);
-benchy('FastFind', Fast, FastSetup);
-benchy('GenericFind', Generic, ObjectSetup);
-benchy('OptFastFind', OptFast, FastSetup);
+benchy('NaiveFindIndexReplacement', Naive, NaiveSetup);
+benchy('DoubleFindIndex', Double, DoubleSetup);
+benchy('SmiFindIndex', Smi, SmiSetup);
+benchy('FastFindIndex', Fast, FastSetup);
+benchy('GenericFindIndex', Generic, ObjectSetup);
+benchy('OptFastFindIndex', OptFast, FastSetup);
 
 let array;
 // Initialize func variable to ensure the first test doesn't benefit from
@@ -28,13 +28,13 @@ const max_index = array_size - 1;
 // Although these functions have the same code, they are separated for
 // clean IC feedback.
 function Double() {
-  result = array.find(func);
+  result = array.findIndex(func);
 }
 function Smi() {
-  result = array.find(func);
+  result = array.findIndex(func);
 }
 function Fast() {
-  result = array.find(func);
+  result = array.findIndex(func);
 }
 
 // Make sure we inline the callback, pick up all possible TurboFan
@@ -45,7 +45,7 @@ function RunOptFast(multiple) {
   //
   // Also, the arrow function requires inlining based on
   // SharedFunctionInfo.
-  result = array.find((v, i, a) => v === `value ${multiple}`);
+  result = array.findIndex((v, i, a) => v === `value ${multiple}`);
 }
 
 // Don't optimize because I want to optimize RunOptFast with a parameter
@@ -67,7 +67,7 @@ function Naive() {
 }
 
 function Generic() {
-  result = Array.prototype.find.call(array, func);
+  result = Array.prototype.findIndex.call(array, func);
 }
 
 function NaiveSetup() {

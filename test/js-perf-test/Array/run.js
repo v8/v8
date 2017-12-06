@@ -14,6 +14,7 @@ load('reduce.js');
 load('reduce-right.js');
 load('to-string.js');
 load('find.js');
+load('find-index.js');
 
 var success = true;
 

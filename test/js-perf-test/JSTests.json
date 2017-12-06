@@ -428,7 +428,13 @@
         {"name": "SmiFind"},
         {"name": "FastFind"},
         {"name": "GenericFind"},
-        {"name": "OptFastFind"}
+        {"name": "OptFastFind"},
+        {"name": "NaiveFindIndexReplacement"},
+        {"name": "DoubleFindIndex"},
+        {"name": "SmiFindIndex"},
+        {"name": "FastFindIndex"},
+        {"name": "GenericFindIndex"},
+        {"name": "OptFastFindIndex"}
       ]
     },
     {
