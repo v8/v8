@@ -190,7 +190,7 @@ TF_BUILTIN(TypedArrayInitializeWithBuffer, TypedArrayBuiltinsAssembler) {
   TNode<Map> fixed_typed_map = LoadMapForType(holder);
 
   // SmiMul returns a heap number in case of Smi overflow.
-  TNode<Number> byte_length = CAST(SmiMul(length, element_size));
+  TNode<Number> byte_length = SmiMul(length, element_size);
 
   SetupTypedArray(holder, length, byte_offset, byte_length);
   AttachBuffer(holder, buffer, fixed_typed_map, length, byte_offset);
@@ -219,7 +219,7 @@ TF_BUILTIN(TypedArrayInitialize, TypedArrayBuiltinsAssembler) {
   VARIABLE(var_total_size, MachineType::PointerRepresentation());
 
   // SmiMul returns a heap number in case of Smi overflow.
-  TNode<Number> byte_length = CAST(SmiMul(length, element_size));
+  TNode<Number> byte_length = SmiMul(length, element_size);
 
   SetupTypedArray(holder, length, byte_offset, byte_length);
 

@@ -274,7 +274,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
   // Computes a % b for Smi inputs a and b; result is not necessarily a Smi.
   Node* SmiMod(Node* a, Node* b);
   // Computes a * b for Smi inputs a and b; result is not necessarily a Smi.
-  Node* SmiMul(Node* a, Node* b);
+  TNode<Number> SmiMul(SloppyTNode<Smi> a, SloppyTNode<Smi> b);
   // Tries to computes dividend / divisor for Smi inputs; branching to bailout
   // if the division needs to be performed as a floating point operation.
   Node* TrySmiDiv(Node* dividend, Node* divisor, Label* bailout);

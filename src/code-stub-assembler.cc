@@ -644,8 +644,9 @@ Node* CodeStubAssembler::SmiMod(Node* a, Node* b) {
   return TNode<Object>::UncheckedCast(var_result.value());
 }
 
-Node* CodeStubAssembler::SmiMul(Node* a, Node* b) {
-  VARIABLE(var_result, MachineRepresentation::kTagged);
+TNode<Number> CodeStubAssembler::SmiMul(SloppyTNode<Smi> a,
+                                        SloppyTNode<Smi> b) {
+  TVARIABLE(Number, var_result);
   VARIABLE(var_lhs_float64, MachineRepresentation::kFloat64);
   VARIABLE(var_rhs_float64, MachineRepresentation::kFloat64);
   Label return_result(this, &var_result);
@@ -670,7 +671,7 @@ Node* CodeStubAssembler::SmiMul(Node* a, Node* b) {
     Branch(Word32Equal(answer, zero), &answer_zero, &answer_not_zero);
     BIND(&answer_not_zero);
     {
-      var_result.Bind(ChangeInt32ToTagged(answer));
+      var_result = ChangeInt32ToTagged(answer);
       Goto(&return_result);
     }
     BIND(&answer_zero);
@@ -681,12 +682,12 @@ Node* CodeStubAssembler::SmiMul(Node* a, Node* b) {
              &if_should_be_zero);
       BIND(&if_should_be_negative_zero);
       {
-        var_result.Bind(MinusZeroConstant());
+        var_result = MinusZeroConstant();
         Goto(&return_result);
       }
       BIND(&if_should_be_zero);
       {
-        var_result.Bind(SmiConstant(0));
+        var_result = SmiConstant(0);
         Goto(&return_result);
       }
     }
@@ -696,13 +697,12 @@ Node* CodeStubAssembler::SmiMul(Node* a, Node* b) {
     var_lhs_float64.Bind(SmiToFloat64(a));
     var_rhs_float64.Bind(SmiToFloat64(b));
     Node* value = Float64Mul(var_lhs_float64.value(), var_rhs_float64.value());
-    Node* result = AllocateHeapNumberWithValue(value);
-    var_result.Bind(result);
+    var_result = AllocateHeapNumberWithValue(value);
     Goto(&return_result);
   }
 
   BIND(&return_result);
-  return var_result.value();
+  return var_result;
 }
 
 Node* CodeStubAssembler::TrySmiDiv(Node* dividend, Node* divisor,
