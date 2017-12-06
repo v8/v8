@@ -1374,11 +1374,14 @@ intptr_t Space::GetNextInlineAllocationStepSize() {
 
 PagedSpace::PagedSpace(Heap* heap, AllocationSpace space,
                        Executability executable)
-    : SpaceWithLinearArea(heap, space, executable),
+    : Space(heap, space, executable),
       anchor_(this),
-      free_list_(this) {
+      free_list_(this),
+      top_on_previous_step_(0) {
   area_size_ = MemoryAllocator::PageAreaSize(space);
   accounting_stats_.Clear();
+
+  allocation_info_.Reset(nullptr, nullptr);
 }
 
 
@@ -1638,7 +1641,6 @@ Address PagedSpace::ComputeLimit(Address start, Address end,
   }
 }
 
-// TODO(ofrobots): refactor this code into SpaceWithLinearArea
 void PagedSpace::StartNextInlineAllocationStep() {
   if (!allocation_observers_paused_ && SupportsInlineAllocation()) {
     top_on_previous_step_ = allocation_observers_.empty() ? 0 : top();
@@ -2148,7 +2150,7 @@ bool NewSpace::EnsureAllocation(int size_in_bytes,
   return true;
 }
 
-// TODO(ofrobots): refactor this code into SpaceWithLinearArea
+
 void NewSpace::StartNextInlineAllocationStep() {
   if (!allocation_observers_paused_) {
     top_on_previous_step_ =
@@ -2157,13 +2159,26 @@ void NewSpace::StartNextInlineAllocationStep() {
   }
 }
 
-void SpaceWithLinearArea::AddAllocationObserver(AllocationObserver* observer) {
+// TODO(ofrobots): refactor into SpaceWithLinearArea
+void NewSpace::AddAllocationObserver(AllocationObserver* observer) {
   InlineAllocationStep(top(), top(), nullptr, 0);
   Space::AddAllocationObserver(observer);
 }
 
-void SpaceWithLinearArea::RemoveAllocationObserver(
-    AllocationObserver* observer) {
+// TODO(ofrobots): refactor into SpaceWithLinearArea
+void PagedSpace::AddAllocationObserver(AllocationObserver* observer) {
+  InlineAllocationStep(top(), top(), nullptr, 0);
+  Space::AddAllocationObserver(observer);
+}
+
+// TODO(ofrobots): refactor into SpaceWithLinearArea
+void NewSpace::RemoveAllocationObserver(AllocationObserver* observer) {
+  InlineAllocationStep(top(), top(), nullptr, 0);
+  Space::RemoveAllocationObserver(observer);
+}
+
+// TODO(ofrobots): refactor into SpaceWithLinearArea
+void PagedSpace::RemoveAllocationObserver(AllocationObserver* observer) {
   InlineAllocationStep(top(), top(), nullptr, 0);
   Space::RemoveAllocationObserver(observer);
 }
@@ -2178,22 +2193,43 @@ void NewSpace::PauseAllocationObservers() {
 
 void PagedSpace::PauseAllocationObservers() {
   // Do a step to account for memory allocated so far.
-  // TODO(ofrobots): Refactor into SpaceWithLinearArea. Note subtle difference
-  // from NewSpace version.
   InlineAllocationStep(top(), nullptr, nullptr, 0);
   Space::PauseAllocationObservers();
   top_on_previous_step_ = 0;
 }
 
-void SpaceWithLinearArea::ResumeAllocationObservers() {
+void NewSpace::ResumeAllocationObservers() {
   DCHECK_NULL(top_on_previous_step_);
   Space::ResumeAllocationObservers();
   StartNextInlineAllocationStep();
 }
 
-void SpaceWithLinearArea::InlineAllocationStep(Address top, Address new_top,
-                                               Address soon_object,
-                                               size_t size) {
+// TODO(ofrobots): refactor into SpaceWithLinearArea
+void PagedSpace::ResumeAllocationObservers() {
+  DCHECK_NULL(top_on_previous_step_);
+  Space::ResumeAllocationObservers();
+  StartNextInlineAllocationStep();
+}
+
+// TODO(ofrobots): refactor into SpaceWithLinearArea
+void PagedSpace::InlineAllocationStep(Address top, Address new_top,
+                                      Address soon_object, size_t size) {
+  if (top_on_previous_step_) {
+    if (top < top_on_previous_step_) {
+      // Generated code decreased the top pointer to do folded allocations.
+      DCHECK_NOT_NULL(top);
+      DCHECK_EQ(Page::FromAllocationAreaAddress(top),
+                Page::FromAllocationAreaAddress(top_on_previous_step_));
+      top_on_previous_step_ = top;
+    }
+    int bytes_allocated = static_cast<int>(top - top_on_previous_step_);
+    AllocationStep(bytes_allocated, soon_object, static_cast<int>(size));
+    top_on_previous_step_ = new_top;
+  }
+}
+
+void NewSpace::InlineAllocationStep(Address top, Address new_top,
+                                    Address soon_object, size_t size) {
   if (top_on_previous_step_) {
     if (top < top_on_previous_step_) {
       // Generated code decreased the top pointer to do folded allocations.

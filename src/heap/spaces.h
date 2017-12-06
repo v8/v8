@@ -1966,50 +1966,7 @@ class LocalAllocationBuffer {
   AllocationInfo allocation_info_;
 };
 
-class SpaceWithLinearArea : public Space {
- public:
-  SpaceWithLinearArea(Heap* heap, AllocationSpace id, Executability executable)
-      : Space(heap, id, executable), top_on_previous_step_(0) {
-    allocation_info_.Reset(nullptr, nullptr);
-  }
-
-  // Returns the allocation pointer in this space.
-  Address top() { return allocation_info_.top(); }
-  Address limit() { return allocation_info_.limit(); }
-
-  // The allocation top address.
-  Address* allocation_top_address() { return allocation_info_.top_address(); }
-
-  // The allocation limit address.
-  Address* allocation_limit_address() {
-    return allocation_info_.limit_address();
-  }
-
-  // If we are doing inline allocation in steps, this method performs the 'step'
-  // operation. top is the memory address of the bump pointer at the last
-  // inline allocation (i.e. it determines the numbers of bytes actually
-  // allocated since the last step.) new_top is the address of the bump pointer
-  // where the next byte is going to be allocated from. top and new_top may be
-  // different when we cross a page boundary or reset the space.
-  // TODO(ofrobots): clarify the precise difference between this and
-  // Space::AllocationStep.
-  void InlineAllocationStep(Address top, Address new_top, Address soon_object,
-                            size_t size);
-
-  V8_EXPORT_PRIVATE void AddAllocationObserver(
-      AllocationObserver* observer) override;
-  V8_EXPORT_PRIVATE void RemoveAllocationObserver(
-      AllocationObserver* observer) override;
-  V8_EXPORT_PRIVATE void ResumeAllocationObservers() override;
-
- protected:
-  // TODO(ofrobots): make these private after refactoring is complete.
-  AllocationInfo allocation_info_;
-  Address top_on_previous_step_;
-};
-
-class V8_EXPORT_PRIVATE PagedSpace
-    : NON_EXPORTED_BASE(public SpaceWithLinearArea) {
+class V8_EXPORT_PRIVATE PagedSpace : NON_EXPORTED_BASE(public Space) {
  public:
   typedef PageIterator iterator;
 
@@ -2081,6 +2038,18 @@ class V8_EXPORT_PRIVATE PagedSpace
   // due to being too small to use for allocation.
   virtual size_t Waste() { return free_list_.wasted_bytes(); }
 
+  // Returns the allocation pointer in this space.
+  Address top() { return allocation_info_.top(); }
+  Address limit() { return allocation_info_.limit(); }
+
+  // The allocation top address.
+  Address* allocation_top_address() { return allocation_info_.top_address(); }
+
+  // The allocation limit address.
+  Address* allocation_limit_address() {
+    return allocation_info_.limit_address();
+  }
+
   enum UpdateSkipList { UPDATE_SKIP_LIST, IGNORE_SKIP_LIST };
 
   // Allocate the requested number of bytes in the space if possible, return a
@@ -2121,7 +2090,13 @@ class V8_EXPORT_PRIVATE PagedSpace
 
   void ResetFreeList() { free_list_.Reset(); }
 
+  void AddAllocationObserver(AllocationObserver* observer) override;
+  void RemoveAllocationObserver(AllocationObserver* observer) override;
   void PauseAllocationObservers() override;
+  void ResumeAllocationObservers() override;
+
+  void InlineAllocationStep(Address top, Address new_top, Address soon_object,
+                            size_t size);
 
   // Empty space allocation info, returning unused area to free list.
   void EmptyAllocationInfo();
@@ -2296,8 +2271,13 @@ class V8_EXPORT_PRIVATE PagedSpace
   // The space's free list.
   FreeList free_list_;
 
+  // Normal allocation information.
+  AllocationInfo allocation_info_;
+
   // Mutex guarding any concurrent access to the space.
   base::Mutex space_mutex_;
+
+  Address top_on_previous_step_;
 
   friend class IncrementalMarking;
   friend class MarkCompactCollector;
@@ -2509,12 +2489,13 @@ class SemiSpaceIterator : public ObjectIterator {
 // The new space consists of a contiguous pair of semispaces.  It simply
 // forwards most functions to the appropriate semispace.
 
-class NewSpace : public SpaceWithLinearArea {
+class NewSpace : public Space {
  public:
   typedef PageIterator iterator;
 
   explicit NewSpace(Heap* heap)
-      : SpaceWithLinearArea(heap, NEW_SPACE, NOT_EXECUTABLE),
+      : Space(heap, NEW_SPACE, NOT_EXECUTABLE),
+        top_on_previous_step_(0),
         to_space_(heap, kToSpace),
         from_space_(heap, kFromSpace),
         reservation_(),
@@ -2639,6 +2620,18 @@ class NewSpace : public SpaceWithLinearArea {
     return to_space_.minimum_capacity();
   }
 
+  // Return the address of the allocation pointer in the active semispace.
+  Address top() {
+    DCHECK(to_space_.current_page()->ContainsLimit(allocation_info_.top()));
+    return allocation_info_.top();
+  }
+
+  // Return the address of the allocation pointer limit in the active semispace.
+  Address limit() {
+    DCHECK(to_space_.current_page()->ContainsLimit(allocation_info_.limit()));
+    return allocation_info_.limit();
+  }
+
   void ResetOriginalTop() {
     DCHECK_GE(top(), original_top());
     DCHECK_LE(top(), original_limit());
@@ -2655,6 +2648,14 @@ class NewSpace : public SpaceWithLinearArea {
   Address age_mark() { return from_space_.age_mark(); }
   // Set the age mark in the active semispace.
   void set_age_mark(Address mark) { to_space_.set_age_mark(mark); }
+
+  // The allocation top and limit address.
+  Address* allocation_top_address() { return allocation_info_.top_address(); }
+
+  // The allocation limit address.
+  Address* allocation_limit_address() {
+    return allocation_info_.limit_address();
+  }
 
   MUST_USE_RESULT INLINE(AllocationResult AllocateRawAligned(
       int size_in_bytes, AllocationAlignment alignment));
@@ -2745,7 +2746,10 @@ class NewSpace : public SpaceWithLinearArea {
 
   SemiSpace* active_space() { return &to_space_; }
 
+  void AddAllocationObserver(AllocationObserver* observer) override;
+  void RemoveAllocationObserver(AllocationObserver* observer) override;
   void PauseAllocationObservers() override;
+  void ResumeAllocationObservers() override;
 
   iterator begin() { return to_space_.begin(); }
   iterator end() { return to_space_.end(); }
@@ -2761,6 +2765,10 @@ class NewSpace : public SpaceWithLinearArea {
 
   base::Mutex mutex_;
 
+  // Allocation pointer and limit for normal allocation and allocation during
+  // mark-compact collection.
+  AllocationInfo allocation_info_;
+  Address top_on_previous_step_;
   // The top and the limit at the time of setting the allocation info.
   // These values can be accessed by background tasks.
   base::AtomicValue<Address> original_top_;
@@ -2776,6 +2784,14 @@ class NewSpace : public SpaceWithLinearArea {
 
   bool EnsureAllocation(int size_in_bytes, AllocationAlignment alignment);
 
+  // If we are doing inline allocation in steps, this method performs the 'step'
+  // operation. top is the memory address of the bump pointer at the last
+  // inline allocation (i.e. it determines the numbers of bytes actually
+  // allocated since the last step.) new_top is the address of the bump pointer
+  // where the next byte is going to be allocated from. top and new_top may be
+  // different when we cross a page boundary or reset the space.
+  void InlineAllocationStep(Address top, Address new_top, Address soon_object,
+                            size_t size);
   void StartNextInlineAllocationStep() override;
 
   friend class SemiSpaceIterator;
