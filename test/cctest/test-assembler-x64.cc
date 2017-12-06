@@ -82,6 +82,7 @@ TEST(AssemblerX64ReturnOperation) {
 
   CodeDesc desc;
   masm.GetCode(CcTest::i_isolate(), &desc);
+  MakeAssemblerBufferExecutable(buffer, allocated);
   // Call the function from C++.
   int result =  FUNCTION_CAST<F2>(buffer)(3, 2);
   CHECK_EQ(2, result);
@@ -111,6 +112,7 @@ TEST(AssemblerX64StackOperations) {
 
   CodeDesc desc;
   masm.GetCode(CcTest::i_isolate(), &desc);
+  MakeAssemblerBufferExecutable(buffer, allocated);
   // Call the function from C++.
   int result =  FUNCTION_CAST<F2>(buffer)(3, 2);
   CHECK_EQ(2, result);
@@ -130,6 +132,7 @@ TEST(AssemblerX64ArithmeticOperations) {
 
   CodeDesc desc;
   masm.GetCode(CcTest::i_isolate(), &desc);
+  MakeAssemblerBufferExecutable(buffer, allocated);
   // Call the function from C++.
   int result =  FUNCTION_CAST<F2>(buffer)(3, 2);
   CHECK_EQ(5, result);
@@ -156,6 +159,7 @@ TEST(AssemblerX64CmpbOperation) {
 
   CodeDesc desc;
   masm.GetCode(CcTest::i_isolate(), &desc);
+  MakeAssemblerBufferExecutable(buffer, allocated);
   // Call the function from C++.
   int result =  FUNCTION_CAST<F2>(buffer)(0x1002, 0x2002);
   CHECK_EQ(1, result);
@@ -193,6 +197,7 @@ TEST(AssemblerX64ImulOperation) {
 
   CodeDesc desc;
   masm.GetCode(CcTest::i_isolate(), &desc);
+  MakeAssemblerBufferExecutable(buffer, allocated);
   // Call the function from C++.
   int result =  FUNCTION_CAST<F2>(buffer)(3, 2);
   CHECK_EQ(0, result);
@@ -362,6 +367,7 @@ TEST(AssemblerX64testbwqOperation) {
 
   CodeDesc desc;
   masm.GetCode(CcTest::i_isolate(), &desc);
+  MakeAssemblerBufferExecutable(buffer, allocated);
   // Call the function from C++.
   int result = FUNCTION_CAST<F2>(buffer)(0, 0);
   CHECK_EQ(1, result);
@@ -382,6 +388,7 @@ TEST(AssemblerX64XchglOperations) {
 
   CodeDesc desc;
   masm.GetCode(CcTest::i_isolate(), &desc);
+  MakeAssemblerBufferExecutable(buffer, allocated);
   // Call the function from C++.
   uint64_t left = V8_2PART_UINT64_C(0x10000000, 20000000);
   uint64_t right = V8_2PART_UINT64_C(0x30000000, 40000000);
@@ -404,6 +411,7 @@ TEST(AssemblerX64OrlOperations) {
 
   CodeDesc desc;
   masm.GetCode(CcTest::i_isolate(), &desc);
+  MakeAssemblerBufferExecutable(buffer, allocated);
   // Call the function from C++.
   uint64_t left = V8_2PART_UINT64_C(0x10000000, 20000000);
   uint64_t right = V8_2PART_UINT64_C(0x30000000, 40000000);
@@ -425,6 +433,7 @@ TEST(AssemblerX64RollOperations) {
 
   CodeDesc desc;
   masm.GetCode(CcTest::i_isolate(), &desc);
+  MakeAssemblerBufferExecutable(buffer, allocated);
   // Call the function from C++.
   uint64_t src = V8_2PART_UINT64_C(0x10000000, C0000000);
   uint64_t result = FUNCTION_CAST<F5>(buffer)(src);
@@ -444,6 +453,7 @@ TEST(AssemblerX64SublOperations) {
 
   CodeDesc desc;
   masm.GetCode(CcTest::i_isolate(), &desc);
+  MakeAssemblerBufferExecutable(buffer, allocated);
   // Call the function from C++.
   uint64_t left = V8_2PART_UINT64_C(0x10000000, 20000000);
   uint64_t right = V8_2PART_UINT64_C(0x30000000, 40000000);
@@ -471,6 +481,7 @@ TEST(AssemblerX64TestlOperations) {
 
   CodeDesc desc;
   masm.GetCode(CcTest::i_isolate(), &desc);
+  MakeAssemblerBufferExecutable(buffer, allocated);
   // Call the function from C++.
   uint64_t left = V8_2PART_UINT64_C(0x10000000, 20000000);
   uint64_t right = V8_2PART_UINT64_C(0x30000000, 00000000);
@@ -496,6 +507,7 @@ TEST(AssemblerX64TestwOperations) {
 
   CodeDesc desc;
   masm.GetCode(CcTest::i_isolate(), &desc);
+  MakeAssemblerBufferExecutable(buffer, allocated);
   // Call the function from C++.
   uint16_t operand = 0x8000;
   uint16_t result = FUNCTION_CAST<F>(buffer)(&operand);
@@ -514,6 +526,7 @@ TEST(AssemblerX64XorlOperations) {
 
   CodeDesc desc;
   masm.GetCode(CcTest::i_isolate(), &desc);
+  MakeAssemblerBufferExecutable(buffer, allocated);
   // Call the function from C++.
   uint64_t left = V8_2PART_UINT64_C(0x10000000, 20000000);
   uint64_t right = V8_2PART_UINT64_C(0x30000000, 60000000);
@@ -548,6 +561,7 @@ TEST(AssemblerX64MemoryOperands) {
 
   CodeDesc desc;
   masm.GetCode(CcTest::i_isolate(), &desc);
+  MakeAssemblerBufferExecutable(buffer, allocated);
   // Call the function from C++.
   int result =  FUNCTION_CAST<F2>(buffer)(3, 2);
   CHECK_EQ(3, result);
@@ -574,6 +588,7 @@ TEST(AssemblerX64ControlFlow) {
 
   CodeDesc desc;
   masm.GetCode(CcTest::i_isolate(), &desc);
+  MakeAssemblerBufferExecutable(buffer, allocated);
   // Call the function from C++.
   int result =  FUNCTION_CAST<F2>(buffer)(3, 2);
   CHECK_EQ(3, result);
@@ -622,6 +637,7 @@ TEST(AssemblerX64LoopImmediates) {
 
   CodeDesc desc;
   masm.GetCode(CcTest::i_isolate(), &desc);
+  MakeAssemblerBufferExecutable(buffer, allocated);
   // Call the function from C++.
   int result =  FUNCTION_CAST<F0>(buffer)();
   CHECK_EQ(1, result);
@@ -2444,6 +2460,7 @@ TEST(AssemblerX64PslldWithXmm15) {
 
   CodeDesc desc;
   masm.GetCode(CcTest::i_isolate(), &desc);
+  MakeAssemblerBufferExecutable(buffer, allocated);
   uint64_t result = FUNCTION_CAST<F5>(buffer)(uint64_t{0x1122334455667788});
   CHECK_EQ(uint64_t{0x22446688AACCEF10}, result);
 }

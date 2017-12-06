@@ -127,6 +127,7 @@ TEST(SmiMove) {
 
   CodeDesc desc;
   masm->GetCode(isolate, &desc);
+  MakeAssemblerBufferExecutable(buffer, allocated);
   // Call the function from C++.
   int result = FUNCTION_CAST<F0>(buffer)();
   CHECK_EQ(0, result);
@@ -218,6 +219,7 @@ TEST(SmiCompare) {
 
   CodeDesc desc;
   masm->GetCode(isolate, &desc);
+  MakeAssemblerBufferExecutable(buffer, allocated);
   // Call the function from C++.
   int result = FUNCTION_CAST<F0>(buffer)();
   CHECK_EQ(0, result);
@@ -317,6 +319,7 @@ TEST(Integer32ToSmi) {
 
   CodeDesc desc;
   masm->GetCode(isolate, &desc);
+  MakeAssemblerBufferExecutable(buffer, allocated);
   // Call the function from C++.
   int result = FUNCTION_CAST<F0>(buffer)();
   CHECK_EQ(0, result);
@@ -391,6 +394,7 @@ TEST(SmiCheck) {
 
   CodeDesc desc;
   masm->GetCode(isolate, &desc);
+  MakeAssemblerBufferExecutable(buffer, allocated);
   // Call the function from C++.
   int result = FUNCTION_CAST<F0>(buffer)();
   CHECK_EQ(0, result);
@@ -444,6 +448,7 @@ TEST(SmiIndex) {
 
   CodeDesc desc;
   masm->GetCode(isolate, &desc);
+  MakeAssemblerBufferExecutable(buffer, allocated);
   // Call the function from C++.
   int result = FUNCTION_CAST<F0>(buffer)();
   CHECK_EQ(0, result);
@@ -794,6 +799,7 @@ TEST(OperandOffset) {
 
   CodeDesc desc;
   masm->GetCode(isolate, &desc);
+  MakeAssemblerBufferExecutable(buffer, allocated);
   // Call the function from C++.
   int result = FUNCTION_CAST<F0>(buffer)();
   CHECK_EQ(0, result);
@@ -940,6 +946,7 @@ TEST(LoadAndStoreWithRepresentation) {
 
   CodeDesc desc;
   masm->GetCode(isolate, &desc);
+  MakeAssemblerBufferExecutable(buffer, allocated);
   // Call the function from C++.
   int result = FUNCTION_CAST<F0>(buffer)();
   CHECK_EQ(0, result);
@@ -1092,6 +1099,7 @@ TEST(SIMDMacros) {
 
   CodeDesc desc;
   masm->GetCode(isolate, &desc);
+  MakeAssemblerBufferExecutable(buffer, allocated);
   // Call the function from C++.
   int result = FUNCTION_CAST<F0>(buffer)();
   CHECK_EQ(0, result);
