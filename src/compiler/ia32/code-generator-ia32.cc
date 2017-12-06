@@ -2053,6 +2053,50 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
                    i.InputOperand(2), i.InputInt8(1) << 4);
       break;
     }
+    case kSSEF32x4Eq: {
+      DCHECK_EQ(i.OutputSimd128Register(), i.InputSimd128Register(0));
+      __ cmpeqps(i.OutputSimd128Register(), i.InputOperand(1));
+      break;
+    }
+    case kAVXF32x4Eq: {
+      CpuFeatureScope avx_scope(tasm(), AVX);
+      __ vcmpeqps(i.OutputSimd128Register(), i.InputSimd128Register(0),
+                  i.InputOperand(1));
+      break;
+    }
+    case kSSEF32x4Ne: {
+      DCHECK_EQ(i.OutputSimd128Register(), i.InputSimd128Register(0));
+      __ cmpneqps(i.OutputSimd128Register(), i.InputOperand(1));
+      break;
+    }
+    case kAVXF32x4Ne: {
+      CpuFeatureScope avx_scope(tasm(), AVX);
+      __ vcmpneqps(i.OutputSimd128Register(), i.InputSimd128Register(0),
+                   i.InputOperand(1));
+      break;
+    }
+    case kSSEF32x4Lt: {
+      DCHECK_EQ(i.OutputSimd128Register(), i.InputSimd128Register(0));
+      __ cmpltps(i.OutputSimd128Register(), i.InputOperand(1));
+      break;
+    }
+    case kAVXF32x4Lt: {
+      CpuFeatureScope avx_scope(tasm(), AVX);
+      __ vcmpltps(i.OutputSimd128Register(), i.InputSimd128Register(0),
+                  i.InputOperand(1));
+      break;
+    }
+    case kSSEF32x4Le: {
+      DCHECK_EQ(i.OutputSimd128Register(), i.InputSimd128Register(0));
+      __ cmpleps(i.OutputSimd128Register(), i.InputOperand(1));
+      break;
+    }
+    case kAVXF32x4Le: {
+      CpuFeatureScope avx_scope(tasm(), AVX);
+      __ vcmpleps(i.OutputSimd128Register(), i.InputSimd128Register(0),
+                  i.InputOperand(1));
+      break;
+    }
     case kIA32I32x4Splat: {
       XMMRegister dst = i.OutputSimd128Register();
       __ Movd(dst, i.InputOperand(0));

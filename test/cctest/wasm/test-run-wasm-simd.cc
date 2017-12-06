@@ -554,7 +554,11 @@ WASM_SIMD_TEST(F32x4_Min) {
 WASM_SIMD_TEST(F32x4_Max) {
   RunF32x4BinOpTest(execution_mode, kExprF32x4Max, JSMax);
 }
+#endif  // V8_TARGET_ARCH_ARM || V8_TARGET_ARCH_ARM64 || V8_TARGET_ARCH_MIPS ||
+        // V8_TARGET_ARCH_MIPS64
 
+#if V8_TARGET_ARCH_ARM || V8_TARGET_ARCH_ARM64 || V8_TARGET_ARCH_MIPS || \
+    V8_TARGET_ARCH_MIPS64 || V8_TARGET_ARCH_IA32
 void RunF32x4CompareOpTest(WasmExecutionMode execution_mode, WasmOpcode simd_op,
                            FloatCompareOp expected_op) {
   WasmRunner<int32_t, float, float, int32_t> r(execution_mode);
@@ -604,7 +608,7 @@ WASM_SIMD_TEST(F32x4Le) {
   RunF32x4CompareOpTest(execution_mode, kExprF32x4Le, LessEqual);
 }
 #endif  // V8_TARGET_ARCH_ARM || V8_TARGET_ARCH_ARM64 || V8_TARGET_ARCH_MIPS ||
-        // V8_TARGET_ARCH_MIPS64
+        // V8_TARGET_ARCH_MIPS64 || V8_TARGET_ARCH_IA32
 
 WASM_SIMD_TEST(I32x4Splat) {
   // Store SIMD value in a local variable, use extract lane to check lane values

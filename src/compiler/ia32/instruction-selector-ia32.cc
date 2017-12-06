@@ -1903,6 +1903,10 @@ VISIT_ATOMIC_BINOP(Xor)
   V(I8x16)
 
 #define SIMD_BINOP_LIST(V) \
+  V(F32x4Eq)               \
+  V(F32x4Ne)               \
+  V(F32x4Lt)               \
+  V(F32x4Le)               \
   V(I32x4Add)              \
   V(I32x4Sub)              \
   V(I32x4Mul)              \
