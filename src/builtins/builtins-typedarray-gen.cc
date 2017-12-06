@@ -43,9 +43,10 @@ class TypedArrayBuiltinsAssembler : public CodeStubAssembler {
                     TNode<Number> byte_offset);
 
   TNode<Map> LoadMapForType(TNode<JSTypedArray> array);
-  Node* CalculateExternalPointer(Node* backing_store, Node* byte_offset);
+  TNode<UintPtrT> CalculateExternalPointer(TNode<UintPtrT> backing_store,
+                                           TNode<Number> byte_offset);
   Node* LoadDataPtr(Node* typed_array);
-  Node* ByteLengthIsValid(Node* byte_length);
+  TNode<BoolT> ByteLengthIsValid(TNode<Number> byte_length);
 
   // Returns true if kind is either UINT8_ELEMENTS or UINT8_CLAMPED_ELEMENTS.
   TNode<Word32T> IsUint8ElementsKind(TNode<Word32T> kind);
@@ -131,10 +132,10 @@ TNode<Map> TypedArrayBuiltinsAssembler::LoadMapForType(
 // can't allocate an array bigger than our 32-bit arithmetic range anyway. 64
 // bit platforms could theoretically have an offset up to 2^35 - 1, so we may
 // need to convert the float heap number to an intptr.
-Node* TypedArrayBuiltinsAssembler::CalculateExternalPointer(Node* backing_store,
-                                                            Node* byte_offset) {
-  return IntPtrAdd(backing_store,
-                   ChangeNonnegativeNumberToUintPtr(byte_offset));
+TNode<UintPtrT> TypedArrayBuiltinsAssembler::CalculateExternalPointer(
+    TNode<UintPtrT> backing_store, TNode<Number> byte_offset) {
+  return Unsigned(
+      IntPtrAdd(backing_store, ChangeNonnegativeNumberToUintPtr(byte_offset)));
 }
 
 // Setup the TypedArray which is under construction.
@@ -169,10 +170,11 @@ void TypedArrayBuiltinsAssembler::AttachBuffer(TNode<JSTypedArray> holder,
   StoreObjectFieldNoWriteBarrier(
       elements, FixedTypedArrayBase::kBasePointerOffset, SmiConstant(0));
 
-  Node* backing_store = LoadObjectField(
-      buffer, JSArrayBuffer::kBackingStoreOffset, MachineType::Pointer());
+  TNode<UintPtrT> backing_store =
+      LoadObjectField<UintPtrT>(buffer, JSArrayBuffer::kBackingStoreOffset);
 
-  Node* external_pointer = CalculateExternalPointer(backing_store, byte_offset);
+  TNode<UintPtrT> external_pointer =
+      CalculateExternalPointer(backing_store, byte_offset);
   StoreObjectFieldNoWriteBarrier(
       elements, FixedTypedArrayBase::kExternalPointerOffset, external_pointer,
       MachineType::PointerRepresentation());
@@ -552,25 +554,27 @@ Node* TypedArrayBuiltinsAssembler::LoadDataPtr(Node* typed_array) {
   return IntPtrAdd(base_pointer, external_pointer);
 }
 
-Node* TypedArrayBuiltinsAssembler::ByteLengthIsValid(Node* byte_length) {
+TNode<BoolT> TypedArrayBuiltinsAssembler::ByteLengthIsValid(
+    TNode<Number> byte_length) {
   Label smi(this), done(this);
-  VARIABLE(is_valid, MachineRepresentation::kWord32);
+  TVARIABLE(BoolT, is_valid);
   GotoIf(TaggedIsSmi(byte_length), &smi);
 
-  CSA_ASSERT(this, IsHeapNumber(byte_length));
-  Node* float_value = LoadHeapNumberValue(byte_length);
-  Node* max_byte_length_double =
+  TNode<Float64T> float_value = LoadHeapNumberValue(CAST(byte_length));
+  TNode<Float64T> max_byte_length_double =
       Float64Constant(FixedTypedArrayBase::kMaxByteLength);
-  is_valid.Bind(Float64LessThanOrEqual(float_value, max_byte_length_double));
+  is_valid = Float64LessThanOrEqual(float_value, max_byte_length_double);
   Goto(&done);
 
   BIND(&smi);
-  Node* max_byte_length = IntPtrConstant(FixedTypedArrayBase::kMaxByteLength);
-  is_valid.Bind(UintPtrLessThanOrEqual(SmiUntag(byte_length), max_byte_length));
+  TNode<IntPtrT> max_byte_length =
+      IntPtrConstant(FixedTypedArrayBase::kMaxByteLength);
+  is_valid =
+      UintPtrLessThanOrEqual(SmiUntag(CAST(byte_length)), max_byte_length);
   Goto(&done);
 
   BIND(&done);
-  return is_valid.value();
+  return is_valid;
 }
 
 TF_BUILTIN(TypedArrayConstructByArrayLike, TypedArrayBuiltinsAssembler) {
@@ -594,8 +598,8 @@ TF_BUILTIN(TypedArrayConstructByArrayLike, TypedArrayBuiltinsAssembler) {
   Return(UndefinedConstant());
 
   BIND(&fill);
-  Node* holder_kind = LoadMapElementsKind(LoadMap(holder));
-  Node* source_kind = LoadMapElementsKind(LoadMap(array_like));
+  TNode<Int32T> holder_kind = LoadMapElementsKind(LoadMap(holder));
+  TNode<Int32T> source_kind = LoadMapElementsKind(LoadMap(array_like));
   GotoIf(Word32Equal(holder_kind, source_kind), &fast_copy);
 
   // Copy using the elements accessor.
@@ -615,9 +619,10 @@ TF_BUILTIN(TypedArrayConstructByArrayLike, TypedArrayBuiltinsAssembler) {
                                      array_like, JSTypedArray::kBufferOffset)),
                                  Int32Constant(0)));
 
-    Node* byte_length = SmiMul(length, element_size);
+    TNode<Number> byte_length = SmiMul(length, element_size);
     CSA_ASSERT(this, ByteLengthIsValid(byte_length));
-    Node* byte_length_intptr = ChangeNonnegativeNumberToUintPtr(byte_length);
+    TNode<UintPtrT> byte_length_intptr =
+        ChangeNonnegativeNumberToUintPtr(byte_length);
     CSA_ASSERT(this, UintPtrLessThanOrEqual(
                          byte_length_intptr,
                          IntPtrConstant(FixedTypedArrayBase::kMaxByteLength)));

@@ -3824,9 +3824,7 @@ TNode<Float64T> CodeStubAssembler::ChangeNumberToFloat64(
 }
 
 TNode<UintPtrT> CodeStubAssembler::ChangeNonnegativeNumberToUintPtr(
-    SloppyTNode<Number> value) {
-  // TODO(tebbi): Remove assert once argument is TNode instead of SloppyTNode.
-  CSA_SLOW_ASSERT(this, IsNumber(value));
+    TNode<Number> value) {
   TVARIABLE(UintPtrT, result);
   Label smi(this), done(this, &result);
   GotoIf(TaggedIsSmi(value), &smi);

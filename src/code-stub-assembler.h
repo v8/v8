@@ -987,7 +987,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
   TNode<Number> ChangeInt32ToTagged(SloppyTNode<Int32T> value);
   TNode<Number> ChangeUint32ToTagged(SloppyTNode<Uint32T> value);
   TNode<Float64T> ChangeNumberToFloat64(SloppyTNode<Number> value);
-  TNode<UintPtrT> ChangeNonnegativeNumberToUintPtr(SloppyTNode<Number> value);
+  TNode<UintPtrT> ChangeNonnegativeNumberToUintPtr(TNode<Number> value);
 
   void TaggedToNumeric(Node* context, Node* value, Label* done,
                        Variable* var_numeric);
