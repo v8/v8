@@ -2076,9 +2076,8 @@ Node* AccessorAssembler::StubCachePrimaryOffset(Node* name, Node* map) {
   // risk of collision even if the heap is spread over an area larger than
   // 4Gb (and not at all if it isn't).
   Node* map32 = TruncateWordToWord32(BitcastTaggedToWord(map));
-  Node* hash = Int32Add(hash_field, map32);
   // Base the offset on a simple combination of name and map.
-  hash = Word32Xor(hash, Int32Constant(StubCache::kPrimaryMagic));
+  Node* hash = Int32Add(hash_field, map32);
   uint32_t mask = (StubCache::kPrimaryTableSize - 1)
                   << StubCache::kCacheIndexShift;
   return ChangeUint32ToWord(Word32And(hash, Int32Constant(mask)));
