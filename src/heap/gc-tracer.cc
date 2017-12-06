@@ -325,6 +325,7 @@ void GCTracer::Stop(GarbageCollector collector) {
     case Event::START:
       UNREACHABLE();
   }
+  FetchBackgroundGeneralCounters();
 
   heap_->UpdateTotalGCTime(duration);
 
@@ -500,6 +501,9 @@ void GCTracer::PrintNVP() const {
           "scavenge.weak_global_handles.process=%.2f "
           "scavenge.parallel=%.2f "
           "background.scavenge.parallel=%.2f "
+          "background.array_buffer_free=%.2f "
+          "background.store_buffer=%.2f "
+          "background.unmapper=%.2f "
           "incremental.steps_count=%d "
           "incremental.steps_took=%.1f "
           "scavenge_throughput=%.f "
@@ -545,6 +549,9 @@ void GCTracer::PrintNVP() const {
               .scopes[Scope::SCAVENGER_SCAVENGE_WEAK_GLOBAL_HANDLES_PROCESS],
           current_.scopes[Scope::SCAVENGER_SCAVENGE_PARALLEL],
           current_.scopes[Scope::SCAVENGER_BACKGROUND_SCAVENGE_PARALLEL],
+          current_.scopes[Scope::BACKGROUND_ARRAY_BUFFER_FREE],
+          current_.scopes[Scope::BACKGROUND_STORE_BUFFER],
+          current_.scopes[Scope::BACKGROUND_UNMAPPER],
           current_.incremental_marking_scopes[GCTracer::Scope::MC_INCREMENTAL]
               .steps,
           current_.scopes[Scope::MC_INCREMENTAL],
@@ -585,6 +592,9 @@ void GCTracer::PrintNVP() const {
           "background.mark=%.2f "
           "background.evacuate.copy=%.2f "
           "background.evacuate.update_pointers=%.2f "
+          "background.array_buffer_free=%.2f "
+          "background.store_buffer=%.2f "
+          "background.unmapper=%.2f "
           "update_marking_deque=%.2f "
           "reset_liveness=%.2f\n",
           duration, spent_in_mutator, "mmc", current_.reduce_memory,
@@ -607,6 +617,9 @@ void GCTracer::PrintNVP() const {
           current_.scopes[Scope::MINOR_MC_BACKGROUND_MARKING],
           current_.scopes[Scope::MINOR_MC_BACKGROUND_EVACUATE_COPY],
           current_.scopes[Scope::MINOR_MC_BACKGROUND_EVACUATE_UPDATE_POINTERS],
+          current_.scopes[Scope::BACKGROUND_ARRAY_BUFFER_FREE],
+          current_.scopes[Scope::BACKGROUND_STORE_BUFFER],
+          current_.scopes[Scope::BACKGROUND_UNMAPPER],
           current_.scopes[Scope::MINOR_MC_MARKING_DEQUE],
           current_.scopes[Scope::MINOR_MC_RESET_LIVENESS]);
       break;
@@ -682,6 +695,9 @@ void GCTracer::PrintNVP() const {
           "background.sweep=%.1f "
           "background.evacuate.copy=%.1f "
           "background.evacuate.update_pointers=%.1f "
+          "background.array_buffer_free=%.2f "
+          "background.store_buffer=%.2f "
+          "background.unmapper=%.1f "
           "total_size_before=%" PRIuS
           " "
           "total_size_after=%" PRIuS
@@ -778,6 +794,9 @@ void GCTracer::PrintNVP() const {
           current_.scopes[Scope::MC_BACKGROUND_SWEEPING],
           current_.scopes[Scope::MC_BACKGROUND_EVACUATE_COPY],
           current_.scopes[Scope::MC_BACKGROUND_EVACUATE_UPDATE_POINTERS],
+          current_.scopes[Scope::BACKGROUND_ARRAY_BUFFER_FREE],
+          current_.scopes[Scope::BACKGROUND_STORE_BUFFER],
+          current_.scopes[Scope::BACKGROUND_UNMAPPER],
           current_.start_object_size, current_.end_object_size,
           current_.start_holes_size, current_.end_holes_size,
           allocated_since_last_gc, heap_->promoted_objects_size(),
@@ -955,6 +974,13 @@ void GCTracer::FetchBackgroundMinorGCCounters() {
                           Scope::LAST_MINOR_GC_BACKGROUND_SCOPE,
                           BackgroundScope::FIRST_MINOR_GC_BACKGROUND_SCOPE,
                           BackgroundScope::LAST_MINOR_GC_BACKGROUND_SCOPE);
+}
+
+void GCTracer::FetchBackgroundGeneralCounters() {
+  FetchBackgroundCounters(Scope::FIRST_GENERAL_BACKGROUND_SCOPE,
+                          Scope::LAST_GENERAL_BACKGROUND_SCOPE,
+                          BackgroundScope::FIRST_GENERAL_BACKGROUND_SCOPE,
+                          BackgroundScope::LAST_GENERAL_BACKGROUND_SCOPE);
 }
 
 void GCTracer::FetchBackgroundCounters(int first_global_scope,
