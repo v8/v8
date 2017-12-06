@@ -1541,6 +1541,36 @@ WASM_EXEC_TEST(StoreMem_offset_oob_i64) {
   }
 }
 
+WASM_EXEC_TEST(Store_i64_narrowed) {
+  constexpr byte kOpcodes[] = {kExprI64StoreMem8, kExprI64StoreMem16,
+                               kExprI64StoreMem32, kExprI64StoreMem};
+  int stored_size_in_bytes = 0;
+  for (auto opcode : kOpcodes) {
+    stored_size_in_bytes = std::max(1, stored_size_in_bytes * 2);
+    constexpr int kBytes = 24;
+    uint8_t expected_memory[kBytes] = {0};
+    WasmRunner<int32_t, int32_t, int64_t> r(execution_mode);
+    uint8_t* memory = r.builder().AddMemoryElems<uint8_t>(kBytes);
+    constexpr uint64_t kPattern = 0x0123456789abcdef;
+
+    BUILD(r, WASM_GET_LOCAL(0),                 // index
+          WASM_GET_LOCAL(1),                    // value
+          opcode, ZERO_ALIGNMENT, ZERO_OFFSET,  // store
+          WASM_ZERO);                           // return value
+
+    for (int i = 0; i <= kBytes - stored_size_in_bytes; ++i) {
+      uint64_t pattern = base::bits::RotateLeft64(kPattern, i % 64);
+      r.Call(i, pattern);
+      for (int b = 0; b < stored_size_in_bytes; ++b) {
+        expected_memory[i + b] = static_cast<uint8_t>(pattern >> (b * 8));
+      }
+      for (int w = 0; w < kBytes; ++w) {
+        CHECK_EQ(expected_memory[w], memory[w]);
+      }
+    }
+  }
+}
+
 WASM_EXEC_TEST(UnalignedInt64Load) {
   WasmRunner<uint64_t> r(execution_mode);
   r.builder().AddMemoryElems<int64_t>(8);
