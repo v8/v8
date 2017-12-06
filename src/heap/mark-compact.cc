@@ -1865,7 +1865,9 @@ class YoungGenerationMarkingTask : public ItemParallelJob::Task {
   }
 
   void RunInParallel() override {
-    // TODO(ulan): add GCTracer background scope.
+    GCTracer::BackgroundScope scope(
+        collector_->heap()->tracer(),
+        GCTracer::BackgroundScope::MINOR_MC_BACKGROUND_MARKING);
     double marking_time = 0.0;
     {
       TimedScope scope(&marking_time);
