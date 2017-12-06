@@ -3039,13 +3039,16 @@ bool FreeList::Allocate(size_t size_in_bytes) {
 
 size_t FreeList::EvictFreeListItems(Page* page) {
   size_t sum = 0;
-  page->ForAllFreeListCategories(
-      [this, &sum](FreeListCategory* category) {
-        DCHECK_EQ(this, category->owner());
-        sum += category->available();
-        RemoveCategory(category);
-        category->Invalidate();
-      });
+  page->ForAllFreeListCategories([this, &sum](FreeListCategory* category) {
+    // The category might have been already evicted
+    // if the page is an evacuation candidate.
+    if (category->type_ != kInvalidCategory) {
+      DCHECK_EQ(this, category->owner());
+      sum += category->available();
+      RemoveCategory(category);
+      category->Invalidate();
+    }
+  });
   return sum;
 }
 
@@ -3067,6 +3070,7 @@ void FreeList::RepairLists(Heap* heap) {
 
 bool FreeList::AddCategory(FreeListCategory* category) {
   FreeListCategoryType type = category->type_;
+  DCHECK_LT(type, kNumberOfCategories);
   FreeListCategory* top = categories_[type];
 
   if (category->is_empty()) return false;
@@ -3083,6 +3087,7 @@ bool FreeList::AddCategory(FreeListCategory* category) {
 
 void FreeList::RemoveCategory(FreeListCategory* category) {
   FreeListCategoryType type = category->type_;
+  DCHECK_LT(type, kNumberOfCategories);
   FreeListCategory* top = categories_[type];
 
   // Common double-linked list removal.
