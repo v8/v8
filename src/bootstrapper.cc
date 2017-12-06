@@ -1802,6 +1802,7 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
     Handle<JSFunction> number_fun = InstallFunction(
         global, "Number", JS_VALUE_TYPE, JSValue::kSize, 0,
         isolate->initial_object_prototype(), Builtins::kNumberConstructor);
+    number_fun->shared()->set_builtin_function_id(kNumberConstructor);
     number_fun->shared()->DontAdaptArguments();
     number_fun->shared()->SetConstructStub(
         *BUILTIN_CODE(isolate, NumberConstructor_ConstructStub));
@@ -1946,6 +1947,7 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
     Handle<JSFunction> string_fun = InstallFunction(
         global, "String", JS_VALUE_TYPE, JSValue::kSize, 0,
         isolate->initial_object_prototype(), Builtins::kStringConstructor);
+    string_fun->shared()->set_builtin_function_id(kStringConstructor);
     string_fun->shared()->SetConstructStub(
         *BUILTIN_CODE(isolate, StringConstructor_ConstructStub));
     string_fun->shared()->DontAdaptArguments();
@@ -2127,6 +2129,7 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
     Handle<JSFunction> symbol_fun = InstallFunction(
         global, "Symbol", JS_VALUE_TYPE, JSValue::kSize, 0,
         factory->the_hole_value(), Builtins::kSymbolConstructor);
+    symbol_fun->shared()->set_builtin_function_id(kSymbolConstructor);
     symbol_fun->shared()->SetConstructStub(
         *BUILTIN_CODE(isolate, SymbolConstructor_ConstructStub));
     symbol_fun->shared()->set_length(0);
@@ -4426,6 +4429,7 @@ void Genesis::InitializeGlobal_harmony_bigint() {
   Handle<JSFunction> bigint_fun =
       InstallFunction(global, "BigInt", JS_VALUE_TYPE, JSValue::kSize, 0,
                       factory->the_hole_value(), Builtins::kBigIntConstructor);
+  bigint_fun->shared()->set_builtin_function_id(kBigIntConstructor);
   bigint_fun->shared()->DontAdaptArguments();
   bigint_fun->shared()->SetConstructStub(
       *BUILTIN_CODE(isolate(), BigIntConstructor_ConstructStub));

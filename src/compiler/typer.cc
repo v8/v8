@@ -1555,7 +1555,17 @@ Type* Typer::Visitor::JSCallTyper(Type* fun, Typer* t) {
         case kDateGetTime:
           return t->cache_.kJSDateValueType;
 
+        // Symbol functions.
+        case kSymbolConstructor:
+          return Type::Symbol();
+
+        // BigInt functions.
+        case kBigIntConstructor:
+          return Type::BigInt();
+
         // Number functions.
+        case kNumberConstructor:
+          return Type::Number();
         case kNumberIsFinite:
         case kNumberIsInteger:
         case kNumberIsNaN:
@@ -1569,6 +1579,8 @@ Type* Typer::Visitor::JSCallTyper(Type* fun, Typer* t) {
           return Type::String();
 
         // String functions.
+        case kStringConstructor:
+          return Type::String();
         case kStringCharCodeAt:
           return Type::Union(Type::Range(0, kMaxUInt16, t->zone()), Type::NaN(),
                              t->zone());
