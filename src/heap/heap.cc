@@ -46,7 +46,7 @@
 #include "src/heap/stress-marking-observer.h"
 #include "src/heap/sweeper.h"
 #include "src/interpreter/interpreter.h"
-#include "src/objects/object-macros.h"
+#include "src/objects/data-handler.h"
 #include "src/objects/shared-function-info.h"
 #include "src/regexp/jsregexp.h"
 #include "src/runtime-profiler.h"
@@ -60,6 +60,9 @@
 #include "src/utils.h"
 #include "src/v8.h"
 #include "src/vm-state-inl.h"
+
+// Has to be the last include (doesn't have include guards):
+#include "src/objects/object-macros.h"
 
 namespace v8 {
 namespace internal {

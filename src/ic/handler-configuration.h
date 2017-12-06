@@ -9,14 +9,25 @@
 #include "src/field-index.h"
 #include "src/globals.h"
 #include "src/objects.h"
+#include "src/objects/data-handler.h"
 #include "src/utils.h"
+
+// Has to be the last include (doesn't have include guards):
+#include "src/objects/object-macros.h"
 
 namespace v8 {
 namespace internal {
 
-// A set of bit fields representing Smi handlers for loads.
-class LoadHandler {
+// A set of bit fields representing Smi handlers for loads and a HeapObject
+// that represents load handlers that can't be encoded in a Smi.
+// TODO(ishell): move to load-handler.h
+class LoadHandler final : public DataHandler {
  public:
+  DECL_CAST(LoadHandler)
+
+  DECL_PRINTER(LoadHandler)
+  DECL_VERIFIER(LoadHandler)
+
   enum Kind {
     kElement,
     kIndexedString,
@@ -190,9 +201,16 @@ class LoadHandler {
                                                    Handle<Smi> smi_handler);
 };
 
-// A set of bit fields representing Smi handlers for stores.
-class StoreHandler {
+// A set of bit fields representing Smi handlers for stores and a HeapObject
+// that represents store handlers that can't be encoded in a Smi.
+// TODO(ishell): move to store-handler.h
+class StoreHandler final : public DataHandler {
  public:
+  DECL_CAST(StoreHandler)
+
+  DECL_PRINTER(StoreHandler)
+  DECL_VERIFIER(StoreHandler)
+
   enum Kind {
     kElement,
     kField,
@@ -341,5 +359,7 @@ class StoreHandler {
 
 }  // namespace internal
 }  // namespace v8
+
+#include "src/objects/object-macros-undef.h"
 
 #endif  // V8_IC_HANDLER_CONFIGURATION_H_

@@ -1162,6 +1162,8 @@
         'objects/code.h',
         'objects/compilation-cache.h',
         'objects/compilation-cache-inl.h',
+        'objects/data-handler.h',
+        'objects/data-handler-inl.h',
         'objects/debug-objects-inl.h',
         'objects/debug-objects.cc',
         'objects/debug-objects.h',

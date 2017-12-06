@@ -3284,7 +3284,10 @@ VisitorId Map::GetVisitorId(Map* map) {
       if (instance_type == ALLOCATION_SITE_TYPE) {
         return kVisitAllocationSite;
       }
+      return kVisitStruct;
 
+    case LOAD_HANDLER_TYPE:
+    case STORE_HANDLER_TYPE:
       return kVisitStruct;
 
     default:

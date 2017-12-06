@@ -763,6 +763,8 @@ action("postmortem-metadata") {
     "src/objects-inl.h",
     "src/objects/code-inl.h",
     "src/objects/code.h",
+    "src/objects/data-handler.h",
+    "src/objects/data-handler-inl.h",
     "src/objects/fixed-array-inl.h",
     "src/objects/fixed-array.h",
     "src/objects/js-array-inl.h",

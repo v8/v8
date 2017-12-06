@@ -17,6 +17,7 @@
 #include "src/globals.h"
 #include "src/heap/heap.h"
 #include "src/machine-type.h"
+#include "src/objects/data-handler.h"
 #include "src/runtime/runtime.h"
 #include "src/zone/zone-containers.h"
 

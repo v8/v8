@@ -14,6 +14,7 @@
 #include "src/macro-assembler.h"
 #include "src/objects-inl.h"
 #include "src/objects/bigint.h"
+#include "src/objects/data-handler-inl.h"
 #include "src/objects/debug-objects-inl.h"
 #include "src/objects/literal-objects.h"
 #include "src/objects/module.h"
@@ -251,6 +252,14 @@ void HeapObject::HeapObjectVerify() {
     break;
     STRUCT_LIST(MAKE_STRUCT_CASE)
 #undef MAKE_STRUCT_CASE
+
+    case LOAD_HANDLER_TYPE:
+      LoadHandler::cast(this)->LoadHandlerVerify();
+      break;
+
+    case STORE_HANDLER_TYPE:
+      StoreHandler::cast(this)->StoreHandlerVerify();
+      break;
 
     default:
       UNREACHABLE();
@@ -1303,7 +1312,7 @@ void PrototypeInfo::PrototypeInfoVerify() {
   } else {
     CHECK(prototype_users()->IsSmi());
   }
-  CHECK(validity_cell()->IsCell() || validity_cell()->IsSmi());
+  CHECK(validity_cell()->IsSmi() || validity_cell()->IsCell());
 }
 
 void Tuple2::Tuple2Verify() {
@@ -1323,6 +1332,27 @@ void Tuple3::Tuple3Verify() {
   VerifyObjectField(kValue1Offset);
   VerifyObjectField(kValue2Offset);
   VerifyObjectField(kValue3Offset);
+}
+
+void DataHandler::DataHandlerVerify() {
+  CHECK(IsDataHandler());
+  CHECK_IMPLIES(!smi_handler()->IsSmi(),
+                smi_handler()->IsCode() && IsStoreHandler());
+  CHECK(validity_cell()->IsSmi() || validity_cell()->IsCell());
+  VerifyObjectField(kData1Offset);
+  if (map()->instance_size() >= kSizeWithData2) {
+    VerifyObjectField(kData2Offset);
+  }
+}
+
+void LoadHandler::LoadHandlerVerify() {
+  DataHandler::DataHandlerVerify();
+  // TODO(ishell): check handler integrity
+}
+
+void StoreHandler::StoreHandlerVerify() {
+  DataHandler::DataHandlerVerify();
+  // TODO(ishell): check handler integrity
 }
 
 void ContextExtension::ContextExtensionVerify() {

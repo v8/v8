@@ -241,6 +241,14 @@ void HeapObject::HeapObjectPrint(std::ostream& os) {  // NOLINT
   STRUCT_LIST(MAKE_STRUCT_CASE)
 #undef MAKE_STRUCT_CASE
 
+    case LOAD_HANDLER_TYPE:
+      LoadHandler::cast(this)->LoadHandlerPrint(os);
+      break;
+
+    case STORE_HANDLER_TYPE:
+      StoreHandler::cast(this)->StoreHandlerPrint(os);
+      break;
+
     default:
       os << "UNKNOWN TYPE " << map()->instance_type();
       UNREACHABLE();
@@ -1436,6 +1444,30 @@ void Tuple3::Tuple3Print(std::ostream& os) {  // NOLINT
   os << "\n - value1: " << Brief(value1());
   os << "\n - value2: " << Brief(value2());
   os << "\n - value3: " << Brief(value3());
+  os << "\n";
+}
+
+void LoadHandler::LoadHandlerPrint(std::ostream& os) {  // NOLINT
+  HeapObject::PrintHeader(os, "LoadHandler");
+  // TODO(ishell): implement printing based on handler kind
+  os << "\n - handler: " << Brief(smi_handler());
+  os << "\n - validity_cell: " << Brief(validity_cell());
+  os << "\n - data1: " << Brief(data1());
+  if (map()->instance_size() >= kSizeWithData2) {
+    os << "\n - data2: " << Brief(data2());
+  }
+  os << "\n";
+}
+
+void StoreHandler::StoreHandlerPrint(std::ostream& os) {  // NOLINT
+  HeapObject::PrintHeader(os, "StoreHandler");
+  // TODO(ishell): implement printing based on handler kind
+  os << "\n - handler: " << Brief(smi_handler());
+  os << "\n - validity_cell: " << Brief(validity_cell());
+  os << "\n - data1: " << Brief(data1());
+  if (map()->instance_size() >= kSizeWithData2) {
+    os << "\n - data2: " << Brief(data2());
+  }
   os << "\n";
 }
 

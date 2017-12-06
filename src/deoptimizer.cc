@@ -3677,6 +3677,8 @@ Handle<Object> TranslatedState::MaterializeCapturedObjectAt(
     case PROTOTYPE_INFO_TYPE:
     case TUPLE2_TYPE:
     case TUPLE3_TYPE:
+    case LOAD_HANDLER_TYPE:
+    case STORE_HANDLER_TYPE:
     case ASYNC_GENERATOR_REQUEST_TYPE:
     case WASM_MODULE_TYPE:
     case WASM_INSTANCE_TYPE:

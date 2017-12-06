@@ -52,6 +52,13 @@ ROOT_LIST(ROOT_ACCESSOR)
 STRUCT_LIST(STRUCT_MAP_ACCESSOR)
 #undef STRUCT_MAP_ACCESSOR
 
+#define DATA_HANDLER_MAP_ACCESSOR(NAME, Name, Size, name)  \
+  Map* Heap::name##_map() {                                \
+    return Map::cast(roots_[k##Name##Size##MapRootIndex]); \
+  }
+DATA_HANDLER_LIST(DATA_HANDLER_MAP_ACCESSOR)
+#undef DATA_HANDLER_MAP_ACCESSOR
+
 #define STRING_ACCESSOR(name, str) \
   String* Heap::name() { return String::cast(roots_[k##name##RootIndex]); }
 INTERNALIZED_STRING_LIST(STRING_ACCESSOR)

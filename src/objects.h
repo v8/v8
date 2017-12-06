@@ -370,6 +370,8 @@ const int kStubMinorKeyBits = kSmiValueSize - kStubMajorKeyBits - 1;
   V(MODULE_TYPE)                                                \
   V(MODULE_INFO_ENTRY_TYPE)                                     \
   V(ASYNC_GENERATOR_REQUEST_TYPE)                               \
+  V(LOAD_HANDLER_TYPE)                                          \
+  V(STORE_HANDLER_TYPE)                                         \
   V(FIXED_ARRAY_TYPE)                                           \
   V(HASH_TABLE_TYPE)                                            \
   V(DESCRIPTOR_ARRAY_TYPE)                                      \
@@ -555,6 +557,12 @@ const int kStubMinorKeyBits = kSmiValueSize - kStubMajorKeyBits - 1;
   V(MODULE_INFO_ENTRY, ModuleInfoEntry, module_info_entry)                   \
   V(ASYNC_GENERATOR_REQUEST, AsyncGeneratorRequest, async_generator_request)
 
+#define DATA_HANDLER_LIST(V)                        \
+  V(LOAD_HANDLER, LoadHandler, 1, load_handler1)    \
+  V(LOAD_HANDLER, LoadHandler, 2, load_handler2)    \
+  V(STORE_HANDLER, StoreHandler, 1, store_handler1) \
+  V(STORE_HANDLER, StoreHandler, 2, store_handler2)
+
 // We use the full 16 bits of the instance_type field to encode heap object
 // instance types. All the high-order bits (bit 7-15) are cleared if the object
 // is a string, and contain set bits if it is not a string.
@@ -725,6 +733,8 @@ enum InstanceType : uint16_t {
   MODULE_TYPE,
   MODULE_INFO_ENTRY_TYPE,
   ASYNC_GENERATOR_REQUEST_TYPE,
+  LOAD_HANDLER_TYPE,
+  STORE_HANDLER_TYPE,
   FIXED_ARRAY_TYPE,  // FIRST_FIXED_ARRAY_TYPE
   HASH_TABLE_TYPE,
   DESCRIPTOR_ARRAY_TYPE,
@@ -945,6 +955,7 @@ template <class C> inline bool Is(Object* obj);
   V(Constructor)                          \
   V(Context)                              \
   V(CoverageInfo)                         \
+  V(DataHandler)                          \
   V(DeoptimizationData)                   \
   V(DependentCode)                        \
   V(DescriptorArray)                      \
@@ -1013,6 +1024,7 @@ template <class C> inline bool Is(Object* obj);
   V(JSWeakCollection)                     \
   V(JSWeakMap)                            \
   V(JSWeakSet)                            \
+  V(LoadHandler)                          \
   V(Map)                                  \
   V(MapCache)                             \
   V(ModuleInfo)                           \
@@ -1044,6 +1056,7 @@ template <class C> inline bool Is(Object* obj);
   V(SmallOrderedHashMap)                  \
   V(SmallOrderedHashSet)                  \
   V(SourcePositionTableWithFrameCache)    \
+  V(StoreHandler)                         \
   V(String)                               \
   V(StringSet)                            \
   V(StringTable)                          \

@@ -2766,6 +2766,27 @@ Handle<Map> Factory::ObjectLiteralMapFromCache(Handle<Context> native_context,
   return map;
 }
 
+Handle<LoadHandler> Factory::NewLoadHandler(int data_count) {
+  Handle<Map> map;
+  if (data_count == 1) {
+    map = load_handler1_map();
+  } else {
+    DCHECK_EQ(2, data_count);
+    map = load_handler2_map();
+  }
+  return New<LoadHandler>(map, OLD_SPACE);
+}
+
+Handle<StoreHandler> Factory::NewStoreHandler(int data_count) {
+  Handle<Map> map;
+  if (data_count == 1) {
+    map = store_handler1_map();
+  } else {
+    DCHECK_EQ(2, data_count);
+    map = store_handler2_map();
+  }
+  return New<StoreHandler>(map, OLD_SPACE);
+}
 
 void Factory::SetRegExpAtomData(Handle<JSRegExp> regexp,
                                 JSRegExp::Type type,

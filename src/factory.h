@@ -7,8 +7,10 @@
 
 #include "src/feedback-vector.h"
 #include "src/globals.h"
+#include "src/ic/handler-configuration.h"
 #include "src/isolate.h"
 #include "src/messages.h"
+#include "src/objects/data-handler.h"
 #include "src/objects/descriptor-array.h"
 #include "src/objects/dictionary.h"
 #include "src/objects/js-array.h"
@@ -735,6 +737,11 @@ class V8_EXPORT_PRIVATE Factory final {
   STRUCT_LIST(STRUCT_MAP_ACCESSOR)
 #undef STRUCT_MAP_ACCESSOR
 
+#define DATA_HANDLER_MAP_ACCESSOR(NAME, Name, Size, name) \
+  inline Handle<Map> name##_map();
+  DATA_HANDLER_LIST(DATA_HANDLER_MAP_ACCESSOR)
+#undef DATA_HANDLER_MAP_ACCESSOR
+
 #define STRING_ACCESSOR(name, str) inline Handle<String> name();
   INTERNALIZED_STRING_LIST(STRING_ACCESSOR)
 #undef STRING_ACCESSOR
@@ -805,6 +812,9 @@ class V8_EXPORT_PRIVATE Factory final {
   // native context.
   Handle<Map> ObjectLiteralMapFromCache(Handle<Context> native_context,
                                         int number_of_properties);
+
+  Handle<LoadHandler> NewLoadHandler(int data_count);
+  Handle<StoreHandler> NewStoreHandler(int data_count);
 
   Handle<RegExpMatchInfo> NewRegExpMatchInfo();
 

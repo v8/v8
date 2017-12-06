@@ -34,6 +34,7 @@
 #include "src/objects.h"
 #include "src/objects/arguments-inl.h"
 #include "src/objects/bigint.h"
+#include "src/objects/data-handler-inl.h"
 #include "src/objects/fixed-array-inl.h"
 #include "src/objects/hash-table-inl.h"
 #include "src/objects/hash-table.h"

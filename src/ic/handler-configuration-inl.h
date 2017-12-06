@@ -9,9 +9,16 @@
 
 #include "src/field-index-inl.h"
 #include "src/objects-inl.h"
+#include "src/objects/data-handler-inl.h"
+
+// Has to be the last include (doesn't have include guards):
+#include "src/objects/object-macros.h"
 
 namespace v8 {
 namespace internal {
+
+TYPE_CHECKER(LoadHandler, LOAD_HANDLER_TYPE)
+CAST_ACCESSOR(LoadHandler)
 
 // Decodes kind from Smi-handler.
 LoadHandler::Kind LoadHandler::GetHandlerKind(Smi* smi_handler) {
@@ -124,6 +131,9 @@ Handle<Smi> LoadHandler::LoadIndexedString(Isolate* isolate,
       AllowOutOfBoundsBits::encode(load_mode == LOAD_IGNORE_OUT_OF_BOUNDS);
   return handle(Smi::FromInt(config), isolate);
 }
+
+TYPE_CHECKER(StoreHandler, STORE_HANDLER_TYPE)
+CAST_ACCESSOR(StoreHandler)
 
 Handle<Smi> StoreHandler::StoreGlobalProxy(Isolate* isolate) {
   int config = KindBits::encode(kGlobalProxy);
@@ -250,5 +260,7 @@ bool StoreHandler::IsHandler(Object* maybe_handler) {
 
 }  // namespace internal
 }  // namespace v8
+
+#include "src/objects/object-macros-undef.h"
 
 #endif  // V8_IC_HANDLER_CONFIGURATION_INL_H_
