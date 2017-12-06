@@ -1,4 +1,4 @@
-# Copyright 2017 the V8 project authors. All rights reserved.
+# Copyright 2017 The Chromium Authors. All rights reserved.
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
@@ -61,7 +61,9 @@ def parse(data):
         trimLine = line.strip()
 
         if trimLine.startswith('#'):
-            description += trimLine[1:]
+            if len(description):
+              description += '\n'
+            description += trimLine[2:]
             continue
         else:
             nukeDescription = True
@@ -161,18 +163,20 @@ def parse(data):
 
 def main(argv):
     if len(argv) < 2:
-        sys.stderr.write("Usage: %s stamp <protocol.pdl>\n" % sys.argv[0])
+        sys.stderr.write("Usage: %s <protocol.pdl> <protocol.json>\n" % sys.argv[0])
         return 1
     global file_name
-    file_name = os.path.normpath(argv[1])
+    file_name = os.path.normpath(argv[0])
     input_file = open(file_name, "r")
     pdl_string = input_file.read()
     protocol = parse(pdl_string)
-    output_file = open(argv[1].replace('.pdl', '.json'), "w")
+    output_file = open(argv[0].replace('.pdl', '.json'), 'wb')
     json.dump(protocol, output_file, indent=4, separators=(',', ': '))
     output_file.close()
-    with open(os.path.normpath(argv[0]), 'a') as _:
-        pass
+
+    output_file = open(os.path.normpath(argv[1]), 'wb')
+    json.dump(protocol, output_file, indent=4, separators=(',', ': '))
+    output_file.close()
 
 
 if __name__ == '__main__':

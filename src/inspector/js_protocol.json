@@ -84,7 +84,7 @@
                 },
                 {
                     "name": "enable",
-                    "description": "Enables console domain, sends the messages collected so far to the client by means of the `messageAdded` notification."
+                    "description": "Enables console domain, sends the messages collected so far to the client by means of the\n`messageAdded` notification."
                 }
             ],
             "events": [
@@ -103,7 +103,7 @@
         },
         {
             "domain": "Debugger",
-            "description": "Debugger domain exposes JavaScript debugging capabilities. It allows setting and removing breakpoints, stepping through execution, exploring stack traces, etc.",
+            "description": "Debugger domain exposes JavaScript debugging capabilities. It allows setting and removing\nbreakpoints, stepping through execution, exploring stack traces, etc.",
             "dependencies": [
                 "Runtime"
             ],
@@ -232,7 +232,7 @@
                         },
                         {
                             "name": "object",
-                            "description": "Object representing the scope. For `global` and `with` scopes it represents the actual object; for the rest of the scopes, it is artificial transient object enumerating scope variables as its properties.",
+                            "description": "Object representing the scope. For `global` and `with` scopes it represents the actual\nobject; for the rest of the scopes, it is artificial transient object enumerating scope\nvariables as its properties.",
                             "$ref": "Runtime.RemoteObject"
                         },
                         {
@@ -331,7 +331,7 @@
                 },
                 {
                     "name": "enable",
-                    "description": "Enables debugger for the given page. Clients should not assume that the debugging has been enabled until the result for this command is received.",
+                    "description": "Enables debugger for the given page. Clients should not assume that the debugging has been\nenabled until the result for this command is received.",
                     "returns": [
                         {
                             "name": "debuggerId",
@@ -357,19 +357,19 @@
                         },
                         {
                             "name": "objectGroup",
-                            "description": "String object group name to put result into (allows rapid releasing resulting object handles using `releaseObjectGroup`).",
+                            "description": "String object group name to put result into (allows rapid releasing resulting object handles\nusing `releaseObjectGroup`).",
                             "optional": true,
                             "type": "string"
                         },
                         {
                             "name": "includeCommandLineAPI",
-                            "description": "Specifies whether command line API should be available to the evaluated expression, defaults to false.",
+                            "description": "Specifies whether command line API should be available to the evaluated expression, defaults\nto false.",
                             "optional": true,
                             "type": "boolean"
                         },
                         {
                             "name": "silent",
-                            "description": "In silent mode exceptions thrown during evaluation are not reported and do not pause execution. Overrides `setPauseOnException` state.",
+                            "description": "In silent mode exceptions thrown during evaluation are not reported and do not pause\nexecution. Overrides `setPauseOnException` state.",
                             "optional": true,
                             "type": "boolean"
                         },
@@ -409,7 +409,7 @@
                 },
                 {
                     "name": "getPossibleBreakpoints",
-                    "description": "Returns possible locations for breakpoint. scriptId in start and end range locations should be the same.",
+                    "description": "Returns possible locations for breakpoint. scriptId in start and end range locations should be\nthe same.",
                     "parameters": [
                         {
                             "name": "start",
@@ -418,7 +418,7 @@
                         },
                         {
                             "name": "end",
-                            "description": "End of range to search possible breakpoint locations in (excluding). When not specified, end of scripts is used as end of range.",
+                            "description": "End of range to search possible breakpoint locations in (excluding). When not specified, end\nof scripts is used as end of range.",
                             "optional": true,
                             "$ref": "Location"
                         },
@@ -540,7 +540,7 @@
                 },
                 {
                     "name": "scheduleStepIntoAsync",
-                    "description": "This method is deprecated - use Debugger.stepInto with breakOnAsyncCall and Debugger.pauseOnAsyncTask instead. Steps into next scheduled async task if any is scheduled before next pause. Returns success when async task is actually scheduled, returns error if no task were scheduled or another scheduleStepIntoAsync was called.",
+                    "description": "This method is deprecated - use Debugger.stepInto with breakOnAsyncCall and\nDebugger.pauseOnAsyncTask instead. Steps into next scheduled async task if any is scheduled\nbefore next pause. Returns success when async task is actually scheduled, returns error if no\ntask were scheduled or another scheduleStepIntoAsync was called.",
                     "experimental": true
                 },
                 {
@@ -587,14 +587,14 @@
                     "parameters": [
                         {
                             "name": "maxDepth",
-                            "description": "Maximum depth of async call stacks. Setting to `0` will effectively disable collecting async call stacks (default).",
+                            "description": "Maximum depth of async call stacks. Setting to `0` will effectively disable collecting async\ncall stacks (default).",
                             "type": "integer"
                         }
                     ]
                 },
                 {
                     "name": "setBlackboxPatterns",
-                    "description": "Replace previous blackbox patterns with passed ones. Forces backend to skip stepping/pausing in scripts with url matching one of the patterns. VM will try to leave blackboxed script by performing 'step in' several times, finally resorting to 'step out' if unsuccessful.",
+                    "description": "Replace previous blackbox patterns with passed ones. Forces backend to skip stepping/pausing in\nscripts with url matching one of the patterns. VM will try to leave blackboxed script by\nperforming 'step in' several times, finally resorting to 'step out' if unsuccessful.",
                     "experimental": true,
                     "parameters": [
                         {
@@ -609,7 +609,7 @@
                 },
                 {
                     "name": "setBlackboxedRanges",
-                    "description": "Makes backend skip steps in the script in blackboxed ranges. VM will try leave blacklisted scripts by performing 'step in' several times, finally resorting to 'step out' if unsuccessful. Positions array contains positions where blackbox state is changed. First interval isn't blackboxed. Array should be sorted.",
+                    "description": "Makes backend skip steps in the script in blackboxed ranges. VM will try leave blacklisted\nscripts by performing 'step in' several times, finally resorting to 'step out' if unsuccessful.\nPositions array contains positions where blackbox state is changed. First interval isn't\nblackboxed. Array should be sorted.",
                     "experimental": true,
                     "parameters": [
                         {
@@ -637,7 +637,7 @@
                         },
                         {
                             "name": "condition",
-                            "description": "Expression to use as a breakpoint condition. When specified, debugger will only stop on the breakpoint if this expression evaluates to true.",
+                            "description": "Expression to use as a breakpoint condition. When specified, debugger will only stop on the\nbreakpoint if this expression evaluates to true.",
                             "optional": true,
                             "type": "string"
                         }
@@ -657,7 +657,7 @@
                 },
                 {
                     "name": "setBreakpointByUrl",
-                    "description": "Sets JavaScript breakpoint at given location specified either by URL or URL regex. Once this command is issued, all existing parsed scripts will have breakpoints resolved and returned in `locations` property. Further matching script parsing will result in subsequent `breakpointResolved` events issued. This logical breakpoint will survive page reloads.",
+                    "description": "Sets JavaScript breakpoint at given location specified either by URL or URL regex. Once this\ncommand is issued, all existing parsed scripts will have breakpoints resolved and returned in\n`locations` property. Further matching script parsing will result in subsequent\n`breakpointResolved` events issued. This logical breakpoint will survive page reloads.",
                     "parameters": [
                         {
                             "name": "lineNumber",
@@ -672,7 +672,7 @@
                         },
                         {
                             "name": "urlRegex",
-                            "description": "Regex pattern for the URLs of the resources to set breakpoints on. Either `url` or `urlRegex` must be specified.",
+                            "description": "Regex pattern for the URLs of the resources to set breakpoints on. Either `url` or\n`urlRegex` must be specified.",
                             "optional": true,
                             "type": "string"
                         },
@@ -690,7 +690,7 @@
                         },
                         {
                             "name": "condition",
-                            "description": "Expression to use as a breakpoint condition. When specified, debugger will only stop on the breakpoint if this expression evaluates to true.",
+                            "description": "Expression to use as a breakpoint condition. When specified, debugger will only stop on the\nbreakpoint if this expression evaluates to true.",
                             "optional": true,
                             "type": "string"
                         }
@@ -724,7 +724,7 @@
                 },
                 {
                     "name": "setPauseOnExceptions",
-                    "description": "Defines pause on exceptions state. Can be set to stop on all exceptions, uncaught exceptions or no exceptions. Initial pause on exceptions state is `none`.",
+                    "description": "Defines pause on exceptions state. Can be set to stop on all exceptions, uncaught exceptions or\nno exceptions. Initial pause on exceptions state is `none`.",
                     "parameters": [
                         {
                             "name": "state",
@@ -766,7 +766,7 @@
                         },
                         {
                             "name": "dryRun",
-                            "description": "If true the change will not actually be applied. Dry run may be used to get result description without actually modifying the code.",
+                            "description": "If true the change will not actually be applied. Dry run may be used to get result\ndescription without actually modifying the code.",
                             "optional": true,
                             "type": "boolean"
                         }
@@ -821,11 +821,11 @@
                 },
                 {
                     "name": "setVariableValue",
-                    "description": "Changes value of variable in a callframe. Object-based scopes are not supported and must be mutated manually.",
+                    "description": "Changes value of variable in a callframe. Object-based scopes are not supported and must be\nmutated manually.",
                     "parameters": [
                         {
                             "name": "scopeNumber",
-                            "description": "0-based number of scope as was listed in scope chain. Only 'local', 'closure' and 'catch' scope types are allowed. Other scopes could be manipulated manually.",
+                            "description": "0-based number of scope as was listed in scope chain. Only 'local', 'closure' and 'catch'\nscope types are allowed. Other scopes could be manipulated manually.",
                             "type": "integer"
                         },
                         {
@@ -851,7 +851,7 @@
                     "parameters": [
                         {
                             "name": "breakOnAsyncCall",
-                            "description": "Debugger will issue additional Debugger.paused notification if any async task is scheduled before next pause.",
+                            "description": "Debugger will issue additional Debugger.paused notification if any async task is scheduled\nbefore next pause.",
                             "experimental": true,
                             "optional": true,
                             "type": "boolean"
@@ -943,7 +943,7 @@
                         },
                         {
                             "name": "asyncCallStackTraceId",
-                            "description": "Just scheduled async call will have this stack trace as parent stack during async execution. This field is available only after `Debugger.stepInto` call with `breakOnAsynCall` flag.",
+                            "description": "Just scheduled async call will have this stack trace as parent stack during async execution.\nThis field is available only after `Debugger.stepInto` call with `breakOnAsynCall` flag.",
                             "experimental": true,
                             "optional": true,
                             "$ref": "Runtime.StackTraceId"
@@ -1039,7 +1039,7 @@
                 },
                 {
                     "name": "scriptParsed",
-                    "description": "Fired when virtual machine parses script. This event is also fired for all known and uncollected scripts upon enabling debugger.",
+                    "description": "Fired when virtual machine parses script. This event is also fired for all known and uncollected\nscripts upon enabling debugger.",
                     "parameters": [
                         {
                             "name": "scriptId",
@@ -1181,7 +1181,7 @@
             "commands": [
                 {
                     "name": "addInspectedHeapObject",
-                    "description": "Enables console to refer to the node with given id via $x (see Command Line API for more details $x functions).",
+                    "description": "Enables console to refer to the node with given id via $x (see Command Line API for more details\n$x functions).",
                     "parameters": [
                         {
                             "name": "heapObjectId",
@@ -1253,7 +1253,7 @@
                     "parameters": [
                         {
                             "name": "samplingInterval",
-                            "description": "Average sample interval in bytes. Poisson distribution is used for the intervals. The default value is 32768 bytes.",
+                            "description": "Average sample interval in bytes. Poisson distribution is used for the intervals. The\ndefault value is 32768 bytes.",
                             "optional": true,
                             "type": "number"
                         }
@@ -1284,7 +1284,7 @@
                     "parameters": [
                         {
                             "name": "reportProgress",
-                            "description": "If true 'reportHeapSnapshotProgress' events will be generated while snapshot is being taken when the tracking is stopped.",
+                            "description": "If true 'reportHeapSnapshotProgress' events will be generated while snapshot is being taken\nwhen the tracking is stopped.",
                             "optional": true,
                             "type": "boolean"
                         }
@@ -1318,7 +1318,7 @@
                     "parameters": [
                         {
                             "name": "statsUpdate",
-                            "description": "An array of triplets. Each triplet describes a fragment. The first integer is the fragment index, the second integer is a total count of objects for the fragment, the third integer is a total size of the objects for the fragment.",
+                            "description": "An array of triplets. Each triplet describes a fragment. The first integer is the fragment\nindex, the second integer is a total count of objects for the fragment, the third integer is\na total size of the objects for the fragment.",
                             "type": "array",
                             "items": {
                                 "type": "integer"
@@ -1328,7 +1328,7 @@
                 },
                 {
                     "name": "lastSeenObjectId",
-                    "description": "If heap objects tracking has been started then backend regularly sends a current value for last seen object id and corresponding timestamp. If the were changes in the heap since last event then one or more heapStatsUpdate events will be sent before a new lastSeenObjectId event.",
+                    "description": "If heap objects tracking has been started then backend regularly sends a current value for last\nseen object id and corresponding timestamp. If the were changes in the heap since last event\nthen one or more heapStatsUpdate events will be sent before a new lastSeenObjectId event.",
                     "parameters": [
                         {
                             "name": "lastSeenObjectId",
@@ -1402,7 +1402,7 @@
                         },
                         {
                             "name": "deoptReason",
-                            "description": "The reason of being not optimized. The function may be deoptimized or marked as don't optimize.",
+                            "description": "The reason of being not optimized. The function may be deoptimized or marked as don't\noptimize.",
                             "optional": true,
                             "type": "string"
                         },
@@ -1451,7 +1451,7 @@
                         },
                         {
                             "name": "timeDeltas",
-                            "description": "Time intervals between adjacent samples in microseconds. The first delta is relative to the profile startTime.",
+                            "description": "Time intervals between adjacent samples in microseconds. The first delta is relative to the\nprofile startTime.",
                             "optional": true,
                             "type": "array",
                             "items": {
@@ -1619,7 +1619,7 @@
                 },
                 {
                     "name": "getBestEffortCoverage",
-                    "description": "Collect coverage data for the current isolate. The coverage data may be incomplete due to garbage collection.",
+                    "description": "Collect coverage data for the current isolate. The coverage data may be incomplete due to\ngarbage collection.",
                     "returns": [
                         {
                             "name": "result",
@@ -1647,7 +1647,7 @@
                 },
                 {
                     "name": "startPreciseCoverage",
-                    "description": "Enable precise code coverage. Coverage data for JavaScript executed before enabling precise code coverage may be incomplete. Enabling prevents running optimized code and resets execution counters.",
+                    "description": "Enable precise code coverage. Coverage data for JavaScript executed before enabling precise code\ncoverage may be incomplete. Enabling prevents running optimized code and resets execution\ncounters.",
                     "parameters": [
                         {
                             "name": "callCount",
@@ -1680,7 +1680,7 @@
                 },
                 {
                     "name": "stopPreciseCoverage",
-                    "description": "Disable precise code coverage. Disabling releases unnecessary execution count records and allows executing optimized code."
+                    "description": "Disable precise code coverage. Disabling releases unnecessary execution count records and allows\nexecuting optimized code."
                 },
                 {
                     "name": "stopTypeProfile",
@@ -1689,7 +1689,7 @@
                 },
                 {
                     "name": "takePreciseCoverage",
-                    "description": "Collect coverage data for the current isolate, and resets execution counters. Precise code coverage needs to have started.",
+                    "description": "Collect coverage data for the current isolate, and resets execution counters. Precise code\ncoverage needs to have started.",
                     "returns": [
                         {
                             "name": "result",
@@ -1767,7 +1767,7 @@
         },
         {
             "domain": "Runtime",
-            "description": "Runtime domain exposes JavaScript runtime by means of remote evaluation and mirror objects. Evaluation results are returned as mirror object that expose object type, string representation and unique identifier that can be used for further object reference. Original objects are maintained in memory unless they are either explicitly released or are released along with the other objects in their object group.",
+            "description": "Runtime domain exposes JavaScript runtime by means of remote evaluation and mirror objects.\nEvaluation results are returned as mirror object that expose object type, string representation\nand unique identifier that can be used for further object reference. Original objects are\nmaintained in memory unless they are either explicitly released or are released along with the\nother objects in their object group.",
             "types": [
                 {
                     "id": "ScriptId",
@@ -1846,7 +1846,7 @@
                         },
                         {
                             "name": "unserializableValue",
-                            "description": "Primitive value which can not be JSON-stringified does not have `value`, but gets this property.",
+                            "description": "Primitive value which can not be JSON-stringified does not have `value`, but gets this\nproperty.",
                             "optional": true,
                             "$ref": "UnserializableValue"
                         },
@@ -2076,24 +2076,24 @@
                         },
                         {
                             "name": "get",
-                            "description": "A function which serves as a getter for the property, or `undefined` if there is no getter (accessor descriptors only).",
+                            "description": "A function which serves as a getter for the property, or `undefined` if there is no getter\n(accessor descriptors only).",
                             "optional": true,
                             "$ref": "RemoteObject"
                         },
                         {
                             "name": "set",
-                            "description": "A function which serves as a setter for the property, or `undefined` if there is no setter (accessor descriptors only).",
+                            "description": "A function which serves as a setter for the property, or `undefined` if there is no setter\n(accessor descriptors only).",
                             "optional": true,
                             "$ref": "RemoteObject"
                         },
                         {
                             "name": "configurable",
-                            "description": "True if the type of this property descriptor may be changed and if the property may be deleted from the corresponding object.",
+                            "description": "True if the type of this property descriptor may be changed and if the property may be\ndeleted from the corresponding object.",
                             "type": "boolean"
                         },
                         {
                             "name": "enumerable",
-                            "description": "True if this property shows up during enumeration of the properties on the corresponding object.",
+                            "description": "True if this property shows up during enumeration of the properties on the corresponding\nobject.",
                             "type": "boolean"
                         },
                         {
@@ -2136,7 +2136,7 @@
                 },
                 {
                     "id": "CallArgument",
-                    "description": "Represents function call argument. Either remote object id `objectId`, primitive `value`, unserializable primitive value or neither of (for undefined) them should be specified.",
+                    "description": "Represents function call argument. Either remote object id `objectId`, primitive `value`,\nunserializable primitive value or neither of (for undefined) them should be specified.",
                     "type": "object",
                     "properties": [
                         {
@@ -2171,7 +2171,7 @@
                     "properties": [
                         {
                             "name": "id",
-                            "description": "Unique id of the execution context. It can be used to specify in which execution context script evaluation should be performed.",
+                            "description": "Unique id of the execution context. It can be used to specify in which execution context\nscript evaluation should be performed.",
                             "$ref": "ExecutionContextId"
                         },
                         {
@@ -2194,7 +2194,7 @@
                 },
                 {
                     "id": "ExceptionDetails",
-                    "description": "Detailed information about exception (or error) that was thrown during script compilation or execution.",
+                    "description": "Detailed information about exception (or error) that was thrown during script compilation or\nexecution.",
                     "type": "object",
                     "properties": [
                         {
@@ -2293,7 +2293,7 @@
                     "properties": [
                         {
                             "name": "description",
-                            "description": "String label of this stack trace. For async traces this may be a name of the function that initiated the async call.",
+                            "description": "String label of this stack trace. For async traces this may be a name of the function that\ninitiated the async call.",
                             "optional": true,
                             "type": "string"
                         },
@@ -2328,7 +2328,7 @@
                 },
                 {
                     "id": "StackTraceId",
-                    "description": "If `debuggerId` is set stack trace comes from another debugger and can be resolved there. This allows to track cross-debugger calls. See `Runtime.StackTrace` and `Debugger.paused` for usages.",
+                    "description": "If `debuggerId` is set stack trace comes from another debugger and can be resolved there. This\nallows to track cross-debugger calls. See `Runtime.StackTrace` and `Debugger.paused` for usages.",
                     "experimental": true,
                     "type": "object",
                     "properties": [
@@ -2383,7 +2383,7 @@
                 },
                 {
                     "name": "callFunctionOn",
-                    "description": "Calls function with given declaration on the given object. Object group of the result is inherited from the target object.",
+                    "description": "Calls function with given declaration on the given object. Object group of the result is\ninherited from the target object.",
                     "parameters": [
                         {
                             "name": "functionDeclaration",
@@ -2392,13 +2392,13 @@
                         },
                         {
                             "name": "objectId",
-                            "description": "Identifier of the object to call function on. Either objectId or executionContextId should be specified.",
+                            "description": "Identifier of the object to call function on. Either objectId or executionContextId should\nbe specified.",
                             "optional": true,
                             "$ref": "RemoteObjectId"
                         },
                         {
                             "name": "arguments",
-                            "description": "Call arguments. All call arguments must belong to the same JavaScript world as the target object.",
+                            "description": "Call arguments. All call arguments must belong to the same JavaScript world as the target\nobject.",
                             "optional": true,
                             "type": "array",
                             "items": {
@@ -2407,7 +2407,7 @@
                         },
                         {
                             "name": "silent",
-                            "description": "In silent mode exceptions thrown during evaluation are not reported and do not pause execution. Overrides `setPauseOnException` state.",
+                            "description": "In silent mode exceptions thrown during evaluation are not reported and do not pause\nexecution. Overrides `setPauseOnException` state.",
                             "optional": true,
                             "type": "boolean"
                         },
@@ -2432,19 +2432,19 @@
                         },
                         {
                             "name": "awaitPromise",
-                            "description": "Whether execution should `await` for resulting value and return once awaited promise is resolved.",
+                            "description": "Whether execution should `await` for resulting value and return once awaited promise is\nresolved.",
                             "optional": true,
                             "type": "boolean"
                         },
                         {
                             "name": "executionContextId",
-                            "description": "Specifies execution context which global object will be used to call function on. Either executionContextId or objectId should be specified.",
+                            "description": "Specifies execution context which global object will be used to call function on. Either\nexecutionContextId or objectId should be specified.",
                             "optional": true,
                             "$ref": "ExecutionContextId"
                         },
                         {
                             "name": "objectGroup",
-                            "description": "Symbolic group name that can be used to release multiple objects. If objectGroup is not specified and objectId is, objectGroup will be inherited from object.",
+                            "description": "Symbolic group name that can be used to release multiple objects. If objectGroup is not\nspecified and objectId is, objectGroup will be inherited from object.",
                             "optional": true,
                             "type": "string"
                         }
@@ -2484,7 +2484,7 @@
                         },
                         {
                             "name": "executionContextId",
-                            "description": "Specifies in which execution context to perform script run. If the parameter is omitted the evaluation will be performed in the context of the inspected page.",
+                            "description": "Specifies in which execution context to perform script run. If the parameter is omitted the\nevaluation will be performed in the context of the inspected page.",
                             "optional": true,
                             "$ref": "ExecutionContextId"
                         }
@@ -2514,7 +2514,7 @@
                 },
                 {
                     "name": "enable",
-                    "description": "Enables reporting of execution contexts creation by means of `executionContextCreated` event. When the reporting gets enabled the event will be sent immediately for each existing execution context."
+                    "description": "Enables reporting of execution contexts creation by means of `executionContextCreated` event.\nWhen the reporting gets enabled the event will be sent immediately for each existing execution\ncontext."
                 },
                 {
                     "name": "evaluate",
@@ -2539,13 +2539,13 @@
                         },
                         {
                             "name": "silent",
-                            "description": "In silent mode exceptions thrown during evaluation are not reported and do not pause execution. Overrides `setPauseOnException` state.",
+                            "description": "In silent mode exceptions thrown during evaluation are not reported and do not pause\nexecution. Overrides `setPauseOnException` state.",
                             "optional": true,
                             "type": "boolean"
                         },
                         {
                             "name": "contextId",
-                            "description": "Specifies in which execution context to perform evaluation. If the parameter is omitted the evaluation will be performed in the context of the inspected page.",
+                            "description": "Specifies in which execution context to perform evaluation. If the parameter is omitted the\nevaluation will be performed in the context of the inspected page.",
                             "optional": true,
                             "$ref": "ExecutionContextId"
                         },
@@ -2570,7 +2570,7 @@
                         },
                         {
                             "name": "awaitPromise",
-                            "description": "Whether execution should `await` for resulting value and return once awaited promise is resolved.",
+                            "description": "Whether execution should `await` for resulting value and return once awaited promise is\nresolved.",
                             "optional": true,
                             "type": "boolean"
                         }
@@ -2591,7 +2591,7 @@
                 },
                 {
                     "name": "getProperties",
-                    "description": "Returns properties of a given object. Object group of the result is inherited from the target object.",
+                    "description": "Returns properties of a given object. Object group of the result is inherited from the target\nobject.",
                     "parameters": [
                         {
                             "name": "objectId",
@@ -2600,13 +2600,13 @@
                         },
                         {
                             "name": "ownProperties",
-                            "description": "If true, returns properties belonging only to the element itself, not to its prototype chain.",
+                            "description": "If true, returns properties belonging only to the element itself, not to its prototype\nchain.",
                             "optional": true,
                             "type": "boolean"
                         },
                         {
                             "name": "accessorPropertiesOnly",
-                            "description": "If true, returns accessor properties (with getter/setter) only; internal properties are not returned either.",
+                            "description": "If true, returns accessor properties (with getter/setter) only; internal properties are not\nreturned either.",
                             "experimental": true,
                             "optional": true,
                             "type": "boolean"
@@ -2720,7 +2720,7 @@
                         },
                         {
                             "name": "executionContextId",
-                            "description": "Specifies in which execution context to perform script run. If the parameter is omitted the evaluation will be performed in the context of the inspected page.",
+                            "description": "Specifies in which execution context to perform script run. If the parameter is omitted the\nevaluation will be performed in the context of the inspected page.",
                             "optional": true,
                             "$ref": "ExecutionContextId"
                         },
@@ -2732,7 +2732,7 @@
                         },
                         {
                             "name": "silent",
-                            "description": "In silent mode exceptions thrown during evaluation are not reported and do not pause execution. Overrides `setPauseOnException` state.",
+                            "description": "In silent mode exceptions thrown during evaluation are not reported and do not pause\nexecution. Overrides `setPauseOnException` state.",
                             "optional": true,
                             "type": "boolean"
                         },
@@ -2756,7 +2756,7 @@
                         },
                         {
                             "name": "awaitPromise",
-                            "description": "Whether execution should `await` for resulting value and return once awaited promise is resolved.",
+                            "description": "Whether execution should `await` for resulting value and return once awaited promise is\nresolved.",
                             "optional": true,
                             "type": "boolean"
                         }
@@ -2842,7 +2842,7 @@
                         },
                         {
                             "name": "context",
-                            "description": "Console context descriptor for calls on non-default console context (not console.*): 'anonymous#unique-logger-id' for call on unnamed context, 'name#unique-logger-id' for call on named context.",
+                            "description": "Console context descriptor for calls on non-default console context (not console.*):\n'anonymous#unique-logger-id' for call on unnamed context, 'name#unique-logger-id' for call\non named context.",
                             "experimental": true,
                             "optional": true,
                             "type": "string"
@@ -2908,7 +2908,7 @@
                 },
                 {
                     "name": "inspectRequested",
-                    "description": "Issued when object should be inspected (for example, as a result of inspect() command line API call).",
+                    "description": "Issued when object should be inspected (for example, as a result of inspect() command line API\ncall).",
                     "parameters": [
                         {
                             "name": "object",
