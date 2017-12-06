@@ -428,7 +428,8 @@ ConcurrentMarking::ConcurrentMarking(Heap* heap, MarkingWorklist* shared,
 }
 
 void ConcurrentMarking::Run(int task_id, TaskState* task_state) {
-  // TODO(ulan): add GCTracer background scope.
+  GCTracer::BackgroundScope scope(
+      heap_->tracer(), GCTracer::BackgroundScope::MC_BACKGROUND_MARKING);
   size_t kBytesUntilInterruptCheck = 64 * KB;
   int kObjectsUntilInterrupCheck = 1000;
   LiveBytesMap* live_bytes = nullptr;
