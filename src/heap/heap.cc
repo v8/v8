@@ -1909,7 +1909,9 @@ class ScavengingTask final : public ItemParallelJob::Task {
         barrier_(barrier) {}
 
   void RunInParallel() final {
-    // TODO(ulan): add GCTracer background scope.
+    GCTracer::BackgroundScope scope(
+        heap_->tracer(),
+        GCTracer::BackgroundScope::SCAVENGER_BACKGROUND_SCAVENGE_PARALLEL);
     double scavenging_time = 0.0;
     {
       barrier_->Start();
