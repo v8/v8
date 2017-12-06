@@ -442,7 +442,7 @@ class Observer : public AllocationObserver {
   explicit Observer(intptr_t step_size)
       : AllocationObserver(step_size), count_(0) {}
 
-  void Step(int bytes_allocated, Address, size_t) override { count_++; }
+  void Step(int bytes_allocated, Address addr, size_t) override { count_++; }
 
   int count() const { return count_; }
 
@@ -619,6 +619,47 @@ HEAP_TEST(Regress777177) {
                                ClearRecordedSlots::kNo);
   }
   old_space->RemoveAllocationObserver(&observer);
+}
+
+HEAP_TEST(Regress791582) {
+  CcTest::InitializeVM();
+  Isolate* isolate = CcTest::i_isolate();
+  Heap* heap = isolate->heap();
+  HandleScope scope(isolate);
+  NewSpace* new_space = heap->new_space();
+  if (new_space->TotalCapacity() < new_space->MaximumCapacity()) {
+    new_space->Grow();
+  }
+
+  int until_page_end = static_cast<int>(new_space->limit() - new_space->top());
+
+  if (until_page_end % kPointerSize != 0) {
+    // The test works if the size of allocation area size is a multiple of
+    // pointer size. This is usually the case unless some allocation observer
+    // is already active (e.g. incremental marking observer).
+    return;
+  }
+
+  Observer observer(128);
+  new_space->AddAllocationObserver(&observer);
+
+  {
+    AllocationResult result =
+        new_space->AllocateRaw(until_page_end, kWordAligned);
+    HeapObject* obj = result.ToObjectChecked();
+    heap->CreateFillerObjectAt(obj->address(), until_page_end,
+                               ClearRecordedSlots::kNo);
+    // Simulate allocation folding moving the top pointer back.
+    *new_space->allocation_top_address() = obj->address();
+  }
+
+  {
+    // This triggers assert in crbug.com/791582
+    AllocationResult result = new_space->AllocateRaw(256, kWordAligned);
+    HeapObject* obj = result.ToObjectChecked();
+    heap->CreateFillerObjectAt(obj->address(), 256, ClearRecordedSlots::kNo);
+  }
+  new_space->RemoveAllocationObserver(&observer);
 }
 
 TEST(ShrinkPageToHighWaterMarkFreeSpaceEnd) {
