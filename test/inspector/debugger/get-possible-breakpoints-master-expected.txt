@@ -116,7 +116,7 @@ function testSimpleExpressions() {
   |_|a--;
 |R|}
 
-Object.defineProperty(this, 'getterFoo', {
+|_|Object.|C|defineProperty(this, 'getterFoo', {
   get: () => |_|return42|R|
 });
 
@@ -124,7 +124,7 @@ function testGetter() {
   |C|getterFoo();
 |R|}
 
-var obj = {
+var obj = |_|{
   foo: () => (|_|{
     boo: () => |_|return42|R|
   })|R|
@@ -260,7 +260,7 @@ async function testPromiseComplex() {
 |R|}
 
 function twiceDefined() {
-  return a + b;
+  |_|return a + b;|R|
 }
 
 function twiceDefined() {
