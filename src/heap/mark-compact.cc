@@ -3031,6 +3031,8 @@ class Evacuator : public Malloced {
   // to be called from the main thread.
   inline void Finalize();
 
+  virtual GCTracer::BackgroundScope::ScopeId GetBackgroundTracingScope() = 0;
+
  protected:
   static const int kInitialLocalPretenuringFeedbackCapacity = 256;
 
@@ -3110,6 +3112,10 @@ class FullEvacuator : public Evacuator {
                 RecordMigratedSlotVisitor* record_visitor)
       : Evacuator(collector->heap(), record_visitor), collector_(collector) {}
 
+  GCTracer::BackgroundScope::ScopeId GetBackgroundTracingScope() override {
+    return GCTracer::BackgroundScope::MC_BACKGROUND_EVACUATE_COPY;
+  }
+
  protected:
   void RawEvacuatePage(Page* page, intptr_t* live_bytes) override;
 
@@ -3165,6 +3171,10 @@ class YoungGenerationEvacuator : public Evacuator {
   YoungGenerationEvacuator(MinorMarkCompactCollector* collector,
                            RecordMigratedSlotVisitor* record_visitor)
       : Evacuator(collector->heap(), record_visitor), collector_(collector) {}
+
+  GCTracer::BackgroundScope::ScopeId GetBackgroundTracingScope() override {
+    return GCTracer::BackgroundScope::MINOR_MC_BACKGROUND_EVACUATE_COPY;
+  }
 
  protected:
   void RawEvacuatePage(Page* page, intptr_t* live_bytes) override;
@@ -3243,10 +3253,13 @@ class PageEvacuationItem : public ItemParallelJob::Item {
 class PageEvacuationTask : public ItemParallelJob::Task {
  public:
   PageEvacuationTask(Isolate* isolate, Evacuator* evacuator)
-      : ItemParallelJob::Task(isolate), evacuator_(evacuator) {}
+      : ItemParallelJob::Task(isolate),
+        evacuator_(evacuator),
+        tracer_(isolate->heap()->tracer()) {}
 
   void RunInParallel() override {
-    // TODO(ulan): add GCTracer background scope.
+    GCTracer::BackgroundScope scope(tracer_,
+                                    evacuator_->GetBackgroundTracingScope());
     PageEvacuationItem* item = nullptr;
     while ((item = GetItem<PageEvacuationItem>()) != nullptr) {
       evacuator_->EvacuatePage(item->page());
@@ -3256,6 +3269,7 @@ class PageEvacuationTask : public ItemParallelJob::Task {
 
  private:
   Evacuator* evacuator_;
+  GCTracer* tracer_;
 };
 
 template <class Evacuator, class Collector>
@@ -3554,17 +3568,24 @@ class UpdatingItem : public ItemParallelJob::Item {
 
 class PointersUpdatingTask : public ItemParallelJob::Task {
  public:
-  explicit PointersUpdatingTask(Isolate* isolate)
-      : ItemParallelJob::Task(isolate) {}
+  explicit PointersUpdatingTask(Isolate* isolate,
+                                GCTracer::BackgroundScope::ScopeId scope)
+      : ItemParallelJob::Task(isolate),
+        tracer_(isolate->heap()->tracer()),
+        scope_(scope) {}
 
   void RunInParallel() override {
-    // TODO(ulan): add GCTracer background scope.
+    GCTracer::BackgroundScope scope(tracer_, scope_);
     UpdatingItem* item = nullptr;
     while ((item = GetItem<UpdatingItem>()) != nullptr) {
       item->Process();
       item->MarkFinished();
     }
   };
+
+ private:
+  GCTracer* tracer_;
+  GCTracer::BackgroundScope::ScopeId scope_;
 };
 
 template <typename MarkingState>
@@ -3955,7 +3976,9 @@ void MarkCompactCollector::UpdatePointersAfterEvacuation() {
     const int to_space_tasks = CollectToSpaceUpdatingItems(&updating_job);
     const int num_tasks = Max(to_space_tasks, remembered_set_tasks);
     for (int i = 0; i < num_tasks; i++) {
-      updating_job.AddTask(new PointersUpdatingTask(isolate()));
+      updating_job.AddTask(new PointersUpdatingTask(
+          isolate(),
+          GCTracer::BackgroundScope::MC_BACKGROUND_EVACUATE_UPDATE_POINTERS));
     }
     updating_job.Run();
   }
@@ -3985,7 +4008,9 @@ void MarkCompactCollector::UpdatePointersAfterEvacuation() {
     const int num_tasks = Max(array_buffer_pages, remembered_set_tasks);
     if (num_tasks > 0) {
       for (int i = 0; i < num_tasks; i++) {
-        updating_job.AddTask(new PointersUpdatingTask(isolate()));
+        updating_job.AddTask(new PointersUpdatingTask(
+            isolate(),
+            GCTracer::BackgroundScope::MC_BACKGROUND_EVACUATE_UPDATE_POINTERS));
       }
       updating_job.Run();
       heap()->array_buffer_collector()->FreeAllocationsOnBackgroundThread();
@@ -4036,7 +4061,9 @@ void MinorMarkCompactCollector::UpdatePointersAfterEvacuation() {
                                       remembered_set_pages, old_to_new_slots_);
   const int num_tasks = Max(to_space_tasks, remembered_set_tasks);
   for (int i = 0; i < num_tasks; i++) {
-    updating_job.AddTask(new PointersUpdatingTask(isolate()));
+    updating_job.AddTask(new PointersUpdatingTask(
+        isolate(), GCTracer::BackgroundScope::
+                       MINOR_MC_BACKGROUND_EVACUATE_UPDATE_POINTERS));
   }
 
   {
