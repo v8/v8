@@ -3113,9 +3113,6 @@ void Isolate::InitializeVectorListFromHeap() {
         if (!shared->IsSubjectToDebugging()) continue;
         vector->clear_invocation_count();
         vectors.emplace_back(vector, this);
-      } else if (current_obj->IsJSFunction()) {
-        JSFunction* function = JSFunction::cast(current_obj);
-        function->set_code(function->shared()->code());
       }
     }
   }
