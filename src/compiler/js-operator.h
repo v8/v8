@@ -10,6 +10,7 @@
 #include "src/handles.h"
 #include "src/runtime/runtime.h"
 #include "src/type-hints.h"
+#include "src/vector-slot-pair.h"
 
 namespace v8 {
 namespace internal {
@@ -18,7 +19,6 @@ class AllocationSite;
 class BoilerplateDescription;
 class ConstantElementsPair;
 class SharedFunctionInfo;
-class FeedbackVector;
 
 namespace compiler {
 
@@ -58,32 +58,6 @@ class CallFrequency final {
 std::ostream& operator<<(std::ostream&, CallFrequency);
 
 CallFrequency CallFrequencyOf(Operator const* op) WARN_UNUSED_RESULT;
-
-// Defines a pair of {FeedbackVector} and {FeedbackSlot}, which
-// is used to access the type feedback for a certain {Node}.
-class V8_EXPORT_PRIVATE VectorSlotPair {
- public:
-  VectorSlotPair();
-  VectorSlotPair(Handle<FeedbackVector> vector, FeedbackSlot slot)
-      : vector_(vector), slot_(slot) {}
-
-  bool IsValid() const { return !vector_.is_null() && !slot_.IsInvalid(); }
-
-  Handle<FeedbackVector> vector() const { return vector_; }
-  FeedbackSlot slot() const { return slot_; }
-
-  int index() const;
-
- private:
-  const Handle<FeedbackVector> vector_;
-  const FeedbackSlot slot_;
-};
-
-bool operator==(VectorSlotPair const&, VectorSlotPair const&);
-bool operator!=(VectorSlotPair const&, VectorSlotPair const&);
-
-size_t hash_value(VectorSlotPair const&);
-
 
 // Defines the flags for a JavaScript call forwarding parameters. This
 // is used as parameter by JSConstructForwardVarargs operators.

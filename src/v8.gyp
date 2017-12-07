@@ -1440,6 +1440,8 @@
         'v8threads.h',
         'value-serializer.cc',
         'value-serializer.h',
+        'vector-slot-pair.cc',
+        'vector-slot-pair.h',
         'vector.h',
         'version.cc',
         'version.h',

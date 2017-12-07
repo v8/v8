@@ -16,6 +16,9 @@
 
 namespace v8 {
 namespace internal {
+
+class VectorSlotPair;
+
 namespace compiler {
 
 class Reduction;

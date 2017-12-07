@@ -2086,6 +2086,8 @@ v8_source_set("v8_base") {
     "src/v8threads.h",
     "src/value-serializer.cc",
     "src/value-serializer.h",
+    "src/vector-slot-pair.cc",
+    "src/vector-slot-pair.h",
     "src/vector.h",
     "src/version.cc",
     "src/version.h",

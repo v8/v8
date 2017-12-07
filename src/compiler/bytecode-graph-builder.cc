@@ -14,6 +14,7 @@
 #include "src/interpreter/bytecodes.h"
 #include "src/objects-inl.h"
 #include "src/objects/literal-objects.h"
+#include "src/vector-slot-pair.h"
 
 namespace v8 {
 namespace internal {
