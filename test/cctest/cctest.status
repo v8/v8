@@ -385,4 +385,10 @@
   'test-dtoa/*': [SKIP],
 }],  # variant == wasm_traps
 
+##############################################################################
+['variant == minor_mc', {
+  # TODO(mlippautz) Flaky unreachable code crash.
+  'test-heap/GCFlags': [SKIP],
+}],  # variant == minor_mc
+
 ]
