@@ -1034,42 +1034,6 @@ Code* ExtractWasmToWasmCallee(Code* wasm_to_wasm) {
   return callee;
 }
 
-const WasmCode* WasmExtractWasmToWasmCallee(const WasmCodeManager* code_manager,
-                                            const WasmCode* wasm_to_wasm) {
-  DCHECK_EQ(WasmCode::kWasmToWasmWrapper, wasm_to_wasm->kind());
-  // Find the one code target in this wrapper.
-  RelocIterator it(wasm_to_wasm->instructions(), wasm_to_wasm->reloc_info(),
-                   wasm_to_wasm->constant_pool(),
-                   RelocInfo::ModeMask(RelocInfo::JS_TO_WASM_CALL));
-  DCHECK(!it.done());
-  const WasmCode* callee =
-      code_manager->LookupCode(it.rinfo()->js_to_wasm_address());
-#ifdef DEBUG
-  it.next();
-  DCHECK(it.done());
-#endif
-  return callee;
-}
-
-void WasmPatchWasmToWasmWrapper(Isolate* isolate, WasmCode* wasm_to_wasm,
-                                const WasmCode* new_target) {
-  TRACE_LAZY("Patching wasm-to-wasm wrapper.\n");
-  DCHECK_EQ(WasmCode::kWasmToWasmWrapper, wasm_to_wasm->kind());
-  // T]he wrapper may be from a different native module.
-  NativeModuleModificationScope scope(wasm_to_wasm->owner());
-  // Find the one code target in this wrapper.
-  RelocIterator it(wasm_to_wasm->instructions(), wasm_to_wasm->reloc_info(),
-                   wasm_to_wasm->constant_pool(),
-                   RelocInfo::ModeMask(RelocInfo::JS_TO_WASM_CALL));
-  DCHECK(!it.done());
-  it.rinfo()->set_js_to_wasm_address(isolate,
-                                     new_target->instructions().start());
-#ifdef DEBUG
-  it.next();
-  DCHECK(it.done());
-#endif
-}
-
 void PatchWasmToWasmWrapper(Isolate* isolate, Code* wasm_to_wasm,
                             Code* new_target) {
   DCHECK_EQ(Code::WASM_TO_WASM_FUNCTION, wasm_to_wasm->kind());
@@ -1252,26 +1216,18 @@ const wasm::WasmCode* LazyCompilationOrchestrator::CompileFromJsToWasm(
   CompileFunction(isolate, instance, exported_func_index);
   {
     DisallowHeapAllocation no_gc;
-    CodeSpaceMemoryModificationScope modification_scope(isolate->heap());
-    RelocIterator it(*js_to_wasm_caller,
-                     RelocInfo::ModeMask(RelocInfo::JS_TO_WASM_CALL));
-    DCHECK(!it.done());
-    wasm::WasmCode* current_callee =
-        isolate->wasm_engine()->code_manager()->LookupCode(
-            it.rinfo()->js_to_wasm_address());
-    const wasm::WasmCode* callee_compiled =
-        compiled_module->GetNativeModule()->GetCode(exported_func_index);
-    DCHECK_NOT_NULL(callee_compiled);
-    if (current_callee->kind() == WasmCode::kWasmToWasmWrapper) {
-      WasmPatchWasmToWasmWrapper(isolate, current_callee, callee_compiled);
-    } else {
+    int idx = 0;
+    for (RelocIterator it(*js_to_wasm_caller,
+                          RelocInfo::ModeMask(RelocInfo::JS_TO_WASM_CALL));
+         !it.done(); it.next()) {
+      ++idx;
+      const wasm::WasmCode* callee_compiled =
+          compiled_module->GetNativeModule()->GetCode(exported_func_index);
+      DCHECK_NOT_NULL(callee_compiled);
       it.rinfo()->set_js_to_wasm_address(
           isolate, callee_compiled->instructions().start());
     }
-#ifdef DEBUG
-    it.next();
-    CHECK(it.done());
-#endif
+    DCHECK_EQ(1, idx);
   }
 
   wasm::WasmCode* ret =
@@ -1295,10 +1251,12 @@ const wasm::WasmCode* LazyCompilationOrchestrator::CompileDirectCall(
     Isolate* isolate, Handle<WasmInstanceObject> instance,
     Maybe<uint32_t> maybe_func_to_return_idx, const wasm::WasmCode* wasm_caller,
     int call_offset) {
-  std::vector<Maybe<uint32_t>> non_compiled_functions;
+  struct WasmDirectCallData {
+    uint32_t offset = 0;
+    uint32_t func_index = 0;
+  };
+  std::vector<Maybe<WasmDirectCallData>> non_compiled_functions;
   Decoder decoder(nullptr, nullptr);
-  WasmCode* last_callee = nullptr;
-
   {
     DisallowHeapAllocation no_gc;
     Handle<WasmCompiledModule> caller_module(
@@ -1317,6 +1275,13 @@ const wasm::WasmCode* LazyCompilationOrchestrator::CompileDirectCall(
                           wasm_caller->constant_pool(),
                           RelocInfo::ModeMask(RelocInfo::WASM_CALL));
          !it.done(); it.next()) {
+      const WasmCode* callee =
+          isolate->wasm_engine()->code_manager()->LookupCode(
+              it.rinfo()->target_address());
+      if (callee->kind() != WasmCode::kLazyStub) {
+        non_compiled_functions.push_back(Nothing<WasmDirectCallData>());
+        continue;
+      }
       // TODO(clemensh): Introduce safe_cast<T, bool> which (D)CHECKS
       // (depending on the bool) against limits of T and then static_casts.
       size_t offset_l = it.rinfo()->pc() - wasm_caller->instructions().start();
@@ -1324,19 +1289,14 @@ const wasm::WasmCode* LazyCompilationOrchestrator::CompileDirectCall(
       int offset = static_cast<int>(offset_l);
       int byte_pos =
           AdvanceSourcePositionTableIterator(source_pos_iterator, offset);
-
-      WasmCode* callee = isolate->wasm_engine()->code_manager()->LookupCode(
-          it.rinfo()->target_address());
-      if (offset < call_offset) last_callee = callee;
-      if (callee->kind() != WasmCode::kLazyStub) {
-        non_compiled_functions.push_back(Nothing<uint32_t>());
-        continue;
-      }
       uint32_t called_func_index =
           ExtractDirectCallIndex(decoder, func_bytes + byte_pos);
       DCHECK_LT(called_func_index,
                 caller_module->GetNativeModule()->FunctionCount());
-      non_compiled_functions.push_back(Just(called_func_index));
+      WasmDirectCallData data;
+      data.offset = offset;
+      data.func_index = called_func_index;
+      non_compiled_functions.push_back(Just<WasmDirectCallData>(data));
       // Call offset one instruction after the call. Remember the last called
       // function before that offset.
       if (offset < call_offset) {
@@ -1344,15 +1304,7 @@ const wasm::WasmCode* LazyCompilationOrchestrator::CompileDirectCall(
       }
     }
   }
-  uint32_t func_to_return_idx = 0;
-
-  if (last_callee->kind() == WasmCode::kWasmToWasmWrapper) {
-    const WasmCode* actual_callee = WasmExtractWasmToWasmCallee(
-        isolate->wasm_engine()->code_manager(), last_callee);
-    func_to_return_idx = actual_callee->index();
-  } else {
-    func_to_return_idx = maybe_func_to_return_idx.ToChecked();
-  }
+  uint32_t func_to_return_idx = maybe_func_to_return_idx.ToChecked();
 
   TRACE_LAZY(
       "Starting lazy compilation (func %u @%d, js_to_wasm: false, patch "
@@ -1361,16 +1313,15 @@ const wasm::WasmCode* LazyCompilationOrchestrator::CompileDirectCall(
 
   // TODO(clemensh): compile all functions in non_compiled_functions in
   // background, wait for func_to_return_idx.
-  const WasmCode* ret = CompileFunction(isolate, instance, func_to_return_idx);
-  DCHECK_NOT_NULL(ret);
+  CompileFunction(isolate, instance, func_to_return_idx);
 
-  if (last_callee->kind() == WasmCode::kWasmToWasmWrapper) {
-    // We can finish it all here by compiling the target wasm function and
-    // patching the wasm_to_wasm caller.
-    WasmPatchWasmToWasmWrapper(isolate, last_callee, ret);
-  } else {
-    Handle<WasmCompiledModule> compiled_module(instance->compiled_module(),
-                                               isolate);
+  Handle<WasmCompiledModule> compiled_module(instance->compiled_module(),
+                                             isolate);
+  WasmCode* ret =
+      compiled_module->GetNativeModule()->GetCode(func_to_return_idx);
+
+  DCHECK_NOT_NULL(ret);
+  {
     DisallowHeapAllocation no_gc;
     // Now patch the code object with all functions which are now compiled. This
     // will pick up any other compiled functions, not only {ret}.
@@ -1383,7 +1334,7 @@ const wasm::WasmCode* LazyCompilationOrchestrator::CompileDirectCall(
          !it.done(); it.next(), ++idx) {
       auto& info = non_compiled_functions[idx];
       if (info.IsNothing()) continue;
-      uint32_t lookup = info.ToChecked();
+      uint32_t lookup = info.ToChecked().func_index;
       const WasmCode* callee_compiled =
           compiled_module->GetNativeModule()->GetCode(lookup);
       if (callee_compiled->kind() != WasmCode::kFunction) continue;
