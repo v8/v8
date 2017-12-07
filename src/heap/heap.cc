@@ -44,6 +44,7 @@
 #include "src/heap/scavenger-inl.h"
 #include "src/heap/store-buffer.h"
 #include "src/heap/stress-marking-observer.h"
+#include "src/heap/stress-scavenge-observer.h"
 #include "src/heap/sweeper.h"
 #include "src/interpreter/interpreter.h"
 #include "src/objects/data-handler.h"
@@ -177,6 +178,7 @@ Heap::Heap()
       allocations_count_(0),
       raw_allocations_hash_(0),
       stress_marking_observer_(nullptr),
+      stress_scavenge_observer_(nullptr),
       ms_count_(0),
       gc_count_(0),
       mmap_region_base_(0),
@@ -1060,7 +1062,10 @@ class GCCallbacksScope {
 
 
 void Heap::HandleGCRequest() {
-  if (HighMemoryPressure()) {
+  if (FLAG_stress_scavenge > 0 && stress_scavenge_observer_->HasRequestedGC()) {
+    CollectAllGarbage(NEW_SPACE, GarbageCollectionReason::kTesting);
+    stress_scavenge_observer_->RequestedGCDone();
+  } else if (HighMemoryPressure()) {
     incremental_marking()->reset_request_type();
     CheckMemoryPressure();
   } else if (incremental_marking()->request_type() ==
@@ -5668,6 +5673,10 @@ bool Heap::SetUp() {
     AddAllocationObserversToAllSpaces(stress_marking_observer_,
                                       stress_marking_observer_);
   }
+  if (FLAG_stress_scavenge_analysis || FLAG_stress_scavenge > 0) {
+    stress_scavenge_observer_ = new StressScavengeObserver(*this);
+    new_space()->AddAllocationObserver(stress_scavenge_observer_);
+  }
 
   write_protect_code_memory_ = FLAG_write_protect_code_memory;
 
@@ -5782,6 +5791,11 @@ void Heap::TearDown() {
                                            stress_marking_observer_);
     delete stress_marking_observer_;
     stress_marking_observer_ = nullptr;
+  }
+  if (FLAG_stress_scavenge_analysis || FLAG_stress_scavenge > 0) {
+    new_space()->RemoveAllocationObserver(stress_scavenge_observer_);
+    delete stress_scavenge_observer_;
+    stress_scavenge_observer_ = nullptr;
   }
 
   if (mark_compact_collector_ != nullptr) {

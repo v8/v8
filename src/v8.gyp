@@ -1046,6 +1046,8 @@
         'heap/store-buffer.h',
         'heap/stress-marking-observer.cc',
         'heap/stress-marking-observer.h',
+        'heap/stress-scavenge-observer.cc',
+        'heap/stress-scavenge-observer.h',
         'heap/sweeper.cc',
         'heap/sweeper.h',
         'heap/worklist.h',

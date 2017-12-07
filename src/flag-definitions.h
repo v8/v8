@@ -692,6 +692,11 @@ DEFINE_BOOL(stress_incremental_marking, false,
 DEFINE_INT(stress_marking, 0,
            "force marking at random points between 0 and X (inclusive) percent "
            "of the regular marking start limit")
+DEFINE_INT(stress_scavenge, 0,
+           "force scavenge at random points between 0 and X (inclusive) "
+           "percent of the new space capacity")
+DEFINE_BOOL(stress_scavenge_analysis, false, "enables stress-scavenge logging.")
+
 DEFINE_BOOL(manual_evacuation_candidates_selection, false,
             "Test mode only flag. It allows an unit test to select evacuation "
             "candidates pages (requires --stress_compaction).")
