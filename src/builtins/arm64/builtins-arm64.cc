@@ -348,10 +348,11 @@ void Generate_JSConstructStubGeneric(MacroAssembler* masm,
 
     // ----------- S t a t e -------------
     //  --                          x0: receiver
-    //  -- Slot 3 / sp[0*kPointerSize]: new target
-    //  -- Slot 2 / sp[1*kPointerSize]: constructor function
-    //  -- Slot 1 / sp[2*kPointerSize]: number of arguments (tagged)
-    //  -- Slot 0 / sp[3*kPointerSize]: context
+    //  -- Slot 4 / sp[0*kPointerSize]: new target
+    //  -- Slot 3 / sp[1*kPointerSize]: padding
+    //  -- Slot 2 / sp[2*kPointerSize]: constructor function
+    //  -- Slot 1 / sp[3*kPointerSize]: number of arguments (tagged)
+    //  -- Slot 0 / sp[4*kPointerSize]: context
     // -----------------------------------
     // Deoptimizer enters here.
     masm->isolate()->heap()->SetConstructStubCreateDeoptPCOffset(
@@ -388,9 +389,10 @@ void Generate_JSConstructStubGeneric(MacroAssembler* masm,
     //  --        sp[0*kPointerSize]: implicit receiver (overwrite if argc odd)
     //  --        sp[1*kPointerSize]: implicit receiver
     //  --        sp[2*kPointerSize]: implicit receiver
-    //  -- x1 and sp[3*kPointerSize]: constructor function
-    //  --        sp[4*kPointerSize]: number of arguments (tagged)
-    //  --        sp[5*kPointerSize]: context
+    //  --        sp[3*kPointerSize]: padding
+    //  -- x1 and sp[4*kPointerSize]: constructor function
+    //  --        sp[5*kPointerSize]: number of arguments (tagged)
+    //  --        sp[6*kPointerSize]: context
     // -----------------------------------
 
     // Round the number of arguments down to the next even number, and claim
@@ -418,15 +420,17 @@ void Generate_JSConstructStubGeneric(MacroAssembler* masm,
     // ----------- S t a t e -------------
     // If argc is odd:
     //  -- sp[0*kPointerSize]: implicit receiver
-    //  -- sp[1*kPointerSize]: constructor function
-    //  -- sp[2*kPointerSize]: number of arguments
-    //  -- sp[3*kPointerSize]: context
-    // If argc is even:
-    //  -- sp[0*kPointerSize]: implicit receiver
-    //  -- sp[1*kPointerSize]: implicit receiver
+    //  -- sp[1*kPointerSize]: padding
     //  -- sp[2*kPointerSize]: constructor function
     //  -- sp[3*kPointerSize]: number of arguments
     //  -- sp[4*kPointerSize]: context
+    // If argc is even:
+    //  -- sp[0*kPointerSize]: implicit receiver
+    //  -- sp[1*kPointerSize]: implicit receiver
+    //  -- sp[2*kPointerSize]: padding
+    //  -- sp[3*kPointerSize]: constructor function
+    //  -- sp[4*kPointerSize]: number of arguments
+    //  -- sp[5*kPointerSize]: context
     // -----------------------------------
 
     // Store offset of return address for deoptimizer.

@@ -1228,10 +1228,16 @@ void Deoptimizer::DoComputeConstructStubFrame(TranslatedFrame* translated_frame,
                      "constructor function ");
 
   // The deopt info contains the implicit receiver or the new target at the
-  // position of the receiver. Copy it to the top of stack.
+  // position of the receiver. Copy it to the top of stack, with the hole value
+  // as padding to maintain alignment.
+  output_offset -= kPointerSize;
+  WriteValueToOutput(isolate()->heap()->the_hole_value(), 0, frame_index,
+                     output_offset, "padding");
+
   output_offset -= kPointerSize;
   value = output_frame->GetFrameSlot(output_frame_size - kPointerSize);
   output_frame->SetFrameSlot(output_offset, value);
+
   if (bailout_id == BailoutId::ConstructStubCreate()) {
     DebugPrintOutputSlot(value, frame_index, output_offset, "new target\n");
   } else {
