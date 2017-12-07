@@ -36,6 +36,7 @@ class JSMapIterator;
 class JSModuleNamespace;
 class JSSet;
 class JSSetIterator;
+class JSWeakMap;
 class NewFunctionArgs;
 struct SourceRange;
 class PreParsedScopeData;
@@ -554,6 +555,8 @@ class V8_EXPORT_PRIVATE Factory final {
       int length,
       int capacity,
       ArrayStorageAllocationMode mode = DONT_INITIALIZE_ARRAY_ELEMENTS);
+
+  Handle<JSWeakMap> NewJSWeakMap();
 
   Handle<JSGeneratorObject> NewJSGeneratorObject(Handle<JSFunction> function);
 

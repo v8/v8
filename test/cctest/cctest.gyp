@@ -93,6 +93,7 @@
       'heap/test-array-buffer-tracker.cc',
       'heap/test-compaction.cc',
       'heap/test-concurrent-marking.cc',
+      'heap/test-embedder-tracing.cc',
       'heap/test-heap.cc',
       'heap/test-incremental-marking.cc',
       'heap/test-invalidated-slots.cc',
