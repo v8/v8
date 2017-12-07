@@ -1790,8 +1790,8 @@ Node* CodeStubAssembler::LoadJSFunctionPrototype(Node* function,
   CSA_ASSERT(this, TaggedIsNotSmi(function));
   CSA_ASSERT(this, IsJSFunction(function));
   CSA_ASSERT(this, IsFunctionWithPrototypeSlotMap(LoadMap(function)));
-  CSA_ASSERT(this, IsClearWord32(LoadMapBitField(LoadMap(function)),
-                                 1 << Map::kHasNonInstancePrototype));
+  CSA_ASSERT(this, IsClearWord32<Map::HasNonInstancePrototypeBit>(
+                       LoadMapBitField(LoadMap(function))));
   Node* proto_or_map =
       LoadObjectField(function, JSFunction::kPrototypeOrInitialMapOffset);
   GotoIf(IsTheHole(proto_or_map), if_bailout);
@@ -1945,10 +1945,10 @@ Node* CodeStubAssembler::EnsureArrayPushable(Node* receiver, Label* bailout) {
   Comment("Disallow pushing onto prototypes");
   Node* map = LoadMap(receiver);
   Node* bit_field2 = LoadMapBitField2(map);
-  int mask = static_cast<int>(Map::IsPrototypeMapBits::kMask) |
-             (1 << Map::kIsExtensible);
+  int mask = Map::IsPrototypeMapBit::kMask | Map::IsExtensibleBit::kMask;
   Node* test = Word32And(bit_field2, Int32Constant(mask));
-  GotoIf(Word32NotEqual(test, Int32Constant(1 << Map::kIsExtensible)), bailout);
+  GotoIf(Word32NotEqual(test, Int32Constant(Map::IsExtensibleBit::kMask)),
+         bailout);
 
   // Disallow pushing onto arrays in dictionary named property mode. We need
   // to figure out whether the length property is still writable.
@@ -2550,8 +2550,8 @@ void CodeStubAssembler::InitializeJSObjectFromMap(
 void CodeStubAssembler::InitializeJSObjectBodyNoSlackTracking(
     Node* object, Node* map, Node* instance_size, int start_offset) {
   STATIC_ASSERT(Map::kNoSlackTracking == 0);
-  CSA_ASSERT(this,
-             IsClearWord32<Map::ConstructionCounter>(LoadMapBitField3(map)));
+  CSA_ASSERT(
+      this, IsClearWord32<Map::ConstructionCounterBits>(LoadMapBitField3(map)));
   InitializeFieldsWithRoot(object, IntPtrConstant(start_offset), instance_size,
                            Heap::kUndefinedValueRootIndex);
 }
@@ -2566,7 +2566,8 @@ void CodeStubAssembler::InitializeJSObjectBodyWithSlackTracking(
   Node* bit_field3 = LoadMapBitField3(map);
   Label end(this), slack_tracking(this), complete(this, Label::kDeferred);
   STATIC_ASSERT(Map::kNoSlackTracking == 0);
-  GotoIf(IsSetWord32<Map::ConstructionCounter>(bit_field3), &slack_tracking);
+  GotoIf(IsSetWord32<Map::ConstructionCounterBits>(bit_field3),
+         &slack_tracking);
   Comment("No slack tracking");
   InitializeJSObjectBodyNoSlackTracking(object, map, instance_size);
   Goto(&end);
@@ -2576,9 +2577,9 @@ void CodeStubAssembler::InitializeJSObjectBodyWithSlackTracking(
     Comment("Decrease construction counter");
     // Slack tracking is only done on initial maps.
     CSA_ASSERT(this, IsUndefined(LoadMapBackPointer(map)));
-    STATIC_ASSERT(Map::ConstructionCounter::kNext == 32);
+    STATIC_ASSERT(Map::ConstructionCounterBits::kNext == 32);
     Node* new_bit_field3 = Int32Sub(
-        bit_field3, Int32Constant(1 << Map::ConstructionCounter::kShift));
+        bit_field3, Int32Constant(1 << Map::ConstructionCounterBits::kShift));
     StoreObjectFieldNoWriteBarrier(map, Map::kBitField3Offset, new_bit_field3,
                                    MachineRepresentation::kWord32);
     STATIC_ASSERT(Map::kSlackTrackingCounterEnd == 1);
@@ -2597,7 +2598,9 @@ void CodeStubAssembler::InitializeJSObjectBodyWithSlackTracking(
     InitializeFieldsWithRoot(object, IntPtrConstant(start_offset), used_size,
                              Heap::kUndefinedValueRootIndex);
 
-    GotoIf(IsClearWord32<Map::ConstructionCounter>(new_bit_field3), &complete);
+    STATIC_ASSERT(Map::kNoSlackTracking == 0);
+    GotoIf(IsClearWord32<Map::ConstructionCounterBits>(new_bit_field3),
+           &complete);
     Goto(&end);
   }
 
@@ -4036,7 +4039,7 @@ Node* CodeStubAssembler::IsSpecialReceiverMap(Node* map) {
   CSA_SLOW_ASSERT(this, IsMap(map));
   Node* is_special = IsSpecialReceiverInstanceType(LoadMapInstanceType(map));
   uint32_t mask =
-      1 << Map::kHasNamedInterceptor | 1 << Map::kIsAccessCheckNeeded;
+      Map::HasNamedInterceptorBit::kMask | Map::IsAccessCheckNeededBit::kMask;
   USE(mask);
   // Interceptors or access checks imply special receiver.
   CSA_ASSERT(this,
@@ -4048,27 +4051,27 @@ Node* CodeStubAssembler::IsSpecialReceiverMap(Node* map) {
 TNode<BoolT> CodeStubAssembler::IsDictionaryMap(SloppyTNode<Map> map) {
   CSA_SLOW_ASSERT(this, IsMap(map));
   Node* bit_field3 = LoadMapBitField3(map);
-  return IsSetWord32<Map::DictionaryMap>(bit_field3);
+  return IsSetWord32<Map::IsDictionaryMapBit>(bit_field3);
 }
 
 Node* CodeStubAssembler::IsExtensibleMap(Node* map) {
   CSA_ASSERT(this, IsMap(map));
-  return IsSetWord32(LoadMapBitField2(map), 1 << Map::kIsExtensible);
+  return IsSetWord32<Map::IsExtensibleBit>(LoadMapBitField2(map));
 }
 
 Node* CodeStubAssembler::IsCallableMap(Node* map) {
   CSA_ASSERT(this, IsMap(map));
-  return IsSetWord32(LoadMapBitField(map), 1 << Map::kIsCallable);
+  return IsSetWord32<Map::IsCallableBit>(LoadMapBitField(map));
 }
 
 Node* CodeStubAssembler::IsDeprecatedMap(Node* map) {
   CSA_ASSERT(this, IsMap(map));
-  return IsSetWord32<Map::Deprecated>(LoadMapBitField3(map));
+  return IsSetWord32<Map::IsDeprecatedBit>(LoadMapBitField3(map));
 }
 
 Node* CodeStubAssembler::IsUndetectableMap(Node* map) {
   CSA_ASSERT(this, IsMap(map));
-  return IsSetWord32(LoadMapBitField(map), 1 << Map::kIsUndetectable);
+  return IsSetWord32<Map::IsUndetectableBit>(LoadMapBitField(map));
 }
 
 Node* CodeStubAssembler::IsNoElementsProtectorCellInvalid() {
@@ -4104,7 +4107,7 @@ Node* CodeStubAssembler::IsCell(Node* object) {
 
 Node* CodeStubAssembler::IsConstructorMap(Node* map) {
   CSA_ASSERT(this, IsMap(map));
-  return IsSetWord32(LoadMapBitField(map), 1 << Map::kIsConstructor);
+  return IsSetWord32<Map::IsConstructorBit>(LoadMapBitField(map));
 }
 
 Node* CodeStubAssembler::IsConstructor(Node* object) {
@@ -4113,7 +4116,7 @@ Node* CodeStubAssembler::IsConstructor(Node* object) {
 
 Node* CodeStubAssembler::IsFunctionWithPrototypeSlotMap(Node* map) {
   CSA_ASSERT(this, IsMap(map));
-  return IsSetWord32(LoadMapBitField(map), 1 << Map::kHasPrototypeSlot);
+  return IsSetWord32<Map::HasPrototypeSlotBit>(LoadMapBitField(map));
 }
 
 Node* CodeStubAssembler::IsSpecialReceiverInstanceType(Node* instance_type) {
@@ -6531,13 +6534,13 @@ void CodeStubAssembler::TryLookupProperty(
          &if_objectisspecial);
 
   uint32_t mask =
-      1 << Map::kHasNamedInterceptor | 1 << Map::kIsAccessCheckNeeded;
+      Map::HasNamedInterceptorBit::kMask | Map::IsAccessCheckNeededBit::kMask;
   CSA_ASSERT(this, Word32BinaryNot(IsSetWord32(LoadMapBitField(map), mask)));
   USE(mask);
 
   Node* bit_field3 = LoadMapBitField3(map);
   Label if_isfastmap(this), if_isslowmap(this);
-  Branch(IsSetWord32<Map::DictionaryMap>(bit_field3), &if_isslowmap,
+  Branch(IsSetWord32<Map::IsDictionaryMapBit>(bit_field3), &if_isslowmap,
          &if_isfastmap);
   BIND(&if_isfastmap);
   {
@@ -6563,7 +6566,8 @@ void CodeStubAssembler::TryLookupProperty(
 
     // Handle interceptors and access checks in runtime.
     Node* bit_field = LoadMapBitField(map);
-    int mask = 1 << Map::kHasNamedInterceptor | 1 << Map::kIsAccessCheckNeeded;
+    int mask =
+        Map::HasNamedInterceptorBit::kMask | Map::IsAccessCheckNeededBit::kMask;
     GotoIf(IsSetWord32(bit_field, mask), if_bailout);
 
     Node* dictionary = LoadSlowProperties(object);
@@ -6826,13 +6830,12 @@ Node* CodeStubAssembler::CallGetterIfAccessor(Node* value, Node* details,
 
       // if (!(has_prototype_slot() && !has_non_instance_prototype())) use
       // generic property loading mechanism.
-      int has_prototype_slot_mask = 1 << Map::kHasPrototypeSlot;
-      int has_non_instance_prototype_mask = 1 << Map::kHasNonInstancePrototype;
       GotoIfNot(
-          Word32Equal(Word32And(LoadMapBitField(receiver_map),
-                                Int32Constant(has_prototype_slot_mask |
-                                              has_non_instance_prototype_mask)),
-                      Int32Constant(has_prototype_slot_mask)),
+          Word32Equal(
+              Word32And(LoadMapBitField(receiver_map),
+                        Int32Constant(Map::HasPrototypeSlotBit::kMask |
+                                      Map::HasNonInstancePrototypeBit::kMask)),
+              Int32Constant(Map::HasPrototypeSlotBit::kMask)),
           if_bailout);
       var_value.Bind(LoadJSFunctionPrototype(receiver, if_bailout));
       Goto(&done);
@@ -7192,8 +7195,8 @@ Node* CodeStubAssembler::HasInPrototypeChain(Node* context, Node* object,
       GotoIf(InstanceTypeEqual(object_instance_type, JS_PROXY_TYPE),
              &return_runtime);
       Node* object_bitfield = LoadMapBitField(object_map);
-      int mask =
-          1 << Map::kHasNamedInterceptor | 1 << Map::kIsAccessCheckNeeded;
+      int mask = Map::HasNamedInterceptorBit::kMask |
+                 Map::IsAccessCheckNeededBit::kMask;
       Branch(IsSetWord32(object_bitfield, mask), &return_runtime,
              &if_objectisdirect);
     }
@@ -7252,12 +7255,12 @@ Node* CodeStubAssembler::OrdinaryHasInstance(Node* context, Node* callable,
   // Goto runtime if {callable} is not a constructor or has
   // a non-instance "prototype".
   Node* callable_bitfield = LoadMapBitField(callable_map);
-  GotoIfNot(
-      Word32Equal(Word32And(callable_bitfield,
-                            Int32Constant((1 << Map::kHasNonInstancePrototype) |
-                                          (1 << Map::kIsConstructor))),
-                  Int32Constant(1 << Map::kIsConstructor)),
-      &return_runtime);
+  GotoIfNot(Word32Equal(
+                Word32And(callable_bitfield,
+                          Int32Constant(Map::HasNonInstancePrototypeBit::kMask |
+                                        Map::IsConstructorBit::kMask)),
+                Int32Constant(Map::IsConstructorBit::kMask)),
+            &return_runtime);
 
   // Get the "prototype" (or initial map) of the {callable}.
   Node* callable_prototype =
@@ -9769,10 +9772,10 @@ Node* CodeStubAssembler::Typeof(Node* value) {
 
   Node* callable_or_undetectable_mask = Word32And(
       LoadMapBitField(map),
-      Int32Constant(1 << Map::kIsCallable | 1 << Map::kIsUndetectable));
+      Int32Constant(Map::IsCallableBit::kMask | Map::IsUndetectableBit::kMask));
 
   GotoIf(Word32Equal(callable_or_undetectable_mask,
-                     Int32Constant(1 << Map::kIsCallable)),
+                     Int32Constant(Map::IsCallableBit::kMask)),
          &return_function);
 
   GotoIfNot(Word32Equal(callable_or_undetectable_mask, Int32Constant(0)),

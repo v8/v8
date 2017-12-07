@@ -463,8 +463,8 @@ bool InitClassPrototype(Isolate* isolate,
     Handle<NameDictionary> properties_dictionary_template =
         Handle<NameDictionary>::cast(properties_template);
 
-    map->set_dictionary_map(true);
-    map->set_migration_target(false);
+    map->set_is_dictionary_map(true);
+    map->set_is_migration_target(false);
     map->set_may_have_interesting_symbols(true);
     map->set_construction_counter(Map::kNoSlackTracking);
 
@@ -515,10 +515,10 @@ bool InitClassConstructor(Isolate* isolate,
     Handle<NameDictionary> properties_dictionary_template =
         Handle<NameDictionary>::cast(properties_template);
 
-    map->set_dictionary_map(true);
+    map->set_is_dictionary_map(true);
     map->InitializeDescriptors(isolate->heap()->empty_descriptor_array(),
                                LayoutDescriptor::FastPointerLayout());
-    map->set_migration_target(false);
+    map->set_is_migration_target(false);
     map->set_may_have_interesting_symbols(true);
     map->set_construction_counter(Map::kNoSlackTracking);
 

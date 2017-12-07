@@ -1829,7 +1829,7 @@ void AccessorAssembler::InvalidateValidityCellIfPrototype(Node* map,
     bitfield2 = LoadMapBitField2(map);
   }
 
-  Branch(IsSetWord32(bitfield2, Map::IsPrototypeMapBits::kMask), &is_prototype,
+  Branch(IsSetWord32(bitfield2, Map::IsPrototypeMapBit::kMask), &is_prototype,
          &cont);
 
   BIND(&is_prototype);
@@ -1924,7 +1924,8 @@ void AccessorAssembler::GenericPropertyLoad(Node* receiver, Node* receiver_map,
 
   // Check if the receiver has fast or slow properties.
   Node* bitfield3 = LoadMapBitField3(receiver_map);
-  GotoIf(IsSetWord32<Map::DictionaryMap>(bitfield3), &if_property_dictionary);
+  GotoIf(IsSetWord32<Map::IsDictionaryMapBit>(bitfield3),
+         &if_property_dictionary);
 
   // Try looking up the property on the receiver; if unsuccessful, look
   // for a handler in the stub cache.
@@ -2332,13 +2333,12 @@ void AccessorAssembler::LoadIC_Uninitialized(const LoadICParameters* p) {
 
     // if (!(has_prototype_slot() && !has_non_instance_prototype())) use generic
     // property loading mechanism.
-    int has_prototype_slot_mask = 1 << Map::kHasPrototypeSlot;
-    int has_non_instance_prototype_mask = 1 << Map::kHasNonInstancePrototype;
     GotoIfNot(
-        Word32Equal(Word32And(LoadMapBitField(receiver_map),
-                              Int32Constant(has_prototype_slot_mask |
-                                            has_non_instance_prototype_mask)),
-                    Int32Constant(has_prototype_slot_mask)),
+        Word32Equal(
+            Word32And(LoadMapBitField(receiver_map),
+                      Int32Constant(Map::HasPrototypeSlotBit::kMask |
+                                    Map::HasNonInstancePrototypeBit::kMask)),
+            Int32Constant(Map::HasPrototypeSlotBit::kMask)),
         &not_function_prototype);
     Return(LoadJSFunctionPrototype(receiver, &miss));
     BIND(&not_function_prototype);

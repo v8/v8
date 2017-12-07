@@ -30,7 +30,41 @@ ACCESSORS(Map, instance_descriptors, DescriptorArray, kDescriptorsOffset)
 ACCESSORS_CHECKED(Map, layout_descriptor, LayoutDescriptor,
                   kLayoutDescriptorOffset, FLAG_unbox_double_fields)
 ACCESSORS(Map, raw_transitions, Object, kTransitionsOrPrototypeInfoOffset)
-BOOL_ACCESSORS(Map, bit_field, has_prototype_slot, kHasPrototypeSlot)
+
+// |bit_field| fields.
+BIT_FIELD_ACCESSORS(Map, bit_field, has_non_instance_prototype,
+                    Map::HasNonInstancePrototypeBit)
+BIT_FIELD_ACCESSORS(Map, bit_field, is_callable, Map::IsCallableBit)
+BIT_FIELD_ACCESSORS(Map, bit_field, has_named_interceptor,
+                    Map::HasNamedInterceptorBit)
+BIT_FIELD_ACCESSORS(Map, bit_field, has_indexed_interceptor,
+                    Map::HasIndexedInterceptorBit)
+BIT_FIELD_ACCESSORS(Map, bit_field, is_undetectable, Map::IsUndetectableBit)
+BIT_FIELD_ACCESSORS(Map, bit_field, is_access_check_needed,
+                    Map::IsAccessCheckNeededBit)
+BIT_FIELD_ACCESSORS(Map, bit_field, is_constructor, Map::IsConstructorBit)
+BIT_FIELD_ACCESSORS(Map, bit_field, has_prototype_slot,
+                    Map::HasPrototypeSlotBit)
+
+// |bit_field2| fields.
+BIT_FIELD_ACCESSORS(Map, bit_field2, is_extensible, Map::IsExtensibleBit)
+BIT_FIELD_ACCESSORS(Map, bit_field2, is_prototype_map, Map::IsPrototypeMapBit)
+
+// |bit_field3| fields.
+BIT_FIELD_ACCESSORS(Map, bit_field3, owns_descriptors, Map::OwnsDescriptorsBit)
+BIT_FIELD_ACCESSORS(Map, bit_field3, has_hidden_prototype,
+                    Map::HasHiddenPrototypeBit)
+BIT_FIELD_ACCESSORS(Map, bit_field3, is_deprecated, Map::IsDeprecatedBit)
+BIT_FIELD_ACCESSORS(Map, bit_field3, is_migration_target,
+                    Map::IsMigrationTargetBit)
+BIT_FIELD_ACCESSORS(Map, bit_field3, is_immutable_proto,
+                    Map::IsImmutablePrototypeBit)
+BIT_FIELD_ACCESSORS(Map, bit_field3, new_target_is_base,
+                    Map::NewTargetIsBaseBit)
+BIT_FIELD_ACCESSORS(Map, bit_field3, may_have_interesting_symbols,
+                    Map::MayHaveInterestingSymbolsBit)
+BIT_FIELD_ACCESSORS(Map, bit_field3, construction_counter,
+                    Map::ConstructionCounterBits)
 
 TYPE_CHECKER(Map, MAP_TYPE)
 
@@ -353,95 +387,6 @@ void Map::set_bit_field2(byte value) {
   WRITE_BYTE_FIELD(this, kBitField2Offset, value);
 }
 
-void Map::set_non_instance_prototype(bool value) {
-  if (value) {
-    set_bit_field(bit_field() | (1 << kHasNonInstancePrototype));
-  } else {
-    set_bit_field(bit_field() & ~(1 << kHasNonInstancePrototype));
-  }
-}
-
-bool Map::has_non_instance_prototype() const {
-  if (!has_prototype_slot()) return false;
-  return ((1 << kHasNonInstancePrototype) & bit_field()) != 0;
-}
-
-void Map::set_is_constructor(bool value) {
-  if (value) {
-    set_bit_field(bit_field() | (1 << kIsConstructor));
-  } else {
-    set_bit_field(bit_field() & ~(1 << kIsConstructor));
-  }
-}
-
-bool Map::is_constructor() const {
-  return ((1 << kIsConstructor) & bit_field()) != 0;
-}
-
-void Map::set_has_hidden_prototype(bool value) {
-  set_bit_field3(HasHiddenPrototype::update(bit_field3(), value));
-}
-
-bool Map::has_hidden_prototype() const {
-  return HasHiddenPrototype::decode(bit_field3());
-}
-
-void Map::set_has_indexed_interceptor() {
-  set_bit_field(bit_field() | (1 << kHasIndexedInterceptor));
-}
-
-bool Map::has_indexed_interceptor() const {
-  return ((1 << kHasIndexedInterceptor) & bit_field()) != 0;
-}
-
-void Map::set_is_undetectable() {
-  set_bit_field(bit_field() | (1 << kIsUndetectable));
-}
-
-bool Map::is_undetectable() const {
-  return ((1 << kIsUndetectable) & bit_field()) != 0;
-}
-
-void Map::set_has_named_interceptor() {
-  set_bit_field(bit_field() | (1 << kHasNamedInterceptor));
-}
-
-bool Map::has_named_interceptor() const {
-  return ((1 << kHasNamedInterceptor) & bit_field()) != 0;
-}
-
-void Map::set_is_access_check_needed(bool access_check_needed) {
-  if (access_check_needed) {
-    set_bit_field(bit_field() | (1 << kIsAccessCheckNeeded));
-  } else {
-    set_bit_field(bit_field() & ~(1 << kIsAccessCheckNeeded));
-  }
-}
-
-bool Map::is_access_check_needed() const {
-  return ((1 << kIsAccessCheckNeeded) & bit_field()) != 0;
-}
-
-void Map::set_is_extensible(bool value) {
-  if (value) {
-    set_bit_field2(bit_field2() | (1 << kIsExtensible));
-  } else {
-    set_bit_field2(bit_field2() & ~(1 << kIsExtensible));
-  }
-}
-
-bool Map::is_extensible() const {
-  return ((1 << kIsExtensible) & bit_field2()) != 0;
-}
-
-void Map::set_is_prototype_map(bool value) {
-  set_bit_field2(IsPrototypeMapBits::update(bit_field2(), value));
-}
-
-bool Map::is_prototype_map() const {
-  return IsPrototypeMapBits::decode(bit_field2());
-}
-
 bool Map::is_abandoned_prototype_map() const {
   return is_prototype_map() && !owns_descriptors();
 }
@@ -453,9 +398,7 @@ bool Map::should_be_fast_prototype_map() const {
 
 void Map::set_elements_kind(ElementsKind elements_kind) {
   DCHECK_LT(static_cast<int>(elements_kind), kElementsKindCount);
-  DCHECK_LE(kElementsKindCount, 1 << Map::ElementsKindBits::kSize);
   set_bit_field2(Map::ElementsKindBits::update(bit_field2(), elements_kind));
-  DCHECK(this->elements_kind() == elements_kind);
 }
 
 ElementsKind Map::elements_kind() const {
@@ -502,84 +445,21 @@ bool Map::has_dictionary_elements() const {
   return IsDictionaryElementsKind(elements_kind());
 }
 
-void Map::set_dictionary_map(bool value) {
-  uint32_t new_bit_field3 = DictionaryMap::update(bit_field3(), value);
-  new_bit_field3 = IsUnstable::update(new_bit_field3, value);
+void Map::set_is_dictionary_map(bool value) {
+  uint32_t new_bit_field3 = IsDictionaryMapBit::update(bit_field3(), value);
+  new_bit_field3 = IsUnstableBit::update(new_bit_field3, value);
   set_bit_field3(new_bit_field3);
 }
 
 bool Map::is_dictionary_map() const {
-  return DictionaryMap::decode(bit_field3());
-}
-
-void Map::set_owns_descriptors(bool owns_descriptors) {
-  set_bit_field3(OwnsDescriptors::update(bit_field3(), owns_descriptors));
-}
-
-bool Map::owns_descriptors() const {
-  return OwnsDescriptors::decode(bit_field3());
-}
-
-void Map::set_is_callable() { set_bit_field(bit_field() | (1 << kIsCallable)); }
-
-bool Map::is_callable() const {
-  return ((1 << kIsCallable) & bit_field()) != 0;
-}
-
-void Map::deprecate() {
-  set_bit_field3(Deprecated::update(bit_field3(), true));
-  if (FLAG_trace_maps) {
-    LOG(GetIsolate(), MapEvent("Deprecate", this, nullptr));
-  }
-}
-
-bool Map::is_deprecated() const { return Deprecated::decode(bit_field3()); }
-
-void Map::set_migration_target(bool value) {
-  set_bit_field3(IsMigrationTarget::update(bit_field3(), value));
-}
-
-bool Map::is_migration_target() const {
-  return IsMigrationTarget::decode(bit_field3());
-}
-
-void Map::set_immutable_proto(bool value) {
-  set_bit_field3(ImmutablePrototype::update(bit_field3(), value));
-}
-
-bool Map::is_immutable_proto() const {
-  return ImmutablePrototype::decode(bit_field3());
-}
-
-void Map::set_new_target_is_base(bool value) {
-  set_bit_field3(NewTargetIsBase::update(bit_field3(), value));
-}
-
-bool Map::new_target_is_base() const {
-  return NewTargetIsBase::decode(bit_field3());
-}
-
-void Map::set_may_have_interesting_symbols(bool value) {
-  set_bit_field3(MayHaveInterestingSymbols::update(bit_field3(), value));
-}
-
-bool Map::may_have_interesting_symbols() const {
-  return MayHaveInterestingSymbols::decode(bit_field3());
-}
-
-void Map::set_construction_counter(int value) {
-  set_bit_field3(ConstructionCounter::update(bit_field3(), value));
-}
-
-int Map::construction_counter() const {
-  return ConstructionCounter::decode(bit_field3());
+  return IsDictionaryMapBit::decode(bit_field3());
 }
 
 void Map::mark_unstable() {
-  set_bit_field3(IsUnstable::update(bit_field3(), true));
+  set_bit_field3(IsUnstableBit::update(bit_field3(), true));
 }
 
-bool Map::is_stable() const { return !IsUnstable::decode(bit_field3()); }
+bool Map::is_stable() const { return !IsUnstableBit::decode(bit_field3()); }
 
 bool Map::CanBeDeprecated() const {
   int descriptor = LastAdded();

@@ -2439,8 +2439,8 @@ AllocationResult Heap::AllocatePartialMap(InstanceType instance_type,
   map->set_bit_field(0);
   map->set_bit_field2(0);
   int bit_field3 = Map::EnumLengthBits::encode(kInvalidEnumCacheSentinel) |
-                   Map::OwnsDescriptors::encode(true) |
-                   Map::ConstructionCounter::encode(Map::kNoSlackTracking);
+                   Map::OwnsDescriptorsBit::encode(true) |
+                   Map::ConstructionCounterBits::encode(Map::kNoSlackTracking);
   map->set_bit_field3(bit_field3);
   map->set_weak_cell_cache(Smi::kZero);
   map->set_elements_kind(TERMINAL_FAST_ELEMENTS_KIND);
@@ -2488,10 +2488,10 @@ AllocationResult Heap::AllocateMap(InstanceType instance_type,
   // |layout_descriptor| are set.
   map->set_visitor_id(Map::GetVisitorId(map));
   map->set_bit_field(0);
-  map->set_bit_field2(1 << Map::kIsExtensible);
+  map->set_bit_field2(Map::IsExtensibleBit::kMask);
   int bit_field3 = Map::EnumLengthBits::encode(kInvalidEnumCacheSentinel) |
-                   Map::OwnsDescriptors::encode(true) |
-                   Map::ConstructionCounter::encode(Map::kNoSlackTracking);
+                   Map::OwnsDescriptorsBit::encode(true) |
+                   Map::ConstructionCounterBits::encode(Map::kNoSlackTracking);
   map->set_bit_field3(bit_field3);
   map->set_elements_kind(elements_kind);
   map->set_new_target_is_base(true);

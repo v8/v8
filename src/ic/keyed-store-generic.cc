@@ -751,8 +751,8 @@ void KeyedStoreGenericAssembler::EmitGenericPropertyStore(
   Label stub_cache(this), fast_properties(this), dictionary_properties(this),
       accessor(this), readonly(this);
   Node* bitfield3 = LoadMapBitField3(receiver_map);
-  Branch(IsSetWord32<Map::DictionaryMap>(bitfield3), &dictionary_properties,
-         &fast_properties);
+  Branch(IsSetWord32<Map::IsDictionaryMapBit>(bitfield3),
+         &dictionary_properties, &fast_properties);
 
   BIND(&fast_properties);
   {
@@ -826,7 +826,7 @@ void KeyedStoreGenericAssembler::EmitGenericPropertyStore(
       {
         Node* transition = LoadWeakCellValue(var_transition_cell.value(), slow);
         Node* transition_bitfield3 = LoadMapBitField3(transition);
-        GotoIf(IsSetWord32<Map::Deprecated>(transition_bitfield3), slow);
+        GotoIf(IsSetWord32<Map::IsDeprecatedBit>(transition_bitfield3), slow);
         Node* nof =
             DecodeWord32<Map::NumberOfOwnDescriptorsBits>(transition_bitfield3);
         Node* last_added = Int32Sub(nof, Int32Constant(1));
@@ -884,8 +884,7 @@ void KeyedStoreGenericAssembler::EmitGenericPropertyStore(
       Label extensible(this);
       Node* bitfield2 = LoadMapBitField2(receiver_map);
       GotoIf(IsPrivateSymbol(p->name), &extensible);
-      Branch(IsSetWord32(bitfield2, 1 << Map::kIsExtensible), &extensible,
-             slow);
+      Branch(IsSetWord32<Map::IsExtensibleBit>(bitfield2), &extensible, slow);
 
       BIND(&extensible);
       LookupPropertyOnPrototypeChain(receiver_map, p->name, &accessor,

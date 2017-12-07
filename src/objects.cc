@@ -4484,7 +4484,10 @@ void Map::DeprecateTransitionTree() {
     transitions.GetTarget(i)->DeprecateTransitionTree();
   }
   DCHECK(!constructor_or_backpointer()->IsFunctionTemplateInfo());
-  deprecate();
+  set_is_deprecated(true);
+  if (FLAG_trace_maps) {
+    LOG(GetIsolate(), MapEvent("Deprecate", this, nullptr));
+  }
   dependent_code()->DeoptimizeDependentCodeGroup(
       GetIsolate(), DependentCode::kTransitionGroup);
   NotifyLeafMapLayoutChange();
@@ -5978,7 +5981,7 @@ void JSObject::AllocateStorageForMap(Handle<JSObject> object, Handle<Map> map) {
 void JSObject::MigrateInstance(Handle<JSObject> object) {
   Handle<Map> original_map(object->map());
   Handle<Map> map = Map::Update(original_map);
-  map->set_migration_target(true);
+  map->set_is_migration_target(true);
   MigrateToMap(object, map);
   if (FLAG_trace_migration) {
     object->PrintInstanceMigration(stdout, *original_map, *map);
@@ -6292,7 +6295,7 @@ void JSObject::MigrateSlowToFast(Handle<JSObject> object,
   Handle<Map> new_map = Map::CopyDropDescriptors(old_map);
   new_map->set_may_have_interesting_symbols(new_map->has_named_interceptor() ||
                                             new_map->is_access_check_needed());
-  new_map->set_dictionary_map(false);
+  new_map->set_is_dictionary_map(false);
 
   NotifyMapChange(old_map, new_map, isolate);
 
@@ -9069,13 +9072,13 @@ Handle<Map> Map::RawCopy(Handle<Map> map, int instance_size,
   result->set_bit_field(map->bit_field());
   result->set_bit_field2(map->bit_field2());
   int new_bit_field3 = map->bit_field3();
-  new_bit_field3 = OwnsDescriptors::update(new_bit_field3, true);
+  new_bit_field3 = OwnsDescriptorsBit::update(new_bit_field3, true);
   new_bit_field3 = NumberOfOwnDescriptorsBits::update(new_bit_field3, 0);
   new_bit_field3 = EnumLengthBits::update(new_bit_field3,
                                           kInvalidEnumCacheSentinel);
-  new_bit_field3 = Deprecated::update(new_bit_field3, false);
+  new_bit_field3 = IsDeprecatedBit::update(new_bit_field3, false);
   if (!map->is_dictionary_map()) {
-    new_bit_field3 = IsUnstable::update(new_bit_field3, false);
+    new_bit_field3 = IsUnstableBit::update(new_bit_field3, false);
   }
   result->set_bit_field3(new_bit_field3);
   return result;
@@ -9156,8 +9159,8 @@ Handle<Map> Map::CopyNormalized(Handle<Map> map,
   // Clear the unused_property_fields explicitly as this field should not
   // be accessed for normalized maps.
   result->SetInObjectUnusedPropertyFields(0);
-  result->set_dictionary_map(true);
-  result->set_migration_target(false);
+  result->set_is_dictionary_map(true);
+  result->set_is_migration_target(false);
   result->set_may_have_interesting_symbols(true);
   result->set_construction_counter(kNoSlackTracking);
 
@@ -9176,7 +9179,7 @@ Handle<Map> Map::CopyNormalized(Handle<Map> map,
 // static
 Handle<Map> Map::TransitionToImmutableProto(Handle<Map> map) {
   Handle<Map> new_map = Map::Copy(map, "ImmutablePrototype");
-  new_map->set_immutable_proto(true);
+  new_map->set_is_immutable_proto(true);
   return new_map;
 }
 
@@ -12824,7 +12827,7 @@ void JSFunction::SetPrototype(Handle<JSFunction> function,
 
     JSObject::MigrateToMap(function, new_map);
     new_map->SetConstructor(*value);
-    new_map->set_non_instance_prototype(true);
+    new_map->set_has_non_instance_prototype(true);
 
     FunctionKind kind = function->shared()->kind();
     Handle<Context> native_context(function->context()->native_context());
@@ -12838,7 +12841,7 @@ void JSFunction::SetPrototype(Handle<JSFunction> function,
         isolate);
   } else {
     construct_prototype = Handle<JSReceiver>::cast(value);
-    function->map()->set_non_instance_prototype(false);
+    function->map()->set_has_non_instance_prototype(false);
   }
 
   SetInstancePrototype(isolate, function, construct_prototype);

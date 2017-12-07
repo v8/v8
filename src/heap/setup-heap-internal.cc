@@ -194,9 +194,9 @@ bool Heap::CreateInitialMaps() {
   FinalizePartialMap(this, fixed_cow_array_map());
   FinalizePartialMap(this, descriptor_array_map());
   FinalizePartialMap(this, undefined_map());
-  undefined_map()->set_is_undetectable();
+  undefined_map()->set_is_undetectable(true);
   FinalizePartialMap(this, null_map());
-  null_map()->set_is_undetectable();
+  null_map()->set_is_undetectable(true);
   FinalizePartialMap(this, the_hole_map());
   for (unsigned i = 0; i < arraysize(struct_table); ++i) {
     const StructTable& entry = struct_table[i];

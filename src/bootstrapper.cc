@@ -780,7 +780,7 @@ void Genesis::CreateObjectFunction(Handle<JSFunction> empty_function) {
                               "EmptyObjectPrototype");
   map->set_is_prototype_map(true);
   // Ban re-setting Object.prototype.__proto__ to prevent Proxy security bug
-  map->set_immutable_proto(true);
+  map->set_is_immutable_proto(true);
   object_function_prototype->set_map(*map);
 
   // Complete setting up empty function.
@@ -1073,12 +1073,12 @@ void Genesis::CreateJSProxyMaps() {
   // constructable proxies.
   Handle<Map> proxy_map = factory()->NewMap(JS_PROXY_TYPE, JSProxy::kSize,
                                             TERMINAL_FAST_ELEMENTS_KIND);
-  proxy_map->set_dictionary_map(true);
+  proxy_map->set_is_dictionary_map(true);
   proxy_map->set_may_have_interesting_symbols(true);
   native_context()->set_proxy_map(*proxy_map);
 
   Handle<Map> proxy_callable_map = Map::Copy(proxy_map, "callable Proxy");
-  proxy_callable_map->set_is_callable();
+  proxy_callable_map->set_is_callable(true);
   native_context()->set_proxy_callable_map(*proxy_callable_map);
   proxy_callable_map->SetConstructor(native_context()->function_function());
 
@@ -1227,7 +1227,7 @@ Handle<JSGlobalObject> Genesis::CreateNewGlobals(
   }
 
   js_global_object_function->initial_map()->set_is_prototype_map(true);
-  js_global_object_function->initial_map()->set_dictionary_map(true);
+  js_global_object_function->initial_map()->set_is_dictionary_map(true);
   js_global_object_function->initial_map()->set_may_have_interesting_symbols(
       true);
   Handle<JSGlobalObject> global_object =
@@ -3475,7 +3475,7 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
         factory->NewMap(JS_BOUND_FUNCTION_TYPE, JSBoundFunction::kSize,
                         TERMINAL_FAST_ELEMENTS_KIND, 0);
     map->SetConstructor(native_context()->object_function());
-    map->set_is_callable();
+    map->set_is_callable(true);
     Map::SetPrototype(map, empty_function);
 
     PropertyAttributes roc_attribs =
@@ -4847,7 +4847,7 @@ bool Genesis::InstallNatives(GlobalContextType context_type) {
     initial_map->SetConstructor(*array_constructor);
 
     // Set prototype on map.
-    initial_map->set_non_instance_prototype(false);
+    initial_map->set_has_non_instance_prototype(false);
     Map::SetPrototype(initial_map, array_prototype);
 
     // Update map with length accessor from Array and add "index" and "input".

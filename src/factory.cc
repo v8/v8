@@ -1872,7 +1872,7 @@ Handle<JSGlobalObject> Factory::NewJSGlobalObject(
   // Create a new map for the global object.
   Handle<Map> new_map = Map::CopyDropDescriptors(map);
   new_map->set_may_have_interesting_symbols(true);
-  new_map->set_dictionary_map(true);
+  new_map->set_is_dictionary_map(true);
 
   // Set up the global object as a normalized object.
   global->set_global_dictionary(*dictionary);
@@ -2878,7 +2878,7 @@ Handle<Map> Factory::CreateSloppyFunctionMap(
       TERMINAL_FAST_ELEMENTS_KIND, inobject_properties_count);
   map->set_has_prototype_slot(has_prototype);
   map->set_is_constructor(has_prototype);
-  map->set_is_callable();
+  map->set_is_callable(true);
   Handle<JSFunction> empty_function;
   if (maybe_empty_function.ToHandle(&empty_function)) {
     Map::SetPrototype(map, empty_function);
@@ -2957,7 +2957,7 @@ Handle<Map> Factory::CreateStrictFunctionMap(
       TERMINAL_FAST_ELEMENTS_KIND, inobject_properties_count);
   map->set_has_prototype_slot(has_prototype);
   map->set_is_constructor(has_prototype);
-  map->set_is_callable();
+  map->set_is_callable(true);
   Map::SetPrototype(map, empty_function);
 
   //
@@ -3022,7 +3022,7 @@ Handle<Map> Factory::CreateClassFunctionMap(Handle<JSFunction> empty_function) {
   map->set_has_prototype_slot(true);
   map->set_is_constructor(true);
   map->set_is_prototype_map(true);
-  map->set_is_callable();
+  map->set_is_callable(true);
   Map::SetPrototype(map, empty_function);
 
   //

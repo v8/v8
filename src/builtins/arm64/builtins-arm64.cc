@@ -2165,7 +2165,7 @@ void Builtins::Generate_CallOrConstructForwardVarargs(MacroAssembler* masm,
     __ JumpIfSmi(x3, &new_target_not_constructor);
     __ Ldr(x5, FieldMemOperand(x3, HeapObject::kMapOffset));
     __ Ldrb(x5, FieldMemOperand(x5, Map::kBitFieldOffset));
-    __ TestAndBranchIfAnySet(x5, 1 << Map::kIsConstructor,
+    __ TestAndBranchIfAnySet(x5, Map::IsConstructorBit::kMask,
                              &new_target_constructor);
     __ Bind(&new_target_not_constructor);
     {
@@ -2439,7 +2439,7 @@ void Builtins::Generate_Call(MacroAssembler* masm, ConvertReceiverMode mode) {
 
   // Check if target has a [[Call]] internal method.
   __ Ldrb(x4, FieldMemOperand(x4, Map::kBitFieldOffset));
-  __ TestAndBranchIfAllClear(x4, 1 << Map::kIsCallable, &non_callable);
+  __ TestAndBranchIfAllClear(x4, Map::IsCallableBit::kMask, &non_callable);
 
   // Check if target is a proxy and call CallProxy external builtin
   __ Cmp(x5, JS_PROXY_TYPE);
@@ -2534,7 +2534,8 @@ void Builtins::Generate_Construct(MacroAssembler* masm) {
 
   // Check if target has a [[Construct]] internal method.
   __ Ldrb(x2, FieldMemOperand(x4, Map::kBitFieldOffset));
-  __ TestAndBranchIfAllClear(x2, 1 << Map::kIsConstructor, &non_constructor);
+  __ TestAndBranchIfAllClear(x2, Map::IsConstructorBit::kMask,
+                             &non_constructor);
 
   // Only dispatch to bound functions after checking whether they are
   // constructors.

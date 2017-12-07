@@ -1156,9 +1156,10 @@ void EffectControlLinearizer::TruncateTaggedPointerToBit(
   Node* value_map_bitfield =
       __ LoadField(AccessBuilder::ForMapBitField(), value_map);
   __ GotoIfNot(
-      __ Word32Equal(__ Word32And(value_map_bitfield,
-                                  __ Int32Constant(1 << Map::kIsUndetectable)),
-                     zero),
+      __ Word32Equal(
+          __ Word32And(value_map_bitfield,
+                       __ Int32Constant(Map::IsUndetectableBit::kMask)),
+          zero),
       done, zero);
 
   // Check if {value} is a HeapNumber.
@@ -1350,7 +1351,8 @@ void EffectControlLinearizer::LowerCheckMaps(Node* node, Node* frame_state) {
       Node* bitfield3 =
           __ LoadField(AccessBuilder::ForMapBitField3(), value_map);
       Node* if_not_deprecated = __ WordEqual(
-          __ Word32And(bitfield3, __ Int32Constant(Map::Deprecated::kMask)),
+          __ Word32And(bitfield3,
+                       __ Int32Constant(Map::IsDeprecatedBit::kMask)),
           __ Int32Constant(0));
       __ DeoptimizeIf(DeoptimizeReason::kWrongMap, if_not_deprecated,
                       frame_state);
@@ -2043,9 +2045,10 @@ Node* EffectControlLinearizer::LowerObjectIsCallable(Node* node) {
   Node* value_map = __ LoadField(AccessBuilder::ForMap(), value);
   Node* value_bit_field =
       __ LoadField(AccessBuilder::ForMapBitField(), value_map);
-  Node* vfalse = __ Word32Equal(
-      __ Int32Constant(1 << Map::kIsCallable),
-      __ Word32And(value_bit_field, __ Int32Constant(1 << Map::kIsCallable)));
+  Node* vfalse =
+      __ Word32Equal(__ Int32Constant(Map::IsCallableBit::kMask),
+                     __ Word32And(value_bit_field,
+                                  __ Int32Constant(Map::IsCallableBit::kMask)));
   __ Goto(&done, vfalse);
 
   __ Bind(&if_smi);
@@ -2067,10 +2070,10 @@ Node* EffectControlLinearizer::LowerObjectIsConstructor(Node* node) {
   Node* value_map = __ LoadField(AccessBuilder::ForMap(), value);
   Node* value_bit_field =
       __ LoadField(AccessBuilder::ForMapBitField(), value_map);
-  Node* vfalse =
-      __ Word32Equal(__ Int32Constant(1 << Map::kIsConstructor),
-                     __ Word32And(value_bit_field,
-                                  __ Int32Constant(1 << Map::kIsConstructor)));
+  Node* vfalse = __ Word32Equal(
+      __ Int32Constant(Map::IsConstructorBit::kMask),
+      __ Word32And(value_bit_field,
+                   __ Int32Constant(Map::IsConstructorBit::kMask)));
   __ Goto(&done, vfalse);
 
   __ Bind(&if_smi);
@@ -2093,10 +2096,10 @@ Node* EffectControlLinearizer::LowerObjectIsDetectableCallable(Node* node) {
   Node* value_bit_field =
       __ LoadField(AccessBuilder::ForMapBitField(), value_map);
   Node* vfalse = __ Word32Equal(
-      __ Int32Constant(1 << Map::kIsCallable),
+      __ Int32Constant(Map::IsCallableBit::kMask),
       __ Word32And(value_bit_field,
-                   __ Int32Constant((1 << Map::kIsCallable) |
-                                    (1 << Map::kIsUndetectable))));
+                   __ Int32Constant((Map::IsCallableBit::kMask) |
+                                    (Map::IsUndetectableBit::kMask))));
   __ Goto(&done, vfalse);
 
   __ Bind(&if_smi);
@@ -2173,9 +2176,10 @@ Node* EffectControlLinearizer::LowerObjectIsNonCallable(Node* node) {
 
   Node* value_bit_field =
       __ LoadField(AccessBuilder::ForMapBitField(), value_map);
-  Node* check2 = __ Word32Equal(
-      __ Int32Constant(0),
-      __ Word32And(value_bit_field, __ Int32Constant(1 << Map::kIsCallable)));
+  Node* check2 =
+      __ Word32Equal(__ Int32Constant(0),
+                     __ Word32And(value_bit_field,
+                                  __ Int32Constant(Map::IsCallableBit::kMask)));
   __ Goto(&done, check2);
 
   __ Bind(&if_primitive);
@@ -2287,9 +2291,10 @@ Node* EffectControlLinearizer::LowerObjectIsUndetectable(Node* node) {
   Node* value_bit_field =
       __ LoadField(AccessBuilder::ForMapBitField(), value_map);
   Node* vfalse = __ Word32Equal(
-      __ Word32Equal(__ Int32Constant(0),
-                     __ Word32And(value_bit_field,
-                                  __ Int32Constant(1 << Map::kIsUndetectable))),
+      __ Word32Equal(
+          __ Int32Constant(0),
+          __ Word32And(value_bit_field,
+                       __ Int32Constant(Map::IsUndetectableBit::kMask))),
       __ Int32Constant(0));
   __ Goto(&done, vfalse);
 
