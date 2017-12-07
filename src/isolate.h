@@ -1084,7 +1084,7 @@ class Isolate {
   // memory usage is expected.
   void SetFeedbackVectorsForProfilingTools(Object* value);
 
-  void InitializeVectorListFromHeap();
+  void MaybeInitializeVectorListFromHeap();
 
   double time_millis_since_init() {
     return heap_.MonotonicallyIncreasingTimeInMs() - time_millis_at_init_;
