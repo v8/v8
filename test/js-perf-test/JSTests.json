@@ -380,7 +380,8 @@
       "main": "run.js",
       "resources": [
         "filter.js", "map.js", "every.js", "join.js", "some.js",
-        "reduce.js", "reduce-right.js", "to-string.js", "find.js"
+        "reduce.js", "reduce-right.js", "to-string.js", "find.js",
+        "find-index.js"
       ],
       "flags": [
         "--allow-natives-syntax"
