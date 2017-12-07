@@ -963,13 +963,17 @@ void WasmCodeManager::FlushICache(Address start, size_t size) {
 NativeModuleModificationScope::NativeModuleModificationScope(
     NativeModule* native_module)
     : native_module_(native_module) {
-  bool success = native_module_->SetExecutable(false);
-  CHECK(success);
+  if (native_module_) {
+    bool success = native_module_->SetExecutable(false);
+    CHECK(success);
+  }
 }
 
 NativeModuleModificationScope::~NativeModuleModificationScope() {
-  bool success = native_module_->SetExecutable(true);
-  CHECK(success);
+  if (native_module_) {
+    bool success = native_module_->SetExecutable(true);
+    CHECK(success);
+  }
 }
 
 }  // namespace wasm
