@@ -130,9 +130,10 @@ class LiftoffCompiler {
         __ PushRegister(type, reg);
         return;
       }
-      // No cache register. Push to the stack.
-      __ Spill(param_idx, reg);
-      __ cache_state()->stack_state.emplace_back(type);
+      // Move to a cache register.
+      LiftoffRegister cache_reg = __ GetUnusedRegister(rc);
+      __ Move(cache_reg, reg);
+      __ PushRegister(type, reg);
       return;
     }
     if (param_loc.IsCallerFrameSlot()) {
@@ -196,9 +197,9 @@ class LiftoffCompiler {
           break;
         case kWasmF32:
           if (zero_double_reg.is_gp()) {
-            // Use CacheState::unused_register directly. There must be an unused
-            // register, no spilling allowed here.
-            zero_double_reg = __ cache_state()->unused_register(kFpReg);
+            // Note: This might spill one of the registers used to hold
+            // parameters.
+            zero_double_reg = __ GetUnusedRegister(kFpReg);
             __ LoadConstant(zero_double_reg, WasmValue(0.f));
           }
           __ PushRegister(kWasmF32, zero_double_reg);
