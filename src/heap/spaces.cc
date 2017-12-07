@@ -1637,7 +1637,7 @@ Address PagedSpace::ComputeLimit(Address start, Address end,
     // limit.
     size_t step = RoundSizeDownToObjectAlignment(
         static_cast<int>(GetNextInlineAllocationStepSize()));
-    return Max(start + size_in_bytes, Min(start + step, end));
+    return Min(start + size_in_bytes + step, end);
   } else {
     // The entire node can be used as the linear allocation area.
     return end;
