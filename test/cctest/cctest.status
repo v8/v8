@@ -88,9 +88,6 @@
   # BUG(2340). Preprocessing stack traces is disabled at the moment.
   'test-heap/PreprocessStackTrace': [FAIL],
 
-  # BUG(7176). Embedder heap tracer doesn't support finalizers.
-  'test-embedder-tracing/TracingInRevivedSubgraph': [FAIL],
-
   # BUG(4333). Function name inferrer does not work for ES6 clases.
   'test-func-name-inference/UpperCaseClass': [FAIL],
   'test-func-name-inference/LowerCaseClass': [FAIL],

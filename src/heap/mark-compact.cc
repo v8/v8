@@ -1654,28 +1654,16 @@ void MarkCompactCollector::ProcessMarkingWorklist() {
   DCHECK(marking_worklist()->IsBailoutEmpty());
 }
 
-// Mark all objects reachable (transitively) from objects on the marking
-// stack including references only considered in the atomic marking pause.
-void MarkCompactCollector::ProcessEphemeralMarking(
-    bool only_process_harmony_weak_collections) {
+void MarkCompactCollector::ProcessEphemeralMarking() {
   DCHECK(marking_worklist()->IsEmpty());
   bool work_to_do = true;
   while (work_to_do) {
-    if (!only_process_harmony_weak_collections) {
-      if (heap_->local_embedder_heap_tracer()->InUse()) {
-        TRACE_GC(heap()->tracer(), GCTracer::Scope::MC_MARK_WRAPPER_TRACING);
-        heap_->local_embedder_heap_tracer()->RegisterWrappersWithRemoteTracer();
-        heap_->local_embedder_heap_tracer()->Trace(
-            0,
-            EmbedderHeapTracer::AdvanceTracingActions(
-                EmbedderHeapTracer::ForceCompletionAction::FORCE_COMPLETION));
-      }
-    } else {
-      // TODO(mlippautz): We currently do not trace through blink when
-      // discovering new objects reachable from weak roots (that have been made
-      // strong). This is a limitation of not having a separate handle type
-      // that doesn't require zapping before this phase. See crbug.com/668060.
-      heap_->local_embedder_heap_tracer()->ClearCachedWrappersToTrace();
+    if (heap_->local_embedder_heap_tracer()->InUse()) {
+      TRACE_GC(heap()->tracer(), GCTracer::Scope::MC_MARK_WRAPPER_TRACING);
+      heap_->local_embedder_heap_tracer()->RegisterWrappersWithRemoteTracer();
+      heap_->local_embedder_heap_tracer()->Trace(
+          0, EmbedderHeapTracer::AdvanceTracingActions(
+                 EmbedderHeapTracer::ForceCompletionAction::FORCE_COMPLETION));
     }
     ProcessWeakCollections();
     work_to_do = !marking_worklist()->IsEmpty();
@@ -2400,20 +2388,20 @@ void MarkCompactCollector::MarkLiveObjects() {
 
     DCHECK(marking_worklist()->IsEmpty());
 
-    // The objects reachable from the roots are marked, yet unreachable
-    // objects are unmarked.  Mark objects reachable due to host
-    // application specific logic or through Harmony weak maps.
+    // The objects reachable from the roots are marked, yet unreachable objects
+    // are unmarked. Mark objects reachable due to embedder heap tracing or
+    // harmony weak maps.
     {
       TRACE_GC(heap()->tracer(),
                GCTracer::Scope::MC_MARK_WEAK_CLOSURE_EPHEMERAL);
-      ProcessEphemeralMarking(false);
+      ProcessEphemeralMarking();
       DCHECK(marking_worklist()->IsEmpty());
     }
 
-    // The objects reachable from the roots, weak maps or object groups
-    // are marked. Objects pointed to only by weak global handles cannot be
-    // immediately reclaimed. Instead, we have to mark them as pending and mark
-    // objects reachable from them.
+    // The objects reachable from the roots, weak maps, and embedder heap
+    // tracing are marked. Objects pointed to only by weak global handles cannot
+    // be immediately reclaimed. Instead, we have to mark them as pending and
+    // mark objects reachable from them.
     //
     // First we identify nonlive weak handles and mark them as pending
     // destruction.
@@ -2425,6 +2413,8 @@ void MarkCompactCollector::MarkLiveObjects() {
       ProcessMarkingWorklist();
     }
 
+    // Process finalizers, effectively keeping them alive until the next
+    // garbage collection.
     {
       TRACE_GC(heap()->tracer(),
                GCTracer::Scope::MC_MARK_WEAK_CLOSURE_WEAK_ROOTS);
@@ -2433,14 +2423,10 @@ void MarkCompactCollector::MarkLiveObjects() {
       ProcessMarkingWorklist();
     }
 
-    // Repeat Harmony weak maps marking to mark unmarked objects reachable from
-    // the weak roots we just marked as pending destruction.
-    //
-    // We only process harmony collections, as all object groups have been fully
-    // processed and no weakly reachable node can discover new objects groups.
+    // Repeat ephemeral processing from the newly marked objects.
     {
       TRACE_GC(heap()->tracer(), GCTracer::Scope::MC_MARK_WEAK_CLOSURE_HARMONY);
-      ProcessEphemeralMarking(true);
+      ProcessEphemeralMarking();
       {
         TRACE_GC(heap()->tracer(), GCTracer::Scope::MC_MARK_WRAPPER_EPILOGUE);
         heap()->local_embedder_heap_tracer()->TraceEpilogue();
