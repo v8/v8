@@ -2176,9 +2176,9 @@ void SpaceWithLinearArea::RemoveAllocationObserver(
 
 void NewSpace::PauseAllocationObservers() {
   // Do a step to account for memory allocated so far.
-  InlineAllocationStep(top(), top(), nullptr, 0);
+  InlineAllocationStep(top(), nullptr, nullptr, 0);
   Space::PauseAllocationObservers();
-  top_on_previous_step_ = 0;
+  DCHECK_NULL(top_on_previous_step_);
   UpdateInlineAllocationLimit(0);
 }
 
@@ -2188,7 +2188,7 @@ void PagedSpace::PauseAllocationObservers() {
   // from NewSpace version.
   InlineAllocationStep(top(), nullptr, nullptr, 0);
   Space::PauseAllocationObservers();
-  top_on_previous_step_ = 0;
+  DCHECK_NULL(top_on_previous_step_);
 }
 
 void SpaceWithLinearArea::ResumeAllocationObservers() {
