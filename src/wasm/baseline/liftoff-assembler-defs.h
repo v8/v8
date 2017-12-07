@@ -20,8 +20,9 @@ static constexpr bool kLiftoffAssemblerImplementedOnThisPlatform = true;
 static constexpr RegList kLiftoffAssemblerGpCacheRegs =
     Register::ListOf<eax, ecx, edx, ebx, esi, edi>();
 
-// TODO(clemensh): Fix this once we support float operations.
-static constexpr RegList kLiftoffAssemblerFpCacheRegs = 0xff;
+// Omit xmm7, which is the kScratchDoubleReg.
+static constexpr RegList kLiftoffAssemblerFpCacheRegs =
+    DoubleRegister::ListOf<xmm0, xmm1, xmm2, xmm3, xmm4, xmm5, xmm6>();
 
 }  // namespace wasm
 }  // namespace internal
@@ -40,8 +41,8 @@ static constexpr bool kLiftoffAssemblerImplementedOnThisPlatform = true;
 static constexpr RegList kLiftoffAssemblerGpCacheRegs =
     Register::ListOf<rax, rcx, rdx, rbx, rsi, rdi>();
 
-// TODO(clemensh): Fix this once we support float operations.
-static constexpr RegList kLiftoffAssemblerFpCacheRegs = 0xff;
+static constexpr RegList kLiftoffAssemblerFpCacheRegs =
+    DoubleRegister::ListOf<xmm0, xmm1, xmm2, xmm3, xmm4, xmm5, xmm6, xmm7>();
 
 }  // namespace wasm
 }  // namespace internal
