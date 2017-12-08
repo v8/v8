@@ -258,6 +258,7 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kIA32Movl:
     case kIA32Movss:
     case kIA32Movsd:
+    case kIA32Movdqu:
       // Moves are used for memory load/store operations.
       return instr->HasOutput() ? kIsLoadOperation : kHasSideEffect;
 

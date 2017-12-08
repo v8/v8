@@ -1892,6 +1892,15 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
         __ movss(operand, i.InputDoubleRegister(index));
       }
       break;
+    case kIA32Movdqu:
+      if (instr->HasOutput()) {
+        __ Movdqu(i.OutputSimd128Register(), i.MemoryOperand());
+      } else {
+        size_t index = 0;
+        Operand operand = i.MemoryOperand(&index);
+        __ Movdqu(operand, i.InputSimd128Register(index));
+      }
+      break;
     case kIA32BitcastFI:
       if (instr->InputAt(0)->IsFPStackSlot()) {
         __ mov(i.OutputRegister(), i.InputOperand(0));

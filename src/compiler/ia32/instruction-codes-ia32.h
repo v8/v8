@@ -103,6 +103,7 @@ namespace compiler {
   V(IA32Movl)                      \
   V(IA32Movss)                     \
   V(IA32Movsd)                     \
+  V(IA32Movdqu)                    \
   V(IA32BitcastFI)                 \
   V(IA32BitcastIF)                 \
   V(IA32Lea)                       \

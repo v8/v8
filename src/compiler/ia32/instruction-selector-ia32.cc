@@ -249,8 +249,10 @@ void InstructionSelector::VisitLoad(Node* node) {
     case MachineRepresentation::kWord32:
       opcode = kIA32Movl;
       break;
+    case MachineRepresentation::kSimd128:
+      opcode = kIA32Movdqu;
+      break;
     case MachineRepresentation::kWord64:   // Fall through.
-    case MachineRepresentation::kSimd128:  // Fall through.
     case MachineRepresentation::kNone:
       UNREACHABLE();
       return;
@@ -339,8 +341,10 @@ void InstructionSelector::VisitStore(Node* node) {
       case MachineRepresentation::kWord32:
         opcode = kIA32Movl;
         break;
+      case MachineRepresentation::kSimd128:
+        opcode = kIA32Movdqu;
+        break;
       case MachineRepresentation::kWord64:   // Fall through.
-      case MachineRepresentation::kSimd128:  // Fall through.
       case MachineRepresentation::kNone:
         UNREACHABLE();
         return;

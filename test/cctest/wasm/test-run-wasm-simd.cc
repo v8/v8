@@ -2065,8 +2065,6 @@ WASM_SIMD_TEST(SimdI32x4AddWithF32x4) {
 #endif  // V8_TARGET_ARCH_ARM || V8_TARGET_ARCH_ARM64 || V8_TARGET_ARCH_MIPS ||
         // V8_TARGET_ARCH_MIPS64
 
-#if V8_TARGET_ARCH_ARM || V8_TARGET_ARCH_ARM64 || V8_TARGET_ARCH_X64 || \
-    V8_TARGET_ARCH_MIPS || V8_TARGET_ARCH_MIPS64
 WASM_SIMD_TEST(SimdI32x4Local) {
   WasmRunner<int32_t> r(execution_mode);
   r.AllocateLocal(kWasmS128);
@@ -2120,8 +2118,6 @@ WASM_SIMD_TEST(SimdI32x4For) {
         WASM_GET_LOCAL(0));
   CHECK_EQ(1, r.Call());
 }
-#endif  // V8_TARGET_ARCH_ARM || V8_TARGET_ARCH_ARM64 || V8_TARGET_ARCH_X64 ||
-        // V8_TARGET_ARCH_MIPS || V8_TARGET_ARCH_MIPS64
 
 #if V8_TARGET_ARCH_ARM || V8_TARGET_ARCH_ARM64 || V8_TARGET_ARCH_MIPS || \
     V8_TARGET_ARCH_MIPS64
@@ -2150,9 +2146,6 @@ WASM_SIMD_TEST(SimdF32x4For) {
 }
 #endif  // V8_TARGET_ARCH_ARM || V8_TARGET_ARCH_ARM64 || V8_TARGET_ARCH_MIPS ||
         // V8_TARGET_ARCH_MIPS64
-
-#if V8_TARGET_ARCH_ARM || V8_TARGET_ARCH_ARM64 || V8_TARGET_ARCH_X64 || \
-    V8_TARGET_ARCH_MIPS || V8_TARGET_ARCH_MIPS64
 
 template <typename T, int numLanes = 4>
 void SetVectorByLanes(T* v, const std::array<T, numLanes>& arr) {
@@ -2229,11 +2222,9 @@ WASM_SIMD_TEST(SimdI32x4SetGlobal) {
   CHECK_EQ(GetScalar(global, 2), 45);
   CHECK_EQ(GetScalar(global, 3), 56);
 }
-#endif  // V8_TARGET_ARCH_ARM || V8_TARGET_ARCH_ARM64 || V8_TARGET_ARCH_X64 ||
-        // V8_TARGET_ARCH_MIPS || V8_TARGET_ARCH_MIPS64
 
 #if V8_TARGET_ARCH_ARM || V8_TARGET_ARCH_ARM64 || V8_TARGET_ARCH_MIPS || \
-    V8_TARGET_ARCH_MIPS64
+    V8_TARGET_ARCH_MIPS64 || V8_TARGET_ARCH_IA32
 WASM_SIMD_TEST(SimdF32x4GetGlobal) {
   WasmRunner<int32_t, int32_t> r(execution_mode);
   float* global = r.builder().AddGlobal<float>(kWasmS128);
@@ -2275,10 +2266,8 @@ WASM_SIMD_TEST(SimdF32x4SetGlobal) {
   CHECK_EQ(GetScalar(global, 3), 65.0f);
 }
 #endif  // V8_TARGET_ARCH_ARM || V8_TARGET_ARCH_ARM64 || V8_TARGET_ARCH_MIPS ||
-        // V8_TARGET_ARCH_MIPS64
+        // V8_TARGET_ARCH_MIPS64 || V8_TARGET_ARCH_IA32
 
-#if V8_TARGET_ARCH_ARM || V8_TARGET_ARCH_ARM64 || V8_TARGET_ARCH_X64 || \
-    V8_TARGET_ARCH_MIPS || V8_TARGET_ARCH_MIPS64
 WASM_SIMD_COMPILED_TEST(SimdLoadStoreLoad) {
   WasmRunner<int32_t> r(execution_mode);
   int32_t* memory = r.builder().AddMemoryElems<int32_t>(8);
@@ -2293,8 +2282,6 @@ WASM_SIMD_COMPILED_TEST(SimdLoadStoreLoad) {
     CHECK_EQ(expected, r.Call());
   }
 }
-#endif  // V8_TARGET_ARCH_ARM || V8_TARGET_ARCH_ARM64 || V8_TARGET_ARCH_X64 ||
-        // V8_TARGET_ARCH_MIPS || V8_TARGET_ARCH_MIPS64
 
 #undef WASM_SIMD_TEST
 #undef WASM_SIMD_COMPILED_TEST
