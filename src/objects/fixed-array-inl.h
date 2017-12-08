@@ -30,6 +30,10 @@ CAST_ACCESSOR(WeakFixedArray)
 SMI_ACCESSORS(FixedArrayBase, length, kLengthOffset)
 SYNCHRONIZED_SMI_ACCESSORS(FixedArrayBase, length, kLengthOffset)
 
+Object* FixedArrayBase::unchecked_synchronized_length() const {
+  return ACQUIRE_READ_FIELD(this, kLengthOffset);
+}
+
 ACCESSORS(FixedTypedArrayBase, base_pointer, Object, kBasePointerOffset)
 
 Object** FixedArray::GetFirstElementAddress() {

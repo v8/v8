@@ -74,6 +74,8 @@ class FixedArrayBase : public HeapObject {
   inline int synchronized_length() const;
   inline void synchronized_set_length(int value);
 
+  inline Object* unchecked_synchronized_length() const;
+
   DECL_CAST(FixedArrayBase)
 
   static int GetMaxLengthForNewSpaceAllocation(ElementsKind kind);

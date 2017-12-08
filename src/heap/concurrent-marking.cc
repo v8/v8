@@ -187,9 +187,14 @@ class ConcurrentMarkingVisitor final
   // ===========================================================================
 
   int VisitFixedArray(Map* map, FixedArray* object) {
-    int length = object->synchronized_length();
-    int size = FixedArray::SizeFor(length);
+    // The synchronized_length() function checks that the length is a Smi.
+    // This is not necessarily the case if the array is being left-trimmed.
+    Object* length = object->unchecked_synchronized_length();
     if (!ShouldVisit(object)) return 0;
+    // The cached length must be the actual length as the array is not black.
+    // Left trimming marks the array black before over-writing the length.
+    DCHECK(length->IsSmi());
+    int size = FixedArray::SizeFor(Smi::ToInt(length));
     VisitMapPointer(object, object->map_slot());
     FixedArray::BodyDescriptor::IterateBody(object, size, this);
     return size;
@@ -380,6 +385,12 @@ SeqOneByteString* ConcurrentMarkingVisitor::Cast(HeapObject* object) {
 template <>
 SeqTwoByteString* ConcurrentMarkingVisitor::Cast(HeapObject* object) {
   return reinterpret_cast<SeqTwoByteString*>(object);
+}
+
+// Fixed array can become a free space during left trimming.
+template <>
+FixedArray* ConcurrentMarkingVisitor::Cast(HeapObject* object) {
+  return reinterpret_cast<FixedArray*>(object);
 }
 
 class ConcurrentMarking::Task : public CancelableTask {
