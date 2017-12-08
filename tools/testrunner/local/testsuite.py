@@ -365,25 +365,31 @@ class TestSuite(object):
   def IsNegativeTest(self, testcase):
     return False
 
-  def HasFailed(self, testcase):
-    execution_failed = self.IsFailureOutput(testcase)
+  def HasFailed(self, testcase, ctx=None):
+    if ctx and ctx.predictable:
+      # Only check the exit code of the predictable_wrapper in
+      # verify-predictable mode.
+      execution_failed = testcase.output.exit_code != 0
+    else:
+      execution_failed = self.IsFailureOutput(testcase)
     if self.IsNegativeTest(testcase):
       return not execution_failed
     else:
       return execution_failed
 
-  def GetOutcome(self, testcase):
+  def GetOutcome(self, testcase, ctx=None):
     if testcase.output.HasCrashed():
       return statusfile.CRASH
     elif testcase.output.HasTimedOut():
       return statusfile.TIMEOUT
-    elif self.HasFailed(testcase):
+    elif self.HasFailed(testcase, ctx):
       return statusfile.FAIL
     else:
       return statusfile.PASS
 
-  def HasUnexpectedOutput(self, testcase):
-    return self.GetOutcome(testcase) not in self.GetExpectedOutcomes(testcase)
+  def HasUnexpectedOutput(self, testcase, ctx=None):
+    return (self.GetOutcome(testcase, ctx)
+            not in self.GetExpectedOutcomes(testcase))
 
   def StripOutputForTransmit(self, testcase):
     if not self.HasUnexpectedOutput(testcase):

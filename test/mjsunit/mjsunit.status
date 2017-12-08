@@ -638,6 +638,10 @@
   # Skip tests that are known to be non-deterministic.
   'd8/d8-worker-sharedarraybuffer': [SKIP],
   'd8/d8-os': [SKIP],
+
+  # BUG(v8:7166).
+  'harmony/futex': [SKIP],
+  'd8/enable-tracing': [SKIP],
 }],  # 'predictable == True'
 
 ##############################################################################

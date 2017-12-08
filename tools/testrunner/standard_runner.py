@@ -66,6 +66,9 @@ SLOW_ARCHS = ["arm",
               "s390x",
               "arm64"]
 
+PREDICTABLE_WRAPPER = os.path.join(
+    base_runner.BASE_DIR, 'tools', 'predictable_wrapper.py')
+
 
 class StandardTestRunner(base_runner.BaseTestRunner):
     def __init__(self):
@@ -280,6 +283,9 @@ class StandardTestRunner(base_runner.BaseTestRunner):
         options.extra_flags.append("--predictable")
         options.extra_flags.append("--verify_predictable")
         options.extra_flags.append("--no-inline-new")
+        # Add predictable wrapper to command prefix.
+        options.command_prefix.append(sys.executable)
+        options.command_prefix.append(PREDICTABLE_WRAPPER)
 
       # TODO(machenbach): Figure out how to test a bigger subset of variants on
       # msan.
