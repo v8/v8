@@ -139,7 +139,7 @@ Code* Snapshot::DeserializeHandler(Isolate* isolate,
   }
 
   if (isolate->logger()->is_logging_code_events() || isolate->is_profiling()) {
-    isolate->logger()->LogCodeObject(code);
+    isolate->logger()->LogBytecodeHandler(bytecode, operand_scale, code);
   }
 
   return code;

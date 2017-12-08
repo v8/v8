@@ -258,6 +258,8 @@ class Logger : public CodeEventListener {
   void LogCodeObjects();
   // Used for logging bytecode handlers found in the snapshot.
   void LogBytecodeHandlers();
+  void LogBytecodeHandler(interpreter::Bytecode bytecode,
+                          interpreter::OperandScale operand_scale, Code* code);
   // Logs all Mpas foind in the heap.
   void LogMaps();
 

@@ -1573,6 +1573,16 @@ void Logger::LogCodeObjects() {
   }
 }
 
+void Logger::LogBytecodeHandler(interpreter::Bytecode bytecode,
+                                interpreter::OperandScale operand_scale,
+                                Code* code) {
+  std::string bytecode_name =
+      interpreter::Bytecodes::ToString(bytecode, operand_scale);
+  PROFILE(isolate_,
+          CodeCreateEvent(CodeEventListener::BYTECODE_HANDLER_TAG,
+                          AbstractCode::cast(code), bytecode_name.c_str()));
+}
+
 void Logger::LogBytecodeHandlers() {
   const interpreter::OperandScale kOperandScales[] = {
 #define VALUE(Name, _) interpreter::OperandScale::k##Name,
@@ -1588,11 +1598,7 @@ void Logger::LogBytecodeHandlers() {
       if (interpreter::Bytecodes::BytecodeHasHandler(bytecode, operand_scale)) {
         Code* code = interpreter->GetBytecodeHandler(bytecode, operand_scale);
         if (isolate_->heap()->IsDeserializeLazyHandler(code)) continue;
-        std::string bytecode_name =
-            interpreter::Bytecodes::ToString(bytecode, operand_scale);
-        PROFILE(isolate_, CodeCreateEvent(
-                              CodeEventListener::BYTECODE_HANDLER_TAG,
-                              AbstractCode::cast(code), bytecode_name.c_str()));
+        LogBytecodeHandler(bytecode, operand_scale, code);
       }
     }
   }
