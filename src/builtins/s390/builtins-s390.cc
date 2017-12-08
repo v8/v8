@@ -1962,7 +1962,7 @@ void Builtins::Generate_CallOrConstructForwardVarargs(MacroAssembler* masm,
     __ JumpIfSmi(r5, &new_target_not_constructor);
     __ LoadP(scratch, FieldMemOperand(r5, HeapObject::kMapOffset));
     __ LoadlB(scratch, FieldMemOperand(scratch, Map::kBitFieldOffset));
-    __ tmll(scratch, Operand(Map::kIsConstructor));
+    __ tmll(scratch, Operand(Map::IsConstructorBit::kShift));
     __ bne(&new_target_constructor);
     __ bind(&new_target_not_constructor);
     {
@@ -2260,7 +2260,7 @@ void Builtins::Generate_Call(MacroAssembler* masm, ConvertReceiverMode mode) {
 
   // Check if target has a [[Call]] internal method.
   __ LoadlB(r6, FieldMemOperand(r6, Map::kBitFieldOffset));
-  __ TestBit(r6, Map::kIsCallable);
+  __ TestBit(r6, Map::IsCallableBit::kShift);
   __ beq(&non_callable);
 
   // Check if target is a proxy and call CallProxy external builtin
@@ -2356,7 +2356,7 @@ void Builtins::Generate_Construct(MacroAssembler* masm) {
 
   // Check if target has a [[Construct]] internal method.
   __ LoadlB(r4, FieldMemOperand(r6, Map::kBitFieldOffset));
-  __ TestBit(r4, Map::kIsConstructor);
+  __ TestBit(r4, Map::IsConstructorBit::kShift);
   __ beq(&non_constructor);
 
   // Only dispatch to bound functions after checking whether they are
