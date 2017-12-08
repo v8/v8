@@ -3211,11 +3211,14 @@ typename ParserBase<Impl>::ExpressionT ParserBase<Impl>::ParseUnaryExpression(
     classifier()->RecordFormalParameterInitializerError(
         scanner()->peek_location(),
         MessageTemplate::kAwaitExpressionFormalParameter);
-
     int await_pos = peek_position();
     Consume(Token::AWAIT);
 
     ExpressionT value = ParseUnaryExpression(CHECK_OK);
+
+    classifier()->RecordBindingPatternError(
+        Scanner::Location(await_pos, scanner()->location().end_pos),
+        MessageTemplate::kInvalidDestructuringTarget);
 
     ExpressionT expr = factory()->NewAwait(value, await_pos);
     impl()->RecordSuspendSourceRange(expr, PositionAfterSemicolon());

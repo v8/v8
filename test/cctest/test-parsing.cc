@@ -8570,6 +8570,64 @@ TEST(AsyncAwaitErrors) {
   RunParserSyncTest(async_body_context_data, async_body_error_data, kError);
 }
 
+TEST(Regress7173) {
+  // Await expression is an invalid destructuring target, and should not crash
+
+  // clang-format off
+  const char* error_context_data[][2] = {
+    { "'use strict'; async function f() {", "}" },
+    { "async function f() {", "}" },
+    { "'use strict'; function f() {", "}" },
+    { "function f() {", "}" },
+    { "let f = async() => {", "}" },
+    { "let f = () => {", "}" },
+    { "'use strict'; async function* f() {", "}" },
+    { "async function* f() {", "}" },
+    { "'use strict'; function* f() {", "}" },
+    { "function* f() {", "}" },
+    { nullptr, nullptr }
+  };
+
+  const char* error_data[] = {
+    "var [await f] = [];",
+    "let [await f] = [];",
+    "const [await f] = [];",
+
+    "var [...await f] = [];",
+    "let [...await f] = [];",
+    "const [...await f] = [];",
+
+    "var { await f } = {};",
+    "let { await f } = {};",
+    "const { await f } = {};",
+
+    "var { ...await f } = {};",
+    "let { ...await f } = {};",
+    "const { ...await f } = {};",
+
+    "var { f: await f } = {};",
+    "let { f: await f } = {};",
+    "const { f: await f } = {};"
+
+    "var { f: ...await f } = {};",
+    "let { f: ...await f } = {};",
+    "const { f: ...await f } = {};"
+
+    "var { [f]: await f } = {};",
+    "let { [f]: await f } = {};",
+    "const { [f]: await f } = {};",
+
+    "var { [f]: ...await f } = {};",
+    "let { [f]: ...await f } = {};",
+    "const { [f]: ...await f } = {};",
+
+    nullptr
+  };
+  // clang-format on
+
+  RunParserSyncTest(error_context_data, error_data, kError);
+}
+
 TEST(AsyncAwaitFormalParameters) {
   // clang-format off
   const char* context_for_formal_parameters[][2] = {
