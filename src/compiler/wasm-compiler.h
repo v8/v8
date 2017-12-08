@@ -119,6 +119,7 @@ class WasmCompilationUnit final {
 
   struct LiftoffData {
     wasm::LiftoffAssembler asm_;
+    int safepoint_table_offset_;
     explicit LiftoffData(Isolate* isolate) : asm_(isolate) {}
   };
   struct TurbofanData {

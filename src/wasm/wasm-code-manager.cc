@@ -348,8 +348,8 @@ WasmCode* NativeModule::AddAnonymousCode(Handle<Code> code,
        static_cast<size_t>(code->instruction_size())},
       std::move(reloc_info), static_cast<size_t>(code->relocation_size()),
       Nothing<uint32_t>(), kind, code->constant_pool_offset(),
-      (code->is_turbofanned() ? code->stack_slots() : 0),
-      (code->is_turbofanned() ? code->safepoint_table_offset() : 0), {});
+      (code->has_safepoint_info() ? code->stack_slots() : 0),
+      (code->has_safepoint_info() ? code->safepoint_table_offset() : 0), {});
   if (ret == nullptr) return nullptr;
   intptr_t delta = ret->instructions().start() - code->instruction_start();
   int mask = RelocInfo::kApplyMask | RelocInfo::kCodeTargetMask |

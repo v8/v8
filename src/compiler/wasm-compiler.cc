@@ -5011,7 +5011,14 @@ WasmCodeWrapper WasmCompilationUnit::FinishLiftoffCompilation(
   WasmCodeWrapper ret;
   if (!FLAG_wasm_jit_to_native) {
     Handle<Code> code;
-    code = isolate_->factory()->NewCode(desc, Code::WASM_FUNCTION, code);
+    code = isolate_->factory()->NewCode(
+        desc, Code::WASM_FUNCTION, code, Builtins::kNoBuiltinId,
+        MaybeHandle<HandlerTable>(), MaybeHandle<ByteArray>(),
+        MaybeHandle<DeoptimizationData>(), kMovable,
+        0,                                       // stub_key
+        false,                                   // is_turbofanned
+        liftoff_.asm_.GetTotalFrameSlotCount(),  // stack_slots
+        liftoff_.safepoint_table_offset_);
 #ifdef ENABLE_DISASSEMBLER
     if (FLAG_print_code || FLAG_print_wasm_code) {
       // TODO(wasm): Use proper log files, here and elsewhere.
@@ -5036,8 +5043,7 @@ WasmCodeWrapper WasmCompilationUnit::FinishLiftoffCompilation(
     // Consider lifting them both to FinishCompilation.
     return WasmCodeWrapper(native_module_->AddCode(
         desc, liftoff_.asm_.GetTotalFrameSlotCount(), func_index_,
-        liftoff_.asm_.GetSafepointTableOffset(), protected_instructions_,
-        true));
+        liftoff_.safepoint_table_offset_, protected_instructions_, true));
   }
 }
 

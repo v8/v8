@@ -52,9 +52,7 @@ SafepointTable::SafepointTable(Address instruction_start,
 
 SafepointTable::SafepointTable(Code* code)
     : SafepointTable(code->instruction_start(), code->safepoint_table_offset(),
-                     code->stack_slots(), true) {
-  DCHECK(code->is_turbofanned());
-}
+                     code->stack_slots(), true) {}
 
 unsigned SafepointTable::find_return_pc(unsigned pc_offset) {
   for (unsigned i = 0; i < length(); i++) {

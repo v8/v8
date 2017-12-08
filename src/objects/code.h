@@ -233,12 +233,14 @@ class Code : public HeapObject {
   inline void set_builtin_index(int id);
   inline bool is_builtin() const;
 
-  // [stack_slots]: For kind OPTIMIZED_FUNCTION, the number of stack slots
+  inline bool has_safepoint_info() const;
+
+  // [stack_slots]: If {has_safepoint_info()}, the number of stack slots
   // reserved in the code prologue.
   inline int stack_slots() const;
 
-  // [safepoint_table_start]: For kind OPTIMIZED_FUNCTION, the offset in
-  // the instruction stream where the safepoint table starts.
+  // [safepoint_table_offset]: If {has_safepoint_info()}, the offset in the
+  // instruction stream where the safepoint table starts.
   inline int safepoint_table_offset() const;
   inline void set_safepoint_table_offset(int offset);
 

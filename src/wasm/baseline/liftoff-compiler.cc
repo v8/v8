@@ -72,9 +72,13 @@ class LiftoffCompiler {
   using Decoder = WasmFullDecoder<validate, LiftoffCompiler>;
 
   LiftoffCompiler(LiftoffAssembler* liftoff_asm,
-                  compiler::CallDescriptor* call_desc,
-                  const compiler::ModuleEnv* env)
-      : asm_(liftoff_asm), call_desc_(call_desc), env_(env) {}
+                  compiler::CallDescriptor* call_desc, compiler::ModuleEnv* env)
+      : asm_(liftoff_asm),
+        call_desc_(call_desc),
+        env_(env),
+        compilation_zone_(liftoff_asm->isolate()->allocator(),
+                          "liftoff compilation"),
+        safepoint_table_builder_(&compilation_zone_) {}
 
   bool ok() const { return ok_; }
 
@@ -83,6 +87,10 @@ class LiftoffCompiler {
     TRACE("unsupported: %s\n", reason);
     decoder->errorf(decoder->pc(), "unsupported liftoff operation: %s", reason);
     BindUnboundLabels(decoder);
+  }
+
+  int GetSafepointTableOffset() const {
+    return safepoint_table_builder_.GetCodeOffset();
   }
 
   void BindUnboundLabels(Decoder* decoder) {
@@ -214,7 +222,9 @@ class LiftoffCompiler {
     CheckStackSizeLimit(decoder);
   }
 
-  void FinishFunction(Decoder* decoder) {}
+  void FinishFunction(Decoder* decoder) {
+    safepoint_table_builder_.Emit(asm_, __ GetTotalFrameSlotCount());
+  }
 
   void OnFirstError(Decoder* decoder) {
     ok_ = false;
@@ -562,10 +572,15 @@ class LiftoffCompiler {
   }
 
  private:
-  LiftoffAssembler* asm_;
-  compiler::CallDescriptor* call_desc_;
-  const compiler::ModuleEnv* env_;
+  LiftoffAssembler* const asm_;
+  compiler::CallDescriptor* const call_desc_;
+  compiler::ModuleEnv* const env_;
   bool ok_ = true;
+  // Zone used to store information during compilation. The result will be
+  // stored independently, such that this zone can die together with the
+  // LiftoffCompiler after compilation.
+  Zone compilation_zone_;
+  SafepointTableBuilder safepoint_table_builder_;
 };
 
 }  // namespace
@@ -601,6 +616,8 @@ bool compiler::WasmCompilationUnit::ExecuteLiftoffCompilation() {
   // Record the memory cost this unit places on the system until
   // it is finalized.
   memory_cost_ = liftoff_.asm_.pc_offset();
+  liftoff_.safepoint_table_offset_ =
+      decoder.interface().GetSafepointTableOffset();
   isolate_->counters()->liftoff_compiled_functions()->Increment();
   return true;
 }

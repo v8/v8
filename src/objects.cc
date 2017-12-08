@@ -14530,7 +14530,8 @@ void Code::Disassemble(const char* name, std::ostream& os) {  // NOLINT
   {
     Isolate* isolate = GetIsolate();
     int size = instruction_size();
-    int safepoint_offset = is_turbofanned() ? safepoint_table_offset() : size;
+    int safepoint_offset =
+        has_safepoint_info() ? safepoint_table_offset() : size;
     int constant_pool_offset = FLAG_enable_embedded_constant_pool
                                    ? this->constant_pool_offset()
                                    : size;
@@ -14573,7 +14574,7 @@ void Code::Disassemble(const char* name, std::ostream& os) {  // NOLINT
   }
   os << "\n";
 
-  if (is_turbofanned()) {
+  if (has_safepoint_info()) {
     SafepointTable table(this);
     os << "Safepoints (size = " << table.size() << ")\n";
     for (unsigned i = 0; i < table.length(); i++) {

@@ -287,7 +287,6 @@ class LiftoffAssembler : public TurboAssembler {
   void set_num_locals(uint32_t num_locals);
 
   uint32_t GetTotalFrameSlotCount() const;
-  size_t GetSafepointTableOffset() const { return 0; }
 
   ValueType local_type(uint32_t index) {
     DCHECK_GT(num_locals_, index);
