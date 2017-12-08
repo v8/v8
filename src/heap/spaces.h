@@ -997,6 +997,9 @@ class Space : public Malloced {
 
  protected:
   intptr_t GetNextInlineAllocationStepSize();
+  bool AllocationObserversActive() {
+    return !allocation_observers_paused_ && !allocation_observers_.empty();
+  }
 
   std::vector<AllocationObserver*> allocation_observers_;
   bool allocation_observers_paused_;
@@ -1973,6 +1976,8 @@ class SpaceWithLinearArea : public Space {
     allocation_info_.Reset(nullptr, nullptr);
   }
 
+  virtual bool SupportsInlineAllocation() = 0;
+
   // Returns the allocation pointer in this space.
   Address top() { return allocation_info_.top(); }
   Address limit() { return allocation_info_.limit(); }
@@ -2237,7 +2242,7 @@ class V8_EXPORT_PRIVATE PagedSpace
   }
   void DecreaseLimit(Address new_limit);
   void StartNextInlineAllocationStep() override;
-  bool SupportsInlineAllocation() {
+  bool SupportsInlineAllocation() override {
     return identity() == OLD_SPACE && !is_local();
   }
 
@@ -2775,7 +2780,7 @@ class NewSpace : public SpaceWithLinearArea {
   HistogramInfo* promoted_histogram_;
 
   bool EnsureAllocation(int size_in_bytes, AllocationAlignment alignment);
-
+  bool SupportsInlineAllocation() override { return true; }
   void StartNextInlineAllocationStep() override;
 
   friend class SemiSpaceIterator;
