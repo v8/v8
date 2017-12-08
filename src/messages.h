@@ -308,7 +308,7 @@ class ErrorUtils : public AllStatic {
   T(ConstructorNotFunction, "Constructor % requires 'new'")                    \
   T(ConstructorNotReceiver, "The .constructor property is not an object")      \
   T(CurrencyCode, "Currency code is required with currency style.")            \
-  T(CyclicModuleDependency, "Detected cycle while resolving name '%'")         \
+  T(CyclicModuleDependency, "Detected cycle while resolving name '%' in '%'")  \
   T(DataViewNotArrayBuffer,                                                    \
     "First argument to DataView constructor must be an ArrayBuffer")           \
   T(DateType, "this is not a Date object.")                                    \
@@ -564,7 +564,7 @@ class ErrorUtils : public AllStatic {
   T(ValueOutOfRange, "Value % out of range for % options property %")          \
   /* SyntaxError */                                                            \
   T(AmbiguousExport,                                                           \
-    "The requested module contains conflicting star exports for name '%'")     \
+    "The requested module '%' contains conflicting star exports for name '%'") \
   T(BadGetterArity, "Getter must not have any formal parameters.")             \
   T(BadSetterArity, "Setter must have exactly one formal parameter.")          \
   T(BigIntInvalidString, "Invalid BigInt string")                              \
@@ -699,7 +699,7 @@ class ErrorUtils : public AllStatic {
     "Lexical declaration cannot appear in a single-statement context")         \
   T(UnknownLabel, "Undefined label '%'")                                       \
   T(UnresolvableExport,                                                        \
-    "The requested module does not provide an export named '%'")               \
+    "The requested module '%' does not provide an export named '%'")           \
   T(UnterminatedArgList, "missing ) after argument list")                      \
   T(UnterminatedRegExp, "Invalid regular expression: missing /")               \
   T(UnterminatedTemplate, "Unterminated template literal")                     \

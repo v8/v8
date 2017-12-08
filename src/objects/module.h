@@ -154,15 +154,17 @@ class Module : public Struct {
   // exception (so check manually!).
   class ResolveSet;
   static MUST_USE_RESULT MaybeHandle<Cell> ResolveExport(
-      Handle<Module> module, Handle<String> name, MessageLocation loc,
-      bool must_resolve, ResolveSet* resolve_set);
+      Handle<Module> module, Handle<String> module_specifier,
+      Handle<String> export_name, MessageLocation loc, bool must_resolve,
+      ResolveSet* resolve_set);
   static MUST_USE_RESULT MaybeHandle<Cell> ResolveImport(
       Handle<Module> module, Handle<String> name, int module_request,
       MessageLocation loc, bool must_resolve, ResolveSet* resolve_set);
 
   static MUST_USE_RESULT MaybeHandle<Cell> ResolveExportUsingStarExports(
-      Handle<Module> module, Handle<String> name, MessageLocation loc,
-      bool must_resolve, ResolveSet* resolve_set);
+      Handle<Module> module, Handle<String> module_specifier,
+      Handle<String> export_name, MessageLocation loc, bool must_resolve,
+      ResolveSet* resolve_set);
 
   static MUST_USE_RESULT bool PrepareInstantiate(
       Handle<Module> module, v8::Local<v8::Context> context,
