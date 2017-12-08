@@ -800,7 +800,6 @@ static void AdvanceBytecodeOffset(MacroAssembler* masm, Register bytecode_array,
   __ movzx_b(bytecode, Operand(bytecode_array, bytecode_offset, times_1, 0));
   __ add(bytecode_size_table,
          Immediate(2 * kIntSize * interpreter::Bytecodes::kBytecodeCount));
-  __ jmp(&load_size, Label::kNear);
 
   // Load the size of the current bytecode.
   __ bind(&load_size);

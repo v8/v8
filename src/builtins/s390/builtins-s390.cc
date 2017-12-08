@@ -880,10 +880,9 @@ static void AdvanceBytecodeOffset(MacroAssembler* masm, Register bytecode_array,
   __ LoadlB(bytecode, MemOperand(bytecode_array, bytecode_offset));
   __ AddP(bytecode_size_table, bytecode_size_table,
           Operand(2 * kIntSize * interpreter::Bytecodes::kBytecodeCount));
-  __ b(&load_size);
+
   // Load the size of the current bytecode.
   __ bind(&load_size);
-
   __ ShiftLeftP(scratch2, bytecode, Operand(2));
   __ LoadlW(scratch2, MemOperand(bytecode_size_table, scratch2));
   __ AddP(bytecode_offset, bytecode_offset, scratch2);

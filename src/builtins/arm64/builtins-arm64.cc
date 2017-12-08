@@ -974,7 +974,6 @@ static void AdvanceBytecodeOffset(MacroAssembler* masm, Register bytecode_array,
   __ Ldrb(bytecode, MemOperand(bytecode_array, bytecode_offset));
   __ Add(bytecode_size_table, bytecode_size_table,
          Operand(2 * kIntSize * interpreter::Bytecodes::kBytecodeCount));
-  __ B(&load_size);
 
   // Load the size of the current bytecode.
   __ Bind(&load_size);
