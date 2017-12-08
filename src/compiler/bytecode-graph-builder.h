@@ -235,6 +235,10 @@ class BytecodeGraphBuilder {
   // feedback.
   CallFrequency ComputeCallFrequency(int slot_id) const;
 
+  // Helper function to extract the speulcation mode from the recorded type
+  // feedback.
+  SpeculationMode GetSpeculationMode(int slot_id) const;
+
   // Control flow plumbing.
   void BuildJump();
   void BuildJumpIf(Node* condition);

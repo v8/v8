@@ -161,8 +161,10 @@ class CallParameters final {
  public:
   CallParameters(size_t arity, CallFrequency frequency,
                  VectorSlotPair const& feedback,
-                 ConvertReceiverMode convert_mode)
+                 ConvertReceiverMode convert_mode,
+                 SpeculationMode speculation_mode)
       : bit_field_(ArityField::encode(arity) |
+                   SpeculationModeField::encode(speculation_mode) |
                    ConvertReceiverModeField::encode(convert_mode)),
         frequency_(frequency),
         feedback_(feedback) {}
@@ -173,6 +175,10 @@ class CallParameters final {
     return ConvertReceiverModeField::decode(bit_field_);
   }
   VectorSlotPair const& feedback() const { return feedback_; }
+
+  SpeculationMode speculation_mode() const {
+    return SpeculationModeField::decode(bit_field_);
+  }
 
   bool operator==(CallParameters const& that) const {
     return this->bit_field_ == that.bit_field_ &&
@@ -186,7 +192,8 @@ class CallParameters final {
     return base::hash_combine(p.bit_field_, p.frequency_, p.feedback_);
   }
 
-  typedef BitField<size_t, 0, 29> ArityField;
+  typedef BitField<size_t, 0, 28> ArityField;
+  typedef BitField<SpeculationMode, 28, 1> SpeculationModeField;
   typedef BitField<ConvertReceiverMode, 29, 2> ConvertReceiverModeField;
 
   uint32_t const bit_field_;
@@ -667,11 +674,13 @@ class V8_EXPORT_PRIVATE JSOperatorBuilder final
   const Operator* Call(
       size_t arity, CallFrequency frequency = CallFrequency(),
       VectorSlotPair const& feedback = VectorSlotPair(),
-      ConvertReceiverMode convert_mode = ConvertReceiverMode::kAny);
+      ConvertReceiverMode convert_mode = ConvertReceiverMode::kAny,
+      SpeculationMode speculation_mode = SpeculationMode::kAllowSpeculation);
   const Operator* CallWithArrayLike(CallFrequency frequency);
   const Operator* CallWithSpread(
       uint32_t arity, CallFrequency frequency = CallFrequency(),
-      VectorSlotPair const& feedback = VectorSlotPair());
+      VectorSlotPair const& feedback = VectorSlotPair(),
+      SpeculationMode speculation_mode = SpeculationMode::kAllowSpeculation);
   const Operator* CallRuntime(Runtime::FunctionId id);
   const Operator* CallRuntime(Runtime::FunctionId id, size_t arity);
   const Operator* CallRuntime(const Runtime::Function* function, size_t arity);

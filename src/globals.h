@@ -1445,6 +1445,20 @@ inline std::ostream& operator<<(std::ostream& os,
   return os;
 }
 
+enum class SpeculationMode { kAllowSpeculation, kDisallowSpeculation };
+
+inline std::ostream& operator<<(std::ostream& os,
+                                SpeculationMode speculation_mode) {
+  switch (speculation_mode) {
+    case SpeculationMode::kAllowSpeculation:
+      return os << "SpeculationMode::kAllowSpeculation";
+    case SpeculationMode::kDisallowSpeculation:
+      return os << "SpeculationMode::kDisallowSpeculation";
+  }
+  UNREACHABLE();
+  return os;
+}
+
 enum class ConcurrencyMode { kNotConcurrent, kConcurrent };
 
 #define FOR_EACH_ISOLATE_ADDRESS_NAME(C)                       \

@@ -10,6 +10,7 @@
 #include "src/base/logging.h"
 #include "src/base/macros.h"
 #include "src/elements-kind.h"
+#include "src/globals.h"
 #include "src/objects/map.h"
 #include "src/objects/name.h"
 #include "src/objects/object-macros.h"
@@ -623,7 +624,6 @@ class FeedbackNexus {
 
 class CallICNexus final : public FeedbackNexus {
  public:
-  enum SpeculationMode { kAllowSpeculation, kDisallowSpeculation };
   CallICNexus(Handle<FeedbackVector> vector, FeedbackSlot slot)
       : FeedbackNexus(vector, slot) {
     DCHECK(vector->IsCallIC(slot));

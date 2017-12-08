@@ -691,7 +691,7 @@ void CallICNexus::SetSpeculationMode(SpeculationMode mode) {
   SetFeedbackExtra(Smi::FromInt(result), SKIP_WRITE_BARRIER);
 }
 
-CallICNexus::SpeculationMode CallICNexus::GetSpeculationMode() {
+SpeculationMode CallICNexus::GetSpeculationMode() {
   Object* call_count = GetFeedbackExtra();
   CHECK(call_count->IsSmi());
   uint32_t value = static_cast<uint32_t>(Smi::ToInt(call_count));

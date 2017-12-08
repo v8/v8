@@ -313,17 +313,17 @@ TEST(VectorSpeculationMode) {
 
   FeedbackSlot slot(0);
   CallICNexus nexus(feedback_vector, slot);
-  CHECK_EQ(CallICNexus::kAllowSpeculation, nexus.GetSpeculationMode());
+  CHECK_EQ(SpeculationMode::kAllowSpeculation, nexus.GetSpeculationMode());
 
   CompileRun("f(Foo); f(Foo);");
   CHECK_EQ(3, nexus.GetCallCount());
-  CHECK_EQ(CallICNexus::kAllowSpeculation, nexus.GetSpeculationMode());
+  CHECK_EQ(SpeculationMode::kAllowSpeculation, nexus.GetSpeculationMode());
 
-  nexus.SetSpeculationMode(CallICNexus::kAllowSpeculation);
-  nexus.SetSpeculationMode(CallICNexus::kDisallowSpeculation);
-  CHECK_EQ(CallICNexus::kDisallowSpeculation, nexus.GetSpeculationMode());
-  nexus.SetSpeculationMode(CallICNexus::kAllowSpeculation);
-  CHECK_EQ(CallICNexus::kAllowSpeculation, nexus.GetSpeculationMode());
+  nexus.SetSpeculationMode(SpeculationMode::kAllowSpeculation);
+  nexus.SetSpeculationMode(SpeculationMode::kDisallowSpeculation);
+  CHECK_EQ(SpeculationMode::kDisallowSpeculation, nexus.GetSpeculationMode());
+  nexus.SetSpeculationMode(SpeculationMode::kAllowSpeculation);
+  CHECK_EQ(SpeculationMode::kAllowSpeculation, nexus.GetSpeculationMode());
 }
 
 TEST(VectorLoadICStates) {
