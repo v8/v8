@@ -623,6 +623,7 @@ class FeedbackNexus {
 
 class CallICNexus final : public FeedbackNexus {
  public:
+  enum SpeculationMode { kAllowSpeculation, kDisallowSpeculation };
   CallICNexus(Handle<FeedbackVector> vector, FeedbackSlot slot)
       : FeedbackNexus(vector, slot) {
     DCHECK(vector->IsCallIC(slot));
@@ -647,11 +648,16 @@ class CallICNexus final : public FeedbackNexus {
     return length == 0;
   }
 
-  int ExtractCallCount();
+  int GetCallCount();
+  void SetSpeculationMode(SpeculationMode mode);
+  SpeculationMode GetSpeculationMode();
 
   // Compute the call frequency based on the call count and the invocation
   // count (taken from the type feedback vector).
   float ComputeCallFrequency();
+
+  typedef BitField<SpeculationMode, 0, 1> SpeculationModeField;
+  typedef BitField<uint32_t, 1, 31> CallCountField;
 };
 
 class LoadICNexus : public FeedbackNexus {

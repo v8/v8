@@ -675,16 +675,31 @@ InlineCacheState CallICNexus::StateFromFeedback() const {
   return UNINITIALIZED;
 }
 
-int CallICNexus::ExtractCallCount() {
+int CallICNexus::GetCallCount() {
   Object* call_count = GetFeedbackExtra();
   CHECK(call_count->IsSmi());
-  int value = Smi::ToInt(call_count);
-  return value;
+  uint32_t value = static_cast<uint32_t>(Smi::ToInt(call_count));
+  return CallCountField::decode(value);
 }
 
+void CallICNexus::SetSpeculationMode(SpeculationMode mode) {
+  Object* call_count = GetFeedbackExtra();
+  CHECK(call_count->IsSmi());
+  uint32_t value = static_cast<uint32_t>(Smi::ToInt(call_count));
+  int result = static_cast<int>(CallCountField::decode(value) |
+                                SpeculationModeField::encode(mode));
+  SetFeedbackExtra(Smi::FromInt(result), SKIP_WRITE_BARRIER);
+}
+
+CallICNexus::SpeculationMode CallICNexus::GetSpeculationMode() {
+  Object* call_count = GetFeedbackExtra();
+  CHECK(call_count->IsSmi());
+  uint32_t value = static_cast<uint32_t>(Smi::ToInt(call_count));
+  return SpeculationModeField::decode(value);
+}
 float CallICNexus::ComputeCallFrequency() {
   double const invocation_count = vector()->invocation_count();
-  double const call_count = ExtractCallCount();
+  double const call_count = GetCallCount();
   if (invocation_count == 0) {
     // Prevent division by 0.
     return 0.0f;
