@@ -34,27 +34,6 @@ typedef int (*ppc_regexp_matcher)(String*, int, const byte*, const byte*, int*,
                                    p7, p8)                                     \
   (FUNCTION_CAST<ppc_regexp_matcher>(entry)(p0, p1, p2, p3, p4, p5, p6, p7, p8))
 
-// The stack limit beyond which we will throw stack overflow errors in
-// generated code. Because generated code on ppc uses the C stack, we
-// just use the C stack limit.
-class SimulatorStack : public v8::internal::AllStatic {
- public:
-  static inline uintptr_t JsLimitFromCLimit(v8::internal::Isolate* isolate,
-                                            uintptr_t c_limit) {
-    USE(isolate);
-    return c_limit;
-  }
-
-  static inline uintptr_t RegisterCTryCatch(v8::internal::Isolate* isolate,
-                                            uintptr_t try_catch_address) {
-    USE(isolate);
-    return try_catch_address;
-  }
-
-  static inline void UnregisterCTryCatch(v8::internal::Isolate* isolate) {
-    USE(isolate);
-  }
-};
 }  // namespace internal
 }  // namespace v8
 
@@ -495,27 +474,6 @@ class Simulator {
       entry, 9, (intptr_t)p0, (intptr_t)p1, (intptr_t)p2, (intptr_t)p3,        \
       (intptr_t)p4, (intptr_t)p5, (intptr_t)p6, (intptr_t)p7, (intptr_t)p8)
 
-// The simulator has its own stack. Thus it has a different stack limit from
-// the C-based native code.  The JS-based limit normally points near the end of
-// the simulator stack.  When the C-based limit is exhausted we reflect that by
-// lowering the JS-based limit as well, to make stack checks trigger.
-class SimulatorStack : public v8::internal::AllStatic {
- public:
-  static inline uintptr_t JsLimitFromCLimit(v8::internal::Isolate* isolate,
-                                            uintptr_t c_limit) {
-    return Simulator::current(isolate)->StackLimit(c_limit);
-  }
-
-  static inline uintptr_t RegisterCTryCatch(v8::internal::Isolate* isolate,
-                                            uintptr_t try_catch_address) {
-    Simulator* sim = Simulator::current(isolate);
-    return sim->PushAddress(try_catch_address);
-  }
-
-  static inline void UnregisterCTryCatch(v8::internal::Isolate* isolate) {
-    Simulator::current(isolate)->PopAddress();
-  }
-};
 }  // namespace internal
 }  // namespace v8
 

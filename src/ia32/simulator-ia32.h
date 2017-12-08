@@ -25,29 +25,6 @@ typedef int (*regexp_matcher)(String*, int, const byte*,
                                    p7, p8)                                     \
   (FUNCTION_CAST<regexp_matcher>(entry)(p0, p1, p2, p3, p4, p5, p6, p7, p8))
 
-
-// The stack limit beyond which we will throw stack overflow errors in
-// generated code. Because generated code on ia32 uses the C stack, we
-// just use the C stack limit.
-class SimulatorStack : public v8::internal::AllStatic {
- public:
-  static inline uintptr_t JsLimitFromCLimit(Isolate* isolate,
-                                            uintptr_t c_limit) {
-    USE(isolate);
-    return c_limit;
-  }
-
-  static inline uintptr_t RegisterCTryCatch(v8::internal::Isolate* isolate,
-                                            uintptr_t try_catch_address) {
-    USE(isolate);
-    return try_catch_address;
-  }
-
-  static inline void UnregisterCTryCatch(v8::internal::Isolate* isolate) {
-    USE(isolate);
-  }
-};
-
 }  // namespace internal
 }  // namespace v8
 

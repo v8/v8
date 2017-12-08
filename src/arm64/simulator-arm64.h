@@ -45,26 +45,6 @@ typedef int (*arm64_regexp_matcher)(String* input,
   (FUNCTION_CAST<arm64_regexp_matcher>(entry)(p0, p1, p2, p3, p4, p5, p6, p7,  \
                                               p8))
 
-// Running without a simulator there is nothing to do.
-class SimulatorStack : public v8::internal::AllStatic {
- public:
-  static uintptr_t JsLimitFromCLimit(v8::internal::Isolate* isolate,
-                                     uintptr_t c_limit) {
-    USE(isolate);
-    return c_limit;
-  }
-
-  static uintptr_t RegisterCTryCatch(v8::internal::Isolate* isolate,
-                                     uintptr_t try_catch_address) {
-    USE(isolate);
-    return try_catch_address;
-  }
-
-  static void UnregisterCTryCatch(v8::internal::Isolate* isolate) {
-    USE(isolate);
-  }
-};
-
 #else  // !defined(USE_SIMULATOR)
 
 // Assemble the specified IEEE-754 components into the target type and apply
@@ -2417,28 +2397,6 @@ inline float Simulator::FPDefaultNaN<float>() {
                                    p7, p8)                                     \
   static_cast<int>(Simulator::current(isolate)->CallRegExp(                    \
       entry, p0, p1, p2, p3, p4, p5, p6, p7, p8))
-
-// The simulator has its own stack. Thus it has a different stack limit from
-// the C-based native code.  The JS-based limit normally points near the end of
-// the simulator stack.  When the C-based limit is exhausted we reflect that by
-// lowering the JS-based limit as well, to make stack checks trigger.
-class SimulatorStack : public v8::internal::AllStatic {
- public:
-  static uintptr_t JsLimitFromCLimit(v8::internal::Isolate* isolate,
-                                            uintptr_t c_limit) {
-    return Simulator::current(isolate)->StackLimit(c_limit);
-  }
-
-  static uintptr_t RegisterCTryCatch(v8::internal::Isolate* isolate,
-                                     uintptr_t try_catch_address) {
-    Simulator* sim = Simulator::current(isolate);
-    return sim->PushAddress(try_catch_address);
-  }
-
-  static void UnregisterCTryCatch(v8::internal::Isolate* isolate) {
-    Simulator::current(isolate)->PopAddress();
-  }
-};
 
 #endif  // !defined(USE_SIMULATOR)
 
