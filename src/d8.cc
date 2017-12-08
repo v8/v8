@@ -83,7 +83,7 @@ class ArrayBufferAllocatorBase : public v8::ArrayBuffer::Allocator {
     size_t alloc_length = GetAllocLength(length);
     // TODO(titzer): allocations should fail if >= 2gb because array buffers
     // store their lengths as a SMI internally.
-    if (alloc_length > kTwoGB) return nullptr;
+    if (alloc_length >= kTwoGB) return nullptr;
 #if V8_OS_AIX && _LINUX_SOURCE_COMPAT
     // Work around for GCC bug on AIX
     // See: https://gcc.gnu.org/bugzilla/show_bug.cgi?id=79839
@@ -99,7 +99,7 @@ class ArrayBufferAllocatorBase : public v8::ArrayBuffer::Allocator {
     size_t alloc_length = GetAllocLength(length);
     // TODO(titzer): allocations should fail if >= 2gb because array buffers
     // store their lengths as a SMI internally.
-    if (alloc_length > kTwoGB) return nullptr;
+    if (alloc_length >= kTwoGB) return nullptr;
 #if V8_OS_AIX && _LINUX_SOURCE_COMPAT
     // Work around for GCC bug on AIX
     // See: https://gcc.gnu.org/bugzilla/show_bug.cgi?id=79839
