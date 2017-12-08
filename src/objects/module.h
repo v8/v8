@@ -182,6 +182,11 @@ class Module : public Struct {
                                        ZoneForwardList<Handle<Module>>* stack,
                                        Status new_status);
 
+  // Set module's status back to kUninstantiated and reset other internal state.
+  // This is used when instantiation fails.
+  static void Reset(Handle<Module> module);
+  static void ResetGraph(Handle<Module> module);
+
   // To set status to kErrored, RecordError should be used.
   void SetStatus(Status status);
   void RecordError();

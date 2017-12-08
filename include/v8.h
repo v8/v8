@@ -1129,15 +1129,15 @@ class V8_EXPORT Location {
 };
 
 /**
- * This is an unfinished experimental feature, and is only exposed
- * here for internal testing purposes. DO NOT USE.
- *
  * A compiled JavaScript module.
  */
 class V8_EXPORT Module {
  public:
   /**
    * The different states a module can be in.
+   * This corresponds to the states used in ECMAScript except that "evaluated"
+   * is split into kEvaluated and kErrored, indicating success and failure,
+   * respectively.
    */
   enum Status {
     kUninstantiated,
@@ -1542,9 +1542,6 @@ class V8_EXPORT ScriptCompiler {
   static uint32_t CachedDataVersionTag();
 
   /**
-   * This is an unfinished experimental feature, and is only exposed
-   * here for internal testing purposes. DO NOT USE.
-   *
    * Compile an ES module, returning a Module that encapsulates
    * the compiled code.
    *
@@ -7142,9 +7139,6 @@ class V8_EXPORT Isolate {
       HostImportModuleDynamicallyCallback callback);
 
   /**
-   * This is an unfinished experimental feature, and is only exposed
-   * here for internal testing purposes. DO NOT USE.
-   *
    * This specifies the callback called by the upcoming importa.meta
    * language feature to retrieve host-defined meta data for a module.
    */
