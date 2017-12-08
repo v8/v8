@@ -37,6 +37,8 @@ class V8_EXPORT_PRIVATE VectorSlotPair {
 bool operator==(VectorSlotPair const&, VectorSlotPair const&);
 bool operator!=(VectorSlotPair const&, VectorSlotPair const&);
 
+std::ostream& operator<<(std::ostream& os, const VectorSlotPair& pair);
+
 size_t hash_value(VectorSlotPair const&);
 
 }  // namespace internal
