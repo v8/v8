@@ -1773,6 +1773,7 @@ void Heap::MinorMarkCompact() {
   IncrementalMarking::PauseBlackAllocationScope pause_black_allocation(
       incremental_marking());
   CodeSpaceMemoryModificationScope code_modifcation(this);
+  ConcurrentMarking::PauseScope pause_scope(concurrent_marking());
 
   minor_mark_compact_collector()->CollectGarbage();
 

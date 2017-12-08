@@ -92,10 +92,4 @@
   'debug/debug-liveedit-restart-frame': [SKIP],
 }],  # 'arch == s390 or arch == s390x'
 
-##############################################################################
-['variant == minor_mc', {
-  # TODO(mlippautz) Flaky unreachable code crash.
-  'regress/regress-2318': [SKIP],
-}],  # variant == minor_mc
-
 ]
