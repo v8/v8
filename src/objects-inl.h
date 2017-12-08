@@ -2252,10 +2252,19 @@ SMI_ACCESSORS(AccessorInfo, flags, kFlagsOffset)
 ACCESSORS(AccessorInfo, expected_receiver_type, Object,
           kExpectedReceiverTypeOffset)
 
-ACCESSORS(AccessorInfo, getter, Object, kGetterOffset)
-ACCESSORS(AccessorInfo, setter, Object, kSetterOffset)
+ACCESSORS_CHECKED2(AccessorInfo, getter, Object, kGetterOffset, true,
+                   Foreign::IsNormalized(value))
+ACCESSORS_CHECKED2(AccessorInfo, setter, Object, kSetterOffset, true,
+                   Foreign::IsNormalized(value));
 ACCESSORS(AccessorInfo, js_getter, Object, kJsGetterOffset)
 ACCESSORS(AccessorInfo, data, Object, kDataOffset)
+
+bool AccessorInfo::has_getter() {
+  bool result = getter() != Smi::kZero;
+  DCHECK_EQ(result, getter() != Smi::kZero &&
+                        Foreign::cast(getter())->foreign_address() != nullptr);
+  return result;
+}
 
 ACCESSORS(PromiseResolveThenableJobInfo, thenable, JSReceiver, kThenableOffset)
 ACCESSORS(PromiseResolveThenableJobInfo, then, JSReceiver, kThenOffset)
@@ -2368,6 +2377,7 @@ BOOL_ACCESSORS(InterceptorInfo, flags, can_intercept_symbols,
                kCanInterceptSymbolsBit)
 BOOL_ACCESSORS(InterceptorInfo, flags, all_can_read, kAllCanReadBit)
 BOOL_ACCESSORS(InterceptorInfo, flags, non_masking, kNonMasking)
+BOOL_ACCESSORS(InterceptorInfo, flags, is_named, kNamed)
 
 ACCESSORS(CallHandlerInfo, callback, Object, kCallbackOffset)
 ACCESSORS(CallHandlerInfo, js_callback, Object, kJsCallbackOffset)
@@ -2706,6 +2716,12 @@ ACCESSORS(JSProxy, target, JSReceiver, kTargetOffset)
 ACCESSORS(JSProxy, handler, Object, kHandlerOffset)
 
 bool JSProxy::IsRevoked() const { return !handler()->IsJSReceiver(); }
+
+// static
+bool Foreign::IsNormalized(Object* value) {
+  if (value == Smi::kZero) return true;
+  return Foreign::cast(value)->foreign_address() != nullptr;
+}
 
 Address Foreign::foreign_address() {
   return AddressFrom<Address>(READ_INTPTR_FIELD(this, kForeignAddressOffset));

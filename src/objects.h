@@ -4453,7 +4453,8 @@ class Foreign: public HeapObject {
  public:
   // [address]: field containing the address.
   inline Address foreign_address();
-  inline void set_foreign_address(Address value);
+
+  static inline bool IsNormalized(Object* object);
 
   DECL_CAST(Foreign)
 
@@ -4473,6 +4474,12 @@ class Foreign: public HeapObject {
   typedef BodyDescriptor BodyDescriptorWeak;
 
  private:
+  friend class Heap;
+  friend class SerializerDeserializer;
+  friend class StartupSerializer;
+
+  inline void set_foreign_address(Address value);
+
   DISALLOW_IMPLICIT_CONSTRUCTORS(Foreign);
 };
 
@@ -4492,6 +4499,7 @@ class AccessorInfo: public Struct {
   DECL_ACCESSORS(expected_receiver_type, Object)
   // This directly points at a foreign C function to be used from the runtime.
   DECL_ACCESSORS(getter, Object)
+  inline bool has_getter();
   DECL_ACCESSORS(setter, Object)
   // This either points at the same as above, or a trampoline in case we are
   // running with the simulator. Use these entries from generated code.
@@ -4656,6 +4664,7 @@ class InterceptorInfo: public Struct {
   DECL_BOOLEAN_ACCESSORS(can_intercept_symbols)
   DECL_BOOLEAN_ACCESSORS(all_can_read)
   DECL_BOOLEAN_ACCESSORS(non_masking)
+  DECL_BOOLEAN_ACCESSORS(is_named)
 
   inline int flags() const;
   inline void set_flags(int flags);
@@ -4680,6 +4689,7 @@ class InterceptorInfo: public Struct {
   static const int kCanInterceptSymbolsBit = 0;
   static const int kAllCanReadBit = 1;
   static const int kNonMasking = 2;
+  static const int kNamed = 3;
 
  private:
   DISALLOW_IMPLICIT_CONSTRUCTORS(InterceptorInfo);

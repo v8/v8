@@ -786,8 +786,7 @@ class RuntimeCallTimer final {
 
 #define FOR_EACH_MANUAL_COUNTER(V)             \
   V(AccessorGetterCallback)                    \
-  V(AccessorNameGetterCallback)                \
-  V(AccessorNameSetterCallback)                \
+  V(AccessorSetterCallback)                    \
   V(ArrayLengthGetter)                         \
   V(ArrayLengthSetter)                         \
   V(BoundFunctionNameGetter)                   \
@@ -822,18 +821,21 @@ class RuntimeCallTimer final {
   V(GC_Custom_SlowAllocateRaw)                 \
   V(GCEpilogueCallback)                        \
   V(GCPrologueCallback)                        \
-  V(GenericNamedPropertyDefinerCallback)       \
-  V(GenericNamedPropertyDeleterCallback)       \
-  V(GenericNamedPropertyDescriptorCallback)    \
-  V(GenericNamedPropertyQueryCallback)         \
-  V(GenericNamedPropertySetterCallback)        \
   V(GetMoreDataCallback)                       \
-  V(IndexedPropertyDefinerCallback)            \
-  V(IndexedPropertyDeleterCallback)            \
-  V(IndexedPropertyDescriptorCallback)         \
-  V(IndexedPropertyGetterCallback)             \
-  V(IndexedPropertyQueryCallback)              \
-  V(IndexedPropertySetterCallback)             \
+  V(NamedDefinerCallback)                      \
+  V(NamedDeleterCallback)                      \
+  V(NamedDescriptorCallback)                   \
+  V(NamedQueryCallback)                        \
+  V(NamedSetterCallback)                       \
+  V(NamedGetterCallback)                       \
+  V(NamedEnumeratorCallback)                   \
+  V(IndexedDefinerCallback)                    \
+  V(IndexedDeleterCallback)                    \
+  V(IndexedDescriptorCallback)                 \
+  V(IndexedGetterCallback)                     \
+  V(IndexedQueryCallback)                      \
+  V(IndexedSetterCallback)                     \
+  V(IndexedEnumeratorCallback)                 \
   V(InvokeApiInterruptCallbacks)               \
   V(InvokeFunctionCallback)                    \
   V(JS_Execution)                              \

@@ -1748,11 +1748,10 @@ static i::Handle<i::InterceptorInfo> CreateInterceptorInfo(
     i::Isolate* isolate, Getter getter, Setter setter, Query query,
     Descriptor descriptor, Deleter remover, Enumerator enumerator,
     Definer definer, Local<Value> data, PropertyHandlerFlags flags) {
-  DCHECK(query == nullptr ||
-         descriptor == nullptr);  // Either intercept attributes or descriptor.
-  DCHECK(query == nullptr ||
-         definer ==
-             nullptr);  // Only use descriptor callback with definer callback.
+  // Either intercept attributes or descriptor.
+  DCHECK(query == nullptr || descriptor == nullptr);
+  // Only use descriptor callback with definer callback.
+  DCHECK(query == nullptr || definer == nullptr);
   auto obj = i::Handle<i::InterceptorInfo>::cast(
       isolate->factory()->NewStruct(i::INTERCEPTOR_INFO_TYPE, i::TENURED));
   obj->set_flags(0);
@@ -1781,6 +1780,32 @@ static i::Handle<i::InterceptorInfo> CreateInterceptorInfo(
 
 template <typename Getter, typename Setter, typename Query, typename Descriptor,
           typename Deleter, typename Enumerator, typename Definer>
+static i::Handle<i::InterceptorInfo> CreateNamedInterceptorInfo(
+    i::Isolate* isolate, Getter getter, Setter setter, Query query,
+    Descriptor descriptor, Deleter remover, Enumerator enumerator,
+    Definer definer, Local<Value> data, PropertyHandlerFlags flags) {
+  auto interceptor =
+      CreateInterceptorInfo(isolate, getter, setter, query, descriptor, remover,
+                            enumerator, definer, data, flags);
+  interceptor->set_is_named(true);
+  return interceptor;
+}
+
+template <typename Getter, typename Setter, typename Query, typename Descriptor,
+          typename Deleter, typename Enumerator, typename Definer>
+static i::Handle<i::InterceptorInfo> CreateIndexedInterceptorInfo(
+    i::Isolate* isolate, Getter getter, Setter setter, Query query,
+    Descriptor descriptor, Deleter remover, Enumerator enumerator,
+    Definer definer, Local<Value> data, PropertyHandlerFlags flags) {
+  auto interceptor =
+      CreateInterceptorInfo(isolate, getter, setter, query, descriptor, remover,
+                            enumerator, definer, data, flags);
+  interceptor->set_is_named(false);
+  return interceptor;
+}
+
+template <typename Getter, typename Setter, typename Query, typename Descriptor,
+          typename Deleter, typename Enumerator, typename Definer>
 static void ObjectTemplateSetNamedPropertyHandler(
     ObjectTemplate* templ, Getter getter, Setter setter, Query query,
     Descriptor descriptor, Deleter remover, Enumerator enumerator,
@@ -1790,8 +1815,9 @@ static void ObjectTemplateSetNamedPropertyHandler(
   i::HandleScope scope(isolate);
   auto cons = EnsureConstructor(isolate, templ);
   EnsureNotInstantiated(cons, "ObjectTemplateSetNamedPropertyHandler");
-  auto obj = CreateInterceptorInfo(isolate, getter, setter, query, descriptor,
-                                   remover, enumerator, definer, data, flags);
+  auto obj =
+      CreateNamedInterceptorInfo(isolate, getter, setter, query, descriptor,
+                                 remover, enumerator, definer, data, flags);
   cons->set_named_property_handler(*obj);
 }
 
@@ -1868,12 +1894,12 @@ void ObjectTemplate::SetAccessCheckCallbackAndHandler(
       i::Handle<i::AccessCheckInfo>::cast(struct_info);
 
   SET_FIELD_WRAPPED(info, set_callback, callback);
-  auto named_interceptor = CreateInterceptorInfo(
+  auto named_interceptor = CreateNamedInterceptorInfo(
       isolate, named_handler.getter, named_handler.setter, named_handler.query,
       named_handler.descriptor, named_handler.deleter, named_handler.enumerator,
       named_handler.definer, named_handler.data, named_handler.flags);
   info->set_named_interceptor(*named_interceptor);
-  auto indexed_interceptor = CreateInterceptorInfo(
+  auto indexed_interceptor = CreateIndexedInterceptorInfo(
       isolate, indexed_handler.getter, indexed_handler.setter,
       indexed_handler.query, indexed_handler.descriptor,
       indexed_handler.deleter, indexed_handler.enumerator,
@@ -1896,10 +1922,10 @@ void ObjectTemplate::SetHandler(
   i::HandleScope scope(isolate);
   auto cons = EnsureConstructor(isolate, this);
   EnsureNotInstantiated(cons, "v8::ObjectTemplate::SetHandler");
-  auto obj = CreateInterceptorInfo(isolate, config.getter, config.setter,
-                                   config.query, config.descriptor,
-                                   config.deleter, config.enumerator,
-                                   config.definer, config.data, config.flags);
+  auto obj = CreateIndexedInterceptorInfo(
+      isolate, config.getter, config.setter, config.query, config.descriptor,
+      config.deleter, config.enumerator, config.definer, config.data,
+      config.flags);
   cons->set_indexed_property_handler(*obj);
 }
 
@@ -8893,7 +8919,6 @@ void Isolate::RemoveCallCompletedCallback(CallCompletedCallback callback) {
   i::Isolate* isolate = reinterpret_cast<i::Isolate*>(this);
   isolate->RemoveCallCompletedCallback(callback);
 }
-
 
 void Isolate::AddCallCompletedCallback(
     DeprecatedCallCompletedCallback callback) {

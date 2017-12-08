@@ -2304,23 +2304,18 @@ RUNTIME_FUNCTION(Runtime_StoreCallbackProperty) {
                                             language_mode));
   }
 
-  Handle<AccessorInfo> callback(
+  Handle<AccessorInfo> info(
       callback_or_cell->IsWeakCell()
           ? AccessorInfo::cast(WeakCell::cast(*callback_or_cell)->value())
           : AccessorInfo::cast(*callback_or_cell));
 
-  DCHECK(callback->IsCompatibleReceiver(*receiver));
-
-  Address setter_address = v8::ToCData<Address>(callback->setter());
-  v8::AccessorNameSetterCallback fun =
-      FUNCTION_CAST<v8::AccessorNameSetterCallback>(setter_address);
-  DCHECK_NOT_NULL(fun);
+  DCHECK(info->IsCompatibleReceiver(*receiver));
 
   ShouldThrow should_throw =
       is_sloppy(language_mode) ? kDontThrow : kThrowOnError;
-  PropertyCallbackArguments custom_args(isolate, callback->data(), *receiver,
-                                        *holder, should_throw);
-  custom_args.Call(fun, name, value);
+  PropertyCallbackArguments arguments(isolate, info->data(), *receiver, *holder,
+                                      should_throw);
+  arguments.CallAccessorSetter(info, name, value);
   RETURN_FAILURE_IF_SCHEDULED_EXCEPTION(isolate);
   return *value;
 }
@@ -2342,14 +2337,10 @@ RUNTIME_FUNCTION(Runtime_LoadPropertyWithInterceptor) {
         isolate, receiver, Object::ConvertReceiver(isolate, receiver));
   }
 
-  InterceptorInfo* interceptor = holder->GetNamedInterceptor();
+  Handle<InterceptorInfo> interceptor(holder->GetNamedInterceptor(), isolate);
   PropertyCallbackArguments arguments(isolate, interceptor->data(), *receiver,
                                       *holder, kDontThrow);
-
-  v8::GenericNamedPropertyGetterCallback getter =
-      v8::ToCData<v8::GenericNamedPropertyGetterCallback>(
-          interceptor->getter());
-  Handle<Object> result = arguments.Call(getter, name);
+  Handle<Object> result = arguments.CallNamedGetter(interceptor, name);
 
   RETURN_FAILURE_IF_SCHEDULED_EXCEPTION(isolate);
 
@@ -2397,15 +2388,12 @@ RUNTIME_FUNCTION(Runtime_StorePropertyWithInterceptor) {
   LanguageMode language_mode = vector->GetLanguageMode(vector_slot);
 
   DCHECK(receiver->HasNamedInterceptor());
-  InterceptorInfo* interceptor = receiver->GetNamedInterceptor();
+  Handle<InterceptorInfo> interceptor(receiver->GetNamedInterceptor(), isolate);
   DCHECK(!interceptor->non_masking());
   PropertyCallbackArguments arguments(isolate, interceptor->data(), *receiver,
                                       *receiver, kDontThrow);
 
-  v8::GenericNamedPropertySetterCallback setter =
-      v8::ToCData<v8::GenericNamedPropertySetterCallback>(
-          interceptor->setter());
-  Handle<Object> result = arguments.Call(setter, name, value);
+  Handle<Object> result = arguments.CallNamedSetter(interceptor, name, value);
   RETURN_FAILURE_IF_SCHEDULED_EXCEPTION(isolate);
   if (!result.is_null()) return *value;
 
@@ -2433,13 +2421,11 @@ RUNTIME_FUNCTION(Runtime_LoadElementWithInterceptor) {
   DCHECK_GE(args.smi_at(1), 0);
   uint32_t index = args.smi_at(1);
 
-  InterceptorInfo* interceptor = receiver->GetIndexedInterceptor();
+  Handle<InterceptorInfo> interceptor(receiver->GetIndexedInterceptor(),
+                                      isolate);
   PropertyCallbackArguments arguments(isolate, interceptor->data(), *receiver,
                                       *receiver, kDontThrow);
-
-  v8::IndexedPropertyGetterCallback getter =
-      v8::ToCData<v8::IndexedPropertyGetterCallback>(interceptor->getter());
-  Handle<Object> result = arguments.Call(getter, index);
+  Handle<Object> result = arguments.CallIndexedGetter(interceptor, index);
 
   RETURN_FAILURE_IF_SCHEDULED_EXCEPTION(isolate);
 

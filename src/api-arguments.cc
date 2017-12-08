@@ -3,6 +3,7 @@
 // found in the LICENSE file.
 
 #include "src/api-arguments.h"
+#include "src/api-arguments-inl.h"
 
 #include "src/debug/debug.h"
 #include "src/objects-inl.h"
@@ -26,19 +27,22 @@ Handle<Object> FunctionCallbackArguments::Call(FunctionCallback f) {
   return GetReturnValue<Object>(isolate);
 }
 
-Handle<JSObject> PropertyCallbackArguments::Call(
-    IndexedPropertyEnumeratorCallback f) {
-  Isolate* isolate = this->isolate();
-  if (isolate->needs_side_effect_check() &&
-      !isolate->debug()->PerformSideEffectCheckForCallback(FUNCTION_ADDR(f))) {
-    return Handle<JSObject>();
-  }
-  RuntimeCallTimerScope timer(isolate, RuntimeCallCounterId::kPropertyCallback);
-  VMState<EXTERNAL> state(isolate);
-  ExternalCallbackScope call_scope(isolate, FUNCTION_ADDR(f));
-  PropertyCallbackInfo<v8::Array> info(begin());
-  f(info);
-  return GetReturnValue<JSObject>(isolate);
+Handle<JSObject> PropertyCallbackArguments::CallNamedEnumerator(
+    Handle<InterceptorInfo> interceptor) {
+  DCHECK(interceptor->is_named());
+  LOG(isolate(), ApiObjectAccess("interceptor-named-enumerator", holder()));
+  RuntimeCallTimerScope timer(isolate(),
+                              RuntimeCallCounterId::kNamedEnumeratorCallback);
+  return CallPropertyEnumerator(interceptor);
+}
+
+Handle<JSObject> PropertyCallbackArguments::CallIndexedEnumerator(
+    Handle<InterceptorInfo> interceptor) {
+  DCHECK(!interceptor->is_named());
+  LOG(isolate(), ApiObjectAccess("interceptor-indexed-enumerator", holder()));
+  RuntimeCallTimerScope timer(isolate(),
+                              RuntimeCallCounterId::kIndexedEnumeratorCallback);
+  return CallPropertyEnumerator(interceptor);
 }
 
 bool PropertyCallbackArguments::PerformSideEffectCheck(Isolate* isolate,

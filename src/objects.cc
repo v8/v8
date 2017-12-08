@@ -1605,9 +1605,7 @@ MaybeHandle<Object> Object::GetPropertyWithAccessor(LookupIterator* it) {
                       Object);
     }
 
-    v8::AccessorNameGetterCallback call_fun =
-        v8::ToCData<v8::AccessorNameGetterCallback>(info->getter());
-    if (call_fun == nullptr) return isolate->factory()->undefined_value();
+    if (!info->has_getter()) return isolate->factory()->undefined_value();
 
     if (info->is_sloppy() && !receiver->IsJSReceiver()) {
       ASSIGN_RETURN_ON_EXCEPTION(isolate, receiver,
@@ -1617,14 +1615,15 @@ MaybeHandle<Object> Object::GetPropertyWithAccessor(LookupIterator* it) {
 
     PropertyCallbackArguments args(isolate, info->data(), *receiver, *holder,
                                    kDontThrow);
-    Handle<Object> result = args.Call(call_fun, name);
+    Handle<Object> result = args.CallAccessorGetter(info, name);
     RETURN_EXCEPTION_IF_SCHEDULED_EXCEPTION(isolate, Object);
     if (result.is_null()) return isolate->factory()->undefined_value();
     Handle<Object> reboxed_result = handle(*result, isolate);
     if (info->replace_on_access() && receiver->IsJSReceiver()) {
-      args.Call(reinterpret_cast<GenericNamedPropertySetterCallback>(
-                    &Accessors::ReconfigureToDataProperty),
-                name, result);
+      args.CallNamedSetterCallback(
+          reinterpret_cast<GenericNamedPropertySetterCallback>(
+              &Accessors::ReconfigureToDataProperty),
+          name, result);
       RETURN_EXCEPTION_IF_SCHEDULED_EXCEPTION(isolate, Object);
     }
     return reboxed_result;
@@ -1733,7 +1732,7 @@ Maybe<bool> Object::SetPropertyWithAccessor(LookupIterator* it,
 
     PropertyCallbackArguments args(isolate, info->data(), *receiver, *holder,
                                    should_throw);
-    Handle<Object> result = args.Call(call_fun, name, value);
+    Handle<Object> result = args.CallNamedSetterCallback(call_fun, name, value);
     // In the case of AccessorNameSetterCallback, we know that the result value
     // cannot have been set, so the result of Call will be null.  In the case of
     // AccessorNameBooleanSetterCallback, the result will either be null
@@ -1853,20 +1852,9 @@ MaybeHandle<Object> GetPropertyWithInterceptorInternal(
                                  *holder, kDontThrow);
 
   if (it->IsElement()) {
-    uint32_t index = it->index();
-    v8::IndexedPropertyGetterCallback getter =
-        v8::ToCData<v8::IndexedPropertyGetterCallback>(interceptor->getter());
-    result = args.Call(getter, index);
+    result = args.CallIndexedGetter(interceptor, it->index());
   } else {
-    Handle<Name> name = it->name();
-    DCHECK(!name->IsPrivate());
-
-    DCHECK_IMPLIES(name->IsSymbol(), interceptor->can_intercept_symbols());
-
-    v8::GenericNamedPropertyGetterCallback getter =
-        v8::ToCData<v8::GenericNamedPropertyGetterCallback>(
-            interceptor->getter());
-    result = args.Call(getter, name);
+    result = args.CallNamedGetter(interceptor, it->name());
   }
 
   RETURN_EXCEPTION_IF_SCHEDULED_EXCEPTION(isolate, Object);
@@ -1898,17 +1886,9 @@ Maybe<PropertyAttributes> GetPropertyAttributesWithInterceptorInternal(
   if (!interceptor->query()->IsUndefined(isolate)) {
     Handle<Object> result;
     if (it->IsElement()) {
-      uint32_t index = it->index();
-      v8::IndexedPropertyQueryCallback query =
-          v8::ToCData<v8::IndexedPropertyQueryCallback>(interceptor->query());
-      result = args.Call(query, index);
+      result = args.CallIndexedQuery(interceptor, it->index());
     } else {
-      Handle<Name> name = it->name();
-      DCHECK(!name->IsPrivate());
-      v8::GenericNamedPropertyQueryCallback query =
-          v8::ToCData<v8::GenericNamedPropertyQueryCallback>(
-              interceptor->query());
-      result = args.Call(query, name);
+      result = args.CallNamedQuery(interceptor, it->name());
     }
     if (!result.is_null()) {
       int32_t value;
@@ -1919,17 +1899,9 @@ Maybe<PropertyAttributes> GetPropertyAttributesWithInterceptorInternal(
     // TODO(verwaest): Use GetPropertyWithInterceptor?
     Handle<Object> result;
     if (it->IsElement()) {
-      uint32_t index = it->index();
-      v8::IndexedPropertyGetterCallback getter =
-          v8::ToCData<v8::IndexedPropertyGetterCallback>(interceptor->getter());
-      result = args.Call(getter, index);
+      result = args.CallIndexedGetter(interceptor, it->index());
     } else {
-      Handle<Name> name = it->name();
-      DCHECK(!name->IsPrivate());
-      v8::GenericNamedPropertyGetterCallback getter =
-          v8::ToCData<v8::GenericNamedPropertyGetterCallback>(
-              interceptor->getter());
-      result = args.Call(getter, name);
+      result = args.CallNamedGetter(interceptor, it->name());
     }
     if (!result.is_null()) return Just(DONT_ENUM);
   }
@@ -1960,22 +1932,11 @@ Maybe<bool> SetPropertyWithInterceptorInternal(
                                  *holder, should_throw);
 
   if (it->IsElement()) {
-    uint32_t index = it->index();
-    v8::IndexedPropertySetterCallback setter =
-        v8::ToCData<v8::IndexedPropertySetterCallback>(interceptor->setter());
     // TODO(neis): In the future, we may want to actually return the
     // interceptor's result, which then should be a boolean.
-    result = !args.Call(setter, index, value).is_null();
+    result = !args.CallIndexedSetter(interceptor, it->index(), value).is_null();
   } else {
-    Handle<Name> name = it->name();
-    DCHECK(!name->IsPrivate());
-
-    DCHECK_IMPLIES(name->IsSymbol(), interceptor->can_intercept_symbols());
-
-    v8::GenericNamedPropertySetterCallback setter =
-        v8::ToCData<v8::GenericNamedPropertySetterCallback>(
-            interceptor->setter());
-    result = !args.Call(setter, name, value).is_null();
+    result = !args.CallNamedSetter(interceptor, it->name(), value).is_null();
   }
 
   RETURN_VALUE_IF_SCHEDULED_EXCEPTION(it->isolate(), Nothing<bool>());
@@ -2025,20 +1986,11 @@ Maybe<bool> DefinePropertyWithInterceptorInternal(
   }
 
   if (it->IsElement()) {
-    uint32_t index = it->index();
-    v8::IndexedPropertyDefinerCallback definer =
-        v8::ToCData<v8::IndexedPropertyDefinerCallback>(interceptor->definer());
-    result = !args.Call(definer, index, *descriptor).is_null();
+    result = !args.CallIndexedDefiner(interceptor, it->index(), *descriptor)
+                  .is_null();
   } else {
-    Handle<Name> name = it->name();
-    DCHECK(!name->IsPrivate());
-
-    DCHECK_IMPLIES(name->IsSymbol(), interceptor->can_intercept_symbols());
-
-    v8::GenericNamedPropertyDefinerCallback definer =
-        v8::ToCData<v8::GenericNamedPropertyDefinerCallback>(
-            interceptor->definer());
-    result = !args.Call(definer, name, *descriptor).is_null();
+    result =
+        !args.CallNamedDefiner(interceptor, it->name(), *descriptor).is_null();
   }
 
   RETURN_VALUE_IF_SCHEDULED_EXCEPTION(it->isolate(), Nothing<bool>());
@@ -6621,19 +6573,9 @@ Maybe<bool> JSObject::DeletePropertyWithInterceptor(LookupIterator* it,
                                  *holder, should_throw);
   Handle<Object> result;
   if (it->IsElement()) {
-    uint32_t index = it->index();
-    v8::IndexedPropertyDeleterCallback deleter =
-        v8::ToCData<v8::IndexedPropertyDeleterCallback>(interceptor->deleter());
-    result = args.Call(deleter, index);
+    result = args.CallIndexedDeleter(interceptor, it->index());
   } else {
-    DCHECK_IMPLIES(it->name()->IsSymbol(),
-                   interceptor->can_intercept_symbols());
-    Handle<Name> name = it->name();
-    DCHECK(!name->IsPrivate());
-    v8::GenericNamedPropertyDeleterCallback deleter =
-        v8::ToCData<v8::GenericNamedPropertyDeleterCallback>(
-            interceptor->deleter());
-    result = args.Call(deleter, name);
+    result = args.CallNamedDeleter(interceptor, it->name());
   }
 
   RETURN_VALUE_IF_SCHEDULED_EXCEPTION(isolate, Nothing<bool>());
@@ -7685,19 +7627,9 @@ Maybe<bool> GetPropertyDescriptorWithInterceptor(LookupIterator* it,
       PropertyCallbackArguments args(isolate, interceptor->data(), *receiver,
                                      *holder, kDontThrow);
       if (it->IsElement()) {
-        uint32_t index = it->index();
-        v8::IndexedPropertyDescriptorCallback descriptorCallback =
-            v8::ToCData<v8::IndexedPropertyDescriptorCallback>(
-                interceptor->descriptor());
-
-        result = args.Call(descriptorCallback, index);
+        result = args.CallIndexedDescriptor(interceptor, it->index());
       } else {
-        Handle<Name> name = it->name();
-        DCHECK(!name->IsPrivate());
-        v8::GenericNamedPropertyDescriptorCallback descriptorCallback =
-            v8::ToCData<v8::GenericNamedPropertyDescriptorCallback>(
-                interceptor->descriptor());
-        result = args.Call(descriptorCallback, name);
+        result = args.CallNamedDescriptor(interceptor, it->name());
       }
       if (!result.is_null()) {
         // Request successfully intercepted, try to set the property

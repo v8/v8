@@ -45,6 +45,13 @@ void Object::VerifyPointer(Object* p) {
   }
 }
 
+namespace {
+void VerifyForeignPointer(HeapObject* host, Object* foreign) {
+  host->VerifyPointer(foreign);
+  CHECK(foreign->IsUndefined(host->GetIsolate()) ||
+        Foreign::IsNormalized(foreign));
+}
+}  // namespace
 
 void Smi::SmiVerify() {
   CHECK(IsSmi());
@@ -1365,9 +1372,9 @@ void AccessorInfo::AccessorInfoVerify() {
   CHECK(IsAccessorInfo());
   VerifyPointer(name());
   VerifyPointer(expected_receiver_type());
-  VerifyPointer(getter());
-  VerifyPointer(setter());
-  VerifyPointer(js_getter());
+  VerifyForeignPointer(this, getter());
+  VerifyForeignPointer(this, setter());
+  VerifyForeignPointer(this, js_getter());
   VerifyPointer(data());
 }
 
@@ -1390,11 +1397,11 @@ void AccessCheckInfo::AccessCheckInfoVerify() {
 
 void InterceptorInfo::InterceptorInfoVerify() {
   CHECK(IsInterceptorInfo());
-  VerifyPointer(getter());
-  VerifyPointer(setter());
-  VerifyPointer(query());
-  VerifyPointer(deleter());
-  VerifyPointer(enumerator());
+  VerifyForeignPointer(this, getter());
+  VerifyForeignPointer(this, setter());
+  VerifyForeignPointer(this, query());
+  VerifyForeignPointer(this, deleter());
+  VerifyForeignPointer(this, enumerator());
   VerifyPointer(data());
   VerifySmiField(kFlagsOffset);
 }
