@@ -97,19 +97,15 @@ uint32_t TestingModuleBuilder::AddJsFunction(
       *v8::Local<v8::Function>::Cast(CompileRun(source))));
   uint32_t index = AddFunction(sig, nullptr);
   js_imports_table->set(0, *isolate_->native_context());
+  // TODO(6792): No longer needed once WebAssembly code is off heap.
+  CodeSpaceMemoryModificationScope modification_scope(isolate_->heap());
+  Handle<Code> code = compiler::CompileWasmToJSWrapper(
+      isolate_, jsfunc, sig, index, test_module_.origin(),
+      trap_handler::IsTrapHandlerEnabled(), js_imports_table);
   if (FLAG_wasm_jit_to_native) {
     native_module_->ResizeCodeTableForTest(index);
-    Handle<Code> wrapper = compiler::CompileWasmToJSWrapper(
-        isolate_, jsfunc, sig, index, test_module_.origin(),
-        trap_handler::IsTrapHandlerEnabled(), js_imports_table);
-    native_module_->AddCodeCopy(wrapper, wasm::WasmCode::kWasmToJsWrapper,
-                                index);
+    native_module_->AddCodeCopy(code, wasm::WasmCode::kWasmToJsWrapper, index);
   } else {
-    // TODO(6792): No longer needed once WebAssembly code is off heap.
-    CodeSpaceMemoryModificationScope modification_scope(isolate_->heap());
-    Handle<Code> code = compiler::CompileWasmToJSWrapper(
-        isolate_, jsfunc, sig, index, test_module_.origin(),
-        trap_handler::IsTrapHandlerEnabled(), js_imports_table);
     function_code_[index] = code;
   }
   return index;

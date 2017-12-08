@@ -17,9 +17,7 @@ ALL_VARIANT_FLAGS = {
   # https://chromium-review.googlesource.com/c/452620/ for more discussion.
   "nooptimization": [["--noopt"]],
   "stress_background_compile": [["--background-compile", "--stress-background-compile"]],
-  # TODO(7105): The --wasm-jit-to-native feature is not compatible with the
-  # --write-protect-code-memory feature (which has been enabled) yet.
-  "wasm_traps": [["--wasm_trap_handler", "--invoke-weak-callbacks", "--wasm-jit-to-native", "--no-write-protect-code-memory"]],
+  "wasm_traps": [["--wasm_trap_handler", "--invoke-weak-callbacks", "--wasm-jit-to-native"]],
 }
 
 # FAST_VARIANTS implies no --always-opt.

@@ -729,15 +729,11 @@ void WasmDebugInfo::RedirectToInterpreter(Handle<WasmDebugInfo> debug_info,
 
   Handle<FixedArray> code_table = instance->compiled_module()->code_table();
   CodeRelocationMapGC code_to_relocate_gc(isolate->heap());
-  // TODO(6792): No longer needed once WebAssembly code is off heap.
-  base::Optional<CodeSpaceMemoryModificationScope> modification_scope;
-  base::Optional<wasm::NativeModuleModificationScope>
-      native_module_modification_scope;
-  if (!FLAG_wasm_jit_to_native) {
-    modification_scope.emplace(isolate->heap());
-  } else {
-    native_module_modification_scope.emplace(native_module);
-  }
+  // We may modify js wrappers, as well as wasm functions. Hence the 2
+  // modification scopes.
+  CodeSpaceMemoryModificationScope modification_scope(isolate->heap());
+  wasm::NativeModuleModificationScope native_module_modification_scope(
+      native_module);
 
   for (int func_index : func_indexes) {
     DCHECK_LE(0, func_index);
