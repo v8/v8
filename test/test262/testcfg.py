@@ -46,9 +46,10 @@ FEATURE_FLAGS = {
   'regexp-named-groups': '--harmony-regexp-named-captures',
   'regexp-unicode-property-escapes': '--harmony-regexp-property',
   'Promise.prototype.finally': '--harmony-promise-finally',
+  'class-fields-public': '--harmony-public-fields',
 }
 
-SKIPPED_FEATURES = set(['class-fields', 'optional-catch-binding'])
+SKIPPED_FEATURES = set(['class-fields-private', 'optional-catch-binding'])
 
 DATA = os.path.join(os.path.dirname(os.path.abspath(__file__)), "data")
 ARCHIVE = DATA + ".tar"

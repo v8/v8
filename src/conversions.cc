@@ -333,12 +333,12 @@ void StringToIntHelper::DetectRadixInternal(Char current, int length) {
                  (*current == 'o' || *current == 'O')) {
         radix_ = 8;
         ++current;
-        DCHECK(current != end);
+        if (current == end) return set_state(kJunk);
       } else if (allow_binary_and_octal_prefixes_ &&
                  (*current == 'b' || *current == 'B')) {
         radix_ = 2;
         ++current;
-        DCHECK(current != end);
+        if (current == end) return set_state(kJunk);
       } else {
         leading_zero_ = true;
       }
