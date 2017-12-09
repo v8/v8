@@ -342,7 +342,7 @@ class InstanceBuilder {
   }
   Counters* counters() const { return async_counters().get(); }
 
-  bool UseTrapHandler() const { return compiled_module_->use_trap_handler(); }
+  bool use_trap_handler() const { return compiled_module_->use_trap_handler(); }
 
 // Helper routines to print out errors with imports.
 #define ERROR_THROWER_WITH_MESSAGE(TYPE)                                      \
@@ -1935,7 +1935,7 @@ WasmCodeWrapper MakeWasmToWasmWrapper(
   if (!FLAG_wasm_jit_to_native) {
     Handle<Code> wrapper_code = compiler::CompileWasmToWasmWrapper(
         isolate, imported_function->GetWasmCode(), *sig,
-        new_wasm_context_address, instance->UseTrapHandler());
+        new_wasm_context_address);
     // Set the deoptimization data for the WasmToWasm wrapper. This is
     // needed by the interpreter to find the imported instance for
     // a cross-instance call.
@@ -1945,7 +1945,7 @@ WasmCodeWrapper MakeWasmToWasmWrapper(
   } else {
     Handle<Code> code = compiler::CompileWasmToWasmWrapper(
         isolate, imported_function->GetWasmCode(), *sig,
-        new_wasm_context_address, instance->UseTrapHandler());
+        new_wasm_context_address);
     return WasmCodeWrapper(
         instance->compiled_module()->GetNativeModule()->AddCodeCopy(
             code, wasm::WasmCode::kWasmToWasmWrapper, index));
@@ -1967,15 +1967,15 @@ WasmCodeWrapper UnwrapExportOrCompileImportWrapper(
   // signature.
   if (FLAG_wasm_jit_to_native) {
     Handle<Code> temp_code = compiler::CompileWasmToJSWrapper(
-        isolate, target, sig, import_index, origin, instance->UseTrapHandler(),
-        js_imports_table);
+        isolate, target, sig, import_index, origin,
+        instance->compiled_module()->use_trap_handler(), js_imports_table);
     return WasmCodeWrapper(
         instance->compiled_module()->GetNativeModule()->AddCodeCopy(
             temp_code, wasm::WasmCode::kWasmToJsWrapper, import_index));
   } else {
     return WasmCodeWrapper(compiler::CompileWasmToJSWrapper(
-        isolate, target, sig, import_index, origin, instance->UseTrapHandler(),
-        js_imports_table));
+        isolate, target, sig, import_index, origin,
+        instance->compiled_module()->use_trap_handler(), js_imports_table));
   }
 }
 
@@ -2436,7 +2436,7 @@ MaybeHandle<WasmInstanceObject> InstanceBuilder::Build() {
     // Set externally passed ArrayBuffer non neuterable.
     memory->set_is_neuterable(false);
 
-    DCHECK_IMPLIES(UseTrapHandler(),
+    DCHECK_IMPLIES(use_trap_handler(),
                    module_->is_asm_js() || memory->has_guard_region());
   } else if (initial_pages > 0) {
     memory_ = AllocateMemory(initial_pages);
@@ -2564,7 +2564,7 @@ MaybeHandle<WasmInstanceObject> InstanceBuilder::Build() {
   //--------------------------------------------------------------------------
   // Unpack and notify signal handler of protected instructions.
   //--------------------------------------------------------------------------
-  if (UseTrapHandler()) {
+  if (use_trap_handler()) {
     if (FLAG_wasm_jit_to_native) {
       UnpackAndRegisterProtectedInstructions(isolate_, native_module);
     } else {
@@ -2986,8 +2986,7 @@ int InstanceBuilder::ProcessImports(Handle<FixedArray> code_table,
                   imported_instance->wasm_context()->get();
               Handle<Code> wrapper = compiler::CompileWasmToWasmWrapper(
                   isolate_, target->GetWasmCode(), sig,
-                  reinterpret_cast<Address>(other_context),
-                  instance->UseTrapHandler());
+                  reinterpret_cast<Address>(other_context));
               set_of_native_module_scopes.Add(exporting_module);
               wrapper_code = exporting_module->AddExportedWrapper(
                   wrapper, exported_code->index());
@@ -3153,7 +3152,7 @@ Handle<JSArrayBuffer> InstanceBuilder::AllocateMemory(uint32_t num_pages) {
     thrower_->RangeError("Out of memory: wasm memory too large");
     return Handle<JSArrayBuffer>::null();
   }
-  const bool enable_guard_regions = UseTrapHandler();
+  const bool enable_guard_regions = use_trap_handler();
   Handle<JSArrayBuffer> mem_buffer = NewArrayBuffer(
       isolate_, num_pages * WasmModule::kPageSize, enable_guard_regions);
 
@@ -3546,7 +3545,7 @@ void InstanceBuilder::LoadTableSegments(Handle<FixedArray> code_table,
             Handle<Code> wrapper_code =
                 js_to_wasm_cache_.CloneOrCompileJSToWasmWrapper(
                     isolate_, module_, wasm_code, func_index,
-                    instance->UseTrapHandler());
+                    instance->compiled_module()->use_trap_handler());
             MaybeHandle<String> func_name;
             if (module_->is_asm_js()) {
               // For modules arising from asm.js, honor the names section.

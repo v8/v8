@@ -214,8 +214,6 @@ class WasmInstanceObject : public JSObject {
   WasmModuleObject* module_object();
   V8_EXPORT_PRIVATE wasm::WasmModule* module();
 
-  bool UseTrapHandler() const;
-
   // Get the debug info associated with the given wasm object.
   // If no debug info exists yet, it is created automatically.
   static Handle<WasmDebugInfo> GetOrCreateDebugInfo(Handle<WasmInstanceObject>);

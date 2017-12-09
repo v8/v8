@@ -345,8 +345,7 @@ void WasmTableObject::Set(Isolate* isolate, Handle<WasmTableObject> table,
           native_module->GetExportedWrapper(wasm_code.GetWasmCode()->index());
       if (exported_wrapper == nullptr) {
         Handle<Code> new_wrapper = compiler::CompileWasmToWasmWrapper(
-            isolate, wasm_code, wasm_function->sig, new_context_address,
-            exported_function->instance()->UseTrapHandler());
+            isolate, wasm_code, wasm_function->sig, new_context_address);
         exported_wrapper = native_module->AddExportedWrapper(
             new_wrapper, wasm_code.GetWasmCode()->index());
       }
@@ -357,8 +356,7 @@ void WasmTableObject::Set(Isolate* isolate, Handle<WasmTableObject> table,
                                           isolate);
       int func_index = exported_function->function_index();
       code = compiler::CompileWasmToWasmWrapper(
-          isolate, wasm_code, wasm_function->sig, new_context_address,
-          instance->UseTrapHandler());
+          isolate, wasm_code, wasm_function->sig, new_context_address);
       // TODO(6792): No longer needed once WebAssembly code is off heap.
       CodeSpaceMemoryModificationScope modification_scope(isolate->heap());
       AttachWasmFunctionInfo(isolate, Handle<Code>::cast(code), instance,
@@ -558,10 +556,6 @@ int32_t WasmMemoryObject::Grow(Isolate* isolate,
   }
   memory_object->set_array_buffer(*new_buffer);
   return old_size / WasmModule::kPageSize;
-}
-
-bool WasmInstanceObject::UseTrapHandler() const {
-  return compiled_module()->use_trap_handler();
 }
 
 WasmModuleObject* WasmInstanceObject::module_object() {

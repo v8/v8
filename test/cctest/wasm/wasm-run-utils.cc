@@ -300,9 +300,8 @@ void TestBuildingGraph(
     TestBuildingGraphWithBuilder(&builder, zone, sig, start, end);
   } else {
     compiler::WasmGraphBuilder builder(
-        trap_handler::IsTrapHandlerEnabled(), zone, jsgraph,
-        CEntryStub(jsgraph->isolate(), 1).GetCode(), sig, source_position_table,
-        runtime_exception_support);
+        nullptr, zone, jsgraph, CEntryStub(jsgraph->isolate(), 1).GetCode(),
+        sig, source_position_table, runtime_exception_support);
     TestBuildingGraphWithBuilder(&builder, zone, sig, start, end);
   }
 }
