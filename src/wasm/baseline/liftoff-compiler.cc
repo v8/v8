@@ -235,6 +235,8 @@ class LiftoffCompiler {
     // Note: This is called for blocks and loops.
     DCHECK_EQ(new_block, decoder->control_at(0));
 
+    TraceCacheState(decoder);
+
     new_block->label_state.stack_base = __ cache_state()->stack_height();
 
     if (new_block->is_loop()) {
@@ -261,6 +263,7 @@ class LiftoffCompiler {
   }
 
   void FallThruTo(Decoder* decoder, Control* c) {
+    TraceCacheState(decoder);
     if (c->end_merge.reached) {
       __ MergeFullStackWith(c->label_state);
     } else {
@@ -311,6 +314,7 @@ class LiftoffCompiler {
 
   void BinOp(Decoder* decoder, WasmOpcode opcode, FunctionSig*,
              const Value& lhs, const Value& rhs, Value* result) {
+    TraceCacheState(decoder);
 #define CASE_BINOP(opcode, type, fn) \
   case WasmOpcode::kExpr##opcode:    \
     return type##BinOp(&LiftoffAssembler::emit_##fn);
@@ -331,6 +335,7 @@ class LiftoffCompiler {
   }
 
   void I32Const(Decoder* decoder, Value* result, int32_t value) {
+    TraceCacheState(decoder);
     __ cache_state()->stack_state.emplace_back(kWasmI32, value);
     CheckStackSizeLimit(decoder);
   }
@@ -351,6 +356,7 @@ class LiftoffCompiler {
   }
 
   void Drop(Decoder* decoder, const Value& value) {
+    TraceCacheState(decoder);
     __ DropStackSlot(&__ cache_state()->stack_state.back());
     __ cache_state()->stack_state.pop_back();
   }
@@ -486,7 +492,7 @@ class LiftoffCompiler {
     unsupported(decoder, "select");
   }
 
-  void Br(Decoder* decoder, Control* target) {
+  void Br(Control* target) {
     if (!target->br_merge()->reached) {
       target->label_state.InitMerge(*__ cache_state(), __ num_locals(),
                                     target->br_merge()->arity);
@@ -495,12 +501,18 @@ class LiftoffCompiler {
     __ jmp(target->label.get());
   }
 
+  void Br(Decoder* decoder, Control* target) {
+    TraceCacheState(decoder);
+    Br(target);
+  }
+
   void BrIf(Decoder* decoder, const Value& cond, Control* target) {
+    TraceCacheState(decoder);
     Label cont_false;
     Register value = __ PopToRegister(kGpReg).gp();
     __ JumpIfZero(value, &cont_false);
 
-    Br(decoder, target);
+    Br(target);
     __ bind(&cont_false);
   }
 
@@ -581,6 +593,41 @@ class LiftoffCompiler {
   // LiftoffCompiler after compilation.
   Zone compilation_zone_;
   SafepointTableBuilder safepoint_table_builder_;
+
+  void TraceCacheState(Decoder* decoder) const {
+#ifdef DEBUG
+    if (!FLAG_trace_liftoff) return;
+    for (int control_depth = decoder->control_depth() - 1; control_depth >= -1;
+         --control_depth) {
+      LiftoffAssembler::CacheState* cache_state =
+          control_depth == -1
+              ? asm_->cache_state()
+              : &decoder->control_at(control_depth)->label_state;
+      int idx = 0;
+      for (LiftoffAssembler::VarState& slot : cache_state->stack_state) {
+        if (idx++) PrintF("-");
+        PrintF("%s:", WasmOpcodes::TypeName(slot.type()));
+        switch (slot.loc()) {
+          case kStack:
+            PrintF("s");
+            break;
+          case kRegister:
+            if (slot.reg().is_gp()) {
+              PrintF("gp%d", slot.reg().gp().code());
+            } else {
+              PrintF("fp%d", slot.reg().fp().code());
+            }
+            break;
+          case kConstant:
+            PrintF("c");
+            break;
+        }
+      }
+      if (control_depth != -1) PrintF("; ");
+    }
+    PrintF("\n");
+#endif
+  }
 };
 
 }  // namespace

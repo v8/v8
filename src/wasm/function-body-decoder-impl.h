@@ -1281,6 +1281,32 @@ class WasmFullDecoder : public WasmDecoder<validate> {
     return true;
   }
 
+  class TraceLine {
+   public:
+    static constexpr int kMaxLen = 512;
+    ~TraceLine() {
+      if (!FLAG_trace_wasm_decoder) return;
+      PrintF("%.*s\n", len_, buffer_);
+    }
+
+    // Appends a formatted string.
+    PRINTF_FORMAT(2, 3)
+    void Append(const char* format, ...) {
+      if (!FLAG_trace_wasm_decoder) return;
+      va_list va_args;
+      va_start(va_args, format);
+      size_t remaining_len = kMaxLen - len_;
+      Vector<char> remaining_msg_space(buffer_ + len_, remaining_len);
+      int len = VSNPrintF(remaining_msg_space, format, va_args);
+      va_end(va_args);
+      len_ += len < 0 ? remaining_len : len;
+    }
+
+   private:
+    char buffer_[kMaxLen];
+    int len_ = 0;
+  };
+
   // Decodes the body of a function.
   void DecodeFunctionBody() {
     TRACE("wasm-decode %p...%p (module+%u, %d bytes)\n",
@@ -1303,10 +1329,14 @@ class WasmFullDecoder : public WasmDecoder<validate> {
       unsigned len = 1;
       WasmOpcode opcode = static_cast<WasmOpcode>(*this->pc_);
 #if DEBUG
-      if (FLAG_trace_wasm_decoder && !WasmOpcodes::IsPrefixOpcode(opcode)) {
-        TRACE("  @%-8d #%-20s|", startrel(this->pc_),
-              WasmOpcodes::OpcodeName(opcode));
+      TraceLine trace_msg;
+#define TRACE_PART(...) trace_msg.Append(__VA_ARGS__)
+      if (!WasmOpcodes::IsPrefixOpcode(opcode)) {
+        TRACE_PART("  @%-8d #%-20s|", startrel(this->pc_),
+                   WasmOpcodes::OpcodeName(opcode));
       }
+#else
+#define TRACE_PART(...)
 #endif
 
       FunctionSig* sig = WasmOpcodes::Signature(opcode);
@@ -1475,10 +1505,9 @@ class WasmFullDecoder : public WasmDecoder<validate> {
               }
               last_end_found_ = true;
               // The result of the block is the return value.
-              TRACE("  @%-8d #xx:%-20s|", startrel(this->pc_),
-                    "(implicit) return");
+              TRACE_PART("\n  @%-8d #%-20s|", startrel(this->pc_),
+                         "(implicit) return");
               DoReturn(c, true);
-              TRACE("\n");
             }
 
             PopControl(c);
@@ -1756,8 +1785,8 @@ class WasmFullDecoder : public WasmDecoder<validate> {
             byte simd_index =
                 this->template read_u8<validate>(this->pc_ + 1, "simd index");
             opcode = static_cast<WasmOpcode>(opcode << 8 | simd_index);
-            TRACE("  @%-4d #%-20s|", startrel(this->pc_),
-                  WasmOpcodes::OpcodeName(opcode));
+            TRACE_PART("  @%-4d #%-20s|", startrel(this->pc_),
+                       WasmOpcodes::OpcodeName(opcode));
             len += DecodeSimdOpcode(opcode);
             break;
           }
@@ -1768,8 +1797,8 @@ class WasmFullDecoder : public WasmDecoder<validate> {
             byte atomic_index =
                 this->template read_u8<validate>(this->pc_ + 1, "atomic index");
             opcode = static_cast<WasmOpcode>(opcode << 8 | atomic_index);
-            TRACE("  @%-4d #%-20s|", startrel(this->pc_),
-                  WasmOpcodes::OpcodeName(opcode));
+            TRACE_PART("  @%-4d #%-20s|", startrel(this->pc_),
+                       WasmOpcodes::OpcodeName(opcode));
             len += DecodeAtomicOpcode(opcode);
             break;
           }
@@ -1790,62 +1819,61 @@ class WasmFullDecoder : public WasmDecoder<validate> {
 
 #if DEBUG
       if (FLAG_trace_wasm_decoder) {
-        PrintF(" ");
+        TRACE_PART(" ");
         for (Control& c : control_) {
           switch (c.kind) {
             case kControlIf:
-              PrintF("I");
+              TRACE_PART("I");
               break;
             case kControlBlock:
-              PrintF("B");
+              TRACE_PART("B");
               break;
             case kControlLoop:
-              PrintF("L");
+              TRACE_PART("L");
               break;
             case kControlTry:
-              PrintF("T");
+              TRACE_PART("T");
               break;
             default:
               break;
           }
-          if (c.start_merge.arity) PrintF("%u-", c.start_merge.arity);
-          PrintF("%u", c.end_merge.arity);
-          if (!c.reachable()) PrintF("%c", c.unreachable() ? '*' : '#');
+          if (c.start_merge.arity) TRACE_PART("%u-", c.start_merge.arity);
+          TRACE_PART("%u", c.end_merge.arity);
+          if (!c.reachable()) TRACE_PART("%c", c.unreachable() ? '*' : '#');
         }
-        PrintF(" | ");
+        TRACE_PART(" | ");
         for (size_t i = 0; i < stack_.size(); ++i) {
           auto& val = stack_[i];
           WasmOpcode opcode = static_cast<WasmOpcode>(*val.pc);
           if (WasmOpcodes::IsPrefixOpcode(opcode)) {
             opcode = static_cast<WasmOpcode>(opcode << 8 | *(val.pc + 1));
           }
-          PrintF(" %c@%d:%s", WasmOpcodes::ShortNameOf(val.type),
-                 static_cast<int>(val.pc - this->start_),
-                 WasmOpcodes::OpcodeName(opcode));
+          TRACE_PART(" %c@%d:%s", WasmOpcodes::ShortNameOf(val.type),
+                     static_cast<int>(val.pc - this->start_),
+                     WasmOpcodes::OpcodeName(opcode));
           switch (opcode) {
             case kExprI32Const: {
               ImmI32Operand<validate> operand(this, val.pc);
-              PrintF("[%d]", operand.value);
+              TRACE_PART("[%d]", operand.value);
               break;
             }
             case kExprGetLocal:
             case kExprSetLocal:
             case kExprTeeLocal: {
               LocalIndexOperand<Decoder::kValidate> operand(this, val.pc);
-              PrintF("[%u]", operand.index);
+              TRACE_PART("[%u]", operand.index);
               break;
             }
             case kExprGetGlobal:
             case kExprSetGlobal: {
               GlobalIndexOperand<validate> operand(this, val.pc);
-              PrintF("[%u]", operand.index);
+              TRACE_PART("[%u]", operand.index);
               break;
             }
             default:
               break;
           }
         }
-        PrintF("\n");
       }
 #endif
       this->pc_ += len;
