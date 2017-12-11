@@ -9,18 +9,19 @@ from testrunner.local import testsuite
 from testrunner.objects import testcase
 
 
-class MkGrokdump(testsuite.TestSuite):
-  SHELL = 'mkgrokdump'
+SHELL = 'mkgrokdump'
 
+
+class MkGrokdump(testsuite.TestSuite):
   def __init__(self, name, root):
     super(MkGrokdump, self).__init__(name, root)
 
   def ListTests(self, context):
-    test = testcase.TestCase(self, self.SHELL)
+    test = testcase.TestCase(self, SHELL)
     return [test]
 
   def GetShellForTestCase(self, testcase):
-    return self.SHELL
+    return SHELL
 
   def GetParametersForTestCase(self, testcase, context):
     return [], [], {}

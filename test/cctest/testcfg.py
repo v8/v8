@@ -34,11 +34,15 @@ from testrunner.local import utils
 from testrunner.objects import testcase
 
 
-class CcTestSuite(testsuite.TestSuite):
-  SHELL = 'cctest'
+SHELL = 'cctest'
 
+
+class CcTestSuite(testsuite.TestSuite):
   def ListTests(self, context):
-    shell = os.path.abspath(os.path.join(context.shell_dir, self.SHELL))
+    def create_test(path):
+      return testcase.TestCase(self, path)
+
+    shell = os.path.abspath(os.path.join(context.shell_dir, SHELL))
     if utils.IsWindows():
       shell += ".exe"
     cmd = command.Command(
@@ -51,15 +55,12 @@ class CcTestSuite(testsuite.TestSuite):
       print output.stdout
       print output.stderr
       return []
-    tests = []
-    for test_desc in output.stdout.strip().split():
-      test = testcase.TestCase(self, test_desc)
-      tests.append(test)
+    tests = map(create_test, output.stdout.strip().split())
     tests.sort(key=lambda t: t.path)
     return tests
 
   def GetShellForTestCase(self, testcase):
-    return self.SHELL
+    return SHELL
 
   def GetParametersForTestCase(self, testcase, context):
     return [testcase.path], testcase.flags + context.mode_flags, {}

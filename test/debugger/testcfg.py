@@ -55,7 +55,8 @@ class DebuggerTestSuite(testsuite.TestSuite):
         break
 
     files = []
-    files.append(os.path.normpath(os.path.join(self.root, "..", "mjsunit", "mjsunit.js")))
+    files.append(os.path.normpath(os.path.join(
+        self.root, "..", "mjsunit", "mjsunit.js")))
     files.append(os.path.join(self.root, "test-api.js"))
     files.extend([ os.path.normpath(os.path.join(self.root, '..', '..', f))
                   for f in files_list ])

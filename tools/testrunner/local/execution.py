@@ -33,12 +33,12 @@ import shutil
 import sys
 import time
 
-from pool import Pool
 from . import command
 from . import perfdata
 from . import statusfile
 from . import utils
 from ..objects import output
+from pool import Pool
 
 
 # Base dir of the v8 checkout.

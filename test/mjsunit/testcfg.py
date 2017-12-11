@@ -87,8 +87,8 @@ class MjsunitTestSuite(testsuite.TestSuite):
         ["-e", "TEST_FILE_NAME=\"%s\"" % testfilename.replace("\\", "\\\\")] +
         files)
 
-    if not context.no_harness and not NO_HARNESS_PATTERN.search(source):
-      files.append(os.path.join(self.root, "mjsunit.js"))
+    if not context.no_harness:
+      files += self._get_mjsunit_files(source)
 
     if MODULE_PATTERN.search(source):
       files.append("--module")
@@ -108,6 +108,12 @@ class MjsunitTestSuite(testsuite.TestSuite):
         var, value = env_pair.split('=')
         env[var] = value
     return env
+
+  def _get_mjsunit_files(self, source):
+    if NO_HARNESS_PATTERN.search(source):
+      return []
+    else:
+      return [os.path.join(self.root, 'mjsunit.js')]
 
   def GetSourceForTest(self, testcase):
     filename = os.path.join(self.root, testcase.path + self.suffix())

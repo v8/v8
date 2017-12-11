@@ -55,8 +55,9 @@ class BenchmarksTestSuite(testsuite.TestSuite):
     self.testroot = os.path.join(root, "data")
 
   def ListTests(self, context):
-    tests = []
-    for test in [
+    def create_test(path):
+      return testcase.TestCase(self, path)
+    tests = map(create_test, [
         "kraken/ai-astar",
         "kraken/audio-beat-detection",
         "kraken/audio-dft",
@@ -113,8 +114,7 @@ class BenchmarksTestSuite(testsuite.TestSuite):
         "sunspider/string-fasta",
         "sunspider/string-tagcloud",
         "sunspider/string-unpack-code",
-        "sunspider/string-validate-input"]:
-      tests.append(testcase.TestCase(self, test))
+        "sunspider/string-validate-input"])
     return tests
 
   def GetParametersForTestCase(self, testcase, context):
