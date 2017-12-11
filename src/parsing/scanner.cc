@@ -174,31 +174,15 @@ bool Scanner::BookmarkScope::HasBeenApplied() {
   return bookmark_ == kBookmarkWasApplied;
 }
 
-// LineTerminator:       'JS_Line_Terminator' in point.properties
-// ES#sec-line-terminators lists exactly 4 code points:
-// LF (U+000A), CR (U+000D), LS(U+2028), PS(U+2029)
-bool Scanner::IsLineTerminator(uc32 c) {
-  if (c == 0x000A || c == 0x000D) {
-    return true;
-  }
-  if (c == 0x2028 || c == 0x2029) {
-    ++use_counts_[v8::Isolate::UseCounterFeature::
-                      kLineOrParagraphSeparatorAsLineTerminator];
-    return true;
-  }
-  return false;
-}
-
 // ----------------------------------------------------------------------------
 // Scanner
 
-Scanner::Scanner(UnicodeCache* unicode_cache, int* use_counts)
+Scanner::Scanner(UnicodeCache* unicode_cache)
     : unicode_cache_(unicode_cache),
       octal_pos_(Location::invalid()),
       octal_message_(MessageTemplate::kNone),
       found_html_comment_(false),
-      allow_harmony_bigint_(false),
-      use_counts_(use_counts) {}
+      allow_harmony_bigint_(false) {}
 
 void Scanner::Initialize(Utf16CharacterStream* source, bool is_module) {
   DCHECK_NOT_NULL(source);
@@ -458,7 +442,7 @@ Token::Value Scanner::SkipWhiteSpace() {
 
       // Advance as long as character is a WhiteSpace or LineTerminator.
       // Remember if the latter is the case.
-      if (IsLineTerminator(c0_)) {
+      if (unibrow::IsLineTerminator(c0_)) {
         has_line_terminator_before_next_ = true;
       } else if (!unicode_cache_->IsWhiteSpace(c0_)) {
         break;
@@ -515,7 +499,7 @@ Token::Value Scanner::SkipSingleLineComment() {
   // separately by the lexical grammar and becomes part of the
   // stream of input elements for the syntactic grammar (see
   // ECMA-262, section 7.4).
-  while (c0_ != kEndOfInput && !IsLineTerminator(c0_)) {
+  while (c0_ != kEndOfInput && !unibrow::IsLineTerminator(c0_)) {
     Advance();
   }
 
@@ -525,7 +509,7 @@ Token::Value Scanner::SkipSingleLineComment() {
 
 Token::Value Scanner::SkipSourceURLComment() {
   TryToParseSourceURLComment();
-  while (c0_ != kEndOfInput && !IsLineTerminator(c0_)) {
+  while (c0_ != kEndOfInput && !unibrow::IsLineTerminator(c0_)) {
     Advance();
   }
 
@@ -561,7 +545,7 @@ void Scanner::TryToParseSourceURLComment() {
   while (c0_ != kEndOfInput && unicode_cache_->IsWhiteSpace(c0_)) {
     Advance();
   }
-  while (c0_ != kEndOfInput && !IsLineTerminator(c0_)) {
+  while (c0_ != kEndOfInput && !unibrow::IsLineTerminator(c0_)) {
     // Disallowed characters.
     if (c0_ == '"' || c0_ == '\'') {
       value->Reset();
@@ -574,7 +558,7 @@ void Scanner::TryToParseSourceURLComment() {
     Advance();
   }
   // Allow whitespace at the end.
-  while (c0_ != kEndOfInput && !IsLineTerminator(c0_)) {
+  while (c0_ != kEndOfInput && !unibrow::IsLineTerminator(c0_)) {
     if (!unicode_cache_->IsWhiteSpace(c0_)) {
       value->Reset();
       break;
@@ -591,7 +575,7 @@ Token::Value Scanner::SkipMultiLineComment() {
   while (c0_ != kEndOfInput) {
     uc32 ch = c0_;
     Advance();
-    if (c0_ != kEndOfInput && IsLineTerminator(ch)) {
+    if (c0_ != kEndOfInput && unibrow::IsLineTerminator(ch)) {
       // Following ECMA-262, section 7.4, a comment containing
       // a newline will make the comment count as a line-terminator.
       has_multiline_comment_before_next_ = true;
@@ -988,7 +972,8 @@ bool Scanner::ScanEscape() {
   Advance<capture_raw>();
 
   // Skip escaped newlines.
-  if (!in_template_literal && c0_ != kEndOfInput && IsLineTerminator(c)) {
+  if (!in_template_literal && c0_ != kEndOfInput &&
+      unibrow::IsLineTerminator(c)) {
     // Allow escaped CR+LF newlines in multiline string literals.
     if (IsCarriageReturn(c) && IsLineFeed(c0_)) Advance<capture_raw>();
     return true;
@@ -1081,7 +1066,8 @@ Token::Value Scanner::ScanString() {
     AddLiteralChar(c);
   }
 
-  while (c0_ != quote && c0_ != kEndOfInput && !IsLineTerminator(c0_)) {
+  while (c0_ != quote && c0_ != kEndOfInput &&
+         !unibrow::IsLineTerminator(c0_)) {
     uc32 c = c0_;
     Advance();
     if (c == '\\') {
@@ -1137,7 +1123,7 @@ Token::Value Scanner::ScanTemplateSpan() {
       ReduceRawLiteralLength(2);
       break;
     } else if (c == '\\') {
-      if (c0_ != kEndOfInput && IsLineTerminator(c0_)) {
+      if (c0_ != kEndOfInput && unibrow::IsLineTerminator(c0_)) {
         // The TV of LineContinuation :: \ LineTerminatorSequence is the empty
         // code unit sequence.
         uc32 lastChar = c0_;
@@ -1698,12 +1684,12 @@ bool Scanner::ScanRegExpPattern() {
   }
 
   while (c0_ != '/' || in_character_class) {
-    if (c0_ == kEndOfInput || IsLineTerminator(c0_)) {
+    if (c0_ == kEndOfInput || unibrow::IsLineTerminator(c0_)) {
       return false;
     }
     if (c0_ == '\\') {  // Escape sequence.
       AddLiteralCharAdvance();
-      if (c0_ == kEndOfInput || IsLineTerminator(c0_)) {
+      if (c0_ == kEndOfInput || unibrow::IsLineTerminator(c0_)) {
         return false;
       }
       AddLiteralCharAdvance();

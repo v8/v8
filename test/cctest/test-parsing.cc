@@ -93,7 +93,7 @@ TEST(ScanKeywords) {
     CHECK(static_cast<int>(sizeof(buffer)) >= length);
     {
       auto stream = i::ScannerStream::ForTesting(keyword, length);
-      i::Scanner scanner(&unicode_cache, global_use_counts);
+      i::Scanner scanner(&unicode_cache);
       scanner.Initialize(stream.get(), false);
       CHECK_EQ(key_token.token, scanner.Next());
       CHECK_EQ(i::Token::EOS, scanner.Next());
@@ -101,7 +101,7 @@ TEST(ScanKeywords) {
     // Removing characters will make keyword matching fail.
     {
       auto stream = i::ScannerStream::ForTesting(keyword, length - 1);
-      i::Scanner scanner(&unicode_cache, global_use_counts);
+      i::Scanner scanner(&unicode_cache);
       scanner.Initialize(stream.get(), false);
       CHECK_EQ(i::Token::IDENTIFIER, scanner.Next());
       CHECK_EQ(i::Token::EOS, scanner.Next());
@@ -112,7 +112,7 @@ TEST(ScanKeywords) {
       i::MemMove(buffer, keyword, length);
       buffer[length] = chars_to_append[j];
       auto stream = i::ScannerStream::ForTesting(buffer, length + 1);
-      i::Scanner scanner(&unicode_cache, global_use_counts);
+      i::Scanner scanner(&unicode_cache);
       scanner.Initialize(stream.get(), false);
       CHECK_EQ(i::Token::IDENTIFIER, scanner.Next());
       CHECK_EQ(i::Token::EOS, scanner.Next());
@@ -122,7 +122,7 @@ TEST(ScanKeywords) {
       i::MemMove(buffer, keyword, length);
       buffer[length - 1] = '_';
       auto stream = i::ScannerStream::ForTesting(buffer, length);
-      i::Scanner scanner(&unicode_cache, global_use_counts);
+      i::Scanner scanner(&unicode_cache);
       scanner.Initialize(stream.get(), false);
       CHECK_EQ(i::Token::IDENTIFIER, scanner.Next());
       CHECK_EQ(i::Token::EOS, scanner.Next());
@@ -189,7 +189,7 @@ TEST(ScanHTMLEndComments) {
   for (int i = 0; tests[i]; i++) {
     const char* source = tests[i];
     auto stream = i::ScannerStream::ForTesting(source);
-    i::Scanner scanner(i_isolate->unicode_cache(), global_use_counts);
+    i::Scanner scanner(i_isolate->unicode_cache());
     scanner.Initialize(stream.get(), false);
     i::Zone zone(i_isolate->allocator(), ZONE_NAME);
     i::AstValueFactory ast_value_factory(&zone,
@@ -208,7 +208,7 @@ TEST(ScanHTMLEndComments) {
   for (int i = 0; fail_tests[i]; i++) {
     const char* source = fail_tests[i];
     auto stream = i::ScannerStream::ForTesting(source);
-    i::Scanner scanner(i_isolate->unicode_cache(), global_use_counts);
+    i::Scanner scanner(i_isolate->unicode_cache());
     scanner.Initialize(stream.get(), false);
     i::Zone zone(i_isolate->allocator(), ZONE_NAME);
     i::AstValueFactory ast_value_factory(&zone,
@@ -233,7 +233,7 @@ TEST(ScanHtmlComments) {
   // Disallow HTML comments.
   {
     auto stream = i::ScannerStream::ForTesting(src);
-    i::Scanner scanner(&unicode_cache, global_use_counts);
+    i::Scanner scanner(&unicode_cache);
     scanner.Initialize(stream.get(), true);
     CHECK_EQ(i::Token::IDENTIFIER, scanner.Next());
     CHECK_EQ(i::Token::ILLEGAL, scanner.Next());
@@ -242,7 +242,7 @@ TEST(ScanHtmlComments) {
   // Skip HTML comments:
   {
     auto stream = i::ScannerStream::ForTesting(src);
-    i::Scanner scanner(&unicode_cache, global_use_counts);
+    i::Scanner scanner(&unicode_cache);
     scanner.Initialize(stream.get(), false);
     CHECK_EQ(i::Token::IDENTIFIER, scanner.Next());
     CHECK_EQ(i::Token::EOS, scanner.Next());
@@ -400,7 +400,7 @@ TEST(StandAlonePreParser) {
   uintptr_t stack_limit = i_isolate->stack_guard()->real_climit();
   for (int i = 0; programs[i]; i++) {
     auto stream = i::ScannerStream::ForTesting(programs[i]);
-    i::Scanner scanner(i_isolate->unicode_cache(), global_use_counts);
+    i::Scanner scanner(i_isolate->unicode_cache());
     scanner.Initialize(stream.get(), false);
 
     i::Zone zone(i_isolate->allocator(), ZONE_NAME);
@@ -433,7 +433,7 @@ TEST(StandAlonePreParserNoNatives) {
   uintptr_t stack_limit = isolate->stack_guard()->real_climit();
   for (int i = 0; programs[i]; i++) {
     auto stream = i::ScannerStream::ForTesting(programs[i]);
-    i::Scanner scanner(isolate->unicode_cache(), global_use_counts);
+    i::Scanner scanner(isolate->unicode_cache());
     scanner.Initialize(stream.get(), false);
 
     // Preparser defaults to disallowing natives syntax.
@@ -504,7 +504,7 @@ TEST(RegressChromium62639) {
   // failed in debug mode, and sometimes crashed in release mode.
 
   auto stream = i::ScannerStream::ForTesting(program);
-  i::Scanner scanner(CcTest::i_isolate()->unicode_cache(), global_use_counts);
+  i::Scanner scanner(CcTest::i_isolate()->unicode_cache());
   scanner.Initialize(stream.get(), false);
   i::Zone zone(CcTest::i_isolate()->allocator(), ZONE_NAME);
   i::AstValueFactory ast_value_factory(
@@ -579,7 +579,7 @@ TEST(PreParseOverflow) {
   uintptr_t stack_limit = isolate->stack_guard()->real_climit();
 
   auto stream = i::ScannerStream::ForTesting(program.get(), kProgramSize);
-  i::Scanner scanner(isolate->unicode_cache(), global_use_counts);
+  i::Scanner scanner(isolate->unicode_cache());
   scanner.Initialize(stream.get(), false);
 
   i::Zone zone(CcTest::i_isolate()->allocator(), ZONE_NAME);
@@ -599,7 +599,7 @@ void TestStreamScanner(i::Utf16CharacterStream* stream,
                        i::Token::Value* expected_tokens,
                        int skip_pos = 0,  // Zero means not skipping.
                        int skip_to = 0) {
-  i::Scanner scanner(CcTest::i_isolate()->unicode_cache(), global_use_counts);
+  i::Scanner scanner(CcTest::i_isolate()->unicode_cache());
   scanner.Initialize(stream, false);
 
   int i = 0;
@@ -677,7 +677,7 @@ TEST(StreamScanner) {
 void TestScanRegExp(const char* re_source, const char* expected) {
   auto stream = i::ScannerStream::ForTesting(re_source);
   i::HandleScope scope(CcTest::i_isolate());
-  i::Scanner scanner(CcTest::i_isolate()->unicode_cache(), global_use_counts);
+  i::Scanner scanner(CcTest::i_isolate()->unicode_cache());
   scanner.Initialize(stream.get(), false);
 
   i::Token::Value start = scanner.peek();
@@ -1362,7 +1362,7 @@ void TestParserSyncWithFlags(i::Handle<i::String> source,
   // Preparse the data.
   i::PendingCompilationErrorHandler pending_error_handler;
   if (test_preparser) {
-    i::Scanner scanner(isolate->unicode_cache(), global_use_counts);
+    i::Scanner scanner(isolate->unicode_cache());
     std::unique_ptr<i::Utf16CharacterStream> stream(
         i::ScannerStream::For(source));
     i::Zone zone(CcTest::i_isolate()->allocator(), ZONE_NAME);
@@ -3841,24 +3841,6 @@ TEST(LineOrParagraphSeparatorAsLineTerminator) {
                                   nullptr};
 
   RunParserSyncTest(context_data, statement_data, kError);
-}
-
-TEST(LineOrParagraphSeparatorAsLineTerminatorUseCount) {
-  i::Isolate* isolate = CcTest::i_isolate();
-  i::HandleScope scope(isolate);
-  LocalContext env;
-  int use_counts[v8::Isolate::kUseCounterFeatureCount] = {};
-  global_use_counts = use_counts;
-  CcTest::isolate()->SetUseCounterCallback(MockUseCounterCallback);
-  CompileRun("");
-  CHECK_EQ(0, use_counts[v8::Isolate::UseCounterFeature::
-                             kLineOrParagraphSeparatorAsLineTerminator]);
-  CompileRun("// Foo\xE2\x80\xA8");  // "// Foo<U+2028>"
-  CHECK_LT(0, use_counts[v8::Isolate::UseCounterFeature::
-                             kLineOrParagraphSeparatorAsLineTerminator]);
-  CompileRun("// Foo\xE2\x80\xA9");  // "// Foo<U+2029>"
-  CHECK_LT(1, use_counts[v8::Isolate::UseCounterFeature::
-                             kLineOrParagraphSeparatorAsLineTerminator]);
 }
 
 TEST(ErrorsArrowFormalParameters) {
