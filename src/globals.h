@@ -1279,11 +1279,14 @@ class BinaryOperationFeedback {
 // Type feedback is encoded in such a way that, we can combine the feedback
 // at different points by performing an 'OR' operation. Type feedback moves
 // to a more generic type when we combine feedback.
-// kSignedSmall        -> kNumber   -> kAny
-// kInternalizedString -> kString   -> kAny
-//                        kSymbol   -> kAny
-//                        kReceiver -> kAny
-// TODO(epertoso): consider unifying this with BinaryOperationFeedback.
+//
+//   kSignedSmall -> kNumber             -> kNumberOrOddball -> kAny
+//                   kInternalizedString -> kString          -> kAny
+//                                          kSymbol          -> kAny
+//                                          kReceiver        -> kAny
+//
+// This is distinct from BinaryOperationFeedback on purpose, because the
+// feedback that matters differs greatly as well as the way it is consumed.
 class CompareOperationFeedback {
  public:
   enum {
