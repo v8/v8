@@ -668,7 +668,7 @@ struct CallBuffer {
 
   const CallDescriptor* descriptor;
   FrameStateDescriptor* frame_state_descriptor;
-  NodeVector output_nodes;
+  ZoneVector<PushParameter> output_nodes;
   InstructionOperandVector outputs;
   InstructionOperandVector instruction_args;
   ZoneVector<PushParameter> pushed_nodes;
@@ -702,17 +702,28 @@ void InstructionSelector::InitializeCallBuffer(Node* call, CallBuffer* buffer,
   if (buffer->descriptor->ReturnCount() > 0) {
     // Collect the projections that represent multiple outputs from this call.
     if (buffer->descriptor->ReturnCount() == 1) {
-      buffer->output_nodes.push_back(call);
+      PushParameter result = {call, buffer->descriptor->GetReturnLocation(0)};
+      buffer->output_nodes.push_back(result);
     } else {
-      buffer->output_nodes.resize(buffer->descriptor->ReturnCount(), nullptr);
+      buffer->output_nodes.resize(buffer->descriptor->ReturnCount());
+      int stack_count = 0;
       for (Edge const edge : call->use_edges()) {
         if (!NodeProperties::IsValueEdge(edge)) continue;
-        DCHECK_EQ(IrOpcode::kProjection, edge.from()->opcode());
-        size_t const index = ProjectionIndexOf(edge.from()->op());
+        Node* node = edge.from();
+        DCHECK_EQ(IrOpcode::kProjection, node->opcode());
+        size_t const index = ProjectionIndexOf(node->op());
+
         DCHECK_LT(index, buffer->output_nodes.size());
-        DCHECK(!buffer->output_nodes[index]);
-        buffer->output_nodes[index] = edge.from();
+        DCHECK(!buffer->output_nodes[index].node);
+        PushParameter result = {node,
+                                buffer->descriptor->GetReturnLocation(index)};
+        buffer->output_nodes[index] = result;
+
+        if (result.location.IsCallerFrameSlot()) {
+          stack_count += result.location.GetSizeInPointers();
+        }
       }
+      frame_->EnsureReturnSlots(stack_count);
     }
 
     // Filter out the outputs that aren't live because no projection uses them.
@@ -722,22 +733,22 @@ void InstructionSelector::InitializeCallBuffer(Node* call, CallBuffer* buffer,
             : buffer->frame_state_descriptor->state_combine()
                   .ConsumedOutputCount();
     for (size_t i = 0; i < buffer->output_nodes.size(); i++) {
-      bool output_is_live = buffer->output_nodes[i] != nullptr ||
+      bool output_is_live = buffer->output_nodes[i].node != nullptr ||
                             i < outputs_needed_by_framestate;
       if (output_is_live) {
-        MachineRepresentation rep =
-            buffer->descriptor->GetReturnType(static_cast<int>(i))
-                .representation();
-        LinkageLocation location =
-            buffer->descriptor->GetReturnLocation(static_cast<int>(i));
+        LinkageLocation location = buffer->output_nodes[i].location;
+        MachineRepresentation rep = location.GetType().representation();
 
-        Node* output = buffer->output_nodes[i];
+        Node* output = buffer->output_nodes[i].node;
         InstructionOperand op = output == nullptr
                                     ? g.TempLocation(location)
                                     : g.DefineAsLocation(output, location);
         MarkAsRepresentation(rep, op);
 
-        buffer->outputs.push_back(op);
+        if (!UnallocatedOperand::cast(op).HasFixedSlotPolicy()) {
+          buffer->outputs.push_back(op);
+          buffer->output_nodes[i].node = nullptr;
+        }
       }
     }
   }
@@ -842,8 +853,8 @@ void InstructionSelector::InitializeCallBuffer(Node* call, CallBuffer* buffer,
       if (static_cast<size_t>(stack_index) >= buffer->pushed_nodes.size()) {
         buffer->pushed_nodes.resize(stack_index + 1);
       }
-      PushParameter parameter(*iter, buffer->descriptor->GetInputType(index));
-      buffer->pushed_nodes[stack_index] = parameter;
+      PushParameter param = {*iter, location};
+      buffer->pushed_nodes[stack_index] = param;
       pushed_count++;
     } else {
       buffer->instruction_args.push_back(op);
@@ -2433,6 +2444,8 @@ void InstructionSelector::VisitCall(Node* node, BasicBlock* handler) {
            &buffer.instruction_args.front());
   if (instruction_selection_failed()) return;
   call_instr->MarkAsCall();
+
+  EmitPrepareResults(&(buffer.output_nodes), descriptor, node);
 }
 
 void InstructionSelector::VisitCallWithCallerSavedRegisters(

@@ -158,6 +158,18 @@
 }],  # 'arch == arm64 and mode == debug and simulator_run'
 
 ##############################################################################
+# TODO(ahaas): Port multiple retrn values to ARM and MIPS
+['arch == arm or arch == arm64 or arch == mips or arch == mips64 or arch == mipsel or arch == mips64el', {
+  'test-multiple-return/*': [SKIP],
+}],
+['system == windows and arch == x64', {
+  'test-multiple-return/ReturnMultipleInt32': [SKIP],
+  'test-multiple-return/ReturnMultipleInt64': [SKIP],
+  'test-multiple-return/ReturnMultipleFloat32': [SKIP],
+  'test-multiple-return/ReturnMultipleFloat64': [SKIP],
+}],
+
+##############################################################################
 ['asan == True', {
   # Skip tests not suitable for ASAN.
   'test-assembler-x64/AssemblerX64XchglOperations': [SKIP],

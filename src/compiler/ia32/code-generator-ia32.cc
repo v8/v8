@@ -2006,12 +2006,33 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       }
       break;
     case kIA32Poke: {
-      int const slot = MiscField::decode(instr->opcode());
+      int slot = MiscField::decode(instr->opcode());
       if (HasImmediateInput(instr, 0)) {
         __ mov(Operand(esp, slot * kPointerSize), i.InputImmediate(0));
       } else {
         __ mov(Operand(esp, slot * kPointerSize), i.InputRegister(0));
       }
+      break;
+    }
+    case kIA32PeekFloat32: {
+      int reverse_slot = MiscField::decode(instr->opcode());
+      int offset =
+          FrameSlotToFPOffset(frame()->GetTotalFrameSlotCount() - reverse_slot);
+      __ movss(i.OutputFloatRegister(), Operand(ebp, offset));
+      break;
+    }
+    case kIA32PeekFloat64: {
+      int reverse_slot = MiscField::decode(instr->opcode());
+      int offset =
+          FrameSlotToFPOffset(frame()->GetTotalFrameSlotCount() - reverse_slot);
+      __ movsd(i.OutputDoubleRegister(), Operand(ebp, offset));
+      break;
+    }
+    case kIA32Peek: {
+      int reverse_slot = MiscField::decode(instr->opcode());
+      int offset =
+          FrameSlotToFPOffset(frame()->GetTotalFrameSlotCount() - reverse_slot);
+      __ mov(i.OutputRegister(), Operand(ebp, offset));
       break;
     }
     case kSSEF32x4Splat: {
@@ -3493,8 +3514,9 @@ void CodeGenerator::AssembleConstructFrame() {
       __ bind(&done);
     }
 
-    // Skip callee-saved slots, which are pushed below.
+    // Skip callee-saved and return slots, which are created below.
     shrink_slots -= base::bits::CountPopulation(saves);
+    shrink_slots -= frame()->GetReturnSlotCount();
     if (shrink_slots > 0) {
       __ sub(esp, Immediate(shrink_slots * kPointerSize));
     }
@@ -3506,6 +3528,11 @@ void CodeGenerator::AssembleConstructFrame() {
       if (((1 << i) & saves)) __ push(Register::from_code(i));
     }
   }
+
+  // Allocate return slots (located after callee-saved).
+  if (frame()->GetReturnSlotCount() > 0) {
+    __ sub(esp, Immediate(frame()->GetReturnSlotCount() * kPointerSize));
+  }
 }
 
 void CodeGenerator::AssembleReturn(InstructionOperand* pop) {
@@ -3514,6 +3541,10 @@ void CodeGenerator::AssembleReturn(InstructionOperand* pop) {
   const RegList saves = descriptor->CalleeSavedRegisters();
   // Restore registers.
   if (saves != 0) {
+    const int returns = frame()->GetReturnSlotCount();
+    if (returns != 0) {
+      __ add(esp, Immediate(returns * kPointerSize));
+    }
     for (int i = 0; i < Register::kNumRegisters; i++) {
       if (!((1 << i) & saves)) continue;
       __ pop(Register::from_code(i));

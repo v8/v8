@@ -53,7 +53,7 @@ MoveOperands* Split(MoveOperands* move, MachineRepresentation smaller_rep,
     src_index = src_loc.register_code() * aliases;
   } else {
     src_index = src_loc.index();
-    // For operands that occuply multiple slots, the index refers to the last
+    // For operands that occupy multiple slots, the index refers to the last
     // slot. On little-endian architectures, we start at the high slot and use a
     // negative step so that register-to-slot moves are in the correct order.
     src_step = -slot_size;

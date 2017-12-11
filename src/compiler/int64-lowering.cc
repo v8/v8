@@ -316,9 +316,10 @@ void Int64Lowering::LowerNode(Node* node) {
     case IrOpcode::kTailCall: {
       CallDescriptor* descriptor =
           const_cast<CallDescriptor*>(CallDescriptorOf(node->op()));
-      if (DefaultLowering(node) ||
-          (descriptor->ReturnCount() == 1 &&
-           descriptor->GetReturnType(0) == MachineType::Int64())) {
+      bool returns_require_lowering =
+          GetReturnCountAfterLowering(descriptor) !=
+          static_cast<int>(descriptor->ReturnCount());
+      if (DefaultLowering(node) || returns_require_lowering) {
         // Tail calls do not have return values, so adjusting the call
         // descriptor is enough.
         auto new_descriptor = GetI32WasmCallDescriptor(zone(), descriptor);

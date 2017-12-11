@@ -143,6 +143,9 @@ namespace compiler {
   V(X64Inc32)                      \
   V(X64Push)                       \
   V(X64Poke)                       \
+  V(X64Peek)                       \
+  V(X64PeekFloat32)                \
+  V(X64PeekFloat64)                \
   V(X64StackCheck)                 \
   V(X64I32x4Splat)                 \
   V(X64I32x4ExtractLane)           \
