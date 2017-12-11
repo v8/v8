@@ -968,6 +968,10 @@ void GCTracer::FetchBackgroundMarkCompactCounters() {
                           Scope::LAST_MC_BACKGROUND_SCOPE,
                           BackgroundScope::FIRST_MC_BACKGROUND_SCOPE,
                           BackgroundScope::LAST_MC_BACKGROUND_SCOPE);
+  heap_->isolate()->counters()->background_marking()->AddSample(
+      static_cast<int>(current_.scopes[Scope::MC_BACKGROUND_MARKING]));
+  heap_->isolate()->counters()->background_sweeping()->AddSample(
+      static_cast<int>(current_.scopes[Scope::MC_BACKGROUND_SWEEPING]));
 }
 
 void GCTracer::FetchBackgroundMinorGCCounters() {
@@ -975,6 +979,9 @@ void GCTracer::FetchBackgroundMinorGCCounters() {
                           Scope::LAST_MINOR_GC_BACKGROUND_SCOPE,
                           BackgroundScope::FIRST_MINOR_GC_BACKGROUND_SCOPE,
                           BackgroundScope::LAST_MINOR_GC_BACKGROUND_SCOPE);
+  heap_->isolate()->counters()->background_scavenger()->AddSample(
+      static_cast<int>(
+          current_.scopes[Scope::SCAVENGER_BACKGROUND_SCAVENGE_PARALLEL]));
 }
 
 void GCTracer::FetchBackgroundGeneralCounters() {
