@@ -4388,7 +4388,12 @@ Handle<Code> CompileWasmToJSWrapper(
       origin == wasm::kAsmJsOrigin ? new (&zone) SourcePositionTable(&graph)
                                    : nullptr;
 
-  ModuleEnv env = {nullptr, {}, {}, {}, Handle<Code>(), use_trap_handler};
+  ModuleEnv env = {nullptr,
+                   std::vector<Address>(),
+                   std::vector<Address>(),
+                   std::vector<Handle<Code>>(),
+                   Handle<Code>(),
+                   use_trap_handler};
   WasmGraphBuilder builder(&env, &zone, &jsgraph,
                            CEntryStub(isolate, 1).GetCode(), sig,
                            source_position_table);
@@ -4477,9 +4482,9 @@ Handle<Code> CompileWasmToWasmWrapper(Isolate* isolate, WasmCodeWrapper target,
 
   ModuleEnv env = {
       nullptr,
-      {},
-      {},
-      {},
+      std::vector<Address>(),
+      std::vector<Address>(),
+      std::vector<Handle<Code>>(),
       Handle<Code>(),
       !target.IsCodeObject() && target.GetWasmCode()->HasTrapHandlerIndex()};
   WasmGraphBuilder builder(&env, &zone, &jsgraph, Handle<Code>(), sig);
