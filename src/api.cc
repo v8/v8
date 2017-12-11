@@ -6445,7 +6445,9 @@ HeapStatistics::HeapStatistics()
       heap_size_limit_(0),
       malloced_memory_(0),
       peak_malloced_memory_(0),
-      does_zap_garbage_(0) {}
+      does_zap_garbage_(0),
+      number_of_native_contexts_(0),
+      number_of_detached_contexts_(0) {}
 
 HeapSpaceStatistics::HeapSpaceStatistics(): space_name_(0),
                                             space_size_(0),
@@ -8792,6 +8794,9 @@ void Isolate::GetHeapStatistics(HeapStatistics* heap_statistics) {
       isolate->allocator()->GetCurrentMemoryUsage();
   heap_statistics->peak_malloced_memory_ =
       isolate->allocator()->GetMaxMemoryUsage();
+  heap_statistics->number_of_native_contexts_ = heap->NumberOfNativeContexts();
+  heap_statistics->number_of_detached_contexts_ =
+      heap->NumberOfDetachedContexts();
   heap_statistics->does_zap_garbage_ = heap->ShouldZapGarbage();
 }
 

@@ -6526,6 +6526,22 @@ bool Heap::GetObjectTypeName(size_t index, const char** object_type,
   return false;
 }
 
+size_t Heap::NumberOfNativeContexts() {
+  int result = 0;
+  Object* context = native_contexts_list();
+  while (!context->IsUndefined(isolate())) {
+    ++result;
+    Context* native_context = Context::cast(context);
+    context = native_context->next_context_link();
+  }
+  return result;
+}
+
+size_t Heap::NumberOfDetachedContexts() {
+  // The detached_contexts() array has two entries per detached context.
+  return detached_contexts()->length() / 2;
+}
+
 const char* AllocationSpaceName(AllocationSpace space) {
   switch (space) {
     case NEW_SPACE:

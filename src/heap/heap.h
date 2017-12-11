@@ -1366,6 +1366,12 @@ class Heap {
   bool GetObjectTypeName(size_t index, const char** object_type,
                          const char** object_sub_type);
 
+  // The total number of native contexts object on the heap.
+  size_t NumberOfNativeContexts();
+  // The total number of native contexts that were detached but were not
+  // garbage collected yet.
+  size_t NumberOfDetachedContexts();
+
   // ===========================================================================
   // Code statistics. ==========================================================
   // ===========================================================================
