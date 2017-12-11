@@ -682,13 +682,9 @@ Node* AccessorAssembler::EmitLoadICProtoArrayCheck(const LoadICParameters* p,
   }
   BIND(&can_access);
 
-  BuildFastLoop(var_start_index.value(), handler_length,
-                [=](Node* current) {
-                  Node* prototype_cell =
-                      LoadFixedArrayElement(handler, current);
-                  CheckPrototype(prototype_cell, p->name, miss);
-                },
-                1, INTPTR_PARAMETERS, IndexAdvanceMode::kPost);
+  // TODO(ishell): Use LoadHandler with data2 field instead of FixedArray
+  // handlers.
+  CSA_ASSERT(this, WordEqual(var_start_index.value(), handler_length));
 
   Node* maybe_holder_cell =
       LoadFixedArrayElement(handler, LoadHandler::kDataIndex);
@@ -973,14 +969,11 @@ void AccessorAssembler::HandleStoreICProtoHandler(
     }
     BIND(&can_access);
 
+    // TODO(ishell): Use StoreHandler with data2 field instead of FixedArray
+    // handlers.
     Node* length = SmiUntag(maybe_transition_cell);
-    BuildFastLoop(var_start_index.value(), length,
-                  [=](Node* current) {
-                    Node* prototype_cell =
-                        LoadFixedArrayElement(handler, current);
-                    CheckPrototype(prototype_cell, p->name, miss);
-                  },
-                  1, INTPTR_PARAMETERS, IndexAdvanceMode::kPost);
+    CSA_ASSERT(this, WordEqual(var_start_index.value(), length));
+    USE(length);
 
     Node* maybe_transition_cell =
         LoadFixedArrayElement(handler, StoreHandler::kDataIndex);
@@ -1749,35 +1742,6 @@ void AccessorAssembler::EmitElementLoad(
   }
 }
 
-void AccessorAssembler::CheckPrototype(Node* prototype_cell, Node* name,
-                                       Label* miss) {
-  Node* maybe_prototype = LoadWeakCellValue(prototype_cell, miss);
-
-  Label done(this);
-  Label if_property_cell(this), if_dictionary_object(this);
-
-  // |maybe_prototype| is either a PropertyCell or a slow-mode prototype.
-  Branch(IsPropertyCell(maybe_prototype), &if_property_cell,
-         &if_dictionary_object);
-
-  BIND(&if_dictionary_object);
-  {
-    CSA_ASSERT(this, IsDictionaryMap(LoadMap(maybe_prototype)));
-    NameDictionaryNegativeLookup(maybe_prototype, name, miss);
-    Goto(&done);
-  }
-
-  BIND(&if_property_cell);
-  {
-    // Ensure the property cell still contains the hole.
-    Node* value = LoadObjectField(maybe_prototype, PropertyCell::kValueOffset);
-    GotoIfNot(IsTheHole(value), miss);
-    Goto(&done);
-  }
-
-  BIND(&done);
-}
-
 void AccessorAssembler::NameDictionaryNegativeLookup(Node* object, Node* name,
                                                      Label* miss) {
   CSA_ASSERT(this, IsDictionaryMap(LoadMap(object)));
@@ -1833,11 +1797,18 @@ void AccessorAssembler::InvalidateValidityCellIfPrototype(Node* map,
          &cont);
 
   BIND(&is_prototype);
-  Node* function = ExternalConstant(
-      ExternalReference::invalidate_prototype_chains_function(isolate()));
-  CallCFunction1(MachineType::AnyTagged(), MachineType::AnyTagged(), function,
-                 map);
-  Goto(&cont);
+  {
+    Node* maybe_prototype_info =
+        LoadObjectField(map, Map::kTransitionsOrPrototypeInfoOffset);
+    // If there's no prototype info then there's nothing to invalidate.
+    GotoIf(TaggedIsSmi(maybe_prototype_info), &cont);
+
+    Node* function = ExternalConstant(
+        ExternalReference::invalidate_prototype_chains_function(isolate()));
+    CallCFunction1(MachineType::AnyTagged(), MachineType::AnyTagged(), function,
+                   map);
+    Goto(&cont);
+  }
   BIND(&cont);
 }
 

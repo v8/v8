@@ -234,7 +234,6 @@ class AccessorAssembler : public CodeStubAssembler {
                        Label* rebox_double, Variable* var_double_value,
                        Label* unimplemented_elements_kind, Label* out_of_bounds,
                        Label* miss, ExitPoint* exit_point);
-  void CheckPrototype(Node* prototype_cell, Node* name, Label* miss);
   void NameDictionaryNegativeLookup(Node* object, Node* name, Label* miss);
 
   // Stub cache access helpers.

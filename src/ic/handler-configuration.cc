@@ -34,19 +34,6 @@ int InitPrototypeChecks(Isolate* isolate, Handle<Map> receiver_map,
       array->set(first_index + checks_count, native_context->self_weak_cell());
     }
     checks_count++;
-
-  } else if (receiver_map->IsJSGlobalObjectMap()) {
-    // If we are creating a handler for [Load/Store]GlobalIC then we need to
-    // check that the property did not appear in the global object.
-    if (fill_array) {
-      Handle<JSGlobalObject> global = isolate->global_object();
-      Handle<PropertyCell> cell = JSGlobalObject::EnsureEmptyPropertyCell(
-          global, name, PropertyCellType::kInvalidated);
-      DCHECK(cell->value()->IsTheHole(isolate));
-      Handle<WeakCell> weak_cell = isolate->factory()->NewWeakCell(cell);
-      array->set(first_index + checks_count, *weak_cell);
-    }
-    checks_count++;
   }
   return checks_count;
 }

@@ -12478,15 +12478,19 @@ bool JSObject::UnregisterPrototypeUser(Handle<Map> user, Isolate* isolate) {
   return true;
 }
 
+namespace {
 
-static void InvalidatePrototypeChainsInternal(Map* map) {
+// This function must be kept in sync with
+// AccessorAssembler::InvalidateValidityCellIfPrototype() which does pre-checks
+// before jumping here.
+PrototypeInfo* InvalidateOnePrototypeValidityCellInternal(Map* map) {
   DCHECK(map->is_prototype_map());
   if (FLAG_trace_prototype_users) {
     PrintF("Invalidating prototype map %p 's cell\n",
            reinterpret_cast<void*>(map));
   }
   Object* maybe_proto_info = map->prototype_info();
-  if (!maybe_proto_info->IsPrototypeInfo()) return;
+  if (!maybe_proto_info->IsPrototypeInfo()) return nullptr;
   PrototypeInfo* proto_info = PrototypeInfo::cast(maybe_proto_info);
   Object* maybe_cell = proto_info->validity_cell();
   if (maybe_cell->IsCell()) {
@@ -12494,6 +12498,12 @@ static void InvalidatePrototypeChainsInternal(Map* map) {
     Cell* cell = Cell::cast(maybe_cell);
     cell->set_value(Smi::FromInt(Map::kPrototypeChainInvalid));
   }
+  return proto_info;
+}
+
+void InvalidatePrototypeChainsInternal(Map* map) {
+  PrototypeInfo* proto_info = InvalidateOnePrototypeValidityCellInternal(map);
+  if (proto_info == nullptr) return;
 
   WeakFixedArray::Iterator iterator(proto_info->prototype_users());
   // For now, only maps register themselves as users.
@@ -12504,6 +12514,7 @@ static void InvalidatePrototypeChainsInternal(Map* map) {
   }
 }
 
+}  // namespace
 
 // static
 Map* JSObject::InvalidatePrototypeChains(Map* map) {
@@ -12512,6 +12523,18 @@ Map* JSObject::InvalidatePrototypeChains(Map* map) {
   return map;
 }
 
+// We also invalidate global objects validity cell when a new lexical
+// environment variable is added. This is necessary to ensure that
+// Load/StoreGlobalIC handlers that load/store from global object's prototype
+// get properly invalidated.
+// Note, that the normal Load/StoreICs that load/store through the global object
+// in the prototype chain are not affected by appearance of a new lexical
+// variable and therefore we don't propagate invalidation down.
+// static
+void JSObject::InvalidatePrototypeValidityCell(JSGlobalObject* global) {
+  DisallowHeapAllocation no_gc;
+  InvalidateOnePrototypeValidityCellInternal(global->map());
+}
 
 // static
 Handle<PrototypeInfo> Map::GetOrCreatePrototypeInfo(Handle<JSObject> prototype,
@@ -16636,6 +16659,10 @@ MaybeHandle<JSTypedArray> JSTypedArray::SpeciesCreate(
 
 void JSGlobalObject::InvalidatePropertyCell(Handle<JSGlobalObject> global,
                                             Handle<Name> name) {
+  // Regardless of whether the property is there or not invalidate
+  // Load/StoreGlobalICs that load/store through global object's prototype.
+  JSObject::InvalidatePrototypeValidityCell(*global);
+
   DCHECK(!global->HasFastProperties());
   auto dictionary = handle(global->global_dictionary());
   int entry = dictionary->FindEntry(name);
