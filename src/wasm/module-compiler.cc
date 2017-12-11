@@ -844,12 +844,13 @@ Address CompileLazy(Isolate* isolate) {
     // See EnsureExportedLazyDeoptData: exp_deopt_data[0...(len-1)] are pairs
     // of <export_table, index> followed by undefined values. Use this
     // information here to patch all export tables.
+    Handle<Foreign> foreign_holder =
+        isolate->factory()->NewForeign(result->instructions().start(), TENURED);
     for (int idx = 0, end = exp_deopt_data->length(); idx < end; idx += 2) {
       if (exp_deopt_data->get(idx)->IsUndefined(isolate)) break;
-      FixedArray* exp_table = FixedArray::cast(exp_deopt_data->get(idx));
+      DisallowHeapAllocation no_gc;
       int exp_index = Smi::ToInt(exp_deopt_data->get(idx + 1));
-      Handle<Foreign> foreign_holder = isolate->factory()->NewForeign(
-          result->instructions().start(), TENURED);
+      FixedArray* exp_table = FixedArray::cast(exp_deopt_data->get(idx));
       exp_table->set(exp_index, *foreign_holder);
     }
     // TODO(6792): No longer needed once WebAssembly code is off heap.
