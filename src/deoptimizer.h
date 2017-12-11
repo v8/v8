@@ -5,6 +5,7 @@
 #ifndef V8_DEOPTIMIZER_H_
 #define V8_DEOPTIMIZER_H_
 
+#include <stack>
 #include <vector>
 
 #include "src/allocation.h"
@@ -31,6 +32,9 @@ class TranslatedValue {
   // Returns heap()->arguments_marker() if allocation would be
   // necessary to get the value.
   Object* GetRawValue() const;
+
+  // Getter for the value, takes care of materializing the subgraph
+  // reachable from this value.
   Handle<Object> GetValue();
 
   bool IsMaterializedObject() const;
@@ -40,7 +44,7 @@ class TranslatedValue {
   friend class TranslatedState;
   friend class TranslatedFrame;
 
-  enum Kind {
+  enum Kind : uint8_t {
     kInvalid,
     kTagged,
     kInt32,
@@ -56,9 +60,20 @@ class TranslatedValue {
     kDuplicatedObject  // Duplicated object of a deferred object.
   };
 
+  enum MaterializationState : uint8_t {
+    kUninitialized,
+    kAllocated,  // Storage for the object has been allocated (or
+                 // enqueued for allocation).
+    kFinished,   // The object has been initialized (or enqueued for
+                 // initialization).
+  };
+
   TranslatedValue(TranslatedState* container, Kind kind)
       : kind_(kind), container_(container) {}
   Kind kind() const { return kind_; }
+  MaterializationState materialization_state() const {
+    return materialization_state_;
+  }
   void Handlify();
   int GetChildrenCount() const;
 
@@ -76,15 +91,25 @@ class TranslatedValue {
   Isolate* isolate() const;
   void MaterializeSimple();
 
+  void set_storage(Handle<HeapObject> storage) { storage_ = storage; }
+  void set_initialized_storage(Handle<Object> storage);
+  void mark_finished() { materialization_state_ = kFinished; }
+  void mark_allocated() { materialization_state_ = kAllocated; }
+
+  Handle<Object> GetStorage() {
+    DCHECK_NE(kUninitialized, materialization_state());
+    return storage_;
+  }
+
   Kind kind_;
+  MaterializationState materialization_state_ = kUninitialized;
   TranslatedState* container_;  // This is only needed for materialization of
                                 // objects and constructing handles (to get
                                 // to the isolate).
 
-  MaybeHandle<Object> value_;  // Before handlification, this is always null,
-                               // after materialization it is never null,
-                               // in between it is only null if the value needs
-                               // to be materialized.
+  Handle<Object> storage_;  // Contains the materialized value or the
+                            // byte-array that will be later morphed into
+                            // the materialized object.
 
   struct MaterializedObjectInfo {
     int id_;
@@ -211,6 +236,7 @@ class TranslatedFrame {
         height_(height) {}
 
   void Add(const TranslatedValue& value) { values_.push_back(value); }
+  TranslatedValue* ValueAt(int index) { return &(values_[index]); }
   void Handlify();
 
   Kind kind_;
@@ -270,6 +296,8 @@ class TranslatedState {
             FixedArray* literal_array, RegisterValues* registers,
             FILE* trace_file, int parameter_count);
 
+  void VerifyMaterializedObjects();
+
  private:
   friend TranslatedValue;
 
@@ -288,11 +316,36 @@ class TranslatedState {
                                                FILE* trace_file);
 
   void UpdateFromPreviouslyMaterializedObjects();
-  Handle<Object> MaterializeAt(int frame_index, int* value_index);
-  Handle<Object> MaterializeObjectAt(int object_index);
-  class CapturedObjectMaterializer;
-  Handle<Object> MaterializeCapturedObjectAt(TranslatedValue* slot,
-                                             int frame_index, int* value_index);
+  void MaterializeFixedDoubleArray(TranslatedFrame* frame, int* value_index,
+                                   TranslatedValue* slot, Handle<Map> map);
+  void MaterializeMutableHeapNumber(TranslatedFrame* frame, int* value_index,
+                                    TranslatedValue* slot);
+
+  void EnsureObjectAllocatedAt(TranslatedValue* slot);
+
+  void SkipSlots(int slots_to_skip, TranslatedFrame* frame, int* value_index);
+
+  Handle<ByteArray> AllocateStorageFor(TranslatedValue* slot);
+  void EnsureJSObjectAllocated(TranslatedValue* slot, Handle<Map> map);
+  void EnsurePropertiesAllocatedAndMarked(TranslatedValue* properties_slot,
+                                          Handle<Map> map);
+  void EnsureChildrenAllocated(int count, TranslatedFrame* frame,
+                               int* value_index, std::stack<int>* worklist);
+  void EnsureCapturedObjectAllocatedAt(int object_index,
+                                       std::stack<int>* worklist);
+  Handle<Object> InitializeObjectAt(TranslatedValue* slot);
+  void InitializeCapturedObjectAt(int object_index, std::stack<int>* worklist,
+                                  const DisallowHeapAllocation& no_allocation);
+  void InitializeJSObjectAt(TranslatedFrame* frame, int* value_index,
+                            TranslatedValue* slot, Handle<Map> map,
+                            const DisallowHeapAllocation& no_allocation);
+  void InitializeObjectWithTaggedFieldsAt(
+      TranslatedFrame* frame, int* value_index, TranslatedValue* slot,
+      Handle<Map> map, const DisallowHeapAllocation& no_allocation);
+
+  TranslatedValue* ResolveCapturedObject(TranslatedValue* slot);
+  TranslatedValue* GetValueByObjectIndex(int object_index);
+  Handle<Object> GetValueAndAdvance(TranslatedFrame* frame, int* value_index);
 
   static uint32_t GetUInt32Slot(Address fp, int slot_index);
   static Float32 GetFloatSlot(Address fp, int slot_index);
