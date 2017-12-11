@@ -799,7 +799,7 @@ void AccessorAssembler::HandleStoreICHandlerCase(
   {
     Node* handler_map = LoadMap(handler);
     if (support_elements == kSupportElements) {
-      GotoIf(IsTuple2Map(handler_map), &if_element_handler);
+      GotoIf(IsStoreHandler0Map(handler_map), &if_element_handler);
     }
     GotoIf(IsWeakCellMap(handler_map), &store_global);
     Branch(IsCodeMap(handler_map), &call_handler, &if_proto_handler);
@@ -834,12 +834,14 @@ void AccessorAssembler::HandleStoreICHandlerCase(
 void AccessorAssembler::HandleStoreICElementHandlerCase(
     const StoreICParameters* p, Node* handler, Label* miss) {
   Comment("HandleStoreICElementHandlerCase");
-  Node* validity_cell = LoadObjectField(handler, Tuple2::kValue1Offset);
+  Node* validity_cell =
+      LoadObjectField(handler, StoreHandler::kValidityCellOffset);
   Node* cell_value = LoadObjectField(validity_cell, Cell::kValueOffset);
   GotoIf(WordNotEqual(cell_value, SmiConstant(Map::kPrototypeChainValid)),
          miss);
 
-  Node* code_handler = LoadObjectField(handler, Tuple2::kValue2Offset);
+  Node* code_handler =
+      LoadObjectField(handler, StoreHandler::kSmiHandlerOffset);
   CSA_ASSERT(this, IsCodeMap(LoadMap(code_handler)));
 
   StoreWithVectorDescriptor descriptor(isolate());

@@ -56,6 +56,7 @@ enum class PrimitiveType { kBoolean, kNumber, kString, kSymbol };
   V(OneClosureCellMap, one_closure_cell_map, OneClosureCellMap)          \
   V(prototype_string, prototype_string, PrototypeString)                 \
   V(SpeciesProtector, species_protector, SpeciesProtector)               \
+  V(StoreHandler0Map, store_handler0_map, StoreHandler0Map)              \
   V(SymbolMap, symbol_map, SymbolMap)                                    \
   V(TheHoleValue, the_hole_value, TheHole)                               \
   V(TrueValue, true_value, True)                                         \

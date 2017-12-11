@@ -1350,8 +1350,11 @@ void DataHandler::DataHandlerVerify() {
   CHECK_IMPLIES(!smi_handler()->IsSmi(),
                 smi_handler()->IsCode() && IsStoreHandler());
   CHECK(validity_cell()->IsSmi() || validity_cell()->IsCell());
-  VerifyObjectField(kData1Offset);
-  if (map()->instance_size() >= kSizeWithData2) {
+  int data_count = data_field_count();
+  if (data_count >= 1) {
+    VerifyObjectField(kData1Offset);
+  }
+  if (data_count >= 2) {
     VerifyObjectField(kData2Offset);
   }
 }

@@ -560,6 +560,7 @@ const int kStubMinorKeyBits = kSmiValueSize - kStubMajorKeyBits - 1;
 #define DATA_HANDLER_LIST(V)                        \
   V(LOAD_HANDLER, LoadHandler, 1, load_handler1)    \
   V(LOAD_HANDLER, LoadHandler, 2, load_handler2)    \
+  V(STORE_HANDLER, StoreHandler, 0, store_handler0) \
   V(STORE_HANDLER, StoreHandler, 1, store_handler1) \
   V(STORE_HANDLER, StoreHandler, 2, store_handler2)
 

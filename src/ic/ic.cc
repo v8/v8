@@ -1800,6 +1800,7 @@ Handle<Object> KeyedStoreIC::StoreElementHandler(
     return StoreHandler::StoreProxy(isolate());
   }
 
+  // TODO(ishell): move to StoreHandler::StoreElement().
   ElementsKind elements_kind = receiver_map->elements_kind();
   bool is_jsarray = receiver_map->instance_type() == JS_ARRAY_TYPE;
   Handle<Code> stub;
@@ -1821,7 +1822,10 @@ Handle<Object> KeyedStoreIC::StoreElementHandler(
   Handle<Object> validity_cell =
       Map::GetOrCreatePrototypeChainValidityCell(receiver_map, isolate());
   if (validity_cell.is_null()) return stub;
-  return isolate()->factory()->NewTuple2(validity_cell, stub, TENURED);
+  Handle<StoreHandler> handler = isolate()->factory()->NewStoreHandler(0);
+  handler->set_validity_cell(*validity_cell);
+  handler->set_smi_handler(*stub);
+  return handler;
 }
 
 void KeyedStoreIC::StoreElementPolymorphicHandlers(

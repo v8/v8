@@ -1452,8 +1452,11 @@ void LoadHandler::LoadHandlerPrint(std::ostream& os) {  // NOLINT
   // TODO(ishell): implement printing based on handler kind
   os << "\n - handler: " << Brief(smi_handler());
   os << "\n - validity_cell: " << Brief(validity_cell());
-  os << "\n - data1: " << Brief(data1());
-  if (map()->instance_size() >= kSizeWithData2) {
+  int data_count = data_field_count();
+  if (data_count >= 1) {
+    os << "\n - data1: " << Brief(data1());
+  }
+  if (data_count >= 2) {
     os << "\n - data2: " << Brief(data2());
   }
   os << "\n";
@@ -1464,8 +1467,11 @@ void StoreHandler::StoreHandlerPrint(std::ostream& os) {  // NOLINT
   // TODO(ishell): implement printing based on handler kind
   os << "\n - handler: " << Brief(smi_handler());
   os << "\n - validity_cell: " << Brief(validity_cell());
-  os << "\n - data1: " << Brief(data1());
-  if (map()->instance_size() >= kSizeWithData2) {
+  int data_count = data_field_count();
+  if (data_count >= 1) {
+    os << "\n - data1: " << Brief(data1());
+  }
+  if (data_count >= 2) {
     os << "\n - data2: " << Brief(data2());
   }
   os << "\n";

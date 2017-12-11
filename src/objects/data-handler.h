@@ -26,6 +26,9 @@ class DataHandler : public Struct {
   // [validity_cell]: A validity Cell that guards prototype chain modifications.
   DECL_ACCESSORS(validity_cell, Object)
 
+  // Returns number of optional data fields available in the object.
+  inline int data_field_count() const;
+
   // [data1,2]: These are optional general-purpose fields whose content and
   // presence depends on the handler kind.
   DECL_ACCESSORS(data1, Object)
@@ -35,6 +38,7 @@ class DataHandler : public Struct {
 #define DATA_HANDLER_FIELDS(V)         \
   V(kSmiHandlerOffset, kPointerSize)   \
   V(kValidityCellOffset, kPointerSize) \
+  V(kSizeWithData0, 0)                 \
   V(kData1Offset, kPointerSize)        \
   V(kSizeWithData1, 0)                 \
   V(kData2Offset, kPointerSize)        \

@@ -958,14 +958,9 @@ KeyedAccessStoreMode KeyedStoreICNexus::GetKeyedAccessStoreMode() const {
     // The first handler that isn't the slow handler will have the bits we need.
     Handle<Code> handler;
     if (maybe_code_handler->IsStoreHandler()) {
-      // Elements transition.
       Handle<StoreHandler> data_handler =
           Handle<StoreHandler>::cast(maybe_code_handler);
       handler = handle(Code::cast(data_handler->smi_handler()));
-    } else if (maybe_code_handler->IsTuple2()) {
-      // Element store with prototype chain check.
-      Handle<Tuple2> data_handler = Handle<Tuple2>::cast(maybe_code_handler);
-      handler = handle(Code::cast(data_handler->value2()));
     } else if (maybe_code_handler->IsSmi()) {
       // Skip proxy handlers.
       DCHECK_EQ(*maybe_code_handler, *StoreHandler::StoreProxy(GetIsolate()));

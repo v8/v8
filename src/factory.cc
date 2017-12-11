@@ -2791,11 +2791,19 @@ Handle<LoadHandler> Factory::NewLoadHandler(int data_count) {
 
 Handle<StoreHandler> Factory::NewStoreHandler(int data_count) {
   Handle<Map> map;
-  if (data_count == 1) {
-    map = store_handler1_map();
-  } else {
-    DCHECK_EQ(2, data_count);
-    map = store_handler2_map();
+  switch (data_count) {
+    case 0:
+      map = store_handler0_map();
+      break;
+    case 1:
+      map = store_handler1_map();
+      break;
+    case 2:
+      map = store_handler2_map();
+      break;
+    default:
+      UNREACHABLE();
+      break;
   }
   return New<StoreHandler>(map, OLD_SPACE);
 }
