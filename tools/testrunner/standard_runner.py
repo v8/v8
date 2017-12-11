@@ -116,6 +116,8 @@ class StandardTestRunner(base_runner.BaseTestRunner):
 
       suites = []
       for root in suite_paths:
+        if options.verbose:
+          print '>>> Loading test suite: %s' % root
         suite = testsuite.TestSuite.LoadTestSuite(
             os.path.join(base_runner.BASE_DIR, "test", root))
         if suite:
