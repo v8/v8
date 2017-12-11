@@ -1658,6 +1658,65 @@ TF_BUILTIN(ArrayFindLoopContinuation, ArrayBuiltinCodeStubAssembler) {
       MissingPropertyMode::kUseUndefined, ForEachDirection::kForward);
 }
 
+TF_BUILTIN(ArrayFindLoopEagerDeoptContinuation, ArrayBuiltinCodeStubAssembler) {
+  Node* context = Parameter(Descriptor::kContext);
+  Node* receiver = Parameter(Descriptor::kReceiver);
+  Node* callbackfn = Parameter(Descriptor::kCallbackFn);
+  Node* this_arg = Parameter(Descriptor::kThisArg);
+  Node* initial_k = Parameter(Descriptor::kInitialK);
+  Node* len = Parameter(Descriptor::kLength);
+
+  Callable stub(
+      Builtins::CallableFor(isolate(), Builtins::kArrayFindLoopContinuation));
+  Return(CallStub(stub, context, receiver, callbackfn, this_arg,
+                  UndefinedConstant(), receiver, initial_k, len,
+                  UndefinedConstant()));
+}
+
+TF_BUILTIN(ArrayFindLoopLazyDeoptContinuation, ArrayBuiltinCodeStubAssembler) {
+  Node* context = Parameter(Descriptor::kContext);
+  Node* receiver = Parameter(Descriptor::kReceiver);
+  Node* callbackfn = Parameter(Descriptor::kCallbackFn);
+  Node* this_arg = Parameter(Descriptor::kThisArg);
+  Node* initial_k = Parameter(Descriptor::kInitialK);
+  Node* len = Parameter(Descriptor::kLength);
+
+  Callable stub(
+      Builtins::CallableFor(isolate(), Builtins::kArrayFindLoopContinuation));
+  Return(CallStub(stub, context, receiver, callbackfn, this_arg,
+                  UndefinedConstant(), receiver, initial_k, len,
+                  UndefinedConstant()));
+}
+
+TF_BUILTIN(ArrayFindLoopAfterCallbackLazyDeoptContinuation,
+           ArrayBuiltinCodeStubAssembler) {
+  Node* context = Parameter(Descriptor::kContext);
+  Node* receiver = Parameter(Descriptor::kReceiver);
+  Node* callbackfn = Parameter(Descriptor::kCallbackFn);
+  Node* this_arg = Parameter(Descriptor::kThisArg);
+  Node* initial_k = Parameter(Descriptor::kInitialK);
+  Node* len = Parameter(Descriptor::kLength);
+  Node* element = Parameter(Descriptor::kElement);
+  Node* result = Parameter(Descriptor::kResult);
+
+  // This custom lazy deopt point is right after the callback. find() needs
+  // to pick up at the next step, which is returning the element if the callback
+  // value is truthy.  Otherwise, continue the search by calling the
+  // continuation.
+  Label if_true(this), if_false(this);
+  BranchIfToBooleanIsTrue(result, &if_true, &if_false);
+  BIND(&if_true);
+  Return(element);
+  BIND(&if_false);
+  {
+    Callable stub(
+        Builtins::CallableFor(isolate(), Builtins::kArrayFindLoopContinuation));
+    Return(CallStub(stub, context, receiver, callbackfn, this_arg,
+                    UndefinedConstant(), receiver, initial_k, len,
+                    UndefinedConstant()));
+  }
+}
+
 // ES #sec-get-%typedarray%.prototype.find
 TF_BUILTIN(ArrayPrototypeFind, ArrayBuiltinCodeStubAssembler) {
   Node* argc =

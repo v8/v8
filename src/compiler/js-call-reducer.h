@@ -74,6 +74,7 @@ class JSCallReducer final : public AdvancedReducer {
   Reduction ReduceArrayForEach(Handle<JSFunction> function, Node* node);
   Reduction ReduceArrayMap(Handle<JSFunction> function, Node* node);
   Reduction ReduceArrayFilter(Handle<JSFunction> function, Node* node);
+  Reduction ReduceArrayFind(Handle<JSFunction> function, Node* node);
   Reduction ReduceCallOrConstructWithArrayLikeOrSpread(
       Node* node, int arity, CallFrequency const& frequency,
       VectorSlotPair const& feedback);

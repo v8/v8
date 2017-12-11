@@ -319,6 +319,12 @@ namespace internal {
   /* ES6 #sec-array.prototype.find */                                          \
   TFS(ArrayFindLoopContinuation, kReceiver, kCallbackFn, kThisArg, kArray,     \
       kObject, kInitialK, kLength, kTo)                                        \
+  TFJ(ArrayFindLoopEagerDeoptContinuation, 4, kCallbackFn, kThisArg,           \
+      kInitialK, kLength)                                                      \
+  TFJ(ArrayFindLoopLazyDeoptContinuation, 5, kCallbackFn, kThisArg, kInitialK, \
+      kLength, kResult)                                                        \
+  TFJ(ArrayFindLoopAfterCallbackLazyDeoptContinuation, 6, kCallbackFn,         \
+      kThisArg, kInitialK, kLength, kElement, kResult)                         \
   TFJ(ArrayPrototypeFind, SharedFunctionInfo::kDontAdaptArgumentsSentinel)     \
   /* ES6 #sec-array.prototype.findIndex */                                     \
   TFS(ArrayFindIndexLoopContinuation, kReceiver, kCallbackFn, kThisArg,        \

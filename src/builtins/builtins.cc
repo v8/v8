@@ -172,6 +172,9 @@ Callable Builtins::CallableFor(Isolate* isolate, Name name) {
 #undef CASE_OTHER
     case kArrayFilterLoopEagerDeoptContinuation:
     case kArrayFilterLoopLazyDeoptContinuation:
+    case kArrayFindLoopEagerDeoptContinuation:
+    case kArrayFindLoopLazyDeoptContinuation:
+    case kArrayFindLoopAfterCallbackLazyDeoptContinuation:
     case kArrayForEach:
     case kArrayForEachLoopEagerDeoptContinuation:
     case kArrayForEachLoopLazyDeoptContinuation:
@@ -213,6 +216,10 @@ bool Builtins::IsLazy(int index) {
   // TODO(wasm): Remove wasm builtins once immovability is no longer required.
   switch (index) {
     case kAbort:  // Required by wasm.
+    case kArrayFindLoopEagerDeoptContinuation:  // https://crbug.com/v8/6786.
+    case kArrayFindLoopLazyDeoptContinuation:   // https://crbug.com/v8/6786.
+    // https://crbug.com/v8/6786.
+    case kArrayFindLoopAfterCallbackLazyDeoptContinuation:
     case kArrayForEachLoopEagerDeoptContinuation:  // https://crbug.com/v8/6786.
     case kArrayForEachLoopLazyDeoptContinuation:   // https://crbug.com/v8/6786.
     case kArrayMapLoopEagerDeoptContinuation:      // https://crbug.com/v8/6786.
