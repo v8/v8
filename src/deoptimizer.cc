@@ -3454,7 +3454,9 @@ void TranslatedState::EnsureCapturedObjectAllocatedAt(
       CHECK_EQ(instance_size, slot->GetChildrenCount() * kPointerSize);
 
       slot->set_storage(AllocateStorageFor(slot));
-      break;
+      // Make sure all the remaining children (after the map) are allocated.
+      return EnsureChildrenAllocated(slot->GetChildrenCount() - 1, frame,
+                                     &value_index, worklist);
     }
 
     case PROPERTY_ARRAY_TYPE: {
@@ -3466,32 +3468,37 @@ void TranslatedState::EnsureCapturedObjectAllocatedAt(
       CHECK_EQ(instance_size, slot->GetChildrenCount() * kPointerSize);
 
       slot->set_storage(AllocateStorageFor(slot));
-      break;
+      // Make sure all the remaining children (after the map) are allocated.
+      return EnsureChildrenAllocated(slot->GetChildrenCount() - 1, frame,
+                                     &value_index, worklist);
     }
 
     case CONTEXT_EXTENSION_TYPE: {
       CHECK_EQ(map->instance_size(), slot->GetChildrenCount() * kPointerSize);
       slot->set_storage(AllocateStorageFor(slot));
-      break;
+      // Make sure all the remaining children (after the map) are allocated.
+      return EnsureChildrenAllocated(slot->GetChildrenCount() - 1, frame,
+                                     &value_index, worklist);
     }
 
     default:
       CHECK(map->IsJSObjectMap());
       EnsureJSObjectAllocated(slot, map);
       TranslatedValue* properties_slot = &(frame->values_[value_index]);
+      value_index++;
       if (properties_slot->kind() == TranslatedValue::kCapturedObject) {
         // If we are materializing the property array, make sure we put
         // the mutable heap numbers at the right places.
         EnsurePropertiesAllocatedAndMarked(properties_slot, map);
-        value_index++;
         EnsureChildrenAllocated(properties_slot->GetChildrenCount(), frame,
                                 &value_index, worklist);
       }
-      break;
+      // Make sure all the remaining children (after the map and properties) are
+      // allocated.
+      return EnsureChildrenAllocated(slot->GetChildrenCount() - 2, frame,
+                                     &value_index, worklist);
   }
-
-  EnsureChildrenAllocated(slot->GetChildrenCount() - 1, frame, &value_index,
-                          worklist);
+  UNREACHABLE();
 }
 
 void TranslatedState::EnsureChildrenAllocated(int count, TranslatedFrame* frame,
