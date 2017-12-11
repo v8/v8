@@ -30,7 +30,7 @@
 #include "src/disassembler.h"
 #include "src/factory.h"
 #include "src/ppc/assembler-ppc-inl.h"
-#include "src/ppc/simulator-ppc.h"
+#include "src/simulator.h"
 #include "test/cctest/cctest.h"
 
 namespace v8 {

@@ -35,7 +35,7 @@
 #include "src/factory.h"
 #include "src/macro-assembler.h"
 #include "src/mips/macro-assembler-mips.h"
-#include "src/mips/simulator-mips.h"
+#include "src/simulator.h"
 
 #include "test/cctest/cctest.h"
 

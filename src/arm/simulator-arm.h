@@ -18,29 +18,7 @@
 #include "src/base/platform/mutex.h"
 #include "src/boxed-float.h"
 
-#if !defined(USE_SIMULATOR)
-// Running without a simulator on a native arm platform.
-
-namespace v8 {
-namespace internal {
-
-// When running without a simulator we call the entry directly.
-#define CALL_GENERATED_CODE(isolate, entry, p0, p1, p2, p3, p4) \
-  (entry(p0, p1, p2, p3, p4))
-
-typedef int (*arm_regexp_matcher)(String*, int, const byte*, const byte*, int*,
-                                  int, Address, int, Isolate*);
-
-// Call the generated regexp code directly. The code at the entry address
-// should act as a function matching the type arm_regexp_matcher.
-#define CALL_GENERATED_REGEXP_CODE(isolate, entry, p0, p1, p2, p3, p4, p5, p6, \
-                                   p7, p8)                                     \
-  (FUNCTION_CAST<arm_regexp_matcher>(entry)(p0, p1, p2, p3, p4, p5, p6, p7, p8))
-
-}  // namespace internal
-}  // namespace v8
-
-#else  // !defined(USE_SIMULATOR)
+#if defined(USE_SIMULATOR)
 // Running with a simulator.
 
 #include "src/arm/constants-arm.h"
@@ -537,5 +515,5 @@ class Simulator {
 }  // namespace internal
 }  // namespace v8
 
-#endif  // !defined(USE_SIMULATOR)
+#endif  // defined(USE_SIMULATOR)
 #endif  // V8_ARM_SIMULATOR_ARM_H_

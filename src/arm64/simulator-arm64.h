@@ -21,31 +21,7 @@
 namespace v8 {
 namespace internal {
 
-#if !defined(USE_SIMULATOR)
-
-// Running without a simulator on a native ARM64 platform.
-// When running without a simulator we call the entry directly.
-#define CALL_GENERATED_CODE(isolate, entry, p0, p1, p2, p3, p4) \
-  (entry(p0, p1, p2, p3, p4))
-
-typedef int (*arm64_regexp_matcher)(String* input,
-                                    int64_t start_offset,
-                                    const byte* input_start,
-                                    const byte* input_end,
-                                    int* output,
-                                    int64_t output_size,
-                                    Address stack_base,
-                                    int64_t direct_call,
-                                    Isolate* isolate);
-
-// Call the generated regexp code directly. The code at the entry address
-// should act as a function matching the type arm64_regexp_matcher.
-#define CALL_GENERATED_REGEXP_CODE(isolate, entry, p0, p1, p2, p3, p4, p5, p6, \
-                                   p7, p8)                                     \
-  (FUNCTION_CAST<arm64_regexp_matcher>(entry)(p0, p1, p2, p3, p4, p5, p6, p7,  \
-                                              p8))
-
-#else  // !defined(USE_SIMULATOR)
+#if defined(USE_SIMULATOR)
 
 // Assemble the specified IEEE-754 components into the target type and apply
 // appropriate rounding.
@@ -2398,7 +2374,7 @@ inline float Simulator::FPDefaultNaN<float>() {
   static_cast<int>(Simulator::current(isolate)->CallRegExp(                    \
       entry, p0, p1, p2, p3, p4, p5, p6, p7, p8))
 
-#endif  // !defined(USE_SIMULATOR)
+#endif  // defined(USE_SIMULATOR)
 
 }  // namespace internal
 }  // namespace v8

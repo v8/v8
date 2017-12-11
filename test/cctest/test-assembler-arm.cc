@@ -27,7 +27,6 @@
 
 #include <iostream>  // NOLINT(readability/streams)
 
-#include "src/arm/simulator-arm.h"
 #include "src/assembler-inl.h"
 #include "src/base/utils/random-number-generator.h"
 #include "src/disassembler.h"
@@ -35,6 +34,7 @@
 #include "src/factory.h"
 #include "src/macro-assembler.h"
 #include "src/ostreams.h"
+#include "src/simulator.h"
 #include "src/v8.h"
 #include "test/cctest/assembler-helper-arm.h"
 #include "test/cctest/cctest.h"

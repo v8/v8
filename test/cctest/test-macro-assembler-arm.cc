@@ -27,10 +27,10 @@
 
 #include <stdlib.h>
 
-#include "src/arm/simulator-arm.h"
 #include "src/assembler-inl.h"
 #include "src/macro-assembler.h"
 #include "src/objects-inl.h"
+#include "src/simulator.h"
 #include "src/v8.h"
 #include "test/cctest/cctest.h"
 

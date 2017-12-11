@@ -16,48 +16,7 @@
 #include "src/allocation.h"
 #include "src/mips64/constants-mips64.h"
 
-#if !defined(USE_SIMULATOR)
-// Running without a simulator on a native mips platform.
-
-namespace v8 {
-namespace internal {
-
-// When running without a simulator we call the entry directly.
-#define CALL_GENERATED_CODE(isolate, entry, p0, p1, p2, p3, p4) \
-  entry(p0, p1, p2, p3, p4)
-
-
-// Call the generated regexp code directly. The code at the entry address
-// should act as a function matching the type arm_regexp_matcher.
-typedef int (*mips_regexp_matcher)(String* input,
-                                   int64_t start_offset,
-                                   const byte* input_start,
-                                   const byte* input_end,
-                                   int* output,
-                                   int64_t output_size,
-                                   Address stack_base,
-                                   int64_t direct_call,
-                                   Isolate* isolate);
-
-#define CALL_GENERATED_REGEXP_CODE(isolate, entry, p0, p1, p2, p3, p4, p5, p6, \
-                                   p7, p8)                                     \
-  (FUNCTION_CAST<mips_regexp_matcher>(entry)(p0, p1, p2, p3, p4, p5, p6, p7,   \
-                                             p8))
-
-}  // namespace internal
-}  // namespace v8
-
-// Calculated the stack limit beyond which we will throw stack overflow errors.
-// This macro must be called from a C++ method. It relies on being able to take
-// the address of "this" to get a value on the current execution stack and then
-// calculates the stack limit based on that value.
-// NOTE: The check for overflow is not safe as there is no guarantee that the
-// running thread has its stack in all memory up to address 0x00000000.
-#define GENERATED_CODE_STACK_LIMIT(limit) \
-  (reinterpret_cast<uintptr_t>(this) >= limit ? \
-      reinterpret_cast<uintptr_t>(this) - limit : 0)
-
-#else  // !defined(USE_SIMULATOR)
+#if defined(USE_SIMULATOR)
 // Running with a simulator.
 
 #include "src/assembler.h"
@@ -644,5 +603,5 @@ class Simulator {
 }  // namespace internal
 }  // namespace v8
 
-#endif  // !defined(USE_SIMULATOR)
+#endif  // defined(USE_SIMULATOR)
 #endif  // V8_MIPS_SIMULATOR_MIPS_H_

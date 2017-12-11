@@ -31,7 +31,7 @@
 #include "src/factory.h"
 #include "src/macro-assembler.h"
 #include "src/s390/assembler-s390-inl.h"
-#include "src/s390/simulator-s390.h"
+#include "src/simulator.h"
 #include "test/cctest/cctest.h"
 
 namespace v8 {
