@@ -1254,14 +1254,17 @@ inline uint32_t ObjectHash(Address address) {
 // Type feedback is encoded in such a way that, we can combine the feedback
 // at different points by performing an 'OR' operation. Type feedback moves
 // to a more generic type when we combine feedback.
-// kSignedSmall -> kSignedSmallInputs -> kNumber  -> kNumberOrOddball -> kAny
-//                                                   kString          -> kAny
-// kBigInt -> kAny
-// TODO(mythria): Remove kNumber type when crankshaft can handle Oddballs
-// similar to Numbers. We don't need kNumber feedback for Turbofan. Extra
-// information about Number might reduce few instructions but causes more
-// deopts. We collect Number only because crankshaft does not handle all
-// cases of oddballs.
+//
+//   kSignedSmall -> kSignedSmallInputs -> kNumber  -> kNumberOrOddball -> kAny
+//                                                     kString          -> kAny
+//                                                     kBigInt          -> kAny
+//
+// Technically we wouldn't need the separation between the kNumber and the
+// kNumberOrOddball values here, since for binary operations, we always
+// truncate oddballs to numbers. In practice though it causes TurboFan to
+// generate quite a lot of unused code though if we always handle numbers
+// and oddballs everywhere, although in 99% of the use sites they are only
+// used with numbers.
 class BinaryOperationFeedback {
  public:
   enum {
