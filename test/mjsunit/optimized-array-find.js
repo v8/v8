@@ -392,3 +392,19 @@
   %OptimizeFunctionOnNextCall(withHoles);
   assertArrayEquals([1, 2, undefined, 3, 4], withHoles());
 })();
+
+(() => {
+  const a = [1.5, 2.5, , 3.5, 4.5];
+  function withHoles() {
+    const callback_values = [];
+    a.find(v => {
+      callback_values.push(v);
+      return false;
+    });
+    return callback_values;
+  }
+  withHoles();
+  withHoles();
+  %OptimizeFunctionOnNextCall(withHoles);
+  assertArrayEquals([1.5, 2.5, undefined, 3.5, 4.5], withHoles());
+})();

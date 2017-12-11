@@ -1400,6 +1400,12 @@ Reduction JSCallReducer::ReduceArrayFind(Handle<JSFunction> function,
   if (receiver_maps.size() == 0) return NoChange();
 
   const ElementsKind kind = receiver_maps[0]->elements_kind();
+
+  // TODO(pwong): Handle holey double elements kinds.
+  if (IsDoubleElementsKind(kind) && IsHoleyElementsKind(kind)) {
+    return NoChange();
+  }
+
   for (Handle<Map> receiver_map : receiver_maps) {
     if (!CanInlineArrayIteratingBuiltin(receiver_map)) return NoChange();
     // We can handle different maps, as long as their elements kind are the
