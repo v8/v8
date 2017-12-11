@@ -11,6 +11,7 @@
 #include "src/deoptimize-reason.h"
 #include "src/globals.h"
 #include "src/machine-type.h"
+#include "src/vector-slot-pair.h"
 #include "src/zone/zone-containers.h"
 #include "src/zone/zone-handle-set.h"
 
@@ -52,15 +53,18 @@ int ValueInputCountOfReturn(Operator const* const op);
 // Parameters for the {Deoptimize} operator.
 class DeoptimizeParameters final {
  public:
-  DeoptimizeParameters(DeoptimizeKind kind, DeoptimizeReason reason)
-      : kind_(kind), reason_(reason) {}
+  DeoptimizeParameters(DeoptimizeKind kind, DeoptimizeReason reason,
+                       VectorSlotPair const& feedback)
+      : kind_(kind), reason_(reason), feedback_(feedback) {}
 
   DeoptimizeKind kind() const { return kind_; }
   DeoptimizeReason reason() const { return reason_; }
+  const VectorSlotPair& feedback() const { return feedback_; }
 
  private:
   DeoptimizeKind const kind_;
   DeoptimizeReason const reason_;
+  VectorSlotPair const feedback_;
 };
 
 bool operator==(DeoptimizeParameters, DeoptimizeParameters);
@@ -358,10 +362,12 @@ class V8_EXPORT_PRIVATE CommonOperatorBuilder final
   const Operator* IfValue(int32_t value);
   const Operator* IfDefault();
   const Operator* Throw();
-  const Operator* Deoptimize(DeoptimizeKind kind, DeoptimizeReason reason);
-  const Operator* DeoptimizeIf(DeoptimizeKind kind, DeoptimizeReason reason);
-  const Operator* DeoptimizeUnless(DeoptimizeKind kind,
-                                   DeoptimizeReason reason);
+  const Operator* Deoptimize(DeoptimizeKind kind, DeoptimizeReason reason,
+                             VectorSlotPair const& feedback);
+  const Operator* DeoptimizeIf(DeoptimizeKind kind, DeoptimizeReason reason,
+                               VectorSlotPair const& feedback);
+  const Operator* DeoptimizeUnless(DeoptimizeKind kind, DeoptimizeReason reason,
+                                   VectorSlotPair const& feedback);
   const Operator* TrapIf(int32_t trap_id);
   const Operator* TrapUnless(int32_t trap_id);
   const Operator* Return(int value_input_count = 1);

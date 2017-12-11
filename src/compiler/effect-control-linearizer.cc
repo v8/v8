@@ -1355,7 +1355,7 @@ void EffectControlLinearizer::LowerCheckMaps(Node* node, Node* frame_state) {
                        __ Int32Constant(Map::IsDeprecatedBit::kMask)),
           __ Int32Constant(0));
       __ DeoptimizeIf(DeoptimizeReason::kWrongMap, if_not_deprecated,
-                      frame_state);
+                      frame_state, p.feedback());
 
       Operator::Properties properties = Operator::kNoDeopt | Operator::kNoThrow;
       Runtime::FunctionId id = Runtime::kTryMigrateInstance;
@@ -1367,7 +1367,7 @@ void EffectControlLinearizer::LowerCheckMaps(Node* node, Node* frame_state) {
                   __ Int32Constant(1), __ NoContextConstant());
       Node* check = ObjectIsSmi(result);
       __ DeoptimizeIf(DeoptimizeReason::kInstanceMigrationFailed, check,
-                      frame_state);
+                      frame_state, p.feedback());
     }
 
     // Reload the current map of the {value}.
@@ -1378,7 +1378,8 @@ void EffectControlLinearizer::LowerCheckMaps(Node* node, Node* frame_state) {
       Node* map = __ HeapConstant(maps[i]);
       Node* check = __ WordEqual(value_map, map);
       if (i == map_count - 1) {
-        __ DeoptimizeIfNot(DeoptimizeReason::kWrongMap, check, frame_state);
+        __ DeoptimizeIfNot(DeoptimizeReason::kWrongMap, check, frame_state,
+                           p.feedback());
       } else {
         __ GotoIf(check, &done);
       }
@@ -1396,7 +1397,8 @@ void EffectControlLinearizer::LowerCheckMaps(Node* node, Node* frame_state) {
       Node* map = __ HeapConstant(maps[i]);
       Node* check = __ WordEqual(value_map, map);
       if (i == map_count - 1) {
-        __ DeoptimizeIfNot(DeoptimizeReason::kWrongMap, check, frame_state);
+        __ DeoptimizeIfNot(DeoptimizeReason::kWrongMap, check, frame_state,
+                           p.feedback());
       } else {
         __ GotoIf(check, &done);
       }
@@ -1524,7 +1526,7 @@ Node* EffectControlLinearizer::LowerCheckInternalizedString(Node* node,
 void EffectControlLinearizer::LowerCheckIf(Node* node, Node* frame_state) {
   Node* value = node->InputAt(0);
   __ DeoptimizeIfNot(DeoptimizeKind::kEager, DeoptimizeReasonOf(node->op()),
-                     value, frame_state);
+                     value, frame_state, VectorSlotPair());
 }
 
 Node* EffectControlLinearizer::LowerCheckedInt32Add(Node* node,

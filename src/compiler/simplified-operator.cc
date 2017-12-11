@@ -215,15 +215,20 @@ size_t hash_value(MapsParameterInfo const& p) { return hash_value(p.maps()); }
 
 bool operator==(CheckMapsParameters const& lhs,
                 CheckMapsParameters const& rhs) {
-  return lhs.flags() == rhs.flags() && lhs.maps() == rhs.maps();
+  return lhs.flags() == rhs.flags() && lhs.maps() == rhs.maps() &&
+         lhs.feedback() == rhs.feedback();
 }
 
 size_t hash_value(CheckMapsParameters const& p) {
-  return base::hash_combine(p.flags(), p.maps());
+  return base::hash_combine(p.flags(), p.maps(), p.feedback());
 }
 
 std::ostream& operator<<(std::ostream& os, CheckMapsParameters const& p) {
-  return os << p.flags() << p.maps_info();
+  os << p.flags() << p.maps_info();
+  if (p.feedback().IsValid()) {
+    os << "; " << p.feedback();
+  }
+  return os;
 }
 
 CheckMapsParameters const& CheckMapsParametersOf(Operator const* op) {
@@ -1021,9 +1026,10 @@ const Operator* SimplifiedOperatorBuilder::CheckedTruncateTaggedToWord32(
   UNREACHABLE();
 }
 
-const Operator* SimplifiedOperatorBuilder::CheckMaps(CheckMapsFlags flags,
-                                                     ZoneHandleSet<Map> maps) {
-  CheckMapsParameters const parameters(flags, maps);
+const Operator* SimplifiedOperatorBuilder::CheckMaps(
+    CheckMapsFlags flags, ZoneHandleSet<Map> maps,
+    const VectorSlotPair& feedback) {
+  CheckMapsParameters const parameters(flags, maps, feedback);
   return new (zone()) Operator1<CheckMapsParameters>(  // --
       IrOpcode::kCheckMaps,                            // opcode
       Operator::kNoThrow | Operator::kNoWrite,         // flags

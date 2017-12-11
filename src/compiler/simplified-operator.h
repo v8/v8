@@ -16,6 +16,7 @@
 #include "src/machine-type.h"
 #include "src/objects.h"
 #include "src/type-hints.h"
+#include "src/vector-slot-pair.h"
 #include "src/zone/zone-handle-set.h"
 
 namespace v8 {
@@ -155,19 +156,24 @@ bool operator!=(MapsParameterInfo const&, MapsParameterInfo const&);
 
 size_t hash_value(MapsParameterInfo const&);
 
-// A descriptor for map checks.
+// A descriptor for map checks. The {feedback} parameter is optional.
+// If {feedback} references a valid CallIC slot and this MapCheck fails,
+// then speculation on that CallIC slot will be disabled.
 class CheckMapsParameters final {
  public:
-  CheckMapsParameters(CheckMapsFlags flags, ZoneHandleSet<Map> const& maps)
-      : flags_(flags), maps_info_(maps) {}
+  CheckMapsParameters(CheckMapsFlags flags, ZoneHandleSet<Map> const& maps,
+                      const VectorSlotPair& feedback)
+      : flags_(flags), maps_info_(maps), feedback_(feedback) {}
 
   CheckMapsFlags flags() const { return flags_; }
   ZoneHandleSet<Map> const& maps() const { return maps_info_.maps(); }
   MapsParameterInfo const& maps_info() const { return maps_info_; }
+  VectorSlotPair const& feedback() const { return feedback_; }
 
  private:
   CheckMapsFlags const flags_;
   MapsParameterInfo const maps_info_;
+  VectorSlotPair const feedback_;
 };
 
 bool operator==(CheckMapsParameters const&, CheckMapsParameters const&);
@@ -438,7 +444,8 @@ class V8_EXPORT_PRIVATE SimplifiedOperatorBuilder final
 
   const Operator* CheckIf(DeoptimizeReason deoptimize_reason);
   const Operator* CheckBounds();
-  const Operator* CheckMaps(CheckMapsFlags, ZoneHandleSet<Map>);
+  const Operator* CheckMaps(CheckMapsFlags, ZoneHandleSet<Map>,
+                            const VectorSlotPair& = VectorSlotPair());
   const Operator* CompareMaps(ZoneHandleSet<Map>);
   const Operator* MapGuard(ZoneHandleSet<Map> maps);
 
