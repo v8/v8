@@ -13,10 +13,8 @@ namespace internal {
 namespace compiler {
 
 Frame::Frame(int fixed_frame_size_in_slots)
-    : fixed_slot_count_(fixed_frame_size_in_slots),
-      frame_slot_count_(fixed_frame_size_in_slots),
+    : frame_slot_count_(fixed_frame_size_in_slots),
       spill_slot_count_(0),
-      return_slot_count_(0),
       allocated_registers_(nullptr),
       allocated_double_registers_(nullptr) {}
 

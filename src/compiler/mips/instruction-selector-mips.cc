@@ -1181,8 +1181,8 @@ void InstructionSelector::EmitPrepareArguments(
     // Poke any stack arguments.
     int slot = kCArgSlotCount;
     for (PushParameter input : (*arguments)) {
-      if (input.node) {
-        Emit(kMipsStoreToStackSlot, g.NoOutput(), g.UseRegister(input.node),
+      if (input.node()) {
+        Emit(kMipsStoreToStackSlot, g.NoOutput(), g.UseRegister(input.node()),
              g.TempImmediate(slot << kPointerSizeLog2));
         ++slot;
       }
@@ -1196,19 +1196,14 @@ void InstructionSelector::EmitPrepareArguments(
     }
     for (size_t n = 0; n < arguments->size(); ++n) {
       PushParameter input = (*arguments)[n];
-      if (input.node) {
-        Emit(kMipsStoreToStackSlot, g.NoOutput(), g.UseRegister(input.node),
+      if (input.node()) {
+        Emit(kMipsStoreToStackSlot, g.NoOutput(), g.UseRegister(input.node()),
              g.TempImmediate(n << kPointerSizeLog2));
       }
     }
   }
 }
 
-void InstructionSelector::EmitPrepareResults(ZoneVector<PushParameter>* results,
-                                             const CallDescriptor* descriptor,
-                                             Node* node) {
-  // TODO(ahaas): Port.
-}
 
 bool InstructionSelector::IsTailCallAddressImmediate() { return false; }
 

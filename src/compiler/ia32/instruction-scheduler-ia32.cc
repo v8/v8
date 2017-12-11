@@ -263,9 +263,6 @@ int InstructionScheduler::GetTargetInstructionFlags(
       return instr->HasOutput() ? kIsLoadOperation : kHasSideEffect;
 
     case kIA32StackCheck:
-    case kIA32Peek:
-    case kIA32PeekFloat32:
-    case kIA32PeekFloat64:
       return kIsLoadOperation;
 
     case kIA32Push:

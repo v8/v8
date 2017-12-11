@@ -1538,11 +1538,11 @@ void InstructionSelector::EmitPrepareArguments(
     // Poke any stack arguments.
     for (size_t n = 0; n < arguments->size(); ++n) {
       PushParameter input = (*arguments)[n];
-      if (input.node) {
+      if (input.node()) {
         int slot = static_cast<int>(n);
-        InstructionOperand value = g.CanBeImmediate(input.node)
-                                       ? g.UseImmediate(input.node)
-                                       : g.UseRegister(input.node);
+        InstructionOperand value = g.CanBeImmediate(input.node())
+                                       ? g.UseImmediate(input.node())
+                                       : g.UseRegister(input.node());
         Emit(kX64Poke | MiscField::encode(slot), g.NoOutput(), value);
       }
     }
@@ -1550,56 +1550,31 @@ void InstructionSelector::EmitPrepareArguments(
     // Push any stack arguments.
     int effect_level = GetEffectLevel(node);
     for (PushParameter input : base::Reversed(*arguments)) {
-      if (g.CanBeImmediate(input.node)) {
-        Emit(kX64Push, g.NoOutput(), g.UseImmediate(input.node));
+      Node* input_node = input.node();
+      if (g.CanBeImmediate(input_node)) {
+        Emit(kX64Push, g.NoOutput(), g.UseImmediate(input_node));
       } else if (IsSupported(ATOM) ||
-                 sequence()->IsFP(GetVirtualRegister(input.node))) {
+                 sequence()->IsFP(GetVirtualRegister(input_node))) {
         // TODO(titzer): X64Push cannot handle stack->stack double moves
         // because there is no way to encode fixed double slots.
-        Emit(kX64Push, g.NoOutput(), g.UseRegister(input.node));
-      } else if (g.CanBeMemoryOperand(kX64Push, node, input.node,
+        Emit(kX64Push, g.NoOutput(), g.UseRegister(input_node));
+      } else if (g.CanBeMemoryOperand(kX64Push, node, input_node,
                                       effect_level)) {
         InstructionOperand outputs[1];
         InstructionOperand inputs[4];
         size_t input_count = 0;
         InstructionCode opcode = kX64Push;
         AddressingMode mode = g.GetEffectiveAddressMemoryOperand(
-            input.node, inputs, &input_count);
+            input_node, inputs, &input_count);
         opcode |= AddressingModeField::encode(mode);
         Emit(opcode, 0, outputs, input_count, inputs);
       } else {
-        Emit(kX64Push, g.NoOutput(), g.Use(input.node));
+        Emit(kX64Push, g.NoOutput(), g.Use(input_node));
       }
     }
   }
 }
 
-void InstructionSelector::EmitPrepareResults(ZoneVector<PushParameter>* results,
-                                             const CallDescriptor* descriptor,
-                                             Node* node) {
-  X64OperandGenerator g(this);
-
-  int reverse_slot = 0;
-  for (PushParameter output : *results) {
-    if (!output.location.IsCallerFrameSlot()) continue;
-    reverse_slot += output.location.GetSizeInPointers();
-    // Skip any alignment holes in nodes.
-    if (output.node == nullptr) continue;
-    DCHECK(!descriptor->IsCFunctionCall());
-    if (output.location.GetType() == MachineType::Float32()) {
-      MarkAsFloat32(output.node);
-      InstructionOperand result = g.DefineAsRegister(output.node);
-      Emit(kX64PeekFloat32 | MiscField::encode(reverse_slot), result);
-    } else if (output.location.GetType() == MachineType::Float64()) {
-      MarkAsFloat64(output.node);
-      InstructionOperand result = g.DefineAsRegister(output.node);
-      Emit(kX64PeekFloat64 | MiscField::encode(reverse_slot), result);
-    } else {
-      InstructionOperand result = g.DefineAsRegister(output.node);
-      Emit(kX64Peek | MiscField::encode(reverse_slot), result);
-    }
-  }
-}
 
 bool InstructionSelector::IsTailCallAddressImmediate() { return true; }
 
