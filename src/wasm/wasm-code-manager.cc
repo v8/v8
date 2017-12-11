@@ -506,8 +506,7 @@ void NativeModule::Link(uint32_t index) {
   for (RelocIterator it(code->instructions(), code->reloc_info(),
                         code->constant_pool(), mode_mask);
        !it.done(); it.next()) {
-    uint32_t index =
-        *(reinterpret_cast<uint32_t*>(it.rinfo()->target_address_address()));
+    uint32_t index = GetWasmCalleeTag(it.rinfo());
     const WasmCode* target = GetCode(index);
     if (target == nullptr) continue;
     Address target_addr = target->instructions().start();
@@ -974,6 +973,29 @@ NativeModuleModificationScope::~NativeModuleModificationScope() {
     bool success = native_module_->SetExecutable(true);
     CHECK(success);
   }
+}
+
+// On Intel, call sites are encoded as a displacement. For linking
+// and for serialization/deserialization, we want to store/retrieve
+// a tag (the function index). On Intel, that means accessing the
+// raw displacement. Everywhere else, that simply means accessing
+// the target address.
+void SetWasmCalleeTag(RelocInfo* rinfo, uint32_t tag) {
+#if V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_IA32
+  *(reinterpret_cast<uint32_t*>(rinfo->target_address_address())) = tag;
+#else
+  rinfo->set_target_address(nullptr, reinterpret_cast<Address>(tag),
+                            SKIP_WRITE_BARRIER, SKIP_ICACHE_FLUSH);
+#endif
+}
+
+uint32_t GetWasmCalleeTag(RelocInfo* rinfo) {
+#if V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_IA32
+  return *(reinterpret_cast<uint32_t*>(rinfo->target_address_address()));
+#else
+  return static_cast<uint32_t>(
+      reinterpret_cast<size_t>(rinfo->target_address()));
+#endif
 }
 
 }  // namespace wasm

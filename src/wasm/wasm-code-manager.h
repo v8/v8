@@ -414,6 +414,13 @@ class NativeModuleModificationScope final {
   NativeModule* native_module_;
 };
 
+// Utilities specific to wasm code generation. We embed a tag for call sites -
+// the index of the called function - when serializing and when creating the
+// code, initially. These APIs offer accessors. The implementation has platform
+// specific nuances.
+void SetWasmCalleeTag(RelocInfo* rinfo, uint32_t tag);
+uint32_t GetWasmCalleeTag(RelocInfo* rinfo);
+
 }  // namespace wasm
 }  // namespace internal
 }  // namespace v8

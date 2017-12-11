@@ -24,18 +24,6 @@ namespace internal {
 namespace wasm {
 
 namespace {
-void SetRawTargetData(RelocInfo* rinfo, uint32_t value) {
-  if (rinfo->target_address_size() == sizeof(uint32_t)) {
-    *(reinterpret_cast<uint32_t*>(rinfo->target_address_address())) = value;
-    return;
-  } else {
-    DCHECK_EQ(rinfo->target_address_size(), sizeof(intptr_t));
-    DCHECK_EQ(rinfo->target_address_size(), 8);
-    *(reinterpret_cast<intptr_t*>(rinfo->target_address_address())) =
-        static_cast<intptr_t>(value);
-    return;
-  }
-}
 
 class Writer {
  public:
@@ -373,17 +361,17 @@ void NativeModuleSerializer::BufferCodeInAllocatedScratch(
       case RelocInfo::CODE_TARGET: {
         Address orig_target = orig_iter.rinfo()->target_address();
         uint32_t tag = EncodeBuiltinOrStub(orig_target);
-        SetRawTargetData(iter.rinfo(), tag);
+        SetWasmCalleeTag(iter.rinfo(), tag);
       } break;
       case RelocInfo::WASM_CALL: {
         Address orig_target = orig_iter.rinfo()->wasm_call_address();
         uint32_t tag = wasm_targets_lookup_[orig_target];
-        SetRawTargetData(iter.rinfo(), tag);
+        SetWasmCalleeTag(iter.rinfo(), tag);
       } break;
       case RelocInfo::RUNTIME_ENTRY: {
         Address orig_target = orig_iter.rinfo()->target_address();
         uint32_t tag = reference_table_lookup_[orig_target];
-        SetRawTargetData(iter.rinfo(), tag);
+        SetWasmCalleeTag(iter.rinfo(), tag);
       } break;
       default:
         UNREACHABLE();
@@ -579,8 +567,7 @@ bool NativeModuleDeserializer::ReadCode() {
                                         SKIP_WRITE_BARRIER);
       }
       case RelocInfo::CODE_TARGET: {
-        uint32_t tag = *(reinterpret_cast<uint32_t*>(
-            iter.rinfo()->target_address_address()));
+        uint32_t tag = GetWasmCalleeTag(iter.rinfo());
         Address target = GetTrampolineOrStubFromTag(tag);
         iter.rinfo()->set_target_address(nullptr, target, SKIP_WRITE_BARRIER,
                                          SKIP_ICACHE_FLUSH);
