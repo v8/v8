@@ -481,6 +481,8 @@ TEST(DisasmIa320) {
     __ maxsd(xmm1, Operand(ebx, ecx, times_4, 10000));
     __ ucomisd(xmm0, xmm1);
     __ cmpltsd(xmm0, xmm1);
+    __ haddps(xmm1, xmm0);
+    __ haddps(xmm1, Operand(ebx, ecx, times_4, 10000));
 
     __ andpd(xmm0, xmm1);
 

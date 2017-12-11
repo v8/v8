@@ -1004,6 +1004,8 @@ class Assembler : public AssemblerBase {
   void rcpps(XMMRegister dst, XMMRegister src) { rcpps(dst, Operand(src)); }
   void rsqrtps(XMMRegister dst, const Operand& src);
   void rsqrtps(XMMRegister dst, XMMRegister src) { rsqrtps(dst, Operand(src)); }
+  void haddps(XMMRegister dst, const Operand& src);
+  void haddps(XMMRegister dst, XMMRegister src) { haddps(dst, Operand(src)); }
 
   void minps(XMMRegister dst, const Operand& src);
   void minps(XMMRegister dst, XMMRegister src) { minps(dst, Operand(src)); }

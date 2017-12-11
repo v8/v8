@@ -908,6 +908,7 @@ TEST(AssemblerX64SSE) {
     __ subps(xmm2, xmm0);
     __ divps(xmm2, xmm1);
     __ cvttss2si(rax, xmm2);
+    __ haddps(xmm1, xmm0);
     __ ret(0);
   }
 

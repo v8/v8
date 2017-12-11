@@ -2426,6 +2426,13 @@ void Assembler::sqrtsd(XMMRegister dst, const Operand& src) {
   emit_sse_operand(dst, src);
 }
 
+void Assembler::haddps(XMMRegister dst, const Operand& src) {
+  EnsureSpace ensure_space(this);
+  EMIT(0xF2);
+  EMIT(0x0F);
+  EMIT(0x7C);
+  emit_sse_operand(dst, src);
+}
 
 void Assembler::andpd(XMMRegister dst, XMMRegister src) {
   EnsureSpace ensure_space(this);

@@ -1212,6 +1212,9 @@ class Assembler : public AssemblerBase {
   void sqrtsd(XMMRegister dst, XMMRegister src);
   void sqrtsd(XMMRegister dst, const Operand& src);
 
+  void haddps(XMMRegister dst, XMMRegister src);
+  void haddps(XMMRegister dst, const Operand& src);
+
   void ucomisd(XMMRegister dst, XMMRegister src);
   void ucomisd(XMMRegister dst, const Operand& src);
   void cmpltsd(XMMRegister dst, XMMRegister src);

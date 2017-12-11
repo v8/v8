@@ -521,6 +521,7 @@ TEST(AssemblerIa32SSE) {
     __ mulps(xmm2, xmm1);
     __ subps(xmm2, xmm0);
     __ divps(xmm2, xmm1);
+    __ haddps(xmm1, xmm0);
     __ cvttss2si(eax, xmm2);
     __ ret(0);
   }

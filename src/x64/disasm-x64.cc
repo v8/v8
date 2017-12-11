@@ -1971,6 +1971,11 @@ int DisassemblerX64::TwoByteOpcodeInstruction(byte* data) {
       get_modrm(*current, &mod, &regop, &rm);
       AppendToBuffer("lddqu %s,", NameOfXMMRegister(regop));
       current += PrintRightOperand(current);
+    } else if (opcode == 0x7C) {
+      int mod, regop, rm;
+      get_modrm(*current, &mod, &regop, &rm);
+      AppendToBuffer("haddps %s,", NameOfXMMRegister(regop));
+      current += PrintRightOperand(current);
     } else {
       UnimplementedInstruction();
     }

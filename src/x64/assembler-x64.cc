@@ -3984,6 +3984,23 @@ void Assembler::sqrtsd(XMMRegister dst, const Operand& src) {
   emit_sse_operand(dst, src);
 }
 
+void Assembler::haddps(XMMRegister dst, XMMRegister src) {
+  EnsureSpace ensure_space(this);
+  emit(0xF2);
+  emit_optional_rex_32(dst, src);
+  emit(0x0F);
+  emit(0x7C);
+  emit_sse_operand(dst, src);
+}
+
+void Assembler::haddps(XMMRegister dst, const Operand& src) {
+  EnsureSpace ensure_space(this);
+  emit(0xF2);
+  emit_optional_rex_32(dst, src);
+  emit(0x0F);
+  emit(0x7C);
+  emit_sse_operand(dst, src);
+}
 
 void Assembler::ucomisd(XMMRegister dst, XMMRegister src) {
   DCHECK(!IsEnabled(AVX));

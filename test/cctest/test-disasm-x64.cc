@@ -451,6 +451,8 @@ TEST(DisasmX64) {
     __ maxsd(xmm1, xmm0);
     __ maxsd(xmm1, Operand(rbx, rcx, times_4, 10000));
     __ ucomisd(xmm0, xmm1);
+    __ haddps(xmm1, xmm0);
+    __ haddps(xmm1, Operand(rbx, rcx, times_4, 10000));
 
     __ andpd(xmm0, xmm1);
     __ andpd(xmm0, Operand(rbx, rcx, times_4, 10000));
