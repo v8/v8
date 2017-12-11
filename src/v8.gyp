@@ -1406,6 +1406,7 @@
         'strtod.h',
         'ic/stub-cache.cc',
         'ic/stub-cache.h',
+        'third_party/utf8-decoder/utf8-decoder.h',
         'tracing/trace-event.cc',
         'tracing/trace-event.h',
         'tracing/traced-value.cc',

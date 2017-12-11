@@ -37,13 +37,15 @@ void DecodeNormally(const std::vector<byte>& bytes,
 void DecodeIncrementally(const std::vector<byte>& bytes,
                          std::vector<unibrow::uchar>* output) {
   unibrow::Utf8::Utf8IncrementalBuffer buffer = 0;
-  for (auto b : bytes) {
-    unibrow::uchar result = unibrow::Utf8::ValueOfIncremental(b, &buffer);
+  unibrow::Utf8::State state = unibrow::Utf8::State::kAccept;
+  for (size_t i = 0; i < bytes.size();) {
+    unibrow::uchar result =
+        unibrow::Utf8::ValueOfIncremental(bytes[i], &i, &state, &buffer);
     if (result != unibrow::Utf8::kIncomplete) {
       output->push_back(result);
     }
   }
-  unibrow::uchar result = unibrow::Utf8::ValueOfIncrementalFinish(&buffer);
+  unibrow::uchar result = unibrow::Utf8::ValueOfIncrementalFinish(&state);
   if (result != unibrow::Utf8::kBufferEmpty) {
     output->push_back(result);
   }
