@@ -158,7 +158,7 @@ class StackTransferRecipe {
         break;
       case VarState::kRegister:
         DCHECK_EQ(dst.reg_class(), src.reg_class());
-        MoveRegister(dst, src.reg());
+        if (dst != src.reg()) MoveRegister(dst, src.reg());
         break;
       case VarState::kConstant:
         LoadConstant(dst, WasmValue(src.i32_const()));
@@ -167,6 +167,7 @@ class StackTransferRecipe {
   }
 
   void MoveRegister(LiftoffRegister dst, LiftoffRegister src) {
+    DCHECK_NE(dst, src);
     DCHECK(!move_dst_regs.has(dst));
     move_dst_regs.set(dst);
     move_src_regs.set(src);
