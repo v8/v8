@@ -1369,6 +1369,7 @@ void VisitFloatUnop(InstructionSelector* selector, Node* node, Node* input,
   }
 RO_OP_LIST(RO_VISITOR)
 #undef RO_VISITOR
+#undef RO_OP_LIST
 
 #define RR_VISITOR(Name, opcode)                      \
   void InstructionSelector::Visit##Name(Node* node) { \
@@ -1376,6 +1377,7 @@ RO_OP_LIST(RO_VISITOR)
   }
 RR_OP_LIST(RR_VISITOR)
 #undef RR_VISITOR
+#undef RR_OP_LIST
 
 void InstructionSelector::VisitTruncateFloat64ToWord32(Node* node) {
   VisitRR(this, node, kArchTruncateDoubleToI);
@@ -2442,16 +2444,21 @@ VISIT_ATOMIC_BINOP(Xor)
 #undef VISIT_ATOMIC_BINOP
 
 #define SIMD_TYPES(V) \
+  V(F32x4)            \
   V(I32x4)            \
   V(I16x8)            \
   V(I8x16)
 
-#define SIMD_FORMAT_LIST(V) \
-  V(32x4)                   \
-  V(16x8)                   \
-  V(8x16)
-
 #define SIMD_BINOP_LIST(V) \
+  V(F32x4Add)              \
+  V(F32x4Sub)              \
+  V(F32x4Mul)              \
+  V(F32x4Min)              \
+  V(F32x4Max)              \
+  V(F32x4Eq)               \
+  V(F32x4Ne)               \
+  V(F32x4Lt)               \
+  V(F32x4Le)               \
   V(I32x4Add)              \
   V(I32x4AddHoriz)         \
   V(I32x4Sub)              \
@@ -2505,6 +2512,8 @@ VISIT_ATOMIC_BINOP(Xor)
   V(S128Xor)
 
 #define SIMD_UNOP_LIST(V) \
+  V(F32x4RecipApprox)     \
+  V(F32x4RecipSqrtApprox) \
   V(I32x4Neg)             \
   V(I16x8Neg)             \
   V(I8x16Neg)             \
@@ -2580,6 +2589,10 @@ SIMD_UNOP_LIST(VISIT_SIMD_UNOP)
   }
 SIMD_BINOP_LIST(VISIT_SIMD_BINOP)
 #undef VISIT_SIMD_BINOP
+#undef SIMD_TYPES
+#undef SIMD_BINOP_LIST
+#undef SIMD_UNOP_LIST
+#undef SIMD_SHIFT_OPCODES
 
 void InstructionSelector::VisitS128Select(Node* node) {
   X64OperandGenerator g(this);

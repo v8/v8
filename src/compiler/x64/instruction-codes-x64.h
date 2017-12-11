@@ -144,6 +144,20 @@ namespace compiler {
   V(X64Push)                       \
   V(X64Poke)                       \
   V(X64StackCheck)                 \
+  V(X64F32x4Splat)                 \
+  V(X64F32x4ExtractLane)           \
+  V(X64F32x4ReplaceLane)           \
+  V(X64F32x4RecipApprox)           \
+  V(X64F32x4RecipSqrtApprox)       \
+  V(X64F32x4Add)                   \
+  V(X64F32x4Sub)                   \
+  V(X64F32x4Mul)                   \
+  V(X64F32x4Min)                   \
+  V(X64F32x4Max)                   \
+  V(X64F32x4Eq)                    \
+  V(X64F32x4Ne)                    \
+  V(X64F32x4Lt)                    \
+  V(X64F32x4Le)                    \
   V(X64I32x4Splat)                 \
   V(X64I32x4ExtractLane)           \
   V(X64I32x4ReplaceLane)           \

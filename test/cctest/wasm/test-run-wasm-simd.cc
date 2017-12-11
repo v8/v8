@@ -405,8 +405,6 @@ bool SkipFPValue(float x) {
 // doesn't handle NaNs. Also skip extreme values.
 bool SkipFPExpectedValue(float x) { return std::isnan(x) || SkipFPValue(x); }
 
-#if V8_TARGET_ARCH_ARM || V8_TARGET_ARCH_ARM64 || V8_TARGET_ARCH_MIPS || \
-    V8_TARGET_ARCH_MIPS64 || V8_TARGET_ARCH_IA32
 WASM_SIMD_TEST(F32x4Splat) {
   WasmRunner<int32_t, float> r(execution_mode);
   byte lane_val = 0;
@@ -446,8 +444,6 @@ WASM_SIMD_TEST(F32x4ReplaceLane) {
 
   CHECK_EQ(1, r.Call(3.14159f, -1.5f));
 }
-#endif  // V8_TARGET_ARCH_ARM || V8_TARGET_ARCH_ARM64 || V8_TARGET_ARCH_MIPS ||
-        // V8_TARGET_ARCH_MIPS64 || V8_TARGET_ARCH_IA32
 
 #if V8_TARGET_ARCH_ARM || V8_TARGET_ARCH_ARM64 || V8_TARGET_ARCH_MIPS || \
     V8_TARGET_ARCH_MIPS64
@@ -474,6 +470,8 @@ WASM_SIMD_TEST(F32x4ConvertI32x4) {
                        static_cast<float>(static_cast<uint32_t>(*i))));
   }
 }
+#endif  // V8_TARGET_ARCH_ARM || V8_TARGET_ARCH_ARM64 || V8_TARGET_ARCH_MIPS ||
+        // V8_TARGET_ARCH_MIPS64
 
 void RunF32x4UnOpTest(WasmExecutionMode execution_mode, WasmOpcode simd_op,
                       FloatUnOp expected_op, float error = 0.0f) {
@@ -496,13 +494,19 @@ void RunF32x4UnOpTest(WasmExecutionMode execution_mode, WasmOpcode simd_op,
   }
 }
 
+#if V8_TARGET_ARCH_ARM || V8_TARGET_ARCH_ARM64 || V8_TARGET_ARCH_MIPS || \
+    V8_TARGET_ARCH_MIPS64
 WASM_SIMD_TEST(F32x4Abs) {
   RunF32x4UnOpTest(execution_mode, kExprF32x4Abs, std::abs);
 }
 WASM_SIMD_TEST(F32x4Neg) {
   RunF32x4UnOpTest(execution_mode, kExprF32x4Neg, Negate);
 }
+#endif  // V8_TARGET_ARCH_ARM || V8_TARGET_ARCH_ARM64 || V8_TARGET_ARCH_MIPS ||
+        // V8_TARGET_ARCH_MIPS64
 
+#if V8_TARGET_ARCH_ARM || V8_TARGET_ARCH_ARM64 || V8_TARGET_ARCH_MIPS || \
+    V8_TARGET_ARCH_MIPS64 || V8_TARGET_ARCH_X64
 static const float kApproxError = 0.01f;
 
 WASM_SIMD_COMPILED_TEST(F32x4RecipApprox) {
@@ -555,10 +559,8 @@ WASM_SIMD_TEST(F32x4_Max) {
   RunF32x4BinOpTest(execution_mode, kExprF32x4Max, JSMax);
 }
 #endif  // V8_TARGET_ARCH_ARM || V8_TARGET_ARCH_ARM64 || V8_TARGET_ARCH_MIPS ||
-        // V8_TARGET_ARCH_MIPS64
+        // V8_TARGET_ARCH_MIPS64 || V8_TARGET_ARCH_X64
 
-#if V8_TARGET_ARCH_ARM || V8_TARGET_ARCH_ARM64 || V8_TARGET_ARCH_MIPS || \
-    V8_TARGET_ARCH_MIPS64 || V8_TARGET_ARCH_IA32
 void RunF32x4CompareOpTest(WasmExecutionMode execution_mode, WasmOpcode simd_op,
                            FloatCompareOp expected_op) {
   WasmRunner<int32_t, float, float, int32_t> r(execution_mode);
@@ -607,8 +609,6 @@ WASM_SIMD_TEST(F32x4Lt) {
 WASM_SIMD_TEST(F32x4Le) {
   RunF32x4CompareOpTest(execution_mode, kExprF32x4Le, LessEqual);
 }
-#endif  // V8_TARGET_ARCH_ARM || V8_TARGET_ARCH_ARM64 || V8_TARGET_ARCH_MIPS ||
-        // V8_TARGET_ARCH_MIPS64 || V8_TARGET_ARCH_IA32
 
 WASM_SIMD_TEST(I32x4Splat) {
   // Store SIMD value in a local variable, use extract lane to check lane values

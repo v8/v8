@@ -123,6 +123,20 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kX64Lea:
     case kX64Dec32:
     case kX64Inc32:
+    case kX64F32x4Splat:
+    case kX64F32x4ExtractLane:
+    case kX64F32x4ReplaceLane:
+    case kX64F32x4RecipApprox:
+    case kX64F32x4RecipSqrtApprox:
+    case kX64F32x4Add:
+    case kX64F32x4Sub:
+    case kX64F32x4Mul:
+    case kX64F32x4Min:
+    case kX64F32x4Max:
+    case kX64F32x4Eq:
+    case kX64F32x4Ne:
+    case kX64F32x4Lt:
+    case kX64F32x4Le:
     case kX64I32x4Splat:
     case kX64I32x4ExtractLane:
     case kX64I32x4ReplaceLane:
