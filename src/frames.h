@@ -64,8 +64,9 @@ class InnerPointerToCodeCache {
 class StackHandlerConstants : public AllStatic {
  public:
   static const int kNextOffset = 0 * kPointerSize;
+  static const int kPaddingOffset = 1 * kPointerSize;
 
-  static const int kSize = kNextOffset + kPointerSize;
+  static const int kSize = kPaddingOffset + kPointerSize;
   static const int kSlotCount = kSize >> kPointerSizeLog2;
 };
 

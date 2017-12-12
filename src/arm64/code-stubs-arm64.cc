@@ -553,14 +553,15 @@ void JSEntryStub::Generate(MacroAssembler* masm) {
   __ Str(fp, MemOperand(x10));
 
   __ Bind(&done);
-  __ Push(x12);
+  __ Push(x12, padreg);
 
   // The frame set up looks like this:
-  // jssp[0] : JS entry frame marker.
-  // jssp[1] : C entry FP.
-  // jssp[2] : stack frame marker.
+  // jssp[0] : padding.
+  // jssp[1] : JS entry frame marker.
+  // jssp[2] : C entry FP.
   // jssp[3] : stack frame marker.
-  // jssp[4] : bad frame pointer 0xFFF...FF   <- fp points here.
+  // jssp[4] : stack frame marker.
+  // jssp[5] : bad frame pointer 0xFFF...FF   <- fp points here.
 
   // Jump to a faked try block that does the invoke, with a faked catch
   // block that sets the pending exception.
@@ -591,7 +592,7 @@ void JSEntryStub::Generate(MacroAssembler* masm) {
 
   // Push new stack handler.
   DCHECK(jssp.Is(__ StackPointer()));
-  static_assert(StackHandlerConstants::kSize == 1 * kPointerSize,
+  static_assert(StackHandlerConstants::kSize == 2 * kPointerSize,
                 "Unexpected offset for StackHandlerConstants::kSize");
   static_assert(StackHandlerConstants::kNextOffset == 0 * kPointerSize,
                 "Unexpected offset for StackHandlerConstants::kNextOffset");
@@ -599,7 +600,7 @@ void JSEntryStub::Generate(MacroAssembler* masm) {
   // Link the current handler as the next handler.
   __ Mov(x11, ExternalReference(IsolateAddressId::kHandlerAddress, isolate()));
   __ Ldr(x10, MemOperand(x11));
-  __ Push(x10);
+  __ Push(padreg, x10);
 
   // Set this new handler as the current one.
   __ Str(jssp, MemOperand(x11));
@@ -624,26 +625,27 @@ void JSEntryStub::Generate(MacroAssembler* masm) {
   // Pop the stack handler and unlink this frame from the handler chain.
   static_assert(StackHandlerConstants::kNextOffset == 0 * kPointerSize,
                 "Unexpected offset for StackHandlerConstants::kNextOffset");
-  __ Pop(x10);
+  __ Pop(x10, padreg);
   __ Mov(x11, ExternalReference(IsolateAddressId::kHandlerAddress, isolate()));
-  __ Drop(StackHandlerConstants::kSize - kXRegSize, kByteSizeInBytes);
+  __ Drop(StackHandlerConstants::kSlotCount - 2);
   __ Str(x10, MemOperand(x11));
 
   __ Bind(&exit);
   // x0 holds the result.
   // The stack pointer points to the top of the entry frame pushed on entry from
   // C++ (at the beginning of this stub):
-  // jssp[0] : JS entry frame marker.
-  // jssp[1] : C entry FP.
-  // jssp[2] : stack frame marker.
-  // jssp[3] : stack frmae marker.
-  // jssp[4] : bad frame pointer 0xFFF...FF   <- fp points here.
+  // jssp[0] : padding.
+  // jssp[1] : JS entry frame marker.
+  // jssp[2] : C entry FP.
+  // jssp[3] : stack frame marker.
+  // jssp[4] : stack frame marker.
+  // jssp[5] : bad frame pointer 0xFFF...FF   <- fp points here.
 
   // Check if the current stack frame is marked as the outermost JS frame.
   Label non_outermost_js_2;
   {
     Register c_entry_fp = x11;
-    __ Pop(x10, c_entry_fp);
+    __ PeekPair(x10, c_entry_fp, 1 * kPointerSize);
     __ Cmp(x10, StackFrame::OUTERMOST_JSENTRY_FRAME);
     __ B(ne, &non_outermost_js_2);
     __ Mov(x12, ExternalReference(js_entry_sp));
@@ -657,7 +659,9 @@ void JSEntryStub::Generate(MacroAssembler* masm) {
   }
 
   // Reset the stack to the callee saved registers.
-  __ Drop(-EntryFrameConstants::kCallerFPOffset, kByteSizeInBytes);
+  static_assert(EntryFrameConstants::kFixedFrameSize % (2 * kPointerSize) == 0,
+                "Size of entry frame is not a multiple of 16 bytes");
+  __ Drop(EntryFrameConstants::kFixedFrameSize / kPointerSize);
   // Restore the callee-saved registers and return.
   DCHECK(jssp.Is(__ StackPointer()));
   __ Mov(csp, jssp);
