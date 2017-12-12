@@ -6224,9 +6224,9 @@ TEST(ModuleParsingInternals) {
 
   CHECK(declarations->AtForTest(8)->proxy()->raw_name()->IsOneByteEqualTo(
       "nonexport"));
-  CHECK(!declarations->AtForTest(8)->proxy()->var()->binding_needs_init());
-  CHECK(declarations->AtForTest(8)->proxy()->var()->location() ==
-        i::VariableLocation::LOCAL);
+  CHECK(declarations->AtForTest(8)->proxy()->var()->binding_needs_init());
+  CHECK(declarations->AtForTest(8)->proxy()->var()->location() !=
+        i::VariableLocation::MODULE);
 
   CHECK(
       declarations->AtForTest(9)->proxy()->raw_name()->IsOneByteEqualTo("mm"));

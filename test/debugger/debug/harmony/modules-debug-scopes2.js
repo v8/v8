@@ -139,10 +139,10 @@ listener_delegate = function(exec_state) {
                    debug.ScopeType.Script,
                    debug.ScopeType.Global], exec_state);
   CheckScopeContent(
-      {exported_var: undefined, imported_var: undefined},
+      {local_var: undefined, exported_var: undefined, imported_var: undefined},
       0, exec_state);
   CheckScopeDoesNotHave(
-      ["local_var", "doesntexist", "local_let", "exported_let", "imported_let"],
+      ["doesnotexist", "local_let", "exported_let", "imported_let"],
       0, exec_state);
 };
 debugger;
@@ -161,9 +161,8 @@ listener_delegate = function(exec_state) {
                    debug.ScopeType.Script,
                    debug.ScopeType.Global], exec_state);
   CheckScopeContent(
-      {exported_let: 3, exported_var: 4,
+      {local_let: 1, local_var: 2, exported_let: 3, exported_var: 4,
        imported_let: 3, imported_var: 4}, 0, exec_state);
-  CheckScopeDoesNotHave(["local_var", "local_let"], 0, exec_state);
 };
 debugger;
 EndTest();
@@ -179,9 +178,8 @@ listener_delegate = function(exec_state) {
                    debug.ScopeType.Script,
                    debug.ScopeType.Global], exec_state);
   CheckScopeContent(
-      {exported_let: 13, exported_var: 14,
+      {local_let: 11, local_var: 12, exported_let: 13, exported_var: 14,
        imported_let: 13, imported_var: 14}, 0, exec_state);
-  CheckScopeDoesNotHave(["local_var", "local_let"], 0, exec_state);
 };
 debugger;
 EndTest();

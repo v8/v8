@@ -147,6 +147,8 @@ Scope::Scope(Zone* zone, Scope* outer_scope, ScopeType scope_type)
   DCHECK_NE(SCRIPT_SCOPE, scope_type);
   SetDefaults();
   set_language_mode(outer_scope->language_mode());
+  force_context_allocation_ =
+      !is_function_scope() && outer_scope->has_forced_context_allocation();
   outer_scope_->AddInnerScope(this);
 }
 
@@ -1368,8 +1370,12 @@ bool Scope::AllowsLazyParsingWithoutUnresolvedVariables(
     if (s->is_catch_scope()) continue;
     // With scopes do not introduce variables that need allocation.
     if (s->is_with_scope()) continue;
-    DCHECK(s->is_module_scope() || s->is_block_scope() ||
-           s->is_function_scope());
+    // Module scopes context-allocate all variables, and have no
+    // {this} or {arguments} variables whose existence depends on
+    // references to them.
+    if (s->is_module_scope()) continue;
+    // Only block scopes and function scopes should disallow preparsing.
+    DCHECK(s->is_block_scope() || s->is_function_scope());
     return false;
   }
   return true;
@@ -1727,6 +1733,9 @@ void Scope::Print(int n) {
     DeclarationScope* scope = AsDeclarationScope();
     if (scope->was_lazily_parsed()) Indent(n1, "// lazily parsed\n");
     if (scope->ShouldEagerCompile()) Indent(n1, "// will be compiled\n");
+  }
+  if (has_forced_context_allocation()) {
+    Indent(n1, "// forces context allocation\n");
   }
   if (num_stack_slots_ > 0) {
     Indent(n1, "// ");
@@ -2102,8 +2111,11 @@ bool Scope::MustAllocateInContext(Variable* var) {
   // an eval() call or a runtime with lookup), it must be allocated in the
   // context.
   //
-  // Temporary variables are always stack-allocated.  Catch-bound variables are
+  // Exceptions: If the scope as a whole has forced context allocation, all
+  // variables will have context allocation, even temporaries.  Otherwise
+  // temporary variables are always stack-allocated.  Catch-bound variables are
   // always context-allocated.
+  if (has_forced_context_allocation()) return true;
   if (var->mode() == TEMPORARY) return false;
   if (is_catch_scope()) return true;
   if ((is_script_scope() || is_eval_scope()) &&

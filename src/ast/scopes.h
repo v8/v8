@@ -334,6 +334,14 @@ class V8_EXPORT_PRIVATE Scope : public NON_EXPORTED_BASE(ZoneObject) {
   bool is_hidden() const { return is_hidden_; }
   void set_is_hidden() { is_hidden_ = true; }
 
+  // In some cases we want to force context allocation for a whole scope.
+  void ForceContextAllocation() {
+    DCHECK(!already_resolved_);
+    force_context_allocation_ = true;
+  }
+  bool has_forced_context_allocation() const {
+    return force_context_allocation_;
+  }
   void ForceContextAllocationForParameters() {
     DCHECK(!already_resolved_);
     force_context_allocation_for_parameters_ = true;
