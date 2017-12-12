@@ -2581,6 +2581,9 @@ MaybeLocal<Script> ScriptCompiler::Compile(Local<Context> context,
   i::StreamedSource* source = v8_source->impl();
   i::Handle<i::String> str = Utils::OpenHandle(*(full_source_string));
   i::Handle<i::Script> script = isolate->factory()->NewScript(str);
+  if (isolate->NeedsSourcePositionsForProfiling()) {
+    i::Script::InitLineEnds(script);
+  }
   if (!origin.ResourceName().IsEmpty()) {
     script->set_name(*Utils::OpenHandle(*(origin.ResourceName())));
   }

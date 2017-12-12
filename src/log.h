@@ -201,6 +201,7 @@ class Logger : public CodeEventListener {
   void MapEvent(const char* type, Map* from, Map* to,
                 const char* reason = nullptr,
                 HeapObject* name_or_sfi = nullptr);
+  void MapCreate(Map* map);
   void MapDetails(Map* map);
 
 

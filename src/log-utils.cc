@@ -173,7 +173,7 @@ void Log::MessageBuilder::AppendCharacter(char c) {
   if (c >= 32 && c <= 126) {
     if (c == ',') {
       // Escape commas (log field separator) directly.
-      os << "\x2C";
+      os << "\\x2C";
     } else {
       // Directly append any printable ascii character.
       os << c;

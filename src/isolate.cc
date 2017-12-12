@@ -670,6 +670,11 @@ Handle<FixedArray> Isolate::GetDetailedStackTrace(
 Address Isolate::GetAbstractPC(int* line, int* column) {
   JavaScriptFrameIterator it(this);
 
+  if (it.done()) {
+    *line = -1;
+    *column = -1;
+    return nullptr;
+  }
   JavaScriptFrame* frame = it.frame();
   DCHECK(!frame->is_builtin());
   int position = frame->position();
@@ -3169,7 +3174,7 @@ bool Isolate::use_optimizer() {
 bool Isolate::NeedsSourcePositionsForProfiling() const {
   return FLAG_trace_deopt || FLAG_trace_turbo || FLAG_trace_turbo_graph ||
          FLAG_turbo_profiling || FLAG_perf_prof || is_profiling() ||
-         debug_->is_active() || logger_->is_logging();
+         debug_->is_active() || logger_->is_logging() || FLAG_trace_maps;
 }
 
 void Isolate::SetFeedbackVectorsForProfilingTools(Object* value) {

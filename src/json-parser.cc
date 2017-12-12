@@ -196,6 +196,9 @@ MaybeHandle<Object> JsonParser<seq_one_byte>::ParseJson() {
     }
 
     Handle<Script> script(factory->NewScript(source_));
+    if (isolate()->NeedsSourcePositionsForProfiling()) {
+      Script::InitLineEnds(script);
+    }
     // We should sent compile error event because we compile JSON object in
     // separated source file.
     isolate()->debug()->OnCompileError(script);

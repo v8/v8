@@ -2461,7 +2461,7 @@ AllocationResult Heap::AllocateMap(InstanceType instance_type,
   map->set_bit_field3(bit_field3);
   map->set_elements_kind(elements_kind);
   map->set_new_target_is_base(true);
-
+  if (FLAG_trace_maps) LOG(isolate(), MapCreate(map));
   return map;
 }
 

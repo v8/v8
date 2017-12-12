@@ -1536,6 +1536,9 @@ MaybeHandle<SharedFunctionInfo> Compiler::GetSharedFunctionInfoForScript(
                                      inner_result, vector);
         Handle<Script> script(Script::cast(inner_result->script()), isolate);
         isolate->debug()->OnAfterCompile(script);
+        if (isolate->NeedsSourcePositionsForProfiling()) {
+          Script::InitLineEnds(script);
+        }
         return inner_result;
       }
       // Deserializer failed. Fall through to compile.

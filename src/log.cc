@@ -1359,6 +1359,7 @@ void Logger::MapEvent(const char* type, Map* from, Map* to, const char* reason,
   int line = -1;
   int column = -1;
   Address pc = 0;
+
   if (!isolate_->bootstrapper()->IsActive()) {
     pc = isolate_->GetAbstractPC(&line, &column);
   }
@@ -1382,6 +1383,15 @@ void Logger::MapEvent(const char* type, Map* from, Map* to, const char* reason,
   msg.WriteToLogFile();
 }
 
+void Logger::MapCreate(Map* map) {
+  if (!log_->IsEnabled() || !FLAG_trace_maps) return;
+  DisallowHeapAllocation no_gc;
+  Log::MessageBuilder msg(log_);
+  msg << "map-create" << kNext << timer_.Elapsed().InMicroseconds() << kNext
+      << reinterpret_cast<void*>(map);
+  msg.WriteToLogFile();
+}
+
 void Logger::MapDetails(Map* map) {
   if (!log_->IsEnabled() || !FLAG_trace_maps) return;
   // Disable logging Map details during bootstrapping since we use LogMaps() to
@@ -1391,9 +1401,11 @@ void Logger::MapDetails(Map* map) {
   Log::MessageBuilder msg(log_);
   msg << "map-details" << kNext << timer_.Elapsed().InMicroseconds() << kNext
       << reinterpret_cast<void*>(map) << kNext;
-  std::ostringstream buffer;
-  map->PrintMapDetails(buffer);
-  msg << buffer.str().c_str();
+  if (FLAG_trace_maps_details) {
+    std::ostringstream buffer;
+    map->PrintMapDetails(buffer);
+    msg << buffer.str().c_str();
+  }
   msg.WriteToLogFile();
 }
 

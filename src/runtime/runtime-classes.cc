@@ -339,7 +339,6 @@ bool AddDescriptorsByTemplate(
 
   map->InitializeDescriptors(*descriptors,
                              LayoutDescriptor::FastPointerLayout());
-
   if (elements_dictionary->NumberOfElements() > 0) {
     if (!SubstituteValues<NumberDictionary>(isolate, elements_dictionary,
                                             receiver, args)) {
@@ -454,7 +453,6 @@ bool InitClassPrototype(Isolate* isolate,
   Map::SetPrototype(map, prototype_parent);
   constructor->set_prototype_or_initial_map(*prototype);
   map->SetConstructor(*constructor);
-
   Handle<FixedArray> computed_properties(
       class_boilerplate->instance_computed_properties(), isolate);
   Handle<NumberDictionary> elements_dictionary_template(
@@ -595,6 +593,14 @@ MaybeHandle<Object> DefineClass(Isolate* isolate,
     DCHECK(isolate->has_pending_exception());
     return MaybeHandle<Object>();
   }
+  if (FLAG_trace_maps) {
+    LOG(isolate,
+        MapEvent("InitialMap", nullptr, constructor->map(),
+                 "init class constructor", constructor->shared()->DebugName()));
+    LOG(isolate, MapEvent("InitialMap", nullptr, prototype->map(),
+                          "init class prototype"));
+  }
+
   return prototype;
 }
 
