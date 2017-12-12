@@ -1634,8 +1634,14 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
   void ReportFeedbackUpdate(SloppyTNode<FeedbackVector> feedback_vector,
                             SloppyTNode<IntPtrT> slot_id, const char* reason);
 
-  // Combine the new feedback with the existing_feedback.
+  // Combine the new feedback with the existing_feedback. Do nothing if
+  // existing_feedback is nullptr.
+  void CombineFeedback(Variable* existing_feedback, int feedback);
   void CombineFeedback(Variable* existing_feedback, Node* feedback);
+
+  // Overwrite the existing feedback with new_feedback. Do nothing if
+  // existing_feedback is nullptr.
+  void OverwriteFeedback(Variable* existing_feedback, int new_feedback);
 
   // Check if a property name might require protector invalidation when it is
   // used for a property store or deletion.
@@ -1931,12 +1937,10 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
       Node* context, Node* input, Object::Conversion mode,
       BigIntHandling bigint_handling = BigIntHandling::kThrow);
 
-  enum class Feedback { kCollect, kNone };
-  template <Feedback feedback>
   void TaggedToNumeric(Node* context, Node* value, Label* done,
-                       Variable* var_numeric, Variable* var_feedback = nullptr);
+                       Variable* var_numeric, Variable* var_feedback);
 
-  template <Feedback feedback, Object::Conversion conversion>
+  template <Object::Conversion conversion>
   void TaggedToWord32OrBigIntImpl(Node* context, Node* value, Label* if_number,
                                   Variable* var_word32,
                                   Label* if_bigint = nullptr,

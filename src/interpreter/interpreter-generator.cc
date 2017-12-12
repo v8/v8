@@ -1245,8 +1245,7 @@ class UnaryNumericOpAssembler : public InterpreterAssembler {
       BIND(&if_bigint);
       {
         var_result.Bind(BigIntOp(value));
-        CombineFeedback(&var_feedback,
-                        SmiConstant(BinaryOperationFeedback::kBigInt));
+        CombineFeedback(&var_feedback, BinaryOperationFeedback::kBigInt);
         Goto(&end);
       }
 
@@ -1257,8 +1256,8 @@ class UnaryNumericOpAssembler : public InterpreterAssembler {
         // only reach this path on the first pass when the feedback is kNone.
         CSA_ASSERT(this, SmiEqual(var_feedback.value(),
                                   SmiConstant(BinaryOperationFeedback::kNone)));
-        var_feedback.Bind(
-            SmiConstant(BinaryOperationFeedback::kNumberOrOddball));
+        OverwriteFeedback(&var_feedback,
+                          BinaryOperationFeedback::kNumberOrOddball);
         var_value.Bind(LoadObjectField(value, Oddball::kToNumberOffset));
         Goto(&start);
       }
@@ -1270,7 +1269,7 @@ class UnaryNumericOpAssembler : public InterpreterAssembler {
         // only reach this path on the first pass when the feedback is kNone.
         CSA_ASSERT(this, SmiEqual(var_feedback.value(),
                                   SmiConstant(BinaryOperationFeedback::kNone)));
-        var_feedback.Bind(SmiConstant(BinaryOperationFeedback::kAny));
+        OverwriteFeedback(&var_feedback, BinaryOperationFeedback::kAny);
         var_value.Bind(
             CallBuiltin(Builtins::kNonNumberToNumeric, GetContext(), value));
         Goto(&start);
@@ -1279,8 +1278,7 @@ class UnaryNumericOpAssembler : public InterpreterAssembler {
 
     BIND(&do_float_op);
     {
-      CombineFeedback(&var_feedback,
-                      SmiConstant(BinaryOperationFeedback::kNumber));
+      CombineFeedback(&var_feedback, BinaryOperationFeedback::kNumber);
       var_result.Bind(
           AllocateHeapNumberWithValue(FloatOp(var_float_value.value())));
       Goto(&end);
@@ -1310,14 +1308,12 @@ class NegateAssemblerImpl : public UnaryNumericOpAssembler {
     GotoIf(SmiEqual(smi_value, SmiConstant(Smi::kMinValue)), &if_min_smi);
 
     // Else simply subtract operand from 0.
-    CombineFeedback(var_feedback,
-                    SmiConstant(BinaryOperationFeedback::kSignedSmall));
+    CombineFeedback(var_feedback, BinaryOperationFeedback::kSignedSmall);
     var_result.Bind(SmiSub(SmiConstant(0), smi_value));
     Goto(&end);
 
     BIND(&if_zero);
-    CombineFeedback(var_feedback,
-                    SmiConstant(BinaryOperationFeedback::kNumber));
+    CombineFeedback(var_feedback, BinaryOperationFeedback::kNumber);
     var_result.Bind(MinusZeroConstant());
     Goto(&end);
 
@@ -1412,8 +1408,7 @@ class IncDecAssembler : public UnaryNumericOpAssembler {
     }
 
     BIND(&if_notoverflow);
-    CombineFeedback(var_feedback,
-                    SmiConstant(BinaryOperationFeedback::kSignedSmall));
+    CombineFeedback(var_feedback, BinaryOperationFeedback::kSignedSmall);
     return BitcastWordToTaggedSigned(Projection(0, pair));
   }
 

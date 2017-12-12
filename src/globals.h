@@ -1301,8 +1301,8 @@ class CompareOperationFeedback {
     kInternalizedString = 0x8,
     kString = 0x18,
     kSymbol = 0x20,
+    kBigInt = 0x30,
     kReceiver = 0x40,
-    kBigInt = 0x80,
     kAny = 0xff
   };
 };
