@@ -353,7 +353,7 @@ class WasmGraphBuilder {
   Node* LoadMem(wasm::ValueType type, MachineType memtype, Node* index,
                 uint32_t offset, uint32_t alignment,
                 wasm::WasmCodePosition position);
-  Node* StoreMem(MachineRepresentation mem_rep, Node* index, uint32_t offset,
+  Node* StoreMem(MachineType memtype, Node* index, uint32_t offset,
                  uint32_t alignment, Node* val, wasm::WasmCodePosition position,
                  wasm::ValueType type);
   static void PrintDebugName(Node* node);
@@ -457,11 +457,11 @@ class WasmGraphBuilder {
 
   Node* String(const char* string);
   Node* MemBuffer(uint32_t offset);
-  void BoundsCheckMem(uint8_t access_size, Node* index, uint32_t offset,
+  void BoundsCheckMem(MachineType memtype, Node* index, uint32_t offset,
                       wasm::WasmCodePosition position);
   const Operator* GetSafeLoadOperator(int offset, wasm::ValueType type);
   const Operator* GetSafeStoreOperator(int offset, wasm::ValueType type);
-  Node* BuildChangeEndiannessStore(Node* node, MachineRepresentation rep,
+  Node* BuildChangeEndiannessStore(Node* node, MachineType type,
                                    wasm::ValueType wasmtype = wasm::kWasmStmt);
   Node* BuildChangeEndiannessLoad(Node* node, MachineType type,
                                   wasm::ValueType wasmtype = wasm::kWasmStmt);
