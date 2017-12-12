@@ -14235,9 +14235,11 @@ void DeoptimizationData::DeoptimizationDataPrint(std::ostream& os) {  // NOLINT
     DCHECK(Translation::BEGIN == opcode);
     int frame_count = iterator.Next();
     int jsframe_count = iterator.Next();
+    int update_feedback_count = iterator.Next();
     os << "  " << Translation::StringFor(opcode)
        << " {frame count=" << frame_count
-       << ", js frame count=" << jsframe_count << "}\n";
+       << ", js frame count=" << jsframe_count
+       << ", update_feedback_count=" << update_feedback_count << "}\n";
 
     while (iterator.HasNext() &&
            Translation::BEGIN !=
@@ -14392,6 +14394,14 @@ void DeoptimizationData::DeoptimizationDataPrint(std::ostream& os) {  // NOLINT
         case Translation::CAPTURED_OBJECT: {
           int args_length = iterator.Next();
           os << "{length=" << args_length << "}";
+          break;
+        }
+
+        case Translation::UPDATE_FEEDBACK: {
+          int literal_index = iterator.Next();
+          FeedbackSlot slot(iterator.Next());
+          os << "{feedback={vector_index=" << literal_index << ", slot=" << slot
+             << "}}";
           break;
         }
       }

@@ -268,7 +268,7 @@ class TranslatedFrame {
 
 class TranslatedState {
  public:
-  TranslatedState();
+  TranslatedState() {}
   explicit TranslatedState(const JavaScriptFrame* frame);
 
   void Prepare(Address stack_frame_pointer);
@@ -297,6 +297,7 @@ class TranslatedState {
             FILE* trace_file, int parameter_count);
 
   void VerifyMaterializedObjects();
+  void DoUpdateFeedback();
 
  private:
   friend TranslatedValue;
@@ -343,6 +344,9 @@ class TranslatedState {
       TranslatedFrame* frame, int* value_index, TranslatedValue* slot,
       Handle<Map> map, const DisallowHeapAllocation& no_allocation);
 
+  void ReadUpdateFeedback(TranslationIterator* iterator,
+                          FixedArray* literal_array);
+
   TranslatedValue* ResolveCapturedObject(TranslatedValue* slot);
   TranslatedValue* GetValueByObjectIndex(int object_index);
   Handle<Object> GetValueAndAdvance(TranslatedFrame* frame, int* value_index);
@@ -352,8 +356,8 @@ class TranslatedState {
   static Float64 GetDoubleSlot(Address fp, int slot_index);
 
   std::vector<TranslatedFrame> frames_;
-  Isolate* isolate_;
-  Address stack_frame_pointer_;
+  Isolate* isolate_ = nullptr;
+  Address stack_frame_pointer_ = nullptr;
   int formal_parameter_count_;
 
   struct ObjectPosition {
@@ -361,6 +365,9 @@ class TranslatedState {
     int value_index_;
   };
   std::deque<ObjectPosition> object_positions_;
+  Handle<FeedbackVector> feedback_vector_handle_;
+  FeedbackVector* feedback_vector_ = nullptr;
+  FeedbackSlot feedback_slot_;
 };
 
 
@@ -879,7 +886,8 @@ class TranslationIterator BASE_EMBEDDED {
   V(BOOL_STACK_SLOT)                        \
   V(FLOAT_STACK_SLOT)                       \
   V(DOUBLE_STACK_SLOT)                      \
-  V(LITERAL)
+  V(LITERAL)                                \
+  V(UPDATE_FEEDBACK)
 
 class Translation BASE_EMBEDDED {
  public:
@@ -891,13 +899,12 @@ class Translation BASE_EMBEDDED {
 #undef DECLARE_TRANSLATION_OPCODE_ENUM
 
   Translation(TranslationBuffer* buffer, int frame_count, int jsframe_count,
-              Zone* zone)
-      : buffer_(buffer),
-        index_(buffer->CurrentIndex()),
-        zone_(zone) {
+              int update_feedback_count, Zone* zone)
+      : buffer_(buffer), index_(buffer->CurrentIndex()), zone_(zone) {
     buffer_->Add(BEGIN);
     buffer_->Add(frame_count);
     buffer_->Add(jsframe_count);
+    buffer_->Add(update_feedback_count);
   }
 
   int index() const { return index_; }
@@ -915,6 +922,7 @@ class Translation BASE_EMBEDDED {
   void ArgumentsElements(CreateArgumentsType type);
   void ArgumentsLength(CreateArgumentsType type);
   void BeginCapturedObject(int length);
+  void AddUpdateFeedback(int vector_literal, int slot);
   void DuplicateObject(int object_index);
   void StoreRegister(Register reg);
   void StoreInt32Register(Register reg);

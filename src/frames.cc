@@ -1536,6 +1536,7 @@ void OptimizedFrame::GetFunctions(
   DCHECK_EQ(Translation::BEGIN, opcode);
   it.Next();  // Skip frame count.
   int jsframe_count = it.Next();
+  it.Next();  // Skip update feedback count.
 
   // We insert the frames in reverse order because the frames
   // in the deoptimization translation are ordered bottom-to-top.

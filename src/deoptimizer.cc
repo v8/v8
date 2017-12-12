@@ -1677,6 +1677,8 @@ void Deoptimizer::MaterializeHeapObjects() {
 
   translated_state_.VerifyMaterializedObjects();
 
+  translated_state_.DoUpdateFeedback();
+
   isolate_->materialized_object_store()->Remove(
       reinterpret_cast<Address>(stack_fp_));
 }
@@ -2015,6 +2017,11 @@ void Translation::StoreLiteral(int literal_id) {
   buffer_->Add(literal_id);
 }
 
+void Translation::AddUpdateFeedback(int vector_literal, int slot) {
+  buffer_->Add(UPDATE_FEEDBACK);
+  buffer_->Add(vector_literal);
+  buffer_->Add(slot);
+}
 
 void Translation::StoreJSFrameFunction() {
   StoreStackSlot((StandardFrameConstants::kCallerPCOffset -
@@ -2042,9 +2049,10 @@ int Translation::NumberOfOperandsFor(Opcode opcode) {
     case DOUBLE_STACK_SLOT:
     case LITERAL:
       return 1;
-    case BEGIN:
     case ARGUMENTS_ADAPTOR_FRAME:
+    case UPDATE_FEEDBACK:
       return 2;
+    case BEGIN:
     case INTERPRETED_FRAME:
     case CONSTRUCT_STUB_FRAME:
     case BUILTIN_CONTINUATION_FRAME:
@@ -2747,7 +2755,7 @@ TranslatedFrame TranslatedState::CreateNextTranslatedFrame(
       return TranslatedFrame::JavaScriptBuiltinContinuationFrame(
           bailout_id, shared_info, height_with_context);
     }
-
+    case Translation::UPDATE_FEEDBACK:
     case Translation::BEGIN:
     case Translation::DUPLICATED_OBJECT:
     case Translation::ARGUMENTS_ELEMENTS:
@@ -2895,6 +2903,7 @@ int TranslatedState::CreateNextTranslatedValue(
     case Translation::CONSTRUCT_STUB_FRAME:
     case Translation::JAVA_SCRIPT_BUILTIN_CONTINUATION_FRAME:
     case Translation::BUILTIN_CONTINUATION_FRAME:
+    case Translation::UPDATE_FEEDBACK:
       // Peeled off before getting here.
       break;
 
@@ -3157,8 +3166,7 @@ int TranslatedState::CreateNextTranslatedValue(
   FATAL("We should never get here - unexpected deopt info.");
 }
 
-TranslatedState::TranslatedState(const JavaScriptFrame* frame)
-    : isolate_(nullptr), stack_frame_pointer_(nullptr) {
+TranslatedState::TranslatedState(const JavaScriptFrame* frame) {
   int deopt_index = Safepoint::kNoDeoptimizationIndex;
   DeoptimizationData* data =
       static_cast<const OptimizedFrame*>(frame)->GetDeoptimizationData(
@@ -3170,9 +3178,6 @@ TranslatedState::TranslatedState(const JavaScriptFrame* frame)
        nullptr /* trace file */,
        frame->function()->shared()->internal_formal_parameter_count());
 }
-
-TranslatedState::TranslatedState()
-    : isolate_(nullptr), stack_frame_pointer_(nullptr) {}
 
 void TranslatedState::Init(Address input_frame_pointer,
                            TranslationIterator* iterator,
@@ -3189,9 +3194,15 @@ void TranslatedState::Init(Address input_frame_pointer,
   CHECK(opcode == Translation::BEGIN);
 
   int count = iterator->Next();
-  iterator->Next();  // Drop JS frames count.
-
   frames_.reserve(count);
+  iterator->Next();  // Drop JS frames count.
+  int update_feedback_count = iterator->Next();
+  CHECK_GE(update_feedback_count, 0);
+  CHECK_LE(update_feedback_count, 1);
+
+  if (update_feedback_count == 1) {
+    ReadUpdateFeedback(iterator, literal_array);
+  }
 
   std::stack<int> nested_counts;
 
@@ -3249,6 +3260,11 @@ void TranslatedState::Init(Address input_frame_pointer,
 void TranslatedState::Prepare(Address stack_frame_pointer) {
   for (auto& frame : frames_) frame.Handlify();
 
+  if (feedback_vector_ != nullptr) {
+    feedback_vector_handle_ =
+        Handle<FeedbackVector>(feedback_vector_, isolate());
+    feedback_vector_ = nullptr;
+  }
   stack_frame_pointer_ = stack_frame_pointer;
 
   UpdateFromPreviouslyMaterializedObjects();
@@ -3834,6 +3850,21 @@ void TranslatedState::VerifyMaterializedObjects() {
     }
   }
 #endif
+}
+
+void TranslatedState::DoUpdateFeedback() {
+  if (!feedback_vector_handle_.is_null()) {
+    CHECK(!feedback_slot_.IsInvalid());
+    CallICNexus nexus(feedback_vector_handle_, feedback_slot_);
+    nexus.SetSpeculationMode(SpeculationMode::kDisallowSpeculation);
+  }
+}
+
+void TranslatedState::ReadUpdateFeedback(TranslationIterator* iterator,
+                                         FixedArray* literal_array) {
+  CHECK_EQ(Translation::UPDATE_FEEDBACK, iterator->Next());
+  feedback_vector_ = FeedbackVector::cast(literal_array->get(iterator->Next()));
+  feedback_slot_ = FeedbackSlot(iterator->Next());
 }
 
 }  // namespace internal
