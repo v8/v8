@@ -523,12 +523,12 @@ class LiftoffCompiler {
   void Else(Decoder* decoder, Control* if_block) {
     unsupported(decoder, "else");
   }
-  void LoadMem(Decoder* decoder, ValueType type, MachineType mem_type,
+  void LoadMem(Decoder* decoder, LoadType type,
                const MemoryAccessOperand<validate>& operand, const Value& index,
                Value* result) {
     unsupported(decoder, "memory load");
   }
-  void StoreMem(Decoder* decoder, ValueType type, MachineRepresentation mem_rep,
+  void StoreMem(Decoder* decoder, StoreType type,
                 const MemoryAccessOperand<validate>& operand,
                 const Value& index, const Value& value) {
     unsupported(decoder, "memory store");

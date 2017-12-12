@@ -340,18 +340,20 @@ class WasmGraphBuildingInterface {
     SetEnv(if_block->false_env);
   }
 
-  void LoadMem(Decoder* decoder, ValueType type, MachineType mem_type,
+  void LoadMem(Decoder* decoder, LoadType type,
                const MemoryAccessOperand<validate>& operand, const Value& index,
                Value* result) {
-    result->node = BUILD(LoadMem, type, mem_type, index.node, operand.offset,
-                         operand.alignment, decoder->position());
+    result->node =
+        BUILD(LoadMem, type.value_type(), type.mem_type(), index.node,
+              operand.offset, operand.alignment, decoder->position());
   }
 
-  void StoreMem(Decoder* decoder, ValueType type, MachineRepresentation mem_rep,
+  void StoreMem(Decoder* decoder, StoreType type,
                 const MemoryAccessOperand<validate>& operand,
                 const Value& index, const Value& value) {
-    BUILD(StoreMem, mem_rep, index.node, operand.offset, operand.alignment,
-          value.node, decoder->position(), type);
+    BUILD(StoreMem, type.mem_rep(), index.node, operand.offset,
+          operand.alignment, value.node, decoder->position(),
+          type.value_type());
   }
 
   void CurrentMemoryPages(Decoder* decoder, Value* result) {

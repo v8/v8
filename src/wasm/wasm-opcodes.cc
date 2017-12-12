@@ -422,6 +422,14 @@ FunctionSig* WasmOpcodes::AsmjsSignature(WasmOpcode opcode) {
       kSimpleExprSigs[kSimpleAsmjsExprSigTable[opcode]]);
 }
 
+// Define constexpr arrays.
+constexpr uint8_t LoadType::kLoadSizeLog2[];
+constexpr ValueType LoadType::kValueType[];
+constexpr MachineType LoadType::kMemType[];
+constexpr uint8_t StoreType::kStoreSizeLog2[];
+constexpr ValueType StoreType::kValueType[];
+constexpr MachineRepresentation StoreType::kMemRep[];
+
 int WasmOpcodes::TrapReasonToMessageId(TrapReason reason) {
   switch (reason) {
 #define TRAPREASON_TO_MESSAGE(name) \

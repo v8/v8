@@ -535,6 +535,117 @@ enum TrapReason {
 #undef DECLARE_ENUM
 };
 
+// TODO(clemensh): Compute memtype and size from ValueType once we have c++14
+// constexpr support.
+#define FOREACH_LOAD_TYPE(V) \
+  V(I32, , Int32, 2)         \
+  V(I32, 8S, Int8, 0)        \
+  V(I32, 8U, Uint8, 0)       \
+  V(I32, 16S, Int16, 1)      \
+  V(I32, 16U, Uint16, 1)     \
+  V(I64, , Int64, 3)         \
+  V(I64, 8S, Int8, 0)        \
+  V(I64, 8U, Uint8, 0)       \
+  V(I64, 16S, Int16, 1)      \
+  V(I64, 16U, Uint16, 1)     \
+  V(I64, 32S, Int32, 2)      \
+  V(I64, 32U, Uint32, 2)     \
+  V(F32, , Float32, 2)       \
+  V(F64, , Float64, 3)       \
+  V(S128, , Simd128, 4)
+
+class LoadType {
+ public:
+  enum LoadTypeValue : uint8_t {
+#define DEF_ENUM(type, suffix, ...) k##type##Load##suffix,
+    FOREACH_LOAD_TYPE(DEF_ENUM)
+#undef DEF_ENUM
+  };
+
+  // Allow implicit convertion of the enum value to this wrapper.
+  constexpr LoadType(LoadTypeValue val)  // NOLINT(runtime/explicit)
+      : val_(val) {}
+
+  constexpr LoadTypeValue value() const { return val_; }
+  constexpr unsigned size_log_2() const { return kLoadSizeLog2[val_]; }
+  constexpr unsigned size() const { return 1 << size_log_2(); }
+  constexpr ValueType value_type() const { return kValueType[val_]; }
+  constexpr MachineType mem_type() const { return kMemType[val_]; }
+
+ private:
+  const LoadTypeValue val_;
+
+  static constexpr uint8_t kLoadSizeLog2[] = {
+#define LOAD_SIZE(_, __, ___, size) size,
+      FOREACH_LOAD_TYPE(LOAD_SIZE)
+#undef LOAD_SIZE
+  };
+
+  static constexpr ValueType kValueType[] = {
+#define VALUE_TYPE(type, ...) kWasm##type,
+      FOREACH_LOAD_TYPE(VALUE_TYPE)
+#undef VALUE_TYPE
+  };
+
+  static constexpr MachineType kMemType[] = {
+#define MEMTYPE(_, __, memtype, ___) MachineType::memtype(),
+      FOREACH_LOAD_TYPE(MEMTYPE)
+#undef MEMTYPE
+  };
+};
+
+#define FOREACH_STORE_TYPE(V) \
+  V(I32, , Word32, 2)         \
+  V(I32, 8, Word8, 0)         \
+  V(I32, 16, Word16, 1)       \
+  V(I64, , Word64, 3)         \
+  V(I64, 8, Word8, 0)         \
+  V(I64, 16, Word16, 1)       \
+  V(I64, 32, Word32, 2)       \
+  V(F32, , Float32, 2)        \
+  V(F64, , Float64, 3)        \
+  V(S128, , Simd128, 4)
+
+class StoreType {
+ public:
+  enum StoreTypeValue : uint8_t {
+#define DEF_ENUM(type, suffix, ...) k##type##Store##suffix,
+    FOREACH_STORE_TYPE(DEF_ENUM)
+#undef DEF_ENUM
+  };
+
+  // Allow implicit convertion of the enum value to this wrapper.
+  constexpr StoreType(StoreTypeValue val)  // NOLINT(runtime/explicit)
+      : val_(val) {}
+
+  constexpr StoreTypeValue value() const { return val_; }
+  constexpr unsigned size_log_2() const { return kStoreSizeLog2[val_]; }
+  constexpr unsigned size() const { return 1 << size_log_2(); }
+  constexpr ValueType value_type() const { return kValueType[val_]; }
+  constexpr ValueType mem_rep() const { return kMemRep[val_]; }
+
+ private:
+  const StoreTypeValue val_;
+
+  static constexpr uint8_t kStoreSizeLog2[] = {
+#define STORE_SIZE(_, __, ___, size) size,
+      FOREACH_STORE_TYPE(STORE_SIZE)
+#undef STORE_SIZE
+  };
+
+  static constexpr ValueType kValueType[] = {
+#define VALUE_TYPE(type, ...) kWasm##type,
+      FOREACH_STORE_TYPE(VALUE_TYPE)
+#undef VALUE_TYPE
+  };
+
+  static constexpr MachineRepresentation kMemRep[] = {
+#define MEMREP(_, __, memrep, ___) MachineRepresentation::k##memrep,
+      FOREACH_STORE_TYPE(MEMREP)
+#undef MEMREP
+  };
+};
+
 // A collection of opcode-related static methods.
 class V8_EXPORT_PRIVATE WasmOpcodes {
  public:
