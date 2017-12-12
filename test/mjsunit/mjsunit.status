@@ -630,6 +630,7 @@
   'regress/regress-336820': [SKIP],
   'regress/regress-748069': [SKIP],
   'regress/regress-778668': [SKIP],
+  'ignition/regress-672027': [PASS, ['tsan', SKIP]],
 }],  # 'gc_fuzzer == True'
 
 ##############################################################################
