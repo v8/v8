@@ -46,11 +46,6 @@ IGNORE_SOURCES = {
     '/v8/test/mjsunit/regress/regress-2989.js',
   ],
 
-  'crbug.com/718739': [
-    '/v8/test/mjsunit/regress/regress-105.js',
-    '/v8/test/mjsunit/regress/regress-crbug-599714.js',
-  ],
-
   'crbug.com/688159': [
     '/v8/test/mjsunit/es7/exponentiation-operator.js',
   ],
@@ -73,7 +68,6 @@ IGNORE_SOURCES = {
 # Ignore by test case pattern. Map from bug->regexp.
 # Regular expressions are assumed to be compiled. We use regexp.search.
 IGNORE_TEST_CASES = {
-  'crbug.com/718739': re.compile(r'\.caller'),
 }
 
 # Ignore by output pattern. Map from config->bug->regexp. Config '' is used
@@ -282,7 +276,8 @@ class V8Suppression(Suppression):
     # Strip off test case preamble.
     try:
       lines = testcase.splitlines()
-      lines = lines[lines.index('print("js-mutation: start generated test case");'):]
+      lines = lines[lines.index(
+          'print("js-mutation: start generated test case");'):]
       content = '\n'.join(lines)
     except ValueError:
       # Search the whole test case if preamble can't be found. E.g. older
