@@ -112,15 +112,20 @@ class V8_EXPORT_PRIVATE InstructionSelector final {
 
   Instruction* EmitDeoptimize(InstructionCode opcode, InstructionOperand output,
                               InstructionOperand a, DeoptimizeKind kind,
-                              DeoptimizeReason reason, Node* frame_state);
+                              DeoptimizeReason reason,
+                              VectorSlotPair const& feedback,
+                              Node* frame_state);
   Instruction* EmitDeoptimize(InstructionCode opcode, InstructionOperand output,
                               InstructionOperand a, InstructionOperand b,
                               DeoptimizeKind kind, DeoptimizeReason reason,
+                              VectorSlotPair const& feedback,
                               Node* frame_state);
   Instruction* EmitDeoptimize(InstructionCode opcode, size_t output_count,
                               InstructionOperand* outputs, size_t input_count,
                               InstructionOperand* inputs, DeoptimizeKind kind,
-                              DeoptimizeReason reason, Node* frame_state);
+                              DeoptimizeReason reason,
+                              VectorSlotPair const& feedback,
+                              Node* frame_state);
 
   // ===========================================================================
   // ============== Architecture-independent CPU feature methods. ==============
@@ -342,7 +347,7 @@ class V8_EXPORT_PRIVATE InstructionSelector final {
   void VisitBranch(Node* input, BasicBlock* tbranch, BasicBlock* fbranch);
   void VisitSwitch(Node* node, const SwitchInfo& sw);
   void VisitDeoptimize(DeoptimizeKind kind, DeoptimizeReason reason,
-                       Node* value);
+                       VectorSlotPair const& feedback, Node* value);
   void VisitReturn(Node* ret);
   void VisitThrow(Node* node);
   void VisitRetain(Node* node);

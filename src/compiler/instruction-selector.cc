@@ -814,7 +814,7 @@ void InstructionSelector::InitializeCallBuffer(Node* call, CallBuffer* buffer,
 
     int const state_id = sequence()->AddDeoptimizationEntry(
         buffer->frame_state_descriptor, DeoptimizeKind::kLazy,
-        DeoptimizeReason::kNoReason);
+        DeoptimizeReason::kNoReason, VectorSlotPair());
     buffer->instruction_args.push_back(g.TempImmediate(state_id));
 
     StateObjectDeduplicator deduplicator(instruction_zone());
@@ -1032,7 +1032,7 @@ void InstructionSelector::VisitControl(BasicBlock* block) {
     case BasicBlock::kDeoptimize: {
       DeoptimizeParameters p = DeoptimizeParametersOf(input->op());
       Node* value = input->InputAt(0);
-      return VisitDeoptimize(p.kind(), p.reason(), value);
+      return VisitDeoptimize(p.kind(), p.reason(), p.feedback(), value);
     }
     case BasicBlock::kThrow:
       DCHECK_EQ(IrOpcode::kThrow, input->opcode());
@@ -2539,29 +2539,31 @@ void InstructionSelector::VisitReturn(Node* ret) {
 
 Instruction* InstructionSelector::EmitDeoptimize(
     InstructionCode opcode, InstructionOperand output, InstructionOperand a,
-    DeoptimizeKind kind, DeoptimizeReason reason, Node* frame_state) {
+    DeoptimizeKind kind, DeoptimizeReason reason,
+    VectorSlotPair const& feedback, Node* frame_state) {
   size_t output_count = output.IsInvalid() ? 0 : 1;
   InstructionOperand inputs[] = {a};
   size_t input_count = arraysize(inputs);
   return EmitDeoptimize(opcode, output_count, &output, input_count, inputs,
-                        kind, reason, frame_state);
+                        kind, reason, feedback, frame_state);
 }
 
 Instruction* InstructionSelector::EmitDeoptimize(
     InstructionCode opcode, InstructionOperand output, InstructionOperand a,
     InstructionOperand b, DeoptimizeKind kind, DeoptimizeReason reason,
-    Node* frame_state) {
+    VectorSlotPair const& feedback, Node* frame_state) {
   size_t output_count = output.IsInvalid() ? 0 : 1;
   InstructionOperand inputs[] = {a, b};
   size_t input_count = arraysize(inputs);
   return EmitDeoptimize(opcode, output_count, &output, input_count, inputs,
-                        kind, reason, frame_state);
+                        kind, reason, feedback, frame_state);
 }
 
 Instruction* InstructionSelector::EmitDeoptimize(
     InstructionCode opcode, size_t output_count, InstructionOperand* outputs,
     size_t input_count, InstructionOperand* inputs, DeoptimizeKind kind,
-    DeoptimizeReason reason, Node* frame_state) {
+    DeoptimizeReason reason, VectorSlotPair const& feedback,
+    Node* frame_state) {
   OperandGenerator g(this);
   FrameStateDescriptor* const descriptor = GetFrameStateDescriptor(frame_state);
   InstructionOperandVector args(instruction_zone());
@@ -2572,7 +2574,7 @@ Instruction* InstructionSelector::EmitDeoptimize(
   opcode |= MiscField::encode(static_cast<int>(input_count));
   DCHECK_NE(DeoptimizeKind::kLazy, kind);
   int const state_id =
-      sequence()->AddDeoptimizationEntry(descriptor, kind, reason);
+      sequence()->AddDeoptimizationEntry(descriptor, kind, reason, feedback);
   args.push_back(g.TempImmediate(state_id));
   StateObjectDeduplicator deduplicator(instruction_zone());
   AddInputsToFrameStateDescriptor(descriptor, frame_state, &g, &deduplicator,
@@ -2590,8 +2592,10 @@ void InstructionSelector::EmitIdentity(Node* node) {
 
 void InstructionSelector::VisitDeoptimize(DeoptimizeKind kind,
                                           DeoptimizeReason reason,
+                                          VectorSlotPair const& feedback,
                                           Node* value) {
-  EmitDeoptimize(kArchDeoptimize, 0, nullptr, 0, nullptr, kind, reason, value);
+  EmitDeoptimize(kArchDeoptimize, 0, nullptr, 0, nullptr, kind, reason,
+                 feedback, value);
 }
 
 void InstructionSelector::VisitThrow(Node* node) {

@@ -825,10 +825,10 @@ const Operator* CommonOperatorBuilder::Branch(BranchHint hint) {
 const Operator* CommonOperatorBuilder::Deoptimize(
     DeoptimizeKind kind, DeoptimizeReason reason,
     VectorSlotPair const& feedback) {
-#define CACHED_DEOPTIMIZE(Kind, Reason)                 \
-  if (kind == DeoptimizeKind::k##Kind &&                \
-      reason == DeoptimizeReason::k##Reason) {          \
-    return &cache_.kDeoptimize##Kind##Reason##Operator; \
+#define CACHED_DEOPTIMIZE(Kind, Reason)                               \
+  if (kind == DeoptimizeKind::k##Kind &&                              \
+      reason == DeoptimizeReason::k##Reason && !feedback.IsValid()) { \
+    return &cache_.kDeoptimize##Kind##Reason##Operator;               \
   }
   CACHED_DEOPTIMIZE_LIST(CACHED_DEOPTIMIZE)
 #undef CACHED_DEOPTIMIZE
@@ -845,10 +845,10 @@ const Operator* CommonOperatorBuilder::Deoptimize(
 const Operator* CommonOperatorBuilder::DeoptimizeIf(
     DeoptimizeKind kind, DeoptimizeReason reason,
     VectorSlotPair const& feedback) {
-#define CACHED_DEOPTIMIZE_IF(Kind, Reason)                \
-  if (kind == DeoptimizeKind::k##Kind &&                  \
-      reason == DeoptimizeReason::k##Reason) {            \
-    return &cache_.kDeoptimizeIf##Kind##Reason##Operator; \
+#define CACHED_DEOPTIMIZE_IF(Kind, Reason)                            \
+  if (kind == DeoptimizeKind::k##Kind &&                              \
+      reason == DeoptimizeReason::k##Reason && !feedback.IsValid()) { \
+    return &cache_.kDeoptimizeIf##Kind##Reason##Operator;             \
   }
   CACHED_DEOPTIMIZE_IF_LIST(CACHED_DEOPTIMIZE_IF)
 #undef CACHED_DEOPTIMIZE_IF
@@ -865,10 +865,10 @@ const Operator* CommonOperatorBuilder::DeoptimizeIf(
 const Operator* CommonOperatorBuilder::DeoptimizeUnless(
     DeoptimizeKind kind, DeoptimizeReason reason,
     VectorSlotPair const& feedback) {
-#define CACHED_DEOPTIMIZE_UNLESS(Kind, Reason)                \
-  if (kind == DeoptimizeKind::k##Kind &&                      \
-      reason == DeoptimizeReason::k##Reason) {                \
-    return &cache_.kDeoptimizeUnless##Kind##Reason##Operator; \
+#define CACHED_DEOPTIMIZE_UNLESS(Kind, Reason)                        \
+  if (kind == DeoptimizeKind::k##Kind &&                              \
+      reason == DeoptimizeReason::k##Reason && !feedback.IsValid()) { \
+    return &cache_.kDeoptimizeUnless##Kind##Reason##Operator;         \
   }
   CACHED_DEOPTIMIZE_UNLESS_LIST(CACHED_DEOPTIMIZE_UNLESS)
 #undef CACHED_DEOPTIMIZE_UNLESS
@@ -1400,6 +1400,23 @@ CommonOperatorBuilder::CreateFrameStateFunctionInfo(
   return new (zone()->New(sizeof(FrameStateFunctionInfo)))
       FrameStateFunctionInfo(type, parameter_count, local_count, shared_info);
 }
+
+#undef COMMON_CACHED_OP_LIST
+#undef CACHED_RETURN_LIST
+#undef CACHED_END_LIST
+#undef CACHED_EFFECT_PHI_LIST
+#undef CACHED_INDUCTION_VARIABLE_PHI_LIST
+#undef CACHED_LOOP_LIST
+#undef CACHED_MERGE_LIST
+#undef CACHED_DEOPTIMIZE_LIST
+#undef CACHED_DEOPTIMIZE_IF_LIST
+#undef CACHED_DEOPTIMIZE_UNLESS_LIST
+#undef CACHED_TRAP_IF_LIST
+#undef CACHED_TRAP_UNLESS_LIST
+#undef CACHED_PARAMETER_LIST
+#undef CACHED_PHI_LIST
+#undef CACHED_PROJECTION_LIST
+#undef CACHED_STATE_VALUES_LIST
 
 }  // namespace compiler
 }  // namespace internal

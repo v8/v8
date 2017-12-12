@@ -488,7 +488,8 @@ void VisitBinop(InstructionSelector* selector, Node* node,
   opcode = cont->Encode(opcode);
   if (cont->IsDeoptimize()) {
     selector->EmitDeoptimize(opcode, output_count, outputs, input_count, inputs,
-                             cont->kind(), cont->reason(), cont->frame_state());
+                             cont->kind(), cont->reason(), cont->feedback(),
+                             cont->frame_state());
   } else if (cont->IsTrap()) {
     inputs[input_count++] = g.UseImmediate(cont->trap_id());
     selector->Emit(opcode, output_count, outputs, input_count, inputs);
@@ -1430,7 +1431,8 @@ void EmitInt32MulWithOverflow(InstructionSelector* selector, Node* node,
   } else if (cont->IsDeoptimize()) {
     InstructionOperand in[] = {result, result};
     selector->EmitDeoptimize(opcode, 0, nullptr, 2, in, cont->kind(),
-                             cont->reason(), cont->frame_state());
+                             cont->reason(), cont->feedback(),
+                             cont->frame_state());
   } else if (cont->IsSet()) {
     selector->Emit(opcode, g.DefineAsRegister(cont->result()), result, result);
   } else {
@@ -1786,7 +1788,8 @@ void VisitCompare(InstructionSelector* selector, InstructionCode opcode,
                    g.Label(cont->true_block()), g.Label(cont->false_block()));
   } else if (cont->IsDeoptimize()) {
     selector->EmitDeoptimize(opcode, g.NoOutput(), left, right, cont->kind(),
-                             cont->reason(), cont->frame_state());
+                             cont->reason(), cont->feedback(),
+                             cont->frame_state());
   } else if (cont->IsSet()) {
     selector->Emit(opcode, g.DefineAsRegister(cont->result()), left, right);
   } else {
@@ -1954,7 +1957,8 @@ void EmitBranchOrDeoptimize(InstructionSelector* selector,
   } else {
     DCHECK(cont->IsDeoptimize());
     selector->EmitDeoptimize(cont->Encode(opcode), g.NoOutput(), value,
-                             cont->kind(), cont->reason(), cont->frame_state());
+                             cont->kind(), cont->reason(), cont->feedback(),
+                             cont->frame_state());
   }
 }
 
@@ -2331,7 +2335,8 @@ void VisitWordCompareZero(InstructionSelector* selector, Node* user,
   } else if (cont->IsDeoptimize()) {
     selector->EmitDeoptimize(cont->Encode(kArm64Tst32), g.NoOutput(),
                              g.UseRegister(value), g.UseRegister(value),
-                             cont->kind(), cont->reason(), cont->frame_state());
+                             cont->kind(), cont->reason(), cont->feedback(),
+                             cont->frame_state());
   } else {
     DCHECK(cont->IsTrap());
     selector->Emit(cont->Encode(kArm64Tst32), g.NoOutput(),
@@ -2351,14 +2356,14 @@ void InstructionSelector::VisitBranch(Node* branch, BasicBlock* tbranch,
 void InstructionSelector::VisitDeoptimizeIf(Node* node) {
   DeoptimizeParameters p = DeoptimizeParametersOf(node->op());
   FlagsContinuation cont = FlagsContinuation::ForDeoptimize(
-      kNotEqual, p.kind(), p.reason(), node->InputAt(1));
+      kNotEqual, p.kind(), p.reason(), p.feedback(), node->InputAt(1));
   VisitWordCompareZero(this, node, node->InputAt(0), &cont);
 }
 
 void InstructionSelector::VisitDeoptimizeUnless(Node* node) {
   DeoptimizeParameters p = DeoptimizeParametersOf(node->op());
   FlagsContinuation cont = FlagsContinuation::ForDeoptimize(
-      kEqual, p.kind(), p.reason(), node->InputAt(1));
+      kEqual, p.kind(), p.reason(), p.feedback(), node->InputAt(1));
   VisitWordCompareZero(this, node, node->InputAt(0), &cont);
 }
 
