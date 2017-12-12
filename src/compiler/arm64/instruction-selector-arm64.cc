@@ -1805,7 +1805,7 @@ void InstructionSelector::EmitPrepareArguments(
   // Poke the arguments into the stack.
   ArchOpcode poke = to_native_stack ? kArm64PokeCSP : kArm64PokeJSSP;
   while (slot >= 0) {
-    Emit(poke, g.NoOutput(), g.UseRegister((*arguments)[slot].node()),
+    Emit(poke, g.NoOutput(), g.UseRegister((*arguments)[slot].node),
          g.TempImmediate(slot));
     slot--;
     // TODO(ahaas): Poke arguments in pairs if two subsequent arguments have the
@@ -1816,6 +1816,11 @@ void InstructionSelector::EmitPrepareArguments(
   }
 }
 
+void InstructionSelector::EmitPrepareResults(ZoneVector<PushParameter>* results,
+                                             const CallDescriptor* descriptor,
+                                             Node* node) {
+  // TODO(ahaas): Port.
+}
 
 bool InstructionSelector::IsTailCallAddressImmediate() { return false; }
 

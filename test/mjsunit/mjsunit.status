@@ -199,6 +199,12 @@
 }],  # novfp3 == True
 
 ##############################################################################
+# TODO(ahaas): Port multiple return values to ARM and MIPS
+['arch == arm or arch == arm64 or arch == mips or arch == mips64 or arch == mipsel or arch == mips64el', {
+  'wasm/multi-value': [SKIP],
+}],
+
+##############################################################################
 ['gc_stress == True', {
   # Skip tests not suitable for GC stress.
   'allocation-site-info': [SKIP],

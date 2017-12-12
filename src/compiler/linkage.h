@@ -197,12 +197,14 @@ class V8_EXPORT_PRIVATE CallDescriptor final
                  RegList callee_saved_registers,
                  RegList callee_saved_fp_registers, Flags flags,
                  const char* debug_name = "",
-                 const RegList allocatable_registers = 0)
+                 const RegList allocatable_registers = 0,
+                 size_t stack_return_count = 0)
       : kind_(kind),
         target_type_(target_type),
         target_loc_(target_loc),
         location_sig_(location_sig),
         stack_param_count_(stack_param_count),
+        stack_return_count_(stack_return_count),
         properties_(properties),
         callee_saved_registers_(callee_saved_registers),
         callee_saved_fp_registers_(callee_saved_fp_registers),
@@ -231,6 +233,9 @@ class V8_EXPORT_PRIVATE CallDescriptor final
 
   // The number of stack parameters to the call.
   size_t StackParameterCount() const { return stack_param_count_; }
+
+  // The number of stack return values from the call.
+  size_t StackReturnCount() const { return stack_return_count_; }
 
   // The number of parameters to the JS function call.
   size_t JSParameterCount() const {
@@ -318,6 +323,7 @@ class V8_EXPORT_PRIVATE CallDescriptor final
   const LinkageLocation target_loc_;
   const LocationSignature* const location_sig_;
   const size_t stack_param_count_;
+  const size_t stack_return_count_;
   const Operator::Properties properties_;
   const RegList callee_saved_registers_;
   const RegList callee_saved_fp_registers_;
