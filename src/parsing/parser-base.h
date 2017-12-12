@@ -5208,8 +5208,9 @@ typename ParserBase<Impl>::StatementT ParserBase<Impl>::ParseIfStatement(
 
   StatementT else_statement = impl()->NullStatement();
   if (Check(Token::ELSE)) {
-    SourceRangeScope range_scope(scanner(), &else_range);
+    else_range = SourceRange::ContinuationOf(then_range);
     else_statement = ParseScopedStatement(labels, CHECK_OK);
+    else_range.end = scanner_->location().end_pos;
   } else {
     else_statement = factory()->NewEmptyStatement(kNoSourcePosition);
   }

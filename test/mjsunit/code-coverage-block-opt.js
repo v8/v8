@@ -39,7 +39,7 @@ TestCoverage("Partial coverage collection",
 }();                                      // 0400
 `,
 [{"start":52,"end":153,"count":0},
- {"start":127,"end":152,"count":1}]
+ {"start":121,"end":152,"count":1}]
 );
 
 %DebugToggleBlockCoverage(false);
