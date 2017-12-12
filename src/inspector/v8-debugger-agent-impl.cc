@@ -553,7 +553,7 @@ Response V8DebuggerAgentImpl::setBreakpointByUrl(
     }
     std::unique_ptr<protocol::Debugger::Location> location = setBreakpointImpl(
         breakpointId, script.first, condition, lineNumber, columnNumber);
-    if (type != BreakpointType::kByUrlRegex) {
+    if (location && type != BreakpointType::kByUrlRegex) {
       hint = breakpointHint(*script.second, lineNumber, columnNumber);
     }
     if (location) (*locations)->addItem(std::move(location));
