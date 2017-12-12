@@ -69,7 +69,7 @@ class VariantGenerator(object):
 class TestSuite(object):
 
   @staticmethod
-  def LoadTestSuite(root, global_init=True):
+  def LoadTestSuite(root):
     name = root.split(os.path.sep)[-1]
     f = None
     try:
@@ -120,14 +120,6 @@ class TestSuite(object):
     Returns: An object of type VariantGenerator.
     """
     return self._VariantGeneratorFactory()(self, set(variants))
-
-  def PrepareSources(self):
-    """Called once before multiprocessing for doing file-system operations.
-
-    This should not access the network. For network access use the method
-    below.
-    """
-    pass
 
   def ReadStatusFile(self, variables):
     with open(self.status_file()) as f:

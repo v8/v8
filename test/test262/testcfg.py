@@ -131,6 +131,37 @@ class Test262TestSuite(testsuite.TestSuite):
     self.harness += [os.path.join(self.root, "harness-adapt.js")]
     self.localtestroot = os.path.join(self.root, *TEST_262_LOCAL_TESTS_PATH)
     self.ParseTestRecord = None
+    self._extract_sources()
+    self._parse_test_record = self._load_parse_test_record()
+
+  def _extract_sources(self):
+    # The archive is created only on swarming. Local checkouts have the
+    # data folder.
+    if (os.path.exists(ARCHIVE) and
+        # Check for a JS file from the archive if we need to unpack. Some other
+        # files from the archive unfortunately exist due to a bug in the
+        # isolate_processor.
+        # TODO(machenbach): Migrate this to GN to avoid using the faulty
+        # isolate_processor: http://crbug.com/669910
+        not os.path.exists(os.path.join(DATA, 'test', 'harness', 'error.js'))):
+      print "Extracting archive..."
+      tar = tarfile.open(ARCHIVE)
+      tar.extractall(path=os.path.dirname(ARCHIVE))
+      tar.close()
+
+  def _load_parse_test_record(self):
+    root = os.path.join(self.root, *TEST_262_TOOLS_PATH)
+    f = None
+    try:
+      (f, pathname, description) = imp.find_module("parseTestRecord", [root])
+      module = imp.load_module("parseTestRecord", f, pathname, description)
+      return module.parseTestRecord
+    except:
+      raise ImportError("Cannot load parseTestRecord; you may need to "
+                        "gclient sync for test262")
+    finally:
+      if f:
+        f.close()
 
   def ListTests(self, context):
     testnames = set()
@@ -180,27 +211,10 @@ class Test262TestSuite(testsuite.TestSuite):
   def _VariantGeneratorFactory(self):
     return Test262VariantGenerator
 
-  def LoadParseTestRecord(self):
-    if not self.ParseTestRecord:
-      root = os.path.join(self.root, *TEST_262_TOOLS_PATH)
-      f = None
-      try:
-        (f, pathname, description) = imp.find_module("parseTestRecord", [root])
-        module = imp.load_module("parseTestRecord", f, pathname, description)
-        self.ParseTestRecord = module.parseTestRecord
-      except:
-        raise ImportError("Cannot load parseTestRecord; you may need to "
-                          "gclient sync for test262")
-      finally:
-        if f:
-          f.close()
-    return self.ParseTestRecord
-
   def GetTestRecord(self, testcase):
     if not hasattr(testcase, "test_record"):
-      ParseTestRecord = self.LoadParseTestRecord()
-      testcase.test_record = ParseTestRecord(self.GetSourceForTest(testcase),
-                                             testcase.path)
+      testcase.test_record = self._parse_test_record(
+          self.GetSourceForTest(testcase), testcase.path)
     return testcase.test_record
 
   def BasePath(self, filename):
@@ -250,21 +264,6 @@ class Test262TestSuite(testsuite.TestSuite):
         '--use-strict' not in testcase.flags):
       return [statusfile.FAIL]
     return super(Test262TestSuite, self).GetExpectedOutcomes(testcase)
-
-  def PrepareSources(self):
-    # The archive is created only on swarming. Local checkouts have the
-    # data folder.
-    if (os.path.exists(ARCHIVE) and
-        # Check for a JS file from the archive if we need to unpack. Some other
-        # files from the archive unfortunately exist due to a bug in the
-        # isolate_processor.
-        # TODO(machenbach): Migrate this to GN to avoid using the faulty
-        # isolate_processor: http://crbug.com/669910
-        not os.path.exists(os.path.join(DATA, 'test', 'harness', 'error.js'))):
-      print "Extracting archive..."
-      tar = tarfile.open(ARCHIVE)
-      tar.extractall(path=os.path.dirname(ARCHIVE))
-      tar.close()
 
 
 def GetSuite(name, root):

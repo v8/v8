@@ -123,9 +123,6 @@ class StandardTestRunner(base_runner.BaseTestRunner):
         if suite:
           suites.append(suite)
 
-      for s in suites:
-        s.PrepareSources()
-
       try:
         return self._execute(args, options, suites)
       except KeyboardInterrupt:
