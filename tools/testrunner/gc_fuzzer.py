@@ -255,7 +255,7 @@ class GCFuzzer(base_runner.BaseTestRunner):
 
     if num_tests == 0:
       print "No tests to run."
-      return 0
+      return exit_code
 
     print(">>> Fuzzing phase (%d test cases)" % num_tests)
     progress_indicator = progress.PROGRESS_INDICATORS[options.progress]()
