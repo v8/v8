@@ -347,10 +347,10 @@ class WasmGraphBuildingInterface {
                          operand.alignment, decoder->position());
   }
 
-  void StoreMem(Decoder* decoder, ValueType type, MachineRepresentation mem_rep,
+  void StoreMem(Decoder* decoder, ValueType type, MachineType mem_type,
                 const MemoryAccessOperand<validate>& operand,
                 const Value& index, const Value& value) {
-    BUILD(StoreMem, mem_rep, index.node, operand.offset, operand.alignment,
+    BUILD(StoreMem, mem_type, index.node, operand.offset, operand.alignment,
           value.node, decoder->position(), type);
   }
 
