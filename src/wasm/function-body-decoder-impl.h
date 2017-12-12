@@ -1667,73 +1667,73 @@ class WasmFullDecoder : public WasmDecoder<validate> {
             break;
           }
           case kExprI32LoadMem8S:
-            len = DecodeLoadMem(kWasmI32, MachineType::Int8());
+            len = 1 + DecodeLoadMem(kWasmI32, MachineType::Int8());
             break;
           case kExprI32LoadMem8U:
-            len = DecodeLoadMem(kWasmI32, MachineType::Uint8());
+            len = 1 + DecodeLoadMem(kWasmI32, MachineType::Uint8());
             break;
           case kExprI32LoadMem16S:
-            len = DecodeLoadMem(kWasmI32, MachineType::Int16());
+            len = 1 + DecodeLoadMem(kWasmI32, MachineType::Int16());
             break;
           case kExprI32LoadMem16U:
-            len = DecodeLoadMem(kWasmI32, MachineType::Uint16());
+            len = 1 + DecodeLoadMem(kWasmI32, MachineType::Uint16());
             break;
           case kExprI32LoadMem:
-            len = DecodeLoadMem(kWasmI32, MachineType::Int32());
+            len = 1 + DecodeLoadMem(kWasmI32, MachineType::Int32());
             break;
           case kExprI64LoadMem8S:
-            len = DecodeLoadMem(kWasmI64, MachineType::Int8());
+            len = 1 + DecodeLoadMem(kWasmI64, MachineType::Int8());
             break;
           case kExprI64LoadMem8U:
-            len = DecodeLoadMem(kWasmI64, MachineType::Uint8());
+            len = 1 + DecodeLoadMem(kWasmI64, MachineType::Uint8());
             break;
           case kExprI64LoadMem16S:
-            len = DecodeLoadMem(kWasmI64, MachineType::Int16());
+            len = 1 + DecodeLoadMem(kWasmI64, MachineType::Int16());
             break;
           case kExprI64LoadMem16U:
-            len = DecodeLoadMem(kWasmI64, MachineType::Uint16());
+            len = 1 + DecodeLoadMem(kWasmI64, MachineType::Uint16());
             break;
           case kExprI64LoadMem32S:
-            len = DecodeLoadMem(kWasmI64, MachineType::Int32());
+            len = 1 + DecodeLoadMem(kWasmI64, MachineType::Int32());
             break;
           case kExprI64LoadMem32U:
-            len = DecodeLoadMem(kWasmI64, MachineType::Uint32());
+            len = 1 + DecodeLoadMem(kWasmI64, MachineType::Uint32());
             break;
           case kExprI64LoadMem:
-            len = DecodeLoadMem(kWasmI64, MachineType::Int64());
+            len = 1 + DecodeLoadMem(kWasmI64, MachineType::Int64());
             break;
           case kExprF32LoadMem:
-            len = DecodeLoadMem(kWasmF32, MachineType::Float32());
+            len = 1 + DecodeLoadMem(kWasmF32, MachineType::Float32());
             break;
           case kExprF64LoadMem:
-            len = DecodeLoadMem(kWasmF64, MachineType::Float64());
+            len = 1 + DecodeLoadMem(kWasmF64, MachineType::Float64());
             break;
           case kExprI32StoreMem8:
-            len = DecodeStoreMem(kWasmI32, MachineType::Int8());
+            len = 1 + DecodeStoreMem(kWasmI32, MachineType::Int8());
             break;
           case kExprI32StoreMem16:
-            len = DecodeStoreMem(kWasmI32, MachineType::Int16());
+            len = 1 + DecodeStoreMem(kWasmI32, MachineType::Int16());
             break;
           case kExprI32StoreMem:
-            len = DecodeStoreMem(kWasmI32, MachineType::Int32());
+            len = 1 + DecodeStoreMem(kWasmI32, MachineType::Int32());
             break;
           case kExprI64StoreMem8:
-            len = DecodeStoreMem(kWasmI64, MachineType::Int8());
+            len = 1 + DecodeStoreMem(kWasmI64, MachineType::Int8());
             break;
           case kExprI64StoreMem16:
-            len = DecodeStoreMem(kWasmI64, MachineType::Int16());
+            len = 1 + DecodeStoreMem(kWasmI64, MachineType::Int16());
             break;
           case kExprI64StoreMem32:
-            len = DecodeStoreMem(kWasmI64, MachineType::Int32());
+            len = 1 + DecodeStoreMem(kWasmI64, MachineType::Int32());
             break;
           case kExprI64StoreMem:
-            len = DecodeStoreMem(kWasmI64, MachineType::Int64());
+            len = 1 + DecodeStoreMem(kWasmI64, MachineType::Int64());
             break;
           case kExprF32StoreMem:
-            len = DecodeStoreMem(kWasmF32, MachineType::Float32());
+            len = 1 + DecodeStoreMem(kWasmF32, MachineType::Float32());
             break;
           case kExprF64StoreMem:
-            len = DecodeStoreMem(kWasmF64, MachineType::Float64());
+            len = 1 + DecodeStoreMem(kWasmF64, MachineType::Float64());
             break;
           case kExprGrowMemory: {
             if (!CheckHasMemory()) break;
@@ -1977,33 +1977,11 @@ class WasmFullDecoder : public WasmDecoder<validate> {
     }
   }
 
-  int DecodeLoadMem(ValueType type, MachineType mem_type) {
+  int DecodeLoadMem(ValueType type, MachineType mem_type, int prefix_len = 0) {
     if (!CheckHasMemory()) return 0;
     MemoryAccessOperand<validate> operand(
-        this, this->pc_, ElementSizeLog2Of(mem_type.representation()));
-
-    auto index = Pop(0, kWasmI32);
-    auto* result = Push(type);
-    CALL_INTERFACE_IF_REACHABLE(LoadMem, type, mem_type, operand, index,
-                                result);
-    return 1 + operand.length;
-  }
-
-  int DecodeStoreMem(ValueType type, MachineType mem_type) {
-    if (!CheckHasMemory()) return 0;
-    MemoryAccessOperand<validate> operand(
-        this, this->pc_, ElementSizeLog2Of(mem_type.representation()));
-    auto value = Pop(1, type);
-    auto index = Pop(0, kWasmI32);
-    CALL_INTERFACE_IF_REACHABLE(StoreMem, type, mem_type, operand, index,
-                                value);
-    return 1 + operand.length;
-  }
-
-  int DecodePrefixedLoadMem(ValueType type, MachineType mem_type) {
-    if (!CheckHasMemory()) return 0;
-    MemoryAccessOperand<validate> operand(
-        this, this->pc_ + 1, ElementSizeLog2Of(mem_type.representation()));
+        this, this->pc_ + prefix_len,
+        ElementSizeLog2Of(mem_type.representation()));
 
     auto index = Pop(0, kWasmI32);
     auto* result = Push(type);
@@ -2012,10 +1990,11 @@ class WasmFullDecoder : public WasmDecoder<validate> {
     return operand.length;
   }
 
-  int DecodePrefixedStoreMem(ValueType type, MachineType mem_type) {
+  int DecodeStoreMem(ValueType type, MachineType mem_type, int prefix_len = 0) {
     if (!CheckHasMemory()) return 0;
     MemoryAccessOperand<validate> operand(
-        this, this->pc_ + 1, ElementSizeLog2Of(mem_type.representation()));
+        this, this->pc_ + prefix_len,
+        ElementSizeLog2Of(mem_type.representation()));
     auto value = Pop(1, type);
     auto index = Pop(0, kWasmI32);
     CALL_INTERFACE_IF_REACHABLE(StoreMem, type, mem_type, operand, index,
@@ -2109,10 +2088,10 @@ class WasmFullDecoder : public WasmDecoder<validate> {
         break;
       }
       case kExprS128LoadMem:
-        len = DecodePrefixedLoadMem(kWasmS128, MachineType::Simd128());
+        len = DecodeLoadMem(kWasmS128, MachineType::Simd128(), 1);
         break;
       case kExprS128StoreMem:
-        len = DecodePrefixedStoreMem(kWasmS128, MachineType::Simd128());
+        len = DecodeStoreMem(kWasmS128, MachineType::Simd128(), 1);
         break;
       default: {
         FunctionSig* sig = WasmOpcodes::Signature(opcode);
