@@ -528,7 +528,7 @@ class LiftoffCompiler {
                Value* result) {
     unsupported(decoder, "memory load");
   }
-  void StoreMem(Decoder* decoder, ValueType type, MachineType mem_type,
+  void StoreMem(Decoder* decoder, ValueType type, MachineRepresentation mem_rep,
                 const MemoryAccessOperand<validate>& operand,
                 const Value& index, const Value& value) {
     unsupported(decoder, "memory store");

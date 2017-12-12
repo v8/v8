@@ -551,7 +551,7 @@ class V8_EXPORT_PRIVATE WasmOpcodes {
   static const char* TrapReasonMessage(TrapReason reason);
 
   static byte MemSize(MachineType type) {
-    return 1 << ElementSizeLog2Of(type.representation());
+    return MemSize(type.representation());
   }
 
   static byte MemSize(ValueType type) { return 1 << ElementSizeLog2Of(type); }
