@@ -2681,11 +2681,6 @@ class NewSpace : public SpaceWithLinearArea {
   // it in steps to guarantee that the observers are notified periodically.
   void UpdateInlineAllocationLimit(int size_in_bytes);
 
-  void DisableInlineAllocationSteps() {
-    top_on_previous_step_ = 0;
-    UpdateInlineAllocationLimit(0);
-  }
-
   // Get the extent of the inactive semispace (for use as a marking stack,
   // or to zap it). Notice: space-addresses are not necessarily on the
   // same page, so FromSpaceStart() might be above FromSpaceEnd().

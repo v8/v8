@@ -2056,8 +2056,11 @@ LocalAllocationBuffer& LocalAllocationBuffer::operator=(
 
 
 void NewSpace::UpdateAllocationInfo() {
+  Address new_top = to_space_.page_low();
+  InlineAllocationStep(top(), new_top, nullptr, 0);
+
   MemoryChunk::UpdateHighWaterMark(allocation_info_.top());
-  allocation_info_.Reset(to_space_.page_low(), to_space_.page_high());
+  allocation_info_.Reset(new_top, to_space_.page_high());
   original_top_.SetValue(top());
   original_limit_.SetValue(limit());
   UpdateInlineAllocationLimit(0);
@@ -2066,7 +2069,6 @@ void NewSpace::UpdateAllocationInfo() {
 
 
 void NewSpace::ResetAllocationInfo() {
-  Address old_top = allocation_info_.top();
   to_space_.Reset();
   UpdateAllocationInfo();
   // Clear all mark-bits in the to-space.
@@ -2077,7 +2079,6 @@ void NewSpace::ResetAllocationInfo() {
     // Concurrent marking may have local live bytes for this page.
     heap()->concurrent_marking()->ClearLiveness(p);
   }
-  InlineAllocationStep(old_top, allocation_info_.top(), nullptr, 0);
 }
 
 
@@ -2137,8 +2138,6 @@ bool NewSpace::EnsureAllocation(int size_in_bytes,
     if (!AddFreshPage()) {
       return false;
     }
-
-    InlineAllocationStep(old_top, allocation_info_.top(), nullptr, 0);
 
     old_top = allocation_info_.top();
     high = to_space_.page_high();
