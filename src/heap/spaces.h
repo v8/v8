@@ -170,8 +170,6 @@ class FreeListCategory {
     next_ = nullptr;
   }
 
-  void Invalidate();
-
   void Reset();
 
   void ResetStats() { Reset(); }
@@ -2124,7 +2122,7 @@ class V8_EXPORT_PRIVATE PagedSpace
 
   inline bool TryFreeLast(HeapObject* object, int object_size);
 
-  void ResetFreeList() { free_list_.Reset(); }
+  void ResetFreeList();
 
   void PauseAllocationObservers() override;
 

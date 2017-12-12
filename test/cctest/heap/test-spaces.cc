@@ -677,8 +677,8 @@ TEST(ShrinkPageToHighWaterMarkFreeSpaceEnd) {
 
   // Reset space so high water mark is consistent.
   PagedSpace* old_space = CcTest::heap()->old_space();
-  old_space->ResetFreeList();
   old_space->EmptyAllocationInfo();
+  old_space->ResetFreeList();
 
   HeapObject* filler =
       HeapObject::FromAddress(array->address() + array->Size());
@@ -728,8 +728,8 @@ TEST(ShrinkPageToHighWaterMarkOneWordFiller) {
 
   // Reset space so high water mark and fillers are consistent.
   PagedSpace* old_space = CcTest::heap()->old_space();
-  old_space->ResetFreeList();
   old_space->EmptyAllocationInfo();
+  old_space->ResetFreeList();
 
   HeapObject* filler =
       HeapObject::FromAddress(array->address() + array->Size());
@@ -755,8 +755,8 @@ TEST(ShrinkPageToHighWaterMarkTwoWordFiller) {
 
   // Reset space so high water mark and fillers are consistent.
   PagedSpace* old_space = CcTest::heap()->old_space();
-  old_space->ResetFreeList();
   old_space->EmptyAllocationInfo();
+  old_space->ResetFreeList();
 
   HeapObject* filler =
       HeapObject::FromAddress(array->address() + array->Size());

@@ -847,6 +847,22 @@ size_t Page::AvailableInFreeList() {
   return sum;
 }
 
+#ifdef DEBUG
+namespace {
+// Skips filler starting from the given filler until the end address.
+// Returns the first address after the skipped fillers.
+Address SkipFillers(HeapObject* filler, Address end) {
+  Address addr = filler->address();
+  while (addr < end) {
+    filler = HeapObject::FromAddress(addr);
+    CHECK(filler->IsFiller());
+    addr = filler->address() + filler->Size();
+  }
+  return addr;
+}
+}  // anonymous namespace
+#endif  // DEBUG
+
 size_t Page::ShrinkToHighWaterMark() {
   // Shrinking only makes sense outside of the CodeRange, where we don't care
   // about address space fragmentation.
@@ -858,29 +874,13 @@ size_t Page::ShrinkToHighWaterMark() {
   HeapObject* filler = HeapObject::FromAddress(HighWaterMark());
   if (filler->address() == area_end()) return 0;
   CHECK(filler->IsFiller());
-  if (!filler->IsFreeSpace()) return 0;
+  // Ensure that no objects were allocated in [filler, area_end) region.
+  DCHECK_EQ(area_end(), SkipFillers(filler, area_end()));
+  // Ensure that no objects will be allocated on this page.
+  DCHECK_EQ(0u, AvailableInFreeList());
 
-#ifdef DEBUG
-  // Check the the filler is indeed the last filler on the page.
-  HeapObjectIterator it(this);
-  HeapObject* filler2 = nullptr;
-  for (HeapObject* obj = it.Next(); obj != nullptr; obj = it.Next()) {
-    filler2 = HeapObject::FromAddress(obj->address() + obj->Size());
-  }
-  if (filler2 == nullptr || filler2->address() == area_end()) return 0;
-  DCHECK(filler2->IsFiller());
-  // The deserializer might leave behind fillers. In this case we need to
-  // iterate even further.
-  while ((filler2->address() + filler2->Size()) != area_end()) {
-    filler2 = HeapObject::FromAddress(filler2->address() + filler2->Size());
-    DCHECK(filler2->IsFiller());
-  }
-  DCHECK_EQ(filler->address(), filler2->address());
-#endif  // DEBUG
-
-  size_t unused = RoundDown(
-      static_cast<size_t>(area_end() - filler->address() - FreeSpace::kSize),
-      MemoryAllocator::GetCommitPageSize());
+  size_t unused = RoundDown(static_cast<size_t>(area_end() - filler->address()),
+                            MemoryAllocator::GetCommitPageSize());
   if (unused > 0) {
     DCHECK_EQ(0u, unused % MemoryAllocator::GetCommitPageSize());
     if (FLAG_trace_gc_verbose) {
@@ -1552,12 +1552,18 @@ size_t PagedSpace::ShrinkPageToHighWaterMark(Page* page) {
   return unused;
 }
 
+void PagedSpace::ResetFreeList() {
+  for (Page* page : *this) {
+    free_list_.EvictFreeListItems(page);
+  }
+  DCHECK(free_list_.IsEmpty());
+}
+
 void PagedSpace::ShrinkImmortalImmovablePages() {
   DCHECK(!heap()->deserialization_complete());
   MemoryChunk::UpdateHighWaterMark(allocation_info_.top());
   EmptyAllocationInfo();
   ResetFreeList();
-
   for (Page* page : *this) {
     DCHECK(page->IsFlagSet(Page::NEVER_EVACUATE));
     ShrinkPageToHighWaterMark(page);
@@ -2822,11 +2828,6 @@ void FreeListCategory::Relink() {
   owner()->AddCategory(this);
 }
 
-void FreeListCategory::Invalidate() {
-  Reset();
-  type_ = kInvalidCategory;
-}
-
 FreeList::FreeList(PagedSpace* owner) : owner_(owner), wasted_bytes_(0) {
   for (int i = kFirstCategory; i < kNumberOfCategories; i++) {
     categories_[i] = nullptr;
@@ -3010,14 +3011,10 @@ bool FreeList::Allocate(size_t size_in_bytes) {
 size_t FreeList::EvictFreeListItems(Page* page) {
   size_t sum = 0;
   page->ForAllFreeListCategories([this, &sum](FreeListCategory* category) {
-    // The category might have been already evicted
-    // if the page is an evacuation candidate.
-    if (category->type_ != kInvalidCategory) {
-      DCHECK_EQ(this, category->owner());
-      sum += category->available();
-      RemoveCategory(category);
-      category->Invalidate();
-    }
+    DCHECK_EQ(this, category->owner());
+    sum += category->available();
+    RemoveCategory(category);
+    category->Reset();
   });
   return sum;
 }
