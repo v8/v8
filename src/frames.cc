@@ -425,7 +425,7 @@ StackFrame::Type StackFrame::ComputeType(const StackFrameIteratorBase* iterator,
         Memory::Object_at(state->fp + StandardFrameConstants::kFunctionOffset);
     if (!StackFrame::IsTypeMarker(marker)) {
       if (maybe_function->IsSmi()) {
-        return NONE;
+        return NATIVE;
       } else if (IsInterpreterFramePc(iterator->isolate(),
                                       *(state->pc_address))) {
         return INTERPRETED;
@@ -492,7 +492,7 @@ StackFrame::Type StackFrame::ComputeType(const StackFrameIteratorBase* iterator,
             break;
         }
       } else {
-        return NONE;
+        return NATIVE;
       }
     }
   }
@@ -520,7 +520,7 @@ StackFrame::Type StackFrame::ComputeType(const StackFrameIteratorBase* iterator,
       // interpreted frames, should never have a StackFrame::Type
       // marker. If we find one, we're likely being called from the
       // profiler in a bogus stack frame.
-      return NONE;
+      return NATIVE;
   }
 }
 
@@ -542,6 +542,14 @@ Address StackFrame::UnpaddedFP() const {
   return fp();
 }
 
+void NativeFrame::ComputeCallerState(State* state) const {
+  state->sp = caller_sp();
+  state->fp = Memory::Address_at(fp() + CommonFrameConstants::kCallerFPOffset);
+  state->pc_address = ResolveReturnAddressLocation(
+      reinterpret_cast<Address*>(fp() + CommonFrameConstants::kCallerPCOffset));
+  state->callee_pc_address = nullptr;
+  state->constant_pool_address = nullptr;
+}
 
 Code* EntryFrame::unchecked_code() const {
   return isolate()->heap()->js_entry_code();
@@ -841,6 +849,7 @@ void StandardFrame::IterateCompiledFrame(RootVisitor* v) const {
         // in the place on the stack that one finds the frame type.
         UNREACHABLE();
         break;
+      case NATIVE:
       case NONE:
       case NUMBER_OF_TYPES:
       case MANUAL:

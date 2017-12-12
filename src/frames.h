@@ -104,7 +104,8 @@ class StackHandler BASE_EMBEDDED {
   V(CONSTRUCT, ConstructFrame)                                            \
   V(ARGUMENTS_ADAPTOR, ArgumentsAdaptorFrame)                             \
   V(BUILTIN, BuiltinFrame)                                                \
-  V(BUILTIN_EXIT, BuiltinExitFrame)
+  V(BUILTIN_EXIT, BuiltinExitFrame)                                       \
+  V(NATIVE, NativeFrame)
 
 // Abstract base class for all stack frames.
 class StackFrame BASE_EMBEDDED {
@@ -180,8 +181,7 @@ class StackFrame BASE_EMBEDDED {
   // and should be converted back to a stack frame type using MarkerToType.
   // Otherwise, the value is a tagged function pointer.
   static bool IsTypeMarker(intptr_t function_or_marker) {
-    bool is_marker = ((function_or_marker & kSmiTagMask) == kSmiTag);
-    return is_marker;
+    return (function_or_marker & kSmiTagMask) == kSmiTag;
   }
 
   // Copy constructor; it breaks the connection to host iterator
@@ -328,6 +328,25 @@ class StackFrame BASE_EMBEDDED {
   friend class SafeStackFrameIterator;
 };
 
+class NativeFrame : public StackFrame {
+ public:
+  Type type() const override { return NATIVE; }
+
+  Code* unchecked_code() const override { return nullptr; }
+
+  // Garbage collection support.
+  void Iterate(RootVisitor* v) const override {}
+
+ protected:
+  inline explicit NativeFrame(StackFrameIteratorBase* iterator);
+
+  Address GetCallerStackPointer() const override;
+
+ private:
+  void ComputeCallerState(State* state) const override;
+
+  friend class StackFrameIteratorBase;
+};
 
 // Entry frames are used to enter JavaScript execution from C.
 class EntryFrame: public StackFrame {

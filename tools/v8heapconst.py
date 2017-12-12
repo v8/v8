@@ -351,6 +351,7 @@ FRAME_MARKERS = (
   "ARGUMENTS_ADAPTOR",
   "BUILTIN",
   "BUILTIN_EXIT",
+  "NATIVE",
 )
 
 # This set of constants is generated from a shipping build.
