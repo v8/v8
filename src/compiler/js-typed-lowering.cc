@@ -47,6 +47,7 @@ class JSBinopReduction final {
       case CompareOperationHint::kNone:
       case CompareOperationHint::kString:
       case CompareOperationHint::kSymbol:
+      case CompareOperationHint::kBigInt:
       case CompareOperationHint::kReceiver:
       case CompareOperationHint::kInternalizedString:
         break;

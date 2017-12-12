@@ -38,6 +38,7 @@ enum class CompareOperationHint : uint8_t {
   kInternalizedString,
   kString,
   kSymbol,
+  kBigInt,
   kReceiver,
   kAny
 };

@@ -8513,11 +8513,6 @@ Node* CodeStubAssembler::RelationalComparison(Operation op, Node* lhs,
 
         BIND(&if_lhsisbigint);
         {
-          if (var_type_feedback != nullptr) {
-            var_type_feedback->Bind(
-                SmiConstant(CompareOperationFeedback::kAny));
-          }
-
           Label if_rhsisheapnumber(this), if_rhsisbigint(this),
               if_rhsisnotnumeric(this);
           GotoIf(IsHeapNumberMap(rhs_map), &if_rhsisheapnumber);
@@ -8527,6 +8522,10 @@ Node* CodeStubAssembler::RelationalComparison(Operation op, Node* lhs,
 
           BIND(&if_rhsisheapnumber);
           {
+            if (var_type_feedback != nullptr) {
+              var_type_feedback->Bind(
+                  SmiConstant(CompareOperationFeedback::kAny));
+            }
             result.Bind(CallRuntime(Runtime::kBigIntCompareToNumber,
                                     NoContextConstant(), SmiConstant(op), lhs,
                                     rhs));
@@ -8535,6 +8534,10 @@ Node* CodeStubAssembler::RelationalComparison(Operation op, Node* lhs,
 
           BIND(&if_rhsisbigint);
           {
+            if (var_type_feedback != nullptr) {
+              CombineFeedback(var_type_feedback,
+                              SmiConstant(CompareOperationFeedback::kBigInt));
+            }
             result.Bind(CallRuntime(Runtime::kBigIntCompareToBigInt,
                                     NoContextConstant(), SmiConstant(op), lhs,
                                     rhs));
@@ -8543,6 +8546,10 @@ Node* CodeStubAssembler::RelationalComparison(Operation op, Node* lhs,
 
           BIND(&if_rhsisnotnumeric);
           {
+            if (var_type_feedback != nullptr) {
+              var_type_feedback->Bind(
+                  SmiConstant(CompareOperationFeedback::kAny));
+            }
             // Convert the {rhs} to a Numeric; we don't need to perform
             // dedicated ToPrimitive(rhs, hint Number) operation, as the
             // ToNumeric(rhs) will by itself already invoke ToPrimitive with
@@ -8767,10 +8774,11 @@ void CodeStubAssembler::GenerateEqual_Same(Node* value, Label* if_equal,
   if (var_type_feedback != nullptr) {
     Node* instance_type = LoadMapInstanceType(value_map);
 
-    Label if_string(this), if_receiver(this), if_symbol(this),
+    Label if_string(this), if_receiver(this), if_symbol(this), if_bigint(this),
         if_other(this, Label::kDeferred);
     GotoIf(IsStringInstanceType(instance_type), &if_string);
     GotoIf(IsJSReceiverInstanceType(instance_type), &if_receiver);
+    GotoIf(IsBigIntInstanceType(instance_type), &if_bigint);
     Branch(IsSymbolInstanceType(instance_type), &if_symbol, &if_other);
 
     BIND(&if_string);
@@ -8794,8 +8802,12 @@ void CodeStubAssembler::GenerateEqual_Same(Node* value, Label* if_equal,
       Goto(if_equal);
     }
 
-    // TODO(neis): Introduce BigInt CompareOperationFeedback and collect here
-    // and elsewhere?
+    BIND(&if_bigint);
+    {
+      CombineFeedback(var_type_feedback,
+                      SmiConstant(CompareOperationFeedback::kBigInt));
+      Goto(if_equal);
+    }
 
     BIND(&if_other);
     {
@@ -9008,10 +9020,6 @@ Node* CodeStubAssembler::Equal(Node* left, Node* right, Node* context,
 
       BIND(&if_left_bigint);
       {
-        if (var_type_feedback != nullptr) {
-          var_type_feedback->Bind(SmiConstant(CompareOperationFeedback::kAny));
-        }
-
         Label if_right_heapnumber(this), if_right_bigint(this),
             if_right_string(this), if_right_boolean(this);
         GotoIf(IsHeapNumberMap(right_map), &if_right_heapnumber);
@@ -9023,6 +9031,10 @@ Node* CodeStubAssembler::Equal(Node* left, Node* right, Node* context,
 
         BIND(&if_right_heapnumber);
         {
+          if (var_type_feedback != nullptr) {
+            var_type_feedback->Bind(
+                SmiConstant(CompareOperationFeedback::kAny));
+          }
           result.Bind(CallRuntime(Runtime::kBigIntEqualToNumber,
                                   NoContextConstant(), left, right));
           Goto(&end);
@@ -9030,6 +9042,10 @@ Node* CodeStubAssembler::Equal(Node* left, Node* right, Node* context,
 
         BIND(&if_right_bigint);
         {
+          if (var_type_feedback != nullptr) {
+            CombineFeedback(var_type_feedback,
+                            SmiConstant(CompareOperationFeedback::kBigInt));
+          }
           result.Bind(CallRuntime(Runtime::kBigIntEqualToBigInt,
                                   NoContextConstant(), left, right));
           Goto(&end);
@@ -9037,6 +9053,10 @@ Node* CodeStubAssembler::Equal(Node* left, Node* right, Node* context,
 
         BIND(&if_right_string);
         {
+          if (var_type_feedback != nullptr) {
+            var_type_feedback->Bind(
+                SmiConstant(CompareOperationFeedback::kAny));
+          }
           result.Bind(CallRuntime(Runtime::kBigIntEqualToString,
                                   NoContextConstant(), left, right));
           Goto(&end);
@@ -9044,6 +9064,10 @@ Node* CodeStubAssembler::Equal(Node* left, Node* right, Node* context,
 
         BIND(&if_right_boolean);
         {
+          if (var_type_feedback != nullptr) {
+            var_type_feedback->Bind(
+                SmiConstant(CompareOperationFeedback::kAny));
+          }
           var_right.Bind(LoadObjectField(right, Oddball::kToNumberOffset));
           Goto(&loop);
         }
@@ -9383,10 +9407,8 @@ Node* CodeStubAssembler::StrictEqual(Node* lhs, Node* rhs,
             BIND(&if_rhsisbigint);
             {
               if (var_type_feedback != nullptr) {
-                CSA_ASSERT(
-                    this,
-                    WordEqual(var_type_feedback->value(),
-                              SmiConstant(CompareOperationFeedback::kAny)));
+                var_type_feedback->Bind(
+                    SmiConstant(CompareOperationFeedback::kBigInt));
               }
               result.Bind(CallRuntime(Runtime::kBigIntEqualToBigInt,
                                       NoContextConstant(), lhs, rhs));

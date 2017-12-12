@@ -1822,6 +1822,49 @@ TEST(InterpreterHeapNumberComparisons) {
   }
 }
 
+TEST(InterpreterBigIntComparisons) {
+  // This test only checks that the recorded type feedback is kBigInt.
+  AstBigInt inputs[] = {AstBigInt("0"), AstBigInt("-42"),
+                        AstBigInt("0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF")};
+  for (size_t c = 0; c < arraysize(kComparisonTypes); c++) {
+    Token::Value comparison = kComparisonTypes[c];
+    for (size_t i = 0; i < arraysize(inputs); i++) {
+      for (size_t j = 0; j < arraysize(inputs); j++) {
+        HandleAndZoneScope handles;
+        Isolate* isolate = handles.main_isolate();
+        Zone* zone = handles.main_zone();
+        AstValueFactory ast_factory(zone, isolate->ast_string_constants(),
+                                    isolate->heap()->HashSeed());
+
+        FeedbackVectorSpec feedback_spec(zone);
+        BytecodeArrayBuilder builder(zone, 1, 1, &feedback_spec);
+
+        FeedbackSlot slot = feedback_spec.AddCompareICSlot();
+        Handle<i::FeedbackMetadata> metadata =
+            NewFeedbackMetadata(isolate, &feedback_spec);
+
+        Register r0(0);
+        builder.LoadLiteral(inputs[i])
+            .StoreAccumulatorInRegister(r0)
+            .LoadLiteral(inputs[j])
+            .CompareOperation(comparison, r0, GetIndex(slot))
+            .Return();
+
+        ast_factory.Internalize(isolate);
+        Handle<BytecodeArray> bytecode_array = builder.ToBytecodeArray(isolate);
+        InterpreterTester tester(isolate, bytecode_array, metadata);
+        auto callable = tester.GetCallable<>();
+        Handle<Object> return_value = callable().ToHandleChecked();
+        CHECK(return_value->IsBoolean());
+        Object* feedback = callable.vector()->Get(slot);
+        CHECK(feedback->IsSmi());
+        CHECK_EQ(CompareOperationFeedback::kBigInt,
+                 static_cast<Smi*>(feedback)->value());
+      }
+    }
+  }
+}
+
 TEST(InterpreterStringComparisons) {
   HandleAndZoneScope handles;
   Isolate* isolate = handles.main_isolate();

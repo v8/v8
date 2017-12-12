@@ -1286,6 +1286,7 @@ class BinaryOperationFeedback {
 //   kSignedSmall -> kNumber             -> kNumberOrOddball -> kAny
 //                   kInternalizedString -> kString          -> kAny
 //                                          kSymbol          -> kAny
+//                                          kBigInt          -> kAny
 //                                          kReceiver        -> kAny
 //
 // This is distinct from BinaryOperationFeedback on purpose, because the
@@ -1301,6 +1302,7 @@ class CompareOperationFeedback {
     kString = 0x18,
     kSymbol = 0x20,
     kReceiver = 0x40,
+    kBigInt = 0x80,
     kAny = 0xff
   };
 };

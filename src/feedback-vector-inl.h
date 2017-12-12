@@ -198,6 +198,8 @@ CompareOperationHint CompareOperationHintFromFeedback(int type_feedback) {
       return CompareOperationHint::kString;
     case CompareOperationFeedback::kSymbol:
       return CompareOperationHint::kSymbol;
+    case CompareOperationFeedback::kBigInt:
+      return CompareOperationHint::kBigInt;
     case CompareOperationFeedback::kReceiver:
       return CompareOperationHint::kReceiver;
     default:
