@@ -581,7 +581,7 @@ struct ControlWithNamedConstructors : public ControlBase<Value> {
   F(LoadMem, ValueType type, MachineType mem_type,                             \
     const MemoryAccessOperand<validate>& operand, const Value& index,          \
     Value* result)                                                             \
-  F(StoreMem, ValueType type, MachineType mem_type,                            \
+  F(StoreMem, ValueType type, MachineRepresentation mem_rep,                   \
     const MemoryAccessOperand<validate>& operand, const Value& index,          \
     const Value& value)                                                        \
   F(CurrentMemoryPages, Value* result)                                         \
@@ -1997,8 +1997,8 @@ class WasmFullDecoder : public WasmDecoder<validate> {
         ElementSizeLog2Of(mem_type.representation()));
     auto value = Pop(1, type);
     auto index = Pop(0, kWasmI32);
-    CALL_INTERFACE_IF_REACHABLE(StoreMem, type, mem_type, operand, index,
-                                value);
+    CALL_INTERFACE_IF_REACHABLE(StoreMem, type, mem_type.representation(),
+                                operand, index, value);
     return operand.length;
   }
 

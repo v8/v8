@@ -3485,7 +3485,7 @@ Node* WasmGraphBuilder::SetGlobal(uint32_t index, Node* val) {
   return node;
 }
 
-void WasmGraphBuilder::BoundsCheckMem(MachineType memtype, Node* index,
+void WasmGraphBuilder::BoundsCheckMem(uint8_t access_size, Node* index,
                                       uint32_t offset,
                                       wasm::WasmCodePosition position) {
   if (FLAG_wasm_no_bounds_checks) return;
@@ -3498,8 +3498,6 @@ void WasmGraphBuilder::BoundsCheckMem(MachineType memtype, Node* index,
       (env_->module->has_maximum_pages ? env_->module->maximum_pages
                                        : wasm::kV8MaxWasmMemoryPages) *
       wasm::WasmModule::kPageSize;
-
-  byte access_size = wasm::WasmOpcodes::MemSize(memtype);
 
   if (access_size > max_size || offset > max_size - access_size) {
     // The access will be out of bounds, even for the largest memory.
@@ -3612,7 +3610,8 @@ Node* WasmGraphBuilder::LoadMem(wasm::ValueType type, MachineType memtype,
   }
   // Wasm semantics throw on OOB. Introduce explicit bounds check.
   if (!use_trap_handler()) {
-    BoundsCheckMem(memtype, index, offset, position);
+    BoundsCheckMem(wasm::WasmOpcodes::MemSize(memtype), index, offset,
+                   position);
   }
 
   if (memtype.representation() == MachineRepresentation::kWord8 ||
@@ -3659,7 +3658,7 @@ Node* WasmGraphBuilder::LoadMem(wasm::ValueType type, MachineType memtype,
   return load;
 }
 
-Node* WasmGraphBuilder::StoreMem(MachineType memtype, Node* index,
+Node* WasmGraphBuilder::StoreMem(MachineRepresentation mem_rep, Node* index,
                                  uint32_t offset, uint32_t alignment, Node* val,
                                  wasm::WasmCodePosition position,
                                  wasm::ValueType type) {
@@ -3671,22 +3670,23 @@ Node* WasmGraphBuilder::StoreMem(MachineType memtype, Node* index,
   }
   // Wasm semantics throw on OOB. Introduce explicit bounds check.
   if (!use_trap_handler()) {
-    BoundsCheckMem(memtype, index, offset, position);
+    BoundsCheckMem(wasm::WasmOpcodes::MemSize(mem_rep), index, offset,
+                   position);
   }
 
 #if defined(V8_TARGET_BIG_ENDIAN)
   val = BuildChangeEndiannessStore(val, memtype, type);
 #endif
 
-  if (memtype.representation() == MachineRepresentation::kWord8 ||
-      jsgraph()->machine()->UnalignedStoreSupported(memtype.representation())) {
+  if (mem_rep == MachineRepresentation::kWord8 ||
+      jsgraph()->machine()->UnalignedStoreSupported(mem_rep)) {
     if (use_trap_handler()) {
-      store = graph()->NewNode(
-          jsgraph()->machine()->ProtectedStore(memtype.representation()),
-          MemBuffer(offset), index, val, *effect_, *control_);
+      store =
+          graph()->NewNode(jsgraph()->machine()->ProtectedStore(mem_rep),
+                           MemBuffer(offset), index, val, *effect_, *control_);
       SetSourcePosition(store, position);
     } else {
-      StoreRepresentation rep(memtype.representation(), kNoWriteBarrier);
+      StoreRepresentation rep(mem_rep, kNoWriteBarrier);
       store =
           graph()->NewNode(jsgraph()->machine()->Store(rep), MemBuffer(offset),
                            index, val, *effect_, *control_);
@@ -3694,7 +3694,7 @@ Node* WasmGraphBuilder::StoreMem(MachineType memtype, Node* index,
   } else {
     // TODO(eholk): Support unaligned stores with trap handlers.
     DCHECK(!use_trap_handler());
-    UnalignedStoreRepresentation rep(memtype.representation());
+    UnalignedStoreRepresentation rep(mem_rep);
     store =
         graph()->NewNode(jsgraph()->machine()->UnalignedStore(rep),
                          MemBuffer(offset), index, val, *effect_, *control_);
@@ -3703,8 +3703,7 @@ Node* WasmGraphBuilder::StoreMem(MachineType memtype, Node* index,
   *effect_ = store;
 
   if (FLAG_wasm_trace_memory) {
-    TraceMemoryOperation(true, memtype.representation(), index, offset,
-                         position);
+    TraceMemoryOperation(true, mem_rep, index, offset, position);
   }
 
   return store;
@@ -4223,47 +4222,51 @@ Node* WasmGraphBuilder::AtomicOp(wasm::WasmOpcode opcode, Node* const* inputs,
   // TODO(gdeepti): Add alignment validation, traps on misalignment
   Node* node;
   switch (opcode) {
-#define BUILD_ATOMIC_BINOP(Name, Operation, Type)                      \
-  case wasm::kExpr##Name: {                                            \
-    BoundsCheckMem(MachineType::Type(), inputs[0], offset, position);  \
-    node = graph()->NewNode(                                           \
-        jsgraph()->machine()->Atomic##Operation(MachineType::Type()),  \
-        MemBuffer(offset), inputs[0], inputs[1], *effect_, *control_); \
-    break;                                                             \
+#define BUILD_ATOMIC_BINOP(Name, Operation, Type)                              \
+  case wasm::kExpr##Name: {                                                    \
+    BoundsCheckMem(wasm::WasmOpcodes::MemSize(MachineType::Type()), inputs[0], \
+                   offset, position);                                          \
+    node = graph()->NewNode(                                                   \
+        jsgraph()->machine()->Atomic##Operation(MachineType::Type()),          \
+        MemBuffer(offset), inputs[0], inputs[1], *effect_, *control_);         \
+    break;                                                                     \
   }
     ATOMIC_BINOP_LIST(BUILD_ATOMIC_BINOP)
 #undef BUILD_ATOMIC_BINOP
 
-#define BUILD_ATOMIC_TERNARY_OP(Name, Operation, Type)                \
-  case wasm::kExpr##Name: {                                           \
-    BoundsCheckMem(MachineType::Type(), inputs[0], offset, position); \
-    node = graph()->NewNode(                                          \
-        jsgraph()->machine()->Atomic##Operation(MachineType::Type()), \
-        MemBuffer(offset), inputs[0], inputs[1], inputs[2], *effect_, \
-        *control_);                                                   \
-    break;                                                            \
+#define BUILD_ATOMIC_TERNARY_OP(Name, Operation, Type)                         \
+  case wasm::kExpr##Name: {                                                    \
+    BoundsCheckMem(wasm::WasmOpcodes::MemSize(MachineType::Type()), inputs[0], \
+                   offset, position);                                          \
+    node = graph()->NewNode(                                                   \
+        jsgraph()->machine()->Atomic##Operation(MachineType::Type()),          \
+        MemBuffer(offset), inputs[0], inputs[1], inputs[2], *effect_,          \
+        *control_);                                                            \
+    break;                                                                     \
   }
     ATOMIC_TERNARY_LIST(BUILD_ATOMIC_TERNARY_OP)
 #undef BUILD_ATOMIC_TERNARY_OP
 
-#define BUILD_ATOMIC_LOAD_OP(Name, Type)                              \
-  case wasm::kExpr##Name: {                                           \
-    BoundsCheckMem(MachineType::Type(), inputs[0], offset, position); \
-    node = graph()->NewNode(                                          \
-        jsgraph()->machine()->AtomicLoad(MachineType::Type()),        \
-        MemBuffer(offset), inputs[0], *effect_, *control_);           \
-    break;                                                            \
+#define BUILD_ATOMIC_LOAD_OP(Name, Type)                                       \
+  case wasm::kExpr##Name: {                                                    \
+    BoundsCheckMem(wasm::WasmOpcodes::MemSize(MachineType::Type()), inputs[0], \
+                   offset, position);                                          \
+    node = graph()->NewNode(                                                   \
+        jsgraph()->machine()->AtomicLoad(MachineType::Type()),                 \
+        MemBuffer(offset), inputs[0], *effect_, *control_);                    \
+    break;                                                                     \
   }
     ATOMIC_LOAD_LIST(BUILD_ATOMIC_LOAD_OP)
 #undef BUILD_ATOMIC_LOAD_OP
 
-#define BUILD_ATOMIC_STORE_OP(Name, Type, Rep)                         \
-  case wasm::kExpr##Name: {                                            \
-    BoundsCheckMem(MachineType::Type(), inputs[0], offset, position);  \
-    node = graph()->NewNode(                                           \
-        jsgraph()->machine()->AtomicStore(MachineRepresentation::Rep), \
-        MemBuffer(offset), inputs[0], inputs[1], *effect_, *control_); \
-    break;                                                             \
+#define BUILD_ATOMIC_STORE_OP(Name, Type, Rep)                                 \
+  case wasm::kExpr##Name: {                                                    \
+    BoundsCheckMem(wasm::WasmOpcodes::MemSize(MachineType::Type()), inputs[0], \
+                   offset, position);                                          \
+    node = graph()->NewNode(                                                   \
+        jsgraph()->machine()->AtomicStore(MachineRepresentation::Rep),         \
+        MemBuffer(offset), inputs[0], inputs[1], *effect_, *control_);         \
+    break;                                                                     \
   }
     ATOMIC_STORE_LIST(BUILD_ATOMIC_STORE_OP)
 #undef BUILD_ATOMIC_STORE_OP
