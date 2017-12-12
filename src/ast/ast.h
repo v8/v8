@@ -1807,7 +1807,7 @@ class NaryOperation final : public Expression {
 
   NaryOperation(Zone* zone, Token::Value op, Expression* first,
                 size_t initial_subsequent_size)
-      : Expression(kNoSourcePosition, kNaryOperation),
+      : Expression(first->position(), kNaryOperation),
         first_(first),
         subsequent_(zone) {
     bit_field_ |= OperatorField::encode(op);
