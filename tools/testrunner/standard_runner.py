@@ -429,7 +429,7 @@ class StandardTestRunner(base_runner.BaseTestRunner):
           verbose.PrintTestSource(s.tests)
           continue
         variant_gen = s.CreateVariantGenerator(VARIANTS)
-        variant_tests = [ t.CopyAddingFlags(v, flags)
+        variant_tests = [ t.create_variant(v, flags)
                           for t in s.tests
                           for v in variant_gen.FilterVariantsByTest(t)
                           for flags in variant_gen.GetFlagSets(t, v) ]
@@ -445,7 +445,7 @@ class StandardTestRunner(base_runner.BaseTestRunner):
               else:
                 yield ["--random-seed=%d" % self._random_seed()]
           s.tests = [
-            t.CopyAddingFlags(t.variant, flags)
+            t.create_variant(t.variant, flags)
             for t in variant_tests
             for flags in iter_seed_flags()
           ]
@@ -459,8 +459,7 @@ class StandardTestRunner(base_runner.BaseTestRunner):
         s.tests = self._shard_tests(s.tests, options)
 
         for t in s.tests:
-          t.flags += s.GetStatusfileFlags(t)
-          t.cmd = s.GetCommand(t, ctx)
+          t.cmd = t.get_command(ctx)
 
         num_tests += len(s.tests)
 

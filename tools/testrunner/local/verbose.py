@@ -45,7 +45,7 @@ def PrintReport(tests):
   total = len(tests)
   skipped = nocrash = passes = fail_ok = fail = 0
   for t in tests:
-    outcomes = t.suite.GetStatusFileOutcomes(t)
+    outcomes = t.suite.GetStatusFileOutcomes(t.name, t.variant)
     if not outcomes:
       passes += 1
       continue
@@ -73,12 +73,12 @@ def PrintReport(tests):
 
 def PrintTestSource(tests):
   for test in tests:
-    suite = test.suite
-    source = suite.GetSourceForTest(test).strip()
-    if len(source) > 0:
-      print "--- begin source: %s/%s ---" % (suite.name, test.path)
-      print source
-      print "--- end source: %s/%s ---" % (suite.name, test.path)
+    print "--- begin source: %s ---" % test
+    if test.is_source_available():
+      print test.get_source()
+    else:
+      print '(no source available)'
+    print "--- end source: %s ---" % test
 
 
 def FormatTime(d):
@@ -95,7 +95,7 @@ def PrintTestDurations(suites, overall_time):
                     if t.duration is not None ]
     timed_tests.sort(lambda a, b: cmp(b.duration, a.duration))
     index = 1
-    for entry in timed_tests[:20]:
-      t = FormatTime(entry.duration)
-      sys.stderr.write("%4i (%s) %s\n" % (index, t, entry.GetLabel()))
+    for test in timed_tests[:20]:
+      t = FormatTime(test.duration)
+      sys.stderr.write("%4i (%s) %s\n" % (index, t, test))
       index += 1

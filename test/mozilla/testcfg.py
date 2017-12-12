@@ -29,7 +29,7 @@
 import os
 
 from testrunner.local import testsuite
-from testrunner.objects import testcase
+from testrunner.objects.testcase import TestCase
 
 EXCLUDED = ["CVS", ".svn"]
 
@@ -55,7 +55,6 @@ TEST_DIRS = """
 
 
 class MozillaTestSuite(testsuite.TestSuite):
-
   def __init__(self, name, root):
     super(MozillaTestSuite, self).__init__(name, root)
     self.testroot = os.path.join(root, "data")
@@ -77,28 +76,12 @@ class MozillaTestSuite(testsuite.TestSuite):
             fullpath = os.path.join(dirname, filename)
             relpath = fullpath[len(self.testroot) + 1 : -3]
             testname = relpath.replace(os.path.sep, "/")
-            case = testcase.TestCase(self, testname)
+            case = self._create_test(testname)
             tests.append(case)
     return tests
 
-  def GetParametersForTestCase(self, testcase, context):
-    files = [os.path.join(self.root, "mozilla-shell-emulation.js")]
-    testfilename = testcase.path + ".js"
-    testfilepath = testfilename.split("/")
-    for i in xrange(len(testfilepath)):
-      script = os.path.join(self.testroot,
-                            reduce(os.path.join, testfilepath[:i], ""),
-                            "shell.js")
-      if os.path.exists(script):
-        files.append(script)
-    files.append(os.path.join(self.testroot, testfilename))
-    flags = testcase.flags + context.mode_flags + ["--expose-gc"]
-    return files, flags, {}
-
-  def GetSourceForTest(self, testcase):
-    filename = os.path.join(self.testroot, testcase.path + ".js")
-    with open(filename) as f:
-      return f.read()
+  def _test_class(self):
+    return MozillaTestCase
 
   def IsNegativeTest(self, testcase):
     return testcase.path.endswith("-n")
@@ -107,6 +90,28 @@ class MozillaTestSuite(testsuite.TestSuite):
     if testcase.output.exit_code != 0:
       return True
     return "FAILED!" in testcase.output.stdout
+
+
+class MozillaTestCase(TestCase):
+  def _get_files_params(self, ctx):
+    files = [os.path.join(self.suite.root, "mozilla-shell-emulation.js")]
+    testfilename = self.path + ".js"
+    testfilepath = testfilename.split("/")
+    for i in xrange(len(testfilepath)):
+      script = os.path.join(self.suite.testroot,
+                            reduce(os.path.join, testfilepath[:i], ""),
+                            "shell.js")
+      if os.path.exists(script):
+        files.append(script)
+
+    files.append(os.path.join(self.suite.testroot, testfilename))
+    return files
+
+  def _get_suite_flags(self, ctx):
+    return ['--expose-gc']
+
+  def _get_source_path(self):
+    return os.path.join(self.suite.testroot, self.path + self._get_suffix())
 
 
 def GetSuite(name, root):

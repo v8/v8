@@ -199,10 +199,10 @@ class GCFuzzer(base_runner.BaseTestRunner):
         '--stress_marking', '1000',
         '--trace_incremental_marking',
       ]
-      s.tests = map(lambda t: t.CopyAddingFlags(t.variant, analysis_flags),
+      s.tests = map(lambda t: t.create_variant(t.variant, analysis_flags),
                     s.tests)
       for t in s.tests:
-        t.cmd = s.GetCommand(t, ctx)
+        t.cmd = t.get_command(ctx)
 
     progress_indicator = progress.PROGRESS_INDICATORS[options.progress]()
     runner = execution.Runner(suites, progress_indicator, ctx)
@@ -247,10 +247,9 @@ class GCFuzzer(base_runner.BaseTestRunner):
           ]
           if options.stress_compaction:
             fuzzing_flags.append('--stress_compaction_random')
-          s.tests.append(t.CopyAddingFlags(t.variant, fuzzing_flags))
-
+          s.tests.append(t.create_variant(t.variant, fuzzing_flags))
       for t in s.tests:
-        t.cmd = s.GetCommand(t, ctx)
+        t.cmd = t.get_command(ctx)
       num_tests += len(s.tests)
 
     if num_tests == 0:
@@ -297,8 +296,6 @@ class GCFuzzer(base_runner.BaseTestRunner):
       if len(args) > 0:
         s.FilterTestCasesByArgs(args)
       s.FilterTestCasesByStatus(False)
-      for t in s.tests:
-        t.flags += s.GetStatusfileFlags(t)
 
       num_tests += len(s.tests)
       for t in s.tests:

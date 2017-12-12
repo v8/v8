@@ -6,25 +6,18 @@ import os
 import difflib
 
 from testrunner.local import testsuite
-from testrunner.objects import testcase
+from testrunner.objects.testcase import TestCase
 
 
 SHELL = 'mkgrokdump'
 
-
 class MkGrokdump(testsuite.TestSuite):
-  def __init__(self, name, root):
-    super(MkGrokdump, self).__init__(name, root)
-
   def ListTests(self, context):
-    test = testcase.TestCase(self, SHELL)
+    test = self._create_test(SHELL)
     return [test]
 
-  def GetShellForTestCase(self, testcase):
-    return SHELL
-
-  def GetParametersForTestCase(self, testcase, context):
-    return [], [], {}
+  def _test_class(self):
+    return MkGrokTestCase
 
   def IsFailureOutput(self, testcase):
     output = testcase.output
@@ -46,6 +39,21 @@ class MkGrokdump(testsuite.TestSuite):
       output.stdout = diffstring
       return True
     return False
+
+
+class MkGrokTestCase(TestCase):
+  def _get_variant_flags(self):
+    return []
+
+  def _get_statusfile_flags(self):
+    return []
+
+  def _get_mode_flags(self, ctx):
+    return []
+
+  def _get_shell(self):
+    return SHELL
+
 
 def GetSuite(name, root):
   return MkGrokdump(name, root)

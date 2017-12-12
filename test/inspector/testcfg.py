@@ -7,16 +7,13 @@ import os
 
 from testrunner.local import testsuite
 from testrunner.local import utils
-from testrunner.objects import testcase
+from testrunner.objects.testcase import TestCase
 
 PROTOCOL_TEST_JS = "protocol-test.js"
 EXPECTED_SUFFIX = "-expected.txt"
 RESOURCES_FOLDER = "resources"
 
 class InspectorProtocolTestSuite(testsuite.TestSuite):
-  def __init__(self, name, root):
-    super(InspectorProtocolTestSuite, self).__init__(name, root)
-
   def ListTests(self, context):
     tests = []
     for dirname, dirs, files in os.walk(os.path.join(self.root), followlinks=True):
@@ -31,26 +28,12 @@ class InspectorProtocolTestSuite(testsuite.TestSuite):
           fullpath = os.path.join(dirname, filename)
           relpath = fullpath[len(self.root) + 1 : -3]
           testname = relpath.replace(os.path.sep, "/")
-          test = testcase.TestCase(self, testname)
+          test = self._create_test(testname)
           tests.append(test)
     return tests
 
-  def GetShellForTestCase(self, testcase):
-    return 'inspector-test'
-
-  def GetParametersForTestCase(self, testcase, context):
-    flags = testcase.flags + context.mode_flags
-    flags += self._parse_source_flags(testcase)
-    files = [
-      os.path.join(self.root, PROTOCOL_TEST_JS),
-      os.path.join(self.root, testcase.path + self.suffix()),
-    ]
-    return files, flags, {}
-
-  def GetSourceForTest(self, testcase):
-    filename = os.path.join(self.root, testcase.path + self.suffix())
-    with open(filename) as f:
-      return f.read()
+  def _test_class(self):
+    return InspectorTestCase
 
   def _IgnoreLine(self, string):
     """Ignore empty lines, valgrind output and Android output."""
@@ -102,6 +85,38 @@ class InspectorProtocolTestSuite(testsuite.TestSuite):
         if expected != actual:
           return True
       return False
+
+
+class InspectorTestCase(TestCase):
+  def __init__(self, *args, **kwargs):
+    super(InspectorTestCase, self).__init__(*args, **kwargs)
+
+    # precomputed
+    self._source_flags = None
+
+  def precompute(self):
+    self._source_flags = self._parse_source_flags()
+
+  def _copy(self):
+    copy = super(InspectorTestCase, self)._copy()
+    copy._source_flags = self._source_flags
+    return copy
+
+  def _get_files_params(self, ctx):
+    return [
+      os.path.join(self.suite.root, PROTOCOL_TEST_JS),
+      os.path.join(self.suite.root, self.path + self._get_suffix()),
+    ]
+
+  def _get_source_flags(self):
+    return self._source_flags
+
+  def _get_source_path(self):
+    return os.path.join(self.suite.root, self.path + self._get_suffix())
+
+  def _get_shell(self):
+    return 'inspector-test'
+
 
 def GetSuite(name, root):
   return InspectorProtocolTestSuite(name, root)

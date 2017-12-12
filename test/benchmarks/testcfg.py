@@ -31,15 +31,15 @@ import shutil
 
 from testrunner.local import statusfile
 from testrunner.local import testsuite
-from testrunner.objects import testcase
+from testrunner.objects.testcase import TestCase
 
 
 class BenchmarksVariantGenerator(testsuite.VariantGenerator):
   # Both --noopt and --stressopt are very slow. Add TF but without
   # always opt to match the way the benchmarks are run for performance
   # testing.
-  def FilterVariantsByTest(self, testcase):
-    outcomes = self.suite.GetStatusFileOutcomes(testcase)
+  def FilterVariantsByTest(self, test):
+    outcomes = self.suite.GetStatusFileOutcomes(test.name, test.variant)
     if statusfile.OnlyStandardVariant(outcomes):
       return self.standard_variant
     return self.fast_variants
@@ -49,15 +49,12 @@ class BenchmarksVariantGenerator(testsuite.VariantGenerator):
 
 
 class BenchmarksTestSuite(testsuite.TestSuite):
-
   def __init__(self, name, root):
     super(BenchmarksTestSuite, self).__init__(name, root)
     self.testroot = os.path.join(root, "data")
 
   def ListTests(self, context):
-    def create_test(path):
-      return testcase.TestCase(self, path)
-    tests = map(create_test, [
+    tests = map(self._create_test, [
         "kraken/ai-astar",
         "kraken/audio-beat-detection",
         "kraken/audio-dft",
@@ -114,38 +111,43 @@ class BenchmarksTestSuite(testsuite.TestSuite):
         "sunspider/string-fasta",
         "sunspider/string-tagcloud",
         "sunspider/string-unpack-code",
-        "sunspider/string-validate-input"])
+        "sunspider/string-validate-input",
+    ])
     return tests
 
-  def GetParametersForTestCase(self, testcase, context):
-    files = []
-    if testcase.path.startswith("kraken"):
-      files.append(os.path.join(self.testroot, "%s-data.js" % testcase.path))
-      files.append(os.path.join(self.testroot, "%s.js" % testcase.path))
-    elif testcase.path.startswith("octane"):
-      files.append(os.path.join(self.testroot, "octane/base.js"))
-      files.append(os.path.join(self.testroot, "%s.js" % testcase.path))
-      if testcase.path.startswith("octane/gbemu"):
-        files.append(os.path.join(self.testroot, "octane/gbemu-part2.js"))
-      elif testcase.path.startswith("octane/typescript"):
-        files.append(os.path.join(self.testroot,
-                                  "octane/typescript-compiler.js"))
-        files.append(os.path.join(self.testroot, "octane/typescript-input.js"))
-      elif testcase.path.startswith("octane/zlib"):
-        files.append(os.path.join(self.testroot, "octane/zlib-data.js"))
-      files += ["-e", "BenchmarkSuite.RunSuites({});"]
-    elif testcase.path.startswith("sunspider"):
-      files.append(os.path.join(self.testroot, "%s.js" % testcase.path))
-
-    return files, testcase.flags + context.mode_flags, {}
-
-  def GetSourceForTest(self, testcase):
-    filename = os.path.join(self.testroot, testcase.path + ".js")
-    with open(filename) as f:
-      return f.read()
+  def _test_class(self):
+    return BenchmarksTestCase
 
   def _VariantGeneratorFactory(self):
     return BenchmarksVariantGenerator
+
+
+class BenchmarksTestCase(TestCase):
+  def _get_files_params(self, ctx):
+    path = self.path
+    testroot = self.suite.testroot
+    files = []
+    if path.startswith("kraken"):
+      files.append(os.path.join(testroot, "%s-data.js" % path))
+      files.append(os.path.join(testroot, "%s.js" % path))
+    elif path.startswith("octane"):
+      files.append(os.path.join(testroot, "octane/base.js"))
+      files.append(os.path.join(testroot, "%s.js" % path))
+      if path.startswith("octane/gbemu"):
+        files.append(os.path.join(testroot, "octane/gbemu-part2.js"))
+      elif path.startswith("octane/typescript"):
+        files.append(os.path.join(testroot,
+                                  "octane/typescript-compiler.js"))
+        files.append(os.path.join(testroot, "octane/typescript-input.js"))
+      elif path.startswith("octane/zlib"):
+        files.append(os.path.join(testroot, "octane/zlib-data.js"))
+      files += ["-e", "BenchmarkSuite.RunSuites({});"]
+    elif path.startswith("sunspider"):
+      files.append(os.path.join(testroot, "%s.js" % path))
+    return files
+
+  def _get_source_path(self):
+    return os.path.join(self.suite.testroot, self.path + self._get_suffix())
 
 
 def GetSuite(name, root):

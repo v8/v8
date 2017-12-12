@@ -29,7 +29,7 @@ import os
 import re
 
 from testrunner.local import testsuite
-from testrunner.objects import testcase
+from testrunner.objects.testcase import TestCase
 
 FILES_PATTERN = re.compile(r"//\s+Files:(.*)")
 ENV_PATTERN = re.compile(r"//\s+Environment Variables:(.*)")
@@ -39,10 +39,6 @@ NO_HARNESS_PATTERN = re.compile(r"^// NO HARNESS$", flags=re.MULTILINE)
 
 
 class MjsunitTestSuite(testsuite.TestSuite):
-
-  def __init__(self, name, root):
-    super(MjsunitTestSuite, self).__init__(name, root)
-
   def ListTests(self, context):
     tests = []
     for dirname, dirs, files in os.walk(self.root, followlinks=True):
@@ -55,17 +51,27 @@ class MjsunitTestSuite(testsuite.TestSuite):
           fullpath = os.path.join(dirname, filename)
           relpath = fullpath[len(self.root) + 1 : -3]
           testname = relpath.replace(os.path.sep, "/")
-          test = testcase.TestCase(self, testname)
+          test = self._create_test(testname)
           tests.append(test)
     return tests
 
-  def GetParametersForTestCase(self, testcase, context):
-    source = self.GetSourceForTest(testcase)
+  def _test_class(self):
+    return MjsunitTestCase
 
-    flags = testcase.flags + context.mode_flags
-    env = self._get_env(source)
 
-    flags += self._parse_source_flags(testcase, source)
+class MjsunitTestCase(TestCase):
+  def __init__(self, *args, **kwargs):
+    super(MjsunitTestCase, self).__init__(*args, **kwargs)
+
+    # precomputed
+    self._source_files = None
+    self._source_flags = None
+    self._mjsunit_files = None
+    self._files_suffix = None
+    self._env = None
+
+  def precompute(self):
+    source = self.get_source()
 
     files_list = []  # List of file names to append to command arguments.
     files_match = FILES_PATTERN.search(source);
@@ -76,28 +82,40 @@ class MjsunitTestSuite(testsuite.TestSuite):
         files_match = FILES_PATTERN.search(source, files_match.end())
       else:
         break
-    files = [ os.path.normpath(os.path.join(self.root, '..', '..', f))
+    files = [ os.path.normpath(os.path.join(self.suite.root, '..', '..', f))
               for f in files_list ]
-    testfilename = os.path.join(self.root, testcase.path + self.suffix())
+    testfilename = os.path.join(self.suite.root, self.path + self._get_suffix())
     if SELF_SCRIPT_PATTERN.search(source):
       files = (
         ["-e", "TEST_FILE_NAME=\"%s\"" % testfilename.replace("\\", "\\\\")] +
         files)
 
-    if not context.no_harness:
-      files += self._get_mjsunit_files(source)
+    if NO_HARNESS_PATTERN.search(source):
+      mjsunit_files = []
+    else:
+      mjsunit_files = [os.path.join(self.suite.root, "mjsunit.js")]
 
+    files_suffix = []
     if MODULE_PATTERN.search(source):
-      files.append("--module")
-    files.append(testfilename)
+      files_suffix.append("--module")
+    files_suffix.append(testfilename)
 
-    all_files = list(files)
-    if context.isolates:
-      all_files += ["--isolate"] + files
+    self._source_files = files
+    self._source_flags = self._parse_source_flags(source)
+    self._mjsunit_files = mjsunit_files
+    self._files_suffix = files_suffix
+    self._env = self._parse_source_env(source)
 
-    return all_files, flags, env
+  def _copy(self):
+    copy = super(MjsunitTestCase, self)._copy()
+    copy._source_files = self._source_files
+    copy._source_flags = self._source_flags
+    copy._mjsunit_files = self._mjsunit_files
+    copy._files_suffix = self._files_suffix
+    copy._env = self._env
+    return copy
 
-  def _get_env(self, source):
+  def _parse_source_env(self, source):
     env_match = ENV_PATTERN.search(source)
     env = {}
     if env_match:
@@ -106,16 +124,24 @@ class MjsunitTestSuite(testsuite.TestSuite):
         env[var] = value
     return env
 
-  def _get_mjsunit_files(self, source):
-    if NO_HARNESS_PATTERN.search(source):
-      return []
-    else:
-      return [os.path.join(self.root, 'mjsunit.js')]
+  def _get_source_flags(self):
+    return self._source_flags
 
-  def GetSourceForTest(self, testcase):
-    filename = os.path.join(self.root, testcase.path + self.suffix())
-    with open(filename) as f:
-      return f.read()
+  def _get_files_params(self, ctx):
+    files = list(self._source_files)
+    if not ctx.no_harness:
+      files += self._mjsunit_files
+    files += self._files_suffix
+    if ctx.isolates:
+      files += ['--isolate'] + files
+
+    return files
+
+  def _get_cmd_env(self):
+    return self._env
+
+  def _get_source_path(self):
+    return os.path.join(self.suite.root, self.path + self._get_suffix())
 
 
 def GetSuite(name, root):

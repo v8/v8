@@ -28,13 +28,9 @@
 import os
 
 from testrunner.local import testsuite
-from testrunner.objects import testcase
+from testrunner.objects.testcase import TestCase
 
 class IntlTestSuite(testsuite.TestSuite):
-
-  def __init__(self, name, root):
-    super(IntlTestSuite, self).__init__(name, root)
-
   def ListTests(self, context):
     tests = []
     for dirname, dirs, files in os.walk(self.root):
@@ -49,31 +45,51 @@ class IntlTestSuite(testsuite.TestSuite):
           fullpath = os.path.join(dirname, filename)
           relpath = fullpath[len(self.root) + 1 : -3]
           testname = relpath.replace(os.path.sep, "/")
-          test = testcase.TestCase(self, testname)
+          test = self._create_test(testname)
           tests.append(test)
     return tests
 
-  def GetParametersForTestCase(self, testcase, context):
-    flags = testcase.flags + ["--allow-natives-syntax"] + context.mode_flags
-    flags += self._parse_source_flags(testcase)
+  def _test_class(self):
+    return IntlTestCase
 
-    files = []
-    files.append(os.path.join(self.root, "assert.js"))
-    files.append(os.path.join(self.root, "utils.js"))
-    files.append(os.path.join(self.root, "regexp-prepare.js"))
-    files.append(os.path.join(self.root, testcase.path + self.suffix()))
-    files.append(os.path.join(self.root, "regexp-assert.js"))
 
-    all_files = list(files)
-    if context.isolates:
-      all_files += ["--isolate"] + files
+class IntlTestCase(TestCase):
+  def __init__(self, *args, **kwargs):
+    super(IntlTestCase, self).__init__(*args, **kwargs)
 
-    return all_files, flags, {}
+    # precomputed
+    self._source_flags = None
 
-  def GetSourceForTest(self, testcase):
-    filename = os.path.join(self.root, testcase.path + self.suffix())
-    with open(filename) as f:
-      return f.read()
+  def precompute(self):
+    self._source_flags = self._parse_source_flags()
+
+  def _copy(self):
+    copy = super(IntlTestCase, self)._copy()
+    copy._source_flags = self._source_flags
+    return copy
+
+  def _get_files_params(self, ctx):
+    files = map(lambda f: os.path.join(self.suite.root, f), [
+        'assert.js',
+        'utils.js',
+        'regexp-prepare.js',
+        self.path + self._get_suffix(),
+        'regexp-assert.js',
+    ])
+
+    if ctx.isolates:
+      files += ['--isolate'] + files
+    return files
+
+  def _get_source_flags(self):
+    return self._source_flags
+
+  def _get_suite_flags(self, ctx):
+    return ['--allow-natives-syntax']
+
+  def _get_source_path(self):
+    return os.path.join(self.suite.root, self.path + self._get_suffix())
+
 
 def GetSuite(name, root):
   return IntlTestSuite(name, root)

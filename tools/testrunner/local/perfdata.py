@@ -62,21 +62,16 @@ class PerfDataStore(object):
     self.database.close()
     self.closed = True
 
-  def GetKey(self, test):
-    """Computes the key used to access data for the given testcase."""
-    flags = "".join(test.flags)
-    return str("%s.%s.%s" % (test.suitename(), test.path, flags))
-
   def FetchPerfData(self, test):
     """Returns the observed duration for |test| as read from the store."""
-    key = self.GetKey(test)
+    key = test.get_id()
     if key in self.database:
       return self.database[key].avg
     return None
 
   def UpdatePerfData(self, test):
     """Updates the persisted value in the store with test.duration."""
-    testkey = self.GetKey(test)
+    testkey = test.get_id()
     self.RawUpdatePerfData(testkey, test.duration)
 
   def RawUpdatePerfData(self, testkey, duration):

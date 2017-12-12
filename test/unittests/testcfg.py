@@ -7,16 +7,12 @@ import os
 from testrunner.local import command
 from testrunner.local import utils
 from testrunner.local.testsuite import TestSuite, StandardVariantGenerator
-from testrunner.objects import testcase
+from testrunner.objects.testcase import TestCase
 
 
 class GoogleTestSuite(TestSuite):
-  def __init__(self, name, root):
-    super(GoogleTestSuite, self).__init__(name, root)
-
   def ListTests(self, context):
-    shell = os.path.abspath(
-      os.path.join(context.shell_dir, self.GetShellForTestCase(None)))
+    shell = os.path.abspath(os.path.join(context.shell_dir, self.name))
     if utils.IsWindows():
       shell += ".exe"
 
@@ -46,25 +42,28 @@ class GoogleTestSuite(TestSuite):
       if test_desc.endswith('.'):
         test_case = test_desc
       elif test_case and test_desc:
-        test = testcase.TestCase(self, test_case + test_desc)
-        tests.append(test)
+        test_path = test_case + test_desc
+        tests.append(self._create_test(test_path))
     tests.sort(key=lambda t: t.path)
     return tests
 
-  def GetParametersForTestCase(self, testcase, context):
-    flags = (
-      testcase.flags +
-      ["--gtest_filter=" + testcase.path] +
-      ["--gtest_random_seed=%s" % context.random_seed] +
-      ["--gtest_print_time=0"] +
-      context.mode_flags)
-    return [], flags, {}
+  def _test_class(self):
+    return GoogleTestCase
 
   def _VariantGeneratorFactory(self):
     return StandardVariantGenerator
 
-  def GetShellForTestCase(self, testcase):
-    return self.name
+
+class GoogleTestCase(TestCase):
+  def _get_suite_flags(self, ctx):
+    return (
+        ["--gtest_filter=" + self.path] +
+        ["--gtest_random_seed=%s" % ctx.random_seed] +
+        ["--gtest_print_time=0"]
+    )
+
+  def _get_shell(self):
+    return self.suite.name
 
 
 def GetSuite(name, root):

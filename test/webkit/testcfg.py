@@ -30,7 +30,7 @@ import os
 import re
 
 from testrunner.local import testsuite
-from testrunner.objects import testcase
+from testrunner.objects.testcase import TestCase
 
 FILES_PATTERN = re.compile(r"//\s+Files:(.*)")
 SELF_SCRIPT_PATTERN = re.compile(r"//\s+Env: TEST_FILE_NAME")
@@ -38,10 +38,6 @@ SELF_SCRIPT_PATTERN = re.compile(r"//\s+Env: TEST_FILE_NAME")
 
 # TODO (machenbach): Share commonalities with mjstest.
 class WebkitTestSuite(testsuite.TestSuite):
-
-  def __init__(self, name, root):
-    super(WebkitTestSuite, self).__init__(name, root)
-
   def ListTests(self, context):
     tests = []
     for dirname, dirs, files in os.walk(self.root):
@@ -57,44 +53,12 @@ class WebkitTestSuite(testsuite.TestSuite):
           fullpath = os.path.join(dirname, filename)
           relpath = fullpath[len(self.root) + 1 : -3]
           testname = relpath.replace(os.path.sep, "/")
-          test = testcase.TestCase(self, testname)
+          test = self._create_test(testname)
           tests.append(test)
     return tests
 
-  def GetParametersForTestCase(self, testcase, context):
-    source = self.GetSourceForTest(testcase)
-    flags = testcase.flags + context.mode_flags
-    flags += self._parse_source_flags(testcase, source)
-
-    files_list = []  # List of file names to append to command arguments.
-    files_match = FILES_PATTERN.search(source);
-    # Accept several lines of 'Files:'.
-    while True:
-      if files_match:
-        files_list += files_match.group(1).strip().split()
-        files_match = FILES_PATTERN.search(source, files_match.end())
-      else:
-        break
-    files = [ os.path.normpath(os.path.join(self.root, '..', '..', f))
-              for f in files_list ]
-    testfilename = os.path.join(self.root, testcase.path + self.suffix())
-    if SELF_SCRIPT_PATTERN.search(source):
-      env = ["-e", "TEST_FILE_NAME=\"%s\"" % testfilename.replace("\\", "\\\\")]
-      files = env + files
-    files.append(os.path.join(self.root, "resources/standalone-pre.js"))
-    files.append(testfilename)
-    files.append(os.path.join(self.root, "resources/standalone-post.js"))
-
-    all_files = list(files)
-    if context.isolates:
-      all_files += ["--isolate"] + files
-
-    return all_files, flags, {}
-
-  def GetSourceForTest(self, testcase):
-    filename = os.path.join(self.root, testcase.path + self.suffix())
-    with open(filename) as f:
-      return f.read()
+  def _test_class(self):
+    return WebkitTestCase
 
   # TODO(machenbach): Share with test/message/testcfg.py
   def _IgnoreLine(self, string):
@@ -150,6 +114,59 @@ class WebkitTestSuite(testsuite.TestSuite):
         if expected != actual:
           return True
       return False
+
+
+class WebkitTestCase(TestCase):
+  def __init__(self, *args, **kwargs):
+    super(WebkitTestCase, self).__init__(*args, **kwargs)
+
+    # precomputed
+    self._source_files = None
+    self._source_flags = None
+
+  def precompute(self):
+    source = self.get_source()
+    self._source_files = self._parse_source_files(source)
+    self._source_flags = self._parse_source_flags(source)
+
+  def _copy(self):
+    copy = super(WebkitTestCase, self)._copy()
+    copy._source_files = self._source_files
+    copy._source_flags = self._source_flags
+    return copy
+
+  def _parse_source_files(self, source):
+    files_list = []  # List of file names to append to command arguments.
+    files_match = FILES_PATTERN.search(source);
+    # Accept several lines of 'Files:'.
+    while True:
+      if files_match:
+        files_list += files_match.group(1).strip().split()
+        files_match = FILES_PATTERN.search(source, files_match.end())
+      else:
+        break
+    files = [ os.path.normpath(os.path.join(self.suite.root, '..', '..', f))
+              for f in files_list ]
+    testfilename = os.path.join(self.suite.root, self.path + self._get_suffix())
+    if SELF_SCRIPT_PATTERN.search(source):
+      env = ["-e", "TEST_FILE_NAME=\"%s\"" % testfilename.replace("\\", "\\\\")]
+      files = env + files
+    files.append(os.path.join(self.suite.root, "resources/standalone-pre.js"))
+    files.append(testfilename)
+    files.append(os.path.join(self.suite.root, "resources/standalone-post.js"))
+    return files
+
+  def _get_files_params(self, ctx):
+    files = self._source_files
+    if ctx.isolates:
+      files = files + ['--isolate'] + files
+    return files
+
+  def _get_source_flags(self):
+    return self._source_flags
+
+  def _get_source_path(self):
+    return os.path.join(self.suite.root, self.path + self._get_suffix())
 
 
 def GetSuite(name, root):

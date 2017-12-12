@@ -29,19 +29,16 @@
 import fnmatch
 import imp
 import os
-import re
-import shlex
 
 from . import command
 from . import statusfile
 from . import utils
+from ..objects.testcase import TestCase
 from variants import ALL_VARIANTS, ALL_VARIANT_FLAGS, FAST_VARIANT_FLAGS
 
 
 FAST_VARIANTS = set(["default", "turbofan"])
 STANDARD_VARIANT = set(["default"])
-
-FLAGS_PATTERN = re.compile(r"//\s+Flags:(.*)")
 
 
 class VariantGenerator(object):
@@ -51,9 +48,9 @@ class VariantGenerator(object):
     self.fast_variants = FAST_VARIANTS & variants
     self.standard_variant = STANDARD_VARIANT & variants
 
-  def FilterVariantsByTest(self, testcase):
+  def FilterVariantsByTest(self, test):
     result = self.all_variants
-    outcomes = testcase.suite.GetStatusFileOutcomes(testcase)
+    outcomes = test.suite.GetStatusFileOutcomes(test.name, test.variant)
     if outcomes:
       if statusfile.OnlyStandardVariant(outcomes):
         return self.standard_variant
@@ -61,8 +58,8 @@ class VariantGenerator(object):
         result = self.fast_variants
     return result
 
-  def GetFlagSets(self, testcase, variant):
-    outcomes = testcase.suite.GetStatusFileOutcomes(testcase)
+  def GetFlagSets(self, test, variant):
+    outcomes = test.suite.GetStatusFileOutcomes(test.name, test.variant)
     if outcomes and statusfile.OnlyFastVariants(outcomes):
       return FAST_VARIANT_FLAGS[variant]
     else:
@@ -70,9 +67,8 @@ class VariantGenerator(object):
 
 
 class TestSuite(object):
-
   @staticmethod
-  def LoadTestSuite(root, global_init=True):
+  def LoadTestSuite(root):
     name = root.split(os.path.sep)[-1]
     f = None
     try:
@@ -100,13 +96,6 @@ class TestSuite(object):
   def status_file(self):
     return "%s/%s.status" % (self.root, self.name)
 
-  # Used in the status file and for stdout printing.
-  def CommonTestName(self, testcase):
-    if utils.IsWindows():
-      return testcase.path.replace("\\", "/")
-    else:
-      return testcase.path
-
   def ListTests(self, context):
     raise NotImplementedError
 
@@ -132,17 +121,6 @@ class TestSuite(object):
   def ReadTestCases(self, context):
     self.tests = self.ListTests(context)
 
-  def GetStatusfileFlags(self, test):
-    """Gets runtime flags from a status file.
-
-    Every outcome that starts with "--" is a flag. Status file has to be loaded
-    before using this function.
-    """
-    flags = []
-    for outcome in self.GetStatusFileOutcomes(test):
-      if outcome.startswith('--'):
-        flags.append(outcome)
-    return flags
 
   def FilterTestCasesByStatus(self,
                               slow_tests_mode=None,
@@ -171,7 +149,7 @@ class TestSuite(object):
         (mode == 'skip' and pass_fail))
 
     def _compliant(test):
-      outcomes = self.GetStatusFileOutcomes(test)
+      outcomes = self.GetStatusFileOutcomes(test.name, test.variant)
       if statusfile.DoSkip(outcomes):
         return False
       if _skip_slow(statusfile.IsSlow(outcomes), slow_tests_mode):
@@ -198,17 +176,16 @@ class TestSuite(object):
       variants = ['']
     used_rules = set()
 
-    for t in self.tests:
-      testname = self.CommonTestName(t)
-      variant = t.variant or ""
+    for test in self.tests:
+      variant = test.variant or ""
 
-      if testname in self.rules.get(variant, {}):
-        used_rules.add((testname, variant))
-        if statusfile.DoSkip(self.rules[variant][testname]):
+      if test.name in self.rules.get(variant, {}):
+        used_rules.add((test.name, variant))
+        if statusfile.DoSkip(self.rules[variant][test.name]):
           continue
 
       for prefix in self.prefix_rules.get(variant, {}):
-        if testname.startswith(prefix):
+        if test.name.startswith(prefix):
           used_rules.add((prefix, variant))
           if statusfile.DoSkip(self.prefix_rules[variant][prefix]):
             break
@@ -248,14 +225,14 @@ class TestSuite(object):
           break
     self.tests = filtered
 
-  def GetExpectedOutcomes(self, testcase):
+  def GetExpectedOutcomes(self, test):
     """Gets expected outcomes from status file.
 
     It differs from GetStatusFileOutcomes by selecting only outcomes that can
     be result of test execution.
     Status file has to be loaded before using this function.
     """
-    outcomes = self.GetStatusFileOutcomes(testcase)
+    outcomes = self.GetStatusFileOutcomes(test.name, test.variant)
 
     expected = []
     if (statusfile.FAIL in outcomes or
@@ -270,14 +247,14 @@ class TestSuite(object):
 
     return expected or [statusfile.PASS]
 
-  def GetStatusFileOutcomes(self, testcase):
+  def GetStatusFileOutcomes(self, testname, variant=None):
     """Gets outcomes from status file.
 
     Merges variant dependent and independent rules. Status file has to be loaded
     before using this function.
     """
-    variant = testcase.variant or ''
-    testname = self.CommonTestName(testcase)
+
+    variant = variant or ''
     cache_key = '%s$%s' % (testname, variant)
 
     if cache_key not in self._outcomes_cache:
@@ -301,64 +278,6 @@ class TestSuite(object):
       self._outcomes_cache[cache_key] = outcomes
 
     return self._outcomes_cache[cache_key]
-
-  def GetCommand(self, test, context):
-    shell = self.GetShellForTestCase(test)
-    shell_flags = []
-    if shell == 'd8':
-      shell_flags.append('--test')
-    if utils.IsWindows():
-      shell += '.exe'
-    if context.random_seed:
-      shell_flags.append('--random-seed=%s' % context.random_seed)
-    files, flags, env = self.GetParametersForTestCase(test, context)
-
-    return command.Command(
-      cmd_prefix=context.command_prefix,
-      shell=os.path.abspath(os.path.join(context.shell_dir, shell)),
-      args=(
-          shell_flags +
-          files +
-          context.extra_flags +
-          flags
-      ),
-      env=env,
-      timeout=self.GetTimeout(test, context),
-      verbose=context.verbose
-    )
-
-  def GetTimeout(self, testcase, context):
-    timeout = context.timeout
-    if ("--stress-opt" in testcase.flags or
-        "--stress-opt" in context.mode_flags or
-        "--stress-opt" in context.extra_flags):
-      timeout *= 4
-    if "--noenable-vfp3" in context.extra_flags:
-      timeout *= 2
-
-    # TODO(majeski): make it slow outcome dependent.
-    timeout *= 2
-    return timeout
-
-  def GetShellForTestCase(self, testcase):
-    """Returns shell to be executed for this test case."""
-    return 'd8'
-
-  def GetParametersForTestCase(self, testcase, context):
-    """Returns a tuple of (files, flags, env) for this test case."""
-    raise NotImplementedError
-
-  def _parse_source_flags(self, test, source=None):
-    if not source:
-      source = self.GetSourceForTest(test)
-
-    flags = []
-    for match in re.findall(FLAGS_PATTERN, source):
-      flags += shlex.split(match.strip())
-    return flags
-
-  def GetSourceForTest(self, testcase):
-    return "(no source available)"
 
   def IsFailureOutput(self, testcase):
     return testcase.output.exit_code != 0
@@ -402,6 +321,19 @@ class TestSuite(object):
     for t in self.tests:
       self.total_duration += t.duration
     return self.total_duration
+
+  def _create_test(self, path, **kwargs):
+    test = self._test_class()(self, path, self._path_to_name(path), **kwargs)
+    test.precompute()
+    return test
+
+  def _test_class(self):
+    raise NotImplementedError
+
+  def _path_to_name(self, path):
+    if utils.IsWindows():
+      return path.replace("\\", "/")
+    return path
 
 
 class StandardVariantGenerator(VariantGenerator):

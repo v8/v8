@@ -62,8 +62,8 @@ class ProgressIndicator(object):
     else:
       negative_marker = ''
     print "=== %(label)s %(negative)s===" % {
-      'label': test.GetLabel(),
-      'negative': negative_marker
+      'label': test,
+      'negative': negative_marker,
     }
 
 
@@ -136,7 +136,7 @@ class VerboseProgressIndicator(SimpleProgressIndicator):
         outcome = 'FAIL'
     else:
       outcome = 'pass'
-    print 'Done running %s: %s' % (test.GetLabel(), outcome)
+    print 'Done running %s: %s' % (test, outcome)
     sys.stdout.flush()
 
   def Heartbeat(self):
@@ -179,7 +179,7 @@ class CompactProgressIndicator(ProgressIndicator):
     print ""  # Line break.
 
   def HasRun(self, test, has_unexpected_output):
-    self.PrintProgress(test.GetLabel())
+    self.PrintProgress(str(test))
     if has_unexpected_output:
       self.ClearLine(self.last_status_length)
       self.PrintFailureHeader(test)
@@ -284,9 +284,10 @@ class JUnitTestProgressIndicator(ProgressIndicator):
       if test.output.HasTimedOut():
         fail_text += "--- TIMEOUT ---"
     self.outputter.HasRunTest(
-        [test.GetLabel()] + self.runner.context.mode_flags + test.flags,
-        test.duration,
-        fail_text)
+        test_name=str(test),
+        test_cmd=test.cmd.to_string(relative=True),
+        test_duration=test.duration,
+        test_failure=fail_text)
 
 
 class JsonTestProgressIndicator(ProgressIndicator):
@@ -318,12 +319,12 @@ class JsonTestProgressIndicator(ProgressIndicator):
     timed_tests.sort(lambda a, b: cmp(b.duration, a.duration))
     slowest_tests = [
       {
-        "name": test.GetLabel(),
-        "flags": test.flags,
+        "name": str(test),
+        "flags": test.cmd.args,
         "command": test.cmd.to_string(relative=True),
         "duration": test.duration,
         "marked_slow": statusfile.IsSlow(
-          test.suite.GetStatusFileOutcomes(test)),
+            test.suite.GetStatusFileOutcomes(test.name, test.variant)),
       } for test in timed_tests[:20]
     ]
 
@@ -348,8 +349,8 @@ class JsonTestProgressIndicator(ProgressIndicator):
       return
 
     self.results.append({
-      "name": test.GetLabel(),
-      "flags": test.flags,
+      "name": str(test),
+      "flags": test.cmd.args,
       "command": test.cmd.to_string(relative=True),
       "run": test.run,
       "stdout": test.output.stdout,
@@ -362,7 +363,7 @@ class JsonTestProgressIndicator(ProgressIndicator):
       # TODO(machenbach): This stores only the global random seed from the
       # context and not possible overrides when using random-seed stress.
       "random_seed": self.random_seed,
-      "target_name": test.suite.GetShellForTestCase(test),
+      "target_name": test.cmd.shell,
       "variant": test.variant,
     })
 
@@ -393,11 +394,7 @@ class FlakinessTestProgressIndicator(ProgressIndicator):
       }, f)
 
   def HasRun(self, test, has_unexpected_output):
-    key = "/".join(
-        sorted(flag.lstrip("-")
-               for flag in self.runner.context.extra_flags + test.flags) +
-        ["test", test.GetLabel()],
-    )
+    key = test.get_id()
     outcome = test.suite.GetOutcome(test)
     assert outcome in ["PASS", "FAIL", "CRASH", "TIMEOUT"]
     if test.run == 1:

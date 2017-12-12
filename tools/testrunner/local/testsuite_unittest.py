@@ -20,8 +20,8 @@ class TestSuiteTest(unittest.TestCase):
   def test_filter_testcases_by_status_first_pass(self):
     suite = TestSuite('foo', 'bar')
     suite.tests = [
-      TestCase(suite, 'foo/bar'),
-      TestCase(suite, 'baz/bar'),
+      TestCase(suite, 'foo/bar', 'foo/bar'),
+      TestCase(suite, 'baz/bar', 'baz/bar'),
     ]
     suite.rules = {
       '': {
@@ -36,17 +36,18 @@ class TestSuiteTest(unittest.TestCase):
     }
     suite.FilterTestCasesByStatus()
     self.assertEquals(
-        [TestCase(suite, 'baz/bar')],
+        [TestCase(suite, 'baz/bar', 'baz/bar')],
         suite.tests,
     )
-    outcomes = suite.GetStatusFileOutcomes(suite.tests[0])
+    outcomes = suite.GetStatusFileOutcomes(suite.tests[0].name,
+                                           suite.tests[0].variant)
     self.assertEquals(set(['PASS', 'FAIL', 'SLOW']), outcomes)
 
   def test_filter_testcases_by_status_second_pass(self):
     suite = TestSuite('foo', 'bar')
 
-    test1 = TestCase(suite, 'foo/bar')
-    test2 = TestCase(suite, 'baz/bar')
+    test1 = TestCase(suite, 'foo/bar', 'foo/bar')
+    test2 = TestCase(suite, 'baz/bar', 'baz/bar')
 
     suite.tests = [
       test1.CopyAddingFlags(variant='default', flags=[]),
@@ -81,26 +82,28 @@ class TestSuiteTest(unittest.TestCase):
     suite.FilterTestCasesByStatus()
     self.assertEquals(
         [
-          TestCase(suite, 'foo/bar', flags=['-v']),
-          TestCase(suite, 'baz/bar'),
+          TestCase(suite, 'foo/bar', 'foo/bar', flags=['-v']),
+          TestCase(suite, 'baz/bar', 'baz/bar'),
         ],
         suite.tests,
     )
 
     self.assertEquals(
         set(['PREV', 'PASS', 'SLOW']),
-        suite.GetStatusFileOutcomes(suite.tests[0]),
+        suite.GetStatusFileOutcomes(suite.tests[0].name,
+                                    suite.tests[0].variant),
     )
     self.assertEquals(
         set(['PREV', 'PASS', 'FAIL', 'SLOW']),
-        suite.GetStatusFileOutcomes(suite.tests[1]),
+        suite.GetStatusFileOutcomes(suite.tests[1].name,
+                                    suite.tests[1].variant),
     )
 
   def test_fail_ok_outcome(self):
     suite = TestSuite('foo', 'bar')
     suite.tests = [
-      TestCase(suite, 'foo/bar'),
-      TestCase(suite, 'baz/bar'),
+      TestCase(suite, 'foo/bar', 'foo/bar'),
+      TestCase(suite, 'baz/bar', 'baz/bar'),
     ]
     suite.rules = {
       '': {

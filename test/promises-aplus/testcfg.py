@@ -63,22 +63,28 @@ class PromiseAplusTestSuite(testsuite.TestSuite):
       ['run-tests.js']
     ]
 
-  def CommonTestName(self, testcase):
-    return testcase.path.split(os.path.sep)[-1]
-
   def ListTests(self, context):
-    return [testcase.TestCase(self, fname[:-len('.js')]) for fname in
+    return [self._create_test(fname[:-len('.js')]) for fname in
             os.listdir(os.path.join(self.root, TEST_NAME, 'lib', 'tests'))
             if fname.endswith('.js')]
 
-  def GetParametersForTestCase(self, testcase, context):
-    files = (
+  def _get_cmd_params(self, test, ctx):
+    return (
+        self._get_files_params(test, ctx) +
+        self._get_extra_flags(test, ctx) +
+        self._get_user_flags(test) +
+        self._get_statusfile_flags(test) +
+        self._get_mode_flags(test, ctx) +
+        self._get_source_flags(test) +
+        ['--allow-natives-syntax']
+    )
+
+  def _get_files_params(self, test, ctx):
+    return (
         self.helper_files_pre +
-        [os.path.join(self.test_files_root, testcase.path + '.js')] +
+        [os.path.join(self.test_files_root, test.path + '.js')] +
         self.helper_files_post
     )
-    flags = testcase.flags + context.mode_flags + ['--allow-natives-syntax']
-    return files, flags, {}
 
   def GetSourceForTest(self, testcase):
     filename = os.path.join(self.root, TEST_NAME,
@@ -94,6 +100,10 @@ class PromiseAplusTestSuite(testsuite.TestSuite):
       return True
     return not 'All tests have run.' in testcase.output.stdout or \
            'FAIL:' in testcase.output.stdout
+
+  def _path_to_name(self, path):
+    return path.split(os.path.sep)[-1]
+
 
 def GetSuite(name, root):
   return PromiseAplusTestSuite(name, root)

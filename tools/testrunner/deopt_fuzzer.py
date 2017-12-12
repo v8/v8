@@ -305,17 +305,15 @@ class DeoptFuzzer(base_runner.BaseTestRunner):
       if len(args) > 0:
         s.FilterTestCasesByArgs(args)
       s.FilterTestCasesByStatus(False)
-      for t in s.tests:
-        t.flags += s.GetStatusfileFlags(t)
 
       test_backup[s] = s.tests
       analysis_flags = ["--deopt-every-n-times", "%d" % MAX_DEOPT,
                         "--print-deopt-stress"]
-      s.tests = [t.CopyAddingFlags(t.variant, analysis_flags) for t in s.tests]
+      s.tests = [t.create_variant(t.variant, analysis_flags) for t in s.tests]
       num_tests += len(s.tests)
       for t in s.tests:
         t.id = test_id
-        t.cmd = s.GetCommand(t, ctx)
+        t.cmd = t.get_command(ctx)
         test_id += 1
 
     if num_tests == 0:
@@ -360,11 +358,11 @@ class DeoptFuzzer(base_runner.BaseTestRunner):
           print "%s %s" % (t.path, distribution)
         for i in distribution:
           fuzzing_flags = ["--deopt-every-n-times", "%d" % i]
-          s.tests.append(t.CopyAddingFlags(t.variant, fuzzing_flags))
+          s.tests.append(t.create_variant(t.variant, fuzzing_flags))
       num_tests += len(s.tests)
       for t in s.tests:
         t.id = test_id
-        t.cmd = s.GetCommand(t, ctx)
+        t.cmd = t.get_command(ctx)
         test_id += 1
 
     if num_tests == 0:

@@ -6,16 +6,12 @@ import os
 import re
 
 from testrunner.local import testsuite
-from testrunner.objects import testcase
+from testrunner.objects.testcase import TestCase
 
 FILES_PATTERN = re.compile(r"//\s+Files:(.*)")
 MODULE_PATTERN = re.compile(r"^// MODULE$", flags=re.MULTILINE)
 
 class DebuggerTestSuite(testsuite.TestSuite):
-
-  def __init__(self, name, root):
-    super(DebuggerTestSuite, self).__init__(name, root)
-
   def ListTests(self, context):
     tests = []
     for dirname, dirs, files in os.walk(self.root):
@@ -28,19 +24,34 @@ class DebuggerTestSuite(testsuite.TestSuite):
           fullpath = os.path.join(dirname, filename)
           relpath = fullpath[len(self.root) + 1 : -3]
           testname = relpath.replace(os.path.sep, "/")
-          test = testcase.TestCase(self, testname)
+          test = self._create_test(testname)
           tests.append(test)
     return tests
 
-  def GetParametersForTestCase(self, testcase, context):
-    flags = (
-        testcase.flags +
-        ["--enable-inspector", "--allow-natives-syntax"] +
-        context.mode_flags
-    )
-    source = self.GetSourceForTest(testcase)
-    flags += self._parse_source_flags(testcase, source)
+  def _test_class(self):
+    return DebuggerTestCase
 
+
+class DebuggerTestCase(TestCase):
+  def __init__(self, *args, **kwargs):
+    super(DebuggerTestCase, self).__init__(*args, **kwargs)
+
+    # precomputed
+    self._source_files = None
+    self._source_flags = None
+
+  def precompute(self):
+    source = self.get_source()
+    self._source_files = self._parse_source_files(source)
+    self._source_flags = self._parse_source_flags(source)
+
+  def _copy(self):
+    copy = super(DebuggerTestCase, self)._copy()
+    copy._source_files = self._source_files
+    copy._source_flags = self._source_flags
+    return copy
+
+  def _parse_source_files(self, source):
     files_list = []  # List of file names to append to command arguments.
     files_match = FILES_PATTERN.search(source);
     # Accept several lines of 'Files:'.
@@ -53,24 +64,30 @@ class DebuggerTestSuite(testsuite.TestSuite):
 
     files = []
     files.append(os.path.normpath(os.path.join(
-        self.root, "..", "mjsunit", "mjsunit.js")))
-    files.append(os.path.join(self.root, "test-api.js"))
-    files.extend([ os.path.normpath(os.path.join(self.root, '..', '..', f))
-                  for f in files_list ])
+        self.suite.root, "..", "mjsunit", "mjsunit.js")))
+    files.append(os.path.join(self.suite.root, "test-api.js"))
+    files.extend([os.path.normpath(os.path.join(self.suite.root, '..', '..', f))
+                  for f in files_list])
     if MODULE_PATTERN.search(source):
       files.append("--module")
-    files.append(os.path.join(self.root, testcase.path + self.suffix()))
+    files.append(os.path.join(self.suite.root, self.path + self._get_suffix()))
+    return files
 
-    all_files = list(files)
-    if context.isolates:
-      all_files += ["--isolate"] + files
+  def _get_files_params(self, ctx):
+    files = self._source_files
+    if ctx.isolates:
+      files = files + ['--isolate'] + files
+    return files
 
-    return all_files, flags, {}
+  def _get_source_flags(self):
+    return self._source_flags
 
-  def GetSourceForTest(self, testcase):
-    filename = os.path.join(self.root, testcase.path + self.suffix())
-    with open(filename) as f:
-      return f.read()
+  def _get_suite_flags(self, ctx):
+    return ['--enable-inspector', '--allow-natives-syntax']
+
+  def _get_source_path(self):
+    return os.path.join(self.suite.root, self.path + self._get_suffix())
+
 
 def GetSuite(name, root):
   return DebuggerTestSuite(name, root)

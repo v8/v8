@@ -31,17 +31,13 @@ import shutil
 from testrunner.local import command
 from testrunner.local import testsuite
 from testrunner.local import utils
-from testrunner.objects import testcase
-
+from testrunner.objects.testcase import TestCase
 
 SHELL = 'cctest'
 
 
 class CcTestSuite(testsuite.TestSuite):
   def ListTests(self, context):
-    def create_test(path):
-      return testcase.TestCase(self, path)
-
     shell = os.path.abspath(os.path.join(context.shell_dir, SHELL))
     if utils.IsWindows():
       shell += ".exe"
@@ -55,15 +51,20 @@ class CcTestSuite(testsuite.TestSuite):
       print output.stdout
       print output.stderr
       return []
-    tests = map(create_test, output.stdout.strip().split())
+    tests = map(self._create_test, output.stdout.strip().split())
     tests.sort(key=lambda t: t.path)
     return tests
 
-  def GetShellForTestCase(self, testcase):
+  def _test_class(self):
+    return CcTestCase
+
+
+class CcTestCase(TestCase):
+  def _get_shell(self):
     return SHELL
 
-  def GetParametersForTestCase(self, testcase, context):
-    return [testcase.path], testcase.flags + context.mode_flags, {}
+  def _get_files_params(self, ctx):
+    return [self.path]
 
 
 def GetSuite(name, root):

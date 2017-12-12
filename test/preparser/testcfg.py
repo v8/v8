@@ -29,23 +29,20 @@
 import os
 
 from testrunner.local import testsuite
-from testrunner.objects import testcase
+from testrunner.objects.testcase import TestCase
 
 
 class PreparserTestSuite(testsuite.TestSuite):
-  def __init__(self, name, root):
-    super(PreparserTestSuite, self).__init__(name, root)
-
   def _ParsePythonTestTemplates(self, result, filename):
     pathname = os.path.join(self.root, filename + ".pyt")
-    def Test(name, source, expectation, template_flags=[]):
+    def Test(name, source, expectation):
       source = source.replace("\n", " ")
-      testname = os.path.join(filename, name)
-      flags = ["-e", source]
+      path = os.path.join(filename, name)
       if expectation:
-        flags += ["--throws"]
-      flags += template_flags
-      test = testcase.TestCase(self, testname, flags=flags)
+        template_flags = ["--throws"]
+      else:
+        template_flags = []
+      test = self._create_test(path, source, template_flags)
       result.append(test)
     def Template(name, source):
       def MkTest(replacement, expectation):
@@ -68,15 +65,47 @@ class PreparserTestSuite(testsuite.TestSuite):
       self._ParsePythonTestTemplates(result, f)
     return result
 
-  def GetParametersForTestCase(self, testcase, context):
-    return [], testcase.flags, {}
+  def _create_test(self, path, source, template_flags):
+    return super(PreparserTestSuite, self)._create_test(
+        path, source=source, template_flags=template_flags)
 
-  def GetSourceForTest(self, testcase):
-    assert testcase.flags[0] == "-e"
-    return testcase.flags[1]
+  def _test_class(self):
+    return PreparserTestCase
 
   def _VariantGeneratorFactory(self):
     return testsuite.StandardVariantGenerator
+
+
+class PreparserTestCase(TestCase):
+  def __init__(self, suite, path, name, source, template_flags):
+    super(PreparserTestCase, self).__init__(suite, path, name)
+    self._source = source
+    self._template_flags = template_flags
+
+  def _copy(self):
+    return self.__class__(
+        self.suite, self.path, self.name, self._source, self._template_flags)
+
+  def _get_cmd_params(self, ctx):
+    return (
+        self._get_files_params(ctx) +
+        self._get_extra_flags(ctx) +
+        ['-e', self._source] +
+        self._template_flags +
+        self._get_variant_flags() +
+        self._get_statusfile_flags() +
+        self._get_mode_flags(ctx) +
+        self._get_source_flags()
+    )
+
+  def _get_mode_flags(self, ctx):
+    return []
+
+  def is_source_available(self):
+    return True
+
+  def get_source(self):
+    return self._source
 
 
 def GetSuite(name, root):

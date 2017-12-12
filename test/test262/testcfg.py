@@ -37,7 +37,7 @@ import tarfile
 from testrunner.local import statusfile
 from testrunner.local import testsuite
 from testrunner.local import utils
-from testrunner.objects import testcase
+from testrunner.objects.testcase import TestCase
 
 # TODO(littledan): move the flag mapping into the status file
 FEATURE_FLAGS = {
@@ -103,14 +103,14 @@ FAST_VARIANTS = {
 }
 
 class Test262VariantGenerator(testsuite.VariantGenerator):
-  def GetFlagSets(self, testcase, variant):
-    outcomes = testcase.suite.GetStatusFileOutcomes(testcase)
+  def GetFlagSets(self, test, variant):
+    outcomes = test.suite.GetStatusFileOutcomes(test.name, test.variant)
     if outcomes and statusfile.OnlyFastVariants(outcomes):
       variant_flags = FAST_VARIANTS
     else:
       variant_flags = ALL_VARIANTS
 
-    test_record = self.suite.GetTestRecord(testcase)
+    test_record = test.test_record
     if "noStrict" in test_record:
       return variant_flags["nostrict"][variant]
     if "onlyStrict" in test_record:
@@ -130,9 +130,9 @@ class Test262TestSuite(testsuite.TestSuite):
                     for f in TEST_262_HARNESS_FILES]
     self.harness += [os.path.join(self.root, "harness-adapt.js")]
     self.localtestroot = os.path.join(self.root, *TEST_262_LOCAL_TESTS_PATH)
-    self.ParseTestRecord = None
+
     self._extract_sources()
-    self._parse_test_record = self._load_parse_test_record()
+    self.parse_test_record = self._load_parse_test_record()
 
   def _extract_sources(self):
     # The archive is created only on swarming. Local checkouts have the
@@ -157,8 +157,9 @@ class Test262TestSuite(testsuite.TestSuite):
       module = imp.load_module("parseTestRecord", f, pathname, description)
       return module.parseTestRecord
     except:
-      raise ImportError("Cannot load parseTestRecord; you may need to "
-                        "gclient sync for test262")
+      print ('Cannot load parseTestRecord; '
+             'you may need to gclient sync for test262')
+      raise
     finally:
       if f:
         f.close()
@@ -181,74 +182,17 @@ class Test262TestSuite(testsuite.TestSuite):
         fullpath = os.path.join(dirname, filename)
         relpath = re.match(TEST_262_RELPATH_REGEXP, fullpath).group(1)
         testnames.add(relpath.replace(os.path.sep, "/"))
-    cases = [testcase.TestCase(self, testname) for testname in testnames]
+    cases = map(self._create_test, testnames)
     return [case for case in cases if len(
                 SKIPPED_FEATURES.intersection(
-                    self.GetTestRecord(case).get("features", []))) == 0]
+                    case.test_record.get("features", []))) == 0]
 
-  def GetParametersForTestCase(self, testcase, context):
-    files = (
-        list(self.harness) +
-        ([os.path.join(self.root, "harness-agent.js")]
-         if testcase.path.startswith('built-ins/Atomics') else []) +
-        self.GetIncludesForTest(testcase) +
-        (["--module"] if "module" in self.GetTestRecord(testcase) else []) +
-        [self.GetPathForTest(testcase)]
-    )
-    flags = (
-        testcase.flags + context.mode_flags +
-        (["--throws"] if "negative" in self.GetTestRecord(testcase)
-                      else []) +
-        (["--allow-natives-syntax"]
-         if "detachArrayBuffer.js" in
-            self.GetTestRecord(testcase).get("includes", [])
-         else []) +
-        ([flag for (feature, flag) in FEATURE_FLAGS.items()
-          if feature in self.GetTestRecord(testcase).get("features", [])])
-    )
-    return files, flags, {}
-
-  def _VariantGeneratorFactory(self):
-    return Test262VariantGenerator
-
-  def GetTestRecord(self, testcase):
-    if not hasattr(testcase, "test_record"):
-      testcase.test_record = self._parse_test_record(
-          self.GetSourceForTest(testcase), testcase.path)
-    return testcase.test_record
-
-  def BasePath(self, filename):
-    return self.root if filename in TEST_262_NATIVE_FILES else self.harnesspath
-
-  def GetIncludesForTest(self, testcase):
-    test_record = self.GetTestRecord(testcase)
-    return [os.path.join(self.BasePath(filename), filename)
-            for filename in test_record.get("includes", [])]
-
-  def GetPathForTest(self, testcase):
-    filename = os.path.join(self.localtestroot, testcase.path + ".js")
-    if not os.path.exists(filename):
-      filename = os.path.join(self.testroot, testcase.path + ".js")
-    return filename
-
-  def GetSourceForTest(self, testcase):
-    with open(self.GetPathForTest(testcase)) as f:
-      return f.read()
-
-  def _ParseException(self, str, testcase):
-    # somefile:somelinenumber: someerror[: sometext]
-    # somefile might include an optional drive letter on windows e.g. "e:".
-    match = re.search(
-        '^(?:\w:)?[^:]*:[0-9]+: ([^: ]+?)($|: )', str, re.MULTILINE)
-    if match:
-      return match.group(1).strip()
-    else:
-      print "Error parsing exception for %s" % testcase.GetLabel()
-      return None
+  def _test_class(self):
+    return Test262TestCase
 
   def IsFailureOutput(self, testcase):
     output = testcase.output
-    test_record = self.GetTestRecord(testcase)
+    test_record = testcase.test_record
     if output.exit_code != 0:
       return True
     if ("negative" in test_record and
@@ -258,12 +202,80 @@ class Test262TestSuite(testsuite.TestSuite):
         return True
     return "FAILED!" in output.stdout
 
-  def GetExpectedOutcomes(self, testcase):
-    outcomes = self.GetStatusFileOutcomes(testcase)
+  def _ParseException(self, str, testcase):
+    # somefile:somelinenumber: someerror[: sometext]
+    # somefile might include an optional drive letter on windows e.g. "e:".
+    match = re.search(
+        '^(?:\w:)?[^:]*:[0-9]+: ([^: ]+?)($|: )', str, re.MULTILINE)
+    if match:
+      return match.group(1).strip()
+    else:
+      print "Error parsing exception for %s" % testcase
+      return None
+
+  def GetExpectedOutcomes(self, test):
+    outcomes = self.GetStatusFileOutcomes(test.name, test.variant)
     if (statusfile.FAIL_SLOPPY in outcomes and
-        '--use-strict' not in testcase.flags):
+        '--use-strict' not in test.cmd.args):
       return [statusfile.FAIL]
-    return super(Test262TestSuite, self).GetExpectedOutcomes(testcase)
+    return super(Test262TestSuite, self).GetExpectedOutcomes(test)
+
+  def _VariantGeneratorFactory(self):
+    return Test262VariantGenerator
+
+
+class Test262TestCase(TestCase):
+  def __init__(self, *args, **kwargs):
+    super(Test262TestCase, self).__init__(*args, **kwargs)
+
+    # precomputed
+    self.test_record = None
+
+  def precompute(self):
+    source = self.get_source()
+    self.test_record = self.suite.parse_test_record(source, self.path)
+
+  def _copy(self):
+    copy = super(Test262TestCase, self)._copy()
+    copy.test_record = self.test_record
+    return copy
+
+  def _get_files_params(self, ctx):
+    return (
+        list(self.suite.harness) +
+        ([os.path.join(self.suite.root, "harness-agent.js")]
+         if self.path.startswith('built-ins/Atomics') else []) +
+        self._get_includes() +
+        (["--module"] if "module" in self.test_record else []) +
+        [self._get_source_path()]
+    )
+
+  def _get_suite_flags(self, ctx):
+    return (
+        (["--throws"] if "negative" in self.test_record else []) +
+        (["--allow-natives-syntax"]
+         if "detachArrayBuffer.js" in self.test_record.get("includes", [])
+         else []) +
+        [flag for (feature, flag) in FEATURE_FLAGS.items()
+          if feature in self.test_record.get("features", [])]
+    )
+
+  def _get_includes(self):
+    return [os.path.join(self._base_path(filename), filename)
+            for filename in self.test_record.get("includes", [])]
+
+  def _base_path(self, filename):
+    if filename in TEST_262_NATIVE_FILES:
+      return self.suite.root
+    else:
+      return self.suite.harnesspath
+
+  def _get_source_path(self):
+    filename = self.path + self._get_suffix()
+    path = os.path.join(self.suite.localtestroot, filename)
+    if os.path.exists(path):
+      return path
+    return os.path.join(self.suite.testroot, filename)
 
 
 def GetSuite(name, root):
