@@ -4,14 +4,11 @@
 
 import itertools
 import os
-import re
-import shlex
 
 from testrunner.local import testsuite
 from testrunner.local import utils
 from testrunner.objects import testcase
 
-FLAGS_PATTERN = re.compile(r"//\s+Flags:(.*)")
 PROTOCOL_TEST_JS = "protocol-test.js"
 EXPECTED_SUFFIX = "-expected.txt"
 RESOURCES_FOLDER = "resources"
@@ -42,11 +39,8 @@ class InspectorProtocolTestSuite(testsuite.TestSuite):
     return 'inspector-test'
 
   def GetParametersForTestCase(self, testcase, context):
-    source = self.GetSourceForTest(testcase)
     flags = testcase.flags + context.mode_flags
-    flags_match = re.findall(FLAGS_PATTERN, source)
-    for match in flags_match:
-      flags += shlex.split(match.strip())
+    flags += self._parse_source_flags(testcase)
     files = [
       os.path.join(self.root, PROTOCOL_TEST_JS),
       os.path.join(self.root, testcase.path + self.suffix()),

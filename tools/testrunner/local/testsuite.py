@@ -29,16 +29,19 @@
 import fnmatch
 import imp
 import os
+import re
+import shlex
 
 from . import command
 from . import statusfile
 from . import utils
-from ..objects import testcase
 from variants import ALL_VARIANTS, ALL_VARIANT_FLAGS, FAST_VARIANT_FLAGS
 
 
 FAST_VARIANTS = set(["default", "turbofan"])
 STANDARD_VARIANT = set(["default"])
+
+FLAGS_PATTERN = re.compile(r"//\s+Flags:(.*)")
 
 
 class VariantGenerator(object):
@@ -69,7 +72,7 @@ class VariantGenerator(object):
 class TestSuite(object):
 
   @staticmethod
-  def LoadTestSuite(root):
+  def LoadTestSuite(root, global_init=True):
     name = root.split(os.path.sep)[-1]
     f = None
     try:
@@ -344,6 +347,15 @@ class TestSuite(object):
   def GetParametersForTestCase(self, testcase, context):
     """Returns a tuple of (files, flags, env) for this test case."""
     raise NotImplementedError
+
+  def _parse_source_flags(self, test, source=None):
+    if not source:
+      source = self.GetSourceForTest(test)
+
+    flags = []
+    for match in re.findall(FLAGS_PATTERN, source):
+      flags += shlex.split(match.strip())
+    return flags
 
   def GetSourceForTest(self, testcase):
     return "(no source available)"

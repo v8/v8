@@ -9,7 +9,6 @@ from testrunner.local import testsuite
 from testrunner.objects import testcase
 
 FILES_PATTERN = re.compile(r"//\s+Files:(.*)")
-FLAGS_PATTERN = re.compile(r"//\s+Flags:(.*)")
 MODULE_PATTERN = re.compile(r"^// MODULE$", flags=re.MULTILINE)
 
 class DebuggerTestSuite(testsuite.TestSuite):
@@ -40,9 +39,7 @@ class DebuggerTestSuite(testsuite.TestSuite):
         context.mode_flags
     )
     source = self.GetSourceForTest(testcase)
-    flags_match = re.findall(FLAGS_PATTERN, source)
-    for match in flags_match:
-      flags += match.strip().split()
+    flags += self._parse_source_flags(testcase, source)
 
     files_list = []  # List of file names to append to command arguments.
     files_match = FILES_PATTERN.search(source);

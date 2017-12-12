@@ -34,7 +34,6 @@ from testrunner.local import utils
 from testrunner.objects import testcase
 
 
-FLAGS_PATTERN = re.compile(r"//\s+Flags:(.*)")
 INVALID_FLAGS = ["--enable-slow-asserts"]
 MODULE_PATTERN = re.compile(r"^// MODULE$", flags=re.MULTILINE)
 
@@ -70,9 +69,7 @@ class MessageTestSuite(testsuite.TestSuite):
       files.append("--module")
     files.append(os.path.join(self.root, testcase.path + ".js"))
     flags = testcase.flags + context.mode_flags
-    flags_match = re.findall(FLAGS_PATTERN, source)
-    for match in flags_match:
-      flags += match.strip().split()
+    flags += self._parse_source_flags(testcase, source)
     flags = [x for x in flags if x not in INVALID_FLAGS]
     return files, flags, {}
 

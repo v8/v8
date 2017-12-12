@@ -32,7 +32,6 @@ import re
 from testrunner.local import testsuite
 from testrunner.objects import testcase
 
-FLAGS_PATTERN = re.compile(r"//\s+Flags:(.*)")
 FILES_PATTERN = re.compile(r"//\s+Files:(.*)")
 SELF_SCRIPT_PATTERN = re.compile(r"//\s+Env: TEST_FILE_NAME")
 
@@ -65,9 +64,7 @@ class WebkitTestSuite(testsuite.TestSuite):
   def GetParametersForTestCase(self, testcase, context):
     source = self.GetSourceForTest(testcase)
     flags = testcase.flags + context.mode_flags
-    flags_match = re.findall(FLAGS_PATTERN, source)
-    for match in flags_match:
-      flags += match.strip().split()
+    flags += self._parse_source_flags(testcase, source)
 
     files_list = []  # List of file names to append to command arguments.
     files_match = FILES_PATTERN.search(source);
