@@ -976,64 +976,6 @@ static inline int AssembleUnaryOp(Instruction* instr, _R _r, _M _m, _I _i) {
     __ bind(ool->exit());                                    \
   } while (0)
 
-#define ASSEMBLE_CHECKED_STORE_FLOAT32()                \
-  do {                                                  \
-    Label done;                                         \
-    size_t index = 0;                                   \
-    AddressingMode mode = kMode_None;                   \
-    MemOperand operand = i.MemoryOperand(&mode, index); \
-    Register offset = operand.rb();                     \
-    if (HasRegisterInput(instr, 2)) {                   \
-      __ CmpLogical32(offset, i.InputRegister(2));      \
-    } else {                                            \
-      __ CmpLogical32(offset, i.InputImmediate(2));     \
-    }                                                   \
-    __ bge(&done);                                      \
-    DoubleRegister value = i.InputDoubleRegister(3);    \
-    __ CleanUInt32(offset);                             \
-    __ StoreFloat32(value, operand);                    \
-    __ bind(&done);                                     \
-  } while (0)
-
-#define ASSEMBLE_CHECKED_STORE_DOUBLE()                 \
-  do {                                                  \
-    Label done;                                         \
-    size_t index = 0;                                   \
-    AddressingMode mode = kMode_None;                   \
-    MemOperand operand = i.MemoryOperand(&mode, index); \
-    DCHECK_EQ(kMode_MRR, mode);                         \
-    Register offset = operand.rb();                     \
-    if (HasRegisterInput(instr, 2)) {                   \
-      __ CmpLogical32(offset, i.InputRegister(2));      \
-    } else {                                            \
-      __ CmpLogical32(offset, i.InputImmediate(2));     \
-    }                                                   \
-    __ bge(&done);                                      \
-    DoubleRegister value = i.InputDoubleRegister(3);    \
-    __ CleanUInt32(offset);                             \
-    __ StoreDouble(value, operand);                     \
-    __ bind(&done);                                     \
-  } while (0)
-
-#define ASSEMBLE_CHECKED_STORE_INTEGER(asm_instr)       \
-  do {                                                  \
-    Label done;                                         \
-    size_t index = 0;                                   \
-    AddressingMode mode = kMode_None;                   \
-    MemOperand operand = i.MemoryOperand(&mode, index); \
-    Register offset = operand.rb();                     \
-    if (HasRegisterInput(instr, 2)) {                   \
-      __ CmpLogical32(offset, i.InputRegister(2));      \
-    } else {                                            \
-      __ CmpLogical32(offset, i.InputImmediate(2));     \
-    }                                                   \
-    __ bge(&done);                                      \
-    Register value = i.InputRegister(3);                \
-    __ CleanUInt32(offset);                             \
-    __ asm_instr(value, operand);                       \
-    __ bind(&done);                                     \
-  } while (0)
-
 void CodeGenerator::AssembleDeconstructFrame() {
   __ LeaveFrame(StackFrame::MANUAL);
 }
@@ -2362,27 +2304,6 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kCheckedLoadFloat64:
       ASSEMBLE_CHECKED_LOAD_FLOAT(LoadDouble, 64);
       break;
-    case kCheckedStoreWord8:
-      ASSEMBLE_CHECKED_STORE_INTEGER(StoreByte);
-      break;
-    case kCheckedStoreWord16:
-      ASSEMBLE_CHECKED_STORE_INTEGER(StoreHalfWord);
-      break;
-    case kCheckedStoreWord32:
-      ASSEMBLE_CHECKED_STORE_INTEGER(StoreW);
-      break;
-    case kCheckedStoreWord64:
-#if V8_TARGET_ARCH_S390X
-      ASSEMBLE_CHECKED_STORE_INTEGER(StoreP);
-#else
-      UNREACHABLE();
-#endif
-      break;
-    case kCheckedStoreFloat32:
-      ASSEMBLE_CHECKED_STORE_FLOAT32();
-      break;
-    case kCheckedStoreFloat64:
-      ASSEMBLE_CHECKED_STORE_DOUBLE();
       break;
     case kAtomicLoadInt8:
       __ LoadB(i.OutputRegister(), i.MemoryOperand());

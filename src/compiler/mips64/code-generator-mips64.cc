@@ -463,50 +463,6 @@ FPUCondition FlagsConditionToConditionCmpFPU(bool& predicate,
     __ bind(ool->exit());                                                      \
   } while (0)
 
-#define ASSEMBLE_CHECKED_STORE_FLOAT(width, asm_instr)                   \
-  do {                                                                   \
-    Label done;                                                          \
-    if (instr->InputAt(0)->IsRegister()) {                               \
-      auto offset = i.InputRegister(0);                                  \
-      auto value = i.InputOrZero##width##Register(2);                    \
-      if (value == kDoubleRegZero && !__ IsDoubleZeroRegSet()) {         \
-        __ Move(kDoubleRegZero, 0.0);                                    \
-      }                                                                  \
-      ASSEMBLE_BOUNDS_CHECK_REGISTER(offset, i.InputOperand(1), &done);  \
-      __ And(kScratchReg, offset, Operand(0xFFFFFFFF));                  \
-      __ Daddu(kScratchReg, i.InputRegister(3), kScratchReg);            \
-      __ asm_instr(value, MemOperand(kScratchReg, 0));                   \
-    } else {                                                             \
-      int offset = static_cast<int>(i.InputOperand(0).immediate());      \
-      auto value = i.InputOrZero##width##Register(2);                    \
-      if (value == kDoubleRegZero && !__ IsDoubleZeroRegSet()) {         \
-        __ Move(kDoubleRegZero, 0.0);                                    \
-      }                                                                  \
-      ASSEMBLE_BOUNDS_CHECK_IMMEDIATE(offset, i.InputOperand(1), &done); \
-      __ asm_instr(value, MemOperand(i.InputRegister(3), offset));       \
-    }                                                                    \
-    __ bind(&done);                                                      \
-  } while (0)
-
-#define ASSEMBLE_CHECKED_STORE_INTEGER(asm_instr)                        \
-  do {                                                                   \
-    Label done;                                                          \
-    if (instr->InputAt(0)->IsRegister()) {                               \
-      auto offset = i.InputRegister(0);                                  \
-      auto value = i.InputOrZeroRegister(2);                             \
-      ASSEMBLE_BOUNDS_CHECK_REGISTER(offset, i.InputOperand(1), &done);  \
-      __ And(kScratchReg, offset, Operand(0xFFFFFFFF));                  \
-      __ Daddu(kScratchReg, i.InputRegister(3), kScratchReg);            \
-      __ asm_instr(value, MemOperand(kScratchReg, 0));                   \
-    } else {                                                             \
-      int offset = static_cast<int>(i.InputOperand(0).immediate());      \
-      auto value = i.InputOrZeroRegister(2);                             \
-      ASSEMBLE_BOUNDS_CHECK_IMMEDIATE(offset, i.InputOperand(1), &done); \
-      __ asm_instr(value, MemOperand(i.InputRegister(3), offset));       \
-    }                                                                    \
-    __ bind(&done);                                                      \
-  } while (0)
-
 #define ASSEMBLE_ROUND_DOUBLE_TO_DOUBLE(mode)                                  \
   if (kArchVariant == kMips64r6) {                                             \
     __ cfc1(kScratchReg, FCSR);                                                \
@@ -2086,24 +2042,6 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     case kCheckedLoadFloat64:
       ASSEMBLE_CHECKED_LOAD_FLOAT(Double, Ldc1);
-      break;
-    case kCheckedStoreWord8:
-      ASSEMBLE_CHECKED_STORE_INTEGER(Sb);
-      break;
-    case kCheckedStoreWord16:
-      ASSEMBLE_CHECKED_STORE_INTEGER(Sh);
-      break;
-    case kCheckedStoreWord32:
-      ASSEMBLE_CHECKED_STORE_INTEGER(Sw);
-      break;
-    case kCheckedStoreWord64:
-      ASSEMBLE_CHECKED_STORE_INTEGER(Sd);
-      break;
-    case kCheckedStoreFloat32:
-      ASSEMBLE_CHECKED_STORE_FLOAT(Single, Swc1);
-      break;
-    case kCheckedStoreFloat64:
-      ASSEMBLE_CHECKED_STORE_FLOAT(Double, Sdc1);
       break;
     case kAtomicLoadInt8:
       ASSEMBLE_ATOMIC_LOAD_INTEGER(Lb);

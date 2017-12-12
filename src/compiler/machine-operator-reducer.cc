@@ -684,7 +684,6 @@ Reduction MachineOperatorReducer::Reduce(Node* node) {
       return ReduceFloat64InsertHighWord32(node);
     case IrOpcode::kStore:
     case IrOpcode::kUnalignedStore:
-    case IrOpcode::kCheckedStore:
       return ReduceStore(node);
     case IrOpcode::kFloat64Equal:
     case IrOpcode::kFloat64LessThan:
@@ -923,10 +922,7 @@ Reduction MachineOperatorReducer::ReduceStore(Node* node) {
   NodeMatcher nm(node);
   MachineRepresentation rep;
   int value_input;
-  if (nm.IsCheckedStore()) {
-    rep = CheckedStoreRepresentationOf(node->op());
-    value_input = 3;
-  } else if (nm.IsStore()) {
+  if (nm.IsStore()) {
     rep = StoreRepresentationOf(node->op()).representation();
     value_input = 2;
   } else {

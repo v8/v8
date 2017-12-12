@@ -405,14 +405,6 @@ int InstructionScheduler::GetInstructionLatency(const Instruction* instr) {
     case kArm64Strh:
       return 1;
 
-    case kCheckedStoreWord8:
-    case kCheckedStoreWord16:
-    case kCheckedStoreWord32:
-    case kCheckedStoreWord64:
-    case kCheckedStoreFloat32:
-    case kCheckedStoreFloat64:
-      return 1;
-
     case kArm64Madd32:
     case kArm64Mneg32:
     case kArm64Msub32:

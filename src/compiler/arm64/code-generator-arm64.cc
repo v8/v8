@@ -464,42 +464,6 @@ Condition FlagsConditionToCondition(FlagsCondition condition) {
     __ Bind(ool->exit());                                    \
   } while (0)
 
-#define ASSEMBLE_CHECKED_STORE_FLOAT(width)              \
-  do {                                                   \
-    auto buffer = i.InputRegister(0);                    \
-    auto offset = i.InputRegister32(1);                  \
-    auto length = i.InputOperand32(2);                   \
-    auto value = i.InputFloat##width##OrZeroRegister(3); \
-    Label done;                                          \
-    ASSEMBLE_BOUNDS_CHECK(offset, length, &done);        \
-    __ Str(value, MemOperand(buffer, offset, UXTW));     \
-    __ Bind(&done);                                      \
-  } while (0)
-
-#define ASSEMBLE_CHECKED_STORE_INTEGER(asm_instr)          \
-  do {                                                     \
-    auto buffer = i.InputRegister(0);                      \
-    auto offset = i.InputRegister32(1);                    \
-    auto length = i.InputOperand32(2);                     \
-    auto value = i.InputOrZeroRegister32(3);               \
-    Label done;                                            \
-    ASSEMBLE_BOUNDS_CHECK(offset, length, &done);          \
-    __ asm_instr(value, MemOperand(buffer, offset, UXTW)); \
-    __ Bind(&done);                                        \
-  } while (0)
-
-#define ASSEMBLE_CHECKED_STORE_INTEGER_64(asm_instr)       \
-  do {                                                     \
-    auto buffer = i.InputRegister(0);                      \
-    auto offset = i.InputRegister32(1);                    \
-    auto length = i.InputOperand32(2);                     \
-    auto value = i.InputOrZeroRegister64(3);               \
-    Label done;                                            \
-    ASSEMBLE_BOUNDS_CHECK(offset, length, &done);          \
-    __ asm_instr(value, MemOperand(buffer, offset, UXTW)); \
-    __ Bind(&done);                                        \
-  } while (0)
-
 #define ASSEMBLE_SHIFT(asm_instr, width)                                    \
   do {                                                                      \
     if (instr->InputAt(1)->IsRegister()) {                                  \
@@ -1746,24 +1710,6 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kCheckedLoadFloat64:
       ASSEMBLE_CHECKED_LOAD_FLOAT(64);
       break;
-    case kCheckedStoreWord8:
-      ASSEMBLE_CHECKED_STORE_INTEGER(Strb);
-      break;
-    case kCheckedStoreWord16:
-      ASSEMBLE_CHECKED_STORE_INTEGER(Strh);
-      break;
-    case kCheckedStoreWord32:
-      ASSEMBLE_CHECKED_STORE_INTEGER(Str);
-      break;
-    case kCheckedStoreWord64:
-      ASSEMBLE_CHECKED_STORE_INTEGER_64(Str);
-      break;
-    case kCheckedStoreFloat32:
-      ASSEMBLE_CHECKED_STORE_FLOAT(32);
-      break;
-    case kCheckedStoreFloat64:
-      ASSEMBLE_CHECKED_STORE_FLOAT(64);
-      break;
     case kAtomicLoadInt8:
       ASSEMBLE_ATOMIC_LOAD_INTEGER(Ldarb);
       __ Sxtb(i.OutputRegister(0), i.OutputRegister(0));
@@ -1852,9 +1798,6 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
 #undef ASSEMBLE_CHECKED_LOAD_FLOAT
 #undef ASSEMBLE_CHECKED_LOAD_INTEGER
 #undef ASSEMBLE_CHECKED_LOAD_INTEGER_64
-#undef ASSEMBLE_CHECKED_STORE_FLOAT
-#undef ASSEMBLE_CHECKED_STORE_INTEGER
-#undef ASSEMBLE_CHECKED_STORE_INTEGER_64
 #undef ASSEMBLE_SHIFT
 #undef ASSEMBLE_ATOMIC_LOAD_INTEGER
 #undef ASSEMBLE_ATOMIC_STORE_INTEGER

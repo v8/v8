@@ -296,11 +296,6 @@ int InstructionScheduler::GetInstructionLatency(const Instruction* instr) {
     case kCheckedLoadWord32:
     case kCheckedLoadFloat32:
     case kCheckedLoadFloat64:
-    case kCheckedStoreWord8:
-    case kCheckedStoreWord16:
-    case kCheckedStoreWord32:
-    case kCheckedStoreFloat32:
-    case kCheckedStoreFloat64:
     case kSSEFloat64Mul:
       return 5;
     case kIA32Imul:

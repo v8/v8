@@ -332,7 +332,6 @@ bool RedundantStoreFinder::CannotObserveStoreField(Node* node) {
          node->opcode() == IrOpcode::kStore ||
          node->opcode() == IrOpcode::kEffectPhi ||
          node->opcode() == IrOpcode::kStoreElement ||
-         node->opcode() == IrOpcode::kCheckedStore ||
          node->opcode() == IrOpcode::kUnsafePointerAdd ||
          node->opcode() == IrOpcode::kRetain;
 }

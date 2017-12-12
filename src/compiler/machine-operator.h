@@ -88,12 +88,6 @@ typedef MachineType CheckedLoadRepresentation;
 
 CheckedLoadRepresentation CheckedLoadRepresentationOf(Operator const*);
 
-
-// A CheckedStore needs a MachineType.
-typedef MachineRepresentation CheckedStoreRepresentation;
-
-CheckedStoreRepresentation CheckedStoreRepresentationOf(Operator const*);
-
 class StackSlotRepresentation final {
  public:
   StackSlotRepresentation(int size, int alignment)
@@ -608,8 +602,6 @@ class V8_EXPORT_PRIVATE MachineOperatorBuilder final
 
   // checked-load heap, index, length
   const Operator* CheckedLoad(CheckedLoadRepresentation);
-  // checked-store heap, index, length, value
-  const Operator* CheckedStore(CheckedStoreRepresentation);
 
   // atomic-load [base + index]
   const Operator* AtomicLoad(LoadRepresentation rep);

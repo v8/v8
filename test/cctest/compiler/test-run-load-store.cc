@@ -596,33 +596,6 @@ TEST(RunUnalignedLoadStoreZeroExtend64) {
   RunLoadStoreZeroExtend64(TestAlignment::kUnaligned);
 }
 
-TEST(RunCheckedStoreInt64) {
-  const int64_t write = 0x5566778899AABBLL;
-  const int64_t before = 0x33BBCCDDEEFF0011LL;
-  int64_t buffer[] = {before, before};
-  RawMachineAssemblerTester<int32_t> m(MachineType::Int32());
-  Node* base = m.PointerConstant(buffer);
-  Node* index = m.Parameter(0);
-  Node* length = m.Int32Constant(16);
-  Node* value = m.Int64Constant(write);
-  Node* store =
-      m.AddNode(m.machine()->CheckedStore(MachineRepresentation::kWord64), base,
-                index, length, value);
-  USE(store);
-  m.Return(m.Int32Constant(11));
-
-  CHECK_EQ(11, m.Call(16));
-  CHECK_EQ(before, buffer[0]);
-  CHECK_EQ(before, buffer[1]);
-
-  CHECK_EQ(11, m.Call(0));
-  CHECK_EQ(write, buffer[0]);
-  CHECK_EQ(before, buffer[1]);
-
-  CHECK_EQ(11, m.Call(8));
-  CHECK_EQ(write, buffer[0]);
-  CHECK_EQ(write, buffer[1]);
-}
 #endif
 
 namespace {
@@ -729,64 +702,7 @@ TEST(RunOobCheckedLoad) { TestRunOobCheckedLoad(false); }
 
 TEST(RunOobCheckedLoadImm) { TestRunOobCheckedLoad(true); }
 
-void TestRunOobCheckedStore(bool length_is_immediate) {
-  RawMachineAssemblerTester<int32_t> m(MachineType::Int32(),
-                                       MachineType::Int32());
-  MachineOperatorBuilder machine(m.zone());
-  const int32_t kNumElems = 29;
-  const int32_t kValue = -78227234;
-  const int32_t kLength = kNumElems * 4;
-
-  int32_t buffer[kNumElems + kNumElems];
-  Node* base = m.PointerConstant(buffer);
-  Node* offset = m.Parameter(0);
-  Node* len = length_is_immediate ? m.Int32Constant(kLength) : m.Parameter(1);
-  Node* val = m.Int32Constant(kValue);
-  m.AddNode(machine.CheckedStore(MachineRepresentation::kWord32), base, offset,
-            len, val);
-  m.Return(val);
-
-  // in-bounds accesses.
-  for (int32_t i = 0; i < kNumElems; i++) {
-    memset(buffer, 0, sizeof(buffer));
-    int32_t offset = static_cast<int32_t>(i * sizeof(int32_t));
-    CHECK_EQ(kValue, m.Call(offset, kLength));
-    for (int32_t j = 0; j < kNumElems + kNumElems; j++) {
-      if (i == j) {
-        CHECK_EQ(kValue, buffer[j]);
-      } else {
-        CHECK_EQ(0, buffer[j]);
-      }
-    }
-  }
-
-  memset(buffer, 0, sizeof(buffer));
-
-  // slightly out-of-bounds accesses.
-  for (int32_t i = kLength; i < kNumElems + 30; i++) {
-    int32_t offset = static_cast<int32_t>(i * sizeof(int32_t));
-    CHECK_EQ(kValue, m.Call(offset, kLength));
-    for (int32_t j = 0; j < kNumElems + kNumElems; j++) {
-      CHECK_EQ(0, buffer[j]);
-    }
-  }
-
-  // way out-of-bounds accesses.
-  for (int32_t offset = -2000000000; offset <= 2000000000;
-       offset += 100000000) {
-    if (offset == 0) continue;
-    CHECK_EQ(kValue, m.Call(offset, kLength));
-    for (int32_t j = 0; j < kNumElems + kNumElems; j++) {
-      CHECK_EQ(0, buffer[j]);
-    }
-  }
-}
-
-TEST(RunOobCheckedStore) { TestRunOobCheckedStore(false); }
-
-TEST(RunOobCheckedStoreImm) { TestRunOobCheckedStore(true); }
-
-// TODO(titzer): CheckedLoad/CheckedStore don't support 64-bit offsets.
+// TODO(titzer): CheckedLoad doesn't support 64-bit offsets.
 #define ALLOW_64_BIT_OFFSETS 0
 
 #if V8_TARGET_ARCH_64_BIT && ALLOW_64_BIT_OFFSETS
@@ -866,96 +782,6 @@ TEST(RunOobCheckedLoad64_3) {
 TEST(RunOobCheckedLoad64_4) {
   TestRunOobCheckedLoad64(4 * A_BILLION, false);
   TestRunOobCheckedLoad64(4 * A_BILLION, true);
-}
-
-void TestRunOobCheckedStore64(uint32_t pseudo_base, bool length_is_immediate) {
-  RawMachineAssemblerTester<int32_t> m(MachineType::Uint64(),
-                                       MachineType::Uint64());
-  MachineOperatorBuilder machine(m.zone());
-  const uint32_t kNumElems = 21;
-  const uint32_t kLength = kNumElems * 4;
-  const uint32_t kValue = 897234987;
-  int32_t real_buffer[kNumElems + kNumElems];
-
-  // Simulate the end of a large buffer.
-  int32_t* buffer = real_buffer - (pseudo_base / 4);
-  uint64_t length = kLength + pseudo_base;
-
-  Node* base = m.PointerConstant(buffer);
-  Node* offset = m.Parameter(0);
-  Node* len = length_is_immediate ? m.Int64Constant(length) : m.Parameter(1);
-  Node* val = m.Int32Constant(kValue);
-  m.AddNode(machine.CheckedStore(MachineRepresentation::kWord32), base, offset,
-            len, val);
-  m.Return(val);
-
-  // in-bounds accesses.
-  for (uint32_t i = 0; i < kNumElems; i++) {
-    memset(real_buffer, 0, sizeof(real_buffer));
-    uint64_t offset = pseudo_base + i * 4;
-    CHECK_EQ(kValue, m.Call(offset, length));
-    for (uint32_t j = 0; j < kNumElems + kNumElems; j++) {
-      if (i == j) {
-        CHECK_EQ(kValue, real_buffer[j]);
-      } else {
-        CHECK_EQ(0, real_buffer[j]);
-      }
-    }
-  }
-
-  memset(real_buffer, 0, sizeof(real_buffer));
-
-  // in-bounds accesses w.r.t lower 32-bits, but upper bits set.
-  for (uint64_t i = 0x100000000ULL; i != 0; i <<= 1) {
-    uint64_t offset = pseudo_base + i;
-    CHECK_EQ(kValue, m.Call(offset, length));
-    for (int32_t j = 0; j < kNumElems + kNumElems; j++) {
-      CHECK_EQ(0, real_buffer[j]);
-    }
-  }
-
-  // slightly out-of-bounds accesses.
-  for (uint32_t i = kLength; i < kNumElems + 30; i++) {
-    uint64_t offset = pseudo_base + i * 4;
-    CHECK_EQ(kValue, m.Call(offset, length));
-    for (int32_t j = 0; j < kNumElems + kNumElems; j++) {
-      CHECK_EQ(0, real_buffer[j]);
-    }
-  }
-
-  // way out-of-bounds accesses.
-  for (uint64_t offset = length; offset < 100 * A_BILLION; offset += A_GIG) {
-    if (offset < length) continue;
-    CHECK_EQ(kValue, m.Call(offset, length));
-    for (int32_t j = 0; j < kNumElems + kNumElems; j++) {
-      CHECK_EQ(0, real_buffer[j]);
-    }
-  }
-}
-
-TEST(RunOobCheckedStore64_0) {
-  TestRunOobCheckedStore64(0, false);
-  TestRunOobCheckedStore64(0, true);
-}
-
-TEST(RunOobCheckedStore64_1) {
-  TestRunOobCheckedStore64(1 * A_BILLION, false);
-  TestRunOobCheckedStore64(1 * A_BILLION, true);
-}
-
-TEST(RunOobCheckedStore64_2) {
-  TestRunOobCheckedStore64(2 * A_BILLION, false);
-  TestRunOobCheckedStore64(2 * A_BILLION, true);
-}
-
-TEST(RunOobCheckedStore64_3) {
-  TestRunOobCheckedStore64(3 * A_BILLION, false);
-  TestRunOobCheckedStore64(3 * A_BILLION, true);
-}
-
-TEST(RunOobCheckedStore64_4) {
-  TestRunOobCheckedStore64(4 * A_BILLION, false);
-  TestRunOobCheckedStore64(4 * A_BILLION, true);
 }
 
 #endif

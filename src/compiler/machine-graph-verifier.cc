@@ -165,10 +165,6 @@ class MachineRepresentationInferrer {
             representation_vector_[node->id()] = PromoteRepresentation(
                 StoreRepresentationOf(node->op()).representation());
             break;
-          case IrOpcode::kCheckedStore:
-            representation_vector_[node->id()] =
-                PromoteRepresentation(CheckedStoreRepresentationOf(node->op()));
-            break;
           case IrOpcode::kUnalignedStore:
             representation_vector_[node->id()] = PromoteRepresentation(
                 UnalignedStoreRepresentationOf(node->op()));

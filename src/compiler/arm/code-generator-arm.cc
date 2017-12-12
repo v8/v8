@@ -391,32 +391,6 @@ Condition FlagsConditionToCondition(FlagsCondition condition) {
     DCHECK_EQ(LeaveCC, i.OutputSBit());                         \
   } while (0)
 
-#define ASSEMBLE_CHECKED_STORE_FP(Type)      \
-  do {                                       \
-    auto offset = i.InputRegister(0);        \
-    if (instr->InputAt(1)->IsRegister()) {   \
-      __ cmp(offset, i.InputRegister(1));    \
-    } else {                                 \
-      __ cmp(offset, i.InputImmediate(1));   \
-    }                                        \
-    auto value = i.Input##Type##Register(2); \
-    __ vstr(value, i.InputOffset(3), lo);    \
-    DCHECK_EQ(LeaveCC, i.OutputSBit());      \
-  } while (0)
-
-#define ASSEMBLE_CHECKED_STORE_INTEGER(asm_instr) \
-  do {                                            \
-    auto offset = i.InputRegister(0);             \
-    if (instr->InputAt(1)->IsRegister()) {        \
-      __ cmp(offset, i.InputRegister(1));         \
-    } else {                                      \
-      __ cmp(offset, i.InputImmediate(1));        \
-    }                                             \
-    auto value = i.InputRegister(2);              \
-    __ asm_instr(value, i.InputOffset(3), lo);    \
-    DCHECK_EQ(LeaveCC, i.OutputSBit());           \
-  } while (0)
-
 #define ASSEMBLE_ATOMIC_LOAD_INTEGER(asm_instr)                       \
   do {                                                                \
     __ asm_instr(i.OutputRegister(),                                  \
@@ -2579,24 +2553,8 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kCheckedLoadFloat64:
       ASSEMBLE_CHECKED_LOAD_FP(Double);
       break;
-    case kCheckedStoreWord8:
-      ASSEMBLE_CHECKED_STORE_INTEGER(strb);
-      break;
-    case kCheckedStoreWord16:
-      ASSEMBLE_CHECKED_STORE_INTEGER(strh);
-      break;
-    case kCheckedStoreWord32:
-      ASSEMBLE_CHECKED_STORE_INTEGER(str);
-      break;
-    case kCheckedStoreFloat32:
-      ASSEMBLE_CHECKED_STORE_FP(Float);
-      break;
-    case kCheckedStoreFloat64:
-      ASSEMBLE_CHECKED_STORE_FP(Double);
-      break;
     case kCheckedLoadWord64:
-    case kCheckedStoreWord64:
-      UNREACHABLE();  // currently unsupported checked int64 load/store.
+      UNREACHABLE();  // currently unsupported checked int64 load.
       break;
 
     case kAtomicLoadInt8:
@@ -2698,8 +2656,6 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
 #undef ATOMIC_BINOP_CASE
 #undef ASSEMBLE_CHECKED_LOAD_FP
 #undef ASSEMBLE_CHECKED_LOAD_INTEGER
-#undef ASSEMBLE_CHECKED_STORE_FP
-#undef ASSEMBLE_CHECKED_STORE_INTEGER
 #undef ASSEMBLE_ATOMIC_LOAD_INTEGER
 #undef ASSEMBLE_ATOMIC_STORE_INTEGER
 #undef ASSEMBLE_ATOMIC_EXCHANGE_INTEGER

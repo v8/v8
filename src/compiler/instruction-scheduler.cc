@@ -325,12 +325,6 @@ int InstructionScheduler::GetInstructionFlags(const Instruction* instr) const {
     case kCheckedLoadFloat64:
       return kIsLoadOperation;
 
-    case kCheckedStoreWord8:
-    case kCheckedStoreWord16:
-    case kCheckedStoreWord32:
-    case kCheckedStoreWord64:
-    case kCheckedStoreFloat32:
-    case kCheckedStoreFloat64:
     case kArchStoreWithWriteBarrier:
       return kHasSideEffect;
 

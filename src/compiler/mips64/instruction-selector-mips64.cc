@@ -112,14 +112,8 @@ class Mips64OperandGenerator final : public OperandGenerator {
       case kCheckedLoadUint16:
       case kCheckedLoadWord32:
       case kCheckedLoadWord64:
-      case kCheckedStoreWord8:
-      case kCheckedStoreWord16:
-      case kCheckedStoreWord32:
-      case kCheckedStoreWord64:
       case kCheckedLoadFloat32:
       case kCheckedLoadFloat64:
-      case kCheckedStoreFloat32:
-      case kCheckedStoreFloat64:
         return is_int32(value);
       default:
         return is_int16(value);
@@ -1869,68 +1863,6 @@ void InstructionSelector::VisitCheckedLoad(Node* node) {
        g.DefineAsRegister(node), offset_operand, length_operand,
        g.UseRegister(buffer));
 }
-
-
-void InstructionSelector::VisitCheckedStore(Node* node) {
-  MachineRepresentation rep = CheckedStoreRepresentationOf(node->op());
-  Mips64OperandGenerator g(this);
-  Node* const buffer = node->InputAt(0);
-  Node* const offset = node->InputAt(1);
-  Node* const length = node->InputAt(2);
-  Node* const value = node->InputAt(3);
-  ArchOpcode opcode = kArchNop;
-  switch (rep) {
-    case MachineRepresentation::kWord8:
-      opcode = kCheckedStoreWord8;
-      break;
-    case MachineRepresentation::kWord16:
-      opcode = kCheckedStoreWord16;
-      break;
-    case MachineRepresentation::kWord32:
-      opcode = kCheckedStoreWord32;
-      break;
-    case MachineRepresentation::kWord64:
-      opcode = kCheckedStoreWord64;
-      break;
-    case MachineRepresentation::kFloat32:
-      opcode = kCheckedStoreFloat32;
-      break;
-    case MachineRepresentation::kFloat64:
-      opcode = kCheckedStoreFloat64;
-      break;
-    case MachineRepresentation::kBit:
-    case MachineRepresentation::kTaggedSigned:   // Fall through.
-    case MachineRepresentation::kTaggedPointer:  // Fall through.
-    case MachineRepresentation::kTagged:
-    case MachineRepresentation::kSimd128:
-    case MachineRepresentation::kNone:
-      UNREACHABLE();
-      return;
-  }
-  InstructionOperand offset_operand = g.CanBeImmediate(offset, opcode)
-                                          ? g.UseImmediate(offset)
-                                          : g.UseRegister(offset);
-
-  InstructionOperand length_operand = (!g.CanBeImmediate(offset, opcode))
-                                          ? g.CanBeImmediate(length, opcode)
-                                                ? g.UseImmediate(length)
-                                                : g.UseRegister(length)
-                                          : g.UseRegister(length);
-
-  if (length->opcode() == IrOpcode::kInt32Constant) {
-    Int32Matcher m(length);
-    if (m.IsPowerOf2()) {
-      Emit(opcode, g.NoOutput(), offset_operand, g.UseImmediate(length),
-           g.UseRegisterOrImmediateZero(value), g.UseRegister(buffer));
-      return;
-    }
-  }
-
-  Emit(opcode | AddressingModeField::encode(kMode_MRI), g.NoOutput(),
-       offset_operand, length_operand, g.UseRegisterOrImmediateZero(value),
-       g.UseRegister(buffer));
-}
-
 
 namespace {
 

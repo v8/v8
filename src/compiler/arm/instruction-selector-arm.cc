@@ -763,51 +763,6 @@ void InstructionSelector::VisitCheckedLoad(Node* node) {
        g.UseRegister(buffer), offset_operand);
 }
 
-
-void InstructionSelector::VisitCheckedStore(Node* node) {
-  MachineRepresentation rep = CheckedStoreRepresentationOf(node->op());
-  ArmOperandGenerator g(this);
-  Node* const buffer = node->InputAt(0);
-  Node* const offset = node->InputAt(1);
-  Node* const length = node->InputAt(2);
-  Node* const value = node->InputAt(3);
-  ArchOpcode opcode = kArchNop;
-  switch (rep) {
-    case MachineRepresentation::kWord8:
-      opcode = kCheckedStoreWord8;
-      break;
-    case MachineRepresentation::kWord16:
-      opcode = kCheckedStoreWord16;
-      break;
-    case MachineRepresentation::kWord32:
-      opcode = kCheckedStoreWord32;
-      break;
-    case MachineRepresentation::kFloat32:
-      opcode = kCheckedStoreFloat32;
-      break;
-    case MachineRepresentation::kFloat64:
-      opcode = kCheckedStoreFloat64;
-      break;
-    case MachineRepresentation::kBit:      // Fall through.
-    case MachineRepresentation::kTaggedSigned:   // Fall through.
-    case MachineRepresentation::kTaggedPointer:  // Fall through.
-    case MachineRepresentation::kTagged:   // Fall through.
-    case MachineRepresentation::kWord64:   // Fall through.
-    case MachineRepresentation::kSimd128:  // Fall through.
-    case MachineRepresentation::kNone:
-      UNREACHABLE();
-      return;
-  }
-  InstructionOperand offset_operand = g.UseRegister(offset);
-  InstructionOperand length_operand = g.CanBeImmediate(length, kArmCmp)
-                                          ? g.UseImmediate(length)
-                                          : g.UseRegister(length);
-  Emit(opcode | AddressingModeField::encode(kMode_Offset_RR), g.NoOutput(),
-       offset_operand, length_operand, g.UseRegister(value),
-       g.UseRegister(buffer), offset_operand);
-}
-
-
 namespace {
 
 void EmitBic(InstructionSelector* selector, Node* node, Node* left,

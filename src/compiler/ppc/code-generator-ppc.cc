@@ -703,84 +703,6 @@ Condition FlagsConditionToCondition(FlagsCondition condition, ArchOpcode op) {
     DCHECK_EQ(LeaveRC, i.OutputRCBit());                     \
   } while (0)
 
-#define ASSEMBLE_CHECKED_STORE_FLOAT32()                \
-  do {                                                  \
-    Label done;                                         \
-    size_t index = 0;                                   \
-    AddressingMode mode = kMode_None;                   \
-    MemOperand operand = i.MemoryOperand(&mode, index); \
-    DCHECK_EQ(kMode_MRR, mode);                         \
-    Register offset = operand.rb();                     \
-    if (HasRegisterInput(instr, 2)) {                   \
-      __ cmplw(offset, i.InputRegister(2));             \
-    } else {                                            \
-      __ cmplwi(offset, i.InputImmediate(2));           \
-    }                                                   \
-    __ bge(&done);                                      \
-    DoubleRegister value = i.InputDoubleRegister(3);    \
-    __ frsp(kScratchDoubleReg, value);                  \
-    /* removed frsp as instruction-selector checked */  \
-    /* value to be kFloat32 */                          \
-    if (mode == kMode_MRI) {                            \
-      __ stfs(value, operand);                          \
-    } else {                                            \
-      CleanUInt32(offset);                              \
-      __ stfsx(value, operand);                         \
-    }                                                   \
-    __ bind(&done);                                     \
-    DCHECK_EQ(LeaveRC, i.OutputRCBit());                \
-  } while (0)
-
-#define ASSEMBLE_CHECKED_STORE_DOUBLE()                 \
-  do {                                                  \
-    Label done;                                         \
-    size_t index = 0;                                   \
-    AddressingMode mode = kMode_None;                   \
-    MemOperand operand = i.MemoryOperand(&mode, index); \
-    DCHECK_EQ(kMode_MRR, mode);                         \
-    Register offset = operand.rb();                     \
-    if (HasRegisterInput(instr, 2)) {                   \
-      __ cmplw(offset, i.InputRegister(2));             \
-    } else {                                            \
-      __ cmplwi(offset, i.InputImmediate(2));           \
-    }                                                   \
-    __ bge(&done);                                      \
-    DoubleRegister value = i.InputDoubleRegister(3);    \
-    if (mode == kMode_MRI) {                            \
-      __ stfd(value, operand);                          \
-    } else {                                            \
-      CleanUInt32(offset);                              \
-      __ stfdx(value, operand);                         \
-    }                                                   \
-    __ bind(&done);                                     \
-    DCHECK_EQ(LeaveRC, i.OutputRCBit());                \
-  } while (0)
-
-#define ASSEMBLE_CHECKED_STORE_INTEGER(asm_instr, asm_instrx) \
-  do {                                                        \
-    Label done;                                               \
-    size_t index = 0;                                         \
-    AddressingMode mode = kMode_None;                         \
-    MemOperand operand = i.MemoryOperand(&mode, index);       \
-    DCHECK_EQ(kMode_MRR, mode);                               \
-    Register offset = operand.rb();                           \
-    if (HasRegisterInput(instr, 2)) {                         \
-      __ cmplw(offset, i.InputRegister(2));                   \
-    } else {                                                  \
-      __ cmplwi(offset, i.InputImmediate(2));                 \
-    }                                                         \
-    __ bge(&done);                                            \
-    Register value = i.InputRegister(3);                      \
-    if (mode == kMode_MRI) {                                  \
-      __ asm_instr(value, operand);                           \
-    } else {                                                  \
-      CleanUInt32(offset);                                    \
-      __ asm_instrx(value, operand);                          \
-    }                                                         \
-    __ bind(&done);                                           \
-    DCHECK_EQ(LeaveRC, i.OutputRCBit());                      \
-  } while (0)
-
 #define ASSEMBLE_ATOMIC_LOAD_INTEGER(asm_instr, asm_instrx) \
   do {                                                      \
     Label done;                                             \
@@ -2050,29 +1972,6 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kCheckedLoadFloat64:
       ASSEMBLE_CHECKED_LOAD_FLOAT(lfd, lfdx, 64);
       break;
-    case kCheckedStoreWord8:
-      ASSEMBLE_CHECKED_STORE_INTEGER(stb, stbx);
-      break;
-    case kCheckedStoreWord16:
-      ASSEMBLE_CHECKED_STORE_INTEGER(sth, sthx);
-      break;
-    case kCheckedStoreWord32:
-      ASSEMBLE_CHECKED_STORE_INTEGER(stw, stwx);
-      break;
-    case kCheckedStoreWord64:
-#if V8_TARGET_ARCH_PPC64
-      ASSEMBLE_CHECKED_STORE_INTEGER(std, stdx);
-#else
-      UNREACHABLE();
-#endif
-      break;
-    case kCheckedStoreFloat32:
-      ASSEMBLE_CHECKED_STORE_FLOAT32();
-      break;
-    case kCheckedStoreFloat64:
-      ASSEMBLE_CHECKED_STORE_DOUBLE();
-      break;
-
     case kAtomicLoadInt8:
       ASSEMBLE_ATOMIC_LOAD_INTEGER(lbz, lbzx);
       __ extsb(i.OutputRegister(), i.OutputRegister());

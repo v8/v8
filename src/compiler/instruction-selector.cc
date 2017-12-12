@@ -901,7 +901,6 @@ void InstructionSelector::VisitBlock(BasicBlock* block) {
     SetEffectLevel(node, effect_level);
     if (node->opcode() == IrOpcode::kStore ||
         node->opcode() == IrOpcode::kUnalignedStore ||
-        node->opcode() == IrOpcode::kCheckedStore ||
         node->opcode() == IrOpcode::kCall ||
         node->opcode() == IrOpcode::kCallWithCallerSavedRegisters ||
         node->opcode() == IrOpcode::kProtectedLoad ||
@@ -1485,8 +1484,6 @@ void InstructionSelector::VisitNode(Node* node) {
       MarkAsRepresentation(rep, node);
       return VisitCheckedLoad(node);
     }
-    case IrOpcode::kCheckedStore:
-      return VisitCheckedStore(node);
     case IrOpcode::kInt32PairAdd:
       MarkAsWord32(node);
       MarkPairProjectionsAsWord32(node);
