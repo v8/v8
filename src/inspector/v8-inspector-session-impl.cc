@@ -263,7 +263,15 @@ std::unique_ptr<protocol::Runtime::API::RemoteObject>
 V8InspectorSessionImpl::wrapObject(v8::Local<v8::Context> context,
                                    v8::Local<v8::Value> value,
                                    const StringView& groupName) {
-  return wrapObject(context, value, toString16(groupName), false);
+  return wrapObject(context, value, groupName, false);
+}
+
+std::unique_ptr<protocol::Runtime::API::RemoteObject>
+V8InspectorSessionImpl::wrapObject(v8::Local<v8::Context> context,
+                                   v8::Local<v8::Value> value,
+                                   const StringView& groupName,
+                                   bool generatePreview) {
+  return wrapObject(context, value, toString16(groupName), generatePreview);
 }
 
 std::unique_ptr<protocol::Runtime::RemoteObject>

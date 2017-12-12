@@ -87,6 +87,9 @@ class V8InspectorSessionImpl : public V8InspectorSession,
   std::unique_ptr<protocol::Runtime::API::RemoteObject> wrapObject(
       v8::Local<v8::Context>, v8::Local<v8::Value>,
       const StringView& groupName) override;
+  std::unique_ptr<protocol::Runtime::API::RemoteObject> wrapObject(
+      v8::Local<v8::Context>, v8::Local<v8::Value>, const StringView& groupName,
+      bool generatePreview) override;
 
   V8InspectorSession::Inspectable* inspectedObject(unsigned num);
   static const unsigned kInspectedObjectBufferSize = 5;
