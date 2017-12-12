@@ -2837,6 +2837,11 @@ void TranslatedState::CreateArgumentsElementsTranslatedValues(
     PrintF(trace_file, "arguments elements object #%d (type = %d, length = %d)",
            object_index, static_cast<uint8_t>(type), length);
   }
+  if (length == 0) {
+    frame.Add(TranslatedValue::NewTagged(
+        this, isolate_->heap()->empty_fixed_array()));
+    return;
+  }
   object_positions_.push_back({frame_index, value_index});
   frame.Add(TranslatedValue::NewDeferredObject(
       this, length + FixedArray::kHeaderSize / kPointerSize, object_index));
