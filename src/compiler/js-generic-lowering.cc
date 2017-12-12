@@ -135,97 +135,56 @@ void JSGenericLowering::LowerJSStrictEqual(Node* node) {
 void JSGenericLowering::LowerJSLoadProperty(Node* node) {
   CallDescriptor::Flags flags = FrameStateFlagForCall(node);
   const PropertyAccess& p = PropertyAccessOf(node->op());
-  Node* frame_state = NodeProperties::GetFrameStateInput(node);
-  Node* outer_state = frame_state->InputAt(kFrameStateOuterStateInput);
   node->InsertInput(zone(), 2, jsgraph()->SmiConstant(p.feedback().index()));
-  if (outer_state->opcode() != IrOpcode::kFrameState) {
-    Callable callable =
-        Builtins::CallableFor(isolate(), Builtins::kKeyedLoadICTrampoline);
-    ReplaceWithStubCall(node, callable, flags);
-  } else {
-    Callable callable =
-        Builtins::CallableFor(isolate(), Builtins::kKeyedLoadIC);
-    Node* vector = jsgraph()->HeapConstant(p.feedback().vector());
-    node->InsertInput(zone(), 3, vector);
-    ReplaceWithStubCall(node, callable, flags);
-  }
+  Callable callable = Builtins::CallableFor(isolate(), Builtins::kKeyedLoadIC);
+  Node* vector = jsgraph()->HeapConstant(p.feedback().vector());
+  node->InsertInput(zone(), 3, vector);
+  ReplaceWithStubCall(node, callable, flags);
 }
 
 void JSGenericLowering::LowerJSLoadNamed(Node* node) {
   CallDescriptor::Flags flags = FrameStateFlagForCall(node);
   NamedAccess const& p = NamedAccessOf(node->op());
-  Node* frame_state = NodeProperties::GetFrameStateInput(node);
-  Node* outer_state = frame_state->InputAt(kFrameStateOuterStateInput);
   node->InsertInput(zone(), 1, jsgraph()->HeapConstant(p.name()));
   node->InsertInput(zone(), 2, jsgraph()->SmiConstant(p.feedback().index()));
-  if (outer_state->opcode() != IrOpcode::kFrameState) {
-    Callable callable =
-        Builtins::CallableFor(isolate(), Builtins::kLoadICTrampoline);
-    ReplaceWithStubCall(node, callable, flags);
-  } else {
-    Callable callable = Builtins::CallableFor(isolate(), Builtins::kLoadIC);
-    Node* vector = jsgraph()->HeapConstant(p.feedback().vector());
-    node->InsertInput(zone(), 3, vector);
-    ReplaceWithStubCall(node, callable, flags);
-  }
+  Callable callable = Builtins::CallableFor(isolate(), Builtins::kLoadIC);
+  Node* vector = jsgraph()->HeapConstant(p.feedback().vector());
+  node->InsertInput(zone(), 3, vector);
+  ReplaceWithStubCall(node, callable, flags);
 }
 
 
 void JSGenericLowering::LowerJSLoadGlobal(Node* node) {
   CallDescriptor::Flags flags = FrameStateFlagForCall(node);
   const LoadGlobalParameters& p = LoadGlobalParametersOf(node->op());
-  Node* frame_state = NodeProperties::GetFrameStateInput(node);
-  Node* outer_state = frame_state->InputAt(kFrameStateOuterStateInput);
   node->InsertInput(zone(), 0, jsgraph()->HeapConstant(p.name()));
   node->InsertInput(zone(), 1, jsgraph()->SmiConstant(p.feedback().index()));
-  if (outer_state->opcode() != IrOpcode::kFrameState) {
-    Callable callable = CodeFactory::LoadGlobalIC(isolate(), p.typeof_mode());
-    ReplaceWithStubCall(node, callable, flags);
-  } else {
-    Callable callable =
-        CodeFactory::LoadGlobalICInOptimizedCode(isolate(), p.typeof_mode());
-    Node* vector = jsgraph()->HeapConstant(p.feedback().vector());
-    node->InsertInput(zone(), 2, vector);
-    ReplaceWithStubCall(node, callable, flags);
-  }
+  Callable callable =
+      CodeFactory::LoadGlobalICInOptimizedCode(isolate(), p.typeof_mode());
+  Node* vector = jsgraph()->HeapConstant(p.feedback().vector());
+  node->InsertInput(zone(), 2, vector);
+  ReplaceWithStubCall(node, callable, flags);
 }
 
 void JSGenericLowering::LowerJSStoreProperty(Node* node) {
   CallDescriptor::Flags flags = FrameStateFlagForCall(node);
   PropertyAccess const& p = PropertyAccessOf(node->op());
-  Node* frame_state = NodeProperties::GetFrameStateInput(node);
-  Node* outer_state = frame_state->InputAt(kFrameStateOuterStateInput);
   node->InsertInput(zone(), 3, jsgraph()->SmiConstant(p.feedback().index()));
-  if (outer_state->opcode() != IrOpcode::kFrameState) {
-    Callable callable =
-        Builtins::CallableFor(isolate(), Builtins::kKeyedStoreICTrampoline);
-    ReplaceWithStubCall(node, callable, flags);
-  } else {
-    Callable callable =
-        Builtins::CallableFor(isolate(), Builtins::kKeyedStoreIC);
-    Node* vector = jsgraph()->HeapConstant(p.feedback().vector());
-    node->InsertInput(zone(), 4, vector);
-    ReplaceWithStubCall(node, callable, flags);
-  }
+  Callable callable = Builtins::CallableFor(isolate(), Builtins::kKeyedStoreIC);
+  Node* vector = jsgraph()->HeapConstant(p.feedback().vector());
+  node->InsertInput(zone(), 4, vector);
+  ReplaceWithStubCall(node, callable, flags);
 }
 
 void JSGenericLowering::LowerJSStoreNamed(Node* node) {
   CallDescriptor::Flags flags = FrameStateFlagForCall(node);
   NamedAccess const& p = NamedAccessOf(node->op());
-  Node* frame_state = NodeProperties::GetFrameStateInput(node);
-  Node* outer_state = frame_state->InputAt(kFrameStateOuterStateInput);
   node->InsertInput(zone(), 1, jsgraph()->HeapConstant(p.name()));
   node->InsertInput(zone(), 3, jsgraph()->SmiConstant(p.feedback().index()));
-  if (outer_state->opcode() != IrOpcode::kFrameState) {
-    Callable callable =
-        Builtins::CallableFor(isolate(), Builtins::kStoreICTrampoline);
-    ReplaceWithStubCall(node, callable, flags);
-  } else {
-    Callable callable = Builtins::CallableFor(isolate(), Builtins::kStoreIC);
-    Node* vector = jsgraph()->HeapConstant(p.feedback().vector());
-    node->InsertInput(zone(), 4, vector);
-    ReplaceWithStubCall(node, callable, flags);
-  }
+  Callable callable = Builtins::CallableFor(isolate(), Builtins::kStoreIC);
+  Node* vector = jsgraph()->HeapConstant(p.feedback().vector());
+  node->InsertInput(zone(), 4, vector);
+  ReplaceWithStubCall(node, callable, flags);
 }
 
 void JSGenericLowering::LowerJSStoreNamedOwn(Node* node) {
