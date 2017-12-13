@@ -155,7 +155,6 @@ class BytecodeGraphBuilder {
   void BuildCreateArguments(CreateArgumentsType type);
   Node* BuildLoadGlobal(Handle<Name> name, uint32_t feedback_slot_index,
                         TypeofMode typeof_mode);
-  void BuildStoreGlobal(LanguageMode language_mode);
 
   enum class StoreMode {
     // Check the prototype chain before storing.

@@ -42,10 +42,7 @@ namespace interpreter {
   V(LdaGlobal, AccumulatorUse::kWrite, OperandType::kIdx, OperandType::kIdx)   \
   V(LdaGlobalInsideTypeof, AccumulatorUse::kWrite, OperandType::kIdx,          \
     OperandType::kIdx)                                                         \
-  V(StaGlobalSloppy, AccumulatorUse::kRead, OperandType::kIdx,                 \
-    OperandType::kIdx)                                                         \
-  V(StaGlobalStrict, AccumulatorUse::kRead, OperandType::kIdx,                 \
-    OperandType::kIdx)                                                         \
+  V(StaGlobal, AccumulatorUse::kRead, OperandType::kIdx, OperandType::kIdx)    \
                                                                                \
   /* Context operations */                                                     \
   V(PushContext, AccumulatorUse::kRead, OperandType::kRegOut)                  \

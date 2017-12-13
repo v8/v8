@@ -93,8 +93,6 @@ TEST_F(BytecodeArrayBuilderTest, AllBytecodesGenerated) {
       feedback_spec.AddLoadGlobalICSlot(INSIDE_TYPEOF);
   FeedbackSlot sloppy_store_global_slot =
       feedback_spec.AddStoreGlobalICSlot(LanguageMode::kSloppy);
-  FeedbackSlot strict_store_global_slot =
-      feedback_spec.AddStoreGlobalICSlot(LanguageMode::kStrict);
   FeedbackSlot load_slot = feedback_spec.AddLoadICSlot();
   FeedbackSlot keyed_load_slot = feedback_spec.AddKeyedLoadICSlot();
   FeedbackSlot sloppy_store_slot =
@@ -113,10 +111,7 @@ TEST_F(BytecodeArrayBuilderTest, AllBytecodesGenerated) {
       .LoadGlobal(name, load_global_slot.ToInt(), TypeofMode::NOT_INSIDE_TYPEOF)
       .LoadGlobal(name, load_global_typeof_slot.ToInt(),
                   TypeofMode::INSIDE_TYPEOF)
-      .StoreGlobal(name, sloppy_store_global_slot.ToInt(),
-                   LanguageMode::kSloppy)
-      .StoreGlobal(name, strict_store_global_slot.ToInt(),
-                   LanguageMode::kStrict);
+      .StoreGlobal(name, sloppy_store_global_slot.ToInt());
 
   // Emit context operations.
   builder.PushContext(reg)

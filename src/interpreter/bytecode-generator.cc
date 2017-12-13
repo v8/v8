@@ -2557,8 +2557,7 @@ void BytecodeGenerator::BuildVariableAssignment(
       // TODO(ishell): consider using FeedbackSlotCache for variables here.
       FeedbackSlot slot =
           feedback_spec()->AddStoreGlobalICSlot(language_mode());
-      builder()->StoreGlobal(variable->raw_name(), feedback_index(slot),
-                             language_mode());
+      builder()->StoreGlobal(variable->raw_name(), feedback_index(slot));
       break;
     }
     case VariableLocation::CONTEXT: {
