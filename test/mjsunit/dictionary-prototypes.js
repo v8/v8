@@ -12,7 +12,7 @@ function EnsureDictionaryMode(obj, properties=1500) {
 }
 
 function EnsureAlmostDictionaryMode(obj) {
-  for (let i = 0; i < 1022; i++) {
+  for (let i = 0; i < 1020; i++) {
     obj["x" + i] = 0;
   }
 }
