@@ -426,7 +426,6 @@ class Deoptimizer : public Malloced {
   Handle<JSFunction> function() const;
   Handle<Code> compiled_code() const;
   BailoutType bailout_type() const { return bailout_type_; }
-  bool preserve_optimized() const { return preserve_optimized_; }
 
   // Number of created JS frames. Not all created frames are necessarily JS.
   int jsframe_count() const { return jsframe_count_; }
@@ -577,7 +576,6 @@ class Deoptimizer : public Malloced {
   Code* compiled_code_;
   unsigned bailout_id_;
   BailoutType bailout_type_;
-  bool preserve_optimized_;
   Address from_;
   int fp_to_sp_delta_;
   bool deoptimizing_throw_;

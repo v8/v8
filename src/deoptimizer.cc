@@ -383,7 +383,6 @@ Deoptimizer::Deoptimizer(Isolate* isolate, JSFunction* function,
       function_(function),
       bailout_id_(bailout_id),
       bailout_type_(type),
-      preserve_optimized_(false),
       from_(from),
       fp_to_sp_delta_(fp_to_sp_delta),
       deoptimizing_throw_(false),
@@ -1622,13 +1621,6 @@ void Deoptimizer::DoComputeBuiltinContinuation(
     intptr_t context_value = reinterpret_cast<intptr_t>(Smi::kZero);
     Register context_reg = JavaScriptFrame::context_register();
     output_frame->SetRegister(context_reg.code(), context_value);
-  }
-
-  // TODO(6898): For eager deopts within builtin stub frames we currently skip
-  // marking the underlying function as deoptimized. This is to avoid deopt
-  // loops where we would just generate the same optimized code all over again.
-  if (is_topmost && bailout_type_ != LAZY) {
-    preserve_optimized_ = true;
   }
 
   // Ensure the frame pointer register points to the callee's frame. The builtin
