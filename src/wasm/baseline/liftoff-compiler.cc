@@ -73,11 +73,13 @@ class LiftoffCompiler {
 
   LiftoffCompiler(LiftoffAssembler* liftoff_asm,
                   compiler::CallDescriptor* call_desc, compiler::ModuleEnv* env,
-                  compiler::RuntimeExceptionSupport runtime_exception_support)
+                  compiler::RuntimeExceptionSupport runtime_exception_support,
+                  SourcePositionTableBuilder* source_position_table_builder)
       : asm_(liftoff_asm),
         call_desc_(call_desc),
         env_(env),
         runtime_exception_support_(runtime_exception_support),
+        source_position_table_builder_(source_position_table_builder),
         compilation_zone_(liftoff_asm->isolate()->allocator(),
                           "liftoff compilation"),
         safepoint_table_builder_(&compilation_zone_) {}
@@ -252,8 +254,10 @@ class LiftoffCompiler {
     }
 
     DCHECK(runtime_exception_support_);
-    source_position_table_builder_.AddPosition(__ pc_offset(),
-                                               SourcePosition(position), true);
+    source_position_table_builder_->AddPosition(
+        __ pc_offset(), SourcePosition(position), false);
+    safepoint_table_builder_.DefineSafepoint(asm_, Safepoint::kSimple, 0,
+                                             Safepoint::kNoLazyDeopt);
     Builtins::Name trap_id = GetBuiltinIdForTrap(reason);
     __ Call(__ isolate()->builtins()->builtin_handle(trap_id),
             RelocInfo::CODE_TARGET);
@@ -669,7 +673,7 @@ class LiftoffCompiler {
   compiler::RuntimeExceptionSupport runtime_exception_support_;
   bool ok_ = true;
   std::vector<TrapOolCode> trap_ool_code_;
-  SourcePositionTableBuilder source_position_table_builder_;
+  SourcePositionTableBuilder* source_position_table_builder_;
   // Zone used to store information during compilation. The result will be
   // stored independently, such that this zone can die together with the
   // LiftoffCompiler after compilation.
@@ -731,7 +735,8 @@ bool compiler::WasmCompilationUnit::ExecuteLiftoffCompilation() {
   auto* call_desc = compiler::GetWasmCallDescriptor(&zone, func_body_.sig);
   wasm::WasmFullDecoder<wasm::Decoder::kValidate, wasm::LiftoffCompiler>
       decoder(&zone, module, func_body_, &liftoff_.asm_, call_desc, env_,
-              runtime_exception_support_);
+              runtime_exception_support_,
+              &liftoff_.source_position_table_builder_);
   decoder.Decode();
   if (!decoder.interface().ok()) {
     // Liftoff compilation failed.

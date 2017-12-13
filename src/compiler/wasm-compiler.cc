@@ -5051,12 +5051,11 @@ WasmCodeWrapper WasmCompilationUnit::FinishTurbofanCompilation(
     MaybeHandle<HandlerTable> handler_table =
         tf_.job_->compilation_info()->wasm_code_desc()->handler_table;
 
-    int function_index_as_int = static_cast<int>(func_index_);
     native_module_->compiled_module()->source_positions()->set(
-        function_index_as_int, *source_positions);
+        func_index_, *source_positions);
     if (!handler_table.is_null()) {
       native_module_->compiled_module()->handler_table()->set(
-          function_index_as_int, *handler_table.ToHandleChecked());
+          func_index_, *handler_table.ToHandleChecked());
     }
     // TODO(mtrofin): this should probably move up in the common caller,
     // once liftoff has source positions. Until then, we'd need to handle
@@ -5091,10 +5090,21 @@ WasmCodeWrapper WasmCompilationUnit::FinishLiftoffCompilation(
     wasm::ErrorThrower* thrower) {
   CodeDesc desc;
   liftoff_.asm_.GetCode(isolate_, &desc);
+
+  Handle<ByteArray> source_positions =
+      liftoff_.source_position_table_builder_.ToSourcePositionTable(isolate_);
+
   WasmCodeWrapper ret;
   if (!FLAG_wasm_jit_to_native) {
     Handle<Code> code;
-    code = isolate_->factory()->NewCode(desc, Code::WASM_FUNCTION, code);
+    code = isolate_->factory()->NewCode(
+        desc, Code::WASM_FUNCTION, code, Builtins::kNoBuiltinId,
+        MaybeHandle<HandlerTable>(), source_positions,
+        MaybeHandle<DeoptimizationData>(), kMovable,
+        0,                                       // stub_key
+        false,                                   // is_turbofanned
+        liftoff_.asm_.GetTotalFrameSlotCount(),  // stack_slots
+        liftoff_.safepoint_table_offset_);
 #ifdef ENABLE_DISASSEMBLER
     if (FLAG_print_code || FLAG_print_wasm_code) {
       // TODO(wasm): Use proper log files, here and elsewhere.
@@ -5117,6 +5127,8 @@ WasmCodeWrapper WasmCompilationUnit::FinishLiftoffCompilation(
   } else {
     // TODO(mtrofin): figure a way to raise events; also, disassembly.
     // Consider lifting them both to FinishCompilation.
+    native_module_->compiled_module()->source_positions()->set(
+        func_index_, *source_positions);
     return WasmCodeWrapper(native_module_->AddCode(
         desc, liftoff_.asm_.GetTotalFrameSlotCount(), func_index_,
         liftoff_.safepoint_table_offset_, protected_instructions_, true));
