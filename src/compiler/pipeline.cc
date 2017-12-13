@@ -1268,8 +1268,9 @@ struct LoopPeelingPhase {
 
     LoopTree* loop_tree =
         LoopFinder::BuildLoopTree(data->jsgraph()->graph(), temp_zone);
-    LoopPeeler::PeelInnerLoopsOfTree(data->graph(), data->common(), loop_tree,
-                                     temp_zone);
+    LoopPeeler(data->graph(), data->common(), loop_tree, temp_zone,
+               data->source_positions())
+        .PeelInnerLoopsOfTree();
   }
 };
 
