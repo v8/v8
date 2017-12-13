@@ -19,8 +19,7 @@ class TestSuite(testsuite.TestSuite):
   def _test_class(self):
     return TestCase
 
-  def IsFailureOutput(self, test):
-    output = test.output
+  def IsFailureOutput(self, test, output):
     v8_path = os.path.dirname(os.path.dirname(os.path.abspath(self.root)))
     expected_path = os.path.join(v8_path, "tools", "v8heapconst.py")
     with open(expected_path) as f:

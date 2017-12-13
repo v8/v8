@@ -37,7 +37,6 @@ from . import command
 from . import perfdata
 from . import statusfile
 from . import utils
-from ..objects import output
 from pool import Pool
 
 
@@ -119,6 +118,10 @@ class Runner(object):
     self.perf_failures = False
     self.printed_allocations = False
     self.tests = [t for s in suites for t in s.tests]
+
+    # TODO(majeski): Pass outputs dynamically instead of keeping them in the
+    # runner.
+    self.outputs = {t: None for t in self.tests}
     self.suite_names = [s.name for s in suites]
 
     # Always pre-sort by status file, slowest tests first.
@@ -174,19 +177,20 @@ class Runner(object):
 
       # Rerun this test.
       test.duration = None
-      test.output = None
       test.run += 1
       pool.add([TestJob(test.id, test.cmd, test.run)])
       self.remaining += 1
       self.total += 1
 
   def _ProcessTest(self, test, result, pool):
-    test.output = result[1]
+    output = result[1]
+    self.outputs[test] = output
     test.duration = result[2]
-    has_unexpected_output = test.suite.HasUnexpectedOutput(test, self.context)
+    has_unexpected_output = test.suite.HasUnexpectedOutput(
+        test, output, self.context)
     if has_unexpected_output:
       self.failed.append(test)
-      if test.output.HasCrashed():
+      if output.HasCrashed():
         self.crashed += 1
     else:
       self.succeeded += 1
@@ -194,7 +198,7 @@ class Runner(object):
     # For the indicator, everything that happens after the first run is treated
     # as unexpected even if it flakily passes in order to include it in the
     # output.
-    self.indicator.HasRun(test, has_unexpected_output or test.run > 1)
+    self.indicator.HasRun(test, output, has_unexpected_output or test.run > 1)
     if has_unexpected_output:
       # Rerun test failures after the indicator has processed the results.
       self._VerbosePrint("Attempting to rerun test after failure.")

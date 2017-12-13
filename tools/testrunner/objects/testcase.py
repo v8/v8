@@ -45,7 +45,6 @@ class TestCase(object):
     self.variant = None       # name of the used testing variant
     self.variant_flags = []   # list of strings, flags specific to this test
 
-    self.output = None
     self.id = None  # int, used to map result back to TestCase instance
     self.duration = None  # assigned during execution
     self.run = 1  # The nth time this test is executed.
@@ -197,6 +196,9 @@ class TestCase(object):
         (self.suite.name, self.name, self.variant_flags),
         (other.suite.name, other.name, other.variant_flags)
     )
+
+  def __hash__(self):
+    return hash((self.suite.name, self.name, ''.join(self.variant_flags)))
 
   def __str__(self):
     return self.suite.name + '/' + self.name

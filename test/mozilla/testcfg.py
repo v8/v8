@@ -86,10 +86,10 @@ class TestSuite(testsuite.TestSuite):
   def IsNegativeTest(self, test):
     return test.path.endswith("-n")
 
-  def IsFailureOutput(self, test):
-    if test.output.exit_code != 0:
+  def IsFailureOutput(self, test, output):
+    if output.exit_code != 0:
       return True
-    return "FAILED!" in test.output.stdout
+    return "FAILED!" in output.stdout
 
 
 class TestCase(testcase.TestCase):

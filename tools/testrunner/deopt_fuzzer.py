@@ -332,7 +332,7 @@ class DeoptFuzzer(base_runner.BaseTestRunner):
     for s in suites:
       test_results = {}
       for t in s.tests:
-        for line in t.output.stdout.splitlines():
+        for line in runner.outputs[t].stdout.splitlines():
           if line.startswith("=== Stress deopt counter: "):
             test_results[t.path] = MAX_DEOPT - int(line.split(" ")[-1])
       for t in s.tests:

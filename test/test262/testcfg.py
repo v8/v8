@@ -190,8 +190,7 @@ class TestSuite(testsuite.TestSuite):
   def _test_class(self):
     return TestCase
 
-  def IsFailureOutput(self, test):
-    output = test.output
+  def IsFailureOutput(self, test, output):
     test_record = test.test_record
     if output.exit_code != 0:
       return True

@@ -213,12 +213,14 @@ class GCFuzzer(base_runner.BaseTestRunner):
     for s in suites:
       for t in s.tests:
         # Skip failed tests.
-        if s.HasUnexpectedOutput(t):
+        if s.HasUnexpectedOutput(t, runner.outputs[t]):
           print '%s failed, skipping' % t.path
           continue
-        max_limit = self._get_max_limit_reached(t)
+        max_limit = self._get_max_limit_reached(runner.outputs[t])
         if max_limit:
           test_results[t.path] = max_limit
+
+    runner = None
 
     if options.dump_results_file:
       with file("%s.%d.txt" % (options.dump_results_file, time.time()),
@@ -308,7 +310,7 @@ class GCFuzzer(base_runner.BaseTestRunner):
   # incremental marking limit (0-100).
   # Skips values >=100% since they already trigger incremental marking.
   @staticmethod
-  def _get_max_limit_reached(test):
+  def _get_max_limit_reached(output):
     def is_im_line(l):
       return 'IncrementalMarking' in l and '% of the memory limit reached' in l
 
@@ -318,10 +320,10 @@ class GCFuzzer(base_runner.BaseTestRunner):
     def percent_str_to_float(s):
       return float(s[:-1])
 
-    if not (test.output and test.output.stdout):
+    if not (output and output.stdout):
       return None
 
-    im_lines = filter(is_im_line, test.output.stdout.splitlines())
+    im_lines = filter(is_im_line, output.stdout.splitlines())
     percents_str = map(line_to_percent, im_lines)
     percents = map(percent_str_to_float, percents_str)
 

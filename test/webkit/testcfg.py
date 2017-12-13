@@ -73,8 +73,8 @@ class TestSuite(testsuite.TestSuite):
             string == "Warning: unknown flag --enable-slow-asserts." or
             string == "Try --help for options")
 
-  def IsFailureOutput(self, test):
-    if super(TestSuite, self).IsFailureOutput(test):
+  def IsFailureOutput(self, test, output):
+    if super(TestSuite, self).IsFailureOutput(test, output):
       return True
     file_name = os.path.join(self.root, test.path) + "-expected.txt"
     with file(file_name, "r") as expected:
@@ -94,7 +94,7 @@ class TestSuite(testsuite.TestSuite):
 
     def ActBlockIterator():
       """Iterates over blocks of actual output lines."""
-      lines = test.output.stdout.splitlines()
+      lines = output.stdout.splitlines()
       start_index = 0
       found_eqeq = False
       for index, line in enumerate(lines):

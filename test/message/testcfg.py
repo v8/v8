@@ -81,11 +81,10 @@ class TestSuite(testsuite.TestSuite):
       path = head
     return False
 
-  def IsFailureOutput(self, test):
-    output = test.output
+  def IsFailureOutput(self, test, output):
     testpath = test.path
     expected_fail = self._GetExpectedFail(test)
-    fail = test.output.exit_code != 0
+    fail = output.exit_code != 0
     if expected_fail != fail:
       return True
     expected_path = os.path.join(self.root, testpath + ".out")

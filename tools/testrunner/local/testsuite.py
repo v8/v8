@@ -276,36 +276,36 @@ class TestSuite(object):
 
     return self._outcomes_cache[cache_key]
 
-  def IsFailureOutput(self, testcase):
-    return testcase.output.exit_code != 0
+  def IsFailureOutput(self, testcase, output):
+    return output.exit_code != 0
 
   def IsNegativeTest(self, testcase):
     return False
 
-  def HasFailed(self, testcase, ctx=None):
+  def HasFailed(self, testcase, output, ctx=None):
     if ctx and ctx.predictable:
       # Only check the exit code of the predictable_wrapper in
       # verify-predictable mode.
-      execution_failed = testcase.output.exit_code != 0
+      execution_failed = output.exit_code != 0
     else:
-      execution_failed = self.IsFailureOutput(testcase)
+      execution_failed = self.IsFailureOutput(testcase, output)
     if self.IsNegativeTest(testcase):
       return not execution_failed
     else:
       return execution_failed
 
-  def GetOutcome(self, testcase, ctx=None):
-    if testcase.output.HasCrashed():
+  def GetOutcome(self, testcase, output, ctx=None):
+    if output.HasCrashed():
       return statusfile.CRASH
-    elif testcase.output.HasTimedOut():
+    elif output.HasTimedOut():
       return statusfile.TIMEOUT
-    elif self.HasFailed(testcase, ctx):
+    elif self.HasFailed(testcase, output, ctx):
       return statusfile.FAIL
     else:
       return statusfile.PASS
 
-  def HasUnexpectedOutput(self, testcase, ctx=None):
-    return (self.GetOutcome(testcase, ctx)
+  def HasUnexpectedOutput(self, testcase, output, ctx=None):
+    return (self.GetOutcome(testcase, output, ctx)
             not in self.GetExpectedOutcomes(testcase))
 
   def _create_test(self, path, **kwargs):

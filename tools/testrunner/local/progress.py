@@ -50,7 +50,7 @@ class ProgressIndicator(object):
   def Done(self):
     pass
 
-  def HasRun(self, test, has_unexpected_output):
+  def HasRun(self, test, output, has_unexpected_output):
     pass
 
   def Heartbeat(self):
@@ -100,18 +100,19 @@ class SimpleProgressIndicator(ProgressIndicator):
   def Done(self):
     print
     for failed in self.runner.failed:
+      output = self.runner.outputs[failed]
       self.PrintFailureHeader(failed)
-      if failed.output.stderr:
+      if output.stderr:
         print "--- stderr ---"
-        print failed.output.stderr.strip()
-      if failed.output.stdout:
+        print output.stderr.strip()
+      if output.stdout:
         print "--- stdout ---"
-        print failed.output.stdout.strip()
+        print output.stdout.strip()
       print "Command: %s" % failed.cmd.to_string()
-      if failed.output.HasCrashed():
-        print "exit code: %d" % failed.output.exit_code
+      if output.HasCrashed():
+        print "exit code: %d" % output.exit_code
         print "--- CRASHED ---"
-      if failed.output.HasTimedOut():
+      if output.HasTimedOut():
         print "--- TIMEOUT ---"
     if len(self.runner.failed) == 0:
       print "==="
@@ -128,9 +129,9 @@ class SimpleProgressIndicator(ProgressIndicator):
 
 class VerboseProgressIndicator(SimpleProgressIndicator):
 
-  def HasRun(self, test, has_unexpected_output):
+  def HasRun(self, test, output, has_unexpected_output):
     if has_unexpected_output:
-      if test.output.HasCrashed():
+      if output.HasCrashed():
         outcome = 'CRASH'
       else:
         outcome = 'FAIL'
@@ -146,15 +147,15 @@ class VerboseProgressIndicator(SimpleProgressIndicator):
 
 class DotsProgressIndicator(SimpleProgressIndicator):
 
-  def HasRun(self, test, has_unexpected_output):
+  def HasRun(self, test, output, has_unexpected_output):
     total = self.runner.succeeded + len(self.runner.failed)
     if (total > 1) and (total % 50 == 1):
       sys.stdout.write('\n')
     if has_unexpected_output:
-      if test.output.HasCrashed():
+      if output.HasCrashed():
         sys.stdout.write('C')
         sys.stdout.flush()
-      elif test.output.HasTimedOut():
+      elif output.HasTimedOut():
         sys.stdout.write('T')
         sys.stdout.flush()
       else:
@@ -178,22 +179,22 @@ class CompactProgressIndicator(ProgressIndicator):
     self.PrintProgress('Done')
     print ""  # Line break.
 
-  def HasRun(self, test, has_unexpected_output):
+  def HasRun(self, test, output, has_unexpected_output):
     self.PrintProgress(str(test))
     if has_unexpected_output:
       self.ClearLine(self.last_status_length)
       self.PrintFailureHeader(test)
-      stdout = test.output.stdout.strip()
+      stdout = output.stdout.strip()
       if len(stdout):
         print self.templates['stdout'] % stdout
-      stderr = test.output.stderr.strip()
+      stderr = output.stderr.strip()
       if len(stderr):
         print self.templates['stderr'] % stderr
       print "Command: %s" % test.cmd.to_string()
-      if test.output.HasCrashed():
-        print "exit code: %d" % test.output.exit_code
+      if output.HasCrashed():
+        print "exit code: %d" % output.exit_code
         print "--- CRASHED ---"
-      if test.output.HasTimedOut():
+      if output.HasTimedOut():
         print "--- TIMEOUT ---"
 
   def Truncate(self, string, length):
@@ -269,19 +270,19 @@ class JUnitTestProgressIndicator(ProgressIndicator):
     if self.outfile != sys.stdout:
       self.outfile.close()
 
-  def HasRun(self, test, has_unexpected_output):
+  def HasRun(self, test, output, has_unexpected_output):
     fail_text = ""
     if has_unexpected_output:
-      stdout = test.output.stdout.strip()
+      stdout = output.stdout.strip()
       if len(stdout):
         fail_text += "stdout:\n%s\n" % stdout
-      stderr = test.output.stderr.strip()
+      stderr = output.stderr.strip()
       if len(stderr):
         fail_text += "stderr:\n%s\n" % stderr
       fail_text += "Command: %s" % self.test.cmd.to_string()
-      if test.output.HasCrashed():
-        fail_text += "exit code: %d\n--- CRASHED ---" % test.output.exit_code
-      if test.output.HasTimedOut():
+      if output.HasCrashed():
+        fail_text += "exit code: %d\n--- CRASHED ---" % output.exit_code
+      if output.HasTimedOut():
         fail_text += "--- TIMEOUT ---"
     self.outputter.HasRunTest(
         test_name=str(test),
@@ -340,7 +341,7 @@ class JsonTestProgressIndicator(ProgressIndicator):
     with open(self.json_test_results, "w") as f:
       f.write(json.dumps(complete_results))
 
-  def HasRun(self, test, has_unexpected_output):
+  def HasRun(self, test, output, has_unexpected_output):
     # Buffer all tests for sorting the durations in the end.
     self.tests.append(test)
     if not has_unexpected_output:
@@ -353,9 +354,9 @@ class JsonTestProgressIndicator(ProgressIndicator):
       "flags": test.cmd.args,
       "command": test.cmd.to_string(relative=True),
       "run": test.run,
-      "stdout": test.output.stdout,
-      "stderr": test.output.stderr,
-      "exit_code": test.output.exit_code,
+      "stdout": output.stdout,
+      "stderr": output.stderr,
+      "exit_code": output.exit_code,
       "result": test.suite.GetOutcome(test),
       "expected": test.suite.GetExpectedOutcomes(test),
       "duration": test.duration,
@@ -393,7 +394,7 @@ class FlakinessTestProgressIndicator(ProgressIndicator):
         "version": 3,
       }, f)
 
-  def HasRun(self, test, has_unexpected_output):
+  def HasRun(self, test, output, has_unexpected_output):
     key = test.get_id()
     outcome = test.suite.GetOutcome(test)
     assert outcome in ["PASS", "FAIL", "CRASH", "TIMEOUT"]
