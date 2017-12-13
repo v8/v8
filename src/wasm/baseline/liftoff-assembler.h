@@ -248,10 +248,12 @@ class LiftoffAssembler : public TurboAssembler {
   inline void LoadConstant(LiftoffRegister, WasmValue);
   inline void LoadFromContext(Register dst, uint32_t offset, int size);
   inline void SpillContext(Register context);
-  inline void Load(LiftoffRegister dst, Register src_addr, uint32_t offset_imm,
-                   int size, LiftoffRegList = {});
-  inline void Store(Register dst_addr, uint32_t offset_imm, LiftoffRegister src,
-                    int size, LiftoffRegList = {});
+  inline void Load(LiftoffRegister dst, Register src_addr, Register offset_reg,
+                   uint32_t offset_imm, LoadType type,
+                   LiftoffRegList pinned = {});
+  inline void Store(Register dst_addr, Register offset_reg, uint32_t offset_imm,
+                    LiftoffRegister src, StoreType type,
+                    LiftoffRegList pinned = {});
   inline void LoadCallerFrameSlot(LiftoffRegister, uint32_t caller_slot_idx);
   inline void MoveStackValue(uint32_t dst_index, uint32_t src_index);
 
@@ -270,6 +272,8 @@ class LiftoffAssembler : public TurboAssembler {
   inline void emit_i32_or(Register dst, Register lhs, Register rhs);
   inline void emit_i32_xor(Register dst, Register lhs, Register rhs);
 
+  inline void emit_ptrsize_add(Register dst, Register lhs, Register rhs);
+
   inline void emit_f32_add(DoubleRegister dst, DoubleRegister lhs,
                            DoubleRegister rhs);
   inline void emit_f32_sub(DoubleRegister dst, DoubleRegister lhs,
@@ -278,6 +282,10 @@ class LiftoffAssembler : public TurboAssembler {
                            DoubleRegister rhs);
 
   inline void JumpIfZero(Register, Label*);
+
+  inline void CallTrapCallbackForTesting();
+
+  inline void AssertUnreachable(BailoutReason reason);
 
   ////////////////////////////////////
   // End of platform-specific part. //

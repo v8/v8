@@ -72,10 +72,12 @@ class LiftoffCompiler {
   using Decoder = WasmFullDecoder<validate, LiftoffCompiler>;
 
   LiftoffCompiler(LiftoffAssembler* liftoff_asm,
-                  compiler::CallDescriptor* call_desc, compiler::ModuleEnv* env)
+                  compiler::CallDescriptor* call_desc, compiler::ModuleEnv* env,
+                  compiler::RuntimeExceptionSupport runtime_exception_support)
       : asm_(liftoff_asm),
         call_desc_(call_desc),
         env_(env),
+        runtime_exception_support_(runtime_exception_support),
         compilation_zone_(liftoff_asm->isolate()->allocator(),
                           "liftoff compilation"),
         safepoint_table_builder_(&compilation_zone_) {}
@@ -100,6 +102,9 @@ class LiftoffCompiler {
     for (uint32_t i = 0, e = decoder->control_depth(); i < e; ++i) {
       Label* label = decoder->control_at(i)->label.get();
       if (!label->is_bound()) __ bind(label);
+    }
+    for (auto& trap : trap_ool_code_) {
+      if (!trap.label.get()->is_bound()) __ bind(trap.label.get());
     }
 #endif
   }
@@ -159,6 +164,7 @@ class LiftoffCompiler {
       return;
     }
     __ EnterFrame(StackFrame::WASM_COMPILED);
+    __ set_has_frame(true);
     __ ReserveStackSpace(__ GetTotalFrameSlotCount());
     // Parameter 0 is the wasm context.
     uint32_t num_params =
@@ -222,7 +228,43 @@ class LiftoffCompiler {
     CheckStackSizeLimit(decoder);
   }
 
+  static Builtins::Name GetBuiltinIdForTrap(wasm::TrapReason reason) {
+    switch (reason) {
+#define TRAPREASON_TO_MESSAGE(name) \
+  case wasm::k##name:               \
+    return Builtins::kThrowWasm##name;
+      FOREACH_WASM_TRAPREASON(TRAPREASON_TO_MESSAGE)
+#undef TRAPREASON_TO_MESSAGE
+      default:
+        UNREACHABLE();
+    }
+  }
+
+  void GenerateTrap(wasm::TrapReason reason, wasm::WasmCodePosition position) {
+    if (!runtime_exception_support_) {
+      // We cannot test calls to the runtime in cctest/test-run-wasm.
+      // Therefore we emit a call to C here instead of a call to the runtime.
+      __ CallTrapCallbackForTesting();
+      __ LeaveFrame(StackFrame::WASM_COMPILED);
+      __ set_has_frame(false);
+      __ Ret();
+      return;
+    }
+
+    DCHECK(runtime_exception_support_);
+    source_position_table_builder_.AddPosition(__ pc_offset(),
+                                               SourcePosition(position), true);
+    Builtins::Name trap_id = GetBuiltinIdForTrap(reason);
+    __ Call(__ isolate()->builtins()->builtin_handle(trap_id),
+            RelocInfo::CODE_TARGET);
+    __ AssertUnreachable(kUnexpectedReturnFromWasmTrap);
+  }
+
   void FinishFunction(Decoder* decoder) {
+    for (auto& trap : trap_ool_code_) {
+      __ bind(trap.label.get());
+      GenerateTrap(trap.reason, trap.position);
+    }
     safepoint_table_builder_.Emit(asm_, __ GetTotalFrameSlotCount());
   }
 
@@ -463,10 +505,11 @@ class LiftoffCompiler {
                        kPointerSize);
     LiftoffRegister value =
         pinned.set(__ GetUnusedRegister(reg_class_for(global->type), pinned));
-    int size = 1 << ElementSizeLog2Of(global->type);
-    if (size > kPointerSize)
+    LoadType type =
+        global->type == kWasmI32 ? LoadType::kI32Load : LoadType::kI64Load;
+    if (type.size() > kPointerSize)
       return unsupported(decoder, "global > kPointerSize");
-    __ Load(value, addr, global->offset, size, pinned);
+    __ Load(value, addr, no_reg, global->offset, type, pinned);
     __ PushRegister(global->type, value);
     CheckStackSizeLimit(decoder);
   }
@@ -481,8 +524,9 @@ class LiftoffCompiler {
                        kPointerSize);
     LiftoffRegister reg =
         pinned.set(__ PopToRegister(reg_class_for(global->type), pinned));
-    int size = 1 << ElementSizeLog2Of(global->type);
-    __ Store(addr, global->offset, reg, size, pinned);
+    StoreType type =
+        global->type == kWasmI32 ? StoreType::kI32Store : StoreType::kI64Store;
+    __ Store(addr, no_reg, global->offset, reg, type, pinned);
   }
 
   void Unreachable(Decoder* decoder) { unsupported(decoder, "unreachable"); }
@@ -524,15 +568,42 @@ class LiftoffCompiler {
     unsupported(decoder, "else");
   }
   void LoadMem(Decoder* decoder, LoadType type,
-               const MemoryAccessOperand<validate>& operand, const Value& index,
-               Value* result) {
-    unsupported(decoder, "memory load");
+               const MemoryAccessOperand<validate>& operand,
+               const Value& index_val, Value* result) {
+    ValueType value_type = type.value_type();
+    if (value_type != kWasmI32) return unsupported(decoder, "non-i32 load");
+    LiftoffRegList pinned;
+    Register index = pinned.set(__ PopToRegister(kGpReg)).gp();
+    if (!env_->use_trap_handler) {
+      return unsupported(decoder, "non-traphandler");
+    }
+    Register addr = pinned.set(__ GetUnusedRegister(kGpReg, pinned)).gp();
+    __ LoadFromContext(addr, offsetof(WasmContext, mem_start), kPointerSize);
+    RegClass rc = reg_class_for(value_type);
+    LiftoffRegister value = pinned.set(__ GetUnusedRegister(rc, pinned));
+    __ Load(value, addr, index, operand.offset, type, pinned);
+    __ PushRegister(value_type, value);
+    CheckStackSizeLimit(decoder);
   }
+
   void StoreMem(Decoder* decoder, StoreType type,
                 const MemoryAccessOperand<validate>& operand,
-                const Value& index, const Value& value) {
-    unsupported(decoder, "memory store");
+                const Value& index_val, const Value& value_val) {
+    ValueType value_type = type.value_type();
+    if (value_type != kWasmI32) return unsupported(decoder, "non-i32 store");
+    if (!env_->use_trap_handler) {
+      return unsupported(decoder, "non-traphandler");
+    }
+    RegClass rc = reg_class_for(value_type);
+    LiftoffRegList pinned;
+    LiftoffRegister value = pinned.set(__ PopToRegister(rc));
+    Register index = pinned.set(__ PopToRegister(kGpReg, pinned)).gp();
+    Register addr = pinned.set(__ GetUnusedRegister(kGpReg, pinned)).gp();
+    __ LoadFromContext(addr, offsetof(WasmContext, mem_start), kPointerSize);
+    __ Store(addr, index, operand.offset, value, type, pinned);
+    __ PushRegister(value_type, value);
   }
+
   void CurrentMemoryPages(Decoder* decoder, Value* result) {
     unsupported(decoder, "current_memory");
   }
@@ -584,10 +655,21 @@ class LiftoffCompiler {
   }
 
  private:
+  struct TrapOolCode {
+    MovableLabel label;
+    wasm::TrapReason reason;
+    wasm::WasmCodePosition position;
+    TrapOolCode(wasm::TrapReason r, wasm::WasmCodePosition pos)
+        : reason(r), position(pos) {}
+  };
+
   LiftoffAssembler* const asm_;
   compiler::CallDescriptor* const call_desc_;
   compiler::ModuleEnv* const env_;
+  compiler::RuntimeExceptionSupport runtime_exception_support_;
   bool ok_ = true;
+  std::vector<TrapOolCode> trap_ool_code_;
+  SourcePositionTableBuilder source_position_table_builder_;
   // Zone used to store information during compilation. The result will be
   // stored independently, such that this zone can die together with the
   // LiftoffCompiler after compilation.
@@ -628,6 +710,11 @@ class LiftoffCompiler {
     PrintF("\n");
 #endif
   }
+
+  Label* AddTrapCode(wasm::TrapReason reason, wasm::WasmCodePosition pos) {
+    trap_ool_code_.emplace_back(reason, pos);
+    return trap_ool_code_.back().label.get();
+  }
 };
 
 }  // namespace
@@ -643,7 +730,8 @@ bool compiler::WasmCompilationUnit::ExecuteLiftoffCompilation() {
   const wasm::WasmModule* module = env_ ? env_->module : nullptr;
   auto* call_desc = compiler::GetWasmCallDescriptor(&zone, func_body_.sig);
   wasm::WasmFullDecoder<wasm::Decoder::kValidate, wasm::LiftoffCompiler>
-      decoder(&zone, module, func_body_, &liftoff_.asm_, call_desc, env_);
+      decoder(&zone, module, func_body_, &liftoff_.asm_, call_desc, env_,
+              runtime_exception_support_);
   decoder.Decode();
   if (!decoder.interface().ok()) {
     // Liftoff compilation failed.
