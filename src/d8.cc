@@ -13,6 +13,10 @@
 #include <utility>
 #include <vector>
 
+#if defined(LEAK_SANITIZER)
+#include <sanitizer/lsan_interface.h>
+#endif  // defined(LEAK_SANITIZER)
+
 #ifdef ENABLE_VTUNE_JIT_INTERFACE
 #include "src/third_party/vtune/v8-vtune.h"
 #endif
@@ -63,65 +67,31 @@ namespace v8 {
 namespace {
 
 const int kMB = 1024 * 1024;
-const size_t kTwoGB = 2u * 1024u * 1024u * 1024u;
 
 const int kMaxWorkers = 50;
 const int kMaxSerializerMemoryUsage =
     1 * kMB;  // Arbitrary maximum for testing.
 
-// The ArrayBuffer allocator for the shell. It implements kNormal allocations
-// and delegates kReservation allocations to the default V8 allocator.
+// Base class for shell ArrayBuffer allocators. It forwards all opertions to
+// the default v8 allocator.
 class ArrayBufferAllocatorBase : public v8::ArrayBuffer::Allocator {
  public:
-  virtual ~ArrayBufferAllocatorBase() = default;
-
   void* Allocate(size_t length) override {
-    size_t alloc_length = GetAllocLength(length);
-    // TODO(titzer): allocations should fail if >= 2gb because array buffers
-    // store their lengths as a SMI internally.
-    if (alloc_length >= kTwoGB) return nullptr;
-#if V8_OS_AIX && _LINUX_SOURCE_COMPAT
-    // Work around for GCC bug on AIX
-    // See: https://gcc.gnu.org/bugzilla/show_bug.cgi?id=79839
-    void* data = __linux_calloc(alloc_length, 1);
-#else
-    void* data = calloc(alloc_length, 1);
-#endif
-    MSAN_MEMORY_IS_INITIALIZED(data, alloc_length);
-    return data;
+    return allocator_->Allocate(length);
   }
 
   void* AllocateUninitialized(size_t length) override {
-    size_t alloc_length = GetAllocLength(length);
-    // TODO(titzer): allocations should fail if >= 2gb because array buffers
-    // store their lengths as a SMI internally.
-    if (alloc_length >= kTwoGB) return nullptr;
-#if V8_OS_AIX && _LINUX_SOURCE_COMPAT
-    // Work around for GCC bug on AIX
-    // See: https://gcc.gnu.org/bugzilla/show_bug.cgi?id=79839
-    void* data = __linux_malloc(alloc_length);
-#else
-    void* data = malloc(alloc_length);
-#endif
-    return data;
+    return allocator_->AllocateUninitialized(length);
   }
 
   void Free(void* data, size_t length) override {
-    free(data);
+    allocator_->Free(data, length);
   }
+
+  void* Reserve(size_t length) override { return allocator_->Reserve(length); }
 
   void Free(void* data, size_t length, AllocationMode mode) override {
-    size_t alloc_length = GetAllocLength(length);
-    if (mode == AllocationMode::kNormal) {
-      Free(data, alloc_length);
-    } else {
-      allocator_->Free(data, alloc_length, mode);
-    }
-  }
-
-  void* Reserve(size_t length) override {
-    void* data = allocator_->Reserve(GetAllocLength(length));
-    return data;
+    allocator_->Free(data, length, mode);
   }
 
   void SetProtection(void* data, size_t length,
@@ -130,30 +100,96 @@ class ArrayBufferAllocatorBase : public v8::ArrayBuffer::Allocator {
   }
 
  private:
-  virtual size_t GetAllocLength(size_t length) const = 0;
-
   std::unique_ptr<Allocator> allocator_ =
       std::unique_ptr<Allocator>(NewDefaultAllocator());
 };
 
+// ArrayBuffer allocator that can use virtual memory to improve performance.
 class ShellArrayBufferAllocator : public ArrayBufferAllocatorBase {
  public:
-  virtual ~ShellArrayBufferAllocator() = default;
+  void* Allocate(size_t length) override {
+    if (length >= kVMThreshold) return AllocateVM(length);
+    return ArrayBufferAllocatorBase::Allocate(length);
+  }
+
+  void* AllocateUninitialized(size_t length) override {
+    if (length >= kVMThreshold) return AllocateVM(length);
+    return ArrayBufferAllocatorBase::AllocateUninitialized(length);
+  }
+
+  void Free(void* data, size_t length) override {
+    if (length >= kVMThreshold) {
+      FreeVM(data, length);
+    } else {
+      ArrayBufferAllocatorBase::Free(data, length);
+    }
+  }
+
+  void* Reserve(size_t length) override {
+    // |length| must be over the threshold so we can distinguish VM from
+    // malloced memory.
+    DCHECK_LE(kVMThreshold, length);
+    return ArrayBufferAllocatorBase::Reserve(length);
+  }
+
+  void Free(void* data, size_t length, AllocationMode) override {
+    // Ignore allocation mode; the appropriate action is determined by |length|.
+    Free(data, length);
+  }
 
  private:
-  virtual size_t GetAllocLength(size_t length) const {
+  static constexpr size_t kVMThreshold = 65536;
+  static constexpr size_t kTwoGB = 2u * 1024u * 1024u * 1024u;
+
+  void* AllocateVM(size_t length) {
+    DCHECK_LE(kVMThreshold, length);
+    // TODO(titzer): allocations should fail if >= 2gb because array buffers
+    // store their lengths as a SMI internally.
+    if (length >= kTwoGB) return nullptr;
+
     size_t page_size = base::OS::AllocatePageSize();
-    size_t alloc_size = RoundUp(length, page_size);
-    return alloc_size;
+    size_t allocated = RoundUp(length, page_size);
+    void* address = base::OS::Allocate(nullptr, allocated, page_size,
+                                       base::OS::MemoryPermission::kReadWrite);
+#if defined(LEAK_SANITIZER)
+    if (address != nullptr) {
+      __lsan_register_root_region(address, allocated);
+    }
+#endif
+    return address;
+  }
+
+  void FreeVM(void* data, size_t length) {
+    size_t page_size = base::OS::AllocatePageSize();
+    size_t allocated = RoundUp(length, page_size);
+    CHECK(base::OS::Free(data, allocated));
   }
 };
 
+// ArrayBuffer allocator that never allocates over 10MB.
 class MockArrayBufferAllocator : public ArrayBufferAllocatorBase {
- public:
-  virtual ~MockArrayBufferAllocator() = default;
+  void* Allocate(size_t length) override {
+    return ArrayBufferAllocatorBase::Allocate(Adjust(length));
+  }
+
+  void* AllocateUninitialized(size_t length) override {
+    return ArrayBufferAllocatorBase::AllocateUninitialized(Adjust(length));
+  }
+
+  void Free(void* data, size_t length) override {
+    return ArrayBufferAllocatorBase::Free(data, Adjust(length));
+  }
+
+  void* Reserve(size_t length) override {
+    return ArrayBufferAllocatorBase::Reserve(Adjust(length));
+  }
+
+  void Free(void* data, size_t length, AllocationMode mode) override {
+    return ArrayBufferAllocatorBase::Free(data, Adjust(length), mode);
+  }
 
  private:
-  size_t GetAllocLength(size_t length) const override {
+  size_t Adjust(size_t length) {
     const size_t kAllocationLimit = 10 * kMB;
     return length > kAllocationLimit ? base::OS::AllocatePageSize() : length;
   }

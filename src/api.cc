@@ -484,10 +484,27 @@ namespace {
 class ArrayBufferAllocator : public v8::ArrayBuffer::Allocator {
  public:
   virtual void* Allocate(size_t length) {
-    void* data = AllocateUninitialized(length);
-    return data == nullptr ? data : memset(data, 0, length);
+#if V8_OS_AIX && _LINUX_SOURCE_COMPAT
+    // Work around for GCC bug on AIX
+    // See: https://gcc.gnu.org/bugzilla/show_bug.cgi?id=79839
+    void* data = __linux_calloc(length, 1);
+#else
+    void* data = calloc(length, 1);
+#endif
+    return data;
   }
-  virtual void* AllocateUninitialized(size_t length) { return malloc(length); }
+
+  virtual void* AllocateUninitialized(size_t length) {
+#if V8_OS_AIX && _LINUX_SOURCE_COMPAT
+    // Work around for GCC bug on AIX
+    // See: https://gcc.gnu.org/bugzilla/show_bug.cgi?id=79839
+    void* data = __linux_malloc(length);
+#else
+    void* data = malloc(length);
+#endif
+    return data;
+  }
+
   virtual void Free(void* data, size_t) { free(data); }
 
   virtual void* Reserve(size_t length) {
@@ -511,7 +528,9 @@ class ArrayBufferAllocator : public v8::ArrayBuffer::Allocator {
         return Free(data, length);
       }
       case v8::ArrayBuffer::Allocator::AllocationMode::kReservation: {
-        CHECK(base::OS::Free(data, length));
+        size_t page_size = base::OS::AllocatePageSize();
+        size_t allocated = RoundUp(length, page_size);
+        CHECK(base::OS::Free(data, allocated));
         return;
       }
     }
