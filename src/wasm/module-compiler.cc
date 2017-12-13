@@ -166,8 +166,13 @@ class ModuleCompiler {
 
   bool CanAcceptWork() const { return executed_units_.CanAcceptWork(); }
 
-  bool ShouldIncreaseWorkload() const {
-    return executed_units_.ShouldIncreaseWorkload();
+  bool ShouldIncreaseWorkload() {
+    if (executed_units_.ShouldIncreaseWorkload()) {
+      // Check if it actually makes sense to increase the workload.
+      base::LockGuard<base::Mutex> guard(&compilation_units_mutex_);
+      return !compilation_units_.empty();
+    }
+    return false;
   }
 
   size_t InitializeCompilationUnits(const std::vector<WasmFunction>& functions,
@@ -3961,7 +3966,6 @@ class AsyncCompileJob::ExecuteAndFinishCompilationUnits : public CompileStep {
       DisallowHeapAllocation no_allocation;
       if (!job_->compiler_->FetchAndExecuteCompilationUnit(
               StartFinishCompilationUnit)) {
-        finished_ = true;
         break;
       }
     }
@@ -3986,7 +3990,7 @@ class AsyncCompileJob::ExecuteAndFinishCompilationUnits : public CompileStep {
     double deadline = MonotonicallyIncreasingTimeInMs() + 1.0;
 
     while (true) {
-      if (!finished_ && job_->compiler_->ShouldIncreaseWorkload()) {
+      if (job_->compiler_->ShouldIncreaseWorkload()) {
         job_->RestartBackgroundTasks();
       }
 
@@ -4042,7 +4046,6 @@ class AsyncCompileJob::ExecuteAndFinishCompilationUnits : public CompileStep {
 
  private:
   std::atomic<bool> failed_{false};
-  std::atomic<bool> finished_{false};
 };
 
 //==========================================================================
