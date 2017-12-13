@@ -29,9 +29,8 @@ inline Operand GetContextOperand() { return Operand(rbp, -16); }
 
 }  // namespace liftoff
 
-void LiftoffAssembler::ReserveStackSpace(uint32_t space) {
-  stack_space_ = space;
-  subp(rsp, Immediate(space));
+void LiftoffAssembler::ReserveStackSpace(uint32_t bytes) {
+  subp(rsp, Immediate(bytes));
 }
 
 void LiftoffAssembler::LoadConstant(LiftoffRegister reg, WasmValue value) {

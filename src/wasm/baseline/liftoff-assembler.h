@@ -243,7 +243,7 @@ class LiftoffAssembler : public TurboAssembler {
   // Platform-specific part.        //
   ////////////////////////////////////
 
-  inline void ReserveStackSpace(uint32_t);
+  inline void ReserveStackSpace(uint32_t bytes);
 
   inline void LoadConstant(LiftoffRegister, WasmValue);
   inline void LoadFromContext(Register dst, uint32_t offset, int size);
@@ -313,7 +313,6 @@ class LiftoffAssembler : public TurboAssembler {
 
  private:
   uint32_t num_locals_ = 0;
-  uint32_t stack_space_ = 0;
   static constexpr uint32_t kInlineLocalTypes = 8;
   union {
     ValueType local_types_[kInlineLocalTypes];

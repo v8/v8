@@ -11,7 +11,7 @@ namespace v8 {
 namespace internal {
 namespace wasm {
 
-void LiftoffAssembler::ReserveStackSpace(uint32_t space) { USE(stack_space_); }
+void LiftoffAssembler::ReserveStackSpace(uint32_t bytes) {}
 
 void LiftoffAssembler::LoadConstant(LiftoffRegister reg, WasmValue value) {}
 

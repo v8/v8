@@ -31,9 +31,8 @@ inline Operand GetContextOperand() { return Operand(ebp, -16); }
 
 static constexpr DoubleRegister kScratchDoubleReg = xmm7;
 
-void LiftoffAssembler::ReserveStackSpace(uint32_t space) {
-  stack_space_ = space;
-  sub(esp, Immediate(space));
+void LiftoffAssembler::ReserveStackSpace(uint32_t bytes) {
+  sub(esp, Immediate(bytes));
 }
 
 void LiftoffAssembler::LoadConstant(LiftoffRegister reg, WasmValue value) {

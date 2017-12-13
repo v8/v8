@@ -165,7 +165,7 @@ class LiftoffCompiler {
     }
     __ EnterFrame(StackFrame::WASM_COMPILED);
     __ set_has_frame(true);
-    __ ReserveStackSpace(__ GetTotalFrameSlotCount());
+    __ ReserveStackSpace(kPointerSize * __ GetTotalFrameSlotCount());
     // Parameter 0 is the wasm context.
     uint32_t num_params =
         static_cast<uint32_t>(call_desc_->ParameterCount()) - 1;
