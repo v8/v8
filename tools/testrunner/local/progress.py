@@ -357,7 +357,7 @@ class JsonTestProgressIndicator(ProgressIndicator):
       "stdout": output.stdout,
       "stderr": output.stderr,
       "exit_code": output.exit_code,
-      "result": test.suite.GetOutcome(test),
+      "result": test.suite.GetOutcome(test, output),
       "expected": test.suite.GetExpectedOutcomes(test),
       "duration": test.duration,
 
@@ -396,7 +396,7 @@ class FlakinessTestProgressIndicator(ProgressIndicator):
 
   def HasRun(self, test, output, has_unexpected_output):
     key = test.get_id()
-    outcome = test.suite.GetOutcome(test)
+    outcome = test.suite.GetOutcome(test, output)
     assert outcome in ["PASS", "FAIL", "CRASH", "TIMEOUT"]
     if test.run == 1:
       # First run of this test.
