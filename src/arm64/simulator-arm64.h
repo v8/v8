@@ -16,6 +16,7 @@
 #include "src/assembler.h"
 #include "src/base/compiler-specific.h"
 #include "src/globals.h"
+#include "src/simulator-base.h"
 #include "src/utils.h"
 
 namespace v8 {
@@ -636,7 +637,9 @@ class LogicVRegister {
   bool round_[kQRegSize];
 };
 
-class Simulator : public DecoderVisitor {
+// Using multiple inheritance here is permitted because {DecoderVisitor} is a
+// pure interface class with only pure virtual methods.
+class Simulator : public DecoderVisitor, public SimulatorBase {
  public:
   static void FlushICache(base::CustomMatcherHashMap* i_cache, void* start,
                           size_t size) {
@@ -651,10 +654,6 @@ class Simulator : public DecoderVisitor {
   ~Simulator();
 
   // System functions.
-
-  static void Initialize(Isolate* isolate);
-
-  static void TearDown(base::CustomMatcherHashMap* i_cache, Redirection* first);
 
   static Simulator* current(v8::internal::Isolate* isolate);
 
@@ -762,10 +761,6 @@ class Simulator : public DecoderVisitor {
 
   void ResetState();
 
-  // Runtime call support. Uses the isolate in a thread-safe way.
-  static void* RedirectExternalReference(Isolate* isolate,
-                                         void* external_function,
-                                         ExternalReference::Type type);
   void DoRuntimeCall(Instruction* instr);
 
   // Run the simulator.

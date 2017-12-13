@@ -20,6 +20,7 @@
 #include "src/assembler.h"
 #include "src/base/hashmap.h"
 #include "src/s390/constants-s390.h"
+#include "src/simulator-base.h"
 
 namespace v8 {
 namespace internal {
@@ -50,7 +51,7 @@ class CachePage {
   char validity_map_[kValidityMapSize];  // One byte per line.
 };
 
-class Simulator {
+class Simulator : public SimulatorBase {
  public:
   friend class S390Debugger;
   enum Register {
@@ -161,11 +162,6 @@ class Simulator {
 
   // Executes S390 instructions until the PC reaches end_sim_pc.
   void Execute();
-
-  // Call on program start.
-  static void Initialize(Isolate* isolate);
-
-  static void TearDown(base::CustomMatcherHashMap* i_cache, Redirection* first);
 
   // V8 generally calls into generated JS code with 5 parameters and into
   // generated RegExp code with 7 parameters. This is a convenience function,
@@ -395,11 +391,6 @@ class Simulator {
                            int size);
   static CachePage* GetCachePage(base::CustomMatcherHashMap* i_cache,
                                  void* page);
-
-  // Runtime call support. Uses the isolate in a thread-safe way.
-  static void* RedirectExternalReference(
-      Isolate* isolate, void* external_function,
-      v8::internal::ExternalReference::Type type);
 
   // Handle arguments and return value for runtime FP functions.
   void GetFpArgs(double* x, double* y, intptr_t* z);

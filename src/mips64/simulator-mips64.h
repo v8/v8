@@ -21,6 +21,7 @@
 
 #include "src/assembler.h"
 #include "src/base/hashmap.h"
+#include "src/simulator-base.h"
 
 namespace v8 {
 namespace internal {
@@ -91,7 +92,7 @@ class SimInstruction : public InstructionGetters<SimInstructionBase> {
   }
 };
 
-class Simulator {
+class Simulator : public SimulatorBase {
  public:
   friend class MipsDebugger;
 
@@ -237,11 +238,6 @@ class Simulator {
 
   // Executes MIPS instructions until the PC reaches end_sim_pc.
   void Execute();
-
-  // Call on program start.
-  static void Initialize(Isolate* isolate);
-
-  static void TearDown(base::CustomMatcherHashMap* i_cache, Redirection* first);
 
   // V8 generally calls into generated JS code with 5 parameters and into
   // generated RegExp code with 7 parameters. This is a convenience function,
@@ -526,11 +522,6 @@ class Simulator {
 
   // Exceptions.
   void SignalException(Exception e);
-
-  // Runtime call support. Uses the isolate in a thread-safe way.
-  static void* RedirectExternalReference(Isolate* isolate,
-                                         void* external_function,
-                                         ExternalReference::Type type);
 
   // Handle arguments and return value for runtime FP functions.
   void GetFpArgs(double* x, double* y, int32_t* z);

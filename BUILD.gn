@@ -1994,6 +1994,8 @@ v8_source_set("v8_base") {
     "src/safepoint-table.h",
     "src/setup-isolate.h",
     "src/signature.h",
+    "src/simulator-base.cc",
+    "src/simulator-base.h",
     "src/simulator.h",
     "src/snapshot/builtin-deserializer-allocator.cc",
     "src/snapshot/builtin-deserializer-allocator.h",

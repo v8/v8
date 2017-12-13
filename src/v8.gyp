@@ -1346,6 +1346,8 @@
         'safepoint-table.h',
         'setup-isolate.h',
         'signature.h',
+        'simulator-base.cc',
+        'simulator-base.h',
         'simulator.h',
         'snapshot/builtin-deserializer-allocator.cc',
         'snapshot/builtin-deserializer-allocator.h',

@@ -728,15 +728,6 @@ void Simulator::CheckICache(base::CustomMatcherHashMap* i_cache,
   }
 }
 
-void Simulator::Initialize(Isolate* isolate) {
-  if (isolate->simulator_initialized()) return;
-  isolate->set_simulator_initialized(true);
-  ::v8::internal::ExternalReference::set_redirector(isolate,
-                                                    &RedirectExternalReference);
-  static base::OnceType once = V8_ONCE_INIT;
-  base::CallOnce(&once, &Simulator::EvalTableInit);
-}
-
 Simulator::EvaluateFuncType Simulator::EvalTable[] = {nullptr};
 
 void Simulator::EvalTableInit() {
@@ -1494,6 +1485,8 @@ Simulator::Simulator(Isolate* isolate) : isolate_(isolate) {
     isolate_->set_simulator_i_cache(i_cache_);
   }
   Initialize(isolate);
+  static base::OnceType once = V8_ONCE_INIT;
+  base::CallOnce(&once, &Simulator::EvalTableInit);
 // Set up simulator support first. Some of this information is needed to
 // setup the architecture state.
 #if V8_TARGET_ARCH_S390X
@@ -1558,11 +1551,11 @@ class Redirection {
 #endif
         type_(type),
         next_(nullptr) {
-    next_ = isolate->simulator_redirection();
-    Simulator::current(isolate)->FlushICache(
-        isolate->simulator_i_cache(),
-        reinterpret_cast<void*>(&swi_instruction_), sizeof(FourByteInstr));
-    isolate->set_simulator_redirection(this);
+    next_ = Simulator::redirection();
+    Simulator::FlushICache(isolate->simulator_i_cache(),
+                           reinterpret_cast<void*>(&swi_instruction_),
+                           sizeof(FourByteInstr));
+    Simulator::set_redirection(this);
     if (ABI_USES_FUNCTION_DESCRIPTORS) {
       function_descriptor_[0] = reinterpret_cast<intptr_t>(&swi_instruction_);
       function_descriptor_[1] = 0;
@@ -1583,7 +1576,7 @@ class Redirection {
 
   static Redirection* Get(Isolate* isolate, void* external_function,
                           ExternalReference::Type type) {
-    Redirection* current = isolate->simulator_redirection();
+    Redirection* current = Simulator::redirection();
     for (; current != nullptr; current = current->next_) {
       if (current->external_function_ == external_function &&
           current->type_ == type) {
@@ -1630,9 +1623,16 @@ class Redirection {
 };
 
 // static
-void Simulator::TearDown(base::CustomMatcherHashMap* i_cache,
-                         Redirection* first) {
-  Redirection::DeleteChain(first);
+void SimulatorBase::GlobalTearDown() {
+  delete redirection_mutex_;
+  redirection_mutex_ = nullptr;
+
+  Redirection::DeleteChain(redirection_);
+  redirection_ = nullptr;
+}
+
+// static
+void SimulatorBase::TearDown(base::CustomMatcherHashMap* i_cache) {
   if (i_cache != nullptr) {
     for (base::HashMap::Entry* entry = i_cache->Start(); entry != nullptr;
          entry = i_cache->Next(entry)) {
@@ -1642,11 +1642,10 @@ void Simulator::TearDown(base::CustomMatcherHashMap* i_cache,
   }
 }
 
-void* Simulator::RedirectExternalReference(Isolate* isolate,
-                                           void* external_function,
-                                           ExternalReference::Type type) {
-  base::LockGuard<base::Mutex> lock_guard(
-      isolate->simulator_redirection_mutex());
+void* SimulatorBase::RedirectExternalReference(Isolate* isolate,
+                                               void* external_function,
+                                               ExternalReference::Type type) {
+  base::LockGuard<base::Mutex> lock_guard(Simulator::redirection_mutex());
   Redirection* redirection = Redirection::Get(isolate, external_function, type);
   return redirection->address();
 }

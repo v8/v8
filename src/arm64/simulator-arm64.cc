@@ -98,13 +98,6 @@ SimSystemRegister SimSystemRegister::DefaultValueFor(SystemRegister id) {
 }
 
 
-void Simulator::Initialize(Isolate* isolate) {
-  if (isolate->simulator_initialized()) return;
-  isolate->set_simulator_initialized(true);
-  ExternalReference::set_redirector(isolate, &RedirectExternalReference);
-}
-
-
 // Get the active Simulator for the current thread.
 Simulator* Simulator::current(Isolate* isolate) {
   Isolate::PerIsolateThreadData* isolate_data =
@@ -472,9 +465,9 @@ class Redirection {
       : external_function_(external_function), type_(type), next_(nullptr) {
     redirect_call_.SetInstructionBits(
         HLT | Assembler::ImmException(kImmExceptionIsRedirectedCall));
-    next_ = isolate->simulator_redirection();
+    next_ = Simulator::redirection();
     // TODO(all): Simulator flush I cache
-    isolate->set_simulator_redirection(this);
+    Simulator::set_redirection(this);
   }
 
   void* address_of_redirect_call() {
@@ -488,7 +481,7 @@ class Redirection {
 
   static Redirection* Get(Isolate* isolate, void* external_function,
                           ExternalReference::Type type) {
-    Redirection* current = isolate->simulator_redirection();
+    Redirection* current = Simulator::redirection();
     for (; current != nullptr; current = current->next_) {
       if (current->external_function_ == external_function &&
           current->type_ == type) {
@@ -528,9 +521,17 @@ class Redirection {
 
 
 // static
-void Simulator::TearDown(base::CustomMatcherHashMap* i_cache,
-                         Redirection* first) {
-  Redirection::DeleteChain(first);
+void SimulatorBase::GlobalTearDown() {
+  delete redirection_mutex_;
+  redirection_mutex_ = nullptr;
+
+  Redirection::DeleteChain(redirection_);
+  redirection_ = nullptr;
+}
+
+// static
+void SimulatorBase::TearDown(base::CustomMatcherHashMap* i_cache) {
+  // TODO(all): Simulator flush I cache
 }
 
 
@@ -761,12 +762,10 @@ void Simulator::DoRuntimeCall(Instruction* instr) {
   set_pc(return_address);
 }
 
-
-void* Simulator::RedirectExternalReference(Isolate* isolate,
-                                           void* external_function,
-                                           ExternalReference::Type type) {
-  base::LockGuard<base::Mutex> lock_guard(
-      isolate->simulator_redirection_mutex());
+void* SimulatorBase::RedirectExternalReference(Isolate* isolate,
+                                               void* external_function,
+                                               ExternalReference::Type type) {
+  base::LockGuard<base::Mutex> lock_guard(Simulator::redirection_mutex());
   Redirection* redirection = Redirection::Get(isolate, external_function, type);
   return redirection->address_of_redirect_call();
 }

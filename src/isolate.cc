@@ -2770,9 +2770,8 @@ Isolate::~Isolate() {
   allocator_ = nullptr;
 
 #if USE_SIMULATOR
-  Simulator::TearDown(simulator_i_cache_, simulator_redirection_);
+  Simulator::TearDown(simulator_i_cache_);
   simulator_i_cache_ = nullptr;
-  simulator_redirection_ = nullptr;
 #endif
 }
 

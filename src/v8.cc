@@ -19,6 +19,7 @@
 #include "src/objects-inl.h"
 #include "src/profiler/heap-profiler.h"
 #include "src/runtime-profiler.h"
+#include "src/simulator.h"
 #include "src/snapshot/natives.h"
 #include "src/snapshot/snapshot.h"
 #include "src/tracing/tracing-category-observer.h"
@@ -42,6 +43,9 @@ bool V8::Initialize() {
 
 
 void V8::TearDown() {
+#if defined(USE_SIMULATOR)
+  Simulator::GlobalTearDown();
+#endif
   Bootstrapper::TearDownExtensions();
   ElementsAccessor::TearDown();
   RegisteredExtension::UnregisterAll();
@@ -69,6 +73,9 @@ void V8::InitializeOncePerProcessImpl() {
 
   Isolate::InitializeOncePerProcess();
 
+#if defined(USE_SIMULATOR)
+  Simulator::InitializeOncePerProcess();
+#endif
   sampler::Sampler::SetUp();
   CpuFeatures::Probe(false);
   ElementsAccessor::InitializeOncePerProcess();
