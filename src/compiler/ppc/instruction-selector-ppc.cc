@@ -1942,7 +1942,7 @@ void InstructionSelector::EmitPrepareArguments(
     // Poke any stack arguments.
     int slot = kStackFrameExtraParamSlot;
     for (PushParameter input : (*arguments)) {
-      Emit(kPPC_StoreToStackSlot, g.NoOutput(), g.UseRegister(input.node()),
+      Emit(kPPC_StoreToStackSlot, g.NoOutput(), g.UseRegister(input.node),
            g.TempImmediate(slot));
       ++slot;
     }
@@ -1950,8 +1950,8 @@ void InstructionSelector::EmitPrepareArguments(
     // Push any stack arguments.
     for (PushParameter input : base::Reversed(*arguments)) {
       // Skip any alignment holes in pushed nodes.
-      if (input.node() == nullptr) continue;
-      Emit(kPPC_Push, g.NoOutput(), g.UseRegister(input.node()));
+      if (input.node == nullptr) continue;
+      Emit(kPPC_Push, g.NoOutput(), g.UseRegister(input.node));
     }
   }
 }
@@ -2270,6 +2270,26 @@ void InstructionSelector::VisitS128Xor(Node* node) { UNIMPLEMENTED(); }
 void InstructionSelector::VisitS128Not(Node* node) { UNIMPLEMENTED(); }
 
 void InstructionSelector::VisitS128Zero(Node* node) { UNIMPLEMENTED(); }
+
+void InstructionSelector::VisitF32x4Eq(Node* node) { UNIMPLEMENTED(); }
+
+void InstructionSelector::VisitF32x4Ne(Node* node) { UNIMPLEMENTED(); }
+
+void InstructionSelector::VisitF32x4Lt(Node* node) { UNIMPLEMENTED(); }
+
+void InstructionSelector::VisitF32x4Le(Node* node) { UNIMPLEMENTED(); }
+
+void InstructionSelector::VisitF32x4Splat(Node* node) { UNIMPLEMENTED(); }
+
+void InstructionSelector::VisitF32x4ExtractLane(Node* node) { UNIMPLEMENTED(); }
+
+void InstructionSelector::VisitF32x4ReplaceLane(Node* node) { UNIMPLEMENTED(); }
+
+void InstructionSelector::EmitPrepareResults(ZoneVector<PushParameter>* results,
+                                             const CallDescriptor* descriptor,
+                                             Node* node) {
+  // TODO(John): Port.
+}
 
 // static
 MachineOperatorBuilder::Flags

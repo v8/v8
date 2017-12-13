@@ -2309,7 +2309,7 @@ void InstructionSelector::EmitPrepareArguments(
     // Poke any stack arguments.
     int slot = kStackFrameExtraParamSlot;
     for (PushParameter input : (*arguments)) {
-      Emit(kS390_StoreToStackSlot, g.NoOutput(), g.UseRegister(input.node()),
+      Emit(kS390_StoreToStackSlot, g.NoOutput(), g.UseRegister(input.node),
            g.TempImmediate(slot));
       ++slot;
     }
@@ -2319,19 +2319,20 @@ void InstructionSelector::EmitPrepareArguments(
     int slot = 0;
 
     for (PushParameter input : *arguments) {
-      if (input.node() == nullptr) continue;
-      num_slots +=
-          input.type().representation() == MachineRepresentation::kFloat64
-              ? kDoubleSize / kPointerSize
-              : 1;
+      if (input.node == nullptr) continue;
+      num_slots += input.location.GetType().representation() ==
+                           MachineRepresentation::kFloat64
+                       ? kDoubleSize / kPointerSize
+                       : 1;
     }
     Emit(kS390_StackClaim, g.NoOutput(), g.TempImmediate(num_slots));
     for (PushParameter input : *arguments) {
       // Skip any alignment holes in pushed nodes.
-      if (input.node()) {
-        Emit(kS390_StoreToStackSlot, g.NoOutput(), g.UseRegister(input.node()),
+      if (input.node) {
+        Emit(kS390_StoreToStackSlot, g.NoOutput(), g.UseRegister(input.node),
              g.TempImmediate(slot));
-        slot += input.type().representation() == MachineRepresentation::kFloat64
+        slot += input.location.GetType().representation() ==
+                        MachineRepresentation::kFloat64
                     ? (kDoubleSize / kPointerSize)
                     : 1;
       }
@@ -2600,6 +2601,26 @@ void InstructionSelector::VisitS128Xor(Node* node) { UNIMPLEMENTED(); }
 void InstructionSelector::VisitS128Not(Node* node) { UNIMPLEMENTED(); }
 
 void InstructionSelector::VisitS128Zero(Node* node) { UNIMPLEMENTED(); }
+
+void InstructionSelector::VisitF32x4Eq(Node* node) { UNIMPLEMENTED(); }
+
+void InstructionSelector::VisitF32x4Ne(Node* node) { UNIMPLEMENTED(); }
+
+void InstructionSelector::VisitF32x4Lt(Node* node) { UNIMPLEMENTED(); }
+
+void InstructionSelector::VisitF32x4Le(Node* node) { UNIMPLEMENTED(); }
+
+void InstructionSelector::VisitF32x4Splat(Node* node) { UNIMPLEMENTED(); }
+
+void InstructionSelector::VisitF32x4ExtractLane(Node* node) { UNIMPLEMENTED(); }
+
+void InstructionSelector::VisitF32x4ReplaceLane(Node* node) { UNIMPLEMENTED(); }
+
+void InstructionSelector::EmitPrepareResults(ZoneVector<PushParameter>* results,
+                                             const CallDescriptor* descriptor,
+                                             Node* node) {
+  // TODO(John): Port.
+}
 
 // static
 MachineOperatorBuilder::Flags
