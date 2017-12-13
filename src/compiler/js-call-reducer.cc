@@ -1439,8 +1439,8 @@ Reduction JSCallReducer::ReduceArrayFind(Handle<JSFunction> function,
   Node* k = jsgraph()->ZeroConstant();
 
   Node* original_length = effect = graph()->NewNode(
-      simplified()->LoadField(AccessBuilder::ForJSArrayLength(PACKED_ELEMENTS)),
-      receiver, effect, control);
+      simplified()->LoadField(AccessBuilder::ForJSArrayLength(kind)), receiver,
+      effect, control);
 
   std::vector<Node*> checkpoint_params(
       {receiver, fncallback, this_arg, k, original_length});
@@ -1496,12 +1496,12 @@ Reduction JSCallReducer::ReduceArrayFind(Handle<JSFunction> function,
                          receiver, effect, control);
   }
 
+  // Load k-th element from receiver.
+  Node* element = SafeLoadElement(kind, receiver, control, &effect, &k);
+
   // Increment k for the next iteration.
   Node* next_k = checkpoint_params[3] =
       graph()->NewNode(simplified()->NumberAdd(), k, jsgraph()->Constant(1));
-
-  // Load k-th element from receiver.
-  Node* element = SafeLoadElement(kind, receiver, control, &effect, &k);
 
   // Replace holes with undefined.
   if (IsHoleyElementsKind(kind)) {
