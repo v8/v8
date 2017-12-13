@@ -26,8 +26,6 @@ void SimulatorBase::InitializeOncePerProcess() {
 
 // static
 void SimulatorBase::Initialize(Isolate* isolate) {
-  if (isolate->simulator_initialized()) return;
-  isolate->set_simulator_initialized(true);
   ExternalReference::set_redirector(isolate, &RedirectExternalReference);
 }
 
