@@ -571,3 +571,15 @@ TEST(IgnoreExtendsClause) {
   script->Run(CcTest::isolate()->GetCurrentContext()).ToLocalChecked();
   CheckFunctionName(script, "return 1", "foo.bar");
 }
+
+TEST(ParameterAndArrow) {
+  CcTest::InitializeVM();
+  v8::HandleScope scope(CcTest::isolate());
+
+  v8::Local<v8::Script> script = Compile(CcTest::isolate(),
+                                         "(function(param) {\n"
+                                         "  (() => { return 2017 })();\n"
+                                         "})()");
+  script->Run(CcTest::isolate()->GetCurrentContext()).ToLocalChecked();
+  CheckFunctionName(script, "return 2017", "");
+}
