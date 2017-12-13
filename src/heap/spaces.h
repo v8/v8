@@ -1991,13 +1991,14 @@ class SpaceWithLinearArea : public Space {
   // If we are doing inline allocation in steps, this method performs the 'step'
   // operation. top is the memory address of the bump pointer at the last
   // inline allocation (i.e. it determines the numbers of bytes actually
-  // allocated since the last step.) new_top is the address of the bump pointer
-  // where the next byte is going to be allocated from. top and new_top may be
-  // different when we cross a page boundary or reset the space.
+  // allocated since the last step.) top_for_next_step is the address of the
+  // bump pointer where the next byte is going to be allocated from. top and
+  // top_for_next_step may be different when we cross a page boundary or reset
+  // the space.
   // TODO(ofrobots): clarify the precise difference between this and
   // Space::AllocationStep.
-  void InlineAllocationStep(Address top, Address new_top, Address soon_object,
-                            size_t size);
+  void InlineAllocationStep(Address top, Address top_for_next_step,
+                            Address soon_object, size_t size);
 
   V8_EXPORT_PRIVATE void AddAllocationObserver(
       AllocationObserver* observer) override;

@@ -1362,7 +1362,7 @@ void Space::ResumeAllocationObservers() {
 
 void Space::AllocationStep(int bytes_since_last, Address soon_object,
                            int size) {
-  if (!allocation_observers_paused_) {
+  if (AllocationObserversActive()) {
     heap()->CreateFillerObjectAt(soon_object, size, ClearRecordedSlots::kNo);
     for (AllocationObserver* observer : allocation_observers_) {
       observer->AllocationStep(bytes_since_last, soon_object, size);
@@ -1638,8 +1638,7 @@ Address PagedSpace::ComputeLimit(Address start, Address end,
   if (heap()->inline_allocation_disabled()) {
     // Keep the linear allocation area to fit exactly the requested size.
     return start + size_in_bytes;
-  } else if (!allocation_observers_paused_ && !allocation_observers_.empty() &&
-             SupportsInlineAllocation()) {
+  } else if (SupportsInlineAllocation() && AllocationObserversActive()) {
     // Generated code may allocate inline from the linear allocation area for
     // Old Space. To make sure we can observe these allocations, we use a lower
     // limit.
@@ -1654,9 +1653,11 @@ Address PagedSpace::ComputeLimit(Address start, Address end,
 
 // TODO(ofrobots): refactor this code into SpaceWithLinearArea
 void PagedSpace::StartNextInlineAllocationStep() {
-  if (!allocation_observers_paused_ && SupportsInlineAllocation()) {
-    top_on_previous_step_ = allocation_observers_.empty() ? 0 : top();
+  if (SupportsInlineAllocation() && AllocationObserversActive()) {
+    top_on_previous_step_ = top();
     DecreaseLimit(ComputeLimit(top(), limit(), 0));
+  } else {
+    DCHECK_NULL(top_on_previous_step_);
   }
 }
 
@@ -2090,7 +2091,8 @@ void NewSpace::UpdateInlineAllocationLimit(int size_in_bytes) {
     Address high = to_space_.page_high();
     Address new_top = allocation_info_.top() + size_in_bytes;
     allocation_info_.set_limit(Min(new_top, high));
-  } else if (allocation_observers_paused_ || top_on_previous_step_ == 0) {
+  } else if (!AllocationObserversActive()) {
+    DCHECK_NULL(top_on_previous_step_);
     // Normal limit is the end of the current page.
     allocation_info_.set_limit(to_space_.page_high());
   } else {
@@ -2163,22 +2165,27 @@ bool NewSpace::EnsureAllocation(int size_in_bytes,
 
 // TODO(ofrobots): refactor this code into SpaceWithLinearArea
 void NewSpace::StartNextInlineAllocationStep() {
-  if (!allocation_observers_paused_) {
-    top_on_previous_step_ =
-        !allocation_observers_.empty() ? allocation_info_.top() : 0;
+  if (AllocationObserversActive()) {
+    top_on_previous_step_ = top();
     UpdateInlineAllocationLimit(0);
+  } else {
+    DCHECK_NULL(top_on_previous_step_);
   }
 }
 
 void SpaceWithLinearArea::AddAllocationObserver(AllocationObserver* observer) {
   InlineAllocationStep(top(), top(), nullptr, 0);
   Space::AddAllocationObserver(observer);
+  DCHECK_IMPLIES(top_on_previous_step_, AllocationObserversActive());
 }
 
 void SpaceWithLinearArea::RemoveAllocationObserver(
     AllocationObserver* observer) {
-  InlineAllocationStep(top(), top(), nullptr, 0);
+  Address top_for_next_step =
+      allocation_observers_.size() == 1 ? nullptr : top();
+  InlineAllocationStep(top(), top_for_next_step, nullptr, 0);
   Space::RemoveAllocationObserver(observer);
+  DCHECK_IMPLIES(top_on_previous_step_, AllocationObserversActive());
 }
 
 void NewSpace::PauseAllocationObservers() {
@@ -2204,7 +2211,8 @@ void SpaceWithLinearArea::ResumeAllocationObservers() {
   StartNextInlineAllocationStep();
 }
 
-void SpaceWithLinearArea::InlineAllocationStep(Address top, Address new_top,
+void SpaceWithLinearArea::InlineAllocationStep(Address top,
+                                               Address top_for_next_step,
                                                Address soon_object,
                                                size_t size) {
   if (top_on_previous_step_) {
@@ -2217,7 +2225,7 @@ void SpaceWithLinearArea::InlineAllocationStep(Address top, Address new_top,
     }
     int bytes_allocated = static_cast<int>(top - top_on_previous_step_);
     AllocationStep(bytes_allocated, soon_object, static_cast<int>(size));
-    top_on_previous_step_ = new_top;
+    top_on_previous_step_ = top_for_next_step;
   }
 }
 
