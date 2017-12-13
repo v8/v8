@@ -104,8 +104,9 @@ class TestJob(Job):
   def run(self, context):
     start_time = time.time()
     out = self.cmd.execute()
+    duration = time.time() - start_time
     self._rename_coverage_data(out, context.sancov_dir)
-    return (self.test_id, out, time.time() - start_time)
+    return (self.test_id, out, duration)
 
 
 class Runner(object):
