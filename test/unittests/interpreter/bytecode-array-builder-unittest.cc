@@ -13,6 +13,7 @@
 #include "src/interpreter/bytecode-label.h"
 #include "src/interpreter/bytecode-register-allocator.h"
 #include "src/objects-inl.h"
+#include "test/unittests/interpreter/bytecode-utils.h"
 #include "test/unittests/test-utils.h"
 
 namespace v8 {
@@ -41,8 +42,11 @@ TEST_F(BytecodeArrayBuilderTest, AllBytecodesGenerated) {
   Register reg(0);
   Register other(reg.index() + 1);
   Register wide(128);
-  RegisterList reg_list(0, 10);
-  RegisterList empty, single(0, 1), pair(0, 2), triple(0, 3);
+  RegisterList empty;
+  RegisterList single = BytecodeUtils::NewRegisterList(0, 1);
+  RegisterList pair = BytecodeUtils::NewRegisterList(0, 2);
+  RegisterList triple = BytecodeUtils::NewRegisterList(0, 3);
+  RegisterList reg_list = BytecodeUtils::NewRegisterList(0, 10);
 
   // Emit argument creation operations.
   builder.CreateArguments(CreateArgumentsType::kMappedArguments)

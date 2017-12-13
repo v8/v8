@@ -2787,7 +2787,7 @@ void BytecodeGenerator::VisitCompoundAssignment(CompoundAssignment* expr) {
 // accumulator. When the generator is resumed, the sent value is loaded in the
 // accumulator.
 void BytecodeGenerator::BuildSuspendPoint(int suspend_id) {
-  RegisterList registers(0, register_allocator()->next_register_index());
+  RegisterList registers = register_allocator()->AllLiveRegisters();
 
   // Save context, registers, and state. Then return.
   builder()->SuspendGenerator(generator_object(), registers, suspend_id);
@@ -3421,16 +3421,15 @@ void BytecodeGenerator::VisitCall(Call* expr) {
         Register name = register_allocator()->NewRegister();
 
         // Call %LoadLookupSlotForCall to get the callee and receiver.
-        DCHECK(Register::AreContiguous(callee, receiver));
-        RegisterList result_pair(callee.index(), 2);
-        USE(receiver);
-
+        RegisterList result_pair = register_allocator()->NewRegisterList(2);
         Variable* variable = callee_expr->AsVariableProxy()->var();
         builder()
             ->LoadLiteral(variable->raw_name())
             .StoreAccumulatorInRegister(name)
             .CallRuntimeForPair(Runtime::kLoadLookupSlotForCall, name,
-                                result_pair);
+                                result_pair)
+            .MoveRegister(result_pair[0], callee)
+            .MoveRegister(result_pair[1], receiver);
       }
       break;
     }

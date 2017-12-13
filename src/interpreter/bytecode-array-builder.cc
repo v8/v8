@@ -1389,7 +1389,7 @@ BytecodeArrayBuilder& BytecodeArrayBuilder::CallRuntime(
 
 BytecodeArrayBuilder& BytecodeArrayBuilder::CallRuntime(
     Runtime::FunctionId function_id, Register arg) {
-  return CallRuntime(function_id, RegisterList(arg.index(), 1));
+  return CallRuntime(function_id, RegisterList(arg));
 }
 
 BytecodeArrayBuilder& BytecodeArrayBuilder::CallRuntime(
@@ -1411,8 +1411,7 @@ BytecodeArrayBuilder& BytecodeArrayBuilder::CallRuntimeForPair(
 
 BytecodeArrayBuilder& BytecodeArrayBuilder::CallRuntimeForPair(
     Runtime::FunctionId function_id, Register arg, RegisterList return_pair) {
-  return CallRuntimeForPair(function_id, RegisterList(arg.index(), 1),
-                            return_pair);
+  return CallRuntimeForPair(function_id, RegisterList(arg), return_pair);
 }
 
 BytecodeArrayBuilder& BytecodeArrayBuilder::CallJSRuntime(int context_index,
