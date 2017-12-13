@@ -5,9 +5,9 @@
 import os
 
 from testrunner.local import testsuite
-from testrunner.objects.testcase import TestCase
+from testrunner.objects import testcase
 
-class WasmSpecTestSuite(testsuite.TestSuite):
+class TestSuite(testsuite.TestSuite):
   def ListTests(self, context):
     tests = []
     for dirname, dirs, files in os.walk(self.root):
@@ -23,13 +23,13 @@ class WasmSpecTestSuite(testsuite.TestSuite):
     return tests
 
   def _test_class(self):
-    return WasmSpecTestCase
+    return TestCase
 
 
-class WasmSpecTestCase(TestCase):
+class TestCase(testcase.TestCase):
   def _get_files_params(self, ctx):
     return [os.path.join(self.suite.root, self.path + self._get_suffix())]
 
 
 def GetSuite(name, root):
-  return WasmSpecTestSuite(name, root)
+  return TestSuite(name, root)

@@ -6,12 +6,12 @@ import os
 import re
 
 from testrunner.local import testsuite
-from testrunner.objects.testcase import TestCase
+from testrunner.objects import testcase
 
 FILES_PATTERN = re.compile(r"//\s+Files:(.*)")
 MODULE_PATTERN = re.compile(r"^// MODULE$", flags=re.MULTILINE)
 
-class DebuggerTestSuite(testsuite.TestSuite):
+class TestSuite(testsuite.TestSuite):
   def ListTests(self, context):
     tests = []
     for dirname, dirs, files in os.walk(self.root):
@@ -29,12 +29,12 @@ class DebuggerTestSuite(testsuite.TestSuite):
     return tests
 
   def _test_class(self):
-    return DebuggerTestCase
+    return TestCase
 
 
-class DebuggerTestCase(TestCase):
+class TestCase(testcase.TestCase):
   def __init__(self, *args, **kwargs):
-    super(DebuggerTestCase, self).__init__(*args, **kwargs)
+    super(TestCase, self).__init__(*args, **kwargs)
 
     # precomputed
     self._source_files = None
@@ -46,7 +46,7 @@ class DebuggerTestCase(TestCase):
     self._source_flags = self._parse_source_flags(source)
 
   def _copy(self):
-    copy = super(DebuggerTestCase, self)._copy()
+    copy = super(TestCase, self)._copy()
     copy._source_files = self._source_files
     copy._source_flags = self._source_flags
     return copy
@@ -90,4 +90,4 @@ class DebuggerTestCase(TestCase):
 
 
 def GetSuite(name, root):
-  return DebuggerTestSuite(name, root)
+  return TestSuite(name, root)

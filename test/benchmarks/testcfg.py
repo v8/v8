@@ -31,10 +31,10 @@ import shutil
 
 from testrunner.local import statusfile
 from testrunner.local import testsuite
-from testrunner.objects.testcase import TestCase
+from testrunner.objects import testcase
 
 
-class BenchmarksVariantGenerator(testsuite.VariantGenerator):
+class VariantGenerator(testsuite.VariantGenerator):
   # Both --noopt and --stressopt are very slow. Add TF but without
   # always opt to match the way the benchmarks are run for performance
   # testing.
@@ -44,13 +44,13 @@ class BenchmarksVariantGenerator(testsuite.VariantGenerator):
       return self.standard_variant
     return self.fast_variants
 
-  def GetFlagSets(self, testcase, variant):
+  def GetFlagSets(self, test, variant):
     return testsuite.FAST_VARIANT_FLAGS[variant]
 
 
-class BenchmarksTestSuite(testsuite.TestSuite):
+class TestSuite(testsuite.TestSuite):
   def __init__(self, name, root):
-    super(BenchmarksTestSuite, self).__init__(name, root)
+    super(TestSuite, self).__init__(name, root)
     self.testroot = os.path.join(root, "data")
 
   def ListTests(self, context):
@@ -116,13 +116,13 @@ class BenchmarksTestSuite(testsuite.TestSuite):
     return tests
 
   def _test_class(self):
-    return BenchmarksTestCase
+    return TestCase
 
   def _VariantGeneratorFactory(self):
-    return BenchmarksVariantGenerator
+    return VariantGenerator
 
 
-class BenchmarksTestCase(TestCase):
+class TestCase(testcase.TestCase):
   def _get_files_params(self, ctx):
     path = self.path
     testroot = self.suite.testroot
@@ -151,4 +151,4 @@ class BenchmarksTestCase(TestCase):
 
 
 def GetSuite(name, root):
-  return BenchmarksTestSuite(name, root)
+  return TestSuite(name, root)

@@ -29,7 +29,7 @@
 import os
 
 from testrunner.local import testsuite
-from testrunner.objects.testcase import TestCase
+from testrunner.objects import testcase
 
 EXCLUDED = ["CVS", ".svn"]
 
@@ -54,9 +54,9 @@ TEST_DIRS = """
 """.split()
 
 
-class MozillaTestSuite(testsuite.TestSuite):
+class TestSuite(testsuite.TestSuite):
   def __init__(self, name, root):
-    super(MozillaTestSuite, self).__init__(name, root)
+    super(TestSuite, self).__init__(name, root)
     self.testroot = os.path.join(root, "data")
 
   def ListTests(self, context):
@@ -81,18 +81,18 @@ class MozillaTestSuite(testsuite.TestSuite):
     return tests
 
   def _test_class(self):
-    return MozillaTestCase
+    return TestCase
 
-  def IsNegativeTest(self, testcase):
-    return testcase.path.endswith("-n")
+  def IsNegativeTest(self, test):
+    return test.path.endswith("-n")
 
-  def IsFailureOutput(self, testcase):
-    if testcase.output.exit_code != 0:
+  def IsFailureOutput(self, test):
+    if test.output.exit_code != 0:
       return True
-    return "FAILED!" in testcase.output.stdout
+    return "FAILED!" in test.output.stdout
 
 
-class MozillaTestCase(TestCase):
+class TestCase(testcase.TestCase):
   def _get_files_params(self, ctx):
     files = [os.path.join(self.suite.root, "mozilla-shell-emulation.js")]
     testfilename = self.path + ".js"
@@ -115,4 +115,4 @@ class MozillaTestCase(TestCase):
 
 
 def GetSuite(name, root):
-  return MozillaTestSuite(name, root)
+  return TestSuite(name, root)

@@ -28,9 +28,9 @@
 import os
 
 from testrunner.local import testsuite
-from testrunner.objects.testcase import TestCase
+from testrunner.objects import testcase
 
-class IntlTestSuite(testsuite.TestSuite):
+class TestSuite(testsuite.TestSuite):
   def ListTests(self, context):
     tests = []
     for dirname, dirs, files in os.walk(self.root):
@@ -50,12 +50,12 @@ class IntlTestSuite(testsuite.TestSuite):
     return tests
 
   def _test_class(self):
-    return IntlTestCase
+    return TestCase
 
 
-class IntlTestCase(TestCase):
+class TestCase(testcase.TestCase):
   def __init__(self, *args, **kwargs):
-    super(IntlTestCase, self).__init__(*args, **kwargs)
+    super(TestCase, self).__init__(*args, **kwargs)
 
     # precomputed
     self._source_flags = None
@@ -64,7 +64,7 @@ class IntlTestCase(TestCase):
     self._source_flags = self._parse_source_flags()
 
   def _copy(self):
-    copy = super(IntlTestCase, self)._copy()
+    copy = super(TestCase, self)._copy()
     copy._source_flags = self._source_flags
     return copy
 
@@ -92,4 +92,4 @@ class IntlTestCase(TestCase):
 
 
 def GetSuite(name, root):
-  return IntlTestSuite(name, root)
+  return TestSuite(name, root)

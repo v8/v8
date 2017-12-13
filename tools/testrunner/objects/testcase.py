@@ -32,6 +32,8 @@ import shlex
 from ..local import command
 from ..local import utils
 
+FLAGS_PATTERN = re.compile(r"//\s+Flags:(.*)")
+
 
 class TestCase(object):
   def __init__(self, suite, path, name):
@@ -172,13 +174,9 @@ class TestCase(object):
     )
 
   def _parse_source_flags(self, source=None):
-    PATTERN = re.compile(r"//\s+Flags:(.*)")
-
-    if not source:
-      source = self.get_source()
-
+    source = source or self.get_source()
     flags = []
-    for match in re.findall(PATTERN, source):
+    for match in re.findall(FLAGS_PATTERN, source):
       flags += shlex.split(match.strip())
     return flags
 

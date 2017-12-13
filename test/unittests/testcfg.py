@@ -6,11 +6,11 @@ import os
 
 from testrunner.local import command
 from testrunner.local import utils
-from testrunner.local.testsuite import TestSuite, StandardVariantGenerator
-from testrunner.objects.testcase import TestCase
+from testrunner.local import testsuite
+from testrunner.objects import testcase
 
 
-class GoogleTestSuite(TestSuite):
+class TestSuite(testsuite.TestSuite):
   def ListTests(self, context):
     shell = os.path.abspath(os.path.join(context.shell_dir, self.name))
     if utils.IsWindows():
@@ -48,13 +48,13 @@ class GoogleTestSuite(TestSuite):
     return tests
 
   def _test_class(self):
-    return GoogleTestCase
+    return TestCase
 
   def _VariantGeneratorFactory(self):
-    return StandardVariantGenerator
+    return testsuite.StandardVariantGenerator
 
 
-class GoogleTestCase(TestCase):
+class TestCase(testcase.TestCase):
   def _get_suite_flags(self, ctx):
     return (
         ["--gtest_filter=" + self.path] +
@@ -67,4 +67,4 @@ class GoogleTestCase(TestCase):
 
 
 def GetSuite(name, root):
-  return GoogleTestSuite(name, root)
+  return TestSuite(name, root)

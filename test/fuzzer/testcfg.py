@@ -5,10 +5,10 @@
 import os
 
 from testrunner.local import testsuite
-from testrunner.objects.testcase import TestCase
+from testrunner.objects import testcase
 
 
-class FuzzerVariantGenerator(testsuite.VariantGenerator):
+class VariantGenerator(testsuite.VariantGenerator):
   # Only run the fuzzer with standard variant.
   def FilterVariantsByTest(self, test):
     return self.standard_variant
@@ -17,7 +17,7 @@ class FuzzerVariantGenerator(testsuite.VariantGenerator):
     return testsuite.FAST_VARIANT_FLAGS[variant]
 
 
-class FuzzerTestSuite(testsuite.TestSuite):
+class TestSuite(testsuite.TestSuite):
   SUB_TESTS = ( 'json', 'parser', 'regexp', 'wasm', 'wasm_async',
           'wasm_call', 'wasm_code', 'wasm_compile', 'wasm_data_section',
           'wasm_function_sigs_section', 'wasm_globals_section',
@@ -26,7 +26,7 @@ class FuzzerTestSuite(testsuite.TestSuite):
 
   def ListTests(self, context):
     tests = []
-    for subtest in FuzzerTestSuite.SUB_TESTS:
+    for subtest in TestSuite.SUB_TESTS:
       for fname in os.listdir(os.path.join(self.root, subtest)):
         if not os.path.isfile(os.path.join(self.root, subtest, fname)):
           continue
@@ -36,13 +36,13 @@ class FuzzerTestSuite(testsuite.TestSuite):
     return tests
 
   def _test_class(self):
-    return FuzzerTestCase
+    return TestCase
 
   def _VariantGeneratorFactory(self):
-    return FuzzerVariantGenerator
+    return VariantGenerator
 
 
-class FuzzerTestCase(TestCase):
+class TestCase(testcase.TestCase):
   def _get_files_params(self, ctx):
     suite, name = self.path.split('/')
     return [os.path.join(self.suite.root, suite, name)]
@@ -62,4 +62,4 @@ class FuzzerTestCase(TestCase):
 
 
 def GetSuite(name, root):
-  return FuzzerTestSuite(name, root)
+  return TestSuite(name, root)

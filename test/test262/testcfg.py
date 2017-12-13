@@ -37,7 +37,7 @@ import tarfile
 from testrunner.local import statusfile
 from testrunner.local import testsuite
 from testrunner.local import utils
-from testrunner.objects.testcase import TestCase
+from testrunner.objects import testcase
 
 # TODO(littledan): move the flag mapping into the status file
 FEATURE_FLAGS = {
@@ -102,7 +102,7 @@ FAST_VARIANTS = {
   'both': FAST_VARIANT_FLAGS_BOTH,
 }
 
-class Test262VariantGenerator(testsuite.VariantGenerator):
+class VariantGenerator(testsuite.VariantGenerator):
   def GetFlagSets(self, test, variant):
     outcomes = test.suite.GetStatusFileOutcomes(test.name, test.variant)
     if outcomes and statusfile.OnlyFastVariants(outcomes):
@@ -118,12 +118,12 @@ class Test262VariantGenerator(testsuite.VariantGenerator):
     return variant_flags["both"][variant]
 
 
-class Test262TestSuite(testsuite.TestSuite):
+class TestSuite(testsuite.TestSuite):
   # Match the (...) in '/path/to/v8/test/test262/subdir/test/(...).js'
   # In practice, subdir is data or local-tests
 
   def __init__(self, name, root):
-    super(Test262TestSuite, self).__init__(name, root)
+    super(TestSuite, self).__init__(name, root)
     self.testroot = os.path.join(self.root, *TEST_262_SUITE_PATH)
     self.harnesspath = os.path.join(self.root, *TEST_262_HARNESS_PATH)
     self.harness = [os.path.join(self.harnesspath, f)
@@ -188,29 +188,29 @@ class Test262TestSuite(testsuite.TestSuite):
                     case.test_record.get("features", []))) == 0]
 
   def _test_class(self):
-    return Test262TestCase
+    return TestCase
 
-  def IsFailureOutput(self, testcase):
-    output = testcase.output
-    test_record = testcase.test_record
+  def IsFailureOutput(self, test):
+    output = test.output
+    test_record = test.test_record
     if output.exit_code != 0:
       return True
     if ("negative" in test_record and
         "type" in test_record["negative"] and
-        self._ParseException(output.stdout, testcase) !=
+        self._ParseException(output.stdout, test) !=
             test_record["negative"]["type"]):
         return True
     return "FAILED!" in output.stdout
 
-  def _ParseException(self, str, testcase):
+  def _ParseException(self, string, test):
     # somefile:somelinenumber: someerror[: sometext]
     # somefile might include an optional drive letter on windows e.g. "e:".
     match = re.search(
-        '^(?:\w:)?[^:]*:[0-9]+: ([^: ]+?)($|: )', str, re.MULTILINE)
+        '^(?:\w:)?[^:]*:[0-9]+: ([^: ]+?)($|: )', string, re.MULTILINE)
     if match:
       return match.group(1).strip()
     else:
-      print "Error parsing exception for %s" % testcase
+      print "Error parsing exception for %s" % test
       return None
 
   def GetExpectedOutcomes(self, test):
@@ -218,15 +218,15 @@ class Test262TestSuite(testsuite.TestSuite):
     if (statusfile.FAIL_SLOPPY in outcomes and
         '--use-strict' not in test.cmd.args):
       return [statusfile.FAIL]
-    return super(Test262TestSuite, self).GetExpectedOutcomes(test)
+    return super(TestSuite, self).GetExpectedOutcomes(test)
 
   def _VariantGeneratorFactory(self):
-    return Test262VariantGenerator
+    return VariantGenerator
 
 
-class Test262TestCase(TestCase):
+class TestCase(testcase.TestCase):
   def __init__(self, *args, **kwargs):
-    super(Test262TestCase, self).__init__(*args, **kwargs)
+    super(TestCase, self).__init__(*args, **kwargs)
 
     # precomputed
     self.test_record = None
@@ -236,7 +236,7 @@ class Test262TestCase(TestCase):
     self.test_record = self.suite.parse_test_record(source, self.path)
 
   def _copy(self):
-    copy = super(Test262TestCase, self)._copy()
+    copy = super(TestCase, self)._copy()
     copy.test_record = self.test_record
     return copy
 
@@ -279,4 +279,4 @@ class Test262TestCase(TestCase):
 
 
 def GetSuite(name, root):
-  return Test262TestSuite(name, root)
+  return TestSuite(name, root)

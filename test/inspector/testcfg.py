@@ -7,16 +7,17 @@ import os
 
 from testrunner.local import testsuite
 from testrunner.local import utils
-from testrunner.objects.testcase import TestCase
+from testrunner.objects import testcase
 
 PROTOCOL_TEST_JS = "protocol-test.js"
 EXPECTED_SUFFIX = "-expected.txt"
 RESOURCES_FOLDER = "resources"
 
-class InspectorProtocolTestSuite(testsuite.TestSuite):
+class TestSuite(testsuite.TestSuite):
   def ListTests(self, context):
     tests = []
-    for dirname, dirs, files in os.walk(os.path.join(self.root), followlinks=True):
+    for dirname, dirs, files in os.walk(
+        os.path.join(self.root), followlinks=True):
       for dotted in [x for x in dirs if x.startswith('.')]:
         dirs.remove(dotted)
       if dirname.endswith(os.path.sep + RESOURCES_FOLDER):
@@ -33,11 +34,12 @@ class InspectorProtocolTestSuite(testsuite.TestSuite):
     return tests
 
   def _test_class(self):
-    return InspectorTestCase
+    return TestCase
 
   def _IgnoreLine(self, string):
     """Ignore empty lines, valgrind output and Android output."""
-    if not string: return True
+    if not string:
+      return True
     return (string.startswith("==") or string.startswith("**") or
             string.startswith("ANDROID") or
             # FIXME(machenbach): The test driver shouldn't try to use slow
@@ -45,24 +47,26 @@ class InspectorProtocolTestSuite(testsuite.TestSuite):
             string == "Warning: unknown flag --enable-slow-asserts." or
             string == "Try --help for options")
 
-  def IsFailureOutput(self, testcase):
-    file_name = os.path.join(self.root, testcase.path) + EXPECTED_SUFFIX
+  def IsFailureOutput(self, test):
+    file_name = os.path.join(self.root, test.path) + EXPECTED_SUFFIX
     with file(file_name, "r") as expected:
       expected_lines = expected.readlines()
 
     def ExpIterator():
       for line in expected_lines:
-        if not line.strip(): continue
+        if not line.strip():
+          continue
         yield line.strip()
 
     def ActIterator(lines):
       for line in lines:
-        if self._IgnoreLine(line.strip()): continue
+        if self._IgnoreLine(line.strip()):
+          continue
         yield line.strip()
 
     def ActBlockIterator():
       """Iterates over blocks of actual output lines."""
-      lines = testcase.output.stdout.splitlines()
+      lines = test.output.stdout.splitlines()
       start_index = 0
       found_eqeq = False
       for index, line in enumerate(lines):
@@ -87,9 +91,9 @@ class InspectorProtocolTestSuite(testsuite.TestSuite):
       return False
 
 
-class InspectorTestCase(TestCase):
+class TestCase(testcase.TestCase):
   def __init__(self, *args, **kwargs):
-    super(InspectorTestCase, self).__init__(*args, **kwargs)
+    super(TestCase, self).__init__(*args, **kwargs)
 
     # precomputed
     self._source_flags = None
@@ -98,7 +102,7 @@ class InspectorTestCase(TestCase):
     self._source_flags = self._parse_source_flags()
 
   def _copy(self):
-    copy = super(InspectorTestCase, self)._copy()
+    copy = super(TestCase, self)._copy()
     copy._source_flags = self._source_flags
     return copy
 
@@ -119,4 +123,4 @@ class InspectorTestCase(TestCase):
 
 
 def GetSuite(name, root):
-  return InspectorProtocolTestSuite(name, root)
+  return TestSuite(name, root)

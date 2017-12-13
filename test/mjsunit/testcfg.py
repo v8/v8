@@ -29,7 +29,7 @@ import os
 import re
 
 from testrunner.local import testsuite
-from testrunner.objects.testcase import TestCase
+from testrunner.objects import testcase
 
 FILES_PATTERN = re.compile(r"//\s+Files:(.*)")
 ENV_PATTERN = re.compile(r"//\s+Environment Variables:(.*)")
@@ -38,7 +38,7 @@ MODULE_PATTERN = re.compile(r"^// MODULE$", flags=re.MULTILINE)
 NO_HARNESS_PATTERN = re.compile(r"^// NO HARNESS$", flags=re.MULTILINE)
 
 
-class MjsunitTestSuite(testsuite.TestSuite):
+class TestSuite(testsuite.TestSuite):
   def ListTests(self, context):
     tests = []
     for dirname, dirs, files in os.walk(self.root, followlinks=True):
@@ -56,12 +56,12 @@ class MjsunitTestSuite(testsuite.TestSuite):
     return tests
 
   def _test_class(self):
-    return MjsunitTestCase
+    return TestCase
 
 
-class MjsunitTestCase(TestCase):
+class TestCase(testcase.TestCase):
   def __init__(self, *args, **kwargs):
-    super(MjsunitTestCase, self).__init__(*args, **kwargs)
+    super(TestCase, self).__init__(*args, **kwargs)
 
     # precomputed
     self._source_files = None
@@ -107,7 +107,7 @@ class MjsunitTestCase(TestCase):
     self._env = self._parse_source_env(source)
 
   def _copy(self):
-    copy = super(MjsunitTestCase, self)._copy()
+    copy = super(TestCase, self)._copy()
     copy._source_files = self._source_files
     copy._source_flags = self._source_flags
     copy._mjsunit_files = self._mjsunit_files
@@ -145,4 +145,4 @@ class MjsunitTestCase(TestCase):
 
 
 def GetSuite(name, root):
-  return MjsunitTestSuite(name, root)
+  return TestSuite(name, root)

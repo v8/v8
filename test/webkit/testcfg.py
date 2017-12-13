@@ -30,14 +30,14 @@ import os
 import re
 
 from testrunner.local import testsuite
-from testrunner.objects.testcase import TestCase
+from testrunner.objects import testcase
 
 FILES_PATTERN = re.compile(r"//\s+Files:(.*)")
 SELF_SCRIPT_PATTERN = re.compile(r"//\s+Env: TEST_FILE_NAME")
 
 
 # TODO (machenbach): Share commonalities with mjstest.
-class WebkitTestSuite(testsuite.TestSuite):
+class TestSuite(testsuite.TestSuite):
   def ListTests(self, context):
     tests = []
     for dirname, dirs, files in os.walk(self.root):
@@ -58,13 +58,14 @@ class WebkitTestSuite(testsuite.TestSuite):
     return tests
 
   def _test_class(self):
-    return WebkitTestCase
+    return TestCase
 
   # TODO(machenbach): Share with test/message/testcfg.py
   def _IgnoreLine(self, string):
     """Ignore empty lines, valgrind output, Android output and trace
     incremental marking output."""
-    if not string: return True
+    if not string:
+      return True
     return (string.startswith("==") or string.startswith("**") or
             string.startswith("ANDROID") or "[IncrementalMarking]" in string or
             # FIXME(machenbach): The test driver shouldn't try to use slow
@@ -72,26 +73,28 @@ class WebkitTestSuite(testsuite.TestSuite):
             string == "Warning: unknown flag --enable-slow-asserts." or
             string == "Try --help for options")
 
-  def IsFailureOutput(self, testcase):
-    if super(WebkitTestSuite, self).IsFailureOutput(testcase):
+  def IsFailureOutput(self, test):
+    if super(TestSuite, self).IsFailureOutput(test):
       return True
-    file_name = os.path.join(self.root, testcase.path) + "-expected.txt"
+    file_name = os.path.join(self.root, test.path) + "-expected.txt"
     with file(file_name, "r") as expected:
       expected_lines = expected.readlines()
 
     def ExpIterator():
       for line in expected_lines:
-        if line.startswith("#") or not line.strip(): continue
+        if line.startswith("#") or not line.strip():
+          continue
         yield line.strip()
 
     def ActIterator(lines):
       for line in lines:
-        if self._IgnoreLine(line.strip()): continue
+        if self._IgnoreLine(line.strip()):
+          continue
         yield line.strip()
 
     def ActBlockIterator():
       """Iterates over blocks of actual output lines."""
-      lines = testcase.output.stdout.splitlines()
+      lines = test.output.stdout.splitlines()
       start_index = 0
       found_eqeq = False
       for index, line in enumerate(lines):
@@ -116,9 +119,9 @@ class WebkitTestSuite(testsuite.TestSuite):
       return False
 
 
-class WebkitTestCase(TestCase):
+class TestCase(testcase.TestCase):
   def __init__(self, *args, **kwargs):
-    super(WebkitTestCase, self).__init__(*args, **kwargs)
+    super(TestCase, self).__init__(*args, **kwargs)
 
     # precomputed
     self._source_files = None
@@ -130,7 +133,7 @@ class WebkitTestCase(TestCase):
     self._source_flags = self._parse_source_flags(source)
 
   def _copy(self):
-    copy = super(WebkitTestCase, self)._copy()
+    copy = super(TestCase, self)._copy()
     copy._source_files = self._source_files
     copy._source_flags = self._source_flags
     return copy
@@ -170,4 +173,4 @@ class WebkitTestCase(TestCase):
 
 
 def GetSuite(name, root):
-  return WebkitTestSuite(name, root)
+  return TestSuite(name, root)

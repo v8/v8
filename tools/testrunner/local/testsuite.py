@@ -90,9 +90,6 @@ class TestSuite(object):
 
     self._outcomes_cache = dict()
 
-  def suffix(self):
-    return ".js"
-
   def status_file(self):
     return "%s/%s.status" % (self.root, self.name)
 
@@ -310,17 +307,6 @@ class TestSuite(object):
   def HasUnexpectedOutput(self, testcase, ctx=None):
     return (self.GetOutcome(testcase, ctx)
             not in self.GetExpectedOutcomes(testcase))
-
-  def StripOutputForTransmit(self, testcase):
-    if not self.HasUnexpectedOutput(testcase):
-      testcase.output.stdout = ""
-      testcase.output.stderr = ""
-
-  def CalculateTotalDuration(self):
-    self.total_duration = 0.0
-    for t in self.tests:
-      self.total_duration += t.duration
-    return self.total_duration
 
   def _create_test(self, path, **kwargs):
     test = self._test_class()(self, path, self._path_to_name(path), **kwargs)

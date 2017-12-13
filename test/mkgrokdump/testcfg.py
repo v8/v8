@@ -6,21 +6,21 @@ import os
 import difflib
 
 from testrunner.local import testsuite
-from testrunner.objects.testcase import TestCase
+from testrunner.objects import testcase
 
 
 SHELL = 'mkgrokdump'
 
-class MkGrokdump(testsuite.TestSuite):
+class TestSuite(testsuite.TestSuite):
   def ListTests(self, context):
     test = self._create_test(SHELL)
     return [test]
 
   def _test_class(self):
-    return MkGrokTestCase
+    return TestCase
 
-  def IsFailureOutput(self, testcase):
-    output = testcase.output
+  def IsFailureOutput(self, test):
+    output = test.output
     v8_path = os.path.dirname(os.path.dirname(os.path.abspath(self.root)))
     expected_path = os.path.join(v8_path, "tools", "v8heapconst.py")
     with open(expected_path) as f:
@@ -41,7 +41,7 @@ class MkGrokdump(testsuite.TestSuite):
     return False
 
 
-class MkGrokTestCase(TestCase):
+class TestCase(testcase.TestCase):
   def _get_variant_flags(self):
     return []
 
@@ -56,4 +56,4 @@ class MkGrokTestCase(TestCase):
 
 
 def GetSuite(name, root):
-  return MkGrokdump(name, root)
+  return TestSuite(name, root)

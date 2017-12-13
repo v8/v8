@@ -31,12 +31,12 @@ import shutil
 from testrunner.local import command
 from testrunner.local import testsuite
 from testrunner.local import utils
-from testrunner.objects.testcase import TestCase
+from testrunner.objects import testcase
 
 SHELL = 'cctest'
 
 
-class CcTestSuite(testsuite.TestSuite):
+class TestSuite(testsuite.TestSuite):
   def ListTests(self, context):
     shell = os.path.abspath(os.path.join(context.shell_dir, SHELL))
     if utils.IsWindows():
@@ -56,10 +56,10 @@ class CcTestSuite(testsuite.TestSuite):
     return tests
 
   def _test_class(self):
-    return CcTestCase
+    return TestCase
 
 
-class CcTestCase(TestCase):
+class TestCase(testcase.TestCase):
   def _get_shell(self):
     return SHELL
 
@@ -68,4 +68,4 @@ class CcTestCase(TestCase):
 
 
 def GetSuite(name, root):
-  return CcTestSuite(name, root)
+  return TestSuite(name, root)

@@ -29,10 +29,10 @@
 import os
 
 from testrunner.local import testsuite
-from testrunner.objects.testcase import TestCase
+from testrunner.objects import testcase
 
 
-class PreparserTestSuite(testsuite.TestSuite):
+class TestSuite(testsuite.TestSuite):
   def _ParsePythonTestTemplates(self, result, filename):
     pathname = os.path.join(self.root, filename + ".pyt")
     def Test(name, source, expectation):
@@ -66,19 +66,19 @@ class PreparserTestSuite(testsuite.TestSuite):
     return result
 
   def _create_test(self, path, source, template_flags):
-    return super(PreparserTestSuite, self)._create_test(
+    return super(TestSuite, self)._create_test(
         path, source=source, template_flags=template_flags)
 
   def _test_class(self):
-    return PreparserTestCase
+    return TestCase
 
   def _VariantGeneratorFactory(self):
     return testsuite.StandardVariantGenerator
 
 
-class PreparserTestCase(TestCase):
+class TestCase(testcase.TestCase):
   def __init__(self, suite, path, name, source, template_flags):
-    super(PreparserTestCase, self).__init__(suite, path, name)
+    super(TestCase, self).__init__(suite, path, name)
     self._source = source
     self._template_flags = template_flags
 
@@ -109,4 +109,4 @@ class PreparserTestCase(TestCase):
 
 
 def GetSuite(name, root):
-  return PreparserTestSuite(name, root)
+  return TestSuite(name, root)

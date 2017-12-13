@@ -31,14 +31,14 @@ import re
 
 from testrunner.local import testsuite
 from testrunner.local import utils
-from testrunner.objects.testcase import TestCase
+from testrunner.objects import testcase
 
 
 INVALID_FLAGS = ["--enable-slow-asserts"]
 MODULE_PATTERN = re.compile(r"^// MODULE$", flags=re.MULTILINE)
 
 
-class MessageTestSuite(testsuite.TestSuite):
+class TestSuite(testsuite.TestSuite):
   def ListTests(self, context):
     tests = []
     for dirname, dirs, files in os.walk(self.root):
@@ -56,21 +56,24 @@ class MessageTestSuite(testsuite.TestSuite):
     return tests
 
   def _test_class(self):
-    return MessageTestCase
+    return TestCase
 
   def CreateVariantGenerator(self, variants):
-    return super(MessageTestSuite, self).CreateVariantGenerator(
+    return super(TestSuite, self).CreateVariantGenerator(
         variants + ["preparser"])
 
   def _IgnoreLine(self, string):
     """Ignore empty lines, valgrind output, Android output."""
-    if not string: return True
-    if not string.strip(): return True
-    return (string.startswith("==") or string.startswith("**") or
-            string.startswith("ANDROID"))
+    return (
+      not string or
+      not string.strip() or
+      string.startswith("==") or
+      string.startswith("**") or
+      string.startswith("ANDROID")
+    )
 
-  def _GetExpectedFail(self, testcase):
-    path = testcase.path
+  def _GetExpectedFail(self, test):
+    path = test.path
     while path:
       (head, tail) = os.path.split(path)
       if tail == "fail":
@@ -78,11 +81,11 @@ class MessageTestSuite(testsuite.TestSuite):
       path = head
     return False
 
-  def IsFailureOutput(self, testcase):
-    output = testcase.output
-    testpath = testcase.path
-    expected_fail = self._GetExpectedFail(testcase)
-    fail = testcase.output.exit_code != 0
+  def IsFailureOutput(self, test):
+    output = test.output
+    testpath = test.path
+    expected_fail = self._GetExpectedFail(test)
+    fail = test.output.exit_code != 0
     if expected_fail != fail:
       return True
     expected_path = os.path.join(self.root, testpath + ".out")
@@ -90,7 +93,8 @@ class MessageTestSuite(testsuite.TestSuite):
     # Can't use utils.ReadLinesFrom() here because it strips whitespace.
     with open(expected_path) as f:
       for line in f:
-        if line.startswith("#") or not line.strip(): continue
+        if line.startswith("#") or not line.strip():
+          continue
         expected_lines.append(line)
     raw_lines = output.stdout.splitlines()
     actual_lines = [ s for s in raw_lines if not self._IgnoreLine(s) ]
@@ -107,13 +111,10 @@ class MessageTestSuite(testsuite.TestSuite):
         return True
     return False
 
-  def StripOutputForTransmit(self, testcase):
-    pass
 
-
-class MessageTestCase(TestCase):
+class TestCase(testcase.TestCase):
   def __init__(self, *args, **kwargs):
-    super(MessageTestCase, self).__init__(*args, **kwargs)
+    super(TestCase, self).__init__(*args, **kwargs)
 
     # precomputed
     self._source_files = None
@@ -125,7 +126,7 @@ class MessageTestCase(TestCase):
     self._source_flags = self._parse_source_flags(source)
 
   def _copy(self):
-    copy = super(MessageTestCase, self)._copy()
+    copy = super(TestCase, self)._copy()
     copy._source_files = self._source_files
     copy._source_flags = self._source_flags
     return copy
@@ -138,7 +139,7 @@ class MessageTestCase(TestCase):
     return files
 
   def _get_cmd_params(self, ctx):
-    params = super(MessageTestCase, self)._get_cmd_params(ctx)
+    params = super(TestCase, self)._get_cmd_params(ctx)
     return [p for p in params if p not in INVALID_FLAGS]
 
   def _get_files_params(self, ctx):
@@ -151,4 +152,4 @@ class MessageTestCase(TestCase):
     return os.path.join(self.suite.root, self.path + self._get_suffix())
 
 def GetSuite(name, root):
-  return MessageTestSuite(name, root)
+  return TestSuite(name, root)
