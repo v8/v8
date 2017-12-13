@@ -795,11 +795,15 @@ Reduction JSCallReducer::ReduceArrayForEach(Handle<JSFunction> function,
                                             Node* node) {
   if (!FLAG_turbo_inline_array_builtins) return NoChange();
   DCHECK_EQ(IrOpcode::kJSCall, node->opcode());
+  CallParameters const& p = CallParametersOf(node->op());
+  if (p.speculation_mode() == SpeculationMode::kDisallowSpeculation) {
+    return NoChange();
+  }
+
   Node* outer_frame_state = NodeProperties::GetFrameStateInput(node);
   Node* effect = NodeProperties::GetEffectInput(node);
   Node* control = NodeProperties::GetControlInput(node);
   Node* context = NodeProperties::GetContextInput(node);
-  CallParameters const& p = CallParametersOf(node->op());
 
   // Try to determine the {receiver} map.
   Node* receiver = NodeProperties::GetValueInput(node, 1);
@@ -893,9 +897,10 @@ Reduction JSCallReducer::ReduceArrayForEach(Handle<JSFunction> function,
       graph()->NewNode(common()->Checkpoint(), frame_state, effect, control);
 
   // Make sure the map hasn't changed during the iteration
-  effect = graph()->NewNode(
-      simplified()->CheckMaps(CheckMapsFlag::kNone, receiver_maps), receiver,
-      effect, control);
+  effect =
+      graph()->NewNode(simplified()->CheckMaps(CheckMapsFlag::kNone,
+                                               receiver_maps, p.feedback()),
+                       receiver, effect, control);
 
   Node* element = SafeLoadElement(kind, receiver, control, &effect, &k);
 
@@ -977,11 +982,15 @@ Reduction JSCallReducer::ReduceArrayMap(Handle<JSFunction> function,
                                         Node* node) {
   if (!FLAG_turbo_inline_array_builtins) return NoChange();
   DCHECK_EQ(IrOpcode::kJSCall, node->opcode());
+  CallParameters const& p = CallParametersOf(node->op());
+  if (p.speculation_mode() == SpeculationMode::kDisallowSpeculation) {
+    return NoChange();
+  }
+
   Node* outer_frame_state = NodeProperties::GetFrameStateInput(node);
   Node* effect = NodeProperties::GetEffectInput(node);
   Node* control = NodeProperties::GetControlInput(node);
   Node* context = NodeProperties::GetContextInput(node);
-  CallParameters const& p = CallParametersOf(node->op());
 
   // Try to determine the {receiver} map.
   Node* receiver = NodeProperties::GetValueInput(node, 1);
@@ -1095,9 +1104,10 @@ Reduction JSCallReducer::ReduceArrayMap(Handle<JSFunction> function,
       graph()->NewNode(common()->Checkpoint(), frame_state, effect, control);
 
   // Make sure the map hasn't changed during the iteration
-  effect = graph()->NewNode(
-      simplified()->CheckMaps(CheckMapsFlag::kNone, receiver_maps), receiver,
-      effect, control);
+  effect =
+      graph()->NewNode(simplified()->CheckMaps(CheckMapsFlag::kNone,
+                                               receiver_maps, p.feedback()),
+                       receiver, effect, control);
 
   Node* element = SafeLoadElement(kind, receiver, control, &effect, &k);
 
@@ -1155,11 +1165,15 @@ Reduction JSCallReducer::ReduceArrayFilter(Handle<JSFunction> function,
                                            Node* node) {
   if (!FLAG_turbo_inline_array_builtins) return NoChange();
   DCHECK_EQ(IrOpcode::kJSCall, node->opcode());
+  CallParameters const& p = CallParametersOf(node->op());
+  if (p.speculation_mode() == SpeculationMode::kDisallowSpeculation) {
+    return NoChange();
+  }
+
   Node* outer_frame_state = NodeProperties::GetFrameStateInput(node);
   Node* effect = NodeProperties::GetEffectInput(node);
   Node* control = NodeProperties::GetControlInput(node);
   Node* context = NodeProperties::GetContextInput(node);
-  CallParameters const& p = CallParametersOf(node->op());
   // Try to determine the {receiver} map.
   Node* receiver = NodeProperties::GetValueInput(node, 1);
   Node* fncallback = node->op()->ValueInputCount() > 2
@@ -1292,9 +1306,10 @@ Reduction JSCallReducer::ReduceArrayFilter(Handle<JSFunction> function,
   }
 
   // Make sure the map hasn't changed during the iteration.
-  effect = graph()->NewNode(
-      simplified()->CheckMaps(CheckMapsFlag::kNone, receiver_maps), receiver,
-      effect, control);
+  effect =
+      graph()->NewNode(simplified()->CheckMaps(CheckMapsFlag::kNone,
+                                               receiver_maps, p.feedback()),
+                       receiver, effect, control);
 
   Node* element = SafeLoadElement(kind, receiver, control, &effect, &k);
 
@@ -1378,11 +1393,15 @@ Reduction JSCallReducer::ReduceArrayFind(Handle<JSFunction> function,
                                          Node* node) {
   if (!FLAG_turbo_inline_array_builtins) return NoChange();
   DCHECK_EQ(IrOpcode::kJSCall, node->opcode());
+  CallParameters const& p = CallParametersOf(node->op());
+  if (p.speculation_mode() == SpeculationMode::kDisallowSpeculation) {
+    return NoChange();
+  }
+
   Node* outer_frame_state = NodeProperties::GetFrameStateInput(node);
   Node* effect = NodeProperties::GetEffectInput(node);
   Node* control = NodeProperties::GetControlInput(node);
   Node* context = NodeProperties::GetContextInput(node);
-  CallParameters const& p = CallParametersOf(node->op());
 
   // Try to determine the {receiver} map.
   Node* receiver = NodeProperties::GetValueInput(node, 1);
@@ -1471,9 +1490,10 @@ Reduction JSCallReducer::ReduceArrayFind(Handle<JSFunction> function,
     effect =
         graph()->NewNode(common()->Checkpoint(), frame_state, effect, control);
 
-    effect = graph()->NewNode(
-        simplified()->CheckMaps(CheckMapsFlag::kNone, receiver_maps), receiver,
-        effect, control);
+    effect =
+        graph()->NewNode(simplified()->CheckMaps(CheckMapsFlag::kNone,
+                                                 receiver_maps, p.feedback()),
+                         receiver, effect, control);
   }
 
   // Increment k for the next iteration.
