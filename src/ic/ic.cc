@@ -255,7 +255,7 @@ bool IC::ShouldRecomputeHandler(Handle<String> name) {
 
   // This is a contextual access, always just update the handler and stay
   // monomorphic.
-  if (IsLoadGlobalIC()) return true;
+  if (IsGlobalIC()) return true;
 
   // The current map wasn't handled yet. There's no reason to stay monomorphic,
   // *unless* we're moving from a deprecated map to its replacement, or
@@ -395,6 +395,11 @@ void IC::ConfigureVectorState(Handle<Name> name, Handle<Map> map,
   if (IsLoadGlobalIC()) {
     LoadGlobalICNexus* nexus = casted_nexus<LoadGlobalICNexus>();
     nexus->ConfigureHandlerMode(handler);
+
+  } else if (IsStoreGlobalIC()) {
+    StoreGlobalICNexus* nexus = casted_nexus<StoreGlobalICNexus>();
+    nexus->ConfigureHandlerMode(handler);
+
   } else {
     // Non-keyed ICs don't track the name explicitly.
     if (!is_keyed()) name = Handle<Name>::null();
@@ -408,7 +413,7 @@ void IC::ConfigureVectorState(Handle<Name> name, Handle<Map> map,
 
 void IC::ConfigureVectorState(Handle<Name> name, MapHandles const& maps,
                               ObjectHandles* handlers) {
-  DCHECK(!IsLoadGlobalIC());
+  DCHECK(!IsGlobalIC());
   // Non-keyed ICs don't track the name explicitly.
   if (!is_keyed()) name = Handle<Name>::null();
   nexus()->ConfigurePolymorphic(name, maps, handlers);
@@ -623,7 +628,7 @@ void IC::PatchCache(Handle<Name> name, Handle<Object> handler) {
       break;
     case RECOMPUTE_HANDLER:
     case MONOMORPHIC:
-      if (IsLoadGlobalIC()) {
+      if (IsGlobalIC()) {
         UpdateMonomorphicIC(handler, name);
         break;
       }
@@ -1285,15 +1290,13 @@ bool StoreIC::LookupForWrite(LookupIterator* it, Handle<Object> value,
   return it->IsCacheableTransition();
 }
 
-MaybeHandle<Object> StoreGlobalIC::Store(Handle<Object> object,
-                                         Handle<Name> name,
+MaybeHandle<Object> StoreGlobalIC::Store(Handle<Name> name,
                                          Handle<Object> value) {
-  DCHECK(object->IsJSGlobalObject());
   DCHECK(name->IsString());
 
   // Look up in script context table.
   Handle<String> str_name = Handle<String>::cast(name);
-  Handle<JSGlobalObject> global = Handle<JSGlobalObject>::cast(object);
+  Handle<JSGlobalObject> global = isolate()->global_object();
   Handle<ScriptContextTable> script_contexts(
       global->native_context()->script_context_table());
 
@@ -1302,7 +1305,7 @@ MaybeHandle<Object> StoreGlobalIC::Store(Handle<Object> object,
     Handle<Context> script_context = ScriptContextTable::GetContext(
         script_contexts, lookup_result.context_index);
     if (lookup_result.mode == CONST) {
-      return TypeError(MessageTemplate::kConstAssign, object, name);
+      return TypeError(MessageTemplate::kConstAssign, global, name);
     }
 
     Handle<Object> previous_value =
@@ -1324,7 +1327,7 @@ MaybeHandle<Object> StoreGlobalIC::Store(Handle<Object> object,
     return value;
   }
 
-  return StoreIC::Store(object, name, value);
+  return StoreIC::Store(global, name, value);
 }
 
 MaybeHandle<Object> StoreIC::Store(Handle<Object> object, Handle<Name> name,
@@ -1379,7 +1382,7 @@ MaybeHandle<Object> StoreIC::Store(Handle<Object> object, Handle<Name> name,
 void StoreIC::UpdateCaches(LookupIterator* lookup, Handle<Object> value,
                            JSReceiver::StoreFromKeyed store_mode,
                            MaybeHandle<Object> cached_handler) {
-  if (state() == UNINITIALIZED) {
+  if (state() == UNINITIALIZED && !IsStoreGlobalIC()) {
     // This is the first time we execute this inline cache. Set the target to
     // the pre monomorphic stub to delay setting the monomorphic state.
     TRACE_HANDLER_STATS(isolate(), StoreIC_Premonomorphic);
@@ -1392,6 +1395,17 @@ void StoreIC::UpdateCaches(LookupIterator* lookup, Handle<Object> value,
   if (!cached_handler.is_null()) {
     handler = cached_handler.ToHandleChecked();
   } else if (LookupForWrite(lookup, value, store_mode)) {
+    if (IsStoreGlobalIC()) {
+      if (lookup->state() == LookupIterator::DATA &&
+          lookup->GetReceiver().is_identical_to(lookup->GetHolder<Object>())) {
+        DCHECK(lookup->GetReceiver()->IsJSGlobalObject());
+        // Now update the cell in the feedback vector.
+        StoreGlobalICNexus* nexus = casted_nexus<StoreGlobalICNexus>();
+        nexus->ConfigurePropertyCellMode(lookup->GetPropertyCell());
+        TRACE_IC("StoreGlobalIC", lookup->name());
+        return;
+      }
+    }
     if (created_new_transition_) {
       // The first time a transition is performed, there's a good chance that
       // it won't be taken again, so don't bother creating a handler.
@@ -2170,10 +2184,12 @@ RUNTIME_FUNCTION(Runtime_StoreIC_Miss) {
     ic.UpdateState(receiver, key);
     RETURN_RESULT_OR_FAILURE(isolate, ic.Store(receiver, key, value));
   } else if (IsStoreGlobalICKind(kind)) {
-    StoreICNexus nexus(vector, vector_slot);
+    DCHECK_EQ(isolate->native_context()->global_proxy(), *receiver);
+    receiver = isolate->global_object();
+    StoreGlobalICNexus nexus(vector, vector_slot);
     StoreGlobalIC ic(isolate, &nexus);
     ic.UpdateState(receiver, key);
-    RETURN_RESULT_OR_FAILURE(isolate, ic.Store(receiver, key, value));
+    RETURN_RESULT_OR_FAILURE(isolate, ic.Store(key, value));
   } else {
     DCHECK(IsKeyedStoreICKind(kind));
     KeyedStoreICNexus nexus(vector, vector_slot);
@@ -2183,6 +2199,22 @@ RUNTIME_FUNCTION(Runtime_StoreIC_Miss) {
   }
 }
 
+RUNTIME_FUNCTION(Runtime_StoreGlobalIC_Miss) {
+  HandleScope scope(isolate);
+  DCHECK_EQ(4, args.length());
+  // Runtime functions don't follow the IC's calling convention.
+  Handle<Object> value = args.at(0);
+  Handle<Smi> slot = args.at<Smi>(1);
+  Handle<FeedbackVector> vector = args.at<FeedbackVector>(2);
+  Handle<Name> key = args.at<Name>(3);
+  FeedbackSlot vector_slot = vector->ToSlot(slot->value());
+  StoreGlobalICNexus nexus(vector, vector_slot);
+  StoreGlobalIC ic(isolate, &nexus);
+  Handle<JSGlobalObject> global = isolate->global_object();
+  ic.UpdateState(global, key);
+  RETURN_RESULT_OR_FAILURE(isolate, ic.Store(key, value));
+}
+
 RUNTIME_FUNCTION(Runtime_StoreGlobalIC_Slow) {
   HandleScope scope(isolate);
   DCHECK_EQ(5, args.length());
@@ -2190,9 +2222,19 @@ RUNTIME_FUNCTION(Runtime_StoreGlobalIC_Slow) {
   Handle<Object> value = args.at(0);
   Handle<Smi> slot = args.at<Smi>(1);
   Handle<FeedbackVector> vector = args.at<FeedbackVector>(2);
-  Handle<Object> object = args.at(3);
   CONVERT_ARG_HANDLE_CHECKED(String, name, 4);
 
+#ifdef DEBUG
+  {
+    FeedbackSlot vector_slot = vector->ToSlot(slot->value());
+    FeedbackSlotKind slot_kind = vector->GetKind(vector_slot);
+    DCHECK(IsStoreGlobalICKind(slot_kind));
+    Handle<Object> receiver = args.at(3);
+    DCHECK(receiver->IsJSGlobalProxy());
+  }
+#endif
+
+  Handle<JSGlobalObject> global = isolate->global_object();
   Handle<Context> native_context = isolate->native_context();
   Handle<ScriptContextTable> script_contexts(
       native_context->script_context_table());
@@ -2203,7 +2245,7 @@ RUNTIME_FUNCTION(Runtime_StoreGlobalIC_Slow) {
         script_contexts, lookup_result.context_index);
     if (lookup_result.mode == CONST) {
       THROW_NEW_ERROR_RETURN_FAILURE(
-          isolate, NewTypeError(MessageTemplate::kConstAssign, object, name));
+          isolate, NewTypeError(MessageTemplate::kConstAssign, global, name));
     }
 
     Handle<Object> previous_value =
@@ -2222,7 +2264,7 @@ RUNTIME_FUNCTION(Runtime_StoreGlobalIC_Slow) {
   LanguageMode language_mode = vector->GetLanguageMode(vector_slot);
   RETURN_RESULT_OR_FAILURE(
       isolate,
-      Runtime::SetObjectProperty(isolate, object, name, value, language_mode));
+      Runtime::SetObjectProperty(isolate, global, name, value, language_mode));
 }
 
 // Used from ic-<arch>.cc.
@@ -2387,8 +2429,19 @@ RUNTIME_FUNCTION(Runtime_StorePropertyWithInterceptor) {
   FeedbackSlot vector_slot = vector->ToSlot(slot->value());
   LanguageMode language_mode = vector->GetLanguageMode(vector_slot);
 
-  DCHECK(receiver->HasNamedInterceptor());
-  Handle<InterceptorInfo> interceptor(receiver->GetNamedInterceptor(), isolate);
+  // TODO(ishell): Cache interceptor_holder in the store handler like we do
+  // for LoadHandler::kInterceptor case.
+  Handle<JSObject> interceptor_holder = receiver;
+  if (receiver->IsJSGlobalProxy()) {
+    FeedbackSlotKind kind = vector->GetKind(vector_slot);
+    if (IsStoreGlobalICKind(kind)) {
+      interceptor_holder = Handle<JSObject>::cast(isolate->global_object());
+    }
+  }
+  DCHECK(interceptor_holder->HasNamedInterceptor());
+  Handle<InterceptorInfo> interceptor(interceptor_holder->GetNamedInterceptor(),
+                                      isolate);
+
   DCHECK(!interceptor->non_masking());
   PropertyCallbackArguments arguments(isolate, interceptor->data(), *receiver,
                                       *receiver, kDontThrow);

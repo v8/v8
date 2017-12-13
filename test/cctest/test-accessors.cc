@@ -647,10 +647,32 @@ THREADED_TEST(GlobalObjectAccessor) {
       "    set : function() { set_value = this; }"
       "});"
       "function getter() { return x; }"
-      "function setter() { x = 1; }"
-      "for (var i = 0; i < 4; i++) { getter(); setter(); }");
-  CHECK(v8::Utils::OpenHandle(*CompileRun("getter()"))->IsJSGlobalProxy());
-  CHECK(v8::Utils::OpenHandle(*CompileRun("set_value"))->IsJSGlobalProxy());
+      "function setter() { x = 1; }");
+
+  Local<Script> check_getter = v8_compile("getter()");
+  Local<Script> check_setter = v8_compile("setter(); set_value");
+
+  // Ensure that LoadGlobalICs in getter and StoreGlobalICs setter get
+  // JSGlobalProxy as a receiver regardless of the current IC state and
+  // the order in which ICs are executed.
+  for (int i = 0; i < 10; i++) {
+    CHECK(
+        v8::Utils::OpenHandle(*check_getter->Run(env.local()).ToLocalChecked())
+            ->IsJSGlobalProxy());
+  }
+  for (int i = 0; i < 10; i++) {
+    CHECK(
+        v8::Utils::OpenHandle(*check_setter->Run(env.local()).ToLocalChecked())
+            ->IsJSGlobalProxy());
+  }
+  for (int i = 0; i < 10; i++) {
+    CHECK(
+        v8::Utils::OpenHandle(*check_getter->Run(env.local()).ToLocalChecked())
+            ->IsJSGlobalProxy());
+    CHECK(
+        v8::Utils::OpenHandle(*check_setter->Run(env.local()).ToLocalChecked())
+            ->IsJSGlobalProxy());
+  }
 }
 
 

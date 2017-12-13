@@ -572,6 +572,8 @@ namespace internal {
   TFH(LoadICTrampoline, Load)                                                  \
   TFH(KeyedLoadIC, LoadWithVector)                                             \
   TFH(KeyedLoadICTrampoline, Load)                                             \
+  TFH(StoreGlobalIC, StoreGlobalWithVector)                                    \
+  TFH(StoreGlobalICTrampoline, StoreGlobal)                                    \
   TFH(StoreIC, StoreWithVector)                                                \
   TFH(StoreICTrampoline, Store)                                                \
   TFH(KeyedStoreIC, StoreWithVector)                                           \

@@ -29,6 +29,8 @@ class PlatformInterfaceDescriptor;
   V(StoreWithVector)                  \
   V(StoreNamedTransition)             \
   V(StoreTransition)                  \
+  V(StoreGlobal)                      \
+  V(StoreGlobalWithVector)            \
   V(FastNewClosure)                   \
   V(FastNewFunctionContext)           \
   V(FastNewObject)                    \
@@ -450,6 +452,44 @@ class StoreWithVectorDescriptor : public StoreDescriptor {
                                                StoreDescriptor)
 
   static const Register VectorRegister();
+
+  // Pass value, slot and vector through the stack.
+  static const int kStackArgumentsCount = kPassLastArgsOnStack ? 3 : 0;
+};
+
+class StoreGlobalDescriptor : public CallInterfaceDescriptor {
+ public:
+  DEFINE_PARAMETERS(kName, kValue, kSlot)
+  DECLARE_DESCRIPTOR_WITH_CUSTOM_FUNCTION_TYPE(StoreGlobalDescriptor,
+                                               CallInterfaceDescriptor)
+
+  static const bool kPassLastArgsOnStack =
+      StoreDescriptor::kPassLastArgsOnStack;
+  // Pass value and slot through the stack.
+  static const int kStackArgumentsCount = kPassLastArgsOnStack ? 2 : 0;
+
+  static const Register NameRegister() {
+    return StoreDescriptor::NameRegister();
+  }
+
+  static const Register ValueRegister() {
+    return StoreDescriptor::ValueRegister();
+  }
+
+  static const Register SlotRegister() {
+    return StoreDescriptor::SlotRegister();
+  }
+};
+
+class StoreGlobalWithVectorDescriptor : public StoreGlobalDescriptor {
+ public:
+  DEFINE_PARAMETERS(kName, kValue, kSlot, kVector)
+  DECLARE_DESCRIPTOR_WITH_CUSTOM_FUNCTION_TYPE(StoreGlobalWithVectorDescriptor,
+                                               StoreGlobalDescriptor)
+
+  static const Register VectorRegister() {
+    return StoreWithVectorDescriptor::VectorRegister();
+  }
 
   // Pass value, slot and vector through the stack.
   static const int kStackArgumentsCount = kPassLastArgsOnStack ? 3 : 0;

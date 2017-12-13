@@ -2731,6 +2731,41 @@ void AccessorAssembler::StoreIC(const StoreICParameters* p) {
   }
 }
 
+void AccessorAssembler::StoreGlobalIC(const StoreICParameters* pp) {
+  Label try_handler(this), miss(this, Label::kDeferred);
+
+  Node* feedback =
+      LoadFeedbackVectorSlot(pp->vector, pp->slot, 0, SMI_PARAMETERS);
+  Node* property_cell = LoadWeakCellValue(feedback, &try_handler);
+
+  ExitPoint direct_exit(this);
+  StoreGlobalIC_PropertyCellCase(property_cell, pp->value, &direct_exit, &miss);
+
+  BIND(&try_handler);
+  {
+    Comment("StoreGlobalIC_try_handler");
+    Node* handler = LoadFeedbackVectorSlot(pp->vector, pp->slot, kPointerSize,
+                                           SMI_PARAMETERS);
+
+    GotoIf(WordEqual(handler, LoadRoot(Heap::kuninitialized_symbolRootIndex)),
+           &miss);
+
+    StoreICParameters p = *pp;
+    DCHECK_NULL(p.receiver);
+    Node* native_context = LoadNativeContext(p.context);
+    p.receiver =
+        LoadContextElement(native_context, Context::GLOBAL_PROXY_INDEX);
+
+    HandleStoreICHandlerCase(&p, handler, &miss);
+  }
+
+  BIND(&miss);
+  {
+    TailCallRuntime(Runtime::kStoreGlobalIC_Miss, pp->context, pp->value,
+                    pp->slot, pp->vector, pp->name);
+  }
+}
+
 void AccessorAssembler::StoreGlobalIC_PropertyCellCase(Node* property_cell,
                                                        Node* value,
                                                        ExitPoint* exit_point,
@@ -2745,6 +2780,11 @@ void AccessorAssembler::StoreGlobalIC_PropertyCellCase(Node* property_cell,
       LoadObjectField(property_cell, PropertyCell::kValueOffset);
   Node* details = LoadAndUntagToWord32ObjectField(property_cell,
                                                   PropertyCell::kDetailsOffset);
+  GotoIf(IsSetWord32(details, PropertyDetails::kAttributesReadOnlyMask), miss);
+  CSA_ASSERT(this,
+             Word32Equal(DecodeWord32<PropertyDetails::KindField>(details),
+                         Int32Constant(kData)));
+
   Node* type = DecodeWord32<PropertyDetails::PropertyCellTypeField>(details);
 
   Label constant(this), store(this), not_smi(this);
@@ -3039,6 +3079,33 @@ void AccessorAssembler::GenerateKeyedLoadIC_PolymorphicName() {
 
   LoadICParameters p(context, receiver, name, slot, vector);
   KeyedLoadICPolymorphicName(&p);
+}
+
+void AccessorAssembler::GenerateStoreGlobalIC() {
+  typedef StoreGlobalWithVectorDescriptor Descriptor;
+
+  Node* name = Parameter(Descriptor::kName);
+  Node* value = Parameter(Descriptor::kValue);
+  Node* slot = Parameter(Descriptor::kSlot);
+  Node* vector = Parameter(Descriptor::kVector);
+  Node* context = Parameter(Descriptor::kContext);
+
+  StoreICParameters p(context, nullptr, name, value, slot, vector);
+  StoreGlobalIC(&p);
+}
+
+void AccessorAssembler::GenerateStoreGlobalICTrampoline() {
+  typedef StoreGlobalDescriptor Descriptor;
+
+  Node* name = Parameter(Descriptor::kName);
+  Node* value = Parameter(Descriptor::kValue);
+  Node* slot = Parameter(Descriptor::kSlot);
+  Node* context = Parameter(Descriptor::kContext);
+  Node* vector = LoadFeedbackVectorForStub();
+
+  Callable callable =
+      Builtins::CallableFor(isolate(), Builtins::kStoreGlobalIC);
+  TailCallStub(callable, context, name, value, slot, vector);
 }
 
 void AccessorAssembler::GenerateStoreIC() {

@@ -728,16 +728,43 @@ class StoreICNexus : public FeedbackNexus {
  public:
   StoreICNexus(Handle<FeedbackVector> vector, FeedbackSlot slot)
       : FeedbackNexus(vector, slot) {
-    DCHECK(vector->IsStoreIC(slot) || vector->IsStoreOwnIC(slot) ||
-           vector->IsStoreGlobalIC(slot));
+    DCHECK(vector->IsStoreIC(slot) || vector->IsStoreOwnIC(slot));
   }
   StoreICNexus(FeedbackVector* vector, FeedbackSlot slot)
       : FeedbackNexus(vector, slot) {
-    DCHECK(vector->IsStoreIC(slot) || vector->IsStoreOwnIC(slot) ||
-           vector->IsStoreGlobalIC(slot));
+    DCHECK(vector->IsStoreIC(slot) || vector->IsStoreOwnIC(slot));
   }
 
   void Clear() override { ConfigurePremonomorphic(); }
+
+  InlineCacheState StateFromFeedback() const override;
+};
+
+class StoreGlobalICNexus : public FeedbackNexus {
+ public:
+  StoreGlobalICNexus(Handle<FeedbackVector> vector, FeedbackSlot slot)
+      : FeedbackNexus(vector, slot) {
+    DCHECK(vector->IsStoreGlobalIC(slot));
+  }
+  StoreGlobalICNexus(FeedbackVector* vector, FeedbackSlot slot)
+      : FeedbackNexus(vector, slot) {
+    DCHECK(vector->IsStoreGlobalIC(slot));
+  }
+
+  int ExtractMaps(MapHandles* maps) const final {
+    // StoreGlobalICs don't record map feedback.
+    return 0;
+  }
+  MaybeHandle<Object> FindHandlerForMap(Handle<Map> map) const final {
+    return MaybeHandle<Code>();
+  }
+  bool FindHandlers(ObjectHandles* code_list, int length = -1) const final {
+    return length == 0;
+  }
+
+  void ConfigureUninitialized() override;
+  void ConfigurePropertyCellMode(Handle<PropertyCell> cell);
+  void ConfigureHandlerMode(Handle<Object> handler);
 
   InlineCacheState StateFromFeedback() const override;
 };

@@ -255,6 +255,8 @@ Handle<FeedbackVector> FeedbackVector::New(Isolate* isolate,
     switch (kind) {
       case FeedbackSlotKind::kLoadGlobalInsideTypeof:
       case FeedbackSlotKind::kLoadGlobalNotInsideTypeof:
+      case FeedbackSlotKind::kStoreGlobalSloppy:
+      case FeedbackSlotKind::kStoreGlobalStrict:
         vector->set(index, isolate->heap()->empty_weak_cell(),
                     SKIP_WRITE_BARRIER);
         break;
@@ -280,8 +282,6 @@ Handle<FeedbackVector> FeedbackVector::New(Isolate* isolate,
       case FeedbackSlotKind::kStoreNamedSloppy:
       case FeedbackSlotKind::kStoreNamedStrict:
       case FeedbackSlotKind::kStoreOwnNamed:
-      case FeedbackSlotKind::kStoreGlobalSloppy:
-      case FeedbackSlotKind::kStoreGlobalStrict:
       case FeedbackSlotKind::kStoreKeyedSloppy:
       case FeedbackSlotKind::kStoreKeyedStrict:
       case FeedbackSlotKind::kStoreDataPropertyInLiteral:
@@ -432,10 +432,17 @@ bool FeedbackVector::ClearSlots(Isolate* isolate) {
         }
         case FeedbackSlotKind::kStoreNamedSloppy:
         case FeedbackSlotKind::kStoreNamedStrict:
-        case FeedbackSlotKind::kStoreOwnNamed:
+        case FeedbackSlotKind::kStoreOwnNamed: {
+          StoreICNexus nexus(this, slot);
+          if (!nexus.IsCleared()) {
+            nexus.Clear();
+            feedback_updated = true;
+          }
+          break;
+        }
         case FeedbackSlotKind::kStoreGlobalSloppy:
         case FeedbackSlotKind::kStoreGlobalStrict: {
-          StoreICNexus nexus(this, slot);
+          StoreGlobalICNexus nexus(this, slot);
           if (!nexus.IsCleared()) {
             nexus.Clear();
             feedback_updated = true;
@@ -607,6 +614,37 @@ InlineCacheState KeyedLoadICNexus::StateFromFeedback() const {
     return extra_array->length() > 2 ? POLYMORPHIC : MONOMORPHIC;
   }
 
+  return UNINITIALIZED;
+}
+
+void StoreGlobalICNexus::ConfigureUninitialized() {
+  Isolate* isolate = GetIsolate();
+  SetFeedback(isolate->heap()->empty_weak_cell(), SKIP_WRITE_BARRIER);
+  SetFeedbackExtra(*FeedbackVector::UninitializedSentinel(isolate),
+                   SKIP_WRITE_BARRIER);
+}
+
+void StoreGlobalICNexus::ConfigurePropertyCellMode(Handle<PropertyCell> cell) {
+  Isolate* isolate = GetIsolate();
+  SetFeedback(*isolate->factory()->NewWeakCell(cell));
+  SetFeedbackExtra(*FeedbackVector::UninitializedSentinel(isolate),
+                   SKIP_WRITE_BARRIER);
+}
+
+void StoreGlobalICNexus::ConfigureHandlerMode(Handle<Object> handler) {
+  SetFeedback(GetIsolate()->heap()->empty_weak_cell());
+  SetFeedbackExtra(*handler);
+}
+
+InlineCacheState StoreGlobalICNexus::StateFromFeedback() const {
+  Isolate* isolate = GetIsolate();
+  Object* feedback = GetFeedback();
+
+  Object* extra = GetFeedbackExtra();
+  if (!WeakCell::cast(feedback)->cleared() ||
+      extra != *FeedbackVector::UninitializedSentinel(isolate)) {
+    return MONOMORPHIC;
+  }
   return UNINITIALIZED;
 }
 

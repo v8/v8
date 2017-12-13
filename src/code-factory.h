@@ -28,9 +28,6 @@ class V8_EXPORT_PRIVATE CodeFactory final {
   static Callable LoadGlobalIC(Isolate* isolate, TypeofMode typeof_mode);
   static Callable LoadGlobalICInOptimizedCode(Isolate* isolate,
                                               TypeofMode typeof_mode);
-  static Callable StoreGlobalIC(Isolate* isolate, LanguageMode mode);
-  static Callable StoreGlobalICInOptimizedCode(Isolate* isolate,
-                                               LanguageMode mode);
   static Callable StoreOwnIC(Isolate* isolate);
   static Callable StoreOwnICInOptimizedCode(Isolate* isolate);
 

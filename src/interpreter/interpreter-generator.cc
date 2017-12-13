@@ -254,8 +254,6 @@ class InterpreterStoreGlobalAssembler : public InterpreterAssembler {
   void StaGlobal(Callable ic) {
     // Get the global object.
     Node* context = GetContext();
-    Node* native_context = LoadNativeContext(context);
-    Node* global = LoadContextElement(native_context, Context::EXTENSION_INDEX);
 
     // Store the global via the StoreIC.
     Node* code_target = HeapConstant(ic.code());
@@ -265,8 +263,8 @@ class InterpreterStoreGlobalAssembler : public InterpreterAssembler {
     Node* raw_slot = BytecodeOperandIdx(1);
     Node* smi_slot = SmiTag(raw_slot);
     Node* feedback_vector = LoadFeedbackVector();
-    CallStub(ic.descriptor(), code_target, context, global, name, value,
-             smi_slot, feedback_vector);
+    CallStub(ic.descriptor(), code_target, context, name, value, smi_slot,
+             feedback_vector);
     Dispatch();
   }
 };
@@ -276,8 +274,7 @@ class InterpreterStoreGlobalAssembler : public InterpreterAssembler {
 // Store the value in the accumulator into the global with name in constant pool
 // entry <name_index> using FeedBackVector slot <slot> in sloppy mode.
 IGNITION_HANDLER(StaGlobalSloppy, InterpreterStoreGlobalAssembler) {
-  Callable ic = CodeFactory::StoreGlobalICInOptimizedCode(
-      isolate(), LanguageMode::kSloppy);
+  Callable ic = Builtins::CallableFor(isolate(), Builtins::kStoreGlobalIC);
   StaGlobal(ic);
 }
 
@@ -286,8 +283,7 @@ IGNITION_HANDLER(StaGlobalSloppy, InterpreterStoreGlobalAssembler) {
 // Store the value in the accumulator into the global with name in constant pool
 // entry <name_index> using FeedBackVector slot <slot> in strict mode.
 IGNITION_HANDLER(StaGlobalStrict, InterpreterStoreGlobalAssembler) {
-  Callable ic = CodeFactory::StoreGlobalICInOptimizedCode(
-      isolate(), LanguageMode::kStrict);
+  Callable ic = Builtins::CallableFor(isolate(), Builtins::kStoreGlobalIC);
   StaGlobal(ic);
 }
 

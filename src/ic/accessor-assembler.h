@@ -34,6 +34,8 @@ class AccessorAssembler : public CodeStubAssembler {
   void GenerateKeyedLoadIC_PolymorphicName();
   void GenerateStoreIC();
   void GenerateStoreICTrampoline();
+  void GenerateStoreGlobalIC();
+  void GenerateStoreGlobalICTrampoline();
 
   void GenerateLoadICProtoArray(bool throw_reference_error_if_nonexistent);
 
@@ -121,6 +123,7 @@ class AccessorAssembler : public CodeStubAssembler {
   void KeyedLoadICGeneric(const LoadICParameters* p);
   void KeyedLoadICPolymorphicName(const LoadICParameters* p);
   void StoreIC(const StoreICParameters* p);
+  void StoreGlobalIC(const StoreICParameters* p);
   void StoreGlobalIC_PropertyCellCase(Node* property_cell, Node* value,
                                       ExitPoint* exit_point, Label* miss);
   void KeyedStoreIC(const StoreICParameters* p);

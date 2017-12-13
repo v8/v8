@@ -84,22 +84,6 @@ Callable CodeFactory::StoreOwnICInOptimizedCode(Isolate* isolate) {
 }
 
 // static
-Callable CodeFactory::StoreGlobalIC(Isolate* isolate,
-                                    LanguageMode language_mode) {
-  // TODO(ishell): Use StoreGlobalIC[Strict]Trampoline when it's ready.
-  return Callable(BUILTIN_CODE(isolate, StoreICTrampoline),
-                  StoreDescriptor(isolate));
-}
-
-// static
-Callable CodeFactory::StoreGlobalICInOptimizedCode(Isolate* isolate,
-                                                   LanguageMode language_mode) {
-  // TODO(ishell): Use StoreGlobalIC[Strict] when it's ready.
-  return Callable(BUILTIN_CODE(isolate, StoreIC),
-                  StoreWithVectorDescriptor(isolate));
-}
-
-// static
 Callable CodeFactory::BinaryOperation(Isolate* isolate, Operation op) {
   switch (op) {
     case Operation::kShiftRight:
