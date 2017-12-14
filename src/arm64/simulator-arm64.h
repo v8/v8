@@ -641,6 +641,7 @@ class LogicVRegister {
 // pure interface class with only pure virtual methods.
 class Simulator : public DecoderVisitor, public SimulatorBase {
  public:
+  static void SetRedirectInstruction(Instruction* instruction);
   static void FlushICache(base::CustomMatcherHashMap* i_cache, void* start,
                           size_t size) {
     USE(i_cache);

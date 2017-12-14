@@ -343,6 +343,11 @@ uintptr_t Simulator::StackLimit(uintptr_t c_limit) const {
   return stack_limit_ + 1024;
 }
 
+void Simulator::SetRedirectInstruction(Instruction* instruction) {
+  instruction->SetInstructionBits(
+      HLT | Assembler::ImmException(kImmExceptionIsRedirectedCall));
+}
+
 Simulator::Simulator(Decoder<DispatchingDecoderVisitor>* decoder,
                      Isolate* isolate, FILE* stream)
     : decoder_(decoder),
@@ -451,84 +456,6 @@ void Simulator::RunFrom(Instruction* start) {
 }
 
 
-// When the generated code calls an external reference we need to catch that in
-// the simulator.  The external reference will be a function compiled for the
-// host architecture.  We need to call that function instead of trying to
-// execute it with the simulator.  We do that by redirecting the external
-// reference to a svc (Supervisor Call) instruction that is handled by
-// the simulator.  We write the original destination of the jump just at a known
-// offset from the svc instruction so the simulator knows what to call.
-class Redirection {
- public:
-  Redirection(Isolate* isolate, void* external_function,
-              ExternalReference::Type type)
-      : external_function_(external_function), type_(type), next_(nullptr) {
-    redirect_call_.SetInstructionBits(
-        HLT | Assembler::ImmException(kImmExceptionIsRedirectedCall));
-    next_ = Simulator::redirection();
-    // TODO(all): Simulator flush I cache
-    Simulator::set_redirection(this);
-  }
-
-  void* address_of_redirect_call() {
-    return reinterpret_cast<void*>(&redirect_call_);
-  }
-
-  template <typename T>
-  T external_function() { return reinterpret_cast<T>(external_function_); }
-
-  ExternalReference::Type type() { return type_; }
-
-  static Redirection* Get(Isolate* isolate, void* external_function,
-                          ExternalReference::Type type) {
-    Redirection* current = Simulator::redirection();
-    for (; current != nullptr; current = current->next_) {
-      if (current->external_function_ == external_function &&
-          current->type_ == type) {
-        return current;
-      }
-    }
-    return new Redirection(isolate, external_function, type);
-  }
-
-  static Redirection* FromHltInstruction(Instruction* redirect_call) {
-    char* addr_of_hlt = reinterpret_cast<char*>(redirect_call);
-    char* addr_of_redirection =
-        addr_of_hlt - offsetof(Redirection, redirect_call_);
-    return reinterpret_cast<Redirection*>(addr_of_redirection);
-  }
-
-  static void* ReverseRedirection(int64_t reg) {
-    Redirection* redirection =
-        FromHltInstruction(reinterpret_cast<Instruction*>(reg));
-    return redirection->external_function<void*>();
-  }
-
-  static void DeleteChain(Redirection* redirection) {
-    while (redirection != nullptr) {
-      Redirection* next = redirection->next_;
-      delete redirection;
-      redirection = next;
-    }
-  }
-
- private:
-  void* external_function_;
-  Instruction redirect_call_;
-  ExternalReference::Type type_;
-  Redirection* next_;
-};
-
-
-// static
-void SimulatorBase::GlobalTearDown() {
-  delete redirection_mutex_;
-  redirection_mutex_ = nullptr;
-
-  Redirection::DeleteChain(redirection_);
-  redirection_ = nullptr;
-}
-
 // static
 void SimulatorBase::TearDown(base::CustomMatcherHashMap* i_cache) {
   // TODO(all): Simulator flush I cache
@@ -562,17 +489,17 @@ typedef void (*SimulatorRuntimeProfilingGetterCall)(int64_t arg0, int64_t arg1,
                                                     void* arg2);
 
 void Simulator::DoRuntimeCall(Instruction* instr) {
-  Redirection* redirection = Redirection::FromHltInstruction(instr);
+  Redirection* redirection = Redirection::FromInstruction(instr);
 
   // The called C code might itself call simulated code, so any
   // caller-saved registers (including lr) could still be clobbered by a
   // redirected call.
   Instruction* return_address = lr();
 
-  int64_t external = redirection->external_function<int64_t>();
+  int64_t external =
+      reinterpret_cast<int64_t>(redirection->external_function());
 
-  TraceSim("Call to host function at %p\n",
-           redirection->external_function<void*>());
+  TraceSim("Call to host function at %p\n", redirection->external_function());
 
   // SP must be 16-byte-aligned at the call interface.
   bool stack_alignment_exception = ((sp() & 0xF) != 0);
@@ -760,14 +687,6 @@ void Simulator::DoRuntimeCall(Instruction* instr) {
 
   set_lr(return_address);
   set_pc(return_address);
-}
-
-void* SimulatorBase::RedirectExternalReference(Isolate* isolate,
-                                               void* external_function,
-                                               ExternalReference::Type type) {
-  base::LockGuard<base::Mutex> lock_guard(Simulator::redirection_mutex());
-  Redirection* redirection = Redirection::Get(isolate, external_function, type);
-  return redirection->address_of_redirect_call();
 }
 
 

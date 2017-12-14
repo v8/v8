@@ -6,7 +6,6 @@
 #define V8_SIMULATOR_H_
 
 #include "src/globals.h"
-#include "src/simulator-base.h"
 
 #if V8_TARGET_ARCH_IA32
 #include "src/ia32/simulator-ia32.h"

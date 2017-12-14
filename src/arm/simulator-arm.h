@@ -177,6 +177,9 @@ class Simulator : public SimulatorBase {
   void set_last_debugger_input(char* input);
   char* last_debugger_input() { return last_debugger_input_; }
 
+  // Redirection support.
+  static void SetRedirectInstruction(Instruction* instruction);
+
   // ICache checking.
   static void FlushICache(base::CustomMatcherHashMap* i_cache, void* start,
                           size_t size);

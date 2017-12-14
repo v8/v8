@@ -571,6 +571,10 @@ void Simulator::set_last_debugger_input(char* input) {
   last_debugger_input_ = input;
 }
 
+void Simulator::SetRedirectInstruction(Instruction* instruction) {
+  instruction->SetInstructionBits(al | (0xF * B24) | kCallRtRedirected);
+}
+
 void Simulator::FlushICache(base::CustomMatcherHashMap* i_cache,
                             void* start_addr, size_t size) {
   intptr_t start = reinterpret_cast<intptr_t>(start_addr);
@@ -702,85 +706,6 @@ Simulator::~Simulator() {
   free(stack_);
 }
 
-// When the generated code calls an external reference we need to catch that in
-// the simulator.  The external reference will be a function compiled for the
-// host architecture.  We need to call that function instead of trying to
-// execute it with the simulator.  We do that by redirecting the external
-// reference to a svc (Supervisor Call) instruction that is handled by
-// the simulator.  We write the original destination of the jump just at a known
-// offset from the svc instruction so the simulator knows what to call.
-class Redirection {
- public:
-  Redirection(Isolate* isolate, void* external_function,
-              ExternalReference::Type type)
-      : external_function_(external_function),
-        swi_instruction_(al | (0xF * B24) | kCallRtRedirected),
-        type_(type),
-        next_(nullptr) {
-    next_ = Simulator::redirection();
-    Simulator::FlushICache(isolate->simulator_i_cache(),
-                           reinterpret_cast<void*>(&swi_instruction_),
-                           Instruction::kInstrSize);
-    Simulator::set_redirection(this);
-  }
-
-  void* address_of_swi_instruction() {
-    return reinterpret_cast<void*>(&swi_instruction_);
-  }
-
-  void* external_function() { return external_function_; }
-  ExternalReference::Type type() { return type_; }
-
-  static Redirection* Get(Isolate* isolate, void* external_function,
-                          ExternalReference::Type type) {
-    Redirection* current = Simulator::redirection();
-    for (; current != nullptr; current = current->next_) {
-      if (current->external_function_ == external_function &&
-          current->type_ == type) {
-        return current;
-      }
-    }
-    return new Redirection(isolate, external_function, type);
-  }
-
-  static Redirection* FromSwiInstruction(Instruction* swi_instruction) {
-    char* addr_of_swi = reinterpret_cast<char*>(swi_instruction);
-    char* addr_of_redirection =
-        addr_of_swi - offsetof(Redirection, swi_instruction_);
-    return reinterpret_cast<Redirection*>(addr_of_redirection);
-  }
-
-  static void* ReverseRedirection(int32_t reg) {
-    Redirection* redirection = FromSwiInstruction(
-        reinterpret_cast<Instruction*>(reinterpret_cast<void*>(reg)));
-    return redirection->external_function();
-  }
-
-  static void DeleteChain(Redirection* redirection) {
-    while (redirection != nullptr) {
-      Redirection* next = redirection->next_;
-      delete redirection;
-      redirection = next;
-    }
-  }
-
- private:
-  void* external_function_;
-  uint32_t swi_instruction_;
-  ExternalReference::Type type_;
-  Redirection* next_;
-};
-
-
-// static
-void SimulatorBase::GlobalTearDown() {
-  delete redirection_mutex_;
-  redirection_mutex_ = nullptr;
-
-  Redirection::DeleteChain(redirection_);
-  redirection_ = nullptr;
-}
-
 // static
 void SimulatorBase::TearDown(base::CustomMatcherHashMap* i_cache) {
   if (i_cache != nullptr) {
@@ -790,14 +715,6 @@ void SimulatorBase::TearDown(base::CustomMatcherHashMap* i_cache) {
     }
     delete i_cache;
   }
-}
-
-void* SimulatorBase::RedirectExternalReference(Isolate* isolate,
-                                               void* external_function,
-                                               ExternalReference::Type type) {
-  base::LockGuard<base::Mutex> lock_guard(Simulator::redirection_mutex());
-  Redirection* redirection = Redirection::Get(isolate, external_function, type);
-  return redirection->address_of_swi_instruction();
 }
 
 
@@ -1730,7 +1647,7 @@ void Simulator::SoftwareInterrupt(Instruction* instr) {
       bool stack_aligned =
           (get_register(sp)
            & (::v8::internal::FLAG_sim_stack_alignment - 1)) == 0;
-      Redirection* redirection = Redirection::FromSwiInstruction(instr);
+      Redirection* redirection = Redirection::FromInstruction(instr);
       int32_t arg0 = get_register(r0);
       int32_t arg1 = get_register(r1);
       int32_t arg2 = get_register(r2);
