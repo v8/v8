@@ -171,9 +171,6 @@ class AccessorAssembler : public CodeStubAssembler {
 
   // StoreIC implementation.
 
-  void HandleStoreICElementHandlerCase(const StoreICParameters* p,
-                                       Node* handler, Label* miss);
-
   void HandleStoreICProtoHandler(const StoreICParameters* p, Node* handler,
                                  Label* miss, ICMode ic_mode,
                                  ElementSupport support_elements);

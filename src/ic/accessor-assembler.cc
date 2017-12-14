@@ -881,16 +881,8 @@ void AccessorAssembler::HandleStoreICHandlerCase(
   BIND(&if_nonsmi_handler);
   {
     Node* handler_map = LoadMap(handler);
-    if (support_elements == kSupportElements) {
-      GotoIf(IsStoreHandler0Map(handler_map), &if_element_handler);
-    }
     GotoIf(IsWeakCellMap(handler_map), &store_global);
     Branch(IsCodeMap(handler_map), &call_handler, &if_proto_handler);
-  }
-
-  if (support_elements == kSupportElements) {
-    BIND(&if_element_handler);
-    HandleStoreICElementHandlerCase(p, handler, miss);
   }
 
   BIND(&if_proto_handler);
@@ -914,24 +906,6 @@ void AccessorAssembler::HandleStoreICHandlerCase(
   }
 }
 
-void AccessorAssembler::HandleStoreICElementHandlerCase(
-    const StoreICParameters* p, Node* handler, Label* miss) {
-  Comment("HandleStoreICElementHandlerCase");
-  Node* validity_cell =
-      LoadObjectField(handler, StoreHandler::kValidityCellOffset);
-  Node* cell_value = LoadObjectField(validity_cell, Cell::kValueOffset);
-  GotoIf(WordNotEqual(cell_value, SmiConstant(Map::kPrototypeChainValid)),
-         miss);
-
-  Node* code_handler =
-      LoadObjectField(handler, StoreHandler::kSmiHandlerOffset);
-  CSA_ASSERT(this, IsCodeMap(LoadMap(code_handler)));
-
-  StoreWithVectorDescriptor descriptor(isolate());
-  TailCallStub(descriptor, code_handler, p->context, p->receiver, p->name,
-               p->value, p->slot, p->vector);
-}
-
 void AccessorAssembler::HandleStoreAccessor(const StoreICParameters* p,
                                             Node* holder, Node* handler_word) {
   Comment("accessor_store");
@@ -950,11 +924,38 @@ void AccessorAssembler::HandleStoreICProtoHandler(
     ElementSupport support_elements) {
   Comment("HandleStoreICProtoHandler");
 
-  Label do_store(this);
-  Node* smi_or_code = HandleProtoHandler<StoreHandler>(
-      p, handler,
-      // on_code_handler,
-      [=, &do_store](Node* code) { Goto(&do_store); },
+  OnCodeHandler on_code_handler;
+  if (support_elements == kSupportElements) {
+    // Code sub-handlers are expected only in KeyedStoreICs.
+    on_code_handler = [=](Node* code_handler) {
+      // This is either element store or transitioning element store.
+      Label if_element_store(this), if_transitioning_element_store(this);
+      Branch(IsStoreHandler0Map(LoadMap(handler)), &if_element_store,
+             &if_transitioning_element_store);
+      BIND(&if_element_store);
+      {
+        StoreWithVectorDescriptor descriptor(isolate());
+        TailCallStub(descriptor, code_handler, p->context, p->receiver, p->name,
+                     p->value, p->slot, p->vector);
+      }
+
+      BIND(&if_transitioning_element_store);
+      {
+        Node* transition_map_cell = LoadHandlerDataField(handler, 1);
+        Node* transition_map = LoadWeakCellValue(transition_map_cell, miss);
+        CSA_ASSERT(this, IsMap(transition_map));
+
+        GotoIf(IsDeprecatedMap(transition_map), miss);
+
+        StoreTransitionDescriptor descriptor(isolate());
+        TailCallStub(descriptor, code_handler, p->context, p->receiver, p->name,
+                     transition_map, p->value, p->slot, p->vector);
+      }
+    };
+  }
+
+  Node* smi_handler = HandleProtoHandler<StoreHandler>(
+      p, handler, on_code_handler,
       // on_found_on_receiver
       [=](Node* properties, Node* name_index) {
         // TODO(ishell): combine with |found| case inside |if_store_normal|.
@@ -971,12 +972,10 @@ void AccessorAssembler::HandleStoreICProtoHandler(
         Return(p->value);
       },
       miss, ic_mode);
-  Goto(&do_store);
 
   VARIABLE(var_transition_map_or_holder, MachineRepresentation::kTagged);
   Label if_transition_map(this), if_holder_object(this);
 
-  BIND(&do_store);
   {
     Node* maybe_transition_cell = LoadHandlerDataField(handler, 1);
     var_transition_map_or_holder.Bind(maybe_transition_cell);
@@ -1000,23 +999,6 @@ void AccessorAssembler::HandleStoreICProtoHandler(
     Node* transition_map = var_transition_map_or_holder.value();
 
     GotoIf(IsDeprecatedMap(transition_map), miss);
-
-    if (support_elements == kSupportElements) {
-      Label if_smi_handler(this);
-
-      GotoIf(TaggedIsSmi(smi_or_code), &if_smi_handler);
-      Node* code_handler = smi_or_code;
-      CSA_ASSERT(this, IsCodeMap(LoadMap(code_handler)));
-
-      StoreTransitionDescriptor descriptor(isolate());
-      TailCallStub(descriptor, code_handler, p->context, p->receiver, p->name,
-                   transition_map, p->value, p->slot, p->vector);
-
-      BIND(&if_smi_handler);
-    }
-
-    Node* smi_handler = smi_or_code;
-    CSA_ASSERT(this, TaggedIsSmi(smi_handler));
     Node* handler_word = SmiUntag(smi_handler);
 
     Node* handler_kind = DecodeWord<StoreHandler::KindBits>(handler_word);
@@ -1090,7 +1072,6 @@ void AccessorAssembler::HandleStoreICProtoHandler(
         if_native_data_property(this);
     Node* holder = var_transition_map_or_holder.value();
 
-    Node* smi_handler = smi_or_code;
     CSA_ASSERT(this, TaggedIsSmi(smi_handler));
     Node* handler_word = SmiUntag(smi_handler);
 
