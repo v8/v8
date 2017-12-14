@@ -3693,7 +3693,7 @@ int DisassemblingDecoder::SubstituteImmediateField(Instruction* instr,
             vm_index = (vm_index << 1) | instr->NEONM();
           }
           AppendToOutput("%d", vm_index);
-          return strlen("IVByElemIndex");
+          return static_cast<int>(strlen("IVByElemIndex"));
         }
         case 'I': {  // INS element.
           if (strncmp(format, "IVInsIndex", strlen("IVInsIndex")) == 0) {
@@ -3706,11 +3706,11 @@ int DisassemblingDecoder::SubstituteImmediateField(Instruction* instr,
               rn_index = imm4 >> tz;
               if (strncmp(format, "IVInsIndex1", strlen("IVInsIndex1")) == 0) {
                 AppendToOutput("%d", rd_index);
-                return strlen("IVInsIndex1");
+                return static_cast<int>(strlen("IVInsIndex1"));
               } else if (strncmp(format, "IVInsIndex2",
                                  strlen("IVInsIndex2")) == 0) {
                 AppendToOutput("%d", rn_index);
-                return strlen("IVInsIndex2");
+                return static_cast<int>(strlen("IVInsIndex2"));
               }
             }
             return 0;
@@ -3725,16 +3725,16 @@ int DisassemblingDecoder::SubstituteImmediateField(Instruction* instr,
               0) {
             AppendToOutput("#0x%" PRIx32 " (%.4f)", instr->ImmNEONabcdefgh(),
                            instr->ImmNEONFP32());
-            return strlen("IVMIImmFPSingle");
+            return static_cast<int>(strlen("IVMIImmFPSingle"));
           } else if (strncmp(format, "IVMIImmFPDouble",
                              strlen("IVMIImmFPDouble")) == 0) {
             AppendToOutput("#0x%" PRIx32 " (%.4f)", instr->ImmNEONabcdefgh(),
                            instr->ImmNEONFP64());
-            return strlen("IVMIImmFPDouble");
+            return static_cast<int>(strlen("IVMIImmFPDouble"));
           } else if (strncmp(format, "IVMIImm8", strlen("IVMIImm8")) == 0) {
             uint64_t imm8 = instr->ImmNEONabcdefgh();
             AppendToOutput("#0x%" PRIx64, imm8);
-            return strlen("IVMIImm8");
+            return static_cast<int>(strlen("IVMIImm8"));
           } else if (strncmp(format, "IVMIImm", strlen("IVMIImm")) == 0) {
             uint64_t imm8 = instr->ImmNEONabcdefgh();
             uint64_t imm = 0;
@@ -3744,19 +3744,19 @@ int DisassemblingDecoder::SubstituteImmediateField(Instruction* instr,
               }
             }
             AppendToOutput("#0x%" PRIx64, imm);
-            return strlen("IVMIImm");
+            return static_cast<int>(strlen("IVMIImm"));
           } else if (strncmp(format, "IVMIShiftAmt1",
                              strlen("IVMIShiftAmt1")) == 0) {
             int cmode = instr->NEONCmode();
             int shift_amount = 8 * ((cmode >> 1) & 3);
             AppendToOutput("#%d", shift_amount);
-            return strlen("IVMIShiftAmt1");
+            return static_cast<int>(strlen("IVMIShiftAmt1"));
           } else if (strncmp(format, "IVMIShiftAmt2",
                              strlen("IVMIShiftAmt2")) == 0) {
             int cmode = instr->NEONCmode();
             int shift_amount = 8 << (cmode & 1);
             AppendToOutput("#%d", shift_amount);
-            return strlen("IVMIShiftAmt2");
+            return static_cast<int>(strlen("IVMIShiftAmt2"));
           } else {
             UNIMPLEMENTED();
             return 0;
