@@ -82,6 +82,9 @@ class AccessorAssembler : public CodeStubAssembler {
   // construction on common paths.
   void LoadIC_BytecodeHandler(const LoadICParameters* p, ExitPoint* exit_point);
 
+  // Loads dataX field from the DataHandler object.
+  Node* LoadHandlerDataField(Node* handler, int data_index);
+
  protected:
   struct StoreICParameters : public LoadICParameters {
     StoreICParameters(Node* context, Node* receiver, Node* name, Node* value,
@@ -91,9 +94,10 @@ class AccessorAssembler : public CodeStubAssembler {
     Node* value;
   };
 
+  enum class ICMode { kNonGlobalIC, kGlobalIC };
   enum ElementSupport { kOnlyProperties, kSupportElements };
   void HandleStoreICHandlerCase(
-      const StoreICParameters* p, Node* handler, Label* miss,
+      const StoreICParameters* p, Node* handler, Label* miss, ICMode ic_mode,
       ElementSupport support_elements = kOnlyProperties);
   void JumpIfDataProperty(Node* details, Label* writable, Label* readonly);
 
@@ -136,7 +140,6 @@ class AccessorAssembler : public CodeStubAssembler {
 
   // LoadIC implementation.
 
-  enum class ICMode { kNonGlobalIC, kGlobalIC };
   void HandleLoadICHandlerCase(
       const LoadICParameters* p, Node* handler, Label* miss,
       ExitPoint* exit_point, ICMode ic_mode = ICMode::kNonGlobalIC,
@@ -148,13 +151,10 @@ class AccessorAssembler : public CodeStubAssembler {
                                   bool throw_reference_error_if_nonexistent,
                                   ElementSupport support_elements);
 
-  void HandleLoadICProtoHandlerCase(const LoadICParameters* p, Node* handler,
-                                    Variable* var_holder,
-                                    Variable* var_smi_handler,
-                                    Label* if_smi_handler, Label* miss,
-                                    ExitPoint* exit_point,
-                                    bool throw_reference_error_if_nonexistent,
-                                    ICMode ic_mode);
+  void HandleLoadICProtoHandler(const LoadICParameters* p, Node* handler,
+                                Variable* var_holder, Variable* var_smi_handler,
+                                Label* if_smi_handler, Label* miss,
+                                ExitPoint* exit_point, ICMode ic_mode);
 
   void HandleLoadField(Node* holder, Node* handler_word,
                        Variable* var_double_value, Label* rebox_double,
@@ -175,7 +175,8 @@ class AccessorAssembler : public CodeStubAssembler {
                                        Node* handler, Label* miss);
 
   void HandleStoreICProtoHandler(const StoreICParameters* p, Node* handler,
-                                 Label* miss, ElementSupport support_elements);
+                                 Label* miss, ICMode ic_mode,
+                                 ElementSupport support_elements);
   // If |transition| is nullptr then the normal field store is generated or
   // transitioning store otherwise.
   void HandleStoreICSmiHandlerCase(Node* handler_word, Node* holder,
@@ -207,6 +208,16 @@ class AccessorAssembler : public CodeStubAssembler {
                            UseStubCache use_stub_cache = kUseStubCache);
 
   // Low-level helpers.
+
+  typedef std::function<void(Node* code_handler)> OnCodeHandler;
+  typedef std::function<void(Node* properties, Node* name_index)>
+      OnFoundOnReceiver;
+
+  template <typename ICHandler, typename ICParameters>
+  Node* HandleProtoHandler(const ICParameters* p, Node* handler,
+                           const OnCodeHandler& on_code_handler,
+                           const OnFoundOnReceiver& on_found_on_receiver,
+                           Label* miss, ICMode ic_mode);
 
   Node* GetLanguageMode(Node* vector, Node* slot);
 

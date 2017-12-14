@@ -824,7 +824,8 @@ void KeyedStoreGenericAssembler::EmitGenericPropertyStore(
       BIND(&found_handler);
       {
         Comment("KeyedStoreGeneric found transition handler");
-        HandleStoreICHandlerCase(p, var_handler.value(), notfound);
+        HandleStoreICHandlerCase(p, var_handler.value(), notfound,
+                                 ICMode::kNonGlobalIC);
       }
     }
   }
@@ -942,7 +943,8 @@ void KeyedStoreGenericAssembler::EmitGenericPropertyStore(
     BIND(&found_handler);
     {
       Comment("KeyedStoreGeneric found handler");
-      HandleStoreICHandlerCase(p, var_handler.value(), &stub_cache_miss);
+      HandleStoreICHandlerCase(p, var_handler.value(), &stub_cache_miss,
+                               ICMode::kNonGlobalIC);
     }
     BIND(&stub_cache_miss);
     {

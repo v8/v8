@@ -83,7 +83,8 @@ class LoadHandler final : public DataHandler {
   //
   // Encoding when KindBits contains kElement or kIndexedString.
   //
-  class AllowOutOfBoundsBits : public BitField<bool, KindBits::kNext, 1> {};
+  class AllowOutOfBoundsBits
+      : public BitField<bool, LookupOnReceiverBits::kNext, 1> {};
 
   //
   // Encoding when KindBits contains kElement.
@@ -99,8 +100,9 @@ class LoadHandler final : public DataHandler {
   //
   // Encoding when KindBits contains kModuleExport.
   //
-  class ExportsIndexBits : public BitField<unsigned, KindBits::kNext,
-                                           kSmiValueSize - KindBits::kNext> {};
+  class ExportsIndexBits
+      : public BitField<unsigned, LookupOnReceiverBits::kNext,
+                        kSmiValueSize - LookupOnReceiverBits::kNext> {};
 
   // Decodes kind from Smi-handler.
   static inline Kind GetHandlerKind(Smi* smi_handler);
@@ -173,17 +175,6 @@ class LoadHandler final : public DataHandler {
 
   // Decodes the KeyedAccessLoadMode from a {handler}.
   static KeyedAccessLoadMode GetKeyedAccessLoadMode(Object* handler);
-
- private:
-  // Sets DoAccessCheckOnReceiverBits in given Smi-handler. The receiver
-  // check is a part of a prototype chain check.
-  static inline Handle<Smi> EnableAccessCheckOnReceiver(
-      Isolate* isolate, Handle<Smi> smi_handler);
-
-  // Sets LookupOnReceiverBits in given Smi-handler. The receiver
-  // check is a part of a prototype chain check.
-  static inline Handle<Smi> EnableLookupOnReceiver(Isolate* isolate,
-                                                   Handle<Smi> smi_handler);
 };
 
 // A set of bit fields representing Smi handlers for stores and a HeapObject
@@ -216,21 +207,24 @@ class StoreHandler final : public DataHandler {
 
   enum FieldRepresentation { kSmi, kDouble, kHeapObject, kTagged };
 
-  static inline bool IsHandler(Object* maybe_handler);
-
   // Applicable to kGlobalProxy, kProxy kinds.
 
   // Defines whether access rights check should be done on receiver object.
   class DoAccessCheckOnReceiverBits
       : public BitField<bool, KindBits::kNext, 1> {};
 
+  // Defines whether a lookup should be done on receiver object before
+  // proceeding to the prototype chain. Applicable to named property kinds only
+  // when storing through prototype chain. Ignored when storing to holder.
+  class LookupOnReceiverBits
+      : public BitField<bool, DoAccessCheckOnReceiverBits::kNext, 1> {};
+
   // Applicable to kField, kTransitionToField and kTransitionToConstant
   // kinds.
 
   // Index of a value entry in the descriptor array.
-  class DescriptorBits
-      : public BitField<unsigned, DoAccessCheckOnReceiverBits::kNext,
-                        kDescriptorIndexBitCount> {};
+  class DescriptorBits : public BitField<unsigned, LookupOnReceiverBits::kNext,
+                                         kDescriptorIndexBitCount> {};
   //
   // Encoding when KindBits contains kTransitionToConstant.
   //
@@ -306,11 +300,6 @@ class StoreHandler final : public DataHandler {
   static inline Handle<Smi> StoreProxy(Isolate* isolate);
 
  private:
-  // Sets DoAccessCheckOnReceiverBits in given Smi-handler. The receiver
-  // check is a part of a prototype chain check.
-  static inline Handle<Smi> EnableAccessCheckOnReceiver(
-      Isolate* isolate, Handle<Smi> smi_handler);
-
   static inline Handle<Smi> StoreField(Isolate* isolate, Kind kind,
                                        int descriptor, FieldIndex field_index,
                                        Representation representation,

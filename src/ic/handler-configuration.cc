@@ -13,16 +13,27 @@ namespace internal {
 
 namespace {
 
-template <bool fill_array = true>
+template <typename BitField>
+Handle<Smi> SetBitFieldValue(Isolate* isolate, Handle<Smi> smi_handler,
+                             typename BitField::FieldType value) {
+  int config = smi_handler->value();
+  config = BitField::update(config, true);
+  return handle(Smi::FromInt(config), isolate);
+}
+
+// TODO(ishell): Remove templatezation once we move common bits from
+// Load/StoreHandler to the base class.
+template <typename ICHandler, bool fill_array = true>
 int InitPrototypeChecks(Isolate* isolate, Handle<Map> receiver_map,
                         Handle<JSReceiver> holder, Handle<Name> name,
-                        Handle<DataHandler> handler) {
+                        Handle<ICHandler> handler,
+                        Handle<Smi>* smi_handler = nullptr) {
   if (!holder.is_null() && holder->map() == *receiver_map) return 0;
 
-  HandleScope scope(isolate);
   int checks_count = 0;
-
-  if (receiver_map->IsPrimitiveMap() || receiver_map->IsJSGlobalProxyMap()) {
+  if (receiver_map->IsPrimitiveMap() ||
+      receiver_map->is_access_check_needed()) {
+    DCHECK(!receiver_map->IsJSGlobalObjectMap());
     // The validity cell check for primitive and global proxy receivers does
     // not guarantee that certain native context ever had access to other
     // native context. However, a handler created for one native context could
@@ -32,8 +43,19 @@ int InitPrototypeChecks(Isolate* isolate, Handle<Map> receiver_map,
     if (fill_array) {
       Handle<Context> native_context = isolate->native_context();
       handler->set_data2(native_context->self_weak_cell());
+    } else {
+      // Enable access checks on receiver.
+      typedef typename ICHandler::DoAccessCheckOnReceiverBits Bit;
+      *smi_handler = SetBitFieldValue<Bit>(isolate, *smi_handler, true);
     }
     checks_count++;
+  } else if (receiver_map->is_dictionary_map() &&
+             !receiver_map->IsJSGlobalObjectMap()) {
+    if (!fill_array) {
+      // Enable lookup on receiver.
+      typedef typename ICHandler::LookupOnReceiverBits Bit;
+      *smi_handler = SetBitFieldValue<Bit>(isolate, *smi_handler, true);
+    }
   }
   return checks_count;
 }
@@ -44,10 +66,13 @@ int InitPrototypeChecks(Isolate* isolate, Handle<Map> receiver_map,
 // checked.
 // Returns -1 if the handler has to be compiled or the number of prototype
 // checks otherwise.
+template <typename ICHandler>
 int GetPrototypeCheckCount(Isolate* isolate, Handle<Map> receiver_map,
-                           Handle<JSReceiver> holder, Handle<Name> name) {
-  return InitPrototypeChecks<false>(isolate, receiver_map, holder, name,
-                                    Handle<DataHandler>());
+                           Handle<JSReceiver> holder, Handle<Name> name,
+                           Handle<Smi>* smi_handler) {
+  DCHECK_NOT_NULL(smi_handler);
+  return InitPrototypeChecks<ICHandler, false>(
+      isolate, receiver_map, holder, name, Handle<ICHandler>(), smi_handler);
 }
 
 }  // namespace
@@ -59,20 +84,8 @@ Handle<Object> LoadHandler::LoadFromPrototype(Isolate* isolate,
                                               Handle<Name> name,
                                               Handle<Smi> smi_handler,
                                               MaybeHandle<Object> maybe_data) {
-  int checks_count =
-      GetPrototypeCheckCount(isolate, receiver_map, holder, name);
-  DCHECK_LE(0, checks_count);
-  DCHECK_LE(checks_count, 1);
-
-  if (receiver_map->IsPrimitiveMap() ||
-      receiver_map->is_access_check_needed()) {
-    DCHECK(!receiver_map->is_dictionary_map());
-    DCHECK_EQ(1, checks_count);  // For native context.
-    smi_handler = EnableAccessCheckOnReceiver(isolate, smi_handler);
-  } else if (receiver_map->is_dictionary_map() &&
-             !receiver_map->IsJSGlobalObjectMap()) {
-    smi_handler = EnableLookupOnReceiver(isolate, smi_handler);
-  }
+  int checks_count = GetPrototypeCheckCount<LoadHandler>(
+      isolate, receiver_map, holder, name, &smi_handler);
 
   Handle<Cell> validity_cell =
       Map::GetOrCreatePrototypeChainValidityCell(receiver_map, isolate);
@@ -100,19 +113,8 @@ Handle<Object> LoadHandler::LoadFullChain(Isolate* isolate,
                                           Handle<Name> name,
                                           Handle<Smi> smi_handler) {
   Handle<JSReceiver> end;  // null handle
-  int checks_count = GetPrototypeCheckCount(isolate, receiver_map, end, name);
-  DCHECK_LE(0, checks_count);
-  DCHECK_LE(checks_count, 1);
-
-  if (receiver_map->IsPrimitiveMap() ||
-      receiver_map->is_access_check_needed()) {
-    DCHECK(!receiver_map->is_dictionary_map());
-    DCHECK_EQ(1, checks_count);  // For native context.
-    smi_handler = EnableAccessCheckOnReceiver(isolate, smi_handler);
-  } else if (receiver_map->is_dictionary_map() &&
-             !receiver_map->IsJSGlobalObjectMap()) {
-    smi_handler = EnableLookupOnReceiver(isolate, smi_handler);
-  }
+  int checks_count = GetPrototypeCheckCount<LoadHandler>(
+      isolate, receiver_map, end, name, &smi_handler);
 
   Handle<Object> validity_cell =
       Map::GetOrCreatePrototypeChainValidityCell(receiver_map, isolate);
@@ -199,16 +201,8 @@ Handle<Object> StoreHandler::StoreThroughPrototype(
     Isolate* isolate, Handle<Map> receiver_map, Handle<JSReceiver> holder,
     Handle<Name> name, Handle<Smi> smi_handler,
     MaybeHandle<Object> maybe_data) {
-  int checks_count =
-      GetPrototypeCheckCount(isolate, receiver_map, holder, name);
-
-  DCHECK_LE(0, checks_count);
-
-  if (receiver_map->is_access_check_needed()) {
-    DCHECK(!receiver_map->is_dictionary_map());
-    DCHECK_LE(1, checks_count);  // For native context.
-    smi_handler = EnableAccessCheckOnReceiver(isolate, smi_handler);
-  }
+  int checks_count = GetPrototypeCheckCount<StoreHandler>(
+      isolate, receiver_map, holder, name, &smi_handler);
 
   Handle<Object> validity_cell =
       Map::GetOrCreatePrototypeChainValidityCell(receiver_map, isolate);
