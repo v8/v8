@@ -992,6 +992,11 @@ Reduction JSBuiltinReducer::ReduceArrayPop(Node* node) {
 // ES6 section 22.1.3.18 Array.prototype.push ( )
 Reduction JSBuiltinReducer::ReduceArrayPush(Node* node) {
   DCHECK_EQ(IrOpcode::kJSCall, node->opcode());
+  CallParameters const& p = CallParametersOf(node->op());
+  if (p.speculation_mode() == SpeculationMode::kDisallowSpeculation) {
+    return NoChange();
+  }
+
   int const num_values = node->op()->ValueInputCount() - 2;
   Node* receiver = NodeProperties::GetValueInput(node, 1);
   Node* effect = NodeProperties::GetEffectInput(node);
@@ -1022,12 +1027,9 @@ Reduction JSBuiltinReducer::ReduceArrayPush(Node* node) {
       if (receiver_map->is_stable()) {
         dependencies()->AssumeMapStable(receiver_map);
       } else {
-        // TODO(turbofan): This is a potential - yet unlikely - deoptimization
-        // loop, since we might not learn from this deoptimization in baseline
-        // code. We need a way to learn from deoptimizations in optimized to
-        // address these problems.
         effect = graph()->NewNode(
-            simplified()->CheckMaps(CheckMapsFlag::kNone, receiver_maps),
+            simplified()->CheckMaps(CheckMapsFlag::kNone, receiver_maps,
+                                    p.feedback()),
             receiver, effect, control);
       }
     }
