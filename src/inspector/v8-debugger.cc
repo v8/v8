@@ -538,7 +538,6 @@ void V8Debugger::PromiseEventOccurred(v8::debug::PromiseDebugActionType type,
   switch (type) {
     case v8::debug::kDebugAsyncFunctionPromiseCreated:
       asyncTaskScheduledForStack("async function", task, true);
-      if (!isBlackboxed) asyncTaskCandidateForStepping(task, true);
       break;
     case v8::debug::kDebugPromiseThen:
       asyncTaskScheduledForStack("Promise.then", task, false);
