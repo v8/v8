@@ -104,7 +104,9 @@ class ModuleCompiler {
           compiler_->counters()));
     }
 
-    void Commit() {
+    bool Commit() {
+      if (units_.empty()) return false;
+
       {
         base::LockGuard<base::Mutex> guard(
             &compiler_->compilation_units_mutex_);
@@ -114,6 +116,7 @@ class ModuleCompiler {
             std::make_move_iterator(units_.end()));
       }
       units_.clear();
+      return true;
     }
 
     void Clear() { units_.clear(); }
@@ -3660,6 +3663,8 @@ class AsyncStreamingProcessor final : public StreamingProcessor {
   // Finishes the AsyncCOmpileJob with an error.
   void FinishAsyncCompileJobWithError(ResultBase result);
 
+  void CommitCompilationUnits();
+
   ModuleDecoder decoder_;
   AsyncCompileJob* job_;
   std::unique_ptr<ModuleCompiler::CompilationUnitBuilder>
@@ -4195,6 +4200,12 @@ bool AsyncStreamingProcessor::ProcessSection(SectionCode section_code,
                                              Vector<const uint8_t> bytes,
                                              uint32_t offset) {
   TRACE_STREAMING("Process section %d ...\n", section_code);
+  if (compilation_unit_builder_) {
+    // We reached a section after the code section, we do not need the the
+    // compilation_unit_builder_ anymore.
+    CommitCompilationUnits();
+    compilation_unit_builder_.reset();
+  }
   if (section_code == SectionCode::kUnknownSectionCode) {
     // No need to decode unknown sections, even the names section. If decoding
     // of the unknown section fails, compilation should succeed anyways, and
@@ -4262,12 +4273,17 @@ bool AsyncStreamingProcessor::ProcessFunctionBody(Vector<const uint8_t> bytes,
   return true;
 }
 
-void AsyncStreamingProcessor::OnFinishedChunk() {
-  // TRACE_STREAMING("FinishChunk...\n");
-  if (compilation_unit_builder_) {
-    compilation_unit_builder_->Commit();
+void AsyncStreamingProcessor::CommitCompilationUnits() {
+  DCHECK(compilation_unit_builder_);
+  if (compilation_unit_builder_->Commit()) {
+    // Only restart background tasks when compilation units were committed.
     job_->RestartBackgroundTasks();
   }
+}
+
+void AsyncStreamingProcessor::OnFinishedChunk() {
+  TRACE_STREAMING("FinishChunk...\n");
+  if (compilation_unit_builder_) CommitCompilationUnits();
 }
 
 // Finish the processing of the stream.

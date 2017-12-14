@@ -910,6 +910,48 @@ STREAM_TEST(TestModuleWithMultipleFunctions) {
   CHECK(tester.IsPromiseFulfilled());
 }
 
+STREAM_TEST(TestModuleWithDataSection) {
+  StreamTester tester;
+
+  uint8_t code[] = {
+      U32V_1(4),                  // body size
+      U32V_1(0),                  // locals count
+      kExprGetLocal, 0, kExprEnd  // body
+  };
+
+  const uint8_t bytes[] = {
+      WASM_MODULE_HEADER,                   // module header
+      kTypeSectionCode,                     // section code
+      U32V_1(1 + SIZEOF_SIG_ENTRY_x_x),     // section size
+      U32V_1(1),                            // type count
+      SIG_ENTRY_x_x(kLocalI32, kLocalI32),  // signature entry
+      kFunctionSectionCode,                 // section code
+      U32V_1(1 + 3),                        // section size
+      U32V_1(3),                            // functions count
+      0,                                    // signature index
+      0,                                    // signature index
+      0,                                    // signature index
+      kCodeSectionCode,                     // section code
+      U32V_1(1 + arraysize(code) * 3),      // section size
+      U32V_1(3),                            // functions count
+  };
+
+  const uint8_t data_section[] = {
+      kDataSectionCode,  // section code
+      U32V_1(1),         // section size
+      U32V_1(0),         // data segment count
+  };
+  tester.OnBytesReceived(bytes, arraysize(bytes));
+  tester.OnBytesReceived(code, arraysize(code));
+  tester.OnBytesReceived(code, arraysize(code));
+  tester.OnBytesReceived(code, arraysize(code));
+  tester.RunCompilerTasks();
+  tester.OnBytesReceived(data_section, arraysize(data_section));
+  tester.RunCompilerTasks();
+  tester.FinishStream();
+  tester.RunCompilerTasks();
+  CHECK(tester.IsPromiseFulfilled());
+}
 // Test that all bytes arrive before doing any compilation. FinishStream is
 // called immediately.
 STREAM_TEST(TestModuleWithImportedFunction) {
