@@ -1683,9 +1683,9 @@ TF_BUILTIN(PromiseFinally, PromiseBuiltinsAssembler) {
   Node* const on_finally = Parameter(Descriptor::kOnFinally);
   Node* const context = Parameter(Descriptor::kContext);
 
-  // 2. If IsPromise(promise) is false, throw a TypeError exception.
-  ThrowIfNotInstanceType(context, promise, JS_PROMISE_TYPE,
-                         "Promise.prototype.finally");
+  // 2. If Type(promise) is not Object, throw a TypeError exception.
+  ThrowIfNotJSReceiver(context, promise, MessageTemplate::kCalledOnNonObject,
+                       "Promise.prototype.finally");
 
   // 3. Let C be ? SpeciesConstructor(promise, %Promise%).
   Node* const native_context = LoadNativeContext(context);
