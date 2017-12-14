@@ -114,8 +114,8 @@ CompilationJob::Status CompilationJob::FinalizeJob(Isolate* isolate) {
   DCHECK(ThreadId::Current().Equals(isolate->thread_id()));
   DisallowCodeDependencyChange no_dependency_change;
   DisallowJavascriptExecution no_js(isolate);
-  DCHECK(!compilation_info()->dependencies() ||
-         !compilation_info()->dependencies()->HasAborted());
+  CHECK(!compilation_info()->dependencies() ||
+        !compilation_info()->dependencies()->HasAborted());
 
   // Delegate to the underlying implementation.
   DCHECK_EQ(state(), State::kReadyToFinalize);
