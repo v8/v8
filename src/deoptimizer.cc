@@ -2837,6 +2837,7 @@ void TranslatedState::CreateArgumentsElementsTranslatedValues(
     PrintF(trace_file, "arguments elements object #%d (type = %d, length = %d)",
            object_index, static_cast<uint8_t>(type), length);
   }
+
   object_positions_.push_back({frame_index, value_index});
   frame.Add(TranslatedValue::NewDeferredObject(
       this, length + FixedArray::kHeaderSize / kPointerSize, object_index));
@@ -3458,10 +3459,18 @@ void TranslatedState::EnsureCapturedObjectAllocatedAt(
       // Check we have the right size.
       int array_length =
           Smi::cast(frame->values_[value_index].GetRawValue())->value();
+
       int instance_size = FixedArray::SizeFor(array_length);
       CHECK_EQ(instance_size, slot->GetChildrenCount() * kPointerSize);
 
-      slot->set_storage(AllocateStorageFor(slot));
+      // Canonicalize empty fixed array.
+      if (*map == isolate()->heap()->empty_fixed_array()->map() &&
+          array_length == 0) {
+        slot->set_storage(isolate()->factory()->empty_fixed_array());
+      } else {
+        slot->set_storage(AllocateStorageFor(slot));
+      }
+
       // Make sure all the remaining children (after the map) are allocated.
       return EnsureChildrenAllocated(slot->GetChildrenCount() - 1, frame,
                                      &value_index, worklist);
@@ -3667,6 +3676,14 @@ void TranslatedState::InitializeObjectWithTaggedFieldsAt(
     TranslatedFrame* frame, int* value_index, TranslatedValue* slot,
     Handle<Map> map, const DisallowHeapAllocation& no_allocation) {
   Handle<HeapObject> object_storage = Handle<HeapObject>::cast(slot->storage_);
+
+  // Skip the writes if we already have the canonical empty fixed array.
+  if (*object_storage == isolate()->heap()->empty_fixed_array()) {
+    CHECK_EQ(2, slot->GetChildrenCount());
+    Handle<Object> length_value = GetValueAndAdvance(frame, value_index);
+    CHECK_EQ(*length_value, Smi::FromInt(0));
+    return;
+  }
 
   // Notify the concurrent marker about the layout change.
   isolate()->heap()->NotifyObjectLayoutChange(
