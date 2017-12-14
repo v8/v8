@@ -282,30 +282,36 @@ class TestSuite(object):
   def IsNegativeTest(self, testcase):
     return False
 
-  def HasFailed(self, testcase, output, ctx=None):
-    if ctx and ctx.predictable:
-      # Only check the exit code of the predictable_wrapper in
-      # verify-predictable mode.
-      execution_failed = output.exit_code != 0
-    else:
-      execution_failed = self.IsFailureOutput(testcase, output)
+  def HasFailed(self, testcase, output):
+    execution_failed = self.IsFailureOutput(testcase, output)
     if self.IsNegativeTest(testcase):
       return not execution_failed
     else:
       return execution_failed
 
-  def GetOutcome(self, testcase, output, ctx=None):
+  def GetOutcome(self, testcase, output):
     if output.HasCrashed():
       return statusfile.CRASH
     elif output.HasTimedOut():
       return statusfile.TIMEOUT
-    elif self.HasFailed(testcase, output, ctx):
+    elif self.HasFailed(testcase, output):
       return statusfile.FAIL
     else:
       return statusfile.PASS
 
   def HasUnexpectedOutput(self, testcase, output, ctx=None):
-    return (self.GetOutcome(testcase, output, ctx)
+    if ctx and ctx.predictable:
+      # Only check the exit code of the predictable_wrapper in
+      # verify-predictable mode. Negative tests are not supported as they
+      # usually also don't print allocation hashes. There are two versions of
+      # negative tests: one specified by the test, the other specified through
+      # the status file (e.g. known bugs).
+      return (
+          output.exit_code != 0 and
+          not self.IsNegativeTest(testcase) and
+          statusfile.FAIL not in self.GetExpectedOutcomes(testcase)
+      )
+    return (self.GetOutcome(testcase, output)
             not in self.GetExpectedOutcomes(testcase))
 
   def _create_test(self, path, **kwargs):
