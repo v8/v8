@@ -76,8 +76,8 @@ class Sweeper::SweeperTask final : public CancelableTask {
 
  private:
   void RunInternal() final {
-    GCTracer::BackgroundScope scope(
-        tracer_, GCTracer::BackgroundScope::MC_BACKGROUND_SWEEPING);
+    TRACE_BACKGROUND_GC(tracer_,
+                        GCTracer::BackgroundScope::MC_BACKGROUND_SWEEPING);
     DCHECK_GE(space_to_start_, FIRST_PAGED_SPACE);
     DCHECK_LE(space_to_start_, LAST_PAGED_SPACE);
     const int offset = space_to_start_ - FIRST_PAGED_SPACE;
@@ -529,8 +529,8 @@ class Sweeper::IterabilityTask final : public CancelableTask {
 
  private:
   void RunInternal() final {
-    GCTracer::BackgroundScope scope(
-        tracer_, GCTracer::BackgroundScope::MC_BACKGROUND_SWEEPING);
+    TRACE_BACKGROUND_GC(tracer_,
+                        GCTracer::BackgroundScope::MC_BACKGROUND_SWEEPING);
     for (Page* page : sweeper_->iterability_list_) {
       sweeper_->MakeIterable(page);
     }

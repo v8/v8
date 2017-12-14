@@ -31,6 +31,11 @@ enum ScavengeSpeedMode { kForAllObjects, kForSurvivedObjects };
   TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.gc"),             \
                GCTracer::Scope::Name(gc_tracer_scope_id))
 
+#define TRACE_BACKGROUND_GC(tracer, scope_id)                   \
+  GCTracer::BackgroundScope background_scope(tracer, scope_id); \
+  TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.gc"),              \
+               GCTracer::BackgroundScope::Name(scope_id))
+
 // GCTracer collects and prints ONE line after each garbage collector
 // invocation IFF --trace_gc is used.
 class V8_EXPORT_PRIVATE GCTracer {
@@ -108,6 +113,8 @@ class V8_EXPORT_PRIVATE GCTracer {
     };
     BackgroundScope(GCTracer* tracer, ScopeId scope);
     ~BackgroundScope();
+
+    static const char* Name(ScopeId id);
 
    private:
     GCTracer* tracer_;

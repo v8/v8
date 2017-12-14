@@ -175,8 +175,8 @@ class StoreBuffer {
 
    private:
     void RunInternal() override {
-      GCTracer::BackgroundScope scope(
-          tracer_, GCTracer::BackgroundScope::BACKGROUND_STORE_BUFFER);
+      TRACE_BACKGROUND_GC(tracer_,
+                          GCTracer::BackgroundScope::BACKGROUND_STORE_BUFFER);
       store_buffer_->ConcurrentlyProcessStoreBuffer();
     }
     StoreBuffer* store_buffer_;

@@ -80,7 +80,22 @@ const char* GCTracer::Scope::Name(ScopeId id) {
       break;
   }
 #undef CASE
-  return "(unknown)";
+  UNREACHABLE();
+  return nullptr;
+}
+
+const char* GCTracer::BackgroundScope::Name(ScopeId id) {
+#define CASE(scope)            \
+  case BackgroundScope::scope: \
+    return "V8.GC_" #scope;
+  switch (id) {
+    TRACER_BACKGROUND_SCOPES(CASE)
+    case BackgroundScope::NUMBER_OF_SCOPES:
+      break;
+  }
+#undef CASE
+  UNREACHABLE();
+  return nullptr;
 }
 
 GCTracer::Event::Event(Type type, GarbageCollectionReason gc_reason,

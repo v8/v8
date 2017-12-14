@@ -1853,9 +1853,8 @@ class YoungGenerationMarkingTask : public ItemParallelJob::Task {
   }
 
   void RunInParallel() override {
-    GCTracer::BackgroundScope scope(
-        collector_->heap()->tracer(),
-        GCTracer::BackgroundScope::MINOR_MC_BACKGROUND_MARKING);
+    TRACE_BACKGROUND_GC(collector_->heap()->tracer(),
+                        GCTracer::BackgroundScope::MINOR_MC_BACKGROUND_MARKING);
     double marking_time = 0.0;
     {
       TimedScope scope(&marking_time);
@@ -3244,8 +3243,7 @@ class PageEvacuationTask : public ItemParallelJob::Task {
         tracer_(isolate->heap()->tracer()) {}
 
   void RunInParallel() override {
-    GCTracer::BackgroundScope scope(tracer_,
-                                    evacuator_->GetBackgroundTracingScope());
+    TRACE_BACKGROUND_GC(tracer_, evacuator_->GetBackgroundTracingScope());
     PageEvacuationItem* item = nullptr;
     while ((item = GetItem<PageEvacuationItem>()) != nullptr) {
       evacuator_->EvacuatePage(item->page());
@@ -3561,7 +3559,7 @@ class PointersUpdatingTask : public ItemParallelJob::Task {
         scope_(scope) {}
 
   void RunInParallel() override {
-    GCTracer::BackgroundScope scope(tracer_, scope_);
+    TRACE_BACKGROUND_GC(tracer_, scope_);
     UpdatingItem* item = nullptr;
     while ((item = GetItem<UpdatingItem>()) != nullptr) {
       item->Process();

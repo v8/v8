@@ -320,8 +320,8 @@ class MemoryAllocator::Unmapper::UnmapFreeMemoryTask : public CancelableTask {
 
  private:
   void RunInternal() override {
-    GCTracer::BackgroundScope scope(
-        tracer_, GCTracer::BackgroundScope::BACKGROUND_UNMAPPER);
+    TRACE_BACKGROUND_GC(tracer_,
+                        GCTracer::BackgroundScope::BACKGROUND_UNMAPPER);
     unmapper_->PerformFreeMemoryOnQueuedChunks<FreeMode::kUncommitPooled>();
     unmapper_->pending_unmapping_tasks_semaphore_.Signal();
   }
