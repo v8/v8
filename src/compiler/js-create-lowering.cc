@@ -624,8 +624,9 @@ Reduction JSCreateLowering::ReduceNewArray(Node* node,
   } else if (IsDoubleElementsKind(elements_kind)) {
     for (auto& value : values) {
       if (!NodeProperties::GetType(value)->Is(Type::Number())) {
-        value = effect = graph()->NewNode(simplified()->CheckNumber(), value,
-                                          effect, control);
+        value = effect =
+            graph()->NewNode(simplified()->CheckNumber(VectorSlotPair()), value,
+                             effect, control);
       }
       // Make sure we do not store signaling NaNs into double arrays.
       value = graph()->NewNode(simplified()->NumberSilenceNaN(), value);

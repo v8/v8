@@ -1045,8 +1045,9 @@ Reduction JSBuiltinReducer::ReduceArrayPush(Node* node) {
         value = effect =
             graph()->NewNode(simplified()->CheckSmi(), value, effect, control);
       } else if (IsDoubleElementsKind(receiver_map->elements_kind())) {
-        value = effect = graph()->NewNode(simplified()->CheckNumber(), value,
-                                          effect, control);
+        value = effect =
+            graph()->NewNode(simplified()->CheckNumber(VectorSlotPair()), value,
+                             effect, control);
         // Make sure we do not store signaling NaNs into double arrays.
         value = graph()->NewNode(simplified()->NumberSilenceNaN(), value);
       }

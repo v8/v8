@@ -1433,6 +1433,7 @@ Node* EffectControlLinearizer::LowerCompareMaps(Node* node) {
 
 Node* EffectControlLinearizer::LowerCheckNumber(Node* node, Node* frame_state) {
   Node* value = node->InputAt(0);
+  const CheckParameters& params = CheckParametersOf(node->op());
 
   auto if_not_smi = __ MakeDeferredLabel();
   auto done = __ MakeLabel();
@@ -1444,7 +1445,7 @@ Node* EffectControlLinearizer::LowerCheckNumber(Node* node, Node* frame_state) {
   __ Bind(&if_not_smi);
   Node* value_map = __ LoadField(AccessBuilder::ForMap(), value);
   Node* check1 = __ WordEqual(value_map, __ HeapNumberMapConstant());
-  __ DeoptimizeIfNot(DeoptimizeReason::kNotAHeapNumber, VectorSlotPair(),
+  __ DeoptimizeIfNot(DeoptimizeReason::kNotAHeapNumber, params.feedback(),
                      check1, frame_state);
   __ Goto(&done);
 

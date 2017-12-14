@@ -82,8 +82,9 @@ bool PropertyAccessBuilder::TryBuildNumberCheck(MapHandles const& maps,
                                                 Node* control) {
   if (HasOnlyNumberMaps(maps)) {
     // Monomorphic number access (we also deal with Smis here).
-    *receiver = *effect = graph()->NewNode(simplified()->CheckNumber(),
-                                           *receiver, *effect, control);
+    *receiver = *effect =
+        graph()->NewNode(simplified()->CheckNumber(VectorSlotPair()), *receiver,
+                         *effect, control);
     return true;
   }
   return false;

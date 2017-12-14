@@ -1808,8 +1808,9 @@ JSNativeContextSpecialization::BuildPropertyStore(
            access_mode == AccessMode::kStoreInLiteral);
     switch (field_representation) {
       case MachineRepresentation::kFloat64: {
-        value = effect = graph()->NewNode(simplified()->CheckNumber(), value,
-                                          effect, control);
+        value = effect =
+            graph()->NewNode(simplified()->CheckNumber(VectorSlotPair()), value,
+                             effect, control);
         if (!field_index.is_inobject() || field_index.is_hidden_field() ||
             !FLAG_unbox_double_fields) {
           if (access_info.HasTransitionMap()) {
@@ -2398,8 +2399,9 @@ JSNativeContextSpecialization::BuildElementAccess(
         value = effect =
             graph()->NewNode(simplified()->CheckSmi(), value, effect, control);
       } else if (IsDoubleElementsKind(elements_kind)) {
-        value = effect = graph()->NewNode(simplified()->CheckNumber(), value,
-                                          effect, control);
+        value = effect =
+            graph()->NewNode(simplified()->CheckNumber(VectorSlotPair()), value,
+                             effect, control);
         // Make sure we do not store signalling NaNs into double arrays.
         value = graph()->NewNode(simplified()->NumberSilenceNaN(), value);
       }

@@ -139,7 +139,8 @@ std::ostream& operator<<(std::ostream& os, CheckParameters const& p) {
 }
 
 CheckParameters const& CheckParametersOf(Operator const* op) {
-  CHECK_EQ(IrOpcode::kCheckBounds, op->opcode());
+  CHECK(op->opcode() == IrOpcode::kCheckBounds ||
+        op->opcode() == IrOpcode::kCheckNumber);
   return OpParameter<CheckParameters>(op);
 }
 
@@ -665,7 +666,6 @@ DeoptimizeReason DeoptimizeReasonOf(const Operator* op) {
 #define CHECKED_OP_LIST(V)               \
   V(CheckHeapObject, 1, 1)               \
   V(CheckInternalizedString, 1, 1)       \
-  V(CheckNumber, 1, 1)                   \
   V(CheckReceiver, 1, 1)                 \
   V(CheckSmi, 1, 1)                      \
   V(CheckString, 1, 1)                   \
@@ -687,7 +687,9 @@ DeoptimizeReason DeoptimizeReasonOf(const Operator* op) {
   V(CheckedTaggedToTaggedSigned, 1, 1)   \
   V(CheckedTaggedToTaggedPointer, 1, 1)
 
-#define CHECKED_WITH_FEEDBACK_OP_LIST(V) V(CheckBounds, 2, 1)
+#define CHECKED_WITH_FEEDBACK_OP_LIST(V) \
+  V(CheckBounds, 2, 1)                   \
+  V(CheckNumber, 1, 1)
 
 struct SimplifiedOperatorGlobalCache final {
 #define PURE(Name, properties, value_input_count, control_input_count)     \

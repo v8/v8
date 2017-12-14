@@ -132,6 +132,9 @@ bool IsCompatibleCheck(Node const* a, Node const* b) {
     } else if (a->opcode() == IrOpcode::kCheckBounds &&
                b->opcode() == IrOpcode::kCheckBounds) {
       // CheckBounds are compatible independent of associated feedback.
+    } else if (a->opcode() == IrOpcode::kCheckNumber &&
+               b->opcode() == IrOpcode::kCheckNumber) {
+      // CheckNumbers are compatible independent of associated feedback.
     } else {
       return false;
     }
