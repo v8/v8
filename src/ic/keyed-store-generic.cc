@@ -795,36 +795,20 @@ void KeyedStoreGenericAssembler::EmitGenericPropertyStore(
     {
       Comment("lookup transition");
       VARIABLE(var_handler, MachineRepresentation::kTagged);
-      Label tuple3(this), fixedarray(this), found_handler(this, &var_handler);
+      Label check_key(this), found_handler(this, &var_handler);
       Node* maybe_handler =
           LoadObjectField(receiver_map, Map::kTransitionsOrPrototypeInfoOffset);
       GotoIf(TaggedIsSmi(maybe_handler), notfound);
-      Node* handler_map = LoadMap(maybe_handler);
-      GotoIf(WordEqual(handler_map, Tuple3MapConstant()), &tuple3);
-      GotoIf(WordEqual(handler_map, FixedArrayMapConstant()), &fixedarray);
+      GotoIf(HasInstanceType(maybe_handler, STORE_HANDLER_TYPE), &check_key);
 
       // TODO(jkummerow): Consider implementing TransitionArray search.
       Goto(notfound);
 
-      VARIABLE(var_transition_cell, MachineRepresentation::kTagged);
-      Label check_key(this, &var_transition_cell);
-      BIND(&tuple3);
-      {
-        var_transition_cell.Bind(
-            LoadObjectField(maybe_handler, StoreHandler::kDataOffset));
-        Goto(&check_key);
-      }
-
-      BIND(&fixedarray);
-      {
-        var_transition_cell.Bind(
-            LoadFixedArrayElement(maybe_handler, StoreHandler::kDataIndex));
-        Goto(&check_key);
-      }
-
       BIND(&check_key);
       {
-        Node* transition = LoadWeakCellValue(var_transition_cell.value(), slow);
+        Node* transition_cell =
+            LoadObjectField(maybe_handler, StoreHandler::kData1Offset);
+        Node* transition = LoadWeakCellValue(transition_cell, slow);
         Node* transition_bitfield3 = LoadMapBitField3(transition);
         GotoIf(IsSetWord32<Map::IsDeprecatedBit>(transition_bitfield3), slow);
         Node* nof =

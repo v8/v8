@@ -240,22 +240,15 @@ Handle<Smi> StoreHandler::StoreApiSetter(Isolate* isolate,
 
 // static
 WeakCell* StoreHandler::GetTransitionCell(Object* handler) {
-  if (handler->IsTuple3()) {
-    STATIC_ASSERT(kDataOffset == Tuple3::kValue1Offset);
-    WeakCell* cell = WeakCell::cast(Tuple3::cast(handler)->value1());
-    DCHECK(!cell->cleared());
-    return cell;
-  }
-
-  DCHECK(handler->IsFixedArrayExact());
-  WeakCell* cell = WeakCell::cast(FixedArray::cast(handler)->get(kDataIndex));
+  DCHECK(handler->IsStoreHandler());
+  WeakCell* cell = WeakCell::cast(StoreHandler::cast(handler)->data1());
   DCHECK(!cell->cleared());
   return cell;
 }
 
 // static
 bool StoreHandler::IsHandler(Object* maybe_handler) {
-  return maybe_handler->IsFixedArrayExact() || maybe_handler->IsTuple3();
+  return maybe_handler->IsStoreHandler();
 }
 
 }  // namespace internal

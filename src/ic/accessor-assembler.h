@@ -37,8 +37,6 @@ class AccessorAssembler : public CodeStubAssembler {
   void GenerateStoreGlobalIC();
   void GenerateStoreGlobalICTrampoline();
 
-  void GenerateLoadICProtoArray(bool throw_reference_error_if_nonexistent);
-
   void GenerateLoadGlobalIC(TypeofMode typeof_mode);
   void GenerateLoadGlobalICTrampoline(TypeofMode typeof_mode);
 
@@ -116,8 +114,6 @@ class AccessorAssembler : public CodeStubAssembler {
   Node* LoadDescriptorValue(Node* map, Node* descriptor);
 
   void LoadIC_Uninitialized(const LoadICParameters* p);
-  void LoadICProtoArray(const LoadICParameters* p, Node* handler,
-                        bool throw_reference_error_if_nonexistent);
   void LoadGlobalIC(const LoadICParameters* p, TypeofMode typeof_mode);
   void KeyedLoadIC(const LoadICParameters* p);
   void KeyedLoadICGeneric(const LoadICParameters* p);
@@ -140,9 +136,11 @@ class AccessorAssembler : public CodeStubAssembler {
 
   // LoadIC implementation.
 
+  enum class ICMode { kNonGlobalIC, kGlobalIC };
   void HandleLoadICHandlerCase(
       const LoadICParameters* p, Node* handler, Label* miss,
-      ExitPoint* exit_point, ElementSupport support_elements = kOnlyProperties);
+      ExitPoint* exit_point, ICMode ic_mode = ICMode::kNonGlobalIC,
+      ElementSupport support_elements = kOnlyProperties);
 
   void HandleLoadICSmiHandlerCase(const LoadICParameters* p, Node* holder,
                                   Node* smi_handler, Label* miss,
@@ -155,7 +153,8 @@ class AccessorAssembler : public CodeStubAssembler {
                                     Variable* var_smi_handler,
                                     Label* if_smi_handler, Label* miss,
                                     ExitPoint* exit_point,
-                                    bool throw_reference_error_if_nonexistent);
+                                    bool throw_reference_error_if_nonexistent,
+                                    ICMode ic_mode);
 
   void HandleLoadField(Node* holder, Node* handler_word,
                        Variable* var_double_value, Label* rebox_double,
@@ -163,10 +162,6 @@ class AccessorAssembler : public CodeStubAssembler {
 
   void EmitAccessCheck(Node* expected_native_context, Node* context,
                        Node* receiver, Label* can_access, Label* miss);
-
-  Node* EmitLoadICProtoArrayCheck(const LoadICParameters* p, Node* handler,
-                                  Node* handler_length, Node* handler_flags,
-                                  Label* miss);
 
   // LoadGlobalIC implementation.
 

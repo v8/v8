@@ -199,8 +199,6 @@ namespace internal {
   TFC(ToBooleanLazyDeoptContinuation, TypeConversionStackParameter, 1)         \
                                                                                \
   /* Handlers */                                                               \
-  TFH(LoadICProtoArray, LoadICProtoArray)                                      \
-  TFH(LoadICProtoArrayThrowIfNonexistent, LoadICProtoArray)                    \
   TFH(KeyedLoadIC_Megamorphic, LoadWithVector)                                 \
   TFH(KeyedLoadIC_Miss, LoadWithVector)                                        \
   TFH(KeyedLoadIC_PolymorphicName, LoadWithVector)                             \

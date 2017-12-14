@@ -102,21 +102,6 @@ class LoadHandler final : public DataHandler {
   class ExportsIndexBits : public BitField<unsigned, KindBits::kNext,
                                            kSmiValueSize - KindBits::kNext> {};
 
-  // The layout of an Tuple3 handler representing a load of a field from
-  // prototype when prototype chain checks do not include non-existing lookups
-  // or access checks.
-  static const int kDataOffset = Tuple3::kValue1Offset;
-  static const int kSmiHandlerOffset = Tuple3::kValue2Offset;
-  static const int kValidityCellOffset = Tuple3::kValue3Offset;
-
-  // The layout of an array handler representing a load of a field from
-  // prototype when prototype chain checks include non-existing lookups and
-  // access checks.
-  static const int kSmiHandlerIndex = 0;
-  static const int kValidityCellIndex = 1;
-  static const int kDataIndex = 2;
-  static const int kFirstPrototypeIndex = 3;
-
   // Decodes kind from Smi-handler.
   static inline Kind GetHandlerKind(Smi* smi_handler);
 
@@ -267,23 +252,9 @@ class StoreHandler final : public DataHandler {
   // Make sure we don't overflow the smi.
   STATIC_ASSERT(FieldIndexBits::kNext <= kSmiValueSize);
 
-  // The layout of an Tuple3 handler representing a transitioning store
-  // when prototype chain checks do not include non-existing lookups or access
-  // checks.
-  static const int kDataOffset = Tuple3::kValue1Offset;
-  static const int kSmiHandlerOffset = Tuple3::kValue2Offset;
-  static const int kValidityCellOffset = Tuple3::kValue3Offset;
-
   static inline WeakCell* GetTransitionCell(Object* handler);
   static Object* ValidHandlerOrNull(Object* handler, Name* name,
                                     Handle<Map>* out_transition);
-
-  // The layout of an array handler representing a transitioning store
-  // when prototype chain checks include non-existing lookups and access checks.
-  static const int kSmiHandlerIndex = 0;
-  static const int kValidityCellIndex = 1;
-  static const int kDataIndex = 2;
-  static const int kFirstPrototypeIndex = 3;
 
   // Creates a Smi-handler for storing a field to fast object.
   static inline Handle<Smi> StoreField(Isolate* isolate, int descriptor,

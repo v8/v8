@@ -42,8 +42,6 @@ IC_BUILTIN_PARAM(LoadGlobalICTrampoline, LoadGlobalICTrampoline,
                  NOT_INSIDE_TYPEOF)
 IC_BUILTIN_PARAM(LoadGlobalICInsideTypeofTrampoline, LoadGlobalICTrampoline,
                  INSIDE_TYPEOF)
-IC_BUILTIN_PARAM(LoadICProtoArray, LoadICProtoArray, false)
-IC_BUILTIN_PARAM(LoadICProtoArrayThrowIfNonexistent, LoadICProtoArray, true)
 
 }  // namespace internal
 }  // namespace v8

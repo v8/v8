@@ -30,16 +30,6 @@ Handle<Code> CodeFactory::RuntimeCEntry(Isolate* isolate, int result_size) {
 }
 
 // static
-Callable CodeFactory::LoadICProtoArray(Isolate* isolate,
-                                       bool throw_if_nonexistent) {
-  return Callable(
-      throw_if_nonexistent
-          ? BUILTIN_CODE(isolate, LoadICProtoArrayThrowIfNonexistent)
-          : BUILTIN_CODE(isolate, LoadICProtoArray),
-      LoadICProtoArrayDescriptor(isolate));
-}
-
-// static
 Callable CodeFactory::ApiGetter(Isolate* isolate) {
   CallApiGetterStub stub(isolate);
   return make_callable(stub);
