@@ -7080,6 +7080,7 @@ class V8_EXPORT Isolate {
     kErrorPrepareStackTrace = 44,
     kErrorStackTraceLimit = 45,
     kWebAssemblyInstantiation = 46,
+    kDeoptimizerDisableSpeculation = 47,
 
     // If you add new values here, you'll also need to update Chromium's:
     // web_feature.mojom, UseCounterCallback.cpp, and enums.xml. V8 changes to

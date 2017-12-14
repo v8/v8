@@ -3842,6 +3842,7 @@ void TranslatedState::VerifyMaterializedObjects() {
 void TranslatedState::DoUpdateFeedback() {
   if (!feedback_vector_handle_.is_null()) {
     CHECK(!feedback_slot_.IsInvalid());
+    isolate()->CountUsage(v8::Isolate::kDeoptimizerDisableSpeculation);
     CallICNexus nexus(feedback_vector_handle_, feedback_slot_);
     nexus.SetSpeculationMode(SpeculationMode::kDisallowSpeculation);
   }
