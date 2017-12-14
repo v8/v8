@@ -201,6 +201,9 @@
   'test-cpu-profiler/TickEvents': [SKIP],
   # BUG(v8:6924). The test allocates a lot of memory.
   'test-api/NewStringRangeError': [PASS, NO_VARIANTS],
+
+  # BUG(chromium:794911).
+  'test-cpu-profiler/TracingCpuProfiler': [SKIP],
 }],  # 'tsan == True'
 
 ##############################################################################
