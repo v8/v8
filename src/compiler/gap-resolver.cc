@@ -5,7 +5,6 @@
 #include "src/compiler/gap-resolver.h"
 
 #include <algorithm>
-#include <functional>
 #include <set>
 
 namespace v8 {
@@ -18,10 +17,6 @@ namespace {
 
 const int kFloat32Bit = REP_BIT(MachineRepresentation::kFloat32);
 const int kFloat64Bit = REP_BIT(MachineRepresentation::kFloat64);
-
-inline bool Blocks(MoveOperands* move, InstructionOperand destination) {
-  return !move->IsEliminated() && move->source().InterferesWith(destination);
-}
 
 // Splits a FP move between two location operands into the equivalent series of
 // moves between smaller sub-operands, e.g. a double move to two single moves.
@@ -197,8 +192,11 @@ void GapResolver::PerformMove(ParallelMove* moves, MoveOperands* move) {
   // The move may be blocked on a (at most one) pending move, in which case we
   // have a cycle.  Search for such a blocking move and perform a swap to
   // resolve it.
-  auto blocker = std::find_if(moves->begin(), moves->end(),
-                              std::bind2nd(std::ptr_fun(&Blocks), destination));
+  auto blocker =
+      std::find_if(moves->begin(), moves->end(), [&](MoveOperands* move) {
+        return !move->IsEliminated() &&
+               move->source().InterferesWith(destination);
+      });
   if (blocker == moves->end()) {
     // The easy case: This move is not blocked.
     assembler_->AssembleMove(&source, &destination);
