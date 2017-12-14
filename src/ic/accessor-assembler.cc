@@ -31,13 +31,22 @@ Node* AccessorAssembler::LoadHandlerDataField(Node* handler, int data_index) {
                       InstanceTypeEqual(instance_type, STORE_HANDLER_TYPE)));
   int offset = 0;
   int minimum_size = 0;
-  if (data_index == 1) {
-    offset = DataHandler::kData1Offset;
-    minimum_size = DataHandler::kSizeWithData1;
-  } else {
-    DCHECK_EQ(2, data_index);
-    offset = DataHandler::kData2Offset;
-    minimum_size = DataHandler::kSizeWithData2;
+  switch (data_index) {
+    case 1:
+      offset = DataHandler::kData1Offset;
+      minimum_size = DataHandler::kSizeWithData1;
+      break;
+    case 2:
+      offset = DataHandler::kData2Offset;
+      minimum_size = DataHandler::kSizeWithData2;
+      break;
+    case 3:
+      offset = DataHandler::kData3Offset;
+      minimum_size = DataHandler::kSizeWithData3;
+      break;
+    default:
+      UNREACHABLE();
+      break;
   }
   USE(minimum_size);
   CSA_ASSERT(this, UintPtrGreaterThanOrEqual(
@@ -172,7 +181,8 @@ void AccessorAssembler::HandleLoadICHandlerCase(
   BIND(&if_smi_handler);
   {
     HandleLoadICSmiHandlerCase(p, var_holder.value(), var_smi_handler.value(),
-                               miss, exit_point, false, support_elements);
+                               handler, miss, exit_point, false,
+                               support_elements);
   }
 
   BIND(&try_proto_handler);
@@ -246,8 +256,9 @@ Node* AccessorAssembler::LoadDescriptorValue(Node* map, Node* descriptor) {
 }
 
 void AccessorAssembler::HandleLoadICSmiHandlerCase(
-    const LoadICParameters* p, Node* holder, Node* smi_handler, Label* miss,
-    ExitPoint* exit_point, bool throw_reference_error_if_nonexistent,
+    const LoadICParameters* p, Node* holder, Node* smi_handler, Node* handler,
+    Label* miss, ExitPoint* exit_point,
+    bool throw_reference_error_if_nonexistent,
     ElementSupport support_elements) {
   VARIABLE(var_double_value, MachineRepresentation::kFloat64);
   Label rebox_double(this, &var_double_value);
@@ -450,11 +461,18 @@ void AccessorAssembler::HandleLoadICSmiHandlerCase(
   BIND(&api_getter);
   {
     Comment("api_getter");
-    Node* context = LoadWeakCellValueUnchecked(
-        LoadObjectField(holder, Tuple2::kValue1Offset));
-    Node* call_handler_info = LoadWeakCellValueUnchecked(
-        LoadObjectField(holder, Tuple2::kValue2Offset));
+    CSA_ASSERT(this, TaggedIsNotSmi(handler));
+    Node* call_handler_info = holder;
 
+    // Context is stored either in data2 or data3 field depending on whether
+    // the access check is enabled for this handler or not.
+    Node* context_cell = Select(
+        IsSetWord<LoadHandler::DoAccessCheckOnReceiverBits>(handler_word),
+        [=] { return LoadHandlerDataField(handler, 3); },
+        [=] { return LoadHandlerDataField(handler, 2); },
+        MachineRepresentation::kTagged);
+
+    Node* context = LoadWeakCellValueUnchecked(context_cell);
     Node* foreign =
         LoadObjectField(call_handler_info, CallHandlerInfo::kJsCallbackOffset);
     Node* callback = LoadObjectField(foreign, Foreign::kForeignAddressOffset,
@@ -710,25 +728,13 @@ void AccessorAssembler::HandleLoadICProtoHandler(
 
   BIND(&load_from_cached_holder);
   {
-    Label unwrap_cell(this), bind_holder(this);
-    Branch(IsWeakCell(maybe_holder_cell), &unwrap_cell, &bind_holder);
+    // For regular holders, having passed the receiver map check and the
+    // validity cell check implies that |holder| is alive. However, for
+    // global object receivers, the |maybe_holder_cell| may be cleared.
+    Node* holder = LoadWeakCellValue(maybe_holder_cell, miss);
 
-    BIND(&unwrap_cell);
-    {
-      // For regular holders, having passed the receiver map check and the
-      // validity cell check implies that |holder| is alive. However, for
-      // global object receivers, the |maybe_holder_cell| may be cleared.
-      Node* holder = LoadWeakCellValue(maybe_holder_cell, miss);
-
-      var_holder->Bind(holder);
-      Goto(&done);
-    }
-
-    BIND(&bind_holder);
-    {
-      var_holder->Bind(maybe_holder_cell);
-      Goto(&done);
-    }
+    var_holder->Bind(holder);
+    Goto(&done);
   }
 
   BIND(&done);
@@ -774,8 +780,8 @@ void AccessorAssembler::HandleLoadGlobalICHandlerCase(
                            ICMode::kGlobalIC);
   BIND(&if_smi_handler);
   HandleLoadICSmiHandlerCase(
-      &p, var_holder.value(), var_smi_handler.value(), miss, exit_point,
-      throw_reference_error_if_nonexistent, kOnlyProperties);
+      &p, var_holder.value(), var_smi_handler.value(), handler, miss,
+      exit_point, throw_reference_error_if_nonexistent, kOnlyProperties);
 }
 
 void AccessorAssembler::JumpIfDataProperty(Node* details, Label* writable,
@@ -973,30 +979,20 @@ void AccessorAssembler::HandleStoreICProtoHandler(
       },
       miss, ic_mode);
 
-  VARIABLE(var_transition_map_or_holder, MachineRepresentation::kTagged);
   Label if_transition_map(this), if_holder_object(this);
 
-  {
-    Node* maybe_transition_cell = LoadHandlerDataField(handler, 1);
-    var_transition_map_or_holder.Bind(maybe_transition_cell);
-
-    Label unwrap_cell(this);
-    Branch(IsWeakCell(maybe_transition_cell), &unwrap_cell, &if_holder_object);
-
-    BIND(&unwrap_cell);
-    {
-      Node* maybe_transition = LoadWeakCellValue(maybe_transition_cell, miss);
-      var_transition_map_or_holder.Bind(maybe_transition);
-      Branch(IsMap(maybe_transition), &if_transition_map, &if_holder_object);
-    }
-  }
+  Node* maybe_transition_or_holder_cell = LoadHandlerDataField(handler, 1);
+  Node* maybe_transition_or_holder =
+      LoadWeakCellValue(maybe_transition_or_holder_cell, miss);
+  Branch(IsMap(maybe_transition_or_holder), &if_transition_map,
+         &if_holder_object);
 
   BIND(&if_transition_map);
   {
     Label if_transition_to_constant(this), if_store_normal(this);
 
     Node* holder = p->receiver;
-    Node* transition_map = var_transition_map_or_holder.value();
+    Node* transition_map = maybe_transition_or_holder;
 
     GotoIf(IsDeprecatedMap(transition_map), miss);
     Node* handler_word = SmiUntag(smi_handler);
@@ -1070,7 +1066,7 @@ void AccessorAssembler::HandleStoreICProtoHandler(
   {
     Label if_store_global_proxy(this), if_api_setter(this), if_accessor(this),
         if_native_data_property(this);
-    Node* holder = var_transition_map_or_holder.value();
+    Node* holder = maybe_transition_or_holder;
 
     CSA_ASSERT(this, TaggedIsSmi(smi_handler));
     Node* handler_word = SmiUntag(smi_handler);
@@ -1106,10 +1102,18 @@ void AccessorAssembler::HandleStoreICProtoHandler(
     BIND(&if_api_setter);
     {
       Comment("api_setter");
-      Node* context = LoadWeakCellValueUnchecked(
-          LoadObjectField(holder, Tuple2::kValue1Offset));
-      Node* call_handler_info = LoadWeakCellValueUnchecked(
-          LoadObjectField(holder, Tuple2::kValue2Offset));
+      CSA_ASSERT(this, TaggedIsNotSmi(handler));
+      Node* call_handler_info = holder;
+
+      // Context is stored either in data2 or data3 field depending on whether
+      // the access check is enabled for this handler or not.
+      Node* context_cell = Select(
+          IsSetWord<LoadHandler::DoAccessCheckOnReceiverBits>(handler_word),
+          [=] { return LoadHandlerDataField(handler, 3); },
+          [=] { return LoadHandlerDataField(handler, 2); },
+          MachineRepresentation::kTagged);
+
+      Node* context = LoadWeakCellValueUnchecked(context_cell);
 
       Node* foreign = LoadObjectField(call_handler_info,
                                       CallHandlerInfo::kJsCallbackOffset);
@@ -2338,6 +2342,8 @@ void AccessorAssembler::LoadGlobalIC_TryHandlerCase(const LoadICParameters* pp,
 
   bool throw_reference_error_if_nonexistent = typeof_mode == NOT_INSIDE_TYPEOF;
 
+  // TODO(ishell): revisit if this way of code organization still improves
+  // things given that we don't have array handlers anymore.
   {
     LoadICParameters p = *pp;
     DCHECK_NULL(p.receiver);
@@ -2345,7 +2351,7 @@ void AccessorAssembler::LoadGlobalIC_TryHandlerCase(const LoadICParameters* pp,
     p.receiver =
         LoadContextElement(native_context, Context::GLOBAL_PROXY_INDEX);
     Node* holder = LoadContextElement(native_context, Context::EXTENSION_INDEX);
-    HandleLoadICSmiHandlerCase(&p, holder, handler, miss, exit_point,
+    HandleLoadICSmiHandlerCase(&p, holder, handler, handler, miss, exit_point,
                                throw_reference_error_if_nonexistent,
                                kOnlyProperties);
   }

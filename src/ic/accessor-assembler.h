@@ -146,7 +146,7 @@ class AccessorAssembler : public CodeStubAssembler {
       ElementSupport support_elements = kOnlyProperties);
 
   void HandleLoadICSmiHandlerCase(const LoadICParameters* p, Node* holder,
-                                  Node* smi_handler, Label* miss,
+                                  Node* smi_handler, Node* handler, Label* miss,
                                   ExitPoint* exit_point,
                                   bool throw_reference_error_if_nonexistent,
                                   ElementSupport support_elements);

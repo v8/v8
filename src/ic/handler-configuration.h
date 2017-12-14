@@ -147,7 +147,7 @@ class LoadHandler final : public DataHandler {
   // needed (e.g., for "nonexistent"), null_value() may be passed in.
   static Handle<Object> LoadFullChain(Isolate* isolate,
                                       Handle<Map> receiver_map,
-                                      Handle<Object> holder, Handle<Name> name,
+                                      Handle<Object> holder,
                                       Handle<Smi> smi_handler);
 
   // Creates a data handler that represents a prototype chain check followed
@@ -155,8 +155,9 @@ class LoadHandler final : public DataHandler {
   // Can be used only if GetPrototypeCheckCount() returns non negative value.
   static Handle<Object> LoadFromPrototype(
       Isolate* isolate, Handle<Map> receiver_map, Handle<JSReceiver> holder,
-      Handle<Name> name, Handle<Smi> smi_handler,
-      MaybeHandle<Object> maybe_data = MaybeHandle<Object>());
+      Handle<Smi> smi_handler,
+      MaybeHandle<Object> maybe_data1 = MaybeHandle<Object>(),
+      MaybeHandle<Object> maybe_data2 = MaybeHandle<Object>());
 
   // Creates a Smi-handler for loading a non-existent property. Works only as
   // a part of prototype chain check.
@@ -272,8 +273,9 @@ class StoreHandler final : public DataHandler {
 
   static Handle<Object> StoreThroughPrototype(
       Isolate* isolate, Handle<Map> receiver_map, Handle<JSReceiver> holder,
-      Handle<Name> name, Handle<Smi> smi_handler,
-      MaybeHandle<Object> data = MaybeHandle<Object>());
+      Handle<Smi> smi_handler,
+      MaybeHandle<Object> maybe_data1 = MaybeHandle<Object>(),
+      MaybeHandle<Object> maybe_data2 = MaybeHandle<Object>());
 
   static Handle<Object> StoreElementTransition(Isolate* isolate,
                                                Handle<Map> receiver_map,
@@ -282,8 +284,7 @@ class StoreHandler final : public DataHandler {
 
   static Handle<Object> StoreProxy(Isolate* isolate, Handle<Map> receiver_map,
                                    Handle<JSProxy> proxy,
-                                   Handle<JSReceiver> receiver,
-                                   Handle<Name> name);
+                                   Handle<JSReceiver> receiver);
 
   // Creates a handler for storing a property to the property cell of a global
   // object.

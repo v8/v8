@@ -2780,11 +2780,19 @@ Handle<Map> Factory::ObjectLiteralMapFromCache(Handle<Context> native_context,
 
 Handle<LoadHandler> Factory::NewLoadHandler(int data_count) {
   Handle<Map> map;
-  if (data_count == 1) {
-    map = load_handler1_map();
-  } else {
-    DCHECK_EQ(2, data_count);
-    map = load_handler2_map();
+  switch (data_count) {
+    case 1:
+      map = load_handler1_map();
+      break;
+    case 2:
+      map = load_handler2_map();
+      break;
+    case 3:
+      map = load_handler3_map();
+      break;
+    default:
+      UNREACHABLE();
+      break;
   }
   return New<LoadHandler>(map, OLD_SPACE);
 }
@@ -2800,6 +2808,9 @@ Handle<StoreHandler> Factory::NewStoreHandler(int data_count) {
       break;
     case 2:
       map = store_handler2_map();
+      break;
+    case 3:
+      map = store_handler3_map();
       break;
     default:
       UNREACHABLE();
