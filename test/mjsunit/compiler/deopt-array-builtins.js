@@ -4,7 +4,9 @@
 
 // Flags: --allow-natives-syntax --opt
 
-(function testForEach() {
+/* Test MapCheck behavior */
+
+(function testForEachMapCheck() {
     function f(v,n,o) {
         Object.freeze(o);
     }
@@ -21,7 +23,7 @@
 })();
 
 
-(function testFind() {
+(function testFindMapCheck() {
     function f(v,n,o) {
         Object.freeze(o);
         return false;
@@ -38,7 +40,7 @@
     assertOptimized(g);
 })();
 
-(function testMap() {
+(function testMapMapCheck() {
     function f(v,n,o) {
         Object.freeze(o);
         return false;
@@ -55,7 +57,7 @@
     assertOptimized(g);
 })();
 
-(function testFilter() {
+(function testFilterMapCheck() {
     function f(v,n,o) {
         Object.freeze(o);
         return true;
@@ -68,6 +70,79 @@
     %OptimizeFunctionOnNextCall(g);
     g();
     %OptimizeFunctionOnNextCall(g);
+    g();
+    assertOptimized(g);
+})();
+
+
+/* Test CheckBounds behavior */
+
+(function testForEachCheckBounds() {
+    function f(v,n,o) {
+        o.length=2;
+    }
+    function g() {
+        [1,2,3].forEach(f);
+    }
+    g();
+    g();
+    %OptimizeFunctionOnNextCall(g);
+    g();
+    %OptimizeFunctionOnNextCall(g);
+    g();
+    assertOptimized(g);
+})();
+
+
+(function testFindCheckBounds() {
+    function f(v,n,o) {
+        o.length=2;
+        return false;
+    }
+    function g() {
+        [1,2,3].find(f);
+    }
+    g();
+    g();
+    %OptimizeFunctionOnNextCall(g);
+    g();
+    %OptimizeFunctionOnNextCall(g);
+    g();
+    assertOptimized(g);
+})();
+
+(function testMapCheckBounds() {
+    function f(v,n,o) {
+        o.length=2;
+        return false;
+    }
+    function g() {
+        [1,2,3].map(f);
+    }
+    g();
+    g();
+    %OptimizeFunctionOnNextCall(g);
+    g();
+    %OptimizeFunctionOnNextCall(g);
+    g();
+    assertOptimized(g);
+})();
+
+(function testFilterCheckBounds() {
+    function f(v,n,o) {
+        o.length = 2;
+        return true;
+    }
+    function g() {
+        [1,2,3].filter(f);
+    }
+    g();
+    g();
+    %OptimizeFunctionOnNextCall(g);
+    g();
+    g();
+    %OptimizeFunctionOnNextCall(g);
+    g();
     g();
     assertOptimized(g);
 })();

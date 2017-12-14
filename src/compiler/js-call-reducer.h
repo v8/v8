@@ -110,7 +110,8 @@ class JSCallReducer final : public AdvancedReducer {
   // Load receiver[k], first bounding k by receiver array length.
   // k is thusly changed, and the effect is changed as well.
   Node* SafeLoadElement(ElementsKind kind, Node* receiver, Node* control,
-                        Node** effect, Node** k);
+                        Node** effect, Node** k,
+                        const VectorSlotPair& feedback);
 
   Graph* graph() const;
   JSGraph* jsgraph() const { return jsgraph_; }

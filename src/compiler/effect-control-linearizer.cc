@@ -1312,9 +1312,11 @@ Node* EffectControlLinearizer::LowerTruncateTaggedToFloat64(Node* node) {
 Node* EffectControlLinearizer::LowerCheckBounds(Node* node, Node* frame_state) {
   Node* index = node->InputAt(0);
   Node* limit = node->InputAt(1);
+  const CheckParameters& params = CheckParametersOf(node->op());
 
   Node* check = __ Uint32LessThan(index, limit);
-  __ DeoptimizeIfNot(DeoptimizeReason::kOutOfBounds, check, frame_state);
+  __ DeoptimizeIfNot(DeoptimizeReason::kOutOfBounds, check, frame_state,
+                     params.feedback());
   return index;
 }
 

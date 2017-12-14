@@ -92,6 +92,28 @@ ExternalArrayType ExternalArrayTypeOf(const Operator* op) WARN_UNUSED_RESULT;
 // The ConvertReceiverMode is used as parameter by ConvertReceiver operators.
 ConvertReceiverMode ConvertReceiverModeOf(Operator const* op);
 
+// A the parameters for several Check nodes. The {feedback} parameter is
+// optional. If {feedback} references a valid CallIC slot and this MapCheck
+// fails, then speculation on that CallIC slot will be disabled.
+class CheckParameters final {
+ public:
+  explicit CheckParameters(const VectorSlotPair& feedback)
+      : feedback_(feedback) {}
+
+  VectorSlotPair const& feedback() const { return feedback_; }
+
+ private:
+  VectorSlotPair feedback_;
+};
+
+bool operator==(CheckParameters const&, CheckParameters const&);
+
+size_t hash_value(CheckParameters const&);
+
+std::ostream& operator<<(std::ostream&, CheckParameters const&);
+
+CheckParameters const& CheckParametersOf(Operator const*) WARN_UNUSED_RESULT;
+
 enum class CheckFloat64HoleMode : uint8_t {
   kNeverReturnHole,  // Never return the hole (deoptimize instead).
   kAllowReturnHole   // Allow to return the hole (signaling NaN).
@@ -443,7 +465,7 @@ class V8_EXPORT_PRIVATE SimplifiedOperatorBuilder final
   const Operator* TruncateTaggedPointerToBit();
 
   const Operator* CheckIf(DeoptimizeReason deoptimize_reason);
-  const Operator* CheckBounds();
+  const Operator* CheckBounds(const VectorSlotPair& feedback);
   const Operator* CheckMaps(CheckMapsFlags, ZoneHandleSet<Map>,
                             const VectorSlotPair& = VectorSlotPair());
   const Operator* CompareMaps(ZoneHandleSet<Map>);

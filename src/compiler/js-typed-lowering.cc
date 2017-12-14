@@ -666,9 +666,9 @@ Reduction JSTypedLowering::ReduceCreateConsString(Node* node) {
     // has the additional benefit of not holding on to the lazy {frame_state}
     // and thus potentially reduces the number of live ranges and allows for
     // more truncations.
-    length = effect = graph()->NewNode(simplified()->CheckBounds(), length,
-                                       jsgraph()->Constant(String::kMaxLength),
-                                       effect, control);
+    length = effect = graph()->NewNode(
+        simplified()->CheckBounds(VectorSlotPair()), length,
+        jsgraph()->Constant(String::kMaxLength), effect, control);
   } else {
     // Check if we would overflow the allowed maximum string length.
     Node* check =

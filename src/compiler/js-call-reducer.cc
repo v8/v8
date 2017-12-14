@@ -902,7 +902,8 @@ Reduction JSCallReducer::ReduceArrayForEach(Handle<JSFunction> function,
                                                receiver_maps, p.feedback()),
                        receiver, effect, control);
 
-  Node* element = SafeLoadElement(kind, receiver, control, &effect, &k);
+  Node* element =
+      SafeLoadElement(kind, receiver, control, &effect, &k, p.feedback());
 
   Node* next_k =
       graph()->NewNode(simplified()->NumberAdd(), k, jsgraph()->Constant(1));
@@ -1109,7 +1110,8 @@ Reduction JSCallReducer::ReduceArrayMap(Handle<JSFunction> function,
                                                receiver_maps, p.feedback()),
                        receiver, effect, control);
 
-  Node* element = SafeLoadElement(kind, receiver, control, &effect, &k);
+  Node* element =
+      SafeLoadElement(kind, receiver, control, &effect, &k, p.feedback());
 
   Node* next_k =
       graph()->NewNode(simplified()->NumberAdd(), k, jsgraph()->OneConstant());
@@ -1311,7 +1313,8 @@ Reduction JSCallReducer::ReduceArrayFilter(Handle<JSFunction> function,
                                                receiver_maps, p.feedback()),
                        receiver, effect, control);
 
-  Node* element = SafeLoadElement(kind, receiver, control, &effect, &k);
+  Node* element =
+      SafeLoadElement(kind, receiver, control, &effect, &k, p.feedback());
 
   Node* next_k =
       graph()->NewNode(simplified()->NumberAdd(), k, jsgraph()->OneConstant());
@@ -1497,7 +1500,8 @@ Reduction JSCallReducer::ReduceArrayFind(Handle<JSFunction> function,
   }
 
   // Load k-th element from receiver.
-  Node* element = SafeLoadElement(kind, receiver, control, &effect, &k);
+  Node* element =
+      SafeLoadElement(kind, receiver, control, &effect, &k, p.feedback());
 
   // Increment k for the next iteration.
   Node* next_k = checkpoint_params[3] =
@@ -1675,14 +1679,15 @@ void JSCallReducer::RewirePostCallbackExceptionEdges(Node* check_throw,
 }
 
 Node* JSCallReducer::SafeLoadElement(ElementsKind kind, Node* receiver,
-                                     Node* control, Node** effect, Node** k) {
+                                     Node* control, Node** effect, Node** k,
+                                     const VectorSlotPair& feedback) {
   // Make sure that the access is still in bounds, since the callback could have
   // changed the array's size.
   Node* length = *effect = graph()->NewNode(
       simplified()->LoadField(AccessBuilder::ForJSArrayLength(kind)), receiver,
       *effect, control);
-  *k = *effect = graph()->NewNode(simplified()->CheckBounds(), *k, length,
-                                  *effect, control);
+  *k = *effect = graph()->NewNode(simplified()->CheckBounds(feedback), *k,
+                                  length, *effect, control);
 
   // Reload the elements pointer before calling the callback, since the previous
   // callback might have resized the array causing the elements buffer to be

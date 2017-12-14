@@ -525,7 +525,7 @@ Reduction JSCreateLowering::ReduceNewArray(Node* node, Node* length,
   // This has to be kept in sync with src/runtime/runtime-array.cc,
   // where this limit is protected.
   length = effect = graph()->NewNode(
-      simplified()->CheckBounds(), length,
+      simplified()->CheckBounds(VectorSlotPair()), length,
       jsgraph()->Constant(JSArray::kInitialMaxFastElementArray), effect,
       control);
 

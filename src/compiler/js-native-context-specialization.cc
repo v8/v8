@@ -2126,13 +2126,14 @@ JSNativeContextSpecialization::BuildElementAccess(
       // Check that the {index} is a valid array index, we do the actual
       // bounds check below and just skip the store below if it's out of
       // bounds for the {receiver}.
-      index = effect = graph()->NewNode(simplified()->CheckBounds(), index,
-                                        jsgraph()->Constant(Smi::kMaxValue),
-                                        effect, control);
+      index = effect = graph()->NewNode(
+          simplified()->CheckBounds(VectorSlotPair()), index,
+          jsgraph()->Constant(Smi::kMaxValue), effect, control);
     } else {
       // Check that the {index} is in the valid range for the {receiver}.
-      index = effect = graph()->NewNode(simplified()->CheckBounds(), index,
-                                        length, effect, control);
+      index = effect =
+          graph()->NewNode(simplified()->CheckBounds(VectorSlotPair()), index,
+                           length, effect, control);
     }
 
     // Access the actual element.
@@ -2272,13 +2273,14 @@ JSNativeContextSpecialization::BuildElementAccess(
       // Check that the {index} is a valid array index, we do the actual
       // bounds check below and just skip the store below if it's out of
       // bounds for the {receiver}.
-      index = effect = graph()->NewNode(simplified()->CheckBounds(), index,
-                                        jsgraph()->Constant(Smi::kMaxValue),
-                                        effect, control);
+      index = effect = graph()->NewNode(
+          simplified()->CheckBounds(VectorSlotPair()), index,
+          jsgraph()->Constant(Smi::kMaxValue), effect, control);
     } else {
       // Check that the {index} is in the valid range for the {receiver}.
-      index = effect = graph()->NewNode(simplified()->CheckBounds(), index,
-                                        length, effect, control);
+      index = effect =
+          graph()->NewNode(simplified()->CheckBounds(VectorSlotPair()), index,
+                           length, effect, control);
     }
 
     // Compute the element access.
@@ -2430,8 +2432,9 @@ JSNativeContextSpecialization::BuildElementAccess(
                                    jsgraph()->Constant(JSObject::kMaxGap))
                 : graph()->NewNode(simplified()->NumberAdd(), length,
                                    jsgraph()->OneConstant());
-        index = effect = graph()->NewNode(simplified()->CheckBounds(), index,
-                                          limit, effect, control);
+        index = effect =
+            graph()->NewNode(simplified()->CheckBounds(VectorSlotPair()), index,
+                             limit, effect, control);
 
         // Grow {elements} backing store if necessary.
         GrowFastElementsMode mode =
@@ -2492,9 +2495,9 @@ Node* JSNativeContextSpecialization::BuildIndexedStringLoad(
     dependencies()->AssumePropertyCell(factory()->no_elements_protector());
 
     // Ensure that the {index} is a valid String length.
-    index = *effect = graph()->NewNode(simplified()->CheckBounds(), index,
-                                       jsgraph()->Constant(String::kMaxLength),
-                                       *effect, *control);
+    index = *effect = graph()->NewNode(
+        simplified()->CheckBounds(VectorSlotPair()), index,
+        jsgraph()->Constant(String::kMaxLength), *effect, *control);
 
     // Load the single character string from {receiver} or yield
     // undefined if the {index} is not within the valid bounds.
@@ -2515,8 +2518,9 @@ Node* JSNativeContextSpecialization::BuildIndexedStringLoad(
                             vtrue, vfalse, *control);
   } else {
     // Ensure that {index} is less than {receiver} length.
-    index = *effect = graph()->NewNode(simplified()->CheckBounds(), index,
-                                       length, *effect, *control);
+    index = *effect =
+        graph()->NewNode(simplified()->CheckBounds(VectorSlotPair()), index,
+                         length, *effect, *control);
 
     // Return the character from the {receiver} as single character string.
     return graph()->NewNode(simplified()->StringCharAt(), receiver, index,

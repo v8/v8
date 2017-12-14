@@ -128,6 +128,21 @@ ConvertReceiverMode ConvertReceiverModeOf(Operator const* op) {
   return OpParameter<ConvertReceiverMode>(op);
 }
 
+bool operator==(CheckParameters const& lhs, CheckParameters const& rhs) {
+  return lhs.feedback() == rhs.feedback();
+}
+
+size_t hash_value(CheckParameters const& p) { return hash_value(p.feedback()); }
+
+std::ostream& operator<<(std::ostream& os, CheckParameters const& p) {
+  return os << p.feedback();
+}
+
+CheckParameters const& CheckParametersOf(Operator const* op) {
+  CHECK_EQ(IrOpcode::kCheckBounds, op->opcode());
+  return OpParameter<CheckParameters>(op);
+}
+
 size_t hash_value(CheckFloat64HoleMode mode) {
   return static_cast<size_t>(mode);
 }
@@ -648,7 +663,6 @@ DeoptimizeReason DeoptimizeReasonOf(const Operator* op) {
   V(SpeculativeNumberLessThanOrEqual)
 
 #define CHECKED_OP_LIST(V)               \
-  V(CheckBounds, 2, 1)                   \
   V(CheckHeapObject, 1, 1)               \
   V(CheckInternalizedString, 1, 1)       \
   V(CheckNumber, 1, 1)                   \
@@ -673,6 +687,8 @@ DeoptimizeReason DeoptimizeReasonOf(const Operator* op) {
   V(CheckedTaggedToTaggedSigned, 1, 1)   \
   V(CheckedTaggedToTaggedPointer, 1, 1)
 
+#define CHECKED_WITH_FEEDBACK_OP_LIST(V) V(CheckBounds, 2, 1)
+
 struct SimplifiedOperatorGlobalCache final {
 #define PURE(Name, properties, value_input_count, control_input_count)     \
   struct Name##Operator final : public Operator {                          \
@@ -694,6 +710,18 @@ struct SimplifiedOperatorGlobalCache final {
   Name##Operator k##Name;
   CHECKED_OP_LIST(CHECKED)
 #undef CHECKED
+
+#define CHECKED_WITH_FEEDBACK(Name, value_input_count, value_output_count) \
+  struct Name##Operator final : public Operator1<CheckParameters> {        \
+    Name##Operator()                                                       \
+        : Operator1<CheckParameters>(                                      \
+              IrOpcode::k##Name, Operator::kFoldable | Operator::kNoThrow, \
+              #Name, value_input_count, 1, 1, value_output_count, 1, 0,    \
+              CheckParameters(VectorSlotPair())) {}                        \
+  };                                                                       \
+  Name##Operator k##Name;
+  CHECKED_WITH_FEEDBACK_OP_LIST(CHECKED_WITH_FEEDBACK)
+#undef CHECKED_WITH_FEEDBACK
 
   template <DeoptimizeReason kDeoptimizeReason>
   struct CheckIfOperator final : public Operator1<DeoptimizeReason> {
@@ -939,6 +967,21 @@ GET_FROM_CACHE(FindOrderedHashMapEntry)
 GET_FROM_CACHE(FindOrderedHashMapEntryForInt32Key)
 GET_FROM_CACHE(LoadFieldByIndex)
 #undef GET_FROM_CACHE
+
+#define GET_FROM_CACHE_WITH_FEEDBACK(Name, value_input_count,               \
+                                     value_output_count)                    \
+  const Operator* SimplifiedOperatorBuilder::Name(                          \
+      const VectorSlotPair& feedback) {                                     \
+    if (!feedback.IsValid()) {                                              \
+      return &cache_.k##Name;                                               \
+    }                                                                       \
+    return new (zone()) Operator1<CheckParameters>(                         \
+        IrOpcode::k##Name, Operator::kFoldable | Operator::kNoThrow, #Name, \
+        value_input_count, 1, 1, value_output_count, 1, 0,                  \
+        CheckParameters(feedback));                                         \
+  }
+CHECKED_WITH_FEEDBACK_OP_LIST(GET_FROM_CACHE_WITH_FEEDBACK)
+#undef GET_FROM_CACHE_WITH_FEEDBACK
 
 const Operator* SimplifiedOperatorBuilder::RuntimeAbort(BailoutReason reason) {
   return new (zone()) Operator1<BailoutReason>(  // --
@@ -1299,6 +1342,7 @@ const Operator* SimplifiedOperatorBuilder::TransitionAndStoreNonNumberElement(
 
 #undef PURE_OP_LIST
 #undef SPECULATIVE_NUMBER_BINOP_LIST
+#undef CHECKED_WITH_FEEDBACK_OP_LIST
 #undef CHECKED_OP_LIST
 #undef ACCESS_OP_LIST
 
