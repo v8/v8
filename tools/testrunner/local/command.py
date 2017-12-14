@@ -8,6 +8,7 @@ import os
 import subprocess
 import sys
 import threading
+import time
 
 from ..local import utils
 from ..objects import output
@@ -79,7 +80,9 @@ class Command(object):
         self.timeout, self._kill_process, [process, timeout_occured])
     timer.start()
 
+    start_time = time.time()
     stdout, stderr = process.communicate()
+    duration = time.time() - start_time
 
     timer.cancel()
 
@@ -89,6 +92,7 @@ class Command(object):
       stdout.decode('utf-8', 'replace').encode('utf-8'),
       stderr.decode('utf-8', 'replace').encode('utf-8'),
       process.pid,
+      duration
     )
 
   def _get_popen_args(self):

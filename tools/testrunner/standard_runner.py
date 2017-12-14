@@ -492,7 +492,7 @@ class StandardTestRunner(base_runner.BaseTestRunner):
       overall_duration = time.time() - start_time
 
       if options.time:
-        verbose.PrintTestDurations(suites, overall_duration)
+        verbose.PrintTestDurations(suites, runner.outputs, overall_duration)
 
       if num_tests == 0:
         print("Warning: no tests were run!")

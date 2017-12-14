@@ -287,7 +287,7 @@ class JUnitTestProgressIndicator(ProgressIndicator):
     self.outputter.HasRunTest(
         test_name=str(test),
         test_cmd=test.cmd.to_string(relative=True),
-        test_duration=test.duration,
+        test_duration=output.duration,
         test_failure=fail_text)
 
 
@@ -313,20 +313,20 @@ class JsonTestProgressIndicator(ProgressIndicator):
     if self.tests:
       # Get duration mean.
       duration_mean = (
-          sum(t.duration for t in self.tests) / float(len(self.tests)))
+          sum(duration for (_, duration) in self.tests) /
+          float(len(self.tests)))
 
     # Sort tests by duration.
-    timed_tests = [t for t in self.tests if t.duration is not None]
-    timed_tests.sort(lambda a, b: cmp(b.duration, a.duration))
+    self.tests.sort(key=lambda (_, duration): duration, reverse=True)
     slowest_tests = [
       {
         "name": str(test),
         "flags": test.cmd.args,
         "command": test.cmd.to_string(relative=True),
-        "duration": test.duration,
+        "duration": duration,
         "marked_slow": statusfile.IsSlow(
             test.suite.GetStatusFileOutcomes(test.name, test.variant)),
-      } for test in timed_tests[:20]
+      } for (test, duration) in self.tests[:20]
     ]
 
     complete_results.append({
@@ -343,7 +343,7 @@ class JsonTestProgressIndicator(ProgressIndicator):
 
   def HasRun(self, test, output, has_unexpected_output):
     # Buffer all tests for sorting the durations in the end.
-    self.tests.append(test)
+    self.tests.append((test, output.duration))
     if not has_unexpected_output:
       # Omit tests that run as expected. Passing tests of reruns after failures
       # will have unexpected_output to be reported here has well.
@@ -359,7 +359,7 @@ class JsonTestProgressIndicator(ProgressIndicator):
       "exit_code": output.exit_code,
       "result": test.suite.GetOutcome(test, output),
       "expected": test.suite.GetExpectedOutcomes(test),
-      "duration": test.duration,
+      "duration": output.duration,
 
       # TODO(machenbach): This stores only the global random seed from the
       # context and not possible overrides when using random-seed stress.
@@ -404,14 +404,14 @@ class FlakinessTestProgressIndicator(ProgressIndicator):
       self.results[key] = {
         "actual": outcome,
         "expected": " ".join(expected_outcomes),
-        "times": [test.duration],
+        "times": [output.duration],
       }
       self.summary[outcome] = self.summary[outcome] + 1
     else:
       # This is a rerun and a previous result exists.
       result = self.results[key]
       result["actual"] = "%s %s" % (result["actual"], outcome)
-      result["times"].append(test.duration)
+      result["times"].append(output.duration)
 
 
 PROGRESS_INDICATORS = {

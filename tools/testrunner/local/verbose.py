@@ -86,16 +86,16 @@ def FormatTime(d):
   return time.strftime("%M:%S.", time.gmtime(d)) + ("%03i" % millis)
 
 
-def PrintTestDurations(suites, overall_time):
+def PrintTestDurations(suites, outputs, overall_time):
     # Write the times to stderr to make it easy to separate from the
     # test output.
     print
     sys.stderr.write("--- Total time: %s ---\n" % FormatTime(overall_time))
-    timed_tests = [ t for s in suites for t in s.tests
-                    if t.duration is not None ]
-    timed_tests.sort(lambda a, b: cmp(b.duration, a.duration))
+    timed_tests = [(t, outputs[t].duration) for s in suites for t in s.tests
+                   if t in outputs]
+    timed_tests.sort(key=lambda (_, duration): duration, reverse=True)
     index = 1
-    for test in timed_tests[:20]:
-      t = FormatTime(test.duration)
+    for test, duration in timed_tests[:20]:
+      t = FormatTime(duration)
       sys.stderr.write("%4i (%s) %s\n" % (index, t, test))
       index += 1

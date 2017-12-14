@@ -86,7 +86,6 @@ class TestSuite(object):
     self.tests = None  # list of TestCase objects
     self.rules = None  # {variant: {test name: [rule]}}
     self.prefix_rules = None  # {variant: {test name prefix: [rule]}}
-    self.total_duration = None  # float, assigned on demand
 
     self._outcomes_cache = dict()
 

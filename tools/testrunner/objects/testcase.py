@@ -46,7 +46,6 @@ class TestCase(object):
     self.variant_flags = []   # list of strings, flags specific to this test
 
     self.id = None  # int, used to map result back to TestCase instance
-    self.duration = None  # assigned during execution
     self.run = 1  # The nth time this test is executed.
     self.cmd = None
 

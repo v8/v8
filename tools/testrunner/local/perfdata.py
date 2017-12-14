@@ -69,10 +69,10 @@ class PerfDataStore(object):
       return self.database[key].avg
     return None
 
-  def UpdatePerfData(self, test):
-    """Updates the persisted value in the store with test.duration."""
+  def UpdatePerfData(self, test, duration):
+    """Updates the persisted value in the store with duration."""
     testkey = test.get_id()
-    self.RawUpdatePerfData(testkey, test.duration)
+    self.RawUpdatePerfData(testkey, duration)
 
   def RawUpdatePerfData(self, testkey, duration):
     with self.lock:
@@ -116,7 +116,7 @@ class PerfDataManager(object):
 
 
 class NullPerfDataStore(object):
-  def UpdatePerfData(self, test):
+  def UpdatePerfData(self, test, duration):
     pass
 
   def FetchPerfData(self, test):
