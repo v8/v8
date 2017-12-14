@@ -146,9 +146,10 @@ class ShellArrayBufferAllocator : public ArrayBufferAllocatorBase {
     // TODO(titzer): allocations should fail if >= 2gb because array buffers
     // store their lengths as a SMI internally.
     if (length >= kTwoGB) return nullptr;
-
     size_t page_size = base::OS::AllocatePageSize();
     size_t allocated = RoundUp(length, page_size);
+    // Rounding up could go over the limit.
+    if (allocated >= kTwoGB) return nullptr;
     void* address = base::OS::Allocate(nullptr, allocated, page_size,
                                        base::OS::MemoryPermission::kReadWrite);
 #if defined(LEAK_SANITIZER)
