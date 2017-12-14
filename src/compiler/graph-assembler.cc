@@ -164,28 +164,28 @@ Node* GraphAssembler::ToNumber(Node* value) {
                               value, NoContextConstant(), current_effect_);
 }
 
-Node* GraphAssembler::DeoptimizeIf(DeoptimizeReason reason, Node* condition,
-                                   Node* frame_state,
-                                   VectorSlotPair const& feedback) {
+Node* GraphAssembler::DeoptimizeIf(DeoptimizeReason reason,
+                                   VectorSlotPair const& feedback,
+                                   Node* condition, Node* frame_state) {
   return current_control_ = current_effect_ = graph()->NewNode(
              common()->DeoptimizeIf(DeoptimizeKind::kEager, reason, feedback),
              condition, frame_state, current_effect_, current_control_);
 }
 
 Node* GraphAssembler::DeoptimizeIfNot(DeoptimizeKind kind,
-                                      DeoptimizeReason reason, Node* condition,
-                                      Node* frame_state,
-                                      VectorSlotPair const& feedback) {
+                                      DeoptimizeReason reason,
+                                      VectorSlotPair const& feedback,
+                                      Node* condition, Node* frame_state) {
   return current_control_ = current_effect_ = graph()->NewNode(
              common()->DeoptimizeUnless(kind, reason, feedback), condition,
              frame_state, current_effect_, current_control_);
 }
 
-Node* GraphAssembler::DeoptimizeIfNot(DeoptimizeReason reason, Node* condition,
-                                      Node* frame_state,
-                                      VectorSlotPair const& feedback) {
-  return DeoptimizeIfNot(DeoptimizeKind::kEager, reason, condition, frame_state,
-                         feedback);
+Node* GraphAssembler::DeoptimizeIfNot(DeoptimizeReason reason,
+                                      VectorSlotPair const& feedback,
+                                      Node* condition, Node* frame_state) {
+  return DeoptimizeIfNot(DeoptimizeKind::kEager, reason, feedback, condition,
+                         frame_state);
 }
 
 void GraphAssembler::Branch(Node* condition, GraphAssemblerLabel<0u>* if_true,
