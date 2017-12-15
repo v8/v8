@@ -3571,7 +3571,28 @@ void InstanceBuilder::LoadTableSegments(Handle<FixedArray> code_table,
           }
           table_instance.js_wrappers->set(table_index,
                                           *js_wrappers_[func_index]);
-
+          // When updating dispatch tables, we need to provide a wasm-to-wasm
+          // wrapper for wasm_code - unless wasm_code is already a wrapper. If
+          // it's a wasm-to-js wrapper, we don't need to construct a
+          // wasm-to-wasm wrapper because there's no context switching required.
+          // The remaining case is that it's a wasm-to-wasm wrapper, in which
+          // case it's already doing "the right thing", and wrapping it again
+          // would be redundant.
+          if (func_index >= module_->num_imported_functions) {
+            value_to_update_with = GetOrCreateIndirectCallWrapper(
+                isolate_, instance, wasm_code, func_index, function->sig);
+          } else {
+            if (wasm_code.IsCodeObject()) {
+              DCHECK(wasm_code.GetCode()->kind() == Code::WASM_TO_JS_FUNCTION ||
+                     wasm_code.GetCode()->kind() ==
+                         Code::WASM_TO_WASM_FUNCTION);
+            } else {
+              DCHECK(wasm_code.GetWasmCode()->kind() ==
+                         WasmCode::kWasmToJsWrapper ||
+                     wasm_code.GetWasmCode()->kind() ==
+                         WasmCode::kWasmToWasmWrapper);
+            }
+          }
           UpdateDispatchTables(isolate_, all_dispatch_tables, table_index,
                                function, value_to_update_with);
         }
