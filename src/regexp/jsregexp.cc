@@ -2577,6 +2577,7 @@ void TextNode::GetQuickCheckDetails(QuickCheckDetails* details,
           details->positions(characters_filled_in);
       RegExpCharacterClass* tree = elm.char_class();
       ZoneList<CharacterRange>* ranges = tree->ranges(zone());
+      DCHECK(!ranges->is_empty());
       if (tree->is_negated()) {
         // A quick check uses multi-character mask and compare.  There is no
         // useful way to incorporate a negative char class into this scheme
@@ -3273,9 +3274,9 @@ TextNode* TextNode::CreateForCharacterRanges(Zone* zone,
                                              JSRegExp::Flags flags) {
   DCHECK_NOT_NULL(ranges);
   ZoneList<TextElement>* elms = new (zone) ZoneList<TextElement>(1, zone);
-  elms->Add(
-      TextElement::CharClass(new (zone) RegExpCharacterClass(ranges, flags)),
-      zone);
+  elms->Add(TextElement::CharClass(
+                new (zone) RegExpCharacterClass(zone, ranges, flags)),
+            zone);
   return new (zone) TextNode(elms, read_backward, on_success);
 }
 
@@ -3288,10 +3289,10 @@ TextNode* TextNode::CreateForSurrogatePair(Zone* zone, CharacterRange lead,
   ZoneList<CharacterRange>* trail_ranges = CharacterRange::List(zone, trail);
   ZoneList<TextElement>* elms = new (zone) ZoneList<TextElement>(2, zone);
   elms->Add(TextElement::CharClass(
-                new (zone) RegExpCharacterClass(lead_ranges, flags)),
+                new (zone) RegExpCharacterClass(zone, lead_ranges, flags)),
             zone);
   elms->Add(TextElement::CharClass(
-                new (zone) RegExpCharacterClass(trail_ranges, flags)),
+                new (zone) RegExpCharacterClass(zone, trail_ranges, flags)),
             zone);
   return new (zone) TextNode(elms, read_backward, on_success);
 }
@@ -5109,10 +5110,9 @@ RegExpNode* RegExpCharacterClass::ToNode(RegExpCompiler* compiler,
       ranges = negated;
     }
     if (ranges->length() == 0) {
-      JSRegExp::Flags default_flags = JSRegExp::Flags();
-      ranges->Add(CharacterRange::Everything(), zone);
+      JSRegExp::Flags default_flags;
       RegExpCharacterClass* fail =
-          new (zone) RegExpCharacterClass(ranges, default_flags, NEGATED);
+          new (zone) RegExpCharacterClass(zone, ranges, default_flags);
       return new (zone) TextNode(fail, compiler->read_backward(), on_success);
     }
     if (standard_type() == '*') {
@@ -5366,8 +5366,8 @@ void RegExpDisjunction::FixSingleCharacterDisjunctions(
       if (IsUnicode(flags) && contains_trail_surrogate) {
         character_class_flags = RegExpCharacterClass::CONTAINS_SPLIT_SURROGATE;
       }
-      alternatives->at(write_posn++) =
-          new (zone) RegExpCharacterClass(ranges, flags, character_class_flags);
+      alternatives->at(write_posn++) = new (zone)
+          RegExpCharacterClass(zone, ranges, flags, character_class_flags);
     } else {
       // Just copy any trivial alternatives.
       for (int j = first_in_run; j < i; j++) {
