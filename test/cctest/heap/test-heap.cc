@@ -5676,9 +5676,8 @@ TEST(UncommitUnusedLargeObjectMemory) {
 
   CcTest::CollectAllGarbage();
   CHECK(chunk->CommittedPhysicalMemory() < committed_memory_before);
-  size_t shrinked_size =
-      RoundUp((array->address() - chunk->address()) + array->Size(),
-              base::OS::CommitPageSize());
+  size_t shrinked_size = RoundUp(
+      (array->address() - chunk->address()) + array->Size(), CommitPageSize());
   CHECK_EQ(shrinked_size, chunk->CommittedPhysicalMemory());
 }
 

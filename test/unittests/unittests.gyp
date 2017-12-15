@@ -8,6 +8,7 @@
   'variables': {
     'v8_code': 1,
     'unittests_sources': [  ### gcmole(all) ###
+      'allocation-unittest.cc',
       'api/access-check-unittest.cc',
       'api/exception-unittest.cc',
       'api/interceptor-unittest.cc',

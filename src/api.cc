@@ -8,9 +8,6 @@
 #ifdef V8_USE_ADDRESS_SANITIZER
 #include <sanitizer/asan_interface.h>
 #endif  // V8_USE_ADDRESS_SANITIZER
-#if defined(LEAK_SANITIZER)
-#include <sanitizer/lsan_interface.h>
-#endif            // defined(LEAK_SANITIZER)
 #include <cmath>  // For isnan.
 #include <limits>
 #include <vector>
@@ -508,16 +505,10 @@ class ArrayBufferAllocator : public v8::ArrayBuffer::Allocator {
   virtual void Free(void* data, size_t) { free(data); }
 
   virtual void* Reserve(size_t length) {
-    size_t page_size = base::OS::AllocatePageSize();
+    size_t page_size = i::AllocatePageSize();
     size_t allocated = RoundUp(length, page_size);
-    void* address =
-        base::OS::Allocate(base::OS::GetRandomMmapAddr(), allocated, page_size,
-                           base::OS::MemoryPermission::kNoAccess);
-#if defined(LEAK_SANITIZER)
-    if (address != nullptr) {
-      __lsan_register_root_region(address, allocated);
-    }
-#endif
+    void* address = i::AllocatePages(i::GetRandomMmapAddr(), allocated,
+                                     page_size, i::MemoryPermission::kNoAccess);
     return address;
   }
 
@@ -528,9 +519,9 @@ class ArrayBufferAllocator : public v8::ArrayBuffer::Allocator {
         return Free(data, length);
       }
       case v8::ArrayBuffer::Allocator::AllocationMode::kReservation: {
-        size_t page_size = base::OS::AllocatePageSize();
+        size_t page_size = i::AllocatePageSize();
         size_t allocated = RoundUp(length, page_size);
-        CHECK(base::OS::Free(data, allocated));
+        CHECK(i::FreePages(data, allocated));
         return;
       }
     }
@@ -541,11 +532,11 @@ class ArrayBufferAllocator : public v8::ArrayBuffer::Allocator {
       v8::ArrayBuffer::Allocator::Protection protection) {
     DCHECK(protection == v8::ArrayBuffer::Allocator::Protection::kNoAccess ||
            protection == v8::ArrayBuffer::Allocator::Protection::kReadWrite);
-    base::OS::MemoryPermission permission =
+    i::MemoryPermission permission =
         (protection == v8::ArrayBuffer::Allocator::Protection::kReadWrite)
-            ? base::OS::MemoryPermission::kReadWrite
-            : base::OS::MemoryPermission::kNoAccess;
-    CHECK(base::OS::SetPermissions(data, length, permission));
+            ? i::MemoryPermission::kReadWrite
+            : i::MemoryPermission::kNoAccess;
+    CHECK(i::SetPermissions(data, length, permission));
   }
 };
 

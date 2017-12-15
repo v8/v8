@@ -190,7 +190,7 @@ class WasmCodeManagerTest : public TestWithIsolate {
     return native_module->AddCode(desc, 0, index, 0, {}, false);
   }
 
-  size_t page() const { return base::OS::AllocatePageSize(); }
+  size_t page() const { return AllocatePageSize(); }
   v8::Isolate* v8_isolate() const {
     return reinterpret_cast<v8::Isolate*>(isolate());
   }

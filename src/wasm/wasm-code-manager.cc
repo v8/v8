@@ -542,8 +542,8 @@ Address NativeModule::AllocateForCode(size_t size) {
   }
   Address ret = mem.ranges().front().first;
   Address end = ret + size;
-  Address commit_start = RoundUp(ret, base::OS::AllocatePageSize());
-  Address commit_end = RoundUp(end, base::OS::AllocatePageSize());
+  Address commit_start = RoundUp(ret, AllocatePageSize());
+  Address commit_end = RoundUp(end, AllocatePageSize());
   // {commit_start} will be either ret or the start of the next page.
   // {commit_end} will be the start of the page after the one in which
   // the allocation ends.
@@ -565,7 +565,7 @@ Address NativeModule::AllocateForCode(size_t size) {
       Address start =
           std::max(commit_start, reinterpret_cast<Address>(it->address()));
       size_t commit_size = static_cast<size_t>(commit_end - start);
-      DCHECK(IsAligned(commit_size, base::OS::AllocatePageSize()));
+      DCHECK(IsAligned(commit_size, AllocatePageSize()));
       if (!wasm_code_manager_->Commit(start, commit_size)) {
         return nullptr;
       }
@@ -574,7 +574,7 @@ Address NativeModule::AllocateForCode(size_t size) {
     }
 #else
     size_t commit_size = static_cast<size_t>(commit_end - commit_start);
-    DCHECK(IsAligned(commit_size, base::OS::AllocatePageSize()));
+    DCHECK(IsAligned(commit_size, AllocatePageSize()));
     if (!wasm_code_manager_->Commit(commit_start, commit_size)) {
       return nullptr;
     }
@@ -674,9 +674,8 @@ WasmCodeManager::WasmCodeManager(v8::Isolate* isolate, size_t max_committed)
 }
 
 bool WasmCodeManager::Commit(Address start, size_t size) {
-  DCHECK(
-      IsAligned(reinterpret_cast<size_t>(start), base::OS::AllocatePageSize()));
-  DCHECK(IsAligned(size, base::OS::AllocatePageSize()));
+  DCHECK(IsAligned(reinterpret_cast<size_t>(start), AllocatePageSize()));
+  DCHECK(IsAligned(size, AllocatePageSize()));
   if (size > static_cast<size_t>(std::numeric_limits<intptr_t>::max())) {
     return false;
   }
@@ -686,8 +685,7 @@ bool WasmCodeManager::Commit(Address start, size_t size) {
     remaining_uncommitted_.Increment(size);
     return false;
   }
-  bool ret = base::OS::SetPermissions(start, size,
-                                      base::OS::MemoryPermission::kReadWrite);
+  bool ret = SetPermissions(start, size, MemoryPermission::kReadWrite);
   TRACE_HEAP("Setting rw permissions for %p:%p\n",
              reinterpret_cast<void*>(start),
              reinterpret_cast<void*>(start + size));
@@ -729,11 +727,11 @@ void WasmCodeManager::AssignRanges(void* start, void* end,
 
 void WasmCodeManager::TryAllocate(size_t size, VirtualMemory* ret, void* hint) {
   DCHECK_GT(size, 0);
-  size = RoundUp(size, base::OS::AllocatePageSize());
-  if (hint == nullptr) hint = base::OS::GetRandomMmapAddr();
+  size = RoundUp(size, AllocatePageSize());
+  if (hint == nullptr) hint = GetRandomMmapAddr();
 
-  if (!AlignedAllocVirtualMemory(
-          size, static_cast<size_t>(base::OS::AllocatePageSize()), hint, ret)) {
+  if (!AlignedAllocVirtualMemory(size, static_cast<size_t>(AllocatePageSize()),
+                                 hint, ret)) {
     DCHECK(!ret->IsReserved());
   }
   TRACE_HEAP("VMem alloc: %p:%p (%zu)\n", ret->address(), ret->end(),
@@ -745,7 +743,7 @@ size_t WasmCodeManager::GetAllocationChunk(const WasmModule& module) {
   // from something embedder-provided
   if (kRequiresCodeRange) return kMaxWasmCodeMemory;
   DCHECK(kModuleCanAllocateMoreMemory);
-  size_t ret = base::OS::AllocatePageSize();
+  size_t ret = AllocatePageSize();
   // a ballpark guesstimate on native inflation factor.
   constexpr size_t kMultiplier = 4;
 
@@ -788,9 +786,8 @@ bool NativeModule::SetExecutable(bool executable) {
   if (is_executable_ == executable) return true;
   TRACE_HEAP("Setting module %zu as executable: %d.\n", instance_id,
              executable);
-  base::OS::MemoryPermission permission =
-      executable ? base::OS::MemoryPermission::kReadExecute
-                 : base::OS::MemoryPermission::kReadWrite;
+  MemoryPermission permission = executable ? MemoryPermission::kReadExecute
+                                           : MemoryPermission::kReadWrite;
 
 #if V8_OS_WIN
   // On windows, we need to switch permissions per separate virtual memory
@@ -803,7 +800,7 @@ bool NativeModule::SetExecutable(bool executable) {
   // not.
   if (can_request_more_memory_) {
     for (auto& vmem : owned_memory_) {
-      if (!base::OS::SetPermissions(vmem.address(), vmem.size(), permission)) {
+      if (!SetPermissions(vmem.address(), vmem.size(), permission)) {
         return false;
       }
       TRACE_HEAP("Set %p:%p to executable:%d\n", vmem.address(), vmem.end(),
@@ -817,8 +814,8 @@ bool NativeModule::SetExecutable(bool executable) {
     // allocated_memory_ is fine-grained, so we need to
     // page-align it.
     size_t range_size = RoundUp(static_cast<size_t>(range.second - range.first),
-                                base::OS::AllocatePageSize());
-    if (!base::OS::SetPermissions(range.first, range_size, permission)) {
+                                AllocatePageSize());
+    if (!SetPermissions(range.first, range_size, permission)) {
       return false;
     }
     TRACE_HEAP("Set %p:%p to executable:%d\n",
@@ -905,7 +902,7 @@ void WasmCodeManager::FreeNativeModuleMemories(NativeModule* native_module) {
   // which we currently indicate by having the isolate_ as null
   if (isolate_ == nullptr) return;
   size_t freed_mem = native_module->committed_memory_;
-  DCHECK(IsAligned(freed_mem, base::OS::AllocatePageSize()));
+  DCHECK(IsAligned(freed_mem, AllocatePageSize()));
   remaining_uncommitted_.Increment(freed_mem);
   isolate_->AdjustAmountOfExternalAllocatedMemory(
       -static_cast<int64_t>(freed_mem));

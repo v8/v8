@@ -13,10 +13,6 @@
 #include <utility>
 #include <vector>
 
-#if defined(LEAK_SANITIZER)
-#include <sanitizer/lsan_interface.h>
-#endif  // defined(LEAK_SANITIZER)
-
 #ifdef ENABLE_VTUNE_JIT_INTERFACE
 #include "src/third_party/vtune/v8-vtune.h"
 #endif
@@ -146,24 +142,19 @@ class ShellArrayBufferAllocator : public ArrayBufferAllocatorBase {
     // TODO(titzer): allocations should fail if >= 2gb because array buffers
     // store their lengths as a SMI internally.
     if (length >= kTwoGB) return nullptr;
-    size_t page_size = base::OS::AllocatePageSize();
+
+    size_t page_size = i::AllocatePageSize();
     size_t allocated = RoundUp(length, page_size);
     // Rounding up could go over the limit.
     if (allocated >= kTwoGB) return nullptr;
-    void* address = base::OS::Allocate(nullptr, allocated, page_size,
-                                       base::OS::MemoryPermission::kReadWrite);
-#if defined(LEAK_SANITIZER)
-    if (address != nullptr) {
-      __lsan_register_root_region(address, allocated);
-    }
-#endif
-    return address;
+    return i::AllocatePages(nullptr, allocated, page_size,
+                            i::MemoryPermission::kReadWrite);
   }
 
   void FreeVM(void* data, size_t length) {
-    size_t page_size = base::OS::AllocatePageSize();
+    size_t page_size = i::AllocatePageSize();
     size_t allocated = RoundUp(length, page_size);
-    CHECK(base::OS::Free(data, allocated));
+    CHECK(i::FreePages(data, allocated));
   }
 };
 
@@ -192,7 +183,7 @@ class MockArrayBufferAllocator : public ArrayBufferAllocatorBase {
  private:
   size_t Adjust(size_t length) {
     const size_t kAllocationLimit = 10 * kMB;
-    return length > kAllocationLimit ? base::OS::AllocatePageSize() : length;
+    return length > kAllocationLimit ? i::AllocatePageSize() : length;
   }
 };
 

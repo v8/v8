@@ -102,13 +102,12 @@ static void VerifyMemoryChunk(Isolate* isolate,
         reserve_area_size, commit_area_size, executable, nullptr);
     size_t alignment = code_range != nullptr && code_range->valid()
                            ? MemoryChunk::kAlignment
-                           : base::OS::CommitPageSize();
+                           : CommitPageSize();
     size_t reserved_size =
         ((executable == EXECUTABLE))
             ? RoundUp(header_size + guard_size + reserve_area_size + guard_size,
                       alignment)
-            : RoundUp(header_size + reserve_area_size,
-                      base::OS::CommitPageSize());
+            : RoundUp(header_size + reserve_area_size, CommitPageSize());
     CHECK(memory_chunk->size() == reserved_size);
     CHECK(memory_chunk->area_start() <
           memory_chunk->address() + memory_chunk->size());
@@ -686,7 +685,7 @@ TEST(ShrinkPageToHighWaterMarkFreeSpaceEnd) {
   size_t shrunk = old_space->ShrinkPageToHighWaterMark(page);
   size_t should_have_shrunk =
       RoundDown(static_cast<size_t>(Page::kAllocatableMemory - array->Size()),
-                base::OS::CommitPageSize());
+                CommitPageSize());
   CHECK_EQ(should_have_shrunk, shrunk);
 }
 

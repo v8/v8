@@ -36,6 +36,12 @@
 #endif
 
 namespace v8 {
+
+namespace internal {
+// TODO(bbudge) Move this to libplatform.
+class DefaultMemoryManager;
+}  // namespace internal
+
 namespace base {
 
 // ----------------------------------------------------------------------------
@@ -157,6 +163,9 @@ class V8_BASE_EXPORT OS {
   static PRINTF_FORMAT(1, 2) void PrintError(const char* format, ...);
   static PRINTF_FORMAT(1, 0) void VPrintError(const char* format, va_list args);
 
+  // OS memory management API. Except for testing, use the equivalent API in
+  // v8::internal (src/allocation.h).
+
   enum class MemoryPermission {
     kNoAccess,
     kReadWrite,
@@ -164,40 +173,6 @@ class V8_BASE_EXPORT OS {
     kReadWriteExecute,
     kReadExecute
   };
-
-  // Gets the page granularity for Allocate. Addresses returned by Allocate are
-  // aligned to this size.
-  static size_t AllocatePageSize();
-
-  // Gets the granularity at which the permissions and commit calls can be made.
-  static size_t CommitPageSize();
-
-  // Generate a random address to be used for hinting allocation calls.
-  static void* GetRandomMmapAddr();
-
-  // Allocates memory. Permissions are set according to the access argument.
-  // The address parameter is a hint. The size and alignment parameters must be
-  // multiples of AllocatePageSize(). Returns the address of the allocated
-  // memory, with the specified size and alignment, or nullptr on failure.
-  V8_WARN_UNUSED_RESULT static void* Allocate(void* address, size_t size,
-                                              size_t alignment,
-                                              MemoryPermission access);
-
-  // Frees memory allocated by a call to Allocate. address and size must be
-  // multiples of AllocatePageSize(). Returns true on success, otherwise false.
-  V8_WARN_UNUSED_RESULT static bool Free(void* address, const size_t size);
-
-  // Releases memory that is no longer needed. The range specified by address
-  // and size must be part of an allocated memory region, and must be multiples
-  // of CommitPageSize(). Released memory is left in an undefined state, so it
-  // should not be accessed. Returns true on success, otherwise false.
-  V8_WARN_UNUSED_RESULT static bool Release(void* address, size_t size);
-
-  // Sets permissions according to the access argument. address and size must be
-  // multiples of CommitPageSize(). Setting permission to kNoAccess may cause
-  // the memory contents to be lost. Returns true on success, otherwise false.
-  V8_WARN_UNUSED_RESULT static bool SetPermissions(void* address, size_t size,
-                                                   MemoryPermission access);
 
   static bool HasLazyCommits();
 
@@ -280,6 +255,28 @@ class V8_BASE_EXPORT OS {
   static int GetCurrentThreadId();
 
  private:
+  // These classes use the private memory management API below.
+  friend class MemoryMappedFile;
+  friend class PosixMemoryMappedFile;
+  friend class v8::internal::DefaultMemoryManager;
+
+  static size_t AllocatePageSize();
+
+  static size_t CommitPageSize();
+
+  static void* GetRandomMmapAddr();
+
+  V8_WARN_UNUSED_RESULT static void* Allocate(void* address, size_t size,
+                                              size_t alignment,
+                                              MemoryPermission access);
+
+  V8_WARN_UNUSED_RESULT static bool Free(void* address, const size_t size);
+
+  V8_WARN_UNUSED_RESULT static bool Release(void* address, size_t size);
+
+  V8_WARN_UNUSED_RESULT static bool SetPermissions(void* address, size_t size,
+                                                   MemoryPermission access);
+
   static const int msPerSecond = 1000;
 
 #if V8_OS_POSIX

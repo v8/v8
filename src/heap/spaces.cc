@@ -118,8 +118,8 @@ bool CodeRange::SetUp(size_t requested) {
 
   VirtualMemory reservation;
   if (!AlignedAllocVirtualMemory(
-          requested, Max(kCodeRangeAreaAlignment, base::OS::AllocatePageSize()),
-          base::OS::GetRandomMmapAddr(), &reservation)) {
+          requested, Max(kCodeRangeAreaAlignment, AllocatePageSize()),
+          GetRandomMmapAddr(), &reservation)) {
     return false;
   }
 
@@ -131,7 +131,7 @@ bool CodeRange::SetUp(size_t requested) {
   // the beginning of an executable space.
   if (reserved_area > 0) {
     if (!reservation.SetPermissions(base, reserved_area,
-                                    base::OS::MemoryPermission::kReadWrite))
+                                    MemoryPermission::kReadWrite))
       return false;
 
     base += reserved_area;
@@ -226,7 +226,7 @@ bool CodeRange::CommitRawMemory(Address start, size_t length) {
 
 bool CodeRange::UncommitRawMemory(Address start, size_t length) {
   return virtual_memory_.SetPermissions(start, length,
-                                        base::OS::MemoryPermission::kNoAccess);
+                                        MemoryPermission::kNoAccess);
 }
 
 
@@ -234,8 +234,7 @@ void CodeRange::FreeRawMemory(Address address, size_t length) {
   DCHECK(IsAddressAligned(address, MemoryChunk::kAlignment));
   base::LockGuard<base::Mutex> guard(&code_range_mutex_);
   free_list_.emplace_back(address, length);
-  virtual_memory_.SetPermissions(address, length,
-                                 base::OS::MemoryPermission::kNoAccess);
+  virtual_memory_.SetPermissions(address, length, MemoryPermission::kNoAccess);
 }
 
 bool CodeRange::ReserveBlock(const size_t requested_size, FreeBlock* block) {
@@ -399,8 +398,7 @@ int MemoryAllocator::Unmapper::NumberOfChunks() {
 
 bool MemoryAllocator::CommitMemory(Address base, size_t size,
                                    Executability executable) {
-  if (!base::OS::SetPermissions(base, size,
-                                base::OS::MemoryPermission::kReadWrite)) {
+  if (!SetPermissions(base, size, MemoryPermission::kReadWrite)) {
     return false;
   }
   UpdateAllocatedSpaceLimits(base, base + size);
@@ -429,7 +427,7 @@ void MemoryAllocator::FreeMemory(Address base, size_t size,
     code_range()->FreeRawMemory(base, size);
   } else {
     DCHECK(executable == NOT_EXECUTABLE || !code_range()->valid());
-    CHECK(base::OS::Free(base, size));
+    CHECK(FreePages(base, size));
   }
 }
 
@@ -462,7 +460,7 @@ Address MemoryAllocator::AllocateAlignedMemory(
     }
   } else {
     if (reservation.SetPermissions(base, commit_size,
-                                   base::OS::MemoryPermission::kReadWrite)) {
+                                   MemoryPermission::kReadWrite)) {
       UpdateAllocatedSpaceLimits(base, base + commit_size);
     } else {
       base = nullptr;
@@ -526,8 +524,8 @@ void MemoryChunk::SetReadAndExecutable() {
     size_t page_size = MemoryAllocator::GetCommitPageSize();
     DCHECK(IsAddressAligned(protect_start, page_size));
     size_t protect_size = RoundUp(area_size(), page_size);
-    CHECK(base::OS::SetPermissions(protect_start, protect_size,
-                                   base::OS::MemoryPermission::kReadExecute));
+    CHECK(SetPermissions(protect_start, protect_size,
+                         MemoryPermission::kReadExecute));
   }
 }
 
@@ -545,8 +543,8 @@ void MemoryChunk::SetReadAndWritable() {
     size_t page_size = MemoryAllocator::GetCommitPageSize();
     DCHECK(IsAddressAligned(unprotect_start, page_size));
     size_t unprotect_size = RoundUp(area_size(), page_size);
-    CHECK(base::OS::SetPermissions(unprotect_start, unprotect_size,
-                                   base::OS::MemoryPermission::kReadWrite));
+    CHECK(SetPermissions(unprotect_start, unprotect_size,
+                         MemoryPermission::kReadWrite));
   }
 }
 
@@ -600,9 +598,8 @@ MemoryChunk* MemoryChunk::Initialize(Heap* heap, Address base, size_t size,
       size_t page_size = MemoryAllocator::GetCommitPageSize();
       DCHECK(IsAddressAligned(area_start, page_size));
       size_t area_size = RoundUp(area_end - area_start, page_size);
-      CHECK(base::OS::SetPermissions(
-          area_start, area_size,
-          base::OS::MemoryPermission::kReadWriteExecute));
+      CHECK(SetPermissions(area_start, area_size,
+                           MemoryPermission::kReadWriteExecute));
     }
   }
 
@@ -942,7 +939,7 @@ void MemoryAllocator::PartialFreeMemory(MemoryChunk* chunk, Address start_free,
     DCHECK_EQ(chunk->address() + chunk->size(),
               chunk->area_end() + CodePageGuardSize());
     reservation->SetPermissions(chunk->area_end_, page_size,
-                                base::OS::MemoryPermission::kNoAccess);
+                                MemoryPermission::kNoAccess);
   }
   // On e.g. Windows, a reservation may be larger than a page and releasing
   // partially starting at |start_free| will also release the potentially
@@ -1094,9 +1091,7 @@ bool MemoryAllocator::CommitBlock(Address start, size_t size,
 
 
 bool MemoryAllocator::UncommitBlock(Address start, size_t size) {
-  if (!base::OS::SetPermissions(start, size,
-                                base::OS::MemoryPermission::kNoAccess))
-    return false;
+  if (!SetPermissions(start, size, MemoryPermission::kNoAccess)) return false;
   isolate_->counters()->memory_allocated()->Decrement(static_cast<int>(size));
   return true;
 }
@@ -1142,7 +1137,7 @@ intptr_t MemoryAllocator::GetCommitPageSize() {
     DCHECK(base::bits::IsPowerOfTwo(FLAG_v8_os_page_size));
     return FLAG_v8_os_page_size * KB;
   } else {
-    return base::OS::CommitPageSize();
+    return CommitPageSize();
   }
 }
 
@@ -1164,25 +1159,23 @@ bool MemoryAllocator::CommitExecutableMemory(VirtualMemory* vm, Address start,
   const Address post_guard_page = start + reserved_size - guard_size;
   // Commit the non-executable header, from start to pre-code guard page.
   if (vm->SetPermissions(start, pre_guard_offset,
-                         base::OS::MemoryPermission::kReadWrite)) {
+                         MemoryPermission::kReadWrite)) {
     // Create the pre-code guard page, following the header.
     if (vm->SetPermissions(pre_guard_page, page_size,
-                           base::OS::MemoryPermission::kNoAccess)) {
+                           MemoryPermission::kNoAccess)) {
       // Commit the executable code body.
       if (vm->SetPermissions(code_area, commit_size - pre_guard_offset,
-                             base::OS::MemoryPermission::kReadWrite)) {
+                             MemoryPermission::kReadWrite)) {
         // Create the post-code guard page.
         if (vm->SetPermissions(post_guard_page, page_size,
-                               base::OS::MemoryPermission::kNoAccess)) {
+                               MemoryPermission::kNoAccess)) {
           UpdateAllocatedSpaceLimits(start, code_area + commit_size);
           return true;
         }
-        vm->SetPermissions(code_area, commit_size,
-                           base::OS::MemoryPermission::kNoAccess);
+        vm->SetPermissions(code_area, commit_size, MemoryPermission::kNoAccess);
       }
     }
-    vm->SetPermissions(start, pre_guard_offset,
-                       base::OS::MemoryPermission::kNoAccess);
+    vm->SetPermissions(start, pre_guard_offset, MemoryPermission::kNoAccess);
   }
   return false;
 }
@@ -2370,7 +2363,7 @@ bool SemiSpace::GrowTo(size_t new_capacity) {
   DCHECK_LE(new_capacity, maximum_capacity_);
   DCHECK_GT(new_capacity, current_capacity_);
   const size_t delta = new_capacity - current_capacity_;
-  DCHECK(IsAligned(delta, base::OS::AllocatePageSize()));
+  DCHECK(IsAligned(delta, AllocatePageSize()));
   const int delta_pages = static_cast<int>(delta / Page::kPageSize);
   Page* last_page = anchor()->prev_page();
   DCHECK_NE(last_page, anchor());
@@ -2414,7 +2407,7 @@ bool SemiSpace::ShrinkTo(size_t new_capacity) {
   DCHECK_LT(new_capacity, current_capacity_);
   if (is_committed()) {
     const size_t delta = current_capacity_ - new_capacity;
-    DCHECK(IsAligned(delta, base::OS::AllocatePageSize()));
+    DCHECK(IsAligned(delta, AllocatePageSize()));
     int delta_pages = static_cast<int>(delta / Page::kPageSize);
     Page* new_last_page;
     Page* last_page;

@@ -103,10 +103,101 @@ void AlignedFree(void *ptr) {
 #endif
 }
 
-byte* AllocateSystemPage(void* address, size_t* allocated) {
-  size_t page_size = base::OS::AllocatePageSize();
-  void* result = base::OS::Allocate(address, page_size, page_size,
-                                    base::OS::MemoryPermission::kReadWrite);
+#define STATIC_ASSERT_ENUM(a, b)                            \
+  static_assert(static_cast<int>(a) == static_cast<int>(b), \
+                "mismatching enum: " #a)
+
+STATIC_ASSERT_ENUM(MemoryPermission::kNoAccess,
+                   base::OS::MemoryPermission::kNoAccess);
+STATIC_ASSERT_ENUM(MemoryPermission::kReadWrite,
+                   base::OS::MemoryPermission::kReadWrite);
+STATIC_ASSERT_ENUM(MemoryPermission::kReadWriteExecute,
+                   base::OS::MemoryPermission::kReadWriteExecute);
+STATIC_ASSERT_ENUM(MemoryPermission::kReadExecute,
+                   base::OS::MemoryPermission::kReadExecute);
+
+#undef STATIC_ASSERT_ENUM
+
+// Default Memory Manager.
+// TODO(bbudge) Move this to libplatform.
+class DefaultMemoryManager {
+ public:
+  static size_t AllocatePageSize() { return base::OS::AllocatePageSize(); }
+  static size_t CommitPageSize() { return base::OS::CommitPageSize(); }
+
+  static void* GetRandomMmapAddr() { return base::OS::GetRandomMmapAddr(); }
+
+  static void* AllocatePages(void* address, size_t size, size_t alignment,
+                             MemoryPermission access) {
+    void* result =
+        base::OS::Allocate(address, size, alignment,
+                           static_cast<base::OS::MemoryPermission>(access));
+#if defined(LEAK_SANITIZER)
+    if (result != nullptr) {
+      __lsan_register_root_region(result, size);
+    }
+#endif
+    return result;
+  }
+
+  static bool FreePages(void* address, const size_t size) {
+    bool result = base::OS::Free(address, size);
+#if defined(LEAK_SANITIZER)
+    if (result) {
+      __lsan_unregister_root_region(address, size);
+    }
+#endif
+    return result;
+  }
+
+  static bool ReleasePages(void* address, size_t size, size_t new_size) {
+    DCHECK_LT(new_size, size);
+    bool result = base::OS::Release(reinterpret_cast<byte*>(address) + new_size,
+                                    size - new_size);
+#if defined(LEAK_SANITIZER)
+    if (result) {
+      __lsan_unregister_root_region(address, size);
+      __lsan_register_root_region(address, new_size);
+    }
+#endif
+    return result;
+  }
+
+  static bool SetPermissions(void* address, size_t size,
+                             MemoryPermission access) {
+    return base::OS::SetPermissions(
+        address, size, static_cast<base::OS::MemoryPermission>(access));
+  }
+};
+
+size_t AllocatePageSize() { return DefaultMemoryManager::AllocatePageSize(); }
+
+size_t CommitPageSize() { return DefaultMemoryManager::CommitPageSize(); }
+
+// Generate a random address to be used for hinting allocation calls.
+void* GetRandomMmapAddr() { return DefaultMemoryManager::GetRandomMmapAddr(); }
+
+void* AllocatePages(void* address, size_t size, size_t alignment,
+                    MemoryPermission access) {
+  return DefaultMemoryManager::AllocatePages(address, size, alignment, access);
+}
+
+bool FreePages(void* address, const size_t size) {
+  return DefaultMemoryManager::FreePages(address, size);
+}
+
+bool ReleasePages(void* address, size_t size, size_t new_size) {
+  return DefaultMemoryManager::ReleasePages(address, size, new_size);
+}
+
+bool SetPermissions(void* address, size_t size, MemoryPermission access) {
+  return DefaultMemoryManager::SetPermissions(address, size, access);
+}
+
+byte* AllocatePage(void* address, size_t* allocated) {
+  size_t page_size = AllocatePageSize();
+  void* result = AllocatePages(address, page_size, page_size,
+                               MemoryPermission::kReadWrite);
   if (result != nullptr) *allocated = page_size;
   return static_cast<byte*>(result);
 }
@@ -115,15 +206,12 @@ VirtualMemory::VirtualMemory() : address_(nullptr), size_(0) {}
 
 VirtualMemory::VirtualMemory(size_t size, void* hint, size_t alignment)
     : address_(nullptr), size_(0) {
-  size_t page_size = base::OS::AllocatePageSize();
+  size_t page_size = AllocatePageSize();
   size_t alloc_size = RoundUp(size, page_size);
-  address_ = base::OS::Allocate(hint, alloc_size, alignment,
-                                base::OS::MemoryPermission::kNoAccess);
+  address_ =
+      AllocatePages(hint, alloc_size, alignment, MemoryPermission::kNoAccess);
   if (address_ != nullptr) {
     size_ = alloc_size;
-#if defined(LEAK_SANITIZER)
-    __lsan_register_root_region(address_, size_);
-#endif
   }
 }
 
@@ -139,9 +227,9 @@ void VirtualMemory::Reset() {
 }
 
 bool VirtualMemory::SetPermissions(void* address, size_t size,
-                                   base::OS::MemoryPermission access) {
+                                   MemoryPermission access) {
   CHECK(InVM(address, size));
-  bool result = base::OS::SetPermissions(address, size, access);
+  bool result = v8::internal::SetPermissions(address, size, access);
   DCHECK(result);
   USE(result);
   return result;
@@ -149,8 +237,7 @@ bool VirtualMemory::SetPermissions(void* address, size_t size,
 
 size_t VirtualMemory::Release(void* free_start) {
   DCHECK(IsReserved());
-  DCHECK(IsAddressAligned(static_cast<Address>(free_start),
-                          base::OS::CommitPageSize()));
+  DCHECK(IsAddressAligned(static_cast<Address>(free_start), CommitPageSize()));
   // Notice: Order is important here. The VirtualMemory object might live
   // inside the allocated region.
   const size_t free_size = size_ - (reinterpret_cast<size_t>(free_start) -
@@ -159,11 +246,7 @@ size_t VirtualMemory::Release(void* free_start) {
   DCHECK_LT(address_, free_start);
   DCHECK_LT(free_start, reinterpret_cast<void*>(
                             reinterpret_cast<size_t>(address_) + size_));
-#if defined(LEAK_SANITIZER)
-  __lsan_unregister_root_region(address_, size_);
-  __lsan_register_root_region(address_, size_ - free_size);
-#endif
-  CHECK(base::OS::Release(free_start, free_size));
+  CHECK(ReleasePages(address_, size_, size_ - free_size));
   size_ -= free_size;
   return free_size;
 }
@@ -176,10 +259,7 @@ void VirtualMemory::Free() {
   size_t size = size_;
   CHECK(InVM(address, size));
   Reset();
-#if defined(LEAK_SANITIZER)
-  __lsan_unregister_root_region(address, size);
-#endif
-  CHECK(base::OS::Free(address, size));
+  CHECK(FreePages(address, size));
 }
 
 void VirtualMemory::TakeControl(VirtualMemory* from) {

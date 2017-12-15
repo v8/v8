@@ -130,11 +130,9 @@ int GetFlagsForMemoryPermission(OS::MemoryPermission access) {
 }
 
 void* Allocate(void* address, size_t size, OS::MemoryPermission access) {
-  const size_t actual_size = RoundUp(size, OS::AllocatePageSize());
   int prot = GetProtectionFromMemoryPermission(access);
   int flags = GetFlagsForMemoryPermission(access);
-  void* result =
-      mmap(address, actual_size, prot, flags, kMmapFd, kMmapFdOffset);
+  void* result = mmap(address, size, prot, flags, kMmapFd, kMmapFdOffset);
   if (result == MAP_FAILED) return nullptr;
   return result;
 }
@@ -284,6 +282,7 @@ void* OS::Allocate(void* address, size_t size, size_t alignment,
   address = AlignedAddress(address, alignment);
   // Add the maximum misalignment so we are guaranteed an aligned base address.
   size_t request_size = size + (alignment - page_size);
+  request_size = RoundUp(request_size, OS::AllocatePageSize());
   void* result = base::Allocate(address, request_size, access);
   if (result == nullptr) return nullptr;
 

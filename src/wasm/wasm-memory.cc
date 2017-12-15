@@ -24,8 +24,8 @@ void* TryAllocateBackingStore(Isolate* isolate, size_t size,
 
     // We always allocate the largest possible offset into the heap, so the
     // addressable memory after the guard page can be made inaccessible.
-    allocation_length = RoundUp(kWasmMaxHeapOffset, base::OS::CommitPageSize());
-    DCHECK_EQ(0, size % base::OS::CommitPageSize());
+    allocation_length = RoundUp(kWasmMaxHeapOffset, CommitPageSize());
+    DCHECK_EQ(0, size % CommitPageSize());
 
     // The Reserve makes the whole region inaccessible by default.
     allocation_base =

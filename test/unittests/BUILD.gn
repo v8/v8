@@ -35,6 +35,7 @@ v8_source_set("unittests_sources") {
     "../../test/common/wasm/wasm-macro-gen.h",
     "../../testing/gmock-support.h",
     "../../testing/gtest-support.h",
+    "allocation-unittest.cc",
     "api/access-check-unittest.cc",
     "api/exception-unittest.cc",
     "api/interceptor-unittest.cc",

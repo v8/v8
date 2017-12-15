@@ -43,7 +43,7 @@ byte* TestingModuleBuilder::AddMemory(uint32_t size) {
   const bool enable_guard_regions =
       trap_handler::IsTrapHandlerEnabled() && test_module_.is_wasm();
   uint32_t alloc_size =
-      enable_guard_regions ? RoundUp(size, base::OS::CommitPageSize()) : size;
+      enable_guard_regions ? RoundUp(size, CommitPageSize()) : size;
   Handle<JSArrayBuffer> new_buffer =
       wasm::NewArrayBuffer(isolate_, alloc_size, enable_guard_regions);
   CHECK(!new_buffer.is_null());

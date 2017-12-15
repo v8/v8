@@ -58,7 +58,7 @@ void StoreBuffer::SetUp() {
 
   if (!reservation.SetPermissions(reinterpret_cast<Address>(start_[0]),
                                   kStoreBufferSize * kStoreBuffers,
-                                  base::OS::MemoryPermission::kReadWrite)) {
+                                  MemoryPermission::kReadWrite)) {
     V8::FatalProcessOutOfMemory("StoreBuffer::SetUp");
   }
   current_ = 0;

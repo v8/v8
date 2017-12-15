@@ -571,11 +571,11 @@ static inline void CheckDoubleEquals(double expected, double actual) {
 static inline uint8_t* AllocateAssemblerBuffer(
     size_t* allocated,
     size_t requested = v8::internal::AssemblerBase::kMinimalBufferSize) {
-  size_t page_size = v8::base::OS::AllocatePageSize();
+  size_t page_size = v8::internal::AllocatePageSize();
   size_t alloc_size = RoundUp(requested, page_size);
-  void* result =
-      v8::base::OS::Allocate(nullptr, alloc_size, page_size,
-                             v8::base::OS::MemoryPermission::kReadWrite);
+  void* result = v8::internal::AllocatePages(
+      nullptr, alloc_size, page_size,
+      v8::internal::MemoryPermission::kReadWriteExecute);
   CHECK(result);
   *allocated = alloc_size;
   return static_cast<uint8_t*>(result);
@@ -583,8 +583,8 @@ static inline uint8_t* AllocateAssemblerBuffer(
 
 static inline void MakeAssemblerBufferExecutable(uint8_t* buffer,
                                                  size_t allocated) {
-  bool result = v8::base::OS::SetPermissions(
-      buffer, allocated, v8::base::OS::MemoryPermission::kReadExecute);
+  bool result = v8::internal::SetPermissions(
+      buffer, allocated, v8::internal::MemoryPermission::kReadExecute);
   CHECK(result);
 }
 
