@@ -421,7 +421,9 @@ Type* Typer::Visitor::BinaryNumberOpTyper(Type* lhs, Type* rhs, Typer* t,
   if (lhs_is_number || rhs_is_number) {
     return Type::Number();
   }
-  // TODO(neis): Check if one side is BigInt in order to return BigInt?
+  if (lhs->Is(Type::BigInt()) || rhs->Is(Type::BigInt())) {
+    return Type::BigInt();
+  }
   return Type::Numeric();
 }
 
