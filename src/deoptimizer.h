@@ -1041,11 +1041,6 @@ class DeoptimizedFrameInfo : public Malloced {
   friend class Deoptimizer;
 };
 
-enum class SpeculationModeChange {
-  kNoSpeculationModeChange = 0,
-  kSetSpeculationDisallow = 1
-};
-
 }  // namespace internal
 }  // namespace v8
 
