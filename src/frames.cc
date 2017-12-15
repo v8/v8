@@ -1693,7 +1693,15 @@ void WasmCompiledFrame::Print(StringStream* accumulator, PrintMode mode,
   accumulator->Add("WASM [");
   Script* script = this->script();
   accumulator->PrintName(script->name());
-  int pc = static_cast<int>(this->pc() - LookupCode()->instruction_start());
+  Address instruction_start = FLAG_wasm_jit_to_native
+                                  ? isolate()
+                                        ->wasm_engine()
+                                        ->code_manager()
+                                        ->LookupCode(pc())
+                                        ->instructions()
+                                        .start()
+                                  : LookupCode()->instruction_start();
+  int pc = static_cast<int>(this->pc() - instruction_start);
   Object* instance = this->wasm_instance();
   Vector<const uint8_t> raw_func_name =
       WasmInstanceObject::cast(instance)->compiled_module()->GetRawFunctionName(
