@@ -38,6 +38,7 @@ bool BinaryOperationHintToNumberOperationHint(
     case BinaryOperationHint::kAny:
     case BinaryOperationHint::kNone:
     case BinaryOperationHint::kString:
+    case BinaryOperationHint::kBigInt:
       break;
   }
   return false;
