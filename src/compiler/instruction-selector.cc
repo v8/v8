@@ -1018,11 +1018,15 @@ void InstructionSelector::VisitControl(BasicBlock* block) {
         if (sw.min_value > value) sw.min_value = value;
         if (sw.max_value < value) sw.max_value = value;
       }
-      DCHECK_LE(sw.min_value, sw.max_value);
-      // Note that {value_range} can be 0 if {min_value} is -2^31 and
-      // {max_value} is 2^31-1, so don't assume that it's non-zero below.
-      sw.value_range = 1u + bit_cast<uint32_t>(sw.max_value) -
-                       bit_cast<uint32_t>(sw.min_value);
+      if (sw.case_count != 0) {
+        DCHECK_LE(sw.min_value, sw.max_value);
+        // Note that {value_range} can be 0 if {min_value} is -2^31 and
+        // {max_value} is 2^31-1, so don't assume that it's non-zero below.
+        sw.value_range = 1u + bit_cast<uint32_t>(sw.max_value) -
+                         bit_cast<uint32_t>(sw.min_value);
+      } else {
+        sw.value_range = 0;
+      }
       return VisitSwitch(input, sw);
     }
     case BasicBlock::kReturn: {
