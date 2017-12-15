@@ -281,7 +281,10 @@ class LiftoffAssembler : public TurboAssembler {
   inline void emit_f32_mul(DoubleRegister dst, DoubleRegister lhs,
                            DoubleRegister rhs);
 
-  inline void JumpIfZero(Register, Label*);
+  inline void emit_i32_test(Register);
+  inline void emit_i32_compare(Register, Register);
+  inline void emit_jump(Label*);
+  inline void emit_cond_jump(Condition, Label*);
 
   inline void CallTrapCallbackForTesting();
 

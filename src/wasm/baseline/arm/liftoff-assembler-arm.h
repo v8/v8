@@ -65,7 +65,13 @@ void LiftoffAssembler::emit_f32_sub(DoubleRegister dst, DoubleRegister lhs,
 void LiftoffAssembler::emit_f32_mul(DoubleRegister dst, DoubleRegister lhs,
                                     DoubleRegister rhs) {}
 
-void LiftoffAssembler::JumpIfZero(Register reg, Label* label) {}
+void LiftoffAssembler::emit_i32_test(Register reg) {}
+
+void LiftoffAssembler::emit_i32_compare(Register lhs, Register rhs) {}
+
+void LiftoffAssembler::emit_jump(Label* label) {}
+
+void LiftoffAssembler::emit_cond_jump(Condition cond, Label* label) {}
 
 void LiftoffAssembler::CallTrapCallbackForTesting() {}
 

@@ -78,11 +78,22 @@ class LiftoffCompiler {
       : asm_(liftoff_asm),
         call_desc_(call_desc),
         env_(env),
+        min_size_(env_->module->initial_pages * wasm::WasmModule::kPageSize),
+        max_size_((env_->module->has_maximum_pages
+                       ? env_->module->maximum_pages
+                       : wasm::kV8MaxWasmMemoryPages) *
+                  wasm::WasmModule::kPageSize),
         runtime_exception_support_(runtime_exception_support),
         source_position_table_builder_(source_position_table_builder),
         compilation_zone_(liftoff_asm->isolate()->allocator(),
                           "liftoff compilation"),
-        safepoint_table_builder_(&compilation_zone_) {}
+        safepoint_table_builder_(&compilation_zone_) {
+    // Check for overflow in max_size_.
+    DCHECK_EQ(max_size_, uint64_t{env_->module->has_maximum_pages
+                                      ? env_->module->maximum_pages
+                                      : wasm::kV8MaxWasmMemoryPages} *
+                             wasm::WasmModule::kPageSize);
+  }
 
   bool ok() const { return ok_; }
 
@@ -248,7 +259,6 @@ class LiftoffCompiler {
       // Therefore we emit a call to C here instead of a call to the runtime.
       __ CallTrapCallbackForTesting();
       __ LeaveFrame(StackFrame::WASM_COMPILED);
-      __ set_has_frame(false);
       __ Ret();
       return;
     }
@@ -558,7 +568,8 @@ class LiftoffCompiler {
     TraceCacheState(decoder);
     Label cont_false;
     Register value = __ PopToRegister(kGpReg).gp();
-    __ JumpIfZero(value, &cont_false);
+    __ emit_i32_test(value);
+    __ emit_cond_jump(kEqual, &cont_false);
 
     Br(target);
     __ bind(&cont_false);
@@ -571,6 +582,43 @@ class LiftoffCompiler {
   void Else(Decoder* decoder, Control* if_block) {
     unsupported(decoder, "else");
   }
+
+  void BoundsCheckMem(uint32_t access_size, uint32_t offset, Register index,
+                      wasm::WasmCodePosition position, LiftoffRegList pinned) {
+    if (FLAG_wasm_no_bounds_checks) return;
+
+    // Add OOL code.
+    Label* trap_label = AddTrapCode(kTrapMemOutOfBounds, position);
+
+    if (access_size > max_size_ || offset > max_size_ - access_size) {
+      // The access will be out of bounds, even for the largest memory.
+      __ emit_jump(trap_label);
+      return;
+    }
+    uint32_t end_offset = offset + access_size - 1;
+
+    // If the end offset is larger than the smallest memory, dynamically check
+    // the end offset against the actual memory size, which is not known at
+    // compile time. Otherwise, only one check is required (see below).
+    LiftoffRegister end_offset_reg =
+        pinned.set(__ GetUnusedRegister(kGpReg, pinned));
+    LiftoffRegister mem_size = __ GetUnusedRegister(kGpReg, pinned);
+    __ LoadFromContext(mem_size.gp(), offsetof(WasmContext, mem_size), 4);
+    __ LoadConstant(end_offset_reg, WasmValue(end_offset));
+    if (end_offset >= min_size_) {
+      __ emit_i32_compare(end_offset_reg.gp(), mem_size.gp());
+      __ emit_cond_jump(kUnsignedGreaterEqual, trap_label);
+    }
+
+    // Just reuse the end_offset register for computing the effective size.
+    LiftoffRegister effective_size_reg = end_offset_reg;
+    __ emit_i32_sub(effective_size_reg.gp(), mem_size.gp(),
+                    end_offset_reg.gp());
+
+    __ emit_i32_compare(index, effective_size_reg.gp());
+    __ emit_cond_jump(kUnsignedGreaterEqual, trap_label);
+  }
+
   void LoadMem(Decoder* decoder, LoadType type,
                const MemoryAccessOperand<validate>& operand,
                const Value& index_val, Value* result) {
@@ -579,7 +627,9 @@ class LiftoffCompiler {
     LiftoffRegList pinned;
     Register index = pinned.set(__ PopToRegister(kGpReg)).gp();
     if (!env_->use_trap_handler) {
-      return unsupported(decoder, "non-traphandler");
+      // Emit an explicit bounds check.
+      BoundsCheckMem(type.size(), operand.offset, index, decoder->position(),
+                     pinned);
     }
     Register addr = pinned.set(__ GetUnusedRegister(kGpReg, pinned)).gp();
     __ LoadFromContext(addr, offsetof(WasmContext, mem_start), kPointerSize);
@@ -602,6 +652,11 @@ class LiftoffCompiler {
     LiftoffRegList pinned;
     LiftoffRegister value = pinned.set(__ PopToRegister(rc));
     Register index = pinned.set(__ PopToRegister(kGpReg, pinned)).gp();
+    if (!env_->use_trap_handler) {
+      // Emit an explicit bounds check.
+      BoundsCheckMem(type.size(), operand.offset, index, decoder->position(),
+                     pinned);
+    }
     Register addr = pinned.set(__ GetUnusedRegister(kGpReg, pinned)).gp();
     __ LoadFromContext(addr, offsetof(WasmContext, mem_start), kPointerSize);
     __ Store(addr, index, operand.offset, value, type, pinned);
@@ -670,10 +725,13 @@ class LiftoffCompiler {
   LiftoffAssembler* const asm_;
   compiler::CallDescriptor* const call_desc_;
   compiler::ModuleEnv* const env_;
-  compiler::RuntimeExceptionSupport runtime_exception_support_;
+  // {min_size_} and {max_size_} are cached values computed from the ModuleEnv.
+  const uint32_t min_size_;
+  const uint32_t max_size_;
+  const compiler::RuntimeExceptionSupport runtime_exception_support_;
   bool ok_ = true;
   std::vector<TrapOolCode> trap_ool_code_;
-  SourcePositionTableBuilder* source_position_table_builder_;
+  SourcePositionTableBuilder* const source_position_table_builder_;
   // Zone used to store information during compilation. The result will be
   // stored independently, such that this zone can die together with the
   // LiftoffCompiler after compilation.

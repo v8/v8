@@ -296,9 +296,16 @@ void LiftoffAssembler::emit_f32_mul(DoubleRegister dst, DoubleRegister lhs,
   }
 }
 
-void LiftoffAssembler::JumpIfZero(Register reg, Label* label) {
-  test(reg, reg);
-  j(zero, label);
+void LiftoffAssembler::emit_i32_test(Register reg) { test(reg, reg); }
+
+void LiftoffAssembler::emit_i32_compare(Register lhs, Register rhs) {
+  cmp(lhs, rhs);
+}
+
+void LiftoffAssembler::emit_jump(Label* label) { jmp(label); }
+
+void LiftoffAssembler::emit_cond_jump(Condition cond, Label* label) {
+  j(cond, label);
 }
 
 void LiftoffAssembler::CallTrapCallbackForTesting() {
