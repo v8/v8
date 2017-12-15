@@ -2354,6 +2354,7 @@
           'js/macros.py',
           'messages.h',
           'js/prologue.js',
+          'js/v8natives.js',
           'js/array.js',
           'js/typedarray.js',
           'js/messages.js',

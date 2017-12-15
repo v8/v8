@@ -97,22 +97,6 @@ Node* ObjectBuiltinsAssembler::ConstructDataDescriptor(Node* context,
   return js_desc;
 }
 
-TF_BUILTIN(ObjectPrototypeToLocaleString, CodeStubAssembler) {
-  TNode<Context> context = CAST(Parameter(Descriptor::kContext));
-  TNode<Object> receiver = CAST(Parameter(Descriptor::kReceiver));
-
-  Label if_null_or_undefined(this, Label::kDeferred);
-  GotoIf(IsNullOrUndefined(receiver), &if_null_or_undefined);
-
-  TNode<Object> method =
-      CAST(GetProperty(context, receiver, factory()->toString_string()));
-  Return(CallJS(CodeFactory::Call(isolate()), context, method, receiver));
-
-  BIND(&if_null_or_undefined);
-  ThrowTypeError(context, MessageTemplate::kCalledOnNullOrUndefined,
-                 "Object.prototype.toLocaleString");
-}
-
 TF_BUILTIN(ObjectPrototypeHasOwnProperty, ObjectBuiltinsAssembler) {
   Node* object = Parameter(Descriptor::kReceiver);
   Node* key = Parameter(Descriptor::kKey);
