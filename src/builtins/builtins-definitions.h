@@ -317,11 +317,17 @@ namespace internal {
   TFJ(ArrayFindLoopLazyDeoptContinuation, 5, kCallbackFn, kThisArg, kInitialK, \
       kLength, kResult)                                                        \
   TFJ(ArrayFindLoopAfterCallbackLazyDeoptContinuation, 6, kCallbackFn,         \
-      kThisArg, kInitialK, kLength, kElement, kResult)                         \
+      kThisArg, kInitialK, kLength, kFoundValue, kIsFound)                     \
   TFJ(ArrayPrototypeFind, SharedFunctionInfo::kDontAdaptArgumentsSentinel)     \
   /* ES6 #sec-array.prototype.findIndex */                                     \
   TFS(ArrayFindIndexLoopContinuation, kReceiver, kCallbackFn, kThisArg,        \
       kArray, kObject, kInitialK, kLength, kTo)                                \
+  TFJ(ArrayFindIndexLoopEagerDeoptContinuation, 4, kCallbackFn, kThisArg,      \
+      kInitialK, kLength)                                                      \
+  TFJ(ArrayFindIndexLoopLazyDeoptContinuation, 5, kCallbackFn, kThisArg,       \
+      kInitialK, kLength, kResult)                                             \
+  TFJ(ArrayFindIndexLoopAfterCallbackLazyDeoptContinuation, 6, kCallbackFn,    \
+      kThisArg, kInitialK, kLength, kFoundValue, kIsFound)                     \
   TFJ(ArrayPrototypeFindIndex,                                                 \
       SharedFunctionInfo::kDontAdaptArgumentsSentinel)                         \
   /* ES6 #sec-array.prototype.keys */                                          \

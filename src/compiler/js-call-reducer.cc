@@ -1392,13 +1392,32 @@ Reduction JSCallReducer::ReduceArrayFilter(Handle<JSFunction> function,
   return Replace(a);
 }
 
-Reduction JSCallReducer::ReduceArrayFind(Handle<JSFunction> function,
+Reduction JSCallReducer::ReduceArrayFind(ArrayFindVariant variant,
+                                         Handle<JSFunction> function,
                                          Node* node) {
   if (!FLAG_turbo_inline_array_builtins) return NoChange();
   DCHECK_EQ(IrOpcode::kJSCall, node->opcode());
   CallParameters const& p = CallParametersOf(node->op());
   if (p.speculation_mode() == SpeculationMode::kDisallowSpeculation) {
     return NoChange();
+  }
+
+  Builtins::Name eager_continuation_builtin;
+  Builtins::Name lazy_continuation_builtin;
+  Builtins::Name after_callback_lazy_continuation_builtin;
+  if (variant == ArrayFindVariant::kFind) {
+    eager_continuation_builtin = Builtins::kArrayFindLoopEagerDeoptContinuation;
+    lazy_continuation_builtin = Builtins::kArrayFindLoopLazyDeoptContinuation;
+    after_callback_lazy_continuation_builtin =
+        Builtins::kArrayFindLoopAfterCallbackLazyDeoptContinuation;
+  } else {
+    DCHECK_EQ(ArrayFindVariant::kFindIndex, variant);
+    eager_continuation_builtin =
+        Builtins::kArrayFindIndexLoopEagerDeoptContinuation;
+    lazy_continuation_builtin =
+        Builtins::kArrayFindIndexLoopLazyDeoptContinuation;
+    after_callback_lazy_continuation_builtin =
+        Builtins::kArrayFindIndexLoopAfterCallbackLazyDeoptContinuation;
   }
 
   Node* outer_frame_state = NodeProperties::GetFrameStateInput(node);
@@ -1455,9 +1474,9 @@ Reduction JSCallReducer::ReduceArrayFind(Handle<JSFunction> function,
   Node* check_throw = nullptr;
   {
     Node* frame_state = CreateJavaScriptBuiltinContinuationFrameState(
-        jsgraph(), function, Builtins::kArrayFindLoopLazyDeoptContinuation,
-        node->InputAt(0), context, &checkpoint_params[0], stack_parameters,
-        outer_frame_state, ContinuationFrameStateMode::LAZY);
+        jsgraph(), function, lazy_continuation_builtin, node->InputAt(0),
+        context, &checkpoint_params[0], stack_parameters, outer_frame_state,
+        ContinuationFrameStateMode::LAZY);
     WireInCallbackIsCallableCheck(fncallback, context, frame_state, effect,
                                   &control, &check_fail, &check_throw);
   }
@@ -1486,9 +1505,9 @@ Reduction JSCallReducer::ReduceArrayFind(Handle<JSFunction> function,
   // Check the map hasn't changed during the iteration.
   {
     Node* frame_state = CreateJavaScriptBuiltinContinuationFrameState(
-        jsgraph(), function, Builtins::kArrayFindLoopEagerDeoptContinuation,
-        node->InputAt(0), context, &checkpoint_params[0], stack_parameters,
-        outer_frame_state, ContinuationFrameStateMode::EAGER);
+        jsgraph(), function, eager_continuation_builtin, node->InputAt(0),
+        context, &checkpoint_params[0], stack_parameters, outer_frame_state,
+        ContinuationFrameStateMode::EAGER);
 
     effect =
         graph()->NewNode(common()->Checkpoint(), frame_state, effect, control);
@@ -1516,17 +1535,20 @@ Reduction JSCallReducer::ReduceArrayFind(Handle<JSFunction> function,
         jsgraph()->UndefinedConstant(), element);
   }
 
+  Node* if_found_return_value =
+      (variant == ArrayFindVariant::kFind) ? element : k;
+
   // Call the callback.
   Node* callback_value = nullptr;
   {
-    std::vector<Node*> call_checkpoint_params(
-        {receiver, fncallback, this_arg, next_k, original_length, element});
+    std::vector<Node*> call_checkpoint_params({receiver, fncallback, this_arg,
+                                               next_k, original_length,
+                                               if_found_return_value});
     const int call_stack_parameters =
         static_cast<int>(call_checkpoint_params.size());
 
     Node* frame_state = CreateJavaScriptBuiltinContinuationFrameState(
-        jsgraph(), function,
-        Builtins::kArrayFindLoopAfterCallbackLazyDeoptContinuation,
+        jsgraph(), function, after_callback_lazy_continuation_builtin,
         node->InputAt(0), context, &call_checkpoint_params[0],
         call_stack_parameters, outer_frame_state,
         ContinuationFrameStateMode::LAZY);
@@ -1561,9 +1583,13 @@ Reduction JSCallReducer::ReduceArrayFind(Handle<JSFunction> function,
   control = graph()->NewNode(common()->Merge(2), if_found, if_false);
   effect =
       graph()->NewNode(common()->EffectPhi(2), efound_branch, eloop, control);
+
+  Node* if_not_found_value = (variant == ArrayFindVariant::kFind)
+                                 ? jsgraph()->UndefinedConstant()
+                                 : jsgraph()->MinusOneConstant();
   Node* return_value =
       graph()->NewNode(common()->Phi(MachineRepresentation::kTagged, 2),
-                       element, jsgraph()->UndefinedConstant(), control);
+                       if_found_return_value, if_not_found_value, control);
 
   // Wire up the branch for the case when IsCallable fails for the callback.
   // Since {check_throw} is an unconditional throw, it's impossible to
@@ -2128,7 +2154,9 @@ Reduction JSCallReducer::ReduceJSCall(Node* node) {
         case Builtins::kArrayFilter:
           return ReduceArrayFilter(function, node);
         case Builtins::kArrayPrototypeFind:
-          return ReduceArrayFind(function, node);
+          return ReduceArrayFind(ArrayFindVariant::kFind, function, node);
+        case Builtins::kArrayPrototypeFindIndex:
+          return ReduceArrayFind(ArrayFindVariant::kFindIndex, function, node);
         case Builtins::kReturnReceiver:
           return ReduceReturnReceiver(node);
         default:

@@ -5,14 +5,14 @@
 // Flags: --allow-natives-syntax --turbo-inline-array-builtins --opt
 // Flags: --no-always-opt
 
-// Unknown field access leads to soft-deopt unrelated to find, should still
+// Unknown field access leads to soft-deopt unrelated to findIndex, should still
 // lead to correct result.
 (() => {
   const a = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19,
              20, 21, 22, 23, 24, 25];
   let result = 0;
   function eagerDeoptInCalled(deopt) {
-    return a.find((v, i) => {
+    return a.findIndex((v, i) => {
       if (i === 13 && deopt) {
         a.abc = 25;
       }
@@ -24,7 +24,7 @@
   eagerDeoptInCalled();
   %OptimizeFunctionOnNextCall(eagerDeoptInCalled);
   eagerDeoptInCalled();
-  assertEquals(20, eagerDeoptInCalled(true));
+  assertEquals(19, eagerDeoptInCalled(true));
   eagerDeoptInCalled();
   assertEquals(1050, result);
 })();
@@ -35,18 +35,18 @@
   function eagerDeoptInCalled(deopt) {
     const a = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
     called_values = [];
-    return a.find((v,i) => {
+    return a.findIndex((v,i) => {
       called_values.push(v);
       a.length = (i === 5 && deopt) ? 8 : 10;
       return v === 9;
     });
   }
-  assertEquals(9, eagerDeoptInCalled());
+  assertEquals(8, eagerDeoptInCalled());
   assertArrayEquals([1, 2, 3, 4, 5, 6, 7, 8, 9], called_values);
   eagerDeoptInCalled();
   %OptimizeFunctionOnNextCall(eagerDeoptInCalled);
-  assertEquals(9, eagerDeoptInCalled());
-  assertEquals(undefined, eagerDeoptInCalled(true));
+  assertEquals(8, eagerDeoptInCalled());
+  assertEquals(-1, eagerDeoptInCalled(true));
   assertArrayEquals([1, 2, 3, 4, 5, 6, 7, 8, undefined, undefined],
                     called_values);
   eagerDeoptInCalled();
@@ -57,19 +57,19 @@
 (() => {
   const a = [1, 2, 3, 4, 5];
   function lazyChanger(deopt) {
-    return a.find((v, i) => {
+    return a.findIndex((v, i) => {
       if (i === 3 && deopt) {
-        a[3] = 100;
+        a[3] = 3;
         %DeoptimizeNow();
        }
       return v > 3;
     });
   }
-  assertEquals(4, lazyChanger());
+  assertEquals(3, lazyChanger());
   lazyChanger();
   %OptimizeFunctionOnNextCall(lazyChanger);
-  assertEquals(4, lazyChanger(true));
-  assertEquals(100, lazyChanger());
+  assertEquals(3, lazyChanger(true));
+  assertEquals(4, lazyChanger());
 })();
 
 // Lazy deopt from a callback that will always return false and no element is
@@ -77,18 +77,18 @@
 (() => {
   const a = [1, 2, 3, 4, 5];
   function lazyChanger(deopt) {
-    return a.find((v, i) => {
+    return a.findIndex((v, i) => {
       if (i === 3 && deopt) {
         %DeoptimizeNow();
        }
       return false;
     });
   }
-  assertEquals(undefined, lazyChanger());
+  assertEquals(-1, lazyChanger());
   lazyChanger();
   %OptimizeFunctionOnNextCall(lazyChanger);
-  assertEquals(undefined, lazyChanger(true));
-  assertEquals(undefined, lazyChanger());
+  assertEquals(-1, lazyChanger(true));
+  assertEquals(-1, lazyChanger());
 })();
 
 // Lazy deopt from a callback that changes the input array. Deopt in a callback
@@ -96,19 +96,19 @@
 (() => {
   const a = [1, 2, 3, 4, 5];
   function lazyChanger(deopt) {
-    return a.find((v, i) => {
+    return a.findIndex((v, i) => {
       if (i === 2 && deopt) {
-        a[3] = 100;
+        a[3] = 2;
         %DeoptimizeNow();
        }
       return v > 3;
     });
   }
-  assertEquals(4, lazyChanger());
+  assertEquals(3, lazyChanger());
   lazyChanger();
   %OptimizeFunctionOnNextCall(lazyChanger);
-  assertEquals(100, lazyChanger(true));
-  assertEquals(100, lazyChanger());
+  assertEquals(4, lazyChanger(true));
+  assertEquals(4, lazyChanger());
 })();
 
 // Escape analyzed array
@@ -116,7 +116,7 @@
   let result = 0;
   function eagerDeoptInCalled(deopt) {
     const a_noescape = [0, 1, 2, 3, 4, 5];
-    a_noescape.find((v, i) => {
+    a_noescape.findIndex((v, i) => {
       result += v | 0;
       if (i === 13 && deopt) {
         a_noescape.length = 25;
@@ -139,7 +139,7 @@
              20, 21, 22, 23, 24, 25];
   let result = 0;
   function lazyDeopt(deopt) {
-    a.find((v, i) => {
+    a.findIndex((v, i) => {
       result += i;
       if (i === 13 && deopt) {
         %DeoptimizeNow();
@@ -170,7 +170,7 @@
       return false;
     }
     %NeverOptimizeFunction(callback);
-    a.find(callback);
+    a.findIndex(callback);
   }
   lazyDeopt();
   lazyDeopt();
@@ -181,7 +181,7 @@
   assertEquals(1500, result);
 })();
 
-// Call to a.find is done inside a try-catch block and the callback function
+// Call to a.findIndex is done inside a try-catch block and the callback function
 // being called actually throws.
 (() => {
   const a = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19,
@@ -189,7 +189,7 @@
   let caught = false;
   function lazyDeopt(deopt) {
     try {
-      a.find((v, i) => {
+      a.findIndex((v, i) => {
         if (i === 1 && deopt) {
           throw("a");
         }
@@ -208,7 +208,7 @@
   lazyDeopt();
 })();
 
-// Call to a.find is done inside a try-catch block and the callback function
+// Call to a.findIndex is done inside a try-catch block and the callback function
 // being called actually throws, but the callback is not inlined.
 (() => {
   let a = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
@@ -222,7 +222,7 @@
     }
     %NeverOptimizeFunction(callback);
     try {
-      a.find(callback);
+      a.findIndex(callback);
     } catch (e) {
       caught = true;
     }
@@ -236,7 +236,7 @@
   lazyDeopt();
 })();
 
-// Call to a.find is done inside a try-catch block and the callback function
+// Call to a.findIndex is done inside a try-catch block and the callback function
 // being called throws into a deoptimized caller function.
 (function TestThrowIntoDeoptimizedOuter() {
   const a = [1, 2, 3, 4];
@@ -251,30 +251,30 @@
     %NeverOptimizeFunction(callback);
     let result = 0;
     try {
-      result = a.find(callback);
+      result = a.findIndex(callback);
     } catch (e) {
       assertEquals("some exception", e);
       result = "nope";
     }
     return result;
   }
-  assertEquals(3, lazyDeopt(false));
-  assertEquals(3, lazyDeopt(false));
+  assertEquals(2, lazyDeopt(false));
+  assertEquals(2, lazyDeopt(false));
   assertEquals("nope", lazyDeopt(true));
   assertEquals("nope", lazyDeopt(true));
   %OptimizeFunctionOnNextCall(lazyDeopt);
-  assertEquals(3, lazyDeopt(false));
+  assertEquals(2, lazyDeopt(false));
   assertEquals("nope", lazyDeopt(true));
 })();
 
-// An error generated inside the callback includes find in it's
+// An error generated inside the callback includes findIndex in it's
 // stack trace.
 (() => {
-  const re = /Array\.find/;
+  const re = /Array\.findIndex/;
   function lazyDeopt(deopt) {
     const b = [1, 2, 3];
     let result = 0;
-    b.find((v, i) => {
+    b.findIndex((v, i) => {
       result += v;
       if (i === 1) {
         const e = new Error();
@@ -290,9 +290,9 @@
 })();
 
 // An error generated inside a non-inlined callback function also
-// includes find in it's stack trace.
+// includes findIndex in it's stack trace.
 (() => {
-  const re = /Array\.find/;
+  const re = /Array\.findIndex/;
   function lazyDeopt(deopt) {
     const b = [1, 2, 3];
     let did_assert_error = false;
@@ -307,7 +307,7 @@
       return false;
     }
     %NeverOptimizeFunction(callback);
-    b.find(callback);
+    b.findIndex(callback);
     return did_assert_error;
   }
   lazyDeopt();
@@ -317,14 +317,14 @@
 })();
 
 // An error generated inside a recently deoptimized callback function
-// includes find in it's stack trace.
+// includes findIndex in it's stack trace.
 (() => {
-  const re = /Array\.find/;
+  const re = /Array\.findIndex/;
   function lazyDeopt(deopt) {
     const b = [1, 2, 3];
     let did_assert_error = false;
     let result = 0;
-    b.find((v, i) => {
+    b.findIndex((v, i) => {
       result += v;
       if (i === 1) {
         %DeoptimizeNow();
@@ -345,13 +345,13 @@
 
 // Verify that various exception edges are handled appropriately.
 // The thrown Error object should always indicate it was created from
-// a find call stack.
+// a findIndex call stack.
 (() => {
-  const re = /Array\.find/;
+  const re = /Array\.findIndex/;
   const a = [1, 2, 3];
   let result = 0;
   function lazyDeopt() {
-    a.find((v, i) => {
+    a.findIndex((v, i) => {
       result += i;
       if (i === 1) {
         %DeoptimizeFunction(lazyDeopt);
@@ -380,7 +380,7 @@
   const a = [1, 2, 3];
   let result = 0;
   function prototypeChanged() {
-    a.find((v, i) => {
+    a.findIndex((v, i) => {
       result += v;
       return false;
     });
@@ -400,7 +400,7 @@
   const a = [1, 2, , 3, 4];
   function withHoles() {
     const callback_values = [];
-    a.find(v => {
+    a.findIndex(v => {
       callback_values.push(v);
       return false;
     });
@@ -416,7 +416,7 @@
   const a = [1.5, 2.5, , 3.5, 4.5];
   function withHoles() {
     const callback_values = [];
-    a.find(v => {
+    a.findIndex(v => {
       callback_values.push(v);
       return false;
     });
@@ -432,7 +432,7 @@
 (() => {
   const a = [1, 2, 3, 4, 5];
   function notCallable() {
-    return a.find(undefined);
+    return a.findIndex(undefined);
   }
 
   assertThrows(notCallable, TypeError);

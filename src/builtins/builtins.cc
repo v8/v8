@@ -172,9 +172,12 @@ Callable Builtins::CallableFor(Isolate* isolate, Name name) {
 #undef CASE_OTHER
     case kArrayFilterLoopEagerDeoptContinuation:
     case kArrayFilterLoopLazyDeoptContinuation:
+    case kArrayFindIndexLoopAfterCallbackLazyDeoptContinuation:
+    case kArrayFindIndexLoopEagerDeoptContinuation:
+    case kArrayFindIndexLoopLazyDeoptContinuation:
+    case kArrayFindLoopAfterCallbackLazyDeoptContinuation:
     case kArrayFindLoopEagerDeoptContinuation:
     case kArrayFindLoopLazyDeoptContinuation:
-    case kArrayFindLoopAfterCallbackLazyDeoptContinuation:
     case kArrayForEach:
     case kArrayForEachLoopEagerDeoptContinuation:
     case kArrayForEachLoopLazyDeoptContinuation:
@@ -220,6 +223,12 @@ bool Builtins::IsLazy(int index) {
     case kArrayFindLoopLazyDeoptContinuation:   // https://crbug.com/v8/6786.
     // https://crbug.com/v8/6786.
     case kArrayFindLoopAfterCallbackLazyDeoptContinuation:
+    // https://crbug.com/v8/6786.
+    case kArrayFindIndexLoopEagerDeoptContinuation:
+    // https://crbug.com/v8/6786.
+    case kArrayFindIndexLoopLazyDeoptContinuation:
+    // https://crbug.com/v8/6786.
+    case kArrayFindIndexLoopAfterCallbackLazyDeoptContinuation:
     case kArrayForEachLoopEagerDeoptContinuation:  // https://crbug.com/v8/6786.
     case kArrayForEachLoopLazyDeoptContinuation:   // https://crbug.com/v8/6786.
     case kArrayMapLoopEagerDeoptContinuation:      // https://crbug.com/v8/6786.
