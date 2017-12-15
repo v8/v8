@@ -1988,6 +1988,23 @@ class SpaceWithLinearArea : public Space {
     return allocation_info_.limit_address();
   }
 
+  V8_EXPORT_PRIVATE void AddAllocationObserver(
+      AllocationObserver* observer) override;
+  V8_EXPORT_PRIVATE void RemoveAllocationObserver(
+      AllocationObserver* observer) override;
+  V8_EXPORT_PRIVATE void ResumeAllocationObservers() override;
+  V8_EXPORT_PRIVATE void PauseAllocationObservers() override;
+
+  // When allocation observers are active we may use a lower limit to allow the
+  // observers to 'interrupt' earlier than the natural limit. Given a linear
+  // area bounded by [start, end), this function computes the limit to use to
+  // allow proper observation based on existing observers. min_size specifies
+  // the minimum size that the limited area should have.
+  Address ComputeLimit(Address start, Address end, size_t min_size);
+  V8_EXPORT_PRIVATE virtual void UpdateInlineAllocationLimit(
+      size_t min_size) = 0;
+
+ protected:
   // If we are doing inline allocation in steps, this method performs the 'step'
   // operation. top is the memory address of the bump pointer at the last
   // inline allocation (i.e. it determines the numbers of bytes actually
@@ -1999,14 +2016,8 @@ class SpaceWithLinearArea : public Space {
   // Space::AllocationStep.
   void InlineAllocationStep(Address top, Address top_for_next_step,
                             Address soon_object, size_t size);
+  V8_EXPORT_PRIVATE void StartNextInlineAllocationStep() override;
 
-  V8_EXPORT_PRIVATE void AddAllocationObserver(
-      AllocationObserver* observer) override;
-  V8_EXPORT_PRIVATE void RemoveAllocationObserver(
-      AllocationObserver* observer) override;
-  V8_EXPORT_PRIVATE void ResumeAllocationObservers() override;
-
- protected:
   // TODO(ofrobots): make these private after refactoring is complete.
   AllocationInfo allocation_info_;
   Address top_on_previous_step_;
@@ -2125,8 +2136,6 @@ class V8_EXPORT_PRIVATE PagedSpace
 
   void ResetFreeList();
 
-  void PauseAllocationObservers() override;
-
   // Empty space allocation info, returning unused area to free list.
   void EmptyAllocationInfo();
 
@@ -2228,7 +2237,6 @@ class V8_EXPORT_PRIVATE PagedSpace
 
   std::unique_ptr<ObjectIterator> GetObjectIterator() override;
 
-  Address ComputeLimit(Address start, Address end, size_t size_in_bytes);
   void SetAllocationInfo(Address top, Address limit);
 
  private:
@@ -2240,7 +2248,7 @@ class V8_EXPORT_PRIVATE PagedSpace
     allocation_info_.Reset(top, limit);
   }
   void DecreaseLimit(Address new_limit);
-  void StartNextInlineAllocationStep() override;
+  void UpdateInlineAllocationLimit(size_t min_size) override;
   bool SupportsInlineAllocation() override {
     return identity() == OLD_SPACE && !is_local();
   }
@@ -2680,7 +2688,7 @@ class NewSpace : public SpaceWithLinearArea {
   // inline allocation every once in a while. This is done by setting
   // allocation_info_.limit to be lower than the actual limit and and increasing
   // it in steps to guarantee that the observers are notified periodically.
-  void UpdateInlineAllocationLimit(int size_in_bytes);
+  void UpdateInlineAllocationLimit(size_t size_in_bytes) override;
 
   // Get the extent of the inactive semispace (for use as a marking stack,
   // or to zap it). Notice: space-addresses are not necessarily on the
@@ -2737,8 +2745,6 @@ class NewSpace : public SpaceWithLinearArea {
 
   SemiSpace* active_space() { return &to_space_; }
 
-  void PauseAllocationObservers() override;
-
   iterator begin() { return to_space_.begin(); }
   iterator end() { return to_space_.end(); }
 
@@ -2768,7 +2774,6 @@ class NewSpace : public SpaceWithLinearArea {
 
   bool EnsureAllocation(int size_in_bytes, AllocationAlignment alignment);
   bool SupportsInlineAllocation() override { return true; }
-  void StartNextInlineAllocationStep() override;
 
   friend class SemiSpaceIterator;
 };

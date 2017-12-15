@@ -1624,33 +1624,34 @@ void PagedSpace::DecreaseLimit(Address new_limit) {
   }
 }
 
-Address PagedSpace::ComputeLimit(Address start, Address end,
-                                 size_t size_in_bytes) {
-  DCHECK_GE(end - start, size_in_bytes);
+Address SpaceWithLinearArea::ComputeLimit(Address start, Address end,
+                                          size_t min_size) {
+  DCHECK_GE(end - start, min_size);
 
   if (heap()->inline_allocation_disabled()) {
-    // Keep the linear allocation area to fit exactly the requested size.
-    return start + size_in_bytes;
+    // Fit the requested area exactly.
+    return start + min_size;
   } else if (SupportsInlineAllocation() && AllocationObserversActive()) {
-    // Generated code may allocate inline from the linear allocation area for
-    // Old Space. To make sure we can observe these allocations, we use a lower
-    // limit.
-    size_t step = RoundSizeDownToObjectAlignment(
-        static_cast<int>(GetNextInlineAllocationStepSize()));
-    return Min(start + size_in_bytes + step, end);
+    // Generated code may allocate inline from the linear allocation area for.
+    // To make sure we can observe these allocations, we use a lower limit.
+    size_t step = GetNextInlineAllocationStepSize();
+
+    // TODO(ofrobots): there is subtle difference between old space and new
+    // space here. Any way to avoid it? `step - 1` makes more sense as we would
+    // like to sample the object that straddles the `start + step` boundary.
+    // Rounding down further would introduce a small statistical error in
+    // sampling. However, presently PagedSpace requires limit to be aligned.
+    size_t rounded_step;
+    if (identity() == NEW_SPACE) {
+      DCHECK_GE(step, 1);
+      rounded_step = step - 1;
+    } else {
+      rounded_step = RoundSizeDownToObjectAlignment(static_cast<int>(step));
+    }
+    return Min(start + min_size + rounded_step, end);
   } else {
     // The entire node can be used as the linear allocation area.
     return end;
-  }
-}
-
-// TODO(ofrobots): refactor this code into SpaceWithLinearArea
-void PagedSpace::StartNextInlineAllocationStep() {
-  if (SupportsInlineAllocation() && AllocationObserversActive()) {
-    top_on_previous_step_ = top();
-    DecreaseLimit(ComputeLimit(top(), limit(), 0));
-  } else {
-    DCHECK_NULL(top_on_previous_step_);
   }
 }
 
@@ -2081,27 +2082,17 @@ void NewSpace::ResetAllocationInfo() {
   }
 }
 
-
-void NewSpace::UpdateInlineAllocationLimit(int size_in_bytes) {
-  if (heap()->inline_allocation_disabled()) {
-    // Lowest limit when linear allocation was disabled.
-    Address high = to_space_.page_high();
-    Address new_top = allocation_info_.top() + size_in_bytes;
-    allocation_info_.set_limit(Min(new_top, high));
-  } else if (!AllocationObserversActive()) {
-    DCHECK_NULL(top_on_previous_step_);
-    // Normal limit is the end of the current page.
-    allocation_info_.set_limit(to_space_.page_high());
-  } else {
-    // Lower limit during incremental marking.
-    Address high = to_space_.page_high();
-    Address new_top = allocation_info_.top() + size_in_bytes;
-    Address new_limit = new_top + GetNextInlineAllocationStepSize() - 1;
-    allocation_info_.set_limit(Min(new_limit, high));
-  }
+void NewSpace::UpdateInlineAllocationLimit(size_t min_size) {
+  Address new_limit = ComputeLimit(top(), to_space_.page_high(), min_size);
+  allocation_info_.set_limit(new_limit);
   DCHECK_SEMISPACE_ALLOCATION_INFO(allocation_info_, to_space_);
 }
 
+void PagedSpace::UpdateInlineAllocationLimit(size_t min_size) {
+  Address new_limit = ComputeLimit(top(), limit(), min_size);
+  DCHECK_LE(new_limit, limit());
+  DecreaseLimit(new_limit);
+}
 
 bool NewSpace::AddFreshPage() {
   Address top = allocation_info_.top();
@@ -2160,8 +2151,7 @@ bool NewSpace::EnsureAllocation(int size_in_bytes,
   return true;
 }
 
-// TODO(ofrobots): refactor this code into SpaceWithLinearArea
-void NewSpace::StartNextInlineAllocationStep() {
+void SpaceWithLinearArea::StartNextInlineAllocationStep() {
   if (AllocationObserversActive()) {
     top_on_previous_step_ = top();
     UpdateInlineAllocationLimit(0);
@@ -2185,21 +2175,12 @@ void SpaceWithLinearArea::RemoveAllocationObserver(
   DCHECK_IMPLIES(top_on_previous_step_, AllocationObserversActive());
 }
 
-void NewSpace::PauseAllocationObservers() {
+void SpaceWithLinearArea::PauseAllocationObservers() {
   // Do a step to account for memory allocated so far.
   InlineAllocationStep(top(), nullptr, nullptr, 0);
   Space::PauseAllocationObservers();
   DCHECK_NULL(top_on_previous_step_);
   UpdateInlineAllocationLimit(0);
-}
-
-void PagedSpace::PauseAllocationObservers() {
-  // Do a step to account for memory allocated so far.
-  // TODO(ofrobots): Refactor into SpaceWithLinearArea. Note subtle difference
-  // from NewSpace version.
-  InlineAllocationStep(top(), nullptr, nullptr, 0);
-  Space::PauseAllocationObservers();
-  DCHECK_NULL(top_on_previous_step_);
 }
 
 void SpaceWithLinearArea::ResumeAllocationObservers() {
