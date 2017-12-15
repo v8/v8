@@ -56,6 +56,7 @@ class BytecodeGenerator final : public AstVisitor<BytecodeGenerator> {
   class EffectResultScope;
   class FeedbackSlotCache;
   class GlobalDeclarationsBuilder;
+  class IteratorRecord;
   class NaryCodeCoverageSlots;
   class RegisterAllocationScope;
   class TestResultScope;
@@ -150,6 +151,11 @@ class BytecodeGenerator final : public AstVisitor<BytecodeGenerator> {
   void BuildAwait(int suspend_id);
 
   void BuildGetIterator(Expression* iterable, IteratorType hint);
+  IteratorRecord BuildGetIteratorRecord(Expression* iterable,
+                                        IteratorType hint);
+  void BuildIteratorNext(const IteratorRecord& iterator, Register next_result);
+
+  void BuildArrayLiteralSpread(Spread* spread, Register array);
 
   void AllocateTopLevelRegisters();
   void VisitArgumentsObject(Variable* variable);

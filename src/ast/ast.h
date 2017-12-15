@@ -1450,14 +1450,14 @@ class ArrayLiteral final : public AggregateLiteral {
   }
 
   // Provide a mechanism for iterating through values to rewrite spreads.
-  ZoneList<Expression*>::iterator FirstSpread() const {
+  ZoneList<Expression*>::iterator FirstSpreadOrEndValue() const {
     return (first_spread_index_ >= 0) ? values_->begin() + first_spread_index_
                                       : values_->end();
   }
+  ZoneList<Expression*>::iterator BeginValue() const {
+    return values_->begin();
+  }
   ZoneList<Expression*>::iterator EndValue() const { return values_->end(); }
-
-  // Rewind an array literal omitting everything from the first spread on.
-  void RewindSpreads();
 
  private:
   friend class AstNodeFactory;

@@ -553,13 +553,8 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
 
   Expression* RewriteSpreads(ArrayLiteral* lit);
 
-  // Rewrite expressions that are not used as patterns
-  V8_INLINE void RewriteNonPattern(bool* ok);
-
   V8_INLINE void QueueDestructuringAssignmentForRewriting(
       RewritableExpression* assignment);
-  V8_INLINE void QueueNonPatternForRewriting(RewritableExpression* expr,
-                                             bool* ok);
 
   friend class InitializerRewriter;
   void RewriteParameterInitializer(Expression* expr);
@@ -982,10 +977,6 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
   V8_INLINE ZoneList<typename ExpressionClassifier::Error>*
   GetReportedErrorList() const {
     return function_state_->GetReportedErrorList();
-  }
-
-  V8_INLINE ZoneList<RewritableExpression*>* GetNonPatternList() const {
-    return function_state_->non_patterns_to_rewrite();
   }
 
   V8_INLINE void CountUsage(v8::Isolate::UseCounterFeature feature) {

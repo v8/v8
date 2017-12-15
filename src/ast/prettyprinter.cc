@@ -26,6 +26,7 @@ CallPrinter::CallPrinter(Isolate* isolate, bool is_user_js)
   is_iterator_error_ = false;
   is_async_iterator_error_ = false;
   is_user_js_ = is_user_js;
+  function_kind_ = kNormalFunction;
   InitializeAstVisitor(isolate);
 }
 
@@ -187,7 +188,10 @@ void CallPrinter::VisitDebuggerStatement(DebuggerStatement* node) {}
 
 
 void CallPrinter::VisitFunctionLiteral(FunctionLiteral* node) {
+  FunctionKind last_function_kind = function_kind_;
+  function_kind_ = node->kind();
   FindStatements(node->body());
+  function_kind_ = last_function_kind;
 }
 
 
@@ -250,7 +254,17 @@ void CallPrinter::VisitArrayLiteral(ArrayLiteral* node) {
   Print("[");
   for (int i = 0; i < node->values()->length(); i++) {
     if (i != 0) Print(",");
-    Find(node->values()->at(i), true);
+    Expression* subexpr = node->values()->at(i);
+    Spread* spread = subexpr->AsSpread();
+    if (spread != nullptr && !found_ &&
+        position_ == spread->expression()->position()) {
+      found_ = true;
+      is_iterator_error_ = true;
+      Find(spread->expression(), true);
+      done_ = true;
+      return;
+    }
+    Find(subexpr, true);
   }
   Print("]");
 }
@@ -277,7 +291,17 @@ void CallPrinter::VisitCompoundAssignment(CompoundAssignment* node) {
 
 void CallPrinter::VisitYield(Yield* node) { Find(node->expression()); }
 
-void CallPrinter::VisitYieldStar(YieldStar* node) { Find(node->expression()); }
+void CallPrinter::VisitYieldStar(YieldStar* node) {
+  if (!found_ && position_ == node->expression()->position()) {
+    found_ = true;
+    if (IsAsyncFunction(function_kind_))
+      is_async_iterator_error_ = true;
+    else
+      is_iterator_error_ = true;
+    Print("yield* ");
+  }
+  Find(node->expression());
+}
 
 void CallPrinter::VisitAwait(Await* node) { Find(node->expression()); }
 

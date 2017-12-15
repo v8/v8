@@ -1251,7 +1251,6 @@ Statement* Parser::ParseExportDefault(bool* ok) {
       int pos = position();
       ExpressionClassifier classifier(this);
       Expression* value = ParseAssignmentExpression(true, CHECK_OK);
-      RewriteNonPattern(CHECK_OK);
       SetFunctionName(value, ast_value_factory()->default_string());
 
       const AstRawString* local_name =
@@ -3810,24 +3809,6 @@ void Parser::RewriteAsyncFunctionBody(ZoneList<Statement*>* body, Block* block,
   body->Add(block, zone());
 }
 
-void Parser::RewriteNonPattern(bool* ok) {
-  ValidateExpression(CHECK_OK_VOID);
-  auto non_patterns_to_rewrite = function_state_->non_patterns_to_rewrite();
-  int begin = classifier()->GetNonPatternBegin();
-  int end = non_patterns_to_rewrite->length();
-  if (begin < end) {
-    for (int i = begin; i < end; i++) {
-      RewritableExpression* expr = non_patterns_to_rewrite->at(i);
-      // TODO(adamk): Make this more typesafe.
-      DCHECK(expr->expression()->IsArrayLiteral());
-      ArrayLiteral* lit = expr->expression()->AsArrayLiteral();
-      expr->Rewrite(RewriteSpreads(lit));
-    }
-    non_patterns_to_rewrite->Rewind(begin);
-  }
-}
-
-
 void Parser::RewriteDestructuringAssignments() {
   const auto& assignments =
       function_state_->destructuring_assignments_to_rewrite();
@@ -3847,100 +3828,9 @@ void Parser::RewriteDestructuringAssignments() {
   }
 }
 
-Expression* Parser::RewriteSpreads(ArrayLiteral* lit) {
-  // Array literals containing spreads are rewritten using do expressions, e.g.
-  //    [1, 2, 3, ...x, 4, ...y, 5]
-  // is roughly rewritten as:
-  //    do {
-  //      $R = [1, 2, 3];
-  //      for ($i of x) %AppendElement($R, $i);
-  //      %AppendElement($R, 4);
-  //      for ($j of y) %AppendElement($R, $j);
-  //      %AppendElement($R, 5);
-  //      $R
-  //    }
-  // where $R, $i and $j are fresh temporary variables.
-  ZoneList<Expression*>::iterator s = lit->FirstSpread();
-  if (s == lit->EndValue()) return nullptr;  // no spread, no rewriting...
-  Variable* result = NewTemporary(ast_value_factory()->dot_result_string());
-  // NOTE: The value assigned to R is the whole original array literal,
-  // spreads included. This will be fixed before the rewritten AST is returned.
-  // $R = lit
-  Expression* init_result = factory()->NewAssignment(
-      Token::INIT, factory()->NewVariableProxy(result), lit, kNoSourcePosition);
-  Block* do_block = factory()->NewBlock(16, false);
-  do_block->statements()->Add(
-      factory()->NewExpressionStatement(init_result, kNoSourcePosition),
-      zone());
-  // Traverse the array literal starting from the first spread.
-  while (s != lit->EndValue()) {
-    Expression* value = *s++;
-    Spread* spread = value->AsSpread();
-    if (spread == nullptr) {
-      // If the element is not a spread, we're adding a single:
-      // %AppendElement($R, value)
-      // or, in case of a hole,
-      // ++($R.length)
-      if (!value->IsTheHoleLiteral()) {
-        ZoneList<Expression*>* append_element_args = NewExpressionList(2);
-        append_element_args->Add(factory()->NewVariableProxy(result), zone());
-        append_element_args->Add(value, zone());
-        do_block->statements()->Add(
-            factory()->NewExpressionStatement(
-                factory()->NewCallRuntime(Runtime::kAppendElement,
-                                          append_element_args,
-                                          kNoSourcePosition),
-                kNoSourcePosition),
-            zone());
-      } else {
-        Property* length_property = factory()->NewProperty(
-            factory()->NewVariableProxy(result),
-            factory()->NewStringLiteral(ast_value_factory()->length_string(),
-                                        kNoSourcePosition),
-            kNoSourcePosition);
-        CountOperation* count_op = factory()->NewCountOperation(
-            Token::INC, true /* prefix */, length_property, kNoSourcePosition);
-        do_block->statements()->Add(
-            factory()->NewExpressionStatement(count_op, kNoSourcePosition),
-            zone());
-      }
-    } else {
-      // If it's a spread, we're adding a for/of loop iterating through it.
-      Variable* each = NewTemporary(ast_value_factory()->dot_for_string());
-      Expression* subject = spread->expression();
-      // %AppendElement($R, each)
-      Statement* append_body;
-      {
-        ZoneList<Expression*>* append_element_args = NewExpressionList(2);
-        append_element_args->Add(factory()->NewVariableProxy(result), zone());
-        append_element_args->Add(factory()->NewVariableProxy(each), zone());
-        append_body = factory()->NewExpressionStatement(
-            factory()->NewCallRuntime(Runtime::kAppendElement,
-                                      append_element_args, kNoSourcePosition),
-            kNoSourcePosition);
-      }
-      // for (each of spread) %AppendElement($R, each)
-      ForOfStatement* loop =
-          factory()->NewForOfStatement(nullptr, kNoSourcePosition);
-      const bool finalize = false;
-      InitializeForOfStatement(loop, factory()->NewVariableProxy(each), subject,
-                               append_body, finalize, IteratorType::kNormal);
-      do_block->statements()->Add(loop, zone());
-    }
-  }
-  // Now, rewind the original array literal to truncate everything from the
-  // first spread (included) until the end. This fixes $R's initialization.
-  lit->RewindSpreads();
-  return factory()->NewDoExpression(do_block, result, lit->position());
-}
-
 void Parser::QueueDestructuringAssignmentForRewriting(
     RewritableExpression* expr) {
   function_state_->AddDestructuringAssignment(expr);
-}
-
-void Parser::QueueNonPatternForRewriting(RewritableExpression* expr, bool* ok) {
-  function_state_->AddNonPatternForRewriting(expr, ok);
 }
 
 void Parser::SetFunctionNameFromPropertyName(LiteralProperty* property,

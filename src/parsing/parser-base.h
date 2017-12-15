@@ -451,14 +451,6 @@ class ParserBase {
       destructuring_assignments_to_rewrite_.Add(expr, scope_->zone());
     }
 
-    void AddNonPatternForRewriting(RewritableExpressionT expr, bool* ok) {
-      non_patterns_to_rewrite_.Add(expr, scope_->zone());
-      if (non_patterns_to_rewrite_.length() >=
-          std::numeric_limits<uint16_t>::max()) {
-        *ok = false;
-      }
-    }
-
     // Properties count estimation.
     int expected_property_count_;
 
@@ -1078,10 +1070,8 @@ class ParserBase {
     return ParsePrimaryExpression(&is_async, ok);
   }
 
-  // This method wraps the parsing of the expression inside a new expression
-  // classifier and calls RewriteNonPattern if parsing is successful.
-  // It should be used whenever we're parsing an expression that is known
-  // to not be a pattern or part of a pattern.
+  // Use when parsing an expression that is known to not be a pattern or part
+  // of a pattern.
   V8_INLINE ExpressionT ParseExpression(bool accept_IN, bool* ok);
 
   // This method does not wrap the parsing of the expression inside a
@@ -1463,21 +1453,18 @@ class ParserBase {
 
   // Accumulates the classifier that is on top of the stack (inner) to
   // the one that is right below (outer) and pops the inner.
-  V8_INLINE void Accumulate(unsigned productions,
-                            bool merge_non_patterns = true) {
+  V8_INLINE void Accumulate(unsigned productions) {
     DCHECK_NOT_NULL(classifier_);
     ExpressionClassifier* previous = classifier_->previous();
     DCHECK_NOT_NULL(previous);
-    previous->Accumulate(classifier_, productions, merge_non_patterns);
+    previous->Accumulate(classifier_, productions);
     classifier_ = previous;
   }
 
   V8_INLINE void AccumulateNonBindingPatternErrors() {
-    static const bool kMergeNonPatterns = true;
     this->Accumulate(ExpressionClassifier::AllProductions &
-                         ~(ExpressionClassifier::BindingPatternProduction |
-                           ExpressionClassifier::LetPatternProduction),
-                     kMergeNonPatterns);
+                     ~(ExpressionClassifier::BindingPatternProduction |
+                       ExpressionClassifier::LetPatternProduction));
   }
 
   // Pops and discards the classifier that is on top of the stack
@@ -1942,7 +1929,7 @@ typename ParserBase<Impl>::ExpressionT ParserBase<Impl>::ParseExpression(
     bool accept_IN, bool* ok) {
   ExpressionClassifier classifier(this);
   ExpressionT result = ParseExpressionCoverGrammar(accept_IN, CHECK_OK);
-  impl()->RewriteNonPattern(CHECK_OK);
+  ValidateExpression(CHECK_OK);
   return result;
 }
 
@@ -2068,22 +2055,7 @@ typename ParserBase<Impl>::ExpressionT ParserBase<Impl>::ParseArrayLiteral(
   }
   Expect(Token::RBRACK, CHECK_OK);
 
-  ExpressionT result =
-      factory()->NewArrayLiteral(values, first_spread_index, pos);
-  if (first_spread_index >= 0) {
-    auto rewritable = factory()->NewRewritableExpression(result, scope());
-    impl()->QueueNonPatternForRewriting(rewritable, ok);
-    if (!*ok) {
-      // If the non-pattern rewriting mechanism is used in the future for
-      // rewriting other things than spreads, this error message will have
-      // to change.  Also, this error message will never appear while pre-
-      // parsing (this is OK, as it is an implementation limitation).
-      ReportMessage(MessageTemplate::kTooManySpreads);
-      return impl()->NullExpression();
-    }
-    result = rewritable;
-  }
-  return result;
+  return factory()->NewArrayLiteral(values, first_spread_index, pos);
 }
 
 template <class Impl>
@@ -2198,7 +2170,7 @@ typename ParserBase<Impl>::ExpressionT ParserBase<Impl>::ParsePropertyName(
       Consume(Token::LBRACK);
       ExpressionClassifier computed_name_classifier(this);
       expression = ParseAssignmentExpression(true, CHECK_OK);
-      impl()->RewriteNonPattern(CHECK_OK);
+      ValidateExpression(CHECK_OK);
       AccumulateFormalParameterContainmentErrors();
       Expect(Token::RBRACK, CHECK_OK);
       break;
@@ -2441,7 +2413,7 @@ ParserBase<Impl>::ParseClassFieldInitializer(ClassInfo* class_info,
 
     initializer =
         ParseAssignmentExpression(true, CHECK_OK_CUSTOM(NullExpression));
-    impl()->RewriteNonPattern(CHECK_OK_CUSTOM(NullExpression));
+    ValidateExpression(CHECK_OK_CUSTOM(NullExpression));
   } else {
     initializer = factory()->NewUndefinedLiteral(kNoSourcePosition);
   }
@@ -2560,7 +2532,7 @@ ParserBase<Impl>::ParseObjectPropertyDefinition(ObjectLiteralChecker* checker,
         ExpressionClassifier rhs_classifier(this);
         ExpressionT rhs = ParseAssignmentExpression(
             true, CHECK_OK_CUSTOM(NullLiteralProperty));
-        impl()->RewriteNonPattern(CHECK_OK_CUSTOM(NullLiteralProperty));
+        ValidateExpression(CHECK_OK_CUSTOM(NullLiteralProperty));
         AccumulateFormalParameterContainmentErrors();
         value = factory()->NewAssignment(Token::ASSIGN, lhs, rhs,
                                          kNoSourcePosition);
@@ -2738,7 +2710,7 @@ typename ParserBase<Impl>::ExpressionListT ParserBase<Impl>::ParseArguments(
       *is_simple_parameter_list = false;
     }
     if (!maybe_arrow) {
-      impl()->RewriteNonPattern(CHECK_OK_CUSTOM(NullExpressionList));
+      ValidateExpression(CHECK_OK_CUSTOM(NullExpressionList));
     }
     if (is_spread) {
       if (is_simple_parameter_list != nullptr) {
@@ -2784,7 +2756,7 @@ typename ParserBase<Impl>::ExpressionListT ParserBase<Impl>::ParseArguments(
 
   if (!maybe_arrow || peek() != Token::ARROW) {
     if (maybe_arrow) {
-      impl()->RewriteNonPattern(CHECK_OK_CUSTOM(NullExpressionList));
+      ValidateExpression(CHECK_OK_CUSTOM(NullExpressionList));
     }
   }
 
@@ -2914,15 +2886,8 @@ ParserBase<Impl>::ParseAssignmentExpression(bool accept_IN, bool* ok) {
     productions &= ~ExpressionClassifier::ExpressionProduction;
   }
 
-  if (!Token::IsAssignmentOp(peek())) {
-    // Parsed conditional expression only (no assignment).
-    // Pending non-pattern expressions must be merged.
-    Accumulate(productions);
-    return expression;
-  } else {
-    // Pending non-pattern expressions must be discarded.
-    Accumulate(productions, false);
-  }
+  Accumulate(productions);
+  if (!Token::IsAssignmentOp(peek())) return expression;
 
   if (is_destructuring_assignment) {
     ValidateAssignmentPattern(CHECK_OK);
@@ -2945,7 +2910,7 @@ ParserBase<Impl>::ParseAssignmentExpression(bool accept_IN, bool* ok) {
   ExpressionClassifier rhs_classifier(this);
 
   ExpressionT right = ParseAssignmentExpression(accept_IN, CHECK_OK);
-  impl()->RewriteNonPattern(CHECK_OK);
+  ValidateExpression(CHECK_OK);
   AccumulateFormalParameterContainmentErrors();
 
   // We try to estimate the set of properties set by constructors. We define a
@@ -3019,7 +2984,7 @@ typename ParserBase<Impl>::ExpressionT ParserBase<Impl>::ParseYieldExpression(
         // Delegating yields require an RHS; fall through.
       default:
         expression = ParseAssignmentExpression(accept_IN, CHECK_OK);
-        impl()->RewriteNonPattern(CHECK_OK);
+        ValidateExpression(CHECK_OK);
         break;
     }
   }
@@ -3052,7 +3017,7 @@ ParserBase<Impl>::ParseConditionalExpression(bool accept_IN,
   // We start using the binary expression parser for prec >= 4 only!
   ExpressionT expression = ParseBinaryExpression(4, accept_IN, CHECK_OK);
   if (peek() != Token::CONDITIONAL) return expression;
-  impl()->RewriteNonPattern(CHECK_OK);
+  ValidateExpression(CHECK_OK);
   BindingPatternUnexpectedToken();
   ArrowFormalParametersUnexpectedToken();
 
@@ -3067,7 +3032,7 @@ ParserBase<Impl>::ParseConditionalExpression(bool accept_IN,
     left = ParseAssignmentExpression(true, CHECK_OK);
     AccumulateNonBindingPatternErrors();
   }
-  impl()->RewriteNonPattern(CHECK_OK);
+  ValidateExpression(CHECK_OK);
   ExpressionT right;
   {
     SourceRangeScope range_scope(scanner(), &else_range);
@@ -3076,7 +3041,7 @@ ParserBase<Impl>::ParseConditionalExpression(bool accept_IN,
     right = ParseAssignmentExpression(accept_IN, CHECK_OK);
     AccumulateNonBindingPatternErrors();
   }
-  impl()->RewriteNonPattern(CHECK_OK);
+  ValidateExpression(CHECK_OK);
   ExpressionT expr = factory()->NewConditional(expression, left, right, pos);
   impl()->RecordConditionalSourceRange(expr, then_range, else_range);
   return expr;
@@ -3093,7 +3058,7 @@ typename ParserBase<Impl>::ExpressionT ParserBase<Impl>::ParseBinaryExpression(
   for (int prec1 = Precedence(peek(), accept_IN); prec1 >= prec; prec1--) {
     // prec1 >= 4
     while (Precedence(peek(), accept_IN) == prec1) {
-      impl()->RewriteNonPattern(CHECK_OK);
+      ValidateExpression(CHECK_OK);
       BindingPatternUnexpectedToken();
       ArrowFormalParametersUnexpectedToken();
 
@@ -3105,7 +3070,7 @@ typename ParserBase<Impl>::ExpressionT ParserBase<Impl>::ParseBinaryExpression(
       const int next_prec = is_right_associative ? prec1 : prec1 + 1;
       ExpressionT y = ParseBinaryExpression(next_prec, accept_IN, CHECK_OK);
       right_range_scope.Finalize();
-      impl()->RewriteNonPattern(CHECK_OK);
+      ValidateExpression(CHECK_OK);
 
       if (impl()->ShortcutNumericLiteralBinaryExpression(&x, y, op, pos)) {
         continue;
@@ -3171,7 +3136,7 @@ typename ParserBase<Impl>::ExpressionT ParserBase<Impl>::ParseUnaryExpression(
     }
 
     ExpressionT expression = ParseUnaryExpression(CHECK_OK);
-    impl()->RewriteNonPattern(CHECK_OK);
+    ValidateExpression(CHECK_OK);
 
     if (op == Token::DELETE && is_strict(language_mode())) {
       if (impl()->IsIdentifier(expression)) {
@@ -3200,7 +3165,7 @@ typename ParserBase<Impl>::ExpressionT ParserBase<Impl>::ParseUnaryExpression(
         expression, beg_pos, scanner()->location().end_pos,
         MessageTemplate::kInvalidLhsInPrefixOp, CHECK_OK);
     impl()->MarkExpressionAsAssigned(expression);
-    impl()->RewriteNonPattern(CHECK_OK);
+    ValidateExpression(CHECK_OK);
 
     return factory()->NewCountOperation(op,
                                         true /* prefix */,
@@ -3245,7 +3210,7 @@ typename ParserBase<Impl>::ExpressionT ParserBase<Impl>::ParsePostfixExpression(
         expression, lhs_beg_pos, scanner()->location().end_pos,
         MessageTemplate::kInvalidLhsInPostfixOp, CHECK_OK);
     impl()->MarkExpressionAsAssigned(expression);
-    impl()->RewriteNonPattern(CHECK_OK);
+    ValidateExpression(CHECK_OK);
 
     Token::Value next = Next();
     expression =
@@ -3270,13 +3235,13 @@ ParserBase<Impl>::ParseLeftHandSideExpression(bool* ok) {
   while (true) {
     switch (peek()) {
       case Token::LBRACK: {
-        impl()->RewriteNonPattern(CHECK_OK);
+        ValidateExpression(CHECK_OK);
         BindingPatternUnexpectedToken();
         ArrowFormalParametersUnexpectedToken();
         Consume(Token::LBRACK);
         int pos = position();
         ExpressionT index = ParseExpressionCoverGrammar(true, CHECK_OK);
-        impl()->RewriteNonPattern(CHECK_OK);
+        ValidateExpression(CHECK_OK);
         result = factory()->NewProperty(result, index, pos);
         Expect(Token::RBRACK, CHECK_OK);
         break;
@@ -3284,7 +3249,7 @@ ParserBase<Impl>::ParseLeftHandSideExpression(bool* ok) {
 
       case Token::LPAREN: {
         int pos;
-        impl()->RewriteNonPattern(CHECK_OK);
+        ValidateExpression(CHECK_OK);
         BindingPatternUnexpectedToken();
         if (scanner()->current_token() == Token::IDENTIFIER ||
             scanner()->current_token() == Token::SUPER ||
@@ -3376,7 +3341,7 @@ ParserBase<Impl>::ParseLeftHandSideExpression(bool* ok) {
       }
 
       case Token::PERIOD: {
-        impl()->RewriteNonPattern(CHECK_OK);
+        ValidateExpression(CHECK_OK);
         BindingPatternUnexpectedToken();
         ArrowFormalParametersUnexpectedToken();
         Consume(Token::PERIOD);
@@ -3390,7 +3355,7 @@ ParserBase<Impl>::ParseLeftHandSideExpression(bool* ok) {
 
       case Token::TEMPLATE_SPAN:
       case Token::TEMPLATE_TAIL: {
-        impl()->RewriteNonPattern(CHECK_OK);
+        ValidateExpression(CHECK_OK);
         BindingPatternUnexpectedToken();
         ArrowFormalParametersUnexpectedToken();
         result = ParseTemplateLiteral(result, position(), true, CHECK_OK);
@@ -3449,7 +3414,7 @@ ParserBase<Impl>::ParseMemberWithNewPrefixesExpression(bool* is_async,
     } else {
       result = ParseMemberWithNewPrefixesExpression(is_async, CHECK_OK);
     }
-    impl()->RewriteNonPattern(CHECK_OK);
+    ValidateExpression(CHECK_OK);
     if (peek() == Token::LPAREN) {
       // NewExpression with arguments.
       Scanner::Location spread_pos;
@@ -3660,14 +3625,14 @@ ParserBase<Impl>::ParseMemberExpressionContinuation(ExpressionT expression,
     switch (peek()) {
       case Token::LBRACK: {
         *is_async = false;
-        impl()->RewriteNonPattern(CHECK_OK);
+        ValidateExpression(CHECK_OK);
         BindingPatternUnexpectedToken();
         ArrowFormalParametersUnexpectedToken();
 
         Consume(Token::LBRACK);
         int pos = position();
         ExpressionT index = ParseExpressionCoverGrammar(true, CHECK_OK);
-        impl()->RewriteNonPattern(CHECK_OK);
+        ValidateExpression(CHECK_OK);
         expression = factory()->NewProperty(expression, index, pos);
         impl()->PushPropertyName(index);
         Expect(Token::RBRACK, CHECK_OK);
@@ -3675,7 +3640,7 @@ ParserBase<Impl>::ParseMemberExpressionContinuation(ExpressionT expression,
       }
       case Token::PERIOD: {
         *is_async = false;
-        impl()->RewriteNonPattern(CHECK_OK);
+        ValidateExpression(CHECK_OK);
         BindingPatternUnexpectedToken();
         ArrowFormalParametersUnexpectedToken();
 
@@ -3690,7 +3655,7 @@ ParserBase<Impl>::ParseMemberExpressionContinuation(ExpressionT expression,
       case Token::TEMPLATE_SPAN:
       case Token::TEMPLATE_TAIL: {
         *is_async = false;
-        impl()->RewriteNonPattern(CHECK_OK);
+        ValidateExpression(CHECK_OK);
         BindingPatternUnexpectedToken();
         ArrowFormalParametersUnexpectedToken();
         int pos;
@@ -3746,7 +3711,7 @@ void ParserBase<Impl>::ParseFormalParameter(FormalParametersT* parameters,
     }
     ExpressionClassifier init_classifier(this);
     initializer = ParseAssignmentExpression(true, CHECK_OK_CUSTOM(Void));
-    impl()->RewriteNonPattern(CHECK_OK_CUSTOM(Void));
+    ValidateExpression(CHECK_OK_CUSTOM(Void));
     ValidateFormalParameterInitializer(CHECK_OK_CUSTOM(Void));
     parameters->is_simple = false;
     DiscardExpressionClassifier();
@@ -3885,7 +3850,7 @@ typename ParserBase<Impl>::BlockT ParserBase<Impl>::ParseVariableDeclarations(
       ExpressionClassifier classifier(this);
       value = ParseAssignmentExpression(var_context != kForStatement,
                                         CHECK_OK_CUSTOM(NullStatement));
-      impl()->RewriteNonPattern(CHECK_OK_CUSTOM(NullStatement));
+      ValidateExpression(CHECK_OK_CUSTOM(NullStatement));
       variable_loc.end_pos = scanner()->location().end_pos;
 
       if (!parsing_result->first_initializer_loc.IsValid()) {
@@ -4473,7 +4438,7 @@ typename ParserBase<Impl>::ExpressionT ParserBase<Impl>::ParseClassLiteral(
     FuncNameInferrer::State fni_state(fni_);
     ExpressionClassifier extends_classifier(this);
     class_info.extends = ParseLeftHandSideExpression(CHECK_OK);
-    impl()->RewriteNonPattern(CHECK_OK);
+    ValidateExpression(CHECK_OK);
     AccumulateFormalParameterContainmentErrors();
   }
 
@@ -4505,7 +4470,7 @@ typename ParserBase<Impl>::ExpressionT ParserBase<Impl>::ParseClassLiteral(
       class_info.computed_field_count++;
     }
     is_constructor &= class_info.has_seen_constructor;
-    impl()->RewriteNonPattern(CHECK_OK);
+    ValidateExpression(CHECK_OK);
     AccumulateFormalParameterContainmentErrors();
 
     impl()->DeclareClassProperty(name, property, property_kind, is_static,
@@ -4530,7 +4495,7 @@ void ParserBase<Impl>::ParseSingleExpressionFunctionBody(StatementListT body,
 
   ExpressionClassifier classifier(this);
   ExpressionT expression = ParseAssignmentExpression(accept_IN, CHECK_OK_VOID);
-  impl()->RewriteNonPattern(CHECK_OK_VOID);
+  ValidateExpression(CHECK_OK_VOID);
 
   if (is_async) {
     BlockT block = factory()->NewBlock(1, true);
@@ -4654,7 +4619,7 @@ typename ParserBase<Impl>::ExpressionT ParserBase<Impl>::ParseTemplateLiteral(
 
     int expr_pos = peek_position();
     ExpressionT expression = ParseExpressionCoverGrammar(true, CHECK_OK);
-    impl()->RewriteNonPattern(CHECK_OK);
+    ValidateExpression(CHECK_OK);
     impl()->AddTemplateExpression(&ts, expression);
 
     if (peek() != Token::RBRACE) {
@@ -5692,7 +5657,7 @@ typename ParserBase<Impl>::StatementT ParserBase<Impl>::ParseForStatement(
     if (is_destructuring) {
       ValidateAssignmentPattern(CHECK_OK);
     } else {
-      impl()->RewriteNonPattern(CHECK_OK);
+      ValidateExpression(CHECK_OK);
     }
 
     if (is_for_each) {
@@ -5755,7 +5720,7 @@ ParserBase<Impl>::ParseForEachStatementWithDeclarations(
   if (for_info->mode == ForEachStatement::ITERATE) {
     ExpressionClassifier classifier(this);
     enumerable = ParseAssignmentExpression(true, CHECK_OK);
-    impl()->RewriteNonPattern(CHECK_OK);
+    ValidateExpression(CHECK_OK);
   } else {
     enumerable = ParseExpression(true, CHECK_OK);
   }
@@ -5831,7 +5796,7 @@ ParserBase<Impl>::ParseForEachStatementWithoutDeclarations(
   if (for_info->mode == ForEachStatement::ITERATE) {
     ExpressionClassifier classifier(this);
     enumerable = ParseAssignmentExpression(true, CHECK_OK);
-    impl()->RewriteNonPattern(CHECK_OK);
+    ValidateExpression(CHECK_OK);
   } else {
     enumerable = ParseExpression(true, CHECK_OK);
   }
@@ -6019,7 +5984,7 @@ typename ParserBase<Impl>::StatementT ParserBase<Impl>::ParseForAwaitStatement(
     if (lhs->IsArrayLiteral() || lhs->IsObjectLiteral()) {
       ValidateAssignmentPattern(CHECK_OK);
     } else {
-      impl()->RewriteNonPattern(CHECK_OK);
+      ValidateExpression(CHECK_OK);
       each_variable = CheckAndRewriteReferenceExpression(
           lhs, lhs_beg_pos, lhs_end_pos, MessageTemplate::kInvalidLhsInFor,
           kSyntaxError, CHECK_OK);
@@ -6035,7 +6000,7 @@ typename ParserBase<Impl>::StatementT ParserBase<Impl>::ParseForAwaitStatement(
   {
     ExpressionClassifier classifier(this);
     iterable = ParseAssignmentExpression(kAllowIn, CHECK_OK);
-    impl()->RewriteNonPattern(CHECK_OK);
+    ValidateExpression(CHECK_OK);
   }
 
   Expect(Token::RPAREN, CHECK_OK);
