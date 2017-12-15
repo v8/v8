@@ -292,9 +292,28 @@ std::ostream& operator<<(std::ostream& os, GrowFastElementsMode mode) {
   UNREACHABLE();
 }
 
-GrowFastElementsMode GrowFastElementsModeOf(const Operator* op) {
+bool operator==(const GrowFastElementsParameters& lhs,
+                const GrowFastElementsParameters& rhs) {
+  return lhs.mode() == rhs.mode() && lhs.feedback() == rhs.feedback();
+}
+
+inline size_t hash_value(const GrowFastElementsParameters& params) {
+  return base::hash_combine(params.mode(), params.feedback());
+}
+
+std::ostream& operator<<(std::ostream& os,
+                         const GrowFastElementsParameters& params) {
+  os << params.mode();
+  if (params.feedback().IsValid()) {
+    os << params.feedback();
+  }
+  return os;
+}
+
+const GrowFastElementsParameters& GrowFastElementsParametersOf(
+    const Operator* op) {
   DCHECK_EQ(IrOpcode::kMaybeGrowFastElements, op->opcode());
-  return OpParameter<GrowFastElementsMode>(op);
+  return OpParameter<GrowFastElementsParameters>(op);
 }
 
 bool operator==(ElementsTransition const& lhs, ElementsTransition const& rhs) {
@@ -903,6 +922,20 @@ struct SimplifiedOperatorGlobalCache final {
   };
   EnsureWritableFastElementsOperator kEnsureWritableFastElements;
 
+  template <GrowFastElementsMode kMode>
+  struct GrowFastElementsOperator final
+      : public Operator1<GrowFastElementsParameters> {
+    GrowFastElementsOperator()
+        : Operator1(IrOpcode::kMaybeGrowFastElements, Operator::kNoThrow,
+                    "MaybeGrowFastElements", 4, 1, 1, 1, 1, 0,
+                    GrowFastElementsParameters(kMode, VectorSlotPair())) {}
+  };
+
+  GrowFastElementsOperator<GrowFastElementsMode::kDoubleElements>
+      kGrowFastElementsOperatorDoubleElements;
+  GrowFastElementsOperator<GrowFastElementsMode::kSmiOrObjectElements>
+      kGrowFastElementsOperatorSmiOrObjectElements;
+
   struct LoadFieldByIndexOperator final : public Operator {
     LoadFieldByIndexOperator()
         : Operator(                         // --
@@ -1148,13 +1181,21 @@ const Operator* SimplifiedOperatorBuilder::EnsureWritableFastElements() {
 }
 
 const Operator* SimplifiedOperatorBuilder::MaybeGrowFastElements(
-    GrowFastElementsMode mode) {
-  return new (zone()) Operator1<GrowFastElementsMode>(  // --
-      IrOpcode::kMaybeGrowFastElements,                 // opcode
-      Operator::kNoThrow,                               // flags
-      "MaybeGrowFastElements",                          // name
-      4, 1, 1, 1, 1, 0,                                 // counts
-      mode);                                            // parameter
+    GrowFastElementsMode mode, const VectorSlotPair& feedback) {
+  if (!feedback.IsValid()) {
+    switch (mode) {
+      case GrowFastElementsMode::kDoubleElements:
+        return &cache_.kGrowFastElementsOperatorDoubleElements;
+      case GrowFastElementsMode::kSmiOrObjectElements:
+        return &cache_.kGrowFastElementsOperatorSmiOrObjectElements;
+    }
+  }
+  return new (zone()) Operator1<GrowFastElementsParameters>(  // --
+      IrOpcode::kMaybeGrowFastElements,                       // opcode
+      Operator::kNoThrow,                                     // flags
+      "MaybeGrowFastElements",                                // name
+      4, 1, 1, 1, 1, 0,                                       // counts
+      GrowFastElementsParameters(mode, feedback));            // parameter
 }
 
 const Operator* SimplifiedOperatorBuilder::TransitionElementsKind(

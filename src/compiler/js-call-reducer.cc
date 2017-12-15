@@ -1636,9 +1636,9 @@ Node* JSCallReducer::DoFilterPostCallbackWork(ElementsKind kind, Node** control,
     GrowFastElementsMode mode =
         IsDoubleElementsKind(kind) ? GrowFastElementsMode::kDoubleElements
                                    : GrowFastElementsMode::kSmiOrObjectElements;
-    elements = etrue =
-        graph()->NewNode(simplified()->MaybeGrowFastElements(mode), a, elements,
-                         checked_to, elements_length, etrue, if_true);
+    elements = etrue = graph()->NewNode(
+        simplified()->MaybeGrowFastElements(mode, VectorSlotPair()), a,
+        elements, checked_to, elements_length, etrue, if_true);
 
     // Update the length of {a}.
     Node* new_length_a = graph()->NewNode(simplified()->NumberAdd(), checked_to,

@@ -2444,8 +2444,8 @@ JSNativeContextSpecialization::BuildElementAccess(
                 ? GrowFastElementsMode::kDoubleElements
                 : GrowFastElementsMode::kSmiOrObjectElements;
         elements = effect = graph()->NewNode(
-            simplified()->MaybeGrowFastElements(mode), receiver, elements,
-            index, elements_length, effect, control);
+            simplified()->MaybeGrowFastElements(mode, VectorSlotPair()),
+            receiver, elements, index, elements_length, effect, control);
 
         // Also update the "length" property if {receiver} is a JSArray.
         if (receiver_is_jsarray) {

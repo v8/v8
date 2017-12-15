@@ -41,3 +41,34 @@
   foo([0.34234]);
   assertOptimized(foo);
 })();
+
+(function test() {
+  const N = 128 * 1024;
+
+  function foo(a) { a.push(1); }
+
+  foo(new Array(N));
+  foo(new Array(N));
+  %OptimizeFunctionOnNextCall(foo);
+  foo(new Array(N));
+  %OptimizeFunctionOnNextCall(foo);
+  foo(new Array(N));
+  assertOptimized(foo);
+})();
+
+(function test() {
+  function mkArray() {
+    const N = 128 * 1024;
+    let a = [0.1];
+    a.length = N;
+    return a;
+  }
+  function foo(a) { a.push(0.23441233123); }
+  foo(mkArray());
+  foo(mkArray());
+  %OptimizeFunctionOnNextCall(foo);
+  foo(mkArray());
+  %OptimizeFunctionOnNextCall(foo);
+  foo(mkArray());
+  assertOptimized(foo);
+})();

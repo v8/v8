@@ -3229,7 +3229,7 @@ Node* EffectControlLinearizer::LowerEnsureWritableFastElements(Node* node) {
 
 Node* EffectControlLinearizer::LowerMaybeGrowFastElements(Node* node,
                                                           Node* frame_state) {
-  GrowFastElementsMode mode = GrowFastElementsModeOf(node->op());
+  GrowFastElementsParameters params = GrowFastElementsParametersOf(node->op());
   Node* object = node->InputAt(0);
   Node* elements = node->InputAt(1);
   Node* index = node->InputAt(2);
@@ -3248,7 +3248,7 @@ Node* EffectControlLinearizer::LowerMaybeGrowFastElements(Node* node,
   // We need to grow the {elements} for {object}.
   Operator::Properties properties = Operator::kEliminatable;
   Callable callable =
-      (mode == GrowFastElementsMode::kDoubleElements)
+      (params.mode() == GrowFastElementsMode::kDoubleElements)
           ? Builtins::CallableFor(isolate(), Builtins::kGrowFastDoubleElements)
           : Builtins::CallableFor(isolate(),
                                   Builtins::kGrowFastSmiOrObjectElements);
@@ -3262,7 +3262,7 @@ Node* EffectControlLinearizer::LowerMaybeGrowFastElements(Node* node,
   // Ensure that we were able to grow the {elements}.
   // TODO(turbofan): We use kSmi as reason here similar to Crankshaft,
   // but maybe we should just introduce a reason that makes sense.
-  __ DeoptimizeIf(DeoptimizeReason::kSmi, VectorSlotPair(),
+  __ DeoptimizeIf(DeoptimizeReason::kSmi, params.feedback(),
                   ObjectIsSmi(new_elements), frame_state);
   __ Goto(&done, new_elements);
 

@@ -1085,7 +1085,8 @@ Reduction JSBuiltinReducer::ReduceArrayPush(Node* node) {
               ? GrowFastElementsMode::kDoubleElements
               : GrowFastElementsMode::kSmiOrObjectElements;
       elements = effect = graph()->NewNode(
-          simplified()->MaybeGrowFastElements(mode), receiver, elements,
+          simplified()->MaybeGrowFastElements(mode, p.feedback()), receiver,
+          elements,
           graph()->NewNode(simplified()->NumberAdd(), length,
                            jsgraph()->Constant(num_values - 1)),
           elements_length, effect, control);

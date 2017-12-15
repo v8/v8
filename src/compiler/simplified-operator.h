@@ -225,7 +225,29 @@ inline size_t hash_value(GrowFastElementsMode mode) {
 
 std::ostream& operator<<(std::ostream&, GrowFastElementsMode);
 
-GrowFastElementsMode GrowFastElementsModeOf(const Operator*) WARN_UNUSED_RESULT;
+class GrowFastElementsParameters {
+ public:
+  GrowFastElementsParameters(GrowFastElementsMode mode,
+                             const VectorSlotPair& feedback)
+      : mode_(mode), feedback_(feedback) {}
+
+  GrowFastElementsMode mode() const { return mode_; }
+  const VectorSlotPair& feedback() const { return feedback_; }
+
+ private:
+  GrowFastElementsMode mode_;
+  VectorSlotPair feedback_;
+};
+
+bool operator==(const GrowFastElementsParameters&,
+                const GrowFastElementsParameters&);
+
+inline size_t hash_value(const GrowFastElementsParameters&);
+
+std::ostream& operator<<(std::ostream&, const GrowFastElementsParameters&);
+
+const GrowFastElementsParameters& GrowFastElementsParametersOf(const Operator*)
+    WARN_UNUSED_RESULT;
 
 // A descriptor for elements kind transitions.
 class ElementsTransition final {
@@ -542,7 +564,8 @@ class V8_EXPORT_PRIVATE SimplifiedOperatorBuilder final
   const Operator* EnsureWritableFastElements();
 
   // maybe-grow-fast-elements object, elements, index, length
-  const Operator* MaybeGrowFastElements(GrowFastElementsMode mode);
+  const Operator* MaybeGrowFastElements(GrowFastElementsMode mode,
+                                        const VectorSlotPair& feedback);
 
   // transition-elements-kind object, from-map, to-map
   const Operator* TransitionElementsKind(ElementsTransition transition);
