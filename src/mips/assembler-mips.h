@@ -238,6 +238,7 @@ int ToNumber(Register reg);
 
 Register ToRegister(int num);
 
+constexpr bool kPadArguments = false;
 constexpr bool kSimpleFPAliasing = true;
 constexpr bool kSimdMaskRegisters = false;
 

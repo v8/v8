@@ -298,7 +298,7 @@ class V8_EXPORT_PRIVATE CallDescriptor final
 
   bool HasSameReturnLocationsAs(const CallDescriptor* other) const;
 
-  int GetStackParameterDelta(const CallDescriptor* tail_caller = nullptr) const;
+  int GetStackParameterDelta(const CallDescriptor* tail_caller) const;
 
   bool CanTailCall(const Node* call) const;
 
