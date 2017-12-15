@@ -2712,19 +2712,36 @@ ScriptCompiler::CachedData* ScriptCompiler::CreateCodeCache(
   i::Handle<i::SharedFunctionInfo> shared =
       i::Handle<i::SharedFunctionInfo>::cast(
           Utils::OpenHandle(*unbound_script));
+  i::Isolate* isolate = shared->GetIsolate();
+  TRACE_EVENT_CALL_STATS_SCOPED(isolate, "v8", "V8.Execute");
+  base::ElapsedTimer timer;
+  if (i::FLAG_profile_deserialization) {
+    timer.Start();
+  }
+  i::HistogramTimerScope histogram_timer(
+      isolate->counters()->compile_serialize());
+  i::RuntimeCallTimerScope runtimeTimer(
+      isolate, i::RuntimeCallCounterId::kCompileSerialize);
+  TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.compile"), "V8.CompileSerialize");
+
   DCHECK(shared->is_toplevel());
   i::Handle<i::Script> script(i::Script::cast(shared->script()));
-  i::Isolate* isolate = shared->GetIsolate();
   // TODO(7110): Enable serialization of Asm modules once the AsmWasmData is
   // context independent.
   if (script->ContainsAsmModule()) return nullptr;
   if (isolate->debug()->is_loaded()) return nullptr;
+
   i::ScriptData* script_data =
       i::CodeSerializer::Serialize(isolate, shared, Utils::OpenHandle(*source));
   CachedData* result = new CachedData(
       script_data->data(), script_data->length(), CachedData::BufferOwned);
   script_data->ReleaseDataOwnership();
   delete script_data;
+
+  if (i::FLAG_profile_deserialization) {
+    i::PrintF("[Serializing took %0.3f ms]\n",
+              timer.Elapsed().InMillisecondsF());
+  }
   return result;
 }
 
