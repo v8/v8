@@ -297,6 +297,7 @@ void JumpTableTargetOffsets::iterator::UpdateAndAdvanceToValid() {
   while (current_->IsTheHole(isolate)) {
     ++table_offset_;
     ++index_;
+    if (table_offset_ >= table_end_) break;
     current_ = accessor_->GetConstantAtIndex(table_offset_);
   }
 }
