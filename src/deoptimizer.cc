@@ -3860,8 +3860,13 @@ void TranslatedState::DoUpdateFeedback() {
   if (!feedback_vector_handle_.is_null()) {
     CHECK(!feedback_slot_.IsInvalid());
     isolate()->CountUsage(v8::Isolate::kDeoptimizerDisableSpeculation);
+    isolate()->counters()->speculation_mode_change()->AddSample(
+        static_cast<int>(SpeculationModeChange::kSetSpeculationDisallow));
     CallICNexus nexus(feedback_vector_handle_, feedback_slot_);
     nexus.SetSpeculationMode(SpeculationMode::kDisallowSpeculation);
+  } else {
+    isolate()->counters()->speculation_mode_change()->AddSample(
+        static_cast<int>(SpeculationModeChange::kNoSpeculationModeChange));
   }
 }
 
