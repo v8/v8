@@ -2261,14 +2261,13 @@ Reduction JSBuiltinReducer::ReduceObjectCreate(Node* node) {
   Node* control = NodeProperties::GetControlInput(node);
   Node* prototype = NodeProperties::GetValueInput(node, 2);
   Type* prototype_type = NodeProperties::GetType(prototype);
-  Handle<Map> instance_map;
   if (!prototype_type->IsHeapConstant()) return NoChange();
   Handle<HeapObject> prototype_const =
       prototype_type->AsHeapConstant()->Value();
-  if (!prototype_const->IsNull(isolate()) && !prototype_const->IsJSReceiver()) {
-    return NoChange();
-  }
-  instance_map = Map::GetObjectCreateMap(prototype_const);
+  Handle<Map> instance_map;
+  MaybeHandle<Map> maybe_instance_map =
+      Map::TryGetObjectCreateMap(prototype_const);
+  if (!maybe_instance_map.ToHandle(&instance_map)) return NoChange();
   Node* properties = jsgraph()->EmptyFixedArrayConstant();
   if (instance_map->is_dictionary_map()) {
     // Allocated an empty NameDictionary as backing store for the properties.
