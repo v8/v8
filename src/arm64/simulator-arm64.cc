@@ -456,12 +456,6 @@ void Simulator::RunFrom(Instruction* start) {
 }
 
 
-// static
-void SimulatorBase::TearDown(base::CustomMatcherHashMap* i_cache) {
-  // TODO(all): Simulator flush I cache
-}
-
-
 // Calls into the V8 runtime are based on this very simple interface.
 // Note: To be able to return two values from some calls the code in runtime.cc
 // uses the ObjectPair structure.

@@ -40,6 +40,17 @@ void SimulatorBase::Initialize(Isolate* isolate) {
 }
 
 // static
+void SimulatorBase::TearDown(base::CustomMatcherHashMap* i_cache) {
+  if (i_cache != nullptr) {
+    for (base::HashMap::Entry* entry = i_cache->Start(); entry != nullptr;
+         entry = i_cache->Next(entry)) {
+      delete static_cast<CachePage*>(entry->value);
+    }
+    delete i_cache;
+  }
+}
+
+// static
 void* SimulatorBase::RedirectExternalReference(Isolate* isolate,
                                                void* external_function,
                                                ExternalReference::Type type) {

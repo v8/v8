@@ -226,6 +226,10 @@ T FPRound(int64_t sign, int64_t exponent, uint64_t mantissa,
   }
 }
 
+class CachePage {
+  // TODO(all): Simulate instruction cache.
+};
+
 // Representation of memory, with typed getters and setters for access.
 class SimMemory {
  public:

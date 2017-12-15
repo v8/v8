@@ -862,18 +862,6 @@ Simulator::Simulator(Isolate* isolate) : isolate_(isolate) {
 Simulator::~Simulator() { free(stack_); }
 
 
-// static
-void SimulatorBase::TearDown(base::CustomMatcherHashMap* i_cache) {
-  if (i_cache != nullptr) {
-    for (base::HashMap::Entry* entry = i_cache->Start(); entry != nullptr;
-         entry = i_cache->Next(entry)) {
-      delete static_cast<CachePage*>(entry->value);
-    }
-    delete i_cache;
-  }
-}
-
-
 // Get the active Simulator for the current thread.
 Simulator* Simulator::current(Isolate* isolate) {
   v8::internal::Isolate::PerIsolateThreadData* isolate_data =

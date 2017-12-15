@@ -24,7 +24,6 @@ class SimulatorBase {
 
   // Call on isolate initialization and teardown.
   static void Initialize(Isolate* isolate);
-  // TODO(mstarzinger): Move implementation to "simulator-base.cc" file.
   static void TearDown(base::CustomMatcherHashMap* i_cache);
 
   static base::Mutex* redirection_mutex() { return redirection_mutex_; }
