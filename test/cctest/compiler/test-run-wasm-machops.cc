@@ -50,7 +50,8 @@ static void RunLoadStoreRelocation(MachineType rep) {
   CType new_buffer[kNumElems];
   byte* raw = reinterpret_cast<byte*>(buffer);
   byte* new_raw = reinterpret_cast<byte*>(new_buffer);
-  WasmContext wasm_context = {raw, sizeof(buffer), nullptr};
+  WasmContext wasm_context;
+  wasm_context.SetRawMemory(raw, sizeof(buffer));
   for (size_t i = 0; i < sizeof(buffer); i++) {
     raw[i] = static_cast<byte>((i + sizeof(CType)) ^ 0xAA);
     new_raw[i] = static_cast<byte>((i + sizeof(CType)) ^ 0xAA);
@@ -70,8 +71,7 @@ static void RunLoadStoreRelocation(MachineType rep) {
   CHECK(buffer[0] != buffer[1]);
   CHECK_EQ(OK, m.Call());
   CHECK(buffer[0] == buffer[1]);
-  wasm_context.mem_size = sizeof(new_buffer);
-  wasm_context.mem_start = new_raw;
+  wasm_context.SetRawMemory(new_raw, sizeof(new_buffer));
   CHECK(new_buffer[0] != new_buffer[1]);
   CHECK_EQ(OK, m.Call());
   CHECK(new_buffer[0] == new_buffer[1]);
@@ -101,7 +101,7 @@ static void RunLoadStoreRelocationOffset(MachineType rep) {
     int32_t y = kNumElems - x - 1;
     // initialize the buffer with raw data.
     byte* raw = reinterpret_cast<byte*>(buffer);
-    wasm_context = {raw, sizeof(buffer), nullptr};
+    wasm_context.SetRawMemory(raw, sizeof(buffer));
     for (size_t i = 0; i < sizeof(buffer); i++) {
       raw[i] = static_cast<byte>((i + sizeof(buffer)) ^ 0xAA);
     }
@@ -130,8 +130,7 @@ static void RunLoadStoreRelocationOffset(MachineType rep) {
       new_raw[i] = static_cast<byte>((i + sizeof(buffer)) ^ 0xAA);
     }
 
-    wasm_context.mem_size = sizeof(new_buffer);
-    wasm_context.mem_start = new_raw;
+    wasm_context.SetRawMemory(new_raw, sizeof(new_buffer));
 
     CHECK(new_buffer[x] != new_buffer[y]);
     CHECK_EQ(OK, m.Call());
@@ -154,7 +153,8 @@ TEST(RunLoadStoreRelocationOffset) {
 TEST(Uint32LessThanMemoryRelocation) {
   RawMachineAssemblerTester<uint32_t> m;
   RawMachineLabel within_bounds, out_of_bounds;
-  WasmContext wasm_context = {reinterpret_cast<Address>(1234), 0x200, nullptr};
+  WasmContext wasm_context;
+  wasm_context.SetRawMemory(reinterpret_cast<void*>(1234), 0x200);
   Node* index = m.Int32Constant(0x200);
   Node* wasm_context_node =
       m.RelocatableIntPtrConstant(reinterpret_cast<uintptr_t>(&wasm_context),
@@ -169,7 +169,7 @@ TEST(Uint32LessThanMemoryRelocation) {
   m.Return(m.Int32Constant(0xDEADBEEF));
   // Check that index is out of bounds with current size
   CHECK_EQ(0xDEADBEEF, m.Call());
-  wasm_context.mem_size = 0x400;
+  wasm_context.SetRawMemory(wasm_context.mem_start, 0x400);
   // Check that after limit is increased, index is within bounds.
   CHECK_EQ(0xACEDu, m.Call());
 }

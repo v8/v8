@@ -59,10 +59,18 @@ class WasmInstanceObject;
 // grow_memory). The address of the WasmContext is provided to the wasm entry
 // functions using a RelocatableIntPtrConstant, then the address is passed as
 // parameter to the other wasm functions.
+// Note that generated code can directly read from instances of this struct.
 struct WasmContext {
-  byte* mem_start;
-  uint32_t mem_size;
-  byte* globals_start;
+  byte* mem_start = nullptr;
+  uint32_t mem_size = 0;  // TODO(titzer): uintptr_t?
+  byte* globals_start = nullptr;
+
+  inline void SetRawMemory(void* mem_start, size_t mem_size) {
+    DCHECK_LE(mem_size,
+              wasm::kV8MaxWasmMemoryPages * wasm::kSpecMaxWasmMemoryPages);
+    this->mem_start = static_cast<byte*>(mem_start);
+    this->mem_size = static_cast<uint32_t>(mem_size);
+  }
 };
 
 // Representation of a WebAssembly.Module JavaScript-level object.

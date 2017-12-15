@@ -399,8 +399,8 @@ Handle<JSArrayBuffer> GrowMemoryBuffer(Isolate* isolate,
 void SetInstanceMemory(Isolate* isolate, Handle<WasmInstanceObject> instance,
                        Handle<JSArrayBuffer> buffer) {
   auto wasm_context = instance->wasm_context()->get();
-  wasm_context->mem_start = reinterpret_cast<byte*>(buffer->backing_store());
-  wasm_context->mem_size = buffer->byte_length()->Number();
+  wasm_context->SetRawMemory(reinterpret_cast<byte*>(buffer->backing_store()),
+                             buffer->byte_length()->Number());
 #if DEBUG
   // To flush out bugs earlier, in DEBUG mode, check that all pages of the
   // memory are accessible by reading and writing one byte on each page.
@@ -563,8 +563,7 @@ Handle<WasmInstanceObject> WasmInstanceObject::New(
       reinterpret_cast<WasmInstanceObject*>(*instance_object), isolate);
 
   auto wasm_context = Managed<WasmContext>::Allocate(isolate);
-  wasm_context->get()->mem_start = nullptr;
-  wasm_context->get()->mem_size = 0;
+  wasm_context->get()->SetRawMemory(nullptr, 0);
   wasm_context->get()->globals_start = nullptr;
   instance->set_wasm_context(*wasm_context);
 

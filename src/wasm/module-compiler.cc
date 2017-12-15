@@ -387,7 +387,7 @@ class InstanceBuilder {
   uint32_t EvalUint32InitExpr(const WasmInitExpr& expr);
 
   // Load data segments into the memory.
-  void LoadDataSegments(Address mem_addr, size_t mem_size);
+  void LoadDataSegments(WasmContext* wasm_context);
 
   void WriteGlobalValue(WasmGlobal& global, Handle<Object> value);
 
@@ -2378,7 +2378,7 @@ MaybeHandle<WasmInstanceObject> InstanceBuilder::Build() {
   }
 
   //--------------------------------------------------------------------------
-  // Allocate the instance object.
+  // Create the WebAssembly.Instance object.
   //--------------------------------------------------------------------------
   Zone instantiation_zone(isolate_->allocator(), ZONE_NAME);
   CodeSpecialization code_specialization(isolate_, &instantiation_zone);
@@ -2388,6 +2388,7 @@ MaybeHandle<WasmInstanceObject> InstanceBuilder::Build() {
   //--------------------------------------------------------------------------
   // Set up the globals for the new instance.
   //--------------------------------------------------------------------------
+  WasmContext* wasm_context = instance->wasm_context()->get();
   MaybeHandle<JSArrayBuffer> old_globals;
   uint32_t globals_size = module_->globals_size;
   if (globals_size > 0) {
@@ -2399,13 +2400,13 @@ MaybeHandle<WasmInstanceObject> InstanceBuilder::Build() {
       thrower_->RangeError("Out of memory: wasm globals");
       return {};
     }
-    instance->wasm_context()->get()->globals_start =
+    wasm_context->globals_start =
         reinterpret_cast<byte*>(global_buffer->backing_store());
     instance->set_globals_buffer(*global_buffer);
   }
 
   //--------------------------------------------------------------------------
-  // Prepare for initialization of function tables.
+  // Reserve the metadata for indirect function tables.
   //--------------------------------------------------------------------------
   int function_table_count = static_cast<int>(module_->function_tables.size());
   table_instances_.reserve(module_->function_tables.size());
@@ -2427,13 +2428,14 @@ MaybeHandle<WasmInstanceObject> InstanceBuilder::Build() {
   InitGlobals();
 
   //--------------------------------------------------------------------------
-  // Set up the indirect function tables for the new instance.
+  // Initialize the indirect tables.
   //--------------------------------------------------------------------------
-  if (function_table_count > 0)
+  if (function_table_count > 0) {
     InitializeTables(instance, &code_specialization);
+  }
 
   //--------------------------------------------------------------------------
-  // Set up the memory for the new instance.
+  // Allocate the memory array buffer.
   //--------------------------------------------------------------------------
   uint32_t initial_pages = module_->initial_pages;
   (module_->is_wasm() ? counters()->wasm_wasm_min_mem_pages_count()
@@ -2441,15 +2443,42 @@ MaybeHandle<WasmInstanceObject> InstanceBuilder::Build() {
       ->AddSample(initial_pages);
 
   if (!memory_.is_null()) {
-    Handle<JSArrayBuffer> memory = memory_.ToHandleChecked();
     // Set externally passed ArrayBuffer non neuterable.
+    Handle<JSArrayBuffer> memory = memory_.ToHandleChecked();
     memory->set_is_neuterable(false);
 
     DCHECK_IMPLIES(use_trap_handler(),
                    module_->is_asm_js() || memory->has_guard_region());
   } else if (initial_pages > 0) {
+    // Allocate memory if the initial size is more than 0 pages.
     memory_ = AllocateMemory(initial_pages);
     if (memory_.is_null()) return {};  // failed to allocate memory
+  }
+
+  //--------------------------------------------------------------------------
+  // Create the WebAssembly.Memory object.
+  //--------------------------------------------------------------------------
+  if (module_->has_memory) {
+    if (!instance->has_memory_object()) {
+      // No memory object exists. Create one.
+      Handle<WasmMemoryObject> memory_object = WasmMemoryObject::New(
+          isolate_, memory_,
+          module_->maximum_pages != 0 ? module_->maximum_pages : -1);
+      instance->set_memory_object(*memory_object);
+    }
+
+    // Add the instance object to the list of instances for this memory.
+    Handle<WasmMemoryObject> memory_object(instance->memory_object(), isolate_);
+    WasmMemoryObject::AddInstance(isolate_, memory_object, instance);
+
+    if (!memory_.is_null()) {
+      // Double-check the {memory} array buffer matches the context.
+      Handle<JSArrayBuffer> memory = memory_.ToHandleChecked();
+      uint32_t mem_size = 0;
+      CHECK(memory->byte_length()->ToUint32(&mem_size));
+      CHECK_EQ(wasm_context->mem_size, mem_size);
+      CHECK_EQ(wasm_context->mem_start, memory->backing_store());
+    }
   }
 
   //--------------------------------------------------------------------------
@@ -2472,42 +2501,15 @@ MaybeHandle<WasmInstanceObject> InstanceBuilder::Build() {
   //--------------------------------------------------------------------------
   for (WasmDataSegment& seg : module_->data_segments) {
     uint32_t base = EvalUint32InitExpr(seg.dest_addr);
-    uint32_t mem_size = 0;
-    if (!memory_.is_null()) {
-      CHECK(memory_.ToHandleChecked()->byte_length()->ToUint32(&mem_size));
-    }
-    if (!in_bounds(base, seg.source.length(), mem_size)) {
+    if (!in_bounds(base, seg.source.length(), wasm_context->mem_size)) {
       thrower_->LinkError("data segment is out of bounds");
       return {};
     }
   }
 
-  //--------------------------------------------------------------------------
-  // Initialize memory.
-  //--------------------------------------------------------------------------
-  Address mem_start = nullptr;
-  uint32_t mem_size = 0;
-  if (!memory_.is_null()) {
-    Handle<JSArrayBuffer> memory = memory_.ToHandleChecked();
-    mem_start = static_cast<Address>(memory->backing_store());
-    CHECK(memory->byte_length()->ToUint32(&mem_size));
-    LoadDataSegments(mem_start, mem_size);
-  }
-
-  //--------------------------------------------------------------------------
-  // Create a memory object if there is not already one.
-  //--------------------------------------------------------------------------
-  if (module_->has_memory && !instance->has_memory_object()) {
-    Handle<WasmMemoryObject> memory_object = WasmMemoryObject::New(
-        isolate_, memory_,
-        module_->maximum_pages != 0 ? module_->maximum_pages : -1);
-    instance->set_memory_object(*memory_object);
-  }
-
   // Set the WasmContext address in wrappers.
   // TODO(wasm): the wasm context should only appear as a constant in wrappers;
   //             this code specialization is applied to the whole instance.
-  WasmContext* wasm_context = instance->wasm_context()->get();
   Address wasm_context_address = reinterpret_cast<Address>(wasm_context);
   code_specialization.RelocateWasmContextReferences(wasm_context_address);
   js_to_wasm_cache_.SetContextAddress(wasm_context_address);
@@ -2547,17 +2549,18 @@ MaybeHandle<WasmInstanceObject> InstanceBuilder::Build() {
   if (thrower_->error()) return {};
 
   //--------------------------------------------------------------------------
-  // Add instance to Memory object
+  // Initialize the indirect function tables.
   //--------------------------------------------------------------------------
-  if (instance->has_memory_object()) {
-    Handle<WasmMemoryObject> memory(instance->memory_object(), isolate_);
-    WasmMemoryObject::AddInstance(isolate_, memory, instance);
+  if (function_table_count > 0) {
+    LoadTableSegments(code_table, instance);
   }
 
   //--------------------------------------------------------------------------
-  // Initialize the indirect function tables.
+  // Initialize the memory by loading data segments.
   //--------------------------------------------------------------------------
-  if (function_table_count > 0) LoadTableSegments(code_table, instance);
+  if (module_->data_segments.size() > 0) {
+    LoadDataSegments(wasm_context);
+  }
 
   // Patch all code with the relocations registered in code_specialization.
   code_specialization.RelocateDirectCalls(instance);
@@ -2582,7 +2585,7 @@ MaybeHandle<WasmInstanceObject> InstanceBuilder::Build() {
   }
 
   //--------------------------------------------------------------------------
-  // Set up and link the new instance.
+  // Insert the compiled module into the weak list of compiled modules.
   //--------------------------------------------------------------------------
   {
     Handle<Object> global_handle =
@@ -2622,7 +2625,7 @@ MaybeHandle<WasmInstanceObject> InstanceBuilder::Build() {
   }
 
   //--------------------------------------------------------------------------
-  // Run the start function if one was specified.
+  // Execute the start function if one was specified.
   //--------------------------------------------------------------------------
   if (module_->start_function_index >= 0) {
     HandleScope scope(isolate_);
@@ -2755,7 +2758,7 @@ uint32_t InstanceBuilder::EvalUint32InitExpr(const WasmInitExpr& expr) {
 }
 
 // Load data segments into the memory.
-void InstanceBuilder::LoadDataSegments(Address mem_addr, size_t mem_size) {
+void InstanceBuilder::LoadDataSegments(WasmContext* wasm_context) {
   Handle<SeqOneByteString> module_bytes(compiled_module_->module_bytes(),
                                         isolate_);
   for (const WasmDataSegment& segment : module_->data_segments) {
@@ -2763,9 +2766,8 @@ void InstanceBuilder::LoadDataSegments(Address mem_addr, size_t mem_size) {
     // Segments of size == 0 are just nops.
     if (source_size == 0) continue;
     uint32_t dest_offset = EvalUint32InitExpr(segment.dest_addr);
-    DCHECK(
-        in_bounds(dest_offset, source_size, static_cast<uint32_t>(mem_size)));
-    byte* dest = mem_addr + dest_offset;
+    DCHECK(in_bounds(dest_offset, source_size, wasm_context->mem_size));
+    byte* dest = wasm_context->mem_start + dest_offset;
     const byte* src = reinterpret_cast<const byte*>(
         module_bytes->GetCharsAddress() + segment.source.offset());
     memcpy(dest, src, source_size);
