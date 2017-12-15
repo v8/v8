@@ -214,8 +214,7 @@ class TestSuite(testsuite.TestSuite):
 
   def GetExpectedOutcomes(self, test):
     outcomes = self.GetStatusFileOutcomes(test.name, test.variant)
-    if (statusfile.FAIL_SLOPPY in outcomes and
-        '--use-strict' not in test.cmd.args):
+    if (statusfile.FAIL_SLOPPY in outcomes and not test.uses_strict()):
       return [statusfile.FAIL]
     return super(TestSuite, self).GetExpectedOutcomes(test)
 
@@ -275,6 +274,9 @@ class TestCase(testcase.TestCase):
     if os.path.exists(path):
       return path
     return os.path.join(self.suite.testroot, filename)
+
+  def uses_strict(self):
+    return '--use-strict' in self.variant_flags
 
 
 def GetSuite(name, root):
