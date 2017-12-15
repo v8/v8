@@ -3175,6 +3175,12 @@ void PagedSpace::RepairFreeListsAfterDeserialization() {
     }
     Address start = page->HighWaterMark();
     Address end = page->area_end();
+    if (start < end - size) {
+      // A region at the high watermark is already in free list.
+      HeapObject* filler = HeapObject::FromAddress(start);
+      CHECK(filler->IsFiller());
+      start += filler->Size();
+    }
     CHECK_EQ(size, static_cast<int>(end - start));
     heap()->CreateFillerObjectAt(start, size, ClearRecordedSlots::kNo);
   }
