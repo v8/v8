@@ -62,15 +62,15 @@ Node* RegExpBuiltinsAssembler::AllocateRegExpResult(Node* context, Node* length,
       LoadContextElement(native_context, Context::REGEXP_RESULT_MAP_INDEX);
   StoreMapNoWriteBarrier(result, map);
 
-  Node* const empty_array = EmptyFixedArrayConstant();
-  DCHECK(Heap::RootIsImmortalImmovable(Heap::kEmptyFixedArrayRootIndex));
   StoreObjectFieldNoWriteBarrier(result, JSArray::kPropertiesOrHashOffset,
-                                 empty_array);
+                                 EmptyFixedArrayConstant());
   StoreObjectFieldNoWriteBarrier(result, JSArray::kElementsOffset, elements);
   StoreObjectFieldNoWriteBarrier(result, JSArray::kLengthOffset, length);
 
   StoreObjectFieldNoWriteBarrier(result, JSRegExpResult::kIndexOffset, index);
-  StoreObjectField(result, JSRegExpResult::kInputOffset, input);
+  StoreObjectFieldNoWriteBarrier(result, JSRegExpResult::kInputOffset, input);
+  StoreObjectFieldNoWriteBarrier(result, JSRegExpResult::kGroupsOffset,
+                                 UndefinedConstant());
 
   // Initialize the elements.
 
@@ -223,8 +223,6 @@ Node* RegExpBuiltinsAssembler::ConstructNewResultFromMatchInfo(
     // Allocate a new object to store the named capture properties.
     // TODO(jgruber): Could be optimized by adding the object map to the heap
     // root list.
-    // TODO(jgruber): Replace CreateDataProperty runtime calls once we have
-    // equivalent functionality in CSA.
 
     Node* const native_context = LoadNativeContext(context);
     Node* const map = LoadContextElement(
@@ -233,14 +231,7 @@ Node* RegExpBuiltinsAssembler::ConstructNewResultFromMatchInfo(
         AllocateNameDictionary(NameDictionary::kInitialCapacity);
 
     Node* const group_object = AllocateJSObjectFromMap(map, properties);
-
-    // Store it on the result as a 'group' property.
-
-    {
-      Node* const name = HeapConstant(isolate()->factory()->groups_string());
-      CallRuntime(Runtime::kCreateDataProperty, context, result, name,
-                  group_object);
-    }
+    StoreObjectField(result, JSRegExpResult::kGroupsOffset, group_object);
 
     // One or more named captures exist, add a property for each one.
 
@@ -267,6 +258,9 @@ Node* RegExpBuiltinsAssembler::ConstructNewResultFromMatchInfo(
       Node* const capture =
           LoadFixedArrayElement(result_elements, SmiUntag(index));
 
+      // TODO(jgruber): Calling into runtime to create each property is slow.
+      // Either we should create properties entirely in CSA (should be doable),
+      // or only call runtime once and loop there.
       CallRuntime(Runtime::kCreateDataProperty, context, group_object, name,
                   capture);
 

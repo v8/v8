@@ -4832,9 +4832,9 @@ bool Genesis::InstallNatives(GlobalContextType context_type) {
   }
 
   // Create a constructor for RegExp results (a variant of Array that
-  // predefines the two properties index and match).
+  // predefines the properties index, input, and groups).
   {
-    // RegExpResult initial map.
+    // JSRegExpResult initial map.
 
     // Find global.Array.prototype to inherit from.
     Handle<JSFunction> array_constructor(native_context()->array_function());
@@ -4843,16 +4843,20 @@ bool Genesis::InstallNatives(GlobalContextType context_type) {
 
     // Add initial map.
     Handle<Map> initial_map = factory()->NewMap(
-        JS_ARRAY_TYPE, JSRegExpResult::kSize, TERMINAL_FAST_ELEMENTS_KIND, 2);
+        JS_ARRAY_TYPE, JSRegExpResult::kSize, TERMINAL_FAST_ELEMENTS_KIND,
+        JSRegExpResult::kInObjectPropertyCount);
     initial_map->SetConstructor(*array_constructor);
 
     // Set prototype on map.
     initial_map->set_has_non_instance_prototype(false);
     Map::SetPrototype(initial_map, array_prototype);
 
-    // Update map with length accessor from Array and add "index" and "input".
-    Map::EnsureDescriptorSlack(initial_map, 3);
+    // Update map with length accessor from Array and add "index", "input" and
+    // "groups".
+    Map::EnsureDescriptorSlack(initial_map,
+                               JSRegExpResult::kInObjectPropertyCount + 1);
 
+    // length descriptor.
     {
       JSFunction* array_function = native_context()->array_function();
       Handle<DescriptorArray> array_descriptors(
@@ -4866,6 +4870,8 @@ bool Genesis::InstallNatives(GlobalContextType context_type) {
           array_descriptors->GetDetails(old).attributes());
       initial_map->AppendDescriptor(&d);
     }
+
+    // index descriptor.
     {
       Descriptor d = Descriptor::DataField(factory()->index_string(),
                                            JSRegExpResult::kIndexIndex, NONE,
@@ -4873,9 +4879,18 @@ bool Genesis::InstallNatives(GlobalContextType context_type) {
       initial_map->AppendDescriptor(&d);
     }
 
+    // input descriptor.
     {
       Descriptor d = Descriptor::DataField(factory()->input_string(),
                                            JSRegExpResult::kInputIndex, NONE,
+                                           Representation::Tagged());
+      initial_map->AppendDescriptor(&d);
+    }
+
+    // groups descriptor.
+    {
+      Descriptor d = Descriptor::DataField(factory()->groups_string(),
+                                           JSRegExpResult::kGroupsIndex, NONE,
                                            Representation::Tagged());
       initial_map->AppendDescriptor(&d);
     }
