@@ -780,10 +780,12 @@ class CodeGeneratorTester {
   }
 
   Instruction* CreateTailCall(int stack_slot_delta) {
+    int optional_padding_slot = stack_slot_delta;
     InstructionOperand callee[] = {
+        ImmediateOperand(ImmediateOperand::INLINE, optional_padding_slot),
         ImmediateOperand(ImmediateOperand::INLINE, stack_slot_delta)};
     Instruction* tail_call = Instruction::New(zone_, kArchTailCallCodeObject, 0,
-                                              nullptr, 1, callee, 0, nullptr);
+                                              nullptr, 2, callee, 0, nullptr);
     return tail_call;
   }
 
@@ -851,13 +853,15 @@ class CodeGeneratorTester {
     // We use either zero or one slots.
     int first_unused_stack_slot =
         V8_TARGET_ARCH_STORES_RETURN_ADDRESS_ON_STACK ? 1 : 0;
+    int optional_padding_slot = first_unused_stack_slot;
     InstructionOperand callee[] = {
         AllocatedOperand(LocationOperand::REGISTER,
                          MachineRepresentation::kTagged,
                          kReturnRegister0.code()),
+        ImmediateOperand(ImmediateOperand::INLINE, optional_padding_slot),
         ImmediateOperand(ImmediateOperand::INLINE, first_unused_stack_slot)};
     Instruction* tail_call = Instruction::New(zone_, kArchTailCallCodeObject, 0,
-                                              nullptr, 2, callee, 0, nullptr);
+                                              nullptr, 3, callee, 0, nullptr);
     sequence->AddInstruction(tail_call);
     sequence->EndBlock(RpoNumber::FromInt(0));
 

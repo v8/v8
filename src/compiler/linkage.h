@@ -298,6 +298,9 @@ class V8_EXPORT_PRIVATE CallDescriptor final
 
   bool HasSameReturnLocationsAs(const CallDescriptor* other) const;
 
+  // Returns the first stack slot that is not used by the stack parameters.
+  int GetFirstUnusedStackSlot() const;
+
   int GetStackParameterDelta(const CallDescriptor* tail_caller) const;
 
   bool CanTailCall(const Node* call) const;

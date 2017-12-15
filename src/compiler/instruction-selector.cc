@@ -2505,6 +2505,14 @@ void InstructionSelector::VisitTailCall(Node* node) {
 
   Emit(kArchPrepareTailCall, g.NoOutput());
 
+  // Add an immediate operand that represents the first slot that is unused
+  // with respect to the stack pointer that has been updated for the tail call
+  // instruction. This is used by backends that need to pad arguments for stack
+  // alignment, in order to store an optional slot of padding above the
+  // arguments.
+  int optional_padding_slot = callee->GetFirstUnusedStackSlot();
+  buffer.instruction_args.push_back(g.TempImmediate(optional_padding_slot));
+
   int first_unused_stack_slot =
       (V8_TARGET_ARCH_STORES_RETURN_ADDRESS_ON_STACK ? 1 : 0) +
       stack_param_delta;

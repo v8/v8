@@ -2159,19 +2159,26 @@ void TurboAssembler::PrepareForTailCall(const ParameterCount& callee_args_count,
   // after we drop current frame. We add kPointerSize to count the receiver
   // argument which is not included into formal parameters count.
   Register dst_reg = scratch0;
-  add(dst_reg, fp, Operand(caller_args_count_reg, LSL, kPointerSizeLog2));
-  add(dst_reg, dst_reg,
-      Operand(StandardFrameConstants::kCallerSPOffset + kPointerSize));
+  Add(dst_reg, fp, Operand(caller_args_count_reg, LSL, kPointerSizeLog2));
+  Add(dst_reg, dst_reg, StandardFrameConstants::kCallerSPOffset + kPointerSize);
+  // Round dst_reg up to a multiple of 16 bytes, so that we overwrite any
+  // potential padding.
+  Add(dst_reg, dst_reg, 15);
+  Bic(dst_reg, dst_reg, 15);
 
   Register src_reg = caller_args_count_reg;
   // Calculate the end of source area. +kPointerSize is for the receiver.
   if (callee_args_count.is_reg()) {
-    add(src_reg, jssp, Operand(callee_args_count.reg(), LSL, kPointerSizeLog2));
-    add(src_reg, src_reg, Operand(kPointerSize));
+    Add(src_reg, jssp, Operand(callee_args_count.reg(), LSL, kPointerSizeLog2));
+    Add(src_reg, src_reg, kPointerSize);
   } else {
-    add(src_reg, jssp,
-        Operand((callee_args_count.immediate() + 1) * kPointerSize));
+    Add(src_reg, jssp, (callee_args_count.immediate() + 1) * kPointerSize);
   }
+
+  // Round src_reg up to a multiple of 16 bytes, so we include any potential
+  // padding in the copy.
+  Add(src_reg, src_reg, 15);
+  Bic(src_reg, src_reg, 15);
 
   if (FLAG_debug_code) {
     Cmp(src_reg, dst_reg);

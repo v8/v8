@@ -1339,21 +1339,31 @@ void TurboAssembler::Drop(const Register& count, uint64_t unit_size) {
 
 void TurboAssembler::DropArguments(const Register& count,
                                    ArgumentsCountMode mode) {
+  int extra_slots = 1;  // Padding slot.
   if (mode == kCountExcludesReceiver) {
-    UseScratchRegisterScope temps(this);
-    Register tmp = temps.AcquireX();
-    Add(tmp, count, 1);
-    Drop(tmp);
-  } else {
-    Drop(count);
+    // Add a slot for the receiver.
+    ++extra_slots;
   }
+  UseScratchRegisterScope temps(this);
+  Register tmp = temps.AcquireX();
+  Add(tmp, count, extra_slots);
+  Bic(tmp, tmp, 1);
+  Drop(tmp, kXRegSize);
 }
 
-void TurboAssembler::DropSlots(int64_t count, uint64_t unit_size) {
-  Drop(count, unit_size);
+void TurboAssembler::DropArguments(int64_t count, ArgumentsCountMode mode) {
+  if (mode == kCountExcludesReceiver) {
+    // Add a slot for the receiver.
+    ++count;
+  }
+  Drop(RoundUp(count, 2), kXRegSize);
 }
 
-void TurboAssembler::PushArgument(const Register& arg) { Push(arg); }
+void TurboAssembler::DropSlots(int64_t count) {
+  Drop(RoundUp(count, 2), kXRegSize);
+}
+
+void TurboAssembler::PushArgument(const Register& arg) { Push(padreg, arg); }
 
 void MacroAssembler::DropBySMI(const Register& count_smi, uint64_t unit_size) {
   DCHECK(unit_size == 0 || base::bits::IsPowerOfTwo(unit_size));

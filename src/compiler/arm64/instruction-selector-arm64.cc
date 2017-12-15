@@ -1740,6 +1740,7 @@ void InstructionSelector::EmitPrepareArguments(
 
   int claim_count = static_cast<int>(arguments->size());
   int slot = claim_count - 1;
+  claim_count = RoundUp(claim_count, 2);
   // Bump the stack pointer(s).
   if (claim_count > 0 || always_claim) {
     // TODO(titzer): claim and poke probably take small immediates.
@@ -1751,8 +1752,14 @@ void InstructionSelector::EmitPrepareArguments(
     Emit(claim, g.NoOutput(), g.TempImmediate(claim_count));
   }
 
-  // Poke the arguments into the stack.
   ArchOpcode poke = to_native_stack ? kArm64PokeCSP : kArm64PokeJSSP;
+  if (claim_count > 0) {
+    // Store padding, which might be overwritten.
+    Emit(poke, g.NoOutput(), g.UseImmediate(0),
+         g.TempImmediate(claim_count - 1));
+  }
+
+  // Poke the arguments into the stack.
   while (slot >= 0) {
     Emit(poke, g.NoOutput(), g.UseRegister((*arguments)[slot].node),
          g.TempImmediate(slot));
