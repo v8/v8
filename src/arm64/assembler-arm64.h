@@ -295,9 +295,6 @@ class Register : public CPURegister {
 static_assert(IS_TRIVIALLY_COPYABLE(Register),
               "Register can efficiently be passed by value");
 
-// TODO(arm64): Switch this on when the rest of the argument padding changes
-//              are done.
-constexpr bool kPadArguments = false;
 constexpr bool kSimpleFPAliasing = true;
 constexpr bool kSimdMaskRegisters = false;
 

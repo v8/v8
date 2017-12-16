@@ -101,24 +101,7 @@ int CallDescriptor::GetStackParameterDelta(
       }
     }
   }
-
-  int stack_param_delta = callee_slots_above_sp - tail_caller_slots_above_sp;
-  if (kPadArguments) {
-    // Adjust stack delta when it is odd.
-    if (stack_param_delta % 2 != 0) {
-      if (callee_slots_above_sp % 2 != 0) {
-        // The delta is odd due to the callee - we will need to add one slot
-        // of padding.
-        ++stack_param_delta;
-      } else {
-        // The delta is odd because of the caller. We already have one slot of
-        // padding that we can reuse for arguments, so we will need one fewer
-        // slot.
-        --stack_param_delta;
-      }
-    }
-  }
-  return stack_param_delta;
+  return callee_slots_above_sp - tail_caller_slots_above_sp;
 }
 
 bool CallDescriptor::CanTailCall(const Node* node) const {

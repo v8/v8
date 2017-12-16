@@ -547,6 +547,7 @@ class Deoptimizer : public Malloced {
 
   unsigned ComputeInputFrameAboveFpFixedSize() const;
   unsigned ComputeInputFrameSize() const;
+  static unsigned ComputeJavascriptFixedSize(SharedFunctionInfo* shared);
   static unsigned ComputeInterpretedFixedSize(SharedFunctionInfo* shared);
 
   static unsigned ComputeIncomingArgumentSize(SharedFunctionInfo* shared);
@@ -699,15 +700,9 @@ class FrameDescription {
     return *GetFrameSlotPointer(offset);
   }
 
-  unsigned GetLastArgumentSlotOffset() {
-    int parameter_slots = parameter_count();
-    if (kPadArguments) parameter_slots = RoundUp(parameter_slots, 2);
-    return GetFrameSize() - parameter_slots * kPointerSize;
-  }
-
   Address GetFramePointerAddress() {
-    int fp_offset =
-        GetLastArgumentSlotOffset() - StandardFrameConstants::kCallerSPOffset;
+    int fp_offset = GetFrameSize() - parameter_count() * kPointerSize -
+                    StandardFrameConstants::kCallerSPOffset;
     return reinterpret_cast<Address>(GetFrameSlotPointer(fp_offset));
   }
 

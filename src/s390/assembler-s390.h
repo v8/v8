@@ -276,7 +276,6 @@ constexpr Register kLithiumScratch = r1;  // lithium scratch.
 constexpr Register kRootRegister = r10;   // Roots array pointer.
 constexpr Register cp = r13;              // JavaScript context pointer.
 
-constexpr bool kPadArguments = false;
 constexpr bool kSimpleFPAliasing = true;
 constexpr bool kSimdMaskRegisters = false;
 

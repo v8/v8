@@ -173,7 +173,6 @@ GENERAL_REGISTERS(DECLARE_REGISTER)
 #undef DECLARE_REGISTER
 constexpr Register no_reg = Register::no_reg();
 
-constexpr bool kPadArguments = false;
 constexpr bool kSimpleFPAliasing = false;
 constexpr bool kSimdMaskRegisters = false;
 
