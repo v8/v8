@@ -81,14 +81,6 @@ OPTIONAL_ACCESSORS(WasmDebugInfo, c_wasm_entry_map, Managed<wasm::SignatureMap>,
 
 #undef OPTIONAL_ACCESSORS
 
-#define FORWARD_SHARED(type, name) \
-  type WasmCompiledModule::name() { return shared()->name(); }
-FORWARD_SHARED(SeqOneByteString*, module_bytes)
-FORWARD_SHARED(wasm::WasmModule*, module)
-FORWARD_SHARED(Script*, script)
-FORWARD_SHARED(bool, is_asm_js)
-#undef FORWARD_SHARED
-
 #define WCM_OBJECT_OR_WEAK(TYPE, NAME, ID, TYPE_CHECK, SETTER_MODIFIER) \
   Handle<TYPE> WasmCompiledModule::NAME() const {                       \
     return handle(ptr_to_##NAME());                                     \

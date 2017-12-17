@@ -277,9 +277,10 @@ class WasmSerializationTest {
       DisallowHeapAllocation assume_no_gc;
       Handle<WasmCompiledModule> compiled_part(module_object->compiled_module(),
                                                current_isolate());
-      CHECK_EQ(memcmp(compiled_part->module_bytes()->GetCharsAddress(),
-                      wire_bytes().first, wire_bytes().second),
-               0);
+      CHECK_EQ(
+          memcmp(compiled_part->shared()->module_bytes()->GetCharsAddress(),
+                 wire_bytes().first, wire_bytes().second),
+          0);
     }
     Handle<WasmInstanceObject> instance =
         SyncInstantiate(current_isolate(), &thrower, module_object,

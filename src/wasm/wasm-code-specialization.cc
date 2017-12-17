@@ -51,18 +51,19 @@ class PatchDirectCallsHelper {
         decoder(nullptr, nullptr) {
     uint32_t func_index = code->index();
     WasmCompiledModule* comp_mod = instance->compiled_module();
-    func_bytes = comp_mod->module_bytes()->GetChars() +
-                 comp_mod->module()->functions[func_index].code.offset();
+    func_bytes =
+        comp_mod->shared()->module_bytes()->GetChars() +
+        comp_mod->shared()->module()->functions[func_index].code.offset();
   }
 
   PatchDirectCallsHelper(WasmInstanceObject* instance, Code* code)
       : source_pos_it(code->SourcePositionTable()), decoder(nullptr, nullptr) {
     FixedArray* deopt_data = code->deoptimization_data();
     DCHECK_EQ(2, deopt_data->length());
-    WasmCompiledModule* comp_mod = instance->compiled_module();
+    WasmSharedModuleData* shared = instance->compiled_module()->ptr_to_shared();
     int func_index = Smi::ToInt(deopt_data->get(1));
-    func_bytes = comp_mod->module_bytes()->GetChars() +
-                 comp_mod->module()->functions[func_index].code.offset();
+    func_bytes = shared->module_bytes()->GetChars() +
+                 shared->module()->functions[func_index].code.offset();
   }
 
   SourcePositionTableIterator source_pos_it;
@@ -117,11 +118,11 @@ bool CodeSpecialization::ApplyToWholeInstance(
   WasmCompiledModule* compiled_module = instance->compiled_module();
   NativeModule* native_module = compiled_module->GetNativeModule();
   FixedArray* code_table = compiled_module->ptr_to_code_table();
-  WasmModule* module = compiled_module->module();
-  std::vector<WasmFunction>* wasm_functions =
-      &compiled_module->module()->functions;
+  WasmSharedModuleData* shared = compiled_module->ptr_to_shared();
+  WasmModule* module = shared->module();
+  std::vector<WasmFunction>* wasm_functions = &shared->module()->functions;
   DCHECK_EQ(compiled_module->export_wrappers()->length(),
-            compiled_module->module()->num_exported_functions);
+            shared->module()->num_exported_functions);
 
   bool changed = false;
   int func_index = module->num_imported_functions;

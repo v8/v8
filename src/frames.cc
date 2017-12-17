@@ -1244,7 +1244,7 @@ int FrameSummary::WasmFrameSummary::SourcePosition() const {
 }
 
 Handle<Script> FrameSummary::WasmFrameSummary::script() const {
-  return handle(wasm_instance()->compiled_module()->script());
+  return handle(wasm_instance()->compiled_module()->shared()->script());
 }
 
 Handle<String> FrameSummary::WasmFrameSummary::FunctionName() const {
@@ -1743,7 +1743,7 @@ uint32_t WasmCompiledFrame::function_index() const {
 }
 
 Script* WasmCompiledFrame::script() const {
-  return wasm_instance()->compiled_module()->script();
+  return wasm_instance()->compiled_module()->shared()->script();
 }
 
 int WasmCompiledFrame::position() const {
@@ -1874,7 +1874,7 @@ WasmInstanceObject* WasmInterpreterEntryFrame::wasm_instance() const {
 }
 
 Script* WasmInterpreterEntryFrame::script() const {
-  return wasm_instance()->compiled_module()->script();
+  return wasm_instance()->compiled_module()->shared()->script();
 }
 
 int WasmInterpreterEntryFrame::position() const {

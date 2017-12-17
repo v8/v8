@@ -133,14 +133,14 @@ iterate_compiled_module_instance_chain(
 }
 
 #ifdef DEBUG
-bool IsBreakablePosition(Handle<WasmCompiledModule> compiled_module,
-                         int func_index, int offset_in_func) {
+bool IsBreakablePosition(WasmSharedModuleData* shared, int func_index,
+                         int offset_in_func) {
   DisallowHeapAllocation no_gc;
   AccountingAllocator alloc;
   Zone tmp(&alloc, ZONE_NAME);
   wasm::BodyLocalDecls locals(&tmp);
-  const byte* module_start = compiled_module->module_bytes()->GetChars();
-  WasmFunction& func = compiled_module->module()->functions[func_index];
+  const byte* module_start = shared->module_bytes()->GetChars();
+  WasmFunction& func = shared->module()->functions[func_index];
   wasm::BytecodeIterator iterator(module_start + func.code.offset(),
                                   module_start + func.code.end_offset(),
                                   &locals);
@@ -542,7 +542,9 @@ WasmModuleObject* WasmInstanceObject::module_object() {
   return *compiled_module()->wasm_module();
 }
 
-WasmModule* WasmInstanceObject::module() { return compiled_module()->module(); }
+WasmModule* WasmInstanceObject::module() {
+  return compiled_module()->shared()->module();
+}
 
 Handle<WasmDebugInfo> WasmInstanceObject::GetOrCreateDebugInfo(
     Handle<WasmInstanceObject> instance) {
@@ -595,12 +597,13 @@ uint32_t WasmInstanceObject::GetMaxMemoryPages() {
       if (maximum < FLAG_wasm_max_mem_pages) return maximum;
     }
   }
-  uint32_t compiled_maximum_pages = compiled_module()->module()->maximum_pages;
+  uint32_t module_maximum_pages =
+      compiled_module()->shared()->module()->maximum_pages;
   Isolate* isolate = GetIsolate();
-  assert(compiled_module()->module()->is_wasm());
+  DCHECK(compiled_module()->shared()->module()->is_wasm());
   isolate->counters()->wasm_wasm_max_mem_pages_count()->AddSample(
-      compiled_maximum_pages);
-  if (compiled_maximum_pages != 0) return compiled_maximum_pages;
+      module_maximum_pages);
+  if (module_maximum_pages != 0) return module_maximum_pages;
   return FLAG_wasm_max_mem_pages;
 }
 
@@ -1666,7 +1669,7 @@ void WasmCompiledModule::ReinitializeAfterDeserialization(
     WasmSharedModuleData::ReinitializeAfterDeserialization(isolate, shared);
   }
   size_t function_table_count =
-      compiled_module->module()->function_tables.size();
+      compiled_module->shared()->module()->function_tables.size();
   wasm::NativeModule* native_module = compiled_module->GetNativeModule();
 
   if (function_table_count > 0) {
@@ -1802,20 +1805,20 @@ bool WasmCompiledModule::SetBreakPoint(
     Handle<WasmCompiledModule> compiled_module, int* position,
     Handle<Object> break_point_object) {
   Isolate* isolate = compiled_module->GetIsolate();
+  Handle<WasmSharedModuleData> shared = compiled_module->shared();
 
   // Find the function for this breakpoint.
-  int func_index = compiled_module->shared()->GetContainingFunction(*position);
+  int func_index = shared->GetContainingFunction(*position);
   if (func_index < 0) return false;
-  WasmFunction& func = compiled_module->module()->functions[func_index];
+  WasmFunction& func = shared->module()->functions[func_index];
   int offset_in_func = *position - func.code.offset();
 
   // According to the current design, we should only be called with valid
   // breakable positions.
-  DCHECK(IsBreakablePosition(compiled_module, func_index, offset_in_func));
+  DCHECK(IsBreakablePosition(*shared, func_index, offset_in_func));
 
   // Insert new break point into break_positions of shared module data.
-  WasmSharedModuleData::AddBreakpoint(compiled_module->shared(), *position,
-                                      break_point_object);
+  WasmSharedModuleData::AddBreakpoint(shared, *position, break_point_object);
 
   // Iterate over all instances of this module and tell them to set this new
   // breakpoint.

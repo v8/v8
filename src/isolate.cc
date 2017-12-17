@@ -437,7 +437,7 @@ class FrameArrayBuilder {
         }
         Handle<WasmInstanceObject> instance = summary.wasm_instance();
         int flags = 0;
-        if (instance->compiled_module()->is_asm_js()) {
+        if (instance->compiled_module()->shared()->is_asm_js()) {
           flags |= FrameArray::kIsAsmJsWasmFrame;
           if (WasmCompiledFrame::cast(frame)->at_to_number_conversion()) {
             flags |= FrameArray::kAsmJsAtNumberConversion;
@@ -456,7 +456,7 @@ class FrameArrayBuilder {
         const auto& summary = summ.AsWasmInterpreted();
         Handle<WasmInstanceObject> instance = summary.wasm_instance();
         int flags = FrameArray::kIsWasmInterpretedFrame;
-        DCHECK(!instance->compiled_module()->is_asm_js());
+        DCHECK(!instance->compiled_module()->shared()->is_asm_js());
         elements_ = FrameArray::AppendWasmFrame(elements_, instance,
                                                 summary.function_index(), {},
                                                 summary.byte_offset(), flags);

@@ -193,8 +193,9 @@ void TestingModuleBuilder::PopulateIndirectFunctionTable() {
 }
 
 uint32_t TestingModuleBuilder::AddBytes(Vector<const byte> bytes) {
-  Handle<SeqOneByteString> old_bytes(
-      instance_object_->compiled_module()->module_bytes(), isolate_);
+  Handle<WasmSharedModuleData> shared =
+      instance_object_->compiled_module()->shared();
+  Handle<SeqOneByteString> old_bytes(shared->module_bytes(), isolate_);
   uint32_t old_size = static_cast<uint32_t>(old_bytes->length());
   // Avoid placing strings at offset 0, this might be interpreted as "not
   // set", e.g. for function names.
@@ -204,8 +205,7 @@ uint32_t TestingModuleBuilder::AddBytes(Vector<const byte> bytes) {
   memcpy(new_bytes.start() + bytes_offset, bytes.start(), bytes.length());
   Handle<SeqOneByteString> new_bytes_str = Handle<SeqOneByteString>::cast(
       isolate_->factory()->NewStringFromOneByte(new_bytes).ToHandleChecked());
-  instance_object_->compiled_module()->shared()->set_module_bytes(
-      *new_bytes_str);
+  shared->set_module_bytes(*new_bytes_str);
   return bytes_offset;
 }
 
@@ -442,7 +442,7 @@ void WasmFunctionCompiler::Build(const byte* start, const byte* end) {
   if (FLAG_wasm_jit_to_native) {
     native_module->ResizeCodeTableForTest(function_->func_index);
   }
-  Handle<SeqOneByteString> wire_bytes(compiled_module->module_bytes(),
+  Handle<SeqOneByteString> wire_bytes(compiled_module->shared()->module_bytes(),
                                       isolate());
 
   compiler::ModuleEnv module_env = builder_->CreateModuleEnv();

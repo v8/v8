@@ -132,15 +132,18 @@ class InterpreterHandle {
   static Vector<const byte> GetBytes(WasmDebugInfo* debug_info) {
     // Return raw pointer into heap. The WasmInterpreter will make its own copy
     // of this data anyway, and there is no heap allocation in-between.
-    SeqOneByteString* bytes_str =
-        debug_info->wasm_instance()->compiled_module()->module_bytes();
+    SeqOneByteString* bytes_str = debug_info->wasm_instance()
+                                      ->compiled_module()
+                                      ->shared()
+                                      ->module_bytes();
     return {bytes_str->GetChars(), static_cast<size_t>(bytes_str->length())};
   }
 
  public:
   InterpreterHandle(Isolate* isolate, WasmDebugInfo* debug_info)
       : isolate_(isolate),
-        module_(debug_info->wasm_instance()->compiled_module()->module()),
+        module_(
+            debug_info->wasm_instance()->compiled_module()->shared()->module()),
         interpreter_(isolate, module_, GetBytes(debug_info),
                      debug_info->wasm_instance()->wasm_context()->get()) {}
 
@@ -559,7 +562,7 @@ wasm::InterpreterHandle* GetInterpreterHandleOrNull(WasmDebugInfo* debug_info) {
 
 int GetNumFunctions(WasmInstanceObject* instance) {
   size_t num_functions =
-      instance->compiled_module()->module()->functions.size();
+      instance->compiled_module()->shared()->module()->functions.size();
   DCHECK_GE(kMaxInt, num_functions);
   return static_cast<int>(num_functions);
 }
@@ -725,6 +728,7 @@ void WasmDebugInfo::RedirectToInterpreter(Handle<WasmDebugInfo> debug_info,
   Handle<WasmInstanceObject> instance(debug_info->wasm_instance(), isolate);
   wasm::NativeModule* native_module =
       instance->compiled_module()->GetNativeModule();
+  wasm::WasmModule* module = instance->module();
   CodeRelocationMap code_to_relocate;
 
   Handle<FixedArray> code_table = instance->compiled_module()->code_table();
@@ -737,14 +741,11 @@ void WasmDebugInfo::RedirectToInterpreter(Handle<WasmDebugInfo> debug_info,
 
   for (int func_index : func_indexes) {
     DCHECK_LE(0, func_index);
-    DCHECK_GT(debug_info->wasm_instance()->module()->functions.size(),
-              func_index);
+    DCHECK_GT(module->functions.size(), func_index);
     if (!interpreted_functions->get(func_index)->IsUndefined(isolate)) continue;
 
     Handle<Code> new_code = compiler::CompileWasmInterpreterEntry(
-        isolate, func_index,
-        instance->compiled_module()->module()->functions[func_index].sig,
-        instance);
+        isolate, func_index, module->functions[func_index].sig, instance);
     if (FLAG_wasm_jit_to_native) {
       const wasm::WasmCode* wasm_new_code =
           native_module->AddInterpreterWrapper(new_code, func_index);

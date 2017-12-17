@@ -848,7 +848,7 @@ Maybe<bool> ValueSerializer::WriteWasmModule(Handle<WasmModuleObject> object) {
   WriteTag(SerializationTag::kWasmModule);
   WriteRawBytes(&encoding_tag, sizeof(encoding_tag));
 
-  Handle<String> wire_bytes(compiled_part->module_bytes(), isolate_);
+  Handle<String> wire_bytes(compiled_part->shared()->module_bytes(), isolate_);
   int wire_bytes_length = wire_bytes->length();
   WriteVarint<uint32_t>(wire_bytes_length);
   uint8_t* destination;

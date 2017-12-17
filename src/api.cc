@@ -7777,8 +7777,8 @@ Local<String> WasmCompiledModule::GetWasmWireBytes() {
   i::Handle<i::WasmModuleObject> obj =
       i::Handle<i::WasmModuleObject>::cast(Utils::OpenHandle(this));
   i::Handle<i::WasmCompiledModule> compiled_part =
-      i::handle(i::WasmCompiledModule::cast(obj->compiled_module()));
-  i::Handle<i::String> wire_bytes(compiled_part->module_bytes());
+      i::handle(obj->compiled_module());
+  i::Handle<i::String> wire_bytes(compiled_part->shared()->module_bytes());
   return Local<String>::Cast(Utils::ToLocal(wire_bytes));
 }
 
@@ -9824,8 +9824,9 @@ int debug::WasmScript::NumFunctions() const {
   DCHECK_EQ(i::Script::TYPE_WASM, script->type());
   i::WasmCompiledModule* compiled_module =
       i::WasmCompiledModule::cast(script->wasm_compiled_module());
-  DCHECK_GE(i::kMaxInt, compiled_module->module()->functions.size());
-  return static_cast<int>(compiled_module->module()->functions.size());
+  i::wasm::WasmModule* module = compiled_module->shared()->module();
+  DCHECK_GE(i::kMaxInt, module->functions.size());
+  return static_cast<int>(module->functions.size());
 }
 
 int debug::WasmScript::NumImportedFunctions() const {
@@ -9834,8 +9835,9 @@ int debug::WasmScript::NumImportedFunctions() const {
   DCHECK_EQ(i::Script::TYPE_WASM, script->type());
   i::WasmCompiledModule* compiled_module =
       i::WasmCompiledModule::cast(script->wasm_compiled_module());
-  DCHECK_GE(i::kMaxInt, compiled_module->module()->num_imported_functions);
-  return static_cast<int>(compiled_module->module()->num_imported_functions);
+  i::wasm::WasmModule* module = compiled_module->shared()->module();
+  DCHECK_GE(i::kMaxInt, module->num_imported_functions);
+  return static_cast<int>(module->num_imported_functions);
 }
 
 std::pair<int, int> debug::WasmScript::GetFunctionRange(
@@ -9845,10 +9847,10 @@ std::pair<int, int> debug::WasmScript::GetFunctionRange(
   DCHECK_EQ(i::Script::TYPE_WASM, script->type());
   i::WasmCompiledModule* compiled_module =
       i::WasmCompiledModule::cast(script->wasm_compiled_module());
+  i::wasm::WasmModule* module = compiled_module->shared()->module();
   DCHECK_LE(0, function_index);
-  DCHECK_GT(compiled_module->module()->functions.size(), function_index);
-  i::wasm::WasmFunction& func =
-      compiled_module->module()->functions[function_index];
+  DCHECK_GT(module->functions.size(), function_index);
+  i::wasm::WasmFunction& func = module->functions[function_index];
   DCHECK_GE(i::kMaxInt, func.code.offset());
   DCHECK_GE(i::kMaxInt, func.code.end_offset());
   return std::make_pair(static_cast<int>(func.code.offset()),

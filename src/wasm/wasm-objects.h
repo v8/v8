@@ -534,14 +534,6 @@ class WasmCompiledModule : public FixedArray {
 #undef DECLARATION
 
  public:
-// Allow to call method on WasmSharedModuleData also on this object.
-#define FORWARD_SHARED(type, name) inline type name();
-  FORWARD_SHARED(SeqOneByteString*, module_bytes)
-  FORWARD_SHARED(wasm::WasmModule*, module)
-  FORWARD_SHARED(Script*, script)
-  FORWARD_SHARED(bool, is_asm_js)
-#undef FORWARD_SHARED
-
   static bool IsWasmCompiledModule(Object* obj);
 
   void PrintInstancesChain();

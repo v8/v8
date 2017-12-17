@@ -875,7 +875,7 @@ Address CompileLazy(Isolate* isolate) {
 compiler::ModuleEnv CreateModuleEnvFromCompiledModule(
     Isolate* isolate, Handle<WasmCompiledModule> compiled_module) {
   DisallowHeapAllocation no_gc;
-  WasmModule* module = compiled_module->module();
+  WasmModule* module = compiled_module->shared()->module();
   std::vector<Handle<Code>> empty_code;
   if (FLAG_wasm_jit_to_native) {
     NativeModule* native_module = compiled_module->GetNativeModule();
@@ -1129,9 +1129,10 @@ Handle<Code> LazyCompilationOrchestrator::CompileLazyOnGCHeap(
     Handle<WasmCompiledModule> caller_module(
         caller_func_info.instance.ToHandleChecked()->compiled_module(),
         isolate);
-    SeqOneByteString* module_bytes = caller_module->module_bytes();
+    SeqOneByteString* module_bytes = caller_module->shared()->module_bytes();
     const byte* func_bytes =
-        module_bytes->GetChars() + caller_module->module()
+        module_bytes->GetChars() + caller_module->shared()
+                                       ->module()
                                        ->functions[caller_func_info.func_index]
                                        .code.offset();
     Code* lazy_callee = nullptr;
@@ -1311,15 +1312,17 @@ const wasm::WasmCode* LazyCompilationOrchestrator::CompileDirectCall(
     DisallowHeapAllocation no_gc;
     Handle<WasmCompiledModule> caller_module(
         wasm_caller->owner()->compiled_module(), isolate);
-    SeqOneByteString* module_bytes = caller_module->module_bytes();
+    SeqOneByteString* module_bytes = caller_module->shared()->module_bytes();
     uint32_t caller_func_index = wasm_caller->index();
     SourcePositionTableIterator source_pos_iterator(
         Handle<ByteArray>(ByteArray::cast(
             caller_module->source_positions()->get(caller_func_index))));
 
     const byte* func_bytes =
-        module_bytes->GetChars() +
-        caller_module->module()->functions[caller_func_index].code.offset();
+        module_bytes->GetChars() + caller_module->shared()
+                                       ->module()
+                                       ->functions[caller_func_index]
+                                       .code.offset();
     for (RelocIterator it(wasm_caller->instructions(),
                           wasm_caller->reloc_info(),
                           wasm_caller->constant_pool(),
@@ -2217,7 +2220,7 @@ InstanceBuilder::InstanceBuilder(
     MaybeHandle<JSArrayBuffer> memory,
     WeakCallbackInfo<void>::Callback instance_finalizer_callback)
     : isolate_(isolate),
-      module_(module_object->compiled_module()->module()),
+      module_(module_object->compiled_module()->shared()->module()),
       async_counters_(isolate->async_counters()),
       thrower_(thrower),
       module_object_(module_object),
@@ -2760,8 +2763,8 @@ uint32_t InstanceBuilder::EvalUint32InitExpr(const WasmInitExpr& expr) {
 
 // Load data segments into the memory.
 void InstanceBuilder::LoadDataSegments(WasmContext* wasm_context) {
-  Handle<SeqOneByteString> module_bytes(compiled_module_->module_bytes(),
-                                        isolate_);
+  Handle<SeqOneByteString> module_bytes(
+      compiled_module_->shared()->module_bytes(), isolate_);
   for (const WasmDataSegment& segment : module_->data_segments) {
     uint32_t source_size = segment.source.length();
     // Segments of size == 0 are just nops.
@@ -2802,7 +2805,7 @@ void InstanceBuilder::WriteGlobalValue(WasmGlobal& global,
 
 void InstanceBuilder::SanitizeImports() {
   Handle<SeqOneByteString> module_bytes(
-      module_object_->compiled_module()->module_bytes());
+      module_object_->compiled_module()->shared()->module_bytes());
   for (size_t index = 0; index < module_->import_table.size(); ++index) {
     WasmImport& import = module_->import_table[index];
 
@@ -4133,7 +4136,7 @@ class AsyncCompileJob::FinishCompile : public CompileStep {
 
     // Finish the wasm script now and make it public to the debugger.
     job_->isolate_->debug()->OnAfterCompile(
-        handle(job_->compiled_module_->script()));
+        handle(job_->compiled_module_->shared()->script()));
 
     // TODO(wasm): compiling wrappers should be made async as well.
     job_->DoSync<CompileWrappers>();
@@ -4354,13 +4357,13 @@ void CompileJsToWasmWrappers(Isolate* isolate,
   int wrapper_index = 0;
   Handle<FixedArray> export_wrappers = compiled_module->export_wrappers();
   NativeModule* native_module = compiled_module->GetNativeModule();
-  for (auto exp : compiled_module->module()->export_table) {
+  for (auto exp : compiled_module->shared()->module()->export_table) {
     if (exp.kind != kExternalFunction) continue;
     WasmCodeWrapper wasm_code = EnsureExportedLazyDeoptData(
         isolate, Handle<WasmInstanceObject>::null(),
         compiled_module->code_table(), native_module, exp.index);
     Handle<Code> wrapper_code = js_to_wasm_cache.CloneOrCompileJSToWasmWrapper(
-        isolate, compiled_module->module(), wasm_code, exp.index,
+        isolate, compiled_module->shared()->module(), wasm_code, exp.index,
         compiled_module->use_trap_handler());
     export_wrappers->set(wrapper_index, *wrapper_code);
     RecordStats(*wrapper_code, counters);
