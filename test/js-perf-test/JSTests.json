@@ -371,6 +371,12 @@
           "main": "run.js",
           "resources": ["sort.js"],
           "test_flags": ["sort"]
+        },
+        {
+          "name": "SubarrayNoSpecies",
+          "main": "run.js",
+          "resources": ["subarray-nospecies.js"],
+          "test_flags": ["subarray-nospecies"]
         }
       ]
     },
