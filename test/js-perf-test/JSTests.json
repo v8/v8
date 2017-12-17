@@ -367,6 +367,12 @@
           "test_flags": ["set-from-same-type"]
         },
         {
+          "name": "SliceNoSpecies",
+          "main": "run.js",
+          "resources": ["slice-nospecies.js"],
+          "test_flags": ["slice-nospecies"]
+        },
+        {
           "name": "Sort",
           "main": "run.js",
           "resources": ["sort.js"],
