@@ -672,10 +672,10 @@ Handle<Object> WasmStackFrame::GetFunction() const {
 
 Handle<Object> WasmStackFrame::GetFunctionName() {
   Handle<Object> name;
-  Handle<WasmCompiledModule> compiled_module(wasm_instance_->compiled_module(),
-                                             isolate_);
-  if (!WasmCompiledModule::GetFunctionNameOrNull(isolate_, compiled_module,
-                                                 wasm_func_index_)
+  Handle<WasmSharedModuleData> shared =
+      wasm_instance_->compiled_module()->shared();
+  if (!WasmSharedModuleData::GetFunctionNameOrNull(isolate_, shared,
+                                                   wasm_func_index_)
            .ToHandle(&name)) {
     name = isolate_->factory()->null_value();
   }
@@ -685,12 +685,13 @@ Handle<Object> WasmStackFrame::GetFunctionName() {
 MaybeHandle<String> WasmStackFrame::ToString() {
   IncrementalStringBuilder builder(isolate_);
 
-  Handle<WasmCompiledModule> compiled_module(wasm_instance_->compiled_module(),
-                                             isolate_);
+  Handle<WasmSharedModuleData> shared =
+      wasm_instance_->compiled_module()->shared();
   MaybeHandle<String> module_name =
-      WasmCompiledModule::GetModuleNameOrNull(isolate_, compiled_module);
-  MaybeHandle<String> function_name = WasmCompiledModule::GetFunctionNameOrNull(
-      isolate_, compiled_module, wasm_func_index_);
+      WasmSharedModuleData::GetModuleNameOrNull(isolate_, shared);
+  MaybeHandle<String> function_name =
+      WasmSharedModuleData::GetFunctionNameOrNull(isolate_, shared,
+                                                  wasm_func_index_);
   bool has_name = !module_name.is_null() || !function_name.is_null();
   if (has_name) {
     if (module_name.is_null()) {
@@ -778,11 +779,11 @@ int AsmJsWasmStackFrame::GetPosition() const {
           ? Handle<AbstractCode>::cast(code_.GetCode())->SourcePosition(offset_)
           : FrameSummary::WasmCompiledFrameSummary::GetWasmSourcePosition(
                 code_.GetWasmCode(), offset_);
-  Handle<WasmCompiledModule> compiled_module(wasm_instance_->compiled_module(),
-                                             isolate_);
+  Handle<WasmSharedModuleData> shared =
+      wasm_instance_->compiled_module()->shared();
   DCHECK_LE(0, byte_offset);
-  return WasmCompiledModule::GetSourcePosition(
-      compiled_module, wasm_func_index_, static_cast<uint32_t>(byte_offset),
+  return WasmSharedModuleData::GetSourcePosition(
+      shared, wasm_func_index_, static_cast<uint32_t>(byte_offset),
       is_at_number_conversion_);
 }
 

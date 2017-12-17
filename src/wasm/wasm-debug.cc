@@ -70,10 +70,9 @@ MaybeHandle<String> GetLocalName(Isolate* isolate,
   DCHECK_LE(0, func_index);
   DCHECK_LE(0, local_index);
   if (!debug_info->has_locals_names()) {
-    Handle<WasmCompiledModule> compiled_module(
-        debug_info->wasm_instance()->compiled_module(), isolate);
-    Handle<FixedArray> locals_names =
-        wasm::DecodeLocalNames(isolate, compiled_module);
+    Handle<WasmSharedModuleData> shared =
+        debug_info->wasm_instance()->compiled_module()->shared();
+    Handle<FixedArray> locals_names = wasm::DecodeLocalNames(isolate, shared);
     debug_info->set_locals_names(*locals_names);
   }
 
@@ -307,11 +306,12 @@ class InterpreterHandle {
 
     // Check whether we hit a breakpoint.
     if (isolate_->debug()->break_points_active()) {
-      Handle<WasmCompiledModule> compiled_module(
-          GetInstanceObject()->compiled_module(), isolate_);
-      int position = GetTopPosition(compiled_module);
+      Handle<WasmSharedModuleData> shared =
+          GetInstanceObject()->compiled_module()->shared();
+      int position = GetTopPosition(shared);
       Handle<FixedArray> breakpoints;
-      if (compiled_module->CheckBreakPoints(position).ToHandle(&breakpoints)) {
+      if (WasmSharedModuleData::CheckBreakPoints(isolate_, shared, position)
+              .ToHandle(&breakpoints)) {
         // We hit one or several breakpoints. Clear stepping, notify the
         // listeners and return.
         ClearStepping();
@@ -343,13 +343,13 @@ class InterpreterHandle {
     isolate_->debug()->OnDebugBreak(isolate_->factory()->empty_fixed_array());
   }
 
-  int GetTopPosition(Handle<WasmCompiledModule> compiled_module) {
+  int GetTopPosition(Handle<WasmSharedModuleData> shared) {
     DCHECK_EQ(1, interpreter()->GetThreadCount());
     WasmInterpreter::Thread* thread = interpreter()->GetThread(0);
     DCHECK_LT(0, thread->GetFrameCount());
 
     auto frame = thread->GetFrame(thread->GetFrameCount() - 1);
-    return compiled_module->GetFunctionOffset(frame->function()->func_index) +
+    return shared->GetFunctionOffset(frame->function()->func_index) +
            frame->pc();
   }
 

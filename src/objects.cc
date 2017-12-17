@@ -13327,8 +13327,8 @@ bool Script::GetPositionInfo(int position, PositionInfo* info,
     Handle<WasmCompiledModule> compiled_module(
         WasmCompiledModule::cast(wasm_compiled_module()));
     DCHECK_LE(0, position);
-    return compiled_module->GetPositionInfo(static_cast<uint32_t>(position),
-                                            info);
+    return compiled_module->shared()->GetPositionInfo(
+        static_cast<uint32_t>(position), info);
   }
 
   if (line_ends()->IsUndefined(GetIsolate())) {

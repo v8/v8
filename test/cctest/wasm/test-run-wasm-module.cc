@@ -1199,10 +1199,9 @@ TEST(AtomicOpDisassembly) {
     MaybeHandle<WasmModuleObject> module_object = SyncCompile(
         isolate, &thrower, ModuleWireBytes(buffer.begin(), buffer.end()));
 
-    MaybeHandle<WasmCompiledModule> compiled_module(
+    Handle<WasmCompiledModule> compiled_module(
         module_object.ToHandleChecked()->compiled_module(), isolate);
-    CHECK(!compiled_module.is_null());
-    compiled_module.ToHandleChecked()->DisassembleFunction(0);
+    compiled_module->shared()->DisassembleFunction(0);
   }
   Cleanup();
 }

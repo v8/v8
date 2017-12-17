@@ -231,8 +231,8 @@ bool IsWasmCodegenAllowed(Isolate* isolate, Handle<Context> context) {
 
 Handle<JSArray> GetImports(Isolate* isolate,
                            Handle<WasmModuleObject> module_object) {
-  Handle<WasmCompiledModule> compiled_module(module_object->compiled_module(),
-                                             isolate);
+  Handle<WasmSharedModuleData> shared =
+      module_object->compiled_module()->shared();
   Factory* factory = isolate->factory();
 
   Handle<String> module_string = factory->InternalizeUtf8String("module");
@@ -245,7 +245,7 @@ Handle<JSArray> GetImports(Isolate* isolate,
   Handle<String> global_string = factory->InternalizeUtf8String("global");
 
   // Create the result array.
-  WasmModule* module = compiled_module->module();
+  WasmModule* module = shared->module();
   int num_imports = static_cast<int>(module->import_table.size());
   Handle<JSArray> array_object = factory->NewJSArray(PACKED_ELEMENTS, 0, 0);
   Handle<FixedArray> storage = factory->NewFixedArray(num_imports);
@@ -280,12 +280,12 @@ Handle<JSArray> GetImports(Isolate* isolate,
     }
 
     MaybeHandle<String> import_module =
-        WasmCompiledModule::ExtractUtf8StringFromModuleBytes(
-            isolate, compiled_module, import.module_name);
+        WasmSharedModuleData::ExtractUtf8StringFromModuleBytes(
+            isolate, shared, import.module_name);
 
     MaybeHandle<String> import_name =
-        WasmCompiledModule::ExtractUtf8StringFromModuleBytes(
-            isolate, compiled_module, import.field_name);
+        WasmSharedModuleData::ExtractUtf8StringFromModuleBytes(
+            isolate, shared, import.field_name);
 
     JSObject::AddProperty(entry, module_string, import_module.ToHandleChecked(),
                           NONE);
@@ -301,8 +301,8 @@ Handle<JSArray> GetImports(Isolate* isolate,
 
 Handle<JSArray> GetExports(Isolate* isolate,
                            Handle<WasmModuleObject> module_object) {
-  Handle<WasmCompiledModule> compiled_module(module_object->compiled_module(),
-                                             isolate);
+  Handle<WasmSharedModuleData> shared =
+      module_object->compiled_module()->shared();
   Factory* factory = isolate->factory();
 
   Handle<String> name_string = factory->InternalizeUtf8String("name");
@@ -314,7 +314,7 @@ Handle<JSArray> GetExports(Isolate* isolate,
   Handle<String> global_string = factory->InternalizeUtf8String("global");
 
   // Create the result array.
-  WasmModule* module = compiled_module->module();
+  WasmModule* module = shared->module();
   int num_exports = static_cast<int>(module->export_table.size());
   Handle<JSArray> array_object = factory->NewJSArray(PACKED_ELEMENTS, 0, 0);
   Handle<FixedArray> storage = factory->NewFixedArray(num_exports);
@@ -349,8 +349,8 @@ Handle<JSArray> GetExports(Isolate* isolate,
     Handle<JSObject> entry = factory->NewJSObject(object_function);
 
     MaybeHandle<String> export_name =
-        WasmCompiledModule::ExtractUtf8StringFromModuleBytes(
-            isolate, compiled_module, exp.name);
+        WasmSharedModuleData::ExtractUtf8StringFromModuleBytes(isolate, shared,
+                                                               exp.name);
 
     JSObject::AddProperty(entry, name_string, export_name.ToHandleChecked(),
                           NONE);
@@ -365,15 +365,14 @@ Handle<JSArray> GetExports(Isolate* isolate,
 Handle<JSArray> GetCustomSections(Isolate* isolate,
                                   Handle<WasmModuleObject> module_object,
                                   Handle<String> name, ErrorThrower* thrower) {
-  Handle<WasmCompiledModule> compiled_module(module_object->compiled_module(),
-                                             isolate);
+  Handle<WasmSharedModuleData> shared =
+      module_object->compiled_module()->shared();
   Factory* factory = isolate->factory();
 
   std::vector<CustomSectionOffset> custom_sections;
   {
     DisallowHeapAllocation no_gc;  // for raw access to string bytes.
-    Handle<SeqOneByteString> module_bytes(compiled_module->module_bytes(),
-                                          isolate);
+    Handle<SeqOneByteString> module_bytes(shared->module_bytes(), isolate);
     const byte* start =
         reinterpret_cast<const byte*>(module_bytes->GetCharsAddress());
     const byte* end = start + module_bytes->length();
@@ -385,8 +384,8 @@ Handle<JSArray> GetCustomSections(Isolate* isolate,
   // Gather matching sections.
   for (auto& section : custom_sections) {
     MaybeHandle<String> section_name =
-        WasmCompiledModule::ExtractUtf8StringFromModuleBytes(
-            isolate, compiled_module, section.name);
+        WasmSharedModuleData::ExtractUtf8StringFromModuleBytes(isolate, shared,
+                                                               section.name);
 
     if (!name->Equals(*section_name.ToHandleChecked())) continue;
 
@@ -404,8 +403,7 @@ Handle<JSArray> GetCustomSections(Isolate* isolate,
     JSArrayBuffer::Setup(buffer, isolate, is_external, memory, size, memory,
                          size);
     DisallowHeapAllocation no_gc;  // for raw access to string bytes.
-    Handle<SeqOneByteString> module_bytes(compiled_module->module_bytes(),
-                                          isolate);
+    Handle<SeqOneByteString> module_bytes(shared->module_bytes(), isolate);
     const byte* start =
         reinterpret_cast<const byte*>(module_bytes->GetCharsAddress());
     memcpy(memory, start + section.payload.offset(), section.payload.length());
@@ -426,9 +424,9 @@ Handle<JSArray> GetCustomSections(Isolate* isolate,
   return array_object;
 }
 
-Handle<FixedArray> DecodeLocalNames(
-    Isolate* isolate, Handle<WasmCompiledModule> compiled_module) {
-  Handle<SeqOneByteString> wire_bytes(compiled_module->module_bytes(), isolate);
+Handle<FixedArray> DecodeLocalNames(Isolate* isolate,
+                                    Handle<WasmSharedModuleData> shared) {
+  Handle<SeqOneByteString> wire_bytes(shared->module_bytes(), isolate);
   LocalNames decoded_locals;
   {
     DisallowHeapAllocation no_gc;
@@ -444,8 +442,8 @@ Handle<FixedArray> DecodeLocalNames(
     locals_names->set(func.function_index, *func_locals_names);
     for (LocalName& name : func.names) {
       Handle<String> name_str =
-          WasmCompiledModule::ExtractUtf8StringFromModuleBytes(
-              isolate, compiled_module, name.name)
+          WasmSharedModuleData::ExtractUtf8StringFromModuleBytes(
+              isolate, shared, name.name)
               .ToHandleChecked();
       func_locals_names->set(name.local_index, *name_str);
     }

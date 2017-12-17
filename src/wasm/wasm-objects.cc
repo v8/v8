@@ -972,8 +972,6 @@ void WasmSharedModuleData::SetBreakpointsOnNewInstance(
     Handle<WasmSharedModuleData> shared, Handle<WasmInstanceObject> instance) {
   if (!shared->has_breakpoint_infos()) return;
   Isolate* isolate = shared->GetIsolate();
-  Handle<WasmCompiledModule> compiled_module(instance->compiled_module(),
-                                             isolate);
   Handle<WasmDebugInfo> debug_info =
       WasmInstanceObject::GetOrCreateDebugInfo(instance);
 
@@ -993,9 +991,9 @@ void WasmSharedModuleData::SetBreakpointsOnNewInstance(
     int position = breakpoint_info->source_position();
 
     // Find the function for this breakpoint, and set the breakpoint.
-    int func_index = compiled_module->GetContainingFunction(position);
+    int func_index = shared->GetContainingFunction(position);
     DCHECK_LE(0, func_index);
-    WasmFunction& func = compiled_module->module()->functions[func_index];
+    WasmFunction& func = shared->module()->functions[func_index];
     int offset_in_func = position - func.code.offset();
     WasmDebugInfo::SetBreakpoint(debug_info, func_index, offset_in_func);
   }
@@ -1008,6 +1006,236 @@ void WasmSharedModuleData::PrepareForLazyCompilation(
   auto orch_handle =
       Managed<wasm::LazyCompilationOrchestrator>::Allocate(isolate);
   shared->set_lazy_compilation_orchestrator(*orch_handle);
+}
+
+namespace {
+
+enum AsmJsOffsetTableEntryLayout {
+  kOTEByteOffset,
+  kOTECallPosition,
+  kOTENumberConvPosition,
+  kOTESize
+};
+
+Handle<ByteArray> GetDecodedAsmJsOffsetTable(
+    Handle<WasmSharedModuleData> shared, Isolate* isolate) {
+  DCHECK(shared->is_asm_js());
+  Handle<ByteArray> offset_table(shared->asm_js_offset_table(), isolate);
+
+  // The last byte in the asm_js_offset_tables ByteArray tells whether it is
+  // still encoded (0) or decoded (1).
+  enum AsmJsTableType : int { Encoded = 0, Decoded = 1 };
+  int table_type = offset_table->get(offset_table->length() - 1);
+  DCHECK(table_type == Encoded || table_type == Decoded);
+  if (table_type == Decoded) return offset_table;
+
+  wasm::AsmJsOffsetsResult asm_offsets;
+  {
+    DisallowHeapAllocation no_gc;
+    const byte* bytes_start = offset_table->GetDataStartAddress();
+    const byte* bytes_end = bytes_start + offset_table->length() - 1;
+    asm_offsets = wasm::DecodeAsmJsOffsets(bytes_start, bytes_end);
+  }
+  // Wasm bytes must be valid and must contain asm.js offset table.
+  DCHECK(asm_offsets.ok());
+  DCHECK_GE(kMaxInt, asm_offsets.val.size());
+  int num_functions = static_cast<int>(asm_offsets.val.size());
+  int num_imported_functions =
+      static_cast<int>(shared->module()->num_imported_functions);
+  DCHECK_EQ(shared->module()->functions.size(),
+            static_cast<size_t>(num_functions) + num_imported_functions);
+  int num_entries = 0;
+  for (int func = 0; func < num_functions; ++func) {
+    size_t new_size = asm_offsets.val[func].size();
+    DCHECK_LE(new_size, static_cast<size_t>(kMaxInt) - num_entries);
+    num_entries += static_cast<int>(new_size);
+  }
+  // One byte to encode that this is a decoded table.
+  DCHECK_GE(kMaxInt,
+            1 + static_cast<uint64_t>(num_entries) * kOTESize * kIntSize);
+  int total_size = 1 + num_entries * kOTESize * kIntSize;
+  Handle<ByteArray> decoded_table =
+      isolate->factory()->NewByteArray(total_size, TENURED);
+  decoded_table->set(total_size - 1, AsmJsTableType::Decoded);
+  shared->set_asm_js_offset_table(*decoded_table);
+
+  int idx = 0;
+  std::vector<WasmFunction>& wasm_funs = shared->module()->functions;
+  for (int func = 0; func < num_functions; ++func) {
+    std::vector<wasm::AsmJsOffsetEntry>& func_asm_offsets =
+        asm_offsets.val[func];
+    if (func_asm_offsets.empty()) continue;
+    int func_offset = wasm_funs[num_imported_functions + func].code.offset();
+    for (wasm::AsmJsOffsetEntry& e : func_asm_offsets) {
+      // Byte offsets must be strictly monotonously increasing:
+      DCHECK_IMPLIES(idx > 0, func_offset + e.byte_offset >
+                                  decoded_table->get_int(idx - kOTESize));
+      decoded_table->set_int(idx + kOTEByteOffset, func_offset + e.byte_offset);
+      decoded_table->set_int(idx + kOTECallPosition, e.source_position_call);
+      decoded_table->set_int(idx + kOTENumberConvPosition,
+                             e.source_position_number_conversion);
+      idx += kOTESize;
+    }
+  }
+  DCHECK_EQ(total_size, idx * kIntSize + 1);
+  return decoded_table;
+}
+
+}  // namespace
+
+int WasmSharedModuleData::GetSourcePosition(Handle<WasmSharedModuleData> shared,
+                                            uint32_t func_index,
+                                            uint32_t byte_offset,
+                                            bool is_at_number_conversion) {
+  Isolate* isolate = shared->GetIsolate();
+  const WasmModule* module = shared->module();
+
+  if (!module->is_asm_js()) {
+    // for non-asm.js modules, we just add the function's start offset
+    // to make a module-relative position.
+    return byte_offset + shared->GetFunctionOffset(func_index);
+  }
+
+  // asm.js modules have an additional offset table that must be searched.
+  Handle<ByteArray> offset_table = GetDecodedAsmJsOffsetTable(shared, isolate);
+
+  DCHECK_LT(func_index, module->functions.size());
+  uint32_t func_code_offset = module->functions[func_index].code.offset();
+  uint32_t total_offset = func_code_offset + byte_offset;
+
+  // Binary search for the total byte offset.
+  int left = 0;                                              // inclusive
+  int right = offset_table->length() / kIntSize / kOTESize;  // exclusive
+  DCHECK_LT(left, right);
+  while (right - left > 1) {
+    int mid = left + (right - left) / 2;
+    int mid_entry = offset_table->get_int(kOTESize * mid);
+    DCHECK_GE(kMaxInt, mid_entry);
+    if (static_cast<uint32_t>(mid_entry) <= total_offset) {
+      left = mid;
+    } else {
+      right = mid;
+    }
+  }
+  // There should be an entry for each position that could show up on the stack
+  // trace:
+  DCHECK_EQ(total_offset, offset_table->get_int(kOTESize * left));
+  int idx = is_at_number_conversion ? kOTENumberConvPosition : kOTECallPosition;
+  return offset_table->get_int(kOTESize * left + idx);
+}
+
+v8::debug::WasmDisassembly WasmSharedModuleData::DisassembleFunction(
+    int func_index) {
+  DisallowHeapAllocation no_gc;
+
+  if (func_index < 0 ||
+      static_cast<uint32_t>(func_index) >= module()->functions.size())
+    return {};
+
+  SeqOneByteString* module_bytes_str = module_bytes();
+  Vector<const byte> module_bytes(module_bytes_str->GetChars(),
+                                  module_bytes_str->length());
+
+  std::ostringstream disassembly_os;
+  v8::debug::WasmDisassembly::OffsetTable offset_table;
+
+  PrintWasmText(module(), module_bytes, static_cast<uint32_t>(func_index),
+                disassembly_os, &offset_table);
+
+  return {disassembly_os.str(), std::move(offset_table)};
+}
+
+bool WasmSharedModuleData::GetPossibleBreakpoints(
+    const v8::debug::Location& start, const v8::debug::Location& end,
+    std::vector<v8::debug::BreakLocation>* locations) {
+  DisallowHeapAllocation no_gc;
+
+  std::vector<WasmFunction>& functions = module()->functions;
+  if (start.GetLineNumber() < 0 || start.GetColumnNumber() < 0 ||
+      (!end.IsEmpty() &&
+       (end.GetLineNumber() < 0 || end.GetColumnNumber() < 0)))
+    return false;
+
+  // start_func_index, start_offset and end_func_index is inclusive.
+  // end_offset is exclusive.
+  // start_offset and end_offset are module-relative byte offsets.
+  uint32_t start_func_index = start.GetLineNumber();
+  if (start_func_index >= functions.size()) return false;
+  int start_func_len = functions[start_func_index].code.length();
+  if (start.GetColumnNumber() > start_func_len) return false;
+  uint32_t start_offset =
+      functions[start_func_index].code.offset() + start.GetColumnNumber();
+  uint32_t end_func_index;
+  uint32_t end_offset;
+  if (end.IsEmpty()) {
+    // Default: everything till the end of the Script.
+    end_func_index = static_cast<uint32_t>(functions.size() - 1);
+    end_offset = functions[end_func_index].code.end_offset();
+  } else {
+    // If end is specified: Use it and check for valid input.
+    end_func_index = static_cast<uint32_t>(end.GetLineNumber());
+
+    // Special case: Stop before the start of the next function. Change to: Stop
+    // at the end of the function before, such that we don't disassemble the
+    // next function also.
+    if (end.GetColumnNumber() == 0 && end_func_index > 0) {
+      --end_func_index;
+      end_offset = functions[end_func_index].code.end_offset();
+    } else {
+      if (end_func_index >= functions.size()) return false;
+      end_offset =
+          functions[end_func_index].code.offset() + end.GetColumnNumber();
+      if (end_offset > functions[end_func_index].code.end_offset())
+        return false;
+    }
+  }
+
+  AccountingAllocator alloc;
+  Zone tmp(&alloc, ZONE_NAME);
+  const byte* module_start = module_bytes()->GetChars();
+
+  for (uint32_t func_idx = start_func_index; func_idx <= end_func_index;
+       ++func_idx) {
+    WasmFunction& func = functions[func_idx];
+    if (func.code.length() == 0) continue;
+
+    wasm::BodyLocalDecls locals(&tmp);
+    wasm::BytecodeIterator iterator(module_start + func.code.offset(),
+                                    module_start + func.code.end_offset(),
+                                    &locals);
+    DCHECK_LT(0u, locals.encoded_size);
+    for (uint32_t offset : iterator.offsets()) {
+      uint32_t total_offset = func.code.offset() + offset;
+      if (total_offset >= end_offset) {
+        DCHECK_EQ(end_func_index, func_idx);
+        break;
+      }
+      if (total_offset < start_offset) continue;
+      locations->emplace_back(func_idx, offset, debug::kCommonBreakLocation);
+    }
+  }
+  return true;
+}
+
+MaybeHandle<FixedArray> WasmSharedModuleData::CheckBreakPoints(
+    Isolate* isolate, Handle<WasmSharedModuleData> shared, int position) {
+  if (!shared->has_breakpoint_infos()) return {};
+
+  Handle<FixedArray> breakpoint_infos(shared->breakpoint_infos(), isolate);
+  int insert_pos =
+      FindBreakpointInfoInsertPos(isolate, breakpoint_infos, position);
+  if (insert_pos >= breakpoint_infos->length()) return {};
+
+  Handle<Object> maybe_breakpoint_info(breakpoint_infos->get(insert_pos),
+                                       isolate);
+  if (maybe_breakpoint_info->IsUndefined(isolate)) return {};
+  Handle<BreakPointInfo> breakpoint_info =
+      Handle<BreakPointInfo>::cast(maybe_breakpoint_info);
+  if (breakpoint_info->source_position() != position) return {};
+
+  Handle<Object> breakpoint_objects(breakpoint_info->break_point_objects(),
+                                    isolate);
+  return isolate->debug()->GetHitBreakPointObjects(breakpoint_objects);
 }
 
 Handle<WasmCompiledModule> WasmCompiledModule::New(
@@ -1318,17 +1546,15 @@ void WasmCompiledModule::Reset(Isolate* isolate,
   }
 }
 
-MaybeHandle<String> WasmCompiledModule::ExtractUtf8StringFromModuleBytes(
-    Isolate* isolate, Handle<WasmCompiledModule> compiled_module,
+MaybeHandle<String> WasmSharedModuleData::ExtractUtf8StringFromModuleBytes(
+    Isolate* isolate, Handle<WasmSharedModuleData> shared,
     wasm::WireBytesRef ref) {
   // TODO(wasm): cache strings from modules if it's a performance win.
-  Handle<SeqOneByteString> module_bytes(compiled_module->module_bytes(),
-                                        isolate);
-  return WasmCompiledModule::ExtractUtf8StringFromModuleBytes(
-      isolate, module_bytes, ref);
+  Handle<SeqOneByteString> module_bytes(shared->module_bytes(), isolate);
+  return ExtractUtf8StringFromModuleBytes(isolate, module_bytes, ref);
 }
 
-MaybeHandle<String> WasmCompiledModule::ExtractUtf8StringFromModuleBytes(
+MaybeHandle<String> WasmSharedModuleData::ExtractUtf8StringFromModuleBytes(
     Isolate* isolate, Handle<SeqOneByteString> module_bytes,
     wasm::WireBytesRef ref) {
   DCHECK_GE(module_bytes->length(), ref.end_offset());
@@ -1490,34 +1716,31 @@ uint32_t WasmCompiledModule::default_mem_size() const {
   return initial_pages() * WasmModule::kPageSize;
 }
 
-MaybeHandle<String> WasmCompiledModule::GetModuleNameOrNull(
-    Isolate* isolate, Handle<WasmCompiledModule> compiled_module) {
-  WasmModule* module = compiled_module->module();
+MaybeHandle<String> WasmSharedModuleData::GetModuleNameOrNull(
+    Isolate* isolate, Handle<WasmSharedModuleData> shared) {
+  WasmModule* module = shared->module();
   if (!module->name.is_set()) return {};
-  return WasmCompiledModule::ExtractUtf8StringFromModuleBytes(
-      isolate, compiled_module, module->name);
+  return ExtractUtf8StringFromModuleBytes(isolate, shared, module->name);
 }
 
-MaybeHandle<String> WasmCompiledModule::GetFunctionNameOrNull(
-    Isolate* isolate, Handle<WasmCompiledModule> compiled_module,
+MaybeHandle<String> WasmSharedModuleData::GetFunctionNameOrNull(
+    Isolate* isolate, Handle<WasmSharedModuleData> shared,
     uint32_t func_index) {
-  DCHECK_LT(func_index, compiled_module->module()->functions.size());
-  WasmFunction& function = compiled_module->module()->functions[func_index];
+  DCHECK_LT(func_index, shared->module()->functions.size());
+  WasmFunction& function = shared->module()->functions[func_index];
   if (!function.name.is_set()) return {};
-  return WasmCompiledModule::ExtractUtf8StringFromModuleBytes(
-      isolate, compiled_module, function.name);
+  return ExtractUtf8StringFromModuleBytes(isolate, shared, function.name);
 }
 
-Handle<String> WasmCompiledModule::GetFunctionName(
-    Isolate* isolate, Handle<WasmCompiledModule> compiled_module,
+Handle<String> WasmSharedModuleData::GetFunctionName(
+    Isolate* isolate, Handle<WasmSharedModuleData> shared,
     uint32_t func_index) {
-  MaybeHandle<String> name =
-      GetFunctionNameOrNull(isolate, compiled_module, func_index);
+  MaybeHandle<String> name = GetFunctionNameOrNull(isolate, shared, func_index);
   if (!name.is_null()) return name.ToHandleChecked();
   return isolate->factory()->NewStringFromStaticChars("<WASM UNNAMED>");
 }
 
-Vector<const uint8_t> WasmCompiledModule::GetRawFunctionName(
+Vector<const uint8_t> WasmSharedModuleData::GetRawFunctionName(
     uint32_t func_index) {
   DCHECK_GT(module()->functions.size(), func_index);
   WasmFunction& function = module()->functions[func_index];
@@ -1528,14 +1751,14 @@ Vector<const uint8_t> WasmCompiledModule::GetRawFunctionName(
       function.name.length());
 }
 
-int WasmCompiledModule::GetFunctionOffset(uint32_t func_index) {
+int WasmSharedModuleData::GetFunctionOffset(uint32_t func_index) {
   std::vector<WasmFunction>& functions = module()->functions;
   if (static_cast<uint32_t>(func_index) >= functions.size()) return -1;
   DCHECK_GE(kMaxInt, functions[func_index].code.offset());
   return static_cast<int>(functions[func_index].code.offset());
 }
 
-int WasmCompiledModule::GetContainingFunction(uint32_t byte_offset) {
+int WasmSharedModuleData::GetContainingFunction(uint32_t byte_offset) {
   std::vector<WasmFunction>& functions = module()->functions;
 
   // Binary search for a function containing the given position.
@@ -1560,8 +1783,8 @@ int WasmCompiledModule::GetContainingFunction(uint32_t byte_offset) {
   return left;
 }
 
-bool WasmCompiledModule::GetPositionInfo(uint32_t position,
-                                         Script::PositionInfo* info) {
+bool WasmSharedModuleData::GetPositionInfo(uint32_t position,
+                                           Script::PositionInfo* info) {
   int func_index = GetContainingFunction(position);
   if (func_index < 0) return false;
 
@@ -1574,215 +1797,6 @@ bool WasmCompiledModule::GetPositionInfo(uint32_t position,
   return true;
 }
 
-namespace {
-
-enum AsmJsOffsetTableEntryLayout {
-  kOTEByteOffset,
-  kOTECallPosition,
-  kOTENumberConvPosition,
-  kOTESize
-};
-
-Handle<ByteArray> GetDecodedAsmJsOffsetTable(
-    Handle<WasmCompiledModule> compiled_module, Isolate* isolate) {
-  DCHECK(compiled_module->is_asm_js());
-  Handle<ByteArray> offset_table(
-      compiled_module->shared()->asm_js_offset_table(), isolate);
-
-  // The last byte in the asm_js_offset_tables ByteArray tells whether it is
-  // still encoded (0) or decoded (1).
-  enum AsmJsTableType : int { Encoded = 0, Decoded = 1 };
-  int table_type = offset_table->get(offset_table->length() - 1);
-  DCHECK(table_type == Encoded || table_type == Decoded);
-  if (table_type == Decoded) return offset_table;
-
-  wasm::AsmJsOffsetsResult asm_offsets;
-  {
-    DisallowHeapAllocation no_gc;
-    const byte* bytes_start = offset_table->GetDataStartAddress();
-    const byte* bytes_end = bytes_start + offset_table->length() - 1;
-    asm_offsets = wasm::DecodeAsmJsOffsets(bytes_start, bytes_end);
-  }
-  // Wasm bytes must be valid and must contain asm.js offset table.
-  DCHECK(asm_offsets.ok());
-  DCHECK_GE(kMaxInt, asm_offsets.val.size());
-  int num_functions = static_cast<int>(asm_offsets.val.size());
-  int num_imported_functions =
-      static_cast<int>(compiled_module->module()->num_imported_functions);
-  DCHECK_EQ(compiled_module->module()->functions.size(),
-            static_cast<size_t>(num_functions) + num_imported_functions);
-  int num_entries = 0;
-  for (int func = 0; func < num_functions; ++func) {
-    size_t new_size = asm_offsets.val[func].size();
-    DCHECK_LE(new_size, static_cast<size_t>(kMaxInt) - num_entries);
-    num_entries += static_cast<int>(new_size);
-  }
-  // One byte to encode that this is a decoded table.
-  DCHECK_GE(kMaxInt,
-            1 + static_cast<uint64_t>(num_entries) * kOTESize * kIntSize);
-  int total_size = 1 + num_entries * kOTESize * kIntSize;
-  Handle<ByteArray> decoded_table =
-      isolate->factory()->NewByteArray(total_size, TENURED);
-  decoded_table->set(total_size - 1, AsmJsTableType::Decoded);
-  compiled_module->shared()->set_asm_js_offset_table(*decoded_table);
-
-  int idx = 0;
-  std::vector<WasmFunction>& wasm_funs = compiled_module->module()->functions;
-  for (int func = 0; func < num_functions; ++func) {
-    std::vector<wasm::AsmJsOffsetEntry>& func_asm_offsets =
-        asm_offsets.val[func];
-    if (func_asm_offsets.empty()) continue;
-    int func_offset = wasm_funs[num_imported_functions + func].code.offset();
-    for (wasm::AsmJsOffsetEntry& e : func_asm_offsets) {
-      // Byte offsets must be strictly monotonously increasing:
-      DCHECK_IMPLIES(idx > 0, func_offset + e.byte_offset >
-                                  decoded_table->get_int(idx - kOTESize));
-      decoded_table->set_int(idx + kOTEByteOffset, func_offset + e.byte_offset);
-      decoded_table->set_int(idx + kOTECallPosition, e.source_position_call);
-      decoded_table->set_int(idx + kOTENumberConvPosition,
-                             e.source_position_number_conversion);
-      idx += kOTESize;
-    }
-  }
-  DCHECK_EQ(total_size, idx * kIntSize + 1);
-  return decoded_table;
-}
-
-}  // namespace
-
-int WasmCompiledModule::GetSourcePosition(
-    Handle<WasmCompiledModule> compiled_module, uint32_t func_index,
-    uint32_t byte_offset, bool is_at_number_conversion) {
-  Isolate* isolate = compiled_module->GetIsolate();
-  const WasmModule* module = compiled_module->module();
-
-  if (!module->is_asm_js()) {
-    // for non-asm.js modules, we just add the function's start offset
-    // to make a module-relative position.
-    return byte_offset + compiled_module->GetFunctionOffset(func_index);
-  }
-
-  // asm.js modules have an additional offset table that must be searched.
-  Handle<ByteArray> offset_table =
-      GetDecodedAsmJsOffsetTable(compiled_module, isolate);
-
-  DCHECK_LT(func_index, module->functions.size());
-  uint32_t func_code_offset = module->functions[func_index].code.offset();
-  uint32_t total_offset = func_code_offset + byte_offset;
-
-  // Binary search for the total byte offset.
-  int left = 0;                                              // inclusive
-  int right = offset_table->length() / kIntSize / kOTESize;  // exclusive
-  DCHECK_LT(left, right);
-  while (right - left > 1) {
-    int mid = left + (right - left) / 2;
-    int mid_entry = offset_table->get_int(kOTESize * mid);
-    DCHECK_GE(kMaxInt, mid_entry);
-    if (static_cast<uint32_t>(mid_entry) <= total_offset) {
-      left = mid;
-    } else {
-      right = mid;
-    }
-  }
-  // There should be an entry for each position that could show up on the stack
-  // trace:
-  DCHECK_EQ(total_offset, offset_table->get_int(kOTESize * left));
-  int idx = is_at_number_conversion ? kOTENumberConvPosition : kOTECallPosition;
-  return offset_table->get_int(kOTESize * left + idx);
-}
-
-v8::debug::WasmDisassembly WasmCompiledModule::DisassembleFunction(
-    int func_index) {
-  DisallowHeapAllocation no_gc;
-
-  if (func_index < 0 ||
-      static_cast<uint32_t>(func_index) >= module()->functions.size())
-    return {};
-
-  SeqOneByteString* module_bytes_str = module_bytes();
-  Vector<const byte> module_bytes(module_bytes_str->GetChars(),
-                                  module_bytes_str->length());
-
-  std::ostringstream disassembly_os;
-  v8::debug::WasmDisassembly::OffsetTable offset_table;
-
-  PrintWasmText(module(), module_bytes, static_cast<uint32_t>(func_index),
-                disassembly_os, &offset_table);
-
-  return {disassembly_os.str(), std::move(offset_table)};
-}
-
-bool WasmCompiledModule::GetPossibleBreakpoints(
-    const v8::debug::Location& start, const v8::debug::Location& end,
-    std::vector<v8::debug::BreakLocation>* locations) {
-  DisallowHeapAllocation no_gc;
-
-  std::vector<WasmFunction>& functions = module()->functions;
-  if (start.GetLineNumber() < 0 || start.GetColumnNumber() < 0 ||
-      (!end.IsEmpty() &&
-       (end.GetLineNumber() < 0 || end.GetColumnNumber() < 0)))
-    return false;
-
-  // start_func_index, start_offset and end_func_index is inclusive.
-  // end_offset is exclusive.
-  // start_offset and end_offset are module-relative byte offsets.
-  uint32_t start_func_index = start.GetLineNumber();
-  if (start_func_index >= functions.size()) return false;
-  int start_func_len = functions[start_func_index].code.length();
-  if (start.GetColumnNumber() > start_func_len) return false;
-  uint32_t start_offset =
-      functions[start_func_index].code.offset() + start.GetColumnNumber();
-  uint32_t end_func_index;
-  uint32_t end_offset;
-  if (end.IsEmpty()) {
-    // Default: everything till the end of the Script.
-    end_func_index = static_cast<uint32_t>(functions.size() - 1);
-    end_offset = functions[end_func_index].code.end_offset();
-  } else {
-    // If end is specified: Use it and check for valid input.
-    end_func_index = static_cast<uint32_t>(end.GetLineNumber());
-
-    // Special case: Stop before the start of the next function. Change to: Stop
-    // at the end of the function before, such that we don't disassemble the
-    // next function also.
-    if (end.GetColumnNumber() == 0 && end_func_index > 0) {
-      --end_func_index;
-      end_offset = functions[end_func_index].code.end_offset();
-    } else {
-      if (end_func_index >= functions.size()) return false;
-      end_offset =
-          functions[end_func_index].code.offset() + end.GetColumnNumber();
-      if (end_offset > functions[end_func_index].code.end_offset())
-        return false;
-    }
-  }
-
-  AccountingAllocator alloc;
-  Zone tmp(&alloc, ZONE_NAME);
-  const byte* module_start = module_bytes()->GetChars();
-
-  for (uint32_t func_idx = start_func_index; func_idx <= end_func_index;
-       ++func_idx) {
-    WasmFunction& func = functions[func_idx];
-    if (func.code.length() == 0) continue;
-
-    wasm::BodyLocalDecls locals(&tmp);
-    wasm::BytecodeIterator iterator(module_start + func.code.offset(),
-                                    module_start + func.code.end_offset(),
-                                    &locals);
-    DCHECK_LT(0u, locals.encoded_size);
-    for (uint32_t offset : iterator.offsets()) {
-      uint32_t total_offset = func.code.offset() + offset;
-      if (total_offset >= end_offset) {
-        DCHECK_EQ(end_func_index, func_idx);
-        break;
-      }
-      if (total_offset < start_offset) continue;
-      locations->emplace_back(func_idx, offset, debug::kCommonBreakLocation);
-    }
-  }
-  return true;
-}
 
 bool WasmCompiledModule::SetBreakPoint(
     Handle<WasmCompiledModule> compiled_module, int* position,
@@ -1790,7 +1804,7 @@ bool WasmCompiledModule::SetBreakPoint(
   Isolate* isolate = compiled_module->GetIsolate();
 
   // Find the function for this breakpoint.
-  int func_index = compiled_module->GetContainingFunction(*position);
+  int func_index = compiled_module->shared()->GetContainingFunction(*position);
   if (func_index < 0) return false;
   WasmFunction& func = compiled_module->module()->functions[func_index];
   int offset_in_func = *position - func.code.offset();
@@ -1813,27 +1827,6 @@ bool WasmCompiledModule::SetBreakPoint(
   }
 
   return true;
-}
-
-MaybeHandle<FixedArray> WasmCompiledModule::CheckBreakPoints(int position) {
-  Isolate* isolate = GetIsolate();
-  if (!shared()->has_breakpoint_infos()) return {};
-
-  Handle<FixedArray> breakpoint_infos(shared()->breakpoint_infos(), isolate);
-  int insert_pos =
-      FindBreakpointInfoInsertPos(isolate, breakpoint_infos, position);
-  if (insert_pos >= breakpoint_infos->length()) return {};
-
-  Handle<Object> maybe_breakpoint_info(breakpoint_infos->get(insert_pos),
-                                       isolate);
-  if (maybe_breakpoint_info->IsUndefined(isolate)) return {};
-  Handle<BreakPointInfo> breakpoint_info =
-      Handle<BreakPointInfo>::cast(maybe_breakpoint_info);
-  if (breakpoint_info->source_position() != position) return {};
-
-  Handle<Object> breakpoint_objects(breakpoint_info->break_point_objects(),
-                                    isolate);
-  return isolate->debug()->GetHitBreakPointObjects(breakpoint_objects);
 }
 
 void AttachWasmFunctionInfo(Isolate* isolate, Handle<Code> code,

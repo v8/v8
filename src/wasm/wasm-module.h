@@ -22,10 +22,11 @@ namespace internal {
 
 class WasmCompiledModule;
 class WasmDebugInfo;
-class WasmModuleObject;
 class WasmInstanceObject;
-class WasmTableObject;
 class WasmMemoryObject;
+class WasmModuleObject;
+class WasmSharedModuleData;
+class WasmTableObject;
 
 namespace compiler {
 class CallDescriptor;
@@ -275,7 +276,7 @@ V8_EXPORT_PRIVATE Handle<JSArray> GetCustomSections(
 // Decode local variable names from the names section. Return FixedArray of
 // FixedArray of <undefined|String>. The outer fixed array is indexed by the
 // function index, the inner one by the local index.
-Handle<FixedArray> DecodeLocalNames(Isolate*, Handle<WasmCompiledModule>);
+Handle<FixedArray> DecodeLocalNames(Isolate*, Handle<WasmSharedModuleData>);
 
 // If the target is an export wrapper, return the {WasmFunction*} corresponding
 // to the wrapped wasm function; in all other cases, return nullptr.

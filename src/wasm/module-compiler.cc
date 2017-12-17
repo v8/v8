@@ -940,7 +940,8 @@ const wasm::WasmCode* LazyCompilationOrchestrator::CompileFunction(
   compiler::ModuleEnv module_env =
       CreateModuleEnvFromCompiledModule(isolate, compiled_module);
 
-  const uint8_t* module_start = compiled_module->module_bytes()->GetChars();
+  const uint8_t* module_start =
+      compiled_module->shared()->module_bytes()->GetChars();
 
   const WasmFunction* func = &module_env.module->functions[func_index];
   FunctionBody body{func->sig, func->code.offset(),
@@ -951,7 +952,7 @@ const wasm::WasmCode* LazyCompilationOrchestrator::CompileFunction(
   std::string func_name;
   {
     WasmName name = Vector<const char>::cast(
-        compiled_module->GetRawFunctionName(func_index));
+        compiled_module->shared()->GetRawFunctionName(func_index));
     // Copy to std::string, because the underlying string object might move on
     // the heap.
     func_name.assign(name.start(), static_cast<size_t>(name.length()));
@@ -2807,7 +2808,7 @@ void InstanceBuilder::SanitizeImports() {
 
     Handle<String> module_name;
     MaybeHandle<String> maybe_module_name =
-        WasmCompiledModule::ExtractUtf8StringFromModuleBytes(
+        WasmSharedModuleData::ExtractUtf8StringFromModuleBytes(
             isolate_, module_bytes, import.module_name);
     if (!maybe_module_name.ToHandle(&module_name)) {
       thrower_->LinkError("Could not resolve module name for import %zu",
@@ -2817,7 +2818,7 @@ void InstanceBuilder::SanitizeImports() {
 
     Handle<String> import_name;
     MaybeHandle<String> maybe_import_name =
-        WasmCompiledModule::ExtractUtf8StringFromModuleBytes(
+        WasmSharedModuleData::ExtractUtf8StringFromModuleBytes(
             isolate_, module_bytes, import.field_name);
     if (!maybe_import_name.ToHandle(&import_name)) {
       thrower_->LinkError("Could not resolve import name for import %zu",
@@ -3233,9 +3234,10 @@ void InstanceBuilder::ProcessExports(
   // Process each export in the export table.
   int export_index = 0;  // Index into {weak_exported_functions}.
   for (WasmExport& exp : module_->export_table) {
-    Handle<String> name = WasmCompiledModule::ExtractUtf8StringFromModuleBytes(
-                              isolate_, compiled_module_, exp.name)
-                              .ToHandleChecked();
+    Handle<String> name =
+        WasmSharedModuleData::ExtractUtf8StringFromModuleBytes(
+            isolate_, compiled_module_->shared(), exp.name)
+            .ToHandleChecked();
     Handle<JSObject> export_to;
     if (module_->is_asm_js() && exp.kind == kExternalFunction &&
         String::Equals(name, single_function_name)) {
@@ -3256,8 +3258,8 @@ void InstanceBuilder::ProcessExports(
           MaybeHandle<String> func_name;
           if (module_->is_asm_js()) {
             // For modules arising from asm.js, honor the names section.
-            func_name = WasmCompiledModule::ExtractUtf8StringFromModuleBytes(
-                            isolate_, compiled_module_, function.name)
+            func_name = WasmSharedModuleData::ExtractUtf8StringFromModuleBytes(
+                            isolate_, compiled_module_->shared(), function.name)
                             .ToHandleChecked();
           }
           js_function = WasmExportedFunction::New(
@@ -3560,9 +3562,10 @@ void InstanceBuilder::LoadTableSegments(Handle<FixedArray> code_table,
             MaybeHandle<String> func_name;
             if (module_->is_asm_js()) {
               // For modules arising from asm.js, honor the names section.
-              func_name = WasmCompiledModule::ExtractUtf8StringFromModuleBytes(
-                              isolate_, compiled_module_, function->name)
-                              .ToHandleChecked();
+              func_name =
+                  WasmSharedModuleData::ExtractUtf8StringFromModuleBytes(
+                      isolate_, compiled_module_->shared(), function->name)
+                      .ToHandleChecked();
             }
             Handle<WasmExportedFunction> js_function =
                 WasmExportedFunction::New(

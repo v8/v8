@@ -767,10 +767,10 @@ class CaptureStackTraceHelper {
       const FrameSummary::WasmFrameSummary& summ) {
     Handle<StackFrameInfo> info = factory()->NewStackFrameInfo();
 
-    Handle<WasmCompiledModule> compiled_module(
-        summ.wasm_instance()->compiled_module(), isolate_);
-    Handle<String> name = WasmCompiledModule::GetFunctionName(
-        isolate_, compiled_module, summ.function_index());
+    Handle<WasmSharedModuleData> shared =
+        summ.wasm_instance()->compiled_module()->shared();
+    Handle<String> name = WasmSharedModuleData::GetFunctionName(
+        isolate_, shared, summ.function_index());
     info->set_function_name(*name);
     // Encode the function index as line number (1-based).
     info->set_line_number(summ.function_index() + 1);
@@ -1686,8 +1686,7 @@ bool Isolate::ComputeLocationFromStackTrace(MessageLocation* target,
   for (int i = 0; i < frame_count; i++) {
     if (elements->IsWasmFrame(i) || elements->IsAsmJsWasmFrame(i)) {
       Handle<WasmCompiledModule> compiled_module(
-          WasmInstanceObject::cast(elements->WasmInstance(i))
-              ->compiled_module());
+          elements->WasmInstance(i)->compiled_module());
       uint32_t func_index =
           static_cast<uint32_t>(elements->WasmFunctionIndex(i)->value());
       int code_offset = elements->Offset(i)->value();
@@ -1704,9 +1703,10 @@ bool Isolate::ComputeLocationFromStackTrace(MessageLocation* target,
       bool is_at_number_conversion =
           elements->IsAsmJsWasmFrame(i) &&
           elements->Flags(i)->value() & FrameArray::kAsmJsAtNumberConversion;
-      int pos = WasmCompiledModule::GetSourcePosition(
-          compiled_module, func_index, byte_offset, is_at_number_conversion);
-      Handle<Script> script(compiled_module->script());
+      int pos = WasmSharedModuleData::GetSourcePosition(
+          compiled_module->shared(), func_index, byte_offset,
+          is_at_number_conversion);
+      Handle<Script> script(compiled_module->shared()->script());
 
       *target = MessageLocation(script, pos, pos + 1);
       return true;

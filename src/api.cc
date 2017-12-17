@@ -9703,9 +9703,9 @@ bool debug::Script::GetPossibleBreakpoints(
   CHECK(!start.IsEmpty());
   i::Handle<i::Script> script = Utils::OpenHandle(this);
   if (script->type() == i::Script::TYPE_WASM) {
-    i::Handle<i::WasmCompiledModule> compiled_module(
-        i::WasmCompiledModule::cast(script->wasm_compiled_module()));
-    return compiled_module->GetPossibleBreakpoints(start, end, locations);
+    i::Handle<i::WasmSharedModuleData> shared =
+        i::WasmCompiledModule::cast(script->wasm_compiled_module())->shared();
+    return shared->GetPossibleBreakpoints(start, end, locations);
   }
 
   i::Script::InitLineEnds(script);
@@ -9754,6 +9754,7 @@ int debug::Script::GetSourceOffset(const debug::Location& location) const {
   i::Handle<i::Script> script = Utils::OpenHandle(this);
   if (script->type() == i::Script::TYPE_WASM) {
     return i::WasmCompiledModule::cast(script->wasm_compiled_module())
+               ->shared()
                ->GetFunctionOffset(location.GetLineNumber()) +
            location.GetColumnNumber();
   }
@@ -9861,7 +9862,7 @@ debug::WasmDisassembly debug::WasmScript::DisassembleFunction(
   DCHECK_EQ(i::Script::TYPE_WASM, script->type());
   i::WasmCompiledModule* compiled_module =
       i::WasmCompiledModule::cast(script->wasm_compiled_module());
-  return compiled_module->DisassembleFunction(function_index);
+  return compiled_module->shared()->DisassembleFunction(function_index);
 }
 
 debug::Location::Location(int line_number, int column_number)
