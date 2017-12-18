@@ -58,7 +58,7 @@ def PrintReport(tests):
       passes += 1
     if statusfile.IsFailOk(outcomes):
       fail_ok += 1
-    if list(outcomes) == [statusfile.FAIL]:
+    if statusfile.FAIL in outcomes and statusfile.PASS not in outcomes:
       fail += 1
 
   print REPORT_TEMPLATE % {
