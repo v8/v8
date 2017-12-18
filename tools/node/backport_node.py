@@ -27,11 +27,18 @@ import subprocess
 import re
 import sys
 
-from common_includes import *
-
 TARGET_SUBDIR = os.path.join("deps", "v8")
 VERSION_FILE = os.path.join("include", "v8-version.h")
 VERSION_PATTERN = r'(?<=#define V8_PATCH_LEVEL )\d+'
+
+def FileToText(file_name):
+  with open(file_name) as f:
+    return f.read()
+
+def TextToFile(text, file_name):
+  with open(file_name, "w") as f:
+    f.write(text)
+
 
 def Clean(options):
   print ">> Cleaning target directory."

@@ -32,6 +32,7 @@ EXPECTED_GITIGNORE = """
 EXPECTED_GIT_DIFF = """
  create mode 100644 deps/v8/base/trace_event/common/common
  rename deps/v8/baz/{delete_me => v8_new} (100%)
+ delete mode 100644 deps/v8/include/v8-version.h
  rename deps/v8/{delete_me => new/v8_new} (100%)
  create mode 100644 deps/v8/third_party/jinja2/jinja2
  create mode 100644 deps/v8/third_party/markupsafe/markupsafe

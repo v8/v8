@@ -2587,5 +2587,40 @@
         },
       ],
     },
+    {
+      'target_name': 'v8_monolith',
+      'type': 'static_library',
+      'direct_dependent_settings': {
+        'include_dirs': [
+          '../include',
+        ],
+      },
+      'actions': [
+        {
+          'action_name': 'build_with_gn',
+          'inputs': [
+            '../tools/node/build_gn.py',
+          ],
+          'outputs': [
+            '<(INTERMEDIATE_DIR)/obj/libv8_monolith.a',
+            '<(INTERMEDIATE_DIR)/args.gn',
+          ],
+          'action': [
+            '../tools/node/build_gn.py',
+            '<(CONFIGURATION_NAME)',
+            '../',
+            '<(INTERMEDIATE_DIR)',
+            'v8_promise_internal_field_count=<(v8_promise_internal_field_count)',
+            'target_cpu="<(target_arch)"',
+            'target_os="<(OS)"',
+            'v8_target_cpu="<(v8_target_arch)"',
+            'v8_embedder_string="<(v8_embedder_string)"',
+            'v8_use_snapshot=<(v8_use_snapshot)',
+            'v8_optimized_debug=<(v8_optimized_debug)',
+            'v8_enable_disassembler=<(v8_enable_disassembler)',
+          ],
+        },
+      ],
+    },
   ],
 }
