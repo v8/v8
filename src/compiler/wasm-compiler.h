@@ -218,6 +218,7 @@ Handle<Code> CompileCWasmEntry(Isolate* isolate, wasm::FunctionSig* sig,
 struct WasmContextCacheNodes {
   Node* mem_start;
   Node* mem_size;
+  Node* mem_mask;
 };
 
 // Abstracts details of building TurboFan graph nodes for wasm to separate
@@ -225,6 +226,8 @@ struct WasmContextCacheNodes {
 typedef ZoneVector<Node*> NodeVector;
 class WasmGraphBuilder {
  public:
+  enum EnforceBoundsCheck : bool { kNeedsBoundsCheck, kCanOmitBoundsCheck };
+
   WasmGraphBuilder(ModuleEnv* env, Zone* zone, JSGraph* graph,
                    Handle<Code> centry_stub, wasm::FunctionSig* sig,
                    compiler::SourcePositionTable* spt = nullptr,
@@ -370,8 +373,6 @@ class WasmGraphBuilder {
 
   void set_effect_ptr(Node** effect) { this->effect_ = effect; }
 
-  Node* LoadMemSize();
-  Node* LoadMemStart();
   void GetGlobalBaseAndOffset(MachineType mem_type, uint32_t offset,
                               Node** base_node, Node** offset_node);
 
@@ -458,8 +459,9 @@ class WasmGraphBuilder {
 
   Node* String(const char* string);
   Node* MemBuffer(uint32_t offset);
-  void BoundsCheckMem(uint8_t access_size, Node* index, uint32_t offset,
-                      wasm::WasmCodePosition position);
+  // BoundsCheckMem receives a uint32 {index} node and returns a ptrsize index.
+  Node* BoundsCheckMem(uint8_t access_size, Node* index, uint32_t offset,
+                       wasm::WasmCodePosition, EnforceBoundsCheck);
   const Operator* GetSafeLoadOperator(int offset, wasm::ValueType type);
   const Operator* GetSafeStoreOperator(int offset, wasm::ValueType type);
   Node* BuildChangeEndiannessStore(Node* node, MachineRepresentation rep,

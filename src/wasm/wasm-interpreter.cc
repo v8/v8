@@ -1478,9 +1478,15 @@ class ThreadImpl {
   }
 
   template <typename mtype>
-  inline bool BoundsCheck(uint32_t mem_size, uint32_t offset, uint32_t index) {
-    return sizeof(mtype) <= mem_size && offset <= mem_size - sizeof(mtype) &&
-           index <= mem_size - sizeof(mtype) - offset;
+  inline byte* BoundsCheckMem(uint32_t offset, uint32_t index) {
+    uint32_t mem_size = wasm_context_->mem_size;
+    if (sizeof(mtype) > mem_size) return nullptr;
+    if (offset > (mem_size - sizeof(mtype))) return nullptr;
+    if (index > (mem_size - sizeof(mtype) - offset)) return nullptr;
+    // Compute the effective address of the access, making sure to condition
+    // the index even in the in-bounds case.
+    return wasm_context_->mem_start + offset +
+           (index & wasm_context_->mem_mask);
   }
 
   template <typename ctype, typename mtype>
@@ -1489,11 +1495,11 @@ class ThreadImpl {
     MemoryAccessOperand<Decoder::kNoValidate> operand(decoder, code->at(pc),
                                                       sizeof(ctype));
     uint32_t index = Pop().to<uint32_t>();
-    if (!BoundsCheck<mtype>(wasm_context_->mem_size, operand.offset, index)) {
+    byte* addr = BoundsCheckMem<mtype>(operand.offset, index);
+    if (!addr) {
       DoTrap(kTrapMemOutOfBounds, pc);
       return false;
     }
-    byte* addr = wasm_context_->mem_start + operand.offset + index;
     WasmValue result(
         converter<ctype, mtype>{}(ReadLittleEndianValue<mtype>(addr)));
 
@@ -1518,11 +1524,11 @@ class ThreadImpl {
     ctype val = Pop().to<ctype>();
 
     uint32_t index = Pop().to<uint32_t>();
-    if (!BoundsCheck<mtype>(wasm_context_->mem_size, operand.offset, index)) {
+    byte* addr = BoundsCheckMem<mtype>(operand.offset, index);
+    if (!addr) {
       DoTrap(kTrapMemOutOfBounds, pc);
       return false;
     }
-    byte* addr = wasm_context_->mem_start + operand.offset + index;
     WriteLittleEndianValue<mtype>(addr, converter<mtype, ctype>{}(val));
     len = 1 + operand.length;
 
@@ -1544,11 +1550,11 @@ class ThreadImpl {
                                                       sizeof(type));
     if (val) *val = Pop().to<uint32_t>();
     uint32_t index = Pop().to<uint32_t>();
-    if (!BoundsCheck<type>(wasm_context_->mem_size, operand.offset, index)) {
+    address = BoundsCheckMem<type>(operand.offset, index);
+    if (!address) {
       DoTrap(kTrapMemOutOfBounds, pc);
       return false;
     }
-    address = wasm_context_->mem_start + operand.offset + index;
     len = 2 + operand.length;
     return true;
   }
@@ -2022,10 +2028,10 @@ class ThreadImpl {
   case kExpr##name: {                                               \
     uint32_t index = Pop().to<uint32_t>();                          \
     ctype result;                                                   \
-    if (!BoundsCheck<mtype>(wasm_context_->mem_size, 0, index)) {   \
+    byte* addr = BoundsCheckMem<mtype>(0, index);                   \
+    if (!addr) {                                                    \
       result = defval;                                              \
     } else {                                                        \
-      byte* addr = wasm_context_->mem_start + index;                \
       /* TODO(titzer): alignment for asmjs load mem? */             \
       result = static_cast<ctype>(*reinterpret_cast<mtype*>(addr)); \
     }                                                               \
@@ -2047,9 +2053,8 @@ class ThreadImpl {
   case kExpr##name: {                                                          \
     WasmValue val = Pop();                                                     \
     uint32_t index = Pop().to<uint32_t>();                                     \
-    if (BoundsCheck<mtype>(wasm_context_->mem_size, 0, index)) {               \
-      byte* addr = wasm_context_->mem_start + index;                           \
-      /* TODO(titzer): alignment for asmjs store mem? */                       \
+    byte* addr = BoundsCheckMem<mtype>(0, index);                              \
+    if (addr) {                                                                \
       *(reinterpret_cast<mtype*>(addr)) = static_cast<mtype>(val.to<ctype>()); \
     }                                                                          \
     Push(val);                                                                 \
