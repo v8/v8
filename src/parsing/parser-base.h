@@ -383,6 +383,11 @@ class ParserBase {
     void AddProperty() { expected_property_count_++; }
     int expected_property_count() { return expected_property_count_; }
 
+    void DisableOptimization(BailoutReason reason) {
+      dont_optimize_reason_ = reason;
+    }
+    BailoutReason dont_optimize_reason() { return dont_optimize_reason_; }
+
     FunctionKind kind() const { return scope()->function_kind(); }
     FunctionState* outer() const { return outer_function_state_; }
 
@@ -462,6 +467,9 @@ class ParserBase {
     ZoneList<RewritableExpressionT> non_patterns_to_rewrite_;
 
     ZoneList<typename ExpressionClassifier::Error> reported_errors_;
+
+    // A reason, if any, why this function should not be optimized.
+    BailoutReason dont_optimize_reason_;
 
     // Record whether the next (=== immediately following) function literal is
     // preceded by a parenthesis / exclamation mark. Also record the previous
@@ -1540,6 +1548,7 @@ ParserBase<Impl>::FunctionState::FunctionState(
       destructuring_assignments_to_rewrite_(16, scope->zone()),
       non_patterns_to_rewrite_(0, scope->zone()),
       reported_errors_(16, scope->zone()),
+      dont_optimize_reason_(kNoReason),
       next_function_is_likely_called_(false),
       previous_function_was_likely_called_(false),
       contains_function_or_eval_(false) {
@@ -4064,6 +4073,8 @@ typename ParserBase<Impl>::StatementT ParserBase<Impl>::ParseClassDeclaration(
 template <typename Impl>
 typename ParserBase<Impl>::StatementT ParserBase<Impl>::ParseNativeDeclaration(
     bool* ok) {
+  function_state_->DisableOptimization(kNativeFunctionLiteral);
+
   int pos = peek_position();
   Expect(Token::FUNCTION, CHECK_OK_CUSTOM(NullStatement));
   // Allow "eval" or "arguments" for backward compatibility.
