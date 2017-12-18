@@ -1412,6 +1412,13 @@ struct ScriptCompileTimerScope {
         return CacheBehaviour::kNoCacheBecauseInDocumentWrite;
       case ScriptCompiler::kNoCacheBecauseResourceWithNoCacheHandler:
         return CacheBehaviour::kNoCacheBecauseResourceWithNoCacheHandler;
+      case ScriptCompiler::kNoCacheBecauseDeferredProduceCodeCache: {
+        if (hit_isolate_cache_) {
+          return CacheBehaviour::kHitIsolateCacheWhenProduceCodeCache;
+        } else {
+          return CacheBehaviour::kProduceCodeCache;
+        }
+      }
     }
     UNREACHABLE();
   }
@@ -1602,8 +1609,9 @@ MaybeHandle<SharedFunctionInfo> Compiler::GetSharedFunctionInfoForScript(
     if (!context->IsNativeContext()) {
       parse_info.set_outer_scope_info(handle(context->scope_info()));
     }
-    parse_info.set_eager(compile_options ==
-                         ScriptCompiler::kProduceFullCodeCache);
+    parse_info.set_eager(
+        (compile_options == ScriptCompiler::kProduceFullCodeCache) ||
+        (compile_options == ScriptCompiler::kEagerCompile));
 
     parse_info.set_language_mode(
         stricter_language_mode(parse_info.language_mode(), language_mode));

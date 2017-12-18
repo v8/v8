@@ -1423,7 +1423,8 @@ class V8_EXPORT ScriptCompiler {
     kConsumeParserCache,
     kProduceCodeCache,
     kProduceFullCodeCache,
-    kConsumeCodeCache
+    kConsumeCodeCache,
+    kEagerCompile
   };
 
   /**
@@ -1443,7 +1444,8 @@ class V8_EXPORT ScriptCompiler {
     kNoCacheBecauseExtensionModule,
     kNoCacheBecausePacScript,
     kNoCacheBecauseInDocumentWrite,
-    kNoCacheBecauseResourceWithNoCacheHandler
+    kNoCacheBecauseResourceWithNoCacheHandler,
+    kNoCacheBecauseDeferredProduceCodeCache
   };
 
   /**
