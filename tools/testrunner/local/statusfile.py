@@ -68,32 +68,6 @@ for var in ALL_VARIANTS:
   VARIABLES[var] = var
 
 
-def DoSkip(outcomes):
-  return SKIP in outcomes
-
-
-def IsSlow(outcomes):
-  return SLOW in outcomes
-
-
-def OnlyStandardVariant(outcomes):
-  return NO_VARIANTS in outcomes
-
-
-def OnlyFastVariants(outcomes):
-  return FAST_VARIANTS in outcomes
-
-
-def IsPassOrFail(outcomes):
-  return (PASS in outcomes and
-          FAIL in outcomes and
-          CRASH not in outcomes)
-
-
-def IsFailOk(outcomes):
-  return FAIL_OK in outcomes
-
-
 def _JoinsPassAndFail(outcomes1, outcomes2):
   """Indicates if we join PASS and FAIL from two different outcome sets and
   the first doesn't already contain both.

@@ -39,8 +39,7 @@ class VariantGenerator(testsuite.VariantGenerator):
   # always opt to match the way the benchmarks are run for performance
   # testing.
   def FilterVariantsByTest(self, test):
-    outcomes = self.suite.GetStatusFileOutcomes(test.name, test.variant)
-    if statusfile.OnlyStandardVariant(outcomes):
+    if test.only_standard_variant:
       return self.standard_variant
     return self.fast_variants
 

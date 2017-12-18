@@ -104,8 +104,7 @@ FAST_VARIANTS = {
 
 class VariantGenerator(testsuite.VariantGenerator):
   def GetFlagSets(self, test, variant):
-    outcomes = test.suite.GetStatusFileOutcomes(test.name, test.variant)
-    if outcomes and statusfile.OnlyFastVariants(outcomes):
+    if test.only_fast_variants:
       variant_flags = FAST_VARIANTS
     else:
       variant_flags = ALL_VARIANTS

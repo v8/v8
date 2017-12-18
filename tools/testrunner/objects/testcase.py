@@ -47,13 +47,14 @@ class TestCase(object):
     self.variant = None       # name of the used testing variant
     self.variant_flags = []   # list of strings, flags specific to this test
 
-    self.expected_outcomes = None
-
     self.id = None  # int, used to map result back to TestCase instance
     self.run = 1  # The nth time this test is executed.
     self.cmd = None
 
-    self._prepare_expected_outcomes()
+    self.statusfile_outcomes = None
+    self.expected_outcomes = None
+    self._statusfile_flags = None
+    self._prepare_outcomes()
 
   def create_variant(self, variant, flags):
     """Makes a shallow copy of the object and updates variant, variant_flags and
@@ -66,15 +67,22 @@ class TestCase(object):
       other.variant_flags = self.variant_flags + flags
     other.variant = variant
 
-    other._prepare_expected_outcomes()
+    other._prepare_outcomes(variant != self.variant)
 
     return other
 
-  def _prepare_expected_outcomes(self):
-    status_file_outcomes = self.suite.GetStatusFileOutcomes(self.name,
-                                                            self.variant)
+  def _prepare_outcomes(self, force_update=True):
+    if force_update or self.statusfile_outcomes is None:
+      def is_flag(outcome):
+        return outcome.startswith('--')
+      def not_flag(outcome):
+        return not is_flag(outcome)
+
+      outcomes = self.suite.GetStatusFileOutcomes(self.name, self.variant)
+      self.statusfile_outcomes = filter(not_flag, outcomes)
+      self._statusfile_flags = filter(is_flag, outcomes)
     self.expected_outcomes = (
-      self._parse_status_file_outcomes(status_file_outcomes))
+      self._parse_status_file_outcomes(self.statusfile_outcomes))
 
   def _parse_status_file_outcomes(self, outcomes):
     if (statusfile.FAIL_SLOPPY in outcomes and
@@ -90,6 +98,32 @@ class TestCase(object):
     if statusfile.PASS in outcomes:
       expected_outcomes.append(statusfile.PASS)
     return expected_outcomes or [statusfile.PASS]
+
+  @property
+  def do_skip(self):
+    return statusfile.SKIP in self.statusfile_outcomes
+
+  @property
+  def is_slow(self):
+    return statusfile.SLOW in self.statusfile_outcomes
+
+  @property
+  def is_fail_ok(self):
+    return statusfile.FAIL_OK in self.statusfile_outcomes
+
+  @property
+  def is_pass_or_fail(self):
+    return (statusfile.PASS in self.statusfile_outcomes and
+            statusfile.FAIL in self.statusfile_outcomes and
+            statusfile.CRASH not in self.statusfile_outcomes)
+
+  @property
+  def only_standard_variant(self):
+    return statusfile.NO_VARIANTS in self.statusfile_outcomes
+
+  @property
+  def only_fast_variants(self):
+    return statusfile.FAST_VARIANTS in self.statusfile_outcomes
 
   def get_command(self, context):
     params = self._get_cmd_params(context)
@@ -135,15 +169,9 @@ class TestCase(object):
   def _get_statusfile_flags(self):
     """Gets runtime flags from a status file.
 
-    Every outcome that starts with "--" is a flag. Status file has to be loaded
-    before using this function.
+    Every outcome that starts with "--" is a flag.
     """
-
-    flags = []
-    for outcome in self.suite.GetStatusFileOutcomes(self.name, self.variant):
-      if outcome.startswith('--'):
-        flags.append(outcome)
-    return flags
+    return self._statusfile_flags
 
   def _get_mode_flags(self, ctx):
     return ctx.mode_flags

@@ -49,18 +49,14 @@ class VariantGenerator(object):
     self.standard_variant = STANDARD_VARIANT & variants
 
   def FilterVariantsByTest(self, test):
-    result = self.all_variants
-    outcomes = test.suite.GetStatusFileOutcomes(test.name, test.variant)
-    if outcomes:
-      if statusfile.OnlyStandardVariant(outcomes):
-        return self.standard_variant
-      if statusfile.OnlyFastVariants(outcomes):
-        result = self.fast_variants
-    return result
+    if test.only_standard_variant:
+      return self.standard_variant
+    if test.only_fast_variants:
+      return self.fast_variants
+    return self.all_variants
 
   def GetFlagSets(self, test, variant):
-    outcomes = test.suite.GetStatusFileOutcomes(test.name, test.variant)
-    if outcomes and statusfile.OnlyFastVariants(outcomes):
+    if test.only_fast_variants:
       return FAST_VARIANT_FLAGS[variant]
     else:
       return ALL_VARIANT_FLAGS[variant]
@@ -86,8 +82,6 @@ class TestSuite(object):
     self.tests = None  # list of TestCase objects
     self.rules = None  # {variant: {test name: [rule]}}
     self.prefix_rules = None  # {variant: {test name prefix: [rule]}}
-
-    self._outcomes_cache = dict()
 
   def status_file(self):
     return "%s/%s.status" % (self.root, self.name)
@@ -145,13 +139,11 @@ class TestSuite(object):
         (mode == 'skip' and pass_fail))
 
     def _compliant(test):
-      outcomes = self.GetStatusFileOutcomes(test.name, test.variant)
-      if statusfile.DoSkip(outcomes):
+      if test.do_skip:
         return False
-      if _skip_slow(statusfile.IsSlow(outcomes), slow_tests_mode):
+      if _skip_slow(test.is_slow, slow_tests_mode):
         return False
-      if _skip_pass_fail(statusfile.IsPassOrFail(outcomes),
-                         pass_fail_tests_mode):
+      if _skip_pass_fail(test.is_pass_or_fail, pass_fail_tests_mode):
         return False
       return True
 
@@ -177,13 +169,13 @@ class TestSuite(object):
 
       if test.name in self.rules.get(variant, {}):
         used_rules.add((test.name, variant))
-        if statusfile.DoSkip(self.rules[variant][test.name]):
+        if statusfile.SKIP in self.rules[variant][test.name]:
           continue
 
       for prefix in self.prefix_rules.get(variant, {}):
         if test.name.startswith(prefix):
           used_rules.add((prefix, variant))
-          if statusfile.DoSkip(self.prefix_rules[variant][prefix]):
+          if statusfile.SKIP in self.prefix_rules[variant][prefix]:
             break
 
     for variant in variants:
@@ -229,29 +221,25 @@ class TestSuite(object):
     """
 
     variant = variant or ''
-    cache_key = '%s$%s' % (testname, variant)
 
-    if cache_key not in self._outcomes_cache:
-      # Load statusfile to get outcomes for the first time.
-      assert(self.rules is not None)
-      assert(self.prefix_rules is not None)
+    # Load statusfile to get outcomes for the first time.
+    assert(self.rules is not None)
+    assert(self.prefix_rules is not None)
 
-      outcomes = frozenset()
+    outcomes = frozenset()
 
-      for key in set([variant, '']):
-        rules = self.rules.get(key, {})
-        prefix_rules = self.prefix_rules.get(key, {})
+    for key in set([variant, '']):
+      rules = self.rules.get(key, {})
+      prefix_rules = self.prefix_rules.get(key, {})
 
-        if testname in rules:
-          outcomes |= rules[testname]
+      if testname in rules:
+        outcomes |= rules[testname]
 
-        for prefix in prefix_rules:
-          if testname.startswith(prefix):
-            outcomes |= prefix_rules[prefix]
+      for prefix in prefix_rules:
+        if testname.startswith(prefix):
+          outcomes |= prefix_rules[prefix]
 
-      self._outcomes_cache[cache_key] = outcomes
-
-    return self._outcomes_cache[cache_key]
+    return outcomes
 
   def IsFailureOutput(self, testcase, output):
     return output.exit_code != 0

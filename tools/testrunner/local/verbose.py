@@ -45,18 +45,18 @@ def PrintReport(tests):
   total = len(tests)
   skipped = nocrash = passes = fail_ok = fail = 0
   for t in tests:
-    outcomes = t.suite.GetStatusFileOutcomes(t.name, t.variant)
+    outcomes = t.statusfile_outcomes
     if not outcomes:
       passes += 1
       continue
-    if statusfile.DoSkip(outcomes):
+    if t.do_skip:
       skipped += 1
       continue
-    if statusfile.IsPassOrFail(outcomes):
+    if t.is_pass_or_fail:
       nocrash += 1
     if list(outcomes) == [statusfile.PASS]:
       passes += 1
-    if statusfile.IsFailOk(outcomes):
+    if t.is_fail_ok:
       fail_ok += 1
     if statusfile.FAIL in outcomes and statusfile.PASS not in outcomes:
       fail += 1

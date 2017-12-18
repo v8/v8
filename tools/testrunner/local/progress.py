@@ -324,8 +324,7 @@ class JsonTestProgressIndicator(ProgressIndicator):
         "flags": test.cmd.args,
         "command": test.cmd.to_string(relative=True),
         "duration": duration,
-        "marked_slow": statusfile.IsSlow(
-            test.suite.GetStatusFileOutcomes(test.name, test.variant)),
+        "marked_slow": test.is_slow,
       } for (test, duration) in self.tests[:20]
     ]
 
