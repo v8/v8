@@ -30,8 +30,8 @@ class V8_EXPORT_PRIVATE VectorSlotPair {
   int index() const;
 
  private:
-  const Handle<FeedbackVector> vector_;
-  const FeedbackSlot slot_;
+  Handle<FeedbackVector> vector_;
+  FeedbackSlot slot_;
 };
 
 bool operator==(VectorSlotPair const&, VectorSlotPair const&);

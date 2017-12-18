@@ -597,8 +597,8 @@ Reduction JSNativeContextSpecialization::ReduceGlobalAccess(
           representation = MachineRepresentation::kTaggedPointer;
         } else {
           // Check that the {value} is a Smi.
-          value = effect = graph()->NewNode(simplified()->CheckSmi(), value,
-                                            effect, control);
+          value = effect = graph()->NewNode(
+              simplified()->CheckSmi(VectorSlotPair()), value, effect, control);
           property_cell_value_type = Type::SignedSmall();
           representation = MachineRepresentation::kTaggedSigned;
         }
@@ -1877,8 +1877,8 @@ JSNativeContextSpecialization::BuildPropertyStore(
         }
 
         if (field_representation == MachineRepresentation::kTaggedSigned) {
-          value = effect = graph()->NewNode(simplified()->CheckSmi(), value,
-                                            effect, control);
+          value = effect = graph()->NewNode(
+              simplified()->CheckSmi(VectorSlotPair()), value, effect, control);
           field_access.write_barrier_kind = kNoWriteBarrier;
 
         } else if (field_representation ==
@@ -2396,8 +2396,8 @@ JSNativeContextSpecialization::BuildElementAccess(
     } else {
       DCHECK_EQ(AccessMode::kStore, access_mode);
       if (IsSmiElementsKind(elements_kind)) {
-        value = effect =
-            graph()->NewNode(simplified()->CheckSmi(), value, effect, control);
+        value = effect = graph()->NewNode(
+            simplified()->CheckSmi(VectorSlotPair()), value, effect, control);
       } else if (IsDoubleElementsKind(elements_kind)) {
         value = effect =
             graph()->NewNode(simplified()->CheckNumber(VectorSlotPair()), value,

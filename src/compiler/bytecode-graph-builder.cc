@@ -2575,7 +2575,7 @@ void BytecodeGraphBuilder::VisitSwitchOnSmiNoFeedback() {
   PrepareEagerCheckpoint();
 
   Node* acc = environment()->LookupAccumulator();
-  Node* acc_smi = NewNode(simplified()->CheckSmi(), acc);
+  Node* acc_smi = NewNode(simplified()->CheckSmi(VectorSlotPair()), acc);
   BuildSwitchOnSmi(acc_smi);
 }
 

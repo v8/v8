@@ -224,14 +224,14 @@ Node* RepresentationChanger::GetTaggedSignedRepresentationFor(
       if (SmiValuesAre32Bits()) {
         op = simplified()->ChangeInt32ToTagged();
       } else if (use_info.type_check() == TypeCheckKind::kSignedSmall) {
-        op = simplified()->CheckedInt32ToTaggedSigned();
+        op = simplified()->CheckedInt32ToTaggedSigned(use_info.feedback());
       } else {
         return TypeError(node, output_rep, output_type,
                          MachineRepresentation::kTaggedSigned);
       }
     } else if (output_type->Is(Type::Unsigned32()) &&
                use_info.type_check() == TypeCheckKind::kSignedSmall) {
-      op = simplified()->CheckedUint32ToTaggedSigned();
+      op = simplified()->CheckedUint32ToTaggedSigned(use_info.feedback());
     } else {
       return TypeError(node, output_rep, output_type,
                        MachineRepresentation::kTaggedSigned);
@@ -247,7 +247,7 @@ Node* RepresentationChanger::GetTaggedSignedRepresentationFor(
       if (SmiValuesAre32Bits()) {
         op = simplified()->ChangeInt32ToTagged();
       } else if (use_info.type_check() == TypeCheckKind::kSignedSmall) {
-        op = simplified()->CheckedInt32ToTaggedSigned();
+        op = simplified()->CheckedInt32ToTaggedSigned(use_info.feedback());
       } else {
         return TypeError(node, output_rep, output_type,
                          MachineRepresentation::kTaggedSigned);
@@ -256,17 +256,18 @@ Node* RepresentationChanger::GetTaggedSignedRepresentationFor(
                use_info.type_check() == TypeCheckKind::kSignedSmall) {
       // float64 -> uint32 -> tagged signed
       node = InsertChangeFloat64ToUint32(node);
-      op = simplified()->CheckedUint32ToTaggedSigned();
+      op = simplified()->CheckedUint32ToTaggedSigned(use_info.feedback());
     } else if (use_info.type_check() == TypeCheckKind::kSignedSmall) {
       op = simplified()->CheckedFloat64ToInt32(
           output_type->Maybe(Type::MinusZero())
               ? CheckForMinusZeroMode::kCheckForMinusZero
-              : CheckForMinusZeroMode::kDontCheckForMinusZero);
+              : CheckForMinusZeroMode::kDontCheckForMinusZero,
+          use_info.feedback());
       node = InsertConversion(node, op, use_node);
       if (SmiValuesAre32Bits()) {
         op = simplified()->ChangeInt32ToTagged();
       } else {
-        op = simplified()->CheckedInt32ToTaggedSigned();
+        op = simplified()->CheckedInt32ToTaggedSigned(use_info.feedback());
       }
     } else {
       return TypeError(node, output_rep, output_type,
@@ -279,12 +280,13 @@ Node* RepresentationChanger::GetTaggedSignedRepresentationFor(
       op = simplified()->CheckedFloat64ToInt32(
           output_type->Maybe(Type::MinusZero())
               ? CheckForMinusZeroMode::kCheckForMinusZero
-              : CheckForMinusZeroMode::kDontCheckForMinusZero);
+              : CheckForMinusZeroMode::kDontCheckForMinusZero,
+          use_info.feedback());
       node = InsertConversion(node, op, use_node);
       if (SmiValuesAre32Bits()) {
         op = simplified()->ChangeInt32ToTagged();
       } else {
-        op = simplified()->CheckedInt32ToTaggedSigned();
+        op = simplified()->CheckedInt32ToTaggedSigned(use_info.feedback());
       }
     } else {
       return TypeError(node, output_rep, output_type,
@@ -292,7 +294,7 @@ Node* RepresentationChanger::GetTaggedSignedRepresentationFor(
     }
   } else if (CanBeTaggedPointer(output_rep)) {
     if (use_info.type_check() == TypeCheckKind::kSignedSmall) {
-      op = simplified()->CheckedTaggedToTaggedSigned();
+      op = simplified()->CheckedTaggedToTaggedSigned(use_info.feedback());
     } else if (output_type->Is(Type::SignedSmall())) {
       op = simplified()->ChangeTaggedToTaggedSigned();
     } else {
@@ -304,7 +306,7 @@ Node* RepresentationChanger::GetTaggedSignedRepresentationFor(
       // TODO(turbofan): Consider adding a Bailout operator that just deopts.
       // Also use that for MachineRepresentation::kPointer case above.
       node = InsertChangeBitToTagged(node);
-      op = simplified()->CheckedTaggedToTaggedSigned();
+      op = simplified()->CheckedTaggedToTaggedSigned(use_info.feedback());
     } else {
       return TypeError(node, output_rep, output_type,
                        MachineRepresentation::kTaggedSigned);
@@ -378,7 +380,7 @@ Node* RepresentationChanger::GetTaggedPointerRepresentationFor(
     }
     // TODO(turbofan): Consider adding a Bailout operator that just deopts
     // for TaggedSigned output representation.
-    op = simplified()->CheckedTaggedToTaggedPointer();
+    op = simplified()->CheckedTaggedToTaggedPointer(use_info.feedback());
   } else {
     return TypeError(node, output_rep, output_type,
                      MachineRepresentation::kTaggedPointer);
@@ -637,7 +639,8 @@ Node* RepresentationChanger::GetWord32RepresentationFor(
       op = simplified()->CheckedFloat64ToInt32(
           output_type->Maybe(Type::MinusZero())
               ? use_info.minus_zero_check()
-              : CheckForMinusZeroMode::kDontCheckForMinusZero);
+              : CheckForMinusZeroMode::kDontCheckForMinusZero,
+          use_info.feedback());
     } else if (output_type->Is(Type::Unsigned32())) {
       op = machine()->ChangeFloat64ToUint32();
     } else if (use_info.truncation().IsUsedAsWord32()) {
@@ -655,7 +658,8 @@ Node* RepresentationChanger::GetWord32RepresentationFor(
       op = simplified()->CheckedFloat64ToInt32(
           output_type->Maybe(Type::MinusZero())
               ? use_info.minus_zero_check()
-              : CheckForMinusZeroMode::kDontCheckForMinusZero);
+              : CheckForMinusZeroMode::kDontCheckForMinusZero,
+          use_info.feedback());
     } else if (output_type->Is(Type::Unsigned32())) {
       op = machine()->ChangeFloat64ToUint32();
     } else if (use_info.truncation().IsUsedAsWord32()) {
@@ -671,12 +675,13 @@ Node* RepresentationChanger::GetWord32RepresentationFor(
     } else if (output_type->Is(Type::Signed32())) {
       op = simplified()->ChangeTaggedToInt32();
     } else if (use_info.type_check() == TypeCheckKind::kSignedSmall) {
-      op = simplified()->CheckedTaggedSignedToInt32();
+      op = simplified()->CheckedTaggedSignedToInt32(use_info.feedback());
     } else if (use_info.type_check() == TypeCheckKind::kSigned32) {
       op = simplified()->CheckedTaggedToInt32(
           output_type->Maybe(Type::MinusZero())
               ? use_info.minus_zero_check()
-              : CheckForMinusZeroMode::kDontCheckForMinusZero);
+              : CheckForMinusZeroMode::kDontCheckForMinusZero,
+          use_info.feedback());
     } else if (output_type->Is(Type::Unsigned32())) {
       op = simplified()->ChangeTaggedToUint32();
     } else if (use_info.truncation().IsUsedAsWord32()) {
@@ -684,10 +689,10 @@ Node* RepresentationChanger::GetWord32RepresentationFor(
         op = simplified()->TruncateTaggedToWord32();
       } else if (use_info.type_check() == TypeCheckKind::kNumber) {
         op = simplified()->CheckedTruncateTaggedToWord32(
-            CheckTaggedInputMode::kNumber);
+            CheckTaggedInputMode::kNumber, use_info.feedback());
       } else if (use_info.type_check() == TypeCheckKind::kNumberOrOddball) {
         op = simplified()->CheckedTruncateTaggedToWord32(
-            CheckTaggedInputMode::kNumberOrOddball);
+            CheckTaggedInputMode::kNumberOrOddball, use_info.feedback());
       } else {
         return TypeError(node, output_rep, output_type,
                          MachineRepresentation::kWord32);
@@ -704,7 +709,7 @@ Node* RepresentationChanger::GetWord32RepresentationFor(
       if (output_type->Is(Type::Signed32())) {
         return node;
       } else if (output_type->Is(Type::Unsigned32())) {
-        op = simplified()->CheckedUint32ToInt32();
+        op = simplified()->CheckedUint32ToInt32(use_info.feedback());
       } else {
         return TypeError(node, output_rep, output_type,
                          MachineRepresentation::kWord32);

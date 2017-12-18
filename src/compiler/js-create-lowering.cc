@@ -617,8 +617,8 @@ Reduction JSCreateLowering::ReduceNewArray(Node* node,
   if (IsSmiElementsKind(elements_kind)) {
     for (auto& value : values) {
       if (!NodeProperties::GetType(value)->Is(Type::SignedSmall())) {
-        value = effect =
-            graph()->NewNode(simplified()->CheckSmi(), value, effect, control);
+        value = effect = graph()->NewNode(
+            simplified()->CheckSmi(VectorSlotPair()), value, effect, control);
       }
     }
   } else if (IsDoubleElementsKind(elements_kind)) {

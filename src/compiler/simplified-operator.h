@@ -134,7 +134,32 @@ size_t hash_value(CheckTaggedInputMode);
 
 std::ostream& operator<<(std::ostream&, CheckTaggedInputMode);
 
-CheckTaggedInputMode CheckTaggedInputModeOf(const Operator*) WARN_UNUSED_RESULT;
+CheckTaggedInputMode CheckTaggedInputModeOf(const Operator*);
+
+class CheckTaggedInputParameters {
+ public:
+  CheckTaggedInputParameters(CheckTaggedInputMode mode,
+                             const VectorSlotPair& feedback)
+      : mode_(mode), feedback_(feedback) {}
+
+  CheckTaggedInputMode mode() const { return mode_; }
+  const VectorSlotPair& feedback() const { return feedback_; }
+
+ private:
+  CheckTaggedInputMode mode_;
+  VectorSlotPair feedback_;
+};
+
+const CheckTaggedInputParameters& CheckTaggedInputParametersOf(const Operator*)
+    WARN_UNUSED_RESULT;
+
+std::ostream& operator<<(std::ostream&,
+                         const CheckTaggedInputParameters& params);
+
+size_t hash_value(const CheckTaggedInputParameters& params);
+
+bool operator==(CheckTaggedInputParameters const&,
+                CheckTaggedInputParameters const&);
 
 enum class CheckForMinusZeroMode : uint8_t {
   kCheckForMinusZero,
@@ -147,6 +172,30 @@ V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream&,
                                            CheckForMinusZeroMode);
 
 CheckForMinusZeroMode CheckMinusZeroModeOf(const Operator*) WARN_UNUSED_RESULT;
+
+class CheckMinusZeroParameters {
+ public:
+  CheckMinusZeroParameters(CheckForMinusZeroMode mode,
+                           const VectorSlotPair& feedback)
+      : mode_(mode), feedback_(feedback) {}
+
+  CheckForMinusZeroMode mode() const { return mode_; }
+  const VectorSlotPair& feedback() const { return feedback_; }
+
+ private:
+  CheckForMinusZeroMode mode_;
+  VectorSlotPair feedback_;
+};
+
+const CheckMinusZeroParameters& CheckMinusZeroParametersOf(const Operator* op)
+    WARN_UNUSED_RESULT;
+
+std::ostream& operator<<(std::ostream&, const CheckMinusZeroParameters& params);
+
+size_t hash_value(const CheckMinusZeroParameters& params);
+
+bool operator==(CheckMinusZeroParameters const&,
+                CheckMinusZeroParameters const&);
 
 // Flags for map checks.
 enum class CheckMapsFlag : uint8_t {
@@ -496,7 +545,7 @@ class V8_EXPORT_PRIVATE SimplifiedOperatorBuilder final
   const Operator* CheckHeapObject();
   const Operator* CheckInternalizedString();
   const Operator* CheckNumber(const VectorSlotPair& feedback);
-  const Operator* CheckSmi();
+  const Operator* CheckSmi(const VectorSlotPair& feedback);
   const Operator* CheckString();
   const Operator* CheckSeqString();
   const Operator* CheckSymbol();
@@ -509,16 +558,19 @@ class V8_EXPORT_PRIVATE SimplifiedOperatorBuilder final
   const Operator* CheckedUint32Div();
   const Operator* CheckedUint32Mod();
   const Operator* CheckedInt32Mul(CheckForMinusZeroMode);
-  const Operator* CheckedInt32ToTaggedSigned();
-  const Operator* CheckedUint32ToInt32();
-  const Operator* CheckedUint32ToTaggedSigned();
-  const Operator* CheckedFloat64ToInt32(CheckForMinusZeroMode);
-  const Operator* CheckedTaggedSignedToInt32();
-  const Operator* CheckedTaggedToInt32(CheckForMinusZeroMode);
+  const Operator* CheckedInt32ToTaggedSigned(const VectorSlotPair& feedback);
+  const Operator* CheckedUint32ToInt32(const VectorSlotPair& feedback);
+  const Operator* CheckedUint32ToTaggedSigned(const VectorSlotPair& feedback);
+  const Operator* CheckedFloat64ToInt32(CheckForMinusZeroMode,
+                                        const VectorSlotPair& feedback);
+  const Operator* CheckedTaggedSignedToInt32(const VectorSlotPair& feedback);
+  const Operator* CheckedTaggedToInt32(CheckForMinusZeroMode,
+                                       const VectorSlotPair& feedback);
   const Operator* CheckedTaggedToFloat64(CheckTaggedInputMode);
-  const Operator* CheckedTaggedToTaggedSigned();
-  const Operator* CheckedTaggedToTaggedPointer();
-  const Operator* CheckedTruncateTaggedToWord32(CheckTaggedInputMode);
+  const Operator* CheckedTaggedToTaggedSigned(const VectorSlotPair& feedback);
+  const Operator* CheckedTaggedToTaggedPointer(const VectorSlotPair& feedback);
+  const Operator* CheckedTruncateTaggedToWord32(CheckTaggedInputMode,
+                                                const VectorSlotPair& feedback);
 
   const Operator* ConvertReceiver(ConvertReceiverMode);
 

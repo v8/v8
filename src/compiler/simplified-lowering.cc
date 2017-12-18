@@ -92,7 +92,8 @@ UseInfo CheckedUseInfoAsWord32FromHint(
   switch (hint) {
     case NumberOperationHint::kSignedSmall:
     case NumberOperationHint::kSignedSmallInputs:
-      return UseInfo::CheckedSignedSmallAsWord32(identify_zeros);
+      return UseInfo::CheckedSignedSmallAsWord32(identify_zeros,
+                                                 VectorSlotPair());
     case NumberOperationHint::kSigned32:
       return UseInfo::CheckedSigned32AsWord32(identify_zeros);
     case NumberOperationHint::kNumber:
@@ -1682,8 +1683,10 @@ class RepresentationSelector {
               Node* rhs = node->InputAt(1);
               if (IsNodeRepresentationTagged(lhs) &&
                   IsNodeRepresentationTagged(rhs)) {
-                VisitBinop(node, UseInfo::CheckedSignedSmallAsTaggedSigned(),
-                           MachineRepresentation::kBit);
+                VisitBinop(
+                    node,
+                    UseInfo::CheckedSignedSmallAsTaggedSigned(VectorSlotPair()),
+                    MachineRepresentation::kBit);
                 ChangeToPureOp(
                     node, changer_->TaggedSignedOperatorFor(node->opcode()));
 
@@ -2047,8 +2050,8 @@ class RepresentationSelector {
                      MachineRepresentation::kWord32, Type::Unsigned31());
           if (lower()) {
             node->RemoveInput(1);
-            NodeProperties::ChangeOp(node,
-                                     simplified()->CheckedUint32ToInt32());
+            NodeProperties::ChangeOp(
+                node, simplified()->CheckedUint32ToInt32(VectorSlotPair()));
           }
           return;
         }
@@ -2429,13 +2432,17 @@ class RepresentationSelector {
         return;
       }
       case IrOpcode::kCheckSmi: {
+        const CheckParameters& params = CheckParametersOf(node->op());
         if (SmiValuesAre32Bits() && truncation.IsUsedAsWord32()) {
           VisitUnop(node,
-                    UseInfo::CheckedSignedSmallAsWord32(kDistinguishZeros),
+                    UseInfo::CheckedSignedSmallAsWord32(kDistinguishZeros,
+                                                        params.feedback()),
                     MachineRepresentation::kWord32);
         } else {
-          VisitUnop(node, UseInfo::CheckedSignedSmallAsTaggedSigned(),
-                    MachineRepresentation::kTaggedSigned);
+          VisitUnop(
+              node,
+              UseInfo::CheckedSignedSmallAsTaggedSigned(params.feedback()),
+              MachineRepresentation::kTaggedSigned);
         }
         if (lower()) DeferReplacement(node, node->InputAt(0));
         return;

@@ -154,9 +154,11 @@ class V8_EXPORT_PRIVATE EffectControlLinearizer {
   Maybe<Node*> LowerFloat64RoundTruncate(Node* node);
 
   Node* AllocateHeapNumberWithValue(Node* node);
-  Node* BuildCheckedFloat64ToInt32(CheckForMinusZeroMode mode, Node* value,
+  Node* BuildCheckedFloat64ToInt32(CheckForMinusZeroMode mode,
+                                   const VectorSlotPair& feedback, Node* value,
                                    Node* frame_state);
   Node* BuildCheckedHeapNumberOrOddballToFloat64(CheckTaggedInputMode mode,
+                                                 const VectorSlotPair& feedback,
                                                  Node* value,
                                                  Node* frame_state);
   Node* BuildFloat64RoundDown(Node* value);
