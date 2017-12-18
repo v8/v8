@@ -402,7 +402,10 @@ void i::V8::FatalProcessOutOfMemory(const char* location, bool is_heap_oom) {
 
 void Utils::ReportApiFailure(const char* location, const char* message) {
   i::Isolate* isolate = i::Isolate::Current();
-  FatalErrorCallback callback = isolate->exception_behavior();
+  FatalErrorCallback callback = nullptr;
+  if (isolate != nullptr) {
+    callback = isolate->exception_behavior();
+  }
   if (callback == nullptr) {
     base::OS::PrintError("\n#\n# Fatal error in %s\n# %s\n#\n\n", location,
                          message);
