@@ -2683,8 +2683,8 @@ typename ParserBase<Impl>::ExpressionT ParserBase<Impl>::ParseObjectLiteral(
                                            MessageTemplate::kTooManyArguments);
   }
 
-  return factory()->NewObjectLiteral(
-      properties, number_of_boilerplate_properties, pos, has_rest_property);
+  return impl()->InitializeObjectLiteral(factory()->NewObjectLiteral(
+      properties, number_of_boilerplate_properties, pos, has_rest_property));
 }
 
 template <typename Impl>

@@ -326,11 +326,6 @@ void AstNumberingVisitor::VisitObjectLiteral(ObjectLiteral* node) {
   for (int i = 0; i < node->properties()->length(); i++) {
     VisitLiteralProperty(node->properties()->at(i));
   }
-  node->InitDepthAndFlags();
-  // Mark all computed expressions that are bound to a key that
-  // is shadowed by a later occurrence of the same key. For the
-  // marked expressions, no store code will be is emitted.
-  node->CalculateEmitStore(zone_);
 }
 
 void AstNumberingVisitor::VisitLiteralProperty(LiteralProperty* node) {
@@ -342,7 +337,6 @@ void AstNumberingVisitor::VisitArrayLiteral(ArrayLiteral* node) {
   for (int i = 0; i < node->values()->length(); i++) {
     Visit(node->values()->at(i));
   }
-  node->InitDepthAndFlags();
 }
 
 void AstNumberingVisitor::VisitCall(Call* node) {
