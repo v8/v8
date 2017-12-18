@@ -19,10 +19,6 @@ from testrunner.objects.testcase import TestCase
 class TestSuiteTest(unittest.TestCase):
   def test_filter_testcases_by_status_first_pass(self):
     suite = TestSuite('foo', 'bar')
-    suite.tests = [
-      TestCase(suite, 'foo/bar', 'foo/bar'),
-      TestCase(suite, 'baz/bar', 'baz/bar'),
-    ]
     suite.rules = {
       '': {
         'foo/bar': set(['PASS', 'SKIP']),
@@ -34,6 +30,10 @@ class TestSuiteTest(unittest.TestCase):
         'baz/': set(['PASS', 'SLOW']),
       },
     }
+    suite.tests = [
+      TestCase(suite, 'foo/bar', 'foo/bar'),
+      TestCase(suite, 'baz/bar', 'baz/bar'),
+    ]
     suite.FilterTestCasesByStatus()
     self.assertEquals(
         [TestCase(suite, 'baz/bar', 'baz/bar')],
@@ -45,16 +45,6 @@ class TestSuiteTest(unittest.TestCase):
 
   def test_filter_testcases_by_status_second_pass(self):
     suite = TestSuite('foo', 'bar')
-
-    test1 = TestCase(suite, 'foo/bar', 'foo/bar')
-    test2 = TestCase(suite, 'baz/bar', 'baz/bar')
-
-    suite.tests = [
-      test1.CopyAddingFlags(variant='default', flags=[]),
-      test1.CopyAddingFlags(variant='stress', flags=['-v']),
-      test2.CopyAddingFlags(variant='default', flags=[]),
-      test2.CopyAddingFlags(variant='stress', flags=['-v']),
-    ]
 
     suite.rules = {
       '': {
@@ -79,10 +69,20 @@ class TestSuiteTest(unittest.TestCase):
         'foo/': set(['PASS', 'SLOW']),
       },
     }
+
+    test1 = TestCase(suite, 'foo/bar', 'foo/bar')
+    test2 = TestCase(suite, 'baz/bar', 'baz/bar')
+    suite.tests = [
+      test1.create_variant(variant='default', flags=[]),
+      test1.create_variant(variant='stress', flags=['-v']),
+      test2.create_variant(variant='default', flags=[]),
+      test2.create_variant(variant='stress', flags=['-v']),
+    ]
+
     suite.FilterTestCasesByStatus()
     self.assertEquals(
         [
-          TestCase(suite, 'foo/bar', 'foo/bar', flags=['-v']),
+          TestCase(suite, 'foo/bar', 'foo/bar').create_variant(None, ['-v']),
           TestCase(suite, 'baz/bar', 'baz/bar'),
         ],
         suite.tests,
@@ -101,10 +101,6 @@ class TestSuiteTest(unittest.TestCase):
 
   def test_fail_ok_outcome(self):
     suite = TestSuite('foo', 'bar')
-    suite.tests = [
-      TestCase(suite, 'foo/bar', 'foo/bar'),
-      TestCase(suite, 'baz/bar', 'baz/bar'),
-    ]
     suite.rules = {
       '': {
         'foo/bar': set(['FAIL_OK']),
@@ -112,10 +108,13 @@ class TestSuiteTest(unittest.TestCase):
       },
     }
     suite.prefix_rules = {}
+    suite.tests = [
+      TestCase(suite, 'foo/bar', 'foo/bar'),
+      TestCase(suite, 'baz/bar', 'baz/bar'),
+    ]
 
     for t in suite.tests:
-      expected_outcomes = suite.GetExpectedOutcomes(t)
-      self.assertEquals(['FAIL'], expected_outcomes)
+      self.assertEquals(['FAIL'], t.expected_outcomes)
 
 
 if __name__ == '__main__':
