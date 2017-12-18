@@ -952,16 +952,17 @@ class FrameFunctionIterator {
  private:
   MaybeHandle<JSFunction> next() {
     while (true) {
-      inlined_frame_index_--;
-      if (inlined_frame_index_ == -1) {
+      if (inlined_frame_index_ <= 0) {
         if (!frame_iterator_.done()) {
           frame_iterator_.Advance();
           frames_.clear();
+          inlined_frame_index_ = -1;
           GetFrames();
         }
         if (inlined_frame_index_ == -1) return MaybeHandle<JSFunction>();
-        inlined_frame_index_--;
       }
+
+      --inlined_frame_index_;
       Handle<JSFunction> next_function =
           frames_[inlined_frame_index_].AsJavaScript().function();
       // Skip functions from other origins.
