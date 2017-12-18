@@ -426,16 +426,13 @@ class WasmCompiledModule : public FixedArray {
 
 #define WCM_OBJECT_OR_WEAK(TYPE, NAME, ID, TYPE_CHECK, SETTER_MODIFIER) \
  public:                                                                \
-  inline Handle<TYPE> NAME() const;                                     \
-  inline MaybeHandle<TYPE> maybe_##NAME() const;                        \
-  inline TYPE* maybe_ptr_to_##NAME() const;                             \
-  inline TYPE* ptr_to_##NAME() const;                                   \
+  inline TYPE* maybe_##NAME() const;                                    \
+  inline TYPE* NAME() const;                                            \
   inline bool has_##NAME() const;                                       \
   inline void reset_##NAME();                                           \
                                                                         \
   SETTER_MODIFIER:                                                      \
-  inline void set_##NAME(Handle<TYPE> value);                           \
-  inline void set_ptr_to_##NAME(TYPE* value);
+  inline void set_##NAME(TYPE* value);
 
 #define WCM_OBJECT(TYPE, NAME) \
   WCM_OBJECT_OR_WEAK(TYPE, NAME, kID_##NAME, obj->Is##TYPE(), public)
@@ -458,7 +455,7 @@ class WasmCompiledModule : public FixedArray {
                      public)                                               \
                                                                            \
  public:                                                                   \
-  inline Handle<TYPE> NAME() const;
+  inline TYPE* NAME() const;
 
 // Add values here if they are required for creating new instances or
 // for deserialization, and if they are serializable.

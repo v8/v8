@@ -70,8 +70,8 @@ MaybeHandle<String> GetLocalName(Isolate* isolate,
   DCHECK_LE(0, func_index);
   DCHECK_LE(0, local_index);
   if (!debug_info->has_locals_names()) {
-    Handle<WasmSharedModuleData> shared =
-        debug_info->wasm_instance()->compiled_module()->shared();
+    Handle<WasmSharedModuleData> shared(
+        debug_info->wasm_instance()->compiled_module()->shared(), isolate);
     Handle<FixedArray> locals_names = wasm::DecodeLocalNames(isolate, shared);
     debug_info->set_locals_names(*locals_names);
   }
@@ -309,8 +309,8 @@ class InterpreterHandle {
 
     // Check whether we hit a breakpoint.
     if (isolate_->debug()->break_points_active()) {
-      Handle<WasmSharedModuleData> shared =
-          GetInstanceObject()->compiled_module()->shared();
+      Handle<WasmSharedModuleData> shared(
+          GetInstanceObject()->compiled_module()->shared(), isolate_);
       int position = GetTopPosition(shared);
       Handle<FixedArray> breakpoints;
       if (WasmSharedModuleData::CheckBreakPoints(isolate_, shared, position)
@@ -627,7 +627,7 @@ void RedirectCallsitesInInstanceGC(Isolate* isolate,
                                    CodeRelocationMapGC& map) {
   DisallowHeapAllocation no_gc;
   // Redirect all calls in wasm functions.
-  FixedArray* code_table = instance->compiled_module()->ptr_to_code_table();
+  FixedArray* code_table = instance->compiled_module()->code_table();
   for (int i = 0, e = GetNumFunctions(instance); i < e; ++i) {
     RedirectCallsitesInCodeGC(Code::cast(code_table->get(i)), map);
   }
@@ -635,7 +635,7 @@ void RedirectCallsitesInInstanceGC(Isolate* isolate,
 
   // Redirect all calls in exported functions.
   FixedArray* weak_exported_functions =
-      instance->compiled_module()->ptr_to_weak_exported_functions();
+      instance->compiled_module()->weak_exported_functions();
   for (int i = 0, e = weak_exported_functions->length(); i != e; ++i) {
     WeakCell* weak_function = WeakCell::cast(weak_exported_functions->get(i));
     if (weak_function->cleared()) continue;
@@ -657,7 +657,7 @@ void RedirectCallsitesInInstance(Isolate* isolate, WasmInstanceObject* instance,
 
   // Redirect all calls in exported functions.
   FixedArray* weak_exported_functions =
-      instance->compiled_module()->ptr_to_weak_exported_functions();
+      instance->compiled_module()->weak_exported_functions();
   for (int i = 0, e = weak_exported_functions->length(); i != e; ++i) {
     WeakCell* weak_function = WeakCell::cast(weak_exported_functions->get(i));
     if (weak_function->cleared()) continue;
@@ -731,7 +731,8 @@ void WasmDebugInfo::RedirectToInterpreter(Handle<WasmDebugInfo> debug_info,
   wasm::WasmModule* module = instance->module();
   CodeRelocationMap code_to_relocate;
 
-  Handle<FixedArray> code_table = instance->compiled_module()->code_table();
+  Handle<FixedArray> code_table(instance->compiled_module()->code_table(),
+                                isolate);
   CodeRelocationMapGC code_to_relocate_gc(isolate->heap());
   // We may modify js wrappers, as well as wasm functions. Hence the 2
   // modification scopes.
@@ -865,7 +866,7 @@ Handle<JSFunction> WasmDebugInfo::GetCWasmEntry(
         name, new_entry_code, isolate->sloppy_function_map());
     Handle<JSFunction> new_entry = isolate->factory()->NewFunction(args);
     new_entry->set_context(
-        *debug_info->wasm_instance()->compiled_module()->native_context());
+        debug_info->wasm_instance()->compiled_module()->native_context());
     new_entry->set_shared(*shared);
     entries->set(index, *new_entry);
   }

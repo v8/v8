@@ -447,9 +447,10 @@ void InstanceFinalizer(const v8::WeakCallbackInfo<void>& data) {
     if (compiled_module->use_trap_handler()) {
       // TODO(6792): No longer needed once WebAssembly code is off heap.
       CodeSpaceMemoryModificationScope modification_scope(isolate->heap());
-      Handle<FixedArray> code_table = compiled_module->code_table();
+      DisallowHeapAllocation no_gc;
+      FixedArray* code_table = compiled_module->code_table();
       for (int i = 0; i < code_table->length(); ++i) {
-        Handle<Code> code = code_table->GetValueChecked<Code>(isolate, i);
+        Code* code = Code::cast(code_table->get(i));
         int index = code->trap_handler_index()->value();
         if (index >= 0) {
           trap_handler::ReleaseHandlerData(index);
@@ -459,7 +460,7 @@ void InstanceFinalizer(const v8::WeakCallbackInfo<void>& data) {
       }
     }
   }
-  WeakCell* weak_wasm_module = compiled_module->ptr_to_weak_wasm_module();
+  WeakCell* weak_wasm_module = compiled_module->weak_wasm_module();
 
   // Since the order of finalizers is not guaranteed, it can be the case
   // that {instance->compiled_module()->module()}, which is a
@@ -492,7 +493,7 @@ void InstanceFinalizer(const v8::WeakCallbackInfo<void>& data) {
         WasmCompiledModule::Reset(isolate, compiled_module);
       } else {
         WasmModuleObject::cast(wasm_module)
-            ->set_compiled_module(compiled_module->ptr_to_next_instance());
+            ->set_compiled_module(compiled_module->next_instance());
       }
     }
   }
@@ -776,7 +777,9 @@ Address CompileLazy(Isolate* isolate) {
   DCHECK_EQ(wasm::WasmCode::kLazyStub, lazy_stub_or_copy->kind());
   if (!lazy_stub_or_copy->IsAnonymous()) {
     // Then it's an indirect call or via JS->wasm wrapper.
-    instance = lazy_stub_or_copy->owner()->compiled_module()->owning_instance();
+    instance =
+        handle(lazy_stub_or_copy->owner()->compiled_module()->owning_instance(),
+               isolate);
     func_index_to_compile = Just(lazy_stub_or_copy->index());
     exp_deopt_data_entry =
         handle(instance->compiled_module()->lazy_compile_data()->get(
@@ -803,8 +806,9 @@ Address CompileLazy(Isolate* isolate) {
       // Then this is a direct call (otherwise we would have attached the
       // instance via deopt data to the lazy compile stub). Just use the
       // instance of the caller.
-      instance =
-          wasm_caller_code->owner()->compiled_module()->owning_instance();
+      instance = handle(
+          wasm_caller_code->owner()->compiled_module()->owning_instance(),
+          isolate);
     }
   }
 
@@ -897,8 +901,8 @@ compiler::ModuleEnv CreateModuleEnvFromCompiledModule(
 
     int num_function_tables = static_cast<int>(module->function_tables.size());
     for (int i = 0; i < num_function_tables; ++i) {
-      FixedArray* ft = compiled_module->ptr_to_function_tables();
-      FixedArray* st = compiled_module->ptr_to_signature_tables();
+      FixedArray* ft = compiled_module->function_tables();
+      FixedArray* st = compiled_module->signature_tables();
 
       // TODO(clemensh): defer these handles for concurrent compilation.
       function_tables.push_back(WasmCompiledModule::GetTableValue(ft, i));
@@ -2147,7 +2151,7 @@ MaybeHandle<WasmModuleObject> ModuleCompiler::CompileToModuleObjectInternal(
   if (lazy_compile && FLAG_wasm_jit_to_native) {
     Handle<FixedArray> lazy_compile_data = isolate_->factory()->NewFixedArray(
         static_cast<int>(module_->functions.size()), TENURED);
-    compiled_module->set_lazy_compile_data(lazy_compile_data);
+    compiled_module->set_lazy_compile_data(*lazy_compile_data);
   }
 
   if (!lazy_compile) {
@@ -2304,13 +2308,13 @@ MaybeHandle<WasmInstanceObject> InstanceBuilder::Build() {
         TRACE("Cloning from %zu\n", original->GetNativeModule()->instance_id);
         compiled_module_ = WasmCompiledModule::Clone(isolate_, original);
         native_module = compiled_module_->GetNativeModule();
-        wrapper_table = compiled_module_->export_wrappers();
+        wrapper_table = handle(compiled_module_->export_wrappers(), isolate_);
       } else {
         TRACE("Cloning from %d\n", original->instance_id());
-        old_code_table = original->code_table();
+        old_code_table = handle(original->code_table(), isolate_);
         compiled_module_ = WasmCompiledModule::Clone(isolate_, original);
-        code_table = compiled_module_->code_table();
-        wrapper_table = compiled_module_->export_wrappers();
+        code_table = handle(compiled_module_->code_table(), isolate_);
+        wrapper_table = handle(compiled_module_->export_wrappers(), isolate_);
         // Avoid creating too many handles in the outer scope.
         HandleScope scope(isolate_);
 
@@ -2360,21 +2364,20 @@ MaybeHandle<WasmInstanceObject> InstanceBuilder::Build() {
     } else {
       // There was no owner, so we can reuse the original.
       compiled_module_ = original;
-      wrapper_table = compiled_module_->export_wrappers();
+      wrapper_table = handle(compiled_module_->export_wrappers(), isolate_);
       if (FLAG_wasm_jit_to_native) {
         old_module = compiled_module_->GetNativeModule();
         native_module = old_module;
         TRACE("Reusing existing instance %zu\n",
               compiled_module_->GetNativeModule()->instance_id);
       } else {
-        old_code_table =
-            factory->CopyFixedArray(compiled_module_->code_table());
-        code_table = compiled_module_->code_table();
+        code_table = handle(compiled_module_->code_table(), isolate_);
+        old_code_table = factory->CopyFixedArray(code_table);
         TRACE("Reusing existing instance %d\n",
               compiled_module_->instance_id());
       }
     }
-    compiled_module_->set_native_context(isolate_->native_context());
+    compiled_module_->set_native_context(*isolate_->native_context());
   }
   base::Optional<wasm::NativeModuleModificationScope>
       native_module_modification_scope;
@@ -2602,7 +2605,7 @@ MaybeHandle<WasmInstanceObject> InstanceBuilder::Build() {
       compiled_module_->InsertInChain(*module_object_);
     }
     module_object_->set_compiled_module(*compiled_module_);
-    compiled_module_->set_weak_owning_instance(link_to_owning_instance);
+    compiled_module_->set_weak_owning_instance(*link_to_owning_instance);
     GlobalHandles::MakeWeak(global_handle.location(), global_handle.location(),
                             instance_finalizer_callback_,
                             v8::WeakCallbackType::kFinalizer);
@@ -2612,8 +2615,8 @@ MaybeHandle<WasmInstanceObject> InstanceBuilder::Build() {
   // Debugging support.
   //--------------------------------------------------------------------------
   // Set all breakpoints that were set on the shared module.
-  WasmSharedModuleData::SetBreakpointsOnNewInstance(compiled_module_->shared(),
-                                                    instance);
+  WasmSharedModuleData::SetBreakpointsOnNewInstance(
+      handle(compiled_module_->shared(), isolate_), instance);
 
   if (FLAG_wasm_interpret_all && module_->is_wasm()) {
     Handle<WasmDebugInfo> debug_info =
@@ -3194,7 +3197,8 @@ bool InstanceBuilder::NeedsWrappers() const {
 void InstanceBuilder::ProcessExports(
     Handle<WasmInstanceObject> instance,
     Handle<WasmCompiledModule> compiled_module) {
-  Handle<FixedArray> wrapper_table = compiled_module->export_wrappers();
+  Handle<FixedArray> wrapper_table(compiled_module->export_wrappers(),
+                                   isolate_);
   if (NeedsWrappers()) {
     // Fill the table to cache the exported JSFunction wrappers.
     js_wrappers_.insert(js_wrappers_.begin(), module_->functions.size(),
@@ -3225,14 +3229,15 @@ void InstanceBuilder::ProcessExports(
   // Store weak references to all exported functions.
   Handle<FixedArray> weak_exported_functions;
   if (compiled_module->has_weak_exported_functions()) {
-    weak_exported_functions = compiled_module->weak_exported_functions();
+    weak_exported_functions =
+        handle(compiled_module->weak_exported_functions(), isolate_);
   } else {
     int export_count = 0;
     for (WasmExport& exp : module_->export_table) {
       if (exp.kind == kExternalFunction) ++export_count;
     }
     weak_exported_functions = isolate_->factory()->NewFixedArray(export_count);
-    compiled_module->set_weak_exported_functions(weak_exported_functions);
+    compiled_module->set_weak_exported_functions(*weak_exported_functions);
   }
 
   // Process each export in the export table.
@@ -3240,7 +3245,7 @@ void InstanceBuilder::ProcessExports(
   for (WasmExport& exp : module_->export_table) {
     Handle<String> name =
         WasmSharedModuleData::ExtractUtf8StringFromModuleBytes(
-            isolate_, compiled_module_->shared(), exp.name)
+            isolate_, handle(compiled_module_->shared(), isolate_), exp.name)
             .ToHandleChecked();
     Handle<JSObject> export_to;
     if (module_->is_asm_js() && exp.kind == kExternalFunction &&
@@ -3262,9 +3267,11 @@ void InstanceBuilder::ProcessExports(
           MaybeHandle<String> func_name;
           if (module_->is_asm_js()) {
             // For modules arising from asm.js, honor the names section.
-            func_name = WasmSharedModuleData::ExtractUtf8StringFromModuleBytes(
-                            isolate_, compiled_module_->shared(), function.name)
-                            .ToHandleChecked();
+            func_name =
+                WasmSharedModuleData::ExtractUtf8StringFromModuleBytes(
+                    isolate_, handle(compiled_module_->shared(), isolate_),
+                    function.name)
+                    .ToHandleChecked();
           }
           js_function = WasmExportedFunction::New(
               isolate_, instance, func_name, function.func_index,
@@ -3365,11 +3372,13 @@ void InstanceBuilder::InitializeTables(
       FLAG_wasm_jit_to_native ? native_module->signature_tables() : empty;
 
   Handle<FixedArray> old_function_tables_gc =
-      FLAG_wasm_jit_to_native ? Handle<FixedArray>::null()
-                              : compiled_module_->function_tables();
+      FLAG_wasm_jit_to_native
+          ? Handle<FixedArray>::null()
+          : handle(compiled_module_->function_tables(), isolate_);
   Handle<FixedArray> old_signature_tables_gc =
-      FLAG_wasm_jit_to_native ? Handle<FixedArray>::null()
-                              : compiled_module_->signature_tables();
+      FLAG_wasm_jit_to_native
+          ? Handle<FixedArray>::null()
+          : handle(compiled_module_->signature_tables(), isolate_);
 
   // function_table_count is 0 or 1, so we just create these objects even if not
   // needed for native wasm.
@@ -3481,8 +3490,8 @@ void InstanceBuilder::InitializeTables(
     native_module->function_tables() = new_function_tables;
     native_module->signature_tables() = new_signature_tables;
   } else {
-    compiled_module_->set_function_tables(new_function_tables_gc);
-    compiled_module_->set_signature_tables(new_signature_tables_gc);
+    compiled_module_->set_function_tables(*new_function_tables_gc);
+    compiled_module_->set_signature_tables(*new_signature_tables_gc);
   }
 }
 
@@ -3568,7 +3577,8 @@ void InstanceBuilder::LoadTableSegments(Handle<FixedArray> code_table,
               // For modules arising from asm.js, honor the names section.
               func_name =
                   WasmSharedModuleData::ExtractUtf8StringFromModuleBytes(
-                      isolate_, compiled_module_->shared(), function->name)
+                      isolate_, handle(compiled_module_->shared(), isolate_),
+                      function->name)
                       .ToHandleChecked();
             }
             Handle<WasmExportedFunction> js_function =
@@ -4356,13 +4366,15 @@ void CompileJsToWasmWrappers(Isolate* isolate,
                              Counters* counters) {
   JSToWasmWrapperCache js_to_wasm_cache;
   int wrapper_index = 0;
-  Handle<FixedArray> export_wrappers = compiled_module->export_wrappers();
+  Handle<FixedArray> export_wrappers(compiled_module->export_wrappers(),
+                                     isolate);
+  Handle<FixedArray> code_table(compiled_module->code_table(), isolate);
   NativeModule* native_module = compiled_module->GetNativeModule();
   for (auto exp : compiled_module->shared()->module()->export_table) {
     if (exp.kind != kExternalFunction) continue;
-    WasmCodeWrapper wasm_code = EnsureExportedLazyDeoptData(
-        isolate, Handle<WasmInstanceObject>::null(),
-        compiled_module->code_table(), native_module, exp.index);
+    WasmCodeWrapper wasm_code =
+        EnsureExportedLazyDeoptData(isolate, Handle<WasmInstanceObject>::null(),
+                                    code_table, native_module, exp.index);
     Handle<Code> wrapper_code = js_to_wasm_cache.CloneOrCompileJSToWasmWrapper(
         isolate, compiled_module->shared()->module(), wasm_code, exp.index,
         compiled_module->use_trap_handler());

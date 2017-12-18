@@ -82,22 +82,13 @@ OPTIONAL_ACCESSORS(WasmDebugInfo, c_wasm_entry_map, Managed<wasm::SignatureMap>,
 #undef OPTIONAL_ACCESSORS
 
 #define WCM_OBJECT_OR_WEAK(TYPE, NAME, ID, TYPE_CHECK, SETTER_MODIFIER) \
-  Handle<TYPE> WasmCompiledModule::NAME() const {                       \
-    return handle(ptr_to_##NAME());                                     \
-  }                                                                     \
-                                                                        \
-  MaybeHandle<TYPE> WasmCompiledModule::maybe_##NAME() const {          \
-    if (has_##NAME()) return NAME();                                    \
-    return MaybeHandle<TYPE>();                                         \
-  }                                                                     \
-                                                                        \
-  TYPE* WasmCompiledModule::maybe_ptr_to_##NAME() const {               \
+  TYPE* WasmCompiledModule::maybe_##NAME() const {                      \
     Object* obj = get(ID);                                              \
     if (!(TYPE_CHECK)) return nullptr;                                  \
     return TYPE::cast(obj);                                             \
   }                                                                     \
                                                                         \
-  TYPE* WasmCompiledModule::ptr_to_##NAME() const {                     \
+  TYPE* WasmCompiledModule::NAME() const {                              \
     Object* obj = get(ID);                                              \
     DCHECK(TYPE_CHECK);                                                 \
     return TYPE::cast(obj);                                             \
@@ -110,10 +101,7 @@ OPTIONAL_ACCESSORS(WasmDebugInfo, c_wasm_entry_map, Managed<wasm::SignatureMap>,
                                                                         \
   void WasmCompiledModule::reset_##NAME() { set_undefined(ID); }        \
                                                                         \
-  void WasmCompiledModule::set_##NAME(Handle<TYPE> value) {             \
-    set_ptr_to_##NAME(*value);                                          \
-  }                                                                     \
-  void WasmCompiledModule::set_ptr_to_##NAME(TYPE* value) { set(ID, value); }
+  void WasmCompiledModule::set_##NAME(TYPE* value) { set(ID, value); }
 
 #define WCM_OBJECT(TYPE, NAME) \
   WCM_OBJECT_OR_WEAK(TYPE, NAME, kID_##NAME, obj->Is##TYPE(), public)
@@ -137,8 +125,9 @@ OPTIONAL_ACCESSORS(WasmDebugInfo, c_wasm_entry_map, Managed<wasm::SignatureMap>,
   WCM_OBJECT_OR_WEAK(WeakCell, weak_##NAME, kID_##NAME, obj->IsWeakCell(), \
                      public)                                               \
                                                                            \
-  Handle<TYPE> WasmCompiledModule::NAME() const {                          \
-    return handle(TYPE::cast(weak_##NAME()->value()));                     \
+  TYPE* WasmCompiledModule::NAME() const {                                 \
+    DCHECK(!weak_##NAME()->cleared());                                     \
+    return TYPE::cast(weak_##NAME()->value());                             \
   }
 
 #define DEFINITION(KIND, TYPE, NAME) WCM_##KIND(TYPE, NAME)
@@ -161,7 +150,7 @@ bool WasmMemoryObject::has_maximum_pages() { return maximum_pages() >= 0; }
 
 void WasmCompiledModule::ReplaceCodeTableForTesting(
     Handle<FixedArray> testing_table) {
-  set_code_table(testing_table);
+  set_code_table(*testing_table);
 }
 
 #include "src/objects/object-macros-undef.h"

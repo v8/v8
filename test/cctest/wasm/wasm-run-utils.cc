@@ -132,13 +132,14 @@ Handle<JSFunction> TestingModuleBuilder::WrapCode(uint32_t index) {
   // Add weak reference to exported functions.
   Handle<WasmCompiledModule> compiled_module(
       instance_object()->compiled_module(), isolate_);
-  Handle<FixedArray> old_arr = compiled_module->weak_exported_functions();
+  Handle<FixedArray> old_arr(compiled_module->weak_exported_functions(),
+                             isolate_);
   Handle<FixedArray> new_arr =
       isolate_->factory()->NewFixedArray(old_arr->length() + 1);
   old_arr->CopyTo(0, *new_arr, 0, old_arr->length());
   Handle<WeakCell> weak_fn = isolate_->factory()->NewWeakCell(ret);
   new_arr->set(old_arr->length(), *weak_fn);
-  compiled_module->set_weak_exported_functions(new_arr);
+  compiled_module->set_weak_exported_functions(*new_arr);
 
   return ret;
 }
@@ -193,8 +194,8 @@ void TestingModuleBuilder::PopulateIndirectFunctionTable() {
 }
 
 uint32_t TestingModuleBuilder::AddBytes(Vector<const byte> bytes) {
-  Handle<WasmSharedModuleData> shared =
-      instance_object_->compiled_module()->shared();
+  Handle<WasmSharedModuleData> shared(
+      instance_object_->compiled_module()->shared(), isolate_);
   Handle<SeqOneByteString> old_bytes(shared->module_bytes(), isolate_);
   uint32_t old_size = static_cast<uint32_t>(old_bytes->length());
   // Avoid placing strings at offset 0, this might be interpreted as "not
@@ -251,13 +252,13 @@ Handle<WasmInstanceObject> TestingModuleBuilder::InitInstanceObject() {
   native_module_ = compiled_module->GetNativeModule();
 
   Handle<FixedArray> weak_exported = isolate_->factory()->NewFixedArray(0);
-  compiled_module->set_weak_exported_functions(weak_exported);
+  compiled_module->set_weak_exported_functions(*weak_exported);
   DCHECK(WasmCompiledModule::IsWasmCompiledModule(*compiled_module));
   script->set_wasm_compiled_module(*compiled_module);
   auto instance = WasmInstanceObject::New(isolate_, compiled_module);
   instance->wasm_context()->get()->globals_start = globals_data_;
   Handle<WeakCell> weak_instance = isolate()->factory()->NewWeakCell(instance);
-  compiled_module->set_weak_owning_instance(weak_instance);
+  compiled_module->set_weak_owning_instance(*weak_instance);
   return instance;
 }
 
@@ -490,7 +491,7 @@ void WasmFunctionCompiler::Build(const byte* start, const byte* end) {
     builder_->SetFunctionCode(function_index(), code);
 
     // Add to code table.
-    Handle<FixedArray> code_table = compiled_module->code_table();
+    Handle<FixedArray> code_table(compiled_module->code_table(), isolate());
     if (static_cast<int>(function_index()) >= code_table->length()) {
       Handle<FixedArray> new_arr = isolate()->factory()->NewFixedArray(
           static_cast<int>(function_index()) + 1);

@@ -767,8 +767,8 @@ class CaptureStackTraceHelper {
       const FrameSummary::WasmFrameSummary& summ) {
     Handle<StackFrameInfo> info = factory()->NewStackFrameInfo();
 
-    Handle<WasmSharedModuleData> shared =
-        summ.wasm_instance()->compiled_module()->shared();
+    Handle<WasmSharedModuleData> shared(
+        summ.wasm_instance()->compiled_module()->shared(), isolate_);
     Handle<String> name = WasmSharedModuleData::GetFunctionName(
         isolate_, shared, summ.function_index());
     info->set_function_name(*name);
@@ -1704,7 +1704,7 @@ bool Isolate::ComputeLocationFromStackTrace(MessageLocation* target,
           elements->IsAsmJsWasmFrame(i) &&
           elements->Flags(i)->value() & FrameArray::kAsmJsAtNumberConversion;
       int pos = WasmSharedModuleData::GetSourcePosition(
-          compiled_module->shared(), func_index, byte_offset,
+          handle(compiled_module->shared(), this), func_index, byte_offset,
           is_at_number_conversion);
       Handle<Script> script(compiled_module->shared()->script());
 

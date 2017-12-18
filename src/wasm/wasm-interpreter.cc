@@ -1002,7 +1002,7 @@ class CodeMap {
   Code* GetImportedFunctionGC(uint32_t function_index) {
     DCHECK(has_instance());
     DCHECK_GT(module_->num_imported_functions, function_index);
-    FixedArray* code_table = instance()->compiled_module()->ptr_to_code_table();
+    FixedArray* code_table = instance()->compiled_module()->code_table();
     return Code::cast(code_table->get(static_cast<int>(function_index)));
   }
 
@@ -2461,7 +2461,7 @@ class ThreadImpl {
     DCHECK(AllowHeapAllocation::IsAllowed());
 
     if (code->kind() == wasm::WasmCode::kFunction) {
-      DCHECK_EQ(*code->owner()->compiled_module()->owning_instance(),
+      DCHECK_EQ(code->owner()->compiled_module()->owning_instance(),
                 codemap()->instance());
       return {ExternalCallResult::INTERNAL, codemap()->GetCode(code->index())};
     }
@@ -2548,7 +2548,7 @@ class ThreadImpl {
 
       if (!FLAG_wasm_jit_to_native) {
         // Check signature.
-        FixedArray* sig_tables = compiled_module->ptr_to_signature_tables();
+        FixedArray* sig_tables = compiled_module->signature_tables();
         if (table_index >= static_cast<uint32_t>(sig_tables->length())) {
           return {ExternalCallResult::INVALID_FUNC};
         }
@@ -2568,7 +2568,7 @@ class ThreadImpl {
         }
 
         // Get code object.
-        FixedArray* fun_tables = compiled_module->ptr_to_function_tables();
+        FixedArray* fun_tables = compiled_module->function_tables();
         DCHECK_EQ(sig_tables->length(), fun_tables->length());
         Handle<FixedArray> fun_table(reinterpret_cast<FixedArray**>(
             WasmCompiledModule::GetTableValue(fun_tables, table_index_as_int)));

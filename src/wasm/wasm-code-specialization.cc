@@ -60,7 +60,7 @@ class PatchDirectCallsHelper {
       : source_pos_it(code->SourcePositionTable()), decoder(nullptr, nullptr) {
     FixedArray* deopt_data = code->deoptimization_data();
     DCHECK_EQ(2, deopt_data->length());
-    WasmSharedModuleData* shared = instance->compiled_module()->ptr_to_shared();
+    WasmSharedModuleData* shared = instance->compiled_module()->shared();
     int func_index = Smi::ToInt(deopt_data->get(1));
     func_bytes = shared->module_bytes()->GetChars() +
                  shared->module()->functions[func_index].code.offset();
@@ -117,8 +117,8 @@ bool CodeSpecialization::ApplyToWholeInstance(
   DisallowHeapAllocation no_gc;
   WasmCompiledModule* compiled_module = instance->compiled_module();
   NativeModule* native_module = compiled_module->GetNativeModule();
-  FixedArray* code_table = compiled_module->ptr_to_code_table();
-  WasmSharedModuleData* shared = compiled_module->ptr_to_shared();
+  FixedArray* code_table = compiled_module->code_table();
+  WasmSharedModuleData* shared = compiled_module->shared();
   WasmModule* module = shared->module();
   std::vector<WasmFunction>* wasm_functions = &shared->module()->functions;
   DCHECK_EQ(compiled_module->export_wrappers()->length(),
@@ -263,8 +263,7 @@ bool CodeSpecialization::ApplyToWasmCode(WasmCodeWrapper code,
             patch_direct_calls_helper->decoder,
             patch_direct_calls_helper->func_bytes + byte_pos);
         FixedArray* code_table =
-            relocate_direct_calls_instance->compiled_module()
-                ->ptr_to_code_table();
+            relocate_direct_calls_instance->compiled_module()->code_table();
         Code* new_code = Code::cast(code_table->get(called_func_index));
         it.rinfo()->set_target_address(new_code->GetIsolate(),
                                        new_code->instruction_start(),

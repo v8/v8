@@ -231,8 +231,8 @@ bool IsWasmCodegenAllowed(Isolate* isolate, Handle<Context> context) {
 
 Handle<JSArray> GetImports(Isolate* isolate,
                            Handle<WasmModuleObject> module_object) {
-  Handle<WasmSharedModuleData> shared =
-      module_object->compiled_module()->shared();
+  Handle<WasmSharedModuleData> shared(
+      module_object->compiled_module()->shared(), isolate);
   Factory* factory = isolate->factory();
 
   Handle<String> module_string = factory->InternalizeUtf8String("module");
@@ -301,8 +301,8 @@ Handle<JSArray> GetImports(Isolate* isolate,
 
 Handle<JSArray> GetExports(Isolate* isolate,
                            Handle<WasmModuleObject> module_object) {
-  Handle<WasmSharedModuleData> shared =
-      module_object->compiled_module()->shared();
+  Handle<WasmSharedModuleData> shared(
+      module_object->compiled_module()->shared(), isolate);
   Factory* factory = isolate->factory();
 
   Handle<String> name_string = factory->InternalizeUtf8String("name");
@@ -365,8 +365,8 @@ Handle<JSArray> GetExports(Isolate* isolate,
 Handle<JSArray> GetCustomSections(Isolate* isolate,
                                   Handle<WasmModuleObject> module_object,
                                   Handle<String> name, ErrorThrower* thrower) {
-  Handle<WasmSharedModuleData> shared =
-      module_object->compiled_module()->shared();
+  Handle<WasmSharedModuleData> shared(
+      module_object->compiled_module()->shared(), isolate);
   Factory* factory = isolate->factory();
 
   std::vector<CustomSectionOffset> custom_sections;

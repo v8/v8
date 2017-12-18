@@ -1237,8 +1237,8 @@ WASM_SUMMARY_DISPATCH(int, byte_offset)
 #undef WASM_SUMMARY_DISPATCH
 
 int FrameSummary::WasmFrameSummary::SourcePosition() const {
-  Handle<WasmSharedModuleData> shared =
-      wasm_instance()->compiled_module()->shared();
+  Handle<WasmSharedModuleData> shared(
+      wasm_instance()->compiled_module()->shared(), isolate());
   return WasmSharedModuleData::GetSourcePosition(
       shared, function_index(), byte_offset(), at_to_number_conversion());
 }
@@ -1248,14 +1248,15 @@ Handle<Script> FrameSummary::WasmFrameSummary::script() const {
 }
 
 Handle<String> FrameSummary::WasmFrameSummary::FunctionName() const {
-  Handle<WasmSharedModuleData> shared =
-      wasm_instance()->compiled_module()->shared();
-  return WasmSharedModuleData::GetFunctionName(shared->GetIsolate(), shared,
+  Handle<WasmSharedModuleData> shared(
+      wasm_instance()->compiled_module()->shared(), isolate());
+  return WasmSharedModuleData::GetFunctionName(isolate(), shared,
                                                function_index());
 }
 
 Handle<Context> FrameSummary::WasmFrameSummary::native_context() const {
-  return wasm_instance()->compiled_module()->native_context();
+  return handle(wasm_instance()->compiled_module()->native_context(),
+                isolate());
 }
 
 FrameSummary::WasmCompiledFrameSummary::WasmCompiledFrameSummary(
@@ -1701,8 +1702,7 @@ void WasmCompiledFrame::Print(StringStream* accumulator, PrintMode mode,
                                         .start()
                                   : LookupCode()->instruction_start();
   int pc = static_cast<int>(this->pc() - instruction_start);
-  WasmSharedModuleData* shared =
-      wasm_instance()->compiled_module()->ptr_to_shared();
+  WasmSharedModuleData* shared = wasm_instance()->compiled_module()->shared();
   Vector<const uint8_t> raw_func_name =
       shared->GetRawFunctionName(this->function_index());
   const int kMaxPrintedFunctionName = 64;
@@ -1815,8 +1815,7 @@ int WasmCompiledFrame::LookupExceptionHandlerInTable(int* stack_slots) {
       isolate()->wasm_engine()->code_manager()->LookupCode(pc());
   if (!code->IsAnonymous()) {
     Object* table_entry =
-        code->owner()->compiled_module()->ptr_to_handler_table()->get(
-            code->index());
+        code->owner()->compiled_module()->handler_table()->get(code->index());
     if (table_entry->IsHandlerTable()) {
       HandlerTable* table = HandlerTable::cast(table_entry);
       int pc_offset = static_cast<int>(pc() - code->instructions().start());
@@ -1882,7 +1881,7 @@ int WasmInterpreterEntryFrame::position() const {
 }
 
 Object* WasmInterpreterEntryFrame::context() const {
-  return wasm_instance()->compiled_module()->ptr_to_native_context();
+  return wasm_instance()->compiled_module()->native_context();
 }
 
 Address WasmInterpreterEntryFrame::GetCallerStackPointer() const {

@@ -47,7 +47,9 @@ class CompiledModulesIterator
                           Handle<WasmCompiledModule> start_module, bool at_end)
       : isolate_(isolate),
         start_module_(start_module),
-        current_(at_end ? Handle<WasmCompiledModule>::null() : start_module) {}
+        current_(
+            at_end ? Handle<WasmCompiledModule>::null()
+                   : Handle<WasmCompiledModule>::New(*start_module, isolate)) {}
 
   Handle<WasmCompiledModule> operator*() const {
     DCHECK(!current_.is_null());
@@ -66,7 +68,7 @@ class CompiledModulesIterator
     DCHECK(!current_.is_null());
     if (!is_backwards_) {
       if (current_->has_next_instance()) {
-        current_ = current_->next_instance();
+        *current_.location() = current_->next_instance();
         return;
       }
       // No more modules in next-links, now try the previous-links.
@@ -74,7 +76,7 @@ class CompiledModulesIterator
       current_ = start_module_;
     }
     if (current_->has_prev_instance()) {
-      current_ = current_->prev_instance();
+      *current_.location() = current_->prev_instance();
       return;
     }
     current_ = Handle<WasmCompiledModule>::null();
@@ -120,7 +122,7 @@ class CompiledModuleInstancesIterator
   bool NeedToAdvance() {
     return !it.current_.is_null() &&
            (!it.current_->has_weak_owning_instance() ||
-            it.current_->ptr_to_weak_owning_instance()->cleared());
+            it.current_->weak_owning_instance()->cleared());
   }
   CompiledModulesIterator it;
 };
@@ -172,7 +174,7 @@ Handle<WasmModuleObject> WasmModuleObject::New(
   module_object->set_compiled_module(*compiled_module);
   Handle<WeakCell> link_to_module =
       isolate->factory()->NewWeakCell(module_object);
-  compiled_module->set_weak_wasm_module(link_to_module);
+  compiled_module->set_weak_wasm_module(*link_to_module);
   return module_object;
 }
 
@@ -181,7 +183,7 @@ void WasmModuleObject::ValidateStateForTesting(
   DisallowHeapAllocation no_gc;
   WasmCompiledModule* compiled_module = module_obj->compiled_module();
   CHECK(compiled_module->has_weak_wasm_module());
-  CHECK_EQ(compiled_module->ptr_to_weak_wasm_module()->value(), *module_obj);
+  CHECK_EQ(compiled_module->weak_wasm_module()->value(), *module_obj);
   CHECK(!compiled_module->has_prev_instance());
   CHECK(!compiled_module->has_next_instance());
   CHECK(!compiled_module->has_weak_owning_instance());
@@ -293,23 +295,23 @@ void WasmTableObject::Grow(Isolate* isolate, uint32_t count) {
           WasmInstanceObject::cast(dispatch_tables->get(i));
       WasmCompiledModule* compiled_module = instance->compiled_module();
       GlobalHandleAddress old_function_table_addr =
-          WasmCompiledModule::GetTableValue(
-              compiled_module->ptr_to_function_tables(), table_index);
+          WasmCompiledModule::GetTableValue(compiled_module->function_tables(),
+                                            table_index);
       GlobalHandleAddress old_signature_table_addr =
-          WasmCompiledModule::GetTableValue(
-              compiled_module->ptr_to_signature_tables(), table_index);
+          WasmCompiledModule::GetTableValue(compiled_module->signature_tables(),
+                                            table_index);
       code_specialization.PatchTableSize(old_size, old_size + count);
       code_specialization.RelocatePointer(old_function_table_addr,
                                           new_function_table_addr);
       code_specialization.RelocatePointer(old_signature_table_addr,
                                           new_signature_table_addr);
       code_specialization.ApplyToWholeInstance(instance);
-      WasmCompiledModule::UpdateTableValue(
-          compiled_module->ptr_to_function_tables(), table_index,
-          new_function_table_addr);
-      WasmCompiledModule::UpdateTableValue(
-          compiled_module->ptr_to_signature_tables(), table_index,
-          new_signature_table_addr);
+      WasmCompiledModule::UpdateTableValue(compiled_module->function_tables(),
+                                           table_index,
+                                           new_function_table_addr);
+      WasmCompiledModule::UpdateTableValue(compiled_module->signature_tables(),
+                                           table_index,
+                                           new_signature_table_addr);
     }
   }
 }
@@ -539,7 +541,7 @@ int32_t WasmMemoryObject::Grow(Isolate* isolate,
 }
 
 WasmModuleObject* WasmInstanceObject::module_object() {
-  return *compiled_module()->wasm_module();
+  return compiled_module()->wasm_module();
 }
 
 WasmModule* WasmInstanceObject::module() {
@@ -613,7 +615,7 @@ WasmInstanceObject* WasmInstanceObject::GetOwningInstance(
   Object* weak_link = nullptr;
   DCHECK(code->kind() == wasm::WasmCode::kFunction ||
          code->kind() == wasm::WasmCode::kInterpreterStub);
-  weak_link = code->owner()->compiled_module()->ptr_to_weak_owning_instance();
+  weak_link = code->owner()->compiled_module()->weak_owning_instance();
   DCHECK(weak_link->IsWeakCell());
   WeakCell* cell = WeakCell::cast(weak_link);
   if (cell->cleared()) return nullptr;
@@ -639,21 +641,21 @@ void WasmInstanceObject::ValidateInstancesChainForTesting(
   CHECK_GE(instance_count, 0);
   DisallowHeapAllocation no_gc;
   WasmCompiledModule* compiled_module = module_obj->compiled_module();
-  CHECK_EQ(JSObject::cast(compiled_module->ptr_to_weak_wasm_module()->value()),
+  CHECK_EQ(JSObject::cast(compiled_module->weak_wasm_module()->value()),
            *module_obj);
   Object* prev = nullptr;
   int found_instances = compiled_module->has_weak_owning_instance() ? 1 : 0;
   WasmCompiledModule* current_instance = compiled_module;
   while (current_instance->has_next_instance()) {
     CHECK((prev == nullptr && !current_instance->has_prev_instance()) ||
-          current_instance->ptr_to_prev_instance() == prev);
-    CHECK_EQ(current_instance->ptr_to_weak_wasm_module()->value(), *module_obj);
-    CHECK(current_instance->ptr_to_weak_owning_instance()
+          current_instance->prev_instance() == prev);
+    CHECK_EQ(current_instance->weak_wasm_module()->value(), *module_obj);
+    CHECK(current_instance->weak_owning_instance()
               ->value()
               ->IsWasmInstanceObject());
     prev = current_instance;
     current_instance =
-        WasmCompiledModule::cast(current_instance->ptr_to_next_instance());
+        WasmCompiledModule::cast(current_instance->next_instance());
     ++found_instances;
     CHECK_LE(found_instances, instance_count);
   }
@@ -665,7 +667,7 @@ void WasmInstanceObject::ValidateOrphanedInstanceForTesting(
   DisallowHeapAllocation no_gc;
   WasmCompiledModule* compiled_module = instance->compiled_module();
   CHECK(compiled_module->has_weak_wasm_module());
-  CHECK(compiled_module->ptr_to_weak_wasm_module()->cleared());
+  CHECK(compiled_module->weak_wasm_module()->cleared());
 }
 
 bool WasmExportedFunction::IsWasmExportedFunction(Object* object) {
@@ -1253,13 +1255,13 @@ Handle<WasmCompiledModule> WasmCompiledModule::New(
   // WasmCompiledModule::cast would fail since fields are not set yet.
   Handle<WasmCompiledModule> compiled_module(
       reinterpret_cast<WasmCompiledModule*>(*ret), isolate);
-  compiled_module->set_native_context(isolate->native_context());
+  compiled_module->set_native_context(*isolate->native_context());
   compiled_module->set_use_trap_handler(use_trap_handler);
   if (!FLAG_wasm_jit_to_native) {
     compiled_module->InitId();
-    compiled_module->set_native_context(isolate->native_context());
-    compiled_module->set_code_table(code_table);
-    compiled_module->set_export_wrappers(export_wrappers);
+    compiled_module->set_native_context(*isolate->native_context());
+    compiled_module->set_code_table(*code_table);
+    compiled_module->set_export_wrappers(*export_wrappers);
     // TODO(mtrofin): we copy these because the order of finalization isn't
     // reliable, and we need these at Reset (which is called at
     // finalization). If the order were reliable, and top-down, we could instead
@@ -1282,14 +1284,14 @@ Handle<WasmCompiledModule> WasmCompiledModule::New(
       // assumption that we compile and then instantiate. It needs rework if we
       // do direct instantiation. The empty tables are used as a default when
       // resetting the compiled module.
-      compiled_module->set_signature_tables(st);
-      compiled_module->set_empty_signature_tables(st);
-      compiled_module->set_function_tables(ft);
-      compiled_module->set_empty_function_tables(ft);
+      compiled_module->set_signature_tables(*st);
+      compiled_module->set_empty_signature_tables(*st);
+      compiled_module->set_function_tables(*ft);
+      compiled_module->set_empty_function_tables(*ft);
     }
   } else {
     if (!export_wrappers.is_null()) {
-      compiled_module->set_export_wrappers(export_wrappers);
+      compiled_module->set_export_wrappers(*export_wrappers);
     }
     wasm::NativeModule* native_module = nullptr;
     {
@@ -1298,7 +1300,7 @@ Handle<WasmCompiledModule> WasmCompiledModule::New(
       native_module = native_module_ptr.release();
       Handle<Foreign> native_module_wrapper =
           Managed<wasm::NativeModule>::From(isolate, native_module);
-      compiled_module->set_native_module(native_module_wrapper);
+      compiled_module->set_native_module(*native_module_wrapper);
       Handle<WasmCompiledModule> weak_link =
           isolate->global_handles()->Create(*compiled_module);
       GlobalHandles::MakeWeak(Handle<Object>::cast(weak_link).location(),
@@ -1310,7 +1312,7 @@ Handle<WasmCompiledModule> WasmCompiledModule::New(
     // This is here just because it's easier for APIs that need to work with
     // either code_table or native_module. Otherwise we need to check if
     // has_code_table and pass undefined.
-    compiled_module->set_code_table(code_table);
+    compiled_module->set_code_table(*code_table);
 
     native_module->function_tables() = function_tables;
     native_module->signature_tables() = signature_tables;
@@ -1320,10 +1322,10 @@ Handle<WasmCompiledModule> WasmCompiledModule::New(
     int function_count = static_cast<int>(module->functions.size());
     Handle<FixedArray> handler_table =
         isolate->factory()->NewFixedArray(function_count, TENURED);
-    compiled_module->set_handler_table(handler_table);
+    compiled_module->set_handler_table(*handler_table);
     Handle<FixedArray> source_positions =
         isolate->factory()->NewFixedArray(function_count, TENURED);
-    compiled_module->set_source_positions(source_positions);
+    compiled_module->set_source_positions(*source_positions);
   }
   // TODO(mtrofin): copy the rest of the specialization parameters over.
   // We're currently OK because we're only using defaults.
@@ -1334,7 +1336,8 @@ Handle<WasmCompiledModule> WasmCompiledModule::Clone(
     Isolate* isolate, Handle<WasmCompiledModule> module) {
   Handle<FixedArray> code_copy;
   if (!FLAG_wasm_jit_to_native) {
-    code_copy = isolate->factory()->CopyFixedArray(module->code_table());
+    code_copy = isolate->factory()->CopyFixedArray(
+        handle(module->code_table(), isolate));
   }
   Handle<WasmCompiledModule> ret = Handle<WasmCompiledModule>::cast(
       isolate->factory()->CopyFixedArray(module));
@@ -1344,7 +1347,7 @@ Handle<WasmCompiledModule> WasmCompiledModule::Clone(
   ret->reset_weak_exported_functions();
   if (!FLAG_wasm_jit_to_native) {
     ret->InitId();
-    ret->set_code_table(code_copy);
+    ret->set_code_table(*code_copy);
     return ret;
   }
 
@@ -1354,7 +1357,7 @@ Handle<WasmCompiledModule> WasmCompiledModule::Clone(
   // which would shift the this pointer in set_native_module.
   Handle<Foreign> native_module_wrapper =
       Managed<wasm::NativeModule>::From(isolate, native_module.release());
-  ret->set_native_module(native_module_wrapper);
+  ret->set_native_module(*native_module_wrapper);
   Handle<WasmCompiledModule> weak_link =
       isolate->global_handles()->Create(*ret);
   GlobalHandles::MakeWeak(Handle<Object>::cast(weak_link).location(),
@@ -1366,7 +1369,7 @@ Handle<WasmCompiledModule> WasmCompiledModule::Clone(
   if (module->has_lazy_compile_data()) {
     Handle<FixedArray> lazy_comp_data = isolate->factory()->NewFixedArray(
         module->lazy_compile_data()->length(), TENURED);
-    ret->set_lazy_compile_data(lazy_comp_data);
+    ret->set_lazy_compile_data(*lazy_comp_data);
   }
   return ret;
 }
@@ -1394,7 +1397,7 @@ Address WasmCompiledModule::GetTableValue(FixedArray* table, int index) {
 
 wasm::NativeModule* WasmCompiledModule::GetNativeModule() const {
   if (!has_native_module()) return nullptr;
-  return Managed<wasm::NativeModule>::cast(ptr_to_native_module())->get();
+  return Managed<wasm::NativeModule>::cast(native_module())->get();
 }
 
 void WasmCompiledModule::ResetGCModel(Isolate* isolate,
@@ -1402,7 +1405,7 @@ void WasmCompiledModule::ResetGCModel(Isolate* isolate,
   DisallowHeapAllocation no_gc;
   TRACE("Resetting %d\n", compiled_module->instance_id());
   Object* undefined = *isolate->factory()->undefined_value();
-  Object* fct_obj = compiled_module->ptr_to_code_table();
+  Object* fct_obj = compiled_module->code_table();
   if (fct_obj != nullptr && fct_obj != undefined) {
     // Patch code to update memory references, global references, and function
     // table references.
@@ -1411,12 +1414,12 @@ void WasmCompiledModule::ResetGCModel(Isolate* isolate,
 
     // Reset function tables.
     if (compiled_module->has_function_tables()) {
-      FixedArray* function_tables = compiled_module->ptr_to_function_tables();
-      FixedArray* signature_tables = compiled_module->ptr_to_signature_tables();
+      FixedArray* function_tables = compiled_module->function_tables();
+      FixedArray* signature_tables = compiled_module->signature_tables();
       FixedArray* empty_function_tables =
-          compiled_module->ptr_to_empty_function_tables();
+          compiled_module->empty_function_tables();
       FixedArray* empty_signature_tables =
-          compiled_module->ptr_to_empty_signature_tables();
+          compiled_module->empty_signature_tables();
       if (function_tables != empty_function_tables) {
         DCHECK_EQ(function_tables->length(), empty_function_tables->length());
         for (int i = 0, e = function_tables->length(); i < e; ++i) {
@@ -1431,8 +1434,8 @@ void WasmCompiledModule::ResetGCModel(Isolate* isolate,
               sig_addr,
               WasmCompiledModule::GetTableValue(empty_signature_tables, i));
         }
-        compiled_module->set_ptr_to_function_tables(empty_function_tables);
-        compiled_module->set_ptr_to_signature_tables(empty_signature_tables);
+        compiled_module->set_function_tables(empty_function_tables);
+        compiled_module->set_signature_tables(empty_signature_tables);
       }
     }
 
@@ -1624,7 +1627,7 @@ void WasmCompiledModule::PrintInstancesChain() {
       PrintF("->%d", current->instance_id());
     }
     if (!current->has_next_instance()) break;
-    current = current->ptr_to_next_instance();
+    current = current->next_instance();
   }
   PrintF("\n");
 #endif
@@ -1633,8 +1636,8 @@ void WasmCompiledModule::PrintInstancesChain() {
 void WasmCompiledModule::InsertInChain(WasmModuleObject* module) {
   DisallowHeapAllocation no_gc;
   WasmCompiledModule* original = module->compiled_module();
-  set_ptr_to_next_instance(original);
-  original->set_ptr_to_prev_instance(this);
+  set_next_instance(original);
+  original->set_prev_instance(this);
   set_weak_wasm_module(original->weak_wasm_module());
 }
 
@@ -1655,7 +1658,7 @@ void WasmCompiledModule::RemoveFromChain() {
 
 void WasmCompiledModule::OnWasmModuleDecodingComplete(
     Handle<WasmSharedModuleData> shared) {
-  set_shared(shared);
+  set_shared(*shared);
 }
 
 void WasmCompiledModule::ReinitializeAfterDeserialization(
@@ -1679,11 +1682,17 @@ void WasmCompiledModule::ReinitializeAfterDeserialization(
     // addresses. Produce new global handles for the empty tables, then reset,
     // which will relocate the code. We end up with a WasmCompiledModule as-if
     // it were just compiled.
+    Handle<FixedArray> function_tables;
+    Handle<FixedArray> signature_tables;
     if (!FLAG_wasm_jit_to_native) {
       DCHECK(compiled_module->has_function_tables());
       DCHECK(compiled_module->has_signature_tables());
       DCHECK(compiled_module->has_empty_signature_tables());
       DCHECK(compiled_module->has_empty_function_tables());
+      function_tables =
+          handle(compiled_module->empty_function_tables(), isolate);
+      signature_tables =
+          handle(compiled_module->empty_signature_tables(), isolate);
     } else {
       DCHECK_GT(native_module->function_tables().size(), 0);
       DCHECK_GT(native_module->signature_tables().size(), 0);
@@ -1700,10 +1709,10 @@ void WasmCompiledModule::ReinitializeAfterDeserialization(
       GlobalHandleAddress new_func_table = global_func_table_handle.address();
       GlobalHandleAddress new_sig_table = global_sig_table_handle.address();
       if (!FLAG_wasm_jit_to_native) {
-        SetTableValue(isolate, compiled_module->empty_function_tables(),
-                      static_cast<int>(i), new_func_table);
-        SetTableValue(isolate, compiled_module->empty_signature_tables(),
-                      static_cast<int>(i), new_sig_table);
+        SetTableValue(isolate, function_tables, static_cast<int>(i),
+                      new_func_table);
+        SetTableValue(isolate, signature_tables, static_cast<int>(i),
+                      new_sig_table);
       } else {
         native_module->empty_function_tables()[i] = new_func_table;
         native_module->empty_signature_tables()[i] = new_sig_table;
@@ -1807,7 +1816,7 @@ bool WasmCompiledModule::SetBreakPoint(
     Handle<WasmCompiledModule> compiled_module, int* position,
     Handle<Object> break_point_object) {
   Isolate* isolate = compiled_module->GetIsolate();
-  Handle<WasmSharedModuleData> shared = compiled_module->shared();
+  Handle<WasmSharedModuleData> shared(compiled_module->shared(), isolate);
 
   // Find the function for this breakpoint.
   int func_index = shared->GetContainingFunction(*position);

@@ -9703,7 +9703,7 @@ bool debug::Script::GetPossibleBreakpoints(
   CHECK(!start.IsEmpty());
   i::Handle<i::Script> script = Utils::OpenHandle(this);
   if (script->type() == i::Script::TYPE_WASM) {
-    i::Handle<i::WasmSharedModuleData> shared =
+    i::WasmSharedModuleData* shared =
         i::WasmCompiledModule::cast(script->wasm_compiled_module())->shared();
     return shared->GetPossibleBreakpoints(start, end, locations);
   }
