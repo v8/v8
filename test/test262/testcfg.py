@@ -212,12 +212,6 @@ class TestSuite(testsuite.TestSuite):
       print "Error parsing exception for %s" % test
       return None
 
-  def GetExpectedOutcomes(self, test):
-    outcomes = self.GetStatusFileOutcomes(test.name, test.variant)
-    if (statusfile.FAIL_SLOPPY in outcomes and not test.uses_strict()):
-      return [statusfile.FAIL]
-    return super(TestSuite, self).GetExpectedOutcomes(test)
-
   def _VariantGeneratorFactory(self):
     return VariantGenerator
 
@@ -226,17 +220,8 @@ class TestCase(testcase.TestCase):
   def __init__(self, *args, **kwargs):
     super(TestCase, self).__init__(*args, **kwargs)
 
-    # precomputed
-    self.test_record = None
-
-  def precompute(self):
     source = self.get_source()
     self.test_record = self.suite.parse_test_record(source, self.path)
-
-  def _copy(self):
-    copy = super(TestCase, self)._copy()
-    copy.test_record = self.test_record
-    return copy
 
   def _get_files_params(self, ctx):
     return (
@@ -274,9 +259,6 @@ class TestCase(testcase.TestCase):
     if os.path.exists(path):
       return path
     return os.path.join(self.suite.testroot, filename)
-
-  def uses_strict(self):
-    return '--use-strict' in self.variant_flags
 
 
 def GetSuite(name, root):

@@ -79,12 +79,9 @@ class TestSuite(testsuite.TestSuite):
 class TestCase(testcase.TestCase):
   def __init__(self, suite, path, name, source, template_flags):
     super(TestCase, self).__init__(suite, path, name)
+
     self._source = source
     self._template_flags = template_flags
-
-  def _copy(self):
-    return self.__class__(
-        self.suite, self.path, self.name, self._source, self._template_flags)
 
   def _get_cmd_params(self, ctx):
     return (

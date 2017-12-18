@@ -221,28 +221,6 @@ class TestSuite(object):
           break
     self.tests = filtered
 
-  def GetExpectedOutcomes(self, test):
-    """Gets expected outcomes from status file.
-
-    It differs from GetStatusFileOutcomes by selecting only outcomes that can
-    be result of test execution.
-    Status file has to be loaded before using this function.
-    """
-    outcomes = self.GetStatusFileOutcomes(test.name, test.variant)
-
-    expected = []
-    if (statusfile.FAIL in outcomes or
-        statusfile.FAIL_OK in outcomes):
-      expected.append(statusfile.FAIL)
-
-    if statusfile.CRASH in outcomes:
-      expected.append(statusfile.CRASH)
-
-    if statusfile.PASS in outcomes:
-      expected.append(statusfile.PASS)
-
-    return expected or [statusfile.PASS]
-
   def GetStatusFileOutcomes(self, testname, variant=None):
     """Gets outcomes from status file.
 
@@ -308,14 +286,12 @@ class TestSuite(object):
       return (
           output.exit_code != 0 and
           not self.IsNegativeTest(testcase) and
-          statusfile.FAIL not in self.GetExpectedOutcomes(testcase)
+          statusfile.FAIL not in testcase.expected_outcomes
       )
-    return (self.GetOutcome(testcase, output)
-            not in self.GetExpectedOutcomes(testcase))
+    return self.GetOutcome(testcase, output) not in testcase.expected_outcomes
 
   def _create_test(self, path, **kwargs):
     test = self._test_class()(self, path, self._path_to_name(path), **kwargs)
-    test.precompute()
     return test
 
   def _test_class(self):

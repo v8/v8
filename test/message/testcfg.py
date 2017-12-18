@@ -115,20 +115,9 @@ class TestCase(testcase.TestCase):
   def __init__(self, *args, **kwargs):
     super(TestCase, self).__init__(*args, **kwargs)
 
-    # precomputed
-    self._source_files = None
-    self._source_flags = None
-
-  def precompute(self):
     source = self.get_source()
     self._source_files = self._parse_source_files(source)
     self._source_flags = self._parse_source_flags(source)
-
-  def _copy(self):
-    copy = super(TestCase, self)._copy()
-    copy._source_files = self._source_files
-    copy._source_flags = self._source_flags
-    return copy
 
   def _parse_source_files(self, source):
     files = []

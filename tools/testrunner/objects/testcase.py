@@ -25,11 +25,13 @@
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+import copy
 import os
 import re
 import shlex
 
 from ..local import command
+from ..local import statusfile
 from ..local import utils
 
 FLAGS_PATTERN = re.compile(r"//\s+Flags:(.*)")
@@ -45,31 +47,49 @@ class TestCase(object):
     self.variant = None       # name of the used testing variant
     self.variant_flags = []   # list of strings, flags specific to this test
 
+    self.expected_outcomes = None
+
     self.id = None  # int, used to map result back to TestCase instance
     self.run = 1  # The nth time this test is executed.
     self.cmd = None
 
-  def precompute(self):
-    """It precomputes all things that can be shared among all variants of this
-    object (like flags from source file). Values calculated here should be
-    immutable and shared among all copies (in _copy implementation).
-    """
-    pass
+    self._prepare_expected_outcomes()
 
   def create_variant(self, variant, flags):
-    copy = self._copy()
-    if not self.variant_flags:
-      copy.variant_flags = flags
-    else:
-      copy.variant_flags = self.variant_flags + flags
-    copy.variant = variant
-    return copy
-
-  def _copy(self):
-    """Makes a copy of the object. It should be overriden in case of any
-    additional constructor parameters or precomputed fields.
+    """Makes a shallow copy of the object and updates variant, variant_flags and
+    all fields that depend on it, e.g. expected outcomes.
     """
-    return self.__class__(self.suite, self.path, self.name)
+    other = copy.copy(self)
+    if not self.variant_flags:
+      other.variant_flags = flags
+    else:
+      other.variant_flags = self.variant_flags + flags
+    other.variant = variant
+
+    other._prepare_expected_outcomes()
+
+    return other
+
+  def _prepare_expected_outcomes(self):
+    status_file_outcomes = self.suite.GetStatusFileOutcomes(self.name,
+                                                            self.variant)
+    self.expected_outcomes = (
+      self._parse_status_file_outcomes(status_file_outcomes))
+
+  def _parse_status_file_outcomes(self, outcomes):
+    if (statusfile.FAIL_SLOPPY in outcomes and
+        '--use-strict' not in self.variant_flags):
+      return [statusfile.FAIL]
+
+    expected_outcomes = []
+    if (statusfile.FAIL in outcomes or
+        statusfile.FAIL_OK in outcomes):
+      expected_outcomes.append(statusfile.FAIL)
+    if statusfile.CRASH in outcomes:
+      expected_outcomes.append(statusfile.CRASH)
+    if statusfile.PASS in outcomes:
+      expected_outcomes.append(statusfile.PASS)
+    return expected_outcomes or [statusfile.PASS]
 
   def get_command(self, context):
     params = self._get_cmd_params(context)

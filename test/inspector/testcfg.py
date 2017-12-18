@@ -95,16 +95,7 @@ class TestCase(testcase.TestCase):
   def __init__(self, *args, **kwargs):
     super(TestCase, self).__init__(*args, **kwargs)
 
-    # precomputed
-    self._source_flags = None
-
-  def precompute(self):
     self._source_flags = self._parse_source_flags()
-
-  def _copy(self):
-    copy = super(TestCase, self)._copy()
-    copy._source_flags = self._source_flags
-    return copy
 
   def _get_files_params(self, ctx):
     return [

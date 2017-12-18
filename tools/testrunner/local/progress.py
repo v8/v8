@@ -358,7 +358,7 @@ class JsonTestProgressIndicator(ProgressIndicator):
       "stderr": output.stderr,
       "exit_code": output.exit_code,
       "result": test.suite.GetOutcome(test, output),
-      "expected": test.suite.GetExpectedOutcomes(test),
+      "expected": test.expected_outcomes,
       "duration": output.duration,
 
       # TODO(machenbach): This stores only the global random seed from the
@@ -400,10 +400,9 @@ class FlakinessTestProgressIndicator(ProgressIndicator):
     assert outcome in ["PASS", "FAIL", "CRASH", "TIMEOUT"]
     if test.run == 1:
       # First run of this test.
-      expected_outcomes = test.suite.GetExpectedOutcomes(test)
       self.results[key] = {
         "actual": outcome,
-        "expected": " ".join(expected_outcomes),
+        "expected": " ".join(test.expected_outcomes),
         "times": [output.duration],
       }
       self.summary[outcome] = self.summary[outcome] + 1

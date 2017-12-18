@@ -63,14 +63,6 @@ class TestCase(testcase.TestCase):
   def __init__(self, *args, **kwargs):
     super(TestCase, self).__init__(*args, **kwargs)
 
-    # precomputed
-    self._source_files = None
-    self._source_flags = None
-    self._mjsunit_files = None
-    self._files_suffix = None
-    self._env = None
-
-  def precompute(self):
     source = self.get_source()
 
     files_list = []  # List of file names to append to command arguments.
@@ -84,7 +76,8 @@ class TestCase(testcase.TestCase):
         break
     files = [ os.path.normpath(os.path.join(self.suite.root, '..', '..', f))
               for f in files_list ]
-    testfilename = os.path.join(self.suite.root, self.path + self._get_suffix())
+    testfilename = os.path.join(self.suite.root,
+                                self.path + self._get_suffix())
     if SELF_SCRIPT_PATTERN.search(source):
       files = (
         ["-e", "TEST_FILE_NAME=\"%s\"" % testfilename.replace("\\", "\\\\")] +
@@ -105,15 +98,6 @@ class TestCase(testcase.TestCase):
     self._mjsunit_files = mjsunit_files
     self._files_suffix = files_suffix
     self._env = self._parse_source_env(source)
-
-  def _copy(self):
-    copy = super(TestCase, self)._copy()
-    copy._source_files = self._source_files
-    copy._source_flags = self._source_flags
-    copy._mjsunit_files = self._mjsunit_files
-    copy._files_suffix = self._files_suffix
-    copy._env = self._env
-    return copy
 
   def _parse_source_env(self, source):
     env_match = ENV_PATTERN.search(source)
