@@ -1318,10 +1318,12 @@ Handle<WasmCompiledModule> WasmCompiledModule::New(
     native_module->empty_signature_tables() = signature_tables;
 
     int function_count = static_cast<int>(module->functions.size());
-    compiled_module->set_handler_table(
-        isolate->factory()->NewFixedArray(function_count, TENURED));
-    compiled_module->set_source_positions(
-        isolate->factory()->NewFixedArray(function_count, TENURED));
+    Handle<FixedArray> handler_table =
+        isolate->factory()->NewFixedArray(function_count, TENURED);
+    compiled_module->set_handler_table(handler_table);
+    Handle<FixedArray> source_positions =
+        isolate->factory()->NewFixedArray(function_count, TENURED);
+    compiled_module->set_source_positions(source_positions);
   }
   // TODO(mtrofin): copy the rest of the specialization parameters over.
   // We're currently OK because we're only using defaults.

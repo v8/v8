@@ -246,12 +246,14 @@ void NativeModule::ResizeCodeTableForTest(size_t last_index) {
     code_table_.resize(new_size);
     int grow_by = static_cast<int>(new_size) -
                   compiled_module()->source_positions()->length();
-    compiled_module()->set_source_positions(
-        isolate->factory()->CopyFixedArrayAndGrow(
-            compiled_module()->source_positions(), grow_by, TENURED));
-    compiled_module()->set_handler_table(
-        isolate->factory()->CopyFixedArrayAndGrow(
-            compiled_module()->handler_table(), grow_by, TENURED));
+    Handle<FixedArray> source_positions = compiled_module()->source_positions();
+    source_positions = isolate->factory()->CopyFixedArrayAndGrow(
+        source_positions, grow_by, TENURED);
+    compiled_module()->set_source_positions(source_positions);
+    Handle<FixedArray> handler_table = compiled_module()->handler_table();
+    handler_table = isolate->factory()->CopyFixedArrayAndGrow(handler_table,
+                                                              grow_by, TENURED);
+    compiled_module()->set_handler_table(handler_table);
   }
 }
 

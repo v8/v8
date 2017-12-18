@@ -2145,8 +2145,9 @@ MaybeHandle<WasmModuleObject> ModuleCompiler::CompileToModuleObjectInternal(
   native_module_ = compiled_module->GetNativeModule();
   compiled_module->OnWasmModuleDecodingComplete(shared);
   if (lazy_compile && FLAG_wasm_jit_to_native) {
-    compiled_module->set_lazy_compile_data(isolate_->factory()->NewFixedArray(
-        static_cast<int>(module_->functions.size()), TENURED));
+    Handle<FixedArray> lazy_compile_data = isolate_->factory()->NewFixedArray(
+        static_cast<int>(module_->functions.size()), TENURED);
+    compiled_module->set_lazy_compile_data(lazy_compile_data);
   }
 
   if (!lazy_compile) {
