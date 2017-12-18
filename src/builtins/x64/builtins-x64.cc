@@ -170,7 +170,7 @@ void Generate_JSBuiltinsConstructStubHelper(MacroAssembler* masm) {
     __ Push(Operand(rbx, rcx, times_pointer_size, 0));
     __ bind(&entry);
     __ decp(rcx);
-    __ j(greater_equal, &loop);
+    __ j(greater_equal, &loop, Label::kNear);
 
     // Call the function.
     // rax: number of arguments (untagged)
@@ -231,7 +231,7 @@ void Generate_JSConstructStubGeneric(MacroAssembler* masm,
     __ movp(rbx, FieldOperand(rdi, JSFunction::kSharedFunctionInfoOffset));
     __ testl(FieldOperand(rbx, SharedFunctionInfo::kCompilerHintsOffset),
              Immediate(SharedFunctionInfo::kDerivedConstructorMask));
-    __ j(not_zero, &not_create_implicit_receiver);
+    __ j(not_zero, &not_create_implicit_receiver, Label::kNear);
 
     // If not derived class constructor: Allocate the new receiver object.
     __ IncrementCounter(masm->isolate()->counters()->constructed_objects(), 1);
@@ -302,7 +302,7 @@ void Generate_JSConstructStubGeneric(MacroAssembler* masm,
     __ Push(Operand(rbx, rcx, times_pointer_size, 0));
     __ bind(&entry);
     __ decp(rcx);
-    __ j(greater_equal, &loop);
+    __ j(greater_equal, &loop, Label::kNear);
 
     // Call the function.
     ParameterCount actual(rax);
@@ -369,7 +369,7 @@ void Generate_JSConstructStubGeneric(MacroAssembler* masm,
     // on-stack receiver as the result.
     __ bind(&use_receiver);
     __ movp(rax, Operand(rsp, 0 * kPointerSize));
-    __ JumpIfRoot(rax, Heap::kTheHoleValueRootIndex, &do_throw);
+    __ JumpIfRoot(rax, Heap::kTheHoleValueRootIndex, &do_throw, Label::kNear);
 
     __ bind(&leave_frame);
     // Restore the arguments count.
@@ -525,7 +525,7 @@ static void Generate_JSEntryTrampolineHelper(MacroAssembler* masm,
     // Argument count in rax. Clobbers rcx.
     Label enough_stack_space, stack_overflow;
     Generate_StackOverflowCheck(masm, rax, rcx, &stack_overflow, Label::kNear);
-    __ jmp(&enough_stack_space);
+    __ jmp(&enough_stack_space, Label::kNear);
 
     __ bind(&stack_overflow);
     __ CallRuntime(Runtime::kThrowStackOverflow);
@@ -546,7 +546,7 @@ static void Generate_JSEntryTrampolineHelper(MacroAssembler* masm,
     __ addp(rcx, Immediate(1));
     __ bind(&entry);
     __ cmpp(rcx, rax);
-    __ j(not_equal, &loop);
+    __ j(not_equal, &loop, Label::kNear);
 
     // Invoke the builtin code.
     Handle<Code> builtin = is_construct
@@ -868,7 +868,6 @@ static void AdvanceBytecodeOffset(MacroAssembler* masm, Register bytecode_array,
   __ movzxbp(bytecode, Operand(bytecode_array, bytecode_offset, times_1, 0));
   __ addp(bytecode_size_table,
           Immediate(2 * kIntSize * interpreter::Bytecodes::kBytecodeCount));
-  __ jmp(&load_size, Label::kNear);
 
   // Load the size of the current bytecode.
   __ bind(&load_size);
@@ -967,7 +966,7 @@ void Builtins::Generate_InterpreterEntryTrampoline(MacroAssembler* masm) {
     Label loop_header;
     Label loop_check;
     __ LoadRoot(rax, Heap::kUndefinedValueRootIndex);
-    __ j(always, &loop_check);
+    __ j(always, &loop_check, Label::kNear);
     __ bind(&loop_header);
     // TODO(rmcilroy): Consider doing more than one push per loop iteration.
     __ Push(rax);
@@ -1060,7 +1059,7 @@ static void Generate_InterpreterPushArgs(MacroAssembler* masm,
 
   // Push the arguments.
   Label loop_header, loop_check;
-  __ j(always, &loop_check);
+  __ j(always, &loop_check, Label::kNear);
   __ bind(&loop_header);
   __ Push(Operand(start_address, 0));
   __ subp(start_address, Immediate(kPointerSize));
@@ -2253,7 +2252,7 @@ void Builtins::Generate_CallFunction(MacroAssembler* masm,
           // Patch receiver to global proxy.
           __ LoadGlobalProxy(rcx);
         }
-        __ jmp(&convert_receiver);
+        __ jmp(&convert_receiver, Label::kNear);
       }
       __ bind(&convert_to_object);
       {
@@ -2431,11 +2430,11 @@ void Builtins::Generate_Call(MacroAssembler* masm, ConvertReceiverMode mode) {
   // Check if target has a [[Call]] internal method.
   __ testb(FieldOperand(rcx, Map::kBitFieldOffset),
            Immediate(Map::IsCallableBit::kMask));
-  __ j(zero, &non_callable);
+  __ j(zero, &non_callable, Label::kNear);
 
   // Check if target is a proxy and call CallProxy external builtin
   __ CmpInstanceType(rcx, JS_PROXY_TYPE);
-  __ j(not_equal, &non_function);
+  __ j(not_equal, &non_function, Label::kNear);
   __ Jump(BUILTIN_CODE(masm->isolate(), CallProxy), RelocInfo::CODE_TARGET);
 
   // 2. Call to something else, which might have a [[Call]] internal method (if
@@ -2538,7 +2537,7 @@ void Builtins::Generate_Construct(MacroAssembler* masm) {
 
   // Only dispatch to proxies after checking whether they are constructors.
   __ CmpInstanceType(rcx, JS_PROXY_TYPE);
-  __ j(not_equal, &non_proxy);
+  __ j(not_equal, &non_proxy, Label::kNear);
   __ Jump(BUILTIN_CODE(masm->isolate(), ConstructProxy),
           RelocInfo::CODE_TARGET);
 
@@ -2579,7 +2578,7 @@ static void Generate_OnStackReplacementHelper(MacroAssembler* masm,
 
   Label skip;
   // If the code object is null, just return to the caller.
-  __ cmpp(rax, Immediate(0));
+  __ testp(rax, rax);
   __ j(not_equal, &skip, Label::kNear);
   __ ret(0);
 
