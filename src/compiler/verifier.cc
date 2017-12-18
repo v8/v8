@@ -51,7 +51,7 @@ class Verifier::Visitor {
       std::ostringstream str;
       str << "TypeError: node #" << node->id() << ":" << *node->op()
           << " should never have a type";
-      FATAL(str.str().c_str());
+      FATAL("%s", str.str().c_str());
     }
   }
   void CheckTypeIs(Node* node, Type* type) {
@@ -62,7 +62,7 @@ class Verifier::Visitor {
       NodeProperties::GetType(node)->PrintTo(str);
       str << " is not ";
       type->PrintTo(str);
-      FATAL(str.str().c_str());
+      FATAL("%s", str.str().c_str());
     }
   }
   void CheckTypeMaybe(Node* node, Type* type) {
@@ -73,7 +73,7 @@ class Verifier::Visitor {
       NodeProperties::GetType(node)->PrintTo(str);
       str << " must intersect ";
       type->PrintTo(str);
-      FATAL(str.str().c_str());
+      FATAL("%s", str.str().c_str());
     }
   }
   void CheckValueInputIs(Node* node, int i, Type* type) {
@@ -86,7 +86,7 @@ class Verifier::Visitor {
       NodeProperties::GetType(input)->PrintTo(str);
       str << " is not ";
       type->PrintTo(str);
-      FATAL(str.str().c_str());
+      FATAL("%s", str.str().c_str());
     }
   }
   void CheckOutput(Node* node, Node* use, int count, const char* kind) {
@@ -95,7 +95,7 @@ class Verifier::Visitor {
       str << "GraphError: node #" << node->id() << ":" << *node->op()
           << " does not produce " << kind << " output used by node #"
           << use->id() << ":" << *use->op();
-      FATAL(str.str().c_str());
+      FATAL("%s", str.str().c_str());
     }
   }
 };

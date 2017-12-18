@@ -512,11 +512,7 @@ static const v8::CpuProfileNode* GetChild(v8::Local<v8::Context> context,
                                           const v8::CpuProfileNode* node,
                                           const char* name) {
   const v8::CpuProfileNode* result = FindChild(context, node, name);
-  if (!result) {
-    char buffer[100];
-    i::SNPrintF(i::ArrayVector(buffer), "Failed to GetChild: %s", name);
-    FATAL(buffer);
-  }
+  if (!result) FATAL("Failed to GetChild: %s", name);
   return result;
 }
 
@@ -1879,7 +1875,7 @@ TEST(CollectDeoptEvents) {
         GetBranchDeoptReason(env, iprofile, branch, arraysize(branch));
     if (deopt_reason != reason(i::DeoptimizeReason::kNotAHeapNumber) &&
         deopt_reason != reason(i::DeoptimizeReason::kNotASmi)) {
-      FATAL(deopt_reason);
+      FATAL("%s", deopt_reason);
     }
   }
   {
@@ -1889,7 +1885,7 @@ TEST(CollectDeoptEvents) {
     if (deopt_reason != reason(i::DeoptimizeReason::kNaN) &&
         deopt_reason != reason(i::DeoptimizeReason::kLostPrecisionOrNaN) &&
         deopt_reason != reason(i::DeoptimizeReason::kNotASmi)) {
-      FATAL(deopt_reason);
+      FATAL("%s", deopt_reason);
     }
   }
   {

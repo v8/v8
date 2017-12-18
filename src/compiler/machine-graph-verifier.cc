@@ -558,7 +558,7 @@ class MachineRepresentationChecker {
               str << "Node #" << node->id() << ":" << *node->op()
                   << " in the machine graph is not being checked.";
               PrintDebugHelp(str, node);
-              FATAL(str.str().c_str());
+              FATAL("%s", str.str().c_str());
             }
             break;
         }
@@ -588,7 +588,7 @@ class MachineRepresentationChecker {
           << input_representation << " which doesn't have a " << representation
           << " representation.";
       PrintDebugHelp(str, node);
-      FATAL(str.str().c_str());
+      FATAL("%s", str.str().c_str());
     }
   }
 
@@ -607,7 +607,7 @@ class MachineRepresentationChecker {
         << " uses node #" << input->id() << ":" << *input->op()
         << " which doesn't have a tagged representation.";
     PrintDebugHelp(str, node);
-    FATAL(str.str().c_str());
+    FATAL("%s", str.str().c_str());
   }
 
   void CheckValueInputIsTaggedOrPointer(Node const* node, int index) {
@@ -640,7 +640,7 @@ class MachineRepresentationChecker {
           << " uses node #" << input->id() << ":" << *input->op()
           << " which doesn't have a tagged or pointer representation.";
       PrintDebugHelp(str, node);
-      FATAL(str.str().c_str());
+      FATAL("%s", str.str().c_str());
     }
   }
 
@@ -657,7 +657,7 @@ class MachineRepresentationChecker {
         str << "TypeError: node #" << input->id() << ":" << *input->op()
             << " is untyped.";
         PrintDebugHelp(str, node);
-        FATAL(str.str().c_str());
+        FATAL("%s", str.str().c_str());
         break;
       }
       default:
@@ -668,7 +668,7 @@ class MachineRepresentationChecker {
         << " uses node #" << input->id() << ":" << *input->op()
         << " which doesn't have an int32-compatible representation.";
     PrintDebugHelp(str, node);
-    FATAL(str.str().c_str());
+    FATAL("%s", str.str().c_str());
   }
 
   void CheckValueInputForInt64Op(Node const* node, int index) {
@@ -683,7 +683,7 @@ class MachineRepresentationChecker {
         str << "TypeError: node #" << input->id() << ":" << *input->op()
             << " is untyped.";
         PrintDebugHelp(str, node);
-        FATAL(str.str().c_str());
+        FATAL("%s", str.str().c_str());
         break;
       }
 
@@ -696,7 +696,7 @@ class MachineRepresentationChecker {
         << input_representation
         << " which doesn't have a kWord64 representation.";
     PrintDebugHelp(str, node);
-    FATAL(str.str().c_str());
+    FATAL("%s", str.str().c_str());
   }
 
   void CheckValueInputForFloat32Op(Node const* node, int index) {
@@ -710,7 +710,7 @@ class MachineRepresentationChecker {
         << " uses node #" << input->id() << ":" << *input->op()
         << " which doesn't have a kFloat32 representation.";
     PrintDebugHelp(str, node);
-    FATAL(str.str().c_str());
+    FATAL("%s", str.str().c_str());
   }
 
   void CheckValueInputForFloat64Op(Node const* node, int index) {
@@ -724,7 +724,7 @@ class MachineRepresentationChecker {
         << " uses node #" << input->id() << ":" << *input->op()
         << " which doesn't have a kFloat64 representation.";
     PrintDebugHelp(str, node);
-    FATAL(str.str().c_str());
+    FATAL("%s", str.str().c_str());
   }
 
   void CheckCallInputs(Node const* node) {
@@ -751,7 +751,7 @@ class MachineRepresentationChecker {
     }
     if (should_log_error) {
       PrintDebugHelp(str, node);
-      FATAL(str.str().c_str());
+      FATAL("%s", str.str().c_str());
     }
   }
 

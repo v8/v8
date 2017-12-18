@@ -277,10 +277,8 @@ void TestBuildingGraphWithBuilder(compiler::WasmGraphBuilder* builder,
 #endif
 
     uint32_t pc = result.error_offset();
-    std::ostringstream str;
-    str << "Verification failed; pc = +" << pc
-        << ", msg = " << result.error_msg().c_str();
-    FATAL(str.str().c_str());
+    FATAL("Verification failed; pc = +%x, msg = %s", pc,
+          result.error_msg().c_str());
   }
   builder->LowerInt64();
   if (!CpuFeatures::SupportsWasmSimd128()) {

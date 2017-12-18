@@ -1403,32 +1403,30 @@ void TestParserSyncWithFlags(i::Handle<i::String> source,
     isolate->clear_pending_exception();
 
     if (result == kSuccess) {
-      v8::base::OS::Print(
+      FATAL(
           "Parser failed on:\n"
           "\t%s\n"
           "with error:\n"
           "\t%s\n"
           "However, we expected no error.",
           source->ToCString().get(), message_string->ToCString().get());
-      CHECK(false);
     }
 
     if (test_preparser && !pending_error_handler.has_pending_error()) {
-      v8::base::OS::Print(
+      FATAL(
           "Parser failed on:\n"
           "\t%s\n"
           "with error:\n"
           "\t%s\n"
           "However, the preparser succeeded",
           source->ToCString().get(), message_string->ToCString().get());
-      CHECK(false);
     }
     // Check that preparser and parser produce the same error.
     if (test_preparser && !ignore_error_msg) {
       i::Handle<i::String> preparser_message =
           pending_error_handler.FormatErrorMessageForTest(CcTest::i_isolate());
       if (!i::String::Equals(message_string, preparser_message)) {
-        v8::base::OS::Print(
+        FATAL(
             "Expected parser and preparser to produce the same error on:\n"
             "\t%s\n"
             "However, found the following error messages\n"
@@ -1436,11 +1434,10 @@ void TestParserSyncWithFlags(i::Handle<i::String> source,
             "\tpreparser: %s\n",
             source->ToCString().get(), message_string->ToCString().get(),
             preparser_message->ToCString().get());
-        CHECK(false);
       }
     }
   } else if (test_preparser && pending_error_handler.has_pending_error()) {
-    v8::base::OS::Print(
+    FATAL(
         "Preparser failed on:\n"
         "\t%s\n"
         "with error:\n"
@@ -1450,14 +1447,12 @@ void TestParserSyncWithFlags(i::Handle<i::String> source,
         pending_error_handler.FormatErrorMessageForTest(CcTest::i_isolate())
             ->ToCString()
             .get());
-    CHECK(false);
   } else if (result == kError) {
-    v8::base::OS::Print(
+    FATAL(
         "Expected error on:\n"
         "\t%s\n"
         "However, parser and preparser succeeded",
         source->ToCString().get());
-    CHECK(false);
   }
 }
 
@@ -2387,12 +2382,11 @@ TEST(DontRegressPreParserDataSizes) {
     i::ParseData* pd = i::ParseData::FromCachedData(sd);
 
     if (pd->FunctionCount() != test_cases[i].functions) {
-      v8::base::OS::Print(
+      FATAL(
           "Expected preparse data for program:\n"
           "\t%s\n"
           "to contain %d functions, however, received %d functions.\n",
           program, test_cases[i].functions, pd->FunctionCount());
-      CHECK(false);
     }
     delete sd;
     delete pd;
@@ -5818,14 +5812,13 @@ TEST(BasicImportExportParsing) {
                 .ToHandleChecked());
         isolate->clear_pending_exception();
 
-        v8::base::OS::Print(
+        FATAL(
             "Parser failed on:\n"
             "\t%s\n"
             "with error:\n"
             "\t%s\n"
             "However, we expected no error.",
             source->ToCString().get(), message_string->ToCString().get());
-        CHECK(false);
       }
     }
 

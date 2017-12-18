@@ -970,7 +970,7 @@ void InstructionSelector::VisitControl(BasicBlock* block) {
               << "only one predecessor." << std::endl
               << "# Current Block: " << *successor << std::endl
               << "#          Node: " << *node;
-          FATAL(str.str().c_str());
+          FATAL("%s", str.str().c_str());
         }
       }
     }

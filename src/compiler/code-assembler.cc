@@ -1357,13 +1357,13 @@ Node* CodeAssemblerVariable::value() const {
     str << "#Use of unbound variable:"
         << "#\n    Variable:      " << *this << "#\n    Current Block: ";
     state_->PrintCurrentBlock(str);
-    FATAL(str.str().c_str());
+    FATAL("%s", str.str().c_str());
   }
   if (!state_->InsideBlock()) {
     std::stringstream str;
     str << "#Accessing variable value outside a block:"
         << "#\n    Variable:      " << *this;
-    FATAL(str.str().c_str());
+    FATAL("%s", str.str().c_str());
   }
 #endif  // DEBUG
   return impl_->value_;
@@ -1456,7 +1456,7 @@ void CodeAssemblerLabel::MergeVariables() {
             }
             str << "\n#    Current Block: ";
             state_->PrintCurrentBlock(str);
-            FATAL(str.str().c_str());
+            FATAL("%s", str.str().c_str());
           }
 #endif  // DEBUG
         }
@@ -1472,7 +1472,7 @@ void CodeAssemblerLabel::Bind(AssemblerDebugInfo debug_info) {
     str << "Cannot bind the same label twice:"
         << "\n#    current:  " << debug_info
         << "\n#    previous: " << *label_->block();
-    FATAL(str.str().c_str());
+    FATAL("%s", str.str().c_str());
   }
   state_->raw_assembler_->Bind(label_, debug_info);
   UpdateVariablesAfterBind();
@@ -1524,7 +1524,7 @@ void CodeAssemblerLabel::UpdateVariablesAfterBind() {
           << " vs. found=" << (not_found ? 0 : i->second.size())
           << "\n# Variable:      " << *var_impl
           << "\n# Current Block: " << *label_->block();
-      FATAL(str.str().c_str());
+      FATAL("%s", str.str().c_str());
     }
 #endif  // DEBUG
     Node* phi = state_->raw_assembler_->Phi(

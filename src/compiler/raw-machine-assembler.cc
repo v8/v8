@@ -454,7 +454,7 @@ void RawMachineAssembler::Bind(RawMachineLabel* label,
     str << "Binding label without closing previous block:"
         << "\n#    label:          " << info
         << "\n#    previous block: " << *current_block_;
-    FATAL(str.str().c_str());
+    FATAL("%s", str.str().c_str());
   }
   Bind(label);
   current_block_->set_debug_info(info);
@@ -519,7 +519,7 @@ RawMachineLabel::~RawMachineLabel() {
   } else {
     str << "A label has been used but it's not bound.";
   }
-  FATAL(str.str().c_str());
+  FATAL("%s", str.str().c_str());
 #endif  // DEBUG
 }
 
