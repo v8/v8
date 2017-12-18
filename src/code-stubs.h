@@ -47,8 +47,6 @@ class Node;
   V(ElementsTransitionAndStore)               \
   V(KeyedLoadSloppyArguments)                 \
   V(KeyedStoreSloppyArguments)                \
-  V(LoadScriptContextField)                   \
-  V(StoreScriptContextField)                  \
   V(StringAdd)                                \
   V(GetProperty)                              \
   V(StoreFastElement)                         \
@@ -791,59 +789,6 @@ class DoubleToIStub : public PlatformCodeStub {
 
   DEFINE_NULL_CALL_INTERFACE_DESCRIPTOR();
   DEFINE_PLATFORM_CODE_STUB(DoubleToI, PlatformCodeStub);
-};
-
-class ScriptContextFieldStub : public TurboFanCodeStub {
- public:
-  ScriptContextFieldStub(Isolate* isolate,
-                         const ScriptContextTable::LookupResult* lookup_result)
-      : TurboFanCodeStub(isolate) {
-    DCHECK(Accepted(lookup_result));
-    minor_key_ = ContextIndexBits::encode(lookup_result->context_index) |
-                 SlotIndexBits::encode(lookup_result->slot_index);
-  }
-
-  int context_index() const { return ContextIndexBits::decode(minor_key_); }
-
-  int slot_index() const { return SlotIndexBits::decode(minor_key_); }
-
-  static bool Accepted(const ScriptContextTable::LookupResult* lookup_result) {
-    return ContextIndexBits::is_valid(lookup_result->context_index) &&
-           SlotIndexBits::is_valid(lookup_result->slot_index);
-  }
-
- private:
-  static const int kContextIndexBits = 9;
-  static const int kSlotIndexBits = 12;
-  class ContextIndexBits : public BitField<int, 0, kContextIndexBits> {};
-  class SlotIndexBits
-      : public BitField<int, kContextIndexBits, kSlotIndexBits> {};
-
-  DEFINE_CODE_STUB_BASE(ScriptContextFieldStub, TurboFanCodeStub);
-};
-
-
-class LoadScriptContextFieldStub : public ScriptContextFieldStub {
- public:
-  LoadScriptContextFieldStub(
-      Isolate* isolate, const ScriptContextTable::LookupResult* lookup_result)
-      : ScriptContextFieldStub(isolate, lookup_result) {}
-
- private:
-  DEFINE_CALL_INTERFACE_DESCRIPTOR(LoadWithVector);
-  DEFINE_TURBOFAN_CODE_STUB(LoadScriptContextField, ScriptContextFieldStub);
-};
-
-
-class StoreScriptContextFieldStub : public ScriptContextFieldStub {
- public:
-  StoreScriptContextFieldStub(
-      Isolate* isolate, const ScriptContextTable::LookupResult* lookup_result)
-      : ScriptContextFieldStub(isolate, lookup_result) {}
-
- private:
-  DEFINE_CALL_INTERFACE_DESCRIPTOR(StoreWithVector);
-  DEFINE_TURBOFAN_CODE_STUB(StoreScriptContextField, ScriptContextFieldStub);
 };
 
 class StoreFastElementStub : public TurboFanCodeStub {

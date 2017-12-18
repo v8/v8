@@ -579,18 +579,6 @@ InlineCacheState LoadICNexus::StateFromFeedback() const {
   return UNINITIALIZED;
 }
 
-InlineCacheState LoadGlobalICNexus::StateFromFeedback() const {
-  Isolate* isolate = GetIsolate();
-  Object* feedback = GetFeedback();
-
-  Object* extra = GetFeedbackExtra();
-  if (!WeakCell::cast(feedback)->cleared() ||
-      extra != *FeedbackVector::UninitializedSentinel(isolate)) {
-    return MONOMORPHIC;
-  }
-  return UNINITIALIZED;
-}
-
 InlineCacheState KeyedLoadICNexus::StateFromFeedback() const {
   Isolate* isolate = GetIsolate();
   Object* feedback = GetFeedback();
@@ -617,28 +605,47 @@ InlineCacheState KeyedLoadICNexus::StateFromFeedback() const {
   return UNINITIALIZED;
 }
 
-void StoreGlobalICNexus::ConfigureUninitialized() {
+void GlobalICNexus::ConfigureUninitialized() {
   Isolate* isolate = GetIsolate();
   SetFeedback(isolate->heap()->empty_weak_cell(), SKIP_WRITE_BARRIER);
   SetFeedbackExtra(*FeedbackVector::UninitializedSentinel(isolate),
                    SKIP_WRITE_BARRIER);
 }
 
-void StoreGlobalICNexus::ConfigurePropertyCellMode(Handle<PropertyCell> cell) {
+void GlobalICNexus::ConfigurePropertyCellMode(Handle<PropertyCell> cell) {
   Isolate* isolate = GetIsolate();
   SetFeedback(*isolate->factory()->NewWeakCell(cell));
   SetFeedbackExtra(*FeedbackVector::UninitializedSentinel(isolate),
                    SKIP_WRITE_BARRIER);
 }
 
-void StoreGlobalICNexus::ConfigureHandlerMode(Handle<Object> handler) {
+bool GlobalICNexus::ConfigureLexicalVarMode(int script_context_index,
+                                            int context_slot_index) {
+  DCHECK_LE(0, script_context_index);
+  DCHECK_LE(0, context_slot_index);
+  if (!ContextIndexBits::is_valid(script_context_index) ||
+      !SlotIndexBits::is_valid(context_slot_index)) {
+    return false;
+  }
+  int config = ContextIndexBits::encode(script_context_index) |
+               SlotIndexBits::encode(context_slot_index);
+
+  SetFeedback(Smi::FromInt(config));
+  Isolate* isolate = GetIsolate();
+  SetFeedbackExtra(*FeedbackVector::UninitializedSentinel(isolate),
+                   SKIP_WRITE_BARRIER);
+  return true;
+}
+
+void GlobalICNexus::ConfigureHandlerMode(Handle<Object> handler) {
   SetFeedback(GetIsolate()->heap()->empty_weak_cell());
   SetFeedbackExtra(*handler);
 }
 
-InlineCacheState StoreGlobalICNexus::StateFromFeedback() const {
+InlineCacheState GlobalICNexus::StateFromFeedback() const {
   Isolate* isolate = GetIsolate();
   Object* feedback = GetFeedback();
+  if (feedback->IsSmi()) return MONOMORPHIC;
 
   Object* extra = GetFeedbackExtra();
   if (!WeakCell::cast(feedback)->cleared() ||
@@ -750,25 +757,6 @@ void CallICNexus::ConfigureUninitialized() {
   SetFeedback(*FeedbackVector::UninitializedSentinel(isolate),
               SKIP_WRITE_BARRIER);
   SetFeedbackExtra(Smi::kZero, SKIP_WRITE_BARRIER);
-}
-
-void LoadGlobalICNexus::ConfigureUninitialized() {
-  Isolate* isolate = GetIsolate();
-  SetFeedback(isolate->heap()->empty_weak_cell(), SKIP_WRITE_BARRIER);
-  SetFeedbackExtra(*FeedbackVector::UninitializedSentinel(isolate),
-                   SKIP_WRITE_BARRIER);
-}
-
-void LoadGlobalICNexus::ConfigurePropertyCellMode(Handle<PropertyCell> cell) {
-  Isolate* isolate = GetIsolate();
-  SetFeedback(*isolate->factory()->NewWeakCell(cell));
-  SetFeedbackExtra(*FeedbackVector::UninitializedSentinel(isolate),
-                   SKIP_WRITE_BARRIER);
-}
-
-void LoadGlobalICNexus::ConfigureHandlerMode(Handle<Object> handler) {
-  SetFeedback(GetIsolate()->heap()->empty_weak_cell());
-  SetFeedbackExtra(*handler);
 }
 
 void FeedbackNexus::ConfigureMonomorphic(Handle<Name> name,

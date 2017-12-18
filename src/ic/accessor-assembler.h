@@ -71,8 +71,9 @@ class AccessorAssembler : public CodeStubAssembler {
   };
 
   void LoadGlobalIC_TryPropertyCellCase(
-      Node* vector, Node* slot, ExitPoint* exit_point, Label* try_handler,
-      Label* miss, ParameterMode slot_mode = SMI_PARAMETERS);
+      SloppyTNode<Context> context, Node* vector, Node* slot,
+      ExitPoint* exit_point, Label* try_handler, Label* miss,
+      ParameterMode slot_mode = SMI_PARAMETERS);
   void LoadGlobalIC_TryHandlerCase(const LoadICParameters* p,
                                    TypeofMode typeof_mode,
                                    ExitPoint* exit_point, Label* miss);

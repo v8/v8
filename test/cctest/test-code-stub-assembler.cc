@@ -237,8 +237,8 @@ TEST(DecodeWordFromWord32) {
   CodeStubAssembler m(asm_tester.state());
 
   class TestBitField : public BitField<unsigned, 3, 3> {};
-  m.Return(
-      m.SmiTag(m.DecodeWordFromWord32<TestBitField>(m.Int32Constant(0x2F))));
+  m.Return(m.SmiTag(
+      m.Signed(m.DecodeWordFromWord32<TestBitField>(m.Int32Constant(0x2F)))));
   FunctionTester ft(asm_tester.GenerateCode());
   MaybeHandle<Object> result = ft.Call();
   // value  = 00101111

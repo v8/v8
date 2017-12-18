@@ -5208,7 +5208,8 @@ TNode<Number> CodeStubAssembler::StringToNumber(SloppyTNode<Context> context,
   GotoIf(IsSetWord32(hash, Name::kDoesNotContainCachedArrayIndexMask),
          &runtime);
 
-  var_result = SmiTag(DecodeWordFromWord32<String::ArrayIndexValueBits>(hash));
+  var_result =
+      SmiTag(Signed(DecodeWordFromWord32<String::ArrayIndexValueBits>(hash)));
   Goto(&end);
 
   BIND(&runtime);
@@ -5866,8 +5867,10 @@ TNode<Uint32T> CodeStubAssembler::DecodeWord32(SloppyTNode<Word32T> word32,
       Word32And(word32, Int32Constant(mask)), static_cast<int>(shift)));
 }
 
-Node* CodeStubAssembler::DecodeWord(Node* word, uint32_t shift, uint32_t mask) {
-  return WordShr(WordAnd(word, IntPtrConstant(mask)), static_cast<int>(shift));
+TNode<UintPtrT> CodeStubAssembler::DecodeWord(SloppyTNode<WordT> word,
+                                              uint32_t shift, uint32_t mask) {
+  return Unsigned(
+      WordShr(WordAnd(word, IntPtrConstant(mask)), static_cast<int>(shift)));
 }
 
 Node* CodeStubAssembler::UpdateWord(Node* word, Node* value, uint32_t shift,
@@ -7509,15 +7512,16 @@ Node* CodeStubAssembler::EmitKeyedSloppyArguments(Node* receiver, Node* key,
   return var_result.value();
 }
 
-Node* CodeStubAssembler::LoadScriptContext(Node* context, int context_index) {
-  Node* native_context = LoadNativeContext(context);
-  Node* script_context_table =
-      LoadContextElement(native_context, Context::SCRIPT_CONTEXT_TABLE_INDEX);
+TNode<Context> CodeStubAssembler::LoadScriptContext(
+    TNode<Context> context, TNode<IntPtrT> context_index) {
+  TNode<Context> native_context = LoadNativeContext(context);
+  TNode<ScriptContextTable> script_context_table = CAST(
+      LoadContextElement(native_context, Context::SCRIPT_CONTEXT_TABLE_INDEX));
 
-  int offset =
-      ScriptContextTable::GetContextOffset(context_index) - kHeapObjectTag;
-  return Load(MachineType::AnyTagged(), script_context_table,
-              IntPtrConstant(offset));
+  Node* script_context = LoadFixedArrayElement(
+      script_context_table, context_index,
+      ScriptContextTable::kFirstContextSlotIndex * kPointerSize);
+  return CAST(script_context);
 }
 
 namespace {

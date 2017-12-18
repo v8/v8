@@ -2309,20 +2309,41 @@ void AccessorAssembler::LoadIC_Uninitialized(const LoadICParameters* p) {
 }
 
 void AccessorAssembler::LoadGlobalIC_TryPropertyCellCase(
-    Node* vector, Node* slot, ExitPoint* exit_point, Label* try_handler,
-    Label* miss, ParameterMode slot_mode) {
+    SloppyTNode<Context> context, Node* vector, Node* slot,
+    ExitPoint* exit_point, Label* try_handler, Label* miss,
+    ParameterMode slot_mode) {
   Comment("LoadGlobalIC_TryPropertyCellCase");
 
-  Node* weak_cell = LoadFeedbackVectorSlot(vector, slot, 0, slot_mode);
-  CSA_ASSERT(this, HasInstanceType(weak_cell, WEAK_CELL_TYPE));
+  Label if_lexical_var(this), if_property_cell(this);
+  Node* maybe_weak_cell = LoadFeedbackVectorSlot(vector, slot, 0, slot_mode);
+  Branch(TaggedIsSmi(maybe_weak_cell), &if_lexical_var, &if_property_cell);
 
-  // Load value or try handler case if the {weak_cell} is cleared.
-  Node* property_cell = LoadWeakCellValue(weak_cell, try_handler);
-  CSA_ASSERT(this, IsPropertyCell(property_cell));
+  BIND(&if_property_cell);
+  {
+    Node* weak_cell = maybe_weak_cell;
+    CSA_ASSERT(this, HasInstanceType(weak_cell, WEAK_CELL_TYPE));
 
-  Node* value = LoadObjectField(property_cell, PropertyCell::kValueOffset);
-  GotoIf(WordEqual(value, TheHoleConstant()), miss);
-  exit_point->Return(value);
+    // Load value or try handler case if the {weak_cell} is cleared.
+    Node* property_cell = LoadWeakCellValue(weak_cell, try_handler);
+    CSA_ASSERT(this, IsPropertyCell(property_cell));
+
+    Node* value = LoadObjectField(property_cell, PropertyCell::kValueOffset);
+    GotoIf(WordEqual(value, TheHoleConstant()), miss);
+    exit_point->Return(value);
+  }
+
+  BIND(&if_lexical_var);
+  {
+    Comment("Load lexical variable");
+    TNode<IntPtrT> lexical_handler = SmiUntag(maybe_weak_cell);
+    TNode<IntPtrT> context_index =
+        Signed(DecodeWord<GlobalICNexus::ContextIndexBits>(lexical_handler));
+    TNode<IntPtrT> slot_index =
+        Signed(DecodeWord<GlobalICNexus::SlotIndexBits>(lexical_handler));
+    TNode<Context> script_context = LoadScriptContext(context, context_index);
+    TNode<Object> result = LoadContextElement(script_context, slot_index);
+    exit_point->Return(result);
+  }
 }
 
 void AccessorAssembler::LoadGlobalIC_TryHandlerCase(const LoadICParameters* pp,
@@ -2388,7 +2409,7 @@ void AccessorAssembler::LoadGlobalIC(const LoadICParameters* p,
   ExitPoint direct_exit(this);
 
   Label try_handler(this), miss(this);
-  LoadGlobalIC_TryPropertyCellCase(p->vector, p->slot, &direct_exit,
+  LoadGlobalIC_TryPropertyCellCase(p->context, p->vector, p->slot, &direct_exit,
                                    &try_handler, &miss);
 
   BIND(&try_handler);
@@ -2657,37 +2678,57 @@ void AccessorAssembler::StoreIC(const StoreICParameters* p) {
 }
 
 void AccessorAssembler::StoreGlobalIC(const StoreICParameters* pp) {
-  Label try_handler(this), miss(this, Label::kDeferred);
-
-  Node* feedback =
+  Label if_lexical_var(this), if_property_cell(this);
+  Node* maybe_weak_cell =
       LoadFeedbackVectorSlot(pp->vector, pp->slot, 0, SMI_PARAMETERS);
-  Node* property_cell = LoadWeakCellValue(feedback, &try_handler);
+  Branch(TaggedIsSmi(maybe_weak_cell), &if_lexical_var, &if_property_cell);
 
-  ExitPoint direct_exit(this);
-  StoreGlobalIC_PropertyCellCase(property_cell, pp->value, &direct_exit, &miss);
-
-  BIND(&try_handler);
+  BIND(&if_property_cell);
   {
-    Comment("StoreGlobalIC_try_handler");
-    Node* handler = LoadFeedbackVectorSlot(pp->vector, pp->slot, kPointerSize,
-                                           SMI_PARAMETERS);
+    Label try_handler(this), miss(this, Label::kDeferred);
+    Node* property_cell = LoadWeakCellValue(maybe_weak_cell, &try_handler);
 
-    GotoIf(WordEqual(handler, LoadRoot(Heap::kuninitialized_symbolRootIndex)),
-           &miss);
+    ExitPoint direct_exit(this);
+    StoreGlobalIC_PropertyCellCase(property_cell, pp->value, &direct_exit,
+                                   &miss);
 
-    StoreICParameters p = *pp;
-    DCHECK_NULL(p.receiver);
-    Node* native_context = LoadNativeContext(p.context);
-    p.receiver =
-        LoadContextElement(native_context, Context::GLOBAL_PROXY_INDEX);
+    BIND(&try_handler);
+    {
+      Comment("StoreGlobalIC_try_handler");
+      Node* handler = LoadFeedbackVectorSlot(pp->vector, pp->slot, kPointerSize,
+                                             SMI_PARAMETERS);
 
-    HandleStoreICHandlerCase(&p, handler, &miss, ICMode::kGlobalIC);
+      GotoIf(WordEqual(handler, LoadRoot(Heap::kuninitialized_symbolRootIndex)),
+             &miss);
+
+      StoreICParameters p = *pp;
+      DCHECK_NULL(p.receiver);
+      Node* native_context = LoadNativeContext(p.context);
+      p.receiver =
+          LoadContextElement(native_context, Context::GLOBAL_PROXY_INDEX);
+
+      HandleStoreICHandlerCase(&p, handler, &miss, ICMode::kGlobalIC);
+    }
+
+    BIND(&miss);
+    {
+      TailCallRuntime(Runtime::kStoreGlobalIC_Miss, pp->context, pp->value,
+                      pp->slot, pp->vector, pp->name);
+    }
   }
 
-  BIND(&miss);
+  BIND(&if_lexical_var);
   {
-    TailCallRuntime(Runtime::kStoreGlobalIC_Miss, pp->context, pp->value,
-                    pp->slot, pp->vector, pp->name);
+    Comment("Store lexical variable");
+    TNode<IntPtrT> lexical_handler = SmiUntag(maybe_weak_cell);
+    TNode<IntPtrT> context_index =
+        Signed(DecodeWord<GlobalICNexus::ContextIndexBits>(lexical_handler));
+    TNode<IntPtrT> slot_index =
+        Signed(DecodeWord<GlobalICNexus::SlotIndexBits>(lexical_handler));
+    TNode<Context> script_context =
+        LoadScriptContext(CAST(pp->context), context_index);
+    StoreContextElement(script_context, slot_index, CAST(pp->value));
+    Return(pp->value);
   }
 }
 

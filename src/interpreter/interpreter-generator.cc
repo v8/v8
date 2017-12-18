@@ -175,8 +175,8 @@ class InterpreterLoadGlobalAssembler : public InterpreterAssembler {
       ExitPoint exit_point(this, &done, &var_result);
 
       accessor_asm.LoadGlobalIC_TryPropertyCellCase(
-          feedback_vector, feedback_slot, &exit_point, &try_handler, &miss,
-          CodeStubAssembler::INTPTR_PARAMETERS);
+          GetContext(), feedback_vector, feedback_slot, &exit_point,
+          &try_handler, &miss, CodeStubAssembler::INTPTR_PARAMETERS);
 
       BIND(&done);
       SetAccumulator(var_result.value());

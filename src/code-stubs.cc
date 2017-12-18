@@ -404,30 +404,6 @@ TF_STUB(KeyedStoreSloppyArgumentsStub, CodeStubAssembler) {
   }
 }
 
-TF_STUB(LoadScriptContextFieldStub, CodeStubAssembler) {
-  Comment("LoadScriptContextFieldStub: context_index=%d, slot=%d",
-          stub->context_index(), stub->slot_index());
-
-  Node* context = Parameter(Descriptor::kContext);
-
-  Node* script_context = LoadScriptContext(context, stub->context_index());
-  Node* result = LoadFixedArrayElement(script_context, stub->slot_index());
-  Return(result);
-}
-
-TF_STUB(StoreScriptContextFieldStub, CodeStubAssembler) {
-  Comment("StoreScriptContextFieldStub: context_index=%d, slot=%d",
-          stub->context_index(), stub->slot_index());
-
-  Node* value = Parameter(Descriptor::kValue);
-  Node* context = Parameter(Descriptor::kContext);
-
-  Node* script_context = LoadScriptContext(context, stub->context_index());
-  StoreFixedArrayElement(script_context, IntPtrConstant(stub->slot_index()),
-                         value);
-  Return(value);
-}
-
 // TODO(ishell): move to builtins-handler-gen.
 TF_STUB(StoreInterceptorStub, CodeStubAssembler) {
   Node* receiver = Parameter(Descriptor::kReceiver);

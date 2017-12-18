@@ -1067,6 +1067,11 @@ class V8_EXPORT_PRIVATE CodeAssembler {
   bool Word32ShiftIsSafe() const;
 
  private:
+  // These two don't have definitions and are here only for catching use cases
+  // where the cast is not necessary.
+  TNode<Int32T> Signed(TNode<Int32T> x);
+  TNode<Uint32T> Unsigned(TNode<Uint32T> x);
+
   RawMachineAssembler* raw_assembler() const;
 
   // Calls respective callback registered in the state.

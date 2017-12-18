@@ -881,6 +881,8 @@ class RuntimeCallTimer final {
   V(KeyedStoreIC_SlowStub)                        \
   V(KeyedStoreIC_StoreFastElementStub)            \
   V(KeyedStoreIC_StoreElementStub)                \
+  V(LoadGlobalIC_LoadScriptContextField)          \
+  V(LoadGlobalIC_SlowStub)                        \
   V(LoadIC_FunctionPrototypeStub)                 \
   V(LoadIC_HandlerCacheHit_Accessor)              \
   V(LoadIC_LoadAccessorDH)                        \
@@ -902,12 +904,13 @@ class RuntimeCallTimer final {
   V(LoadIC_LoadNonexistentDH)                     \
   V(LoadIC_LoadNormalDH)                          \
   V(LoadIC_LoadNormalFromPrototypeDH)             \
-  V(LoadIC_LoadScriptContextFieldStub)            \
   V(LoadIC_NonReceiver)                           \
   V(LoadIC_Premonomorphic)                        \
   V(LoadIC_SlowStub)                              \
   V(LoadIC_StringLength)                          \
   V(LoadIC_StringWrapperLength)                   \
+  V(StoreGlobalIC_StoreScriptContextField)        \
+  V(StoreGlobalIC_SlowStub)                       \
   V(StoreIC_HandlerCacheHit_Accessor)             \
   V(StoreIC_NonReceiver)                          \
   V(StoreIC_Premonomorphic)                       \
@@ -922,7 +925,6 @@ class RuntimeCallTimer final {
   V(StoreIC_StoreNativeDataPropertyDH)            \
   V(StoreIC_StoreNativeDataPropertyOnPrototypeDH) \
   V(StoreIC_StoreNormalDH)                        \
-  V(StoreIC_StoreScriptContextFieldStub)          \
   V(StoreIC_StoreTransitionDH)
 
 enum RuntimeCallCounterId {
