@@ -206,14 +206,18 @@ size_t OS::CommitPageSize() {
 
 // static
 void* OS::GetRandomMmapAddr() {
-#if defined(ADDRESS_SANITIZER) || defined(MEMORY_SANITIZER) || \
-    defined(THREAD_SANITIZER)
-  // Dynamic tools do not support custom mmap addresses.
-  return nullptr;
-#else
   uintptr_t raw_addr;
   platform_random_number_generator.Pointer()->NextBytes(&raw_addr,
                                                         sizeof(raw_addr));
+#if defined(V8_USE_ADDRESS_SANITIZER) || defined(MEMORY_SANITIZER) || \
+    defined(THREAD_SANITIZER) || defined(LEAK_SANITIZER)
+  // If random hint addresses interfere with address ranges hard coded in
+  // sanitizers, bad things happen. This address range is copied from TSAN
+  // source but works with all tools.
+  // See crbug.com/539863.
+  raw_addr &= 0x007fffff0000ULL;
+  raw_addr += 0x7e8000000000ULL;
+#else
 #if V8_TARGET_ARCH_X64
   // Currently available CPUs have 48 bits of virtual addressing.  Truncate
   // the hint address to 46 bits to give the kernel a fighting chance of
@@ -267,8 +271,8 @@ void* OS::GetRandomMmapAddr() {
   raw_addr += 0x20000000;
 #endif
 #endif
-  return reinterpret_cast<void*>(raw_addr);
 #endif
+  return reinterpret_cast<void*>(raw_addr);
 }
 
 // TODO(bbudge) Move Cygwin and Fuschia stuff into platform-specific files.
