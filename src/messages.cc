@@ -189,11 +189,10 @@ std::unique_ptr<char[]> MessageHandler::GetLocalizedMessage(
 namespace {
 
 Object* EvalFromFunctionName(Isolate* isolate, Handle<Script> script) {
-  if (script->eval_from_shared()->IsUndefined(isolate))
+  if (!script->has_eval_from_shared())
     return isolate->heap()->undefined_value();
 
-  Handle<SharedFunctionInfo> shared(
-      SharedFunctionInfo::cast(script->eval_from_shared()));
+  Handle<SharedFunctionInfo> shared(script->eval_from_shared());
   // Find the name of the function calling eval.
   if (shared->name()->BooleanValue()) {
     return shared->name();
@@ -203,11 +202,10 @@ Object* EvalFromFunctionName(Isolate* isolate, Handle<Script> script) {
 }
 
 Object* EvalFromScript(Isolate* isolate, Handle<Script> script) {
-  if (script->eval_from_shared()->IsUndefined(isolate))
+  if (!script->has_eval_from_shared())
     return isolate->heap()->undefined_value();
 
-  Handle<SharedFunctionInfo> eval_from_shared(
-      SharedFunctionInfo::cast(script->eval_from_shared()));
+  Handle<SharedFunctionInfo> eval_from_shared(script->eval_from_shared());
   return eval_from_shared->script()->IsScript()
              ? eval_from_shared->script()
              : isolate->heap()->undefined_value();

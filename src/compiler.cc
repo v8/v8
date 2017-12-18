@@ -1175,6 +1175,57 @@ MaybeHandle<JSFunction> Compiler::GetFunctionFromEval(
   return result;
 }
 
+MaybeHandle<JSFunction> Compiler::GetWrappedFunction(
+    Handle<String> source, Handle<FixedArray> arguments,
+    Handle<Context> context, int line_offset, int column_offset,
+    Handle<Object> script_name, ScriptOriginOptions options) {
+  Isolate* isolate = source->GetIsolate();
+  int source_length = source->length();
+  isolate->counters()->total_compile_size()->Increment(source_length);
+
+  Handle<Script> script = isolate->factory()->NewScript(source);
+  if (isolate->NeedsSourcePositionsForProfiling()) {
+    Script::InitLineEnds(script);
+  }
+  if (!script_name.is_null()) {
+    script->set_name(*script_name);
+    script->set_line_offset(line_offset);
+    script->set_column_offset(column_offset);
+  }
+  script->set_wrapped_arguments(*arguments);
+  script->set_origin_options(options);
+
+  ParseInfo parse_info(script);
+  parse_info.set_eval();  // Use an eval scope as declaration scope.
+  parse_info.set_wrapped_as_function();
+  if (!context->IsNativeContext()) {
+    parse_info.set_outer_scope_info(handle(context->scope_info()));
+  }
+
+  Handle<SharedFunctionInfo> top_level;
+  ASSIGN_RETURN_ON_EXCEPTION(isolate, top_level,
+                             CompileToplevel(&parse_info, isolate), JSFunction);
+
+  Handle<JSFunction> top_level_fun =
+      isolate->factory()->NewFunctionFromSharedFunctionInfo(top_level, context,
+                                                            NOT_TENURED);
+
+  // TODO(yangguo): consider not having to call the top-level function, and
+  //                instead instantiate the wrapper function directly.
+  Handle<Object> result;
+  ASSIGN_RETURN_ON_EXCEPTION(
+      isolate, result,
+      Execution::Call(isolate, top_level_fun, isolate->global_proxy(), 0,
+                      nullptr),
+      JSFunction);
+
+  // OnAfterCompile has to be called after we create the JSFunction, which we
+  // may require to recompile the eval for debugging, if we find a function
+  // that contains break points in the eval script.
+  isolate->debug()->OnAfterCompile(script);
+  return Handle<JSFunction>::cast(result);
+}
+
 namespace {
 
 bool ShouldProduceCodeCache(ScriptCompiler::CompileOptions options) {

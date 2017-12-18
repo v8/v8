@@ -956,12 +956,12 @@ class PreParser : public ParserBase<PreParser> {
                bool is_inner_function, bool may_abort, bool* ok) {
     UNREACHABLE();
   }
-  Expression ParseFunctionLiteral(Identifier name,
-                                  Scanner::Location function_name_location,
-                                  FunctionNameValidity function_name_validity,
-                                  FunctionKind kind, int function_token_pos,
-                                  FunctionLiteral::FunctionType function_type,
-                                  LanguageMode language_mode, bool* ok);
+  Expression ParseFunctionLiteral(
+      Identifier name, Scanner::Location function_name_location,
+      FunctionNameValidity function_name_validity, FunctionKind kind,
+      int function_token_pos, FunctionLiteral::FunctionType function_type,
+      LanguageMode language_mode,
+      ZoneList<const AstRawString*>* arguments_for_wrapped_function, bool* ok);
   LazyParsingResult ParseStatementListAndLogFunction(
       PreParserFormalParameters* formals, bool maybe_abort, bool* ok);
 

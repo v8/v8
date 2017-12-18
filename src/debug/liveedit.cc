@@ -1009,7 +1009,8 @@ static Handle<Script> CreateScriptCopy(Handle<Script> original) {
   copy->set_column_offset(original->column_offset());
   copy->set_type(original->type());
   copy->set_context_data(original->context_data());
-  copy->set_eval_from_shared(original->eval_from_shared());
+  copy->set_eval_from_shared_or_wrapped_arguments(
+      original->eval_from_shared_or_wrapped_arguments());
   copy->set_eval_from_position(original->eval_from_position());
 
   Handle<FixedArray> infos(isolate->factory()->NewFixedArray(

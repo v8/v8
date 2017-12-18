@@ -45,7 +45,13 @@ ParseInfo::ParseInfo(Handle<SharedFunctionInfo> shared)
   Isolate* isolate = shared->GetIsolate();
   InitFromIsolate(isolate);
 
+  // Do not support re-parsing top-level function of a wrapped script.
+  // TODO(yangguo): consider whether we need a top-level function in a
+  //                wrapped script at all.
+  DCHECK_IMPLIES(is_toplevel(), !Script::cast(shared->script())->is_wrapped());
+
   set_toplevel(shared->is_toplevel());
+  set_wrapped_as_function(shared->is_wrapped());
   set_allow_lazy_parsing(FLAG_lazy_inner_functions);
   set_is_named_expression(shared->is_named_expression());
   set_compiler_hints(shared->compiler_hints());
@@ -90,6 +96,7 @@ ParseInfo::ParseInfo(Handle<Script> script)
   set_allow_lazy_parsing();
   set_toplevel();
   set_script(script);
+  set_wrapped_as_function(script->is_wrapped());
 
   set_native(script->type() == Script::TYPE_NATIVE);
   set_eval(script->compilation_type() == Script::COMPILATION_TYPE_EVAL);

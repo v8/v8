@@ -13194,7 +13194,21 @@ Handle<String> JSFunction::ToString(Handle<JSFunction> function) {
       builder.AppendString(handle(shared_info->name(), isolate));
     }
   }
+  if (shared_info->is_wrapped()) {
+    builder.AppendCharacter('(');
+    Handle<FixedArray> args(
+        Script::cast(shared_info->script())->wrapped_arguments());
+    int argc = args->length();
+    for (int i = 0; i < argc; i++) {
+      if (i > 0) builder.AppendCharacter(',');
+      builder.AppendString(Handle<String>(String::cast(args->get(i))));
+    }
+    builder.AppendCString(") {\n");
+  }
   builder.AppendString(Handle<String>::cast(shared_info->GetSourceCode()));
+  if (shared_info->is_wrapped()) {
+    builder.AppendCString("\n}");
+  }
   return builder.Finish().ToHandleChecked();
 }
 
@@ -13225,10 +13239,10 @@ int Script::GetEvalPosition() {
     // Due to laziness, the position may not have been translated from code
     // offset yet, which would be encoded as negative integer. In that case,
     // translate and set the position.
-    if (eval_from_shared()->IsUndefined(GetIsolate())) {
+    if (!has_eval_from_shared()) {
       position = 0;
     } else {
-      SharedFunctionInfo* shared = SharedFunctionInfo::cast(eval_from_shared());
+      SharedFunctionInfo* shared = eval_from_shared();
       position = shared->abstract_code()->SourcePosition(-position);
     }
     DCHECK_GE(position, 0);
@@ -13687,8 +13701,22 @@ Handle<Object> SharedFunctionInfo::GetSourceCodeHarmony() {
   Handle<String> script_source(String::cast(Script::cast(script())->source()));
   int start_pos = function_token_position();
   if (start_pos == kNoSourcePosition) start_pos = start_position();
-  return isolate->factory()->NewSubString(script_source, start_pos,
-                                          end_position());
+  Handle<String> source = isolate->factory()->NewSubString(
+      script_source, start_pos, end_position());
+  if (!is_wrapped()) return source;
+
+  IncrementalStringBuilder builder(isolate);
+  builder.AppendCString("function (");
+  Handle<FixedArray> args(Script::cast(script())->wrapped_arguments());
+  int argc = args->length();
+  for (int i = 0; i < argc; i++) {
+    if (i > 0) builder.AppendCString(", ");
+    builder.AppendString(Handle<String>(String::cast(args->get(i))));
+  }
+  builder.AppendCString(") {\n");
+  builder.AppendString(source);
+  builder.AppendCString("\n}");
+  return builder.Finish().ToHandleChecked();
 }
 
 bool SharedFunctionInfo::IsInlineable() {
@@ -13818,6 +13846,7 @@ void SharedFunctionInfo::InitFromFunctionLiteral(
   shared_info->set_inferred_name(*lit->inferred_name());
   shared_info->set_allows_lazy_compilation(lit->AllowsLazyCompilation());
   shared_info->set_language_mode(lit->language_mode());
+  shared_info->set_is_wrapped(lit->is_wrapped());
   //  shared_info->set_kind(lit->kind());
   // FunctionKind must have already been set.
   DCHECK(lit->kind() == shared_info->kind());

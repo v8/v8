@@ -1176,7 +1176,7 @@ Handle<Script> Factory::NewScript(Handle<String> source) {
   script->set_type(Script::TYPE_NORMAL);
   script->set_wrapper(heap->undefined_value());
   script->set_line_ends(heap->undefined_value());
-  script->set_eval_from_shared(heap->undefined_value());
+  script->set_eval_from_shared_or_wrapped_arguments(heap->undefined_value());
   script->set_eval_from_position(0);
   script->set_shared_function_infos(*empty_fixed_array(), SKIP_WRITE_BARRIER);
   script->set_flags(0);

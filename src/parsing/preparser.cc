@@ -266,7 +266,11 @@ PreParser::Expression PreParser::ParseFunctionLiteral(
     Identifier function_name, Scanner::Location function_name_location,
     FunctionNameValidity function_name_validity, FunctionKind kind,
     int function_token_pos, FunctionLiteral::FunctionType function_type,
-    LanguageMode language_mode, bool* ok) {
+    LanguageMode language_mode,
+    ZoneList<const AstRawString*>* arguments_for_wrapped_function, bool* ok) {
+  // Wrapped functions are not parsed in the preparser.
+  DCHECK_NULL(arguments_for_wrapped_function);
+  DCHECK_NE(FunctionLiteral::kWrapped, function_type);
   // Function ::
   //   '(' FormalParameterList? ')' '{' FunctionBody '}'
   const RuntimeCallCounterId counters[2][2] = {
