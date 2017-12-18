@@ -1044,12 +1044,11 @@ Reduction JSBuiltinReducer::ReduceArrayPush(Node* node) {
     // Array.prototype.push inlining for this function.
     for (auto& value : values) {
       if (IsSmiElementsKind(receiver_map->elements_kind())) {
-        value = effect = graph()->NewNode(
-            simplified()->CheckSmi(VectorSlotPair()), value, effect, control);
+        value = effect = graph()->NewNode(simplified()->CheckSmi(p.feedback()),
+                                          value, effect, control);
       } else if (IsDoubleElementsKind(receiver_map->elements_kind())) {
-        value = effect =
-            graph()->NewNode(simplified()->CheckNumber(VectorSlotPair()), value,
-                             effect, control);
+        value = effect = graph()->NewNode(
+            simplified()->CheckNumber(p.feedback()), value, effect, control);
         // Make sure we do not store signaling NaNs into double arrays.
         value = graph()->NewNode(simplified()->NumberSilenceNaN(), value);
       }

@@ -16,6 +16,29 @@
   assertOptimized(foo);
 })();
 
+(function testElementTypeCheckSmi() {
+  function foo(a) { a.push('a'); }
+
+  foo([1]);
+  foo([1]);
+  %OptimizeFunctionOnNextCall(foo);
+  foo([1]);
+  %OptimizeFunctionOnNextCall(foo);
+  foo([1]);
+  assertOptimized(foo);
+})();
+
+(function testElementTypeCheckDouble() {
+  function foo(a) { a.push('a'); }
+
+  foo([0.3413312]);
+  foo([0.3413312]);
+  %OptimizeFunctionOnNextCall(foo);
+  foo([0.3413312]);
+  %OptimizeFunctionOnNextCall(foo);
+  foo([0.3413312]);
+  assertOptimized(foo);
+})();
 (function test() {
   function bar(a) { a.x = 2 };
   %NeverOptimizeFunction(bar);
