@@ -1283,7 +1283,7 @@ const wasm::WasmCode* LazyCompilationOrchestrator::CompileFromJsToWasm(
     }
 #ifdef DEBUG
     it.next();
-    CHECK(it.done());
+    DCHECK(it.done());
 #endif
   }
 

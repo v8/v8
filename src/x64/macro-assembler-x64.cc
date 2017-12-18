@@ -1622,9 +1622,7 @@ void TurboAssembler::Call(ExternalReference ext) {
 #endif
   LoadAddress(kScratchRegister, ext);
   call(kScratchRegister);
-#ifdef DEBUG
   DCHECK_EQ(end_position, pc_offset());
-#endif
 }
 
 void TurboAssembler::Call(const Operand& op) {
@@ -1642,9 +1640,7 @@ void TurboAssembler::Call(Address destination, RelocInfo::Mode rmode) {
 #endif
   Move(kScratchRegister, destination, rmode);
   call(kScratchRegister);
-#ifdef DEBUG
   DCHECK_EQ(pc_offset(), end_position);
-#endif
 }
 
 void TurboAssembler::Call(Handle<Code> code_object, RelocInfo::Mode rmode) {
@@ -1653,9 +1649,7 @@ void TurboAssembler::Call(Handle<Code> code_object, RelocInfo::Mode rmode) {
 #endif
   DCHECK(RelocInfo::IsCodeTarget(rmode));
   call(code_object, rmode);
-#ifdef DEBUG
   DCHECK_EQ(end_position, pc_offset());
-#endif
 }
 
 void TurboAssembler::Pextrd(Register dst, XMMRegister src, int8_t imm8) {

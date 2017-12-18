@@ -4443,7 +4443,7 @@ void ValidateImportWrapperReferencesImmovables(Handle<Code> wrapper) {
       default:
         UNREACHABLE();
     }
-    CHECK_NOT_NULL(target);
+    DCHECK_NOT_NULL(target);
     bool is_immovable =
         target->IsSmi() || Heap::IsImmovable(HeapObject::cast(target));
     bool is_allowed_stub = false;
@@ -4453,7 +4453,7 @@ void ValidateImportWrapperReferencesImmovables(Handle<Code> wrapper) {
           code->kind() == Code::STUB &&
           CodeStub::MajorKeyFromKey(code->stub_key()) == CodeStub::DoubleToI;
     }
-    CHECK(is_immovable || is_allowed_stub);
+    DCHECK(is_immovable || is_allowed_stub);
   }
 #endif
 }
