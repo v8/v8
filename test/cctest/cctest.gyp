@@ -73,6 +73,7 @@
       'compiler/test-run-native-calls.cc',
       'compiler/test-run-stackcheck.cc',
       'compiler/test-run-stubs.cc',
+      'compiler/test-run-tail-calls.cc',
       'compiler/test-run-variables.cc',
       'compiler/test-run-wasm-machops.cc',
       'compiler/value-helper.cc',

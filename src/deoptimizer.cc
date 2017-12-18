@@ -556,6 +556,10 @@ int LookupCatchHandler(TranslatedFrame* translated_frame, int* data_out) {
   return -1;
 }
 
+bool ShouldPadArguments(int arg_count) {
+  return kPadArguments && (arg_count % 2 != 0);
+}
+
 }  // namespace
 
 // We rely on this function not causing a GC.  It is called from generated code
@@ -728,7 +732,8 @@ void Deoptimizer::DoComputeInterpretedFrame(TranslatedFrame* translated_frame,
   }
 
   // The 'fixed' part of the frame consists of the incoming parameters and
-  // the part described by InterpreterFrameConstants.
+  // the part described by InterpreterFrameConstants. This will include
+  // argument padding, when needed.
   unsigned fixed_frame_size = ComputeInterpretedFixedSize(shared);
   unsigned output_frame_size = height_in_bytes + fixed_frame_size;
 
@@ -753,12 +758,20 @@ void Deoptimizer::DoComputeInterpretedFrame(TranslatedFrame* translated_frame,
 
   // Compute the incoming parameter translation.
   unsigned output_offset = output_frame_size;
+
+  if (ShouldPadArguments(parameter_count)) {
+    output_offset -= kPointerSize;
+    WriteValueToOutput(isolate()->heap()->the_hole_value(), 0, frame_index,
+                       output_offset, "padding ");
+  }
+
   for (int i = 0; i < parameter_count; ++i) {
     output_offset -= kPointerSize;
     WriteTranslatedValueToOutput(&value_iterator, &input_index, frame_index,
                                  output_offset);
   }
 
+  DCHECK_EQ(output_offset, output_frame->GetLastArgumentSlotOffset());
   if (trace_scope_ != nullptr) {
     PrintF(trace_scope_->file(), "    -------------------------\n");
   }
@@ -978,6 +991,9 @@ void Deoptimizer::DoComputeArgumentsAdaptorFrame(
 
   unsigned height = translated_frame->height();
   unsigned height_in_bytes = height * kPointerSize;
+  int parameter_count = height;
+  if (ShouldPadArguments(parameter_count)) height_in_bytes += kPointerSize;
+
   TranslatedFrame::iterator function_iterator = value_iterator;
   Object* function = value_iterator->GetRawValue();
   value_iterator++;
@@ -991,7 +1007,6 @@ void Deoptimizer::DoComputeArgumentsAdaptorFrame(
   unsigned output_frame_size = height_in_bytes + fixed_frame_size;
 
   // Allocate and store the output frame description.
-  int parameter_count = height;
   FrameDescription* output_frame = new (output_frame_size)
       FrameDescription(output_frame_size, parameter_count);
 
@@ -1010,14 +1025,21 @@ void Deoptimizer::DoComputeArgumentsAdaptorFrame(
   }
   output_frame->SetTop(top_address);
 
-  // Compute the incoming parameter translation.
   unsigned output_offset = output_frame_size;
+  if (ShouldPadArguments(parameter_count)) {
+    output_offset -= kPointerSize;
+    WriteValueToOutput(isolate()->heap()->the_hole_value(), 0, frame_index,
+                       output_offset, "padding ");
+  }
+
+  // Compute the incoming parameter translation.
   for (int i = 0; i < parameter_count; ++i) {
     output_offset -= kPointerSize;
     WriteTranslatedValueToOutput(&value_iterator, &input_index, frame_index,
                                  output_offset);
   }
 
+  DCHECK_EQ(output_offset, output_frame->GetLastArgumentSlotOffset());
   // Read caller's PC from the previous frame.
   output_offset -= kPCOnStackSize;
   intptr_t value;
@@ -1130,6 +1152,9 @@ void Deoptimizer::DoComputeConstructStubFrame(TranslatedFrame* translated_frame,
     if (PadTopOfStackRegister()) height_in_bytes += kPointerSize;
   }
 
+  int parameter_count = height;
+  if (ShouldPadArguments(parameter_count)) height_in_bytes += kPointerSize;
+
   JSFunction* function = JSFunction::cast(value_iterator->GetRawValue());
   value_iterator++;
   input_index++;
@@ -1145,8 +1170,8 @@ void Deoptimizer::DoComputeConstructStubFrame(TranslatedFrame* translated_frame,
   unsigned output_frame_size = height_in_bytes + fixed_frame_size;
 
   // Allocate and store the output frame description.
-  FrameDescription* output_frame =
-      new (output_frame_size) FrameDescription(output_frame_size);
+  FrameDescription* output_frame = new (output_frame_size)
+      FrameDescription(output_frame_size, parameter_count);
 
   // Construct stub can not be topmost.
   DCHECK(frame_index > 0 && frame_index < output_count_);
@@ -1159,9 +1184,15 @@ void Deoptimizer::DoComputeConstructStubFrame(TranslatedFrame* translated_frame,
   top_address = output_[frame_index - 1]->GetTop() - output_frame_size;
   output_frame->SetTop(top_address);
 
-  // Compute the incoming parameter translation.
-  int parameter_count = height;
   unsigned output_offset = output_frame_size;
+
+  if (ShouldPadArguments(parameter_count)) {
+    output_offset -= kPointerSize;
+    WriteValueToOutput(isolate()->heap()->the_hole_value(), 0, frame_index,
+                       output_offset, "padding ");
+  }
+
+  // Compute the incoming parameter translation.
   for (int i = 0; i < parameter_count; ++i) {
     output_offset -= kPointerSize;
     // The allocated receiver of a construct stub frame is passed as the
@@ -1172,6 +1203,7 @@ void Deoptimizer::DoComputeConstructStubFrame(TranslatedFrame* translated_frame,
         (i == 0) ? reinterpret_cast<Address>(top_address) : nullptr);
   }
 
+  DCHECK_EQ(output_offset, output_frame->GetLastArgumentSlotOffset());
   // Read caller's PC from the previous frame.
   output_offset -= kPCOnStackSize;
   intptr_t callers_pc = output_[frame_index - 1]->GetPc();
@@ -1236,7 +1268,12 @@ void Deoptimizer::DoComputeConstructStubFrame(TranslatedFrame* translated_frame,
                      output_offset, "padding");
 
   output_offset -= kPointerSize;
-  value = output_frame->GetFrameSlot(output_frame_size - kPointerSize);
+
+  if (ShouldPadArguments(parameter_count)) {
+    value = output_frame->GetFrameSlot(output_frame_size - 2 * kPointerSize);
+  } else {
+    value = output_frame->GetFrameSlot(output_frame_size - kPointerSize);
+  }
   output_frame->SetFrameSlot(output_offset, value);
 
   if (bailout_id == BailoutId::ConstructStubCreate()) {
@@ -1382,7 +1419,7 @@ void Deoptimizer::DoComputeBuiltinContinuation(
   // parameter count.
   int stack_param_count = height_in_words - register_parameter_count - 1;
   if (must_handle_result) stack_param_count++;
-  int output_frame_size =
+  unsigned output_frame_size =
       kPointerSize * (stack_param_count + allocatable_register_count +
                       padding_slot_count) +
       BuiltinContinuationFrameConstants::kFixedFrameSize;
@@ -1424,9 +1461,12 @@ void Deoptimizer::DoComputeBuiltinContinuation(
            stack_param_count);
   }
 
-  unsigned output_frame_offset = output_frame_size;
-  FrameDescription* output_frame =
-      new (output_frame_size) FrameDescription(output_frame_size);
+  int translated_stack_parameters =
+      must_handle_result ? stack_param_count - 1 : stack_param_count;
+
+  if (ShouldPadArguments(stack_param_count)) output_frame_size += kPointerSize;
+  FrameDescription* output_frame = new (output_frame_size)
+      FrameDescription(output_frame_size, stack_param_count);
   output_[frame_index] = output_frame;
 
   // The top address of the frame is computed from the previous frame's top and
@@ -1457,8 +1497,12 @@ void Deoptimizer::DoComputeBuiltinContinuation(
 
   intptr_t value;
 
-  int translated_stack_parameters =
-      must_handle_result ? stack_param_count - 1 : stack_param_count;
+  unsigned output_frame_offset = output_frame_size;
+  if (ShouldPadArguments(stack_param_count)) {
+    output_frame_offset -= kPointerSize;
+    WriteValueToOutput(isolate()->heap()->the_hole_value(), 0, frame_index,
+                       output_frame_offset, "padding ");
+  }
 
   for (int i = 0; i < translated_stack_parameters; ++i) {
     output_frame_offset -= kPointerSize;
@@ -1472,6 +1516,8 @@ void Deoptimizer::DoComputeBuiltinContinuation(
                        frame_index, output_frame_offset,
                        "placeholder for return result on lazy deopt ");
   }
+
+  DCHECK_EQ(output_frame_offset, output_frame->GetLastArgumentSlotOffset());
 
   for (int i = 0; i < register_parameter_count; ++i) {
     Object* object = value_iterator->GetRawValue();
@@ -1755,14 +1801,6 @@ unsigned Deoptimizer::ComputeInputFrameSize() const {
 }
 
 // static
-unsigned Deoptimizer::ComputeJavascriptFixedSize(SharedFunctionInfo* shared) {
-  // The fixed part of the frame consists of the return address, frame
-  // pointer, function, context, and all the incoming arguments.
-  return ComputeIncomingArgumentSize(shared) +
-         StandardFrameConstants::kFixedFrameSize;
-}
-
-// static
 unsigned Deoptimizer::ComputeInterpretedFixedSize(SharedFunctionInfo* shared) {
   // The fixed part of the frame consists of the return address, frame
   // pointer, function, context, bytecode offset and all the incoming arguments.
@@ -1772,7 +1810,9 @@ unsigned Deoptimizer::ComputeInterpretedFixedSize(SharedFunctionInfo* shared) {
 
 // static
 unsigned Deoptimizer::ComputeIncomingArgumentSize(SharedFunctionInfo* shared) {
-  return (shared->internal_formal_parameter_count() + 1) * kPointerSize;
+  int parameter_slots = shared->internal_formal_parameter_count() + 1;
+  if (kPadArguments) parameter_slots = RoundUp(parameter_slots, 2);
+  return parameter_slots * kPointerSize;
 }
 
 void Deoptimizer::EnsureCodeForDeoptimizationEntry(Isolate* isolate,
