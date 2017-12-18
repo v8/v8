@@ -157,14 +157,16 @@ class JSBinopReduction final {
   // CheckString node.
   void CheckInputsToString() {
     if (!left_type()->Is(Type::String())) {
-      Node* left_input = graph()->NewNode(simplified()->CheckString(), left(),
-                                          effect(), control());
+      Node* left_input =
+          graph()->NewNode(simplified()->CheckString(VectorSlotPair()), left(),
+                           effect(), control());
       node_->ReplaceInput(0, left_input);
       update_effect(left_input);
     }
     if (!right_type()->Is(Type::String())) {
-      Node* right_input = graph()->NewNode(simplified()->CheckString(), right(),
-                                           effect(), control());
+      Node* right_input =
+          graph()->NewNode(simplified()->CheckString(VectorSlotPair()), right(),
+                           effect(), control());
       node_->ReplaceInput(1, right_input);
       update_effect(right_input);
     }
@@ -541,13 +543,15 @@ Reduction JSTypedLowering::ReduceJSAdd(Node* node) {
       Node* effect = NodeProperties::GetEffectInput(node);
       Node* control = NodeProperties::GetControlInput(node);
       if (r.LeftInputIs(empty_string_type_)) {
-        Node* value = effect = graph()->NewNode(simplified()->CheckString(),
-                                                r.right(), effect, control);
+        Node* value = effect =
+            graph()->NewNode(simplified()->CheckString(VectorSlotPair()),
+                             r.right(), effect, control);
         ReplaceWithValue(node, value, effect, control);
         return Replace(value);
       } else if (r.RightInputIs(empty_string_type_)) {
-        Node* value = effect = graph()->NewNode(simplified()->CheckString(),
-                                                r.left(), effect, control);
+        Node* value = effect =
+            graph()->NewNode(simplified()->CheckString(VectorSlotPair()),
+                             r.left(), effect, control);
         ReplaceWithValue(node, value, effect, control);
         return Replace(value);
       }
@@ -639,16 +643,16 @@ Reduction JSTypedLowering::ReduceCreateConsString(Node* node) {
   // Make sure {first} is actually a String.
   Type* first_type = NodeProperties::GetType(first);
   if (!first_type->Is(Type::String())) {
-    first = effect =
-        graph()->NewNode(simplified()->CheckString(), first, effect, control);
+    first = effect = graph()->NewNode(
+        simplified()->CheckString(VectorSlotPair()), first, effect, control);
     first_type = NodeProperties::GetType(first);
   }
 
   // Make sure {second} is actually a String.
   Type* second_type = NodeProperties::GetType(second);
   if (!second_type->Is(Type::String())) {
-    second = effect =
-        graph()->NewNode(simplified()->CheckString(), second, effect, control);
+    second = effect = graph()->NewNode(
+        simplified()->CheckString(VectorSlotPair()), second, effect, control);
     second_type = NodeProperties::GetType(second);
   }
 

@@ -546,7 +546,7 @@ class V8_EXPORT_PRIVATE SimplifiedOperatorBuilder final
   const Operator* CheckInternalizedString();
   const Operator* CheckNumber(const VectorSlotPair& feedback);
   const Operator* CheckSmi(const VectorSlotPair& feedback);
-  const Operator* CheckString();
+  const Operator* CheckString(const VectorSlotPair& feedback);
   const Operator* CheckSeqString();
   const Operator* CheckSymbol();
   const Operator* CheckReceiver();

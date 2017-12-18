@@ -69,8 +69,9 @@ bool PropertyAccessBuilder::TryBuildStringCheck(MapHandles const& maps,
     } else {
       // Monormorphic string access (ignoring the fact that there are multiple
       // String maps).
-      *receiver = *effect = graph()->NewNode(simplified()->CheckString(),
-                                             *receiver, *effect, control);
+      *receiver = *effect =
+          graph()->NewNode(simplified()->CheckString(VectorSlotPair()),
+                           *receiver, *effect, control);
     }
     return true;
   }

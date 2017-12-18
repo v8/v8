@@ -715,7 +715,6 @@ bool operator==(CheckMinusZeroParameters const& lhs,
   V(CheckHeapObject, 1, 1)               \
   V(CheckInternalizedString, 1, 1)       \
   V(CheckReceiver, 1, 1)                 \
-  V(CheckString, 1, 1)                   \
   V(CheckSeqString, 1, 1)                \
   V(CheckSymbol, 1, 1)                   \
   V(CheckNotTaggedHole, 1, 1)            \
@@ -731,6 +730,7 @@ bool operator==(CheckMinusZeroParameters const& lhs,
 #define CHECKED_WITH_FEEDBACK_OP_LIST(V) \
   V(CheckBounds, 2, 1)                   \
   V(CheckSmi, 1, 1)                      \
+  V(CheckString, 1, 1)                   \
   V(CheckedTaggedSignedToInt32, 1, 1)    \
   V(CheckedTaggedToTaggedSigned, 1, 1)   \
   V(CheckedUint32ToInt32, 1, 1)          \
