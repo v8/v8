@@ -2377,7 +2377,9 @@ MaybeHandle<WasmInstanceObject> InstanceBuilder::Build() {
               compiled_module_->instance_id());
       }
     }
-    compiled_module_->set_native_context(*isolate_->native_context());
+    Handle<WeakCell> weak_native_context =
+        isolate_->factory()->NewWeakCell(isolate_->native_context());
+    compiled_module_->set_weak_native_context(*weak_native_context);
   }
   base::Optional<wasm::NativeModuleModificationScope>
       native_module_modification_scope;

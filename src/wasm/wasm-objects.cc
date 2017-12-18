@@ -1255,11 +1255,12 @@ Handle<WasmCompiledModule> WasmCompiledModule::New(
   // WasmCompiledModule::cast would fail since fields are not set yet.
   Handle<WasmCompiledModule> compiled_module(
       reinterpret_cast<WasmCompiledModule*>(*ret), isolate);
-  compiled_module->set_native_context(*isolate->native_context());
+  Handle<WeakCell> weak_native_context =
+      isolate->factory()->NewWeakCell(isolate->native_context());
+  compiled_module->set_weak_native_context(*weak_native_context);
   compiled_module->set_use_trap_handler(use_trap_handler);
   if (!FLAG_wasm_jit_to_native) {
     compiled_module->InitId();
-    compiled_module->set_native_context(*isolate->native_context());
     compiled_module->set_code_table(*code_table);
     compiled_module->set_export_wrappers(*export_wrappers);
     // TODO(mtrofin): we copy these because the order of finalization isn't

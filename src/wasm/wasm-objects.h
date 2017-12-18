@@ -463,7 +463,7 @@ class WasmCompiledModule : public FixedArray {
 // we embed the generated code with a value, then we track that value here.
 #define CORE_WCM_PROPERTY_TABLE(MACRO)                  \
   MACRO(WASM_OBJECT, WasmSharedModuleData, shared)      \
-  MACRO(OBJECT, Context, native_context)                \
+  MACRO(WEAK_LINK, Context, native_context)             \
   MACRO(CONST_OBJECT, FixedArray, export_wrappers)      \
   MACRO(OBJECT, FixedArray, weak_exported_functions)    \
   MACRO(WASM_OBJECT, WasmCompiledModule, next_instance) \
