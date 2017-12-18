@@ -283,8 +283,8 @@ class StandardTestRunner(base_runner.BaseTestRunner):
         options.extra_flags.append("--verify_predictable")
         options.extra_flags.append("--no-inline-new")
         # Add predictable wrapper to command prefix.
-        options.command_prefix.append(sys.executable)
-        options.command_prefix.append(PREDICTABLE_WRAPPER)
+        options.command_prefix = (
+            [sys.executable, PREDICTABLE_WRAPPER] + options.command_prefix)
 
       # TODO(machenbach): Figure out how to test a bigger subset of variants on
       # msan.
