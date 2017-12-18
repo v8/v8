@@ -5066,6 +5066,15 @@ WasmCodeWrapper WasmCompilationUnit::FinishTurbofanCompilation(
              codegen_ms);
     }
 
+#ifdef ENABLE_DISASSEMBLER
+    if (FLAG_print_code || FLAG_print_wasm_code) {
+      // TODO(wasm): Use proper log files, here and elsewhere.
+      PrintF("--- Native Wasm code ---\n");
+      code->Print(isolate_);
+      PrintF("--- End code ---\n");
+    }
+#endif
+
     Handle<ByteArray> source_positions =
         tf_.job_->compilation_info()->wasm_code_desc()->source_positions_table;
     MaybeHandle<HandlerTable> handler_table =

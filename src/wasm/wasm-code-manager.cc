@@ -180,14 +180,18 @@ void WasmCode::ResetTrapHandlerIndex() { trap_handler_index_ = -1; }
 // Disassembler::Decode.
 void WasmCode::Disassemble(Isolate* isolate, const char* name,
                            std::ostream& os) const {
-  os << name << std::endl;
+  if (name) os << name << std::endl;
   Disassembler::Decode(isolate, &os, instructions().start(),
                        instructions().end(), nullptr);
 }
 
 void WasmCode::Print(Isolate* isolate) const {
   OFStream os(stdout);
-  Disassemble(isolate, "", os);
+  if (index_.IsJust()) {
+    os << "index: " << index_.FromJust() << "\n";
+  }
+  os << "kind: " << GetWasmCodeKindAsString(kind_) << "\n";
+  Disassemble(isolate, nullptr, os);
 }
 
 const char* GetWasmCodeKindAsString(WasmCode::Kind kind) {
