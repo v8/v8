@@ -2014,11 +2014,22 @@ int DisassemblerX64::TwoByteOpcodeInstruction(byte* data) {
       current += PrintRightXMMOperand(current);
       AppendToBuffer(", %d", (*current) & 7);
       current += 1;
+    } else if (opcode == 0x6F) {
+      int mod, regop, rm;
+      get_modrm(*current, &mod, &regop, &rm);
+      AppendToBuffer("movdqu %s,", NameOfXMMRegister(regop));
+      current += PrintRightXMMOperand(current);
     } else if (opcode == 0x7E) {
       int mod, regop, rm;
       get_modrm(*current, &mod, &regop, &rm);
       AppendToBuffer("movq %s,", NameOfXMMRegister(regop));
       current += PrintRightXMMOperand(current);
+    } else if (opcode == 0x7F) {
+      int mod, regop, rm;
+      get_modrm(*current, &mod, &regop, &rm);
+      AppendToBuffer("movdqu ");
+      current += PrintRightXMMOperand(current);
+      AppendToBuffer(",%s", NameOfXMMRegister(regop));
     } else if ((opcode & 0xF8) == 0x58 || opcode == 0x51) {
       // XMM arithmetic. Mnemonic was retrieved at the start of this function.
       int mod, regop, rm;
