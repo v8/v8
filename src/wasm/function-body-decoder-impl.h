@@ -246,10 +246,11 @@ struct CallIndirectOperand {
   uint32_t table_index;
   uint32_t index;
   FunctionSig* sig = nullptr;
-  unsigned length;
+  unsigned length = 0;
   inline CallIndirectOperand(Decoder* decoder, const byte* pc) {
     unsigned len = 0;
     index = decoder->read_u32v<validate>(pc + 1, &len, "signature index");
+    if (!VALIDATE(decoder->ok())) return;
     table_index = decoder->read_u8<validate>(pc + 1 + len, "table index");
     if (!VALIDATE(table_index == 0)) {
       decoder->errorf(pc + 1 + len, "expected table index 0, found %u",
@@ -338,7 +339,7 @@ template <Decoder::ValidateFlag validate>
 struct MemoryAccessOperand {
   uint32_t alignment;
   uint32_t offset;
-  unsigned length;
+  unsigned length = 0;
   inline MemoryAccessOperand(Decoder* decoder, const byte* pc,
                              uint32_t max_alignment) {
     unsigned alignment_length;
@@ -350,6 +351,7 @@ struct MemoryAccessOperand {
                       "actual alignment is %u",
                       max_alignment, alignment);
     }
+    if (!VALIDATE(decoder->ok())) return;
     unsigned offset_length;
     offset = decoder->read_u32v<validate>(pc + 1 + alignment_length,
                                           &offset_length, "offset");
@@ -382,11 +384,12 @@ struct SimdShiftOperand {
 // Operand for SIMD S8x16 shuffle operations.
 template <Decoder::ValidateFlag validate>
 struct Simd8x16ShuffleOperand {
-  uint8_t shuffle[kSimd128Size];
+  uint8_t shuffle[kSimd128Size] = {0};
 
   inline Simd8x16ShuffleOperand(Decoder* decoder, const byte* pc) {
     for (uint32_t i = 0; i < kSimd128Size; ++i) {
       shuffle[i] = decoder->read_u8<validate>(pc + 2 + i, "shuffle");
+      if (!VALIDATE(decoder->ok())) return;
     }
   }
 };
