@@ -363,7 +363,7 @@ class JsonTestProgressIndicator(ProgressIndicator):
       # TODO(machenbach): This stores only the global random seed from the
       # context and not possible overrides when using random-seed stress.
       "random_seed": self.random_seed,
-      "target_name": test.cmd.shell,
+      "target_name": test.get_shell(),
       "variant": test.variant,
     })
 

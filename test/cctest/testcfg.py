@@ -60,7 +60,7 @@ class TestSuite(testsuite.TestSuite):
 
 
 class TestCase(testcase.TestCase):
-  def _get_shell(self):
+  def get_shell(self):
     return SHELL
 
   def _get_files_params(self, ctx):

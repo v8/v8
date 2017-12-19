@@ -109,7 +109,7 @@ class TestCase(testcase.TestCase):
   def _get_source_path(self):
     return os.path.join(self.suite.root, self.path + self._get_suffix())
 
-  def _get_shell(self):
+  def get_shell(self):
     return 'inspector-test'
 
 

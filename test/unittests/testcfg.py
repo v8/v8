@@ -62,7 +62,7 @@ class TestCase(testcase.TestCase):
         ["--gtest_print_time=0"]
     )
 
-  def _get_shell(self):
+  def get_shell(self):
     return self.suite.name
 
 

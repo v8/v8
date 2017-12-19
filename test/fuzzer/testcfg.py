@@ -56,7 +56,7 @@ class TestCase(testcase.TestCase):
   def _get_mode_flags(self, ctx):
     return []
 
-  def _get_shell(self):
+  def get_shell(self):
     group, _ = self.path.split('/', 1)
     return 'v8_simple_%s_fuzzer' % group
 

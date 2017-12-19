@@ -183,7 +183,7 @@ class TestCase(object):
     return []
 
   def _get_shell_with_flags(self, ctx):
-    shell = self._get_shell()
+    shell = self.get_shell()
     shell_flags = []
     if shell == 'd8':
       shell_flags.append('--test')
@@ -203,7 +203,7 @@ class TestCase(object):
     timeout *= 2
     return timeout
 
-  def _get_shell(self):
+  def get_shell(self):
     return 'd8'
 
   def _get_suffix(self):
