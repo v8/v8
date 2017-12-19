@@ -583,7 +583,6 @@ action("js2c") {
     "src/js/macros.py",
     "src/messages.h",
     "src/js/prologue.js",
-    "src/js/v8natives.js",
     "src/js/array.js",
     "src/js/typedarray.js",
     "src/js/messages.js",

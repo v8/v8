@@ -122,9 +122,10 @@ struct StartupBlobs {
 
 static StartupBlobs Serialize(v8::Isolate* isolate) {
   // We have to create one context.  One reason for this is so that the builtins
-  // can be loaded from v8natives.js and their addresses can be processed.  This
-  // will clear the pending fixups array, which would otherwise contain GC roots
-  // that would confuse the serialization/deserialization process.
+  // can be loaded from self hosted JS builtins and their addresses can be
+  // processed.  This will clear the pending fixups array, which would otherwise
+  // contain GC roots that would confuse the serialization/deserialization
+  // process.
   v8::Isolate::Scope isolate_scope(isolate);
   {
     v8::HandleScope scope(isolate);

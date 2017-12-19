@@ -1517,6 +1517,9 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
                               factory->proto_string(),
                               Builtins::kObjectPrototypeGetProto,
                               Builtins::kObjectPrototypeSetProto, DONT_ENUM);
+
+    SimpleInstallFunction(isolate->initial_object_prototype(), "toLocaleString",
+                          Builtins::kObjectPrototypeToLocaleString, 0, true);
   }
 
   Handle<JSObject> global(native_context()->global_object());

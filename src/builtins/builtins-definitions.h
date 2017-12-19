@@ -763,6 +763,8 @@ namespace internal {
   CPP(ObjectPrototypePropertyIsEnumerable)                                     \
   CPP(ObjectPrototypeGetProto)                                                 \
   CPP(ObjectPrototypeSetProto)                                                 \
+  /* ES #sec-object.prototype.tolocalestring */                                \
+  TFJ(ObjectPrototypeToLocaleString, 0)                                        \
   CPP(ObjectSeal)                                                              \
   CPP(ObjectValues)                                                            \
                                                                                \

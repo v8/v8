@@ -1698,11 +1698,10 @@ class CallNew final : public Expression {
   ZoneList<Expression*>* arguments_;
 };
 
-
 // The CallRuntime class does not represent any official JavaScript
 // language construct. Instead it is used to call a C or JS function
 // with a set of arguments. This is used from the builtins that are
-// implemented in JavaScript (see "v8natives.js").
+// implemented in JavaScript.
 class CallRuntime final : public Expression {
  public:
   ZoneList<Expression*>* arguments() const { return arguments_; }
