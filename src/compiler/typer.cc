@@ -1958,6 +1958,10 @@ Type* Typer::Visitor::TypeStringLength(Node* node) {
   return typer_->cache_.kStringLengthType;
 }
 
+Type* Typer::Visitor::TypeMaskIndexWithBound(Node* node) {
+  return Type::Union(Operand(node, 0), typer_->cache_.kSingletonZero, zone());
+}
+
 Type* Typer::Visitor::TypeCheckBounds(Node* node) {
   Type* index = Operand(node, 0);
   Type* length = Operand(node, 1);

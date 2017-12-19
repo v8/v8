@@ -703,7 +703,8 @@ bool operator==(CheckMinusZeroParameters const& lhs,
   V(StringLessThan, Operator::kNoProperties, 2, 0)               \
   V(StringLessThanOrEqual, Operator::kNoProperties, 2, 0)        \
   V(ToBoolean, Operator::kNoProperties, 1, 0)                    \
-  V(NewConsString, Operator::kNoProperties, 3, 0)
+  V(NewConsString, Operator::kNoProperties, 3, 0)                \
+  V(MaskIndexWithBound, Operator::kNoProperties, 2, 0)
 
 #define SPECULATIVE_NUMBER_BINOP_LIST(V)      \
   SIMPLIFIED_SPECULATIVE_NUMBER_BINOP_LIST(V) \

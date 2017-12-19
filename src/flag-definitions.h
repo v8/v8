@@ -463,6 +463,9 @@ DEFINE_BOOL(turbo_store_elimination, true,
 DEFINE_BOOL(trace_store_elimination, false, "trace store elimination")
 DEFINE_BOOL(turbo_rewrite_far_jumps, true,
             "rewrite far to near jumps (ia32,x64)")
+DEFINE_BOOL(extra_masking, false, "Extra mask for memory accesses")
+DEFINE_BOOL(mask_array_index, false, "Mask array index with bound")
+DEFINE_IMPLICATION(extra_masking, mask_array_index)
 
 // Flags to help platform porters
 DEFINE_BOOL(minimal, false,

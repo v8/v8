@@ -398,6 +398,7 @@
   V(TransitionElementsKind)             \
   V(FindOrderedHashMapEntry)            \
   V(FindOrderedHashMapEntryForInt32Key) \
+  V(MaskIndexWithBound)                 \
   V(RuntimeAbort)
 
 #define SIMPLIFIED_OP_LIST(V)                 \

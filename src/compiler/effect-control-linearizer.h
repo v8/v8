@@ -30,8 +30,11 @@ class SourcePositionTable;
 
 class V8_EXPORT_PRIVATE EffectControlLinearizer {
  public:
+  enum MaskArrayIndexEnable { kDoNotMaskArrayIndex, kMaskArrayIndex };
+
   EffectControlLinearizer(JSGraph* graph, Schedule* schedule, Zone* temp_zone,
-                          SourcePositionTable* source_positions);
+                          SourcePositionTable* source_positions,
+                          MaskArrayIndexEnable mask_array_index);
 
   void Run();
 
@@ -53,6 +56,7 @@ class V8_EXPORT_PRIVATE EffectControlLinearizer {
   Node* LowerChangeTaggedToUint32(Node* node);
   Node* LowerChangeTaggedToTaggedSigned(Node* node);
   Node* LowerCheckBounds(Node* node, Node* frame_state);
+  Node* LowerMaskIndexWithBound(Node* node);
   Node* LowerCheckInternalizedString(Node* node, Node* frame_state);
   void LowerCheckMaps(Node* node, Node* frame_state);
   Node* LowerCompareMaps(Node* node);
@@ -194,6 +198,7 @@ class V8_EXPORT_PRIVATE EffectControlLinearizer {
   JSGraph* js_graph_;
   Schedule* schedule_;
   Zone* temp_zone_;
+  MaskArrayIndexEnable mask_array_index_;
   RegionObservability region_observability_ = RegionObservability::kObservable;
   SourcePositionTable* source_positions_;
   GraphAssembler graph_assembler_;

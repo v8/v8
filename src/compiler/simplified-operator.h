@@ -539,6 +539,7 @@ class V8_EXPORT_PRIVATE SimplifiedOperatorBuilder final
   const Operator* CheckBounds(const VectorSlotPair& feedback);
   const Operator* CheckMaps(CheckMapsFlags, ZoneHandleSet<Map>,
                             const VectorSlotPair& = VectorSlotPair());
+  const Operator* MaskIndexWithBound();
   const Operator* CompareMaps(ZoneHandleSet<Map>);
   const Operator* MapGuard(ZoneHandleSet<Map> maps);
 
