@@ -297,6 +297,9 @@ bool HeapObject::IsJSProxy() const { return map()->IsJSProxyMap(); }
 
 bool HeapObject::IsJSMapIterator() const {
   InstanceType instance_type = map()->instance_type();
+  STATIC_ASSERT(JS_MAP_KEY_ITERATOR_TYPE + 1 == JS_MAP_KEY_VALUE_ITERATOR_TYPE);
+  STATIC_ASSERT(JS_MAP_KEY_VALUE_ITERATOR_TYPE + 1 ==
+                JS_MAP_VALUE_ITERATOR_TYPE);
   return (instance_type >= JS_MAP_KEY_ITERATOR_TYPE &&
           instance_type <= JS_MAP_VALUE_ITERATOR_TYPE);
 }

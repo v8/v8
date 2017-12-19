@@ -349,42 +349,44 @@ const int kStubMinorKeyBits = kSmiValueSize - kStubMajorKeyBits - 1;
   V(FIXED_DOUBLE_ARRAY_TYPE)                                    \
   V(FILLER_TYPE)                                                \
                                                                 \
+  V(ACCESS_CHECK_INFO_TYPE)                                     \
   V(ACCESSOR_INFO_TYPE)                                         \
   V(ACCESSOR_PAIR_TYPE)                                         \
-  V(ACCESS_CHECK_INFO_TYPE)                                     \
-  V(INTERCEPTOR_INFO_TYPE)                                      \
-  V(FUNCTION_TEMPLATE_INFO_TYPE)                                \
-  V(OBJECT_TEMPLATE_INFO_TYPE)                                  \
-  V(ALLOCATION_SITE_TYPE)                                       \
-  V(ALLOCATION_MEMENTO_TYPE)                                    \
-  V(SCRIPT_TYPE)                                                \
   V(ALIASED_ARGUMENTS_ENTRY_TYPE)                               \
-  V(PROMISE_RESOLVE_THENABLE_JOB_INFO_TYPE)                     \
-  V(PROMISE_REACTION_JOB_INFO_TYPE)                             \
+  V(ALLOCATION_MEMENTO_TYPE)                                    \
+  V(ALLOCATION_SITE_TYPE)                                       \
+  V(ASYNC_GENERATOR_REQUEST_TYPE)                               \
+  V(CONTEXT_EXTENSION_TYPE)                                     \
   V(DEBUG_INFO_TYPE)                                            \
-  V(STACK_FRAME_INFO_TYPE)                                      \
+  V(FUNCTION_TEMPLATE_INFO_TYPE)                                \
+  V(INTERCEPTOR_INFO_TYPE)                                      \
+  V(MODULE_INFO_ENTRY_TYPE)                                     \
+  V(MODULE_TYPE)                                                \
+  V(OBJECT_TEMPLATE_INFO_TYPE)                                  \
+  V(PROMISE_REACTION_JOB_INFO_TYPE)                             \
+  V(PROMISE_RESOLVE_THENABLE_JOB_INFO_TYPE)                     \
   V(PROTOTYPE_INFO_TYPE)                                        \
+  V(SCRIPT_TYPE)                                                \
+  V(STACK_FRAME_INFO_TYPE)                                      \
   V(TUPLE2_TYPE)                                                \
   V(TUPLE3_TYPE)                                                \
-  V(CONTEXT_EXTENSION_TYPE)                                     \
-  V(MODULE_TYPE)                                                \
-  V(MODULE_INFO_ENTRY_TYPE)                                     \
-  V(ASYNC_GENERATOR_REQUEST_TYPE)                               \
-  V(LOAD_HANDLER_TYPE)                                          \
-  V(STORE_HANDLER_TYPE)                                         \
+                                                                \
   V(FIXED_ARRAY_TYPE)                                           \
-  V(HASH_TABLE_TYPE)                                            \
   V(DESCRIPTOR_ARRAY_TYPE)                                      \
+  V(HASH_TABLE_TYPE)                                            \
   V(TRANSITION_ARRAY_TYPE)                                      \
-  V(FEEDBACK_VECTOR_TYPE)                                       \
-  V(PROPERTY_ARRAY_TYPE)                                        \
-  V(SHARED_FUNCTION_INFO_TYPE)                                  \
+                                                                \
   V(CELL_TYPE)                                                  \
-  V(WEAK_CELL_TYPE)                                             \
+  V(CODE_DATA_CONTAINER_TYPE)                                   \
+  V(FEEDBACK_VECTOR_TYPE)                                       \
+  V(LOAD_HANDLER_TYPE)                                          \
+  V(PROPERTY_ARRAY_TYPE)                                        \
   V(PROPERTY_CELL_TYPE)                                         \
+  V(SHARED_FUNCTION_INFO_TYPE)                                  \
   V(SMALL_ORDERED_HASH_MAP_TYPE)                                \
   V(SMALL_ORDERED_HASH_SET_TYPE)                                \
-  V(CODE_DATA_CONTAINER_TYPE)                                   \
+  V(STORE_HANDLER_TYPE)                                         \
+  V(WEAK_CELL_TYPE)                                             \
                                                                 \
   V(JS_PROXY_TYPE)                                              \
   V(JS_GLOBAL_OBJECT_TYPE)                                      \
@@ -392,32 +394,34 @@ const int kStubMinorKeyBits = kSmiValueSize - kStubMajorKeyBits - 1;
   V(JS_MODULE_NAMESPACE_TYPE)                                   \
   V(JS_SPECIAL_API_OBJECT_TYPE)                                 \
   V(JS_VALUE_TYPE)                                              \
-  V(JS_MESSAGE_OBJECT_TYPE)                                     \
-  V(JS_DATE_TYPE)                                               \
   V(JS_API_OBJECT_TYPE)                                         \
   V(JS_OBJECT_TYPE)                                             \
+                                                                \
   V(JS_ARGUMENTS_TYPE)                                          \
-  V(JS_CONTEXT_EXTENSION_OBJECT_TYPE)                           \
-  V(JS_GENERATOR_OBJECT_TYPE)                                   \
-  V(JS_ASYNC_GENERATOR_OBJECT_TYPE)                             \
-  V(JS_ARRAY_TYPE)                                              \
   V(JS_ARRAY_BUFFER_TYPE)                                       \
-  V(JS_TYPED_ARRAY_TYPE)                                        \
-  V(JS_DATA_VIEW_TYPE)                                          \
-  V(JS_SET_TYPE)                                                \
+  V(JS_ARRAY_TYPE)                                              \
+  V(JS_ASYNC_FROM_SYNC_ITERATOR_TYPE)                           \
+  V(JS_ASYNC_GENERATOR_OBJECT_TYPE)                             \
+  V(JS_CONTEXT_EXTENSION_OBJECT_TYPE)                           \
+  V(JS_DATE_TYPE)                                               \
+  V(JS_ERROR_TYPE)                                              \
+  V(JS_GENERATOR_OBJECT_TYPE)                                   \
   V(JS_MAP_TYPE)                                                \
-  V(JS_SET_KEY_VALUE_ITERATOR_TYPE)                             \
-  V(JS_SET_VALUE_ITERATOR_TYPE)                                 \
   V(JS_MAP_KEY_ITERATOR_TYPE)                                   \
   V(JS_MAP_KEY_VALUE_ITERATOR_TYPE)                             \
   V(JS_MAP_VALUE_ITERATOR_TYPE)                                 \
-  V(JS_WEAK_MAP_TYPE)                                           \
-  V(JS_WEAK_SET_TYPE)                                           \
+  V(JS_MESSAGE_OBJECT_TYPE)                                     \
   V(JS_PROMISE_TYPE)                                            \
   V(JS_REGEXP_TYPE)                                             \
-  V(JS_ERROR_TYPE)                                              \
-  V(JS_ASYNC_FROM_SYNC_ITERATOR_TYPE)                           \
+  V(JS_SET_TYPE)                                                \
+  V(JS_SET_KEY_VALUE_ITERATOR_TYPE)                             \
+  V(JS_SET_VALUE_ITERATOR_TYPE)                                 \
   V(JS_STRING_ITERATOR_TYPE)                                    \
+  V(JS_WEAK_MAP_TYPE)                                           \
+  V(JS_WEAK_SET_TYPE)                                           \
+                                                                \
+  V(JS_TYPED_ARRAY_TYPE)                                        \
+  V(JS_DATA_VIEW_TYPE)                                          \
                                                                 \
   ARRAY_ITERATOR_TYPE_LIST(V)                                   \
                                                                 \
@@ -533,29 +537,29 @@ const int kStubMinorKeyBits = kSmiValueSize - kStubMajorKeyBits - 1;
 // type tags, elements in this list have to be added to the INSTANCE_TYPE_LIST
 // manually.
 #define STRUCT_LIST(V)                                                       \
+  V(ACCESS_CHECK_INFO, AccessCheckInfo, access_check_info)                   \
   V(ACCESSOR_INFO, AccessorInfo, accessor_info)                              \
   V(ACCESSOR_PAIR, AccessorPair, accessor_pair)                              \
-  V(ACCESS_CHECK_INFO, AccessCheckInfo, access_check_info)                   \
-  V(INTERCEPTOR_INFO, InterceptorInfo, interceptor_info)                     \
-  V(FUNCTION_TEMPLATE_INFO, FunctionTemplateInfo, function_template_info)    \
-  V(OBJECT_TEMPLATE_INFO, ObjectTemplateInfo, object_template_info)          \
-  V(ALLOCATION_SITE, AllocationSite, allocation_site)                        \
-  V(ALLOCATION_MEMENTO, AllocationMemento, allocation_memento)               \
-  V(SCRIPT, Script, script)                                                  \
   V(ALIASED_ARGUMENTS_ENTRY, AliasedArgumentsEntry, aliased_arguments_entry) \
-  V(PROMISE_RESOLVE_THENABLE_JOB_INFO, PromiseResolveThenableJobInfo,        \
-    promise_resolve_thenable_job_info)                                       \
+  V(ALLOCATION_MEMENTO, AllocationMemento, allocation_memento)               \
+  V(ALLOCATION_SITE, AllocationSite, allocation_site)                        \
+  V(ASYNC_GENERATOR_REQUEST, AsyncGeneratorRequest, async_generator_request) \
+  V(CONTEXT_EXTENSION, ContextExtension, context_extension)                  \
+  V(DEBUG_INFO, DebugInfo, debug_info)                                       \
+  V(FUNCTION_TEMPLATE_INFO, FunctionTemplateInfo, function_template_info)    \
+  V(INTERCEPTOR_INFO, InterceptorInfo, interceptor_info)                     \
+  V(MODULE_INFO_ENTRY, ModuleInfoEntry, module_info_entry)                   \
+  V(MODULE, Module, module)                                                  \
+  V(OBJECT_TEMPLATE_INFO, ObjectTemplateInfo, object_template_info)          \
   V(PROMISE_REACTION_JOB_INFO, PromiseReactionJobInfo,                       \
     promise_reaction_job_info)                                               \
-  V(DEBUG_INFO, DebugInfo, debug_info)                                       \
-  V(STACK_FRAME_INFO, StackFrameInfo, stack_frame_info)                      \
+  V(PROMISE_RESOLVE_THENABLE_JOB_INFO, PromiseResolveThenableJobInfo,        \
+    promise_resolve_thenable_job_info)                                       \
   V(PROTOTYPE_INFO, PrototypeInfo, prototype_info)                           \
+  V(SCRIPT, Script, script)                                                  \
+  V(STACK_FRAME_INFO, StackFrameInfo, stack_frame_info)                      \
   V(TUPLE2, Tuple2, tuple2)                                                  \
-  V(TUPLE3, Tuple3, tuple3)                                                  \
-  V(CONTEXT_EXTENSION, ContextExtension, context_extension)                  \
-  V(MODULE, Module, module)                                                  \
-  V(MODULE_INFO_ENTRY, ModuleInfoEntry, module_info_entry)                   \
-  V(ASYNC_GENERATOR_REQUEST, AsyncGeneratorRequest, async_generator_request)
+  V(TUPLE3, Tuple3, tuple3)
 
 #define DATA_HANDLER_LIST(V)                        \
   V(LOAD_HANDLER, LoadHandler, 1, load_handler1)    \
@@ -715,82 +719,90 @@ enum InstanceType : uint16_t {
   FILLER_TYPE,  // LAST_DATA_TYPE
 
   // Structs.
+  ACCESS_CHECK_INFO_TYPE,
   ACCESSOR_INFO_TYPE,
   ACCESSOR_PAIR_TYPE,
-  ACCESS_CHECK_INFO_TYPE,
-  INTERCEPTOR_INFO_TYPE,
-  FUNCTION_TEMPLATE_INFO_TYPE,
-  OBJECT_TEMPLATE_INFO_TYPE,
-  ALLOCATION_SITE_TYPE,
-  ALLOCATION_MEMENTO_TYPE,
-  SCRIPT_TYPE,
   ALIASED_ARGUMENTS_ENTRY_TYPE,
-  PROMISE_RESOLVE_THENABLE_JOB_INFO_TYPE,
-  PROMISE_REACTION_JOB_INFO_TYPE,
+  ALLOCATION_MEMENTO_TYPE,
+  ALLOCATION_SITE_TYPE,
+  ASYNC_GENERATOR_REQUEST_TYPE,
+  CONTEXT_EXTENSION_TYPE,
   DEBUG_INFO_TYPE,
-  STACK_FRAME_INFO_TYPE,
+  FUNCTION_TEMPLATE_INFO_TYPE,
+  INTERCEPTOR_INFO_TYPE,
+  MODULE_INFO_ENTRY_TYPE,
+  MODULE_TYPE,
+  OBJECT_TEMPLATE_INFO_TYPE,
+  PROMISE_REACTION_JOB_INFO_TYPE,
+  PROMISE_RESOLVE_THENABLE_JOB_INFO_TYPE,
   PROTOTYPE_INFO_TYPE,
+  SCRIPT_TYPE,
+  STACK_FRAME_INFO_TYPE,
   TUPLE2_TYPE,
   TUPLE3_TYPE,
-  CONTEXT_EXTENSION_TYPE,
-  MODULE_TYPE,
-  MODULE_INFO_ENTRY_TYPE,
-  ASYNC_GENERATOR_REQUEST_TYPE,
-  LOAD_HANDLER_TYPE,
-  STORE_HANDLER_TYPE,
+
+  // FixedArrays.
   FIXED_ARRAY_TYPE,  // FIRST_FIXED_ARRAY_TYPE
-  HASH_TABLE_TYPE,
   DESCRIPTOR_ARRAY_TYPE,
+  HASH_TABLE_TYPE,
   TRANSITION_ARRAY_TYPE,  // LAST_FIXED_ARRAY_TYPE
-  FEEDBACK_VECTOR_TYPE,
-  PROPERTY_ARRAY_TYPE,
-  SHARED_FUNCTION_INFO_TYPE,
+
+  // Misc.
   CELL_TYPE,
-  WEAK_CELL_TYPE,
+  CODE_DATA_CONTAINER_TYPE,
+  FEEDBACK_VECTOR_TYPE,
+  LOAD_HANDLER_TYPE,
+  PROPERTY_ARRAY_TYPE,
   PROPERTY_CELL_TYPE,
+  SHARED_FUNCTION_INFO_TYPE,
   SMALL_ORDERED_HASH_MAP_TYPE,
   SMALL_ORDERED_HASH_SET_TYPE,
-  CODE_DATA_CONTAINER_TYPE,
+  STORE_HANDLER_TYPE,
+  WEAK_CELL_TYPE,
 
   // All the following types are subtypes of JSReceiver, which corresponds to
   // objects in the JS sense. The first and the last type in this range are
   // the two forms of function. This organization enables using the same
   // compares for checking the JS_RECEIVER and the NONCALLABLE_JS_OBJECT range.
-  JS_PROXY_TYPE,          // FIRST_JS_RECEIVER_TYPE
-  JS_GLOBAL_OBJECT_TYPE,  // FIRST_JS_OBJECT_TYPE
+  // Some of the following instance types are exposed in v8.h, so to not
+  // unnecessarily change the ABI when we introduce new instance types in the
+  // future, we leave some space between instance types.
+  JS_PROXY_TYPE = 0x8000,  // FIRST_JS_RECEIVER_TYPE
+  JS_GLOBAL_OBJECT_TYPE,   // FIRST_JS_OBJECT_TYPE
   JS_GLOBAL_PROXY_TYPE,
   JS_MODULE_NAMESPACE_TYPE,
   // Like JS_API_OBJECT_TYPE, but requires access checks and/or has
   // interceptors.
-  JS_SPECIAL_API_OBJECT_TYPE,  // LAST_SPECIAL_RECEIVER_TYPE
-  JS_VALUE_TYPE,               // LAST_CUSTOM_ELEMENTS_RECEIVER
-  JS_MESSAGE_OBJECT_TYPE,
-  JS_DATE_TYPE,
+  JS_SPECIAL_API_OBJECT_TYPE = 0x8100,  // LAST_SPECIAL_RECEIVER_TYPE
+  JS_VALUE_TYPE,                        // LAST_CUSTOM_ELEMENTS_RECEIVER
   // Like JS_OBJECT_TYPE, but created from API function.
-  JS_API_OBJECT_TYPE,
+  JS_API_OBJECT_TYPE = 0x8200,
   JS_OBJECT_TYPE,
   JS_ARGUMENTS_TYPE,
-  JS_CONTEXT_EXTENSION_OBJECT_TYPE,
-  JS_GENERATOR_OBJECT_TYPE,
-  JS_ASYNC_GENERATOR_OBJECT_TYPE,
-  JS_ARRAY_TYPE,
   JS_ARRAY_BUFFER_TYPE,
-  JS_TYPED_ARRAY_TYPE,
-  JS_DATA_VIEW_TYPE,
-  JS_SET_TYPE,
+  JS_ARRAY_TYPE,
+  JS_ASYNC_FROM_SYNC_ITERATOR_TYPE,
+  JS_ASYNC_GENERATOR_OBJECT_TYPE,
+  JS_CONTEXT_EXTENSION_OBJECT_TYPE,
+  JS_DATE_TYPE,
+  JS_ERROR_TYPE,
+  JS_GENERATOR_OBJECT_TYPE,
   JS_MAP_TYPE,
-  JS_SET_KEY_VALUE_ITERATOR_TYPE,
-  JS_SET_VALUE_ITERATOR_TYPE,
   JS_MAP_KEY_ITERATOR_TYPE,
   JS_MAP_KEY_VALUE_ITERATOR_TYPE,
   JS_MAP_VALUE_ITERATOR_TYPE,
-  JS_WEAK_MAP_TYPE,
-  JS_WEAK_SET_TYPE,
+  JS_MESSAGE_OBJECT_TYPE,
   JS_PROMISE_TYPE,
   JS_REGEXP_TYPE,
-  JS_ERROR_TYPE,
-  JS_ASYNC_FROM_SYNC_ITERATOR_TYPE,
+  JS_SET_TYPE,
+  JS_SET_KEY_VALUE_ITERATOR_TYPE,
+  JS_SET_VALUE_ITERATOR_TYPE,
   JS_STRING_ITERATOR_TYPE,
+  JS_WEAK_MAP_TYPE,
+  JS_WEAK_SET_TYPE,
+
+  JS_TYPED_ARRAY_TYPE,
+  JS_DATA_VIEW_TYPE,
 
 #define ARRAY_ITERATOR_TYPE(type) type,
   ARRAY_ITERATOR_TYPE_LIST(ARRAY_ITERATOR_TYPE)
