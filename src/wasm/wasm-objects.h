@@ -12,6 +12,7 @@
 #include "src/objects.h"
 #include "src/objects/script.h"
 #include "src/wasm/decoder.h"
+#include "src/wasm/wasm-interpreter.h"
 #include "src/wasm/wasm-limits.h"
 
 #include "src/heap/heap.h"
@@ -25,7 +26,6 @@ namespace wasm {
 class InterpretedFrame;
 class NativeModule;
 class WasmCode;
-class WasmInterpreter;
 struct WasmModule;
 class SignatureMap;
 typedef Address GlobalHandleAddress;
@@ -631,8 +631,8 @@ class WasmDebugInfo : public FixedArray {
   std::vector<std::pair<uint32_t, int>> GetInterpretedStack(
       Address frame_pointer);
 
-  std::unique_ptr<wasm::InterpretedFrame> GetInterpretedFrame(
-      Address frame_pointer, int frame_index);
+  wasm::WasmInterpreter::FramePtr GetInterpretedFrame(Address frame_pointer,
+                                                      int frame_index);
 
   // Unwind the interpreted stack belonging to the passed interpreter entry
   // frame.

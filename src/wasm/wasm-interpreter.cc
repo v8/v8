@@ -2770,11 +2770,10 @@ pc_t WasmInterpreter::Thread::GetBreakpointPc() {
 int WasmInterpreter::Thread::GetFrameCount() {
   return ToImpl(this)->GetFrameCount();
 }
-std::unique_ptr<InterpretedFrame> WasmInterpreter::Thread::GetFrame(int index) {
+WasmInterpreter::FramePtr WasmInterpreter::Thread::GetFrame(int index) {
   DCHECK_LE(0, index);
   DCHECK_GT(GetFrameCount(), index);
-  return std::unique_ptr<InterpretedFrame>(
-      ToFrame(new InterpretedFrameImpl(ToImpl(this), index)));
+  return FramePtr(ToFrame(new InterpretedFrameImpl(ToImpl(this), index)));
 }
 WasmValue WasmInterpreter::Thread::GetReturnValue(int index) {
   return ToImpl(this)->GetReturnValue(index);
@@ -2934,6 +2933,9 @@ WasmValue InterpretedFrame::GetLocalValue(int index) const {
 }
 WasmValue InterpretedFrame::GetStackValue(int index) const {
   return ToImpl(this)->GetStackValue(index);
+}
+void InterpretedFrame::Deleter::operator()(InterpretedFrame* ptr) {
+  delete ToImpl(ptr);
 }
 
 //============================================================================

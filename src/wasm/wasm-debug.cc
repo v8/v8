@@ -373,8 +373,8 @@ class InterpreterHandle {
     return stack;
   }
 
-  std::unique_ptr<wasm::InterpretedFrame> GetInterpretedFrame(
-      Address frame_pointer, int idx) {
+  WasmInterpreter::FramePtr GetInterpretedFrame(Address frame_pointer,
+                                                int idx) {
     DCHECK_EQ(1, interpreter()->GetThreadCount());
     WasmInterpreter::Thread* thread = interpreter()->GetThread(0);
 
@@ -790,7 +790,7 @@ std::vector<std::pair<uint32_t, int>> WasmDebugInfo::GetInterpretedStack(
   return GetInterpreterHandle(this)->GetInterpretedStack(frame_pointer);
 }
 
-std::unique_ptr<wasm::InterpretedFrame> WasmDebugInfo::GetInterpretedFrame(
+wasm::WasmInterpreter::FramePtr WasmDebugInfo::GetInterpretedFrame(
     Address frame_pointer, int idx) {
   return GetInterpreterHandle(this)->GetInterpretedFrame(frame_pointer, idx);
 }
