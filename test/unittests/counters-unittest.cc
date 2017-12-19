@@ -4,6 +4,7 @@
 
 #include <vector>
 
+#include "src/base/atomic-utils.h"
 #include "src/base/platform/time.h"
 #include "src/counters-inl.h"
 #include "src/counters.h"
@@ -55,8 +56,9 @@ static base::TimeTicks RuntimeCallStatsTestNow() {
 class RuntimeCallStatsTest : public TestWithNativeContext {
  public:
   RuntimeCallStatsTest() {
-    FLAG_runtime_stats =
-        v8::tracing::TracingCategoryObserver::ENABLED_BY_NATIVE;
+    base::AsAtomic32::Relaxed_Store(
+        &FLAG_runtime_stats,
+        v8::tracing::TracingCategoryObserver::ENABLED_BY_NATIVE);
     // We need to set {time_} to a non-zero value since it would otherwise
     // cause runtime call timers to think they are uninitialized.
     Sleep(1);
@@ -67,7 +69,7 @@ class RuntimeCallStatsTest : public TestWithNativeContext {
     // Disable RuntimeCallStats before tearing down the isolate to prevent
     // printing the tests table. Comment the following line for debugging
     // purposes.
-    FLAG_runtime_stats = 0;
+    base::AsAtomic32::Relaxed_Store(&FLAG_runtime_stats, 0);
   }
 
   static void SetUpTestCase() {

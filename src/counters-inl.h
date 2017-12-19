@@ -15,7 +15,7 @@ void RuntimeCallTimer::Start(RuntimeCallCounter* counter,
   DCHECK(!IsStarted());
   counter_ = counter;
   parent_.SetValue(parent);
-  if (FLAG_runtime_stats ==
+  if (base::AsAtomic32::Relaxed_Load(&FLAG_runtime_stats) ==
       v8::tracing::TracingCategoryObserver::ENABLED_BY_SAMPLING) {
     return;
   }
