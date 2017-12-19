@@ -699,6 +699,7 @@ size_t OS::CommitPageSize() {
 
 static LazyInstance<RandomNumberGenerator>::type
     platform_random_number_generator = LAZY_INSTANCE_INITIALIZER;
+static LazyMutex rng_mutex = LAZY_MUTEX_INITIALIZER;
 
 void OS::Initialize(int64_t random_seed, bool hard_abort,
                     const char* const gc_fake_mmap) {
@@ -722,8 +723,11 @@ void* OS::GetRandomMmapAddr() {
   static const uintptr_t kAllocationRandomAddressMax = 0x3FFF0000;
 #endif
   uintptr_t address;
-  platform_random_number_generator.Pointer()->NextBytes(&address,
-                                                        sizeof(address));
+  {
+    LockGuard<Mutex> guard(rng_mutex.Pointer());
+    platform_random_number_generator.Pointer()->NextBytes(&address,
+                                                          sizeof(address));
+  }
   address <<= kPageSizeBits;
   address += kAllocationRandomAddressMin;
   address &= kAllocationRandomAddressMax;
