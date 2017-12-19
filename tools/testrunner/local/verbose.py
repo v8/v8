@@ -38,28 +38,30 @@ REPORT_TEMPLATE = (
  * %(nocrash)4d tests are expected to be flaky but not crash
  * %(pass)4d tests are expected to pass
  * %(fail_ok)4d tests are expected to fail that we won't fix
- * %(fail)4d tests are expected to fail that we should fix""")
+ * %(fail)4d tests are expected to fail that we should fix
+ * %(crash)4d tests are expected to crash
+""")
 
 
+# TODO(majeski): Turn it into an observer.
 def PrintReport(tests):
   total = len(tests)
-  skipped = nocrash = passes = fail_ok = fail = 0
+  skipped = nocrash = passes = fail_ok = fail = crash = 0
   for t in tests:
-    outcomes = t.statusfile_outcomes
-    if not outcomes:
-      passes += 1
-      continue
     if t.do_skip:
       skipped += 1
-      continue
-    if t.is_pass_or_fail:
+    elif t.is_pass_or_fail:
       nocrash += 1
-    if list(outcomes) == [statusfile.PASS]:
-      passes += 1
-    if t.is_fail_ok:
+    elif t.is_fail_ok:
       fail_ok += 1
-    if statusfile.FAIL in outcomes and statusfile.PASS not in outcomes:
+    elif t.expected_outcomes == [statusfile.PASS]:
+      passes += 1
+    elif t.expected_outcomes == [statusfile.FAIL]:
       fail += 1
+    elif t.expected_outcomes == [statusfile.CRASH]:
+      crash += 1
+    else:
+      assert False # Unreachable # TODO: check this in outcomes parsing phase.
 
   print REPORT_TEMPLATE % {
     "total": total,
@@ -67,7 +69,8 @@ def PrintReport(tests):
     "nocrash": nocrash,
     "pass": passes,
     "fail_ok": fail_ok,
-    "fail": fail
+    "fail": fail,
+    "crash": crash,
   }
 
 

@@ -51,7 +51,7 @@ class TestCase(object):
     self.run = 1  # The nth time this test is executed.
     self.cmd = None
 
-    self.statusfile_outcomes = None
+    self._statusfile_outcomes = None
     self.expected_outcomes = None
     self._statusfile_flags = None
     self._prepare_outcomes()
@@ -72,17 +72,17 @@ class TestCase(object):
     return other
 
   def _prepare_outcomes(self, force_update=True):
-    if force_update or self.statusfile_outcomes is None:
+    if force_update or self._statusfile_outcomes is None:
       def is_flag(outcome):
         return outcome.startswith('--')
       def not_flag(outcome):
         return not is_flag(outcome)
 
       outcomes = self.suite.statusfile.get_outcomes(self.name, self.variant)
-      self.statusfile_outcomes = filter(not_flag, outcomes)
+      self._statusfile_outcomes = filter(not_flag, outcomes)
       self._statusfile_flags = filter(is_flag, outcomes)
     self.expected_outcomes = (
-      self._parse_status_file_outcomes(self.statusfile_outcomes))
+      self._parse_status_file_outcomes(self._statusfile_outcomes))
 
   def _parse_status_file_outcomes(self, outcomes):
     if (statusfile.FAIL_SLOPPY in outcomes and
@@ -101,29 +101,29 @@ class TestCase(object):
 
   @property
   def do_skip(self):
-    return statusfile.SKIP in self.statusfile_outcomes
+    return statusfile.SKIP in self._statusfile_outcomes
 
   @property
   def is_slow(self):
-    return statusfile.SLOW in self.statusfile_outcomes
+    return statusfile.SLOW in self._statusfile_outcomes
 
   @property
   def is_fail_ok(self):
-    return statusfile.FAIL_OK in self.statusfile_outcomes
+    return statusfile.FAIL_OK in self._statusfile_outcomes
 
   @property
   def is_pass_or_fail(self):
-    return (statusfile.PASS in self.statusfile_outcomes and
-            statusfile.FAIL in self.statusfile_outcomes and
-            statusfile.CRASH not in self.statusfile_outcomes)
+    return (statusfile.PASS in self._statusfile_outcomes and
+            statusfile.FAIL in self._statusfile_outcomes and
+            statusfile.CRASH not in self._statusfile_outcomes)
 
   @property
   def only_standard_variant(self):
-    return statusfile.NO_VARIANTS in self.statusfile_outcomes
+    return statusfile.NO_VARIANTS in self._statusfile_outcomes
 
   @property
   def only_fast_variants(self):
-    return statusfile.FAST_VARIANTS in self.statusfile_outcomes
+    return statusfile.FAST_VARIANTS in self._statusfile_outcomes
 
   def get_command(self, context):
     params = self._get_cmd_params(context)
