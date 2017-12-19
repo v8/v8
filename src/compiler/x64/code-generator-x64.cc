@@ -3089,7 +3089,8 @@ void CodeGenerator::AssembleConstructFrame() {
 
     // Skip callee-saved and return slots, which are created below.
     shrink_slots -= base::bits::CountPopulation(saves);
-    shrink_slots -= base::bits::CountPopulation(saves_fp);
+    shrink_slots -=
+        base::bits::CountPopulation(saves_fp) * (kQuadWordSize / kPointerSize);
     shrink_slots -= frame()->GetReturnSlotCount();
     if (shrink_slots > 0) {
       __ subq(rsp, Immediate(shrink_slots * kPointerSize));
