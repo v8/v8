@@ -339,8 +339,8 @@ class SharedFunctionInfo : public HeapObject {
 
   // [source code]: Source code for the function.
   bool HasSourceCode() const;
-  Handle<Object> GetSourceCode();
-  Handle<Object> GetSourceCodeHarmony();
+  static Handle<Object> GetSourceCode(Handle<SharedFunctionInfo> shared);
+  static Handle<Object> GetSourceCodeHarmony(Handle<SharedFunctionInfo> shared);
 
   // Tells whether this function should be subject to debugging.
   inline bool IsSubjectToDebugging();
