@@ -10,13 +10,13 @@ vars = {
 
 deps = {
   'v8/build':
-    Var('chromium_url') + '/chromium/src/build.git' + '@' + '9caf5bf8b5d0b9e3531031faad3e829bcc277176',
+    Var('chromium_url') + '/chromium/src/build.git' + '@' + '9f00b2f2ee7fb201cb7ae3ecc45c191758d2f074',
   'v8/tools/gyp':
     Var('chromium_url') + '/external/gyp.git' + '@' + 'd61a9397e668fa9843c4aa7da9e79460fe590bfb',
   'v8/third_party/icu':
     Var('chromium_url') + '/chromium/deps/icu.git' + '@' + 'e3b480d3be4446ea17011c0cdc9c4cd380a5c58f',
   'v8/third_party/instrumented_libraries':
-    Var('chromium_url') + '/chromium/src/third_party/instrumented_libraries.git' + '@' + '28417458ac4dc79f68915079d0f283f682504cc0',
+    Var('chromium_url') + '/chromium/src/third_party/instrumented_libraries.git' + '@' + 'b7578b4132cf73ca3265e2ee0b7bd0a422a54ebf',
   'v8/buildtools':
     Var('chromium_url') + '/chromium/buildtools.git' + '@' + '1be57dc4c2c68fa564ee258a3af0cf8003007edf',
   'v8/base/trace_event/common':
@@ -26,7 +26,7 @@ deps = {
     'condition': 'checkout_android',
   },
   'v8/third_party/catapult': {
-    'url': Var('chromium_url') + '/catapult.git' + '@' + '9cfb34e845c8308d019a894be8c0926ee8cd3c91',
+    'url': Var('chromium_url') + '/catapult.git' + '@' + '035dfdbc3ead397e90d3d66bfca3a2232351dbd9',
     'condition': 'checkout_android',
   },
   'v8/third_party/colorama/src': {
@@ -52,9 +52,9 @@ deps = {
   'v8/test/test262/harness':
     Var('chromium_url') + '/external/github.com/test262-utils/test262-harness-py.git' + '@' + '0f2acdd882c84cff43b9d60df7574a1901e2cdcd',
   'v8/tools/clang':
-    Var('chromium_url') + '/chromium/src/tools/clang.git' + '@' + 'ec766dcbd3c35185026dfd6dd7218c280c1f4da4',
+    Var('chromium_url') + '/chromium/src/tools/clang.git' + '@' + '07e01508373e68f165546140e81f8b3c6a41b663',
   'v8/tools/luci-go':
-    Var('chromium_url') + '/chromium/src/tools/luci-go.git' + '@' + '45a8a51fda92e123619a69e7644d9c64a320b0c1',
+    Var('chromium_url') + '/chromium/src/tools/luci-go.git' + '@' + '564ab652c1b79124efd3c1cf6778d88efc611a08',
   'v8/test/wasm-js':
     Var('chromium_url') + '/external/github.com/WebAssembly/spec.git' + '@' + 'fb7e7e1e381ffc283c923a87fdfea5ebbd213737',
 }
