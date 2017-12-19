@@ -580,10 +580,11 @@ class ArrayBuiltinCodeStubAssembler : public CodeStubAssembler {
       if (missing_property_mode == MissingPropertyMode::kSkip) {
         // b. Let kPresent be HasProperty(O, Pk).
         // c. ReturnIfAbrupt(kPresent).
-        Node* k_present = HasProperty(o(), k(), context(), kHasProperty);
+        TNode<Oddball> k_present =
+            HasProperty(o(), k(), context(), kHasProperty);
 
         // d. If kPresent is true, then
-        GotoIf(WordNotEqual(k_present, TrueConstant()), &done_element);
+        GotoIf(IsFalse(k_present), &done_element);
       }
 
       // i. Let kValue be Get(O, Pk).
@@ -1263,11 +1264,11 @@ class FastArraySliceCodeStubAssembler : public CodeStubAssembler {
   void CopyOneElement(Node* context, Node* o, Node* a, Node* p_k, Variable& n) {
     // b. Let kPresent be HasProperty(O, Pk).
     // c. ReturnIfAbrupt(kPresent).
-    Node* k_present = HasProperty(o, p_k, context, kHasProperty);
+    TNode<Oddball> k_present = HasProperty(o, p_k, context, kHasProperty);
 
     // d. If kPresent is true, then
     Label done_element(this);
-    GotoIf(WordNotEqual(k_present, TrueConstant()), &done_element);
+    GotoIf(IsFalse(k_present), &done_element);
 
     // i. Let kValue be Get(O, Pk).
     // ii. ReturnIfAbrupt(kValue).
