@@ -13201,7 +13201,7 @@ Handle<String> JSFunction::ToString(Handle<JSFunction> function) {
         Script::cast(shared_info->script())->wrapped_arguments());
     int argc = args->length();
     for (int i = 0; i < argc; i++) {
-      if (i > 0) builder.AppendCharacter(',');
+      if (i > 0) builder.AppendCString(", ");
       builder.AppendString(Handle<String>(String::cast(args->get(i))));
     }
     builder.AppendCString(") {\n");
