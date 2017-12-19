@@ -67,6 +67,15 @@ for var in ["debug", "release", "big", "little",
 for var in ALL_VARIANTS:
   VARIABLES[var] = var
 
+class StatusFile(object):
+  def __init__(self, path, variables):
+    """
+    rules:        {variant: {test name: [rule]}}
+    prefix_rules: {variant: {test name prefix: [rule]}}
+    """
+    with open(path) as f:
+      self.rules, self.prefix_rules = ReadStatusFile(f.read(), variables)
+
 
 def _JoinsPassAndFail(outcomes1, outcomes2):
   """Indicates if we join PASS and FAIL from two different outcome sets and

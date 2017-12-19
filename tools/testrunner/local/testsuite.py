@@ -80,8 +80,7 @@ class TestSuite(object):
     self.name = name  # string
     self.root = root  # string containing path
     self.tests = None  # list of TestCase objects
-    self.rules = None  # {variant: {test name: [rule]}}
-    self.prefix_rules = None  # {variant: {test name prefix: [rule]}}
+    self.statusfile = None
 
   def status_file(self):
     return "%s/%s.status" % (self.root, self.name)
@@ -104,9 +103,7 @@ class TestSuite(object):
     return self._VariantGeneratorFactory()(self, set(variants))
 
   def ReadStatusFile(self, variables):
-    with open(self.status_file()) as f:
-      self.rules, self.prefix_rules = (
-          statusfile.ReadStatusFile(f.read(), variables))
+    self.statusfile = statusfile.StatusFile(self.status_file(), variables)
 
   def ReadTestCases(self, context):
     self.tests = self.ListTests(context)
@@ -167,20 +164,21 @@ class TestSuite(object):
     for test in self.tests:
       variant = test.variant or ""
 
-      if test.name in self.rules.get(variant, {}):
+      if test.name in self.statusfile.rules.get(variant, {}):
         used_rules.add((test.name, variant))
-        if statusfile.SKIP in self.rules[variant][test.name]:
+        if statusfile.SKIP in self.statusfile.rules[variant][test.name]:
           continue
 
-      for prefix in self.prefix_rules.get(variant, {}):
+      for prefix in self.statusfile.prefix_rules.get(variant, {}):
         if test.name.startswith(prefix):
           used_rules.add((prefix, variant))
-          if statusfile.SKIP in self.prefix_rules[variant][prefix]:
+          if statusfile.SKIP in self.statusfile.prefix_rules[variant][prefix]:
             break
 
     for variant in variants:
-      for rule, value in (list(self.rules.get(variant, {}).iteritems()) +
-                          list(self.prefix_rules.get(variant, {}).iteritems())):
+      for rule, value in (
+          list(self.statusfile.rules.get(variant, {}).iteritems()) +
+          list(self.statusfile.prefix_rules.get(variant, {}).iteritems())):
         if (rule, variant) not in used_rules:
           if variant == '':
             variant_desc = 'variant independent'
@@ -223,14 +221,13 @@ class TestSuite(object):
     variant = variant or ''
 
     # Load statusfile to get outcomes for the first time.
-    assert(self.rules is not None)
-    assert(self.prefix_rules is not None)
+    assert(self.statusfile is not None)
 
     outcomes = frozenset()
 
     for key in set([variant, '']):
-      rules = self.rules.get(key, {})
-      prefix_rules = self.prefix_rules.get(key, {})
+      rules = self.statusfile.rules.get(key, {})
+      prefix_rules = self.statusfile.prefix_rules.get(key, {})
 
       if testname in rules:
         outcomes |= rules[testname]
