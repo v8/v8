@@ -76,6 +76,7 @@
   'test-cpu-profiler/CpuProfileDeepStack': [SKIP],
   'test-cpu-profiler/DeoptAtFirstLevelInlinedSource': [SKIP],
   'test-cpu-profiler/DeoptAtSecondLevelInlinedSource': [SKIP],
+  'test-cpu-profiler/DeoptUntrackedFunction': [SKIP],
   'test-cpu-profiler/FunctionApplySample': [SKIP],
   'test-cpu-profiler/HotDeoptNoFrameEntry': [SKIP],
   'test-cpu-profiler/JsNative1JsNative2JsSample': [SKIP],
