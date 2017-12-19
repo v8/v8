@@ -72,7 +72,7 @@ static unsigned CpuFeaturesFromCommandLine() {
             "                       armv7+sudiv\n"
             "                       armv7\n"
             "                       armv6\n");
-    CHECK(false);
+    FATAL("arm-arch");
   }
 
   // If any of the old (deprecated) flags are specified, print a warning, but

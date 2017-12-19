@@ -950,7 +950,7 @@ TEST(InitDataAtTheUpperLimit) {
                               {});
     if (thrower.error()) {
       thrower.Reify()->Print();
-      CHECK(false);
+      FATAL("compile or instantiate error");
     }
   }
   Cleanup();

@@ -1928,7 +1928,7 @@ void NewSpace::Grow() {
       if (!to_space_.ShrinkTo(from_space_.current_capacity())) {
         // We are in an inconsistent state because we could not
         // commit/uncommit memory from new space.
-        CHECK(false);
+        FATAL("inconsistent state");
       }
     }
   }
@@ -1949,7 +1949,7 @@ void NewSpace::Shrink() {
       if (!to_space_.GrowTo(from_space_.current_capacity())) {
         // We are in an inconsistent state because we could not
         // commit/uncommit memory from new space.
-        CHECK(false);
+        FATAL("inconsistent state");
       }
     }
   }

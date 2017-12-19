@@ -484,7 +484,7 @@ class DisassemblerX64 {
 
   void UnimplementedInstruction() {
     if (abort_on_unimplemented_) {
-      CHECK(false);
+      FATAL("'Unimplemented Instruction'");
     } else {
       AppendToBuffer("'Unimplemented Instruction'");
     }

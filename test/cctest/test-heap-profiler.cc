@@ -875,8 +875,7 @@ class TestJSONStream : public v8::OutputStream {
     return kContinue;
   }
   virtual WriteResult WriteUint32Chunk(uint32_t* buffer, int chars_written) {
-    CHECK(false);
-    return kAbort;
+    UNREACHABLE();
   }
   void WriteTo(i::Vector<char> dest) { buffer_.WriteTo(dest); }
   int eos_signaled() { return eos_signaled_; }
@@ -1064,8 +1063,7 @@ class TestStatsStream : public v8::OutputStream {
   virtual ~TestStatsStream() {}
   virtual void EndOfStream() { ++eos_signaled_; }
   virtual WriteResult WriteAsciiChunk(char* buffer, int chars_written) {
-    CHECK(false);
-    return kAbort;
+    UNREACHABLE();
   }
   virtual WriteResult WriteHeapStatsChunk(v8::HeapStatsUpdate* buffer,
                                           int updates_written) {
@@ -1460,8 +1458,7 @@ class TestRetainedObjectInfo : public v8::RetainedObjectInfo {
           return new TestRetainedObjectInfo(2, "ccc-group", "ccc");
       }
     }
-    CHECK(false);
-    return nullptr;
+    UNREACHABLE();
   }
 
   static std::vector<TestRetainedObjectInfo*> instances;

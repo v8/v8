@@ -1860,8 +1860,7 @@ Node* WasmGraphBuilder::Throw(uint32_t tag,
         break;
       }
       default:
-        CHECK(false);
-        break;
+        UNREACHABLE();
     }
   }
   DCHECK_EQ(encoded_size, index);
@@ -1960,8 +1959,7 @@ Node** WasmGraphBuilder::GetExceptionValues(
         break;
       }
       default:
-        CHECK(false);
-        break;
+        UNREACHABLE();
     }
     values[i] = value;
   }

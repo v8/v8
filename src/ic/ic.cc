@@ -2338,8 +2338,6 @@ RUNTIME_FUNCTION(Runtime_ElementsTransitionAndStoreIC_Miss) {
 
 RUNTIME_FUNCTION(Runtime_Unreachable) {
   UNREACHABLE();
-  CHECK(false);
-  return isolate->heap()->undefined_value();
 }
 
 

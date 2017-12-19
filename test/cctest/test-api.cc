@@ -9621,20 +9621,20 @@ static void EchoSetter(Local<String> name, Local<Value> value,
 static void UnreachableGetter(
     Local<String> name,
     const v8::PropertyCallbackInfo<v8::Value>& info) {
-  CHECK(false);  // This function should not be called..
+  UNREACHABLE();  // This function should not be called..
 }
 
 
 static void UnreachableSetter(Local<String>,
                               Local<Value>,
                               const v8::PropertyCallbackInfo<void>&) {
-  CHECK(false);  // This function should not be called.
+  UNREACHABLE();  // This function should not be called.
 }
 
 
 static void UnreachableFunction(
     const v8::FunctionCallbackInfo<v8::Value>& info) {
-  CHECK(false);  // This function should not be called..
+  UNREACHABLE();  // This function should not be called..
 }
 
 
@@ -14463,8 +14463,7 @@ static void event_handler(const v8::JitCodeEvent* event) {
 
     case v8::JitCodeEvent::CODE_REMOVED:
       // Object/code removal events are currently not dispatched from the GC.
-      CHECK(false);
-      break;
+      UNREACHABLE();
 
     // For CODE_START_LINE_INFO_RECORDING event, we will create one
     // DummyJitCodeLineInfo data structure pointed by event->user_dat. We
@@ -14502,8 +14501,7 @@ static void event_handler(const v8::JitCodeEvent* event) {
 
     default:
       // Impossible event.
-      CHECK(false);
-      break;
+      UNREACHABLE();
   }
 }
 
@@ -22881,7 +22879,7 @@ THREADED_TEST(SemaphoreInterruption) {
 
 
 void UnreachableCallback(const v8::FunctionCallbackInfo<v8::Value>& args) {
-  CHECK(false);
+  UNREACHABLE();
 }
 
 

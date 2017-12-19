@@ -503,8 +503,7 @@ bool Deserializer<AllocatorT>::ReadData(Object** current, Object** limit,
       case kSynchronize:
         // If we get here then that indicates that you have a mismatch between
         // the number of GC roots when serializing and deserializing.
-        CHECK(false);
-        break;
+        UNREACHABLE();
 
       // Deserialize raw data of variable length.
       case kVariableRawData: {
@@ -642,7 +641,7 @@ bool Deserializer<AllocatorT>::ReadData(Object** current, Object** limit,
 #undef SINGLE_CASE
 
       default:
-        CHECK(false);
+        UNREACHABLE();
     }
   }
   CHECK_EQ(limit, current);

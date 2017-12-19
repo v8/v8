@@ -82,7 +82,7 @@ void CodeSerializer::SerializeObject(HeapObject* obj, HowToCode how_to_code,
       case Code::REGEXP:              // No regexp literals initialized yet.
       case Code::NUMBER_OF_KINDS:     // Pseudo enum value.
       case Code::BYTECODE_HANDLER:    // No direct references to handlers.
-        CHECK(false);
+        break;                        // hit UNREACHABLE below.
       case Code::BUILTIN:
         SerializeBuiltinReference(code_object, how_to_code, where_to_point, 0);
         return;

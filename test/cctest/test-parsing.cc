@@ -6270,7 +6270,7 @@ TEST(ModuleParsingInternals) {
       CHECK_EQ(4, elem.second.index);
       CHECK_EQ(370, elem.second.position);
     } else {
-      CHECK(false);
+      UNREACHABLE();
     }
   }
 
