@@ -330,7 +330,14 @@ TF_BUILTIN(ToInteger, CodeStubAssembler) {
   Node* context = Parameter(Descriptor::kContext);
   Node* input = Parameter(Descriptor::kArgument);
 
-  Return(ToInteger(context, input));
+  Return(ToInteger(context, input, kNoTruncation));
+}
+
+TF_BUILTIN(ToInteger_TruncateMinusZero, CodeStubAssembler) {
+  Node* context = Parameter(Descriptor::kContext);
+  Node* input = Parameter(Descriptor::kArgument);
+
+  Return(ToInteger(context, input, kTruncateMinusZero));
 }
 
 // ES6 section 7.1.13 ToObject (argument)

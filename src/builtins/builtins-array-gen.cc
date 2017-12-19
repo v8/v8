@@ -1286,7 +1286,7 @@ class FastArraySliceCodeStubAssembler : public CodeStubAssembler {
 TF_BUILTIN(FastArraySlice, FastArraySliceCodeStubAssembler) {
   Node* const argc =
       ChangeInt32ToIntPtr(Parameter(BuiltinDescriptor::kArgumentsCount));
-  Node* const context = Parameter(BuiltinDescriptor::kContext);
+  TNode<Context> context = CAST(Parameter(BuiltinDescriptor::kContext));
   Label slow(this, Label::kDeferred), fast_elements_kind(this);
 
   CodeStubArguments args(this, argc);
@@ -1358,8 +1358,8 @@ TF_BUILTIN(FastArraySlice, FastArraySliceCodeStubAssembler) {
 
   // 5. Let relativeStart be ToInteger(start).
   // 6. ReturnIfAbrupt(relativeStart).
-  Node* arg0 = args.GetOptionalArgumentValue(0, SmiConstant(0));
-  Node* relative_start = ToInteger(context, arg0);
+  TNode<Object> arg0 = CAST(args.GetOptionalArgumentValue(0, SmiConstant(0)));
+  Node* relative_start = ToInteger_Inline(context, arg0);
 
   // 7. If relativeStart < 0, let k be max((len + relativeStart),0);
   //    else let k be min(relativeStart, len.value()).
@@ -1377,11 +1377,12 @@ TF_BUILTIN(FastArraySlice, FastArraySliceCodeStubAssembler) {
   // 8. If end is undefined, let relativeEnd be len;
   //    else let relativeEnd be ToInteger(end).
   // 9. ReturnIfAbrupt(relativeEnd).
-  Node* end = args.GetOptionalArgumentValue(1, UndefinedConstant());
+  TNode<Object> end =
+      CAST(args.GetOptionalArgumentValue(1, UndefinedConstant()));
   Label end_undefined(this), end_done(this);
   VARIABLE(relative_end, MachineRepresentation::kTagged);
   GotoIf(WordEqual(end, UndefinedConstant()), &end_undefined);
-  relative_end.Bind(ToInteger(context, end));
+  relative_end.Bind(ToInteger_Inline(context, end));
   Goto(&end_done);
   BIND(&end_undefined);
   relative_end.Bind(len.value());

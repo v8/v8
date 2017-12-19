@@ -370,18 +370,18 @@ TF_BUILTIN(TypedArrayInitialize, TypedArrayBuiltinsAssembler) {
 // ES6 #sec-typedarray-length
 TF_BUILTIN(TypedArrayConstructByLength, TypedArrayBuiltinsAssembler) {
   Node* holder = Parameter(Descriptor::kHolder);
-  Node* length = Parameter(Descriptor::kLength);
-  Node* element_size = Parameter(Descriptor::kElementSize);
-  Node* context = Parameter(Descriptor::kContext);
+  TNode<Object> maybe_length = CAST(Parameter(Descriptor::kLength));
+  TNode<Object> element_size = CAST(Parameter(Descriptor::kElementSize));
+  TNode<Context> context = CAST(Parameter(Descriptor::kContext));
 
   CSA_ASSERT(this, IsJSTypedArray(holder));
   CSA_ASSERT(this, TaggedIsPositiveSmi(element_size));
 
-  Node* initialize = TrueConstant();
-
   Label invalid_length(this);
 
-  length = ToInteger(context, length, CodeStubAssembler::kTruncateMinusZero);
+  TNode<Number> length = ToInteger_Inline(
+      context, maybe_length, CodeStubAssembler::kTruncateMinusZero);
+
   // The maximum length of a TypedArray is MaxSmi().
   // Note: this is not per spec, but rather a constraint of our current
   // representation (which uses smi's).
@@ -389,7 +389,7 @@ TF_BUILTIN(TypedArrayConstructByLength, TypedArrayBuiltinsAssembler) {
   GotoIf(SmiLessThan(length, SmiConstant(0)), &invalid_length);
 
   CallBuiltin(Builtins::kTypedArrayInitialize, context, holder, length,
-              element_size, initialize);
+              element_size, TrueConstant());
   Return(UndefinedConstant());
 
   BIND(&invalid_length);
@@ -404,10 +404,10 @@ TF_BUILTIN(TypedArrayConstructByLength, TypedArrayBuiltinsAssembler) {
 TF_BUILTIN(TypedArrayConstructByArrayBuffer, TypedArrayBuiltinsAssembler) {
   Node* holder = Parameter(Descriptor::kHolder);
   Node* buffer = Parameter(Descriptor::kBuffer);
-  Node* byte_offset = Parameter(Descriptor::kByteOffset);
+  TNode<Object> byte_offset = CAST(Parameter(Descriptor::kByteOffset));
   Node* length = Parameter(Descriptor::kLength);
   Node* element_size = Parameter(Descriptor::kElementSize);
-  Node* context = Parameter(Descriptor::kContext);
+  TNode<Context> context = CAST(Parameter(Descriptor::kContext));
 
   CSA_ASSERT(this, IsJSTypedArray(holder));
   CSA_ASSERT(this, IsJSArrayBuffer(buffer));
@@ -425,8 +425,8 @@ TF_BUILTIN(TypedArrayConstructByArrayBuffer, TypedArrayBuiltinsAssembler) {
 
   GotoIf(IsUndefined(byte_offset), &check_length);
 
-  offset.Bind(
-      ToInteger(context, byte_offset, CodeStubAssembler::kTruncateMinusZero));
+  offset.Bind(ToInteger_Inline(context, byte_offset,
+                               CodeStubAssembler::kTruncateMinusZero));
   Branch(TaggedIsSmi(offset.value()), &offset_is_smi, &offset_not_smi);
 
   // Check that the offset is a multiple of the element size.
@@ -947,8 +947,8 @@ TF_BUILTIN(TypedArrayPrototypeSet, TypedArrayBuiltinsAssembler) {
 
   // Normalize offset argument (using ToInteger) and handle heap number cases.
   TNode<Object> offset = args.GetOptionalArgumentValue(1, SmiConstant(0));
-  TNode<Number> offset_num = ToInteger(context, offset, kTruncateMinusZero);
-  CSA_ASSERT(this, IsNumberNormalized(offset_num));
+  TNode<Number> offset_num =
+      ToInteger_Inline(context, offset, kTruncateMinusZero);
 
   // Since ToInteger always returns a Smi if the given value is within Smi
   // range, and the only corner case of -0.0 has already been truncated to 0.0,

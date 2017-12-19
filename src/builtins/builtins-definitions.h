@@ -190,6 +190,7 @@ namespace internal {
   TFC(NumberToString, TypeConversion, 1)                                       \
   TFC(ToString, TypeConversion, 1)                                             \
   TFC(ToInteger, TypeConversion, 1)                                            \
+  TFC(ToInteger_TruncateMinusZero, TypeConversion, 1)                          \
   TFC(ToLength, TypeConversion, 1)                                             \
   TFC(ClassOf, Typeof, 1)                                                      \
   TFC(Typeof, Typeof, 1)                                                       \

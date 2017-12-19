@@ -1233,7 +1233,9 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
   // ES6 7.1.15 ToLength, but with inlined fast path.
   Node* ToLength_Inline(Node* const context, Node* const input);
 
-  // Convert any object to an Integer.
+  // ES6 7.1.4 ToInteger ( argument )
+  TNode<Number> ToInteger_Inline(TNode<Context> context, TNode<Object> input,
+                                 ToIntegerTruncationMode mode = kNoTruncation);
   TNode<Number> ToInteger(SloppyTNode<Context> context,
                           SloppyTNode<Object> input,
                           ToIntegerTruncationMode mode = kNoTruncation);

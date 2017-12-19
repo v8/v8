@@ -5746,8 +5746,8 @@ Node* CodeStubAssembler::ToSmiIndex(Node* const input, Node* const context,
   Branch(IsUndefined(result.value()), &return_zero, &defined);
 
   BIND(&defined);
-  result.Bind(ToInteger(context, result.value(),
-                        CodeStubAssembler::kTruncateMinusZero));
+  result.Bind(ToInteger_Inline(CAST(context), CAST(result.value()),
+                               CodeStubAssembler::kTruncateMinusZero));
   GotoIfNot(TaggedIsSmi(result.value()), range_error);
   CSA_ASSERT(this, TaggedIsSmi(result.value()));
   Goto(&negative_check);
@@ -5771,8 +5771,8 @@ Node* CodeStubAssembler::ToSmiLength(Node* input, Node* const context,
   Branch(TaggedIsSmi(result.value()), &negative_check, &to_integer);
 
   BIND(&to_integer);
-  result.Bind(ToInteger(context, result.value(),
-                        CodeStubAssembler::kTruncateMinusZero));
+  result.Bind(ToInteger_Inline(CAST(context), CAST(result.value()),
+                               CodeStubAssembler::kTruncateMinusZero));
   GotoIf(TaggedIsSmi(result.value()), &negative_check);
   // result.value() can still be a negative HeapNumber here.
   Branch(IsTrue(CallBuiltin(Builtins::kLessThan, context, result.value(),
@@ -5798,6 +5798,16 @@ Node* CodeStubAssembler::ToLength_Inline(Node* const context,
       TaggedIsSmi(input), [=] { return SmiMax(input, smi_zero); },
       [=] { return CallBuiltin(Builtins::kToLength, context, input); },
       MachineRepresentation::kTagged);
+}
+
+TNode<Number> CodeStubAssembler::ToInteger_Inline(
+    TNode<Context> context, TNode<Object> input, ToIntegerTruncationMode mode) {
+  Builtins::Name builtin = (mode == kNoTruncation)
+                               ? Builtins::kToInteger
+                               : Builtins::kToInteger_TruncateMinusZero;
+  return CAST(Select(TaggedIsSmi(input), [=] { return input; },
+                     [=] { return CallBuiltin(builtin, context, input); },
+                     MachineRepresentation::kTagged));
 }
 
 TNode<Number> CodeStubAssembler::ToInteger(SloppyTNode<Context> context,
@@ -5858,6 +5868,7 @@ TNode<Number> CodeStubAssembler::ToInteger(SloppyTNode<Context> context,
   }
 
   BIND(&out);
+  if (mode == kTruncateMinusZero) CSA_ASSERT(this, IsNumberNormalized(var_arg));
   return CAST(var_arg);
 }
 
