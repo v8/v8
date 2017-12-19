@@ -3747,8 +3747,10 @@ Node* WasmGraphBuilder::BuildAsmjsLoadMem(MachineType type, Node* index) {
   DCHECK_NOT_NULL(context_cache_);
   Node* mem_start = context_cache_->mem_start;
   Node* mem_size = context_cache_->mem_size;
+  Node* mem_mask = context_cache_->mem_mask;
   DCHECK_NOT_NULL(mem_start);
   DCHECK_NOT_NULL(mem_size);
+  DCHECK_NOT_NULL(mem_mask);
 
   // Asm.js semantics are defined along the lines of typed arrays, hence OOB
   // reads return {undefined} coerced to the result type (0 for integers, NaN
@@ -3761,6 +3763,9 @@ Node* WasmGraphBuilder::BuildAsmjsLoadMem(MachineType type, Node* index) {
       graph()->NewNode(jsgraph()->machine()->Uint32LessThan(), index, mem_size),
       BranchHint::kTrue);
   bounds_check.Chain(*control_);
+
+  // Condition the index with the memory mask.
+  index = graph()->NewNode(jsgraph()->machine()->Word32And(), index, mem_mask);
 
   if (jsgraph()->machine()->Is64()) {
     index =
@@ -3783,8 +3788,10 @@ Node* WasmGraphBuilder::BuildAsmjsStoreMem(MachineType type, Node* index,
   DCHECK_NOT_NULL(context_cache_);
   Node* mem_start = context_cache_->mem_start;
   Node* mem_size = context_cache_->mem_size;
+  Node* mem_mask = context_cache_->mem_mask;
   DCHECK_NOT_NULL(mem_start);
   DCHECK_NOT_NULL(mem_size);
+  DCHECK_NOT_NULL(mem_mask);
 
   // Asm.js semantics are to ignore OOB writes.
   // Note that we check against the memory size ignoring the size of the
@@ -3796,12 +3803,15 @@ Node* WasmGraphBuilder::BuildAsmjsStoreMem(MachineType type, Node* index,
       BranchHint::kTrue);
   bounds_check.Chain(*control_);
 
-  const Operator* store_op = jsgraph()->machine()->Store(StoreRepresentation(
-      type.representation(), WriteBarrierKind::kNoWriteBarrier));
+  // Condition the index with the memory mask.
+  index = graph()->NewNode(jsgraph()->machine()->Word32And(), index, mem_mask);
+
   if (jsgraph()->machine()->Is64()) {
     index =
         graph()->NewNode(jsgraph()->machine()->ChangeUint32ToUint64(), index);
   }
+  const Operator* store_op = jsgraph()->machine()->Store(StoreRepresentation(
+      type.representation(), WriteBarrierKind::kNoWriteBarrier));
   Node* store = graph()->NewNode(store_op, mem_start, index, val, *effect_,
                                  bounds_check.if_true);
   Node* effect_phi = graph()->NewNode(jsgraph()->common()->EffectPhi(2), store,
