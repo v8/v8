@@ -70,11 +70,70 @@ for var in ALL_VARIANTS:
 class StatusFile(object):
   def __init__(self, path, variables):
     """
-    rules:        {variant: {test name: [rule]}}
-    prefix_rules: {variant: {test name prefix: [rule]}}
+    _rules:        {variant: {test name: [rule]}}
+    _prefix_rules: {variant: {test name prefix: [rule]}}
     """
     with open(path) as f:
-      self.rules, self.prefix_rules = ReadStatusFile(f.read(), variables)
+      self._rules, self._prefix_rules = ReadStatusFile(f.read(), variables)
+
+  def get_outcomes(self, testname, variant=None):
+    """Merges variant dependent and independent rules."""
+    outcomes = frozenset()
+
+    for key in set([variant or '', '']):
+      rules = self._rules.get(key, {})
+      prefix_rules = self._prefix_rules.get(key, {})
+
+      if testname in rules:
+        outcomes |= rules[testname]
+
+      for prefix in prefix_rules:
+        if testname.startswith(prefix):
+          outcomes |= prefix_rules[prefix]
+
+    return outcomes
+
+  def warn_unused_rules(self, tests, check_variant_rules=False):
+    """Finds and prints unused rules in status file.
+
+    Rule X is unused when it doesn't apply to any tests, which can also mean
+    that all matching tests were skipped by another rule before evaluating X.
+
+    Args:
+      tests: list of pairs (testname, variant)
+      check_variant_rules: if set variant dependent rules are checked
+    """
+
+    if check_variant_rules:
+      variants = list(ALL_VARIANTS)
+    else:
+      variants = ['']
+    used_rules = set()
+
+    for testname, variant in tests:
+      variant = variant or ''
+
+      if testname in self._rules.get(variant, {}):
+        used_rules.add((testname, variant))
+        if SKIP in self._rules[variant][testname]:
+          continue
+
+      for prefix in self._prefix_rules.get(variant, {}):
+        if testname.startswith(prefix):
+          used_rules.add((prefix, variant))
+          if SKIP in self._prefix_rules[variant][prefix]:
+            break
+
+    for variant in variants:
+      for rule, value in (
+          list(self._rules.get(variant, {}).iteritems()) +
+          list(self._prefix_rules.get(variant, {}).iteritems())):
+        if (rule, variant) not in used_rules:
+          if variant == '':
+            variant_desc = 'variant independent'
+          else:
+            variant_desc = 'variant: %s' % variant
+          print 'Unused rule: %s -> %s (%s)' % (rule, value, variant_desc)
 
 
 def _JoinsPassAndFail(outcomes1, outcomes2):

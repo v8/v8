@@ -146,46 +146,6 @@ class TestSuite(object):
 
     self.tests = filter(_compliant, self.tests)
 
-  def WarnUnusedRules(self, check_variant_rules=False):
-    """Finds and prints unused rules in status file.
-
-    Rule X is unused when it doesn't apply to any tests, which can also mean
-    that all matching tests were skipped by another rule before evaluating X.
-
-    Status file has to be loaded before using this function.
-    """
-
-    if check_variant_rules:
-      variants = list(ALL_VARIANTS)
-    else:
-      variants = ['']
-    used_rules = set()
-
-    for test in self.tests:
-      variant = test.variant or ""
-
-      if test.name in self.statusfile.rules.get(variant, {}):
-        used_rules.add((test.name, variant))
-        if statusfile.SKIP in self.statusfile.rules[variant][test.name]:
-          continue
-
-      for prefix in self.statusfile.prefix_rules.get(variant, {}):
-        if test.name.startswith(prefix):
-          used_rules.add((prefix, variant))
-          if statusfile.SKIP in self.statusfile.prefix_rules[variant][prefix]:
-            break
-
-    for variant in variants:
-      for rule, value in (
-          list(self.statusfile.rules.get(variant, {}).iteritems()) +
-          list(self.statusfile.prefix_rules.get(variant, {}).iteritems())):
-        if (rule, variant) not in used_rules:
-          if variant == '':
-            variant_desc = 'variant independent'
-          else:
-            variant_desc = 'variant: %s' % variant
-          print('Unused rule: %s -> %s (%s)' % (rule, value, variant_desc))
-
   def FilterTestCasesByArgs(self, args):
     """Filter test cases based on command-line arguments.
 
@@ -210,33 +170,6 @@ class TestSuite(object):
           filtered.append(t)
           break
     self.tests = filtered
-
-  def GetStatusFileOutcomes(self, testname, variant=None):
-    """Gets outcomes from status file.
-
-    Merges variant dependent and independent rules. Status file has to be loaded
-    before using this function.
-    """
-
-    variant = variant or ''
-
-    # Load statusfile to get outcomes for the first time.
-    assert(self.statusfile is not None)
-
-    outcomes = frozenset()
-
-    for key in set([variant, '']):
-      rules = self.statusfile.rules.get(key, {})
-      prefix_rules = self.statusfile.prefix_rules.get(key, {})
-
-      if testname in rules:
-        outcomes |= rules[testname]
-
-      for prefix in prefix_rules:
-        if testname.startswith(prefix):
-          outcomes |= prefix_rules[prefix]
-
-    return outcomes
 
   def IsFailureOutput(self, testcase, output):
     return output.exit_code != 0

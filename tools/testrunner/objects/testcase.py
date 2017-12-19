@@ -78,7 +78,7 @@ class TestCase(object):
       def not_flag(outcome):
         return not is_flag(outcome)
 
-      outcomes = self.suite.GetStatusFileOutcomes(self.name, self.variant)
+      outcomes = self.suite.statusfile.get_outcomes(self.name, self.variant)
       self.statusfile_outcomes = filter(not_flag, outcomes)
       self._statusfile_flags = filter(is_flag, outcomes)
     self.expected_outcomes = (
