@@ -3750,24 +3750,23 @@ Node* WasmGraphBuilder::BuildAsmjsStoreMem(MachineType type, Node* index,
   Node* mem_size = context_cache_->mem_size;
   DCHECK_NOT_NULL(mem_start);
   DCHECK_NOT_NULL(mem_size);
-  const Operator* cmp_op = jsgraph()->machine()->Uint32LessThan();
-  if (jsgraph()->machine()->Is64()) {
-    index =
-        graph()->NewNode(jsgraph()->machine()->ChangeUint32ToUint64(), index);
-    cmp_op = jsgraph()->machine()->Uint64LessThan();
-  }
 
   // Asm.js semantics are to ignore OOB writes.
   // Note that we check against the memory size ignoring the size of the
   // stored value, which is conservative if misaligned. Technically, asm.js
   // should never have misaligned accesses.
-  Diamond bounds_check(graph(), jsgraph()->common(),
-                       graph()->NewNode(cmp_op, index, mem_size),
-                       BranchHint::kTrue);
+  Diamond bounds_check(
+      graph(), jsgraph()->common(),
+      graph()->NewNode(jsgraph()->machine()->Uint32LessThan(), index, mem_size),
+      BranchHint::kTrue);
   bounds_check.Chain(*control_);
 
   const Operator* store_op = jsgraph()->machine()->Store(StoreRepresentation(
       type.representation(), WriteBarrierKind::kNoWriteBarrier));
+  if (jsgraph()->machine()->Is64()) {
+    index =
+        graph()->NewNode(jsgraph()->machine()->ChangeUint32ToUint64(), index);
+  }
   Node* store = graph()->NewNode(store_op, mem_start, index, val, *effect_,
                                  bounds_check.if_true);
   Node* effect_phi = graph()->NewNode(jsgraph()->common()->EffectPhi(2), store,
