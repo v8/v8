@@ -58,7 +58,6 @@ class Decoder {
 
   inline bool validate_size(const byte* pc, uint32_t length, const char* msg) {
     DCHECK_LE(start_, pc);
-    DCHECK_LE(pc, end_);
     if (V8_UNLIKELY(length > static_cast<uint32_t>(end_ - pc))) {
       error(pc, msg);
       return false;
@@ -166,7 +165,6 @@ class Decoder {
 
   // Check that at least {size} bytes exist between {pc_} and {end_}.
   bool checkAvailable(uint32_t size) {
-    DCHECK_LE(pc_, end_);
     if (V8_UNLIKELY(size > static_cast<uint32_t>(end_ - pc_))) {
       errorf(pc_, "expected %u bytes, fell off end", size);
       return false;
@@ -314,8 +312,7 @@ class Decoder {
     static_assert(byte_index < kMaxLength, "invalid template instantiation");
     constexpr int shift = byte_index * 7;
     constexpr bool is_last_byte = byte_index == kMaxLength - 1;
-    DCHECK_LE(pc, end_);
-    const bool at_end = validate && pc == end_;
+    const bool at_end = validate && pc >= end_;
     byte b = 0;
     if (!at_end) {
       DCHECK_LT(pc, end_);
