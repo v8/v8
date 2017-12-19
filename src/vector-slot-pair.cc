@@ -26,8 +26,7 @@ bool operator!=(VectorSlotPair const& lhs, VectorSlotPair const& rhs) {
 
 std::ostream& operator<<(std::ostream& os, const VectorSlotPair& pair) {
   if (pair.IsValid()) {
-    return os << "VectorSlotPair(" << pair.vector().address() << pair.slot()
-              << ")";
+    return os << "VectorSlotPair(" << pair.slot() << ")";
   }
   return os << "VectorSlotPair(INVALID)";
 }
