@@ -30,6 +30,7 @@ import os
 import re
 import shlex
 
+from . import outproc
 from ..local import command
 from ..local import statusfile
 from ..local import utils
@@ -235,6 +236,12 @@ class TestCase(object):
 
   def _get_source_path(self):
     return None
+
+  def get_output_proc(self):
+    return self._output_proc_class()(self)
+
+  def _output_proc_class(self):
+    return outproc.OutProc
 
   def __cmp__(self, other):
     # Make sure that test cases are sorted correctly if sorted without

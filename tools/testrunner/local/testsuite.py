@@ -177,24 +177,7 @@ class TestSuite(object):
   def IsNegativeTest(self, testcase):
     return False
 
-  def HasFailed(self, testcase, output):
-    execution_failed = self.IsFailureOutput(testcase, output)
-    if self.IsNegativeTest(testcase):
-      return not execution_failed
-    else:
-      return execution_failed
-
-  def GetOutcome(self, testcase, output):
-    if output.HasCrashed():
-      return statusfile.CRASH
-    elif output.HasTimedOut():
-      return statusfile.TIMEOUT
-    elif self.HasFailed(testcase, output):
-      return statusfile.FAIL
-    else:
-      return statusfile.PASS
-
-  def HasUnexpectedOutput(self, testcase, output, ctx=None):
+  def HasUnexpectedOutput(self, test, output, ctx=None):
     if ctx and ctx.predictable:
       # Only check the exit code of the predictable_wrapper in
       # verify-predictable mode. Negative tests are not supported as they
@@ -203,10 +186,11 @@ class TestSuite(object):
       # the status file (e.g. known bugs).
       return (
           output.exit_code != 0 and
-          not self.IsNegativeTest(testcase) and
-          statusfile.FAIL not in testcase.expected_outcomes
+          not self.IsNegativeTest(test) and
+          statusfile.FAIL not in test.expected_outcomes
       )
-    return self.GetOutcome(testcase, output) not in testcase.expected_outcomes
+    return (
+      test.get_output_proc().get_outcome(output) not in test.expected_outcomes)
 
   def _create_test(self, path, **kwargs):
     test = self._test_class()(self, path, self._path_to_name(path), **kwargs)
