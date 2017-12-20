@@ -3495,13 +3495,14 @@ void LargeObjectSpace::Verify() {
     // We have only code, sequential strings, external strings (sequential
     // strings that have been morphed into external strings), thin strings
     // (sequential strings that have been morphed into thin strings), fixed
-    // arrays, fixed double arrays, byte arrays, feedback vectors and free space
-    // (right after allocation) in the large object space.
+    // arrays, fixed double arrays, byte arrays, feedback vectors, bigints and
+    // free space (right after allocation) in the large object space.
     CHECK(object->IsAbstractCode() || object->IsSeqString() ||
           object->IsExternalString() || object->IsThinString() ||
           object->IsFixedArray() || object->IsFixedDoubleArray() ||
           object->IsPropertyArray() || object->IsByteArray() ||
-          object->IsFeedbackVector() || object->IsFreeSpace());
+          object->IsFeedbackVector() || object->IsBigInt() ||
+          object->IsFreeSpace());
 
     // The object itself should look OK.
     object->ObjectVerify();
