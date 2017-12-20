@@ -29,6 +29,7 @@
 import os
 
 from testrunner.local import testsuite
+from testrunner.objects import outproc
 from testrunner.objects import testcase
 
 EXCLUDED = ["CVS", ".svn"]
@@ -83,14 +84,6 @@ class TestSuite(testsuite.TestSuite):
   def _test_class(self):
     return TestCase
 
-  def IsNegativeTest(self, test):
-    return test.path.endswith("-n")
-
-  def IsFailureOutput(self, test, output):
-    if output.exit_code != 0:
-      return True
-    return "FAILED!" in output.stdout
-
 
 class TestCase(testcase.TestCase):
   def _get_files_params(self, ctx):
@@ -112,6 +105,23 @@ class TestCase(testcase.TestCase):
 
   def _get_source_path(self):
     return os.path.join(self.suite.testroot, self.path + self._get_suffix())
+
+  def _output_proc_class(self):
+    return OutProc
+
+
+class OutProc(outproc.OutProc):
+  def __init__(self, test):
+    self._negative = test.path.endswith('-n')
+
+  def _is_failure_output(self, output):
+    return (
+      output.exit_code != 0 or
+      'FAILED!' in output.stdout
+    )
+
+  def _is_negative(self):
+    return self._negative
 
 
 def GetSuite(name, root):

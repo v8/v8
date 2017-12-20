@@ -37,6 +37,7 @@ import tarfile
 from testrunner.local import statusfile
 from testrunner.local import testsuite
 from testrunner.local import utils
+from testrunner.objects import outproc
 from testrunner.objects import testcase
 
 # TODO(littledan): move the flag mapping into the status file
@@ -189,28 +190,6 @@ class TestSuite(testsuite.TestSuite):
   def _test_class(self):
     return TestCase
 
-  def IsFailureOutput(self, test, output):
-    test_record = test.test_record
-    if output.exit_code != 0:
-      return True
-    if ("negative" in test_record and
-        "type" in test_record["negative"] and
-        self._ParseException(output.stdout, test) !=
-            test_record["negative"]["type"]):
-        return True
-    return "FAILED!" in output.stdout
-
-  def _ParseException(self, string, test):
-    # somefile:somelinenumber: someerror[: sometext]
-    # somefile might include an optional drive letter on windows e.g. "e:".
-    match = re.search(
-        '^(?:\w:)?[^:]*:[0-9]+: ([^: ]+?)($|: )', string, re.MULTILINE)
-    if match:
-      return match.group(1).strip()
-    else:
-      print "Error parsing exception for %s" % test
-      return None
-
   def _VariantGeneratorFactory(self):
     return VariantGenerator
 
@@ -258,6 +237,38 @@ class TestCase(testcase.TestCase):
     if os.path.exists(path):
       return path
     return os.path.join(self.suite.testroot, filename)
+
+  def _output_proc_class(self):
+    return OutProc
+
+
+class OutProc(outproc.OutProc):
+  def __init__(self, test):
+    self._expected_exception = (
+      test.test_record
+      .get('negative', {})
+      .get('type', None))
+
+  def _is_failure_output(self, output):
+    if output.exit_code != 0:
+      return True
+    if (self._expected_exception and
+        self._expected_exception != self._parse_exception(output.stdout)):
+      return True
+    return 'FAILED!' in output.stdout
+
+  def _parse_exception(self, string):
+    # somefile:somelinenumber: someerror[: sometext]
+    # somefile might include an optional drive letter on windows e.g. "e:".
+    match = re.search(
+        '^(?:\w:)?[^:]*:[0-9]+: ([^: ]+?)($|: )', string, re.MULTILINE)
+    if match:
+      return match.group(1).strip()
+    else:
+      return None
+
+  def _is_negative(self):
+    return False
 
 
 def GetSuite(name, root):
