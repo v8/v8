@@ -2712,12 +2712,8 @@ Node* WasmGraphBuilder::BuildChangeSmiToInt32(Node* value) {
 }
 
 Node* WasmGraphBuilder::BuildChangeUint32ToSmi(Node* value) {
-  if (jsgraph()->machine()->Is64()) {
-    value =
-        graph()->NewNode(jsgraph()->machine()->ChangeUint32ToUint64(), value);
-  }
-  return graph()->NewNode(jsgraph()->machine()->WordShl(), value,
-                          BuildSmiShiftBitsConstant());
+  return graph()->NewNode(jsgraph()->machine()->WordShl(),
+                          Uint32ToUintptr(value), BuildSmiShiftBitsConstant());
 }
 
 Node* WasmGraphBuilder::BuildChangeSmiToFloat64(Node* value) {
@@ -3497,7 +3493,7 @@ Node* WasmGraphBuilder::BoundsCheckMem(uint8_t access_size, Node* index,
                                        uint32_t offset,
                                        wasm::WasmCodePosition position,
                                        EnforceBoundsCheck enforce_check) {
-  if (FLAG_wasm_no_bounds_checks) return index;
+  if (FLAG_wasm_no_bounds_checks) return Uint32ToUintptr(index);
   DCHECK_NOT_NULL(context_cache_);
   Node* mem_size = context_cache_->mem_size;
   Node* mem_mask = context_cache_->mem_mask;
@@ -3508,8 +3504,7 @@ Node* WasmGraphBuilder::BoundsCheckMem(uint8_t access_size, Node* index,
   if (use_trap_handler() && enforce_check == kCanOmitBoundsCheck) {
     // Simply zero out the 32-bits on 64-bit targets and let the trap handler
     // do its job.
-    return m->Is64() ? graph()->NewNode(m->ChangeUint32ToUint64(), index)
-                     : index;
+    return Uint32ToUintptr(index);
   }
 
   uint32_t min_size = env_->module->initial_pages * wasm::WasmModule::kPageSize;
@@ -3549,8 +3544,7 @@ Node* WasmGraphBuilder::BoundsCheckMem(uint8_t access_size, Node* index,
       if ((index_val + offset + access_size) <= min_size) {
         // The input index is a constant and everything is statically within
         // bounds of the smallest possible memory.
-        return m->Is64() ? graph()->NewNode(m->ChangeUint32ToUint64(), index)
-                         : index;
+        return Uint32ToUintptr(index);
       }
     }
   }
@@ -3575,8 +3569,7 @@ Node* WasmGraphBuilder::BoundsCheckMem(uint8_t access_size, Node* index,
 
   // In the fallthrough case, condition the index with the memory mask.
   Node* masked_index = graph()->NewNode(m->Word32And(), index, mem_mask);
-  return m->Is64() ? graph()->NewNode(m->ChangeUint32ToUint64(), masked_index)
-                   : masked_index;
+  return Uint32ToUintptr(masked_index);
 }
 
 const Operator* WasmGraphBuilder::GetSafeLoadOperator(int offset,
@@ -3765,10 +3758,7 @@ Node* WasmGraphBuilder::BuildAsmjsLoadMem(MachineType type, Node* index) {
   // Condition the index with the memory mask.
   index = graph()->NewNode(jsgraph()->machine()->Word32And(), index, mem_mask);
 
-  if (jsgraph()->machine()->Is64()) {
-    index =
-        graph()->NewNode(jsgraph()->machine()->ChangeUint32ToUint64(), index);
-  }
+  index = Uint32ToUintptr(index);
   Node* load = graph()->NewNode(jsgraph()->machine()->Load(type), mem_start,
                                 index, *effect_, bounds_check.if_true);
   Node* value_phi =
@@ -3779,6 +3769,11 @@ Node* WasmGraphBuilder::BuildAsmjsLoadMem(MachineType type, Node* index) {
   *effect_ = effect_phi;
   *control_ = bounds_check.merge;
   return value_phi;
+}
+
+Node* WasmGraphBuilder::Uint32ToUintptr(Node* node) {
+  if (jsgraph()->machine()->Is32()) return node;
+  return graph()->NewNode(jsgraph()->machine()->ChangeUint32ToUint64(), node);
 }
 
 Node* WasmGraphBuilder::BuildAsmjsStoreMem(MachineType type, Node* index,
@@ -3804,10 +3799,7 @@ Node* WasmGraphBuilder::BuildAsmjsStoreMem(MachineType type, Node* index,
   // Condition the index with the memory mask.
   index = graph()->NewNode(jsgraph()->machine()->Word32And(), index, mem_mask);
 
-  if (jsgraph()->machine()->Is64()) {
-    index =
-        graph()->NewNode(jsgraph()->machine()->ChangeUint32ToUint64(), index);
-  }
+  index = Uint32ToUintptr(index);
   const Operator* store_op = jsgraph()->machine()->Store(StoreRepresentation(
       type.representation(), WriteBarrierKind::kNoWriteBarrier));
   Node* store = graph()->NewNode(store_op, mem_start, index, val, *effect_,
