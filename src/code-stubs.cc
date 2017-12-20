@@ -677,23 +677,6 @@ TF_STUB(InternalArraySingleArgumentConstructorStub, ArrayConstructorAssembler) {
                       stub->elements_kind(), DONT_TRACK_ALLOCATION_SITE);
 }
 
-TF_STUB(GrowArrayElementsStub, CodeStubAssembler) {
-  Label runtime(this, CodeStubAssembler::Label::kDeferred);
-
-  Node* object = Parameter(Descriptor::kObject);
-  Node* key = Parameter(Descriptor::kKey);
-  Node* context = Parameter(Descriptor::kContext);
-  ElementsKind kind = stub->elements_kind();
-
-  Node* elements = LoadElements(object);
-  Node* new_elements =
-      TryGrowElementsCapacity(object, elements, kind, key, &runtime);
-  Return(new_elements);
-
-  BIND(&runtime);
-  TailCallRuntime(Runtime::kGrowArrayElements, context, object, key);
-}
-
 ArrayConstructorStub::ArrayConstructorStub(Isolate* isolate)
     : PlatformCodeStub(isolate) {}
 

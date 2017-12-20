@@ -26,34 +26,33 @@ class Node;
 }
 
 // List of code stubs used on all platforms.
-#define CODE_STUB_LIST_ALL_PLATFORMS(V)       \
-  /* --- PlatformCodeStubs --- */             \
-  V(ArrayConstructor)                         \
-  V(CallApiCallback)                          \
-  V(CallApiGetter)                            \
-  V(CEntry)                                   \
-  V(DoubleToI)                                \
-  V(InternalArrayConstructor)                 \
-  V(JSEntry)                                  \
-  V(MathPow)                                  \
-  V(ProfileEntryHook)                         \
-  V(StoreSlowElement)                         \
-  /* --- TurboFanCodeStubs --- */             \
-  V(ArrayNoArgumentConstructor)               \
-  V(ArraySingleArgumentConstructor)           \
-  V(ArrayNArgumentsConstructor)               \
-  V(InternalArrayNoArgumentConstructor)       \
-  V(InternalArraySingleArgumentConstructor)   \
-  V(ElementsTransitionAndStore)               \
-  V(KeyedLoadSloppyArguments)                 \
-  V(KeyedStoreSloppyArguments)                \
-  V(StringAdd)                                \
-  V(GetProperty)                              \
-  V(StoreFastElement)                         \
-  V(StoreInterceptor)                         \
-  V(TransitionElementsKind)                   \
-  V(LoadIndexedInterceptor)                   \
-  V(GrowArrayElements)
+#define CODE_STUB_LIST_ALL_PLATFORMS(V)     \
+  /* --- PlatformCodeStubs --- */           \
+  V(ArrayConstructor)                       \
+  V(CallApiCallback)                        \
+  V(CallApiGetter)                          \
+  V(CEntry)                                 \
+  V(DoubleToI)                              \
+  V(InternalArrayConstructor)               \
+  V(JSEntry)                                \
+  V(MathPow)                                \
+  V(ProfileEntryHook)                       \
+  V(StoreSlowElement)                       \
+  /* --- TurboFanCodeStubs --- */           \
+  V(ArrayNoArgumentConstructor)             \
+  V(ArraySingleArgumentConstructor)         \
+  V(ArrayNArgumentsConstructor)             \
+  V(InternalArrayNoArgumentConstructor)     \
+  V(InternalArraySingleArgumentConstructor) \
+  V(ElementsTransitionAndStore)             \
+  V(KeyedLoadSloppyArguments)               \
+  V(KeyedStoreSloppyArguments)              \
+  V(StringAdd)                              \
+  V(GetProperty)                            \
+  V(StoreFastElement)                       \
+  V(StoreInterceptor)                       \
+  V(TransitionElementsKind)                 \
+  V(LoadIndexedInterceptor)
 
 // List of code stubs only used on ARM 32 bits platforms.
 #if V8_TARGET_ARCH_ARM
@@ -491,23 +490,6 @@ class GetPropertyStub : public TurboFanCodeStub {
   DEFINE_TURBOFAN_CODE_STUB(GetProperty, TurboFanCodeStub);
 };
 
-class GrowArrayElementsStub : public TurboFanCodeStub {
- public:
-  GrowArrayElementsStub(Isolate* isolate, ElementsKind kind)
-      : TurboFanCodeStub(isolate) {
-    minor_key_ = ElementsKindBits::encode(GetHoleyElementsKind(kind));
-  }
-
-  ElementsKind elements_kind() const {
-    return ElementsKindBits::decode(minor_key_);
-  }
-
- private:
-  class ElementsKindBits : public BitField<ElementsKind, 0, 8> {};
-
-  DEFINE_CALL_INTERFACE_DESCRIPTOR(GrowArrayElements);
-  DEFINE_TURBOFAN_CODE_STUB(GrowArrayElements, TurboFanCodeStub);
-};
 
 enum AllocationSiteOverrideMode {
   DONT_OVERRIDE,

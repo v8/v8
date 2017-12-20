@@ -15298,13 +15298,10 @@ static bool ShouldConvertToSlowElements(JSObject* object, uint32_t capacity,
 
 
 bool JSObject::WouldConvertToSlowElements(uint32_t index) {
-  if (HasFastElements()) {
-    Handle<FixedArrayBase> backing_store(FixedArrayBase::cast(elements()));
-    uint32_t capacity = static_cast<uint32_t>(backing_store->length());
-    uint32_t new_capacity;
-    return ShouldConvertToSlowElements(this, capacity, index, &new_capacity);
-  }
-  return false;
+  if (!HasFastElements()) return false;
+  uint32_t capacity = static_cast<uint32_t>(elements()->length());
+  uint32_t new_capacity;
+  return ShouldConvertToSlowElements(this, capacity, index, &new_capacity);
 }
 
 
