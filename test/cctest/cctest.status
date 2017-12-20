@@ -173,12 +173,6 @@
 ['arch == arm or arch == arm64 or arch == mips or arch == mips64 or arch == mipsel or arch == mips64el or arch == s390 or arch == s390x or arch == ppc or arch == ppc64', {
   'test-multiple-return/*': [SKIP],
 }],
-['system == windows and arch == x64', {
-  'test-multiple-return/ReturnMultipleInt32': [SKIP],
-  'test-multiple-return/ReturnMultipleInt64': [SKIP],
-  'test-multiple-return/ReturnMultipleFloat32': [SKIP],
-  'test-multiple-return/ReturnMultipleFloat64': [SKIP],
-}],
 
 ##############################################################################
 ['asan == True', {
