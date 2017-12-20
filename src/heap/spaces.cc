@@ -2638,8 +2638,7 @@ static void ReportHistogram(Isolate* isolate, bool print_spill) {
 }
 #endif  // DEBUG
 
-
-// Support for statistics gathering for --heap-stats and --log-gc.
+// Support for statistics gathering for --heap-stats.
 void NewSpace::ClearHistograms() {
   for (int i = 0; i <= LAST_TYPE; i++) {
     allocated_histogram_[i].clear();
@@ -2650,41 +2649,12 @@ void NewSpace::ClearHistograms() {
 
 // Because the copying collector does not touch garbage objects, we iterate
 // the new space before a collection to get a histogram of allocated objects.
-// This only happens when --log-gc flag is set.
 void NewSpace::CollectStatistics() {
   ClearHistograms();
   SemiSpaceIterator it(this);
   for (HeapObject* obj = it.Next(); obj != nullptr; obj = it.Next())
     RecordAllocation(obj);
 }
-
-
-static void DoReportStatistics(Isolate* isolate, HistogramInfo* info,
-                               const char* description) {
-  LOG(isolate, HeapSampleBeginEvent("NewSpace", description));
-  // Lump all the string types together.
-  int string_number = 0;
-  int string_bytes = 0;
-#define INCREMENT(type, size, name, camel_name) \
-  string_number += info[type].number();         \
-  string_bytes += info[type].bytes();
-  STRING_TYPE_LIST(INCREMENT)
-#undef INCREMENT
-  if (string_number > 0) {
-    LOG(isolate,
-        HeapSampleItemEvent("STRING_TYPE", string_number, string_bytes));
-  }
-
-  // Then do the other types.
-  for (int i = FIRST_NONSTRING_TYPE; i <= LAST_TYPE; ++i) {
-    if (info[i].number() > 0) {
-      LOG(isolate, HeapSampleItemEvent(info[i].name(), info[i].number(),
-                                       info[i].bytes()));
-    }
-  }
-  LOG(isolate, HeapSampleEndEvent("NewSpace", description));
-}
-
 
 void NewSpace::ReportStatistics() {
 #ifdef DEBUG
@@ -2703,12 +2673,6 @@ void NewSpace::ReportStatistics() {
     PrintF("\n");
   }
 #endif  // DEBUG
-
-  if (FLAG_log_gc) {
-    Isolate* isolate = heap()->isolate();
-    DoReportStatistics(isolate, allocated_histogram_, "allocated");
-    DoReportStatistics(isolate, promoted_histogram_, "promoted");
-  }
 }
 
 

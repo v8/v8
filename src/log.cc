@@ -1292,34 +1292,6 @@ void Logger::FunctionEvent(const char* reason, Script* script, int script_id,
   msg.WriteToLogFile();
 }
 
-void Logger::HeapSampleBeginEvent(const char* space, const char* kind) {
-  if (!log_->IsEnabled() || !FLAG_log_gc) return;
-  Log::MessageBuilder msg(log_);
-  // Using non-relative system time in order to be able to synchronize with
-  // external memory profiling events (e.g. DOM memory size).
-  msg << "heap-sample-begin" << kNext << space << kNext << kind << kNext;
-  msg.Append("%.0f", V8::GetCurrentPlatform()->CurrentClockTimeMillis());
-  msg.WriteToLogFile();
-}
-
-
-void Logger::HeapSampleEndEvent(const char* space, const char* kind) {
-  if (!log_->IsEnabled() || !FLAG_log_gc) return;
-  Log::MessageBuilder msg(log_);
-  msg << "heap-sample-end" << kNext << space << kNext << kind;
-  msg.WriteToLogFile();
-}
-
-
-void Logger::HeapSampleItemEvent(const char* type, int number, int bytes) {
-  if (!log_->IsEnabled() || !FLAG_log_gc) return;
-  Log::MessageBuilder msg(log_);
-  msg << "heap-sample-item" << kNext << type << kNext << number << kNext
-      << bytes;
-  msg.WriteToLogFile();
-}
-
-
 void Logger::RuntimeCallTimerEvent() {
   RuntimeCallStats* stats = isolate_->counters()->runtime_call_stats();
   RuntimeCallCounter* counter = stats->current_counter();

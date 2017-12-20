@@ -154,17 +154,15 @@ void Scavenger::Process(OneshotBarrier* barrier) {
 }
 
 void Scavenger::RecordCopiedObject(HeapObject* obj) {
-  bool should_record = FLAG_log_gc;
 #ifdef DEBUG
-  should_record = FLAG_heap_stats;
-#endif
-  if (should_record) {
+  if (FLAG_heap_stats) {
     if (heap()->new_space()->Contains(obj)) {
       heap()->new_space()->RecordAllocation(obj);
     } else {
       heap()->new_space()->RecordPromotion(obj);
     }
   }
+#endif
 }
 
 void Scavenger::Finalize() {

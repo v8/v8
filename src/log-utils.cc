@@ -42,7 +42,6 @@ Log::Log(Logger* logger, const char* file_name)
   if (FLAG_log_all) {
     FLAG_log_api = true;
     FLAG_log_code = true;
-    FLAG_log_gc = true;
     FLAG_log_suspect = true;
     FLAG_log_handles = true;
     FLAG_log_internal_timer_events = true;
