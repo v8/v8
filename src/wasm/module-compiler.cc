@@ -2925,6 +2925,7 @@ int InstanceBuilder::ProcessImports(Handle<FixedArray> code_table,
             module_->function_tables[num_imported_tables];
         TableInstance& table_instance = table_instances_[num_imported_tables];
         table_instance.table_object = Handle<WasmTableObject>::cast(value);
+        instance->set_table_object(*table_instance.table_object);
         table_instance.js_wrappers = Handle<FixedArray>(
             table_instance.table_object->functions(), isolate_);
 

@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --expose-wasm
+// Flags: --expose-wasm --expose-gc
 
 load("test/mjsunit/wasm/wasm-constants.js");
 load("test/mjsunit/wasm/wasm-module-builder.js");
@@ -640,4 +640,68 @@ function js_div(a, b) { return (a / b) | 0; }
   });
 
   assertEquals(instance1.exports.main(0), 1000);
+})();
+
+
+(function ImportedFreestandingTable() {
+  print("ImportedFreestandingTable...");
+
+  function forceGc() {
+    gc();
+    gc();
+    gc();
+  }
+
+  function setup() {
+    let builder = new WasmModuleBuilder();
+    let sig = builder.addType(kSig_i_v);
+    builder.addFunction('main', kSig_i_i)
+      .addBody([kExprGetLocal, 0, kExprCallIndirect, sig, kTableZero])
+      .exportAs('main');
+
+    builder.addImportedTable('', 'table');
+
+    let module1 = new WebAssembly.Module(builder.toBuffer());
+    let table = new WebAssembly.Table({initial:2, element:'anyfunc'});
+    let instance1 = new WebAssembly.Instance(module1, {'':{table: table}});
+
+    builder = new WasmModuleBuilder();
+    builder.addExport('theImport', builder.addImport('', 'callout', kSig_i_v));
+    builder.addImportedMemory('', 'memory', 1);
+    builder.addFunction('main', kSig_i_v)
+      .addBody([
+        kExprCallFunction, 0,
+        kExprI32Const, 0, kExprI32LoadMem, 0, 0,
+        kExprI32Add
+      ]).exportAs('main');
+
+    let mem = new WebAssembly.Memory({initial:1});
+    let view = new Int32Array(mem.buffer);
+    view[0] = 4;
+
+    let module2 = new WebAssembly.Module(builder.toBuffer());
+    let instance2 = new WebAssembly.Instance(module2, {
+      '': {
+        callout: () => {
+          forceGc();
+          return 3;
+        },
+        'memory': mem
+      }
+    });
+    table.set(0, instance2.exports.main);
+    table.set(1, instance2.exports.theImport);
+    return instance1;
+  }
+
+  function test(variant, expectation) {
+    var instance = setup();
+    forceGc();
+    assertEquals(expectation, instance.exports.main(variant));
+  }
+
+  // 0 indirectly calls the wasm function that calls the import,
+  // 1 does the same but for the exported import.
+  test(0, 7);
+  test(1, 3);
 })();
