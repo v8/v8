@@ -6,12 +6,20 @@ import os
 import difflib
 
 from testrunner.local import testsuite
+from testrunner.objects import outproc
 from testrunner.objects import testcase
 
 
 SHELL = 'mkgrokdump'
 
 class TestSuite(testsuite.TestSuite):
+  def __init__(self, *args, **kwargs):
+    super(TestSuite, self).__init__(*args, **kwargs)
+
+    v8_path = os.path.dirname(os.path.dirname(os.path.abspath(self.root)))
+    expected_path = os.path.join(v8_path, 'tools', 'v8heapconst.py')
+    self.out_proc = OutProc(expected_path)
+
   def ListTests(self, context):
     test = self._create_test(SHELL)
     return [test]
@@ -19,10 +27,30 @@ class TestSuite(testsuite.TestSuite):
   def _test_class(self):
     return TestCase
 
-  def IsFailureOutput(self, test, output):
-    v8_path = os.path.dirname(os.path.dirname(os.path.abspath(self.root)))
-    expected_path = os.path.join(v8_path, "tools", "v8heapconst.py")
-    with open(expected_path) as f:
+
+class TestCase(testcase.TestCase):
+  def _get_variant_flags(self):
+    return []
+
+  def _get_statusfile_flags(self):
+    return []
+
+  def _get_mode_flags(self, ctx):
+    return []
+
+  def get_shell(self):
+    return SHELL
+
+  def get_output_proc(self):
+    return self.suite.out_proc
+
+
+class OutProc(outproc.OutProc):
+  def __init__(self, expected_path):
+    self._expected_path = expected_path
+
+  def _is_failure_output(self, output):
+    with open(self._expected_path) as f:
       expected = f.read()
     expected_lines = expected.splitlines()
     actual_lines = output.stdout.splitlines()
@@ -39,19 +67,8 @@ class TestSuite(testsuite.TestSuite):
       return True
     return False
 
-
-class TestCase(testcase.TestCase):
-  def _get_variant_flags(self):
-    return []
-
-  def _get_statusfile_flags(self):
-    return []
-
-  def _get_mode_flags(self, ctx):
-    return []
-
-  def get_shell(self):
-    return SHELL
+  def _is_negative(self):
+    return False
 
 
 def GetSuite(name, root):
