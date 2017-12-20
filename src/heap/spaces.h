@@ -2716,13 +2716,6 @@ class NewSpace : public SpaceWithLinearArea {
   void Print() override { to_space_.Print(); }
 #endif
 
-  // Iterates the active semispace to collect statistics.
-  void CollectStatistics();
-  // Reports previously collected statistics of the active semispace.
-  void ReportStatistics();
-  // Clears previously collected statistics.
-  void ClearHistograms();
-
   // Record the allocation or promotion of a heap object.  Note that we don't
   // record every single allocation, but only those that happen in the
   // to space during a scavenge GC.

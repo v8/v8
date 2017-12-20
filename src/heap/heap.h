@@ -1641,8 +1641,7 @@ class Heap {
   void Print();
   void PrintHandles();
 
-  // Report heap statistics.
-  void ReportHeapStatistics(const char* title);
+  // Report code statistics.
   void ReportCodeStatistics(const char* title);
 #endif
   void* GetRandomMmapAddr() {
@@ -1871,8 +1870,7 @@ class Heap {
   // the old space.
   void EvaluateOldSpaceLocalPretenuring(uint64_t size_of_objects_before_gc);
 
-  // Record statistics before and after garbage collection.
-  void ReportStatisticsBeforeGC();
+  // Record statistics after garbage collection.
   void ReportStatisticsAfterGC();
 
   // Creates and installs the full-sized number string cache.

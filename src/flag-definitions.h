@@ -1065,7 +1065,6 @@ DEFINE_BOOL(trace_contexts, false, "trace contexts operations")
 
 // heap.cc
 DEFINE_BOOL(gc_verbose, false, "print stuff during garbage collection")
-DEFINE_BOOL(heap_stats, false, "report heap statistics before and after GC")
 DEFINE_BOOL(code_stats, false, "report code statistics after GC")
 DEFINE_BOOL(print_handles, false, "report handles after GC")
 DEFINE_BOOL(check_handle_count, false,
