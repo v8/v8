@@ -149,9 +149,6 @@ class V8_EXPORT V8InspectorSession {
 
   // Remote objects.
   virtual std::unique_ptr<protocol::Runtime::API::RemoteObject> wrapObject(
-      v8::Local<v8::Context>, v8::Local<v8::Value>,
-      const StringView& groupName) = 0;
-  virtual std::unique_ptr<protocol::Runtime::API::RemoteObject> wrapObject(
       v8::Local<v8::Context>, v8::Local<v8::Value>, const StringView& groupName,
       bool generatePreview) = 0;
 

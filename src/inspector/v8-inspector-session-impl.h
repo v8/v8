@@ -85,9 +85,6 @@ class V8InspectorSessionImpl : public V8InspectorSession,
                     v8::Local<v8::Value>*, v8::Local<v8::Context>*,
                     std::unique_ptr<StringBuffer>* objectGroup) override;
   std::unique_ptr<protocol::Runtime::API::RemoteObject> wrapObject(
-      v8::Local<v8::Context>, v8::Local<v8::Value>,
-      const StringView& groupName) override;
-  std::unique_ptr<protocol::Runtime::API::RemoteObject> wrapObject(
       v8::Local<v8::Context>, v8::Local<v8::Value>, const StringView& groupName,
       bool generatePreview) override;
 
