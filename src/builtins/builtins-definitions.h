@@ -205,7 +205,7 @@ namespace internal {
   TFH(KeyedLoadIC_Slow, LoadWithVector)                                        \
   TFH(KeyedStoreIC_Megamorphic, StoreWithVector)                               \
   TFH(KeyedStoreIC_Slow, StoreWithVector)                                      \
-  TFH(LoadGlobalIC_Slow, LoadGlobalWithVector)                                 \
+  TFH(LoadGlobalIC_Slow, LoadWithVector)                                       \
   TFH(LoadField, LoadField)                                                    \
   TFH(LoadIC_FunctionPrototype, LoadWithVector)                                \
   TFH(LoadIC_Slow, LoadWithVector)                                             \

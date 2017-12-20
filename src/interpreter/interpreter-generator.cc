@@ -158,68 +158,29 @@ class InterpreterLoadGlobalAssembler : public InterpreterAssembler {
 
   void LdaGlobal(int slot_operand_index, int name_operand_index,
                  TypeofMode typeof_mode) {
-    // Must be kept in sync with AccessorAssembler::LoadGlobalIC.
-
-    // Load the global via the LoadGlobalIC.
-    Node* feedback_vector = LoadFeedbackVector();
+    TNode<FeedbackVector> feedback_vector = CAST(LoadFeedbackVector());
     Node* feedback_slot = BytecodeOperandIdx(slot_operand_index);
 
     AccessorAssembler accessor_asm(state());
+    Label done(this);
+    Variable var_result(this, MachineRepresentation::kTagged);
+    ExitPoint exit_point(this, &done, &var_result);
 
-    Label try_handler(this, Label::kDeferred), miss(this, Label::kDeferred);
+    LazyNode<Context> lazy_context = [=] { return CAST(GetContext()); };
 
-    // Fast path without frame construction for the data case.
-    {
-      Label done(this);
-      Variable var_result(this, MachineRepresentation::kTagged);
-      ExitPoint exit_point(this, &done, &var_result);
+    LazyNode<Name> lazy_name = [=] {
+      Node* name_index = BytecodeOperandIdx(name_operand_index);
+      Node* name = LoadConstantPoolEntry(name_index);
+      return CAST(name);
+    };
 
-      accessor_asm.LoadGlobalIC_TryPropertyCellCase(
-          GetContext(), feedback_vector, feedback_slot, &exit_point,
-          &try_handler, &miss, CodeStubAssembler::INTPTR_PARAMETERS);
+    accessor_asm.LoadGlobalIC(feedback_vector, feedback_slot, lazy_context,
+                              lazy_name, typeof_mode, &exit_point,
+                              CodeStubAssembler::INTPTR_PARAMETERS);
 
-      BIND(&done);
-      SetAccumulator(var_result.value());
-      Dispatch();
-    }
-
-    // Slow path with frame construction.
-    {
-      Label done(this);
-      Variable var_result(this, MachineRepresentation::kTagged);
-      ExitPoint exit_point(this, &done, &var_result);
-
-      BIND(&try_handler);
-      {
-        Node* context = GetContext();
-        Node* smi_slot = SmiTag(feedback_slot);
-        Node* name_index = BytecodeOperandIdx(name_operand_index);
-        Node* name = LoadConstantPoolEntry(name_index);
-
-        AccessorAssembler::LoadICParameters params(context, nullptr, name,
-                                                   smi_slot, feedback_vector);
-        accessor_asm.LoadGlobalIC_TryHandlerCase(&params, typeof_mode,
-                                                 &exit_point, &miss);
-      }
-
-      BIND(&miss);
-      {
-        Node* context = GetContext();
-        Node* smi_slot = SmiTag(feedback_slot);
-        Node* name_index = BytecodeOperandIdx(name_operand_index);
-        Node* name = LoadConstantPoolEntry(name_index);
-
-        AccessorAssembler::LoadICParameters params(context, nullptr, name,
-                                                   smi_slot, feedback_vector);
-        accessor_asm.LoadGlobalIC_MissCase(&params, &exit_point);
-      }
-
-      BIND(&done);
-      {
-        SetAccumulator(var_result.value());
-        Dispatch();
-      }
-    }
+    BIND(&done);
+    SetAccumulator(var_result.value());
+    Dispatch();
   }
 };
 

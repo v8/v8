@@ -79,6 +79,9 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
   template <class T>
   using SloppyTNode = compiler::SloppyTNode<T>;
 
+  template <typename T>
+  using LazyNode = std::function<TNode<T>()>;
+
   CodeStubAssembler(compiler::CodeAssemblerState* state);
 
   enum AllocationFlag : uint8_t {
@@ -553,8 +556,9 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
   // Load value field of a JSValue object.
   Node* LoadJSValueValue(Node* object);
   // Load value field of a WeakCell object.
-  Node* LoadWeakCellValueUnchecked(Node* weak_cell);
-  Node* LoadWeakCellValue(Node* weak_cell, Label* if_cleared = nullptr);
+  TNode<Object> LoadWeakCellValueUnchecked(Node* weak_cell);
+  TNode<Object> LoadWeakCellValue(SloppyTNode<WeakCell> weak_cell,
+                                  Label* if_cleared = nullptr);
 
   // Load an array element from a FixedArray.
   Node* LoadFixedArrayElement(Node* object, Node* index,
@@ -577,7 +581,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
       Label* if_hole = nullptr);
 
   // Load a feedback slot from a FeedbackVector.
-  Node* LoadFeedbackVectorSlot(
+  TNode<Object> LoadFeedbackVectorSlot(
       Node* object, Node* index, int additional_offset = 0,
       ParameterMode parameter_mode = INTPTR_PARAMETERS);
 

@@ -1536,14 +1536,15 @@ Node* CodeStubAssembler::LoadJSValueValue(Node* object) {
   return LoadObjectField(object, JSValue::kValueOffset);
 }
 
-Node* CodeStubAssembler::LoadWeakCellValueUnchecked(Node* weak_cell) {
+TNode<Object> CodeStubAssembler::LoadWeakCellValueUnchecked(Node* weak_cell) {
   // TODO(ishell): fix callers.
   return LoadObjectField(weak_cell, WeakCell::kValueOffset);
 }
 
-Node* CodeStubAssembler::LoadWeakCellValue(Node* weak_cell, Label* if_cleared) {
+TNode<Object> CodeStubAssembler::LoadWeakCellValue(
+    SloppyTNode<WeakCell> weak_cell, Label* if_cleared) {
   CSA_ASSERT(this, IsWeakCell(weak_cell));
-  Node* value = LoadWeakCellValueUnchecked(weak_cell);
+  TNode<Object> value = LoadWeakCellValueUnchecked(weak_cell);
   if (if_cleared != nullptr) {
     GotoIf(WordEqual(value, IntPtrConstant(0)), if_cleared);
   }
@@ -1626,17 +1627,16 @@ Node* CodeStubAssembler::LoadFixedTypedArrayElementAsTagged(
   }
 }
 
-Node* CodeStubAssembler::LoadFeedbackVectorSlot(Node* object,
-                                                Node* slot_index_node,
-                                                int additional_offset,
-                                                ParameterMode parameter_mode) {
+TNode<Object> CodeStubAssembler::LoadFeedbackVectorSlot(
+    Node* object, Node* slot_index_node, int additional_offset,
+    ParameterMode parameter_mode) {
   CSA_SLOW_ASSERT(this, IsFeedbackVector(object));
   CSA_SLOW_ASSERT(this, MatchesParameterMode(slot_index_node, parameter_mode));
   int32_t header_size =
       FeedbackVector::kFeedbackSlotsOffset + additional_offset - kHeapObjectTag;
   Node* offset = ElementOffsetFromIndex(slot_index_node, HOLEY_ELEMENTS,
                                         parameter_mode, header_size);
-  return Load(MachineType::AnyTagged(), object, offset);
+  return UncheckedCast<Object>(Load(MachineType::AnyTagged(), object, offset));
 }
 
 Node* CodeStubAssembler::LoadAndUntagToWord32FixedArrayElement(

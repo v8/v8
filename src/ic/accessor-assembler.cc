@@ -163,10 +163,11 @@ void AccessorAssembler::HandlePolymorphicCase(Node* receiver_map,
 
 void AccessorAssembler::HandleLoadICHandlerCase(
     const LoadICParameters* p, Node* handler, Label* miss,
-    ExitPoint* exit_point, ICMode ic_mode, ElementSupport support_elements) {
+    ExitPoint* exit_point, ICMode ic_mode, OnNonExistent on_nonexistent,
+    ElementSupport support_elements) {
   Comment("have_handler");
 
-  VARIABLE(var_holder, MachineRepresentation::kTagged, p->receiver);
+  VARIABLE(var_holder, MachineRepresentation::kTagged, p->holder);
   VARIABLE(var_smi_handler, MachineRepresentation::kTagged, handler);
 
   Variable* vars[] = {&var_holder, &var_smi_handler};
@@ -181,7 +182,7 @@ void AccessorAssembler::HandleLoadICHandlerCase(
   BIND(&if_smi_handler);
   {
     HandleLoadICSmiHandlerCase(p, var_holder.value(), var_smi_handler.value(),
-                               handler, miss, exit_point, false,
+                               handler, miss, exit_point, on_nonexistent,
                                support_elements);
   }
 
@@ -257,8 +258,7 @@ Node* AccessorAssembler::LoadDescriptorValue(Node* map, Node* descriptor) {
 
 void AccessorAssembler::HandleLoadICSmiHandlerCase(
     const LoadICParameters* p, Node* holder, Node* smi_handler, Node* handler,
-    Label* miss, ExitPoint* exit_point,
-    bool throw_reference_error_if_nonexistent,
+    Label* miss, ExitPoint* exit_point, OnNonExistent on_nonexistent,
     ElementSupport support_elements) {
   VARIABLE(var_double_value, MachineRepresentation::kFloat64);
   Label rebox_double(this, &var_double_value);
@@ -398,10 +398,11 @@ void AccessorAssembler::HandleLoadICSmiHandlerCase(
 
   BIND(&nonexistent);
   // This is a handler for a load of a non-existent value.
-  if (throw_reference_error_if_nonexistent) {
+  if (on_nonexistent == OnNonExistent::kThrowReferenceError) {
     exit_point->ReturnCallRuntime(Runtime::kThrowReferenceError, p->context,
                                   p->name);
   } else {
+    DCHECK_EQ(OnNonExistent::kReturnUndefined, on_nonexistent);
     exit_point->Return(UndefinedConstant());
   }
 
@@ -760,28 +761,6 @@ void AccessorAssembler::EmitAccessCheck(Node* expected_native_context,
   Node* current_token =
       LoadContextElement(native_context, Context::SECURITY_TOKEN_INDEX);
   Branch(WordEqual(expected_token, current_token), can_access, miss);
-}
-
-void AccessorAssembler::HandleLoadGlobalICHandlerCase(
-    const LoadICParameters* pp, Node* handler, Label* miss,
-    ExitPoint* exit_point, bool throw_reference_error_if_nonexistent) {
-  LoadICParameters p = *pp;
-  DCHECK_NULL(p.receiver);
-  Node* native_context = LoadNativeContext(p.context);
-  p.receiver = LoadContextElement(native_context, Context::GLOBAL_PROXY_INDEX);
-
-  VARIABLE(var_holder, MachineRepresentation::kTagged,
-           LoadContextElement(native_context, Context::EXTENSION_INDEX));
-  VARIABLE(var_smi_handler, MachineRepresentation::kTagged);
-  Label if_smi_handler(this);
-
-  HandleLoadICProtoHandler(&p, handler, &var_holder, &var_smi_handler,
-                           &if_smi_handler, miss, exit_point,
-                           ICMode::kGlobalIC);
-  BIND(&if_smi_handler);
-  HandleLoadICSmiHandlerCase(
-      &p, var_holder.value(), var_smi_handler.value(), handler, miss,
-      exit_point, throw_reference_error_if_nonexistent, kOnlyProperties);
 }
 
 void AccessorAssembler::JumpIfDataProperty(Node* details, Label* writable,
@@ -2308,26 +2287,50 @@ void AccessorAssembler::LoadIC_Uninitialized(const LoadICParameters* p) {
   }
 }
 
+void AccessorAssembler::LoadGlobalIC(TNode<FeedbackVector> vector, Node* slot,
+                                     const LazyNode<Context>& lazy_context,
+                                     const LazyNode<Name>& lazy_name,
+                                     TypeofMode typeof_mode,
+                                     ExitPoint* exit_point,
+                                     ParameterMode slot_mode) {
+  Label try_handler(this, Label::kDeferred), miss(this, Label::kDeferred);
+  LoadGlobalIC_TryPropertyCellCase(vector, slot, lazy_context, exit_point,
+                                   &try_handler, &miss, slot_mode);
+
+  BIND(&try_handler);
+  LoadGlobalIC_TryHandlerCase(vector, slot, lazy_context, lazy_name,
+                              typeof_mode, exit_point, &miss, slot_mode);
+
+  BIND(&miss);
+  {
+    Comment("LoadGlobalIC_MissCase");
+    TNode<Context> context = lazy_context();
+    TNode<Name> name = lazy_name();
+    exit_point->ReturnCallRuntime(Runtime::kLoadGlobalIC_Miss, context, name,
+                                  ParameterToTagged(slot, slot_mode), vector);
+  }
+}
+
 void AccessorAssembler::LoadGlobalIC_TryPropertyCellCase(
-    SloppyTNode<Context> context, Node* vector, Node* slot,
-    ExitPoint* exit_point, Label* try_handler, Label* miss,
-    ParameterMode slot_mode) {
+    TNode<FeedbackVector> vector, Node* slot,
+    const LazyNode<Context>& lazy_context, ExitPoint* exit_point,
+    Label* try_handler, Label* miss, ParameterMode slot_mode) {
   Comment("LoadGlobalIC_TryPropertyCellCase");
 
   Label if_lexical_var(this), if_property_cell(this);
-  Node* maybe_weak_cell = LoadFeedbackVectorSlot(vector, slot, 0, slot_mode);
+  TNode<Object> maybe_weak_cell =
+      LoadFeedbackVectorSlot(vector, slot, 0, slot_mode);
   Branch(TaggedIsSmi(maybe_weak_cell), &if_lexical_var, &if_property_cell);
 
   BIND(&if_property_cell);
   {
-    Node* weak_cell = maybe_weak_cell;
-    CSA_ASSERT(this, HasInstanceType(weak_cell, WEAK_CELL_TYPE));
+    TNode<WeakCell> weak_cell = CAST(maybe_weak_cell);
 
     // Load value or try handler case if the {weak_cell} is cleared.
-    Node* property_cell = LoadWeakCellValue(weak_cell, try_handler);
-    CSA_ASSERT(this, IsPropertyCell(property_cell));
-
-    Node* value = LoadObjectField(property_cell, PropertyCell::kValueOffset);
+    TNode<PropertyCell> property_cell =
+        CAST(LoadWeakCellValue(weak_cell, try_handler));
+    TNode<Object> value =
+        LoadObjectField(property_cell, PropertyCell::kValueOffset);
     GotoIf(WordEqual(value, TheHoleConstant()), miss);
     exit_point->Return(value);
   }
@@ -2335,88 +2338,46 @@ void AccessorAssembler::LoadGlobalIC_TryPropertyCellCase(
   BIND(&if_lexical_var);
   {
     Comment("Load lexical variable");
-    TNode<IntPtrT> lexical_handler = SmiUntag(maybe_weak_cell);
+    TNode<IntPtrT> lexical_handler = SmiUntag(CAST(maybe_weak_cell));
     TNode<IntPtrT> context_index =
         Signed(DecodeWord<GlobalICNexus::ContextIndexBits>(lexical_handler));
     TNode<IntPtrT> slot_index =
         Signed(DecodeWord<GlobalICNexus::SlotIndexBits>(lexical_handler));
+    TNode<Context> context = lazy_context();
     TNode<Context> script_context = LoadScriptContext(context, context_index);
     TNode<Object> result = LoadContextElement(script_context, slot_index);
     exit_point->Return(result);
   }
 }
 
-void AccessorAssembler::LoadGlobalIC_TryHandlerCase(const LoadICParameters* pp,
-                                                    TypeofMode typeof_mode,
-                                                    ExitPoint* exit_point,
-                                                    Label* miss) {
+void AccessorAssembler::LoadGlobalIC_TryHandlerCase(
+    TNode<FeedbackVector> vector, Node* slot,
+    const LazyNode<Context>& lazy_context, const LazyNode<Name>& lazy_name,
+    TypeofMode typeof_mode, ExitPoint* exit_point, Label* miss,
+    ParameterMode slot_mode) {
   Comment("LoadGlobalIC_TryHandlerCase");
 
   Label call_handler(this), non_smi(this);
 
-  Node* handler = LoadFeedbackVectorSlot(pp->vector, pp->slot, kPointerSize,
-                                         SMI_PARAMETERS);
+  Node* handler = LoadFeedbackVectorSlot(vector, slot, kPointerSize, slot_mode);
   GotoIf(WordEqual(handler, LoadRoot(Heap::kuninitialized_symbolRootIndex)),
          miss);
 
-  GotoIfNot(TaggedIsSmi(handler), &non_smi);
+  OnNonExistent on_nonexistent = typeof_mode == NOT_INSIDE_TYPEOF
+                                     ? OnNonExistent::kThrowReferenceError
+                                     : OnNonExistent::kReturnUndefined;
 
-  bool throw_reference_error_if_nonexistent = typeof_mode == NOT_INSIDE_TYPEOF;
+  TNode<Context> context = lazy_context();
+  TNode<Context> native_context = LoadNativeContext(context);
+  TNode<JSGlobalProxy> receiver =
+      CAST(LoadContextElement(native_context, Context::GLOBAL_PROXY_INDEX));
+  Node* holder = LoadContextElement(native_context, Context::EXTENSION_INDEX);
 
-  // TODO(ishell): revisit if this way of code organization still improves
-  // things given that we don't have array handlers anymore.
-  {
-    LoadICParameters p = *pp;
-    DCHECK_NULL(p.receiver);
-    Node* native_context = LoadNativeContext(p.context);
-    p.receiver =
-        LoadContextElement(native_context, Context::GLOBAL_PROXY_INDEX);
-    Node* holder = LoadContextElement(native_context, Context::EXTENSION_INDEX);
-    HandleLoadICSmiHandlerCase(&p, holder, handler, handler, miss, exit_point,
-                               throw_reference_error_if_nonexistent,
-                               kOnlyProperties);
-  }
+  LoadICParameters p(context, receiver, lazy_name(),
+                     ParameterToTagged(slot, slot_mode), vector, holder);
 
-  BIND(&non_smi);
-  GotoIf(IsCodeMap(LoadMap(handler)), &call_handler);
-
-  HandleLoadGlobalICHandlerCase(pp, handler, miss, exit_point,
-                                throw_reference_error_if_nonexistent);
-
-  BIND(&call_handler);
-  {
-    LoadWithVectorDescriptor descriptor(isolate());
-    Node* native_context = LoadNativeContext(pp->context);
-    Node* receiver =
-        LoadContextElement(native_context, Context::GLOBAL_PROXY_INDEX);
-    exit_point->ReturnCallStub(descriptor, handler, pp->context, receiver,
-                               pp->name, pp->slot, pp->vector);
-  }
-}
-
-void AccessorAssembler::LoadGlobalIC_MissCase(const LoadICParameters* p,
-                                              ExitPoint* exit_point) {
-  Comment("LoadGlobalIC_MissCase");
-
-  exit_point->ReturnCallRuntime(Runtime::kLoadGlobalIC_Miss, p->context,
-                                p->name, p->slot, p->vector);
-}
-
-void AccessorAssembler::LoadGlobalIC(const LoadICParameters* p,
-                                     TypeofMode typeof_mode) {
-  // Must be kept in sync with Interpreter::BuildLoadGlobal.
-
-  ExitPoint direct_exit(this);
-
-  Label try_handler(this), miss(this);
-  LoadGlobalIC_TryPropertyCellCase(p->context, p->vector, p->slot, &direct_exit,
-                                   &try_handler, &miss);
-
-  BIND(&try_handler);
-  LoadGlobalIC_TryHandlerCase(p, typeof_mode, &direct_exit, &miss);
-
-  BIND(&miss);
-  LoadGlobalIC_MissCase(p, &direct_exit);
+  HandleLoadICHandlerCase(&p, handler, miss, exit_point, ICMode::kGlobalIC,
+                          on_nonexistent);
 }
 
 void AccessorAssembler::KeyedLoadIC(const LoadICParameters* p) {
@@ -2438,7 +2399,8 @@ void AccessorAssembler::KeyedLoadIC(const LoadICParameters* p) {
   BIND(&if_handler);
   {
     HandleLoadICHandlerCase(p, var_handler.value(), &miss, &direct_exit,
-                            ICMode::kNonGlobalIC, kSupportElements);
+                            ICMode::kNonGlobalIC,
+                            OnNonExistent::kReturnUndefined, kSupportElements);
   }
 
   BIND(&try_polymorphic);
@@ -2608,7 +2570,8 @@ void AccessorAssembler::KeyedLoadICPolymorphicName(const LoadICParameters* p) {
   {
     ExitPoint direct_exit(this);
     HandleLoadICHandlerCase(p, var_handler.value(), &miss, &direct_exit,
-                            ICMode::kNonGlobalIC, kOnlyProperties);
+                            ICMode::kNonGlobalIC,
+                            OnNonExistent::kReturnUndefined, kOnlyProperties);
   }
 
   BIND(&miss);
@@ -2964,8 +2927,12 @@ void AccessorAssembler::GenerateLoadGlobalIC(TypeofMode typeof_mode) {
   Node* vector = Parameter(Descriptor::kVector);
   Node* context = Parameter(Descriptor::kContext);
 
-  LoadICParameters p(context, nullptr, name, slot, vector);
-  LoadGlobalIC(&p, typeof_mode);
+  ExitPoint direct_exit(this);
+  LoadGlobalIC(CAST(vector), slot,
+               // lazy_context
+               [=] { return CAST(context); },
+               // lazy_name
+               [=] { return CAST(name); }, typeof_mode, &direct_exit);
 }
 
 void AccessorAssembler::GenerateLoadGlobalICTrampoline(TypeofMode typeof_mode) {

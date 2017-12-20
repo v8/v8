@@ -56,28 +56,27 @@ class AccessorAssembler : public CodeStubAssembler {
 
   struct LoadICParameters {
     LoadICParameters(Node* context, Node* receiver, Node* name, Node* slot,
-                     Node* vector)
+                     Node* vector, Node* holder = nullptr)
         : context(context),
           receiver(receiver),
           name(name),
           slot(slot),
-          vector(vector) {}
+          vector(vector),
+          holder(holder ? holder : receiver) {}
 
     Node* context;
     Node* receiver;
     Node* name;
     Node* slot;
     Node* vector;
+    Node* holder;
   };
 
-  void LoadGlobalIC_TryPropertyCellCase(
-      SloppyTNode<Context> context, Node* vector, Node* slot,
-      ExitPoint* exit_point, Label* try_handler, Label* miss,
-      ParameterMode slot_mode = SMI_PARAMETERS);
-  void LoadGlobalIC_TryHandlerCase(const LoadICParameters* p,
-                                   TypeofMode typeof_mode,
-                                   ExitPoint* exit_point, Label* miss);
-  void LoadGlobalIC_MissCase(const LoadICParameters* p, ExitPoint* exit_point);
+  void LoadGlobalIC(TNode<FeedbackVector> vector, Node* slot,
+                    const LazyNode<Context>& lazy_context,
+                    const LazyNode<Name>& lazy_name, TypeofMode typeof_mode,
+                    ExitPoint* exit_point,
+                    ParameterMode slot_mode = SMI_PARAMETERS);
 
   // Specialized LoadIC for inlined bytecode handler, hand-tuned to omit frame
   // construction on common paths.
@@ -119,7 +118,7 @@ class AccessorAssembler : public CodeStubAssembler {
   Node* LoadDescriptorValue(Node* map, Node* descriptor);
 
   void LoadIC_Uninitialized(const LoadICParameters* p);
-  void LoadGlobalIC(const LoadICParameters* p, TypeofMode typeof_mode);
+
   void KeyedLoadIC(const LoadICParameters* p);
   void KeyedLoadICGeneric(const LoadICParameters* p);
   void KeyedLoadICPolymorphicName(const LoadICParameters* p);
@@ -140,16 +139,17 @@ class AccessorAssembler : public CodeStubAssembler {
                              Label* if_miss, int min_feedback_capacity);
 
   // LoadIC implementation.
-
+  enum class OnNonExistent { kThrowReferenceError, kReturnUndefined };
   void HandleLoadICHandlerCase(
       const LoadICParameters* p, Node* handler, Label* miss,
       ExitPoint* exit_point, ICMode ic_mode = ICMode::kNonGlobalIC,
+      OnNonExistent on_nonexistent = OnNonExistent::kReturnUndefined,
       ElementSupport support_elements = kOnlyProperties);
 
   void HandleLoadICSmiHandlerCase(const LoadICParameters* p, Node* holder,
                                   Node* smi_handler, Node* handler, Label* miss,
                                   ExitPoint* exit_point,
-                                  bool throw_reference_error_if_nonexistent,
+                                  OnNonExistent on_nonexistent,
                                   ElementSupport support_elements);
 
   void HandleLoadICProtoHandler(const LoadICParameters* p, Node* handler,
@@ -166,9 +166,18 @@ class AccessorAssembler : public CodeStubAssembler {
 
   // LoadGlobalIC implementation.
 
-  void HandleLoadGlobalICHandlerCase(const LoadICParameters* p, Node* handler,
-                                     Label* miss, ExitPoint* exit_point,
-                                     bool throw_reference_error_if_nonexistent);
+  void LoadGlobalIC_TryPropertyCellCase(
+      TNode<FeedbackVector> vector, Node* slot,
+      const LazyNode<Context>& lazy_context, ExitPoint* exit_point,
+      Label* try_handler, Label* miss,
+      ParameterMode slot_mode = SMI_PARAMETERS);
+
+  void LoadGlobalIC_TryHandlerCase(TNode<FeedbackVector> vector, Node* slot,
+                                   const LazyNode<Context>& lazy_context,
+                                   const LazyNode<Name>& lazy_name,
+                                   TypeofMode typeof_mode,
+                                   ExitPoint* exit_point, Label* miss,
+                                   ParameterMode slot_mode);
 
   // StoreIC implementation.
 
