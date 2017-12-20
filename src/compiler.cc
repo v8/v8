@@ -1332,24 +1332,24 @@ MaybeHandle<JSFunction> Compiler::GetWrappedFunction(
   ASSIGN_RETURN_ON_EXCEPTION(isolate, top_level,
                              CompileToplevel(&parse_info, isolate), JSFunction);
 
-  Handle<JSFunction> top_level_fun =
-      isolate->factory()->NewFunctionFromSharedFunctionInfo(top_level, context,
+  Handle<SharedFunctionInfo> wrapped;
+  SharedFunctionInfo::ScriptIterator infos(script);
+  while (SharedFunctionInfo* info = infos.Next()) {
+    if (info->is_wrapped()) {
+      wrapped = Handle<SharedFunctionInfo>(info);
+      break;
+    }
+  }
+  DCHECK(!wrapped.is_null());
+
+  Handle<JSFunction> function =
+      isolate->factory()->NewFunctionFromSharedFunctionInfo(wrapped, context,
                                                             NOT_TENURED);
-
-  // TODO(yangguo): consider not having to call the top-level function, and
-  //                instead instantiate the wrapper function directly.
-  Handle<Object> result;
-  ASSIGN_RETURN_ON_EXCEPTION(
-      isolate, result,
-      Execution::Call(isolate, top_level_fun, isolate->global_proxy(), 0,
-                      nullptr),
-      JSFunction);
-
   // OnAfterCompile has to be called after we create the JSFunction, which we
   // may require to recompile the eval for debugging, if we find a function
   // that contains break points in the eval script.
   isolate->debug()->OnAfterCompile(script);
-  return Handle<JSFunction>::cast(result);
+  return function;
 }
 
 bool Compiler::CodeGenerationFromStringsAllowed(Isolate* isolate,
