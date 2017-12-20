@@ -123,7 +123,12 @@ STATIC_ASSERT_ENUM(MemoryPermission::kReadExecute,
 class DefaultMemoryManager {
  public:
   static size_t AllocatePageSize() { return base::OS::AllocatePageSize(); }
+
   static size_t CommitPageSize() { return base::OS::CommitPageSize(); }
+
+  static void SetRandomMmapSeed(int64_t seed) {
+    base::OS::SetRandomMmapSeed(seed);
+  }
 
   static void* GetRandomMmapAddr() { return base::OS::GetRandomMmapAddr(); }
 
@@ -174,7 +179,10 @@ size_t AllocatePageSize() { return DefaultMemoryManager::AllocatePageSize(); }
 
 size_t CommitPageSize() { return DefaultMemoryManager::CommitPageSize(); }
 
-// Generate a random address to be used for hinting allocation calls.
+void SetRandomMmapSeed(int64_t seed) {
+  DefaultMemoryManager::SetRandomMmapSeed(seed);
+}
+
 void* GetRandomMmapAddr() { return DefaultMemoryManager::GetRandomMmapAddr(); }
 
 void* AllocatePages(void* address, size_t size, size_t alignment,

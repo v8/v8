@@ -113,11 +113,9 @@ class TimezoneCache;
 class V8_BASE_EXPORT OS {
  public:
   // Initialize the OS class.
-  // - random_seed: Used for the GetRandomMmapAddress() if non-zero.
   // - hard_abort: If true, OS::Abort() will crash instead of aborting.
   // - gc_fake_mmap: Name of the file for fake gc mmap used in ll_prof.
-  static void Initialize(int64_t random_seed, bool hard_abort,
-                         const char* const gc_fake_mmap);
+  static void Initialize(bool hard_abort, const char* const gc_fake_mmap);
 
   // Returns the accumulated user time for thread. This routine
   // can be used for profiling. The implementation should
@@ -263,6 +261,8 @@ class V8_BASE_EXPORT OS {
   static size_t AllocatePageSize();
 
   static size_t CommitPageSize();
+
+  static void SetRandomMmapSeed(int64_t seed);
 
   static void* GetRandomMmapAddr();
 

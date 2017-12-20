@@ -92,6 +92,9 @@ V8_EXPORT_PRIVATE size_t AllocatePageSize();
 // Gets the granularity at which the permissions and release calls can be made.
 V8_EXPORT_PRIVATE size_t CommitPageSize();
 
+// Sets the random seed for repeatable sequences of random mmap addresses.
+V8_EXPORT_PRIVATE void SetRandomMmapSeed(int64_t seed);
+
 // Generate a random address to be used for hinting allocation calls.
 V8_EXPORT_PRIVATE void* GetRandomMmapAddr();
 

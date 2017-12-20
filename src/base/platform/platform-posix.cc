@@ -166,11 +166,7 @@ int ReclaimInaccessibleMemory(void* address, size_t size) {
 
 }  // namespace
 
-void OS::Initialize(int64_t random_seed, bool hard_abort,
-                    const char* const gc_fake_mmap) {
-  if (random_seed) {
-    platform_random_number_generator.Pointer()->SetSeed(random_seed);
-  }
+void OS::Initialize(bool hard_abort, const char* const gc_fake_mmap) {
   g_hard_abort = hard_abort;
   g_gc_fake_mmap = gc_fake_mmap;
 }
@@ -203,6 +199,14 @@ size_t OS::AllocatePageSize() {
 size_t OS::CommitPageSize() {
   static size_t page_size = getpagesize();
   return page_size;
+}
+
+// static
+void OS::SetRandomMmapSeed(int64_t seed) {
+  if (seed) {
+    LockGuard<Mutex> guard(rng_mutex.Pointer());
+    platform_random_number_generator.Pointer()->SetSeed(seed);
+  }
 }
 
 // static
