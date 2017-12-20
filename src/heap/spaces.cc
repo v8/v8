@@ -2052,14 +2052,18 @@ LocalAllocationBuffer& LocalAllocationBuffer::operator=(
 
 
 void NewSpace::UpdateAllocationInfo() {
+  Address old_top = top();
   Address new_top = to_space_.page_low();
-  InlineAllocationStep(top(), new_top, nullptr, 0);
 
   MemoryChunk::UpdateHighWaterMark(allocation_info_.top());
   allocation_info_.Reset(new_top, to_space_.page_high());
   original_top_.SetValue(top());
   original_limit_.SetValue(limit());
   UpdateInlineAllocationLimit(0);
+  // TODO(ofrobots): It would be more correct to do a step before setting the
+  // limit on the new allocation area. However, fixing this causes a regression
+  // due to the idle scavenger getting pinged too frequently. crbug.com/795323.
+  InlineAllocationStep(old_top, new_top, nullptr, 0);
   DCHECK_SEMISPACE_ALLOCATION_INFO(allocation_info_, to_space_);
 }
 
