@@ -1675,6 +1675,23 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       DCHECK_EQ(LeaveCC, i.OutputSBit());
       break;
     }
+    case kArmPeek: {
+      int reverse_slot = MiscField::decode(instr->opcode());
+      int offset =
+          FrameSlotToFPOffset(frame()->GetTotalFrameSlotCount() - reverse_slot);
+      if (instr->OutputAt(0)->IsFPRegister()) {
+        LocationOperand* op = LocationOperand::cast(instr->OutputAt(0));
+        if (op->representation() == MachineRepresentation::kFloat64) {
+          __ vldr(i.OutputDoubleRegister(), MemOperand(fp, offset));
+        } else {
+          DCHECK_EQ(MachineRepresentation::kFloat32, op->representation());
+          __ vldr(i.OutputFloatRegister(), MemOperand(fp, offset));
+        }
+      } else {
+        __ ldr(i.OutputRegister(), MemOperand(fp, offset));
+      }
+      break;
+    }
     case kArmF32x4Splat: {
       int src_code = i.InputFloatRegister(0).code();
       __ vdup(Neon32, i.OutputSimd128Register(),
@@ -2902,8 +2919,9 @@ void CodeGenerator::AssembleConstructFrame() {
       }
     }
 
-    // Skip callee-saved slots, which are pushed below.
+    // Skip callee-saved and return slots, which are pushed below.
     shrink_slots -= base::bits::CountPopulation(saves);
+    shrink_slots -= frame()->GetReturnSlotCount();
     shrink_slots -= 2 * base::bits::CountPopulation(saves_fp);
     if (shrink_slots > 0) {
       __ sub(sp, sp, Operand(shrink_slots * kPointerSize));
@@ -2919,15 +2937,28 @@ void CodeGenerator::AssembleConstructFrame() {
     __ vstm(db_w, sp, DwVfpRegister::from_code(first),
             DwVfpRegister::from_code(last));
   }
+
   if (saves != 0) {
     // Save callee-saved registers.
     __ stm(db_w, sp, saves);
+  }
+
+  const int returns = frame()->GetReturnSlotCount();
+  if (returns != 0) {
+    // Create space for returns.
+    __ sub(sp, sp, Operand(returns * kPointerSize));
   }
 }
 
 void CodeGenerator::AssembleReturn(InstructionOperand* pop) {
   CallDescriptor* descriptor = linkage()->GetIncomingDescriptor();
   int pop_count = static_cast<int>(descriptor->StackParameterCount());
+
+  const int returns = frame()->GetReturnSlotCount();
+  if (returns != 0) {
+    // Free space of returns.
+    __ add(sp, sp, Operand(returns * kPointerSize));
+  }
 
   // Restore registers.
   const RegList saves = descriptor->CalleeSavedRegisters();
