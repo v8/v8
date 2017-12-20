@@ -2029,14 +2029,18 @@ THREADED_TEST(PropertyDefinerCallbackWithSetter) {
 }
 
 namespace {
+int empty_descriptor_called;
 void EmptyPropertyDescriptorCallback(
     Local<Name> name, const v8::PropertyCallbackInfo<v8::Value>& info) {
   // Do not intercept by not calling info.GetReturnValue().Set().
+  empty_descriptor_called++;
 }
 
+int intercepting_descriptor_called;
 void InterceptingPropertyDescriptorCallback(
     Local<Name> name, const v8::PropertyCallbackInfo<v8::Value>& info) {
   // Intercept the callback by setting a different descriptor.
+  intercepting_descriptor_called++;
   const char* code =
       "var desc = {value: 42};"
       "desc;";
@@ -2045,6 +2049,12 @@ void InterceptingPropertyDescriptorCallback(
                                 .ToLocalChecked();
   info.GetReturnValue().Set(descriptor);
 }
+
+template <class S, class T>
+void CrashingPropertyCallback(Local<S> name,
+                              const v8::PropertyCallbackInfo<T>& info) {
+  UNREACHABLE();
+}
 }  // namespace
 
 THREADED_TEST(PropertyDescriptorCallback) {
@@ -2052,10 +2062,11 @@ THREADED_TEST(PropertyDescriptorCallback) {
   LocalContext env;
 
   {  // Normal behavior of getOwnPropertyDescriptor() with empty callback.
+    empty_descriptor_called = 0;
     v8::Local<v8::FunctionTemplate> templ =
         v8::FunctionTemplate::New(CcTest::isolate());
     templ->InstanceTemplate()->SetHandler(v8::NamedPropertyHandlerConfiguration(
-        0, 0, EmptyPropertyDescriptorCallback, 0, 0, 0));
+        CrashingPropertyCallback, 0, EmptyPropertyDescriptorCallback, 0, 0, 0));
     env->Global()
         ->Set(env.local(), v8_str("obj"), templ->GetFunction(env.local())
                                               .ToLocalChecked()
@@ -2071,9 +2082,21 @@ THREADED_TEST(PropertyDescriptorCallback) {
                      .ToLocalChecked()
                      ->Int32Value(env.local())
                      .FromJust());
+    CHECK_EQ(false, v8_compile("'empty' in obj;")
+                        ->Run(env.local())
+                        .ToLocalChecked()
+                        ->BooleanValue(env.local())
+                        .FromJust());
+    CHECK_EQ(true, v8_compile("'x' in obj;")
+                       ->Run(env.local())
+                       .ToLocalChecked()
+                       ->BooleanValue(env.local())
+                       .FromJust());
+    CHECK_EQ(3, empty_descriptor_called);
   }
 
   {  // Intercept getOwnPropertyDescriptor().
+    intercepting_descriptor_called = 0;
     v8::Local<v8::FunctionTemplate> templ =
         v8::FunctionTemplate::New(CcTest::isolate());
     templ->InstanceTemplate()->SetHandler(v8::NamedPropertyHandlerConfiguration(
@@ -2093,6 +2116,17 @@ THREADED_TEST(PropertyDescriptorCallback) {
                      .ToLocalChecked()
                      ->Int32Value(env.local())
                      .FromJust());
+    CHECK_EQ(true, v8_compile("'empty' in obj;")
+                       ->Run(env.local())
+                       .ToLocalChecked()
+                       ->BooleanValue(env.local())
+                       .FromJust());
+    CHECK_EQ(true, v8_compile("'x' in obj;")
+                       ->Run(env.local())
+                       .ToLocalChecked()
+                       ->BooleanValue(env.local())
+                       .FromJust());
+    CHECK_EQ(3, intercepting_descriptor_called);
   }
 }
 
@@ -4714,7 +4748,7 @@ TEST(NamedAllCanReadInterceptor) {
   ExpectInt32("checked.whatever", 17);
   CHECK(!CompileRun("Object.getOwnPropertyDescriptor(checked, 'whatever')")
              ->IsUndefined());
-  CHECK_EQ(6, access_check_data.count);
+  CHECK_EQ(5, access_check_data.count);
 
   access_check_data.result = false;
   ExpectInt32("checked.whatever", intercept_data_0.value);
@@ -4723,7 +4757,7 @@ TEST(NamedAllCanReadInterceptor) {
     CompileRun("Object.getOwnPropertyDescriptor(checked, 'whatever')");
     CHECK(try_catch.HasCaught());
   }
-  CHECK_EQ(9, access_check_data.count);
+  CHECK_EQ(8, access_check_data.count);
 
   intercept_data_1.should_intercept = true;
   ExpectInt32("checked.whatever", intercept_data_1.value);
@@ -4732,7 +4766,7 @@ TEST(NamedAllCanReadInterceptor) {
     CompileRun("Object.getOwnPropertyDescriptor(checked, 'whatever')");
     CHECK(try_catch.HasCaught());
   }
-  CHECK_EQ(12, access_check_data.count);
+  CHECK_EQ(11, access_check_data.count);
   g_access_check_data = nullptr;
 }
 
@@ -4801,7 +4835,7 @@ TEST(IndexedAllCanReadInterceptor) {
   ExpectInt32("checked[15]", 17);
   CHECK(!CompileRun("Object.getOwnPropertyDescriptor(checked, '15')")
              ->IsUndefined());
-  CHECK_EQ(6, access_check_data.count);
+  CHECK_EQ(5, access_check_data.count);
 
   access_check_data.result = false;
   ExpectInt32("checked[15]", intercept_data_0.value);
@@ -4810,7 +4844,7 @@ TEST(IndexedAllCanReadInterceptor) {
     CompileRun("Object.getOwnPropertyDescriptor(checked, '15')");
     CHECK(try_catch.HasCaught());
   }
-  CHECK_EQ(9, access_check_data.count);
+  CHECK_EQ(8, access_check_data.count);
 
   intercept_data_1.should_intercept = true;
   ExpectInt32("checked[15]", intercept_data_1.value);
@@ -4819,7 +4853,7 @@ TEST(IndexedAllCanReadInterceptor) {
     CompileRun("Object.getOwnPropertyDescriptor(checked, '15')");
     CHECK(try_catch.HasCaught());
   }
-  CHECK_EQ(12, access_check_data.count);
+  CHECK_EQ(11, access_check_data.count);
 
   g_access_check_data = nullptr;
 }
