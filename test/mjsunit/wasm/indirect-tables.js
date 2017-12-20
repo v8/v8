@@ -705,3 +705,41 @@ function js_div(a, b) { return (a / b) | 0; }
   test(0, 7);
   test(1, 3);
 })();
+
+
+// Remove this test when v8:7232 is addressed comprehensively.
+(function TablesAreImmutableInWasmCallstacks() {
+  print('TablesAreImmutableInWasmCallstacks...');
+  let table = new WebAssembly.Table({initial:2, element:'anyfunc'});
+
+  let builder = new WasmModuleBuilder();
+  builder.addImport('', 'mutator', kSig_v_v);
+  builder.addFunction('main', kSig_v_v)
+    .addBody([
+      kExprCallFunction, 0
+    ]).exportAs('main');
+
+  let module = new WebAssembly.Module(builder.toBuffer());
+  let instance = new WebAssembly.Instance(module, {
+    '': {
+      'mutator': () => {table.set(0, null);}
+    }
+  });
+
+  table.set(0, instance.exports.main);
+
+  try {
+    instance.exports.main();
+    assertUnreached();
+  } catch (e) {
+    assertTrue(e instanceof RangeError);
+  }
+  try {
+    instance.exports.main();
+    assertUnreached();
+  } catch (e) {
+    assertTrue(e instanceof RangeError);
+  }
+  table.set(0, null);
+  assertEquals(null, table.get(0));
+})();

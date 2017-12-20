@@ -751,7 +751,20 @@ void WebAssemblyTableSet(const v8::FunctionCallbackInfo<v8::Value>& args) {
     return;
   }
 
-  i::WasmTableObject::Set(i_isolate, receiver, static_cast<int32_t>(index),
+  // TODO(v8:7232) Allow reset/mutation after addressing referenced issue.
+  int32_t int_index = static_cast<int32_t>(index);
+  if (receiver->functions()->get(int_index) !=
+          i_isolate->heap()->undefined_value() &&
+      receiver->functions()->get(int_index) !=
+          i_isolate->heap()->null_value()) {
+    for (i::StackFrameIterator it(i_isolate); !it.done(); it.Advance()) {
+      if (it.frame()->type() == i::StackFrame::WASM_TO_JS) {
+        thrower.RangeError("Modifying existing entry in table not supported.");
+        return;
+      }
+    }
+  }
+  i::WasmTableObject::Set(i_isolate, receiver, static_cast<int32_t>(int_index),
                           value->IsNull(i_isolate)
                               ? i::Handle<i::JSFunction>::null()
                               : i::Handle<i::JSFunction>::cast(value));
