@@ -409,7 +409,6 @@ class WasmModuleBuilder {
         }
         section.emit_u32v(wasm.memory.min);
         if (has_max) section.emit_u32v(wasm.memory.max);
-        if (wasm.memory.shared) section.emit_u8(1);
       });
     }
 
