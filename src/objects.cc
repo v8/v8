@@ -13718,8 +13718,11 @@ Handle<Object> SharedFunctionInfo::GetSourceCodeHarmony(
       script_source, start_pos, shared->end_position());
   if (!shared->is_wrapped()) return source;
 
+  DCHECK(!shared->name_should_print_as_anonymous());
   IncrementalStringBuilder builder(isolate);
-  builder.AppendCString("function (");
+  builder.AppendCString("function ");
+  builder.AppendString(Handle<String>(shared->name(), isolate));
+  builder.AppendCString("(");
   Handle<FixedArray> args(Script::cast(shared->script())->wrapped_arguments());
   int argc = args->length();
   for (int i = 0; i < argc; i++) {

@@ -727,6 +727,34 @@ void TestCompileFunctionInContextToStringImpl() {
           "}");
       CHECK(expected->Equals(env.local(), result).FromJust());
     }
+
+    // With a name:
+    {
+      v8::ScriptOrigin origin(v8_str("test"), v8_int(17), v8_int(31));
+      v8::ScriptCompiler::Source script_source(v8_str("return 0"), origin);
+
+      v8::TryCatch try_catch(CcTest::isolate());
+      v8::MaybeLocal<v8::Function> maybe_fun =
+          v8::ScriptCompiler::CompileFunctionInContext(
+              env.local(), &script_source, 0, nullptr, 0, nullptr);
+
+      CHECK_NOT_CAUGHT(env.local(), try_catch,
+                       "v8::ScriptCompiler::CompileFunctionInContext");
+
+      v8::Local<v8::Function> fun = maybe_fun.ToLocalChecked();
+      CHECK(!fun.IsEmpty());
+      CHECK(!try_catch.HasCaught());
+
+      fun->SetName(v8_str("onclick"));
+
+      v8::Local<v8::String> result =
+          fun->ToString(env.local()).ToLocalChecked();
+      v8::Local<v8::String> expected = v8_str(
+          "function onclick() {\n"
+          "return 0\n"
+          "}");
+      CHECK(expected->Equals(env.local(), result).FromJust());
+    }
   }
 #undef CHECK_NOT_CAUGHT
 }
