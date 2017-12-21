@@ -906,7 +906,7 @@ Reduction JSCallReducer::ReduceArrayForEach(Handle<JSFunction> function,
       SafeLoadElement(kind, receiver, control, &effect, &k, p.feedback());
 
   Node* next_k =
-      graph()->NewNode(simplified()->NumberAdd(), k, jsgraph()->Constant(1));
+      graph()->NewNode(simplified()->NumberAdd(), k, jsgraph()->OneConstant());
   checkpoint_params[3] = next_k;
 
   Node* hole_true = nullptr;
@@ -1119,7 +1119,7 @@ Reduction JSCallReducer::ReduceArrayReduce(Handle<JSFunction> function,
       SafeLoadElement(kind, receiver, control, &effect, &k, p.feedback());
 
   Node* next_k =
-      graph()->NewNode(simplified()->NumberAdd(), k, jsgraph()->Constant(1));
+      graph()->NewNode(simplified()->NumberAdd(), k, jsgraph()->OneConstant());
   checkpoint_params[2] = next_k;
 
   Node* hole_true = nullptr;
@@ -1263,7 +1263,7 @@ Reduction JSCallReducer::ReduceArrayReduceRight(Handle<JSFunction> function,
       receiver, effect, control);
 
   Node* k = graph()->NewNode(simplified()->NumberSubtract(), original_length,
-                             jsgraph()->Constant(1));
+                             jsgraph()->OneConstant());
 
   std::vector<Node*> checkpoint_params({receiver, fncallback, k,
                                         original_length,
@@ -1303,7 +1303,7 @@ Reduction JSCallReducer::ReduceArrayReduceRight(Handle<JSFunction> function,
 
     cur = SafeLoadElement(kind, receiver, control, &effect, &k, p.feedback());
     k = graph()->NewNode(simplified()->NumberSubtract(), k,
-                         jsgraph()->Constant(1));
+                         jsgraph()->OneConstant());
   }
 
   // Start the loop.
@@ -1323,7 +1323,7 @@ Reduction JSCallReducer::ReduceArrayReduceRight(Handle<JSFunction> function,
   effect = eloop;
 
   Node* continue_test = graph()->NewNode(simplified()->NumberLessThanOrEqual(),
-                                         jsgraph()->Constant(0), k);
+                                         jsgraph()->ZeroConstant(), k);
   Node* continue_branch = graph()->NewNode(common()->Branch(BranchHint::kTrue),
                                            continue_test, control);
 
@@ -1349,7 +1349,7 @@ Reduction JSCallReducer::ReduceArrayReduceRight(Handle<JSFunction> function,
       SafeLoadElement(kind, receiver, control, &effect, &k, p.feedback());
 
   Node* next_k = graph()->NewNode(simplified()->NumberSubtract(), k,
-                                  jsgraph()->Constant(1));
+                                  jsgraph()->OneConstant());
   checkpoint_params[2] = next_k;
 
   Node* hole_true = nullptr;
@@ -1981,7 +1981,7 @@ Reduction JSCallReducer::ReduceArrayFind(ArrayFindVariant variant,
 
   // Increment k for the next iteration.
   Node* next_k = checkpoint_params[3] =
-      graph()->NewNode(simplified()->NumberAdd(), k, jsgraph()->Constant(1));
+      graph()->NewNode(simplified()->NumberAdd(), k, jsgraph()->OneConstant());
 
   // Replace holes with undefined.
   if (IsHoleyElementsKind(kind)) {
