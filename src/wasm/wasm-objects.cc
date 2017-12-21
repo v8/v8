@@ -369,8 +369,17 @@ Handle<JSArrayBuffer> GrowMemoryBuffer(Isolate* isolate,
   if (old_pages > maximum_pages || pages > maximum_pages - old_pages) {
     return Handle<JSArrayBuffer>::null();
   }
+#if V8_TARGET_ARCH_64_BIT && !defined(THREAD_SANITIZER) && \
+    !defined(LEAK_SANITIZER) && !defined(V8_USE_ADDRESS_SANITIZER)
+  // TODO(eholk): Enable sanitizers once we have back-pressure.
+  // Always turn on guard regions in 64-bit.
+  // But allow for previously unguarded memory for some cctests.
+  const bool enable_guard_regions =
+      old_buffer.is_null() ? true : old_buffer->has_guard_region();
+#else
   const bool enable_guard_regions =
       old_buffer.is_null() ? use_trap_handler : old_buffer->has_guard_region();
+#endif
   size_t new_size =
       static_cast<size_t>(old_pages + pages) * WasmModule::kPageSize;
   if (new_size > FLAG_wasm_max_mem_pages * WasmModule::kPageSize ||

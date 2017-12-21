@@ -3174,7 +3174,14 @@ Handle<JSArrayBuffer> InstanceBuilder::AllocateMemory(uint32_t num_pages) {
     thrower_->RangeError("Out of memory: wasm memory too large");
     return Handle<JSArrayBuffer>::null();
   }
+#if V8_TARGET_ARCH_64_BIT && !defined(THREAD_SANITIZER) && \
+    !defined(LEAK_SANITIZER) && !defined(V8_USE_ADDRESS_SANITIZER)
+  // TODO(eholk): Enable sanitizers once we have back-pressure.
+  // Always turn on guard regions in 64-bit.
+  const bool enable_guard_regions = true;
+#else
   const bool enable_guard_regions = use_trap_handler();
+#endif
   const bool is_shared_memory =
       module_->has_shared_memory && i::FLAG_experimental_wasm_threads;
   Handle<JSArrayBuffer> mem_buffer = NewArrayBuffer(
