@@ -1203,7 +1203,28 @@ void InstructionSelector::EmitPrepareArguments(
 void InstructionSelector::EmitPrepareResults(ZoneVector<PushParameter>* results,
                                              const CallDescriptor* descriptor,
                                              Node* node) {
-  // TODO(ahaas): Port.
+  MipsOperandGenerator g(this);
+
+  int reverse_slot = 0;
+  for (PushParameter output : *results) {
+    if (!output.location.IsCallerFrameSlot()) continue;
+    ++reverse_slot;
+    // Skip any alignment holes in nodes.
+    if (output.node != nullptr) {
+      DCHECK(!descriptor->IsCFunctionCall());
+      if (output.location.GetType() == MachineType::Float32()) {
+        MarkAsFloat32(output.node);
+      } else if (output.location.GetType() == MachineType::Float64()) {
+        MarkAsFloat64(output.node);
+      }
+      InstructionOperand result = g.DefineAsRegister(output.node);
+      Emit(kMipsPeek | MiscField::encode(reverse_slot), result);
+    }
+    if (output.location.GetType() == MachineType::Float64()) {
+      // Float64 require an implicit second slot.
+      ++reverse_slot;
+    }
+  }
 }
 
 bool InstructionSelector::IsTailCallAddressImmediate() { return false; }
