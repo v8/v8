@@ -183,6 +183,8 @@ Callable Builtins::CallableFor(Isolate* isolate, Name name) {
     case kArrayForEachLoopLazyDeoptContinuation:
     case kArrayMapLoopEagerDeoptContinuation:
     case kArrayMapLoopLazyDeoptContinuation:
+    case kArrayReduceLoopEagerDeoptContinuation:
+    case kArrayReduceLoopLazyDeoptContinuation:
     case kConsoleAssert:
       return Callable(code, BuiltinDescriptor(isolate));
     default:
@@ -235,6 +237,8 @@ bool Builtins::IsLazy(int index) {
     case kArrayMapLoopLazyDeoptContinuation:       // https://crbug.com/v8/6786.
     case kArrayFilterLoopEagerDeoptContinuation:   // https://crbug.com/v8/6786.
     case kArrayFilterLoopLazyDeoptContinuation:    // https://crbug.com/v8/6786.
+    case kArrayReduceLoopEagerDeoptContinuation:   // https://crbug.com/v8/6786.
+    case kArrayReduceLoopLazyDeoptContinuation:    // https://crbug.com/v8/6786.
     case kCheckOptimizationMarker:
     case kCompileLazy:
     case kDeserializeLazy:

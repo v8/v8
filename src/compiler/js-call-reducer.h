@@ -72,6 +72,7 @@ class JSCallReducer final : public AdvancedReducer {
   Reduction ReduceReflectGetPrototypeOf(Node* node);
   Reduction ReduceReflectHas(Node* node);
   Reduction ReduceArrayForEach(Handle<JSFunction> function, Node* node);
+  Reduction ReduceArrayReduce(Handle<JSFunction> function, Node* node);
   Reduction ReduceArrayMap(Handle<JSFunction> function, Node* node);
   Reduction ReduceArrayFilter(Handle<JSFunction> function, Node* node);
   enum class ArrayFindVariant : uint8_t { kFind, kFindIndex };
