@@ -142,6 +142,8 @@ class LiftoffRegList {
 
   bool is_empty() const { return regs_ == 0; }
 
+  unsigned GetNumRegsSet() const { return base::bits::CountPopulation(regs_); }
+
   LiftoffRegList operator&(LiftoffRegList other) const {
     return FromBits(regs_ & other.regs_);
   }
@@ -151,9 +153,16 @@ class LiftoffRegList {
   }
 
   LiftoffRegister GetFirstRegSet() const {
-    DCHECK_NE(0, regs_);
+    DCHECK(!is_empty());
     unsigned first_code = base::bits::CountTrailingZeros(regs_);
     return LiftoffRegister::from_liftoff_code(first_code);
+  }
+
+  LiftoffRegister GetLastRegSet() const {
+    DCHECK(!is_empty());
+    unsigned last_code =
+        8 * sizeof(regs_) - 1 - base::bits::CountLeadingZeros(regs_);
+    return LiftoffRegister::from_liftoff_code(last_code);
   }
 
   LiftoffRegList MaskOut(storage_t mask) const {

@@ -37,15 +37,21 @@ namespace {
 class MovableLabel {
  public:
   Label* get() { return label_.get(); }
+  MovableLabel() : MovableLabel(new Label()) {}
+
+  static MovableLabel None() { return MovableLabel(nullptr); }
 
  private:
-  std::unique_ptr<Label> label_ = base::make_unique<Label>();
+  std::unique_ptr<Label> label_;
+  explicit MovableLabel(Label* label) : label_(label) {}
 };
 #else
 // On all other platforms, just store the Label directly.
 class MovableLabel {
  public:
   Label* get() { return &label_; }
+
+  static MovableLabel None() { return MovableLabel(); }
 
  private:
   Label label_;
@@ -70,6 +76,23 @@ class LiftoffCompiler {
   };
 
   using Decoder = WasmFullDecoder<validate, LiftoffCompiler>;
+
+  struct OutOfLineCode {
+    MovableLabel label;
+    MovableLabel continuation;
+    Builtins::Name builtin;
+    wasm::WasmCodePosition position;
+    LiftoffRegList regs_to_save;
+
+    // Named constructors:
+    static OutOfLineCode Trap(Builtins::Name b, wasm::WasmCodePosition pos) {
+      return {{}, {}, b, pos, {}};
+    }
+    static OutOfLineCode StackCheck(wasm::WasmCodePosition pos,
+                                    LiftoffRegList regs) {
+      return {{}, MovableLabel::None(), Builtins::kWasmStackGuard, pos, regs};
+    }
+  };
 
   LiftoffCompiler(LiftoffAssembler* liftoff_asm,
                   compiler::CallDescriptor* call_desc, compiler::ModuleEnv* env,
@@ -116,8 +139,8 @@ class LiftoffCompiler {
       Label* label = decoder->control_at(i)->label.get();
       if (!label->is_bound()) __ bind(label);
     }
-    for (auto& trap : trap_ool_code_) {
-      if (!trap.label.get()->is_bound()) __ bind(trap.label.get());
+    for (auto& ool : out_of_line_code_) {
+      if (!ool.label.get()->is_bound()) __ bind(ool.label.get());
     }
 #endif
   }
@@ -171,6 +194,15 @@ class LiftoffCompiler {
     UNREACHABLE();
   }
 
+  void StackCheck(wasm::WasmCodePosition position) {
+    if (FLAG_wasm_no_stack_checks || !runtime_exception_support_) return;
+    out_of_line_code_.push_back(
+        OutOfLineCode::StackCheck(position, __ cache_state()->used_registers));
+    OutOfLineCode& ool = out_of_line_code_.back();
+    __ StackCheck(ool.label.get());
+    __ bind(ool.continuation.get());
+  }
+
   void StartFunctionBody(Decoder* decoder, Control* block) {
     if (!kLiftoffAssemblerImplementedOnThisPlatform) {
       unsupported(decoder, "platform");
@@ -178,7 +210,8 @@ class LiftoffCompiler {
     }
     __ EnterFrame(StackFrame::WASM_COMPILED);
     __ set_has_frame(true);
-    __ ReserveStackSpace(kPointerSize * __ GetTotalFrameSlotCount());
+    __ ReserveStackSpace(LiftoffAssembler::kStackSlotSize *
+                         __ GetTotalFrameSlotCount());
     // Parameter 0 is the wasm context.
     uint32_t num_params =
         static_cast<uint32_t>(call_desc_->ParameterCount()) - 1;
@@ -236,48 +269,50 @@ class LiftoffCompiler {
       }
     }
     block->label_state.stack_base = __ num_locals();
+
+    // The function-prologue stack check is associated with position 0, which
+    // is never a position of any instruction in the function.
+    StackCheck(0);
+
     DCHECK_EQ(__ num_locals(), param_idx);
     DCHECK_EQ(__ num_locals(), __ cache_state()->stack_height());
     CheckStackSizeLimit(decoder);
   }
 
-  static Builtins::Name GetBuiltinIdForTrap(wasm::TrapReason reason) {
-    switch (reason) {
-#define TRAPREASON_TO_MESSAGE(name) \
-  case wasm::k##name:               \
-    return Builtins::kThrowWasm##name;
-      FOREACH_WASM_TRAPREASON(TRAPREASON_TO_MESSAGE)
-#undef TRAPREASON_TO_MESSAGE
-      default:
-        UNREACHABLE();
-    }
-  }
-
-  void GenerateTrap(wasm::TrapReason reason, wasm::WasmCodePosition position) {
+  void GenerateOutOfLineCode(OutOfLineCode& ool) {
+    __ bind(ool.label.get());
+    const bool is_stack_check = ool.builtin == Builtins::kWasmStackGuard;
     if (!runtime_exception_support_) {
       // We cannot test calls to the runtime in cctest/test-run-wasm.
       // Therefore we emit a call to C here instead of a call to the runtime.
+      // In this mode, we never generate stack checks.
+      DCHECK(!is_stack_check);
       __ CallTrapCallbackForTesting();
       __ LeaveFrame(StackFrame::WASM_COMPILED);
       __ Ret();
       return;
     }
 
-    DCHECK(runtime_exception_support_);
+    if (!ool.regs_to_save.is_empty()) __ PushRegisters(ool.regs_to_save);
+
     source_position_table_builder_->AddPosition(
-        __ pc_offset(), SourcePosition(position), false);
+        __ pc_offset(), SourcePosition(ool.position), false);
+    __ Call(__ isolate()->builtins()->builtin_handle(ool.builtin),
+            RelocInfo::CODE_TARGET);
     safepoint_table_builder_.DefineSafepoint(asm_, Safepoint::kSimple, 0,
                                              Safepoint::kNoLazyDeopt);
-    Builtins::Name trap_id = GetBuiltinIdForTrap(reason);
-    __ Call(__ isolate()->builtins()->builtin_handle(trap_id),
-            RelocInfo::CODE_TARGET);
-    __ AssertUnreachable(kUnexpectedReturnFromWasmTrap);
+    DCHECK_EQ(ool.continuation.get()->is_bound(), is_stack_check);
+    if (!ool.regs_to_save.is_empty()) __ PopRegisters(ool.regs_to_save);
+    if (is_stack_check) {
+      __ emit_jump(ool.continuation.get());
+    } else {
+      __ AssertUnreachable(kUnexpectedReturnFromWasmTrap);
+    }
   }
 
   void FinishFunction(Decoder* decoder) {
-    for (auto& trap : trap_ool_code_) {
-      __ bind(trap.label.get());
-      GenerateTrap(trap.reason, trap.position);
+    for (OutOfLineCode& ool : out_of_line_code_) {
+      GenerateOutOfLineCode(ool);
     }
     safepoint_table_builder_.Emit(asm_, __ GetTotalFrameSlotCount());
   }
@@ -431,7 +466,8 @@ class LiftoffCompiler {
       __ MoveToReturnRegister(reg);
     }
     __ LeaveFrame(StackFrame::WASM_COMPILED);
-    __ Ret();
+    __ DropStackSlotsAndRet(
+        static_cast<uint32_t>(call_desc_->StackParameterCount()));
   }
 
   void GetLocal(Decoder* decoder, Value* result,
@@ -588,7 +624,9 @@ class LiftoffCompiler {
     if (FLAG_wasm_no_bounds_checks) return;
 
     // Add OOL code.
-    Label* trap_label = AddTrapCode(kTrapMemOutOfBounds, position);
+    out_of_line_code_.push_back(
+        OutOfLineCode::Trap(Builtins::kThrowWasmTrapMemOutOfBounds, position));
+    Label* trap_label = out_of_line_code_.back().label.get();
 
     if (access_size > max_size_ || offset > max_size_ - access_size) {
       // The access will be out of bounds, even for the largest memory.
@@ -714,14 +752,6 @@ class LiftoffCompiler {
   }
 
  private:
-  struct TrapOolCode {
-    MovableLabel label;
-    wasm::TrapReason reason;
-    wasm::WasmCodePosition position;
-    TrapOolCode(wasm::TrapReason r, wasm::WasmCodePosition pos)
-        : reason(r), position(pos) {}
-  };
-
   LiftoffAssembler* const asm_;
   compiler::CallDescriptor* const call_desc_;
   compiler::ModuleEnv* const env_;
@@ -730,7 +760,7 @@ class LiftoffCompiler {
   const uint32_t max_size_;
   const compiler::RuntimeExceptionSupport runtime_exception_support_;
   bool ok_ = true;
-  std::vector<TrapOolCode> trap_ool_code_;
+  std::vector<OutOfLineCode> out_of_line_code_;
   SourcePositionTableBuilder* const source_position_table_builder_;
   // Zone used to store information during compilation. The result will be
   // stored independently, such that this zone can die together with the
@@ -771,11 +801,6 @@ class LiftoffCompiler {
     }
     PrintF("\n");
 #endif
-  }
-
-  Label* AddTrapCode(wasm::TrapReason reason, wasm::WasmCodePosition pos) {
-    trap_ool_code_.emplace_back(reason, pos);
-    return trap_ool_code_.back().label.get();
   }
 };
 

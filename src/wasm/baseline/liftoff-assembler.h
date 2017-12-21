@@ -32,6 +32,9 @@ class LiftoffAssembler : public TurboAssembler {
   // needed.
   static constexpr int kMaxValueStackHeight = 8;
 
+  // Each slot in our stack frame currently has exactly 8 bytes.
+  static constexpr uint32_t kStackSlotSize = 8;
+
   class VarState {
    public:
     enum Location : uint8_t { kStack, kRegister, kConstant };
@@ -286,9 +289,16 @@ class LiftoffAssembler : public TurboAssembler {
   inline void emit_jump(Label*);
   inline void emit_cond_jump(Condition, Label*);
 
+  inline void StackCheck(Label* ool_code);
+
   inline void CallTrapCallbackForTesting();
 
   inline void AssertUnreachable(BailoutReason reason);
+
+  inline void PushRegisters(LiftoffRegList);
+  inline void PopRegisters(LiftoffRegList);
+
+  inline void DropStackSlotsAndRet(uint32_t num_stack_slots);
 
   ////////////////////////////////////
   // End of platform-specific part. //

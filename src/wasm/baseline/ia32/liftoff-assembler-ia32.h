@@ -19,9 +19,9 @@ namespace liftoff {
 inline Operand GetStackSlot(uint32_t index) {
   // ebp-8 holds the stack marker, ebp-16 is the wasm context, first stack slot
   // is located at ebp-24.
-  constexpr int32_t kStackSlotSize = 8;
   constexpr int32_t kFirstStackSlotOffset = -24;
-  return Operand(ebp, kFirstStackSlotOffset - index * kStackSlotSize);
+  return Operand(
+      ebp, kFirstStackSlotOffset - index * LiftoffAssembler::kStackSlotSize);
 }
 
 // TODO(clemensh): Make this a constexpr variable once Operand is constexpr.
@@ -134,8 +134,7 @@ void LiftoffAssembler::Store(Register dst_addr, Register offset_reg,
 
 void LiftoffAssembler::LoadCallerFrameSlot(LiftoffRegister dst,
                                            uint32_t caller_slot_idx) {
-  constexpr int32_t kStackSlotSize = 4;
-  Operand src(ebp, kStackSlotSize * (caller_slot_idx + 1));
+  Operand src(ebp, kPointerSize * (caller_slot_idx + 1));
   // TODO(clemensh): Handle different sizes here.
   if (dst.is_gp()) {
     mov(dst.gp(), src);
@@ -308,6 +307,13 @@ void LiftoffAssembler::emit_cond_jump(Condition cond, Label* label) {
   j(cond, label);
 }
 
+void LiftoffAssembler::StackCheck(Label* ool_code) {
+  Register limit = GetUnusedRegister(kGpReg).gp();
+  mov(limit, Immediate(ExternalReference::address_of_stack_limit(isolate())));
+  cmp(esp, Operand(limit, 0));
+  j(below_equal, ool_code);
+}
+
 void LiftoffAssembler::CallTrapCallbackForTesting() {
   PrepareCallCFunction(0, GetUnusedRegister(kGpReg).gp());
   CallCFunction(
@@ -316,6 +322,51 @@ void LiftoffAssembler::CallTrapCallbackForTesting() {
 
 void LiftoffAssembler::AssertUnreachable(BailoutReason reason) {
   TurboAssembler::AssertUnreachable(reason);
+}
+
+void LiftoffAssembler::PushRegisters(LiftoffRegList regs) {
+  LiftoffRegList gp_regs = regs & kGpCacheRegList;
+  while (!gp_regs.is_empty()) {
+    LiftoffRegister reg = gp_regs.GetFirstRegSet();
+    push(reg.gp());
+    gp_regs.clear(reg);
+  }
+  LiftoffRegList fp_regs = regs & kFpCacheRegList;
+  unsigned num_fp_regs = fp_regs.GetNumRegsSet();
+  if (num_fp_regs) {
+    sub(esp, Immediate(num_fp_regs * kStackSlotSize));
+    unsigned offset = 0;
+    while (!fp_regs.is_empty()) {
+      LiftoffRegister reg = fp_regs.GetFirstRegSet();
+      movsd(Operand(esp, offset), reg.fp());
+      fp_regs.clear(reg);
+      offset += sizeof(double);
+    }
+    DCHECK_EQ(offset, num_fp_regs * sizeof(double));
+  }
+}
+
+void LiftoffAssembler::PopRegisters(LiftoffRegList regs) {
+  LiftoffRegList fp_regs = regs & kFpCacheRegList;
+  unsigned fp_offset = 0;
+  while (!fp_regs.is_empty()) {
+    LiftoffRegister reg = fp_regs.GetFirstRegSet();
+    movsd(reg.fp(), Operand(esp, fp_offset));
+    fp_regs.clear(reg);
+    fp_offset += sizeof(double);
+  }
+  if (fp_offset) add(esp, Immediate(fp_offset));
+  LiftoffRegList gp_regs = regs & kGpCacheRegList;
+  while (!gp_regs.is_empty()) {
+    LiftoffRegister reg = gp_regs.GetLastRegSet();
+    pop(reg.gp());
+    gp_regs.clear(reg);
+  }
+}
+
+void LiftoffAssembler::DropStackSlotsAndRet(uint32_t num_stack_slots) {
+  DCHECK_LT(num_stack_slots, (1 << 16) / kPointerSize);  // 16 bit immediate
+  ret(static_cast<int>(num_stack_slots * kPointerSize));
 }
 
 }  // namespace wasm

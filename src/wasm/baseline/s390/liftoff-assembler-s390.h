@@ -73,9 +73,17 @@ void LiftoffAssembler::emit_jump(Label* label) {}
 
 void LiftoffAssembler::emit_cond_jump(Condition cond, Label* label) {}
 
+void LiftoffAssembler::StackCheck(Label* ool_code) {}
+
 void LiftoffAssembler::CallTrapCallbackForTesting() {}
 
 void LiftoffAssembler::AssertUnreachable(BailoutReason reason) {}
+
+void LiftoffAssembler::PushRegisters(LiftoffRegList regs) {}
+
+void LiftoffAssembler::PopRegisters(LiftoffRegList regs) {}
+
+void LiftoffAssembler::DropStackSlotsAndRet(uint32_t num_stack_slots) {}
 
 }  // namespace wasm
 }  // namespace internal
