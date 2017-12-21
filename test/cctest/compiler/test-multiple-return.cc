@@ -477,14 +477,13 @@ TEST(ReturnMultipleRandom) {
   }
 }
 
-TEST(ReturnLastValue) {
+void ReturnLastValue(MachineType type) {
   v8::internal::AccountingAllocator allocator;
   Zone zone(&allocator, ZONE_NAME);
   // Let 2 returns be on the stack.
-  const int return_count = num_registers(MachineType::Int32()) + 2;
+  const int return_count = num_registers(type) + 2;
 
-  CallDescriptor* desc =
-      CreateMonoCallDescriptor(&zone, return_count, 0, MachineType::Int32());
+  CallDescriptor* desc = CreateMonoCallDescriptor(&zone, return_count, 0, type);
 
   HandleAndZoneScope handles;
   RawMachineAssembler m(handles.main_isolate(),
@@ -495,7 +494,7 @@ TEST(ReturnLastValue) {
   std::unique_ptr<Node* []> returns(new Node*[return_count]);
 
   for (int i = 0; i < return_count; ++i) {
-    returns[i] = m.Int32Constant(i);
+    returns[i] = Constant(m, type, i);
   }
 
   m.Return(return_count, returns.get());
@@ -511,10 +510,16 @@ TEST(ReturnLastValue) {
 
   Node* call = mt.AddNode(mt.common()->Call(desc), 1, &code_node);
 
-  mt.Return(mt.AddNode(mt.common()->Projection(return_count - 1), call));
+  mt.Return(ToInt32(
+      mt, type, mt.AddNode(mt.common()->Projection(return_count - 1), call)));
 
   CHECK_EQ(expect, mt.Call());
 }
+
+TEST(ReturnLastValueInt32) { ReturnLastValue(MachineType::Int32()); }
+TEST(ReturnLastValueFloat32) { ReturnLastValue(MachineType::Float32()); }
+TEST(ReturnLastValueFloat64) { ReturnLastValue(MachineType::Float64()); }
+
 }  // namespace compiler
 }  // namespace internal
 }  // namespace v8
