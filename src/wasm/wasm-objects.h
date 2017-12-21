@@ -175,8 +175,6 @@ class WasmMemoryObject : public JSObject {
       Isolate* isolate, MaybeHandle<JSArrayBuffer> buffer, int32_t maximum);
 
   static int32_t Grow(Isolate*, Handle<WasmMemoryObject>, uint32_t pages);
-  static void SetupNewBufferWithSameBackingStore(
-      Isolate* isolate, Handle<WasmMemoryObject> memory_object, uint32_t size);
 };
 
 // A WebAssembly.Instance JavaScript-level object.

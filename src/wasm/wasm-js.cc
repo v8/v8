@@ -600,8 +600,10 @@ void WebAssemblyMemory(const v8::FunctionCallbackInfo<v8::Value>& args) {
 
   size_t size = static_cast<size_t>(i::wasm::WasmModule::kPageSize) *
                 static_cast<size_t>(initial);
+  const bool enable_guard_regions =
+      internal::trap_handler::IsTrapHandlerEnabled();
   i::Handle<i::JSArrayBuffer> buffer = i::wasm::NewArrayBuffer(
-      i_isolate, size, internal::trap_handler::IsTrapHandlerEnabled(),
+      i_isolate, size, enable_guard_regions,
       is_shared_memory ? i::SharedFlag::kShared : i::SharedFlag::kNotShared);
   if (buffer.is_null()) {
     thrower.RangeError("could not allocate memory");
@@ -808,15 +810,7 @@ void WebAssemblyMemoryGrow(const v8::FunctionCallbackInfo<v8::Value>& args) {
     return;
   }
   if (!old_buffer->is_shared()) {
-    // When delta_size == 0, or guard pages are enabled, the same backing store
-    // is used. To be spec compliant, the buffer associated with the memory
-    // object needs to be detached. Setup a new buffer with the same backing
-    // store, detach the old buffer, and do not free backing store memory.
     bool free_memory = delta_size != 0 && !old_buffer->has_guard_region();
-    if ((!free_memory && old_size != 0) || new_size64 == 0) {
-      i::WasmMemoryObject::SetupNewBufferWithSameBackingStore(
-          i_isolate, receiver, static_cast<uint32_t>(new_size64));
-    }
     i::wasm::DetachMemoryBuffer(i_isolate, old_buffer, free_memory);
   }
   v8::ReturnValue<v8::Value> return_value = args.GetReturnValue();

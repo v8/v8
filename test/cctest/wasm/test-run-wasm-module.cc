@@ -1096,19 +1096,15 @@ TEST(Run_WasmModule_Buffer_Externalized_GrowMem) {
 
     uint32_t result = WasmMemoryObject::Grow(isolate, mem_obj, 4);
     bool free_memory = !memory->has_guard_region();
-    if (!free_memory) {
-      // current_pages = Initial memory size(16) + GrowWebAssemblyMemory(4)
-      const uint32_t current_pages = 20;
-      i::WasmMemoryObject::SetupNewBufferWithSameBackingStore(isolate, mem_obj,
-                                                              current_pages);
-    }
     wasm::DetachMemoryBuffer(isolate, memory, free_memory);
     CHECK_EQ(16, result);
     memory = handle(mem_obj->array_buffer());
     instance->memory_object()->set_array_buffer(*memory);
     // Externalize should make no difference without the JS API as in this case
     // the buffer is not detached.
-    v8::Utils::ToLocal(memory)->Externalize();
+    if (!memory->has_guard_region()) {
+      v8::Utils::ToLocal(memory)->Externalize();
+    }
     result = testing::RunWasmModuleForTesting(isolate, instance, 0, nullptr);
     CHECK_EQ(kExpectedValue, result);
     // Free the buffer as the tracker does not know about it.

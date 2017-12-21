@@ -109,8 +109,8 @@ Handle<JSArrayBuffer> NewArrayBuffer(Isolate* isolate, size_t size,
                           size, is_external, enable_guard_regions, shared);
 }
 
-void DetachMemoryBuffer(Isolate* isolate, Handle<JSArrayBuffer> buffer,
-                        bool free_memory) {
+void ExternalizeMemoryBuffer(Isolate* isolate, Handle<JSArrayBuffer> buffer,
+                             bool free_memory) {
   const bool is_external = buffer->is_external();
   DCHECK(!buffer->is_neuterable());
   if (!is_external) {
@@ -125,6 +125,13 @@ void DetachMemoryBuffer(Isolate* isolate, Handle<JSArrayBuffer> buffer,
       buffer->FreeBackingStore();
     }
   }
+}
+
+void DetachMemoryBuffer(Isolate* isolate, Handle<JSArrayBuffer> buffer,
+                        bool free_memory) {
+  DCHECK(!buffer->is_neuterable());
+  ExternalizeMemoryBuffer(isolate, buffer, free_memory);
+  DCHECK(buffer->is_external());
   buffer->set_is_neuterable(true);
   buffer->Neuter();
 }

@@ -18993,7 +18993,7 @@ void JSArrayBuffer::Setup(Handle<JSArrayBuffer> array_buffer, Isolate* isolate,
   // already been promoted.
   array_buffer->set_backing_store(data);
 
-  array_buffer->set_allocation_base(data);
+  array_buffer->set_allocation_base(allocation_base);
   array_buffer->set_allocation_length(allocation_length);
 
   if (data && !is_external) {
