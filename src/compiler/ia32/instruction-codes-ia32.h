@@ -112,8 +112,6 @@ namespace compiler {
   V(IA32PushFloat64)               \
   V(IA32Poke)                      \
   V(IA32Peek)                      \
-  V(IA32PeekFloat32)               \
-  V(IA32PeekFloat64)               \
   V(IA32StackCheck)                \
   V(SSEF32x4Splat)                 \
   V(AVXF32x4Splat)                 \

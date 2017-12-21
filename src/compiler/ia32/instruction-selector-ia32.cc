@@ -1087,21 +1087,21 @@ void InstructionSelector::EmitPrepareResults(ZoneVector<PushParameter>* results,
   int reverse_slot = 0;
   for (PushParameter output : *results) {
     if (!output.location.IsCallerFrameSlot()) continue;
-    reverse_slot += output.location.GetSizeInPointers();
+    ++reverse_slot;
     // Skip any alignment holes in nodes.
-    if (output.node == nullptr) continue;
-    DCHECK(!descriptor->IsCFunctionCall());
-    if (output.location.GetType() == MachineType::Float32()) {
-      MarkAsFloat32(output.node);
-      InstructionOperand result = g.DefineAsRegister(output.node);
-      Emit(kIA32PeekFloat32 | MiscField::encode(reverse_slot), result);
-    } else if (output.location.GetType() == MachineType::Float64()) {
-      MarkAsFloat64(output.node);
-      InstructionOperand result = g.DefineAsRegister(output.node);
-      Emit(kIA32PeekFloat64 | MiscField::encode(reverse_slot - 1), result);
-    } else {
+    if (output.node != nullptr) {
+      DCHECK(!descriptor->IsCFunctionCall());
+      if (output.location.GetType() == MachineType::Float32()) {
+        MarkAsFloat32(output.node);
+      } else if (output.location.GetType() == MachineType::Float64()) {
+        MarkAsFloat64(output.node);
+      }
       InstructionOperand result = g.DefineAsRegister(output.node);
       Emit(kIA32Peek | MiscField::encode(reverse_slot), result);
+    }
+    if (output.location.GetType() == MachineType::Float64()) {
+      // Float64 require an implicit second slot.
+      ++reverse_slot;
     }
   }
 }

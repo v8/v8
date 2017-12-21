@@ -1804,25 +1804,21 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       }
       break;
     }
-    case kIA32PeekFloat32: {
-      int reverse_slot = MiscField::decode(instr->opcode());
-      int offset =
-          FrameSlotToFPOffset(frame()->GetTotalFrameSlotCount() - reverse_slot);
-      __ movss(i.OutputFloatRegister(), Operand(ebp, offset));
-      break;
-    }
-    case kIA32PeekFloat64: {
-      int reverse_slot = MiscField::decode(instr->opcode());
-      int offset =
-          FrameSlotToFPOffset(frame()->GetTotalFrameSlotCount() - reverse_slot);
-      __ movsd(i.OutputDoubleRegister(), Operand(ebp, offset));
-      break;
-    }
     case kIA32Peek: {
       int reverse_slot = MiscField::decode(instr->opcode());
       int offset =
           FrameSlotToFPOffset(frame()->GetTotalFrameSlotCount() - reverse_slot);
-      __ mov(i.OutputRegister(), Operand(ebp, offset));
+      if (instr->OutputAt(0)->IsFPRegister()) {
+        LocationOperand* op = LocationOperand::cast(instr->OutputAt(0));
+        if (op->representation() == MachineRepresentation::kFloat64) {
+          __ movsd(i.OutputDoubleRegister(), Operand(ebp, offset));
+        } else {
+          DCHECK_EQ(MachineRepresentation::kFloat32, op->representation());
+          __ movss(i.OutputFloatRegister(), Operand(ebp, offset));
+        }
+      } else {
+        __ mov(i.OutputRegister(), Operand(ebp, offset));
+      }
       break;
     }
     case kSSEF32x4Splat: {
