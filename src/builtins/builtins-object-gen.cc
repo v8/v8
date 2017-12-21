@@ -101,6 +101,8 @@ TF_BUILTIN(ObjectPrototypeToLocaleString, CodeStubAssembler) {
   TNode<Context> context = CAST(Parameter(Descriptor::kContext));
   TNode<Object> receiver = CAST(Parameter(Descriptor::kReceiver));
 
+  PerformStackCheck(context);
+
   Label if_null_or_undefined(this, Label::kDeferred);
   GotoIf(IsNullOrUndefined(receiver), &if_null_or_undefined);
 
