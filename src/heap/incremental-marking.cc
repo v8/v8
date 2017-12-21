@@ -638,6 +638,13 @@ void IncrementalMarking::UpdateMarkingWorklistAfterScavenge() {
   });
 }
 
+void IncrementalMarking::UpdateMarkedBytesAfterScavenge(
+    size_t dead_bytes_in_new_space) {
+  if (!IsMarking()) return;
+  bytes_marked_ahead_of_schedule_ -=
+      Min(bytes_marked_ahead_of_schedule_, dead_bytes_in_new_space);
+}
+
 bool IncrementalMarking::IsFixedArrayWithProgressBar(HeapObject* obj) {
   if (!obj->IsFixedArray()) return false;
   MemoryChunk* chunk = MemoryChunk::FromAddress(obj->address());
