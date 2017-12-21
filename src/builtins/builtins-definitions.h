@@ -311,6 +311,10 @@ namespace internal {
   /* ES6 #sec-array.prototype.reduceRight */                                   \
   TFS(ArrayReduceRightLoopContinuation, kReceiver, kCallbackFn, kThisArg,      \
       kAccumulator, kObject, kInitialK, kLength, kTo)                          \
+  TFJ(ArrayReduceRightLoopEagerDeoptContinuation, 4, kCallbackFn, kInitialK,   \
+      kLength, kAccumulator)                                                   \
+  TFJ(ArrayReduceRightLoopLazyDeoptContinuation, 4, kCallbackFn, kInitialK,    \
+      kLength, kResult)                                                        \
   TFJ(ArrayReduceRight, SharedFunctionInfo::kDontAdaptArgumentsSentinel)       \
   /* ES6 #sec-array.prototype.entries */                                       \
   TFJ(ArrayPrototypeEntries, 0)                                                \
