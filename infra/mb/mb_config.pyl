@@ -204,6 +204,7 @@
       'v8_linux_gcc_rel': 'gn_release_x86_gcc_minimal_symbols',
       'v8_linux_shared_compile_rel': 'gn_release_x86_shared_verify_heap',
       'v8_linux64_gcc_compile_dbg': 'gn_debug_x64_gcc',
+      'v8_linux64_fyi_rel_ng': 'gn_release_x64_test_features_trybot',
       'v8_linux64_rel_ng': 'gn_release_x64_test_features_trybot',
       'v8_linux64_verify_csa_rel_ng': 'gn_release_x64_verify_csa',
       'v8_linux64_gyp_rel_ng': 'gyp_release_x64',
