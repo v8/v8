@@ -508,7 +508,7 @@ class ArrayBufferAllocator : public v8::ArrayBuffer::Allocator {
     size_t page_size = i::AllocatePageSize();
     size_t allocated = RoundUp(length, page_size);
     void* address = i::AllocatePages(i::GetRandomMmapAddr(), allocated,
-                                     page_size, i::MemoryPermission::kNoAccess);
+                                     page_size, PageAllocator::kNoAccess);
     return address;
   }
 
@@ -532,10 +532,10 @@ class ArrayBufferAllocator : public v8::ArrayBuffer::Allocator {
       v8::ArrayBuffer::Allocator::Protection protection) {
     DCHECK(protection == v8::ArrayBuffer::Allocator::Protection::kNoAccess ||
            protection == v8::ArrayBuffer::Allocator::Protection::kReadWrite);
-    i::MemoryPermission permission =
+    PageAllocator::Permission permission =
         (protection == v8::ArrayBuffer::Allocator::Protection::kReadWrite)
-            ? i::MemoryPermission::kReadWrite
-            : i::MemoryPermission::kNoAccess;
+            ? PageAllocator::kReadWrite
+            : PageAllocator::kNoAccess;
     CHECK(i::SetPermissions(data, length, permission));
   }
 };

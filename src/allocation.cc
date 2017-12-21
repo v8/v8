@@ -6,7 +6,9 @@
 
 #include <stdlib.h>  // For free, malloc.
 #include "src/base/bits.h"
+#include "src/base/lazy-instance.h"
 #include "src/base/logging.h"
+#include "src/base/page-allocator.h"
 #include "src/base/platform/platform.h"
 #include "src/utils.h"
 #include "src/v8.h"
@@ -37,6 +39,26 @@ void* AlignedAllocInternal(size_t size, size_t alignment) {
 #endif
   return ptr;
 }
+
+// TODO(bbudge) Simplify this once all embedders implement a page allocator.
+struct InitializePageAllocator {
+  static void Construct(void* page_allocator_ptr_arg) {
+    auto page_allocator_ptr =
+        reinterpret_cast<v8::PageAllocator**>(page_allocator_ptr_arg);
+    v8::PageAllocator* page_allocator =
+        V8::GetCurrentPlatform()->GetPageAllocator();
+    if (page_allocator == nullptr) {
+      static v8::base::PageAllocator default_allocator;
+      page_allocator = &default_allocator;
+    }
+    *page_allocator_ptr = page_allocator;
+  }
+};
+
+static base::LazyInstance<v8::PageAllocator*, InitializePageAllocator>::type
+    page_allocator = LAZY_INSTANCE_INITIALIZER;
+
+v8::PageAllocator* GetPageAllocator() { return page_allocator.Get(); }
 
 }  // namespace
 
@@ -103,109 +125,59 @@ void AlignedFree(void *ptr) {
 #endif
 }
 
-#define STATIC_ASSERT_ENUM(a, b)                            \
-  static_assert(static_cast<int>(a) == static_cast<int>(b), \
-                "mismatching enum: " #a)
+size_t AllocatePageSize() { return GetPageAllocator()->AllocatePageSize(); }
 
-STATIC_ASSERT_ENUM(MemoryPermission::kNoAccess,
-                   base::OS::MemoryPermission::kNoAccess);
-STATIC_ASSERT_ENUM(MemoryPermission::kReadWrite,
-                   base::OS::MemoryPermission::kReadWrite);
-STATIC_ASSERT_ENUM(MemoryPermission::kReadWriteExecute,
-                   base::OS::MemoryPermission::kReadWriteExecute);
-STATIC_ASSERT_ENUM(MemoryPermission::kReadExecute,
-                   base::OS::MemoryPermission::kReadExecute);
-
-#undef STATIC_ASSERT_ENUM
-
-// Default Memory Manager.
-// TODO(bbudge) Move this to libplatform.
-class DefaultMemoryManager {
- public:
-  static size_t AllocatePageSize() { return base::OS::AllocatePageSize(); }
-
-  static size_t CommitPageSize() { return base::OS::CommitPageSize(); }
-
-  static void SetRandomMmapSeed(int64_t seed) {
-    base::OS::SetRandomMmapSeed(seed);
-  }
-
-  static void* GetRandomMmapAddr() { return base::OS::GetRandomMmapAddr(); }
-
-  static void* AllocatePages(void* address, size_t size, size_t alignment,
-                             MemoryPermission access) {
-    void* result =
-        base::OS::Allocate(address, size, alignment,
-                           static_cast<base::OS::MemoryPermission>(access));
-#if defined(LEAK_SANITIZER)
-    if (result != nullptr) {
-      __lsan_register_root_region(result, size);
-    }
-#endif
-    return result;
-  }
-
-  static bool FreePages(void* address, const size_t size) {
-    bool result = base::OS::Free(address, size);
-#if defined(LEAK_SANITIZER)
-    if (result) {
-      __lsan_unregister_root_region(address, size);
-    }
-#endif
-    return result;
-  }
-
-  static bool ReleasePages(void* address, size_t size, size_t new_size) {
-    DCHECK_LT(new_size, size);
-    bool result = base::OS::Release(reinterpret_cast<byte*>(address) + new_size,
-                                    size - new_size);
-#if defined(LEAK_SANITIZER)
-    if (result) {
-      __lsan_unregister_root_region(address, size);
-      __lsan_register_root_region(address, new_size);
-    }
-#endif
-    return result;
-  }
-
-  static bool SetPermissions(void* address, size_t size,
-                             MemoryPermission access) {
-    return base::OS::SetPermissions(
-        address, size, static_cast<base::OS::MemoryPermission>(access));
-  }
-};
-
-size_t AllocatePageSize() { return DefaultMemoryManager::AllocatePageSize(); }
-
-size_t CommitPageSize() { return DefaultMemoryManager::CommitPageSize(); }
+size_t CommitPageSize() { return GetPageAllocator()->CommitPageSize(); }
 
 void SetRandomMmapSeed(int64_t seed) {
-  DefaultMemoryManager::SetRandomMmapSeed(seed);
+  GetPageAllocator()->SetRandomMmapSeed(seed);
 }
 
-void* GetRandomMmapAddr() { return DefaultMemoryManager::GetRandomMmapAddr(); }
+void* GetRandomMmapAddr() { return GetPageAllocator()->GetRandomMmapAddr(); }
 
 void* AllocatePages(void* address, size_t size, size_t alignment,
-                    MemoryPermission access) {
-  return DefaultMemoryManager::AllocatePages(address, size, alignment, access);
+                    PageAllocator::Permission access) {
+  void* result =
+      GetPageAllocator()->AllocatePages(address, size, alignment, access);
+#if defined(LEAK_SANITIZER)
+  if (result != nullptr) {
+    __lsan_register_root_region(result, size);
+  }
+#endif
+  return result;
 }
 
 bool FreePages(void* address, const size_t size) {
-  return DefaultMemoryManager::FreePages(address, size);
+  bool result = GetPageAllocator()->FreePages(address, size);
+#if defined(LEAK_SANITIZER)
+  if (result) {
+    __lsan_unregister_root_region(address, size);
+  }
+#endif
+  return result;
 }
 
 bool ReleasePages(void* address, size_t size, size_t new_size) {
-  return DefaultMemoryManager::ReleasePages(address, size, new_size);
+  DCHECK_LT(new_size, size);
+  bool result = GetPageAllocator()->ReleasePages(address, size, new_size);
+#if defined(LEAK_SANITIZER)
+  if (result) {
+    __lsan_unregister_root_region(address, size);
+    __lsan_register_root_region(address, new_size);
+  }
+#endif
+  return result;
 }
 
-bool SetPermissions(void* address, size_t size, MemoryPermission access) {
-  return DefaultMemoryManager::SetPermissions(address, size, access);
+bool SetPermissions(void* address, size_t size,
+                    PageAllocator::Permission access) {
+  return GetPageAllocator()->SetPermissions(address, size, access);
 }
 
 byte* AllocatePage(void* address, size_t* allocated) {
   size_t page_size = AllocatePageSize();
-  void* result = AllocatePages(address, page_size, page_size,
-                               MemoryPermission::kReadWrite);
+  void* result =
+      AllocatePages(address, page_size, page_size, PageAllocator::kReadWrite);
   if (result != nullptr) *allocated = page_size;
   return static_cast<byte*>(result);
 }
@@ -217,7 +189,7 @@ VirtualMemory::VirtualMemory(size_t size, void* hint, size_t alignment)
   size_t page_size = AllocatePageSize();
   size_t alloc_size = RoundUp(size, page_size);
   address_ =
-      AllocatePages(hint, alloc_size, alignment, MemoryPermission::kNoAccess);
+      AllocatePages(hint, alloc_size, alignment, PageAllocator::kNoAccess);
   if (address_ != nullptr) {
     size_ = alloc_size;
   }
@@ -235,7 +207,7 @@ void VirtualMemory::Reset() {
 }
 
 bool VirtualMemory::SetPermissions(void* address, size_t size,
-                                   MemoryPermission access) {
+                                   PageAllocator::Permission access) {
   CHECK(InVM(address, size));
   bool result = v8::internal::SetPermissions(address, size, access);
   DCHECK(result);

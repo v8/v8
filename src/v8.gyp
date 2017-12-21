@@ -1913,6 +1913,8 @@
         'base/once.cc',
         'base/once.h',
         'base/optional.h',
+        'base/page-allocator.cc',
+        'base/page-allocator.h',
         'base/platform/elapsed-timer.h',
         'base/platform/time.cc',
         'base/platform/time.h',

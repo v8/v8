@@ -693,7 +693,7 @@ bool WasmCodeManager::Commit(Address start, size_t size) {
     remaining_uncommitted_.Increment(size);
     return false;
   }
-  bool ret = SetPermissions(start, size, MemoryPermission::kReadWrite);
+  bool ret = SetPermissions(start, size, PageAllocator::kReadWrite);
   TRACE_HEAP("Setting rw permissions for %p:%p\n",
              reinterpret_cast<void*>(start),
              reinterpret_cast<void*>(start + size));
@@ -794,8 +794,8 @@ bool NativeModule::SetExecutable(bool executable) {
   if (is_executable_ == executable) return true;
   TRACE_HEAP("Setting module %zu as executable: %d.\n", instance_id,
              executable);
-  MemoryPermission permission = executable ? MemoryPermission::kReadExecute
-                                           : MemoryPermission::kReadWrite;
+  PageAllocator::Permission permission =
+      executable ? PageAllocator::kReadExecute : PageAllocator::kReadWrite;
 
 #if V8_OS_WIN
   // On windows, we need to switch permissions per separate virtual memory

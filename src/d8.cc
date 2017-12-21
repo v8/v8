@@ -148,7 +148,7 @@ class ShellArrayBufferAllocator : public ArrayBufferAllocatorBase {
     // Rounding up could go over the limit.
     if (allocated >= kTwoGB) return nullptr;
     return i::AllocatePages(nullptr, allocated, page_size,
-                            i::MemoryPermission::kReadWrite);
+                            PageAllocator::kReadWrite);
   }
 
   void FreeVM(void* data, size_t length) {

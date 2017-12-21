@@ -169,7 +169,7 @@ MemCopyUint8Function CreateMemCopyUint8Function(Isolate* isolate,
   DCHECK(!RelocInfo::RequiresRelocation(isolate, desc));
 
   Assembler::FlushICache(isolate, buffer, allocated);
-  CHECK(SetPermissions(buffer, allocated, MemoryPermission::kReadExecute));
+  CHECK(SetPermissions(buffer, allocated, PageAllocator::kReadExecute));
   return FUNCTION_CAST<MemCopyUint8Function>(buffer);
 #endif
 }
@@ -258,7 +258,7 @@ MemCopyUint16Uint8Function CreateMemCopyUint16Uint8Function(
   masm.GetCode(isolate, &desc);
 
   Assembler::FlushICache(isolate, buffer, allocated);
-  CHECK(SetPermissions(buffer, allocated, MemoryPermission::kReadExecute));
+  CHECK(SetPermissions(buffer, allocated, PageAllocator::kReadExecute));
   return FUNCTION_CAST<MemCopyUint16Uint8Function>(buffer);
 #endif
 }
@@ -285,7 +285,7 @@ UnaryMathFunctionWithIsolate CreateSqrtFunction(Isolate* isolate) {
   DCHECK(!RelocInfo::RequiresRelocation(isolate, desc));
 
   Assembler::FlushICache(isolate, buffer, allocated);
-  CHECK(SetPermissions(buffer, allocated, MemoryPermission::kReadExecute));
+  CHECK(SetPermissions(buffer, allocated, PageAllocator::kReadExecute));
   return FUNCTION_CAST<UnaryMathFunctionWithIsolate>(buffer);
 #endif
 }

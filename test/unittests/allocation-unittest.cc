@@ -93,7 +93,7 @@ class MemoryAllocationPermissionsTest : public ::testing::Test {
     }
   }
 
-  void TestPermissions(v8::internal::MemoryPermission permission, bool can_read,
+  void TestPermissions(PageAllocator::Permission permission, bool can_read,
                        bool can_write) {
     const size_t page_size = AllocatePageSize();
     int* buffer = static_cast<int*>(
@@ -109,9 +109,9 @@ sigjmp_buf MemoryAllocationPermissionsTest::continuation_;
 }  // namespace
 
 TEST_F(MemoryAllocationPermissionsTest, DoTest) {
-  TestPermissions(MemoryPermission::kNoAccess, false, false);
-  TestPermissions(MemoryPermission::kReadWrite, true, true);
-  TestPermissions(MemoryPermission::kReadWriteExecute, true, true);
+  TestPermissions(PageAllocator::Permission::kNoAccess, false, false);
+  TestPermissions(PageAllocator::Permission::kReadWrite, true, true);
+  TestPermissions(PageAllocator::Permission::kReadWriteExecute, true, true);
 }
 #endif  // V8_OS_POSIX
 
@@ -127,7 +127,7 @@ TEST(AllocationTest, AllocateAndFree) {
   const size_t kAllocationSize = 1 * v8::internal::MB;
   void* mem_addr = v8::internal::AllocatePages(
       v8::internal::GetRandomMmapAddr(), kAllocationSize, page_size,
-      v8::internal::MemoryPermission::kReadWrite);
+      PageAllocator::Permission::kReadWrite);
   CHECK_NOT_NULL(mem_addr);
   CHECK(v8::internal::FreePages(mem_addr, kAllocationSize));
 
@@ -135,7 +135,7 @@ TEST(AllocationTest, AllocateAndFree) {
   const size_t kBigAlignment = 64 * v8::internal::MB;
   void* aligned_mem_addr = v8::internal::AllocatePages(
       v8::internal::GetRandomMmapAddr(), kAllocationSize, kBigAlignment,
-      v8::internal::MemoryPermission::kReadWrite);
+      PageAllocator::Permission::kReadWrite);
   CHECK_NOT_NULL(aligned_mem_addr);
   CHECK_EQ(aligned_mem_addr, AlignedAddress(aligned_mem_addr, kBigAlignment));
   CHECK(v8::internal::FreePages(aligned_mem_addr, kAllocationSize));
@@ -146,17 +146,17 @@ TEST(AllocationTest, ReserveMemory) {
   const size_t kAllocationSize = 1 * v8::internal::MB;
   void* mem_addr = v8::internal::AllocatePages(
       v8::internal::GetRandomMmapAddr(), kAllocationSize, page_size,
-      v8::internal::MemoryPermission::kReadWrite);
+      PageAllocator::Permission::kReadWrite);
   CHECK_NE(0, page_size);
   CHECK_NOT_NULL(mem_addr);
   size_t commit_size = v8::internal::CommitPageSize();
-  CHECK(v8::internal::SetPermissions(
-      mem_addr, commit_size, v8::internal::MemoryPermission::kReadWrite));
+  CHECK(v8::internal::SetPermissions(mem_addr, commit_size,
+                                     PageAllocator::Permission::kReadWrite));
   // Check whether we can write to memory.
   int* addr = static_cast<int*>(mem_addr);
   addr[v8::internal::KB - 1] = 2;
-  CHECK(v8::internal::SetPermissions(
-      mem_addr, commit_size, v8::internal::MemoryPermission::kNoAccess));
+  CHECK(v8::internal::SetPermissions(mem_addr, commit_size,
+                                     PageAllocator::Permission::kNoAccess));
   CHECK(v8::internal::FreePages(mem_addr, kAllocationSize));
 }
 

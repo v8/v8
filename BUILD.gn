@@ -2525,6 +2525,8 @@ v8_component("v8_libbase") {
     "src/base/once.cc",
     "src/base/once.h",
     "src/base/optional.h",
+    "src/base/page-allocator.cc",
+    "src/base/page-allocator.h",
     "src/base/platform/condition-variable.cc",
     "src/base/platform/condition-variable.h",
     "src/base/platform/elapsed-timer.h",

@@ -76,15 +76,6 @@ class FreeStoreAllocationPolicy {
 void* AlignedAlloc(size_t size, size_t alignment);
 void AlignedFree(void *ptr);
 
-// These must be in sync with the permissions in base/platform/platform.h.
-enum class MemoryPermission {
-  kNoAccess,
-  kReadWrite,
-  // TODO(hpayer): Remove this flag. Memory should never be rwx.
-  kReadWriteExecute,
-  kReadExecute
-};
-
 // Gets the page granularity for AllocatePages and FreePages. Addresses returned
 // by AllocatePages and AllocatePage are aligned to this size.
 V8_EXPORT_PRIVATE size_t AllocatePageSize();
@@ -92,7 +83,8 @@ V8_EXPORT_PRIVATE size_t AllocatePageSize();
 // Gets the granularity at which the permissions and release calls can be made.
 V8_EXPORT_PRIVATE size_t CommitPageSize();
 
-// Sets the random seed for repeatable sequences of random mmap addresses.
+// Sets the random seed so that GetRandomMmapAddr() will generate repeatable
+// sequences of random mmap addresses.
 V8_EXPORT_PRIVATE void SetRandomMmapSeed(int64_t seed);
 
 // Generate a random address to be used for hinting allocation calls.
@@ -105,7 +97,7 @@ V8_EXPORT_PRIVATE void* GetRandomMmapAddr();
 V8_EXPORT_PRIVATE
 V8_WARN_UNUSED_RESULT void* AllocatePages(void* address, size_t size,
                                           size_t alignment,
-                                          MemoryPermission access);
+                                          PageAllocator::Permission access);
 
 // Frees memory allocated by a call to AllocatePages. |address| and |size| must
 // be multiples of AllocatePageSize(). Returns true on success, otherwise false.
@@ -127,7 +119,7 @@ V8_WARN_UNUSED_RESULT bool ReleasePages(void* address, size_t size,
 // false.
 V8_EXPORT_PRIVATE
 V8_WARN_UNUSED_RESULT bool SetPermissions(void* address, size_t size,
-                                          MemoryPermission access);
+                                          PageAllocator::Permission access);
 
 // Convenience function that allocates a single system page with read and write
 // permissions. |address| is a hint. Returns the base address of the memory and
@@ -183,7 +175,8 @@ class V8_EXPORT_PRIVATE VirtualMemory {
 
   // Sets permissions according to the access argument. address and size must be
   // multiples of CommitPageSize(). Returns true on success, otherwise false.
-  bool SetPermissions(void* address, size_t size, MemoryPermission access);
+  bool SetPermissions(void* address, size_t size,
+                      PageAllocator::Permission access);
 
   // Releases memory after |free_start|. Returns the number of bytes released.
   size_t Release(void* free_start);

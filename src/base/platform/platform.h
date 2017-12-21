@@ -37,11 +37,6 @@
 
 namespace v8 {
 
-namespace internal {
-// TODO(bbudge) Move this to libplatform.
-class DefaultMemoryManager;
-}  // namespace internal
-
 namespace base {
 
 // ----------------------------------------------------------------------------
@@ -99,9 +94,8 @@ inline intptr_t InternalGetExistingThreadLocal(intptr_t index) {
 
 #endif  // V8_NO_FAST_TLS
 
-
+class PageAllocator;
 class TimezoneCache;
-
 
 // ----------------------------------------------------------------------------
 // OS
@@ -161,9 +155,8 @@ class V8_BASE_EXPORT OS {
   static PRINTF_FORMAT(1, 2) void PrintError(const char* format, ...);
   static PRINTF_FORMAT(1, 0) void VPrintError(const char* format, va_list args);
 
-  // OS memory management API. Except for testing, use the equivalent API in
-  // v8::internal (src/allocation.h).
-
+  // Memory permissions. These should be kept in sync with the ones in
+  // v8::PageAllocator.
   enum class MemoryPermission {
     kNoAccess,
     kReadWrite,
@@ -256,7 +249,7 @@ class V8_BASE_EXPORT OS {
   // These classes use the private memory management API below.
   friend class MemoryMappedFile;
   friend class PosixMemoryMappedFile;
-  friend class v8::internal::DefaultMemoryManager;
+  friend class v8::base::PageAllocator;
 
   static size_t AllocatePageSize();
 

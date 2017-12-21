@@ -131,7 +131,7 @@ bool CodeRange::SetUp(size_t requested) {
   // the beginning of an executable space.
   if (reserved_area > 0) {
     if (!reservation.SetPermissions(base, reserved_area,
-                                    MemoryPermission::kReadWrite))
+                                    PageAllocator::kReadWrite))
       return false;
 
     base += reserved_area;
@@ -226,7 +226,7 @@ bool CodeRange::CommitRawMemory(Address start, size_t length) {
 
 bool CodeRange::UncommitRawMemory(Address start, size_t length) {
   return virtual_memory_.SetPermissions(start, length,
-                                        MemoryPermission::kNoAccess);
+                                        PageAllocator::kNoAccess);
 }
 
 
@@ -234,7 +234,7 @@ void CodeRange::FreeRawMemory(Address address, size_t length) {
   DCHECK(IsAddressAligned(address, MemoryChunk::kAlignment));
   base::LockGuard<base::Mutex> guard(&code_range_mutex_);
   free_list_.emplace_back(address, length);
-  virtual_memory_.SetPermissions(address, length, MemoryPermission::kNoAccess);
+  virtual_memory_.SetPermissions(address, length, PageAllocator::kNoAccess);
 }
 
 bool CodeRange::ReserveBlock(const size_t requested_size, FreeBlock* block) {
@@ -398,7 +398,7 @@ int MemoryAllocator::Unmapper::NumberOfChunks() {
 
 bool MemoryAllocator::CommitMemory(Address base, size_t size,
                                    Executability executable) {
-  if (!SetPermissions(base, size, MemoryPermission::kReadWrite)) {
+  if (!SetPermissions(base, size, PageAllocator::kReadWrite)) {
     return false;
   }
   UpdateAllocatedSpaceLimits(base, base + size);
@@ -460,7 +460,7 @@ Address MemoryAllocator::AllocateAlignedMemory(
     }
   } else {
     if (reservation.SetPermissions(base, commit_size,
-                                   MemoryPermission::kReadWrite)) {
+                                   PageAllocator::kReadWrite)) {
       UpdateAllocatedSpaceLimits(base, base + commit_size);
     } else {
       base = nullptr;
@@ -525,7 +525,7 @@ void MemoryChunk::SetReadAndExecutable() {
     DCHECK(IsAddressAligned(protect_start, page_size));
     size_t protect_size = RoundUp(area_size(), page_size);
     CHECK(SetPermissions(protect_start, protect_size,
-                         MemoryPermission::kReadExecute));
+                         PageAllocator::kReadExecute));
   }
 }
 
@@ -544,7 +544,7 @@ void MemoryChunk::SetReadAndWritable() {
     DCHECK(IsAddressAligned(unprotect_start, page_size));
     size_t unprotect_size = RoundUp(area_size(), page_size);
     CHECK(SetPermissions(unprotect_start, unprotect_size,
-                         MemoryPermission::kReadWrite));
+                         PageAllocator::kReadWrite));
   }
 }
 
@@ -599,7 +599,7 @@ MemoryChunk* MemoryChunk::Initialize(Heap* heap, Address base, size_t size,
       DCHECK(IsAddressAligned(area_start, page_size));
       size_t area_size = RoundUp(area_end - area_start, page_size);
       CHECK(SetPermissions(area_start, area_size,
-                           MemoryPermission::kReadWriteExecute));
+                           PageAllocator::kReadWriteExecute));
     }
   }
 
@@ -939,7 +939,7 @@ void MemoryAllocator::PartialFreeMemory(MemoryChunk* chunk, Address start_free,
     DCHECK_EQ(chunk->address() + chunk->size(),
               chunk->area_end() + CodePageGuardSize());
     reservation->SetPermissions(chunk->area_end_, page_size,
-                                MemoryPermission::kNoAccess);
+                                PageAllocator::kNoAccess);
   }
   // On e.g. Windows, a reservation may be larger than a page and releasing
   // partially starting at |start_free| will also release the potentially
@@ -1091,7 +1091,7 @@ bool MemoryAllocator::CommitBlock(Address start, size_t size,
 
 
 bool MemoryAllocator::UncommitBlock(Address start, size_t size) {
-  if (!SetPermissions(start, size, MemoryPermission::kNoAccess)) return false;
+  if (!SetPermissions(start, size, PageAllocator::kNoAccess)) return false;
   isolate_->counters()->memory_allocated()->Decrement(static_cast<int>(size));
   return true;
 }
@@ -1158,24 +1158,23 @@ bool MemoryAllocator::CommitExecutableMemory(VirtualMemory* vm, Address start,
   const Address code_area = start + code_area_offset;
   const Address post_guard_page = start + reserved_size - guard_size;
   // Commit the non-executable header, from start to pre-code guard page.
-  if (vm->SetPermissions(start, pre_guard_offset,
-                         MemoryPermission::kReadWrite)) {
+  if (vm->SetPermissions(start, pre_guard_offset, PageAllocator::kReadWrite)) {
     // Create the pre-code guard page, following the header.
     if (vm->SetPermissions(pre_guard_page, page_size,
-                           MemoryPermission::kNoAccess)) {
+                           PageAllocator::kNoAccess)) {
       // Commit the executable code body.
       if (vm->SetPermissions(code_area, commit_size - pre_guard_offset,
-                             MemoryPermission::kReadWrite)) {
+                             PageAllocator::kReadWrite)) {
         // Create the post-code guard page.
         if (vm->SetPermissions(post_guard_page, page_size,
-                               MemoryPermission::kNoAccess)) {
+                               PageAllocator::kNoAccess)) {
           UpdateAllocatedSpaceLimits(start, code_area + commit_size);
           return true;
         }
-        vm->SetPermissions(code_area, commit_size, MemoryPermission::kNoAccess);
+        vm->SetPermissions(code_area, commit_size, PageAllocator::kNoAccess);
       }
     }
-    vm->SetPermissions(start, pre_guard_offset, MemoryPermission::kNoAccess);
+    vm->SetPermissions(start, pre_guard_offset, PageAllocator::kNoAccess);
   }
   return false;
 }
