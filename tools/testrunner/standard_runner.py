@@ -156,6 +156,8 @@ class StandardTestRunner(base_runner.BaseTestRunner):
       parser.add_option("--extra-flags",
                         help="Additional flags to pass to each test command",
                         action="append", default=[])
+      parser.add_option("--infra-staging", help="Use new test runner features",
+                        default=False, action="store_true")
       parser.add_option("--isolates", help="Whether to test isolates",
                         default=False, action="store_true")
       parser.add_option("-j", help="The number of parallel tasks to run",
@@ -299,6 +301,10 @@ class StandardTestRunner(base_runner.BaseTestRunner):
 
       # Use developer defaults if no variant was specified.
       options.variants = options.variants or "dev"
+
+      if options.variants == "infra_staging":
+        options.variants = "exhaustive"
+        options.infra_staging = True
 
       # Resolve variant aliases and dedupe.
       # TODO(machenbach): Don't mutate global variable. Rather pass mutated
