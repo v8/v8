@@ -57,7 +57,7 @@ class ProgressIndicator(object):
     pass
 
   def PrintFailureHeader(self, test):
-    if test.suite.IsNegativeTest(test):
+    if test.output_proc.negative:
       negative_marker = '[negative] '
     else:
       negative_marker = ''
@@ -356,7 +356,7 @@ class JsonTestProgressIndicator(ProgressIndicator):
       "stdout": output.stdout,
       "stderr": output.stderr,
       "exit_code": output.exit_code,
-      "result": test.get_output_proc().get_outcome(output),
+      "result": test.output_proc.get_outcome(output),
       "expected": test.expected_outcomes,
       "duration": output.duration,
 
@@ -395,7 +395,7 @@ class FlakinessTestProgressIndicator(ProgressIndicator):
 
   def HasRun(self, test, output, has_unexpected_output):
     key = test.get_id()
-    outcome = test.get_output_proc().get_outcome(output)
+    outcome = test.output_proc.get_outcome(output)
     assert outcome in ["PASS", "FAIL", "CRASH", "TIMEOUT"]
     if test.run == 1:
       # First run of this test.

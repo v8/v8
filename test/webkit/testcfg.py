@@ -104,7 +104,8 @@ class TestCase(testcase.TestCase):
   def _get_source_path(self):
     return os.path.join(self.suite.root, self.path + self._get_suffix())
 
-  def get_output_proc(self):
+  @property
+  def output_proc(self):
     return self._outproc
 
 

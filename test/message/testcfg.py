@@ -71,8 +71,8 @@ class TestCase(testcase.TestCase):
     source = self.get_source()
     self._source_files = self._parse_source_files(source)
     self._source_flags = self._parse_source_flags(source)
-    self._out_proc = OutProc(os.path.join(self.suite.root, self.path),
-                             self._expected_fail())
+    self._outproc = OutProc(os.path.join(self.suite.root, self.path),
+                            self._expected_fail())
 
   def _parse_source_files(self, source):
     files = []
@@ -103,8 +103,9 @@ class TestCase(testcase.TestCase):
   def _get_source_path(self):
     return os.path.join(self.suite.root, self.path + self._get_suffix())
 
-  def get_output_proc(self):
-    return self._out_proc
+  @property
+  def output_proc(self):
+    return self._outproc
 
 
 class OutProc(outproc.OutProc):
@@ -151,9 +152,6 @@ class OutProc(outproc.OutProc):
       string.startswith("**") or
       string.startswith("ANDROID")
     )
-
-  def _is_negative(self):
-    return False
 
 
 def GetSuite(name, root):

@@ -60,7 +60,8 @@ class TestCase(testcase.TestCase):
   def get_shell(self):
     return 'inspector-test'
 
-  def get_output_proc(self):
+  @property
+  def output_proc(self):
     return self._outproc
 
 

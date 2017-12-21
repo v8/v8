@@ -8,10 +8,6 @@ from ..local import statusfile
 
 
 class OutProc(object):
-  def __init__(self, test):
-    # TODO(majeski): Get only necessary fields from the test.
-    self._test = test
-
   def get_outcome(self, output):
     if output.HasCrashed():
       return statusfile.CRASH
@@ -24,17 +20,19 @@ class OutProc(object):
 
   def _has_failed(self, output):
     execution_failed = self._is_failure_output(output)
-    if self._is_negative():
+    if self.negative:
       return not execution_failed
     return execution_failed
 
   def _is_failure_output(self, output):
-    # TODO(majeski): Move implementation.
-    return self._test.suite.IsFailureOutput(self._test, output)
+    return output.exit_code != 0
 
-  def _is_negative(self):
-    # TODO(majeski): Move implementation.
-    return self._test.suite.IsNegativeTest(self._test)
+  @property
+  def negative(self):
+    return False
+
+
+DEFAULT = OutProc()
 
 
 class ExpectedOutProc(OutProc):
@@ -103,6 +101,3 @@ class ExpectedOutProc(OutProc):
       line = line.strip()
       if not ignore_predicate(line):
         yield line
-
-  def _is_negative(self):
-    return False

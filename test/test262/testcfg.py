@@ -201,6 +201,16 @@ class TestCase(testcase.TestCase):
     source = self.get_source()
     self.test_record = self.suite.parse_test_record(source, self.path)
 
+    expected_exception = (
+        self.test_record
+          .get('negative', {})
+          .get('type', None)
+    )
+    if expected_exception is None:
+      self._outproc = NO_EXCEPTION
+    else:
+      self._outproc = OutProc(expected_exception)
+
   def _get_files_params(self, ctx):
     return (
         list(self.suite.harness) +
@@ -238,15 +248,9 @@ class TestCase(testcase.TestCase):
       return path
     return os.path.join(self.suite.testroot, filename)
 
-  def get_output_proc(self):
-    expected_exception = (
-        self.test_record
-          .get('negative', {})
-          .get('type', None)
-    )
-    if expected_exception is None:
-      return OutProc.NO_EXCEPTION
-    return OutProc(expected_exception)
+  @property
+  def output_proc(self):
+    return self._outproc
 
 
 class OutProc(outproc.OutProc):
@@ -271,11 +275,8 @@ class OutProc(outproc.OutProc):
     else:
       return None
 
-  def _is_negative(self):
-    return False
 
-
-OutProc.NO_EXCEPTION = OutProc()
+NO_EXCEPTION = OutProc()
 
 
 def GetSuite(name, root):

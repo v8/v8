@@ -237,11 +237,9 @@ class TestCase(object):
   def _get_source_path(self):
     return None
 
-  def get_output_proc(self):
-    return self._output_proc_class()(self)
-
-  def _output_proc_class(self):
-    return outproc.OutProc
+  @property
+  def output_proc(self):
+    return outproc.DEFAULT
 
   def __cmp__(self, other):
     # Make sure that test cases are sorted correctly if sorted without

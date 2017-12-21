@@ -106,16 +106,14 @@ class TestCase(testcase.TestCase):
   def _get_source_path(self):
     return os.path.join(self.suite.testroot, self.path + self._get_suffix())
 
-  def get_output_proc(self):
+  @property
+  def output_proc(self):
     if self.path.endswith('-n'):
-      return OutProc.NEGATIVE
-    return OutProc.DEFAULT
+      return MOZILLA_NEGATIVE
+    return MOZILLA_DEFAULT
 
 
 class OutProc(outproc.OutProc):
-  def __init__(self):
-    pass
-
   def _is_failure_output(self, output):
     return (
       output.exit_code != 0 or
@@ -123,18 +121,14 @@ class OutProc(outproc.OutProc):
     )
 
 
-class DefaultOutProc(OutProc):
-  def _is_negative(self):
-    return False
-
-
 class NegativeOutProc(OutProc):
-  def _is_negative(self):
+  @property
+  def negative(self):
     return True
 
 
-OutProc.DEFAULT = DefaultOutProc()
-OutProc.NEGATIVE = NegativeOutProc()
+MOZILLA_DEFAULT = OutProc()
+MOZILLA_NEGATIVE = NegativeOutProc()
 
 
 def GetSuite(name, root):

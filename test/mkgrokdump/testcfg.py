@@ -41,7 +41,8 @@ class TestCase(testcase.TestCase):
   def get_shell(self):
     return SHELL
 
-  def get_output_proc(self):
+  @property
+  def output_proc(self):
     return self.suite.out_proc
 
 
@@ -65,9 +66,6 @@ class OutProc(outproc.OutProc):
         return True
       output.stdout = diffstring
       return True
-    return False
-
-  def _is_negative(self):
     return False
 
 

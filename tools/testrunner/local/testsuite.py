@@ -171,12 +171,6 @@ class TestSuite(object):
           break
     self.tests = filtered
 
-  def IsFailureOutput(self, testcase, output):
-    return output.exit_code != 0
-
-  def IsNegativeTest(self, testcase):
-    return False
-
   def HasUnexpectedOutput(self, test, output, ctx=None):
     if ctx and ctx.predictable:
       # Only check the exit code of the predictable_wrapper in
@@ -186,11 +180,10 @@ class TestSuite(object):
       # the status file (e.g. known bugs).
       return (
           output.exit_code != 0 and
-          not self.IsNegativeTest(test) and
+          not test.output_proc.negative and
           statusfile.FAIL not in test.expected_outcomes
       )
-    return (
-      test.get_output_proc().get_outcome(output) not in test.expected_outcomes)
+    return test.output_proc.get_outcome(output) not in test.expected_outcomes
 
   def _create_test(self, path, **kwargs):
     test = self._test_class()(self, path, self._path_to_name(path), **kwargs)
