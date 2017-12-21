@@ -759,4 +759,11 @@
   'wasm/default-liftoff-setting': [SKIP],
 }], # variant == liftoff
 
+##############################################################################
+['variant == slow_path and gc_stress', {
+  # Slow tests.
+  'regress/regress-crbug-493779': [SKIP],
+  'string-replace-gc': [SKIP],
+}],  # variant == slow_path
+
 ]

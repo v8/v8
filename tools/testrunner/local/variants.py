@@ -8,6 +8,7 @@ ALL_VARIANT_FLAGS = {
   "future": [["--future"]],
   "liftoff": [["--liftoff"]],
   "minor_mc": [["--minor-mc"]],
+  "slow_path": [["--force-slow-path"]],
   "stress": [["--stress-opt", "--always-opt"]],
   # TODO(6792): Write protected code has been temporary added to the below
   # variant until the feature has been enabled (or staged) by default.
