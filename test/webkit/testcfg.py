@@ -25,11 +25,11 @@
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-import itertools
 import os
 import re
 
 from testrunner.local import testsuite
+from testrunner.objects import outproc
 from testrunner.objects import testcase
 
 FILES_PATTERN = re.compile(r"//\s+Files:(.*)")
@@ -60,64 +60,6 @@ class TestSuite(testsuite.TestSuite):
   def _test_class(self):
     return TestCase
 
-  # TODO(machenbach): Share with test/message/testcfg.py
-  def _IgnoreLine(self, string):
-    """Ignore empty lines, valgrind output, Android output and trace
-    incremental marking output."""
-    if not string:
-      return True
-    return (string.startswith("==") or string.startswith("**") or
-            string.startswith("ANDROID") or "[IncrementalMarking]" in string or
-            # FIXME(machenbach): The test driver shouldn't try to use slow
-            # asserts if they weren't compiled. This fails in optdebug=2.
-            string == "Warning: unknown flag --enable-slow-asserts." or
-            string == "Try --help for options")
-
-  def IsFailureOutput(self, test, output):
-    if super(TestSuite, self).IsFailureOutput(test, output):
-      return True
-    file_name = os.path.join(self.root, test.path) + "-expected.txt"
-    with file(file_name, "r") as expected:
-      expected_lines = expected.readlines()
-
-    def ExpIterator():
-      for line in expected_lines:
-        if line.startswith("#") or not line.strip():
-          continue
-        yield line.strip()
-
-    def ActIterator(lines):
-      for line in lines:
-        if self._IgnoreLine(line.strip()):
-          continue
-        yield line.strip()
-
-    def ActBlockIterator():
-      """Iterates over blocks of actual output lines."""
-      lines = output.stdout.splitlines()
-      start_index = 0
-      found_eqeq = False
-      for index, line in enumerate(lines):
-        # If a stress test separator is found:
-        if line.startswith("=="):
-          # Iterate over all lines before a separator except the first.
-          if not found_eqeq:
-            found_eqeq = True
-          else:
-            yield ActIterator(lines[start_index:index])
-          # The next block of output lines starts after the separator.
-          start_index = index + 1
-      # Iterate over complete output if no separator was found.
-      if not found_eqeq:
-        yield ActIterator(lines)
-
-    for act_iterator in ActBlockIterator():
-      for (expected, actual) in itertools.izip_longest(
-          ExpIterator(), act_iterator, fillvalue=''):
-        if expected != actual:
-          return True
-      return False
-
 
 class TestCase(testcase.TestCase):
   def __init__(self, *args, **kwargs):
@@ -126,6 +68,8 @@ class TestCase(testcase.TestCase):
     source = self.get_source()
     self._source_files = self._parse_source_files(source)
     self._source_flags = self._parse_source_flags(source)
+    self._outproc = OutProc(
+        os.path.join(self.suite.root, self.path) + '-expected.txt')
 
   def _parse_source_files(self, source):
     files_list = []  # List of file names to append to command arguments.
@@ -159,6 +103,22 @@ class TestCase(testcase.TestCase):
 
   def _get_source_path(self):
     return os.path.join(self.suite.root, self.path + self._get_suffix())
+
+  def get_output_proc(self):
+    return self._outproc
+
+
+class OutProc(outproc.ExpectedOutProc):
+  def _is_failure_output(self, output):
+    if output.exit_code != 0:
+      return True
+    return super(OutProc, self)._is_failure_output(output)
+
+  def _ignore_expected_line(self, line):
+    return (
+        line.startswith('#') or
+        super(OutProc, self)._ignore_expected_line(line)
+    )
 
 
 def GetSuite(name, root):
