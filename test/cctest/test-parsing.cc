@@ -1315,6 +1315,7 @@ enum ParserFlag {
   kAllowNatives,
   kAllowHarmonyFunctionSent,
   kAllowHarmonyPublicFields,
+  kAllowHarmonyStaticFields,
   kAllowHarmonyDynamicImport,
   kAllowHarmonyAsyncIteration,
   kAllowHarmonyImportMeta,
@@ -1330,6 +1331,7 @@ void SetGlobalFlags(i::EnumSet<ParserFlag> flags) {
   i::FLAG_allow_natives_syntax = flags.Contains(kAllowNatives);
   i::FLAG_harmony_function_sent = flags.Contains(kAllowHarmonyFunctionSent);
   i::FLAG_harmony_public_fields = flags.Contains(kAllowHarmonyPublicFields);
+  i::FLAG_harmony_static_fields = flags.Contains(kAllowHarmonyStaticFields);
   i::FLAG_harmony_dynamic_import = flags.Contains(kAllowHarmonyDynamicImport);
   i::FLAG_harmony_import_meta = flags.Contains(kAllowHarmonyImportMeta);
   i::FLAG_harmony_async_iteration = flags.Contains(kAllowHarmonyAsyncIteration);
@@ -1341,6 +1343,8 @@ void SetParserFlags(i::PreParser* parser, i::EnumSet<ParserFlag> flags) {
       flags.Contains(kAllowHarmonyFunctionSent));
   parser->set_allow_harmony_public_fields(
       flags.Contains(kAllowHarmonyPublicFields));
+  parser->set_allow_harmony_static_fields(
+      flags.Contains(kAllowHarmonyStaticFields));
   parser->set_allow_harmony_dynamic_import(
       flags.Contains(kAllowHarmonyDynamicImport));
   parser->set_allow_harmony_import_meta(
@@ -4693,6 +4697,93 @@ TEST(ClassPropertyNameNoErrors) {
   RunParserSyncTest(context_data, name_data, kSuccess);
 }
 
+TEST(StaticClassFieldsNoErrors) {
+  // clang-format off
+  // Tests proposed class fields syntax.
+  const char* context_data[][2] = {{"(class {", "});"},
+                                   {"(class extends Base {", "});"},
+                                   {"class C {", "}"},
+                                   {"class C extends Base {", "}"},
+                                   {nullptr, nullptr}};
+  const char* class_body_data[] = {
+    // Basic syntax
+    "static a = 0;",
+    "static a = 0; b",
+    "static a = 0; b(){}",
+    "static a = 0; *b(){}",
+    "static a = 0; ['b'](){}",
+    "static a;",
+    "static a; b;",
+    "static a; b(){}",
+    "static a; *b(){}",
+    "static a; ['b'](){}",
+    "static ['a'] = 0;",
+    "static ['a'] = 0; b",
+    "static ['a'] = 0; b(){}",
+    "static ['a'] = 0; *b(){}",
+    "static ['a'] = 0; ['b'](){}",
+    "static ['a'];",
+    "static ['a']; b;",
+    "static ['a']; b(){}",
+    "static ['a']; *b(){}",
+    "static ['a']; ['b'](){}",
+
+    "static 0 = 0;",
+    "static 0;",
+    "static 'a' = 0;",
+    "static 'a';",
+
+    // ASI
+    "static a = 0\n",
+    "static a = 0\n b",
+    "static a = 0\n b(){}",
+    "static a\n",
+    "static a\n b\n",
+    "static a\n b(){}",
+    "static a\n *b(){}",
+    "static a\n ['b'](){}",
+    "static ['a'] = 0\n",
+    "static ['a'] = 0\n b",
+    "static ['a'] = 0\n b(){}",
+    "static ['a']\n",
+    "static ['a']\n b\n",
+    "static ['a']\n b(){}",
+    "static ['a']\n *b(){}",
+    "static ['a']\n ['b'](){}",
+
+    // ASI edge cases
+    "static a\n get",
+    "static get\n *a(){}",
+    "static a\n static",
+
+    // Misc edge cases
+    "static yield",
+    "static yield = 0",
+    "static yield\n a",
+    "static async;",
+    "static async = 0;",
+    "static async",
+    "static async = 0",
+    "static async\n a(){}",  // a field named async, and a method named a.
+    "static async\n a",
+    "static await;",
+    "static await = 0;",
+    "static await\n a",
+    nullptr
+  };
+  // clang-format on
+
+  static const ParserFlag always_flags[] = {kAllowHarmonyPublicFields,
+                                            kAllowHarmonyStaticFields};
+  RunParserSyncTest(context_data, class_body_data, kSuccess, nullptr, 0,
+                    always_flags, arraysize(always_flags));
+
+  // Without the static flag, all of these are errors
+  static const ParserFlag no_static_flags[] = {kAllowHarmonyPublicFields};
+  RunParserSyncTest(context_data, class_body_data, kError, nullptr, 0,
+                    no_static_flags, arraysize(no_static_flags));
+}
+
 TEST(ClassFieldsNoErrors) {
   // clang-format off
   // Tests proposed class fields syntax.
@@ -4729,15 +4820,6 @@ TEST(ClassFieldsNoErrors) {
     "'a' = 0;",
     "'a';",
 
-    "static a = 0;",
-    "static a;",
-    "static ['a'] = 0",
-    "static ['a']",
-    "static 0 = 0;",
-    "static 0;",
-    "static 'a' = 0;",
-    "static 'a';",
-
     // ASI
     "a = 0\n",
     "a = 0\n b",
@@ -4767,10 +4849,8 @@ TEST(ClassFieldsNoErrors) {
     "yield\n a",
     "async;",
     "async = 0;",
-    "static async;"
     "async",
     "async = 0",
-    "static async",
     "async\n a(){}",  // a field named async, and a method named a.
     "async\n a",
     "await;",
@@ -4782,6 +4862,53 @@ TEST(ClassFieldsNoErrors) {
 
   static const ParserFlag always_flags[] = {kAllowHarmonyPublicFields};
   RunParserSyncTest(context_data, class_body_data, kSuccess, nullptr, 0,
+                    always_flags, arraysize(always_flags));
+
+  static const ParserFlag static_flags[] = {kAllowHarmonyPublicFields,
+                                            kAllowHarmonyStaticFields};
+  RunParserSyncTest(context_data, class_body_data, kSuccess, nullptr, 0,
+                    static_flags, arraysize(static_flags));
+}
+
+TEST(StaticClassFieldsErrors) {
+  // clang-format off
+  // Tests proposed class fields syntax.
+  const char* context_data[][2] = {{"(class {", "});"},
+                                   {"(class extends Base {", "});"},
+                                   {"class C {", "}"},
+                                   {"class C extends Base {", "}"},
+                                   {nullptr, nullptr}};
+  const char* class_body_data[] = {
+    "static a : 0",
+    "static a =",
+    "static constructor",
+    "static prototype",
+    "static *a = 0",
+    "static *a",
+    "static get a",
+    "static get\n a",
+    "static yield a",
+    "static async a = 0",
+    "static async a",
+
+    // ASI requires a linebreak
+    "static a b",
+    "static a = 0 b",
+
+    // ASI requires that the next token is not part of any legal production
+    "static a = 0\n *b(){}",
+    "static a = 0\n ['b'](){}",
+    nullptr
+  };
+  // clang-format on
+
+  static const ParserFlag no_static_flags[] = {kAllowHarmonyPublicFields};
+  RunParserSyncTest(context_data, class_body_data, kError, nullptr, 0,
+                    no_static_flags, arraysize(no_static_flags));
+
+  static const ParserFlag always_flags[] = {kAllowHarmonyPublicFields,
+                                            kAllowHarmonyStaticFields};
+  RunParserSyncTest(context_data, class_body_data, kError, nullptr, 0,
                     always_flags, arraysize(always_flags));
 }
 
@@ -4796,19 +4923,11 @@ TEST(ClassFieldsErrors) {
   const char* class_body_data[] = {
     "a : 0",
     "a =",
-    "static constructor",
-    "static prototype",
     "constructor",
     "*a = 0",
     "*a",
     "get a",
     "yield a",
-    "a : 0;",
-    "a =;",
-    "*a = 0;",
-    "*a;",
-    "get a;",
-    "yield a;",
     "async a = 0",
     "async a",
 
@@ -4827,6 +4946,11 @@ TEST(ClassFieldsErrors) {
   static const ParserFlag always_flags[] = {kAllowHarmonyPublicFields};
   RunParserSyncTest(context_data, class_body_data, kError, nullptr, 0,
                     always_flags, arraysize(always_flags));
+
+  static const ParserFlag static_flags[] = {kAllowHarmonyPublicFields,
+                                            kAllowHarmonyStaticFields};
+  RunParserSyncTest(context_data, class_body_data, kError, nullptr, 0,
+                    static_flags, arraysize(static_flags));
 }
 
 TEST(ClassExpressionErrors) {

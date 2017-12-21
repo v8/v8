@@ -543,6 +543,7 @@ Parser::Parser(ParseInfo* info)
   set_allow_harmony_do_expressions(FLAG_harmony_do_expressions);
   set_allow_harmony_function_sent(FLAG_harmony_function_sent);
   set_allow_harmony_public_fields(FLAG_harmony_public_fields);
+  set_allow_harmony_static_fields(FLAG_harmony_static_fields);
   set_allow_harmony_dynamic_import(FLAG_harmony_dynamic_import);
   set_allow_harmony_import_meta(FLAG_harmony_import_meta);
   set_allow_harmony_async_iteration(FLAG_harmony_async_iteration);
@@ -3318,6 +3319,7 @@ void Parser::DeclareClassProperty(const AstRawString* class_name,
   DCHECK(allow_harmony_public_fields());
 
   if (is_static) {
+    DCHECK(allow_harmony_static_fields());
     class_info->static_fields->Add(property, zone());
   } else {
     class_info->instance_fields->Add(property, zone());

@@ -47,7 +47,7 @@ FEATURE_FLAGS = {
   'regexp-named-groups': '--harmony-regexp-named-captures',
   'regexp-unicode-property-escapes': '--harmony-regexp-property',
   'Promise.prototype.finally': '--harmony-promise-finally',
-  'class-fields-public': '--harmony-public-fields',
+  'class-fields-public': '--harmony-class-fields',
 }
 
 SKIPPED_FEATURES = set(['class-fields-private', 'optional-catch-binding'])

@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --harmony-public-fields
+// Flags: --harmony-public-fields --harmony-static-fields
 
 "use strict";
 
@@ -313,6 +313,50 @@ function x() {
 x()();
 
 {
+  let log = [];
+  function run(i) {
+    log.push(i);
+    return i;
+  }
+
+  class C {
+    [run(1)] = run(7);
+    [run(2)] = run(8);
+    [run(3)]() { run(9);}
+    static [run(4)] = run(6);
+    [run(5)]() { throw new Error('should not execute');};
+  }
+
+  let c = new C;
+  c[3]();
+  assertEquals([1, 2, 3, 4, 5, 6, 7, 8, 9], log);
+}
+
+function y() {
+  // This tests lazy parsing.
+  return function() {
+    let log = [];
+    function run(i) {
+      log.push(i);
+      return i;
+    }
+
+    class C {
+      [run(1)] = run(7);
+      [run(2)] = run(8);
+      [run(3)]() { run(9);}
+      static [run(4)] = run(6);
+      [run(5)]() { throw new Error('should not execute');};
+    }
+
+    let c = new C;
+    c[3]();
+    assertEquals([1, 2, 3, 4, 5, 6, 7, 8, 9], log);
+  }
+}
+y()();
+
+{
   class C {}
   class D {
     static [C];
@@ -331,5 +375,44 @@ x()();
 
   let klass = t();
   let obj = new klass;
+  assertEquals(2, klass.x);
+}
+
+{
+  let x = 'a';
+  class C {
+    a;
+    b = x;
+    c = 1;
+    hasOwnProperty() { return 1;}
+    static [x] = 2;
+    static b = 3;
+    static d;
+  }
+
+  assertEquals(2, C.a);
+  assertEquals(3, C.b);
+  assertEquals(undefined, C.d);
+  assertEquals(undefined, C.c);
+
+  let c = new C;
+  assertEquals(undefined, c.a);
+  assertEquals('a', c.b);
+  assertEquals(1, c.c);
+  assertEquals(undefined, c.d);
+  assertEquals(1, c.hasOwnProperty());
+}
+
+{
+  function t() {
+    return class {
+      ['x'] = 1;
+      static ['x'] = 2;
+    }
+  }
+
+  let klass = t();
+  let obj = new klass;
+  assertEquals(1, obj.x);
   assertEquals(2, klass.x);
 }

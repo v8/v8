@@ -52,15 +52,7 @@
     b = x;
     c = 1;
     hasOwnProperty() { return 1;}
-    static [x] = 2;
-    static b = 3;
-    static d;
   }
-
-  assertEquals(2, C.a);
-  assertEquals(3, C.b);
-  assertEquals(undefined, C.d);
-  assertEquals(undefined, C.c);
 
   let c = new C;
   assertEquals(undefined, c.a);
@@ -281,10 +273,10 @@
   }
 
   class C {
-    [run(1)] = run(7);
-    [run(2)] = run(8);
+    [run(1)] = run(6);
+    [run(2)] = run(7);
     [run(3)]() { run(9);}
-    static [run(4)] = run(6);
+    [run(4)] = run(8);
     [run(5)]() { throw new Error('should not execute');};
   }
 
@@ -303,10 +295,10 @@ function x() {
     }
 
     class C {
-      [run(1)] = run(7);
-      [run(2)] = run(8);
+      [run(1)] = run(6);
+      [run(2)] = run(7);
       [run(3)]() { run(9);}
-      static [run(4)] = run(6);
+      [run(4)] = run(8);
       [run(5)]() { throw new Error('should not execute');};
     }
 
@@ -634,20 +626,6 @@ x()();
   let klass = t();
   let obj = new klass;
   assertEquals(1, obj.x);
-}
-
-{
-  function t() {
-    return class {
-      ['x'] = 1;
-      static ['x'] = 2;
-    }
-  }
-
-  let klass = t();
-  let obj = new klass;
-  assertEquals(1, obj.x);
-  assertEquals(2, klass.x);
 }
 
 {
