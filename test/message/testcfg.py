@@ -31,6 +31,7 @@ import re
 
 from testrunner.local import testsuite
 from testrunner.local import utils
+from testrunner.objects import outproc
 from testrunner.objects import testcase
 
 
@@ -62,54 +63,6 @@ class TestSuite(testsuite.TestSuite):
     return super(TestSuite, self).CreateVariantGenerator(
         variants + ["preparser"])
 
-  def _IgnoreLine(self, string):
-    """Ignore empty lines, valgrind output, Android output."""
-    return (
-      not string or
-      not string.strip() or
-      string.startswith("==") or
-      string.startswith("**") or
-      string.startswith("ANDROID")
-    )
-
-  def _GetExpectedFail(self, test):
-    path = test.path
-    while path:
-      (head, tail) = os.path.split(path)
-      if tail == "fail":
-        return True
-      path = head
-    return False
-
-  def IsFailureOutput(self, test, output):
-    testpath = test.path
-    expected_fail = self._GetExpectedFail(test)
-    fail = output.exit_code != 0
-    if expected_fail != fail:
-      return True
-    expected_path = os.path.join(self.root, testpath + ".out")
-    expected_lines = []
-    # Can't use utils.ReadLinesFrom() here because it strips whitespace.
-    with open(expected_path) as f:
-      for line in f:
-        if line.startswith("#") or not line.strip():
-          continue
-        expected_lines.append(line)
-    raw_lines = output.stdout.splitlines()
-    actual_lines = [ s for s in raw_lines if not self._IgnoreLine(s) ]
-    env = { "basename": os.path.basename(testpath + ".js") }
-    if len(expected_lines) != len(actual_lines):
-      return True
-    for (expected, actual) in itertools.izip_longest(
-        expected_lines, actual_lines, fillvalue=''):
-      pattern = re.escape(expected.rstrip() % env)
-      pattern = pattern.replace("\\*", ".*")
-      pattern = pattern.replace("\\{NUMBER\\}", "\d+(?:\.\d*)?")
-      pattern = "^%s$" % pattern
-      if not re.match(pattern, actual):
-        return True
-    return False
-
 
 class TestCase(testcase.TestCase):
   def __init__(self, *args, **kwargs):
@@ -118,6 +71,8 @@ class TestCase(testcase.TestCase):
     source = self.get_source()
     self._source_files = self._parse_source_files(source)
     self._source_flags = self._parse_source_flags(source)
+    self._out_proc = OutProc(os.path.join(self.suite.root, self.path),
+                             self._expected_fail())
 
   def _parse_source_files(self, source):
     files = []
@@ -125,6 +80,15 @@ class TestCase(testcase.TestCase):
       files.append("--module")
     files.append(os.path.join(self.suite.root, self.path + ".js"))
     return files
+
+  def _expected_fail(self):
+    path = self.path
+    while path:
+      head, tail = os.path.split(path)
+      if tail == 'fail':
+        return True
+      path = head
+    return False
 
   def _get_cmd_params(self, ctx):
     params = super(TestCase, self)._get_cmd_params(ctx)
@@ -138,6 +102,59 @@ class TestCase(testcase.TestCase):
 
   def _get_source_path(self):
     return os.path.join(self.suite.root, self.path + self._get_suffix())
+
+  def get_output_proc(self):
+    return self._out_proc
+
+
+class OutProc(outproc.OutProc):
+  def __init__(self, basepath, expected_fail):
+    self._basepath = basepath
+    self._expected_fail = expected_fail
+
+  def _is_failure_output(self, output):
+    fail = output.exit_code != 0
+    if fail != self._expected_fail:
+      return True
+
+    expected_lines = []
+    # Can't use utils.ReadLinesFrom() here because it strips whitespace.
+    with open(self._basepath + '.out') as f:
+      for line in f:
+        if line.startswith("#") or not line.strip():
+          continue
+        expected_lines.append(line)
+    raw_lines = output.stdout.splitlines()
+    actual_lines = [ s for s in raw_lines if not self._ignore_line(s) ]
+    if len(expected_lines) != len(actual_lines):
+      return True
+
+    env = {
+      'basename': os.path.basename(self._basepath + '.js'),
+    }
+    for (expected, actual) in itertools.izip_longest(
+        expected_lines, actual_lines, fillvalue=''):
+      pattern = re.escape(expected.rstrip() % env)
+      pattern = pattern.replace('\\*', '.*')
+      pattern = pattern.replace('\\{NUMBER\\}', '\d+(?:\.\d*)?')
+      pattern = '^%s$' % pattern
+      if not re.match(pattern, actual):
+        return True
+    return False
+
+  def _ignore_line(self, string):
+    """Ignore empty lines, valgrind output, Android output."""
+    return (
+      not string or
+      not string.strip() or
+      string.startswith("==") or
+      string.startswith("**") or
+      string.startswith("ANDROID")
+    )
+
+  def _is_negative(self):
+    return False
+
 
 def GetSuite(name, root):
   return TestSuite(name, root)

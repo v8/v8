@@ -53,7 +53,7 @@ class ExpectedOutProc(OutProc):
       ):
         if expected != actual:
           return True
-    return False
+      return False
 
   def _act_block_iterator(self, output):
     """Iterates over blocks of actual output lines."""
