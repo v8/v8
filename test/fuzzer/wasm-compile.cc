@@ -30,6 +30,8 @@ namespace fuzzer {
 
 namespace {
 
+constexpr int kMaxFunctions = 4;
+
 class DataRange {
   const uint8_t* data_;
   size_t size_;
@@ -65,21 +67,17 @@ class DataRange {
 
   template <typename T>
   T get() {
-    if (size() == 0) {
-      return T();
-    } else {
-      // We want to support the case where we have less than sizeof(T) bytes
-      // remaining in the slice. For example, if we emit an i32 constant, it's
-      // okay if we don't have a full four bytes available, we'll just use what
-      // we have. We aren't concerned about endianness because we are generating
-      // arbitrary expressions.
-      const size_t num_bytes = std::min(sizeof(T), size());
-      T result = T();
-      memcpy(&result, data_, num_bytes);
-      data_ += num_bytes;
-      size_ -= num_bytes;
-      return result;
-    }
+    // We want to support the case where we have less than sizeof(T) bytes
+    // remaining in the slice. For example, if we emit an i32 constant, it's
+    // okay if we don't have a full four bytes available, we'll just use what
+    // we have. We aren't concerned about endianness because we are generating
+    // arbitrary expressions.
+    const size_t num_bytes = std::min(sizeof(T), size_);
+    T result = T();
+    memcpy(&result, data_, num_bytes);
+    data_ += num_bytes;
+    size_ -= num_bytes;
+    return result;
   }
 
   DISALLOW_COPY_AND_ASSIGN(DataRange);
@@ -203,6 +201,63 @@ class WasmGenerator {
     builder_->Emit(kExprDrop);
   }
 
+  template <ValueType wanted_type>
+  void call(DataRange& data) {
+    call(data, wanted_type);
+  }
+
+  void Convert(ValueType src, ValueType dst) {
+    auto idx = [](ValueType t) -> int {
+      switch (t) {
+        case kWasmI32:
+          return 0;
+        case kWasmI64:
+          return 1;
+        case kWasmF32:
+          return 2;
+        case kWasmF64:
+          return 3;
+        default:
+          UNREACHABLE();
+      }
+    };
+    static constexpr WasmOpcode kConvertOpcodes[] = {
+        // {i32, i64, f32, f64} -> i32
+        kExprNop, kExprI32ConvertI64, kExprI32SConvertF32, kExprI32SConvertF64,
+        // {i32, i64, f32, f64} -> i64
+        kExprI64SConvertI32, kExprNop, kExprI64SConvertF32, kExprI64SConvertF64,
+        // {i32, i64, f32, f64} -> f32
+        kExprF32SConvertI32, kExprF32SConvertI64, kExprNop, kExprF32ConvertF64,
+        // {i32, i64, f32, f64} -> f64
+        kExprF64SConvertI32, kExprF64SConvertI64, kExprF64ConvertF32, kExprNop};
+    int arr_idx = idx(dst) << 2 | idx(src);
+    builder_->Emit(kConvertOpcodes[arr_idx]);
+  }
+
+  void call(DataRange& data, ValueType wanted_type) {
+    int func_index = data.get<uint8_t>() % functions_.size();
+    FunctionSig* sig = functions_[func_index];
+    // Generate arguments.
+    for (size_t i = 0; i < sig->parameter_count(); ++i) {
+      Generate(sig->GetParam(i), data);
+    }
+    // Emit call.
+    builder_->EmitWithU32V(kExprCallFunction, func_index);
+    // Convert the return value to the wanted type.
+    ValueType return_type =
+        sig->return_count() == 0 ? kWasmStmt : sig->GetReturn(0);
+    if (return_type == kWasmStmt && wanted_type != kWasmStmt) {
+      // The call did not generate a value. Thus just generate it here.
+      Generate(wanted_type, data);
+    } else if (return_type != kWasmStmt && wanted_type == kWasmStmt) {
+      // The call did generate a value, but we did not want one.
+      builder_->Emit(kExprDrop);
+    } else if (return_type != wanted_type) {
+      // If the returned type does not match the wanted type, convert it.
+      Convert(return_type, wanted_type);
+    }
+  }
+
   template <ValueType T1, ValueType T2>
   void sequence(DataRange& data) {
     Generate<T1, T2>(data);
@@ -239,9 +294,12 @@ class WasmGenerator {
   };
 
  public:
-  explicit WasmGenerator(WasmFunctionBuilder* fn) : builder_(fn) {
-    DCHECK_EQ(1, fn->signature()->return_count());
-    blocks_.push_back(fn->signature()->GetReturn(0));
+  explicit WasmGenerator(WasmFunctionBuilder* fn,
+                         const std::vector<FunctionSig*>& functions)
+      : builder_(fn), functions_(functions) {
+    FunctionSig* sig = fn->signature();
+    DCHECK_GE(1, sig->return_count());
+    blocks_.push_back(sig->return_count() == 0 ? kWasmStmt : sig->GetReturn(0));
   }
 
   void Generate(ValueType type, DataRange& data);
@@ -260,6 +318,7 @@ class WasmGenerator {
  private:
   WasmFunctionBuilder* builder_;
   std::vector<ValueType> blocks_;
+  const std::vector<FunctionSig*>& functions_;
   uint32_t recursion_depth = 0;
 
   static constexpr uint32_t kMaxRecursionDepth = 64;
@@ -289,7 +348,9 @@ void WasmGenerator::Generate<kWasmStmt>(DataRange& data) {
       &WasmGenerator::memop<kExprF32StoreMem, kWasmF32>,
       &WasmGenerator::memop<kExprF64StoreMem, kWasmF64>,
 
-      &WasmGenerator::drop};
+      &WasmGenerator::drop,
+
+      &WasmGenerator::call<kWasmStmt>};
 
   GenerateOneOf(alternates, data);
 }
@@ -370,7 +431,9 @@ void WasmGenerator::Generate<kWasmI32>(DataRange& data) {
       &WasmGenerator::memop<kExprI32LoadMem16U>,
 
       &WasmGenerator::current_memory,
-      &WasmGenerator::grow_memory};
+      &WasmGenerator::grow_memory,
+
+      &WasmGenerator::call<kWasmI32>};
 
   GenerateOneOf(alternates, data);
 }
@@ -417,7 +480,9 @@ void WasmGenerator::Generate<kWasmI64>(DataRange& data) {
       &WasmGenerator::memop<kExprI64LoadMem16S>,
       &WasmGenerator::memop<kExprI64LoadMem16U>,
       &WasmGenerator::memop<kExprI64LoadMem32S>,
-      &WasmGenerator::memop<kExprI64LoadMem32U>};
+      &WasmGenerator::memop<kExprI64LoadMem32U>,
+
+      &WasmGenerator::call<kWasmI64>};
 
   GenerateOneOf(alternates, data);
 }
@@ -440,7 +505,9 @@ void WasmGenerator::Generate<kWasmF32>(DataRange& data) {
       &WasmGenerator::block<kWasmF32>,
       &WasmGenerator::loop<kWasmF32>,
 
-      &WasmGenerator::memop<kExprF32LoadMem>};
+      &WasmGenerator::memop<kExprF32LoadMem>,
+
+      &WasmGenerator::call<kWasmF32>};
 
   GenerateOneOf(alternates, data);
 }
@@ -463,7 +530,9 @@ void WasmGenerator::Generate<kWasmF64>(DataRange& data) {
       &WasmGenerator::block<kWasmF64>,
       &WasmGenerator::loop<kWasmF64>,
 
-      &WasmGenerator::memop<kExprF64LoadMem>};
+      &WasmGenerator::memop<kExprF64LoadMem>,
+
+      &WasmGenerator::call<kWasmF64>};
 
   GenerateOneOf(alternates, data);
 }
@@ -489,6 +558,19 @@ void WasmGenerator::Generate(ValueType type, DataRange& data) {
       UNREACHABLE();
   }
 }
+
+FunctionSig* GenerateSig(Zone* zone, DataRange& data) {
+  // Generate enough parameters to spill some to the stack.
+  constexpr int kMaxParameters = 15;
+  int num_params = int{data.get<uint8_t>()} % (kMaxParameters + 1);
+  bool has_return = data.get<bool>();
+
+  FunctionSig::Builder builder(zone, has_return ? 1 : 0, num_params);
+  if (has_return) builder.AddReturn(GetValueType(data));
+  for (int i = 0; i < num_params; ++i) builder.AddParam(GetValueType(data));
+  return builder.Build();
+}
+
 }  // namespace
 
 class WasmCompileFuzzer : public WasmExecutionFuzzer {
@@ -501,14 +583,32 @@ class WasmCompileFuzzer : public WasmExecutionFuzzer {
 
     WasmModuleBuilder builder(zone);
 
-    WasmFunctionBuilder* f = builder.AddFunction(sigs.i_iii());
-
-    WasmGenerator gen(f);
     DataRange range(data, static_cast<uint32_t>(size));
-    gen.Generate<kWasmI32>(range);
+    std::vector<FunctionSig*> function_signatures;
+    function_signatures.push_back(sigs.i_iii());
 
-    f->Emit(kExprEnd);
-    builder.AddExport(CStrVector("main"), f);
+    static_assert(kMaxFunctions >= 1, "need min. 1 function");
+    int num_functions = 1 + (range.get<uint8_t>() % kMaxFunctions);
+
+    for (int i = 1; i < num_functions; ++i) {
+      function_signatures.push_back(GenerateSig(zone, range));
+    }
+
+    for (int i = 0; i < num_functions; ++i) {
+      DataRange function_range =
+          i == num_functions - 1 ? std::move(range) : range.split();
+
+      FunctionSig* sig = function_signatures[i];
+      WasmFunctionBuilder* f = builder.AddFunction(sig);
+
+      WasmGenerator gen(f, function_signatures);
+      ValueType return_type =
+          sig->return_count() == 0 ? kWasmStmt : sig->GetReturn(0);
+      gen.Generate(return_type, function_range);
+
+      f->Emit(kExprEnd);
+      if (i == 0) builder.AddExport(CStrVector("main"), f);
+    }
 
     builder.SetMaxMemorySize(32);
     builder.WriteTo(buffer);
