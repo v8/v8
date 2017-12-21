@@ -74,6 +74,20 @@ class DataRange {
   }
 };
 
+ValueType GetValueType(DataRange data) {
+  switch (data.get<uint8_t>() % 4) {
+    case 0:
+      return kWasmI32;
+    case 1:
+      return kWasmI64;
+    case 2:
+      return kWasmF32;
+    case 3:
+      return kWasmF64;
+  }
+  UNREACHABLE();
+}
+
 class WasmGenerator {
   template <WasmOpcode Op, ValueType... Args>
   void op(DataRange data) {
@@ -173,6 +187,11 @@ class WasmGenerator {
     builder_->EmitU32V(offset);
   }
 
+  void drop(DataRange data) {
+    Generate(GetValueType(data), data);
+    builder_->Emit(kExprDrop);
+  }
+
   template <ValueType T1, ValueType T2>
   void sequence(DataRange data) {
     Generate<T1, T2>(data);
@@ -257,7 +276,8 @@ void WasmGenerator::Generate<kWasmStmt>(DataRange data) {
       &WasmGenerator::memop<kExprI64StoreMem32, kWasmI64>,
       &WasmGenerator::memop<kExprF32StoreMem, kWasmF32>,
       &WasmGenerator::memop<kExprF64StoreMem, kWasmF64>,
-  };
+
+      &WasmGenerator::drop};
 
   GenerateOneOf(alternates, data);
 }
