@@ -32,7 +32,7 @@ deps = {
   'v8/third_party/markupsafe':
     Var('chromium_url') + '/chromium/src/third_party/markupsafe.git' + '@' + '8f45f5cfa0009d2a70589bcda0349b8cb2b72783',
   'v8/tools/swarming_client':
-    Var('chromium_url') + '/infra/luci/client-py.git' + '@' + '5e8001d9a710121ce7a68efd0804430a34b4f9e4',
+    Var('chromium_url') + '/infra/luci/client-py.git' + '@' + '4bd9152f8a975d57c972c071dfb4ddf668e02200',
   'v8/testing/gtest':
     Var('chromium_url') + '/external/github.com/google/googletest.git' + '@' + '6f8a66431cb592dad629028a50b3dd418a408c87',
   'v8/testing/gmock':
