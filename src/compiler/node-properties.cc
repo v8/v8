@@ -461,6 +461,19 @@ NodeProperties::InferReceiverMapsResult NodeProperties::InferReceiverMaps(
         if (IsSame(receiver, effect)) receiver = GetValueInput(effect, 0);
         break;
       }
+      case IrOpcode::kEffectPhi: {
+        Node* control = GetControlInput(effect);
+        if (control->opcode() != IrOpcode::kLoop) {
+          DCHECK_EQ(IrOpcode::kMerge, control->opcode());
+          return kNoReceiverMaps;
+        }
+
+        // Continue search for receiver map outside the loop. Since operations
+        // inside the loop may change the map, the result is unreliable.
+        effect = GetEffectInput(effect, 0);
+        result = kUnreliableReceiverMaps;
+        continue;
+      }
       default: {
         DCHECK_EQ(1, effect->op()->EffectOutputCount());
         if (effect->op()->EffectInputCount() != 1) {

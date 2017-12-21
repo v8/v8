@@ -121,6 +121,24 @@ MaybeHandle<Map> GetMapWitness(Node* node) {
   return MaybeHandle<Map>();
 }
 
+Maybe<InstanceType> GetInstanceTypeWitness(Node* node) {
+  ZoneHandleSet<Map> maps;
+  Node* receiver = NodeProperties::GetValueInput(node, 1);
+  Node* effect = NodeProperties::GetEffectInput(node);
+  NodeProperties::InferReceiverMapsResult result =
+      NodeProperties::InferReceiverMaps(receiver, effect, &maps);
+
+  if (result == NodeProperties::kNoReceiverMaps || maps.size() == 0) {
+    return Nothing<InstanceType>();
+  }
+
+  InstanceType first_type = maps[0]->instance_type();
+  for (const Handle<Map>& map : maps) {
+    if (map->instance_type() != first_type) return Nothing<InstanceType>();
+  }
+  return Just(first_type);
+}
+
 // TODO(turbofan): This was copied from Crankshaft, might be too restrictive.
 bool IsReadOnlyLengthDescriptor(Handle<Map> jsarray_map) {
   DCHECK(!jsarray_map->is_dictionary_map());
@@ -313,8 +331,9 @@ Reduction JSBuiltinReducer::ReduceArrayIterator(Handle<Map> receiver_map,
   return Replace(value);
 }
 
-Reduction JSBuiltinReducer::ReduceFastArrayIteratorNext(
-    Handle<Map> iterator_map, Node* node, IterationKind kind) {
+Reduction JSBuiltinReducer::ReduceFastArrayIteratorNext(InstanceType type,
+                                                        Node* node,
+                                                        IterationKind kind) {
   Node* iterator = NodeProperties::GetValueInput(node, 1);
   Node* effect = NodeProperties::GetEffectInput(node);
   Node* control = NodeProperties::GetControlInput(node);
@@ -327,8 +346,8 @@ Reduction JSBuiltinReducer::ReduceFastArrayIteratorNext(
     return NoChange();
   }
 
-  ElementsKind elements_kind = JSArrayIterator::ElementsKindForInstanceType(
-      iterator_map->instance_type());
+  ElementsKind elements_kind =
+      JSArrayIterator::ElementsKindForInstanceType(type);
 
   if (IsHoleyElementsKind(elements_kind)) {
     if (!isolate()->IsNoElementsProtectorIntact()) {
@@ -484,15 +503,16 @@ Reduction JSBuiltinReducer::ReduceFastArrayIteratorNext(
   return Replace(value);
 }
 
-Reduction JSBuiltinReducer::ReduceTypedArrayIteratorNext(
-    Handle<Map> iterator_map, Node* node, IterationKind kind) {
+Reduction JSBuiltinReducer::ReduceTypedArrayIteratorNext(InstanceType type,
+                                                         Node* node,
+                                                         IterationKind kind) {
   Node* iterator = NodeProperties::GetValueInput(node, 1);
   Node* effect = NodeProperties::GetEffectInput(node);
   Node* control = NodeProperties::GetControlInput(node);
   Node* context = NodeProperties::GetContextInput(node);
 
-  ElementsKind elements_kind = JSArrayIterator::ElementsKindForInstanceType(
-      iterator_map->instance_type());
+  ElementsKind elements_kind =
+      JSArrayIterator::ElementsKindForInstanceType(type);
 
   Node* array = effect = graph()->NewNode(
       simplified()->LoadField(AccessBuilder::ForJSArrayIteratorObject()),
@@ -725,65 +745,58 @@ Reduction JSBuiltinReducer::ReduceTypedArrayToStringTag(Node* node) {
 }
 
 Reduction JSBuiltinReducer::ReduceArrayIteratorNext(Node* node) {
-  Handle<Map> receiver_map;
-  if (GetMapWitness(node).ToHandle(&receiver_map)) {
-    switch (receiver_map->instance_type()) {
-      case JS_TYPED_ARRAY_KEY_ITERATOR_TYPE:
-        return ReduceTypedArrayIteratorNext(receiver_map, node,
-                                            IterationKind::kKeys);
+  Maybe<InstanceType> maybe_type = GetInstanceTypeWitness(node);
+  if (!maybe_type.IsJust()) return NoChange();
+  InstanceType type = maybe_type.FromJust();
+  switch (type) {
+    case JS_TYPED_ARRAY_KEY_ITERATOR_TYPE:
+      return ReduceTypedArrayIteratorNext(type, node, IterationKind::kKeys);
 
-      case JS_FAST_ARRAY_KEY_ITERATOR_TYPE:
-        return ReduceFastArrayIteratorNext(receiver_map, node,
-                                           IterationKind::kKeys);
+    case JS_FAST_ARRAY_KEY_ITERATOR_TYPE:
+      return ReduceFastArrayIteratorNext(type, node, IterationKind::kKeys);
 
-      case JS_INT8_ARRAY_KEY_VALUE_ITERATOR_TYPE:
-      case JS_UINT8_ARRAY_KEY_VALUE_ITERATOR_TYPE:
-      case JS_INT16_ARRAY_KEY_VALUE_ITERATOR_TYPE:
-      case JS_UINT16_ARRAY_KEY_VALUE_ITERATOR_TYPE:
-      case JS_INT32_ARRAY_KEY_VALUE_ITERATOR_TYPE:
-      case JS_UINT32_ARRAY_KEY_VALUE_ITERATOR_TYPE:
-      case JS_FLOAT32_ARRAY_KEY_VALUE_ITERATOR_TYPE:
-      case JS_FLOAT64_ARRAY_KEY_VALUE_ITERATOR_TYPE:
-      case JS_UINT8_CLAMPED_ARRAY_KEY_VALUE_ITERATOR_TYPE:
-        return ReduceTypedArrayIteratorNext(receiver_map, node,
-                                            IterationKind::kEntries);
+    case JS_INT8_ARRAY_KEY_VALUE_ITERATOR_TYPE:
+    case JS_UINT8_ARRAY_KEY_VALUE_ITERATOR_TYPE:
+    case JS_INT16_ARRAY_KEY_VALUE_ITERATOR_TYPE:
+    case JS_UINT16_ARRAY_KEY_VALUE_ITERATOR_TYPE:
+    case JS_INT32_ARRAY_KEY_VALUE_ITERATOR_TYPE:
+    case JS_UINT32_ARRAY_KEY_VALUE_ITERATOR_TYPE:
+    case JS_FLOAT32_ARRAY_KEY_VALUE_ITERATOR_TYPE:
+    case JS_FLOAT64_ARRAY_KEY_VALUE_ITERATOR_TYPE:
+    case JS_UINT8_CLAMPED_ARRAY_KEY_VALUE_ITERATOR_TYPE:
+      return ReduceTypedArrayIteratorNext(type, node, IterationKind::kEntries);
 
-      case JS_FAST_SMI_ARRAY_KEY_VALUE_ITERATOR_TYPE:
-      case JS_FAST_HOLEY_SMI_ARRAY_KEY_VALUE_ITERATOR_TYPE:
-      case JS_FAST_ARRAY_KEY_VALUE_ITERATOR_TYPE:
-      case JS_FAST_HOLEY_ARRAY_KEY_VALUE_ITERATOR_TYPE:
-      case JS_FAST_DOUBLE_ARRAY_KEY_VALUE_ITERATOR_TYPE:
-      case JS_FAST_HOLEY_DOUBLE_ARRAY_KEY_VALUE_ITERATOR_TYPE:
-        return ReduceFastArrayIteratorNext(receiver_map, node,
-                                           IterationKind::kEntries);
+    case JS_FAST_SMI_ARRAY_KEY_VALUE_ITERATOR_TYPE:
+    case JS_FAST_HOLEY_SMI_ARRAY_KEY_VALUE_ITERATOR_TYPE:
+    case JS_FAST_ARRAY_KEY_VALUE_ITERATOR_TYPE:
+    case JS_FAST_HOLEY_ARRAY_KEY_VALUE_ITERATOR_TYPE:
+    case JS_FAST_DOUBLE_ARRAY_KEY_VALUE_ITERATOR_TYPE:
+    case JS_FAST_HOLEY_DOUBLE_ARRAY_KEY_VALUE_ITERATOR_TYPE:
+      return ReduceFastArrayIteratorNext(type, node, IterationKind::kEntries);
 
-      case JS_INT8_ARRAY_VALUE_ITERATOR_TYPE:
-      case JS_UINT8_ARRAY_VALUE_ITERATOR_TYPE:
-      case JS_INT16_ARRAY_VALUE_ITERATOR_TYPE:
-      case JS_UINT16_ARRAY_VALUE_ITERATOR_TYPE:
-      case JS_INT32_ARRAY_VALUE_ITERATOR_TYPE:
-      case JS_UINT32_ARRAY_VALUE_ITERATOR_TYPE:
-      case JS_FLOAT32_ARRAY_VALUE_ITERATOR_TYPE:
-      case JS_FLOAT64_ARRAY_VALUE_ITERATOR_TYPE:
-      case JS_UINT8_CLAMPED_ARRAY_VALUE_ITERATOR_TYPE:
-        return ReduceTypedArrayIteratorNext(receiver_map, node,
-                                            IterationKind::kValues);
+    case JS_INT8_ARRAY_VALUE_ITERATOR_TYPE:
+    case JS_UINT8_ARRAY_VALUE_ITERATOR_TYPE:
+    case JS_INT16_ARRAY_VALUE_ITERATOR_TYPE:
+    case JS_UINT16_ARRAY_VALUE_ITERATOR_TYPE:
+    case JS_INT32_ARRAY_VALUE_ITERATOR_TYPE:
+    case JS_UINT32_ARRAY_VALUE_ITERATOR_TYPE:
+    case JS_FLOAT32_ARRAY_VALUE_ITERATOR_TYPE:
+    case JS_FLOAT64_ARRAY_VALUE_ITERATOR_TYPE:
+    case JS_UINT8_CLAMPED_ARRAY_VALUE_ITERATOR_TYPE:
+      return ReduceTypedArrayIteratorNext(type, node, IterationKind::kValues);
 
-      case JS_FAST_SMI_ARRAY_VALUE_ITERATOR_TYPE:
-      case JS_FAST_HOLEY_SMI_ARRAY_VALUE_ITERATOR_TYPE:
-      case JS_FAST_ARRAY_VALUE_ITERATOR_TYPE:
-      case JS_FAST_HOLEY_ARRAY_VALUE_ITERATOR_TYPE:
-      case JS_FAST_DOUBLE_ARRAY_VALUE_ITERATOR_TYPE:
-      case JS_FAST_HOLEY_DOUBLE_ARRAY_VALUE_ITERATOR_TYPE:
-        return ReduceFastArrayIteratorNext(receiver_map, node,
-                                           IterationKind::kValues);
+    case JS_FAST_SMI_ARRAY_VALUE_ITERATOR_TYPE:
+    case JS_FAST_HOLEY_SMI_ARRAY_VALUE_ITERATOR_TYPE:
+    case JS_FAST_ARRAY_VALUE_ITERATOR_TYPE:
+    case JS_FAST_HOLEY_ARRAY_VALUE_ITERATOR_TYPE:
+    case JS_FAST_DOUBLE_ARRAY_VALUE_ITERATOR_TYPE:
+    case JS_FAST_HOLEY_DOUBLE_ARRAY_VALUE_ITERATOR_TYPE:
+      return ReduceFastArrayIteratorNext(type, node, IterationKind::kValues);
 
-      default:
-        // Slow array iterators are not reduced
-        return NoChange();
-    }
+    default:
+      // Slow array iterators are not reduced
+      return NoChange();
   }
-  return NoChange();
 }
 
 // ES6 section 22.1.2.2 Array.isArray ( arg )
