@@ -2724,24 +2724,10 @@ class VerifySmisVisitor : public RootVisitor {
   void VisitRootPointers(Root root, Object** start, Object** end) override;
 };
 
-
-// Space iterator for iterating over all old spaces of the heap: Old space
-// and code space.  Returns each space in turn, and null when it is done.
-class V8_EXPORT_PRIVATE OldSpaces BASE_EMBEDDED {
- public:
-  explicit OldSpaces(Heap* heap) : heap_(heap), counter_(OLD_SPACE) {}
-  OldSpace* next();
-
- private:
-  Heap* heap_;
-  int counter_;
-};
-
-
 // Space iterator for iterating over all the paged spaces of the heap: Map
 // space, old space, code space and cell space.  Returns
 // each space in turn, and null when it is done.
-class PagedSpaces BASE_EMBEDDED {
+class V8_EXPORT_PRIVATE PagedSpaces BASE_EMBEDDED {
  public:
   explicit PagedSpaces(Heap* heap) : heap_(heap), counter_(OLD_SPACE) {}
   PagedSpace* next();

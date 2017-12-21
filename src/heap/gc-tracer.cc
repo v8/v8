@@ -16,8 +16,8 @@ namespace internal {
 
 static size_t CountTotalHolesSize(Heap* heap) {
   size_t holes_size = 0;
-  OldSpaces spaces(heap);
-  for (OldSpace* space = spaces.next(); space != nullptr;
+  PagedSpaces spaces(heap);
+  for (PagedSpace* space = spaces.next(); space != nullptr;
        space = spaces.next()) {
     DCHECK_GE(holes_size + space->Waste() + space->Available(), holes_size);
     holes_size += space->Waste() + space->Available();

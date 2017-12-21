@@ -93,12 +93,13 @@ static int DumpHeapConstants(const char* argv0) {
     n = #camel_name;                           \
     i = i::Heap::k##camel_name##RootIndex;     \
   }
-    i::OldSpaces spit(heap);
+    i::PagedSpaces spit(heap);
     i::PrintF("KNOWN_OBJECTS = {\n");
     for (i::PagedSpace* s = spit.next(); s != NULL; s = spit.next()) {
       i::HeapObjectIterator it(s);
       // Code objects are generally platform-dependent.
-      if (s->identity() == i::CODE_SPACE) continue;
+      if (s->identity() == i::CODE_SPACE || s->identity() == i::MAP_SPACE)
+        continue;
       const char* sname = AllocationSpaceName(s->identity());
       for (i::Object* o = it.Next(); o != NULL; o = it.Next()) {
         const char* n = NULL;

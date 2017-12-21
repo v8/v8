@@ -6086,18 +6086,6 @@ PagedSpace* PagedSpaces::next() {
   }
 }
 
-
-OldSpace* OldSpaces::next() {
-  switch (counter_++) {
-    case OLD_SPACE:
-      return heap_->old_space();
-    case CODE_SPACE:
-      return heap_->code_space();
-    default:
-      return nullptr;
-  }
-}
-
 SpaceIterator::SpaceIterator(Heap* heap)
     : heap_(heap), current_space_(FIRST_SPACE - 1) {}
 
