@@ -982,5 +982,11 @@ TF_BUILTIN(PromiseResolveThenableJob, InternalBuiltinsAssembler) {
   Return(UndefinedConstant());
 }
 
+TF_BUILTIN(AbortJS, CodeStubAssembler) {
+  Node* message = Parameter(Descriptor::kObject);
+  Node* reason = SmiConstant(0);
+  TailCallRuntime(Runtime::kAbort, reason, message);
+}
+
 }  // namespace internal
 }  // namespace v8

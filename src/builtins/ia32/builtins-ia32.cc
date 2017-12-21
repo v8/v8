@@ -2474,19 +2474,6 @@ void Builtins::Generate_Abort(MacroAssembler* masm) {
   __ TailCallRuntime(Runtime::kAbort);
 }
 
-// static
-void Builtins::Generate_AbortJS(MacroAssembler* masm) {
-  // ----------- S t a t e -------------
-  //  -- edx    : message as String object
-  //  -- esp[0] : return address
-  // -----------------------------------
-  __ PopReturnAddressTo(ecx);
-  __ Push(edx);
-  __ PushReturnAddressFrom(ecx);
-  __ Move(esi, Smi::kZero);
-  __ TailCallRuntime(Runtime::kAbortJS);
-}
-
 void Builtins::Generate_ArgumentsAdaptorTrampoline(MacroAssembler* masm) {
   // ----------- S t a t e -------------
   //  -- eax : actual number of arguments

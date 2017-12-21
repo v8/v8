@@ -51,6 +51,7 @@ class PlatformInterfaceDescriptor;
   V(ConstructWithArrayLike)           \
   V(ConstructTrampoline)              \
   V(TransitionElementsKind)           \
+  V(AbortJS)                          \
   V(AllocateHeapNumber)               \
   V(Builtin)                          \
   V(ArrayConstructor)                 \
@@ -681,6 +682,11 @@ class TransitionElementsKindDescriptor : public CallInterfaceDescriptor {
   DECLARE_DESCRIPTOR(TransitionElementsKindDescriptor, CallInterfaceDescriptor)
 };
 
+class AbortJSDescriptor : public CallInterfaceDescriptor {
+ public:
+  DEFINE_PARAMETERS(kObject)
+  DECLARE_DESCRIPTOR(AbortJSDescriptor, CallInterfaceDescriptor)
+};
 
 class AllocateHeapNumberDescriptor : public CallInterfaceDescriptor {
  public:

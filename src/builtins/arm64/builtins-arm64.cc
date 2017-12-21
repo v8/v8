@@ -2761,19 +2761,6 @@ void Builtins::Generate_Abort(MacroAssembler* masm) {
   __ TailCallRuntime(Runtime::kAbort);
 }
 
-// static
-void Builtins::Generate_AbortJS(MacroAssembler* masm) {
-  ASM_LOCATION("Builtins::Generate_AbortJS");
-  // ----------- S t a t e -------------
-  //  -- x1 : message as String object
-  //  -- lr : return address
-  // -----------------------------------
-  MacroAssembler::NoUseRealAbortsScope no_use_real_aborts(masm);
-  __ PushArgument(x1);
-  __ Move(cp, Smi::kZero);
-  __ TailCallRuntime(Runtime::kAbortJS);
-}
-
 void Builtins::Generate_ArgumentsAdaptorTrampoline(MacroAssembler* masm) {
   ASM_LOCATION("Builtins::Generate_ArgumentsAdaptorTrampoline");
   // ----------- S t a t e -------------
