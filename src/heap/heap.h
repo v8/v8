@@ -526,39 +526,6 @@ struct CommentStatistic {
 };
 #endif
 
-class NumberAndSizeInfo BASE_EMBEDDED {
- public:
-  NumberAndSizeInfo() : number_(0), bytes_(0) {}
-
-  int number() const { return number_; }
-  void increment_number(int num) { number_ += num; }
-
-  int bytes() const { return bytes_; }
-  void increment_bytes(int size) { bytes_ += size; }
-
-  void clear() {
-    number_ = 0;
-    bytes_ = 0;
-  }
-
- private:
-  int number_;
-  int bytes_;
-};
-
-// HistogramInfo class for recording a single "bar" of a histogram.  This
-// class is used for collecting statistics to print to the log file.
-class HistogramInfo : public NumberAndSizeInfo {
- public:
-  HistogramInfo() : NumberAndSizeInfo(), name_(nullptr) {}
-
-  const char* name() { return name_; }
-  void set_name(const char* name) { name_ = name; }
-
- private:
-  const char* name_;
-};
-
 class Heap {
  public:
   // Declare all the root indices.  This defines the root list order.

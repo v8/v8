@@ -1103,15 +1103,6 @@ void MemoryAllocator::ZapBlock(Address start, size_t size) {
   }
 }
 
-#ifdef DEBUG
-void MemoryAllocator::ReportStatistics() {
-  size_t size = Size();
-  float pct = static_cast<float>(capacity_ - size) / capacity_;
-  PrintF("  capacity: %zu , used: %" PRIuS ", available: %%%d\n\n",
-         capacity_, size, static_cast<int>(pct * 100));
-}
-#endif
-
 size_t MemoryAllocator::CodePageGuardStartOffset() {
   // We are guarding code pages: the first OS page after the header
   // will be protected as non-writable.
@@ -1882,29 +1873,11 @@ bool NewSpace::SetUp(size_t initial_semispace_capacity,
   DCHECK(!from_space_.is_committed());  // No need to use memory yet.
   ResetAllocationInfo();
 
-  // Allocate and set up the histogram arrays if necessary.
-  allocated_histogram_ = NewArray<HistogramInfo>(LAST_TYPE + 1);
-  promoted_histogram_ = NewArray<HistogramInfo>(LAST_TYPE + 1);
-#define SET_NAME(name)                        \
-  allocated_histogram_[name].set_name(#name); \
-  promoted_histogram_[name].set_name(#name);
-  INSTANCE_TYPE_LIST(SET_NAME)
-#undef SET_NAME
-
   return true;
 }
 
 
 void NewSpace::TearDown() {
-  if (allocated_histogram_) {
-    DeleteArray(allocated_histogram_);
-    allocated_histogram_ = nullptr;
-  }
-  if (promoted_histogram_) {
-    DeleteArray(promoted_histogram_);
-    promoted_histogram_ = nullptr;
-  }
-
   allocation_info_.Reset(nullptr, nullptr);
 
   to_space_.TearDown();
@@ -2559,85 +2532,6 @@ void SemiSpaceIterator::Initialize(Address start, Address end) {
   limit_ = end;
 }
 
-#ifdef DEBUG
-// heap_histograms is shared, always clear it before using it.
-static void ClearHistograms(Isolate* isolate) {
-// We reset the name each time, though it hasn't changed.
-#define DEF_TYPE_NAME(name) isolate->heap_histograms()[name].set_name(#name);
-  INSTANCE_TYPE_LIST(DEF_TYPE_NAME)
-#undef DEF_TYPE_NAME
-
-#define CLEAR_HISTOGRAM(name) isolate->heap_histograms()[name].clear();
-  INSTANCE_TYPE_LIST(CLEAR_HISTOGRAM)
-#undef CLEAR_HISTOGRAM
-
-  isolate->js_spill_information()->Clear();
-}
-
-static int CollectHistogramInfo(HeapObject* obj) {
-  Isolate* isolate = obj->GetIsolate();
-  InstanceType type = obj->map()->instance_type();
-  DCHECK(0 <= type && type <= LAST_TYPE);
-  DCHECK_NOT_NULL(isolate->heap_histograms()[type].name());
-  isolate->heap_histograms()[type].increment_number(1);
-  isolate->heap_histograms()[type].increment_bytes(obj->Size());
-
-  if (FLAG_collect_heap_spill_statistics && obj->IsJSObject()) {
-    JSObject::cast(obj)
-        ->IncrementSpillStatistics(isolate->js_spill_information());
-  }
-
-  return obj->Size();
-}
-
-
-static void ReportHistogram(Isolate* isolate, bool print_spill) {
-  PrintF("\n  Object Histogram:\n");
-  for (int i = 0; i <= LAST_TYPE; i++) {
-    if (isolate->heap_histograms()[i].number() > 0) {
-      PrintF("    %-34s%10d (%10d bytes)\n",
-             isolate->heap_histograms()[i].name(),
-             isolate->heap_histograms()[i].number(),
-             isolate->heap_histograms()[i].bytes());
-    }
-  }
-  PrintF("\n");
-
-  // Summarize string types.
-  int string_number = 0;
-  int string_bytes = 0;
-#define INCREMENT(type, size, name, camel_name)               \
-  string_number += isolate->heap_histograms()[type].number(); \
-  string_bytes += isolate->heap_histograms()[type].bytes();
-  STRING_TYPE_LIST(INCREMENT)
-#undef INCREMENT
-  if (string_number > 0) {
-    PrintF("    %-34s%10d (%10d bytes)\n\n", "STRING_TYPE", string_number,
-           string_bytes);
-  }
-
-  if (FLAG_collect_heap_spill_statistics && print_spill) {
-    isolate->js_spill_information()->Print();
-  }
-}
-#endif  // DEBUG
-
-void NewSpace::RecordAllocation(HeapObject* obj) {
-  InstanceType type = obj->map()->instance_type();
-  DCHECK(0 <= type && type <= LAST_TYPE);
-  allocated_histogram_[type].increment_number(1);
-  allocated_histogram_[type].increment_bytes(obj->Size());
-}
-
-
-void NewSpace::RecordPromotion(HeapObject* obj) {
-  InstanceType type = obj->map()->instance_type();
-  DCHECK(0 <= type && type <= LAST_TYPE);
-  promoted_histogram_[type].increment_number(1);
-  promoted_histogram_[type].increment_bytes(obj->Size());
-}
-
-
 size_t NewSpace::CommittedPhysicalMemory() {
   if (!base::OS::HasLazyCommits()) return CommittedMemory();
   MemoryChunk::UpdateHighWaterMark(allocation_info_.top());
@@ -3173,23 +3067,6 @@ bool PagedSpace::RawSlowAllocateRaw(int size_in_bytes) {
   return SweepAndRetryAllocation(size_in_bytes);
 }
 
-#ifdef DEBUG
-void PagedSpace::ReportStatistics() {
-  int pct = static_cast<int>(Available() * 100 / Capacity());
-  PrintF("  capacity: %" PRIuS ", waste: %" PRIuS
-         ", available: %" PRIuS ", %%%d\n",
-         Capacity(), Waste(), Available(), pct);
-
-  heap()->mark_compact_collector()->EnsureSweepingCompleted();
-  ClearHistograms(heap()->isolate());
-  HeapObjectIterator obj_it(this);
-  for (HeapObject* obj = obj_it.Next(); obj != nullptr; obj = obj_it.Next())
-    CollectHistogramInfo(obj);
-  ReportHistogram(heap()->isolate(), true);
-}
-#endif
-
-
 // -----------------------------------------------------------------------------
 // MapSpace implementation
 
@@ -3528,25 +3405,6 @@ void LargeObjectSpace::Print() {
     obj->Print(os);
   }
 }
-
-
-void LargeObjectSpace::ReportStatistics() {
-  PrintF("  size: %" PRIuS "\n", size_);
-  int num_objects = 0;
-  ClearHistograms(heap()->isolate());
-  LargeObjectIterator it(this);
-  for (HeapObject* obj = it.Next(); obj != nullptr; obj = it.Next()) {
-    num_objects++;
-    CollectHistogramInfo(obj);
-  }
-
-  PrintF(
-      "  number of objects %d, "
-      "size of objects %" PRIuS "\n",
-      num_objects, objects_size_);
-  if (num_objects > 0) ReportHistogram(heap()->isolate(), false);
-}
-
 
 void Page::Print() {
   // Make a best-effort to print the objects in the page.

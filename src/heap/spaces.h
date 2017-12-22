@@ -1398,11 +1398,6 @@ class V8_EXPORT_PRIVATE MemoryAllocator {
   CodeRange* code_range() { return code_range_; }
   Unmapper* unmapper() { return &unmapper_; }
 
-#ifdef DEBUG
-  // Reports statistic info of the space.
-  void ReportStatistics();
-#endif
-
  private:
   // PreFree logically frees the object, i.e., it takes care of the size
   // bookkeeping and calls the allocation callback.
@@ -2190,9 +2185,6 @@ class V8_EXPORT_PRIVATE PagedSpace
   // Print meta info and objects in this space.
   void Print() override;
 
-  // Reports statistics for the space
-  void ReportStatistics();
-
   // Report code object related statistics
   static void ReportCodeStatistics(Isolate* isolate);
   static void ResetCodeStatistics(Isolate* isolate);
@@ -2529,9 +2521,7 @@ class NewSpace : public SpaceWithLinearArea {
       : SpaceWithLinearArea(heap, NEW_SPACE, NOT_EXECUTABLE),
         to_space_(heap, kToSpace),
         from_space_(heap, kFromSpace),
-        reservation_(),
-        allocated_histogram_(nullptr),
-        promoted_histogram_(nullptr) {}
+        reservation_() {}
 
   inline bool Contains(HeapObject* o);
   inline bool ContainsSlow(Address a);
@@ -2724,12 +2714,6 @@ class NewSpace : public SpaceWithLinearArea {
   void Print() override { to_space_.Print(); }
 #endif
 
-  // Record the allocation or promotion of a heap object.  Note that we don't
-  // record every single allocation, but only those that happen in the
-  // to space during a scavenge GC.
-  void RecordAllocation(HeapObject* obj);
-  void RecordPromotion(HeapObject* obj);
-
   // Return whether the operation succeeded.
   bool CommitFromSpaceIfNeeded() {
     if (from_space_.is_committed()) return true;
@@ -2768,9 +2752,6 @@ class NewSpace : public SpaceWithLinearArea {
   SemiSpace to_space_;
   SemiSpace from_space_;
   VirtualMemory reservation_;
-
-  HistogramInfo* allocated_histogram_;
-  HistogramInfo* promoted_histogram_;
 
   bool EnsureAllocation(int size_in_bytes, AllocationAlignment alignment);
   bool SupportsInlineAllocation() override { return true; }
@@ -2964,7 +2945,6 @@ class LargeObjectSpace : public Space {
 
 #ifdef DEBUG
   void Print() override;
-  void ReportStatistics();
 #endif
 
  private:

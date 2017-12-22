@@ -2543,9 +2543,6 @@ Isolate::Isolate(bool enable_serializer)
   thread_manager_->isolate_ = this;
 
 #ifdef DEBUG
-  // heap_histograms_ initializes itself.
-  memset(&js_spill_information_, 0, sizeof(js_spill_information_));
-
   non_disposed_isolates_.Increment(1);
 #endif  // DEBUG
 

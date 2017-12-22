@@ -1008,12 +1008,6 @@ class Isolate {
   static size_t non_disposed_isolates() {
     return non_disposed_isolates_.Value();
   }
-
-  HistogramInfo* heap_histograms() { return heap_histograms_; }
-
-  JSObject::SpillInformation* js_spill_information() {
-    return &js_spill_information_;
-  }
 #endif
 
   Factory* factory() { return reinterpret_cast<Factory*>(this); }
@@ -1577,8 +1571,6 @@ class Isolate {
 #ifdef DEBUG
   static base::AtomicNumber<size_t> non_disposed_isolates_;
 
-  // A static array of histogram info for each type.
-  HistogramInfo heap_histograms_[LAST_TYPE + 1];
   JSObject::SpillInformation js_spill_information_;
 #endif
 
