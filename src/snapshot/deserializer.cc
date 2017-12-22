@@ -192,14 +192,21 @@ HeapObject* Deserializer<AllocatorT>::PostProcessNewObject(HeapObject* obj,
     if (isolate_->external_reference_redirector()) {
       call_handler_infos_.push_back(CallHandlerInfo::cast(obj));
     }
-  } else if (obj->IsExternalOneByteString()) {
-    DCHECK(obj->map() == isolate_->heap()->native_source_string_map());
-    ExternalOneByteString* string = ExternalOneByteString::cast(obj);
-    DCHECK(string->is_short());
-    string->set_resource(
-        NativesExternalStringResource::DecodeForDeserialization(
-            string->resource()));
-    isolate_->heap()->RegisterExternalString(string);
+  } else if (obj->IsExternalString()) {
+    if (obj->map() == isolate_->heap()->native_source_string_map()) {
+      ExternalOneByteString* string = ExternalOneByteString::cast(obj);
+      DCHECK(string->is_short());
+      string->set_resource(
+          NativesExternalStringResource::DecodeForDeserialization(
+              string->resource()));
+    } else {
+      ExternalString* string = ExternalString::cast(obj);
+      uint32_t index = string->resource_as_uint32();
+      Address address =
+          reinterpret_cast<Address>(isolate_->api_external_references()[index]);
+      string->set_address_as_resource(address);
+    }
+    isolate_->heap()->RegisterExternalString(String::cast(obj));
   } else if (obj->IsJSTypedArray()) {
     JSTypedArray* typed_array = JSTypedArray::cast(obj);
     CHECK(typed_array->byte_offset()->IsSmi());

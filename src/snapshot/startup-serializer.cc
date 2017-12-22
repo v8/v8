@@ -95,7 +95,7 @@ void StartupSerializer::SerializeWeakReferencesAndDeferred() {
   // one entry with 'undefined' to terminate the partial snapshot cache.
   Object* undefined = isolate()->heap()->undefined_value();
   VisitRootPointer(Root::kPartialSnapshotCache, &undefined);
-  isolate()->heap()->IterateWeakRoots(this, VISIT_ALL);
+  isolate()->heap()->IterateWeakRoots(this, VISIT_FOR_SERIALIZATION);
   SerializeDeferredObjects();
   Pad();
 }
@@ -131,8 +131,7 @@ void StartupSerializer::SerializeStrongReferences() {
   isolate->heap()->IterateSmiRoots(this);
   isolate->heap()->SetStackLimits();
   // First visit immortal immovables to make sure they end up in the first page.
-  isolate->heap()->IterateStrongRoots(this,
-                                      VISIT_ONLY_STRONG_FOR_SERIALIZATION);
+  isolate->heap()->IterateStrongRoots(this, VISIT_FOR_SERIALIZATION);
 }
 
 void StartupSerializer::VisitRootPointers(Root root, Object** start,

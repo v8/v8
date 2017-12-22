@@ -1640,28 +1640,34 @@ class SerializerOneByteResource
     : public v8::String::ExternalOneByteStringResource {
  public:
   SerializerOneByteResource(const char* data, size_t length)
-      : data_(data), length_(length) {}
+      : data_(data), length_(length), dispose_count_(0) {}
   virtual const char* data() const { return data_; }
   virtual size_t length() const { return length_; }
+  virtual void Dispose() { dispose_count_++; }
+  int dispose_count() { return dispose_count_; }
 
  private:
   const char* data_;
   size_t length_;
+  int dispose_count_;
 };
 
 
 class SerializerTwoByteResource : public v8::String::ExternalStringResource {
  public:
   SerializerTwoByteResource(const char* data, size_t length)
-      : data_(AsciiToTwoByteString(data)), length_(length) {}
+      : data_(AsciiToTwoByteString(data)), length_(length), dispose_count_(0) {}
   ~SerializerTwoByteResource() { DeleteArray<const uint16_t>(data_); }
 
   virtual const uint16_t* data() const { return data_; }
   virtual size_t length() const { return length_; }
+  virtual void Dispose() { dispose_count_++; }
+  int dispose_count() { return dispose_count_; }
 
  private:
   const uint16_t* data_;
   size_t length_;
+  int dispose_count_;
 };
 
 TEST(CodeSerializerExternalString) {
@@ -2323,6 +2329,9 @@ class SerializedExtension : public v8::Extension {
   }
 };
 
+static SerializerOneByteResource serializable_one_byte_resource("one_byte", 8);
+static SerializerTwoByteResource serializable_two_byte_resource("two_byte", 8);
+
 intptr_t original_external_references[] = {
     reinterpret_cast<intptr_t>(SerializedCallback),
     reinterpret_cast<intptr_t>(&serialized_static_field),
@@ -2330,6 +2339,8 @@ intptr_t original_external_references[] = {
     reinterpret_cast<intptr_t>(&AccessorForSerialization),
     reinterpret_cast<intptr_t>(&SerializedExtension::FunctionCallback),
     reinterpret_cast<intptr_t>(&serialized_static_field),  // duplicate entry
+    reinterpret_cast<intptr_t>(&serializable_one_byte_resource),
+    reinterpret_cast<intptr_t>(&serializable_two_byte_resource),
     0};
 
 intptr_t replaced_external_references[] = {
@@ -2339,6 +2350,8 @@ intptr_t replaced_external_references[] = {
     reinterpret_cast<intptr_t>(&AccessorForSerialization),
     reinterpret_cast<intptr_t>(&SerializedExtension::FunctionCallback),
     reinterpret_cast<intptr_t>(&serialized_static_field),
+    reinterpret_cast<intptr_t>(&serializable_one_byte_resource),
+    reinterpret_cast<intptr_t>(&serializable_two_byte_resource),
     0};
 
 intptr_t short_external_references[] = {
@@ -2359,12 +2372,31 @@ TEST(SnapshotCreatorExternalReferences) {
       v8::Local<v8::Value> function =
           callback->GetFunction(context).ToLocalChecked();
       CHECK(context->Global()->Set(context, v8_str("f"), function).FromJust());
+
+      CHECK(context->Global()
+                ->Set(context, v8_str("one_byte"),
+                      v8::String::NewExternalOneByte(
+                          isolate, &serializable_one_byte_resource)
+                          .ToLocalChecked())
+                .FromJust());
+      CHECK(context->Global()
+                ->Set(context, v8_str("two_byte"),
+                      v8::String::NewExternalTwoByte(
+                          isolate, &serializable_two_byte_resource)
+                          .ToLocalChecked())
+                .FromJust());
+
       ExpectInt32("f()", 42);
+      ExpectString("one_byte", "one_byte");
+      ExpectString("two_byte", "two_byte");
       creator.SetDefaultContext(context);
     }
     blob =
         creator.CreateBlob(v8::SnapshotCreator::FunctionCodeHandling::kClear);
   }
+
+  CHECK_EQ(1, serializable_one_byte_resource.dispose_count());
+  CHECK_EQ(1, serializable_two_byte_resource.dispose_count());
 
   // Deserialize with the original external reference.
   {
@@ -2380,9 +2412,16 @@ TEST(SnapshotCreatorExternalReferences) {
       v8::Local<v8::Context> context = v8::Context::New(isolate);
       v8::Context::Scope context_scope(context);
       ExpectInt32("f()", 42);
+      ExpectString("one_byte", "one_byte");
+      ExpectString("two_byte", "two_byte");
+      CHECK(CompileRun("one_byte").As<v8::String>()->IsExternalOneByte());
+      CHECK(CompileRun("two_byte").As<v8::String>()->IsExternal());
     }
     isolate->Dispose();
   }
+
+  CHECK_EQ(2, serializable_one_byte_resource.dispose_count());
+  CHECK_EQ(2, serializable_two_byte_resource.dispose_count());
 
   // Deserialize with some other external reference.
   {
@@ -2401,6 +2440,10 @@ TEST(SnapshotCreatorExternalReferences) {
     }
     isolate->Dispose();
   }
+
+  CHECK_EQ(3, serializable_one_byte_resource.dispose_count());
+  CHECK_EQ(3, serializable_two_byte_resource.dispose_count());
+
   delete[] blob.data;
 }
 

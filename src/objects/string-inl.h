@@ -534,6 +534,33 @@ bool ExternalString::is_short() {
   return (type & kShortExternalStringMask) == kShortExternalStringTag;
 }
 
+Address ExternalString::resource_as_address() {
+  return *reinterpret_cast<Address*>(FIELD_ADDR(this, kResourceOffset));
+}
+
+void ExternalString::set_address_as_resource(Address address) {
+  DCHECK(IsAligned(reinterpret_cast<intptr_t>(address), kPointerSize));
+  *reinterpret_cast<Address*>(FIELD_ADDR(this, kResourceOffset)) = address;
+  if (IsExternalOneByteString()) {
+    ExternalOneByteString::cast(this)->update_data_cache();
+  } else {
+    ExternalTwoByteString::cast(this)->update_data_cache();
+  }
+}
+
+uint32_t ExternalString::resource_as_uint32() {
+  return static_cast<uint32_t>(
+      *reinterpret_cast<uintptr_t*>(FIELD_ADDR(this, kResourceOffset)));
+}
+
+void ExternalString::set_uint32_as_resource(uint32_t value) {
+  *reinterpret_cast<uintptr_t*>(FIELD_ADDR(this, kResourceOffset)) = value;
+  if (is_short()) return;
+  const char** data_field =
+      reinterpret_cast<const char**>(FIELD_ADDR(this, kResourceDataOffset));
+  *data_field = nullptr;
+}
+
 const ExternalOneByteString::Resource* ExternalOneByteString::resource() {
   return *reinterpret_cast<Resource**>(FIELD_ADDR(this, kResourceOffset));
 }
