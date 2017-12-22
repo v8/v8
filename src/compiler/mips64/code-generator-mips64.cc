@@ -1997,6 +1997,24 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
         frame_access_state()->IncreaseSPDelta(1);
       }
       break;
+    case kMips64Peek: {
+      // The incoming value is 0-based, but we need a 1-based value.
+      int reverse_slot = MiscField::decode(instr->opcode()) + 1;
+      int offset =
+          FrameSlotToFPOffset(frame()->GetTotalFrameSlotCount() - reverse_slot);
+      if (instr->OutputAt(0)->IsFPRegister()) {
+        LocationOperand* op = LocationOperand::cast(instr->OutputAt(0));
+        if (op->representation() == MachineRepresentation::kFloat64) {
+          __ Ldc1(i.OutputDoubleRegister(), MemOperand(fp, offset));
+        } else {
+          DCHECK_EQ(op->representation(), MachineRepresentation::kFloat32);
+          __ lwc1(i.OutputSingleRegister(0), MemOperand(fp, offset));
+        }
+      } else {
+        __ Ld(i.OutputRegister(0), MemOperand(fp, offset));
+      }
+      break;
+    }
     case kMips64StackClaim: {
       __ Dsubu(sp, sp, Operand(i.InputInt32(0)));
       frame_access_state()->IncreaseSPDelta(i.InputInt32(0) / kPointerSize);
@@ -3698,10 +3716,12 @@ void CodeGenerator::AssembleConstructFrame() {
 
   const RegList saves = descriptor->CalleeSavedRegisters();
   const RegList saves_fpu = descriptor->CalleeSavedFPRegisters();
+  const int returns = frame()->GetReturnSlotCount();
 
-  // Skip callee-saved slots, which are pushed below.
+  // Skip callee-saved and return slots, which are pushed below.
   shrink_slots -= base::bits::CountPopulation(saves);
   shrink_slots -= base::bits::CountPopulation(saves_fpu);
+  shrink_slots -= returns;
   if (shrink_slots > 0) {
     __ Dsubu(sp, sp, Operand(shrink_slots * kPointerSize));
   }
@@ -3717,10 +3737,20 @@ void CodeGenerator::AssembleConstructFrame() {
     __ MultiPush(saves);
     DCHECK_EQ(kNumCalleeSaved, base::bits::CountPopulation(saves) + 1);
   }
+
+  if (returns != 0) {
+    // Create space for returns.
+    __ Dsubu(sp, sp, Operand(returns * kPointerSize));
+  }
 }
 
 void CodeGenerator::AssembleReturn(InstructionOperand* pop) {
   CallDescriptor* descriptor = linkage()->GetIncomingDescriptor();
+
+  const int returns = frame()->GetReturnSlotCount();
+  if (returns != 0) {
+    __ Daddu(sp, sp, Operand(returns * kPointerSize));
+  }
 
   // Restore GP registers.
   const RegList saves = descriptor->CalleeSavedRegisters();
