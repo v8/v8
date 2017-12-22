@@ -177,16 +177,19 @@ class BuildConfig(object):
 
 
 class BaseTestRunner(object):
-  def __init__(self):
+  def __init__(self, basedir=None):
+    self.basedir = basedir or BASE_DIR
     self.outdir = None
     self.build_config = None
     self.mode_name = None
     self.mode_options = None
 
-  def execute(self):
+  def execute(self, sys_args=None):
+    if sys_args is None:  # pragma: no cover
+      sys_args = sys.argv[1:]
     try:
       parser = self._create_parser()
-      options, args = self._parse_args(parser)
+      options, args = self._parse_args(parser, sys_args)
 
       self._load_build_config(options)
 
@@ -231,11 +234,11 @@ class BaseTestRunner(object):
   def _add_parser_options(self, parser):
     pass
 
-  def _parse_args(self, parser):
-    options, args = parser.parse_args()
+  def _parse_args(self, parser, sys_args):
+    options, args = parser.parse_args(sys_args)
 
     if any(map(lambda v: v and ',' in v,
-                [options.arch, options.mode])):
+                [options.arch, options.mode])):  # pragma: no cover
       print 'Multiple arch/mode are deprecated'
       raise TestRunnerError()
 
@@ -248,7 +251,7 @@ class BaseTestRunner(object):
       except TestRunnerError:
         pass
 
-    if not self.build_config:
+    if not self.build_config:  # pragma: no cover
       print 'Failed to load build config'
       raise TestRunnerError
 
@@ -274,14 +277,14 @@ class BaseTestRunner(object):
                           '%s.%s' % (options.arch, options.mode))
 
     for outdir in outdirs():
-      yield os.path.join(BASE_DIR, outdir)
+      yield os.path.join(self.basedir, outdir)
 
       # buildbot option
       if options.mode:
-        yield os.path.join(BASE_DIR, outdir, options.mode)
+        yield os.path.join(self.basedir, outdir, options.mode)
 
   def _get_gn_outdir(self):
-    gn_out_dir = os.path.join(BASE_DIR, DEFAULT_OUT_GN)
+    gn_out_dir = os.path.join(self.basedir, DEFAULT_OUT_GN)
     latest_timestamp = -1
     latest_config = None
     for gn_config in os.listdir(gn_out_dir):
@@ -305,7 +308,7 @@ class BaseTestRunner(object):
     with open(build_config_path) as f:
       try:
         build_config_json = json.load(f)
-      except Exception:
+      except Exception:  # pragma: no cover
         print("%s exists but contains invalid json. Is your build up-to-date?"
               % build_config_path)
         raise TestRunnerError()
@@ -324,7 +327,7 @@ class BaseTestRunner(object):
 
     build_config_mode = 'debug' if self.build_config.is_debug else 'release'
     if options.mode:
-      if options.mode not in MODES:
+      if options.mode not in MODES:  # pragma: no cover
         print '%s mode is invalid' % options.mode
         raise TestRunnerError()
       if MODES[options.mode].execution_mode != build_config_mode:
@@ -346,7 +349,7 @@ class BaseTestRunner(object):
         options.arch, self.build_config.arch))
       raise TestRunnerError()
 
-    if options.shell_dir:
+    if options.shell_dir:  # pragma: no cover
       print('Warning: --shell-dir is deprecated. Searching for executables in '
             'build directory (%s) instead.' % self.outdir)
 
@@ -364,7 +367,7 @@ class BaseTestRunner(object):
 
   def _setup_env(self):
     # Use the v8 root as cwd as some test cases use "load" with relative paths.
-    os.chdir(BASE_DIR)
+    os.chdir(self.basedir)
 
     # Many tests assume an English interface.
     os.environ['LANG'] = 'en_US.UTF-8'
@@ -403,7 +406,7 @@ class BaseTestRunner(object):
 
     if self.build_config.tsan:
       suppressions_file = os.path.join(
-          BASE_DIR,
+          self.basedir,
           'tools',
           'sanitizers',
           'tsan_suppressions.txt')
@@ -418,7 +421,7 @@ class BaseTestRunner(object):
 
   def _get_external_symbolizer_option(self):
     external_symbolizer_path = os.path.join(
-        BASE_DIR,
+        self.basedir,
         'third_party',
         'llvm-build',
         'Release+Asserts',

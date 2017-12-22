@@ -36,8 +36,8 @@ SLOW_ARCHS = ["arm",
 
 
 class GCFuzzer(base_runner.BaseTestRunner):
-  def __init__(self):
-    super(GCFuzzer, self).__init__()
+  def __init__(self, *args, **kwargs):
+    super(GCFuzzer, self).__init__(*args, **kwargs)
 
     self.fuzzer_rng = None
 
@@ -118,7 +118,7 @@ class GCFuzzer(base_runner.BaseTestRunner):
     return shard
 
   def _do_execute(self, options, args):
-    suite_paths = utils.GetSuitePaths(join(base_runner.BASE_DIR, "test"))
+    suite_paths = utils.GetSuitePaths(join(self.basedir, "test"))
 
     if len(args) == 0:
       suite_paths = [ s for s in suite_paths if s in DEFAULT_TESTS ]
@@ -133,7 +133,7 @@ class GCFuzzer(base_runner.BaseTestRunner):
     suites = []
     for root in suite_paths:
       suite = testsuite.TestSuite.LoadTestSuite(
-          os.path.join(base_runner.BASE_DIR, "test", root))
+          os.path.join(self.basedir, "test", root))
       if suite:
         suites.append(suite)
 

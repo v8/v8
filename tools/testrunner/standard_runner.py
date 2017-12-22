@@ -71,8 +71,8 @@ PREDICTABLE_WRAPPER = os.path.join(
 
 
 class StandardTestRunner(base_runner.BaseTestRunner):
-    def __init__(self):
-        super(StandardTestRunner, self).__init__()
+    def __init__(self, *args, **kwargs):
+        super(StandardTestRunner, self).__init__(*args, **kwargs)
 
         self.sancov_dir = None
 
@@ -92,7 +92,7 @@ class StandardTestRunner(base_runner.BaseTestRunner):
           except Exception:
             pass
 
-      suite_paths = utils.GetSuitePaths(join(base_runner.BASE_DIR, "test"))
+      suite_paths = utils.GetSuitePaths(join(self.basedir, "test"))
 
       # Use default tests if no test configuration was provided at the cmd line.
       if len(args) == 0:
@@ -119,7 +119,7 @@ class StandardTestRunner(base_runner.BaseTestRunner):
         if options.verbose:
           print '>>> Loading test suite: %s' % root
         suite = testsuite.TestSuite.LoadTestSuite(
-            os.path.join(base_runner.BASE_DIR, "test", root))
+            os.path.join(self.basedir, "test", root))
         if suite:
           suites.append(suite)
 
@@ -257,13 +257,13 @@ class StandardTestRunner(base_runner.BaseTestRunner):
       if options.novfp3:
         options.extra_flags.append("--noenable-vfp3")
 
-      if options.no_variants:
+      if options.no_variants:  # pragma: no cover
         print ("Option --no-variants is deprecated. "
                "Pass --variants=default instead.")
         assert not options.variants
         options.variants = "default"
 
-      if options.exhaustive_variants:
+      if options.exhaustive_variants:  # pragma: no cover
         # TODO(machenbach): Switch infra to --variants=exhaustive after M65.
         print ("Option --exhaustive-variants is deprecated. "
                "Pass --variants=exhaustive instead.")
@@ -319,7 +319,7 @@ class StandardTestRunner(base_runner.BaseTestRunner):
         print "All variants must be in %s" % str(ALL_VARIANTS)
         raise base_runner.TestRunnerError()
 
-      def CheckTestMode(name, option):
+      def CheckTestMode(name, option):  # pragma: no cover
         if not option in ["run", "skip", "dontcare"]:
           print "Unknown %s mode %s" % (name, option)
           raise base_runner.TestRunnerError()
@@ -482,7 +482,7 @@ class StandardTestRunner(base_runner.BaseTestRunner):
       progress_indicator = progress.IndicatorNotifier()
       progress_indicator.Register(
         progress.PROGRESS_INDICATORS[options.progress]())
-      if options.junitout:
+      if options.junitout:  # pragma: no cover
         progress_indicator.Register(progress.JUnitTestProgressIndicator(
             options.junitout, options.junittestsuite))
       if options.json_test_results:
@@ -491,7 +491,7 @@ class StandardTestRunner(base_runner.BaseTestRunner):
           self.build_config.arch,
           self.mode_options.execution_mode,
           ctx.random_seed))
-      if options.flakiness_results:
+      if options.flakiness_results:  # pragma: no cover
         progress_indicator.Register(progress.FlakinessTestProgressIndicator(
             options.flakiness_results))
 
@@ -516,8 +516,7 @@ class StandardTestRunner(base_runner.BaseTestRunner):
           print "Merging sancov files."
           subprocess.check_call([
             sys.executable,
-            join(
-              base_runner.BASE_DIR, "tools", "sanitizers", "sancov_merger.py"),
+            join(self.basedir, "tools", "sanitizers", "sancov_merger.py"),
             "--coverage-dir=%s" % self.sancov_dir])
         except:
           print >> sys.stderr, "Error: Merging sancov files failed."
@@ -540,16 +539,20 @@ class StandardTestRunner(base_runner.BaseTestRunner):
       if options.shard_count > 1:
         # Log if a value was passed on the cmd line and it differs from the
         # environment variables.
-        if options.shard_count != shard_count:
+        if options.shard_count != shard_count:  # pragma: no cover
           print("shard_count from cmd line differs from environment variable "
                 "GTEST_TOTAL_SHARDS")
-        if options.shard_run > 1 and options.shard_run != shard_run:
+        if (options.shard_run > 1 and
+            options.shard_run != shard_run):  # pragma: no cover
           print("shard_run from cmd line differs from environment variable "
                 "GTEST_SHARD_INDEX")
 
       if shard_count < 2:
         return tests
       if shard_run < 1 or shard_run > shard_count:
+        # TODO(machenbach): Turn this into an assert. If that's wrong on the
+        # bots, printing will be quite useless. Or refactor this code to make
+        # sure we get a return code != 0 after testing if we got here.
         print "shard-run not a valid number, should be in [1:shard-count]"
         print "defaulting back to running all tests"
         return tests
