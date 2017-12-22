@@ -2117,25 +2117,21 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       }
       break;
     }
-    case kX64PeekFloat32: {
-      int reverse_slot = MiscField::decode(instr->opcode());
-      int offset =
-          FrameSlotToFPOffset(frame()->GetTotalFrameSlotCount() - reverse_slot);
-      __ Movss(i.OutputFloatRegister(), Operand(rbp, offset));
-      break;
-    }
-    case kX64PeekFloat64: {
-      int reverse_slot = MiscField::decode(instr->opcode());
-      int offset =
-          FrameSlotToFPOffset(frame()->GetTotalFrameSlotCount() - reverse_slot);
-      __ Movsd(i.OutputDoubleRegister(), Operand(rbp, offset));
-      break;
-    }
     case kX64Peek: {
       int reverse_slot = MiscField::decode(instr->opcode());
       int offset =
           FrameSlotToFPOffset(frame()->GetTotalFrameSlotCount() - reverse_slot);
-      __ movq(i.OutputRegister(), Operand(rbp, offset));
+      if (instr->OutputAt(0)->IsFPRegister()) {
+        LocationOperand* op = LocationOperand::cast(instr->OutputAt(0));
+        if (op->representation() == MachineRepresentation::kFloat64) {
+          __ Movsd(i.OutputDoubleRegister(), Operand(rbp, offset));
+        } else {
+          DCHECK_EQ(MachineRepresentation::kFloat32, op->representation());
+          __ Movss(i.OutputFloatRegister(), Operand(rbp, offset));
+        }
+      } else {
+        __ movq(i.OutputRegister(), Operand(rbp, offset));
+      }
       break;
     }
     // TODO(gdeepti): Get rid of redundant moves for F32x4Splat/Extract below

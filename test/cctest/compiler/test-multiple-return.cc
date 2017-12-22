@@ -517,6 +517,9 @@ void ReturnLastValue(MachineType type) {
 }
 
 TEST(ReturnLastValueInt32) { ReturnLastValue(MachineType::Int32()); }
+#if (!V8_TARGET_ARCH_32_BIT)
+TEST(ReturnLastValueInt64) { ReturnLastValue(MachineType::Int64()); }
+#endif
 TEST(ReturnLastValueFloat32) { ReturnLastValue(MachineType::Float32()); }
 TEST(ReturnLastValueFloat64) { ReturnLastValue(MachineType::Float64()); }
 

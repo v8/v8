@@ -1533,16 +1533,11 @@ void InstructionSelector::EmitPrepareResults(ZoneVector<PushParameter>* results,
     DCHECK(!descriptor->IsCFunctionCall());
     if (output.location.GetType() == MachineType::Float32()) {
       MarkAsFloat32(output.node);
-      InstructionOperand result = g.DefineAsRegister(output.node);
-      Emit(kX64PeekFloat32 | MiscField::encode(reverse_slot), result);
     } else if (output.location.GetType() == MachineType::Float64()) {
       MarkAsFloat64(output.node);
-      InstructionOperand result = g.DefineAsRegister(output.node);
-      Emit(kX64PeekFloat64 | MiscField::encode(reverse_slot), result);
-    } else {
-      InstructionOperand result = g.DefineAsRegister(output.node);
-      Emit(kX64Peek | MiscField::encode(reverse_slot), result);
     }
+    InstructionOperand result = g.DefineAsRegister(output.node);
+    Emit(kX64Peek | MiscField::encode(reverse_slot), result);
   }
 }
 

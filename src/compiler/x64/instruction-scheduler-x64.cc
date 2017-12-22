@@ -255,8 +255,6 @@ int InstructionScheduler::GetTargetInstructionFlags(
 
     case kX64StackCheck:
     case kX64Peek:
-    case kX64PeekFloat32:
-    case kX64PeekFloat64:
       return kIsLoadOperation;
 
     case kX64Push:
