@@ -767,16 +767,16 @@ enum InstanceType : uint16_t {
   // Some of the following instance types are exposed in v8.h, so to not
   // unnecessarily change the ABI when we introduce new instance types in the
   // future, we leave some space between instance types.
-  JS_PROXY_TYPE = 0x8000,  // FIRST_JS_RECEIVER_TYPE
+  JS_PROXY_TYPE = 0x0400,  // FIRST_JS_RECEIVER_TYPE
   JS_GLOBAL_OBJECT_TYPE,   // FIRST_JS_OBJECT_TYPE
   JS_GLOBAL_PROXY_TYPE,
   JS_MODULE_NAMESPACE_TYPE,
   // Like JS_API_OBJECT_TYPE, but requires access checks and/or has
   // interceptors.
-  JS_SPECIAL_API_OBJECT_TYPE = 0x8100,  // LAST_SPECIAL_RECEIVER_TYPE
+  JS_SPECIAL_API_OBJECT_TYPE = 0x0410,  // LAST_SPECIAL_RECEIVER_TYPE
   JS_VALUE_TYPE,                        // LAST_CUSTOM_ELEMENTS_RECEIVER
   // Like JS_OBJECT_TYPE, but created from API function.
-  JS_API_OBJECT_TYPE = 0x8200,
+  JS_API_OBJECT_TYPE = 0x0420,
   JS_OBJECT_TYPE,
   JS_ARGUMENTS_TYPE,
   JS_ARRAY_BUFFER_TYPE,
