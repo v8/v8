@@ -72,6 +72,9 @@ class FreeStoreAllocationPolicy {
   INLINE(static void Delete(void* p)) { Malloced::Delete(p); }
 };
 
+// Performs a malloc, with retry logic on failure. Returns nullptr on failure.
+// Call free to release memory allocated with this function.
+void* AllocWithRetry(size_t size);
 
 void* AlignedAlloc(size_t size, size_t alignment);
 void AlignedFree(void *ptr);

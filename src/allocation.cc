@@ -67,23 +67,16 @@ const int kAllocationTries = 2;
 }  // namespace
 
 void* Malloced::New(size_t size) {
-  void* result = nullptr;
-  for (int i = 0; i < kAllocationTries; ++i) {
-    result = malloc(size);
-    if (result != nullptr) break;
-    if (!OnCriticalMemoryPressure(size)) break;
-  }
+  void* result = AllocWithRetry(size);
   if (result == nullptr) {
     V8::FatalProcessOutOfMemory("Malloced operator new");
   }
   return result;
 }
 
-
 void Malloced::Delete(void* p) {
   free(p);
 }
-
 
 char* StrDup(const char* str) {
   int length = StrLength(str);
@@ -92,7 +85,6 @@ char* StrDup(const char* str) {
   result[length] = '\0';
   return result;
 }
-
 
 char* StrNDup(const char* str, int n) {
   int length = StrLength(str);
@@ -103,6 +95,15 @@ char* StrNDup(const char* str, int n) {
   return result;
 }
 
+void* AllocWithRetry(size_t size) {
+  void* result = nullptr;
+  for (int i = 0; i < kAllocationTries; ++i) {
+    result = malloc(size);
+    if (result != nullptr) break;
+    if (!OnCriticalMemoryPressure(size)) break;
+  }
+  return result;
+}
 
 void* AlignedAlloc(size_t size, size_t alignment) {
   DCHECK_LE(V8_ALIGNOF(void*), alignment);
@@ -118,7 +119,6 @@ void* AlignedAlloc(size_t size, size_t alignment) {
   }
   return result;
 }
-
 
 void AlignedFree(void *ptr) {
 #if V8_OS_WIN

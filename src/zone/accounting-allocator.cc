@@ -84,13 +84,7 @@ Segment* AccountingAllocator::GetSegment(size_t bytes) {
 }
 
 Segment* AccountingAllocator::AllocateSegment(size_t bytes) {
-  const int kAllocationTries = 2;
-  void* memory = nullptr;
-  for (int i = 0; i < kAllocationTries; ++i) {
-    memory = malloc(bytes);
-    if (memory != nullptr) break;
-    if (!OnCriticalMemoryPressure(bytes)) break;
-  }
+  void* memory = AllocWithRetry(bytes);
   if (memory != nullptr) {
     base::AtomicWord current =
         base::Relaxed_AtomicIncrement(&current_memory_usage_, bytes);
