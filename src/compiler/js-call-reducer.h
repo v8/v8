@@ -89,6 +89,8 @@ class JSCallReducer final : public AdvancedReducer {
   Reduction ReduceJSCallWithArrayLike(Node* node);
   Reduction ReduceJSCallWithSpread(Node* node);
   Reduction ReduceReturnReceiver(Node* node);
+  Reduction ReduceStringPrototypeIndexOf(Handle<JSFunction> function,
+                                         Node* node);
 
   Reduction ReduceSoftDeoptimize(Node* node, DeoptimizeReason reason);
 

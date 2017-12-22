@@ -1952,7 +1952,9 @@ Type* Typer::Visitor::TypeStringFromCodePoint(Node* node) {
   return TypeUnaryOp(node, StringFromCodePointTyper);
 }
 
-Type* Typer::Visitor::TypeStringIndexOf(Node* node) { UNREACHABLE(); }
+Type* Typer::Visitor::TypeStringIndexOf(Node* node) {
+  return Type::Range(-1.0, String::kMaxLength, zone());
+}
 
 Type* Typer::Visitor::TypeStringLength(Node* node) {
   return typer_->cache_.kStringLengthType;

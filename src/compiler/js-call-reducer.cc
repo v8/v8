@@ -2623,6 +2623,8 @@ Reduction JSCallReducer::ReduceJSCall(Node* node) {
           return ReduceArrayFind(ArrayFindVariant::kFindIndex, function, node);
         case Builtins::kReturnReceiver:
           return ReduceReturnReceiver(node);
+        case Builtins::kStringPrototypeIndexOf:
+          return ReduceStringPrototypeIndexOf(function, node);
         default:
           break;
       }
@@ -2974,6 +2976,47 @@ Reduction JSCallReducer::ReduceJSConstruct(Node* node) {
     return reduction.Changed() ? reduction : Changed(node);
   }
 
+  return NoChange();
+}
+
+// ES6 String.prototype.indexOf(searchString [, position])
+// #sec-string.prototype.indexof
+Reduction JSCallReducer::ReduceStringPrototypeIndexOf(
+    Handle<JSFunction> function, Node* node) {
+  DCHECK_EQ(IrOpcode::kJSCall, node->opcode());
+  CallParameters const& p = CallParametersOf(node->op());
+  if (p.speculation_mode() == SpeculationMode::kDisallowSpeculation) {
+    return NoChange();
+  }
+
+  Node* effect = NodeProperties::GetEffectInput(node);
+  Node* control = NodeProperties::GetControlInput(node);
+  if (node->op()->ValueInputCount() >= 3) {
+    Node* receiver = NodeProperties::GetValueInput(node, 1);
+    Node* new_receiver = effect = graph()->NewNode(
+        simplified()->CheckString(p.feedback()), receiver, effect, control);
+
+    Node* search_string = NodeProperties::GetValueInput(node, 2);
+    Node* new_search_string = effect =
+        graph()->NewNode(simplified()->CheckString(p.feedback()), search_string,
+                         effect, control);
+
+    Node* new_position = jsgraph()->ZeroConstant();
+    if (node->op()->ValueInputCount() >= 4) {
+      Node* position = NodeProperties::GetValueInput(node, 3);
+      new_position = effect = graph()->NewNode(
+          simplified()->CheckSmi(p.feedback()), position, effect, control);
+    }
+
+    NodeProperties::ReplaceEffectInput(node, effect);
+    RelaxEffectsAndControls(node);
+    node->ReplaceInput(0, new_receiver);
+    node->ReplaceInput(1, new_search_string);
+    node->ReplaceInput(2, new_position);
+    node->TrimInputCount(3);
+    NodeProperties::ChangeOp(node, simplified()->StringIndexOf());
+    return Changed(node);
+  }
   return NoChange();
 }
 

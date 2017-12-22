@@ -2531,34 +2531,6 @@ Reduction JSBuiltinReducer::ReduceStringConcat(Node* node) {
   return NoChange();
 }
 
-// ES6 String.prototype.indexOf(searchString [, position])
-// #sec-string.prototype.indexof
-Reduction JSBuiltinReducer::ReduceStringIndexOf(Node* node) {
-  // We need at least target, receiver and search_string parameters.
-  if (node->op()->ValueInputCount() >= 3) {
-    Node* search_string = NodeProperties::GetValueInput(node, 2);
-    Type* search_string_type = NodeProperties::GetType(search_string);
-    Node* position = (node->op()->ValueInputCount() >= 4)
-                         ? NodeProperties::GetValueInput(node, 3)
-                         : jsgraph()->ZeroConstant();
-    Type* position_type = NodeProperties::GetType(position);
-
-    if (search_string_type->Is(Type::String()) &&
-        position_type->Is(Type::SignedSmall())) {
-      if (Node* receiver = GetStringWitness(node)) {
-        RelaxEffectsAndControls(node);
-        node->ReplaceInput(0, receiver);
-        node->ReplaceInput(1, search_string);
-        node->ReplaceInput(2, position);
-        node->TrimInputCount(3);
-        NodeProperties::ChangeOp(node, simplified()->StringIndexOf());
-        return Changed(node);
-      }
-    }
-  }
-  return NoChange();
-}
-
 Reduction JSBuiltinReducer::ReduceStringIterator(Node* node) {
   if (Node* receiver = GetStringWitness(node)) {
     Node* effect = NodeProperties::GetEffectInput(node);
@@ -3041,8 +3013,6 @@ Reduction JSBuiltinReducer::Reduce(Node* node) {
       return ReduceStringCharCodeAt(node);
     case kStringConcat:
       return ReduceStringConcat(node);
-    case kStringIndexOf:
-      return ReduceStringIndexOf(node);
     case kStringIterator:
       return ReduceStringIterator(node);
     case kStringIteratorNext:
