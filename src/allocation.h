@@ -127,6 +127,11 @@ V8_WARN_UNUSED_RESULT bool SetPermissions(void* address, size_t size,
 V8_EXPORT_PRIVATE
 V8_WARN_UNUSED_RESULT byte* AllocatePage(void* address, size_t* allocated);
 
+// Function that may release reserved memory regions to allow failed allocations
+// to succeed. |length| is the amount of memory needed. Returns |true| if memory
+// could be released, false otherwise.
+V8_EXPORT_PRIVATE bool OnCriticalMemoryPressure(size_t length);
+
 // Represents and controls an area of reserved memory.
 class V8_EXPORT_PRIVATE VirtualMemory {
  public:

@@ -10,6 +10,8 @@
 #include <malloc.h>  // NOLINT
 #endif
 
+#include "src/allocation.h"
+
 namespace v8 {
 namespace internal {
 
@@ -82,10 +84,12 @@ Segment* AccountingAllocator::GetSegment(size_t bytes) {
 }
 
 Segment* AccountingAllocator::AllocateSegment(size_t bytes) {
-  void* memory = malloc(bytes);
-  if (memory == nullptr) {
-    V8::GetCurrentPlatform()->OnCriticalMemoryPressure();
+  const int kAllocationTries = 2;
+  void* memory = nullptr;
+  for (int i = 0; i < kAllocationTries; ++i) {
     memory = malloc(bytes);
+    if (memory != nullptr) break;
+    if (!OnCriticalMemoryPressure(bytes)) break;
   }
   if (memory != nullptr) {
     base::AtomicWord current =

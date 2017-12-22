@@ -158,7 +158,7 @@ class TracingController {
 };
 
 /**
- * A V8 page memory allocator.
+ * A V8 memory page allocator.
  *
  * Can be implemented by an embedder to manage large host OS allocations.
  */
@@ -246,7 +246,7 @@ class Platform {
   virtual ~Platform() = default;
 
   /**
-   * Allows the embedder to manage large memory allocations.
+   * Allows the embedder to manage memory page allocations.
    */
   virtual PageAllocator* GetPageAllocator() {
     // TODO(bbudge) Make this abstract after all embedders implement this.
@@ -261,11 +261,20 @@ class Platform {
    * Embedder overrides of this function must NOT call back into V8.
    */
   virtual void OnCriticalMemoryPressure() {
-    // TODO(bbudge) Change this method by adding a failed_allocation_size
-    // parameter, and to return a bool. This will allow embedders to manage a
-    // reserve, rather than simply release it all on a failure.
+    // TODO(bbudge) Remove this when embedders override the following method.
     // See crbug.com/634547.
   }
+
+  /**
+   * Enables the embedder to respond in cases where V8 can't allocate large
+   * memory regions. The |length| parameter is the amount of memory needed.
+   * Returns true if memory is now available. Returns false if no memory could
+   * be made available. V8 will retry allocations until this method returns
+   * false.
+   *
+   * Embedder overrides of this function must NOT call back into V8.
+   */
+  virtual bool OnCriticalMemoryPressure(size_t length) { return false; }
 
   /**
    * Gets the number of threads that are used to execute background tasks. Is
