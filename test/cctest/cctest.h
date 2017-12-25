@@ -688,6 +688,10 @@ class TestPlatform : public v8::Platform {
     old_platform_->OnCriticalMemoryPressure();
   }
 
+  bool OnCriticalMemoryPressure(size_t length) override {
+    return old_platform_->OnCriticalMemoryPressure(length);
+  }
+
   std::shared_ptr<v8::TaskRunner> GetForegroundTaskRunner(
       v8::Isolate* isolate) override {
     return old_platform_->GetForegroundTaskRunner(isolate);
