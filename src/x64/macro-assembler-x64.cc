@@ -298,15 +298,35 @@ void TurboAssembler::CallRecordWriteStub(
   Register fp_mode_parameter(callable.descriptor().GetRegisterParameter(
       RecordWriteDescriptor::kFPMode));
 
-  pushq(object);
-  pushq(address);
-
-  popq(slot_parameter);
-  popq(object_parameter);
+  // Prepare argument registers for calling RecordWrite
+  // slot_parameter   <= address
+  // object_parameter <= object
+  if (slot_parameter != object) {
+    // Normal case
+    Move(slot_parameter, address);
+    Move(object_parameter, object);
+  } else if (object_parameter != address) {
+    // Only slot_parameter and object are the same register
+    // object_parameter <= object
+    // slot_parameter   <= address
+    Move(object_parameter, object);
+    Move(slot_parameter, address);
+  } else {
+    // slot_parameter   \/ address
+    // object_parameter /\ object
+    xchgq(slot_parameter, object_parameter);
+  }
 
   LoadAddress(isolate_parameter, ExternalReference::isolate_address(isolate()));
-  Move(remembered_set_parameter, Smi::FromEnum(remembered_set_action));
-  Move(fp_mode_parameter, Smi::FromEnum(fp_mode));
+
+  Smi* smi_rsa = Smi::FromEnum(remembered_set_action);
+  Smi* smi_fm = Smi::FromEnum(fp_mode);
+  Move(remembered_set_parameter, smi_rsa);
+  if (smi_rsa != smi_fm) {
+    Move(fp_mode_parameter, smi_fm);
+  } else {
+    movq(fp_mode_parameter, remembered_set_parameter);
+  }
   Call(callable.code(), RelocInfo::CODE_TARGET);
 
   RestoreRegisters(registers);
