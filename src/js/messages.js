@@ -20,7 +20,7 @@ var Script = utils.ImportNow("Script");
 
 /**
  * Get information on a specific source position.
- * Returns an object with the following following properties:
+ * Returns an object with the following properties:
  *   script     : script object for the source
  *   line       : source line number
  *   column     : source column within the line
