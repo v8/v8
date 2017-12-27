@@ -346,6 +346,9 @@
   'unicode-test': [PASS, SLOW],
   'wasm/atomics': [PASS, SLOW],
   'whitespaces': [PASS, SLOW],
+
+  # BUG(v8:7247).
+  'regress/regress-779407': [PASS, SLOW, NO_VARIANTS],
 }],  # 'arch == arm64'
 
 ['arch == arm64 and mode == debug and simulator_run', {
