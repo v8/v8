@@ -2609,10 +2609,6 @@ Reduction JSCallReducer::ReduceJSCall(Node* node) {
           return ReduceReflectHas(node);
         case Builtins::kArrayForEach:
           return ReduceArrayForEach(function, node);
-        case Builtins::kArrayReduce:
-          return ReduceArrayReduce(function, node);
-        case Builtins::kArrayReduceRight:
-          return ReduceArrayReduceRight(function, node);
         case Builtins::kArrayMap:
           return ReduceArrayMap(function, node);
         case Builtins::kArrayFilter:
