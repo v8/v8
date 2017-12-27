@@ -464,7 +464,8 @@ NodeProperties::InferReceiverMapsResult NodeProperties::InferReceiverMaps(
       case IrOpcode::kEffectPhi: {
         Node* control = GetControlInput(effect);
         if (control->opcode() != IrOpcode::kLoop) {
-          DCHECK_EQ(IrOpcode::kMerge, control->opcode());
+          DCHECK(control->opcode() == IrOpcode::kDead ||
+                 control->opcode() == IrOpcode::kMerge);
           return kNoReceiverMaps;
         }
 
