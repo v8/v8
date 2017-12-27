@@ -415,6 +415,9 @@ constexpr WasmCodePosition kNoCodePosition = -1;
   V(S128LoadMem, 0xfd80, s_i)      \
   V(S128StoreMem, 0xfd81, v_is)
 
+#define FOREACH_NUMERIC_OPCODE(V) V(I32SConvertSatF32, 0xfc00, i_f)
+// TODO(kschimpf): Add remaining numeric opcodes.
+
 #define FOREACH_ATOMIC_OPCODE(V)               \
   V(I32AtomicLoad, 0xfe10, i_i)                \
   V(I32AtomicLoad8U, 0xfe12, i_i)              \
@@ -457,7 +460,8 @@ constexpr WasmCodePosition kNoCodePosition = -1;
   FOREACH_SIMD_1_OPERAND_OPCODE(V)    \
   FOREACH_SIMD_MASK_OPERAND_OPCODE(V) \
   FOREACH_SIMD_MEM_OPCODE(V)          \
-  FOREACH_ATOMIC_OPCODE(V)
+  FOREACH_ATOMIC_OPCODE(V)            \
+  FOREACH_NUMERIC_OPCODE(V)
 
 // All signatures.
 #define FOREACH_SIGNATURE(V)             \
@@ -504,6 +508,7 @@ constexpr WasmCodePosition kNoCodePosition = -1;
   V(s_sss, kWasmS128, kWasmS128, kWasmS128, kWasmS128)
 
 #define FOREACH_PREFIX(V) \
+  V(Numeric, 0xfc)        \
   V(Simd, 0xfd)           \
   V(Atomic, 0xfe)
 

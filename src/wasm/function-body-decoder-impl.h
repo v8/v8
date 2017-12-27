@@ -27,6 +27,8 @@ struct WasmException;
     if (FLAG_trace_wasm_decoder) PrintF(__VA_ARGS__); \
   } while (false)
 
+#define TRACE_INST_FORMAT "  @%-8d #%-20s|"
+
 // Return the evaluation of `condition` if validate==true, DCHECK that it's
 // true and always return true otherwise.
 #define VALIDATE(condition)       \
@@ -971,6 +973,8 @@ class WasmDecoder : public Decoder {
         return 5;
       case kExprF64Const:
         return 9;
+      case kNumericPrefix:
+        return 2;
       case kSimdPrefix: {
         byte simd_index = decoder->read_u8<validate>(pc + 1, "simd_index");
         WasmOpcode opcode =
@@ -1075,6 +1079,7 @@ class WasmDecoder : public Decoder {
       case kExprReturn:
       case kExprUnreachable:
         return {0, 0};
+      case kNumericPrefix:
       case kAtomicPrefix:
       case kSimdPrefix: {
         opcode = static_cast<WasmOpcode>(opcode << 8 | *(pc + 1));
@@ -1333,7 +1338,7 @@ class WasmFullDecoder : public WasmDecoder<validate> {
       TraceLine trace_msg;
 #define TRACE_PART(...) trace_msg.Append(__VA_ARGS__)
       if (!WasmOpcodes::IsPrefixOpcode(opcode)) {
-        TRACE_PART("  @%-8d #%-20s|", startrel(this->pc_),
+        TRACE_PART(TRACE_INST_FORMAT, startrel(this->pc_),
                    WasmOpcodes::OpcodeName(opcode));
       }
 #else
@@ -1506,7 +1511,7 @@ class WasmFullDecoder : public WasmDecoder<validate> {
               }
               last_end_found_ = true;
               // The result of the block is the return value.
-              TRACE_PART("\n  @%-8d #%-20s|", startrel(this->pc_),
+              TRACE_PART("\n" TRACE_INST_FORMAT, startrel(this->pc_),
                          "(implicit) return");
               DoReturn(c, true);
             }
@@ -1780,13 +1785,30 @@ class WasmFullDecoder : public WasmDecoder<validate> {
                                         args_.data(), returns);
             break;
           }
+          case kNumericPrefix: {
+            CHECK_PROTOTYPE_OPCODE(sat_f2i_conversions);
+            ++len;
+            byte numeric_index = this->template read_u8<validate>(
+                this->pc_ + 1, "numeric index");
+            opcode = static_cast<WasmOpcode>(opcode << 8 | numeric_index);
+            TRACE_PART(TRACE_INST_FORMAT, startrel(this->pc_),
+                       WasmOpcodes::OpcodeName(opcode));
+            sig = WasmOpcodes::Signature(opcode);
+            if (sig == nullptr) {
+              this->errorf(this->pc_, "Unrecognized numeric opcode: %x\n",
+                           opcode);
+              return;
+            }
+            BuildSimpleOperator(opcode, sig);
+            break;
+          }
           case kSimdPrefix: {
             CHECK_PROTOTYPE_OPCODE(simd);
             len++;
             byte simd_index =
                 this->template read_u8<validate>(this->pc_ + 1, "simd index");
             opcode = static_cast<WasmOpcode>(opcode << 8 | simd_index);
-            TRACE_PART("  @%-4d #%-20s|", startrel(this->pc_),
+            TRACE_PART(TRACE_INST_FORMAT, startrel(this->pc_),
                        WasmOpcodes::OpcodeName(opcode));
             len += DecodeSimdOpcode(opcode);
             break;
@@ -1798,7 +1820,7 @@ class WasmFullDecoder : public WasmDecoder<validate> {
             byte atomic_index =
                 this->template read_u8<validate>(this->pc_ + 1, "atomic index");
             opcode = static_cast<WasmOpcode>(opcode << 8 | atomic_index);
-            TRACE_PART("  @%-4d #%-20s|", startrel(this->pc_),
+            TRACE_PART(TRACE_INST_FORMAT, startrel(this->pc_),
                        WasmOpcodes::OpcodeName(opcode));
             len += DecodeAtomicOpcode(opcode);
             break;
@@ -2358,6 +2380,7 @@ class EmptyInterface {
 };
 
 #undef TRACE
+#undef TRACE_INST_FORMAT
 #undef VALIDATE
 #undef CHECK_PROTOTYPE_OPCODE
 #undef OPCODE_ERROR

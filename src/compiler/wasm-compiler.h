@@ -422,6 +422,7 @@ class WasmGraphBuilder {
   bool use_trap_handler() const { return env_ && env_->use_trap_handler; }
 
  private:
+  enum class NumericImplementation : uint8_t { kTrap, kSaturate };
   static const int kDefaultBufferSize = 16;
 
   Zone* zone_;
@@ -480,7 +481,8 @@ class WasmGraphBuilder {
 
   Node* BuildF32CopySign(Node* left, Node* right);
   Node* BuildF64CopySign(Node* left, Node* right);
-  Node* BuildI32SConvertF32(Node* input, wasm::WasmCodePosition position);
+  Node* BuildI32SConvertF32(Node* input, wasm::WasmCodePosition position,
+                            NumericImplementation impl);
   Node* BuildI32SConvertF64(Node* input, wasm::WasmCodePosition position);
   Node* BuildI32UConvertF32(Node* input, wasm::WasmCodePosition position);
   Node* BuildI32UConvertF64(Node* input, wasm::WasmCodePosition position);

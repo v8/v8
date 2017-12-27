@@ -548,6 +548,8 @@ DEFINE_BOOL(experimental_wasm_mv, false,
             "enable prototype multi-value support for wasm")
 DEFINE_BOOL(experimental_wasm_threads, false,
             "enable prototype threads for wasm")
+DEFINE_BOOL(experimental_wasm_sat_f2i_conversions, false,
+            "enable non-trapping float-to-int conversions for wasm")
 
 DEFINE_BOOL(wasm_opt, false, "enable wasm optimization")
 DEFINE_BOOL(wasm_no_bounds_checks, false,

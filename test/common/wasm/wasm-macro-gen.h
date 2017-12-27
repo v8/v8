@@ -557,6 +557,12 @@ inline WasmOpcode LoadStoreOpcodeOf(MachineType type, bool store) {
 #define WASM_I64_REINTERPRET_F64(x) x, kExprI64ReinterpretF64
 
 //------------------------------------------------------------------------------
+// Numeric operations
+//------------------------------------------------------------------------------
+#define WASM_NUMERIC_OP(op) kNumericPrefix, static_cast<byte>(op)
+#define WASM_I32_SCONVERT_SAT_F32(x) x, WASM_NUMERIC_OP(kExprI32SConvertSatF32)
+
+//------------------------------------------------------------------------------
 // Memory Operations.
 //------------------------------------------------------------------------------
 #define WASM_GROW_MEMORY(x) x, kExprGrowMemory, 0

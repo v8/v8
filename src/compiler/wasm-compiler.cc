@@ -585,7 +585,10 @@ Node* WasmGraphBuilder::Unop(wasm::WasmOpcode opcode, Node* input,
       op = m->RoundUint32ToFloat32();
       break;
     case wasm::kExprI32SConvertF32:
-      return BuildI32SConvertF32(input, position);
+      return BuildI32SConvertF32(input, position, NumericImplementation::kTrap);
+    case wasm::kExprI32SConvertSatF32:
+      return BuildI32SConvertF32(input, position,
+                                 NumericImplementation::kSaturate);
     case wasm::kExprI32UConvertF32:
       return BuildI32UConvertF32(input, position);
     case wasm::kExprI32AsmjsSConvertF32:
@@ -1360,7 +1363,8 @@ Node* WasmGraphBuilder::BuildF64CopySign(Node* left, Node* right) {
 }
 
 Node* WasmGraphBuilder::BuildI32SConvertF32(Node* input,
-                                            wasm::WasmCodePosition position) {
+                                            wasm::WasmCodePosition position,
+                                            NumericImplementation impl) {
   MachineOperatorBuilder* m = jsgraph()->machine();
   // Truncation of the input value is needed for the overflow check later.
   Node* trunc = Unop(wasm::kExprF32Trunc, input);
@@ -1370,9 +1374,33 @@ Node* WasmGraphBuilder::BuildI32SConvertF32(Node* input,
   // truncated input value, then there has been an overflow and we trap.
   Node* check = Unop(wasm::kExprF32SConvertI32, result);
   Node* overflow = Binop(wasm::kExprF32Ne, trunc, check);
-  TrapIfTrue(wasm::kTrapFloatUnrepresentable, overflow, position);
 
-  return result;
+  switch (impl) {
+    case NumericImplementation::kTrap:
+      TrapIfTrue(wasm::kTrapFloatUnrepresentable, overflow, position);
+      return result;
+    case NumericImplementation::kSaturate: {
+      Diamond tl_d(graph(), jsgraph()->common(), overflow, BranchHint::kFalse);
+      tl_d.Chain(*control_);
+      Diamond nan_d(graph(), jsgraph()->common(),
+                    Binop(wasm::kExprF32Ne, input, input),  // Checks if NaN.
+                    BranchHint::kFalse);
+      nan_d.Nest(tl_d, true);
+      Diamond sat_d(
+          graph(), jsgraph()->common(),
+          graph()->NewNode(m->Float32LessThan(), input, Float32Constant(0.0)),
+          BranchHint::kNone);
+      sat_d.Nest(nan_d, false);
+      Node* sat_val =
+          sat_d.Phi(MachineRepresentation::kWord32,
+                    Int32Constant(std::numeric_limits<int32_t>::min()),
+                    Int32Constant(std::numeric_limits<int32_t>::max()));
+      Node* nan_val =
+          nan_d.Phi(MachineRepresentation::kWord32, Int32Constant(0), sat_val);
+      return tl_d.Phi(MachineRepresentation::kWord32, nan_val, result);
+    }
+  }
+  UNREACHABLE();
 }
 
 Node* WasmGraphBuilder::BuildI32SConvertF64(Node* input,

@@ -456,6 +456,17 @@ int32_t ExecuteI32SConvertF32(float a, TrapReason* trap) {
   return 0;
 }
 
+int32_t ExecuteI32SConvertSatF32(float a) {
+  TrapReason base_trap = kTrapCount;
+  int32_t val = ExecuteI32SConvertF32(a, &base_trap);
+  if (base_trap == kTrapCount) {
+    return val;
+  }
+  return std::isnan(a) ? 0
+                       : (a < 0.0 ? std::numeric_limits<int32_t>::min()
+                                  : std::numeric_limits<int32_t>::max());
+}
+
 int32_t ExecuteI32SConvertF64(double a, TrapReason* trap) {
   // The upper bound is (INT32_MAX + 1), which is the lowest double-
   // representable number above INT32_MAX which cannot be represented as int32.
@@ -1559,6 +1570,23 @@ class ThreadImpl {
     return true;
   }
 
+  bool ExecuteNumericOp(WasmOpcode opcode, Decoder* decoder,
+                        InterpreterCode* code, pc_t pc, int& len) {
+    switch (opcode) {
+      case kExprI32SConvertSatF32: {
+        float val = Pop().to<float>();
+        auto result = ExecuteI32SConvertSatF32(val);
+        Push(WasmValue(result));
+        return true;
+      }
+      default:
+        V8_Fatal(__FILE__, __LINE__, "Unknown or unimplemented opcode #%d:%s",
+                 code->start[pc], OpcodeName(code->start[pc]));
+        UNREACHABLE();
+    }
+    return false;
+  }
+
   bool ExecuteAtomicOp(WasmOpcode opcode, Decoder* decoder,
                        InterpreterCode* code, pc_t pc, int& len) {
     WasmValue result;
@@ -2100,6 +2128,11 @@ class ThreadImpl {
         case kExprI64ReinterpretF64: {
           WasmValue val = Pop();
           Push(WasmValue(ExecuteI64ReinterpretF64(val)));
+          break;
+        }
+        case kNumericPrefix: {
+          ++len;
+          if (!ExecuteNumericOp(opcode, &decoder, code, pc, len)) return;
           break;
         }
         case kAtomicPrefix: {

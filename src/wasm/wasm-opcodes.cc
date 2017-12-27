@@ -98,6 +98,10 @@ const char* WasmOpcodes::OpcodeName(WasmOpcode opcode) {
     CASE_I32_OP(ConvertI64, "wrap/i64")
     CASE_CONVERT_OP(Convert, INT, F32, "f32", "trunc")
     CASE_CONVERT_OP(Convert, INT, F64, "f64", "trunc")
+    // TODO(kschimpf): Simplify after filling in other saturating
+    // operations.
+    CASE_I32_OP(SConvertSatF32, "trunc_s:sat/f32")
+
     CASE_CONVERT_OP(Convert, I64, I32, "i32", "extend")
     CASE_CONVERT_OP(Convert, F32, I32, "i32", "convert")
     CASE_CONVERT_OP(Convert, F32, I64, "i64", "convert")
@@ -391,6 +395,14 @@ struct GetAtomicOpcodeSigIndex {
 }
 };
 
+struct GetNumericOpcodeSigIndex {
+  constexpr WasmOpcodeSig operator()(byte opcode) const {
+#define CASE(name, opc, sig) opcode == (opc & 0xFF) ? kSigEnum_##sig:
+    return FOREACH_NUMERIC_OPCODE(CASE) kSigEnum_None;
+#undef CASE
+  }
+};
+
 constexpr std::array<WasmOpcodeSig, 256> kSimpleExprSigTable =
     base::make_array<256>(GetOpcodeSigIndex{});
 constexpr std::array<WasmOpcodeSig, 256> kSimpleAsmjsExprSigTable =
@@ -399,20 +411,26 @@ constexpr std::array<WasmOpcodeSig, 256> kSimdExprSigTable =
     base::make_array<256>(GetSimdOpcodeSigIndex{});
 constexpr std::array<WasmOpcodeSig, 256> kAtomicExprSigTable =
     base::make_array<256>(GetAtomicOpcodeSigIndex{});
+constexpr std::array<WasmOpcodeSig, 256> kNumericExprSigTable =
+    base::make_array<256>(GetNumericOpcodeSigIndex{});
 
 }  // namespace
 
 FunctionSig* WasmOpcodes::Signature(WasmOpcode opcode) {
-  if (opcode >> 8 == kSimdPrefix) {
-    return const_cast<FunctionSig*>(
-        kSimpleExprSigs[kSimdExprSigTable[opcode & 0xFF]]);
-  } else if (opcode >> 8 == kAtomicPrefix) {
-    return const_cast<FunctionSig*>(
-        kSimpleExprSigs[kAtomicExprSigTable[opcode & 0xFF]]);
-  } else {
-    DCHECK_GT(kSimpleExprSigTable.size(), opcode);
-    return const_cast<FunctionSig*>(
-        kSimpleExprSigs[kSimpleExprSigTable[opcode]]);
+  switch (opcode >> 8) {
+    case kSimdPrefix:
+      return const_cast<FunctionSig*>(
+          kSimpleExprSigs[kSimdExprSigTable[opcode & 0xFF]]);
+    case kAtomicPrefix:
+      return const_cast<FunctionSig*>(
+          kSimpleExprSigs[kAtomicExprSigTable[opcode & 0xFF]]);
+    case kNumericPrefix:
+      return const_cast<FunctionSig*>(
+          kSimpleExprSigs[kNumericExprSigTable[opcode & 0xFF]]);
+    default:
+      DCHECK_GT(kSimpleExprSigTable.size(), opcode);
+      return const_cast<FunctionSig*>(
+          kSimpleExprSigs[kSimpleExprSigTable[opcode]]);
   }
 }
 

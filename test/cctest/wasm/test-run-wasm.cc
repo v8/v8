@@ -2853,18 +2853,47 @@ WASM_EXEC_TEST(I32SConvertF32) {
   WasmRunner<int32_t, float> r(execution_mode);
   BUILD(r, WASM_I32_SCONVERT_F32(WASM_GET_LOCAL(0)));
 
-  // The upper bound is (INT32_MAX + 1), which is the lowest float-representable
-  // number above INT32_MAX which cannot be represented as int32.
-  float upper_bound = 2147483648.0f;
-  // We use INT32_MIN as a lower bound because (INT32_MIN - 1) is not
-  // representable as float, and no number between (INT32_MIN - 1) and INT32_MIN
-  // is.
-  float lower_bound = static_cast<float>(INT32_MIN);
+  constexpr float kLowerBound =
+      static_cast<float>(std::numeric_limits<int32_t>::min());
+  constexpr float kUpperBound =
+      static_cast<float>(std::numeric_limits<int32_t>::max());
+  assert(static_cast<int64_t>(kUpperBound) >
+         static_cast<int64_t>(std::numeric_limits<int32_t>::max()));
+  assert(static_cast<int32_t>(kLowerBound) ==
+         std::numeric_limits<int32_t>::min());
+
   FOR_FLOAT32_INPUTS(i) {
-    if (*i < upper_bound && *i >= lower_bound) {
+    if (*i < kUpperBound && *i >= kLowerBound) {
       CHECK_EQ(static_cast<int32_t>(*i), r.Call(*i));
     } else {
       CHECK_TRAP32(r.Call(*i));
+    }
+  }
+}
+
+WASM_EXEC_TEST(I32SConvertSatF32) {
+  EXPERIMENTAL_FLAG_SCOPE(sat_f2i_conversions);
+  WasmRunner<int32_t, float> r(execution_mode);
+  BUILD(r, WASM_I32_SCONVERT_SAT_F32(WASM_GET_LOCAL(0)));
+
+  constexpr float kLowerBound =
+      static_cast<float>(std::numeric_limits<int32_t>::min());
+  constexpr float kUpperBound =
+      static_cast<float>(std::numeric_limits<int32_t>::max());
+  assert(static_cast<int64_t>(kUpperBound) >
+         static_cast<int64_t>(std::numeric_limits<int32_t>::max()));
+  assert(static_cast<int32_t>(kLowerBound) ==
+         std::numeric_limits<int32_t>::min());
+
+  FOR_FLOAT32_INPUTS(i) {
+    if (*i < kUpperBound && *i >= kLowerBound) {
+      CHECK_EQ(static_cast<int32_t>(*i), r.Call(*i));
+    } else if (std::isnan(*i)) {
+      CHECK_EQ(0, r.Call(*i));
+    } else if (*i < 0.0) {
+      CHECK_EQ(std::numeric_limits<int32_t>::min(), r.Call(*i));
+    } else {
+      CHECK_EQ(std::numeric_limits<int32_t>::max(), r.Call(*i));
     }
   }
 }
