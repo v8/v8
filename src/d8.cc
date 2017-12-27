@@ -197,6 +197,18 @@ class PredictablePlatform : public Platform {
     DCHECK_NOT_NULL(platform_);
   }
 
+  PageAllocator* GetPageAllocator() override {
+    return platform_->GetPageAllocator();
+  }
+
+  void OnCriticalMemoryPressure() override {
+    platform_->OnCriticalMemoryPressure();
+  }
+
+  bool OnCriticalMemoryPressure(size_t length) override {
+    return platform_->OnCriticalMemoryPressure(length);
+  }
+
   std::shared_ptr<TaskRunner> GetForegroundTaskRunner(
       v8::Isolate* isolate) override {
     return platform_->GetForegroundTaskRunner(isolate);
