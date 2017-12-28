@@ -460,6 +460,10 @@ InjectedScript.prototype = {
             if (InjectedScriptHost.subtype(o) === "proxy")
                 continue;
 
+            var typedArrays = subtype === "arraybuffer" ? InjectedScriptHost.typedArrayProperties(o) || [] : [];
+            for (var i = 0; i < typedArrays.length; i += 2)
+                addPropertyIfNeeded(descriptors, { name: typedArrays[i], value: typedArrays[i + 1], isOwn: true, enumerable: false, configurable: false, __proto__: null });
+
             try {
                 if (skipGetOwnPropertyNames && o === object) {
                     if (!process(o, undefined, o.length))
@@ -932,6 +936,10 @@ InjectedScript.RemoteObject.prototype = {
 
             // Ignore size property of map, set.
             if ((subtype === "map" || subtype === "set") && descriptor.name === "size")
+                return true;
+
+            // Ignore ArrayBuffer previews
+            if (subtype === 'arraybuffer' && (descriptor.name === "[[Int8Array]]" || descriptor.name === "[[Uint8Array]]" || descriptor.name === "[[Int16Array]]" || descriptor.name === "[[Int32Array]]"))
                 return true;
 
             // Never preview prototype properties.
