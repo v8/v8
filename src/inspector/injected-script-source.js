@@ -586,15 +586,20 @@ InjectedScript.prototype = {
 
         if (subtype === "node") {
             var description = "";
-            if (obj.nodeName)
-                description = obj.nodeName.toLowerCase();
-            else if (obj.constructor)
-                description = obj.constructor.name.toLowerCase();
+            var nodeName = InjectedScriptHost.getProperty(obj, "nodeName");
+            if (nodeName) {
+                description = nodeName.toLowerCase();
+            } else {
+                var constructor = InjectedScriptHost.getProperty(obj, "constructor");
+                if (constructor)
+                    description = (InjectedScriptHost.getProperty(constructor, "name") || "").toLowerCase();
+            }
 
             switch (obj.nodeType) {
             case 1 /* Node.ELEMENT_NODE */:
-                description += obj.id ? "#" + obj.id : "";
-                var className = obj.className;
+                var id = InjectedScriptHost.getProperty(obj, "id");
+                description += id ? "#" + id : "";
+                var className = InjectedScriptHost.getProperty(obj, "className");
                 description += (className && typeof className === "string") ? "." + className.trim().replace(/\s+/g, ".") : "";
                 break;
             case 10 /*Node.DOCUMENT_TYPE_NODE */:
