@@ -1472,20 +1472,16 @@ Reduction JSCallReducer::ReduceArrayMap(Handle<JSFunction> function,
 
   const ElementsKind kind = receiver_maps[0]->elements_kind();
 
-  // TODO(danno): Handle holey elements kinds.
-  if (!IsFastPackedElementsKind(kind)) {
+  // TODO(pwong): Handle holey double elements kinds.
+  if (IsDoubleElementsKind(kind) && IsHoleyElementsKind(kind)) {
     return NoChange();
   }
 
   for (Handle<Map> receiver_map : receiver_maps) {
-    if (!CanInlineArrayIteratingBuiltin(receiver_map)) {
-      return NoChange();
-    }
+    if (!CanInlineArrayIteratingBuiltin(receiver_map)) return NoChange();
     // We can handle different maps, as long as their elements kind are the
     // same.
-    if (receiver_map->elements_kind() != kind) {
-      return NoChange();
-    }
+    if (receiver_map->elements_kind() != kind) return NoChange();
   }
 
   dependencies()->AssumePropertyCell(factory()->species_protector());
@@ -1573,6 +1569,28 @@ Reduction JSCallReducer::ReduceArrayMap(Handle<JSFunction> function,
   Node* next_k =
       graph()->NewNode(simplified()->NumberAdd(), k, jsgraph()->OneConstant());
 
+  Node* hole_true = nullptr;
+  Node* hole_false = nullptr;
+  Node* effect_true = effect;
+
+  if (IsHoleyElementsKind(kind)) {
+    // Holey elements kind require a hole check and skipping of the element in
+    // the case of a hole.
+    Node* check = graph()->NewNode(simplified()->ReferenceEqual(), element,
+                                   jsgraph()->TheHoleConstant());
+    Node* branch =
+        graph()->NewNode(common()->Branch(BranchHint::kFalse), check, control);
+    hole_true = graph()->NewNode(common()->IfTrue(), branch);
+    hole_false = graph()->NewNode(common()->IfFalse(), branch);
+    control = hole_false;
+
+    // The contract is that we don't leak "the hole" into "user JavaScript",
+    // so we must rename the {element} here to explicitly exclude "the hole"
+    // from the type of {element}.
+    element = graph()->NewNode(common()->TypeGuard(Type::NonInternal()),
+                               element, control);
+  }
+
   // This frame state is dealt with by hand in
   // ArrayMapLoopLazyDeoptContinuation.
   frame_state = CreateJavaScriptBuiltinContinuationFrameState(
@@ -1598,6 +1616,18 @@ Reduction JSCallReducer::ReduceArrayMap(Handle<JSFunction> function,
   effect = graph()->NewNode(
       simplified()->TransitionAndStoreElement(double_map, fast_map), a, k,
       callback_value, effect, control);
+
+  if (IsHoleyElementsKind(kind)) {
+    Node* after_call_and_store_control = control;
+    Node* after_call_and_store_effect = effect;
+    control = hole_true;
+    effect = effect_true;
+
+    control = graph()->NewNode(common()->Merge(2), control,
+                               after_call_and_store_control);
+    effect = graph()->NewNode(common()->EffectPhi(2), effect,
+                              after_call_and_store_effect, control);
+  }
 
   k = next_k;
 
@@ -1654,9 +1684,11 @@ Reduction JSCallReducer::ReduceArrayFilter(Handle<JSFunction> function,
   if (receiver_maps.size() == 0) return NoChange();
 
   const ElementsKind kind = receiver_maps[0]->elements_kind();
+  // The output array is packed (filter doesn't visit holes).
+  const ElementsKind packed_kind = GetPackedElementsKind(kind);
 
-  // TODO(danno): Handle holey elements kinds.
-  if (!IsFastPackedElementsKind(kind)) {
+  // TODO(pwong): Handle holey double elements kinds.
+  if (IsDoubleElementsKind(kind) && IsHoleyElementsKind(kind)) {
     return NoChange();
   }
 
@@ -1666,15 +1698,13 @@ Reduction JSCallReducer::ReduceArrayFilter(Handle<JSFunction> function,
     }
     // We can handle different maps, as long as their elements kind are the
     // same.
-    if (receiver_map->elements_kind() != kind) {
-      return NoChange();
-    }
+    if (receiver_map->elements_kind() != kind) return NoChange();
   }
 
   dependencies()->AssumePropertyCell(factory()->species_protector());
 
   Handle<Map> initial_map(
-      Map::cast(native_context()->GetInitialJSArrayMap(kind)));
+      Map::cast(native_context()->GetInitialJSArrayMap(packed_kind)));
 
   Node* k = jsgraph()->ZeroConstant();
   Node* to = jsgraph()->ZeroConstant();
@@ -1692,7 +1722,8 @@ Reduction JSCallReducer::ReduceArrayFilter(Handle<JSFunction> function,
     Node* empty_fixed_array = jsgraph()->EmptyFixedArrayConstant();
     ab.Store(AccessBuilder::ForJSObjectPropertiesOrHash(), empty_fixed_array);
     ab.Store(AccessBuilder::ForJSObjectElements(), empty_fixed_array);
-    ab.Store(AccessBuilder::ForJSArrayLength(kind), jsgraph()->ZeroConstant());
+    ab.Store(AccessBuilder::ForJSArrayLength(packed_kind),
+             jsgraph()->ZeroConstant());
     for (int i = 0; i < initial_map->GetInObjectProperties(); ++i) {
       ab.Store(AccessBuilder::ForJSObjectInObjectProperty(initial_map, i),
                jsgraph()->UndefinedConstant());
@@ -1776,6 +1807,29 @@ Reduction JSCallReducer::ReduceArrayFilter(Handle<JSFunction> function,
   Node* next_k =
       graph()->NewNode(simplified()->NumberAdd(), k, jsgraph()->OneConstant());
 
+  Node* hole_true = nullptr;
+  Node* hole_false = nullptr;
+  Node* effect_true = effect;
+  Node* hole_true_vto = to;
+
+  if (IsHoleyElementsKind(kind)) {
+    // Holey elements kind require a hole check and skipping of the element in
+    // the case of a hole.
+    Node* check = graph()->NewNode(simplified()->ReferenceEqual(), element,
+                                   jsgraph()->TheHoleConstant());
+    Node* branch =
+        graph()->NewNode(common()->Branch(BranchHint::kFalse), check, control);
+    hole_true = graph()->NewNode(common()->IfTrue(), branch);
+    hole_false = graph()->NewNode(common()->IfFalse(), branch);
+    control = hole_false;
+
+    // The contract is that we don't leak "the hole" into "user JavaScript",
+    // so we must rename the {element} here to explicitly exclude "the hole"
+    // from the type of {element}.
+    element = graph()->NewNode(common()->TypeGuard(Type::NonInternal()),
+                               element, control);
+  }
+
   Node* callback_value = nullptr;
   {
     // This frame state is dealt with by hand in
@@ -1825,8 +1879,23 @@ Reduction JSCallReducer::ReduceArrayFilter(Handle<JSFunction> function,
   // We have to coerce callback_value to boolean, and only store the element in
   // a if it's true. The checkpoint above protects against the case that
   // growing {a} fails.
-  to = DoFilterPostCallbackWork(kind, &control, &effect, a, to, element,
+  to = DoFilterPostCallbackWork(packed_kind, &control, &effect, a, to, element,
                                 callback_value);
+
+  if (IsHoleyElementsKind(kind)) {
+    Node* after_call_control = control;
+    Node* after_call_effect = effect;
+    control = hole_true;
+    effect = effect_true;
+
+    control = graph()->NewNode(common()->Merge(2), control, after_call_control);
+    effect = graph()->NewNode(common()->EffectPhi(2), effect, after_call_effect,
+                              control);
+    to =
+        graph()->NewNode(common()->Phi(MachineRepresentation::kTaggedSigned, 2),
+                         hole_true_vto, to, control);
+  }
+
   k = next_k;
 
   loop->ReplaceInput(1, control);

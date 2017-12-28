@@ -417,6 +417,41 @@
   }
 })();
 
+// Verify holes are skipped.
+(() => {
+  const a = [1, 2, , 3, 4];
+  let callback_values = [];
+  function withHoles() {
+    callback_values = [];
+    return a.filter(v => {
+      callback_values.push(v);
+      return true;
+    });
+  }
+  withHoles();
+  withHoles();
+  %OptimizeFunctionOnNextCall(withHoles);
+  assertArrayEquals([1, 2, 3, 4], withHoles());
+  assertArrayEquals([1, 2, 3, 4], callback_values);
+})();
+
+(() => {
+  const a = [1.5, 2.5, , 3.5, 4.5];
+  let callback_values = [];
+  function withHoles() {
+    callback_values = [];
+    return a.filter(v => {
+      callback_values.push(v);
+      return true;
+    });
+  }
+  withHoles();
+  withHoles();
+  %OptimizeFunctionOnNextCall(withHoles);
+  assertArrayEquals([1.5, 2.5, 3.5, 4.5], withHoles());
+  assertArrayEquals([1.5, 2.5, 3.5, 4.5], callback_values);
+})();
+
 // Messing with the Array species constructor causes deoptimization.
 (function() {
   var result = 0;
