@@ -5388,6 +5388,7 @@ uint64_t run_lwupc(int offset) {
     __ dd(addiu_new);
   }
 
+  __ lwupc(t8, offset);  // offset 0; 0xEF080000 (t8 register)
   __ mov(v0, t8);
 
   // 256k instructions; 2^8k
@@ -5957,6 +5958,7 @@ uint64_t run_ldpc(int offset) {
     __ dd(addiu_new);
   }
 
+  __ ldpc(t8, offset);  // offset 0; 0xEF080000 (t8 register)
   __ mov(v0, t8);
 
   // 256k instructions; 2 * 2^7k = 2^8k
