@@ -5,6 +5,7 @@
 #include "src/compiler/redundancy-elimination.h"
 
 #include "src/compiler/node-properties.h"
+#include "src/compiler/simplified-operator.h"
 
 namespace v8 {
 namespace internal {
@@ -129,14 +130,36 @@ bool IsCompatibleCheck(Node const* a, Node const* b) {
     if (a->opcode() == IrOpcode::kCheckInternalizedString &&
         b->opcode() == IrOpcode::kCheckString) {
       // CheckInternalizedString(node) implies CheckString(node)
-    } else if (a->opcode() == IrOpcode::kCheckBounds &&
-               b->opcode() == IrOpcode::kCheckBounds) {
-      // CheckBounds are compatible independent of associated feedback.
-    } else if (a->opcode() == IrOpcode::kCheckNumber &&
-               b->opcode() == IrOpcode::kCheckNumber) {
-      // CheckNumbers are compatible independent of associated feedback.
-    } else {
+    } else if (a->opcode() != b->opcode()) {
       return false;
+    } else {
+      switch (a->opcode()) {
+        case IrOpcode::kCheckBounds:
+        case IrOpcode::kCheckSmi:
+        case IrOpcode::kCheckString:
+        case IrOpcode::kCheckNumber:
+          break;
+        case IrOpcode::kCheckedTaggedSignedToInt32:
+        case IrOpcode::kCheckedTaggedToTaggedSigned:
+        case IrOpcode::kCheckedUint32ToInt32:
+        case IrOpcode::kCheckedUint32ToTaggedSigned:
+        case IrOpcode::kCheckedInt32ToTaggedSigned:
+        case IrOpcode::kCheckedTaggedToTaggedPointer:
+          break;
+        case IrOpcode::kCheckedFloat64ToInt32:
+        case IrOpcode::kCheckedTaggedToInt32: {
+          const CheckMinusZeroParameters& ap =
+              CheckMinusZeroParametersOf(a->op());
+          const CheckMinusZeroParameters& bp =
+              CheckMinusZeroParametersOf(b->op());
+          if (ap.mode() != bp.mode()) {
+            return false;
+          }
+          break;
+        }
+        default:
+          return false;
+      }
     }
   }
   for (int i = a->op()->ValueInputCount(); --i >= 0;) {
