@@ -188,7 +188,9 @@
       "tests": [
         {"name": "StringFunctions"},
         {"name": "StringIndexOfConstant"},
-        {"name": "StringIndexOfNonConstant"}
+        {"name": "StringIndexOfNonConstant"},
+        {"name": "StringCharCodeAtConstant"},
+        {"name": "StringCharCodeAtNonConstant"}
       ]
     },
     {
