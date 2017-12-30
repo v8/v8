@@ -122,14 +122,12 @@ class SystemTest(unittest.TestCase):
     try:
       import coverage
       if int(coverage.__version__.split('.')[0]) < 4:
-        # First coverage 4.0 can deal with multiprocessing.
         cls._cov = None
         print 'Python coverage version >= 4 required.'
         raise ImportError()
       cls._cov = coverage.Coverage(
           source=([os.path.join(TOOLS_ROOT, 'testrunner')]),
           omit=['*unittest*', '*__init__.py'],
-          concurrency='multiprocessing',
       )
       cls._cov.exclude('raise NotImplementedError')
       cls._cov.exclude('if __name__ == .__main__.:')
@@ -145,12 +143,13 @@ class SystemTest(unittest.TestCase):
     sys.path.append(TOOLS_ROOT)
     global standard_runner
     from testrunner import standard_runner
+    from testrunner.local import pool
+    pool.setup_testing()
 
   @classmethod
   def tearDownClass(cls):
     if cls._cov:
       cls._cov.stop()
-      cls._cov.combine()
       print ''
       print cls._cov.report(show_missing=True)
 

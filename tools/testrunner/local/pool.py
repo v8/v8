@@ -8,6 +8,21 @@ from multiprocessing import Event, Process, Queue
 import traceback
 
 
+def setup_testing():
+  """For testing only: Use threading under the hood instead of multiprocessing
+  to make coverage work.
+  """
+  global Queue
+  global Event
+  global Process
+  del Queue
+  del Event
+  del Process
+  from Queue import Queue
+  from threading import Event
+  from threading import Thread as Process
+
+
 class NormalResult():
   def __init__(self, result):
     self.result = result
