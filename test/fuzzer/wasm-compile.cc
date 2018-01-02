@@ -258,6 +258,44 @@ class WasmGenerator {
     }
   }
 
+  struct Local {
+    uint32_t index;
+    ValueType type = kWasmStmt;
+    Local() = default;
+    Local(uint32_t index, ValueType type) : index(index), type(type) {}
+    bool is_valid() const { return type != kWasmStmt; }
+  };
+
+  Local GetRandomLocal(DataRange& data) {
+    uint32_t num_params =
+        static_cast<uint32_t>(builder_->signature()->parameter_count());
+    uint32_t num_locals = static_cast<uint32_t>(locals_.size());
+    if (num_params + num_locals == 0) return {};
+    uint32_t index = data.get<uint8_t>() % (num_params + num_locals);
+    ValueType type = index < num_params ? builder_->signature()->GetParam(index)
+                                        : locals_[index - num_params];
+    return {index, type};
+  }
+
+  template <ValueType wanted_type>
+  void get_local(DataRange& data) {
+    Local local = GetRandomLocal(data);
+    // If there are no locals and no parameters, just generate any value.
+    if (!local.is_valid()) return Generate<wanted_type>(data);
+
+    builder_->EmitWithU32V(kExprGetLocal, local.index);
+    if (local.type != wanted_type) Convert(local.type, wanted_type);
+  }
+
+  void set_local(DataRange& data) {
+    Local local = GetRandomLocal(data);
+    // If there are no locals and no parameters, do nothing.
+    if (!local.is_valid()) return;
+
+    Generate(local.type, data);
+    builder_->EmitWithU32V(kExprSetLocal, local.index);
+  }
+
   template <ValueType T1, ValueType T2>
   void sequence(DataRange& data) {
     Generate<T1, T2>(data);
@@ -294,12 +332,19 @@ class WasmGenerator {
   };
 
  public:
-  explicit WasmGenerator(WasmFunctionBuilder* fn,
-                         const std::vector<FunctionSig*>& functions)
+  WasmGenerator(WasmFunctionBuilder* fn,
+                const std::vector<FunctionSig*>& functions, DataRange& data)
       : builder_(fn), functions_(functions) {
     FunctionSig* sig = fn->signature();
     DCHECK_GE(1, sig->return_count());
     blocks_.push_back(sig->return_count() == 0 ? kWasmStmt : sig->GetReturn(0));
+
+    constexpr uint32_t kMaxLocals = 32;
+    locals_.resize(data.get<uint8_t>() % kMaxLocals);
+    for (ValueType& local : locals_) {
+      local = GetValueType(data);
+      fn->AddLocal(local);
+    }
   }
 
   void Generate(ValueType type, DataRange& data);
@@ -319,6 +364,7 @@ class WasmGenerator {
   WasmFunctionBuilder* builder_;
   std::vector<ValueType> blocks_;
   const std::vector<FunctionSig*>& functions_;
+  std::vector<ValueType> locals_;
   uint32_t recursion_depth = 0;
 
   static constexpr uint32_t kMaxRecursionDepth = 64;
@@ -433,6 +479,8 @@ void WasmGenerator::Generate<kWasmI32>(DataRange& data) {
       &WasmGenerator::current_memory,
       &WasmGenerator::grow_memory,
 
+      &WasmGenerator::get_local<kWasmI32>,
+
       &WasmGenerator::call<kWasmI32>};
 
   GenerateOneOf(alternates, data);
@@ -482,6 +530,8 @@ void WasmGenerator::Generate<kWasmI64>(DataRange& data) {
       &WasmGenerator::memop<kExprI64LoadMem32S>,
       &WasmGenerator::memop<kExprI64LoadMem32U>,
 
+      &WasmGenerator::get_local<kWasmI64>,
+
       &WasmGenerator::call<kWasmI64>};
 
   GenerateOneOf(alternates, data);
@@ -507,6 +557,8 @@ void WasmGenerator::Generate<kWasmF32>(DataRange& data) {
 
       &WasmGenerator::memop<kExprF32LoadMem>,
 
+      &WasmGenerator::get_local<kWasmF32>,
+
       &WasmGenerator::call<kWasmF32>};
 
   GenerateOneOf(alternates, data);
@@ -531,6 +583,8 @@ void WasmGenerator::Generate<kWasmF64>(DataRange& data) {
       &WasmGenerator::loop<kWasmF64>,
 
       &WasmGenerator::memop<kExprF64LoadMem>,
+
+      &WasmGenerator::get_local<kWasmF64>,
 
       &WasmGenerator::call<kWasmF64>};
 
@@ -601,7 +655,7 @@ class WasmCompileFuzzer : public WasmExecutionFuzzer {
       FunctionSig* sig = function_signatures[i];
       WasmFunctionBuilder* f = builder.AddFunction(sig);
 
-      WasmGenerator gen(f, function_signatures);
+      WasmGenerator gen(f, function_signatures, function_range);
       ValueType return_type =
           sig->return_count() == 0 ? kWasmStmt : sig->GetReturn(0);
       gen.Generate(return_type, function_range);
@@ -618,8 +672,8 @@ class WasmCompileFuzzer : public WasmExecutionFuzzer {
         new WasmValue[3]{WasmValue(1), WasmValue(2), WasmValue(3)});
 
     compiler_args.reset(new Handle<Object>[3]{
-        handle(Smi::FromInt(1), isolate), handle(Smi::FromInt(1), isolate),
-        handle(Smi::FromInt(1), isolate)});
+        handle(Smi::FromInt(1), isolate), handle(Smi::FromInt(2), isolate),
+        handle(Smi::FromInt(3), isolate)});
     return true;
   }
 };
