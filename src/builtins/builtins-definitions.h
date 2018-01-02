@@ -251,16 +251,16 @@ namespace internal {
   TFJ(ArrayIndexOf, SharedFunctionInfo::kDontAdaptArgumentsSentinel)           \
   /* ES6 #sec-array.prototype.pop */                                           \
   CPP(ArrayPop)                                                                \
-  TFJ(FastArrayPop, SharedFunctionInfo::kDontAdaptArgumentsSentinel)           \
+  TFJ(ArrayPrototypePop, SharedFunctionInfo::kDontAdaptArgumentsSentinel)      \
   /* ES6 #sec-array.prototype.push */                                          \
   CPP(ArrayPush)                                                               \
-  TFJ(FastArrayPush, SharedFunctionInfo::kDontAdaptArgumentsSentinel)          \
+  TFJ(ArrayPrototypePush, SharedFunctionInfo::kDontAdaptArgumentsSentinel)     \
   /* ES6 #sec-array.prototype.shift */                                         \
   CPP(ArrayShift)                                                              \
-  TFJ(FastArrayShift, SharedFunctionInfo::kDontAdaptArgumentsSentinel)         \
+  TFJ(ArrayPrototypeShift, SharedFunctionInfo::kDontAdaptArgumentsSentinel)    \
   /* ES6 #sec-array.prototype.slice */                                         \
   CPP(ArraySlice)                                                              \
-  TFJ(FastArraySlice, SharedFunctionInfo::kDontAdaptArgumentsSentinel)         \
+  TFJ(ArrayPrototypeSlice, SharedFunctionInfo::kDontAdaptArgumentsSentinel)    \
   /* ES6 #sec-array.prototype.splice */                                        \
   CPP(ArraySplice)                                                             \
   /* ES6 #sec-array.prototype.unshift */                                       \

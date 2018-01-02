@@ -898,7 +898,7 @@ class ArrayBuiltinCodeStubAssembler : public CodeStubAssembler {
   ElementsKind source_elements_kind_ = ElementsKind::NO_ELEMENTS;
 };
 
-TF_BUILTIN(FastArrayPop, CodeStubAssembler) {
+TF_BUILTIN(ArrayPrototypePop, CodeStubAssembler) {
   Node* argc = Parameter(BuiltinDescriptor::kArgumentsCount);
   Node* context = Parameter(BuiltinDescriptor::kContext);
   CSA_ASSERT(this, IsUndefined(Parameter(BuiltinDescriptor::kNewTarget)));
@@ -996,7 +996,7 @@ TF_BUILTIN(FastArrayPop, CodeStubAssembler) {
   }
 }
 
-TF_BUILTIN(FastArrayPush, CodeStubAssembler) {
+TF_BUILTIN(ArrayPrototypePush, CodeStubAssembler) {
   TVARIABLE(IntPtrT, arg_index);
   Label default_label(this, &arg_index);
   Label smi_transition(this);
@@ -1125,9 +1125,10 @@ TF_BUILTIN(FastArrayPush, CodeStubAssembler) {
   }
 }
 
-class FastArraySliceCodeStubAssembler : public CodeStubAssembler {
+class ArrayPrototypeSliceCodeStubAssembler : public CodeStubAssembler {
  public:
-  explicit FastArraySliceCodeStubAssembler(compiler::CodeAssemblerState* state)
+  explicit ArrayPrototypeSliceCodeStubAssembler(
+      compiler::CodeAssemblerState* state)
       : CodeStubAssembler(state) {}
 
   Node* HandleFastSlice(Node* context, Node* array, Node* from, Node* count,
@@ -1283,7 +1284,7 @@ class FastArraySliceCodeStubAssembler : public CodeStubAssembler {
   }
 };
 
-TF_BUILTIN(FastArraySlice, FastArraySliceCodeStubAssembler) {
+TF_BUILTIN(ArrayPrototypeSlice, ArrayPrototypeSliceCodeStubAssembler) {
   Node* const argc =
       ChangeInt32ToIntPtr(Parameter(BuiltinDescriptor::kArgumentsCount));
   TNode<Context> context = CAST(Parameter(BuiltinDescriptor::kContext));
@@ -1458,7 +1459,7 @@ TF_BUILTIN(FastArraySlice, FastArraySliceCodeStubAssembler) {
   args.PopAndReturn(a);
 }
 
-TF_BUILTIN(FastArrayShift, CodeStubAssembler) {
+TF_BUILTIN(ArrayPrototypeShift, CodeStubAssembler) {
   Node* argc = Parameter(BuiltinDescriptor::kArgumentsCount);
   Node* context = Parameter(BuiltinDescriptor::kContext);
   CSA_ASSERT(this, IsUndefined(Parameter(BuiltinDescriptor::kNewTarget)));
