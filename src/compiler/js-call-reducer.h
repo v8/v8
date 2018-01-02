@@ -80,6 +80,9 @@ class JSCallReducer final : public AdvancedReducer {
   Reduction ReduceArrayFind(ArrayFindVariant variant,
                             Handle<JSFunction> function, Node* node);
   Reduction ReduceArrayEvery(Handle<JSFunction> function, Node* node);
+  Reduction ReduceArrayPrototypePush(Node* node);
+  Reduction ReduceArrayPrototypePop(Node* node);
+  Reduction ReduceArrayPrototypeShift(Node* node);
   Reduction ReduceCallOrConstructWithArrayLikeOrSpread(
       Node* node, int arity, CallFrequency const& frequency,
       VectorSlotPair const& feedback);
