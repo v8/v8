@@ -58,13 +58,6 @@ MaybeHandle<Object> DebugEvaluate::Local(Isolate* isolate,
   if (!it.is_javascript()) return isolate->factory()->undefined_value();
   JavaScriptFrame* frame = it.javascript_frame();
 
-  // Traverse the saved contexts chain to find the active context for the
-  // selected frame.
-  SaveContext* save =
-      DebugFrameHelper::FindSavedContextForFrame(isolate, frame);
-  SaveContext savex(isolate);
-  isolate->set_context(*(save->context()));
-
   // This is not a lot different than DebugEvaluate::Global, except that
   // variables accessible by the function we are evaluating from are
   // materialized and included on top of the native context. Changes to
