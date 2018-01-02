@@ -1186,7 +1186,7 @@ void Assembler::Move32BitImmediate(Register rd, const Operand& x,
       immediate = x.immediate();
     }
     ConstantPoolAddEntry(pc_offset(), x.rmode_, immediate);
-    ldr(rd, MemOperand(pc, 0), cond);
+    ldr_pcrel(rd, 0, cond);
   }
 }
 
@@ -1293,6 +1293,9 @@ bool Assembler::AddrMode1TryEncodeOperand(Instr* instr, const Operand& x) {
 
 void Assembler::AddrMode2(Instr instr, Register rd, const MemOperand& x) {
   DCHECK((instr & ~(kCondMask | B | L)) == B26);
+  // This method does not handle pc-relative addresses. ldr_pcrel() should be
+  // used instead.
+  DCHECK(x.rn_ != pc);
   int am = x.am_;
   if (!x.rm_.is_valid()) {
     // Immediate offset.
@@ -1330,6 +1333,9 @@ void Assembler::AddrMode2(Instr instr, Register rd, const MemOperand& x) {
 void Assembler::AddrMode3(Instr instr, Register rd, const MemOperand& x) {
   DCHECK((instr & ~(kCondMask | L | S6 | H)) == (B4 | B7));
   DCHECK(x.rn_.is_valid());
+  // This method does not handle pc-relative addresses. ldr_pcrel() should be
+  // used instead.
+  DCHECK(x.rn_ != pc);
   int am = x.am_;
   bool is_load = (instr & L) == L;
   if (!x.rm_.is_valid()) {
@@ -2156,6 +2162,16 @@ void Assembler::strd(Register src1, Register src2,
   DCHECK_EQ(0, src1.code() % 2);
   DCHECK_EQ(src1.code() + 1, src2.code());
   AddrMode3(cond | B7 | B6 | B5 | B4, src1, dst);
+}
+
+void Assembler::ldr_pcrel(Register dst, int imm12, Condition cond) {
+  AddrMode am = Offset;
+  if (imm12 < 0) {
+    imm12 = -imm12;
+    am = NegOffset;
+  }
+  DCHECK(is_uint12(imm12));
+  emit(cond | B26 | am | L | pc.code() * B16 | dst.code() * B12 | imm12);
 }
 
 // Load/Store exclusive instructions.

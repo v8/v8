@@ -908,6 +908,9 @@ class Assembler : public AssemblerBase {
             Register src2,
             const MemOperand& dst, Condition cond = al);
 
+  // Load literal from a pc relative address.
+  void ldr_pcrel(Register dst, int imm12, Condition cond = al);
+
   // Load/Store exclusive instructions
   void ldrex(Register dst, Register src, Condition cond = al);
   void strex(Register src1, Register src2, Register dst, Condition cond = al);

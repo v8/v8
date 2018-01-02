@@ -1478,7 +1478,7 @@ static void TestLoadLiteral(byte* buffer, Assembler* assm, bool* failure,
                             int offset) {
   int pc_offset = assm->pc_offset();
   byte *progcounter = &buffer[pc_offset];
-  assm->ldr(r0, MemOperand(pc, offset));
+  assm->ldr_pcrel(r0, offset);
 
   const char *expected_string_template =
     (offset >= 0) ?
