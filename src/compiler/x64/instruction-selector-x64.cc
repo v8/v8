@@ -1441,6 +1441,9 @@ void InstructionSelector::EmitPrepareArguments(
     // Push any stack arguments.
     int effect_level = GetEffectLevel(node);
     for (PushParameter input : base::Reversed(*arguments)) {
+      // Skip any alignment holes in pushed nodes. We may have one in case of a
+      // Simd128 stack argument.
+      if (input.node == nullptr) continue;
       if (g.CanBeImmediate(input.node)) {
         Emit(kX64Push, g.NoOutput(), g.UseImmediate(input.node));
       } else if (IsSupported(ATOM) ||

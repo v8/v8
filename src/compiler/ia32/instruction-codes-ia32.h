@@ -110,6 +110,7 @@ namespace compiler {
   V(IA32Push)                      \
   V(IA32PushFloat32)               \
   V(IA32PushFloat64)               \
+  V(IA32PushSimd128)               \
   V(IA32Poke)                      \
   V(IA32Peek)                      \
   V(IA32StackCheck)                \

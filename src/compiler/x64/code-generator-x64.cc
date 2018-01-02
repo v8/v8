@@ -1981,18 +1981,37 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
         frame_access_state()->IncreaseSPDelta(1);
         unwinding_info_writer_.MaybeIncreaseBaseOffsetAt(__ pc_offset(),
                                                          kPointerSize);
-      } else if (instr->InputAt(0)->IsFPRegister()) {
+      } else if (instr->InputAt(0)->IsFloatRegister() ||
+                 instr->InputAt(0)->IsDoubleRegister()) {
         // TODO(titzer): use another machine instruction?
         __ subq(rsp, Immediate(kDoubleSize));
         frame_access_state()->IncreaseSPDelta(kDoubleSize / kPointerSize);
         unwinding_info_writer_.MaybeIncreaseBaseOffsetAt(__ pc_offset(),
                                                          kDoubleSize);
         __ Movsd(Operand(rsp, 0), i.InputDoubleRegister(0));
-      } else {
+      } else if (instr->InputAt(0)->IsSimd128Register()) {
+        // TODO(titzer): use another machine instruction?
+        __ subq(rsp, Immediate(kSimd128Size));
+        frame_access_state()->IncreaseSPDelta(kSimd128Size / kPointerSize);
+        unwinding_info_writer_.MaybeIncreaseBaseOffsetAt(__ pc_offset(),
+                                                         kSimd128Size);
+        __ Movups(Operand(rsp, 0), i.InputSimd128Register(0));
+      } else if (instr->InputAt(0)->IsStackSlot() ||
+                 instr->InputAt(0)->IsFloatStackSlot() ||
+                 instr->InputAt(0)->IsDoubleStackSlot()) {
         __ pushq(i.InputOperand(0));
         frame_access_state()->IncreaseSPDelta(1);
         unwinding_info_writer_.MaybeIncreaseBaseOffsetAt(__ pc_offset(),
                                                          kPointerSize);
+      } else {
+        DCHECK(instr->InputAt(0)->IsSimd128StackSlot());
+        __ Movups(kScratchDoubleReg, i.InputOperand(0));
+        // TODO(titzer): use another machine instruction?
+        __ subq(rsp, Immediate(kSimd128Size));
+        frame_access_state()->IncreaseSPDelta(kSimd128Size / kPointerSize);
+        unwinding_info_writer_.MaybeIncreaseBaseOffsetAt(__ pc_offset(),
+                                                         kSimd128Size);
+        __ Movups(Operand(rsp, 0), kScratchDoubleReg);
       }
       break;
     case kX64Poke: {

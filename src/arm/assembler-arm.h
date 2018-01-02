@@ -1345,6 +1345,10 @@ class Assembler : public AssemblerBase {
 
   void pop();
 
+  void vpush(QwNeonRegister src, Condition cond = al) {
+    vstm(db_w, sp, src.low(), src.high(), cond);
+  }
+
   void vpush(DwVfpRegister src, Condition cond = al) {
     vstm(db_w, sp, src, src, cond);
   }

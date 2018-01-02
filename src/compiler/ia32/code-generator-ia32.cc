@@ -1568,6 +1568,17 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
         frame_access_state()->IncreaseSPDelta(kDoubleSize / kPointerSize);
       }
       break;
+    case kIA32PushSimd128:
+      if (instr->InputAt(0)->IsFPRegister()) {
+        __ sub(esp, Immediate(kSimd128Size));
+        __ movups(Operand(esp, 0), i.InputSimd128Register(0));
+      } else {
+        __ movups(kScratchDoubleReg, i.InputOperand(0));
+        __ sub(esp, Immediate(kSimd128Size));
+        __ movups(Operand(esp, 0), kScratchDoubleReg);
+      }
+      frame_access_state()->IncreaseSPDelta(kSimd128Size / kPointerSize);
+      break;
     case kIA32Push:
       if (AddressingModeField::decode(instr->opcode()) != kMode_None) {
         size_t index = 0;

@@ -1326,7 +1326,9 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       Register prev = __ StackPointer();
       __ SetStackPointer(arch_opcode == kArm64PokeCSP ? csp : jssp);
       Operand operand(i.InputInt32(1) * kPointerSize);
-      if (instr->InputAt(0)->IsFPRegister()) {
+      if (instr->InputAt(0)->IsSimd128Register()) {
+        __ Poke(i.InputSimd128Register(0), operand);
+      } else if (instr->InputAt(0)->IsFPRegister()) {
         __ Poke(i.InputFloat64Register(0), operand);
       } else {
         __ Poke(i.InputOrZeroRegister64(0), operand);

@@ -1000,6 +1000,8 @@ void InstructionSelector::EmitPrepareArguments(
           Emit(kIA32PushFloat32, g.NoOutput(), value);
         } else if (input.location.GetType() == MachineType::Float64()) {
           Emit(kIA32PushFloat64, g.NoOutput(), value);
+        } else if (input.location.GetType() == MachineType::Simd128()) {
+          Emit(kIA32PushSimd128, g.NoOutput(), value);
         } else {
           Emit(kIA32Push, g.NoOutput(), value);
         }

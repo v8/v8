@@ -1687,6 +1687,8 @@ void InstructionSelector::EmitPrepareArguments(
 
   bool always_claim = to_native_stack != from_native_stack;
 
+  // `arguments` includes alignment "holes". This means that slots bigger than
+  // kPointerSize, e.g. Simd128, will span across multiple arguments.
   int claim_count = static_cast<int>(arguments->size());
   int slot = claim_count - 1;
   claim_count = RoundUp(claim_count, 2);
@@ -1710,8 +1712,12 @@ void InstructionSelector::EmitPrepareArguments(
 
   // Poke the arguments into the stack.
   while (slot >= 0) {
-    Emit(poke, g.NoOutput(), g.UseRegister((*arguments)[slot].node),
-         g.TempImmediate(slot));
+    Node* input_node = (*arguments)[slot].node;
+    // Skip any alignment holes in pushed nodes.
+    if (input_node != nullptr) {
+      Emit(poke, g.NoOutput(), g.UseRegister(input_node),
+           g.TempImmediate(slot));
+    }
     slot--;
     // TODO(ahaas): Poke arguments in pairs if two subsequent arguments have the
     //              same type.

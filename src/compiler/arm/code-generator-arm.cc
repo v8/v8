@@ -1623,13 +1623,23 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kArmPush:
       if (instr->InputAt(0)->IsFPRegister()) {
         LocationOperand* op = LocationOperand::cast(instr->InputAt(0));
-        if (op->representation() == MachineRepresentation::kFloat64) {
-          __ vpush(i.InputDoubleRegister(0));
-          frame_access_state()->IncreaseSPDelta(kDoubleSize / kPointerSize);
-        } else {
-          DCHECK_EQ(MachineRepresentation::kFloat32, op->representation());
-          __ vpush(i.InputFloatRegister(0));
-          frame_access_state()->IncreaseSPDelta(1);
+        switch (op->representation()) {
+          case MachineRepresentation::kFloat32:
+            __ vpush(i.InputFloatRegister(0));
+            frame_access_state()->IncreaseSPDelta(1);
+            break;
+          case MachineRepresentation::kFloat64:
+            __ vpush(i.InputDoubleRegister(0));
+            frame_access_state()->IncreaseSPDelta(kDoubleSize / kPointerSize);
+            break;
+          case MachineRepresentation::kSimd128: {
+            __ vpush(i.InputSimd128Register(0));
+            frame_access_state()->IncreaseSPDelta(kSimd128Size / kPointerSize);
+            break;
+          }
+          default:
+            UNREACHABLE();
+            break;
         }
       } else {
         __ push(i.InputRegister(0));
