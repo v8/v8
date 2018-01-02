@@ -359,38 +359,6 @@ Condition FlagsConditionToCondition(FlagsCondition condition) {
 
 }  // namespace
 
-#define ASSEMBLE_CHECKED_LOAD_FP(Type)                         \
-  do {                                                         \
-    auto result = i.Output##Type##Register();                  \
-    auto offset = i.InputRegister(0);                          \
-    if (instr->InputAt(1)->IsRegister()) {                     \
-      __ cmp(offset, i.InputRegister(1));                      \
-    } else {                                                   \
-      __ cmp(offset, i.InputImmediate(1));                     \
-    }                                                          \
-    auto ool = new (zone()) OutOfLineLoad##Type(this, result); \
-    __ b(hs, ool->entry());                                    \
-    __ vldr(result, i.InputOffset(2));                         \
-    __ bind(ool->exit());                                      \
-    DCHECK_EQ(LeaveCC, i.OutputSBit());                        \
-  } while (0)
-
-#define ASSEMBLE_CHECKED_LOAD_INTEGER(asm_instr)                \
-  do {                                                          \
-    auto result = i.OutputRegister();                           \
-    auto offset = i.InputRegister(0);                           \
-    if (instr->InputAt(1)->IsRegister()) {                      \
-      __ cmp(offset, i.InputRegister(1));                       \
-    } else {                                                    \
-      __ cmp(offset, i.InputImmediate(1));                      \
-    }                                                           \
-    auto ool = new (zone()) OutOfLineLoadInteger(this, result); \
-    __ b(hs, ool->entry());                                     \
-    __ asm_instr(result, i.InputOffset(2));                     \
-    __ bind(ool->exit());                                       \
-    DCHECK_EQ(LeaveCC, i.OutputSBit());                         \
-  } while (0)
-
 #define ASSEMBLE_ATOMIC_LOAD_INTEGER(asm_instr)                       \
   do {                                                                \
     __ asm_instr(i.OutputRegister(),                                  \
@@ -2549,31 +2517,6 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ ExtractLane(i.OutputRegister(), kScratchDoubleReg, NeonS8, 0);
       break;
     }
-    case kCheckedLoadInt8:
-      ASSEMBLE_CHECKED_LOAD_INTEGER(ldrsb);
-      break;
-    case kCheckedLoadUint8:
-      ASSEMBLE_CHECKED_LOAD_INTEGER(ldrb);
-      break;
-    case kCheckedLoadInt16:
-      ASSEMBLE_CHECKED_LOAD_INTEGER(ldrsh);
-      break;
-    case kCheckedLoadUint16:
-      ASSEMBLE_CHECKED_LOAD_INTEGER(ldrh);
-      break;
-    case kCheckedLoadWord32:
-      ASSEMBLE_CHECKED_LOAD_INTEGER(ldr);
-      break;
-    case kCheckedLoadFloat32:
-      ASSEMBLE_CHECKED_LOAD_FP(Float);
-      break;
-    case kCheckedLoadFloat64:
-      ASSEMBLE_CHECKED_LOAD_FP(Double);
-      break;
-    case kCheckedLoadWord64:
-      UNREACHABLE();  // currently unsupported checked int64 load.
-      break;
-
     case kAtomicLoadInt8:
       ASSEMBLE_ATOMIC_LOAD_INTEGER(ldrsb);
       break;
@@ -2671,8 +2614,6 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       ATOMIC_BINOP_CASE(Or, orr)
       ATOMIC_BINOP_CASE(Xor, eor)
 #undef ATOMIC_BINOP_CASE
-#undef ASSEMBLE_CHECKED_LOAD_FP
-#undef ASSEMBLE_CHECKED_LOAD_INTEGER
 #undef ASSEMBLE_ATOMIC_LOAD_INTEGER
 #undef ASSEMBLE_ATOMIC_STORE_INTEGER
 #undef ASSEMBLE_ATOMIC_EXCHANGE_INTEGER

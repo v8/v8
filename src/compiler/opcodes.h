@@ -595,7 +595,6 @@
   V(LoadStackPointer)           \
   V(LoadFramePointer)           \
   V(LoadParentFramePointer)     \
-  V(CheckedLoad)                \
   V(UnalignedLoad)              \
   V(UnalignedStore)             \
   V(Int32PairAdd)               \

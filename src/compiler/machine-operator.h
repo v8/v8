@@ -83,11 +83,6 @@ typedef MachineRepresentation UnalignedStoreRepresentation;
 UnalignedStoreRepresentation const& UnalignedStoreRepresentationOf(
     Operator const*);
 
-// A CheckedLoad needs a MachineType.
-typedef MachineType CheckedLoadRepresentation;
-
-CheckedLoadRepresentation CheckedLoadRepresentationOf(Operator const*);
-
 class StackSlotRepresentation final {
  public:
   StackSlotRepresentation(int size, int alignment)
@@ -599,9 +594,6 @@ class V8_EXPORT_PRIVATE MachineOperatorBuilder final
   const Operator* LoadStackPointer();
   const Operator* LoadFramePointer();
   const Operator* LoadParentFramePointer();
-
-  // checked-load heap, index, length
-  const Operator* CheckedLoad(CheckedLoadRepresentation);
 
   // atomic-load [base + index]
   const Operator* AtomicLoad(LoadRepresentation rep);

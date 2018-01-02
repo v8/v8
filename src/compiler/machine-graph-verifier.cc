@@ -116,10 +116,6 @@ class MachineRepresentationInferrer {
             representation_vector_[node->id()] = PromoteRepresentation(
                 LoadRepresentationOf(node->op()).representation());
             break;
-          case IrOpcode::kCheckedLoad:
-            representation_vector_[node->id()] = PromoteRepresentation(
-                CheckedLoadRepresentationOf(node->op()).representation());
-            break;
           case IrOpcode::kLoadStackPointer:
           case IrOpcode::kLoadFramePointer:
           case IrOpcode::kLoadParentFramePointer:

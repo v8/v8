@@ -315,16 +315,6 @@ int InstructionScheduler::GetInstructionFlags(const Instruction* instr) const {
     case kArchThrowTerminator:
       return kIsBlockTerminator;
 
-    case kCheckedLoadInt8:
-    case kCheckedLoadUint8:
-    case kCheckedLoadInt16:
-    case kCheckedLoadUint16:
-    case kCheckedLoadWord32:
-    case kCheckedLoadWord64:
-    case kCheckedLoadFloat32:
-    case kCheckedLoadFloat64:
-      return kIsLoadOperation;
-
     case kArchStoreWithWriteBarrier:
       return kHasSideEffect;
 

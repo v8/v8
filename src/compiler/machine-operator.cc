@@ -59,12 +59,6 @@ UnalignedStoreRepresentation const& UnalignedStoreRepresentationOf(
   return OpParameter<UnalignedStoreRepresentation>(op);
 }
 
-CheckedLoadRepresentation CheckedLoadRepresentationOf(Operator const* op) {
-  DCHECK_EQ(IrOpcode::kCheckedLoad, op->opcode());
-  return OpParameter<CheckedLoadRepresentation>(op);
-}
-
-
 bool operator==(StackSlotRepresentation lhs, StackSlotRepresentation rhs) {
   return lhs.size() == rhs.size() && lhs.alignment() == rhs.alignment();
 }
@@ -469,14 +463,6 @@ struct MachineOperatorGlobalCache {
               Operator::kNoDeopt | Operator::kNoThrow | Operator::kNoWrite,   \
               "UnalignedLoad", 2, 1, 1, 1, 1, 0, MachineType::Type()) {}      \
   };                                                                          \
-  struct CheckedLoad##Type##Operator final                                    \
-      : public Operator1<CheckedLoadRepresentation> {                         \
-    CheckedLoad##Type##Operator()                                             \
-        : Operator1<CheckedLoadRepresentation>(                               \
-              IrOpcode::kCheckedLoad,                                         \
-              Operator::kNoDeopt | Operator::kNoThrow | Operator::kNoWrite,   \
-              "CheckedLoad", 3, 1, 1, 1, 1, 0, MachineType::Type()) {}        \
-  };                                                                          \
   struct ProtectedLoad##Type##Operator final                                  \
       : public Operator1<LoadRepresentation> {                                \
     ProtectedLoad##Type##Operator()                                           \
@@ -487,7 +473,6 @@ struct MachineOperatorGlobalCache {
   };                                                                          \
   Load##Type##Operator kLoad##Type;                                           \
   UnalignedLoad##Type##Operator kUnalignedLoad##Type;                         \
-  CheckedLoad##Type##Operator kCheckedLoad##Type;                             \
   ProtectedLoad##Type##Operator kProtectedLoad##Type;
   MACHINE_TYPE_LIST(LOAD)
 #undef LOAD
@@ -818,17 +803,6 @@ const Operator* MachineOperatorBuilder::DebugBreak() {
 
 const Operator* MachineOperatorBuilder::Comment(const char* msg) {
   return new (zone_) CommentOperator(msg);
-}
-
-const Operator* MachineOperatorBuilder::CheckedLoad(
-    CheckedLoadRepresentation rep) {
-#define LOAD(Type)                     \
-  if (rep == MachineType::Type()) {    \
-    return &cache_.kCheckedLoad##Type; \
-  }
-    MACHINE_TYPE_LIST(LOAD)
-#undef LOAD
-  UNREACHABLE();
 }
 
 const Operator* MachineOperatorBuilder::AtomicLoad(LoadRepresentation rep) {

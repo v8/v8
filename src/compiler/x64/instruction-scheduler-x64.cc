@@ -276,14 +276,6 @@ int InstructionScheduler::GetInstructionLatency(const Instruction* instr) {
   // Basic latency modeling for x64 instructions. They have been determined
   // in an empirical way.
   switch (instr->arch_opcode()) {
-    case kCheckedLoadInt8:
-    case kCheckedLoadUint8:
-    case kCheckedLoadInt16:
-    case kCheckedLoadUint16:
-    case kCheckedLoadWord32:
-    case kCheckedLoadWord64:
-    case kCheckedLoadFloat32:
-    case kCheckedLoadFloat64:
     case kSSEFloat64Mul:
       return 5;
     case kX64Imul:

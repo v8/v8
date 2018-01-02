@@ -403,65 +403,6 @@ FPUCondition FlagsConditionToConditionCmpFPU(bool& predicate,
 }
 
 }  // namespace
-#define ASSEMBLE_BOUNDS_CHECK_REGISTER(offset, length, out_of_bounds)       \
-  do {                                                                      \
-    if (!length.is_reg() && base::bits::IsPowerOfTwo(length.immediate())) { \
-      __ And(kScratchReg, offset, Operand(~(length.immediate() - 1)));      \
-      __ Branch(USE_DELAY_SLOT, out_of_bounds, ne, kScratchReg,             \
-                Operand(zero_reg));                                         \
-    } else {                                                                \
-      __ Branch(USE_DELAY_SLOT, out_of_bounds, hs, offset, length);         \
-    }                                                                       \
-  } while (0)
-
-#define ASSEMBLE_BOUNDS_CHECK_IMMEDIATE(offset, length, out_of_bounds)      \
-  do {                                                                      \
-    if (!length.is_reg() && base::bits::IsPowerOfTwo(length.immediate())) { \
-      __ Or(kScratchReg, zero_reg, Operand(offset));                        \
-      __ And(kScratchReg, kScratchReg, Operand(~(length.immediate() - 1))); \
-      __ Branch(out_of_bounds, ne, kScratchReg, Operand(zero_reg));         \
-    } else {                                                                \
-      __ Branch(out_of_bounds, ls, length.rm(), Operand(offset));           \
-    }                                                                       \
-  } while (0)
-
-#define ASSEMBLE_CHECKED_LOAD_FLOAT(width, asm_instr)                          \
-  do {                                                                         \
-    auto result = i.Output##width##Register();                                 \
-    auto ool = new (zone()) OutOfLineLoad##width(this, result);                \
-    if (instr->InputAt(0)->IsRegister()) {                                     \
-      auto offset = i.InputRegister(0);                                        \
-      ASSEMBLE_BOUNDS_CHECK_REGISTER(offset, i.InputOperand(1), ool->entry()); \
-      __ And(kScratchReg, offset, Operand(0xFFFFFFFF));                        \
-      __ Daddu(kScratchReg, i.InputRegister(2), kScratchReg);                  \
-      __ asm_instr(result, MemOperand(kScratchReg, 0));                        \
-    } else {                                                                   \
-      int offset = static_cast<int>(i.InputOperand(0).immediate());            \
-      ASSEMBLE_BOUNDS_CHECK_IMMEDIATE(offset, i.InputOperand(1),               \
-                                      ool->entry());                           \
-      __ asm_instr(result, MemOperand(i.InputRegister(2), offset));            \
-    }                                                                          \
-    __ bind(ool->exit());                                                      \
-  } while (0)
-
-#define ASSEMBLE_CHECKED_LOAD_INTEGER(asm_instr)                               \
-  do {                                                                         \
-    auto result = i.OutputRegister();                                          \
-    auto ool = new (zone()) OutOfLineLoadInteger(this, result);                \
-    if (instr->InputAt(0)->IsRegister()) {                                     \
-      auto offset = i.InputRegister(0);                                        \
-      ASSEMBLE_BOUNDS_CHECK_REGISTER(offset, i.InputOperand(1), ool->entry()); \
-      __ And(kScratchReg, offset, Operand(0xFFFFFFFF));                        \
-      __ Daddu(kScratchReg, i.InputRegister(2), kScratchReg);                  \
-      __ asm_instr(result, MemOperand(kScratchReg, 0));                        \
-    } else {                                                                   \
-      int offset = static_cast<int>(i.InputOperand(0).immediate());            \
-      ASSEMBLE_BOUNDS_CHECK_IMMEDIATE(offset, i.InputOperand(1),               \
-                                      ool->entry());                           \
-      __ asm_instr(result, MemOperand(i.InputRegister(2), offset));            \
-    }                                                                          \
-    __ bind(ool->exit());                                                      \
-  } while (0)
 
 #define ASSEMBLE_ROUND_DOUBLE_TO_DOUBLE(mode)                                  \
   if (kArchVariant == kMips64r6) {                                             \
@@ -2037,30 +1978,6 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ dsrl32(i.OutputRegister(0), i.OutputRegister(0), 0);
       break;
     }
-    case kCheckedLoadInt8:
-      ASSEMBLE_CHECKED_LOAD_INTEGER(Lb);
-      break;
-    case kCheckedLoadUint8:
-      ASSEMBLE_CHECKED_LOAD_INTEGER(Lbu);
-      break;
-    case kCheckedLoadInt16:
-      ASSEMBLE_CHECKED_LOAD_INTEGER(Lh);
-      break;
-    case kCheckedLoadUint16:
-      ASSEMBLE_CHECKED_LOAD_INTEGER(Lhu);
-      break;
-    case kCheckedLoadWord32:
-      ASSEMBLE_CHECKED_LOAD_INTEGER(Lw);
-      break;
-    case kCheckedLoadWord64:
-      ASSEMBLE_CHECKED_LOAD_INTEGER(Ld);
-      break;
-    case kCheckedLoadFloat32:
-      ASSEMBLE_CHECKED_LOAD_FLOAT(Single, Lwc1);
-      break;
-    case kCheckedLoadFloat64:
-      ASSEMBLE_CHECKED_LOAD_FLOAT(Double, Ldc1);
-      break;
     case kAtomicLoadInt8:
       ASSEMBLE_ATOMIC_LOAD_INTEGER(Lb);
       break;

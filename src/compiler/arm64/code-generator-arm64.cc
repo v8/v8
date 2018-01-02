@@ -416,54 +416,6 @@ Condition FlagsConditionToCondition(FlagsCondition condition) {
 
 }  // namespace
 
-#define ASSEMBLE_BOUNDS_CHECK(offset, length, out_of_bounds) \
-  do {                                                       \
-    if (length.IsImmediate() &&                              \
-        base::bits::IsPowerOfTwo(length.ImmediateValue())) { \
-      __ Tst(offset, ~(length.ImmediateValue() - 1));        \
-      __ B(ne, out_of_bounds);                               \
-    } else {                                                 \
-      __ Cmp(offset, length);                                \
-      __ B(hs, out_of_bounds);                               \
-    }                                                        \
-  } while (0)
-
-#define ASSEMBLE_CHECKED_LOAD_FLOAT(width)                         \
-  do {                                                             \
-    auto result = i.OutputFloat##width##Register();                \
-    auto buffer = i.InputRegister(0);                              \
-    auto offset = i.InputRegister32(1);                            \
-    auto length = i.InputOperand32(2);                             \
-    auto ool = new (zone()) OutOfLineLoadNaN##width(this, result); \
-    ASSEMBLE_BOUNDS_CHECK(offset, length, ool->entry());           \
-    __ Ldr(result, MemOperand(buffer, offset, UXTW));              \
-    __ Bind(ool->exit());                                          \
-  } while (0)
-
-#define ASSEMBLE_CHECKED_LOAD_INTEGER(asm_instr)             \
-  do {                                                       \
-    auto result = i.OutputRegister32();                      \
-    auto buffer = i.InputRegister(0);                        \
-    auto offset = i.InputRegister32(1);                      \
-    auto length = i.InputOperand32(2);                       \
-    auto ool = new (zone()) OutOfLineLoadZero(this, result); \
-    ASSEMBLE_BOUNDS_CHECK(offset, length, ool->entry());     \
-    __ asm_instr(result, MemOperand(buffer, offset, UXTW));  \
-    __ Bind(ool->exit());                                    \
-  } while (0)
-
-#define ASSEMBLE_CHECKED_LOAD_INTEGER_64(asm_instr)          \
-  do {                                                       \
-    auto result = i.OutputRegister();                        \
-    auto buffer = i.InputRegister(0);                        \
-    auto offset = i.InputRegister32(1);                      \
-    auto length = i.InputOperand32(2);                       \
-    auto ool = new (zone()) OutOfLineLoadZero(this, result); \
-    ASSEMBLE_BOUNDS_CHECK(offset, length, ool->entry());     \
-    __ asm_instr(result, MemOperand(buffer, offset, UXTW));  \
-    __ Bind(ool->exit());                                    \
-  } while (0)
-
 #define ASSEMBLE_SHIFT(asm_instr, width)                                    \
   do {                                                                      \
     if (instr->InputAt(1)->IsRegister()) {                                  \
@@ -1694,30 +1646,6 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kArm64StrQ:
       __ Str(i.InputSimd128Register(0), i.MemoryOperand(1));
       break;
-    case kCheckedLoadInt8:
-      ASSEMBLE_CHECKED_LOAD_INTEGER(Ldrsb);
-      break;
-    case kCheckedLoadUint8:
-      ASSEMBLE_CHECKED_LOAD_INTEGER(Ldrb);
-      break;
-    case kCheckedLoadInt16:
-      ASSEMBLE_CHECKED_LOAD_INTEGER(Ldrsh);
-      break;
-    case kCheckedLoadUint16:
-      ASSEMBLE_CHECKED_LOAD_INTEGER(Ldrh);
-      break;
-    case kCheckedLoadWord32:
-      ASSEMBLE_CHECKED_LOAD_INTEGER(Ldr);
-      break;
-    case kCheckedLoadWord64:
-      ASSEMBLE_CHECKED_LOAD_INTEGER_64(Ldr);
-      break;
-    case kCheckedLoadFloat32:
-      ASSEMBLE_CHECKED_LOAD_FLOAT(32);
-      break;
-    case kCheckedLoadFloat64:
-      ASSEMBLE_CHECKED_LOAD_FLOAT(64);
-      break;
     case kAtomicLoadInt8:
       ASSEMBLE_ATOMIC_LOAD_INTEGER(Ldarb);
       __ Sxtb(i.OutputRegister(0), i.OutputRegister(0));
@@ -1802,10 +1730,6 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       ATOMIC_BINOP_CASE(Or, Orr)
       ATOMIC_BINOP_CASE(Xor, Eor)
 #undef ATOMIC_BINOP_CASE
-#undef ASSEMBLE_BOUNDS_CHECK
-#undef ASSEMBLE_CHECKED_LOAD_FLOAT
-#undef ASSEMBLE_CHECKED_LOAD_INTEGER
-#undef ASSEMBLE_CHECKED_LOAD_INTEGER_64
 #undef ASSEMBLE_SHIFT
 #undef ASSEMBLE_ATOMIC_LOAD_INTEGER
 #undef ASSEMBLE_ATOMIC_STORE_INTEGER

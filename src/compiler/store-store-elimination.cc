@@ -326,8 +326,7 @@ UnobservablesSet RedundantStoreFinder::RecomputeSet(Node* node,
 }
 
 bool RedundantStoreFinder::CannotObserveStoreField(Node* node) {
-  return node->opcode() == IrOpcode::kCheckedLoad ||
-         node->opcode() == IrOpcode::kLoadElement ||
+  return node->opcode() == IrOpcode::kLoadElement ||
          node->opcode() == IrOpcode::kLoad ||
          node->opcode() == IrOpcode::kStore ||
          node->opcode() == IrOpcode::kEffectPhi ||

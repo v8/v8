@@ -1483,12 +1483,6 @@ void InstructionSelector::VisitNode(Node* node) {
     }
     case IrOpcode::kUnalignedStore:
       return VisitUnalignedStore(node);
-    case IrOpcode::kCheckedLoad: {
-      MachineRepresentation rep =
-          CheckedLoadRepresentationOf(node->op()).representation();
-      MarkAsRepresentation(rep, node);
-      return VisitCheckedLoad(node);
-    }
     case IrOpcode::kInt32PairAdd:
       MarkAsWord32(node);
       MarkPairProjectionsAsWord32(node);
