@@ -5275,6 +5275,24 @@ Handle<Map> Map::GetObjectCreateMap(Handle<HeapObject> prototype) {
   return Map::TransitionToPrototype(map, prototype);
 }
 
+// static
+MaybeHandle<Map> Map::TryGetObjectCreateMap(Handle<HeapObject> prototype) {
+  Isolate* isolate = prototype->GetIsolate();
+  Handle<Map> map(isolate->native_context()->object_function()->initial_map(),
+                  isolate);
+  if (map->prototype() == *prototype) return map;
+  if (prototype->IsNull(isolate)) {
+    return isolate->slow_object_with_null_prototype_map();
+  }
+  if (!prototype->IsJSObject()) return MaybeHandle<Map>();
+  Handle<JSObject> js_prototype = Handle<JSObject>::cast(prototype);
+  if (!js_prototype->map()->is_prototype_map()) return MaybeHandle<Map>();
+  Handle<PrototypeInfo> info =
+      Map::GetOrCreatePrototypeInfo(js_prototype, isolate);
+  if (!info->HasObjectCreateMap()) return MaybeHandle<Map>();
+  return handle(info->ObjectCreateMap(), isolate);
+}
+
 template <class T>
 static int AppendUniqueCallbacks(Handle<TemplateList> callbacks,
                                  Handle<typename T::Array> array,

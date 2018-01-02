@@ -668,7 +668,13 @@ class Map : public HeapObject {
 
   static void EnsureDescriptorSlack(Handle<Map> map, int slack);
 
+  // Returns the map to be used for instances when the given {prototype} is
+  // passed to an Object.create call. Might transition the given {prototype}.
   static Handle<Map> GetObjectCreateMap(Handle<HeapObject> prototype);
+
+  // Similar to {GetObjectCreateMap} but does not transition {prototype} and
+  // fails gracefully by returning an empty handle instead.
+  static MaybeHandle<Map> TryGetObjectCreateMap(Handle<HeapObject> prototype);
 
   // Computes a hash value for this map, to be used in HashTables and such.
   int Hash();
