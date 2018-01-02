@@ -2551,6 +2551,11 @@ class RepresentationSelector {
         }
         return;
       }
+      case IrOpcode::kNumberIsFloat64Hole: {
+        VisitUnop(node, UseInfo::TruncatingFloat64(),
+                  MachineRepresentation::kBit);
+        return;
+      }
       case IrOpcode::kTransitionAndStoreElement: {
         Type* value_type = TypeOf(node->InputAt(2));
 

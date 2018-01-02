@@ -372,6 +372,7 @@
   V(TransitionAndStoreNumberElement)    \
   V(TransitionAndStoreNonNumberElement) \
   V(ToBoolean)                          \
+  V(NumberIsFloat64Hole)                \
   V(ObjectIsArrayBufferView)            \
   V(ObjectIsBigInt)                     \
   V(ObjectIsCallable)                   \

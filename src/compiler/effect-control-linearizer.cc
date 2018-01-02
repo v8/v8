@@ -895,6 +895,9 @@ bool EffectControlLinearizer::TryWireInStateEffect(Node* node,
     case IrOpcode::kStringLessThanOrEqual:
       result = LowerStringLessThanOrEqual(node);
       break;
+    case IrOpcode::kNumberIsFloat64Hole:
+      result = LowerNumberIsFloat64Hole(node);
+      break;
     case IrOpcode::kCheckFloat64Hole:
       result = LowerCheckFloat64Hole(node, frame_state);
       break;
@@ -2170,6 +2173,13 @@ Node* EffectControlLinearizer::LowerObjectIsDetectableCallable(Node* node) {
 
   __ Bind(&done);
   return done.PhiAt(0);
+}
+
+Node* EffectControlLinearizer::LowerNumberIsFloat64Hole(Node* node) {
+  Node* value = node->InputAt(0);
+  Node* check = __ Word32Equal(__ Float64ExtractHighWord32(value),
+                               __ Int32Constant(kHoleNanUpper32));
+  return check;
 }
 
 Node* EffectControlLinearizer::LowerObjectIsMinusZero(Node* node) {

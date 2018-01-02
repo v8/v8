@@ -503,7 +503,6 @@ var c = [1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25];
   assertArrayEquals([1.5, 2.5, 3.5, 4.5], callback_values);
 })();
 
-
 // Messing with the Array species constructor causes deoptimization.
 (function() {
   var result = 0;

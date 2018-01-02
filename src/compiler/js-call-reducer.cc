@@ -840,23 +840,25 @@ Reduction JSCallReducer::ReduceArrayForEach(Handle<JSFunction> function,
   }
   if (receiver_maps.size() == 0) return NoChange();
 
-  ElementsKind kind = IsDoubleElementsKind(receiver_maps[0]->elements_kind())
-                          ? PACKED_DOUBLE_ELEMENTS
-                          : PACKED_ELEMENTS;
+  // By ensuring that {kind} is object or double, we can be polymorphic
+  // on different elements kinds.
+  ElementsKind kind = receiver_maps[0]->elements_kind();
+  if (IsSmiElementsKind(kind)) {
+    kind = FastSmiToObjectElementsKind(kind);
+  }
   for (Handle<Map> receiver_map : receiver_maps) {
     ElementsKind next_kind = receiver_map->elements_kind();
     if (!CanInlineArrayIteratingBuiltin(receiver_map)) {
       return NoChange();
     }
-    if (!IsFastElementsKind(next_kind) ||
-        (IsDoubleElementsKind(next_kind) && IsHoleyElementsKind(next_kind))) {
+    if (!IsFastElementsKind(next_kind)) {
       return NoChange();
     }
     if (IsDoubleElementsKind(kind) != IsDoubleElementsKind(next_kind)) {
       return NoChange();
     }
     if (IsHoleyElementsKind(next_kind)) {
-      kind = HOLEY_ELEMENTS;
+      kind = GetHoleyElementsKind(kind);
     }
   }
 
@@ -867,8 +869,8 @@ Reduction JSCallReducer::ReduceArrayForEach(Handle<JSFunction> function,
   Node* k = jsgraph()->ZeroConstant();
 
   Node* original_length = effect = graph()->NewNode(
-      simplified()->LoadField(AccessBuilder::ForJSArrayLength(PACKED_ELEMENTS)),
-      receiver, effect, control);
+      simplified()->LoadField(AccessBuilder::ForJSArrayLength(kind)), receiver,
+      effect, control);
 
   std::vector<Node*> checkpoint_params(
       {receiver, fncallback, this_arg, k, original_length});
@@ -927,8 +929,13 @@ Reduction JSCallReducer::ReduceArrayForEach(Handle<JSFunction> function,
   if (IsHoleyElementsKind(kind)) {
     // Holey elements kind require a hole check and skipping of the element in
     // the case of a hole.
-    Node* check = graph()->NewNode(simplified()->ReferenceEqual(), element,
-                                   jsgraph()->TheHoleConstant());
+    Node* check;
+    if (IsDoubleElementsKind(kind)) {
+      check = graph()->NewNode(simplified()->NumberIsFloat64Hole(), element);
+    } else {
+      check = graph()->NewNode(simplified()->ReferenceEqual(), element,
+                               jsgraph()->TheHoleConstant());
+    }
     Node* branch =
         graph()->NewNode(common()->Branch(BranchHint::kFalse), check, control);
     hole_true = graph()->NewNode(common()->IfTrue(), branch);
@@ -1479,11 +1486,6 @@ Reduction JSCallReducer::ReduceArrayMap(Handle<JSFunction> function,
 
   const ElementsKind kind = receiver_maps[0]->elements_kind();
 
-  // TODO(pwong): Handle holey double elements kinds.
-  if (IsDoubleElementsKind(kind) && IsHoleyElementsKind(kind)) {
-    return NoChange();
-  }
-
   for (Handle<Map> receiver_map : receiver_maps) {
     if (!CanInlineArrayIteratingBuiltin(receiver_map)) return NoChange();
     // We can handle different maps, as long as their elements kind are the
@@ -1575,8 +1577,13 @@ Reduction JSCallReducer::ReduceArrayMap(Handle<JSFunction> function,
   if (IsHoleyElementsKind(kind)) {
     // Holey elements kind require a hole check and skipping of the element in
     // the case of a hole.
-    Node* check = graph()->NewNode(simplified()->ReferenceEqual(), element,
-                                   jsgraph()->TheHoleConstant());
+    Node* check;
+    if (IsDoubleElementsKind(kind)) {
+      check = graph()->NewNode(simplified()->NumberIsFloat64Hole(), element);
+    } else {
+      check = graph()->NewNode(simplified()->ReferenceEqual(), element,
+                               jsgraph()->TheHoleConstant());
+    }
     Node* branch =
         graph()->NewNode(common()->Branch(BranchHint::kFalse), check, control);
     hole_true = graph()->NewNode(common()->IfTrue(), branch);
@@ -1681,11 +1688,6 @@ Reduction JSCallReducer::ReduceArrayFilter(Handle<JSFunction> function,
   const ElementsKind kind = receiver_maps[0]->elements_kind();
   // The output array is packed (filter doesn't visit holes).
   const ElementsKind packed_kind = GetPackedElementsKind(kind);
-
-  // TODO(pwong): Handle holey double elements kinds.
-  if (IsDoubleElementsKind(kind) && IsHoleyElementsKind(kind)) {
-    return NoChange();
-  }
 
   for (Handle<Map> receiver_map : receiver_maps) {
     if (!CanInlineArrayIteratingBuiltin(receiver_map)) {
@@ -1802,8 +1804,13 @@ Reduction JSCallReducer::ReduceArrayFilter(Handle<JSFunction> function,
   if (IsHoleyElementsKind(kind)) {
     // Holey elements kind require a hole check and skipping of the element in
     // the case of a hole.
-    Node* check = graph()->NewNode(simplified()->ReferenceEqual(), element,
-                                   jsgraph()->TheHoleConstant());
+    Node* check;
+    if (IsDoubleElementsKind(kind)) {
+      check = graph()->NewNode(simplified()->NumberIsFloat64Hole(), element);
+    } else {
+      check = graph()->NewNode(simplified()->ReferenceEqual(), element,
+                               jsgraph()->TheHoleConstant());
+    }
     Node* branch =
         graph()->NewNode(common()->Branch(BranchHint::kFalse), check, control);
     hole_true = graph()->NewNode(common()->IfTrue(), branch);
@@ -2268,11 +2275,6 @@ Reduction JSCallReducer::ReduceArrayEvery(Handle<JSFunction> function,
 
   const ElementsKind kind = receiver_maps[0]->elements_kind();
 
-  // TODO(pwong): Handle holey double elements kinds.
-  if (IsDoubleElementsKind(kind) && IsHoleyElementsKind(kind)) {
-    return NoChange();
-  }
-
   for (Handle<Map> receiver_map : receiver_maps) {
     if (!CanInlineArrayIteratingBuiltin(receiver_map)) return NoChange();
     // We can handle different maps, as long as their elements kind are the
@@ -2359,8 +2361,13 @@ Reduction JSCallReducer::ReduceArrayEvery(Handle<JSFunction> function,
   if (IsHoleyElementsKind(kind)) {
     // Holey elements kind require a hole check and skipping of the element in
     // the case of a hole.
-    Node* check = graph()->NewNode(simplified()->ReferenceEqual(), element,
-                                   jsgraph()->TheHoleConstant());
+    Node* check;
+    if (IsDoubleElementsKind(kind)) {
+      check = graph()->NewNode(simplified()->NumberIsFloat64Hole(), element);
+    } else {
+      check = graph()->NewNode(simplified()->ReferenceEqual(), element,
+                               jsgraph()->TheHoleConstant());
+    }
     Node* branch =
         graph()->NewNode(common()->Branch(BranchHint::kFalse), check, control);
     hole_true = graph()->NewNode(common()->IfTrue(), branch);
