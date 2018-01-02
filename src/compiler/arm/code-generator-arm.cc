@@ -152,49 +152,6 @@ class ArmOperandConverter final : public InstructionOperandConverter {
 
 namespace {
 
-class OutOfLineLoadFloat final : public OutOfLineCode {
- public:
-  OutOfLineLoadFloat(CodeGenerator* gen, SwVfpRegister result)
-      : OutOfLineCode(gen), result_(result) {}
-
-  void Generate() final {
-    // Compute sqrtf(-1.0f), which results in a quiet single-precision NaN.
-    __ vmov(result_, Float32(-1.0f));
-    __ vsqrt(result_, result_);
-  }
-
- private:
-  SwVfpRegister const result_;
-};
-
-class OutOfLineLoadDouble final : public OutOfLineCode {
- public:
-  OutOfLineLoadDouble(CodeGenerator* gen, DwVfpRegister result)
-      : OutOfLineCode(gen), result_(result) {}
-
-  void Generate() final {
-    // Compute sqrt(-1.0), which results in a quiet double-precision NaN.
-    __ vmov(result_, Double(-1.0));
-    __ vsqrt(result_, result_);
-  }
-
- private:
-  DwVfpRegister const result_;
-};
-
-
-class OutOfLineLoadInteger final : public OutOfLineCode {
- public:
-  OutOfLineLoadInteger(CodeGenerator* gen, Register result)
-      : OutOfLineCode(gen), result_(result) {}
-
-  void Generate() final { __ mov(result_, Operand::Zero()); }
-
- private:
-  Register const result_;
-};
-
-
 class OutOfLineRecordWrite final : public OutOfLineCode {
  public:
   OutOfLineRecordWrite(CodeGenerator* gen, Register object, Register index,

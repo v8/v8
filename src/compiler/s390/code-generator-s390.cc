@@ -156,45 +156,6 @@ static inline bool HasStackSlotInput(Instruction* instr, size_t index) {
 
 namespace {
 
-class OutOfLineLoadNAN32 final : public OutOfLineCode {
- public:
-  OutOfLineLoadNAN32(CodeGenerator* gen, DoubleRegister result)
-      : OutOfLineCode(gen), result_(result) {}
-
-  void Generate() final {
-    __ LoadDoubleLiteral(result_, std::numeric_limits<float>::quiet_NaN(),
-                         kScratchReg);
-  }
-
- private:
-  DoubleRegister const result_;
-};
-
-class OutOfLineLoadNAN64 final : public OutOfLineCode {
- public:
-  OutOfLineLoadNAN64(CodeGenerator* gen, DoubleRegister result)
-      : OutOfLineCode(gen), result_(result) {}
-
-  void Generate() final {
-    __ LoadDoubleLiteral(result_, std::numeric_limits<double>::quiet_NaN(),
-                         kScratchReg);
-  }
-
- private:
-  DoubleRegister const result_;
-};
-
-class OutOfLineLoadZero final : public OutOfLineCode {
- public:
-  OutOfLineLoadZero(CodeGenerator* gen, Register result)
-      : OutOfLineCode(gen), result_(result) {}
-
-  void Generate() final { __ LoadImmP(result_, Operand::Zero()); }
-
- private:
-  Register const result_;
-};
-
 class OutOfLineRecordWrite final : public OutOfLineCode {
  public:
   OutOfLineRecordWrite(CodeGenerator* gen, Register object, Register offset,
