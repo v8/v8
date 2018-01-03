@@ -3351,12 +3351,6 @@ bool CanInlineArrayResizeOperation(Handle<Map> receiver_map) {
   if (!receiver_map->prototype()->IsJSArray()) return false;
   Handle<JSArray> receiver_prototype(JSArray::cast(receiver_map->prototype()),
                                      isolate);
-  // Ensure that all prototypes of the {receiver} are stable.
-  for (PrototypeIterator it(isolate, receiver_prototype, kStartAtReceiver);
-       !it.IsAtEnd(); it.Advance()) {
-    Handle<JSReceiver> current = PrototypeIterator::GetCurrent<JSReceiver>(it);
-    if (!current->map()->is_stable()) return false;
-  }
   return receiver_map->instance_type() == JS_ARRAY_TYPE &&
          IsFastElementsKind(receiver_map->elements_kind()) &&
          !receiver_map->is_dictionary_map() && receiver_map->is_extensible() &&
@@ -3395,12 +3389,8 @@ Reduction JSCallReducer::ReduceArrayPrototypePush(Node* node) {
     if (receiver_map->elements_kind() != kind) return NoChange();
   }
 
-  // Install code dependencies on the {receiver} prototype maps and the
-  // global array protector cell.
+  // Install code dependencies on the {receiver} global array protector cell.
   dependencies()->AssumePropertyCell(factory()->no_elements_protector());
-  for (size_t i = 0; i < receiver_maps.size(); ++i) {
-    dependencies()->AssumePrototypeMapsStable(receiver_maps[i]);
-  }
 
   // If the {receiver_maps} information is not reliable, we need
   // to check that the {receiver} still has one of these maps.
@@ -3495,7 +3485,6 @@ Reduction JSCallReducer::ReduceArrayPrototypePop(Node* node) {
     // Install code dependencies on the {receiver} prototype maps and the
     // global array protector cell.
     dependencies()->AssumePropertyCell(factory()->no_elements_protector());
-    dependencies()->AssumePrototypeMapsStable(receiver_map);
 
     // Load the "length" property of the {receiver}.
     Node* length = effect = graph()->NewNode(
@@ -3593,7 +3582,6 @@ Reduction JSCallReducer::ReduceArrayPrototypeShift(Node* node) {
     // Install code dependencies on the {receiver} prototype maps and the
     // global array protector cell.
     dependencies()->AssumePropertyCell(factory()->no_elements_protector());
-    dependencies()->AssumePrototypeMapsStable(receiver_map);
 
     // Load length of the {receiver}.
     Node* length = effect = graph()->NewNode(
