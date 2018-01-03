@@ -792,6 +792,24 @@ bool CanInlineArrayIteratingBuiltin(Handle<Map> receiver_map) {
          isolate->IsAnyInitialArrayPrototype(receiver_prototype);
 }
 
+Node* JSCallReducer::WireInLoopStart(Node* k, Node** control, Node** effect) {
+  Node* loop = *control =
+      graph()->NewNode(common()->Loop(2), *control, *control);
+  Node* eloop = *effect =
+      graph()->NewNode(common()->EffectPhi(2), *effect, *effect, loop);
+  Node* terminate = graph()->NewNode(common()->Terminate(), eloop, loop);
+  NodeProperties::MergeControlToEnd(graph(), common(), terminate);
+  return graph()->NewNode(common()->Phi(MachineRepresentation::kTagged, 2), k,
+                          k, loop);
+}
+
+void JSCallReducer::WireInLoopEnd(Node* loop, Node* eloop, Node* vloop, Node* k,
+                                  Node* control, Node* effect) {
+  loop->ReplaceInput(1, control);
+  vloop->ReplaceInput(1, k);
+  eloop->ReplaceInput(1, effect);
+}
+
 Reduction JSCallReducer::ReduceArrayForEach(Handle<JSFunction> function,
                                             Node* node) {
   if (!FLAG_turbo_inline_array_builtins) return NoChange();
@@ -868,17 +886,9 @@ Reduction JSCallReducer::ReduceArrayForEach(Handle<JSFunction> function,
                                 &control, &check_fail, &check_throw);
 
   // Start the loop.
-  Node* loop = control = graph()->NewNode(common()->Loop(2), control, control);
-  Node* eloop = effect =
-      graph()->NewNode(common()->EffectPhi(2), effect, effect, loop);
-  Node* terminate = graph()->NewNode(common()->Terminate(), eloop, loop);
-  NodeProperties::MergeControlToEnd(graph(), common(), terminate);
-  Node* vloop = k = graph()->NewNode(
-      common()->Phi(MachineRepresentation::kTagged, 2), k, k, loop);
+  Node* vloop = k = WireInLoopStart(k, &control, &effect);
+  Node *loop = control, *eloop = effect;
   checkpoint_params[3] = k;
-
-  control = loop;
-  effect = eloop;
 
   Node* continue_test =
       graph()->NewNode(simplified()->NumberLessThan(), k, original_length);
@@ -959,11 +969,7 @@ Reduction JSCallReducer::ReduceArrayForEach(Handle<JSFunction> function,
                               control);
   }
 
-  k = next_k;
-
-  loop->ReplaceInput(1, control);
-  vloop->ReplaceInput(1, k);
-  eloop->ReplaceInput(1, effect);
+  WireInLoopEnd(loop, eloop, vloop, next_k, control, effect);
 
   control = if_false;
   effect = eloop;
@@ -1529,17 +1535,9 @@ Reduction JSCallReducer::ReduceArrayMap(Handle<JSFunction> function,
                                 &control, &check_fail, &check_throw);
 
   // Start the loop.
-  Node* loop = control = graph()->NewNode(common()->Loop(2), control, control);
-  Node* eloop = effect =
-      graph()->NewNode(common()->EffectPhi(2), effect, effect, loop);
-  Node* terminate = graph()->NewNode(common()->Terminate(), eloop, loop);
-  NodeProperties::MergeControlToEnd(graph(), common(), terminate);
-  Node* vloop = k = graph()->NewNode(
-      common()->Phi(MachineRepresentation::kTagged, 2), k, k, loop);
+  Node* vloop = k = WireInLoopStart(k, &control, &effect);
+  Node *loop = control, *eloop = effect;
   checkpoint_params[4] = k;
-
-  control = loop;
-  effect = eloop;
 
   Node* continue_test =
       graph()->NewNode(simplified()->NumberLessThan(), k, original_length);
@@ -1630,11 +1628,7 @@ Reduction JSCallReducer::ReduceArrayMap(Handle<JSFunction> function,
                               after_call_and_store_effect, control);
   }
 
-  k = next_k;
-
-  loop->ReplaceInput(1, control);
-  vloop->ReplaceInput(1, k);
-  eloop->ReplaceInput(1, effect);
+  WireInLoopEnd(loop, eloop, vloop, next_k, control, effect);
 
   control = if_false;
   effect = eloop;
@@ -1760,18 +1754,10 @@ Reduction JSCallReducer::ReduceArrayFilter(Handle<JSFunction> function,
   }
 
   // Start the loop.
-  Node* loop = control = graph()->NewNode(common()->Loop(2), control, control);
-  Node* eloop = effect =
-      graph()->NewNode(common()->EffectPhi(2), effect, effect, loop);
-  Node* terminate = graph()->NewNode(common()->Terminate(), eloop, loop);
-  NodeProperties::MergeControlToEnd(graph(), common(), terminate);
-  Node* vloop = k = graph()->NewNode(
-      common()->Phi(MachineRepresentation::kTagged, 2), k, k, loop);
+  Node* vloop = k = WireInLoopStart(k, &control, &effect);
+  Node *loop = control, *eloop = effect;
   Node* v_to_loop = to = graph()->NewNode(
       common()->Phi(MachineRepresentation::kTaggedSigned, 2), to, to, loop);
-
-  control = loop;
-  effect = eloop;
 
   Node* continue_test =
       graph()->NewNode(simplified()->NumberLessThan(), k, original_length);
@@ -1897,12 +1883,8 @@ Reduction JSCallReducer::ReduceArrayFilter(Handle<JSFunction> function,
                          hole_true_vto, to, control);
   }
 
-  k = next_k;
-
-  loop->ReplaceInput(1, control);
-  vloop->ReplaceInput(1, k);
+  WireInLoopEnd(loop, eloop, vloop, next_k, control, effect);
   v_to_loop->ReplaceInput(1, to);
-  eloop->ReplaceInput(1, effect);
 
   control = if_false;
   effect = eloop;
@@ -2009,13 +1991,8 @@ Reduction JSCallReducer::ReduceArrayFind(ArrayFindVariant variant,
   }
 
   // Start the loop.
-  Node* loop = control = graph()->NewNode(common()->Loop(2), control, control);
-  Node* eloop = effect =
-      graph()->NewNode(common()->EffectPhi(2), effect, effect, loop);
-  Node* terminate = graph()->NewNode(common()->Terminate(), eloop, loop);
-  NodeProperties::MergeControlToEnd(graph(), common(), terminate);
-  Node* vloop = k = graph()->NewNode(
-      common()->Phi(MachineRepresentation::kTagged, 2), k, k, loop);
+  Node* vloop = k = WireInLoopStart(k, &control, &effect);
+  Node *loop = control, *eloop = effect;
   checkpoint_params[3] = k;
 
   // Check if we've iterated past the last element of the array.
@@ -2103,9 +2080,7 @@ Reduction JSCallReducer::ReduceArrayFind(ArrayFindVariant variant,
   control = if_notfound;
 
   // Close the loop.
-  loop->ReplaceInput(1, control);
-  vloop->ReplaceInput(1, next_k);
-  eloop->ReplaceInput(1, effect);
+  WireInLoopEnd(loop, eloop, vloop, next_k, control, effect);
 
   control = graph()->NewNode(common()->Merge(2), if_found, if_false);
   effect =
@@ -2339,13 +2314,8 @@ Reduction JSCallReducer::ReduceArrayEvery(Handle<JSFunction> function,
   }
 
   // Start the loop.
-  Node* loop = control = graph()->NewNode(common()->Loop(2), control, control);
-  Node* eloop = effect =
-      graph()->NewNode(common()->EffectPhi(2), effect, effect, loop);
-  Node* terminate = graph()->NewNode(common()->Terminate(), eloop, loop);
-  NodeProperties::MergeControlToEnd(graph(), common(), terminate);
-  Node* vloop = k = graph()->NewNode(
-      common()->Phi(MachineRepresentation::kTagged, 2), k, k, loop);
+  Node* vloop = k = WireInLoopStart(k, &control, &effect);
+  Node *loop = control, *eloop = effect;
 
   Node* continue_test =
       graph()->NewNode(simplified()->NumberLessThan(), k, original_length);
@@ -2458,9 +2428,7 @@ Reduction JSCallReducer::ReduceArrayEvery(Handle<JSFunction> function,
                               control);
   }
 
-  loop->ReplaceInput(1, control);
-  vloop->ReplaceInput(1, next_k);
-  eloop->ReplaceInput(1, effect);
+  WireInLoopEnd(loop, eloop, vloop, next_k, control, effect);
 
   control = graph()->NewNode(common()->Merge(2), if_false, if_false_callback);
   effect =

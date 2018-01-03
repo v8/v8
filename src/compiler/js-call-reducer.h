@@ -117,6 +117,15 @@ class JSCallReducer final : public AdvancedReducer {
                                         Node* effect, Node** check_fail,
                                         Node** control);
 
+  // Begin the central loop of a higher-order array builtin. A Loop is wired
+  // into {control}, an EffectPhi into {effect}, and the array index {k} is
+  // threaded into a Phi, which is returned. It's helpful to save the
+  // value of {control} as the loop node, and of {effect} as the corresponding
+  // EffectPhi after function return.
+  Node* WireInLoopStart(Node* k, Node** control, Node** effect);
+  void WireInLoopEnd(Node* loop, Node* eloop, Node* vloop, Node* k,
+                     Node* control, Node* effect);
+
   // Load receiver[k], first bounding k by receiver array length.
   // k is thusly changed, and the effect is changed as well.
   Node* SafeLoadElement(ElementsKind kind, Node* receiver, Node* control,
