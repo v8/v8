@@ -38,6 +38,7 @@ from ..local import utils
 FLAGS_PATTERN = re.compile(r"//\s+Flags:(.*)")
 
 
+
 class TestCase(object):
   def __init__(self, suite, path, name):
     self.suite = suite        # TestSuite object
@@ -53,7 +54,7 @@ class TestCase(object):
     self.cmd = None
 
     self._statusfile_outcomes = None
-    self.expected_outcomes = None
+    self._expected_outcomes = None # optimization: None == [statusfile.PASS]
     self._statusfile_flags = None
     self._prepare_outcomes()
 
@@ -88,7 +89,7 @@ class TestCase(object):
   def _parse_status_file_outcomes(self, outcomes):
     if (statusfile.FAIL_SLOPPY in outcomes and
         '--use-strict' not in self.variant_flags):
-      return [statusfile.FAIL]
+      return outproc.OUTCOMES_FAIL
 
     expected_outcomes = []
     if (statusfile.FAIL in outcomes or
@@ -96,9 +97,16 @@ class TestCase(object):
       expected_outcomes.append(statusfile.FAIL)
     if statusfile.CRASH in outcomes:
       expected_outcomes.append(statusfile.CRASH)
-    if statusfile.PASS in outcomes:
+
+    # Do not add PASS if there is nothing else. Empty outcomes are converted to
+    # the global [PASS].
+    if expected_outcomes and statusfile.PASS in outcomes:
       expected_outcomes.append(statusfile.PASS)
-    return expected_outcomes or [statusfile.PASS]
+
+    # Avoid creating multiple instances of a list with a single FAIL.
+    if expected_outcomes == outproc.OUTCOMES_FAIL:
+      return outproc.OUTCOMES_FAIL
+    return expected_outcomes or outproc.OUTCOMES_PASS
 
   @property
   def do_skip(self):
@@ -239,7 +247,9 @@ class TestCase(object):
 
   @property
   def output_proc(self):
-    return outproc.DEFAULT
+    if self.expected_outcomes is outproc.OUTCOMES_PASS:
+      return outproc.DEFAULT
+    return outproc.OutProc(self.expected_outcomes)
 
   def __cmp__(self, other):
     # Make sure that test cases are sorted correctly if sorted without

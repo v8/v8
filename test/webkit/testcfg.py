@@ -68,8 +68,6 @@ class TestCase(testcase.TestCase):
     source = self.get_source()
     self._source_files = self._parse_source_files(source)
     self._source_flags = self._parse_source_flags(source)
-    self._outproc = OutProc(
-        os.path.join(self.suite.root, self.path) + '-expected.txt')
 
   def _parse_source_files(self, source):
     files_list = []  # List of file names to append to command arguments.
@@ -106,7 +104,9 @@ class TestCase(testcase.TestCase):
 
   @property
   def output_proc(self):
-    return self._outproc
+    return OutProc(
+        self.expected_outcomes,
+        os.path.join(self.suite.root, self.path) + '-expected.txt')
 
 
 class OutProc(outproc.ExpectedOutProc):

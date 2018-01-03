@@ -42,8 +42,6 @@ class TestCase(testcase.TestCase):
     super(TestCase, self).__init__(*args, **kwargs)
 
     self._source_flags = self._parse_source_flags()
-    self._outproc = outproc.ExpectedOutProc(
-        os.path.join(self.suite.root, self.path) + EXPECTED_SUFFIX)
 
   def _get_files_params(self, ctx):
     return [
@@ -62,7 +60,9 @@ class TestCase(testcase.TestCase):
 
   @property
   def output_proc(self):
-    return self._outproc
+    return outproc.ExpectedOutProc(
+        self.expected_outcomes,
+        os.path.join(self.suite.root, self.path) + EXPECTED_SUFFIX)
 
 
 def GetSuite(name, root):
