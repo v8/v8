@@ -3388,106 +3388,104 @@ Reduction JSCallReducer::ReduceArrayPrototypePush(Node* node) {
   Node* receiver = NodeProperties::GetValueInput(node, 1);
   Node* effect = NodeProperties::GetEffectInput(node);
   Node* control = NodeProperties::GetControlInput(node);
+
+  // Try to determine the {receiver} map(s).
   ZoneHandleSet<Map> receiver_maps;
   NodeProperties::InferReceiverMapsResult result =
       NodeProperties::InferReceiverMaps(receiver, effect, &receiver_maps);
-  if (receiver_maps.size() != 1) return NoChange();
-  DCHECK_NE(NodeProperties::kNoReceiverMaps, result);
+  if (result == NodeProperties::kNoReceiverMaps) return NoChange();
+  DCHECK_NE(0, receiver_maps.size());
 
-  // TODO(turbofan): Relax this to deal with multiple {receiver} maps.
-  Handle<Map> receiver_map = receiver_maps[0];
-  if (CanInlineArrayResizeOperation(receiver_map)) {
-    // Collect the value inputs to push.
-    std::vector<Node*> values(num_values);
-    for (int i = 0; i < num_values; ++i) {
-      values[i] = NodeProperties::GetValueInput(node, 2 + i);
-    }
+  const ElementsKind kind = receiver_maps[0]->elements_kind();
 
-    // Install code dependencies on the {receiver} prototype maps and the
-    // global array protector cell.
-    dependencies()->AssumePropertyCell(factory()->no_elements_protector());
-    dependencies()->AssumePrototypeMapsStable(receiver_map);
-
-    // If the {receiver_maps} information is not reliable, we need
-    // to check that the {receiver} still has one of these maps.
-    if (result == NodeProperties::kUnreliableReceiverMaps) {
-      if (receiver_map->is_stable()) {
-        dependencies()->AssumeMapStable(receiver_map);
-      } else {
-        effect = graph()->NewNode(
-            simplified()->CheckMaps(CheckMapsFlag::kNone, receiver_maps,
-                                    p.feedback()),
-            receiver, effect, control);
-      }
-    }
-
-    for (auto& value : values) {
-      if (IsSmiElementsKind(receiver_map->elements_kind())) {
-        value = effect = graph()->NewNode(simplified()->CheckSmi(p.feedback()),
-                                          value, effect, control);
-      } else if (IsDoubleElementsKind(receiver_map->elements_kind())) {
-        value = effect = graph()->NewNode(
-            simplified()->CheckNumber(p.feedback()), value, effect, control);
-        // Make sure we do not store signaling NaNs into double arrays.
-        value = graph()->NewNode(simplified()->NumberSilenceNaN(), value);
-      }
-    }
-
-    // Load the "length" property of the {receiver}.
-    Node* length = effect = graph()->NewNode(
-        simplified()->LoadField(
-            AccessBuilder::ForJSArrayLength(receiver_map->elements_kind())),
-        receiver, effect, control);
-    Node* value = length;
-
-    // Check if we have any {values} to push.
-    if (num_values > 0) {
-      // Compute the resulting "length" of the {receiver}.
-      Node* new_length = value = graph()->NewNode(
-          simplified()->NumberAdd(), length, jsgraph()->Constant(num_values));
-
-      // Load the elements backing store of the {receiver}.
-      Node* elements = effect = graph()->NewNode(
-          simplified()->LoadField(AccessBuilder::ForJSObjectElements()),
-          receiver, effect, control);
-      Node* elements_length = effect = graph()->NewNode(
-          simplified()->LoadField(AccessBuilder::ForFixedArrayLength()),
-          elements, effect, control);
-
-      GrowFastElementsMode mode =
-          IsDoubleElementsKind(receiver_map->elements_kind())
-              ? GrowFastElementsMode::kDoubleElements
-              : GrowFastElementsMode::kSmiOrObjectElements;
-      elements = effect = graph()->NewNode(
-          simplified()->MaybeGrowFastElements(mode, p.feedback()), receiver,
-          elements,
-          graph()->NewNode(simplified()->NumberAdd(), length,
-                           jsgraph()->Constant(num_values - 1)),
-          elements_length, effect, control);
-
-      // Update the JSArray::length field. Since this is observable,
-      // there must be no other check after this.
-      effect = graph()->NewNode(
-          simplified()->StoreField(
-              AccessBuilder::ForJSArrayLength(receiver_map->elements_kind())),
-          receiver, new_length, effect, control);
-
-      // Append the {values} to the {elements}.
-      for (int i = 0; i < num_values; ++i) {
-        Node* value = values[i];
-        Node* index = graph()->NewNode(simplified()->NumberAdd(), length,
-                                       jsgraph()->Constant(i));
-        effect = graph()->NewNode(
-            simplified()->StoreElement(AccessBuilder::ForFixedArrayElement(
-                receiver_map->elements_kind())),
-            elements, index, value, effect, control);
-      }
-    }
-
-    ReplaceWithValue(node, value, effect, control);
-    return Replace(value);
+  for (Handle<Map> receiver_map : receiver_maps) {
+    if (!CanInlineArrayResizeOperation(receiver_map)) return NoChange();
+    if (receiver_map->elements_kind() != kind) return NoChange();
   }
-  return NoChange();
+
+  // Install code dependencies on the {receiver} prototype maps and the
+  // global array protector cell.
+  dependencies()->AssumePropertyCell(factory()->no_elements_protector());
+  for (size_t i = 0; i < receiver_maps.size(); ++i) {
+    dependencies()->AssumePrototypeMapsStable(receiver_maps[i]);
+  }
+
+  // If the {receiver_maps} information is not reliable, we need
+  // to check that the {receiver} still has one of these maps.
+  if (result == NodeProperties::kUnreliableReceiverMaps) {
+    effect =
+        graph()->NewNode(simplified()->CheckMaps(CheckMapsFlag::kNone,
+                                                 receiver_maps, p.feedback()),
+                         receiver, effect, control);
+  }
+
+  // Collect the value inputs to push.
+  std::vector<Node*> values(num_values);
+  for (int i = 0; i < num_values; ++i) {
+    values[i] = NodeProperties::GetValueInput(node, 2 + i);
+  }
+
+  for (auto& value : values) {
+    if (IsSmiElementsKind(kind)) {
+      value = effect = graph()->NewNode(simplified()->CheckSmi(p.feedback()),
+                                        value, effect, control);
+    } else if (IsDoubleElementsKind(kind)) {
+      value = effect = graph()->NewNode(simplified()->CheckNumber(p.feedback()),
+                                        value, effect, control);
+      // Make sure we do not store signaling NaNs into double arrays.
+      value = graph()->NewNode(simplified()->NumberSilenceNaN(), value);
+    }
+  }
+
+  // Load the "length" property of the {receiver}.
+  Node* length = effect = graph()->NewNode(
+      simplified()->LoadField(AccessBuilder::ForJSArrayLength(kind)), receiver,
+      effect, control);
+  Node* value = length;
+
+  // Check if we have any {values} to push.
+  if (num_values > 0) {
+    // Compute the resulting "length" of the {receiver}.
+    Node* new_length = value = graph()->NewNode(
+        simplified()->NumberAdd(), length, jsgraph()->Constant(num_values));
+
+    // Load the elements backing store of the {receiver}.
+    Node* elements = effect = graph()->NewNode(
+        simplified()->LoadField(AccessBuilder::ForJSObjectElements()), receiver,
+        effect, control);
+    Node* elements_length = effect = graph()->NewNode(
+        simplified()->LoadField(AccessBuilder::ForFixedArrayLength()), elements,
+        effect, control);
+
+    GrowFastElementsMode mode =
+        IsDoubleElementsKind(kind) ? GrowFastElementsMode::kDoubleElements
+                                   : GrowFastElementsMode::kSmiOrObjectElements;
+    elements = effect = graph()->NewNode(
+        simplified()->MaybeGrowFastElements(mode, p.feedback()), receiver,
+        elements,
+        graph()->NewNode(simplified()->NumberAdd(), length,
+                         jsgraph()->Constant(num_values - 1)),
+        elements_length, effect, control);
+
+    // Update the JSArray::length field. Since this is observable,
+    // there must be no other check after this.
+    effect = graph()->NewNode(
+        simplified()->StoreField(AccessBuilder::ForJSArrayLength(kind)),
+        receiver, new_length, effect, control);
+
+    // Append the {values} to the {elements}.
+    for (int i = 0; i < num_values; ++i) {
+      Node* value = values[i];
+      Node* index = graph()->NewNode(simplified()->NumberAdd(), length,
+                                     jsgraph()->Constant(i));
+      effect = graph()->NewNode(
+          simplified()->StoreElement(AccessBuilder::ForFixedArrayElement(kind)),
+          elements, index, value, effect, control);
+    }
+  }
+
+  ReplaceWithValue(node, value, effect, control);
+  return Replace(value);
 }
 
 // ES6 section 22.1.3.17 Array.prototype.pop ( )
