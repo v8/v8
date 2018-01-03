@@ -1551,7 +1551,7 @@ ParserBase<Impl>::FunctionState::FunctionState(
       destructuring_assignments_to_rewrite_(16, scope->zone()),
       non_patterns_to_rewrite_(0, scope->zone()),
       reported_errors_(16, scope->zone()),
-      dont_optimize_reason_(kNoReason),
+      dont_optimize_reason_(BailoutReason::kNoReason),
       next_function_is_likely_called_(false),
       previous_function_was_likely_called_(false),
       contains_function_or_eval_(false) {
@@ -4081,7 +4081,7 @@ typename ParserBase<Impl>::StatementT ParserBase<Impl>::ParseClassDeclaration(
 template <typename Impl>
 typename ParserBase<Impl>::StatementT ParserBase<Impl>::ParseNativeDeclaration(
     bool* ok) {
-  function_state_->DisableOptimization(kNativeFunctionLiteral);
+  function_state_->DisableOptimization(BailoutReason::kNativeFunctionLiteral);
 
   int pos = peek_position();
   Expect(Token::FUNCTION, CHECK_OK_CUSTOM(NullStatement));

@@ -1864,7 +1864,7 @@ Node* PromiseBuiltinsAssembler::PerformPromiseAll(
       BIND(&if_outofrange);
       {
         // If the incremented value is out of Smi range, crash.
-        Abort(kOffsetOutOfRange);
+        Abort(AbortReason::kOffsetOutOfRange);
       }
 
       BIND(&done);

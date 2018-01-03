@@ -306,7 +306,7 @@ class LiftoffCompiler {
     if (is_stack_check) {
       __ emit_jump(ool.continuation.get());
     } else {
-      __ AssertUnreachable(kUnexpectedReturnFromWasmTrap);
+      __ AssertUnreachable(AbortReason::kUnexpectedReturnFromWasmTrap);
     }
   }
 

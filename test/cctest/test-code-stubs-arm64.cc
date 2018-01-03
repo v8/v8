@@ -97,11 +97,11 @@ ConvertDToIFunc MakeConvertDToIFuncTrampoline(Isolate* isolate,
         __ Pop(temp0, temp1);
         if (!reg0.is(destination_reg)) {
           __ Cmp(reg0, temp0);
-          __ Assert(eq, kRegisterWasClobbered);
+          __ Assert(eq, AbortReason::kRegisterWasClobbered);
         }
         if (!reg1.is(destination_reg)) {
           __ Cmp(reg1, temp1);
-          __ Assert(eq, kRegisterWasClobbered);
+          __ Assert(eq, AbortReason::kRegisterWasClobbered);
         }
       }
     }

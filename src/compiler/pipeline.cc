@@ -803,7 +803,7 @@ PipelineCompilationJob::Status PipelineCompilationJob::PrepareJobImpl(
 
   if (!pipeline_.CreateGraph()) {
     if (isolate->has_pending_exception()) return FAILED;  // Stack overflowed.
-    return AbortOptimization(kGraphBuildingFailed);
+    return AbortOptimization(BailoutReason::kGraphBuildingFailed);
   }
 
   if (compilation_info()->is_osr()) data_.InitializeOsrHelper();
@@ -826,8 +826,8 @@ PipelineCompilationJob::Status PipelineCompilationJob::FinalizeJobImpl(
     Isolate* isolate) {
   Handle<Code> code = pipeline_.FinalizeCode();
   if (code.is_null()) {
-    if (compilation_info()->bailout_reason() == kNoReason) {
-      return AbortOptimization(kCodeGenerationFailed);
+    if (compilation_info()->bailout_reason() == BailoutReason::kNoReason) {
+      return AbortOptimization(BailoutReason::kCodeGenerationFailed);
     }
     return FAILED;
   }
@@ -1879,7 +1879,8 @@ bool PipelineImpl::OptimizeGraph(Linkage* linkage) {
   if (FLAG_turbo_escape) {
     Run<EscapeAnalysisPhase>();
     if (data->compilation_failed()) {
-      info()->AbortOptimization(kCyclicObjectStateDetectedInEscapeAnalysis);
+      info()->AbortOptimization(
+          BailoutReason::kCyclicObjectStateDetectedInEscapeAnalysis);
       data->EndPhaseKind();
       return false;
     }
@@ -2137,7 +2138,7 @@ bool PipelineImpl::ScheduleAndSelectInstructions(Linkage* linkage,
   // Select and schedule instructions covering the scheduled graph.
   Run<InstructionSelectionPhase>(linkage);
   if (data->compilation_failed()) {
-    info()->AbortOptimization(kCodeGenerationFailed);
+    info()->AbortOptimization(BailoutReason::kCodeGenerationFailed);
     data->EndPhaseKind();
     return false;
   }
@@ -2176,7 +2177,8 @@ bool PipelineImpl::ScheduleAndSelectInstructions(Linkage* linkage,
 
   Run<FrameElisionPhase>();
   if (data->compilation_failed()) {
-    info()->AbortOptimization(kNotEnoughVirtualRegistersRegalloc);
+    info()->AbortOptimization(
+        BailoutReason::kNotEnoughVirtualRegistersRegalloc);
     data->EndPhaseKind();
     return false;
   }

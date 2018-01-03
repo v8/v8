@@ -736,7 +736,7 @@ IGNITION_HANDLER(StaModuleVariable, InterpreterAssembler) {
   BIND(&if_import);
   {
     // Not supported (probably never).
-    Abort(kUnsupportedModuleOperation);
+    Abort(AbortReason::kUnsupportedModuleOperation);
     Goto(&end);
   }
 
@@ -2727,7 +2727,7 @@ IGNITION_HANDLER(Throw, InterpreterAssembler) {
   Node* context = GetContext();
   CallRuntime(Runtime::kThrow, context, exception);
   // We shouldn't ever return from a throw.
-  Abort(kUnexpectedReturnFromThrow);
+  Abort(AbortReason::kUnexpectedReturnFromThrow);
 }
 
 // ReThrow
@@ -2738,10 +2738,10 @@ IGNITION_HANDLER(ReThrow, InterpreterAssembler) {
   Node* context = GetContext();
   CallRuntime(Runtime::kReThrow, context, exception);
   // We shouldn't ever return from a throw.
-  Abort(kUnexpectedReturnFromThrow);
+  Abort(AbortReason::kUnexpectedReturnFromThrow);
 }
 
-// Abort <bailout_reason>
+// Abort <abort_reason>
 //
 // Aborts execution (via a call to the runtime function).
 IGNITION_HANDLER(Abort, InterpreterAssembler) {
@@ -2774,7 +2774,7 @@ IGNITION_HANDLER(ThrowReferenceErrorIfHole, InterpreterAssembler) {
     Node* name = LoadConstantPoolEntry(BytecodeOperandIdx(0));
     CallRuntime(Runtime::kThrowReferenceError, GetContext(), name);
     // We shouldn't ever return from a throw.
-    Abort(kUnexpectedReturnFromThrow);
+    Abort(AbortReason::kUnexpectedReturnFromThrow);
   }
 }
 
@@ -2792,7 +2792,7 @@ IGNITION_HANDLER(ThrowSuperNotCalledIfHole, InterpreterAssembler) {
   {
     CallRuntime(Runtime::kThrowSuperNotCalled, GetContext());
     // We shouldn't ever return from a throw.
-    Abort(kUnexpectedReturnFromThrow);
+    Abort(AbortReason::kUnexpectedReturnFromThrow);
   }
 }
 
@@ -2811,7 +2811,7 @@ IGNITION_HANDLER(ThrowSuperAlreadyCalledIfNotHole, InterpreterAssembler) {
   {
     CallRuntime(Runtime::kThrowSuperAlreadyCalledError, GetContext());
     // We shouldn't ever return from a throw.
-    Abort(kUnexpectedReturnFromThrow);
+    Abort(AbortReason::kUnexpectedReturnFromThrow);
   }
 }
 
@@ -3069,7 +3069,9 @@ IGNITION_HANDLER(ExtraWide, InterpreterAssembler) {
 // Illegal
 //
 // An invalid bytecode aborting execution if dispatched.
-IGNITION_HANDLER(Illegal, InterpreterAssembler) { Abort(kInvalidBytecode); }
+IGNITION_HANDLER(Illegal, InterpreterAssembler) {
+  Abort(AbortReason::kInvalidBytecode);
+}
 
 // SuspendGenerator <generator> <first input register> <register count>
 // <suspend_id>

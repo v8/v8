@@ -616,7 +616,7 @@ void ArrayConstructorAssembler::GenerateConstructor(
     Branch(SmiEqual(array_size, SmiConstant(0)), &small_smi_size, &abort);
 
     BIND(&abort);
-    Node* reason = SmiConstant(kAllocatingNonEmptyPackedArray);
+    Node* reason = SmiConstant(AbortReason::kAllocatingNonEmptyPackedArray);
     TailCallRuntime(Runtime::kAbort, context, reason);
   } else {
     int element_size =

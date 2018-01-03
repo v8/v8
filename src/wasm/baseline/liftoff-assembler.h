@@ -293,7 +293,7 @@ class LiftoffAssembler : public TurboAssembler {
 
   inline void CallTrapCallbackForTesting();
 
-  inline void AssertUnreachable(BailoutReason reason);
+  inline void AssertUnreachable(AbortReason reason);
 
   inline void PushRegisters(LiftoffRegList);
   inline void PopRegisters(LiftoffRegList);

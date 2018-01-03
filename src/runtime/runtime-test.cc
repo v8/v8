@@ -310,7 +310,8 @@ RUNTIME_FUNCTION(Runtime_NeverOptimizeFunction) {
     return isolate->heap()->undefined_value();
   }
   Handle<JSFunction> function = Handle<JSFunction>::cast(function_object);
-  function->shared()->DisableOptimization(kOptimizationDisabledForTest);
+  function->shared()->DisableOptimization(
+      BailoutReason::kOptimizationDisabledForTest);
   return isolate->heap()->undefined_value();
 }
 
@@ -760,8 +761,7 @@ RUNTIME_FUNCTION(Runtime_Abort) {
   SealHandleScope shs(isolate);
   DCHECK_EQ(1, args.length());
   CONVERT_SMI_ARG_CHECKED(message_id, 0);
-  const char* message =
-      GetBailoutReason(static_cast<BailoutReason>(message_id));
+  const char* message = GetAbortReason(static_cast<AbortReason>(message_id));
   base::OS::PrintError("abort: %s\n", message);
   isolate->PrintStack(stderr);
   base::OS::Abort();

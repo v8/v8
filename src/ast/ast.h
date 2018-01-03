@@ -2276,7 +2276,9 @@ class FunctionLiteral final : public Expression {
   }
   FunctionKind kind() const;
 
-  bool dont_optimize() { return dont_optimize_reason() != kNoReason; }
+  bool dont_optimize() {
+    return dont_optimize_reason() != BailoutReason::kNoReason;
+  }
   BailoutReason dont_optimize_reason() {
     return DontOptimizeReasonField::decode(bit_field_);
   }
@@ -2339,7 +2341,7 @@ class FunctionLiteral final : public Expression {
                   Pretenure::encode(false) |
                   HasDuplicateParameters::encode(has_duplicate_parameters ==
                                                  kHasDuplicateParameters) |
-                  DontOptimizeReasonField::encode(kNoReason) |
+                  DontOptimizeReasonField::encode(BailoutReason::kNoReason) |
                   RequiresInstanceFieldsInitializer::encode(false);
     if (eager_compile_hint == kShouldEagerCompile) SetShouldEagerCompile();
     DCHECK_EQ(body == nullptr, expected_property_count < 0);

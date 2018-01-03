@@ -1180,8 +1180,10 @@ BytecodeArrayBuilder& BytecodeArrayBuilder::ReThrow() {
   return *this;
 }
 
-BytecodeArrayBuilder& BytecodeArrayBuilder::Abort(BailoutReason reason) {
-  OutputAbort(reason);
+BytecodeArrayBuilder& BytecodeArrayBuilder::Abort(AbortReason reason) {
+  DCHECK_LT(reason, AbortReason::kLastErrorMessage);
+  DCHECK_GE(reason, AbortReason::kNoReason);
+  OutputAbort(static_cast<int>(reason));
   return *this;
 }
 

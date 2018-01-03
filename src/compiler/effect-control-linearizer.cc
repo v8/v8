@@ -3836,12 +3836,13 @@ void EffectControlLinearizer::LowerStoreSignedSmallElement(Node* node) {
 }
 
 void EffectControlLinearizer::LowerRuntimeAbort(Node* node) {
-  BailoutReason reason = BailoutReasonOf(node->op());
+  AbortReason reason = AbortReasonOf(node->op());
   Operator::Properties properties = Operator::kNoDeopt | Operator::kNoThrow;
   Runtime::FunctionId id = Runtime::kAbort;
   CallDescriptor const* desc = Linkage::GetRuntimeCallDescriptor(
       graph()->zone(), id, 1, properties, CallDescriptor::kNoFlags);
-  __ Call(desc, __ CEntryStubConstant(1), jsgraph()->SmiConstant(reason),
+  __ Call(desc, __ CEntryStubConstant(1),
+          jsgraph()->SmiConstant(static_cast<int>(reason)),
           __ ExternalConstant(ExternalReference(id, isolate())),
           __ Int32Constant(1), __ NoContextConstant());
 }

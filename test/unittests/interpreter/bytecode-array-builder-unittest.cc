@@ -397,7 +397,7 @@ TEST_F(BytecodeArrayBuilderTest, AllBytecodesGenerated) {
   // Emit abort bytecode.
   {
     BytecodeLabel after;
-    builder.Abort(kGenerator).Bind(&after);
+    builder.Abort(AbortReason::kOperandIsASmi).Bind(&after);
   }
 
   // Insert dummy ops to force longer jumps.

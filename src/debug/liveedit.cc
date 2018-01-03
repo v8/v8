@@ -840,7 +840,7 @@ void LiveEdit::ReplaceFunctionCode(
     }
     shared_info->set_scope_info(new_shared_info->scope_info());
     shared_info->set_outer_scope_info(new_shared_info->outer_scope_info());
-    shared_info->DisableOptimization(kLiveEdit);
+    shared_info->DisableOptimization(BailoutReason::kLiveEdit);
     // Update the type feedback vector, if needed.
     Handle<FeedbackMetadata> new_feedback_metadata(
         new_shared_info->feedback_metadata());
@@ -898,7 +898,7 @@ void LiveEdit::SetFunctionScript(Handle<JSValue> function_wrapper,
   Isolate* isolate = function_wrapper->GetIsolate();
   CHECK(script_handle->IsScript() || script_handle->IsUndefined(isolate));
   SharedFunctionInfo::SetScript(shared_info, script_handle);
-  shared_info->DisableOptimization(kLiveEdit);
+  shared_info->DisableOptimization(BailoutReason::kLiveEdit);
 
   function_wrapper->GetIsolate()->compilation_cache()->Remove(shared_info);
 }

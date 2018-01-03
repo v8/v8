@@ -97,7 +97,7 @@ ConvertDToIFunc MakeConvertDToIFuncTrampoline(Isolate* isolate,
       if (reg != destination_reg) {
         __ ldr(ip, MemOperand(sp, 0));
         __ cmp(reg, ip);
-        __ Assert(eq, kRegisterWasClobbered);
+        __ Assert(eq, AbortReason::kRegisterWasClobbered);
         __ add(sp, sp, Operand(kPointerSize));
       }
     }

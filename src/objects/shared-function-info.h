@@ -476,14 +476,15 @@ class SharedFunctionInfo : public HeapObject {
   V(IsDeclarationBit, bool, 1, _)                        \
   V(IsAsmWasmBrokenBit, bool, 1, _)                      \
   V(FunctionMapIndexBits, int, 5, _)                     \
-  V(DisabledOptimizationReasonBits, BailoutReason, 7, _) \
+  V(DisabledOptimizationReasonBits, BailoutReason, 4, _) \
   V(RequiresInstanceFieldsInitializer, bool, 1, _)
 
   DEFINE_BIT_FIELDS(COMPILER_HINTS_BIT_FIELDS)
 #undef COMPILER_HINTS_BIT_FIELDS
 
   // Bailout reasons must fit in the DisabledOptimizationReason bitfield.
-  STATIC_ASSERT(kLastErrorMessage <= DisabledOptimizationReasonBits::kMax);
+  STATIC_ASSERT(BailoutReason::kLastErrorMessage <=
+                DisabledOptimizationReasonBits::kMax);
 
   // Masks for checking if certain FunctionKind bits are set without fully
   // decoding of the FunctionKind bit field.

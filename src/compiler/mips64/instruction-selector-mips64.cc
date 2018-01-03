@@ -2000,7 +2000,8 @@ void VisitOptimizedWord32Compare(InstructionSelector* selector, Node* node,
 
     selector->Emit(
         kMips64AssertEqual, g.NoOutput(), optimizedResult, fullResult,
-        g.TempImmediate(BailoutReason::kUnsupportedNonPrimitiveCompare));
+        g.TempImmediate(
+            static_cast<int>(AbortReason::kUnsupportedNonPrimitiveCompare)));
   }
 
   VisitWordCompare(selector, node, opcode, cont, false);

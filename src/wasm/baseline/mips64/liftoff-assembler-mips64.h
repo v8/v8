@@ -77,7 +77,7 @@ void LiftoffAssembler::StackCheck(Label* ool_code) {}
 
 void LiftoffAssembler::CallTrapCallbackForTesting() {}
 
-void LiftoffAssembler::AssertUnreachable(BailoutReason reason) {}
+void LiftoffAssembler::AssertUnreachable(AbortReason reason) {}
 
 void LiftoffAssembler::PushRegisters(LiftoffRegList regs) {}
 

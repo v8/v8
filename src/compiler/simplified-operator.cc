@@ -541,9 +541,9 @@ UnicodeEncoding UnicodeEncodingOf(const Operator* op) {
   return OpParameter<UnicodeEncoding>(op);
 }
 
-BailoutReason BailoutReasonOf(const Operator* op) {
+AbortReason AbortReasonOf(const Operator* op) {
   DCHECK_EQ(IrOpcode::kRuntimeAbort, op->opcode());
-  return OpParameter<BailoutReason>(op);
+  return static_cast<AbortReason>(OpParameter<int>(op));
 }
 
 DeoptimizeReason DeoptimizeReasonOf(const Operator* op) {
@@ -1052,13 +1052,13 @@ GET_FROM_CACHE(LoadFieldByIndex)
 CHECKED_WITH_FEEDBACK_OP_LIST(GET_FROM_CACHE_WITH_FEEDBACK)
 #undef GET_FROM_CACHE_WITH_FEEDBACK
 
-const Operator* SimplifiedOperatorBuilder::RuntimeAbort(BailoutReason reason) {
-  return new (zone()) Operator1<BailoutReason>(  // --
-      IrOpcode::kRuntimeAbort,                   // opcode
-      Operator::kNoThrow | Operator::kNoDeopt,   // flags
-      "RuntimeAbort",                            // name
-      0, 1, 1, 0, 1, 0,                          // counts
-      reason);                                   // parameter
+const Operator* SimplifiedOperatorBuilder::RuntimeAbort(AbortReason reason) {
+  return new (zone()) Operator1<int>(           // --
+      IrOpcode::kRuntimeAbort,                  // opcode
+      Operator::kNoThrow | Operator::kNoDeopt,  // flags
+      "RuntimeAbort",                           // name
+      0, 1, 1, 0, 1, 0,                         // counts
+      static_cast<int>(reason));                // parameter
 }
 
 const Operator* SimplifiedOperatorBuilder::CheckIf(DeoptimizeReason reason) {

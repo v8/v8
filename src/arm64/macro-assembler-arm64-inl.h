@@ -1206,7 +1206,7 @@ void MacroAssembler::ObjectTag(Register tagged_obj, Register obj) {
   if (emit_debug_code()) {
     Label ok;
     Tbz(obj, 0, &ok);
-    Abort(kObjectTagged);
+    Abort(AbortReason::kObjectTagged);
     Bind(&ok);
   }
   Orr(tagged_obj, obj, kHeapObjectTag);
@@ -1218,7 +1218,7 @@ void MacroAssembler::ObjectUntag(Register untagged_obj, Register obj) {
   if (emit_debug_code()) {
     Label ok;
     Tbnz(obj, 0, &ok);
-    Abort(kObjectNotTagged);
+    Abort(AbortReason::kObjectNotTagged);
     Bind(&ok);
   }
   Bic(untagged_obj, obj, kHeapObjectTag);

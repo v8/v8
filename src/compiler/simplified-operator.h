@@ -381,7 +381,7 @@ Type* AllocateTypeOf(const Operator* op) WARN_UNUSED_RESULT;
 
 UnicodeEncoding UnicodeEncodingOf(const Operator*) WARN_UNUSED_RESULT;
 
-BailoutReason BailoutReasonOf(const Operator* op) WARN_UNUSED_RESULT;
+AbortReason AbortReasonOf(const Operator* op) WARN_UNUSED_RESULT;
 
 DeoptimizeReason DeoptimizeReasonOf(const Operator* op) WARN_UNUSED_RESULT;
 
@@ -659,7 +659,7 @@ class V8_EXPORT_PRIVATE SimplifiedOperatorBuilder final
   const Operator* StoreTypedElement(ExternalArrayType const&);
 
   // Abort (for terminating execution on internal error).
-  const Operator* RuntimeAbort(BailoutReason reason);
+  const Operator* RuntimeAbort(AbortReason reason);
 
  private:
   Zone* zone() const { return zone_; }

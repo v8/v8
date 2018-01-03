@@ -697,7 +697,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
         Register temp = scope.AcquireX();
         __ Ldr(temp, FieldMemOperand(func, JSFunction::kContextOffset));
         __ cmp(cp, temp);
-        __ Assert(eq, kWrongFunctionContext);
+        __ Assert(eq, AbortReason::kWrongFunctionContext);
       }
       __ Ldr(x10, FieldMemOperand(func, JSFunction::kCodeOffset));
       __ Add(x10, x10, Operand(Code::kHeaderSize - kHeapObjectTag));
@@ -2393,7 +2393,7 @@ void CodeGenerator::AssembleConstructFrame() {
     // Create OSR entry if applicable
     if (info()->is_osr()) {
       // TurboFan OSR-compiled functions cannot be entered directly.
-      __ Abort(kShouldNotDirectlyEnterOsrFunction);
+      __ Abort(AbortReason::kShouldNotDirectlyEnterOsrFunction);
 
       // Unoptimized code jumps directly to this entrypoint while the
       // unoptimized frame is still on the stack. Optimized code uses OSR values

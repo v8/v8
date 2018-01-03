@@ -340,7 +340,7 @@ void SetSharedFunctionFlagsFromLiteral(FunctionLiteral* literal,
   shared_info->set_has_duplicate_parameters(
       literal->has_duplicate_parameters());
   shared_info->SetExpectedNofPropertiesFromEstimate(literal);
-  if (literal->dont_optimize_reason() != kNoReason) {
+  if (literal->dont_optimize_reason() != BailoutReason::kNoReason) {
     shared_info->DisableOptimization(literal->dont_optimize_reason());
   }
 }
@@ -653,21 +653,23 @@ MaybeHandle<Code> GetOptimizedCode(Handle<JSFunction> function,
 
   // Do not use TurboFan if we need to be able to set break points.
   if (compilation_info->shared_info()->HasBreakInfo()) {
-    compilation_info->AbortOptimization(kFunctionBeingDebugged);
+    compilation_info->AbortOptimization(BailoutReason::kFunctionBeingDebugged);
     return MaybeHandle<Code>();
   }
 
   // Do not use TurboFan when %NeverOptimizeFunction was applied.
   if (shared->optimization_disabled() &&
-      shared->disable_optimization_reason() == kOptimizationDisabledForTest) {
-    compilation_info->AbortOptimization(kOptimizationDisabledForTest);
+      shared->disable_optimization_reason() ==
+          BailoutReason::kOptimizationDisabledForTest) {
+    compilation_info->AbortOptimization(
+        BailoutReason::kOptimizationDisabledForTest);
     return MaybeHandle<Code>();
   }
 
   // Do not use TurboFan if optimization is disabled or function doesn't pass
   // turbo_filter.
   if (!FLAG_opt || !shared->PassesFilter(FLAG_turbo_filter)) {
-    compilation_info->AbortOptimization(kOptimizationDisabled);
+    compilation_info->AbortOptimization(BailoutReason::kOptimizationDisabled);
     return MaybeHandle<Code>();
   }
 
@@ -736,9 +738,9 @@ CompilationJob::Status FinalizeOptimizedCompilationJob(CompilationJob* job,
   // 4) Code generation may have failed.
   if (job->state() == CompilationJob::State::kReadyToFinalize) {
     if (shared->optimization_disabled()) {
-      job->RetryOptimization(kOptimizationDisabled);
+      job->RetryOptimization(BailoutReason::kOptimizationDisabled);
     } else if (compilation_info->dependencies()->HasAborted()) {
-      job->RetryOptimization(kBailedOutDueToDependencyChange);
+      job->RetryOptimization(BailoutReason::kBailedOutDueToDependencyChange);
     } else if (job->FinalizeJob(isolate) == CompilationJob::SUCCEEDED) {
       job->RecordOptimizedCompilationStats();
       job->RecordFunctionCompilation(CodeEventListener::LAZY_COMPILE_TAG,

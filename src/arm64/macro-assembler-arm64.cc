@@ -1374,7 +1374,7 @@ void TurboAssembler::Poke(const CPURegister& src, const Operand& offset) {
     DCHECK_GE(offset.ImmediateValue(), 0);
   } else if (emit_debug_code()) {
     Cmp(xzr, offset);
-    Check(le, kStackAccessBelowStackPointer);
+    Check(le, AbortReason::kStackAccessBelowStackPointer);
   }
 
   Str(src, MemOperand(StackPointer(), offset));
@@ -1386,7 +1386,7 @@ void MacroAssembler::Peek(const CPURegister& dst, const Operand& offset) {
     DCHECK_GE(offset.ImmediateValue(), 0);
   } else if (emit_debug_code()) {
     Cmp(xzr, offset);
-    Check(le, kStackAccessBelowStackPointer);
+    Check(le, AbortReason::kStackAccessBelowStackPointer);
   }
 
   Ldr(dst, MemOperand(StackPointer(), offset));
@@ -1478,7 +1478,7 @@ void TurboAssembler::AssertStackConsistency() {
       { DontEmitDebugCodeScope dont_emit_debug_code_scope(this);
         // Restore StackPointer().
         sub(StackPointer(), csp, StackPointer());
-        Abort(kTheCurrentStackPointerIsBelowCsp);
+        Abort(AbortReason::kTheCurrentStackPointerIsBelowCsp);
       }
 
       bind(&ok);
@@ -1530,7 +1530,7 @@ void TurboAssembler::CopyDoubleWords(Register dst, Register src, Register count,
     Subs(pointer1, pointer1, pointer2);
     B(lt, &pointer1_below_pointer2);
     Cmp(pointer1, count);
-    Check(ge, kOffsetOutOfRange);
+    Check(ge, AbortReason::kOffsetOutOfRange);
     Bind(&pointer1_below_pointer2);
     Add(pointer1, pointer1, pointer2);
   }
@@ -1594,7 +1594,7 @@ void TurboAssembler::AssertFPCRState(Register fpcr) {
     B(eq, &done);
 
     Bind(&unexpected_mode);
-    Abort(kUnexpectedFPCRMode);
+    Abort(AbortReason::kUnexpectedFPCRMode);
 
     Bind(&done);
   }
@@ -1631,7 +1631,7 @@ void TurboAssembler::Move(Register dst, Register src) { Mov(dst, src); }
 void TurboAssembler::Move(Register dst, Handle<HeapObject> x) { Mov(dst, x); }
 void TurboAssembler::Move(Register dst, Smi* src) { Mov(dst, src); }
 
-void TurboAssembler::AssertSmi(Register object, BailoutReason reason) {
+void TurboAssembler::AssertSmi(Register object, AbortReason reason) {
   if (emit_debug_code()) {
     STATIC_ASSERT(kSmiTag == 0);
     Tst(object, kSmiTagMask);
@@ -1639,7 +1639,7 @@ void TurboAssembler::AssertSmi(Register object, BailoutReason reason) {
   }
 }
 
-void MacroAssembler::AssertNotSmi(Register object, BailoutReason reason) {
+void MacroAssembler::AssertNotSmi(Register object, AbortReason reason) {
   if (emit_debug_code()) {
     STATIC_ASSERT(kSmiTag == 0);
     Tst(object, kSmiTagMask);
@@ -1649,44 +1649,44 @@ void MacroAssembler::AssertNotSmi(Register object, BailoutReason reason) {
 
 void MacroAssembler::AssertFixedArray(Register object) {
   if (emit_debug_code()) {
-    AssertNotSmi(object, kOperandIsASmiAndNotAFixedArray);
+    AssertNotSmi(object, AbortReason::kOperandIsASmiAndNotAFixedArray);
 
     UseScratchRegisterScope temps(this);
     Register temp = temps.AcquireX();
 
     CompareObjectType(object, temp, temp, FIXED_ARRAY_TYPE);
-    Check(eq, kOperandIsNotAFixedArray);
+    Check(eq, AbortReason::kOperandIsNotAFixedArray);
   }
 }
 
 void MacroAssembler::AssertFunction(Register object) {
   if (emit_debug_code()) {
-    AssertNotSmi(object, kOperandIsASmiAndNotAFunction);
+    AssertNotSmi(object, AbortReason::kOperandIsASmiAndNotAFunction);
 
     UseScratchRegisterScope temps(this);
     Register temp = temps.AcquireX();
 
     CompareObjectType(object, temp, temp, JS_FUNCTION_TYPE);
-    Check(eq, kOperandIsNotAFunction);
+    Check(eq, AbortReason::kOperandIsNotAFunction);
   }
 }
 
 
 void MacroAssembler::AssertBoundFunction(Register object) {
   if (emit_debug_code()) {
-    AssertNotSmi(object, kOperandIsASmiAndNotABoundFunction);
+    AssertNotSmi(object, AbortReason::kOperandIsASmiAndNotABoundFunction);
 
     UseScratchRegisterScope temps(this);
     Register temp = temps.AcquireX();
 
     CompareObjectType(object, temp, temp, JS_BOUND_FUNCTION_TYPE);
-    Check(eq, kOperandIsNotABoundFunction);
+    Check(eq, AbortReason::kOperandIsNotABoundFunction);
   }
 }
 
 void MacroAssembler::AssertGeneratorObject(Register object) {
   if (!emit_debug_code()) return;
-  AssertNotSmi(object, kOperandIsASmiAndNotAGeneratorObject);
+  AssertNotSmi(object, AbortReason::kOperandIsASmiAndNotAGeneratorObject);
 
   // Load map
   UseScratchRegisterScope temps(this);
@@ -1703,7 +1703,7 @@ void MacroAssembler::AssertGeneratorObject(Register object) {
 
   bind(&do_check);
   // Restore generator object to register and perform assertion
-  Check(eq, kOperandIsNotAGeneratorObject);
+  Check(eq, AbortReason::kOperandIsNotAGeneratorObject);
 }
 
 void MacroAssembler::AssertUndefinedOrAllocationSite(Register object) {
@@ -1715,7 +1715,7 @@ void MacroAssembler::AssertUndefinedOrAllocationSite(Register object) {
     JumpIfRoot(object, Heap::kUndefinedValueRootIndex, &done_checking);
     Ldr(scratch, FieldMemOperand(object, HeapObject::kMapOffset));
     CompareRoot(scratch, Heap::kAllocationSiteMapRootIndex);
-    Assert(eq, kExpectedUndefinedOrCell);
+    Assert(eq, AbortReason::kExpectedUndefinedOrCell);
     Bind(&done_checking);
   }
 }
@@ -1725,7 +1725,7 @@ void TurboAssembler::AssertPositiveOrZero(Register value) {
     Label done;
     int sign_bit = value.Is64Bits() ? kXSignBit : kWSignBit;
     Tbz(value, sign_bit, &done);
-    Abort(kUnexpectedNegativeValue);
+    Abort(AbortReason::kUnexpectedNegativeValue);
     Bind(&done);
   }
 }
@@ -1907,7 +1907,7 @@ void TurboAssembler::CallCFunction(Register function, int num_of_reg_args,
         // Check jssp matches the previous value on the stack.
         Ldr(temp, MemOperand(csp, claim_slots * kPointerSize));
         Cmp(jssp, temp);
-        Check(eq, kTheStackWasCorruptedByMacroAssemblerCall);
+        Check(eq, AbortReason::kTheStackWasCorruptedByMacroAssemblerCall);
       } else {
         // Because the stack pointer must be aligned on a 16-byte boundary, the
         // aligned csp can be up to 12 bytes below the jssp. This is the case
@@ -1916,7 +1916,7 @@ void TurboAssembler::CallCFunction(Register function, int num_of_reg_args,
         // We want temp <= 0 && temp >= -12.
         Cmp(temp, 0);
         Ccmp(temp, -12, NFlag, le);
-        Check(ge, kTheStackWasCorruptedByMacroAssemblerCall);
+        Check(ge, AbortReason::kTheStackWasCorruptedByMacroAssemblerCall);
       }
     }
     SetStackPointer(old_stack_pointer);
@@ -2182,7 +2182,7 @@ void TurboAssembler::PrepareForTailCall(const ParameterCount& callee_args_count,
 
   if (FLAG_debug_code) {
     Cmp(src_reg, dst_reg);
-    Check(lo, kStackAccessBelowStackPointer);
+    Check(lo, AbortReason::kStackAccessBelowStackPointer);
   }
 
   // Restore caller's frame pointer and return address now as they will be
@@ -2917,7 +2917,7 @@ void MacroAssembler::RecordWriteField(Register object, int offset,
     Label ok;
     Tst(scratch, kPointerSize - 1);
     B(eq, &ok);
-    Abort(kUnalignedCellInWriteBarrier);
+    Abort(AbortReason::kUnalignedCellInWriteBarrier);
     Bind(&ok);
   }
 
@@ -3014,7 +3014,7 @@ void MacroAssembler::RecordWrite(Register object, Register address,
 
     Ldr(temp, MemOperand(address));
     Cmp(temp, value);
-    Check(eq, kWrongAddressOrValuePassedToRecordWrite);
+    Check(eq, AbortReason::kWrongAddressOrValuePassedToRecordWrite);
   }
 
   // First, check if a write barrier is even needed. The tests below
@@ -3058,7 +3058,7 @@ void MacroAssembler::RecordWrite(Register object, Register address,
   }
 }
 
-void TurboAssembler::Assert(Condition cond, BailoutReason reason) {
+void TurboAssembler::Assert(Condition cond, AbortReason reason) {
   if (emit_debug_code()) {
     Check(cond, reason);
   }
@@ -3066,14 +3066,14 @@ void TurboAssembler::Assert(Condition cond, BailoutReason reason) {
 
 void MacroAssembler::AssertRegisterIsRoot(Register reg,
                                           Heap::RootListIndex index,
-                                          BailoutReason reason) {
+                                          AbortReason reason) {
   if (emit_debug_code()) {
     CompareRoot(reg, index);
     Check(eq, reason);
   }
 }
 
-void TurboAssembler::Check(Condition cond, BailoutReason reason) {
+void TurboAssembler::Check(Condition cond, AbortReason reason) {
   Label ok;
   B(cond, &ok);
   Abort(reason);
@@ -3081,10 +3081,10 @@ void TurboAssembler::Check(Condition cond, BailoutReason reason) {
   Bind(&ok);
 }
 
-void TurboAssembler::Abort(BailoutReason reason) {
+void TurboAssembler::Abort(AbortReason reason) {
 #ifdef DEBUG
   RecordComment("Abort message: ");
-  RecordComment(GetBailoutReason(reason));
+  RecordComment(GetAbortReason(reason));
 
   if (FLAG_trap_on_abort) {
     Brk(0);
@@ -3134,7 +3134,7 @@ void TurboAssembler::Abort(BailoutReason reason) {
     {
       BlockPoolsScope scope(this);
       Bind(&msg_address);
-      EmitStringData(GetBailoutReason(reason));
+      EmitStringData(GetAbortReason(reason));
     }
   }
 

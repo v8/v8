@@ -1156,7 +1156,7 @@ void BytecodeGenerator::VisitIterationHeader(int first_suspend_id,
         .JumpIfTrue(ToBooleanMode::kAlreadyBoolean, &not_resuming);
 
     // Otherwise this is an error.
-    builder()->Abort(BailoutReason::kInvalidJumpTableIndex);
+    builder()->Abort(AbortReason::kInvalidJumpTableIndex);
 
     builder()->Bind(&not_resuming);
   }
@@ -1188,7 +1188,7 @@ void BytecodeGenerator::BuildGeneratorPrologue() {
   }
   // We fall through when the generator state is not in the jump table.
   // TODO(leszeks): Only generate this for debug builds.
-  builder()->Abort(BailoutReason::kInvalidJumpTableIndex);
+  builder()->Abort(AbortReason::kInvalidJumpTableIndex);
 
   // This is a regular call.
   builder()

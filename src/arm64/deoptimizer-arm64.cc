@@ -324,7 +324,7 @@ void Deoptimizer::TableEntryGenerator::GeneratePrologue() {
   if (__ emit_debug_code()) {
     // Ensure the entry_id looks sensible, ie. 0 <= entry_id < count().
     __ Cmp(entry_id, count());
-    __ Check(lo, kOffsetOutOfRange);
+    __ Check(lo, AbortReason::kOffsetOutOfRange);
   }
 }
 

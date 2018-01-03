@@ -320,7 +320,7 @@ void LiftoffAssembler::CallTrapCallbackForTesting() {
       ExternalReference::wasm_call_trap_callback_for_testing(isolate()), 0);
 }
 
-void LiftoffAssembler::AssertUnreachable(BailoutReason reason) {
+void LiftoffAssembler::AssertUnreachable(AbortReason reason) {
   TurboAssembler::AssertUnreachable(reason);
 }
 

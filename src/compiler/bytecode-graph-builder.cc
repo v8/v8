@@ -1943,8 +1943,8 @@ void BytecodeGraphBuilder::VisitThrow() {
 void BytecodeGraphBuilder::VisitAbort() {
   BuildLoopExitsForFunctionExit(bytecode_analysis()->GetInLivenessFor(
       bytecode_iterator().current_offset()));
-  BailoutReason reason =
-      static_cast<BailoutReason>(bytecode_iterator().GetIndexOperand(0));
+  AbortReason reason =
+      static_cast<AbortReason>(bytecode_iterator().GetIndexOperand(0));
   NewNode(simplified()->RuntimeAbort(reason));
   Node* control = NewNode(common()->Throw());
   MergeControlToLeaveFunction(control);

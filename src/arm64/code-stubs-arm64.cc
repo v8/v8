@@ -75,7 +75,7 @@ void DoubleToIStub::Generate(MacroAssembler* masm) {
   if (masm->emit_debug_code()) {
     __ Cmp(exponent, HeapNumber::kExponentBias + 63);
     // Exponents less than this should have been handled by the Fcvt case.
-    __ Check(ge, kUnexpectedValue);
+    __ Check(ge, AbortReason::kUnexpectedValue);
   }
 
   // Isolate the mantissa bits, and set the implicit '1'.
@@ -385,7 +385,7 @@ void CEntryStub::Generate(MacroAssembler* masm) {
     __ Ldr(temp, MemOperand(fp, ExitFrameConstants::kSPOffset));
     __ Ldr(temp, MemOperand(temp, -static_cast<int64_t>(kXRegSize)));
     __ Cmp(temp, x12);
-    __ Check(eq, kReturnAddressNotFoundInFrame);
+    __ Check(eq, AbortReason::kReturnAddressNotFoundInFrame);
   }
 
   // Call the builtin.
@@ -811,7 +811,7 @@ static void CreateArrayDispatch(MacroAssembler* masm,
     }
 
     // If we reached this point there is a problem.
-    __ Abort(kUnexpectedElementsKindInArrayConstructor);
+    __ Abort(AbortReason::kUnexpectedElementsKindInArrayConstructor);
 
   } else {
     UNREACHABLE();
@@ -861,7 +861,7 @@ static void CreateArrayDispatchOneArgument(MacroAssembler* masm,
       __ Ldr(x10, FieldMemOperand(allocation_site, 0));
       __ JumpIfNotRoot(x10, Heap::kAllocationSiteMapRootIndex,
                        &normal_sequence);
-      __ Assert(eq, kExpectedAllocationSite);
+      __ Assert(eq, AbortReason::kExpectedAllocationSite);
     }
 
     // Save the resulting elements kind in type info. We can't just store 'kind'
@@ -889,7 +889,7 @@ static void CreateArrayDispatchOneArgument(MacroAssembler* masm,
     }
 
     // If we reached this point there is a problem.
-    __ Abort(kUnexpectedElementsKindInArrayConstructor);
+    __ Abort(AbortReason::kUnexpectedElementsKindInArrayConstructor);
   } else {
     UNREACHABLE();
   }
@@ -977,7 +977,7 @@ void ArrayConstructorStub::Generate(MacroAssembler* masm) {
     __ JumpIfSmi(x10, &unexpected_map);
     __ JumpIfObjectType(x10, x10, x11, MAP_TYPE, &map_ok);
     __ Bind(&unexpected_map);
-    __ Abort(kUnexpectedInitialMapForArrayFunction);
+    __ Abort(AbortReason::kUnexpectedInitialMapForArrayFunction);
     __ Bind(&map_ok);
 
     // We should either have undefined in the allocation_site register or a
@@ -1074,7 +1074,7 @@ void InternalArrayConstructorStub::Generate(MacroAssembler* masm) {
     __ JumpIfSmi(x10, &unexpected_map);
     __ JumpIfObjectType(x10, x10, x11, MAP_TYPE, &map_ok);
     __ Bind(&unexpected_map);
-    __ Abort(kUnexpectedInitialMapForArrayFunction);
+    __ Abort(AbortReason::kUnexpectedInitialMapForArrayFunction);
     __ Bind(&map_ok);
   }
 
@@ -1090,7 +1090,9 @@ void InternalArrayConstructorStub::Generate(MacroAssembler* masm) {
     Label done;
     __ Cmp(x3, PACKED_ELEMENTS);
     __ Ccmp(x3, HOLEY_ELEMENTS, ZFlag, ne);
-    __ Assert(eq, kInvalidElementsKindForInternalArrayOrInternalPackedArray);
+    __ Assert(
+        eq,
+        AbortReason::kInvalidElementsKindForInternalArrayOrInternalPackedArray);
   }
 
   Label fast_elements_case;
@@ -1207,7 +1209,7 @@ static void CallApiFunctionAndReturn(MacroAssembler* masm,
   if (__ emit_debug_code()) {
     __ Ldr(w1, MemOperand(handle_scope_base, kLevelOffset));
     __ Cmp(w1, level_reg);
-    __ Check(eq, kUnexpectedLevelAfterReturnFromApiCall);
+    __ Check(eq, AbortReason::kUnexpectedLevelAfterReturnFromApiCall);
   }
   __ Sub(level_reg, level_reg, 1);
   __ Str(level_reg, MemOperand(handle_scope_base, kLevelOffset));
