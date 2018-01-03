@@ -3361,7 +3361,6 @@ bool CanInlineArrayResizeOperation(Handle<Map> receiver_map) {
          IsFastElementsKind(receiver_map->elements_kind()) &&
          !receiver_map->is_dictionary_map() && receiver_map->is_extensible() &&
          (!receiver_map->is_prototype_map() || receiver_map->is_stable()) &&
-         isolate->IsNoElementsProtectorIntact() &&
          isolate->IsAnyInitialArrayPrototype(receiver_prototype) &&
          !IsReadOnlyLengthDescriptor(receiver_map);
 }
@@ -3375,6 +3374,8 @@ Reduction JSCallReducer::ReduceArrayPrototypePush(Node* node) {
   if (p.speculation_mode() == SpeculationMode::kDisallowSpeculation) {
     return NoChange();
   }
+
+  if (!isolate()->IsNoElementsProtectorIntact()) return NoChange();
 
   int const num_values = node->op()->ValueInputCount() - 2;
   Node* receiver = NodeProperties::GetValueInput(node, 1);
@@ -3482,6 +3483,7 @@ Reduction JSCallReducer::ReduceArrayPrototypePush(Node* node) {
 
 // ES6 section 22.1.3.17 Array.prototype.pop ( )
 Reduction JSCallReducer::ReduceArrayPrototypePop(Node* node) {
+  if (!isolate()->IsNoElementsProtectorIntact()) return NoChange();
   Handle<Map> receiver_map;
   Node* receiver = NodeProperties::GetValueInput(node, 1);
   Node* effect = NodeProperties::GetEffectInput(node);
@@ -3575,6 +3577,7 @@ Reduction JSCallReducer::ReduceArrayPrototypePop(Node* node) {
 
 // ES6 section 22.1.3.22 Array.prototype.shift ( )
 Reduction JSCallReducer::ReduceArrayPrototypeShift(Node* node) {
+  if (!isolate()->IsNoElementsProtectorIntact()) return NoChange();
   Node* target = NodeProperties::GetValueInput(node, 0);
   Node* receiver = NodeProperties::GetValueInput(node, 1);
   Node* context = NodeProperties::GetContextInput(node);
