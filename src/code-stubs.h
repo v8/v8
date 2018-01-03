@@ -582,7 +582,7 @@ class KeyedStoreSloppyArgumentsStub : public TurboFanCodeStub {
 
 class CallApiCallbackStub : public PlatformCodeStub {
  public:
-  static const int kArgBits = 3;
+  static const int kArgBits = 7;
   static const int kArgMax = (1 << kArgBits) - 1;
 
   CallApiCallbackStub(Isolate* isolate, int argc)
