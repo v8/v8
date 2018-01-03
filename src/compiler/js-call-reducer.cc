@@ -3360,7 +3360,6 @@ bool CanInlineArrayResizeOperation(Handle<Map> receiver_map) {
   return receiver_map->instance_type() == JS_ARRAY_TYPE &&
          IsFastElementsKind(receiver_map->elements_kind()) &&
          !receiver_map->is_dictionary_map() && receiver_map->is_extensible() &&
-         (!receiver_map->is_prototype_map() || receiver_map->is_stable()) &&
          isolate->IsAnyInitialArrayPrototype(receiver_prototype) &&
          !IsReadOnlyLengthDescriptor(receiver_map);
 }
