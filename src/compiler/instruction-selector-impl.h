@@ -251,6 +251,23 @@ class OperandGenerator {
         return Constant(OpParameter<ExternalReference>(node));
       case IrOpcode::kHeapConstant:
         return Constant(OpParameter<Handle<HeapObject>>(node));
+      case IrOpcode::kDeadValue: {
+        switch (DeadValueRepresentationOf(node->op())) {
+          case MachineRepresentation::kBit:
+          case MachineRepresentation::kWord32:
+          case MachineRepresentation::kTagged:
+          case MachineRepresentation::kTaggedSigned:
+          case MachineRepresentation::kTaggedPointer:
+            return Constant(static_cast<int32_t>(0));
+          case MachineRepresentation::kFloat64:
+            return Constant(static_cast<double>(0));
+          case MachineRepresentation::kFloat32:
+            return Constant(static_cast<float>(0));
+          default:
+            UNREACHABLE();
+        }
+        break;
+      }
       default:
         break;
     }

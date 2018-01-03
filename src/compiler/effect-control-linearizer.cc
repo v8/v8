@@ -318,28 +318,6 @@ void TryCloneBranch(Node* node, BasicBlock* block, Zone* temp_zone,
   merge->Kill();
 }
 
-Node* DummyValue(JSGraph* jsgraph, MachineRepresentation rep) {
-  switch (rep) {
-    case MachineRepresentation::kTagged:
-    case MachineRepresentation::kTaggedSigned:
-      return jsgraph->SmiConstant(0xDEAD);
-    case MachineRepresentation::kTaggedPointer:
-      return jsgraph->TheHoleConstant();
-    case MachineRepresentation::kWord64:
-      return jsgraph->Int64Constant(0xDEAD);
-    case MachineRepresentation::kWord32:
-      return jsgraph->Int32Constant(0xDEAD);
-    case MachineRepresentation::kFloat64:
-      return jsgraph->Float64Constant(0xDEAD);
-    case MachineRepresentation::kFloat32:
-      return jsgraph->Float32Constant(0xDEAD);
-    case MachineRepresentation::kBit:
-      return jsgraph->Int32Constant(0);
-    default:
-      UNREACHABLE();
-  }
-}
-
 }  // namespace
 
 void EffectControlLinearizer::Run() {
@@ -369,7 +347,6 @@ void EffectControlLinearizer::Run() {
     // Iterate over the phis and update the effect phis.
     Node* effect_phi = nullptr;
     Node* terminate = nullptr;
-    int predecessor_count = static_cast<int>(block->PredecessorCount());
     for (; instr < block->NodeCount(); instr++) {
       Node* node = block->NodeAt(instr);
       // Only go through the phis and effect phis.
@@ -380,19 +357,7 @@ void EffectControlLinearizer::Run() {
         DCHECK_NE(IrOpcode::kIfException, control->opcode());
         effect_phi = node;
       } else if (node->opcode() == IrOpcode::kPhi) {
-        DCHECK_EQ(predecessor_count, node->op()->ValueInputCount());
-        for (int i = 0; i < predecessor_count; ++i) {
-          if (NodeProperties::GetValueInput(node, i)->opcode() ==
-              IrOpcode::kDeadValue) {
-            // Phi uses of {DeadValue} must originate from unreachable code. Due
-            // to schedule freedom between the effect and the control chain,
-            // they might still appear in reachable code. So we replace them
-            // with a dummy value.
-            NodeProperties::ReplaceValueInput(
-                node, DummyValue(jsgraph(), PhiRepresentationOf(node->op())),
-                i);
-          }
-        }
+        // Just skip phis.
       } else if (node->opcode() == IrOpcode::kTerminate) {
         DCHECK_NULL(terminate);
         terminate = node;
