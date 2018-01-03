@@ -108,38 +108,27 @@ class TestCase(testcase.TestCase):
 
   @property
   def output_proc(self):
-    if not self.expected_outcomes:
-      if self.path.endswith('-n'):
-        return MOZILLA_PASS_NEGATIVE
-      return MOZILLA_PASS_DEFAULT
     if self.path.endswith('-n'):
-      return NegOutProc(self.expected_outcomes)
-    return OutProc(self.expected_outcomes)
-
-
-def _is_failure_output(self, output):
-  return (
-    output.exit_code != 0 or
-    'FAILED!' in output.stdout
-  )
+      return MOZILLA_NEGATIVE
+    return MOZILLA_DEFAULT
 
 
 class OutProc(outproc.OutProc):
-  """Optimized for positive tests."""
-OutProc._is_failure_output = _is_failure_output
+  def _is_failure_output(self, output):
+    return (
+      output.exit_code != 0 or
+      'FAILED!' in output.stdout
+    )
 
 
-class PassOutProc(outproc.PassOutProc):
-  """Optimized for positive tests expected to PASS."""
-PassOutProc._is_failure_output = _is_failure_output
+class NegativeOutProc(OutProc):
+  @property
+  def negative(self):
+    return True
 
 
-NegOutProc = outproc.negative(OutProc)
-NegPassOutProc = outproc.negative(PassOutProc)
-
-
-MOZILLA_PASS_DEFAULT = PassOutProc()
-MOZILLA_PASS_NEGATIVE = NegPassOutProc()
+MOZILLA_DEFAULT = OutProc()
+MOZILLA_NEGATIVE = NegativeOutProc()
 
 
 def GetSuite(name, root):

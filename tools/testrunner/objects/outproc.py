@@ -7,14 +7,7 @@ import itertools
 from ..local import statusfile
 
 
-OUTCOMES_PASS = [statusfile.PASS]
-OUTCOMES_FAIL = [statusfile.FAIL]
-
-
-class BaseOutProc(object):
-  def has_unexpected_output(self, output):
-    return self.get_outcome(output) not in self.expected_outcomes
-
+class OutProc(object):
   def get_outcome(self, output):
     if output.HasCrashed():
       return statusfile.CRASH
@@ -38,65 +31,12 @@ class BaseOutProc(object):
   def negative(self):
     return False
 
-  @property
-  def expected_outcomes(self):
-    raise NotImplementedError()
 
-
-def negative(cls):
-  class Neg(cls):
-    @property
-    def negative(self):
-      return True
-  return Neg
-
-
-class PassOutProc(BaseOutProc):
-  """Output processor optimized for positive tests expected to PASS."""
-  def has_unexpected_output(self, output):
-    return self.get_outcome(output) != statusfile.PASS
-
-  @property
-  def expected_outcomes(self):
-    return OUTCOMES_PASS
-
-
-class OutProc(BaseOutProc):
-  """Output processor optimized for positive tests with expected outcomes
-  different than a single PASS.
-  """
-  def __init__(self, expected_outcomes):
-    self._expected_outcomes = expected_outcomes
-
-  @property
-  def expected_outcomes(self):
-    return self._expected_outcomes
-
-  # TODO(majeski): Inherit from PassOutProc in case of OUTCOMES_PASS and remove
-  # custom get/set state.
-  def __getstate__(self):
-    d = self.__dict__
-    if self._expected_outcomes is OUTCOMES_PASS:
-      d = d.copy()
-      del d['_expected_outcomes']
-    return d
-
-  def __setstate__(self, d):
-    if '_expected_outcomes' not in d:
-      d['_expected_outcomes'] = OUTCOMES_PASS
-    self.__dict__.update(d)
-
-
-# TODO(majeski): Override __reduce__ to make it deserialize as one instance.
-DEFAULT = PassOutProc()
+DEFAULT = OutProc()
 
 
 class ExpectedOutProc(OutProc):
-  """Output processor that has is_failure_output depending on comparing the
-  output with the expected output.
-  """
-  def __init__(self, expected_outcomes, expected_filename):
-    super(ExpectedOutProc, self).__init__(expected_outcomes)
+  def __init__(self, expected_filename):
     self._expected_filename = expected_filename
 
   def _is_failure_output(self, output):

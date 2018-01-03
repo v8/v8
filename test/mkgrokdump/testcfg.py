@@ -17,7 +17,8 @@ class TestSuite(testsuite.TestSuite):
     super(TestSuite, self).__init__(*args, **kwargs)
 
     v8_path = os.path.dirname(os.path.dirname(os.path.abspath(self.root)))
-    self.expected_path = os.path.join(v8_path, 'tools', 'v8heapconst.py')
+    expected_path = os.path.join(v8_path, 'tools', 'v8heapconst.py')
+    self.out_proc = OutProc(expected_path)
 
   def ListTests(self, context):
     test = self._create_test(SHELL)
@@ -42,12 +43,11 @@ class TestCase(testcase.TestCase):
 
   @property
   def output_proc(self):
-    return OutProc(self.expected_outcomes, self.suite.expected_path)
+    return self.suite.out_proc
 
 
 class OutProc(outproc.OutProc):
-  def __init__(self, expected_outcomes, expected_path):
-    super(OutProc, self).__init__(expected_outcomes)
+  def __init__(self, expected_path):
     self._expected_path = expected_path
 
   def _is_failure_output(self, output):
