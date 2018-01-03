@@ -1497,8 +1497,20 @@ class RepresentationSelector {
         return VisitLeaf(node, MachineRepresentation::kWord64);
       case IrOpcode::kExternalConstant:
         return VisitLeaf(node, MachineType::PointerRepresentation());
-      case IrOpcode::kNumberConstant:
-        return VisitLeaf(node, MachineRepresentation::kTagged);
+      case IrOpcode::kNumberConstant: {
+        double const value = OpParameter<double>(node);
+        int value_as_int;
+        if (DoubleToSmiInteger(value, &value_as_int)) {
+          VisitLeaf(node, MachineRepresentation::kTaggedSigned);
+          if (lower()) {
+            intptr_t smi = bit_cast<intptr_t>(Smi::FromInt(value_as_int));
+            DeferReplacement(node, lowering->jsgraph()->IntPtrConstant(smi));
+          }
+          return;
+        }
+        VisitLeaf(node, MachineRepresentation::kTagged);
+        return;
+      }
       case IrOpcode::kHeapConstant:
         return VisitLeaf(node, MachineRepresentation::kTaggedPointer);
       case IrOpcode::kPointerConstant: {

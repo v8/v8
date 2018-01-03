@@ -91,6 +91,7 @@
       'compiler/schedule-unittest.cc',
       'compiler/scheduler-unittest.cc',
       'compiler/scheduler-rpo-unittest.cc',
+      'compiler/simplified-lowering-unittest.cc',
       'compiler/simplified-operator-reducer-unittest.cc',
       'compiler/simplified-operator-unittest.cc',
       'compiler/state-values-utils-unittest.cc',
