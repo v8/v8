@@ -731,13 +731,12 @@ class WasmGraphBuildingInterface {
     return loop_body_env;
   }
 
-  // Create a complete copy of the {from}.
+  // Create a complete copy of {from}.
   SsaEnv* Split(Decoder* decoder, SsaEnv* from) {
     DCHECK_NOT_NULL(from);
     SsaEnv* result =
         reinterpret_cast<SsaEnv*>(decoder->zone()->New(sizeof(SsaEnv)));
-    // The '+ 2' here is to accommodate for mem_size and mem_start nodes.
-    size_t size = sizeof(TFNode*) * (decoder->NumLocals());
+    size_t size = sizeof(TFNode*) * decoder->NumLocals();
     result->control = from->control;
     result->effect = from->effect;
 
