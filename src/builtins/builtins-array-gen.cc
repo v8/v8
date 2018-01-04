@@ -1973,6 +1973,48 @@ TF_BUILTIN(TypedArrayPrototypeForEach, ArrayBuiltinCodeStubAssembler) {
       &ArrayBuiltinCodeStubAssembler::NullPostLoopAction);
 }
 
+TF_BUILTIN(ArraySomeLoopLazyDeoptContinuation, ArrayBuiltinCodeStubAssembler) {
+  Node* context = Parameter(Descriptor::kContext);
+  Node* receiver = Parameter(Descriptor::kReceiver);
+  Node* callbackfn = Parameter(Descriptor::kCallbackFn);
+  Node* this_arg = Parameter(Descriptor::kThisArg);
+  Node* initial_k = Parameter(Descriptor::kInitialK);
+  Node* len = Parameter(Descriptor::kLength);
+  Node* result = Parameter(Descriptor::kResult);
+
+  // This custom lazy deopt point is right after the callback. every() needs
+  // to pick up at the next step, which is either continuing to the next
+  // array element or returning false if {result} is false.
+  Label true_continue(this), false_continue(this);
+
+  // iii. If selected is true, then...
+  BranchIfToBooleanIsTrue(result, &true_continue, &false_continue);
+  BIND(&true_continue);
+  { Return(TrueConstant()); }
+  BIND(&false_continue);
+  {
+    // Increment k.
+    initial_k = NumberInc(initial_k);
+
+    Return(CallBuiltin(Builtins::kArraySomeLoopContinuation, context, receiver,
+                       callbackfn, this_arg, FalseConstant(), receiver,
+                       initial_k, len, UndefinedConstant()));
+  }
+}
+
+TF_BUILTIN(ArraySomeLoopEagerDeoptContinuation, ArrayBuiltinCodeStubAssembler) {
+  Node* context = Parameter(Descriptor::kContext);
+  Node* receiver = Parameter(Descriptor::kReceiver);
+  Node* callbackfn = Parameter(Descriptor::kCallbackFn);
+  Node* this_arg = Parameter(Descriptor::kThisArg);
+  Node* initial_k = Parameter(Descriptor::kInitialK);
+  Node* len = Parameter(Descriptor::kLength);
+
+  Return(CallBuiltin(Builtins::kArraySomeLoopContinuation, context, receiver,
+                     callbackfn, this_arg, FalseConstant(), receiver, initial_k,
+                     len, UndefinedConstant()));
+}
+
 TF_BUILTIN(ArraySomeLoopContinuation, ArrayBuiltinCodeStubAssembler) {
   Node* context = Parameter(Descriptor::kContext);
   Node* receiver = Parameter(Descriptor::kReceiver);

@@ -287,6 +287,10 @@ namespace internal {
   /* ES6 #sec-array.prototype.some */                                          \
   TFS(ArraySomeLoopContinuation, kReceiver, kCallbackFn, kThisArg, kArray,     \
       kObject, kInitialK, kLength, kTo)                                        \
+  TFJ(ArraySomeLoopEagerDeoptContinuation, 4, kCallbackFn, kThisArg,           \
+      kInitialK, kLength)                                                      \
+  TFJ(ArraySomeLoopLazyDeoptContinuation, 5, kCallbackFn, kThisArg, kInitialK, \
+      kLength, kResult)                                                        \
   TFJ(ArraySome, SharedFunctionInfo::kDontAdaptArgumentsSentinel)              \
   /* ES6 #sec-array.prototype.filter */                                        \
   TFS(ArrayFilterLoopContinuation, kReceiver, kCallbackFn, kThisArg, kArray,   \
