@@ -1147,9 +1147,6 @@ void InstructionSelector::VisitNode(Node* node) {
     case IrOpcode::kUnreachable:
       VisitUnreachable(node);
       return;
-    case IrOpcode::kDeadValue:
-      VisitDeadValue(node);
-      return;
     case IrOpcode::kComment:
       VisitComment(node);
       return;
@@ -2621,12 +2618,6 @@ void InstructionSelector::VisitDebugBreak(Node* node) {
 void InstructionSelector::VisitUnreachable(Node* node) {
   OperandGenerator g(this);
   Emit(kArchDebugBreak, g.NoOutput());
-}
-
-void InstructionSelector::VisitDeadValue(Node* node) {
-  OperandGenerator g(this);
-  MarkAsRepresentation(DeadValueRepresentationOf(node->op()), node);
-  Emit(kArchDebugBreak, g.DefineAsConstant(node));
 }
 
 void InstructionSelector::VisitComment(Node* node) {

@@ -348,7 +348,8 @@ ZoneVector<MachineType> const* MachineTypesOf(Operator const* op) {
 
 #define COMMON_CACHED_OP_LIST(V)                                              \
   V(Dead, Operator::kFoldable, 0, 0, 0, 1, 1, 1)                              \
-  V(Unreachable, Operator::kFoldable, 0, 1, 1, 1, 1, 0)                       \
+  V(DeadValue, Operator::kFoldable, 0, 0, 0, 1, 0, 0)                         \
+  V(Unreachable, Operator::kFoldable, 0, 1, 1, 0, 1, 0)                       \
   V(IfTrue, Operator::kKontrol, 0, 0, 1, 0, 0, 1)                             \
   V(IfFalse, Operator::kKontrol, 0, 0, 1, 0, 0, 1)                            \
   V(IfSuccess, Operator::kKontrol, 0, 0, 1, 0, 0, 1)                          \
@@ -1285,11 +1286,6 @@ uint32_t ObjectIdOf(Operator const* op) {
   }
 }
 
-MachineRepresentation DeadValueRepresentationOf(Operator const* op) {
-  DCHECK_EQ(IrOpcode::kDeadValue, op->opcode());
-  return OpParameter<MachineRepresentation>(op);
-}
-
 const Operator* CommonOperatorBuilder::FrameState(
     BailoutId bailout_id, OutputFrameStateCombine state_combine,
     const FrameStateFunctionInfo* function_info) {
@@ -1403,14 +1399,6 @@ CommonOperatorBuilder::CreateFrameStateFunctionInfo(
     Handle<SharedFunctionInfo> shared_info) {
   return new (zone()->New(sizeof(FrameStateFunctionInfo)))
       FrameStateFunctionInfo(type, parameter_count, local_count, shared_info);
-}
-
-const Operator* CommonOperatorBuilder::DeadValue(MachineRepresentation rep) {
-  return new (zone()) Operator1<MachineRepresentation>(  // --
-      IrOpcode::kDeadValue, Operator::kPure,             // opcode
-      "DeadValue",                                       // name
-      1, 0, 0, 1, 0, 0,                                  // counts
-      rep);                                              // parameter
 }
 
 #undef COMMON_CACHED_OP_LIST
