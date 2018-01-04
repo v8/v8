@@ -120,10 +120,6 @@ Node* WasmGraphBuilder::Terminate(Node* effect, Node* control) {
   return terminate;
 }
 
-unsigned WasmGraphBuilder::InputCount(Node* node) {
-  return static_cast<unsigned>(node->InputCount());
-}
-
 bool WasmGraphBuilder::IsPhiWithMerge(Node* phi, Node* merge) {
   return phi && IrOpcode::IsPhiOpcode(phi->opcode()) &&
          NodeProperties::GetControlInput(phi) == merge;
@@ -3228,39 +3224,106 @@ void WasmGraphBuilder::BuildCWasmEntry(Address wasm_context_address) {
   }
 }
 
-// This function is used by WasmFullDecoder to create a node that loads the
-// {mem_start} variable from the WasmContext. It should not be used directly by
-// the WasmGraphBuilder. The WasmGraphBuilder should directly use {mem_start_},
-// which will always contain the correct node (stored in the SsaEnv).
-Node* WasmGraphBuilder::LoadMemStart() {
+void WasmGraphBuilder::InitContextCache(WasmContextCacheNodes* context_cache) {
   DCHECK_NOT_NULL(wasm_context_);
-  Node* mem_buffer = graph()->NewNode(
+  DCHECK_NOT_NULL(*control_);
+  DCHECK_NOT_NULL(*effect_);
+
+  // Load the memory start.
+  Node* mem_start = graph()->NewNode(
       jsgraph()->machine()->Load(MachineType::UintPtr()), wasm_context_,
       jsgraph()->Int32Constant(
           static_cast<int32_t>(offsetof(WasmContext, mem_start))),
       *effect_, *control_);
-  *effect_ = mem_buffer;
-  return mem_buffer;
-}
+  *effect_ = mem_start;
+  context_cache->mem_start = mem_start;
 
-// This function is used by WasmFullDecoder to create a node that loads the
-// {mem_size} variable from the WasmContext. It should not be used directly by
-// the WasmGraphBuilder. The WasmGraphBuilder should directly use {mem_size_},
-// which will always contain the correct node (stored in the SsaEnv).
-Node* WasmGraphBuilder::LoadMemSize() {
-  // Load mem_size from the WasmContext at runtime.
-  DCHECK_NOT_NULL(wasm_context_);
+  // Load the memory size.
   Node* mem_size = graph()->NewNode(
       jsgraph()->machine()->Load(MachineType::Uint32()), wasm_context_,
       jsgraph()->Int32Constant(
           static_cast<int32_t>(offsetof(WasmContext, mem_size))),
       *effect_, *control_);
   *effect_ = mem_size;
-  if (jsgraph()->machine()->Is64()) {
-    mem_size = graph()->NewNode(jsgraph()->machine()->ChangeUint32ToUint64(),
-                                mem_size);
+  context_cache->mem_size = mem_size;
+
+  // Load the memory mask.
+  Node* mem_mask = graph()->NewNode(
+      jsgraph()->machine()->Load(MachineType::Uint32()), wasm_context_,
+      jsgraph()->Int32Constant(
+          static_cast<int32_t>(offsetof(WasmContext, mem_mask))),
+      *effect_, *control_);
+  *effect_ = mem_mask;
+  context_cache->mem_mask = mem_mask;
+}
+
+void WasmGraphBuilder::PrepareContextCacheForLoop(
+    WasmContextCacheNodes* context_cache, Node* control) {
+#define INTRODUCE_PHI(field, rep) \
+  context_cache->field = Phi(rep, 1, &context_cache->field, control);
+
+  INTRODUCE_PHI(mem_start, MachineType::PointerRepresentation());
+  INTRODUCE_PHI(mem_size, MachineRepresentation::kWord32);
+  INTRODUCE_PHI(mem_mask, MachineRepresentation::kWord32);
+
+#undef INTRODUCE_PHI
+}
+
+void WasmGraphBuilder::NewContextCacheMerge(WasmContextCacheNodes* to,
+                                            WasmContextCacheNodes* from,
+                                            Node* merge) {
+#define INTRODUCE_PHI(field, rep)            \
+  if (to->field != from->field) {            \
+    Node* vals[] = {to->field, from->field}; \
+    to->field = Phi(rep, 2, vals, merge);    \
   }
-  return mem_size;
+
+  INTRODUCE_PHI(mem_start, MachineType::PointerRepresentation());
+  INTRODUCE_PHI(mem_size, MachineRepresentation::kWord32);
+  INTRODUCE_PHI(mem_mask, MachineRepresentation::kWord32);
+
+#undef INTRODUCE_PHI
+}
+
+void WasmGraphBuilder::MergeContextCacheInto(WasmContextCacheNodes* to,
+                                             WasmContextCacheNodes* from,
+                                             Node* merge) {
+  to->mem_size = CreateOrMergeIntoPhi(MachineRepresentation::kWord32, merge,
+                                      to->mem_size, from->mem_size);
+  to->mem_start = CreateOrMergeIntoPhi(MachineType::PointerRepresentation(),
+                                       merge, to->mem_start, from->mem_start);
+  to->mem_mask = CreateOrMergeIntoPhi(MachineRepresentation::kWord32, merge,
+                                      to->mem_mask, from->mem_mask);
+}
+
+Node* WasmGraphBuilder::CreateOrMergeIntoPhi(wasm::ValueType type, Node* merge,
+                                             Node* tnode, Node* fnode) {
+  if (IsPhiWithMerge(tnode, merge)) {
+    AppendToPhi(tnode, fnode);
+  } else if (tnode != fnode) {
+    uint32_t count = merge->InputCount();
+    Node** vals = Buffer(count);
+    for (uint32_t j = 0; j < count - 1; j++) vals[j] = tnode;
+    vals[count - 1] = fnode;
+    return Phi(type, count, vals, merge);
+  }
+  return tnode;
+}
+
+Node* WasmGraphBuilder::CreateOrMergeIntoEffectPhi(Node* merge, Node* tnode,
+                                                   Node* fnode) {
+  if (IsPhiWithMerge(tnode, merge)) {
+    AppendToPhi(tnode, fnode);
+  } else if (tnode != fnode) {
+    uint32_t count = merge->InputCount();
+    Node** effects = Buffer(count);
+    for (uint32_t j = 0; j < count - 1; j++) {
+      effects[j] = tnode;
+    }
+    effects[count - 1] = fnode;
+    tnode = EffectPhi(count, effects, merge);
+  }
+  return tnode;
 }
 
 void WasmGraphBuilder::GetGlobalBaseAndOffset(MachineType mem_type,
@@ -3297,17 +3360,20 @@ void WasmGraphBuilder::GetGlobalBaseAndOffset(MachineType mem_type,
 }
 
 Node* WasmGraphBuilder::MemBuffer(uint32_t offset) {
-  DCHECK_NOT_NULL(*mem_start_);
-  if (offset == 0) return *mem_start_;
-  return graph()->NewNode(jsgraph()->machine()->IntAdd(), *mem_start_,
+  DCHECK_NOT_NULL(context_cache_);
+  Node* mem_start = context_cache_->mem_start;
+  DCHECK_NOT_NULL(mem_start);
+  if (offset == 0) return mem_start;
+  return graph()->NewNode(jsgraph()->machine()->IntAdd(), mem_start,
                           jsgraph()->IntPtrConstant(offset));
 }
 
 Node* WasmGraphBuilder::CurrentMemoryPages() {
   // CurrentMemoryPages can not be called from asm.js.
   DCHECK_EQ(wasm::kWasmOrigin, env_->module->origin());
-  DCHECK_NOT_NULL(*mem_size_);
-  Node* mem_size = *mem_size_;
+  DCHECK_NOT_NULL(context_cache_);
+  Node* mem_size = context_cache_->mem_size;
+  DCHECK_NOT_NULL(mem_size);
   if (jsgraph()->machine()->Is64()) {
     mem_size = graph()->NewNode(jsgraph()->machine()->TruncateInt64ToInt32(),
                                 mem_size);
@@ -3429,11 +3495,24 @@ Node* WasmGraphBuilder::SetGlobal(uint32_t index, Node* val) {
   return node;
 }
 
-void WasmGraphBuilder::BoundsCheckMem(MachineType memtype, Node* index,
-                                      uint32_t offset,
-                                      wasm::WasmCodePosition position) {
-  if (FLAG_wasm_no_bounds_checks) return;
-  DCHECK_NOT_NULL(*mem_size_);
+Node* WasmGraphBuilder::BoundsCheckMem(MachineType memtype, Node* index,
+                                       uint32_t offset,
+                                       wasm::WasmCodePosition position,
+                                       EnforceBoundsCheck enforce_check) {
+  if (FLAG_wasm_no_bounds_checks) return index;
+  DCHECK_NOT_NULL(context_cache_);
+  Node* mem_size = context_cache_->mem_size;
+  Node* mem_mask = context_cache_->mem_mask;
+  DCHECK_NOT_NULL(mem_size);
+  DCHECK_NOT_NULL(mem_mask);
+
+  auto m = jsgraph()->machine();
+  if (trap_handler::UseTrapHandler() && enforce_check == kCanOmitBoundsCheck) {
+    // Simply zero out the 32-bits on 64-bit targets and let the trap handler
+    // do its job.
+    return m->Is64() ? graph()->NewNode(m->ChangeUint32ToUint64(), index)
+                     : index;
+  }
 
   uint32_t min_size = env_->module->initial_pages * wasm::WasmModule::kPageSize;
   uint32_t max_size =
@@ -3447,7 +3526,7 @@ void WasmGraphBuilder::BoundsCheckMem(MachineType memtype, Node* index,
     // The access will be out of bounds, even for the largest memory.
     TrapIfEq32(wasm::kTrapMemOutOfBounds, jsgraph()->Int32Constant(0), 0,
                position);
-    return;
+    return jsgraph()->IntPtrConstant(0);
   }
   uint32_t end_offset = offset + access_size;
 
@@ -3458,45 +3537,50 @@ void WasmGraphBuilder::BoundsCheckMem(MachineType memtype, Node* index,
     Node* cond;
     if (jsgraph()->machine()->Is32()) {
       cond = graph()->NewNode(jsgraph()->machine()->Uint32LessThanOrEqual(),
-                              jsgraph()->Int32Constant(end_offset), *mem_size_);
+                              jsgraph()->Int32Constant(end_offset), mem_size);
     } else {
       cond = graph()->NewNode(
           jsgraph()->machine()->Uint64LessThanOrEqual(),
-          jsgraph()->Int64Constant(static_cast<int64_t>(end_offset)),
-          *mem_size_);
+          jsgraph()->Int64Constant(static_cast<int64_t>(end_offset)), mem_size);
     }
     TrapIfFalse(wasm::kTrapMemOutOfBounds, cond, position);
   } else {
     // The end offset is within the bounds of the smallest memory, so only
     // one check is required. Check to see if the index is also a constant.
-    UintPtrMatcher m(index);
-    if (m.HasValue()) {
-      uint64_t index_val = m.Value();
+    UintPtrMatcher match(index);
+    if (match.HasValue()) {
+      uint64_t index_val = match.Value();
       if ((index_val + offset + access_size) <= min_size) {
         // The input index is a constant and everything is statically within
         // bounds of the smallest possible memory.
-        return;
+        return m->Is64() ? graph()->NewNode(m->ChangeUint32ToUint64(), index)
+                         : index;
       }
     }
   }
 
+  // Compute the effective size of the memory, which is the size of the memory
+  // minus the statically known offset, minus the byte size of the access minus
+  // one.
   Node* effective_size;
   if (jsgraph()->machine()->Is32()) {
     effective_size =
-        graph()->NewNode(jsgraph()->machine()->Int32Sub(), *mem_size_,
+        graph()->NewNode(jsgraph()->machine()->Int32Sub(), mem_size,
                          jsgraph()->Int32Constant(end_offset - 1));
   } else {
     effective_size = graph()->NewNode(
-        jsgraph()->machine()->Int64Sub(), *mem_size_,
+        jsgraph()->machine()->Int64Sub(), mem_size,
         jsgraph()->Int64Constant(static_cast<int64_t>(end_offset - 1)));
   }
 
-  const Operator* less = jsgraph()->machine()->Is32()
-                             ? jsgraph()->machine()->Uint32LessThan()
-                             : jsgraph()->machine()->Uint64LessThan();
-
-  Node* cond = graph()->NewNode(less, index, effective_size);
+  // Introduce the actual bounds check.
+  Node* cond = graph()->NewNode(m->Uint32LessThan(), index, effective_size);
   TrapIfFalse(wasm::kTrapMemOutOfBounds, cond, position);
+
+  // In the fallthrough case, condition the index with the memory mask.
+  Node* masked_index = graph()->NewNode(m->Word32And(), index, mem_mask);
+  return m->Is64() ? graph()->NewNode(m->ChangeUint32ToUint64(), masked_index)
+                   : masked_index;
 }
 
 const Operator* WasmGraphBuilder::GetSafeLoadOperator(int offset,
@@ -3549,14 +3633,9 @@ Node* WasmGraphBuilder::LoadMem(wasm::ValueType type, MachineType memtype,
                                 wasm::WasmCodePosition position) {
   Node* load;
 
-  if (jsgraph()->machine()->Is64()) {
-    index =
-        graph()->NewNode(jsgraph()->machine()->ChangeUint32ToUint64(), index);
-  }
-  // Wasm semantics throw on OOB. Introduce explicit bounds check.
-  if (!trap_handler::UseTrapHandler()) {
-    BoundsCheckMem(memtype, index, offset, position);
-  }
+  // Wasm semantics throw on OOB. Introduce explicit bounds check and
+  // conditioning when not using the trap handler.
+  index = BoundsCheckMem(memtype, index, offset, position, kCanOmitBoundsCheck);
 
   if (memtype.representation() == MachineRepresentation::kWord8 ||
       jsgraph()->machine()->UnalignedLoadSupported(memtype.representation())) {
@@ -3608,14 +3687,7 @@ Node* WasmGraphBuilder::StoreMem(MachineType memtype, Node* index,
                                  wasm::ValueType type) {
   Node* store;
 
-  if (jsgraph()->machine()->Is64()) {
-    index =
-        graph()->NewNode(jsgraph()->machine()->ChangeUint32ToUint64(), index);
-  }
-  // Wasm semantics throw on OOB. Introduce explicit bounds check.
-  if (!trap_handler::UseTrapHandler()) {
-    BoundsCheckMem(memtype, index, offset, position);
-  }
+  index = BoundsCheckMem(memtype, index, offset, position, kCanOmitBoundsCheck);
 
 #if defined(V8_TARGET_BIG_ENDIAN)
   val = BuildChangeEndiannessStore(val, memtype, type);
@@ -3653,37 +3725,100 @@ Node* WasmGraphBuilder::StoreMem(MachineType memtype, Node* index,
   return store;
 }
 
+namespace {
+Node* GetAsmJsOOBValue(MachineRepresentation rep, JSGraph* jsgraph) {
+  switch (rep) {
+    case MachineRepresentation::kWord8:
+    case MachineRepresentation::kWord16:
+    case MachineRepresentation::kWord32:
+      return jsgraph->Int32Constant(0);
+    case MachineRepresentation::kWord64:
+      return jsgraph->Int64Constant(0);
+    case MachineRepresentation::kFloat32:
+      return jsgraph->Float32Constant(std::numeric_limits<float>::quiet_NaN());
+    case MachineRepresentation::kFloat64:
+      return jsgraph->Float64Constant(std::numeric_limits<double>::quiet_NaN());
+    default:
+      UNREACHABLE();
+  }
+}
+}  // namespace
+
 Node* WasmGraphBuilder::BuildAsmjsLoadMem(MachineType type, Node* index) {
-  // TODO(turbofan): fold bounds checks for constant asm.js loads.
-  // asm.js semantics use CheckedLoad (i.e. OOB reads return 0ish).
-  DCHECK_NOT_NULL(*mem_size_);
-  DCHECK_NOT_NULL(*mem_start_);
+  DCHECK_NOT_NULL(context_cache_);
+  Node* mem_start = context_cache_->mem_start;
+  Node* mem_size = context_cache_->mem_size;
+  Node* mem_mask = context_cache_->mem_mask;
+  DCHECK_NOT_NULL(mem_start);
+  DCHECK_NOT_NULL(mem_size);
+  DCHECK_NOT_NULL(mem_mask);
+
+  // Asm.js semantics are defined along the lines of typed arrays, hence OOB
+  // reads return {undefined} coerced to the result type (0 for integers, NaN
+  // for float and double).
+  // Note that we check against the memory size ignoring the size of the
+  // stored value, which is conservative if misaligned. Technically, asm.js
+  // should never have misaligned accesses.
+  Diamond bounds_check(
+      graph(), jsgraph()->common(),
+      graph()->NewNode(jsgraph()->machine()->Uint32LessThan(), index, mem_size),
+      BranchHint::kTrue);
+  bounds_check.Chain(*control_);
+
+  // Condition the index with the memory mask.
+  index = graph()->NewNode(jsgraph()->machine()->Word32And(), index, mem_mask);
+
   if (jsgraph()->machine()->Is64()) {
     index =
         graph()->NewNode(jsgraph()->machine()->ChangeUint32ToUint64(), index);
   }
-  const Operator* op = jsgraph()->machine()->CheckedLoad(type);
-  Node* load =
-      graph()->NewNode(op, *mem_start_, index, *mem_size_, *effect_, *control_);
-  *effect_ = load;
-  return load;
+  Node* load = graph()->NewNode(jsgraph()->machine()->Load(type), mem_start,
+                                index, *effect_, bounds_check.if_true);
+  Node* value_phi =
+      bounds_check.Phi(type.representation(), load,
+                       GetAsmJsOOBValue(type.representation(), jsgraph()));
+  Node* effect_phi = graph()->NewNode(jsgraph()->common()->EffectPhi(2), load,
+                                      *effect_, bounds_check.merge);
+  *effect_ = effect_phi;
+  *control_ = bounds_check.merge;
+  return value_phi;
 }
 
 Node* WasmGraphBuilder::BuildAsmjsStoreMem(MachineType type, Node* index,
                                            Node* val) {
-  // TODO(turbofan): fold bounds checks for constant asm.js stores.
-  // asm.js semantics use CheckedStore (i.e. ignore OOB writes).
-  DCHECK_NOT_NULL(*mem_size_);
-  DCHECK_NOT_NULL(*mem_start_);
+  DCHECK_NOT_NULL(context_cache_);
+  Node* mem_start = context_cache_->mem_start;
+  Node* mem_size = context_cache_->mem_size;
+  Node* mem_mask = context_cache_->mem_mask;
+  DCHECK_NOT_NULL(mem_start);
+  DCHECK_NOT_NULL(mem_size);
+  DCHECK_NOT_NULL(mem_mask);
+
+  // Asm.js semantics are to ignore OOB writes.
+  // Note that we check against the memory size ignoring the size of the
+  // stored value, which is conservative if misaligned. Technically, asm.js
+  // should never have misaligned accesses.
+  Diamond bounds_check(
+      graph(), jsgraph()->common(),
+      graph()->NewNode(jsgraph()->machine()->Uint32LessThan(), index, mem_size),
+      BranchHint::kTrue);
+  bounds_check.Chain(*control_);
+
+  // Condition the index with the memory mask.
+  index = graph()->NewNode(jsgraph()->machine()->Word32And(), index, mem_mask);
+
   if (jsgraph()->machine()->Is64()) {
     index =
         graph()->NewNode(jsgraph()->machine()->ChangeUint32ToUint64(), index);
   }
-  const Operator* op =
-      jsgraph()->machine()->CheckedStore(type.representation());
-  Node* store = graph()->NewNode(op, *mem_start_, index, *mem_size_, val,
-                                 *effect_, *control_);
-  *effect_ = store;
+  const Operator* store_op = jsgraph()->machine()->Store(StoreRepresentation(
+      type.representation(), WriteBarrierKind::kNoWriteBarrier));
+  Node* store = graph()->NewNode(store_op, mem_start, index, val, *effect_,
+                                 bounds_check.if_true);
+  Node* effect_phi = graph()->NewNode(jsgraph()->common()->EffectPhi(2), store,
+                                      *effect_, bounds_check.merge);
+  *effect_ = effect_phi;
+  *control_ = bounds_check.merge;
   return val;
 }
 
@@ -4160,47 +4295,50 @@ Node* WasmGraphBuilder::AtomicOp(wasm::WasmOpcode opcode, Node* const* inputs,
   // TODO(gdeepti): Add alignment validation, traps on misalignment
   Node* node;
   switch (opcode) {
-#define BUILD_ATOMIC_BINOP(Name, Operation, Type)                      \
-  case wasm::kExpr##Name: {                                            \
-    BoundsCheckMem(MachineType::Type(), inputs[0], offset, position);  \
-    node = graph()->NewNode(                                           \
-        jsgraph()->machine()->Atomic##Operation(MachineType::Type()),  \
-        MemBuffer(offset), inputs[0], inputs[1], *effect_, *control_); \
-    break;                                                             \
+#define BUILD_ATOMIC_BINOP(Name, Operation, Type)                        \
+  case wasm::kExpr##Name: {                                              \
+    Node* index = BoundsCheckMem(MachineType::Type(), inputs[0], offset, \
+                                 position, kNeedsBoundsCheck);           \
+    node = graph()->NewNode(                                             \
+        jsgraph()->machine()->Atomic##Operation(MachineType::Type()),    \
+        MemBuffer(offset), index, inputs[1], *effect_, *control_);       \
+    break;                                                               \
   }
     ATOMIC_BINOP_LIST(BUILD_ATOMIC_BINOP)
 #undef BUILD_ATOMIC_BINOP
 
-#define BUILD_ATOMIC_TERNARY_OP(Name, Operation, Type)                \
-  case wasm::kExpr##Name: {                                           \
-    BoundsCheckMem(MachineType::Type(), inputs[0], offset, position); \
-    node = graph()->NewNode(                                          \
-        jsgraph()->machine()->Atomic##Operation(MachineType::Type()), \
-        MemBuffer(offset), inputs[0], inputs[1], inputs[2], *effect_, \
-        *control_);                                                   \
-    break;                                                            \
+#define BUILD_ATOMIC_TERNARY_OP(Name, Operation, Type)                        \
+  case wasm::kExpr##Name: {                                                   \
+    Node* index = BoundsCheckMem(MachineType::Type(), inputs[0], offset,      \
+                                 position, kNeedsBoundsCheck);                \
+    node = graph()->NewNode(                                                  \
+        jsgraph()->machine()->Atomic##Operation(MachineType::Type()),         \
+        MemBuffer(offset), index, inputs[1], inputs[2], *effect_, *control_); \
+    break;                                                                    \
   }
     ATOMIC_TERNARY_LIST(BUILD_ATOMIC_TERNARY_OP)
 #undef BUILD_ATOMIC_TERNARY_OP
 
-#define BUILD_ATOMIC_LOAD_OP(Name, Type)                              \
-  case wasm::kExpr##Name: {                                           \
-    BoundsCheckMem(MachineType::Type(), inputs[0], offset, position); \
-    node = graph()->NewNode(                                          \
-        jsgraph()->machine()->AtomicLoad(MachineType::Type()),        \
-        MemBuffer(offset), inputs[0], *effect_, *control_);           \
-    break;                                                            \
+#define BUILD_ATOMIC_LOAD_OP(Name, Type)                                 \
+  case wasm::kExpr##Name: {                                              \
+    Node* index = BoundsCheckMem(MachineType::Type(), inputs[0], offset, \
+                                 position, kNeedsBoundsCheck);           \
+    node = graph()->NewNode(                                             \
+        jsgraph()->machine()->AtomicLoad(MachineType::Type()),           \
+        MemBuffer(offset), index, *effect_, *control_);                  \
+    break;                                                               \
   }
     ATOMIC_LOAD_LIST(BUILD_ATOMIC_LOAD_OP)
 #undef BUILD_ATOMIC_LOAD_OP
 
-#define BUILD_ATOMIC_STORE_OP(Name, Type, Rep)                         \
-  case wasm::kExpr##Name: {                                            \
-    BoundsCheckMem(MachineType::Type(), inputs[0], offset, position);  \
-    node = graph()->NewNode(                                           \
-        jsgraph()->machine()->AtomicStore(MachineRepresentation::Rep), \
-        MemBuffer(offset), inputs[0], inputs[1], *effect_, *control_); \
-    break;                                                             \
+#define BUILD_ATOMIC_STORE_OP(Name, Type, Rep)                           \
+  case wasm::kExpr##Name: {                                              \
+    Node* index = BoundsCheckMem(MachineType::Type(), inputs[0], offset, \
+                                 position, kNeedsBoundsCheck);           \
+    node = graph()->NewNode(                                             \
+        jsgraph()->machine()->AtomicStore(MachineRepresentation::Rep),   \
+        MemBuffer(offset), index, inputs[1], *effect_, *control_);       \
+    break;                                                               \
   }
     ATOMIC_STORE_LIST(BUILD_ATOMIC_STORE_OP)
 #undef BUILD_ATOMIC_STORE_OP

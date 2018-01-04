@@ -61,8 +61,7 @@ byte* TestingModuleBuilder::AddMemory(uint32_t size) {
   // TODO(wasm): Delete the following two lines when test-run-wasm will use a
   // multiple of kPageSize as memory size. At the moment, the effect of these
   // two lines is used to shrink the memory for testing purposes.
-  instance_object_->wasm_context()->get()->mem_start = mem_start_;
-  instance_object_->wasm_context()->get()->mem_size = mem_size_;
+  instance_object_->wasm_context()->get()->SetRawMemory(mem_start_, mem_size_);
   return mem_start_;
 }
 

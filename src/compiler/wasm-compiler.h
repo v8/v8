@@ -204,14 +204,28 @@ enum CWasmEntryParameters {
 Handle<Code> CompileCWasmEntry(Isolate* isolate, wasm::FunctionSig* sig,
                                Address wasm_context_address);
 
+// Values from the {WasmContext} are cached between WASM-level function calls.
+// This struct allows the SSA environment handling this cache to be defined
+// and manipulated in wasm-compiler.{h,cc} instead of inside the WASM decoder.
+// (Note that currently, the globals base is immutable in a context, so not
+// cached here.)
+struct WasmContextCacheNodes {
+  Node* mem_start;
+  Node* mem_size;
+  Node* mem_mask;
+};
+
 // Abstracts details of building TurboFan graph nodes for wasm to separate
 // the wasm decoder from the internal details of TurboFan.
 typedef ZoneVector<Node*> NodeVector;
 class WasmGraphBuilder {
  public:
-  WasmGraphBuilder(ModuleEnv*, Zone*, JSGraph*, Handle<Code> centry_stub_,
-                   wasm::FunctionSig*, compiler::SourcePositionTable* = nullptr,
-                   RuntimeExceptionSupport = kRuntimeExceptionSupport);
+  enum EnforceBoundsCheck : bool { kNeedsBoundsCheck, kCanOmitBoundsCheck };
+
+  WasmGraphBuilder(ModuleEnv* env, Zone* zone, JSGraph* graph,
+                   Handle<Code> centry_stub, wasm::FunctionSig* sig,
+                   compiler::SourcePositionTable* spt = nullptr,
+                   RuntimeExceptionSupport res = kRuntimeExceptionSupport);
 
   Node** Buffer(size_t count) {
     if (count > cur_bufsize_) {
@@ -233,6 +247,9 @@ class WasmGraphBuilder {
   Node* Terminate(Node* effect, Node* control);
   Node* Merge(unsigned count, Node** controls);
   Node* Phi(wasm::ValueType type, unsigned count, Node** vals, Node* control);
+  Node* CreateOrMergeIntoPhi(wasm::ValueType type, Node* merge, Node* tnode,
+                             Node* fnode);
+  Node* CreateOrMergeIntoEffectPhi(Node* merge, Node* tnode, Node* fnode);
   Node* EffectPhi(unsigned count, Node** effects, Node* control);
   Node* NumberConstant(int32_t value);
   Node* Uint32Constant(uint32_t value);
@@ -253,7 +270,6 @@ class WasmGraphBuilder {
   Node* ConvertExceptionTagToRuntimeId(uint32_t tag);
   Node* GetExceptionRuntimeId();
   Node** GetExceptionValues(const wasm::WasmException* except_decl);
-  unsigned InputCount(Node* node);
   bool IsPhiWithMerge(Node* phi, Node* merge);
   bool ThrowsException(Node* node, Node** if_success, Node** if_exception);
   void AppendToMerge(Node* merge, Node* from);
@@ -351,14 +367,21 @@ class WasmGraphBuilder {
 
   void set_effect_ptr(Node** effect) { this->effect_ = effect; }
 
-  Node* LoadMemSize();
-  Node* LoadMemStart();
   void GetGlobalBaseAndOffset(MachineType mem_type, uint32_t offset,
                               Node** base_node, Node** offset_node);
 
-  void set_mem_size(Node** mem_size) { this->mem_size_ = mem_size; }
+  // Utilities to manipulate sets of context cache nodes.
+  void InitContextCache(WasmContextCacheNodes* context_cache);
+  void PrepareContextCacheForLoop(WasmContextCacheNodes* context_cache,
+                                  Node* control);
+  void NewContextCacheMerge(WasmContextCacheNodes* to,
+                            WasmContextCacheNodes* from, Node* merge);
+  void MergeContextCacheInto(WasmContextCacheNodes* to,
+                             WasmContextCacheNodes* from, Node* merge);
 
-  void set_mem_start(Node** mem_start) { this->mem_start_ = mem_start; }
+  void set_context_cache(WasmContextCacheNodes* context_cache) {
+    this->context_cache_ = context_cache;
+  }
 
   wasm::FunctionSig* GetFunctionSignature() { return sig_; }
 
@@ -403,8 +426,7 @@ class WasmGraphBuilder {
   NodeVector function_table_sizes_;
   Node** control_ = nullptr;
   Node** effect_ = nullptr;
-  Node** mem_size_ = nullptr;
-  Node** mem_start_ = nullptr;
+  WasmContextCacheNodes* context_cache_ = nullptr;
   Node* globals_start_ = nullptr;
   Node** cur_buffer_;
   size_t cur_bufsize_;
@@ -427,8 +449,9 @@ class WasmGraphBuilder {
 
   Node* String(const char* string);
   Node* MemBuffer(uint32_t offset);
-  void BoundsCheckMem(MachineType memtype, Node* index, uint32_t offset,
-                      wasm::WasmCodePosition position);
+  // BoundsCheckMem receives a uint32 {index} node and returns a ptrsize index.
+  Node* BoundsCheckMem(MachineType memtype, Node* index, uint32_t offset,
+                       wasm::WasmCodePosition, EnforceBoundsCheck);
   const Operator* GetSafeLoadOperator(int offset, wasm::ValueType type);
   const Operator* GetSafeStoreOperator(int offset, wasm::ValueType type);
   Node* BuildChangeEndiannessStore(Node* node, MachineType type,

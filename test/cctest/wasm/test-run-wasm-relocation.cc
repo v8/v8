@@ -36,8 +36,8 @@ WASM_COMPILED_EXEC_TEST(RunPatchWasmContext) {
       reinterpret_cast<Address>(old_wasm_context);
 
   uint32_t new_global_data[3] = {0, 0, 0};
-  WasmContext new_wasm_context = {0, 0,
-                                  reinterpret_cast<byte*>(new_global_data)};
+  WasmContext new_wasm_context;
+  new_wasm_context.globals_start = reinterpret_cast<byte*>(new_global_data);
 
   {
     // TODO(6792): No longer needed once WebAssembly code is off heap.
