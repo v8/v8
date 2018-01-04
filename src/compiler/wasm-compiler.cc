@@ -69,6 +69,13 @@ void MergeControlToEnd(JSGraph* jsgraph, Node* node) {
   }
 }
 
+bool ContainsSimd(wasm::FunctionSig* sig) {
+  for (wasm::ValueType t : sig->all()) {
+    if (t == wasm::kWasmS128) return true;
+  }
+  return false;
+}
+
 }  // namespace
 
 WasmGraphBuilder::WasmGraphBuilder(
@@ -85,17 +92,12 @@ WasmGraphBuilder::WasmGraphBuilder(
       function_table_sizes_(zone),
       cur_buffer_(def_buffer_),
       cur_bufsize_(kDefaultBufferSize),
+      has_simd_(ContainsSimd(sig)),
       untrusted_code_mitigations_(FLAG_untrusted_code_mitigations),
       runtime_exception_support_(exception_support),
       sig_(sig),
       source_position_table_(source_position_table) {
   DCHECK_IMPLIES(use_trap_handler(), trap_handler::IsTrapHandlerEnabled());
-  for (size_t i = sig->parameter_count(); i > 0 && !has_simd_; --i) {
-    if (sig->GetParam(i - 1) == wasm::kWasmS128) has_simd_ = true;
-  }
-  for (size_t i = sig->return_count(); i > 0 && !has_simd_; --i) {
-    if (sig->GetReturn(i - 1) == wasm::kWasmS128) has_simd_ = true;
-  }
   DCHECK_NOT_NULL(jsgraph_);
 }
 
@@ -2356,7 +2358,7 @@ Node* WasmGraphBuilder::BuildWasmCall(wasm::FunctionSig* sig, Node** args,
 
   // Make room for the wasm_context parameter at index 1, just after code.
   memmove(&args[2], &args[1], params * sizeof(Node*));
-  args[1] = wasm_context_;
+  args[1] = wasm_context_.get();
 
   // Add effect and control inputs.
   args[params + 2] = *effect_;
@@ -2848,7 +2850,7 @@ void WasmGraphBuilder::BuildJSToWasmWrapper(WasmCodeWrapper wasm_code,
     // the wasm function could not be re-imported into another wasm module.
     int pos = 0;
     args[pos++] = wasm_code_node;
-    args[pos++] = wasm_context_;
+    args[pos++] = wasm_context_.get();
     args[pos++] = *effect_;
     args[pos++] = *control_;
 
@@ -2863,7 +2865,7 @@ void WasmGraphBuilder::BuildJSToWasmWrapper(WasmCodeWrapper wasm_code,
 
   int pos = 0;
   args[pos++] = wasm_code_node;
-  args[pos++] = wasm_context_;
+  args[pos++] = wasm_context_.get();
 
   // Convert JS parameters to wasm numbers.
   for (int i = 0; i < wasm_count; ++i) {
@@ -3199,7 +3201,7 @@ void WasmGraphBuilder::BuildCWasmEntry(Address wasm_context_address) {
 
   int pos = 0;
   args[pos++] = code_obj;
-  args[pos++] = wasm_context_;
+  args[pos++] = wasm_context_.get();
 
   int offset = 0;
   for (wasm::ValueType type : sig_->parameters()) {
@@ -3254,7 +3256,7 @@ void WasmGraphBuilder::InitContextCache(WasmContextCacheNodes* context_cache) {
 
   // Load the memory start.
   Node* mem_start = graph()->NewNode(
-      jsgraph()->machine()->Load(MachineType::UintPtr()), wasm_context_,
+      jsgraph()->machine()->Load(MachineType::UintPtr()), wasm_context_.get(),
       jsgraph()->Int32Constant(
           static_cast<int32_t>(offsetof(WasmContext, mem_start))),
       *effect_, *control_);
@@ -3263,7 +3265,7 @@ void WasmGraphBuilder::InitContextCache(WasmContextCacheNodes* context_cache) {
 
   // Load the memory size.
   Node* mem_size = graph()->NewNode(
-      jsgraph()->machine()->Load(MachineType::Uint32()), wasm_context_,
+      jsgraph()->machine()->Load(MachineType::Uint32()), wasm_context_.get(),
       jsgraph()->Int32Constant(
           static_cast<int32_t>(offsetof(WasmContext, mem_size))),
       *effect_, *control_);
@@ -3273,7 +3275,7 @@ void WasmGraphBuilder::InitContextCache(WasmContextCacheNodes* context_cache) {
   if (untrusted_code_mitigations_) {
     // Load the memory mask.
     Node* mem_mask = graph()->NewNode(
-        jsgraph()->machine()->Load(MachineType::Uint32()), wasm_context_,
+        jsgraph()->machine()->Load(MachineType::Uint32()), wasm_context_.get(),
         jsgraph()->Int32Constant(
             static_cast<int32_t>(offsetof(WasmContext, mem_mask))),
         *effect_, *control_);
@@ -3375,12 +3377,12 @@ void WasmGraphBuilder::GetGlobalBaseAndOffset(MachineType mem_type,
     // possible to express in the graph, and would essentially constitute a
     // "mem2reg" optimization in TurboFan.
     globals_start_ = graph()->NewNode(
-        jsgraph()->machine()->Load(MachineType::UintPtr()), wasm_context_,
+        jsgraph()->machine()->Load(MachineType::UintPtr()), wasm_context_.get(),
         jsgraph()->Int32Constant(
             static_cast<int32_t>(offsetof(WasmContext, globals_start))),
         graph()->start(), graph()->start());
   }
-  *base_node = globals_start_;
+  *base_node = globals_start_.get();
   *offset_node = jsgraph()->Int32Constant(offset);
 
   if (mem_type == MachineType::Simd128() && offset != 0) {

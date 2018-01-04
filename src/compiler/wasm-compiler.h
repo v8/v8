@@ -425,35 +425,35 @@ class WasmGraphBuilder {
   enum class NumericImplementation : uint8_t { kTrap, kSaturate };
   static const int kDefaultBufferSize = 16;
 
-  Zone* zone_;
-  JSGraph* jsgraph_;
-  Node* centry_stub_node_;
+  Zone* const zone_;
+  JSGraph* const jsgraph_;
+  Node* const centry_stub_node_;
   // env_ == nullptr means we're not compiling Wasm functions, such as for
   // wrappers or interpreter stubs.
-  ModuleEnv* env_ = nullptr;
-  Node* wasm_context_ = nullptr;
+  ModuleEnv* const env_ = nullptr;
+  SetOncePointer<Node> wasm_context_;
   NodeVector signature_tables_;
   NodeVector function_tables_;
   NodeVector function_table_sizes_;
   Node** control_ = nullptr;
   Node** effect_ = nullptr;
   WasmContextCacheNodes* context_cache_ = nullptr;
-  Node* globals_start_ = nullptr;
+  SetOncePointer<Node> globals_start_;
   Node** cur_buffer_;
   size_t cur_bufsize_;
   Node* def_buffer_[kDefaultBufferSize];
   bool has_simd_ = false;
   bool needs_stack_check_ = false;
-  bool untrusted_code_mitigations_ = true;
+  const bool untrusted_code_mitigations_ = true;
   // If the runtime doesn't support exception propagation,
   // we won't generate stack checks, and trap handling will also
   // be generated differently.
-  RuntimeExceptionSupport runtime_exception_support_;
+  const RuntimeExceptionSupport runtime_exception_support_;
 
-  wasm::FunctionSig* sig_;
+  wasm::FunctionSig* const sig_;
   SetOncePointer<const Operator> allocate_heap_number_operator_;
 
-  compiler::SourcePositionTable* source_position_table_ = nullptr;
+  compiler::SourcePositionTable* const source_position_table_ = nullptr;
 
   // Internal helper methods.
   JSGraph* jsgraph() { return jsgraph_; }
