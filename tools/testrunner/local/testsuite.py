@@ -183,7 +183,7 @@ class TestSuite(object):
           not test.output_proc.negative and
           statusfile.FAIL not in test.expected_outcomes
       )
-    return test.output_proc.get_outcome(output) not in test.expected_outcomes
+    return test.output_proc.has_unexpected_output(output)
 
   def _create_test(self, path, **kwargs):
     test = self._test_class()(self, path, self._path_to_name(path), **kwargs)

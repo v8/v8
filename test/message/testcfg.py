@@ -71,8 +71,6 @@ class TestCase(testcase.TestCase):
     source = self.get_source()
     self._source_files = self._parse_source_files(source)
     self._source_flags = self._parse_source_flags(source)
-    self._outproc = OutProc(os.path.join(self.suite.root, self.path),
-                            self._expected_fail())
 
   def _parse_source_files(self, source):
     files = []
@@ -105,11 +103,14 @@ class TestCase(testcase.TestCase):
 
   @property
   def output_proc(self):
-    return self._outproc
+    return OutProc(self.expected_outcomes,
+                   os.path.join(self.suite.root, self.path),
+                   self._expected_fail())
 
 
 class OutProc(outproc.OutProc):
-  def __init__(self, basepath, expected_fail):
+  def __init__(self, expected_outcomes, basepath, expected_fail):
+    super(OutProc, self).__init__(expected_outcomes)
     self._basepath = basepath
     self._expected_fail = expected_fail
 
