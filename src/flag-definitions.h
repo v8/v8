@@ -460,6 +460,10 @@ DEFINE_BOOL(turbo_experimental, false,
             "enable crashing features, for testing purposes only")
 DEFINE_BOOL(turbo_rewrite_far_jumps, true,
             "rewrite far to near jumps (ia32,x64)")
+DEFINE_BOOL(extra_masking, false, "Extra mask for memory accesses")
+DEFINE_BOOL(mask_array_index, false, "Mask array index with bound")
+DEFINE_IMPLICATION(future, extra_masking)
+DEFINE_IMPLICATION(extra_masking, mask_array_index)
 
 // Flags to help platform porters
 DEFINE_BOOL(minimal, false,

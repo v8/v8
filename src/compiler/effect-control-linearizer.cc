@@ -21,10 +21,12 @@ namespace compiler {
 
 EffectControlLinearizer::EffectControlLinearizer(
     JSGraph* js_graph, Schedule* schedule, Zone* temp_zone,
-    SourcePositionTable* source_positions)
+    SourcePositionTable* source_positions,
+    MaskArrayIndexEnable mask_array_index)
     : js_graph_(js_graph),
       schedule_(schedule),
       temp_zone_(temp_zone),
+      mask_array_index_(mask_array_index),
       source_positions_(source_positions),
       graph_assembler_(js_graph, nullptr, nullptr, temp_zone),
       frame_state_zapper_(nullptr) {}
@@ -690,6 +692,9 @@ bool EffectControlLinearizer::TryWireInStateEffect(Node* node,
     case IrOpcode::kCheckBounds:
       result = LowerCheckBounds(node, frame_state);
       break;
+    case IrOpcode::kMaskIndexWithBound:
+      result = LowerMaskIndexWithBound(node);
+      break;
     case IrOpcode::kCheckMaps:
       LowerCheckMaps(node, frame_state);
       break;
@@ -1292,6 +1297,19 @@ Node* EffectControlLinearizer::LowerCheckBounds(Node* node, Node* frame_state) {
 
   Node* check = __ Uint32LessThan(index, limit);
   __ DeoptimizeIfNot(DeoptimizeReason::kOutOfBounds, check, frame_state);
+  return index;
+}
+
+Node* EffectControlLinearizer::LowerMaskIndexWithBound(Node* node) {
+  Node* index = node->InputAt(0);
+  if (mask_array_index_ == kMaskArrayIndex) {
+    Node* limit = node->InputAt(1);
+
+    Node* mask = __ Word32Sar(__ Word32Or(__ Int32Sub(limit, index), index),
+                              __ Int32Constant(31));
+    mask = __ Word32Xor(mask, __ Int32Constant(-1));
+    index = __ Word32And(index, mask);
+  }
   return index;
 }
 

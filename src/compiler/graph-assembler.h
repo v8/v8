@@ -40,6 +40,7 @@ namespace compiler {
   V(Word32Xor)                            \
   V(Word32Shr)                            \
   V(Word32Shl)                            \
+  V(Word32Sar)                            \
   V(IntAdd)                               \
   V(IntSub)                               \
   V(IntMul)                               \

@@ -2402,8 +2402,12 @@ Reduction JSBuiltinReducer::ReduceStringCharAt(Node* node) {
 
         // Return the character from the {receiver} as single character string.
         Node* if_true = graph()->NewNode(common()->IfTrue(), branch);
+
+        Node* masked_index = graph()->NewNode(
+            simplified()->MaskIndexWithBound(), index, receiver_length);
+
         Node* vtrue = graph()->NewNode(simplified()->StringCharAt(), receiver,
-                                       index, if_true);
+                                       masked_index, if_true);
 
         // Return the empty string otherwise.
         Node* if_false = graph()->NewNode(common()->IfFalse(), branch);
@@ -2456,8 +2460,12 @@ Reduction JSBuiltinReducer::ReduceStringCharCodeAt(Node* node) {
 
         // Load the character from the {receiver}.
         Node* if_true = graph()->NewNode(common()->IfTrue(), branch);
+
+        Node* masked_index = graph()->NewNode(
+            simplified()->MaskIndexWithBound(), index, receiver_length);
+
         Node* vtrue = graph()->NewNode(simplified()->StringCharCodeAt(),
-                                       receiver, index, if_true);
+                                       receiver, masked_index, if_true);
 
         // Return NaN otherwise.
         Node* if_false = graph()->NewNode(common()->IfFalse(), branch);

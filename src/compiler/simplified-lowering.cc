@@ -2439,6 +2439,11 @@ class RepresentationSelector {
         }
         return;
       }
+      case IrOpcode::kMaskIndexWithBound: {
+        VisitBinop(node, UseInfo::TruncatingWord32(),
+                   MachineRepresentation::kWord32);
+        return;
+      }
       case IrOpcode::kCheckHeapObject: {
         if (InputCannotBe(node, Type::SignedSmall())) {
           VisitUnop(node, UseInfo::AnyTagged(),
