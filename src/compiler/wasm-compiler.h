@@ -444,6 +444,7 @@ class WasmGraphBuilder {
   Node* def_buffer_[kDefaultBufferSize];
   bool has_simd_ = false;
   bool needs_stack_check_ = false;
+  bool untrusted_code_mitigations_ = true;
   // If the runtime doesn't support exception propagation,
   // we won't generate stack checks, and trap handling will also
   // be generated differently.
