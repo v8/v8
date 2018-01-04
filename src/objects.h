@@ -1976,6 +1976,7 @@ class PropertyArray : public HeapObject {
 
   static const int kLengthFieldSize = 10;
   class LengthField : public BitField<int, 0, kLengthFieldSize> {};
+  static const int kMaxLength = LengthField::kMax;
   class HashField : public BitField<int, kLengthFieldSize,
                                     kSmiValueSize - kLengthFieldSize - 1> {};
 
@@ -2680,6 +2681,8 @@ class JSObject: public JSReceiver {
   // its size by more than the 1 entry necessary, so sequentially adding fields
   // to the same object requires fewer allocations and copies.
   static const int kFieldsAdded = 3;
+  STATIC_ASSERT(kMaxNumberOfDescriptors + kFieldsAdded <=
+                PropertyArray::kMaxLength);
 
   // Layout description.
   static const int kElementsOffset = JSReceiver::kHeaderSize;
