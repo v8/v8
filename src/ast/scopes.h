@@ -396,6 +396,8 @@ class V8_EXPORT_PRIVATE Scope : public NON_EXPORTED_BASE(ZoneObject) {
     return static_cast<Variable*>(variables_.Start()->value);
   }
 
+  bool ShouldBanArguments();
+
   // ---------------------------------------------------------------------------
   // Variable allocation.
 
@@ -695,6 +697,10 @@ class V8_EXPORT_PRIVATE DeclarationScope : public Scope {
 
   bool asm_module() const { return asm_module_; }
   void set_asm_module();
+
+  bool should_ban_arguments() const {
+    return IsClassFieldsInitializerFunction(function_kind());
+  }
 
   void DeclareThis(AstValueFactory* ast_value_factory);
   void DeclareArguments(AstValueFactory* ast_value_factory);

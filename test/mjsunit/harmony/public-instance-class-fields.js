@@ -652,3 +652,47 @@ x()();
     }
   }, ReferenceError);
 }
+
+{
+  class X {
+    p = function() { return arguments[0]; }
+  }
+
+  let x = new X;
+  assertEquals(1, x.p(1));
+}
+
+{
+  class X {
+    t = () => {
+      function p() { return arguments[0]; };
+      return p;
+    }
+  }
+
+  let x = new X;
+  let p = x.t();
+  assertEquals(1, p(1));
+}
+
+{
+  class X {
+    t = () => {
+      function p() { return eval("arguments[0]"); };
+      return p;
+    }
+  }
+
+  let x = new X;
+  let p = x.t();
+  assertEquals(1, p(1));
+}
+
+{
+  class X {
+    p = eval("(function() { return arguments[0]; })(1)");
+  }
+
+  let x = new X;
+  assertEquals(1, x.p);
+}

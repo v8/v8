@@ -267,6 +267,8 @@ class ErrorUtils : public AllStatic {
   T(ApplyNonFunction,                                                          \
     "Function.prototype.apply was called on %, which is a % and not a "        \
     "function")                                                                \
+  T(ArgumentsDisallowedInInitializer,                                          \
+    "'arguments' is not allowed in class field initializer")                   \
   T(ArrayBufferTooShort,                                                       \
     "Derived ArrayBuffer constructor created a buffer which was too small")    \
   T(ArrayBufferSpeciesThis,                                                    \

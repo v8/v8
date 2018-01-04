@@ -4751,6 +4751,9 @@ TEST(StaticClassFieldsNoErrors) {
     "static ['a']\n *b(){}",
     "static ['a']\n ['b'](){}",
 
+    "static a = function t() { arguments; }",
+    "static a = () => function t() { arguments; }",
+
     // ASI edge cases
     "static a\n get",
     "static get\n *a(){}",
@@ -4843,6 +4846,9 @@ TEST(ClassFieldsNoErrors) {
     "get\n *a(){}",
     "a\n static",
 
+    "a = function t() { arguments; }",
+    "a = () => function() { arguments; }",
+
     // Misc edge cases
     "yield",
     "yield = 0",
@@ -4891,6 +4897,14 @@ TEST(StaticClassFieldsErrors) {
     "static async a = 0",
     "static async a",
 
+    "static a = arguments",
+    "static a = () => arguments",
+    "static a = () => { arguments }",
+    "static a = arguments[0]",
+    "static a = delete arguments[0]",
+    "static a = f(arguments)",
+    "static a = () => () => arguments",
+
     // ASI requires a linebreak
     "static a b",
     "static a = 0 b",
@@ -4930,6 +4944,14 @@ TEST(ClassFieldsErrors) {
     "yield a",
     "async a = 0",
     "async a",
+
+    "a = arguments",
+    "a = () => arguments",
+    "a = () => { arguments }",
+    "a = arguments[0]",
+    "a = delete arguments[0]",
+    "a = f(arguments)",
+    "a = () => () => arguments",
 
     // ASI requires a linebreak
     "a b",

@@ -3339,6 +3339,8 @@ void Parser::DeclareClassProperty(const AstRawString* class_name,
 
 FunctionLiteral* Parser::CreateInitializerFunction(
     DeclarationScope* scope, ZoneList<ClassLiteral::Property*>* fields) {
+  DCHECK_EQ(scope->function_kind(),
+            FunctionKind::kClassFieldsInitializerFunction);
   // function() { .. class fields initializer .. }
   ZoneList<Statement*>* statements = NewStatementList(1);
   InitializeClassFieldsStatement* static_fields =

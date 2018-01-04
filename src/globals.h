@@ -1095,7 +1095,6 @@ enum FunctionKind : uint16_t {
   kArrowFunction = 1 << 0,
   kGeneratorFunction = 1 << 1,
   kConciseMethod = 1 << 2,
-  kConciseGeneratorMethod = kGeneratorFunction | kConciseMethod,
   kDefaultConstructor = 1 << 3,
   kDerivedConstructor = 1 << 4,
   kBaseConstructor = 1 << 5,
@@ -1103,6 +1102,10 @@ enum FunctionKind : uint16_t {
   kSetterFunction = 1 << 7,
   kAsyncFunction = 1 << 8,
   kModule = 1 << 9,
+  kClassFieldsInitializerFunction = 1 << 10 | kConciseMethod,
+  kLastFunctionKind = kClassFieldsInitializerFunction,
+
+  kConciseGeneratorMethod = kGeneratorFunction | kConciseMethod,
   kAccessorFunction = kGetterFunction | kSetterFunction,
   kDefaultBaseConstructor = kDefaultConstructor | kBaseConstructor,
   kDefaultDerivedConstructor = kDefaultConstructor | kDerivedConstructor,
@@ -1134,7 +1137,8 @@ inline bool IsValidFunctionKind(FunctionKind kind) {
          kind == FunctionKind::kAsyncArrowFunction ||
          kind == FunctionKind::kAsyncConciseMethod ||
          kind == FunctionKind::kAsyncConciseGeneratorMethod ||
-         kind == FunctionKind::kAsyncGeneratorFunction;
+         kind == FunctionKind::kAsyncGeneratorFunction ||
+         kind == FunctionKind::kClassFieldsInitializerFunction;
 }
 
 
@@ -1210,6 +1214,11 @@ inline bool IsDerivedConstructor(FunctionKind kind) {
 inline bool IsClassConstructor(FunctionKind kind) {
   DCHECK(IsValidFunctionKind(kind));
   return (kind & FunctionKind::kClassConstructor) != 0;
+}
+
+inline bool IsClassFieldsInitializerFunction(FunctionKind kind) {
+  DCHECK(IsValidFunctionKind(kind));
+  return kind == FunctionKind::kClassFieldsInitializerFunction;
 }
 
 inline bool IsConstructable(FunctionKind kind) {

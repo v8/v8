@@ -1437,6 +1437,10 @@ bool Scope::NeedsScopeInfo() const {
   return NeedsContext();
 }
 
+bool Scope::ShouldBanArguments() {
+  return GetReceiverScope()->should_ban_arguments();
+}
+
 DeclarationScope* Scope::GetReceiverScope() {
   Scope* scope = this;
   while (!scope->is_script_scope() &&

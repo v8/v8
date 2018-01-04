@@ -416,3 +416,44 @@ y()();
   assertEquals(1, obj.x);
   assertEquals(2, klass.x);
 }
+
+
+{
+  class X {
+    static p = function() { return arguments[0]; }
+  }
+
+  assertEquals(1, X.p(1));
+}
+
+{
+  class X {
+    static t = () => {
+      function p() { return arguments[0]; };
+      return p;
+    }
+  }
+
+  let p = X.t();
+  assertEquals(1, p(1));
+}
+
+{
+  class X {
+    static t = () => {
+      function p() { return eval("arguments[0]"); };
+      return p;
+    }
+  }
+
+  let p = X.t();
+  assertEquals(1, p(1));
+}
+
+{
+  class X {
+    static p = eval("(function() { return arguments[0]; })(1)");
+  }
+
+  assertEquals(1, X.p);
+}

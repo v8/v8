@@ -469,7 +469,7 @@ class SharedFunctionInfo : public HeapObject {
   V(IsNativeBit, bool, 1, _)                             \
   V(IsStrictBit, bool, 1, _)                             \
   V(IsWrappedBit, bool, 1, _)                            \
-  V(FunctionKindBits, FunctionKind, 10, _)               \
+  V(FunctionKindBits, FunctionKind, 11, _)               \
   V(HasDuplicateParametersBit, bool, 1, _)               \
   V(AllowLazyCompilationBit, bool, 1, _)                 \
   V(NeedsHomeObjectBit, bool, 1, _)                      \
@@ -486,6 +486,7 @@ class SharedFunctionInfo : public HeapObject {
   STATIC_ASSERT(BailoutReason::kLastErrorMessage <=
                 DisabledOptimizationReasonBits::kMax);
 
+  STATIC_ASSERT(kLastFunctionKind <= FunctionKindBits::kMax);
   // Masks for checking if certain FunctionKind bits are set without fully
   // decoding of the FunctionKind bit field.
   static const int kClassConstructorMask = FunctionKind::kClassConstructor

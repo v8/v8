@@ -1663,6 +1663,13 @@ ParserBase<Impl>::ParseAndClassifyIdentifier(bool* ok) {
   if (next == Token::IDENTIFIER || next == Token::ASYNC ||
       (next == Token::AWAIT && !parsing_module_ && !is_async_function())) {
     IdentifierT name = impl()->GetSymbol();
+
+    if (impl()->IsArguments(name) && scope()->ShouldBanArguments()) {
+      ReportMessage(MessageTemplate::kArgumentsDisallowedInInitializer);
+      *ok = false;
+      return impl()->NullIdentifier();
+    }
+
     // When this function is used to read a formal parameter, we don't always
     // know whether the function is going to be strict or sloppy.  Indeed for
     // arrow functions we don't always know that the identifier we are reading
@@ -2416,7 +2423,8 @@ ParserBase<Impl>::ParseClassFieldInitializer(ClassInfo* class_info,
                                             : class_info->instance_fields_scope;
 
   if (initializer_scope == nullptr) {
-    initializer_scope = NewFunctionScope(FunctionKind::kConciseMethod);
+    initializer_scope =
+        NewFunctionScope(FunctionKind::kClassFieldsInitializerFunction);
     // TODO(gsathya): Make scopes be non contiguous.
     initializer_scope->set_start_position(scanner()->location().end_pos);
     initializer_scope->SetLanguageMode(LanguageMode::kStrict);
