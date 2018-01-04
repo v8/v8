@@ -1078,19 +1078,18 @@ TF_BUILTIN(PromiseConstructor, PromiseBuiltinsAssembler) {
     Node *resolve, *reject;
     std::tie(resolve, reject) = CreatePromiseResolvingFunctions(
         var_result.value(), TrueConstant(), native_context);
-    Callable call_callable = CodeFactory::Call(isolate);
 
-    Node* const maybe_exception = CallJS(call_callable, context, executor,
-                                         UndefinedConstant(), resolve, reject);
+    Node* const maybe_exception = CallJS(
+        CodeFactory::Call(isolate, ConvertReceiverMode::kNullOrUndefined),
+        context, executor, UndefinedConstant(), resolve, reject);
 
     GotoIfException(maybe_exception, &if_rejectpromise, &var_reason);
     Branch(is_debug_active, &debug_pop, &out);
 
     BIND(&if_rejectpromise);
     {
-      Callable call_callable = CodeFactory::Call(isolate);
-      CallJS(call_callable, context, reject, UndefinedConstant(),
-             var_reason.value());
+      CallJS(CodeFactory::Call(isolate, ConvertReceiverMode::kNullOrUndefined),
+             context, reject, UndefinedConstant(), var_reason.value());
       Branch(is_debug_active, &debug_pop, &out);
     }
 
@@ -1167,7 +1166,6 @@ TF_BUILTIN(PromiseHandleReject, PromiseBuiltinsAssembler) {
   Node* const exception = Parameter(Descriptor::kException);
   Node* const context = Parameter(Descriptor::kContext);
 
-  Callable call_callable = CodeFactory::Call(isolate());
   VARIABLE(var_unused, MachineRepresentation::kTagged);
 
   Label if_internalhandler(this), if_customhandler(this, Label::kDeferred);
@@ -1183,8 +1181,9 @@ TF_BUILTIN(PromiseHandleReject, PromiseBuiltinsAssembler) {
   {
     VARIABLE(var_exception, MachineRepresentation::kTagged, TheHoleConstant());
     Label if_exception(this);
-    Node* const ret = CallJS(call_callable, context, on_reject,
-                             UndefinedConstant(), exception);
+    Node* const ret = CallJS(
+        CodeFactory::Call(isolate(), ConvertReceiverMode::kNullOrUndefined),
+        context, on_reject, UndefinedConstant(), exception);
     GotoIfException(ret, &if_exception, &var_exception);
     Return(UndefinedConstant());
     BIND(&if_exception);
@@ -1251,9 +1250,9 @@ TF_BUILTIN(PromiseHandle, PromiseBuiltinsAssembler) {
 
     BIND(&if_callablehandler);
     {
-      Callable call_callable = CodeFactory::Call(isolate);
-      Node* const result =
-          CallJS(call_callable, context, handler, UndefinedConstant(), value);
+      Node* const result = CallJS(
+          CodeFactory::Call(isolate, ConvertReceiverMode::kNullOrUndefined),
+          context, handler, UndefinedConstant(), value);
       var_result.Bind(result);
       GotoIfException(result, &if_rejectpromise, &var_reason);
       Branch(IsUndefined(deferred_on_resolve), &if_internalhandler,
@@ -1266,10 +1265,10 @@ TF_BUILTIN(PromiseHandle, PromiseBuiltinsAssembler) {
 
     BIND(&if_customhandler);
     {
-      Callable call_callable = CodeFactory::Call(isolate);
-      Node* const maybe_exception =
-          CallJS(call_callable, context, deferred_on_resolve,
-                 UndefinedConstant(), var_result.value());
+      Node* const maybe_exception = CallJS(
+          CodeFactory::Call(isolate, ConvertReceiverMode::kNullOrUndefined),
+          context, deferred_on_resolve, UndefinedConstant(),
+          var_result.value());
       GotoIfException(maybe_exception, &if_rejectpromise, &var_reason);
       Goto(&promisehook_after);
     }
@@ -1340,9 +1339,9 @@ TF_BUILTIN(PromiseCatch, PromiseBuiltinsAssembler) {
   {
     Node* const then =
         GetProperty(context, promise, isolate()->factory()->then_string());
-    Callable call_callable = CodeFactory::Call(isolate());
-    Node* const result =
-        CallJS(call_callable, context, then, promise, on_resolve, on_reject);
+    Node* const result = CallJS(
+        CodeFactory::Call(isolate(), ConvertReceiverMode::kNotNullOrUndefined),
+        context, then, promise, on_resolve, on_reject);
     Return(result);
   }
 }
@@ -1426,10 +1425,10 @@ TF_BUILTIN(PromiseResolve, PromiseBuiltinsAssembler) {
     {
       Node* const capability = NewPromiseCapability(context, constructor);
 
-      Callable call_callable = CodeFactory::Call(isolate);
       Node* const resolve =
           LoadObjectField(capability, PromiseCapability::kResolveOffset);
-      CallJS(call_callable, context, resolve, UndefinedConstant(), value);
+      CallJS(CodeFactory::Call(isolate, ConvertReceiverMode::kNullOrUndefined),
+             context, resolve, UndefinedConstant(), value);
 
       Node* const result =
           LoadObjectField(capability, PromiseCapability::kPromiseOffset);
@@ -1509,8 +1508,8 @@ TF_BUILTIN(PromiseReject, PromiseBuiltinsAssembler) {
     // 4. Perform ? Call(promiseCapability.[[Reject]], undefined, « r »).
     Node* const reject =
         LoadObjectField(capability, PromiseCapability::kRejectOffset);
-    Callable call_callable = CodeFactory::Call(isolate());
-    CallJS(call_callable, context, reject, UndefinedConstant(), reason);
+    CallJS(CodeFactory::Call(isolate(), ConvertReceiverMode::kNullOrUndefined),
+           context, reject, UndefinedConstant(), reason);
 
     // 5. Return promiseCapability.[[Promise]].
     Node* const promise =
@@ -1584,9 +1583,9 @@ TF_BUILTIN(PromiseThenFinally, PromiseBuiltinsAssembler) {
   CSA_ASSERT(this, IsCallable(on_finally));
 
   // 3. Let result be ?  Call(onFinally).
-  Callable call_callable = CodeFactory::Call(isolate());
-  Node* const result =
-      CallJS(call_callable, context, on_finally, UndefinedConstant());
+  Node* const result = CallJS(
+      CodeFactory::Call(isolate(), ConvertReceiverMode::kNullOrUndefined),
+      context, on_finally, UndefinedConstant());
 
   // 4. Let C be F.[[Constructor]].
   Node* const constructor = LoadContextElement(context, kConstructorSlot);
@@ -1605,8 +1604,9 @@ TF_BUILTIN(PromiseThenFinally, PromiseBuiltinsAssembler) {
   // 8. Return ? Invoke(promise, "then", « valueThunk »).
   Node* const promise_then =
     GetProperty(context, promise, factory()->then_string());
-  Node* const result_promise = CallJS(call_callable, context,
-                                      promise_then, promise, value_thunk);
+  Node* const result_promise = CallJS(
+      CodeFactory::Call(isolate(), ConvertReceiverMode::kNotNullOrUndefined),
+      context, promise_then, promise, value_thunk);
   Return(result_promise);
 }
 
@@ -1645,9 +1645,9 @@ TF_BUILTIN(PromiseCatchFinally, PromiseBuiltinsAssembler) {
   CSA_ASSERT(this, IsCallable(on_finally));
 
   // 3. Let result be ? Call(onFinally).
-  Callable call_callable = CodeFactory::Call(isolate());
-  Node* result =
-    CallJS(call_callable, context, on_finally, UndefinedConstant());
+  Node* result = CallJS(
+      CodeFactory::Call(isolate(), ConvertReceiverMode::kNullOrUndefined),
+      context, on_finally, UndefinedConstant());
 
   // 4. Let C be F.[[Constructor]].
   Node* const constructor = LoadContextElement(context, kConstructorSlot);
@@ -1666,8 +1666,9 @@ TF_BUILTIN(PromiseCatchFinally, PromiseBuiltinsAssembler) {
   // 8. Return ? Invoke(promise, "then", « thrower »).
   Node* const promise_then =
     GetProperty(context, promise, factory()->then_string());
-  Node* const result_promise = CallJS(call_callable, context,
-                                      promise_then, promise, thrower);
+  Node* const result_promise = CallJS(
+      CodeFactory::Call(isolate(), ConvertReceiverMode::kNotNullOrUndefined),
+      context, promise_then, promise, thrower);
   Return(result_promise);
 }
 
@@ -1731,9 +1732,10 @@ TF_BUILTIN(PromiseFinally, PromiseBuiltinsAssembler) {
   BIND(&perform_finally);
   Node* const promise_then =
     GetProperty(context, promise, factory()->then_string());
-  Node* const result_promise =
-    CallJS(CodeFactory::Call(isolate()), context, promise_then, promise,
-           var_then_finally.value(), var_catch_finally.value());
+  Node* const result_promise = CallJS(
+      CodeFactory::Call(isolate(), ConvertReceiverMode::kNotNullOrUndefined),
+      context, promise_then, promise, var_then_finally.value(),
+      var_catch_finally.value());
   Return(result_promise);
 }
 
@@ -1822,8 +1824,9 @@ Node* PromiseBuiltinsAssembler::PerformPromiseAll(
         GetProperty(context, constructor, factory()->resolve_string());
     GotoIfException(promise_resolve, &close_iterator, var_exception);
 
-    Node* const next_promise = CallJS(CodeFactory::Call(isolate()), context,
-                                      promise_resolve, constructor, next_value);
+    Node* const next_promise = CallJS(
+        CodeFactory::Call(isolate(), ConvertReceiverMode::kNotNullOrUndefined),
+        context, promise_resolve, constructor, next_value);
     GotoIfException(next_promise, &close_iterator, var_exception);
 
     // Let resolveElement be a new built-in function object as defined in
@@ -1874,7 +1877,8 @@ Node* PromiseBuiltinsAssembler::PerformPromiseAll(
     GotoIfException(then, &close_iterator, var_exception);
 
     Node* const then_call = CallJS(
-        CodeFactory::Call(isolate()), context, then, next_promise, resolve,
+        CodeFactory::Call(isolate(), ConvertReceiverMode::kNotNullOrUndefined),
+        context, then, next_promise, resolve,
         LoadObjectField(capability, PromiseCapability::kRejectOffset));
     GotoIfException(then_call, &close_iterator, var_exception);
 
@@ -1916,9 +1920,9 @@ Node* PromiseBuiltinsAssembler::PerformPromiseAll(
 
     Node* const resolve =
         LoadObjectField(capability, PromiseCapability::kResolveOffset);
-    Node* const resolve_call =
-        CallJS(CodeFactory::Call(isolate()), context, resolve,
-               UndefinedConstant(), values_array);
+    Node* const resolve_call = CallJS(
+        CodeFactory::Call(isolate(), ConvertReceiverMode::kNullOrUndefined),
+        context, resolve, UndefinedConstant(), values_array);
     GotoIfException(resolve_call, if_exception, var_exception);
     Goto(&return_promise);
 
@@ -1999,9 +2003,8 @@ TF_BUILTIN(PromiseAll, PromiseBuiltinsAssembler) {
     CSA_SLOW_ASSERT(this, IsNotTheHole(var_exception.value()));
     Node* const reject =
         LoadObjectField(capability, PromiseCapability::kRejectOffset);
-    Callable callable = CodeFactory::Call(isolate());
-    CallJS(callable, context, reject, UndefinedConstant(),
-           var_exception.value());
+    CallJS(CodeFactory::Call(isolate(), ConvertReceiverMode::kNullOrUndefined),
+           context, reject, UndefinedConstant(), var_exception.value());
 
     Node* const promise =
         LoadObjectField(capability, PromiseCapability::kPromiseOffset);
@@ -2076,8 +2079,8 @@ TF_BUILTIN(PromiseAllResolveElementClosure, PromiseBuiltinsAssembler) {
       LoadContextElement(context, kPromiseAllResolveElementCapabilitySlot);
   Node* const resolve =
       LoadObjectField(capability, PromiseCapability::kResolveOffset);
-  CallJS(CodeFactory::Call(isolate()), context, resolve, UndefinedConstant(),
-         values_array);
+  CallJS(CodeFactory::Call(isolate(), ConvertReceiverMode::kNullOrUndefined),
+         context, resolve, UndefinedConstant(), values_array);
   Return(UndefinedConstant());
 
   BIND(&already_called);
@@ -2151,8 +2154,10 @@ TF_BUILTIN(PromiseRace, PromiseBuiltinsAssembler) {
           GetProperty(context, receiver, factory()->resolve_string());
       GotoIfException(promise_resolve, &close_iterator, &var_exception);
 
-      Node* const next_promise = CallJS(CodeFactory::Call(isolate()), context,
-                                        promise_resolve, receiver, next_value);
+      Node* const next_promise =
+          CallJS(CodeFactory::Call(isolate(),
+                                   ConvertReceiverMode::kNotNullOrUndefined),
+                 context, promise_resolve, receiver, next_value);
       GotoIfException(next_promise, &close_iterator, &var_exception);
 
       // Perform ? Invoke(nextPromise, "then", « resolveElement,
@@ -2161,8 +2166,10 @@ TF_BUILTIN(PromiseRace, PromiseBuiltinsAssembler) {
           GetProperty(context, next_promise, factory()->then_string());
       GotoIfException(then, &close_iterator, &var_exception);
 
-      Node* const then_call = CallJS(CodeFactory::Call(isolate()), context,
-                                     then, next_promise, resolve, reject);
+      Node* const then_call =
+          CallJS(CodeFactory::Call(isolate(),
+                                   ConvertReceiverMode::kNotNullOrUndefined),
+                 context, then, next_promise, resolve, reject);
       GotoIfException(then_call, &close_iterator, &var_exception);
 
       // For catch prediction, mark that rejections here are semantically
@@ -2189,9 +2196,8 @@ TF_BUILTIN(PromiseRace, PromiseBuiltinsAssembler) {
   {
     Node* const reject =
         LoadObjectField(capability, PromiseCapability::kRejectOffset);
-    Callable callable = CodeFactory::Call(isolate());
-    CallJS(callable, context, reject, UndefinedConstant(),
-           var_exception.value());
+    CallJS(CodeFactory::Call(isolate(), ConvertReceiverMode::kNullOrUndefined),
+           context, reject, UndefinedConstant(), var_exception.value());
 
     Node* const promise =
         LoadObjectField(capability, PromiseCapability::kPromiseOffset);
