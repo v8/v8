@@ -264,7 +264,6 @@ class DeoptFuzzer(base_runner.BaseTestRunner):
                           True,  # No sorting of test cases.
                           0,  # Don't rerun failing tests.
                           0,  # No use of a rerun-failing-tests maximum.
-                          False,  # No predictable mode.
                           False,  # No no_harness mode.
                           False,  # Don't use perf data.
                           False)  # Coverage not supported.

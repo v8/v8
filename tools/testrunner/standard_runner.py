@@ -25,6 +25,7 @@ from testrunner.local import utils
 from testrunner.local import verbose
 from testrunner.local.variants import ALL_VARIANTS
 from testrunner.objects import context
+from testrunner.objects import predictable
 
 
 TIMEOUT_DEFAULT = 60
@@ -377,7 +378,6 @@ class StandardTestRunner(base_runner.BaseTestRunner):
                             options.no_sorting,
                             options.rerun_failures_count,
                             options.rerun_failures_max,
-                            self.build_config.predictable,
                             options.no_harness,
                             use_perf_data=not options.swarming,
                             sancov_dir=self.sancov_dir)
@@ -495,7 +495,12 @@ class StandardTestRunner(base_runner.BaseTestRunner):
         progress_indicator.Register(progress.FlakinessTestProgressIndicator(
             options.flakiness_results))
 
-      runner = execution.Runner(suites, progress_indicator, ctx)
+      if self.build_config.predictable:
+        outproc_factory = predictable.get_outproc
+      else:
+        outproc_factory = None
+      runner = execution.Runner(suites, progress_indicator, ctx,
+                                outproc_factory)
       exit_code = runner.Run(options.j)
       overall_duration = time.time() - start_time
 

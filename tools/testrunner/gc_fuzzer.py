@@ -179,7 +179,6 @@ class GCFuzzer(base_runner.BaseTestRunner):
                           True,  # No sorting of test cases.
                           0,  # Don't rerun failing tests.
                           0,  # No use of a rerun-failing-tests maximum.
-                          False,  # No predictable mode.
                           False,  # No no_harness mode.
                           False,  # Don't use perf data.
                           False)  # Coverage not supported.
@@ -213,7 +212,7 @@ class GCFuzzer(base_runner.BaseTestRunner):
     for s in suites:
       for t in s.tests:
         # Skip failed tests.
-        if s.HasUnexpectedOutput(t, runner.outputs[t]):
+        if t.output_proc.has_unexpected_output(runner.outputs[t]):
           print '%s failed, skipping' % t.path
           continue
         max_limit = self._get_max_limit_reached(runner.outputs[t])

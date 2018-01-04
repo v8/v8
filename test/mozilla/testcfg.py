@@ -29,8 +29,8 @@
 import os
 
 from testrunner.local import testsuite
-from testrunner.objects import outproc
 from testrunner.objects import testcase
+from testrunner.outproc import mozilla
 
 EXCLUDED = ["CVS", ".svn"]
 
@@ -110,36 +110,12 @@ class TestCase(testcase.TestCase):
   def output_proc(self):
     if not self.expected_outcomes:
       if self.path.endswith('-n'):
-        return MOZILLA_PASS_NEGATIVE
-      return MOZILLA_PASS_DEFAULT
+        return mozilla.MOZILLA_PASS_NEGATIVE
+      return mozilla.MOZILLA_PASS_DEFAULT
     if self.path.endswith('-n'):
-      return NegOutProc(self.expected_outcomes)
-    return OutProc(self.expected_outcomes)
+      return mozilla.NegOutProc(self.expected_outcomes)
+    return mozilla.OutProc(self.expected_outcomes)
 
-
-def _is_failure_output(self, output):
-  return (
-    output.exit_code != 0 or
-    'FAILED!' in output.stdout
-  )
-
-
-class OutProc(outproc.OutProc):
-  """Optimized for positive tests."""
-OutProc._is_failure_output = _is_failure_output
-
-
-class PassOutProc(outproc.PassOutProc):
-  """Optimized for positive tests expected to PASS."""
-PassOutProc._is_failure_output = _is_failure_output
-
-
-NegOutProc = outproc.negative(OutProc)
-NegPassOutProc = outproc.negative(PassOutProc)
-
-
-MOZILLA_PASS_DEFAULT = PassOutProc()
-MOZILLA_PASS_NEGATIVE = NegPassOutProc()
 
 
 def GetSuite(name, root):

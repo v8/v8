@@ -29,8 +29,8 @@ import os
 import re
 
 from testrunner.local import testsuite
-from testrunner.objects import outproc
 from testrunner.objects import testcase
+from testrunner.outproc import webkit
 
 FILES_PATTERN = re.compile(r"//\s+Files:(.*)")
 SELF_SCRIPT_PATTERN = re.compile(r"//\s+Env: TEST_FILE_NAME")
@@ -104,22 +104,9 @@ class TestCase(testcase.TestCase):
 
   @property
   def output_proc(self):
-    return OutProc(
+    return webkit.OutProc(
         self.expected_outcomes,
         os.path.join(self.suite.root, self.path) + '-expected.txt')
-
-
-class OutProc(outproc.ExpectedOutProc):
-  def _is_failure_output(self, output):
-    if output.exit_code != 0:
-      return True
-    return super(OutProc, self)._is_failure_output(output)
-
-  def _ignore_expected_line(self, line):
-    return (
-        line.startswith('#') or
-        super(OutProc, self)._ignore_expected_line(line)
-    )
 
 
 def GetSuite(name, root):

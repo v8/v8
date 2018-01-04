@@ -25,14 +25,13 @@
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-import itertools
 import os
 import re
 
 from testrunner.local import testsuite
 from testrunner.local import utils
-from testrunner.objects import outproc
 from testrunner.objects import testcase
+from testrunner.outproc import message
 
 
 INVALID_FLAGS = ["--enable-slow-asserts"]
@@ -103,56 +102,9 @@ class TestCase(testcase.TestCase):
 
   @property
   def output_proc(self):
-    return OutProc(self.expected_outcomes,
-                   os.path.join(self.suite.root, self.path),
-                   self._expected_fail())
-
-
-class OutProc(outproc.OutProc):
-  def __init__(self, expected_outcomes, basepath, expected_fail):
-    super(OutProc, self).__init__(expected_outcomes)
-    self._basepath = basepath
-    self._expected_fail = expected_fail
-
-  def _is_failure_output(self, output):
-    fail = output.exit_code != 0
-    if fail != self._expected_fail:
-      return True
-
-    expected_lines = []
-    # Can't use utils.ReadLinesFrom() here because it strips whitespace.
-    with open(self._basepath + '.out') as f:
-      for line in f:
-        if line.startswith("#") or not line.strip():
-          continue
-        expected_lines.append(line)
-    raw_lines = output.stdout.splitlines()
-    actual_lines = [ s for s in raw_lines if not self._ignore_line(s) ]
-    if len(expected_lines) != len(actual_lines):
-      return True
-
-    env = {
-      'basename': os.path.basename(self._basepath + '.js'),
-    }
-    for (expected, actual) in itertools.izip_longest(
-        expected_lines, actual_lines, fillvalue=''):
-      pattern = re.escape(expected.rstrip() % env)
-      pattern = pattern.replace('\\*', '.*')
-      pattern = pattern.replace('\\{NUMBER\\}', '\d+(?:\.\d*)?')
-      pattern = '^%s$' % pattern
-      if not re.match(pattern, actual):
-        return True
-    return False
-
-  def _ignore_line(self, string):
-    """Ignore empty lines, valgrind output, Android output."""
-    return (
-      not string or
-      not string.strip() or
-      string.startswith("==") or
-      string.startswith("**") or
-      string.startswith("ANDROID")
-    )
+    return message.OutProc(self.expected_outcomes,
+                           os.path.join(self.suite.root, self.path),
+                           self._expected_fail())
 
 
 def GetSuite(name, root):

@@ -31,6 +31,7 @@ import os
 import re
 import shutil
 import sys
+import traceback
 
 from . import command
 from . import perfdata
@@ -51,7 +52,7 @@ ProcessContext = collections.namedtuple(
 
 
 TestJobResult = collections.namedtuple(
-    'TestJobResult', ['id', 'output'])
+    'TestJobResult', ['id', 'outproc_result'])
 
 def MakeProcessContext(sancov_dir):
   return ProcessContext(sancov_dir)
@@ -74,9 +75,10 @@ class Job(object):
 
 
 class TestJob(Job):
-  def __init__(self, test_id, cmd, run_num):
+  def __init__(self, test_id, cmd, outproc, run_num):
     self.test_id = test_id
     self.cmd = cmd
+    self.outproc = outproc
     self.run_num = run_num
 
   def _rename_coverage_data(self, out, sancov_dir):
@@ -105,20 +107,21 @@ class TestJob(Job):
         os.rename(sancov_file, new_sancov_file)
 
   def run(self, context):
-    out = self.cmd.execute()
-    self._rename_coverage_data(out, context.sancov_dir)
-    return TestJobResult(self.test_id, out)
+    output = self.cmd.execute()
+    self._rename_coverage_data(output, context.sancov_dir)
+    return TestJobResult(self.test_id, self.outproc.process(output))
 
 
 class Runner(object):
 
-  def __init__(self, suites, progress_indicator, context):
+  def __init__(self, suites, progress_indicator, context, outproc_factory=None):
     self.datapath = os.path.join("out", "testrunner_data")
     self.perf_data_manager = perfdata.GetPerfDataManager(
         context, self.datapath)
     self.perfdata = self.perf_data_manager.GetStore(context.arch, context.mode)
     self.perf_failures = False
     self.printed_allocations = False
+    self.outproc_factory = outproc_factory or (lambda test: test.output_proc)
     self.tests = [t for s in suites for t in s.tests]
 
     # TODO(majeski): Pass dynamically instead of keeping them in the runner.
@@ -159,7 +162,7 @@ class Runner(object):
       print("PerfData exception: %s" % e)
       self.perf_failures = True
 
-  def _MaybeRerun(self, pool, test, job_result):
+  def _MaybeRerun(self, pool, test, result):
     if test.run <= self.context.rerun_failures_count:
       # Possibly rerun this test if its run count is below the maximum per
       # test. <= as the flag controls reruns not including the first run.
@@ -172,23 +175,24 @@ class Runner(object):
           # reached.
           return
       if (test.run >= 2 and
-          job_result.output.duration > self.context.timeout / 20.0):
+          result.output.duration > self.context.timeout / 20.0):
         # Rerun slow tests at most once.
         return
 
       # Rerun this test.
       test.run += 1
-      pool.add([TestJob(test.id, test.cmd, test.run)])
+      pool.add([
+          TestJob(test.id, test.cmd, self.outproc_factory(test), test.run)
+      ])
       self.remaining += 1
       self.total += 1
 
-  def _ProcessTest(self, test, job_result, pool):
-    self.outputs[test] = job_result.output
-    has_unexpected_output = test.suite.HasUnexpectedOutput(
-        test, job_result.output, self.context)
+  def _ProcessTest(self, test, result, pool):
+    self.outputs[test] = result.output
+    has_unexpected_output = result.has_unexpected_output
     if has_unexpected_output:
       self.failed.append(test)
-      if job_result.output.HasCrashed():
+      if result.output.HasCrashed():
         self.crashed += 1
     else:
       self.succeeded += 1
@@ -196,12 +200,12 @@ class Runner(object):
     # For the indicator, everything that happens after the first run is treated
     # as unexpected even if it flakily passes in order to include it in the
     # output.
-    self.indicator.HasRun(test, job_result.output,
+    self.indicator.HasRun(test, result.output,
                           has_unexpected_output or test.run > 1)
     if has_unexpected_output:
       # Rerun test failures after the indicator has processed the results.
       self._VerbosePrint("Attempting to rerun test after failure.")
-      self._MaybeRerun(pool, test, job_result)
+      self._MaybeRerun(pool, test, result)
     # Update the perf database if the test succeeded.
     return not has_unexpected_output
 
@@ -224,11 +228,13 @@ class Runner(object):
         assert test.id >= 0
         test_map[test.id] = test
         try:
-          yield [TestJob(test.id, test.cmd, test.run)]
+          yield [
+              TestJob(test.id, test.cmd, self.outproc_factory(test), test.run)
+          ]
         except Exception, e:
           # If this failed, save the exception and re-raise it later (after
           # all other tests have had a chance to run).
-          queued_exception[0] = e
+          queued_exception[0] = e, traceback.format_exc()
           continue
     try:
       it = pool.imap_unordered(
@@ -243,12 +249,19 @@ class Runner(object):
           continue
 
         job_result = result.value
+        test_id = job_result.id
+        outproc_result = job_result.outproc_result
 
-        test = test_map[job_result.id]
-        update_perf = self._ProcessTest(test, job_result, pool)
+        test = test_map[test_id]
+        update_perf = self._ProcessTest(test, outproc_result, pool)
         if update_perf:
           self._RunPerfSafe(lambda: self.perfdata.UpdatePerfData(
-              test, job_result.output.duration))
+              test, outproc_result.output.duration))
+    except KeyboardInterrupt:
+      raise
+    except:
+      traceback.print_exc()
+      raise
     finally:
       self._VerbosePrint("Closing process pool.")
       pool.terminate()
@@ -260,7 +273,9 @@ class Runner(object):
         print "Deleting perf test data due to db corruption."
         shutil.rmtree(self.datapath)
     if queued_exception[0]:
-      raise queued_exception[0]
+      e, stacktrace = queued_exception[0]
+      print stacktrace
+      raise e
 
   def _VerbosePrint(self, text):
     if self.context.verbose:

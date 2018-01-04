@@ -33,12 +33,13 @@ import re
 import sys
 import tarfile
 
-
 from testrunner.local import statusfile
 from testrunner.local import testsuite
 from testrunner.local import utils
-from testrunner.objects import outproc
 from testrunner.objects import testcase
+from testrunner.outproc import base as outproc
+from testrunner.outproc import test262
+
 
 # TODO(littledan): move the flag mapping into the status file
 FEATURE_FLAGS = {
@@ -246,57 +247,13 @@ class TestCase(testcase.TestCase):
   @property
   def output_proc(self):
     if self._expected_exception is not None:
-      return ExceptionOutProc(self.expected_outcomes, self._expected_exception)
+      return test262.ExceptionOutProc(self.expected_outcomes,
+                                      self._expected_exception)
     if self.expected_outcomes == outproc.OUTCOMES_PASS:
-      return PASS_NO_EXCEPTION
-    return NoExceptionOutProc(self.expected_outcomes)
+      return test262.PASS_NO_EXCEPTION
+    return test262.NoExceptionOutProc(self.expected_outcomes)
 
 
-class ExceptionOutProc(outproc.OutProc):
-  """Output processor for tests with expected exception."""
-  def __init__(self, expected_outcomes, expected_exception=None):
-    super(ExceptionOutProc, self).__init__(expected_outcomes)
-    self._expected_exception = expected_exception
-
-  def _is_failure_output(self, output):
-    if output.exit_code != 0:
-      return True
-    if self._expected_exception != self._parse_exception(output.stdout):
-      return True
-    return 'FAILED!' in output.stdout
-
-  def _parse_exception(self, string):
-    # somefile:somelinenumber: someerror[: sometext]
-    # somefile might include an optional drive letter on windows e.g. "e:".
-    match = re.search(
-        '^(?:\w:)?[^:]*:[0-9]+: ([^: ]+?)($|: )', string, re.MULTILINE)
-    if match:
-      return match.group(1).strip()
-    else:
-      return None
-
-
-def _is_failure_output(self, output):
-  return (
-    output.exit_code != 0 or
-    'FAILED!' in output.stdout
-  )
-
-
-class NoExceptionOutProc(outproc.OutProc):
-  """Output processor optimized for tests without expected exception."""
-NoExceptionOutProc._is_failure_output = _is_failure_output
-
-
-class PassNoExceptionOutProc(outproc.PassOutProc):
-  """
-  Output processor optimized for tests expected to PASS without expected
-  exception.
-  """
-PassNoExceptionOutProc._is_failure_output = _is_failure_output
-
-
-PASS_NO_EXCEPTION = PassNoExceptionOutProc()
 
 
 def GetSuite(name, root):

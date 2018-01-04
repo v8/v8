@@ -2,6 +2,7 @@
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
+import collections
 import itertools
 
 from ..local import statusfile
@@ -10,8 +11,13 @@ from ..local import statusfile
 OUTCOMES_PASS = [statusfile.PASS]
 OUTCOMES_FAIL = [statusfile.FAIL]
 
+Result = collections.namedtuple('Result', ['has_unexpected_output', 'output'])
+
 
 class BaseOutProc(object):
+  def process(self, output):
+    return Result(self.has_unexpected_output(output), output)
+
   def has_unexpected_output(self, output):
     return self.get_outcome(output) not in self.expected_outcomes
 
@@ -43,12 +49,10 @@ class BaseOutProc(object):
     raise NotImplementedError()
 
 
-def negative(cls):
-  class Neg(cls):
-    @property
-    def negative(self):
-      return True
-  return Neg
+class Negative(object):
+  @property
+  def negative(self):
+    return True
 
 
 class PassOutProc(BaseOutProc):

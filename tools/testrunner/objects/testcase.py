@@ -30,7 +30,7 @@ import os
 import re
 import shlex
 
-from . import outproc
+from ..outproc import base as outproc
 from ..local import command
 from ..local import statusfile
 from ..local import utils

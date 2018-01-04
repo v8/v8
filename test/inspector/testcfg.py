@@ -6,8 +6,8 @@ import os
 
 from testrunner.local import testsuite
 from testrunner.local import utils
-from testrunner.objects import outproc
 from testrunner.objects import testcase
+from testrunner.outproc import base as outproc
 
 PROTOCOL_TEST_JS = "protocol-test.js"
 EXPECTED_SUFFIX = "-expected.txt"
