@@ -1490,7 +1490,8 @@ MaybeHandle<SharedFunctionInfo> Compiler::GetSharedFunctionInfoForScript(
   Isolate* isolate = source->GetIsolate();
   ScriptCompileTimerScope compile_timer(isolate, no_cache_reason);
 
-  if (compile_options == ScriptCompiler::kNoCompileOptions) {
+  if (compile_options == ScriptCompiler::kNoCompileOptions ||
+      compile_options == ScriptCompiler::kEagerCompile) {
     cached_data = nullptr;
   } else if (compile_options == ScriptCompiler::kProduceParserCache ||
              ShouldProduceCodeCache(compile_options)) {
