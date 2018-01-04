@@ -22,7 +22,7 @@ def get_outproc(test):
 
 
 class OutProc(outproc_base.BaseOutProc):
-  """Output processor wrapper for predictable mode. It has custom
+  """Output processor wrapper for predictable mode. It has custom process and
   has_unexpected_output implementation, but for all other methods it simply
   calls wrapped output processor.
   """
@@ -31,7 +31,7 @@ class OutProc(outproc_base.BaseOutProc):
     self._outproc = _outproc
 
   def process(self, output):
-    return self._outproc.process(output)
+    return outproc_base.Result(self.has_unexpected_output(output), output)
 
   def has_unexpected_output(self, output):
     return output.exit_code != 0
