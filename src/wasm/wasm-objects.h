@@ -14,6 +14,7 @@
 #include "src/wasm/decoder.h"
 #include "src/wasm/wasm-interpreter.h"
 #include "src/wasm/wasm-limits.h"
+#include "src/wasm/wasm-module.h"
 
 #include "src/heap/heap.h"
 
@@ -69,7 +70,7 @@ struct WasmContext {
 
   inline void SetRawMemory(void* mem_start, size_t mem_size) {
     DCHECK_LE(mem_size,
-              wasm::kV8MaxWasmMemoryPages * wasm::kSpecMaxWasmMemoryPages);
+              wasm::kV8MaxWasmMemoryPages * wasm::WasmModule::kPageSize);
     this->mem_start = static_cast<byte*>(mem_start);
     this->mem_size = static_cast<uint32_t>(mem_size);
     this->mem_mask = base::bits::RoundUpToPowerOfTwo32(this->mem_size) - 1;
