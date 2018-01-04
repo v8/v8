@@ -194,6 +194,8 @@ class GraphAssembler {
   // Debugging
   Node* DebugBreak();
 
+  Node* Unreachable();
+
   Node* Float64RoundDown(Node* value);
 
   Node* ToNumber(Node* value);

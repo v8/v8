@@ -342,6 +342,8 @@ ArgumentsStateType ArgumentsStateTypeOf(Operator const*) WARN_UNUSED_RESULT;
 
 uint32_t ObjectIdOf(Operator const*);
 
+MachineRepresentation DeadValueRepresentationOf(Operator const*);
+
 // Interface for building common operators that can be used at any level of IR,
 // including JavaScript, mid-level, and low-level.
 class V8_EXPORT_PRIVATE CommonOperatorBuilder final
@@ -350,7 +352,7 @@ class V8_EXPORT_PRIVATE CommonOperatorBuilder final
   explicit CommonOperatorBuilder(Zone* zone);
 
   const Operator* Dead();
-  const Operator* DeadValue();
+  const Operator* DeadValue(MachineRepresentation rep);
   const Operator* Unreachable();
   const Operator* End(size_t control_input_count);
   const Operator* Branch(BranchHint = BranchHint::kNone);

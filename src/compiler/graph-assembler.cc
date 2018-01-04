@@ -134,6 +134,11 @@ Node* GraphAssembler::DebugBreak() {
                                             current_effect_, current_control_);
 }
 
+Node* GraphAssembler::Unreachable() {
+  return current_effect_ = graph()->NewNode(common()->Unreachable(),
+                                            current_effect_, current_control_);
+}
+
 Node* GraphAssembler::Store(StoreRepresentation rep, Node* object, Node* offset,
                             Node* value) {
   return current_effect_ =

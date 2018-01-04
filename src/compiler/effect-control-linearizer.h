@@ -113,6 +113,7 @@ class V8_EXPORT_PRIVATE EffectControlLinearizer {
   Node* LowerNewConsString(Node* node);
   Node* LowerArrayBufferWasNeutered(Node* node);
   Node* LowerSameValue(Node* node);
+  Node* LowerDeadValue(Node* node);
   Node* LowerStringToNumber(Node* node);
   Node* LowerStringCharAt(Node* node);
   Node* LowerStringCharCodeAt(Node* node);
