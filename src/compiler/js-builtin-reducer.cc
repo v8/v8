@@ -109,18 +109,6 @@ JSBuiltinReducer::JSBuiltinReducer(Editor* editor, JSGraph* jsgraph,
 
 namespace {
 
-MaybeHandle<Map> GetMapWitness(Node* node) {
-  ZoneHandleSet<Map> maps;
-  Node* receiver = NodeProperties::GetValueInput(node, 1);
-  Node* effect = NodeProperties::GetEffectInput(node);
-  NodeProperties::InferReceiverMapsResult result =
-      NodeProperties::InferReceiverMaps(receiver, effect, &maps);
-  if (result == NodeProperties::kReliableReceiverMaps && maps.size() == 1) {
-    return maps[0];
-  }
-  return MaybeHandle<Map>();
-}
-
 Maybe<InstanceType> GetInstanceTypeWitness(Node* node) {
   ZoneHandleSet<Map> maps;
   Node* receiver = NodeProperties::GetValueInput(node, 1);
@@ -174,7 +162,7 @@ bool CanInlineJSArrayIteration(Handle<Map> receiver_map) {
 Reduction JSBuiltinReducer::ReduceArrayIterator(Node* node,
                                                 IterationKind kind) {
   Handle<Map> receiver_map;
-  if (GetMapWitness(node).ToHandle(&receiver_map)) {
+  if (NodeProperties::GetMapWitness(node).ToHandle(&receiver_map)) {
     return ReduceArrayIterator(receiver_map, node, kind,
                                ArrayIteratorKind::kArray);
   }
@@ -184,7 +172,7 @@ Reduction JSBuiltinReducer::ReduceArrayIterator(Node* node,
 Reduction JSBuiltinReducer::ReduceTypedArrayIterator(Node* node,
                                                      IterationKind kind) {
   Handle<Map> receiver_map;
-  if (GetMapWitness(node).ToHandle(&receiver_map) &&
+  if (NodeProperties::GetMapWitness(node).ToHandle(&receiver_map) &&
       receiver_map->instance_type() == JS_TYPED_ARRAY_TYPE) {
     return ReduceArrayIterator(receiver_map, node, kind,
                                ArrayIteratorKind::kTypedArray);

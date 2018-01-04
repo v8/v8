@@ -3366,18 +3366,6 @@ bool CanInlineArrayResizeOperation(Handle<Map> receiver_map) {
          !IsReadOnlyLengthDescriptor(receiver_map);
 }
 
-MaybeHandle<Map> GetMapWitness(Node* node) {
-  ZoneHandleSet<Map> maps;
-  Node* receiver = NodeProperties::GetValueInput(node, 1);
-  Node* effect = NodeProperties::GetEffectInput(node);
-  NodeProperties::InferReceiverMapsResult result =
-      NodeProperties::InferReceiverMaps(receiver, effect, &maps);
-  if (result == NodeProperties::kReliableReceiverMaps && maps.size() == 1) {
-    return maps[0];
-  }
-  return MaybeHandle<Map>();
-}
-
 }  // namespace
 
 // ES6 section 22.1.3.18 Array.prototype.push ( )
@@ -3500,7 +3488,7 @@ Reduction JSCallReducer::ReduceArrayPrototypePop(Node* node) {
   Node* control = NodeProperties::GetControlInput(node);
   // TODO(turbofan): Extend this to also handle fast holey double elements
   // once we got the hole NaN mess sorted out in TurboFan/V8.
-  if (GetMapWitness(node).ToHandle(&receiver_map) &&
+  if (NodeProperties::GetMapWitness(node).ToHandle(&receiver_map) &&
       CanInlineArrayResizeOperation(receiver_map) &&
       receiver_map->elements_kind() != HOLEY_DOUBLE_ELEMENTS) {
     // Install code dependencies on the {receiver} prototype maps and the
@@ -3597,7 +3585,7 @@ Reduction JSCallReducer::ReduceArrayPrototypeShift(Node* node) {
   // TODO(turbofan): Extend this to also handle fast holey double elements
   // once we got the hole NaN mess sorted out in TurboFan/V8.
   Handle<Map> receiver_map;
-  if (GetMapWitness(node).ToHandle(&receiver_map) &&
+  if (NodeProperties::GetMapWitness(node).ToHandle(&receiver_map) &&
       CanInlineArrayResizeOperation(receiver_map) &&
       receiver_map->elements_kind() != HOLEY_DOUBLE_ELEMENTS) {
     // Install code dependencies on the {receiver} prototype maps and the
