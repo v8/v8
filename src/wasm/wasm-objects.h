@@ -5,7 +5,6 @@
 #ifndef V8_WASM_OBJECTS_H_
 #define V8_WASM_OBJECTS_H_
 
-#include "src/base/bits.h"
 #include "src/debug/debug.h"
 #include "src/debug/interface-types.h"
 #include "src/managed.h"
@@ -13,7 +12,6 @@
 #include "src/objects/script.h"
 #include "src/wasm/decoder.h"
 #include "src/wasm/wasm-limits.h"
-#include "src/wasm/wasm-module.h"
 
 #include "src/heap/heap.h"
 
@@ -61,23 +59,10 @@ class WasmInstanceObject;
 // grow_memory). The address of the WasmContext is provided to the wasm entry
 // functions using a RelocatableIntPtrConstant, then the address is passed as
 // parameter to the other wasm functions.
-// Note that generated code can directly read from instances of this struct.
 struct WasmContext {
-  byte* mem_start = nullptr;
-  uint32_t mem_size = 0;  // TODO(titzer): uintptr_t?
-  uint32_t mem_mask = 0;  // TODO(titzer): uintptr_t?
-  byte* globals_start = nullptr;
-
-  inline void SetRawMemory(void* mem_start, size_t mem_size) {
-    static constexpr size_t kMaxMemSize =
-        std::min(wasm::kV8MaxWasmMemoryPages, wasm::kSpecMaxWasmMemoryPages) *
-        wasm::WasmModule::kPageSize;
-    DCHECK_LE(mem_size, kMaxMemSize);
-    this->mem_start = static_cast<byte*>(mem_start);
-    this->mem_size = static_cast<uint32_t>(mem_size);
-    this->mem_mask = base::bits::RoundUpToPowerOfTwo32(this->mem_size) - 1;
-    DCHECK_LE(mem_size, this->mem_mask + 1);
-  }
+  byte* mem_start;
+  uint32_t mem_size;
+  byte* globals_start;
 };
 
 // Representation of a WebAssembly.Module JavaScript-level object.

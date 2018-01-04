@@ -37,7 +37,8 @@ struct SsaEnv {
   State state;
   TFNode* control;
   TFNode* effect;
-  compiler::WasmContextCacheNodes context_cache;
+  TFNode* mem_size;
+  TFNode* mem_start;
   TFNode** locals;
 
   bool go() { return state >= kReached; }
@@ -46,7 +47,8 @@ struct SsaEnv {
     locals = nullptr;
     control = nullptr;
     effect = nullptr;
-    context_cache = {0};
+    mem_size = nullptr;
+    mem_start = nullptr;
   }
   void SetNotMerged() {
     if (state == kMerged) state = kReached;
@@ -92,7 +94,8 @@ class WasmGraphBuildingInterface {
     SsaEnv* ssa_env =
         reinterpret_cast<SsaEnv*>(decoder->zone()->New(sizeof(SsaEnv)));
     uint32_t num_locals = decoder->NumLocals();
-    uint32_t env_count = num_locals;
+    // The '+ 2' here is to accommodate for mem_size and mem_start nodes.
+    uint32_t env_count = num_locals + 2;
     size_t size = sizeof(TFNode*) * env_count;
     ssa_env->state = SsaEnv::kReached;
     ssa_env->locals =
@@ -125,15 +128,20 @@ class WasmGraphBuildingInterface {
     // Initialize effect and control before loading the context.
     builder_->set_effect_ptr(&ssa_env->effect);
     builder_->set_control_ptr(&ssa_env->control);
+    // Always load mem_size and mem_start from the WasmContext into the ssa.
     LoadContextIntoSsa(ssa_env);
     SetEnv(ssa_env);
   }
 
   // Reload the wasm context variables from the WasmContext structure attached
-  // to the memory object into the Ssa Environment.
+  // to the memory object into the Ssa Environment. This does not automatically
+  // set the mem_size_ and mem_start_ pointers in WasmGraphBuilder.
   void LoadContextIntoSsa(SsaEnv* ssa_env) {
     if (!ssa_env || !ssa_env->go()) return;
-    builder_->InitContextCache(&ssa_env->context_cache);
+    DCHECK_NOT_NULL(builder_->Effect());
+    DCHECK_NOT_NULL(builder_->Control());
+    ssa_env->mem_size = builder_->LoadMemSize();
+    ssa_env->mem_start = builder_->LoadMemStart();
   }
 
   void StartFunctionBody(Decoder* decoder, Control* block) {
@@ -360,7 +368,7 @@ class WasmGraphBuildingInterface {
 
   void GrowMemory(Decoder* decoder, const Value& value, Value* result) {
     result->node = BUILD(GrowMemory, value.node);
-    // Always reload the context cache after growing memory.
+    // Reload mem_size and mem_start after growing memory.
     LoadContextIntoSsa(ssa_env_);
   }
 
@@ -543,10 +551,13 @@ class WasmGraphBuildingInterface {
     }
 #endif
     ssa_env_ = env;
-    // TODO(wasm): combine the control and effect pointers with context cache.
+    // TODO(wasm): Create a WasmEnv class with control, effect, mem_size and
+    // mem_start. SsaEnv can inherit from it. This way WasmEnv can be passed
+    // directly to WasmGraphBuilder instead of always copying four pointers.
     builder_->set_control_ptr(&env->control);
     builder_->set_effect_ptr(&env->effect);
-    builder_->set_context_cache(&env->context_cache);
+    builder_->set_mem_size(&env->mem_size);
+    builder_->set_mem_start(&env->mem_start);
   }
 
   TFNode* CheckForException(Decoder* decoder, TFNode* node) {
@@ -576,8 +587,8 @@ class WasmGraphBuildingInterface {
     } else {
       DCHECK_EQ(SsaEnv::kMerged, try_info->catch_env->state);
       try_info->exception =
-          builder_->CreateOrMergeIntoPhi(kWasmI32, try_info->catch_env->control,
-                                         try_info->exception, if_exception);
+          CreateOrMergeIntoPhi(kWasmI32, try_info->catch_env->control,
+                               try_info->exception, if_exception);
     }
 
     SetEnv(success_env);
@@ -618,8 +629,8 @@ class WasmGraphBuildingInterface {
       DCHECK_NOT_NULL(val.node);
       DCHECK(val.type == old.type || val.type == kWasmVar);
       old.node = first ? val.node
-                       : builder_->CreateOrMergeIntoPhi(
-                             old.type, target->control, old.node, val.node);
+                       : CreateOrMergeIntoPhi(old.type, target->control,
+                                              old.node, val.node);
     }
   }
 
@@ -632,7 +643,8 @@ class WasmGraphBuildingInterface {
         to->locals = from->locals;
         to->control = from->control;
         to->effect = from->effect;
-        to->context_cache = from->context_cache;
+        to->mem_size = from->mem_size;
+        to->mem_start = from->mem_start;
         break;
       }
       case SsaEnv::kReached: {  // Create a new merge.
@@ -656,32 +668,67 @@ class WasmGraphBuildingInterface {
                 builder_->Phi(decoder->GetLocalType(i), 2, vals, merge);
           }
         }
-        // Start a new merge from the context cache.
-        builder_->NewContextCacheMerge(&to->context_cache, &from->context_cache,
-                                       merge);
+        // Merge mem_size and mem_start.
+        if (to->mem_size != from->mem_size) {
+          TFNode* vals[] = {to->mem_size, from->mem_size};
+          to->mem_size =
+              builder_->Phi(MachineRepresentation::kWord32, 2, vals, merge);
+        }
+        if (to->mem_start != from->mem_start) {
+          TFNode* vals[] = {to->mem_start, from->mem_start};
+          to->mem_start = builder_->Phi(MachineType::PointerRepresentation(), 2,
+                                        vals, merge);
+        }
         break;
       }
       case SsaEnv::kMerged: {
         TFNode* merge = to->control;
-        // Extend the existing merge control node.
+        // Extend the existing merge.
         builder_->AppendToMerge(merge, from->control);
         // Merge effects.
-        to->effect = builder_->CreateOrMergeIntoEffectPhi(merge, to->effect,
-                                                          from->effect);
+        if (builder_->IsPhiWithMerge(to->effect, merge)) {
+          builder_->AppendToPhi(to->effect, from->effect);
+        } else if (to->effect != from->effect) {
+          uint32_t count = builder_->InputCount(merge);
+          TFNode** effects = builder_->Buffer(count);
+          for (uint32_t j = 0; j < count - 1; j++) {
+            effects[j] = to->effect;
+          }
+          effects[count - 1] = from->effect;
+          to->effect = builder_->EffectPhi(count, effects, merge);
+        }
         // Merge locals.
         for (int i = decoder->NumLocals() - 1; i >= 0; i--) {
-          to->locals[i] = builder_->CreateOrMergeIntoPhi(
-              decoder->GetLocalType(i), merge, to->locals[i], from->locals[i]);
+          to->locals[i] = CreateOrMergeIntoPhi(decoder->GetLocalType(i), merge,
+                                               to->locals[i], from->locals[i]);
         }
-        // Merge the context caches.
-        builder_->MergeContextCacheInto(&to->context_cache,
-                                        &from->context_cache, merge);
+        // Merge mem_size and mem_start.
+        to->mem_size =
+            CreateOrMergeIntoPhi(MachineRepresentation::kWord32, merge,
+                                 to->mem_size, from->mem_size);
+        to->mem_start =
+            CreateOrMergeIntoPhi(MachineType::PointerRepresentation(), merge,
+                                 to->mem_start, from->mem_start);
         break;
       }
       default:
         UNREACHABLE();
     }
     return from->Kill();
+  }
+
+  TFNode* CreateOrMergeIntoPhi(ValueType type, TFNode* merge, TFNode* tnode,
+                               TFNode* fnode) {
+    if (builder_->IsPhiWithMerge(tnode, merge)) {
+      builder_->AppendToPhi(tnode, fnode);
+    } else if (tnode != fnode) {
+      uint32_t count = builder_->InputCount(merge);
+      TFNode** vals = builder_->Buffer(count);
+      for (uint32_t j = 0; j < count - 1; j++) vals[j] = tnode;
+      vals[count - 1] = fnode;
+      return builder_->Phi(type, count, vals, merge);
+    }
+    return tnode;
   }
 
   SsaEnv* PrepareForLoop(Decoder* decoder, SsaEnv* env) {
@@ -691,21 +738,27 @@ class WasmGraphBuildingInterface {
     env->control = builder_->Loop(env->control);
     env->effect = builder_->EffectPhi(1, &env->effect, env->control);
     builder_->Terminate(env->effect, env->control);
-    // The '+ 1' here is to be able to set the context cache as assigned.
+    // The '+ 2' here is to be able to set mem_size and mem_start as assigned.
     BitVector* assigned = WasmDecoder<validate>::AnalyzeLoopAssignment(
-        decoder, decoder->pc(), decoder->total_locals() + 1, decoder->zone());
+        decoder, decoder->pc(), decoder->total_locals() + 2, decoder->zone());
     if (decoder->failed()) return env;
     if (assigned != nullptr) {
       // Only introduce phis for variables assigned in this loop.
-      int context_cache_index = decoder->total_locals();
+      int mem_size_index = decoder->total_locals();
+      int mem_start_index = decoder->total_locals() + 1;
       for (int i = decoder->NumLocals() - 1; i >= 0; i--) {
         if (!assigned->Contains(i)) continue;
         env->locals[i] = builder_->Phi(decoder->GetLocalType(i), 1,
                                        &env->locals[i], env->control);
       }
-      // Introduce phis for context cache pointers if necessary.
-      if (assigned->Contains(context_cache_index)) {
-        builder_->PrepareContextCacheForLoop(&env->context_cache, env->control);
+      // Introduce phis for mem_size and mem_start if necessary.
+      if (assigned->Contains(mem_size_index)) {
+        env->mem_size = builder_->Phi(MachineRepresentation::kWord32, 1,
+                                      &env->mem_size, env->control);
+      }
+      if (assigned->Contains(mem_start_index)) {
+        env->mem_start = builder_->Phi(MachineType::PointerRepresentation(), 1,
+                                       &env->mem_start, env->control);
       }
 
       SsaEnv* loop_body_env = Split(decoder, env);
@@ -720,8 +773,11 @@ class WasmGraphBuildingInterface {
                                      &env->locals[i], env->control);
     }
 
-    // Conservatively introduce phis for context cache.
-    builder_->PrepareContextCacheForLoop(&env->context_cache, env->control);
+    // Conservatively introduce phis for mem_size and mem_start.
+    env->mem_size = builder_->Phi(MachineRepresentation::kWord32, 1,
+                                  &env->mem_size, env->control);
+    env->mem_start = builder_->Phi(MachineType::PointerRepresentation(), 1,
+                                   &env->mem_start, env->control);
 
     SsaEnv* loop_body_env = Split(decoder, env);
     builder_->StackCheck(decoder->position(), &loop_body_env->effect,
@@ -735,7 +791,7 @@ class WasmGraphBuildingInterface {
     SsaEnv* result =
         reinterpret_cast<SsaEnv*>(decoder->zone()->New(sizeof(SsaEnv)));
     // The '+ 2' here is to accommodate for mem_size and mem_start nodes.
-    size_t size = sizeof(TFNode*) * (decoder->NumLocals());
+    size_t size = sizeof(TFNode*) * (decoder->NumLocals() + 2);
     result->control = from->control;
     result->effect = from->effect;
 
@@ -745,11 +801,13 @@ class WasmGraphBuildingInterface {
           size > 0 ? reinterpret_cast<TFNode**>(decoder->zone()->New(size))
                    : nullptr;
       memcpy(result->locals, from->locals, size);
-      result->context_cache = from->context_cache;
+      result->mem_size = from->mem_size;
+      result->mem_start = from->mem_start;
     } else {
       result->state = SsaEnv::kUnreachable;
       result->locals = nullptr;
-      result->context_cache = {0};
+      result->mem_size = nullptr;
+      result->mem_start = nullptr;
     }
 
     return result;
@@ -765,7 +823,8 @@ class WasmGraphBuildingInterface {
     result->locals = from->locals;
     result->control = from->control;
     result->effect = from->effect;
-    result->context_cache = from->context_cache;
+    result->mem_size = from->mem_size;
+    result->mem_start = from->mem_start;
     from->Kill(SsaEnv::kUnreachable);
     return result;
   }
@@ -777,7 +836,8 @@ class WasmGraphBuildingInterface {
     result->control = nullptr;
     result->effect = nullptr;
     result->locals = nullptr;
-    result->context_cache = {0};
+    result->mem_size = nullptr;
+    result->mem_start = nullptr;
     return result;
   }
 
