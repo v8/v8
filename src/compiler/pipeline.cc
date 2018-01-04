@@ -1372,8 +1372,9 @@ struct EffectControlLinearizationPhase {
       // - get rid of the region markers,
       // - introduce effect phis and rewire effects to get SSA again.
       EffectControlLinearizer::MaskArrayIndexEnable mask_array_index =
-          FLAG_mask_array_index ? EffectControlLinearizer::kMaskArrayIndex
-                                : EffectControlLinearizer::kDoNotMaskArrayIndex;
+          data->info()->has_untrusted_code_mitigations()
+              ? EffectControlLinearizer::kMaskArrayIndex
+              : EffectControlLinearizer::kDoNotMaskArrayIndex;
       EffectControlLinearizer linearizer(data->jsgraph(), schedule, temp_zone,
                                          data->source_positions(),
                                          mask_array_index);
