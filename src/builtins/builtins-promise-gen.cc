@@ -1118,8 +1118,8 @@ TF_BUILTIN(PromiseInternalConstructor, PromiseBuiltinsAssembler) {
 }
 
 // ES#sec-promise.prototype.then
-// Promise.prototype.catch ( onFulfilled, onRejected )
-TF_BUILTIN(PromiseThen, PromiseBuiltinsAssembler) {
+// Promise.prototype.then ( onFulfilled, onRejected )
+TF_BUILTIN(PromisePrototypeThen, PromiseBuiltinsAssembler) {
   // 1. Let promise be the this value.
   Node* const promise = Parameter(Descriptor::kReceiver);
   Node* const on_resolve = Parameter(Descriptor::kOnFullfilled);
@@ -1306,7 +1306,7 @@ TF_BUILTIN(PromiseHandleJS, PromiseBuiltinsAssembler) {
 
 // ES#sec-promise.prototype.catch
 // Promise.prototype.catch ( onRejected )
-TF_BUILTIN(PromiseCatch, PromiseBuiltinsAssembler) {
+TF_BUILTIN(PromisePrototypeCatch, PromiseBuiltinsAssembler) {
   // 1. Let promise be the this value.
   Node* const promise = Parameter(Descriptor::kReceiver);
   Node* const on_resolve = UndefinedConstant();
@@ -1661,7 +1661,7 @@ TF_BUILTIN(PromiseCatchFinally, PromiseBuiltinsAssembler) {
   Return(result_promise);
 }
 
-TF_BUILTIN(PromiseFinally, PromiseBuiltinsAssembler) {
+TF_BUILTIN(PromisePrototypeFinally, PromiseBuiltinsAssembler) {
   CSA_ASSERT_JS_ARGC_EQ(this, 1);
 
   // 1.  Let promise be the this value.

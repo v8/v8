@@ -1782,13 +1782,13 @@ void Debug::RunPromiseHook(PromiseHookType hook_type, Handle<JSPromise> promise,
         if (*code == *BUILTIN_CODE(isolate_, AsyncFunctionPromiseCreate)) {
           type = debug::kDebugAsyncFunctionPromiseCreated;
           last_frame_was_promise_builtin = true;
-        } else if (*code == *BUILTIN_CODE(isolate_, PromiseThen)) {
+        } else if (*code == *BUILTIN_CODE(isolate_, PromisePrototypeThen)) {
           type = debug::kDebugPromiseThen;
           last_frame_was_promise_builtin = true;
-        } else if (*code == *BUILTIN_CODE(isolate_, PromiseCatch)) {
+        } else if (*code == *BUILTIN_CODE(isolate_, PromisePrototypeCatch)) {
           type = debug::kDebugPromiseCatch;
           last_frame_was_promise_builtin = true;
-        } else if (*code == *BUILTIN_CODE(isolate_, PromiseFinally)) {
+        } else if (*code == *BUILTIN_CODE(isolate_, PromisePrototypeFinally)) {
           type = debug::kDebugPromiseFinally;
           last_frame_was_promise_builtin = true;
         }

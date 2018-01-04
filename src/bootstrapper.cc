@@ -2374,11 +2374,11 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
 
     Handle<JSFunction> promise_then =
         SimpleInstallFunction(prototype, isolate->factory()->then_string(),
-                              Builtins::kPromiseThen, 2, true);
+                              Builtins::kPromisePrototypeThen, 2, true);
     native_context()->set_promise_then(*promise_then);
 
     Handle<JSFunction> promise_catch = SimpleInstallFunction(
-        prototype, "catch", Builtins::kPromiseCatch, 1, true);
+        prototype, "catch", Builtins::kPromisePrototypeCatch, 1, true);
     native_context()->set_promise_catch(*promise_catch);
 
     // Force the Promise constructor to fast properties, so that we can use the
@@ -4388,8 +4388,8 @@ void Genesis::InitializeGlobal_harmony_promise_finally() {
 
   Handle<JSFunction> constructor(native_context()->promise_function());
   Handle<JSObject> prototype(JSObject::cast(constructor->instance_prototype()));
-  SimpleInstallFunction(prototype, "finally", Builtins::kPromiseFinally, 1,
-                        true, DONT_ENUM);
+  SimpleInstallFunction(prototype, "finally",
+                        Builtins::kPromisePrototypeFinally, 1, true, DONT_ENUM);
 
   // The promise prototype map has changed because we added a property
   // to prototype, so we update the saved map.

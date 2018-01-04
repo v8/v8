@@ -808,9 +808,9 @@ namespace internal {
   TFJ(PromiseRejectClosure, 1, kValue)                                         \
   TFJ(PromiseAllResolveElementClosure, 1, kValue)                              \
   /* ES #sec-promise.prototype.then */                                         \
-  TFJ(PromiseThen, 2, kOnFullfilled, kOnRejected)                              \
+  TFJ(PromisePrototypeThen, 2, kOnFullfilled, kOnRejected)                     \
   /* ES #sec-promise.prototype.catch */                                        \
-  TFJ(PromiseCatch, 1, kOnRejected)                                            \
+  TFJ(PromisePrototypeCatch, 1, kOnRejected)                                   \
   /* ES #sec-fulfillpromise */                                                 \
   TFJ(ResolvePromise, 2, kPromise, kValue)                                     \
   TFS(PromiseHandleReject, kPromise, kOnReject, kException)                    \
@@ -824,7 +824,7 @@ namespace internal {
   /* ES #sec-promise.reject */                                                 \
   TFJ(PromiseReject, 1, kReason)                                               \
   TFJ(InternalPromiseReject, 3, kPromise, kReason, kDebugEvent)                \
-  TFJ(PromiseFinally, 1, kOnFinally)                                           \
+  TFJ(PromisePrototypeFinally, 1, kOnFinally)                                  \
   TFJ(PromiseThenFinally, 1, kValue)                                           \
   TFJ(PromiseCatchFinally, 1, kReason)                                         \
   TFJ(PromiseValueThunkFinally, 0)                                             \
