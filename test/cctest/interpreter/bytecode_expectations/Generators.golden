@@ -130,7 +130,7 @@ snippet: "
 "
 frame size: 17
 parameter count: 1
-bytecode array length: 402
+bytecode array length: 388
 bytecodes: [
                 B(Ldar), R(2),
                 B(JumpIfUndefined), U8(18),
@@ -244,15 +244,15 @@ bytecodes: [
                 B(Star), R(13),
                 B(LdaZero),
                 B(TestEqualStrict), R(6), U8(14),
-                B(JumpIfTrue), U8(104),
+                B(JumpIfTrue), U8(90),
                 B(LdaNamedProperty), R(4), U8(14), U8(15),
                 B(Star), R(8),
                 B(TestUndetectable),
                 B(JumpIfFalse), U8(4),
-                B(Jump), U8(93),
+                B(Jump), U8(79),
                 B(LdaSmi), I8(1),
                 B(TestEqualStrict), R(6), U8(17),
-                B(JumpIfFalse), U8(61),
+                B(JumpIfFalse), U8(47),
                 B(Ldar), R(8),
                 B(TestTypeOf), U8(6),
                 B(JumpIfFalse), U8(4),
@@ -267,16 +267,10 @@ bytecodes: [
                 B(Mov), R(8), R(15),
                 B(Mov), R(4), R(16),
                 B(InvokeIntrinsic), U8(Runtime::k_Call), R(15), U8(2),
-                B(Jump), U8(20),
-                B(Star), R(15),
-                B(Ldar), R(closure),
-                B(CreateCatchContext), R(15), U8(12), U8(16),
-                B(Star), R(14),
+                B(Jump), U8(6),
                 B(LdaTheHole),
                 B(SetPendingMessage),
                 B(Ldar), R(14),
-                B(PushContext), R(15),
-                B(PopContext), R(15),
                 B(Jump), U8(27),
                 B(Mov), R(8), R(14),
                 B(Mov), R(4), R(15),
@@ -289,7 +283,7 @@ bytecodes: [
                 B(Ldar), R(13),
                 B(SetPendingMessage),
                 B(Ldar), R(11),
-                B(SwitchOnSmiNoFeedback), U8(17), U8(2), I8(0),
+                B(SwitchOnSmiNoFeedback), U8(16), U8(2), I8(0),
                 B(Jump), U8(8),
                 B(Ldar), R(12),
   /*   44 S> */ B(Return),
@@ -315,7 +309,6 @@ constant pool: [
   FIXED_ARRAY_TYPE,
   ONE_BYTE_INTERNALIZED_STRING_TYPE ["return"],
   ONE_BYTE_INTERNALIZED_STRING_TYPE [""],
-  FIXED_ARRAY_TYPE,
   Smi [6],
   Smi [9],
 ]

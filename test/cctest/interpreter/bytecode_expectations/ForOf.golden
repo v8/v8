@@ -11,7 +11,7 @@ snippet: "
 "
 frame size: 14
 parameter count: 1
-bytecode array length: 262
+bytecode array length: 248
 bytecodes: [
   /*   30 E> */ B(StackCheck),
                 B(LdaZero),
@@ -73,15 +73,15 @@ bytecodes: [
                 B(Star), R(10),
                 B(LdaZero),
                 B(TestEqualStrict), R(4), U8(14),
-                B(JumpIfTrue), U8(104),
+                B(JumpIfTrue), U8(90),
                 B(LdaNamedProperty), R(2), U8(7), U8(15),
                 B(Star), R(6),
                 B(TestUndetectable),
                 B(JumpIfFalse), U8(4),
-                B(Jump), U8(93),
+                B(Jump), U8(79),
                 B(LdaSmi), I8(1),
                 B(TestEqualStrict), R(4), U8(17),
-                B(JumpIfFalse), U8(61),
+                B(JumpIfFalse), U8(47),
                 B(Ldar), R(6),
                 B(TestTypeOf), U8(6),
                 B(JumpIfFalse), U8(4),
@@ -96,16 +96,10 @@ bytecodes: [
                 B(Mov), R(6), R(12),
                 B(Mov), R(2), R(13),
                 B(InvokeIntrinsic), U8(Runtime::k_Call), R(12), U8(2),
-                B(Jump), U8(20),
-                B(Star), R(12),
-                B(Ldar), R(closure),
-                B(CreateCatchContext), R(12), U8(5), U8(9),
-                B(Star), R(11),
+                B(Jump), U8(6),
                 B(LdaTheHole),
                 B(SetPendingMessage),
                 B(Ldar), R(11),
-                B(PushContext), R(12),
-                B(PopContext), R(12),
                 B(Jump), U8(27),
                 B(Mov), R(6), R(11),
                 B(Mov), R(2), R(12),
@@ -135,7 +129,6 @@ constant pool: [
   FIXED_ARRAY_TYPE,
   ONE_BYTE_INTERNALIZED_STRING_TYPE ["return"],
   ONE_BYTE_INTERNALIZED_STRING_TYPE [""],
-  FIXED_ARRAY_TYPE,
 ]
 handlers: [
   [7, 124, 132],
@@ -150,7 +143,7 @@ snippet: "
 "
 frame size: 15
 parameter count: 1
-bytecode array length: 272
+bytecode array length: 258
 bytecodes: [
   /*   30 E> */ B(StackCheck),
   /*   42 S> */ B(LdaConstant), U8(0),
@@ -214,15 +207,15 @@ bytecodes: [
                 B(Star), R(11),
                 B(LdaZero),
                 B(TestEqualStrict), R(5), U8(13),
-                B(JumpIfTrue), U8(104),
+                B(JumpIfTrue), U8(90),
                 B(LdaNamedProperty), R(3), U8(7), U8(14),
                 B(Star), R(7),
                 B(TestUndetectable),
                 B(JumpIfFalse), U8(4),
-                B(Jump), U8(93),
+                B(Jump), U8(79),
                 B(LdaSmi), I8(1),
                 B(TestEqualStrict), R(5), U8(16),
-                B(JumpIfFalse), U8(61),
+                B(JumpIfFalse), U8(47),
                 B(Ldar), R(7),
                 B(TestTypeOf), U8(6),
                 B(JumpIfFalse), U8(4),
@@ -237,16 +230,10 @@ bytecodes: [
                 B(Mov), R(7), R(13),
                 B(Mov), R(3), R(14),
                 B(InvokeIntrinsic), U8(Runtime::k_Call), R(13), U8(2),
-                B(Jump), U8(20),
-                B(Star), R(13),
-                B(Ldar), R(closure),
-                B(CreateCatchContext), R(13), U8(5), U8(9),
-                B(Star), R(12),
+                B(Jump), U8(6),
                 B(LdaTheHole),
                 B(SetPendingMessage),
                 B(Ldar), R(12),
-                B(PushContext), R(13),
-                B(PopContext), R(13),
                 B(Jump), U8(27),
                 B(Mov), R(7), R(12),
                 B(Mov), R(3), R(13),
@@ -259,7 +246,7 @@ bytecodes: [
                 B(Ldar), R(11),
                 B(SetPendingMessage),
                 B(Ldar), R(9),
-                B(SwitchOnSmiNoFeedback), U8(10), U8(2), I8(0),
+                B(SwitchOnSmiNoFeedback), U8(9), U8(2), I8(0),
                 B(Jump), U8(8),
                 B(Ldar), R(10),
   /*   85 S> */ B(Return),
@@ -278,7 +265,6 @@ constant pool: [
   FIXED_ARRAY_TYPE,
   ONE_BYTE_INTERNALIZED_STRING_TYPE ["return"],
   ONE_BYTE_INTERNALIZED_STRING_TYPE [""],
-  FIXED_ARRAY_TYPE,
   Smi [6],
   Smi [9],
 ]
@@ -297,7 +283,7 @@ snippet: "
 "
 frame size: 14
 parameter count: 1
-bytecode array length: 280
+bytecode array length: 266
 bytecodes: [
   /*   30 E> */ B(StackCheck),
                 B(LdaZero),
@@ -367,15 +353,15 @@ bytecodes: [
                 B(Star), R(10),
                 B(LdaZero),
                 B(TestEqualStrict), R(4), U8(16),
-                B(JumpIfTrue), U8(104),
+                B(JumpIfTrue), U8(90),
                 B(LdaNamedProperty), R(2), U8(7), U8(17),
                 B(Star), R(6),
                 B(TestUndetectable),
                 B(JumpIfFalse), U8(4),
-                B(Jump), U8(93),
+                B(Jump), U8(79),
                 B(LdaSmi), I8(1),
                 B(TestEqualStrict), R(4), U8(19),
-                B(JumpIfFalse), U8(61),
+                B(JumpIfFalse), U8(47),
                 B(Ldar), R(6),
                 B(TestTypeOf), U8(6),
                 B(JumpIfFalse), U8(4),
@@ -390,16 +376,10 @@ bytecodes: [
                 B(Mov), R(6), R(12),
                 B(Mov), R(2), R(13),
                 B(InvokeIntrinsic), U8(Runtime::k_Call), R(12), U8(2),
-                B(Jump), U8(20),
-                B(Star), R(12),
-                B(Ldar), R(closure),
-                B(CreateCatchContext), R(12), U8(5), U8(9),
-                B(Star), R(11),
+                B(Jump), U8(6),
                 B(LdaTheHole),
                 B(SetPendingMessage),
                 B(Ldar), R(11),
-                B(PushContext), R(12),
-                B(PopContext), R(12),
                 B(Jump), U8(27),
                 B(Mov), R(6), R(11),
                 B(Mov), R(2), R(12),
@@ -429,7 +409,6 @@ constant pool: [
   FIXED_ARRAY_TYPE,
   ONE_BYTE_INTERNALIZED_STRING_TYPE ["return"],
   ONE_BYTE_INTERNALIZED_STRING_TYPE [""],
-  FIXED_ARRAY_TYPE,
 ]
 handlers: [
   [7, 142, 150],
@@ -444,7 +423,7 @@ snippet: "
 "
 frame size: 13
 parameter count: 1
-bytecode array length: 282
+bytecode array length: 268
 bytecodes: [
   /*   30 E> */ B(StackCheck),
   /*   42 S> */ B(CreateObjectLiteral), U8(0), U8(0), U8(41), R(7),
@@ -510,15 +489,15 @@ bytecodes: [
                 B(Star), R(9),
                 B(LdaZero),
                 B(TestEqualStrict), R(3), U8(19),
-                B(JumpIfTrue), U8(104),
+                B(JumpIfTrue), U8(90),
                 B(LdaNamedProperty), R(1), U8(9), U8(20),
                 B(Star), R(5),
                 B(TestUndetectable),
                 B(JumpIfFalse), U8(4),
-                B(Jump), U8(93),
+                B(Jump), U8(79),
                 B(LdaSmi), I8(1),
                 B(TestEqualStrict), R(3), U8(22),
-                B(JumpIfFalse), U8(61),
+                B(JumpIfFalse), U8(47),
                 B(Ldar), R(5),
                 B(TestTypeOf), U8(6),
                 B(JumpIfFalse), U8(4),
@@ -533,16 +512,10 @@ bytecodes: [
                 B(Mov), R(5), R(11),
                 B(Mov), R(1), R(12),
                 B(InvokeIntrinsic), U8(Runtime::k_Call), R(11), U8(2),
-                B(Jump), U8(20),
-                B(Star), R(11),
-                B(Ldar), R(closure),
-                B(CreateCatchContext), R(11), U8(7), U8(11),
-                B(Star), R(10),
+                B(Jump), U8(6),
                 B(LdaTheHole),
                 B(SetPendingMessage),
                 B(Ldar), R(10),
-                B(PushContext), R(11),
-                B(PopContext), R(11),
                 B(Jump), U8(27),
                 B(Mov), R(5), R(10),
                 B(Mov), R(1), R(11),
@@ -555,7 +528,7 @@ bytecodes: [
                 B(Ldar), R(9),
                 B(SetPendingMessage),
                 B(Ldar), R(7),
-                B(SwitchOnSmiNoFeedback), U8(12), U8(2), I8(0),
+                B(SwitchOnSmiNoFeedback), U8(11), U8(2), I8(0),
                 B(Jump), U8(8),
                 B(Ldar), R(8),
   /*  105 S> */ B(Return),
@@ -576,7 +549,6 @@ constant pool: [
   FIXED_ARRAY_TYPE,
   ONE_BYTE_INTERNALIZED_STRING_TYPE ["return"],
   ONE_BYTE_INTERNALIZED_STRING_TYPE [""],
-  FIXED_ARRAY_TYPE,
   Smi [6],
   Smi [9],
 ]

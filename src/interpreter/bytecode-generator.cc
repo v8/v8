@@ -1738,9 +1738,11 @@ void BytecodeGenerator::VisitTryCatchStatement(TryCatchStatement* stmt) {
   }
   try_control_builder.EndTry();
 
-  // Create a catch scope that binds the exception.
-  BuildNewLocalCatchContext(stmt->scope());
-  builder()->StoreAccumulatorInRegister(context);
+  if (stmt->scope()) {
+    // Create a catch scope that binds the exception.
+    BuildNewLocalCatchContext(stmt->scope());
+    builder()->StoreAccumulatorInRegister(context);
+  }
 
   // If requested, clear message object as we enter the catch block.
   if (stmt->ShouldClearPendingException(outer_catch_prediction)) {
@@ -1751,7 +1753,11 @@ void BytecodeGenerator::VisitTryCatchStatement(TryCatchStatement* stmt) {
   builder()->LoadAccumulatorWithRegister(context);
 
   // Evaluate the catch-block.
-  VisitInScope(stmt->catch_block(), stmt->scope());
+  if (stmt->scope()) {
+    VisitInScope(stmt->catch_block(), stmt->scope());
+  } else {
+    VisitBlock(stmt->catch_block());
+  }
   try_control_builder.EndCatch();
 }
 

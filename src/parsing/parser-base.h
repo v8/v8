@@ -282,7 +282,8 @@ class ParserBase {
         allow_harmony_static_fields_(false),
         allow_harmony_dynamic_import_(false),
         allow_harmony_import_meta_(false),
-        allow_harmony_async_iteration_(false) {}
+        allow_harmony_async_iteration_(false),
+        allow_harmony_optional_catch_binding_(false) {}
 
 #define ALLOW_ACCESSORS(name)                           \
   bool allow_##name() const { return allow_##name##_; } \
@@ -296,6 +297,7 @@ class ParserBase {
   ALLOW_ACCESSORS(harmony_dynamic_import);
   ALLOW_ACCESSORS(harmony_import_meta);
   ALLOW_ACCESSORS(harmony_async_iteration);
+  ALLOW_ACCESSORS(harmony_optional_catch_binding);
 
 #undef ALLOW_ACCESSORS
 
@@ -1535,6 +1537,7 @@ class ParserBase {
   bool allow_harmony_dynamic_import_;
   bool allow_harmony_import_meta_;
   bool allow_harmony_async_iteration_;
+  bool allow_harmony_optional_catch_binding_;
 
   friend class DiscardableZoneScope;
 };
@@ -5544,50 +5547,60 @@ typename ParserBase<Impl>::StatementT ParserBase<Impl>::ParseTryStatement(
   {
     SourceRangeScope catch_range_scope(scanner(), &catch_range);
     if (Check(Token::CATCH)) {
-      Expect(Token::LPAREN, CHECK_OK);
-      catch_info.scope = NewScope(CATCH_SCOPE);
-      catch_info.scope->set_start_position(scanner()->location().beg_pos);
-
-      {
-        BlockState catch_block_state(&scope_, catch_info.scope);
-
-        catch_block = factory()->NewBlock(16, false);
-
-        // Create a block scope to hold any lexical declarations created
-        // as part of destructuring the catch parameter.
-        {
-          BlockState catch_variable_block_state(zone(), &scope_);
-          scope()->set_start_position(scanner()->location().beg_pos);
-          typename Types::Target target(this, catch_block);
-
-          // This does not simply call ParsePrimaryExpression to avoid
-          // ExpressionFromIdentifier from being called in the first
-          // branch, which would introduce an unresolved symbol and mess
-          // with arrow function names.
-          if (peek_any_identifier()) {
-            catch_info.name =
-                ParseIdentifier(kDontAllowRestrictedIdentifiers, CHECK_OK);
-          } else {
-            ExpressionClassifier pattern_classifier(this);
-            catch_info.pattern = ParsePrimaryExpression(CHECK_OK);
-            ValidateBindingPattern(CHECK_OK);
-          }
-
-          Expect(Token::RPAREN, CHECK_OK);
-          impl()->RewriteCatchPattern(&catch_info, CHECK_OK);
-          if (!impl()->IsNull(catch_info.init_block)) {
-            catch_block->statements()->Add(catch_info.init_block, zone());
-          }
-
-          catch_info.inner_block = ParseBlock(nullptr, CHECK_OK);
-          catch_block->statements()->Add(catch_info.inner_block, zone());
-          impl()->ValidateCatchBlock(catch_info, CHECK_OK);
-          scope()->set_end_position(scanner()->location().end_pos);
-          catch_block->set_scope(scope()->FinalizeBlockScope());
-        }
+      bool has_binding;
+      if (allow_harmony_optional_catch_binding()) {
+        has_binding = Check(Token::LPAREN);
+      } else {
+        has_binding = true;
+        Expect(Token::LPAREN, CHECK_OK);
       }
 
-      catch_info.scope->set_end_position(scanner()->location().end_pos);
+      if (has_binding) {
+        catch_info.scope = NewScope(CATCH_SCOPE);
+        catch_info.scope->set_start_position(scanner()->location().beg_pos);
+
+        {
+          BlockState catch_block_state(&scope_, catch_info.scope);
+
+          catch_block = factory()->NewBlock(16, false);
+
+          // Create a block scope to hold any lexical declarations created
+          // as part of destructuring the catch parameter.
+          {
+            BlockState catch_variable_block_state(zone(), &scope_);
+            scope()->set_start_position(scanner()->location().beg_pos);
+
+            // This does not simply call ParsePrimaryExpression to avoid
+            // ExpressionFromIdentifier from being called in the first
+            // branch, which would introduce an unresolved symbol and mess
+            // with arrow function names.
+            if (peek_any_identifier()) {
+              catch_info.name =
+                  ParseIdentifier(kDontAllowRestrictedIdentifiers, CHECK_OK);
+            } else {
+              ExpressionClassifier pattern_classifier(this);
+              catch_info.pattern = ParsePrimaryExpression(CHECK_OK);
+              ValidateBindingPattern(CHECK_OK);
+            }
+
+            Expect(Token::RPAREN, CHECK_OK);
+            impl()->RewriteCatchPattern(&catch_info, CHECK_OK);
+            if (!impl()->IsNull(catch_info.init_block)) {
+              catch_block->statements()->Add(catch_info.init_block, zone());
+            }
+
+            catch_info.inner_block = ParseBlock(nullptr, CHECK_OK);
+            catch_block->statements()->Add(catch_info.inner_block, zone());
+            impl()->ValidateCatchBlock(catch_info, CHECK_OK);
+            scope()->set_end_position(scanner()->location().end_pos);
+            catch_block->set_scope(scope()->FinalizeBlockScope());
+          }
+        }
+
+        catch_info.scope->set_end_position(scanner()->location().end_pos);
+      } else {
+        catch_block = ParseBlock(nullptr, CHECK_OK);
+      }
     }
   }
 
