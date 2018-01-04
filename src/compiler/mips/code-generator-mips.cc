@@ -1627,9 +1627,23 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     }
     case kMipsPush:
       if (instr->InputAt(0)->IsFPRegister()) {
-        __ Sdc1(i.InputDoubleRegister(0), MemOperand(sp, -kDoubleSize));
-        __ Subu(sp, sp, Operand(kDoubleSize));
-        frame_access_state()->IncreaseSPDelta(kDoubleSize / kPointerSize);
+        LocationOperand* op = LocationOperand::cast(instr->InputAt(0));
+        switch (op->representation()) {
+          case MachineRepresentation::kFloat32:
+            __ swc1(i.InputFloatRegister(0), MemOperand(sp, -kFloatSize));
+            __ Subu(sp, sp, Operand(kFloatSize));
+            frame_access_state()->IncreaseSPDelta(kFloatSize / kPointerSize);
+            break;
+          case MachineRepresentation::kFloat64:
+            __ Sdc1(i.InputDoubleRegister(0), MemOperand(sp, -kDoubleSize));
+            __ Subu(sp, sp, Operand(kDoubleSize));
+            frame_access_state()->IncreaseSPDelta(kDoubleSize / kPointerSize);
+            break;
+          default: {
+            UNREACHABLE();
+            break;
+          }
+        }
       } else {
         __ Push(i.InputRegister(0));
         frame_access_state()->IncreaseSPDelta(1);
