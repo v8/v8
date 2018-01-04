@@ -22,49 +22,54 @@ class StubCache;
 
 enum class PrimitiveType { kBoolean, kNumber, kString, kSymbol };
 
-#define HEAP_CONSTANT_LIST(V)                                            \
-  V(AccessorInfoMap, accessor_info_map, AccessorInfoMap)                 \
-  V(AccessorPairMap, accessor_pair_map, AccessorPairMap)                 \
-  V(AllocationSiteMap, allocation_site_map, AllocationSiteMap)           \
-  V(BooleanMap, boolean_map, BooleanMap)                                 \
-  V(CodeMap, code_map, CodeMap)                                          \
-  V(EmptyPropertyDictionary, empty_property_dictionary,                  \
-    EmptyPropertyDictionary)                                             \
-  V(EmptyFixedArray, empty_fixed_array, EmptyFixedArray)                 \
-  V(EmptySlowElementDictionary, empty_slow_element_dictionary,           \
-    EmptySlowElementDictionary)                                          \
-  V(empty_string, empty_string, EmptyString)                             \
-  V(EmptyWeakCell, empty_weak_cell, EmptyWeakCell)                       \
-  V(FalseValue, false_value, False)                                      \
-  V(FeedbackVectorMap, feedback_vector_map, FeedbackVectorMap)           \
-  V(FixedArrayMap, fixed_array_map, FixedArrayMap)                       \
-  V(FixedCOWArrayMap, fixed_cow_array_map, FixedCOWArrayMap)             \
-  V(FixedDoubleArrayMap, fixed_double_array_map, FixedDoubleArrayMap)    \
-  V(FunctionTemplateInfoMap, function_template_info_map,                 \
-    FunctionTemplateInfoMap)                                             \
-  V(GlobalPropertyCellMap, global_property_cell_map, PropertyCellMap)    \
-  V(has_instance_symbol, has_instance_symbol, HasInstanceSymbol)         \
-  V(HeapNumberMap, heap_number_map, HeapNumberMap)                       \
-  V(length_string, length_string, LengthString)                          \
-  V(ManyClosuresCellMap, many_closures_cell_map, ManyClosuresCellMap)    \
-  V(MetaMap, meta_map, MetaMap)                                          \
-  V(MinusZeroValue, minus_zero_value, MinusZero)                         \
-  V(MutableHeapNumberMap, mutable_heap_number_map, MutableHeapNumberMap) \
-  V(NanValue, nan_value, Nan)                                            \
-  V(NoClosuresCellMap, no_closures_cell_map, NoClosuresCellMap)          \
-  V(NullValue, null_value, Null)                                         \
-  V(OneClosureCellMap, one_closure_cell_map, OneClosureCellMap)          \
-  V(prototype_string, prototype_string, PrototypeString)                 \
-  V(SpeciesProtector, species_protector, SpeciesProtector)               \
-  V(StoreHandler0Map, store_handler0_map, StoreHandler0Map)              \
-  V(SymbolMap, symbol_map, SymbolMap)                                    \
-  V(TheHoleValue, the_hole_value, TheHole)                               \
-  V(TrueValue, true_value, True)                                         \
-  V(Tuple2Map, tuple2_map, Tuple2Map)                                    \
-  V(Tuple3Map, tuple3_map, Tuple3Map)                                    \
-  V(UndefinedValue, undefined_value, Undefined)                          \
-  V(WeakCellMap, weak_cell_map, WeakCellMap)                             \
-  V(SharedFunctionInfoMap, shared_function_info_map, SharedFunctionInfoMap)
+#define HEAP_CONSTANT_LIST(V)                                                 \
+  V(AccessorInfoMap, accessor_info_map, AccessorInfoMap)                      \
+  V(AccessorPairMap, accessor_pair_map, AccessorPairMap)                      \
+  V(AllocationSiteMap, allocation_site_map, AllocationSiteMap)                \
+  V(BooleanMap, boolean_map, BooleanMap)                                      \
+  V(CodeMap, code_map, CodeMap)                                               \
+  V(EmptyPropertyDictionary, empty_property_dictionary,                       \
+    EmptyPropertyDictionary)                                                  \
+  V(EmptyFixedArray, empty_fixed_array, EmptyFixedArray)                      \
+  V(EmptySlowElementDictionary, empty_slow_element_dictionary,                \
+    EmptySlowElementDictionary)                                               \
+  V(empty_string, empty_string, EmptyString)                                  \
+  V(EmptyWeakCell, empty_weak_cell, EmptyWeakCell)                            \
+  V(FalseValue, false_value, False)                                           \
+  V(FeedbackVectorMap, feedback_vector_map, FeedbackVectorMap)                \
+  V(FixedArrayMap, fixed_array_map, FixedArrayMap)                            \
+  V(FixedCOWArrayMap, fixed_cow_array_map, FixedCOWArrayMap)                  \
+  V(FixedDoubleArrayMap, fixed_double_array_map, FixedDoubleArrayMap)         \
+  V(FunctionTemplateInfoMap, function_template_info_map,                      \
+    FunctionTemplateInfoMap)                                                  \
+  V(GlobalPropertyCellMap, global_property_cell_map, PropertyCellMap)         \
+  V(has_instance_symbol, has_instance_symbol, HasInstanceSymbol)              \
+  V(HeapNumberMap, heap_number_map, HeapNumberMap)                            \
+  V(length_string, length_string, LengthString)                               \
+  V(ManyClosuresCellMap, many_closures_cell_map, ManyClosuresCellMap)         \
+  V(MetaMap, meta_map, MetaMap)                                               \
+  V(MinusZeroValue, minus_zero_value, MinusZero)                              \
+  V(MutableHeapNumberMap, mutable_heap_number_map, MutableHeapNumberMap)      \
+  V(NanValue, nan_value, Nan)                                                 \
+  V(NoClosuresCellMap, no_closures_cell_map, NoClosuresCellMap)               \
+  V(NullValue, null_value, Null)                                              \
+  V(OneClosureCellMap, one_closure_cell_map, OneClosureCellMap)               \
+  V(prototype_string, prototype_string, PrototypeString)                      \
+  V(SpeciesProtector, species_protector, SpeciesProtector)                    \
+  V(StoreHandler0Map, store_handler0_map, StoreHandler0Map)                   \
+  V(SymbolMap, symbol_map, SymbolMap)                                         \
+  V(TheHoleValue, the_hole_value, TheHole)                                    \
+  V(TrueValue, true_value, True)                                              \
+  V(Tuple2Map, tuple2_map, Tuple2Map)                                         \
+  V(Tuple3Map, tuple3_map, Tuple3Map)                                         \
+  V(UndefinedValue, undefined_value, Undefined)                               \
+  V(WeakCellMap, weak_cell_map, WeakCellMap)                                  \
+  V(SharedFunctionInfoMap, shared_function_info_map, SharedFunctionInfoMap)   \
+  V(promise_default_reject_handler_symbol,                                    \
+    promise_default_reject_handler_symbol, PromiseDefaultRejectHandlerSymbol) \
+  V(promise_default_resolve_handler_symbol,                                   \
+    promise_default_resolve_handler_symbol,                                   \
+    PromiseDefaultResolveHandlerSymbol)
 
 // Provides JavaScript-specific "macro-assembler" functionality on top of the
 // CodeAssembler. By factoring the JavaScript-isms out of the CodeAssembler,

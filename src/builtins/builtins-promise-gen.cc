@@ -161,12 +161,12 @@ Node* PromiseBuiltinsAssembler::NewPromiseCapability(Node* context,
     Node* resolve =
         LoadObjectField(capability, PromiseCapability::kResolveOffset);
     GotoIf(TaggedIsSmi(resolve), &if_notcallable);
-    GotoIfNot(IsCallableMap(LoadMap(resolve)), &if_notcallable);
+    GotoIfNot(IsCallable(resolve), &if_notcallable);
 
     Node* reject =
         LoadObjectField(capability, PromiseCapability::kRejectOffset);
     GotoIf(TaggedIsSmi(reject), &if_notcallable);
-    GotoIfNot(IsCallableMap(LoadMap(reject)), &if_notcallable);
+    GotoIfNot(IsCallable(reject), &if_notcallable);
 
     StoreObjectField(capability, PromiseCapability::kPromiseOffset, promise);
 
@@ -413,16 +413,11 @@ Node* PromiseBuiltinsAssembler::InternalPerformPromiseThen(
       append_callbacks(this);
   GotoIf(TaggedIsSmi(on_resolve), &if_onresolvenotcallable);
 
-  Isolate* isolate = this->isolate();
-  Node* const on_resolve_map = LoadMap(on_resolve);
-  Branch(IsCallableMap(on_resolve_map), &onrejectcheck,
-         &if_onresolvenotcallable);
+  Branch(IsCallable(on_resolve), &onrejectcheck, &if_onresolvenotcallable);
 
   BIND(&if_onresolvenotcallable);
   {
-    Node* const default_resolve_handler_symbol = HeapConstant(
-        isolate->factory()->promise_default_resolve_handler_symbol());
-    var_on_resolve.Bind(default_resolve_handler_symbol);
+    var_on_resolve.Bind(PromiseDefaultResolveHandlerSymbolConstant());
     Goto(&onrejectcheck);
   }
 
@@ -431,15 +426,11 @@ Node* PromiseBuiltinsAssembler::InternalPerformPromiseThen(
     Label if_onrejectnotcallable(this);
     GotoIf(TaggedIsSmi(on_reject), &if_onrejectnotcallable);
 
-    Node* const on_reject_map = LoadMap(on_reject);
-    Branch(IsCallableMap(on_reject_map), &append_callbacks,
-           &if_onrejectnotcallable);
+    Branch(IsCallable(on_reject), &append_callbacks, &if_onrejectnotcallable);
 
     BIND(&if_onrejectnotcallable);
     {
-      Node* const default_reject_handler_symbol = HeapConstant(
-          isolate->factory()->promise_default_reject_handler_symbol());
-      var_on_reject.Bind(default_reject_handler_symbol);
+      var_on_reject.Bind(PromiseDefaultRejectHandlerSymbolConstant());
       Goto(&append_callbacks);
     }
   }
@@ -1229,9 +1220,7 @@ TF_BUILTIN(PromiseHandle, PromiseBuiltinsAssembler) {
     BIND(&if_defaulthandler);
     {
       Label if_resolve(this), if_reject(this);
-      Node* const default_resolve_handler_symbol = HeapConstant(
-          isolate->factory()->promise_default_resolve_handler_symbol());
-      Branch(WordEqual(default_resolve_handler_symbol, handler), &if_resolve,
+      Branch(IsPromiseDefaultResolveHandlerSymbol(handler), &if_resolve,
              &if_reject);
 
       BIND(&if_resolve);
