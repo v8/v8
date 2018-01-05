@@ -64,10 +64,13 @@ def FetchDeps(v8_path, depot_tools):
   temporary_git = EnsureGit(v8_path)
   try:
     print "Fetching dependencies."
-    gclient = os.path.join(depot_tools, "gclient")
+    env = os.environ.copy()
+    # gclient needs to have depot_tools in the PATH.
+    env["PATH"] = depot_tools + os.pathsep + env["PATH"]
     spec = "solutions = %s" % GCLIENT_SOLUTION
-    subprocess.check_call([gclient, "sync", "--spec", spec],
-                          cwd=os.path.join(v8_path, os.path.pardir))
+    subprocess.check_call(["gclient", "sync", "--spec", spec],
+                          cwd=os.path.join(v8_path, os.path.pardir),
+                          env=env)
   except:
     raise
   finally:
@@ -86,6 +89,7 @@ def Main(v8_path):
   FetchDeps(v8_path, depot_tools)
 
 if __name__ == "__main__":
-  # Disabled for now.
-  pass
-  # Main(sys.argv[1])
+  if len(sys.argv) > 2 and sys.argv[2] == "force":
+    Main(sys.argv[1])
+  else:
+    print "Disabled for now unless 'force' is passed as second argument."
