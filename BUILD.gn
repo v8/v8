@@ -592,7 +592,6 @@ action("js2c") {
     "src/js/typedarray.js",
     "src/js/messages.js",
     "src/js/spread.js",
-    "src/js/proxy.js",
     "src/debug/mirrors.js",
     "src/debug/debug.js",
     "src/debug/liveedit.js",

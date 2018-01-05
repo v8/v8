@@ -4418,6 +4418,23 @@ class JSProxy: public JSReceiver {
   DISALLOW_IMPLICIT_CONSTRUCTORS(JSProxy);
 };
 
+// JSProxyRevocableResult is just a JSObject with a specific initial map.
+// This initial map adds in-object properties for "proxy" and "revoke".
+// See https://tc39.github.io/ecma262/#sec-proxy.revocable
+class JSProxyRevocableResult : public JSObject {
+ public:
+  // Offsets of object fields.
+  static const int kProxyOffset = JSObject::kHeaderSize;
+  static const int kRevokeOffset = kProxyOffset + kPointerSize;
+  static const int kSize = kRevokeOffset + kPointerSize;
+  // Indices of in-object properties.
+  static const int kProxyIndex = 0;
+  static const int kRevokeIndex = 1;
+
+ private:
+  DISALLOW_IMPLICIT_CONSTRUCTORS(JSProxyRevocableResult);
+};
+
 // The [Async-from-Sync Iterator] object
 // (proposal-async-iteration/#sec-async-from-sync-iterator-objects)
 // An object which wraps an ordinary Iterator and converts it to behave

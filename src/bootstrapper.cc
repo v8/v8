@@ -1086,6 +1086,31 @@ void Genesis::CreateJSProxyMaps() {
       Map::Copy(proxy_callable_map, "constructor Proxy");
   proxy_constructor_map->set_is_constructor(true);
   native_context()->set_proxy_constructor_map(*proxy_constructor_map);
+
+  {
+    Handle<Map> map =
+        factory()->NewMap(JS_OBJECT_TYPE, JSProxyRevocableResult::kSize,
+                          TERMINAL_FAST_ELEMENTS_KIND, 2);
+    Map::EnsureDescriptorSlack(map, 2);
+
+    {  // proxy
+      Descriptor d = Descriptor::DataField(factory()->proxy_string(),
+                                           JSProxyRevocableResult::kProxyIndex,
+                                           NONE, Representation::Tagged());
+      map->AppendDescriptor(&d);
+    }
+    {  // revoke
+      Descriptor d = Descriptor::DataField(factory()->revoke_string(),
+                                           JSProxyRevocableResult::kRevokeIndex,
+                                           NONE, Representation::Tagged());
+      map->AppendDescriptor(&d);
+    }
+
+    Map::SetPrototype(map, isolate()->initial_object_prototype());
+    map->SetConstructor(native_context()->object_function());
+
+    native_context()->set_proxy_revocable_result_map(*map);
+  }
 }
 
 namespace {
@@ -3428,6 +3453,15 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
 
     native_context()->set_proxy_function(*proxy_function);
     InstallFunction(global, name, proxy_function, factory->Object_string());
+
+    SimpleInstallFunction(proxy_function, "revocable",
+                          Builtins::kProxyRevocable, 2, true);
+
+    {  // Internal: ProxyRevoke
+      Handle<SharedFunctionInfo> info = SimpleCreateSharedFunctionInfo(
+          isolate, Builtins::kProxyRevoke, factory->empty_string(), 0);
+      native_context()->set_proxy_revoke_shared_fun(*info);
+    }
   }
 
   {  // -- R e f l e c t

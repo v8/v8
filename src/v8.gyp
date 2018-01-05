@@ -2360,7 +2360,6 @@
           'js/typedarray.js',
           'js/messages.js',
           'js/spread.js',
-          'js/proxy.js',
           'debug/mirrors.js',
           'debug/debug.js',
           'debug/liveedit.js',

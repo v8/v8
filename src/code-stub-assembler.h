@@ -1908,6 +1908,9 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
                                         Label* definitely_no_elements,
                                         Label* possibly_elements);
 
+  void InitializeFunctionContext(Node* native_context, Node* context,
+                                 int slots);
+
  private:
   friend class CodeStubArguments;
 

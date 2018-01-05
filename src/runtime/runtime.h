@@ -480,7 +480,6 @@ namespace internal {
   F(IsJSProxy, 1, 1)                \
   F(JSProxyGetTarget, 1, 1)         \
   F(JSProxyGetHandler, 1, 1)        \
-  F(JSProxyRevoke, 1, 1)            \
   F(GetPropertyWithReceiver, 2, 1)  \
   F(CheckProxyHasTrap, 2, 1)        \
   F(SetPropertyWithReceiver, 5, 1)  \
