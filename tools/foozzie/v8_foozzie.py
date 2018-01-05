@@ -55,6 +55,15 @@ CONFIGS = dict(
     '--no-lazy-inner-functions',
     '--suppress-asm-messages',
   ],
+  trusted=[
+    '--no-untrusted-code-mitigations',
+    '--suppress-asm-messages',
+  ],
+  trusted_opt=[
+    '--always-opt',
+    '--no-untrusted-code-mitigations',
+    '--suppress-asm-messages',
+  ],
 )
 
 # Timeout in seconds for one d8 run.
