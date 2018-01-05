@@ -467,8 +467,15 @@ DEFINE_BOOL(turbo_rewrite_far_jumps, true,
             "rewrite far to near jumps (ia32,x64)")
 // TODO(rmcilroy): Remove extra_masking once the finch experiment is removed.
 DEFINE_BOOL(extra_masking, false, "obsolete - has no effect")
-DEFINE_BOOL(untrusted_code_mitigations, true,
+
+#ifdef DISABLE_UNTRUSTED_CODE_MITIGATIONS
+#define V8_DEFAULT_UNTRUSTED_CODE_MITIGATIONS false
+#else
+#define V8_DEFAULT_UNTRUSTED_CODE_MITIGATIONS true
+#endif
+DEFINE_BOOL(untrusted_code_mitigations, V8_DEFAULT_UNTRUSTED_CODE_MITIGATIONS,
             "Enable mitigations for executing untrusted code")
+#undef V8_DEFAULT_UNTRUSTED_CODE_MITIGATIONS
 
 // Flags to help platform porters
 DEFINE_BOOL(minimal, false,

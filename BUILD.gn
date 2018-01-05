@@ -137,6 +137,9 @@ declare_args() {
   v8_check_microtasks_scopes_consistency = ""
 
   v8_monolithic = false
+
+  # Enable mitigations for executing untrusted code.
+  v8_untrusted_code_mitigations = true
 }
 
 # Derived defaults.
@@ -497,6 +500,10 @@ config("toolchain") {
 
   if (v8_enable_verify_csa) {
     defines += [ "ENABLE_VERIFY_CSA" ]
+  }
+
+  if (!v8_untrusted_code_mitigations) {
+    defines += [ "DISABLE_UNTRUSTED_CODE_MITIGATIONS" ]
   }
 
   if (v8_no_inline) {
