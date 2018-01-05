@@ -224,9 +224,6 @@
   'language/global-code/script-decl-func-err-non-configurable': [FAIL],
   'language/global-code/script-decl-var-collision': [FAIL],
 
-  # https://bugs.chromium.org/p/v8/issues/detail?id=4124
-  'built-ins/Simd/*': [SKIP],
-
   # https://bugs.chromium.org/p/v8/issues/detail?id=4958
   'built-ins/Function/prototype/toString/*': ['--harmony-function-tostring'],
 
