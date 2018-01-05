@@ -3555,19 +3555,31 @@ Node* WasmGraphBuilder::BoundsCheckMem(uint8_t access_size, Node* index,
 
   if (access_size > max_size || offset > max_size - access_size) {
     // The access will be out of bounds, even for the largest memory.
-    TrapIfEq32(wasm::kTrapMemOutOfBounds, jsgraph()->Int32Constant(0), 0,
-               position);
+    TrapIfEq32(wasm::kTrapMemOutOfBounds, Int32Constant(0), 0, position);
     return jsgraph()->IntPtrConstant(0);
   }
-  uint32_t end_offset = offset + access_size;
+  DCHECK_LE(1, access_size);
+  // This computation cannot overflow, since
+  //   {offset <= max_size - access_size <= kMaxUint32 - access_size}.
+  // It also cannot underflow, since {access_size >= 1}.
+  uint32_t end_offset = offset + access_size - 1;
+  Node* end_offset_node = Int32Constant(end_offset);
 
-  if (end_offset > min_size) {
+  // The accessed memory is [index + offset, index + end_offset].
+  // Check that the last read byte (at {index + end_offset}) is in bounds.
+  // 1) Check that {end_offset < mem_size}. This also ensures that we can safely
+  //    compute {effective_size} as {mem_size - end_offset)}.
+  //    {effective_size} is >= 1 if condition 1) holds.
+  // 2) Check that {index + end_offset < mem_size} by
+  //    - computing {effective_size} as {mem_size - end_offset} and
+  //    - checking that {index < effective_size}.
+
+  if (end_offset >= min_size) {
     // The end offset is larger than the smallest memory.
     // Dynamically check the end offset against the actual memory size, which
     // is not known at compile time.
-    Node* cond =
-        graph()->NewNode(jsgraph()->machine()->Uint32LessThanOrEqual(),
-                         jsgraph()->Int32Constant(end_offset), mem_size);
+    Node* cond = graph()->NewNode(jsgraph()->machine()->Uint32LessThan(),
+                                  end_offset_node, mem_size);
     TrapIfFalse(wasm::kTrapMemOutOfBounds, cond, position);
   } else {
     // The end offset is within the bounds of the smallest memory, so only
@@ -3575,7 +3587,7 @@ Node* WasmGraphBuilder::BoundsCheckMem(uint8_t access_size, Node* index,
     Uint32Matcher match(index);
     if (match.HasValue()) {
       uint32_t index_val = match.Value();
-      if (index_val <= min_size - end_offset) {
+      if (index_val < min_size - end_offset) {
         // The input index is a constant and everything is statically within
         // bounds of the smallest possible memory.
         return Uint32ToUintptr(index);
@@ -3583,13 +3595,9 @@ Node* WasmGraphBuilder::BoundsCheckMem(uint8_t access_size, Node* index,
     }
   }
 
-  // Compute the effective size of the memory, which is the size of the memory
-  // minus the statically known offset, minus the byte size of the access minus
-  // one.
-  // This produces a positive number since {end_offset <= min_size <= mem_size}.
-  Node* effective_size =
-      graph()->NewNode(jsgraph()->machine()->Int32Sub(), mem_size,
-                       jsgraph()->Int32Constant(end_offset - 1));
+  // This produces a positive number, since {end_offset < min_size <= mem_size}.
+  Node* effective_size = graph()->NewNode(jsgraph()->machine()->Int32Sub(),
+                                          mem_size, end_offset_node);
 
   // Introduce the actual bounds check.
   Node* cond = graph()->NewNode(m->Uint32LessThan(), index, effective_size);
