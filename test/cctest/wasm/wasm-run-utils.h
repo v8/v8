@@ -51,10 +51,10 @@ constexpr uint32_t kMaxGlobalsSize = 128;
 enum WasmExecutionMode {
   kExecuteInterpreter,
   kExecuteTurbofan,
-  kExecuteLiftoff,
-  // TODO(bug:7028): Introduce another enum for simd lowering.
-  kExecuteSimdLowered
+  kExecuteLiftoff
 };
+
+enum LowerSimd : bool { kLowerSimd = true, kNoLowerSimd = false };
 
 using compiler::CallDescriptor;
 using compiler::MachineTypeForC;
@@ -85,7 +85,7 @@ using compiler::Node;
 class TestingModuleBuilder {
  public:
   TestingModuleBuilder(Zone*, WasmExecutionMode,
-                       compiler::RuntimeExceptionSupport);
+                       compiler::RuntimeExceptionSupport, LowerSimd);
 
   void ChangeOriginToAsmjs() { test_module_.set_origin(kAsmJsOrigin); }
 
@@ -204,7 +204,7 @@ class TestingModuleBuilder {
 
   WasmInterpreter* interpreter() { return interpreter_; }
   bool interpret() { return interpreter_ != nullptr; }
-  bool lower_simd() { return lower_simd_; }
+  LowerSimd lower_simd() { return lower_simd_; }
   Isolate* isolate() { return isolate_; }
   Handle<WasmInstanceObject> instance_object() { return instance_object_; }
   WasmCodeWrapper GetFunctionCode(uint32_t index) {
@@ -252,7 +252,7 @@ class TestingModuleBuilder {
   NativeModule* native_module_;
   bool linked_ = false;
   compiler::RuntimeExceptionSupport runtime_exception_support_;
-  bool lower_simd_;
+  LowerSimd lower_simd_;
 
   const WasmGlobal* AddGlobal(ValueType type);
 
@@ -373,9 +373,10 @@ class WasmFunctionCompiler : public compiler::GraphAndBuilders {
 class WasmRunnerBase : public HandleAndZoneScope {
  public:
   WasmRunnerBase(WasmExecutionMode execution_mode, int num_params,
-                 compiler::RuntimeExceptionSupport runtime_exception_support)
+                 compiler::RuntimeExceptionSupport runtime_exception_support,
+                 LowerSimd lower_simd)
       : zone_(&allocator_, ZONE_NAME),
-        builder_(&zone_, execution_mode, runtime_exception_support),
+        builder_(&zone_, execution_mode, runtime_exception_support, lower_simd),
         wrapper_(&zone_, num_params) {}
 
   // Builds a graph from the given Wasm code and generates the machine
@@ -454,14 +455,19 @@ class WasmRunner : public WasmRunnerBase {
   WasmRunner(WasmExecutionMode execution_mode,
              const char* main_fn_name = "main",
              compiler::RuntimeExceptionSupport runtime_exception_support =
-                 compiler::kNoRuntimeExceptionSupport)
+                 compiler::kNoRuntimeExceptionSupport,
+             LowerSimd lower_simd = kNoLowerSimd)
       : WasmRunnerBase(execution_mode, sizeof...(ParamTypes),
-                       runtime_exception_support) {
+                       runtime_exception_support, lower_simd) {
     NewFunction<ReturnType, ParamTypes...>(main_fn_name);
     if (!interpret()) {
       wrapper_.Init<ReturnType, ParamTypes...>(functions_[0]->descriptor());
     }
   }
+
+  WasmRunner(WasmExecutionMode execution_mode, LowerSimd lower_simd)
+      : WasmRunner(execution_mode, "main", compiler::kNoRuntimeExceptionSupport,
+                   lower_simd) {}
 
   ReturnType Call(ParamTypes... p) {
     DCHECK(compiled_);

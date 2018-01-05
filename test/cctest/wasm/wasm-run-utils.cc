@@ -15,7 +15,7 @@ namespace wasm {
 
 TestingModuleBuilder::TestingModuleBuilder(
     Zone* zone, WasmExecutionMode mode,
-    compiler::RuntimeExceptionSupport exception_support)
+    compiler::RuntimeExceptionSupport exception_support, LowerSimd lower_simd)
     : test_module_ptr_(&test_module_),
       isolate_(CcTest::InitIsolateOnce()),
       global_offset(0),
@@ -24,7 +24,7 @@ TestingModuleBuilder::TestingModuleBuilder(
       interpreter_(nullptr),
       execution_mode_(mode),
       runtime_exception_support_(exception_support),
-      lower_simd_(mode == kExecuteSimdLowered) {
+      lower_simd_(lower_simd) {
   WasmJs::Install(isolate_, true);
   test_module_.globals_size = kMaxGlobalsSize;
   memset(globals_data_, 0, sizeof(globals_data_));
