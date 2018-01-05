@@ -34,6 +34,7 @@ import time
 
 from . import junit_output
 from . import statusfile
+from ..testproc import progress as progress_proc
 
 
 class ProgressIndicator(object):
@@ -66,6 +67,11 @@ class ProgressIndicator(object):
       'negative': negative_marker,
     }
 
+  def ToProgressIndicatorProc(self):
+    print ('Warning: %s is not available as a processor' %
+           self.__class__.__name__)
+    return None
+
 
 class IndicatorNotifier(object):
   """Holds a list of progress indicators and notifies them all on events."""
@@ -74,6 +80,9 @@ class IndicatorNotifier(object):
 
   def Register(self, indicator):
     self.indicators.append(indicator)
+
+  def ToProgressIndicatorProcs(self):
+    return [i.ToProgressIndicatorProc() for i in self.indicators]
 
 
 # Forge all generic event-dispatching methods in IndicatorNotifier, which are
@@ -143,6 +152,9 @@ class VerboseProgressIndicator(SimpleProgressIndicator):
   def Heartbeat(self):
     print 'Still working...'
     sys.stdout.flush()
+
+  def ToProgressIndicatorProc(self):
+    return progress_proc.VerboseProgressIndicator()
 
 
 class DotsProgressIndicator(SimpleProgressIndicator):
@@ -301,6 +313,10 @@ class JsonTestProgressIndicator(ProgressIndicator):
     self.random_seed = random_seed
     self.results = []
     self.tests = []
+
+  def ToProgressIndicatorProc(self):
+    return progress_proc.JsonTestProgressIndicator(
+        self.json_test_results, self.arch, self.mode, self.random_seed)
 
   def Done(self):
     complete_results = []

@@ -37,7 +37,12 @@ from . import command
 from . import perfdata
 from . import statusfile
 from . import utils
-from pool import Pool
+from . pool import Pool
+from ..objects import predictable
+from ..testproc.execution import ExecutionProc
+from ..testproc.loader import LoadProc
+from ..testproc.progress import VerboseProgressIndicator, ResultsTracker
+from ..testproc.rerun import RerunProc
 
 
 # Base dir of the v8 checkout.
@@ -210,12 +215,56 @@ class Runner(object):
     return not has_unexpected_output
 
   def Run(self, jobs):
+    if self.context.infra_staging:
+      return self._RunTestProc(jobs)
+
     self.indicator.Starting()
     self._RunInternal(jobs)
     self.indicator.Done()
     if self.failed:
       return 1
     elif self.remaining:
+      return 2
+    return 0
+
+  def _RunTestProc(self, jobs):
+    print '>>> Running with test processors'
+    procs = []
+    indicators = self.indicator.ToProgressIndicatorProcs()
+
+    # TODO(majeski): Implement all indicators and remove this filter.
+    indicators = filter(None, indicators)
+
+    loader = LoadProc()
+    procs.append(loader)
+
+    results = ResultsTracker(count_subtests=False)
+    procs.append(results)
+
+    procs += indicators
+
+    if self.context.rerun_failures_count:
+      procs.append(RerunProc(
+          self.context.rerun_failures_count,
+          self.context.rerun_failures_max
+      ))
+
+    execproc = ExecutionProc(jobs, self.context)
+    procs.append(execproc)
+
+    for i in xrange(0, len(procs) - 1):
+      procs[i].connect_to(procs[i + 1])
+
+    loader.load_tests(self.tests)
+    for indicator in indicators:
+      indicator.starting()
+    execproc.start()
+    for indicator in indicators:
+      indicator.finished()
+
+    if results.failed:
+      return 1
+    if results.remaining:
       return 2
     return 0
 

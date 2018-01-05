@@ -380,7 +380,8 @@ class StandardTestRunner(base_runner.BaseTestRunner):
                             options.rerun_failures_max,
                             options.no_harness,
                             use_perf_data=not options.swarming,
-                            sancov_dir=self.sancov_dir)
+                            sancov_dir=self.sancov_dir,
+                            infra_staging=options.infra_staging)
 
       # TODO(all): Combine "simulator" and "simulator_run".
       # TODO(machenbach): In GN we can derive simulator run from

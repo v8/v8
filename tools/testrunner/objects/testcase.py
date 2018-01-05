@@ -53,10 +53,22 @@ class TestCase(object):
     self.run = 1  # The nth time this test is executed.
     self.cmd = None
 
+    # Fields used by the test processors.
+    self.origin = None # Test that this test is subtest of.
+    self.processor = None # Processor that created this subtest.
+    self.procid = '%s/%s' % (self.suite.name, self.name) # unique id
+
     self._statusfile_outcomes = None
     self._expected_outcomes = None # optimization: None == [statusfile.PASS]
     self._statusfile_flags = None
     self._prepare_outcomes()
+
+  def create_subtest(self, processor, subtest_id):
+    subtest = copy.copy(self)
+    subtest.origin = self
+    subtest.processor = processor
+    subtest.procid += '.%s' % subtest_id
+    return subtest
 
   def create_variant(self, variant, flags):
     """Makes a shallow copy of the object and updates variant, variant_flags and
@@ -68,6 +80,7 @@ class TestCase(object):
     else:
       other.variant_flags = self.variant_flags + flags
     other.variant = variant
+    other.procid += '[%s]' % variant
 
     other._prepare_outcomes(variant != self.variant)
 

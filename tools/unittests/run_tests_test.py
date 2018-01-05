@@ -95,10 +95,12 @@ def capture():
     sys.stderr = olderr
 
 
-def run_tests(basedir, *args):
+def run_tests(basedir, *args, **kwargs):
   """Executes the test runner with captured output."""
   with capture() as (stdout, stderr):
     sys_args = ['--command-prefix', sys.executable] + list(args)
+    if kwargs.get('infra_staging', False):
+      sys_args.append('--infra-staging')
     code = standard_runner.StandardTestRunner(
         basedir=basedir).execute(sys_args)
     return Result(stdout.getvalue(), stderr.getvalue(), code)
@@ -194,7 +196,10 @@ class SystemTest(unittest.TestCase):
         self.assertIn('Done running sweet/raspberries', result.stdout, result)
         self.assertEqual(0, result.returncode, result)
 
-  def testFail(self):
+  def testFailProc(self):
+    self.testFail(infra_staging=True)
+
+  def testFail(self, infra_staging=False):
     """Test running only failing tests in two variants."""
     with temp_base() as basedir:
       result = run_tests(
@@ -203,12 +208,16 @@ class SystemTest(unittest.TestCase):
           '--progress=verbose',
           '--variants=default,stress',
           'sweet/strawberries',
+          infra_staging=infra_staging,
       )
       self.assertIn('Running 2 tests', result.stdout, result)
       self.assertIn('Done running sweet/strawberries: FAIL', result.stdout, result)
       self.assertEqual(1, result.returncode, result)
 
-  def testFailWithRerunAndJSON(self):
+  def testFailWithRerunAndJSONProc(self):
+    self.testFailWithRerunAndJSON(infra_staging=True)
+
+  def testFailWithRerunAndJSON(self, infra_staging=False):
     """Test re-running a failing test and output to json."""
     with temp_base() as basedir:
       json_path = os.path.join(basedir, 'out.json')
@@ -221,11 +230,17 @@ class SystemTest(unittest.TestCase):
           '--random-seed=123',
           '--json-test-results', json_path,
           'sweet/strawberries',
+          infra_staging=infra_staging,
       )
       self.assertIn('Running 1 tests', result.stdout, result)
       self.assertIn('Done running sweet/strawberries: FAIL', result.stdout, result)
-      # We run one test, which fails and gets re-run twice.
-      self.assertIn('3 tests failed', result.stdout, result)
+      if not infra_staging:
+        # We run one test, which fails and gets re-run twice.
+        self.assertIn('3 tests failed', result.stdout, result)
+      else:
+        # With test processors we don't count reruns as separated failures.
+        # TODO(majeski): fix it.
+        self.assertIn('1 tests failed', result.stdout, result)
       self.assertEqual(0, result.returncode, result)
 
       # Check relevant properties of the json output.
@@ -246,7 +261,11 @@ class SystemTest(unittest.TestCase):
         replace_variable_data(data)
       json_output['duration_mean'] = 1
 
-      with open(os.path.join(TEST_DATA_ROOT, 'expected_test_results1.json')) as f:
+      suffix = ''
+      if infra_staging:
+        suffix = '-proc'
+      expected_results_name = 'expected_test_results1%s.json' % suffix
+      with open(os.path.join(TEST_DATA_ROOT, expected_results_name)) as f:
         expected_test_results = json.load(f)
 
       # TODO(majeski): Previously we only reported the variant flags in the
@@ -303,12 +322,19 @@ class SystemTest(unittest.TestCase):
       self.assertIn('Running 0 tests', result.stdout, result)
       self.assertEqual(0, result.returncode, result)
 
-  def testDefault(self):
+  def testDefaultProc(self):
+    self.testDefault(infra_staging=True)
+
+  def testDefault(self, infra_staging=False):
     """Test using default test suites, though no tests are run since they don't
     exist in a test setting.
     """
     with temp_base() as basedir:
-      result = run_tests(basedir, '--mode=Release')
+      result = run_tests(
+          basedir,
+          '--mode=Release',
+          infra_staging=infra_staging,
+      )
       self.assertIn('Warning: no tests were run!', result.stdout, result)
       self.assertEqual(0, result.returncode, result)
 
@@ -403,7 +429,10 @@ class SystemTest(unittest.TestCase):
       self.assertIn('(no source available)', result.stdout, result)
       self.assertEqual(0, result.returncode, result)
 
-  def testPredictable(self):
+  def testPredictableProc(self):
+    self.testPredictable(infra_staging=True)
+
+  def testPredictable(self, infra_staging=False):
     """Test running a test in verify-predictable mode.
 
     The test will fail because of missing allocation output. We verify that and
@@ -417,6 +446,7 @@ class SystemTest(unittest.TestCase):
           '--progress=verbose',
           '--variants=default',
           'sweet/bananas',
+          infra_staging=infra_staging,
       )
       self.assertIn('Running 1 tests', result.stdout, result)
       self.assertIn('Done running sweet/bananas: FAIL', result.stdout, result)
