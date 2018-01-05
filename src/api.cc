@@ -7645,6 +7645,14 @@ v8::ArrayBuffer::Contents v8::ArrayBuffer::Externalize() {
   Utils::ApiCheck(!self->is_external(), "v8_ArrayBuffer_Externalize",
                   "ArrayBuffer already externalized");
   self->set_is_external(true);
+  if (self->has_guard_region()) {
+    // Since this is being externalized, the Wasm Allocation Tracker can no
+    // longer track it.
+    //
+    // TODO(eholk): Find a way to track this across externalization
+    isolate->wasm_engine()->allocation_tracker()->ReleaseAddressSpace(
+        self->allocation_length());
+  }
   isolate->heap()->UnregisterArrayBuffer(*self);
 
   return GetContents();
@@ -7860,6 +7868,14 @@ v8::SharedArrayBuffer::Contents v8::SharedArrayBuffer::Externalize() {
   Utils::ApiCheck(!self->is_external(), "v8_SharedArrayBuffer_Externalize",
                   "SharedArrayBuffer already externalized");
   self->set_is_external(true);
+  if (self->has_guard_region()) {
+    // Since this is being externalized, the Wasm Allocation Tracker can no
+    // longer track it.
+    //
+    // TODO(eholk): Find a way to track this across externalization
+    isolate->wasm_engine()->allocation_tracker()->ReleaseAddressSpace(
+        self->allocation_length());
+  }
   isolate->heap()->UnregisterArrayBuffer(*self);
   return GetContents();
 }
