@@ -84,6 +84,7 @@ WasmGraphBuilder::WasmGraphBuilder(
       function_table_sizes_(zone),
       cur_buffer_(def_buffer_),
       cur_bufsize_(kDefaultBufferSize),
+      untrusted_code_mitigations_(FLAG_untrusted_code_mitigations),
       runtime_exception_support_(exception_support),
       sig_(sig),
       source_position_table_(source_position_table) {
@@ -3247,14 +3248,19 @@ void WasmGraphBuilder::InitContextCache(WasmContextCacheNodes* context_cache) {
   *effect_ = mem_size;
   context_cache->mem_size = mem_size;
 
-  // Load the memory mask.
-  Node* mem_mask = graph()->NewNode(
-      jsgraph()->machine()->Load(MachineType::Uint32()), wasm_context_,
-      jsgraph()->Int32Constant(
-          static_cast<int32_t>(offsetof(WasmContext, mem_mask))),
-      *effect_, *control_);
-  *effect_ = mem_mask;
-  context_cache->mem_mask = mem_mask;
+  if (untrusted_code_mitigations_) {
+    // Load the memory mask.
+    Node* mem_mask = graph()->NewNode(
+        jsgraph()->machine()->Load(MachineType::Uint32()), wasm_context_,
+        jsgraph()->Int32Constant(
+            static_cast<int32_t>(offsetof(WasmContext, mem_mask))),
+        *effect_, *control_);
+    *effect_ = mem_mask;
+    context_cache->mem_mask = mem_mask;
+  } else {
+    // Explicitly set to nullptr to ensure a SEGV when we try to use it.
+    context_cache->mem_mask = nullptr;
+  }
 }
 
 void WasmGraphBuilder::PrepareContextCacheForLoop(
@@ -3264,7 +3270,9 @@ void WasmGraphBuilder::PrepareContextCacheForLoop(
 
   INTRODUCE_PHI(mem_start, MachineType::PointerRepresentation());
   INTRODUCE_PHI(mem_size, MachineRepresentation::kWord32);
-  INTRODUCE_PHI(mem_mask, MachineRepresentation::kWord32);
+  if (untrusted_code_mitigations_) {
+    INTRODUCE_PHI(mem_mask, MachineRepresentation::kWord32);
+  }
 
 #undef INTRODUCE_PHI
 }
@@ -3280,7 +3288,9 @@ void WasmGraphBuilder::NewContextCacheMerge(WasmContextCacheNodes* to,
 
   INTRODUCE_PHI(mem_start, MachineType::PointerRepresentation());
   INTRODUCE_PHI(mem_size, MachineRepresentation::kWord32);
-  INTRODUCE_PHI(mem_mask, MachineRepresentation::kWord32);
+  if (untrusted_code_mitigations_) {
+    INTRODUCE_PHI(mem_mask, MachineRepresentation::kWord32);
+  }
 
 #undef INTRODUCE_PHI
 }
@@ -3292,8 +3302,10 @@ void WasmGraphBuilder::MergeContextCacheInto(WasmContextCacheNodes* to,
                                       to->mem_size, from->mem_size);
   to->mem_start = CreateOrMergeIntoPhi(MachineType::PointerRepresentation(),
                                        merge, to->mem_start, from->mem_start);
-  to->mem_mask = CreateOrMergeIntoPhi(MachineRepresentation::kWord32, merge,
-                                      to->mem_mask, from->mem_mask);
+  if (untrusted_code_mitigations_) {
+    to->mem_mask = CreateOrMergeIntoPhi(MachineRepresentation::kWord32, merge,
+                                        to->mem_mask, from->mem_mask);
+  }
 }
 
 Node* WasmGraphBuilder::CreateOrMergeIntoPhi(wasm::ValueType type, Node* merge,
@@ -3502,9 +3514,7 @@ Node* WasmGraphBuilder::BoundsCheckMem(MachineType memtype, Node* index,
   if (FLAG_wasm_no_bounds_checks) return index;
   DCHECK_NOT_NULL(context_cache_);
   Node* mem_size = context_cache_->mem_size;
-  Node* mem_mask = context_cache_->mem_mask;
   DCHECK_NOT_NULL(mem_size);
-  DCHECK_NOT_NULL(mem_mask);
 
   auto m = jsgraph()->machine();
   if (trap_handler::UseTrapHandler() && enforce_check == kCanOmitBoundsCheck) {
@@ -3577,10 +3587,13 @@ Node* WasmGraphBuilder::BoundsCheckMem(MachineType memtype, Node* index,
   Node* cond = graph()->NewNode(m->Uint32LessThan(), index, effective_size);
   TrapIfFalse(wasm::kTrapMemOutOfBounds, cond, position);
 
-  // In the fallthrough case, condition the index with the memory mask.
-  Node* masked_index = graph()->NewNode(m->Word32And(), index, mem_mask);
-  return m->Is64() ? graph()->NewNode(m->ChangeUint32ToUint64(), masked_index)
-                   : masked_index;
+  if (untrusted_code_mitigations_) {
+    // In the fallthrough case, condition the index with the memory mask.
+    Node* mem_mask = context_cache_->mem_mask;
+    DCHECK_NOT_NULL(mem_mask);
+    index = graph()->NewNode(m->Word32And(), index, mem_mask);
+  }
+  return m->Is64() ? graph()->NewNode(m->ChangeUint32ToUint64(), index) : index;
 }
 
 const Operator* WasmGraphBuilder::GetSafeLoadOperator(int offset,
@@ -3748,10 +3761,8 @@ Node* WasmGraphBuilder::BuildAsmjsLoadMem(MachineType type, Node* index) {
   DCHECK_NOT_NULL(context_cache_);
   Node* mem_start = context_cache_->mem_start;
   Node* mem_size = context_cache_->mem_size;
-  Node* mem_mask = context_cache_->mem_mask;
   DCHECK_NOT_NULL(mem_start);
   DCHECK_NOT_NULL(mem_size);
-  DCHECK_NOT_NULL(mem_mask);
 
   // Asm.js semantics are defined along the lines of typed arrays, hence OOB
   // reads return {undefined} coerced to the result type (0 for integers, NaN
@@ -3765,8 +3776,13 @@ Node* WasmGraphBuilder::BuildAsmjsLoadMem(MachineType type, Node* index) {
       BranchHint::kTrue);
   bounds_check.Chain(*control_);
 
-  // Condition the index with the memory mask.
-  index = graph()->NewNode(jsgraph()->machine()->Word32And(), index, mem_mask);
+  if (untrusted_code_mitigations_) {
+    // Condition the index with the memory mask.
+    Node* mem_mask = context_cache_->mem_mask;
+    DCHECK_NOT_NULL(mem_mask);
+    index =
+        graph()->NewNode(jsgraph()->machine()->Word32And(), index, mem_mask);
+  }
 
   if (jsgraph()->machine()->Is64()) {
     index =
@@ -3789,10 +3805,8 @@ Node* WasmGraphBuilder::BuildAsmjsStoreMem(MachineType type, Node* index,
   DCHECK_NOT_NULL(context_cache_);
   Node* mem_start = context_cache_->mem_start;
   Node* mem_size = context_cache_->mem_size;
-  Node* mem_mask = context_cache_->mem_mask;
   DCHECK_NOT_NULL(mem_start);
   DCHECK_NOT_NULL(mem_size);
-  DCHECK_NOT_NULL(mem_mask);
 
   // Asm.js semantics are to ignore OOB writes.
   // Note that we check against the memory size ignoring the size of the
@@ -3804,8 +3818,13 @@ Node* WasmGraphBuilder::BuildAsmjsStoreMem(MachineType type, Node* index,
       BranchHint::kTrue);
   bounds_check.Chain(*control_);
 
-  // Condition the index with the memory mask.
-  index = graph()->NewNode(jsgraph()->machine()->Word32And(), index, mem_mask);
+  if (untrusted_code_mitigations_) {
+    // Condition the index with the memory mask.
+    Node* mem_mask = context_cache_->mem_mask;
+    DCHECK_NOT_NULL(mem_mask);
+    index =
+        graph()->NewNode(jsgraph()->machine()->Word32And(), index, mem_mask);
+  }
 
   if (jsgraph()->machine()->Is64()) {
     index =

@@ -64,7 +64,7 @@ CompilationInfo::CompilationInfo(Vector<const char> debug_name,
                                  Code::Kind code_kind, Mode mode, Zone* zone)
     : literal_(nullptr),
       source_range_map_(nullptr),
-      flags_(0),
+      flags_(FLAG_untrusted_code_mitigations ? kUntrustedCodeMitigations : 0),
       code_kind_(code_kind),
       stub_key_(0),
       builtin_index_(Builtins::kNoBuiltinId),

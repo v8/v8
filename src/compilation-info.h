@@ -50,6 +50,7 @@ class V8_EXPORT_PRIVATE CompilationInfo final {
     kSourcePositionsEnabled = 1 << 8,
     kBailoutOnUninitialized = 1 << 9,
     kLoopPeelingEnabled = 1 << 10,
+    kUntrustedCodeMitigations = 1 << 11,
   };
 
   // TODO(mtrofin): investigate if this might be generalized outside wasm, with
@@ -163,6 +164,10 @@ class V8_EXPORT_PRIVATE CompilationInfo final {
 
   void MarkAsLoopPeelingEnabled() { SetFlag(kLoopPeelingEnabled); }
   bool is_loop_peeling_enabled() const { return GetFlag(kLoopPeelingEnabled); }
+
+  bool has_untrusted_code_mitigations() const {
+    return GetFlag(kUntrustedCodeMitigations);
+  }
 
   // Code getters and setters.
 
