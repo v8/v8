@@ -616,12 +616,6 @@ class InternalBuiltinsAssembler : public CodeStubAssembler {
   explicit InternalBuiltinsAssembler(compiler::CodeAssemblerState* state)
       : CodeStubAssembler(state) {}
 
-  TNode<IntPtrT> GetPendingMicrotaskCount();
-  void SetPendingMicrotaskCount(TNode<IntPtrT> count);
-
-  TNode<FixedArray> GetMicrotaskQueue();
-  void SetMicrotaskQueue(TNode<FixedArray> queue);
-
   TNode<Context> GetCurrentContext();
   void SetCurrentContext(TNode<Context> context);
 
@@ -650,39 +644,6 @@ class InternalBuiltinsAssembler : public CodeStubAssembler {
                         TheHoleConstant());
   }
 };
-
-TNode<IntPtrT> InternalBuiltinsAssembler::GetPendingMicrotaskCount() {
-  auto ref = ExternalReference::pending_microtask_count_address(isolate());
-  if (kIntSize == 8) {
-    return TNode<IntPtrT>::UncheckedCast(
-        Load(MachineType::Int64(), ExternalConstant(ref)));
-  } else {
-    Node* const value = Load(MachineType::Int32(), ExternalConstant(ref));
-    return ChangeInt32ToIntPtr(value);
-  }
-}
-
-void InternalBuiltinsAssembler::SetPendingMicrotaskCount(TNode<IntPtrT> count) {
-  auto ref = ExternalReference::pending_microtask_count_address(isolate());
-  auto rep = kIntSize == 8 ? MachineRepresentation::kWord64
-                           : MachineRepresentation::kWord32;
-  if (kIntSize == 4 && kPointerSize == 8) {
-    Node* const truncated_count =
-        TruncateInt64ToInt32(TNode<Int64T>::UncheckedCast(count));
-    StoreNoWriteBarrier(rep, ExternalConstant(ref), truncated_count);
-  } else {
-    StoreNoWriteBarrier(rep, ExternalConstant(ref), count);
-  }
-}
-
-TNode<FixedArray> InternalBuiltinsAssembler::GetMicrotaskQueue() {
-  return TNode<FixedArray>::UncheckedCast(
-      LoadRoot(Heap::kMicrotaskQueueRootIndex));
-}
-
-void InternalBuiltinsAssembler::SetMicrotaskQueue(TNode<FixedArray> queue) {
-  StoreRoot(Heap::kMicrotaskQueueRootIndex, queue);
-}
 
 TNode<Context> InternalBuiltinsAssembler::GetCurrentContext() {
   auto ref = ExternalReference(kContextAddress, isolate());
