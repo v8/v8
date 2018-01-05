@@ -136,8 +136,6 @@ declare_args() {
   # while rolling in a new version of V8.
   v8_check_microtasks_scopes_consistency = ""
 
-  v8_monolithic = false
-
   # Enable mitigations for executing untrusted code.
   v8_untrusted_code_mitigations = true
 }
