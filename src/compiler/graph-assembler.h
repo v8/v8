@@ -29,8 +29,7 @@ namespace compiler {
   V(RoundFloat64ToInt32)                 \
   V(TruncateFloat64ToWord32)             \
   V(Float64ExtractHighWord32)            \
-  V(Float64Abs)                          \
-  V(BitcastWordToTagged)
+  V(Float64Abs)
 
 #define PURE_ASSEMBLER_MACH_BINOP_LIST(V) \
   V(WordShl)                              \
@@ -199,6 +198,7 @@ class GraphAssembler {
   Node* Float64RoundDown(Node* value);
 
   Node* ToNumber(Node* value);
+  Node* BitcastWordToTagged(Node* value);
   Node* Allocate(PretenureFlag pretenure, Node* size);
   Node* LoadField(FieldAccess const&, Node* object);
   Node* LoadElement(ElementAccess const&, Node* object, Node* index);

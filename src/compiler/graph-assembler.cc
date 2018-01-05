@@ -169,6 +169,12 @@ Node* GraphAssembler::ToNumber(Node* value) {
                               value, NoContextConstant(), current_effect_);
 }
 
+Node* GraphAssembler::BitcastWordToTagged(Node* value) {
+  return current_effect_ =
+             graph()->NewNode(machine()->BitcastWordToTagged(), value,
+                              current_effect_, current_control_);
+}
+
 Node* GraphAssembler::DeoptimizeIf(DeoptimizeReason reason,
                                    VectorSlotPair const& feedback,
                                    Node* condition, Node* frame_state) {

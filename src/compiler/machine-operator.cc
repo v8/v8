@@ -138,7 +138,6 @@ MachineType AtomicOpRepresentationOf(Operator const* op) {
   PURE_BINARY_OP_LIST_64(V)                                               \
   V(Word32Clz, Operator::kNoProperties, 1, 0, 1)                          \
   V(Word64Clz, Operator::kNoProperties, 1, 0, 1)                          \
-  V(BitcastTaggedToWord, Operator::kNoProperties, 1, 0, 1)                \
   V(BitcastWordToTaggedSigned, Operator::kNoProperties, 1, 0, 1)          \
   V(TruncateFloat64ToWord32, Operator::kNoProperties, 1, 0, 1)            \
   V(ChangeFloat32ToFloat64, Operator::kNoProperties, 1, 0, 1)             \
@@ -614,9 +613,17 @@ struct MachineOperatorGlobalCache {
     BitcastWordToTaggedOperator()
         : Operator(IrOpcode::kBitcastWordToTagged,
                    Operator::kEliminatable | Operator::kNoWrite,
-                   "BitcastWordToTagged", 1, 0, 0, 1, 0, 0) {}
+                   "BitcastWordToTagged", 1, 1, 1, 1, 1, 0) {}
   };
   BitcastWordToTaggedOperator kBitcastWordToTagged;
+
+  struct BitcastTaggedToWordOperator : public Operator {
+    BitcastTaggedToWordOperator()
+        : Operator(IrOpcode::kBitcastTaggedToWord,
+                   Operator::kEliminatable | Operator::kNoWrite,
+                   "BitcastTaggedToWord", 1, 1, 1, 1, 1, 0) {}
+  };
+  BitcastTaggedToWordOperator kBitcastTaggedToWord;
 
   struct DebugAbortOperator : public Operator {
     DebugAbortOperator()
@@ -791,6 +798,10 @@ const Operator* MachineOperatorBuilder::UnsafePointerAdd() {
 
 const Operator* MachineOperatorBuilder::BitcastWordToTagged() {
   return &cache_.kBitcastWordToTagged;
+}
+
+const Operator* MachineOperatorBuilder::BitcastTaggedToWord() {
+  return &cache_.kBitcastTaggedToWord;
 }
 
 const Operator* MachineOperatorBuilder::DebugAbort() {
