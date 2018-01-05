@@ -18,6 +18,7 @@ ALL_VARIANT_FLAGS = {
   # https://chromium-review.googlesource.com/c/452620/ for more discussion.
   "nooptimization": [["--noopt"]],
   "stress_background_compile": [["--background-compile", "--stress-background-compile"]],
+  "trusted": [["--no-untrusted-code-mitigations"]],
   "wasm_traps": [["--wasm_trap_handler", "--invoke-weak-callbacks", "--wasm-jit-to-native"]],
 
   # Alias of exhaustive variants, but triggering new test framework features.
