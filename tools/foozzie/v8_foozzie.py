@@ -55,6 +55,15 @@ CONFIGS = dict(
     '--no-lazy-inner-functions',
     '--suppress-asm-messages',
   ],
+  slow_path=[
+    '--force-slow-path',
+    '--suppress-asm-messages',
+  ],
+  slow_path_opt=[
+    '--always-opt',
+    '--force-slow-path',
+    '--suppress-asm-messages',
+  ],
   trusted=[
     '--no-untrusted-code-mitigations',
     '--suppress-asm-messages',
