@@ -2876,16 +2876,16 @@ WASM_EXEC_TEST(I32SConvertSatF32) {
   WasmRunner<int32_t, float> r(execution_mode);
   BUILD(r, WASM_I32_SCONVERT_SAT_F32(WASM_GET_LOCAL(0)));
 
-  constexpr float kLowerBound =
-      static_cast<float>(std::numeric_limits<int32_t>::min());
-  constexpr float kUpperBound =
-      static_cast<float>(std::numeric_limits<int32_t>::max());
-  assert(static_cast<int64_t>(kUpperBound) >
-         static_cast<int64_t>(std::numeric_limits<int32_t>::max()));
-  assert(static_cast<int32_t>(kLowerBound) ==
-         std::numeric_limits<int32_t>::min());
+  constexpr float kLowerBound = std::numeric_limits<int32_t>::min();
+  constexpr float kUpperBound = std::numeric_limits<int32_t>::max();
 
   FOR_FLOAT32_INPUTS(i) {
+    static_assert(static_cast<int64_t>(kUpperBound) >
+                      static_cast<int64_t>(std::numeric_limits<int32_t>::max()),
+                  "kUpperBound invalidates the following bounds check.");
+    static_assert(static_cast<int32_t>(kLowerBound) ==
+                      std::numeric_limits<int32_t>::min(),
+                  "kLowerBounds invalidates the following bounds check.");
     if (*i < kUpperBound && *i >= kLowerBound) {
       CHECK_EQ(static_cast<int32_t>(*i), r.Call(*i));
     } else if (std::isnan(*i)) {
