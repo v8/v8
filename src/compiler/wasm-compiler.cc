@@ -3544,23 +3544,17 @@ Node* WasmGraphBuilder::BoundsCheckMem(MachineType memtype, Node* index,
     // The end offset is larger than the smallest memory.
     // Dynamically check the end offset against the actual memory size, which
     // is not known at compile time.
-    Node* cond;
-    if (jsgraph()->machine()->Is32()) {
-      cond = graph()->NewNode(jsgraph()->machine()->Uint32LessThanOrEqual(),
-                              jsgraph()->Int32Constant(end_offset), mem_size);
-    } else {
-      cond = graph()->NewNode(
-          jsgraph()->machine()->Uint64LessThanOrEqual(),
-          jsgraph()->Int64Constant(static_cast<int64_t>(end_offset)), mem_size);
-    }
+    Node* cond =
+        graph()->NewNode(jsgraph()->machine()->Uint32LessThanOrEqual(),
+                         jsgraph()->Int32Constant(end_offset), mem_size);
     TrapIfFalse(wasm::kTrapMemOutOfBounds, cond, position);
   } else {
     // The end offset is within the bounds of the smallest memory, so only
     // one check is required. Check to see if the index is also a constant.
-    UintPtrMatcher match(index);
+    Uint32Matcher match(index);
     if (match.HasValue()) {
-      uint64_t index_val = match.Value();
-      if ((index_val + offset + access_size) <= min_size) {
+      uint32_t index_val = match.Value();
+      if (index_val <= min_size - end_offset) {
         // The input index is a constant and everything is statically within
         // bounds of the smallest possible memory.
         return m->Is64() ? graph()->NewNode(m->ChangeUint32ToUint64(), index)
@@ -3572,16 +3566,10 @@ Node* WasmGraphBuilder::BoundsCheckMem(MachineType memtype, Node* index,
   // Compute the effective size of the memory, which is the size of the memory
   // minus the statically known offset, minus the byte size of the access minus
   // one.
-  Node* effective_size;
-  if (jsgraph()->machine()->Is32()) {
-    effective_size =
-        graph()->NewNode(jsgraph()->machine()->Int32Sub(), mem_size,
-                         jsgraph()->Int32Constant(end_offset - 1));
-  } else {
-    effective_size = graph()->NewNode(
-        jsgraph()->machine()->Int64Sub(), mem_size,
-        jsgraph()->Int64Constant(static_cast<int64_t>(end_offset - 1)));
-  }
+  // This produces a positive number since {end_offset <= min_size <= mem_size}.
+  Node* effective_size =
+      graph()->NewNode(jsgraph()->machine()->Int32Sub(), mem_size,
+                       jsgraph()->Int32Constant(end_offset - 1));
 
   // Introduce the actual bounds check.
   Node* cond = graph()->NewNode(m->Uint32LessThan(), index, effective_size);
