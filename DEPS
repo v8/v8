@@ -319,6 +319,7 @@ hooks = [
     # A change to a .gyp, .gypi, or to GYP itself should run the generator.
     'name': 'regyp_if_needed',
     'pattern': '.',
+    'condition': 'build_for_node != True',
     'action': ['python', 'v8/gypfiles/gyp_v8', '--running-as-hook'],
   },
   # Download and initialize "vpython" VirtualEnv environment packages.
