@@ -9,13 +9,12 @@
 
 #include "src/wasm/compilation-manager.h"
 #include "src/wasm/wasm-code-manager.h"
+#include "src/wasm/wasm-memory.h"
 
 namespace v8 {
 namespace internal {
 
 namespace wasm {
-
-class CompilationManager;
 
 // The central data structure that represents an engine instance capable of
 // loading, instantiating, and executing WASM code.
@@ -28,9 +27,14 @@ class WasmEngine {
 
   WasmCodeManager* code_manager() const { return code_manager_.get(); }
 
+  WasmAllocationTracker* allocation_tracker() { return &allocation_tracker_; }
+
  private:
   CompilationManager compilation_manager_;
   std::unique_ptr<WasmCodeManager> code_manager_;
+  WasmAllocationTracker allocation_tracker_;
+
+  DISALLOW_COPY_AND_ASSIGN(WasmEngine);
 };
 
 }  // namespace wasm

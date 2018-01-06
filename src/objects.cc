@@ -73,6 +73,7 @@
 #include "src/trap-handler/trap-handler.h"
 #include "src/unicode-cache-inl.h"
 #include "src/utils-inl.h"
+#include "src/wasm/wasm-engine.h"
 #include "src/wasm/wasm-objects.h"
 #include "src/zone/zone.h"
 
@@ -18958,6 +18959,13 @@ void JSArrayBuffer::FreeBackingStore() {
 
 // static
 void JSArrayBuffer::FreeBackingStore(Isolate* isolate, Allocation allocation) {
+  if (allocation.mode == ArrayBuffer::Allocator::AllocationMode::kReservation) {
+    // TODO(eholk): check with WasmAllocationTracker to make sure this is
+    // actually a buffer we are tracking.
+    isolate->wasm_engine()->allocation_tracker()->ReleaseAddressSpace(
+        allocation.length);
+  }
+
   isolate->array_buffer_allocator()->Free(allocation.allocation_base,
                                           allocation.length, allocation.mode);
 }
