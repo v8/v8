@@ -156,7 +156,7 @@ class WasmCompilationUnit final {
   size_t memory_cost_ = 0;
   wasm::NativeModule* native_module_;
   bool lower_simd_;
-  std::shared_ptr<std::vector<trap_handler::ProtectedInstructionData>>
+  std::unique_ptr<std::vector<trap_handler::ProtectedInstructionData>>
       protected_instructions_;
   CompilationMode mode_;
   // {liftoff_} is valid if mode_ == kLiftoff, tf_ if mode_ == kTurbofan.

@@ -253,11 +253,6 @@ class PipelineData {
     source_position_output_ = source_position_output;
   }
 
-  std::vector<trap_handler::ProtectedInstructionData>* protected_instructions()
-      const {
-    return protected_instructions_;
-  }
-
   JumpOptimizationInfo* jump_optimization_info() const {
     return jump_optimization_info_;
   }

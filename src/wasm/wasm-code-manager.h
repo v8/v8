@@ -151,7 +151,7 @@ class V8_EXPORT_PRIVATE WasmCode final {
         constant_pool_offset_(constant_pool_offset),
         stack_slots_(stack_slots),
         safepoint_table_offset_(safepoint_table_offset),
-        protected_instructions_(protected_instructions),
+        protected_instructions_(std::move(protected_instructions)),
         is_liftoff_(is_liftoff) {}
 
   WasmCode(const WasmCode&) = delete;
@@ -190,7 +190,7 @@ class V8_EXPORT_PRIVATE NativeModule final {
 
   WasmCode* AddCode(const CodeDesc& desc, uint32_t frame_count, uint32_t index,
                     size_t safepoint_table_offset,
-                    std::shared_ptr<ProtectedInstructions>,
+                    std::unique_ptr<ProtectedInstructions>,
                     bool is_liftoff = false);
 
   // A way to copy over JS-allocated code. This is because we compile

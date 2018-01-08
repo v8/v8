@@ -387,7 +387,7 @@ WasmCode* NativeModule::AddAnonymousCode(Handle<Code> code,
 WasmCode* NativeModule::AddCode(
     const CodeDesc& desc, uint32_t frame_slots, uint32_t index,
     size_t safepoint_table_offset,
-    std::shared_ptr<ProtectedInstructions> protected_instructions,
+    std::unique_ptr<ProtectedInstructions> protected_instructions,
     bool is_liftoff) {
   std::unique_ptr<byte[]> reloc_info;
   if (desc.reloc_size) {

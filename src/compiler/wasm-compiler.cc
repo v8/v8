@@ -5139,7 +5139,7 @@ WasmCodeWrapper WasmCompilationUnit::FinishTurbofanCompilation(
         desc, tf_.job_->compilation_info()->wasm_code_desc()->frame_slot_count,
         func_index_,
         tf_.job_->compilation_info()->wasm_code_desc()->safepoint_table_offset,
-        protected_instructions_);
+        std::move(protected_instructions_));
     if (!code) {
       return WasmCodeWrapper(code);
     }
@@ -5243,9 +5243,10 @@ WasmCodeWrapper WasmCompilationUnit::FinishLiftoffCompilation(
     // Consider lifting them both to FinishCompilation.
     native_module_->compiled_module()->source_positions()->set(
         func_index_, *source_positions);
-    return WasmCodeWrapper(native_module_->AddCode(
-        desc, liftoff_.asm_.GetTotalFrameSlotCount(), func_index_,
-        liftoff_.safepoint_table_offset_, protected_instructions_, true));
+    return WasmCodeWrapper(
+        native_module_->AddCode(desc, liftoff_.asm_.GetTotalFrameSlotCount(),
+                                func_index_, liftoff_.safepoint_table_offset_,
+                                std::move(protected_instructions_), true));
   }
 }
 
