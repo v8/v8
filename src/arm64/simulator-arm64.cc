@@ -117,8 +117,7 @@ Simulator* Simulator::current(Isolate* isolate) {
   return sim;
 }
 
-
-void Simulator::CallVoid(byte* entry, CallArgument* args) {
+void Simulator::CallImpl(byte* entry, CallArgument* args) {
   int index_x = 0;
   int index_d = 0;
 
@@ -159,63 +158,6 @@ void Simulator::CallVoid(byte* entry, CallArgument* args) {
 
   set_sp(original_stack);
 }
-
-
-int64_t Simulator::CallInt64(byte* entry, CallArgument* args) {
-  CallVoid(entry, args);
-  return xreg(0);
-}
-
-
-double Simulator::CallDouble(byte* entry, CallArgument* args) {
-  CallVoid(entry, args);
-  return dreg(0);
-}
-
-
-int64_t Simulator::CallJS(byte* entry,
-                          Object* new_target,
-                          Object* target,
-                          Object* revc,
-                          int64_t argc,
-                          Object*** argv) {
-  CallArgument args[] = {
-    CallArgument(new_target),
-    CallArgument(target),
-    CallArgument(revc),
-    CallArgument(argc),
-    CallArgument(argv),
-    CallArgument::End()
-  };
-  return CallInt64(entry, args);
-}
-
-
-int64_t Simulator::CallRegExp(byte* entry,
-                              String* input,
-                              int64_t start_offset,
-                              const byte* input_start,
-                              const byte* input_end,
-                              int* output,
-                              int64_t output_size,
-                              Address stack_base,
-                              int64_t direct_call,
-                              Isolate* isolate) {
-  CallArgument args[] = {
-    CallArgument(input),
-    CallArgument(start_offset),
-    CallArgument(input_start),
-    CallArgument(input_end),
-    CallArgument(output),
-    CallArgument(output_size),
-    CallArgument(stack_base),
-    CallArgument(direct_call),
-    CallArgument(isolate),
-    CallArgument::End()
-  };
-  return CallInt64(entry, args);
-}
-
 
 void Simulator::CheckPCSComplianceAndRun() {
   // Adjust JS-based stack limit to C-based stack limit.

@@ -5538,7 +5538,7 @@ TEST(RunInt32MulWithOverflowInBranchP) {
 TEST(RunWord64EqualInBranchP) {
   int64_t input;
   RawMachineLabel blocka, blockb;
-  RawMachineAssemblerTester<int64_t> m;
+  RawMachineAssemblerTester<int32_t> m;
   if (!m.machine()->Is64()) return;
   Node* value = m.LoadFromPointer(&input, MachineType::Int64());
   m.Branch(m.Word64Equal(value, m.Int64Constant(0)), &blocka, &blockb);

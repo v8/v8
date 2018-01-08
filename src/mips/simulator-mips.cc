@@ -7050,18 +7050,16 @@ void Simulator::CallInternal(byte* entry) {
   set_register(fp, fp_val);
 }
 
-
-int32_t Simulator::Call(byte* entry, int argument_count, ...) {
-  va_list parameters;
-  va_start(parameters, argument_count);
+intptr_t Simulator::CallImpl(byte* entry, int argument_count,
+                             const intptr_t* arguments) {
   // Set up arguments.
 
   // First four arguments passed in registers.
-  DCHECK_GE(argument_count, 4);
-  set_register(a0, va_arg(parameters, int32_t));
-  set_register(a1, va_arg(parameters, int32_t));
-  set_register(a2, va_arg(parameters, int32_t));
-  set_register(a3, va_arg(parameters, int32_t));
+  int reg_arg_count = std::min(4, argument_count);
+  if (reg_arg_count > 0) set_register(a0, arguments[0]);
+  if (reg_arg_count > 1) set_register(a1, arguments[1]);
+  if (reg_arg_count > 2) set_register(a2, arguments[2]);
+  if (reg_arg_count > 3) set_register(a3, arguments[3]);
 
   // Remaining arguments passed on stack.
   int original_stack = get_register(sp);
@@ -7073,10 +7071,8 @@ int32_t Simulator::Call(byte* entry, int argument_count, ...) {
   }
   // Store remaining arguments on stack, from low to high memory.
   intptr_t* stack_argument = reinterpret_cast<intptr_t*>(entry_stack);
-  for (int i = 4; i < argument_count; i++) {
-    stack_argument[i - 4 + kCArgSlotCount] = va_arg(parameters, int32_t);
-  }
-  va_end(parameters);
+  memcpy(stack_argument + kCArgSlotCount, arguments + reg_arg_count,
+         (argument_count - reg_arg_count) * sizeof(*arguments));
   set_register(sp, entry_stack);
 
   CallInternal(entry);
@@ -7085,8 +7081,7 @@ int32_t Simulator::Call(byte* entry, int argument_count, ...) {
   CHECK_EQ(entry_stack, get_register(sp));
   set_register(sp, original_stack);
 
-  int32_t result = get_register(v0);
-  return result;
+  return get_register(v0);
 }
 
 

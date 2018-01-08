@@ -159,13 +159,16 @@ class Simulator : public SimulatorBase {
   // Executes ARM instructions until the PC reaches end_sim_pc.
   void Execute();
 
-  // V8 generally calls into generated JS code with 5 parameters and into
-  // generated RegExp code with 7 parameters. This is a convenience function,
-  // which sets up the simulator state and grabs the result on return.
-  int32_t Call(byte* entry, int argument_count, ...);
+  template <typename Return, typename... Args>
+  Return Call(byte* entry, Args... args) {
+    return VariadicCall<Return>(this, &Simulator::CallImpl, entry, args...);
+  }
+
   // Alternative: call a 2-argument double function.
-  void CallFP(byte* entry, double d0, double d1);
-  int32_t CallFPReturnsInt(byte* entry, double d0, double d1);
+  template <typename Return>
+  Return CallFP(byte* entry, double d0, double d1) {
+    return ConvertReturn<Return>(CallFPImpl(entry, d0, d1));
+  }
 
   // Push an address onto the JS stack.
   uintptr_t PushAddress(uintptr_t address);
@@ -208,6 +211,9 @@ class Simulator : public SimulatorBase {
     // C code.
     end_sim_pc = -2
   };
+
+  intptr_t CallImpl(byte* entry, int argument_count, const intptr_t* arguments);
+  intptr_t CallFPImpl(byte* entry, double d0, double d1);
 
   // Unsupported instructions use Format to print an error and stop execution.
   void Format(Instruction* instr, const char* format);
@@ -493,17 +499,17 @@ class Simulator : public SimulatorBase {
 
 // When running with the simulator transition into simulated execution at this
 // point.
-#define CALL_GENERATED_CODE(isolate, entry, p0, p1, p2, p3, p4) \
-  reinterpret_cast<Object*>(Simulator::current(isolate)->Call(  \
-      FUNCTION_ADDR(entry), 5, p0, p1, p2, p3, p4))
+#define CALL_GENERATED_CODE(isolate, entry, p0, p1, p2, p3, p4)                \
+  Simulator::current(isolate)->Call<Object*>(FUNCTION_ADDR(entry), p0, p1, p2, \
+                                             p3, p4)
 
 #define CALL_GENERATED_FP_INT(isolate, entry, p0, p1) \
-  Simulator::current(isolate)->CallFPReturnsInt(FUNCTION_ADDR(entry), p0, p1)
+  Simulator::current(isolate)->CallFP<int>(FUNCTION_ADDR(entry), p0, p1)
 
 #define CALL_GENERATED_REGEXP_CODE(isolate, entry, p0, p1, p2, p3, p4, p5, p6, \
                                    p7, p8)                                     \
-  Simulator::current(isolate)->Call(entry, 9, p0, p1, p2, p3, p4, p5, p6, p7,  \
-                                    p8)
+  Simulator::current(isolate)->Call<int>(entry, p0, p1, p2, p3, p4, p5, p6,    \
+                                         p7, p8)
 
 }  // namespace internal
 }  // namespace v8

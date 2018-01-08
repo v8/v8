@@ -2480,7 +2480,8 @@ void Simulator::CallInternal(byte* entry, int reg_arg_count) {
   set_register(r13, r13_val);
 }
 
-intptr_t Simulator::Call(byte* entry, int argument_count, ...) {
+intptr_t Simulator::CallImpl(byte* entry, int argument_count,
+                             const intptr_t* arguments) {
   // Adjust JS-based stack limit to C-based stack limit.
   isolate_->stack_guard()->AdjustStackLimitForSimulator();
 
@@ -2494,16 +2495,13 @@ intptr_t Simulator::Call(byte* entry, int argument_count, ...) {
   int64_t r12_val = get_register(r12);
   int64_t r13_val = get_register(r13);
 
-  va_list parameters;
-  va_start(parameters, argument_count);
   // Set up arguments
 
   // First 5 arguments passed in registers r2-r6.
-  int reg_arg_count = (argument_count > 5) ? 5 : argument_count;
+  int reg_arg_count = std::min(5, argument_count);
   int stack_arg_count = argument_count - reg_arg_count;
   for (int i = 0; i < reg_arg_count; i++) {
-    intptr_t value = va_arg(parameters, intptr_t);
-    set_register(i + 2, value);
+    set_register(i + 2, arguments[i]);
   }
 
   // Remaining arguments passed on stack.
@@ -2519,11 +2517,8 @@ intptr_t Simulator::Call(byte* entry, int argument_count, ...) {
   // Store remaining arguments on stack, from low to high memory.
   intptr_t* stack_argument =
       reinterpret_cast<intptr_t*>(entry_stack + kCalleeRegisterSaveAreaSize);
-  for (int i = 0; i < stack_arg_count; i++) {
-    intptr_t value = va_arg(parameters, intptr_t);
-    stack_argument[i] = value;
-  }
-  va_end(parameters);
+  memcpy(stack_argument, arguments + reg_arg_count,
+         stack_arg_count * sizeof(*arguments));
   set_register(sp, entry_stack);
 
 // Prepare to execute the code at entry
@@ -2604,8 +2599,7 @@ intptr_t Simulator::Call(byte* entry, int argument_count, ...) {
   set_register(sp, original_stack);
 
   // Return value register
-  intptr_t result = get_register(r2);
-  return result;
+  return get_register(r2);
 }
 
 void Simulator::CallFP(byte* entry, double d0, double d1) {

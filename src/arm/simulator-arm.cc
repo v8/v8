@@ -5790,18 +5790,16 @@ void Simulator::CallInternal(byte* entry) {
   set_register(r11, r11_val);
 }
 
-
-int32_t Simulator::Call(byte* entry, int argument_count, ...) {
-  va_list parameters;
-  va_start(parameters, argument_count);
+intptr_t Simulator::CallImpl(byte* entry, int argument_count,
+                             const intptr_t* arguments) {
   // Set up arguments
 
   // First four arguments passed in registers.
-  DCHECK_GE(argument_count, 4);
-  set_register(r0, va_arg(parameters, int32_t));
-  set_register(r1, va_arg(parameters, int32_t));
-  set_register(r2, va_arg(parameters, int32_t));
-  set_register(r3, va_arg(parameters, int32_t));
+  int reg_arg_count = std::min(4, argument_count);
+  if (reg_arg_count > 0) set_register(r0, arguments[0]);
+  if (reg_arg_count > 1) set_register(r1, arguments[1]);
+  if (reg_arg_count > 2) set_register(r2, arguments[2]);
+  if (reg_arg_count > 3) set_register(r3, arguments[3]);
 
   // Remaining arguments passed on stack.
   int original_stack = get_register(sp);
@@ -5811,11 +5809,8 @@ int32_t Simulator::Call(byte* entry, int argument_count, ...) {
     entry_stack &= -base::OS::ActivationFrameAlignment();
   }
   // Store remaining arguments on stack, from low to high memory.
-  intptr_t* stack_argument = reinterpret_cast<intptr_t*>(entry_stack);
-  for (int i = 4; i < argument_count; i++) {
-    stack_argument[i - 4] = va_arg(parameters, int32_t);
-  }
-  va_end(parameters);
+  memcpy(reinterpret_cast<intptr_t*>(entry_stack), arguments + reg_arg_count,
+         (argument_count - reg_arg_count) * sizeof(*arguments));
   set_register(sp, entry_stack);
 
   CallInternal(entry);
@@ -5824,12 +5819,10 @@ int32_t Simulator::Call(byte* entry, int argument_count, ...) {
   CHECK_EQ(entry_stack, get_register(sp));
   set_register(sp, original_stack);
 
-  int32_t result = get_register(r0);
-  return result;
+  return get_register(r0);
 }
 
-
-void Simulator::CallFP(byte* entry, double d0, double d1) {
+int32_t Simulator::CallFPImpl(byte* entry, double d0, double d1) {
   if (use_eabi_hardfloat()) {
     set_d_register_from_double(0, d0);
     set_d_register_from_double(1, d1);
@@ -5838,13 +5831,7 @@ void Simulator::CallFP(byte* entry, double d0, double d1) {
     set_register_pair_from_double(2, &d1);
   }
   CallInternal(entry);
-}
-
-
-int32_t Simulator::CallFPReturnsInt(byte* entry, double d0, double d1) {
-  CallFP(entry, d0, d1);
-  int32_t result = get_register(r0);
-  return result;
+  return get_register(r0);
 }
 
 

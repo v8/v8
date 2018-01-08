@@ -4087,17 +4087,15 @@ void Simulator::CallInternal(byte* entry) {
   set_register(fp, r31_val);
 }
 
-
-intptr_t Simulator::Call(byte* entry, int argument_count, ...) {
-  va_list parameters;
-  va_start(parameters, argument_count);
+intptr_t Simulator::CallImpl(byte* entry, int argument_count,
+                             const intptr_t* arguments) {
   // Set up arguments
 
   // First eight arguments passed in registers r3-r10.
-  int reg_arg_count = (argument_count > 8) ? 8 : argument_count;
+  int reg_arg_count = std::min(8, argument_count);
   int stack_arg_count = argument_count - reg_arg_count;
   for (int i = 0; i < reg_arg_count; i++) {
-    set_register(i + 3, va_arg(parameters, intptr_t));
+    set_register(i + 3, arguments[i]);
   }
 
   // Remaining arguments passed on stack.
@@ -4113,10 +4111,8 @@ intptr_t Simulator::Call(byte* entry, int argument_count, ...) {
   // +2 is a hack for the LR slot + old SP on PPC
   intptr_t* stack_argument =
       reinterpret_cast<intptr_t*>(entry_stack) + kStackFrameExtraParamSlot;
-  for (int i = 0; i < stack_arg_count; i++) {
-    stack_argument[i] = va_arg(parameters, intptr_t);
-  }
-  va_end(parameters);
+  memcpy(stack_argument, arguments + reg_arg_count,
+         stack_arg_count * sizeof(*arguments));
   set_register(sp, entry_stack);
 
   CallInternal(entry);
@@ -4125,8 +4121,7 @@ intptr_t Simulator::Call(byte* entry, int argument_count, ...) {
   CHECK_EQ(entry_stack, get_register(sp));
   set_register(sp, original_stack);
 
-  intptr_t result = get_register(r3);
-  return result;
+  return get_register(r3);
 }
 
 

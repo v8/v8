@@ -136,12 +136,8 @@ static Isolate* GetIsolateFrom(LocalContext* context) {
 int32_t RunGeneratedCodeCallWrapper(ConvertDToIFunc func,
                                     double from) {
 #ifdef USE_SIMULATOR
-  Simulator::CallArgument args[] = {
-      Simulator::CallArgument(from),
-      Simulator::CallArgument::End()
-  };
-  return static_cast<int32_t>(Simulator::current(CcTest::i_isolate())
-                                  ->CallInt64(FUNCTION_ADDR(func), args));
+  return Simulator::current(CcTest::i_isolate())
+      ->Call<int32_t>(FUNCTION_ADDR(func), from);
 #else
   return (*func)(from);
 #endif

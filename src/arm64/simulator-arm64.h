@@ -662,37 +662,6 @@ class Simulator : public DecoderVisitor, public SimulatorBase {
 
   static Simulator* current(v8::internal::Isolate* isolate);
 
-  class CallArgument;
-
-  // Call an arbitrary function taking an arbitrary number of arguments. The
-  // varargs list must be a set of arguments with type CallArgument, and
-  // terminated by CallArgument::End().
-  void CallVoid(byte* entry, CallArgument* args);
-
-  // Like CallVoid, but expect a return value.
-  int64_t CallInt64(byte* entry, CallArgument* args);
-  double CallDouble(byte* entry, CallArgument* args);
-
-  // V8 calls into generated JS code with 5 parameters and into
-  // generated RegExp code with 10 parameters. These are convenience functions,
-  // which set up the simulator state and grab the result on return.
-  int64_t CallJS(byte* entry,
-                 Object* new_target,
-                 Object* target,
-                 Object* revc,
-                 int64_t argc,
-                 Object*** argv);
-  int64_t CallRegExp(byte* entry,
-                     String* input,
-                     int64_t start_offset,
-                     const byte* input_start,
-                     const byte* input_end,
-                     int* output,
-                     int64_t output_size,
-                     Address stack_base,
-                     int64_t direct_call,
-                     Isolate* isolate);
-
   // A wrapper class that stores an argument for one of the above Call
   // functions.
   //
@@ -747,6 +716,14 @@ class Simulator : public DecoderVisitor, public SimulatorBase {
     CallArgument() { type_ = NO_ARG; }
   };
 
+  // Call an arbitrary function taking an arbitrary number of arguments.
+  template <typename Return, typename... Args>
+  Return Call(byte* entry, Args... args) {
+    // Convert all arguments to CallArgument.
+    CallArgument call_args[] = {CallArgument(args)..., CallArgument::End()};
+    CallImpl(entry, call_args);
+    return ReadReturn<Return>();
+  }
 
   // Start the debugging command line.
   void Debug();
@@ -2301,6 +2278,21 @@ class Simulator : public DecoderVisitor, public SimulatorBase {
  private:
   void Init(FILE* stream);
 
+  void CallImpl(byte* entry, CallArgument* args);
+
+  // Read floating point return values.
+  template <typename T>
+  typename std::enable_if<std::is_floating_point<T>::value, T>::type
+  ReadReturn() {
+    return static_cast<T>(dreg(0));
+  }
+  // Read non-float return values.
+  template <typename T>
+  typename std::enable_if<!std::is_floating_point<T>::value, T>::type
+  ReadReturn() {
+    return ConvertReturn<T>(xreg(0));
+  }
+
   template <typename T>
   static T FPDefaultNaN();
 
@@ -2365,14 +2357,14 @@ inline float Simulator::FPDefaultNaN<float>() {
 
 // When running with the simulator transition into simulated execution at this
 // point.
-#define CALL_GENERATED_CODE(isolate, entry, p0, p1, p2, p3, p4)  \
-  reinterpret_cast<Object*>(Simulator::current(isolate)->CallJS( \
-      FUNCTION_ADDR(entry), p0, p1, p2, p3, p4))
+#define CALL_GENERATED_CODE(isolate, entry, p0, p1, p2, p3, p4)                \
+  Simulator::current(isolate)->Call<Object*>(FUNCTION_ADDR(entry), p0, p1, p2, \
+                                             p3, p4)
 
 #define CALL_GENERATED_REGEXP_CODE(isolate, entry, p0, p1, p2, p3, p4, p5, p6, \
                                    p7, p8)                                     \
-  static_cast<int>(Simulator::current(isolate)->CallRegExp(                    \
-      entry, p0, p1, p2, p3, p4, p5, p6, p7, p8))
+  Simulator::current(isolate)->Call<int>(entry, p0, p1, p2, p3, p4, p5, p6,    \
+                                         p7, p8)
 
 #endif  // defined(USE_SIMULATOR)
 

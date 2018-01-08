@@ -5,6 +5,8 @@
 #ifndef V8_SIMULATOR_BASE_H_
 #define V8_SIMULATOR_BASE_H_
 
+#include <type_traits>
+
 #include "src/assembler.h"
 #include "src/globals.h"
 
@@ -38,6 +40,54 @@ class SimulatorBase {
 
   static base::Mutex* redirection_mutex_;
   static Redirection* redirection_;
+
+  template <typename Return, typename SimT, typename CallImpl, typename... Args>
+  static Return VariadicCall(SimT* sim, CallImpl call, byte* entry,
+                             Args... args) {
+    // Convert all arguments to intptr_t. Fails if any argument is not integral
+    // or pointer.
+    std::array<intptr_t, sizeof...(args)> args_arr{ConvertArg(args)...};
+    intptr_t ret = (sim->*call)(entry, args_arr.size(), args_arr.data());
+    return ConvertReturn<Return>(ret);
+  }
+
+  // Helper methods to convert arbitrary integer or pointer arguments to the
+  // needed generic argument type intptr_t.
+
+  // Convert integral argument to intptr_t.
+  template <typename T>
+  static typename std::enable_if<std::is_integral<T>::value, intptr_t>::type
+  ConvertArg(T arg) {
+    static_assert(sizeof(T) <= sizeof(intptr_t), "type bigger than ptrsize");
+    return static_cast<intptr_t>(arg);
+  }
+
+  // Convert pointer-typed argument to intptr_t.
+  template <typename T>
+  static typename std::enable_if<std::is_pointer<T>::value, intptr_t>::type
+  ConvertArg(T arg) {
+    return reinterpret_cast<intptr_t>(arg);
+  }
+
+  // Convert back integral return types.
+  template <typename T>
+  static typename std::enable_if<std::is_integral<T>::value, T>::type
+  ConvertReturn(intptr_t ret) {
+    static_assert(sizeof(T) <= sizeof(intptr_t), "type bigger than ptrsize");
+    return static_cast<T>(ret);
+  }
+
+  // Convert back pointer-typed return types.
+  template <typename T>
+  static typename std::enable_if<std::is_pointer<T>::value, T>::type
+  ConvertReturn(intptr_t ret) {
+    return reinterpret_cast<T>(ret);
+  }
+
+  // Convert back void return type (i.e. no return).
+  template <typename T>
+  static typename std::enable_if<std::is_void<T>::value, T>::type ConvertReturn(
+      intptr_t ret) {}
 };
 
 // When the generated code calls an external reference we need to catch that in
