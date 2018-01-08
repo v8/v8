@@ -7134,7 +7134,8 @@ void CodeStubAssembler::TryPrototypeChainLookup(
         GotoIfNot(InstanceTypeEqual(holder_instance_type, JS_TYPED_ARRAY_TYPE),
                   &next_proto);
         GotoIfNot(IsString(var_unique.value()), &next_proto);
-        BranchIfMaybeSpecialIndex(CAST(key), if_bailout, &next_proto);
+        BranchIfMaybeSpecialIndex(CAST(var_unique.value()), if_bailout,
+                                  &next_proto);
       }
 
       BIND(&next_proto);
