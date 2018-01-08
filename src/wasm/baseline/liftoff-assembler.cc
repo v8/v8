@@ -127,7 +127,7 @@ class StackTransferRecipe {
           case VarState::kRegister:
             asm_->Spill(dst_index, src.reg());
             break;
-          case VarState::kConstant:
+          case VarState::kI32Const:
             // TODO(clemensh): Handle other types than i32.
             asm_->Spill(dst_index, WasmValue(src.i32_const()));
             break;
@@ -136,7 +136,7 @@ class StackTransferRecipe {
       case VarState::kRegister:
         LoadIntoRegister(dst.reg(), src, src_index);
         break;
-      case VarState::kConstant:
+      case VarState::kI32Const:
         DCHECK_EQ(dst, src);
         break;
     }
@@ -153,7 +153,7 @@ class StackTransferRecipe {
         DCHECK_EQ(dst.reg_class(), src.reg_class());
         if (dst != src.reg()) MoveRegister(dst, src.reg());
         break;
-      case VarState::kConstant:
+      case VarState::kI32Const:
         LoadConstant(dst, WasmValue(src.i32_const()));
         break;
     }
@@ -299,7 +299,7 @@ LiftoffRegister LiftoffAssembler::PopToRegister(RegClass rc,
       DCHECK_EQ(rc, slot.reg_class());
       cache_state_.dec_used(slot.reg());
       return slot.reg();
-    case VarState::kConstant: {
+    case VarState::kI32Const: {
       LiftoffRegister reg = GetUnusedRegister(rc, pinned);
       LoadConstant(reg, WasmValue(slot.i32_const()));
       return reg;
@@ -346,7 +346,7 @@ void LiftoffAssembler::Spill(uint32_t index) {
       Spill(index, slot.reg());
       cache_state_.dec_used(slot.reg());
       break;
-    case VarState::kConstant:
+    case VarState::kI32Const:
       Spill(index, WasmValue(slot.i32_const()));
       break;
   }
@@ -480,7 +480,7 @@ std::ostream& operator<<(std::ostream& os, VarState slot) {
       return os << "s";
     case VarState::kRegister:
       return os << slot.reg();
-    case VarState::kConstant:
+    case VarState::kI32Const:
       return os << "c" << slot.i32_const();
   }
   UNREACHABLE();
