@@ -567,8 +567,9 @@ DEFINE_BOOL(wasm_no_stack_checks, false,
 DEFINE_BOOL(wasm_trap_handler, false,
             "use signal handlers to catch out of bounds memory access in wasm"
             " (experimental, currently Linux x86_64 only)")
-DEFINE_BOOL(wasm_code_fuzzer_gen_test, false,
-            "Generate a test case when running the wasm-code fuzzer")
+DEFINE_BOOL(wasm_fuzzer_gen_test, false,
+            "Generate a test case when running a wasm fuzzer")
+DEFINE_IMPLICATION(wasm_fuzzer_gen_test, single_threaded)
 DEFINE_BOOL(print_wasm_code, false, "Print WebAssembly code")
 DEFINE_BOOL(wasm_interpret_all, false,
             "Execute all wasm code in the wasm interpreter")

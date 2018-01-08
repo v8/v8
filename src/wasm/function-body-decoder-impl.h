@@ -1156,9 +1156,6 @@ class WasmFullDecoder : public WasmDecoder<validate> {
     DCHECK(stack_.empty());
     DCHECK(control_.empty());
 
-    if (FLAG_wasm_code_fuzzer_gen_test) {
-      PrintRawWasmCode(this->start_, this->end_);
-    }
     base::ElapsedTimer decode_timer;
     if (FLAG_trace_wasm_decode_time) {
       decode_timer.Start();

@@ -53,8 +53,10 @@ DecodeResult VerifyWasmCodeWithStats(AccountingAllocator* allocator,
 
 DecodeResult BuildTFGraph(AccountingAllocator* allocator, TFBuilder* builder,
                           FunctionBody& body);
+enum PrintLocals { kPrintLocals, kOmitLocals };
+V8_EXPORT_PRIVATE
 bool PrintRawWasmCode(AccountingAllocator* allocator, const FunctionBody& body,
-                      const wasm::WasmModule* module);
+                      const wasm::WasmModule* module, PrintLocals print_locals);
 
 // A simplified form of AST printing, e.g. from a debugger.
 void PrintRawWasmCode(const byte* start, const byte* end);

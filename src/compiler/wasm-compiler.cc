@@ -4891,7 +4891,8 @@ SourcePositionTable* WasmCompilationUnit::BuildGraphForWasmFunction(
 
   if (func_index_ >= FLAG_trace_wasm_ast_start &&
       func_index_ < FLAG_trace_wasm_ast_end) {
-    PrintRawWasmCode(isolate_->allocator(), func_body_, env_->module);
+    PrintRawWasmCode(isolate_->allocator(), func_body_, env_->module,
+                     wasm::kPrintLocals);
   }
   if (FLAG_trace_wasm_decode_time) {
     *decode_ms = decode_timer.Elapsed().InMillisecondsF();
