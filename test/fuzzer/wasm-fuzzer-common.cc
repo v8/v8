@@ -165,8 +165,26 @@ void GenerateTestCase(Isolate* isolate, ModuleWireBytes wire_bytes,
        << PrintParameters(func.sig) << ", " << PrintReturns(func.sig) << ");\n";
 
     // Add function.
-    os << "  builder.addFunction(undefined, sig" << func.func_index << ")\n"
-       << "    .addBodyWithEnd([\n";
+    os << "  builder.addFunction(undefined, sig" << func.func_index << ")\n";
+
+    // Add locals.
+    BodyLocalDecls decls(&tmp_zone);
+    DecodeLocalDecls(&decls, func_code.start(), func_code.end());
+    if (!decls.type_list.empty()) {
+      os << "    ";
+      for (size_t pos = 0, count = 1, locals = decls.type_list.size();
+           pos < locals; pos += count, count = 1) {
+        ValueType type = decls.type_list[pos];
+        while (pos + count < locals && decls.type_list[pos + count] == type)
+          ++count;
+        os << ".addLocals({" << WasmOpcodes::TypeName(type)
+           << "_count: " << count << "})";
+      }
+      os << "\n";
+    }
+
+    // Add body.
+    os << "    .addBodyWithEnd([\n";
 
     FunctionBody func_body(func.sig, func.code.offset(), func_code.start(),
                            func_code.end());
