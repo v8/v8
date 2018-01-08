@@ -5,6 +5,7 @@
 #include "src/wasm/baseline/liftoff-assembler.h"
 
 #include "src/assembler-inl.h"
+#include "src/base/optional.h"
 #include "src/compiler/linkage.h"
 #include "src/compiler/wasm-compiler.h"
 #include "src/counters.h"
@@ -802,11 +803,14 @@ bool compiler::WasmCompilationUnit::ExecuteLiftoffCompilation() {
   Zone zone(isolate_->allocator(), "LiftoffCompilationZone");
   const wasm::WasmModule* module = env_ ? env_->module : nullptr;
   auto* call_desc = compiler::GetWasmCallDescriptor(&zone, func_body_.sig);
+  base::Optional<TimedHistogramScope> liftoff_compile_time_scope(
+      base::in_place, counters()->liftoff_compile_time());
   wasm::WasmFullDecoder<wasm::Decoder::kValidate, wasm::LiftoffCompiler>
       decoder(&zone, module, func_body_, &liftoff_.asm_, call_desc, env_,
               runtime_exception_support_,
               &liftoff_.source_position_table_builder_);
   decoder.Decode();
+  liftoff_compile_time_scope.reset();
   if (!decoder.interface().ok()) {
     // Liftoff compilation failed.
     isolate_->counters()->liftoff_unsupported_functions()->Increment();

@@ -1145,6 +1145,8 @@ class RuntimeCallTimerScope {
      1000000, MICROSECOND)                                                     \
   HT(wasm_compile_wasm_function_time, V8.WasmCompileFunctionMicroSeconds.wasm, \
      1000000, MICROSECOND)                                                     \
+  HT(liftoff_compile_time, V8.LiftoffCompileMicroSeconds, 10000000,            \
+     MICROSECOND)                                                              \
   HT(wasm_instantiate_wasm_module_time,                                        \
      V8.WasmInstantiateModuleMicroSeconds.wasm, 10000000, MICROSECOND)         \
   HT(wasm_instantiate_asm_module_time,                                         \
