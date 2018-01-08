@@ -1613,6 +1613,15 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
                              Label* if_bailout)>
       LookupInHolder;
 
+  // For integer indexed exotic cases, check if the given string cannot be a
+  // special index. If we are not sure that the given string is not a special
+  // index with a simple check, return False. Note that "False" return value
+  // does not mean that the name_string is a special index in the current
+  // implementation.
+  void BranchIfMaybeSpecialIndex(TNode<String> name_string,
+                                 Label* if_maybe_special_index,
+                                 Label* if_not_special_index);
+
   // Generic property prototype chain lookup generator.
   // For properties it generates lookup using given {lookup_property_in_holder}
   // and for elements it uses {lookup_element_in_holder}.

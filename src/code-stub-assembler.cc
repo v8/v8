@@ -7047,6 +7047,35 @@ void CodeStubAssembler::TryLookupElement(Node* object, Node* map,
   }
 }
 
+void CodeStubAssembler::BranchIfMaybeSpecialIndex(TNode<String> name_string,
+                                                  Label* if_maybe_special_index,
+                                                  Label* if_not_special_index) {
+  // TODO(cwhan.tunz): Implement fast cases more.
+
+  // If a name is empty or too long, it's not a special index
+  // Max length of canonical double: -X.XXXXXXXXXXXXXXXXX-eXXX
+  const int kBufferSize = 24;
+  TNode<Smi> string_length = LoadStringLengthAsSmi(name_string);
+  GotoIf(SmiEqual(string_length, SmiConstant(0)), if_not_special_index);
+  GotoIf(SmiGreaterThan(string_length, SmiConstant(kBufferSize)),
+         if_not_special_index);
+
+  // If the first character of name is not a digit or '-', or we can't match it
+  // to Infinity or NaN, then this is not a special index.
+  TNode<Uint32T> first_char = StringCharCodeAt(name_string, IntPtrConstant(0));
+  // If the name starts with '-', it can be a negative index.
+  GotoIf(Word32Equal(first_char, Int32Constant('-')), if_maybe_special_index);
+  // If the name starts with 'I', it can be "Infinity".
+  GotoIf(Word32Equal(first_char, Int32Constant('I')), if_maybe_special_index);
+  // If the name starts with 'N', it can be "NaN".
+  GotoIf(Word32Equal(first_char, Int32Constant('N')), if_maybe_special_index);
+  // Finally, if the first character is not a digit either, then we are sure
+  // that the name is not a special index.
+  GotoIf(Uint32LessThan(first_char, Int32Constant('0')), if_not_special_index);
+  GotoIf(Uint32LessThan(Int32Constant('9'), first_char), if_not_special_index);
+  Goto(if_maybe_special_index);
+}
+
 void CodeStubAssembler::TryPrototypeChainLookup(
     Node* receiver, Node* key, const LookupInHolder& lookup_property_in_holder,
     const LookupInHolder& lookup_element_in_holder, Label* if_end,
@@ -7094,15 +7123,21 @@ void CodeStubAssembler::TryPrototypeChainLookup(
       Node* holder_map = var_holder_map.value();
       Node* holder_instance_type = var_holder_instance_type.value();
 
-      Label next_proto(this);
+      Label next_proto(this), check_integer_indexed_exotic(this);
       lookup_property_in_holder(receiver, var_holder.value(), holder_map,
                                 holder_instance_type, var_unique.value(),
-                                &next_proto, if_bailout);
-      BIND(&next_proto);
+                                &check_integer_indexed_exotic, if_bailout);
 
-      // Bailout if it can be an integer indexed exotic case.
-      GotoIf(InstanceTypeEqual(holder_instance_type, JS_TYPED_ARRAY_TYPE),
-             if_bailout);
+      BIND(&check_integer_indexed_exotic);
+      {
+        // Bailout if it can be an integer indexed exotic case.
+        GotoIfNot(InstanceTypeEqual(holder_instance_type, JS_TYPED_ARRAY_TYPE),
+                  &next_proto);
+        GotoIfNot(IsString(var_unique.value()), &next_proto);
+        BranchIfMaybeSpecialIndex(CAST(key), if_bailout, &next_proto);
+      }
+
+      BIND(&next_proto);
 
       Node* proto = LoadMapPrototype(holder_map);
 
