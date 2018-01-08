@@ -306,6 +306,8 @@ bool Heap::CreateInitialMaps() {
     ALLOCATE_VARSIZE_MAP(HASH_TABLE_TYPE, string_table)
     ALLOCATE_VARSIZE_MAP(HASH_TABLE_TYPE, weak_hash_table)
 
+    ALLOCATE_VARSIZE_MAP(FIXED_ARRAY_TYPE, array_list)
+
     ALLOCATE_VARSIZE_MAP(FIXED_ARRAY_TYPE, function_context)
     ALLOCATE_VARSIZE_MAP(FIXED_ARRAY_TYPE, catch_context)
     ALLOCATE_VARSIZE_MAP(FIXED_ARRAY_TYPE, with_context)
@@ -557,9 +559,7 @@ void Heap::CreateInitialObjects() {
 
   set_weak_object_to_code_table(*WeakHashTable::New(isolate(), 16, TENURED));
 
-  set_weak_new_space_object_to_code_list(
-      ArrayList::cast(*(factory->NewFixedArray(16, TENURED))));
-  weak_new_space_object_to_code_list()->SetLength(0);
+  set_weak_new_space_object_to_code_list(*ArrayList::New(isolate(), 16));
 
   set_feedback_vectors_for_profiling_tools(undefined_value());
 
@@ -638,7 +638,7 @@ void Heap::CreateInitialObjects() {
   cell->set_value(Smi::FromInt(Isolate::kProtectorValid));
   set_array_buffer_neutering_protector(*cell);
 
-  set_serialized_templates(empty_fixed_array());
+  set_serialized_objects(empty_fixed_array());
   set_serialized_global_proxy_sizes(empty_fixed_array());
 
   set_weak_stack_trace_list(Smi::kZero);

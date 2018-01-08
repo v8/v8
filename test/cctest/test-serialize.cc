@@ -371,7 +371,7 @@ static void PartiallySerializeContext(Vector<const byte>* startup_blob_out,
       v8::Local<v8::Context>::New(v8_isolate, env)->Exit();
     }
 
-    i::Object* raw_context = *v8::Utils::OpenPersistent(env);
+    i::Context* raw_context = i::Context::cast(*v8::Utils::OpenPersistent(env));
 
     env.Reset();
 
@@ -496,7 +496,7 @@ static void PartiallySerializeCustomContext(
       v8::Local<v8::Context>::New(v8_isolate, env)->Exit();
     }
 
-    i::Object* raw_context = *v8::Utils::OpenPersistent(env);
+    i::Context* raw_context = i::Context::cast(*v8::Utils::OpenPersistent(env));
 
     env.Reset();
 
@@ -2772,6 +2772,206 @@ TEST(SnapshotCreatorTemplates) {
       }
     }
     isolate->Dispose();
+  }
+  delete[] blob.data;
+}
+
+TEST(SnapshotCreatorAddData) {
+  DisableAlwaysOpt();
+  v8::StartupData blob;
+
+  {
+    v8::SnapshotCreator creator;
+    v8::Isolate* isolate = creator.GetIsolate();
+    v8::Eternal<v8::Value> eternal_number;
+    v8::Persistent<v8::Value> persistent_number_1;
+    v8::Persistent<v8::Value> persistent_number_2;
+    v8::Persistent<v8::Context> persistent_context;
+    {
+      v8::HandleScope handle_scope(isolate);
+
+      eternal_number.Set(isolate, v8_num(2017));
+      persistent_number_1.Reset(isolate, v8_num(2018));
+      persistent_number_2.Reset(isolate, v8_num(2019));
+
+      v8::Local<v8::Context> context = v8::Context::New(isolate);
+      CHECK_EQ(0u, creator.AddData(context, persistent_number_2.Get(isolate)));
+      creator.SetDefaultContext(context);
+      context = v8::Context::New(isolate);
+      persistent_context.Reset(isolate, context);
+
+      v8::Context::Scope context_scope(context);
+
+      v8::Local<v8::Object> object = CompileRun("({ p: 12 })").As<v8::Object>();
+
+      v8::Local<v8::ObjectTemplate> object_template =
+          v8::ObjectTemplate::New(isolate);
+      object_template->SetInternalFieldCount(3);
+
+      CHECK_EQ(0u, creator.AddData(context, object));
+      CHECK_EQ(1u, creator.AddData(context, v8_str("context-dependent")));
+      CHECK_EQ(2u, creator.AddData(context, persistent_number_1.Get(isolate)));
+      CHECK_EQ(3u, creator.AddData(context, object_template));
+      CHECK_EQ(4u, creator.AddData(context, persistent_context.Get(isolate)));
+      creator.AddContext(context);
+
+      CHECK_EQ(0u, creator.AddData(v8_str("context-independent")));
+      CHECK_EQ(1u, creator.AddData(eternal_number.Get(isolate)));
+      CHECK_EQ(2u, creator.AddData(object_template));
+      CHECK_EQ(3u, creator.AddData(v8::FunctionTemplate::New(isolate)));
+    }
+
+    blob =
+        creator.CreateBlob(v8::SnapshotCreator::FunctionCodeHandling::kClear);
+  }
+
+  {
+    v8::Isolate::CreateParams params;
+    params.snapshot_blob = &blob;
+    params.array_buffer_allocator = CcTest::array_buffer_allocator();
+    // Test-appropriate equivalent of v8::Isolate::New.
+    v8::Isolate* isolate = TestIsolate::New(params);
+    {
+      v8::Isolate::Scope isolate_scope(isolate);
+      v8::HandleScope handle_scope(isolate);
+      v8::Local<v8::Context> context =
+          v8::Context::FromSnapshot(isolate, 0).ToLocalChecked();
+
+      // Check serialized data on the context.
+      v8::Local<v8::Object> object =
+          context->GetDataFromSnapshotOnce<v8::Object>(0).ToLocalChecked();
+      CHECK(context->GetDataFromSnapshotOnce<v8::Object>(0).IsEmpty());
+      CHECK_EQ(12, object->Get(context, v8_str("p"))
+                       .ToLocalChecked()
+                       ->Int32Value(context)
+                       .FromJust());
+
+      v8::Local<v8::String> string =
+          context->GetDataFromSnapshotOnce<v8::String>(1).ToLocalChecked();
+      CHECK(context->GetDataFromSnapshotOnce<v8::String>(1).IsEmpty());
+      CHECK(string->Equals(context, v8_str("context-dependent")).FromJust());
+
+      v8::Local<v8::Number> number =
+          context->GetDataFromSnapshotOnce<v8::Number>(2).ToLocalChecked();
+      CHECK(context->GetDataFromSnapshotOnce<v8::Number>(2).IsEmpty());
+      CHECK_EQ(2018, number->Int32Value(context).FromJust());
+
+      v8::Local<v8::ObjectTemplate> templ =
+          context->GetDataFromSnapshotOnce<v8::ObjectTemplate>(3)
+              .ToLocalChecked();
+      CHECK(context->GetDataFromSnapshotOnce<v8::ObjectTemplate>(3).IsEmpty());
+      CHECK_EQ(3, templ->InternalFieldCount());
+
+      v8::Local<v8::Context> serialized_context =
+          context->GetDataFromSnapshotOnce<v8::Context>(4).ToLocalChecked();
+      CHECK(context->GetDataFromSnapshotOnce<v8::Context>(4).IsEmpty());
+      CHECK_EQ(*v8::Utils::OpenHandle(*serialized_context),
+               *v8::Utils::OpenHandle(*context));
+
+      CHECK(context->GetDataFromSnapshotOnce<v8::Value>(5).IsEmpty());
+
+      // Check serialized data on the isolate.
+      string = isolate->GetDataFromSnapshotOnce<v8::String>(0).ToLocalChecked();
+      CHECK(context->GetDataFromSnapshotOnce<v8::String>(0).IsEmpty());
+      CHECK(string->Equals(context, v8_str("context-independent")).FromJust());
+
+      number = isolate->GetDataFromSnapshotOnce<v8::Number>(1).ToLocalChecked();
+      CHECK(isolate->GetDataFromSnapshotOnce<v8::Number>(1).IsEmpty());
+      CHECK_EQ(2017, number->Int32Value(context).FromJust());
+
+      templ = isolate->GetDataFromSnapshotOnce<v8::ObjectTemplate>(2)
+                  .ToLocalChecked();
+      CHECK(isolate->GetDataFromSnapshotOnce<v8::ObjectTemplate>(2).IsEmpty());
+      CHECK_EQ(3, templ->InternalFieldCount());
+
+      isolate->GetDataFromSnapshotOnce<v8::FunctionTemplate>(3)
+          .ToLocalChecked();
+      CHECK(
+          isolate->GetDataFromSnapshotOnce<v8::FunctionTemplate>(3).IsEmpty());
+
+      CHECK(isolate->GetDataFromSnapshotOnce<v8::Value>(4).IsEmpty());
+    }
+    isolate->Dispose();
+  }
+  {
+    SnapshotCreator creator(nullptr, &blob);
+    v8::Isolate* isolate = creator.GetIsolate();
+    {
+      // Adding data to a snapshot replaces the list of existing data.
+      v8::HandleScope hscope(isolate);
+      v8::Local<v8::Context> context = v8::Context::New(isolate);
+      creator.SetDefaultContext(context);
+      context = v8::Context::FromSnapshot(isolate, 0).ToLocalChecked();
+      v8::Local<v8::String> string =
+          context->GetDataFromSnapshotOnce<v8::String>(1).ToLocalChecked();
+      CHECK(context->GetDataFromSnapshotOnce<v8::String>(1).IsEmpty());
+      CHECK(string->Equals(context, v8_str("context-dependent")).FromJust());
+      v8::Local<v8::Number> number =
+          isolate->GetDataFromSnapshotOnce<v8::Number>(1).ToLocalChecked();
+      CHECK(isolate->GetDataFromSnapshotOnce<v8::Number>(1).IsEmpty());
+      CHECK_EQ(2017, number->Int32Value(context).FromJust());
+
+      CHECK_EQ(0u, creator.AddData(context, v8_num(2016)));
+      CHECK_EQ(0u, creator.AddContext(context));
+      CHECK_EQ(0u, creator.AddData(v8_str("stuff")));
+    }
+    delete[] blob.data;
+    blob =
+        creator.CreateBlob(v8::SnapshotCreator::FunctionCodeHandling::kClear);
+  }
+  {
+    v8::Isolate::CreateParams params;
+    params.snapshot_blob = &blob;
+    params.array_buffer_allocator = CcTest::array_buffer_allocator();
+    // Test-appropriate equivalent of v8::Isolate::New.
+    v8::Isolate* isolate = TestIsolate::New(params);
+    {
+      v8::Isolate::Scope isolate_scope(isolate);
+      v8::HandleScope handle_scope(isolate);
+
+      // Context where we did not re-add data no longer has data.
+      v8::Local<v8::Context> context = v8::Context::New(isolate);
+      CHECK(context->GetDataFromSnapshotOnce<v8::Object>(0).IsEmpty());
+
+      // Context where we re-added data has completely new ones.
+      context = v8::Context::FromSnapshot(isolate, 0).ToLocalChecked();
+      v8::Local<v8::Value> value =
+          context->GetDataFromSnapshotOnce<v8::Value>(0).ToLocalChecked();
+      CHECK_EQ(2016, value->Int32Value(context).FromJust());
+      CHECK(context->GetDataFromSnapshotOnce<v8::Value>(1).IsEmpty());
+
+      // Ditto for the isolate.
+      v8::Local<v8::String> string =
+          isolate->GetDataFromSnapshotOnce<v8::String>(0).ToLocalChecked();
+      CHECK(string->Equals(context, v8_str("stuff")).FromJust());
+      CHECK(context->GetDataFromSnapshotOnce<v8::String>(1).IsEmpty());
+    }
+    isolate->Dispose();
+  }
+  delete[] blob.data;
+}
+
+TEST(SnapshotCreatorUnknownHandles) {
+  DisableAlwaysOpt();
+  v8::StartupData blob;
+
+  {
+    v8::SnapshotCreator creator;
+    v8::Isolate* isolate = creator.GetIsolate();
+    v8::Eternal<v8::Value> eternal_number;
+    v8::Persistent<v8::Value> persistent_number;
+    {
+      v8::HandleScope handle_scope(isolate);
+
+      eternal_number.Set(isolate, v8_num(2017));
+      persistent_number.Reset(isolate, v8_num(2018));
+
+      v8::Local<v8::Context> context = v8::Context::New(isolate);
+      creator.SetDefaultContext(context);
+    }
+
+    blob =
+        creator.CreateBlob(v8::SnapshotCreator::FunctionCodeHandling::kClear);
   }
   delete[] blob.data;
 }

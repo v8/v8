@@ -10237,8 +10237,10 @@ Handle<ArrayList> ArrayList::Add(Handle<ArrayList> array, Handle<Object> obj1,
 
 // static
 Handle<ArrayList> ArrayList::New(Isolate* isolate, int size) {
-  Handle<ArrayList> result = Handle<ArrayList>::cast(
-      isolate->factory()->NewFixedArray(size + kFirstIndex));
+  Handle<FixedArray> fixed_array =
+      isolate->factory()->NewFixedArray(size + kFirstIndex);
+  fixed_array->set_map_no_write_barrier(isolate->heap()->array_list_map());
+  Handle<ArrayList> result = Handle<ArrayList>::cast(fixed_array);
   result->SetLength(0);
   return result;
 }
@@ -10277,10 +10279,13 @@ Handle<FixedArray> EnsureSpaceInFixedArray(Handle<FixedArray> array,
 // static
 Handle<ArrayList> ArrayList::EnsureSpace(Handle<ArrayList> array, int length) {
   const bool empty = (array->length() == 0);
-  auto ret = Handle<ArrayList>::cast(
-      EnsureSpaceInFixedArray(array, kFirstIndex + length));
-  if (empty) ret->SetLength(0);
-  return ret;
+  auto ret = EnsureSpaceInFixedArray(array, kFirstIndex + length);
+  if (empty) {
+    ret->set_map_no_write_barrier(array->GetHeap()->array_list_map());
+
+    Handle<ArrayList>::cast(ret)->SetLength(0);
+  }
+  return Handle<ArrayList>::cast(ret);
 }
 
 Handle<RegExpMatchInfo> RegExpMatchInfo::ReserveCaptures(

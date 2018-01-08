@@ -94,14 +94,12 @@ void Heap::SetInterpreterEntryReturnPCOffset(int pc_offset) {
   set_interpreter_entry_return_pc_offset(Smi::FromInt(pc_offset));
 }
 
-void Heap::SetSerializedTemplates(FixedArray* templates) {
-  DCHECK_EQ(empty_fixed_array(), serialized_templates());
+void Heap::SetSerializedObjects(FixedArray* objects) {
   DCHECK(isolate()->serializer_enabled());
-  set_serialized_templates(templates);
+  set_serialized_objects(objects);
 }
 
 void Heap::SetSerializedGlobalProxySizes(FixedArray* sizes) {
-  DCHECK_EQ(empty_fixed_array(), serialized_global_proxy_sizes());
   DCHECK(isolate()->serializer_enabled());
   set_serialized_global_proxy_sizes(sizes);
 }
@@ -2658,7 +2656,7 @@ bool Heap::RootCanBeWrittenAfterInitialization(Heap::RootListIndex root_index) {
     case kFeedbackVectorsForProfilingToolsRootIndex:
     case kNoScriptSharedFunctionInfosRootIndex:
     case kWeakStackTraceListRootIndex:
-    case kSerializedTemplatesRootIndex:
+    case kSerializedObjectsRootIndex:
     case kSerializedGlobalProxySizesRootIndex:
     case kPublicSymbolTableRootIndex:
     case kApiSymbolTableRootIndex:
@@ -4984,6 +4982,9 @@ void Heap::IterateStrongRoots(RootVisitor* v, VisitMode mode) {
   // Iterate over global handles.
   switch (mode) {
     case VISIT_FOR_SERIALIZATION:
+      // Global handles are not iterated by the serializer. Values referenced by
+      // global handles need to be added manually.
+      break;
     case VISIT_ONLY_STRONG:
       isolate_->global_handles()->IterateStrongRoots(v);
       break;
@@ -5003,11 +5004,14 @@ void Heap::IterateStrongRoots(RootVisitor* v, VisitMode mode) {
   }
   v->Synchronize(VisitorSynchronization::kGlobalHandles);
 
-  // Iterate over eternal handles.
-  if (isMinorGC) {
-    isolate_->eternal_handles()->IterateNewSpaceRoots(v);
-  } else {
-    isolate_->eternal_handles()->IterateAllRoots(v);
+  // Iterate over eternal handles. Eternal handles are not iterated by the
+  // serializer. Values referenced by eternal handles need to be added manually.
+  if (mode != VISIT_FOR_SERIALIZATION) {
+    if (isMinorGC) {
+      isolate_->eternal_handles()->IterateNewSpaceRoots(v);
+    } else {
+      isolate_->eternal_handles()->IterateAllRoots(v);
+    }
   }
   v->Synchronize(VisitorSynchronization::kEternalHandles);
 
@@ -5024,11 +5028,9 @@ void Heap::IterateStrongRoots(RootVisitor* v, VisitMode mode) {
   // Iterate over the partial snapshot cache unless serializing.
   if (mode != VISIT_FOR_SERIALIZATION) {
     SerializerDeserializer::Iterate(isolate_, v);
+    // We don't do a v->Synchronize call here because the serializer and the
+    // deserializer are deliberately out of sync here.
   }
-  // We don't do a v->Synchronize call here, because in debug mode that will
-  // output a flag to the snapshot.  However at this point the serializer and
-  // deserializer are deliberately a little unsynchronized (see above) so the
-  // checking of the sync flag in the snapshot would fail.
 }
 
 

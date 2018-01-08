@@ -112,6 +112,7 @@
 
   # Test that serialization with unknown external reference fails.
   'test-serialize/SnapshotCreatorUnknownExternalReferences': [FAIL],
+  'test-serialize/SnapshotCreatorUnknownHandles': [FAIL],
   'test-serialize/SnapshotCreatorNoExternalReferencesCustomFail1': [FAIL],
   'test-serialize/SnapshotCreatorNoExternalReferencesCustomFail2': [FAIL],
 

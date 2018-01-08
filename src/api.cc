@@ -573,7 +573,6 @@ struct SnapshotCreatorData {
       : isolate_(isolate),
         default_context_(),
         contexts_(isolate),
-        templates_(isolate),
         created_(false) {}
 
   static SnapshotCreatorData* cast(void* data) {
@@ -585,7 +584,6 @@ struct SnapshotCreatorData {
   Persistent<Context> default_context_;
   SerializeInternalFieldsCallback default_embedder_fields_serializer_;
   PersistentValueVector<Context> contexts_;
-  PersistentValueVector<Template> templates_;
   std::vector<SerializeInternalFieldsCallback> embedder_fields_serializers_;
   bool created_;
 };
@@ -645,22 +643,80 @@ size_t SnapshotCreator::AddContext(Local<Context> context,
   DCHECK(!data->created_);
   Isolate* isolate = data->isolate_;
   CHECK_EQ(isolate, context->GetIsolate());
-  size_t index = static_cast<int>(data->contexts_.Size());
+  size_t index = data->contexts_.Size();
   data->contexts_.Append(context);
   data->embedder_fields_serializers_.push_back(callback);
   return index;
 }
 
 size_t SnapshotCreator::AddTemplate(Local<Template> template_obj) {
-  DCHECK(!template_obj.IsEmpty());
+  return AddData(template_obj);
+}
+
+size_t SnapshotCreator::AddData(i::Object* object) {
+  DCHECK_NOT_NULL(object);
   SnapshotCreatorData* data = SnapshotCreatorData::cast(data_);
   DCHECK(!data->created_);
-  DCHECK_EQ(reinterpret_cast<i::Isolate*>(data->isolate_),
-            Utils::OpenHandle(*template_obj)->GetIsolate());
-  size_t index = static_cast<int>(data->templates_.Size());
-  data->templates_.Append(template_obj);
+  i::Isolate* isolate = reinterpret_cast<i::Isolate*>(data->isolate_);
+  i::HandleScope scope(isolate);
+  i::Handle<i::Object> obj(object, isolate);
+  i::Handle<i::ArrayList> list;
+  if (!isolate->heap()->serialized_objects()->IsArrayList()) {
+    list = i::ArrayList::New(isolate, 1);
+  } else {
+    list = i::Handle<i::ArrayList>(
+        i::ArrayList::cast(isolate->heap()->serialized_objects()));
+  }
+  size_t index = static_cast<size_t>(list->Length());
+  list = i::ArrayList::Add(list, obj);
+  isolate->heap()->SetSerializedObjects(*list);
   return index;
 }
+
+size_t SnapshotCreator::AddData(Local<Context> context, i::Object* object) {
+  DCHECK_NOT_NULL(object);
+  DCHECK(!SnapshotCreatorData::cast(data_)->created_);
+  i::Handle<i::Context> ctx = Utils::OpenHandle(*context);
+  i::Isolate* isolate = ctx->GetIsolate();
+  i::HandleScope scope(isolate);
+  i::Handle<i::Object> obj(object, isolate);
+  i::Handle<i::ArrayList> list;
+  if (!ctx->serialized_objects()->IsArrayList()) {
+    list = i::ArrayList::New(isolate, 1);
+  } else {
+    list =
+        i::Handle<i::ArrayList>(i::ArrayList::cast(ctx->serialized_objects()));
+  }
+  size_t index = static_cast<size_t>(list->Length());
+  list = i::ArrayList::Add(list, obj);
+  ctx->set_serialized_objects(*list);
+  return index;
+}
+
+namespace {
+void ConvertSerializedObjectsToFixedArray(Local<Context> context) {
+  i::Handle<i::Context> ctx = Utils::OpenHandle(*context);
+  i::Isolate* isolate = ctx->GetIsolate();
+  if (!ctx->serialized_objects()->IsArrayList()) {
+    ctx->set_serialized_objects(isolate->heap()->empty_fixed_array());
+  } else {
+    i::Handle<i::ArrayList> list(i::ArrayList::cast(ctx->serialized_objects()));
+    i::Handle<i::FixedArray> elements = i::ArrayList::Elements(list);
+    ctx->set_serialized_objects(*elements);
+  }
+}
+
+void ConvertSerializedObjectsToFixedArray(i::Isolate* isolate) {
+  if (!isolate->heap()->serialized_objects()->IsArrayList()) {
+    isolate->heap()->SetSerializedObjects(isolate->heap()->empty_fixed_array());
+  } else {
+    i::Handle<i::ArrayList> list(
+        i::ArrayList::cast(isolate->heap()->serialized_objects()));
+    i::Handle<i::FixedArray> elements = i::ArrayList::Elements(list);
+    isolate->heap()->SetSerializedObjects(*elements);
+  }
+}
+}  // anonymous namespace
 
 StartupData SnapshotCreator::CreateBlob(
     SnapshotCreator::FunctionCodeHandling function_code_handling) {
@@ -672,15 +728,16 @@ StartupData SnapshotCreator::CreateBlob(
   int num_additional_contexts = static_cast<int>(data->contexts_.Size());
 
   {
-    int num_templates = static_cast<int>(data->templates_.Size());
     i::HandleScope scope(isolate);
-    i::Handle<i::FixedArray> templates =
-        isolate->factory()->NewFixedArray(num_templates, i::TENURED);
-    for (int i = 0; i < num_templates; i++) {
-      templates->set(i, *v8::Utils::OpenHandle(*data->templates_.Get(i)));
+    // Convert list of context-independent data to FixedArray.
+    ConvertSerializedObjectsToFixedArray(isolate);
+
+    // Convert lists of context-dependent data to FixedArray.
+    ConvertSerializedObjectsToFixedArray(
+        data->default_context_.Get(data->isolate_));
+    for (int i = 0; i < num_additional_contexts; i++) {
+      ConvertSerializedObjectsToFixedArray(data->contexts_.Get(i));
     }
-    isolate->heap()->SetSerializedTemplates(*templates);
-    data->templates_.Clear();
 
     // We need to store the global proxy size upfront in case we need the
     // bootstrapper to create a global proxy before we deserialize the context.
@@ -706,13 +763,13 @@ StartupData SnapshotCreator::CreateBlob(
 
   i::DisallowHeapAllocation no_gc_from_here_on;
 
-  std::vector<i::Object*> contexts;
-  contexts.reserve(num_additional_contexts);
-  i::Object* default_context;
+  int num_contexts = num_additional_contexts + 1;
+  std::vector<i::Context*> contexts;
+  contexts.reserve(num_contexts);
   {
     i::HandleScope scope(isolate);
-    default_context =
-        *v8::Utils::OpenHandle(*data->default_context_.Get(data->isolate_));
+    contexts.push_back(
+        *v8::Utils::OpenHandle(*data->default_context_.Get(data->isolate_)));
     data->default_context_.Reset();
     for (int i = 0; i < num_additional_contexts; i++) {
       i::Handle<i::Context> context =
@@ -721,6 +778,10 @@ StartupData SnapshotCreator::CreateBlob(
     }
     data->contexts_.Clear();
   }
+
+  // Check that values referenced by global/eternal handles are accounted for.
+  i::SerializedHandleChecker handle_checker(isolate, &contexts);
+  CHECK(handle_checker.CheckGlobalAndEternalHandles());
 
   // Complete in-object slack tracking for all functions.
   i::HeapIterator heap_iterator(isolate->heap());
@@ -735,26 +796,18 @@ StartupData SnapshotCreator::CreateBlob(
 
   // Serialize each context with a new partial serializer.
   std::vector<i::SnapshotData*> context_snapshots;
-  context_snapshots.reserve(num_additional_contexts + 1);
+  context_snapshots.reserve(num_contexts);
 
   // TODO(6593): generalize rehashing, and remove this flag.
   bool can_be_rehashed = true;
 
-  {
-    // The default context is created with a handler for embedder fields which
-    // determines how they are handled if encountered during serialization.
+  for (int i = 0; i < num_contexts; i++) {
+    bool is_default_context = i == 0;
     i::PartialSerializer partial_serializer(
         isolate, &startup_serializer,
-        data->default_embedder_fields_serializer_);
-    partial_serializer.Serialize(&default_context, false);
-    can_be_rehashed = can_be_rehashed && partial_serializer.can_be_rehashed();
-    context_snapshots.push_back(new i::SnapshotData(&partial_serializer));
-  }
-
-  for (int i = 0; i < num_additional_contexts; i++) {
-    i::PartialSerializer partial_serializer(
-        isolate, &startup_serializer, data->embedder_fields_serializers_[i]);
-    partial_serializer.Serialize(&contexts[i], true);
+        is_default_context ? data->default_embedder_fields_serializer_
+                           : data->embedder_fields_serializers_[i - 1]);
+    partial_serializer.Serialize(&contexts[i], !is_default_context);
     can_be_rehashed = can_be_rehashed && partial_serializer.can_be_rehashed();
     context_snapshots.push_back(new i::SnapshotData(&partial_serializer));
   }
@@ -778,6 +831,7 @@ StartupData SnapshotCreator::CreateBlob(
     delete context_snapshot;
   }
   data->created_ = true;
+
   return result;
 }
 
@@ -1419,10 +1473,10 @@ Local<FunctionTemplate> FunctionTemplate::New(
 MaybeLocal<FunctionTemplate> FunctionTemplate::FromSnapshot(Isolate* isolate,
                                                             size_t index) {
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
-  i::FixedArray* templates = i_isolate->heap()->serialized_templates();
+  i::FixedArray* serialized_objects = i_isolate->heap()->serialized_objects();
   int int_index = static_cast<int>(index);
-  if (int_index < templates->length()) {
-    i::Object* info = templates->get(int_index);
+  if (int_index < serialized_objects->length()) {
+    i::Object* info = serialized_objects->get(int_index);
     if (info->IsFunctionTemplateInfo()) {
       return Utils::ToLocal(i::Handle<i::FunctionTemplateInfo>(
           i::FunctionTemplateInfo::cast(info)));
@@ -1632,10 +1686,10 @@ Local<ObjectTemplate> ObjectTemplate::New(
 MaybeLocal<ObjectTemplate> ObjectTemplate::FromSnapshot(Isolate* isolate,
                                                         size_t index) {
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
-  i::FixedArray* templates = i_isolate->heap()->serialized_templates();
+  i::FixedArray* serialized_objects = i_isolate->heap()->serialized_objects();
   int int_index = static_cast<int>(index);
-  if (int_index < templates->length()) {
-    i::Object* info = templates->get(int_index);
+  if (int_index < serialized_objects->length()) {
+    i::Object* info = serialized_objects->get(int_index);
     if (info->IsObjectTemplateInfo()) {
       return Utils::ToLocal(
           i::Handle<i::ObjectTemplateInfo>(i::ObjectTemplateInfo::cast(info)));
@@ -6448,6 +6502,31 @@ void Context::SetErrorMessageForCodeGenerationFromStrings(Local<String> error) {
   context->set_error_message_for_code_gen_from_strings(*error_handle);
 }
 
+namespace {
+i::Object** GetSerializedDataFromFixedArray(i::Isolate* isolate,
+                                            i::FixedArray* list, size_t index) {
+  if (index < static_cast<size_t>(list->length())) {
+    int int_index = static_cast<int>(index);
+    i::Object* object = list->get(int_index);
+    if (!object->IsTheHole(isolate)) {
+      list->set_the_hole(isolate, int_index);
+      // Shrink the list so that the last element is not the hole.
+      int last = list->length() - 1;
+      while (last >= 0 && list->is_the_hole(isolate, last)) last--;
+      list->Shrink(last + 1);
+      return i::Handle<i::Object>(object, isolate).location();
+    }
+  }
+  return nullptr;
+}
+}  // anonymous namespace
+
+i::Object** Context::GetDataFromSnapshotOnce(size_t index) {
+  auto context = Utils::OpenHandle(this);
+  i::Isolate* i_isolate = context->GetIsolate();
+  i::FixedArray* list = i::FixedArray::cast(context->serialized_objects());
+  return GetSerializedDataFromFixedArray(i_isolate, list, index);
+}
 
 MaybeLocal<v8::Object> ObjectTemplate::NewInstance(Local<Context> context) {
   PREPARE_FOR_EXECUTION(context, ObjectTemplate, NewInstance, Object);
@@ -6465,6 +6544,17 @@ Local<v8::Object> ObjectTemplate::NewInstance() {
   RETURN_TO_LOCAL_UNCHECKED(NewInstance(context), Object);
 }
 
+void v8::ObjectTemplate::CheckCast(Data* that) {
+  i::Handle<i::Object> obj = Utils::OpenHandle(that);
+  Utils::ApiCheck(obj->IsObjectTemplateInfo(), "v8::ObjectTemplate::Cast",
+                  "Could not convert to object template");
+}
+
+void v8::FunctionTemplate::CheckCast(Data* that) {
+  i::Handle<i::Object> obj = Utils::OpenHandle(that);
+  Utils::ApiCheck(obj->IsFunctionTemplateInfo(), "v8::FunctionTemplate::Cast",
+                  "Could not convert to function template");
+}
 
 MaybeLocal<v8::Function> FunctionTemplate::GetFunction(Local<Context> context) {
   PREPARE_FOR_EXECUTION(context, FunctionTemplate, GetFunction, Function);
@@ -8414,6 +8504,11 @@ Isolate::SuppressMicrotaskExecutionScope::~SuppressMicrotaskExecutionScope() {
   isolate_->handle_scope_implementer()->DecrementCallDepth();
 }
 
+i::Object** Isolate::GetDataFromSnapshotOnce(size_t index) {
+  i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(this);
+  i::FixedArray* list = i_isolate->heap()->serialized_objects();
+  return GetSerializedDataFromFixedArray(i_isolate, list, index);
+}
 
 void Isolate::GetHeapStatistics(HeapStatistics* heap_statistics) {
   i::Isolate* isolate = reinterpret_cast<i::Isolate*>(this);

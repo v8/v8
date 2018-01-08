@@ -313,6 +313,7 @@ class Local {
   friend class String;
   friend class Object;
   friend class Context;
+  friend class Isolate;
   friend class Private;
   template<class F> friend class internal::CustomArguments;
   friend Local<Primitive> Undefined(Isolate* isolate);
@@ -5522,8 +5523,12 @@ class V8_EXPORT FunctionTemplate : public Template {
    */
   bool HasInstance(Local<Value> object);
 
+  V8_INLINE static FunctionTemplate* Cast(Data* data);
+
  private:
   FunctionTemplate();
+
+  static void CheckCast(Data* that);
   friend class Context;
   friend class ObjectTemplate;
 };
@@ -5870,10 +5875,13 @@ class V8_EXPORT ObjectTemplate : public Template {
    */
   void SetImmutableProto();
 
+  V8_INLINE static ObjectTemplate* Cast(Data* data);
+
  private:
   ObjectTemplate();
   static Local<ObjectTemplate> New(internal::Isolate* isolate,
                                    Local<FunctionTemplate> constructor);
+  static void CheckCast(Data* that);
   friend class FunctionTemplate;
 };
 
@@ -7084,6 +7092,14 @@ class V8_EXPORT Isolate {
   V8_INLINE static uint32_t GetNumberOfDataSlots();
 
   /**
+   * Return data that was previously attached to the isolate snapshot via
+   * SnapshotCreator, and removes the reference to it.
+   * Repeated call with the same index returns an empty MaybeLocal.
+   */
+  template <class T>
+  V8_INLINE MaybeLocal<T> GetDataFromSnapshotOnce(size_t index);
+
+  /**
    * Get statistics about the heap memory usage.
    */
   void GetHeapStatistics(HeapStatistics* heap_statistics);
@@ -7725,6 +7741,7 @@ class V8_EXPORT Isolate {
   template <class K, class V, class Traits>
   friend class PersistentValueMapBase;
 
+  internal::Object** GetDataFromSnapshotOnce(size_t index);
   void ReportExternalAllocationLimitReached();
   void CheckMemoryPressure();
 };
@@ -8022,6 +8039,24 @@ class V8_EXPORT SnapshotCreator {
   size_t AddTemplate(Local<Template> template_obj);
 
   /**
+   * Attach arbitrary V8::Data to the context snapshot, which can be retrieved
+   * via Context::GetDataFromSnapshot after deserialization. This data does not
+   * survive when a new snapshot is created from an existing snapshot.
+   * \returns the index for retrieval.
+   */
+  template <class T>
+  V8_INLINE size_t AddData(Local<Context> context, Local<T> object);
+
+  /**
+   * Attach arbitrary V8::Data to the isolate snapshot, which can be retrieved
+   * via Isolate::GetDataFromSnapshot after deserialization. This data does not
+   * survive when a new snapshot is created from an existing snapshot.
+   * \returns the index for retrieval.
+   */
+  template <class T>
+  V8_INLINE size_t AddData(Local<T> object);
+
+  /**
    * Created a snapshot data blob.
    * This must not be called from within a handle scope.
    * \param function_code_handling whether to include compiled function code
@@ -8036,6 +8071,9 @@ class V8_EXPORT SnapshotCreator {
   void operator=(const SnapshotCreator&) = delete;
 
  private:
+  size_t AddData(Local<Context> context, internal::Object* object);
+  size_t AddData(internal::Object* object);
+
   void* data_;
 };
 
@@ -8524,6 +8562,14 @@ class V8_EXPORT Context {
   void SetErrorMessageForCodeGenerationFromStrings(Local<String> message);
 
   /**
+   * Return data that was previously attached to the context snapshot via
+   * SnapshotCreator, and removes the reference to it.
+   * Repeated call with the same index returns an empty MaybeLocal.
+   */
+  template <class T>
+  V8_INLINE MaybeLocal<T> GetDataFromSnapshotOnce(size_t index);
+
+  /**
    * Stack-allocated class which sets the execution context for all
    * operations executed within a local scope.
    */
@@ -8565,6 +8611,7 @@ class V8_EXPORT Context {
   friend class Object;
   friend class Function;
 
+  internal::Object** GetDataFromSnapshotOnce(size_t index);
   Local<Value> SlowGetEmbedderData(int index);
   void* SlowGetAlignedPointerFromEmbedderData(int index);
 };
@@ -8941,6 +8988,29 @@ class Internals {
     return I::ReadField<T>(embedder_data, value_offset);
   }
 };
+
+// Only perform cast check for types derived from v8::Data since
+// other types do not implement the Cast method.
+template <bool PerformCheck>
+struct CastCheck {
+  template <class T>
+  static void Perform(T* data);
+};
+
+template <>
+template <class T>
+void CastCheck<true>::Perform(T* data) {
+  T::Cast(data);
+}
+
+template <>
+template <class T>
+void CastCheck<false>::Perform(T* data) {}
+
+template <class T>
+V8_INLINE void PerformCastCheck(T* data) {
+  CastCheck<std::is_base_of<Data, T>::value>::Perform(data);
+}
 
 }  // namespace internal
 
@@ -9405,6 +9475,19 @@ void Template::Set(Isolate* isolate, const char* name, Local<Data> value) {
       value);
 }
 
+FunctionTemplate* FunctionTemplate::Cast(Data* data) {
+#ifdef V8_ENABLE_CHECKS
+  CheckCast(data);
+#endif
+  return reinterpret_cast<FunctionTemplate*>(data);
+}
+
+ObjectTemplate* ObjectTemplate::Cast(Data* data) {
+#ifdef V8_ENABLE_CHECKS
+  CheckCast(data);
+#endif
+  return reinterpret_cast<ObjectTemplate*>(data);
+}
 
 Local<Value> Object::GetInternalField(int index) {
 #ifndef V8_ENABLE_CHECKS
@@ -9983,6 +10066,12 @@ uint32_t Isolate::GetNumberOfDataSlots() {
   return I::kNumIsolateDataSlots;
 }
 
+template <class T>
+MaybeLocal<T> Isolate::GetDataFromSnapshotOnce(size_t index) {
+  T* data = reinterpret_cast<T*>(GetDataFromSnapshotOnce(index));
+  if (data) internal::PerformCastCheck(data);
+  return Local<T>(data);
+}
 
 int64_t Isolate::AdjustAmountOfExternalAllocatedMemory(
     int64_t change_in_bytes) {
@@ -10042,6 +10131,26 @@ void* Context::GetAlignedPointerFromEmbedderData(int index) {
 #endif
 }
 
+template <class T>
+MaybeLocal<T> Context::GetDataFromSnapshotOnce(size_t index) {
+  T* data = reinterpret_cast<T*>(GetDataFromSnapshotOnce(index));
+  if (data) internal::PerformCastCheck(data);
+  return Local<T>(data);
+}
+
+template <class T>
+size_t SnapshotCreator::AddData(Local<Context> context, Local<T> object) {
+  T* object_ptr = *object;
+  internal::Object** p = reinterpret_cast<internal::Object**>(object_ptr);
+  return AddData(context, *p);
+}
+
+template <class T>
+size_t SnapshotCreator::AddData(Local<T> object) {
+  T* object_ptr = *object;
+  internal::Object** p = reinterpret_cast<internal::Object**>(object_ptr);
+  return AddData(*p);
+}
 
 /**
  * \example shell.cc

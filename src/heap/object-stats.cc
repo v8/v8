@@ -326,8 +326,8 @@ void ObjectStatsCollector::CollectGlobalStatistics() {
   // Global FixedArrays.
   RecordFixedArrayHelper(nullptr, heap_->weak_new_space_object_to_code_list(),
                          WEAK_NEW_SPACE_OBJECT_TO_CODE_SUB_TYPE, 0);
-  RecordFixedArrayHelper(nullptr, heap_->serialized_templates(),
-                         SERIALIZED_TEMPLATES_SUB_TYPE, 0);
+  RecordFixedArrayHelper(nullptr, heap_->serialized_objects(),
+                         SERIALIZED_OBJECTS_SUB_TYPE, 0);
   RecordFixedArrayHelper(nullptr, heap_->number_string_cache(),
                          NUMBER_STRING_CACHE_SUB_TYPE, 0);
   RecordFixedArrayHelper(nullptr, heap_->single_character_string_cache(),
