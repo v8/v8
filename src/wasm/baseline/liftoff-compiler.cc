@@ -684,9 +684,6 @@ class LiftoffCompiler {
                 const Value& index_val, const Value& value_val) {
     ValueType value_type = type.value_type();
     if (value_type != kWasmI32) return unsupported(decoder, "non-i32 store");
-    if (!env_->use_trap_handler) {
-      return unsupported(decoder, "non-traphandler");
-    }
     RegClass rc = reg_class_for(value_type);
     LiftoffRegList pinned;
     LiftoffRegister value = pinned.set(__ PopToRegister(rc));
@@ -699,7 +696,6 @@ class LiftoffCompiler {
     Register addr = pinned.set(__ GetUnusedRegister(kGpReg, pinned)).gp();
     __ LoadFromContext(addr, offsetof(WasmContext, mem_start), kPointerSize);
     __ Store(addr, index, operand.offset, value, type, pinned);
-    __ PushRegister(value_type, value);
   }
 
   void CurrentMemoryPages(Decoder* decoder, Value* result) {

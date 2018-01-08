@@ -27,6 +27,12 @@ inline Operand GetStackSlot(uint32_t index) {
 // TODO(clemensh): Make this a constexpr variable once Operand is constexpr.
 inline Operand GetContextOperand() { return Operand(ebp, -16); }
 
+static constexpr LiftoffRegList kByteRegs =
+    LiftoffRegList::FromBits<Register::ListOf<eax, ecx, edx, ebx>()>();
+static_assert(kByteRegs.GetNumRegsSet() == 4, "should have four byte regs");
+static_assert((kByteRegs & kGpCacheRegList) == kByteRegs,
+              "kByteRegs only contains gp cache registers");
+
 }  // namespace liftoff
 
 static constexpr DoubleRegister kScratchDoubleReg = xmm7;
@@ -110,7 +116,7 @@ void LiftoffAssembler::Store(Register dst_addr, Register offset_reg,
   if (offset_imm > kMaxInt) {
     // The immediate can not be encoded in the operand. Load it to a register
     // first.
-    Register dst = GetUnusedRegister(kGpReg, pinned).gp();
+    Register dst = pinned.set(GetUnusedRegister(kGpReg, pinned).gp());
     mov(dst, Immediate(offset_imm));
     if (offset_reg != no_reg) {
       emit_ptrsize_add(dst, dst, offset_reg);
@@ -119,7 +125,14 @@ void LiftoffAssembler::Store(Register dst_addr, Register offset_reg,
   }
   switch (type.value()) {
     case StoreType::kI32Store8:
-      mov_b(dst_op, src.gp());
+      // Only the lower 4 registers can be addressed as 8-bit registers.
+      if (src.gp().is_byte_register()) {
+        mov_b(dst_op, src.gp());
+      } else {
+        Register byte_src = GetUnusedRegister(liftoff::kByteRegs, pinned).gp();
+        mov(byte_src, src.gp());
+        mov_b(dst_op, byte_src);
+      }
       break;
     case StoreType::kI32Store16:
       mov_w(dst_op, src.gp());

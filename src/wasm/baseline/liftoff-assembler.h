@@ -112,26 +112,32 @@ class LiftoffAssembler : public TurboAssembler {
     std::vector<VarState> stack_state;
     LiftoffRegList used_registers;
     uint32_t register_use_count[kAfterMaxLiftoffRegCode] = {0};
-    LiftoffRegister last_spilled_gp_reg = kGpCacheRegList.GetFirstRegSet();
-    LiftoffRegister last_spilled_fp_reg = kFpCacheRegList.GetFirstRegSet();
+    LiftoffRegList last_spilled_regs;
     // TODO(clemensh): Remove stack_base; use ControlBase::stack_depth.
     uint32_t stack_base = 0;
 
-    bool has_unused_register(RegClass rc,
-                             LiftoffRegList pinned_scope = {}) const {
+    bool has_unused_register(RegClass rc, LiftoffRegList pinned = {}) const {
       DCHECK(rc == kGpReg || rc == kFpReg);
-      LiftoffRegList cache_regs = GetCacheRegList(rc);
-      LiftoffRegList available_regs =
-          cache_regs & ~used_registers & ~pinned_scope;
+      LiftoffRegList candidates = GetCacheRegList(rc);
+      return has_unused_register(candidates, pinned);
+    }
+
+    bool has_unused_register(LiftoffRegList candidates,
+                             LiftoffRegList pinned = {}) const {
+      LiftoffRegList available_regs = candidates & ~used_registers & ~pinned;
       return !available_regs.is_empty();
     }
 
     LiftoffRegister unused_register(RegClass rc,
-                                    LiftoffRegList pinned_scope = {}) const {
+                                    LiftoffRegList pinned = {}) const {
       DCHECK(rc == kGpReg || rc == kFpReg);
-      LiftoffRegList cache_regs = GetCacheRegList(rc);
-      LiftoffRegList available_regs =
-          cache_regs & ~used_registers & ~pinned_scope;
+      LiftoffRegList candidates = GetCacheRegList(rc);
+      return unused_register(candidates);
+    }
+
+    LiftoffRegister unused_register(LiftoffRegList candidates,
+                                    LiftoffRegList pinned = {}) const {
+      LiftoffRegList available_regs = candidates & ~used_registers & ~pinned;
       return available_regs.GetFirstRegSet();
     }
 
@@ -169,17 +175,19 @@ class LiftoffAssembler : public TurboAssembler {
 
     bool is_free(LiftoffRegister reg) const { return !is_used(reg); }
 
-    LiftoffRegister GetNextSpillReg(RegClass rc, LiftoffRegList pinned = {}) {
-      LiftoffRegister* last_spilled_p =
-          rc == kGpReg ? &last_spilled_gp_reg : &last_spilled_fp_reg;
-      LiftoffRegList cache_regs = GetCacheRegList(rc);
-      LiftoffRegList unpinned = cache_regs & ~pinned;
+    LiftoffRegister GetNextSpillReg(LiftoffRegList candidates,
+                                    LiftoffRegList pinned = {}) {
+      LiftoffRegList unpinned = candidates.MaskOut(pinned);
       DCHECK(!unpinned.is_empty());
-      LiftoffRegList remaining_regs =
-          unpinned.MaskOut((1u << (last_spilled_p->liftoff_code() + 1)) - 1);
-      if (remaining_regs.is_empty()) remaining_regs = unpinned;
-      LiftoffRegister reg = remaining_regs.GetFirstRegSet();
-      *last_spilled_p = reg;
+      // This method should only be called if none of the candidates is free.
+      DCHECK(unpinned.MaskOut(used_registers).is_empty());
+      LiftoffRegList unspilled = unpinned.MaskOut(last_spilled_regs);
+      if (unspilled.is_empty()) {
+        unspilled = unpinned;
+        last_spilled_regs = {};
+      }
+      LiftoffRegister reg = unspilled.GetFirstRegSet();
+      last_spilled_regs.set(reg);
       return reg;
     }
 
@@ -221,10 +229,17 @@ class LiftoffAssembler : public TurboAssembler {
   }
 
   LiftoffRegister GetUnusedRegister(RegClass rc, LiftoffRegList pinned = {}) {
-    if (cache_state_.has_unused_register(rc, pinned)) {
-      return cache_state_.unused_register(rc, pinned);
+    DCHECK(rc == kGpReg || rc == kFpReg);
+    LiftoffRegList candidates = GetCacheRegList(rc);
+    return GetUnusedRegister(candidates, pinned);
+  }
+
+  LiftoffRegister GetUnusedRegister(LiftoffRegList candidates,
+                                    LiftoffRegList pinned = {}) {
+    if (cache_state_.has_unused_register(candidates, pinned)) {
+      return cache_state_.unused_register(candidates, pinned);
     }
-    return SpillOneRegister(rc, pinned);
+    return SpillOneRegister(candidates, pinned);
   }
 
   void DropStackSlot(VarState* slot) {
@@ -336,7 +351,8 @@ class LiftoffAssembler : public TurboAssembler {
                 "Reconsider this inlining if ValueType gets bigger");
   CacheState cache_state_;
 
-  LiftoffRegister SpillOneRegister(RegClass rc, LiftoffRegList pinned);
+  LiftoffRegister SpillOneRegister(LiftoffRegList candidates,
+                                   LiftoffRegList pinned);
 };
 
 std::ostream& operator<<(std::ostream& os, LiftoffAssembler::VarState);

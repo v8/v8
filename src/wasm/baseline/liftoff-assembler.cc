@@ -244,8 +244,7 @@ void LiftoffAssembler::CacheState::InitMerge(const CacheState& source,
       dst = VarState(src.type());
     }
   }
-  last_spilled_gp_reg = source.last_spilled_gp_reg;
-  last_spilled_fp_reg = source.last_spilled_fp_reg;
+  last_spilled_regs = source.last_spilled_regs;
 }
 
 void LiftoffAssembler::CacheState::Steal(CacheState& source) {
@@ -359,10 +358,10 @@ void LiftoffAssembler::SpillLocals() {
   }
 }
 
-LiftoffRegister LiftoffAssembler::SpillOneRegister(RegClass rc,
+LiftoffRegister LiftoffAssembler::SpillOneRegister(LiftoffRegList candidates,
                                                    LiftoffRegList pinned) {
   // Spill one cached value to free a register.
-  LiftoffRegister spill_reg = cache_state_.GetNextSpillReg(rc, pinned);
+  LiftoffRegister spill_reg = cache_state_.GetNextSpillReg(candidates, pinned);
   int remaining_uses = cache_state_.get_use_count(spill_reg);
   DCHECK_LT(0, remaining_uses);
   for (uint32_t idx = cache_state_.stack_height() - 1;; --idx) {

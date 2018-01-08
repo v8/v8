@@ -146,16 +146,25 @@ class LiftoffRegList {
     return (regs_ & (storage_t{1} << reg.liftoff_code())) != 0;
   }
 
-  bool is_empty() const { return regs_ == 0; }
+  constexpr bool is_empty() const { return regs_ == 0; }
 
-  unsigned GetNumRegsSet() const { return base::bits::CountPopulation(regs_); }
-
-  LiftoffRegList operator&(LiftoffRegList other) const {
-    return FromBits(regs_ & other.regs_);
+  constexpr unsigned GetNumRegsSet() const {
+    return base::bits::CountPopulation(regs_);
   }
 
-  LiftoffRegList operator~() const {
-    return FromBits(~regs_ & (kGpMask | kFpMask));
+  constexpr LiftoffRegList operator&(const LiftoffRegList other) const {
+    return LiftoffRegList(regs_ & other.regs_);
+  }
+
+  constexpr LiftoffRegList operator~() const {
+    return LiftoffRegList(~regs_ & (kGpMask | kFpMask));
+  }
+
+  constexpr bool operator==(const LiftoffRegList other) const {
+    return regs_ == other.regs_;
+  }
+  constexpr bool operator!=(const LiftoffRegList other) const {
+    return regs_ != other.regs_;
   }
 
   LiftoffRegister GetFirstRegSet() const {
@@ -171,10 +180,10 @@ class LiftoffRegList {
     return LiftoffRegister::from_liftoff_code(last_code);
   }
 
-  LiftoffRegList MaskOut(storage_t mask) const {
+  LiftoffRegList MaskOut(const LiftoffRegList mask) const {
     // Masking out is guaranteed to return a correct reg list, hence no checks
     // needed.
-    return FromBits(regs_ & ~mask);
+    return FromBits(regs_ & ~mask.regs_);
   }
 
   static LiftoffRegList FromBits(storage_t bits) {
