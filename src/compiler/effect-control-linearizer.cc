@@ -1300,9 +1300,12 @@ Node* EffectControlLinearizer::LowerMaskIndexWithBound(Node* node) {
   if (mask_array_index_ == kMaskArrayIndex) {
     Node* limit = node->InputAt(1);
 
-    Node* mask = __ Word32Sar(__ Word32Or(__ Int32Sub(limit, index), index),
-                              __ Int32Constant(31));
-    mask = __ Word32Xor(mask, __ Int32Constant(-1));
+    // mask = ((index - limit) & ~index) >> 31
+    // index = index & mask
+    Node* neg_index = __ Word32Xor(index, __ Int32Constant(-1));
+    Node* mask =
+        __ Word32Sar(__ Word32And(__ Int32Sub(index, limit), neg_index),
+                     __ Int32Constant(31));
     index = __ Word32And(index, mask);
   }
   return index;
