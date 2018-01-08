@@ -771,7 +771,7 @@ class LiftoffCompiler {
 
   void TraceCacheState(Decoder* decoder) const {
 #ifdef DEBUG
-    if (!FLAG_trace_liftoff) return;
+    if (!FLAG_trace_liftoff || !FLAG_trace_wasm_decoder) return;
     OFStream os(stdout);
     for (int control_depth = decoder->control_depth() - 1; control_depth >= -1;
          --control_depth) {

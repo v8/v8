@@ -1871,22 +1871,25 @@ class WasmFullDecoder : public WasmDecoder<validate> {
           TRACE_PART(" %c@%d:%s", WasmOpcodes::ShortNameOf(val.type),
                      static_cast<int>(val.pc - this->start_),
                      WasmOpcodes::OpcodeName(opcode));
+          // If the decoder failed, don't try to decode the operands, as this
+          // can trigger a DCHECK failure.
+          if (this->failed()) continue;
           switch (opcode) {
             case kExprI32Const: {
-              ImmI32Operand<validate> operand(this, val.pc);
+              ImmI32Operand<Decoder::kNoValidate> operand(this, val.pc);
               TRACE_PART("[%d]", operand.value);
               break;
             }
             case kExprGetLocal:
             case kExprSetLocal:
             case kExprTeeLocal: {
-              LocalIndexOperand<Decoder::kValidate> operand(this, val.pc);
+              LocalIndexOperand<Decoder::kNoValidate> operand(this, val.pc);
               TRACE_PART("[%u]", operand.index);
               break;
             }
             case kExprGetGlobal:
             case kExprSetGlobal: {
-              GlobalIndexOperand<validate> operand(this, val.pc);
+              GlobalIndexOperand<Decoder::kNoValidate> operand(this, val.pc);
               TRACE_PART("[%u]", operand.index);
               break;
             }
