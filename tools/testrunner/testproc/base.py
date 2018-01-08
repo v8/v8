@@ -18,6 +18,10 @@ class TestProc(object):
   def result_for(self, test, result, is_last):
     raise NotImplementedError()
 
+  def heartbeat(self):
+    if self._prev_proc:
+      self._prev_proc.heartbeat()
+
   ### Communication
   def _send_test(self, test):
     return self._next_proc.next_test(test)
@@ -36,10 +40,17 @@ class TestProcObserver(TestProc):
     self._on_result_for(test, result, is_last)
     self._send_result(test, result, is_last)
 
+  def heartbeat(self):
+    self._on_heartbeat()
+    super(TestProcObserver, self).heartbeat()
+
   def _on_next_test(self, test):
     pass
 
   def _on_result_for(self, test, result, is_last):
+    pass
+
+  def _on_heartbeat(self):
     pass
 
 

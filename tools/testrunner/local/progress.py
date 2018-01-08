@@ -177,6 +177,9 @@ class DotsProgressIndicator(SimpleProgressIndicator):
       sys.stdout.write('.')
       sys.stdout.flush()
 
+  def ToProgressIndicatorProc(self):
+    return progress_proc.DotsProgressIndicator()
+
 
 class CompactProgressIndicator(ProgressIndicator):
   """Abstract base class for {Color,Monochrome}ProgressIndicator"""
@@ -251,6 +254,9 @@ class ColorProgressIndicator(CompactProgressIndicator):
   def ClearLine(self, last_line_length):
     print "\033[1K\r",
 
+  def ToProgressIndicatorProc(self):
+    return progress_proc.ColorProgressIndicator()
+
 
 class MonochromeProgressIndicator(CompactProgressIndicator):
 
@@ -266,11 +272,15 @@ class MonochromeProgressIndicator(CompactProgressIndicator):
   def ClearLine(self, last_line_length):
     print ("\r" + (" " * last_line_length) + "\r"),
 
+  def ToProgressIndicatorProc(self):
+    return progress_proc.MonochromeProgressIndicator()
+
 
 class JUnitTestProgressIndicator(ProgressIndicator):
-
   def __init__(self, junitout, junittestsuite):
     super(JUnitTestProgressIndicator, self).__init__()
+    self.junitout = junitout
+    self.juinttestsuite = junittestsuite
     self.outputter = junit_output.JUnitTestOutput(junittestsuite)
     if junitout:
       self.outfile = open(junitout, "w")
@@ -291,7 +301,7 @@ class JUnitTestProgressIndicator(ProgressIndicator):
       stderr = output.stderr.strip()
       if len(stderr):
         fail_text += "stderr:\n%s\n" % stderr
-      fail_text += "Command: %s" % self.test.cmd.to_string()
+      fail_text += "Command: %s" % test.cmd.to_string()
       if output.HasCrashed():
         fail_text += "exit code: %d\n--- CRASHED ---" % output.exit_code
       if output.HasTimedOut():
@@ -301,6 +311,12 @@ class JUnitTestProgressIndicator(ProgressIndicator):
         test_cmd=test.cmd.to_string(relative=True),
         test_duration=output.duration,
         test_failure=fail_text)
+
+  def ToProgressIndicatorProc(self):
+    if self.outfile != sys.stdout:
+      self.outfile.close()
+    return progress_proc.JUnitTestProgressIndicator(self.junitout,
+                                                    self.junittestsuite)
 
 
 class JsonTestProgressIndicator(ProgressIndicator):

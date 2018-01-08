@@ -531,5 +531,57 @@ class SystemTest(unittest.TestCase):
       self.assertTrue(statusfile.PresubmitCheck(
           os.path.join(basedir, 'test', 'sweet', 'sweet.status')))
 
+  def testDotsProgressProc(self):
+    self.testDotsProgress(infra_staging=True)
+
+  def testDotsProgress(self, infra_staging=False):
+    with temp_base() as basedir:
+      result = run_tests(
+          basedir,
+          '--mode=Release',
+          '--progress=dots',
+          'sweet/cherries',
+          'sweet/bananas',
+          '--no-sorting', '-j1', # make results order deterministic
+          infra_staging=infra_staging,
+      )
+      self.assertIn('Running 2 tests', result.stdout, result)
+      self.assertIn('F.', result.stdout, result)
+      self.assertEqual(1, result.returncode, result)
+
+  def testMonoProgressProc(self):
+    self._testCompactProgress('mono', True)
+
+  def testMonoProgress(self):
+    self._testCompactProgress('mono', False)
+
+  def testColorProgressProc(self):
+    self._testCompactProgress('color', True)
+
+  def testColorProgress(self):
+    self._testCompactProgress('color', False)
+
+  def _testCompactProgress(self, name, infra_staging):
+    with temp_base() as basedir:
+      result = run_tests(
+          basedir,
+          '--mode=Release',
+          '--progress=%s' % name,
+          'sweet/cherries',
+          'sweet/bananas',
+          infra_staging=infra_staging,
+      )
+      if name == 'color':
+        expected = ('\033[34m% 100\033[0m|'
+                    '\033[32m+   1\033[0m|'
+                    '\033[31m-   1\033[0m]: Done')
+      else:
+        expected = '% 100|+   1|-   1]: Done'
+      self.assertIn(expected, result.stdout)
+      self.assertIn('sweet/cherries', result.stdout)
+      self.assertIn('sweet/bananas', result.stdout)
+      self.assertEqual(1, result.returncode, result)
+
+
 if __name__ == '__main__':
   unittest.main()
