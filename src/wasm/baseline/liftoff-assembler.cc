@@ -391,6 +391,19 @@ uint32_t LiftoffAssembler::GetTotalFrameSlotCount() const {
   return num_locals() + kMaxValueStackHeight;
 }
 
+std::ostream& operator<<(std::ostream& os, VarState slot) {
+  os << WasmOpcodes::TypeName(slot.type()) << ":";
+  switch (slot.loc()) {
+    case VarState::kStack:
+      return os << "s";
+    case VarState::kRegister:
+      return os << slot.reg();
+    case VarState::kConstant:
+      return os << "c" << slot.i32_const();
+  }
+  UNREACHABLE();
+}
+
 #undef __
 #undef TRACE
 

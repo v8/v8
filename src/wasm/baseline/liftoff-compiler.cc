@@ -771,35 +771,21 @@ class LiftoffCompiler {
   void TraceCacheState(Decoder* decoder) const {
 #ifdef DEBUG
     if (!FLAG_trace_liftoff) return;
+    OFStream os(stdout);
     for (int control_depth = decoder->control_depth() - 1; control_depth >= -1;
          --control_depth) {
       LiftoffAssembler::CacheState* cache_state =
           control_depth == -1
               ? asm_->cache_state()
               : &decoder->control_at(control_depth)->label_state;
-      int idx = 0;
+      bool first = true;
       for (LiftoffAssembler::VarState& slot : cache_state->stack_state) {
-        if (idx++) PrintF("-");
-        PrintF("%s:", WasmOpcodes::TypeName(slot.type()));
-        switch (slot.loc()) {
-          case kStack:
-            PrintF("s");
-            break;
-          case kRegister:
-            if (slot.reg().is_gp()) {
-              PrintF("gp%d", slot.reg().gp().code());
-            } else {
-              PrintF("fp%d", slot.reg().fp().code());
-            }
-            break;
-          case kConstant:
-            PrintF("c");
-            break;
-        }
+        os << (first ? "" : "-") << slot;
+        first = false;
       }
       if (control_depth != -1) PrintF("; ");
     }
-    PrintF("\n");
+    os << "\n";
 #endif
   }
 };

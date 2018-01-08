@@ -5,6 +5,7 @@
 #ifndef V8_WASM_BASELINE_LIFTOFF_REGISTER_H_
 #define V8_WASM_BASELINE_LIFTOFF_REGISTER_H_
 
+#include <iosfwd>
 #include <memory>
 
 // Clients of this interface shouldn't depend on lots of compiler internals.
@@ -106,6 +107,11 @@ class LiftoffRegister {
 };
 static_assert(IS_TRIVIALLY_COPYABLE(LiftoffRegister),
               "LiftoffRegister can efficiently be passed by value");
+
+inline std::ostream& operator<<(std::ostream& os, LiftoffRegister reg) {
+  return reg.is_gp() ? os << "gp" << reg.gp().code()
+                     : os << "fp" << reg.fp().code();
+}
 
 class LiftoffRegList {
  public:

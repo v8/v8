@@ -36,6 +36,7 @@
 #define V8_ASSEMBLER_H_
 
 #include <forward_list>
+#include <iosfwd>
 
 #include "src/allocation.h"
 #include "src/builtins/builtins.h"
@@ -1337,6 +1338,12 @@ class RegisterBase {
   explicit constexpr RegisterBase(int code) : reg_code_(code) {}
   int reg_code_;
 };
+
+template <typename SubType, int kAfterLastRegister>
+inline std::ostream& operator<<(std::ostream& os,
+                                RegisterBase<SubType, kAfterLastRegister> reg) {
+  return reg.is_valid() ? os << "r" << reg.code() : os << "<invalid reg>";
+}
 
 }  // namespace internal
 }  // namespace v8
