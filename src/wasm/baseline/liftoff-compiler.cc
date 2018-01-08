@@ -322,31 +322,31 @@ class LiftoffCompiler {
     BindUnboundLabels(decoder);
   }
 
-  void Block(Decoder* decoder, Control* new_block) {
-    // Note: This is called for blocks and loops.
-    DCHECK_EQ(new_block, decoder->control_at(0));
-
+  void Block(Decoder* decoder, Control* block) {
     TraceCacheState(decoder);
-
-    new_block->label_state.stack_base = __ cache_state()->stack_height();
-
-    if (new_block->is_loop()) {
-      // Before entering a loop, spill all locals to the stack, in order to free
-      // the cache registers, and to avoid unnecessarily reloading stack values
-      // into registers at branches.
-      // TODO(clemensh): Come up with a better strategy here, involving
-      // pre-analysis of the function.
-      __ SpillLocals();
-
-      // Loop labels bind at the beginning of the block, block labels at the
-      // end.
-      __ bind(new_block->label.get());
-
-      new_block->label_state.Split(*__ cache_state());
-    }
+    block->label_state.stack_base = __ cache_state()->stack_height();
   }
 
-  void Loop(Decoder* decoder, Control* block) { Block(decoder, block); }
+  void Loop(Decoder* decoder, Control* loop) {
+    TraceCacheState(decoder);
+    loop->label_state.stack_base = __ cache_state()->stack_height();
+
+    // Before entering a loop, spill all locals to the stack, in order to free
+    // the cache registers, and to avoid unnecessarily reloading stack values
+    // into registers at branches.
+    // TODO(clemensh): Come up with a better strategy here, involving
+    // pre-analysis of the function.
+    __ SpillLocals();
+
+    // Loop labels bind at the beginning of the block.
+    __ bind(loop->label.get());
+
+    // Save the current cache state for the merge when jumping to this loop.
+    loop->label_state.Split(*__ cache_state());
+
+    // Execute a stack check in the loop header.
+    StackCheck(decoder->position());
+  }
 
   void Try(Decoder* decoder, Control* block) { unsupported(decoder, "try"); }
   void If(Decoder* decoder, const Value& cond, Control* if_block) {
