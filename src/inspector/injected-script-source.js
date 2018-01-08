@@ -599,7 +599,8 @@ InjectedScript.prototype = {
                     description = (InjectedScriptHost.getProperty(constructor, "name") || "").toLowerCase();
             }
 
-            switch (obj.nodeType) {
+            var nodeType = InjectedScriptHost.getProperty(obj, "nodeType");
+            switch (nodeType) {
             case 1 /* Node.ELEMENT_NODE */:
                 var id = InjectedScriptHost.getProperty(obj, "id");
                 description += id ? "#" + id : "";
