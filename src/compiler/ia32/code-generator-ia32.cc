@@ -1660,6 +1660,61 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
                    i.InputOperand(2), i.InputInt8(1) << 4);
       break;
     }
+    case kSSEF32x4Add: {
+      DCHECK_EQ(i.OutputSimd128Register(), i.InputSimd128Register(0));
+      __ addps(i.OutputSimd128Register(), i.InputOperand(1));
+      break;
+    }
+    case kAVXF32x4Add: {
+      CpuFeatureScope avx_scope(tasm(), AVX);
+      __ vaddps(i.OutputSimd128Register(), i.InputSimd128Register(0),
+                i.InputOperand(1));
+      break;
+    }
+    case kSSEF32x4Sub: {
+      DCHECK_EQ(i.OutputSimd128Register(), i.InputSimd128Register(0));
+      __ subps(i.OutputSimd128Register(), i.InputOperand(1));
+      break;
+    }
+    case kAVXF32x4Sub: {
+      CpuFeatureScope avx_scope(tasm(), AVX);
+      __ vsubps(i.OutputSimd128Register(), i.InputSimd128Register(0),
+                i.InputOperand(1));
+      break;
+    }
+    case kSSEF32x4Mul: {
+      DCHECK_EQ(i.OutputSimd128Register(), i.InputSimd128Register(0));
+      __ mulps(i.OutputSimd128Register(), i.InputOperand(1));
+      break;
+    }
+    case kAVXF32x4Mul: {
+      CpuFeatureScope avx_scope(tasm(), AVX);
+      __ vmulps(i.OutputSimd128Register(), i.InputSimd128Register(0),
+                i.InputOperand(1));
+      break;
+    }
+    case kSSEF32x4Min: {
+      DCHECK_EQ(i.OutputSimd128Register(), i.InputSimd128Register(0));
+      __ minps(i.OutputSimd128Register(), i.InputOperand(1));
+      break;
+    }
+    case kAVXF32x4Min: {
+      CpuFeatureScope avx_scope(tasm(), AVX);
+      __ vminps(i.OutputSimd128Register(), i.InputSimd128Register(0),
+                i.InputOperand(1));
+      break;
+    }
+    case kSSEF32x4Max: {
+      DCHECK_EQ(i.OutputSimd128Register(), i.InputSimd128Register(0));
+      __ maxps(i.OutputSimd128Register(), i.InputOperand(1));
+      break;
+    }
+    case kAVXF32x4Max: {
+      CpuFeatureScope avx_scope(tasm(), AVX);
+      __ vmaxps(i.OutputSimd128Register(), i.InputSimd128Register(0),
+                i.InputOperand(1));
+      break;
+    }
     case kSSEF32x4Eq: {
       DCHECK_EQ(i.OutputSimd128Register(), i.InputSimd128Register(0));
       __ cmpeqps(i.OutputSimd128Register(), i.InputOperand(1));

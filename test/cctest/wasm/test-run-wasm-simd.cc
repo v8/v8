@@ -517,6 +517,8 @@ WASM_SIMD_COMPILED_TEST(F32x4RecipSqrtApprox) {
   RunF32x4UnOpTest(lower_simd, kExprF32x4RecipSqrtApprox, RecipSqrt,
                    kApproxError);
 }
+#endif  // V8_TARGET_ARCH_ARM || V8_TARGET_ARCH_ARM64 || V8_TARGET_ARCH_MIPS ||
+        // V8_TARGET_ARCH_MIPS64 || V8_TARGET_ARCH_X64
 
 void RunF32x4BinOpTest(LowerSimd lower_simd, WasmOpcode simd_op,
                        FloatBinOp expected_op) {
@@ -552,8 +554,6 @@ WASM_SIMD_TEST(F32x4_Min) {
 WASM_SIMD_TEST(F32x4_Max) {
   RunF32x4BinOpTest(lower_simd, kExprF32x4Max, JSMax);
 }
-#endif  // V8_TARGET_ARCH_ARM || V8_TARGET_ARCH_ARM64 || V8_TARGET_ARCH_MIPS ||
-        // V8_TARGET_ARCH_MIPS64 || V8_TARGET_ARCH_X64
 
 void RunF32x4CompareOpTest(LowerSimd lower_simd, WasmOpcode simd_op,
                            FloatCompareOp expected_op) {

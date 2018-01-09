@@ -120,6 +120,16 @@ namespace compiler {
   V(AVXF32x4ExtractLane)           \
   V(SSEF32x4ReplaceLane)           \
   V(AVXF32x4ReplaceLane)           \
+  V(SSEF32x4Add)                   \
+  V(AVXF32x4Add)                   \
+  V(SSEF32x4Sub)                   \
+  V(AVXF32x4Sub)                   \
+  V(SSEF32x4Mul)                   \
+  V(AVXF32x4Mul)                   \
+  V(SSEF32x4Min)                   \
+  V(AVXF32x4Min)                   \
+  V(SSEF32x4Max)                   \
+  V(AVXF32x4Max)                   \
   V(SSEF32x4Eq)                    \
   V(AVXF32x4Eq)                    \
   V(SSEF32x4Ne)                    \

@@ -103,6 +103,16 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kAVXF32x4ExtractLane:
     case kSSEF32x4ReplaceLane:
     case kAVXF32x4ReplaceLane:
+    case kSSEF32x4Add:
+    case kAVXF32x4Add:
+    case kSSEF32x4Sub:
+    case kAVXF32x4Sub:
+    case kSSEF32x4Mul:
+    case kAVXF32x4Mul:
+    case kSSEF32x4Min:
+    case kAVXF32x4Min:
+    case kSSEF32x4Max:
+    case kAVXF32x4Max:
     case kSSEF32x4Eq:
     case kAVXF32x4Eq:
     case kSSEF32x4Ne:
