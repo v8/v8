@@ -176,8 +176,6 @@ class PromiseBuiltinsAssembler : public CodeStubAssembler {
   Node* PromiseStatus(Node* promise);
   void PerformFulfillClosure(Node* context, Node* value, bool should_resolve);
 
-  void EnqueueMicrotask(Node* microtask);
-
  private:
   Node* IsPromiseStatus(Node* actual, v8::Promise::PromiseState expected);
   void PromiseSetStatus(Node* promise, v8::Promise::PromiseState status);

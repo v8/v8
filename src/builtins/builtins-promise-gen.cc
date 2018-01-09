@@ -528,7 +528,7 @@ Node* PromiseBuiltinsAssembler::InternalPerformPromiseThen(
       Node* info = AllocatePromiseReactionJobInfo(
           result, var_on_resolve.value(), deferred_promise, deferred_on_resolve,
           deferred_on_reject, context);
-      EnqueueMicrotask(info);
+      CallBuiltin(Builtins::kEnqueueMicrotask, NoContextConstant(), info);
       Goto(&out);
 
       BIND(&reject);
@@ -547,7 +547,7 @@ Node* PromiseBuiltinsAssembler::InternalPerformPromiseThen(
           Node* info = AllocatePromiseReactionJobInfo(
               result, var_on_reject.value(), deferred_promise,
               deferred_on_resolve, deferred_on_reject, context);
-          EnqueueMicrotask(info);
+          CallBuiltin(Builtins::kEnqueueMicrotask, NoContextConstant(), info);
           Goto(&out);
         }
       }
@@ -755,7 +755,7 @@ void PromiseBuiltinsAssembler::InternalResolvePromise(Node* context,
     // 12. Perform EnqueueJob("PromiseJobs",
     // PromiseResolveThenableJob, « promise, resolution, thenAction»).
     BIND(&enqueue);
-    EnqueueMicrotask(info);
+    CallBuiltin(Builtins::kEnqueueMicrotask, NoContextConstant(), info);
     Goto(&out);
   }
 
@@ -813,7 +813,7 @@ void PromiseBuiltinsAssembler::PromiseFulfill(
       result, tasks, deferred_promise, deferred_on_resolve, deferred_on_reject,
       context);
 
-  EnqueueMicrotask(info);
+  CallBuiltin(Builtins::kEnqueueMicrotask, NoContextConstant(), info);
   Goto(&do_promisereset);
 
   BIND(&do_promisereset);
@@ -964,69 +964,6 @@ void PromiseBuiltinsAssembler::PerformFulfillClosure(Node* context, Node* value,
   Goto(&out);
 
   BIND(&out);
-}
-
-void PromiseBuiltinsAssembler::EnqueueMicrotask(Node* microtask) {
-  TNode<IntPtrT> num_tasks = GetPendingMicrotaskCount();
-  TNode<IntPtrT> new_num_tasks = IntPtrAdd(num_tasks, IntPtrConstant(1));
-  TNode<FixedArray> queue = GetMicrotaskQueue();
-  TNode<IntPtrT> queue_length = LoadAndUntagFixedArrayBaseLength(queue);
-
-  Label if_append(this), if_grow(this), done(this);
-  Branch(WordEqual(num_tasks, queue_length), &if_grow, &if_append);
-
-  BIND(&if_grow);
-  {
-    // Determine the new queue length and check if we need to allocate
-    // in large object space (instead of just going to new space, where
-    // we also know that we don't need any write barriers for setting
-    // up the new queue object).
-    Label if_newspace(this), if_lospace(this, Label::kDeferred);
-    TNode<IntPtrT> new_queue_length =
-        IntPtrMax(IntPtrConstant(8), IntPtrAdd(num_tasks, num_tasks));
-    Branch(IntPtrLessThanOrEqual(new_queue_length,
-                                 IntPtrConstant(FixedArray::kMaxRegularLength)),
-           &if_newspace, &if_lospace);
-
-    BIND(&if_newspace);
-    {
-      // This is the likely case where the new queue fits into new space,
-      // and thus we don't need any write barriers for initializing it.
-      TNode<FixedArray> new_queue =
-          CAST(AllocateFixedArray(PACKED_ELEMENTS, new_queue_length));
-      CopyFixedArrayElements(PACKED_ELEMENTS, queue, new_queue, num_tasks,
-                             SKIP_WRITE_BARRIER);
-      StoreFixedArrayElement(new_queue, num_tasks, microtask,
-                             SKIP_WRITE_BARRIER);
-      FillFixedArrayWithValue(PACKED_ELEMENTS, new_queue, new_num_tasks,
-                              new_queue_length, Heap::kUndefinedValueRootIndex);
-      SetMicrotaskQueue(new_queue);
-      Goto(&done);
-    }
-
-    BIND(&if_lospace);
-    {
-      // The fallback case where the new queue ends up in large object space.
-      TNode<FixedArray> new_queue = CAST(AllocateFixedArray(
-          PACKED_ELEMENTS, new_queue_length, INTPTR_PARAMETERS,
-          AllocationFlag::kAllowLargeObjectAllocation));
-      CopyFixedArrayElements(PACKED_ELEMENTS, queue, new_queue, num_tasks);
-      StoreFixedArrayElement(new_queue, num_tasks, microtask);
-      FillFixedArrayWithValue(PACKED_ELEMENTS, new_queue, new_num_tasks,
-                              new_queue_length, Heap::kUndefinedValueRootIndex);
-      SetMicrotaskQueue(new_queue);
-      Goto(&done);
-    }
-  }
-
-  BIND(&if_append);
-  {
-    StoreFixedArrayElement(queue, num_tasks, microtask);
-    Goto(&done);
-  }
-
-  BIND(&done);
-  SetPendingMicrotaskCount(new_num_tasks);
 }
 
 // ES#sec-promise-reject-functions

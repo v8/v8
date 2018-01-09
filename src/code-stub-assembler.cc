@@ -10558,39 +10558,6 @@ Node* CodeStubAssembler::AllocatePromiseReactionJobInfo(
   return result;
 }
 
-TNode<IntPtrT> CodeStubAssembler::GetPendingMicrotaskCount() {
-  auto ref = ExternalReference::pending_microtask_count_address(isolate());
-  if (kIntSize == 8) {
-    return TNode<IntPtrT>::UncheckedCast(
-        Load(MachineType::Int64(), ExternalConstant(ref)));
-  } else {
-    Node* const value = Load(MachineType::Int32(), ExternalConstant(ref));
-    return ChangeInt32ToIntPtr(value);
-  }
-}
-
-void CodeStubAssembler::SetPendingMicrotaskCount(TNode<IntPtrT> count) {
-  auto ref = ExternalReference::pending_microtask_count_address(isolate());
-  auto rep = kIntSize == 8 ? MachineRepresentation::kWord64
-                           : MachineRepresentation::kWord32;
-  if (kIntSize == 4 && kPointerSize == 8) {
-    Node* const truncated_count =
-        TruncateInt64ToInt32(TNode<Int64T>::UncheckedCast(count));
-    StoreNoWriteBarrier(rep, ExternalConstant(ref), truncated_count);
-  } else {
-    StoreNoWriteBarrier(rep, ExternalConstant(ref), count);
-  }
-}
-
-TNode<FixedArray> CodeStubAssembler::GetMicrotaskQueue() {
-  return TNode<FixedArray>::UncheckedCast(
-      LoadRoot(Heap::kMicrotaskQueueRootIndex));
-}
-
-void CodeStubAssembler::SetMicrotaskQueue(TNode<FixedArray> queue) {
-  StoreRoot(Heap::kMicrotaskQueueRootIndex, queue);
-}
-
 Node* CodeStubAssembler::MarkerIsFrameType(Node* marker_or_function,
                                            StackFrame::Type frame_type) {
   return WordEqual(marker_or_function,

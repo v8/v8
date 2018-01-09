@@ -616,6 +616,12 @@ class InternalBuiltinsAssembler : public CodeStubAssembler {
   explicit InternalBuiltinsAssembler(compiler::CodeAssemblerState* state)
       : CodeStubAssembler(state) {}
 
+  TNode<IntPtrT> GetPendingMicrotaskCount();
+  void SetPendingMicrotaskCount(TNode<IntPtrT> count);
+
+  TNode<FixedArray> GetMicrotaskQueue();
+  void SetMicrotaskQueue(TNode<FixedArray> queue);
+
   TNode<Context> GetCurrentContext();
   void SetCurrentContext(TNode<Context> context);
 
@@ -644,6 +650,39 @@ class InternalBuiltinsAssembler : public CodeStubAssembler {
                         TheHoleConstant());
   }
 };
+
+TNode<IntPtrT> InternalBuiltinsAssembler::GetPendingMicrotaskCount() {
+  auto ref = ExternalReference::pending_microtask_count_address(isolate());
+  if (kIntSize == 8) {
+    return TNode<IntPtrT>::UncheckedCast(
+        Load(MachineType::Int64(), ExternalConstant(ref)));
+  } else {
+    Node* const value = Load(MachineType::Int32(), ExternalConstant(ref));
+    return ChangeInt32ToIntPtr(value);
+  }
+}
+
+void InternalBuiltinsAssembler::SetPendingMicrotaskCount(TNode<IntPtrT> count) {
+  auto ref = ExternalReference::pending_microtask_count_address(isolate());
+  auto rep = kIntSize == 8 ? MachineRepresentation::kWord64
+                           : MachineRepresentation::kWord32;
+  if (kIntSize == 4 && kPointerSize == 8) {
+    Node* const truncated_count =
+        TruncateInt64ToInt32(TNode<Int64T>::UncheckedCast(count));
+    StoreNoWriteBarrier(rep, ExternalConstant(ref), truncated_count);
+  } else {
+    StoreNoWriteBarrier(rep, ExternalConstant(ref), count);
+  }
+}
+
+TNode<FixedArray> InternalBuiltinsAssembler::GetMicrotaskQueue() {
+  return TNode<FixedArray>::UncheckedCast(
+      LoadRoot(Heap::kMicrotaskQueueRootIndex));
+}
+
+void InternalBuiltinsAssembler::SetMicrotaskQueue(TNode<FixedArray> queue) {
+  StoreRoot(Heap::kMicrotaskQueueRootIndex, queue);
+}
 
 TNode<Context> InternalBuiltinsAssembler::GetCurrentContext() {
   auto ref = ExternalReference(kContextAddress, isolate());
@@ -704,6 +743,72 @@ void InternalBuiltinsAssembler::LeaveMicrotaskContext() {
                            kEnteredContextCountDuringMicrotasks),
         Int64Constant(0));
   }
+}
+
+TF_BUILTIN(EnqueueMicrotask, InternalBuiltinsAssembler) {
+  Node* microtask = Parameter(Descriptor::kMicrotask);
+
+  TNode<IntPtrT> num_tasks = GetPendingMicrotaskCount();
+  TNode<IntPtrT> new_num_tasks = IntPtrAdd(num_tasks, IntPtrConstant(1));
+  TNode<FixedArray> queue = GetMicrotaskQueue();
+  TNode<IntPtrT> queue_length = LoadAndUntagFixedArrayBaseLength(queue);
+
+  Label if_append(this), if_grow(this), done(this);
+  Branch(WordEqual(num_tasks, queue_length), &if_grow, &if_append);
+
+  BIND(&if_grow);
+  {
+    // Determine the new queue length and check if we need to allocate
+    // in large object space (instead of just going to new space, where
+    // we also know that we don't need any write barriers for setting
+    // up the new queue object).
+    Label if_newspace(this), if_lospace(this, Label::kDeferred);
+    TNode<IntPtrT> new_queue_length =
+        IntPtrMax(IntPtrConstant(8), IntPtrAdd(num_tasks, num_tasks));
+    Branch(IntPtrLessThanOrEqual(new_queue_length,
+                                 IntPtrConstant(FixedArray::kMaxRegularLength)),
+           &if_newspace, &if_lospace);
+
+    BIND(&if_newspace);
+    {
+      // This is the likely case where the new queue fits into new space,
+      // and thus we don't need any write barriers for initializing it.
+      TNode<FixedArray> new_queue =
+          CAST(AllocateFixedArray(PACKED_ELEMENTS, new_queue_length));
+      CopyFixedArrayElements(PACKED_ELEMENTS, queue, new_queue, num_tasks,
+                             SKIP_WRITE_BARRIER);
+      StoreFixedArrayElement(new_queue, num_tasks, microtask,
+                             SKIP_WRITE_BARRIER);
+      FillFixedArrayWithValue(PACKED_ELEMENTS, new_queue, new_num_tasks,
+                              new_queue_length, Heap::kUndefinedValueRootIndex);
+      SetMicrotaskQueue(new_queue);
+      Goto(&done);
+    }
+
+    BIND(&if_lospace);
+    {
+      // The fallback case where the new queue ends up in large object space.
+      TNode<FixedArray> new_queue = CAST(AllocateFixedArray(
+          PACKED_ELEMENTS, new_queue_length, INTPTR_PARAMETERS,
+          AllocationFlag::kAllowLargeObjectAllocation));
+      CopyFixedArrayElements(PACKED_ELEMENTS, queue, new_queue, num_tasks);
+      StoreFixedArrayElement(new_queue, num_tasks, microtask);
+      FillFixedArrayWithValue(PACKED_ELEMENTS, new_queue, new_num_tasks,
+                              new_queue_length, Heap::kUndefinedValueRootIndex);
+      SetMicrotaskQueue(new_queue);
+      Goto(&done);
+    }
+  }
+
+  BIND(&if_append);
+  {
+    StoreFixedArrayElement(queue, num_tasks, microtask);
+    Goto(&done);
+  }
+
+  BIND(&done);
+  SetPendingMicrotaskCount(new_num_tasks);
+  Return(UndefinedConstant());
 }
 
 TF_BUILTIN(RunMicrotasks, InternalBuiltinsAssembler) {

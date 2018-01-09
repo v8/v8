@@ -1849,13 +1849,6 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
                                        Node* deferred_on_resolve,
                                        Node* deferred_on_reject, Node* context);
 
-  // Microtask helpers
-  TNode<IntPtrT> GetPendingMicrotaskCount();
-  void SetPendingMicrotaskCount(TNode<IntPtrT> count);
-
-  TNode<FixedArray> GetMicrotaskQueue();
-  void SetMicrotaskQueue(TNode<FixedArray> queue);
-
   // Helpers for StackFrame markers.
   Node* MarkerIsFrameType(Node* marker_or_function,
                           StackFrame::Type frame_type);
