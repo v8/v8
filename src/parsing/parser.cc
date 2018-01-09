@@ -1889,11 +1889,13 @@ void Parser::DeclareFunctionNameVar(const AstRawString* function_name,
 //     !%_IsJSReceiver(result = Await(iterator.next())) &&
 //         %ThrowIteratorResultNotAnObject(result)
 // [endif]
-Expression* Parser::BuildIteratorNextResult(VariableProxy* iterator,
-                                            VariableProxy* next,
+Expression* Parser::BuildIteratorNextResult(Expression* iterator,
                                             Variable* result, IteratorType type,
                                             int pos) {
-  Expression* next_property = factory()->NewResolvedProperty(iterator, next);
+  Expression* next_literal = factory()->NewStringLiteral(
+      ast_value_factory()->next_string(), kNoSourcePosition);
+  Expression* next_property =
+      factory()->NewProperty(iterator, next_literal, kNoSourcePosition);
   ZoneList<Expression*>* next_arguments =
       new (zone()) ZoneList<Expression*>(0, zone());
   Expression* next_call =
@@ -2096,7 +2098,6 @@ Statement* Parser::InitializeForOfStatement(
   auto avfactory = ast_value_factory();
 
   Variable* iterator = NewTemporary(avfactory->dot_iterator_string());
-  Variable* next = NewTemporary(avfactory->empty_string());
   Variable* result = NewTemporary(avfactory->dot_result_string());
   Variable* completion = NewTemporary(avfactory->empty_string());
 
@@ -2109,17 +2110,6 @@ Statement* Parser::InitializeForOfStatement(
         iterable->position());
   }
 
-  Expression* assign_next;
-  {
-    assign_next = factory()->NewAssignment(
-        Token::ASSIGN, factory()->NewVariableProxy(next),
-        factory()->NewProperty(factory()->NewVariableProxy(iterator),
-                               factory()->NewStringLiteral(
-                                   avfactory->next_string(), kNoSourcePosition),
-                               kNoSourcePosition),
-        kNoSourcePosition);
-  }
-
   // [if (IteratorType == kNormal)]
   //     !%_IsJSReceiver(result = iterator.next()) &&
   //         %ThrowIteratorResultNotAnObject(result)
@@ -2129,10 +2119,9 @@ Statement* Parser::InitializeForOfStatement(
   // [endif]
   Expression* next_result;
   {
-    VariableProxy* iterator_proxy = factory()->NewVariableProxy(iterator);
-    VariableProxy* next_proxy = factory()->NewVariableProxy(next);
-    next_result = BuildIteratorNextResult(iterator_proxy, next_proxy, result,
-                                          type, next_result_pos);
+    Expression* iterator_proxy = factory()->NewVariableProxy(iterator);
+    next_result =
+        BuildIteratorNextResult(iterator_proxy, result, type, next_result_pos);
   }
 
   // result.done
@@ -2202,8 +2191,8 @@ Statement* Parser::InitializeForOfStatement(
     body = block;
   }
 
-  for_of->Initialize(body, iterator, assign_iterator, assign_next, next_result,
-                     result_done, assign_each);
+  for_of->Initialize(body, iterator, assign_iterator, next_result, result_done,
+                     assign_each);
   return finalize ? FinalizeForOfStatement(for_of, completion, type, nopos)
                   : for_of;
 }

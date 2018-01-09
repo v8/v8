@@ -94,7 +94,6 @@ namespace internal {
   V(Literal)                    \
   V(NativeFunctionLiteral)      \
   V(Property)                   \
-  V(ResolvedProperty)           \
   V(RewritableExpression)       \
   V(Spread)                     \
   V(SuperCallReference)         \
@@ -591,13 +590,11 @@ class ForInStatement final : public ForEachStatement {
 class ForOfStatement final : public ForEachStatement {
  public:
   void Initialize(Statement* body, Variable* iterator,
-                  Expression* assign_iterator, Expression* assign_next,
-                  Expression* next_result, Expression* result_done,
-                  Expression* assign_each) {
+                  Expression* assign_iterator, Expression* next_result,
+                  Expression* result_done, Expression* assign_each) {
     ForEachStatement::Initialize(body);
     iterator_ = iterator;
     assign_iterator_ = assign_iterator;
-    assign_next_ = assign_next;
     next_result_ = next_result;
     result_done_ = result_done;
     assign_each_ = assign_each;
@@ -611,9 +608,6 @@ class ForOfStatement final : public ForEachStatement {
   Expression* assign_iterator() const {
     return assign_iterator_;
   }
-
-  // iteratorRecord.next = iterator.next
-  Expression* assign_next() const { return assign_next_; }
 
   // result = iterator.next()  // with type check
   Expression* next_result() const {
@@ -630,12 +624,6 @@ class ForOfStatement final : public ForEachStatement {
     return assign_each_;
   }
 
-  void set_assign_iterator(Expression* e) { assign_iterator_ = e; }
-  void set_assign_next(Expression* e) { assign_next_ = e; }
-  void set_next_result(Expression* e) { next_result_ = e; }
-  void set_result_done(Expression* e) { result_done_ = e; }
-  void set_assign_each(Expression* e) { assign_each_ = e; }
-
  private:
   friend class AstNodeFactory;
 
@@ -649,7 +637,6 @@ class ForOfStatement final : public ForEachStatement {
 
   Variable* iterator_;
   Expression* assign_iterator_;
-  Expression* assign_next_;
   Expression* next_result_;
   Expression* result_done_;
   Expression* assign_each_;
@@ -1620,25 +1607,6 @@ class Property final : public Expression {
   Expression* key_;
 };
 
-// ResolvedProperty pairs a receiver field with a value field. It allows Call
-// to support arbitrary receivers while still taking advantage of TypeFeedback.
-class ResolvedProperty final : public Expression {
- public:
-  VariableProxy* object() const { return object_; }
-  VariableProxy* property() const { return property_; }
-
-  void set_object(VariableProxy* e) { object_ = e; }
-  void set_property(VariableProxy* e) { property_ = e; }
-
- private:
-  friend class AstNodeFactory;
-
-  ResolvedProperty(VariableProxy* obj, VariableProxy* property, int pos)
-      : Expression(pos, kResolvedProperty), object_(obj), property_(property) {}
-
-  VariableProxy* object_;
-  VariableProxy* property_;
-};
 
 class Call final : public Expression {
  public:
@@ -1665,7 +1633,6 @@ class Call final : public Expression {
     NAMED_SUPER_PROPERTY_CALL,
     KEYED_SUPER_PROPERTY_CALL,
     SUPER_CALL,
-    RESOLVED_PROPERTY_CALL,
     OTHER_CALL
   };
 
@@ -2137,6 +2104,7 @@ class YieldStar final : public Suspend {
   //   - One for awaiting the iterator result yielded by the delegated iterator
   //     (await_delegated_iterator_output_suspend_id)
   int await_iterator_close_suspend_id() const {
+    DCHECK_NE(-1, await_iterator_close_suspend_id_);
     return await_iterator_close_suspend_id_;
   }
   void set_await_iterator_close_suspend_id(int id) {
@@ -2144,6 +2112,7 @@ class YieldStar final : public Suspend {
   }
 
   int await_delegated_iterator_output_suspend_id() const {
+    DCHECK_NE(-1, await_delegated_iterator_output_suspend_id_);
     return await_delegated_iterator_output_suspend_id_;
   }
   void set_await_delegated_iterator_output_suspend_id(int id) {
@@ -3026,12 +2995,6 @@ class AstNodeFactory final BASE_EMBEDDED {
 
   Property* NewProperty(Expression* obj, Expression* key, int pos) {
     return new (zone_) Property(obj, key, pos);
-  }
-
-  ResolvedProperty* NewResolvedProperty(VariableProxy* obj,
-                                        VariableProxy* property,
-                                        int pos = kNoSourcePosition) {
-    return new (zone_) ResolvedProperty(obj, property, pos);
   }
 
   Call* NewCall(Expression* expression, ZoneList<Expression*>* arguments,

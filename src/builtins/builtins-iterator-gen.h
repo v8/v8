@@ -19,17 +19,16 @@ class IteratorBuiltinsAssembler : public CodeStubAssembler {
 
   // https://tc39.github.io/ecma262/#sec-getiterator --- never used for
   // @@asyncIterator.
-  IteratorRecord GetIterator(Node* context, Node* object,
-                             Label* if_exception = nullptr,
-                             Variable* exception = nullptr);
+  Node* GetIterator(Node* context, Node* object, Label* if_exception = nullptr,
+                    Variable* exception = nullptr);
 
   // https://tc39.github.io/ecma262/#sec-iteratorstep
   // Returns `false` if the iterator is done, otherwise returns an
   // iterator result.
   // `fast_iterator_result_map` refers to the map for the JSIteratorResult
   // object, loaded from the native context.
-  Node* IteratorStep(Node* context, const IteratorRecord& iterator,
-                     Label* if_done, Node* fast_iterator_result_map = nullptr,
+  Node* IteratorStep(Node* context, Node* iterator, Label* if_done,
+                     Node* fast_iterator_result_map = nullptr,
                      Label* if_exception = nullptr,
                      Variable* exception = nullptr);
 
@@ -43,9 +42,9 @@ class IteratorBuiltinsAssembler : public CodeStubAssembler {
                       Variable* exception = nullptr);
 
   // https://tc39.github.io/ecma262/#sec-iteratorclose
-  void IteratorCloseOnException(Node* context, const IteratorRecord& iterator,
+  void IteratorCloseOnException(Node* context, Node* iterator,
                                 Label* if_exception, Variable* exception);
-  void IteratorCloseOnException(Node* context, const IteratorRecord& iterator,
+  void IteratorCloseOnException(Node* context, Node* iterator,
                                 Variable* exception);
 };
 

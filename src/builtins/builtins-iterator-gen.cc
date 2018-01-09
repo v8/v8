@@ -11,10 +11,9 @@ namespace internal {
 
 using compiler::Node;
 
-IteratorRecord IteratorBuiltinsAssembler::GetIterator(Node* context,
-                                                      Node* object,
-                                                      Label* if_exception,
-                                                      Variable* exception) {
+Node* IteratorBuiltinsAssembler::GetIterator(Node* context, Node* object,
+                                             Label* if_exception,
+                                             Variable* exception) {
   Node* method = GetProperty(context, object, factory()->iterator_symbol());
   GotoIfException(method, if_exception, exception);
 
@@ -22,9 +21,9 @@ IteratorRecord IteratorBuiltinsAssembler::GetIterator(Node* context,
   Node* iterator = CallJS(callable, context, method, object);
   GotoIfException(iterator, if_exception, exception);
 
-  Label get_next(this), if_notobject(this, Label::kDeferred);
+  Label done(this), if_notobject(this, Label::kDeferred);
   GotoIf(TaggedIsSmi(iterator), &if_notobject);
-  Branch(IsJSReceiver(iterator), &get_next, &if_notobject);
+  Branch(IsJSReceiver(iterator), &done, &if_notobject);
 
   BIND(&if_notobject);
   {
@@ -35,21 +34,24 @@ IteratorRecord IteratorBuiltinsAssembler::GetIterator(Node* context,
     Unreachable();
   }
 
-  BIND(&get_next);
-  Node* const next = GetProperty(context, iterator, factory()->next_string());
-  GotoIfException(next, if_exception, exception);
-
-  return IteratorRecord{TNode<JSReceiver>::UncheckedCast(iterator),
-                        TNode<Object>::UncheckedCast(next)};
+  BIND(&done);
+  return iterator;
 }
 
-Node* IteratorBuiltinsAssembler::IteratorStep(
-    Node* context, const IteratorRecord& iterator, Label* if_done,
-    Node* fast_iterator_result_map, Label* if_exception, Variable* exception) {
+Node* IteratorBuiltinsAssembler::IteratorStep(Node* context, Node* iterator,
+                                              Label* if_done,
+                                              Node* fast_iterator_result_map,
+                                              Label* if_exception,
+                                              Variable* exception) {
   DCHECK_NOT_NULL(if_done);
+
+  // IteratorNext
+  Node* next_method = GetProperty(context, iterator, factory()->next_string());
+  GotoIfException(next_method, if_exception, exception);
+
   // 1. a. Let result be ? Invoke(iterator, "next", « »).
   Callable callable = CodeFactory::Call(isolate());
-  Node* result = CallJS(callable, context, iterator.next, iterator.object);
+  Node* result = CallJS(callable, context, next_method, iterator);
   GotoIfException(result, if_exception, exception);
 
   // 3. If Type(result) is not Object, throw a TypeError exception.
@@ -127,20 +129,20 @@ Node* IteratorBuiltinsAssembler::IteratorValue(Node* context, Node* result,
   return var_value.value();
 }
 
-void IteratorBuiltinsAssembler::IteratorCloseOnException(
-    Node* context, const IteratorRecord& iterator, Label* if_exception,
-    Variable* exception) {
+void IteratorBuiltinsAssembler::IteratorCloseOnException(Node* context,
+                                                         Node* iterator,
+                                                         Label* if_exception,
+                                                         Variable* exception) {
   // Perform ES #sec-iteratorclose when an exception occurs. This simpler
   // algorithm does not include redundant steps which are never reachable from
   // the spec IteratorClose algorithm.
   DCHECK_NOT_NULL(if_exception);
   DCHECK_NOT_NULL(exception);
   CSA_ASSERT(this, IsNotTheHole(exception->value()));
-  CSA_ASSERT(this, IsJSReceiver(iterator.object));
+  CSA_ASSERT(this, IsJSReceiver(iterator));
 
   // Let return be ? GetMethod(iterator, "return").
-  Node* method =
-      GetProperty(context, iterator.object, factory()->return_string());
+  Node* method = GetProperty(context, iterator, factory()->return_string());
   GotoIfException(method, if_exception, exception);
 
   // If return is undefined, return Completion(completion).
@@ -150,7 +152,7 @@ void IteratorBuiltinsAssembler::IteratorCloseOnException(
     // Let innerResult be Call(return, iterator, « »).
     // If an exception occurs, the original exception remains bound
     Node* inner_result =
-        CallJS(CodeFactory::Call(isolate()), context, method, iterator.object);
+        CallJS(CodeFactory::Call(isolate()), context, method, iterator);
     GotoIfException(inner_result, if_exception, nullptr);
 
     // (If completion.[[Type]] is throw) return Completion(completion).
@@ -158,8 +160,9 @@ void IteratorBuiltinsAssembler::IteratorCloseOnException(
   }
 }
 
-void IteratorBuiltinsAssembler::IteratorCloseOnException(
-    Node* context, const IteratorRecord& iterator, Variable* exception) {
+void IteratorBuiltinsAssembler::IteratorCloseOnException(Node* context,
+                                                         Node* iterator,
+                                                         Variable* exception) {
   Label rethrow(this, Label::kDeferred);
   IteratorCloseOnException(context, iterator, &rethrow, exception);
 
