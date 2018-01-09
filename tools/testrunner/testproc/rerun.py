@@ -15,6 +15,7 @@ class RerunProc(base.TestProcProducer):
   def _next_test(self, test):
     self._init_test(test)
     self._send_next_subtest(test)
+    return True
 
   def _result_for(self, test, subtest, result, is_last):
     # Rerun processor cannot be placed before any processor that produces more

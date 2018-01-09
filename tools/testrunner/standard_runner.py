@@ -26,6 +26,12 @@ from testrunner.local import verbose
 from testrunner.local.variants import ALL_VARIANTS
 from testrunner.objects import context
 from testrunner.objects import predictable
+from testrunner.testproc.execution import ExecutionProc
+from testrunner.testproc.filter import StatusFileFilterProc
+from testrunner.testproc.loader import LoadProc
+from testrunner.testproc.progress import (VerboseProgressIndicator,
+                                          ResultsTracker)
+from testrunner.testproc.rerun import RerunProc
 
 
 TIMEOUT_DEFAULT = 60
@@ -466,7 +472,9 @@ class StandardTestRunner(base_runner.BaseTestRunner):
         if options.warn_unused:
           tests = [(t.name, t.variant) for t in s.tests]
           s.statusfile.warn_unused_rules(tests, check_variant_rules=True)
-        s.FilterTestCasesByStatus(options.slow_tests, options.pass_fail_tests)
+
+        if not options.infra_staging:
+          s.FilterTestCasesByStatus(options.slow_tests, options.pass_fail_tests)
         s.tests = self._shard_tests(s.tests, options)
 
         for t in s.tests:
@@ -502,9 +510,14 @@ class StandardTestRunner(base_runner.BaseTestRunner):
         outproc_factory = predictable.get_outproc
       else:
         outproc_factory = None
-      runner = execution.Runner(suites, progress_indicator, ctx,
-                                outproc_factory)
-      exit_code = runner.Run(options.j)
+
+      if options.infra_staging:
+        exit_code = self._run_test_procs(suites, options, progress_indicator,
+                                         ctx, outproc_factory)
+      else:
+        runner = execution.Runner(suites, progress_indicator, ctx,
+                                  outproc_factory)
+        exit_code = runner.Run(options.j)
       overall_duration = time.time() - start_time
 
       if options.time:
@@ -571,6 +584,57 @@ class StandardTestRunner(base_runner.BaseTestRunner):
           shard.append(test)
         count += 1
       return shard
+
+    def _run_test_procs(self, suites, options, progress_indicator, context,
+                        outproc_factory):
+      jobs = options.j
+
+      print '>>> Running with test processors'
+      procs = []
+      indicators = progress_indicator.ToProgressIndicatorProcs()
+
+      # TODO(majeski): Implement all indicators and remove this filter.
+      indicators = filter(None, indicators)
+
+      loader = LoadProc()
+      procs.append(loader)
+
+      results = ResultsTracker(count_subtests=False)
+
+      procs.append(StatusFileFilterProc(options.slow_tests,
+                                        options.pass_fail_tests))
+
+      procs.append(results)
+
+      procs += indicators
+
+      if context.rerun_failures_count:
+        procs.append(RerunProc(
+            context.rerun_failures_count,
+            context.rerun_failures_max
+        ))
+
+      execproc = ExecutionProc(jobs, context)
+      procs.append(execproc)
+
+      for i in xrange(0, len(procs) - 1):
+        procs[i].connect_to(procs[i + 1])
+
+      tests = [t for s in suites for t in s.tests]
+      tests.sort(key=lambda t: t.is_slow, reverse=True)
+      loader.load_tests(tests)
+      for indicator in indicators:
+        indicator.starting()
+      execproc.start()
+      for indicator in indicators:
+        indicator.finished()
+
+      if results.failed:
+        return 1
+      if results.remaining:
+        return 2
+      return 0
+
 
 
 if __name__ == '__main__':

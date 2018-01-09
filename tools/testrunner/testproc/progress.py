@@ -33,8 +33,6 @@ class ResultsTracker(base.TestProcObserver):
   def _on_next_test(self, test):
     self.total += 1
     self.remaining += 1
-    # TODO(majeski): If count_subtests is set get number of subtests from the
-    # next proc.
 
   def _on_result_for(self, test, result, is_last):
     if not is_last and not self.count_subtests:
@@ -61,8 +59,6 @@ class SimpleProgressIndicator(ProgressIndicator):
     self._total = 0
 
   def _on_next_test(self, test):
-    # TODO(majeski): Collect information about subtests, e.g. for each test
-    # we create multiple variants.
     self._total += 1
 
   def _on_result_for(self, test, result, is_last):

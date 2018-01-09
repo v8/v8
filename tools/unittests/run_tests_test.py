@@ -309,7 +309,10 @@ class SystemTest(unittest.TestCase):
       # TODO(machenbach): Test some more implications of the auto-detected
       # options, e.g. that the right env variables are set.
 
-  def testSkips(self):
+  def testSkipsProc(self):
+    self.testSkips(infra_staging=True)
+
+  def testSkips(self, infra_staging=False):
     """Test skipping tests in status file for a specific variant."""
     with temp_base() as basedir:
       result = run_tests(
@@ -318,6 +321,7 @@ class SystemTest(unittest.TestCase):
           '--progress=verbose',
           '--variants=nooptimization',
           'sweet/strawberries',
+          infra_staging=infra_staging,
       )
       self.assertIn('Running 0 tests', result.stdout, result)
       self.assertEqual(0, result.returncode, result)

@@ -38,6 +38,8 @@ class TestProc(object):
     """
     Method called by previous processor whenever it produces new test.
     This method shouldn't be called by anyone except previous processor.
+
+    Returns: bool whether test will be processed.
     """
     raise NotImplementedError()
 
@@ -65,7 +67,7 @@ class TestProc(object):
 
   def _send_result(self, test, result, is_last=True):
     """Helper method for sending result to the previous processor."""
-    return self._prev_proc.result_for(test, result, is_last=is_last)
+    self._prev_proc.result_for(test, result, is_last=is_last)
 
 
 
@@ -74,7 +76,7 @@ class TestProcObserver(TestProc):
 
   def next_test(self, test):
     self._on_next_test(test)
-    self._send_test(test)
+    return self._send_test(test)
 
   def result_for(self, test, result, is_last):
     self._on_result_for(test, result, is_last)
@@ -128,9 +130,10 @@ class TestProcProducer(TestProc):
     raise NotImplementedError()
 
   ### Managing subtests
-  def _create_subtest(self, test, subtest_id):
+  def _create_subtest(self, test, subtest_id, **kwargs):
     """Creates subtest with subtest id <processor name>-`subtest_id`."""
-    return test.create_subtest(self, '%s-%s' % (self._name, subtest_id))
+    return test.create_subtest(self, '%s-%s' % (self._name, subtest_id),
+                               **kwargs)
 
   def _get_subtest_origin(self, subtest):
     """Returns parent test that current processor used to create the subtest.
@@ -139,3 +142,17 @@ class TestProcProducer(TestProc):
     while subtest.processor and subtest.processor is not self:
       subtest = subtest.origin
     return subtest.origin
+
+
+class TestProcFilter(TestProc):
+  """Processor for filtering tests."""
+
+  def next_test(self, test):
+    return not self._filter(test) and self._send_test(test)
+
+  def result_for(self, test, result, is_last):
+    self._send_result(test, result, is_last)
+
+  def _filter(self, test):
+    """Returns whether test should be filtered out."""
+    raise NotImplementedError()
