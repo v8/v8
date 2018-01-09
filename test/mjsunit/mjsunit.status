@@ -31,6 +31,7 @@
   # tested standalone.
   'modules-skip*': [SKIP],
   'harmony/modules-skip*': [SKIP],
+  'regress/modules-skip*': [SKIP],
 
   # All tests in the bug directory are expected to fail.
   'bugs/*': [FAIL],
