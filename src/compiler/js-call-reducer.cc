@@ -3612,12 +3612,11 @@ Reduction JSCallReducer::ReduceArrayPrototypePush(Node* node) {
   if (result == NodeProperties::kNoReceiverMaps) return NoChange();
   DCHECK_NE(0, receiver_maps.size());
 
-  ElementsKind kind = receiver_maps[0]->elements_kind();
+  const ElementsKind kind = receiver_maps[0]->elements_kind();
 
   for (Handle<Map> receiver_map : receiver_maps) {
     if (!CanInlineArrayResizeOperation(receiver_map)) return NoChange();
-    if (!UnionElementsKindUptoPackedness(&kind, receiver_map->elements_kind()))
-      return NoChange();
+    if (receiver_map->elements_kind() != kind) return NoChange();
   }
 
   // Install code dependencies on the {receiver} global array protector cell.

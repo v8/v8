@@ -2,108 +2,98 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --allow-natives-syntax --opt --no-always-opt
+// Flags: --allow-natives-syntax --opt
 
-function runTest(f, message, mkICTraining, deoptArg) {
-  function test(f, message, ictraining, deoptArg) {
-    // Train the call ic to the maps.
-    let t = ictraining;
-    for (let a of t()) {
-      f(a.arr, () => a.el);
-    }
-    for (let a of t()) {
-      f(a.arr, () => a.el);
-    }
-    %OptimizeFunctionOnNextCall(f);
-    message += " trained with" + JSON.stringify(t());
-    if (deoptArg == undefined) {
-      // Make sure the optimized function can handle
-      // all trained maps without deopt.
-      for (let a of t()) {
-        f(a.arr, () => a.el);
-        message += " for args " + JSON.stringify(a);
-        assertOptimized(f, undefined, message);
-      }
-    } else {
-      // Trigger deopt, causing no-speculation bit to be set.
-      let a1 = deoptArg, a2 = deoptArg;
-      message += " for args " + JSON.stringify(a1);
-      f(a1.arr, () => a1.el);
-      assertUnoptimized(f, undefined, message + " should have been unoptimized");
-      %OptimizeFunctionOnNextCall(f);
-      // No speculation should protect against further deopts.
-      f(a2.arr, () => a2.el);
-      assertOptimized(f, undefined,  message + " should have been optimized");
-    }
+(function singleUnreliableReceiverMap() {
+  function f(a, g) {
+    a.push(2, g());
   }
 
-  // Get function as a string.
-  var testString = test.toString();
-  // Remove the function header..
-  testString = testString.replace(new RegExp("[^\n]*"), "let f = " + f.toString() + ";");
-  // ..and trailing '}'.
-  testString = testString.replace(new RegExp("[^\n]*$"), "");
-  // Substitute parameters.
-  testString = testString.replace(new RegExp("ictraining", 'g'), mkICTraining.toString());
-  testString = testString.replace(new RegExp("deoptArg", 'g'),
-    deoptArg ? JSON.stringify(deoptArg) : "undefined");
+  f([1], () => 3);
+  f([1], () => 3);
+  %OptimizeFunctionOnNextCall(f);
+  f([1], () => 3);
+  assertOptimized(f);
+})();
 
-  var modTest = new Function("message", testString);
-  //print(modTest);
-  modTest(message);
-}
-
-let checks = {
-  smiReceiver:
-    { mkTrainingArguments : () => [{arr:[1], el:3}],
-      deoptingArguments   : [{arr:[1], el:true}, {arr:[0.1], el:1}, {arr:[{}], el:1}]
-    },
-  objectReceiver:
-    { mkTrainingArguments : () => [{arr:[{}], el:0.1}],
-      deoptingArguments : []
-    },
-  multipleSmiReceivers:
-    { mkTrainingArguments : () => { let b = [1]; b.x=3; return [{arr:[1], el:3}, {arr:b, el:3}] },
-      deoptingArguments : [{arr:[1], el:true}, {arr:[0.1], el:1}, {arr:[{}], el:1}]
-    },
-  multipleSmiReceiversPackedUnpacked:
-    { mkTrainingArguments : () => { let b = [1]; b[100] = 3; return [{arr:[1], el:3}, {arr:b, el:3}] },
-      deoptingArguments : [ {arr:[1], el:true} ]
-    },
-  multipleDoubleReceivers:
-    { mkTrainingArguments : () => { let b = [0.1]; b.x=0.3; return [{arr:[0.1], el:0.3}, {arr:b, el:0.3}] },
-      deoptingArguments : [{arr:[{}], el:true}, {arr:[0.1], el:true}]
-    },
-  multipleDoubleReceiversPackedUnpacked:
-    { mkTrainingArguments : () => { let b = [0.1]; b[100] = 0.3; return [{arr:[0.1], el:0.3}, {arr:b, el:0.3}] },
-      deoptingArguments : [{arr:[{}], el:true}, {arr:[0.1], el:true}]
-    },
-  multipleMixedReceivers:
-    { mkTrainingArguments : () => { let b = [0.1]; b.x=0.3; return [{arr:[1], el:0.3}, {arr:[{}], el:true}, {arr:b, el:0.3}] },
-      deoptingArguments : []
-    },
-  multipleMixedReceiversPackedUnpacked:
-    { mkTrainingArguments : () => { let b = [0.1]; b[100] = 0.3; return [{arr:[1], el:0.3}, {arr:[{}], el:true}, {arr:b, el:0.3}] },
-      deoptingArguments : []
-    },
-};
-
-
-const functions = {
-  push_reliable: (a,g) => { let b = g(); return a.push(2, b); },
-  push_unreliable: (a,g) => { return a.push(2, g()); },
-}
-
-Object.keys(checks).forEach(
-  key => {
-    let check = checks[key];
-
-    for (fnc in functions) {
-      runTest(functions[fnc], "test-reliable-" + key, check.mkTrainingArguments);
-      // Test each deopting arg separately.
-      for (let deoptArg of check.deoptingArguments) {
-        runTest(functions[fnc], "testDeopt-reliable-" + key, check.mkTrainingArguments, deoptArg);
-      }
-    }
+(function singleUnreliableReceiverMapDeopt() {
+  function f(a, g) {
+    a.push(2, g());
   }
-);
+
+  f([1], () => 3);
+  f([1], () => 3);
+  %OptimizeFunctionOnNextCall(f);
+  f([1], () => true);
+  %OptimizeFunctionOnNextCall(f);
+  f([1], () => true);
+  assertOptimized(f);
+})();
+
+(function multipleUnreliableReceiverMaps(){
+  function f(a, g) {
+    a.push(2, g());
+  }
+  let b = [1]
+  b.x = 3;
+
+  f([1], () => 3);
+  f(b, () => 3);
+  f([1], () => 3);
+  f(b, () => 3);
+  %OptimizeFunctionOnNextCall(f);
+  f([1], () => 3);
+  assertOptimized(f);
+})();
+
+(function multipleUnreliableReceiverMapsDeopt(){
+  function f(a, g) {
+    a.push(2, g());
+  }
+  let b = [1]
+  b.x = 3;
+
+  f([1], () => 3);
+  f(b, () => 3);
+  f([1], () => 3);
+  f(b, () => 3);
+  %OptimizeFunctionOnNextCall(f);
+  f([0.1], () => 3);
+  %OptimizeFunctionOnNextCall(f);
+  f([0.1], () => 3);
+  assertOptimized(f);
+})();
+
+(function multipleReliableReceiverMaps(){
+  function f(a) {
+    a.push(2);
+  }
+  let b = [1]
+  b.x = 3;
+
+  f([1]);
+  f(b);
+  f([1]);
+  f(b);
+  %OptimizeFunctionOnNextCall(f);
+  f([1]);
+  assertOptimized(f);
+})();
+
+(function multipleReliableReceiverMapsDeopt(){
+  function f(a) {
+    a.push(2);
+  }
+  let b = [1]
+  b.x = 3;
+
+  f([1]);
+  f(b);
+  f([1]);
+  f(b);
+  %OptimizeFunctionOnNextCall(f);
+  f([0.1]);
+  %OptimizeFunctionOnNextCall(f);
+  f([0.1]);
+  assertOptimized(f);
+})();
