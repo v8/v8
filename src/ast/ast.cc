@@ -805,6 +805,10 @@ Call::CallType Call::GetCallType() const {
     }
   }
 
+  if (expression()->IsResolvedProperty()) {
+    return RESOLVED_PROPERTY_CALL;
+  }
+
   return OTHER_CALL;
 }
 

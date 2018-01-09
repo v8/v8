@@ -195,6 +195,11 @@ void AstNumberingVisitor::VisitProperty(Property* node) {
   Visit(node->obj());
 }
 
+void AstNumberingVisitor::VisitResolvedProperty(ResolvedProperty* node) {
+  Visit(node->object());
+  Visit(node->property());
+}
+
 void AstNumberingVisitor::VisitAssignment(Assignment* node) {
   Visit(node->target());
   Visit(node->value());
@@ -251,6 +256,7 @@ void AstNumberingVisitor::VisitForInStatement(ForInStatement* node) {
 
 void AstNumberingVisitor::VisitForOfStatement(ForOfStatement* node) {
   Visit(node->assign_iterator());  // Not part of loop.
+  Visit(node->assign_next());
   node->set_first_suspend_id(suspend_count_);
   Visit(node->next_result());
   Visit(node->result_done());

@@ -157,7 +157,7 @@ class PromiseBuiltinsAssembler : public CodeStubAssembler {
   Node* CreateThrowerFunction(Node* reason, Node* native_context);
 
   Node* PerformPromiseAll(Node* context, Node* constructor, Node* capability,
-                          Node* iterator, Label* if_exception,
+                          const IteratorRecord& record, Label* if_exception,
                           Variable* var_exception);
 
   Node* IncrementSmiCell(Node* cell, Label* if_overflow = nullptr);
