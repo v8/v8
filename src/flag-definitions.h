@@ -207,8 +207,7 @@ DEFINE_IMPLICATION(harmony_class_fields, harmony_static_fields)
   V(harmony_do_expressions, "harmony do-expressions")                 \
   V(harmony_class_fields, "harmony fields in class literals")         \
   V(harmony_static_fields, "harmony static fields in class literals") \
-  V(harmony_bigint, "harmony arbitrary precision integers")           \
-  V(harmony_optional_catch_binding, "allow omitting binding in catch blocks")
+  V(harmony_bigint, "harmony arbitrary precision integers")
 
 // Features that are complete (but still behind --harmony/es-staging flag).
 #define HARMONY_STAGED(V)                                               \
@@ -217,7 +216,8 @@ DEFINE_IMPLICATION(harmony_class_fields, harmony_static_fields)
     "harmony disallow non undefined primitive return value from class " \
     "constructor")                                                      \
   V(harmony_dynamic_import, "harmony dynamic import")                   \
-  V(harmony_public_fields, "harmony public fields in class literals")
+  V(harmony_public_fields, "harmony public fields in class literals")   \
+  V(harmony_optional_catch_binding, "allow omitting binding in catch blocks")
 
 // Features that are shipping (turned on by default, but internal flag remains).
 #define HARMONY_SHIPPING_BASE(V)                                        \
