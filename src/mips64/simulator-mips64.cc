@@ -7022,7 +7022,7 @@ void Simulator::DecodeTypeImmediate() {
       uint64_t mask = byte_shift ? (~0UL << (al_offset + 1) * 8) : 0;
       addr = rs + se_imm16 - al_offset;
       uint64_t mem_value = Read2W(addr, instr_.instr()) & mask;
-      mem_value |= rt >> byte_shift * 8;
+      mem_value |= static_cast<uint64_t>(rt) >> byte_shift * 8;
       Write2W(addr, mem_value, instr_.instr());
       break;
     }
