@@ -2286,7 +2286,7 @@ void MinorMarkCompactCollector::EvacuatePrologue() {
     new_space_evacuation_pages_.push_back(p);
   }
   new_space->Flip();
-  new_space->ResetAllocationInfo();
+  new_space->ResetLinearAllocationArea();
 }
 
 void MinorMarkCompactCollector::EvacuateEpilogue() {
@@ -2932,7 +2932,7 @@ void MarkCompactCollector::EvacuatePrologue() {
     new_space_evacuation_pages_.push_back(p);
   }
   new_space->Flip();
-  new_space->ResetAllocationInfo();
+  new_space->ResetLinearAllocationArea();
 
   // Old space.
   DCHECK(old_space_evacuation_pages_.empty());

@@ -435,9 +435,9 @@ void IncrementalMarking::StartBlackAllocation() {
   DCHECK(!black_allocation_);
   DCHECK(IsMarking());
   black_allocation_ = true;
-  heap()->old_space()->MarkAllocationInfoBlack();
-  heap()->map_space()->MarkAllocationInfoBlack();
-  heap()->code_space()->MarkAllocationInfoBlack();
+  heap()->old_space()->MarkLinearAllocationAreaBlack();
+  heap()->map_space()->MarkLinearAllocationAreaBlack();
+  heap()->code_space()->MarkLinearAllocationAreaBlack();
   if (FLAG_trace_incremental_marking) {
     heap()->isolate()->PrintWithTimestamp(
         "[IncrementalMarking] Black allocation started\n");
@@ -447,9 +447,9 @@ void IncrementalMarking::StartBlackAllocation() {
 void IncrementalMarking::PauseBlackAllocation() {
   DCHECK(FLAG_black_allocation);
   DCHECK(IsMarking());
-  heap()->old_space()->UnmarkAllocationInfo();
-  heap()->map_space()->UnmarkAllocationInfo();
-  heap()->code_space()->UnmarkAllocationInfo();
+  heap()->old_space()->UnmarkLinearAllocationArea();
+  heap()->map_space()->UnmarkLinearAllocationArea();
+  heap()->code_space()->UnmarkLinearAllocationArea();
   if (FLAG_trace_incremental_marking) {
     heap()->isolate()->PrintWithTimestamp(
         "[IncrementalMarking] Black allocation paused\n");

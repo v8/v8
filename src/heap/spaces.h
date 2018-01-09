@@ -34,12 +34,12 @@ class HeapTester;
 class TestCodeRangeScope;
 }  // namespace heap
 
-class AllocationInfo;
 class AllocationObserver;
 class CompactionSpace;
 class CompactionSpaceCollection;
 class FreeList;
 class Isolate;
+class LinearAllocationArea;
 class LocalArrayBufferTracker;
 class MemoryAllocator;
 class MemoryChunk;
@@ -1562,10 +1562,10 @@ class V8_EXPORT_PRIVATE HeapObjectIterator : public ObjectIterator {
 
 // An abstraction of allocation and relocation pointers in a page-structured
 // space.
-class AllocationInfo {
+class LinearAllocationArea {
  public:
-  AllocationInfo() : top_(nullptr), limit_(nullptr) {}
-  AllocationInfo(Address top, Address limit) : top_(top), limit_(limit) {}
+  LinearAllocationArea() : top_(nullptr), limit_(nullptr) {}
+  LinearAllocationArea(Address top, Address limit) : top_(top), limit_(limit) {}
 
   void Reset(Address top, Address limit) {
     set_top(top);
@@ -1763,10 +1763,11 @@ class V8_EXPORT_PRIVATE FreeList {
   // and the size should be a non-zero multiple of the word size.
   size_t Free(Address start, size_t size_in_bytes, FreeMode mode);
 
-  // Finds a node of size at least size_in_bytes and sets up a linear allocation
-  // area using this node. Returns false if there is no such node and the caller
-  // has to retry allocation after collecting garbage.
-  MUST_USE_RESULT bool Allocate(size_t size_in_bytes);
+  // Allocates a free space node frome the free list of at least size_in_bytes
+  // bytes. Returns the actual node size in node_size which can be bigger than
+  // size_in_bytes. This method returns null if the allocation request cannot be
+  // handled by the free list.
+  MUST_USE_RESULT FreeSpace* Allocate(size_t size_in_bytes, size_t* node_size);
 
   // Clear the free list.
   void Reset();
@@ -1865,8 +1866,6 @@ class V8_EXPORT_PRIVATE FreeList {
   static const size_t kMediumAllocationMax = kSmallListMax;
   static const size_t kLargeAllocationMax = kMediumListMax;
 
-  FreeSpace* FindNodeFor(size_t size_in_bytes, size_t* node_size);
-
   // Walks all available categories for a given |type| and tries to retrieve
   // a node. Returns nullptr if the category is empty.
   FreeSpace* FindNodeIn(FreeListCategoryType type, size_t* node_size);
@@ -1953,13 +1952,13 @@ class LocalAllocationBuffer {
   inline bool TryFreeLast(HeapObject* object, int object_size);
 
   // Close a LAB, effectively invalidating it. Returns the unused area.
-  AllocationInfo Close();
+  LinearAllocationArea Close();
 
  private:
-  LocalAllocationBuffer(Heap* heap, AllocationInfo allocation_info);
+  LocalAllocationBuffer(Heap* heap, LinearAllocationArea allocation_info);
 
   Heap* heap_;
-  AllocationInfo allocation_info_;
+  LinearAllocationArea allocation_info_;
 };
 
 class SpaceWithLinearArea : public Space {
@@ -2014,7 +2013,7 @@ class SpaceWithLinearArea : public Space {
   V8_EXPORT_PRIVATE void StartNextInlineAllocationStep() override;
 
   // TODO(ofrobots): make these private after refactoring is complete.
-  AllocationInfo allocation_info_;
+  LinearAllocationArea allocation_info_;
   Address top_on_previous_step_;
 };
 
@@ -2131,11 +2130,11 @@ class V8_EXPORT_PRIVATE PagedSpace
 
   void ResetFreeList();
 
-  // Empty space allocation info, returning unused area to free list.
-  void EmptyAllocationInfo();
+  // Empty space linear allocation area, returning unused area to free list.
+  void FreeLinearAllocationArea();
 
-  void MarkAllocationInfoBlack();
-  void UnmarkAllocationInfo();
+  void MarkLinearAllocationAreaBlack();
+  void UnmarkLinearAllocationArea();
 
   void DecreaseAllocatedBytes(size_t bytes, Page* page) {
     accounting_stats_.DecreaseAllocatedBytes(bytes, page);
@@ -2229,10 +2228,10 @@ class V8_EXPORT_PRIVATE PagedSpace
 
   std::unique_ptr<ObjectIterator> GetObjectIterator() override;
 
-  void SetAllocationInfo(Address top, Address limit);
+  void SetLinearAllocationArea(Address top, Address limit);
 
  private:
-  // Set space allocation info.
+  // Set space linear allocation area.
   void SetTopAndLimit(Address top, Address limit) {
     DCHECK(top == limit ||
            Page::FromAddress(top) == Page::FromAddress(limit - 1));
@@ -2274,6 +2273,10 @@ class V8_EXPORT_PRIVATE PagedSpace
   // (object size + alignment filler size) to the size_in_bytes.
   inline HeapObject* TryAllocateLinearlyAligned(int* size_in_bytes,
                                                 AllocationAlignment alignment);
+
+  MUST_USE_RESULT bool RefillLinearAllocationAreaFromFreeList(
+      size_t size_in_bytes);
+
   // If sweeping is still in progress try to sweep unswept pages. If that is
   // not successful, wait for the sweeper threads and retry free-list
   // allocation. Returns false if there is not enough space and the caller
@@ -2283,11 +2286,12 @@ class V8_EXPORT_PRIVATE PagedSpace
   // Slow path of AllocateRaw. This function is space-dependent. Returns false
   // if there is not enough space and the caller has to retry after
   // collecting garbage.
-  MUST_USE_RESULT virtual bool SlowAllocateRaw(int size_in_bytes);
+  MUST_USE_RESULT virtual bool SlowRefillLinearAllocationArea(
+      int size_in_bytes);
 
   // Implementation of SlowAllocateRaw. Returns false if there is not enough
   // space and the caller has to retry after collecting garbage.
-  MUST_USE_RESULT bool RawSlowAllocateRaw(int size_in_bytes);
+  MUST_USE_RESULT bool RawSlowRefillLinearAllocationArea(int size_in_bytes);
 
   size_t area_size_;
 
@@ -2671,7 +2675,7 @@ class NewSpace : public SpaceWithLinearArea {
       int size_in_bytes, AllocationAlignment alignment);
 
   // Reset the allocation pointer to the beginning of the active semispace.
-  void ResetAllocationInfo();
+  void ResetLinearAllocationArea();
 
   // When inline allocation stepping is active, either because of incremental
   // marking, idle scavenge, or allocation statistics gathering, we 'interrupt'
@@ -2738,12 +2742,12 @@ class NewSpace : public SpaceWithLinearArea {
   SemiSpace& to_space() { return to_space_; }
 
  private:
-  // Update allocation info to match the current to-space page.
-  void UpdateAllocationInfo();
+  // Update linear allocation area to match the current to-space page.
+  void UpdateLinearAllocationArea();
 
   base::Mutex mutex_;
 
-  // The top and the limit at the time of setting the allocation info.
+  // The top and the limit at the time of setting the linear allocation area.
   // These values can be accessed by background tasks.
   base::AtomicValue<Address> original_top_;
   base::AtomicValue<Address> original_limit_;
@@ -2785,7 +2789,8 @@ class V8_EXPORT_PRIVATE CompactionSpace : public PagedSpace {
 
   MUST_USE_RESULT bool SweepAndRetryAllocation(int size_in_bytes) override;
 
-  MUST_USE_RESULT bool SlowAllocateRaw(int size_in_bytes) override;
+  MUST_USE_RESULT bool SlowRefillLinearAllocationArea(
+      int size_in_bytes) override;
 };
 
 

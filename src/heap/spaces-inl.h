@@ -301,8 +301,7 @@ AllocationResult LocalAllocationBuffer::AllocateRawAligned(
 bool PagedSpace::EnsureLinearAllocationArea(int size_in_bytes) {
   if (allocation_info_.top() + size_in_bytes <= allocation_info_.limit())
     return true;
-  if (free_list_.Allocate(size_in_bytes)) return true;
-  return SlowAllocateRaw(size_in_bytes);
+  return SlowRefillLinearAllocationArea(size_in_bytes);
 }
 
 HeapObject* PagedSpace::AllocateLinearly(int size_in_bytes) {
@@ -490,7 +489,7 @@ size_t LargeObjectSpace::Available() {
 
 
 LocalAllocationBuffer LocalAllocationBuffer::InvalidBuffer() {
-  return LocalAllocationBuffer(nullptr, AllocationInfo(nullptr, nullptr));
+  return LocalAllocationBuffer(nullptr, LinearAllocationArea(nullptr, nullptr));
 }
 
 
@@ -503,7 +502,7 @@ LocalAllocationBuffer LocalAllocationBuffer::FromResult(Heap* heap,
   USE(ok);
   DCHECK(ok);
   Address top = HeapObject::cast(obj)->address();
-  return LocalAllocationBuffer(heap, AllocationInfo(top, top + size));
+  return LocalAllocationBuffer(heap, LinearAllocationArea(top, top + size));
 }
 
 

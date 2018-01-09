@@ -1845,7 +1845,7 @@ void Heap::EvacuateYoungGeneration() {
   if (!new_space()->Rebalance()) {
     FatalProcessOutOfMemory("NewSpace::Rebalance");
   }
-  new_space()->ResetAllocationInfo();
+  new_space()->ResetLinearAllocationArea();
   new_space()->set_age_mark(new_space()->top());
 
   // Fix up special trackers.
@@ -1956,7 +1956,7 @@ void Heap::Scavenge() {
   // Flip the semispaces.  After flipping, to space is empty, from space has
   // live objects.
   new_space_->Flip();
-  new_space_->ResetAllocationInfo();
+  new_space_->ResetLinearAllocationArea();
 
   ItemParallelJob job(isolate()->cancelable_task_manager(),
                       &parallel_scavenge_semaphore_);
@@ -5497,7 +5497,7 @@ void Heap::DisableInlineAllocation() {
   CodeSpaceMemoryModificationScope modification_scope(this);
   for (PagedSpace* space = spaces.next(); space != nullptr;
        space = spaces.next()) {
-    space->EmptyAllocationInfo();
+    space->FreeLinearAllocationArea();
   }
 }
 
