@@ -7415,38 +7415,37 @@ class V8_EXPORT Isolate {
   void SetPromiseRejectCallback(PromiseRejectCallback callback);
 
   /**
-   * Experimental: Runs the Microtask Work Queue until empty
+   * Runs the Microtask Work Queue until empty
    * Any exceptions thrown by microtask callbacks are swallowed.
    */
   void RunMicrotasks();
 
   /**
-   * Experimental: Enqueues the callback to the Microtask Work Queue
+   * Enqueues the callback to the Microtask Work Queue
    */
   void EnqueueMicrotask(Local<Function> microtask);
 
   /**
-   * Experimental: Enqueues the callback to the Microtask Work Queue
+   * Enqueues the callback to the Microtask Work Queue
    */
   void EnqueueMicrotask(MicrotaskCallback microtask, void* data = NULL);
 
   /**
-   * Experimental: Controls how Microtasks are invoked. See MicrotasksPolicy
-   * for details.
+   * Controls how Microtasks are invoked. See MicrotasksPolicy for details.
    */
   void SetMicrotasksPolicy(MicrotasksPolicy policy);
   V8_DEPRECATE_SOON("Use SetMicrotasksPolicy",
                     void SetAutorunMicrotasks(bool autorun));
 
   /**
-   * Experimental: Returns the policy controlling how Microtasks are invoked.
+   * Returns the policy controlling how Microtasks are invoked.
    */
   MicrotasksPolicy GetMicrotasksPolicy() const;
   V8_DEPRECATE_SOON("Use GetMicrotasksPolicy",
                     bool WillAutorunMicrotasks() const);
 
   /**
-   * Experimental: adds a callback to notify the host application after
+   * Adds a callback to notify the host application after
    * microtasks were run. The callback is triggered by explicit RunMicrotasks
    * call or automatic microtasks execution (see SetAutorunMicrotasks).
    *
