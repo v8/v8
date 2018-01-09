@@ -86,10 +86,15 @@ void* TryAllocateBackingStore(Isolate* isolate, size_t size,
 
     return memory;
   } else {
+    // TODO(titzer): use guard regions for minicage and merge with above code.
+    CHECK_LE(size, kV8MaxWasmMemoryBytes);
+    *allocation_length =
+        base::bits::RoundUpToPowerOfTwo32(static_cast<uint32_t>(size));
     void* memory =
-        size == 0 ? nullptr : isolate->array_buffer_allocator()->Allocate(size);
+        size == 0
+            ? nullptr
+            : isolate->array_buffer_allocator()->Allocate(*allocation_length);
     *allocation_base = memory;
-    *allocation_length = size;
     return memory;
   }
 }
