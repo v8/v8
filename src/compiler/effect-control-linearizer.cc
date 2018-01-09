@@ -3282,9 +3282,7 @@ Node* EffectControlLinearizer::LowerMaybeGrowFastElements(Node* node,
                                ChangeInt32ToSmi(index), __ NoContextConstant());
 
   // Ensure that we were able to grow the {elements}.
-  // TODO(turbofan): We use kSmi as reason here similar to Crankshaft,
-  // but maybe we should just introduce a reason that makes sense.
-  __ DeoptimizeIf(DeoptimizeReason::kSmi, params.feedback(),
+  __ DeoptimizeIf(DeoptimizeReason::kCouldNotGrowElements, params.feedback(),
                   ObjectIsSmi(new_elements), frame_state);
   __ Goto(&done, new_elements);
 

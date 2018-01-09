@@ -1773,7 +1773,7 @@ Reduction JSTypedLowering::ReduceJSForInNext(Node* node) {
       Node* check = graph()->NewNode(simplified()->ReferenceEqual(),
                                      receiver_map, cache_type);
       effect =
-          graph()->NewNode(simplified()->CheckIf(DeoptimizeReason::kNoReason),
+          graph()->NewNode(simplified()->CheckIf(DeoptimizeReason::kWrongMap),
                            check, effect, control);
 
       // Since the change to LoadElement() below is effectful, we connect

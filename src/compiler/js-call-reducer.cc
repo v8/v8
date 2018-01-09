@@ -537,7 +537,7 @@ Reduction JSCallReducer::ReduceObjectPrototypeHasOwnProperty(Node* node) {
           Node* check = graph()->NewNode(simplified()->ReferenceEqual(),
                                          receiver_map, cache_type);
           effect = graph()->NewNode(
-              simplified()->CheckIf(DeoptimizeReason::kNoReason), check, effect,
+              simplified()->CheckIf(DeoptimizeReason::kWrongMap), check, effect,
               control);
         }
         Node* value = jsgraph()->TrueConstant();
@@ -3227,9 +3227,9 @@ Reduction JSCallReducer::ReduceJSCall(Node* node) {
       // Check that the {target} is still the {target_function}.
       Node* check = graph()->NewNode(simplified()->ReferenceEqual(), target,
                                      target_function);
-      effect =
-          graph()->NewNode(simplified()->CheckIf(DeoptimizeReason::kNoReason),
-                           check, effect, control);
+      effect = graph()->NewNode(
+          simplified()->CheckIf(DeoptimizeReason::kWrongCallTarget), check,
+          effect, control);
 
       // Specialize the JSCall node to the {target_function}.
       NodeProperties::ReplaceValueInput(node, target_function, 0);
@@ -3300,9 +3300,9 @@ Reduction JSCallReducer::ReduceJSConstruct(Node* node) {
       // Check that the {target} is still the {array_function}.
       Node* check = graph()->NewNode(simplified()->ReferenceEqual(), target,
                                      array_function);
-      effect =
-          graph()->NewNode(simplified()->CheckIf(DeoptimizeReason::kNoReason),
-                           check, effect, control);
+      effect = graph()->NewNode(
+          simplified()->CheckIf(DeoptimizeReason::kWrongCallTarget), check,
+          effect, control);
 
       // Turn the {node} into a {JSCreateArray} call.
       NodeProperties::ReplaceEffectInput(node, effect);
@@ -3323,9 +3323,9 @@ Reduction JSCallReducer::ReduceJSConstruct(Node* node) {
         // Check that the {new_target} is still the {new_target_feedback}.
         Node* check = graph()->NewNode(simplified()->ReferenceEqual(),
                                        new_target, new_target_feedback);
-        effect =
-            graph()->NewNode(simplified()->CheckIf(DeoptimizeReason::kNoReason),
-                             check, effect, control);
+        effect = graph()->NewNode(
+            simplified()->CheckIf(DeoptimizeReason::kWrongCallTarget), check,
+            effect, control);
 
         // Specialize the JSConstruct node to the {new_target_feedback}.
         NodeProperties::ReplaceValueInput(node, new_target_feedback, arity + 1);

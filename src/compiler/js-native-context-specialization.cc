@@ -1503,7 +1503,7 @@ Reduction JSNativeContextSpecialization::ReduceJSLoadProperty(Node* node) {
           Node* check = graph()->NewNode(simplified()->ReferenceEqual(),
                                          receiver_map, enumerator);
           effect = graph()->NewNode(
-              simplified()->CheckIf(DeoptimizeReason::kNoReason), check, effect,
+              simplified()->CheckIf(DeoptimizeReason::kWrongMap), check, effect,
               control);
         }
 
@@ -1524,9 +1524,9 @@ Reduction JSNativeContextSpecialization::ReduceJSLoadProperty(Node* node) {
             simplified()->BooleanNot(),
             graph()->NewNode(simplified()->ReferenceEqual(), enum_indices,
                              jsgraph()->EmptyFixedArrayConstant()));
-        effect =
-            graph()->NewNode(simplified()->CheckIf(DeoptimizeReason::kNoReason),
-                             check, effect, control);
+        effect = graph()->NewNode(
+            simplified()->CheckIf(DeoptimizeReason::kWrongEnumIndices), check,
+            effect, control);
 
         // Determine the index from the {enum_indices}.
         index = effect = graph()->NewNode(
@@ -1774,7 +1774,7 @@ JSNativeContextSpecialization::BuildPropertyStore(
     Node* check =
         graph()->NewNode(simplified()->ReferenceEqual(), value, constant_value);
     effect =
-        graph()->NewNode(simplified()->CheckIf(DeoptimizeReason::kNoReason),
+        graph()->NewNode(simplified()->CheckIf(DeoptimizeReason::kWrongValue),
                          check, effect, control);
     value = constant_value;
   } else if (access_info.IsAccessorConstant()) {
@@ -1852,8 +1852,8 @@ JSNativeContextSpecialization::BuildPropertyStore(
           Node* check = graph()->NewNode(simplified()->NumberEqual(),
                                          current_value, value);
           effect = graph()->NewNode(
-              simplified()->CheckIf(DeoptimizeReason::kNoReason), check, effect,
-              control);
+              simplified()->CheckIf(DeoptimizeReason::kWrongValue), check,
+              effect, control);
           return ValueEffectControl(value, effect, control);
         }
         break;
@@ -1871,8 +1871,8 @@ JSNativeContextSpecialization::BuildPropertyStore(
           Node* check = graph()->NewNode(simplified()->ReferenceEqual(),
                                          current_value, value);
           effect = graph()->NewNode(
-              simplified()->CheckIf(DeoptimizeReason::kNoReason), check, effect,
-              control);
+              simplified()->CheckIf(DeoptimizeReason::kWrongValue), check,
+              effect, control);
           return ValueEffectControl(value, effect, control);
         }
 
@@ -2007,7 +2007,7 @@ Reduction JSNativeContextSpecialization::ReduceJSStoreDataPropertyInLiteral(
   Node* name = NodeProperties::GetValueInput(node, 1);
   Node* check = graph()->NewNode(simplified()->ReferenceEqual(), name,
                                  jsgraph()->HeapConstant(cached_name));
-  effect = graph()->NewNode(simplified()->CheckIf(DeoptimizeReason::kNoReason),
+  effect = graph()->NewNode(simplified()->CheckIf(DeoptimizeReason::kWrongName),
                             check, effect, control);
 
   Node* value = NodeProperties::GetValueInput(node, 2);

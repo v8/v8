@@ -177,8 +177,9 @@ Node* PropertyAccessBuilder::BuildCheckValue(Node* receiver, Node** effect,
   Node* expected = jsgraph()->HeapConstant(value);
   Node* check =
       graph()->NewNode(simplified()->ReferenceEqual(), receiver, expected);
-  *effect = graph()->NewNode(simplified()->CheckIf(DeoptimizeReason::kNoReason),
-                             check, *effect, control);
+  *effect =
+      graph()->NewNode(simplified()->CheckIf(DeoptimizeReason::kWrongValue),
+                       check, *effect, control);
   return expected;
 }
 

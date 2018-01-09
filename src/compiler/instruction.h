@@ -1331,7 +1331,7 @@ class DeoptimizationEntry final {
  private:
   FrameStateDescriptor* descriptor_ = nullptr;
   DeoptimizeKind kind_ = DeoptimizeKind::kEager;
-  DeoptimizeReason reason_ = DeoptimizeReason::kNoReason;
+  DeoptimizeReason reason_ = DeoptimizeReason::kUnknown;
   VectorSlotPair feedback_ = VectorSlotPair();
 };
 
