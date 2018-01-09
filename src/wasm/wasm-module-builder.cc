@@ -140,8 +140,8 @@ void WasmFunctionBuilder::EmitDirectCallIndex(uint32_t index) {
 
 void WasmFunctionBuilder::SetName(Vector<const char> name) { name_ = name; }
 
-void WasmFunctionBuilder::AddAsmWasmOffset(int call_position,
-                                           int to_number_position) {
+void WasmFunctionBuilder::AddAsmWasmOffset(size_t call_position,
+                                           size_t to_number_position) {
   // We only want to emit one mapping per byte offset.
   DCHECK(asm_offsets_.size() == 0 || body_.size() > last_asm_byte_offset_);
 
@@ -150,21 +150,25 @@ void WasmFunctionBuilder::AddAsmWasmOffset(int call_position,
   asm_offsets_.write_u32v(byte_offset - last_asm_byte_offset_);
   last_asm_byte_offset_ = byte_offset;
 
-  DCHECK_GE(call_position, 0);
-  asm_offsets_.write_i32v(call_position - last_asm_source_position_);
+  DCHECK_GE(std::numeric_limits<uint32_t>::max(), call_position);
+  uint32_t call_position_u32 = static_cast<uint32_t>(call_position);
+  asm_offsets_.write_i32v(call_position_u32 - last_asm_source_position_);
 
-  DCHECK_GE(to_number_position, 0);
-  asm_offsets_.write_i32v(to_number_position - call_position);
-  last_asm_source_position_ = to_number_position;
+  DCHECK_GE(std::numeric_limits<uint32_t>::max(), to_number_position);
+  uint32_t to_number_position_u32 = static_cast<uint32_t>(to_number_position);
+  asm_offsets_.write_i32v(to_number_position_u32 - call_position_u32);
+  last_asm_source_position_ = to_number_position_u32;
 }
 
-void WasmFunctionBuilder::SetAsmFunctionStartPosition(int position) {
+void WasmFunctionBuilder::SetAsmFunctionStartPosition(
+    size_t function_position) {
   DCHECK_EQ(0, asm_func_start_source_position_);
-  DCHECK_LE(0, position);
+  DCHECK_GE(std::numeric_limits<uint32_t>::max(), function_position);
+  uint32_t function_position_u32 = static_cast<uint32_t>(function_position);
   // Must be called before emitting any asm.js source position.
   DCHECK_EQ(0, asm_offsets_.size());
-  asm_func_start_source_position_ = position;
-  last_asm_source_position_ = position;
+  asm_func_start_source_position_ = function_position_u32;
+  last_asm_source_position_ = function_position_u32;
 }
 
 void WasmFunctionBuilder::DeleteCodeAfter(size_t position) {

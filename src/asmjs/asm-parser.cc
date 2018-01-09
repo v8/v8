@@ -292,8 +292,7 @@ void AsmJsParser::Begin(AsmJsScanner::token_t label) {
 
 void AsmJsParser::Loop(AsmJsScanner::token_t label) {
   BareBegin(BlockKind::kLoop, label);
-  int position = static_cast<int>(scanner_.Position());
-  DCHECK_EQ(position, scanner_.Position());
+  size_t position = scanner_.Position();
   current_function_builder_->AddAsmWasmOffset(position, position);
   current_function_builder_->EmitWithU8(kExprLoop, kLocalVoid);
 }
@@ -742,8 +741,7 @@ void AsmJsParser::ValidateFunction() {
   return_type_ = nullptr;
 
   // Record start of the function, used as position for the stack check.
-  int start_position = static_cast<int>(scanner_.Position());
-  current_function_builder_->SetAsmFunctionStartPosition(start_position);
+  current_function_builder_->SetAsmFunctionStartPosition(scanner_.Position());
 
   CachedVector<AsmType*> params(cached_asm_type_p_vectors_);
   ValidateFunctionParams(&params);
@@ -2066,8 +2064,8 @@ AsmType* AsmJsParser::ParenthesizedExpression() {
 AsmType* AsmJsParser::ValidateCall() {
   AsmType* return_type = call_coercion_;
   call_coercion_ = nullptr;
-  int call_pos = static_cast<int>(scanner_.Position());
-  int to_number_pos = static_cast<int>(call_coercion_position_);
+  size_t call_pos = scanner_.Position();
+  size_t to_number_pos = call_coercion_position_;
   bool allow_peek = (call_coercion_deferred_position_ == scanner_.Position());
   AsmJsScanner::token_t function_name = Consume();
 
@@ -2113,7 +2111,7 @@ AsmType* AsmJsParser::ValidateCall() {
     tmp.emplace(this);
     current_function_builder_->EmitSetLocal(tmp->get());
     // The position of function table calls is after the table lookup.
-    call_pos = static_cast<int>(scanner_.Position());
+    call_pos = scanner_.Position();
   } else {
     VarInfo* function_info = GetVarInfo(function_name);
     if (function_info->kind == VarKind::kUnused) {
@@ -2176,7 +2174,7 @@ AsmType* AsmJsParser::ValidateCall() {
       (return_type == nullptr || return_type->IsA(AsmType::Float()))) {
     DCHECK_NULL(call_coercion_deferred_);
     call_coercion_deferred_ = AsmType::Signed();
-    to_number_pos = static_cast<int>(scanner_.Position());
+    to_number_pos = scanner_.Position();
     return_type = AsmType::Signed();
   } else if (return_type == nullptr) {
     to_number_pos = call_pos;  // No conversion.
