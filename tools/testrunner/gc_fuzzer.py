@@ -192,12 +192,7 @@ class GCFuzzer(base_runner.BaseTestRunner):
 
     print('>>> Collection phase')
     for s in suites:
-      analysis_flags = [
-        # > 100% to not influence default incremental marking, but we need this
-        # flag to print reached incremental marking limit.
-        '--stress_marking', '1000',
-        '--trace_incremental_marking',
-      ]
+      analysis_flags = ['--fuzzer-gc-analysis']
       s.tests = map(lambda t: t.create_variant(t.variant, analysis_flags,
                                                'analysis'),
                     s.tests)
@@ -308,31 +303,16 @@ class GCFuzzer(base_runner.BaseTestRunner):
 
   # Parses test stdout and returns what was the highest reached percent of the
   # incremental marking limit (0-100).
-  # Skips values >=100% since they already trigger incremental marking.
   @staticmethod
   def _get_max_limit_reached(output):
-    def is_im_line(l):
-      return 'IncrementalMarking' in l and '% of the memory limit reached' in l
-
-    def line_to_percent(l):
-      return filter(lambda part: '%' in part, l.split(' '))[0]
-
-    def percent_str_to_float(s):
-      return float(s[:-1])
-
-    if not (output and output.stdout):
+    if not output.stdout:
       return None
 
-    im_lines = filter(is_im_line, output.stdout.splitlines())
-    percents_str = map(line_to_percent, im_lines)
-    percents = map(percent_str_to_float, percents_str)
+    for l in reversed(output.stdout.splitlines()):
+      if l.startswith('### Maximum marking limit reached ='):
+        return float(l.split()[6])
 
-    # Skip >= 100%.
-    percents = filter(lambda p: p < 100, percents)
-
-    if not percents:
-      return None
-    return max(percents)
+    return None
 
   def _next_fuzzer_seed(self):
     fuzzer_seed = None

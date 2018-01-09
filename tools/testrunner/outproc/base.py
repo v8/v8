@@ -151,7 +151,7 @@ class ExpectedOutProc(OutProc):
     return (line.startswith('==') or
             line.startswith('**') or
             line.startswith('ANDROID') or
-            '[IncrementalMarking]' in line or
+            line.startswith('###') or
             # FIXME(machenbach): The test driver shouldn't try to use slow
             # asserts if they weren't compiled. This fails in optdebug=2.
             line == 'Warning: unknown flag --enable-slow-asserts.' or
