@@ -284,6 +284,16 @@ LiftoffRegister LiftoffAssembler::GetBinaryOpTargetRegister(
   return GetUnusedRegister(rc, pinned);
 }
 
+LiftoffRegister LiftoffAssembler::GetUnaryOpTargetRegister(
+    RegClass rc, LiftoffRegList pinned) {
+  auto& slot_src = cache_state_.stack_state.back();
+  if (slot_src.is_reg() && GetNumUses(slot_src.reg()) == 1) {
+    DCHECK_EQ(rc, slot_src.reg().reg_class());
+    return slot_src.reg();
+  }
+  return GetUnusedRegister(rc, pinned);
+}
+
 LiftoffRegister LiftoffAssembler::PopToRegister(RegClass rc,
                                                 LiftoffRegList pinned) {
   DCHECK(!cache_state_.stack_state.empty());

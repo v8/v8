@@ -86,14 +86,33 @@ DEFAULT_I32_BINOP(xor, xor)
 
 #undef DEFAULT_I32_BINOP
 
+void LiftoffAssembler::emit_i32_eqz(Register dst, Register src) {
+  UNIMPLEMENTED();
+}
+
+void LiftoffAssembler::emit_i32_clz(Register dst, Register src) {
+  UNIMPLEMENTED();
+}
+
+void LiftoffAssembler::emit_i32_ctz(Register dst, Register src) {
+  UNIMPLEMENTED();
+}
+
+void LiftoffAssembler::emit_ptrsize_add(Register dst, Register lhs,
+                                        Register rhs) {
+  UNIMPLEMENTED();
+}
+
 void LiftoffAssembler::emit_f32_add(DoubleRegister dst, DoubleRegister lhs,
                                     DoubleRegister rhs) {
   UNIMPLEMENTED();
 }
+
 void LiftoffAssembler::emit_f32_sub(DoubleRegister dst, DoubleRegister lhs,
                                     DoubleRegister rhs) {
   UNIMPLEMENTED();
 }
+
 void LiftoffAssembler::emit_f32_mul(DoubleRegister dst, DoubleRegister lhs,
                                     DoubleRegister rhs) {
   UNIMPLEMENTED();

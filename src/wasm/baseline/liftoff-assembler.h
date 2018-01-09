@@ -215,6 +215,8 @@ class LiftoffAssembler : public TurboAssembler {
 
   LiftoffRegister GetBinaryOpTargetRegister(RegClass,
                                             LiftoffRegList pinned = {});
+  LiftoffRegister GetUnaryOpTargetRegister(RegClass,
+                                           LiftoffRegList pinned = {});
 
   LiftoffRegister PopToRegister(RegClass, LiftoffRegList pinned = {});
 
@@ -294,12 +296,18 @@ class LiftoffAssembler : public TurboAssembler {
   inline void Spill(uint32_t index, WasmValue);
   inline void Fill(LiftoffRegister, uint32_t index);
 
+  // i32 binops.
   inline void emit_i32_add(Register dst, Register lhs, Register rhs);
   inline void emit_i32_sub(Register dst, Register lhs, Register rhs);
   inline void emit_i32_mul(Register dst, Register lhs, Register rhs);
   inline void emit_i32_and(Register dst, Register lhs, Register rhs);
   inline void emit_i32_or(Register dst, Register lhs, Register rhs);
   inline void emit_i32_xor(Register dst, Register lhs, Register rhs);
+
+  // i32 unops.
+  inline void emit_i32_eqz(Register dst, Register src);
+  inline void emit_i32_clz(Register dst, Register src);
+  inline void emit_i32_ctz(Register dst, Register src);
 
   inline void emit_ptrsize_add(Register dst, Register lhs, Register rhs);
 

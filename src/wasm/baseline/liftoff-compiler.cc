@@ -419,9 +419,31 @@ class LiftoffCompiler {
 
   void EndControl(Decoder* decoder, Control* c) {}
 
+  void I32UnOp(void (LiftoffAssembler::*emit_fn)(Register, Register)) {
+    LiftoffRegList pinned_regs;
+    LiftoffRegister dst_reg =
+        pinned_regs.set(__ GetUnaryOpTargetRegister(kGpReg));
+    LiftoffRegister src_reg =
+        pinned_regs.set(__ PopToRegister(kGpReg, pinned_regs));
+    (asm_->*emit_fn)(dst_reg.gp(), src_reg.gp());
+    __ PushRegister(kWasmI32, dst_reg);
+  }
+
   void UnOp(Decoder* decoder, WasmOpcode opcode, FunctionSig*,
             const Value& value, Value* result) {
-    unsupported(decoder, WasmOpcodes::OpcodeName(opcode));
+    TraceCacheState(decoder);
+#define CASE_UNOP(opcode, type, fn)           \
+  case WasmOpcode::kExpr##opcode:             \
+    type##UnOp(&LiftoffAssembler::emit_##fn); \
+    break;
+    switch (opcode) {
+      CASE_UNOP(I32Eqz, I32, i32_eqz)
+      CASE_UNOP(I32Clz, I32, i32_clz)
+      CASE_UNOP(I32Ctz, I32, i32_ctz)
+      default:
+        return unsupported(decoder, WasmOpcodes::OpcodeName(opcode));
+    }
+#undef CASE_UNOP
   }
 
   void I32BinOp(void (LiftoffAssembler::*emit_fn)(Register, Register,

@@ -244,11 +244,6 @@ void LiftoffAssembler::emit_i32_add(Register dst, Register lhs, Register rhs) {
   }
 }
 
-void LiftoffAssembler::emit_ptrsize_add(Register dst, Register lhs,
-                                        Register rhs) {
-  emit_i32_add(dst, lhs, rhs);
-}
-
 void LiftoffAssembler::emit_i32_sub(Register dst, Register lhs, Register rhs) {
   if (dst == rhs) {
     neg(dst);
@@ -278,6 +273,49 @@ COMMUTATIVE_I32_BINOP(xor, xor_)
 // clang-format on
 
 #undef COMMUTATIVE_I32_BINOP
+
+void LiftoffAssembler::emit_i32_eqz(Register dst, Register src) {
+  test(src, src);
+  setcc(zero, dst);
+  movzx_b(dst, dst);
+}
+
+void LiftoffAssembler::emit_i32_clz(Register dst, Register src) {
+  Label nonzero_input;
+  Label continuation;
+  test(src, src);
+  j(not_zero, &nonzero_input, Label::kNear);
+  mov(dst, Immediate(32));
+  jmp(&continuation, Label::kNear);
+
+  bind(&nonzero_input);
+  // Get most significant bit set (MSBS).
+  bsr(dst, src);
+  // CLZ = 31 - MSBS = MSBS ^ 31.
+  xor_(dst, 31);
+
+  bind(&continuation);
+}
+
+void LiftoffAssembler::emit_i32_ctz(Register dst, Register src) {
+  Label nonzero_input;
+  Label continuation;
+  test(src, src);
+  j(not_zero, &nonzero_input, Label::kNear);
+  mov(dst, Immediate(32));
+  jmp(&continuation, Label::kNear);
+
+  bind(&nonzero_input);
+  // Get least significant bit set, which equals number of trailing zeros.
+  bsf(dst, src);
+
+  bind(&continuation);
+}
+
+void LiftoffAssembler::emit_ptrsize_add(Register dst, Register lhs,
+                                        Register rhs) {
+  emit_i32_add(dst, lhs, rhs);
+}
 
 void LiftoffAssembler::emit_f32_add(DoubleRegister dst, DoubleRegister lhs,
                                     DoubleRegister rhs) {
