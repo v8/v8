@@ -69,9 +69,15 @@ class LiftoffCompiler {
 
   using Value = ValueBase;
 
+  struct ElseState {
+    MovableLabel label;
+    LiftoffAssembler::CacheState state;
+  };
+
   struct Control : public ControlWithNamedConstructors<Control, Value> {
     MOVE_ONLY_WITH_DEFAULT_CONSTRUCTORS(Control);
 
+    std::unique_ptr<ElseState> else_state;
     LiftoffAssembler::CacheState label_state;
     MovableLabel label;
   };
@@ -143,8 +149,13 @@ class LiftoffCompiler {
     // Bind all labels now, otherwise their destructor will fire a DCHECK error
     // if they where referenced before.
     for (uint32_t i = 0, e = decoder->control_depth(); i < e; ++i) {
-      Label* label = decoder->control_at(i)->label.get();
+      Control* c = decoder->control_at(i);
+      Label* label = c->label.get();
       if (!label->is_bound()) __ bind(label);
+      if (c->else_state) {
+        Label* else_label = c->else_state->label.get();
+        if (!else_label->is_bound()) __ bind(else_label);
+      }
     }
     for (auto& ool : out_of_line_code_) {
       if (!ool.label.get()->is_bound()) __ bind(ool.label.get());
@@ -363,13 +374,34 @@ class LiftoffCompiler {
   }
 
   void Try(Decoder* decoder, Control* block) { unsupported(decoder, "try"); }
+
   void If(Decoder* decoder, const Value& cond, Control* if_block) {
-    unsupported(decoder, "if");
+    DCHECK_EQ(if_block, decoder->control_at(0));
+    DCHECK(if_block->is_if());
+
+    if (if_block->start_merge.arity > 0 || if_block->end_merge.arity > 1)
+      return unsupported(decoder, "multi-value if");
+
+    // Allocate the else state.
+    if_block->else_state = base::make_unique<ElseState>();
+
+    // Test the condition, jump to else if zero.
+    Register value = __ PopToRegister(kGpReg).gp();
+    __ emit_i32_test(value);
+    __ emit_cond_jump(kEqual, if_block->else_state->label.get());
+
+    if_block->label_state.stack_base = __ cache_state()->stack_height();
+    // Store the state (after popping the value) for executing the else branch.
+    if_block->else_state->state.Split(*__ cache_state());
   }
 
   void FallThruTo(Decoder* decoder, Control* c) {
     TraceCacheState(decoder);
     if (c->end_merge.reached) {
+      __ MergeFullStackWith(c->label_state);
+    } else if (c->is_onearmed_if()) {
+      c->label_state.InitMerge(*__ cache_state(), __ num_locals(),
+                               c->br_merge()->arity);
       __ MergeFullStackWith(c->label_state);
     } else {
       c->label_state.Split(*__ cache_state());
@@ -630,8 +662,11 @@ class LiftoffCompiler {
                const Value& key) {
     unsupported(decoder, "br_table");
   }
+
   void Else(Decoder* decoder, Control* if_block) {
-    unsupported(decoder, "else");
+    if (if_block->reachable()) __ emit_jump(if_block->label.get());
+    __ bind(if_block->else_state->label.get());
+    __ cache_state()->Steal(if_block->else_state->state);
   }
 
   Label* AddOutOfLineTrap(wasm::WasmCodePosition position, uint32_t pc = 0) {
