@@ -22,7 +22,6 @@
 namespace v8 {
 namespace internal {
 namespace wasm {
-
 namespace {
 
 class Writer {
@@ -97,30 +96,90 @@ class Reader {
   Vector<const byte> buffer_;
 };
 
-}  // namespace
+constexpr size_t kVersionSize = 4 * sizeof(uint32_t);
 
-size_t WasmSerializedFormatVersion::GetVersionSize() { return kVersionSize; }
-
-bool WasmSerializedFormatVersion::WriteVersion(Isolate* isolate,
-                                               Vector<byte> buffer) {
-  if (buffer.size() < GetVersionSize()) return false;
+void WriteVersion(Isolate* isolate, Vector<byte> buffer) {
+  DCHECK_GE(buffer.size(), kVersionSize);
   Writer writer(buffer);
   writer.Write(SerializedData::ComputeMagicNumber(
       ExternalReferenceTable::instance(isolate)));
   writer.Write(Version::Hash());
   writer.Write(static_cast<uint32_t>(CpuFeatures::SupportedFeatures()));
   writer.Write(FlagList::Hash());
-  return true;
 }
 
-bool WasmSerializedFormatVersion::IsSupportedVersion(
-    Isolate* isolate, const Vector<const byte> buffer) {
+bool IsSupportedVersion(Isolate* isolate, const Vector<const byte> buffer) {
   if (buffer.size() < kVersionSize) return false;
   byte version[kVersionSize];
-  CHECK(WriteVersion(isolate, {version, kVersionSize}));
+  WriteVersion(isolate, {version, kVersionSize});
   if (memcmp(buffer.start(), version, kVersionSize) == 0) return true;
   return false;
 }
+
+}  // namespace
+
+enum SerializationSection { Init, Metadata, Stubs, CodeSection, Done };
+
+class V8_EXPORT_PRIVATE NativeModuleSerializer {
+ public:
+  explicit NativeModuleSerializer(Isolate*, const NativeModule*);
+  size_t Measure() const;
+  size_t Write(Vector<byte>);
+  bool IsDone() const { return state_ == Done; }
+
+ private:
+  size_t MeasureHeader() const;
+  static size_t GetCodeHeaderSize();
+  size_t MeasureCode(const WasmCode*) const;
+  size_t MeasureCopiedStubs() const;
+  FixedArray* GetHandlerTable(const WasmCode*) const;
+  ByteArray* GetSourcePositions(const WasmCode*) const;
+
+  void BufferHeader();
+  // we buffer all the stubs because they are small
+  void BufferCopiedStubs();
+  void BufferCodeInAllocatedScratch(const WasmCode*);
+  void BufferCurrentWasmCode();
+  size_t DrainBuffer(Vector<byte> dest);
+  uint32_t EncodeBuiltinOrStub(Address);
+
+  Isolate* const isolate_ = nullptr;
+  const NativeModule* const native_module_ = nullptr;
+  SerializationSection state_ = Init;
+  uint32_t index_ = 0;
+  std::vector<byte> scratch_;
+  Vector<byte> remaining_;
+  // wasm and copied stubs reverse lookup
+  std::map<Address, uint32_t> wasm_targets_lookup_;
+  // immovable builtins and runtime entries lookup
+  std::map<Address, uint32_t> reference_table_lookup_;
+  std::map<Address, uint32_t> stub_lookup_;
+  std::map<Address, uint32_t> builtin_lookup_;
+};
+
+class V8_EXPORT_PRIVATE NativeModuleDeserializer {
+ public:
+  explicit NativeModuleDeserializer(Isolate*, NativeModule*);
+  // Currently, we don't support streamed reading, yet albeit the
+  // API suggests that.
+  bool Read(Vector<const byte>);
+
+ private:
+  void ExpectHeader();
+  void Expect(size_t size);
+  bool ReadHeader();
+  bool ReadCode();
+  bool ReadStubs();
+  Address GetTrampolineOrStubFromTag(uint32_t);
+
+  Isolate* const isolate_ = nullptr;
+  NativeModule* const native_module_ = nullptr;
+  std::vector<byte> scratch_;
+  std::vector<Address> stubs_;
+  Vector<const byte> unread_;
+  size_t current_expectation_ = 0;
+  uint32_t index_ = 0;
+};
 
 NativeModuleSerializer::NativeModuleSerializer(Isolate* isolate,
                                                const NativeModule* module)
@@ -437,18 +496,14 @@ size_t NativeModuleSerializer::Write(Vector<byte> dest) {
 }
 
 // static
-std::pair<std::unique_ptr<byte[]>, size_t>
-NativeModuleSerializer::SerializeWholeModule(
+std::pair<std::unique_ptr<byte[]>, size_t> SerializeNativeModule(
     Isolate* isolate, Handle<WasmCompiledModule> compiled_module) {
   NativeModule* native_module = compiled_module->GetNativeModule();
   NativeModuleSerializer serializer(isolate, native_module);
-  size_t version_size = WasmSerializedFormatVersion::GetVersionSize();
+  size_t version_size = kVersionSize;
   size_t buff_size = serializer.Measure() + version_size;
   std::unique_ptr<byte[]> ret(new byte[buff_size]);
-  if (!WasmSerializedFormatVersion::WriteVersion(isolate,
-                                                 {ret.get(), buff_size})) {
-    return {};
-  }
+  WriteVersion(isolate, {ret.get(), buff_size});
 
   size_t written =
       serializer.Write({ret.get() + version_size, buff_size - version_size});
@@ -622,15 +677,15 @@ Address NativeModuleDeserializer::GetTrampolineOrStubFromTag(uint32_t tag) {
   }
 }
 
-MaybeHandle<WasmCompiledModule> NativeModuleDeserializer::DeserializeFullBuffer(
+MaybeHandle<WasmCompiledModule> DeserializeNativeModule(
     Isolate* isolate, Vector<const byte> data, Vector<const byte> wire_bytes) {
   if (!IsWasmCodegenAllowed(isolate, isolate->native_context())) {
     return {};
   }
-  if (!WasmSerializedFormatVersion::IsSupportedVersion(isolate, data)) {
+  if (!IsSupportedVersion(isolate, data)) {
     return {};
   }
-  data = data + WasmSerializedFormatVersion::GetVersionSize();
+  data = data + kVersionSize;
   ModuleResult decode_result =
       SyncDecodeWasmModule(isolate, wire_bytes.start(), wire_bytes.end(), false,
                            i::wasm::kWasmOrigin);

@@ -7544,8 +7544,7 @@ WasmCompiledModule::SerializedModule WasmCompiledModule::Serialize() {
   if (i::FLAG_wasm_jit_to_native) {
     i::Isolate* isolate = obj->GetIsolate();
 
-    return i::wasm::NativeModuleSerializer::SerializeWholeModule(isolate,
-                                                                 compiled_part);
+    return i::wasm::SerializeNativeModule(isolate, compiled_part);
   } else {
     std::unique_ptr<i::ScriptData> script_data =
         i::WasmCompiledModuleSerializer::SerializeWasmModule(obj->GetIsolate(),
@@ -7564,10 +7563,9 @@ MaybeLocal<WasmCompiledModule> WasmCompiledModule::Deserialize(
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
   i::MaybeHandle<i::FixedArray> maybe_compiled_part;
   if (i::FLAG_wasm_jit_to_native) {
-    maybe_compiled_part =
-        i::wasm::NativeModuleDeserializer::DeserializeFullBuffer(
-            i_isolate, {serialized_module.first, serialized_module.second},
-            {wire_bytes.first, wire_bytes.second});
+    maybe_compiled_part = i::wasm::DeserializeNativeModule(
+        i_isolate, {serialized_module.first, serialized_module.second},
+        {wire_bytes.first, wire_bytes.second});
   } else {
     int size = static_cast<int>(serialized_module.second);
     i::ScriptData sc(serialized_module.first, size);

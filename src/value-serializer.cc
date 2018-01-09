@@ -858,8 +858,7 @@ Maybe<bool> ValueSerializer::WriteWasmModule(Handle<WasmModuleObject> object) {
 
   if (FLAG_wasm_jit_to_native) {
     std::pair<std::unique_ptr<byte[]>, size_t> serialized_module =
-        wasm::NativeModuleSerializer::SerializeWholeModule(isolate_,
-                                                           compiled_part);
+        wasm::SerializeNativeModule(isolate_, compiled_part);
     WriteVarint<uint32_t>(static_cast<uint32_t>(serialized_module.second));
     WriteRawBytes(serialized_module.first.get(), serialized_module.second);
   } else {
@@ -1719,8 +1718,7 @@ MaybeHandle<JSObject> ValueDeserializer::ReadWasmModule() {
   Handle<FixedArray> compiled_part;
   MaybeHandle<JSObject> result;
   if (FLAG_wasm_jit_to_native) {
-    if (wasm::NativeModuleDeserializer::DeserializeFullBuffer(
-            isolate_, compiled_bytes, wire_bytes)
+    if (wasm::DeserializeNativeModule(isolate_, compiled_bytes, wire_bytes)
             .ToHandle(&compiled_part)) {
       result = WasmModuleObject::New(
           isolate_, Handle<WasmCompiledModule>::cast(compiled_part));

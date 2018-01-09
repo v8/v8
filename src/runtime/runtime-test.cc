@@ -997,7 +997,7 @@ RUNTIME_FUNCTION(Runtime_SerializeWasmModule) {
   Handle<WasmCompiledModule> orig(module_obj->compiled_module());
   if (FLAG_wasm_jit_to_native) {
     std::pair<std::unique_ptr<byte[]>, size_t> serialized_module =
-        wasm::NativeModuleSerializer::SerializeWholeModule(isolate, orig);
+        wasm::SerializeNativeModule(isolate, orig);
     int data_size = static_cast<int>(serialized_module.second);
     void* buff = isolate->array_buffer_allocator()->Allocate(data_size);
     Handle<JSArrayBuffer> ret = isolate->factory()->NewJSArrayBuffer();
@@ -1035,12 +1035,11 @@ RUNTIME_FUNCTION(Runtime_DeserializeWasmModule) {
   }
   MaybeHandle<FixedArray> maybe_compiled_module;
   if (FLAG_wasm_jit_to_native) {
-    maybe_compiled_module =
-        wasm::NativeModuleDeserializer::DeserializeFullBuffer(
-            isolate, {mem_start, mem_size},
-            Vector<const uint8_t>(
-                reinterpret_cast<uint8_t*>(wire_bytes->backing_store()),
-                static_cast<int>(wire_bytes->byte_length()->Number())));
+    maybe_compiled_module = wasm::DeserializeNativeModule(
+        isolate, {mem_start, mem_size},
+        Vector<const uint8_t>(
+            reinterpret_cast<uint8_t*>(wire_bytes->backing_store()),
+            static_cast<int>(wire_bytes->byte_length()->Number())));
   } else {
     ScriptData sc(mem_start, static_cast<int>(mem_size));
     maybe_compiled_module = WasmCompiledModuleSerializer::DeserializeWasmModule(
