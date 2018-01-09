@@ -16675,6 +16675,47 @@ MaybeHandle<JSTypedArray> JSTypedArray::Create(Isolate* isolate,
 }
 
 // static
+MaybeHandle<JSTypedArray> JSTypedArray::CreateFast(
+    Isolate* isolate, Handle<JSTypedArray> exemplar, int argc,
+    Handle<Object>* argv, const char* method_name) {
+  DCHECK_GT(argc, 0);
+  DCHECK_IMPLIES(argc == 1, argv[0]->IsNumber());
+  DCHECK_IMPLIES(argc == 3, argv[0]->IsJSArrayBuffer());
+  DCHECK_IMPLIES(argc == 3, argv[1]->IsNumber());
+  DCHECK_IMPLIES(argc == 3, argv[2]->IsNumber());
+
+  // 1. Let newTypedArray be ? Construct(constructor, argumentList).
+  Handle<JSTypedArray> new_array;
+  if (argc == 1) {
+    size_t length = NumberToSize(*argv[0]);
+    new_array = isolate->factory()->NewJSTypedArray(exemplar->GetElementsKind(),
+                                                    length);
+    DCHECK_GE(new_array->length_value(), length);
+    // We don't need a validation step for one argument case since
+    // NewJSTypedArray always returns a non-neutered typed array.
+  } else if (argc == 3) {
+    Handle<JSArrayBuffer> buffer(JSArrayBuffer::cast(*argv[0]));
+    size_t byte_offset = NumberToSize(*argv[1]);
+    size_t length = NumberToSize(*argv[2]);
+    new_array = isolate->factory()->NewJSTypedArray(exemplar->type(), buffer,
+                                                    byte_offset, length);
+
+    if (V8_UNLIKELY(new_array->WasNeutered())) {
+      const MessageTemplate::Template message =
+          MessageTemplate::kDetachedOperation;
+      Handle<String> operation =
+          isolate->factory()->NewStringFromAsciiChecked(method_name);
+      THROW_NEW_ERROR(isolate, NewTypeError(message, operation), JSTypedArray);
+    }
+  } else {
+    UNREACHABLE();
+  }
+
+  DCHECK(!new_array->WasNeutered());
+  return new_array;
+}
+
+// static
 MaybeHandle<JSTypedArray> JSTypedArray::SpeciesCreate(
     Isolate* isolate, Handle<JSTypedArray> exemplar, int argc,
     Handle<Object>* argv, const char* method_name) {
@@ -16682,21 +16723,15 @@ MaybeHandle<JSTypedArray> JSTypedArray::SpeciesCreate(
   // slot.
   DCHECK(exemplar->IsJSTypedArray());
 
-  // 2. Let defaultConstructor be the intrinsic object listed in column one of
-  // Table 51 for exemplar.[[TypedArrayName]].
-  Handle<JSFunction> default_ctor = isolate->uint8_array_fun();
-  switch (exemplar->type()) {
-#define TYPED_ARRAY_CTOR(Type, type, TYPE, ctype, size) \
-  case kExternal##Type##Array: {                        \
-    default_ctor = isolate->type##_array_fun();         \
-    break;                                              \
+  if (exemplar->HasJSTypedArrayPrototype(isolate) &&
+      isolate->IsArraySpeciesLookupChainIntact()) {
+    return CreateFast(isolate, exemplar, argc, argv, method_name);
   }
 
-    TYPED_ARRAYS(TYPED_ARRAY_CTOR)
-#undef TYPED_ARRAY_CTOR
-    default:
-      UNREACHABLE();
-  }
+  // 2. Let defaultConstructor be the intrinsic object listed in column one of
+  // Table 51 for exemplar.[[TypedArrayName]].
+  Handle<JSFunction> default_ctor =
+      JSTypedArray::DefaultConstructor(isolate, exemplar);
 
   // 3. Let constructor be ? SpeciesConstructor(exemplar, defaultConstructor).
   Handle<Object> ctor;
@@ -16704,6 +16739,10 @@ MaybeHandle<JSTypedArray> JSTypedArray::SpeciesCreate(
       isolate, ctor,
       Object::SpeciesConstructor(isolate, exemplar, default_ctor),
       JSTypedArray);
+
+  if (*default_ctor == *ctor) {
+    return CreateFast(isolate, exemplar, argc, argv, method_name);
+  }
 
   // 4. Return ? TypedArrayCreate(constructor, argumentList).
   return Create(isolate, ctor, argc, argv, method_name);
