@@ -2536,11 +2536,11 @@ void SourceGroup::ExecuteInThread() {
                                            Shell::options.enable_inspector);
           PerIsolateData::RealmScope realm_scope(PerIsolateData::Get(isolate));
           Execute(isolate);
+          Shell::CompleteMessageLoop(isolate);
         }
         DisposeModuleEmbedderData(context);
       }
       Shell::CollectGarbage(isolate);
-      Shell::CompleteMessageLoop(isolate);
     }
     done_semaphore_.Signal();
   }
@@ -2943,6 +2943,7 @@ int Shell::RunMain(Isolate* isolate, int argc, char* argv[], bool last_run) {
       InspectorClient inspector_client(context, options.enable_inspector);
       PerIsolateData::RealmScope realm_scope(PerIsolateData::Get(isolate));
       options.isolate_sources[0].Execute(isolate);
+      CompleteMessageLoop(isolate);
     }
     if (!use_existing_context) {
       DisposeModuleEmbedderData(context);
@@ -2950,7 +2951,6 @@ int Shell::RunMain(Isolate* isolate, int argc, char* argv[], bool last_run) {
     WriteLcovData(isolate, options.lcov_file);
   }
   CollectGarbage(isolate);
-  CompleteMessageLoop(isolate);
   for (int i = 1; i < options.num_isolates; ++i) {
     if (last_run) {
       options.isolate_sources[i].JoinThread();
