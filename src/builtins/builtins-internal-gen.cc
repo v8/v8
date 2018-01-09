@@ -946,7 +946,7 @@ TF_BUILTIN(PromiseResolveThenableJob, InternalBuiltinsAssembler) {
 TF_BUILTIN(AbortJS, CodeStubAssembler) {
   Node* message = Parameter(Descriptor::kObject);
   Node* reason = SmiConstant(0);
-  TailCallRuntime(Runtime::kAbort, reason, message);
+  TailCallRuntime(Runtime::kAbortJS, reason, message);
 }
 
 }  // namespace internal
