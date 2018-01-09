@@ -5147,15 +5147,6 @@ WasmCodeWrapper WasmCompilationUnit::FinishTurbofanCompilation(
              codegen_ms);
     }
 
-#ifdef ENABLE_DISASSEMBLER
-    if (FLAG_print_code || FLAG_print_wasm_code) {
-      // TODO(wasm): Use proper log files, here and elsewhere.
-      PrintF("--- Native Wasm code ---\n");
-      code->Print(isolate_);
-      PrintF("--- End code ---\n");
-    }
-#endif
-
     Handle<ByteArray> source_positions =
         tf_.job_->compilation_info()->wasm_code_desc()->source_positions_table;
     MaybeHandle<HandlerTable> handler_table =
@@ -5167,6 +5158,18 @@ WasmCodeWrapper WasmCompilationUnit::FinishTurbofanCompilation(
       native_module_->compiled_module()->handler_table()->set(
           func_index_, *handler_table.ToHandleChecked());
     }
+
+#ifdef ENABLE_DISASSEMBLER
+    // Note: only do this after setting source positions, as this will be
+    // accessed and printed here.
+    if (FLAG_print_code || FLAG_print_wasm_code) {
+      // TODO(wasm): Use proper log files, here and elsewhere.
+      PrintF("--- Native Wasm code ---\n");
+      code->Print(isolate_);
+      PrintF("--- End code ---\n");
+    }
+#endif
+
     // TODO(mtrofin): this should probably move up in the common caller,
     // once liftoff has source positions. Until then, we'd need to handle
     // undefined values, which is complicating the code.

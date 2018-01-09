@@ -4,6 +4,8 @@
 
 #include "src/wasm/wasm-code-manager.h"
 
+#include <iomanip>
+
 #include "src/assembler-inl.h"
 #include "src/base/atomic-utils.h"
 #include "src/base/macros.h"
@@ -176,22 +178,38 @@ bool WasmCode::HasTrapHandlerIndex() const { return trap_handler_index_ >= 0; }
 
 void WasmCode::ResetTrapHandlerIndex() { trap_handler_index_ = -1; }
 
-// TODO(mtrofin): rework the dependency on isolate and code in
-// Disassembler::Decode.
-void WasmCode::Disassemble(Isolate* isolate, const char* name,
-                           std::ostream& os) const {
-  if (name) os << name << std::endl;
-  Disassembler::Decode(isolate, &os, instructions().start(),
-                       instructions().end(), nullptr);
-}
-
 void WasmCode::Print(Isolate* isolate) const {
   OFStream os(stdout);
   if (index_.IsJust()) {
     os << "index: " << index_.FromJust() << "\n";
   }
   os << "kind: " << GetWasmCodeKindAsString(kind_) << "\n";
-  Disassemble(isolate, nullptr, os);
+  os << "compiler: " << (is_liftoff() ? "Liftoff" : "TurboFan") << "\n";
+  size_t body_size = instructions().size();
+  os << "Body (size = " << body_size << ")\n";
+
+  size_t instruction_size =
+      std::min(constant_pool_offset_, safepoint_table_offset_);
+  os << "Instructions (size = " << instruction_size << ")\n";
+  // TODO(mtrofin): rework the dependency on isolate and code in
+  // Disassembler::Decode.
+  Disassembler::Decode(isolate, &os, instructions().start(),
+                       instructions().start() + instruction_size, nullptr);
+  os << "\n";
+
+  Object* source_positions_or_undef =
+      owner_->compiled_module()->source_positions()->get(index());
+  if (!source_positions_or_undef->IsUndefined(isolate)) {
+    os << "Source positions:\n pc offset  position\n";
+    for (SourcePositionTableIterator it(
+             ByteArray::cast(source_positions_or_undef));
+         !it.done(); it.Advance()) {
+      os << std::setw(10) << std::hex << it.code_offset() << std::dec
+         << std::setw(10) << it.source_position().ScriptOffset()
+         << (it.is_statement() ? "  statement" : "") << "\n";
+    }
+    os << "\n";
+  }
 }
 
 const char* GetWasmCodeKindAsString(WasmCode::Kind kind) {

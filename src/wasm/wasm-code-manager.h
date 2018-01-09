@@ -123,7 +123,6 @@ class V8_EXPORT_PRIVATE WasmCode final {
     return *protected_instructions_.get();
   }
 
-  void Disassemble(Isolate* isolate, const char* name, std::ostream& os) const;
   void Print(Isolate* isolate) const;
 
   ~WasmCode();
