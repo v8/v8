@@ -347,13 +347,15 @@ class LiftoffCompiler {
     BindUnboundLabels(decoder);
   }
 
-  void Block(Decoder* decoder, Control* block) {
+  void NextInstruction(Decoder* decoder, WasmOpcode) {
     TraceCacheState(decoder);
+  }
+
+  void Block(Decoder* decoder, Control* block) {
     block->label_state.stack_base = __ cache_state()->stack_height();
   }
 
   void Loop(Decoder* decoder, Control* loop) {
-    TraceCacheState(decoder);
     loop->label_state.stack_base = __ cache_state()->stack_height();
 
     // Before entering a loop, spill all locals to the stack, in order to free
@@ -396,7 +398,6 @@ class LiftoffCompiler {
   }
 
   void FallThruTo(Decoder* decoder, Control* c) {
-    TraceCacheState(decoder);
     if (c->end_merge.reached) {
       __ MergeFullStackWith(c->label_state);
     } else if (c->is_onearmed_if()) {
@@ -406,6 +407,7 @@ class LiftoffCompiler {
     } else {
       c->label_state.Split(*__ cache_state());
     }
+    TraceCacheState(decoder);
   }
 
   void PopControl(Decoder* decoder, Control* c) {
@@ -431,7 +433,6 @@ class LiftoffCompiler {
 
   void UnOp(Decoder* decoder, WasmOpcode opcode, FunctionSig*,
             const Value& value, Value* result) {
-    TraceCacheState(decoder);
 #define CASE_UNOP(opcode, type, fn)           \
   case WasmOpcode::kExpr##opcode:             \
     type##UnOp(&LiftoffAssembler::emit_##fn); \
@@ -473,7 +474,6 @@ class LiftoffCompiler {
 
   void BinOp(Decoder* decoder, WasmOpcode opcode, FunctionSig*,
              const Value& lhs, const Value& rhs, Value* result) {
-    TraceCacheState(decoder);
 #define CASE_BINOP(opcode, type, fn) \
   case WasmOpcode::kExpr##opcode:    \
     return type##BinOp(&LiftoffAssembler::emit_##fn);
@@ -494,7 +494,6 @@ class LiftoffCompiler {
   }
 
   void I32Const(Decoder* decoder, Value* result, int32_t value) {
-    TraceCacheState(decoder);
     __ cache_state()->stack_state.emplace_back(kWasmI32, value);
     CheckStackSizeLimit(decoder);
   }
@@ -515,7 +514,6 @@ class LiftoffCompiler {
   }
 
   void Drop(Decoder* decoder, const Value& value) {
-    TraceCacheState(decoder);
     __ DropStackSlot(&__ cache_state()->stack_state.back());
     __ cache_state()->stack_state.pop_back();
   }
@@ -540,7 +538,6 @@ class LiftoffCompiler {
 
   void GetLocal(Decoder* decoder, Value* result,
                 const LocalIndexOperand<validate>& operand) {
-    TraceCacheState(decoder);
     auto& slot = __ cache_state()->stack_state[operand.index];
     DCHECK_EQ(slot.type(), operand.type);
     switch (slot.loc()) {
@@ -665,12 +662,10 @@ class LiftoffCompiler {
   }
 
   void Br(Decoder* decoder, Control* target) {
-    TraceCacheState(decoder);
     Br(target);
   }
 
   void BrIf(Decoder* decoder, const Value& cond, Control* target) {
-    TraceCacheState(decoder);
     Label cont_false;
     Register value = __ PopToRegister(kGpReg).gp();
     __ emit_i32_test(value);
@@ -799,8 +794,6 @@ class LiftoffCompiler {
                   const Value args[], Value returns[]) {
     if (operand.sig->return_count() > 1)
       return unsupported(decoder, "multi-return");
-
-    TraceCacheState(decoder);
 
     compiler::CallDescriptor* call_desc =
         compiler::GetWasmCallDescriptor(&compilation_zone_, operand.sig);

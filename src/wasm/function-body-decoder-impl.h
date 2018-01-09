@@ -551,6 +551,7 @@ struct ControlWithNamedConstructors : public ControlBase<Value> {
   F(StartFunctionBody, Control* block)                                         \
   F(FinishFunction)                                                            \
   F(OnFirstError)                                                              \
+  F(NextInstruction, WasmOpcode)                                               \
   /* Control: */                                                               \
   F(Block, Control* block)                                                     \
   F(Loop, Control* block)                                                      \
@@ -1331,6 +1332,9 @@ class WasmFullDecoder : public WasmDecoder<validate> {
     while (this->pc_ < this->end_) {  // decoding loop.
       unsigned len = 1;
       WasmOpcode opcode = static_cast<WasmOpcode>(*this->pc_);
+
+      CALL_INTERFACE_IF_REACHABLE(NextInstruction, opcode);
+
 #if DEBUG
       TraceLine trace_msg;
 #define TRACE_PART(...) trace_msg.Append(__VA_ARGS__)

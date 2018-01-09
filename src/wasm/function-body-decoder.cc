@@ -142,11 +142,11 @@ class WasmGraphBuildingInterface {
     block->end_env = break_env;
   }
 
-  void FinishFunction(Decoder* decoder) {
-    builder_->PatchInStackCheckIfNeeded();
-  }
+  void FinishFunction(Decoder*) { builder_->PatchInStackCheckIfNeeded(); }
 
-  void OnFirstError(Decoder* decoder) {}
+  void OnFirstError(Decoder*) {}
+
+  void NextInstruction(Decoder*, WasmOpcode) {}
 
   void Block(Decoder* decoder, Control* block) {
     // The break environment is the outer environment.
