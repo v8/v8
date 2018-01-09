@@ -63,7 +63,8 @@ i::MaybeHandle<i::WasmModuleObject> GetFirstArgumentAsModule(
 }
 
 i::wasm::ModuleWireBytes GetFirstArgumentAsBytes(
-    const v8::FunctionCallbackInfo<v8::Value>& args, ErrorThrower* thrower) {
+    const v8::FunctionCallbackInfo<v8::Value>& args, ErrorThrower* thrower,
+    bool* is_shared) {
   const uint8_t* start = nullptr;
   size_t length = 0;
   v8::Local<v8::Value> source = args[0];
@@ -74,6 +75,7 @@ i::wasm::ModuleWireBytes GetFirstArgumentAsBytes(
 
     start = reinterpret_cast<const uint8_t*>(contents.Data());
     length = contents.ByteLength();
+    *is_shared = buffer->IsSharedArrayBuffer();
   } else if (source->IsTypedArray()) {
     // A TypedArray was passed.
     Local<TypedArray> array = Local<TypedArray>::Cast(source);
@@ -84,6 +86,7 @@ i::wasm::ModuleWireBytes GetFirstArgumentAsBytes(
     start =
         reinterpret_cast<const uint8_t*>(contents.Data()) + array->ByteOffset();
     length = array->ByteLength();
+    *is_shared = buffer->IsSharedArrayBuffer();
   } else {
     thrower->TypeError("Argument 0 must be a buffer source");
   }
@@ -154,7 +157,8 @@ void WebAssemblyCompile(const v8::FunctionCallbackInfo<v8::Value>& args) {
   v8::ReturnValue<v8::Value> return_value = args.GetReturnValue();
   return_value.Set(resolver->GetPromise());
 
-  auto bytes = GetFirstArgumentAsBytes(args, &thrower);
+  bool is_shared = false;
+  auto bytes = GetFirstArgumentAsBytes(args, &thrower, &is_shared);
   if (thrower.error()) {
     auto maybe = resolver->Reject(context, Utils::ToLocal(thrower.Reify()));
     CHECK_IMPLIES(!maybe.FromMaybe(false),
@@ -162,7 +166,8 @@ void WebAssemblyCompile(const v8::FunctionCallbackInfo<v8::Value>& args) {
     return;
   }
   i::Handle<i::JSPromise> promise = Utils::OpenHandle(*resolver->GetPromise());
-  i::wasm::AsyncCompile(i_isolate, promise, bytes);
+  // Asynchronous compilation handles copying wire bytes if necessary.
+  i::wasm::AsyncCompile(i_isolate, promise, bytes, is_shared);
 }
 
 // WebAssembly.validate(bytes) -> bool
@@ -172,16 +177,31 @@ void WebAssemblyValidate(const v8::FunctionCallbackInfo<v8::Value>& args) {
   HandleScope scope(isolate);
   i::wasm::ScheduledErrorThrower thrower(i_isolate, "WebAssembly.validate()");
 
-  auto bytes = GetFirstArgumentAsBytes(args, &thrower);
+  bool is_shared = false;
+  auto bytes = GetFirstArgumentAsBytes(args, &thrower, &is_shared);
 
   v8::ReturnValue<v8::Value> return_value = args.GetReturnValue();
-  if (!thrower.error() &&
-      i::wasm::SyncValidate(reinterpret_cast<i::Isolate*>(isolate), bytes)) {
-    return_value.Set(v8::True(isolate));
-  } else {
+
+  if (thrower.error()) {
     if (thrower.wasm_error()) thrower.Reset();  // Clear error.
     return_value.Set(v8::False(isolate));
+    return;
   }
+
+  bool validated = false;
+  if (is_shared) {
+    // Make a copy of the wire bytes to avoid concurrent modification.
+    std::unique_ptr<uint8_t[]> copy(new uint8_t[bytes.length()]);
+    memcpy(copy.get(), bytes.start(), bytes.length());
+    i::wasm::ModuleWireBytes bytes_copy(copy.get(),
+                                        copy.get() + bytes.length());
+    validated = i::wasm::SyncValidate(i_isolate, bytes_copy);
+  } else {
+    // The wire bytes are not shared, OK to use them directly.
+    validated = i::wasm::SyncValidate(i_isolate, bytes);
+  }
+
+  return_value.Set(Boolean::New(isolate, validated));
 }
 
 // new WebAssembly.Module(bytes) -> WebAssembly.Module
@@ -202,13 +222,25 @@ void WebAssemblyModule(const v8::FunctionCallbackInfo<v8::Value>& args) {
     return;
   }
 
-  auto bytes = GetFirstArgumentAsBytes(args, &thrower);
+  bool is_shared = false;
+  auto bytes = GetFirstArgumentAsBytes(args, &thrower, &is_shared);
 
   if (thrower.error()) {
     return;
   }
-  i::MaybeHandle<i::Object> module_obj =
-      i::wasm::SyncCompile(i_isolate, &thrower, bytes);
+  i::MaybeHandle<i::Object> module_obj;
+  if (is_shared) {
+    // Make a copy of the wire bytes to avoid concurrent modification.
+    std::unique_ptr<uint8_t[]> copy(new uint8_t[bytes.length()]);
+    memcpy(copy.get(), bytes.start(), bytes.length());
+    i::wasm::ModuleWireBytes bytes_copy(copy.get(),
+                                        copy.get() + bytes.length());
+    module_obj = i::wasm::SyncCompile(i_isolate, &thrower, bytes_copy);
+  } else {
+    // The wire bytes are not shared, OK to use them directly.
+    module_obj = i::wasm::SyncCompile(i_isolate, &thrower, bytes);
+  }
+
   if (module_obj.is_null()) return;
 
   v8::ReturnValue<v8::Value> return_value = args.GetReturnValue();

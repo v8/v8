@@ -562,13 +562,8 @@ MaybeHandle<WasmModuleObject> SyncCompileTranslatedAsmJs(
 MaybeHandle<WasmModuleObject> SyncCompile(Isolate* isolate,
                                           ErrorThrower* thrower,
                                           const ModuleWireBytes& bytes) {
-  // TODO(titzer): only make a copy of the bytes if SharedArrayBuffer
-  std::unique_ptr<byte[]> copy(new byte[bytes.length()]);
-  memcpy(copy.get(), bytes.start(), bytes.length());
-  ModuleWireBytes bytes_copy(copy.get(), copy.get() + bytes.length());
-
-  ModuleResult result = SyncDecodeWasmModule(
-      isolate, bytes_copy.start(), bytes_copy.end(), false, kWasmOrigin);
+  ModuleResult result = SyncDecodeWasmModule(isolate, bytes.start(),
+                                             bytes.end(), false, kWasmOrigin);
   if (result.failed()) {
     thrower->CompileFailed("Wasm decoding failed", result);
     return {};
@@ -577,7 +572,7 @@ MaybeHandle<WasmModuleObject> SyncCompile(Isolate* isolate,
   // Transfer ownership of the WasmModule to the {WasmModuleWrapper} generated
   // in {CompileToModuleObject}.
   return ModuleCompiler::CompileToModuleObject(
-      isolate, thrower, std::move(result.val), bytes_copy, Handle<Script>(),
+      isolate, thrower, std::move(result.val), bytes, Handle<Script>(),
       Vector<const byte>());
 }
 
@@ -634,12 +629,22 @@ void AsyncInstantiate(Isolate* isolate, Handle<JSPromise> promise,
 }
 
 void AsyncCompile(Isolate* isolate, Handle<JSPromise> promise,
-                  const ModuleWireBytes& bytes) {
+                  const ModuleWireBytes& bytes, bool is_shared) {
   if (!FLAG_wasm_async_compilation) {
+    // Asynchronous compilation disabled; fall back on synchronous compilation.
     ErrorThrower thrower(isolate, "WasmCompile");
-    // Compile the module.
-    MaybeHandle<WasmModuleObject> module_object =
-        SyncCompile(isolate, &thrower, bytes);
+    MaybeHandle<WasmModuleObject> module_object;
+    if (is_shared) {
+      // Make a copy of the wire bytes to avoid concurrent modification.
+      std::unique_ptr<uint8_t[]> copy(new uint8_t[bytes.length()]);
+      memcpy(copy.get(), bytes.start(), bytes.length());
+      i::wasm::ModuleWireBytes bytes_copy(copy.get(),
+                                          copy.get() + bytes.length());
+      module_object = SyncCompile(isolate, &thrower, bytes_copy);
+    } else {
+      // The wire bytes are not shared, OK to use them directly.
+      module_object = SyncCompile(isolate, &thrower, bytes);
+    }
     if (thrower.error()) {
       RejectPromise(isolate, handle(isolate->context()), thrower, promise);
       return;

@@ -43,7 +43,8 @@ V8_EXPORT_PRIVATE MaybeHandle<WasmInstanceObject> SyncCompileAndInstantiate(
     MaybeHandle<JSReceiver> imports, MaybeHandle<JSArrayBuffer> memory);
 
 V8_EXPORT_PRIVATE void AsyncCompile(Isolate* isolate, Handle<JSPromise> promise,
-                                    const ModuleWireBytes& bytes);
+                                    const ModuleWireBytes& bytes,
+                                    bool is_shared);
 
 V8_EXPORT_PRIVATE void AsyncInstantiate(Isolate* isolate,
                                         Handle<JSPromise> promise,

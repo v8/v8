@@ -7666,7 +7666,8 @@ void WasmModuleObjectBuilderStreaming::Finish() {
   // will be resolved when we move to true streaming compilation.
   i::wasm::AsyncCompile(reinterpret_cast<i::Isolate*>(isolate_),
                         Utils::OpenHandle(*promise_.Get(isolate_)),
-                        {wire_bytes.get(), wire_bytes.get() + total_size_});
+                        {wire_bytes.get(), wire_bytes.get() + total_size_},
+                        false);
 }
 
 void WasmModuleObjectBuilderStreaming::Abort(Local<Value> exception) {
