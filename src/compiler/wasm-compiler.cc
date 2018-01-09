@@ -5220,8 +5220,13 @@ WasmCodeWrapper WasmCompilationUnit::FinishLiftoffCompilation(
       // TODO(wasm): Use proper log files, here and elsewhere.
       OFStream os(stdout);
       os << "--- Wasm liftoff code ---\n";
-      EmbeddedVector<char, 32> func_name;
-      func_name.Truncate(SNPrintF(func_name, "wasm#%d-liftoff", func_index_));
+      EmbeddedVector<char, 64> func_name;
+      if (func_name_.start() != nullptr) {
+        SNPrintF(func_name, "#%d:%.*s", func_index(), func_name_.length(),
+                 func_name_.start());
+      } else {
+        SNPrintF(func_name, "wasm#%d", func_index());
+      }
       code->Disassemble(func_name.start(), os);
       os << "--- End code ---\n";
     }

@@ -224,16 +224,20 @@ class LiftoffAssembler : public TurboAssembler {
     cache_state_.stack_state.emplace_back(type, reg);
   }
 
+  void SpillRegister(LiftoffRegister);
+
   uint32_t GetNumUses(LiftoffRegister reg) {
     return cache_state_.get_use_count(reg);
   }
 
+  // Get an unused register for class {rc}, potentially spilling to free one.
   LiftoffRegister GetUnusedRegister(RegClass rc, LiftoffRegList pinned = {}) {
     DCHECK(rc == kGpReg || rc == kFpReg);
     LiftoffRegList candidates = GetCacheRegList(rc);
     return GetUnusedRegister(candidates, pinned);
   }
 
+  // Get an unused register of {candidates}, potentially spilling to free one.
   LiftoffRegister GetUnusedRegister(LiftoffRegList candidates,
                                     LiftoffRegList pinned = {}) {
     if (cache_state_.has_unused_register(candidates, pinned)) {
@@ -258,6 +262,11 @@ class LiftoffAssembler : public TurboAssembler {
   void Spill(uint32_t index);
   void SpillLocals();
 
+  // Load parameters into the right registers / stack slots for the call.
+  void PrepareCall(wasm::FunctionSig*, compiler::CallDescriptor*);
+  // Process return values of the call.
+  void FinishCall(wasm::FunctionSig*, compiler::CallDescriptor*);
+
   ////////////////////////////////////
   // Platform-specific part.        //
   ////////////////////////////////////
@@ -267,6 +276,7 @@ class LiftoffAssembler : public TurboAssembler {
   inline void LoadConstant(LiftoffRegister, WasmValue);
   inline void LoadFromContext(Register dst, uint32_t offset, int size);
   inline void SpillContext(Register context);
+  inline void FillContextInto(Register dst);
   inline void Load(LiftoffRegister dst, Register src_addr, Register offset_reg,
                    uint32_t offset_imm, LoadType type, LiftoffRegList pinned,
                    uint32_t* protected_load_pc = nullptr);
@@ -310,6 +320,9 @@ class LiftoffAssembler : public TurboAssembler {
   inline void CallTrapCallbackForTesting();
 
   inline void AssertUnreachable(AbortReason reason);
+
+  // Push a value to the stack (will become a caller frame slot).
+  inline void PushCallerFrameSlot(const VarState& src, uint32_t src_index);
 
   inline void PushRegisters(LiftoffRegList);
   inline void PopRegisters(LiftoffRegList);

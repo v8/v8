@@ -67,6 +67,10 @@ void LiftoffAssembler::SpillContext(Register context) {
   movp(liftoff::GetContextOperand(), context);
 }
 
+void LiftoffAssembler::FillContextInto(Register dst) {
+  movp(dst, liftoff::GetContextOperand());
+}
+
 void LiftoffAssembler::Load(LiftoffRegister dst, Register src_addr,
                             Register offset_reg, uint32_t offset_imm,
                             LoadType type, LiftoffRegList pinned,
@@ -339,6 +343,26 @@ void LiftoffAssembler::CallTrapCallbackForTesting() {
 
 void LiftoffAssembler::AssertUnreachable(AbortReason reason) {
   TurboAssembler::AssertUnreachable(reason);
+}
+
+void LiftoffAssembler::PushCallerFrameSlot(const VarState& src,
+                                           uint32_t src_index) {
+  switch (src.loc()) {
+    case VarState::kStack:
+      pushq(liftoff::GetStackSlot(src_index));
+      break;
+    case VarState::kRegister:
+      if (src.reg().is_gp()) {
+        pushq(src.reg().gp());
+      } else {
+        subp(rsp, Immediate(kStackSlotSize));
+        movsd(Operand(rsp, 0), src.reg().fp());
+      }
+      break;
+    case VarState::kConstant:
+      pushq(Immediate(src.i32_const()));
+      break;
+  }
 }
 
 void LiftoffAssembler::PushRegisters(LiftoffRegList regs) {

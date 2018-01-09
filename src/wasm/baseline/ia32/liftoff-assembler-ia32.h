@@ -38,6 +38,7 @@ static_assert((kByteRegs & kGpCacheRegList) == kByteRegs,
 static constexpr DoubleRegister kScratchDoubleReg = xmm7;
 
 void LiftoffAssembler::ReserveStackSpace(uint32_t bytes) {
+  DCHECK_LE(bytes, kMaxInt);
   sub(esp, Immediate(bytes));
 }
 
@@ -50,9 +51,12 @@ void LiftoffAssembler::LoadConstant(LiftoffRegister reg, WasmValue value) {
         mov(reg.gp(), Immediate(value.to_i32()));
       }
       break;
-    case kWasmF32:
-      TurboAssembler::Move(reg.fp(), value.to_f32_boxed().get_bits());
+    case kWasmF32: {
+      Register tmp = GetUnusedRegister(kGpReg).gp();
+      mov(tmp, Immediate(value.to_f32_boxed().get_bits()));
+      movd(reg.fp(), tmp);
       break;
+    }
     default:
       UNREACHABLE();
   }
@@ -68,6 +72,10 @@ void LiftoffAssembler::LoadFromContext(Register dst, uint32_t offset,
 
 void LiftoffAssembler::SpillContext(Register context) {
   mov(liftoff::GetContextOperand(), context);
+}
+
+void LiftoffAssembler::FillContextInto(Register dst) {
+  mov(dst, liftoff::GetContextOperand());
 }
 
 void LiftoffAssembler::Load(LiftoffRegister dst, Register src_addr,
@@ -269,7 +277,7 @@ COMMUTATIVE_I32_BINOP(or, or_)
 COMMUTATIVE_I32_BINOP(xor, xor_)
 // clang-format on
 
-#undef DEFAULT_I32_BINOP
+#undef COMMUTATIVE_I32_BINOP
 
 void LiftoffAssembler::emit_f32_add(DoubleRegister dst, DoubleRegister lhs,
                                     DoubleRegister rhs) {
@@ -339,6 +347,36 @@ void LiftoffAssembler::CallTrapCallbackForTesting() {
 
 void LiftoffAssembler::AssertUnreachable(AbortReason reason) {
   TurboAssembler::AssertUnreachable(reason);
+}
+
+void LiftoffAssembler::PushCallerFrameSlot(const VarState& src,
+                                           uint32_t src_index) {
+  switch (src.loc()) {
+    case VarState::kStack:
+      DCHECK_NE(kWasmF64, src.type());  // TODO(clemensh): Implement this.
+      push(liftoff::GetStackSlot(src_index));
+      break;
+    case VarState::kRegister:
+      switch (src.type()) {
+        case kWasmI32:
+          push(src.reg().gp());
+          break;
+        case kWasmF32:
+          sub(esp, Immediate(sizeof(float)));
+          movss(Operand(esp, 0), src.reg().fp());
+          break;
+        case kWasmF64:
+          sub(esp, Immediate(sizeof(double)));
+          movsd(Operand(esp, 0), src.reg().fp());
+          break;
+        default:
+          UNREACHABLE();
+      }
+      break;
+    case VarState::kConstant:
+      push(Immediate(src.i32_const()));
+      break;
+  }
 }
 
 void LiftoffAssembler::PushRegisters(LiftoffRegList regs) {

@@ -88,6 +88,7 @@ class StackTransferRecipe {
         }
         if (executed_moves == 0) {
           // There is a cycle. Spill one register, then continue.
+          // TODO(clemensh): Use an unused register if available.
           LiftoffRegister spill_reg = register_moves.back().src;
           asm_->Spill(next_spill_slot, spill_reg);
           // Remember to reload into the destination register later.
@@ -141,14 +142,6 @@ class StackTransferRecipe {
     }
   }
 
- private:
-  // TODO(clemensh): Avoid unconditionally allocating on the heap.
-  std::vector<RegisterMove> register_moves;
-  std::vector<RegisterLoad> register_loads;
-  LiftoffRegList move_dst_regs;
-  LiftoffRegList move_src_regs;
-  LiftoffAssembler* const asm_;
-
   void LoadIntoRegister(LiftoffRegister dst,
                         const LiftoffAssembler::VarState& src,
                         uint32_t src_index) {
@@ -181,6 +174,14 @@ class StackTransferRecipe {
   void LoadStackSlot(LiftoffRegister dst, uint32_t stack_index) {
     register_loads.emplace_back(dst, stack_index);
   }
+
+ private:
+  // TODO(clemensh): Avoid unconditionally allocating on the heap.
+  std::vector<RegisterMove> register_moves;
+  std::vector<RegisterLoad> register_loads;
+  LiftoffRegList move_dst_regs;
+  LiftoffRegList move_src_regs;
+  LiftoffAssembler* const asm_;
 };
 
 }  // namespace
@@ -358,22 +359,104 @@ void LiftoffAssembler::SpillLocals() {
   }
 }
 
+void LiftoffAssembler::PrepareCall(wasm::FunctionSig* sig,
+                                   compiler::CallDescriptor* call_desc) {
+  uint32_t num_params = static_cast<uint32_t>(sig->parameter_count());
+  // Parameter 0 is the wasm context.
+  constexpr size_t kFirstActualParameter = 1;
+  DCHECK_EQ(kFirstActualParameter + num_params, call_desc->ParameterCount());
+
+  // Input 0 is the call target.
+  constexpr size_t kInputShift = 1;
+
+  StackTransferRecipe stack_transfers(this);
+
+  // Spill all cache slots which are not being used as parameters.
+  // Don't update any register use counters, they will be reset later anyway.
+  for (uint32_t idx = 0, end = cache_state_.stack_height() - num_params;
+       idx < end; ++idx) {
+    VarState& slot = cache_state_.stack_state[idx];
+    if (!slot.is_reg()) continue;
+    Spill(idx, slot.reg());
+    slot.MakeStack();
+  }
+
+  // Now move all parameter values into the right slot for the call.
+  // Process parameters backward, such that we can just pop values from the
+  // stack.
+  for (uint32_t i = num_params; i > 0; --i) {
+    uint32_t param = i - 1;
+    ValueType type = sig->GetParam(param);
+    RegClass rc = reg_class_for(type);
+    compiler::LinkageLocation loc = call_desc->GetInputLocation(
+        param + kFirstActualParameter + kInputShift);
+    const VarState& slot = cache_state_.stack_state.back();
+    uint32_t stack_idx = cache_state_.stack_height() - 1;
+    if (loc.IsRegister()) {
+      DCHECK(!loc.IsAnyRegister());
+      int reg_code = loc.AsRegister();
+      LiftoffRegister reg = LiftoffRegister::from_code(rc, reg_code);
+      stack_transfers.LoadIntoRegister(reg, slot, stack_idx);
+    } else {
+      DCHECK(loc.IsCallerFrameSlot());
+      PushCallerFrameSlot(slot, stack_idx);
+    }
+    cache_state_.stack_state.pop_back();
+  }
+
+  // Reset register use counters.
+  cache_state_.used_registers = {};
+  memset(cache_state_.register_use_count, 0,
+         sizeof(cache_state_.register_use_count));
+
+  // Execute the stack transfers before filling the context register.
+  stack_transfers.Execute();
+
+  // Fill the wasm context into the right register.
+  compiler::LinkageLocation context_loc =
+      call_desc->GetInputLocation(kInputShift);
+  DCHECK(context_loc.IsRegister() && !context_loc.IsAnyRegister());
+  int context_reg_code = context_loc.AsRegister();
+  LiftoffRegister context_reg(Register::from_code(context_reg_code));
+  FillContextInto(context_reg.gp());
+}
+
+void LiftoffAssembler::FinishCall(wasm::FunctionSig* sig,
+                                  compiler::CallDescriptor* call_desc) {
+  size_t return_count = call_desc->ReturnCount();
+  DCHECK_EQ(return_count, sig->return_count());
+  if (return_count != 0) {
+    DCHECK_EQ(1, return_count);
+    compiler::LinkageLocation return_loc = call_desc->GetReturnLocation(0);
+    int return_reg_code = return_loc.AsRegister();
+    ValueType return_type = sig->GetReturn(0);
+    LiftoffRegister return_reg =
+        LiftoffRegister::from_code(reg_class_for(return_type), return_reg_code);
+    DCHECK(!cache_state_.is_used(return_reg));
+    PushRegister(return_type, return_reg);
+  }
+}
+
 LiftoffRegister LiftoffAssembler::SpillOneRegister(LiftoffRegList candidates,
                                                    LiftoffRegList pinned) {
   // Spill one cached value to free a register.
   LiftoffRegister spill_reg = cache_state_.GetNextSpillReg(candidates, pinned);
-  int remaining_uses = cache_state_.get_use_count(spill_reg);
+  SpillRegister(spill_reg);
+  return spill_reg;
+}
+
+void LiftoffAssembler::SpillRegister(LiftoffRegister reg) {
+  int remaining_uses = cache_state_.get_use_count(reg);
   DCHECK_LT(0, remaining_uses);
   for (uint32_t idx = cache_state_.stack_height() - 1;; --idx) {
     DCHECK_GT(cache_state_.stack_height(), idx);
     auto* slot = &cache_state_.stack_state[idx];
-    if (!slot->is_reg() || slot->reg() != spill_reg) continue;
-    Spill(idx, spill_reg);
+    if (!slot->is_reg() || slot->reg() != reg) continue;
+    Spill(idx, reg);
     slot->MakeStack();
     if (--remaining_uses == 0) break;
   }
-  cache_state_.clear_used(spill_reg);
-  return spill_reg;
+  cache_state_.clear_used(reg);
 }
 
 void LiftoffAssembler::set_num_locals(uint32_t num_locals) {

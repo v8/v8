@@ -2400,10 +2400,11 @@ WASM_EXEC_TEST(AddCall) {
 
   byte local = r.AllocateLocal(kWasmI32);
   BUILD(r, WASM_SET_LOCAL(local, WASM_I32V_2(99)),
-        WASM_I32_ADD(WASM_CALL_FUNCTION(t1.function_index(), WASM_GET_LOCAL(0),
-                                        WASM_GET_LOCAL(0)),
-                     WASM_CALL_FUNCTION(t1.function_index(), WASM_GET_LOCAL(1),
-                                        WASM_GET_LOCAL(local))));
+        WASM_I32_ADD(
+            WASM_CALL_FUNCTION(t1.function_index(), WASM_GET_LOCAL(0),
+                               WASM_GET_LOCAL(0)),
+            WASM_CALL_FUNCTION(t1.function_index(), WASM_GET_LOCAL(local),
+                               WASM_GET_LOCAL(local))));
 
   CHECK_EQ(198, r.Call(0));
   CHECK_EQ(200, r.Call(1));

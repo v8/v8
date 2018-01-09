@@ -24,6 +24,8 @@ void LiftoffAssembler::LoadFromContext(Register dst, uint32_t offset,
 
 void LiftoffAssembler::SpillContext(Register context) { UNIMPLEMENTED(); }
 
+void LiftoffAssembler::FillContextInto(Register dst) { UNIMPLEMENTED(); }
+
 void LiftoffAssembler::Load(LiftoffRegister dst, Register src_addr,
                             Register offset_reg, uint32_t offset_imm,
                             LoadType type, LiftoffRegList pinned,
@@ -114,6 +116,11 @@ void LiftoffAssembler::StackCheck(Label* ool_code) { UNIMPLEMENTED(); }
 void LiftoffAssembler::CallTrapCallbackForTesting() { UNIMPLEMENTED(); }
 
 void LiftoffAssembler::AssertUnreachable(AbortReason reason) {
+  UNIMPLEMENTED();
+}
+
+void LiftoffAssembler::PushCallerFrameSlot(const VarState& src,
+                                           uint32_t src_index) {
   UNIMPLEMENTED();
 }
 

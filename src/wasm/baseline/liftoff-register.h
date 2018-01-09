@@ -70,6 +70,17 @@ class LiftoffRegister {
     return LiftoffRegister(code);
   }
 
+  static LiftoffRegister from_code(RegClass rc, int code) {
+    switch (rc) {
+      case kGpReg:
+        return LiftoffRegister(Register::from_code(code));
+      case kFpReg:
+        return LiftoffRegister(DoubleRegister::from_code(code));
+      default:
+        UNREACHABLE();
+    }
+  }
+
   constexpr bool is_gp() const { return code_ < kAfterMaxLiftoffGpRegCode; }
   constexpr bool is_fp() const {
     return code_ >= kAfterMaxLiftoffGpRegCode &&

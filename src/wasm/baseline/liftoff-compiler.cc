@@ -486,6 +486,7 @@ class LiftoffCompiler {
 
   void GetLocal(Decoder* decoder, Value* result,
                 const LocalIndexOperand<validate>& operand) {
+    TraceCacheState(decoder);
     auto& slot = __ cache_state()->stack_state[operand.index];
     DCHECK_EQ(slot.type(), operand.type);
     switch (slot.loc()) {
@@ -735,11 +736,38 @@ class LiftoffCompiler {
   void GrowMemory(Decoder* decoder, const Value& value, Value* result) {
     unsupported(decoder, "grow_memory");
   }
+
   void CallDirect(Decoder* decoder,
                   const CallFunctionOperand<validate>& operand,
                   const Value args[], Value returns[]) {
-    unsupported(decoder, "call");
+    if (operand.sig->return_count() > 1)
+      return unsupported(decoder, "multi-return");
+
+    TraceCacheState(decoder);
+
+    compiler::CallDescriptor* call_desc =
+        compiler::GetWasmCallDescriptor(&compilation_zone_, operand.sig);
+
+    __ PrepareCall(operand.sig, call_desc);
+
+    source_position_table_builder_->AddPosition(
+        __ pc_offset(), SourcePosition(decoder->position()), false);
+
+    if (FLAG_wasm_jit_to_native) {
+      return unsupported(decoder, "call with jit-to-native");
+    } else {
+      Handle<Code> target = operand.index < env_->function_code.size()
+                                ? env_->function_code[operand.index]
+                                : env_->default_function_code;
+      __ Call(target, RelocInfo::CODE_TARGET);
+    }
+
+    safepoint_table_builder_.DefineSafepoint(asm_, Safepoint::kSimple, 0,
+                                             Safepoint::kNoLazyDeopt);
+
+    __ FinishCall(operand.sig, call_desc);
   }
+
   void CallIndirect(Decoder* decoder, const Value& index,
                     const CallIndirectOperand<validate>& operand,
                     const Value args[], Value returns[]) {
