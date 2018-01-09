@@ -2225,6 +2225,12 @@ void Decoder::DecodeTypeImmediate(Instruction* instr) {
     case SWR:
       Format(instr, "swr     'rt, 'imm16s('rs)");
       break;
+    case SDR:
+      Format(instr, "sdr     'rt, 'imm16s('rs)");
+      break;
+    case SDL:
+      Format(instr, "sdl     'rt, 'imm16s('rs)");
+      break;
     case LL:
       if (kArchVariant == kMips64r6) {
         Unknown(instr);
