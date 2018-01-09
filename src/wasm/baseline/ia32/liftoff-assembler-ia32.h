@@ -411,7 +411,7 @@ void LiftoffAssembler::PushCallerFrameSlot(const VarState& src,
           UNREACHABLE();
       }
       break;
-    case VarState::kConstant:
+    case VarState::kI32Const:
       push(Immediate(src.i32_const()));
       break;
   }

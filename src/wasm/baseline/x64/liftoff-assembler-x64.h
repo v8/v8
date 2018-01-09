@@ -397,7 +397,7 @@ void LiftoffAssembler::PushCallerFrameSlot(const VarState& src,
         movsd(Operand(rsp, 0), src.reg().fp());
       }
       break;
-    case VarState::kConstant:
+    case VarState::kI32Const:
       pushq(Immediate(src.i32_const()));
       break;
   }

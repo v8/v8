@@ -19,7 +19,7 @@ namespace internal {
 namespace wasm {
 
 constexpr auto kRegister = LiftoffAssembler::VarState::kRegister;
-constexpr auto kConstant = LiftoffAssembler::VarState::kConstant;
+constexpr auto kI32Const = LiftoffAssembler::VarState::kI32Const;
 constexpr auto kStack = LiftoffAssembler::VarState::kStack;
 
 namespace {
@@ -547,7 +547,7 @@ class LiftoffCompiler {
       case kRegister:
         __ PushRegister(slot.type(), slot.reg());
         break;
-      case kConstant:
+      case kI32Const:
         __ cache_state()->stack_state.emplace_back(operand.type,
                                                    slot.i32_const());
         break;
@@ -592,7 +592,7 @@ class LiftoffCompiler {
         target_slot = source_slot;
         if (is_tee) state.inc_used(target_slot.reg());
         break;
-      case kConstant:
+      case kI32Const:
         __ DropStackSlot(&target_slot);
         target_slot = source_slot;
         break;

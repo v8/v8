@@ -38,7 +38,7 @@ class LiftoffAssembler : public TurboAssembler {
 
   class VarState {
    public:
-    enum Location : uint8_t { kStack, kRegister, kConstant };
+    enum Location : uint8_t { kStack, kRegister, kI32Const };
 
     explicit VarState(ValueType type) : loc_(kStack), type_(type) {}
     explicit VarState(ValueType type, LiftoffRegister r)
@@ -46,7 +46,7 @@ class LiftoffAssembler : public TurboAssembler {
       DCHECK_EQ(r.reg_class(), reg_class_for(type));
     }
     explicit VarState(ValueType type, uint32_t i32_const)
-        : loc_(kConstant), type_(type), i32_const_(i32_const) {
+        : loc_(kI32Const), type_(type), i32_const_(i32_const) {
       DCHECK(type_ == kWasmI32 || type_ == kWasmI64);
     }
 
@@ -57,7 +57,7 @@ class LiftoffAssembler : public TurboAssembler {
           return true;
         case kRegister:
           return reg_ == other.reg_;
-        case kConstant:
+        case kI32Const:
           return i32_const_ == other.i32_const_;
       }
       UNREACHABLE();
@@ -67,14 +67,14 @@ class LiftoffAssembler : public TurboAssembler {
     bool is_gp_reg() const { return loc_ == kRegister && reg_.is_gp(); }
     bool is_fp_reg() const { return loc_ == kRegister && reg_.is_fp(); }
     bool is_reg() const { return loc_ == kRegister; }
-    bool is_const() const { return loc_ == kConstant; }
+    bool is_const() const { return loc_ == kI32Const; }
 
     ValueType type() const { return type_; }
 
     Location loc() const { return loc_; }
 
     uint32_t i32_const() const {
-      DCHECK_EQ(loc_, kConstant);
+      DCHECK_EQ(loc_, kI32Const);
       return i32_const_;
     }
     Register gp_reg() const { return reg().gp(); }
@@ -95,7 +95,7 @@ class LiftoffAssembler : public TurboAssembler {
 
     union {
       LiftoffRegister reg_;  // used if loc_ == kRegister
-      uint32_t i32_const_;  // used if loc_ == kConstant
+      uint32_t i32_const_;   // used if loc_ == kI32Const
     };
   };
 
