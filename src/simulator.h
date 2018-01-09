@@ -6,6 +6,7 @@
 #define V8_SIMULATOR_H_
 
 #include "src/globals.h"
+#include "src/objects/code.h"
 
 #if V8_TARGET_ARCH_IA32
 #include "src/ia32/simulator-ia32.h"
@@ -79,20 +80,55 @@ class SimulatorStack : public v8::internal::AllStatic {
   }
 };
 
-// When running without a simulator we call the entry directly.
-#define CALL_GENERATED_CODE(isolate, entry, p0, p1, p2, p3, p4) \
-  (entry(p0, p1, p2, p3, p4))
-
-typedef int (*regexp_matcher)(String*, int, const byte*, const byte*, int*, int,
-                              Address, int, Isolate*);
-
-// Call the generated regexp code directly. The code at the entry address
-// should act as a function matching the type {regexp_matcher} above.
-#define CALL_GENERATED_REGEXP_CODE(isolate, entry, p0, p1, p2, p3, p4, p5, p6, \
-                                   p7, p8)                                     \
-  (FUNCTION_CAST<regexp_matcher>(entry)(p0, p1, p2, p3, p4, p5, p6, p7, p8))
-
 #endif  // defined(USE_SIMULATOR)
+
+// Use this class either as {GeneratedCode<ret, arg1, arg2>} or
+// {GeneratedCode<ret(arg1, arg2)>} (see specialization below).
+template <typename Return, typename... Args>
+class GeneratedCode {
+ public:
+  using Signature = Return(Args...);
+
+  template <typename T>
+  static GeneratedCode FromAddress(Isolate* isolate, T* addr) {
+    return GeneratedCode(isolate, reinterpret_cast<Signature*>(addr));
+  }
+
+  static GeneratedCode FromCode(Code* code) {
+    return FromAddress(code->GetIsolate(), code->entry());
+  }
+
+#ifdef USE_SIMULATOR
+  // Defined in simulator-base.h.
+  Return Call(Args... args) {
+    return Simulator::current(isolate_)->template Call<Return>(
+        reinterpret_cast<byte*>(fn_ptr_), args...);
+  }
+#else
+  Return Call(Args... args) {
+    // When running without a simulator we call the entry directly.
+    return fn_ptr_(args...);
+  }
+#endif
+
+ private:
+  friend class GeneratedCode<Return(Args...)>;
+  Isolate* isolate_;
+  Signature* fn_ptr_;
+  GeneratedCode(Isolate* isolate, Signature* fn_ptr)
+      : isolate_(isolate), fn_ptr_(fn_ptr) {}
+};
+
+// Allow to use {GeneratedCode<ret(arg1, arg2)>} instead of
+// {GeneratedCode<ret, arg1, arg2>}.
+template <typename Return, typename... Args>
+class GeneratedCode<Return(Args...)> : public GeneratedCode<Return, Args...> {
+ public:
+  // Automatically convert from {GeneratedCode<ret, arg1, arg2>} to
+  // {GeneratedCode<ret(arg1, arg2)>}.
+  GeneratedCode(GeneratedCode<Return, Args...> other)
+      : GeneratedCode<Return, Args...>(other.isolate_, other.fn_ptr_) {}
+};
 
 }  // namespace internal
 }  // namespace v8

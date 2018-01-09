@@ -114,9 +114,9 @@ MUST_USE_RESULT MaybeHandle<Object> Invoke(
   // Placeholder for return value.
   Object* value = nullptr;
 
-  typedef Object* (*JSEntryFunction)(Object* new_target, Object* target,
-                                     Object* receiver, int argc,
-                                     Object*** args);
+  using JSEntryFunction =
+      GeneratedCode<Object*(Object * new_target, Object * target,
+                            Object * receiver, int argc, Object*** args)>;
 
   Handle<Code> code;
   switch (execution_target) {
@@ -136,7 +136,8 @@ MUST_USE_RESULT MaybeHandle<Object> Invoke(
     // allocation of handles without explicit handle scopes.
     SaveContext save(isolate);
     SealHandleScope shs(isolate);
-    JSEntryFunction stub_entry = FUNCTION_CAST<JSEntryFunction>(code->entry());
+    JSEntryFunction stub_entry =
+        JSEntryFunction::FromAddress(isolate, code->entry());
 
     if (FLAG_clear_exceptions_on_js_entry) isolate->clear_pending_exception();
 
@@ -149,8 +150,7 @@ MUST_USE_RESULT MaybeHandle<Object> Invoke(
       PrintDeserializedCodeInfo(Handle<JSFunction>::cast(target));
     }
     RuntimeCallTimerScope timer(isolate, RuntimeCallCounterId::kJS_Execution);
-    value = CALL_GENERATED_CODE(isolate, stub_entry, orig_func, func, recv,
-                                argc, argv);
+    value = stub_entry.Call(orig_func, func, recv, argc, argv);
   }
 
 #ifdef VERIFY_HEAP

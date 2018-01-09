@@ -2355,17 +2355,6 @@ inline float Simulator::FPDefaultNaN<float>() {
   return kFP32DefaultNaN;
 }
 
-// When running with the simulator transition into simulated execution at this
-// point.
-#define CALL_GENERATED_CODE(isolate, entry, p0, p1, p2, p3, p4)                \
-  Simulator::current(isolate)->Call<Object*>(FUNCTION_ADDR(entry), p0, p1, p2, \
-                                             p3, p4)
-
-#define CALL_GENERATED_REGEXP_CODE(isolate, entry, p0, p1, p2, p3, p4, p5, p6, \
-                                   p7, p8)                                     \
-  Simulator::current(isolate)->Call<int>(entry, p0, p1, p2, p3, p4, p5, p6,    \
-                                         p7, p8)
-
 #endif  // defined(USE_SIMULATOR)
 
 }  // namespace internal

@@ -10,16 +10,6 @@
 #include "src/simulator.h"
 #include "test/cctest/compiler/c-signature.h"
 
-#if V8_TARGET_ARCH_IA32
-#if __GNUC__
-#define V8_CDECL __attribute__((cdecl))
-#else
-#define V8_CDECL __cdecl
-#endif
-#else
-#define V8_CDECL
-#endif
-
 namespace v8 {
 namespace internal {
 namespace compiler {
@@ -35,9 +25,10 @@ class CallHelper {
 
   template <typename... Params>
   R Call(Params... args) {
-    using FType = R(V8_CDECL*)(Params...);
     CSignature::VerifyParams<Params...>(csig_);
-    return DoCall(FUNCTION_CAST<FType>(Generate()), args...);
+    byte* entry = Generate();
+    auto fn = GeneratedCode<R, Params...>::FromAddress(isolate_, entry);
+    return fn.Call(args...);
   }
 
  protected:
@@ -46,19 +37,6 @@ class CallHelper {
   virtual byte* Generate() = 0;
 
  private:
-#if USE_SIMULATOR
-  template <typename F, typename... Params>
-  R DoCall(F* f, Params... args) {
-    Simulator* simulator = Simulator::current(isolate_);
-    return simulator->Call<R>(FUNCTION_ADDR(f), args...);
-  }
-#else
-  template <typename F, typename... Params>
-  R DoCall(F* f, Params... args) {
-    return f(args...);
-  }
-#endif
-
   Isolate* isolate_;
 };
 

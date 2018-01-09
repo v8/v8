@@ -5,7 +5,7 @@
 // Declares a Simulator for S390 instructions if we are not generating a native
 // S390 binary. This Simulator allows us to run and debug S390 code generation
 // on regular desktop machines.
-// V8 calls into generated code by "calling" the CALL_GENERATED_CODE macro,
+// V8 calls into generated code via the GeneratedCode wrapper,
 // which will start execution in the Simulator or forwards to the real entry
 // on a S390 hardware platform.
 
@@ -1200,17 +1200,6 @@ class Simulator : public SimulatorBase {
   EVALUATE(CXZT);
 #undef EVALUATE
 };
-
-// When running with the simulator transition into simulated execution at this
-// point.
-#define CALL_GENERATED_CODE(isolate, entry, p0, p1, p2, p3, p4)                \
-  Simulator::current(isolate)->Call<Object*>(FUNCTION_ADDR(entry), p0, p1, p2, \
-                                             p3, p4)
-
-#define CALL_GENERATED_REGEXP_CODE(isolate, entry, p0, p1, p2, p3, p4, p5, p6, \
-                                   p7, p8)                                     \
-  Simulator::current(isolate)->Call<int>(entry, p0, p1, p2, p3, p4, p5, p6,    \
-                                         p7, p8)
 
 }  // namespace internal
 }  // namespace v8

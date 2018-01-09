@@ -485,9 +485,8 @@ void CEntryStub::Generate(MacroAssembler* masm) {
   __ Br(x10);
 }
 
-
 // This is the entry point from C++. 5 arguments are provided in x0-x4.
-// See use of the CALL_GENERATED_CODE macro for example in src/execution.cc.
+// See use of the JSEntryFunction for example in src/execution.cc.
 // Input:
 //   x0: code entry.
 //   x1: function.
