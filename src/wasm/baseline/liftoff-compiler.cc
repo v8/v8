@@ -84,21 +84,26 @@ class LiftoffCompiler {
     Builtins::Name builtin;
     wasm::WasmCodePosition position;
     LiftoffRegList regs_to_save;
+    uint32_t pc;  // for trap handler.
 
     // Named constructors:
-    static OutOfLineCode Trap(Builtins::Name b, wasm::WasmCodePosition pos) {
-      return {{}, {}, b, pos, {}};
+    static OutOfLineCode Trap(Builtins::Name b, wasm::WasmCodePosition pos,
+                              uint32_t pc) {
+      return {{}, {}, b, pos, {}, pc};
     }
     static OutOfLineCode StackCheck(wasm::WasmCodePosition pos,
                                     LiftoffRegList regs) {
-      return {{}, MovableLabel::None(), Builtins::kWasmStackGuard, pos, regs};
+      return {{}, MovableLabel::None(), Builtins::kWasmStackGuard, pos, regs,
+              0};
     }
   };
 
   LiftoffCompiler(LiftoffAssembler* liftoff_asm,
                   compiler::CallDescriptor* call_desc, compiler::ModuleEnv* env,
                   compiler::RuntimeExceptionSupport runtime_exception_support,
-                  SourcePositionTableBuilder* source_position_table_builder)
+                  SourcePositionTableBuilder* source_position_table_builder,
+                  std::vector<trap_handler::ProtectedInstructionData>*
+                      protected_instructions)
       : asm_(liftoff_asm),
         call_desc_(call_desc),
         env_(env),
@@ -109,6 +114,7 @@ class LiftoffCompiler {
                   wasm::WasmModule::kPageSize),
         runtime_exception_support_(runtime_exception_support),
         source_position_table_builder_(source_position_table_builder),
+        protected_instructions_(protected_instructions),
         compilation_zone_(liftoff_asm->isolate()->allocator(),
                           "liftoff compilation"),
         safepoint_table_builder_(&compilation_zone_) {
@@ -292,6 +298,13 @@ class LiftoffCompiler {
       __ LeaveFrame(StackFrame::WASM_COMPILED);
       __ Ret();
       return;
+    }
+
+    if (!is_stack_check && env_->use_trap_handler) {
+      uint32_t pc = static_cast<uint32_t>(__ pc_offset());
+      DCHECK_EQ(pc, __ pc_offset());
+      protected_instructions_->emplace_back(
+          trap_handler::ProtectedInstructionData{ool.pc, pc});
     }
 
     if (!ool.regs_to_save.is_empty()) __ PushRegisters(ool.regs_to_save);
@@ -620,14 +633,22 @@ class LiftoffCompiler {
     unsupported(decoder, "else");
   }
 
+  Label* AddOutOfLineTrap(wasm::WasmCodePosition position, uint32_t pc = 0) {
+    DCHECK(!FLAG_wasm_no_bounds_checks);
+    // The pc is needed exactly if trap handlers are enabled.
+    DCHECK_EQ(pc != 0, env_->use_trap_handler);
+
+    out_of_line_code_.push_back(OutOfLineCode::Trap(
+        Builtins::kThrowWasmTrapMemOutOfBounds, position, pc));
+    return out_of_line_code_.back().label.get();
+  }
+
   void BoundsCheckMem(uint32_t access_size, uint32_t offset, Register index,
                       wasm::WasmCodePosition position, LiftoffRegList pinned) {
+    DCHECK(!env_->use_trap_handler);
     if (FLAG_wasm_no_bounds_checks) return;
 
-    // Add OOL code.
-    out_of_line_code_.push_back(
-        OutOfLineCode::Trap(Builtins::kThrowWasmTrapMemOutOfBounds, position));
-    Label* trap_label = out_of_line_code_.back().label.get();
+    Label* trap_label = AddOutOfLineTrap(position);
 
     if (access_size > max_size_ || offset > max_size_ - access_size) {
       // The access will be out of bounds, even for the largest memory.
@@ -674,7 +695,12 @@ class LiftoffCompiler {
     __ LoadFromContext(addr, offsetof(WasmContext, mem_start), kPointerSize);
     RegClass rc = reg_class_for(value_type);
     LiftoffRegister value = pinned.set(__ GetUnusedRegister(rc, pinned));
-    __ Load(value, addr, index, operand.offset, type, pinned);
+    uint32_t protected_load_pc = 0;
+    __ Load(value, addr, index, operand.offset, type, pinned,
+            &protected_load_pc);
+    if (env_->use_trap_handler) {
+      AddOutOfLineTrap(decoder->position(), protected_load_pc);
+    }
     __ PushRegister(value_type, value);
     CheckStackSizeLimit(decoder);
   }
@@ -695,7 +721,12 @@ class LiftoffCompiler {
     }
     Register addr = pinned.set(__ GetUnusedRegister(kGpReg, pinned)).gp();
     __ LoadFromContext(addr, offsetof(WasmContext, mem_start), kPointerSize);
-    __ Store(addr, index, operand.offset, value, type, pinned);
+    uint32_t protected_store_pc = 0;
+    __ Store(addr, index, operand.offset, value, type, pinned,
+             &protected_store_pc);
+    if (env_->use_trap_handler) {
+      AddOutOfLineTrap(decoder->position(), protected_store_pc);
+    }
   }
 
   void CurrentMemoryPages(Decoder* decoder, Value* result) {
@@ -759,6 +790,7 @@ class LiftoffCompiler {
   bool ok_ = true;
   std::vector<OutOfLineCode> out_of_line_code_;
   SourcePositionTableBuilder* const source_position_table_builder_;
+  std::vector<trap_handler::ProtectedInstructionData>* protected_instructions_;
   // Zone used to store information during compilation. The result will be
   // stored independently, such that this zone can die together with the
   // LiftoffCompiler after compilation.
@@ -804,7 +836,8 @@ bool compiler::WasmCompilationUnit::ExecuteLiftoffCompilation() {
   wasm::WasmFullDecoder<wasm::Decoder::kValidate, wasm::LiftoffCompiler>
       decoder(&zone, module, func_body_, &liftoff_.asm_, call_desc, env_,
               runtime_exception_support_,
-              &liftoff_.source_position_table_builder_);
+              &liftoff_.source_position_table_builder_,
+              protected_instructions_.get());
   decoder.Decode();
   liftoff_compile_time_scope.reset();
   if (!decoder.interface().ok()) {

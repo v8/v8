@@ -72,7 +72,8 @@ void LiftoffAssembler::SpillContext(Register context) {
 
 void LiftoffAssembler::Load(LiftoffRegister dst, Register src_addr,
                             Register offset_reg, uint32_t offset_imm,
-                            LoadType type, LiftoffRegList pinned) {
+                            LoadType type, LiftoffRegList pinned,
+                            uint32_t* protected_load_pc) {
   Operand src_op = offset_reg == no_reg
                        ? Operand(src_addr, offset_imm)
                        : Operand(src_addr, offset_reg, times_1, offset_imm);
@@ -86,6 +87,7 @@ void LiftoffAssembler::Load(LiftoffRegister dst, Register src_addr,
     }
     src_op = Operand(src_addr, src, times_1, 0);
   }
+  if (protected_load_pc) *protected_load_pc = pc_offset();
   switch (type.value()) {
     case LoadType::kI32Load8U:
       movzx_b(dst.gp(), src_op);
@@ -109,7 +111,8 @@ void LiftoffAssembler::Load(LiftoffRegister dst, Register src_addr,
 
 void LiftoffAssembler::Store(Register dst_addr, Register offset_reg,
                              uint32_t offset_imm, LiftoffRegister src,
-                             StoreType type, LiftoffRegList pinned) {
+                             StoreType type, LiftoffRegList pinned,
+                             uint32_t* protected_store_pc) {
   Operand dst_op = offset_reg == no_reg
                        ? Operand(dst_addr, offset_imm)
                        : Operand(dst_addr, offset_reg, times_1, offset_imm);
@@ -123,6 +126,7 @@ void LiftoffAssembler::Store(Register dst_addr, Register offset_reg,
     }
     dst_op = Operand(dst_addr, dst, times_1, 0);
   }
+  if (protected_store_pc) *protected_store_pc = pc_offset();
   switch (type.value()) {
     case StoreType::kI32Store8:
       // Only the lower 4 registers can be addressed as 8-bit registers.

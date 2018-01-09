@@ -268,11 +268,11 @@ class LiftoffAssembler : public TurboAssembler {
   inline void LoadFromContext(Register dst, uint32_t offset, int size);
   inline void SpillContext(Register context);
   inline void Load(LiftoffRegister dst, Register src_addr, Register offset_reg,
-                   uint32_t offset_imm, LoadType type,
-                   LiftoffRegList pinned = {});
+                   uint32_t offset_imm, LoadType type, LiftoffRegList pinned,
+                   uint32_t* protected_load_pc = nullptr);
   inline void Store(Register dst_addr, Register offset_reg, uint32_t offset_imm,
-                    LiftoffRegister src, StoreType type,
-                    LiftoffRegList pinned = {});
+                    LiftoffRegister src, StoreType type, LiftoffRegList pinned,
+                    uint32_t* protected_store_pc = nullptr);
   inline void LoadCallerFrameSlot(LiftoffRegister, uint32_t caller_slot_idx);
   inline void MoveStackValue(uint32_t dst_index, uint32_t src_index);
 
