@@ -437,10 +437,12 @@ class StandardTestRunner(base_runner.BaseTestRunner):
           verbose.PrintTestSource(s.tests)
           continue
         variant_gen = s.CreateVariantGenerator(VARIANTS)
-        variant_tests = [ t.create_variant(v, flags)
-                          for t in s.tests
-                          for v in variant_gen.FilterVariantsByTest(t)
-                          for flags in variant_gen.GetFlagSets(t, v) ]
+        variant_tests = [
+          t.create_variant(v, flags, n)
+          for t in s.tests
+          for v in variant_gen.FilterVariantsByTest(t)
+          for n, flags in enumerate(variant_gen.GetFlagSets(t, v))
+        ]
 
         if options.random_seed_stress_count > 1:
           # Duplicate test for random seed stress mode.
@@ -453,9 +455,9 @@ class StandardTestRunner(base_runner.BaseTestRunner):
               else:
                 yield ["--random-seed=%d" % self._random_seed()]
           s.tests = [
-            t.create_variant(t.variant, flags)
+            t.create_variant(t.variant, flags, 'seed-stress-%d' % n)
             for t in variant_tests
-            for flags in iter_seed_flags()
+            for n, flags in enumerate(iter_seed_flags())
           ]
         else:
           s.tests = variant_tests

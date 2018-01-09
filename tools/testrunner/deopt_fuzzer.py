@@ -308,7 +308,8 @@ class DeoptFuzzer(base_runner.BaseTestRunner):
       test_backup[s] = s.tests
       analysis_flags = ["--deopt-every-n-times", "%d" % MAX_DEOPT,
                         "--print-deopt-stress"]
-      s.tests = [t.create_variant(t.variant, analysis_flags) for t in s.tests]
+      s.tests = [t.create_variant(t.variant, analysis_flags, 'analysis')
+                 for t in s.tests]
       num_tests += len(s.tests)
       for t in s.tests:
         t.id = test_id
@@ -355,9 +356,9 @@ class DeoptFuzzer(base_runner.BaseTestRunner):
         distribution = dist.Distribute(n_deopt, max_deopt)
         if options.verbose:
           print "%s %s" % (t.path, distribution)
-        for i in distribution:
-          fuzzing_flags = ["--deopt-every-n-times", "%d" % i]
-          s.tests.append(t.create_variant(t.variant, fuzzing_flags))
+        for n, d in enumerate(distribution):
+          fuzzing_flags = ["--deopt-every-n-times", "%d" % d]
+          s.tests.append(t.create_variant(t.variant, fuzzing_flags, n))
       num_tests += len(s.tests)
       for t in s.tests:
         t.id = test_id

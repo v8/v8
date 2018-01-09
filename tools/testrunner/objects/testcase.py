@@ -70,9 +70,15 @@ class TestCase(object):
     subtest.procid += '.%s' % subtest_id
     return subtest
 
-  def create_variant(self, variant, flags):
-    """Makes a shallow copy of the object and updates variant, variant_flags and
+  def create_variant(self, variant, flags, procid_suffix=None):
+    """Makes a shallow copy of the object and updates variant, variant flags and
     all fields that depend on it, e.g. expected outcomes.
+
+    Args
+      variant       - variant name
+      flags         - flags that should be added to origin test's variant flags
+      procid_suffix - for multiple variants with the same name set suffix to
+        keep procid unique.
     """
     other = copy.copy(self)
     if not self.variant_flags:
@@ -80,7 +86,10 @@ class TestCase(object):
     else:
       other.variant_flags = self.variant_flags + flags
     other.variant = variant
-    other.procid += '[%s]' % variant
+    if procid_suffix:
+      other.procid += '[%s-%s]' % (variant, procid_suffix)
+    else:
+      other.procid += '[%s]' % variant
 
     other._prepare_outcomes(variant != self.variant)
 

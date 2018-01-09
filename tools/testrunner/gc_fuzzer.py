@@ -198,7 +198,8 @@ class GCFuzzer(base_runner.BaseTestRunner):
         '--stress_marking', '1000',
         '--trace_incremental_marking',
       ]
-      s.tests = map(lambda t: t.create_variant(t.variant, analysis_flags),
+      s.tests = map(lambda t: t.create_variant(t.variant, analysis_flags,
+                                               'analysis'),
                     s.tests)
       for t in s.tests:
         t.cmd = t.get_command(ctx)
@@ -240,7 +241,7 @@ class GCFuzzer(base_runner.BaseTestRunner):
         if options.verbose:
           print ('%s [x%d] (max marking limit=%.02f)' %
                  (t.path, subtests_count, max_percent))
-        for _ in xrange(0, subtests_count):
+        for i in xrange(0, subtests_count):
           fuzzer_seed = self._next_fuzzer_seed()
           fuzzing_flags = [
             '--stress_marking', str(max_percent),
@@ -248,7 +249,7 @@ class GCFuzzer(base_runner.BaseTestRunner):
           ]
           if options.stress_compaction:
             fuzzing_flags.append('--stress_compaction_random')
-          s.tests.append(t.create_variant(t.variant, fuzzing_flags))
+          s.tests.append(t.create_variant(t.variant, fuzzing_flags, i))
       for t in s.tests:
         t.cmd = t.get_command(ctx)
       num_tests += len(s.tests)
