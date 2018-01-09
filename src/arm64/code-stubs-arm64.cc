@@ -30,7 +30,7 @@ namespace internal {
 
 void ArrayNArgumentsConstructorStub::Generate(MacroAssembler* masm) {
   __ Mov(x5, Operand(x0, LSL, kPointerSizeLog2));
-  __ Str(x1, MemOperand(jssp, x5));
+  __ Str(x1, MemOperand(__ StackPointer(), x5));
   __ Push(x1, x2);
   __ Add(x0, x0, Operand(3));
   __ TailCallRuntime(Runtime::kNewArray);
@@ -100,8 +100,8 @@ void DoubleToIStub::Generate(MacroAssembler* masm) {
 
 void MathPowStub::Generate(MacroAssembler* masm) {
   // Stack on entry:
-  // jssp[0]: Exponent (as a tagged value).
-  // jssp[1]: Base (as a tagged value).
+  // sp[0]: Exponent (as a tagged value).
+  // sp[1]: Base (as a tagged value).
   //
   // The (tagged) result will be returned in x0, as a heap number.
 
@@ -276,11 +276,11 @@ void CEntryStub::Generate(MacroAssembler* masm) {
   // The stack on entry holds the arguments and the receiver, with the receiver
   // at the highest address:
   //
-  //    jssp]argc-1]: receiver
-  //    jssp[argc-2]: arg[argc-2]
+  //    sp]argc-1]: receiver
+  //    sp[argc-2]: arg[argc-2]
   //    ...           ...
-  //    jssp[1]:      arg[1]
-  //    jssp[0]:      arg[0]
+  //    sp[1]:      arg[1]
+  //    sp[0]:      arg[0]
   //
   // The arguments are in reverse order, so that arg[argc-2] is actually the
   // first argument to the target function and arg[0] is the last.
@@ -533,7 +533,7 @@ void JSEntryStub::Generate(MacroAssembler* masm) {
 
   __ Push(x13, x12, xzr, x10);
   // Set up fp.
-  __ Sub(fp, jssp, EntryFrameConstants::kCallerFPOffset);
+  __ Sub(fp, __ StackPointer(), EntryFrameConstants::kCallerFPOffset);
 
   // Push the JS entry frame marker. Also set js_entry_sp if this is the
   // outermost JS call.
@@ -555,12 +555,12 @@ void JSEntryStub::Generate(MacroAssembler* masm) {
   __ Push(x12, padreg);
 
   // The frame set up looks like this:
-  // jssp[0] : padding.
-  // jssp[1] : JS entry frame marker.
-  // jssp[2] : C entry FP.
-  // jssp[3] : stack frame marker.
-  // jssp[4] : stack frame marker.
-  // jssp[5] : bad frame pointer 0xFFF...FF   <- fp points here.
+  // sp[0] : padding.
+  // sp[1] : JS entry frame marker.
+  // sp[2] : C entry FP.
+  // sp[3] : stack frame marker.
+  // sp[4] : stack frame marker.
+  // sp[5] : bad frame pointer 0xFFF...FF   <- fp points here.
 
   // Jump to a faked try block that does the invoke, with a faked catch
   // block that sets the pending exception.
@@ -602,7 +602,12 @@ void JSEntryStub::Generate(MacroAssembler* masm) {
   __ Push(padreg, x10);
 
   // Set this new handler as the current one.
-  __ Str(jssp, MemOperand(x11));
+  {
+    UseScratchRegisterScope temps(masm);
+    Register scratch = temps.AcquireX();
+    __ Mov(scratch, __ StackPointer());
+    __ Str(scratch, MemOperand(x11));
+  }
 
   // If an exception not caught by another handler occurs, this handler
   // returns control to the code after the B(&invoke) above, which
@@ -633,12 +638,12 @@ void JSEntryStub::Generate(MacroAssembler* masm) {
   // x0 holds the result.
   // The stack pointer points to the top of the entry frame pushed on entry from
   // C++ (at the beginning of this stub):
-  // jssp[0] : padding.
-  // jssp[1] : JS entry frame marker.
-  // jssp[2] : C entry FP.
-  // jssp[3] : stack frame marker.
-  // jssp[4] : stack frame marker.
-  // jssp[5] : bad frame pointer 0xFFF...FF   <- fp points here.
+  // sp[0] : padding.
+  // sp[1] : JS entry frame marker.
+  // sp[2] : C entry FP.
+  // sp[3] : stack frame marker.
+  // sp[4] : stack frame marker.
+  // sp[5] : bad frame pointer 0xFFF...FF   <- fp points here.
 
   // Check if the current stack frame is marked as the outermost JS frame.
   Label non_outermost_js_2;

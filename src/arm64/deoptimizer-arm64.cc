@@ -220,8 +220,12 @@ void Deoptimizer::TableEntryGenerator::Generate() {
   }
   __ Pop(x4, padreg);  // Restore deoptimizer object (class Deoptimizer).
 
-  __ Ldr(__ StackPointer(),
-         MemOperand(x4, Deoptimizer::caller_frame_top_offset()));
+  {
+    UseScratchRegisterScope temps(masm());
+    Register scratch = temps.AcquireX();
+    __ Ldr(scratch, MemOperand(x4, Deoptimizer::caller_frame_top_offset()));
+    __ Mov(__ StackPointer(), scratch);
+  }
 
   // Replace the current (input) frame with the output frames.
   Label outer_push_loop, inner_push_loop,

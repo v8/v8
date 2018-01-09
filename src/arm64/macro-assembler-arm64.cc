@@ -1885,39 +1885,18 @@ void TurboAssembler::CallCFunction(Register function, int num_of_reg_args,
   // so the return address in the link register stays correct.
   Call(function);
 
-  if (csp.Is(old_stack_pointer)) {
-    if (num_of_reg_args > kRegisterPassedArguments) {
-      // Drop the register passed arguments.
-      int claim_slots = RoundUp(num_of_reg_args - kRegisterPassedArguments, 2);
-      Drop(claim_slots);
-    }
-  } else {
-    DCHECK(jssp.Is(old_stack_pointer));
+  if (num_of_reg_args > kRegisterPassedArguments) {
+    // Drop the register passed arguments.
+    int claim_slots = RoundUp(num_of_reg_args - kRegisterPassedArguments, 2);
+    Drop(claim_slots);
+  }
+  if (jssp.Is(old_stack_pointer)) {
     if (emit_debug_code()) {
       UseScratchRegisterScope temps(this);
       Register temp = temps.AcquireX();
-
-      if (num_of_reg_args > kRegisterPassedArguments) {
-        // We don't need to drop stack arguments, as the stack pointer will be
-        // jssp when returning from this function. However, in debug builds, we
-        // can check that jssp is as expected.
-        int claim_slots =
-            RoundUp(num_of_reg_args - kRegisterPassedArguments, 2);
-
-        // Check jssp matches the previous value on the stack.
-        Ldr(temp, MemOperand(csp, claim_slots * kPointerSize));
-        Cmp(jssp, temp);
-        Check(eq, AbortReason::kTheStackWasCorruptedByMacroAssemblerCall);
-      } else {
-        // Because the stack pointer must be aligned on a 16-byte boundary, the
-        // aligned csp can be up to 12 bytes below the jssp. This is the case
-        // where we only pushed one W register on top of an aligned jssp.
-        Sub(temp, csp, old_stack_pointer);
-        // We want temp <= 0 && temp >= -12.
-        Cmp(temp, 0);
-        Ccmp(temp, -12, NFlag, le);
-        Check(ge, AbortReason::kTheStackWasCorruptedByMacroAssemblerCall);
-      }
+      Mov(temp, csp);
+      Cmp(old_stack_pointer, temp);
+      Check(eq, AbortReason::kTheStackWasCorruptedByMacroAssemblerCall);
     }
     SetStackPointer(old_stack_pointer);
   }
@@ -2166,13 +2145,16 @@ void TurboAssembler::PrepareForTailCall(const ParameterCount& callee_args_count,
   Add(dst_reg, dst_reg, 15);
   Bic(dst_reg, dst_reg, 15);
 
+  DCHECK(jssp.Is(StackPointer()));
   Register src_reg = caller_args_count_reg;
   // Calculate the end of source area. +kPointerSize is for the receiver.
   if (callee_args_count.is_reg()) {
-    Add(src_reg, jssp, Operand(callee_args_count.reg(), LSL, kPointerSizeLog2));
+    Add(src_reg, StackPointer(),
+        Operand(callee_args_count.reg(), LSL, kPointerSizeLog2));
     Add(src_reg, src_reg, kPointerSize);
   } else {
-    Add(src_reg, jssp, (callee_args_count.immediate() + 1) * kPointerSize);
+    Add(src_reg, StackPointer(),
+        (callee_args_count.immediate() + 1) * kPointerSize);
   }
 
   // Round src_reg up to a multiple of 16 bytes, so we include any potential
@@ -2202,11 +2184,11 @@ void TurboAssembler::PrepareForTailCall(const ParameterCount& callee_args_count,
   Ldr(tmp_reg, MemOperand(src_reg, -kPointerSize, PreIndex));
   Str(tmp_reg, MemOperand(dst_reg, -kPointerSize, PreIndex));
   bind(&entry);
-  Cmp(jssp, src_reg);
+  Cmp(StackPointer(), src_reg);
   B(ne, &loop);
 
   // Leave current frame.
-  Mov(jssp, dst_reg);
+  Mov(StackPointer(), dst_reg);
   SetStackPointer(jssp);
   AssertStackConsistency();
 }
@@ -2477,8 +2459,9 @@ void TurboAssembler::TruncateDoubleToIDelayed(Zone* zone, Register result,
 }
 
 void TurboAssembler::Prologue() {
+  DCHECK(jssp.Is(StackPointer()));
   Push(lr, fp, cp, x1);
-  Add(fp, jssp, StandardFrameConstants::kFixedFrameSizeFromFp);
+  Add(fp, StackPointer(), StandardFrameConstants::kFixedFrameSizeFromFp);
 }
 
 void TurboAssembler::EnterFrame(StackFrame::Type type) {
@@ -2491,11 +2474,11 @@ void TurboAssembler::EnterFrame(StackFrame::Type type) {
     Mov(type_reg, StackFrame::TypeToMarker(type));
     Mov(code_reg, Operand(CodeObject()));
     Push(lr, fp, type_reg, code_reg);
-    Add(fp, jssp, InternalFrameConstants::kFixedFrameSizeFromFp);
-    // jssp[4] : lr
-    // jssp[3] : fp
-    // jssp[1] : type
-    // jssp[0] : [code object]
+    Add(fp, StackPointer(), InternalFrameConstants::kFixedFrameSizeFromFp);
+    // sp[4] : lr
+    // sp[3] : fp
+    // sp[1] : type
+    // sp[0] : [code object]
   } else if (type == StackFrame::WASM_COMPILED) {
     DCHECK(csp.Is(StackPointer()));
     Mov(type_reg, StackFrame::TypeToMarker(type));
@@ -2517,11 +2500,12 @@ void TurboAssembler::EnterFrame(StackFrame::Type type) {
 
     // The context pointer isn't part of the fixed frame, so add an extra slot
     // to account for it.
-    Add(fp, jssp, TypedFrameConstants::kFixedFrameSizeFromFp + kPointerSize);
-    // jssp[3] : lr
-    // jssp[2] : fp
-    // jssp[1] : type
-    // jssp[0] : cp
+    Add(fp, StackPointer(),
+        TypedFrameConstants::kFixedFrameSizeFromFp + kPointerSize);
+    // sp[3] : lr
+    // sp[2] : fp
+    // sp[1] : type
+    // sp[0] : cp
   }
 }
 
@@ -2535,7 +2519,7 @@ void TurboAssembler::LeaveFrame(StackFrame::Type type) {
     DCHECK(jssp.Is(StackPointer()));
     // Drop the execution stack down to the frame pointer and restore
     // the caller frame pointer and return address.
-    Mov(jssp, fp);
+    Mov(StackPointer(), fp);
     AssertStackConsistency();
     Pop(fp, lr);
   }
@@ -2582,7 +2566,7 @@ void MacroAssembler::EnterExitFrame(bool save_doubles, const Register& scratch,
   //          fp[-8]: STUB marker
   //          fp[-16]: Space reserved for SPOffset.
   //          fp[-24]: CodeObject()
-  //  jssp -> fp[-32]: padding
+  //    sp -> fp[-32]: padding
   STATIC_ASSERT((2 * kPointerSize) == ExitFrameConstants::kCallerSPOffset);
   STATIC_ASSERT((1 * kPointerSize) == ExitFrameConstants::kCallerPCOffset);
   STATIC_ASSERT((0 * kPointerSize) == ExitFrameConstants::kCallerFPOffset);
@@ -2616,8 +2600,8 @@ void MacroAssembler::EnterExitFrame(bool save_doubles, const Register& scratch,
   //         fp[-16]: Space reserved for SPOffset.
   //         fp[-24]: CodeObject()
   //         fp[-24 - fp_size]: Saved doubles (if save_doubles is true).
-  //         jssp[8]: Extra space reserved for caller (if extra_space != 0).
-  // jssp -> jssp[0]: Space reserved for the return address.
+  //         sp[8]: Extra space reserved for caller (if extra_space != 0).
+  //   sp -> sp[0]: Space reserved for the return address.
 
   // Align and synchronize the system stack pointer with jssp.
   AlignAndSetCSPForFrame();
@@ -2630,7 +2614,6 @@ void MacroAssembler::EnterExitFrame(bool save_doubles, const Register& scratch,
   //         fp[-24]: CodeObject()
   //         fp[-24 - fp_size]: Saved doubles (if save_doubles is true).
   //         csp[8]: Memory reserved for the caller if extra_space != 0.
-  //                 Alignment padding, if necessary.
   //  csp -> csp[0]: Space reserved for the return address.
 
   // ExitFrame::GetStateForFramePointer expects to find the return address at

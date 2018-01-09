@@ -589,8 +589,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       // allocator.
       CallDescriptor::Flags flags(MiscField::decode(opcode));
       if (flags & CallDescriptor::kRestoreJSSP) {
-        __ Ldr(jssp, MemOperand(csp));
-        __ Mov(csp, jssp);
+        __ Mov(jssp, csp);
       }
       if (flags & CallDescriptor::kRestoreCSP) {
         __ Mov(csp, jssp);
@@ -623,8 +622,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       // allocator.
       CallDescriptor::Flags flags(MiscField::decode(opcode));
       if (flags & CallDescriptor::kRestoreJSSP) {
-        __ Ldr(jssp, MemOperand(csp));
-        __ Mov(csp, jssp);
+        __ Mov(jssp, csp);
       }
       if (flags & CallDescriptor::kRestoreCSP) {
         __ Mov(csp, jssp);
@@ -708,8 +706,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       // allocator.
       CallDescriptor::Flags flags(MiscField::decode(opcode));
       if (flags & CallDescriptor::kRestoreJSSP) {
-        __ Ldr(jssp, MemOperand(csp));
-        __ Mov(csp, jssp);
+        __ Mov(jssp, csp);
       }
       if (flags & CallDescriptor::kRestoreCSP) {
         __ Mov(csp, jssp);
@@ -1224,15 +1221,11 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       // Pseudo instruction turned into cbz/cbnz in AssembleArchBranch.
       break;
     case kArm64ClaimCSP: {
-      int count = RoundUp(i.InputInt32(0), 2);
+      int count = i.InputInt32(0);
+      DCHECK_EQ(count % 2, 0);
       Register prev = __ StackPointer();
       if (prev.Is(jssp)) {
         // TODO(titzer): make this a macro-assembler method.
-        // Align the CSP and store the previous JSSP on the stack. We do not
-        // need to modify the SP delta here, as we will continue to access the
-        // frame via JSSP.
-        UseScratchRegisterScope scope(tasm());
-        Register tmp = scope.AcquireX();
 
         // TODO(arm64): Storing JSSP on the stack is redundant when calling a C
         // function, as JSSP is callee-saved (we still need to do this when
@@ -1241,15 +1234,12 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
         // (the latter does not restore CSP/JSSP).
         // TurboAssembler::CallCFunction() (safely) drops this extra slot
         // anyway.
-        int sp_alignment = __ ActivationFrameAlignment();
-        __ Sub(tmp, jssp, kPointerSize);
-        __ Bic(csp, tmp, sp_alignment - 1);
-        __ Str(jssp, MemOperand(csp));
+        __ SetStackPointer(csp);
+        __ Mov(csp, jssp);
         if (count > 0) {
-          __ SetStackPointer(csp);
           __ Claim(count);
-          __ SetStackPointer(prev);
         }
+        __ SetStackPointer(prev);
       } else {
         __ AssertCspAligned();
         if (count > 0) {
@@ -1261,14 +1251,15 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     }
     case kArm64ClaimJSSP: {
       int count = i.InputInt32(0);
+      DCHECK_EQ(count % 2, 0);
       if (csp.Is(__ StackPointer())) {
         // No JSSP is set up. Compute it from the CSP.
         __ AssertCspAligned();
         if (count > 0) {
           int even = RoundUp(count, 2);
-          __ Sub(jssp, csp, count * kPointerSize);
           // We must also update CSP to maintain stack consistency:
           __ Sub(csp, csp, even * kPointerSize);  // Must always be aligned.
+          __ Mov(jssp, csp);
           __ AssertStackConsistency();
           frame_access_state()->IncreaseSPDelta(even);
         } else {

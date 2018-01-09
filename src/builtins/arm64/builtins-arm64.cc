@@ -552,7 +552,7 @@ void Builtins::Generate_ResumeGeneratorTrampoline(MacroAssembler* masm) {
   // Check the stack for overflow. We are not trying to catch interruptions
   // (i.e. debug break and preemption) here, so check the "real stack limit".
   Label stack_overflow;
-  __ CompareRoot(jssp, Heap::kRealStackLimitRootIndex);
+  __ CompareRoot(__ StackPointer(), Heap::kRealStackLimitRootIndex);
   __ B(lo, &stack_overflow);
 
   // Get number of arguments for generator function.
@@ -579,8 +579,8 @@ void Builtins::Generate_ResumeGeneratorTrampoline(MacroAssembler* masm) {
   //  -- x10                      : argument count
   //  -- cp                       : generator context
   //  -- lr                       : return address
-  //  -- jssp[arg count]          : generator receiver
-  //  -- jssp[0 .. arg count - 1] : claimed for args
+  //  -- sp[arg count]            : generator receiver
+  //  -- sp[0 .. arg count - 1]   : claimed for args
   // -----------------------------------
 
   // Push holes for arguments to generator function. Since the parser forced
@@ -1010,9 +1010,10 @@ void Builtins::Generate_InterpreterEntryTrampoline(MacroAssembler* masm) {
   // Open a frame scope to indicate that there is a frame on the stack.  The
   // MANUAL indicates that the scope shouldn't actually generate code to set up
   // the frame (that is done below).
+  DCHECK(jssp.Is(__ StackPointer()));
   FrameScope frame_scope(masm, StackFrame::MANUAL);
   __ Push(lr, fp, cp, closure);
-  __ Add(fp, jssp, StandardFrameConstants::kFixedFrameSizeFromFp);
+  __ Add(fp, __ StackPointer(), StandardFrameConstants::kFixedFrameSizeFromFp);
 
   // Get the bytecode array from the function object (or from the DebugInfo if
   // it is present) and load it into kInterpreterBytecodeArrayRegister.
@@ -1064,7 +1065,7 @@ void Builtins::Generate_InterpreterEntryTrampoline(MacroAssembler* masm) {
     // Do a stack check to ensure we don't go over the limit.
     Label ok;
     DCHECK(jssp.Is(__ StackPointer()));
-    __ Sub(x10, jssp, Operand(x11));
+    __ Sub(x10, __ StackPointer(), Operand(x11));
     __ CompareRoot(x10, Heap::kRealStackLimitRootIndex);
     __ B(hs, &ok);
     __ CallRuntime(Runtime::kThrowStackOverflow);
@@ -1649,8 +1650,9 @@ void Generate_ContinueToBuiltinHelper(MacroAssembler* masm,
                         allocatable_register_count)) *
                        kPointerSize;
 
+  DCHECK(jssp.Is(__ StackPointer()));
   // Set up frame pointer.
-  __ Add(fp, jssp, frame_size);
+  __ Add(fp, __ StackPointer(), frame_size);
 
   if (with_result) {
     // Overwrite the hole inserted by the deoptimizer with the return value from
@@ -1786,9 +1788,9 @@ void Builtins::Generate_InterpreterOnStackReplacement(MacroAssembler* masm) {
 void Builtins::Generate_FunctionPrototypeApply(MacroAssembler* masm) {
   // ----------- S t a t e -------------
   //  -- x0       : argc
-  //  -- jssp[0]  : argArray (if argc == 2)
-  //  -- jssp[8]  : thisArg  (if argc >= 1)
-  //  -- jssp[16] : receiver
+  //  -- sp[0]    : argArray (if argc == 2)
+  //  -- sp[8]    : thisArg  (if argc >= 1)
+  //  -- sp[16]   : receiver
   // -----------------------------------
   ASM_LOCATION("Builtins::Generate_FunctionPrototypeApply");
 
@@ -1840,7 +1842,7 @@ void Builtins::Generate_FunctionPrototypeApply(MacroAssembler* masm) {
   // ----------- S t a t e -------------
   //  -- x2      : argArray
   //  -- x1      : receiver
-  //  -- jssp[0] : thisArg
+  //  -- sp[0]   : thisArg
   // -----------------------------------
 
   // 2. We don't need to check explicitly for callable receiver here,
@@ -1926,10 +1928,10 @@ void Builtins::Generate_FunctionPrototypeCall(MacroAssembler* masm) {
 void Builtins::Generate_ReflectApply(MacroAssembler* masm) {
   // ----------- S t a t e -------------
   //  -- x0       : argc
-  //  -- jssp[0]  : argumentsList (if argc == 3)
-  //  -- jssp[8]  : thisArgument  (if argc >= 2)
-  //  -- jssp[16] : target        (if argc >= 1)
-  //  -- jssp[24] : receiver
+  //  -- sp[0]    : argumentsList (if argc == 3)
+  //  -- sp[8]    : thisArgument  (if argc >= 2)
+  //  -- sp[16]   : target        (if argc >= 1)
+  //  -- sp[24]   : receiver
   // -----------------------------------
   ASM_LOCATION("Builtins::Generate_ReflectApply");
 
@@ -1988,7 +1990,7 @@ void Builtins::Generate_ReflectApply(MacroAssembler* masm) {
   // ----------- S t a t e -------------
   //  -- x2      : argumentsList
   //  -- x1      : target
-  //  -- jssp[0] : thisArgument
+  //  -- sp[0]   : thisArgument
   // -----------------------------------
 
   // 2. We don't need to check explicitly for callable target here,
@@ -2003,10 +2005,10 @@ void Builtins::Generate_ReflectApply(MacroAssembler* masm) {
 void Builtins::Generate_ReflectConstruct(MacroAssembler* masm) {
   // ----------- S t a t e -------------
   //  -- x0       : argc
-  //  -- jssp[0]  : new.target (optional)
-  //  -- jssp[8]  : argumentsList
-  //  -- jssp[16] : target
-  //  -- jssp[24] : receiver
+  //  -- sp[0]    : new.target (optional)
+  //  -- sp[8]    : argumentsList
+  //  -- sp[16]   : target
+  //  -- sp[24]   : receiver
   // -----------------------------------
   ASM_LOCATION("Builtins::Generate_ReflectConstruct");
 
@@ -2070,7 +2072,7 @@ void Builtins::Generate_ReflectConstruct(MacroAssembler* masm) {
   //  -- x2      : argumentsList
   //  -- x1      : target
   //  -- x3      : new.target
-  //  -- jssp[0] : receiver (undefined)
+  //  -- sp[0]   : receiver (undefined)
   // -----------------------------------
 
   // 2. We don't need to check explicitly for constructor target here,
@@ -2094,7 +2096,8 @@ void EnterArgumentsAdaptorFrame(MacroAssembler* masm) {
   __ Push(x11, x1);  // x1: function
   __ SmiTag(x11, x0);  // x0: number of arguments.
   __ Push(x11, padreg);
-  __ Add(fp, jssp, ArgumentsAdaptorFrameConstants::kFixedFrameSizeFromFp);
+  __ Add(fp, __ StackPointer(),
+         ArgumentsAdaptorFrameConstants::kFixedFrameSizeFromFp);
 }
 
 void LeaveArgumentsAdaptorFrame(MacroAssembler* masm) {
@@ -2104,7 +2107,7 @@ void LeaveArgumentsAdaptorFrame(MacroAssembler* masm) {
   // Get the number of arguments passed (as a smi), tear down the frame and
   // then drop the parameters and the receiver.
   __ Ldr(x10, MemOperand(fp, ArgumentsAdaptorFrameConstants::kLengthOffset));
-  __ Mov(jssp, fp);
+  __ Mov(__ StackPointer(), fp);
   __ Pop(fp, lr);
 
   // Drop actual parameters and receiver.
@@ -2857,7 +2860,7 @@ void Builtins::Generate_ArgumentsAdaptorTrampoline(MacroAssembler* masm) {
   __ Bic(scratch1, scratch1, 1);
   __ Claim(scratch1, kPointerSize);
 
-  __ Mov(copy_to, jssp);
+  __ Mov(copy_to, __ StackPointer());
 
   // Preparing the expected arguments is done in four steps, the order of
   // which is chosen so we can use LDP/STP and avoid conditional branches as
@@ -2914,14 +2917,15 @@ void Builtins::Generate_ArgumentsAdaptorTrampoline(MacroAssembler* masm) {
   __ RecordComment("-- Store padding --");
   __ Str(padreg, MemOperand(fp, -5 * kPointerSize));
 
-  // (4) Store receiver. Calculate target address from jssp to avoid checking
+  // (4) Store receiver. Calculate target address from the sp to avoid checking
   // for padding. Storing the receiver will overwrite either the extra slot
   // we copied with the actual arguments, if we did copy one, or the padding we
   // stored above.
   __ RecordComment("-- Store receiver --");
   __ Add(copy_from, fp, 2 * kPointerSize);
   __ Ldr(scratch1, MemOperand(copy_from, argc_actual, LSL, kPointerSizeLog2));
-  __ Str(scratch1, MemOperand(jssp, argc_expected, LSL, kPointerSizeLog2));
+  __ Str(scratch1,
+         MemOperand(__ StackPointer(), argc_expected, LSL, kPointerSizeLog2));
 
   // Arguments have been adapted. Now call the entry point.
   __ RecordComment("-- Call entry point --");
