@@ -728,6 +728,8 @@ DEFINE_INT(stress_scavenge, 0,
 DEFINE_IMPLICATION(fuzzer_gc_analysis, stress_marking)
 DEFINE_IMPLICATION(fuzzer_gc_analysis, stress_scavenge)
 
+DEFINE_BOOL(disable_abortjs, false, "disables AbortJS runtime function")
+
 DEFINE_BOOL(manual_evacuation_candidates_selection, false,
             "Test mode only flag. It allows an unit test to select evacuation "
             "candidates pages (requires --stress_compaction).")

@@ -784,6 +784,10 @@ RUNTIME_FUNCTION(Runtime_AbortJS) {
   HandleScope scope(isolate);
   DCHECK_EQ(1, args.length());
   CONVERT_ARG_HANDLE_CHECKED(String, message, 0);
+  if (FLAG_disable_abortjs) {
+    base::OS::PrintError("[disabled] abort: %s\n", message->ToCString().get());
+    return nullptr;
+  }
   base::OS::PrintError("abort: %s\n", message->ToCString().get());
   isolate->PrintStack(stderr);
   base::OS::Abort();
