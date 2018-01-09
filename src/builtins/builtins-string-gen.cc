@@ -563,7 +563,7 @@ TF_BUILTIN(StringFromCharCode, CodeStubAssembler) {
   Node* context = Parameter(BuiltinDescriptor::kContext);
 
   CodeStubArguments arguments(this, ChangeInt32ToIntPtr(argc));
-  TNode<Smi> smi_argc = SmiTag(arguments.GetLength());
+  TNode<Smi> smi_argc = SmiTag(arguments.GetLength(INTPTR_PARAMETERS));
   // Check if we have exactly one argument (plus the implicit receiver), i.e.
   // if the parent frame is not an arguments adaptor frame.
   Label if_oneargument(this), if_notoneargument(this);
@@ -1003,7 +1003,7 @@ void StringIncludesIndexOfAssembler::Generate(SearchVariant variant) {
   CodeStubArguments arguments(this, ChangeInt32ToIntPtr(argc));
   Node* const receiver = arguments.GetReceiver();
   // From now on use word-size argc value.
-  argc = arguments.GetLength();
+  argc = arguments.GetLength(INTPTR_PARAMETERS);
 
   VARIABLE(var_search_string, MachineRepresentation::kTagged);
   VARIABLE(var_position, MachineRepresentation::kTagged);

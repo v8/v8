@@ -1996,7 +1996,10 @@ TNode<Smi> CodeStubAssembler::BuildAppendJSArray(ElementsKind kind,
 
   // Resize the capacity of the fixed array if it doesn't fit.
   TNode<IntPtrT> first = *arg_index;
-  Node* growth = WordToParameter(IntPtrSub(args->GetLength(), first), mode);
+  Node* growth = WordToParameter(
+      IntPtrSub(UncheckedCast<IntPtrT>(args->GetLength(INTPTR_PARAMETERS)),
+                first),
+      mode);
   PossiblyGrowElementsCapacity(mode, kind, array, var_length.value(),
                                &var_elements, growth, &pre_bailout);
 
@@ -10361,7 +10364,7 @@ Node* CodeStubAssembler::IsDetachedBuffer(Node* buffer) {
 }
 
 CodeStubArguments::CodeStubArguments(
-    CodeStubAssembler* assembler, SloppyTNode<IntPtrT> argc, Node* fp,
+    CodeStubAssembler* assembler, Node* argc, Node* fp,
     CodeStubAssembler::ParameterMode param_mode, ReceiverMode receiver_mode)
     : assembler_(assembler),
       argc_mode_(param_mode),
@@ -10398,7 +10401,7 @@ TNode<Object> CodeStubArguments::AtIndex(
     Node* index, CodeStubAssembler::ParameterMode mode) const {
   DCHECK_EQ(argc_mode_, mode);
   CSA_ASSERT(assembler_,
-             assembler_->UintPtrOrSmiLessThan(index, GetLength(), mode));
+             assembler_->UintPtrOrSmiLessThan(index, GetLength(mode), mode));
   return assembler_->UncheckedCast<Object>(
       assembler_->Load(MachineType::AnyTagged(), AtIndexPtr(index, mode)));
 }

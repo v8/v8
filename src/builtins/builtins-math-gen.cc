@@ -161,7 +161,7 @@ void MathBuiltinsAssembler::MathMaxMin(
                                                     SloppyTNode<Float64T>),
     double default_val) {
   CodeStubArguments arguments(this, ChangeInt32ToIntPtr(argc));
-  argc = arguments.GetLength();
+  argc = arguments.GetLength(INTPTR_PARAMETERS);
 
   VARIABLE(result, MachineRepresentation::kFloat64);
   result.Bind(Float64Constant(default_val));
