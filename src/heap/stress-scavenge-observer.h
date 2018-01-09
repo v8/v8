@@ -19,10 +19,16 @@ class StressScavengeObserver : public AllocationObserver {
   bool HasRequestedGC() const;
   void RequestedGCDone();
 
+  // The maximum percent of the newspace capacity reached. This is tracked when
+  // specyfing --fuzzer-gc-analysis.
+  double MaxNewSpaceSizeReached() const;
+
  private:
   Heap& heap_;
   int limit_percentage_;
   bool has_requested_gc_;
+
+  double max_new_space_size_reached_;
 
   int NextLimit(int min = 0);
 };

@@ -656,6 +656,8 @@ DEFINE_BOOL(parallel_pointer_update, true,
             "use parallel pointer update during compaction")
 DEFINE_BOOL(trace_incremental_marking, false,
             "trace progress of the incremental marking")
+DEFINE_BOOL(trace_stress_marking, false, "trace stress marking progress")
+DEFINE_BOOL(trace_stress_scavenge, false, "trace stress scavenge progress")
 DEFINE_BOOL(track_gc_object_stats, false,
             "track object counts and memory usage")
 DEFINE_BOOL(trace_gc_object_stats, false,
@@ -705,13 +707,18 @@ DEFINE_BOOL(stress_compaction_random, false,
             "evacuation candidates. It overrides stress_compaction.")
 DEFINE_BOOL(stress_incremental_marking, false,
             "force incremental marking for small heaps and run it more often")
+
+DEFINE_BOOL(fuzzer_gc_analysis, false,
+            "enables analysis mode for gc fuzz testing, e.g. --stress-marking, "
+            "--stress-scavenge")
 DEFINE_INT(stress_marking, 0,
            "force marking at random points between 0 and X (inclusive) percent "
            "of the regular marking start limit")
 DEFINE_INT(stress_scavenge, 0,
            "force scavenge at random points between 0 and X (inclusive) "
            "percent of the new space capacity")
-DEFINE_BOOL(stress_scavenge_analysis, false, "enables stress-scavenge logging.")
+DEFINE_IMPLICATION(fuzzer_gc_analysis, stress_marking)
+DEFINE_IMPLICATION(fuzzer_gc_analysis, stress_scavenge)
 
 DEFINE_BOOL(manual_evacuation_candidates_selection, false,
             "Test mode only flag. It allows an unit test to select evacuation "

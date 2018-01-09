@@ -177,6 +177,7 @@ Heap::Heap()
       raw_allocations_hash_(0),
       stress_marking_observer_(nullptr),
       stress_scavenge_observer_(nullptr),
+      max_marking_limit_reached_(0.0),
       ms_count_(0),
       gc_count_(0),
       mmap_region_base_(0),
@@ -5448,13 +5449,20 @@ Heap::IncrementalMarkingLimit Heap::IncrementalMarkingLimitReached() {
     if (bytes_to_limit > 0) {
       double current_percent = (gained_since_last_gc / bytes_to_limit) * 100.0;
 
-      if (FLAG_trace_incremental_marking) {
+      if (FLAG_trace_stress_marking) {
         isolate()->PrintWithTimestamp(
             "[IncrementalMarking] %.2lf%% of the memory limit reached\n",
             current_percent);
       }
 
-      if (static_cast<int>(current_percent) >= stress_marking_percentage_) {
+      if (FLAG_fuzzer_gc_analysis) {
+        // Skips values >=100% since they already trigger marking.
+        if (current_percent < 100.0) {
+          max_marking_limit_reached_ =
+              std::max(max_marking_limit_reached_, current_percent);
+        }
+      } else if (static_cast<int>(current_percent) >=
+                 stress_marking_percentage_) {
         stress_marking_percentage_ = NextStressMarkingLimit();
         return IncrementalMarkingLimit::kHardLimit;
       }
@@ -5610,12 +5618,11 @@ bool Heap::SetUp() {
 
   if (FLAG_stress_marking > 0) {
     stress_marking_percentage_ = NextStressMarkingLimit();
-
     stress_marking_observer_ = new StressMarkingObserver(*this);
     AddAllocationObserversToAllSpaces(stress_marking_observer_,
                                       stress_marking_observer_);
   }
-  if (FLAG_stress_scavenge_analysis || FLAG_stress_scavenge > 0) {
+  if (FLAG_stress_scavenge > 0) {
     stress_scavenge_observer_ = new StressScavengeObserver(*this);
     new_space()->AddAllocationObserver(stress_scavenge_observer_);
   }
@@ -5656,6 +5663,16 @@ void Heap::ClearStackLimits() {
 void Heap::PrintAllocationsHash() {
   uint32_t hash = StringHasher::GetHashCore(raw_allocations_hash_);
   PrintF("\n### Allocations = %u, hash = 0x%08x\n", allocations_count(), hash);
+}
+
+void Heap::PrintMaxMarkingLimitReached() {
+  PrintF("\n### Maximum marking limit reached = %.02lf\n",
+         max_marking_limit_reached_);
+}
+
+void Heap::PrintMaxNewSpaceSizeReached() {
+  PrintF("\n### Maximum new space size reached = %.02lf\n",
+         stress_scavenge_observer_->MaxNewSpaceSizeReached());
 }
 
 int Heap::NextStressMarkingLimit() {
@@ -5724,6 +5741,15 @@ void Heap::TearDown() {
     PrintAllocationsHash();
   }
 
+  if (FLAG_fuzzer_gc_analysis) {
+    if (FLAG_stress_marking > 0) {
+      PrintMaxMarkingLimitReached();
+    }
+    if (FLAG_stress_scavenge > 0) {
+      PrintMaxNewSpaceSizeReached();
+    }
+  }
+
   new_space()->RemoveAllocationObserver(idle_scavenge_observer_);
   delete idle_scavenge_observer_;
   idle_scavenge_observer_ = nullptr;
@@ -5734,7 +5760,7 @@ void Heap::TearDown() {
     delete stress_marking_observer_;
     stress_marking_observer_ = nullptr;
   }
-  if (FLAG_stress_scavenge_analysis || FLAG_stress_scavenge > 0) {
+  if (FLAG_stress_scavenge > 0) {
     new_space()->RemoveAllocationObserver(stress_scavenge_observer_);
     delete stress_scavenge_observer_;
     stress_scavenge_observer_ = nullptr;
