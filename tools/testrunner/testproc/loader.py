@@ -6,6 +6,9 @@ from . import base
 
 
 class LoadProc(base.TestProc):
+  """First processor in the chain that passes all tests to the next processor.
+  """
+
   def load_tests(self, tests):
     loaded = set()
     for test in tests:
@@ -16,5 +19,9 @@ class LoadProc(base.TestProc):
       loaded.add(test.procid)
       self._send_test(test)
 
+  def next_test(self, test):
+    assert False, 'Nothing can be connected to the LoadProc'
+
   def result_for(self, test, result, is_last):
+    # Ignore all results.
     pass

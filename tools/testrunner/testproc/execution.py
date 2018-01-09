@@ -30,6 +30,11 @@ class Job(object):
 
 
 class ExecutionProc(base.TestProc):
+  """Last processor in the chain. Instead of passing tests further it creates
+  commands and output processors, executes them in multiple worker processes and
+  sends results to the previous processor.
+  """
+
   def __init__(self, jobs, context):
     super(ExecutionProc, self).__init__()
     self._pool = pool.Pool(jobs)
