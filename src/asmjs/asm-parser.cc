@@ -292,6 +292,9 @@ void AsmJsParser::Begin(AsmJsScanner::token_t label) {
 
 void AsmJsParser::Loop(AsmJsScanner::token_t label) {
   BareBegin(BlockKind::kLoop, label);
+  int position = static_cast<int>(scanner_.Position());
+  DCHECK_EQ(position, scanner_.Position());
+  current_function_builder_->AddAsmWasmOffset(position, position);
   current_function_builder_->EmitWithU8(kExprLoop, kLocalVoid);
 }
 
