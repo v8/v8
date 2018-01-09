@@ -1034,6 +1034,7 @@ void MacroAssembler::LeaveExitFrame(bool save_doubles, Register argument_count,
   LoadP(cp, MemOperand(ip));
 
 #ifdef DEBUG
+  mov(r6, Operand(Context::kInvalidContext));
   mov(ip,
       Operand(ExternalReference(IsolateAddressId::kContextAddress, isolate())));
   StoreP(r6, MemOperand(ip));
