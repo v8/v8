@@ -6607,9 +6607,7 @@ Code* Heap::GcSafeFindCodeForInnerPointer(Address inner_pointer) {
     return GcSafeCastToCode(this, large_page->GetObject(), inner_pointer);
   }
 
-  if (!code_space()->Contains(inner_pointer)) {
-    return nullptr;
-  }
+  DCHECK(code_space()->Contains(inner_pointer));
 
   // Iterate through the page until we reach the end or find an object starting
   // after the inner pointer.
