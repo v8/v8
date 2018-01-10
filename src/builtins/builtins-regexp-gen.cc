@@ -1219,8 +1219,7 @@ TF_BUILTIN(RegExpPrototypeFlagsGetter, RegExpBuiltinsAssembler) {
   Node* const receiver = maybe_receiver;
 
   Label if_isfastpath(this), if_isslowpath(this, Label::kDeferred);
-  Branch(IsFastRegExpNoPrototype(context, receiver, map), &if_isfastpath,
-         &if_isslowpath);
+  BranchIfFastRegExp(context, receiver, map, &if_isfastpath, &if_isslowpath);
 
   BIND(&if_isfastpath);
   Return(FlagsGetter(context, receiver, true));
