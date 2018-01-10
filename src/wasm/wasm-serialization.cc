@@ -620,13 +620,15 @@ bool NativeModuleDeserializer::ReadCode() {
         // We only expect {undefined}. We check for that when we add code.
         iter.rinfo()->set_target_object(isolate_->heap()->undefined_value(),
                                         SKIP_WRITE_BARRIER);
+        break;
       }
       case RelocInfo::CODE_TARGET: {
         uint32_t tag = GetWasmCalleeTag(iter.rinfo());
         Address target = GetTrampolineOrStubFromTag(tag);
         iter.rinfo()->set_target_address(nullptr, target, SKIP_WRITE_BARRIER,
                                          SKIP_ICACHE_FLUSH);
-      } break;
+        break;
+      }
       case RelocInfo::RUNTIME_ENTRY: {
         uint32_t orig_target = static_cast<uint32_t>(
             reinterpret_cast<intptr_t>(iter.rinfo()->target_address()));
@@ -634,7 +636,8 @@ bool NativeModuleDeserializer::ReadCode() {
             ExternalReferenceTable::instance(isolate_)->address(orig_target);
         iter.rinfo()->set_target_runtime_entry(
             nullptr, address, SKIP_WRITE_BARRIER, SKIP_ICACHE_FLUSH);
-      } break;
+        break;
+      }
       default:
         break;
     }
