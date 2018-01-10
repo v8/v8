@@ -296,10 +296,8 @@ int InstructionScheduler::GetTargetInstructionFlags(
 
     case kArm64Float64Mod:  // This opcode will call a C Function which can
                             // alter CSP. TODO(arm64): Remove once JSSP is gone.
-    case kArm64ClaimCSP:
-    case kArm64ClaimJSSP:
-    case kArm64PokeCSP:
-    case kArm64PokeJSSP:
+    case kArm64Claim:
+    case kArm64Poke:
     case kArm64PokePair:
     case kArm64StrS:
     case kArm64StrD:

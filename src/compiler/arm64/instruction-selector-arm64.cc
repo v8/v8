@@ -1691,15 +1691,13 @@ void InstructionSelector::EmitPrepareArguments(
   if (claim_count > 0) {
     // TODO(titzer): claim and poke probably take small immediates.
     // TODO(titzer): it would be better to bump the csp here only
-    //                and emit paired stores with increment for non c frames.
-    ArchOpcode claim = kArm64ClaimCSP;
-    Emit(claim, g.NoOutput(), g.TempImmediate(claim_count));
+    //               and emit paired stores with increment for non c frames.
+    Emit(kArm64Claim, g.NoOutput(), g.TempImmediate(claim_count));
   }
 
-  ArchOpcode poke = kArm64PokeCSP;
   if (claim_count > 0) {
     // Store padding, which might be overwritten.
-    Emit(poke, g.NoOutput(), g.UseImmediate(0),
+    Emit(kArm64Poke, g.NoOutput(), g.UseImmediate(0),
          g.TempImmediate(claim_count - 1));
   }
 
@@ -1708,7 +1706,7 @@ void InstructionSelector::EmitPrepareArguments(
     Node* input_node = (*arguments)[slot].node;
     // Skip any alignment holes in pushed nodes.
     if (input_node != nullptr) {
-      Emit(poke, g.NoOutput(), g.UseRegister(input_node),
+      Emit(kArm64Poke, g.NoOutput(), g.UseRegister(input_node),
            g.TempImmediate(slot));
     }
     slot--;

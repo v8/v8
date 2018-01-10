@@ -207,7 +207,7 @@ class RegisterConfig {
         compiler::Operator::kNoProperties,  // properties
         kCalleeSaveRegisters,               // callee-saved registers
         kCalleeSaveFPRegisters,             // callee-saved fp regs
-        CallDescriptor::kUseNativeStack,    // flags
+        CallDescriptor::kNoFlags,           // flags
         "c-call");
   }
 

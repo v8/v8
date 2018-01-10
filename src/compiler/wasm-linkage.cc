@@ -260,7 +260,6 @@ CallDescriptor* GetWasmCallDescriptor(Zone* zone, wasm::FunctionSig* fsig) {
                                                     : MachineType::AnyTagged();
   LinkageLocation target_loc = LinkageLocation::ForAnyRegister(target_type);
 
-  CallDescriptor::Flags flags = CallDescriptor::kUseNativeStack;
   CallDescriptor::Kind kind = FLAG_wasm_jit_to_native
                                   ? CallDescriptor::kCallWasmFunction
                                   : CallDescriptor::kCallCodeObject;
@@ -274,7 +273,7 @@ CallDescriptor* GetWasmCallDescriptor(Zone* zone, wasm::FunctionSig* fsig) {
       compiler::Operator::kNoProperties,         // properties
       kCalleeSaveRegisters,                      // callee-saved registers
       kCalleeSaveFPRegisters,                    // callee-saved fp regs
-      flags,                                     // flags
+      CallDescriptor::kNoFlags,                  // flags
       "wasm-call",                               // debug name
       0,                                         // allocatable registers
       rets.stack_offset - params.stack_offset);  // stack_return_count

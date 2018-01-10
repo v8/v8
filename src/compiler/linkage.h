@@ -177,17 +177,12 @@ class V8_EXPORT_PRIVATE CallDescriptor final
     kNeedsFrameState = 1u << 0,
     kHasExceptionHandler = 1u << 1,
     kCanUseRoots = 1u << 2,
-    // (arm64 only) native stack should be used for arguments.
-    kUseNativeStack = 1u << 3,
-    // (arm64 only) call instruction has to restore JSSP or CSP.
-    kRestoreJSSP = 1u << 4,
-    kRestoreCSP = 1u << 5,
     // Causes the code generator to initialize the root register.
-    kInitializeRootRegister = 1u << 6,
+    kInitializeRootRegister = 1u << 3,
     // Does not ever try to allocate space on our heap.
-    kNoAllocate = 1u << 7,
+    kNoAllocate = 1u << 4,
     // Push argument count as part of function prologue.
-    kPushArgumentCount = 1u << 8
+    kPushArgumentCount = 1u << 5
   };
   typedef base::Flags<Flag> Flags;
 
@@ -253,7 +248,6 @@ class V8_EXPORT_PRIVATE CallDescriptor final
   Flags flags() const { return flags_; }
 
   bool NeedsFrameState() const { return flags() & kNeedsFrameState; }
-  bool UseNativeStack() const { return flags() & kUseNativeStack; }
   bool PushArgumentCount() const { return flags() & kPushArgumentCount; }
   bool InitializeRootRegister() const {
     return flags() & kInitializeRootRegister;

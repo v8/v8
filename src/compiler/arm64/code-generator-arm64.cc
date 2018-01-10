@@ -579,17 +579,6 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
         __ Call(target);
       }
       RecordCallPosition(instr);
-      // TODO(titzer): this is ugly. JSSP should be a caller-save register
-      // in this case, but it is not possible to express in the register
-      // allocator.
-      CallDescriptor::Flags flags(MiscField::decode(opcode));
-      if (flags & CallDescriptor::kRestoreJSSP) {
-        __ Mov(jssp, csp);
-      }
-      if (flags & CallDescriptor::kRestoreCSP) {
-        __ Mov(csp, jssp);
-        __ AssertCspAligned();
-      }
       frame_access_state()->ClearSPDelta();
       break;
     }
@@ -612,17 +601,6 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
         __ Call(target);
       }
       RecordCallPosition(instr);
-      // TODO(titzer): this is ugly. JSSP should be a caller-save register
-      // in this case, but it is not possible to express in the register
-      // allocator.
-      CallDescriptor::Flags flags(MiscField::decode(opcode));
-      if (flags & CallDescriptor::kRestoreJSSP) {
-        __ Mov(jssp, csp);
-      }
-      if (flags & CallDescriptor::kRestoreCSP) {
-        __ Mov(csp, jssp);
-        __ AssertCspAligned();
-      }
       frame_access_state()->ClearSPDelta();
       break;
     }
@@ -696,17 +674,6 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ Add(x10, x10, Operand(Code::kHeaderSize - kHeapObjectTag));
       __ Call(x10);
       RecordCallPosition(instr);
-      // TODO(titzer): this is ugly. JSSP should be a caller-save register
-      // in this case, but it is not possible to express in the register
-      // allocator.
-      CallDescriptor::Flags flags(MiscField::decode(opcode));
-      if (flags & CallDescriptor::kRestoreJSSP) {
-        __ Mov(jssp, csp);
-      }
-      if (flags & CallDescriptor::kRestoreCSP) {
-        __ Mov(csp, jssp);
-        __ AssertCspAligned();
-      }
       frame_access_state()->ClearSPDelta();
       break;
     }
@@ -1215,62 +1182,17 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kArm64CompareAndBranch:
       // Pseudo instruction turned into cbz/cbnz in AssembleArchBranch.
       break;
-    case kArm64ClaimCSP: {
+    case kArm64Claim: {
       int count = i.InputInt32(0);
       DCHECK_EQ(count % 2, 0);
-      Register prev = __ StackPointer();
-      if (prev.Is(jssp)) {
-        // TODO(titzer): make this a macro-assembler method.
-
-        // TODO(arm64): Storing JSSP on the stack is redundant when calling a C
-        // function, as JSSP is callee-saved (we still need to do this when
-        // calling a code object that uses the CSP as the stack pointer). See
-        // the code generation for kArchCallCodeObject vs. kArchCallCFunction
-        // (the latter does not restore CSP/JSSP).
-        // TurboAssembler::CallCFunction() (safely) drops this extra slot
-        // anyway.
-        __ SetStackPointer(csp);
-        __ Mov(csp, jssp);
-        if (count > 0) {
-          __ Claim(count);
-        }
-        __ SetStackPointer(prev);
-      } else {
-        __ AssertCspAligned();
-        if (count > 0) {
-          __ Claim(count);
-          frame_access_state()->IncreaseSPDelta(count);
-        }
-      }
-      break;
-    }
-    case kArm64ClaimJSSP: {
-      int count = i.InputInt32(0);
-      DCHECK_EQ(count % 2, 0);
-      if (csp.Is(__ StackPointer())) {
-        // No JSSP is set up. Compute it from the CSP.
-        __ AssertCspAligned();
-        if (count > 0) {
-          int even = RoundUp(count, 2);
-          // We must also update CSP to maintain stack consistency:
-          __ Sub(csp, csp, even * kPointerSize);  // Must always be aligned.
-          __ Mov(jssp, csp);
-          __ AssertStackConsistency();
-          frame_access_state()->IncreaseSPDelta(even);
-        } else {
-          __ Mov(jssp, csp);
-        }
-      } else {
-        // JSSP is the current stack pointer, just use regular Claim().
+      __ AssertCspAligned();
+      if (count > 0) {
         __ Claim(count);
         frame_access_state()->IncreaseSPDelta(count);
       }
       break;
     }
-    case kArm64PokeCSP:  // fall through
-    case kArm64PokeJSSP: {
-      Register prev = __ StackPointer();
-      __ SetStackPointer(arch_opcode == kArm64PokeCSP ? csp : jssp);
+    case kArm64Poke: {
       Operand operand(i.InputInt32(1) * kPointerSize);
       if (instr->InputAt(0)->IsSimd128Register()) {
         __ Poke(i.InputSimd128Register(0), operand);
@@ -1279,7 +1201,6 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       } else {
         __ Poke(i.InputOrZeroRegister64(0), operand);
       }
-      __ SetStackPointer(prev);
       break;
     }
     case kArm64PokePair: {
@@ -2347,9 +2268,7 @@ void CodeGenerator::FinishFrame(Frame* frame) {
 
 void CodeGenerator::AssembleConstructFrame() {
   CallDescriptor* descriptor = linkage()->GetIncomingDescriptor();
-  if (descriptor->UseNativeStack()) {
-    __ AssertCspAligned();
-  }
+  __ AssertCspAligned();
 
   // The frame has been previously padded in CodeGenerator::FinishFrame().
   DCHECK_EQ(frame()->GetTotalFrameSlotCount() % 2, 0);
@@ -2364,7 +2283,6 @@ void CodeGenerator::AssembleConstructFrame() {
   if (frame_access_state()->has_frame()) {
     // Link the frame
     if (descriptor->IsJSFunctionCall()) {
-      DCHECK(!descriptor->UseNativeStack());
       __ Prologue();
     } else {
       __ Push(lr, fp);
@@ -2522,9 +2440,7 @@ void CodeGenerator::AssembleReturn(InstructionOperand* pop) {
     __ DropArguments(pop_reg);
   }
 
-  if (descriptor->UseNativeStack()) {
-    __ AssertCspAligned();
-  }
+  __ AssertCspAligned();
   __ Ret();
 }
 
