@@ -2482,9 +2482,9 @@ Isolate::Isolate(bool enable_serializer)
       descriptor_lookup_cache_(nullptr),
       handle_scope_implementer_(nullptr),
       unicode_cache_(nullptr),
-      allocator_(FLAG_trace_gc_object_stats ? new VerboseAccountingAllocator(
-                                                  &heap_, 256 * KB, 128 * KB)
-                                            : new AccountingAllocator()),
+      allocator_(FLAG_trace_zone_stats ? new VerboseAccountingAllocator(
+                                             &heap_, 256 * KB, 128 * KB)
+                                       : new AccountingAllocator()),
       inner_pointer_to_code_cache_(nullptr),
       global_handles_(nullptr),
       eternal_handles_(nullptr),

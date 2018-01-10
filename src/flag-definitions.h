@@ -665,6 +665,7 @@ DEFINE_BOOL(track_gc_object_stats, false,
             "track object counts and memory usage")
 DEFINE_BOOL(trace_gc_object_stats, false,
             "trace object counts and memory usage")
+DEFINE_BOOL(trace_zone_stats, false, "trace zone memory usage")
 DEFINE_BOOL(track_retaining_path, false,
             "enable support for tracking retaining path")
 DEFINE_BOOL(concurrent_array_buffer_freeing, true,
