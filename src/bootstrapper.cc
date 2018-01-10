@@ -214,10 +214,12 @@ class Genesis BASE_EMBEDDED {
   HARMONY_SHIPPING(DECLARE_FEATURE_INITIALIZATION)
 #undef DECLARE_FEATURE_INITIALIZATION
 
+  enum ArrayBufferKind {
+    ARRAY_BUFFER,
+    SHARED_ARRAY_BUFFER,
+  };
   Handle<JSFunction> CreateArrayBuffer(Handle<String> name,
-                                       Builtins::Name call_byteLength,
-                                       BuiltinFunctionId byteLength_id,
-                                       Builtins::Name call_slice);
+                                       ArrayBufferKind array_buffer_kind);
   Handle<JSFunction> InstallInternalArray(Handle<JSObject> target,
                                           const char* name,
                                           ElementsKind elements_kind);
@@ -2959,10 +2961,7 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
 
   {  // -- A r r a y B u f f e r
     Handle<String> name = factory->InternalizeUtf8String("ArrayBuffer");
-    Handle<JSFunction> array_buffer_fun =
-        CreateArrayBuffer(name, Builtins::kArrayBufferPrototypeGetByteLength,
-                          BuiltinFunctionId::kArrayBufferByteLength,
-                          Builtins::kArrayBufferPrototypeSlice);
+    Handle<JSFunction> array_buffer_fun = CreateArrayBuffer(name, ARRAY_BUFFER);
     JSObject::AddProperty(global, name, array_buffer_fun, DONT_ENUM);
     InstallWithIntrinsicDefaultProto(isolate, array_buffer_fun,
                                      Context::ARRAY_BUFFER_FUN_INDEX);
@@ -2978,10 +2977,8 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
 
   {  // -- S h a r e d A r r a y B u f f e r
     Handle<String> name = factory->InternalizeUtf8String("SharedArrayBuffer");
-    Handle<JSFunction> shared_array_buffer_fun = CreateArrayBuffer(
-        name, Builtins::kSharedArrayBufferPrototypeGetByteLength,
-        BuiltinFunctionId::kSharedArrayBufferByteLength,
-        Builtins::kSharedArrayBufferPrototypeSlice);
+    Handle<JSFunction> shared_array_buffer_fun =
+        CreateArrayBuffer(name, SHARED_ARRAY_BUFFER);
     InstallWithIntrinsicDefaultProto(isolate, shared_array_buffer_fun,
                                      Context::SHARED_ARRAY_BUFFER_FUN_INDEX);
     InstallSpeciesGetter(shared_array_buffer_fun);
@@ -4542,10 +4539,8 @@ void Genesis::InitializeGlobal_harmony_plural_rules() {
 
 #endif  // V8_INTL_SUPPORT
 
-Handle<JSFunction> Genesis::CreateArrayBuffer(Handle<String> name,
-                                              Builtins::Name call_byteLength,
-                                              BuiltinFunctionId byteLength_id,
-                                              Builtins::Name call_slice) {
+Handle<JSFunction> Genesis::CreateArrayBuffer(
+    Handle<String> name, ArrayBufferKind array_buffer_kind) {
   // Create the %ArrayBufferPrototype%
   // Setup the {prototype} with the given {name} for @@toStringTag.
   Handle<JSObject> prototype =
@@ -4569,15 +4564,33 @@ Handle<JSFunction> Genesis::CreateArrayBuffer(Handle<String> name,
   JSObject::AddProperty(prototype, factory()->constructor_string(),
                         array_buffer_fun, DONT_ENUM);
 
-  SimpleInstallFunction(array_buffer_fun, factory()->isView_string(),
-                        Builtins::kArrayBufferIsView, 1, true, DONT_ENUM,
-                        kArrayBufferIsView);
+  switch (array_buffer_kind) {
+    case ARRAY_BUFFER:
+      SimpleInstallFunction(array_buffer_fun, factory()->isView_string(),
+                            Builtins::kArrayBufferIsView, 1, true, DONT_ENUM,
+                            kArrayBufferIsView);
 
-  // Install the "byteLength" getter on the {prototype}.
-  SimpleInstallGetter(prototype, factory()->byte_length_string(),
-                      call_byteLength, false, byteLength_id);
+      // Install the "byteLength" getter on the {prototype}.
+      SimpleInstallGetter(prototype, factory()->byte_length_string(),
+                          Builtins::kArrayBufferPrototypeGetByteLength, false,
+                          BuiltinFunctionId::kArrayBufferByteLength);
 
-  SimpleInstallFunction(prototype, "slice", call_slice, 2, true);
+      SimpleInstallFunction(prototype, "slice",
+                            Builtins::kArrayBufferPrototypeSlice, 2, true);
+      break;
+
+    case SHARED_ARRAY_BUFFER:
+      // Install the "byteLength" getter on the {prototype}.
+      SimpleInstallGetter(prototype, factory()->byte_length_string(),
+                          Builtins::kSharedArrayBufferPrototypeGetByteLength,
+                          false,
+                          BuiltinFunctionId::kSharedArrayBufferByteLength);
+
+      SimpleInstallFunction(prototype, "slice",
+                            Builtins::kSharedArrayBufferPrototypeSlice, 2,
+                            true);
+      break;
+  }
 
   return array_buffer_fun;
 }
