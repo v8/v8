@@ -299,24 +299,14 @@ class JSTypedArray : public JSArrayBufferView {
 
   Handle<JSArrayBuffer> GetBuffer();
 
-  inline bool HasJSTypedArrayPrototype(Isolate* isolate);
   static inline MaybeHandle<JSTypedArray> Validate(Isolate* isolate,
                                                    Handle<Object> receiver,
                                                    const char* method_name);
-  static inline Handle<JSFunction> DefaultConstructor(
-      Isolate* isolate, Handle<JSTypedArray> exemplar);
   // ES7 section 22.2.4.6 Create ( constructor, argumentList )
   static MaybeHandle<JSTypedArray> Create(Isolate* isolate,
                                           Handle<Object> default_ctor, int argc,
                                           Handle<Object>* argv,
                                           const char* method_name);
-  // If there was no updates of constructors and species, SpeciesCreate invokes
-  // CreateFast instead of Create. This creates a typed array without lookup of
-  // species.
-  static MaybeHandle<JSTypedArray> CreateFast(Isolate* isolate,
-                                              Handle<JSTypedArray> exemplar,
-                                              int argc, Handle<Object>* argv,
-                                              const char* method_name);
   // ES7 section 22.2.4.7 TypedArraySpeciesCreate ( exemplar, argumentList )
   static MaybeHandle<JSTypedArray> SpeciesCreate(Isolate* isolate,
                                                  Handle<JSTypedArray> exemplar,
