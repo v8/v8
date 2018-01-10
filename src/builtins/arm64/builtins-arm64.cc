@@ -653,6 +653,8 @@ void Builtins::Generate_ResumeGeneratorTrampoline(MacroAssembler* masm) {
 
 static void Generate_StackOverflowCheck(MacroAssembler* masm, Register num_args,
                                         Label* stack_overflow) {
+  DCHECK(masm->StackPointer().Is(jssp));
+
   UseScratchRegisterScope temps(masm);
   Register scratch = temps.AcquireX();
 
@@ -1008,6 +1010,7 @@ void Builtins::Generate_InterpreterEntryTrampoline(MacroAssembler* masm) {
   // Open a frame scope to indicate that there is a frame on the stack.  The
   // MANUAL indicates that the scope shouldn't actually generate code to set up
   // the frame (that is done below).
+  DCHECK(jssp.Is(__ StackPointer()));
   FrameScope frame_scope(masm, StackFrame::MANUAL);
   __ Push(lr, fp, cp, closure);
   __ Add(fp, __ StackPointer(), StandardFrameConstants::kFixedFrameSizeFromFp);
@@ -1061,6 +1064,7 @@ void Builtins::Generate_InterpreterEntryTrampoline(MacroAssembler* masm) {
 
     // Do a stack check to ensure we don't go over the limit.
     Label ok;
+    DCHECK(jssp.Is(__ StackPointer()));
     __ Sub(x10, __ StackPointer(), Operand(x11));
     __ CompareRoot(x10, Heap::kRealStackLimitRootIndex);
     __ B(hs, &ok);
@@ -1646,6 +1650,7 @@ void Generate_ContinueToBuiltinHelper(MacroAssembler* masm,
                         allocatable_register_count)) *
                        kPointerSize;
 
+  DCHECK(jssp.Is(__ StackPointer()));
   // Set up frame pointer.
   __ Add(fp, __ StackPointer(), frame_size);
 
@@ -2956,6 +2961,10 @@ void Builtins::Generate_ArgumentsAdaptorTrampoline(MacroAssembler* masm) {
 }
 
 void Builtins::Generate_WasmCompileLazy(MacroAssembler* masm) {
+  // Wasm code uses the csp. This builtin excepts to use the jssp.
+  // Thus, move csp to jssp when entering this builtin (called from wasm).
+  DCHECK(masm->StackPointer().is(jssp));
+  __ Move(jssp, csp);
   {
     FrameScope scope(masm, StackFrame::INTERNAL);
 
@@ -2980,6 +2989,9 @@ void Builtins::Generate_WasmCompileLazy(MacroAssembler* masm) {
     __ PopDRegList(fp_regs);
     __ PopXRegList(gp_regs);
   }
+  // Move back to csp land. jssp now has the same value as when entering this
+  // function, but csp might have changed in the runtime call.
+  __ Move(csp, jssp);
   // Now jump to the instructions of the returned code object.
   __ Jump(x8);
 }

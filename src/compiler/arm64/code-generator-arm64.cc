@@ -455,7 +455,12 @@ Condition FlagsConditionToCondition(FlagsCondition condition) {
   } while (0)
 
 void CodeGenerator::AssembleDeconstructFrame() {
-  __ Mov(csp, fp);
+  const CallDescriptor* descriptor = linkage()->GetIncomingDescriptor();
+  if (descriptor->IsCFunctionCall() || descriptor->UseNativeStack()) {
+    __ Mov(csp, fp);
+  } else {
+    __ Mov(jssp, fp);
+  }
   __ Pop(fp, lr);
 
   unwinding_info_writer_.MarkFrameDeconstructed(__ pc_offset());
@@ -2323,7 +2328,11 @@ void CodeGenerator::FinishFrame(Frame* frame) {
   frame->AlignFrame(16);
   CallDescriptor* descriptor = linkage()->GetIncomingDescriptor();
 
-  __ SetStackPointer(csp);
+  if (descriptor->UseNativeStack() || descriptor->IsCFunctionCall()) {
+    __ SetStackPointer(csp);
+  } else {
+    __ SetStackPointer(jssp);
+  }
 
   // Save FP registers.
   CPURegList saves_fp = CPURegList(CPURegister::kVRegister, kDRegSizeInBits,
@@ -2413,6 +2422,7 @@ void CodeGenerator::AssembleConstructFrame() {
         __ EnterFrame(StackFrame::WASM_COMPILED);
       }
       DCHECK(__ StackPointer().Is(csp));
+      __ SetStackPointer(jssp);
       __ AssertStackConsistency();
       // Initialize the jssp because it is required for the runtime call.
       __ Mov(jssp, csp);

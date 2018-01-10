@@ -44,7 +44,7 @@ TurboAssembler::TurboAssembler(Isolate* isolate, void* buffer, int buffer_size,
 #endif
       tmp_list_(DefaultTmpList()),
       fptmp_list_(DefaultFPTmpList()),
-      sp_(csp),
+      sp_(jssp),
       use_real_aborts_(true) {
   if (create_code_object == CodeObjectRequired::kYes) {
     code_object_ =
@@ -2145,6 +2145,7 @@ void TurboAssembler::PrepareForTailCall(const ParameterCount& callee_args_count,
   Add(dst_reg, dst_reg, 15);
   Bic(dst_reg, dst_reg, 15);
 
+  DCHECK(jssp.Is(StackPointer()));
   Register src_reg = caller_args_count_reg;
   // Calculate the end of source area. +kPointerSize is for the receiver.
   if (callee_args_count.is_reg()) {
@@ -2188,6 +2189,7 @@ void TurboAssembler::PrepareForTailCall(const ParameterCount& callee_args_count,
 
   // Leave current frame.
   Mov(StackPointer(), dst_reg);
+  SetStackPointer(jssp);
   AssertStackConsistency();
 }
 
@@ -2431,6 +2433,7 @@ void TurboAssembler::TruncateDoubleToIDelayed(Zone* zone, Register result,
     // it should use.
     Push(jssp, xzr);  // Push xzr to maintain csp required 16-bytes alignment.
     Mov(jssp, csp);
+    SetStackPointer(jssp);
   }
 
   // If we fell through then inline version didn't succeed - call stub instead.
@@ -2456,6 +2459,7 @@ void TurboAssembler::TruncateDoubleToIDelayed(Zone* zone, Register result,
 }
 
 void TurboAssembler::Prologue() {
+  DCHECK(jssp.Is(StackPointer()));
   Push(lr, fp, cp, x1);
   Add(fp, StackPointer(), StandardFrameConstants::kFixedFrameSizeFromFp);
 }
@@ -2466,6 +2470,7 @@ void TurboAssembler::EnterFrame(StackFrame::Type type) {
   Register code_reg = temps.AcquireX();
 
   if (type == StackFrame::INTERNAL) {
+    DCHECK(jssp.Is(StackPointer()));
     Mov(type_reg, StackFrame::TypeToMarker(type));
     Mov(code_reg, Operand(CodeObject()));
     Push(lr, fp, type_reg, code_reg);
@@ -2486,6 +2491,7 @@ void TurboAssembler::EnterFrame(StackFrame::Type type) {
     // csp[0] : for alignment
   } else {
     DCHECK_EQ(type, StackFrame::CONSTRUCT);
+    DCHECK(jssp.Is(StackPointer()));
     Mov(type_reg, StackFrame::TypeToMarker(type));
 
     // Users of this frame type push a context pointer after the type field,
@@ -2510,6 +2516,7 @@ void TurboAssembler::LeaveFrame(StackFrame::Type type) {
     AssertStackConsistency();
     Pop(fp, lr);
   } else {
+    DCHECK(jssp.Is(StackPointer()));
     // Drop the execution stack down to the frame pointer and restore
     // the caller frame pointer and return address.
     Mov(StackPointer(), fp);
@@ -2543,6 +2550,7 @@ void MacroAssembler::ExitFrameRestoreFPRegs() {
 void MacroAssembler::EnterExitFrame(bool save_doubles, const Register& scratch,
                                     int extra_space,
                                     StackFrame::Type frame_type) {
+  DCHECK(jssp.Is(StackPointer()));
   DCHECK(frame_type == StackFrame::EXIT ||
          frame_type == StackFrame::BUILTIN_EXIT);
 
@@ -2595,7 +2603,18 @@ void MacroAssembler::EnterExitFrame(bool save_doubles, const Register& scratch,
   //         sp[8]: Extra space reserved for caller (if extra_space != 0).
   //   sp -> sp[0]: Space reserved for the return address.
 
+  // Align and synchronize the system stack pointer with jssp.
+  AlignAndSetCSPForFrame();
   DCHECK(csp.Is(StackPointer()));
+
+  //         fp[8]: CallerPC (lr)
+  //   fp -> fp[0]: CallerFP (old fp)
+  //         fp[-8]: STUB marker
+  //         fp[-16]: Space reserved for SPOffset.
+  //         fp[-24]: CodeObject()
+  //         fp[-24 - fp_size]: Saved doubles (if save_doubles is true).
+  //         csp[8]: Memory reserved for the caller if extra_space != 0.
+  //  csp -> csp[0]: Space reserved for the return address.
 
   // ExitFrame::GetStateForFramePointer expects to find the return address at
   // the memory address immediately below the pointer stored in SPOffset.
@@ -2637,7 +2656,8 @@ void MacroAssembler::LeaveExitFrame(bool restore_doubles,
   //         fp[8]: CallerPC (lr)
   //   fp -> fp[0]: CallerFP (old fp)
   //         fp[...]: The rest of the frame.
-  Mov(csp, fp);
+  Mov(jssp, fp);
+  SetStackPointer(jssp);
   AssertStackConsistency();
   Pop(fp, lr);
 }
@@ -3059,6 +3079,7 @@ void TurboAssembler::Abort(AbortReason reason) {
   // simplify the CallRuntime code, make sure that jssp is the stack pointer.
   // There is no risk of register corruption here because Abort doesn't return.
   Register old_stack_pointer = StackPointer();
+  SetStackPointer(jssp);
   Mov(jssp, old_stack_pointer);
 
   // We need some scratch registers for the MacroAssembler, so make sure we have
