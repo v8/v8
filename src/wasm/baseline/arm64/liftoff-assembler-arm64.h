@@ -69,22 +69,25 @@ void LiftoffAssembler::Fill(LiftoffRegister reg, uint32_t index) {
   UNIMPLEMENTED();
 }
 
-#define DEFAULT_I32_BINOP(name, internal_name)                       \
+#define UNIMPLEMENTED_I32_BINOP(name)                                \
   void LiftoffAssembler::emit_i32_##name(Register dst, Register lhs, \
                                          Register rhs) {             \
     UNIMPLEMENTED();                                                 \
   }
 
 // clang-format off
-DEFAULT_I32_BINOP(add, add)
-DEFAULT_I32_BINOP(sub, sub)
-DEFAULT_I32_BINOP(mul, imul)
-DEFAULT_I32_BINOP(and, and)
-DEFAULT_I32_BINOP(or, or)
-DEFAULT_I32_BINOP(xor, xor)
+UNIMPLEMENTED_I32_BINOP(add)
+UNIMPLEMENTED_I32_BINOP(sub)
+UNIMPLEMENTED_I32_BINOP(mul)
+UNIMPLEMENTED_I32_BINOP(and)
+UNIMPLEMENTED_I32_BINOP(or)
+UNIMPLEMENTED_I32_BINOP(xor)
+UNIMPLEMENTED_I32_BINOP(shl)
+UNIMPLEMENTED_I32_BINOP(sar)
+UNIMPLEMENTED_I32_BINOP(shr)
 // clang-format on
 
-#undef DEFAULT_I32_BINOP
+#undef UNIMPLEMENTED_I32_BINOP
 
 void LiftoffAssembler::emit_i32_eqz(Register dst, Register src) {
   UNIMPLEMENTED();

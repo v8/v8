@@ -266,6 +266,51 @@ COMMUTATIVE_I32_BINOP(xor, xor)
 
 #undef COMMUTATIVE_I32_BINOP
 
+namespace liftoff {
+inline void EmitShiftOperation(LiftoffAssembler* assm, Register dst,
+                               Register lhs, Register rhs,
+                               void (Assembler::*emit_shift)(Register)) {
+  // If dst is rcx, compute into the scratch register first, then move to rcx.
+  if (dst == rcx) {
+    assm->movl(kScratchRegister, lhs);
+    if (rhs != rcx) assm->movl(rcx, rhs);
+    (assm->*emit_shift)(kScratchRegister);
+    assm->movl(rcx, kScratchRegister);
+    return;
+  }
+
+  // Move rhs into rcx. If rcx is in use, move its content into the scratch
+  // register. If lhs is rcx, lhs is now the scratch register.
+  bool use_scratch = false;
+  if (rhs != rcx) {
+    use_scratch =
+        lhs == rcx || assm->cache_state()->is_used(LiftoffRegister(rcx));
+    if (use_scratch) assm->movl(kScratchRegister, rcx);
+    if (lhs == rcx) lhs = kScratchRegister;
+    assm->movl(rcx, rhs);
+  }
+
+  // Do the actual shift.
+  if (dst != lhs) assm->movl(dst, lhs);
+  (assm->*emit_shift)(dst);
+
+  // Restore rcx if needed.
+  if (use_scratch) assm->movl(rcx, kScratchRegister);
+}
+}  // namespace liftoff
+
+void LiftoffAssembler::emit_i32_shl(Register dst, Register lhs, Register rhs) {
+  liftoff::EmitShiftOperation(this, dst, lhs, rhs, &Assembler::shll_cl);
+}
+
+void LiftoffAssembler::emit_i32_sar(Register dst, Register lhs, Register rhs) {
+  liftoff::EmitShiftOperation(this, dst, lhs, rhs, &Assembler::sarl_cl);
+}
+
+void LiftoffAssembler::emit_i32_shr(Register dst, Register lhs, Register rhs) {
+  liftoff::EmitShiftOperation(this, dst, lhs, rhs, &Assembler::shrl_cl);
+}
+
 void LiftoffAssembler::emit_i32_eqz(Register dst, Register src) {
   testl(src, src);
   setcc(zero, dst);

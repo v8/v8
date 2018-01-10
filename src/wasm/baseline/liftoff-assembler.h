@@ -303,6 +303,9 @@ class LiftoffAssembler : public TurboAssembler {
   inline void emit_i32_and(Register dst, Register lhs, Register rhs);
   inline void emit_i32_or(Register dst, Register lhs, Register rhs);
   inline void emit_i32_xor(Register dst, Register lhs, Register rhs);
+  inline void emit_i32_shl(Register dst, Register lhs, Register rhs);
+  inline void emit_i32_sar(Register dst, Register lhs, Register rhs);
+  inline void emit_i32_shr(Register dst, Register lhs, Register rhs);
 
   // i32 unops.
   inline void emit_i32_eqz(Register dst, Register src);

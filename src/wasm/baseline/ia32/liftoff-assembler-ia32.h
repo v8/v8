@@ -274,6 +274,54 @@ COMMUTATIVE_I32_BINOP(xor, xor_)
 
 #undef COMMUTATIVE_I32_BINOP
 
+namespace liftoff {
+inline void EmitShiftOperation(LiftoffAssembler* assm, Register dst,
+                               Register lhs, Register rhs,
+                               void (Assembler::*emit_shift)(Register)) {
+  LiftoffRegList pinned = LiftoffRegList::ForRegs(dst, lhs, rhs);
+  // If dst is ecx, compute into a tmp register first, then move to ecx.
+  if (dst == ecx) {
+    Register tmp = assm->GetUnusedRegister(kGpReg, pinned).gp();
+    assm->mov(tmp, lhs);
+    if (rhs != ecx) assm->mov(ecx, rhs);
+    (assm->*emit_shift)(tmp);
+    assm->mov(ecx, tmp);
+    return;
+  }
+
+  // Move rhs into ecx. If ecx is in use, move its content to a tmp register
+  // first. If lhs is ecx, lhs is now the tmp register.
+  Register tmp_reg = no_reg;
+  if (rhs != ecx) {
+    if (lhs == ecx || assm->cache_state()->is_used(LiftoffRegister(ecx))) {
+      tmp_reg = assm->GetUnusedRegister(kGpReg, pinned).gp();
+      assm->mov(tmp_reg, ecx);
+      if (lhs == ecx) lhs = tmp_reg;
+    }
+    assm->mov(ecx, rhs);
+  }
+
+  // Do the actual shift.
+  if (dst != lhs) assm->mov(dst, lhs);
+  (assm->*emit_shift)(dst);
+
+  // Restore ecx if needed.
+  if (tmp_reg.is_valid()) assm->mov(ecx, tmp_reg);
+}
+}  // namespace liftoff
+
+void LiftoffAssembler::emit_i32_shl(Register dst, Register lhs, Register rhs) {
+  liftoff::EmitShiftOperation(this, dst, lhs, rhs, &Assembler::shl_cl);
+}
+
+void LiftoffAssembler::emit_i32_sar(Register dst, Register lhs, Register rhs) {
+  liftoff::EmitShiftOperation(this, dst, lhs, rhs, &Assembler::sar_cl);
+}
+
+void LiftoffAssembler::emit_i32_shr(Register dst, Register lhs, Register rhs) {
+  liftoff::EmitShiftOperation(this, dst, lhs, rhs, &Assembler::shr_cl);
+}
+
 void LiftoffAssembler::emit_i32_eqz(Register dst, Register src) {
   test(src, src);
   setcc(zero, dst);

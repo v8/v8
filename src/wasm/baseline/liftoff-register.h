@@ -208,6 +208,15 @@ class LiftoffRegList {
     return LiftoffRegList(bits);
   }
 
+  template <typename... Regs>
+  static LiftoffRegList ForRegs(Regs... regs) {
+    std::array<LiftoffRegister, sizeof...(regs)> regs_arr{
+        LiftoffRegister(regs)...};
+    LiftoffRegList list;
+    for (LiftoffRegister reg : regs_arr) list.set(reg);
+    return list;
+  }
+
  private:
   storage_t regs_ = 0;
 
