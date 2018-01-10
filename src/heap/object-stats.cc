@@ -267,13 +267,49 @@ bool ObjectStats::RecordFixedArraySubTypeStats(FixedArrayBase* array,
 
 Isolate* ObjectStats::isolate() { return heap()->isolate(); }
 
-ObjectStatsCollector::ObjectStatsCollector(Heap* heap, ObjectStats* stats)
+class ObjectStatsCollectorImpl {
+ public:
+  ObjectStatsCollectorImpl(Heap* heap, ObjectStats* stats);
+
+  void CollectGlobalStatistics();
+  void CollectStatistics(HeapObject* obj);
+
+ private:
+  class CompilationCacheTableVisitor;
+
+  void RecordBytecodeArrayDetails(BytecodeArray* obj);
+  void RecordCodeDetails(Code* code);
+  void RecordFixedArrayDetails(FixedArray* array);
+  void RecordJSCollectionDetails(JSObject* obj);
+  void RecordJSObjectDetails(JSObject* object);
+  void RecordJSWeakCollectionDetails(JSWeakCollection* obj);
+  void RecordMapDetails(Map* map);
+  void RecordScriptDetails(Script* obj);
+  void RecordTemplateInfoDetails(TemplateInfo* obj);
+  void RecordSharedFunctionInfoDetails(SharedFunctionInfo* sfi);
+
+  bool RecordFixedArrayHelper(HeapObject* parent, FixedArray* array,
+                              int subtype, size_t overhead);
+  void RecursivelyRecordFixedArrayHelper(HeapObject* parent, FixedArray* array,
+                                         int subtype);
+  template <class HashTable>
+  void RecordHashTableHelper(HeapObject* parent, HashTable* array, int subtype);
+  bool SameLiveness(HeapObject* obj1, HeapObject* obj2);
+  Heap* heap_;
+  ObjectStats* stats_;
+  MarkCompactCollector::NonAtomicMarkingState* marking_state_;
+
+  friend class ObjectStatsCollectorImpl::CompilationCacheTableVisitor;
+};
+
+ObjectStatsCollectorImpl::ObjectStatsCollectorImpl(Heap* heap,
+                                                   ObjectStats* stats)
     : heap_(heap),
       stats_(stats),
       marking_state_(
           heap->mark_compact_collector()->non_atomic_marking_state()) {}
 
-void ObjectStatsCollector::CollectStatistics(HeapObject* obj) {
+void ObjectStatsCollectorImpl::CollectStatistics(HeapObject* obj) {
   Map* map = obj->map();
 
   // Record for the InstanceType.
@@ -303,9 +339,10 @@ void ObjectStatsCollector::CollectStatistics(HeapObject* obj) {
   if (obj->IsScript()) RecordScriptDetails(Script::cast(obj));
 }
 
-class ObjectStatsCollector::CompilationCacheTableVisitor : public RootVisitor {
+class ObjectStatsCollectorImpl::CompilationCacheTableVisitor
+    : public RootVisitor {
  public:
-  explicit CompilationCacheTableVisitor(ObjectStatsCollector* parent)
+  explicit CompilationCacheTableVisitor(ObjectStatsCollectorImpl* parent)
       : parent_(parent) {}
 
   void VisitRootPointers(Root root, Object** start, Object** end) override {
@@ -319,10 +356,10 @@ class ObjectStatsCollector::CompilationCacheTableVisitor : public RootVisitor {
   }
 
  private:
-  ObjectStatsCollector* parent_;
+  ObjectStatsCollectorImpl* parent_;
 };
 
-void ObjectStatsCollector::CollectGlobalStatistics() {
+void ObjectStatsCollectorImpl::CollectGlobalStatistics() {
   // Global FixedArrays.
   RecordFixedArrayHelper(nullptr, heap_->weak_new_space_object_to_code_list(),
                          WEAK_NEW_SPACE_OBJECT_TO_CODE_SUB_TYPE, 0);
@@ -371,15 +408,16 @@ static bool IsCowArray(Heap* heap, FixedArrayBase* array) {
   return array->map() == heap->fixed_cow_array_map();
 }
 
-bool ObjectStatsCollector::SameLiveness(HeapObject* obj1, HeapObject* obj2) {
+bool ObjectStatsCollectorImpl::SameLiveness(HeapObject* obj1,
+                                            HeapObject* obj2) {
   return obj1 == nullptr || obj2 == nullptr ||
          marking_state_->Color(obj1) == marking_state_->Color(obj2);
 }
 
-bool ObjectStatsCollector::RecordFixedArrayHelper(HeapObject* parent,
-                                                  FixedArray* array,
-                                                  int subtype,
-                                                  size_t overhead) {
+bool ObjectStatsCollectorImpl::RecordFixedArrayHelper(HeapObject* parent,
+                                                      FixedArray* array,
+                                                      int subtype,
+                                                      size_t overhead) {
   if (SameLiveness(parent, array) && CanRecordFixedArray(heap_, array) &&
       !IsCowArray(heap_, array)) {
     return stats_->RecordFixedArraySubTypeStats(array, subtype, array->Size(),
@@ -388,9 +426,8 @@ bool ObjectStatsCollector::RecordFixedArrayHelper(HeapObject* parent,
   return false;
 }
 
-void ObjectStatsCollector::RecursivelyRecordFixedArrayHelper(HeapObject* parent,
-                                                             FixedArray* array,
-                                                             int subtype) {
+void ObjectStatsCollectorImpl::RecursivelyRecordFixedArrayHelper(
+    HeapObject* parent, FixedArray* array, int subtype) {
   if (RecordFixedArrayHelper(parent, array, subtype, 0)) {
     for (int i = 0; i < array->length(); i++) {
       if (array->get(i)->IsFixedArray()) {
@@ -402,9 +439,9 @@ void ObjectStatsCollector::RecursivelyRecordFixedArrayHelper(HeapObject* parent,
 }
 
 template <class HashTable>
-void ObjectStatsCollector::RecordHashTableHelper(HeapObject* parent,
-                                                 HashTable* array,
-                                                 int subtype) {
+void ObjectStatsCollectorImpl::RecordHashTableHelper(HeapObject* parent,
+                                                     HashTable* array,
+                                                     int subtype) {
   int used = array->NumberOfElements() * HashTable::kEntrySize * kPointerSize;
   CHECK_GE(array->Size(), used);
   size_t overhead = array->Size() - used -
@@ -413,7 +450,7 @@ void ObjectStatsCollector::RecordHashTableHelper(HeapObject* parent,
   RecordFixedArrayHelper(parent, array, subtype, overhead);
 }
 
-void ObjectStatsCollector::RecordJSObjectDetails(JSObject* object) {
+void ObjectStatsCollectorImpl::RecordJSObjectDetails(JSObject* object) {
   size_t overhead = 0;
   FixedArrayBase* elements = object->elements();
   if (CanRecordFixedArray(heap_, elements) && !IsCowArray(heap_, elements)) {
@@ -448,7 +485,7 @@ void ObjectStatsCollector::RecordJSObjectDetails(JSObject* object) {
   }
 }
 
-void ObjectStatsCollector::RecordJSWeakCollectionDetails(
+void ObjectStatsCollectorImpl::RecordJSWeakCollectionDetails(
     JSWeakCollection* obj) {
   if (obj->table()->IsHashTable()) {
     ObjectHashTable* table = ObjectHashTable::cast(obj->table());
@@ -458,7 +495,7 @@ void ObjectStatsCollector::RecordJSWeakCollectionDetails(
   }
 }
 
-void ObjectStatsCollector::RecordJSCollectionDetails(JSObject* obj) {
+void ObjectStatsCollectorImpl::RecordJSCollectionDetails(JSObject* obj) {
   // The JS versions use a different HashTable implementation that cannot use
   // the regular helper. Since overall impact is usually small just record
   // without overhead.
@@ -472,12 +509,12 @@ void ObjectStatsCollector::RecordJSCollectionDetails(JSObject* obj) {
   }
 }
 
-void ObjectStatsCollector::RecordScriptDetails(Script* obj) {
+void ObjectStatsCollectorImpl::RecordScriptDetails(Script* obj) {
   FixedArray* infos = FixedArray::cast(obj->shared_function_infos());
   RecordFixedArrayHelper(obj, infos, SHARED_FUNCTION_INFOS_SUB_TYPE, 0);
 }
 
-void ObjectStatsCollector::RecordMapDetails(Map* map_obj) {
+void ObjectStatsCollectorImpl::RecordMapDetails(Map* map_obj) {
   DescriptorArray* array = map_obj->instance_descriptors();
   if (map_obj->owns_descriptors() && array != heap_->empty_descriptor_array() &&
       SameLiveness(map_obj, array)) {
@@ -508,7 +545,7 @@ void ObjectStatsCollector::RecordMapDetails(Map* map_obj) {
   }
 }
 
-void ObjectStatsCollector::RecordTemplateInfoDetails(TemplateInfo* obj) {
+void ObjectStatsCollectorImpl::RecordTemplateInfoDetails(TemplateInfo* obj) {
   if (obj->property_accessors()->IsFixedArray()) {
     RecordFixedArrayHelper(obj, FixedArray::cast(obj->property_accessors()),
                            TEMPLATE_INFO_SUB_TYPE, 0);
@@ -519,14 +556,14 @@ void ObjectStatsCollector::RecordTemplateInfoDetails(TemplateInfo* obj) {
   }
 }
 
-void ObjectStatsCollector::RecordBytecodeArrayDetails(BytecodeArray* obj) {
+void ObjectStatsCollectorImpl::RecordBytecodeArrayDetails(BytecodeArray* obj) {
   RecordFixedArrayHelper(obj, obj->constant_pool(),
                          BYTECODE_ARRAY_CONSTANT_POOL_SUB_TYPE, 0);
   RecordFixedArrayHelper(obj, obj->handler_table(),
                          BYTECODE_ARRAY_HANDLER_TABLE_SUB_TYPE, 0);
 }
 
-void ObjectStatsCollector::RecordCodeDetails(Code* code) {
+void ObjectStatsCollectorImpl::RecordCodeDetails(Code* code) {
   stats_->RecordCodeSubTypeStats(code->kind(), code->Size());
   RecordFixedArrayHelper(code, code->deoptimization_data(),
                          DEOPTIMIZATION_DATA_SUB_TYPE, 0);
@@ -554,7 +591,7 @@ void ObjectStatsCollector::RecordCodeDetails(Code* code) {
   }
 }
 
-void ObjectStatsCollector::RecordSharedFunctionInfoDetails(
+void ObjectStatsCollectorImpl::RecordSharedFunctionInfoDetails(
     SharedFunctionInfo* sfi) {
   FixedArray* scope_info = sfi->scope_info();
   RecordFixedArrayHelper(sfi, scope_info, SCOPE_INFO_SUB_TYPE, 0);
@@ -565,7 +602,7 @@ void ObjectStatsCollector::RecordSharedFunctionInfoDetails(
   }
 }
 
-void ObjectStatsCollector::RecordFixedArrayDetails(FixedArray* array) {
+void ObjectStatsCollectorImpl::RecordFixedArrayDetails(FixedArray* array) {
   if (array->IsContext()) {
     RecordFixedArrayHelper(nullptr, array, CONTEXT_SUB_TYPE, 0);
   }
@@ -583,6 +620,59 @@ void ObjectStatsCollector::RecordFixedArrayDetails(FixedArray* array) {
         fast_cache, FAST_TEMPLATE_INSTANTIATIONS_CACHE_SUB_TYPE,
         fast_cache->Size(), 0);
   }
+}
+
+class ObjectStatsVisitor {
+ public:
+  ObjectStatsVisitor(Heap* heap, ObjectStatsCollectorImpl* live_collector,
+                     ObjectStatsCollectorImpl* dead_collector)
+      : live_collector_(live_collector),
+        dead_collector_(dead_collector),
+        marking_state_(
+            heap->mark_compact_collector()->non_atomic_marking_state()) {}
+
+  bool Visit(HeapObject* obj, int size) {
+    if (marking_state_->IsBlack(obj)) {
+      live_collector_->CollectStatistics(obj);
+    } else {
+      DCHECK(!marking_state_->IsGrey(obj));
+      dead_collector_->CollectStatistics(obj);
+    }
+    return true;
+  }
+
+ private:
+  ObjectStatsCollectorImpl* live_collector_;
+  ObjectStatsCollectorImpl* dead_collector_;
+  MarkCompactCollector::NonAtomicMarkingState* marking_state_;
+};
+
+namespace {
+
+void IterateHeap(Heap* heap, ObjectStatsVisitor* visitor) {
+  SpaceIterator space_it(heap);
+  HeapObject* obj = nullptr;
+  while (space_it.has_next()) {
+    std::unique_ptr<ObjectIterator> it(space_it.next()->GetObjectIterator());
+    ObjectIterator* obj_it = it.get();
+    while ((obj = obj_it->Next()) != nullptr) {
+      visitor->Visit(obj, obj->Size());
+    }
+  }
+}
+
+}  // namespace
+
+void ObjectStatsCollector::Collect() {
+  ObjectStatsCollectorImpl live_collector(heap_, live_);
+  ObjectStatsCollectorImpl dead_collector(heap_, dead_);
+  // 1. Collect system type otherwise indistinguishable from other types.
+  // TODO(mlippautz): Implement.
+  // 2. Collect globals; only applies to live objects.
+  live_collector.CollectGlobalStatistics();
+  // 3. Collect rest.
+  ObjectStatsVisitor visitor(heap_, &live_collector, &dead_collector);
+  IterateHeap(heap_, &visitor);
 }
 
 }  // namespace internal

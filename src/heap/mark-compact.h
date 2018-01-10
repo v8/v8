@@ -723,8 +723,6 @@ class MarkCompactCollector final : public MarkCompactCollectorBase {
                                    int* target_fragmentation_percent,
                                    size_t* max_evacuated_bytes);
 
-  void VisitAllObjects(HeapObjectVisitor* visitor);
-
   void RecordObjectStats();
 
   // Finishes GC, performs heap verification if enabled.

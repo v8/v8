@@ -1689,54 +1689,12 @@ void MarkCompactCollector::ProcessTopOptimizedFrame(ObjectVisitor* visitor) {
   }
 }
 
-class ObjectStatsVisitor : public HeapObjectVisitor {
- public:
-  ObjectStatsVisitor(Heap* heap, ObjectStats* live_stats,
-                     ObjectStats* dead_stats)
-      : live_collector_(heap, live_stats),
-        dead_collector_(heap, dead_stats),
-        marking_state_(
-            heap->mark_compact_collector()->non_atomic_marking_state()) {
-    DCHECK_NOT_NULL(live_stats);
-    DCHECK_NOT_NULL(dead_stats);
-    // Global objects are roots and thus recorded as live.
-    live_collector_.CollectGlobalStatistics();
-  }
-
-  bool Visit(HeapObject* obj, int size) override {
-    if (marking_state_->IsBlack(obj)) {
-      live_collector_.CollectStatistics(obj);
-    } else {
-      DCHECK(!marking_state_->IsGrey(obj));
-      dead_collector_.CollectStatistics(obj);
-    }
-    return true;
-  }
-
- private:
-  ObjectStatsCollector live_collector_;
-  ObjectStatsCollector dead_collector_;
-  MarkCompactCollector::NonAtomicMarkingState* marking_state_;
-};
-
-void MarkCompactCollector::VisitAllObjects(HeapObjectVisitor* visitor) {
-  SpaceIterator space_it(heap());
-  HeapObject* obj = nullptr;
-  while (space_it.has_next()) {
-    std::unique_ptr<ObjectIterator> it(space_it.next()->GetObjectIterator());
-    ObjectIterator* obj_it = it.get();
-    while ((obj = obj_it->Next()) != nullptr) {
-      visitor->Visit(obj, obj->Size());
-    }
-  }
-}
-
 void MarkCompactCollector::RecordObjectStats() {
   if (V8_UNLIKELY(FLAG_gc_stats)) {
     heap()->CreateObjectStats();
-    ObjectStatsVisitor visitor(heap(), heap()->live_object_stats_,
-                               heap()->dead_object_stats_);
-    VisitAllObjects(&visitor);
+    ObjectStatsCollector collector(heap(), heap()->live_object_stats_,
+                                   heap()->dead_object_stats_);
+    collector.Collect();
     if (V8_UNLIKELY(FLAG_gc_stats &
                     v8::tracing::TracingCategoryObserver::ENABLED_BY_TRACING)) {
       std::stringstream live, dead;

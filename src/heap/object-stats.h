@@ -88,37 +88,21 @@ class ObjectStats {
 
 class ObjectStatsCollector {
  public:
-  ObjectStatsCollector(Heap* heap, ObjectStats* stats);
+  ObjectStatsCollector(Heap* heap, ObjectStats* live, ObjectStats* dead)
+      : heap_(heap), live_(live), dead_(dead) {
+    DCHECK_NOT_NULL(heap_);
+    DCHECK_NOT_NULL(live_);
+    DCHECK_NOT_NULL(dead_);
+  }
 
-  void CollectGlobalStatistics();
-  void CollectStatistics(HeapObject* obj);
+  // Collects type information of live and dead objects. Requires mark bits to
+  // be present.
+  void Collect();
 
  private:
-  class CompilationCacheTableVisitor;
-
-  void RecordBytecodeArrayDetails(BytecodeArray* obj);
-  void RecordCodeDetails(Code* code);
-  void RecordFixedArrayDetails(FixedArray* array);
-  void RecordJSCollectionDetails(JSObject* obj);
-  void RecordJSObjectDetails(JSObject* object);
-  void RecordJSWeakCollectionDetails(JSWeakCollection* obj);
-  void RecordMapDetails(Map* map);
-  void RecordScriptDetails(Script* obj);
-  void RecordTemplateInfoDetails(TemplateInfo* obj);
-  void RecordSharedFunctionInfoDetails(SharedFunctionInfo* sfi);
-
-  bool RecordFixedArrayHelper(HeapObject* parent, FixedArray* array,
-                              int subtype, size_t overhead);
-  void RecursivelyRecordFixedArrayHelper(HeapObject* parent, FixedArray* array,
-                                         int subtype);
-  template <class HashTable>
-  void RecordHashTableHelper(HeapObject* parent, HashTable* array, int subtype);
-  bool SameLiveness(HeapObject* obj1, HeapObject* obj2);
-  Heap* heap_;
-  ObjectStats* stats_;
-  MarkCompactCollector::NonAtomicMarkingState* marking_state_;
-
-  friend class ObjectStatsCollector::CompilationCacheTableVisitor;
+  Heap* const heap_;
+  ObjectStats* const live_;
+  ObjectStats* const dead_;
 };
 
 }  // namespace internal
