@@ -66,7 +66,7 @@ function runTest(f, message, mkICTraining, deoptArg) {
 let checks = {
   smiReceiver:
     { mkTrainingArguments : () => [{arr:[1], el:3}],
-      deoptingArguments   : [{arr:[1], el:true}, {arr:[0.1], el:1}, {arr:[{}], el:1}]
+      deoptingArguments   : [{arr:[0.1], el:1}, {arr:[{}], el:1}]
     },
   objectReceiver:
     { mkTrainingArguments : () => [{arr:[{}], el:0.1}],
@@ -74,19 +74,19 @@ let checks = {
     },
   multipleSmiReceivers:
     { mkTrainingArguments : () => { let b = [1]; b.x=3; return [{arr:[1], el:3}, {arr:b, el:3}] },
-      deoptingArguments : [{arr:[1], el:true}, {arr:[0.1], el:1}, {arr:[{}], el:1}]
+      deoptingArguments : [{arr:[0.1], el:1}, {arr:[{}], el:1}]
     },
   multipleSmiReceiversPackedUnpacked:
     { mkTrainingArguments : () => { let b = [1]; b[100] = 3; return [{arr:[1], el:3}, {arr:b, el:3}] },
-      deoptingArguments : [ {arr:[1], el:true} ]
+      deoptingArguments : [{arr:[0.1], el:1}, {arr:[{}], el:1}]
     },
   multipleDoubleReceivers:
     { mkTrainingArguments : () => { let b = [0.1]; b.x=0.3; return [{arr:[0.1], el:0.3}, {arr:b, el:0.3}] },
-      deoptingArguments : [{arr:[{}], el:true}, {arr:[0.1], el:true}]
+      deoptingArguments : [{arr:[{}], el:true}, {arr:[1], el:true}]
     },
   multipleDoubleReceiversPackedUnpacked:
     { mkTrainingArguments : () => { let b = [0.1]; b[100] = 0.3; return [{arr:[0.1], el:0.3}, {arr:b, el:0.3}] },
-      deoptingArguments : [{arr:[{}], el:true}, {arr:[0.1], el:true}]
+      deoptingArguments : [{arr:[{}], el:true}, {arr:[1], el:true}]
     },
   multipleMixedReceivers:
     { mkTrainingArguments : () => { let b = [0.1]; b.x=0.3; return [{arr:[1], el:0.3}, {arr:[{}], el:true}, {arr:b, el:0.3}] },
@@ -98,10 +98,13 @@ let checks = {
     },
 };
 
-
 const functions = {
   push_reliable: (a,g) => { let b = g(); return a.push(2, b); },
   push_unreliable: (a,g) => { return a.push(2, g()); },
+  pop_reliable: (a,g) => { let b = g(); return a.pop(2, b); },
+  pop_unreliable: (a,g) => { return a.pop(2, g()); },
+  shift_reliable: (a,g) => { let b = g(); return a.shift(2, b); },
+  shift_unreliable: (a,g) => { return a.shift(2, g()); }
 }
 
 Object.keys(checks).forEach(
