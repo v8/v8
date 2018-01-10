@@ -7350,7 +7350,7 @@ Node* CodeStubAssembler::ElementOffsetFromIndex(Node* index_node,
           ? index_node
           : ((element_size_shift > 0)
                  ? WordShl(index_node, IntPtrConstant(element_size_shift))
-                 : WordShr(index_node, IntPtrConstant(-element_size_shift)));
+                 : WordSar(index_node, IntPtrConstant(-element_size_shift)));
   return IntPtrAdd(IntPtrConstant(base_size), shifted_index);
 }
 
