@@ -2387,15 +2387,6 @@ void InstructionSelector::VisitCall(Node* node, BasicBlock* handler) {
     buffer.instruction_args.push_back(g.Label(handler));
   }
 
-  bool from_native_stack = linkage()->GetIncomingDescriptor()->UseNativeStack();
-  bool to_native_stack = descriptor->UseNativeStack();
-  if (from_native_stack != to_native_stack) {
-    // (arm64 only) Mismatch in the use of stack pointers. One or the other
-    // has to be restored manually by the code generator.
-    flags |= to_native_stack ? CallDescriptor::kRestoreJSSP
-                             : CallDescriptor::kRestoreCSP;
-  }
-
   // Select the appropriate opcode based on the call type.
   InstructionCode opcode = kArchNop;
   switch (descriptor->kind()) {
