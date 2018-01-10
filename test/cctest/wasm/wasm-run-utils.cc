@@ -118,7 +118,7 @@ Handle<JSFunction> TestingModuleBuilder::WrapCode(uint32_t index) {
                              : WasmCodeWrapper(function_code_[index]);
   byte* context_address =
       test_module_.has_memory
-          ? reinterpret_cast<byte*>(instance_object_->wasm_context())
+          ? reinterpret_cast<byte*>(instance_object_->wasm_context()->get())
           : nullptr;
   Handle<Code> ret_code = compiler::CompileJSToWasmWrapper(
       isolate_, &test_module_, code, index, context_address,
