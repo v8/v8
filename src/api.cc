@@ -7459,9 +7459,9 @@ Promise::PromiseState Promise::State() {
   return static_cast<PromiseState>(js_promise->status());
 }
 
-Local<Object> Proxy::GetTarget() {
+Local<Value> Proxy::GetTarget() {
   i::Handle<i::JSProxy> self = Utils::OpenHandle(this);
-  i::Handle<i::JSReceiver> target(self->target());
+  i::Handle<i::Object> target(self->target(), self->GetIsolate());
   return Utils::ToLocal(target);
 }
 

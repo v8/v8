@@ -26456,7 +26456,7 @@ TEST(Proxy) {
   CHECK(proxy->IsProxy());
   CHECK(!target->IsProxy());
   CHECK(proxy->IsRevoked());
-  CHECK(proxy->GetTarget()->SameValue(target));
+  CHECK(proxy->GetTarget()->IsNull());
   CHECK(proxy->GetHandler()->IsNull());
 }
 

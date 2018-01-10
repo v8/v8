@@ -347,7 +347,7 @@ void V8InjectedScriptHost::proxyTargetValueCallback(
     UNREACHABLE();
     return;
   }
-  v8::Local<v8::Object> target = info[0].As<v8::Proxy>();
+  v8::Local<v8::Value> target = info[0].As<v8::Proxy>();
   while (target->IsProxy())
     target = v8::Local<v8::Proxy>::Cast(target)->GetTarget();
   info.GetReturnValue().Set(target);

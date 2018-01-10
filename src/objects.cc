@@ -1164,7 +1164,7 @@ MaybeHandle<Object> JSProxy::GetProperty(Isolate* isolate,
                     Object);
   }
   // 5. Let target be the value of the [[ProxyTarget]] internal slot of O.
-  Handle<JSReceiver> target(proxy->target(), isolate);
+  Handle<JSReceiver> target(JSReceiver::cast(proxy->target()), isolate);
   // 6. Let trap be ? GetMethod(handler, "get").
   Handle<Object> trap;
   ASSIGN_RETURN_ON_EXCEPTION(
@@ -1537,7 +1537,7 @@ MaybeHandle<Object> JSProxy::GetPrototype(Handle<JSProxy> proxy) {
                     NewTypeError(MessageTemplate::kProxyRevoked, trap_name),
                     Object);
   }
-  Handle<JSReceiver> target(proxy->target(), isolate);
+  Handle<JSReceiver> target(JSReceiver::cast(proxy->target()), isolate);
   Handle<JSReceiver> handler(JSReceiver::cast(proxy->handler()), isolate);
 
   // 5. Let trap be ? GetMethod(handler, "getPrototypeOf").
@@ -5513,7 +5513,13 @@ Handle<Map> JSObject::GetElementsTransitionMap(Handle<JSObject> object,
 
 void JSProxy::Revoke(Handle<JSProxy> proxy) {
   Isolate* isolate = proxy->GetIsolate();
-  if (!proxy->IsRevoked()) proxy->set_handler(isolate->heap()->null_value());
+  // ES#sec-proxy-revocation-functions
+  if (!proxy->IsRevoked()) {
+    // 5. Set p.[[ProxyTarget]] to null.
+    proxy->set_target(isolate->heap()->null_value());
+    // 6. Set p.[[ProxyHandler]] to null.
+    proxy->set_handler(isolate->heap()->null_value());
+  }
   DCHECK(proxy->IsRevoked());
 }
 
@@ -5529,7 +5535,7 @@ Maybe<bool> JSProxy::IsArray(Handle<JSProxy> proxy) {
           isolate->factory()->NewStringFromAsciiChecked("IsArray")));
       return Nothing<bool>();
     }
-    object = handle(proxy->target(), isolate);
+    object = handle(JSReceiver::cast(proxy->target()), isolate);
     if (object->IsJSArray()) return Just(true);
     if (!object->IsJSProxy()) return Just(false);
   }
@@ -5554,7 +5560,7 @@ Maybe<bool> JSProxy::HasProperty(Isolate* isolate, Handle<JSProxy> proxy,
     return Nothing<bool>();
   }
   // 5. Let target be the value of the [[ProxyTarget]] internal slot of O.
-  Handle<JSReceiver> target(proxy->target(), isolate);
+  Handle<JSReceiver> target(JSReceiver::cast(proxy->target()), isolate);
   // 6. Let trap be ? GetMethod(handler, "has").
   Handle<Object> trap;
   ASSIGN_RETURN_ON_EXCEPTION_VALUE(
@@ -5627,7 +5633,7 @@ Maybe<bool> JSProxy::SetProperty(Handle<JSProxy> proxy, Handle<Name> name,
         *factory->NewTypeError(MessageTemplate::kProxyRevoked, trap_name));
     return Nothing<bool>();
   }
-  Handle<JSReceiver> target(proxy->target(), isolate);
+  Handle<JSReceiver> target(JSReceiver::cast(proxy->target()), isolate);
   Handle<JSReceiver> handler(JSReceiver::cast(proxy->handler()), isolate);
 
   Handle<Object> trap;
@@ -5678,7 +5684,7 @@ Maybe<bool> JSProxy::DeletePropertyOrElement(Handle<JSProxy> proxy,
         *factory->NewTypeError(MessageTemplate::kProxyRevoked, trap_name));
     return Nothing<bool>();
   }
-  Handle<JSReceiver> target(proxy->target(), isolate);
+  Handle<JSReceiver> target(JSReceiver::cast(proxy->target()), isolate);
   Handle<JSReceiver> handler(JSReceiver::cast(proxy->handler()), isolate);
 
   Handle<Object> trap;
@@ -7482,7 +7488,7 @@ Maybe<bool> JSProxy::DefineOwnProperty(Isolate* isolate, Handle<JSProxy> proxy,
     return Nothing<bool>();
   }
   // 5. Let target be the value of the [[ProxyTarget]] internal slot of O.
-  Handle<JSReceiver> target(proxy->target(), isolate);
+  Handle<JSReceiver> target(JSReceiver::cast(proxy->target()), isolate);
   // 6. Let trap be ? GetMethod(handler, "defineProperty").
   Handle<Object> trap;
   ASSIGN_RETURN_ON_EXCEPTION_VALUE(
@@ -7755,7 +7761,7 @@ Maybe<bool> JSProxy::GetOwnPropertyDescriptor(Isolate* isolate,
     return Nothing<bool>();
   }
   // 5. Let target be the value of the [[ProxyTarget]] internal slot of O.
-  Handle<JSReceiver> target(proxy->target(), isolate);
+  Handle<JSReceiver> target(JSReceiver::cast(proxy->target()), isolate);
   // 6. Let trap be ? GetMethod(handler, "getOwnPropertyDescriptor").
   Handle<Object> trap;
   ASSIGN_RETURN_ON_EXCEPTION_VALUE(
@@ -8207,7 +8213,7 @@ Maybe<bool> JSProxy::PreventExtensions(Handle<JSProxy> proxy,
         *factory->NewTypeError(MessageTemplate::kProxyRevoked, trap_name));
     return Nothing<bool>();
   }
-  Handle<JSReceiver> target(proxy->target(), isolate);
+  Handle<JSReceiver> target(JSReceiver::cast(proxy->target()), isolate);
   Handle<JSReceiver> handler(JSReceiver::cast(proxy->handler()), isolate);
 
   Handle<Object> trap;
@@ -8315,7 +8321,7 @@ Maybe<bool> JSProxy::IsExtensible(Handle<JSProxy> proxy) {
         *factory->NewTypeError(MessageTemplate::kProxyRevoked, trap_name));
     return Nothing<bool>();
   }
-  Handle<JSReceiver> target(proxy->target(), isolate);
+  Handle<JSReceiver> target(JSReceiver::cast(proxy->target()), isolate);
   Handle<JSReceiver> handler(JSReceiver::cast(proxy->handler()), isolate);
 
   Handle<Object> trap;
@@ -15097,7 +15103,7 @@ Maybe<bool> JSProxy::SetPrototype(Handle<JSProxy> proxy, Handle<Object> value,
     return Nothing<bool>();
   }
   // 5. Let target be the value of the [[ProxyTarget]] internal slot.
-  Handle<JSReceiver> target(proxy->target(), isolate);
+  Handle<JSReceiver> target(JSReceiver::cast(proxy->target()), isolate);
   // 6. Let trap be ? GetMethod(handler, "getPrototypeOf").
   Handle<Object> trap;
   ASSIGN_RETURN_ON_EXCEPTION_VALUE(

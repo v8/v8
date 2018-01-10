@@ -1157,8 +1157,10 @@ void JSProxy::JSProxyVerify() {
   VerifyPointer(target());
   VerifyPointer(handler());
   Isolate* isolate = GetIsolate();
-  CHECK_EQ(target()->IsCallable(), map()->is_callable());
-  CHECK_EQ(target()->IsConstructor(), map()->is_constructor());
+  if (!IsRevoked()) {
+    CHECK_EQ(target()->IsCallable(), map()->is_callable());
+    CHECK_EQ(target()->IsConstructor(), map()->is_constructor());
+  }
   CHECK(map()->prototype()->IsNull(isolate));
   // There should be no properties on a Proxy.
   CHECK_EQ(0, map()->NumberOfOwnDescriptors());

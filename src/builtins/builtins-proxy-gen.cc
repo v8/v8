@@ -212,9 +212,8 @@ TF_BUILTIN(ProxyRevoke, ProxiesCodeStubAssembler) {
   // 4. Assert: p is a Proxy object.
   CSA_ASSERT(this, IsJSProxy(proxy));
 
-  // TODO(timothygu): Execute this step.
   // 5. Set p.[[ProxyTarget]] to null.
-  // StoreObjectField(proxy, JSProxy::kTargetOffset, NullConstant());
+  StoreObjectField(proxy, JSProxy::kTargetOffset, NullConstant());
 
   // 6. Set p.[[ProxyHandler]] to null.
   StoreObjectField(proxy, JSProxy::kHandlerOffset, NullConstant());

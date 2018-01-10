@@ -2718,7 +2718,7 @@ bool JSFunction::is_compiled() {
   return code() != builtins->builtin(Builtins::kCompileLazy);
 }
 
-ACCESSORS(JSProxy, target, JSReceiver, kTargetOffset)
+ACCESSORS(JSProxy, target, Object, kTargetOffset)
 ACCESSORS(JSProxy, handler, Object, kHandlerOffset)
 
 bool JSProxy::IsRevoked() const { return !handler()->IsJSReceiver(); }

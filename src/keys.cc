@@ -777,7 +777,7 @@ Maybe<bool> KeyAccumulator::CollectOwnJSProxyKeys(Handle<JSReceiver> receiver,
     return Nothing<bool>();
   }
   // 4. Let target be the value of the [[ProxyTarget]] internal slot of O.
-  Handle<JSReceiver> target(proxy->target(), isolate_);
+  Handle<JSReceiver> target(JSReceiver::cast(proxy->target()), isolate_);
   // 5. Let trap be ? GetMethod(handler, "ownKeys").
   Handle<Object> trap;
   ASSIGN_RETURN_ON_EXCEPTION_VALUE(

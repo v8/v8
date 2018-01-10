@@ -4018,7 +4018,7 @@ class V8_EXPORT PropertyDescriptor {
  */
 class V8_EXPORT Proxy : public Object {
  public:
-  Local<Object> GetTarget();
+  Local<Value> GetTarget();
   Local<Value> GetHandler();
   bool IsRevoked();
   void Revoke();
