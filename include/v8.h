@@ -1864,7 +1864,7 @@ class V8_EXPORT ValueSerializer {
      * SharedArrayBuffer object. The embedder must return an ID for the
      * object, using the same ID if this SharedArrayBuffer has already been
      * serialized in this buffer. When deserializing, this ID will be passed to
-     * ValueDeserializer::TransferSharedArrayBuffer as |transfer_id|.
+     * ValueDeserializer::GetSharedArrayBufferFromId as |clone_id|.
      *
      * If the object cannot be serialized, an
      * exception should be thrown and Nothing<uint32_t>() returned.
@@ -1991,6 +1991,13 @@ class V8_EXPORT ValueDeserializer {
      */
     virtual MaybeLocal<WasmCompiledModule> GetWasmModuleFromId(
         Isolate* isolate, uint32_t transfer_id);
+
+    /**
+     * Get a SharedArrayBuffer given a clone_id previously provided
+     * by ValueSerializer::GetSharedArrayBufferId
+     */
+    virtual MaybeLocal<SharedArrayBuffer> GetSharedArrayBufferFromId(
+        Isolate* isolate, uint32_t clone_id);
   };
 
   ValueDeserializer(Isolate* isolate, const uint8_t* data, size_t size);

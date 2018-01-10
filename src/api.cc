@@ -3305,6 +3305,16 @@ MaybeLocal<WasmCompiledModule> ValueDeserializer::Delegate::GetWasmModuleFromId(
   return MaybeLocal<WasmCompiledModule>();
 }
 
+MaybeLocal<SharedArrayBuffer>
+ValueDeserializer::Delegate::GetSharedArrayBufferFromId(Isolate* v8_isolate,
+                                                        uint32_t id) {
+  i::Isolate* isolate = reinterpret_cast<i::Isolate*>(v8_isolate);
+  isolate->ScheduleThrow(*isolate->factory()->NewError(
+      isolate->error_function(),
+      i::MessageTemplate::kDataCloneDeserializationError));
+  return MaybeLocal<SharedArrayBuffer>();
+}
+
 struct ValueDeserializer::PrivateData {
   PrivateData(i::Isolate* i, i::Vector<const uint8_t> data, Delegate* delegate)
       : isolate(i), deserializer(i, data, delegate) {}

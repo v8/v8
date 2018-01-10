@@ -1182,15 +1182,16 @@ MaybeHandle<Object> ValueDeserializer::ReadObjectInternal() {
       return ReadJSMap();
     case SerializationTag::kBeginJSSet:
       return ReadJSSet();
-    case SerializationTag::kArrayBuffer:
-      return ReadJSArrayBuffer();
-    case SerializationTag::kArrayBufferTransfer: {
+    case SerializationTag::kArrayBuffer: {
       const bool is_shared = false;
-      return ReadTransferredJSArrayBuffer(is_shared);
+      return ReadJSArrayBuffer(is_shared);
+    }
+    case SerializationTag::kArrayBufferTransfer: {
+      return ReadTransferredJSArrayBuffer();
     }
     case SerializationTag::kSharedArrayBuffer: {
       const bool is_shared = true;
-      return ReadTransferredJSArrayBuffer(is_shared);
+      return ReadJSArrayBuffer(is_shared);
     }
     case SerializationTag::kWasmModule:
       return ReadWasmModule();
@@ -1572,8 +1573,25 @@ MaybeHandle<JSSet> ValueDeserializer::ReadJSSet() {
   return scope.CloseAndEscape(set);
 }
 
-MaybeHandle<JSArrayBuffer> ValueDeserializer::ReadJSArrayBuffer() {
+MaybeHandle<JSArrayBuffer> ValueDeserializer::ReadJSArrayBuffer(
+    bool is_shared) {
   uint32_t id = next_id_++;
+  if (is_shared) {
+    uint32_t clone_id;
+    Local<SharedArrayBuffer> sab_value;
+    if (!ReadVarint<uint32_t>().To(&clone_id) || delegate_ == nullptr ||
+        !delegate_
+             ->GetSharedArrayBufferFromId(
+                 reinterpret_cast<v8::Isolate*>(isolate_), clone_id)
+             .ToLocal(&sab_value)) {
+      RETURN_EXCEPTION_IF_SCHEDULED_EXCEPTION(isolate_, JSArrayBuffer);
+      return MaybeHandle<JSArrayBuffer>();
+    }
+    Handle<JSArrayBuffer> array_buffer = Utils::OpenHandle(*sab_value);
+    DCHECK_EQ(is_shared, array_buffer->is_shared());
+    AddObjectWithID(id, array_buffer);
+    return array_buffer;
+  }
   uint32_t byte_length;
   if (!ReadVarint<uint32_t>().To(&byte_length) ||
       byte_length > static_cast<size_t>(end_ - position_)) {
@@ -1592,8 +1610,7 @@ MaybeHandle<JSArrayBuffer> ValueDeserializer::ReadJSArrayBuffer() {
   return array_buffer;
 }
 
-MaybeHandle<JSArrayBuffer> ValueDeserializer::ReadTransferredJSArrayBuffer(
-    bool is_shared) {
+MaybeHandle<JSArrayBuffer> ValueDeserializer::ReadTransferredJSArrayBuffer() {
   uint32_t id = next_id_++;
   uint32_t transfer_id;
   Handle<NumberDictionary> transfer_map;
@@ -1607,7 +1624,6 @@ MaybeHandle<JSArrayBuffer> ValueDeserializer::ReadTransferredJSArrayBuffer(
   }
   Handle<JSArrayBuffer> array_buffer(
       JSArrayBuffer::cast(transfer_map->ValueAt(index)), isolate_);
-  DCHECK_EQ(is_shared, array_buffer->is_shared());
   AddObjectWithID(id, array_buffer);
   return array_buffer;
 }
@@ -1744,7 +1760,7 @@ MaybeHandle<WasmMemoryObject> ValueDeserializer::ReadWasmMemory() {
 
   const bool is_shared = true;
   Handle<JSArrayBuffer> buffer;
-  if (!ReadTransferredJSArrayBuffer(is_shared).ToHandle(&buffer)) {
+  if (!ReadJSArrayBuffer(is_shared).ToHandle(&buffer)) {
     return MaybeHandle<WasmMemoryObject>();
   }
 

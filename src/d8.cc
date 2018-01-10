@@ -3102,6 +3102,8 @@ class Serializer : public ValueSerializer::Delegate {
 
     size_t index = shared_array_buffers_.size();
     shared_array_buffers_.emplace_back(isolate_, shared_array_buffer);
+    data_->shared_array_buffer_contents_.push_back(
+        MaybeExternalize(shared_array_buffer));
     return Just<uint32_t>(static_cast<uint32_t>(index));
   }
 
@@ -3174,13 +3176,6 @@ class Serializer : public ValueSerializer::Delegate {
       data_->array_buffer_contents_.push_back(contents);
     }
 
-    for (const auto& global_shared_array_buffer : shared_array_buffers_) {
-      Local<SharedArrayBuffer> shared_array_buffer =
-          Local<SharedArrayBuffer>::New(isolate_, global_shared_array_buffer);
-      data_->shared_array_buffer_contents_.push_back(
-          MaybeExternalize(shared_array_buffer));
-    }
-
     return Just(true);
   }
 
@@ -3216,14 +3211,19 @@ class Deserializer : public ValueDeserializer::Delegate {
       deserializer_.TransferArrayBuffer(index++, array_buffer);
     }
 
-    index = 0;
-    for (const auto& contents : data_->shared_array_buffer_contents()) {
-      Local<SharedArrayBuffer> shared_array_buffer = SharedArrayBuffer::New(
-          isolate_, contents.Data(), contents.ByteLength());
-      deserializer_.TransferSharedArrayBuffer(index++, shared_array_buffer);
-    }
-
     return deserializer_.ReadValue(context);
+  }
+
+  MaybeLocal<SharedArrayBuffer> GetSharedArrayBufferFromId(
+      Isolate* isolate, uint32_t clone_id) override {
+    DCHECK_NOT_NULL(data_);
+    if (clone_id < data_->shared_array_buffer_contents().size()) {
+      SharedArrayBuffer::Contents contents =
+          data_->shared_array_buffer_contents().at(clone_id);
+      return SharedArrayBuffer::New(isolate_, contents.Data(),
+                                    contents.ByteLength());
+    }
+    return MaybeLocal<SharedArrayBuffer>();
   }
 
  private:

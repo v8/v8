@@ -2210,11 +2210,11 @@ TEST_F(ValueSerializerTest, DecodeInvalidDataView) {
       {0xFF, 0x09, 0x42, 0x02, 0x00, 0x00, 0x56, 0x3F, 0x01, 0x03});
 }
 
-class ValueSerializerTestWithSharedArrayBufferTransfer
+class ValueSerializerTestWithSharedArrayBufferClone
     : public ValueSerializerTest {
  protected:
-  ValueSerializerTestWithSharedArrayBufferTransfer()
-      : serializer_delegate_(this) {}
+  ValueSerializerTestWithSharedArrayBufferClone()
+      : serializer_delegate_(this), deserializer_delegate_(this) {}
 
   void InitializeData(const std::vector<uint8_t>& data) {
     data_ = data;
@@ -2232,10 +2232,6 @@ class ValueSerializerTestWithSharedArrayBufferTransfer
 
   const Local<SharedArrayBuffer>& input_buffer() { return input_buffer_; }
   const Local<SharedArrayBuffer>& output_buffer() { return output_buffer_; }
-
-  void BeforeDecode(ValueDeserializer* deserializer) override {
-    deserializer->TransferSharedArrayBuffer(0, output_buffer_);
-  }
 
   static void SetUpTestCase() {
     flag_was_enabled_ = i::FLAG_harmony_sharedarraybuffer;
@@ -2259,17 +2255,27 @@ class ValueSerializerTestWithSharedArrayBufferTransfer
   class SerializerDelegate : public ValueSerializer::Delegate {
    public:
     explicit SerializerDelegate(
-        ValueSerializerTestWithSharedArrayBufferTransfer* test)
+        ValueSerializerTestWithSharedArrayBufferClone* test)
         : test_(test) {}
     MOCK_METHOD2(GetSharedArrayBufferId,
                  Maybe<uint32_t>(Isolate* isolate,
                                  Local<SharedArrayBuffer> shared_array_buffer));
+    MOCK_METHOD2(GetSharedArrayBufferFromId,
+                 MaybeLocal<SharedArrayBuffer>(Isolate* isolate, uint32_t id));
     void ThrowDataCloneError(Local<String> message) override {
       test_->isolate()->ThrowException(Exception::Error(message));
     }
 
    private:
-    ValueSerializerTestWithSharedArrayBufferTransfer* test_;
+    ValueSerializerTestWithSharedArrayBufferClone* test_;
+  };
+
+  class DeserializerDelegate : public ValueDeserializer::Delegate {
+   public:
+    explicit DeserializerDelegate(
+        ValueSerializerTestWithSharedArrayBufferClone* test) {}
+    MOCK_METHOD2(GetSharedArrayBufferFromId,
+                 MaybeLocal<SharedArrayBuffer>(Isolate* isolate, uint32_t id));
   };
 
 #if __clang__
@@ -2280,7 +2286,12 @@ class ValueSerializerTestWithSharedArrayBufferTransfer
     return &serializer_delegate_;
   }
 
+  ValueDeserializer::Delegate* GetDeserializerDelegate() override {
+    return &deserializer_delegate_;
+  }
+
   SerializerDelegate serializer_delegate_;
+  DeserializerDelegate deserializer_delegate_;
 
  private:
   static bool flag_was_enabled_;
@@ -2289,16 +2300,17 @@ class ValueSerializerTestWithSharedArrayBufferTransfer
   Local<SharedArrayBuffer> output_buffer_;
 };
 
-bool ValueSerializerTestWithSharedArrayBufferTransfer::flag_was_enabled_ =
-    false;
+bool ValueSerializerTestWithSharedArrayBufferClone::flag_was_enabled_ = false;
 
-TEST_F(ValueSerializerTestWithSharedArrayBufferTransfer,
-       RoundTripSharedArrayBufferTransfer) {
+TEST_F(ValueSerializerTestWithSharedArrayBufferClone,
+       RoundTripSharedArrayBufferClone) {
   InitializeData({0x00, 0x01, 0x80, 0xFF});
 
   EXPECT_CALL(serializer_delegate_,
               GetSharedArrayBufferId(isolate(), input_buffer()))
       .WillRepeatedly(Return(Just(0U)));
+  EXPECT_CALL(deserializer_delegate_, GetSharedArrayBufferFromId(isolate(), 0U))
+      .WillRepeatedly(Return(output_buffer()));
 
   RoundTripTest([this]() { return input_buffer(); },
                 [this](Local<Value> value) {
@@ -2331,7 +2343,7 @@ TEST_F(ValueSerializerTestWithSharedArrayBufferTransfer,
       });
 }
 
-TEST_F(ValueSerializerTestWithSharedArrayBufferTransfer,
+TEST_F(ValueSerializerTestWithSharedArrayBufferClone,
        RoundTripWebAssemblyMemory) {
   bool flag_was_enabled = i::FLAG_experimental_wasm_threads;
   i::FLAG_experimental_wasm_threads = true;
@@ -2343,6 +2355,8 @@ TEST_F(ValueSerializerTestWithSharedArrayBufferTransfer,
   EXPECT_CALL(serializer_delegate_,
               GetSharedArrayBufferId(isolate(), input_buffer()))
       .WillRepeatedly(Return(Just(0U)));
+  EXPECT_CALL(deserializer_delegate_, GetSharedArrayBufferFromId(isolate(), 0U))
+      .WillRepeatedly(Return(output_buffer()));
 
   RoundTripTest(
       [this]() -> Local<Value> {
