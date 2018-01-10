@@ -14142,11 +14142,11 @@ void JSFunction::ClearTypeFeedbackInfo() {
   }
 }
 
-void Code::PrintDeoptLocation(FILE* out, Address pc) {
+void Code::PrintDeoptLocation(FILE* out, const char* str, Address pc) {
   Deoptimizer::DeoptInfo info = Deoptimizer::GetDeoptInfo(this, pc);
   class SourcePosition pos = info.position;
   if (info.deopt_reason != DeoptimizeReason::kUnknown || pos.IsKnown()) {
-    PrintF(out, "            ;;; deoptimize at ");
+    PrintF(out, "%s", str);
     OFStream outstr(out);
     pos.Print(outstr, this);
     PrintF(out, ", %s\n", DeoptimizeReasonToString(info.deopt_reason));

@@ -389,7 +389,7 @@ class Code : public HeapObject {
   DECL_PRINTER(Code)
   DECL_VERIFIER(Code)
 
-  void PrintDeoptLocation(FILE* out, Address pc);
+  void PrintDeoptLocation(FILE* out, const char* str, Address pc);
   bool CanDeoptAt(Address pc);
 
   inline HandlerTable::CatchPrediction GetBuiltinCatchPrediction();

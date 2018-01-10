@@ -605,7 +605,8 @@ void Deoptimizer::DoComputeOutputFrames() {
            input_data->OptimizationId()->value(), bailout_id_, fp_to_sp_delta_,
            caller_frame_top_);
     if (bailout_type_ == EAGER || bailout_type_ == SOFT) {
-      compiled_code_->PrintDeoptLocation(trace_scope_->file(), from_);
+      compiled_code_->PrintDeoptLocation(
+          trace_scope_->file(), "            ;;; deoptimize at ", from_);
     }
   }
 
@@ -1715,7 +1716,12 @@ void Deoptimizer::MaterializeHeapObjects() {
 
   translated_state_.VerifyMaterializedObjects();
 
-  translated_state_.DoUpdateFeedback();
+  bool feedback_updated = translated_state_.DoUpdateFeedback();
+  if (trace_scope_ != nullptr && feedback_updated) {
+    PrintF(trace_scope_->file(), "Feedback updated");
+    compiled_code_->PrintDeoptLocation(trace_scope_->file(),
+                                       " from deoptimization at ", from_);
+  }
 
   isolate_->materialized_object_store()->Remove(
       reinterpret_cast<Address>(stack_fp_));
@@ -3229,7 +3235,7 @@ void TranslatedState::Init(Address input_frame_pointer,
   CHECK_LE(update_feedback_count, 1);
 
   if (update_feedback_count == 1) {
-    ReadUpdateFeedback(iterator, literal_array);
+    ReadUpdateFeedback(iterator, literal_array, trace_file);
   }
 
   std::stack<int> nested_counts;
@@ -3896,20 +3902,27 @@ void TranslatedState::VerifyMaterializedObjects() {
 #endif
 }
 
-void TranslatedState::DoUpdateFeedback() {
+bool TranslatedState::DoUpdateFeedback() {
   if (!feedback_vector_handle_.is_null()) {
     CHECK(!feedback_slot_.IsInvalid());
     isolate()->CountUsage(v8::Isolate::kDeoptimizerDisableSpeculation);
     CallICNexus nexus(feedback_vector_handle_, feedback_slot_);
     nexus.SetSpeculationMode(SpeculationMode::kDisallowSpeculation);
+    return true;
   }
+  return false;
 }
 
 void TranslatedState::ReadUpdateFeedback(TranslationIterator* iterator,
-                                         FixedArray* literal_array) {
+                                         FixedArray* literal_array,
+                                         FILE* trace_file) {
   CHECK_EQ(Translation::UPDATE_FEEDBACK, iterator->Next());
   feedback_vector_ = FeedbackVector::cast(literal_array->get(iterator->Next()));
   feedback_slot_ = FeedbackSlot(iterator->Next());
+  if (trace_file != nullptr) {
+    PrintF(trace_file, "  reading FeedbackVector (slot %d)\n",
+           feedback_slot_.ToInt());
+  }
 }
 
 }  // namespace internal

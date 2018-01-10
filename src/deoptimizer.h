@@ -297,7 +297,7 @@ class TranslatedState {
             FILE* trace_file, int parameter_count);
 
   void VerifyMaterializedObjects();
-  void DoUpdateFeedback();
+  bool DoUpdateFeedback();
 
  private:
   friend TranslatedValue;
@@ -345,7 +345,7 @@ class TranslatedState {
       Handle<Map> map, const DisallowHeapAllocation& no_allocation);
 
   void ReadUpdateFeedback(TranslationIterator* iterator,
-                          FixedArray* literal_array);
+                          FixedArray* literal_array, FILE* trace_file);
 
   TranslatedValue* ResolveCapturedObject(TranslatedValue* slot);
   TranslatedValue* GetValueByObjectIndex(int object_index);
