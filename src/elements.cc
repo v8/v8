@@ -519,6 +519,21 @@ static Maybe<int64_t> IndexOfValueSlowPath(Isolate* isolate,
   return Just<int64_t>(-1);
 }
 
+// The InternalElementsAccessor is a helper class to expose otherwise protected
+// methods to its subclasses. Namely, we don't want to publicly expose methods
+// that take an entry (instead of an index) as an argument.
+class InternalElementsAccessor : public ElementsAccessor {
+ public:
+  explicit InternalElementsAccessor(const char* name)
+      : ElementsAccessor(name) {}
+
+  virtual uint32_t GetEntryForIndex(Isolate* isolate, JSObject* holder,
+                                    FixedArrayBase* backing_store,
+                                    uint32_t index) = 0;
+
+  virtual PropertyDetails GetDetails(JSObject* holder, uint32_t entry) = 0;
+};
+
 // Base class for element handler implementations. Contains the
 // the common logic for objects with different ElementsKinds.
 // Subclasses must specialize method for which the element
@@ -537,10 +552,10 @@ static Maybe<int64_t> IndexOfValueSlowPath(Isolate* isolate,
 // CRTP to guarantee aggressive compile time optimizations (i.e.  inlining and
 // specialization of SomeElementsAccessor methods).
 template <typename Subclass, typename ElementsTraitsParam>
-class ElementsAccessorBase : public ElementsAccessor {
+class ElementsAccessorBase : public InternalElementsAccessor {
  public:
   explicit ElementsAccessorBase(const char* name)
-      : ElementsAccessor(name) { }
+      : InternalElementsAccessor(name) {}
 
   typedef ElementsTraitsParam ElementsTraits;
   typedef typename ElementsTraitsParam::BackingStore BackingStore;
@@ -1052,35 +1067,65 @@ class ElementsAccessorBase : public ElementsAccessor {
       Isolate* isolate, Handle<JSObject> object,
       Handle<FixedArray> values_or_entries, bool get_entries, int* nof_items,
       PropertyFilter filter) {
-    int count = 0;
+    DCHECK_EQ(*nof_items, 0);
     KeyAccumulator accumulator(isolate, KeyCollectionMode::kOwnOnly,
                                ALL_PROPERTIES);
     Subclass::CollectElementIndicesImpl(
         object, handle(object->elements(), isolate), &accumulator);
     Handle<FixedArray> keys = accumulator.GetKeys();
 
-    for (int i = 0; i < keys->length(); ++i) {
+    int count = 0;
+    int i = 0;
+    Handle<Map> original_map(object->map(), isolate);
+
+    for (; i < keys->length(); ++i) {
       Handle<Object> key(keys->get(i), isolate);
-      Handle<Object> value;
       uint32_t index;
       if (!key->ToUint32(&index)) continue;
 
+      DCHECK_EQ(object->map(), *original_map);
       uint32_t entry = Subclass::GetEntryForIndexImpl(
           isolate, *object, object->elements(), index, filter);
       if (entry == kMaxUInt32) continue;
-
       PropertyDetails details = Subclass::GetDetailsImpl(*object, entry);
 
+      Handle<Object> value;
       if (details.kind() == kData) {
         value = Subclass::GetImpl(isolate, object->elements(), entry);
       } else {
+        // This might modify the elements and/or change the elements kind.
         LookupIterator it(isolate, object, index, LookupIterator::OWN);
         ASSIGN_RETURN_ON_EXCEPTION_VALUE(
             isolate, value, Object::GetProperty(&it), Nothing<bool>());
       }
-      if (get_entries) {
-        value = MakeEntryPair(isolate, index, value);
+      if (get_entries) value = MakeEntryPair(isolate, index, value);
+      values_or_entries->set(count++, *value);
+      if (object->map() != *original_map) break;
+    }
+
+    // Slow path caused by changes in elements kind during iteration.
+    for (; i < keys->length(); i++) {
+      Handle<Object> key(keys->get(i), isolate);
+      uint32_t index;
+      if (!key->ToUint32(&index)) continue;
+
+      if (filter & ONLY_ENUMERABLE) {
+        InternalElementsAccessor* accessor =
+            reinterpret_cast<InternalElementsAccessor*>(
+                object->GetElementsAccessor());
+        uint32_t entry = accessor->GetEntryForIndex(isolate, *object,
+                                                    object->elements(), index);
+        if (entry == kMaxUInt32) continue;
+        PropertyDetails details = accessor->GetDetails(*object, entry);
+        if (!details.IsEnumerable()) continue;
       }
+
+      Handle<Object> value;
+      LookupIterator it(isolate, object, index, LookupIterator::OWN);
+      ASSIGN_RETURN_ON_EXCEPTION_VALUE(isolate, value, Object::GetProperty(&it),
+                                       Nothing<bool>());
+
+      if (get_entries) value = MakeEntryPair(isolate, index, value);
       values_or_entries->set(count++, *value);
     }
 
@@ -1710,12 +1755,13 @@ class DictionaryElementsAccessor
         return result;
       }
     }
-
+    Handle<Map> original_map(receiver->map(), isolate);
     Handle<NumberDictionary> dictionary(
         NumberDictionary::cast(receiver->elements()), isolate);
     // Iterate through entire range, as accessing elements out of order is
     // observable
     for (uint32_t k = start_from; k < length; ++k) {
+      DCHECK_EQ(receiver->map(), *original_map);
       int entry = dictionary->FindEntry(isolate, k);
       if (entry == NumberDictionary::kNotFound) {
         if (search_for_hole) return Just(true);
@@ -1780,15 +1826,15 @@ class DictionaryElementsAccessor
                                          uint32_t start_from, uint32_t length) {
     DCHECK(JSObject::PrototypeHasNoElements(isolate, *receiver));
 
+    Handle<Map> original_map(receiver->map(), isolate);
     Handle<NumberDictionary> dictionary(
         NumberDictionary::cast(receiver->elements()), isolate);
     // Iterate through entire range, as accessing elements out of order is
     // observable.
     for (uint32_t k = start_from; k < length; ++k) {
+      DCHECK_EQ(receiver->map(), *original_map);
       int entry = dictionary->FindEntry(isolate, k);
-      if (entry == NumberDictionary::kNotFound) {
-        continue;
-      }
+      if (entry == NumberDictionary::kNotFound) continue;
 
       PropertyDetails details = GetDetailsImpl(*dictionary, entry);
       switch (details.kind()) {
@@ -3698,12 +3744,13 @@ class SloppyArgumentsElementsAccessor
                                        Handle<Object> value,
                                        uint32_t start_from, uint32_t length) {
     DCHECK(JSObject::PrototypeHasNoElements(isolate, *object));
-    Handle<Map> original_map = handle(object->map(), isolate);
+    Handle<Map> original_map(object->map(), isolate);
     Handle<SloppyArgumentsElements> elements(
         SloppyArgumentsElements::cast(object->elements()), isolate);
     bool search_for_hole = value->IsUndefined(isolate);
 
     for (uint32_t k = start_from; k < length; ++k) {
+      DCHECK_EQ(object->map(), *original_map);
       uint32_t entry =
           GetEntryForIndexImpl(isolate, *object, *elements, k, ALL_PROPERTIES);
       if (entry == kMaxUInt32) {
@@ -3739,11 +3786,12 @@ class SloppyArgumentsElementsAccessor
                                          Handle<Object> value,
                                          uint32_t start_from, uint32_t length) {
     DCHECK(JSObject::PrototypeHasNoElements(isolate, *object));
-    Handle<Map> original_map = handle(object->map(), isolate);
+    Handle<Map> original_map(object->map(), isolate);
     Handle<SloppyArgumentsElements> elements(
         SloppyArgumentsElements::cast(object->elements()), isolate);
 
     for (uint32_t k = start_from; k < length; ++k) {
+      DCHECK_EQ(object->map(), *original_map);
       uint32_t entry =
           GetEntryForIndexImpl(isolate, *object, *elements, k, ALL_PROPERTIES);
       if (entry == kMaxUInt32) {
