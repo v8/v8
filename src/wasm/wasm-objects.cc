@@ -1255,7 +1255,6 @@ Handle<WasmCompiledModule> WasmCompiledModule::New(
     // reliable, and we need these at Reset (which is called at
     // finalization). If the order were reliable, and top-down, we could instead
     // just get them from shared().
-    compiled_module->set_initial_pages(module->initial_pages);
     compiled_module->set_num_imported_functions(module->num_imported_functions);
 
     int num_function_tables = static_cast<int>(function_tables.size());
@@ -1713,10 +1712,6 @@ void WasmCompiledModule::ReinitializeAfterDeserialization(
   // may still be active.
   WasmCompiledModule::Reset(isolate, *compiled_module);
   DCHECK(WasmSharedModuleData::IsWasmSharedModuleData(*shared));
-}
-
-uint32_t WasmCompiledModule::default_mem_size() const {
-  return initial_pages() * wasm::kWasmPageSize;
 }
 
 MaybeHandle<String> WasmSharedModuleData::GetModuleNameOrNull(

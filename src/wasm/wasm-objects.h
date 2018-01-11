@@ -483,8 +483,7 @@ class WasmCompiledModule : public FixedArray {
   MACRO(OBJECT, FixedArray, function_tables)                  \
   MACRO(OBJECT, FixedArray, signature_tables)                 \
   MACRO(CONST_OBJECT, FixedArray, empty_function_tables)      \
-  MACRO(CONST_OBJECT, FixedArray, empty_signature_tables)     \
-  MACRO(SMALL_CONST_NUMBER, uint32_t, initial_pages)
+  MACRO(CONST_OBJECT, FixedArray, empty_signature_tables)
 
 // TODO(mtrofin): this is unnecessary when we stop needing
 // FLAG_wasm_jit_to_native, because we have instance_id on NativeModule.
@@ -523,8 +522,6 @@ class WasmCompiledModule : public FixedArray {
 
   // TODO(mtrofin): delete this when we don't need FLAG_wasm_jit_to_native
   static void ResetGCModel(Isolate* isolate, WasmCompiledModule* module);
-
-  uint32_t default_mem_size() const;
 
   wasm::NativeModule* GetNativeModule() const;
   void InsertInChain(WasmModuleObject*);
