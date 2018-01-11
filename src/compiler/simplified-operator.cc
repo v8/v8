@@ -714,32 +714,32 @@ bool operator==(CheckMinusZeroParameters const& lhs,
   V(SpeculativeNumberLessThanOrEqual)
 
 #define CHECKED_OP_LIST(V)               \
+  V(CheckEqualsInternalizedString, 2, 0) \
+  V(CheckEqualsSymbol, 2, 0)             \
   V(CheckHeapObject, 1, 1)               \
   V(CheckInternalizedString, 1, 1)       \
+  V(CheckNotTaggedHole, 1, 1)            \
   V(CheckReceiver, 1, 1)                 \
   V(CheckSeqString, 1, 1)                \
   V(CheckSymbol, 1, 1)                   \
-  V(CheckNotTaggedHole, 1, 1)            \
-  V(CheckEqualsInternalizedString, 2, 0) \
-  V(CheckEqualsSymbol, 2, 0)             \
   V(CheckedInt32Add, 2, 1)               \
-  V(CheckedInt32Sub, 2, 1)               \
   V(CheckedInt32Div, 2, 1)               \
   V(CheckedInt32Mod, 2, 1)               \
+  V(CheckedInt32Sub, 2, 1)               \
   V(CheckedUint32Div, 2, 1)              \
   V(CheckedUint32Mod, 2, 1)
 
 #define CHECKED_WITH_FEEDBACK_OP_LIST(V) \
   V(CheckBounds, 2, 1)                   \
+  V(CheckNumber, 1, 1)                   \
   V(CheckSmi, 1, 1)                      \
   V(CheckString, 1, 1)                   \
+  V(CheckedInt32ToTaggedSigned, 1, 1)    \
   V(CheckedTaggedSignedToInt32, 1, 1)    \
+  V(CheckedTaggedToTaggedPointer, 1, 1)  \
   V(CheckedTaggedToTaggedSigned, 1, 1)   \
   V(CheckedUint32ToInt32, 1, 1)          \
-  V(CheckedUint32ToTaggedSigned, 1, 1)   \
-  V(CheckedInt32ToTaggedSigned, 1, 1)    \
-  V(CheckedTaggedToTaggedPointer, 1, 1)  \
-  V(CheckNumber, 1, 1)
+  V(CheckedUint32ToTaggedSigned, 1, 1)
 
 struct SimplifiedOperatorGlobalCache final {
 #define PURE(Name, properties, value_input_count, control_input_count)     \
@@ -1051,6 +1051,16 @@ GET_FROM_CACHE(LoadFieldByIndex)
   }
 CHECKED_WITH_FEEDBACK_OP_LIST(GET_FROM_CACHE_WITH_FEEDBACK)
 #undef GET_FROM_CACHE_WITH_FEEDBACK
+
+bool IsCheckedWithFeedback(const Operator* op) {
+#define CASE(Name, ...) case IrOpcode::k##Name:
+  switch (op->opcode()) {
+    CHECKED_WITH_FEEDBACK_OP_LIST(CASE) return true;
+    default:
+      return false;
+  }
+#undef CASE
+}
 
 const Operator* SimplifiedOperatorBuilder::RuntimeAbort(AbortReason reason) {
   return new (zone()) Operator1<int>(           // --

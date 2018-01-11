@@ -565,19 +565,19 @@ bool NodeProperties::CanBePrimitive(Node* receiver, Node* effect) {
 bool NodeProperties::CanBeNullOrUndefined(Node* receiver, Node* effect) {
   if (CanBePrimitive(receiver, effect)) {
     switch (receiver->opcode()) {
-      case IrOpcode::kCheckSmi:
-      case IrOpcode::kCheckNumber:
-      case IrOpcode::kCheckSymbol:
-      case IrOpcode::kCheckString:
-      case IrOpcode::kCheckSeqString:
       case IrOpcode::kCheckInternalizedString:
-      case IrOpcode::kToBoolean:
+      case IrOpcode::kCheckNumber:
+      case IrOpcode::kCheckSeqString:
+      case IrOpcode::kCheckSmi:
+      case IrOpcode::kCheckString:
+      case IrOpcode::kCheckSymbol:
       case IrOpcode::kJSToInteger:
       case IrOpcode::kJSToLength:
       case IrOpcode::kJSToName:
       case IrOpcode::kJSToNumber:
       case IrOpcode::kJSToNumeric:
       case IrOpcode::kJSToString:
+      case IrOpcode::kToBoolean:
         return false;
       case IrOpcode::kHeapConstant: {
         Handle<HeapObject> value = HeapObjectMatcher(receiver).Value();

@@ -20,26 +20,36 @@ Reduction RedundancyElimination::Reduce(Node* node) {
   if (node_checks_.Get(node)) return NoChange();
   switch (node->opcode()) {
     case IrOpcode::kCheckBounds:
+    case IrOpcode::kCheckEqualsInternalizedString:
+    case IrOpcode::kCheckEqualsSymbol:
     case IrOpcode::kCheckFloat64Hole:
     case IrOpcode::kCheckHeapObject:
     case IrOpcode::kCheckIf:
     case IrOpcode::kCheckInternalizedString:
+    case IrOpcode::kCheckNotTaggedHole:
     case IrOpcode::kCheckNumber:
     case IrOpcode::kCheckReceiver:
+    case IrOpcode::kCheckSeqString:
     case IrOpcode::kCheckSmi:
     case IrOpcode::kCheckString:
-    case IrOpcode::kCheckSeqString:
-    case IrOpcode::kCheckNotTaggedHole:
+    case IrOpcode::kCheckSymbol:
     case IrOpcode::kCheckedFloat64ToInt32:
     case IrOpcode::kCheckedInt32Add:
-    case IrOpcode::kCheckedInt32Sub:
     case IrOpcode::kCheckedInt32Div:
     case IrOpcode::kCheckedInt32Mod:
     case IrOpcode::kCheckedInt32Mul:
-    case IrOpcode::kCheckedTaggedToFloat64:
+    case IrOpcode::kCheckedInt32Sub:
+    case IrOpcode::kCheckedInt32ToTaggedSigned:
     case IrOpcode::kCheckedTaggedSignedToInt32:
+    case IrOpcode::kCheckedTaggedToFloat64:
     case IrOpcode::kCheckedTaggedToInt32:
+    case IrOpcode::kCheckedTaggedToTaggedPointer:
+    case IrOpcode::kCheckedTaggedToTaggedSigned:
+    case IrOpcode::kCheckedTruncateTaggedToWord32:
+    case IrOpcode::kCheckedUint32Div:
+    case IrOpcode::kCheckedUint32Mod:
     case IrOpcode::kCheckedUint32ToInt32:
+    case IrOpcode::kCheckedUint32ToTaggedSigned:
       return ReduceCheckNode(node);
     case IrOpcode::kSpeculativeNumberAdd:
     case IrOpcode::kSpeculativeNumberSubtract:
@@ -125,7 +135,8 @@ RedundancyElimination::EffectPathChecks::AddCheck(Zone* zone,
 
 namespace {
 
-bool IsCompatibleCheck(Node const* a, Node const* b) {
+// Does check {a} subsume check {b}?
+bool CheckSubsumes(Node const* a, Node const* b) {
   if (a->op() != b->op()) {
     if (a->opcode() == IrOpcode::kCheckInternalizedString &&
         b->opcode() == IrOpcode::kCheckString) {
@@ -139,12 +150,12 @@ bool IsCompatibleCheck(Node const* a, Node const* b) {
         case IrOpcode::kCheckString:
         case IrOpcode::kCheckNumber:
           break;
+        case IrOpcode::kCheckedInt32ToTaggedSigned:
         case IrOpcode::kCheckedTaggedSignedToInt32:
+        case IrOpcode::kCheckedTaggedToTaggedPointer:
         case IrOpcode::kCheckedTaggedToTaggedSigned:
         case IrOpcode::kCheckedUint32ToInt32:
         case IrOpcode::kCheckedUint32ToTaggedSigned:
-        case IrOpcode::kCheckedInt32ToTaggedSigned:
-        case IrOpcode::kCheckedTaggedToTaggedPointer:
           break;
         case IrOpcode::kCheckedFloat64ToInt32:
         case IrOpcode::kCheckedTaggedToInt32: {
@@ -158,6 +169,7 @@ bool IsCompatibleCheck(Node const* a, Node const* b) {
           break;
         }
         default:
+          DCHECK(!IsCheckedWithFeedback(a->op()));
           return false;
       }
     }
@@ -172,7 +184,7 @@ bool IsCompatibleCheck(Node const* a, Node const* b) {
 
 Node* RedundancyElimination::EffectPathChecks::LookupCheck(Node* node) const {
   for (Check const* check = head_; check != nullptr; check = check->next) {
-    if (IsCompatibleCheck(check->node, node)) {
+    if (CheckSubsumes(check->node, node)) {
       DCHECK(!check->node->IsDead());
       return check->node;
     }
