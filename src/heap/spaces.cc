@@ -3217,7 +3217,6 @@ LargePage* LargeObjectSpace::FindPage(Address a) {
   auto it = chunk_map_.find(reinterpret_cast<Address>(key));
   if (it != chunk_map_.end()) {
     LargePage* page = it->second;
-    DCHECK(LargePage::IsValid(page));
     if (page->Contains(a)) {
       return page;
     }
