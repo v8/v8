@@ -10,9 +10,7 @@ ALL_VARIANT_FLAGS = {
   "minor_mc": [["--minor-mc"]],
   "slow_path": [["--force-slow-path"]],
   "stress": [["--stress-opt", "--always-opt"]],
-  # TODO(6792): Write protected code has been temporary added to the below
-  # variant until the feature has been enabled (or staged) by default.
-  "stress_incremental_marking":  [["--stress-incremental-marking", "--write-protect-code-memory"]],
+  "stress_incremental_marking":  [["--stress-incremental-marking"]],
   # No optimization means disable all optimizations. OptimizeFunctionOnNextCall
   # would not force optimization too. It turns into a Nop. Please see
   # https://chromium-review.googlesource.com/c/452620/ for more discussion.
