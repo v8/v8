@@ -278,22 +278,32 @@ class WasmGenerator {
   }
 
   template <ValueType wanted_type>
-  void get_local(DataRange& data) {
+  void local_op(DataRange& data, WasmOpcode opcode) {
     Local local = GetRandomLocal(data);
-    // If there are no locals and no parameters, just generate any value.
-    if (!local.is_valid()) return Generate<wanted_type>(data);
+    // If there are no locals and no parameters, just generate any value (if a
+    // value is needed), or do nothing.
+    if (!local.is_valid()) {
+      if (wanted_type == kWasmStmt) return;
+      return Generate<wanted_type>(data);
+    }
 
-    builder_->EmitWithU32V(kExprGetLocal, local.index);
-    if (local.type != wanted_type) Convert(local.type, wanted_type);
+    if (opcode != kExprGetLocal) Generate(local.type, data);
+    builder_->EmitWithU32V(opcode, local.index);
+    if (wanted_type != kWasmStmt && local.type != wanted_type) {
+      Convert(local.type, wanted_type);
+    }
   }
 
-  void set_local(DataRange& data) {
-    Local local = GetRandomLocal(data);
-    // If there are no locals and no parameters, do nothing.
-    if (!local.is_valid()) return;
+  template <ValueType wanted_type>
+  void get_local(DataRange& data) {
+    local_op<wanted_type>(data, kExprGetLocal);
+  }
 
-    Generate(local.type, data);
-    builder_->EmitWithU32V(kExprSetLocal, local.index);
+  void set_local(DataRange& data) { local_op<kWasmStmt>(data, kExprSetLocal); }
+
+  template <ValueType wanted_type>
+  void tee_local(DataRange& data) {
+    local_op<wanted_type>(data, kExprTeeLocal);
   }
 
   template <ValueType T1, ValueType T2>
@@ -396,7 +406,9 @@ void WasmGenerator::Generate<kWasmStmt>(DataRange& data) {
 
       &WasmGenerator::drop,
 
-      &WasmGenerator::call<kWasmStmt>};
+      &WasmGenerator::call<kWasmStmt>,
+
+      &WasmGenerator::set_local};
 
   GenerateOneOf(alternates, data);
 }
@@ -480,6 +492,7 @@ void WasmGenerator::Generate<kWasmI32>(DataRange& data) {
       &WasmGenerator::grow_memory,
 
       &WasmGenerator::get_local<kWasmI32>,
+      &WasmGenerator::tee_local<kWasmI32>,
 
       &WasmGenerator::call<kWasmI32>};
 
@@ -531,6 +544,7 @@ void WasmGenerator::Generate<kWasmI64>(DataRange& data) {
       &WasmGenerator::memop<kExprI64LoadMem32U>,
 
       &WasmGenerator::get_local<kWasmI64>,
+      &WasmGenerator::tee_local<kWasmI64>,
 
       &WasmGenerator::call<kWasmI64>};
 
@@ -558,6 +572,7 @@ void WasmGenerator::Generate<kWasmF32>(DataRange& data) {
       &WasmGenerator::memop<kExprF32LoadMem>,
 
       &WasmGenerator::get_local<kWasmF32>,
+      &WasmGenerator::tee_local<kWasmF32>,
 
       &WasmGenerator::call<kWasmF32>};
 
@@ -585,6 +600,7 @@ void WasmGenerator::Generate<kWasmF64>(DataRange& data) {
       &WasmGenerator::memop<kExprF64LoadMem>,
 
       &WasmGenerator::get_local<kWasmF64>,
+      &WasmGenerator::tee_local<kWasmF64>,
 
       &WasmGenerator::call<kWasmF64>};
 
