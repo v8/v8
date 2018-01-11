@@ -473,11 +473,9 @@ class LiftoffCompiler {
 
   void I32UnOp(bool (LiftoffAssembler::*emit_fn)(Register, Register),
                ExternalReference (*fallback_fn)(Isolate*)) {
-    LiftoffRegList pinned_regs;
-    LiftoffRegister dst_reg =
-        pinned_regs.set(__ GetUnaryOpTargetRegister(kGpReg));
-    LiftoffRegister src_reg =
-        pinned_regs.set(__ PopToRegister(kGpReg, pinned_regs));
+    LiftoffRegList pinned;
+    LiftoffRegister dst_reg = pinned.set(__ GetUnaryOpTargetRegister(kGpReg));
+    LiftoffRegister src_reg = pinned.set(__ PopToRegister(kGpReg, pinned));
     if (!emit_fn || !(asm_->*emit_fn)(dst_reg.gp(), src_reg.gp())) {
       ExternalReference ext_ref = fallback_fn(asm_->isolate());
       Register args[] = {src_reg.gp()};
@@ -506,25 +504,32 @@ class LiftoffCompiler {
 
   void I32BinOp(void (LiftoffAssembler::*emit_fn)(Register, Register,
                                                   Register)) {
-    LiftoffRegList pinned_regs;
-    LiftoffRegister target_reg =
-        pinned_regs.set(__ GetBinaryOpTargetRegister(kGpReg));
-    LiftoffRegister rhs_reg =
-        pinned_regs.set(__ PopToRegister(kGpReg, pinned_regs));
-    LiftoffRegister lhs_reg = __ PopToRegister(kGpReg, pinned_regs);
-    (asm_->*emit_fn)(target_reg.gp(), lhs_reg.gp(), rhs_reg.gp());
-    __ PushRegister(kWasmI32, target_reg);
+    LiftoffRegList pinned;
+    LiftoffRegister dst_reg = pinned.set(__ GetBinaryOpTargetRegister(kGpReg));
+    LiftoffRegister rhs_reg = pinned.set(__ PopToRegister(kGpReg, pinned));
+    LiftoffRegister lhs_reg = __ PopToRegister(kGpReg, pinned);
+    (asm_->*emit_fn)(dst_reg.gp(), lhs_reg.gp(), rhs_reg.gp());
+    __ PushRegister(kWasmI32, dst_reg);
+  }
+
+  void I32CCallBinOp(ExternalReference ext_ref) {
+    LiftoffRegList pinned;
+    LiftoffRegister dst_reg = pinned.set(__ GetBinaryOpTargetRegister(kGpReg));
+    LiftoffRegister rhs_reg = pinned.set(__ PopToRegister(kGpReg, pinned));
+    LiftoffRegister lhs_reg = __ PopToRegister(kGpReg, pinned);
+    Register args[] = {lhs_reg.gp(), rhs_reg.gp()};
+    GenerateCCall(dst_reg.gp(), arraysize(args), args, ext_ref);
+    __ PushRegister(kWasmI32, dst_reg);
   }
 
   void F32BinOp(void (LiftoffAssembler::*emit_fn)(DoubleRegister,
                                                   DoubleRegister,
                                                   DoubleRegister)) {
-    LiftoffRegList pinned_regs;
+    LiftoffRegList pinned;
     LiftoffRegister target_reg =
-        pinned_regs.set(__ GetBinaryOpTargetRegister(kFpReg));
-    LiftoffRegister rhs_reg =
-        pinned_regs.set(__ PopToRegister(kFpReg, pinned_regs));
-    LiftoffRegister lhs_reg = __ PopToRegister(kFpReg, pinned_regs);
+        pinned.set(__ GetBinaryOpTargetRegister(kFpReg));
+    LiftoffRegister rhs_reg = pinned.set(__ PopToRegister(kFpReg, pinned));
+    LiftoffRegister lhs_reg = __ PopToRegister(kFpReg, pinned);
     (asm_->*emit_fn)(target_reg.fp(), lhs_reg.fp(), rhs_reg.fp());
     __ PushRegister(kWasmF32, target_reg);
   }
@@ -534,6 +539,10 @@ class LiftoffCompiler {
 #define CASE_BINOP(opcode, type, fn) \
   case WasmOpcode::kExpr##opcode:    \
     return type##BinOp(&LiftoffAssembler::emit_##fn);
+#define CASE_CCALL_BINOP(opcode, type, ext_ref_fn)                    \
+  case WasmOpcode::kExpr##opcode:                                     \
+    type##CCallBinOp(ExternalReference::ext_ref_fn(asm_->isolate())); \
+    break;
     switch (opcode) {
       CASE_BINOP(I32Add, I32, i32_add)
       CASE_BINOP(I32Sub, I32, i32_sub)
@@ -544,6 +553,8 @@ class LiftoffCompiler {
       CASE_BINOP(I32Shl, I32, i32_shl)
       CASE_BINOP(I32ShrS, I32, i32_sar)
       CASE_BINOP(I32ShrU, I32, i32_shr)
+      CASE_CCALL_BINOP(I32Rol, I32, wasm_word32_rol)
+      CASE_CCALL_BINOP(I32Ror, I32, wasm_word32_ror)
       CASE_BINOP(F32Add, F32, f32_add)
       CASE_BINOP(F32Sub, F32, f32_sub)
       CASE_BINOP(F32Mul, F32, f32_mul)
@@ -551,6 +562,7 @@ class LiftoffCompiler {
         return unsupported(decoder, WasmOpcodes::OpcodeName(opcode));
     }
 #undef CASE_BINOP
+#undef CASE_CCALL_BINOP
   }
 
   void I32Const(Decoder* decoder, Value* result, int32_t value) {

@@ -201,21 +201,29 @@ int32_t uint64_mod_wrapper(uint64_t* dst, uint64_t* src) {
 }
 
 uint32_t word32_ctz_wrapper(uint32_t* input) {
-  return static_cast<uint32_t>(base::bits::CountTrailingZeros(*input));
+  return base::bits::CountTrailingZeros(*input);
 }
 
 uint32_t word64_ctz_wrapper(uint64_t* input) {
-  return static_cast<uint32_t>(
-      base::bits::CountTrailingZeros(ReadUnalignedValue<uint64_t>(input)));
+  return base::bits::CountTrailingZeros(ReadUnalignedValue<uint64_t>(input));
 }
 
 uint32_t word32_popcnt_wrapper(uint32_t* input) {
-  return static_cast<uint32_t>(base::bits::CountPopulation(*input));
+  return base::bits::CountPopulation(*input);
 }
 
 uint32_t word64_popcnt_wrapper(uint64_t* input) {
-  return static_cast<uint32_t>(
-      base::bits::CountPopulation(ReadUnalignedValue<uint64_t>(input)));
+  return base::bits::CountPopulation(ReadUnalignedValue<uint64_t>(input));
+}
+
+uint32_t word32_rol_wrapper(uint32_t* input_p, uint32_t* shift_p) {
+  uint32_t shift = (*shift_p & 31);
+  return (*input_p << shift) | (*input_p >> (32 - shift));
+}
+
+uint32_t word32_ror_wrapper(uint32_t* input_p, uint32_t* shift_p) {
+  uint32_t shift = (*shift_p & 31);
+  return (*input_p >> shift) | (*input_p << (32 - shift));
 }
 
 void float64_pow_wrapper(double* param0, double* param1) {

@@ -1012,6 +1012,16 @@ ExternalReference ExternalReference::wasm_word64_popcnt(Isolate* isolate) {
       Redirect(isolate, FUNCTION_ADDR(wasm::word64_popcnt_wrapper)));
 }
 
+ExternalReference ExternalReference::wasm_word32_rol(Isolate* isolate) {
+  return ExternalReference(
+      Redirect(isolate, FUNCTION_ADDR(wasm::word32_rol_wrapper)));
+}
+
+ExternalReference ExternalReference::wasm_word32_ror(Isolate* isolate) {
+  return ExternalReference(
+      Redirect(isolate, FUNCTION_ADDR(wasm::word32_ror_wrapper)));
+}
+
 static void f64_acos_wrapper(double* param) {
   WriteDoubleValue(param, base::ieee754::acos(ReadDoubleValue(param)));
 }
