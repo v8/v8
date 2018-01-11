@@ -43,6 +43,9 @@ constexpr size_t kV8MaxWasmMemories = 1;
 constexpr size_t kSpecMaxWasmMemoryPages = 65536;
 constexpr size_t kSpecMaxWasmTableSize = 0xFFFFFFFFu;
 
+// TODO(titzer): move WASM page size constant here.
+constexpr size_t kV8MaxWasmMemoryBytes = kV8MaxWasmMemoryPages * 65536;
+
 constexpr uint64_t kWasmMaxHeapOffset =
     static_cast<uint64_t>(
         std::numeric_limits<uint32_t>::max())  // maximum base value
