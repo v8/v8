@@ -71,6 +71,17 @@ enum class PrimitiveType { kBoolean, kNumber, kString, kSymbol };
     promise_default_resolve_handler_symbol,                                   \
     PromiseDefaultResolveHandlerSymbol)
 
+// Returned from IteratorBuiltinsAssembler::GetIterator(). Struct is declared
+// here to simplify use in other generated builtins.
+struct IteratorRecord {
+ public:
+  // iteratorRecord.[[Iterator]]
+  compiler::TNode<JSReceiver> object;
+
+  // iteratorRecord.[[NextMethod]]
+  compiler::TNode<Object> next;
+};
+
 // Provides JavaScript-specific "macro-assembler" functionality on top of the
 // CodeAssembler. By factoring the JavaScript-isms out of the CodeAssembler,
 // it's possible to add JavaScript-specific useful CodeAssembler "macros"

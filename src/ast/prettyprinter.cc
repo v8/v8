@@ -326,6 +326,7 @@ void CallPrinter::VisitProperty(Property* node) {
   }
 }
 
+void CallPrinter::VisitResolvedProperty(ResolvedProperty* node) {}
 
 void CallPrinter::VisitCall(Call* node) {
   bool was_found = false;
@@ -1249,6 +1250,14 @@ void AstPrinter::VisitProperty(Property* node) {
   }
 }
 
+void AstPrinter::VisitResolvedProperty(ResolvedProperty* node) {
+  EmbeddedVector<char, 128> buf;
+  SNPrintF(buf, "RESOLVED-PROPERTY");
+  IndentedScope indent(this, buf.start(), node->position());
+
+  PrintIndentedVisit("RECEIVER", node->object());
+  PrintIndentedVisit("PROPERTY", node->property());
+}
 
 void AstPrinter::VisitCall(Call* node) {
   EmbeddedVector<char, 128> buf;

@@ -402,13 +402,14 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
   Expression* RewriteDestructuringAssignment(Assignment* assignment);
 
   // [if (IteratorType == kAsync)]
-  //     !%_IsJSReceiver(result = Await(iterator.next()) &&
+  //     !%_IsJSReceiver(result = Await(next.[[Call]](iterator, « »)) &&
   //         %ThrowIteratorResultNotAnObject(result)
   // [else]
-  //     !%_IsJSReceiver(result = iterator.next()) &&
+  //     !%_IsJSReceiver(result = next.[[Call]](iterator, « »)) &&
   //         %ThrowIteratorResultNotAnObject(result)
   // [endif]
-  Expression* BuildIteratorNextResult(Expression* iterator, Variable* result,
+  Expression* BuildIteratorNextResult(VariableProxy* iterator,
+                                      VariableProxy* next, Variable* result,
                                       IteratorType type, int pos);
 
   // Initialize the components of a for-in / for-of statement.
