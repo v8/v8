@@ -3985,7 +3985,7 @@ Reduction JSCallReducer::ReduceStringPrototypeCharAt(Node* node) {
   receiver = effect = graph()->NewNode(simplified()->CheckString(p.feedback()),
                                        receiver, effect, control);
   if (node->op()->ValueInputCount() >= 3) {
-    index = effect = graph()->NewNode(simplified()->CheckNumber(p.feedback()),
+    index = effect = graph()->NewNode(simplified()->CheckSmi(p.feedback()),
                                       NodeProperties::GetValueInput(node, 2),
                                       effect, control);
     // Map -0 and NaN to 0 (as per ToInteger), and the values in
@@ -4043,7 +4043,7 @@ Reduction JSCallReducer::ReduceStringPrototypeCharCodeAt(Node* node) {
   receiver = effect = graph()->NewNode(simplified()->CheckString(p.feedback()),
                                        receiver, effect, control);
   if (node->op()->ValueInputCount() >= 3) {
-    index = effect = graph()->NewNode(simplified()->CheckNumber(p.feedback()),
+    index = effect = graph()->NewNode(simplified()->CheckSmi(p.feedback()),
                                       NodeProperties::GetValueInput(node, 2),
                                       effect, control);
 
