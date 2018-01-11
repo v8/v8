@@ -2885,19 +2885,10 @@ void BytecodeGenerator::BuildSuspendPoint(int suspend_id) {
   // Upon resume, we continue here.
   builder()->Bind(generator_jump_table_, suspend_id);
 
-  // Clobbers all registers.
-  builder()->RestoreGeneratorRegisters(generator_object(), registers);
-
-  // Update state to indicate that we have finished resuming. Loop headers
-  // rely on this.
-  builder()
-      ->LoadLiteral(Smi::FromInt(JSGeneratorObject::kGeneratorExecuting))
-      .StoreAccumulatorInRegister(generator_state_);
-
-  // When resuming execution of a generator, module or async function, the sent
-  // value is in the [[input_or_debug_pos]] slot.
-  builder()->CallRuntime(Runtime::kInlineGeneratorGetInputOrDebugPos,
-                         generator_object());
+  // Clobbers all registers, updating the state to indicate that we have
+  // finished resuming and setting the accumulator to the [[input_or_debug_pos]]
+  // slot of the generator object.
+  builder()->ResumeGenerator(generator_object(), generator_state_, registers);
 }
 
 void BytecodeGenerator::VisitYield(Yield* expr) {

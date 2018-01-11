@@ -175,24 +175,25 @@
   V(JSConstructWithArrayLike)   \
   V(JSConstructWithSpread)
 
-#define JS_OTHER_OP_LIST(V)         \
-  JS_CONSTRUCT_OP_LIST(V)           \
-  V(JSCallForwardVarargs)           \
-  V(JSCall)                         \
-  V(JSCallWithArrayLike)            \
-  V(JSCallWithSpread)               \
-  V(JSCallRuntime)                  \
-  V(JSForInEnumerate)               \
-  V(JSForInNext)                    \
-  V(JSForInPrepare)                 \
-  V(JSLoadMessage)                  \
-  V(JSStoreMessage)                 \
-  V(JSLoadModule)                   \
-  V(JSStoreModule)                  \
-  V(JSGeneratorStore)               \
-  V(JSGeneratorRestoreContinuation) \
-  V(JSGeneratorRestoreRegister)     \
-  V(JSStackCheck)                   \
+#define JS_OTHER_OP_LIST(V)            \
+  JS_CONSTRUCT_OP_LIST(V)              \
+  V(JSCallForwardVarargs)              \
+  V(JSCall)                            \
+  V(JSCallWithArrayLike)               \
+  V(JSCallWithSpread)                  \
+  V(JSCallRuntime)                     \
+  V(JSForInEnumerate)                  \
+  V(JSForInNext)                       \
+  V(JSForInPrepare)                    \
+  V(JSLoadMessage)                     \
+  V(JSStoreMessage)                    \
+  V(JSLoadModule)                      \
+  V(JSStoreModule)                     \
+  V(JSGeneratorStore)                  \
+  V(JSGeneratorRestoreContinuation)    \
+  V(JSGeneratorRestoreRegister)        \
+  V(JSGeneratorRestoreInputOrDebugPos) \
+  V(JSStackCheck)                      \
   V(JSDebugger)
 
 #define JS_OP_LIST(V)     \

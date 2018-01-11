@@ -2737,14 +2737,16 @@ void BytecodeGraphBuilder::VisitRestoreGeneratorState() {
   environment()->BindAccumulator(state, Environment::kAttachFrameState);
 }
 
-void BytecodeGraphBuilder::VisitRestoreGeneratorRegisters() {
+void BytecodeGraphBuilder::VisitResumeGenerator() {
   Node* generator =
       environment()->LookupRegister(bytecode_iterator().GetRegisterOperand(0));
-  interpreter::Register first_reg = bytecode_iterator().GetRegisterOperand(1);
+  interpreter::Register generator_state_reg =
+      bytecode_iterator().GetRegisterOperand(1);
+  interpreter::Register first_reg = bytecode_iterator().GetRegisterOperand(2);
   // We assume we are restoring registers starting fromm index 0.
   CHECK_EQ(0, first_reg.index());
   int register_count =
-      static_cast<int>(bytecode_iterator().GetRegisterCountOperand(2));
+      static_cast<int>(bytecode_iterator().GetRegisterCountOperand(3));
 
   // Bijection between registers and array indices must match that used in
   // InterpreterAssembler::ExportRegisterFile.
@@ -2752,6 +2754,16 @@ void BytecodeGraphBuilder::VisitRestoreGeneratorRegisters() {
     Node* value = NewNode(javascript()->GeneratorRestoreRegister(i), generator);
     environment()->BindRegister(interpreter::Register(i), value);
   }
+
+  // We're no longer resuming, so update the state register.
+  environment()->BindRegister(
+      generator_state_reg,
+      jsgraph()->SmiConstant(JSGeneratorObject::kGeneratorExecuting));
+
+  // Update the accumulator with the generator's input_or_debug_pos.
+  Node* input_or_debug_pos =
+      NewNode(javascript()->GeneratorRestoreInputOrDebugPos(), generator);
+  environment()->BindAccumulator(input_or_debug_pos);
 }
 
 void BytecodeGraphBuilder::VisitWide() {

@@ -835,6 +835,10 @@ void Verifier::Visitor::Check(Node* node, const AllNodes& all) {
       CheckTypeIs(node, Type::Any());
       break;
 
+    case IrOpcode::kJSGeneratorRestoreInputOrDebugPos:
+      CheckTypeIs(node, Type::Any());
+      break;
+
     case IrOpcode::kJSStackCheck:
     case IrOpcode::kJSDebugger:
       // Type is empty.

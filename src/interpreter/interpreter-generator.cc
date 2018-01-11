@@ -3143,24 +3143,35 @@ IGNITION_HANDLER(RestoreGeneratorState, InterpreterAssembler) {
   Dispatch();
 }
 
-// RestoreGeneratorRegisters <generator> <first output register> <register
-// count>
+// ResumeGenerator <generator> <generator_state> <first output
+// register> <register count>
 //
-// Imports the register file stored in the generator.
-IGNITION_HANDLER(RestoreGeneratorRegisters, InterpreterAssembler) {
+// Imports the register file stored in the generator and marks the generator
+// state as executing.
+IGNITION_HANDLER(ResumeGenerator, InterpreterAssembler) {
   Node* generator_reg = BytecodeOperandReg(0);
-  // Bytecode operand 1 is the start register. It should always be 0, so let's
+  Node* generator_state_reg = BytecodeOperandReg(1);
+  // Bytecode operand 2 is the start register. It should always be 0, so let's
   // ignore it.
-  CSA_ASSERT(this, WordEqual(BytecodeOperandReg(1),
+  CSA_ASSERT(this, WordEqual(BytecodeOperandReg(2),
                              IntPtrConstant(Register(0).ToOperand())));
-  // Bytecode operand 2 is the number of registers to store to the generator.
-  Node* register_count = ChangeUint32ToWord(BytecodeOperandCount(2));
+  // Bytecode operand 3 is the number of registers to store to the generator.
+  Node* register_count = ChangeUint32ToWord(BytecodeOperandCount(3));
 
   Node* generator = LoadRegister(generator_reg);
 
   ImportRegisterFile(
       LoadObjectField(generator, JSGeneratorObject::kRegisterFileOffset),
       register_count);
+
+  // Since we're resuming, update the generator state to indicate that the
+  // generator is now executing.
+  StoreRegister(SmiConstant(JSGeneratorObject::kGeneratorExecuting),
+                generator_state_reg);
+
+  // Return the generator's input_or_debug_pos in the accumulator.
+  SetAccumulator(
+      LoadObjectField(generator, JSGeneratorObject::kInputOrDebugPosOffset));
 
   Dispatch();
 }

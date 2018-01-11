@@ -1826,6 +1826,10 @@ Type* Typer::Visitor::TypeJSGeneratorRestoreRegister(Node* node) {
   return Type::Any();
 }
 
+Type* Typer::Visitor::TypeJSGeneratorRestoreInputOrDebugPos(Node* node) {
+  return Type::Any();
+}
+
 Type* Typer::Visitor::TypeJSStackCheck(Node* node) { return Type::Any(); }
 
 Type* Typer::Visitor::TypeJSDebugger(Node* node) { return Type::Any(); }

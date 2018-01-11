@@ -317,8 +317,8 @@ namespace interpreter {
   V(RestoreGeneratorState, AccumulatorUse::kWrite, OperandType::kReg)          \
   V(SuspendGenerator, AccumulatorUse::kNone, OperandType::kReg,                \
     OperandType::kRegList, OperandType::kRegCount, OperandType::kUImm)         \
-  V(RestoreGeneratorRegisters, AccumulatorUse::kNone, OperandType::kReg,       \
-    OperandType::kRegOutList, OperandType::kRegCount)                          \
+  V(ResumeGenerator, AccumulatorUse::kWrite, OperandType::kReg,                \
+    OperandType::kRegOut, OperandType::kRegOutList, OperandType::kRegCount)    \
                                                                                \
   /* Debugger */                                                               \
   V(Debugger, AccumulatorUse::kNone)                                           \

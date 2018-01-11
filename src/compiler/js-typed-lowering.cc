@@ -2088,6 +2088,22 @@ Reduction JSTypedLowering::ReduceJSGeneratorRestoreRegister(Node* node) {
   return Changed(element);
 }
 
+Reduction JSTypedLowering::ReduceJSGeneratorRestoreInputOrDebugPos(Node* node) {
+  DCHECK_EQ(IrOpcode::kJSGeneratorRestoreInputOrDebugPos, node->opcode());
+
+  FieldAccess input_or_debug_pos_field =
+      AccessBuilder::ForJSGeneratorObjectInputOrDebugPos();
+  const Operator* new_op = simplified()->LoadField(input_or_debug_pos_field);
+
+  // Mutate the node in-place.
+  DCHECK(OperatorProperties::HasContextInput(node->op()));
+  DCHECK(!OperatorProperties::HasContextInput(new_op));
+  node->RemoveInput(NodeProperties::FirstContextIndex(node));
+
+  NodeProperties::ChangeOp(node, new_op);
+  return Changed(node);
+}
+
 Reduction JSTypedLowering::Reduce(Node* node) {
   switch (node->opcode()) {
     case IrOpcode::kJSEqual:
@@ -2173,6 +2189,8 @@ Reduction JSTypedLowering::Reduce(Node* node) {
       return ReduceJSGeneratorRestoreContinuation(node);
     case IrOpcode::kJSGeneratorRestoreRegister:
       return ReduceJSGeneratorRestoreRegister(node);
+    case IrOpcode::kJSGeneratorRestoreInputOrDebugPos:
+      return ReduceJSGeneratorRestoreInputOrDebugPos(node);
     // TODO(mstarzinger): Simplified operations hiding in JS-level reducer not
     // fooling anyone. Consider moving this into a separate reducer.
     case IrOpcode::kSpeculativeNumberAdd:

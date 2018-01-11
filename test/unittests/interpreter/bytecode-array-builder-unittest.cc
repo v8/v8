@@ -386,7 +386,7 @@ TEST_F(BytecodeArrayBuilderTest, AllBytecodesGenerated) {
   // Emit generator operations.
   builder.SuspendGenerator(reg, reg_list, 0)
       .RestoreGeneratorState(reg)
-      .RestoreGeneratorRegisters(reg, reg_list);
+      .ResumeGenerator(reg, reg, reg_list);
 
   // Intrinsics handled by the interpreter.
   builder.CallRuntime(Runtime::kInlineIsArray, reg_list);

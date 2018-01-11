@@ -73,6 +73,7 @@ class V8_EXPORT_PRIVATE JSTypedLowering final
   Reduction ReduceJSGeneratorStore(Node* node);
   Reduction ReduceJSGeneratorRestoreContinuation(Node* node);
   Reduction ReduceJSGeneratorRestoreRegister(Node* node);
+  Reduction ReduceJSGeneratorRestoreInputOrDebugPos(Node* node);
   Reduction ReduceNumberBinop(Node* node);
   Reduction ReduceInt32Binop(Node* node);
   Reduction ReduceUI32Shift(Node* node, Signedness signedness);

@@ -1277,10 +1277,10 @@ BytecodeArrayBuilder& BytecodeArrayBuilder::RestoreGeneratorState(
   return *this;
 }
 
-BytecodeArrayBuilder& BytecodeArrayBuilder::RestoreGeneratorRegisters(
-    Register generator, RegisterList registers) {
-  OutputRestoreGeneratorRegisters(generator, registers,
-                                  registers.register_count());
+BytecodeArrayBuilder& BytecodeArrayBuilder::ResumeGenerator(
+    Register generator, Register generator_state, RegisterList registers) {
+  OutputResumeGenerator(generator, generator_state, registers,
+                        registers.register_count());
   return *this;
 }
 
