@@ -144,13 +144,14 @@ void MemoryChunk::InitializeFreeListCategories() {
 }
 
 bool PagedSpace::Contains(Address addr) {
-  if (heap_->lo_space()->FindPage(addr)) return false;
   return MemoryChunk::FromAnyPointerAddress(heap(), addr)->owner() == this;
 }
 
 bool PagedSpace::Contains(Object* o) {
   if (!o->IsHeapObject()) return false;
-  return Page::FromAddress(HeapObject::cast(o)->address())->owner() == this;
+  Page* p = Page::FromAddress(HeapObject::cast(o)->address());
+  if (!Page::IsValid(p)) return false;
+  return p->owner() == this;
 }
 
 void PagedSpace::UnlinkFreeListCategories(Page* page) {

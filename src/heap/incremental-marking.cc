@@ -680,7 +680,7 @@ void IncrementalMarking::RevisitObject(HeapObject* obj) {
   DCHECK(IsMarking());
   DCHECK(FLAG_concurrent_marking || marking_state()->IsBlack(obj));
   Page* page = Page::FromAddress(obj->address());
-  if (page->owner()->identity() == LO_SPACE) {
+  if ((page->owner() != nullptr) && (page->owner()->identity() == LO_SPACE)) {
     page->ResetProgressBar();
   }
   Map* map = obj->map();
