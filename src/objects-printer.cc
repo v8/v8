@@ -1946,15 +1946,36 @@ extern void _v8_internal_Print_Object(void* object) {
 }
 
 extern void _v8_internal_Print_Code(void* object) {
+  i::Address address = reinterpret_cast<i::Address>(object);
   i::Isolate* isolate = i::Isolate::Current();
+
   i::wasm::WasmCode* wasm_code =
-      isolate->wasm_engine()->code_manager()->LookupCode(
-          reinterpret_cast<i::Address>(object));
+      isolate->wasm_engine()->code_manager()->LookupCode(address);
   if (wasm_code) {
     wasm_code->Print(isolate);
     return;
   }
-  isolate->FindCodeObject(reinterpret_cast<i::Address>(object))->Print();
+
+  if (!isolate->heap()->InSpaceSlow(address, i::CODE_SPACE) &&
+      !isolate->heap()->InSpaceSlow(address, i::LO_SPACE)) {
+    i::PrintF(
+        "%p is not within the current isolate's large object or code spaces\n",
+        static_cast<void*>(address));
+    return;
+  }
+
+  i::Code* code = isolate->FindCodeObject(address);
+  if (!code->IsCode()) {
+    i::PrintF("No code object found containing %p\n",
+              static_cast<void*>(address));
+    return;
+  }
+#ifdef ENABLE_DISASSEMBLER
+  i::OFStream os(stdout);
+  code->Disassemble(nullptr, os, address);
+#else   // ENABLE_DISASSEMBLER
+  code->Print();
+#endif  // ENABLE_DISASSEMBLER
 }
 
 extern void _v8_internal_Print_FeedbackMetadata(void* object) {

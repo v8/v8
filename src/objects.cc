@@ -14536,7 +14536,7 @@ void HandlerTable::HandlerTableReturnPrint(std::ostream& os) {
   }
 }
 
-void Code::Disassemble(const char* name, std::ostream& os) {
+void Code::Disassemble(const char* name, std::ostream& os, void* current_pc) {
   os << "kind = " << Kind2String(kind()) << "\n";
   if (is_stub()) {
     const char* n = CodeStub::MajorName(CodeStub::GetMajorKey(this));
@@ -14579,7 +14579,7 @@ void Code::Disassemble(const char* name, std::ostream& os) {
     os << "Instructions (size = " << code_size << ")\n";
     byte* begin = instruction_start();
     byte* end = begin + code_size;
-    Disassembler::Decode(isolate, &os, begin, end, this);
+    Disassembler::Decode(isolate, &os, begin, end, this, current_pc);
 
     if (constant_pool_offset < size) {
       int constant_pool_size = safepoint_offset - constant_pool_offset;

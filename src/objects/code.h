@@ -139,7 +139,8 @@ class Code : public HeapObject {
 #endif  // defined(OBJECT_PRINT) || defined(ENABLE_DISASSEMBLER)
 
 #ifdef ENABLE_DISASSEMBLER
-  void Disassemble(const char* name, std::ostream& os);  // NOLINT
+  void Disassemble(const char* name, std::ostream& os,
+                   void* current_pc = nullptr);  // NOLINT
 #endif
 
   // [instruction_size]: Size of the native instructions
