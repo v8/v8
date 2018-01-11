@@ -3943,7 +3943,8 @@ static Handle<Code> DummyOptimizedCode(Isolate* isolate) {
                       v8::internal::CodeObjectRequired::kYes);
   CodeDesc desc;
   masm.Push(isolate->factory()->undefined_value());
-  masm.Drop(1);
+  masm.Push(isolate->factory()->undefined_value());
+  masm.Drop(2);
   masm.GetCode(isolate, &desc);
   Handle<Object> undefined(isolate->heap()->undefined_value(), isolate);
   Handle<Code> code =

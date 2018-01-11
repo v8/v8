@@ -42,7 +42,6 @@ void DoubleToIStub::Generate(MacroAssembler* masm) {
   Register result = destination();
 
   DCHECK(result.Is64Bits());
-  DCHECK(jssp.Is(masm->StackPointer()));
 
   UseScratchRegisterScope temps(masm);
   Register scratch1 = temps.AcquireX();
@@ -284,7 +283,6 @@ void CEntryStub::Generate(MacroAssembler* masm) {
   //
   // The arguments are in reverse order, so that arg[argc-2] is actually the
   // first argument to the target function and arg[0] is the last.
-  DCHECK(jssp.Is(__ StackPointer()));
   const Register& argc_input = x0;
   const Register& target_input = x1;
 
@@ -416,7 +414,6 @@ void CEntryStub::Generate(MacroAssembler* masm) {
   __ Peek(target, 3 * kPointerSize);
 
   __ LeaveExitFrame(save_doubles(), x10, x9);
-  DCHECK(jssp.Is(__ StackPointer()));
   if (!argv_in_register()) {
     // Drop the remaining stack slots and return from the stub.
     __ DropArguments(x11);
@@ -452,12 +449,6 @@ void CEntryStub::Generate(MacroAssembler* masm) {
     __ Mov(x2, ExternalReference::isolate_address(isolate()));
     __ CallCFunction(find_handler, 3);
   }
-
-  // We didn't execute a return case, so the stack frame hasn't been updated
-  // (except for the return address slot). However, we don't need to initialize
-  // jssp because the throw method will immediately overwrite it when it
-  // unwinds the stack.
-  __ SetStackPointer(jssp);
 
   // Retrieve the handler context, SP and FP.
   __ Mov(cp, Operand(pending_handler_context_address));
@@ -496,7 +487,6 @@ void CEntryStub::Generate(MacroAssembler* masm) {
 // Output:
 //   x0: result.
 void JSEntryStub::Generate(MacroAssembler* masm) {
-  DCHECK(jssp.Is(__ StackPointer()));
   Register code_entry = x0;
 
   // Enable instruction instrumentation. This only works on the simulator, and
@@ -513,7 +503,6 @@ void JSEntryStub::Generate(MacroAssembler* masm) {
   __ SetStackPointer(csp);
   __ PushCalleeSavedRegisters();
   __ Mov(jssp, csp);
-  __ SetStackPointer(jssp);
 
   ProfileEntryHookStub::MaybeCallEntryHook(masm);
 
@@ -590,7 +579,6 @@ void JSEntryStub::Generate(MacroAssembler* masm) {
   __ Bind(&invoke);
 
   // Push new stack handler.
-  DCHECK(jssp.Is(__ StackPointer()));
   static_assert(StackHandlerConstants::kSize == 2 * kPointerSize,
                 "Unexpected offset for StackHandlerConstants::kSize");
   static_assert(StackHandlerConstants::kNextOffset == 0 * kPointerSize,
@@ -667,8 +655,6 @@ void JSEntryStub::Generate(MacroAssembler* masm) {
                 "Size of entry frame is not a multiple of 16 bytes");
   __ Drop(EntryFrameConstants::kFixedFrameSize / kPointerSize);
   // Restore the callee-saved registers and return.
-  DCHECK(jssp.Is(__ StackPointer()));
-  __ Mov(csp, jssp);
   __ SetStackPointer(csp);
   __ PopCalleeSavedRegisters();
   // After this point, we must not modify jssp because it is a callee-saved
@@ -676,10 +662,9 @@ void JSEntryStub::Generate(MacroAssembler* masm) {
   __ Ret();
 }
 
-// The entry hook is a "BumpSystemStackPointer" instruction (sub), followed by
-// a "Push lr" instruction, followed by a call.
+// The entry hook is a Push (stp) instruction, followed by a call.
 static const unsigned int kProfileEntryHookCallSize =
-    Assembler::kCallSizeWithRelocation + (2 * kInstructionSize);
+    (1 * kInstructionSize) + Assembler::kCallSizeWithRelocation;
 
 void ProfileEntryHookStub::MaybeCallEntryHookDelayed(TurboAssembler* tasm,
                                                      Zone* zone) {
