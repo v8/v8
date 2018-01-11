@@ -419,16 +419,6 @@
   'built-ins/Proxy/ownKeys/return-duplicate-entries-throws': [FAIL],
   'built-ins/Proxy/ownKeys/return-duplicate-symbol-entries-throws': [FAIL],
 
-  # https://bugs.chromium.org/p/v8/issues/detail?id=6861
-  'language/expressions/object/method-definition/async-gen-yield-star-sync-next': [FAIL],
-  'language/expressions/class/async-gen-method-static-yield-star-sync-next': [FAIL],
-  'language/expressions/async-generator/yield-star-sync-next': [FAIL],
-  'language/statements/class/async-gen-method-static-yield-star-sync-next': [FAIL],
-  'language/expressions/async-generator/named-yield-star-sync-next': [FAIL],
-  'language/expressions/class/async-gen-method-yield-star-sync-next': [FAIL],
-  'language/statements/class/async-gen-method-yield-star-sync-next': [FAIL],
-  'language/statements/async-generator/yield-star-sync-next': [FAIL],
-
   # https://bugs.chromium.org/p/v8/issues/detail?id=6791
   'built-ins/BigInt/prototype/Symbol.toStringTag': [SKIP],
   'built-ins/DataView/prototype/getBigInt64/*': [SKIP],

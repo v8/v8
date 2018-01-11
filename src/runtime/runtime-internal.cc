@@ -634,8 +634,13 @@ RUNTIME_FUNCTION(Runtime_CreateAsyncFromSyncIterator) {
         isolate, NewTypeError(MessageTemplate::kSymbolIteratorInvalid));
   }
 
+  Handle<Object> next;
+  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
+      isolate, next,
+      Object::GetProperty(sync_iterator, isolate->factory()->next_string()));
+
   return *isolate->factory()->NewJSAsyncFromSyncIterator(
-      Handle<JSReceiver>::cast(sync_iterator));
+      Handle<JSReceiver>::cast(sync_iterator), next);
 }
 
 RUNTIME_FUNCTION(Runtime_GetTemplateObject) {

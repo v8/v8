@@ -600,7 +600,7 @@ class V8_EXPORT_PRIVATE Factory final {
 
   Handle<JSIteratorResult> NewJSIteratorResult(Handle<Object> value, bool done);
   Handle<JSAsyncFromSyncIterator> NewJSAsyncFromSyncIterator(
-      Handle<JSReceiver> sync_iterator);
+      Handle<JSReceiver> sync_iterator, Handle<Object> next);
 
   Handle<JSMap> NewJSMap();
   Handle<JSSet> NewJSSet();

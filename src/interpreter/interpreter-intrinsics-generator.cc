@@ -7,6 +7,7 @@
 #include "src/allocation.h"
 #include "src/builtins/builtins.h"
 #include "src/code-factory.h"
+#include "src/factory-inl.h"
 #include "src/frames.h"
 #include "src/interpreter/bytecodes.h"
 #include "src/interpreter/interpreter-assembler.h"
@@ -52,6 +53,7 @@ class IntrinsicsGenerator {
 
   Isolate* isolate() { return isolate_; }
   Zone* zone() { return zone_; }
+  Factory* factory() { return isolate()->factory(); }
 
   Isolate* isolate_;
   Zone* zone_;
@@ -368,6 +370,9 @@ Node* IntrinsicsGenerator::CreateAsyncFromSyncIterator(
   __ GotoIf(__ TaggedIsSmi(sync_iterator), &not_receiver);
   __ GotoIfNot(__ IsJSReceiver(sync_iterator), &not_receiver);
 
+  Node* const next =
+      __ GetProperty(context, sync_iterator, factory()->next_string());
+
   Node* const native_context = __ LoadNativeContext(context);
   Node* const map = __ LoadContextElement(
       native_context, Context::ASYNC_FROM_SYNC_ITERATOR_MAP_INDEX);
@@ -375,6 +380,8 @@ Node* IntrinsicsGenerator::CreateAsyncFromSyncIterator(
 
   __ StoreObjectFieldNoWriteBarrier(
       iterator, JSAsyncFromSyncIterator::kSyncIteratorOffset, sync_iterator);
+  __ StoreObjectFieldNoWriteBarrier(iterator,
+                                    JSAsyncFromSyncIterator::kNextOffset, next);
 
   return_value.Bind(iterator);
   __ Goto(&done);
