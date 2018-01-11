@@ -1400,28 +1400,6 @@ class Counters : public std::enable_shared_from_this<Counters> {
   STATS_COUNTER_TS_LIST(SC)
 #undef SC
 
-#define SC(name) \
-  StatsCounter* count_of_##name() { return &count_of_##name##_; } \
-  StatsCounter* size_of_##name() { return &size_of_##name##_; }
-  INSTANCE_TYPE_LIST(SC)
-#undef SC
-
-#define SC(name) \
-  StatsCounter* count_of_CODE_TYPE_##name() \
-    { return &count_of_CODE_TYPE_##name##_; } \
-  StatsCounter* size_of_CODE_TYPE_##name() \
-    { return &size_of_CODE_TYPE_##name##_; }
-  CODE_KIND_LIST(SC)
-#undef SC
-
-#define SC(name) \
-  StatsCounter* count_of_FIXED_ARRAY_##name() \
-    { return &count_of_FIXED_ARRAY_##name##_; } \
-  StatsCounter* size_of_FIXED_ARRAY_##name() \
-    { return &size_of_FIXED_ARRAY_##name##_; }
-  FIXED_ARRAY_SUB_INSTANCE_TYPE_LIST(SC)
-#undef SC
-
   // clang-format off
   enum Id {
 #define RATE_ID(name, caption, max, res) k_##name,

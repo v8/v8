@@ -4,6 +4,8 @@
 
 #include "src/heap/object-stats.h"
 
+#include <unordered_set>
+
 #include "src/assembler-inl.h"
 #include "src/base/bits.h"
 #include "src/compilation-cache.h"
@@ -18,7 +20,6 @@ namespace v8 {
 namespace internal {
 
 static base::LazyMutex object_stats_mutex = LAZY_MUTEX_INITIALIZER;
-
 
 void ObjectStats::ClearObjectStats(bool clear_last_time_stats) {
   memset(object_counts_, 0, sizeof(object_counts_));
@@ -104,16 +105,18 @@ void ObjectStats::PrintJSON(const char* key) {
 #define FIXED_ARRAY_SUB_INSTANCE_TYPE_WRAPPER(name)           \
   PrintInstanceTypeJSON(key, gc_count, "*FIXED_ARRAY_" #name, \
                         FIRST_FIXED_ARRAY_SUB_TYPE + name);
+#define VIRTUAL_INSTANCE_TYPE_WRAPPER(name) \
+  PrintInstanceTypeJSON(key, gc_count, #name, FIRST_VIRTUAL_TYPE + name);
 
   INSTANCE_TYPE_LIST(INSTANCE_TYPE_WRAPPER)
   CODE_KIND_LIST(CODE_KIND_WRAPPER)
   FIXED_ARRAY_SUB_INSTANCE_TYPE_LIST(FIXED_ARRAY_SUB_INSTANCE_TYPE_WRAPPER)
+  VIRTUAL_INSTANCE_TYPE_LIST(VIRTUAL_INSTANCE_TYPE_WRAPPER)
 
 #undef INSTANCE_TYPE_WRAPPER
 #undef CODE_KIND_WRAPPER
 #undef FIXED_ARRAY_SUB_INSTANCE_TYPE_WRAPPER
-#undef PRINT_INSTANCE_TYPE_DATA
-#undef PRINT_KEY_AND_ID
+#undef VIRTUAL_INSTANCE_TYPE_WRAPPER
 }
 
 void ObjectStats::DumpInstanceTypeData(std::stringstream& stream,
@@ -154,58 +157,23 @@ void ObjectStats::Dump(std::stringstream& stream) {
 #define FIXED_ARRAY_SUB_INSTANCE_TYPE_WRAPPER(name)   \
   DumpInstanceTypeData(stream, "*FIXED_ARRAY_" #name, \
                        FIRST_FIXED_ARRAY_SUB_TYPE + name);
+#define VIRTUAL_INSTANCE_TYPE_WRAPPER(name) \
+  DumpInstanceTypeData(stream, #name, FIRST_VIRTUAL_TYPE + name);
 
   INSTANCE_TYPE_LIST(INSTANCE_TYPE_WRAPPER);
   CODE_KIND_LIST(CODE_KIND_WRAPPER);
   FIXED_ARRAY_SUB_INSTANCE_TYPE_LIST(FIXED_ARRAY_SUB_INSTANCE_TYPE_WRAPPER);
+  FIXED_ARRAY_SUB_INSTANCE_TYPE_LIST(VIRTUAL_INSTANCE_TYPE_WRAPPER)
   stream << "\"END\":{}}}";
 
 #undef INSTANCE_TYPE_WRAPPER
 #undef CODE_KIND_WRAPPER
 #undef FIXED_ARRAY_SUB_INSTANCE_TYPE_WRAPPER
-#undef PRINT_INSTANCE_TYPE_DATA
+#undef VIRTUAL_INSTANCE_TYPE_WRAPPER
 }
 
 void ObjectStats::CheckpointObjectStats() {
   base::LockGuard<base::Mutex> lock_guard(object_stats_mutex.Pointer());
-  Counters* counters = isolate()->counters();
-#define ADJUST_LAST_TIME_OBJECT_COUNT(name)              \
-  counters->count_of_##name()->Increment(                \
-      static_cast<int>(object_counts_[name]));           \
-  counters->count_of_##name()->Decrement(                \
-      static_cast<int>(object_counts_last_time_[name])); \
-  counters->size_of_##name()->Increment(                 \
-      static_cast<int>(object_sizes_[name]));            \
-  counters->size_of_##name()->Decrement(                 \
-      static_cast<int>(object_sizes_last_time_[name]));
-  INSTANCE_TYPE_LIST(ADJUST_LAST_TIME_OBJECT_COUNT)
-#undef ADJUST_LAST_TIME_OBJECT_COUNT
-  int index;
-#define ADJUST_LAST_TIME_OBJECT_COUNT(name)               \
-  index = FIRST_CODE_KIND_SUB_TYPE + Code::name;          \
-  counters->count_of_CODE_TYPE_##name()->Increment(       \
-      static_cast<int>(object_counts_[index]));           \
-  counters->count_of_CODE_TYPE_##name()->Decrement(       \
-      static_cast<int>(object_counts_last_time_[index])); \
-  counters->size_of_CODE_TYPE_##name()->Increment(        \
-      static_cast<int>(object_sizes_[index]));            \
-  counters->size_of_CODE_TYPE_##name()->Decrement(        \
-      static_cast<int>(object_sizes_last_time_[index]));
-  CODE_KIND_LIST(ADJUST_LAST_TIME_OBJECT_COUNT)
-#undef ADJUST_LAST_TIME_OBJECT_COUNT
-#define ADJUST_LAST_TIME_OBJECT_COUNT(name)               \
-  index = FIRST_FIXED_ARRAY_SUB_TYPE + name;              \
-  counters->count_of_FIXED_ARRAY_##name()->Increment(     \
-      static_cast<int>(object_counts_[index]));           \
-  counters->count_of_FIXED_ARRAY_##name()->Decrement(     \
-      static_cast<int>(object_counts_last_time_[index])); \
-  counters->size_of_FIXED_ARRAY_##name()->Increment(      \
-      static_cast<int>(object_sizes_[index]));            \
-  counters->size_of_FIXED_ARRAY_##name()->Decrement(      \
-      static_cast<int>(object_sizes_last_time_[index]));
-  FIXED_ARRAY_SUB_INSTANCE_TYPE_LIST(ADJUST_LAST_TIME_OBJECT_COUNT)
-#undef ADJUST_LAST_TIME_OBJECT_COUNT
-
   MemCopy(object_counts_last_time_, object_counts_, sizeof(object_counts_));
   MemCopy(object_sizes_last_time_, object_sizes_, sizeof(object_sizes_));
   ClearObjectStats();
@@ -231,6 +199,14 @@ void ObjectStats::RecordObjectStats(InstanceType type, size_t size) {
   object_counts_[type]++;
   object_sizes_[type] += size;
   size_histogram_[type][HistogramIndexFromSize(size)]++;
+}
+
+void ObjectStats::RecordVirtualObjectStats(VirtualInstanceType type,
+                                           size_t size) {
+  DCHECK_LE(type, LAST_VIRTUAL_TYPE);
+  object_counts_[FIRST_VIRTUAL_TYPE + type]++;
+  object_sizes_[FIRST_VIRTUAL_TYPE + type] += size;
+  size_histogram_[FIRST_VIRTUAL_TYPE + type][HistogramIndexFromSize(size)]++;
 }
 
 void ObjectStats::RecordCodeSubTypeStats(int code_sub_type, size_t size) {
@@ -272,11 +248,17 @@ class ObjectStatsCollectorImpl {
   ObjectStatsCollectorImpl(Heap* heap, ObjectStats* stats);
 
   void CollectGlobalStatistics();
+
+  // Collects statistics of objects for virtual instance types.
+  void CollectVirtualStatistics(HeapObject* obj);
+
+  // Collects statistics of objects for regular instance types.
   void CollectStatistics(HeapObject* obj);
 
  private:
   class CompilationCacheTableVisitor;
 
+  void RecordObjectStats(HeapObject* obj, InstanceType type, size_t size);
   void RecordBytecodeArrayDetails(BytecodeArray* obj);
   void RecordCodeDetails(Code* code);
   void RecordFixedArrayDetails(FixedArray* array);
@@ -295,9 +277,16 @@ class ObjectStatsCollectorImpl {
   template <class HashTable>
   void RecordHashTableHelper(HeapObject* parent, HashTable* array, int subtype);
   bool SameLiveness(HeapObject* obj1, HeapObject* obj2);
+
+  void RecordVirtualObjectStats(HeapObject* obj,
+                                ObjectStats::VirtualInstanceType type,
+                                size_t size);
+  void RecordVirtualAllocationSiteDetails(AllocationSite* site);
+
   Heap* heap_;
   ObjectStats* stats_;
   MarkCompactCollector::NonAtomicMarkingState* marking_state_;
+  std::unordered_set<HeapObject*> virtual_objects_;
 
   friend class ObjectStatsCollectorImpl::CompilationCacheTableVisitor;
 };
@@ -309,12 +298,40 @@ ObjectStatsCollectorImpl::ObjectStatsCollectorImpl(Heap* heap,
       marking_state_(
           heap->mark_compact_collector()->non_atomic_marking_state()) {}
 
+void ObjectStatsCollectorImpl::CollectVirtualStatistics(HeapObject* obj) {
+  if (obj->IsAllocationSite()) {
+    RecordVirtualAllocationSiteDetails(AllocationSite::cast(obj));
+  }
+}
+
+void ObjectStatsCollectorImpl::RecordVirtualObjectStats(
+    HeapObject* obj, ObjectStats::VirtualInstanceType type, size_t size) {
+  virtual_objects_.insert(obj);
+  stats_->RecordVirtualObjectStats(type, size);
+}
+
+void ObjectStatsCollectorImpl::RecordVirtualAllocationSiteDetails(
+    AllocationSite* site) {
+  if (site->PointsToLiteral()) {
+    JSObject* boilerplate = site->boilerplate();
+    if (boilerplate->IsJSArray()) {
+      RecordVirtualObjectStats(boilerplate,
+                               ObjectStats::JS_ARRAY_BOILERPLATE_TYPE,
+                               boilerplate->Size());
+    } else {
+      RecordVirtualObjectStats(boilerplate,
+                               ObjectStats::JS_OBJECT_BOILERPLATE_TYPE,
+                               boilerplate->Size());
+    }
+  }
+}
+
 void ObjectStatsCollectorImpl::CollectStatistics(HeapObject* obj) {
   Map* map = obj->map();
 
   // Record for the InstanceType.
   int object_size = obj->Size();
-  stats_->RecordObjectStats(map->instance_type(), object_size);
+  RecordObjectStats(obj, map->instance_type(), object_size);
 
   // Record specific sub types where possible.
   if (obj->IsMap()) RecordMapDetails(Map::cast(obj));
@@ -394,6 +411,13 @@ void ObjectStatsCollectorImpl::CollectGlobalStatistics() {
   CompilationCache* compilation_cache = heap_->isolate()->compilation_cache();
   CompilationCacheTableVisitor v(this);
   compilation_cache->Iterate(&v);
+}
+
+void ObjectStatsCollectorImpl::RecordObjectStats(HeapObject* obj,
+                                                 InstanceType type,
+                                                 size_t size) {
+  if (virtual_objects_.find(obj) == virtual_objects_.end())
+    stats_->RecordObjectStats(type, size);
 }
 
 static bool CanRecordFixedArray(Heap* heap, FixedArrayBase* array) {
@@ -624,27 +648,46 @@ void ObjectStatsCollectorImpl::RecordFixedArrayDetails(FixedArray* array) {
 
 class ObjectStatsVisitor {
  public:
+  enum CollectionMode {
+    kRegular,
+    kVirtual,
+  };
+
   ObjectStatsVisitor(Heap* heap, ObjectStatsCollectorImpl* live_collector,
-                     ObjectStatsCollectorImpl* dead_collector)
+                     ObjectStatsCollectorImpl* dead_collector,
+                     CollectionMode mode)
       : live_collector_(live_collector),
         dead_collector_(dead_collector),
         marking_state_(
-            heap->mark_compact_collector()->non_atomic_marking_state()) {}
+            heap->mark_compact_collector()->non_atomic_marking_state()),
+        mode_(mode) {}
 
   bool Visit(HeapObject* obj, int size) {
     if (marking_state_->IsBlack(obj)) {
-      live_collector_->CollectStatistics(obj);
+      Collect(live_collector_, obj);
     } else {
       DCHECK(!marking_state_->IsGrey(obj));
-      dead_collector_->CollectStatistics(obj);
+      Collect(dead_collector_, obj);
     }
     return true;
   }
 
  private:
+  void Collect(ObjectStatsCollectorImpl* collector, HeapObject* obj) {
+    switch (mode_) {
+      case kRegular:
+        collector->CollectStatistics(obj);
+        break;
+      case kVirtual:
+        collector->CollectVirtualStatistics(obj);
+        break;
+    }
+  }
+
   ObjectStatsCollectorImpl* live_collector_;
   ObjectStatsCollectorImpl* dead_collector_;
   MarkCompactCollector::NonAtomicMarkingState* marking_state_;
+  CollectionMode mode_;
 };
 
 namespace {
@@ -667,12 +710,20 @@ void ObjectStatsCollector::Collect() {
   ObjectStatsCollectorImpl live_collector(heap_, live_);
   ObjectStatsCollectorImpl dead_collector(heap_, dead_);
   // 1. Collect system type otherwise indistinguishable from other types.
-  // TODO(mlippautz): Implement.
+  {
+    ObjectStatsVisitor visitor(heap_, &live_collector, &dead_collector,
+                               ObjectStatsVisitor::kVirtual);
+    IterateHeap(heap_, &visitor);
+  }
+
   // 2. Collect globals; only applies to live objects.
   live_collector.CollectGlobalStatistics();
   // 3. Collect rest.
-  ObjectStatsVisitor visitor(heap_, &live_collector, &dead_collector);
-  IterateHeap(heap_, &visitor);
+  {
+    ObjectStatsVisitor visitor(heap_, &live_collector, &dead_collector,
+                               ObjectStatsVisitor::kRegular);
+    IterateHeap(heap_, &visitor);
+  }
 }
 
 }  // namespace internal

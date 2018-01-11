@@ -13,12 +13,30 @@
 #include "src/heap/objects-visiting.h"
 #include "src/objects.h"
 
+// These instance types do not exist for actual use but are merely introduced
+// for object stats tracing. In contrast to Code and FixedArray sub types
+// these types are not known to other counters outside of object stats
+// tracing.
+//
+// Update LAST_VIRTUAL_TYPE below when changing this macro.
+#define VIRTUAL_INSTANCE_TYPE_LIST(V) \
+  V(JS_ARRAY_BOILERPLATE_TYPE)        \
+  V(JS_OBJECT_BOILERPLATE_TYPE)
+
 namespace v8 {
 namespace internal {
 
 class ObjectStats {
  public:
   explicit ObjectStats(Heap* heap) : heap_(heap) { ClearObjectStats(); }
+
+  // See description on VIRTUAL_INSTANCE_TYPE_LIST.
+  enum VirtualInstanceType {
+#define DEFINE_VIRTUAL_INSTANCE_TYPE(type) type,
+    VIRTUAL_INSTANCE_TYPE_LIST(DEFINE_VIRTUAL_INSTANCE_TYPE)
+#undef DEFINE_FIXED_ARRAY_SUB_INSTANCE_TYPE
+        LAST_VIRTUAL_TYPE = JS_OBJECT_BOILERPLATE_TYPE,
+  };
 
   // ObjectStats are kept in two arrays, counts and sizes. Related stats are
   // stored in a contiguous linear buffer. Stats groups are stored one after
@@ -27,17 +45,19 @@ class ObjectStats {
     FIRST_CODE_KIND_SUB_TYPE = LAST_TYPE + 1,
     FIRST_FIXED_ARRAY_SUB_TYPE =
         FIRST_CODE_KIND_SUB_TYPE + Code::NUMBER_OF_KINDS,
-    OBJECT_STATS_COUNT =
+    FIRST_VIRTUAL_TYPE =
         FIRST_FIXED_ARRAY_SUB_TYPE + LAST_FIXED_ARRAY_SUB_TYPE + 1,
+    OBJECT_STATS_COUNT = FIRST_VIRTUAL_TYPE + LAST_VIRTUAL_TYPE + 1,
   };
 
   void ClearObjectStats(bool clear_last_time_stats = false);
 
-  void CheckpointObjectStats();
   void PrintJSON(const char* key);
   void Dump(std::stringstream& stream);
 
+  void CheckpointObjectStats();
   void RecordObjectStats(InstanceType type, size_t size);
+  void RecordVirtualObjectStats(VirtualInstanceType type, size_t size);
   void RecordCodeSubTypeStats(int code_sub_type, size_t size);
   bool RecordFixedArraySubTypeStats(FixedArrayBase* array, int array_sub_type,
                                     size_t size, size_t over_allocated);
