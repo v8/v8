@@ -323,9 +323,16 @@ void LiftoffAssembler::emit_i32_shr(Register dst, Register lhs, Register rhs) {
 }
 
 void LiftoffAssembler::emit_i32_eqz(Register dst, Register src) {
+  Register tmp_byte_reg = dst;
+  // Only the lower 4 registers can be addressed as 8-bit registers.
+  if (!dst.is_byte_register()) {
+    LiftoffRegList pinned = LiftoffRegList::ForRegs(src);
+    tmp_byte_reg = GetUnusedRegister(liftoff::kByteRegs, pinned).gp();
+  }
+
   test(src, src);
-  setcc(zero, dst);
-  movzx_b(dst, dst);
+  setcc(zero, tmp_byte_reg);
+  movzx_b(dst, tmp_byte_reg);
 }
 
 void LiftoffAssembler::emit_i32_clz(Register dst, Register src) {
