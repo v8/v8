@@ -169,17 +169,22 @@ V8_INLINE Dest bit_cast(Source const& source) {
 #define DISABLE_ASAN
 #endif
 
-// DISABLE_CFI_PERF -- Disable Control Flow Integrity checks for Perf reasons.
-#if !defined(DISABLE_CFI_PERF)
+// Helper macro to define no_sanitize attributes only with clang.
 #if defined(__clang__) && defined(__has_attribute)
 #if __has_attribute(no_sanitize)
-#define DISABLE_CFI_PERF __attribute__((no_sanitize("cfi")))
+#define CLANG_NO_SANITIZE(what) __attribute__((no_sanitize(what)))
 #endif
 #endif
+#if !defined(CLANG_NO_SANITIZE)
+#define CLANG_NO_SANITIZE(what)
 #endif
-#if !defined(DISABLE_CFI_PERF)
-#define DISABLE_CFI_PERF
-#endif
+
+// DISABLE_CFI_PERF -- Disable Control Flow Integrity checks for Perf reasons.
+#define DISABLE_CFI_PERF CLANG_NO_SANITIZE("cfi")
+
+// DISABLE_CFI_ICALL -- Disable Control Flow Integrity indirect call checks,
+// useful because calls into JITed code can not be CFI verified.
+#define DISABLE_CFI_ICALL CLANG_NO_SANITIZE("cfi-icall")
 
 #if V8_CC_GNU
 #define V8_IMMEDIATE_CRASH() __builtin_trap()

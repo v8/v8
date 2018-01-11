@@ -105,7 +105,7 @@ class GeneratedCode {
         reinterpret_cast<byte*>(fn_ptr_), args...);
   }
 #else
-  Return Call(Args... args) {
+  DISABLE_CFI_ICALL Return Call(Args... args) {
     // When running without a simulator we call the entry directly.
     return fn_ptr_(args...);
   }
