@@ -113,11 +113,11 @@ class LiftoffCompiler {
       : asm_(liftoff_asm),
         call_desc_(call_desc),
         env_(env),
-        min_size_(env_->module->initial_pages * wasm::WasmModule::kPageSize),
+        min_size_(env_->module->initial_pages * wasm::kWasmPageSize),
         max_size_((env_->module->has_maximum_pages
                        ? env_->module->maximum_pages
                        : wasm::kV8MaxWasmMemoryPages) *
-                  wasm::WasmModule::kPageSize),
+                  wasm::kWasmPageSize),
         runtime_exception_support_(runtime_exception_support),
         source_position_table_builder_(source_position_table_builder),
         protected_instructions_(protected_instructions),
@@ -128,7 +128,7 @@ class LiftoffCompiler {
     DCHECK_EQ(max_size_, uint64_t{env_->module->has_maximum_pages
                                       ? env_->module->maximum_pages
                                       : wasm::kV8MaxWasmMemoryPages} *
-                             wasm::WasmModule::kPageSize);
+                             wasm::kWasmPageSize);
   }
 
   bool ok() const { return ok_; }

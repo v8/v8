@@ -2133,6 +2133,7 @@ v8_source_set("v8_base") {
     "src/wasm/wasm-code-specialization.h",
     "src/wasm/wasm-code-wrapper.cc",
     "src/wasm/wasm-code-wrapper.h",
+    "src/wasm/wasm-constants.h",
     "src/wasm/wasm-debug.cc",
     "src/wasm/wasm-engine.h",
     "src/wasm/wasm-external-refs.cc",

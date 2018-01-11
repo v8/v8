@@ -23,7 +23,7 @@ namespace wasm {
 namespace testing {
 
 uint32_t GetInitialMemSize(const WasmModule* module) {
-  return WasmModule::kPageSize * module->initial_pages;
+  return kWasmPageSize * module->initial_pages;
 }
 
 std::unique_ptr<WasmModule> DecodeWasmModuleForTesting(

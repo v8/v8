@@ -1484,6 +1484,7 @@
         'wasm/wasm-code-specialization.h',
         'wasm/wasm-code-wrapper.cc',
         'wasm/wasm-code-wrapper.h',
+        'wasm/wasm-constants.h',
         'wasm/wasm-debug.cc',
         'wasm/wasm-engine.h',
         'wasm/wasm-external-refs.cc',

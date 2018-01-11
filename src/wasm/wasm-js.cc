@@ -630,7 +630,7 @@ void WebAssemblyMemory(const v8::FunctionCallbackInfo<v8::Value>& args) {
     }
   }
 
-  size_t size = static_cast<size_t>(i::wasm::WasmModule::kPageSize) *
+  size_t size = static_cast<size_t>(i::wasm::kWasmPageSize) *
                 static_cast<size_t>(initial);
   const bool enable_guard_regions =
       internal::trap_handler::IsTrapHandlerEnabled();

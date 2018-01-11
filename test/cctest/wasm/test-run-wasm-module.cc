@@ -1131,10 +1131,10 @@ TEST(Run_WasmModule_Buffer_Externalized_GrowMemMemSize) {
     Isolate* isolate = CcTest::InitIsolateOnce();
     HandleScope scope(isolate);
     void* backing_store =
-        isolate->array_buffer_allocator()->Allocate(16 * WasmModule::kPageSize);
-    Handle<JSArrayBuffer> buffer = wasm::SetupArrayBuffer(
-        isolate, backing_store, 16 * WasmModule::kPageSize, backing_store,
-        16 * WasmModule::kPageSize, false, false);
+        isolate->array_buffer_allocator()->Allocate(16 * kWasmPageSize);
+    Handle<JSArrayBuffer> buffer =
+        wasm::SetupArrayBuffer(isolate, backing_store, 16 * kWasmPageSize,
+                               backing_store, 16 * kWasmPageSize, false, false);
     Handle<WasmMemoryObject> mem_obj =
         WasmMemoryObject::New(isolate, buffer, 100);
     v8::Utils::ToLocal(buffer)->Externalize();
@@ -1142,8 +1142,7 @@ TEST(Run_WasmModule_Buffer_Externalized_GrowMemMemSize) {
     wasm::DetachMemoryBuffer(isolate, buffer, false);
     CHECK_EQ(16, result);
 
-    isolate->array_buffer_allocator()->Free(backing_store,
-                                            16 * WasmModule::kPageSize);
+    isolate->array_buffer_allocator()->Free(backing_store, 16 * kWasmPageSize);
   }
   Cleanup();
 }
@@ -1155,14 +1154,13 @@ TEST(Run_WasmModule_Buffer_Externalized_Detach) {
     Isolate* isolate = CcTest::InitIsolateOnce();
     HandleScope scope(isolate);
     void* backing_store =
-        isolate->array_buffer_allocator()->Allocate(16 * WasmModule::kPageSize);
-    Handle<JSArrayBuffer> buffer = wasm::SetupArrayBuffer(
-        isolate, backing_store, 16 * WasmModule::kPageSize, backing_store,
-        16 * WasmModule::kPageSize, false, false);
+        isolate->array_buffer_allocator()->Allocate(16 * kWasmPageSize);
+    Handle<JSArrayBuffer> buffer =
+        wasm::SetupArrayBuffer(isolate, backing_store, 16 * kWasmPageSize,
+                               backing_store, 16 * kWasmPageSize, false, false);
     v8::Utils::ToLocal(buffer)->Externalize();
     wasm::DetachMemoryBuffer(isolate, buffer, true);
-    isolate->array_buffer_allocator()->Free(backing_store,
-                                            16 * WasmModule::kPageSize);
+    isolate->array_buffer_allocator()->Free(backing_store, 16 * kWasmPageSize);
   }
   Cleanup();
 }

@@ -362,18 +362,18 @@ Handle<JSArrayBuffer> GrowMemoryBuffer(Isolate* isolate,
     old_mem_start = static_cast<Address>(old_buffer->backing_store());
     CHECK(old_buffer->byte_length()->ToUint32(&old_size));
   }
-  DCHECK_EQ(0, old_size % WasmModule::kPageSize);
-  uint32_t old_pages = old_size / WasmModule::kPageSize;
+  DCHECK_EQ(0, old_size % wasm::kWasmPageSize);
+  uint32_t old_pages = old_size / wasm::kWasmPageSize;
   DCHECK_GE(std::numeric_limits<uint32_t>::max(),
-            old_size + pages * WasmModule::kPageSize);
+            old_size + pages * wasm::kWasmPageSize);
   if (old_pages > maximum_pages || pages > maximum_pages - old_pages) {
     return Handle<JSArrayBuffer>::null();
   }
   const bool enable_guard_regions =
       old_buffer.is_null() ? use_trap_handler : old_buffer->has_guard_region();
   size_t new_size =
-      static_cast<size_t>(old_pages + pages) * WasmModule::kPageSize;
-  if (new_size > FLAG_wasm_max_mem_pages * WasmModule::kPageSize ||
+      static_cast<size_t>(old_pages + pages) * wasm::kWasmPageSize;
+  if (new_size > FLAG_wasm_max_mem_pages * wasm::kWasmPageSize ||
       new_size > kMaxInt) {
     return Handle<JSArrayBuffer>::null();
   }
@@ -384,8 +384,7 @@ Handle<JSArrayBuffer> GrowMemoryBuffer(Isolate* isolate,
           old_mem_start, new_size,
           v8::ArrayBuffer::Allocator::Protection::kReadWrite);
       reinterpret_cast<v8::Isolate*>(isolate)
-          ->AdjustAmountOfExternalAllocatedMemory(pages *
-                                                  WasmModule::kPageSize);
+          ->AdjustAmountOfExternalAllocatedMemory(pages * wasm::kWasmPageSize);
     }
     // NOTE: We must allocate a new array buffer here because the spec
     // assumes that ArrayBuffers do not change size.
@@ -424,7 +423,7 @@ void SetInstanceMemory(Isolate* isolate, Handle<WasmInstanceObject> instance,
   // To flush out bugs earlier, in DEBUG mode, check that all pages of the
   // memory are accessible by reading and writing one byte on each page.
   for (uint32_t offset = 0; offset < wasm_context->mem_size;
-       offset += WasmModule::kPageSize) {
+       offset += wasm::kWasmPageSize) {
     byte val = wasm_context->mem_start[offset];
     wasm_context->mem_start[offset] = val;
   }
@@ -468,7 +467,7 @@ Handle<WasmMemoryObject> WasmMemoryObject::New(
 uint32_t WasmMemoryObject::current_pages() {
   uint32_t byte_length;
   CHECK(array_buffer()->byte_length()->ToUint32(&byte_length));
-  return byte_length / WasmModule::kPageSize;
+  return byte_length / wasm::kWasmPageSize;
 }
 
 void WasmMemoryObject::AddInstance(Isolate* isolate,
@@ -501,7 +500,7 @@ int32_t WasmMemoryObject::Grow(Isolate* isolate,
   if (!old_buffer->is_growable()) return -1;
   uint32_t old_size = 0;
   CHECK(old_buffer->byte_length()->ToUint32(&old_size));
-  DCHECK_EQ(0, old_size % WasmModule::kPageSize);
+  DCHECK_EQ(0, old_size % wasm::kWasmPageSize);
   Handle<JSArrayBuffer> new_buffer;
 
   uint32_t maximum_pages = FLAG_wasm_max_mem_pages;
@@ -526,7 +525,7 @@ int32_t WasmMemoryObject::Grow(Isolate* isolate,
     }
   }
   memory_object->set_array_buffer(*new_buffer);
-  return old_size / WasmModule::kPageSize;
+  return old_size / wasm::kWasmPageSize;
 }
 
 WasmModuleObject* WasmInstanceObject::module_object() {
@@ -567,8 +566,8 @@ Handle<WasmInstanceObject> WasmInstanceObject::New(
 int32_t WasmInstanceObject::GetMemorySize() {
   if (!has_memory_object()) return 0;
   uint32_t bytes = memory_object()->array_buffer()->byte_length()->Number();
-  DCHECK_EQ(0, bytes % WasmModule::kPageSize);
-  return bytes / WasmModule::kPageSize;
+  DCHECK_EQ(0, bytes % wasm::kWasmPageSize);
+  return bytes / wasm::kWasmPageSize;
 }
 
 int32_t WasmInstanceObject::GrowMemory(Isolate* isolate,
@@ -1717,7 +1716,7 @@ void WasmCompiledModule::ReinitializeAfterDeserialization(
 }
 
 uint32_t WasmCompiledModule::default_mem_size() const {
-  return initial_pages() * WasmModule::kPageSize;
+  return initial_pages() * wasm::kWasmPageSize;
 }
 
 MaybeHandle<String> WasmSharedModuleData::GetModuleNameOrNull(

@@ -124,8 +124,7 @@ Handle<JSArrayBuffer> NewArrayBuffer(Isolate* isolate, size_t size,
   // Check against kMaxInt, since the byte length is stored as int in the
   // JSArrayBuffer. Note that wasm_max_mem_pages can be raised from the command
   // line, and we don't want to fail a CHECK then.
-  if (size > FLAG_wasm_max_mem_pages * WasmModule::kPageSize ||
-      size > kMaxInt) {
+  if (size > FLAG_wasm_max_mem_pages * kWasmPageSize || size > kMaxInt) {
     // TODO(titzer): lift restriction on maximum memory allocated here.
     return Handle<JSArrayBuffer>::null();
   }

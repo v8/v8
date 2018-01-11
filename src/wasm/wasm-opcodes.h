@@ -9,24 +9,11 @@
 #include "src/machine-type.h"
 #include "src/runtime/runtime.h"
 #include "src/signature.h"
+#include "src/wasm/wasm-constants.h"
 
 namespace v8 {
 namespace internal {
 namespace wasm {
-
-// Binary encoding of the module header.
-const uint32_t kWasmMagic = 0x6d736100;
-const uint32_t kWasmVersion = 0x01;
-
-// Binary encoding of local types.
-enum ValueTypeCode : uint8_t {
-  kLocalVoid = 0x40,
-  kLocalI32 = 0x7f,
-  kLocalI64 = 0x7e,
-  kLocalF32 = 0x7d,
-  kLocalF64 = 0x7c,
-  kLocalS128 = 0x7b
-};
 
 // We reuse the internal machine type to represent WebAssembly types.
 // A typedef improves readability without adding a whole new type system.
@@ -44,9 +31,6 @@ std::ostream& operator<<(std::ostream& os, const FunctionSig& function);
 bool IsJSCompatibleSignature(const FunctionSig* sig);
 
 using WasmName = Vector<const char>;
-
-using WasmCodePosition = int;
-constexpr WasmCodePosition kNoCodePosition = -1;
 
 // Control expressions and blocks.
 #define FOREACH_CONTROL_OPCODE(V)         \

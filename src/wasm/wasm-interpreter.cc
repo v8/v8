@@ -2089,8 +2089,8 @@ class ThreadImpl {
         case kExprMemorySize: {
           MemoryIndexOperand<Decoder::kNoValidate> operand(&decoder,
                                                            code->at(pc));
-          Push(WasmValue(static_cast<uint32_t>(wasm_context_->mem_size /
-                                               WasmModule::kPageSize)));
+          Push(WasmValue(
+              static_cast<uint32_t>(wasm_context_->mem_size / kWasmPageSize)));
           len = 1 + operand.length;
           break;
         }

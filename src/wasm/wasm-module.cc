@@ -450,21 +450,6 @@ Handle<FixedArray> DecodeLocalNames(Isolate* isolate,
   }
   return locals_names;
 }
-
-const char* ExternalKindName(WasmExternalKind kind) {
-  switch (kind) {
-    case kExternalFunction:
-      return "function";
-    case kExternalTable:
-      return "table";
-    case kExternalMemory:
-      return "memory";
-    case kExternalGlobal:
-      return "global";
-  }
-  return "unknown";
-}
-
 }  // namespace wasm
 }  // namespace internal
 }  // namespace v8

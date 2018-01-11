@@ -3416,7 +3416,7 @@ Node* WasmGraphBuilder::CurrentMemoryPages() {
   }
   return graph()->NewNode(
       jsgraph()->machine()->Word32Shr(), mem_size,
-      jsgraph()->Int32Constant(WhichPowerOf2(wasm::WasmModule::kPageSize)));
+      jsgraph()->Int32Constant(WhichPowerOf2(wasm::kWasmPageSize)));
 }
 
 void WasmGraphBuilder::EnsureFunctionTableNodes() {
@@ -3547,11 +3547,11 @@ Node* WasmGraphBuilder::BoundsCheckMem(uint8_t access_size, Node* index,
     return Uint32ToUintptr(index);
   }
 
-  uint32_t min_size = env_->module->initial_pages * wasm::WasmModule::kPageSize;
+  uint32_t min_size = env_->module->initial_pages * wasm::kWasmPageSize;
   uint32_t max_size =
       (env_->module->has_maximum_pages ? env_->module->maximum_pages
                                        : wasm::kV8MaxWasmMemoryPages) *
-      wasm::WasmModule::kPageSize;
+      wasm::kWasmPageSize;
 
   if (access_size > max_size || offset > max_size - access_size) {
     // The access will be out of bounds, even for the largest memory.

@@ -17,9 +17,9 @@
 #include "src/v8memory.h"
 #include "src/wasm/module-compiler.h"
 #include "src/wasm/wasm-code-manager.h"
+#include "src/wasm/wasm-constants.h"
 #include "src/wasm/wasm-engine.h"
 #include "src/wasm/wasm-objects.h"
-#include "src/wasm/wasm-opcodes.h"
 
 namespace v8 {
 namespace internal {
@@ -171,7 +171,7 @@ RUNTIME_FUNCTION(Runtime_WasmGetExceptionRuntimeId) {
       }
     }
   }
-  return Smi::FromInt(wasm::WasmModule::kInvalidExceptionTag);
+  return Smi::FromInt(wasm::kInvalidExceptionTag);
 }
 
 RUNTIME_FUNCTION(Runtime_WasmExceptionGetElement) {

@@ -69,8 +69,7 @@ struct WasmContext {
   byte* globals_start = nullptr;
 
   inline void SetRawMemory(void* mem_start, size_t mem_size) {
-    DCHECK_LE(mem_size,
-              wasm::kV8MaxWasmMemoryPages * wasm::WasmModule::kPageSize);
+    DCHECK_LE(mem_size, wasm::kV8MaxWasmMemoryPages * wasm::kWasmPageSize);
     this->mem_start = static_cast<byte*>(mem_start);
     this->mem_size = static_cast<uint32_t>(mem_size);
     this->mem_mask = base::bits::RoundUpToPowerOfTwo32(this->mem_size) - 1;

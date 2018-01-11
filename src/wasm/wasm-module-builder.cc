@@ -11,7 +11,7 @@
 
 #include "src/wasm/function-body-decoder.h"
 #include "src/wasm/leb-helper.h"
-#include "src/wasm/module-decoder.h"
+#include "src/wasm/wasm-constants.h"
 #include "src/wasm/wasm-module-builder.h"
 #include "src/wasm/wasm-module.h"
 #include "src/wasm/wasm-opcodes.h"
@@ -343,7 +343,7 @@ void WasmModuleBuilder::WriteTo(ZoneBuffer& buffer) const {
     buffer.write_size(signatures_.size());
 
     for (FunctionSig* sig : signatures_) {
-      buffer.write_u8(kWasmFunctionTypeForm);
+      buffer.write_u8(kWasmFunctionTypeCode);
       buffer.write_size(sig->parameter_count());
       for (auto param : sig->parameters()) {
         buffer.write_u8(WasmOpcodes::ValueTypeCodeFor(param));
@@ -392,7 +392,7 @@ void WasmModuleBuilder::WriteTo(ZoneBuffer& buffer) const {
   if (indirect_functions_.size() > 0) {
     size_t start = EmitSection(kTableSectionCode, buffer);
     buffer.write_u8(1);  // table count
-    buffer.write_u8(kWasmAnyFunctionTypeForm);
+    buffer.write_u8(kWasmAnyFunctionTypeCode);
     buffer.write_u8(kHasMaximumFlag);
     buffer.write_size(indirect_functions_.size());
     buffer.write_size(indirect_functions_.size());
@@ -554,7 +554,7 @@ void WasmModuleBuilder::WriteTo(ZoneBuffer& buffer) const {
     buffer.write_size(4);
     buffer.write(reinterpret_cast<const byte*>("name"), 4);
     // Emit a subsection for the function names.
-    buffer.write_u8(NameSectionType::kFunction);
+    buffer.write_u8(NameSectionKindCode::kFunction);
     // Emit a placeholder for the subsection length.
     size_t functions_start = buffer.reserve_u32v();
     // Emit the function names.

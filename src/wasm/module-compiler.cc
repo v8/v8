@@ -3043,7 +3043,7 @@ int InstanceBuilder::ProcessImports(Handle<FixedArray> code_table,
         Handle<JSArrayBuffer> buffer(memory->array_buffer(), isolate_);
         memory_ = buffer;
         uint32_t imported_cur_pages = static_cast<uint32_t>(
-            buffer->byte_length()->Number() / WasmModule::kPageSize);
+            buffer->byte_length()->Number() / kWasmPageSize);
         if (imported_cur_pages < module_->initial_pages) {
           thrower_->LinkError(
               "memory import %d is smaller than initial %u, got %u", index,
@@ -3183,7 +3183,7 @@ Handle<JSArrayBuffer> InstanceBuilder::AllocateMemory(uint32_t num_pages) {
   const bool is_shared_memory =
       module_->has_shared_memory && i::FLAG_experimental_wasm_threads;
   Handle<JSArrayBuffer> mem_buffer = NewArrayBuffer(
-      isolate_, num_pages * WasmModule::kPageSize, enable_guard_regions,
+      isolate_, num_pages * kWasmPageSize, enable_guard_regions,
       is_shared_memory ? i::SharedFlag::kShared : i::SharedFlag::kNotShared);
 
   if (mem_buffer.is_null()) {
