@@ -2453,7 +2453,6 @@ void Factory::ReinitializeJSGlobalProxy(Handle<JSGlobalProxy> object,
 Handle<SharedFunctionInfo> Factory::NewSharedFunctionInfo(
     MaybeHandle<String> name, FunctionKind kind, Handle<Code> code,
     Handle<ScopeInfo> scope_info) {
-  DCHECK(IsValidFunctionKind(kind));
   Handle<SharedFunctionInfo> shared =
       NewSharedFunctionInfo(name, code, IsConstructable(kind), kind);
   shared->set_scope_info(*scope_info);

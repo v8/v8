@@ -293,7 +293,7 @@ void Generate_JSConstructStubGeneric(MacroAssembler* masm,
 
     __ LoadP(r7, FieldMemOperand(r4, JSFunction::kSharedFunctionInfoOffset));
     __ lwz(r7, FieldMemOperand(r7, SharedFunctionInfo::kCompilerHintsOffset));
-    __ TestBitMask(r7, SharedFunctionInfo::kDerivedConstructorMask, r0);
+    __ TestBitMask(r7, SharedFunctionInfo::IsDerivedConstructorBit::kMask, r0);
     __ bne(&not_create_implicit_receiver, cr0);
 
     // If not derived class constructor: Allocate the new receiver object.
@@ -420,7 +420,7 @@ void Generate_JSConstructStubGeneric(MacroAssembler* masm,
       __ LoadP(r7, MemOperand(fp, ConstructFrameConstants::kConstructorOffset));
       __ LoadP(r7, FieldMemOperand(r7, JSFunction::kSharedFunctionInfoOffset));
       __ lwz(r7, FieldMemOperand(r7, SharedFunctionInfo::kCompilerHintsOffset));
-      __ TestBitMask(r7, SharedFunctionInfo::kClassConstructorMask, r0);
+      __ TestBitMask(r7, SharedFunctionInfo::IsClassConstructorBit::kMask, r0);
       __ beq(&use_receiver, cr0);
 
     } else {
@@ -2051,7 +2051,7 @@ void Builtins::Generate_CallFunction(MacroAssembler* masm,
   Label class_constructor;
   __ LoadP(r5, FieldMemOperand(r4, JSFunction::kSharedFunctionInfoOffset));
   __ lwz(r6, FieldMemOperand(r5, SharedFunctionInfo::kCompilerHintsOffset));
-  __ TestBitMask(r6, SharedFunctionInfo::kClassConstructorMask, r0);
+  __ TestBitMask(r6, SharedFunctionInfo::IsClassConstructorBit::kMask, r0);
   __ bne(&class_constructor, cr0);
 
   // Enter the context of the function; ToObject has to run in the function

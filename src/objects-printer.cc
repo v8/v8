@@ -1073,36 +1073,6 @@ void JSBoundFunction::JSBoundFunctionPrint(std::ostream& os) {  // NOLINT
   JSObjectPrintBody(os, this);
 }
 
-
-namespace {
-
-std::ostream& operator<<(std::ostream& os, FunctionKind kind) {
-  os << "[";
-  if (kind == FunctionKind::kNormalFunction) {
-    os << " NormalFunction";
-  } else {
-#define PRINT_FLAG(name)                                                  \
-  if (static_cast<int>(kind) & static_cast<int>(FunctionKind::k##name)) { \
-    os << " " << #name;                                                   \
-  }
-
-    PRINT_FLAG(ArrowFunction)
-    PRINT_FLAG(GeneratorFunction)
-    PRINT_FLAG(ConciseMethod)
-    PRINT_FLAG(DefaultConstructor)
-    PRINT_FLAG(DerivedConstructor)
-    PRINT_FLAG(BaseConstructor)
-    PRINT_FLAG(GetterFunction)
-    PRINT_FLAG(SetterFunction)
-    PRINT_FLAG(AsyncFunction)
-    PRINT_FLAG(Module)
-#undef PRINT_FLAG
-  }
-  return os << " ]";
-}
-
-}  // namespace
-
 void JSFunction::JSFunctionPrint(std::ostream& os) {  // NOLINT
   JSObjectPrintHeader(os, this, "Function");
   os << "\n - function prototype = ";

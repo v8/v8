@@ -230,7 +230,7 @@ void Generate_JSConstructStubGeneric(MacroAssembler* masm,
 
     __ movp(rbx, FieldOperand(rdi, JSFunction::kSharedFunctionInfoOffset));
     __ testl(FieldOperand(rbx, SharedFunctionInfo::kCompilerHintsOffset),
-             Immediate(SharedFunctionInfo::kDerivedConstructorMask));
+             Immediate(SharedFunctionInfo::IsDerivedConstructorBit::kMask));
     __ j(not_zero, &not_create_implicit_receiver, Label::kNear);
 
     // If not derived class constructor: Allocate the new receiver object.
@@ -350,7 +350,7 @@ void Generate_JSConstructStubGeneric(MacroAssembler* masm,
     __ movp(rbx, Operand(rbp, ConstructFrameConstants::kConstructorOffset));
     __ movp(rbx, FieldOperand(rbx, JSFunction::kSharedFunctionInfoOffset));
     __ testl(FieldOperand(rbx, SharedFunctionInfo::kCompilerHintsOffset),
-             Immediate(SharedFunctionInfo::kClassConstructorMask));
+             Immediate(SharedFunctionInfo::IsClassConstructorBit::kMask));
 
     if (restrict_constructor_return) {
       // Throw if constructor function is a class constructor
@@ -2196,7 +2196,7 @@ void Builtins::Generate_CallFunction(MacroAssembler* masm,
   Label class_constructor;
   __ movp(rdx, FieldOperand(rdi, JSFunction::kSharedFunctionInfoOffset));
   __ testl(FieldOperand(rdx, SharedFunctionInfo::kCompilerHintsOffset),
-           Immediate(SharedFunctionInfo::kClassConstructorMask));
+           Immediate(SharedFunctionInfo::IsClassConstructorBit::kMask));
   __ j(not_zero, &class_constructor);
 
   // ----------- S t a t e -------------

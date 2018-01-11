@@ -224,7 +224,7 @@ void Generate_JSConstructStubGeneric(MacroAssembler* masm,
 
     __ mov(ebx, FieldOperand(edi, JSFunction::kSharedFunctionInfoOffset));
     __ test(FieldOperand(ebx, SharedFunctionInfo::kCompilerHintsOffset),
-            Immediate(SharedFunctionInfo::kDerivedConstructorMask));
+            Immediate(SharedFunctionInfo::IsDerivedConstructorBit::kMask));
     __ j(not_zero, &not_create_implicit_receiver);
 
     // If not derived class constructor: Allocate the new receiver object.
@@ -345,7 +345,7 @@ void Generate_JSConstructStubGeneric(MacroAssembler* masm,
     __ mov(ebx, Operand(ebp, ConstructFrameConstants::kConstructorOffset));
     __ mov(ebx, FieldOperand(ebx, JSFunction::kSharedFunctionInfoOffset));
     __ test(FieldOperand(ebx, SharedFunctionInfo::kCompilerHintsOffset),
-            Immediate(SharedFunctionInfo::kClassConstructorMask));
+            Immediate(SharedFunctionInfo::IsClassConstructorBit::kMask));
 
     if (restrict_constructor_return) {
       // Throw if constructor function is a class constructor
@@ -2093,7 +2093,7 @@ void Builtins::Generate_CallFunction(MacroAssembler* masm,
   Label class_constructor;
   __ mov(edx, FieldOperand(edi, JSFunction::kSharedFunctionInfoOffset));
   __ test(FieldOperand(edx, SharedFunctionInfo::kCompilerHintsOffset),
-          Immediate(SharedFunctionInfo::kClassConstructorMask));
+          Immediate(SharedFunctionInfo::IsClassConstructorBit::kMask));
   __ j(not_zero, &class_constructor);
 
   // Enter the context of the function; ToObject has to run in the function
