@@ -856,19 +856,10 @@ Maybe<bool> ValueSerializer::WriteWasmModule(Handle<WasmModuleObject> object) {
     String::WriteToFlat(*wire_bytes, destination, 0, wire_bytes_length);
   }
 
-  if (FLAG_wasm_jit_to_native) {
-    std::pair<std::unique_ptr<byte[]>, size_t> serialized_module =
-        wasm::SerializeNativeModule(isolate_, compiled_part);
-    WriteVarint<uint32_t>(static_cast<uint32_t>(serialized_module.second));
-    WriteRawBytes(serialized_module.first.get(), serialized_module.second);
-  } else {
-    std::unique_ptr<ScriptData> script_data =
-        WasmCompiledModuleSerializer::SerializeWasmModule(isolate_,
-                                                          compiled_part);
-    int script_data_length = script_data->length();
-    WriteVarint<uint32_t>(script_data_length);
-    WriteRawBytes(script_data->data(), script_data_length);
-  }
+  std::pair<std::unique_ptr<const byte[]>, size_t> serialized_module =
+      wasm::SerializeNativeModule(isolate_, compiled_part);
+  WriteVarint<uint32_t>(static_cast<uint32_t>(serialized_module.second));
+  WriteRawBytes(serialized_module.first.get(), serialized_module.second);
   return ThrowIfOutOfMemory();
 }
 
@@ -1715,22 +1706,11 @@ MaybeHandle<JSObject> ValueDeserializer::ReadWasmModule() {
   }
 
   // Try to deserialize the compiled module first.
-  Handle<FixedArray> compiled_part;
+  Handle<WasmCompiledModule> compiled_module;
   MaybeHandle<JSObject> result;
-  if (FLAG_wasm_jit_to_native) {
-    if (wasm::DeserializeNativeModule(isolate_, compiled_bytes, wire_bytes)
-            .ToHandle(&compiled_part)) {
-      result = WasmModuleObject::New(
-          isolate_, Handle<WasmCompiledModule>::cast(compiled_part));
-    }
-  } else {
-    ScriptData script_data(compiled_bytes.start(), compiled_bytes.length());
-    if (WasmCompiledModuleSerializer::DeserializeWasmModule(
-            isolate_, &script_data, wire_bytes)
-            .ToHandle(&compiled_part)) {
-      result = WasmModuleObject::New(
-          isolate_, Handle<WasmCompiledModule>::cast(compiled_part));
-    }
+  if (wasm::DeserializeNativeModule(isolate_, compiled_bytes, wire_bytes)
+          .ToHandle(&compiled_module)) {
+    result = WasmModuleObject::New(isolate_, compiled_module);
   }
   if (result.is_null()) {
     wasm::ErrorThrower thrower(isolate_, "ValueDeserializer::ReadWasmModule");

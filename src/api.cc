@@ -7544,19 +7544,7 @@ WasmCompiledModule::SerializedModule WasmCompiledModule::Serialize() {
       i::Handle<i::WasmModuleObject>::cast(Utils::OpenHandle(this));
   i::Handle<i::WasmCompiledModule> compiled_part =
       i::handle(i::WasmCompiledModule::cast(obj->compiled_module()));
-  if (i::FLAG_wasm_jit_to_native) {
-    i::Isolate* isolate = obj->GetIsolate();
-
-    return i::wasm::SerializeNativeModule(isolate, compiled_part);
-  } else {
-    std::unique_ptr<i::ScriptData> script_data =
-        i::WasmCompiledModuleSerializer::SerializeWasmModule(obj->GetIsolate(),
-                                                             compiled_part);
-    script_data->ReleaseDataOwnership();
-
-    size_t size = static_cast<size_t>(script_data->length());
-    return {std::unique_ptr<const uint8_t[]>(script_data->data()), size};
-  }
+  return i::wasm::SerializeNativeModule(obj->GetIsolate(), compiled_part);
 }
 
 MaybeLocal<WasmCompiledModule> WasmCompiledModule::Deserialize(
@@ -7564,24 +7552,14 @@ MaybeLocal<WasmCompiledModule> WasmCompiledModule::Deserialize(
     const WasmCompiledModule::CallerOwnedBuffer& serialized_module,
     const WasmCompiledModule::CallerOwnedBuffer& wire_bytes) {
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
-  i::MaybeHandle<i::FixedArray> maybe_compiled_part;
-  if (i::FLAG_wasm_jit_to_native) {
-    maybe_compiled_part = i::wasm::DeserializeNativeModule(
-        i_isolate, {serialized_module.first, serialized_module.second},
-        {wire_bytes.first, wire_bytes.second});
-  } else {
-    int size = static_cast<int>(serialized_module.second);
-    i::ScriptData sc(serialized_module.first, size);
-    maybe_compiled_part =
-        i::WasmCompiledModuleSerializer::DeserializeWasmModule(
-            i_isolate, &sc, {wire_bytes.first, wire_bytes.second});
-  }
-  i::Handle<i::FixedArray> compiled_part;
-  if (!maybe_compiled_part.ToHandle(&compiled_part)) {
+  i::MaybeHandle<i::WasmCompiledModule> maybe_compiled_module =
+      i::wasm::DeserializeNativeModule(
+          i_isolate, {serialized_module.first, serialized_module.second},
+          {wire_bytes.first, wire_bytes.second});
+  i::Handle<i::WasmCompiledModule> compiled_module;
+  if (!maybe_compiled_module.ToHandle(&compiled_module)) {
     return MaybeLocal<WasmCompiledModule>();
   }
-  i::Handle<i::WasmCompiledModule> compiled_module =
-      handle(i::WasmCompiledModule::cast(*compiled_part));
   return Local<WasmCompiledModule>::Cast(
       Utils::ToLocal(i::Handle<i::JSObject>::cast(
           i::WasmModuleObject::New(i_isolate, compiled_module))));

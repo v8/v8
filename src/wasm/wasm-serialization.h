@@ -11,7 +11,7 @@ namespace v8 {
 namespace internal {
 namespace wasm {
 
-std::pair<std::unique_ptr<byte[]>, size_t> SerializeNativeModule(
+std::pair<std::unique_ptr<const byte[]>, size_t> SerializeNativeModule(
     Isolate* isolate, Handle<WasmCompiledModule> compiled_module);
 
 MaybeHandle<WasmCompiledModule> DeserializeNativeModule(

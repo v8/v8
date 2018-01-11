@@ -15,7 +15,6 @@
 #include "src/frames-inl.h"
 #include "src/isolate-inl.h"
 #include "src/runtime-profiler.h"
-#include "src/snapshot/code-serializer.h"
 #include "src/snapshot/natives.h"
 #include "src/trap-handler/trap-handler.h"
 #include "src/wasm/memory-tracing.h"
@@ -995,24 +994,14 @@ RUNTIME_FUNCTION(Runtime_SerializeWasmModule) {
   CONVERT_ARG_HANDLE_CHECKED(WasmModuleObject, module_obj, 0);
 
   Handle<WasmCompiledModule> orig(module_obj->compiled_module());
-  if (FLAG_wasm_jit_to_native) {
-    std::pair<std::unique_ptr<byte[]>, size_t> serialized_module =
-        wasm::SerializeNativeModule(isolate, orig);
-    int data_size = static_cast<int>(serialized_module.second);
-    void* buff = isolate->array_buffer_allocator()->Allocate(data_size);
-    Handle<JSArrayBuffer> ret = isolate->factory()->NewJSArrayBuffer();
-    JSArrayBuffer::Setup(ret, isolate, false, buff, data_size);
-    memcpy(buff, serialized_module.first.get(), data_size);
-    return *ret;
-  } else {
-    std::unique_ptr<ScriptData> data =
-        WasmCompiledModuleSerializer::SerializeWasmModule(isolate, orig);
-    void* buff = isolate->array_buffer_allocator()->Allocate(data->length());
-    Handle<JSArrayBuffer> ret = isolate->factory()->NewJSArrayBuffer();
-    JSArrayBuffer::Setup(ret, isolate, false, buff, data->length());
-    memcpy(buff, data->data(), data->length());
-    return *ret;
-  }
+  std::pair<std::unique_ptr<const byte[]>, size_t> serialized_module =
+      wasm::SerializeNativeModule(isolate, orig);
+  int data_size = static_cast<int>(serialized_module.second);
+  void* buff = isolate->array_buffer_allocator()->Allocate(data_size);
+  Handle<JSArrayBuffer> ret = isolate->factory()->NewJSArrayBuffer();
+  JSArrayBuffer::Setup(ret, isolate, false, buff, data_size);
+  memcpy(buff, serialized_module.first.get(), data_size);
+  return *ret;
 }
 
 // Take an array buffer and attempt to reconstruct a compiled wasm module.
@@ -1026,38 +1015,28 @@ RUNTIME_FUNCTION(Runtime_DeserializeWasmModule) {
   Address mem_start = static_cast<Address>(buffer->backing_store());
   size_t mem_size = static_cast<size_t>(buffer->byte_length()->Number());
 
-  // DeserializeWasmModule will allocate. We assume JSArrayBuffer doesn't
-  // get relocated.
+  // Note that {wasm::DeserializeNativeModule} will allocate. We assume the
+  // JSArrayBuffer doesn't get relocated.
   bool already_external = wire_bytes->is_external();
   if (!already_external) {
     wire_bytes->set_is_external(true);
     isolate->heap()->UnregisterArrayBuffer(*wire_bytes);
   }
-  MaybeHandle<FixedArray> maybe_compiled_module;
-  if (FLAG_wasm_jit_to_native) {
-    maybe_compiled_module = wasm::DeserializeNativeModule(
-        isolate, {mem_start, mem_size},
-        Vector<const uint8_t>(
-            reinterpret_cast<uint8_t*>(wire_bytes->backing_store()),
-            static_cast<int>(wire_bytes->byte_length()->Number())));
-  } else {
-    ScriptData sc(mem_start, static_cast<int>(mem_size));
-    maybe_compiled_module = WasmCompiledModuleSerializer::DeserializeWasmModule(
-        isolate, &sc,
-        Vector<const uint8_t>(
-            reinterpret_cast<uint8_t*>(wire_bytes->backing_store()),
-            static_cast<int>(wire_bytes->byte_length()->Number())));
-  }
+  MaybeHandle<WasmCompiledModule> maybe_compiled_module =
+      wasm::DeserializeNativeModule(
+          isolate, {mem_start, mem_size},
+          Vector<const uint8_t>(
+              reinterpret_cast<uint8_t*>(wire_bytes->backing_store()),
+              static_cast<int>(wire_bytes->byte_length()->Number())));
   if (!already_external) {
     wire_bytes->set_is_external(false);
     isolate->heap()->RegisterNewArrayBuffer(*wire_bytes);
   }
-  Handle<FixedArray> compiled_module;
+  Handle<WasmCompiledModule> compiled_module;
   if (!maybe_compiled_module.ToHandle(&compiled_module)) {
     return isolate->heap()->undefined_value();
   }
-  return *WasmModuleObject::New(
-      isolate, Handle<WasmCompiledModule>::cast(compiled_module));
+  return *WasmModuleObject::New(isolate, compiled_module);
 }
 
 RUNTIME_FUNCTION(Runtime_ValidateWasmInstancesChain) {
