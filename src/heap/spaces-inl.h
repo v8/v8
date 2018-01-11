@@ -186,16 +186,11 @@ bool PagedSpace::TryFreeLast(HeapObject* object, int object_size) {
 }
 
 MemoryChunk* MemoryChunk::FromAnyPointerAddress(Heap* heap, Address addr) {
-  MemoryChunk* chunk = MemoryChunk::FromAddress(addr);
-  uintptr_t offset = addr - chunk->address();
-  if (offset < MemoryChunk::kHeaderSize || !chunk->HasPageHeader()) {
-    chunk = heap->lo_space()->FindPageThreadSafe(addr);
+  MemoryChunk* chunk = heap->lo_space()->FindPage(addr);
+  if (chunk == nullptr) {
+    chunk = MemoryChunk::FromAddress(addr);
   }
   return chunk;
-}
-
-Page* Page::FromAnyPointerAddress(Heap* heap, Address addr) {
-  return static_cast<Page*>(MemoryChunk::FromAnyPointerAddress(heap, addr));
 }
 
 void Page::MarkNeverAllocateForTesting() {

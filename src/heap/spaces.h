@@ -792,8 +792,6 @@ class Page : public MemoryChunk {
 
   static Page* ConvertNewToOld(Page* old_page);
 
-  inline static Page* FromAnyPointerAddress(Heap* heap, Address addr);
-
   // Create a Page object that is only used as anchor for the doubly-linked
   // list of real pages.
   explicit Page(Space* owner) { InitializeAsAnchor(owner); }
@@ -2943,6 +2941,8 @@ class LargeObjectSpace : public Space {
   iterator end() { return iterator(nullptr); }
 
   std::unique_ptr<ObjectIterator> GetObjectIterator() override;
+
+  base::Mutex* chunk_map_mutex() { return &chunk_map_mutex_; }
 
 #ifdef VERIFY_HEAP
   virtual void Verify();
