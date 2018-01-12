@@ -84,7 +84,8 @@ def FetchDeps(v8_path):
     if temporary_git:
       node_common.UninitGit(v8_path)
     # Clean up .gclient_entries file.
-    gclient_entries = os.normpath(os.path.join(v8_path, os.pardir, ".gclient_entries"))
+    gclient_entries = os.path.normpath(
+        os.path.join(v8_path, os.pardir, ".gclient_entries"))
     if os.path.isfile(gclient_entries):
       os.remove(gclient_entries)
 
