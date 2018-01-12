@@ -4877,9 +4877,8 @@ class V8_EXPORT RegExp : public Object {
    *               static_cast<RegExp::Flags>(kGlobal | kMultiline))
    * is equivalent to evaluating "/foo/gm".
    */
-  static V8_DEPRECATE_SOON("Use maybe version",
-                           Local<RegExp> New(Local<String> pattern,
-                                             Flags flags));
+  static V8_DEPRECATED("Use maybe version",
+                       Local<RegExp> New(Local<String> pattern, Flags flags));
   static V8_WARN_UNUSED_RESULT MaybeLocal<RegExp> New(Local<Context> context,
                                                       Local<String> pattern,
                                                       Flags flags);
