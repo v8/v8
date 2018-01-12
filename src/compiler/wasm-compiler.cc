@@ -5218,22 +5218,6 @@ WasmCodeWrapper WasmCompilationUnit::FinishLiftoffCompilation(
         false,                                   // is_turbofanned
         liftoff_.asm_.GetTotalFrameSlotCount(),  // stack_slots
         liftoff_.safepoint_table_offset_);
-#ifdef ENABLE_DISASSEMBLER
-    if (FLAG_print_code || FLAG_print_wasm_code) {
-      // TODO(wasm): Use proper log files, here and elsewhere.
-      OFStream os(stdout);
-      os << "--- Wasm liftoff code ---\n";
-      EmbeddedVector<char, 64> func_name;
-      if (func_name_.start() != nullptr) {
-        SNPrintF(func_name, "#%d:%.*s", func_index(), func_name_.length(),
-                 func_name_.start());
-      } else {
-        SNPrintF(func_name, "wasm#%d", func_index());
-      }
-      code->Disassemble(func_name.start(), os);
-      os << "--- End code ---\n";
-    }
-#endif
     if (isolate_->logger()->is_logging_code_events() ||
         isolate_->is_profiling()) {
       RecordFunctionCompilation(CodeEventListener::FUNCTION_TAG, isolate_, code,
@@ -5241,17 +5225,34 @@ WasmCodeWrapper WasmCompilationUnit::FinishLiftoffCompilation(
     }
 
     PackProtectedInstructions(code);
-    return WasmCodeWrapper(code);
+    ret = WasmCodeWrapper(code);
   } else {
-    // TODO(mtrofin): figure a way to raise events; also, disassembly.
-    // Consider lifting them both to FinishCompilation.
+    // TODO(mtrofin): figure a way to raise events.
+    // Consider lifting it to FinishCompilation.
     native_module_->compiled_module()->source_positions()->set(
         func_index_, *source_positions);
-    return WasmCodeWrapper(
+    ret = WasmCodeWrapper(
         native_module_->AddCode(desc, liftoff_.asm_.GetTotalFrameSlotCount(),
                                 func_index_, liftoff_.safepoint_table_offset_,
                                 std::move(protected_instructions_), true));
   }
+#ifdef ENABLE_DISASSEMBLER
+  if (FLAG_print_code || FLAG_print_wasm_code) {
+    // TODO(wasm): Use proper log files, here and elsewhere.
+    OFStream os(stdout);
+    os << "--- Wasm liftoff code ---\n";
+    EmbeddedVector<char, 64> func_name;
+    if (func_name_.start() != nullptr) {
+      SNPrintF(func_name, "#%d:%.*s", func_index(), func_name_.length(),
+               func_name_.start());
+    } else {
+      SNPrintF(func_name, "wasm#%d", func_index());
+    }
+    ret.Disassemble(func_name.start(), isolate_, os);
+    os << "--- End code ---\n";
+  }
+#endif
+  return ret;
 }
 
 // static

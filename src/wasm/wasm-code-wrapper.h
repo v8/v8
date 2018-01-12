@@ -26,6 +26,10 @@ class WasmCodeWrapper {
   bool is_null() const { return code_ptr_.wasm_code_ == nullptr; }
   bool IsCodeObject() const;
 
+#ifdef ENABLE_DISASSEMBLER
+  void Disassemble(const char* name, Isolate* isolate, std::ostream& os) const;
+#endif
+
  private:
   union {
     const wasm::WasmCode* wasm_code_;

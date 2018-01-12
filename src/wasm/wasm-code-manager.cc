@@ -180,13 +180,19 @@ void WasmCode::ResetTrapHandlerIndex() { trap_handler_index_ = -1; }
 
 void WasmCode::Print(Isolate* isolate) const {
   OFStream os(stdout);
-  if (index_.IsJust()) {
-    os << "index: " << index_.FromJust() << "\n";
-  }
+  Disassemble(nullptr, isolate, os);
+}
+
+void WasmCode::Disassemble(const char* name, Isolate* isolate,
+                           std::ostream& os) const {
+  if (name) os << "name: " << name << "\n";
+  if (index_.IsJust()) os << "index: " << index_.FromJust() << "\n";
   os << "kind: " << GetWasmCodeKindAsString(kind_) << "\n";
   os << "compiler: " << (is_liftoff() ? "Liftoff" : "TurboFan") << "\n";
   size_t body_size = instructions().size();
   os << "Body (size = " << body_size << ")\n";
+
+#ifdef ENABLE_DISASSEMBLER
 
   size_t instruction_size =
       std::min(constant_pool_offset_, safepoint_table_offset_);
@@ -210,6 +216,14 @@ void WasmCode::Print(Isolate* isolate) const {
     }
     os << "\n";
   }
+
+  os << "RelocInfo (size = " << reloc_size_ << ")\n";
+  for (RelocIterator it(instructions(), reloc_info(), constant_pool());
+       !it.done(); it.next()) {
+    it.rinfo()->Print(isolate, os);
+  }
+  os << "\n";
+#endif  // ENABLE_DISASSEMBLER
 }
 
 const char* GetWasmCodeKindAsString(WasmCode::Kind kind) {

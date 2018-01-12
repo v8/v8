@@ -6,6 +6,7 @@
 
 #include "src/objects.h"
 #include "src/objects/code.h"
+#include "src/wasm/wasm-code-manager.h"
 
 namespace v8 {
 namespace internal {
@@ -33,6 +34,17 @@ const wasm::WasmCode* WasmCodeWrapper::GetWasmCode() const {
 }
 
 bool WasmCodeWrapper::IsCodeObject() const { return !FLAG_wasm_jit_to_native; }
+
+#ifdef ENABLE_DISASSEMBLER
+void WasmCodeWrapper::Disassemble(const char* name, Isolate* isolate,
+                                  std::ostream& os) const {
+  if (IsCodeObject()) {
+    GetCode()->Disassemble(name, os);
+  } else {
+    GetWasmCode()->Disassemble(name, isolate, os);
+  }
+}
+#endif
 
 }  // namespace internal
 }  // namespace v8
