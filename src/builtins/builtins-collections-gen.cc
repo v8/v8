@@ -162,13 +162,9 @@ void BaseCollectionsAssembler::AddConstructorEntries(
     TNode<BoolT> is_fast_jsarray) {
   Label exit(this), slow_loop(this, Label::kDeferred);
   GotoIf(IsNullOrUndefined(initial_entries), &exit);
-  GotoIfNot(is_fast_jsarray, &slow_loop);
 
-  AddConstructorEntriesFromFastJSArray(variant, context, collection,
-                                       UncheckedCast<JSArray>(initial_entries));
-  Goto(&exit);
-
-  BIND(&slow_loop);
+  // TODO(mvstanton): Re-enable the fast path when a fix is found for
+  // crbug.com/798026.
   {
     AddConstructorEntriesFromIterable(variant, context, native_context,
                                       collection, initial_entries);
