@@ -546,7 +546,6 @@ Parser::Parser(ParseInfo* info)
   set_allow_harmony_static_fields(FLAG_harmony_static_fields);
   set_allow_harmony_dynamic_import(FLAG_harmony_dynamic_import);
   set_allow_harmony_import_meta(FLAG_harmony_import_meta);
-  set_allow_harmony_async_iteration(FLAG_harmony_async_iteration);
   set_allow_harmony_bigint(FLAG_harmony_bigint);
   set_allow_harmony_optional_catch_binding(FLAG_harmony_optional_catch_binding);
   for (int feature = 0; feature < v8::Isolate::kUseCounterFeatureCount;

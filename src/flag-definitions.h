@@ -223,7 +223,6 @@ DEFINE_IMPLICATION(harmony_class_fields, harmony_static_fields)
   V(harmony_sharedarraybuffer, "harmony sharedarraybuffer")             \
   V(harmony_regexp_named_captures, "harmony regexp named captures")     \
   V(harmony_regexp_property, "harmony Unicode regexp property classes") \
-  V(harmony_async_iteration, "harmony async iteration")                 \
   V(harmony_function_tostring, "harmony Function.prototype.toString")   \
   V(harmony_promise_finally, "harmony Promise.prototype.finally")
 

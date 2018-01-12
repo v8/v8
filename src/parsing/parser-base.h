@@ -282,7 +282,6 @@ class ParserBase {
         allow_harmony_static_fields_(false),
         allow_harmony_dynamic_import_(false),
         allow_harmony_import_meta_(false),
-        allow_harmony_async_iteration_(false),
         allow_harmony_optional_catch_binding_(false) {}
 
 #define ALLOW_ACCESSORS(name)                           \
@@ -296,7 +295,6 @@ class ParserBase {
   ALLOW_ACCESSORS(harmony_static_fields);
   ALLOW_ACCESSORS(harmony_dynamic_import);
   ALLOW_ACCESSORS(harmony_import_meta);
-  ALLOW_ACCESSORS(harmony_async_iteration);
   ALLOW_ACCESSORS(harmony_optional_catch_binding);
 
 #undef ALLOW_ACCESSORS
@@ -1536,7 +1534,6 @@ class ParserBase {
   bool allow_harmony_static_fields_;
   bool allow_harmony_dynamic_import_;
   bool allow_harmony_import_meta_;
-  bool allow_harmony_async_iteration_;
   bool allow_harmony_optional_catch_binding_;
 
   friend class DiscardableZoneScope;
@@ -2131,8 +2128,7 @@ typename ParserBase<Impl>::ExpressionT ParserBase<Impl>::ParsePropertyName(
       !scanner()->HasAnyLineTerminatorAfterNext()) {
     Consume(Token::ASYNC);
     token = peek();
-    if (token == Token::MUL && allow_harmony_async_iteration() &&
-        !scanner()->HasAnyLineTerminatorBeforeNext()) {
+    if (token == Token::MUL && !scanner()->HasAnyLineTerminatorBeforeNext()) {
       Consume(Token::MUL);
       token = peek();
       *is_generator = true;
@@ -3993,7 +3989,7 @@ ParserBase<Impl>::ParseHoistableDeclaration(
   const bool is_async = flags & ParseFunctionFlags::kIsAsync;
   DCHECK(!is_generator || !is_async);
 
-  if (allow_harmony_async_iteration() && is_async && Check(Token::MUL)) {
+  if (is_async && Check(Token::MUL)) {
     // Async generator
     is_generator = true;
   }
@@ -4568,7 +4564,7 @@ ParserBase<Impl>::ParseAsyncFunctionLiteral(bool* ok) {
   IdentifierT name = impl()->NullIdentifier();
   FunctionLiteral::FunctionType type = FunctionLiteral::kAnonymousExpression;
 
-  bool is_generator = allow_harmony_async_iteration() && Check(Token::MUL);
+  bool is_generator = Check(Token::MUL);
   const bool kIsAsync = true;
   const FunctionKind kind = FunctionKindFor(is_generator, kIsAsync);
 
@@ -4957,8 +4953,7 @@ typename ParserBase<Impl>::StatementT ParserBase<Impl>::ParseStatement(
     case Token::WHILE:
       return ParseWhileStatement(labels, ok);
     case Token::FOR:
-      if (V8_UNLIKELY(allow_harmony_async_iteration() && is_async_function() &&
-                      PeekAhead() == Token::AWAIT)) {
+      if (V8_UNLIKELY(is_async_function() && PeekAhead() == Token::AWAIT)) {
         return ParseForAwaitStatement(labels, ok);
       }
       return ParseForStatement(labels, ok);
@@ -5955,7 +5950,6 @@ typename ParserBase<Impl>::StatementT ParserBase<Impl>::ParseForAwaitStatement(
     ZoneList<const AstRawString*>* labels, bool* ok) {
   // for await '(' ForDeclaration of AssignmentExpression ')'
   DCHECK(is_async_function());
-  DCHECK(allow_harmony_async_iteration());
 
   int stmt_pos = peek_position();
 

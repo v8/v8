@@ -415,7 +415,6 @@ void GenerateExpectationsFile(std::ostream& stream,  // NOLINT
   }
 
   if (options.do_expressions()) i::FLAG_harmony_do_expressions = true;
-  if (options.async_iteration()) i::FLAG_harmony_async_iteration = true;
   if (options.public_fields()) i::FLAG_harmony_public_fields = true;
   if (options.static_fields()) i::FLAG_harmony_static_fields = true;
 
@@ -426,7 +425,6 @@ void GenerateExpectationsFile(std::ostream& stream,  // NOLINT
   }
 
   i::FLAG_harmony_do_expressions = false;
-  i::FLAG_harmony_async_iteration = false;
   i::FLAG_harmony_public_fields = false;
   i::FLAG_harmony_static_fields = false;
 }
@@ -475,7 +473,6 @@ void PrintUsage(const char* exec_path) {
          "Specify the name of the test function.\n"
          "  --top-level   Process top level code, not the top-level function.\n"
          "  --do-expressions  Enable harmony_do_expressions flag.\n"
-         "  --async-iteration  Enable harmony_async_iteration flag.\n"
          "  --public-fields  Enable harmony_public_fields flag.\n"
          "  --static-fields  Enable harmony_static_fields flag.\n"
          "  --output=file.name\n"

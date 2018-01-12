@@ -2174,6 +2174,8 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
                           false);
 
     // Install well-known symbols.
+    InstallConstant(isolate, symbol_fun, "asyncIterator",
+                    factory->async_iterator_symbol());
     InstallConstant(isolate, symbol_fun, "hasInstance",
                     factory->has_instance_symbol());
     InstallConstant(isolate, symbol_fun, "isConcatSpreadable",
@@ -4406,13 +4408,6 @@ void Genesis::InitializeGlobal_harmony_array_prototype_values() {
   JSObject::AddProperty(Handle<JSObject>::cast(unscopables),
                         factory()->values_string(), factory()->true_value(),
                         NONE);
-}
-
-void Genesis::InitializeGlobal_harmony_async_iteration() {
-  if (!FLAG_harmony_async_iteration) return;
-  Handle<JSFunction> symbol_fun(native_context()->symbol_function());
-  InstallConstant(isolate(), symbol_fun, "asyncIterator",
-                  factory()->async_iterator_symbol());
 }
 
 void Genesis::InitializeGlobal_harmony_promise_finally() {

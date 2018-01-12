@@ -1317,7 +1317,6 @@ enum ParserFlag {
   kAllowHarmonyPublicFields,
   kAllowHarmonyStaticFields,
   kAllowHarmonyDynamicImport,
-  kAllowHarmonyAsyncIteration,
   kAllowHarmonyImportMeta,
   kAllowHarmonyDoExpressions,
   kAllowHarmonyOptionalCatchBinding,
@@ -1336,7 +1335,6 @@ void SetGlobalFlags(i::EnumSet<ParserFlag> flags) {
   i::FLAG_harmony_static_fields = flags.Contains(kAllowHarmonyStaticFields);
   i::FLAG_harmony_dynamic_import = flags.Contains(kAllowHarmonyDynamicImport);
   i::FLAG_harmony_import_meta = flags.Contains(kAllowHarmonyImportMeta);
-  i::FLAG_harmony_async_iteration = flags.Contains(kAllowHarmonyAsyncIteration);
   i::FLAG_harmony_do_expressions = flags.Contains(kAllowHarmonyDoExpressions);
   i::FLAG_harmony_optional_catch_binding =
       flags.Contains(kAllowHarmonyOptionalCatchBinding);
@@ -1354,8 +1352,6 @@ void SetParserFlags(i::PreParser* parser, i::EnumSet<ParserFlag> flags) {
       flags.Contains(kAllowHarmonyDynamicImport));
   parser->set_allow_harmony_import_meta(
       flags.Contains(kAllowHarmonyImportMeta));
-  parser->set_allow_harmony_async_iteration(
-      flags.Contains(kAllowHarmonyAsyncIteration));
   parser->set_allow_harmony_do_expressions(
       flags.Contains(kAllowHarmonyDoExpressions));
   parser->set_allow_harmony_optional_catch_binding(
@@ -2633,7 +2629,6 @@ TEST(ErrorsObjectLiteralChecking) {
     "static async get x : 0",
     "async static x(){}",
     "*async x(){}",
-    "async *x(){}",
     "async x*(){}",
     "async x : 0",
     "async 0 : 0",
@@ -4688,6 +4683,7 @@ TEST(ClassBodyNoErrors) {
     "*g() {};",
     "; *g() {}",
     "*g() {}; *h(x) {}",
+    "async *x(){}",
     "static() {}",
     "get static() {}",
     "set static(v) {}",
@@ -4708,6 +4704,7 @@ TEST(ClassBodyNoErrors) {
     "*async(){}",
     "static async(){}",
     "static *async(){}",
+    "static async *x(){}",
 
     // Escaped 'static' should be allowed anywhere
     // static-as-PropertyName is.
@@ -5107,7 +5104,6 @@ TEST(ClassAsyncErrors) {
   const char* async_data[] = {
     "*async x(){}",
     "async *(){}",
-    "async *x(){}",
     "async get x(){}",
     "async set x(y){}",
     "async x : 0",
@@ -5117,7 +5113,6 @@ TEST(ClassAsyncErrors) {
 
     "static *async x(){}",
     "static async *(){}",
-    "static async *x(){}",
     "static async get x(){}",
     "static async set x(y){}",
     "static async x : 0",
@@ -7131,19 +7126,12 @@ TEST(DestructuringNegativeTests) {
         "{...[ x = 5 ] }",
         "{...x.f }",
         "{...x[0] }",
+        "async function* a() {}",
         nullptr
-    };
-
-    const char* async_gen_data[] = {
-      "async function* a() {}",
-      nullptr
     };
 
     // clang-format on
     RunParserSyncTest(context_data, data, kError);
-    static const ParserFlag async_gen_flags[] = {kAllowHarmonyAsyncIteration};
-    RunParserSyncTest(context_data, async_gen_data, kError, nullptr, 0,
-                      async_gen_flags, arraysize(async_gen_flags));
   }
 
   {  // All modes.
@@ -8399,6 +8387,8 @@ TEST(FunctionDeclarationError) {
     "label: function* f() { }",
     "if (true) async function f() { }",
     "label: async function f() { }",
+    "if (true) async function* f() { }",
+    "label: async function* f() { }",
     nullptr
   };
   // Valid only in sloppy mode.
@@ -8420,20 +8410,6 @@ TEST(FunctionDeclarationError) {
   // In sloppy mode, sloppy_data is successful
   RunParserSyncTest(sloppy_context, error_data, kError);
   RunParserSyncTest(sloppy_context, sloppy_data, kSuccess);
-
-  // No single statement async iterators
-  // clang-format off
-  const char* async_iterator_data[] = {
-    "if (true) async function* f() { }",
-    "label: async function* f() { }",
-    nullptr,
-  };
-  // clang-format on
-  static const ParserFlag flags[] = {kAllowHarmonyAsyncIteration};
-  RunParserSyncTest(sloppy_context, async_iterator_data, kError, nullptr, 0,
-                    flags, arraysize(flags));
-  RunParserSyncTest(strict_context, async_iterator_data, kError, nullptr, 0,
-                    flags, arraysize(flags));
 }
 
 TEST(ExponentiationOperator) {
@@ -8599,6 +8575,9 @@ TEST(AsyncAwait) {
     "var O = { method(await) { return await; } };",
     "var O = { *method() { var await = 1; return await; } };",
     "var O = { *method(await) { return await; } };",
+    "var asyncFn = async function*() {}",
+    "async function* f() {}",
+    "var O = { async *method() {} };",
 
     "(function await() {})",
     nullptr
@@ -8637,10 +8616,7 @@ TEST(AsyncAwaitErrors) {
 
     "var f = async() => await;",
 
-    "var asyncFn = async function*() {}",
-    "async function* f() {}",
     "var O = { *async method() {} };",
-    "var O = { async *method() {} };",
     "var O = { async method*() {} };",
 
     "var asyncFn = async function(x = await 1) { return x; }",
@@ -9579,24 +9555,18 @@ TEST(ForAwaitOf) {
     nullptr
   };
   // clang-format on
-  static const ParserFlag always_flags[] = {kAllowHarmonyAsyncIteration};
-  RunParserSyncTest(context_data, expr_data, kSuccess, nullptr, 0, always_flags,
-                    arraysize(always_flags));
-  RunParserSyncTest(context_data2, expr_data, kSuccess, nullptr, 0,
-                    always_flags, arraysize(always_flags));
+  RunParserSyncTest(context_data, expr_data, kSuccess);
+  RunParserSyncTest(context_data2, expr_data, kSuccess);
 
-  RunParserSyncTest(context_data, var_data, kSuccess, nullptr, 0, always_flags,
-                    arraysize(always_flags));
+  RunParserSyncTest(context_data, var_data, kSuccess);
   // TODO(marja): PreParser doesn't report early errors.
   //              (https://bugs.chromium.org/p/v8/issues/detail?id=2728)
   // RunParserSyncTest(context_data2, var_data, kError, nullptr, 0,
   // always_flags,
   //                   arraysize(always_flags));
 
-  RunParserSyncTest(context_data, lexical_data, kSuccess, nullptr, 0,
-                    always_flags, arraysize(always_flags));
-  RunParserSyncTest(context_data2, lexical_data, kSuccess, nullptr, 0,
-                    always_flags, arraysize(always_flags));
+  RunParserSyncTest(context_data, lexical_data, kSuccess);
+  RunParserSyncTest(context_data2, lexical_data, kSuccess);
 }
 
 TEST(ForAwaitOfErrors) {
@@ -9757,9 +9727,7 @@ TEST(ForAwaitOfErrors) {
     nullptr
   };
   // clang-format on
-  static const ParserFlag always_flags[] = {kAllowHarmonyAsyncIteration};
-  RunParserSyncTest(context_data, data, kError, nullptr, 0, always_flags,
-                    arraysize(always_flags));
+  RunParserSyncTest(context_data, data, kError);
 }
 
 TEST(ForAwaitOfFunctionDeclaration) {
@@ -9782,9 +9750,7 @@ TEST(ForAwaitOfFunctionDeclaration) {
   };
 
   // clang-format on
-  static const ParserFlag always_flags[] = {kAllowHarmonyAsyncIteration};
-  RunParserSyncTest(context_data, data, kError, nullptr, 0, always_flags,
-                    arraysize(always_flags));
+  RunParserSyncTest(context_data, data, kError);
 }
 
 TEST(AsyncGenerator) {
@@ -9881,9 +9847,7 @@ TEST(AsyncGenerator) {
   };
   // clang-format on
 
-  static const ParserFlag always_flags[] = {kAllowHarmonyAsyncIteration};
-  RunParserSyncTest(context_data, statement_data, kSuccess, nullptr, 0,
-                    always_flags, arraysize(always_flags));
+  RunParserSyncTest(context_data, statement_data, kSuccess);
 }
 
 TEST(AsyncGeneratorErrors) {
@@ -9971,9 +9935,7 @@ TEST(AsyncGeneratorErrors) {
   };
   // clang-format on
 
-  static const ParserFlag always_flags[] = {kAllowHarmonyAsyncIteration};
-  RunParserSyncTest(context_data, statement_data, kError, nullptr, 0,
-                    always_flags, arraysize(always_flags));
+  RunParserSyncTest(context_data, statement_data, kError);
 }
 
 TEST(LexicalLoopVariable) {

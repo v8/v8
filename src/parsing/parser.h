@@ -304,7 +304,6 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
       SET_ALLOW(harmony_static_fields);
       SET_ALLOW(harmony_dynamic_import);
       SET_ALLOW(harmony_import_meta);
-      SET_ALLOW(harmony_async_iteration);
       SET_ALLOW(harmony_bigint);
       SET_ALLOW(harmony_optional_catch_binding);
 #undef SET_ALLOW

@@ -2380,8 +2380,6 @@ TEST(Generators) {
 }
 
 TEST(AsyncGenerators) {
-  bool old_flag = i::FLAG_harmony_async_iteration;
-  i::FLAG_harmony_async_iteration = true;
   InitializedIgnitionHandleScope scope;
   BytecodeExpectationsPrinter printer(CcTest::isolate());
   printer.set_wrap(false);
@@ -2404,7 +2402,6 @@ TEST(AsyncGenerators) {
 
   CHECK(CompareTexts(BuildActual(printer, snippets),
                      LoadGolden("AsyncGenerators.golden")));
-  i::FLAG_harmony_async_iteration = old_flag;
 }
 
 TEST(Modules) {
@@ -2522,8 +2519,6 @@ TEST(NewAndSpread) {
 }
 
 TEST(ForAwaitOf) {
-  bool old_flag = i::FLAG_harmony_async_iteration;
-  i::FLAG_harmony_async_iteration = true;
   InitializedIgnitionHandleScope scope;
   BytecodeExpectationsPrinter printer(CcTest::isolate());
   printer.set_wrap(false);
@@ -2556,8 +2551,6 @@ TEST(ForAwaitOf) {
 
   CHECK(CompareTexts(BuildActual(printer, snippets),
                      LoadGolden("ForAwaitOf.golden")));
-
-  i::FLAG_harmony_async_iteration = old_flag;
 }
 
 TEST(StandardForLoop) {
