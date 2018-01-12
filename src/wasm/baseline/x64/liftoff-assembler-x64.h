@@ -533,6 +533,10 @@ void LiftoffAssembler::EmitCCall(ExternalReference ext_ref,
   CallCFunction(ext_ref, static_cast<int>(num_params));
 }
 
+void LiftoffAssembler::CallNativeWasmCode(Address addr) {
+  near_call(addr, RelocInfo::WASM_CALL);
+}
+
 }  // namespace wasm
 }  // namespace internal
 }  // namespace v8

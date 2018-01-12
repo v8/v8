@@ -2392,7 +2392,7 @@ Node* WasmGraphBuilder::CallDirect(uint32_t index, Node** args, Node*** rets,
   DCHECK_NULL(args[0]);
   wasm::FunctionSig* sig = env_->module->functions[index].sig;
   if (FLAG_wasm_jit_to_native) {
-    // Simply encode the index of the target.
+    // Just encode the function index. This will be patched at instantiation.
     Address code = reinterpret_cast<Address>(index);
     args[0] = jsgraph()->RelocatableIntPtrConstant(
         reinterpret_cast<intptr_t>(code), RelocInfo::WASM_CALL);

@@ -159,6 +159,8 @@ void LiftoffAssembler::EmitCCall(ExternalReference ext_ref,
   UNIMPLEMENTED();
 }
 
+void LiftoffAssembler::CallNativeWasmCode(Address addr) { UNIMPLEMENTED(); }
+
 }  // namespace wasm
 }  // namespace internal
 }  // namespace v8

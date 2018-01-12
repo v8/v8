@@ -864,7 +864,9 @@ class LiftoffCompiler {
         __ pc_offset(), SourcePosition(decoder->position()), false);
 
     if (FLAG_wasm_jit_to_native) {
-      return unsupported(decoder, "call with jit-to-native");
+      // Just encode the function index. This will be patched at instantiation.
+      Address addr = reinterpret_cast<Address>(operand.index);
+      __ CallNativeWasmCode(addr);
     } else {
       Handle<Code> target = operand.index < env_->function_code.size()
                                 ? env_->function_code[operand.index]

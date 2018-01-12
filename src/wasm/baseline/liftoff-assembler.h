@@ -351,6 +351,8 @@ class LiftoffAssembler : public TurboAssembler {
                                      uint32_t param_idx, uint32_t num_params);
   inline void EmitCCall(ExternalReference ext_ref, uint32_t num_params);
 
+  inline void CallNativeWasmCode(Address addr);
+
   ////////////////////////////////////
   // End of platform-specific part. //
   ////////////////////////////////////
