@@ -423,8 +423,6 @@ class MemoryChunk {
              !chunk->high_water_mark_.TrySetValue(old_mark, new_mark));
   }
 
-  static bool IsValid(MemoryChunk* chunk) { return chunk != nullptr; }
-
   Address address() const {
     return reinterpret_cast<Address>(const_cast<MemoryChunk*>(this));
   }
@@ -608,25 +606,9 @@ class MemoryChunk {
 
   void set_prev_chunk(MemoryChunk* prev) { prev_chunk_.SetValue(prev); }
 
-  Space* owner() const {
-    uintptr_t owner_value = base::AsAtomicWord::Acquire_Load(
-        reinterpret_cast<const uintptr_t*>(&owner_));
-    return ((owner_value & kPageHeaderTagMask) == kPageHeaderTag)
-               ? reinterpret_cast<Space*>(owner_value - kPageHeaderTag)
-               : nullptr;
-  }
+  Space* owner() const { return owner_.Value(); }
 
-  void set_owner(Space* space) {
-    DCHECK_EQ(0, reinterpret_cast<uintptr_t>(space) & kPageHeaderTagMask);
-    base::AsAtomicWord::Release_Store(
-        reinterpret_cast<uintptr_t*>(&owner_),
-        reinterpret_cast<uintptr_t>(space) + kPageHeaderTag);
-    DCHECK_EQ(kPageHeaderTag, base::AsAtomicWord::Relaxed_Load(
-                                  reinterpret_cast<const uintptr_t*>(&owner_)) &
-                                  kPageHeaderTagMask);
-  }
-
-  bool HasPageHeader() { return owner() != nullptr; }
+  void set_owner(Space* space) { owner_.SetValue(space); }
 
   void InsertAfter(MemoryChunk* other);
   void Unlink();
@@ -661,10 +643,8 @@ class MemoryChunk {
   // If the chunk needs to remember its memory reservation, it is stored here.
   VirtualMemory reservation_;
 
-  // The identity of the owning space.  This is tagged as a failure pointer, but
-  // no failure can be in an object, so this can be distinguished from any entry
-  // in a fixed array.
-  Address owner_;
+  // The space owning this memory chunk.
+  base::AtomicValue<Space*> owner_;
 
   Heap* heap_;
 
@@ -1000,7 +980,7 @@ class Space : public Malloced {
   std::vector<AllocationObserver*> allocation_observers_;
   bool allocation_observers_paused_;
 
- private:
+ protected:
   Heap* heap_;
   AllocationSpace id_;
   Executability executable_;
