@@ -2205,6 +2205,8 @@ Handle<Code> PipelineImpl::FinalizeCode() {
   Run<FinalizeCodePhase>();
 
   Handle<Code> code = data->code();
+  if (code.is_null()) return code;
+
   if (data->profiler_data()) {
 #if ENABLE_DISASSEMBLER
     std::ostringstream os;

@@ -310,7 +310,10 @@ MaybeHandle<HandlerTable> CodeGenerator::GetHandlerTable() const {
 }
 
 Handle<Code> CodeGenerator::FinalizeCode() {
-  if (result_ != kSuccess) return Handle<Code>();
+  if (result_ != kSuccess) {
+    tasm()->AbortedCodeGeneration();
+    return Handle<Code>();
+  }
 
   // Allocate exception handler table.
   Handle<HandlerTable> table = HandlerTable::Empty(isolate());
