@@ -540,6 +540,7 @@ class FixedTypedArray : public FixedTypedArrayBase {
 
   DECL_CAST(FixedTypedArray<Traits>)
 
+  static inline ElementType get_scalar_from_data_ptr(void* data_ptr, int index);
   inline ElementType get_scalar(int index);
   static inline Handle<Object> get(FixedTypedArray* array, int index);
   inline void set(int index, ElementType value);

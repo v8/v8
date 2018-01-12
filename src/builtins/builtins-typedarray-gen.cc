@@ -819,24 +819,9 @@ void TypedArrayBuiltinsAssembler::SetTypedArraySource(
 
   BIND(&fast_c_call);
   {
-    // Overlapping backing stores of different element kinds are handled in
-    // runtime. We're a bit conservative here and bail to runtime if ranges
-    // overlap and element kinds differ.
-
-    TNode<IntPtrT> target_byte_length =
-        IntPtrMul(target_length, target_el_size);
     CSA_ASSERT(
-        this, UintPtrGreaterThanOrEqual(target_byte_length, IntPtrConstant(0)));
-
-    TNode<IntPtrT> target_data_end_ptr =
-        IntPtrAdd(target_data_ptr, target_byte_length);
-    TNode<IntPtrT> source_data_end_ptr =
-        IntPtrAdd(source_data_ptr, source_byte_length);
-
-    GotoIfNot(
-        Word32Or(UintPtrLessThanOrEqual(target_data_end_ptr, source_data_ptr),
-                 UintPtrLessThanOrEqual(source_data_end_ptr, target_data_ptr)),
-        call_runtime);
+        this, UintPtrGreaterThanOrEqual(
+                  IntPtrMul(target_length, target_el_size), IntPtrConstant(0)));
 
     TNode<IntPtrT> source_length =
         LoadAndUntagObjectField(source, JSTypedArray::kLengthOffset);

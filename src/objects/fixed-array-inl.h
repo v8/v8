@@ -452,6 +452,14 @@ double Float64ArrayTraits::defaultValue() {
 template <class Traits>
 typename Traits::ElementType FixedTypedArray<Traits>::get_scalar(int index) {
   DCHECK((index >= 0) && (index < this->length()));
+  return FixedTypedArray<Traits>::get_scalar_from_data_ptr(DataPtr(), index);
+}
+
+// static
+template <class Traits>
+typename Traits::ElementType FixedTypedArray<Traits>::get_scalar_from_data_ptr(
+    void* data_ptr, int index) {
+  typename Traits::ElementType* ptr = reinterpret_cast<ElementType*>(data_ptr);
   // The JavaScript memory model allows for racy reads and writes to a
   // SharedArrayBuffer's backing store, which will always be a FixedTypedArray.
   // ThreadSanitizer will catch these racy accesses and warn about them, so we
@@ -460,7 +468,6 @@ typename Traits::ElementType FixedTypedArray<Traits>::get_scalar(int index) {
   // We don't use relaxed atomics here, as it is not a requirement of the
   // JavaScript memory model to have tear-free reads of overlapping accesses,
   // and using relaxed atomics may introduce overhead.
-  auto* ptr = reinterpret_cast<ElementType*>(DataPtr());
   TSAN_ANNOTATE_IGNORE_READS_BEGIN;
   auto result = ptr[index];
   TSAN_ANNOTATE_IGNORE_READS_END;

@@ -12,6 +12,7 @@
 #include "src/messages.h"
 #include "src/objects-inl.h"
 #include "src/utils.h"
+#include "src/zone/zone.h"
 
 // Each concrete ElementsAccessor can handle exactly one ElementsKind,
 // several abstract ElementsAccessor classes are used to allow sharing
@@ -3243,13 +3244,16 @@ class TypedElementsAccessor
   }
 
   template <typename SourceTraits>
-  static void CopyBetweenBackingStores(FixedTypedArrayBase* source,
+  static void CopyBetweenBackingStores(void* source_data_ptr,
                                        BackingStore* dest, size_t length,
                                        uint32_t offset) {
-    FixedTypedArray<SourceTraits>* source_fta =
-        FixedTypedArray<SourceTraits>::cast(source);
+    DisallowHeapAllocation no_gc;
     for (uint32_t i = 0; i < length; i++) {
-      typename SourceTraits::ElementType elem = source_fta->get_scalar(i);
+      // We use scalar accessors to avoid boxing/unboxing, so there are no
+      // allocations.
+      typename SourceTraits::ElementType elem =
+          FixedTypedArray<SourceTraits>::get_scalar_from_data_ptr(
+              source_data_ptr, i);
       dest->set(offset + i, dest->from(elem));
     }
   }
@@ -3280,15 +3284,10 @@ class TypedElementsAccessor
     bool both_are_simple = HasSimpleRepresentation(source_type) &&
                            HasSimpleRepresentation(destination_type);
 
-    // We assume the source and destination don't overlap, even though they
-    // can share the same buffer. This is always true for newly allocated
-    // TypedArrays.
     uint8_t* source_data = static_cast<uint8_t*>(source_elements->DataPtr());
     uint8_t* dest_data = static_cast<uint8_t*>(destination_elements->DataPtr());
     size_t source_byte_length = NumberToSize(source->byte_length());
     size_t dest_byte_length = NumberToSize(destination->byte_length());
-    CHECK(dest_data + dest_byte_length <= source_data ||
-          source_data + source_byte_length <= dest_data);
 
     // We can simply copy the backing store if the types are the same, or if
     // we are converting e.g. Uint8 <-> Int8, as the binary representation
@@ -3296,16 +3295,25 @@ class TypedElementsAccessor
     // which have special conversion operations.
     if (same_type || (same_size && both_are_simple)) {
       size_t element_size = source->element_size();
-      std::memcpy(dest_data + offset * element_size, source_data,
-                  length * element_size);
+      std::memmove(dest_data + offset * element_size, source_data,
+                   length * element_size);
     } else {
-      // We use scalar accessors below to avoid boxing/unboxing, so there are
-      // no allocations.
+      Isolate* isolate = source->GetIsolate();
+      Zone zone(isolate->allocator(), ZONE_NAME);
+
+      // If the typedarrays are overlapped, clone the source.
+      if (dest_data + dest_byte_length > source_data &&
+          source_data + source_byte_length > dest_data) {
+        uint8_t* temp_data = zone.NewArray<uint8_t>(source_byte_length);
+        std::memcpy(temp_data, source_data, source_byte_length);
+        source_data = temp_data;
+      }
+
       switch (source->GetElementsKind()) {
-#define TYPED_ARRAY_CASE(Type, type, TYPE, ctype, size)         \
-  case TYPE##_ELEMENTS:                                         \
-    CopyBetweenBackingStores<Type##ArrayTraits>(                \
-        source_elements, destination_elements, length, offset); \
+#define TYPED_ARRAY_CASE(Type, type, TYPE, ctype, size)     \
+  case TYPE##_ELEMENTS:                                     \
+    CopyBetweenBackingStores<Type##ArrayTraits>(            \
+        source_data, destination_elements, length, offset); \
     break;
         TYPED_ARRAYS(TYPED_ARRAY_CASE)
         default:
