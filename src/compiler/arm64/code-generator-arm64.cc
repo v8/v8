@@ -538,24 +538,34 @@ void CodeGenerator::AssembleTailCallAfterGap(Instruction* instr,
 // Check if the code object is marked for deoptimization. If it is, then it
 // jumps to the CompileLazyDeoptimizedCode builtin. In order to do this we need
 // to:
-//    1. load the address of the current instruction;
+//    1. compute the offset of the {CodeDataContainer} from our current location
+//       and load it.
 //    2. read from memory the word that contains that bit, which can be found in
 //       the flags in the referenced {CodeDataContainer} object;
 //    3. test kMarkedForDeoptimizationBit in those flags; and
 //    4. if it is not zero then it jumps to the builtin.
 void CodeGenerator::BailoutIfDeoptimized() {
-  Label current;
-  // The Adr instruction gets the address of the current instruction.
-  __ Adr(x2, &current);
-  __ Bind(&current);
-  int pc = __ pc_offset();
-  int offset = Code::kCodeDataContainerOffset - (Code::kHeaderSize + pc);
-  __ Ldr(x2, MemOperand(x2, offset));
-  __ Ldr(x2, FieldMemOperand(x2, CodeDataContainer::kKindSpecificFlagsOffset));
-  __ Tst(x2, Immediate(1 << Code::kMarkedForDeoptimizationBit));
+  UseScratchRegisterScope temps(tasm());
+  Register scratch = temps.AcquireX();
+  {
+    // Since we always emit a bailout check at the very beginning we can be
+    // certain that the distance between here and the {CodeDataContainer} is
+    // fixed and always in range of a load.
+    int data_container_offset =
+        (Code::kCodeDataContainerOffset - Code::kHeaderSize) - __ pc_offset();
+    DCHECK_GE(0, data_container_offset);
+    DCHECK_EQ(0, data_container_offset % 4);
+    InstructionAccurateScope scope(tasm());
+    __ ldr_pcrel(scratch, data_container_offset >> 2);
+  }
+  __ Ldr(scratch,
+         FieldMemOperand(scratch, CodeDataContainer::kKindSpecificFlagsOffset));
+  Label not_deoptimized;
+  __ Tbz(scratch, Code::kMarkedForDeoptimizationBit, &not_deoptimized);
   Handle<Code> code = isolate()->builtins()->builtin_handle(
       Builtins::kCompileLazyDeoptimizedCode);
-  __ Jump(code, RelocInfo::CODE_TARGET, ne);
+  __ Jump(code, RelocInfo::CODE_TARGET);
+  __ Bind(&not_deoptimized);
 }
 
 // Assembles an instruction after register allocation, producing machine code.
