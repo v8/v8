@@ -1948,14 +1948,6 @@ Type* Typer::Visitor::TypeSeqStringCharCodeAt(Node* node) {
   return typer_->cache_.kUint16;
 }
 
-Type* Typer::Visitor::TypeStringCodePointAt(Node* node) {
-  return Type::Range(0.0, String::kMaxCodePoint, zone());
-}
-
-Type* Typer::Visitor::TypeSeqStringCodePointAt(Node* node) {
-  return Type::Range(0.0, String::kMaxCodePoint, zone());
-}
-
 Type* Typer::Visitor::TypeStringFromCharCode(Node* node) {
   return TypeUnaryOp(node, StringFromCharCodeTyper);
 }

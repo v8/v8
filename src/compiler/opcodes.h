@@ -333,8 +333,6 @@
   V(StringCharAt)                       \
   V(StringCharCodeAt)                   \
   V(SeqStringCharCodeAt)                \
-  V(StringCodePointAt)                  \
-  V(SeqStringCodePointAt)               \
   V(StringFromCharCode)                 \
   V(StringFromCodePoint)                \
   V(StringIndexOf)                      \

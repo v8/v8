@@ -91,9 +91,8 @@ namespace internal {
   ASM(StackCheck)                                                              \
                                                                                \
   /* String helpers */                                                         \
-  TFC(StringCharAt, StringAt, 1)                                               \
-  TFC(StringCharCodeAt, StringAt, 1)                                           \
-  TFC(StringCodePointAt, StringAt, 1)                                          \
+  TFC(StringCharAt, StringCharAt, 1)                                           \
+  TFC(StringCharCodeAt, StringCharCodeAt, 1)                                   \
   TFC(StringEqual, Compare, 1)                                                 \
   TFC(StringGreaterThan, Compare, 1)                                           \
   TFC(StringGreaterThanOrEqual, Compare, 1)                                    \

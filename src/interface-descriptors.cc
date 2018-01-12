@@ -269,7 +269,21 @@ void StoreNamedTransitionDescriptor::InitializePlatformSpecific(
   data->InitializePlatformSpecific(len, registers);
 }
 
-void StringAtDescriptor::InitializePlatformIndependent(
+void StringCharAtDescriptor::InitializePlatformIndependent(
+    CallInterfaceDescriptorData* data) {
+  // kReceiver, kPosition
+  MachineType machine_types[] = {MachineType::AnyTagged(),
+                                 MachineType::IntPtr()};
+  data->InitializePlatformIndependent(arraysize(machine_types), 0,
+                                      machine_types);
+}
+
+void StringCharAtDescriptor::InitializePlatformSpecific(
+    CallInterfaceDescriptorData* data) {
+  DefaultInitializePlatformSpecific(data, kParameterCount);
+}
+
+void StringCharCodeAtDescriptor::InitializePlatformIndependent(
     CallInterfaceDescriptorData* data) {
   // kReceiver, kPosition
   // TODO(turbofan): Allow builtins to return untagged values.
@@ -279,7 +293,7 @@ void StringAtDescriptor::InitializePlatformIndependent(
                                       machine_types);
 }
 
-void StringAtDescriptor::InitializePlatformSpecific(
+void StringCharCodeAtDescriptor::InitializePlatformSpecific(
     CallInterfaceDescriptorData* data) {
   DefaultInitializePlatformSpecific(data, kParameterCount);
 }

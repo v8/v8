@@ -847,12 +847,6 @@ bool EffectControlLinearizer::TryWireInStateEffect(Node* node,
     case IrOpcode::kSeqStringCharCodeAt:
       result = LowerSeqStringCharCodeAt(node);
       break;
-    case IrOpcode::kStringCodePointAt:
-      result = LowerStringCodePointAt(node);
-      break;
-    case IrOpcode::kSeqStringCodePointAt:
-      result = LowerSeqStringCharCodeAt(node);
-      break;
     case IrOpcode::kStringToLowerCaseIntl:
       result = LowerStringToLowerCaseIntl(node);
       break;
@@ -2693,25 +2687,19 @@ Node* EffectControlLinearizer::LowerStringCharCodeAt(Node* node) {
                  __ NoContextConstant());
 }
 
-Node* EffectControlLinearizer::LowerStringCodePointAt(Node* node) {
+Node* EffectControlLinearizer::LowerSeqStringCharCodeAt(Node* node) {
   Node* receiver = node->InputAt(0);
   Node* position = node->InputAt(1);
 
-  Callable const callable =
-      Builtins::CallableFor(isolate(), Builtins::kStringCodePointAt);
-  Operator::Properties properties = Operator::kNoThrow | Operator::kNoWrite;
-  CallDescriptor::Flags flags = CallDescriptor::kNoFlags;
-  CallDescriptor* desc = Linkage::GetStubCallDescriptor(
-      isolate(), graph()->zone(), callable.descriptor(), 0, flags, properties,
-      MachineType::TaggedSigned());
-  return __ Call(desc, __ HeapConstant(callable.code()), receiver, position,
-                 __ NoContextConstant());
-}
-
-Node* EffectControlLinearizer::LoadFromString(Node* receiver, Node* position,
-                                              Node* is_one_byte) {
   auto one_byte_load = __ MakeLabel();
   auto done = __ MakeLabel(MachineRepresentation::kWord32);
+
+  Node* map = __ LoadField(AccessBuilder::ForMap(), receiver);
+  Node* instance_type = __ LoadField(AccessBuilder::ForMapInstanceType(), map);
+  Node* is_one_byte = __ Word32Equal(
+      __ Word32And(instance_type, __ Int32Constant(kStringEncodingMask)),
+      __ Int32Constant(kOneByteStringTag));
+
   __ GotoIf(is_one_byte, &one_byte_load);
   Node* two_byte_result = __ LoadElement(
       AccessBuilder::ForSeqTwoByteStringCharacter(), receiver, position);
@@ -2724,85 +2712,6 @@ Node* EffectControlLinearizer::LoadFromString(Node* receiver, Node* position,
 
   __ Bind(&done);
   return done.PhiAt(0);
-}
-
-Node* EffectControlLinearizer::LowerSeqStringCharCodeAt(Node* node) {
-  Node* receiver = node->InputAt(0);
-  Node* position = node->InputAt(1);
-
-  Node* map = __ LoadField(AccessBuilder::ForMap(), receiver);
-  Node* instance_type = __ LoadField(AccessBuilder::ForMapInstanceType(), map);
-  Node* is_one_byte = __ Word32Equal(
-      __ Word32And(instance_type, __ Int32Constant(kStringEncodingMask)),
-      __ Int32Constant(kOneByteStringTag));
-
-  return LoadFromString(receiver, position, is_one_byte);
-}
-
-Node* EffectControlLinearizer::LowerSeqStringCodePointAt(
-    Node* node, UnicodeEncoding encoding) {
-  Node* receiver = node->InputAt(0);
-  Node* position = node->InputAt(1);
-
-  Node* map = __ LoadField(AccessBuilder::ForMap(), receiver);
-  Node* instance_type = __ LoadField(AccessBuilder::ForMapInstanceType(), map);
-  Node* is_one_byte = __ Word32Equal(
-      __ Word32And(instance_type, __ Int32Constant(kStringEncodingMask)),
-      __ Int32Constant(kOneByteStringTag));
-
-  Node* first_char_code = LoadFromString(receiver, position, is_one_byte);
-
-  auto return_result = __ MakeLabel(MachineRepresentation::kWord32);
-
-  // Check if first character code is outside of interval [0xD800, 0xDBFF].
-  Node* first_out =
-      __ Word32Equal(__ Word32And(first_char_code, __ Int32Constant(0xFC00)),
-                     __ Int32Constant(0xD800));
-  // Return first character code.
-  __ GotoIf(first_out, &return_result, first_char_code);
-  // Check if position + 1 is still in range.
-  Node* length = __ LoadField(AccessBuilder::ForStringLength(), receiver);
-  Node* next_position = __ Int32Add(position, __ Int32Constant(1));
-  Node* next_position_in_range = __ Int32LessThan(next_position, length);
-  __ GotoIf(next_position_in_range, &return_result, first_char_code);
-
-  // Load second character code.
-  Node* second_char_code = LoadFromString(receiver, next_position, is_one_byte);
-  // Check if first character code is outside of interval [0xD800, 0xDBFF].
-  Node* second_out =
-      __ Word32Equal(__ Word32And(second_char_code, __ Int32Constant(0xFC00)),
-                     __ Int32Constant(0xDC00));
-  __ GotoIfNot(second_out, &return_result, first_char_code);
-
-  Node* result;
-  switch (encoding) {
-    case UnicodeEncoding::UTF16:
-      result = __ Word32Or(
-// Need to swap the order for big-endian platforms
-#if V8_TARGET_BIG_ENDIAN
-          __ Word32Shl(first_char_code, __ Int32Constant(16)),
-          second_char_code));
-#else
-          __ Word32Shl(second_char_code, __ Int32Constant(16)),
-          first_char_code);
-#endif
-      break;
-    case UnicodeEncoding::UTF32: {
-      // Convert UTF16 surrogate pair into |word32| code point, encoded as
-      // UTF32.
-      Node* surrogate_offset =
-          __ Int32Constant(0x10000 - (0xD800 << 10) - 0xDC00);
-
-      // (lead << 10) + trail + SURROGATE_OFFSET
-      result = __ Int32Add(__ Word32Shl(first_char_code, __ Int32Constant(10)),
-                           __ Int32Add(second_char_code, surrogate_offset));
-      break;
-    }
-  }
-  __ Goto(&return_result, result);
-
-  __ Bind(&return_result);
-  return return_result.PhiAt(0);
 }
 
 Node* EffectControlLinearizer::LowerStringFromCharCode(Node* node) {
