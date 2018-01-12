@@ -336,8 +336,7 @@ class StandardTestRunner(base_runner.BaseTestRunner):
       if self.build_config.no_i18n:
         base_runner.TEST_MAP["bot_default"].remove("intl")
         base_runner.TEST_MAP["default"].remove("intl")
-        # TODO(machenbach): uncomment after infra side lands.
-        # base_runner.TEST_MAP["d8_default"].remove("intl")
+        base_runner.TEST_MAP["d8_default"].remove("intl")
 
     def _setup_env(self):
       super(StandardTestRunner, self)._setup_env()
