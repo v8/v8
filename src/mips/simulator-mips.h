@@ -171,7 +171,7 @@ class Simulator : public SimulatorBase {
 
   // The currently executing Simulator instance. Potentially there can be one
   // for each native thread.
-  static Simulator* current(v8::internal::Isolate* isolate);
+  V8_EXPORT_PRIVATE static Simulator* current(v8::internal::Isolate* isolate);
 
   // Accessors for register state. Reading the pc value adheres to the MIPS
   // architecture specification and is off by a 8 from the currently executing
@@ -279,7 +279,8 @@ class Simulator : public SimulatorBase {
     Unpredictable = 0xbadbeaf
   };
 
-  intptr_t CallImpl(byte* entry, int argument_count, const intptr_t* arguments);
+  V8_EXPORT_PRIVATE intptr_t CallImpl(byte* entry, int argument_count,
+                                      const intptr_t* arguments);
 
   // Unsupported instructions use Format to print an error and stop execution.
   void Format(Instruction* instr, const char* format);

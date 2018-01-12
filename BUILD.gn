@@ -2838,6 +2838,7 @@ group("v8_fuzzers") {
   testonly = true
   deps = [
     ":v8_simple_json_fuzzer",
+    ":v8_simple_multi_return_fuzzer",
     ":v8_simple_parser_fuzzer",
     ":v8_simple_regexp_fuzzer",
     ":v8_simple_wasm_async_fuzzer",
@@ -3086,6 +3087,24 @@ v8_source_set("json_fuzzer") {
 }
 
 v8_fuzzer("json_fuzzer") {
+}
+
+v8_source_set("multi_return_fuzzer") {
+  sources = [
+    "test/fuzzer/multi-return.cc",
+  ]
+
+  deps = [
+    ":fuzzer_support",
+  ]
+
+  configs = [
+    ":external_config",
+    ":internal_config_base",
+  ]
+}
+
+v8_fuzzer("multi_return_fuzzer") {
 }
 
 v8_source_set("parser_fuzzer") {

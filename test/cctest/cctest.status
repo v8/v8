@@ -123,9 +123,6 @@
   'test-serialize/CustomSnapshotDataBlobImmortalImmovableRoots': [PASS, ['mode == debug', SKIP]],
   'test-parsing/ObjectRestNegativeTestSlow': [PASS, ['mode == debug', SKIP]],
 
-  # todo(ahaas): Flaky test. I want to remove this test eventually but keep it
-  # for now for debugging.
-  'test-multiple-return/ReturnMultipleRandom': [SKIP],
 }],  # ALWAYS
 
 ##############################################################################

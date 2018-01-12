@@ -660,7 +660,7 @@ class Simulator : public DecoderVisitor, public SimulatorBase {
 
   // System functions.
 
-  static Simulator* current(v8::internal::Isolate* isolate);
+  V8_EXPORT_PRIVATE static Simulator* current(v8::internal::Isolate* isolate);
 
   // A wrapper class that stores an argument for one of the above Call
   // functions.
@@ -2278,7 +2278,7 @@ class Simulator : public DecoderVisitor, public SimulatorBase {
  private:
   void Init(FILE* stream);
 
-  void CallImpl(byte* entry, CallArgument* args);
+  V8_EXPORT_PRIVATE void CallImpl(byte* entry, CallArgument* args);
 
   // Read floating point return values.
   template <typename T>

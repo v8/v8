@@ -89,7 +89,7 @@ class Simulator : public SimulatorBase {
 
   // The currently executing Simulator instance. Potentially there can be one
   // for each native thread.
-  static Simulator* current(v8::internal::Isolate* isolate);
+  V8_EXPORT_PRIVATE static Simulator* current(v8::internal::Isolate* isolate);
 
   // Accessors for register state. Reading the pc value adheres to the ARM
   // architecture specification and is off by a 8 from the currently executing
@@ -211,7 +211,8 @@ class Simulator : public SimulatorBase {
     end_sim_pc = -2
   };
 
-  intptr_t CallImpl(byte* entry, int argument_count, const intptr_t* arguments);
+  V8_EXPORT_PRIVATE intptr_t CallImpl(byte* entry, int argument_count,
+                                      const intptr_t* arguments);
   intptr_t CallFPImpl(byte* entry, double d0, double d1);
 
   // Unsupported instructions use Format to print an error and stop execution.
