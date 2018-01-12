@@ -397,7 +397,7 @@
       "resources": [
         "filter.js", "map.js", "every.js", "join.js", "some.js",
         "reduce.js", "reduce-right.js", "to-string.js", "find.js",
-        "find-index.js"
+        "find-index.js", "of.js"
       ],
       "flags": [
         "--allow-natives-syntax"
@@ -451,7 +451,14 @@
         {"name": "SmiFindIndex"},
         {"name": "FastFindIndex"},
         {"name": "GenericFindIndex"},
-        {"name": "OptFastFindIndex"}
+        {"name": "OptFastFindIndex"},
+        {"name": "EmptyArrayOf"},
+        {"name": "SmallSmiArrayOf"},
+        {"name": "LargeSmiArrayOf"},
+        {"name": "SmallTransplantedArrayOf"},
+        {"name": "SmallDoubleArrayOf"},
+        {"name": "SmallStringArrayOf"},
+        {"name": "SmallMixedArrayOf"}
       ]
     },
     {
