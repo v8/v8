@@ -64,12 +64,13 @@ TEST_MAP = {
   ],
   # This needs to stay in sync with test/d8_default.isolate.
   "d8_default": [
-    "debugger",
+    # TODO(machenbach): uncomment after infra side lands.
+    #"debugger",
     "mjsunit",
     "webkit",
-    "message",
-    "preparser",
-    "intl",
+    #"message",
+    #"preparser",
+    #"intl",
   ],
   # This needs to stay in sync with test/optimize_for_size.isolate.
   "optimize_for_size": [
