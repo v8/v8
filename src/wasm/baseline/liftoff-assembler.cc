@@ -368,6 +368,14 @@ void LiftoffAssembler::SpillLocals() {
   }
 }
 
+void LiftoffAssembler::SpillAllRegisters() {
+  // TODO(clemensh): Don't update use counters in the loop, just reset them
+  // afterwards.
+  for (uint32_t i = 0, e = cache_state_.stack_height(); i < e; ++i) {
+    Spill(i);
+  }
+}
+
 void LiftoffAssembler::PrepareCall(wasm::FunctionSig* sig,
                                    compiler::CallDescriptor* call_desc) {
   uint32_t num_params = static_cast<uint32_t>(sig->parameter_count());
@@ -378,8 +386,6 @@ void LiftoffAssembler::PrepareCall(wasm::FunctionSig* sig,
   // Input 0 is the call target.
   constexpr size_t kInputShift = 1;
 
-  StackTransferRecipe stack_transfers(this);
-
   // Spill all cache slots which are not being used as parameters.
   // Don't update any register use counters, they will be reset later anyway.
   for (uint32_t idx = 0, end = cache_state_.stack_height() - num_params;
@@ -389,6 +395,8 @@ void LiftoffAssembler::PrepareCall(wasm::FunctionSig* sig,
     Spill(idx, slot.reg());
     slot.MakeStack();
   }
+
+  StackTransferRecipe stack_transfers(this);
 
   // Now move all parameter values into the right slot for the call.
   // Process parameters backward, such that we can just pop values from the
@@ -413,13 +421,13 @@ void LiftoffAssembler::PrepareCall(wasm::FunctionSig* sig,
     cache_state_.stack_state.pop_back();
   }
 
+  // Execute the stack transfers before filling the context register.
+  stack_transfers.Execute();
+
   // Reset register use counters.
   cache_state_.used_registers = {};
   memset(cache_state_.register_use_count, 0,
          sizeof(cache_state_.register_use_count));
-
-  // Execute the stack transfers before filling the context register.
-  stack_transfers.Execute();
 
   // Fill the wasm context into the right register.
   compiler::LinkageLocation context_loc =

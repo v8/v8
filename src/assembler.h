@@ -1329,10 +1329,12 @@ class RegisterBase {
 
   int bit() const { return 1 << code(); }
 
-  inline bool operator==(SubType other) const {
+  inline constexpr bool operator==(SubType other) const {
     return reg_code_ == other.reg_code_;
   }
-  inline bool operator!=(SubType other) const { return !(*this == other); }
+  inline constexpr bool operator!=(SubType other) const {
+    return reg_code_ != other.reg_code_;
+  }
 
  protected:
   explicit constexpr RegisterBase(int code) : reg_code_(code) {}

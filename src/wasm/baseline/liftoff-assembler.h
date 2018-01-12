@@ -263,6 +263,7 @@ class LiftoffAssembler : public TurboAssembler {
 
   void Spill(uint32_t index);
   void SpillLocals();
+  void SpillAllRegisters();
 
   // Load parameters into the right registers / stack slots for the call.
   void PrepareCall(wasm::FunctionSig*, compiler::CallDescriptor*);
@@ -308,9 +309,10 @@ class LiftoffAssembler : public TurboAssembler {
   inline void emit_i32_shr(Register dst, Register lhs, Register rhs);
 
   // i32 unops.
-  inline void emit_i32_eqz(Register dst, Register src);
-  inline void emit_i32_clz(Register dst, Register src);
-  inline void emit_i32_ctz(Register dst, Register src);
+  inline bool emit_i32_eqz(Register dst, Register src);
+  inline bool emit_i32_clz(Register dst, Register src);
+  inline bool emit_i32_ctz(Register dst, Register src);
+  inline bool emit_i32_popcnt(Register dst, Register src);
 
   inline void emit_ptrsize_add(Register dst, Register lhs, Register rhs);
 
@@ -334,11 +336,20 @@ class LiftoffAssembler : public TurboAssembler {
 
   // Push a value to the stack (will become a caller frame slot).
   inline void PushCallerFrameSlot(const VarState& src, uint32_t src_index);
-
   inline void PushRegisters(LiftoffRegList);
   inline void PopRegisters(LiftoffRegList);
 
   inline void DropStackSlotsAndRet(uint32_t num_stack_slots);
+
+  // Push arguments on the stack (in the caller frame), then align the stack.
+  // The address of the last argument will be stored to {arg_addr_dst}. Previous
+  // arguments will be located at pointer sized buckets above that address.
+  inline void PrepareCCall(uint32_t num_params, const Register* args);
+  inline void SetCCallRegParamAddr(Register dst, uint32_t param_idx,
+                                   uint32_t num_params);
+  inline void SetCCallStackParamAddr(uint32_t stack_param_idx,
+                                     uint32_t param_idx, uint32_t num_params);
+  inline void EmitCCall(ExternalReference ext_ref, uint32_t num_params);
 
   ////////////////////////////////////
   // End of platform-specific part. //

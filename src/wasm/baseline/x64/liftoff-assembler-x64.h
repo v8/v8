@@ -27,6 +27,10 @@ inline Operand GetStackSlot(uint32_t index) {
 // TODO(clemensh): Make this a constexpr variable once Operand is constexpr.
 inline Operand GetContextOperand() { return Operand(rbp, -16); }
 
+// Use this register to store the address of the last argument pushed on the
+// stack for a call to C.
+static constexpr Register kCCallLastArgAddrReg = rax;
+
 }  // namespace liftoff
 
 void LiftoffAssembler::ReserveStackSpace(uint32_t bytes) {
@@ -311,13 +315,14 @@ void LiftoffAssembler::emit_i32_shr(Register dst, Register lhs, Register rhs) {
   liftoff::EmitShiftOperation(this, dst, lhs, rhs, &Assembler::shrl_cl);
 }
 
-void LiftoffAssembler::emit_i32_eqz(Register dst, Register src) {
+bool LiftoffAssembler::emit_i32_eqz(Register dst, Register src) {
   testl(src, src);
   setcc(zero, dst);
   movzxbl(dst, dst);
+  return true;
 }
 
-void LiftoffAssembler::emit_i32_clz(Register dst, Register src) {
+bool LiftoffAssembler::emit_i32_clz(Register dst, Register src) {
   Label nonzero_input;
   Label continuation;
   testl(src, src);
@@ -332,9 +337,10 @@ void LiftoffAssembler::emit_i32_clz(Register dst, Register src) {
   xorl(dst, Immediate(31));
 
   bind(&continuation);
+  return true;
 }
 
-void LiftoffAssembler::emit_i32_ctz(Register dst, Register src) {
+bool LiftoffAssembler::emit_i32_ctz(Register dst, Register src) {
   Label nonzero_input;
   Label continuation;
   testl(src, src);
@@ -347,6 +353,14 @@ void LiftoffAssembler::emit_i32_ctz(Register dst, Register src) {
   bsfl(dst, src);
 
   bind(&continuation);
+  return true;
+}
+
+bool LiftoffAssembler::emit_i32_popcnt(Register dst, Register src) {
+  if (!CpuFeatures::IsSupported(POPCNT)) return false;
+  CpuFeatureScope scope(this, POPCNT);
+  popcntl(dst, src);
+  return true;
 }
 
 void LiftoffAssembler::emit_ptrsize_add(Register dst, Register lhs,
@@ -491,6 +505,32 @@ void LiftoffAssembler::PopRegisters(LiftoffRegList regs) {
 void LiftoffAssembler::DropStackSlotsAndRet(uint32_t num_stack_slots) {
   DCHECK_LT(num_stack_slots, (1 << 16) / kPointerSize);  // 16 bit immediate
   ret(static_cast<int>(num_stack_slots * kPointerSize));
+}
+
+void LiftoffAssembler::PrepareCCall(uint32_t num_params, const Register* args) {
+  for (size_t param = 0; param < num_params; ++param) {
+    pushq(args[param]);
+  }
+  movq(liftoff::kCCallLastArgAddrReg, rsp);
+  PrepareCallCFunction(num_params);
+}
+
+void LiftoffAssembler::SetCCallRegParamAddr(Register dst, uint32_t param_idx,
+                                            uint32_t num_params) {
+  int offset = kPointerSize * static_cast<int>(num_params - 1 - param_idx);
+  leaq(dst, Operand(liftoff::kCCallLastArgAddrReg, offset));
+}
+
+void LiftoffAssembler::SetCCallStackParamAddr(uint32_t stack_param_idx,
+                                              uint32_t param_idx,
+                                              uint32_t num_params) {
+  // On x64, all C call arguments fit in registers.
+  UNREACHABLE();
+}
+
+void LiftoffAssembler::EmitCCall(ExternalReference ext_ref,
+                                 uint32_t num_params) {
+  CallCFunction(ext_ref, static_cast<int>(num_params));
 }
 
 }  // namespace wasm

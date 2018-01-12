@@ -69,57 +69,42 @@ void LiftoffAssembler::Fill(LiftoffRegister reg, uint32_t index) {
   UNIMPLEMENTED();
 }
 
-#define UNIMPLEMENTED_I32_BINOP(name)                                \
-  void LiftoffAssembler::emit_i32_##name(Register dst, Register lhs, \
-                                         Register rhs) {             \
-    UNIMPLEMENTED();                                                 \
+#define UNIMPLEMENTED_GP_BINOP(name)                             \
+  void LiftoffAssembler::emit_##name(Register dst, Register lhs, \
+                                     Register rhs) {             \
+    UNIMPLEMENTED();                                             \
+  }
+#define UNIMPLEMENTED_GP_UNOP(name)                                \
+  bool LiftoffAssembler::emit_##name(Register dst, Register src) { \
+    UNIMPLEMENTED();                                               \
+  }
+#define UNIMPLEMENTED_FP_BINOP(name)                                         \
+  void LiftoffAssembler::emit_##name(DoubleRegister dst, DoubleRegister lhs, \
+                                     DoubleRegister rhs) {                   \
+    UNIMPLEMENTED();                                                         \
   }
 
-// clang-format off
-UNIMPLEMENTED_I32_BINOP(add)
-UNIMPLEMENTED_I32_BINOP(sub)
-UNIMPLEMENTED_I32_BINOP(mul)
-UNIMPLEMENTED_I32_BINOP(and)
-UNIMPLEMENTED_I32_BINOP(or)
-UNIMPLEMENTED_I32_BINOP(xor)
-UNIMPLEMENTED_I32_BINOP(shl)
-UNIMPLEMENTED_I32_BINOP(sar)
-UNIMPLEMENTED_I32_BINOP(shr)
-// clang-format on
+UNIMPLEMENTED_GP_BINOP(i32_add)
+UNIMPLEMENTED_GP_BINOP(i32_sub)
+UNIMPLEMENTED_GP_BINOP(i32_mul)
+UNIMPLEMENTED_GP_BINOP(i32_and)
+UNIMPLEMENTED_GP_BINOP(i32_or)
+UNIMPLEMENTED_GP_BINOP(i32_xor)
+UNIMPLEMENTED_GP_BINOP(i32_shl)
+UNIMPLEMENTED_GP_BINOP(i32_sar)
+UNIMPLEMENTED_GP_BINOP(i32_shr)
+UNIMPLEMENTED_GP_UNOP(i32_eqz)
+UNIMPLEMENTED_GP_UNOP(i32_clz)
+UNIMPLEMENTED_GP_UNOP(i32_ctz)
+UNIMPLEMENTED_GP_UNOP(i32_popcnt)
+UNIMPLEMENTED_GP_BINOP(ptrsize_add)
+UNIMPLEMENTED_FP_BINOP(f32_add)
+UNIMPLEMENTED_FP_BINOP(f32_sub)
+UNIMPLEMENTED_FP_BINOP(f32_mul)
 
-#undef UNIMPLEMENTED_I32_BINOP
-
-void LiftoffAssembler::emit_i32_eqz(Register dst, Register src) {
-  UNIMPLEMENTED();
-}
-
-void LiftoffAssembler::emit_i32_clz(Register dst, Register src) {
-  UNIMPLEMENTED();
-}
-
-void LiftoffAssembler::emit_i32_ctz(Register dst, Register src) {
-  UNIMPLEMENTED();
-}
-
-void LiftoffAssembler::emit_ptrsize_add(Register dst, Register lhs,
-                                        Register rhs) {
-  UNIMPLEMENTED();
-}
-
-void LiftoffAssembler::emit_f32_add(DoubleRegister dst, DoubleRegister lhs,
-                                    DoubleRegister rhs) {
-  UNIMPLEMENTED();
-}
-
-void LiftoffAssembler::emit_f32_sub(DoubleRegister dst, DoubleRegister lhs,
-                                    DoubleRegister rhs) {
-  UNIMPLEMENTED();
-}
-
-void LiftoffAssembler::emit_f32_mul(DoubleRegister dst, DoubleRegister lhs,
-                                    DoubleRegister rhs) {
-  UNIMPLEMENTED();
-}
+#undef UNIMPLEMENTED_GP_BINOP
+#undef UNIMPLEMENTED_GP_UNOP
+#undef UNIMPLEMENTED_FP_BINOP
 
 void LiftoffAssembler::emit_i32_test(Register reg) { UNIMPLEMENTED(); }
 
@@ -151,6 +136,26 @@ void LiftoffAssembler::PushRegisters(LiftoffRegList regs) { UNIMPLEMENTED(); }
 void LiftoffAssembler::PopRegisters(LiftoffRegList regs) { UNIMPLEMENTED(); }
 
 void LiftoffAssembler::DropStackSlotsAndRet(uint32_t num_stack_slots) {
+  UNIMPLEMENTED();
+}
+
+void LiftoffAssembler::PrepareCCall(uint32_t num_params, const Register* args) {
+  UNIMPLEMENTED();
+}
+
+void LiftoffAssembler::SetCCallRegParamAddr(Register dst, uint32_t param_idx,
+                                            uint32_t num_params) {
+  UNIMPLEMENTED();
+}
+
+void LiftoffAssembler::SetCCallStackParamAddr(uint32_t stack_param_idx,
+                                              uint32_t param_idx,
+                                              uint32_t num_params) {
+  UNIMPLEMENTED();
+}
+
+void LiftoffAssembler::EmitCCall(ExternalReference ext_ref,
+                                 uint32_t num_params) {
   UNIMPLEMENTED();
 }
 

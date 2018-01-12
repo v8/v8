@@ -33,6 +33,10 @@ static_assert(kByteRegs.GetNumRegsSet() == 4, "should have four byte regs");
 static_assert((kByteRegs & kGpCacheRegList) == kByteRegs,
               "kByteRegs only contains gp cache registers");
 
+// Use this register to store the address of the last argument pushed on the
+// stack for a call to C.
+static constexpr Register kCCallLastArgAddrReg = eax;
+
 }  // namespace liftoff
 
 static constexpr DoubleRegister kScratchDoubleReg = xmm7;
@@ -322,7 +326,7 @@ void LiftoffAssembler::emit_i32_shr(Register dst, Register lhs, Register rhs) {
   liftoff::EmitShiftOperation(this, dst, lhs, rhs, &Assembler::shr_cl);
 }
 
-void LiftoffAssembler::emit_i32_eqz(Register dst, Register src) {
+bool LiftoffAssembler::emit_i32_eqz(Register dst, Register src) {
   Register tmp_byte_reg = dst;
   // Only the lower 4 registers can be addressed as 8-bit registers.
   if (!dst.is_byte_register()) {
@@ -333,9 +337,10 @@ void LiftoffAssembler::emit_i32_eqz(Register dst, Register src) {
   test(src, src);
   setcc(zero, tmp_byte_reg);
   movzx_b(dst, tmp_byte_reg);
+  return true;
 }
 
-void LiftoffAssembler::emit_i32_clz(Register dst, Register src) {
+bool LiftoffAssembler::emit_i32_clz(Register dst, Register src) {
   Label nonzero_input;
   Label continuation;
   test(src, src);
@@ -350,9 +355,10 @@ void LiftoffAssembler::emit_i32_clz(Register dst, Register src) {
   xor_(dst, 31);
 
   bind(&continuation);
+  return true;
 }
 
-void LiftoffAssembler::emit_i32_ctz(Register dst, Register src) {
+bool LiftoffAssembler::emit_i32_ctz(Register dst, Register src) {
   Label nonzero_input;
   Label continuation;
   test(src, src);
@@ -365,6 +371,14 @@ void LiftoffAssembler::emit_i32_ctz(Register dst, Register src) {
   bsf(dst, src);
 
   bind(&continuation);
+  return true;
+}
+
+bool LiftoffAssembler::emit_i32_popcnt(Register dst, Register src) {
+  if (!CpuFeatures::IsSupported(POPCNT)) return false;
+  CpuFeatureScope scope(this, POPCNT);
+  popcnt(dst, src);
+  return true;
 }
 
 void LiftoffAssembler::emit_ptrsize_add(Register dst, Register lhs,
@@ -515,6 +529,37 @@ void LiftoffAssembler::PopRegisters(LiftoffRegList regs) {
 void LiftoffAssembler::DropStackSlotsAndRet(uint32_t num_stack_slots) {
   DCHECK_LT(num_stack_slots, (1 << 16) / kPointerSize);  // 16 bit immediate
   ret(static_cast<int>(num_stack_slots * kPointerSize));
+}
+
+void LiftoffAssembler::PrepareCCall(uint32_t num_params, const Register* args) {
+  for (size_t param = 0; param < num_params; ++param) {
+    push(args[param]);
+  }
+  mov(liftoff::kCCallLastArgAddrReg, esp);
+  constexpr Register kScratch = ebx;
+  static_assert(kScratch != liftoff::kCCallLastArgAddrReg, "collision");
+  PrepareCallCFunction(num_params, kScratch);
+}
+
+void LiftoffAssembler::SetCCallRegParamAddr(Register dst, uint32_t param_idx,
+                                            uint32_t num_params) {
+  int offset = kPointerSize * static_cast<int>(num_params - 1 - param_idx);
+  lea(dst, Operand(liftoff::kCCallLastArgAddrReg, offset));
+}
+
+void LiftoffAssembler::SetCCallStackParamAddr(uint32_t stack_param_idx,
+                                              uint32_t param_idx,
+                                              uint32_t num_params) {
+  constexpr Register kScratch = ebx;
+  static_assert(kScratch != liftoff::kCCallLastArgAddrReg, "collision");
+  int offset = kPointerSize * static_cast<int>(num_params - 1 - param_idx);
+  lea(kScratch, Operand(liftoff::kCCallLastArgAddrReg, offset));
+  mov(Operand(esp, param_idx * kPointerSize), kScratch);
+}
+
+void LiftoffAssembler::EmitCCall(ExternalReference ext_ref,
+                                 uint32_t num_params) {
+  CallCFunction(ext_ref, static_cast<int>(num_params));
 }
 
 }  // namespace wasm

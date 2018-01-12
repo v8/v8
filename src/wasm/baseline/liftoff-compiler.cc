@@ -421,26 +421,83 @@ class LiftoffCompiler {
 
   void EndControl(Decoder* decoder, Control* c) {}
 
-  void I32UnOp(void (LiftoffAssembler::*emit_fn)(Register, Register)) {
+  void GenerateCCall(Register res_reg, uint32_t num_args,
+                     const Register* arg_regs, ExternalReference ext_ref) {
+    static constexpr int kNumReturns = 1;
+    static constexpr int kMaxArgs = 2;
+    static constexpr MachineType kReps[]{
+        MachineType::Uint32(), MachineType::Pointer(), MachineType::Pointer()};
+    static_assert(arraysize(kReps) == kNumReturns + kMaxArgs, "mismatch");
+    DCHECK_LE(num_args, kMaxArgs);
+
+    MachineSignature sig(kNumReturns, num_args, kReps);
+    compiler::CallDescriptor* desc =
+        compiler::Linkage::GetSimplifiedCDescriptor(&compilation_zone_, &sig);
+
+    // Before making a call, spill all cache registers.
+    __ SpillAllRegisters();
+
+    // Store arguments on our stack, then align the stack for calling to c.
+    uint32_t num_params = static_cast<uint32_t>(desc->ParameterCount());
+    __ PrepareCCall(num_params, arg_regs);
+
+    // Set parameters (in sp[0], sp[8], ...).
+    uint32_t num_stack_params = 0;
+    for (uint32_t param = 0; param < num_params; ++param) {
+      constexpr size_t kInputShift = 1;  // Input 0 is the call target.
+
+      compiler::LinkageLocation loc =
+          desc->GetInputLocation(param + kInputShift);
+      if (loc.IsRegister()) {
+        Register reg = Register::from_code(loc.AsRegister());
+        // Load address of that parameter to the register.
+        __ SetCCallRegParamAddr(reg, param, num_params);
+      } else {
+        DCHECK(loc.IsCallerFrameSlot());
+        __ SetCCallStackParamAddr(num_stack_params, param, num_params);
+        ++num_stack_params;
+      }
+    }
+
+    // Now execute the call.
+    __ EmitCCall(ext_ref, num_params);
+
+    // Load return value.
+    compiler::LinkageLocation return_loc = desc->GetReturnLocation(0);
+    DCHECK(return_loc.IsRegister());
+    Register return_reg = Register::from_code(return_loc.AsRegister());
+    if (return_reg != res_reg) {
+      __ Move(LiftoffRegister(res_reg), LiftoffRegister(return_reg));
+    }
+  }
+
+  void I32UnOp(bool (LiftoffAssembler::*emit_fn)(Register, Register),
+               ExternalReference (*fallback_fn)(Isolate*)) {
     LiftoffRegList pinned_regs;
     LiftoffRegister dst_reg =
         pinned_regs.set(__ GetUnaryOpTargetRegister(kGpReg));
     LiftoffRegister src_reg =
         pinned_regs.set(__ PopToRegister(kGpReg, pinned_regs));
-    (asm_->*emit_fn)(dst_reg.gp(), src_reg.gp());
+    if (!emit_fn || !(asm_->*emit_fn)(dst_reg.gp(), src_reg.gp())) {
+      ExternalReference ext_ref = fallback_fn(asm_->isolate());
+      Register args[] = {src_reg.gp()};
+      GenerateCCall(dst_reg.gp(), arraysize(args), args, ext_ref);
+    }
     __ PushRegister(kWasmI32, dst_reg);
   }
 
   void UnOp(Decoder* decoder, WasmOpcode opcode, FunctionSig*,
             const Value& value, Value* result) {
-#define CASE_UNOP(opcode, type, fn)           \
-  case WasmOpcode::kExpr##opcode:             \
-    type##UnOp(&LiftoffAssembler::emit_##fn); \
+#define CASE_UNOP(opcode, type, fn, ext_ref_fn)           \
+  case WasmOpcode::kExpr##opcode:                         \
+    type##UnOp(&LiftoffAssembler::emit_##fn, ext_ref_fn); \
     break;
     switch (opcode) {
-      CASE_UNOP(I32Eqz, I32, i32_eqz)
-      CASE_UNOP(I32Clz, I32, i32_clz)
-      CASE_UNOP(I32Ctz, I32, i32_ctz)
+      CASE_UNOP(I32Eqz, I32, i32_eqz, nullptr)
+      CASE_UNOP(I32Clz, I32, i32_clz, nullptr)
+      CASE_UNOP(I32Ctz, I32, i32_ctz, nullptr)
+      CASE_UNOP(I32Popcnt, I32, i32_popcnt,
+                &ExternalReference::wasm_word32_popcnt)
       default:
         return unsupported(decoder, WasmOpcodes::OpcodeName(opcode));
     }
