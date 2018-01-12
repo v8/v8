@@ -254,7 +254,7 @@ class SharedFunctionInfo : public HeapObject {
   String* DebugName();
 
   // The function cannot cause any side effects.
-  bool HasNoSideEffect();
+  static bool HasNoSideEffect(Handle<SharedFunctionInfo> info);
 
   // Used for flags such as --turbo-filter.
   bool PassesFilter(const char* raw_filter);

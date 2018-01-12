@@ -13654,14 +13654,14 @@ String* SharedFunctionInfo::DebugName() {
   return name();
 }
 
-bool SharedFunctionInfo::HasNoSideEffect() {
-  if (!computed_has_no_side_effect()) {
-    DisallowHeapAllocation not_handlified;
-    Handle<SharedFunctionInfo> info(this);
-    set_has_no_side_effect(DebugEvaluate::FunctionHasNoSideEffect(info));
-    set_computed_has_no_side_effect(true);
+// static
+bool SharedFunctionInfo::HasNoSideEffect(Handle<SharedFunctionInfo> info) {
+  if (!info->computed_has_no_side_effect()) {
+    bool has_no_side_effect = DebugEvaluate::FunctionHasNoSideEffect(info);
+    info->set_has_no_side_effect(has_no_side_effect);
+    info->set_computed_has_no_side_effect(true);
   }
-  return has_no_side_effect();
+  return info->has_no_side_effect();
 }
 
 // The filter is a pattern that matches function names in this way:
