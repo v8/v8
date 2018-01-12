@@ -576,6 +576,21 @@ TF_BUILTIN(StringCharCodeAt, StringBuiltinsAssembler) {
   Return(result);
 }
 
+TF_BUILTIN(StringCodePointAt, StringBuiltinsAssembler) {
+  Node* receiver = Parameter(Descriptor::kReceiver);
+  Node* position = Parameter(Descriptor::kPosition);
+
+  // TODO(sigurds) Figure out if passing length as argument pays off.
+  TNode<IntPtrT> length = LoadStringLengthAsWord(receiver);
+  // Load the character code at the {position} from the {receiver}.
+  TNode<Int32T> code =
+      LoadSurrogatePairAt(receiver, length, position, UnicodeEncoding::UTF32);
+  // And return it as TaggedSigned value.
+  // TODO(turbofan): Allow builtins to return values untagged.
+  TNode<Smi> result = SmiFromWord32(code);
+  Return(result);
+}
+
 // -----------------------------------------------------------------------------
 // ES6 section 21.1 String Objects
 

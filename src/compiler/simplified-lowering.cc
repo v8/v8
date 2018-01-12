@@ -2341,6 +2341,22 @@ class RepresentationSelector {
         }
         return;
       }
+      case IrOpcode::kStringCodePointAt: {
+        Type* string_type = TypeOf(node->InputAt(0));
+        if (string_type->Is(Type::SeqString())) {
+          VisitBinop(node, UseInfo::AnyTagged(), UseInfo::TruncatingWord32(),
+                     MachineRepresentation::kWord32);
+          if (lower()) {
+            NodeProperties::ChangeOp(node,
+                                     simplified()->SeqStringCodePointAt());
+          }
+        } else {
+          // TODO(turbofan): Allow builtins to return untagged values.
+          VisitBinop(node, UseInfo::AnyTagged(), UseInfo::TruncatingWord32(),
+                     MachineRepresentation::kTaggedSigned);
+        }
+        return;
+      }
       case IrOpcode::kStringFromCharCode: {
         VisitUnop(node, UseInfo::TruncatingWord32(),
                   MachineRepresentation::kTaggedPointer);

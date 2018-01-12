@@ -503,6 +503,8 @@ class V8_EXPORT_PRIVATE SimplifiedOperatorBuilder final
   const Operator* StringCharAt();
   const Operator* StringCharCodeAt();
   const Operator* SeqStringCharCodeAt();
+  const Operator* StringCodePointAt();
+  const Operator* SeqStringCodePointAt();
   const Operator* StringFromCharCode();
   const Operator* StringFromCodePoint(UnicodeEncoding encoding);
   const Operator* StringIndexOf();
