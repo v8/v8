@@ -57,10 +57,7 @@ ConvertDToIFunc MakeConvertDToIFuncTrampoline(Isolate* isolate,
 
   byte* start = stub.GetCode()->instruction_start();
 
-  __ SetStackPointer(csp);
   __ PushCalleeSavedRegisters();
-  __ Mov(jssp, csp);
-  __ SetStackPointer(jssp);
 
   MacroAssembler::PushPopQueue queue(&masm);
 
@@ -111,8 +108,6 @@ ConvertDToIFunc MakeConvertDToIFuncTrampoline(Isolate* isolate,
     __ Mov(x0, destination_reg);
 
   // Restore callee save registers.
-  __ Mov(csp, jssp);
-  __ SetStackPointer(csp);
   __ PopCalleeSavedRegisters();
 
   __ Ret();

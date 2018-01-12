@@ -421,10 +421,6 @@ void CEntryStub::Generate(MacroAssembler* masm) {
   __ AssertFPCRState();
   __ Ret();
 
-  // The stack pointer is still csp if we aren't returning, and the frame
-  // hasn't changed (except for the return address).
-  __ SetStackPointer(csp);
-
   // Handling of exception.
   __ Bind(&exception_returned);
 
@@ -495,14 +491,7 @@ void JSEntryStub::Generate(MacroAssembler* masm) {
 
   Label invoke, handler_entry, exit;
 
-  // Push callee-saved registers and synchronize the system stack pointer (csp)
-  // and the JavaScript stack pointer (jssp).
-  //
-  // We must not write to jssp until after the PushCalleeSavedRegisters()
-  // call, since jssp is itself a callee-saved register.
-  __ SetStackPointer(csp);
   __ PushCalleeSavedRegisters();
-  __ Mov(jssp, csp);
 
   ProfileEntryHookStub::MaybeCallEntryHook(masm);
 
@@ -655,10 +644,7 @@ void JSEntryStub::Generate(MacroAssembler* masm) {
                 "Size of entry frame is not a multiple of 16 bytes");
   __ Drop(EntryFrameConstants::kFixedFrameSize / kPointerSize);
   // Restore the callee-saved registers and return.
-  __ SetStackPointer(csp);
   __ PopCalleeSavedRegisters();
-  // After this point, we must not modify jssp because it is a callee-saved
-  // register which we have just restored.
   __ Ret();
 }
 
@@ -742,14 +728,6 @@ void ProfileEntryHookStub::Generate(MacroAssembler* masm) {
 
 
 void DirectCEntryStub::Generate(MacroAssembler* masm) {
-  // When calling into C++ code the stack pointer must be csp.
-  // Therefore this code must use csp for peek/poke operations when the
-  // stub is generated. When the stub is called
-  // (via DirectCEntryStub::GenerateCall), the caller must setup an ExitFrame
-  // and configure the stack pointer *before* doing the call.
-  const Register old_stack_pointer = __ StackPointer();
-  __ SetStackPointer(csp);
-
   // Put return address on the stack (accessible to GC through exit frame pc).
   __ Poke(lr, 0);
   // Call the C++ function.
@@ -758,8 +736,6 @@ void DirectCEntryStub::Generate(MacroAssembler* masm) {
   __ Peek(lr, 0);
   __ AssertFPCRState();
   __ Ret();
-
-  __ SetStackPointer(old_stack_pointer);
 }
 
 void DirectCEntryStub::GenerateCall(MacroAssembler* masm,

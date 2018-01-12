@@ -216,12 +216,6 @@ class TurboAssembler : public Assembler {
   bool allow_macro_instructions() const { return allow_macro_instructions_; }
 #endif
 
-  // Set the current stack pointer, but don't generate any code.
-  inline void SetStackPointer(const Register& stack_pointer) {
-    DCHECK(!TmpList()->IncludesAliasOf(stack_pointer));
-    sp_ = stack_pointer;
-  }
-
   // Activation support.
   void EnterFrame(StackFrame::Type type);
   void EnterFrame(StackFrame::Type type, bool load_constant_pool_pointer_reg) {
@@ -767,8 +761,7 @@ class TurboAssembler : public Assembler {
   LS_MACRO_LIST(DECLARE_FUNCTION)
 #undef DECLARE_FUNCTION
 
-  // Push or pop up to 4 registers of the same width to or from the stack,
-  // using the current stack pointer as set by SetStackPointer.
+  // Push or pop up to 4 registers of the same width to or from the stack.
   //
   // If an argument register is 'NoReg', all further arguments are also assumed
   // to be 'NoReg', and are thus not pushed or popped.
@@ -782,9 +775,8 @@ class TurboAssembler : public Assembler {
   // It is not valid to pop into the same register more than once in one
   // operation, not even into the zero register.
   //
-  // If the current stack pointer (as set by SetStackPointer) is csp, then it
-  // must be aligned to 16 bytes on entry and the total size of the specified
-  // registers must also be a multiple of 16 bytes.
+  // The stack pointer must be aligned to 16 bytes on entry and the total size
+  // of the specified registers must also be a multiple of 16 bytes.
   //
   // Even if the current stack pointer is not the system stack pointer (csp),
   // Push (and derived methods) will still modify the system stack pointer in
@@ -1705,10 +1697,6 @@ class MacroAssembler : public TurboAssembler {
   //
   // Note that registers are not checked for invalid values. Use this method
   // only if you know that the GC won't try to examine the values on the stack.
-  //
-  // This method must not be called unless the current stack pointer (as set by
-  // SetStackPointer) is the system stack pointer (csp), and is aligned to
-  // ActivationFrameAlignment().
   void PushCalleeSavedRegisters();
 
   // Restore the callee-saved registers (as defined by AAPCS64).
@@ -1717,10 +1705,6 @@ class MacroAssembler : public TurboAssembler {
   // thus come from higher addresses.
   // Floating-point registers are popped after general-purpose registers, and
   // thus come from higher addresses.
-  //
-  // This method must not be called unless the current stack pointer (as set by
-  // SetStackPointer) is the system stack pointer (csp), and is aligned to
-  // ActivationFrameAlignment().
   void PopCalleeSavedRegisters();
 
   // Align csp for a frame, as per ActivationFrameAlignment, and make it the

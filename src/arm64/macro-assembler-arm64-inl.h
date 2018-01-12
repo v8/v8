@@ -1048,7 +1048,6 @@ void MacroAssembler::AlignAndSetCSPForFrame() {
   DCHECK_GE(sp_alignment, 16);
   DCHECK(base::bits::IsPowerOfTwo(sp_alignment));
   Bic(csp, StackPointer(), sp_alignment - 1);
-  SetStackPointer(csp);
 }
 
 void TurboAssembler::BumpSystemStackPointer(const Operand& space) {

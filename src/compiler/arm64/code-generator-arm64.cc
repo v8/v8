@@ -2254,8 +2254,6 @@ void CodeGenerator::FinishFrame(Frame* frame) {
   frame->AlignFrame(16);
   CallDescriptor* descriptor = linkage()->GetIncomingDescriptor();
 
-  __ SetStackPointer(csp);
-
   // Save FP registers.
   CPURegList saves_fp = CPURegList(CPURegister::kVRegister, kDRegSizeInBits,
                                    descriptor->CalleeSavedFPRegisters());
@@ -2353,7 +2351,6 @@ void CodeGenerator::AssembleConstructFrame() {
       if (FLAG_debug_code) {
         __ Brk(0);
       }
-      __ SetStackPointer(csp);
       __ AssertStackConsistency();
       __ Bind(&done);
     }
