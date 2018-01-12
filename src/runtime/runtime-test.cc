@@ -1105,11 +1105,11 @@ RUNTIME_FUNCTION(Runtime_RedirectToWasmInterpreter) {
 
 RUNTIME_FUNCTION(Runtime_WasmTraceMemory) {
   HandleScope hs(isolate);
-  DCHECK_EQ(4, args.length());
-  CONVERT_SMI_ARG_CHECKED(is_store, 0);
-  CONVERT_SMI_ARG_CHECKED(mem_rep, 1);
-  CONVERT_SMI_ARG_CHECKED(addr_low, 2);
-  CONVERT_SMI_ARG_CHECKED(addr_high, 3);
+  DCHECK_EQ(1, args.length());
+  CONVERT_ARG_CHECKED(Smi, info_addr, 0);
+
+  wasm::MemoryTracingInfo* info =
+      reinterpret_cast<wasm::MemoryTracingInfo*>(info_addr);
 
   // Find the caller wasm frame.
   StackTraceFrameIterator it(isolate);
@@ -1117,8 +1117,6 @@ RUNTIME_FUNCTION(Runtime_WasmTraceMemory) {
   DCHECK(it.is_wasm());
   WasmCompiledFrame* frame = WasmCompiledFrame::cast(it.frame());
 
-  uint32_t addr = (static_cast<uint32_t>(addr_low) & 0xFFFF) |
-                  (static_cast<uint32_t>(addr_high) << 16);
   uint8_t* mem_start = reinterpret_cast<uint8_t*>(frame->wasm_instance()
                                                       ->memory_object()
                                                       ->array_buffer()
@@ -1128,9 +1126,9 @@ RUNTIME_FUNCTION(Runtime_WasmTraceMemory) {
   // TODO(titzer): eliminate dependency on WasmModule definition here.
   int func_start =
       frame->wasm_instance()->module()->functions[func_index].code.offset();
-  tracing::TraceMemoryOperation(tracing::kWasmCompiled, is_store,
-                                MachineRepresentation(mem_rep), addr,
-                                func_index, pos - func_start, mem_start);
+  // TODO(clemensh): Determine compiler (TurboFan / Liftoff).
+  wasm::TraceMemoryOperation(wasm::ExecutionEngine::kTurbofan, info, func_index,
+                             pos - func_start, mem_start);
   return isolate->heap()->undefined_value();
 }
 

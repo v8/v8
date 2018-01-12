@@ -1495,10 +1495,10 @@ class ThreadImpl {
     len = 1 + operand.length;
 
     if (FLAG_wasm_trace_memory) {
-      tracing::TraceMemoryOperation(
-          tracing::kWasmInterpreted, false, rep, operand.offset + index,
-          code->function->func_index, static_cast<int>(pc),
-          wasm_context_->mem_start);
+      wasm::MemoryTracingInfo info(operand.offset + index, false, rep);
+      TraceMemoryOperation(ExecutionEngine::kInterpreter, &info,
+                           code->function->func_index, static_cast<int>(pc),
+                           wasm_context_->mem_start);
     }
 
     return true;
@@ -1521,10 +1521,10 @@ class ThreadImpl {
     len = 1 + operand.length;
 
     if (FLAG_wasm_trace_memory) {
-      tracing::TraceMemoryOperation(
-          tracing::kWasmInterpreted, true, rep, operand.offset + index,
-          code->function->func_index, static_cast<int>(pc),
-          wasm_context_->mem_start);
+      wasm::MemoryTracingInfo info(operand.offset + index, true, rep);
+      TraceMemoryOperation(ExecutionEngine::kInterpreter, &info,
+                           code->function->func_index, static_cast<int>(pc),
+                           wasm_context_->mem_start);
     }
 
     return true;

@@ -34,6 +34,7 @@
 #include "src/log-inl.h"
 #include "src/trap-handler/trap-handler.h"
 #include "src/wasm/function-body-decoder.h"
+#include "src/wasm/memory-tracing.h"
 #include "src/wasm/wasm-code-manager.h"
 #include "src/wasm/wasm-limits.h"
 #include "src/wasm/wasm-module.h"
@@ -3637,21 +3638,28 @@ Node* WasmGraphBuilder::TraceMemoryOperation(bool is_store,
                                              MachineRepresentation rep,
                                              Node* index, uint32_t offset,
                                              wasm::WasmCodePosition position) {
+  int kAlign = 4;  // Ensure that the LSB is 0, such that this looks like a Smi.
+  Node* info = graph()->NewNode(
+      jsgraph()->machine()->StackSlot(sizeof(wasm::MemoryTracingInfo), kAlign));
+
   Node* address = graph()->NewNode(jsgraph()->machine()->Int32Add(),
                                    Int32Constant(offset), index);
-  Node* addr_low = BuildChangeInt32ToSmi(graph()->NewNode(
-      jsgraph()->machine()->Word32And(), address, Int32Constant(0xFFFF)));
-  Node* addr_high = BuildChangeInt32ToSmi(graph()->NewNode(
-      jsgraph()->machine()->Word32Shr(), address, Int32Constant(16)));
-  int32_t rep_i = static_cast<int32_t>(rep);
-  Node* params[] = {
-      jsgraph()->SmiConstant(is_store),  // is_store
-      jsgraph()->SmiConstant(rep_i),     // mem rep
-      addr_low,                          // address lower half word
-      addr_high                          // address higher half word
+  auto store = [&](int offset, MachineRepresentation rep, Node* data) {
+    *effect_ = graph()->NewNode(
+        jsgraph()->machine()->Store(StoreRepresentation(rep, kNoWriteBarrier)),
+        info, jsgraph()->Int32Constant(offset), data, *effect_, *control_);
   };
-  Node* call =
-      BuildCallToRuntime(Runtime::kWasmTraceMemory, params, arraysize(params));
+  // Store address, is_store, and mem_rep.
+  store(offsetof(wasm::MemoryTracingInfo, address),
+        MachineRepresentation::kWord32, address);
+  store(offsetof(wasm::MemoryTracingInfo, is_store),
+        MachineRepresentation::kWord8,
+        jsgraph()->Int32Constant(is_store ? 1 : 0));
+  store(offsetof(wasm::MemoryTracingInfo, mem_rep),
+        MachineRepresentation::kWord8,
+        jsgraph()->Int32Constant(static_cast<int>(rep)));
+
+  Node* call = BuildCallToRuntime(Runtime::kWasmTraceMemory, &info, 1);
   SetSourcePosition(call, position);
   return call;
 }
