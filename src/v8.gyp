@@ -2619,6 +2619,7 @@
             'v8_use_snapshot=<(v8_use_snapshot)',
             'v8_optimized_debug=<(v8_optimized_debug)',
             'v8_enable_disassembler=<(v8_enable_disassembler)',
+            'v8_postmortem_support=<(v8_postmortem_support)',
           ],
         },
       ],
