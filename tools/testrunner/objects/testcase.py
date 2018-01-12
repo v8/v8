@@ -63,11 +63,16 @@ class TestCase(object):
     self._statusfile_flags = None
     self._prepare_outcomes()
 
-  def create_subtest(self, processor, subtest_id):
+  def create_subtest(self, processor, subtest_id, variant=None, flags=None):
     subtest = copy.copy(self)
     subtest.origin = self
     subtest.processor = processor
     subtest.procid += '.%s' % subtest_id
+    if variant is not None:
+      assert self.variant is None
+      subtest.variant = variant
+      subtest.variant_flags = flags
+      subtest._prepare_outcomes()
     return subtest
 
   def create_variant(self, variant, flags, procid_suffix=None):

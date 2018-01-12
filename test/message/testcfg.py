@@ -58,9 +58,12 @@ class TestSuite(testsuite.TestSuite):
   def _test_class(self):
     return TestCase
 
-  def CreateVariantGenerator(self, variants):
-    return super(TestSuite, self).CreateVariantGenerator(
+  def CreateLegacyVariantsGenerator(self, variants):
+    return super(TestSuite, self).CreateLegacyVariantsGenerator(
         variants + ["preparser"])
+
+  def create_variant_proc(self, variants):
+    return super(TestSuite, self).create_variant_proc(variants + ['preparser'])
 
 
 class TestCase(testcase.TestCase):

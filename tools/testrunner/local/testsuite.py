@@ -41,7 +41,7 @@ FAST_VARIANTS = set(["default", "turbofan"])
 STANDARD_VARIANT = set(["default"])
 
 
-class VariantGenerator(object):
+class LegacyVariantsGenerator(object):
   def __init__(self, suite, variants):
     self.suite = suite
     self.all_variants = ALL_VARIANTS & variants
@@ -60,6 +60,37 @@ class VariantGenerator(object):
       return FAST_VARIANT_FLAGS[variant]
     else:
       return ALL_VARIANT_FLAGS[variant]
+
+
+class StandardLegacyVariantsGenerator(LegacyVariantsGenerator):
+  def FilterVariantsByTest(self, testcase):
+    return self.standard_variant
+
+
+class VariantsGenerator(object):
+  def __init__(self, variants):
+    self._all_variants = [v for v in variants if v in ALL_VARIANTS]
+    self._fast_variants = [v for v in variants if v in FAST_VARIANTS]
+    self._standard_variant = [v for v in variants if v in STANDARD_VARIANT]
+
+  def gen(self, test):
+    """Generator producing (variant, flags, procid suffix) tuples."""
+    flags_set = self._get_flags_set(test)
+    for n, variant in enumerate(self._get_variants(test)):
+      yield (variant, flags_set[variant][0], n)
+
+  def _get_flags_set(self, test):
+    if test.only_fast_variants:
+      return FAST_VARIANT_FLAGS
+    else:
+      return ALL_VARIANT_FLAGS
+
+  def _get_variants(self, test):
+    if test.only_standard_variant:
+      return self._standard_variant
+    if test.only_fast_variants:
+      return self._fast_variants
+    return self._all_variants
 
 
 class TestSuite(object):
@@ -88,19 +119,25 @@ class TestSuite(object):
   def ListTests(self, context):
     raise NotImplementedError
 
-  def _VariantGeneratorFactory(self):
+  def _LegacyVariantsGeneratorFactory(self):
     """The variant generator class to be used."""
-    return VariantGenerator
+    return LegacyVariantsGenerator
 
-  def CreateVariantGenerator(self, variants):
+  def CreateLegacyVariantsGenerator(self, variants):
     """Return a generator for the testing variants of this suite.
 
     Args:
       variants: List of variant names to be run as specified by the test
                 runner.
-    Returns: An object of type VariantGenerator.
+    Returns: An object of type LegacyVariantsGenerator.
     """
-    return self._VariantGeneratorFactory()(self, set(variants))
+    return self._LegacyVariantsGeneratorFactory()(self, set(variants))
+
+  def get_variants_gen(self, variants):
+    return self._variants_gen_class()(variants)
+
+  def _variants_gen_class(self):
+    return VariantsGenerator
 
   def ReadStatusFile(self, variables):
     self.statusfile = statusfile.StatusFile(self.status_file(), variables)
@@ -182,8 +219,3 @@ class TestSuite(object):
     if utils.IsWindows():
       return path.replace("\\", "/")
     return path
-
-
-class StandardVariantGenerator(VariantGenerator):
-  def FilterVariantsByTest(self, testcase):
-    return self.standard_variant

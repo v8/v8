@@ -50,8 +50,8 @@ class TestSuite(testsuite.TestSuite):
   def _test_class(self):
     return TestCase
 
-  def _VariantGeneratorFactory(self):
-    return testsuite.StandardVariantGenerator
+  def _LegacyVariantsGeneratorFactory(self):
+    return testsuite.StandardLegacyVariantsGenerator
 
 
 class TestCase(testcase.TestCase):

@@ -32,6 +32,7 @@ from testrunner.testproc.loader import LoadProc
 from testrunner.testproc.progress import (VerboseProgressIndicator,
                                           ResultsTracker)
 from testrunner.testproc.rerun import RerunProc
+from testrunner.testproc.variant import VariantProc
 
 
 TIMEOUT_DEFAULT = 60
@@ -442,13 +443,15 @@ class StandardTestRunner(base_runner.BaseTestRunner):
         if options.cat:
           verbose.PrintTestSource(s.tests)
           continue
-        variant_gen = s.CreateVariantGenerator(VARIANTS)
-        variant_tests = [
-          t.create_variant(v, flags, n)
-          for t in s.tests
-          for v in variant_gen.FilterVariantsByTest(t)
-          for n, flags in enumerate(variant_gen.GetFlagSets(t, v))
-        ]
+        if not options.infra_staging:
+          variant_gen = s.CreateLegacyVariantsGenerator(VARIANTS)
+          variant_tests = [ t.create_variant(v, flags)
+                            for t in s.tests
+                            for v in variant_gen.FilterVariantsByTest(t)
+                            for flags in variant_gen.GetFlagSets(t, v) ]
+        else:
+          # Variants will be created in the test processors pipeline
+          variant_tests = s.tests
 
         if options.random_seed_stress_count > 1:
           # Duplicate test for random seed stress mode.
@@ -590,23 +593,16 @@ class StandardTestRunner(base_runner.BaseTestRunner):
       jobs = options.j
 
       print '>>> Running with test processors'
-      procs = []
+      loader = LoadProc()
+      results = ResultsTracker(count_subtests=False)
       indicators = progress_indicator.ToProgressIndicatorProcs()
 
-      # TODO(majeski): Implement all indicators and remove this filter.
-      indicators = filter(None, indicators)
-
-      loader = LoadProc()
-      procs.append(loader)
-
-      results = ResultsTracker(count_subtests=False)
-
-      procs.append(StatusFileFilterProc(options.slow_tests,
-                                        options.pass_fail_tests))
-
-      procs.append(results)
-
-      procs += indicators
+      procs = [
+        loader,
+        VariantProc(VARIANTS),
+        StatusFileFilterProc(options.slow_tests, options.pass_fail_tests),
+        results,
+      ] + indicators
 
       if context.rerun_failures_count:
         procs.append(RerunProc(

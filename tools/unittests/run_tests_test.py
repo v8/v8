@@ -210,7 +210,10 @@ class SystemTest(unittest.TestCase):
           'sweet/strawberries',
           infra_staging=infra_staging,
       )
-      self.assertIn('Running 2 tests', result.stdout, result)
+      if infra_staging:
+        self.assertIn('Running 1 tests', result.stdout, result)
+      else:
+        self.assertIn('Running 2 tests', result.stdout, result)
       self.assertIn('Done running sweet/strawberries: FAIL', result.stdout, result)
       self.assertEqual(1, result.returncode, result)
 
