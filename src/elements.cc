@@ -1076,14 +1076,14 @@ class ElementsAccessorBase : public InternalElementsAccessor {
 
     int count = 0;
     int i = 0;
-    Handle<Map> original_map(object->map(), isolate);
+    ElementsKind original_elements_kind = object->GetElementsKind();
 
     for (; i < keys->length(); ++i) {
       Handle<Object> key(keys->get(i), isolate);
       uint32_t index;
       if (!key->ToUint32(&index)) continue;
 
-      DCHECK_EQ(object->map(), *original_map);
+      DCHECK_EQ(object->GetElementsKind(), original_elements_kind);
       uint32_t entry = Subclass::GetEntryForIndexImpl(
           isolate, *object, object->elements(), index, filter);
       if (entry == kMaxUInt32) continue;
@@ -1100,7 +1100,7 @@ class ElementsAccessorBase : public InternalElementsAccessor {
       }
       if (get_entries) value = MakeEntryPair(isolate, index, value);
       values_or_entries->set(count++, *value);
-      if (object->map() != *original_map) break;
+      if (object->GetElementsKind() != original_elements_kind) break;
     }
 
     // Slow path caused by changes in elements kind during iteration.
@@ -1755,13 +1755,14 @@ class DictionaryElementsAccessor
         return result;
       }
     }
-    Handle<Map> original_map(receiver->map(), isolate);
+    ElementsKind original_elements_kind = receiver->GetElementsKind();
+    USE(original_elements_kind);
     Handle<NumberDictionary> dictionary(
         NumberDictionary::cast(receiver->elements()), isolate);
     // Iterate through entire range, as accessing elements out of order is
     // observable
     for (uint32_t k = start_from; k < length; ++k) {
-      DCHECK_EQ(receiver->map(), *original_map);
+      DCHECK_EQ(receiver->GetElementsKind(), original_elements_kind);
       int entry = dictionary->FindEntry(isolate, k);
       if (entry == NumberDictionary::kNotFound) {
         if (search_for_hole) return Just(true);
@@ -1826,13 +1827,14 @@ class DictionaryElementsAccessor
                                          uint32_t start_from, uint32_t length) {
     DCHECK(JSObject::PrototypeHasNoElements(isolate, *receiver));
 
-    Handle<Map> original_map(receiver->map(), isolate);
+    ElementsKind original_elements_kind = receiver->GetElementsKind();
+    USE(original_elements_kind);
     Handle<NumberDictionary> dictionary(
         NumberDictionary::cast(receiver->elements()), isolate);
     // Iterate through entire range, as accessing elements out of order is
     // observable.
     for (uint32_t k = start_from; k < length; ++k) {
-      DCHECK_EQ(receiver->map(), *original_map);
+      DCHECK_EQ(receiver->GetElementsKind(), original_elements_kind);
       int entry = dictionary->FindEntry(isolate, k);
       if (entry == NumberDictionary::kNotFound) continue;
 
