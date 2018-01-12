@@ -338,8 +338,8 @@ void AccessorAssembler::HandleLoadICSmiHandlerCase(
       Node* intptr_index = TryToIntptr(p->name, miss);
       Node* length = LoadStringLengthAsWord(holder);
       GotoIf(UintPtrGreaterThanOrEqual(intptr_index, length), &if_oob);
-      Node* code = StringCharCodeAt(holder, intptr_index);
-      Node* result = StringFromCharCode(code);
+      TNode<Int32T> code = StringCharCodeAt(holder, intptr_index);
+      TNode<String> result = StringFromCharCode(code);
       Return(result);
 
       BIND(&if_oob);

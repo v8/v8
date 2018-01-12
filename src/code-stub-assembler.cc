@@ -4498,14 +4498,14 @@ Node* CodeStubAssembler::IsNumberArrayIndex(Node* number) {
   return var_result.value();
 }
 
-TNode<Uint32T> CodeStubAssembler::StringCharCodeAt(SloppyTNode<String> string,
-                                                   SloppyTNode<IntPtrT> index) {
+TNode<Int32T> CodeStubAssembler::StringCharCodeAt(SloppyTNode<String> string,
+                                                  SloppyTNode<IntPtrT> index) {
   CSA_ASSERT(this, IsString(string));
 
   CSA_ASSERT(this, IntPtrGreaterThanOrEqual(index, IntPtrConstant(0)));
   CSA_ASSERT(this, IntPtrLessThan(index, LoadStringLengthAsWord(string)));
 
-  VARIABLE(var_result, MachineRepresentation::kWord32);
+  TVARIABLE(Int32T, var_result);
 
   Label return_result(this), if_runtime(this, Label::kDeferred),
       if_stringistwobyte(this), if_stringisonebyte(this);
@@ -4523,14 +4523,16 @@ TNode<Uint32T> CodeStubAssembler::StringCharCodeAt(SloppyTNode<String> string,
 
   BIND(&if_stringisonebyte);
   {
-    var_result.Bind(Load(MachineType::Uint8(), string_data, offset));
+    var_result =
+        UncheckedCast<Int32T>(Load(MachineType::Uint8(), string_data, offset));
     Goto(&return_result);
   }
 
   BIND(&if_stringistwobyte);
   {
-    var_result.Bind(Load(MachineType::Uint16(), string_data,
-                         WordShl(offset, IntPtrConstant(1))));
+    var_result =
+        UncheckedCast<Int32T>(Load(MachineType::Uint16(), string_data,
+                                   WordShl(offset, IntPtrConstant(1))));
     Goto(&return_result);
   }
 
@@ -4538,15 +4540,15 @@ TNode<Uint32T> CodeStubAssembler::StringCharCodeAt(SloppyTNode<String> string,
   {
     Node* result = CallRuntime(Runtime::kStringCharCodeAt, NoContextConstant(),
                                string, SmiTag(index));
-    var_result.Bind(SmiToWord32(result));
+    var_result = SmiToWord32(result);
     Goto(&return_result);
   }
 
   BIND(&return_result);
-  return UncheckedCast<Uint32T>(var_result.value());
+  return var_result;
 }
 
-Node* CodeStubAssembler::StringFromCharCode(Node* code) {
+TNode<String> CodeStubAssembler::StringFromCharCode(TNode<Int32T> code) {
   VARIABLE(var_result, MachineRepresentation::kTagged);
 
   // Check if the {code} is a one-byte char code.
@@ -4600,7 +4602,7 @@ Node* CodeStubAssembler::StringFromCharCode(Node* code) {
 
   BIND(&if_done);
   CSA_ASSERT(this, IsString(var_result.value()));
-  return var_result.value();
+  return CAST(var_result.value());
 }
 
 // A wrapper around CopyStringCharacters which determines the correct string
@@ -4760,7 +4762,7 @@ Node* CodeStubAssembler::SubString(Node* context, Node* string, Node* from,
   // Substrings of length 1 are generated through CharCodeAt and FromCharCode.
   BIND(&single_char);
   {
-    Node* char_code = StringCharCodeAt(string, SmiUntag(from));
+    TNode<Int32T> char_code = StringCharCodeAt(string, SmiUntag(from));
     var_result.Bind(StringFromCharCode(char_code));
     Goto(&end);
   }
@@ -5134,8 +5136,8 @@ Node* CodeStubAssembler::StringAdd(Node* context, Node* left, Node* right,
   return result.value();
 }
 
-Node* CodeStubAssembler::StringFromCodePoint(Node* codepoint,
-                                             UnicodeEncoding encoding) {
+TNode<String> CodeStubAssembler::StringFromCodePoint(TNode<Int32T> codepoint,
+                                                     UnicodeEncoding encoding) {
   VARIABLE(var_result, MachineRepresentation::kTagged, EmptyStringConstant());
 
   Label if_isword16(this), if_isword32(this), return_result(this);
@@ -5167,7 +5169,7 @@ Node* CodeStubAssembler::StringFromCodePoint(Node* codepoint,
                                Int32Constant(0xDC00));
 
         // codpoint = (trail << 16) | lead;
-        codepoint = Word32Or(Word32Shl(trail, Int32Constant(16)), lead);
+        codepoint = Signed(Word32Or(Word32Shl(trail, Int32Constant(16)), lead));
         break;
       }
     }
@@ -5182,8 +5184,7 @@ Node* CodeStubAssembler::StringFromCodePoint(Node* codepoint,
   }
 
   BIND(&return_result);
-  CSA_ASSERT(this, IsString(var_result.value()));
-  return var_result.value();
+  return CAST(var_result.value());
 }
 
 TNode<Number> CodeStubAssembler::StringToNumber(SloppyTNode<Context> context,
@@ -7064,7 +7065,7 @@ void CodeStubAssembler::BranchIfMaybeSpecialIndex(TNode<String> name_string,
 
   // If the first character of name is not a digit or '-', or we can't match it
   // to Infinity or NaN, then this is not a special index.
-  TNode<Uint32T> first_char = StringCharCodeAt(name_string, IntPtrConstant(0));
+  TNode<Int32T> first_char = StringCharCodeAt(name_string, IntPtrConstant(0));
   // If the name starts with '-', it can be a negative index.
   GotoIf(Word32Equal(first_char, Int32Constant('-')), if_maybe_special_index);
   // If the name starts with 'I', it can be "Infinity".

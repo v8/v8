@@ -531,10 +531,10 @@ TF_BUILTIN(StringCharAt, CodeStubAssembler) {
   Node* position = Parameter(Descriptor::kPosition);
 
   // Load the character code at the {position} from the {receiver}.
-  Node* code = StringCharCodeAt(receiver, position);
+  TNode<Int32T> code = StringCharCodeAt(receiver, position);
 
   // And return the single character string with only that {code}
-  Node* result = StringFromCharCode(code);
+  TNode<String> result = StringFromCharCode(code);
   Return(result);
 }
 
@@ -543,11 +543,11 @@ TF_BUILTIN(StringCharCodeAt, CodeStubAssembler) {
   Node* position = Parameter(Descriptor::kPosition);
 
   // Load the character code at the {position} from the {receiver}.
-  Node* code = StringCharCodeAt(receiver, position);
+  TNode<Int32T> code = StringCharCodeAt(receiver, position);
 
   // And return it as TaggedSigned value.
   // TODO(turbofan): Allow builtins to return values untagged.
-  Node* result = SmiFromWord32(code);
+  TNode<Smi> result = SmiFromWord32(code);
   Return(result);
 }
 
@@ -577,7 +577,8 @@ TF_BUILTIN(StringFromCharCode, CodeStubAssembler) {
     // string on the fly otherwise.
     Node* code = arguments.AtIndex(0);
     Node* code32 = TruncateTaggedToWord32(context, code);
-    Node* code16 = Word32And(code32, Int32Constant(String::kMaxUtf16CodeUnit));
+    TNode<Int32T> code16 =
+        Signed(Word32And(code32, Int32Constant(String::kMaxUtf16CodeUnit)));
     Node* result = StringFromCharCode(code16);
     arguments.PopAndReturn(result);
   }
@@ -699,7 +700,7 @@ TF_BUILTIN(StringPrototypeCharAt, CodeStubAssembler) {
                                   LoadStringLengthAsWord(receiver)));
   CSA_ASSERT(this, IntPtrGreaterThanOrEqual(SmiUntag(position_smi),
                                             IntPtrConstant(0)));
-  Node* code = StringCharCodeAt(receiver, SmiUntag(position_smi));
+  TNode<Int32T> code = StringCharCodeAt(receiver, SmiUntag(position_smi));
 
   // And return the single character string with only that {code}.
   Node* result = StringFromCharCode(code);
@@ -2301,14 +2302,14 @@ TF_BUILTIN(StringPrototypeIterator, CodeStubAssembler) {
 
 // Return the |word32| codepoint at {index}. Supports SeqStrings and
 // ExternalStrings.
-TNode<Uint32T> StringBuiltinsAssembler::LoadSurrogatePairAt(
+TNode<Int32T> StringBuiltinsAssembler::LoadSurrogatePairAt(
     SloppyTNode<String> string, SloppyTNode<IntPtrT> length,
     SloppyTNode<IntPtrT> index, UnicodeEncoding encoding) {
   Label handle_surrogate_pair(this), return_result(this);
-  TVARIABLE(Uint32T, var_result);
-  TVARIABLE(Uint32T, var_trail);
+  TVARIABLE(Int32T, var_result);
+  TVARIABLE(Int32T, var_trail);
   var_result = StringCharCodeAt(string, index);
-  var_trail = Unsigned(Int32Constant(0));
+  var_trail = Int32Constant(0);
 
   GotoIf(Word32NotEqual(Word32And(var_result, Int32Constant(0xFC00)),
                         Int32Constant(0xD800)),
@@ -2323,8 +2324,8 @@ TNode<Uint32T> StringBuiltinsAssembler::LoadSurrogatePairAt(
 
   BIND(&handle_surrogate_pair);
   {
-    TNode<Uint32T> lead = var_result;
-    TNode<Uint32T> trail = var_trail;
+    TNode<Int32T> lead = var_result;
+    TNode<Int32T> trail = var_trail;
 
     // Check that this path is only taken if a surrogate pair is found
     CSA_SLOW_ASSERT(this,
@@ -2336,7 +2337,7 @@ TNode<Uint32T> StringBuiltinsAssembler::LoadSurrogatePairAt(
 
     switch (encoding) {
       case UnicodeEncoding::UTF16:
-        var_result = Unsigned(Word32Or(
+        var_result = Signed(Word32Or(
 // Need to swap the order for big-endian platforms
 #if V8_TARGET_BIG_ENDIAN
             Word32Shl(lead, Int32Constant(16)), trail));
@@ -2352,8 +2353,8 @@ TNode<Uint32T> StringBuiltinsAssembler::LoadSurrogatePairAt(
             Int32Constant(0x10000 - (0xD800 << 10) - 0xDC00);
 
         // (lead << 10) + trail + SURROGATE_OFFSET
-        var_result = Unsigned(Int32Add(Word32Shl(lead, Int32Constant(10)),
-                                       Int32Add(trail, surrogate_offset)));
+        var_result = Signed(Int32Add(Word32Shl(lead, Int32Constant(10)),
+                                     Int32Add(trail, surrogate_offset)));
         break;
       }
     }
@@ -2392,8 +2393,8 @@ TF_BUILTIN(StringIteratorPrototypeNext, StringBuiltinsAssembler) {
   BIND(&next_codepoint);
   {
     UnicodeEncoding encoding = UnicodeEncoding::UTF16;
-    Node* ch = LoadSurrogatePairAt(string, length, position, encoding);
-    Node* value = StringFromCodePoint(ch, encoding);
+    TNode<Int32T> ch = LoadSurrogatePairAt(string, length, position, encoding);
+    TNode<String> value = StringFromCodePoint(ch, encoding);
     var_value.Bind(value);
     TNode<IntPtrT> length = LoadStringLengthAsWord(value);
     StoreObjectFieldNoWriteBarrier(iterator, JSStringIterator::kNextIndexOffset,
