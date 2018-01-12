@@ -41,6 +41,15 @@ void GenerateJumpTrampoline(MacroAssembler* masm, Address target) {
   __ jmp(kScratchRegister);
 }
 #undef __
+#elif V8_TARGET_ARCH_S390X
+#define __ masm->
+constexpr bool kModuleCanAllocateMoreMemory = false;
+
+void GenerateJumpTrampoline(MacroAssembler* masm, Address target) {
+  __ mov(ip, Operand(bit_cast<intptr_t, Address>(target)));
+  __ b(ip);
+}
+#undef __
 #else
 const bool kModuleCanAllocateMoreMemory = true;
 #endif
@@ -55,7 +64,7 @@ void PatchTrampolineAndStubCalls(
                         new_code->constant_pool(), RelocInfo::kCodeTargetMask);
        !it.done(); it.next(), orig_it.next()) {
     Address old_target = orig_it.rinfo()->target_address();
-#if V8_TARGET_ARCH_X64
+#if V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_S390X
     auto found = reverse_lookup.find(old_target);
     DCHECK(found != reverse_lookup.end());
     Address new_target = found->second;
@@ -472,7 +481,7 @@ WasmCode* NativeModule::AddCode(
   return ret;
 }
 
-#if V8_TARGET_ARCH_X64
+#if V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_S390X
 Address NativeModule::CreateTrampolineTo(Handle<Code> code) {
   MacroAssembler masm(code->GetIsolate(), nullptr, 0, CodeObjectRequired::kNo);
   Address dest = code->instruction_start();
