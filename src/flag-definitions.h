@@ -588,6 +588,9 @@ DEFINE_INT(frame_count, 1, "number of stack frames inspected by the profiler")
 DEFINE_INT(type_info_threshold, 25,
            "percentage of ICs that must have type info to allow optimization")
 
+DEFINE_INT(stress_sampling_allocation_profiler, 0,
+           "Enables sampling allocation profiler with X as a sample interval")
+
 // Garbage collections flags.
 DEFINE_INT(min_semi_space_size, 0,
            "min size of a semi-space (in MBytes), the new space consists of two"

@@ -16,6 +16,8 @@ ALL_VARIANT_FLAGS = {
   # https://chromium-review.googlesource.com/c/452620/ for more discussion.
   "nooptimization": [["--noopt"]],
   "stress_background_compile": [["--background-compile", "--stress-background-compile"]],
+  # Trigger stress sampling allocation profiler with sample interval = 2^14
+  "stress_sampling": [["--stress-sampling-allocation-profiler=16384"]],
   "trusted": [["--no-untrusted-code-mitigations"]],
   "wasm_traps": [["--wasm_trap_handler", "--invoke-weak-callbacks", "--wasm-jit-to-native"]],
 

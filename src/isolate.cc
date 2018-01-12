@@ -2568,6 +2568,10 @@ Isolate::Isolate(bool enable_serializer)
 void Isolate::TearDown() {
   TRACE_ISOLATE(tear_down);
 
+  if (FLAG_stress_sampling_allocation_profiler > 0) {
+    heap_profiler()->StopSamplingHeapProfiler();
+  }
+
   // Temporarily set this isolate as current so that various parts of
   // the isolate can access it in their destructors without having a
   // direct pointer. We don't use Enter/Exit here to avoid
@@ -3033,6 +3037,15 @@ bool Isolate::Init(StartupDeserializer* des) {
   initialized_from_snapshot_ = (des != nullptr);
 
   if (!FLAG_inline_new) heap_.DisableInlineAllocation();
+
+  if (FLAG_stress_sampling_allocation_profiler > 0) {
+    uint64_t sample_interval = FLAG_stress_sampling_allocation_profiler;
+    int stack_depth = 128;
+    v8::HeapProfiler::SamplingFlags sampling_flags =
+        v8::HeapProfiler::SamplingFlags::kSamplingForceGC;
+    heap_profiler()->StartSamplingHeapProfiler(sample_interval, stack_depth,
+                                               sampling_flags);
+  }
 
   return true;
 }
