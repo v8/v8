@@ -469,9 +469,7 @@ class SharedFunctionInfo : public HeapObject {
   V(IsNativeBit, bool, 1, _)                             \
   V(IsStrictBit, bool, 1, _)                             \
   V(IsWrappedBit, bool, 1, _)                            \
-  V(IsClassConstructorBit, bool, 1, _)                   \
-  V(IsDerivedConstructorBit, bool, 1, _)                 \
-  V(FunctionKindBits, FunctionKind, 5, _)                \
+  V(FunctionKindBits, FunctionKind, 11, _)               \
   V(HasDuplicateParametersBit, bool, 1, _)               \
   V(AllowLazyCompilationBit, bool, 1, _)                 \
   V(NeedsHomeObjectBit, bool, 1, _)                      \
@@ -489,6 +487,12 @@ class SharedFunctionInfo : public HeapObject {
                 DisabledOptimizationReasonBits::kMax);
 
   STATIC_ASSERT(kLastFunctionKind <= FunctionKindBits::kMax);
+  // Masks for checking if certain FunctionKind bits are set without fully
+  // decoding of the FunctionKind bit field.
+  static const int kClassConstructorMask = FunctionKind::kClassConstructor
+                                           << FunctionKindBits::kShift;
+  static const int kDerivedConstructorMask = FunctionKind::kDerivedConstructor
+                                             << FunctionKindBits::kShift;
 
 // Bit positions in |debugger_hints|.
 #define DEBUGGER_HINTS_BIT_FIELDS(V, _)        \

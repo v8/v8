@@ -127,10 +127,9 @@ FunctionKind SharedFunctionInfo::kind() const {
 }
 
 void SharedFunctionInfo::set_kind(FunctionKind kind) {
+  DCHECK(IsValidFunctionKind(kind));
   int hints = compiler_hints();
   hints = FunctionKindBits::update(hints, kind);
-  hints = IsClassConstructorBit::update(hints, IsClassConstructor(kind));
-  hints = IsDerivedConstructorBit::update(hints, IsDerivedConstructor(kind));
   set_compiler_hints(hints);
   UpdateFunctionMapIndex();
 }
