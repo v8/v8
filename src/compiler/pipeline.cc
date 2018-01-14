@@ -430,21 +430,26 @@ class PipelineImpl final {
   template <typename Phase, typename Arg0, typename Arg1>
   void Run(Arg0 arg_0, Arg1 arg_1);
 
-  // Run the graph creation and initial optimization passes.
+  // Step A. Run the graph creation and initial optimization passes.
   bool CreateGraph();
 
-  // Run the concurrent optimization passes.
+  // B. Run the concurrent optimization passes.
   bool OptimizeGraph(Linkage* linkage);
 
-  // Run the code assembly pass.
+  // Substep B.1. Produce a scheduled graph.
+  void ComputeScheduledGraph();
+
+  // Substep B.2. Select instructions from a scheduled graph.
+  bool SelectInstructions(Linkage* linkage);
+
+  // Step C. Run the code assembly pass.
   void AssembleCode(Linkage* linkage);
 
-  // Run the code finalization pass.
+  // Step D. Run the code finalization pass.
   Handle<Code> FinalizeCode();
 
-  bool ScheduleAndSelectInstructions(Linkage* linkage, bool trim_graph);
   void RunPrintAndVerify(const char* phase, bool untyped = false);
-  Handle<Code> ScheduleAndGenerateCode(CallDescriptor* call_descriptor);
+  Handle<Code> GenerateCode(CallDescriptor* call_descriptor);
   void AllocateRegisters(const RegisterConfiguration* config,
                          CallDescriptor* descriptor, bool run_verifier);
 
@@ -959,7 +964,8 @@ PipelineWasmCompilationJob::ExecuteJobImpl() {
     pipeline_.RunPrintAndVerify("Optimized Machine", true);
   }
 
-  if (!pipeline_.ScheduleAndSelectInstructions(&linkage_, true)) return FAILED;
+  pipeline_.ComputeScheduledGraph();
+  if (!pipeline_.SelectInstructions(&linkage_)) return FAILED;
   pipeline_.AssembleCode(&linkage_);
   return SUCCEEDED;
 }
@@ -1937,7 +1943,9 @@ bool PipelineImpl::OptimizeGraph(Linkage* linkage) {
 
   data->source_positions()->RemoveDecorator();
 
-  return ScheduleAndSelectInstructions(linkage, true);
+  ComputeScheduledGraph();
+
+  return SelectInstructions(linkage);
 }
 
 Handle<Code> Pipeline::GenerateCodeForCodeStub(
@@ -1978,7 +1986,7 @@ Handle<Code> Pipeline::GenerateCodeForCodeStub(
   }
 
   pipeline.Run<VerifyGraphPhase>(false, true);
-  return pipeline.ScheduleAndGenerateCode(call_descriptor);
+  return pipeline.GenerateCode(call_descriptor);
 }
 
 // static
@@ -2039,7 +2047,12 @@ Handle<Code> Pipeline::GenerateCodeForTesting(
   // TODO(rossberg): Should this really be untyped?
   pipeline.RunPrintAndVerify("Machine", true);
 
-  return pipeline.ScheduleAndGenerateCode(call_descriptor);
+  // Ensure we have a schedule.
+  if (data.schedule() == nullptr) {
+    pipeline.ComputeScheduledGraph();
+  }
+
+  return pipeline.GenerateCode(call_descriptor);
 }
 
 // static
@@ -2078,19 +2091,26 @@ bool Pipeline::AllocateRegistersForTesting(const RegisterConfiguration* config,
   return !data.compilation_failed();
 }
 
-bool PipelineImpl::ScheduleAndSelectInstructions(Linkage* linkage,
-                                                 bool trim_graph) {
+void PipelineImpl::ComputeScheduledGraph() {
+  PipelineData* data = this->data_;
+
+  // We should only schedule the graph if it is not scheduled yet.
+  DCHECK_NULL(data->schedule());
+
+  Run<LateGraphTrimmingPhase>();
+  RunPrintAndVerify("Late trimmed", true);
+
+  Run<ComputeSchedulePhase>();
+  TraceSchedule(data->info(), data->isolate(), data->schedule());
+}
+
+bool PipelineImpl::SelectInstructions(Linkage* linkage) {
   CallDescriptor* call_descriptor = linkage->GetIncomingDescriptor();
   PipelineData* data = this->data_;
 
+  // We should have a scheduled graph.
   DCHECK_NOT_NULL(data->graph());
-
-  if (trim_graph) {
-    Run<LateGraphTrimmingPhase>();
-    RunPrintAndVerify("Late trimmed", true);
-  }
-  if (data->schedule() == nullptr) Run<ComputeSchedulePhase>();
-  TraceSchedule(data->info(), data->isolate(), data->schedule());
+  DCHECK_NOT_NULL(data->schedule());
 
   if (FLAG_turbo_profiling) {
     data->set_profiler_data(BasicBlockInstrumentor::Instrument(
@@ -2244,12 +2264,11 @@ Handle<Code> PipelineImpl::FinalizeCode() {
   return code;
 }
 
-Handle<Code> PipelineImpl::ScheduleAndGenerateCode(
-    CallDescriptor* call_descriptor) {
+Handle<Code> PipelineImpl::GenerateCode(CallDescriptor* call_descriptor) {
   Linkage linkage(call_descriptor);
 
-  // Schedule the graph, perform instruction selection and register allocation.
-  if (!ScheduleAndSelectInstructions(&linkage, false)) return Handle<Code>();
+  // Perform instruction selection and register allocation.
+  if (!SelectInstructions(&linkage)) return Handle<Code>();
 
   // Generate the final machine code.
   AssembleCode(&linkage);
