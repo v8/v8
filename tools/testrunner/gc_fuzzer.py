@@ -27,7 +27,7 @@ from testrunner.local import verbose
 from testrunner.objects import context
 
 
-DEFAULT_TESTS = ["mjsunit", "webkit"]
+DEFAULT_SUITES = ["mjsunit", "webkit"]
 TIMEOUT_DEFAULT = 60
 
 # Double the timeout for these:
@@ -117,32 +117,6 @@ class GCFuzzer(base_runner.BaseTestRunner):
       count += 1
     return shard
 
-  def _do_execute(self, options, args):
-    suite_paths = utils.GetSuitePaths(join(self.basedir, "test"))
-
-    if len(args) == 0:
-      suite_paths = [ s for s in suite_paths if s in DEFAULT_TESTS ]
-    else:
-      args_suites = set()
-      for arg in args:
-        suite = arg.split(os.path.sep)[0]
-        if not suite in args_suites:
-          args_suites.add(suite)
-      suite_paths = [ s for s in suite_paths if s in args_suites ]
-
-    suites = []
-    for root in suite_paths:
-      suite = testsuite.TestSuite.LoadTestSuite(
-          os.path.join(self.basedir, "test", root))
-      if suite:
-        suites.append(suite)
-
-    try:
-      return self._execute(args, options, suites)
-    except KeyboardInterrupt:
-      return 2
-
-
   def _calculate_n_tests(self, m, options):
     """Calculates the number of tests from m points with exponential coverage.
     The coverage is expected to be between 0.0 and 1.0.
@@ -152,8 +126,10 @@ class GCFuzzer(base_runner.BaseTestRunner):
     l = float(options.coverage_lift)
     return int(math.pow(m, (m * c + l) / (m + l)))
 
+  def _get_default_suite_names(self):
+    return DEFAULT_SUITES
 
-  def _execute(self, args, options, suites):
+  def _do_execute(self, suites, args, options):
     print(">>> Running tests for %s.%s" % (self.build_config.arch,
                                            self.mode_name))
 

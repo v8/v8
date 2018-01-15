@@ -3,6 +3,7 @@
 # found in the LICENSE file.
 
 
+from collections import OrderedDict
 import json
 import optparse
 import os
@@ -16,6 +17,7 @@ sys.path.insert(
     os.path.dirname(os.path.abspath(__file__))))
 
 
+from local import testsuite
 from local import utils
 
 
@@ -210,10 +212,14 @@ class BaseTestRunner(object):
         parser.print_help()
         raise
 
+      suites = self._get_suites(args, options.verbose)
+
       self._setup_env()
-      return self._do_execute(options, args)
+      return self._do_execute(suites, args, options)
     except TestRunnerError:
       return 1
+    except KeyboardInterrupt:
+      return 2
 
   def _create_parser(self):
     parser = optparse.OptionParser()
@@ -445,7 +451,40 @@ class BaseTestRunner(object):
 
     return 'external_symbolizer_path=%s' % external_symbolizer_path
 
+  def _get_suites(self, args, verbose=False):
+    names = self._args_to_suite_names(args)
+    return self._load_suites(names, verbose)
+
+  def _args_to_suite_names(self, args):
+    # Use default tests if no test configuration was provided at the cmd line.
+    if not args:
+      args = self._get_default_suite_names()
+
+    # Expand arguments with grouped tests. The args should reflect the list
+    # of suites as otherwise filters would break.
+    def expand_test_group(name):
+      return TEST_MAP.get(name, [name])
+
+    args = reduce(list.__add__, map(expand_test_group, args), [])
+
+    all_names = set(utils.GetSuitePaths(os.path.join(self.basedir, 'test')))
+    args_names = OrderedDict([(arg.split('/')[0], None) for arg in args]) # set
+    return [name for name in args_names if name in all_names]
+
+  def _get_default_suite_names(self):
+    return []
+
+  def _expand_test_group(self, name):
+    return TEST_MAP.get(name, [name])
+
+  def _load_suites(self, names, verbose=False):
+    def load_suite(name):
+      if verbose:
+        print '>>> Loading test suite: %s' % name
+      return testsuite.TestSuite.LoadTestSuite(
+          os.path.join(self.basedir, 'test', name))
+    return map(load_suite, names)
 
   # TODO(majeski): remove options & args parameters
-  def _do_execute(self, options, args):
+  def _do_execute(self, suites, args, options):
     raise NotImplementedError()

@@ -84,7 +84,10 @@ class StandardTestRunner(base_runner.BaseTestRunner):
 
         self.sancov_dir = None
 
-    def _do_execute(self, options, args):
+    def _get_default_suite_names(self):
+      return ['default']
+
+    def _do_execute(self, suites, args, options):
       if options.swarming:
         # Swarming doesn't print how isolated commands are called. Lets make
         # this less cryptic by printing it ourselves.
@@ -100,41 +103,7 @@ class StandardTestRunner(base_runner.BaseTestRunner):
           except Exception:
             pass
 
-      suite_paths = utils.GetSuitePaths(join(self.basedir, "test"))
-
-      # Use default tests if no test configuration was provided at the cmd line.
-      if len(args) == 0:
-        args = ["default"]
-
-      # Expand arguments with grouped tests. The args should reflect the list
-      # of suites as otherwise filters would break.
-      def ExpandTestGroups(name):
-        if name in base_runner.TEST_MAP:
-          return [suite for suite in base_runner.TEST_MAP[name]]
-        else:
-          return [name]
-      args = reduce(lambda x, y: x + y,
-            [ExpandTestGroups(arg) for arg in args],
-            [])
-
-      args_suites = OrderedDict() # Used as set
-      for arg in args:
-        args_suites[arg.split('/')[0]] = True
-      suite_paths = [ s for s in args_suites if s in suite_paths ]
-
-      suites = []
-      for root in suite_paths:
-        if options.verbose:
-          print '>>> Loading test suite: %s' % root
-        suite = testsuite.TestSuite.LoadTestSuite(
-            os.path.join(self.basedir, "test", root))
-        if suite:
-          suites.append(suite)
-
-      try:
-        return self._execute(args, options, suites)
-      except KeyboardInterrupt:
-        return 2
+      return self._execute(args, options, suites)
 
     def _add_parser_options(self, parser):
       parser.add_option("--sancov-dir",
