@@ -863,6 +863,8 @@ Reduction LoadElimination::ReduceTransitionElementsKind(Node* node) {
     if (object_maps.contains(ZoneHandleSet<Map>(source_map))) {
       object_maps.remove(source_map, zone());
       object_maps.insert(target_map, zone());
+      AliasStateInfo alias_info(state, object, source_map);
+      state = state->KillMaps(alias_info, zone());
       state = state->SetMaps(object, object_maps, zone());
     }
   } else {
@@ -887,6 +889,7 @@ Reduction LoadElimination::ReduceTransitionAndStoreElement(Node* node) {
   if (state->LookupMaps(object, &object_maps)) {
     object_maps.insert(double_map, zone());
     object_maps.insert(fast_map, zone());
+    state = state->KillMaps(object, zone());
     state = state->SetMaps(object, object_maps, zone());
   }
   // Kill the elements as well.
