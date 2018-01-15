@@ -173,7 +173,7 @@
   'test-multiple-return/*': [SKIP],
 }],
 # TODO(ahaas): Port multiple return values to ARM, MIPS, S390 and PPC
-['arch == arm or arch == ia32 or arch == mips or arch == mips64 or arch == mipsel or arch == mips64el or arch == s390 or arch == s390x or arch == ppc or arch == ppc64', {
+['arch == ia32 or arch == mips or arch == mips64 or arch == mipsel or arch == mips64el or arch == s390 or arch == s390x or arch == ppc or arch == ppc64', {
   'test-multiple-return/ReturnLastValue*': [SKIP],
 }],
 ##############################################################################
