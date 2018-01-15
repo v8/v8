@@ -411,7 +411,8 @@ NodeProperties::InferReceiverMapsResult NodeProperties::InferReceiverMaps(
         if (IsSame(receiver, effect)) {
           HeapObjectMatcher mtarget(GetValueInput(effect, 0));
           HeapObjectMatcher mnewtarget(GetValueInput(effect, 1));
-          if (mtarget.HasValue() && mnewtarget.HasValue()) {
+          if (mtarget.HasValue() && mnewtarget.HasValue() &&
+              mnewtarget.Value()->IsJSFunction()) {
             Handle<JSFunction> original_constructor =
                 Handle<JSFunction>::cast(mnewtarget.Value());
             if (original_constructor->has_initial_map()) {
