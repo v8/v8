@@ -298,6 +298,8 @@ ObjectStatsCollectorImpl::ObjectStatsCollectorImpl(Heap* heap,
       marking_state_(
           heap->mark_compact_collector()->non_atomic_marking_state()) {}
 
+// For entries which shared the same instance type (historically FixedArrays)
+// we do a pre-pass and create virtual instance types.
 void ObjectStatsCollectorImpl::CollectVirtualStatistics(HeapObject* obj) {
   if (obj->IsAllocationSite()) {
     RecordVirtualAllocationSiteDetails(AllocationSite::cast(obj));
@@ -312,17 +314,37 @@ void ObjectStatsCollectorImpl::RecordVirtualObjectStats(
 
 void ObjectStatsCollectorImpl::RecordVirtualAllocationSiteDetails(
     AllocationSite* site) {
-  if (site->PointsToLiteral()) {
-    JSObject* boilerplate = site->boilerplate();
-    if (boilerplate->IsJSArray()) {
-      RecordVirtualObjectStats(boilerplate,
-                               ObjectStats::JS_ARRAY_BOILERPLATE_TYPE,
-                               boilerplate->Size());
+  if (!site->PointsToLiteral()) return;
+  JSObject* boilerplate = site->boilerplate();
+  if (boilerplate->IsJSArray()) {
+    RecordVirtualObjectStats(boilerplate,
+                             ObjectStats::JS_ARRAY_BOILERPLATE_TYPE,
+                             boilerplate->Size());
+    // Array boilerplates cannot have properties.
+  } else {
+    RecordVirtualObjectStats(boilerplate,
+                             ObjectStats::JS_OBJECT_BOILERPLATE_TYPE,
+                             boilerplate->Size());
+    if (boilerplate->HasFastProperties()) {
+      // We'll misclassify the empty_proeprty_array here. Given that there is a
+      // single instance, this is neglible.
+      PropertyArray* properties = boilerplate->property_array();
+      RecordVirtualObjectStats(properties,
+                               ObjectStats::BOILERPLATE_PROPERTY_ARRAY_TYPE,
+                               properties->Size());
     } else {
-      RecordVirtualObjectStats(boilerplate,
-                               ObjectStats::JS_OBJECT_BOILERPLATE_TYPE,
-                               boilerplate->Size());
+      NameDictionary* properties = boilerplate->property_dictionary();
+      RecordVirtualObjectStats(properties,
+                               ObjectStats::BOILERPLATE_NAME_DICTIONARY_TYPE,
+                               properties->Size());
     }
+  }
+  FixedArrayBase* elements = boilerplate->elements();
+  // We skip COW elements since they are shared, and we are sure that if the
+  // boilerplate exists there must have been at least one instantiation.
+  if (!elements->IsCowArray()) {
+    RecordVirtualObjectStats(elements, ObjectStats::BOILERPLATE_ELEMENTS_TYPE,
+                             elements->Size());
   }
 }
 
