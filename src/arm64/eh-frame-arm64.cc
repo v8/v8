@@ -35,7 +35,7 @@ int EhFrameWriter::RegisterToDwarfCode(Register name) {
       return kFpDwarfCode;
     case kRegCode_x30:
       return kLrDwarfCode;
-    case kRegCode_x31:
+    case kSPRegInternalCode:
       return kCSpDwarfCode;
     case kRegCode_x0:
       return kX0DwarfCode;
