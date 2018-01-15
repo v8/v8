@@ -664,24 +664,27 @@ void TransitionArray::Sort() {
   int length = number_of_transitions();
   for (int i = 1; i < length; i++) {
     Name* key = GetKey(i);
-    Map* target = GetTarget(i);
+    Object* target = GetRawTarget(i);
     PropertyKind kind = kData;
     PropertyAttributes attributes = NONE;
     if (!TransitionsAccessor::IsSpecialTransition(key)) {
+      Map* target_map = TransitionsAccessor::GetTargetFromRaw(target);
       PropertyDetails details =
-          TransitionsAccessor::GetTargetDetails(key, target);
+          TransitionsAccessor::GetTargetDetails(key, target_map);
       kind = details.kind();
       attributes = details.attributes();
     }
     int j;
     for (j = i - 1; j >= 0; j--) {
       Name* temp_key = GetKey(j);
-      Map* temp_target = GetTarget(j);
+      Object* temp_target = GetRawTarget(j);
       PropertyKind temp_kind = kData;
       PropertyAttributes temp_attributes = NONE;
       if (!TransitionsAccessor::IsSpecialTransition(temp_key)) {
+        Map* temp_target_map =
+            TransitionsAccessor::GetTargetFromRaw(temp_target);
         PropertyDetails details =
-            TransitionsAccessor::GetTargetDetails(temp_key, temp_target);
+            TransitionsAccessor::GetTargetDetails(temp_key, temp_target_map);
         temp_kind = details.kind();
         temp_attributes = details.attributes();
       }
