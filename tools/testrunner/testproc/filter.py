@@ -2,6 +2,9 @@
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
+from collections import defaultdict
+import fnmatch
+
 from . import base
 
 
@@ -43,3 +46,38 @@ class StatusFileFilterProc(base.TestProcFilter):
       (self._pass_fail_tests_mode == 'run' and not is_pass_fail) or
       (self._pass_fail_tests_mode == 'skip' and is_pass_fail)
     )
+
+
+class NameFilterProc(base.TestProcFilter):
+  """Filters tests based on command-line arguments.
+
+  args can be a glob: asterisks in any position of the name
+  represent zero or more characters. Without asterisks, only exact matches
+  will be used with the exeption of the test-suite name as argument.
+  """
+  def __init__(self, args):
+    super(NameFilterProc, self).__init__()
+
+    self._globs = defaultdict(list)
+    for a in args:
+      argpath = a.split('/')
+      suitename = argpath[0]
+      path = '/'.join(argpath[1:])
+      self._globs[suitename].append(path)
+
+    for s, globs in self._globs.iteritems():
+      if not globs or '*' in globs:
+        self._globs[s] = []
+
+  def _filter(self, test):
+    globs = self._globs.get(test.suite.name)
+    if globs is None:
+      return True
+
+    if not globs:
+      return False
+
+    for g in globs:
+      if fnmatch.fnmatch(test.path, g):
+        return False
+    return True

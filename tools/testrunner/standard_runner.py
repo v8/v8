@@ -27,7 +27,7 @@ from testrunner.local.variants import ALL_VARIANTS
 from testrunner.objects import context
 from testrunner.objects import predictable
 from testrunner.testproc.execution import ExecutionProc
-from testrunner.testproc.filter import StatusFileFilterProc
+from testrunner.testproc.filter import StatusFileFilterProc, NameFilterProc
 from testrunner.testproc.loader import LoadProc
 from testrunner.testproc.progress import (VerboseProgressIndicator,
                                           ResultsTracker)
@@ -400,8 +400,10 @@ class StandardTestRunner(base_runner.BaseTestRunner):
       for s in suites:
         s.ReadStatusFile(variables)
         s.ReadTestCases(ctx)
-        if len(args) > 0:
-          s.FilterTestCasesByArgs(args)
+        if not options.infra_staging:
+          # Tests will be filtered in the test processors pipeline
+          if len(args) > 0:
+            s.FilterTestCasesByArgs(args)
         all_tests += s.tests
 
         # First filtering by status applying the generic rules (tests without
@@ -486,8 +488,9 @@ class StandardTestRunner(base_runner.BaseTestRunner):
         outproc_factory = None
 
       if options.infra_staging:
-        exit_code = self._run_test_procs(suites, options, progress_indicator,
-                                         ctx, outproc_factory)
+        exit_code = self._run_test_procs(suites, args, options,
+                                         progress_indicator, ctx,
+                                         outproc_factory)
       else:
         runner = execution.Runner(suites, progress_indicator, ctx,
                                   outproc_factory)
@@ -559,8 +562,8 @@ class StandardTestRunner(base_runner.BaseTestRunner):
         count += 1
       return shard
 
-    def _run_test_procs(self, suites, options, progress_indicator, context,
-                        outproc_factory):
+    def _run_test_procs(self, suites, args, options, progress_indicator,
+                        context, outproc_factory):
       jobs = options.j
 
       print '>>> Running with test processors'
@@ -570,6 +573,7 @@ class StandardTestRunner(base_runner.BaseTestRunner):
 
       procs = [
         loader,
+        NameFilterProc(args),
         VariantProc(VARIANTS),
         StatusFileFilterProc(options.slow_tests, options.pass_fail_tests),
         results,
