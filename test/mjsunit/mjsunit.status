@@ -142,9 +142,9 @@
   'math-floor-of-div-nosudiv': [PASS, SLOW, ['arch not in [arm, arm64, android_arm, android_arm64]', SKIP]],
 
   # Too slow for slow variants.
-  'asm/embenchen/*': [PASS, SLOW, FAST_VARIANTS],
-  'asm/poppler/*': [PASS, SLOW, FAST_VARIANTS],
-  'asm/sqlite3/*': [PASS, SLOW, FAST_VARIANTS],
+  'asm/embenchen/*': [PASS, SLOW, NO_VARIANTS],
+  'asm/poppler/*': [PASS, SLOW, NO_VARIANTS],
+  'asm/sqlite3/*': [PASS, SLOW, NO_VARIANTS],
 
   # Slow tests.
   'copy-on-write-assert': [PASS, SLOW],
@@ -264,7 +264,7 @@
   'regress/regress-inline-getter-near-stack-limit': [PASS, SLOW],
 
   # BUG(v8:4779): Crashes flakily with stress mode on arm64.
-  'array-splice': [PASS, SLOW, ['arch == arm64', FAST_VARIANTS]],
+  'array-splice': [PASS, SLOW, ['arch == arm64', NO_VARIANTS]],
 
   # BUG(chromium:751825): Crashes flakily.
   'wasm/js-api': [SKIP],
