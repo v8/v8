@@ -39,18 +39,32 @@ span {
   margin-top: 10px;
 }
 </style>
-<label for="isolate-select">
-  Isolate
-</label>
-<select id="isolate-select">
-  <option>No data</option>
-</select>
-<label for="dataset-select">
-  Data set
-</label>
-<select id="dataset-select">
-  <option>No data</option>
-</select>
+<ul>
+  <li>
+    <label for="isolate-select">
+      Isolate
+    </label>
+    <select id="isolate-select">
+      <option>No data</option>
+    </select>
+  </li>
+  <li>
+    <label for="dataset-select">
+      Data set
+    </label>
+    <select id="dataset-select">
+      <option>No data</option>
+    </select>
+  </li>
+  <li>
+    <input type="checkbox" id="merge-categories" checked=checked />
+    <label for="merge-categories">
+      Merge categories
+    </label>
+  </li>
+</ul>
+
+
 <div id="categories"></div>
 </template>
 <script type="text/javascript" src="categories.js"></script>

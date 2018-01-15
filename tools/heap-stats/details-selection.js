@@ -17,6 +17,8 @@ class DetailsSelection extends HTMLElement {
         'change', e => this.handleIsolateChange(e));
     this.datasetSelect.addEventListener(
         'change', e => this.notifySelectionChanged(e));
+    this.$('#merge-categories')
+        .addEventListener('change', e => this.notifySelectionChanged(e));
   }
 
   connectedCallback() {
@@ -90,11 +92,15 @@ class DetailsSelection extends HTMLElement {
 
   notifySelectionChanged(e) {
     if (!this.selection.isolate) return;
+
+    this.selection.categories = {};
     for (let category of CATEGORIES.keys()) {
-      this.selection.categories[category] = this.selectedInCategory(category);
+      const selected = this.selectedInCategory(category);
+      if (selected.length > 0) this.selection.categories[category] = selected;
     }
     this.selection.category_names = CATEGORY_NAMES;
     this.selection.data_set = this.datasetSelect.value;
+    this.selection.merge_categories = this.$('#merge-categories').checked;
     this.dispatchEvent(new CustomEvent(
         'change', {bubbles: true, composed: true, detail: this.selection}));
   }

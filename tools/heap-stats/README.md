@@ -9,5 +9,5 @@ The tool consumes log files produced by d8 (or Chromium) by passing
 
 Hosting requires a web server, e.g.:
 
-    cd tools/heap/stats
+    cd tools/heap-stats
     python -m SimpleHTTPServer 8000

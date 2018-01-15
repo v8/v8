@@ -140,8 +140,8 @@ const CATEGORIES = new Map([
 
 // Maps category to description text that is shown in html.
 const CATEGORY_NAMES = new Map([
-  ['user', 'User'],
-  ['system', 'System'],
+  ['user', 'JS'],
+  ['system', 'Metadata'],
   ['code', 'Code'],
   ['unclassified', 'Unclassified'],
 ]);
