@@ -84,6 +84,11 @@ class DetailsSelection extends HTMLElement {
 
   handleIsolateChange(e) {
     this.selection.isolate = this.isolateSelect.value;
+    if (this.selection.isolate.length === 0) {
+      this.selection.isolate = null;
+      return;
+    }
+
     this.populateSelect(
         '#dataset-select', this.data[this.selection.isolate].data_sets, 'live');
     this.populateCategories();

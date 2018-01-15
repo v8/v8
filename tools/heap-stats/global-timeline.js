@@ -44,8 +44,20 @@ class GlobalTimeline extends HTMLElement {
     return this.data && this.selection;
   }
 
+  hide() {
+    this.$('#container').style.display = 'none';
+  }
+
+  show() {
+    this.$('#container').style.display = 'block';
+  }
+
   stateChanged() {
-    if (this.isValid()) this.drawChart();
+    if (this.isValid()) {
+      this.drawChart();
+    } else {
+      this.hide();
+    }
   }
 
   getCategoryData() {
@@ -115,7 +127,7 @@ class GlobalTimeline extends HTMLElement {
       explorer: {},
     };
     const chart = new google.visualization.AreaChart(this.$('#chart'));
-    this.$('#container').style.display = 'block';
+    this.show();
     chart.draw(data, google.charts.Line.convertOptions(options));
   }
 }
