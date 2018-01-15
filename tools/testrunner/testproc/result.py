@@ -12,6 +12,10 @@ class ResultBase(object):
   def is_grouped(self):
     return False
 
+  @property
+  def is_rerun(self):
+    return False
+
 
 class Result(ResultBase):
   """Result created by the output processor."""
@@ -58,3 +62,34 @@ class SkippedResult(ResultBase):
 
 
 SKIPPED = SkippedResult()
+
+
+class RerunResult(Result):
+  """Result generated from several reruns of the same test. It's a subclass of
+  Result since the result of rerun is result of the last run. In addition to
+  normal result it contains results of all reruns.
+  """
+  @staticmethod
+  def create(results):
+    """Create RerunResult based on list of results. List cannot be empty. If it
+    has only one element it's returned as a result.
+    """
+    assert results
+
+    if len(results) == 1:
+      return results[0]
+    return RerunResult(results)
+
+  def __init__(self, results):
+    """Has unexpected output and the output itself of the RerunResult equals to
+    the last result in the passed list.
+    """
+    assert results
+
+    last = results[-1]
+    super(RerunResult, self).__init__(last.has_unexpected_output, last.output)
+    self.results = results
+
+  @property
+  def is_rerun(self):
+    return True

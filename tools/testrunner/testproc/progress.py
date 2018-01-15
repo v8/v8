@@ -295,35 +295,42 @@ class JsonTestProgressIndicator(ProgressIndicator):
     self.tests = []
 
   def _on_result_for(self, test, result):
-    # TODO(majeski): Support for dummy/grouped results
-    output = result.output
-    # Buffer all tests for sorting the durations in the end.
-    self.tests.append((test, output.duration))
+    if result.is_rerun:
+      self.process_results(test, result.results)
+    else:
+      self.process_results(test, [result])
 
-    # TODO(majeski): Previously we included reruns here. If we still want this
-    # json progress indicator should be placed just before execution.
-    if not result.has_unexpected_output:
-      # Omit tests that run as expected.
-      return
+  def process_results(self, test, results):
+    for run, result in enumerate(results):
+      # TODO(majeski): Support for dummy/grouped results
+      output = result.output
+      # Buffer all tests for sorting the durations in the end.
+      self.tests.append((test, output.duration))
 
-    self.results.append({
-      "name": str(test),
-      "flags": test.cmd.args,
-      "command": test.cmd.to_string(relative=True),
-      "run": -100, # TODO(majeski): do we need this?
-      "stdout": output.stdout,
-      "stderr": output.stderr,
-      "exit_code": output.exit_code,
-      "result": test.output_proc.get_outcome(output),
-      "expected": test.expected_outcomes,
-      "duration": output.duration,
+      # Omit tests that run as expected on the first try.
+      # Everything that happens after the first run is included in the output
+      # even if it flakily passes.
+      if not result.has_unexpected_output and run == 0:
+        continue
 
-      # TODO(machenbach): This stores only the global random seed from the
-      # context and not possible overrides when using random-seed stress.
-      "random_seed": self.random_seed,
-      "target_name": test.get_shell(),
-      "variant": test.variant,
-    })
+      self.results.append({
+        "name": str(test),
+        "flags": test.cmd.args,
+        "command": test.cmd.to_string(relative=True),
+        "run": run + 1,
+        "stdout": output.stdout,
+        "stderr": output.stderr,
+        "exit_code": output.exit_code,
+        "result": test.output_proc.get_outcome(output),
+        "expected": test.expected_outcomes,
+        "duration": output.duration,
+
+        # TODO(machenbach): This stores only the global random seed from the
+        # context and not possible overrides when using random-seed stress.
+        "random_seed": self.random_seed,
+        "target_name": test.get_shell(),
+        "variant": test.variant,
+      })
 
   def finished(self):
     complete_results = []

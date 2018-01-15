@@ -242,7 +242,7 @@ class SystemTest(unittest.TestCase):
         self.assertIn('3 tests failed', result.stdout, result)
       else:
         # With test processors we don't count reruns as separated failures.
-        # TODO(majeski): fix it.
+        # TODO(majeski): fix it?
         self.assertIn('1 tests failed', result.stdout, result)
       self.assertEqual(0, result.returncode, result)
 
@@ -264,10 +264,7 @@ class SystemTest(unittest.TestCase):
         replace_variable_data(data)
       json_output['duration_mean'] = 1
 
-      suffix = ''
-      if infra_staging:
-        suffix = '-proc'
-      expected_results_name = 'expected_test_results1%s.json' % suffix
+      expected_results_name = 'expected_test_results1.json'
       with open(os.path.join(TEST_DATA_ROOT, expected_results_name)) as f:
         expected_test_results = json.load(f)
 
