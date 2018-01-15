@@ -808,7 +808,8 @@ class LiftoffCompiler {
                const MemoryAccessOperand<validate>& operand,
                const Value& index_val, Value* result) {
     ValueType value_type = type.value_type();
-    if (value_type != kWasmI32) return unsupported(decoder, "non-i32 load");
+    if (value_type != kWasmI32 && value_type != kWasmF32)
+      return unsupported(decoder, "unsupported load type");
     LiftoffRegList pinned;
     Register index = pinned.set(__ PopToRegister(kGpReg)).gp();
     if (!env_->use_trap_handler) {
@@ -834,7 +835,8 @@ class LiftoffCompiler {
                 const MemoryAccessOperand<validate>& operand,
                 const Value& index_val, const Value& value_val) {
     ValueType value_type = type.value_type();
-    if (value_type != kWasmI32) return unsupported(decoder, "non-i32 store");
+    if (value_type != kWasmI32 && value_type != kWasmF32)
+      return unsupported(decoder, "unsupported store type");
     RegClass rc = reg_class_for(value_type);
     LiftoffRegList pinned;
     LiftoffRegister value = pinned.set(__ PopToRegister(rc));
