@@ -44,7 +44,6 @@ TurboAssembler::TurboAssembler(Isolate* isolate, void* buffer, int buffer_size,
 #endif
       tmp_list_(DefaultTmpList()),
       fptmp_list_(DefaultFPTmpList()),
-      sp_(csp),
       use_real_aborts_(true) {
   if (create_code_object == CodeObjectRequired::kYes) {
     code_object_ =
@@ -1425,7 +1424,7 @@ void MacroAssembler::PushCalleeSavedRegisters() {
   stp(d8, d9, tos);
 
   stp(x29, x30, tos);
-  stp(x27, x28, tos);    // x28 = jssp
+  stp(x27, x28, tos);
   stp(x25, x26, tos);
   stp(x23, x24, tos);
   stp(x21, x22, tos);
@@ -1447,7 +1446,7 @@ void MacroAssembler::PopCalleeSavedRegisters() {
   ldp(x21, x22, tos);
   ldp(x23, x24, tos);
   ldp(x25, x26, tos);
-  ldp(x27, x28, tos);    // x28 = jssp
+  ldp(x27, x28, tos);
   ldp(x29, x30, tos);
 
   ldp(d8, d9, tos);
@@ -2753,8 +2752,6 @@ int MacroAssembler::SafepointRegisterStackIndex(int reg_code) {
   // registers are saved. The following registers are excluded:
   //  - x16 and x17 (ip0 and ip1) because they shouldn't be preserved outside of
   //    the macro assembler.
-  //  - x28 (jssp) because JS stack pointer doesn't need to be included in
-  //    safepoint registers.
   //  - x31 (csp) because the system stack pointer doesn't need to be included
   //    in safepoint registers.
   //
@@ -2762,12 +2759,9 @@ int MacroAssembler::SafepointRegisterStackIndex(int reg_code) {
   // safepoint register slots.
   if ((reg_code >= 0) && (reg_code <= 15)) {
     return reg_code;
-  } else if ((reg_code >= 18) && (reg_code <= 27)) {
+  } else if ((reg_code >= 18) && (reg_code <= 30)) {
     // Skip ip0 and ip1.
     return reg_code - 2;
-  } else if ((reg_code == 29) || (reg_code == 30)) {
-    // Also skip jssp.
-    return reg_code - 3;
   } else {
     // This register has no safepoint register slot.
     UNREACHABLE();

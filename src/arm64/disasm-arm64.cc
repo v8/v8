@@ -3331,8 +3331,6 @@ void DisassemblingDecoder::AppendRegisterNameToOutput(const CPURegister& reg) {
     // Filter special registers
     if (reg.IsX() && (reg.code() == 27)) {
       AppendToOutput("cp");
-    } else if (reg.IsX() && (reg.code() == 28)) {
-      AppendToOutput("jssp");
     } else if (reg.IsX() && (reg.code() == 29)) {
       AppendToOutput("fp");
     } else if (reg.IsX() && (reg.code() == 30)) {

@@ -625,18 +625,17 @@ void Simulator::DoRuntimeCall(Instruction* instr) {
   set_pc(return_address);
 }
 
-
 const char* Simulator::xreg_names[] = {
-"x0",  "x1",  "x2",  "x3",  "x4",   "x5",  "x6",  "x7",
-"x8",  "x9",  "x10", "x11", "x12",  "x13", "x14", "x15",
-"ip0", "ip1", "x18", "x19", "x20",  "x21", "x22", "x23",
-"x24", "x25", "x26", "cp",  "jssp", "fp",  "lr",  "xzr", "csp"};
+    "x0",  "x1",  "x2",  "x3",  "x4",  "x5",  "x6",  "x7",  "x8",
+    "x9",  "x10", "x11", "x12", "x13", "x14", "x15", "ip0", "ip1",
+    "x18", "x19", "x20", "x21", "x22", "x23", "x24", "x25", "x26",
+    "cp",  "x28", "fp",  "lr",  "xzr", "csp"};
 
 const char* Simulator::wreg_names[] = {
-"w0",  "w1",  "w2",  "w3",  "w4",    "w5",  "w6",  "w7",
-"w8",  "w9",  "w10", "w11", "w12",   "w13", "w14", "w15",
-"w16", "w17", "w18", "w19", "w20",   "w21", "w22", "w23",
-"w24", "w25", "w26", "wcp", "wjssp", "wfp", "wlr", "wzr", "wcsp"};
+    "w0",  "w1",  "w2",  "w3",  "w4",  "w5",  "w6",  "w7",  "w8",
+    "w9",  "w10", "w11", "w12", "w13", "w14", "w15", "w16", "w17",
+    "w18", "w19", "w20", "w21", "w22", "w23", "w24", "w25", "w26",
+    "wcp", "w28", "wfp", "wlr", "wzr", "wcsp"};
 
 const char* Simulator::sreg_names[] = {
 "s0",  "s1",  "s2",  "s3",  "s4",  "s5",  "s6",  "s7",
@@ -3198,7 +3197,7 @@ void Simulator::Debug() {
         int next_arg = 1;
 
         if (strcmp(cmd, "stack") == 0) {
-          cur = reinterpret_cast<int64_t*>(jssp());
+          cur = reinterpret_cast<int64_t*>(sp());
 
         } else {  // "mem"
           int64_t value;

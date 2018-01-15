@@ -12008,7 +12008,6 @@ TEST(register_bit) {
   CHECK(xzr.bit() == (1UL << kZeroRegCode));
 
   // Internal ABI definitions.
-  CHECK(jssp.bit() == (1UL << kJSSPCode));
   CHECK(csp.bit() == (1UL << kSPRegInternalCode));
   CHECK(csp.bit() != xzr.bit());
 
@@ -12016,7 +12015,6 @@ TEST(register_bit) {
   CHECK(x0.bit() == w0.bit());
   CHECK(x1.bit() == w1.bit());
   CHECK(x10.bit() == w10.bit());
-  CHECK(jssp.bit() == wjssp.bit());
   CHECK(xzr.bit() == wzr.bit());
   CHECK(csp.bit() == wcsp.bit());
 }
@@ -12293,8 +12291,7 @@ enum PushPopMethod {
   PushPopRegList
 };
 
-
-// The maximum number of registers that can be used by the PushPopJssp* tests,
+// The maximum number of registers that can be used by the PushPop* tests,
 // where a reg_count field is provided.
 static int const kPushPopMaxRegCount = -1;
 

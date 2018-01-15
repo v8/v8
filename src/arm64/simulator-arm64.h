@@ -891,7 +891,6 @@ class Simulator : public DecoderVisitor, public SimulatorBase {
   inline SimVRegister& vreg(unsigned code) { return vregisters_[code]; }
 
   int64_t sp() { return xreg(31, Reg31IsStackPointer); }
-  int64_t jssp() { return xreg(kJSSPCode, Reg31IsStackPointer); }
   int64_t fp() {
       return xreg(kFramePointerRegCode, Reg31IsStackPointer);
   }

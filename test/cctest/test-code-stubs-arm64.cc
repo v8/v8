@@ -64,6 +64,7 @@ ConvertDToIFunc MakeConvertDToIFuncTrampoline(Isolate* isolate,
   // Save registers make sure they don't get clobbered.
   int source_reg_offset = kDoubleSize;
   int reg_num = 0;
+  queue.Queue(xzr);  // Push xzr to maintain sp alignment.
   for (; reg_num < Register::kNumRegisters; ++reg_num) {
     if (RegisterConfiguration::Default()->IsAllocatableGeneralCode(reg_num)) {
       Register reg = Register::from_code(reg_num);
@@ -84,22 +85,35 @@ ConvertDToIFunc MakeConvertDToIFuncTrampoline(Isolate* isolate,
 
   // Make sure no registers have been unexpectedly clobbered.
   {
+    const RegisterConfiguration* config(RegisterConfiguration::Default());
+    int allocatable_register_count =
+        config->num_allocatable_general_registers();
     UseScratchRegisterScope temps(&masm);
     Register temp0 = temps.AcquireX();
     Register temp1 = temps.AcquireX();
-    for (--reg_num; reg_num >= 0; reg_num -= 2) {
-      if (RegisterConfiguration::Default()->IsAllocatableGeneralCode(reg_num)) {
-        Register reg0 = Register::from_code(reg_num);
-        Register reg1 = Register::from_code(reg_num - 1);
-        __ Pop(temp0, temp1);
-        if (!reg0.is(destination_reg)) {
-          __ Cmp(reg0, temp0);
-          __ Assert(eq, AbortReason::kRegisterWasClobbered);
-        }
-        if (!reg1.is(destination_reg)) {
-          __ Cmp(reg1, temp1);
-          __ Assert(eq, AbortReason::kRegisterWasClobbered);
-        }
+    for (int i = allocatable_register_count - 1; i > 0; i -= 2) {
+      int code0 = config->GetAllocatableGeneralCode(i);
+      int code1 = config->GetAllocatableGeneralCode(i - 1);
+      Register reg0 = Register::from_code(code0);
+      Register reg1 = Register::from_code(code1);
+      __ Pop(temp0, temp1);
+      if (!reg0.is(destination_reg)) {
+        __ Cmp(reg0, temp0);
+        __ Assert(eq, AbortReason::kRegisterWasClobbered);
+      }
+      if (!reg1.is(destination_reg)) {
+        __ Cmp(reg1, temp1);
+        __ Assert(eq, AbortReason::kRegisterWasClobbered);
+      }
+    }
+
+    if (allocatable_register_count % 2 != 0) {
+      int code = config->GetAllocatableGeneralCode(0);
+      Register reg = Register::from_code(code);
+      __ Pop(temp0, xzr);
+      if (!reg.is(destination_reg)) {
+        __ Cmp(reg, temp0);
+        __ Assert(eq, AbortReason::kRegisterWasClobbered);
       }
     }
   }

@@ -147,9 +147,6 @@ CPURegList CPURegList::GetSafepointSavedRegisters() {
   // is a caller-saved register according to the procedure call standard.
   list.Combine(18);
 
-  // Drop jssp as the stack pointer doesn't need to be included.
-  list.Remove(28);
-
   // Add the link register (x30) to the safepoint list.
   list.Combine(30);
 

@@ -766,10 +766,10 @@ static void Generate_JSEntryTrampolineHelper(MacroAssembler* masm,
     __ Mov(x23, x19);
     __ Mov(x24, x19);
     __ Mov(x25, x19);
+    __ Mov(x28, x19);
     // Don't initialize the reserved registers.
     // x26 : root register (root).
     // x27 : context pointer (cp).
-    // x28 : JS stack pointer (jssp).
     // x29 : frame pointer (fp).
 
     Handle<Code> builtin = is_construct
@@ -986,7 +986,6 @@ static void AdvanceBytecodeOffset(MacroAssembler* masm, Register bytecode_array,
 //   - x3: the incoming new target or generator object
 //   - cp: our context.
 //   - fp: our caller's frame pointer.
-//   - jssp: stack pointer.
 //   - lr: return address.
 //
 // The function builds an interpreter frame.  See InterpreterFrameConstants in

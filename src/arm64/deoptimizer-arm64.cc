@@ -108,11 +108,9 @@ void Deoptimizer::TableEntryGenerator::Generate() {
   __ PushCPURegList(saved_float_registers);
 
   // We save all the registers except sp, lr and the masm scratches.
-  CPURegList saved_registers(CPURegister::kRegister, kXRegSizeInBits, 0, 27);
+  CPURegList saved_registers(CPURegister::kRegister, kXRegSizeInBits, 0, 28);
   saved_registers.Remove(ip0);
   saved_registers.Remove(ip1);
-  // TODO(arm): padding here can be replaced with jssp/x28 when allocatable.
-  saved_registers.Combine(padreg);
   saved_registers.Combine(fp);
   DCHECK_EQ(saved_registers.Count() % 2, 0);
   __ PushCPURegList(saved_registers);

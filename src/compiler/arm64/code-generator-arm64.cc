@@ -2196,8 +2196,6 @@ void CodeGenerator::AssembleArchTrap(Instruction* instr,
         __ Ret();
       } else {
         DCHECK(csp.Is(__ StackPointer()));
-        // Initialize the jssp because it is required for the runtime call.
-        __ Mov(jssp, csp);
         gen_->AssembleSourcePosition(instr_);
         __ Call(__ isolate()->builtins()->builtin_handle(trap_id),
                 RelocInfo::CODE_TARGET);
@@ -2360,8 +2358,6 @@ void CodeGenerator::AssembleConstructFrame() {
       }
       DCHECK(__ StackPointer().Is(csp));
       __ AssertStackConsistency();
-      // Initialize the jssp because it is required for the runtime call.
-      __ Mov(jssp, csp);
       __ Mov(cp, Smi::kZero);
       __ CallRuntimeDelayed(zone(), Runtime::kThrowWasmStackOverflow);
       // We come from WebAssembly, there are no references for the GC.
