@@ -696,8 +696,8 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
         __ daddiu(at, i.InputRegister(0), 0);
         __ Call(at);
       }
+      RecordCallPosition(instr);
       frame_access_state()->ClearSPDelta();
-      frame_access_state()->SetFrameAccessToDefault();
       break;
     }
     case kArchTailCallCodeObjectFromJSFunction:
