@@ -273,10 +273,6 @@ Handle<FixedArray> DecodeLocalNames(Isolate*, Handle<WasmSharedModuleData>);
 // TODO(titzer): move this to WasmExportedFunction.
 WasmFunction* GetWasmFunctionForExport(Isolate* isolate, Handle<Object> target);
 
-void UpdateDispatchTables(Isolate* isolate, Handle<FixedArray> dispatch_tables,
-                          int index, const WasmFunction* function,
-                          Handle<Object> code_or_foreign);
-
 Handle<Object> GetOrCreateIndirectCallWrapper(
     Isolate* isolate, Handle<WasmInstanceObject> owning_instance,
     WasmCodeWrapper wasm_code, uint32_t index, FunctionSig* sig);

@@ -129,13 +129,19 @@ class WasmTableObject : public JSObject {
   static Handle<WasmTableObject> New(Isolate* isolate, uint32_t initial,
                                      int64_t maximum,
                                      Handle<FixedArray>* js_functions);
-  static Handle<FixedArray> AddDispatchTable(
-      Isolate* isolate, Handle<WasmTableObject> table,
-      Handle<WasmInstanceObject> instance, int table_index,
-      Handle<FixedArray> function_table, Handle<FixedArray> signature_table);
+  static void AddDispatchTable(Isolate* isolate, Handle<WasmTableObject> table,
+                               Handle<WasmInstanceObject> instance,
+                               int table_index,
+                               Handle<FixedArray> function_table,
+                               Handle<FixedArray> signature_table);
 
   static void Set(Isolate* isolate, Handle<WasmTableObject> table,
                   int32_t index, Handle<JSFunction> function);
+
+  static void UpdateDispatchTables(Isolate* isolate,
+                                   Handle<WasmTableObject> table, int index,
+                                   wasm::FunctionSig* sig,
+                                   Handle<Object> code_or_foreign);
 };
 
 // Representation of a WebAssembly.Memory JavaScript-level object.

@@ -3513,13 +3513,6 @@ void InstanceBuilder::LoadTableSegments(Handle<FixedArray> code_table,
   for (int index = 0; index < function_table_count; ++index) {
     TableInstance& table_instance = table_instances_[index];
 
-    Handle<FixedArray> all_dispatch_tables;
-    if (!table_instance.table_object.is_null()) {
-      // Get the existing dispatch table(s) with the WebAssembly.Table object.
-      all_dispatch_tables =
-          handle(table_instance.table_object->dispatch_tables());
-    }
-
     // Count the number of table exports for each function (needed for lazy
     // compilation).
     std::unordered_map<uint32_t, uint32_t> num_table_exports;
@@ -3572,7 +3565,7 @@ void InstanceBuilder::LoadTableSegments(Handle<FixedArray> code_table,
           table_instance.function_table->set(table_index, *wasm_code.GetCode());
           value_to_update_with = wasm_code.GetCode();
         }
-        if (!all_dispatch_tables.is_null()) {
+        if (!table_instance.table_object.is_null()) {
           if (js_wrappers_[func_index].is_null()) {
             // No JSFunction entry yet exists for this function. Create one.
             // TODO(titzer): We compile JS->wasm wrappers for functions are
@@ -3623,8 +3616,9 @@ void InstanceBuilder::LoadTableSegments(Handle<FixedArray> code_table,
                          WasmCode::kWasmToWasmWrapper);
             }
           }
-          UpdateDispatchTables(isolate_, all_dispatch_tables, table_index,
-                               function, value_to_update_with);
+          WasmTableObject::UpdateDispatchTables(
+              isolate_, table_instance.table_object, table_index, function->sig,
+              value_to_update_with);
         }
       }
     }
@@ -3642,7 +3636,7 @@ void InstanceBuilder::LoadTableSegments(Handle<FixedArray> code_table,
     // initialized.
     if (!table_instance.table_object.is_null()) {
       // Add the new dispatch table to the WebAssembly.Table object.
-      all_dispatch_tables = WasmTableObject::AddDispatchTable(
+      WasmTableObject::AddDispatchTable(
           isolate_, table_instance.table_object, instance, index,
           table_instance.function_table, table_instance.signature_table);
     }
