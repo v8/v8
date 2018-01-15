@@ -163,6 +163,15 @@ void CompiledModuleFinalizer(const v8::WeakCallbackInfo<void>& data) {
   GlobalHandles::Destroy(reinterpret_cast<Object**>(p));
 }
 
+enum DispatchTableElements : int {
+  kDispatchTableInstanceOffset,
+  kDispatchTableIndexOffset,
+  kDispatchTableFunctionTableOffset,
+  kDispatchTableSignatureTableOffset,
+  // Marker:
+  kDispatchTableNumElements
+};
+
 }  // namespace
 
 Handle<WasmModuleObject> WasmModuleObject::New(
@@ -207,7 +216,7 @@ Handle<WasmTableObject> WasmTableObject::New(Isolate* isolate, uint32_t initial,
   Handle<Object> max = isolate->factory()->NewNumber(maximum);
   table_obj->set_maximum_length(*max);
 
-  Handle<FixedArray> dispatch_tables = isolate->factory()->NewFixedArray(0);
+  Handle<FixedArray> dispatch_tables = isolate->factory()->empty_fixed_array();
   table_obj->set_dispatch_tables(*dispatch_tables);
   return Handle<WasmTableObject>::cast(table_obj);
 }
@@ -219,20 +228,25 @@ void WasmTableObject::AddDispatchTable(Isolate* isolate,
                                        Handle<FixedArray> function_table,
                                        Handle<FixedArray> signature_table) {
   Handle<FixedArray> dispatch_tables(table_obj->dispatch_tables());
-  DCHECK_EQ(0, dispatch_tables->length() % 4);
+  int old_length = dispatch_tables->length();
+  DCHECK_EQ(0, old_length % kDispatchTableNumElements);
 
   if (instance.is_null()) return;
   // TODO(titzer): use weak cells here to avoid leaking instances.
 
   // Grow the dispatch table and add a new entry at the end.
   Handle<FixedArray> new_dispatch_tables =
-      isolate->factory()->CopyFixedArrayAndGrow(dispatch_tables, 4);
+      isolate->factory()->CopyFixedArrayAndGrow(dispatch_tables,
+                                                kDispatchTableNumElements);
 
-  new_dispatch_tables->set(dispatch_tables->length() + 0, *instance);
-  new_dispatch_tables->set(dispatch_tables->length() + 1,
+  new_dispatch_tables->set(old_length + kDispatchTableInstanceOffset,
+                           *instance);
+  new_dispatch_tables->set(old_length + kDispatchTableIndexOffset,
                            Smi::FromInt(table_index));
-  new_dispatch_tables->set(dispatch_tables->length() + 2, *function_table);
-  new_dispatch_tables->set(dispatch_tables->length() + 3, *signature_table);
+  new_dispatch_tables->set(old_length + kDispatchTableFunctionTableOffset,
+                           *function_table);
+  new_dispatch_tables->set(old_length + kDispatchTableSignatureTableOffset,
+                           *signature_table);
 
   table_obj->set_dispatch_tables(*new_dispatch_tables);
 }
@@ -241,15 +255,16 @@ void WasmTableObject::Grow(Isolate* isolate, uint32_t count) {
   // TODO(6792): No longer needed once WebAssembly code is off heap.
   CodeSpaceMemoryModificationScope modification_scope(isolate->heap());
   Handle<FixedArray> dispatch_tables(this->dispatch_tables());
-  DCHECK_EQ(0, dispatch_tables->length() % 4);
+  DCHECK_EQ(0, dispatch_tables->length() % kDispatchTableNumElements);
   uint32_t old_size = functions()->length();
 
   Zone specialization_zone(isolate->allocator(), ZONE_NAME);
-  for (int i = 0; i < dispatch_tables->length(); i += 4) {
-    Handle<FixedArray> old_function_table(
-        FixedArray::cast(dispatch_tables->get(i + 2)));
-    Handle<FixedArray> old_signature_table(
-        FixedArray::cast(dispatch_tables->get(i + 3)));
+  for (int i = 0; i < dispatch_tables->length();
+       i += kDispatchTableNumElements) {
+    Handle<FixedArray> old_function_table(FixedArray::cast(
+        dispatch_tables->get(i + kDispatchTableFunctionTableOffset)));
+    Handle<FixedArray> old_signature_table(FixedArray::cast(
+        dispatch_tables->get(i + kDispatchTableSignatureTableOffset)));
     Handle<FixedArray> new_function_table = isolate->global_handles()->Create(
         *isolate->factory()->CopyFixedArrayAndGrow(old_function_table, count));
     Handle<FixedArray> new_signature_table = isolate->global_handles()->Create(
@@ -259,10 +274,13 @@ void WasmTableObject::Grow(Isolate* isolate, uint32_t count) {
     GlobalHandleAddress new_signature_table_addr =
         new_signature_table.address();
 
-    int table_index = Smi::cast(dispatch_tables->get(i + 1))->value();
-    // Update dispatch tables with new function/signature tables
-    dispatch_tables->set(i + 2, *new_function_table);
-    dispatch_tables->set(i + 3, *new_signature_table);
+    int table_index =
+        Smi::cast(dispatch_tables->get(i + kDispatchTableIndexOffset))->value();
+    // Update dispatch tables with new function tables.
+    dispatch_tables->set(i + kDispatchTableFunctionTableOffset,
+                         *new_function_table);
+    dispatch_tables->set(i + kDispatchTableSignatureTableOffset,
+                         *new_signature_table);
 
     // Patch the code of the respective instance.
     if (FLAG_wasm_jit_to_native) {
@@ -355,16 +373,23 @@ void WasmTableObject::UpdateDispatchTables(Isolate* isolate,
                                            int index, wasm::FunctionSig* sig,
                                            Handle<Object> code_or_foreign) {
   Handle<FixedArray> dispatch_tables(table->dispatch_tables(), isolate);
-  DCHECK_EQ(0, dispatch_tables->length() % 4);
-  for (int i = 0; i < dispatch_tables->length(); i += 4) {
+  DCHECK_EQ(0, dispatch_tables->length() % kDispatchTableNumElements);
+  for (int i = 0; i < dispatch_tables->length();
+       i += kDispatchTableNumElements) {
     Handle<FixedArray> function_table(
-        FixedArray::cast(dispatch_tables->get(i + 2)), isolate);
+        FixedArray::cast(
+            dispatch_tables->get(i + kDispatchTableFunctionTableOffset)),
+        isolate);
     Handle<FixedArray> signature_table(
-        FixedArray::cast(dispatch_tables->get(i + 3)), isolate);
+        FixedArray::cast(
+            dispatch_tables->get(i + kDispatchTableSignatureTableOffset)),
+        isolate);
     if (sig) {
       DCHECK(code_or_foreign->IsCode() || code_or_foreign->IsForeign());
       Handle<WasmInstanceObject> instance(
-          WasmInstanceObject::cast(dispatch_tables->get(i)), isolate);
+          WasmInstanceObject::cast(
+              dispatch_tables->get(i + kDispatchTableInstanceOffset)),
+          isolate);
       // Note that {SignatureMap::Find} may return {-1} if the signature is
       // not found; it will simply never match any check.
       auto sig_index = instance->module()->signature_map.Find(sig);
