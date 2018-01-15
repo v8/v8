@@ -595,9 +595,6 @@
   'math-floor-of-div-nosudiv': [PASS, ['mode == debug', SKIP]],
   'unicodelctest': [PASS, ['mode == debug', SKIP]],
 
-  # BUG(v8:4495).
-  'es6/collections': [PASS, ['arch == ia32', FAST_VARIANTS]],
-
   # Setting the timezone and locale with environment variables unavailable
   'icu-date-to-string': [SKIP],
   'icu-date-lord-howe': [SKIP],
