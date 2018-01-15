@@ -472,15 +472,20 @@ size_t NativeModuleSerializer::Write(Vector<byte> dest) {
         dest = dest + DrainBuffer(dest);
         if (remaining_.size() == 0) {
           index_ = native_module_->num_imported_functions();
-          BufferCurrentWasmCode();
-          state_ = CodeSection;
+          if (index_ < native_module_->FunctionCount()) {
+            BufferCurrentWasmCode();
+            state_ = CodeSection;
+          } else {
+            state_ = Done;
+          }
         }
         break;
       }
       case CodeSection: {
         dest = dest + DrainBuffer(dest);
         if (remaining_.size() == 0) {
-          if (++index_ < native_module_->FunctionCount()) {
+          ++index_;  // Move to next code object.
+          if (index_ < native_module_->FunctionCount()) {
             BufferCurrentWasmCode();
           } else {
             state_ = Done;
