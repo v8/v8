@@ -16703,26 +16703,18 @@ MaybeHandle<JSTypedArray> JSTypedArray::SpeciesCreate(
 
   // 2. Let defaultConstructor be the intrinsic object listed in column one of
   // Table 51 for exemplar.[[TypedArrayName]].
-  Handle<JSFunction> default_ctor = isolate->uint8_array_fun();
-  switch (exemplar->type()) {
-#define TYPED_ARRAY_CTOR(Type, type, TYPE, ctype, size) \
-  case kExternal##Type##Array: {                        \
-    default_ctor = isolate->type##_array_fun();         \
-    break;                                              \
-  }
-
-    TYPED_ARRAYS(TYPED_ARRAY_CTOR)
-#undef TYPED_ARRAY_CTOR
-    default:
-      UNREACHABLE();
-  }
+  Handle<JSFunction> default_ctor =
+      JSTypedArray::DefaultConstructor(isolate, exemplar);
 
   // 3. Let constructor be ? SpeciesConstructor(exemplar, defaultConstructor).
-  Handle<Object> ctor;
-  ASSIGN_RETURN_ON_EXCEPTION(
-      isolate, ctor,
-      Object::SpeciesConstructor(isolate, exemplar, default_ctor),
-      JSTypedArray);
+  Handle<Object> ctor = default_ctor;
+  if (!exemplar->HasJSTypedArrayPrototype(isolate) ||
+      !isolate->IsArraySpeciesLookupChainIntact()) {
+    ASSIGN_RETURN_ON_EXCEPTION(
+        isolate, ctor,
+        Object::SpeciesConstructor(isolate, exemplar, default_ctor),
+        JSTypedArray);
+  }
 
   // 4. Return ? TypedArrayCreate(constructor, argumentList).
   return Create(isolate, ctor, argc, argv, method_name);
