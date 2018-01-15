@@ -35,11 +35,13 @@
   ],
   'V8 Linux64 - fyi': [
     {'name': 'v8testing', 'variant': 'infra_staging', 'shards': 1},
+    {'name': 'test262_variants', 'variant': 'infra_staging', 'shards': 2},
     {'name': 'mjsunit', 'variant': 'stress_sampling', 'shards': 1},
     {'name': 'webkit', 'variant': 'stress_sampling', 'shards': 1},
   ],
   'V8 Linux64 - debug - fyi': [
     {'name': 'v8testing', 'variant': 'infra_staging', 'shards': 2},
+    {'name': 'test262_variants', 'variant': 'infra_staging', 'shards': 3},
     {'name': 'mjsunit', 'variant': 'stress_sampling', 'shards': 1},
     {'name': 'webkit', 'variant': 'stress_sampling', 'shards': 1},
   ],
