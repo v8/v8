@@ -12,6 +12,7 @@ import hashlib
 import itertools
 import json
 import os
+import random
 import re
 import sys
 import traceback
@@ -74,6 +75,14 @@ CONFIGS = dict(
     '--suppress-asm-messages',
   ],
 )
+
+# Additional flag experiments. List of tuples like
+# (<likelihood to use flags in [0,1)>, <flag>).
+ADDITIONAL_FLAGS = [
+  (0.05, '--stress-marking=100'),
+  (0.05, '--stress-scavenge=100'),
+  (0.05, '--stress-compaction-random'),
+]
 
 # Timeout in seconds for one d8 run.
 TIMEOUT = 3
@@ -247,6 +256,7 @@ def fail_bailout(output, ignore_by_output_fun):
 
 def main():
   options = parse_args()
+  rng = random.Random(options.random_seed)
 
   # Suppressions are architecture and configuration specific.
   suppress = v8_suppressions.get_suppression(
@@ -266,6 +276,11 @@ def main():
   common_flags = FLAGS + ['--random-seed', str(options.random_seed)]
   first_config_flags = common_flags + CONFIGS[options.first_config]
   second_config_flags = common_flags + CONFIGS[options.second_config]
+
+  # Add additional flags to second config based on experiment percentages.
+  for p, flag in ADDITIONAL_FLAGS:
+    if rng.random() < p:
+      second_config_flags.append(flag)
 
   def run_d8(d8, config_flags):
     preamble = PREAMBLE[:]
