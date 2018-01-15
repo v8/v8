@@ -621,7 +621,8 @@ bool Shell::ExecuteString(Isolate* isolate, Local<String> source,
     Local<Context> context(isolate->GetCurrentContext());
     ScriptOrigin origin(name);
 
-    if (options.compile_options == ScriptCompiler::kConsumeCodeCache) {
+    if (options.compile_options == ScriptCompiler::kConsumeCodeCache ||
+        options.compile_options == ScriptCompiler::kConsumeParserCache) {
       ScriptCompiler::CachedData* cached_code =
           LookupCodeCache(isolate, source);
       if (cached_code != nullptr) {
@@ -653,13 +654,9 @@ bool Shell::ExecuteString(Isolate* isolate, Local<String> source,
           context, background_compile_thread.streamed_source(), source, origin);
     } else {
       ScriptCompiler::Source script_source(source, origin);
-      ScriptCompiler::CompileOptions compile_options =
-          options.cache_code_after_execute ? ScriptCompiler::kNoCompileOptions
-                                           : options.compile_options;
-      maybe_script =
-          ScriptCompiler::Compile(context, &script_source, compile_options);
-      if (compile_options == ScriptCompiler::kProduceCodeCache ||
-          compile_options == ScriptCompiler::kProduceParserCache) {
+      maybe_script = ScriptCompiler::Compile(context, &script_source,
+                                             options.compile_options);
+      if (options.compile_options == ScriptCompiler::kProduceParserCache) {
         StoreInCodeCache(isolate, source, script_source.GetCachedData());
       }
     }
@@ -671,9 +668,17 @@ bool Shell::ExecuteString(Isolate* isolate, Local<String> source,
       return false;
     }
 
+    if (options.code_cache_options ==
+        ShellOptions::CodeCacheOptions::kProduceCache) {
+      // Serialize and store it in memory for the next execution.
+      ScriptCompiler::CachedData* cached_data =
+          ScriptCompiler::CreateCodeCache(script->GetUnboundScript(), source);
+      StoreInCodeCache(isolate, source, cached_data);
+      delete cached_data;
+    }
     maybe_result = script->Run(realm);
-    if (options.compile_options == ScriptCompiler::kProduceCodeCache &&
-        options.cache_code_after_execute) {
+    if (options.code_cache_options ==
+        ShellOptions::CodeCacheOptions::kProduceCacheAfterExecute) {
       // Serialize and store it in memory for the next execution.
       ScriptCompiler::CachedData* cached_data =
           ScriptCompiler::CreateCodeCache(script->GetUnboundScript(), source);
@@ -2844,14 +2849,23 @@ bool Shell::SetOptions(int argc, char* argv[]) {
                strncmp(argv[i], "--cache=", 8) == 0) {
       const char* value = argv[i] + 7;
       if (!*value || strncmp(value, "=code", 6) == 0) {
-        options.compile_options = v8::ScriptCompiler::kProduceCodeCache;
+        options.compile_options = v8::ScriptCompiler::kNoCompileOptions;
+        options.code_cache_options =
+            ShellOptions::CodeCacheOptions::kProduceCache;
       } else if (strncmp(value, "=parse", 7) == 0) {
         options.compile_options = v8::ScriptCompiler::kProduceParserCache;
       } else if (strncmp(value, "=none", 6) == 0) {
         options.compile_options = v8::ScriptCompiler::kNoCompileOptions;
-      } else if (strncmp(value, "=after-execute", 10) == 0) {
-        options.compile_options = v8::ScriptCompiler::kProduceCodeCache;
-        options.cache_code_after_execute = true;
+        options.code_cache_options =
+            ShellOptions::CodeCacheOptions::kNoProduceCache;
+      } else if (strncmp(value, "=after-execute", 15) == 0) {
+        options.compile_options = v8::ScriptCompiler::kNoCompileOptions;
+        options.code_cache_options =
+            ShellOptions::CodeCacheOptions::kProduceCacheAfterExecute;
+      } else if (strncmp(value, "=full-code-cache", 17) == 0) {
+        options.compile_options = v8::ScriptCompiler::kEagerCompile;
+        options.code_cache_options =
+            ShellOptions::CodeCacheOptions::kProduceCache;
       } else {
         printf("Unknown option to --cache.\n");
         return false;
@@ -3401,24 +3415,20 @@ int Shell::Main(int argc, char* argv[]) {
         bool last_run = i == options.stress_runs - 1;
         result = RunMain(isolate, argc, argv, last_run);
       }
-    } else if (options.compile_options ==
-                   v8::ScriptCompiler::kProduceCodeCache ||
-               options.compile_options ==
-                   v8::ScriptCompiler::kProduceParserCache) {
+    } else if (options.code_cache_options !=
+               ShellOptions::CodeCacheOptions::kNoProduceCache) {
       printf("============ Run: Produce code cache ============\n");
       // First run to produce the cache
       result = RunMain(isolate, argc, argv, false);
 
       // Change the options to consume cache
-      if (options.compile_options == v8::ScriptCompiler::kProduceCodeCache) {
-        options.compile_options = v8::ScriptCompiler::kConsumeCodeCache;
-      } else if (options.compile_options ==
-                 v8::ScriptCompiler::kProduceParserCache) {
+      if (options.compile_options == v8::ScriptCompiler::kProduceParserCache) {
         options.compile_options = v8::ScriptCompiler::kConsumeParserCache;
       } else {
-        // We only expect ProduceCodeCache or ProduceParserCache here.
-        // compile_options cannot be NoCompileOptions.
-        UNREACHABLE();
+        DCHECK(options.compile_options == v8::ScriptCompiler::kEagerCompile ||
+               options.compile_options ==
+                   v8::ScriptCompiler::kNoCompileOptions);
+        options.compile_options = v8::ScriptCompiler::kConsumeCodeCache;
       }
 
       printf("============ Run: Consume code cache ============\n");

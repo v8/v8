@@ -288,6 +288,12 @@ class Worker {
 
 class ShellOptions {
  public:
+  enum CodeCacheOptions {
+    kNoProduceCache,
+    kProduceCache,
+    kProduceCacheAfterExecute
+  };
+
   ShellOptions()
       : script_executed(false),
         send_idle_notification(false),
@@ -304,7 +310,7 @@ class ShellOptions {
         num_isolates(1),
         compile_options(v8::ScriptCompiler::kNoCompileOptions),
         stress_background_compile(false),
-        cache_code_after_execute(false),
+        code_cache_options(CodeCacheOptions::kNoProduceCache),
         isolate_sources(nullptr),
         icu_data_file(nullptr),
         natives_blob(nullptr),
@@ -339,7 +345,7 @@ class ShellOptions {
   int num_isolates;
   v8::ScriptCompiler::CompileOptions compile_options;
   bool stress_background_compile;
-  bool cache_code_after_execute;
+  CodeCacheOptions code_cache_options;
   SourceGroup* isolate_sources;
   const char* icu_data_file;
   const char* natives_blob;
