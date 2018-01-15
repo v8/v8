@@ -292,6 +292,7 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kArm64Ldrsw:
     case kArm64LdrW:
     case kArm64Ldr:
+    case kArm64Peek:
       return kIsLoadOperation;
 
     case kArm64Float64Mod:  // This opcode will call a C Function which can

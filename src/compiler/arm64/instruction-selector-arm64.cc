@@ -1721,7 +1721,25 @@ void InstructionSelector::EmitPrepareArguments(
 void InstructionSelector::EmitPrepareResults(ZoneVector<PushParameter>* results,
                                              const CallDescriptor* descriptor,
                                              Node* node) {
-  // TODO(ahaas): Port.
+  Arm64OperandGenerator g(this);
+
+  int reverse_slot = 0;
+  for (PushParameter output : *results) {
+    if (!output.location.IsCallerFrameSlot()) continue;
+    reverse_slot += output.location.GetSizeInPointers();
+    // Skip any alignment holes in nodes.
+    if (output.node == nullptr) continue;
+    DCHECK(!descriptor->IsCFunctionCall());
+
+    if (output.location.GetType() == MachineType::Float32()) {
+      MarkAsFloat32(output.node);
+    } else if (output.location.GetType() == MachineType::Float64()) {
+      MarkAsFloat64(output.node);
+    }
+
+    Emit(kArm64Peek, g.DefineAsRegister(output.node),
+         g.UseImmediate(reverse_slot));
+  }
 }
 
 bool InstructionSelector::IsTailCallAddressImmediate() { return false; }

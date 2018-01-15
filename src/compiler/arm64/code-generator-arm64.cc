@@ -1224,6 +1224,23 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       }
       break;
     }
+    case kArm64Peek: {
+      int reverse_slot = i.InputInt32(0);
+      int offset =
+          FrameSlotToFPOffset(frame()->GetTotalFrameSlotCount() - reverse_slot);
+      if (instr->OutputAt(0)->IsFPRegister()) {
+        LocationOperand* op = LocationOperand::cast(instr->OutputAt(0));
+        if (op->representation() == MachineRepresentation::kFloat64) {
+          __ Ldr(i.OutputDoubleRegister(), MemOperand(fp, offset));
+        } else {
+          DCHECK_EQ(MachineRepresentation::kFloat32, op->representation());
+          __ Ldr(i.OutputFloatRegister(), MemOperand(fp, offset));
+        }
+      } else {
+        __ Ldr(i.OutputRegister(), MemOperand(fp, offset));
+      }
+      break;
+    }
     case kArm64Clz:
       __ Clz(i.OutputRegister64(), i.InputRegister64(0));
       break;
@@ -2287,6 +2304,9 @@ void CodeGenerator::AssembleConstructFrame() {
                                 descriptor->CalleeSavedRegisters());
   CPURegList saves_fp = CPURegList(CPURegister::kVRegister, kDRegSizeInBits,
                                    descriptor->CalleeSavedFPRegisters());
+  // The number of slots for returns has to be even to ensure the correct stack
+  // alignment.
+  const int returns = RoundUp(frame()->GetReturnSlotCount(), 2);
 
   if (frame_access_state()->has_frame()) {
     // Link the frame
@@ -2358,6 +2378,7 @@ void CodeGenerator::AssembleConstructFrame() {
     // Skip callee-saved slots, which are pushed below.
     shrink_slots -= saves.Count();
     shrink_slots -= saves_fp.Count();
+    shrink_slots -= returns;
 
     // Build remainder of frame, including accounting for and filling-in
     // frame-specific header information, i.e. claiming the extra slot that
@@ -2400,10 +2421,20 @@ void CodeGenerator::AssembleConstructFrame() {
   // CPURegList::GetCalleeSaved(): x30 is missing.
   // DCHECK(saves.list() == CPURegList::GetCalleeSaved().list());
   __ PushCPURegList(saves);
+
+  if (returns != 0) {
+    __ Claim(returns);
+  }
 }
 
 void CodeGenerator::AssembleReturn(InstructionOperand* pop) {
   CallDescriptor* descriptor = linkage()->GetIncomingDescriptor();
+
+  const int returns = RoundUp(frame()->GetReturnSlotCount(), 2);
+
+  if (returns != 0) {
+    __ Drop(returns);
+  }
 
   // Restore registers.
   CPURegList saves = CPURegList(CPURegister::kRegister, kXRegSizeInBits,

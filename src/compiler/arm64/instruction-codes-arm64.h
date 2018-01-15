@@ -82,6 +82,7 @@ namespace compiler {
   V(Arm64Claim)                    \
   V(Arm64Poke)                     \
   V(Arm64PokePair)                 \
+  V(Arm64Peek)                     \
   V(Arm64Float32Cmp)               \
   V(Arm64Float32Add)               \
   V(Arm64Float32Sub)               \

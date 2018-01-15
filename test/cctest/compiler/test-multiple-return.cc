@@ -271,42 +271,47 @@ TEST_MULTI(Float64, MachineType::Float64())
 #undef TEST_MULTI
 
 void ReturnLastValue(MachineType type) {
-  v8::internal::AccountingAllocator allocator;
-  Zone zone(&allocator, ZONE_NAME);
-  // Let 2 returns be on the stack.
-  const int return_count = num_registers(type) + 2;
+  for (int unused_stack_slots = 0; unused_stack_slots <= 2;
+       ++unused_stack_slots) {
+    v8::internal::AccountingAllocator allocator;
+    Zone zone(&allocator, ZONE_NAME);
+    // Let {unused_stack_slots + 1} returns be on the stack.
+    const int return_count = num_registers(type) + unused_stack_slots + 1;
 
-  CallDescriptor* desc = CreateMonoCallDescriptor(&zone, return_count, 0, type);
+    CallDescriptor* desc =
+        CreateMonoCallDescriptor(&zone, return_count, 0, type);
 
-  HandleAndZoneScope handles;
-  RawMachineAssembler m(handles.main_isolate(),
-                        new (handles.main_zone()) Graph(handles.main_zone()),
-                        desc, MachineType::PointerRepresentation(),
-                        InstructionSelector::SupportedMachineOperatorFlags());
+    HandleAndZoneScope handles;
+    RawMachineAssembler m(handles.main_isolate(),
+                          new (handles.main_zone()) Graph(handles.main_zone()),
+                          desc, MachineType::PointerRepresentation(),
+                          InstructionSelector::SupportedMachineOperatorFlags());
 
-  std::unique_ptr<Node* []> returns(new Node*[return_count]);
+    std::unique_ptr<Node* []> returns(new Node*[return_count]);
 
-  for (int i = 0; i < return_count; ++i) {
-    returns[i] = Constant(m, type, i);
+    for (int i = 0; i < return_count; ++i) {
+      returns[i] = Constant(m, type, i);
+    }
+
+    m.Return(return_count, returns.get());
+
+    CompilationInfo info(ArrayVector("testing"), handles.main_zone(),
+                         Code::STUB);
+    Handle<Code> code = Pipeline::GenerateCodeForTesting(
+        &info, handles.main_isolate(), desc, m.graph(), m.Export());
+
+    // Generate caller.
+    int expect = return_count - 1;
+    RawMachineAssemblerTester<int32_t> mt;
+    Node* code_node = mt.HeapConstant(code);
+
+    Node* call = mt.AddNode(mt.common()->Call(desc), 1, &code_node);
+
+    mt.Return(ToInt32(
+        mt, type, mt.AddNode(mt.common()->Projection(return_count - 1), call)));
+
+    CHECK_EQ(expect, mt.Call());
   }
-
-  m.Return(return_count, returns.get());
-
-  CompilationInfo info(ArrayVector("testing"), handles.main_zone(), Code::STUB);
-  Handle<Code> code = Pipeline::GenerateCodeForTesting(
-      &info, handles.main_isolate(), desc, m.graph(), m.Export());
-
-  // Generate caller.
-  int expect = return_count - 1;
-  RawMachineAssemblerTester<int32_t> mt;
-  Node* code_node = mt.HeapConstant(code);
-
-  Node* call = mt.AddNode(mt.common()->Call(desc), 1, &code_node);
-
-  mt.Return(ToInt32(
-      mt, type, mt.AddNode(mt.common()->Projection(return_count - 1), call)));
-
-  CHECK_EQ(expect, mt.Call());
 }
 
 TEST(ReturnLastValueInt32) { ReturnLastValue(MachineType::Int32()); }
@@ -315,6 +320,65 @@ TEST(ReturnLastValueInt64) { ReturnLastValue(MachineType::Int64()); }
 #endif
 TEST(ReturnLastValueFloat32) { ReturnLastValue(MachineType::Float32()); }
 TEST(ReturnLastValueFloat64) { ReturnLastValue(MachineType::Float64()); }
+
+void ReturnSumOfReturns(MachineType type) {
+  for (int unused_stack_slots = 0; unused_stack_slots <= 2;
+       ++unused_stack_slots) {
+    v8::internal::AccountingAllocator allocator;
+    Zone zone(&allocator, ZONE_NAME);
+    // Let {unused_stack_slots + 1} returns be on the stack.
+    const int return_count = num_registers(type) + unused_stack_slots + 1;
+
+    CallDescriptor* desc =
+        CreateMonoCallDescriptor(&zone, return_count, 0, type);
+
+    HandleAndZoneScope handles;
+    RawMachineAssembler m(handles.main_isolate(),
+                          new (handles.main_zone()) Graph(handles.main_zone()),
+                          desc, MachineType::PointerRepresentation(),
+                          InstructionSelector::SupportedMachineOperatorFlags());
+
+    std::unique_ptr<Node* []> returns(new Node*[return_count]);
+
+    for (int i = 0; i < return_count; ++i) {
+      returns[i] = Constant(m, type, i);
+    }
+
+    m.Return(return_count, returns.get());
+
+    CompilationInfo info(ArrayVector("testing"), handles.main_zone(),
+                         Code::STUB);
+    Handle<Code> code = Pipeline::GenerateCodeForTesting(
+        &info, handles.main_isolate(), desc, m.graph(), m.Export());
+
+    // Generate caller.
+    RawMachineAssemblerTester<int32_t> mt;
+    Node* code_node = mt.HeapConstant(code);
+
+    Node* call = mt.AddNode(mt.common()->Call(desc), 1, &code_node);
+
+    uint32_t expect = 0;
+    Node* result = mt.Int32Constant(0);
+
+    for (int i = 0; i < return_count; ++i) {
+      expect += i;
+      result = mt.Int32Add(
+          result,
+          ToInt32(mt, type, mt.AddNode(mt.common()->Projection(i), call)));
+    }
+
+    mt.Return(result);
+
+    CHECK_EQ(expect, mt.Call());
+  }
+}
+
+TEST(ReturnSumOfReturnsInt32) { ReturnSumOfReturns(MachineType::Int32()); }
+#if (!V8_TARGET_ARCH_32_BIT)
+TEST(ReturnSumOfReturnsInt64) { ReturnSumOfReturns(MachineType::Int64()); }
+#endif
+TEST(ReturnSumOfReturnsFloat32) { ReturnSumOfReturns(MachineType::Float32()); }
+TEST(ReturnSumOfReturnsFloat64) { ReturnSumOfReturns(MachineType::Float64()); }
 
 }  // namespace compiler
 }  // namespace internal
