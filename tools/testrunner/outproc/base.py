@@ -6,12 +6,11 @@ import collections
 import itertools
 
 from ..local import statusfile
+from ..testproc.result import Result
 
 
 OUTCOMES_PASS = [statusfile.PASS]
 OUTCOMES_FAIL = [statusfile.FAIL]
-
-Result = collections.namedtuple('Result', ['has_unexpected_output', 'output'])
 
 
 class BaseOutProc(object):

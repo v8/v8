@@ -3,8 +3,8 @@
 # found in the LICENSE file.
 
 from . import base
-
 from ..local.variants import ALL_VARIANTS, ALL_VARIANT_FLAGS, FAST_VARIANT_FLAGS
+from .result import GroupedResult
 
 
 FAST_VARIANTS = set(["default", "turbofan"])
@@ -26,33 +26,31 @@ class VariantProc(base.TestProcProducer):
 
   def __init__(self, variants):
     super(VariantProc, self).__init__('VariantProc')
-    self._next_test_iter = {}
+    self._test_data = {} # procid: (generator, results)
     self._variant_gens = {}
     self._variants = variants
 
   def _next_test(self, test):
-    self._next_test_iter[test.procid] = iter(self._variants_gen(test))
-    return self._try_send_new_subtest(test)
+    test_data = gen, results = self._variants_gen(test), []
+    self._test_data[test.procid] = test_data
+    self._try_send_new_subtest(test, gen, results)
 
-  def _result_for(self, test, subtest, result, is_last):
-    if not is_last:
-      self._send_result(subtest, result, is_last=False)
-      return
+  def _result_for(self, test, subtest, result):
+    gen, results = self._test_data[test.procid]
+    results.append((subtest, result))
+    self._try_send_new_subtest(test, gen, results)
 
-    has_sent = self._try_send_new_subtest(test)
-    self._send_result(subtest, result, is_last=not has_sent)
-
-  def _try_send_new_subtest(self, test):
-    # Keep trying until variant is not ignored by the next processors or there
-    # are no more variants to generate.
-    for variant, flags, suffix in self._next_test_iter[test.procid]:
+  def _try_send_new_subtest(self, test, variants_gen, results):
+    for variant, flags, suffix in variants_gen:
       subtest = self._create_subtest(test, '%s-%s' % (variant, suffix),
                                      variant=variant, flags=flags)
-      if self._send_test(subtest):
-        return True
+      self._send_test(subtest)
+      return
 
-    del self._next_test_iter[test.procid]
-    return False
+    del self._test_data[test.procid]
+    # TODO(majeski): Don't group tests if previous processors don't need them.
+    result = GroupedResult.create(results)
+    self._send_result(test, result)
 
   def _variants_gen(self, test):
     """Generator producing (variant, flags, procid suffix) tuples."""

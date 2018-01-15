@@ -82,7 +82,5 @@ class ExecutionProc(base.TestProc):
     outproc = test.output_proc
     self._pool.add([Job(test_id, test.cmd, outproc)])
 
-    return True
-
-  def result_for(self, test, result, is_last):
+  def result_for(self, test, result):
     assert False, 'ExecutionProc cannot receive results'

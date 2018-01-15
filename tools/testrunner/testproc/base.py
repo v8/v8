@@ -2,6 +2,8 @@
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
+from .result import SKIPPED
+
 
 """
 Pipeline
@@ -11,6 +13,12 @@ calling previous/next processor in the chain.
      ----next_test()---->     ----next_test()---->
 Proc1                    Proc2                    Proc3
      <---result_for()----     <---result_for()----
+
+For every next_test there is exactly one result_for call.
+If processor ignores the test it has to return SkippedResult.
+If it created multiple subtests for one test and wants to pass all of them to
+the previous processor it can enclose them in GroupedResult.
+
 
 Subtests
 
@@ -38,21 +46,13 @@ class TestProc(object):
     """
     Method called by previous processor whenever it produces new test.
     This method shouldn't be called by anyone except previous processor.
-
-    Returns: bool whether test will be processed.
     """
     raise NotImplementedError()
 
-  def result_for(self, test, result, is_last):
+  def result_for(self, test, result):
     """
     Method called by next processor whenever it has result for some test.
     This method shouldn't be called by anyone except next processor.
-    Args:
-      test: test for which the `result` is
-      result: result of calling test's outproc on the output
-      is_last: for each test we've passed next processor may create subtests
-               and pass results for all of them. `is_last` is set when it
-               won't send any more results for subtests based on the `test`.
     """
     raise NotImplementedError()
 
@@ -61,13 +61,14 @@ class TestProc(object):
       self._prev_proc.heartbeat()
 
   ### Communication
+
   def _send_test(self, test):
     """Helper method for sending test to the next processor."""
-    return self._next_proc.next_test(test)
+    self._next_proc.next_test(test)
 
-  def _send_result(self, test, result, is_last=True):
+  def _send_result(self, test, result):
     """Helper method for sending result to the previous processor."""
-    self._prev_proc.result_for(test, result, is_last=is_last)
+    self._prev_proc.result_for(test, result)
 
 
 
@@ -76,11 +77,11 @@ class TestProcObserver(TestProc):
 
   def next_test(self, test):
     self._on_next_test(test)
-    return self._send_test(test)
+    self._send_test(test)
 
-  def result_for(self, test, result, is_last):
-    self._on_result_for(test, result, is_last)
-    self._send_result(test, result, is_last)
+  def result_for(self, test, result):
+    self._on_result_for(test, result)
+    self._send_result(test, result)
 
   def heartbeat(self):
     self._on_heartbeat()
@@ -91,7 +92,7 @@ class TestProcObserver(TestProc):
     sending it to the next one."""
     pass
 
-  def _on_result_for(self, test, result, is_last):
+  def _on_result_for(self, test, result):
     """Method called after receiving result from next processor but before
     sending it to the previous one."""
     pass
@@ -108,24 +109,23 @@ class TestProcProducer(TestProc):
     self._name = name
 
   def next_test(self, test):
-    return self._next_test(test)
+    self._next_test(test)
 
-  def result_for(self, subtest, result, is_last):
-    test = self._get_subtest_origin(subtest)
-    self._result_for(test, subtest, result, is_last)
+  def result_for(self, subtest, result):
+    self._result_for(subtest.origin, subtest, result)
 
   ### Implementation
   def _next_test(self, test):
     raise NotImplementedError()
 
-  def _result_for(self, test, subtest, result, is_last):
+  def _result_for(self, test, subtest, result):
     """
     result_for method extended with `subtest` parameter.
 
     Args
       test: test used by current processor to create the subtest.
       subtest: test for which the `result` is.
-      other arguments are the same as for TestProc.result_for()
+      result: subtest execution result created by the output processor.
     """
     raise NotImplementedError()
 
@@ -135,23 +135,18 @@ class TestProcProducer(TestProc):
     return test.create_subtest(self, '%s-%s' % (self._name, subtest_id),
                                **kwargs)
 
-  def _get_subtest_origin(self, subtest):
-    """Returns parent test that current processor used to create the subtest.
-    None if there is no parent created by the current processor.
-    """
-    while subtest.processor and subtest.processor is not self:
-      subtest = subtest.origin
-    return subtest.origin
-
 
 class TestProcFilter(TestProc):
   """Processor for filtering tests."""
 
   def next_test(self, test):
-    return not self._filter(test) and self._send_test(test)
+    if self._filter(test):
+      self._send_result(test, SKIPPED)
+    else:
+      self._send_test(test)
 
-  def result_for(self, test, result, is_last):
-    self._send_result(test, result, is_last)
+  def result_for(self, test, result):
+    self._send_result(test, result)
 
   def _filter(self, test):
     """Returns whether test should be filtered out."""

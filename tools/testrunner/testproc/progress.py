@@ -34,10 +34,9 @@ class ResultsTracker(base.TestProcObserver):
     self.total += 1
     self.remaining += 1
 
-  def _on_result_for(self, test, result, is_last):
-    if not is_last and not self.count_subtests:
-      return
-
+  def _on_result_for(self, test, result):
+    # TODO(majeski): Count grouped results when count_subtests is set.
+    # TODO(majeski): Support for dummy/grouped results
     self.remaining -= 1
     if result.has_unexpected_output:
       self.failed += 1
@@ -61,7 +60,8 @@ class SimpleProgressIndicator(ProgressIndicator):
   def _on_next_test(self, test):
     self._total += 1
 
-  def _on_result_for(self, test, result, is_last):
+  def _on_result_for(self, test, result):
+    # TODO(majeski): Support for dummy/grouped results
     if result.has_unexpected_output:
       self._failed.append((test, result.output))
 
@@ -100,8 +100,9 @@ class SimpleProgressIndicator(ProgressIndicator):
 
 
 class VerboseProgressIndicator(SimpleProgressIndicator):
-  def _on_result_for(self, test, result, is_last):
-    super(VerboseProgressIndicator, self)._on_result_for(test, result, is_last)
+  def _on_result_for(self, test, result):
+    super(VerboseProgressIndicator, self)._on_result_for(test, result)
+    # TODO(majeski): Support for dummy/grouped results
     if result.has_unexpected_output:
       if result.output.HasCrashed():
         outcome = 'CRASH'
@@ -122,7 +123,8 @@ class DotsProgressIndicator(SimpleProgressIndicator):
     super(DotsProgressIndicator, self).__init__()
     self._count = 0
 
-  def _on_result_for(self, test, result, is_last):
+  def _on_result_for(self, test, result):
+    # TODO(majeski): Support for dummy/grouped results
     self._count += 1
     if self._count > 1 and self._count % 50 == 1:
       sys.stdout.write('\n')
@@ -155,11 +157,8 @@ class CompactProgressIndicator(ProgressIndicator):
   def _on_next_test(self, test):
     self._total += 1
 
-  def _on_result_for(self, test, result, is_last):
-    if not is_last:
-      # Some processor further in the chain created several subtests of one
-      # test, so lets add them to the total amount.
-      self._total += 1
+  def _on_result_for(self, test, result):
+    # TODO(majeski): Support for dummy/grouped results
     if result.has_unexpected_output:
       self._failed += 1
     else:
@@ -257,7 +256,8 @@ class JUnitTestProgressIndicator(ProgressIndicator):
     else:
       self.outfile = sys.stdout
 
-  def _on_result_for(self, test, result, is_last):
+  def _on_result_for(self, test, result):
+    # TODO(majeski): Support for dummy/grouped results
     fail_text = ""
     output = result.output
     if result.has_unexpected_output:
@@ -294,7 +294,8 @@ class JsonTestProgressIndicator(ProgressIndicator):
     self.results = []
     self.tests = []
 
-  def _on_result_for(self, test, result, is_last):
+  def _on_result_for(self, test, result):
+    # TODO(majeski): Support for dummy/grouped results
     output = result.output
     # Buffer all tests for sorting the durations in the end.
     self.tests.append((test, output.duration))

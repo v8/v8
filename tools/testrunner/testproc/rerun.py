@@ -15,15 +15,8 @@ class RerunProc(base.TestProcProducer):
   def _next_test(self, test):
     self._init_test(test)
     self._send_next_subtest(test)
-    return True
 
-  def _result_for(self, test, subtest, result, is_last):
-    # Rerun processor cannot be placed before any processor that produces more
-    # than one subtest per test.
-    # TODO(majeski): Introduce constraints and check them during pipeline
-    # creation to avoid asserts like that.
-    assert is_last
-
+  def _result_for(self, test, subtest, result):
     if self._needs_rerun(test, result):
       self._rerun[test.procid] += 1
       if self._rerun_total_left is not None:

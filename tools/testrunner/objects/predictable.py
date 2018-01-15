@@ -4,6 +4,7 @@
 
 from ..local import statusfile
 from ..outproc import base as outproc_base
+from ..testproc.result import Result
 
 
 # Only check the exit code of the predictable_wrapper in
@@ -31,7 +32,7 @@ class OutProc(outproc_base.BaseOutProc):
     self._outproc = _outproc
 
   def process(self, output):
-    return outproc_base.Result(self.has_unexpected_output(output), output)
+    return Result(self.has_unexpected_output(output), output)
 
   def has_unexpected_output(self, output):
     return output.exit_code != 0

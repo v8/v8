@@ -22,6 +22,6 @@ class LoadProc(base.TestProc):
   def next_test(self, test):
     assert False, 'Nothing can be connected to the LoadProc'
 
-  def result_for(self, test, result, is_last):
+  def result_for(self, test, result):
     # Ignore all results.
     pass
