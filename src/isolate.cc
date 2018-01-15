@@ -3455,7 +3455,16 @@ base::RandomNumberGenerator* Isolate::random_number_generator() {
 }
 
 base::RandomNumberGenerator* Isolate::fuzzer_rng() {
-  return ensure_rng_exists(&fuzzer_rng_, FLAG_fuzzer_random_seed);
+  if (fuzzer_rng_ == nullptr) {
+    int64_t seed = FLAG_fuzzer_random_seed;
+    if (seed == 0) {
+      seed = random_number_generator()->initial_seed();
+    }
+
+    fuzzer_rng_ = new base::RandomNumberGenerator(seed);
+  }
+
+  return fuzzer_rng_;
 }
 
 int Isolate::GenerateIdentityHash(uint32_t mask) {

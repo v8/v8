@@ -984,7 +984,7 @@ DEFINE_INT(random_seed, 0,
            "(0, the default, means to use system random).")
 DEFINE_INT(fuzzer_random_seed, 0,
            "Default seed for initializing fuzzer random generator "
-           "(0, the default, means to use system random).")
+           "(0, the default, means to use v8's random number generator seed).")
 DEFINE_BOOL(trace_rail, false, "trace RAIL mode")
 DEFINE_BOOL(print_all_exceptions, false,
             "print exception object and stack trace on each thrown exception")
