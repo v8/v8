@@ -17690,8 +17690,6 @@ Handle<FixedArray> BaseNameDictionary<Derived, Shape>::IterationIndices(
       array->set(array_size++, Smi::FromInt(i));
     }
 
-    DCHECK_EQ(array_size, length);
-
     EnumIndexComparator<Derived> cmp(raw_dictionary);
     // Use AtomicElement wrapper to ensure that std::sort uses atomic load and
     // store operations that are safe for concurrent marking.
