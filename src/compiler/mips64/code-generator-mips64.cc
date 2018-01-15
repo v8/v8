@@ -690,11 +690,11 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       if (instr->InputAt(0)->IsImmediate()) {
         Address wasm_code = reinterpret_cast<Address>(
             i.ToConstant(instr->InputAt(0)).ToInt64());
-        __ Jump(wasm_code, info()->IsWasm() ? RelocInfo::WASM_CALL
+        __ Call(wasm_code, info()->IsWasm() ? RelocInfo::WASM_CALL
                                             : RelocInfo::JS_TO_WASM_CALL);
       } else {
         __ daddiu(at, i.InputRegister(0), 0);
-        __ Jump(at);
+        __ Call(at);
       }
       frame_access_state()->ClearSPDelta();
       frame_access_state()->SetFrameAccessToDefault();
