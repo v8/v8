@@ -1486,7 +1486,8 @@ void InstructionSelector::EmitPrepareResults(ZoneVector<PushParameter>* results,
       MarkAsFloat64(output.node);
     }
     InstructionOperand result = g.DefineAsRegister(output.node);
-    Emit(kX64Peek | MiscField::encode(reverse_slot), result);
+    InstructionOperand slot = g.UseImmediate(reverse_slot);
+    Emit(kX64Peek, 1, &result, 1, &slot);
   }
 }
 

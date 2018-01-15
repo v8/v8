@@ -271,12 +271,11 @@ TEST_MULTI(Float64, MachineType::Float64())
 #undef TEST_MULTI
 
 void ReturnLastValue(MachineType type) {
-  for (int unused_stack_slots = 0; unused_stack_slots <= 2;
-       ++unused_stack_slots) {
+  int slot_counts[] = {1, 2, 3, 600};
+  for (auto slot_count : slot_counts) {
     v8::internal::AccountingAllocator allocator;
     Zone zone(&allocator, ZONE_NAME);
-    // Let {unused_stack_slots + 1} returns be on the stack.
-    const int return_count = num_registers(type) + unused_stack_slots + 1;
+    const int return_count = num_registers(type) + slot_count;
 
     CallDescriptor* desc =
         CreateMonoCallDescriptor(&zone, return_count, 0, type);
