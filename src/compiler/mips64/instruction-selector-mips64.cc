@@ -2640,6 +2640,8 @@ void InstructionSelector::VisitInt64AbsWithOverflow(Node* node) {
   UNREACHABLE();
 }
 
+void InstructionSelector::VisitSpeculationFence(Node* node) { UNREACHABLE(); }
+
 #define SIMD_TYPE_LIST(V) \
   V(F32x4)                \
   V(I32x4)                \

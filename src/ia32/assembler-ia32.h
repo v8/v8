@@ -684,6 +684,9 @@ class Assembler : public AssemblerBase {
   void cmpxchg_b(const Operand& dst, Register src);
   void cmpxchg_w(const Operand& dst, Register src);
 
+  // Memory Fence
+  void lfence();
+
   // Arithmetics
   void adc(Register dst, int32_t imm32);
   void adc(Register dst, const Operand& src);

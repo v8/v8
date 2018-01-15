@@ -261,6 +261,9 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kX64Poke:
       return kHasSideEffect;
 
+    case kLFence:
+      return kHasSideEffect;
+
 #define CASE(Name) case k##Name:
     COMMON_ARCH_OPCODE_LIST(CASE)
 #undef CASE

@@ -186,6 +186,10 @@ class V8_EXPORT_PRIVATE RawMachineAssembler {
                    old_value, new_value);
   }
 
+  Node* SpeculationFence() {
+    return AddNode(machine()->SpeculationFence().op());
+  }
+
   // Arithmetic Operations.
   Node* WordAnd(Node* a, Node* b) {
     return AddNode(machine()->WordAnd(), a, b);

@@ -796,6 +796,13 @@ void Assembler::cmpxchg_w(const Operand& dst, Register src) {
   emit_operand(src, dst);
 }
 
+void Assembler::lfence() {
+  EnsureSpace ensure_space(this);
+  EMIT(0x0F);
+  EMIT(0xAE);
+  EMIT(0xE8);
+}
+
 void Assembler::adc(Register dst, int32_t imm32) {
   EnsureSpace ensure_space(this);
   emit_arith(2, Operand(dst), Immediate(imm32));

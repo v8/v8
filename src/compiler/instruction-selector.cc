@@ -1531,6 +1531,8 @@ void InstructionSelector::VisitNode(Node* node) {
       ATOMIC_CASE(Or)
       ATOMIC_CASE(Xor)
 #undef ATOMIC_CASE
+    case IrOpcode::kSpeculationFence:
+      return VisitSpeculationFence(node);
     case IrOpcode::kProtectedLoad: {
       LoadRepresentation type = LoadRepresentationOf(node->op());
       MarkAsRepresentation(type.representation(), node);

@@ -1756,6 +1756,9 @@ int DisassemblerIA32::InstructionDecode(v8::internal::Vector<char> out_buffer,
             get_modrm(*data, &mod, &regop, &rm);
             AppendToBuffer("%s %s,", f0mnem, NameOfCPURegister(regop));
             data += PrintRightOperand(data);
+          } else if (f0byte == 0xAE && (data[2] & 0xF8) == 0xE8) {
+            AppendToBuffer("lfence");
+            data += 3;
           } else {
             UnimplementedInstruction();
           }

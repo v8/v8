@@ -1258,6 +1258,8 @@ void InstructionSelector::VisitWord32Popcnt(Node* node) { UNREACHABLE(); }
 
 void InstructionSelector::VisitWord64Popcnt(Node* node) { UNREACHABLE(); }
 
+void InstructionSelector::VisitSpeculationFence(Node* node) { UNREACHABLE(); }
+
 void InstructionSelector::VisitInt32Add(Node* node) {
   Arm64OperandGenerator g(this);
   Int32BinopMatcher m(node);

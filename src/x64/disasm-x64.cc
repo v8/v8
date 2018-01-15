@@ -2208,6 +2208,9 @@ int DisassemblerX64::TwoByteOpcodeInstruction(byte* data) {
       byte_size_operand_ = true;
     }
     current += PrintOperands(mnemonic, OPER_REG_OP_ORDER, current);
+  } else if (opcode == 0xAE && (*(data + 2) & 0xF8) == 0xE8) {
+    AppendToBuffer("lfence");
+    current = data + 3;
   } else {
     UnimplementedInstruction();
   }

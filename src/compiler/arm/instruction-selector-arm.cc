@@ -1121,6 +1121,7 @@ void InstructionSelector::VisitWord32ReverseBytes(Node* node) { UNREACHABLE(); }
 
 void InstructionSelector::VisitWord32Popcnt(Node* node) { UNREACHABLE(); }
 
+void InstructionSelector::VisitSpeculationFence(Node* node) { UNREACHABLE(); }
 
 void InstructionSelector::VisitInt32Add(Node* node) {
   ArmOperandGenerator g(this);

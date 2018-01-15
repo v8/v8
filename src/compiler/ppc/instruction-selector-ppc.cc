@@ -939,6 +939,8 @@ void InstructionSelector::VisitWord64ReverseBytes(Node* node) { UNREACHABLE(); }
 
 void InstructionSelector::VisitWord32ReverseBytes(Node* node) { UNREACHABLE(); }
 
+void InstructionSelector::VisitSpeculationFence(Node* node) { UNREACHABLE(); }
+
 void InstructionSelector::VisitInt32Add(Node* node) {
   VisitBinop<Int32BinopMatcher>(this, node, kPPC_Add32, kInt16Imm);
 }

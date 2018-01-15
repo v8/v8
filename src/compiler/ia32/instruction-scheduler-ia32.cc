@@ -281,6 +281,7 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kIA32PushFloat64:
     case kIA32PushSimd128:
     case kIA32Poke:
+    case kLFence:
       return kHasSideEffect;
 
 #define CASE(Name) case k##Name:

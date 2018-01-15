@@ -1158,6 +1158,8 @@ void InstructionSelector::VisitWord32ReverseBits(Node* node) { UNREACHABLE(); }
 void InstructionSelector::VisitWord64ReverseBits(Node* node) { UNREACHABLE(); }
 #endif
 
+void InstructionSelector::VisitSpeculationFence(Node* node) { UNREACHABLE(); }
+
 void InstructionSelector::VisitInt32AbsWithOverflow(Node* node) {
   VisitWord32UnaryOp(this, node, kS390_Abs32, OperandMode::kNone);
 }

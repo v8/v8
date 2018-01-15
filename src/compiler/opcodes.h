@@ -616,6 +616,7 @@
   V(AtomicAnd)                  \
   V(AtomicOr)                   \
   V(AtomicXor)                  \
+  V(SpeculationFence)           \
   V(UnsafePointerAdd)
 
 #define MACHINE_SIMD_OP_LIST(V) \

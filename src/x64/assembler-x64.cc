@@ -1140,6 +1140,13 @@ void Assembler::emit_cmpxchg(const Operand& dst, Register src, int size) {
   emit_operand(src, dst);
 }
 
+void Assembler::lfence() {
+  EnsureSpace ensure_space(this);
+  emit(0x0F);
+  emit(0xAE);
+  emit(0xE8);
+}
+
 void Assembler::cpuid() {
   EnsureSpace ensure_space(this);
   emit(0x0F);
