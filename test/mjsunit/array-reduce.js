@@ -1179,3 +1179,65 @@ assertEquals(undefined, arr.reduceRight(function(val) { return val }));
   done = true;
   assertEquals(null, g());
 })();
+
+(function ReduceHoleyArrayWithDefaultAccumulator() {
+  var __v_12258 = new Array(10);
+  function __f_3253(a) {
+    let __f_3252 = function(accumulator, currentValue) {
+      return currentValue;
+    }
+    return a.reduce(__f_3252, 13);
+  }
+  assertEquals(13, __f_3253(__v_12258));
+  assertEquals(13, __f_3253(__v_12258));
+  assertEquals(13, __f_3253(__v_12258));
+    %OptimizeFunctionOnNextCall(__f_3253);
+  assertEquals(13, __f_3253(__v_12258));
+})();
+
+(function ReduceRightHoleyArrayWithDefaultAccumulator() {
+  var __v_12258 = new Array(10);
+  function __f_3253(a) {
+    let __f_3252 = function(accumulator, currentValue) {
+      return currentValue;
+    }
+    return a.reduceRight(__f_3252, 13);
+  }
+  assertEquals(13, __f_3253(__v_12258));
+  assertEquals(13, __f_3253(__v_12258));
+  assertEquals(13, __f_3253(__v_12258));
+  %OptimizeFunctionOnNextCall(__f_3253);
+  assertEquals(13, __f_3253(__v_12258));
+})();
+
+(function ReduceHoleyArrayOneElementWithDefaultAccumulator() {
+  var __v_12258 = new Array(10);
+  __v_12258[1] = 5;
+  function __f_3253(a) {
+    let __f_3252 = function(accumulator, currentValue) {
+      return currentValue + accumulator;
+    }
+    return a.reduce(__f_3252, 13);
+  }
+  assertEquals(18, __f_3253(__v_12258));
+  assertEquals(18, __f_3253(__v_12258));
+  assertEquals(18, __f_3253(__v_12258));
+  %OptimizeFunctionOnNextCall(__f_3253);
+  assertEquals(18, __f_3253(__v_12258));
+})();
+
+(function ReduceRightHoleyArrayOneElementWithDefaultAccumulator() {
+  var __v_12258 = new Array(10);
+  __v_12258[1] = 5;
+  function __f_3253(a) {
+    let __f_3252 = function(accumulator, currentValue) {
+      return currentValue + accumulator;
+    }
+    return a.reduceRight(__f_3252, 13);
+  }
+  assertEquals(18, __f_3253(__v_12258));
+  assertEquals(18, __f_3253(__v_12258));
+  assertEquals(18, __f_3253(__v_12258));
+  %OptimizeFunctionOnNextCall(__f_3253);
+  assertEquals(18, __f_3253(__v_12258));
+})();
