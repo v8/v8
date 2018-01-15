@@ -192,6 +192,7 @@ class WasmInstanceObject : public JSObject {
   DECL_OPTIONAL_ACCESSORS(memory_object, WasmMemoryObject)
   DECL_OPTIONAL_ACCESSORS(globals_buffer, JSArrayBuffer)
   DECL_OPTIONAL_ACCESSORS(debug_info, WasmDebugInfo)
+  DECL_OPTIONAL_ACCESSORS(table_object, WasmTableObject)
   DECL_OPTIONAL_ACCESSORS(function_tables, FixedArray)
   DECL_OPTIONAL_ACCESSORS(signature_tables, FixedArray)
 
@@ -206,6 +207,7 @@ class WasmInstanceObject : public JSObject {
     kMemoryObjectIndex,
     kGlobalsBufferIndex,
     kDebugInfoIndex,
+    kTableObjectIndex,
     kFunctionTablesIndex,
     kSignatureTablesIndex,
     kDirectlyCalledInstancesIndex,
@@ -220,6 +222,7 @@ class WasmInstanceObject : public JSObject {
   DEF_OFFSET(MemoryObject)
   DEF_OFFSET(GlobalsBuffer)
   DEF_OFFSET(DebugInfo)
+  DEF_OFFSET(TableObject)
   DEF_OFFSET(FunctionTables)
   DEF_OFFSET(SignatureTables)
   DEF_OFFSET(DirectlyCalledInstances)
