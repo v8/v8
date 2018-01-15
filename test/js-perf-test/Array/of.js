@@ -1,13 +1,7 @@
 // Copyright 2018 the V8 project authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
-
-function benchy(name, test, testSetup) {
-  new BenchmarkSuite(name, [1000],
-      [
-        new Benchmark(name, false, false, 0, test, testSetup, ()=>{})
-      ]);
-}
+(() => {
 
 benchy('EmptyArrayOf', EmptyArrayOf, EmptyArrayOfSetup);
 benchy('SmallTransplantedArrayOf', SmallTransplantedArrayOf,
@@ -119,3 +113,5 @@ function LargeSmiArrayOfSetup() {
   arg19 = 19;
   arg20 = 20;
 }
+
+})();

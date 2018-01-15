@@ -3,40 +3,6 @@
 // found in the LICENSE file.
 (() => {
 
-function benchy(name, test, testSetup) {
-  new BenchmarkSuite(name, [1000],
-      [
-        new Benchmark(name, false, false, 0, test, testSetup, ()=>{})
-      ]);
-}
-
-benchy('NaiveFindReplacement', Naive, NaiveSetup);
-benchy('DoubleFind', Double, DoubleSetup);
-benchy('SmiFind', Smi, SmiSetup);
-benchy('FastFind', Fast, FastSetup);
-benchy('GenericFind', Generic, ObjectSetup);
-benchy('OptFastFind', OptFast, FastSetup);
-
-let array;
-// Initialize func variable to ensure the first test doesn't benefit from
-// global object property tracking.
-let func = 0;
-let result;
-const array_size = 100;
-const max_index = array_size - 1;
-
-// Although these functions have the same code, they are separated for
-// clean IC feedback.
-function Double() {
-  result = array.find(func);
-}
-function Smi() {
-  result = array.find(func);
-}
-function Fast() {
-  result = array.find(func);
-}
-
 // Make sure we inline the callback, pick up all possible TurboFan
 // optimizations.
 function RunOptFast(multiple) {
@@ -66,14 +32,9 @@ function Naive() {
   }
 }
 
-function Generic() {
-  result = Array.prototype.find.call(array, func);
-}
-
 function NaiveSetup() {
   // Prime Naive with polymorphic cases.
   array = [1, 2, 3];
-  func = (v, i, a) => v === max_index;
   Naive();
   Naive();
   array = [3.4]; Naive();
@@ -82,27 +43,14 @@ function NaiveSetup() {
   delete array[1];
 }
 
-function SmiSetup() {
-  array = Array.from({ length: array_size }, (_, i) => i);
-  func = (value, index, object) => value === max_index;
-}
-
-function DoubleSetup() {
-  array = Array.from({ length: array_size }, (_, i) => i + 0.5);
-  func = (value, index, object) => value === max_index + 0.5;
-}
-
-function FastSetup() {
-  array = Array.from({ length: array_size }, (_, i) => `value ${i}`);
-  func = (value, index, object) => value === `value ${max_index}`;
-}
-
-function ObjectSetup() {
-  array = { length: array_size };
-  for (let i = 0; i < array_size; i++) {
-    array[i] = i;
-  }
-  func = (value, index, object) => value === max_index;
-}
+DefineHigherOrderTests([
+  // name, test function, setup function, user callback
+  "NaiveFindReplacement", Naive, NaiveSetup, v => v === max_index,
+  "DoubleFind", mc("find"), DoubleSetup, v => v === max_index + 0.5,
+  "SmiFind", mc("find"), SmiSetup, v => v === max_index,
+  "FastFind", mc("find"), FastSetup, v => v === `value ${max_index}`,
+  "GenericFind", mc("find", true), ObjectSetup, v => v === max_index,
+  "OptFastFind", OptFast, FastSetup, undefined
+]);
 
 })();
