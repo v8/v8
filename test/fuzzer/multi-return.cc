@@ -181,6 +181,11 @@ CallDescriptor* CreateRandomCallDescriptor(Zone* zone, size_t return_count,
   input->NextInt8(1);
 
   int stack_params = stack_slots;
+#if V8_TARGET_ARCH_ARM64
+  // Align the stack slots.
+  stack_slots = stack_slots + (stack_slots % 2);
+#endif
+  int aligned_stack_params = stack_slots;
   int int_returns = 0;
   int float_returns = 0;
   for (size_t i = 0; i < return_count; i++) {
@@ -189,7 +194,7 @@ CallDescriptor* CreateRandomCallDescriptor(Zone* zone, size_t return_count,
         AllocateLocation(type, &int_returns, &float_returns, &stack_slots);
     locations.AddReturn(location);
   }
-  int stack_returns = stack_slots - stack_params;
+  int stack_returns = stack_slots - aligned_stack_params;
 
   MachineType target_type = MachineType::AnyTagged();
   LinkageLocation target_loc = LinkageLocation::ForAnyRegister(target_type);
