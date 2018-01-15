@@ -25,10 +25,4 @@ ALL_VARIANT_FLAGS = {
   "infra_staging": [[]],
 }
 
-# FAST_VARIANTS implies no --always-opt.
-FAST_VARIANT_FLAGS = dict(
-    (k, [[f for f in v[0] if f != "--always-opt"]])
-    for k, v in ALL_VARIANT_FLAGS.iteritems()
-)
-
 ALL_VARIANTS = set(ALL_VARIANT_FLAGS.keys())

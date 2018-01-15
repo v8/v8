@@ -34,27 +34,9 @@ from testrunner.local import testsuite
 from testrunner.objects import testcase
 
 
-class LegacyVariantsGenerator(testsuite.LegacyVariantsGenerator):
-  # Both --noopt and --stressopt are very slow. Add TF but without
-  # always opt to match the way the benchmarks are run for performance
-  # testing.
-  def FilterVariantsByTest(self, test):
-    if test.only_standard_variant:
-      return self.standard_variant
-    return self.fast_variants
-
-  def GetFlagSets(self, test, variant):
-    return testsuite.FAST_VARIANT_FLAGS[variant]
-
-
 class VariantsGenerator(testsuite.VariantsGenerator):
-  def _get_flags_set(self, test):
-    return testsuite.FAST_VARIANT_FLAGS
-
   def _get_variants(self, test):
-    if test.only_standard_variant:
-      return self._standard_variant
-    return self._fast_variants
+    return self._standard_variant
 
 
 class TestSuite(testsuite.TestSuite):
@@ -131,7 +113,7 @@ class TestSuite(testsuite.TestSuite):
     return VariantsGenerator
 
   def _LegacyVariantsGeneratorFactory(self):
-    return LegacyVariantsGenerator
+    return testsuite.StandardLegacyVariantsGenerator
 
 
 class TestCase(testcase.TestCase):

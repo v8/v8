@@ -44,14 +44,13 @@ FAIL_SLOPPY = "FAIL_SLOPPY"
 # Modifiers
 SKIP = "SKIP"
 SLOW = "SLOW"
-FAST_VARIANTS = "FAST_VARIANTS"
 NO_VARIANTS = "NO_VARIANTS"
 
 ALWAYS = "ALWAYS"
 
 KEYWORDS = {}
-for key in [SKIP, FAIL, PASS, CRASH, SLOW, FAIL_OK, FAST_VARIANTS, NO_VARIANTS,
-            FAIL_SLOPPY, ALWAYS]:
+for key in [SKIP, FAIL, PASS, CRASH, SLOW, FAIL_OK, NO_VARIANTS, FAIL_SLOPPY,
+            ALWAYS]:
   KEYWORDS[key] = key
 
 # Support arches, modes to be written as keywords instead of strings.

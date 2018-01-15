@@ -30,6 +30,6 @@
 
 ['no_snap', {
   'bananas': [PASS, NO_VARIANTS],
-  'raspberries': [FAIL, FAST_VARIANTS],
+  'raspberries': [FAIL, NO_VARIANTS],
 }],
 ]

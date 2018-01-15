@@ -157,10 +157,6 @@ class TestCase(object):
   def only_standard_variant(self):
     return statusfile.NO_VARIANTS in self._statusfile_outcomes
 
-  @property
-  def only_fast_variants(self):
-    return statusfile.FAST_VARIANTS in self._statusfile_outcomes
-
   def get_command(self, context):
     params = self._get_cmd_params(context)
     env = self._get_cmd_env()

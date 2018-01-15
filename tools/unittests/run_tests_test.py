@@ -506,8 +506,7 @@ class SystemTest(unittest.TestCase):
       self.assertEqual(1, result.returncode, result)
 
   def testSpecificVariants(self):
-    """Test using NO_VARIANTS and FAST_VARIANTS modifiers in status files skips
-    the desire tests.
+    """Test using NO_VARIANTS modifiers in status files skips the desire tests.
 
     The test runner cmd line configures 4 tests to run (2 tests * 2 variants).
     But the status file applies a modifier to each skipping one of the

@@ -75,21 +75,10 @@ ALL_VARIANT_FLAGS_STRICT = dict(
     for v, flag_sets in testsuite.ALL_VARIANT_FLAGS.iteritems()
 )
 
-FAST_VARIANT_FLAGS_STRICT = dict(
-    (v, [flags + ["--use-strict"] for flags in flag_sets])
-    for v, flag_sets in testsuite.FAST_VARIANT_FLAGS.iteritems()
-)
-
 ALL_VARIANT_FLAGS_BOTH = dict(
     (v, [flags for flags in testsuite.ALL_VARIANT_FLAGS[v] +
                             ALL_VARIANT_FLAGS_STRICT[v]])
     for v in testsuite.ALL_VARIANT_FLAGS
-)
-
-FAST_VARIANT_FLAGS_BOTH = dict(
-    (v, [flags for flags in testsuite.FAST_VARIANT_FLAGS[v] +
-                            FAST_VARIANT_FLAGS_STRICT[v]])
-    for v in testsuite.FAST_VARIANT_FLAGS
 )
 
 ALL_VARIANTS = {
@@ -98,25 +87,14 @@ ALL_VARIANTS = {
   'both': ALL_VARIANT_FLAGS_BOTH,
 }
 
-FAST_VARIANTS = {
-  'nostrict': testsuite.FAST_VARIANT_FLAGS,
-  'strict': FAST_VARIANT_FLAGS_STRICT,
-  'both': FAST_VARIANT_FLAGS_BOTH,
-}
-
 class LegacyVariantsGenerator(testsuite.LegacyVariantsGenerator):
   def GetFlagSets(self, test, variant):
-    if test.only_fast_variants:
-      variant_flags = FAST_VARIANTS
-    else:
-      variant_flags = ALL_VARIANTS
-
     test_record = test.test_record
     if "noStrict" in test_record:
-      return variant_flags["nostrict"][variant]
+      return ALL_VARIANTS["nostrict"][variant]
     if "onlyStrict" in test_record:
-      return variant_flags["strict"][variant]
-    return variant_flags["both"][variant]
+      return ALL_VARIANTS["strict"][variant]
+    return ALL_VARIANTS["both"][variant]
 
 
 class VariantsGenerator(testsuite.VariantsGenerator):
@@ -134,8 +112,6 @@ class VariantsGenerator(testsuite.VariantsGenerator):
         yield (variant, flags + ['--use-strict'], 'strict-%d' % n)
 
   def _get_flags_set(self, test):
-    if test.only_fast_variants:
-      return testsuite.FAST_VARIANTS_FLAGS
     return testsuite.ALL_VARIANT_FLAGS
 
 

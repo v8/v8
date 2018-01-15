@@ -34,10 +34,9 @@ from . import command
 from . import statusfile
 from . import utils
 from ..objects.testcase import TestCase
-from variants import ALL_VARIANTS, ALL_VARIANT_FLAGS, FAST_VARIANT_FLAGS
+from variants import ALL_VARIANTS, ALL_VARIANT_FLAGS
 
 
-FAST_VARIANTS = set(["default", "turbofan"])
 STANDARD_VARIANT = set(["default"])
 
 
@@ -45,21 +44,15 @@ class LegacyVariantsGenerator(object):
   def __init__(self, suite, variants):
     self.suite = suite
     self.all_variants = ALL_VARIANTS & variants
-    self.fast_variants = FAST_VARIANTS & variants
     self.standard_variant = STANDARD_VARIANT & variants
 
   def FilterVariantsByTest(self, test):
     if test.only_standard_variant:
       return self.standard_variant
-    if test.only_fast_variants:
-      return self.fast_variants
     return self.all_variants
 
   def GetFlagSets(self, test, variant):
-    if test.only_fast_variants:
-      return FAST_VARIANT_FLAGS[variant]
-    else:
-      return ALL_VARIANT_FLAGS[variant]
+    return ALL_VARIANT_FLAGS[variant]
 
 
 class StandardLegacyVariantsGenerator(LegacyVariantsGenerator):
@@ -70,7 +63,6 @@ class StandardLegacyVariantsGenerator(LegacyVariantsGenerator):
 class VariantsGenerator(object):
   def __init__(self, variants):
     self._all_variants = [v for v in variants if v in ALL_VARIANTS]
-    self._fast_variants = [v for v in variants if v in FAST_VARIANTS]
     self._standard_variant = [v for v in variants if v in STANDARD_VARIANT]
 
   def gen(self, test):
@@ -80,16 +72,11 @@ class VariantsGenerator(object):
       yield (variant, flags_set[variant][0], n)
 
   def _get_flags_set(self, test):
-    if test.only_fast_variants:
-      return FAST_VARIANT_FLAGS
-    else:
-      return ALL_VARIANT_FLAGS
+    return ALL_VARIANT_FLAGS
 
   def _get_variants(self, test):
     if test.only_standard_variant:
       return self._standard_variant
-    if test.only_fast_variants:
-      return self._fast_variants
     return self._all_variants
 
 
