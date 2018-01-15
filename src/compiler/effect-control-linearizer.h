@@ -118,6 +118,8 @@ class V8_EXPORT_PRIVATE EffectControlLinearizer {
   Node* LowerStringCharAt(Node* node);
   Node* LowerStringCharCodeAt(Node* node);
   Node* LowerSeqStringCharCodeAt(Node* node);
+  Node* LowerStringCodePointAt(Node* node);
+  Node* LowerSeqStringCodePointAt(Node* node, UnicodeEncoding encoding);
   Node* LowerStringToLowerCaseIntl(Node* node);
   Node* LowerStringToUpperCaseIntl(Node* node);
   Node* LowerStringFromCharCode(Node* node);
@@ -179,6 +181,7 @@ class V8_EXPORT_PRIVATE EffectControlLinearizer {
   Node* ChangeSmiToIntPtr(Node* value);
   Node* ChangeSmiToInt32(Node* value);
   Node* ObjectIsSmi(Node* value);
+  Node* LoadFromString(Node* receiver, Node* position, Node* is_one_byte);
 
   Node* SmiMaxValueConstant();
   Node* SmiShiftBitsConstant();

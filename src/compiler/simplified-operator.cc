@@ -657,6 +657,8 @@ bool operator==(CheckMinusZeroParameters const& lhs,
   V(StringCharAt, Operator::kNoProperties, 2, 1)                 \
   V(StringCharCodeAt, Operator::kNoProperties, 2, 1)             \
   V(SeqStringCharCodeAt, Operator::kNoProperties, 2, 1)          \
+  V(StringCodePointAt, Operator::kNoProperties, 2, 1)            \
+  V(SeqStringCodePointAt, Operator::kNoProperties, 2, 1)         \
   V(StringFromCharCode, Operator::kNoProperties, 1, 0)           \
   V(StringIndexOf, Operator::kNoProperties, 3, 0)                \
   V(StringLength, Operator::kNoProperties, 1, 0)                 \

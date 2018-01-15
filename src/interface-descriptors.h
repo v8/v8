@@ -62,8 +62,7 @@ class PlatformInterfaceDescriptor;
   V(Compare)                          \
   V(BinaryOp)                         \
   V(StringAdd)                        \
-  V(StringCharAt)                     \
-  V(StringCharCodeAt)                 \
+  V(StringAt)                         \
   V(ForInPrepare)                     \
   V(GetProperty)                      \
   V(ArgumentAdaptor)                  \
@@ -762,17 +761,12 @@ class StringAddDescriptor : public CallInterfaceDescriptor {
   DECLARE_DESCRIPTOR(StringAddDescriptor, CallInterfaceDescriptor)
 };
 
-class StringCharAtDescriptor final : public CallInterfaceDescriptor {
+// This desciptor is shared among String.p.charAt/charCodeAt/codePointAt
+// as they all have the same interface.
+class StringAtDescriptor final : public CallInterfaceDescriptor {
  public:
   DEFINE_PARAMETERS(kReceiver, kPosition)
-  DECLARE_DESCRIPTOR_WITH_CUSTOM_FUNCTION_TYPE(StringCharAtDescriptor,
-                                               CallInterfaceDescriptor)
-};
-
-class StringCharCodeAtDescriptor final : public CallInterfaceDescriptor {
- public:
-  DEFINE_PARAMETERS(kReceiver, kPosition)
-  DECLARE_DESCRIPTOR_WITH_CUSTOM_FUNCTION_TYPE(StringCharCodeAtDescriptor,
+  DECLARE_DESCRIPTOR_WITH_CUSTOM_FUNCTION_TYPE(StringAtDescriptor,
                                                CallInterfaceDescriptor)
 };
 
