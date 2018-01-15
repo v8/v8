@@ -25,6 +25,7 @@ bool IsSideEffectFree(const Operator* op) {
     case IrOpcode::kLoad:
     case IrOpcode::kLoadElement:
     case IrOpcode::kLoadField:
+    case IrOpcode::kTypeGuard:
       return true;
     default:
       return false;

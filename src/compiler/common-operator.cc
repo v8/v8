@@ -1136,7 +1136,7 @@ const Operator* CommonOperatorBuilder::TypeGuard(Type* type) {
   return new (zone()) Operator1<Type*>(       // --
       IrOpcode::kTypeGuard, Operator::kPure,  // opcode
       "TypeGuard",                            // name
-      1, 0, 1, 1, 0, 0,                       // counts
+      1, 1, 1, 1, 1, 0,                       // counts
       type);                                  // parameter
 }
 

@@ -145,9 +145,10 @@ bool HasIncomingBackEdges(BasicBlock* block) {
   return false;
 }
 
-void RemoveRegionNode(Node* node) {
+void RemoveRenameNode(Node* node) {
   DCHECK(IrOpcode::kFinishRegion == node->opcode() ||
-         IrOpcode::kBeginRegion == node->opcode());
+         IrOpcode::kBeginRegion == node->opcode() ||
+         IrOpcode::kTypeGuard == node->opcode());
   // Update the value/context uses to the value input of the finish node and
   // the effect uses to the effect input.
   for (Edge edge : node->use_edges()) {
@@ -538,7 +539,7 @@ void EffectControlLinearizer::ProcessNode(Node* node, Node** frame_state,
     region_observability_ = RegionObservability::kObservable;
     // Update the value uses to the value input of the finish node and
     // the effect uses to the effect input.
-    return RemoveRegionNode(node);
+    return RemoveRenameNode(node);
   }
   if (node->opcode() == IrOpcode::kBeginRegion) {
     // Determine the observability for this region and use that for all
@@ -548,7 +549,10 @@ void EffectControlLinearizer::ProcessNode(Node* node, Node** frame_state,
     region_observability_ = RegionObservabilityOf(node->op());
     // Update the value uses to the value input of the finish node and
     // the effect uses to the effect input.
-    return RemoveRegionNode(node);
+    return RemoveRenameNode(node);
+  }
+  if (node->opcode() == IrOpcode::kTypeGuard) {
+    return RemoveRenameNode(node);
   }
 
   // Special treatment for checkpoint nodes.

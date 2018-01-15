@@ -950,8 +950,8 @@ Reduction JSCallReducer::ReduceArrayForEach(Handle<JSFunction> function,
     // The contract is that we don't leak "the hole" into "user JavaScript",
     // so we must rename the {element} here to explicitly exclude "the hole"
     // from the type of {element}.
-    element = graph()->NewNode(common()->TypeGuard(Type::NonInternal()),
-                               element, control);
+    element = effect = graph()->NewNode(
+        common()->TypeGuard(Type::NonInternal()), element, effect, control);
   }
 
   frame_state = CreateJavaScriptBuiltinContinuationFrameState(
@@ -1164,8 +1164,8 @@ Reduction JSCallReducer::ReduceArrayReduce(Handle<JSFunction> function,
     // The contract is that we don't leak "the hole" into "user JavaScript",
     // so we must rename the {element} here to explicitly exclude "the hole"
     // from the type of {element}.
-    element = graph()->NewNode(common()->TypeGuard(Type::NonInternal()),
-                               element, control);
+    element = effect = graph()->NewNode(
+        common()->TypeGuard(Type::NonInternal()), element, effect, control);
   }
 
   frame_state = CreateJavaScriptBuiltinContinuationFrameState(
@@ -1401,8 +1401,8 @@ Reduction JSCallReducer::ReduceArrayReduceRight(Handle<JSFunction> function,
     // The contract is that we don't leak "the hole" into "user JavaScript",
     // so we must rename the {element} here to explicitly exclude "the hole"
     // from the type of {element}.
-    element = graph()->NewNode(common()->TypeGuard(Type::NonInternal()),
-                               element, control);
+    element = effect = graph()->NewNode(
+        common()->TypeGuard(Type::NonInternal()), element, effect, control);
   }
 
   frame_state = CreateJavaScriptBuiltinContinuationFrameState(
@@ -1612,8 +1612,8 @@ Reduction JSCallReducer::ReduceArrayMap(Handle<JSFunction> function,
     // The contract is that we don't leak "the hole" into "user JavaScript",
     // so we must rename the {element} here to explicitly exclude "the hole"
     // from the type of {element}.
-    element = graph()->NewNode(common()->TypeGuard(Type::NonInternal()),
-                               element, control);
+    element = effect = graph()->NewNode(
+        common()->TypeGuard(Type::NonInternal()), element, effect, control);
   }
 
   // This frame state is dealt with by hand in
@@ -1838,8 +1838,8 @@ Reduction JSCallReducer::ReduceArrayFilter(Handle<JSFunction> function,
     // The contract is that we don't leak "the hole" into "user JavaScript",
     // so we must rename the {element} here to explicitly exclude "the hole"
     // from the type of {element}.
-    element = graph()->NewNode(common()->TypeGuard(Type::NonInternal()),
-                               element, control);
+    element = effect = graph()->NewNode(
+        common()->TypeGuard(Type::NonInternal()), element, effect, control);
   }
 
   Node* callback_value = nullptr;
@@ -2160,8 +2160,8 @@ Node* JSCallReducer::DoFilterPostCallbackWork(ElementsKind kind, Node** control,
 
     // We know that {to} is in Unsigned31 range here, being smaller than
     // {original_length} at all times.
-    Node* checked_to =
-        graph()->NewNode(common()->TypeGuard(Type::Unsigned31()), to, if_true);
+    Node* checked_to = etrue = graph()->NewNode(
+        common()->TypeGuard(Type::Unsigned31()), to, etrue, if_true);
     Node* elements_length = etrue = graph()->NewNode(
         simplified()->LoadField(AccessBuilder::ForFixedArrayLength()), elements,
         etrue, if_true);
@@ -2405,8 +2405,8 @@ Reduction JSCallReducer::ReduceArrayEvery(Handle<JSFunction> function,
     // The contract is that we don't leak "the hole" into "user JavaScript",
     // so we must rename the {element} here to explicitly exclude "the hole"
     // from the type of {element}.
-    element = graph()->NewNode(common()->TypeGuard(Type::NonInternal()),
-                               element, control);
+    element = effect = graph()->NewNode(
+        common()->TypeGuard(Type::NonInternal()), element, effect, control);
   }
 
   Node* callback_value = nullptr;
@@ -2632,8 +2632,8 @@ Reduction JSCallReducer::ReduceArraySome(Handle<JSFunction> function,
     // The contract is that we don't leak "the hole" into "user JavaScript",
     // so we must rename the {element} here to explicitly exclude "the hole"
     // from the type of {element}.
-    element = graph()->NewNode(common()->TypeGuard(Type::NonInternal()),
-                               element, control);
+    element = effect = graph()->NewNode(
+        common()->TypeGuard(Type::NonInternal()), element, effect, control);
   }
 
   Node* callback_value = nullptr;

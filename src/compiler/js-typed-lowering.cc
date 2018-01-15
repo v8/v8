@@ -707,8 +707,9 @@ Reduction JSTypedLowering::ReduceCreateConsString(Node* node) {
       Revisit(graph()->end());
     }
     control = graph()->NewNode(common()->IfTrue(), branch);
-    length = graph()->NewNode(
-        common()->TypeGuard(type_cache_.kStringLengthType), length, control);
+    length = effect =
+        graph()->NewNode(common()->TypeGuard(type_cache_.kStringLengthType),
+                         length, effect, control);
   }
 
   Node* value =

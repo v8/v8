@@ -1139,8 +1139,9 @@ Reduction JSBuiltinReducer::ReduceCollectionIteratorNext(
           // Abort loop with resulting value.
           Node* control = graph()->NewNode(common()->IfFalse(), branch1);
           Node* effect = etrue0;
-          Node* value = graph()->NewNode(
-              common()->TypeGuard(Type::NonInternal()), entry_key, control);
+          Node* value = effect =
+              graph()->NewNode(common()->TypeGuard(Type::NonInternal()),
+                               entry_key, effect, control);
           Node* done = jsgraph()->FalseConstant();
 
           // Advance the index on the {receiver}.

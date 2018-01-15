@@ -2584,8 +2584,8 @@ Node* JSNativeContextSpecialization::BuildExtendPropertiesBackingStore(
         common()->Select(MachineRepresentation::kTaggedSigned),
         graph()->NewNode(simplified()->ObjectIsSmi(), properties), properties,
         jsgraph()->SmiConstant(PropertyArray::kNoHashSentinel));
-    hash = graph()->NewNode(common()->TypeGuard(Type::SignedSmall()), hash,
-                            control);
+    hash = effect = graph()->NewNode(common()->TypeGuard(Type::SignedSmall()),
+                                     hash, effect, control);
     hash =
         graph()->NewNode(simplified()->NumberShiftLeft(), hash,
                          jsgraph()->Constant(PropertyArray::HashField::kShift));

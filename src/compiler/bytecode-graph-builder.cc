@@ -2671,7 +2671,9 @@ void BytecodeGraphBuilder::VisitForInNext() {
   // We need to rename the {index} here, as in case of OSR we loose the
   // information that the {index} is always a valid unsigned Smi value.
   index = graph()->NewNode(common()->TypeGuard(Type::UnsignedSmall()), index,
+                           environment()->GetEffectDependency(),
                            environment()->GetControlDependency());
+  environment()->UpdateEffectDependency(index);
 
   FeedbackSlot slot =
       feedback_vector()->ToSlot(bytecode_iterator().GetIndexOperand(3));
