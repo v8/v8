@@ -213,9 +213,16 @@ void ProfilerListener::RecordInliningInfo(CodeEntry* entry,
       SharedFunctionInfo* shared_info = SharedFunctionInfo::cast(
           deopt_input_data->LiteralArray()->get(shared_info_id));
       if (!depth++) continue;  // Skip the current function itself.
+
+      const char* resource_name =
+          (shared_info->script()->IsScript() &&
+           Script::cast(shared_info->script())->name()->IsName())
+              ? GetName(Name::cast(Script::cast(shared_info->script())->name()))
+              : CodeEntry::kEmptyResourceName;
+
       CodeEntry* inline_entry =
           new CodeEntry(entry->tag(), GetFunctionName(shared_info->DebugName()),
-                        CodeEntry::kEmptyNamePrefix, entry->resource_name(),
+                        CodeEntry::kEmptyNamePrefix, resource_name,
                         CpuProfileNode::kNoLineNumberInfo,
                         CpuProfileNode::kNoColumnNumberInfo, nullptr,
                         code->instruction_start());
