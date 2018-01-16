@@ -217,31 +217,6 @@ class SystemTest(unittest.TestCase):
       self.assertIn('Done running sweet/strawberries: FAIL', result.stdout, result)
       self.assertEqual(1, result.returncode, result)
 
-  def check_cleaned_json_output(self, expected_results_name, actual_json):
-    # Check relevant properties of the json output.
-    with open(actual_json) as f:
-      json_output = json.load(f)[0]
-      pretty_json = json.dumps(json_output, indent=2, sort_keys=True)
-
-    # Replace duration in actual output as it's non-deterministic. Also
-    # replace the python executable prefix as it has a different absolute
-    # path dependent on where this runs.
-    def replace_variable_data(data):
-      data['duration'] = 1
-      data['command'] = ' '.join(
-          ['/usr/bin/python'] + data['command'].split()[1:])
-    for data in json_output['slowest_tests']:
-      replace_variable_data(data)
-    for data in json_output['results']:
-      replace_variable_data(data)
-    json_output['duration_mean'] = 1
-
-    with open(os.path.join(TEST_DATA_ROOT, expected_results_name)) as f:
-      expected_test_results = json.load(f)
-
-    msg = None  # Set to pretty_json for bootstrapping.
-    self.assertDictEqual(json_output, expected_test_results, msg)
-
   def testFailWithRerunAndJSONProc(self):
     self.testFailWithRerunAndJSON(infra_staging=True)
 
@@ -271,42 +246,33 @@ class SystemTest(unittest.TestCase):
         self.assertIn('1 tests failed', result.stdout, result)
       self.assertEqual(0, result.returncode, result)
 
+      # Check relevant properties of the json output.
+      with open(json_path) as f:
+        json_output = json.load(f)[0]
+        pretty_json = json.dumps(json_output, indent=2, sort_keys=True)
+
+      # Replace duration in actual output as it's non-deterministic. Also
+      # replace the python executable prefix as it has a different absolute
+      # path dependent on where this runs.
+      def replace_variable_data(data):
+        data['duration'] = 1
+        data['command'] = ' '.join(
+            ['/usr/bin/python'] + data['command'].split()[1:])
+      for data in json_output['slowest_tests']:
+        replace_variable_data(data)
+      for data in json_output['results']:
+        replace_variable_data(data)
+      json_output['duration_mean'] = 1
+
+      expected_results_name = 'expected_test_results1.json'
+      with open(os.path.join(TEST_DATA_ROOT, expected_results_name)) as f:
+        expected_test_results = json.load(f)
+
       # TODO(majeski): Previously we only reported the variant flags in the
       # flags field of the test result.
       # After recent changes we report all flags, including the file names.
       # This is redundant to the command. Needs investigation.
-      self.check_cleaned_json_output('expected_test_results1.json', json_path)
-
-  def testFlakeWithRerunAndJSONProc(self):
-    self.testFlakeWithRerunAndJSON(infra_staging=True)
-
-  def testFlakeWithRerunAndJSON(self, infra_staging=False):
-    """Test re-running a failing test and output to json."""
-    with temp_base(baseroot='testroot2') as basedir:
-      json_path = os.path.join(basedir, 'out.json')
-      result = run_tests(
-          basedir,
-          '--mode=Release',
-          '--progress=verbose',
-          '--variants=default',
-          '--rerun-failures-count=2',
-          '--random-seed=123',
-          '--json-test-results', json_path,
-          'sweet',
-          infra_staging=infra_staging,
-      )
-      self.assertIn('Running 1 tests', result.stdout, result)
-      if not infra_staging:
-        self.assertIn(
-            'Done running sweet/bananaflakes: FAIL', result.stdout, result)
-        self.assertIn('1 tests failed', result.stdout, result)
-      else:
-        # TODO(majeski): Evaluate if this output is reasonable for a FAIL, PASS.
-        self.assertIn(
-            'Done running sweet/bananaflakes: pass', result.stdout, result)
-        self.assertIn('All tests succeeded', result.stdout, result)
-      self.assertEqual(0, result.returncode, result)
-      self.check_cleaned_json_output('expected_test_results2.json', json_path)
+      self.assertEqual(json_output, expected_test_results, pretty_json)
 
   def testAutoDetect(self):
     """Fake a build with several auto-detected options.
