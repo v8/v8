@@ -42,6 +42,8 @@ let state = Object.create(null);
 
 function globalDataChanged(e) {
   state.data = e.detail;
+  // Emit one entry with the whole model for debugging purposes.
+  console.log(state.data);
   state.selection = null;
   $('#global-timeline').selection = state.selection;
   $('#global-timeline').data = state.data;
@@ -62,10 +64,21 @@ function globalSelectionChangedA(e) {
 <body>
   <trace-file-reader onchange="globalDataChanged(event)"></trace-file-reader>
   <h1>V8 Heap Statistics</h1>
+  <p>Visualize object statistics that have been gathered using</p>
+  <ul>
+    <li><code>--trace-gc-object-stats on V8</code></li>
+    <li>
+      <a
+        href="https://www.chromium.org/developers/how-tos/trace-event-profiling-tool">Chrome's
+        tracing infrastructure</a> collecting data for the category
+      <code>v8.gc_stats</code>. The trace file needs to be unpacked (e.g. using
+      <code>gunzip</code>).
+    </li>
+  </ul>
   <p>
-    Visualize object stats gathered using <code>--trace-gc-object-stats</code>.
-    Needs to be run on a web server (e.g. <code>python -m
-    SimpleHTTPServer</code>) due to HTML imports requiring CORS.
+    Note that the visualizer needs to run on a web server due to HTML imports
+    requiring <a
+         href="https://en.wikipedia.org/wiki/Cross-origin_resource_sharing">CORS</a>.
   </p>
   <details-selection id="details-selection" onchange="globalSelectionChangedA(event)"></details-selection>
   <global-timeline id="global-timeline"></global-timeline>

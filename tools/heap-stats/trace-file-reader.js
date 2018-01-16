@@ -53,17 +53,9 @@ class TraceFileReader extends HTMLElement {
     const result = new FileReader();
     result.onload = (e) => {
       let contents = e.target.result.split('\n');
-      contents = contents.map(function(line) {
-        try {
-          // Strip away a potentially present adb logcat prefix.
-          line = line.replace(/^I\/v8\s*\(\d+\):\s+/g, '');
-          return JSON.parse(line);
-        } catch (e) {
-          console.log('unable to parse line: \'' + line + '\'\' (' + e + ')');
-        }
-        return null;
-      });
-      const return_data = this.createModel(contents);
+      const return_data = (e.target.result.includes('V8.GC_Objects_Stats')) ?
+          this.createModelFromChromeTraceFile(contents) :
+          this.createModelFromV8TraceFile(contents);
       this.updateLabel('Finished loading \'' + file.name + '\'.');
       this.dispatchEvent(new CustomEvent(
           'change', {bubbles: true, composed: true, detail: return_data}));
@@ -71,125 +63,73 @@ class TraceFileReader extends HTMLElement {
     result.readAsText(file);
   }
 
-  createModel(contents) {
-    // contents is an array of JSON objects that is consolidated into the
-    // application model.
-
-    const data = Object.create(null);  // Final data container.
-    const keys = Object.create(null);  // Collecting 'keys' per isolate.
-
-    let createOrUpdateEntryIfNeeded = entry => {
-      if (!(entry.isolate in keys)) {
-        keys[entry.isolate] = new Set();
-      }
-      if (!(entry.isolate in data)) {
-        data[entry.isolate] = {
-          non_empty_instance_types: new Set(),
-          gcs: {},
-          zonetags: [],
-          samples: {zone: {}},
-          start: null,
-          end: null,
-          data_sets: new Set()
-        };
-      }
-      const data_object = data[entry.isolate];
-      if (('id' in entry) && !(entry.id in data_object.gcs)) {
-        data_object.gcs[entry.id] = {non_empty_instance_types: new Set()};
-      }
-      if (data_object.end === null || data_object.end < entry.time) {
+  createOrUpdateEntryIfNeeded(data, keys, entry) {
+    console.assert(entry.isolate, 'entry should have an isolate');
+    if (!(entry.isolate in keys)) {
+      keys[entry.isolate] = new Set();
+    }
+    if (!(entry.isolate in data)) {
+      data[entry.isolate] = {
+        non_empty_instance_types: new Set(),
+        gcs: {},
+        zonetags: [],
+        samples: {zone: {}},
+        start: null,
+        end: null,
+        data_sets: new Set()
+      };
+    }
+    const data_object = data[entry.isolate];
+    if (('id' in entry) && !(entry.id in data_object.gcs)) {
+      data_object.gcs[entry.id] = {non_empty_instance_types: new Set()};
+    }
+    if ('time' in entry) {
+      if (data_object.end === null || data_object.end < entry.time)
         data_object.end = entry.time;
-      }
       if (data_object.start === null || data_object.start > entry.time)
         data_object.start = entry.time;
-    };
-
-    for (var entry of contents) {
-      if (entry === null || entry.type === undefined) {
-        continue;
-      }
-      if (entry.type === 'zone') {
-        createOrUpdateEntryIfNeeded(entry);
-        const stacktrace = ('stacktrace' in entry) ? entry.stacktrace : [];
-        data[entry.isolate].samples.zone[entry.time] = {
-          allocated: entry.allocated,
-          pooled: entry.pooled,
-          stacktrace: stacktrace
-        };
-      } else if (
-          entry.type === 'zonecreation' || entry.type === 'zonedestruction') {
-        createOrUpdateEntryIfNeeded(entry);
-        data[entry.isolate].zonetags.push(
-            Object.assign({opening: entry.type === 'zonecreation'}, entry));
-      } else if (entry.type === 'gc_descriptor') {
-        createOrUpdateEntryIfNeeded(entry);
-        data[entry.isolate].gcs[entry.id].time = entry.time;
-        if ('zone' in entry)
-          data[entry.isolate].gcs[entry.id].malloced = entry.zone;
-      } else if (entry.type === 'instance_type_data') {
-        if (entry.id in data[entry.isolate].gcs) {
-          createOrUpdateEntryIfNeeded(entry);
-          if (!(entry.key in data[entry.isolate].gcs[entry.id])) {
-            data[entry.isolate].gcs[entry.id][entry.key] = {
-              instance_type_data: {},
-              non_empty_instance_types: new Set(),
-              overall: 0
-            };
-            data[entry.isolate].data_sets.add(entry.key);
-          }
-          const instanceTypeName = entry.instance_type_name;
-          const id = entry.id;
-          const key = entry.key;
-          keys[entry.isolate].add(key);
-          data[entry.isolate]
-              .gcs[id][key]
-              .instance_type_data[instanceTypeName] = {
-            overall: entry.overall,
-            count: entry.count,
-            histogram: entry.histogram,
-            over_allocated: entry.over_allocated,
-            over_allocated_histogram: entry.over_allocated_histogram
-          };
-          data[entry.isolate].gcs[id][key].overall += entry.overall;
-
-          if (entry.overall !== 0) {
-            data[entry.isolate].gcs[id][key].non_empty_instance_types.add(
-                instanceTypeName);
-            data[entry.isolate].gcs[id].non_empty_instance_types.add(
-                instanceTypeName);
-            data[entry.isolate].non_empty_instance_types.add(instanceTypeName);
-          }
-        }
-      } else if (entry.type === 'bucket_sizes') {
-        if (entry.id in data[entry.isolate].gcs) {
-          createOrUpdateEntryIfNeeded(entry);
-          if (!(entry.key in data[entry.isolate].gcs[entry.id])) {
-            data[entry.isolate].gcs[entry.id][entry.key] = {
-              instance_type_data: {},
-              non_empty_instance_types: new Set(),
-              overall: 0
-            };
-            data[entry.isolate].data_sets.add(entry.key);
-          }
-          data[entry.isolate].gcs[entry.id][entry.key].bucket_sizes =
-              entry.sizes;
-        }
-      } else {
-        console.warning('Unknown entry type: ' + entry.type);
-      }
     }
+  }
 
-    let checkNonNegativeProperty = (obj, property) => {
-      if (obj[property] < 0) {
-        console.warning(
-            'Property \'' + property + '\' negative: ' + obj[property]);
-      }
+  createDatasetIfNeeded(data, keys, entry, data_set) {
+    if (!(data_set in data[entry.isolate].gcs[entry.id])) {
+      data[entry.isolate].gcs[entry.id][data_set] = {
+        instance_type_data: {},
+        non_empty_instance_types: new Set(),
+        overall: 0
+      };
+      data[entry.isolate].data_sets.add(data_set);
+    }
+  }
+
+  addInstanceTypeData(
+      data, keys, isolate, gc_id, data_set, instance_type, entry) {
+    keys[isolate].add(data_set);
+    data[isolate].gcs[gc_id][data_set].instance_type_data[instance_type] = {
+      overall: entry.overall,
+      count: entry.count,
+      histogram: entry.histogram,
+      over_allocated: entry.over_allocated,
+      over_allocated_histogram: entry.over_allocated_histogram
+    };
+    data[isolate].gcs[gc_id][data_set].overall += entry.overall;
+    if (entry.overall !== 0) {
+      data[isolate].gcs[gc_id][data_set].non_empty_instance_types.add(
+          instance_type);
+      data[isolate].gcs[gc_id].non_empty_instance_types.add(instance_type);
+      data[isolate].non_empty_instance_types.add(instance_type);
+    }
+  }
+
+  extendAndSanitizeModel(data, keys) {
+    const checkNonNegativeProperty = (obj, property) => {
+      console.assert(obj[property] >= 0, 'negative property', obj, property);
     };
 
     for (const isolate of Object.keys(data)) {
       for (const gc of Object.keys(data[isolate].gcs)) {
-        for (const key of keys[isolate]) {
-          const data_set = data[isolate].gcs[gc][key];
+        for (const data_set_key of keys[isolate]) {
+          const data_set = data[isolate].gcs[gc][data_set_key];
           // 1. Create a ranked instance type array that sorts instance
           // types by memory size (overall).
           data_set.ranked_instance_types =
@@ -205,35 +145,154 @@ class TraceFileReader extends HTMLElement {
                 return 0;
               });
 
-          // 2. Create *FIXED_ARRAY_UNKNOWN_SUB_TYPE that accounts for all
-          // missing fixed array sub types.
-          const fixed_array_data =
-              Object.assign({}, data_set.instance_type_data.FIXED_ARRAY_TYPE);
-          for (const instanceType in data_set.instance_type_data) {
-            if (!instanceType.startsWith('*FIXED_ARRAY')) continue;
-            const subtype = data_set.instance_type_data[instanceType];
-            fixed_array_data.count -= subtype.count;
-            fixed_array_data.overall -= subtype.overall;
-            for (let i = 0; i < fixed_array_data.histogram.length; i++) {
-              fixed_array_data.histogram[i] -= subtype.histogram[i];
+          let known_count = 0;
+          let known_overall = 0;
+          let known_histogram =
+              Array(
+                  data_set.instance_type_data.FIXED_ARRAY_TYPE.histogram.length)
+                  .fill(0);
+          for (const instance_type in data_set.instance_type_data) {
+            if (!instance_type.startsWith('*FIXED_ARRAY')) continue;
+            const subtype = data_set.instance_type_data[instance_type];
+            known_count += subtype.count;
+            known_overall += subtype.count;
+            for (let i = 0; i < subtype.histogram.length; i++) {
+              known_histogram[i] += subtype.histogram[i];
             }
           }
 
-          // Emit log messages for negative values.
-          checkNonNegativeProperty(fixed_array_data, 'count');
-          checkNonNegativeProperty(fixed_array_data, 'overall');
-          for (let i = 0; i < fixed_array_data.histogram.length; i++) {
-            checkNonNegativeProperty(fixed_array_data.histogram, i);
+          const fixed_array_data = data_set.instance_type_data.FIXED_ARRAY_TYPE;
+          const unknown_entry = {
+            count: fixed_array_data.count - known_count,
+            overall: fixed_array_data.overall - known_overall,
+            histogram: fixed_array_data.histogram.map(
+                (value, index) => value - known_histogram[index])
+          };
+
+          // Check for non-negative values.
+          checkNonNegativeProperty(unknown_entry, 'count');
+          checkNonNegativeProperty(unknown_entry, 'overall');
+          for (let i = 0; i < unknown_entry.histogram.length; i++) {
+            checkNonNegativeProperty(unknown_entry.histogram, i);
           }
 
           data_set.instance_type_data['*FIXED_ARRAY_UNKNOWN_SUB_TYPE'] =
-              fixed_array_data;
+              unknown_entry;
           data_set.non_empty_instance_types.add(
               '*FIXED_ARRAY_UNKNOWN_SUB_TYPE');
         }
       }
     }
-    console.log(data);
+  }
+
+  createModelFromChromeTraceFile(contents) {
+    console.log('Processing log as chrome trace file.');
+    const data = Object.create(null);  // Final data container.
+    const keys = Object.create(null);  // Collecting 'keys' per isolate.
+
+    // Pop last line in log as it might be broken.
+    contents.pop();
+    // Remove trailing comma.
+    contents[contents.length - 1] = contents[contents.length - 1].slice(0, -1);
+    // Terminate JSON.
+    const sanitized_contents = [...contents, ']}'].join('');
+    try {
+      const raw_data = JSON.parse(sanitized_contents);
+      const objects_stats_data =
+          raw_data.traceEvents.filter(e => e.name == 'V8.GC_Objects_Stats');
+      objects_stats_data.forEach(trace_data => {
+        const actual_data = trace_data.args;
+        const data_sets = new Set(Object.keys(actual_data));
+        Object.keys(actual_data).forEach(data_set => {
+          const string_entry = actual_data[data_set];
+          try {
+            const entry = JSON.parse(string_entry);
+            this.createOrUpdateEntryIfNeeded(data, keys, entry);
+            this.createDatasetIfNeeded(data, keys, entry, data_set);
+            const isolate = entry.isolate;
+            const time = entry.time;
+            const gc_id = entry.id;
+            data[isolate].gcs[gc_id].time = time;
+            data[isolate].gcs[gc_id][data_set].bucket_sizes =
+                entry.bucket_sizes;
+            for (let [instance_type, value] of Object.entries(
+                     entry.type_data)) {
+              // Trace file format uses markers that do not have actual
+              // properties.
+              if (!('overall' in value)) continue;
+              this.addInstanceTypeData(
+                  data, keys, isolate, gc_id, data_set, instance_type, value);
+            }
+          } catch (e) {
+            console.log('Unable to parse data set entry', e);
+          }
+        });
+      });
+    } catch (e) {
+      console.log('Unable to parse chrome trace file.', e);
+    }
+    this.extendAndSanitizeModel(data, keys);
+    return data;
+  }
+
+  createModelFromV8TraceFile(contents) {
+    console.log('Processing log as V8 trace file.');
+    contents = contents.map(function(line) {
+      try {
+        // Strip away a potentially present adb logcat prefix.
+        line = line.replace(/^I\/v8\s*\(\d+\):\s+/g, '');
+        return JSON.parse(line);
+      } catch (e) {
+        console.log('Unable to parse line: \'' + line + '\'\' (' + e + ')');
+      }
+      return null;
+    });
+
+    const data = Object.create(null);  // Final data container.
+    const keys = Object.create(null);  // Collecting 'keys' per isolate.
+
+    for (var entry of contents) {
+      if (entry === null || entry.type === undefined) {
+        continue;
+      }
+      if (entry.type === 'zone') {
+        this.createOrUpdateEntryIfNeeded(data, keys, entry);
+        const stacktrace = ('stacktrace' in entry) ? entry.stacktrace : [];
+        data[entry.isolate].samples.zone[entry.time] = {
+          allocated: entry.allocated,
+          pooled: entry.pooled,
+          stacktrace: stacktrace
+        };
+      } else if (
+          entry.type === 'zonecreation' || entry.type === 'zonedestruction') {
+        this.createOrUpdateEntryIfNeeded(data, keys, entry);
+        data[entry.isolate].zonetags.push(
+            Object.assign({opening: entry.type === 'zonecreation'}, entry));
+      } else if (entry.type === 'gc_descriptor') {
+        this.createOrUpdateEntryIfNeeded(data, keys, entry);
+        data[entry.isolate].gcs[entry.id].time = entry.time;
+        if ('zone' in entry)
+          data[entry.isolate].gcs[entry.id].malloced = entry.zone;
+      } else if (entry.type === 'instance_type_data') {
+        if (entry.id in data[entry.isolate].gcs) {
+          this.createOrUpdateEntryIfNeeded(data, keys, entry);
+          this.createDatasetIfNeeded(data, keys, entry, entry.key);
+          this.addInstanceTypeData(
+              data, keys, entry.isolate, entry.id, entry.key,
+              entry.instance_type_name, entry);
+        }
+      } else if (entry.type === 'bucket_sizes') {
+        if (entry.id in data[entry.isolate].gcs) {
+          this.createOrUpdateEntryIfNeeded(data, keys, entry);
+          this.createDatasetIfNeeded(data, keys, entry, entry.key);
+          data[entry.isolate].gcs[entry.id][entry.key].bucket_sizes =
+              entry.sizes;
+        }
+      } else {
+        console.log('Unknown entry type: ' + entry.type);
+      }
+    }
+    this.extendAndSanitizeModel(data, keys);
     return data;
   }
 }

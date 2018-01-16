@@ -5,7 +5,9 @@ For example, the tool can be used to visualize how much heap memory is used for
 maintaining internal state versus actually allocated by the user.
 
 The tool consumes log files produced by d8 (or Chromium) by passing
-`--trace-gc-object-stats`.
+`--trace-gc-object-stats` or a trace captured using Chrome's tracing
+infrastructure. Chrome trace files need to be unpacked before they can
+be used though.
 
 Hosting requires a web server, e.g.:
 
