@@ -10468,7 +10468,9 @@ void CodeStubArguments::PopAndReturn(Node* value) {
   } else {
     pop_count = argc_;
   }
-  assembler_->PopAndReturn(pop_count, value);
+
+  assembler_->PopAndReturn(assembler_->ParameterToWord(pop_count, argc_mode_),
+                           value);
 }
 
 Node* CodeStubAssembler::IsFastElementsKind(Node* elements_kind) {

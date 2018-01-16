@@ -1706,7 +1706,7 @@ TEST(Arguments) {
   CSA_ASSERT(
       &m, m.WordEqual(arguments.AtIndex(2), m.SmiConstant(Smi::FromInt(14))));
 
-  m.Return(arguments.GetReceiver());
+  arguments.PopAndReturn(arguments.GetReceiver());
 
   FunctionTester ft(asm_tester.GenerateCode(), kNumParams);
   Handle<Object> result = ft.Call(isolate->factory()->undefined_value(),
@@ -1740,7 +1740,7 @@ TEST(ArgumentsWithSmiConstantIndices) {
                                            CodeStubAssembler::SMI_PARAMETERS),
                          m.SmiConstant(Smi::FromInt(14))));
 
-  m.Return(arguments.GetReceiver());
+  arguments.PopAndReturn(arguments.GetReceiver());
 
   FunctionTester ft(asm_tester.GenerateCode(), kNumParams);
   Handle<Object> result = ft.Call(isolate->factory()->undefined_value(),
@@ -1793,7 +1793,7 @@ TEST(ArgumentsWithSmiIndices) {
                                            CodeStubAssembler::SMI_PARAMETERS),
                          m.SmiConstant(Smi::FromInt(14))));
 
-  m.Return(arguments.GetReceiver());
+  arguments.PopAndReturn(arguments.GetReceiver());
 
   FunctionTester ft(asm_tester.GenerateCode(), kNumParams);
   Handle<Object> result = ft.Call(isolate->factory()->undefined_value(),
@@ -1821,7 +1821,7 @@ TEST(ArgumentsForEach) {
   arguments.ForEach(
       list, [&m, &sum](Node* arg) { sum.Bind(m.SmiAdd(sum.value(), arg)); });
 
-  m.Return(sum.value());
+  arguments.PopAndReturn(sum.value());
 
   FunctionTester ft(asm_tester.GenerateCode(), kNumParams);
   Handle<Object> result = ft.Call(isolate->factory()->undefined_value(),

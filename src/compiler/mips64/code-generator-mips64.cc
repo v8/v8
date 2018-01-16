@@ -3662,7 +3662,6 @@ void CodeGenerator::AssembleReturn(InstructionOperand* pop) {
   }
   int pop_count = static_cast<int>(descriptor->StackParameterCount());
   if (pop->IsImmediate()) {
-    DCHECK_EQ(Constant::kInt32, g.ToConstant(pop).type());
     pop_count += g.ToConstant(pop).ToInt32();
   } else {
     Register pop_reg = g.ToRegister(pop);

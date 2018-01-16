@@ -3080,7 +3080,6 @@ void CodeGenerator::AssembleReturn(InstructionOperand* pop) {
   }
 
   if (pop->IsImmediate()) {
-    DCHECK_EQ(Constant::kInt32, g.ToConstant(pop).type());
     pop_size += g.ToConstant(pop).ToInt32() * kPointerSize;
     CHECK_LT(pop_size, static_cast<size_t>(std::numeric_limits<int>::max()));
     __ Ret(static_cast<int>(pop_size), rcx);
