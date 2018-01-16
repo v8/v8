@@ -131,6 +131,10 @@ void LiftoffAssembler::PushCallerFrameSlot(const VarState& src,
   UNIMPLEMENTED();
 }
 
+void LiftoffAssembler::PushCallerFrameSlot(LiftoffRegister reg) {
+  UNIMPLEMENTED();
+}
+
 void LiftoffAssembler::PushRegisters(LiftoffRegList regs) { UNIMPLEMENTED(); }
 
 void LiftoffAssembler::PopRegisters(LiftoffRegList regs) { UNIMPLEMENTED(); }
@@ -154,12 +158,21 @@ void LiftoffAssembler::SetCCallStackParamAddr(uint32_t stack_param_idx,
   UNIMPLEMENTED();
 }
 
-void LiftoffAssembler::EmitCCall(ExternalReference ext_ref,
-                                 uint32_t num_params) {
+void LiftoffAssembler::CallC(ExternalReference ext_ref, uint32_t num_params) {
   UNIMPLEMENTED();
 }
 
 void LiftoffAssembler::CallNativeWasmCode(Address addr) { UNIMPLEMENTED(); }
+
+void LiftoffAssembler::CallRuntime(Zone* zone, Runtime::FunctionId fid) {
+  UNIMPLEMENTED();
+}
+
+void LiftoffAssembler::AllocateStackSlot(Register addr, uint32_t size) {
+  UNIMPLEMENTED();
+}
+
+void LiftoffAssembler::DeallocateStackSlot(uint32_t size) { UNIMPLEMENTED(); }
 
 }  // namespace wasm
 }  // namespace internal

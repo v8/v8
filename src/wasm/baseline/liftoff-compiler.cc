@@ -11,6 +11,7 @@
 #include "src/counters.h"
 #include "src/macro-assembler-inl.h"
 #include "src/wasm/function-body-decoder-impl.h"
+#include "src/wasm/memory-tracing.h"
 #include "src/wasm/wasm-objects.h"
 #include "src/wasm/wasm-opcodes.h"
 
@@ -109,7 +110,8 @@ class LiftoffCompiler {
                   compiler::RuntimeExceptionSupport runtime_exception_support,
                   SourcePositionTableBuilder* source_position_table_builder,
                   std::vector<trap_handler::ProtectedInstructionData>*
-                      protected_instructions)
+                      protected_instructions,
+                  Zone* compilation_zone, std::unique_ptr<Zone>* codegen_zone)
       : asm_(liftoff_asm),
         call_desc_(call_desc),
         env_(env),
@@ -121,9 +123,9 @@ class LiftoffCompiler {
         runtime_exception_support_(runtime_exception_support),
         source_position_table_builder_(source_position_table_builder),
         protected_instructions_(protected_instructions),
-        compilation_zone_(liftoff_asm->isolate()->allocator(),
-                          "liftoff compilation"),
-        safepoint_table_builder_(&compilation_zone_) {
+        compilation_zone_(compilation_zone),
+        codegen_zone_(codegen_zone),
+        safepoint_table_builder_(compilation_zone_) {
     // Check for overflow in max_size_.
     DCHECK_EQ(max_size_, uint64_t{env_->module->has_maximum_pages
                                       ? env_->module->maximum_pages
@@ -432,12 +434,12 @@ class LiftoffCompiler {
 
     MachineSignature sig(kNumReturns, num_args, kReps);
     compiler::CallDescriptor* desc =
-        compiler::Linkage::GetSimplifiedCDescriptor(&compilation_zone_, &sig);
+        compiler::Linkage::GetSimplifiedCDescriptor(compilation_zone_, &sig);
 
     // Before making a call, spill all cache registers.
     __ SpillAllRegisters();
 
-    // Store arguments on our stack, then align the stack for calling to c.
+    // Store arguments on our stack, then align the stack for calling to C.
     uint32_t num_params = static_cast<uint32_t>(desc->ParameterCount());
     __ PrepareCCall(num_params, arg_regs);
 
@@ -460,7 +462,7 @@ class LiftoffCompiler {
     }
 
     // Now execute the call.
-    __ EmitCCall(ext_ref, num_params);
+    __ CallC(ext_ref, num_params);
 
     // Load return value.
     compiler::LinkageLocation return_loc = desc->GetReturnLocation(0);
@@ -804,6 +806,69 @@ class LiftoffCompiler {
     __ emit_cond_jump(kUnsignedGreaterEqual, trap_label);
   }
 
+  void TraceMemoryOperation(bool is_store, MachineRepresentation rep,
+                            Register index, uint32_t offset,
+                            WasmCodePosition position) {
+    // Before making the runtime call, spill all cache registers.
+    __ SpillAllRegisters();
+
+    LiftoffRegList pinned = LiftoffRegList::ForRegs(index);
+    // Get one register for computing the address (offset + index).
+    LiftoffRegister address = pinned.set(__ GetUnusedRegister(kGpReg, pinned));
+    // Compute offset+index in address.
+    __ LoadConstant(address, WasmValue(offset));
+    __ emit_i32_add(address.gp(), address.gp(), index);
+
+    // Get a register to hold the stack slot for wasm::MemoryTracingInfo.
+    LiftoffRegister info = pinned.set(__ GetUnusedRegister(kGpReg, pinned));
+    // Allocate stack slot for wasm::MemoryTracingInfo.
+    __ AllocateStackSlot(info.gp(), sizeof(wasm::MemoryTracingInfo));
+
+    // Now store all information into the wasm::MemoryTracingInfo struct.
+    __ Store(info.gp(), no_reg, offsetof(wasm::MemoryTracingInfo, address),
+             address, StoreType::kI32Store, pinned);
+    __ LoadConstant(address, WasmValue(is_store ? 1 : 0));
+    __ Store(info.gp(), no_reg, offsetof(wasm::MemoryTracingInfo, is_store),
+             address, StoreType::kI32Store8, pinned);
+    __ LoadConstant(address, WasmValue(static_cast<int>(rep)));
+    __ Store(info.gp(), no_reg, offsetof(wasm::MemoryTracingInfo, mem_rep),
+             address, StoreType::kI32Store8, pinned);
+
+    source_position_table_builder_->AddPosition(
+        __ pc_offset(), SourcePosition(position), false);
+
+    Register args[] = {info.gp()};
+    GenerateRuntimeCall(arraysize(args), args);
+  }
+
+  void GenerateRuntimeCall(int num_args, Register* args) {
+    compiler::CallDescriptor* desc =
+        compiler::Linkage::GetRuntimeCallDescriptor(
+            compilation_zone_, Runtime::kWasmTraceMemory, num_args,
+            compiler::Operator::kNoProperties,
+            compiler::CallDescriptor::kNoFlags);
+    // Currently, only one argument is supported. More arguments require some
+    // caution for the parallel register moves (reuse StackTransferRecipe).
+    DCHECK_EQ(1, num_args);
+    constexpr size_t kInputShift = 1;  // Input 0 is the call target.
+    compiler::LinkageLocation param_loc = desc->GetInputLocation(kInputShift);
+    if (param_loc.IsRegister()) {
+      Register reg = Register::from_code(param_loc.AsRegister());
+      __ Move(LiftoffRegister(reg), LiftoffRegister(args[0]));
+    } else {
+      DCHECK(param_loc.IsCallerFrameSlot());
+      __ PushCallerFrameSlot(LiftoffRegister(args[0]));
+    }
+
+    // Allocate the codegen zone if not done before.
+    if (!*codegen_zone_) {
+      codegen_zone_->reset(
+          new Zone(__ isolate()->allocator(), "LiftoffCodegenZone"));
+    }
+    __ CallRuntime(codegen_zone_->get(), Runtime::kWasmTraceMemory);
+    __ DeallocateStackSlot(sizeof(wasm::MemoryTracingInfo));
+  }
+
   void LoadMem(Decoder* decoder, LoadType type,
                const MemoryAccessOperand<validate>& operand,
                const Value& index_val, Value* result) {
@@ -829,6 +894,11 @@ class LiftoffCompiler {
     }
     __ PushRegister(value_type, value);
     CheckStackSizeLimit(decoder);
+
+    if (FLAG_wasm_trace_memory) {
+      TraceMemoryOperation(false, type.mem_type().representation(), index,
+                           operand.offset, decoder->position());
+    }
   }
 
   void StoreMem(Decoder* decoder, StoreType type,
@@ -854,6 +924,10 @@ class LiftoffCompiler {
     if (env_->use_trap_handler) {
       AddOutOfLineTrap(decoder->position(), protected_store_pc);
     }
+    if (FLAG_wasm_trace_memory) {
+      TraceMemoryOperation(true, type.mem_rep(), index, operand.offset,
+                           decoder->position());
+    }
   }
 
   void CurrentMemoryPages(Decoder* decoder, Value* result) {
@@ -870,7 +944,7 @@ class LiftoffCompiler {
       return unsupported(decoder, "multi-return");
 
     compiler::CallDescriptor* call_desc =
-        compiler::GetWasmCallDescriptor(&compilation_zone_, operand.sig);
+        compiler::GetWasmCallDescriptor(compilation_zone_, operand.sig);
 
     __ PrepareCall(operand.sig, call_desc);
 
@@ -948,7 +1022,10 @@ class LiftoffCompiler {
   // Zone used to store information during compilation. The result will be
   // stored independently, such that this zone can die together with the
   // LiftoffCompiler after compilation.
-  Zone compilation_zone_;
+  Zone* compilation_zone_;
+  // This zone is allocated when needed, held externally, and survives until
+  // code generation (in FinishCompilation).
+  std::unique_ptr<Zone>* codegen_zone_;
   SafepointTableBuilder safepoint_table_builder_;
 
   void TraceCacheState(Decoder* decoder) const {
@@ -991,7 +1068,7 @@ bool compiler::WasmCompilationUnit::ExecuteLiftoffCompilation() {
       decoder(&zone, module, func_body_, &liftoff_.asm_, call_desc, env_,
               runtime_exception_support_,
               &liftoff_.source_position_table_builder_,
-              protected_instructions_.get());
+              protected_instructions_.get(), &zone, &liftoff_.codegen_zone_);
   decoder.Decode();
   liftoff_compile_time_scope.reset();
   if (!decoder.interface().ok()) {

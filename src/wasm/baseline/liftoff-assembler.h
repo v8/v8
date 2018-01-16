@@ -341,6 +341,7 @@ class LiftoffAssembler : public TurboAssembler {
 
   // Push a value to the stack (will become a caller frame slot).
   inline void PushCallerFrameSlot(const VarState& src, uint32_t src_index);
+  inline void PushCallerFrameSlot(LiftoffRegister reg);
   inline void PushRegisters(LiftoffRegList);
   inline void PopRegisters(LiftoffRegList);
 
@@ -354,9 +355,15 @@ class LiftoffAssembler : public TurboAssembler {
                                    uint32_t num_params);
   inline void SetCCallStackParamAddr(uint32_t stack_param_idx,
                                      uint32_t param_idx, uint32_t num_params);
-  inline void EmitCCall(ExternalReference ext_ref, uint32_t num_params);
+  inline void CallC(ExternalReference ext_ref, uint32_t num_params);
 
   inline void CallNativeWasmCode(Address addr);
+
+  inline void CallRuntime(Zone* zone, Runtime::FunctionId fid);
+
+  // Reserve space in the current frame, store address to space in {addr}.
+  inline void AllocateStackSlot(Register addr, uint32_t size);
+  inline void DeallocateStackSlot(uint32_t size);
 
   ////////////////////////////////////
   // End of platform-specific part. //

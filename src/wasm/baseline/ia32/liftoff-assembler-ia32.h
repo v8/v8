@@ -170,11 +170,10 @@ void LiftoffAssembler::Store(Register dst_addr, Register offset_reg,
 void LiftoffAssembler::LoadCallerFrameSlot(LiftoffRegister dst,
                                            uint32_t caller_slot_idx) {
   Operand src(ebp, kPointerSize * (caller_slot_idx + 1));
-  // TODO(clemensh): Handle different sizes here.
   if (dst.is_gp()) {
     mov(dst.gp(), src);
   } else {
-    movsd(dst.fp(), src);
+    movss(dst.fp(), src);
   }
 }
 
@@ -470,25 +469,20 @@ void LiftoffAssembler::PushCallerFrameSlot(const VarState& src,
       push(liftoff::GetStackSlot(src_index));
       break;
     case VarState::kRegister:
-      switch (src.type()) {
-        case kWasmI32:
-          push(src.reg().gp());
-          break;
-        case kWasmF32:
-          sub(esp, Immediate(sizeof(float)));
-          movss(Operand(esp, 0), src.reg().fp());
-          break;
-        case kWasmF64:
-          sub(esp, Immediate(sizeof(double)));
-          movsd(Operand(esp, 0), src.reg().fp());
-          break;
-        default:
-          UNREACHABLE();
-      }
+      PushCallerFrameSlot(src.reg());
       break;
     case VarState::kI32Const:
       push(Immediate(src.i32_const()));
       break;
+  }
+}
+
+void LiftoffAssembler::PushCallerFrameSlot(LiftoffRegister reg) {
+  if (reg.is_gp()) {
+    push(reg.gp());
+  } else {
+    sub(esp, Immediate(kPointerSize));
+    movss(Operand(esp, 0), reg.fp());
   }
 }
 
@@ -563,13 +557,27 @@ void LiftoffAssembler::SetCCallStackParamAddr(uint32_t stack_param_idx,
   mov(Operand(esp, param_idx * kPointerSize), kScratch);
 }
 
-void LiftoffAssembler::EmitCCall(ExternalReference ext_ref,
-                                 uint32_t num_params) {
+void LiftoffAssembler::CallC(ExternalReference ext_ref, uint32_t num_params) {
   CallCFunction(ext_ref, static_cast<int>(num_params));
 }
 
 void LiftoffAssembler::CallNativeWasmCode(Address addr) {
   wasm_call(addr, RelocInfo::WASM_CALL);
+}
+
+void LiftoffAssembler::CallRuntime(Zone* zone, Runtime::FunctionId fid) {
+  // Set context to zero.
+  xor_(esi, esi);
+  CallRuntimeDelayed(zone, fid);
+}
+
+void LiftoffAssembler::AllocateStackSlot(Register addr, uint32_t size) {
+  sub(esp, Immediate(size));
+  mov(addr, esp);
+}
+
+void LiftoffAssembler::DeallocateStackSlot(uint32_t size) {
+  add(esp, Immediate(size));
 }
 
 }  // namespace wasm

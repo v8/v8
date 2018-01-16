@@ -36,9 +36,4 @@
   # tested standalone.
   'fail/modules-skip*': [SKIP],
 }],  # ALWAYS
-
-['variant == liftoff', {
-  # Memory tracing is not yet implemented in liftoff (crbug.com/v8/7210).
-  'wasm-trace-memory': [SKIP],
-}], # variant == liftoff
 ]

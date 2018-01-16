@@ -144,6 +144,9 @@ class WasmCompilationUnit final {
     wasm::LiftoffAssembler asm_;
     int safepoint_table_offset_;
     SourcePositionTableBuilder source_position_table_builder_;
+    // The {codegen_zone_} needs to survive until FinishCompilation. It's only
+    // rarely used (e.g. for runtime calls), so it's only allocated when needed.
+    std::unique_ptr<Zone> codegen_zone_;
     explicit LiftoffData(Isolate* isolate) : asm_(isolate) {}
   };
   struct TurbofanData {

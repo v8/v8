@@ -455,16 +455,20 @@ void LiftoffAssembler::PushCallerFrameSlot(const VarState& src,
       pushq(liftoff::GetStackSlot(src_index));
       break;
     case VarState::kRegister:
-      if (src.reg().is_gp()) {
-        pushq(src.reg().gp());
-      } else {
-        subp(rsp, Immediate(kStackSlotSize));
-        Movsd(Operand(rsp, 0), src.reg().fp());
-      }
+      PushCallerFrameSlot(src.reg());
       break;
     case VarState::kI32Const:
       pushq(Immediate(src.i32_const()));
       break;
+  }
+}
+
+void LiftoffAssembler::PushCallerFrameSlot(LiftoffRegister reg) {
+  if (reg.is_gp()) {
+    pushq(reg.gp());
+  } else {
+    subp(rsp, Immediate(kPointerSize));
+    Movsd(Operand(rsp, 0), reg.fp());
   }
 }
 
@@ -534,13 +538,27 @@ void LiftoffAssembler::SetCCallStackParamAddr(uint32_t stack_param_idx,
   UNREACHABLE();
 }
 
-void LiftoffAssembler::EmitCCall(ExternalReference ext_ref,
-                                 uint32_t num_params) {
+void LiftoffAssembler::CallC(ExternalReference ext_ref, uint32_t num_params) {
   CallCFunction(ext_ref, static_cast<int>(num_params));
 }
 
 void LiftoffAssembler::CallNativeWasmCode(Address addr) {
   near_call(addr, RelocInfo::WASM_CALL);
+}
+
+void LiftoffAssembler::CallRuntime(Zone* zone, Runtime::FunctionId fid) {
+  // Set context to zero.
+  xorp(rsi, rsi);
+  CallRuntimeDelayed(zone, fid);
+}
+
+void LiftoffAssembler::AllocateStackSlot(Register addr, uint32_t size) {
+  subp(rsp, Immediate(size));
+  movp(addr, rsp);
+}
+
+void LiftoffAssembler::DeallocateStackSlot(uint32_t size) {
+  addp(rsp, Immediate(size));
 }
 
 }  // namespace wasm
