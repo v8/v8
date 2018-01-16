@@ -3199,6 +3199,19 @@ class V8_EXPORT Object : public Value {
       Local<Value> data = Local<Value>(), PropertyAttribute attributes = None);
 
   /**
+   * Attempts to create a property with the given name which behaves like a data
+   * property, except that the provided getter is invoked (and provided with the
+   * data value) to supply its value the first time it is read. After the
+   * property is accessed once, it is replaced with an ordinary data property.
+   *
+   * Analogous to Template::SetLazyDataProperty.
+   */
+  V8_WARN_UNUSED_RESULT Maybe<bool> SetLazyDataProperty(
+      Local<Context> context, Local<Name> name,
+      AccessorNameGetterCallback getter, Local<Value> data = Local<Value>(),
+      PropertyAttribute attributes = None);
+
+  /**
    * Functionality for private properties.
    * This is an experimental feature, use at your own risk.
    * Note: Private properties are not inherited. Do not rely on this, since it
