@@ -1315,6 +1315,7 @@ enum ParserFlag {
   kAllowNatives,
   kAllowHarmonyFunctionSent,
   kAllowHarmonyPublicFields,
+  kAllowHarmonyPrivateFields,
   kAllowHarmonyStaticFields,
   kAllowHarmonyDynamicImport,
   kAllowHarmonyImportMeta,
@@ -1332,6 +1333,7 @@ void SetGlobalFlags(i::EnumSet<ParserFlag> flags) {
   i::FLAG_allow_natives_syntax = flags.Contains(kAllowNatives);
   i::FLAG_harmony_function_sent = flags.Contains(kAllowHarmonyFunctionSent);
   i::FLAG_harmony_public_fields = flags.Contains(kAllowHarmonyPublicFields);
+  i::FLAG_harmony_private_fields = flags.Contains(kAllowHarmonyPrivateFields);
   i::FLAG_harmony_static_fields = flags.Contains(kAllowHarmonyStaticFields);
   i::FLAG_harmony_dynamic_import = flags.Contains(kAllowHarmonyDynamicImport);
   i::FLAG_harmony_import_meta = flags.Contains(kAllowHarmonyImportMeta);
@@ -1346,6 +1348,8 @@ void SetParserFlags(i::PreParser* parser, i::EnumSet<ParserFlag> flags) {
       flags.Contains(kAllowHarmonyFunctionSent));
   parser->set_allow_harmony_public_fields(
       flags.Contains(kAllowHarmonyPublicFields));
+  parser->set_allow_harmony_private_fields(
+      flags.Contains(kAllowHarmonyPrivateFields));
   parser->set_allow_harmony_static_fields(
       flags.Contains(kAllowHarmonyStaticFields));
   parser->set_allow_harmony_dynamic_import(
@@ -4942,6 +4946,73 @@ TEST(ClassFieldsNoErrors) {
                     static_flags, arraysize(static_flags));
 }
 
+TEST(PrivateClassFieldsNoErrors) {
+  // clang-format off
+  // Tests proposed class fields syntax.
+  const char* context_data[][2] = {{"(class {", "});"},
+                                   {"(class extends Base {", "});"},
+                                   {"class C {", "}"},
+                                   {"class C extends Base {", "}"},
+                                   {nullptr, nullptr}};
+  const char* class_body_data[] = {
+    // Basic syntax
+    "#a = 0;",
+    "#a = 0; #b",
+    "#a = 0; b",
+    "#a = 0; b(){}",
+    "#a = 0; *b(){}",
+    "#a = 0; ['b'](){}",
+    "#a;",
+    "#a; #b;",
+    "#a; b;",
+    "#a; b(){}",
+    "#a; *b(){}",
+    "#a; ['b'](){}",
+
+    // ASI
+    "#a = 0\n",
+    "#a = 0\n #b",
+    "#a = 0\n b",
+    "#a = 0\n b(){}",
+    "#a\n",
+    "#a\n #b\n",
+    "#a\n b\n",
+    "#a\n b(){}",
+    "#a\n *b(){}",
+    "#a\n ['b'](){}",
+
+    // ASI edge cases
+    "#a\n get",
+    "#get\n *a(){}",
+    "#a\n static",
+
+    "#a = function t() { arguments; }",
+    "#a = () => function() { arguments; }",
+
+    // Misc edge cases
+    "#yield",
+    "#yield = 0",
+    "#yield\n a",
+    "#async;",
+    "#async = 0;",
+    "#async",
+    "#async = 0",
+    "#async\n a(){}",  // a field named async, and a method named a.
+    "#async\n a",
+    "#await;",
+    "#await = 0;",
+    "#await\n a",
+    nullptr
+  };
+  // clang-format on
+
+  RunParserSyncTest(context_data, class_body_data, kError);
+
+  static const ParserFlag private_fields[] = {kAllowHarmonyPrivateFields};
+  RunParserSyncTest(context_data, class_body_data, kSuccess, nullptr, 0,
+                    private_fields, arraysize(private_fields));
+}
+
 TEST(StaticClassFieldsErrors) {
   // clang-format off
   // Tests proposed class fields syntax.
@@ -5039,6 +5110,274 @@ TEST(ClassFieldsErrors) {
                                             kAllowHarmonyStaticFields};
   RunParserSyncTest(context_data, class_body_data, kError, nullptr, 0,
                     static_flags, arraysize(static_flags));
+}
+
+TEST(PrivateClassFieldsErrors) {
+  // clang-format off
+  // Tests proposed class fields syntax.
+  const char* context_data[][2] = {{"(class {", "});"},
+                                   {"(class extends Base {", "});"},
+                                   {"class C {", "}"},
+                                   {"class C extends Base {", "}"},
+                                   {nullptr, nullptr}};
+  const char* class_body_data[] = {
+    "#a : 0",
+    "#a =",
+    "#*a = 0",
+    "#*a",
+    "#get a",
+    "#yield a",
+    "#async a = 0",
+    "#async a",
+
+    "# a = 0",
+    "#a() { }",
+    "get #a() { }",
+    "#get a() { }",
+    "set #a() { }",
+    "#set a() { }",
+    "*#a() { }",
+    "#*a() { }",
+    "async #a() { }",
+    "async *#a() { }",
+    "async #*a() { }",
+
+    "#0 = 0;",
+    "#0;",
+    "#'a' = 0;",
+    "#'a';",
+
+    "#['a']",
+    "#['a'] = 1",
+    "#[a]",
+    "#[a] = 1",
+
+    "#a = arguments",
+    "#a = () => arguments",
+    "#a = () => { arguments }",
+    "#a = arguments[0]",
+    "#a = delete arguments[0]",
+    "#a = f(arguments)",
+    "#a = () => () => arguments",
+
+    // ASI requires a linebreak
+    "#a b",
+    "#a = 0 b",
+
+    // ASI requires that the next token is not part of any legal production
+    "#a = 0\n *b(){}",
+    "#a = 0\n ['b'](){}",
+    nullptr
+  };
+  // clang-format on
+
+  RunParserSyncTest(context_data, class_body_data, kError);
+
+  static const ParserFlag private_fields[] = {kAllowHarmonyPrivateFields};
+  RunParserSyncTest(context_data, class_body_data, kError, nullptr, 0,
+                    private_fields, arraysize(private_fields));
+}
+
+TEST(PrivateStaticClassFieldsErrors) {
+  // clang-format off
+  // Tests proposed class fields syntax.
+  const char* context_data[][2] = {{"(class {", "});"},
+                                   {"(class extends Base {", "});"},
+                                   {"class C {", "}"},
+                                   {"class C extends Base {", "}"},
+                                   {nullptr, nullptr}};
+  const char* class_body_data[] = {
+    // Basic syntax
+    "static #a = 0;",
+    "static #a = 0; b",
+    "static #a = 0; #b",
+    "static #a = 0; b(){}",
+    "static #a = 0; *b(){}",
+    "static #a = 0; ['b'](){}",
+    "static #a;",
+    "static #a; b;",
+    "static #a; b(){}",
+    "static #a; *b(){}",
+    "static #a; ['b'](){}",
+    "static #['a'] = 0;",
+    "static #['a'] = 0; b",
+    "static #['a'] = 0; #b",
+    "static #['a'] = 0; b(){}",
+    "static #['a'] = 0; *b(){}",
+    "static #['a'] = 0; ['b'](){}",
+    "static #['a'];",
+    "static #['a']; b;",
+    "static #['a']; #b;",
+    "static #['a']; b(){}",
+    "static #['a']; *b(){}",
+    "static #['a']; ['b'](){}",
+
+    "static #0 = 0;",
+    "static #0;",
+    "static #'a' = 0;",
+    "static #'a';",
+
+    "static # a = 0",
+    "static #a() { }",
+    "static get #a() { }",
+    "static #get a() { }",
+    "static set #a() { }",
+    "static #set a() { }",
+    "static *#a() { }",
+    "static #*a() { }",
+    "static async #a() { }",
+    "static async *#a() { }",
+    "static async #*a() { }",
+
+    // ASI
+    "static #a = 0\n",
+    "static #a = 0\n b",
+    "static #a = 0\n #b",
+    "static #a = 0\n b(){}",
+    "static #a\n",
+    "static #a\n b\n",
+    "static #a\n #b\n",
+    "static #a\n b(){}",
+    "static #a\n *b(){}",
+    "static #a\n ['b'](){}",
+    "static #['a'] = 0\n",
+    "static #['a'] = 0\n b",
+    "static #['a'] = 0\n #b",
+    "static #['a'] = 0\n b(){}",
+    "static #['a']\n",
+    "static #['a']\n b\n",
+    "static #['a']\n #b\n",
+    "static #['a']\n b(){}",
+    "static #['a']\n *b(){}",
+    "static #['a']\n ['b'](){}",
+
+    "static #a = function t() { arguments; }",
+    "static #a = () => function t() { arguments; }",
+
+    // ASI edge cases
+    "static #a\n get",
+    "static #get\n *a(){}",
+    "static #a\n static",
+
+    // Misc edge cases
+    "static #yield",
+    "static #yield = 0",
+    "static #yield\n a",
+    "static #async;",
+    "static #async = 0;",
+    "static #async",
+    "static #async = 0",
+    "static #async\n a(){}",  // a field named async, and a method named a.
+    "static #async\n a",
+    "static #await;",
+    "static #await = 0;",
+    "static #await\n a",
+    nullptr
+  };
+  // clang-format on
+
+  RunParserSyncTest(context_data, class_body_data, kError);
+
+  static const ParserFlag public_static_fields[] = {kAllowHarmonyPublicFields,
+                                                    kAllowHarmonyStaticFields};
+  RunParserSyncTest(context_data, class_body_data, kError, nullptr, 0,
+                    public_static_fields, arraysize(public_static_fields));
+
+  static const ParserFlag private_static_fields[] = {
+      kAllowHarmonyPublicFields, kAllowHarmonyStaticFields,
+      kAllowHarmonyPrivateFields};
+  RunParserSyncTest(context_data, class_body_data, kError, nullptr, 0,
+                    private_static_fields, arraysize(private_static_fields));
+}
+
+TEST(PrivateNameNoErrors) {
+  // clang-format off
+  const char* context_data[][2] = {
+      {"", ""},
+      {"\"use strict\";", ""},
+      {nullptr, nullptr}
+  };
+
+  const char* statement_data[] = {
+    "this.#a",
+    "this.#a()",
+    "this.#b.#a",
+    "this.#b.#a()",
+
+    "foo.#a",
+    "foo.#a()",
+    "foo.#b.#a",
+    "foo.#b.#a()",
+
+    "new foo.#a",
+    "new foo.#b.#a",
+    "new foo.#b.#a()",
+
+    "foo.#if;",
+    "foo.#yield;",
+    "foo.#super;",
+    "foo.#interface;",
+    "foo.#eval;",
+    "foo.#arguments;",
+
+    nullptr
+  };
+
+  // clang-format on
+  RunParserSyncTest(context_data, statement_data, kError);
+
+  static const ParserFlag private_fields[] = {kAllowHarmonyPrivateFields};
+  RunParserSyncTest(context_data, statement_data, kSuccess, nullptr, 0,
+                    private_fields, arraysize(private_fields));
+}
+
+TEST(PrivateNameErrors) {
+  // clang-format off
+  const char* context_data[][2] = {
+      {"", ""},
+      {"\"use strict\";", ""},
+      {nullptr, nullptr}
+  };
+
+  const char* statement_data[] = {
+    "#foo",
+    "#foo = 1",
+
+    "# a;",
+    "#\n a;",
+    "a, # b",
+    "a, #, b;",
+
+    "foo.#[a];",
+    "foo.#['a'];",
+
+    "foo()#a",
+    "foo()#[a]",
+    "foo()#['a']",
+
+    "super.#a;",
+    "super.#a = 1;",
+    "super.#['a']",
+    "super.#[a]",
+
+    "new.#a",
+    "new.#[a]",
+
+    "foo.#{;",
+    "foo.#};",
+    "foo.#=;",
+    "foo.#888;",
+    "foo.#-;",
+    "foo.#--;",
+    nullptr
+  };
+
+  // clang-format on
+  RunParserSyncTest(context_data, statement_data, kError);
+
+  static const ParserFlag private_fields[] = {kAllowHarmonyPrivateFields};
+  RunParserSyncTest(context_data, statement_data, kError, nullptr, 0,
+                    private_fields, arraysize(private_fields));
 }
 
 TEST(ClassExpressionErrors) {

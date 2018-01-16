@@ -282,7 +282,8 @@ class ParserBase {
         allow_harmony_static_fields_(false),
         allow_harmony_dynamic_import_(false),
         allow_harmony_import_meta_(false),
-        allow_harmony_optional_catch_binding_(false) {}
+        allow_harmony_optional_catch_binding_(false),
+        allow_harmony_private_fields_(false) {}
 
 #define ALLOW_ACCESSORS(name)                           \
   bool allow_##name() const { return allow_##name##_; } \
@@ -304,6 +305,13 @@ class ParserBase {
   }
   void set_allow_harmony_bigint(bool allow) {
     scanner()->set_allow_harmony_bigint(allow);
+  }
+
+  bool allow_harmony_private_fields() const {
+    return scanner()->allow_harmony_private_fields();
+  }
+  void set_allow_harmony_private_fields(bool allow) {
+    scanner()->set_allow_harmony_private_fields(allow);
   }
 
   uintptr_t stack_limit() const { return stack_limit_; }
@@ -1536,6 +1544,7 @@ class ParserBase {
   bool allow_harmony_dynamic_import_;
   bool allow_harmony_import_meta_;
   bool allow_harmony_optional_catch_binding_;
+  bool allow_harmony_private_fields_;
 
   friend class DiscardableZoneScope;
 };
@@ -1587,6 +1596,7 @@ void ParserBase<Impl>::GetUnexpectedTokenMessage(
     case Token::STRING:
       *message = MessageTemplate::kUnexpectedTokenString;
       break;
+    case Token::PRIVATE_NAME:
     case Token::IDENTIFIER:
       *message = MessageTemplate::kUnexpectedTokenIdentifier;
       break;
@@ -2100,6 +2110,9 @@ bool ParserBase<Impl>::SetPropertyKindFromToken(Token::Value token,
     case Token::SEMICOLON:
       *kind = PropertyKind::kClassField;
       return true;
+    case Token::PRIVATE_NAME:
+      *kind = PropertyKind::kClassField;
+      return true;
     default:
       break;
   }
@@ -2261,6 +2274,8 @@ ParserBase<Impl>::ParseClassPropertyDefinition(
   PropertyKind kind = PropertyKind::kNotSet;
 
   Token::Value name_token = peek();
+  DCHECK_IMPLIES(name_token == Token::PRIVATE_NAME,
+                 allow_harmony_private_fields());
 
   int name_token_position = scanner()->peek_location().beg_pos;
   IdentifierT name = impl()->NullIdentifier();
@@ -2276,12 +2291,22 @@ ParserBase<Impl>::ParseClassPropertyDefinition(
                peek() == Token::RBRACE) {
       name = impl()->GetSymbol();  // TODO(bakkot) specialize on 'static'
       name_expression = factory()->NewStringLiteral(name, position());
+    } else if (peek() == Token::PRIVATE_NAME) {
+      DCHECK(allow_harmony_private_fields());
+      // TODO(gsathya): Make a better error message for this.
+      ReportUnexpectedToken(Next());
+      *ok = false;
+      return impl()->NullLiteralProperty();
     } else {
       *is_static = true;
       name_expression = ParsePropertyName(&name, &kind, &is_generator, &is_get,
                                           &is_set, &is_async, is_computed_name,
                                           CHECK_OK_CUSTOM(NullLiteralProperty));
     }
+  } else if (name_token == Token::PRIVATE_NAME) {
+    Consume(Token::PRIVATE_NAME);
+    name = impl()->GetSymbol();
+    name_expression = factory()->NewStringLiteral(name, position());
   } else {
     name_expression = ParsePropertyName(&name, &kind, &is_generator, &is_get,
                                         &is_set, &is_async, is_computed_name,
@@ -2303,14 +2328,14 @@ ParserBase<Impl>::ParseClassPropertyDefinition(
                                  // as an uninitialized field.
     case PropertyKind::kShorthandProperty:
     case PropertyKind::kValueProperty:
-      if (allow_harmony_public_fields()) {
+      if (allow_harmony_public_fields() || allow_harmony_private_fields()) {
         *property_kind = ClassLiteralProperty::FIELD;
         if (*is_static && !allow_harmony_static_fields()) {
           ReportUnexpectedToken(Next());
           *ok = false;
           return impl()->NullLiteralProperty();
         }
-        if (!*is_computed_name) {
+        if (!*is_computed_name && name_token != Token::PRIVATE_NAME) {
           checker->CheckClassFieldName(*is_static,
                                        CHECK_OK_CUSTOM(NullLiteralProperty));
         }
@@ -3671,7 +3696,13 @@ ParserBase<Impl>::ParseMemberExpressionContinuation(ExpressionT expression,
 
         Consume(Token::PERIOD);
         int pos = peek_position();
-        IdentifierT name = ParseIdentifierName(CHECK_OK);
+        IdentifierT name;
+        if (allow_harmony_private_fields() && peek() == Token::PRIVATE_NAME) {
+          Consume(Token::PRIVATE_NAME);
+          name = impl()->GetSymbol();
+        } else {
+          name = ParseIdentifierName(CHECK_OK);
+        }
         expression = factory()->NewProperty(
             expression, factory()->NewStringLiteral(name, pos), pos);
         impl()->PushLiteralName(name);

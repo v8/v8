@@ -860,6 +860,10 @@ void Scanner::Scan() {
         token = ScanTemplateStart();
         break;
 
+      case '#':
+        token = ScanPrivateName();
+        break;
+
       default:
         if (c0_ == kEndOfInput) {
           token = Token::EOS;
@@ -925,6 +929,7 @@ void Scanner::SanityCheckTokenDesc(const TokenDesc& token) const {
     case Token::REGEXP_LITERAL:
     case Token::SMI:
     case Token::STRING:
+    case Token::PRIVATE_NAME:
       DCHECK_NOT_NULL(token.literal_chars);
       DCHECK_NULL(token.raw_literal_chars);
       DCHECK_EQ(token.invalid_template_escape_message, MessageTemplate::kNone);
@@ -1085,6 +1090,26 @@ Token::Value Scanner::ScanString() {
   return Token::STRING;
 }
 
+Token::Value Scanner::ScanPrivateName() {
+  if (!allow_harmony_private_fields()) {
+    ReportScannerError(source_pos(),
+                       MessageTemplate::kInvalidOrUnexpectedToken);
+    return Token::ILLEGAL;
+  }
+
+  LiteralScope literal(this);
+  DCHECK_EQ(c0_, '#');
+  AddLiteralCharAdvance();
+  if (c0_ == kEndOfInput || !unicode_cache_->IsIdentifierStart(c0_)) {
+    PushBack(c0_);
+    ReportScannerError(source_pos(),
+                       MessageTemplate::kInvalidOrUnexpectedToken);
+    return Token::ILLEGAL;
+  }
+
+  Token::Value token = ScanIdentifierOrKeywordInner(&literal);
+  return token == Token::ILLEGAL ? Token::ILLEGAL : Token::PRIVATE_NAME;
+}
 
 Token::Value Scanner::ScanTemplateSpan() {
   // When scanning a TemplateSpan, we are looking for the following construct:
@@ -1528,10 +1553,13 @@ static Token::Value KeywordOrIdentifierToken(const uint8_t* input,
   return Token::IDENTIFIER;
 }
 
-
 Token::Value Scanner::ScanIdentifierOrKeyword() {
-  DCHECK(unicode_cache_->IsIdentifierStart(c0_));
   LiteralScope literal(this);
+  return ScanIdentifierOrKeywordInner(&literal);
+}
+
+Token::Value Scanner::ScanIdentifierOrKeywordInner(LiteralScope* literal) {
+  DCHECK(unicode_cache_->IsIdentifierStart(c0_));
   if (IsInRange(c0_, 'a', 'z') || c0_ == '_') {
     do {
       char first_char = static_cast<char>(c0_);
@@ -1551,7 +1579,7 @@ Token::Value Scanner::ScanIdentifierOrKeyword() {
         AddLiteralChar(first_char);
       }
       if (c0_ <= kMaxAscii && c0_ != '\\') {
-        literal.Complete();
+        literal->Complete();
         return Token::IDENTIFIER;
       }
     } else if (c0_ <= kMaxAscii && c0_ != '\\') {
@@ -1562,7 +1590,7 @@ Token::Value Scanner::ScanIdentifierOrKeyword() {
       if (token == Token::IDENTIFIER ||
           token == Token::FUTURE_STRICT_RESERVED_WORD ||
           Token::IsContextualKeyword(token))
-        literal.Complete();
+        literal->Complete();
       return token;
     }
 
@@ -1575,7 +1603,7 @@ Token::Value Scanner::ScanIdentifierOrKeyword() {
     } while (IsAsciiIdentifier(c0_));
 
     if (c0_ <= kMaxAscii && c0_ != '\\') {
-      literal.Complete();
+      literal->Complete();
       return Token::IDENTIFIER;
     }
 
@@ -1590,7 +1618,7 @@ Token::Value Scanner::ScanIdentifierOrKeyword() {
       return Token::ILLEGAL;
     }
     AddLiteralChar(c);
-    return ScanIdentifierSuffix(&literal, true);
+    return ScanIdentifierSuffix(literal, true);
   } else {
     uc32 first_char = c0_;
     Advance();
@@ -1606,7 +1634,7 @@ Token::Value Scanner::ScanIdentifierOrKeyword() {
       continue;
     }
     // Fallthrough if no longer able to complete keyword.
-    return ScanIdentifierSuffix(&literal, false);
+    return ScanIdentifierSuffix(literal, false);
   }
 
   if (next_.literal_chars->is_one_byte()) {
@@ -1616,10 +1644,10 @@ Token::Value Scanner::ScanIdentifierOrKeyword() {
     if (token == Token::IDENTIFIER ||
         token == Token::FUTURE_STRICT_RESERVED_WORD ||
         Token::IsContextualKeyword(token))
-      literal.Complete();
+      literal->Complete();
     return token;
   }
-  literal.Complete();
+  literal->Complete();
   return Token::IDENTIFIER;
 }
 

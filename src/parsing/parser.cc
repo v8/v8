@@ -548,6 +548,7 @@ Parser::Parser(ParseInfo* info)
   set_allow_harmony_import_meta(FLAG_harmony_import_meta);
   set_allow_harmony_bigint(FLAG_harmony_bigint);
   set_allow_harmony_optional_catch_binding(FLAG_harmony_optional_catch_binding);
+  set_allow_harmony_private_fields(FLAG_harmony_private_fields);
   for (int feature = 0; feature < v8::Isolate::kUseCounterFeatureCount;
        ++feature) {
     use_counts_[feature] = 0;
@@ -3326,7 +3327,7 @@ void Parser::DeclareClassProperty(const AstRawString* class_name,
     return;
   }
 
-  DCHECK(allow_harmony_public_fields());
+  DCHECK(allow_harmony_public_fields() || allow_harmony_private_fields());
 
   if (is_static) {
     DCHECK(allow_harmony_static_fields());
