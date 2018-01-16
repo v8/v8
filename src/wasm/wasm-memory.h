@@ -42,8 +42,6 @@ Handle<JSArrayBuffer> SetupArrayBuffer(
     void* backing_store, size_t size, bool is_external,
     bool enable_guard_regions, SharedFlag shared = SharedFlag::kNotShared);
 
-void ExternalizeMemoryBuffer(Isolate* isolate, Handle<JSArrayBuffer> buffer,
-                             bool free_memory);
 void DetachMemoryBuffer(Isolate* isolate, Handle<JSArrayBuffer> buffer,
                         bool free_memory);
 

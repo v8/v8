@@ -1059,12 +1059,35 @@ TEST(MemoryWithOOBEmptyDataSegment) {
   Cleanup();
 }
 
+// Utility to free the allocated memory for a buffer that is manually
+// externalized in a test.
+struct ManuallyExternalizedBuffer {
+  Isolate* isolate_;
+  Handle<JSArrayBuffer> buffer_;
+  void* allocation_base_;
+  size_t allocation_length_;
+
+  ManuallyExternalizedBuffer(JSArrayBuffer* buffer, Isolate* isolate)
+      : isolate_(isolate),
+        buffer_(buffer, isolate),
+        allocation_base_(buffer->allocation_base()),
+        allocation_length_(buffer->allocation_length()) {
+    if (!buffer->has_guard_region()) {
+      v8::Utils::ToLocal(buffer_)->Externalize();
+    }
+  }
+  ~ManuallyExternalizedBuffer() {
+    if (!buffer_->has_guard_region()) {
+      isolate_->array_buffer_allocator()->Free(
+          allocation_base_, allocation_length_, buffer_->allocation_mode());
+    }
+  }
+};
+
 TEST(Run_WasmModule_Buffer_Externalized_GrowMem) {
   {
     Isolate* isolate = CcTest::InitIsolateOnce();
     HandleScope scope(isolate);
-    // Initial memory size = 16 + GrowWebAssemblyMemory(4) + GrowMemory(6)
-    static const int kExpectedValue = 26;
     TestSignatures sigs;
     v8::internal::AccountingAllocator allocator;
     Zone zone(&allocator, ZONE_NAME);
@@ -1085,43 +1108,28 @@ TEST(Run_WasmModule_Buffer_Externalized_GrowMem) {
                                   ModuleWireBytes(buffer.begin(), buffer.end()),
                                   {}, {})
             .ToHandleChecked();
-    Handle<JSArrayBuffer> memory(instance->memory_object()->array_buffer(),
-                                 isolate);
-    Handle<WasmMemoryObject> mem_obj(instance->memory_object(), isolate);
-    void* const old_allocation_base = memory->allocation_base();
-    size_t const old_allocation_length = memory->allocation_length();
+    Handle<WasmMemoryObject> memory_object(instance->memory_object(), isolate);
 
-    // Fake the Embedder flow by externalizing the memory object, and grow.
-    v8::Utils::ToLocal(memory)->Externalize();
+    // Fake the Embedder flow by externalizing the array buffer.
+    ManuallyExternalizedBuffer buffer1(memory_object->array_buffer(), isolate);
 
-    uint32_t result = WasmMemoryObject::Grow(isolate, mem_obj, 4);
-    bool free_memory = !memory->has_guard_region();
-    wasm::DetachMemoryBuffer(isolate, memory, free_memory);
+    // Grow using the API.
+    uint32_t result = WasmMemoryObject::Grow(isolate, memory_object, 4);
     CHECK_EQ(16, result);
-    memory = handle(mem_obj->array_buffer());
-    instance->memory_object()->set_array_buffer(*memory);
-    // Externalize should make no difference without the JS API as in this case
-    // the buffer is not detached.
-    if (!memory->has_guard_region()) {
-      v8::Utils::ToLocal(memory)->Externalize();
-    }
+    CHECK(buffer1.buffer_->was_neutered());  // growing always neuters
+    CHECK_EQ(0, buffer1.buffer_->byte_length()->Number());
+
+    CHECK_NE(*buffer1.buffer_, memory_object->array_buffer());
+
+    // Fake the Embedder flow by externalizing the array buffer.
+    ManuallyExternalizedBuffer buffer2(memory_object->array_buffer(), isolate);
+
+    // Grow using an internal WASM bytecode.
     result = testing::RunWasmModuleForTesting(isolate, instance, 0, nullptr);
-    CHECK_EQ(kExpectedValue, result);
-    // Free the buffer as the tracker does not know about it.
-    const v8::ArrayBuffer::Allocator::AllocationMode allocation_mode =
-        memory->allocation_mode();
-    CHECK_NOT_NULL(memory->allocation_base());
-    isolate->array_buffer_allocator()->Free(memory->allocation_base(),
-                                            memory->allocation_length(),
-                                            allocation_mode);
-    if (free_memory) {
-      // GrowMemory without guard pages enabled allocates an extra buffer,
-      // that needs to be freed as well
-      isolate->array_buffer_allocator()->Free(
-          old_allocation_base, old_allocation_length, allocation_mode);
-    }
-    memory->set_allocation_base(nullptr);
-    memory->set_allocation_length(0);
+    CHECK_EQ(26, result);
+    CHECK(buffer2.buffer_->was_neutered());  // growing always neuters
+    CHECK_EQ(0, buffer2.buffer_->byte_length()->Number());
+    CHECK_NE(*buffer2.buffer_, memory_object->array_buffer());
   }
   Cleanup();
 }
@@ -1139,7 +1147,6 @@ TEST(Run_WasmModule_Buffer_Externalized_GrowMemMemSize) {
         WasmMemoryObject::New(isolate, buffer, 100);
     v8::Utils::ToLocal(buffer)->Externalize();
     int32_t result = WasmMemoryObject::Grow(isolate, mem_obj, 0);
-    wasm::DetachMemoryBuffer(isolate, buffer, false);
     CHECK_EQ(16, result);
 
     isolate->array_buffer_allocator()->Free(backing_store, 16 * kWasmPageSize);

@@ -418,21 +418,32 @@ Handle<JSArrayBuffer> GrowMemoryBuffer(Isolate* isolate,
     bool has_guard_region = old_buffer->has_guard_region();
     bool is_external = old_buffer->is_external();
     // Disconnect buffer early so GC won't free it.
-    i::wasm::ExternalizeMemoryBuffer(isolate, old_buffer, false);
+    i::wasm::DetachMemoryBuffer(isolate, old_buffer, false);
     Handle<JSArrayBuffer> new_buffer = wasm::SetupArrayBuffer(
         isolate, allocation_base, allocation_length, backing_store, new_size,
         is_external, has_guard_region);
     return new_buffer;
   } else {
+    bool free_memory = false;
     Handle<JSArrayBuffer> new_buffer;
-    new_buffer = wasm::NewArrayBuffer(isolate, new_size, enable_guard_regions);
-    if (new_buffer.is_null() || old_size == 0) return new_buffer;
-    Address new_mem_start = static_cast<Address>(new_buffer->backing_store());
-    memcpy(new_mem_start, old_mem_start, old_size);
-    DCHECK(old_buffer.is_null() || !old_buffer->is_shared());
-    DCHECK(old_buffer.is_null() || !old_buffer->has_guard_region());
-    bool free_memory = pages != 0;
-    i::wasm::ExternalizeMemoryBuffer(isolate, old_buffer, free_memory);
+    if (pages != 0) {
+      // Allocate a new buffer and memcpy the old contents.
+      free_memory = true;
+      new_buffer =
+          wasm::NewArrayBuffer(isolate, new_size, enable_guard_regions);
+      if (new_buffer.is_null() || old_size == 0) return new_buffer;
+      Address new_mem_start = static_cast<Address>(new_buffer->backing_store());
+      memcpy(new_mem_start, old_mem_start, old_size);
+      DCHECK(old_buffer.is_null() || !old_buffer->is_shared());
+      DCHECK(old_buffer.is_null() || !old_buffer->has_guard_region());
+    } else {
+      // Reuse the prior backing store, but allocate a new array buffer.
+      new_buffer = wasm::SetupArrayBuffer(
+          isolate, old_buffer->allocation_base(),
+          old_buffer->allocation_length(), old_buffer->backing_store(),
+          new_size, old_buffer->is_external(), old_buffer->has_guard_region());
+    }
+    i::wasm::DetachMemoryBuffer(isolate, old_buffer, free_memory);
     return new_buffer;
   }
 }
@@ -587,38 +598,12 @@ Handle<WasmInstanceObject> WasmInstanceObject::New(
   return instance;
 }
 
-int32_t WasmInstanceObject::GetMemorySize() {
-  if (!has_memory_object()) return 0;
-  uint32_t bytes = memory_object()->array_buffer()->byte_length()->Number();
-  DCHECK_EQ(0, bytes % wasm::kWasmPageSize);
-  return bytes / wasm::kWasmPageSize;
-}
-
 int32_t WasmInstanceObject::GrowMemory(Isolate* isolate,
                                        Handle<WasmInstanceObject> instance,
                                        uint32_t pages) {
-  if (pages == 0) return instance->GetMemorySize();
   DCHECK(instance->has_memory_object());
   return WasmMemoryObject::Grow(
       isolate, handle(instance->memory_object(), isolate), pages);
-}
-
-uint32_t WasmInstanceObject::GetMaxMemoryPages() {
-  if (has_memory_object()) {
-    if (memory_object()->has_maximum_pages()) {
-      uint32_t maximum =
-          static_cast<uint32_t>(memory_object()->maximum_pages());
-      if (maximum < FLAG_wasm_max_mem_pages) return maximum;
-    }
-  }
-  uint32_t module_maximum_pages =
-      compiled_module()->shared()->module()->maximum_pages;
-  Isolate* isolate = GetIsolate();
-  DCHECK(compiled_module()->shared()->module()->is_wasm());
-  isolate->counters()->wasm_wasm_max_mem_pages_count()->AddSample(
-      module_maximum_pages);
-  if (module_maximum_pages != 0) return module_maximum_pages;
-  return FLAG_wasm_max_mem_pages;
 }
 
 WasmInstanceObject* WasmInstanceObject::GetOwningInstance(
