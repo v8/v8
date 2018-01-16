@@ -53,7 +53,7 @@ class CSignature : public MachineSignature {
   static void VerifyParams(MachineSignature* sig) {
     // Verifies the C signature against the machine types.
     std::array<MachineType, sizeof...(Params)> params{
-        MachineTypeForC<Params>()...};
+        {MachineTypeForC<Params>()...}};
     for (size_t p = 0; p < params.size(); ++p) {
       CHECK_EQ(sig->GetParam(p), params[p]);
     }
@@ -67,7 +67,7 @@ class CSignature : public MachineSignature {
   static CSignature* New(Zone* zone, MachineType ret,
                          ParamMachineTypes... params) {
     constexpr size_t param_count = sizeof...(params);
-    std::array<MachineType, param_count> param_arr{params...};
+    std::array<MachineType, param_count> param_arr{{params...}};
     const size_t buffer_size =
         param_count + (ret == MachineType::None() ? 0 : 1);
     MachineType* buffer = zone->NewArray<MachineType>(buffer_size);

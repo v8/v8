@@ -88,7 +88,7 @@ class BufferedRawMachineAssemblerTester
         return_parameter_index_(sizeof...(p)) {
     static_assert(sizeof...(p) <= arraysize(parameter_nodes_),
                   "increase parameter_nodes_ array");
-    std::array<MachineType, sizeof...(p)> p_arr{p...};
+    std::array<MachineType, sizeof...(p)> p_arr{{p...}};
     for (size_t i = 0; i < p_arr.size(); ++i) {
       parameter_nodes_[i] = Load(p_arr[i], RawMachineAssembler::Parameter(i));
     }
@@ -144,7 +144,7 @@ class BufferedRawMachineAssemblerTester<void>
                             MachineType::None(), p...)) {
     static_assert(sizeof...(p) <= arraysize(parameter_nodes_),
                   "increase parameter_nodes_ array");
-    std::array<MachineType, sizeof...(p)> p_arr{p...};
+    std::array<MachineType, sizeof...(p)> p_arr{{p...}};
     for (size_t i = 0; i < p_arr.size(); ++i) {
       parameter_nodes_[i] = Load(p_arr[i], RawMachineAssembler::Parameter(i));
     }

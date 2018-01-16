@@ -190,7 +190,7 @@ class GraphBuilderTester : public HandleAndZoneScope,
 
   template <typename... NodePtrs>
   Node* NewNode(const Operator* op, NodePtrs... n) {
-    std::array<Node*, sizeof...(n)> inputs{n...};
+    std::array<Node*, sizeof...(n)> inputs{{n...}};
     return MakeNode(op, inputs.size(), inputs.data());
   }
 
