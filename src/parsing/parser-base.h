@@ -1201,14 +1201,15 @@ class ParserBase {
   // by value. The method is expected to add the parsed statements to the
   // list. This works because in the case of the parser, StatementListT is
   // a pointer whereas the preparser does not really modify the body.
-  V8_INLINE void ParseStatementList(StatementListT body, int end_token,
+  V8_INLINE void ParseStatementList(StatementListT body, Token::Value end_token,
                                     bool* ok) {
     LazyParsingResult result = ParseStatementList(body, end_token, false, ok);
     USE(result);
     DCHECK_EQ(result, kLazyParsingComplete);
   }
-  LazyParsingResult ParseStatementList(StatementListT body, int end_token,
-                                       bool may_abort, bool* ok);
+  LazyParsingResult ParseStatementList(StatementListT body,
+                                       Token::Value end_token, bool may_abort,
+                                       bool* ok);
   StatementT ParseStatementListItem(bool* ok);
   StatementT ParseStatement(ZoneList<const AstRawString*>* labels, bool* ok) {
     return ParseStatement(labels, kDisallowLabelledFunctionStatement, ok);
@@ -4781,8 +4782,9 @@ typename ParserBase<Impl>::ExpressionT ParserBase<Impl>::ParseDoExpression(
 
 template <typename Impl>
 typename ParserBase<Impl>::LazyParsingResult
-ParserBase<Impl>::ParseStatementList(StatementListT body, int end_token,
-                                     bool may_abort, bool* ok) {
+ParserBase<Impl>::ParseStatementList(StatementListT body,
+                                     Token::Value end_token, bool may_abort,
+                                     bool* ok) {
   // StatementList ::
   //   (StatementListItem)* <end_token>
 
