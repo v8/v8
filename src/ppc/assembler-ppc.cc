@@ -155,30 +155,30 @@ bool RelocInfo::IsCodedSpecially() {
 
 
 bool RelocInfo::IsInConstantPool() {
-  if (FLAG_enable_embedded_constant_pool && host_ != nullptr) {
-    Address constant_pool = host_->constant_pool();
-    return (constant_pool && Assembler::IsConstantPoolLoadStart(pc_));
+  if (FLAG_enable_embedded_constant_pool && constant_pool_ != nullptr) {
+    return (constant_pool_ && Assembler::IsConstantPoolLoadStart(pc_));
   }
   return false;
 }
 
 Address RelocInfo::embedded_address() const {
-  return Assembler::target_address_at(pc_, host_);
+  return Assembler::target_address_at(pc_, constant_pool_);
 }
 
 uint32_t RelocInfo::embedded_size() const {
-  return static_cast<uint32_t>(
-     reinterpret_cast<intptr_t>(Assembler::target_address_at(pc_, host_)));
+  return static_cast<uint32_t>(reinterpret_cast<intptr_t>(
+      Assembler::target_address_at(pc_, constant_pool_)));
 }
 
 void RelocInfo::set_embedded_address(Isolate* isolate, Address address,
                                      ICacheFlushMode flush_mode) {
-  Assembler::set_target_address_at(isolate, pc_, host_, address, flush_mode);
+  Assembler::set_target_address_at(isolate, pc_, constant_pool_, address,
+                                   flush_mode);
 }
 
 void RelocInfo::set_embedded_size(Isolate* isolate, uint32_t size,
                                   ICacheFlushMode flush_mode) {
-  Assembler::set_target_address_at(isolate, pc_, host_,
+  Assembler::set_target_address_at(isolate, pc_, constant_pool_,
                                    reinterpret_cast<Address>(size), flush_mode);
 }
 
@@ -2083,8 +2083,7 @@ void Assembler::EmitRelocations() {
        it != relocations_.end(); it++) {
     RelocInfo::Mode rmode = it->rmode();
     Address pc = buffer_ + it->position();
-    Code* code = nullptr;
-    RelocInfo rinfo(pc, rmode, it->data(), code);
+    RelocInfo rinfo(pc, rmode, it->data(), nullptr);
 
     // Fix up internal references now that they are guaranteed to be bound.
     if (RelocInfo::IsInternalReference(rmode)) {
@@ -2093,8 +2092,8 @@ void Assembler::EmitRelocations() {
       Memory::Address_at(pc) = buffer_ + pos;
     } else if (RelocInfo::IsInternalReferenceEncoded(rmode)) {
       // mov sequence
-      intptr_t pos = reinterpret_cast<intptr_t>(target_address_at(pc, code));
-      set_target_address_at(nullptr, pc, code, buffer_ + pos,
+      intptr_t pos = reinterpret_cast<intptr_t>(target_address_at(pc, nullptr));
+      set_target_address_at(nullptr, pc, nullptr, buffer_ + pos,
                             SKIP_ICACHE_FLUSH);
     }
 
