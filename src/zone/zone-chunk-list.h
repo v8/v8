@@ -14,11 +14,11 @@
 namespace v8 {
 namespace internal {
 
-template <typename T>
+template <typename T, bool modifiable>
 class ZoneChunkListIterator;
-template <typename T>
+template <typename T, bool modifiable = true>
 class ForwardZoneChunkListIterator;
-template <typename T>
+template <typename T, bool modifiable = true>
 class ReverseZoneChunkListIterator;
 
 // A zone-backed hybrid of a vector and a linked list. Use it if you need a
@@ -79,7 +79,7 @@ class ZoneChunkList : public ZoneObject {
   // Quickly scans the list to retrieve the element at the given index. Will
   // *not* check bounds.
   ForwardZoneChunkListIterator<T> Find(const size_t index);
-  ForwardZoneChunkListIterator<const T> Find(const size_t index) const;
+  ForwardZoneChunkListIterator<T, false> Find(const size_t index) const;
   // TODO(heimbuef): Add 'rFind', seeking from the end and returning a
   // reverse iterator.
 
@@ -89,16 +89,19 @@ class ZoneChunkList : public ZoneObject {
   ForwardZoneChunkListIterator<T> end();
   ReverseZoneChunkListIterator<T> rbegin();
   ReverseZoneChunkListIterator<T> rend();
-  ForwardZoneChunkListIterator<const T> begin() const;
-  ForwardZoneChunkListIterator<const T> end() const;
-  ReverseZoneChunkListIterator<const T> rbegin() const;
-  ReverseZoneChunkListIterator<const T> rend() const;
+  ForwardZoneChunkListIterator<T, false> begin() const;
+  ForwardZoneChunkListIterator<T, false> end() const;
+  ReverseZoneChunkListIterator<T, false> rbegin() const;
+  ReverseZoneChunkListIterator<T, false> rend() const;
 
  private:
-  friend class ZoneChunkListIterator<T>;
+  friend class ZoneChunkListIterator<T, true>;
+  friend class ZoneChunkListIterator<T, false>;
   friend class ForwardZoneChunkListIterator<T>;
+  friend class ForwardZoneChunkListIterator<T, false>;
   friend class ReverseZoneChunkListIterator<T>;
-  static const uint32_t kMaxChunkCapacity = 256u;
+  friend class ReverseZoneChunkListIterator<T, false>;
+  static constexpr uint32_t kMaxChunkCapacity = 256u;
 
   STATIC_ASSERT(kMaxChunkCapacity == static_cast<uint32_t>(StartMode::kBig));
 
@@ -108,6 +111,7 @@ class ZoneChunkList : public ZoneObject {
     Chunk* next_ = nullptr;
     Chunk* previous_ = nullptr;
     T* items() { return reinterpret_cast<T*>(this + 1); }
+    const T* items() const { return reinterpret_cast<const T*>(this + 1); }
   };
 
   Chunk* NewChunk(const uint32_t capacity) {
@@ -135,20 +139,26 @@ class ZoneChunkList : public ZoneObject {
   DISALLOW_COPY_AND_ASSIGN(ZoneChunkList);
 };
 
-template <typename T>
+template <typename T, bool modifiable>
 class ZoneChunkListIterator {
  public:
-  T& operator*() { return current_->items()[position_]; }
-  bool operator==(const ZoneChunkListIterator& other) {
+  template <typename S>
+  using maybe_const =
+      typename std::conditional<modifiable, S,
+                                typename std::add_const<S>::type>::type;
+  using Chunk = maybe_const<typename ZoneChunkList<T>::Chunk>;
+  using ChunkList = maybe_const<ZoneChunkList<T>>;
+
+  maybe_const<T>& operator*() { return current_->items()[position_]; }
+  bool operator==(const ZoneChunkListIterator& other) const {
     return other.current_ == current_ && other.position_ == position_;
   }
-  bool operator!=(const ZoneChunkListIterator& other) {
+  bool operator!=(const ZoneChunkListIterator& other) const {
     return !operator==(other);
   }
 
  protected:
-  ZoneChunkListIterator(typename ZoneChunkList<T>::Chunk* current,
-                        size_t position)
+  ZoneChunkListIterator(Chunk* current, size_t position)
       : current_(current), position_(position) {}
 
   void MoveNext() {
@@ -168,21 +178,22 @@ class ZoneChunkListIterator {
     }
   }
 
-  typename ZoneChunkList<T>::Chunk* current_;
+  Chunk* current_;
   size_t position_;
 };
 
-template <typename T>
-class ForwardZoneChunkListIterator : public ZoneChunkListIterator<T> {
-  using ZoneChunkListIterator<T>::current_;
-  using ZoneChunkListIterator<T>::position_;
-  using ZoneChunkListIterator<T>::MoveNext;
-  using ZoneChunkListIterator<T>::MoveRNext;
+template <typename T, bool modifiable>
+class ForwardZoneChunkListIterator
+    : public ZoneChunkListIterator<T, modifiable> {
+  using super = ZoneChunkListIterator<T, modifiable>;
+  using super::MoveNext;
+  using super::MoveRNext;
+  using typename super::Chunk;
+  using typename super::ChunkList;
 
  public:
-  ForwardZoneChunkListIterator(typename ZoneChunkList<T>::Chunk* current,
-                               size_t position)
-      : ZoneChunkListIterator<T>(current, position) {}
+  ForwardZoneChunkListIterator(Chunk* current, size_t position)
+      : ZoneChunkListIterator<T, modifiable>(current, position) {}
 
   ForwardZoneChunkListIterator& operator++() {
     MoveNext();
@@ -190,7 +201,7 @@ class ForwardZoneChunkListIterator : public ZoneChunkListIterator<T> {
   }
 
   ForwardZoneChunkListIterator operator++(int) {
-    ForwardZoneChunkListIterator<T> clone(*this);
+    ForwardZoneChunkListIterator clone(*this);
     MoveNext();
     return clone;
   }
@@ -201,39 +212,41 @@ class ForwardZoneChunkListIterator : public ZoneChunkListIterator<T> {
   }
 
   ForwardZoneChunkListIterator operator--(int) {
-    ForwardZoneChunkListIterator<T> clone(*this);
+    ForwardZoneChunkListIterator clone(*this);
     MoveRNext();
     return clone;
   }
 
  private:
   friend class ZoneChunkList<T>;
-  static ForwardZoneChunkListIterator<T> Begin(ZoneChunkList<T>* list) {
-    return ForwardZoneChunkListIterator<T>(list->front_, 0);
+
+  static ForwardZoneChunkListIterator Begin(ChunkList* list) {
+    return ForwardZoneChunkListIterator(list->front_, 0);
   }
-  static ForwardZoneChunkListIterator<T> End(ZoneChunkList<T>* list) {
+  static ForwardZoneChunkListIterator End(ChunkList* list) {
     if (list->back_ == nullptr) return Begin(list);
 
     DCHECK_LE(list->back_->position_, list->back_->capacity_);
     if (list->back_->position_ == list->back_->capacity_) {
-      return ForwardZoneChunkListIterator<T>(nullptr, 0);
+      return ForwardZoneChunkListIterator(nullptr, 0);
     }
 
-    return ForwardZoneChunkListIterator<T>(list->back_, list->back_->position_);
+    return ForwardZoneChunkListIterator(list->back_, list->back_->position_);
   }
 };
 
-template <typename T>
-class ReverseZoneChunkListIterator : public ZoneChunkListIterator<T> {
-  using ZoneChunkListIterator<T>::current_;
-  using ZoneChunkListIterator<T>::position_;
-  using ZoneChunkListIterator<T>::MoveNext;
-  using ZoneChunkListIterator<T>::MoveRNext;
+template <typename T, bool modifiable>
+class ReverseZoneChunkListIterator
+    : public ZoneChunkListIterator<T, modifiable> {
+  using super = ZoneChunkListIterator<T, modifiable>;
+  using super::MoveNext;
+  using super::MoveRNext;
+  using typename super::Chunk;
+  using typename super::ChunkList;
 
  public:
-  ReverseZoneChunkListIterator(typename ZoneChunkList<T>::Chunk* current,
-                               size_t position)
-      : ZoneChunkListIterator<T>(current, position) {}
+  ReverseZoneChunkListIterator(Chunk* current, size_t position)
+      : ZoneChunkListIterator<T, modifiable>(current, position) {}
 
   ReverseZoneChunkListIterator& operator++() {
     MoveRNext();
@@ -241,7 +254,7 @@ class ReverseZoneChunkListIterator : public ZoneChunkListIterator<T> {
   }
 
   ReverseZoneChunkListIterator operator++(int) {
-    ReverseZoneChunkListIterator<T> clone(*this);
+    ReverseZoneChunkListIterator clone(*this);
     MoveRNext();
     return clone;
   }
@@ -252,28 +265,29 @@ class ReverseZoneChunkListIterator : public ZoneChunkListIterator<T> {
   }
 
   ReverseZoneChunkListIterator operator--(int) {
-    ForwardZoneChunkListIterator<T> clone(*this);
+    ReverseZoneChunkListIterator clone(*this);
     MoveNext();
     return clone;
   }
 
  private:
   friend class ZoneChunkList<T>;
-  static ReverseZoneChunkListIterator<T> Begin(ZoneChunkList<T>* list) {
+
+  static ReverseZoneChunkListIterator Begin(ChunkList* list) {
     if (list->back_ == nullptr) return End(list);
     if (list->back_->position_ == 0) {
       if (list->back_->previous_ != nullptr) {
-        return ReverseZoneChunkListIterator<T>(
+        return ReverseZoneChunkListIterator(
             list->back_->previous_, list->back_->previous_->capacity_ - 1);
       } else {
         return End(list);
       }
     }
-    return ReverseZoneChunkListIterator<T>(list->back_,
-                                           list->back_->position_ - 1);
+    return ReverseZoneChunkListIterator(list->back_,
+                                        list->back_->position_ - 1);
   }
-  static ReverseZoneChunkListIterator<T> End(ZoneChunkList<T>* list) {
-    return ReverseZoneChunkListIterator<T>(nullptr, 0);
+  static ReverseZoneChunkListIterator End(ChunkList* list) {
+    return ReverseZoneChunkListIterator(nullptr, 0);
   }
 };
 
@@ -387,11 +401,11 @@ ForwardZoneChunkListIterator<T> ZoneChunkList<T>::Find(const size_t index) {
 }
 
 template <typename T>
-ForwardZoneChunkListIterator<const T> ZoneChunkList<T>::Find(
+ForwardZoneChunkListIterator<T, false> ZoneChunkList<T>::Find(
     const size_t index) const {
   SeekResult seek_result = SeekIndex(index);
-  return ForwardZoneChunkListIterator<const T>(seek_result.chunk_,
-                                               seek_result.chunk_index_);
+  return ForwardZoneChunkListIterator<T, false>(seek_result.chunk_,
+                                                seek_result.chunk_index_);
 }
 
 template <typename T>
@@ -428,23 +442,23 @@ ReverseZoneChunkListIterator<T> ZoneChunkList<T>::rend() {
 }
 
 template <typename T>
-ForwardZoneChunkListIterator<const T> ZoneChunkList<T>::begin() const {
-  return ForwardZoneChunkListIterator<const T>::Begin(this);
+ForwardZoneChunkListIterator<T, false> ZoneChunkList<T>::begin() const {
+  return ForwardZoneChunkListIterator<T, false>::Begin(this);
 }
 
 template <typename T>
-ForwardZoneChunkListIterator<const T> ZoneChunkList<T>::end() const {
-  return ForwardZoneChunkListIterator<const T>::End(this);
+ForwardZoneChunkListIterator<T, false> ZoneChunkList<T>::end() const {
+  return ForwardZoneChunkListIterator<T, false>::End(this);
 }
 
 template <typename T>
-ReverseZoneChunkListIterator<const T> ZoneChunkList<T>::rbegin() const {
-  return ReverseZoneChunkListIterator<const T>::Begin(this);
+ReverseZoneChunkListIterator<T, false> ZoneChunkList<T>::rbegin() const {
+  return ReverseZoneChunkListIterator<T, false>::Begin(this);
 }
 
 template <typename T>
-ReverseZoneChunkListIterator<const T> ZoneChunkList<T>::rend() const {
-  return ReverseZoneChunkListIterator<const T>::End(this);
+ReverseZoneChunkListIterator<T, false> ZoneChunkList<T>::rend() const {
+  return ReverseZoneChunkListIterator<T, false>::End(this);
 }
 
 }  // namespace internal
