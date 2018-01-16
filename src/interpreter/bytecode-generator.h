@@ -146,9 +146,9 @@ class BytecodeGenerator final : public AstVisitor<BytecodeGenerator> {
   void BuildNewLocalWithContext(Scope* scope);
 
   void BuildGeneratorPrologue();
-  void BuildSuspendPoint(int suspend_id);
+  void BuildSuspendPoint(int suspend_id, Expression* suspend_expr);
 
-  void BuildAwait(int suspend_id);
+  void BuildAwait(int suspend_id, Expression* await_expr);
 
   void BuildGetIterator(Expression* iterable, IteratorType hint);
 
@@ -164,7 +164,8 @@ class BytecodeGenerator final : public AstVisitor<BytecodeGenerator> {
   IteratorRecord BuildGetIteratorRecord(Expression* iterable,
                                         IteratorType hint);
   void BuildIteratorNext(const IteratorRecord& iterator, Register next_result);
-  void BuildIteratorClose(const IteratorRecord& iterator, int suspend_id = -1);
+  void BuildIteratorClose(const IteratorRecord& iterator, int suspend_id = -1,
+                          Expression* expr = nullptr);
   void BuildCallIteratorMethod(Register iterator, const AstRawString* method,
                                RegisterList receiver_and_args,
                                BytecodeLabel* if_called,

@@ -21,6 +21,7 @@
 #include "src/frames-inl.h"
 #include "src/global-handles.h"
 #include "src/globals.h"
+#include "src/interpreter/bytecode-array-accessor.h"
 #include "src/interpreter/interpreter.h"
 #include "src/isolate-inl.h"
 #include "src/log.h"
@@ -81,6 +82,18 @@ void BreakLocation::AllAtCurrentStatement(
   }
 }
 
+JSGeneratorObject* BreakLocation::GetGeneratorObjectForSuspendedFrame(
+    JavaScriptFrame* frame) const {
+  DCHECK(IsSuspend());
+  DCHECK_GE(generator_obj_reg_index_, 0);
+
+  Object* generator_obj =
+      InterpretedFrame::cast(frame)->ReadInterpreterRegister(
+          generator_obj_reg_index_);
+
+  return JSGeneratorObject::cast(generator_obj);
+}
+
 int BreakLocation::BreakIndexFromCodeOffset(Handle<DebugInfo> debug_info,
                                             Handle<AbstractCode> abstract_code,
                                             int offset) {
@@ -120,10 +133,12 @@ debug::BreakLocationType BreakLocation::type() const {
       return debug::kCallBreakLocation;
     case DEBUG_BREAK_SLOT_AT_RETURN:
       return debug::kReturnBreakLocation;
+
+    // Externally, suspend breaks should look like normal breaks.
+    case DEBUG_BREAK_SLOT_AT_SUSPEND:
     default:
       return debug::kCommonBreakLocation;
   }
-  return debug::kCommonBreakLocation;
 }
 
 BreakIterator::BreakIterator(Handle<DebugInfo> debug_info)
@@ -181,10 +196,18 @@ DebugBreakType BreakIterator::GetDebugBreakType() {
   interpreter::Bytecode bytecode =
       interpreter::Bytecodes::FromByte(bytecode_array->get(code_offset()));
 
+  // Make sure we read the actual bytecode, not a prefix scaling bytecode.
+  if (interpreter::Bytecodes::IsPrefixScalingBytecode(bytecode)) {
+    bytecode = interpreter::Bytecodes::FromByte(
+        bytecode_array->get(code_offset() + 1));
+  }
+
   if (bytecode == interpreter::Bytecode::kDebugger) {
     return DEBUGGER_STATEMENT;
   } else if (bytecode == interpreter::Bytecode::kReturn) {
     return DEBUG_BREAK_SLOT_AT_RETURN;
+  } else if (bytecode == interpreter::Bytecode::kSuspendGenerator) {
+    return DEBUG_BREAK_SLOT_AT_SUSPEND;
   } else if (interpreter::Bytecodes::IsCallOrConstruct(bytecode)) {
     return DEBUG_BREAK_SLOT_AT_CALL;
   } else if (source_position_iterator_.is_statement()) {
@@ -225,7 +248,25 @@ void BreakIterator::ClearDebugBreak() {
 BreakLocation BreakIterator::GetBreakLocation() {
   Handle<AbstractCode> code(
       AbstractCode::cast(debug_info_->DebugBytecodeArray()));
-  return BreakLocation(code, GetDebugBreakType(), code_offset(), position_);
+  DebugBreakType type = GetDebugBreakType();
+  int generator_object_reg_index = -1;
+  if (type == DEBUG_BREAK_SLOT_AT_SUSPEND) {
+    // For suspend break, we'll need the generator object to be able to step
+    // over the suspend as if it didn't return. We get the interpreter register
+    // index that holds the generator object by reading it directly off the
+    // bytecode array, and we'll read the actual generator object off the
+    // interpreter stack frame in GetGeneratorObjectForSuspendedFrame.
+    BytecodeArray* bytecode_array = debug_info_->OriginalBytecodeArray();
+    interpreter::BytecodeArrayAccessor accessor(handle(bytecode_array),
+                                                code_offset());
+
+    DCHECK_EQ(accessor.current_bytecode(),
+              interpreter::Bytecode::kSuspendGenerator);
+    interpreter::Register generator_obj_reg = accessor.GetRegisterOperand(0);
+    generator_object_reg_index = generator_obj_reg.index();
+  }
+  return BreakLocation(code, type, code_offset(), position_,
+                       generator_object_reg_index);
 }
 
 
@@ -390,7 +431,7 @@ void Debug::Break(JavaScriptFrame* frame) {
   // StepOut at not return position was requested and return break locations
   // were flooded with one shots.
   if (thread_local_.fast_forward_to_return_) {
-    DCHECK(location.IsReturn());
+    DCHECK(location.IsReturnOrSuspend());
     // We have to ignore recursive calls to function.
     if (current_frame_count > target_frame_count) return;
     ClearStepping();
@@ -412,6 +453,15 @@ void Debug::Break(JavaScriptFrame* frame) {
       if (current_frame_count > target_frame_count) return;
     // Fall through.
     case StepIn: {
+      // Special case "next" and "in" for generators that are about to suspend.
+      if (location.IsSuspend()) {
+        DCHECK(!has_suspended_generator());
+        thread_local_.suspended_generator_ =
+            location.GetGeneratorObjectForSuspendedFrame(frame);
+        ClearStepping();
+        return;
+      }
+
       FrameSummary summary = FrameSummary::GetTop(frame);
       step_break = step_break || location.IsReturn() ||
                    current_frame_count != last_frame_count ||
@@ -707,7 +757,7 @@ void Debug::FloodWithOneShot(Handle<SharedFunctionInfo> shared,
   // Flood the function with break points.
   DCHECK(debug_info->HasDebugBytecodeArray());
   for (BreakIterator it(debug_info); !it.Done(); it.Next()) {
-    if (returns_only && !it.GetBreakLocation().IsReturn()) continue;
+    if (returns_only && !it.GetBreakLocation().IsReturnOrSuspend()) continue;
     it.SetDebugBreak();
   }
 }
@@ -895,9 +945,9 @@ void Debug::PrepareStep(StepAction step_action) {
 
   BreakLocation location = BreakLocation::FromFrame(debug_info, js_frame);
 
-  // Any step at a return is a step-out and we need to schedule DebugOnFunction
-  // call callback.
-  if (location.IsReturn()) {
+  // Any step at a return is a step-out, and a step-out at a suspend behaves
+  // like a return.
+  if (location.IsReturn() || (location.IsSuspend() && step_action == StepOut)) {
     // On StepOut we'll ignore our further calls to current function in
     // PrepareStepIn callback.
     if (last_step_action() == StepOut) {
@@ -906,6 +956,8 @@ void Debug::PrepareStep(StepAction step_action) {
     step_action = StepOut;
     thread_local_.last_step_action_ = StepIn;
   }
+
+  // We need to schedule DebugOnFunction call callback
   UpdateHookOnFunctionCall();
 
   // A step-next in blackboxed function is a step-out.
@@ -926,7 +978,7 @@ void Debug::PrepareStep(StepAction step_action) {
       // Clear last position info. For stepping out it does not matter.
       thread_local_.last_statement_position_ = kNoSourcePosition;
       thread_local_.last_frame_count_ = -1;
-      if (!location.IsReturn() && !IsBlackboxed(shared)) {
+      if (!location.IsReturnOrSuspend() && !IsBlackboxed(shared)) {
         // At not return position we flood return positions with one shots and
         // will repeat StepOut automatically at next break.
         thread_local_.target_frame_count_ = current_frame_count;
@@ -1182,19 +1234,6 @@ bool Debug::GetPossibleBreakpoints(Handle<Script> script, int start_position,
     return true;
   }
   UNREACHABLE();
-}
-
-void Debug::RecordGenerator(Handle<JSGeneratorObject> generator_object) {
-  if (last_step_action() <= StepOut) return;
-
-  if (last_step_action() == StepNext) {
-    // Only consider this generator a step-next target if not stepping in.
-    if (thread_local_.target_frame_count_ < CurrentFrameCount()) return;
-  }
-
-  DCHECK(!has_suspended_generator());
-  thread_local_.suspended_generator_ = *generator_object;
-  ClearStepping();
 }
 
 class SharedFunctionInfoFinder {

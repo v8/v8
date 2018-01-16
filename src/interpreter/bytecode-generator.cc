@@ -2866,14 +2866,14 @@ void BytecodeGenerator::VisitCompoundAssignment(CompoundAssignment* expr) {
 // Suspends the generator to resume at |suspend_id|, with output stored in the
 // accumulator. When the generator is resumed, the sent value is loaded in the
 // accumulator.
-void BytecodeGenerator::BuildSuspendPoint(int suspend_id) {
+void BytecodeGenerator::BuildSuspendPoint(int suspend_id,
+                                          Expression* suspend_expr) {
   RegisterList registers = register_allocator()->AllLiveRegisters();
 
-  // Save context, registers, and state. Then return.
+  // Save context, registers, and state. This bytecode then returns the value
+  // in the accumulator.
+  builder()->SetExpressionPosition(suspend_expr);
   builder()->SuspendGenerator(generator_object(), registers, suspend_id);
-
-  builder()->SetReturnPosition(kNoSourcePosition, info()->literal());
-  builder()->Return();  // Hard return (ignore any finally blocks).
 
   // Upon resume, we continue here.
   builder()->Bind(generator_jump_table_, suspend_id);
@@ -2914,7 +2914,7 @@ void BytecodeGenerator::VisitYield(Yield* expr) {
     }
   }
 
-  BuildSuspendPoint(expr->suspend_id());
+  BuildSuspendPoint(expr->suspend_id(), expr);
   // At this point, the generator has been resumed, with the received value in
   // the accumulator.
 
@@ -3110,7 +3110,8 @@ void BytecodeGenerator::VisitYieldStar(YieldStar* expr) {
           // If there is no "throw" method, perform IteratorClose, and finally
           // throw a TypeError.
           no_throw_method.Bind(builder());
-          BuildIteratorClose(iterator, expr->await_iterator_close_suspend_id());
+          BuildIteratorClose(iterator, expr->await_iterator_close_suspend_id(),
+                             expr);
           builder()->CallRuntime(Runtime::kThrowThrowMethodMissing);
         }
 
@@ -3119,7 +3120,7 @@ void BytecodeGenerator::VisitYieldStar(YieldStar* expr) {
 
       if (iterator_type == IteratorType::kAsync) {
         // Await the result of the method invocation.
-        BuildAwait(expr->await_delegated_iterator_output_suspend_id());
+        BuildAwait(expr->await_delegated_iterator_output_suspend_id(), expr);
       }
 
       // Check that output is an object.
@@ -3159,7 +3160,7 @@ void BytecodeGenerator::VisitYieldStar(YieldStar* expr) {
             .CallRuntime(Runtime::kInlineAsyncGeneratorYield, args);
       }
 
-      BuildSuspendPoint(expr->suspend_id());
+      BuildSuspendPoint(expr->suspend_id(), expr);
       builder()->StoreAccumulatorInRegister(input);
       builder()
           ->CallRuntime(Runtime::kInlineGeneratorGetResumeMode,
@@ -3195,7 +3196,7 @@ void BytecodeGenerator::VisitYieldStar(YieldStar* expr) {
   builder()->LoadAccumulatorWithRegister(output_value);
 }
 
-void BytecodeGenerator::BuildAwait(int suspend_id) {
+void BytecodeGenerator::BuildAwait(int suspend_id, Expression* await_expr) {
   // Rather than HandlerTable::UNCAUGHT, async functions use
   // HandlerTable::ASYNC_AWAIT to communicate that top-level exceptions are
   // transformed into promise rejections. This is necessary to prevent emitting
@@ -3239,7 +3240,7 @@ void BytecodeGenerator::BuildAwait(int suspend_id) {
     builder()->CallJSRuntime(await_builtin_context_index, args);
   }
 
-  BuildSuspendPoint(suspend_id);
+  BuildSuspendPoint(suspend_id, await_expr);
 
   Register input = register_allocator()->NewRegister();
   Register resume_mode = register_allocator()->NewRegister();
@@ -3267,7 +3268,7 @@ void BytecodeGenerator::BuildAwait(int suspend_id) {
 void BytecodeGenerator::VisitAwait(Await* expr) {
   builder()->SetExpressionPosition(expr);
   VisitForAccumulatorValue(expr->expression());
-  BuildAwait(expr->suspend_id());
+  BuildAwait(expr->suspend_id(), expr);
   BuildIncrementBlockCoverageCounterIfEnabled(expr,
                                               SourceRangeKind::kContinuation);
 }
@@ -4154,7 +4155,7 @@ void BytecodeGenerator::BuildCallIteratorMethod(Register iterator,
 }
 
 void BytecodeGenerator::BuildIteratorClose(const IteratorRecord& iterator,
-                                           int suspend_id) {
+                                           int suspend_id, Expression* expr) {
   RegisterAllocationScope register_scope(this);
   BytecodeLabels done(zone());
   BytecodeLabel if_called;
@@ -4166,7 +4167,8 @@ void BytecodeGenerator::BuildIteratorClose(const IteratorRecord& iterator,
 
   if (iterator.type() == IteratorType::kAsync) {
     DCHECK_GE(suspend_id, 0);
-    BuildAwait(suspend_id);
+    DCHECK_NOT_NULL(expr);
+    BuildAwait(suspend_id, expr);
   }
 
   builder()->JumpIfJSReceiver(done.New());

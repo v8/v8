@@ -384,9 +384,16 @@ TEST_F(BytecodeArrayBuilderTest, AllBytecodesGenerated) {
       .StoreModuleVariable(1, 42);
 
   // Emit generator operations.
-  builder.SuspendGenerator(reg, reg_list, 0)
-      .RestoreGeneratorState(reg)
-      .ResumeGenerator(reg, reg, reg_list);
+  {
+    // We have to skip over suspend because it returns and marks the remaining
+    // bytecode dead.
+    BytecodeLabel after_suspend;
+    builder.JumpIfTrue(ToBooleanMode::kAlreadyBoolean, &after_suspend)
+        .SuspendGenerator(reg, reg_list, 0)
+        .Bind(&after_suspend)
+        .RestoreGeneratorState(reg)
+        .ResumeGenerator(reg, reg, reg_list);
+  }
 
   // Intrinsics handled by the interpreter.
   builder.CallRuntime(Runtime::kInlineIsArray, reg_list);

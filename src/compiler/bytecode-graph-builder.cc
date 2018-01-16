@@ -2591,13 +2591,17 @@ void BytecodeGraphBuilder::VisitSetPendingMessage() {
   environment()->BindAccumulator(previous_message);
 }
 
-void BytecodeGraphBuilder::VisitReturn() {
-  BuildLoopExitsForFunctionExit(bytecode_analysis()->GetInLivenessFor(
-      bytecode_iterator().current_offset()));
+void BytecodeGraphBuilder::BuildReturn(const BytecodeLivenessState* liveness) {
+  BuildLoopExitsForFunctionExit(liveness);
   Node* pop_node = jsgraph()->ZeroConstant();
   Node* control =
       NewNode(common()->Return(), pop_node, environment()->LookupAccumulator());
   MergeControlToLeaveFunction(control);
+}
+
+void BytecodeGraphBuilder::VisitReturn() {
+  BuildReturn(bytecode_analysis()->GetInLivenessFor(
+      bytecode_iterator().current_offset()));
 }
 
 void BytecodeGraphBuilder::VisitDebugger() {
@@ -2727,6 +2731,11 @@ void BytecodeGraphBuilder::VisitSuspendGenerator() {
 
   MakeNode(javascript()->GeneratorStore(register_count), value_input_count,
            value_inputs, false);
+
+  // TODO(leszeks): This over-approximates the liveness at exit, only the
+  // accumulator should be live by this point.
+  BuildReturn(bytecode_analysis()->GetInLivenessFor(
+      bytecode_iterator().current_offset()));
 }
 
 void BytecodeGraphBuilder::VisitRestoreGeneratorState() {

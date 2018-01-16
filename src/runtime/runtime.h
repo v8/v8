@@ -186,7 +186,6 @@ namespace internal {
   F(ScriptSourceLine, 2, 1)                     \
   F(DebugOnFunctionCall, 1, 1)                  \
   F(DebugPrepareStepInSuspendedGenerator, 0, 1) \
-  F(DebugRecordGenerator, 1, 1)                 \
   F(DebugPushPromise, 1, 1)                     \
   F(DebugPopPromise, 0, 1)                      \
   F(DebugPromiseReject, 2, 1)                   \

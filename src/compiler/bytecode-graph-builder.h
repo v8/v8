@@ -268,6 +268,9 @@ class BytecodeGraphBuilder {
   void BuildLoopExitsUntilLoop(int loop_offset,
                                const BytecodeLivenessState* liveness);
 
+  // Helper for building a return (from an actual return or a suspend).
+  void BuildReturn(const BytecodeLivenessState* liveness);
+
   // Simulates entry and exit of exception handlers.
   void ExitThenEnterExceptionHandlers(int current_offset);
 

@@ -946,12 +946,15 @@ void Builtins::Generate_InterpreterEntryTrampoline(MacroAssembler* masm) {
          Operand(ebp, InterpreterFrameConstants::kBytecodeOffsetFromFp));
   __ SmiUntag(kInterpreterBytecodeOffsetRegister);
 
-  // Check if we should return.
+  // Check if we should return by testing for one of the returning bytecodes.
   Label do_return;
   __ movzx_b(ebx, Operand(kInterpreterBytecodeArrayRegister,
                           kInterpreterBytecodeOffsetRegister, times_1, 0));
-  __ cmpb(ebx, Immediate(static_cast<int>(interpreter::Bytecode::kReturn)));
+#define JUMP_IF_EQUAL(NAME)                                                  \
+  __ cmpb(ebx, Immediate(static_cast<int>(interpreter::Bytecode::k##NAME))); \
   __ j(equal, &do_return, Label::kNear);
+  RETURN_BYTECODE_LIST(JUMP_IF_EQUAL)
+#undef JUMP_IF_EQUAL
 
   // Advance to the next bytecode and dispatch.
   AdvanceBytecodeOffset(masm, kInterpreterBytecodeArrayRegister,

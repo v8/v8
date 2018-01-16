@@ -890,6 +890,11 @@ class InterpretedFrame : public JavaScriptFrame {
 
   static int GetBytecodeOffset(Address fp);
 
+  static InterpretedFrame* cast(StackFrame* frame) {
+    DCHECK(frame->is_interpreted());
+    return static_cast<InterpretedFrame*>(frame);
+  }
+
  protected:
   inline explicit InterpretedFrame(StackFrameIteratorBase* iterator);
 

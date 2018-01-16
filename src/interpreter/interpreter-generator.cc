@@ -3078,22 +3078,10 @@ IGNITION_HANDLER(Illegal, InterpreterAssembler) {
 //
 // Exports the register file and stores it into the generator.  Also stores the
 // current context, |suspend_id|, and the current bytecode offset (for debugging
-// purposes) into the generator.
+// purposes) into the generator. Then, returns the value in the accumulator.
 IGNITION_HANDLER(SuspendGenerator, InterpreterAssembler) {
   Node* generator_reg = BytecodeOperandReg(0);
-
   Node* generator = LoadRegister(generator_reg);
-
-  Label if_stepping(this, Label::kDeferred), ok(this);
-  Node* step_action_address = ExternalConstant(
-      ExternalReference::debug_last_step_action_address(isolate()));
-  Node* step_action = Load(MachineType::Int8(), step_action_address);
-  STATIC_ASSERT(StepIn > StepNext);
-  STATIC_ASSERT(LastStepAction == StepIn);
-  Node* step_next = Int32Constant(StepNext);
-  Branch(Int32LessThanOrEqual(step_next, step_action), &if_stepping, &ok);
-  BIND(&ok);
-
   Node* array =
       LoadObjectField(generator, JSGeneratorObject::kRegisterFileOffset);
   Node* context = GetContext();
@@ -3115,14 +3103,7 @@ IGNITION_HANDLER(SuspendGenerator, InterpreterAssembler) {
   Node* offset = SmiTag(BytecodeOffset());
   StoreObjectField(generator, JSGeneratorObject::kInputOrDebugPosOffset,
                    offset);
-  Dispatch();
-
-  BIND(&if_stepping);
-  {
-    Node* context = GetContext();
-    CallRuntime(Runtime::kDebugRecordGenerator, context, generator);
-    Goto(&ok);
-  }
+  Return(GetAccumulator());
 }
 
 // RestoreGeneratorState <generator>
