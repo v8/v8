@@ -3818,6 +3818,15 @@ void v8::Symbol::CheckCast(v8::Value* that) {
 }
 
 
+void v8::Private::CheckCast(v8::Data* that) {
+  i::Handle<i::Object> obj = Utils::OpenHandle(that);
+  Utils::ApiCheck(obj->IsSymbol() &&
+                  i::Handle<i::Symbol>::cast(obj)->is_private(),
+                  "v8::Private::Cast",
+                  "Could not convert to private");
+}
+
+
 void v8::Number::CheckCast(v8::Value* that) {
   i::Handle<i::Object> obj = Utils::OpenHandle(that);
   Utils::ApiCheck(obj->IsNumber(),
@@ -6557,6 +6566,18 @@ void v8::FunctionTemplate::CheckCast(Data* that) {
   i::Handle<i::Object> obj = Utils::OpenHandle(that);
   Utils::ApiCheck(obj->IsFunctionTemplateInfo(), "v8::FunctionTemplate::Cast",
                   "Could not convert to function template");
+}
+
+void v8::Signature::CheckCast(Data* that) {
+  i::Handle<i::Object> obj = Utils::OpenHandle(that);
+  Utils::ApiCheck(obj->IsFunctionTemplateInfo(), "v8::Signature::Cast",
+                  "Could not convert to signature");
+}
+
+void v8::AccessorSignature::CheckCast(Data* that) {
+  i::Handle<i::Object> obj = Utils::OpenHandle(that);
+  Utils::ApiCheck(obj->IsFunctionTemplateInfo(), "v8::AccessorSignature::Cast",
+                  "Could not convert to accessor signature");
 }
 
 MaybeLocal<v8::Function> FunctionTemplate::GetFunction(Local<Context> context) {
