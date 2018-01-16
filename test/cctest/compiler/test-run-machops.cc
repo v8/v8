@@ -3524,8 +3524,10 @@ TEST(RunWord32EqualAndWord32ShrP) {
 
 TEST(RunDeadNodes) {
   for (int i = 0; true; i++) {
-    RawMachineAssemblerTester<int32_t> m(i == 5 ? MachineType::Int32()
-                                                : MachineType::None());
+    RawMachineAssemblerTester<int32_t> m_v;
+    RawMachineAssemblerTester<int32_t> m_i(MachineType::Int32());
+    RawMachineAssemblerTester<int32_t>& m = i == 5 ? m_i : m_v;
+
     int constant = 0x55 + i;
     switch (i) {
       case 0:
@@ -6736,7 +6738,7 @@ TEST(RunComputedCodeObject) {
 
   // TODO(titzer): all this descriptor hackery is just to call the above
   // functions as code objects instead of direct addresses.
-  CSignature0<int32_t> sig;
+  CSignatureOf<int32_t> sig;
   CallDescriptor* c = Linkage::GetSimplifiedCDescriptor(r.zone(), &sig);
   LinkageLocation ret[] = {c->GetReturnLocation(0)};
   Signature<LinkageLocation> loc(1, 0, ret);
