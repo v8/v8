@@ -176,6 +176,29 @@ class SystemTest(unittest.TestCase):
       self.assertIn('sweet/bananas', result.stderr, result)
       self.assertEqual(0, result.returncode, result)
 
+  def testShardedProc(self):
+    with temp_base() as basedir:
+      for shard in [1, 2]:
+        result = run_tests(
+            basedir,
+            '--mode=Release',
+            '--progress=verbose',
+            '--variants=default,stress',
+            '--shard-count=2',
+            '--shard-run=%d' % shard,
+            'sweet/bananas',
+            'sweet/raspberries',
+            infra_staging=True,
+        )
+        # One of the shards gets one variant of each test.
+        self.assertIn('Running 1 base tests', result.stdout, result)
+        self.assertIn('2 tests ran', result.stdout, result)
+        if shard == 1:
+          self.assertIn('Done running sweet/bananas', result.stdout, result)
+        else:
+          self.assertIn('Done running sweet/raspberries', result.stdout, result)
+        self.assertEqual(0, result.returncode, result)
+
   def testSharded(self):
     """Test running a particular shard."""
     with temp_base() as basedir:
