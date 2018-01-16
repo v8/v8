@@ -2558,63 +2558,57 @@ class ThreadImpl {
 
       if (!FLAG_wasm_jit_to_native) {
         // Check signature.
-        FixedArray* sig_tables = compiled_module->signature_tables();
-        if (table_index >= static_cast<uint32_t>(sig_tables->length())) {
+        FixedArray* fun_tables = compiled_module->function_tables();
+        if (table_index >= static_cast<uint32_t>(fun_tables->length())) {
           return {ExternalCallResult::INVALID_FUNC};
         }
-        // Reconstitute the global handle to sig_table, and, further below,
-        // to the function table, from the address stored in the
-        // respective table of tables.
+        // Reconstitute the global handle to the function table, from the
+        // address stored in the respective table of tables.
         int table_index_as_int = static_cast<int>(table_index);
-        Handle<FixedArray> sig_table(reinterpret_cast<FixedArray**>(
-            WasmCompiledModule::GetTableValue(sig_tables, table_index_as_int)));
-        if (entry_index >= static_cast<uint32_t>(sig_table->length())) {
+        FixedArray* fun_table = *reinterpret_cast<FixedArray**>(
+            WasmCompiledModule::GetTableValue(fun_tables, table_index_as_int));
+        // Function tables store <smi, code> pairs.
+        int num_funcs_in_table =
+            fun_table->length() / compiler::kFunctionTableEntrySize;
+        if (entry_index >= static_cast<uint32_t>(num_funcs_in_table)) {
           return {ExternalCallResult::INVALID_FUNC};
         }
-        int found_sig =
-            Smi::ToInt(sig_table->get(static_cast<int>(entry_index)));
+        int found_sig = Smi::ToInt(fun_table->get(
+            compiler::FunctionTableSigOffset(static_cast<int>(entry_index))));
         if (static_cast<uint32_t>(found_sig) != canonical_sig_index) {
           return {ExternalCallResult::SIGNATURE_MISMATCH};
         }
 
         // Get code object.
-        FixedArray* fun_tables = compiled_module->function_tables();
-        DCHECK_EQ(sig_tables->length(), fun_tables->length());
-        Handle<FixedArray> fun_table(reinterpret_cast<FixedArray**>(
-            WasmCompiledModule::GetTableValue(fun_tables, table_index_as_int)));
-        DCHECK_EQ(sig_table->length(), fun_table->length());
-        target_gc = Code::cast(fun_table->get(static_cast<int>(entry_index)));
+        target_gc = Code::cast(fun_table->get(
+            compiler::FunctionTableCodeOffset(static_cast<int>(entry_index))));
       } else {
         // Check signature.
-        std::vector<GlobalHandleAddress>& sig_tables =
-            compiled_module->GetNativeModule()->signature_tables();
-        if (table_index >= sig_tables.size()) {
+        std::vector<GlobalHandleAddress>& fun_tables =
+            compiled_module->GetNativeModule()->function_tables();
+        if (table_index >= fun_tables.size()) {
           return {ExternalCallResult::INVALID_FUNC};
         }
-        // Reconstitute the global handle to sig_table, and, further below,
-        // to the function table, from the address stored in the
-        // respective table of tables.
-        int table_index_as_int = static_cast<int>(table_index);
-        Handle<FixedArray> sig_table(
-            reinterpret_cast<FixedArray**>(sig_tables[table_index_as_int]));
-        if (entry_index >= static_cast<uint32_t>(sig_table->length())) {
+        // Reconstitute the global handle to the function table, from the
+        // address stored in the respective table of tables.
+        FixedArray* fun_table =
+            *reinterpret_cast<FixedArray**>(fun_tables[table_index]);
+        // Function tables store <smi, code> pairs.
+        int num_funcs_in_table =
+            fun_table->length() / compiler::kFunctionTableEntrySize;
+        if (entry_index >= static_cast<uint32_t>(num_funcs_in_table)) {
           return {ExternalCallResult::INVALID_FUNC};
         }
-        int found_sig =
-            Smi::ToInt(sig_table->get(static_cast<int>(entry_index)));
+        int found_sig = Smi::ToInt(fun_table->get(
+            compiler::FunctionTableSigOffset(static_cast<int>(entry_index))));
         if (static_cast<uint32_t>(found_sig) != canonical_sig_index) {
           return {ExternalCallResult::SIGNATURE_MISMATCH};
         }
 
         // Get code object.
-        std::vector<GlobalHandleAddress>& fun_tables =
-            compiled_module->GetNativeModule()->function_tables();
-        DCHECK_EQ(sig_tables.size(), fun_tables.size());
-        Handle<FixedArray> fun_table(
-            reinterpret_cast<FixedArray**>(fun_tables[table_index_as_int]));
-        DCHECK_EQ(sig_table->length(), fun_table->length());
         Address first_instr =
-            Foreign::cast(fun_table->get(static_cast<int>(entry_index)))
+            Foreign::cast(fun_table->get(compiler::FunctionTableCodeOffset(
+                              static_cast<int>(entry_index))))
                 ->foreign_address();
         target =
             isolate->wasm_engine()->code_manager()->GetCodeFromStartAddress(

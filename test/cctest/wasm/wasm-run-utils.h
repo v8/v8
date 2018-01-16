@@ -191,7 +191,7 @@ class TestingModuleBuilder {
     function_code_[index] = code;
   }
 
-  void AddIndirectFunctionTable(uint16_t* function_indexes,
+  void AddIndirectFunctionTable(const uint16_t* function_indexes,
                                 uint32_t table_size);
 
   void PopulateIndirectFunctionTable();
@@ -244,7 +244,6 @@ class TestingModuleBuilder {
   uint32_t mem_size_;
   std::vector<Handle<Code>> function_code_;
   std::vector<GlobalHandleAddress> function_tables_;
-  std::vector<GlobalHandleAddress> signature_tables_;
   V8_ALIGNED(16) byte globals_data_[kMaxGlobalsSize];
   WasmInterpreter* interpreter_;
   WasmExecutionMode execution_mode_;

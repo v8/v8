@@ -144,8 +144,8 @@ Handle<JSFunction> TestingModuleBuilder::WrapCode(uint32_t index) {
   return ret;
 }
 
-void TestingModuleBuilder::AddIndirectFunctionTable(uint16_t* function_indexes,
-                                                    uint32_t table_size) {
+void TestingModuleBuilder::AddIndirectFunctionTable(
+    const uint16_t* function_indexes, uint32_t table_size) {
   test_module_.function_tables.emplace_back();
   WasmIndirectFunctionTable& table = test_module_.function_tables.back();
   table.initial_size = table_size;
@@ -155,14 +155,10 @@ void TestingModuleBuilder::AddIndirectFunctionTable(uint16_t* function_indexes,
     table.values.push_back(function_indexes[i]);
   }
 
+  FixedArray* func_table = *isolate_->factory()->NewFixedArray(
+      table_size * compiler::kFunctionTableEntrySize);
   function_tables_.push_back(
-      isolate_->global_handles()
-          ->Create(*isolate_->factory()->NewFixedArray(table_size))
-          .address());
-  signature_tables_.push_back(
-      isolate_->global_handles()
-          ->Create(*isolate_->factory()->NewFixedArray(table_size))
-          .address());
+      isolate_->global_handles()->Create(func_table).address());
 }
 
 void TestingModuleBuilder::PopulateIndirectFunctionTable() {
@@ -172,22 +168,23 @@ void TestingModuleBuilder::PopulateIndirectFunctionTable() {
     WasmIndirectFunctionTable& table = test_module_.function_tables[i];
     Handle<FixedArray> function_table(
         reinterpret_cast<FixedArray**>(function_tables_[i]));
-    Handle<FixedArray> signature_table(
-        reinterpret_cast<FixedArray**>(signature_tables_[i]));
     int table_size = static_cast<int>(table.values.size());
     for (int j = 0; j < table_size; j++) {
       WasmFunction& function = test_module_.functions[table.values[j]];
-      signature_table->set(
-          j, Smi::FromInt(test_module_.signature_map.Find(function.sig)));
+      function_table->set(
+          compiler::FunctionTableSigOffset(j),
+          Smi::FromInt(test_module_.signature_map.Find(function.sig)));
       if (FLAG_wasm_jit_to_native) {
         Handle<Foreign> foreign_holder = isolate_->factory()->NewForeign(
             native_module_->GetCode(function.func_index)
                 ->instructions()
                 .start(),
             TENURED);
-        function_table->set(j, *foreign_holder);
+        function_table->set(compiler::FunctionTableCodeOffset(j),
+                            *foreign_holder);
       } else {
-        function_table->set(j, *function_code_[function.func_index]);
+        function_table->set(compiler::FunctionTableCodeOffset(j),
+                            *function_code_[function.func_index]);
       }
     }
   }
@@ -211,9 +208,8 @@ uint32_t TestingModuleBuilder::AddBytes(Vector<const byte> bytes) {
 }
 
 compiler::ModuleEnv TestingModuleBuilder::CreateModuleEnv() {
-  return {&test_module_,        function_tables_,
-          signature_tables_,    function_code_,
-          Handle<Code>::null(), trap_handler::IsTrapHandlerEnabled()};
+  return {&test_module_, function_tables_, function_code_, Handle<Code>::null(),
+          trap_handler::IsTrapHandlerEnabled()};
 }
 
 const WasmGlobal* TestingModuleBuilder::AddGlobal(ValueType type) {
@@ -244,7 +240,7 @@ Handle<WasmInstanceObject> TestingModuleBuilder::InitInstanceObject() {
   Handle<FixedArray> export_wrappers = isolate_->factory()->NewFixedArray(0);
   Handle<WasmCompiledModule> compiled_module = WasmCompiledModule::New(
       isolate_, test_module_ptr_, code_table, export_wrappers, function_tables_,
-      signature_tables_, trap_handler::IsTrapHandlerEnabled());
+      trap_handler::IsTrapHandlerEnabled());
   compiled_module->OnWasmModuleDecodingComplete(shared_module_data);
   // This method is called when we initialize TestEnvironment. We don't
   // have a memory yet, so we won't create it here. We'll update the

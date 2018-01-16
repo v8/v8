@@ -167,7 +167,6 @@ enum DispatchTableElements : int {
   kDispatchTableInstanceOffset,
   kDispatchTableIndexOffset,
   kDispatchTableFunctionTableOffset,
-  kDispatchTableSignatureTableOffset,
   // Marker:
   kDispatchTableNumElements
 };
@@ -216,8 +215,7 @@ Handle<WasmTableObject> WasmTableObject::New(Isolate* isolate, uint32_t initial,
   Handle<Object> max = isolate->factory()->NewNumber(maximum);
   table_obj->set_maximum_length(*max);
 
-  Handle<FixedArray> dispatch_tables = isolate->factory()->empty_fixed_array();
-  table_obj->set_dispatch_tables(*dispatch_tables);
+  table_obj->set_dispatch_tables(isolate->heap()->empty_fixed_array());
   return Handle<WasmTableObject>::cast(table_obj);
 }
 
@@ -225,8 +223,8 @@ void WasmTableObject::AddDispatchTable(Isolate* isolate,
                                        Handle<WasmTableObject> table_obj,
                                        Handle<WasmInstanceObject> instance,
                                        int table_index,
-                                       Handle<FixedArray> function_table,
-                                       Handle<FixedArray> signature_table) {
+                                       Handle<FixedArray> function_table) {
+  DCHECK_EQ(0, function_table->length() % compiler::kFunctionTableEntrySize);
   Handle<FixedArray> dispatch_tables(table_obj->dispatch_tables());
   int old_length = dispatch_tables->length();
   DCHECK_EQ(0, old_length % kDispatchTableNumElements);
@@ -245,8 +243,6 @@ void WasmTableObject::AddDispatchTable(Isolate* isolate,
                            Smi::FromInt(table_index));
   new_dispatch_tables->set(old_length + kDispatchTableFunctionTableOffset,
                            *function_table);
-  new_dispatch_tables->set(old_length + kDispatchTableSignatureTableOffset,
-                           *signature_table);
 
   table_obj->set_dispatch_tables(*new_dispatch_tables);
 }
@@ -263,24 +259,17 @@ void WasmTableObject::Grow(Isolate* isolate, uint32_t count) {
        i += kDispatchTableNumElements) {
     Handle<FixedArray> old_function_table(FixedArray::cast(
         dispatch_tables->get(i + kDispatchTableFunctionTableOffset)));
-    Handle<FixedArray> old_signature_table(FixedArray::cast(
-        dispatch_tables->get(i + kDispatchTableSignatureTableOffset)));
     Handle<FixedArray> new_function_table = isolate->global_handles()->Create(
-        *isolate->factory()->CopyFixedArrayAndGrow(old_function_table, count));
-    Handle<FixedArray> new_signature_table = isolate->global_handles()->Create(
-        *isolate->factory()->CopyFixedArrayAndGrow(old_signature_table, count));
+        *isolate->factory()->CopyFixedArrayAndGrow(
+            old_function_table, count * compiler::kFunctionTableEntrySize));
 
     GlobalHandleAddress new_function_table_addr = new_function_table.address();
-    GlobalHandleAddress new_signature_table_addr =
-        new_signature_table.address();
 
     int table_index =
         Smi::cast(dispatch_tables->get(i + kDispatchTableIndexOffset))->value();
     // Update dispatch tables with new function tables.
     dispatch_tables->set(i + kDispatchTableFunctionTableOffset,
                          *new_function_table);
-    dispatch_tables->set(i + kDispatchTableSignatureTableOffset,
-                         *new_signature_table);
 
     // Patch the code of the respective instance.
     if (FLAG_wasm_jit_to_native) {
@@ -295,16 +284,11 @@ void WasmTableObject::Grow(Isolate* isolate, uint32_t count) {
           native_module);
       GlobalHandleAddress old_function_table_addr =
           native_module->function_tables()[table_index];
-      GlobalHandleAddress old_signature_table_addr =
-          native_module->signature_tables()[table_index];
       code_specialization.PatchTableSize(old_size, old_size + count);
       code_specialization.RelocatePointer(old_function_table_addr,
                                           new_function_table_addr);
-      code_specialization.RelocatePointer(old_signature_table_addr,
-                                          new_signature_table_addr);
       code_specialization.ApplyToWholeInstance(instance);
       native_module->function_tables()[table_index] = new_function_table_addr;
-      native_module->signature_tables()[table_index] = new_signature_table_addr;
     } else {
       DisallowHeapAllocation no_gc;
       wasm::CodeSpecialization code_specialization(isolate,
@@ -315,21 +299,13 @@ void WasmTableObject::Grow(Isolate* isolate, uint32_t count) {
       GlobalHandleAddress old_function_table_addr =
           WasmCompiledModule::GetTableValue(compiled_module->function_tables(),
                                             table_index);
-      GlobalHandleAddress old_signature_table_addr =
-          WasmCompiledModule::GetTableValue(compiled_module->signature_tables(),
-                                            table_index);
       code_specialization.PatchTableSize(old_size, old_size + count);
       code_specialization.RelocatePointer(old_function_table_addr,
                                           new_function_table_addr);
-      code_specialization.RelocatePointer(old_signature_table_addr,
-                                          new_signature_table_addr);
       code_specialization.ApplyToWholeInstance(instance);
       WasmCompiledModule::UpdateTableValue(compiled_module->function_tables(),
                                            table_index,
                                            new_function_table_addr);
-      WasmCompiledModule::UpdateTableValue(compiled_module->signature_tables(),
-                                           table_index,
-                                           new_signature_table_addr);
     }
   }
 }
@@ -364,42 +340,36 @@ void WasmTableObject::Set(Isolate* isolate, Handle<WasmTableObject> table,
         isolate, handle(exported_function->instance()), wasm_code,
         exported_function->function_index(), sig);
   }
-  UpdateDispatchTables(isolate, table, index, sig, code);
+  UpdateDispatchTables(table, index, sig, code);
   array->set(index, *value);
 }
 
-void WasmTableObject::UpdateDispatchTables(Isolate* isolate,
-                                           Handle<WasmTableObject> table,
+void WasmTableObject::UpdateDispatchTables(Handle<WasmTableObject> table,
                                            int index, wasm::FunctionSig* sig,
                                            Handle<Object> code_or_foreign) {
-  Handle<FixedArray> dispatch_tables(table->dispatch_tables(), isolate);
+  DisallowHeapAllocation no_gc;
+  FixedArray* dispatch_tables = table->dispatch_tables();
   DCHECK_EQ(0, dispatch_tables->length() % kDispatchTableNumElements);
   for (int i = 0; i < dispatch_tables->length();
        i += kDispatchTableNumElements) {
-    Handle<FixedArray> function_table(
-        FixedArray::cast(
-            dispatch_tables->get(i + kDispatchTableFunctionTableOffset)),
-        isolate);
-    Handle<FixedArray> signature_table(
-        FixedArray::cast(
-            dispatch_tables->get(i + kDispatchTableSignatureTableOffset)),
-        isolate);
+    FixedArray* function_table = FixedArray::cast(
+        dispatch_tables->get(i + kDispatchTableFunctionTableOffset));
+    Smi* sig_smi = Smi::FromInt(-1);
+    Object* code = Smi::kZero;
     if (sig) {
       DCHECK(code_or_foreign->IsCode() || code_or_foreign->IsForeign());
-      Handle<WasmInstanceObject> instance(
-          WasmInstanceObject::cast(
-              dispatch_tables->get(i + kDispatchTableInstanceOffset)),
-          isolate);
+      WasmInstanceObject* instance = WasmInstanceObject::cast(
+          dispatch_tables->get(i + kDispatchTableInstanceOffset));
       // Note that {SignatureMap::Find} may return {-1} if the signature is
       // not found; it will simply never match any check.
       auto sig_index = instance->module()->signature_map.Find(sig);
-      signature_table->set(index, Smi::FromInt(sig_index));
-      function_table->set(index, *code_or_foreign);
+      sig_smi = Smi::FromInt(sig_index);
+      code = *code_or_foreign;
     } else {
       DCHECK(code_or_foreign.is_null());
-      signature_table->set(index, Smi::FromInt(-1));
-      function_table->set(index, Smi::kZero);
     }
+    function_table->set(compiler::FunctionTableSigOffset(index), sig_smi);
+    function_table->set(compiler::FunctionTableCodeOffset(index), code);
   }
 }
 
@@ -1289,9 +1259,7 @@ Handle<WasmCompiledModule> WasmCompiledModule::New(
     Isolate* isolate, WasmModule* module, Handle<FixedArray> code_table,
     Handle<FixedArray> export_wrappers,
     const std::vector<GlobalHandleAddress>& function_tables,
-    const std::vector<GlobalHandleAddress>& signature_tables,
     bool use_trap_handler) {
-  DCHECK_EQ(function_tables.size(), signature_tables.size());
   Handle<FixedArray> ret =
       isolate->factory()->NewFixedArray(PropertyIndices::Count, TENURED);
   // WasmCompiledModule::cast would fail since fields are not set yet.
@@ -1313,21 +1281,15 @@ Handle<WasmCompiledModule> WasmCompiledModule::New(
 
     int num_function_tables = static_cast<int>(function_tables.size());
     if (num_function_tables > 0) {
-      Handle<FixedArray> st =
-          isolate->factory()->NewFixedArray(num_function_tables, TENURED);
       Handle<FixedArray> ft =
           isolate->factory()->NewFixedArray(num_function_tables, TENURED);
       for (int i = 0; i < num_function_tables; ++i) {
-        size_t index = static_cast<size_t>(i);
-        SetTableValue(isolate, ft, i, function_tables[index]);
-        SetTableValue(isolate, st, i, signature_tables[index]);
+        SetTableValue(isolate, ft, i, function_tables[i]);
       }
       // TODO(wasm): setting the empty tables here this way is OK under the
       // assumption that we compile and then instantiate. It needs rework if we
       // do direct instantiation. The empty tables are used as a default when
       // resetting the compiled module.
-      compiled_module->set_signature_tables(*st);
-      compiled_module->set_empty_signature_tables(*st);
       compiled_module->set_function_tables(*ft);
       compiled_module->set_empty_function_tables(*ft);
     }
@@ -1357,9 +1319,7 @@ Handle<WasmCompiledModule> WasmCompiledModule::New(
     compiled_module->set_code_table(*code_table);
 
     native_module->function_tables() = function_tables;
-    native_module->signature_tables() = signature_tables;
     native_module->empty_function_tables() = function_tables;
-    native_module->empty_signature_tables() = signature_tables;
 
     int function_count = static_cast<int>(module->functions.size());
     Handle<FixedArray> handler_table =
@@ -1457,27 +1417,18 @@ void WasmCompiledModule::ResetGCModel(Isolate* isolate,
     // Reset function tables.
     if (compiled_module->has_function_tables()) {
       FixedArray* function_tables = compiled_module->function_tables();
-      FixedArray* signature_tables = compiled_module->signature_tables();
       FixedArray* empty_function_tables =
           compiled_module->empty_function_tables();
-      FixedArray* empty_signature_tables =
-          compiled_module->empty_signature_tables();
       if (function_tables != empty_function_tables) {
         DCHECK_EQ(function_tables->length(), empty_function_tables->length());
         for (int i = 0, e = function_tables->length(); i < e; ++i) {
           GlobalHandleAddress func_addr =
               WasmCompiledModule::GetTableValue(function_tables, i);
-          GlobalHandleAddress sig_addr =
-              WasmCompiledModule::GetTableValue(signature_tables, i);
           code_specialization.RelocatePointer(
               func_addr,
               WasmCompiledModule::GetTableValue(empty_function_tables, i));
-          code_specialization.RelocatePointer(
-              sig_addr,
-              WasmCompiledModule::GetTableValue(empty_signature_tables, i));
         }
         compiled_module->set_function_tables(empty_function_tables);
-        compiled_module->set_signature_tables(empty_signature_tables);
       }
     }
 
@@ -1559,23 +1510,16 @@ void WasmCompiledModule::Reset(Isolate* isolate,
   if (native_module->function_tables().size() > 0) {
     std::vector<GlobalHandleAddress>& function_tables =
         native_module->function_tables();
-    std::vector<GlobalHandleAddress>& signature_tables =
-        native_module->signature_tables();
     std::vector<GlobalHandleAddress>& empty_function_tables =
         native_module->empty_function_tables();
-    std::vector<GlobalHandleAddress>& empty_signature_tables =
-        native_module->empty_signature_tables();
 
     if (function_tables != empty_function_tables) {
       DCHECK_EQ(function_tables.size(), empty_function_tables.size());
       for (size_t i = 0, e = function_tables.size(); i < e; ++i) {
         code_specialization.RelocatePointer(function_tables[i],
                                             empty_function_tables[i]);
-        code_specialization.RelocatePointer(signature_tables[i],
-                                            empty_signature_tables[i]);
       }
       native_module->function_tables() = empty_function_tables;
-      native_module->signature_tables() = empty_signature_tables;
     }
   }
 
@@ -1725,39 +1669,22 @@ void WasmCompiledModule::ReinitializeAfterDeserialization(
     // which will relocate the code. We end up with a WasmCompiledModule as-if
     // it were just compiled.
     Handle<FixedArray> function_tables;
-    Handle<FixedArray> signature_tables;
     if (!FLAG_wasm_jit_to_native) {
       DCHECK(compiled_module->has_function_tables());
-      DCHECK(compiled_module->has_signature_tables());
-      DCHECK(compiled_module->has_empty_signature_tables());
-      DCHECK(compiled_module->has_empty_function_tables());
       function_tables =
           handle(compiled_module->empty_function_tables(), isolate);
-      signature_tables =
-          handle(compiled_module->empty_signature_tables(), isolate);
     } else {
       DCHECK_GT(native_module->function_tables().size(), 0);
-      DCHECK_GT(native_module->signature_tables().size(), 0);
-      DCHECK_EQ(native_module->empty_signature_tables().size(),
-                native_module->function_tables().size());
-      DCHECK_EQ(native_module->empty_function_tables().size(),
-                native_module->function_tables().size());
     }
     for (size_t i = 0; i < function_table_count; ++i) {
       Handle<Object> global_func_table_handle =
           isolate->global_handles()->Create(isolate->heap()->undefined_value());
-      Handle<Object> global_sig_table_handle =
-          isolate->global_handles()->Create(isolate->heap()->undefined_value());
       GlobalHandleAddress new_func_table = global_func_table_handle.address();
-      GlobalHandleAddress new_sig_table = global_sig_table_handle.address();
       if (!FLAG_wasm_jit_to_native) {
         SetTableValue(isolate, function_tables, static_cast<int>(i),
                       new_func_table);
-        SetTableValue(isolate, signature_tables, static_cast<int>(i),
-                      new_sig_table);
       } else {
         native_module->empty_function_tables()[i] = new_func_table;
-        native_module->empty_signature_tables()[i] = new_sig_table;
       }
     }
   }

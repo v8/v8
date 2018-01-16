@@ -248,15 +248,9 @@ class V8_EXPORT_PRIVATE NativeModule final {
   std::vector<wasm::GlobalHandleAddress>& function_tables() {
     return specialization_data_.function_tables;
   }
-  std::vector<wasm::GlobalHandleAddress>& signature_tables() {
-    return specialization_data_.signature_tables;
-  }
 
   std::vector<wasm::GlobalHandleAddress>& empty_function_tables() {
     return specialization_data_.empty_function_tables;
-  }
-  std::vector<wasm::GlobalHandleAddress>& empty_signature_tables() {
-    return specialization_data_.empty_signature_tables;
   }
 
   uint32_t num_imported_functions() const { return num_imported_functions_; }
@@ -337,9 +331,7 @@ class V8_EXPORT_PRIVATE NativeModule final {
   // elements a 1 line copy.
   struct {
     std::vector<wasm::GlobalHandleAddress> function_tables;
-    std::vector<wasm::GlobalHandleAddress> signature_tables;
     std::vector<wasm::GlobalHandleAddress> empty_function_tables;
-    std::vector<wasm::GlobalHandleAddress> empty_signature_tables;
   } specialization_data_;
 };
 

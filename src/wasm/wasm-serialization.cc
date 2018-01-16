@@ -213,8 +213,8 @@ size_t NativeModuleSerializer::MeasureHeader() const {
          sizeof(
              uint32_t) +  // imported fcts - i.e. index of first wasm function
          sizeof(uint32_t) +  // table count
-         native_module_->specialization_data_.function_tables.size() *
-             2  // 2 same-sized tables, containing pointers
+         native_module_->specialization_data_.function_tables.size()
+             // function table, containing pointers
              * sizeof(GlobalHandleAddress);
 }
 
@@ -231,7 +231,6 @@ void NativeModuleSerializer::BufferHeader() {
               e = native_module_->specialization_data_.function_tables.size();
        i < e; ++i) {
     writer.Write(native_module_->specialization_data_.function_tables[i]);
-    writer.Write(native_module_->specialization_data_.signature_tables[i]);
   }
 }
 
@@ -558,18 +557,14 @@ bool NativeModuleDeserializer::ReadHeader() {
   if (!ok) return false;
   size_t table_count = reader.Read<uint32_t>();
 
-  std::vector<GlobalHandleAddress> sigs(table_count);
   std::vector<GlobalHandleAddress> funcs(table_count);
   for (size_t i = 0; i < table_count; ++i) {
     funcs[i] = reader.Read<GlobalHandleAddress>();
-    sigs[i] = reader.Read<GlobalHandleAddress>();
   }
-  native_module_->signature_tables() = sigs;
   native_module_->function_tables() = funcs;
   // resize, so that from here on the native module can be
   // asked about num_function_tables().
   native_module_->empty_function_tables().resize(table_count);
-  native_module_->empty_signature_tables().resize(table_count);
 
   unread_ = unread_ + (start_size - reader.current_buffer().size());
   return true;
@@ -739,9 +734,8 @@ MaybeHandle<WasmCompiledModule> DeserializeNativeModule(
       static_cast<int>(export_wrappers_size), TENURED);
 
   Handle<WasmCompiledModule> compiled_module = WasmCompiledModule::New(
-      isolate, shared->module(), isolate->factory()->NewFixedArray(0, TENURED),
+      isolate, shared->module(), isolate->factory()->empty_fixed_array(),
       export_wrappers, std::vector<wasm::GlobalHandleAddress>(),
-      std::vector<wasm::GlobalHandleAddress>(),
       trap_handler::IsTrapHandlerEnabled());
   compiled_module->OnWasmModuleDecodingComplete(shared);
   NativeModuleDeserializer deserializer(isolate,

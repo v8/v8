@@ -88,9 +88,7 @@ WasmGraphBuilder::WasmGraphBuilder(
       jsgraph_(jsgraph),
       centry_stub_node_(jsgraph_->HeapConstant(centry_stub)),
       env_(env),
-      signature_tables_(zone),
       function_tables_(zone),
-      function_table_sizes_(zone),
       cur_buffer_(def_buffer_),
       cur_bufsize_(kDefaultBufferSize),
       has_simd_(ContainsSimd(sig)),
@@ -2425,45 +2423,39 @@ Node* WasmGraphBuilder::CallIndirect(uint32_t sig_index, Node** args,
   Node* key = args[0];
 
   // Bounds check against the table size.
-  Node* size = function_table_sizes_[table_index];
+  Node* size = function_tables_[table_index].size;
   Node* in_bounds = graph()->NewNode(machine->Uint32LessThan(), key, size);
   TrapIfFalse(wasm::kTrapFuncInvalid, in_bounds, position);
-  Node* table_address = function_tables_[table_index];
+  Node* table_address = function_tables_[table_index].table_addr;
   Node* table = graph()->NewNode(
       jsgraph()->machine()->Load(MachineType::AnyTagged()), table_address,
       jsgraph()->IntPtrConstant(0), *effect_, *control_);
-  Node* signatures_address = signature_tables_[table_index];
-  Node* signatures = graph()->NewNode(
-      jsgraph()->machine()->Load(MachineType::AnyTagged()), signatures_address,
-      jsgraph()->IntPtrConstant(0), *effect_, *control_);
   // Load signature from the table and check.
   // The table is a FixedArray; signatures are encoded as SMIs.
-  // [sig1, sig2, sig3, ...., code1, code2, code3 ...]
+  // [sig1, code1, sig2, code2, sig3, code3, ...]
+  static_assert(compiler::kFunctionTableEntrySize == 2, "consistency");
+  static_assert(compiler::kFunctionTableSignatureOffset == 0, "consistency");
+  static_assert(compiler::kFunctionTableCodeOffset == 1, "consistency");
   ElementAccess access = AccessBuilder::ForFixedArrayElement();
   const int fixed_offset = access.header_size - access.tag();
-  {
-    Node* load_sig = graph()->NewNode(
-        machine->Load(MachineType::AnyTagged()), signatures,
-        graph()->NewNode(machine->Int32Add(),
-                         graph()->NewNode(machine->Word32Shl(), key,
-                                          Int32Constant(kPointerSizeLog2)),
-                         Int32Constant(fixed_offset)),
-        *effect_, *control_);
-    int32_t canonical_sig_num = env_->module->signature_ids[sig_index];
-    CHECK_GE(sig_index, 0);
-    Node* sig_match =
-        graph()->NewNode(machine->WordEqual(), load_sig,
-                         jsgraph()->SmiConstant(canonical_sig_num));
-    TrapIfFalse(wasm::kTrapFuncSigMismatch, sig_match, position);
-  }
+  Node* key_offset = graph()->NewNode(machine->Word32Shl(), key,
+                                      Int32Constant(kPointerSizeLog2 + 1));
+  Node* load_sig =
+      graph()->NewNode(machine->Load(MachineType::AnyTagged()), table,
+                       graph()->NewNode(machine->Int32Add(), key_offset,
+                                        Int32Constant(fixed_offset)),
+                       *effect_, *control_);
+  int32_t canonical_sig_num = env_->module->signature_ids[sig_index];
+  CHECK_GE(sig_index, 0);
+  Node* sig_match = graph()->NewNode(machine->WordEqual(), load_sig,
+                                     jsgraph()->SmiConstant(canonical_sig_num));
+  TrapIfFalse(wasm::kTrapFuncSigMismatch, sig_match, position);
 
   // Load code object from the table. It is held by a Foreign.
   Node* entry = graph()->NewNode(
       machine->Load(MachineType::AnyTagged()), table,
-      graph()->NewNode(machine->Int32Add(),
-                       graph()->NewNode(machine->Word32Shl(), key,
-                                        Int32Constant(kPointerSizeLog2)),
-                       Uint32Constant(fixed_offset)),
+      graph()->NewNode(machine->Int32Add(), key_offset,
+                       Uint32Constant(fixed_offset + kPointerSize)),
       *effect_, *control_);
   if (FLAG_wasm_jit_to_native) {
     Node* address = graph()->NewNode(
@@ -3426,18 +3418,14 @@ void WasmGraphBuilder::EnsureFunctionTableNodes() {
   for (size_t i = 0; i < tables_size; ++i) {
     wasm::GlobalHandleAddress function_handle_address =
         env_->function_tables[i];
-    wasm::GlobalHandleAddress signature_handle_address =
-        env_->signature_tables[i];
-    function_tables_.push_back(jsgraph()->RelocatableIntPtrConstant(
+    Node* table_addr = jsgraph()->RelocatableIntPtrConstant(
         reinterpret_cast<intptr_t>(function_handle_address),
-        RelocInfo::WASM_GLOBAL_HANDLE));
-    signature_tables_.push_back(jsgraph()->RelocatableIntPtrConstant(
-        reinterpret_cast<intptr_t>(signature_handle_address),
-        RelocInfo::WASM_GLOBAL_HANDLE));
+        RelocInfo::WASM_GLOBAL_HANDLE);
     uint32_t table_size = env_->module->function_tables[i].initial_size;
-    function_table_sizes_.push_back(jsgraph()->RelocatableInt32Constant(
+    Node* size = jsgraph()->RelocatableInt32Constant(
         static_cast<uint32_t>(table_size),
-        RelocInfo::WASM_FUNCTION_TABLE_SIZE_REFERENCE));
+        RelocInfo::WASM_FUNCTION_TABLE_SIZE_REFERENCE);
+    function_tables_.push_back({table_addr, size});
   }
 }
 
@@ -4451,14 +4439,11 @@ Handle<Code> CompileJSToWasmWrapper(Isolate* isolate, wasm::WasmModule* module,
   Node* effect = nullptr;
 
   // TODO(titzer): compile JS to WASM wrappers without a {ModuleEnv}.
-  ModuleEnv env = {module,
-                   std::vector<Address>(),  // function_tables
-                   std::vector<Address>(),  // signature_tables
-                   // TODO(mtrofin): remove these 2 lines when we don't need
-                   // FLAG_wasm_jit_to_native
-                   std::vector<Handle<Code>>(),     // function_code
-                   BUILTIN_CODE(isolate, Illegal),  // default_function_code
-                   use_trap_handler};
+  ModuleEnv env(module,
+                // TODO(mtrofin): remove the Illegal builtin when we don't need
+                // FLAG_wasm_jit_to_native
+                BUILTIN_CODE(isolate, Illegal),  // default_function_code
+                use_trap_handler);
 
   WasmGraphBuilder builder(&env, &zone, &jsgraph,
                            CEntryStub(isolate, 1).GetCode(), func->sig);
@@ -4571,12 +4556,7 @@ Handle<Code> CompileWasmToJSWrapper(
       origin == wasm::kAsmJsOrigin ? new (&zone) SourcePositionTable(&graph)
                                    : nullptr;
 
-  ModuleEnv env = {nullptr,
-                   std::vector<Address>(),
-                   std::vector<Address>(),
-                   std::vector<Handle<Code>>(),
-                   Handle<Code>(),
-                   use_trap_handler};
+  ModuleEnv env(nullptr, Handle<Code>::null(), use_trap_handler);
   WasmGraphBuilder builder(&env, &zone, &jsgraph,
                            CEntryStub(isolate, 1).GetCode(), sig,
                            source_position_table);
@@ -4663,13 +4643,9 @@ Handle<Code> CompileWasmToWasmWrapper(Isolate* isolate, WasmCodeWrapper target,
   Node* control = nullptr;
   Node* effect = nullptr;
 
-  ModuleEnv env = {
-      nullptr,
-      std::vector<Address>(),
-      std::vector<Address>(),
-      std::vector<Handle<Code>>(),
-      Handle<Code>(),
-      !target.IsCodeObject() && target.GetWasmCode()->HasTrapHandlerIndex()};
+  ModuleEnv env(
+      nullptr, Handle<Code>::null(),
+      !target.IsCodeObject() && target.GetWasmCode()->HasTrapHandlerIndex());
   WasmGraphBuilder builder(&env, &zone, &jsgraph, Handle<Code>(), sig);
   builder.set_control_ptr(&control);
   builder.set_effect_ptr(&effect);
@@ -4856,13 +4832,6 @@ Handle<Code> CompileCWasmEntry(Isolate* isolate, wasm::FunctionSig* sig,
 
 SourcePositionTable* WasmCompilationUnit::BuildGraphForWasmFunction(
     double* decode_ms) {
-#if DEBUG
-  if (env_) {
-    size_t tables_size = env_->module->function_tables.size();
-    DCHECK_EQ(tables_size, env_->function_tables.size());
-    DCHECK_EQ(tables_size, env_->signature_tables.size());
-  }
-#endif
 
   base::ElapsedTimer decode_timer;
   if (FLAG_trace_wasm_decode_time) {
