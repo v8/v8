@@ -42,6 +42,12 @@ class TestProc(object):
     next_proc._prev_proc = self
     self._next_proc = next_proc
 
+  def remove_from_chain(self):
+    if self._prev_proc:
+      self._prev_proc._next_proc = self._next_proc
+    if self._next_proc:
+      self._next_proc._prev_proc = self._prev_proc
+
   def next_test(self, test):
     """
     Method called by previous processor whenever it produces new test.

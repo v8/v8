@@ -210,10 +210,11 @@ class SystemTest(unittest.TestCase):
           'sweet/strawberries',
           infra_staging=infra_staging,
       )
-      if infra_staging:
-        self.assertIn('Running 1 tests', result.stdout, result)
-      else:
+      if not infra_staging:
         self.assertIn('Running 2 tests', result.stdout, result)
+      else:
+        self.assertIn('Running 1 base tests', result.stdout, result)
+        self.assertIn('2 tests ran', result.stdout, result)
       self.assertIn('Done running sweet/strawberries: FAIL', result.stdout, result)
       self.assertEqual(1, result.returncode, result)
 
@@ -260,7 +261,11 @@ class SystemTest(unittest.TestCase):
           'sweet/strawberries',
           infra_staging=infra_staging,
       )
-      self.assertIn('Running 1 tests', result.stdout, result)
+      if not infra_staging:
+        self.assertIn('Running 1 tests', result.stdout, result)
+      else:
+        self.assertIn('Running 1 base tests', result.stdout, result)
+        self.assertIn('1 tests ran', result.stdout, result)
       self.assertIn('Done running sweet/strawberries: FAIL', result.stdout, result)
       if not infra_staging:
         # We run one test, which fails and gets re-run twice.
@@ -344,9 +349,8 @@ class SystemTest(unittest.TestCase):
       # TODO(machenbach): Test some more implications of the auto-detected
       # options, e.g. that the right env variables are set.
 
-  # TODO(majeski): Fix "running 0 tests" vs "Warning: no tests were run!"
-  # def testSkipsProc(self):
-  #   self.testSkips(infra_staging=True)
+  def testSkipsProc(self):
+    self.testSkips(infra_staging=True)
 
   def testSkips(self, infra_staging=False):
     """Test skipping tests in status file for a specific variant."""
@@ -359,12 +363,15 @@ class SystemTest(unittest.TestCase):
           'sweet/strawberries',
           infra_staging=infra_staging,
       )
-      self.assertIn('Running 0 tests', result.stdout, result)
+      if not infra_staging:
+        self.assertIn('Running 0 tests', result.stdout, result)
+      else:
+        self.assertIn('Running 1 base tests', result.stdout, result)
+        self.assertIn('0 tests ran', result.stdout, result)
       self.assertEqual(0, result.returncode, result)
 
-  # TODO(majeski): Fix "running 0 tests" vs "Warning: no tests were run!"
-  # def testDefaultProc(self):
-  #   self.testDefault(infra_staging=True)
+  def testDefaultProc(self):
+    self.testDefault(infra_staging=True)
 
   def testDefault(self, infra_staging=False):
     """Test using default test suites, though no tests are run since they don't
@@ -376,7 +383,11 @@ class SystemTest(unittest.TestCase):
           '--mode=Release',
           infra_staging=infra_staging,
       )
-      self.assertIn('Warning: no tests were run!', result.stdout, result)
+      if not infra_staging:
+        self.assertIn('Warning: no tests were run!', result.stdout, result)
+      else:
+        self.assertIn('Running 0 base tests', result.stdout, result)
+        self.assertIn('0 tests ran', result.stdout, result)
       self.assertEqual(0, result.returncode, result)
 
   def testNoBuildConfig(self):
@@ -489,7 +500,11 @@ class SystemTest(unittest.TestCase):
           'sweet/bananas',
           infra_staging=infra_staging,
       )
-      self.assertIn('Running 1 tests', result.stdout, result)
+      if not infra_staging:
+        self.assertIn('Running 1 tests', result.stdout, result)
+      else:
+        self.assertIn('Running 1 base tests', result.stdout, result)
+        self.assertIn('1 tests ran', result.stdout, result)
       self.assertIn('Done running sweet/bananas: FAIL', result.stdout, result)
       self.assertIn('Test had no allocation output', result.stdout, result)
       self.assertIn('--predictable --verify_predictable', result.stdout, result)
@@ -585,7 +600,11 @@ class SystemTest(unittest.TestCase):
           '--no-sorting', '-j1', # make results order deterministic
           infra_staging=infra_staging,
       )
-      self.assertIn('Running 2 tests', result.stdout, result)
+      if not infra_staging:
+        self.assertIn('Running 2 tests', result.stdout, result)
+      else:
+        self.assertIn('Running 2 base tests', result.stdout, result)
+        self.assertIn('2 tests ran', result.stdout, result)
       self.assertIn('F.', result.stdout, result)
       self.assertEqual(1, result.returncode, result)
 
@@ -621,7 +640,6 @@ class SystemTest(unittest.TestCase):
       self.assertIn('sweet/cherries', result.stdout)
       self.assertIn('sweet/bananas', result.stdout)
       self.assertEqual(1, result.returncode, result)
-
 
 if __name__ == '__main__':
   unittest.main()

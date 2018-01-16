@@ -22,30 +22,33 @@ def print_failure_header(test):
   }
 
 
+class TestsCounter(base.TestProcObserver):
+  def __init__(self):
+    super(TestsCounter, self).__init__()
+    self.total = 0
+
+  def _on_next_test(self, test):
+    self.total += 1
+
+
 class ResultsTracker(base.TestProcObserver):
-  def __init__(self, count_subtests):
+  def __init__(self):
     super(ResultsTracker, self).__init__()
     self.failed = 0
     self.remaining = 0
     self.total = 0
-    self.count_subtests = count_subtests
 
   def _on_next_test(self, test):
     self.total += 1
     self.remaining += 1
 
   def _on_result_for(self, test, result):
-    # TODO(majeski): Count grouped results when count_subtests is set.
-    # TODO(majeski): Support for dummy/grouped results
     self.remaining -= 1
     if result.has_unexpected_output:
       self.failed += 1
 
 
 class ProgressIndicator(base.TestProcObserver):
-  def starting(self):
-    pass
-
   def finished(self):
     pass
 
@@ -64,9 +67,6 @@ class SimpleProgressIndicator(ProgressIndicator):
     # TODO(majeski): Support for dummy/grouped results
     if result.has_unexpected_output:
       self._failed.append((test, result.output))
-
-  def starting(self):
-    print 'Running %i tests' % self._total
 
   def finished(self):
     crashed = 0

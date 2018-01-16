@@ -30,7 +30,8 @@ from testrunner.testproc.execution import ExecutionProc
 from testrunner.testproc.filter import StatusFileFilterProc, NameFilterProc
 from testrunner.testproc.loader import LoadProc
 from testrunner.testproc.progress import (VerboseProgressIndicator,
-                                          ResultsTracker)
+                                          ResultsTracker,
+                                          TestsCounter)
 from testrunner.testproc.rerun import RerunProc
 from testrunner.testproc.shard import ShardProc
 from testrunner.testproc.variant import VariantProc
@@ -586,19 +587,21 @@ class StandardTestRunner(base_runner.BaseTestRunner):
 
       print '>>> Running with test processors'
       loader = LoadProc()
-      results = ResultsTracker(count_subtests=False)
+      tests_counter = TestsCounter()
+      results = ResultsTracker()
       indicators = progress_indicator.ToProgressIndicatorProcs()
       execproc = ExecutionProc(jobs, context)
 
       procs = [
         loader,
-        NameFilterProc(args),
+        NameFilterProc(args) if args else None,
         StatusFileFilterProc(options.slow_tests, options.pass_fail_tests),
         self._create_shard_proc(options),
+        tests_counter,
         VariantProc(VARIANTS),
         StatusFileFilterProc(options.slow_tests, options.pass_fail_tests),
-        results,
       ] + indicators + [
+        results,
         self._create_rerun_proc(context),
         execproc,
       ]
@@ -612,17 +615,22 @@ class StandardTestRunner(base_runner.BaseTestRunner):
       tests.sort(key=lambda t: t.is_slow, reverse=True)
       loader.load_tests(tests)
 
-      for indicator in indicators:
-        indicator.starting()
+      print '>>> Running %d base tests' % tests_counter.total
+      tests_counter.remove_from_chain()
+
       execproc.start()
+
       for indicator in indicators:
         indicator.finished()
+
+      print '>>> %d tests ran' % results.total
 
       exit_code = 0
       if results.failed:
         exit_code = 1
       if results.remaining:
         exit_code = 2
+
 
       if exit_code == 1 and options.json_test_results:
         print("Force exit code 0 after failures. Json test results file "
