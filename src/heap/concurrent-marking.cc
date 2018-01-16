@@ -514,6 +514,7 @@ void ConcurrentMarking::Run(int task_id, TaskState* task_state) {
 }
 
 void ConcurrentMarking::ScheduleTasks() {
+  DCHECK(heap_->use_tasks());
   if (!FLAG_concurrent_marking) return;
   base::LockGuard<base::Mutex> guard(&pending_lock_);
   if (task_count_ == 0) {
@@ -542,7 +543,7 @@ void ConcurrentMarking::ScheduleTasks() {
 }
 
 void ConcurrentMarking::RescheduleTasksIfNeeded() {
-  if (!FLAG_concurrent_marking) return;
+  if (!FLAG_concurrent_marking || !heap_->use_tasks()) return;
   {
     base::LockGuard<base::Mutex> guard(&pending_lock_);
     if (pending_task_count_ > 0) return;
