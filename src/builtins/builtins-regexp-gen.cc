@@ -1666,12 +1666,6 @@ Node* RegExpBuiltinsAssembler::RegExpExec(Node* context, Node* regexp,
 
   BIND(&if_iscallable);
   {
-    // TFJ builtin recursion can only be introduced within RegExp builtins by
-    // modifying the RegExp prototype, in which case all exec calls go through
-    // this path.
-    // TODO(7239): A general solution for TFJ recursion & stack checks.
-    PerformStackCheck(context);
-
     Callable call_callable = CodeFactory::Call(isolate());
     Node* const result = CallJS(call_callable, context, exec, regexp, string);
 

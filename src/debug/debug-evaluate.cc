@@ -359,6 +359,7 @@ bool IntrinsicHasNoSideEffect(Runtime::FunctionId id) {
   V(ThrowRangeError)                     \
   V(ToName)                              \
   V(GetOwnPropertyDescriptor)            \
+  V(StackGuard)                          \
   /* Misc. */                            \
   V(Call)                                \
   V(MaxSmi)                              \
