@@ -32,6 +32,7 @@ from testrunner.testproc.loader import LoadProc
 from testrunner.testproc.progress import (VerboseProgressIndicator,
                                           ResultsTracker)
 from testrunner.testproc.rerun import RerunProc
+from testrunner.testproc.shard import ShardProc
 from testrunner.testproc.variant import VariantProc
 
 
@@ -395,15 +396,38 @@ class StandardTestRunner(base_runner.BaseTestRunner):
         "tsan": self.build_config.tsan,
         "ubsan_vptr": self.build_config.ubsan_vptr,
       }
+
+      progress_indicator = progress.IndicatorNotifier()
+      progress_indicator.Register(
+        progress.PROGRESS_INDICATORS[options.progress]())
+      if options.junitout:  # pragma: no cover
+        progress_indicator.Register(progress.JUnitTestProgressIndicator(
+            options.junitout, options.junittestsuite))
+      if options.json_test_results:
+        progress_indicator.Register(progress.JsonTestProgressIndicator(
+          options.json_test_results,
+          self.build_config.arch,
+          self.mode_options.execution_mode,
+          ctx.random_seed))
+      if options.flakiness_results:  # pragma: no cover
+        progress_indicator.Register(progress.FlakinessTestProgressIndicator(
+            options.flakiness_results))
+
+      if options.infra_staging:
+        for s in suites:
+          s.ReadStatusFile(variables)
+          s.ReadTestCases(ctx)
+
+        return self._run_test_procs(suites, args, options, progress_indicator,
+                                    ctx)
+
       all_tests = []
       num_tests = 0
       for s in suites:
         s.ReadStatusFile(variables)
         s.ReadTestCases(ctx)
-        if not options.infra_staging:
-          # Tests will be filtered in the test processors pipeline
-          if len(args) > 0:
-            s.FilterTestCasesByArgs(args)
+        if len(args) > 0:
+          s.FilterTestCasesByArgs(args)
         all_tests += s.tests
 
         # First filtering by status applying the generic rules (tests without
@@ -416,15 +440,11 @@ class StandardTestRunner(base_runner.BaseTestRunner):
         if options.cat:
           verbose.PrintTestSource(s.tests)
           continue
-        if not options.infra_staging:
-          variant_gen = s.CreateLegacyVariantsGenerator(VARIANTS)
-          variant_tests = [ t.create_variant(v, flags)
-                            for t in s.tests
-                            for v in variant_gen.FilterVariantsByTest(t)
-                            for flags in variant_gen.GetFlagSets(t, v) ]
-        else:
-          # Variants will be created in the test processors pipeline
-          variant_tests = s.tests
+        variant_gen = s.CreateLegacyVariantsGenerator(VARIANTS)
+        variant_tests = [ t.create_variant(v, flags)
+                          for t in s.tests
+                          for v in variant_gen.FilterVariantsByTest(t)
+                          for flags in variant_gen.GetFlagSets(t, v) ]
 
         if options.random_seed_stress_count > 1:
           # Duplicate test for random seed stress mode.
@@ -449,8 +469,7 @@ class StandardTestRunner(base_runner.BaseTestRunner):
           tests = [(t.name, t.variant) for t in s.tests]
           s.statusfile.warn_unused_rules(tests, check_variant_rules=True)
 
-        if not options.infra_staging:
-          s.FilterTestCasesByStatus(options.slow_tests, options.pass_fail_tests)
+        s.FilterTestCasesByStatus(options.slow_tests, options.pass_fail_tests)
         s.tests = self._shard_tests(s.tests, options)
 
         for t in s.tests:
@@ -466,35 +485,15 @@ class StandardTestRunner(base_runner.BaseTestRunner):
 
       # Run the tests.
       start_time = time.time()
-      progress_indicator = progress.IndicatorNotifier()
-      progress_indicator.Register(
-        progress.PROGRESS_INDICATORS[options.progress]())
-      if options.junitout:  # pragma: no cover
-        progress_indicator.Register(progress.JUnitTestProgressIndicator(
-            options.junitout, options.junittestsuite))
-      if options.json_test_results:
-        progress_indicator.Register(progress.JsonTestProgressIndicator(
-          options.json_test_results,
-          self.build_config.arch,
-          self.mode_options.execution_mode,
-          ctx.random_seed))
-      if options.flakiness_results:  # pragma: no cover
-        progress_indicator.Register(progress.FlakinessTestProgressIndicator(
-            options.flakiness_results))
 
       if self.build_config.predictable:
         outproc_factory = predictable.get_outproc
       else:
         outproc_factory = None
 
-      if options.infra_staging:
-        exit_code = self._run_test_procs(suites, args, options,
-                                         progress_indicator, ctx,
-                                         outproc_factory)
-      else:
-        runner = execution.Runner(suites, progress_indicator, ctx,
-                                  outproc_factory)
-        exit_code = runner.Run(options.j)
+      runner = execution.Runner(suites, progress_indicator, ctx,
+                                outproc_factory)
+      exit_code = runner.Run(options.j)
       overall_duration = time.time() - start_time
 
       if options.time:
@@ -523,6 +522,29 @@ class StandardTestRunner(base_runner.BaseTestRunner):
       return exit_code
 
     def _shard_tests(self, tests, options):
+      shard_run, shard_count = self._get_shard_info(options)
+
+      if shard_count < 2:
+        return tests
+      count = 0
+      shard = []
+      for test in tests:
+        if count % shard_count == shard_run - 1:
+          shard.append(test)
+        count += 1
+      return shard
+
+    def _create_shard_proc(self, options):
+      myid, count = self._get_shard_info(options)
+      if count == 1:
+        return None
+      return ShardProc(myid - 1, count)
+
+    def _get_shard_info(self, options):
+      """
+      Returns pair:
+        (id of the current shard [1; number of shards], number of shards)
+      """
       # Read gtest shard configuration from environment (e.g. set by swarming).
       # If none is present, use values passed on the command line.
       shard_count = int(
@@ -545,48 +567,43 @@ class StandardTestRunner(base_runner.BaseTestRunner):
           print("shard_run from cmd line differs from environment variable "
                 "GTEST_SHARD_INDEX")
 
-      if shard_count < 2:
-        return tests
       if shard_run < 1 or shard_run > shard_count:
         # TODO(machenbach): Turn this into an assert. If that's wrong on the
         # bots, printing will be quite useless. Or refactor this code to make
         # sure we get a return code != 0 after testing if we got here.
         print "shard-run not a valid number, should be in [1:shard-count]"
         print "defaulting back to running all tests"
-        return tests
-      count = 0
-      shard = []
-      for test in tests:
-        if count % shard_count == shard_run - 1:
-          shard.append(test)
-        count += 1
-      return shard
+        return 1, 1
+
+      return shard_run, shard_count
 
     def _run_test_procs(self, suites, args, options, progress_indicator,
-                        context, outproc_factory):
+                        context):
       jobs = options.j
+      for s in suites:
+        for t in s.tests:
+          t.cmd = t.get_command(context)
 
       print '>>> Running with test processors'
       loader = LoadProc()
       results = ResultsTracker(count_subtests=False)
       indicators = progress_indicator.ToProgressIndicatorProcs()
+      execproc = ExecutionProc(jobs, context)
 
       procs = [
         loader,
         NameFilterProc(args),
+        StatusFileFilterProc(options.slow_tests, options.pass_fail_tests),
+        self._create_shard_proc(options),
         VariantProc(VARIANTS),
         StatusFileFilterProc(options.slow_tests, options.pass_fail_tests),
         results,
-      ] + indicators
+      ] + indicators + [
+        self._create_rerun_proc(context),
+        execproc,
+      ]
 
-      if context.rerun_failures_count:
-        procs.append(RerunProc(
-            context.rerun_failures_count,
-            context.rerun_failures_max
-        ))
-
-      execproc = ExecutionProc(jobs, context)
-      procs.append(execproc)
+      procs = filter(None, procs)
 
       for i in xrange(0, len(procs) - 1):
         procs[i].connect_to(procs[i + 1])
@@ -594,17 +611,30 @@ class StandardTestRunner(base_runner.BaseTestRunner):
       tests = [t for s in suites for t in s.tests]
       tests.sort(key=lambda t: t.is_slow, reverse=True)
       loader.load_tests(tests)
+
       for indicator in indicators:
         indicator.starting()
       execproc.start()
       for indicator in indicators:
         indicator.finished()
 
+      exit_code = 0
       if results.failed:
-        return 1
+        exit_code = 1
       if results.remaining:
-        return 2
-      return 0
+        exit_code = 2
+
+      if exit_code == 1 and options.json_test_results:
+        print("Force exit code 0 after failures. Json test results file "
+              "generated with failure information.")
+        exit_code = 0
+      return exit_code
+
+    def _create_rerun_proc(self, ctx):
+      if not ctx.rerun_failures_count:
+        return None
+      return RerunProc(ctx.rerun_failures_count,
+                       ctx.rerun_failures_max)
 
 
 
