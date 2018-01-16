@@ -79,9 +79,9 @@ CONFIGS = dict(
 # Additional flag experiments. List of tuples like
 # (<likelihood to use flags in [0,1)>, <flag>).
 ADDITIONAL_FLAGS = [
-  (0.05, '--stress-marking=100'),
-  (0.05, '--stress-scavenge=100'),
-  (0.05, '--stress-compaction-random'),
+  (0.1, '--stress-marking=100'),
+  (0.1, '--stress-scavenge=100'),
+  (0.1, '--stress-compaction-random'),
 ]
 
 # Timeout in seconds for one d8 run.
