@@ -4571,6 +4571,11 @@ void Assembler::rorxl(Register dst, const Operand& src, byte imm8) {
   emit(imm8);
 }
 
+void Assembler::pause() {
+  emit(0xF3);
+  emit(0x90);
+}
+
 void Assembler::minps(XMMRegister dst, XMMRegister src) {
   EnsureSpace ensure_space(this);
   emit_optional_rex_32(dst, src);

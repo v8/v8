@@ -182,7 +182,9 @@ class V8_EXPORT_PRIVATE CallDescriptor final
     // Does not ever try to allocate space on our heap.
     kNoAllocate = 1u << 4,
     // Push argument count as part of function prologue.
-    kPushArgumentCount = 1u << 5
+    kPushArgumentCount = 1u << 5,
+    // Use retpoline for this call if indirect.
+    kRetpoline = 1u << 6
   };
   typedef base::Flags<Flag> Flags;
 

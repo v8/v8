@@ -71,6 +71,7 @@
       'compiler/test-run-load-store.cc',
       'compiler/test-run-machops.cc',
       'compiler/test-run-native-calls.cc',
+      'compiler/test-run-retpoline.cc',
       'compiler/test-run-stackcheck.cc',
       'compiler/test-run-stubs.cc',
       'compiler/test-run-tail-calls.cc',

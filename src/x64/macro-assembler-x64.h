@@ -345,6 +345,11 @@ class TurboAssembler : public Assembler {
   void Call(ExternalReference ext);
   void Call(Label* target) { call(target); }
 
+  void RetpolineCall(Register reg);
+  void RetpolineCall(Address destination, RelocInfo::Mode rmode);
+
+  void RetpolineJump(Register reg);
+
   void CallForDeoptimization(Address target, RelocInfo::Mode rmode) {
     call(target, rmode);
   }
