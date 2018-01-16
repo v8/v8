@@ -452,6 +452,24 @@
   assertArrayEquals([1.5, 2.5, 3.5, 4.5], callback_values);
 })();
 
+// Ensure that we handle side-effects between load and call.
+(() => {
+  function side_effect(a, b) { if (b) a.foo = 3; return a; }
+  %NeverOptimizeFunction(side_effect);
+
+  function unreliable(a, b) {
+    return a.filter(x => x % 2 === 0, side_effect(a, b));
+  }
+
+  let a = [1, 2, 3];
+  unreliable(a, false);
+  unreliable(a, false);
+  %OptimizeFunctionOnNextCall(unreliable);
+  unreliable(a, false);
+  // Now actually do change the map.
+  unreliable(a, true);
+})();
+
 // Messing with the Array species constructor causes deoptimization.
 (function() {
   var result = 0;

@@ -19,12 +19,20 @@ function RunOptFastReduceRight(multiple) {
 %NeverOptimizeFunction(OptFastReduceRight);
 function OptFastReduceRight() { RunOptFastReduceRight(3); }
 
+function side_effect(a) { return a; }
+%NeverOptimizeFunction(side_effect);
+function OptUnreliableReduceRight() {
+  result = array.reduceRight(func, side_effect(array));
+}
+
 DefineHigherOrderTests([
   // name, test function, setup function, user callback
   "DoubleReduceRight", mc("reduceRight"), DoubleSetup, (p, v, i, o) => p + v,
   "SmiReduceRight", mc("reduceRight"), SmiSetup, (p, v, i, a) => p + 1,
   "FastReduceRight", mc("reduceRight"), FastSetup, (p, v, i, a) => p + v,
-  "OptFastReduceRight", OptFastReduceRight, FastSetup, undefined
+  "OptFastReduceRight", OptFastReduceRight, FastSetup, undefined,
+  "OptUnreliableReduceRight", OptUnreliableReduceRight, FastSetup,
+      (p, v, i, a) => p + v
 ]);
 
 })();

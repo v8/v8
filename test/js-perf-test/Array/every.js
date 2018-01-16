@@ -19,12 +19,19 @@ function RunOptFastEvery(multiple) {
 %NeverOptimizeFunction(OptFastEvery);
 function OptFastEvery() { RunOptFastEvery(3); }
 
+function side_effect(a) { return a; }
+%NeverOptimizeFunction(side_effect);
+function OptUnreliableEvery() {
+  result = array.every(func, side_effect(array));
+}
+
 DefineHigherOrderTests([
   // name, test function, setup function, user callback
   "DoubleEvery", mc("every"), DoubleSetup, v => v > 0.0,
   "SmiEvery", mc("every"), SmiSetup, v => v != 34343,
   "FastEvery", mc("every"), FastSetup, v => v !== 'hi',
   "OptFastEvery", OptFastEvery, FastSetup, v => true,
+  "OptUnreliableEvery", OptUnreliableEvery, FastSetup, v => true
 ]);
 
 })();

@@ -72,6 +72,7 @@ load('filter.js');
 load('map.js');
 load('every.js');
 load('some.js');
+load('for-each.js');
 load('reduce.js');
 load('reduce-right.js');
 load('find.js');

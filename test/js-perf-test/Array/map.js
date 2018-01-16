@@ -14,7 +14,6 @@ function NaiveMap() {
   return result
 }
 
-
 function NaiveMapSetup() {
   // Prime NaiveMap with polymorphic cases.
   array = [1, 2, 3];
@@ -42,6 +41,12 @@ function RunOptFastMap(multiple) {
 %NeverOptimizeFunction(OptFastMap);
 function OptFastMap() { RunOptFastMap(3); }
 
+function side_effect(a) { return a; }
+%NeverOptimizeFunction(side_effect);
+function OptUnreliableMap() {
+  result = array.map(func, side_effect(array));
+}
+
 DefineHigherOrderTests([
   // name, test function, setup function, user callback
   "NaiveMapReplacement", NaiveMap, NaiveMapSetup, v => v,
@@ -52,6 +57,7 @@ DefineHigherOrderTests([
   "SmallSmiToFastMap", mc("map"), SmiSetup, v => "hi" + v,
   "GenericMap", mc("map", true), ObjectSetup, v => v,
   "OptFastMap", OptFastMap, FastSetup, undefined,
+  "OptUnreliableMap", OptUnreliableMap, FastSetup, v => v
 ]);
 
 })();

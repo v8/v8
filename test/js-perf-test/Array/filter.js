@@ -46,6 +46,12 @@ function RunOptFastFilter(multiple) {
 %NeverOptimizeFunction(OptFastFilter);
 function OptFastFilter() { RunOptFastFilter(3); }
 
+function side_effect(a) { return a; }
+%NeverOptimizeFunction(side_effect);
+function OptUnreliableFilter() {
+  result = array.filter(func, side_effect(array));
+}
+
 DefineHigherOrderTests([
   // name, test function, setup function, user callback
   "NaiveFilterReplacement", NaiveFilter, NaiveFilterSetup, v => true,
@@ -53,7 +59,8 @@ DefineHigherOrderTests([
   "SmiFilter", mc("filter"), SmiSetup, v => v % 2 === 0,
   "FastFilter", mc("filter"), FastSetup, (_, i) => i % 2 === 0,
   "GenericFilter", mc("filter", true), ObjectSetup, (_, i) => i % 2 === 0,
-  "OptFastFilter", OptFastFilter, FastSetup, undefined
+  "OptFastFilter", OptFastFilter, FastSetup, undefined,
+  "OptUnreliableFilter", OptUnreliableFilter, FastSetup, v => true
 ]);
 
 })();

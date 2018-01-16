@@ -19,6 +19,12 @@ function RunOptFast(multiple) {
 %NeverOptimizeFunction(OptFast);
 function OptFast() { RunOptFast(max_index); }
 
+function side_effect(a) { return a; }
+%NeverOptimizeFunction(side_effect);
+function OptUnreliable() {
+  result = array.find(func, side_effect(array));
+}
+
 function Naive() {
   let index = -1;
   const length = array == null ? 0 : array.length;
@@ -50,7 +56,8 @@ DefineHigherOrderTests([
   "SmiFind", mc("find"), SmiSetup, v => v === max_index,
   "FastFind", mc("find"), FastSetup, v => v === `value ${max_index}`,
   "GenericFind", mc("find", true), ObjectSetup, v => v === max_index,
-  "OptFastFind", OptFast, FastSetup, undefined
+  "OptFastFind", OptFast, FastSetup, undefined,
+  "OptUnreliableFind", OptUnreliable, FastSetup, v => v === max_index
 ]);
 
 })();

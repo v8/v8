@@ -435,26 +435,6 @@
   }
 })();
 
-// Messing with the Array prototype causes deoptimization.
-(() => {
-  const a = [1, 2, 3];
-  let result = 0;
-  function prototypeChanged() {
-    a.every((v, i) => {
-      result += v;
-      return true;
-    });
-  }
-  prototypeChanged();
-  prototypeChanged();
-  %OptimizeFunctionOnNextCall(prototypeChanged);
-  prototypeChanged();
-  a.constructor = {};
-  prototypeChanged();
-  assertUnoptimized(prototypeChanged);
-  assertEquals(24, result);
-})();
-
 // Verify holes are skipped.
 (() => {
   const a = [1, 2, , 3, 4];
@@ -488,6 +468,24 @@
   assertArrayEquals([1.5, 2.5, 3.5, 4.5], withHoles());
 })();
 
+// Ensure that we handle side-effects between load and call.
+(() => {
+  function side_effect(a, b) { if (b) a.foo = 3; return a; }
+  %NeverOptimizeFunction(side_effect);
+
+  function unreliable(a, b) {
+    return a.every(x => true, side_effect(a, b));
+  }
+
+  let a = [1, 2, 3];
+  unreliable(a, false);
+  unreliable(a, false);
+  %OptimizeFunctionOnNextCall(unreliable);
+  unreliable(a, false);
+  // Now actually do change the map.
+  unreliable(a, true);
+})();
+
 // Handle callback is not callable.
 (() => {
   const a = [1, 2, 3, 4, 5];
@@ -499,4 +497,24 @@
   try { notCallable(); } catch(e) { }
   %OptimizeFunctionOnNextCall(notCallable);
   assertThrows(notCallable, TypeError);
+})();
+
+// Messing with the Array prototype causes deoptimization.
+(() => {
+  const a = [1, 2, 3];
+  let result = 0;
+  function prototypeChanged() {
+    a.every((v, i) => {
+      result += v;
+      return true;
+    });
+  }
+  prototypeChanged();
+  prototypeChanged();
+  %OptimizeFunctionOnNextCall(prototypeChanged);
+  prototypeChanged();
+  a.constructor = {};
+  prototypeChanged();
+  assertUnoptimized(prototypeChanged);
+  assertEquals(24, result);
 })();
