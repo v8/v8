@@ -89,5 +89,11 @@ def FetchDeps(v8_path):
     if os.path.isfile(gclient_entries):
       os.remove(gclient_entries)
 
+  # TODO(v8:6105):
+  # The return value gates whether Node's configure script actually
+  # uses GN. Change this to true once everything is ready so that
+  # the change to enable the GN build on the bots comes from V8.
+  return False;
+
 if __name__ == "__main__":
   FetchDeps(sys.argv[1])
