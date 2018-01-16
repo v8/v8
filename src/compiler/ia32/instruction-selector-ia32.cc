@@ -1853,10 +1853,15 @@ VISIT_ATOMIC_BINOP(Xor)
   V(S128Or)                \
   V(S128Xor)
 
-#define SIMD_UNOP_LIST(V) \
-  V(I32x4Neg)             \
-  V(I16x8Neg)             \
+#define SIMD_INT_UNOP_LIST(V) \
+  V(I32x4Neg)                 \
+  V(I16x8Neg)                 \
   V(I8x16Neg)
+
+#define SIMD_OTHER_UNOP_LIST(V) \
+  V(F32x4Abs)                   \
+  V(F32x4Neg)                   \
+  V(S128Not)
 
 #define SIMD_SHIFT_OPCODES(V) \
   V(I32x4Shl)                 \
@@ -1892,11 +1897,6 @@ void InstructionSelector::VisitS128Zero(Node* node) {
   Emit(kIA32S128Zero, g.DefineAsRegister(node));
 }
 
-void InstructionSelector::VisitS128Not(Node* node) {
-  IA32OperandGenerator g(this);
-  InstructionCode opcode = IsSupported(AVX) ? kAVXS128Not : kSSES128Not;
-  Emit(opcode, g.DefineAsRegister(node), g.Use(node->InputAt(0)));
-}
 
 #define VISIT_SIMD_SPLAT(Type)                               \
   void InstructionSelector::Visit##Type##Splat(Node* node) { \
@@ -1947,13 +1947,22 @@ VISIT_SIMD_REPLACE_LANE(F32x4)
 SIMD_SHIFT_OPCODES(VISIT_SIMD_SHIFT)
 #undef VISIT_SIMD_SHIFT
 
-#define VISIT_SIMD_UNOP(Opcode)                                             \
+#define VISIT_SIMD_INT_UNOP(Opcode)                                         \
   void InstructionSelector::Visit##Opcode(Node* node) {                     \
     IA32OperandGenerator g(this);                                           \
     Emit(kIA32##Opcode, g.DefineAsRegister(node), g.Use(node->InputAt(0))); \
   }
-SIMD_UNOP_LIST(VISIT_SIMD_UNOP)
-#undef VISIT_SIMD_UNOP
+SIMD_INT_UNOP_LIST(VISIT_SIMD_INT_UNOP)
+#undef VISIT_SIMD_INT_UNOP
+
+#define VISIT_SIMD_OTHER_UNOP(Opcode)                                        \
+  void InstructionSelector::Visit##Opcode(Node* node) {                      \
+    IA32OperandGenerator g(this);                                            \
+    InstructionCode opcode = IsSupported(AVX) ? kAVX##Opcode : kSSE##Opcode; \
+    Emit(opcode, g.DefineAsRegister(node), g.Use(node->InputAt(0)));         \
+  }
+SIMD_OTHER_UNOP_LIST(VISIT_SIMD_OTHER_UNOP)
+#undef VISIT_SIMD_OTHER_UNOP
 
 #define VISIT_SIMD_BINOP(Opcode)                           \
   void InstructionSelector::Visit##Opcode(Node* node) {    \
