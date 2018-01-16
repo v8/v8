@@ -2854,17 +2854,8 @@ WASM_EXEC_TEST(I32SConvertF32) {
   WasmRunner<int32_t, float> r(execution_mode);
   BUILD(r, WASM_I32_SCONVERT_F32(WASM_GET_LOCAL(0)));
 
-  constexpr float kLowerBound =
-      static_cast<float>(std::numeric_limits<int32_t>::min());
-  constexpr float kUpperBound =
-      static_cast<float>(std::numeric_limits<int32_t>::max());
-  assert(static_cast<int64_t>(kUpperBound) >
-         static_cast<int64_t>(std::numeric_limits<int32_t>::max()));
-  assert(static_cast<int32_t>(kLowerBound) ==
-         std::numeric_limits<int32_t>::min());
-
   FOR_FLOAT32_INPUTS(i) {
-    if (*i < kUpperBound && *i >= kLowerBound) {
+    if (is_inbounds<int32_t>(*i)) {
       CHECK_EQ(static_cast<int32_t>(*i), r.Call(*i));
     } else {
       CHECK_TRAP32(r.Call(*i));
@@ -2877,25 +2868,15 @@ WASM_EXEC_TEST(I32SConvertSatF32) {
   WasmRunner<int32_t, float> r(execution_mode);
   BUILD(r, WASM_I32_SCONVERT_SAT_F32(WASM_GET_LOCAL(0)));
 
-  constexpr float kLowerBound = std::numeric_limits<int32_t>::min();
-  constexpr float kUpperBound = std::numeric_limits<int32_t>::max();
-
   FOR_FLOAT32_INPUTS(i) {
-    static_assert(static_cast<int64_t>(kUpperBound) >
-                      static_cast<int64_t>(std::numeric_limits<int32_t>::max()),
-                  "kUpperBound invalidates the following bounds check.");
-    static_assert(static_cast<int32_t>(kLowerBound) ==
-                      std::numeric_limits<int32_t>::min(),
-                  "kLowerBounds invalidates the following bounds check.");
-    if (*i < kUpperBound && *i >= kLowerBound) {
-      CHECK_EQ(static_cast<int32_t>(*i), r.Call(*i));
-    } else if (std::isnan(*i)) {
-      CHECK_EQ(0, r.Call(*i));
-    } else if (*i < 0.0) {
-      CHECK_EQ(std::numeric_limits<int32_t>::min(), r.Call(*i));
-    } else {
-      CHECK_EQ(std::numeric_limits<int32_t>::max(), r.Call(*i));
-    }
+    int32_t expected =
+        is_inbounds<int32_t>(*i)
+            ? static_cast<int32_t>(*i)
+            : std::isnan(*i) ? 0
+                             : *i < 0.0 ? std::numeric_limits<int32_t>::min()
+                                        : std::numeric_limits<int32_t>::max();
+    int32_t found = r.Call(*i);
+    CHECK_EQ(expected, found);
   }
 }
 
@@ -2903,14 +2884,8 @@ WASM_EXEC_TEST(I32SConvertF64) {
   WasmRunner<int32_t, double> r(execution_mode);
   BUILD(r, WASM_I32_SCONVERT_F64(WASM_GET_LOCAL(0)));
 
-  // The upper bound is (INT32_MAX + 1), which is the lowest double-
-  // representable number above INT32_MAX which cannot be represented as int32.
-  double upper_bound = 2147483648.0;
-  // The lower bound is (INT32_MIN - 1), which is the greatest double-
-  // representable number below INT32_MIN which cannot be represented as int32.
-  double lower_bound = -2147483649.0;
   FOR_FLOAT64_INPUTS(i) {
-    if (*i<upper_bound&& * i> lower_bound) {
+    if (is_inbounds<int32_t>(*i)) {
       CHECK_EQ(static_cast<int32_t>(*i), r.Call(*i));
     } else {
       CHECK_TRAP32(r.Call(*i));
@@ -2918,16 +2893,27 @@ WASM_EXEC_TEST(I32SConvertF64) {
   }
 }
 
+WASM_EXEC_TEST(I32SConvertSatF64) {
+  EXPERIMENTAL_FLAG_SCOPE(sat_f2i_conversions);
+  WasmRunner<int32_t, double> r(execution_mode);
+  BUILD(r, WASM_I32_SCONVERT_SAT_F64(WASM_GET_LOCAL(0)));
+  FOR_FLOAT64_INPUTS(i) {
+    int32_t expected =
+        is_inbounds<int32_t>(*i)
+            ? static_cast<int32_t>(*i)
+            : std::isnan(*i) ? 0
+                             : *i < 0.0 ? std::numeric_limits<int32_t>::min()
+                                        : std::numeric_limits<int32_t>::max();
+    int32_t found = r.Call(*i);
+    CHECK_EQ(expected, found);
+  }
+}
+
 WASM_EXEC_TEST(I32UConvertF32) {
   WasmRunner<uint32_t, float> r(execution_mode);
   BUILD(r, WASM_I32_UCONVERT_F32(WASM_GET_LOCAL(0)));
-  // The upper bound is (UINT32_MAX + 1), which is the lowest
-  // float-representable number above UINT32_MAX which cannot be represented as
-  // uint32.
-  double upper_bound = 4294967296.0f;
-  double lower_bound = -1.0f;
   FOR_FLOAT32_INPUTS(i) {
-    if (*i<upper_bound&& * i> lower_bound) {
+    if (is_inbounds<uint32_t>(*i)) {
       CHECK_EQ(static_cast<uint32_t>(*i), r.Call(*i));
     } else {
       CHECK_TRAP32(r.Call(*i));
@@ -2935,20 +2921,47 @@ WASM_EXEC_TEST(I32UConvertF32) {
   }
 }
 
+WASM_EXEC_TEST(I32UConvertSatF32) {
+  EXPERIMENTAL_FLAG_SCOPE(sat_f2i_conversions);
+  WasmRunner<uint32_t, float> r(execution_mode);
+  BUILD(r, WASM_I32_UCONVERT_SAT_F32(WASM_GET_LOCAL(0)));
+  FOR_FLOAT32_INPUTS(i) {
+    int32_t expected =
+        is_inbounds<uint32_t>(*i)
+            ? static_cast<uint32_t>(*i)
+            : std::isnan(*i) ? 0
+                             : *i < 0.0 ? std::numeric_limits<uint32_t>::min()
+                                        : std::numeric_limits<uint32_t>::max();
+    int32_t found = r.Call(*i);
+    CHECK_EQ(expected, found);
+  }
+}
+
 WASM_EXEC_TEST(I32UConvertF64) {
   WasmRunner<uint32_t, double> r(execution_mode);
   BUILD(r, WASM_I32_UCONVERT_F64(WASM_GET_LOCAL(0)));
-  // The upper bound is (UINT32_MAX + 1), which is the lowest
-  // double-representable number above UINT32_MAX which cannot be represented as
-  // uint32.
-  double upper_bound = 4294967296.0;
-  double lower_bound = -1.0;
   FOR_FLOAT64_INPUTS(i) {
-    if (*i<upper_bound&& * i> lower_bound) {
+    if (is_inbounds<uint32_t>(*i)) {
       CHECK_EQ(static_cast<uint32_t>(*i), r.Call(*i));
     } else {
       CHECK_TRAP32(r.Call(*i));
     }
+  }
+}
+
+WASM_EXEC_TEST(I32UConvertSatF64) {
+  EXPERIMENTAL_FLAG_SCOPE(sat_f2i_conversions);
+  WasmRunner<uint32_t, double> r(execution_mode);
+  BUILD(r, WASM_I32_UCONVERT_SAT_F64(WASM_GET_LOCAL(0)));
+  FOR_FLOAT64_INPUTS(i) {
+    int32_t expected =
+        is_inbounds<uint32_t>(*i)
+            ? static_cast<uint32_t>(*i)
+            : std::isnan(*i) ? 0
+                             : *i < 0.0 ? std::numeric_limits<uint32_t>::min()
+                                        : std::numeric_limits<uint32_t>::max();
+    int32_t found = r.Call(*i);
+    CHECK_EQ(expected, found);
   }
 }
 

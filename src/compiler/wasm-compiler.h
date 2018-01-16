@@ -252,6 +252,8 @@ typedef ZoneVector<Node*> NodeVector;
 class WasmGraphBuilder {
  public:
   enum EnforceBoundsCheck : bool { kNeedsBoundsCheck, kCanOmitBoundsCheck };
+  struct IntConvertOps;
+  struct FloatConvertOps;
 
   WasmGraphBuilder(ModuleEnv* env, Zone* zone, JSGraph* graph,
                    Handle<Code> centry_stub, wasm::FunctionSig* sig,
@@ -509,11 +511,25 @@ class WasmGraphBuilder {
 
   Node* BuildF32CopySign(Node* left, Node* right);
   Node* BuildF64CopySign(Node* left, Node* right);
+
+  Node* BuildI32ConvertOp(Node* input, wasm::WasmCodePosition position,
+                          NumericImplementation impl, const Operator* op,
+                          wasm::WasmOpcode check_op,
+                          const IntConvertOps* int_ops,
+                          const FloatConvertOps* float_ops);
+  Node* BuildConvertCheck(Node* test, Node* result, Node* input,
+                          wasm::WasmCodePosition position,
+                          NumericImplementation impl,
+                          const IntConvertOps* int_ops,
+                          const FloatConvertOps* float_ops);
   Node* BuildI32SConvertF32(Node* input, wasm::WasmCodePosition position,
                             NumericImplementation impl);
-  Node* BuildI32SConvertF64(Node* input, wasm::WasmCodePosition position);
-  Node* BuildI32UConvertF32(Node* input, wasm::WasmCodePosition position);
-  Node* BuildI32UConvertF64(Node* input, wasm::WasmCodePosition position);
+  Node* BuildI32SConvertF64(Node* input, wasm::WasmCodePosition position,
+                            NumericImplementation impl);
+  Node* BuildI32UConvertF32(Node* input, wasm::WasmCodePosition position,
+                            NumericImplementation impl);
+  Node* BuildI32UConvertF64(Node* input, wasm::WasmCodePosition position,
+                            NumericImplementation impl);
   Node* BuildI32Ctz(Node* input);
   Node* BuildI32Popcnt(Node* input);
   Node* BuildI64Ctz(Node* input);

@@ -126,6 +126,12 @@ namespace wasm {
   V(F32CopySign, Float32)      \
   V(F64CopySign, Float64)
 
+#define FOREACH_I32CONV_FLOATOP(V)   \
+  V(I32SConvertF32, int32_t, float)  \
+  V(I32SConvertF64, int32_t, double) \
+  V(I32UConvertF32, uint32_t, float) \
+  V(I32UConvertF64, uint32_t, double)
+
 #define FOREACH_OTHER_UNOP(V)    \
   V(I32Clz, uint32_t)            \
   V(I32Ctz, uint32_t)            \
@@ -147,10 +153,6 @@ namespace wasm {
   V(F64Floor, double)            \
   V(F64Trunc, double)            \
   V(F64NearestInt, double)       \
-  V(I32SConvertF32, float)       \
-  V(I32SConvertF64, double)      \
-  V(I32UConvertF32, float)       \
-  V(I32UConvertF64, double)      \
   V(I32ConvertI64, int64_t)      \
   V(I64SConvertF32, float)       \
   V(I64SConvertF64, double)      \
@@ -441,47 +443,26 @@ inline double ExecuteF64NearestInt(double a, TrapReason* trap) {
 
 inline double ExecuteF64Sqrt(double a, TrapReason* trap) { return sqrt(a); }
 
-int32_t ExecuteI32SConvertF32(float a, TrapReason* trap) {
-  if (is_inbounds<int32_t>(a)) {
-    return static_cast<int32_t>(a);
+template <typename int_type, typename float_type>
+int_type ExecuteConvert(float_type a, TrapReason* trap) {
+  if (is_inbounds<int_type>(a)) {
+    return static_cast<int_type>(a);
   }
   *trap = kTrapFloatUnrepresentable;
   return 0;
 }
 
-int32_t ExecuteI32SConvertSatF32(float a) {
+template <typename int_type, typename float_type>
+int_type ExecuteConvertSaturate(float_type a) {
   TrapReason base_trap = kTrapCount;
-  int32_t val = ExecuteI32SConvertF32(a, &base_trap);
+  int32_t val = ExecuteConvert<int_type>(a, &base_trap);
   if (base_trap == kTrapCount) {
     return val;
   }
   return std::isnan(a) ? 0
-                       : (a < 0.0 ? std::numeric_limits<int32_t>::min()
-                                  : std::numeric_limits<int32_t>::max());
-}
-
-int32_t ExecuteI32SConvertF64(double a, TrapReason* trap) {
-  if (is_inbounds<int32_t>(a)) {
-    return static_cast<int32_t>(a);
-  }
-  *trap = kTrapFloatUnrepresentable;
-  return 0;
-}
-
-uint32_t ExecuteI32UConvertF32(float a, TrapReason* trap) {
-  if (is_inbounds<uint32_t>(a)) {
-    return static_cast<uint32_t>(a);
-  }
-  *trap = kTrapFloatUnrepresentable;
-  return 0;
-}
-
-uint32_t ExecuteI32UConvertF64(double a, TrapReason* trap) {
-  if (is_inbounds<uint32_t>(a)) {
-    return static_cast<uint32_t>(a);
-  }
-  *trap = kTrapFloatUnrepresentable;
-  return 0;
+                       : (a < static_cast<float_type>(0.0)
+                              ? std::numeric_limits<int_type>::min()
+                              : std::numeric_limits<int_type>::max());
 }
 
 inline uint32_t ExecuteI32ConvertI64(int64_t a, TrapReason* trap) {
@@ -1550,12 +1531,18 @@ class ThreadImpl {
   bool ExecuteNumericOp(WasmOpcode opcode, Decoder* decoder,
                         InterpreterCode* code, pc_t pc, int& len) {
     switch (opcode) {
-      case kExprI32SConvertSatF32: {
-        float val = Pop().to<float>();
-        auto result = ExecuteI32SConvertSatF32(val);
-        Push(WasmValue(result));
+      case kExprI32SConvertSatF32:
+        Push(WasmValue(ExecuteConvertSaturate<int32_t>(Pop().to<float>())));
         return true;
-      }
+      case kExprI32UConvertSatF32:
+        Push(WasmValue(ExecuteConvertSaturate<uint32_t>(Pop().to<float>())));
+        return true;
+      case kExprI32SConvertSatF64:
+        Push(WasmValue(ExecuteConvertSaturate<int32_t>(Pop().to<double>())));
+        return true;
+      case kExprI32UConvertSatF64:
+        Push(WasmValue(ExecuteConvertSaturate<uint32_t>(Pop().to<double>())));
+        return true;
       default:
         V8_Fatal(__FILE__, __LINE__, "Unknown or unimplemented opcode #%d:%s",
                  code->start[pc], OpcodeName(code->start[pc]));
@@ -2143,18 +2130,26 @@ class ThreadImpl {
           FOREACH_OTHER_BINOP(EXECUTE_OTHER_BINOP)
 #undef EXECUTE_OTHER_BINOP
 
-#define EXECUTE_OTHER_UNOP(name, ctype)                     \
+#define EXECUTE_UNOP(name, ctype, exec_fn)                  \
   case kExpr##name: {                                       \
     TrapReason trap = kTrapCount;                           \
     ctype val = Pop().to<ctype>();                          \
-    auto result = Execute##name(val, &trap);                \
+    auto result = exec_fn(val, &trap);                      \
     possible_nondeterminism_ |= has_nondeterminism(result); \
     if (trap != kTrapCount) return DoTrap(trap, pc);        \
     Push(WasmValue(result));                                \
     break;                                                  \
   }
+
+#define EXECUTE_OTHER_UNOP(name, ctype) EXECUTE_UNOP(name, ctype, Execute##name)
           FOREACH_OTHER_UNOP(EXECUTE_OTHER_UNOP)
 #undef EXECUTE_OTHER_UNOP
+
+#define EXECUTE_I32CONV_FLOATOP(name, out_type, in_type) \
+  EXECUTE_UNOP(name, in_type, ExecuteConvert<out_type>)
+          FOREACH_I32CONV_FLOATOP(EXECUTE_I32CONV_FLOATOP)
+#undef EXECUTE_I32CONV_FLOATOP
+#undef EXECUTE_UNOP
 
         default:
           V8_Fatal(__FILE__, __LINE__, "Unknown or unimplemented opcode #%d:%s",
@@ -2960,6 +2955,7 @@ WasmInterpreter::HeapObjectsScope::~HeapObjectsScope() {
 #undef WASM_CTYPES
 #undef FOREACH_SIMPLE_BINOP
 #undef FOREACH_OTHER_BINOP
+#undef FOREACH_I32CONV_FLOATOP
 #undef FOREACH_OTHER_UNOP
 
 }  // namespace wasm

@@ -49,6 +49,9 @@ namespace wasm {
 #define CASE_CONVERT_OP(name, RES, SRC, src_suffix, str) \
   CASE_##RES##_OP(U##name##SRC, str "_u/" src_suffix)    \
       CASE_##RES##_OP(S##name##SRC, str "_s/" src_suffix)
+#define CASE_CONVERT_SAT_OP(name, RES, SRC, src_suffix, str)   \
+  CASE_##RES##_OP(U##name##Sat##SRC, str "_u:sat/" src_suffix) \
+      CASE_##RES##_OP(S##name##Sat##SRC, str "_s:sat/" src_suffix)
 #define CASE_L32_OP(name, str)          \
   CASE_SIGN_OP(I32, name##8, str "8")   \
   CASE_SIGN_OP(I32, name##16, str "16") \
@@ -98,9 +101,9 @@ const char* WasmOpcodes::OpcodeName(WasmOpcode opcode) {
     CASE_I32_OP(ConvertI64, "wrap/i64")
     CASE_CONVERT_OP(Convert, INT, F32, "f32", "trunc")
     CASE_CONVERT_OP(Convert, INT, F64, "f64", "trunc")
-    // TODO(kschimpf): Simplify after filling in other saturating
-    // operations.
-    CASE_I32_OP(SConvertSatF32, "trunc_s:sat/f32")
+    // TODO(kschimpf): Add I64 versions of saturating conversions.
+    CASE_CONVERT_SAT_OP(Convert, I32, F32, "f32", "trunc")
+    CASE_CONVERT_SAT_OP(Convert, I32, F64, "f64", "trunc")
 
     CASE_CONVERT_OP(Convert, I64, I32, "i32", "extend")
     CASE_CONVERT_OP(Convert, F32, I32, "i32", "convert")
@@ -279,6 +282,7 @@ const char* WasmOpcodes::OpcodeName(WasmOpcode opcode) {
 #undef CASE_UNSIGNED_OP
 #undef CASE_ALL_SIGN_OP
 #undef CASE_CONVERT_OP
+#undef CASE_CONVERT_SAT_OP
 #undef CASE_L32_OP
 #undef CASE_U32_OP
 
