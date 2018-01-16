@@ -27,7 +27,7 @@ from testrunner.local import verbose
 from testrunner.objects import context
 
 
-DEFAULT_SUITES = ["mjsunit", "webkit"]
+DEFAULT_SUITES = ["mjsunit", "webkit", "benchmarks"]
 TIMEOUT_DEFAULT = 60
 
 # Double the timeout for these:
