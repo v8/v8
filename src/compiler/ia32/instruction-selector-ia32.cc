@@ -1023,7 +1023,6 @@ void InstructionSelector::EmitPrepareResults(ZoneVector<PushParameter>* results,
   int reverse_slot = 0;
   for (PushParameter output : *results) {
     if (!output.location.IsCallerFrameSlot()) continue;
-    ++reverse_slot;
     // Skip any alignment holes in nodes.
     if (output.node != nullptr) {
       DCHECK(!descriptor->IsCFunctionCall());
@@ -1032,13 +1031,10 @@ void InstructionSelector::EmitPrepareResults(ZoneVector<PushParameter>* results,
       } else if (output.location.GetType() == MachineType::Float64()) {
         MarkAsFloat64(output.node);
       }
-      InstructionOperand result = g.DefineAsRegister(output.node);
-      Emit(kIA32Peek | MiscField::encode(reverse_slot), result);
+      Emit(kIA32Peek, g.DefineAsRegister(output.node),
+           g.UseImmediate(reverse_slot));
     }
-    if (output.location.GetType() == MachineType::Float64()) {
-      // Float64 require an implicit second slot.
-      ++reverse_slot;
-    }
+    reverse_slot += output.location.GetSizeInPointers();
   }
 }
 

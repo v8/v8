@@ -1599,7 +1599,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     }
     case kIA32Peek: {
-      int reverse_slot = MiscField::decode(instr->opcode());
+      int reverse_slot = i.InputInt32(0) + 1;
       int offset =
           FrameSlotToFPOffset(frame()->GetTotalFrameSlotCount() - reverse_slot);
       if (instr->OutputAt(0)->IsFPRegister()) {
