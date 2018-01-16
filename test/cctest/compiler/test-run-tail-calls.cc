@@ -13,6 +13,7 @@
 namespace v8 {
 namespace internal {
 namespace compiler {
+namespace test_run_tail_calls {
 
 #define __ assembler.
 
@@ -164,6 +165,7 @@ TEST(FuzzStackParamCount) {
   }
 }
 
+}  // namespace test_run_tail_calls
 }  // namespace compiler
 }  // namespace internal
 }  // namespace v8

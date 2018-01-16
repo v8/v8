@@ -12,6 +12,7 @@
 namespace v8 {
 namespace internal {
 namespace compiler {
+namespace test_run_retpoline {
 
 #define __ assembler.
 
@@ -201,6 +202,7 @@ TEST(RetpolineEvenOddTail) {
   TestHelper(2, 3, true);
 }
 
+}  // namespace test_run_retpoline
 }  // namespace compiler
 }  // namespace internal
 }  // namespace v8
