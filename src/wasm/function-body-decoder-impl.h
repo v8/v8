@@ -246,12 +246,12 @@ struct BreakDepthOperand {
 template <Decoder::ValidateFlag validate>
 struct CallIndirectOperand {
   uint32_t table_index;
-  uint32_t index;
+  uint32_t sig_index;
   FunctionSig* sig = nullptr;
   unsigned length = 0;
   inline CallIndirectOperand(Decoder* decoder, const byte* pc) {
     unsigned len = 0;
-    index = decoder->read_u32v<validate>(pc + 1, &len, "signature index");
+    sig_index = decoder->read_u32v<validate>(pc + 1, &len, "signature index");
     if (!VALIDATE(decoder->ok())) return;
     table_index = decoder->read_u8<validate>(pc + 1 + len, "table index");
     if (!VALIDATE(table_index == 0)) {
@@ -789,10 +789,10 @@ class WasmDecoder : public Decoder {
 
   inline bool Complete(const byte* pc, CallIndirectOperand<validate>& operand) {
     if (!VALIDATE(module_ != nullptr &&
-                  operand.index < module_->signatures.size())) {
+                  operand.sig_index < module_->signatures.size())) {
       return false;
     }
-    operand.sig = module_->signatures[operand.index];
+    operand.sig = module_->signatures[operand.sig_index];
     return true;
   }
 
@@ -802,7 +802,7 @@ class WasmDecoder : public Decoder {
       return false;
     }
     if (!Complete(pc, operand)) {
-      errorf(pc + 1, "invalid signature index: #%u", operand.index);
+      errorf(pc + 1, "invalid signature index: #%u", operand.sig_index);
       return false;
     }
     return true;

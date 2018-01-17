@@ -1934,7 +1934,7 @@ class ThreadImpl {
           // Assume only one table for now.
           DCHECK_LE(module()->function_tables.size(), 1u);
           ExternalCallResult result =
-              CallIndirectFunction(0, entry_index, operand.index);
+              CallIndirectFunction(0, entry_index, operand.sig_index);
           switch (result.type) {
             case ExternalCallResult::INTERNAL:
               // The import is a function of this instance. Call it directly.

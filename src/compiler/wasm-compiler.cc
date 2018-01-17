@@ -2543,7 +2543,7 @@ Node* WasmGraphBuilder::CallIndirect(uint32_t sig_index, Node** args,
                                         Int32Constant(fixed_offset)),
                        *effect_, *control_);
   int32_t canonical_sig_num = env_->module->signature_ids[sig_index];
-  CHECK_GE(sig_index, 0);
+  CHECK_GE(canonical_sig_num, 0);
   Node* sig_match = graph()->NewNode(machine->WordEqual(), load_sig,
                                      jsgraph()->SmiConstant(canonical_sig_num));
   TrapIfFalse(wasm::kTrapFuncSigMismatch, sig_match, position);
