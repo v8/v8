@@ -641,7 +641,6 @@ namespace internal {
   F(ArrayBufferGetByteLength, 1, 1)      \
   F(ArrayBufferNeuter, 1, 1)             \
   F(TypedArrayCopyElements, 3, 1)        \
-  F(ArrayBufferViewGetByteLength, 1, 1)  \
   F(ArrayBufferViewGetByteOffset, 1, 1)  \
   F(ArrayBufferViewWasNeutered, 1, 1)    \
   F(TypedArrayGetLength, 1, 1)           \

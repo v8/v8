@@ -1842,6 +1842,9 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
 
   Node* GetSuperConstructor(Node* value, Node* context);
 
+  Node* SpeciesConstructor(Node* context, Node* object,
+                           Node* default_constructor);
+
   Node* InstanceOf(Node* object, Node* callable, Node* context);
 
   // Debug helpers

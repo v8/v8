@@ -111,9 +111,6 @@ class PromiseBuiltinsAssembler : public CodeStubAssembler {
  protected:
   void PromiseInit(Node* promise);
 
-  Node* SpeciesConstructor(Node* context, Node* object,
-                           Node* default_constructor);
-
   void PromiseSetHasHandler(Node* promise);
   void PromiseSetHandledHint(Node* promise);
 
