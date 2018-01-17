@@ -17,13 +17,11 @@
 #include "src/parsing/parse-info.h"
 #include "src/trap-handler/trap-handler.h"
 #include "src/wasm/module-compiler.h"
-#include "src/wasm/module-decoder.h"
 #include "src/wasm/wasm-api.h"
+#include "src/wasm/wasm-engine.h"
 #include "src/wasm/wasm-limits.h"
 #include "src/wasm/wasm-memory.h"
-#include "src/wasm/wasm-module.h"
 #include "src/wasm/wasm-objects-inl.h"
-#include "src/wasm/wasm-result.h"
 
 using v8::internal::wasm::ErrorThrower;
 
@@ -195,10 +193,10 @@ void WebAssemblyValidate(const v8::FunctionCallbackInfo<v8::Value>& args) {
     memcpy(copy.get(), bytes.start(), bytes.length());
     i::wasm::ModuleWireBytes bytes_copy(copy.get(),
                                         copy.get() + bytes.length());
-    validated = i::wasm::SyncValidate(i_isolate, bytes_copy);
+    validated = i_isolate->wasm_engine()->SyncValidate(i_isolate, bytes_copy);
   } else {
     // The wire bytes are not shared, OK to use them directly.
-    validated = i::wasm::SyncValidate(i_isolate, bytes);
+    validated = i_isolate->wasm_engine()->SyncValidate(i_isolate, bytes);
   }
 
   return_value.Set(Boolean::New(isolate, validated));

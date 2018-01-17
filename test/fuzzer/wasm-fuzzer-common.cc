@@ -9,6 +9,7 @@
 #include "src/objects-inl.h"
 #include "src/wasm/module-compiler.h"
 #include "src/wasm/wasm-api.h"
+#include "src/wasm/wasm-engine.h"
 #include "src/wasm/wasm-module-builder.h"
 #include "src/wasm/wasm-module.h"
 #include "src/zone/accounting-allocator.h"
@@ -248,7 +249,8 @@ int WasmExecutionFuzzer::FuzzWasmModule(const uint8_t* data, size_t size,
     GenerateTestCase(i_isolate, wire_bytes, compiles);
   }
 
-  bool validates = SyncValidate(i_isolate, wire_bytes);
+  bool validates =
+      i_isolate->wasm_engine()->SyncValidate(i_isolate, wire_bytes);
 
   CHECK_EQ(compiles, validates);
   CHECK_IMPLIES(require_valid, validates);

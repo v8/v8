@@ -18,10 +18,12 @@ namespace wasm {
 
 // The central data structure that represents an engine instance capable of
 // loading, instantiating, and executing WASM code.
-class WasmEngine {
+class V8_EXPORT_PRIVATE WasmEngine {
  public:
   explicit WasmEngine(std::unique_ptr<WasmCodeManager> code_manager)
       : code_manager_(std::move(code_manager)) {}
+
+  bool SyncValidate(Isolate* isolate, const ModuleWireBytes& bytes);
 
   CompilationManager* compilation_manager() { return &compilation_manager_; }
 

@@ -533,13 +533,6 @@ class SetOfNativeModuleModificationScopes final {
 
 }  // namespace
 
-bool SyncValidate(Isolate* isolate, const ModuleWireBytes& bytes) {
-  if (bytes.start() == nullptr || bytes.length() == 0) return false;
-  ModuleResult result = SyncDecodeWasmModule(isolate, bytes.start(),
-                                             bytes.end(), true, kWasmOrigin);
-  return result.ok();
-}
-
 MaybeHandle<WasmModuleObject> SyncCompileTranslatedAsmJs(
     Isolate* isolate, ErrorThrower* thrower, const ModuleWireBytes& bytes,
     Handle<Script> asm_js_script,

@@ -23,9 +23,6 @@ namespace wasm {
 class ModuleCompiler;
 class WasmCode;
 
-V8_EXPORT_PRIVATE bool SyncValidate(Isolate* isolate,
-                                    const ModuleWireBytes& bytes);
-
 V8_EXPORT_PRIVATE MaybeHandle<WasmModuleObject> SyncCompileTranslatedAsmJs(
     Isolate* isolate, ErrorThrower* thrower, const ModuleWireBytes& bytes,
     Handle<Script> asm_js_script, Vector<const byte> asm_js_offset_table_bytes);
