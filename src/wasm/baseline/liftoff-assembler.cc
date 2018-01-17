@@ -369,11 +369,13 @@ void LiftoffAssembler::SpillLocals() {
 }
 
 void LiftoffAssembler::SpillAllRegisters() {
-  // TODO(clemensh): Don't update use counters in the loop, just reset them
-  // afterwards.
   for (uint32_t i = 0, e = cache_state_.stack_height(); i < e; ++i) {
-    Spill(i);
+    auto& slot = cache_state_.stack_state[i];
+    if (!slot.is_reg()) continue;
+    Spill(i, slot.reg());
+    slot.MakeStack();
   }
+  cache_state_.reset_used_registers();
 }
 
 void LiftoffAssembler::PrepareCall(wasm::FunctionSig* sig,
@@ -425,9 +427,7 @@ void LiftoffAssembler::PrepareCall(wasm::FunctionSig* sig,
   stack_transfers.Execute();
 
   // Reset register use counters.
-  cache_state_.used_registers = {};
-  memset(cache_state_.register_use_count, 0,
-         sizeof(cache_state_.register_use_count));
+  cache_state_.reset_used_registers();
 
   // Fill the wasm context into the right register.
   compiler::LinkageLocation context_loc =

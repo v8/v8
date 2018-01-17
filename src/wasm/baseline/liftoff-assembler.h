@@ -175,6 +175,11 @@ class LiftoffAssembler : public TurboAssembler {
 
     bool is_free(LiftoffRegister reg) const { return !is_used(reg); }
 
+    void reset_used_registers() {
+      used_registers = {};
+      memset(register_use_count, 0, sizeof(register_use_count));
+    }
+
     LiftoffRegister GetNextSpillReg(LiftoffRegList candidates,
                                     LiftoffRegList pinned = {}) {
       LiftoffRegList unpinned = candidates.MaskOut(pinned);
