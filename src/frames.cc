@@ -1727,6 +1727,13 @@ Address WasmCompiledFrame::GetCallerStackPointer() const {
   return fp() + ExitFrameConstants::kCallerSPOffset;
 }
 
+WasmCodeWrapper WasmCompiledFrame::wasm_code() const {
+  return FLAG_wasm_jit_to_native
+             ? WasmCodeWrapper(
+                   isolate()->wasm_engine()->code_manager()->LookupCode(pc()))
+             : WasmCodeWrapper(Handle<Code>(LookupCode(), isolate()));
+}
+
 WasmInstanceObject* WasmCompiledFrame::wasm_instance() const {
   WasmInstanceObject* obj =
       FLAG_wasm_jit_to_native
@@ -1752,26 +1759,9 @@ int WasmCompiledFrame::position() const {
 
 void WasmCompiledFrame::Summarize(std::vector<FrameSummary>* functions) const {
   DCHECK(functions->empty());
-  WasmCodeWrapper code;
-  Handle<WasmInstanceObject> instance;
-  int offset = -1;
-  if (FLAG_wasm_jit_to_native) {
-    code = WasmCodeWrapper(
-        isolate()->wasm_engine()->code_manager()->LookupCode(pc()));
-    offset =
-        static_cast<int>(pc() - code.GetWasmCode()->instructions().start());
-    instance = Handle<WasmInstanceObject>(
-        WasmInstanceObject::cast(code.GetWasmCode()
-                                     ->owner()
-                                     ->compiled_module()
-                                     ->weak_owning_instance()
-                                     ->value()),
-        isolate());
-  } else {
-    code = WasmCodeWrapper(Handle<Code>(LookupCode(), isolate()));
-    offset = static_cast<int>(pc() - code.GetCode()->instruction_start());
-    instance = Handle<WasmInstanceObject>(wasm_instance(), isolate());
-  }
+  WasmCodeWrapper code = wasm_code();
+  int offset = static_cast<int>(pc() - code.instructions().start());
+  Handle<WasmInstanceObject> instance = code.wasm_instance();
   FrameSummary::WasmCompiledFrameSummary summary(
       isolate(), instance, code, offset, at_to_number_conversion());
   functions->push_back(summary);

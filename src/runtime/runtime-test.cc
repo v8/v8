@@ -1126,9 +1126,11 @@ RUNTIME_FUNCTION(Runtime_WasmTraceMemory) {
   // TODO(titzer): eliminate dependency on WasmModule definition here.
   int func_start =
       frame->wasm_instance()->module()->functions[func_index].code.offset();
-  // TODO(clemensh): Determine compiler (TurboFan / Liftoff).
-  wasm::TraceMemoryOperation(wasm::ExecutionEngine::kTurbofan, info, func_index,
-                             pos - func_start, mem_start);
+  wasm::ExecutionEngine eng = frame->wasm_code().is_liftoff()
+                                  ? wasm::ExecutionEngine::kLiftoff
+                                  : wasm::ExecutionEngine::kTurbofan;
+  wasm::TraceMemoryOperation(eng, info, func_index, pos - func_start,
+                             mem_start);
   return isolate->heap()->undefined_value();
 }
 

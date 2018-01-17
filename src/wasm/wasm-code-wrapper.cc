@@ -4,9 +4,10 @@
 
 #include "src/wasm/wasm-code-wrapper.h"
 
-#include "src/objects.h"
+#include "src/objects-inl.h"
 #include "src/objects/code.h"
 #include "src/wasm/wasm-code-manager.h"
+#include "src/wasm/wasm-objects.h"
 
 namespace v8 {
 namespace internal {
@@ -45,6 +46,24 @@ void WasmCodeWrapper::Disassemble(const char* name, Isolate* isolate,
   }
 }
 #endif
+
+bool WasmCodeWrapper::is_liftoff() const {
+  return IsCodeObject() ? !GetCode()->is_turbofanned()
+                        : GetWasmCode()->is_liftoff();
+}
+
+Vector<uint8_t> WasmCodeWrapper::instructions() const {
+  if (!IsCodeObject()) return GetWasmCode()->instructions();
+  Handle<Code> code = GetCode();
+  return {code->instruction_start(),
+          static_cast<size_t>(code->instruction_size())};
+}
+
+Handle<WasmInstanceObject> WasmCodeWrapper::wasm_instance() const {
+  return IsCodeObject()
+             ? handle(WasmInstanceObject::GetOwningInstanceGC(*GetCode()))
+             : handle(WasmInstanceObject::GetOwningInstance(GetWasmCode()));
+}
 
 }  // namespace internal
 }  // namespace v8

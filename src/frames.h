@@ -968,6 +968,7 @@ class WasmCompiledFrame final : public StandardFrame {
 
   // Accessors.
   WasmInstanceObject* wasm_instance() const;
+  WasmCodeWrapper wasm_code() const;
   uint32_t function_index() const;
   Script* script() const override;
   int position() const override;
