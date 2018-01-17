@@ -89,6 +89,11 @@ TEST(PreParserScopeAnalysis) {
        "get_method();",
        true, true, false},
 
+      // Corner case: function expression with name "arguments".
+      {"var test = function arguments(%s) { %s function skippable() { } };\n"
+       "test;\n",
+       false, false, false}
+
       // FIXME(marja): Generators and async functions
   };
 
