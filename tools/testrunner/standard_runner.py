@@ -33,7 +33,6 @@ from testrunner.testproc.progress import (VerboseProgressIndicator,
                                           ResultsTracker,
                                           TestsCounter)
 from testrunner.testproc.rerun import RerunProc
-from testrunner.testproc.shard import ShardProc
 from testrunner.testproc.variant import VariantProc
 
 
@@ -183,12 +182,6 @@ class StandardTestRunner(base_runner.BaseTestRunner):
       parser.add_option("--rerun-failures-max",
                         help="Maximum number of failing test cases to rerun.",
                         default=100, type="int")
-      parser.add_option("--shard-count",
-                        help="Split testsuites into this number of shards",
-                        default=1, type="int")
-      parser.add_option("--shard-run",
-                        help="Run this shard from the split up tests.",
-                        default=1, type="int")
       parser.add_option("--dont-skip-slow-simulator-tests",
                         help="Don't skip more slow tests when using a"
                         " simulator.",
@@ -534,49 +527,6 @@ class StandardTestRunner(base_runner.BaseTestRunner):
           shard.append(test)
         count += 1
       return shard
-
-    def _create_shard_proc(self, options):
-      myid, count = self._get_shard_info(options)
-      if count == 1:
-        return None
-      return ShardProc(myid - 1, count)
-
-    def _get_shard_info(self, options):
-      """
-      Returns pair:
-        (id of the current shard [1; number of shards], number of shards)
-      """
-      # Read gtest shard configuration from environment (e.g. set by swarming).
-      # If none is present, use values passed on the command line.
-      shard_count = int(
-        os.environ.get('GTEST_TOTAL_SHARDS', options.shard_count))
-      shard_run = os.environ.get('GTEST_SHARD_INDEX')
-      if shard_run is not None:
-        # The v8 shard_run starts at 1, while GTEST_SHARD_INDEX starts at 0.
-        shard_run = int(shard_run) + 1
-      else:
-        shard_run = options.shard_run
-
-      if options.shard_count > 1:
-        # Log if a value was passed on the cmd line and it differs from the
-        # environment variables.
-        if options.shard_count != shard_count:  # pragma: no cover
-          print("shard_count from cmd line differs from environment variable "
-                "GTEST_TOTAL_SHARDS")
-        if (options.shard_run > 1 and
-            options.shard_run != shard_run):  # pragma: no cover
-          print("shard_run from cmd line differs from environment variable "
-                "GTEST_SHARD_INDEX")
-
-      if shard_run < 1 or shard_run > shard_count:
-        # TODO(machenbach): Turn this into an assert. If that's wrong on the
-        # bots, printing will be quite useless. Or refactor this code to make
-        # sure we get a return code != 0 after testing if we got here.
-        print "shard-run not a valid number, should be in [1:shard-count]"
-        print "defaulting back to running all tests"
-        return 1, 1
-
-      return shard_run, shard_count
 
     def _run_test_procs(self, suites, args, options, progress_indicator,
                         context):

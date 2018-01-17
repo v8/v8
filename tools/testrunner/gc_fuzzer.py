@@ -64,12 +64,6 @@ class GCFuzzer(base_runner.BaseTestRunner):
                             " (verbose, dots, color, mono)"),
                       choices=progress.PROGRESS_INDICATORS.keys(),
                       default="mono")
-    parser.add_option("--shard-count",
-                      help="Split testsuites into this number of shards",
-                      default=1, type="int")
-    parser.add_option("--shard-run",
-                      help="Run this shard from the split up tests.",
-                      default=1, type="int")
     parser.add_option("-t", "--timeout", help="Timeout in seconds",
                       default= -1, type="int")
     parser.add_option("--random-seed", default=0,
@@ -101,21 +95,6 @@ class GCFuzzer(base_runner.BaseTestRunner):
                                                                  2147483647)
     self.fuzzer_rng = random.Random(options.fuzzer_random_seed)
     return True
-
-  def _shard_tests(self, tests, shard_count, shard_run):
-    if shard_count < 2:
-      return tests
-    if shard_run < 1 or shard_run > shard_count:
-      print "shard-run not a valid number, should be in [1:shard-count]"
-      print "defaulting back to running all tests"
-      return tests
-    count = 0
-    shard = []
-    for test in tests:
-      if count % shard_count == shard_run - 1:
-        shard.append(test)
-      count += 1
-    return shard
 
   def _calculate_n_tests(self, m, options):
     """Calculates the number of tests from m points with exponential coverage.
