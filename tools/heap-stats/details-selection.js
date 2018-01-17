@@ -17,6 +17,10 @@ class DetailsSelection extends HTMLElement {
         'change', e => this.handleIsolateChange(e));
     this.datasetSelect.addEventListener(
         'change', e => this.notifySelectionChanged(e));
+    this.gcSelect.addEventListener(
+        'change', e => this.notifySelectionChanged(e));
+    this.$('#csv-export')
+        .addEventListener('click', e => this.exportCurrentSelection(e));
     this.$('#merge-categories')
         .addEventListener('change', e => this.notifySelectionChanged(e));
   }
@@ -69,9 +73,14 @@ class DetailsSelection extends HTMLElement {
     return this.$('#isolate-select');
   }
 
+  get gcSelect() {
+    return this.$('#gc-select');
+  }
+
   dataChanged() {
     this.clearUI();
-    this.populateSelect('#isolate-select', Object.keys(this.data));
+    this.populateSelect(
+        '#isolate-select', Object.keys(this.data).map(v => [v, v]));
     this.handleIsolateChange();
   }
 
@@ -79,7 +88,9 @@ class DetailsSelection extends HTMLElement {
     this.selection = {categories: {}};
     removeAllChildren(this.isolateSelect);
     removeAllChildren(this.datasetSelect);
+    removeAllChildren(this.gcSelect);
     this.clearCategories();
+    this.$('#csv-export').disabled = 'disabled';
   }
 
   handleIsolateChange(e) {
@@ -90,7 +101,12 @@ class DetailsSelection extends HTMLElement {
     }
 
     this.populateSelect(
-        '#dataset-select', this.data[this.selection.isolate].data_sets, 'live');
+        '#dataset-select',
+        this.data[this.selection.isolate].data_sets.entries(), 'live');
+    this.populateSelect(
+        '#gc-select',
+        Object.keys(this.data[this.selection.isolate].gcs)
+            .map(v => [v, this.data[this.selection.isolate].gcs[v].time]));
     this.populateCategories();
     this.notifySelectionChanged();
   }
@@ -106,6 +122,8 @@ class DetailsSelection extends HTMLElement {
     this.selection.category_names = CATEGORY_NAMES;
     this.selection.data_set = this.datasetSelect.value;
     this.selection.merge_categories = this.$('#merge-categories').checked;
+    this.selection.gc = this.gcSelect.value;
+    this.$('#csv-export').disabled = false;
     this.dispatchEvent(new CustomEvent(
         'change', {bubbles: true, composed: true, detail: this.selection}));
   }
@@ -125,17 +143,17 @@ class DetailsSelection extends HTMLElement {
     return 'unclassified';
   }
 
-  createOption(text) {
+  createOption(value, text) {
     const option = document.createElement('option');
-    option.value = text;
+    option.value = value;
     option.text = text;
     return option;
   }
 
   populateSelect(id, iterable, autoselect = null) {
-    for (let option_value of iterable) {
-      const option = this.createOption(option_value);
-      if (autoselect === option_value) {
+    for (let [value, text] of iterable) {
+      const option = this.createOption(value, text);
+      if (autoselect === value) {
         option.selected = 'selected';
       }
       this.$(id).appendChild(option);
@@ -205,6 +223,33 @@ class DetailsSelection extends HTMLElement {
     label.innerText = instance_type;
     label.htmlFor = instance_type + 'Checkbox';
     return div;
+  }
+
+  exportCurrentSelection(e) {
+    const data = [];
+    const selected_data = this.data[this.selection.isolate]
+                              .gcs[this.selection.gc][this.selection.data_set]
+                              .instance_type_data;
+    Object.values(this.selection.categories).forEach(instance_types => {
+      instance_types.forEach(instance_type => {
+        data.push([instance_type, selected_data[instance_type].overall / KB]);
+      });
+    });
+    const createInlineContent = arrayOfRows => {
+      const content = arrayOfRows.reduce(
+          (accu, rowAsArray) => {return accu + `${rowAsArray.join(',')}\n`},
+          '');
+      return `data:text/csv;charset=utf-8,${content}`;
+    };
+    const encodedUri = encodeURI(createInlineContent(data));
+    const link = document.createElement('a');
+    link.setAttribute('href', encodedUri);
+    link.setAttribute(
+        'download',
+        `heap_objects_data_${this.selection.isolate}_${this.selection.gc}.csv`);
+    this.shadowRoot.appendChild(link);
+    link.click();
+    this.shadowRoot.removeChild(link);
   }
 }
 

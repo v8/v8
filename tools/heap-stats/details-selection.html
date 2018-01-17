@@ -63,8 +63,18 @@ span {
       Merge categories
     </label>
   </li>
+  <li>
+    <label for="gc-select">
+      Garbage collection (at a specific time in ms)
+    </label>
+    <select id="gc-select">
+      <option>No data</option>
+    </select>
+  </li>
+  <li>
+    <button id="csv-export" disabled="disabled">Export selection as CSV</button>
+  </li>
 </ul>
-
 
 <div id="categories"></div>
 </template>
