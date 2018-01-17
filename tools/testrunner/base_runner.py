@@ -212,6 +212,7 @@ class BaseTestRunner(object):
         parser.print_help()
         raise
 
+      args = self._parse_test_args(args)
       suites = self._get_suites(args, options.verbose)
 
       self._setup_env()
@@ -451,12 +452,7 @@ class BaseTestRunner(object):
 
     return 'external_symbolizer_path=%s' % external_symbolizer_path
 
-  def _get_suites(self, args, verbose=False):
-    names = self._args_to_suite_names(args)
-    return self._load_suites(names, verbose)
-
-  def _args_to_suite_names(self, args):
-    # Use default tests if no test configuration was provided at the cmd line.
+  def _parse_test_args(self, args):
     if not args:
       args = self._get_default_suite_names()
 
@@ -465,8 +461,14 @@ class BaseTestRunner(object):
     def expand_test_group(name):
       return TEST_MAP.get(name, [name])
 
-    args = reduce(list.__add__, map(expand_test_group, args), [])
+    return reduce(list.__add__, map(expand_test_group, args), [])
 
+  def _get_suites(self, args, verbose=False):
+    names = self._args_to_suite_names(args)
+    return self._load_suites(names, verbose)
+
+  def _args_to_suite_names(self, args):
+    # Use default tests if no test configuration was provided at the cmd line.
     all_names = set(utils.GetSuitePaths(os.path.join(self.basedir, 'test')))
     args_names = OrderedDict([(arg.split('/')[0], None) for arg in args]) # set
     return [name for name in args_names if name in all_names]

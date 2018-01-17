@@ -62,7 +62,7 @@ class NameFilterProc(base.TestProcFilter):
     for a in args:
       argpath = a.split('/')
       suitename = argpath[0]
-      path = '/'.join(argpath[1:])
+      path = '/'.join(argpath[1:]) or '*'
       self._globs[suitename].append(path)
 
     for s, globs in self._globs.iteritems():

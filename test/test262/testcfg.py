@@ -98,7 +98,7 @@ class LegacyVariantsGenerator(testsuite.LegacyVariantsGenerator):
 
 
 class VariantsGenerator(testsuite.VariantsGenerator):
-  def _variants_gen(self, test):
+  def gen(self, test):
     flags_set = self._get_flags_set(test)
     test_record = test.test_record
     for n, variant in enumerate(self._get_variants(test)):
@@ -110,9 +110,6 @@ class VariantsGenerator(testsuite.VariantsGenerator):
       else:
         yield (variant, flags, str(n))
         yield (variant, flags + ['--use-strict'], 'strict-%d' % n)
-
-  def _get_flags_set(self, test):
-    return testsuite.ALL_VARIANT_FLAGS
 
 
 class TestSuite(testsuite.TestSuite):

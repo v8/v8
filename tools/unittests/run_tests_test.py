@@ -305,9 +305,8 @@ class SystemTest(unittest.TestCase):
       # This is redundant to the command. Needs investigation.
       self.check_cleaned_json_output('expected_test_results1.json', json_path)
 
-  # FIXME(majeski): This runs 0 tests.
-  #def testFlakeWithRerunAndJSONProc(self):
-  #  self.testFlakeWithRerunAndJSON(infra_staging=True)
+  def testFlakeWithRerunAndJSONProc(self):
+    self.testFlakeWithRerunAndJSON(infra_staging=True)
 
   def testFlakeWithRerunAndJSON(self, infra_staging=False):
     """Test re-running a failing test and output to json."""
@@ -324,13 +323,13 @@ class SystemTest(unittest.TestCase):
           'sweet',
           infra_staging=infra_staging,
       )
-      self.assertIn('Running 1 tests', result.stdout, result)
       if not infra_staging:
+        self.assertIn('Running 1 tests', result.stdout, result)
         self.assertIn(
             'Done running sweet/bananaflakes: FAIL', result.stdout, result)
         self.assertIn('1 tests failed', result.stdout, result)
       else:
-        # TODO(majeski): Evaluate if this output is reasonable for a FAIL, PASS.
+        self.assertIn('Running 1 base tests', result.stdout, result)
         self.assertIn(
             'Done running sweet/bananaflakes: pass', result.stdout, result)
         self.assertIn('All tests succeeded', result.stdout, result)
