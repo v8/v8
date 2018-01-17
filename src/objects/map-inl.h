@@ -189,13 +189,14 @@ FixedArrayBase* Map::GetInitialElements() const {
 }
 
 VisitorId Map::visitor_id() const {
-  return static_cast<VisitorId>(READ_BYTE_FIELD(this, kVisitorIdOffset));
+  return static_cast<VisitorId>(
+      RELAXED_READ_BYTE_FIELD(this, kVisitorIdOffset));
 }
 
 void Map::set_visitor_id(VisitorId id) {
   DCHECK_LE(0, id);
   DCHECK_LT(id, 256);
-  WRITE_BYTE_FIELD(this, kVisitorIdOffset, static_cast<byte>(id));
+  RELAXED_WRITE_BYTE_FIELD(this, kVisitorIdOffset, static_cast<byte>(id));
 }
 
 int Map::instance_size_in_words() const {
