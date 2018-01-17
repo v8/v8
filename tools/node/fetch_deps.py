@@ -61,12 +61,6 @@ def EnsureGit(v8_path):
   return True
 
 def FetchDeps(v8_path):
-  # TODO(v8:6105):
-  # The return value gates whether Node's configure script actually
-  # uses GN. Change this to true once everything is ready so that
-  # the change to enable the GN build on the bots comes from V8.
-  return False;
-
   # Verify path.
   v8_path = os.path.abspath(v8_path)
   assert os.path.isdir(v8_path)
@@ -94,6 +88,8 @@ def FetchDeps(v8_path):
         os.path.join(v8_path, os.pardir, ".gclient_entries"))
     if os.path.isfile(gclient_entries):
       os.remove(gclient_entries)
+  # Enable building with GN for configure script.
+  return True
 
 
 if __name__ == "__main__":
