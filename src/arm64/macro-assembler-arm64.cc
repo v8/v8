@@ -188,15 +188,14 @@ void TurboAssembler::LogicalMacro(const Register& rd, const Register& rn,
 
       // If the left-hand input is the stack pointer, we can't pre-shift the
       // immediate, as the encoding won't allow the subsequent post shift.
-      PreShiftImmMode mode = rn.Is(csp) ? kNoShift : kAnyShift;
+      PreShiftImmMode mode = rn.Is(sp) ? kNoShift : kAnyShift;
       Operand imm_operand = MoveImmediateForShiftedOp(temp, immediate, mode);
 
-      if (rd.Is(csp)) {
+      if (rd.IsSP()) {
         // If rd is the stack pointer we cannot use it as the destination
         // register so we use the temp register as an intermediate again.
         Logical(temp, rn, imm_operand, op);
-        Mov(csp, temp);
-        AssertStackConsistency();
+        Mov(sp, temp);
       } else {
         Logical(rd, rn, imm_operand, op);
       }
@@ -294,7 +293,6 @@ void TurboAssembler::Mov(const Register& rd, uint64_t imm) {
     // pointer.
     if (rd.IsSP()) {
       mov(rd, temp);
-      AssertStackConsistency();
     }
   }
 }
@@ -337,7 +335,7 @@ void TurboAssembler::Mov(const Register& rd, const Operand& operand,
     // registers is not required to clear the top word of the X register. In
     // this case, the instruction is discarded.
     //
-    // If csp is an operand, add #0 is emitted, otherwise, orr #0.
+    // If sp is an operand, add #0 is emitted, otherwise, orr #0.
     if (!rd.Is(operand.reg()) || (rd.Is32Bits() &&
                                   (discard_mode == kDontDiscardForSameWReg))) {
       Assembler::mov(rd, operand.reg());
@@ -724,11 +722,11 @@ void TurboAssembler::AddSubMacro(const Register& rd, const Register& rn,
       // If the destination or source register is the stack pointer, we can
       // only pre-shift the immediate right by values supported in the add/sub
       // extend encoding.
-      if (rd.Is(csp)) {
+      if (rd.Is(sp)) {
         // If the destination is SP and flags will be set, we can't pre-shift
         // the immediate at all.
         mode = (S == SetFlags) ? kNoShift : kLimitShiftForSP;
-      } else if (rn.Is(csp)) {
+      } else if (rn.Is(sp)) {
         mode = kLimitShiftForSP;
       }
 
@@ -1105,9 +1103,9 @@ void TurboAssembler::Push(const Register& src0, const VRegister& src1) {
 
   PushPreamble(size);
   // Reserve room for src0 and push src1.
-  str(src1, MemOperand(StackPointer(), -size, PreIndex));
+  str(src1, MemOperand(sp, -size, PreIndex));
   // Fill the gap with src0.
-  str(src0, MemOperand(StackPointer(), src1.SizeInBytes()));
+  str(src0, MemOperand(sp, src1.SizeInBytes()));
 }
 
 
@@ -1166,9 +1164,7 @@ void TurboAssembler::PushCPURegList(CPURegList registers) {
   int size = registers.RegisterSizeInBytes();
 
   PushPreamble(registers.Count(), size);
-  // Push up to four registers at a time because if the current stack pointer is
-  // csp and reg_size is 32, registers must be pushed in blocks of four in order
-  // to maintain the 16-byte alignment for csp.
+  // Push up to four registers at a time.
   while (!registers.IsEmpty()) {
     int count_before = registers.Count();
     const CPURegister& src0 = registers.PopHighestIndex();
@@ -1183,9 +1179,7 @@ void TurboAssembler::PushCPURegList(CPURegList registers) {
 void TurboAssembler::PopCPURegList(CPURegList registers) {
   int size = registers.RegisterSizeInBytes();
 
-  // Pop up to four registers at a time because if the current stack pointer is
-  // csp and reg_size is 32, registers must be pushed in blocks of four in
-  // order to maintain the 16-byte alignment for csp.
+  // Pop up to four registers at a time.
   while (!registers.IsEmpty()) {
     int count_before = registers.Count();
     const CPURegister& dst0 = registers.PopLowestIndex();
@@ -1258,23 +1252,23 @@ void TurboAssembler::PushHelper(int count, int size, const CPURegister& src0,
   switch (count) {
     case 1:
       DCHECK(src1.IsNone() && src2.IsNone() && src3.IsNone());
-      str(src0, MemOperand(StackPointer(), -1 * size, PreIndex));
+      str(src0, MemOperand(sp, -1 * size, PreIndex));
       break;
     case 2:
       DCHECK(src2.IsNone() && src3.IsNone());
-      stp(src1, src0, MemOperand(StackPointer(), -2 * size, PreIndex));
+      stp(src1, src0, MemOperand(sp, -2 * size, PreIndex));
       break;
     case 3:
       DCHECK(src3.IsNone());
-      stp(src2, src1, MemOperand(StackPointer(), -3 * size, PreIndex));
-      str(src0, MemOperand(StackPointer(), 2 * size));
+      stp(src2, src1, MemOperand(sp, -3 * size, PreIndex));
+      str(src0, MemOperand(sp, 2 * size));
       break;
     case 4:
       // Skip over 4 * size, then fill in the gap. This allows four W registers
-      // to be pushed using csp, whilst maintaining 16-byte alignment for csp
+      // to be pushed using sp, whilst maintaining 16-byte alignment for sp
       // at all times.
-      stp(src3, src2, MemOperand(StackPointer(), -4 * size, PreIndex));
-      stp(src1, src0, MemOperand(StackPointer(), 2 * size));
+      stp(src3, src2, MemOperand(sp, -4 * size, PreIndex));
+      stp(src1, src0, MemOperand(sp, 2 * size));
       break;
     default:
       UNREACHABLE();
@@ -1295,24 +1289,24 @@ void TurboAssembler::PopHelper(int count, int size, const CPURegister& dst0,
   switch (count) {
     case 1:
       DCHECK(dst1.IsNone() && dst2.IsNone() && dst3.IsNone());
-      ldr(dst0, MemOperand(StackPointer(), 1 * size, PostIndex));
+      ldr(dst0, MemOperand(sp, 1 * size, PostIndex));
       break;
     case 2:
       DCHECK(dst2.IsNone() && dst3.IsNone());
-      ldp(dst0, dst1, MemOperand(StackPointer(), 2 * size, PostIndex));
+      ldp(dst0, dst1, MemOperand(sp, 2 * size, PostIndex));
       break;
     case 3:
       DCHECK(dst3.IsNone());
-      ldr(dst2, MemOperand(StackPointer(), 2 * size));
-      ldp(dst0, dst1, MemOperand(StackPointer(), 3 * size, PostIndex));
+      ldr(dst2, MemOperand(sp, 2 * size));
+      ldp(dst0, dst1, MemOperand(sp, 3 * size, PostIndex));
       break;
     case 4:
       // Load the higher addresses first, then load the lower addresses and
       // skip the whole block in the second instruction. This allows four W
-      // registers to be popped using csp, whilst maintaining 16-byte alignment
-      // for csp at all times.
-      ldp(dst2, dst3, MemOperand(StackPointer(), 2 * size));
-      ldp(dst0, dst1, MemOperand(StackPointer(), 4 * size, PostIndex));
+      // registers to be popped using sp, whilst maintaining 16-byte alignment
+      // for sp at all times.
+      ldp(dst2, dst3, MemOperand(sp, 2 * size));
+      ldp(dst0, dst1, MemOperand(sp, 4 * size, PostIndex));
       break;
     default:
       UNREACHABLE();
@@ -1322,43 +1316,27 @@ void TurboAssembler::PopHelper(int count, int size, const CPURegister& dst0,
 void TurboAssembler::PushPreamble(Operand total_size) {
   if (total_size.IsZero()) return;
 
-  if (csp.Is(StackPointer())) {
-    // If the current stack pointer is csp, then it must be aligned to 16 bytes
-    // on entry and the total size of the specified registers must also be a
-    // multiple of 16 bytes.
-    if (total_size.IsImmediate()) {
-      DCHECK_EQ(total_size.ImmediateValue() % 16, 0);
-    }
-
-    // Don't check access size for non-immediate sizes. It's difficult to do
-    // well, and it will be caught by hardware (or the simulator) anyway.
-  } else {
-    // Even if the current stack pointer is not the system stack pointer (csp),
-    // the system stack pointer will still be modified in order to comply with
-    // ABI rules about accessing memory below the system stack pointer.
-    BumpSystemStackPointer(total_size);
+  // The stack pointer must be aligned to 16 bytes on entry, and the total
+  // size of the specified registers must also be a multiple of 16 bytes.
+  if (total_size.IsImmediate()) {
+    DCHECK_EQ(total_size.ImmediateValue() % 16, 0);
   }
+
+  // Don't check access size for non-immediate sizes. It's difficult to do
+  // well, and it will be caught by hardware (or the simulator) anyway.
 }
 
 void TurboAssembler::PopPostamble(Operand total_size) {
   if (total_size.IsZero()) return;
 
-  if (csp.Is(StackPointer())) {
-    // If the current stack pointer is csp, then it must be aligned to 16 bytes
-    // on entry and the total size of the specified registers must also be a
-    // multiple of 16 bytes.
-    if (total_size.IsImmediate()) {
-      DCHECK_EQ(total_size.ImmediateValue() % 16, 0);
-    }
-
-    // Don't check access size for non-immediate sizes. It's difficult to do
-    // well, and it will be caught by hardware (or the simulator) anyway.
-  } else if (emit_debug_code()) {
-    // It is safe to leave csp where it is when unwinding the JavaScript stack,
-    // but if we keep it matching StackPointer, the simulator can detect memory
-    // accesses in the now-free part of the stack.
-    SyncSystemStackPointer();
+  // The stack pointer must be aligned to 16 bytes on entry, and the total
+  // size of the specified registers must also be a multiple of 16 bytes.
+  if (total_size.IsImmediate()) {
+    DCHECK_EQ(total_size.ImmediateValue() % 16, 0);
   }
+
+  // Don't check access size for non-immediate sizes. It's difficult to do
+  // well, and it will be caught by hardware (or the simulator) anyway.
 }
 
 void TurboAssembler::PushPreamble(int count, int size) {
@@ -1376,7 +1354,7 @@ void TurboAssembler::Poke(const CPURegister& src, const Operand& offset) {
     Check(le, AbortReason::kStackAccessBelowStackPointer);
   }
 
-  Str(src, MemOperand(StackPointer(), offset));
+  Str(src, MemOperand(sp, offset));
 }
 
 
@@ -1388,14 +1366,14 @@ void MacroAssembler::Peek(const CPURegister& dst, const Operand& offset) {
     Check(le, AbortReason::kStackAccessBelowStackPointer);
   }
 
-  Ldr(dst, MemOperand(StackPointer(), offset));
+  Ldr(dst, MemOperand(sp, offset));
 }
 
 void TurboAssembler::PokePair(const CPURegister& src1, const CPURegister& src2,
                               int offset) {
   DCHECK(AreSameSizeAndType(src1, src2));
   DCHECK((offset >= 0) && ((offset % src1.SizeInBytes()) == 0));
-  Stp(src1, src2, MemOperand(StackPointer(), offset));
+  Stp(src1, src2, MemOperand(sp, offset));
 }
 
 
@@ -1404,7 +1382,7 @@ void MacroAssembler::PeekPair(const CPURegister& dst1,
                               int offset) {
   DCHECK(AreSameSizeAndType(dst1, dst2));
   DCHECK((offset >= 0) && ((offset % dst1.SizeInBytes()) == 0));
-  Ldp(dst1, dst2, MemOperand(StackPointer(), offset));
+  Ldp(dst1, dst2, MemOperand(sp, offset));
 }
 
 
@@ -1412,11 +1390,7 @@ void MacroAssembler::PushCalleeSavedRegisters() {
   // Ensure that the macro-assembler doesn't use any scratch registers.
   InstructionAccurateScope scope(this);
 
-  // This method must not be called unless the current stack pointer is the
-  // system stack pointer (csp).
-  DCHECK(csp.Is(StackPointer()));
-
-  MemOperand tos(csp, -2 * static_cast<int>(kXRegSize), PreIndex);
+  MemOperand tos(sp, -2 * static_cast<int>(kXRegSize), PreIndex);
 
   stp(d14, d15, tos);
   stp(d12, d13, tos);
@@ -1436,11 +1410,7 @@ void MacroAssembler::PopCalleeSavedRegisters() {
   // Ensure that the macro-assembler doesn't use any scratch registers.
   InstructionAccurateScope scope(this);
 
-  // This method must not be called unless the current stack pointer is the
-  // system stack pointer (csp).
-  DCHECK(csp.Is(StackPointer()));
-
-  MemOperand tos(csp, 2 * kXRegSize, PostIndex);
+  MemOperand tos(sp, 2 * kXRegSize, PostIndex);
 
   ldp(x19, x20, tos);
   ldp(x21, x22, tos);
@@ -1455,44 +1425,15 @@ void MacroAssembler::PopCalleeSavedRegisters() {
   ldp(d14, d15, tos);
 }
 
-void TurboAssembler::AssertStackConsistency() {
-  // Avoid emitting code when !use_real_abort() since non-real aborts cause too
-  // much code to be generated.
+void TurboAssembler::AssertSpAligned() {
   if (emit_debug_code() && use_real_aborts()) {
-    if (csp.Is(StackPointer())) {
-      // Always check the alignment of csp if ALWAYS_ALIGN_CSP is true.  We
-      // can't check the alignment of csp without using a scratch register (or
-      // clobbering the flags), but the processor (or simulator) will abort if
-      // it is not properly aligned during a load.
-      ldr(xzr, MemOperand(csp, 0));
-    }
-    if (FLAG_enable_slow_asserts && !csp.Is(StackPointer())) {
-      Label ok;
-      // Check that csp <= StackPointer(), preserving all registers and NZCV.
-      sub(StackPointer(), csp, StackPointer());
-      cbz(StackPointer(), &ok);                 // Ok if csp == StackPointer().
-      tbnz(StackPointer(), kXSignBit, &ok);     // Ok if csp < StackPointer().
-
-      // Avoid generating AssertStackConsistency checks for the Push in Abort.
-      { DontEmitDebugCodeScope dont_emit_debug_code_scope(this);
-        // Restore StackPointer().
-        sub(StackPointer(), csp, StackPointer());
-        Abort(AbortReason::kTheCurrentStackPointerIsBelowCsp);
-      }
-
-      bind(&ok);
-      // Restore StackPointer().
-      sub(StackPointer(), csp, StackPointer());
-    }
-  }
-}
-
-void TurboAssembler::AssertCspAligned() {
-  if (emit_debug_code() && use_real_aborts()) {
-    // TODO(titzer): use a real assert for alignment check?
+    // Arm64 requires the stack pointer to be 16-byte aligned prior to address
+    // calculation.
     UseScratchRegisterScope scope(this);
     Register temp = scope.AcquireX();
-    ldr(temp, MemOperand(csp));
+    Mov(temp, sp);
+    Tst(temp, 15);
+    Check(eq, AbortReason::kUnexpectedStackPointer);
   }
 }
 
@@ -1568,11 +1509,11 @@ void TurboAssembler::CopyDoubleWords(Register dst, Register src, Register count,
 }
 
 void TurboAssembler::SlotAddress(Register dst, int slot_offset) {
-  Add(dst, StackPointer(), slot_offset << kPointerSizeLog2);
+  Add(dst, sp, slot_offset << kPointerSizeLog2);
 }
 
 void TurboAssembler::SlotAddress(Register dst, Register slot_offset) {
-  Add(dst, StackPointer(), Operand(slot_offset, LSL, kPointerSizeLog2));
+  Add(dst, sp, Operand(slot_offset, LSL, kPointerSizeLog2));
 }
 
 void TurboAssembler::AssertFPCRState(Register fpcr) {
@@ -2110,12 +2051,10 @@ void TurboAssembler::PrepareForTailCall(const ParameterCount& callee_args_count,
   Register src_reg = caller_args_count_reg;
   // Calculate the end of source area. +kPointerSize is for the receiver.
   if (callee_args_count.is_reg()) {
-    Add(src_reg, StackPointer(),
-        Operand(callee_args_count.reg(), LSL, kPointerSizeLog2));
+    Add(src_reg, sp, Operand(callee_args_count.reg(), LSL, kPointerSizeLog2));
     Add(src_reg, src_reg, kPointerSize);
   } else {
-    Add(src_reg, StackPointer(),
-        (callee_args_count.immediate() + 1) * kPointerSize);
+    Add(src_reg, sp, (callee_args_count.immediate() + 1) * kPointerSize);
   }
 
   // Round src_reg up to a multiple of 16 bytes, so we include any potential
@@ -2145,12 +2084,11 @@ void TurboAssembler::PrepareForTailCall(const ParameterCount& callee_args_count,
   Ldr(tmp_reg, MemOperand(src_reg, -kPointerSize, PreIndex));
   Str(tmp_reg, MemOperand(dst_reg, -kPointerSize, PreIndex));
   bind(&entry);
-  Cmp(StackPointer(), src_reg);
+  Cmp(sp, src_reg);
   B(ne, &loop);
 
   // Leave current frame.
-  Mov(StackPointer(), dst_reg);
-  AssertStackConsistency();
+  Mov(sp, dst_reg);
 }
 
 void MacroAssembler::InvokePrologue(const ParameterCount& expected,
@@ -2402,7 +2340,7 @@ void TurboAssembler::TruncateDoubleToIDelayed(Zone* zone, Register result,
 
 void TurboAssembler::Prologue() {
   Push(lr, fp, cp, x1);
-  Add(fp, StackPointer(), StandardFrameConstants::kFixedFrameSizeFromFp);
+  Add(fp, sp, StandardFrameConstants::kFixedFrameSizeFromFp);
 }
 
 void TurboAssembler::EnterFrame(StackFrame::Type type) {
@@ -2414,21 +2352,20 @@ void TurboAssembler::EnterFrame(StackFrame::Type type) {
     Mov(type_reg, StackFrame::TypeToMarker(type));
     Mov(code_reg, Operand(CodeObject()));
     Push(lr, fp, type_reg, code_reg);
-    Add(fp, StackPointer(), InternalFrameConstants::kFixedFrameSizeFromFp);
+    Add(fp, sp, InternalFrameConstants::kFixedFrameSizeFromFp);
     // sp[4] : lr
     // sp[3] : fp
     // sp[1] : type
     // sp[0] : [code object]
   } else if (type == StackFrame::WASM_COMPILED) {
-    DCHECK(csp.Is(StackPointer()));
     Mov(type_reg, StackFrame::TypeToMarker(type));
     Push(lr, fp);
-    Mov(fp, csp);
+    Mov(fp, sp);
     Push(type_reg, padreg);
-    // csp[3] : lr
-    // csp[2] : fp
-    // csp[1] : type
-    // csp[0] : for alignment
+    // sp[3] : lr
+    // sp[2] : fp
+    // sp[1] : type
+    // sp[0] : for alignment
   } else {
     DCHECK_EQ(type, StackFrame::CONSTRUCT);
     Mov(type_reg, StackFrame::TypeToMarker(type));
@@ -2439,8 +2376,7 @@ void TurboAssembler::EnterFrame(StackFrame::Type type) {
 
     // The context pointer isn't part of the fixed frame, so add an extra slot
     // to account for it.
-    Add(fp, StackPointer(),
-        TypedFrameConstants::kFixedFrameSizeFromFp + kPointerSize);
+    Add(fp, sp, TypedFrameConstants::kFixedFrameSizeFromFp + kPointerSize);
     // sp[3] : lr
     // sp[2] : fp
     // sp[1] : type
@@ -2450,15 +2386,12 @@ void TurboAssembler::EnterFrame(StackFrame::Type type) {
 
 void TurboAssembler::LeaveFrame(StackFrame::Type type) {
   if (type == StackFrame::WASM_COMPILED) {
-    DCHECK(csp.Is(StackPointer()));
-    Mov(csp, fp);
-    AssertStackConsistency();
+    Mov(sp, fp);
     Pop(fp, lr);
   } else {
     // Drop the execution stack down to the frame pointer and restore
     // the caller frame pointer and return address.
-    Mov(StackPointer(), fp);
-    AssertStackConsistency();
+    Mov(sp, fp);
     Pop(fp, lr);
   }
 }
@@ -2493,7 +2426,7 @@ void MacroAssembler::EnterExitFrame(bool save_doubles, const Register& scratch,
 
   // Set up the new stack frame.
   Push(lr, fp);
-  Mov(fp, StackPointer());
+  Mov(fp, sp);
   Mov(scratch, StackFrame::TypeToMarker(frame_type));
   Push(scratch, xzr);
   Mov(scratch, Operand(CodeObject()));
@@ -2540,13 +2473,11 @@ void MacroAssembler::EnterExitFrame(bool save_doubles, const Register& scratch,
   //         sp[8]: Extra space reserved for caller (if extra_space != 0).
   //   sp -> sp[0]: Space reserved for the return address.
 
-  DCHECK(csp.Is(StackPointer()));
-
   // ExitFrame::GetStateForFramePointer expects to find the return address at
   // the memory address immediately below the pointer stored in SPOffset.
   // It is not safe to derive much else from SPOffset, because the size of the
   // padding can vary.
-  Add(scratch, csp, kXRegSize);
+  Add(scratch, sp, kXRegSize);
   Str(scratch, MemOperand(fp, ExitFrameConstants::kSPOffset));
 }
 
@@ -2555,8 +2486,6 @@ void MacroAssembler::EnterExitFrame(bool save_doubles, const Register& scratch,
 void MacroAssembler::LeaveExitFrame(bool restore_doubles,
                                     const Register& scratch,
                                     const Register& scratch2) {
-  DCHECK(csp.Is(StackPointer()));
-
   if (restore_doubles) {
     ExitFrameRestoreFPRegs();
   }
@@ -2582,8 +2511,7 @@ void MacroAssembler::LeaveExitFrame(bool restore_doubles,
   //         fp[8]: CallerPC (lr)
   //   fp -> fp[0]: CallerFP (old fp)
   //         fp[...]: The rest of the frame.
-  Mov(csp, fp);
-  AssertStackConsistency();
+  Mov(sp, fp);
   Pop(fp, lr);
 }
 
@@ -2752,7 +2680,7 @@ int MacroAssembler::SafepointRegisterStackIndex(int reg_code) {
   // registers are saved. The following registers are excluded:
   //  - x16 and x17 (ip0 and ip1) because they shouldn't be preserved outside of
   //    the macro assembler.
-  //  - x31 (csp) because the system stack pointer doesn't need to be included
+  //  - x31 (sp) because the system stack pointer doesn't need to be included
   //    in safepoint registers.
   //
   // This function implements the mapping of register code to index into the
@@ -3052,7 +2980,7 @@ void MacroAssembler::PrintfNoPreserve(const char * format,
                                       const CPURegister& arg3) {
   // We cannot handle a caller-saved stack pointer. It doesn't make much sense
   // in most cases anyway, so this restriction shouldn't be too serious.
-  DCHECK(!kCallerSaved.IncludesAliasOf(StackPointer()));
+  DCHECK(!kCallerSaved.IncludesAliasOf(sp));
 
   // The provided arguments, and their proper procedure-call standard registers.
   CPURegister args[kPrintfMaxArgCount] = {arg0, arg1, arg2, arg3};
@@ -3164,12 +3092,6 @@ void MacroAssembler::PrintfNoPreserve(const char * format,
     Bind(&after_data);
   }
 
-  // We don't pass any arguments on the stack, but we still need to align the C
-  // stack pointer to a 16-byte boundary for PCS compliance.
-  if (!csp.Is(StackPointer())) {
-    Bic(csp, StackPointer(), 0xF);
-  }
-
   CallPrintf(arg_count, pcs);
 }
 
@@ -3208,14 +3130,6 @@ void MacroAssembler::Printf(const char * format,
                             CPURegister arg1,
                             CPURegister arg2,
                             CPURegister arg3) {
-  // We can only print sp if it is the current stack pointer.
-  if (!csp.Is(StackPointer())) {
-    DCHECK(!csp.Aliases(arg0));
-    DCHECK(!csp.Aliases(arg1));
-    DCHECK(!csp.Aliases(arg2));
-    DCHECK(!csp.Aliases(arg3));
-  }
-
   // Printf is expected to preserve all registers, so make sure that none are
   // available as scratch registers until we've preserved them.
   RegList old_tmp_list = TmpList()->list();
@@ -3224,8 +3138,8 @@ void MacroAssembler::Printf(const char * format,
   FPTmpList()->set_list(0);
 
   // Preserve all caller-saved registers as well as NZCV.
-  // If csp is the stack pointer, PushCPURegList asserts that the size of each
-  // list is a multiple of 16 bytes.
+  // PushCPURegList asserts that the size of each list is a multiple of 16
+  // bytes.
   PushCPURegList(kCallerSaved);
   PushCPURegList(kCallerSavedV);
 
@@ -3241,15 +3155,15 @@ void MacroAssembler::Printf(const char * format,
     // If any of the arguments are the current stack pointer, allocate a new
     // register for them, and adjust the value to compensate for pushing the
     // caller-saved registers.
-    bool arg0_sp = StackPointer().Aliases(arg0);
-    bool arg1_sp = StackPointer().Aliases(arg1);
-    bool arg2_sp = StackPointer().Aliases(arg2);
-    bool arg3_sp = StackPointer().Aliases(arg3);
+    bool arg0_sp = sp.Aliases(arg0);
+    bool arg1_sp = sp.Aliases(arg1);
+    bool arg2_sp = sp.Aliases(arg2);
+    bool arg3_sp = sp.Aliases(arg3);
     if (arg0_sp || arg1_sp || arg2_sp || arg3_sp) {
       // Allocate a register to hold the original stack pointer value, to pass
       // to PrintfNoPreserve as an argument.
       Register arg_sp = temps.AcquireX();
-      Add(arg_sp, StackPointer(),
+      Add(arg_sp, sp,
           kCallerSaved.TotalSizeInBytes() + kCallerSavedV.TotalSizeInBytes());
       if (arg0_sp) arg0 = Register::Create(arg_sp.code(), arg0.SizeInBits());
       if (arg1_sp) arg1 = Register::Create(arg_sp.code(), arg1.SizeInBits());
@@ -3302,7 +3216,7 @@ CPURegister UseScratchRegisterScope::AcquireNextAvailable(
     CPURegList* available) {
   CHECK(!available->IsEmpty());
   CPURegister result = available->PopLowestIndex();
-  DCHECK(!AreAliased(result, xzr, csp));
+  DCHECK(!AreAliased(result, xzr, sp));
   return result;
 }
 

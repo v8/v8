@@ -455,8 +455,8 @@ constexpr Register no_reg = NoReg;
 GENERAL_REGISTER_CODE_LIST(DEFINE_REGISTERS)
 #undef DEFINE_REGISTERS
 
-DEFINE_REGISTER(Register, wcsp, kSPRegInternalCode, kWRegSizeInBits);
-DEFINE_REGISTER(Register, csp, kSPRegInternalCode, kXRegSizeInBits);
+DEFINE_REGISTER(Register, wsp, kSPRegInternalCode, kWRegSizeInBits);
+DEFINE_REGISTER(Register, sp, kSPRegInternalCode, kXRegSizeInBits);
 
 #define DEFINE_VREGISTERS(N)                            \
   DEFINE_REGISTER(VRegister, b##N, N, kBRegSizeInBits); \

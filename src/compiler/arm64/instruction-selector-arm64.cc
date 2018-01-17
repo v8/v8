@@ -1692,7 +1692,7 @@ void InstructionSelector::EmitPrepareArguments(
   // Bump the stack pointer(s).
   if (claim_count > 0) {
     // TODO(titzer): claim and poke probably take small immediates.
-    // TODO(titzer): it would be better to bump the csp here only
+    // TODO(titzer): it would be better to bump the sp here only
     //               and emit paired stores with increment for non c frames.
     Emit(kArm64Claim, g.NoOutput(), g.TempImmediate(claim_count));
   }

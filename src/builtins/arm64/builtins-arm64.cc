@@ -552,7 +552,7 @@ void Builtins::Generate_ResumeGeneratorTrampoline(MacroAssembler* masm) {
   // Check the stack for overflow. We are not trying to catch interruptions
   // (i.e. debug break and preemption) here, so check the "real stack limit".
   Label stack_overflow;
-  __ CompareRoot(__ StackPointer(), Heap::kRealStackLimitRootIndex);
+  __ CompareRoot(sp, Heap::kRealStackLimitRootIndex);
   __ B(lo, &stack_overflow);
 
   // Get number of arguments for generator function.
@@ -663,7 +663,7 @@ static void Generate_StackOverflowCheck(MacroAssembler* masm, Register num_args,
   __ LoadRoot(scratch, Heap::kRealStackLimitRootIndex);
   // Make scratch the space we have left. The stack might already be overflowed
   // here which will cause scratch to become negative.
-  __ Sub(scratch, masm->StackPointer(), scratch);
+  __ Sub(scratch, sp, scratch);
   // Check if the arguments will overflow the stack.
   __ Cmp(scratch, Operand(num_args, LSL, kPointerSizeLog2));
   __ B(le, stack_overflow);
@@ -745,7 +745,7 @@ static void Generate_JSEntryTrampolineHelper(MacroAssembler* masm,
     // Poke the result into the stack.
     __ Str(x11, MemOperand(scratch, -kPointerSize, PreIndex));
     // Loop if we've not reached the end of copy marker.
-    __ Cmp(__ StackPointer(), scratch);
+    __ Cmp(sp, scratch);
     __ B(lt, &loop);
 
     __ Bind(&done);
@@ -1009,7 +1009,7 @@ void Builtins::Generate_InterpreterEntryTrampoline(MacroAssembler* masm) {
   // the frame (that is done below).
   FrameScope frame_scope(masm, StackFrame::MANUAL);
   __ Push(lr, fp, cp, closure);
-  __ Add(fp, __ StackPointer(), StandardFrameConstants::kFixedFrameSizeFromFp);
+  __ Add(fp, sp, StandardFrameConstants::kFixedFrameSizeFromFp);
 
   // Get the bytecode array from the function object (or from the DebugInfo if
   // it is present) and load it into kInterpreterBytecodeArrayRegister.
@@ -1060,7 +1060,7 @@ void Builtins::Generate_InterpreterEntryTrampoline(MacroAssembler* masm) {
 
     // Do a stack check to ensure we don't go over the limit.
     Label ok;
-    __ Sub(x10, __ StackPointer(), Operand(x11));
+    __ Sub(x10, sp, Operand(x11));
     __ CompareRoot(x10, Heap::kRealStackLimitRootIndex);
     __ B(hs, &ok);
     __ CallRuntime(Runtime::kThrowStackOverflow);
@@ -1613,7 +1613,7 @@ void Builtins::Generate_InstantiateAsmJs(MacroAssembler* masm) {
     __ JumpIfSmi(x0, &failed);
 
     // Peek the argument count from the stack, untagging at the same time.
-    __ Ldr(w4, UntagSmiMemOperand(__ StackPointer(), 3 * kPointerSize));
+    __ Ldr(w4, UntagSmiMemOperand(sp, 3 * kPointerSize));
     __ Drop(4);
     scope.GenerateLeaveFrame();
 
@@ -1646,7 +1646,7 @@ void Generate_ContinueToBuiltinHelper(MacroAssembler* masm,
                        kPointerSize;
 
   // Set up frame pointer.
-  __ Add(fp, __ StackPointer(), frame_size);
+  __ Add(fp, sp, frame_size);
 
   if (with_result) {
     // Overwrite the hole inserted by the deoptimizer with the return value from
@@ -1682,7 +1682,7 @@ void Generate_ContinueToBuiltinHelper(MacroAssembler* masm,
          MemOperand(fp, BuiltinContinuationFrameConstants::kBuiltinOffset));
 
   // Restore fp, lr.
-  __ Mov(__ StackPointer(), fp);
+  __ Mov(sp, fp);
   __ Pop(fp, lr);
 
   // Call builtin.
@@ -2090,8 +2090,7 @@ void EnterArgumentsAdaptorFrame(MacroAssembler* masm) {
   __ Push(x11, x1);  // x1: function
   __ SmiTag(x11, x0);  // x0: number of arguments.
   __ Push(x11, padreg);
-  __ Add(fp, __ StackPointer(),
-         ArgumentsAdaptorFrameConstants::kFixedFrameSizeFromFp);
+  __ Add(fp, sp, ArgumentsAdaptorFrameConstants::kFixedFrameSizeFromFp);
 }
 
 void LeaveArgumentsAdaptorFrame(MacroAssembler* masm) {
@@ -2101,7 +2100,7 @@ void LeaveArgumentsAdaptorFrame(MacroAssembler* masm) {
   // Get the number of arguments passed (as a smi), tear down the frame and
   // then drop the parameters and the receiver.
   __ Ldr(x10, MemOperand(fp, ArgumentsAdaptorFrameConstants::kLengthOffset));
-  __ Mov(__ StackPointer(), fp);
+  __ Mov(sp, fp);
   __ Pop(fp, lr);
 
   // Drop actual parameters and receiver.
@@ -2194,7 +2193,7 @@ void Builtins::Generate_CallOrConstructVarargs(MacroAssembler* masm,
     __ LoadRoot(x10, Heap::kRealStackLimitRootIndex);
     // Make x10 the space we have left. The stack might already be overflowed
     // here which will cause x10 to become negative.
-    __ Sub(x10, masm->StackPointer(), x10);
+    __ Sub(x10, sp, x10);
     // Check if the arguments will overflow the stack.
     __ Cmp(x10, Operand(len, LSL, kPointerSizeLog2));
     __ B(gt, &done);  // Signed comparison.
@@ -2467,7 +2466,7 @@ void Generate_PushBoundArguments(MacroAssembler* masm) {
       __ LoadRoot(x10, Heap::kRealStackLimitRootIndex);
       // Make x10 the space we have left. The stack might already be overflowed
       // here which will cause x10 to become negative.
-      __ Sub(x10, masm->StackPointer(), x10);
+      __ Sub(x10, sp, x10);
       // Check if the arguments will overflow the stack.
       __ Cmp(x10, Operand(bound_argc, LSL, kPointerSizeLog2));
       __ B(gt, &done);  // Signed comparison.
@@ -2539,8 +2538,7 @@ void Generate_PushBoundArguments(MacroAssembler* masm) {
         Register scratch = x10;
         __ Tbz(bound_argc, 0, &done);
         // Store receiver.
-        __ Add(scratch, __ StackPointer(),
-               Operand(total_argc, LSL, kPointerSizeLog2));
+        __ Add(scratch, sp, Operand(total_argc, LSL, kPointerSizeLog2));
         __ Str(receiver, MemOperand(scratch, kPointerSize, PostIndex));
         __ Tbnz(total_argc, 0, &done);
         // Store padding.
@@ -2854,7 +2852,7 @@ void Builtins::Generate_ArgumentsAdaptorTrampoline(MacroAssembler* masm) {
   __ Bic(scratch1, scratch1, 1);
   __ Claim(scratch1, kPointerSize);
 
-  __ Mov(copy_to, __ StackPointer());
+  __ Mov(copy_to, sp);
 
   // Preparing the expected arguments is done in four steps, the order of
   // which is chosen so we can use LDP/STP and avoid conditional branches as
@@ -2918,8 +2916,7 @@ void Builtins::Generate_ArgumentsAdaptorTrampoline(MacroAssembler* masm) {
   __ RecordComment("-- Store receiver --");
   __ Add(copy_from, fp, 2 * kPointerSize);
   __ Ldr(scratch1, MemOperand(copy_from, argc_actual, LSL, kPointerSizeLog2));
-  __ Str(scratch1,
-         MemOperand(__ StackPointer(), argc_expected, LSL, kPointerSizeLog2));
+  __ Str(scratch1, MemOperand(sp, argc_expected, LSL, kPointerSizeLog2));
 
   // Arguments have been adapted. Now call the entry point.
   __ RecordComment("-- Call entry point --");

@@ -256,8 +256,7 @@ class Arm64OperandConverter final : public InstructionOperandConverter {
         offset = FrameOffset::FromStackPointer(from_sp);
       }
     }
-    return MemOperand(offset.from_stack_pointer() ? tasm->StackPointer() : fp,
-                      offset.offset());
+    return MemOperand(offset.from_stack_pointer() ? sp : fp, offset.offset());
   }
 };
 
@@ -297,8 +296,7 @@ class OutOfLineRecordWrite final : public OutOfLineCode {
     if (must_save_lr_) {
       // We need to save and restore lr if the frame was elided.
       __ Push(lr, padreg);
-      unwinding_info_writer_->MarkLinkRegisterOnTopOfStack(__ pc_offset(),
-                                                           __ StackPointer());
+      unwinding_info_writer_->MarkLinkRegisterOnTopOfStack(__ pc_offset(), sp);
     }
     __ CallRecordWriteStub(object_, scratch1_, remembered_set_action,
                            save_fp_mode);
@@ -455,7 +453,7 @@ Condition FlagsConditionToCondition(FlagsCondition condition) {
   } while (0)
 
 void CodeGenerator::AssembleDeconstructFrame() {
-  __ Mov(csp, fp);
+  __ Mov(sp, fp);
   __ Pop(fp, lr);
 
   unwinding_info_writer_.MarkFrameDeconstructed(__ pc_offset());
@@ -799,7 +797,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       AssembleReturn(instr->InputAt(0));
       break;
     case kArchStackPointer:
-      __ mov(i.OutputRegister(), tasm()->StackPointer());
+      __ mov(i.OutputRegister(), sp);
       break;
     case kArchFramePointer:
       __ mov(i.OutputRegister(), fp);
@@ -844,7 +842,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kArchStackSlot: {
       FrameOffset offset =
           frame_access_state()->GetFrameOffset(i.InputInt32(0));
-      Register base = offset.from_stack_pointer() ? __ StackPointer() : fp;
+      Register base = offset.from_stack_pointer() ? sp : fp;
       __ Add(i.OutputRegister(0), base, Operand(offset.offset()));
       break;
     }
@@ -1195,7 +1193,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kArm64Claim: {
       int count = i.InputInt32(0);
       DCHECK_EQ(count % 2, 0);
-      __ AssertCspAligned();
+      __ AssertSpAligned();
       if (count > 0) {
         __ Claim(count);
         frame_access_state()->IncreaseSPDelta(count);
@@ -2195,7 +2193,6 @@ void CodeGenerator::AssembleArchTrap(Instruction* instr,
         __ Drop(pop_count);
         __ Ret();
       } else {
-        DCHECK(csp.Is(__ StackPointer()));
         gen_->AssembleSourcePosition(instr_);
         __ Call(__ isolate()->builtins()->builtin_handle(trap_id),
                 RelocInfo::CODE_TARGET);
@@ -2291,7 +2288,7 @@ void CodeGenerator::FinishFrame(Frame* frame) {
 
 void CodeGenerator::AssembleConstructFrame() {
   CallDescriptor* descriptor = linkage()->GetIncomingDescriptor();
-  __ AssertCspAligned();
+  __ AssertSpAligned();
 
   // The frame has been previously padded in CodeGenerator::FinishFrame().
   DCHECK_EQ(frame()->GetTotalFrameSlotCount() % 2, 0);
@@ -2312,7 +2309,7 @@ void CodeGenerator::AssembleConstructFrame() {
       __ Prologue();
     } else {
       __ Push(lr, fp);
-      __ Mov(fp, __ StackPointer());
+      __ Mov(fp, sp);
     }
     unwinding_info_writer_.MarkFrameConstructed(__ pc_offset());
 
@@ -2346,7 +2343,7 @@ void CodeGenerator::AssembleConstructFrame() {
                             __ isolate())));
         __ Ldr(scratch, MemOperand(scratch));
         __ Add(scratch, scratch, shrink_slots * kPointerSize);
-        __ Cmp(__ StackPointer(), scratch);
+        __ Cmp(sp, scratch);
         __ B(hs, &done);
       }
 
@@ -2356,8 +2353,6 @@ void CodeGenerator::AssembleConstructFrame() {
         // runtime call.
         __ EnterFrame(StackFrame::WASM_COMPILED);
       }
-      DCHECK(__ StackPointer().Is(csp));
-      __ AssertStackConsistency();
       __ Mov(cp, Smi::kZero);
       __ CallRuntimeDelayed(zone(), Runtime::kThrowWasmStackOverflow);
       // We come from WebAssembly, there are no references for the GC.
@@ -2367,7 +2362,6 @@ void CodeGenerator::AssembleConstructFrame() {
       if (FLAG_debug_code) {
         __ Brk(0);
       }
-      __ AssertStackConsistency();
       __ Bind(&done);
     }
 
@@ -2473,7 +2467,7 @@ void CodeGenerator::AssembleReturn(InstructionOperand* pop) {
     __ DropArguments(pop_reg);
   }
 
-  __ AssertCspAligned();
+  __ AssertSpAligned();
   __ Ret();
 }
 

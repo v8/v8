@@ -626,16 +626,15 @@ void Simulator::DoRuntimeCall(Instruction* instr) {
 }
 
 const char* Simulator::xreg_names[] = {
-    "x0",  "x1",  "x2",  "x3",  "x4",  "x5",  "x6",  "x7",  "x8",
-    "x9",  "x10", "x11", "x12", "x13", "x14", "x15", "ip0", "ip1",
-    "x18", "x19", "x20", "x21", "x22", "x23", "x24", "x25", "x26",
-    "cp",  "x28", "fp",  "lr",  "xzr", "csp"};
+    "x0",  "x1",  "x2",  "x3",  "x4",  "x5",  "x6",  "x7",  "x8",  "x9",  "x10",
+    "x11", "x12", "x13", "x14", "x15", "ip0", "ip1", "x18", "x19", "x20", "x21",
+    "x22", "x23", "x24", "x25", "x26", "cp",  "x28", "fp",  "lr",  "xzr", "sp"};
 
 const char* Simulator::wreg_names[] = {
     "w0",  "w1",  "w2",  "w3",  "w4",  "w5",  "w6",  "w7",  "w8",
     "w9",  "w10", "w11", "w12", "w13", "w14", "w15", "w16", "w17",
     "w18", "w19", "w20", "w21", "w22", "w23", "w24", "w25", "w26",
-    "wcp", "w28", "wfp", "wlr", "wzr", "wcsp"};
+    "wcp", "w28", "wfp", "wlr", "wzr", "wsp"};
 
 const char* Simulator::sreg_names[] = {
 "s0",  "s1",  "s2",  "s3",  "s4",  "s5",  "s6",  "s7",
@@ -768,7 +767,7 @@ int Simulator::CodeFromName(const char* name) {
       return i;
     }
   }
-  if ((strcmp("csp", name) == 0) || (strcmp("wcsp", name) == 0)) {
+  if ((strcmp("sp", name) == 0) || (strcmp("wsp", name) == 0)) {
     return kSPRegInternalCode;
   }
   return -1;
@@ -2996,15 +2995,15 @@ bool Simulator::GetValue(const char* desc, int64_t* value) {
 
 
 bool Simulator::PrintValue(const char* desc) {
-  if (strcmp(desc, "csp") == 0) {
+  if (strcmp(desc, "sp") == 0) {
     DCHECK(CodeFromName(desc) == static_cast<int>(kSPRegInternalCode));
-    PrintF(stream_, "%s csp:%s 0x%016" PRIx64 "%s\n",
-        clr_reg_name, clr_reg_value, xreg(31, Reg31IsStackPointer), clr_normal);
+    PrintF(stream_, "%s sp:%s 0x%016" PRIx64 "%s\n", clr_reg_name,
+           clr_reg_value, xreg(31, Reg31IsStackPointer), clr_normal);
     return true;
-  } else if (strcmp(desc, "wcsp") == 0) {
+  } else if (strcmp(desc, "wsp") == 0) {
     DCHECK(CodeFromName(desc) == static_cast<int>(kSPRegInternalCode));
-    PrintF(stream_, "%s wcsp:%s 0x%08" PRIx32 "%s\n",
-        clr_reg_name, clr_reg_value, wreg(31, Reg31IsStackPointer), clr_normal);
+    PrintF(stream_, "%s wsp:%s 0x%08" PRIx32 "%s\n", clr_reg_name,
+           clr_reg_value, wreg(31, Reg31IsStackPointer), clr_normal);
     return true;
   }
 

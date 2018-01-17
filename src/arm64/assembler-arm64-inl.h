@@ -95,7 +95,7 @@ inline void CPURegList::Remove(int code) {
 
 inline Register Register::XRegFromCode(unsigned code) {
   if (code == kSPRegInternalCode) {
-    return csp;
+    return sp;
   } else {
     DCHECK_LT(code, static_cast<unsigned>(kNumberOfRegisters));
     return Register::Create(code, kXRegSizeInBits);
@@ -105,7 +105,7 @@ inline Register Register::XRegFromCode(unsigned code) {
 
 inline Register Register::WRegFromCode(unsigned code) {
   if (code == kSPRegInternalCode) {
-    return wcsp;
+    return wsp;
   } else {
     DCHECK_LT(code, static_cast<unsigned>(kNumberOfRegisters));
     return Register::Create(code, kWRegSizeInBits);
