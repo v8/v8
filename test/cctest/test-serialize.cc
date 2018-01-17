@@ -2919,7 +2919,9 @@ UNINITIALIZED_TEST(ReinitializeHashSeedRehashable) {
           "%OptimizeObjectForAddingMultipleProperties(o, 3);"
           "o.a = 1;"
           "o.b = 2;"
-          "o.c = 3;");
+          "o.c = 3;"
+          "var p = { foo: 1 };"  // Test rehashing of transition arrays.
+          "p = JSON.parse('{\"foo\": {\"x\": 1}}');");
       i::Handle<i::Object> i_a = v8::Utils::OpenHandle(*CompileRun("a"));
       i::Handle<i::Object> i_o = v8::Utils::OpenHandle(*CompileRun("o"));
       CHECK(i_a->IsJSArray());
