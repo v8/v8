@@ -177,7 +177,7 @@ Handle<Object> GetOrCreateIndirectCallWrapper(
       reinterpret_cast<Address>(owning_instance->wasm_context()->get());
   if (!wasm_code.IsCodeObject()) {
     DCHECK_NE(wasm_code.GetWasmCode()->kind(),
-              wasm::WasmCode::WasmToWasmWrapper);
+              wasm::WasmCode::kWasmToWasmWrapper);
     wasm::NativeModule* native_module = wasm_code.GetWasmCode()->owner();
     // The only reason we pass owning_instance is for the GC case. Check
     // that the values match.
