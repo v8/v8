@@ -329,34 +329,11 @@ void WasmTableObject::Set(Isolate* isolate, Handle<WasmTableObject> table,
     value = function;
     // TODO(titzer): Make JSToWasm wrappers just call the WASM to WASM wrapper,
     // and then we can just reuse the WASM to WASM wrapper.
-    Address new_context_address = reinterpret_cast<Address>(
-        exported_function->instance()->wasm_context()->get());
     WasmCodeWrapper wasm_code = exported_function->GetWasmCode();
-    if (!wasm_code.IsCodeObject()) {
-      wasm::NativeModule* native_module = wasm_code.GetWasmCode()->owner();
-      // we create the wrapper on the module exporting the function. This
-      // wrapper will only be called as indirect call.
-      wasm::WasmCode* exported_wrapper =
-          native_module->GetExportedWrapper(wasm_code.GetWasmCode()->index());
-      if (exported_wrapper == nullptr) {
-        Handle<Code> new_wrapper = compiler::CompileWasmToWasmWrapper(
-            isolate, wasm_code, wasm_function->sig, new_context_address);
-        exported_wrapper = native_module->AddExportedWrapper(
-            new_wrapper, wasm_code.GetWasmCode()->index());
-      }
-      Address target = exported_wrapper->instructions().start();
-      code = isolate->factory()->NewForeign(target, TENURED);
-    } else {
-      Handle<WasmInstanceObject> instance(exported_function->instance(),
-                                          isolate);
-      int func_index = exported_function->function_index();
-      code = compiler::CompileWasmToWasmWrapper(
-          isolate, wasm_code, wasm_function->sig, new_context_address);
-      // TODO(6792): No longer needed once WebAssembly code is off heap.
-      CodeSpaceMemoryModificationScope modification_scope(isolate->heap());
-      AttachWasmFunctionInfo(isolate, Handle<Code>::cast(code), instance,
-                             func_index);
-    }
+    CodeSpaceMemoryModificationScope gc_modification_scope(isolate->heap());
+    code = wasm::GetOrCreateIndirectCallWrapper(
+        isolate, handle(exported_function->instance()), wasm_code,
+        exported_function->function_index(), wasm_function->sig);
   }
   UpdateDispatchTables(isolate, dispatch_tables, index, wasm_function, code);
   array->set(index, *value);
