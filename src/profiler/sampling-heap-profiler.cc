@@ -150,10 +150,16 @@ SamplingHeapProfiler::AllocationNode* SamplingHeapProfiler::AddStack() {
   int frames_captured = 0;
   while (!it.done() && frames_captured < stack_depth_) {
     JavaScriptFrame* frame = it.frame();
-    SharedFunctionInfo* shared = frame->function()->shared();
-    stack.push_back(shared);
-
-    frames_captured++;
+    // If we are materializing objects during deoptimization, inlined
+    // closures may not yet be materialized, and this includes the
+    // closure on the stack. Skip over any such frames (they'll be
+    // in the top frames of the stack). The allocations made in this
+    // sensitive moment belong to the formerly optimized frame anyway.
+    if (frame->unchecked_function()->IsJSFunction()) {
+      SharedFunctionInfo* shared = frame->function()->shared();
+      stack.push_back(shared);
+      frames_captured++;
+    }
     it.Advance();
   }
 
