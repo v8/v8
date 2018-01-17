@@ -581,9 +581,6 @@ class StandardTestRunner(base_runner.BaseTestRunner):
     def _run_test_procs(self, suites, args, options, progress_indicator,
                         context):
       jobs = options.j
-      for s in suites:
-        for t in s.tests:
-          t.cmd = t.get_command(context)
 
       print '>>> Running with test processors'
       loader = LoadProc()

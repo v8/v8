@@ -20,9 +20,10 @@ class ResultBase(object):
 class Result(ResultBase):
   """Result created by the output processor."""
 
-  def __init__(self, has_unexpected_output, output):
+  def __init__(self, has_unexpected_output, output, cmd=None):
     self.has_unexpected_output = has_unexpected_output
     self.output = output
+    self.cmd = cmd
 
 
 class GroupedResult(ResultBase):
@@ -87,7 +88,8 @@ class RerunResult(Result):
     assert results
 
     last = results[-1]
-    super(RerunResult, self).__init__(last.has_unexpected_output, last.output)
+    super(RerunResult, self).__init__(last.has_unexpected_output, last.output,
+                                      last.cmd)
     self.results = results
 
   @property

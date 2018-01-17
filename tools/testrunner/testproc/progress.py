@@ -69,25 +69,25 @@ class SimpleProgressIndicator(ProgressIndicator):
   def _on_result_for(self, test, result):
     # TODO(majeski): Support for dummy/grouped results
     if result.has_unexpected_output:
-      self._failed.append((test, result.output))
+      self._failed.append((test, result))
 
   def finished(self):
     crashed = 0
     print
-    for test, output in self._failed:
+    for test, result in self._failed:
       print_failure_header(test)
-      if output.stderr:
+      if result.output.stderr:
         print "--- stderr ---"
-        print output.stderr.strip()
-      if output.stdout:
+        print result.output.stderr.strip()
+      if result.output.stdout:
         print "--- stdout ---"
-        print output.stdout.strip()
-      print "Command: %s" % test.cmd.to_string()
-      if output.HasCrashed():
-        print "exit code: %d" % output.exit_code
+        print result.output.stdout.strip()
+      print "Command: %s" % result.cmd.to_string()
+      if result.output.HasCrashed():
+        print "exit code: %d" % result.output.exit_code
         print "--- CRASHED ---"
         crashed += 1
-      if output.HasTimedOut():
+      if result.output.HasTimedOut():
         print "--- TIMEOUT ---"
     if len(self._failed) == 0:
       print "==="
@@ -181,7 +181,7 @@ class CompactProgressIndicator(ProgressIndicator):
         print self._templates['stdout'] % stdout
       if len(stderr):
         print self._templates['stderr'] % stderr
-      print "Command: %s" % test.cmd
+      print "Command: %s" % result.cmd
       if output.HasCrashed():
         print "exit code: %d" % output.exit_code
         print "--- CRASHED ---"
@@ -274,14 +274,14 @@ class JUnitTestProgressIndicator(ProgressIndicator):
       stderr = output.stderr.strip()
       if len(stderr):
         fail_text += "stderr:\n%s\n" % stderr
-      fail_text += "Command: %s" % test.cmd.to_string()
+      fail_text += "Command: %s" % result.cmd.to_string()
       if output.HasCrashed():
         fail_text += "exit code: %d\n--- CRASHED ---" % output.exit_code
       if output.HasTimedOut():
         fail_text += "--- TIMEOUT ---"
     self.outputter.HasRunTest(
         test_name=str(test),
-        test_cmd=test.cmd.to_string(relative=True),
+        test_cmd=result.cmd.to_string(relative=True),
         test_duration=output.duration,
         test_failure=fail_text)
 
@@ -318,7 +318,8 @@ class JsonTestProgressIndicator(ProgressIndicator):
       # TODO(majeski): Support for dummy/grouped results
       output = result.output
       # Buffer all tests for sorting the durations in the end.
-      self.tests.append((test, output.duration))
+      # TODO(machenbach): Running average + buffer only slowest 20 tests.
+      self.tests.append((test, output.duration, result.cmd))
 
       # Omit tests that run as expected on the first try.
       # Everything that happens after the first run is included in the output
@@ -328,8 +329,8 @@ class JsonTestProgressIndicator(ProgressIndicator):
 
       self.results.append({
         "name": str(test),
-        "flags": test.cmd.args,
-        "command": test.cmd.to_string(relative=True),
+        "flags": result.cmd.args,
+        "command": result.cmd.to_string(relative=True),
         "run": run + 1,
         "stdout": output.stdout,
         "stderr": output.stderr,
@@ -356,19 +357,19 @@ class JsonTestProgressIndicator(ProgressIndicator):
     if self.tests:
       # Get duration mean.
       duration_mean = (
-          sum(duration for (_, duration) in self.tests) /
+          sum(duration for (_, duration, cmd) in self.tests) /
           float(len(self.tests)))
 
     # Sort tests by duration.
-    self.tests.sort(key=lambda (_, duration): duration, reverse=True)
+    self.tests.sort(key=lambda (_, duration, cmd): duration, reverse=True)
     slowest_tests = [
       {
         "name": str(test),
-        "flags": test.cmd.args,
-        "command": test.cmd.to_string(relative=True),
+        "flags": cmd.args,
+        "command": cmd.to_string(relative=True),
         "duration": duration,
         "marked_slow": test.is_slow,
-      } for (test, duration) in self.tests[:20]
+      } for (test, duration, cmd) in self.tests[:20]
     ]
 
     complete_results.append({
