@@ -82,6 +82,7 @@ ADDITIONAL_FLAGS = [
   (0.1, '--stress-marking=100'),
   (0.1, '--stress-scavenge=100'),
   (0.1, '--stress-compaction-random'),
+  (0.1, '--random-gc-interval=2000'),
 ]
 
 # Timeout in seconds for one d8 run.
