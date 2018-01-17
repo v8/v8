@@ -826,13 +826,8 @@ MemoryChunk* MemoryAllocator::AllocateChunk(size_t reserve_area_size,
                          owner);
   }
 
-  MemoryChunk* chunk =
-      MemoryChunk::Initialize(heap, base, chunk_size, area_start, area_end,
-                              executable, owner, &reservation);
-
-  if (executable) RegisterExecutableMemoryChunk(chunk);
-
-  return chunk;
+  return MemoryChunk::Initialize(heap, base, chunk_size, area_start, area_end,
+                                 executable, owner, &reservation);
 }
 
 void Page::ResetAllocatedBytes() { allocated_bytes_ = area_size(); }
@@ -975,8 +970,6 @@ void MemoryAllocator::PreFreeMemory(MemoryChunk* chunk) {
   }
 
   chunk->SetFlag(MemoryChunk::PRE_FREED);
-
-  if (chunk->executable()) UnregisterExecutableMemoryChunk(chunk);
 }
 
 
@@ -1729,7 +1722,6 @@ void PagedSpace::ReleasePage(Page* page) {
 void PagedSpace::SetReadAndExecutable() {
   DCHECK(identity() == CODE_SPACE);
   for (Page* page : *this) {
-    CHECK(heap_->memory_allocator()->IsMemoryChunkExecutable(page));
     page->SetReadAndExecutable();
   }
 }
@@ -1737,7 +1729,6 @@ void PagedSpace::SetReadAndExecutable() {
 void PagedSpace::SetReadAndWritable() {
   DCHECK(identity() == CODE_SPACE);
   for (Page* page : *this) {
-    CHECK(heap_->memory_allocator()->IsMemoryChunkExecutable(page));
     page->SetReadAndWritable();
   }
 }

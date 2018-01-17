@@ -1359,12 +1359,6 @@ class V8_EXPORT_PRIVATE MemoryAllocator {
   // and false otherwise.
   bool CommitBlock(Address start, size_t size, Executability executable);
 
-  // Checks if an allocated MemoryChunk was intended to be used for executable
-  // memory.
-  bool IsMemoryChunkExecutable(MemoryChunk* chunk) {
-    return executable_memory_.find(chunk) != executable_memory_.end();
-  }
-
   // Uncommit a contiguous block of memory [start..(start+size)[.
   // start is not nullptr, the size is greater than zero, and the
   // block is contained in the initial chunk.  Returns true if it succeeded
@@ -1415,17 +1409,6 @@ class V8_EXPORT_PRIVATE MemoryAllocator {
     } while ((high > ptr) && !highest_ever_allocated_.TrySetValue(ptr, high));
   }
 
-  void RegisterExecutableMemoryChunk(MemoryChunk* chunk) {
-    DCHECK(chunk->IsFlagSet(MemoryChunk::IS_EXECUTABLE));
-    DCHECK_EQ(executable_memory_.find(chunk), executable_memory_.end());
-    executable_memory_.insert(chunk);
-  }
-
-  void UnregisterExecutableMemoryChunk(MemoryChunk* chunk) {
-    DCHECK_NE(executable_memory_.find(chunk), executable_memory_.end());
-    executable_memory_.erase(chunk);
-  }
-
   Isolate* isolate_;
   CodeRange* code_range_;
 
@@ -1447,9 +1430,6 @@ class V8_EXPORT_PRIVATE MemoryAllocator {
 
   VirtualMemory last_chunk_;
   Unmapper unmapper_;
-
-  // Data structure to remember allocated executable memory chunks.
-  std::unordered_set<MemoryChunk*> executable_memory_;
 
   friend class heap::TestCodeRangeScope;
 

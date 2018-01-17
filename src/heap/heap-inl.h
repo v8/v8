@@ -626,7 +626,6 @@ CodeSpaceMemoryModificationScope::CodeSpaceMemoryModificationScope(Heap* heap)
     LargePage* page = heap_->lo_space()->first_page();
     while (page != nullptr) {
       if (page->IsFlagSet(MemoryChunk::IS_EXECUTABLE)) {
-        CHECK(heap_->memory_allocator()->IsMemoryChunkExecutable(page));
         page->SetReadAndWritable();
       }
       page = page->next_page();
@@ -641,7 +640,6 @@ CodeSpaceMemoryModificationScope::~CodeSpaceMemoryModificationScope() {
     LargePage* page = heap_->lo_space()->first_page();
     while (page != nullptr) {
       if (page->IsFlagSet(MemoryChunk::IS_EXECUTABLE)) {
-        CHECK(heap_->memory_allocator()->IsMemoryChunkExecutable(page));
         page->SetReadAndExecutable();
       }
       page = page->next_page();
@@ -658,14 +656,12 @@ CodePageMemoryModificationScope::CodePageMemoryModificationScope(
     DCHECK(chunk_->owner()->identity() == CODE_SPACE ||
            (chunk_->owner()->identity() == LO_SPACE &&
             chunk_->IsFlagSet(MemoryChunk::IS_EXECUTABLE)));
-    CHECK(chunk_->heap()->memory_allocator()->IsMemoryChunkExecutable(chunk_));
     chunk_->SetReadAndWritable();
   }
 }
 
 CodePageMemoryModificationScope::~CodePageMemoryModificationScope() {
   if (scope_active_) {
-    CHECK(chunk_->heap()->memory_allocator()->IsMemoryChunkExecutable(chunk_));
     chunk_->SetReadAndExecutable();
   }
 }
