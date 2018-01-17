@@ -59,7 +59,16 @@ class SimulatorBase {
   static typename std::enable_if<std::is_integral<T>::value, intptr_t>::type
   ConvertArg(T arg) {
     static_assert(sizeof(T) <= sizeof(intptr_t), "type bigger than ptrsize");
+#if V8_TARGET_ARCH_MIPS64
+    // The MIPS64 calling convention is to sign extend all values, even unsigned
+    // ones.
+    using signed_t = typename std::make_signed<T>::type;
+    return static_cast<intptr_t>(static_cast<signed_t>(arg));
+#else
+    // Standard C++ convertion: Sign-extend signed values, zero-extend unsigned
+    // values.
     return static_cast<intptr_t>(arg);
+#endif
   }
 
   // Convert pointer-typed argument to intptr_t.
@@ -69,7 +78,7 @@ class SimulatorBase {
     return reinterpret_cast<intptr_t>(arg);
   }
 
-  // Convert back integral return types.
+  // Convert back integral return types. This is always a narrowing conversion.
   template <typename T>
   static typename std::enable_if<std::is_integral<T>::value, T>::type
   ConvertReturn(intptr_t ret) {
