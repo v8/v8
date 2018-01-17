@@ -5555,10 +5555,6 @@ Genesis::Genesis(
 
   ConfigureUtilsObject(context_type);
 
-  // Check that the script context table is empty except for the 'this' binding.
-  // We do not need script contexts for native scripts.
-  DCHECK_EQ(1, native_context()->script_context_table()->used());
-
   native_context()->ResetErrorsThrown();
   result_ = native_context();
 }
