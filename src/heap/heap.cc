@@ -182,9 +182,6 @@ Heap::Heap()
       gc_count_(0),
       mmap_region_base_(0),
       remembered_unmapped_pages_index_(0),
-#ifdef DEBUG
-      allocation_timeout_(0),
-#endif  // DEBUG
       old_generation_allocation_limit_(initial_old_generation_size_),
       inline_allocation_disabled_(false),
       tracer_(nullptr),
@@ -233,7 +230,12 @@ Heap::Heap()
       use_tasks_(true),
       force_oom_(false),
       delay_sweeper_tasks_for_testing_(false),
-      pending_layout_change_object_(nullptr) {
+      pending_layout_change_object_(nullptr)
+#ifdef V8_ENABLE_ALLOCATION_TIMEOUT
+      ,
+      allocation_timeout_(0)
+#endif  // V8_ENABLE_ALLOCATION_TIMEOUT
+{
   // Ensure old_generation_size_ is a multiple of kPageSize.
   DCHECK_EQ(0, max_old_generation_size_ & (Page::kPageSize - 1));
 
@@ -1214,7 +1216,7 @@ bool Heap::CollectGarbage(AllocationSpace space,
   const char* collector_reason = nullptr;
   GarbageCollector collector = SelectGarbageCollector(space, &collector_reason);
 
-#ifdef DEBUG
+#ifdef V8_ENABLE_ALLOCATION_TIMEOUT
   // Reset the allocation timeout, but make sure to allow at least a few
   // allocations after a collection. The reason for this is that we have a lot
   // of allocation sequences and we assume that a garbage collection will allow
@@ -5513,7 +5515,7 @@ void Heap::DisableInlineAllocation() {
 }
 
 bool Heap::SetUp() {
-#ifdef DEBUG
+#ifdef V8_ENABLE_ALLOCATION_TIMEOUT
   allocation_timeout_ = NextAllocationTimeout();
 #endif
 

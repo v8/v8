@@ -1600,11 +1600,13 @@ class Heap {
   void VerifyRememberedSetFor(HeapObject* object);
 #endif
 
+#ifdef V8_ENABLE_ALLOCATION_TIMEOUT
+  void set_allocation_timeout(int timeout) { allocation_timeout_ = timeout; }
+#endif
+
 #ifdef DEBUG
   void VerifyCountersAfterSweeping();
   void VerifyCountersBeforeConcurrentSweeping();
-
-  void set_allocation_timeout(int timeout) { allocation_timeout_ = timeout; }
 
   void Print();
   void PrintHandles();
@@ -2415,13 +2417,6 @@ class Heap {
   int remembered_unmapped_pages_index_;
   Address remembered_unmapped_pages_[kRememberedUnmappedPages];
 
-#ifdef DEBUG
-  // If the --gc-interval flag is set to a positive value, this
-  // variable holds the value indicating the number of allocations
-  // remain until the next failure and garbage collection.
-  int allocation_timeout_;
-#endif  // DEBUG
-
   // Limit that triggers a global GC on the next (normally caused) GC.  This
   // is checked when we have already decided to do a GC to help determine
   // which collector to invoke, before expanding a paged space in the old
@@ -2566,6 +2561,13 @@ class Heap {
   bool delay_sweeper_tasks_for_testing_;
 
   HeapObject* pending_layout_change_object_;
+
+#ifdef V8_ENABLE_ALLOCATION_TIMEOUT
+  // If the --gc-interval flag is set to a positive value, this
+  // variable holds the value indicating the number of allocations
+  // remain until the next failure and garbage collection.
+  int allocation_timeout_;
+#endif  // V8_ENABLE_ALLOCATION_TIMEOUT
 
   std::map<HeapObject*, HeapObject*> retainer_;
   std::map<HeapObject*, Root> retaining_root_;

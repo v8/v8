@@ -250,12 +250,14 @@ AllocationResult Heap::AllocateRaw(int size_in_bytes, AllocationSpace space,
   DCHECK(AllowHandleAllocation::IsAllowed());
   DCHECK(AllowHeapAllocation::IsAllowed());
   DCHECK(gc_state_ == NOT_IN_GC);
-#ifdef DEBUG
+#ifdef V8_ENABLE_ALLOCATION_TIMEOUT
   if (FLAG_random_gc_interval > 0 || FLAG_gc_interval >= 0) {
     if (!always_allocate() && Heap::allocation_timeout_-- <= 0) {
       return AllocationResult::Retry(space);
     }
   }
+#endif
+#ifdef DEBUG
   isolate_->counters()->objs_since_last_full()->Increment();
   isolate_->counters()->objs_since_last_young()->Increment();
 #endif
