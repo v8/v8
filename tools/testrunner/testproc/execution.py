@@ -11,22 +11,31 @@ from ..local import pool
 
 # Global function for multiprocessing, because pickling a static method doesn't
 # work on Windows.
-def run_job(job):
-  return job.run()
+def run_job(job, process_context):
+  return job.run(process_context)
+
+
+def create_process_context(requirement):
+  return ProcessContext(base.get_reduce_result_function(requirement))
 
 
 JobResult = collections.namedtuple('JobResult', ['id', 'result'])
+ProcessContext = collections.namedtuple('ProcessContext', ['reduce_result_f'])
 
 
 class Job(object):
-  def __init__(self, test_id, cmd, outproc):
+  def __init__(self, test_id, cmd, outproc, keep_output):
     self.test_id = test_id
     self.cmd = cmd
     self.outproc = outproc
+    self.keep_output = keep_output
 
-  def run(self):
+  def run(self, process_ctx):
     output = self.cmd.execute()
-    return JobResult(self.test_id, self.outproc.process(output))
+    result = self.outproc.process(output)
+    if not self.keep_output:
+      result = process_ctx.reduce_result_f(result)
+    return JobResult(self.test_id, result)
 
 
 class ExecutionProc(base.TestProc):
@@ -49,8 +58,8 @@ class ExecutionProc(base.TestProc):
       it = self._pool.imap_unordered(
         fn=run_job,
         gen=[],
-        process_context_fn=None,
-        process_context_args=None,
+        process_context_fn=create_process_context,
+        process_context_args=[self._prev_requirement],
       )
       for pool_result in it:
         if pool_result.heartbeat:
@@ -80,7 +89,7 @@ class ExecutionProc(base.TestProc):
 
     # TODO(majeski): Needs factory for outproc as in local/execution.py
     outproc = test.output_proc
-    self._pool.add([Job(test_id, test.cmd, outproc)])
+    self._pool.add([Job(test_id, test.cmd, outproc, test.keep_output)])
 
   def result_for(self, test, result):
     assert False, 'ExecutionProc cannot receive results'

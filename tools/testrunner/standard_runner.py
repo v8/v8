@@ -613,6 +613,8 @@ class StandardTestRunner(base_runner.BaseTestRunner):
 
       tests = [t for s in suites for t in s.tests]
       tests.sort(key=lambda t: t.is_slow, reverse=True)
+
+      loader.setup()
       loader.load_tests(tests)
 
       print '>>> Running %d base tests' % tests_counter.total

@@ -57,17 +57,20 @@ class TestCase(object):
     self.origin = None # Test that this test is subtest of.
     self.processor = None # Processor that created this subtest.
     self.procid = '%s/%s' % (self.suite.name, self.name) # unique id
+    self.keep_output = False # Can output of this test be dropped
 
     self._statusfile_outcomes = None
     self._expected_outcomes = None # optimization: None == [statusfile.PASS]
     self._statusfile_flags = None
     self._prepare_outcomes()
 
-  def create_subtest(self, processor, subtest_id, variant=None, flags=None):
+  def create_subtest(self, processor, subtest_id, variant=None, flags=None,
+                     keep_output=False):
     subtest = copy.copy(self)
     subtest.origin = self
     subtest.processor = processor
     subtest.procid += '.%s' % subtest_id
+    subtest.keep_output = keep_output
     if variant is not None:
       assert self.variant is None
       subtest.variant = variant

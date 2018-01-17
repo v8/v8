@@ -34,6 +34,8 @@ class TestsCounter(base.TestProcObserver):
 class ResultsTracker(base.TestProcObserver):
   def __init__(self):
     super(ResultsTracker, self).__init__()
+    self._requirement = base.DROP_OUTPUT
+
     self.failed = 0
     self.remaining = 0
     self.total = 0
@@ -56,6 +58,7 @@ class ProgressIndicator(base.TestProcObserver):
 class SimpleProgressIndicator(ProgressIndicator):
   def __init__(self):
     super(SimpleProgressIndicator, self).__init__()
+    self._requirement = base.DROP_PASS_OUTPUT
 
     self._failed = []
     self._total = 0
@@ -146,6 +149,8 @@ class DotsProgressIndicator(SimpleProgressIndicator):
 class CompactProgressIndicator(ProgressIndicator):
   def __init__(self, templates):
     super(CompactProgressIndicator, self).__init__()
+    self._requirement = base.DROP_PASS_OUTPUT
+
     self._templates = templates
     self._last_status_length = 0
     self._start_time = time.time()
@@ -250,6 +255,8 @@ class MonochromeProgressIndicator(CompactProgressIndicator):
 class JUnitTestProgressIndicator(ProgressIndicator):
   def __init__(self, junitout, junittestsuite):
     super(JUnitTestProgressIndicator, self).__init__()
+    self._requirement = base.DROP_PASS_STDOUT
+
     self.outputter = junit_output.JUnitTestOutput(junittestsuite)
     if junitout:
       self.outfile = open(junitout, "w")
@@ -287,6 +294,12 @@ class JUnitTestProgressIndicator(ProgressIndicator):
 class JsonTestProgressIndicator(ProgressIndicator):
   def __init__(self, json_test_results, arch, mode, random_seed):
     super(JsonTestProgressIndicator, self).__init__()
+    # We want to drop stdout/err for all passed tests on the first try, but we
+    # need to get outputs for all runs after the first one. To accommodate that,
+    # reruns are set to keep the result no matter what requirement says, i.e.
+    # keep_output set to True in the RerunProc.
+    self._requirement = base.DROP_PASS_STDOUT
+
     self.json_test_results = json_test_results
     self.arch = arch
     self.mode = mode

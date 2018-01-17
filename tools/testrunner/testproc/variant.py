@@ -25,31 +25,35 @@ class VariantProc(base.TestProcProducer):
 
   def __init__(self, variants):
     super(VariantProc, self).__init__('VariantProc')
-    self._test_data = {} # procid: (generator, results)
+    self._next_variant = {}
     self._variant_gens = {}
     self._variants = variants
 
+  def setup(self, requirement=base.DROP_RESULT):
+    super(VariantProc, self).setup(requirement)
+
+    # VariantProc is optimized for dropping the result and it should be placed
+    # in the chain where it's possible.
+    assert requirement == base.DROP_RESULT
+
   def _next_test(self, test):
-    test_data = gen, results = self._variants_gen(test), []
-    self._test_data[test.procid] = test_data
-    self._try_send_new_subtest(test, gen, results)
+    gen = self._variants_gen(test)
+    self._next_variant[test.procid] = gen
+    self._try_send_new_subtest(test, gen)
 
   def _result_for(self, test, subtest, result):
-    gen, results = self._test_data[test.procid]
-    results.append((subtest, result))
-    self._try_send_new_subtest(test, gen, results)
+    gen = self._next_variant[test.procid]
+    self._try_send_new_subtest(test, gen)
 
-  def _try_send_new_subtest(self, test, variants_gen, results):
+  def _try_send_new_subtest(self, test, variants_gen):
     for variant, flags, suffix in variants_gen:
       subtest = self._create_subtest(test, '%s-%s' % (variant, suffix),
                                      variant=variant, flags=flags)
       self._send_test(subtest)
       return
 
-    del self._test_data[test.procid]
-    # TODO(majeski): Don't group tests if previous processors don't need them.
-    result = GroupedResult.create(results)
-    self._send_result(test, result)
+    del self._next_variant[test.procid]
+    self._send_result(test, None)
 
   def _variants_gen(self, test):
     """Generator producing (variant, flags, procid suffix) tuples."""

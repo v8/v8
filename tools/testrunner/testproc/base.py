@@ -32,10 +32,44 @@ Each subtest has:
 """
 
 
+DROP_RESULT = 0
+DROP_OUTPUT = 1
+DROP_PASS_OUTPUT = 2
+DROP_PASS_STDOUT = 3
+
+def get_reduce_result_function(requirement):
+  if requirement == DROP_RESULT:
+    return lambda _: None
+
+  if requirement == DROP_OUTPUT:
+    def f(result):
+      result.output = None
+      return result
+    return f
+
+  if requirement == DROP_PASS_OUTPUT:
+    def f(result):
+      if not result.has_unexpected_output:
+        result.output = None
+      return result
+    return f
+
+  if requirement == DROP_PASS_STDOUT:
+    def f(result):
+      if not result.has_unexpected_output:
+        result.output.stdout = None
+        result.output.stderr = None
+      return result
+    return f
+
+
 class TestProc(object):
   def __init__(self):
     self._prev_proc = None
     self._next_proc = None
+    self._requirement = DROP_RESULT
+    self._prev_requirement = None
+    self._reduce_result = lambda result: result
 
   def connect_to(self, next_proc):
     """Puts `next_proc` after itself in the chain."""
@@ -47,6 +81,17 @@ class TestProc(object):
       self._prev_proc._next_proc = self._next_proc
     if self._next_proc:
       self._next_proc._prev_proc = self._prev_proc
+
+  def setup(self, requirement=DROP_RESULT):
+    """
+    Method called by previous processor or processor pipeline creator to let
+    the processors know what part of the result can be ignored.
+    """
+    self._prev_requirement = requirement
+    if self._next_proc:
+      self._next_proc.setup(max(requirement, self._requirement))
+    if self._prev_requirement < self._requirement:
+      self._reduce_result = get_reduce_result_function(self._prev_requirement)
 
   def next_test(self, test):
     """
@@ -74,12 +119,15 @@ class TestProc(object):
 
   def _send_result(self, test, result):
     """Helper method for sending result to the previous processor."""
+    result = self._reduce_result(result)
     self._prev_proc.result_for(test, result)
 
 
 
 class TestProcObserver(TestProc):
   """Processor used for observing the data."""
+  def __init__(self):
+    super(TestProcObserver, self).__init__()
 
   def next_test(self, test):
     self._on_next_test(test)

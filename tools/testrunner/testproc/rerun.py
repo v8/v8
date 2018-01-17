@@ -11,6 +11,8 @@ from .result import RerunResult
 class RerunProc(base.TestProcProducer):
   def __init__(self, rerun_max, rerun_max_total=None):
     super(RerunProc, self).__init__('Rerun')
+    self._requirement = base.DROP_OUTPUT
+
     self._rerun = {}
     self._results = collections.defaultdict(list)
     self._rerun_max = rerun_max
@@ -49,7 +51,7 @@ class RerunProc(base.TestProcProducer):
             result.has_unexpected_output)
 
   def _send_next_subtest(self, test, run=0):
-    subtest = self._create_subtest(test, str(run + 1))
+    subtest = self._create_subtest(test, str(run + 1), keep_output=(run != 0))
     self._send_test(subtest)
 
   def _finalize_test(self, test):
