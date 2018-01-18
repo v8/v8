@@ -2658,6 +2658,7 @@ class AlwaysAllocateScope {
   Heap* heap_;
 };
 
+// The CodeSpaceMemoryModificationScope can only be used by the main thread.
 class CodeSpaceMemoryModificationScope {
  public:
   explicit inline CodeSpaceMemoryModificationScope(Heap* heap);
@@ -2667,6 +2668,9 @@ class CodeSpaceMemoryModificationScope {
   Heap* heap_;
 };
 
+// The CodePageMemoryModificationScope does not check if tansitions to
+// writeable and back to executable are actually allowed, i.e. the MemoryChunk
+// was registered to be executable. It can be used by concurrent threads.
 class CodePageMemoryModificationScope {
  public:
   explicit inline CodePageMemoryModificationScope(MemoryChunk* chunk);
