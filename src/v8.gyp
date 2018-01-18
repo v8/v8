@@ -2591,7 +2591,7 @@
     },
     {
       'target_name': 'v8_monolith',
-      'type': 'static_library',
+      'type': 'none',
       'direct_dependent_settings': {
         'include_dirs': [
           '../include',
@@ -2604,8 +2604,8 @@
             '../tools/node/build_gn.py',
           ],
           'outputs': [
-            '<(INTERMEDIATE_DIR)/obj/libv8_monolith.a',
-            '<(INTERMEDIATE_DIR)/args.gn',
+            '<(INTERMEDIATE_DIR)/gn/obj/libv8_monolith.a',
+            '<(INTERMEDIATE_DIR)/gn/args.gn',
           ],
           'action': [
             '../tools/node/build_gn.py',
