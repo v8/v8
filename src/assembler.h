@@ -635,7 +635,6 @@ class RelocInfo {
 class RelocInfoWriter BASE_EMBEDDED {
  public:
   RelocInfoWriter() : pos_(nullptr), last_pc_(nullptr) {}
-  RelocInfoWriter(byte* pos, byte* pc) : pos_(pos), last_pc_(pc) {}
 
   byte* pos() const { return pos_; }
   byte* last_pc() const { return last_pc_; }
@@ -651,10 +650,7 @@ class RelocInfoWriter BASE_EMBEDDED {
 
   // Max size (bytes) of a written RelocInfo. Longest encoding is
   // ExtraTag, VariableLengthPCJump, ExtraTag, pc_delta, data_delta.
-  // On ia32 and arm this is 1 + 4 + 1 + 1 + 4 = 11.
-  // On x64 this is 1 + 4 + 1 + 1 + 8 == 15;
-  // Here we use the maximum of the two.
-  static const int kMaxSize = 15;
+  static constexpr int kMaxSize = 1 + 4 + 1 + 1 + kPointerSize;
 
  private:
   inline uint32_t WriteLongPCJump(uint32_t pc_delta);
@@ -669,7 +665,6 @@ class RelocInfoWriter BASE_EMBEDDED {
 
   byte* pos_;
   byte* last_pc_;
-  RelocInfo::Mode last_mode_;
 
   DISALLOW_COPY_AND_ASSIGN(RelocInfoWriter);
 };

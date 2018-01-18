@@ -449,7 +449,6 @@ void RelocInfoWriter::Write(const RelocInfo* rinfo) {
     }
   }
   last_pc_ = rinfo->pc();
-  last_mode_ = rmode;
 #ifdef DEBUG
   DCHECK_LE(begin_pos - pos_, kMaxSize);
 #endif
