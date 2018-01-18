@@ -55,8 +55,6 @@ namespace internal {
     "Should not directly enter OSR-compiled function")                         \
   V(kStackAccessBelowStackPointer, "Stack access below stack pointer")         \
   V(kStackFrameTypesMustMatch, "Stack frame types must match")                 \
-  V(kTheCurrentStackPointerIsBelowCsp,                                         \
-    "The current stack pointer is below csp")                                  \
   V(kTheStackWasCorruptedByMacroAssemblerCall,                                 \
     "The stack was corrupted by MacroAssembler::Call()")                       \
   V(kUnalignedCellInWriteBarrier, "Unaligned cell in write barrier")           \

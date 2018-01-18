@@ -286,7 +286,7 @@ void Clobber(MacroAssembler* masm, RegList reg_list, uint64_t const value) {
   for (unsigned i = 0; i < kNumberOfRegisters; i++) {
     if (reg_list & (1UL << i)) {
       Register xn = Register::Create(i, kXRegSizeInBits);
-      // We should never write into csp here.
+      // We should never write into sp here.
       CHECK(!xn.Is(sp));
       if (!xn.IsZero()) {
         if (!first.IsValid()) {
@@ -366,7 +366,7 @@ void RegisterDump::Dump(MacroAssembler* masm) {
   // Load the address where we will dump the state.
   __ Mov(dump_base, reinterpret_cast<uint64_t>(&dump_));
 
-  // Dump the stack pointer (csp and wcsp).
+  // Dump the stack pointer (sp and wsp).
   // The stack pointer cannot be stored directly; it needs to be moved into
   // another register first. Also, we pushed four X registers, so we need to
   // compensate here.
