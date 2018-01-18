@@ -6,4 +6,5 @@
 
 var a = new Uint8Array(1024*1024);
 %ArrayBufferNeuter(a.buffer);
-assertThrows(() => new Uint8Array(a), TypeError);
+var b = new Uint8Array(a);
+assertEquals(0, b.length);
