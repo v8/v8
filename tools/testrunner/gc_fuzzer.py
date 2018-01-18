@@ -71,6 +71,8 @@ class GCFuzzer(base_runner.BaseTestRunner):
     parser.add_option("--fuzzer-random-seed", default=0,
                       help="Default seed for initializing fuzzer random "
                       "generator")
+    parser.add_option("--stress-marking", default=False, action="store_true",
+                      help="Enable stress-marking flag")
     parser.add_option("--stress-compaction", default=False, action="store_true",
                       help="Enable stress_compaction_percentage flag")
 
