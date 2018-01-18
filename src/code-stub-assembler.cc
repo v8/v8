@@ -1265,6 +1265,15 @@ Node* CodeStubAssembler::HasInstanceType(Node* object,
   return InstanceTypeEqual(LoadInstanceType(object), instance_type);
 }
 
+TNode<BoolT> CodeStubAssembler::HasInitialArrayIteratorPrototypeMap(
+    TNode<Context> native_context) {
+  TNode<Map> arr_it_proto_map = LoadMap(CAST(LoadContextElement(
+      native_context, Context::INITIAL_ARRAY_ITERATOR_PROTOTYPE_INDEX)));
+  TNode<Map> initial_map = CAST(LoadContextElement(
+      native_context, Context::INITIAL_ARRAY_ITERATOR_PROTOTYPE_MAP_INDEX));
+  return WordEqual(arr_it_proto_map, initial_map);
+}
+
 Node* CodeStubAssembler::DoesntHaveInstanceType(Node* object,
                                                 InstanceType instance_type) {
   return Word32NotEqual(LoadInstanceType(object), Int32Constant(instance_type));

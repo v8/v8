@@ -289,12 +289,8 @@ void CallOrConstructBuiltinsAssembler::CallOrConstructWithSpread(
       &if_runtime);
 
   // Check that the map of the initial array iterator hasn't changed.
-  Node* native_context = LoadNativeContext(context);
-  Node* arr_it_proto_map = LoadMap(CAST(LoadContextElement(
-      native_context, Context::INITIAL_ARRAY_ITERATOR_PROTOTYPE_INDEX)));
-  Node* initial_map = LoadContextElement(
-      native_context, Context::INITIAL_ARRAY_ITERATOR_PROTOTYPE_MAP_INDEX);
-  GotoIfNot(WordEqual(arr_it_proto_map, initial_map), &if_runtime);
+  TNode<Context> native_context = LoadNativeContext(context);
+  GotoIfNot(HasInitialArrayIteratorPrototypeMap(native_context), &if_runtime);
 
   Node* kind = LoadMapElementsKind(spread_map);
 

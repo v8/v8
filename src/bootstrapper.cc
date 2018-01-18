@@ -3265,6 +3265,9 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
                         BuiltinFunctionId::kMapSize);
     SimpleInstallFunction(prototype, "values", Builtins::kMapPrototypeValues, 0,
                           true);
+
+    native_context()->set_initial_map_prototype_map(prototype->map());
+
     InstallSpeciesGetter(js_map_fun);
   }
 
@@ -3316,6 +3319,9 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
     JSObject::AddProperty(prototype, factory->keys_string(), values, DONT_ENUM);
     JSObject::AddProperty(prototype, factory->iterator_symbol(), values,
                           DONT_ENUM);
+
+    native_context()->set_initial_set_prototype_map(prototype->map());
+
     InstallSpeciesGetter(js_set_fun);
   }
 
@@ -3382,13 +3388,16 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
                           Builtins::kWeakMapPrototypeDelete, 1, true);
     SimpleInstallFunction(prototype, "get", Builtins::kWeakMapGet, 1, true);
     SimpleInstallFunction(prototype, "has", Builtins::kWeakMapHas, 1, true);
-    SimpleInstallFunction(prototype, "set", Builtins::kWeakMapPrototypeSet, 2,
-                          true);
+    Handle<JSFunction> weakmap_set = SimpleInstallFunction(
+        prototype, "set", Builtins::kWeakMapPrototypeSet, 2, true);
+    native_context()->set_weakmap_set(*weakmap_set);
 
     JSObject::AddProperty(
         prototype, factory->to_string_tag_symbol(),
         factory->NewStringFromAsciiChecked("WeakMap"),
         static_cast<PropertyAttributes>(DONT_ENUM | READ_ONLY));
+
+    native_context()->set_initial_weakmap_prototype_map(prototype->map());
   }
 
   {  // -- W e a k S e t
@@ -3410,13 +3419,16 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
     SimpleInstallFunction(prototype, "delete",
                           Builtins::kWeakSetPrototypeDelete, 1, true);
     SimpleInstallFunction(prototype, "has", Builtins::kWeakSetHas, 1, true);
-    SimpleInstallFunction(prototype, "add", Builtins::kWeakSetPrototypeAdd, 1,
-                          true);
+    Handle<JSFunction> weakset_add = SimpleInstallFunction(
+        prototype, "add", Builtins::kWeakSetPrototypeAdd, 1, true);
+    native_context()->set_weakset_add(*weakset_add);
 
     JSObject::AddProperty(
         prototype, factory->to_string_tag_symbol(),
         factory->NewStringFromAsciiChecked("WeakSet"),
         static_cast<PropertyAttributes>(DONT_ENUM | READ_ONLY));
+
+    native_context()->set_initial_weakset_prototype_map(prototype->map());
   }
 
   {  // -- P r o x y
