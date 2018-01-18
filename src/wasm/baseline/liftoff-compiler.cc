@@ -115,23 +115,17 @@ class LiftoffCompiler {
       : asm_(liftoff_asm),
         call_desc_(call_desc),
         env_(env),
-        min_size_(env_->module->initial_pages * wasm::kWasmPageSize),
-        max_size_((env_->module->has_maximum_pages
-                       ? env_->module->maximum_pages
-                       : wasm::kV8MaxWasmMemoryPages) *
+        min_size_(uint64_t{env_->module->initial_pages} * wasm::kWasmPageSize),
+        max_size_(uint64_t{env_->module->has_maximum_pages
+                               ? env_->module->maximum_pages
+                               : wasm::kV8MaxWasmMemoryPages} *
                   wasm::kWasmPageSize),
         runtime_exception_support_(runtime_exception_support),
         source_position_table_builder_(source_position_table_builder),
         protected_instructions_(protected_instructions),
         compilation_zone_(compilation_zone),
         codegen_zone_(codegen_zone),
-        safepoint_table_builder_(compilation_zone_) {
-    // Check for overflow in max_size_.
-    DCHECK_EQ(max_size_, uint64_t{env_->module->has_maximum_pages
-                                      ? env_->module->maximum_pages
-                                      : wasm::kV8MaxWasmMemoryPages} *
-                             wasm::kWasmPageSize);
-  }
+        safepoint_table_builder_(compilation_zone_) {}
 
   bool ok() const { return ok_; }
 
@@ -1012,8 +1006,8 @@ class LiftoffCompiler {
   compiler::CallDescriptor* const call_desc_;
   compiler::ModuleEnv* const env_;
   // {min_size_} and {max_size_} are cached values computed from the ModuleEnv.
-  const uint32_t min_size_;
-  const uint32_t max_size_;
+  const uint64_t min_size_;
+  const uint64_t max_size_;
   const compiler::RuntimeExceptionSupport runtime_exception_support_;
   bool ok_ = true;
   std::vector<OutOfLineCode> out_of_line_code_;
