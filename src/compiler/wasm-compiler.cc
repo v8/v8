@@ -2509,6 +2509,20 @@ Node* WasmGraphBuilder::CallIndirect(uint32_t sig_index, Node** args,
   Node* size = function_tables_[table_index].size;
   Node* in_bounds = graph()->NewNode(machine->Uint32LessThan(), key, size);
   TrapIfFalse(wasm::kTrapFuncInvalid, in_bounds, position);
+
+  // Mask the key to prevent SSCA.
+  if (untrusted_code_mitigations_) {
+    // mask = ((key - size) & ~key) >> 31
+    Node* neg_key =
+        graph()->NewNode(machine->Word32Xor(), key, Int32Constant(-1));
+    Node* masked_diff = graph()->NewNode(
+        machine->Word32And(), graph()->NewNode(machine->Int32Sub(), key, size),
+        neg_key);
+    Node* mask =
+        graph()->NewNode(machine->Word32Sar(), masked_diff, Int32Constant(31));
+    key = graph()->NewNode(machine->Word32And(), key, mask);
+  }
+
   Node* table_address = function_tables_[table_index].table_addr;
   Node* table = graph()->NewNode(
       jsgraph()->machine()->Load(MachineType::AnyTagged()), table_address,

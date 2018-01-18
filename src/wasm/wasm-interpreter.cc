@@ -987,12 +987,34 @@ class CodeMap {
   }
 
   InterpreterCode* GetIndirectCode(uint32_t table_index, uint32_t entry_index) {
+    uint32_t saved_index;
+    USE(saved_index);
     if (table_index >= module_->function_tables.size()) return nullptr;
+    // Mask table index for SSCA mitigation.
+    saved_index = table_index;
+    table_index &=
+        static_cast<int32_t>((table_index - module_->function_tables.size()) &
+                             ~static_cast<int32_t>(table_index)) >>
+        31;
+    DCHECK_EQ(table_index, saved_index);
     const WasmIndirectFunctionTable* table =
         &module_->function_tables[table_index];
     if (entry_index >= table->values.size()) return nullptr;
+    // Mask entry_index for SSCA mitigation.
+    saved_index = entry_index;
+    entry_index &= static_cast<int32_t>((entry_index - table->values.size()) &
+                                        ~static_cast<int32_t>(entry_index)) >>
+                   31;
+    DCHECK_EQ(entry_index, saved_index);
     uint32_t index = table->values[entry_index];
     if (index >= interpreter_code_.size()) return nullptr;
+    // Mask index for SSCA mitigation.
+    saved_index = index;
+    index &= static_cast<int32_t>((index - interpreter_code_.size()) &
+                                  ~static_cast<int32_t>(index)) >>
+             31;
+    DCHECK_EQ(index, saved_index);
+
     return GetCode(index);
   }
 
