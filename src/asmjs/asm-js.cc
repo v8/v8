@@ -21,8 +21,7 @@
 #include "src/parsing/scanner-character-streams.h"
 #include "src/parsing/scanner.h"
 
-#include "src/wasm/module-compiler.h"
-#include "src/wasm/module-decoder.h"
+#include "src/wasm/wasm-engine.h"
 #include "src/wasm/wasm-js.h"
 #include "src/wasm/wasm-module-builder.h"
 #include "src/wasm/wasm-objects-inl.h"
@@ -284,11 +283,12 @@ CompilationJob::Status AsmJsCompilationJob::FinalizeJobImpl(Isolate* isolate) {
 
   wasm::ErrorThrower thrower(isolate, "AsmJs::Compile");
   Handle<WasmModuleObject> compiled =
-      SyncCompileTranslatedAsmJs(
-          isolate, &thrower,
-          wasm::ModuleWireBytes(module_->begin(), module_->end()),
-          parse_info()->script(),
-          Vector<const byte>(asm_offsets_->begin(), asm_offsets_->size()))
+      isolate->wasm_engine()
+          ->SyncCompileTranslatedAsmJs(
+              isolate, &thrower,
+              wasm::ModuleWireBytes(module_->begin(), module_->end()),
+              parse_info()->script(),
+              Vector<const byte>(asm_offsets_->begin(), asm_offsets_->size()))
           .ToHandleChecked();
   DCHECK(!thrower.error());
   compile_time_ = compile_timer.Elapsed().InMillisecondsF();
@@ -389,7 +389,8 @@ MaybeHandle<Object> AsmJs::InstantiateAsmWasm(Isolate* isolate,
 
   wasm::ErrorThrower thrower(isolate, "AsmJs::Instantiate");
   MaybeHandle<Object> maybe_module_object =
-      wasm::SyncInstantiate(isolate, &thrower, module, foreign, memory);
+      isolate->wasm_engine()->SyncInstantiate(isolate, &thrower, module,
+                                              foreign, memory);
   if (maybe_module_object.is_null()) {
     // An exception caused by the module start function will be set as pending
     // and bypass the {ErrorThrower}, this happens in case of a stack overflow.

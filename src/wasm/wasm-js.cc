@@ -16,7 +16,6 @@
 #include "src/objects.h"
 #include "src/parsing/parse-info.h"
 #include "src/trap-handler/trap-handler.h"
-#include "src/wasm/module-compiler.h"
 #include "src/wasm/wasm-api.h"
 #include "src/wasm/wasm-engine.h"
 #include "src/wasm/wasm-limits.h"
@@ -165,7 +164,7 @@ void WebAssemblyCompile(const v8::FunctionCallbackInfo<v8::Value>& args) {
   }
   i::Handle<i::JSPromise> promise = Utils::OpenHandle(*resolver->GetPromise());
   // Asynchronous compilation handles copying wire bytes if necessary.
-  i::wasm::AsyncCompile(i_isolate, promise, bytes, is_shared);
+  i_isolate->wasm_engine()->AsyncCompile(i_isolate, promise, bytes, is_shared);
 }
 
 // WebAssembly.validate(bytes) -> bool
@@ -233,10 +232,12 @@ void WebAssemblyModule(const v8::FunctionCallbackInfo<v8::Value>& args) {
     memcpy(copy.get(), bytes.start(), bytes.length());
     i::wasm::ModuleWireBytes bytes_copy(copy.get(),
                                         copy.get() + bytes.length());
-    module_obj = i::wasm::SyncCompile(i_isolate, &thrower, bytes_copy);
+    module_obj =
+        i_isolate->wasm_engine()->SyncCompile(i_isolate, &thrower, bytes_copy);
   } else {
     // The wire bytes are not shared, OK to use them directly.
-    module_obj = i::wasm::SyncCompile(i_isolate, &thrower, bytes);
+    module_obj =
+        i_isolate->wasm_engine()->SyncCompile(i_isolate, &thrower, bytes);
   }
 
   if (module_obj.is_null()) return;
@@ -312,9 +313,9 @@ MaybeLocal<Value> WebAssemblyInstantiateImpl(Isolate* isolate,
     i::Handle<i::WasmModuleObject> module_obj =
         i::Handle<i::WasmModuleObject>::cast(
             Utils::OpenHandle(Object::Cast(*module)));
-    instance_object =
-        i::wasm::SyncInstantiate(i_isolate, &thrower, module_obj, maybe_imports,
-                                 i::MaybeHandle<i::JSArrayBuffer>());
+    instance_object = i_isolate->wasm_engine()->SyncInstantiate(
+        i_isolate, &thrower, module_obj, maybe_imports,
+        i::MaybeHandle<i::JSArrayBuffer>());
   }
 
   DCHECK_EQ(instance_object.is_null(), i_isolate->has_scheduled_exception());

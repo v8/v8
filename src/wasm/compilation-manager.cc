@@ -4,6 +4,7 @@
 
 #include "src/wasm/compilation-manager.h"
 #include "src/base/template-utils.h"
+#include "src/wasm/module-compiler.h"
 
 #include "src/objects-inl.h"
 

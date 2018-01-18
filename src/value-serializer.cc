@@ -18,7 +18,7 @@
 #include "src/objects.h"
 #include "src/snapshot/code-serializer.h"
 #include "src/transitions.h"
-#include "src/wasm/module-compiler.h"
+#include "src/wasm/wasm-engine.h"
 #include "src/wasm/wasm-objects-inl.h"
 #include "src/wasm/wasm-result.h"
 #include "src/wasm/wasm-serialization.h"
@@ -1714,8 +1714,8 @@ MaybeHandle<JSObject> ValueDeserializer::ReadWasmModule() {
   }
   if (result.is_null()) {
     wasm::ErrorThrower thrower(isolate_, "ValueDeserializer::ReadWasmModule");
-    result = wasm::SyncCompile(isolate_, &thrower,
-                               wasm::ModuleWireBytes(wire_bytes));
+    result = isolate_->wasm_engine()->SyncCompile(
+        isolate_, &thrower, wasm::ModuleWireBytes(wire_bytes));
   }
   RETURN_EXCEPTION_IF_SCHEDULED_EXCEPTION(isolate_, JSObject);
   uint32_t id = next_id_++;

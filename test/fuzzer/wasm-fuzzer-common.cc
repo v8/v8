@@ -7,7 +7,6 @@
 #include "include/v8.h"
 #include "src/isolate.h"
 #include "src/objects-inl.h"
-#include "src/wasm/module-compiler.h"
 #include "src/wasm/wasm-api.h"
 #include "src/wasm/wasm-engine.h"
 #include "src/wasm/wasm-module-builder.h"
@@ -71,9 +70,10 @@ void InterpretAndExecuteModule(i::Isolate* isolate,
   ScheduledErrorThrower thrower(isolate, "WebAssembly Instantiation");
   // Try to instantiate and interpret the module_object.
   MaybeHandle<WasmInstanceObject> maybe_instance =
-      SyncInstantiate(isolate, &thrower, module_object,
-                      Handle<JSReceiver>::null(),     // imports
-                      MaybeHandle<JSArrayBuffer>());  // memory
+      isolate->wasm_engine()->SyncInstantiate(
+          isolate, &thrower, module_object,
+          Handle<JSReceiver>::null(),     // imports
+          MaybeHandle<JSArrayBuffer>());  // memory
   Handle<WasmInstanceObject> instance;
   if (!maybe_instance.ToHandle(&instance)) return;
   if (!testing::InterpretWasmModuleForTesting(isolate, instance, "main", 0,
@@ -82,9 +82,10 @@ void InterpretAndExecuteModule(i::Isolate* isolate,
   }
 
   // Instantiate and execute the module_object.
-  maybe_instance = SyncInstantiate(isolate, &thrower, module_object,
-                                   Handle<JSReceiver>::null(),     // imports
-                                   MaybeHandle<JSArrayBuffer>());  // memory
+  maybe_instance = isolate->wasm_engine()->SyncInstantiate(
+      isolate, &thrower, module_object,
+      Handle<JSReceiver>::null(),     // imports
+      MaybeHandle<JSArrayBuffer>());  // memory
   if (!maybe_instance.ToHandle(&instance)) return;
 
   testing::RunWasmModuleForTesting(isolate, instance, 0, nullptr);
@@ -241,7 +242,8 @@ int WasmExecutionFuzzer::FuzzWasmModule(const uint8_t* data, size_t size,
   MaybeHandle<WasmModuleObject> compiled_module;
   {
     FlagScope<bool> no_liftoff(&FLAG_liftoff, false);
-    compiled_module = SyncCompile(i_isolate, &interpreter_thrower, wire_bytes);
+    compiled_module = i_isolate->wasm_engine()->SyncCompile(
+        i_isolate, &interpreter_thrower, wire_bytes);
   }
   bool compiles = !compiled_module.is_null();
 
@@ -260,9 +262,10 @@ int WasmExecutionFuzzer::FuzzWasmModule(const uint8_t* data, size_t size,
   int32_t result_interpreter;
   bool possible_nondeterminism = false;
   {
-    MaybeHandle<WasmInstanceObject> interpreter_instance = SyncInstantiate(
-        i_isolate, &interpreter_thrower, compiled_module.ToHandleChecked(),
-        MaybeHandle<JSReceiver>(), MaybeHandle<JSArrayBuffer>());
+    MaybeHandle<WasmInstanceObject> interpreter_instance =
+        i_isolate->wasm_engine()->SyncInstantiate(
+            i_isolate, &interpreter_thrower, compiled_module.ToHandleChecked(),
+            MaybeHandle<JSReceiver>(), MaybeHandle<JSArrayBuffer>());
 
     // Ignore instantiation failure.
     if (interpreter_thrower.error()) {
@@ -286,9 +289,10 @@ int WasmExecutionFuzzer::FuzzWasmModule(const uint8_t* data, size_t size,
   int32_t result_turbofan;
   {
     ErrorThrower compiler_thrower(i_isolate, "Turbofan");
-    MaybeHandle<WasmInstanceObject> compiled_instance = SyncInstantiate(
-        i_isolate, &compiler_thrower, compiled_module.ToHandleChecked(),
-        MaybeHandle<JSReceiver>(), MaybeHandle<JSArrayBuffer>());
+    MaybeHandle<WasmInstanceObject> compiled_instance =
+        i_isolate->wasm_engine()->SyncInstantiate(
+            i_isolate, &compiler_thrower, compiled_module.ToHandleChecked(),
+            MaybeHandle<JSReceiver>(), MaybeHandle<JSArrayBuffer>());
 
     DCHECK(!compiler_thrower.error());
     result_turbofan = testing::CallWasmFunctionForTesting(
@@ -315,9 +319,8 @@ int WasmExecutionFuzzer::FuzzWasmModule(const uint8_t* data, size_t size,
     ErrorThrower compiler_thrower(i_isolate, "Liftoff");
     // Re-compile with Liftoff.
     MaybeHandle<WasmInstanceObject> compiled_instance =
-        SyncCompileAndInstantiate(i_isolate, &compiler_thrower, wire_bytes,
-                                  MaybeHandle<JSReceiver>(),
-                                  MaybeHandle<JSArrayBuffer>());
+        testing::CompileAndInstantiateForTesting(i_isolate, &compiler_thrower,
+                                                 wire_bytes);
     DCHECK(!compiler_thrower.error());
     result_liftoff = testing::CallWasmFunctionForTesting(
         i_isolate, compiled_instance.ToHandleChecked(), &compiler_thrower,

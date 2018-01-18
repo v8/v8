@@ -9,11 +9,12 @@
 
 #include "src/handles.h"
 #include "src/isolate.h"
-#include "src/wasm/module-compiler.h"
 
 namespace v8 {
 namespace internal {
 namespace wasm {
+
+class AsyncCompileJob;
 
 // The CompilationManager manages a list of active WebAssembly compile jobs. The
 // manager owns the memory of the compile jobs and can trigger the abortion of

@@ -7606,8 +7606,9 @@ MaybeLocal<WasmCompiledModule> WasmCompiledModule::Compile(Isolate* isolate,
   if (!i::wasm::IsWasmCodegenAllowed(i_isolate, i_isolate->native_context())) {
     return MaybeLocal<WasmCompiledModule>();
   }
-  i::MaybeHandle<i::JSObject> maybe_compiled = i::wasm::SyncCompile(
-      i_isolate, &thrower, i::wasm::ModuleWireBytes(start, start + length));
+  i::MaybeHandle<i::JSObject> maybe_compiled =
+      i_isolate->wasm_engine()->SyncCompile(
+          i_isolate, &thrower, i::wasm::ModuleWireBytes(start, start + length));
   if (maybe_compiled.is_null()) return MaybeLocal<WasmCompiledModule>();
   return Local<WasmCompiledModule>::Cast(
       Utils::ToLocal(maybe_compiled.ToHandleChecked()));
@@ -7666,10 +7667,10 @@ void WasmModuleObjectBuilderStreaming::Finish() {
   }
   // AsyncCompile makes its own copy of the wire bytes. This inefficiency
   // will be resolved when we move to true streaming compilation.
-  i::wasm::AsyncCompile(reinterpret_cast<i::Isolate*>(isolate_),
-                        Utils::OpenHandle(*promise_.Get(isolate_)),
-                        {wire_bytes.get(), wire_bytes.get() + total_size_},
-                        false);
+  auto i_isolate = reinterpret_cast<i::Isolate*>(isolate_);
+  i_isolate->wasm_engine()->AsyncCompile(
+      i_isolate, Utils::OpenHandle(*promise_.Get(isolate_)),
+      {wire_bytes.get(), wire_bytes.get() + total_size_}, false);
 }
 
 void WasmModuleObjectBuilderStreaming::Abort(Local<Value> exception) {
