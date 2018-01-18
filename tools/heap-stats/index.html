@@ -13,6 +13,7 @@ found in the LICENSE file. -->
 
   <link rel="import" href="details-selection.html">
   <link rel="import" href="global-timeline.html">
+  <link rel="import" href="histogram-viewer.html">
   <link rel="import" href="trace-file-reader.html">
 
   <style type="text/css">
@@ -28,7 +29,7 @@ body {
 
 'use strict';
 
-google.charts.load('current', {'packages':['line', 'corechart']});
+google.charts.load('current', {'packages':['line', 'corechart', 'bar']});
 
 function $(id) { return document.querySelector(id); }
 
@@ -47,15 +48,16 @@ function globalDataChanged(e) {
   state.selection = null;
   $('#global-timeline').selection = state.selection;
   $('#global-timeline').data = state.data;
-  $('#type-details').selection = state.selection;
-  $('#type-details').data = state.data;
+  $('#histogram-viewer').selection = state.selection;
+  $('#histogram-viewer').data = state.data;
   $('#details-selection').data = state.data;
 }
 
 function globalSelectionChangedA(e) {
   state.selection = e.detail;
+  console.log(state.selection);
   $('#global-timeline').selection = state.selection;
-  $('#type-details').selection = state.selection;
+  $('#histogram-viewer').selection = state.selection;
 }
 
   </script>
@@ -82,7 +84,7 @@ function globalSelectionChangedA(e) {
   </p>
   <details-selection id="details-selection" onchange="globalSelectionChangedA(event)"></details-selection>
   <global-timeline id="global-timeline"></global-timeline>
-  <type-details id="type-details"></type-details>
+  <histogram-viewer id="histogram-viewer"></histogram-viewer>
 </body>
 
 </html>
