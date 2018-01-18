@@ -1660,8 +1660,8 @@ RUNTIME_FUNCTION(Runtime_RegExpSplit) {
                                                  factory->undefined_value()));
 
     if (result->IsNull(isolate)) {
-      string_index = RegExpUtils::AdvanceStringIndex(isolate, string,
-                                                     string_index, unicode);
+      string_index = static_cast<uint32_t>(RegExpUtils::AdvanceStringIndex(
+          isolate, string, string_index, unicode));
       continue;
     }
 
@@ -1675,8 +1675,8 @@ RUNTIME_FUNCTION(Runtime_RegExpSplit) {
     const uint32_t end =
         std::min(PositiveNumberToUint32(*last_index_obj), length);
     if (end == prev_string_index) {
-      string_index = RegExpUtils::AdvanceStringIndex(isolate, string,
-                                                     string_index, unicode);
+      string_index = static_cast<uint32_t>(RegExpUtils::AdvanceStringIndex(
+          isolate, string, string_index, unicode));
       continue;
     }
 
