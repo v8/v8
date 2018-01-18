@@ -4047,7 +4047,7 @@ Reduction JSCallReducer::ReduceArrayPrototypeShift(Node* node) {
     return Replace(value);
 }
 
-// ES section #sec-string.prototype.charat
+// ES6 section 21.1.3.1 String.prototype.charAt ( pos )
 Reduction JSCallReducer::ReduceStringPrototypeCharAt(Node* node) {
   DCHECK_EQ(IrOpcode::kJSCall, node->opcode());
   CallParameters const& p = CallParametersOf(node->op());
@@ -4060,32 +4060,52 @@ Reduction JSCallReducer::ReduceStringPrototypeCharAt(Node* node) {
   Node* effect = NodeProperties::GetEffectInput(node);
   Node* control = NodeProperties::GetControlInput(node);
 
-  // Ensure that the {receiver} is actually a String.
   receiver = effect = graph()->NewNode(simplified()->CheckString(p.feedback()),
                                        receiver, effect, control);
+  if (node->op()->ValueInputCount() >= 3) {
+    index = effect = graph()->NewNode(simplified()->CheckSmi(p.feedback()),
+                                      NodeProperties::GetValueInput(node, 2),
+                                      effect, control);
+    // Map -0 and NaN to 0 (as per ToInteger), and the values in
+    // the [-2^31,-1] range to the [2^31,2^32-1] range, which will
+    // be considered out-of-bounds as well, because of the maximal
+    // String length limit in V8.
+    STATIC_ASSERT(String::kMaxLength <= kMaxInt);
+    index = graph()->NewNode(simplified()->NumberToUint32(), index);
+  }
 
   // Determine the {receiver} length.
   Node* receiver_length =
       graph()->NewNode(simplified()->StringLength(), receiver);
 
-  // Check that the {index} is within range (if specified).
-  if (node->op()->ValueInputCount() >= 3) {
-    index = effect = graph()->NewNode(simplified()->CheckBounds(p.feedback()),
-                                      NodeProperties::GetValueInput(node, 2),
-                                      receiver_length, effect, control);
-  }
+  // Check if {index} is less than {receiver} length.
+  Node* check =
+      graph()->NewNode(simplified()->NumberLessThan(), index, receiver_length);
+  Node* branch =
+      graph()->NewNode(common()->Branch(BranchHint::kTrue), check, control);
 
   // Return the character from the {receiver} as single character string.
+  Node* if_true = graph()->NewNode(common()->IfTrue(), branch);
+
   Node* masked_index = graph()->NewNode(simplified()->MaskIndexWithBound(),
                                         index, receiver_length);
-  Node* value = graph()->NewNode(simplified()->StringCharAt(), receiver,
-                                 masked_index, control);
+
+  Node* vtrue = graph()->NewNode(simplified()->StringCharAt(), receiver,
+                                 masked_index, if_true);
+
+  // Return the empty string otherwise.
+  Node* if_false = graph()->NewNode(common()->IfFalse(), branch);
+  Node* vfalse = jsgraph()->EmptyStringConstant();
+
+  control = graph()->NewNode(common()->Merge(2), if_true, if_false);
+  Node* value = graph()->NewNode(
+      common()->Phi(MachineRepresentation::kTagged, 2), vtrue, vfalse, control);
 
   ReplaceWithValue(node, value, effect, control);
   return Replace(value);
 }
 
-// ES section #sec-string.prototype.charcodeat
+// ES6 section 21.1.3.2 String.prototype.charCodeAt ( pos )
 Reduction JSCallReducer::ReduceStringPrototypeCharCodeAt(Node* node) {
   DCHECK_EQ(IrOpcode::kJSCall, node->opcode());
   CallParameters const& p = CallParametersOf(node->op());
@@ -4098,26 +4118,47 @@ Reduction JSCallReducer::ReduceStringPrototypeCharCodeAt(Node* node) {
   Node* effect = NodeProperties::GetEffectInput(node);
   Node* control = NodeProperties::GetControlInput(node);
 
-  // Ensure that the {receiver} is actually a String.
   receiver = effect = graph()->NewNode(simplified()->CheckString(p.feedback()),
                                        receiver, effect, control);
+  if (node->op()->ValueInputCount() >= 3) {
+    index = effect = graph()->NewNode(simplified()->CheckSmi(p.feedback()),
+                                      NodeProperties::GetValueInput(node, 2),
+                                      effect, control);
+
+    // Map -0 and NaN to 0 (as per ToInteger), and the values in
+    // the [-2^31,-1] range to the [2^31,2^32-1] range, which will
+    // be considered out-of-bounds as well, because of the maximal
+    // String length limit in V8.
+    STATIC_ASSERT(String::kMaxLength <= kMaxInt);
+    index = graph()->NewNode(simplified()->NumberToUint32(), index);
+  }
 
   // Determine the {receiver} length.
   Node* receiver_length =
       graph()->NewNode(simplified()->StringLength(), receiver);
 
-  // Check that the {index} is within range (if specified).
-  if (node->op()->ValueInputCount() >= 3) {
-    index = effect = graph()->NewNode(simplified()->CheckBounds(p.feedback()),
-                                      NodeProperties::GetValueInput(node, 2),
-                                      receiver_length, effect, control);
-  }
+  // Check if {index} is less than {receiver} length.
+  Node* check =
+      graph()->NewNode(simplified()->NumberLessThan(), index, receiver_length);
+  Node* branch =
+      graph()->NewNode(common()->Branch(BranchHint::kTrue), check, control);
 
   // Load the character from the {receiver}.
+  Node* if_true = graph()->NewNode(common()->IfTrue(), branch);
+
   Node* masked_index = graph()->NewNode(simplified()->MaskIndexWithBound(),
                                         index, receiver_length);
-  Node* value = graph()->NewNode(simplified()->StringCharCodeAt(), receiver,
-                                 masked_index, control);
+
+  Node* vtrue = graph()->NewNode(simplified()->StringCharCodeAt(), receiver,
+                                 masked_index, if_true);
+
+  // Return NaN otherwise.
+  Node* if_false = graph()->NewNode(common()->IfFalse(), branch);
+  Node* vfalse = jsgraph()->NaNConstant();
+
+  control = graph()->NewNode(common()->Merge(2), if_true, if_false);
+  Node* value = graph()->NewNode(
+      common()->Phi(MachineRepresentation::kTagged, 2), vtrue, vfalse, control);
 
   ReplaceWithValue(node, value, effect, control);
   return Replace(value);
