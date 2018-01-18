@@ -176,13 +176,14 @@ class V8_EXPORT_PRIVATE EffectControlLinearizer {
   Node* IsElementsKindGreaterThan(Node* kind, ElementsKind reference_kind);
 
   Node* ChangeInt32ToSmi(Node* value);
+  Node* ChangeInt32ToIntPtr(Node* value);
   Node* ChangeIntPtrToInt32(Node* value);
   Node* ChangeUint32ToUintPtr(Node* value);
   Node* ChangeUint32ToSmi(Node* value);
   Node* ChangeSmiToIntPtr(Node* value);
   Node* ChangeSmiToInt32(Node* value);
   Node* ObjectIsSmi(Node* value);
-  Node* LoadFromString(Node* receiver, Node* position, Node* is_one_byte);
+  Node* LoadFromSeqString(Node* receiver, Node* position, Node* is_one_byte);
 
   Node* SmiMaxValueConstant();
   Node* SmiShiftBitsConstant();

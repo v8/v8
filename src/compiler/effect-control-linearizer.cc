@@ -2702,15 +2702,139 @@ Node* EffectControlLinearizer::LowerStringCharCodeAt(Node* node) {
   Node* receiver = node->InputAt(0);
   Node* position = node->InputAt(1);
 
-  Callable const callable =
-      Builtins::CallableFor(isolate(), Builtins::kStringCharCodeAt);
-  Operator::Properties properties = Operator::kNoThrow | Operator::kNoWrite;
-  CallDescriptor::Flags flags = CallDescriptor::kNoFlags;
-  CallDescriptor* desc = Linkage::GetStubCallDescriptor(
-      isolate(), graph()->zone(), callable.descriptor(), 0, flags, properties,
-      MachineType::TaggedSigned());
-  return __ Call(desc, __ HeapConstant(callable.code()), receiver, position,
-                 __ NoContextConstant());
+  // We need a loop here to properly deal with indirect strings
+  // (SlicedString, ConsString and ThinString).
+  auto loop = __ MakeLoopLabel(MachineRepresentation::kTagged,
+                               MachineRepresentation::kWord32);
+  auto loop_next = __ MakeLabel(MachineRepresentation::kTagged,
+                                MachineRepresentation::kWord32);
+  auto loop_done = __ MakeLabel(MachineRepresentation::kWord32);
+  __ Goto(&loop, receiver, position);
+  __ Bind(&loop);
+  {
+    Node* receiver = loop.PhiAt(0);
+    Node* position = loop.PhiAt(1);
+    Node* receiver_map = __ LoadField(AccessBuilder::ForMap(), receiver);
+    Node* receiver_instance_type =
+        __ LoadField(AccessBuilder::ForMapInstanceType(), receiver_map);
+    Node* receiver_representation = __ Word32And(
+        receiver_instance_type, __ Int32Constant(kStringRepresentationMask));
+
+    // Dispatch on the current {receiver}s string representation.
+    auto if_seqstring = __ MakeLabel();
+    auto if_consstring = __ MakeLabel();
+    auto if_thinstring = __ MakeLabel();
+    auto if_externalstring = __ MakeLabel();
+    auto if_slicedstring = __ MakeLabel();
+    auto if_runtime = __ MakeDeferredLabel();
+    __ GotoIf(__ Word32Equal(receiver_representation,
+                             __ Int32Constant(kSeqStringTag)),
+              &if_seqstring);
+    __ GotoIf(__ Word32Equal(receiver_representation,
+                             __ Int32Constant(kConsStringTag)),
+              &if_consstring);
+    __ GotoIf(__ Word32Equal(receiver_representation,
+                             __ Int32Constant(kThinStringTag)),
+              &if_thinstring);
+    __ GotoIf(__ Word32Equal(receiver_representation,
+                             __ Int32Constant(kExternalStringTag)),
+              &if_externalstring);
+    __ Branch(__ Word32Equal(receiver_representation,
+                             __ Int32Constant(kSlicedStringTag)),
+              &if_slicedstring, &if_runtime);
+
+    __ Bind(&if_seqstring);
+    {
+      Node* receiver_is_onebyte = __ Word32Equal(
+          __ Word32Equal(__ Word32And(receiver_instance_type,
+                                      __ Int32Constant(kStringEncodingMask)),
+                         __ Int32Constant(kTwoByteStringTag)),
+          __ Int32Constant(0));
+      Node* result = LoadFromSeqString(receiver, position, receiver_is_onebyte);
+      __ Goto(&loop_done, result);
+    }
+
+    __ Bind(&if_thinstring);
+    {
+      Node* receiver_actual =
+          __ LoadField(AccessBuilder::ForThinStringActual(), receiver);
+      __ Goto(&loop_next, receiver_actual, position);
+    }
+
+    __ Bind(&if_consstring);
+    {
+      Node* receiver_second =
+          __ LoadField(AccessBuilder::ForConsStringSecond(), receiver);
+      __ GotoIfNot(__ WordEqual(receiver_second, __ EmptyStringConstant()),
+                   &if_runtime);
+      Node* receiver_first =
+          __ LoadField(AccessBuilder::ForConsStringFirst(), receiver);
+      __ Goto(&loop_next, receiver_first, position);
+    }
+
+    __ Bind(&if_externalstring);
+    {
+      // We need to bailout to the runtime for short external strings.
+      __ GotoIf(__ Word32Equal(
+                    __ Word32And(receiver_instance_type,
+                                 __ Int32Constant(kShortExternalStringMask)),
+                    __ Int32Constant(kShortExternalStringTag)),
+                &if_runtime);
+
+      Node* receiver_data = __ LoadField(
+          AccessBuilder::ForExternalStringResourceData(), receiver);
+
+      auto if_onebyte = __ MakeLabel();
+      auto if_twobyte = __ MakeLabel();
+      __ Branch(
+          __ Word32Equal(__ Word32And(receiver_instance_type,
+                                      __ Int32Constant(kStringEncodingMask)),
+                         __ Int32Constant(kTwoByteStringTag)),
+          &if_twobyte, &if_onebyte);
+
+      __ Bind(&if_onebyte);
+      {
+        Node* result = __ Load(MachineType::Uint8(), receiver_data,
+                               ChangeInt32ToIntPtr(position));
+        __ Goto(&loop_done, result);
+      }
+
+      __ Bind(&if_twobyte);
+      {
+        Node* result = __ Load(MachineType::Uint16(), receiver_data,
+                               ChangeInt32ToIntPtr(position));
+        __ Goto(&loop_done, result);
+      }
+    }
+
+    __ Bind(&if_slicedstring);
+    {
+      Node* receiver_offset =
+          __ LoadField(AccessBuilder::ForSlicedStringOffset(), receiver);
+      Node* receiver_parent =
+          __ LoadField(AccessBuilder::ForSlicedStringParent(), receiver);
+      __ Goto(&loop_next, receiver_parent,
+              __ Int32Add(position, ChangeSmiToInt32(receiver_offset)));
+    }
+
+    __ Bind(&if_runtime);
+    {
+      Operator::Properties properties = Operator::kNoDeopt | Operator::kNoThrow;
+      Runtime::FunctionId id = Runtime::kStringCharCodeAt;
+      CallDescriptor const* desc = Linkage::GetRuntimeCallDescriptor(
+          graph()->zone(), id, 2, properties, CallDescriptor::kNoFlags);
+      Node* result = __ Call(
+          desc, __ CEntryStubConstant(1), receiver, ChangeInt32ToSmi(position),
+          __ ExternalConstant(ExternalReference(id, isolate())),
+          __ Int32Constant(2), __ NoContextConstant());
+      __ Goto(&loop_done, ChangeSmiToInt32(result));
+    }
+
+    __ Bind(&loop_next);
+    __ Goto(&loop, loop_next.PhiAt(0), loop_next.PhiAt(1));
+  }
+  __ Bind(&loop_done);
+  return loop_done.PhiAt(0);
 }
 
 Node* EffectControlLinearizer::LowerStringCodePointAt(Node* node) {
@@ -2728,8 +2852,8 @@ Node* EffectControlLinearizer::LowerStringCodePointAt(Node* node) {
                  __ NoContextConstant());
 }
 
-Node* EffectControlLinearizer::LoadFromString(Node* receiver, Node* position,
-                                              Node* is_one_byte) {
+Node* EffectControlLinearizer::LoadFromSeqString(Node* receiver, Node* position,
+                                                 Node* is_one_byte) {
   auto one_byte_load = __ MakeLabel();
   auto done = __ MakeLabel(MachineRepresentation::kWord32);
   __ GotoIf(is_one_byte, &one_byte_load);
@@ -2756,7 +2880,7 @@ Node* EffectControlLinearizer::LowerSeqStringCharCodeAt(Node* node) {
       __ Word32And(instance_type, __ Int32Constant(kStringEncodingMask)),
       __ Int32Constant(kOneByteStringTag));
 
-  return LoadFromString(receiver, position, is_one_byte);
+  return LoadFromSeqString(receiver, position, is_one_byte);
 }
 
 Node* EffectControlLinearizer::LowerSeqStringCodePointAt(
@@ -2770,7 +2894,7 @@ Node* EffectControlLinearizer::LowerSeqStringCodePointAt(
       __ Word32And(instance_type, __ Int32Constant(kStringEncodingMask)),
       __ Int32Constant(kOneByteStringTag));
 
-  Node* first_char_code = LoadFromString(receiver, position, is_one_byte);
+  Node* first_char_code = LoadFromSeqString(receiver, position, is_one_byte);
 
   auto return_result = __ MakeLabel(MachineRepresentation::kWord32);
 
@@ -2787,7 +2911,8 @@ Node* EffectControlLinearizer::LowerSeqStringCodePointAt(
   __ GotoIf(next_position_in_range, &return_result, first_char_code);
 
   // Load second character code.
-  Node* second_char_code = LoadFromString(receiver, next_position, is_one_byte);
+  Node* second_char_code =
+      LoadFromSeqString(receiver, next_position, is_one_byte);
   // Check if first character code is outside of interval [0xD800, 0xDBFF].
   Node* second_out =
       __ Word32Equal(__ Word32And(second_char_code, __ Int32Constant(0xFC00)),
@@ -3218,10 +3343,14 @@ Node* EffectControlLinearizer::AllocateHeapNumberWithValue(Node* value) {
 }
 
 Node* EffectControlLinearizer::ChangeInt32ToSmi(Node* value) {
+  return __ WordShl(ChangeInt32ToIntPtr(value), SmiShiftBitsConstant());
+}
+
+Node* EffectControlLinearizer::ChangeInt32ToIntPtr(Node* value) {
   if (machine()->Is64()) {
     value = __ ChangeInt32ToInt64(value);
   }
-  return __ WordShl(value, SmiShiftBitsConstant());
+  return value;
 }
 
 Node* EffectControlLinearizer::ChangeIntPtrToInt32(Node* value) {
