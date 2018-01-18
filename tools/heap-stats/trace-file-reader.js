@@ -144,62 +144,6 @@ class TraceFileReader extends HTMLElement {
                 }
                 return 0;
               });
-
-          let known_count = 0;
-          let known_overall = 0;
-          let known_histogram =
-              Array(
-                  data_set.instance_type_data.FIXED_ARRAY_TYPE.histogram.length)
-                  .fill(0);
-          let known_over_allocated = 0;
-          let known_over_allocated_histogram =
-              Array(data_set.instance_type_data.FIXED_ARRAY_TYPE
-                        .over_allocated_histogram.length)
-                  .fill(0);
-          for (const instance_type in data_set.instance_type_data) {
-            if (!instance_type.startsWith('*FIXED_ARRAY')) continue;
-            const subtype = data_set.instance_type_data[instance_type];
-            known_count += subtype.count;
-            known_overall += subtype.count;
-            known_over_allocated += subtype.over_allocated;
-            for (let i = 0; i < subtype.histogram.length; i++) {
-              known_histogram[i] += subtype.histogram[i];
-            }
-            for (let i = 0; i < subtype.over_allocated_histogram.length; i++) {
-              known_over_allocated_histogram[i] +=
-                  subtype.over_allocated_histogram[i];
-            }
-          }
-
-          const fixed_array_data = data_set.instance_type_data.FIXED_ARRAY_TYPE;
-          const unknown_entry = {
-            count: fixed_array_data.count - known_count,
-            overall: fixed_array_data.overall - known_overall,
-            histogram: fixed_array_data.histogram.map(
-                (value, index) => value - known_histogram[index]),
-            over_allocated:
-                fixed_array_data.over_allocated - known_over_allocated,
-            over_allocated_histogram:
-                fixed_array_data.over_allocated_histogram.map(
-                    (value, index) =>
-                        value - known_over_allocated_histogram[index])
-          };
-
-          // Check for non-negative values.
-          checkNonNegativeProperty(unknown_entry, 'count');
-          checkNonNegativeProperty(unknown_entry, 'overall');
-          checkNonNegativeProperty(unknown_entry, 'over_allocated');
-          for (let i = 0; i < unknown_entry.histogram.length; i++) {
-            checkNonNegativeProperty(unknown_entry.histogram, i);
-          }
-          for (let i = 0; i < unknown_entry.over_allocated_histogram.length;
-               i++) {
-            checkNonNegativeProperty(unknown_entry.over_allocated_histogram, i);
-          }
-
-          this.addInstanceTypeData(
-              data, keys, isolate, gc, data_set_key,
-              '*FIXED_ARRAY_UNKNOWN_SUB_TYPE', unknown_entry);
         }
       }
     }

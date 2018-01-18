@@ -6479,19 +6479,13 @@ bool Heap::GetObjectTypeName(size_t index, const char** object_type,
     return true;
     INSTANCE_TYPE_LIST(COMPARE_AND_RETURN_NAME)
 #undef COMPARE_AND_RETURN_NAME
-#define COMPARE_AND_RETURN_NAME(name)                      \
-  case ObjectStats::FIRST_CODE_KIND_SUB_TYPE + Code::name: \
-    *object_type = "CODE_TYPE";                            \
-    *object_sub_type = "CODE_KIND/" #name;                 \
+
+#define COMPARE_AND_RETURN_NAME(name)                       \
+  case ObjectStats::FIRST_VIRTUAL_TYPE + ObjectStats::name: \
+    *object_type = #name;                                   \
+    *object_sub_type = "";                                  \
     return true;
-    CODE_KIND_LIST(COMPARE_AND_RETURN_NAME)
-#undef COMPARE_AND_RETURN_NAME
-#define COMPARE_AND_RETURN_NAME(name)                  \
-  case ObjectStats::FIRST_FIXED_ARRAY_SUB_TYPE + name: \
-    *object_type = "FIXED_ARRAY_TYPE";                 \
-    *object_sub_type = #name;                          \
-    return true;
-    FIXED_ARRAY_SUB_INSTANCE_TYPE_LIST(COMPARE_AND_RETURN_NAME)
+    VIRTUAL_INSTANCE_TYPE_LIST(COMPARE_AND_RETURN_NAME)
 #undef COMPARE_AND_RETURN_NAME
   }
   return false;

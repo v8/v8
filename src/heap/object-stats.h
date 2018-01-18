@@ -19,19 +19,37 @@
 // tracing.
 //
 // Update LAST_VIRTUAL_TYPE below when changing this macro.
-#define VIRTUAL_INSTANCE_TYPE_LIST(V) \
-  V(BOILERPLATE_ELEMENTS_TYPE)        \
-  V(BOILERPLATE_NAME_DICTIONARY_TYPE) \
-  V(BOILERPLATE_PROPERTY_ARRAY_TYPE)  \
-  V(FEEDBACK_VECTOR_ENTRY_TYPE)       \
-  V(JS_ARRAY_BOILERPLATE_TYPE)        \
-  V(JS_OBJECT_BOILERPLATE_TYPE)
+#define VIRTUAL_INSTANCE_TYPE_LIST(V)    \
+  CODE_KIND_LIST(V)                      \
+  V(BOILERPLATE_ELEMENTS_TYPE)           \
+  V(BOILERPLATE_NAME_DICTIONARY_TYPE)    \
+  V(BOILERPLATE_PROPERTY_ARRAY_TYPE)     \
+  V(BYTECODE_ARRAY_CONSTANT_POOL_TYPE)   \
+  V(BYTECODE_ARRAY_HANDLER_TABLE_TYPE)   \
+  V(DEPENDENT_CODE_TYPE)                 \
+  V(ENUM_CACHE_TYPE)                     \
+  V(ENUM_INDICES_CACHE_TYPE)             \
+  V(FEEDBACK_VECTOR_ENTRY_TYPE)          \
+  V(JS_ARRAY_BOILERPLATE_TYPE)           \
+  V(JS_OBJECT_BOILERPLATE_TYPE)          \
+  V(NOSCRIPT_SHARED_FUNCTION_INFOS_TYPE) \
+  V(NUMBER_STRING_CACHE_TYPE)            \
+  V(PROTOTYPE_USERS_TYPE)                \
+  V(REGEXP_MULTIPLE_CACHE_TYPE)          \
+  V(RETAINED_MAPS_TYPE)                  \
+  V(SCRIPT_LIST_TYPE)                    \
+  V(SERIALIZED_OBJECTS_TYPE)             \
+  V(SINGLE_CHARACTER_STRING_CACHE_TYPE)  \
+  V(STRING_SPLIT_CACHE_TYPE)             \
+  V(WEAK_NEW_SPACE_OBJECT_TO_CODE_TYPE)
 
 namespace v8 {
 namespace internal {
 
 class ObjectStats {
  public:
+  static const size_t kNoOverAllocation = 0;
+
   explicit ObjectStats(Heap* heap) : heap_(heap) { ClearObjectStats(); }
 
   // See description on VIRTUAL_INSTANCE_TYPE_LIST.
@@ -39,18 +57,14 @@ class ObjectStats {
 #define DEFINE_VIRTUAL_INSTANCE_TYPE(type) type,
     VIRTUAL_INSTANCE_TYPE_LIST(DEFINE_VIRTUAL_INSTANCE_TYPE)
 #undef DEFINE_FIXED_ARRAY_SUB_INSTANCE_TYPE
-        LAST_VIRTUAL_TYPE = JS_OBJECT_BOILERPLATE_TYPE,
+        LAST_VIRTUAL_TYPE = WEAK_NEW_SPACE_OBJECT_TO_CODE_TYPE,
   };
 
   // ObjectStats are kept in two arrays, counts and sizes. Related stats are
   // stored in a contiguous linear buffer. Stats groups are stored one after
   // another.
   enum {
-    FIRST_CODE_KIND_SUB_TYPE = LAST_TYPE + 1,
-    FIRST_FIXED_ARRAY_SUB_TYPE =
-        FIRST_CODE_KIND_SUB_TYPE + Code::NUMBER_OF_KINDS,
-    FIRST_VIRTUAL_TYPE =
-        FIRST_FIXED_ARRAY_SUB_TYPE + LAST_FIXED_ARRAY_SUB_TYPE + 1,
+    FIRST_VIRTUAL_TYPE = LAST_TYPE + 1,
     OBJECT_STATS_COUNT = FIRST_VIRTUAL_TYPE + LAST_VIRTUAL_TYPE + 1,
   };
 
@@ -61,10 +75,8 @@ class ObjectStats {
 
   void CheckpointObjectStats();
   void RecordObjectStats(InstanceType type, size_t size);
-  void RecordVirtualObjectStats(VirtualInstanceType type, size_t size);
-  void RecordCodeSubTypeStats(int code_sub_type, size_t size);
-  bool RecordFixedArraySubTypeStats(FixedArrayBase* array, int array_sub_type,
-                                    size_t size, size_t over_allocated);
+  void RecordVirtualObjectStats(VirtualInstanceType type, size_t size,
+                                size_t over_allocated);
 
   size_t object_count_last_gc(size_t index) {
     return object_counts_last_time_[index];
@@ -106,8 +118,6 @@ class ObjectStats {
   // Detailed histograms by InstanceType.
   size_t size_histogram_[OBJECT_STATS_COUNT][kNumberOfBuckets];
   size_t over_allocated_histogram_[OBJECT_STATS_COUNT][kNumberOfBuckets];
-
-  std::set<FixedArrayBase*> visited_fixed_array_sub_types_;
 };
 
 class ObjectStatsCollector {

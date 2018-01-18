@@ -178,7 +178,6 @@ class DetailsSelection extends HTMLElement {
 
     for (let instance_type of this.data[this.selection.isolate]
              .non_empty_instance_types) {
-      if (IGNORED_INSTANCE_TYPES.has(instance_type)) continue;
       const category = this.categoryForType(instance_type);
       categories[category].push(instance_type);
     }
