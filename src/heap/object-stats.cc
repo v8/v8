@@ -282,6 +282,7 @@ class ObjectStatsCollectorImpl {
                                 ObjectStats::VirtualInstanceType type,
                                 size_t size);
   void RecordVirtualAllocationSiteDetails(AllocationSite* site);
+  void RecordVirtualFeedbackVectorDetails(FeedbackVector* site);
 
   Heap* heap_;
   ObjectStats* stats_;
@@ -303,11 +304,22 @@ ObjectStatsCollectorImpl::ObjectStatsCollectorImpl(Heap* heap,
 void ObjectStatsCollectorImpl::CollectVirtualStatistics(HeapObject* obj) {
   if (obj->IsAllocationSite()) {
     RecordVirtualAllocationSiteDetails(AllocationSite::cast(obj));
+  } else if (obj->IsFeedbackVector()) {
+    RecordVirtualFeedbackVectorDetails(FeedbackVector::cast(obj));
   }
 }
 
 void ObjectStatsCollectorImpl::RecordVirtualObjectStats(
     HeapObject* obj, ObjectStats::VirtualInstanceType type, size_t size) {
+#if DEBUG
+  if (virtual_objects_.find(obj) != virtual_objects_.end()) {
+    std::stringstream description;
+    obj->Print(description);
+    V8_Fatal(__FILE__, __LINE__,
+             "Object with virtual instance type has been recorded before:\n%s",
+             description.str().c_str());
+  }
+#endif
   virtual_objects_.insert(obj);
   stats_->RecordVirtualObjectStats(type, size);
 }
@@ -345,6 +357,20 @@ void ObjectStatsCollectorImpl::RecordVirtualAllocationSiteDetails(
   if (!elements->IsCowArray()) {
     RecordVirtualObjectStats(elements, ObjectStats::BOILERPLATE_ELEMENTS_TYPE,
                              elements->Size());
+  }
+}
+
+void ObjectStatsCollectorImpl::RecordVirtualFeedbackVectorDetails(
+    FeedbackVector* vector) {
+  // Except for allocation
+  for (int i = 0; i < vector->length(); i++) {
+    Object* raw_object = vector->get(i);
+    if (!raw_object->IsHeapObject()) continue;
+    HeapObject* object = HeapObject::cast(raw_object);
+    if (object->IsCell() || object->IsFixedArray()) {
+      RecordVirtualObjectStats(object, ObjectStats::FEEDBACK_VECTOR_ENTRY_TYPE,
+                               object->Size());
+    }
   }
 }
 
@@ -438,8 +464,9 @@ void ObjectStatsCollectorImpl::CollectGlobalStatistics() {
 void ObjectStatsCollectorImpl::RecordObjectStats(HeapObject* obj,
                                                  InstanceType type,
                                                  size_t size) {
-  if (virtual_objects_.find(obj) == virtual_objects_.end())
+  if (virtual_objects_.find(obj) == virtual_objects_.end()) {
     stats_->RecordObjectStats(type, size);
+  }
 }
 
 static bool CanRecordFixedArray(Heap* heap, FixedArrayBase* array) {
