@@ -7,6 +7,7 @@
     'files': [
       '<(PRODUCT_DIR)/v8_simple_json_fuzzer<(EXECUTABLE_SUFFIX)',
       '<(PRODUCT_DIR)/v8_simple_parser_fuzzer<(EXECUTABLE_SUFFIX)',
+      '<(PRODUCT_DIR)/v8_simple_regexp_builtins_fuzzer<(EXECUTABLE_SUFFIX)',
       '<(PRODUCT_DIR)/v8_simple_regexp_fuzzer<(EXECUTABLE_SUFFIX)',
       '<(PRODUCT_DIR)/v8_simple_multi_return_fuzzer<(EXECUTABLE_SUFFIX)',
       '<(PRODUCT_DIR)/v8_simple_wasm_fuzzer<(EXECUTABLE_SUFFIX)',
@@ -26,6 +27,7 @@
       './json/',
       './parser/',
       './regexp/',
+      './regexp_builtins/',
       './multi_return/',
       './wasm/',
       './wasm_async/',

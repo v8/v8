@@ -560,81 +560,82 @@ namespace internal {
   F(SymbolIsPrivate, 1, 1)
 
 #define FOR_EACH_INTRINSIC_TEST(F)            \
-  F(ConstructDouble, 2, 1)                    \
-  F(ConstructConsString, 2, 1)                \
-  F(DeoptimizeFunction, 1, 1)                 \
-  F(DeoptimizeNow, 0, 1)                      \
-  F(RunningInSimulator, 0, 1)                 \
-  F(IsConcurrentRecompilationSupported, 0, 1) \
-  F(OptimizeFunctionOnNextCall, -1, 1)        \
-  F(TypeProfile, 1, 1)                        \
-  F(OptimizeOsr, -1, 1)                       \
-  F(NeverOptimizeFunction, 1, 1)              \
-  F(GetOptimizationStatus, -1, 1)             \
-  F(UnblockConcurrentRecompilation, 0, 1)     \
-  F(GetDeoptCount, 1, 1)                      \
-  F(GetUndetectable, 0, 1)                    \
-  F(GetCallable, 0, 1)                        \
-  F(ClearFunctionFeedback, 1, 1)              \
+  F(Abort, 1, 1)                              \
+  F(AbortJS, 1, 1)                            \
   F(CheckWasmWrapperElision, 2, 1)            \
-  F(NotifyContextDisposed, 0, 1)              \
-  F(SetAllocationTimeout, -1 /* 2 || 3 */, 1) \
+  F(ClearFunctionFeedback, 1, 1)              \
+  F(CompleteInobjectSlackTracking, 1, 1)      \
+  F(ConstructConsString, 2, 1)                \
+  F(ConstructDouble, 2, 1)                    \
   F(DebugPrint, 1, 1)                         \
   F(DebugTrace, 0, 1)                         \
   F(DebugTrackRetainingPath, -1, 1)           \
-  F(PrintWithNameForAssert, 2, 1)             \
-  F(GetExceptionDetails, 1, 1)                \
-  F(GlobalPrint, 1, 1)                        \
-  F(SystemBreak, 0, 1)                        \
-  F(SetFlags, 1, 1)                           \
-  F(Abort, 1, 1)                              \
-  F(AbortJS, 1, 1)                            \
-  F(NativeScriptsCount, 0, 1)                 \
-  F(DisassembleFunction, 1, 1)                \
-  F(TraceEnter, 0, 1)                         \
-  F(TraceExit, 1, 1)                          \
-  F(HaveSameMap, 2, 1)                        \
-  F(InNewSpace, 1, 1)                         \
-  F(HasFastElements, 1, 1)                    \
-  F(HasSmiElements, 1, 1)                     \
-  F(HasObjectElements, 1, 1)                  \
-  F(HasSmiOrObjectElements, 1, 1)             \
-  F(HasDoubleElements, 1, 1)                  \
-  F(HasHoleyElements, 1, 1)                   \
-  F(HasDictionaryElements, 1, 1)              \
-  F(HasSloppyArgumentsElements, 1, 1)         \
-  F(HasFixedTypedArrayElements, 1, 1)         \
-  F(HasFastProperties, 1, 1)                  \
-  F(HasFixedUint8Elements, 1, 1)              \
-  F(HasFixedInt8Elements, 1, 1)               \
-  F(HasFixedUint16Elements, 1, 1)             \
-  F(HasFixedInt16Elements, 1, 1)              \
-  F(HasFixedUint32Elements, 1, 1)             \
-  F(HasFixedInt32Elements, 1, 1)              \
-  F(HasFixedFloat32Elements, 1, 1)            \
-  F(HasFixedFloat64Elements, 1, 1)            \
-  F(HasFixedUint8ClampedElements, 1, 1)       \
-  F(SpeciesProtector, 0, 1)                   \
-  F(SerializeWasmModule, 1, 1)                \
+  F(DeoptimizeFunction, 1, 1)                 \
+  F(DeoptimizeNow, 0, 1)                      \
   F(DeserializeWasmModule, 2, 1)              \
-  F(IsAsmWasmCode, 1, 1)                      \
-  F(IsWasmCode, 1, 1)                         \
-  F(IsWasmTrapHandlerEnabled, 0, 1)           \
-  F(GetWasmRecoveredTrapCount, 0, 1)          \
   F(DisallowCodegenFromStrings, 1, 1)         \
   F(DisallowWasmCodegen, 1, 1)                \
+  F(DisassembleFunction, 1, 1)                \
+  F(FreezeWasmLazyCompilation, 1, 1)          \
+  F(GetCallable, 0, 1)                        \
+  F(GetDeoptCount, 1, 1)                      \
+  F(GetExceptionDetails, 1, 1)                \
+  F(GetOptimizationStatus, -1, 1)             \
+  F(GetUndetectable, 0, 1)                    \
+  F(GetWasmRecoveredTrapCount, 0, 1)          \
+  F(GlobalPrint, 1, 1)                        \
+  F(HasDictionaryElements, 1, 1)              \
+  F(HasDoubleElements, 1, 1)                  \
+  F(HasFastElements, 1, 1)                    \
+  F(HasFastProperties, 1, 1)                  \
+  F(HasFixedFloat32Elements, 1, 1)            \
+  F(HasFixedFloat64Elements, 1, 1)            \
+  F(HasFixedInt16Elements, 1, 1)              \
+  F(HasFixedInt32Elements, 1, 1)              \
+  F(HasFixedInt8Elements, 1, 1)               \
+  F(HasFixedTypedArrayElements, 1, 1)         \
+  F(HasFixedUint16Elements, 1, 1)             \
+  F(HasFixedUint32Elements, 1, 1)             \
+  F(HasFixedUint8ClampedElements, 1, 1)       \
+  F(HasFixedUint8Elements, 1, 1)              \
+  F(HasHoleyElements, 1, 1)                   \
+  F(HasObjectElements, 1, 1)                  \
+  F(HasSloppyArgumentsElements, 1, 1)         \
+  F(HasSmiElements, 1, 1)                     \
+  F(HasSmiOrObjectElements, 1, 1)             \
+  F(HaveSameMap, 2, 1)                        \
+  F(HeapObjectVerify, 1, 1)                   \
+  F(InNewSpace, 1, 1)                         \
+  F(IsAsmWasmCode, 1, 1)                      \
+  F(IsConcurrentRecompilationSupported, 0, 1) \
+  F(IsLiftoffFunction, 1, 1)                  \
+  F(IsWasmCode, 1, 1)                         \
+  F(IsWasmTrapHandlerEnabled, 0, 1)           \
+  F(NativeScriptsCount, 0, 1)                 \
+  F(NeverOptimizeFunction, 1, 1)              \
+  F(NotifyContextDisposed, 0, 1)              \
+  F(OptimizeFunctionOnNextCall, -1, 1)        \
+  F(OptimizeOsr, -1, 1)                       \
+  F(PrintWithNameForAssert, 2, 1)             \
+  F(RedirectToWasmInterpreter, 2, 1)          \
+  F(RunningInSimulator, 0, 1)                 \
+  F(SerializeWasmModule, 1, 1)                \
+  F(SetAllocationTimeout, -1 /* 2 || 3 */, 1) \
+  F(SetFlags, 1, 1)                           \
+  F(SetForceSlowPath, 1, 1)                   \
+  F(SetWasmCompileControls, 2, 1)             \
+  F(SetWasmInstantiateControls, 0, 1)         \
+  F(SpeciesProtector, 0, 1)                   \
+  F(SystemBreak, 0, 1)                        \
+  F(TraceEnter, 0, 1)                         \
+  F(TraceExit, 1, 1)                          \
+  F(TypeProfile, 1, 1)                        \
+  F(UnblockConcurrentRecompilation, 0, 1)     \
   F(ValidateWasmInstancesChain, 2, 1)         \
   F(ValidateWasmModuleState, 1, 1)            \
   F(ValidateWasmOrphanedInstance, 1, 1)       \
-  F(SetWasmCompileControls, 2, 1)             \
-  F(SetWasmInstantiateControls, 0, 1)         \
-  F(HeapObjectVerify, 1, 1)                   \
   F(WasmNumInterpretedCalls, 1, 1)            \
-  F(RedirectToWasmInterpreter, 2, 1)          \
-  F(WasmTraceMemory, 1, 1)                    \
-  F(CompleteInobjectSlackTracking, 1, 1)      \
-  F(IsLiftoffFunction, 1, 1)                  \
-  F(FreezeWasmLazyCompilation, 1, 1)
+  F(WasmTraceMemory, 1, 1)
 
 #define FOR_EACH_INTRINSIC_TYPEDARRAY(F) \
   F(ArrayBufferGetByteLength, 1, 1)      \

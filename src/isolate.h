@@ -1176,8 +1176,8 @@ class Isolate {
 
   void* stress_deopt_count_address() { return &stress_deopt_count_; }
 
-  bool force_slow_path() { return force_slow_path_; }
-
+  void set_force_slow_path(bool v) { force_slow_path_ = v; }
+  bool force_slow_path() const { return force_slow_path_; }
   bool* force_slow_path_address() { return &force_slow_path_; }
 
   V8_EXPORT_PRIVATE base::RandomNumberGenerator* random_number_generator();

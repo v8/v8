@@ -63,6 +63,34 @@
       ],
     },
     {
+      'target_name': 'v8_simple_regexp_builtins_fuzzer',
+      'type': 'executable',
+      'dependencies': [
+        'regexp_builtins_fuzzer_lib',
+      ],
+      'include_dirs': [
+        '../..',
+      ],
+      'sources': [
+        'fuzzer.cc',
+      ],
+    },
+    {
+      'target_name': 'regexp_builtins_fuzzer_lib',
+      'type': 'static_library',
+      'dependencies': [
+        '../../src/v8.gyp:v8_libplatform',
+        'fuzzer_support',
+      ],
+      'include_dirs': [
+        '../..',
+      ],
+      'sources': [  ### gcmole(all) ###
+        'regexp-builtins.cc',
+        'regexp_builtins/mjsunit.js.h',
+      ],
+    },
+    {
       'target_name': 'v8_simple_regexp_fuzzer',
       'type': 'executable',
       'dependencies': [
@@ -528,6 +556,7 @@
           'dependencies': [
             'v8_simple_json_fuzzer',
             'v8_simple_parser_fuzzer',
+            'v8_simple_regexp_builtins_fuzzer',
             'v8_simple_regexp_fuzzer',
             'v8_simple_wasm_fuzzer',
           ],

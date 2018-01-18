@@ -755,6 +755,18 @@ RUNTIME_FUNCTION(Runtime_SetFlags) {
   return isolate->heap()->undefined_value();
 }
 
+RUNTIME_FUNCTION(Runtime_SetForceSlowPath) {
+  SealHandleScope shs(isolate);
+  DCHECK_EQ(1, args.length());
+  CONVERT_ARG_CHECKED(Object, arg, 0);
+  if (arg->IsTrue(isolate)) {
+    isolate->set_force_slow_path(true);
+  } else {
+    DCHECK(arg->IsFalse(isolate));
+    isolate->set_force_slow_path(false);
+  }
+  return isolate->heap()->undefined_value();
+}
 
 RUNTIME_FUNCTION(Runtime_Abort) {
   SealHandleScope shs(isolate);
