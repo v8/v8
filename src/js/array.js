@@ -1210,24 +1210,6 @@ DEFINE_METHOD_LEN(
   1  /* Set function length. */
 );
 
-// ES6, draft 05-22-14, section 22.1.2.3
-DEFINE_METHOD(
-  GlobalArray,
-  of(...args) {
-    var length = args.length;
-    var constructor = this;
-    // TODO: Implement IsConstructor (ES6 section 7.2.5)
-    var array = %IsConstructor(constructor) ? new constructor(length) : [];
-    for (var i = 0; i < length; i++) {
-      %CreateDataProperty(array, i, args[i]);
-    }
-    array.length = length;
-    return array;
-  }
-);
-
-// -------------------------------------------------------------------
-
 // Set up unscopable properties on the Array.prototype object.
 var unscopables = {
   __proto__: null,

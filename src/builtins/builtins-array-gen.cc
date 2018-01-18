@@ -1840,6 +1840,83 @@ TF_BUILTIN(ArrayPrototypeFindIndex, ArrayBuiltinCodeStubAssembler) {
       MissingPropertyMode::kUseUndefined, ForEachDirection::kForward);
 }
 
+// ES #sec-array.of
+TF_BUILTIN(ArrayOf, ArrayBuiltinCodeStubAssembler) {
+  TNode<Int32T> argc =
+      UncheckedCast<Int32T>(Parameter(BuiltinDescriptor::kArgumentsCount));
+  TNode<Smi> length = SmiFromWord32(argc);
+
+  TNode<Context> context = CAST(Parameter(BuiltinDescriptor::kContext));
+
+  CodeStubArguments args(this, length, nullptr, ParameterMode::SMI_PARAMETERS,
+                         CodeStubArguments::ReceiverMode::kHasReceiver);
+
+  TVARIABLE(Object, array);
+  TNode<Object> receiver = args.GetReceiver();
+  {
+    Label is_constructor(this), is_not_constructor(this), next(this);
+    GotoIf(TaggedIsSmi(receiver), &is_not_constructor);
+    Branch(IsConstructor(receiver), &is_constructor, &is_not_constructor);
+
+    BIND(&is_constructor);
+    {
+      array = CAST(ConstructJS(CodeFactory::Construct(isolate()), context,
+                               receiver, length));
+      Goto(&next);
+    }
+
+    BIND(&is_not_constructor);
+    {
+      TNode<Map> array_map = CAST(LoadContextElement(
+          context, Context::JS_ARRAY_PACKED_SMI_ELEMENTS_MAP_INDEX));
+
+      // TODO(delphick): Consider using AllocateUninitializedJSArrayWithElements
+      // to avoid initializing an array and then writing over it.
+      array = CAST(AllocateJSArray(PACKED_SMI_ELEMENTS, array_map, length,
+                                   SmiConstant(0), nullptr,
+                                   ParameterMode::SMI_PARAMETERS));
+      Goto(&next);
+    }
+
+    BIND(&next);
+  }
+
+  BuildFastLoop(SmiConstant(0), length,
+                [this, context, &array, args](Node* index) {
+                  CallRuntime(
+                      Runtime::kCreateDataProperty, context,
+                      static_cast<Node*>(array), index,
+                      args.AtIndex(index, ParameterMode::SMI_PARAMETERS));
+                },
+                1, ParameterMode::SMI_PARAMETERS, IndexAdvanceMode::kPost);
+
+  {
+    Label is_js_array(this), is_not_js_array(this), next(this);
+    // TODO(delphick): Consider changing this since it does an an unnecessary
+    // check for SMIs.
+    // TODO(delphick): Also we could hoist this to after the array construction
+    // and copy the args into array in the same way as the Array constructor.
+    BranchIfFastJSArray(array, context, &is_js_array, &is_not_js_array);
+
+    BIND(&is_js_array);
+    {
+      StoreObjectFieldNoWriteBarrier(array, JSArray::kLengthOffset, length);
+      Goto(&next);
+    }
+
+    BIND(&is_not_js_array);
+    {
+      CallRuntime(Runtime::kSetProperty, context, static_cast<Node*>(array),
+                  CodeStubAssembler::LengthStringConstant(), length,
+                  SmiConstant(LanguageMode::kStrict));
+      Goto(&next);
+    }
+
+    BIND(&next);
+  }
+  args.PopAndReturn(array);
+}
+
 // ES #sec-get-%typedarray%.prototype.find
 TF_BUILTIN(TypedArrayPrototypeFind, ArrayBuiltinCodeStubAssembler) {
   Node* argc =

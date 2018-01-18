@@ -1705,6 +1705,8 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
         array_function, "isArray", Builtins::kArrayIsArray, 1, true);
     native_context()->set_is_arraylike(*is_arraylike);
 
+    SimpleInstallFunction(array_function, "of", Builtins::kArrayOf, 0, false);
+
     JSObject::AddProperty(proto, factory->constructor_string(), array_function,
                           DONT_ENUM);
 
