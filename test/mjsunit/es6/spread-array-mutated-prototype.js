@@ -4,6 +4,13 @@
 
 // Flags: --allow-natives-syntax
 
+// NOTE:
+// Tests in this file are meant to run in the presence of an invalidated
+// NoElementsProtector, as effected by the following line.
+Array.prototype[0] = 42;
+delete Array.prototype[0];
+
+
 (function TestBasics() {
   var a = [1, 2];
   var b = [...a];
@@ -165,7 +172,7 @@ function id(v) {
       var i = 0;
       return {
         next() {
-          $DeoptimizeFunction(f);
+          %DeoptimizeFunction(f);
           return {value: ++i, done: i === 3};
         }
       };
@@ -176,4 +183,54 @@ function id(v) {
   }
 
   assertArrayEquals([0, 1, 2], f());
-});
+})();
+
+
+(function TestPrototypeSetter1() {
+  Object.defineProperty(Array.prototype, 3, {set() {throw 666}})
+  Object.defineProperty(Array.prototype, 4, {set() {throw 666}})
+
+  function f() {
+    return ['a', ...['b', 'c', 'd'], 'e']
+  }
+
+  assertArrayEquals(['a', 'b', 'c', 'd', 'e'], f());
+  %OptimizeFunctionOnNextCall(f);
+  assertArrayEquals(['a', 'b', 'c', 'd', 'e'], f());
+
+  delete Array.prototype[3];
+  delete Array.prototype[4];
+})();
+
+
+(function TestPrototypeSetter2() {
+  Object.defineProperty(Array.prototype.__proto__, 3, {set() {throw 666}})
+  Object.defineProperty(Array.prototype.__proto__, 4, {set() {throw 666}})
+
+  function f() {
+    return ['a', ...['b', 'c', 'd'], 'e']
+  }
+
+  assertArrayEquals(['a', 'b', 'c', 'd', 'e'], f());
+  %OptimizeFunctionOnNextCall(f);
+  assertArrayEquals(['a', 'b', 'c', 'd', 'e'], f());
+
+  delete Array.prototype.__proto__[3];
+  delete Array.prototype.__proto__[4];
+})();
+
+
+(function TestPrototypeProxy() {
+  const backup = Array.prototype.__proto__;
+  Array.prototype.__proto__ = new Proxy({}, {set() {throw 666}});
+
+  function f() {
+    return ['a', ...['b', 'c', 'd'], 'e']
+  }
+
+  assertArrayEquals(['a', 'b', 'c', 'd', 'e'], f());
+  %OptimizeFunctionOnNextCall(f);
+  assertArrayEquals(['a', 'b', 'c', 'd', 'e'], f());
+
+  Object.setPrototypeOf(Array.prototype, backup);
+})();
