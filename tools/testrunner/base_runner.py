@@ -256,6 +256,13 @@ class BaseTestRunner(object):
                       help="Run this shard from the split up tests.",
                       default=1, type="int")
 
+    # TODO(machenbach): Temporary options for rolling out new test runner
+    # features.
+    parser.add_option("--mastername",
+                      help="Mastername property from infrastructure")
+    parser.add_option("--buildername",
+                      help="Buildername property from infrastructure")
+
   def _add_parser_options(self, parser):
     pass
 
