@@ -560,7 +560,8 @@ void RelocIterator::next() {
   done_ = true;
 }
 
-RelocIterator::RelocIterator(Code* code, int mode_mask) {
+RelocIterator::RelocIterator(Code* code, int mode_mask)
+    : mode_mask_(mode_mask) {
   rinfo_.host_ = code;
   rinfo_.pc_ = code->instruction_start();
   rinfo_.data_ = 0;
@@ -568,35 +569,30 @@ RelocIterator::RelocIterator(Code* code, int mode_mask) {
   // Relocation info is read backwards.
   pos_ = code->relocation_start() + code->relocation_size();
   end_ = code->relocation_start();
-  done_ = false;
-  mode_mask_ = mode_mask;
   if (mode_mask_ == 0) pos_ = end_;
   next();
 }
 
-RelocIterator::RelocIterator(const CodeDesc& desc, int mode_mask) {
+RelocIterator::RelocIterator(const CodeDesc& desc, int mode_mask)
+    : mode_mask_(mode_mask) {
   rinfo_.pc_ = desc.buffer;
-  rinfo_.data_ = 0;
   // Relocation info is read backwards.
   pos_ = desc.buffer + desc.buffer_size;
   end_ = pos_ - desc.reloc_size;
-  done_ = false;
-  mode_mask_ = mode_mask;
   if (mode_mask_ == 0) pos_ = end_;
   next();
 }
 
 RelocIterator::RelocIterator(Vector<byte> instructions,
                              Vector<const byte> reloc_info, Address const_pool,
-                             int mode_mask) {
+                             int mode_mask)
+    : mode_mask_(mode_mask) {
   rinfo_.pc_ = instructions.start();
-  rinfo_.data_ = 0;
   rinfo_.constant_pool_ = const_pool;
+  rinfo_.flags_ = RelocInfo::kInNativeWasmCode;
   // Relocation info is read backwards.
   pos_ = reloc_info.start() + reloc_info.size();
   end_ = reloc_info.start();
-  done_ = false;
-  mode_mask_ = mode_mask;
   if (mode_mask_ == 0) pos_ = end_;
   next();
 }
@@ -685,9 +681,15 @@ void RelocInfo::Print(Isolate* isolate, std::ostream& os) {  // NOLINT
        << ")  (" << static_cast<const void*>(target_external_reference())
        << ")";
   } else if (IsCodeTarget(rmode_)) {
-    Code* code = Code::GetCodeFromTargetAddress(target_address());
-    os << " (" << Code::Kind2String(code->kind()) << ")  ("
-       << static_cast<const void*>(target_address()) << ")";
+    const Address code_target = target_address();
+    if (flags_ & kInNativeWasmCode) {
+      os << " (wasm trampoline) ";
+    } else {
+      Code* code = Code::GetCodeFromTargetAddress(code_target);
+      DCHECK(code->IsCode());
+      os << " (" << Code::Kind2String(code->kind()) << ") ";
+    }
+    os << " (" << static_cast<const void*>(target_address()) << ")";
   } else if (IsRuntimeEntry(rmode_) && isolate->deoptimizer_data() != nullptr) {
     // Depotimization bailouts are stored as runtime entries.
     int id = Deoptimizer::GetDeoptimizationId(

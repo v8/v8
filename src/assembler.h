@@ -341,6 +341,12 @@ enum ICacheFlushMode { FLUSH_ICACHE_IF_NEEDED, SKIP_ICACHE_FLUSH };
 
 class RelocInfo {
  public:
+  enum Flag : uint8_t {
+    kNoFlags = 0,
+    kInNativeWasmCode = 1u << 0,  // Reloc info belongs to native wasm code.
+  };
+  typedef base::Flags<Flag> Flags;
+
   // This string is used to add padding comments to the reloc info in cases
   // where we are not sure to have enough space for patching in during
   // lazy deoptimization. This is the case if we have indirect calls for which
@@ -623,9 +629,10 @@ class RelocInfo {
   // comment).
   byte* pc_;
   Mode rmode_;
-  intptr_t data_;
+  intptr_t data_ = 0;
   Code* host_;
   Address constant_pool_ = nullptr;
+  Flags flags_;
   friend class RelocIterator;
 };
 
@@ -728,8 +735,9 @@ class RelocIterator: public Malloced {
   const byte* pos_;
   const byte* end_;
   RelocInfo rinfo_;
-  bool done_;
-  int mode_mask_;
+  bool done_ = false;
+  const int mode_mask_;
+
   DISALLOW_COPY_AND_ASSIGN(RelocIterator);
 };
 
