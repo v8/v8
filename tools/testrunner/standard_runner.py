@@ -65,6 +65,9 @@ GC_STRESS_FLAGS = ["--gc-interval=500", "--stress-compaction",
                    "--concurrent-recompilation-delay=500",
                    "--concurrent-recompilation"]
 
+RANDOM_GC_STRESS_FLAGS = ["--random-gc-interval=5000",
+                          "--stress-compaction-random"]
+
 # Double the timeout for these:
 SLOW_ARCHS = ["arm",
               "mips",
@@ -126,6 +129,9 @@ class StandardTestRunner(base_runner.BaseTestRunner):
                         default="dontcare")
       parser.add_option("--gc-stress",
                         help="Switch on GC stress mode",
+                        default=False, action="store_true")
+      parser.add_option("--random-gc-stress",
+                        help="Switch on random GC stress mode",
                         default=False, action="store_true")
       parser.add_option("--command-prefix",
                         help="Prepended to each shell command used to run a"
@@ -221,6 +227,9 @@ class StandardTestRunner(base_runner.BaseTestRunner):
 
       if options.gc_stress:
         options.extra_flags += GC_STRESS_FLAGS
+
+      if options.random_gc_stress:
+        options.extra_flags += RANDOM_GC_STRESS_FLAGS
 
       if self.build_config.asan:
         options.extra_flags.append("--invoke-weak-callbacks")
@@ -374,7 +383,7 @@ class StandardTestRunner(base_runner.BaseTestRunner):
         "dcheck_always_on": self.build_config.dcheck_always_on,
         "deopt_fuzzer": False,
         "gc_fuzzer": False,
-        "gc_stress": options.gc_stress,
+        "gc_stress": options.gc_stress or options.random_gc_stress,
         "gcov_coverage": self.build_config.gcov_coverage,
         "isolates": options.isolates,
         "mode": self.mode_options.status_mode,
