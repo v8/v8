@@ -36,4 +36,10 @@
   'kraken/imaging-gaussian-blur': [PASS, SLOW],
   'octane/typescript': [PASS, SLOW],
 }],  # ALWAYS
+
+['gc_fuzzer', {
+  # Too slow for gc fuzzing.
+  'octane/splay': [PASS, SLOW, ['tsan', SKIP]],
+  'octane/typescript': [SKIP],
+}],  # 'gc_fuzzer'
 ]
