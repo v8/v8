@@ -71,12 +71,12 @@ class TestCase(object):
     subtest.processor = processor
     subtest.procid += '.%s' % subtest_id
     subtest.keep_output = keep_output
+    if flags:
+      subtest.variant_flags = subtest.variant_flags + flags
     if variant is not None:
       assert self.variant is None
       subtest.variant = variant
       subtest._prepare_outcomes()
-    if flags:
-      subtest.variant_flags = subtest.variant_flags + flags
     return subtest
 
   def create_variant(self, variant, flags, procid_suffix=None):
