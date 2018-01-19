@@ -827,7 +827,7 @@ void WebAssemblyMemoryGrow(const v8::FunctionCallbackInfo<v8::Value>& args) {
     return;
   }
   uint32_t old_size =
-      old_buffer->byte_length()->Number() / i::wasm::kSpecMaxWasmMemoryPages;
+      old_buffer->byte_length()->Number() / i::wasm::kWasmPageSize;
   int64_t new_size64 = old_size + delta_size;
   if (delta_size < 0 || max_size64 < new_size64 || new_size64 < old_size) {
     thrower.RangeError(new_size64 < old_size ? "trying to shrink memory"
