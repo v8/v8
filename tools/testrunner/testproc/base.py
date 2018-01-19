@@ -119,7 +119,8 @@ class TestProc(object):
 
   def _send_result(self, test, result):
     """Helper method for sending result to the previous processor."""
-    result = self._reduce_result(result)
+    if not test.keep_output:
+      result = self._reduce_result(result)
     self._prev_proc.result_for(test, result)
 
 

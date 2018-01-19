@@ -74,8 +74,9 @@ class TestCase(object):
     if variant is not None:
       assert self.variant is None
       subtest.variant = variant
-      subtest.variant_flags = flags
       subtest._prepare_outcomes()
+    if flags:
+      subtest.variant_flags = subtest.variant_flags + flags
     return subtest
 
   def create_variant(self, variant, flags, procid_suffix=None):
