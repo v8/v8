@@ -114,6 +114,7 @@ class HistogramViewer extends HTMLElement {
       legend: {position: 'top', maxLines: '1'},
       chartArea: {width: '85%', height: '85%'},
       bar: {groupWidth: '80%'},
+      explorer: {},
     };
     const chart = new google.visualization.BarChart(this.$('#chart'));
     this.show();
