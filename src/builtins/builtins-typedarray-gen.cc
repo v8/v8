@@ -36,6 +36,11 @@ class TypedArrayBuiltinsAssembler : public CodeStubAssembler {
                                                   const char* method_name,
                                                   IterationKind iteration_kind);
 
+  void ConstructByArrayLike(TNode<Context> context, TNode<JSTypedArray> holder,
+                            TNode<HeapObject> array_like,
+                            TNode<Object> initial_length,
+                            TNode<Smi> element_size);
+
   void SetupTypedArray(TNode<JSTypedArray> holder, TNode<Smi> length,
                        TNode<Number> byte_offset, TNode<Number> byte_length);
   void AttachBuffer(TNode<JSTypedArray> holder, TNode<JSArrayBuffer> buffer,
@@ -543,6 +548,75 @@ TF_BUILTIN(TypedArrayConstructByArrayBuffer, TypedArrayBuiltinsAssembler) {
   { ThrowTypeError(context, MessageTemplate::kDetachedOperation, "Construct"); }
 }
 
+// ES#sec-typedarray-typedarray TypedArray ( typedArray )
+TF_BUILTIN(TypedArrayConstructByTypedArray, TypedArrayBuiltinsAssembler) {
+  TNode<JSTypedArray> holder = CAST(Parameter(Descriptor::kHolder));
+  TNode<JSTypedArray> typed_array = CAST(Parameter(Descriptor::kTypedArray));
+  TNode<Smi> element_size = CAST(Parameter(Descriptor::kElementSize));
+  TNode<Context> context = CAST(Parameter(Descriptor::kContext));
+
+  CSA_ASSERT(this, TaggedIsPositiveSmi(element_size));
+
+  TNode<JSFunction> const default_constructor = CAST(LoadContextElement(
+      LoadNativeContext(context), Context::ARRAY_BUFFER_FUN_INDEX));
+
+  Label construct(this), if_detached(this), if_notdetached(this),
+      check_for_sab(this), if_buffernotshared(this), check_prototype(this),
+      done(this);
+  TVARIABLE(JSReceiver, buffer_constructor, default_constructor);
+
+  TNode<JSArrayBuffer> source_buffer = LoadObjectField<JSArrayBuffer>(
+      typed_array, JSArrayBufferView::kBufferOffset);
+  Branch(IsDetachedBuffer(source_buffer), &if_detached, &if_notdetached);
+
+  // TODO(petermarshall): Throw on detached typedArray.
+  TVARIABLE(Smi, source_length);
+  BIND(&if_detached);
+  source_length = SmiConstant(0);
+  Goto(&check_for_sab);
+
+  BIND(&if_notdetached);
+  source_length =
+      CAST(LoadObjectField(typed_array, JSTypedArray::kLengthOffset));
+  Goto(&check_for_sab);
+
+  // The spec requires that constructing a typed array using a SAB-backed typed
+  // array use the ArrayBuffer constructor, not the species constructor. See
+  // https://tc39.github.io/ecma262/#sec-typedarray-typedarray.
+  BIND(&check_for_sab);
+  TNode<Uint32T> bitfield =
+      LoadObjectField<Uint32T>(source_buffer, JSArrayBuffer::kBitFieldOffset);
+  Branch(IsSetWord32<JSArrayBuffer::IsShared>(bitfield), &construct,
+         &if_buffernotshared);
+
+  BIND(&if_buffernotshared);
+  {
+    buffer_constructor =
+        CAST(SpeciesConstructor(context, source_buffer, default_constructor));
+    // TODO(petermarshall): Throw on detached typedArray.
+    GotoIfNot(IsDetachedBuffer(source_buffer), &construct);
+    source_length = SmiConstant(0);
+    Goto(&construct);
+  }
+
+  BIND(&construct);
+  {
+    ConstructByArrayLike(context, holder, typed_array, source_length,
+                         element_size);
+    Node* proto =
+        GetProperty(context, buffer_constructor, PrototypeStringConstant());
+    // TODO(petermarshall): Correct for realm as per 9.1.14 step 4.
+    TNode<JSArrayBuffer> buffer = LoadObjectField<JSArrayBuffer>(
+        holder, JSArrayBufferView::kBufferOffset);
+    CallRuntime(Runtime::kInternalSetPrototype, context, buffer, proto);
+
+    Goto(&done);
+  }
+
+  BIND(&done);
+  Return(UndefinedConstant());
+}
+
 Node* TypedArrayBuiltinsAssembler::LoadDataPtr(Node* typed_array) {
   CSA_ASSERT(this, IsJSTypedArray(typed_array));
   Node* elements = LoadElements(typed_array);
@@ -577,17 +651,13 @@ TNode<BoolT> TypedArrayBuiltinsAssembler::ByteLengthIsValid(
   return is_valid;
 }
 
-TF_BUILTIN(TypedArrayConstructByArrayLike, TypedArrayBuiltinsAssembler) {
-  Node* holder = Parameter(Descriptor::kHolder);
-  Node* array_like = Parameter(Descriptor::kArrayLike);
-  Node* initial_length = Parameter(Descriptor::kLength);
-  Node* element_size = Parameter(Descriptor::kElementSize);
-  CSA_ASSERT(this, TaggedIsSmi(element_size));
-  Node* context = Parameter(Descriptor::kContext);
-
+void TypedArrayBuiltinsAssembler::ConstructByArrayLike(
+    TNode<Context> context, TNode<JSTypedArray> holder,
+    TNode<HeapObject> array_like, TNode<Object> initial_length,
+    TNode<Smi> element_size) {
   Node* initialize = FalseConstant();
 
-  Label invalid_length(this), fill(this), fast_copy(this);
+  Label invalid_length(this), fill(this), fast_copy(this), done(this);
 
   // The caller has looked up length on array_like, which is observable.
   Node* length = ToSmiLength(initial_length, context, &invalid_length);
@@ -595,7 +665,7 @@ TF_BUILTIN(TypedArrayConstructByArrayLike, TypedArrayBuiltinsAssembler) {
   CallBuiltin(Builtins::kTypedArrayInitialize, context, holder, length,
               element_size, initialize);
   GotoIf(SmiNotEqual(length, SmiConstant(0)), &fill);
-  Return(UndefinedConstant());
+  Goto(&done);
 
   BIND(&fill);
   TNode<Int32T> holder_kind = LoadMapElementsKind(LoadMap(holder));
@@ -605,7 +675,7 @@ TF_BUILTIN(TypedArrayConstructByArrayLike, TypedArrayBuiltinsAssembler) {
   // Copy using the elements accessor.
   CallRuntime(Runtime::kTypedArrayCopyElements, context, holder, array_like,
               length);
-  Return(UndefinedConstant());
+  Goto(&done);
 
   BIND(&fast_copy);
   {
@@ -632,7 +702,7 @@ TF_BUILTIN(TypedArrayConstructByArrayLike, TypedArrayBuiltinsAssembler) {
     CallCFunction3(MachineType::AnyTagged(), MachineType::Pointer(),
                    MachineType::Pointer(), MachineType::UintPtr(), memcpy,
                    holder_data_ptr, source_data_ptr, byte_length_intptr);
-    Return(UndefinedConstant());
+    Goto(&done);
   }
 
   BIND(&invalid_length);
@@ -642,6 +712,21 @@ TF_BUILTIN(TypedArrayConstructByArrayLike, TypedArrayBuiltinsAssembler) {
                 initial_length);
     Unreachable();
   }
+
+  BIND(&done);
+}
+
+TF_BUILTIN(TypedArrayConstructByArrayLike, TypedArrayBuiltinsAssembler) {
+  TNode<JSTypedArray> holder = CAST(Parameter(Descriptor::kHolder));
+  TNode<HeapObject> array_like = CAST(Parameter(Descriptor::kArrayLike));
+  TNode<Object> initial_length = CAST(Parameter(Descriptor::kLength));
+  TNode<Smi> element_size = CAST(Parameter(Descriptor::kElementSize));
+  CSA_ASSERT(this, TaggedIsSmi(element_size));
+  TNode<Context> context = CAST(Parameter(Descriptor::kContext));
+
+  ConstructByArrayLike(context, holder, array_like, initial_length,
+                       element_size);
+  Return(UndefinedConstant());
 }
 
 void TypedArrayBuiltinsAssembler::GenerateTypedArrayPrototypeGetter(

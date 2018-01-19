@@ -1073,6 +1073,7 @@ namespace internal {
       kElementSize)                                                            \
   /* ES6 #sec-typedarray-length */                                             \
   TFJ(TypedArrayConstructByLength, 3, kHolder, kLength, kElementSize)          \
+  TFJ(TypedArrayConstructByTypedArray, 3, kHolder, kTypedArray, kElementSize)  \
   CPP(TypedArrayPrototypeBuffer)                                               \
   /* ES6 #sec-get-%typedarray%.prototype.bytelength */                         \
   TFJ(TypedArrayPrototypeByteLength, 0)                                        \

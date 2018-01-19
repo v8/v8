@@ -9809,6 +9809,46 @@ Node* CodeStubAssembler::GetSuperConstructor(Node* active_function,
   return result.value();
 }
 
+Node* CodeStubAssembler::SpeciesConstructor(Node* context, Node* object,
+                                            Node* default_constructor) {
+  Isolate* isolate = this->isolate();
+  VARIABLE(var_result, MachineRepresentation::kTagged);
+  var_result.Bind(default_constructor);
+
+  // 2. Let C be ? Get(O, "constructor").
+  Node* const constructor =
+      GetProperty(context, object, isolate->factory()->constructor_string());
+
+  // 3. If C is undefined, return defaultConstructor.
+  Label out(this);
+  GotoIf(IsUndefined(constructor), &out);
+
+  // 4. If Type(C) is not Object, throw a TypeError exception.
+  ThrowIfNotJSReceiver(context, constructor,
+                       MessageTemplate::kConstructorNotReceiver);
+
+  // 5. Let S be ? Get(C, @@species).
+  Node* const species =
+      GetProperty(context, constructor, isolate->factory()->species_symbol());
+
+  // 6. If S is either undefined or null, return defaultConstructor.
+  GotoIf(IsNullOrUndefined(species), &out);
+
+  // 7. If IsConstructor(S) is true, return S.
+  Label throw_error(this);
+  GotoIf(TaggedIsSmi(species), &throw_error);
+  GotoIfNot(IsConstructorMap(LoadMap(species)), &throw_error);
+  var_result.Bind(species);
+  Goto(&out);
+
+  // 8. Throw a TypeError exception.
+  BIND(&throw_error);
+  ThrowTypeError(context, MessageTemplate::kSpeciesNotConstructor);
+
+  BIND(&out);
+  return var_result.value();
+}
+
 Node* CodeStubAssembler::InstanceOf(Node* object, Node* callable,
                                     Node* context) {
   VARIABLE(var_result, MachineRepresentation::kTagged);

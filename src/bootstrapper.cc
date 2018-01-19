@@ -3131,6 +3131,14 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
         Builtins::kTypedArrayConstructByArrayLike, 4, false);
     native_context()->set_typed_array_construct_by_array_like(
         *construct_by_array_like);
+
+    // %typed_array_construct_by_typed_array
+    Handle<JSFunction> construct_by_typed_array = SimpleCreateFunction(
+        isolate,
+        factory->NewStringFromAsciiChecked("typedArrayConstructByTypedArray"),
+        Builtins::kTypedArrayConstructByTypedArray, 3, false);
+    native_context()->set_typed_array_construct_by_typed_array(
+        *construct_by_typed_array);
   }
 
   {  // -- D a t a V i e w

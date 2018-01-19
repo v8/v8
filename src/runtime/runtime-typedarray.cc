@@ -74,7 +74,6 @@ RUNTIME_FUNCTION(Runtime_TypedArrayCopyElements) {
     return holder->accessor();                       \
   }
 
-BUFFER_VIEW_GETTER(ArrayBufferView, ByteLength, byte_length)
 BUFFER_VIEW_GETTER(ArrayBufferView, ByteOffset, byte_offset)
 BUFFER_VIEW_GETTER(TypedArray, Length, length)
 
