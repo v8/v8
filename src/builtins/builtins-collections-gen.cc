@@ -30,12 +30,13 @@ class BaseCollectionsAssembler : public CodeStubAssembler {
 
   // Adds an entry to a collection.  For Maps, properly handles extracting the
   // key and value from the entry (see LoadKeyValue()).
-  TNode<Object> AddConstructorEntry(Variant variant, TNode<Context> context,
-                                    TNode<Object> collection,
-                                    TNode<JSFunction> add_function,
-                                    TNode<Object> key_value,
-                                    Label* if_exception = nullptr,
-                                    TVariable<Object>* var_exception = nullptr);
+  void AddConstructorEntry(Variant variant, TNode<Context> context,
+                           TNode<Object> collection,
+                           TNode<JSFunction> add_function,
+                           TNode<Object> key_value,
+                           Label* if_may_have_side_effects = nullptr,
+                           Label* if_exception = nullptr,
+                           TVariable<Object>* var_exception = nullptr);
 
   // Adds constructor entries to a collection.  Choosing a fast path when
   // possible.
@@ -51,7 +52,8 @@ class BaseCollectionsAssembler : public CodeStubAssembler {
                                             TNode<Context> context,
                                             TNode<Context> native_context,
                                             TNode<Object> collection,
-                                            TNode<JSArray> fast_jsarray);
+                                            TNode<JSArray> fast_jsarray,
+                                            Label* if_may_have_side_effects);
 
   // Adds constructor entries to a collection using the iterator protocol.
   void AddConstructorEntriesFromIterable(Variant variant,
@@ -128,47 +130,32 @@ class BaseCollectionsAssembler : public CodeStubAssembler {
   // array.  If the array lacks 2 elements, undefined is used.
   void LoadKeyValue(TNode<Context> context, TNode<Object> maybe_array,
                     TVariable<Object>* key, TVariable<Object>* value,
+                    Label* if_may_have_side_effects = nullptr,
                     Label* if_exception = nullptr,
                     TVariable<Object>* var_exception = nullptr);
 };
 
-TNode<Object> BaseCollectionsAssembler::AddConstructorEntry(
+void BaseCollectionsAssembler::AddConstructorEntry(
     Variant variant, TNode<Context> context, TNode<Object> collection,
     TNode<JSFunction> add_function, TNode<Object> key_value,
-    Label* if_exception, TVariable<Object>* var_exception) {
+    Label* if_may_have_side_effects, Label* if_exception,
+    TVariable<Object>* var_exception) {
   CSA_ASSERT(this, Word32BinaryNot(IsTheHole(key_value)));
   if (variant == kMap || variant == kWeakMap) {
-    Label exit(this), if_notobject(this, Label::kDeferred);
-    GotoIfNotJSReceiver(key_value, &if_notobject);
-
     TVARIABLE(Object, key);
     TVARIABLE(Object, value);
-    LoadKeyValue(context, key_value, &key, &value, if_exception, var_exception);
+    LoadKeyValue(context, key_value, &key, &value, if_may_have_side_effects,
+                 if_exception, var_exception);
     Node* key_n = key;
     Node* value_n = value;
-    TNode<Object> add_call =
-        UncheckedCast<Object>(CallJS(CodeFactory::Call(isolate()), context,
-                                     add_function, collection, key_n, value_n));
-    Goto(&exit);
-
-    BIND(&if_notobject);
-    {
-      Node* ret = CallRuntime(
-          Runtime::kThrowTypeError, context,
-          SmiConstant(MessageTemplate::kIteratorValueNotAnObject), key_value);
-      if (if_exception != nullptr) {
-        DCHECK(var_exception != nullptr);
-        GotoIfException(ret, if_exception, var_exception);
-      }
-      Unreachable();
-    }
-    BIND(&exit);
-    return add_call;
-
+    Node* ret = CallJS(CodeFactory::Call(isolate()), context, add_function,
+                       collection, key_n, value_n);
+    GotoIfException(ret, if_exception, var_exception);
   } else {
     DCHECK(variant == kSet || variant == kWeakSet);
-    return UncheckedCast<Object>(CallJS(CodeFactory::Call(isolate()), context,
-                                        add_function, collection, key_value));
+    Node* ret = CallJS(CodeFactory::Call(isolate()), context, add_function,
+                       collection, key_value);
+    GotoIfException(ret, if_exception, var_exception);
   }
 }
 
@@ -176,45 +163,77 @@ void BaseCollectionsAssembler::AddConstructorEntries(
     Variant variant, TNode<Context> context, TNode<Context> native_context,
     TNode<Object> collection, TNode<Object> initial_entries,
     TNode<BoolT> is_fast_jsarray) {
-  Label exit(this), slow_loop(this, Label::kDeferred);
-  GotoIf(IsNullOrUndefined(initial_entries), &exit);
-
-  // TODO(pwong): Re-enable the fast path for Map/WeakMap when a fix for
-  // handling key/value access side-effects is found.
-  if (variant == kSet || variant == kWeakSet) {
-    GotoIfNot(is_fast_jsarray, &slow_loop);
-    {
-      CSA_ASSERT(this, IsFastJSArray(initial_entries, context));
-      GotoIfNot(
-          HasInitialCollectionPrototype(variant, native_context, collection),
-          &slow_loop);
-      AddConstructorEntriesFromFastJSArray(
-          variant, context, native_context, collection,
-          UncheckedCast<JSArray>(initial_entries));
-      Goto(&exit);
-    }
-    BIND(&slow_loop);
+  TNode<IntPtrT> at_least_space_for =
+      EstimatedInitialSize(initial_entries, is_fast_jsarray);
+  TVARIABLE(BoolT, use_fast_loop, is_fast_jsarray);
+  Label allocate_table(this, &use_fast_loop), exit(this), fast_loop(this),
+      slow_loop(this, Label::kDeferred);
+  Goto(&allocate_table);
+  BIND(&allocate_table);
+  {
+    TNode<Object> table = AllocateTable(variant, context, at_least_space_for);
+    StoreObjectField(collection, GetTableOffset(variant), table);
+    GotoIf(IsNullOrUndefined(initial_entries), &exit);
+    Branch(use_fast_loop, &fast_loop, &slow_loop);
   }
-  AddConstructorEntriesFromIterable(variant, context, native_context,
-                                    collection, initial_entries);
-  Goto(&exit);
+  BIND(&fast_loop);
+  {
+#if DEBUG
+    CSA_ASSERT(this, IsFastJSArray(initial_entries, context));
+    TNode<Map> original_initial_entries_map = LoadMap(CAST(initial_entries));
+#endif
+    GotoIfNot(
+        HasInitialCollectionPrototype(variant, native_context, collection),
+        &slow_loop);
+
+    Label if_may_have_side_effects(this, Label::kDeferred);
+    AddConstructorEntriesFromFastJSArray(
+        variant, context, native_context, collection,
+        UncheckedCast<JSArray>(initial_entries), &if_may_have_side_effects);
+    Goto(&exit);
+
+    if (variant == kMap || variant == kWeakMap) {
+      BIND(&if_may_have_side_effects);
+#if DEBUG
+      CSA_ASSERT(this, HasInitialCollectionPrototype(variant, native_context,
+                                                     collection));
+      CSA_ASSERT(this, WordEqual(original_initial_entries_map,
+                                 LoadMap(CAST(initial_entries))));
+#endif
+      use_fast_loop = ReinterpretCast<BoolT>(Int32Constant(0));
+      Goto(&allocate_table);
+    }
+  }
+  BIND(&slow_loop);
+  {
+    AddConstructorEntriesFromIterable(variant, context, native_context,
+                                      collection, initial_entries);
+    Goto(&exit);
+  }
   BIND(&exit);
 }
 
 void BaseCollectionsAssembler::AddConstructorEntriesFromFastJSArray(
     Variant variant, TNode<Context> context, TNode<Context> native_context,
-    TNode<Object> collection, TNode<JSArray> fast_jsarray) {
+    TNode<Object> collection, TNode<JSArray> fast_jsarray,
+    Label* if_may_have_side_effects) {
   TNode<FixedArrayBase> elements = LoadElements(fast_jsarray);
   TNode<Int32T> elements_kind = LoadMapElementsKind(LoadMap(fast_jsarray));
-  TNode<IntPtrT> length = SmiUntag(LoadFastJSArrayLength(fast_jsarray));
   TNode<JSFunction> add_func = GetInitialAddFunction(variant, native_context);
-
+  CSA_ASSERT(
+      this,
+      WordEqual(GetAddFunction(variant, native_context, collection), add_func));
   CSA_ASSERT(this, IsFastJSArray(fast_jsarray, context));
   CSA_ASSERT(this, IsFastElementsKind(elements_kind));
+  TNode<IntPtrT> length = SmiUntag(LoadFastJSArrayLength(fast_jsarray));
   CSA_ASSERT(this, IntPtrGreaterThanOrEqual(length, IntPtrConstant(0)));
   CSA_ASSERT(
       this, HasInitialCollectionPrototype(variant, native_context, collection));
 
+#if DEBUG
+  TNode<Map> original_collection_map = LoadMap(CAST(collection));
+  TNode<Map> original_fast_js_array_map = LoadMap(fast_jsarray);
+#endif
   Label exit(this), if_doubles(this), if_smiorobjects(this);
   Branch(IsFastSmiOrTaggedElementsKind(elements_kind), &if_smiorobjects,
          &if_doubles);
@@ -223,7 +242,8 @@ void BaseCollectionsAssembler::AddConstructorEntriesFromFastJSArray(
     auto set_entry = [&](Node* index) {
       TNode<Object> element = LoadAndNormalizeFixedArrayElement(
           elements, UncheckedCast<IntPtrT>(index));
-      AddConstructorEntry(variant, context, collection, add_func, element);
+      AddConstructorEntry(variant, context, collection, add_func, element,
+                          if_may_have_side_effects);
     };
 
     // Instead of using the slower iteration protocol to iterate over the
@@ -250,7 +270,7 @@ void BaseCollectionsAssembler::AddConstructorEntriesFromFastJSArray(
       auto set_entry = [&](Node* index) {
         TNode<Object> entry = LoadAndNormalizeFixedDoubleArrayElement(
             elements, UncheckedCast<IntPtrT>(index));
-        AddConstructorEntry(kSet, context, collection, add_func, entry);
+        AddConstructorEntry(variant, context, collection, add_func, entry);
       };
       BuildFastLoop(IntPtrConstant(0), length, set_entry, 1,
                     ParameterMode::INTPTR_PARAMETERS, IndexAdvanceMode::kPost);
@@ -258,6 +278,12 @@ void BaseCollectionsAssembler::AddConstructorEntriesFromFastJSArray(
     }
   }
   BIND(&exit);
+#if DEBUG
+  CSA_ASSERT(this,
+             WordEqual(original_collection_map, LoadMap(CAST(collection))));
+  CSA_ASSERT(this,
+             WordEqual(original_fast_js_array_map, LoadMap(fast_jsarray)));
+#endif
 }
 
 void BaseCollectionsAssembler::AddConstructorEntriesFromIterable(
@@ -283,10 +309,8 @@ void BaseCollectionsAssembler::AddConstructorEntriesFromIterable(
         context, iterator, &exit, fast_iterator_result_map));
     TNode<Object> next_value = CAST(iterator_assembler.IteratorValue(
         context, next, fast_iterator_result_map));
-    TNode<Object> add_result =
-        AddConstructorEntry(variant, context, collection, add_func, next_value,
-                            &if_exception, &var_exception);
-    GotoIfException(add_result, &if_exception, &var_exception);
+    AddConstructorEntry(variant, context, collection, add_func, next_value,
+                        nullptr, &if_exception, &var_exception);
     Goto(&loop);
   }
   BIND(&if_exception);
@@ -344,13 +368,9 @@ void BaseCollectionsAssembler::GenerateConstructor(
       HasInitialArrayIteratorPrototypeMap(native_context);
   TNode<BoolT> is_fast_jsarray = UncheckedCast<BoolT>(
       Word32And(IsFastJSArray(iterable, context), array_iterator_unchanged));
-  TNode<IntPtrT> at_least_space_for =
-      EstimatedInitialSize(iterable, is_fast_jsarray);
   TNode<Object> collection = AllocateJSCollection(
       context, GetConstructor(variant, native_context), new_target);
-  TNode<Object> table = AllocateTable(variant, context, at_least_space_for);
 
-  StoreObjectField(collection, GetTableOffset(variant), table);
   AddConstructorEntries(variant, context, native_context, collection, iterable,
                         is_fast_jsarray);
   Return(collection);
@@ -501,12 +521,10 @@ TNode<Object> BaseCollectionsAssembler::LoadAndNormalizeFixedDoubleArrayElement(
   return entry;
 }
 
-void BaseCollectionsAssembler::LoadKeyValue(TNode<Context> context,
-                                            TNode<Object> maybe_array,
-                                            TVariable<Object>* key,
-                                            TVariable<Object>* value,
-                                            Label* if_exception,
-                                            TVariable<Object>* var_exception) {
+void BaseCollectionsAssembler::LoadKeyValue(
+    TNode<Context> context, TNode<Object> maybe_array, TVariable<Object>* key,
+    TVariable<Object>* value, Label* if_may_have_side_effects,
+    Label* if_exception, TVariable<Object>* var_exception) {
   CSA_ASSERT(this, Word32BinaryNot(IsTheHole(maybe_array)));
 
   Label exit(this), if_fast(this), if_slow(this, Label::kDeferred);
@@ -573,20 +591,31 @@ void BaseCollectionsAssembler::LoadKeyValue(TNode<Context> context,
   }
   BIND(&if_slow);
   {
-    *key = UncheckedCast<Object>(
-        GetProperty(context, maybe_array, isolate()->factory()->zero_string()));
-    if (if_exception != nullptr) {
-      DCHECK(var_exception != nullptr);
+    Label if_notobject(this, Label::kDeferred);
+    GotoIfNotJSReceiver(maybe_array, &if_notobject);
+    if (if_may_have_side_effects != nullptr) {
+      // If the element is not a fast array, we cannot guarantee accessing the
+      // key and value won't execute user code that will break fast path
+      // assumptions.
+      Goto(if_may_have_side_effects);
+    } else {
+      *key = UncheckedCast<Object>(GetProperty(
+          context, maybe_array, isolate()->factory()->zero_string()));
       GotoIfException(*key, if_exception, var_exception);
-    }
 
-    *value = UncheckedCast<Object>(
-        GetProperty(context, maybe_array, isolate()->factory()->one_string()));
-    if (if_exception != nullptr) {
-      DCHECK(var_exception != nullptr);
+      *value = UncheckedCast<Object>(GetProperty(
+          context, maybe_array, isolate()->factory()->one_string()));
       GotoIfException(*value, if_exception, var_exception);
+      Goto(&exit);
     }
-    Goto(&exit);
+    BIND(&if_notobject);
+    {
+      Node* ret = CallRuntime(
+          Runtime::kThrowTypeError, context,
+          SmiConstant(MessageTemplate::kIteratorValueNotAnObject), maybe_array);
+      GotoIfException(ret, if_exception, var_exception);
+      Unreachable();
+    }
   }
   BIND(&exit);
 }
