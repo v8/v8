@@ -1867,15 +1867,35 @@ TF_BUILTIN(ArrayOf, ArrayBuiltinCodeStubAssembler) {
 
     BIND(&is_not_constructor);
     {
-      TNode<Map> array_map = CAST(LoadContextElement(
-          context, Context::JS_ARRAY_PACKED_SMI_ELEMENTS_MAP_INDEX));
+      Label allocate_js_array(this), runtime(this);
 
-      // TODO(delphick): Consider using AllocateUninitializedJSArrayWithElements
-      // to avoid initializing an array and then writing over it.
-      array = CAST(AllocateJSArray(PACKED_SMI_ELEMENTS, array_map, length,
-                                   SmiConstant(0), nullptr,
-                                   ParameterMode::SMI_PARAMETERS));
-      Goto(&next);
+      Branch(
+          SmiAbove(length, SmiConstant(JSArray::kInitialMaxFastElementArray)),
+          &runtime, &allocate_js_array);
+
+      BIND(&allocate_js_array);
+      {
+        TNode<Map> array_map = CAST(LoadContextElement(
+            context, Context::JS_ARRAY_PACKED_SMI_ELEMENTS_MAP_INDEX));
+
+        // TODO(delphick): Consider using
+        // AllocateUninitializedJSArrayWithElements to avoid initializing an
+        // array and then writing over it.
+        array = CAST(AllocateJSArray(PACKED_SMI_ELEMENTS, array_map, length,
+                                     SmiConstant(0), nullptr,
+                                     ParameterMode::SMI_PARAMETERS));
+        Goto(&next);
+      }
+
+      BIND(&runtime);
+      {
+        TNode<Context> native_context = LoadNativeContext(context);
+        TNode<JSFunction> array_function = CAST(
+            LoadContextElement(native_context, Context::ARRAY_FUNCTION_INDEX));
+        array = CallRuntime(Runtime::kNewArray, context, array_function, length,
+                            array_function, UndefinedConstant());
+        Goto(&next);
+      }
     }
 
     BIND(&next);
