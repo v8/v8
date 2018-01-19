@@ -39,7 +39,8 @@
 
 ['gc_fuzzer', {
   # Too slow for gc fuzzing.
-  'octane/splay': [PASS, SLOW, ['tsan', SKIP]],
+  'octane/earley-boyer' : [PASS, SLOW, ['mode == debug', SKIP]],
+  'octane/splay': [SKIP],
   'octane/typescript': [SKIP],
 }],  # 'gc_fuzzer'
 ]

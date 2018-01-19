@@ -639,6 +639,7 @@
   'regress/regress-748069': [SKIP],
   'regress/regress-778668': [SKIP],
   'ignition/regress-672027': [PASS, ['tsan', SKIP]],
+  'string-replace-gc': [PASS, SLOW, ['mode == debug', SKIP]],
 
   # Fails allocation on tsan.
   'es6/classes': [PASS, ['tsan', SKIP]],
