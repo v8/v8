@@ -34,8 +34,6 @@ GN_ARGS = [
 
 BUILD_TARGET = "v8_monolith"
 
-BUILD_SUBDIR = "gn"
-
 def FindGn(options):
   if options.host_os == "linux":
     os_path = "linux64"
@@ -96,7 +94,6 @@ def ParseOptions(args):
 
   assert options.build_path
   options.build_path = os.path.abspath(options.build_path)
-  options.build_path = os.path.join(options.build_path, BUILD_SUBDIR)
   return options
 
 if __name__ == "__main__":

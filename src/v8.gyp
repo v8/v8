@@ -2611,7 +2611,7 @@
             '../tools/node/build_gn.py',
             '--mode', '<(CONFIGURATION_NAME)',
             '--v8_path', '../',
-            '--build_path', '<(INTERMEDIATE_DIR)',
+            '--build_path', '<(INTERMEDIATE_DIR)/gn',
             '--host_os', '<(host_os)',
             '--flag', 'v8_promise_internal_field_count=<(v8_promise_internal_field_count)',
             '--flag', 'target_cpu="<(target_arch)"',
