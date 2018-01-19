@@ -1901,7 +1901,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     case kMips64Peek: {
       // The incoming value is 0-based, but we need a 1-based value.
-      int reverse_slot = MiscField::decode(instr->opcode()) + 1;
+      int reverse_slot = i.InputInt32(0) + 1;
       int offset =
           FrameSlotToFPOffset(frame()->GetTotalFrameSlotCount() - reverse_slot);
       if (instr->OutputAt(0)->IsFPRegister()) {

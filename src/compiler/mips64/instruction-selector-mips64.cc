@@ -1699,8 +1699,8 @@ void InstructionSelector::EmitPrepareResults(ZoneVector<PushParameter>* results,
       } else if (output.location.GetType() == MachineType::Float64()) {
         MarkAsFloat64(output.node);
       }
-      InstructionOperand result = g.DefineAsRegister(output.node);
-      Emit(kMips64Peek | MiscField::encode(reverse_slot), result);
+      Emit(kMips64Peek, g.DefineAsRegister(output.node),
+           g.UseImmediate(reverse_slot));
     }
     reverse_slot += output.location.GetSizeInPointers();
   }
