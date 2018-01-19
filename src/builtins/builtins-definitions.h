@@ -1065,14 +1065,11 @@ namespace internal {
   TFS(TypedArrayInitialize, kHolder, kLength, kElementSize, kInitialize)       \
   TFS(TypedArrayInitializeWithBuffer, kHolder, kLength, kBuffer, kElementSize, \
       kByteOffset)                                                             \
-  /* ES6 #sec-typedarray-buffer-byteoffset-length */                           \
-  TFJ(TypedArrayConstructByArrayBuffer, 5, kHolder, kBuffer, kByteOffset,      \
-      kLength, kElementSize)                                                   \
   TFJ(TypedArrayConstructByArrayLike, 4, kHolder, kArrayLike, kLength,         \
       kElementSize)                                                            \
-  /* ES6 #sec-typedarray-length */                                             \
-  TFJ(TypedArrayConstructByLength, 3, kHolder, kLength, kElementSize)          \
-  TFJ(TypedArrayConstructByTypedArray, 3, kHolder, kTypedArray, kElementSize)  \
+  TFJ(TypedArrayConstructor, SharedFunctionInfo::kDontAdaptArgumentsSentinel)  \
+  TFJ(TypedArrayConstructor_ConstructStub,                                     \
+      SharedFunctionInfo::kDontAdaptArgumentsSentinel)                         \
   CPP(TypedArrayPrototypeBuffer)                                               \
   /* ES6 #sec-get-%typedarray%.prototype.bytelength */                         \
   TFJ(TypedArrayPrototypeByteLength, 0)                                        \

@@ -42,14 +42,6 @@ endmacro
 
 TYPED_ARRAYS(DECLARE_GLOBALS)
 
-macro IS_ARRAYBUFFER(arg)
-(%_ClassOf(arg) === 'ArrayBuffer')
-endmacro
-
-macro IS_SHAREDARRAYBUFFER(arg)
-(%_ClassOf(arg) === 'SharedArrayBuffer')
-endmacro
-
 macro IS_TYPEDARRAY(arg)
 (%_IsTypedArray(arg))
 endmacro
@@ -126,13 +118,12 @@ function TypedArraySpeciesCreate(exemplar, arg0, arg1, arg2) {
   return TypedArrayCreate(constructor, arg0, arg1, arg2);
 }
 
-macro TYPED_ARRAY_CONSTRUCTOR(NAME, ELEMENT_SIZE)
-function NAMEConstructByIterable(obj, iterable, iteratorFn) {
+function TypedArrayConstructByIterable(obj, iterable, iteratorFn, elementSize) {
   if (%IterableToListCanBeElided(iterable)) {
     // This .length access is unobservable, because it being observable would
     // mean that iteration has side effects, and we wouldn't reach this path.
     %typed_array_construct_by_array_like(
-        obj, iterable, iterable.length, ELEMENT_SIZE);
+        obj, iterable, iterable.length, elementSize);
   } else {
     var list = new InternalArray();
     // Reading the Symbol.iterator property of iterable twice would be
@@ -150,33 +141,11 @@ function NAMEConstructByIterable(obj, iterable, iteratorFn) {
     for (var value of newIterable) {
       list.push(value);
     }
-    %typed_array_construct_by_array_like(obj, list, list.length, ELEMENT_SIZE);
+    %typed_array_construct_by_array_like(obj, list, list.length, elementSize);
   }
 }
 
-function NAMEConstructor(arg1, arg2, arg3) {
-  if (!IS_UNDEFINED(new.target)) {
-    if (IS_ARRAYBUFFER(arg1) || IS_SHAREDARRAYBUFFER(arg1)) {
-      %typed_array_construct_by_array_buffer(
-          this, arg1, arg2, arg3, ELEMENT_SIZE);
-    } else if (IS_TYPEDARRAY(arg1)) {
-      %typed_array_construct_by_typed_array(this, arg1, ELEMENT_SIZE);
-    } else if (IS_RECEIVER(arg1)) {
-      var iteratorFn = arg1[iteratorSymbol];
-      if (IS_UNDEFINED(iteratorFn)) {
-        %typed_array_construct_by_array_like(
-            this, arg1, arg1.length, ELEMENT_SIZE);
-      } else {
-        NAMEConstructByIterable(this, arg1, iteratorFn);
-      }
-    } else {
-      %typed_array_construct_by_length(this, arg1, ELEMENT_SIZE);
-    }
-  } else {
-    throw %make_type_error(kConstructorNotFunction, "NAME")
-  }
-}
-
+macro TYPED_ARRAY_CONSTRUCTOR(NAME, ELEMENT_SIZE)
 function NAMESubArray(begin, end) {
   var beginInt = TO_INTEGER(begin);
   if (!IS_UNDEFINED(end)) {
@@ -391,11 +360,8 @@ function TypedArrayConstructor() {
 %AddNamedProperty(GlobalTypedArray.prototype, "toString", ArrayToString,
                   DONT_ENUM);
 
-
-macro SETUP_TYPED_ARRAY(NAME, ELEMENT_SIZE)
-  %SetCode(GlobalNAME, NAMEConstructor);
-endmacro
-
-TYPED_ARRAYS(SETUP_TYPED_ARRAY)
+%InstallToContext([
+  "typed_array_construct_by_iterable", TypedArrayConstructByIterable
+]);
 
 })

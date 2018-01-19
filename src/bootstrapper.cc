@@ -3109,21 +3109,6 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
     TYPED_ARRAYS(INSTALL_TYPED_ARRAY)
 #undef INSTALL_TYPED_ARRAY
 
-    // %typed_array_construct_by_length
-    Handle<JSFunction> construct_by_length = SimpleCreateFunction(
-        isolate,
-        factory->NewStringFromAsciiChecked("typedArrayConstructByLength"),
-        Builtins::kTypedArrayConstructByLength, 3, false);
-    native_context()->set_typed_array_construct_by_length(*construct_by_length);
-
-    // %typed_array_construct_by_array_buffer
-    Handle<JSFunction> construct_by_buffer = SimpleCreateFunction(
-        isolate,
-        factory->NewStringFromAsciiChecked("typedArrayConstructByArrayBuffer"),
-        Builtins::kTypedArrayConstructByArrayBuffer, 5, false);
-    native_context()->set_typed_array_construct_by_array_buffer(
-        *construct_by_buffer);
-
     // %typed_array_construct_by_array_like
     Handle<JSFunction> construct_by_array_like = SimpleCreateFunction(
         isolate,
@@ -3131,14 +3116,6 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
         Builtins::kTypedArrayConstructByArrayLike, 4, false);
     native_context()->set_typed_array_construct_by_array_like(
         *construct_by_array_like);
-
-    // %typed_array_construct_by_typed_array
-    Handle<JSFunction> construct_by_typed_array = SimpleCreateFunction(
-        isolate,
-        factory->NewStringFromAsciiChecked("typedArrayConstructByTypedArray"),
-        Builtins::kTypedArrayConstructByTypedArray, 3, false);
-    native_context()->set_typed_array_construct_by_typed_array(
-        *construct_by_typed_array);
   }
 
   {  // -- D a t a V i e w
@@ -3696,8 +3673,13 @@ Handle<JSFunction> Genesis::InstallTypedArray(const char* name,
 
   Handle<JSFunction> result = InstallFunction(
       global, name, JS_TYPED_ARRAY_TYPE, JSTypedArray::kSizeWithEmbedderFields,
-      0, factory()->the_hole_value(), Builtins::kIllegal);
+      0, factory()->the_hole_value(), Builtins::kTypedArrayConstructor);
   result->initial_map()->set_elements_kind(elements_kind);
+
+  result->shared()->DontAdaptArguments();
+  result->shared()->set_length(3);
+  result->shared()->SetConstructStub(
+      *BUILTIN_CODE(isolate_, TypedArrayConstructor_ConstructStub));
 
   CHECK(JSObject::SetPrototype(result, typed_array_function, false, kDontThrow)
             .FromJust());
