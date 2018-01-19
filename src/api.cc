@@ -7690,6 +7690,12 @@ void WasmModuleObjectBuilderStreaming::Abort(Local<Value> exception) {
   if (promise->State() != v8::Promise::kPending) return;
   if (i::FLAG_wasm_stream_compilation) streaming_decoder_->Abort();
 
+  // If there is no exception, then we do not reject the promise. The reason is
+  // that 'no exception' indicates that we are in a ScriptForbiddenScope, which
+  // means that it is not allowed to reject the promise at the moment, or
+  // execute any other JavaScript code.
+  if (exception.IsEmpty()) return;
+
   Local<Promise::Resolver> resolver = promise.As<Promise::Resolver>();
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate_);
   i::HandleScope scope(i_isolate);
