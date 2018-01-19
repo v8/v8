@@ -2825,7 +2825,6 @@ group("v8_clusterfuzz") {
   if (v8_test_isolation_mode != "noop") {
     deps += [
       "test:d8_default_run",
-      "tools:run-deopt-fuzzer_run",
       "tools:run-num-fuzzer_run",
     ]
   }
