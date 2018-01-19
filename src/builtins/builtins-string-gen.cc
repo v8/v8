@@ -563,19 +563,6 @@ TF_BUILTIN(StringCharAt, StringBuiltinsAssembler) {
   Return(result);
 }
 
-TF_BUILTIN(StringCharCodeAt, StringBuiltinsAssembler) {
-  Node* receiver = Parameter(Descriptor::kReceiver);
-  Node* position = Parameter(Descriptor::kPosition);
-
-  // Load the character code at the {position} from the {receiver}.
-  TNode<Int32T> code = StringCharCodeAt(receiver, position);
-
-  // And return it as TaggedSigned value.
-  // TODO(turbofan): Allow builtins to return values untagged.
-  TNode<Smi> result = SmiFromWord32(code);
-  Return(result);
-}
-
 TF_BUILTIN(StringCodePointAt, StringBuiltinsAssembler) {
   Node* receiver = Parameter(Descriptor::kReceiver);
   Node* position = Parameter(Descriptor::kPosition);

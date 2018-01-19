@@ -2352,9 +2352,8 @@ class RepresentationSelector {
             NodeProperties::ChangeOp(node, simplified()->SeqStringCharCodeAt());
           }
         } else {
-          // TODO(turbofan): Allow builtins to return untagged values.
           VisitBinop(node, UseInfo::AnyTagged(), UseInfo::TruncatingWord32(),
-                     MachineRepresentation::kTaggedSigned);
+                     MachineRepresentation::kWord32);
         }
         return;
       }
