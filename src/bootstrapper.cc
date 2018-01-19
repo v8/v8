@@ -2104,9 +2104,9 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
     SimpleInstallFunction(prototype, "trim", Builtins::kStringPrototypeTrim, 0,
                           false);
     SimpleInstallFunction(prototype, "trimLeft",
-                          Builtins::kStringPrototypeTrimLeft, 0, false);
+                          Builtins::kStringPrototypeTrimStart, 0, false);
     SimpleInstallFunction(prototype, "trimRight",
-                          Builtins::kStringPrototypeTrimRight, 0, false);
+                          Builtins::kStringPrototypeTrimEnd, 0, false);
 #ifdef V8_INTL_SUPPORT
     SimpleInstallFunction(prototype, "toLowerCase",
                           Builtins::kStringPrototypeToLowerCaseIntl, 0, true);
@@ -4401,6 +4401,41 @@ void Genesis::InitializeGlobal_harmony_sharedarraybuffer() {
     JSObject::AddProperty(
         isolate->atomics_object(), factory->to_string_tag_symbol(), name,
         static_cast<PropertyAttributes>(DONT_ENUM | READ_ONLY));
+  }
+}
+
+void Genesis::InitializeGlobal_harmony_string_trimming() {
+  if (!FLAG_harmony_string_trimming) return;
+
+  Handle<JSGlobalObject> global(native_context()->global_object());
+  Isolate* isolate = global->GetIsolate();
+  Factory* factory = isolate->factory();
+
+  Handle<JSObject> string_prototype(
+      native_context()->initial_string_prototype());
+
+  {
+    Handle<String> trim_left_name = factory->InternalizeUtf8String("trimLeft");
+    Handle<String> trim_start_name =
+        factory->InternalizeUtf8String("trimStart");
+    Handle<JSFunction> trim_left_fun = Handle<JSFunction>::cast(
+        JSObject::GetProperty(string_prototype, trim_left_name)
+            .ToHandleChecked());
+    JSObject::AddProperty(string_prototype, trim_start_name, trim_left_fun,
+                          DONT_ENUM);
+    trim_left_fun->shared()->set_name(*trim_start_name);
+  }
+
+  {
+    Handle<String> trim_right_name =
+        factory->InternalizeUtf8String("trimRight");
+    Handle<String> trim_end_name = factory->InternalizeUtf8String("trimEnd");
+    Handle<JSFunction> trim_right_fun = Handle<JSFunction>::cast(
+        JSObject::GetProperty(string_prototype, trim_right_name)
+            .ToHandleChecked());
+    JSObject::AddProperty(string_prototype, trim_end_name, trim_right_fun,
+                          DONT_ENUM);
+    trim_right_fun->shared()->set_name(*trim_end_name);
   }
 }
 

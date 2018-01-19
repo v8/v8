@@ -3124,8 +3124,8 @@ class ContextExtension : public Struct {
   V(String.prototype, toString, StringToString)             \
   V(String.prototype, toUpperCase, StringToUpperCase)       \
   V(String.prototype, trim, StringTrim)                     \
-  V(String.prototype, trimLeft, StringTrimLeft)             \
-  V(String.prototype, trimRight, StringTrimRight)           \
+  V(String.prototype, trimLeft, StringTrimStart)            \
+  V(String.prototype, trimRight, StringTrimEnd)             \
   V(String.prototype, valueOf, StringValueOf)               \
   V(String, fromCharCode, StringFromCharCode)               \
   V(String, fromCodePoint, StringFromCodePoint)             \

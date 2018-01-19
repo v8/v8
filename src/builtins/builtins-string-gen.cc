@@ -2072,14 +2072,14 @@ TF_BUILTIN(StringPrototypeTrim, StringTrimAssembler) {
   Generate(String::kTrim, "String.prototype.trim");
 }
 
-// Non-standard WebKit extension
-TF_BUILTIN(StringPrototypeTrimLeft, StringTrimAssembler) {
-  Generate(String::kTrimLeft, "String.prototype.trimLeft");
+// https://github.com/tc39/proposal-string-left-right-trim
+TF_BUILTIN(StringPrototypeTrimStart, StringTrimAssembler) {
+  Generate(String::kTrimStart, "String.prototype.trimLeft");
 }
 
-// Non-standard WebKit extension
-TF_BUILTIN(StringPrototypeTrimRight, StringTrimAssembler) {
-  Generate(String::kTrimRight, "String.prototype.trimRight");
+// https://github.com/tc39/proposal-string-left-right-trim
+TF_BUILTIN(StringPrototypeTrimEnd, StringTrimAssembler) {
+  Generate(String::kTrimEnd, "String.prototype.trimRight");
 }
 
 void StringTrimAssembler::Generate(String::TrimMode mode,
@@ -2105,12 +2105,12 @@ void StringTrimAssembler::Generate(String::TrimMode mode,
   TVARIABLE(IntPtrT, var_start, IntPtrConstant(0));
   TVARIABLE(IntPtrT, var_end, IntPtrSub(string_length, IntPtrConstant(1)));
 
-  if (mode == String::kTrimLeft || mode == String::kTrim) {
+  if (mode == String::kTrimStart || mode == String::kTrim) {
     ScanForNonWhiteSpaceOrLineTerminator(string_data, string_data_offset,
                                          is_stringonebyte, &var_start,
                                          string_length, 1, &return_emptystring);
   }
-  if (mode == String::kTrimRight || mode == String::kTrim) {
+  if (mode == String::kTrimEnd || mode == String::kTrim) {
     ScanForNonWhiteSpaceOrLineTerminator(
         string_data, string_data_offset, is_stringonebyte, &var_end,
         IntPtrConstant(-1), -1, &return_emptystring);

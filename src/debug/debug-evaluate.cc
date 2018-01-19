@@ -663,8 +663,8 @@ bool BuiltinHasNoSideEffect(Builtins::Name id) {
     case Builtins::kStringPrototypeToUpperCase:
 #endif
     case Builtins::kStringPrototypeTrim:
-    case Builtins::kStringPrototypeTrimLeft:
-    case Builtins::kStringPrototypeTrimRight:
+    case Builtins::kStringPrototypeTrimEnd:
+    case Builtins::kStringPrototypeTrimStart:
     case Builtins::kStringPrototypeValueOf:
     case Builtins::kStringToNumber:
     case Builtins::kSubString:

@@ -1034,9 +1034,8 @@ namespace internal {
   /* ES6 #sec-string.prototype.tostring */                                     \
   TFJ(StringPrototypeToString, 0)                                              \
   TFJ(StringPrototypeTrim, SharedFunctionInfo::kDontAdaptArgumentsSentinel)    \
-  TFJ(StringPrototypeTrimLeft,                                                 \
-      SharedFunctionInfo::kDontAdaptArgumentsSentinel)                         \
-  TFJ(StringPrototypeTrimRight,                                                \
+  TFJ(StringPrototypeTrimEnd, SharedFunctionInfo::kDontAdaptArgumentsSentinel) \
+  TFJ(StringPrototypeTrimStart,                                                \
       SharedFunctionInfo::kDontAdaptArgumentsSentinel)                         \
   /* ES6 #sec-string.prototype.valueof */                                      \
   TFJ(StringPrototypeValueOf, 0)                                               \

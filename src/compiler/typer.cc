@@ -1576,8 +1576,8 @@ Type* Typer::Visitor::JSCallTyper(Type* fun, Typer* t) {
         case kStringToString:
         case kStringToUpperCase:
         case kStringTrim:
-        case kStringTrimLeft:
-        case kStringTrimRight:
+        case kStringTrimEnd:
+        case kStringTrimStart:
         case kStringValueOf:
           return Type::String();
 
