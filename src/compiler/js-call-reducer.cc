@@ -2517,11 +2517,6 @@ Reduction JSCallReducer::ReduceArraySome(Handle<JSFunction> function,
 
   const ElementsKind kind = receiver_maps[0]->elements_kind();
 
-  // TODO(pwong): Handle holey double elements kinds.
-  if (IsDoubleElementsKind(kind) && IsHoleyElementsKind(kind)) {
-    return NoChange();
-  }
-
   for (Handle<Map> receiver_map : receiver_maps) {
     if (!CanInlineArrayIteratingBuiltin(receiver_map)) return NoChange();
     // We can handle different maps, as long as their elements kind are the
@@ -2621,8 +2616,13 @@ Reduction JSCallReducer::ReduceArraySome(Handle<JSFunction> function,
   if (IsHoleyElementsKind(kind)) {
     // Holey elements kind require a hole check and skipping of the element in
     // the case of a hole.
-    Node* check = graph()->NewNode(simplified()->ReferenceEqual(), element,
-                                   jsgraph()->TheHoleConstant());
+    Node* check;
+    if (IsDoubleElementsKind(kind)) {
+      check = graph()->NewNode(simplified()->NumberIsFloat64Hole(), element);
+    } else {
+      check = graph()->NewNode(simplified()->ReferenceEqual(), element,
+                               jsgraph()->TheHoleConstant());
+    }
     Node* branch =
         graph()->NewNode(common()->Branch(BranchHint::kFalse), check, control);
     hole_true = graph()->NewNode(common()->IfTrue(), branch);
@@ -3148,6 +3148,8 @@ Reduction JSCallReducer::ReduceJSCall(Node* node) {
           return ReduceArrayFind(ArrayFindVariant::kFindIndex, function, node);
         case Builtins::kArrayEvery:
           return ReduceArrayEvery(function, node);
+        case Builtins::kArraySome:
+          return ReduceArraySome(function, node);
         case Builtins::kArrayPrototypePush:
           return ReduceArrayPrototypePush(node);
         case Builtins::kArrayPrototypePop:
