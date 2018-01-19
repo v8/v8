@@ -641,6 +641,56 @@ assertEquals(undefined, arr.reduceRight(function(val) { return val }));
   assertEquals(total, g());
 })();
 
+(function OptimizedReduceEagerDeoptMiddleOfIterationHoley() {
+  let deopt = false;
+  let array = [, ,11,22,,33,45,56,,6,77,84,93,101,];
+  let f = (a,current) => {
+    print(a);
+    if (current == 6 && deopt) {array[0] = 1.5; }
+    return a + current;
+  };
+  let g = function() {
+    return array.reduce(f);
+  }
+  g(); g();
+  let total = g();
+  %OptimizeFunctionOnNextCall(g);
+  g();
+  deopt = true;
+  g();
+  deopt = false;
+  array = [11,22,33,45,56,6,77,84,93,101];
+  %OptimizeFunctionOnNextCall(g);
+  g();
+  deopt = true;
+  assertEquals(total, g());
+})();
+
+(function OptimizedReduceRightEagerDeoptMiddleOfIterationHoley() {
+  let deopt = false;
+  let array = [, ,11,22,,33,45,56,,6,77,84,93,101,];
+  let f = (a,current) => {
+    print(a);
+    if (current == 6 && deopt) {array[array.length-1] = 1.5; }
+    return a + current;
+  };
+  let g = function() {
+    return array.reduceRight(f);
+  }
+  g(); g();
+  let total = g();
+  %OptimizeFunctionOnNextCall(g);
+  g();
+  deopt = true;
+  g();
+  deopt = false;
+  array = [11,22,33,45,56,6,77,84,93,101];
+  %OptimizeFunctionOnNextCall(g);
+  g();
+  deopt = true;
+  assertEquals(total, g());
+})();
+
 (function ReduceCatch() {
   let f = (a,current) => {
     return a + current;
