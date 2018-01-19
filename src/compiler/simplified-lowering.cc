@@ -3630,14 +3630,14 @@ Node* SimplifiedLowering::Uint32Mod(Node* const node) {
   // General case for unsigned integer modulus, with optimization for (unknown)
   // power of 2 right hand side.
   //
-  //   if rhs then
+  //   if rhs == 0 then
+  //     zero
+  //   else
   //     msk = rhs - 1
   //     if rhs & msk != 0 then
   //       lhs % rhs
   //     else
   //       lhs & msk
-  //   else
-  //     zero
   //
   // Note: We do not use the Diamond helper class here, because it really hurts
   // readability with nested diamonds.
@@ -3645,16 +3645,20 @@ Node* SimplifiedLowering::Uint32Mod(Node* const node) {
   const Operator* const phi_op =
       common()->Phi(MachineRepresentation::kWord32, 2);
 
-  Node* branch0 = graph()->NewNode(common()->Branch(BranchHint::kTrue), rhs,
+  Node* check0 = graph()->NewNode(machine()->Word32Equal(), rhs, zero);
+  Node* branch0 = graph()->NewNode(common()->Branch(BranchHint::kFalse), check0,
                                    graph()->start());
 
   Node* if_true0 = graph()->NewNode(common()->IfTrue(), branch0);
-  Node* true0;
+  Node* true0 = zero;
+
+  Node* if_false0 = graph()->NewNode(common()->IfFalse(), branch0);
+  Node* false0;
   {
     Node* msk = graph()->NewNode(machine()->Int32Add(), rhs, minus_one);
 
     Node* check1 = graph()->NewNode(machine()->Word32And(), rhs, msk);
-    Node* branch1 = graph()->NewNode(common()->Branch(), check1, if_true0);
+    Node* branch1 = graph()->NewNode(common()->Branch(), check1, if_false0);
 
     Node* if_true1 = graph()->NewNode(common()->IfTrue(), branch1);
     Node* true1 = graph()->NewNode(machine()->Uint32Mod(), lhs, rhs, if_true1);
@@ -3662,12 +3666,9 @@ Node* SimplifiedLowering::Uint32Mod(Node* const node) {
     Node* if_false1 = graph()->NewNode(common()->IfFalse(), branch1);
     Node* false1 = graph()->NewNode(machine()->Word32And(), lhs, msk);
 
-    if_true0 = graph()->NewNode(merge_op, if_true1, if_false1);
-    true0 = graph()->NewNode(phi_op, true1, false1, if_true0);
+    if_false0 = graph()->NewNode(merge_op, if_true1, if_false1);
+    false0 = graph()->NewNode(phi_op, true1, false1, if_false0);
   }
-
-  Node* if_false0 = graph()->NewNode(common()->IfFalse(), branch0);
-  Node* false0 = zero;
 
   Node* merge0 = graph()->NewNode(merge_op, if_true0, if_false0);
   return graph()->NewNode(phi_op, true0, false0, merge0);
