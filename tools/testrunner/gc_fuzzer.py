@@ -71,10 +71,14 @@ class GCFuzzer(base_runner.BaseTestRunner):
     parser.add_option("--fuzzer-random-seed", default=0,
                       help="Default seed for initializing fuzzer random "
                       "generator")
+    parser.add_option("--stress-compaction", default=False, action="store_true",
+                      help="Enable stress_compaction_random flag")
+    parser.add_option("--stress-gc", default=False, action="store_true",
+                      help="Enable stress-gc-interval flag")
     parser.add_option("--stress-marking", default=False, action="store_true",
                       help="Enable stress-marking flag")
-    parser.add_option("--stress-compaction", default=False, action="store_true",
-                      help="Enable stress_compaction_percentage flag")
+    parser.add_option("--stress-scavenge", default=False, action="store_true",
+                      help="Enable stress-scavenge flag")
 
     parser.add_option("--distribution-factor1", help="DEPRECATED")
     parser.add_option("--distribution-factor2", help="DEPRECATED")
@@ -168,9 +172,9 @@ class GCFuzzer(base_runner.BaseTestRunner):
         if t.output_proc.has_unexpected_output(runner.outputs[t]):
           print '%s failed, skipping' % t.path
           continue
-        max_limit = self._get_max_limit_reached(runner.outputs[t])
-        if max_limit:
-          test_results[t.path] = max_limit
+        max_limits = self._get_max_limits_reached(runner.outputs[t])
+        if max_limits:
+          test_results[t.path] = max_limits
 
     runner = None
 
@@ -183,24 +187,50 @@ class GCFuzzer(base_runner.BaseTestRunner):
     for s in suites:
       s.tests = []
       for t in test_backup[s]:
-        max_percent = test_results.get(t.path, 0)
-        if not max_percent or max_percent < 1.0:
+        results = test_results.get(t.path)
+        if not results:
           continue
-        max_percent = int(max_percent)
+        max_marking, max_new_space, max_allocations = results
 
-        subtests_count = self._calculate_n_tests(max_percent, options)
+        # Only when combining the flags, make sure one has a minimum of 1 if
+        # also the other is >=1. Otherwise we might skip it below.
+        if options.stress_marking and options.stress_scavenge:
+          if max_new_space:
+            max_marking = max(max_marking, 1)
+          if max_marking:
+            max_new_space = max(max_new_space, 1)
 
-        if options.verbose:
-          print ('%s [x%d] (max marking limit=%.02f)' %
-                 (t.path, subtests_count, max_percent))
+        # Make as many subtests as determined by the most dominant factor
+        # (one of marking or new space).
+        subtests_count = 1
+        base_flags = []
+        if options.stress_marking:
+          if not max_marking:
+            # Skip 0 as it switches off the flag.
+            continue
+          subtests_count = max(
+              subtests_count, self._calculate_n_tests(max_marking, options))
+          base_flags += ['--stress_marking', str(max_marking)]
+        if options.stress_scavenge:
+          if not max_new_space:
+            # Skip 0 as it switches off the flag.
+            continue
+          # Divide by 5, since new space is more dominating than marking.
+          subtests_count = max(
+              subtests_count, self._calculate_n_tests(
+                  max(1, max_new_space / 5), options))
+          base_flags += ['--stress_scavenge', str(max_new_space)]
+        if options.stress_gc:
+          # Only makes sense in combination with other flags, since we always
+          # reach our upper limit of 5000.
+          base_flags += ['--random-gc-interval', str(max_allocations)]
+        if options.stress_compaction:
+          base_flags.append('--stress_compaction_random')
+
         for i in xrange(0, subtests_count):
-          fuzzer_seed = self._next_fuzzer_seed()
           fuzzing_flags = [
-            '--stress_marking', str(max_percent),
-            '--fuzzer_random_seed', str(fuzzer_seed),
-          ]
-          if options.stress_compaction:
-            fuzzing_flags.append('--stress_compaction_random')
+            '--fuzzer_random_seed', str(self._next_fuzzer_seed()),
+          ] + base_flags
           s.tests.append(t.create_variant(t.variant, fuzzing_flags, i))
       for t in s.tests:
         t.cmd = t.get_command(ctx)
@@ -225,7 +255,7 @@ class GCFuzzer(base_runner.BaseTestRunner):
       "dcheck_always_on": self.build_config.dcheck_always_on,
       "deopt_fuzzer": False,
       "gc_fuzzer": True,
-      "gc_stress": False,
+      "gc_stress": True,
       "gcov_coverage": self.build_config.gcov_coverage,
       "isolates": options.isolates,
       "mode": self.mode_options.status_mode,
@@ -259,16 +289,32 @@ class GCFuzzer(base_runner.BaseTestRunner):
     return num_tests
 
   # Parses test stdout and returns what was the highest reached percent of the
-  # incremental marking limit (0-100).
+  # incremental marking limit (0-100), new space size (0-100) and allocations
+  # (6-5000).
   @staticmethod
-  def _get_max_limit_reached(output):
+  def _get_max_limits_reached(output):
+    """Returns: list [max marking, max new space, allocations]"""
     if not output.stdout:
       return None
 
+    results = [0, 0, 0]
     for l in reversed(output.stdout.splitlines()):
       if l.startswith('### Maximum marking limit reached ='):
-        return float(l.split()[6])
+        results[0] = float(l.split()[6])
+      elif l.startswith('### Maximum new space size reached ='):
+        results[1] = float(l.split()[7])
+      elif l.startswith('### Allocations ='):
+        # Also remove the comma in the end after split.
+        results[2] = int(l.split()[3][:-1])
+      if all(results):
+        break
 
+    if any(results):
+      return (
+          max(0, int(results[0])),
+          max(0, int(results[1])),
+          min(5000, max(6, results[2])),
+      )
     return None
 
   def _next_fuzzer_seed(self):
