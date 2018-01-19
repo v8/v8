@@ -3,6 +3,7 @@
 # found in the LICENSE file.
 
 from collections import namedtuple
+import time
 
 from . import base
 
@@ -37,19 +38,24 @@ class Fuzzer(object):
 
 # TODO(majeski): Allow multiple subtests to run at once.
 class FuzzerProc(base.TestProcProducer):
-  def __init__(self, rng, count, fuzzers):
+  def __init__(self, rng, count, fuzzers, fuzz_duration_sec=0):
     """
     Args:
       rng: random number generator used to select flags and values for them
       count: number of tests to generate based on each base test
       fuzzers: list of FuzzerConfig instances
+      fuzz_duration_sec: how long it should run, overrides count
     """
     super(FuzzerProc, self).__init__('Fuzzer')
 
     self._rng = rng
     self._count = count
     self._fuzzer_configs = fuzzers
+    self._fuzz_duration_sec = fuzz_duration_sec
     self._gens = {}
+
+    self._start_time = None
+    self._stop = False
 
   def setup(self, requirement=base.DROP_RESULT):
     # Fuzzer is optimized to not store the results
@@ -57,6 +63,9 @@ class FuzzerProc(base.TestProcProducer):
     super(FuzzerProc, self).setup(requirement)
 
   def _next_test(self, test):
+    if not self._start_time:
+      self._start_time = time.time()
+
     analysis_flags = []
     for fuzzer_config in self._fuzzer_configs:
       if fuzzer_config.analyzer:
@@ -73,6 +82,11 @@ class FuzzerProc(base.TestProcProducer):
     self._try_send_next_test(test)
 
   def _result_for(self, test, subtest, result):
+    if self._fuzz_duration_sec and not self._stop:
+      if int(time.time() - self._start_time) > self._fuzz_duration_sec:
+        print '>>> Stopping fuzzing'
+        self._stop = True
+
     if result is not None:
       # Analysis phase, for fuzzing we drop the result.
       if result.has_unexpected_output:
@@ -104,7 +118,8 @@ class FuzzerProc(base.TestProcProducer):
       # No fuzzers for this test, skip it
       return
 
-    for i in xrange(0, self._count):
+    i = 0
+    while not self._stop or i < self._count:
       main_index = self._rng.choice(indexes)
       _, main_gen = gens[main_index]
 
@@ -118,10 +133,13 @@ class FuzzerProc(base.TestProcProducer):
       flags.append('--fuzzer-random-seed=%s' % self._next_seed())
       yield self._create_subtest(test, str(i), flags=flags)
 
+      i += 1
+
   def _try_send_next_test(self, test):
-    for subtest in self._gens[test.procid]:
-      self._send_test(subtest)
-      return
+    if not self._stop:
+      for subtest in self._gens[test.procid]:
+        self._send_test(subtest)
+        return
 
     del self._gens[test.procid]
     self._send_result(test, None)

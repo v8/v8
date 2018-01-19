@@ -77,6 +77,9 @@ class NumFuzzer(base_runner.BaseTestRunner):
 
     parser.add_option("--tests-count", default=5, type="int",
                       help="Number of tests to generate from each base test")
+    parser.add_option("--total-timeout-sec", default=0, type="int",
+                      help="How long should fuzzer run. It overrides "
+                           "--tests-count")
     return parser
 
 
@@ -111,6 +114,7 @@ class NumFuzzer(base_runner.BaseTestRunner):
         fuzzer_rng,
         options.tests_count,
         self._create_fuzzer_configs(options),
+        options.total_timeout_sec,
     )
 
     results = ResultsTracker()
