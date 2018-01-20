@@ -524,7 +524,11 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       } else {
         Register reg = i.InputRegister(0);
         __ add(reg, Immediate(Code::kHeaderSize - kHeapObjectTag));
-        __ call(reg);
+        if (HasCallDescriptorFlag(instr, CallDescriptor::kRetpoline)) {
+          __ RetpolineCall(reg);
+        } else {
+          __ call(reg);
+        }
       }
       RecordCallPosition(instr);
       frame_access_state()->ClearSPDelta();
@@ -537,11 +541,19 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
         if (info()->IsWasm()) {
           __ wasm_call(wasm_code, RelocInfo::WASM_CALL);
         } else {
-          __ call(wasm_code, RelocInfo::JS_TO_WASM_CALL);
+          if (HasCallDescriptorFlag(instr, CallDescriptor::kRetpoline)) {
+            __ RetpolineCall(wasm_code, RelocInfo::JS_TO_WASM_CALL);
+          } else {
+            __ call(wasm_code, RelocInfo::JS_TO_WASM_CALL);
+          }
         }
       } else {
         Register reg = i.InputRegister(0);
-        __ call(reg);
+        if (HasCallDescriptorFlag(instr, CallDescriptor::kRetpoline)) {
+          __ RetpolineCall(reg);
+        } else {
+          __ call(reg);
+        }
       }
       RecordCallPosition(instr);
       frame_access_state()->ClearSPDelta();
@@ -559,7 +571,11 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       } else {
         Register reg = i.InputRegister(0);
         __ add(reg, Immediate(Code::kHeaderSize - kHeapObjectTag));
-        __ jmp(reg);
+        if (HasCallDescriptorFlag(instr, CallDescriptor::kRetpoline)) {
+          __ RetpolineJump(reg);
+        } else {
+          __ jmp(reg);
+        }
       }
       frame_access_state()->ClearSPDelta();
       frame_access_state()->SetFrameAccessToDefault();
@@ -576,7 +592,11 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
         }
       } else {
         Register reg = i.InputRegister(0);
-        __ jmp(reg);
+        if (HasCallDescriptorFlag(instr, CallDescriptor::kRetpoline)) {
+          __ RetpolineJump(reg);
+        } else {
+          __ jmp(reg);
+        }
       }
       frame_access_state()->ClearSPDelta();
       frame_access_state()->SetFrameAccessToDefault();
@@ -585,7 +605,11 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kArchTailCallAddress: {
       CHECK(!HasImmediateInput(instr, 0));
       Register reg = i.InputRegister(0);
-      __ jmp(reg);
+      if (HasCallDescriptorFlag(instr, CallDescriptor::kRetpoline)) {
+        __ RetpolineJump(reg);
+      } else {
+        __ jmp(reg);
+      }
       frame_access_state()->ClearSPDelta();
       frame_access_state()->SetFrameAccessToDefault();
       break;

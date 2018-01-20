@@ -623,6 +623,7 @@ class Assembler : public AssemblerBase {
   void mov(const Operand& dst, const Immediate& x);
   void mov(const Operand& dst, Handle<HeapObject> handle);
   void mov(const Operand& dst, Register src);
+  void mov(const Operand& dst, Address src, RelocInfo::Mode);
 
   void movsx_b(Register dst, Register src) { movsx_b(dst, Operand(src)); }
   void movsx_b(Register dst, const Operand& src);
@@ -666,6 +667,8 @@ class Assembler : public AssemblerBase {
 
   // Memory Fence
   void lfence();
+
+  void pause();
 
   // Arithmetics
   void adc(Register dst, int32_t imm32);

@@ -593,11 +593,6 @@ void CodeGenerator::BailoutIfDeoptimized() {
   __ j(not_zero, code, RelocInfo::CODE_TARGET);
 }
 
-inline bool HasCallDescriptorFlag(Instruction* instr,
-                                  CallDescriptor::Flag flag) {
-  return MiscField::decode(instr->opcode()) & flag;
-}
-
 // Assembles an instruction after register allocation, producing machine code.
 CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     Instruction* instr) {

@@ -1547,6 +1547,59 @@ void TurboAssembler::CallCFunction(Register function, int num_arguments) {
   }
 }
 
+void TurboAssembler::RetpolineCall(Register reg) {
+  Label setup_return, setup_target, inner_indirect_branch, capture_spec;
+
+  jmp(&setup_return);  // Jump past the entire retpoline below.
+
+  bind(&inner_indirect_branch);
+  call(&setup_target);
+
+  bind(&capture_spec);
+  pause();
+  jmp(&capture_spec);
+
+  bind(&setup_target);
+  mov(Operand(esp, 0), reg);
+  ret(0);
+
+  bind(&setup_return);
+  call(&inner_indirect_branch);  // Callee will return after this instruction.
+}
+
+void TurboAssembler::RetpolineCall(Address destination, RelocInfo::Mode rmode) {
+  Label setup_return, setup_target, inner_indirect_branch, capture_spec;
+
+  jmp(&setup_return);  // Jump past the entire retpoline below.
+
+  bind(&inner_indirect_branch);
+  call(&setup_target);
+
+  bind(&capture_spec);
+  pause();
+  jmp(&capture_spec);
+
+  bind(&setup_target);
+  mov(Operand(esp, 0), destination, rmode);
+  ret(0);
+
+  bind(&setup_return);
+  call(&inner_indirect_branch);  // Callee will return after this instruction.
+}
+
+void TurboAssembler::RetpolineJump(Register reg) {
+  Label setup_target, capture_spec;
+
+  call(&setup_target);
+
+  bind(&capture_spec);
+  pause();
+  jmp(&capture_spec);
+
+  bind(&setup_target);
+  mov(Operand(esp, 0), reg);
+  ret(0);
+}
 
 #ifdef DEBUG
 bool AreAliased(Register reg1,
