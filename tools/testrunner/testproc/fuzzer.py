@@ -119,7 +119,7 @@ class FuzzerProc(base.TestProcProducer):
       return
 
     i = 0
-    while not self._stop or i < self._count:
+    while (self._fuzz_duration_sec and not self._stop) or i < self._count:
       main_index = self._rng.choice(indexes)
       _, main_gen = gens[main_index]
 

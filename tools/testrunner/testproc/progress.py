@@ -2,6 +2,7 @@
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
+import copy
 import json
 import os
 import sys
@@ -69,25 +70,25 @@ class SimpleProgressIndicator(ProgressIndicator):
   def _on_result_for(self, test, result):
     # TODO(majeski): Support for dummy/grouped results
     if result.has_unexpected_output:
-      self._failed.append((test, result))
+      self._failed.append((test, result.cmd, copy.copy(result.output)))
 
   def finished(self):
     crashed = 0
     print
-    for test, result in self._failed:
+    for test, cmd, output in self._failed:
       print_failure_header(test)
-      if result.output.stderr:
+      if output.stderr:
         print "--- stderr ---"
-        print result.output.stderr.strip()
-      if result.output.stdout:
+        print output.stderr.strip()
+      if output.stdout:
         print "--- stdout ---"
-        print result.output.stdout.strip()
-      print "Command: %s" % result.cmd.to_string()
-      if result.output.HasCrashed():
-        print "exit code: %d" % result.output.exit_code
+        print output.stdout.strip()
+      print "Command: %s" % cmd.to_string()
+      if output.HasCrashed():
+        print "exit code: %d" % output.exit_code
         print "--- CRASHED ---"
         crashed += 1
-      if result.output.HasTimedOut():
+      if output.HasTimedOut():
         print "--- TIMEOUT ---"
     if len(self._failed) == 0:
       print "==="
