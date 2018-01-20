@@ -390,7 +390,7 @@ class SystemTest(unittest.TestCase):
       else:
         self.assertIn('Running 1 base tests', result.stdout, result)
         self.assertIn('0 tests ran', result.stdout, result)
-      self.assertEqual(0, result.returncode, result)
+      self.assertEqual(3, result.returncode, result)
 
   def testDefaultProc(self):
     self.testDefault(infra_staging=True)
@@ -410,7 +410,7 @@ class SystemTest(unittest.TestCase):
       else:
         self.assertIn('Running 0 base tests', result.stdout, result)
         self.assertIn('0 tests ran', result.stdout, result)
-      self.assertEqual(0, result.returncode, result)
+      self.assertEqual(3, result.returncode, result)
 
   def testNoBuildConfig(self):
     """Test failing run when build config is not found."""

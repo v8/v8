@@ -503,6 +503,7 @@ class StandardTestRunner(base_runner.BaseTestRunner):
         verbose.PrintTestDurations(suites, runner.outputs, overall_duration)
 
       if num_tests == 0:
+        exit_code = 3
         print("Warning: no tests were run!")
 
       if exit_code == 1 and options.json_test_results:
@@ -588,7 +589,8 @@ class StandardTestRunner(base_runner.BaseTestRunner):
         exit_code = 1
       if results.remaining:
         exit_code = 2
-
+      if not results.total:
+        exit_code = 3
 
       if exit_code == 1 and options.json_test_results:
         print("Force exit code 0 after failures. Json test results file "
