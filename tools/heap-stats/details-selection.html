@@ -20,9 +20,20 @@ found in the LICENSE file. -->
     border-radius: 0px 0px 5px 5px;
 }
 
-span {
-  display: block;
-  padding: 5px;
+.box > ul {
+  margin: 0px;
+  padding: 0px;
+}
+
+.box > ul > li {
+  display: inline-block;
+}
+
+.box > ul > li:not(:first-child) {
+  margin-left: 10px;
+}
+
+.box > ul > li:first-child {
   font-weight: bold;
 }
 

@@ -40,19 +40,36 @@ class DetailsSelection extends HTMLElement {
     return this._data;
   }
 
+  get selectedData() {
+    console.assert(this.data, 'invalid data');
+    console.assert(this.selection, 'invalid selection');
+    return this.data[this.selection.isolate]
+        .gcs[this.selection.gc][this.selection.data_set];
+  }
+
   buildCategory(name) {
     const div = document.createElement('div');
     div.id = name;
     div.classList.add('box');
-    const span = document.createElement('span');
-    div.appendChild(span);
-    span.innerHTML = CATEGORY_NAMES.get(name) + ' ';
+    const ul = document.createElement('ul');
+    div.appendChild(ul);
+    const name_li = document.createElement('li');
+    ul.appendChild(name_li);
+    name_li.innerHTML = CATEGORY_NAMES.get(name);
+    const percent_li = document.createElement('li');
+    ul.appendChild(percent_li);
+    percent_li.innerHTML = '';
+    percent_li.id = name + 'PercentContent';
+    const all_li = document.createElement('li');
+    ul.appendChild(all_li);
     const all_button = document.createElement('button');
-    span.appendChild(all_button);
+    all_li.appendChild(all_button);
     all_button.innerHTML = 'All';
     all_button.addEventListener('click', e => this.selectCategory(name));
+    const none_li = document.createElement('li');
+    ul.appendChild(none_li);
     const none_button = document.createElement('button');
-    span.appendChild(none_button);
+    none_li.appendChild(none_button);
     none_button.innerHTML = 'None';
     none_button.addEventListener('click', e => this.unselectCategory(name));
     const innerDiv = document.createElement('div');
@@ -126,6 +143,22 @@ class DetailsSelection extends HTMLElement {
     this.$('#csv-export').disabled = false;
     this.dispatchEvent(new CustomEvent(
         'change', {bubbles: true, composed: true, detail: this.selection}));
+
+    const overalls = {};
+    let overall = 0;
+    Object.entries(this.selection.categories).forEach(([key, value]) => {
+      overalls[key] =
+          Object.values(value).reduce(
+              (accu, current) =>
+                  accu + this.selectedData.instance_type_data[current].overall,
+              0) /
+          KB;
+      overall += overalls[key];
+    });
+    Object.entries(overalls).forEach(([key, value]) => {
+      this.$('#' + key + 'PercentContent').innerHTML =
+          `${(value / overall * 100).toFixed(1)}%`;
+    });
   }
 
   selectedInCategory(category) {
