@@ -13,7 +13,8 @@ namespace wasm {
 
 void LiftoffAssembler::ReserveStackSpace(uint32_t bytes) { UNIMPLEMENTED(); }
 
-void LiftoffAssembler::LoadConstant(LiftoffRegister reg, WasmValue value) {
+void LiftoffAssembler::LoadConstant(LiftoffRegister reg, WasmValue value,
+                                    RelocInfo::Mode rmode) {
   UNIMPLEMENTED();
 }
 
@@ -83,6 +84,11 @@ void LiftoffAssembler::Fill(LiftoffRegister reg, uint32_t index) {
                                      DoubleRegister rhs) {                   \
     UNIMPLEMENTED();                                                         \
   }
+#define UNIMPLEMENTED_SHIFTOP(name)                                            \
+  void LiftoffAssembler::emit_##name(Register dst, Register lhs, Register rhs, \
+                                     LiftoffRegList pinned) {                  \
+    UNIMPLEMENTED();                                                           \
+  }
 
 UNIMPLEMENTED_GP_BINOP(i32_add)
 UNIMPLEMENTED_GP_BINOP(i32_sub)
@@ -90,9 +96,9 @@ UNIMPLEMENTED_GP_BINOP(i32_mul)
 UNIMPLEMENTED_GP_BINOP(i32_and)
 UNIMPLEMENTED_GP_BINOP(i32_or)
 UNIMPLEMENTED_GP_BINOP(i32_xor)
-UNIMPLEMENTED_GP_BINOP(i32_shl)
-UNIMPLEMENTED_GP_BINOP(i32_sar)
-UNIMPLEMENTED_GP_BINOP(i32_shr)
+UNIMPLEMENTED_SHIFTOP(i32_shl)
+UNIMPLEMENTED_SHIFTOP(i32_sar)
+UNIMPLEMENTED_SHIFTOP(i32_shr)
 UNIMPLEMENTED_GP_UNOP(i32_eqz)
 UNIMPLEMENTED_GP_UNOP(i32_clz)
 UNIMPLEMENTED_GP_UNOP(i32_ctz)
@@ -105,10 +111,15 @@ UNIMPLEMENTED_FP_BINOP(f32_mul)
 #undef UNIMPLEMENTED_GP_BINOP
 #undef UNIMPLEMENTED_GP_UNOP
 #undef UNIMPLEMENTED_FP_BINOP
+#undef UNIMPLEMENTED_SHIFTOP
 
 void LiftoffAssembler::emit_i32_test(Register reg) { UNIMPLEMENTED(); }
 
 void LiftoffAssembler::emit_i32_compare(Register lhs, Register rhs) {
+  UNIMPLEMENTED();
+}
+
+void LiftoffAssembler::emit_ptrsize_compare(Register lhs, Register rhs) {
   UNIMPLEMENTED();
 }
 
@@ -165,6 +176,12 @@ void LiftoffAssembler::CallC(ExternalReference ext_ref, uint32_t num_params) {
 void LiftoffAssembler::CallNativeWasmCode(Address addr) { UNIMPLEMENTED(); }
 
 void LiftoffAssembler::CallRuntime(Zone* zone, Runtime::FunctionId fid) {
+  UNIMPLEMENTED();
+}
+
+void LiftoffAssembler::CallIndirect(wasm::FunctionSig* sig,
+                                    compiler::CallDescriptor* call_desc,
+                                    Register target) {
   UNIMPLEMENTED();
 }
 

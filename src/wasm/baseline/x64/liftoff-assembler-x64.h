@@ -38,13 +38,21 @@ void LiftoffAssembler::ReserveStackSpace(uint32_t bytes) {
   subp(rsp, Immediate(bytes));
 }
 
-void LiftoffAssembler::LoadConstant(LiftoffRegister reg, WasmValue value) {
+void LiftoffAssembler::LoadConstant(LiftoffRegister reg, WasmValue value,
+                                    RelocInfo::Mode rmode) {
   switch (value.type()) {
     case kWasmI32:
-      if (value.to_i32() == 0) {
+      if (value.to_i32() == 0 && RelocInfo::IsNone(rmode)) {
         xorl(reg.gp(), reg.gp());
       } else {
-        movl(reg.gp(), Immediate(value.to_i32()));
+        movl(reg.gp(), Immediate(value.to_i32(), rmode));
+      }
+      break;
+    case kWasmI64:
+      if (value.to_i64() == 0 && RelocInfo::IsNone(rmode)) {
+        xorq(reg.gp(), reg.gp());
+      } else {
+        movq(reg.gp(), value.to_i64(), rmode);
       }
       break;
     case kWasmF32:
@@ -279,7 +287,8 @@ COMMUTATIVE_I32_BINOP(xor, xor)
 namespace liftoff {
 inline void EmitShiftOperation(LiftoffAssembler* assm, Register dst,
                                Register lhs, Register rhs,
-                               void (Assembler::*emit_shift)(Register)) {
+                               void (Assembler::*emit_shift)(Register),
+                               LiftoffRegList pinned) {
   // If dst is rcx, compute into the scratch register first, then move to rcx.
   if (dst == rcx) {
     assm->movl(kScratchRegister, lhs);
@@ -293,9 +302,10 @@ inline void EmitShiftOperation(LiftoffAssembler* assm, Register dst,
   // register. If lhs is rcx, lhs is now the scratch register.
   bool use_scratch = false;
   if (rhs != rcx) {
-    use_scratch =
-        lhs == rcx || assm->cache_state()->is_used(LiftoffRegister(rcx));
-    if (use_scratch) assm->movl(kScratchRegister, rcx);
+    use_scratch = lhs == rcx ||
+                  assm->cache_state()->is_used(LiftoffRegister(rcx)) ||
+                  pinned.has(LiftoffRegister(rcx));
+    if (use_scratch) assm->movq(kScratchRegister, rcx);
     if (lhs == rcx) lhs = kScratchRegister;
     assm->movl(rcx, rhs);
   }
@@ -305,20 +315,23 @@ inline void EmitShiftOperation(LiftoffAssembler* assm, Register dst,
   (assm->*emit_shift)(dst);
 
   // Restore rcx if needed.
-  if (use_scratch) assm->movl(rcx, kScratchRegister);
+  if (use_scratch) assm->movq(rcx, kScratchRegister);
 }
 }  // namespace liftoff
 
-void LiftoffAssembler::emit_i32_shl(Register dst, Register lhs, Register rhs) {
-  liftoff::EmitShiftOperation(this, dst, lhs, rhs, &Assembler::shll_cl);
+void LiftoffAssembler::emit_i32_shl(Register dst, Register lhs, Register rhs,
+                                    LiftoffRegList pinned) {
+  liftoff::EmitShiftOperation(this, dst, lhs, rhs, &Assembler::shll_cl, pinned);
 }
 
-void LiftoffAssembler::emit_i32_sar(Register dst, Register lhs, Register rhs) {
-  liftoff::EmitShiftOperation(this, dst, lhs, rhs, &Assembler::sarl_cl);
+void LiftoffAssembler::emit_i32_sar(Register dst, Register lhs, Register rhs,
+                                    LiftoffRegList pinned) {
+  liftoff::EmitShiftOperation(this, dst, lhs, rhs, &Assembler::sarl_cl, pinned);
 }
 
-void LiftoffAssembler::emit_i32_shr(Register dst, Register lhs, Register rhs) {
-  liftoff::EmitShiftOperation(this, dst, lhs, rhs, &Assembler::shrl_cl);
+void LiftoffAssembler::emit_i32_shr(Register dst, Register lhs, Register rhs,
+                                    LiftoffRegList pinned) {
+  liftoff::EmitShiftOperation(this, dst, lhs, rhs, &Assembler::shrl_cl, pinned);
 }
 
 bool LiftoffAssembler::emit_i32_eqz(Register dst, Register src) {
@@ -423,6 +436,10 @@ void LiftoffAssembler::emit_i32_test(Register reg) { testl(reg, reg); }
 
 void LiftoffAssembler::emit_i32_compare(Register lhs, Register rhs) {
   cmpl(lhs, rhs);
+}
+
+void LiftoffAssembler::emit_ptrsize_compare(Register lhs, Register rhs) {
+  cmpp(lhs, rhs);
 }
 
 void LiftoffAssembler::emit_jump(Label* label) { jmp(label); }
@@ -550,6 +567,17 @@ void LiftoffAssembler::CallRuntime(Zone* zone, Runtime::FunctionId fid) {
   // Set context to zero.
   xorp(rsi, rsi);
   CallRuntimeDelayed(zone, fid);
+}
+
+void LiftoffAssembler::CallIndirect(wasm::FunctionSig* sig,
+                                    compiler::CallDescriptor* call_desc,
+                                    Register target) {
+  PrepareCall(sig, call_desc, &target);
+  if (target == no_reg) {
+    popq(kScratchRegister);
+    target = kScratchRegister;
+  }
+  call(target);
 }
 
 void LiftoffAssembler::AllocateStackSlot(Register addr, uint32_t size) {

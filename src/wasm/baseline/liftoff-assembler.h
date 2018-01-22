@@ -269,7 +269,10 @@ class LiftoffAssembler : public TurboAssembler {
   void SpillAllRegisters();
 
   // Load parameters into the right registers / stack slots for the call.
-  void PrepareCall(wasm::FunctionSig*, compiler::CallDescriptor*);
+  // Move {*target} into another register if needed and update {*target} to that
+  // register, or {no_reg} if target was spilled to the stack.
+  void PrepareCall(wasm::FunctionSig*, compiler::CallDescriptor*,
+                   Register* target = nullptr);
   // Process return values of the call.
   void FinishCall(wasm::FunctionSig*, compiler::CallDescriptor*);
 
@@ -279,7 +282,8 @@ class LiftoffAssembler : public TurboAssembler {
 
   inline void ReserveStackSpace(uint32_t bytes);
 
-  inline void LoadConstant(LiftoffRegister, WasmValue);
+  inline void LoadConstant(LiftoffRegister, WasmValue,
+                           RelocInfo::Mode rmode = RelocInfo::NONE32);
   inline void LoadFromContext(Register dst, uint32_t offset, int size);
   inline void SpillContext(Register context);
   inline void FillContextInto(Register dst);
@@ -307,9 +311,12 @@ class LiftoffAssembler : public TurboAssembler {
   inline void emit_i32_and(Register dst, Register lhs, Register rhs);
   inline void emit_i32_or(Register dst, Register lhs, Register rhs);
   inline void emit_i32_xor(Register dst, Register lhs, Register rhs);
-  inline void emit_i32_shl(Register dst, Register lhs, Register rhs);
-  inline void emit_i32_sar(Register dst, Register lhs, Register rhs);
-  inline void emit_i32_shr(Register dst, Register lhs, Register rhs);
+  inline void emit_i32_shl(Register dst, Register lhs, Register rhs,
+                           LiftoffRegList pinned = {});
+  inline void emit_i32_sar(Register dst, Register lhs, Register rhs,
+                           LiftoffRegList pinned = {});
+  inline void emit_i32_shr(Register dst, Register lhs, Register rhs,
+                           LiftoffRegList pinned = {});
 
   // i32 unops.
   inline bool emit_i32_eqz(Register dst, Register src);
@@ -328,6 +335,7 @@ class LiftoffAssembler : public TurboAssembler {
 
   inline void emit_i32_test(Register);
   inline void emit_i32_compare(Register, Register);
+  inline void emit_ptrsize_compare(Register, Register);
   inline void emit_jump(Label*);
   inline void emit_cond_jump(Condition, Label*);
 
@@ -356,8 +364,10 @@ class LiftoffAssembler : public TurboAssembler {
   inline void CallC(ExternalReference ext_ref, uint32_t num_params);
 
   inline void CallNativeWasmCode(Address addr);
-
   inline void CallRuntime(Zone* zone, Runtime::FunctionId fid);
+  inline void CallIndirect(wasm::FunctionSig* sig,
+                           compiler::CallDescriptor* call_desc,
+                           Register target);
 
   // Reserve space in the current frame, store address to space in {addr}.
   inline void AllocateStackSlot(Register addr, uint32_t size);

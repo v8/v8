@@ -379,7 +379,8 @@ void LiftoffAssembler::SpillAllRegisters() {
 }
 
 void LiftoffAssembler::PrepareCall(wasm::FunctionSig* sig,
-                                   compiler::CallDescriptor* call_desc) {
+                                   compiler::CallDescriptor* call_desc,
+                                   Register* target) {
   uint32_t num_params = static_cast<uint32_t>(sig->parameter_count());
   // Parameter 0 is the wasm context.
   constexpr size_t kFirstActualParameter = 1;
@@ -403,6 +404,7 @@ void LiftoffAssembler::PrepareCall(wasm::FunctionSig* sig,
   // Now move all parameter values into the right slot for the call.
   // Process parameters backward, such that we can just pop values from the
   // stack.
+  LiftoffRegList param_regs;
   for (uint32_t i = num_params; i > 0; --i) {
     uint32_t param = i - 1;
     ValueType type = sig->GetParam(param);
@@ -415,12 +417,34 @@ void LiftoffAssembler::PrepareCall(wasm::FunctionSig* sig,
       DCHECK(!loc.IsAnyRegister());
       int reg_code = loc.AsRegister();
       LiftoffRegister reg = LiftoffRegister::from_code(rc, reg_code);
+      param_regs.set(reg);
       stack_transfers.LoadIntoRegister(reg, slot, stack_idx);
     } else {
       DCHECK(loc.IsCallerFrameSlot());
       PushCallerFrameSlot(slot, stack_idx);
     }
     cache_state_.stack_state.pop_back();
+  }
+
+  compiler::LinkageLocation context_loc =
+      call_desc->GetInputLocation(kInputShift);
+  DCHECK(context_loc.IsRegister() && !context_loc.IsAnyRegister());
+  Register context_reg = Register::from_code(context_loc.AsRegister());
+  param_regs.set(LiftoffRegister(context_reg));
+
+  // If the target register overlaps with a parameter register, then move the
+  // target to another free register, or spill to the stack.
+  if (target && param_regs.has(LiftoffRegister(*target))) {
+    // Try to find another free register.
+    LiftoffRegList free_regs = kGpCacheRegList.MaskOut(param_regs);
+    if (!free_regs.is_empty()) {
+      LiftoffRegister new_target = free_regs.GetFirstRegSet();
+      stack_transfers.MoveRegister(new_target, LiftoffRegister(*target));
+      *target = new_target.gp();
+    } else {
+      PushCallerFrameSlot(LiftoffRegister(*target));
+      *target = no_reg;
+    }
   }
 
   // Execute the stack transfers before filling the context register.
@@ -430,12 +454,7 @@ void LiftoffAssembler::PrepareCall(wasm::FunctionSig* sig,
   cache_state_.reset_used_registers();
 
   // Fill the wasm context into the right register.
-  compiler::LinkageLocation context_loc =
-      call_desc->GetInputLocation(kInputShift);
-  DCHECK(context_loc.IsRegister() && !context_loc.IsAnyRegister());
-  int context_reg_code = context_loc.AsRegister();
-  LiftoffRegister context_reg(Register::from_code(context_reg_code));
-  FillContextInto(context_reg.gp());
+  FillContextInto(context_reg);
 }
 
 void LiftoffAssembler::FinishCall(wasm::FunctionSig* sig,

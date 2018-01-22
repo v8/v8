@@ -233,30 +233,19 @@ enum RoundingMode {
 
 class Immediate BASE_EMBEDDED {
  public:
-  inline explicit Immediate(int x) {
+  inline explicit Immediate(int x, RelocInfo::Mode rmode = RelocInfo::NONE32) {
     value_.immediate = x;
-    rmode_ = RelocInfo::NONE32;
-  }
-  inline explicit Immediate(const ExternalReference& ext) {
-    value_.immediate = reinterpret_cast<int32_t>(ext.address());
-    rmode_ = RelocInfo::EXTERNAL_REFERENCE;
-  }
-  inline explicit Immediate(Handle<HeapObject> handle) {
-    value_.immediate = reinterpret_cast<intptr_t>(handle.address());
-    rmode_ = RelocInfo::EMBEDDED_OBJECT;
-  }
-  inline explicit Immediate(Smi* value) {
-    value_.immediate = reinterpret_cast<intptr_t>(value);
-    rmode_ = RelocInfo::NONE32;
-  }
-  inline explicit Immediate(Address addr) {
-    value_.immediate = reinterpret_cast<int32_t>(addr);
-    rmode_ = RelocInfo::NONE32;
-  }
-  inline explicit Immediate(Address x, RelocInfo::Mode rmode) {
-    value_.immediate = reinterpret_cast<int32_t>(x);
     rmode_ = rmode;
   }
+  inline explicit Immediate(const ExternalReference& ext)
+      : Immediate(ext.address(), RelocInfo::EXTERNAL_REFERENCE) {}
+  inline explicit Immediate(Handle<HeapObject> handle)
+      : Immediate(handle.address(), RelocInfo::EMBEDDED_OBJECT) {}
+  inline explicit Immediate(Smi* value)
+      : Immediate(reinterpret_cast<intptr_t>(value)) {}
+  inline explicit Immediate(Address addr,
+                            RelocInfo::Mode rmode = RelocInfo::NONE32)
+      : Immediate(reinterpret_cast<int32_t>(addr), rmode) {}
 
   static Immediate EmbeddedNumber(double number);  // Smi or HeapNumber.
   static Immediate EmbeddedCode(CodeStub* code);

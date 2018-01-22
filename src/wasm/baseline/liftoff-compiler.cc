@@ -60,6 +60,11 @@ class MovableLabel {
 };
 #endif
 
+wasm::WasmValue WasmPtrValue(void* ptr) {
+  using int_t = std::conditional<kPointerSize == 8, uint64_t, uint32_t>::type;
+  return wasm::WasmValue(reinterpret_cast<int_t>(ptr));
+}
+
 class LiftoffCompiler {
  public:
   MOVE_ONLY_NO_DEFAULT_CONSTRUCTOR(LiftoffCompiler);
@@ -508,6 +513,16 @@ class LiftoffCompiler {
     __ PushRegister(kWasmI32, dst_reg);
   }
 
+  void I32ShiftOp(void (LiftoffAssembler::*emit_fn)(Register, Register,
+                                                    Register, LiftoffRegList)) {
+    LiftoffRegList pinned;
+    LiftoffRegister dst_reg = pinned.set(__ GetBinaryOpTargetRegister(kGpReg));
+    LiftoffRegister rhs_reg = pinned.set(__ PopToRegister(kGpReg, pinned));
+    LiftoffRegister lhs_reg = __ PopToRegister(kGpReg, pinned);
+    (asm_->*emit_fn)(dst_reg.gp(), lhs_reg.gp(), rhs_reg.gp(), {});
+    __ PushRegister(kWasmI32, dst_reg);
+  }
+
   void I32CCallBinOp(ExternalReference ext_ref) {
     LiftoffRegList pinned;
     LiftoffRegister dst_reg = pinned.set(__ GetBinaryOpTargetRegister(kGpReg));
@@ -535,6 +550,9 @@ class LiftoffCompiler {
 #define CASE_BINOP(opcode, type, fn) \
   case WasmOpcode::kExpr##opcode:    \
     return type##BinOp(&LiftoffAssembler::emit_##fn);
+#define CASE_SHIFTOP(opcode, fn)  \
+  case WasmOpcode::kExpr##opcode: \
+    return I32ShiftOp(&LiftoffAssembler::emit_##fn);
 #define CASE_CCALL_BINOP(opcode, type, ext_ref_fn)                    \
   case WasmOpcode::kExpr##opcode:                                     \
     type##CCallBinOp(ExternalReference::ext_ref_fn(asm_->isolate())); \
@@ -546,9 +564,9 @@ class LiftoffCompiler {
       CASE_BINOP(I32And, I32, i32_and)
       CASE_BINOP(I32Ior, I32, i32_or)
       CASE_BINOP(I32Xor, I32, i32_xor)
-      CASE_BINOP(I32Shl, I32, i32_shl)
-      CASE_BINOP(I32ShrS, I32, i32_sar)
-      CASE_BINOP(I32ShrU, I32, i32_shr)
+      CASE_SHIFTOP(I32Shl, i32_shl)
+      CASE_SHIFTOP(I32ShrS, i32_sar)
+      CASE_SHIFTOP(I32ShrU, i32_shr)
       CASE_CCALL_BINOP(I32Rol, I32, wasm_word32_rol)
       CASE_CCALL_BINOP(I32Ror, I32, wasm_word32_ror)
       CASE_BINOP(F32Add, F32, f32_add)
@@ -558,6 +576,7 @@ class LiftoffCompiler {
         return unsupported(decoder, WasmOpcodes::OpcodeName(opcode));
     }
 #undef CASE_BINOP
+#undef CASE_SHIFTOP
 #undef CASE_CCALL_BINOP
   }
 
@@ -754,13 +773,15 @@ class LiftoffCompiler {
     __ cache_state()->Steal(if_block->else_state->state);
   }
 
-  Label* AddOutOfLineTrap(wasm::WasmCodePosition position, uint32_t pc = 0) {
+  Label* AddOutOfLineTrap(wasm::WasmCodePosition position,
+                          Builtins::Name builtin, uint32_t pc = 0) {
     DCHECK(!FLAG_wasm_no_bounds_checks);
-    // The pc is needed exactly if trap handlers are enabled.
-    DCHECK_EQ(pc != 0, env_->use_trap_handler);
+    // The pc is needed for memory OOB trap with trap handler enabled. Other
+    // callers should not even compute it.
+    DCHECK_EQ(pc != 0, builtin == Builtins::kThrowWasmTrapMemOutOfBounds &&
+                           env_->use_trap_handler);
 
-    out_of_line_code_.push_back(OutOfLineCode::Trap(
-        Builtins::kThrowWasmTrapMemOutOfBounds, position, pc));
+    out_of_line_code_.push_back(OutOfLineCode::Trap(builtin, position, pc));
     return out_of_line_code_.back().label.get();
   }
 
@@ -769,7 +790,8 @@ class LiftoffCompiler {
     DCHECK(!env_->use_trap_handler);
     if (FLAG_wasm_no_bounds_checks) return;
 
-    Label* trap_label = AddOutOfLineTrap(position);
+    Label* trap_label =
+        AddOutOfLineTrap(position, Builtins::kThrowWasmTrapMemOutOfBounds);
 
     if (access_size > max_size_ || offset > max_size_ - access_size) {
       // The access will be out of bounds, even for the largest memory.
@@ -884,7 +906,9 @@ class LiftoffCompiler {
     __ Load(value, addr, index, operand.offset, type, pinned,
             &protected_load_pc);
     if (env_->use_trap_handler) {
-      AddOutOfLineTrap(decoder->position(), protected_load_pc);
+      AddOutOfLineTrap(decoder->position(),
+                       Builtins::kThrowWasmTrapMemOutOfBounds,
+                       protected_load_pc);
     }
     __ PushRegister(value_type, value);
     CheckStackSizeLimit(decoder);
@@ -916,7 +940,9 @@ class LiftoffCompiler {
     __ Store(addr, index, operand.offset, value, type, pinned,
              &protected_store_pc);
     if (env_->use_trap_handler) {
-      AddOutOfLineTrap(decoder->position(), protected_store_pc);
+      AddOutOfLineTrap(decoder->position(),
+                       Builtins::kThrowWasmTrapMemOutOfBounds,
+                       protected_store_pc);
     }
     if (FLAG_wasm_trace_memory) {
       TraceMemoryOperation(true, type.mem_rep(), index, operand.offset,
@@ -962,11 +988,105 @@ class LiftoffCompiler {
     __ FinishCall(operand.sig, call_desc);
   }
 
-  void CallIndirect(Decoder* decoder, const Value& index,
+  void CallIndirect(Decoder* decoder, const Value& index_val,
                     const CallIndirectOperand<validate>& operand,
                     const Value args[], Value returns[]) {
-    unsupported(decoder, "call_indirect");
+    if (operand.sig->return_count() > 1)
+      return unsupported(decoder, "multi-return");
+
+    // Assume only one table for now.
+    uint32_t table_index = 0;
+
+    // Pop the index.
+    LiftoffRegister index = __ PopToRegister(kGpReg);
+    // If that register is still being used after popping, we move it to another
+    // register, because we want to modify that register.
+    if (__ cache_state()->is_used(index)) {
+      LiftoffRegister new_index =
+          __ GetUnusedRegister(kGpReg, LiftoffRegList::ForRegs(index));
+      __ Move(new_index, index);
+      index = new_index;
+    }
+
+    LiftoffRegList pinned = LiftoffRegList::ForRegs(index);
+    // Get three temporary registers.
+    LiftoffRegister table = pinned.set(__ GetUnusedRegister(kGpReg, pinned));
+    LiftoffRegister tmp_const =
+        pinned.set(__ GetUnusedRegister(kGpReg, pinned));
+    LiftoffRegister scratch = pinned.set(__ GetUnusedRegister(kGpReg, pinned));
+
+    // Bounds check against the table size.
+    {
+      uint32_t table_size =
+          env_->module->function_tables[table_index].initial_size;
+
+      Label* trap_label = AddOutOfLineTrap(decoder->position(),
+                                           Builtins::kThrowWasmTrapFuncInvalid);
+
+      __ LoadConstant(tmp_const, WasmValue(table_size),
+                      RelocInfo::WASM_FUNCTION_TABLE_SIZE_REFERENCE);
+      __ emit_i32_compare(index.gp(), tmp_const.gp());
+      __ emit_cond_jump(kUnsignedGreaterEqual, trap_label);
+    }
+
+    wasm::GlobalHandleAddress function_table_handle_address =
+        env_->function_tables[table_index];
+    __ LoadConstant(table, WasmPtrValue(function_table_handle_address),
+                    RelocInfo::WASM_GLOBAL_HANDLE);
+    static constexpr LoadType kPointerLoadType =
+        kPointerSize == 8 ? LoadType::kI64Load : LoadType::kI32Load;
+    __ Load(table, table.gp(), no_reg, 0, kPointerLoadType, pinned);
+
+    // Load signature from the table and check.
+    // The table is a FixedArray; signatures are encoded as SMIs.
+    // [sig1, code1, sig2, code2, sig3, code3, ...]
+    static_assert(compiler::kFunctionTableEntrySize == 2, "consistency");
+    static_assert(compiler::kFunctionTableSignatureOffset == 0, "consistency");
+    static_assert(compiler::kFunctionTableCodeOffset == 1, "consistency");
+    constexpr int kFixedArrayOffset = FixedArray::kHeaderSize - kHeapObjectTag;
+    __ LoadConstant(tmp_const, WasmValue(kPointerSizeLog2 + 1));
+    // Shift index such that it's the offset of the signature in the FixedArray.
+    __ emit_i32_shl(index.gp(), index.gp(), tmp_const.gp(), pinned);
+
+    // Load the signature.
+    __ Load(scratch, table.gp(), index.gp(), kFixedArrayOffset,
+            kPointerLoadType, pinned);
+
+    uint32_t canonical_sig_num = env_->module->signature_ids[operand.sig_index];
+    DCHECK_GE(canonical_sig_num, 0);
+    DCHECK_GE(kMaxInt, canonical_sig_num);
+
+    __ LoadConstant(tmp_const, WasmPtrValue(Smi::FromInt(canonical_sig_num)));
+    __ emit_ptrsize_compare(scratch.gp(), tmp_const.gp());
+
+    Label* trap_label = AddOutOfLineTrap(
+        decoder->position(), Builtins::kThrowWasmTrapFuncSigMismatch);
+    __ emit_cond_jump(kUnequal, trap_label);
+
+    // Load code object.
+    __ Load(scratch, table.gp(), index.gp(), kFixedArrayOffset + kPointerSize,
+            kPointerLoadType, pinned);
+    if (FLAG_wasm_jit_to_native) {
+      // The table holds a Foreign pointing to the instruction start.
+      __ Load(scratch, scratch.gp(), no_reg,
+              Foreign::kForeignAddressOffset - kHeapObjectTag, kPointerLoadType,
+              pinned);
+    }
+
+    source_position_table_builder_->AddPosition(
+        __ pc_offset(), SourcePosition(decoder->position()), false);
+
+    compiler::CallDescriptor* call_desc =
+        compiler::GetWasmCallDescriptor(compilation_zone_, operand.sig);
+
+    __ CallIndirect(operand.sig, call_desc, scratch.gp());
+
+    safepoint_table_builder_.DefineSafepoint(asm_, Safepoint::kSimple, 0,
+                                             Safepoint::kNoLazyDeopt);
+
+    __ FinishCall(operand.sig, call_desc);
   }
+
   void SimdOp(Decoder* decoder, WasmOpcode opcode, Vector<Value> args,
               Value* result) {
     unsupported(decoder, "simd");

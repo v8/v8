@@ -46,14 +46,13 @@ void LiftoffAssembler::ReserveStackSpace(uint32_t bytes) {
   sub(esp, Immediate(bytes));
 }
 
-void LiftoffAssembler::LoadConstant(LiftoffRegister reg, WasmValue value) {
+void LiftoffAssembler::LoadConstant(LiftoffRegister reg, WasmValue value,
+                                    RelocInfo::Mode rmode) {
   switch (value.type()) {
     case kWasmI32:
-      if (value.to_i32() == 0) {
-        xor_(reg.gp(), reg.gp());
-      } else {
-        mov(reg.gp(), Immediate(value.to_i32()));
-      }
+      TurboAssembler::Move(
+          reg.gp(),
+          Immediate(reinterpret_cast<Address>(value.to_i32()), rmode));
       break;
     case kWasmF32: {
       Register tmp = GetUnusedRegister(kGpReg).gp();
@@ -286,8 +285,11 @@ COMMUTATIVE_I32_BINOP(xor, xor_)
 namespace liftoff {
 inline void EmitShiftOperation(LiftoffAssembler* assm, Register dst,
                                Register lhs, Register rhs,
-                               void (Assembler::*emit_shift)(Register)) {
-  LiftoffRegList pinned = LiftoffRegList::ForRegs(dst, lhs, rhs);
+                               void (Assembler::*emit_shift)(Register),
+                               LiftoffRegList pinned) {
+  pinned.set(dst);
+  pinned.set(lhs);
+  pinned.set(rhs);
   // If dst is ecx, compute into a tmp register first, then move to ecx.
   if (dst == ecx) {
     Register tmp = assm->GetUnusedRegister(kGpReg, pinned).gp();
@@ -302,7 +304,8 @@ inline void EmitShiftOperation(LiftoffAssembler* assm, Register dst,
   // first. If lhs is ecx, lhs is now the tmp register.
   Register tmp_reg = no_reg;
   if (rhs != ecx) {
-    if (lhs == ecx || assm->cache_state()->is_used(LiftoffRegister(ecx))) {
+    if (assm->cache_state()->is_used(LiftoffRegister(ecx)) ||
+        pinned.has(LiftoffRegister(ecx))) {
       tmp_reg = assm->GetUnusedRegister(kGpReg, pinned).gp();
       assm->mov(tmp_reg, ecx);
       if (lhs == ecx) lhs = tmp_reg;
@@ -319,16 +322,19 @@ inline void EmitShiftOperation(LiftoffAssembler* assm, Register dst,
 }
 }  // namespace liftoff
 
-void LiftoffAssembler::emit_i32_shl(Register dst, Register lhs, Register rhs) {
-  liftoff::EmitShiftOperation(this, dst, lhs, rhs, &Assembler::shl_cl);
+void LiftoffAssembler::emit_i32_shl(Register dst, Register lhs, Register rhs,
+                                    LiftoffRegList pinned) {
+  liftoff::EmitShiftOperation(this, dst, lhs, rhs, &Assembler::shl_cl, pinned);
 }
 
-void LiftoffAssembler::emit_i32_sar(Register dst, Register lhs, Register rhs) {
-  liftoff::EmitShiftOperation(this, dst, lhs, rhs, &Assembler::sar_cl);
+void LiftoffAssembler::emit_i32_sar(Register dst, Register lhs, Register rhs,
+                                    LiftoffRegList pinned) {
+  liftoff::EmitShiftOperation(this, dst, lhs, rhs, &Assembler::sar_cl, pinned);
 }
 
-void LiftoffAssembler::emit_i32_shr(Register dst, Register lhs, Register rhs) {
-  liftoff::EmitShiftOperation(this, dst, lhs, rhs, &Assembler::shr_cl);
+void LiftoffAssembler::emit_i32_shr(Register dst, Register lhs, Register rhs,
+                                    LiftoffRegList pinned) {
+  liftoff::EmitShiftOperation(this, dst, lhs, rhs, &Assembler::shr_cl, pinned);
 }
 
 bool LiftoffAssembler::emit_i32_eqz(Register dst, Register src) {
@@ -436,6 +442,10 @@ void LiftoffAssembler::emit_i32_test(Register reg) { test(reg, reg); }
 
 void LiftoffAssembler::emit_i32_compare(Register lhs, Register rhs) {
   cmp(lhs, rhs);
+}
+
+void LiftoffAssembler::emit_ptrsize_compare(Register lhs, Register rhs) {
+  emit_i32_compare(lhs, rhs);
 }
 
 void LiftoffAssembler::emit_jump(Label* label) { jmp(label); }
@@ -569,6 +579,18 @@ void LiftoffAssembler::CallRuntime(Zone* zone, Runtime::FunctionId fid) {
   // Set context to zero.
   xor_(esi, esi);
   CallRuntimeDelayed(zone, fid);
+}
+
+void LiftoffAssembler::CallIndirect(wasm::FunctionSig* sig,
+                                    compiler::CallDescriptor* call_desc,
+                                    Register target) {
+  PrepareCall(sig, call_desc, &target);
+  if (target == no_reg) {
+    add(esp, Immediate(kPointerSize));
+    call(Operand(esp, -4));
+  } else {
+    call(target);
+  }
 }
 
 void LiftoffAssembler::AllocateStackSlot(Register addr, uint32_t size) {
