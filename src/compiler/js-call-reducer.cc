@@ -3545,7 +3545,7 @@ Reduction JSCallReducer::ReduceArrayPrototypePop(Node* node) {
     // once we got the hole NaN mess sorted out in TurboFan/V8.
     if (receiver_map->elements_kind() == HOLEY_DOUBLE_ELEMENTS)
       return NoChange();
-    if (!UnionElementsKindUptoPackedness(&kind, receiver_map->elements_kind()))
+    if (!UnionElementsKindUptoSize(&kind, receiver_map->elements_kind()))
       return NoChange();
   }
 
@@ -3661,7 +3661,7 @@ Reduction JSCallReducer::ReduceArrayPrototypeShift(Node* node) {
     // once we got the hole NaN mess sorted out in TurboFan/V8.
     if (receiver_map->elements_kind() == HOLEY_DOUBLE_ELEMENTS)
       return NoChange();
-    if (!UnionElementsKindUptoPackedness(&kind, receiver_map->elements_kind()))
+    if (!UnionElementsKindUptoSize(&kind, receiver_map->elements_kind()))
       return NoChange();
   }
 
