@@ -37,6 +37,12 @@
   'octane/typescript': [PASS, SLOW],
 }],  # ALWAYS
 
+['variant == stress', {
+  # Too slow for stress mode.
+  'octane/mandreel': [SKIP],
+  'octane/typescript': [SKIP],
+}],
+
 ['gc_fuzzer', {
   # Too slow for gc fuzzing.
   'octane/earley-boyer' : [PASS, SLOW, ['mode == debug', SKIP]],
