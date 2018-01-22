@@ -148,6 +148,7 @@ SamplingHeapProfiler::AllocationNode* SamplingHeapProfiler::AddStack() {
   std::vector<SharedFunctionInfo*> stack;
   JavaScriptFrameIterator it(isolate_);
   int frames_captured = 0;
+  bool found_arguments_marker_frames = false;
   while (!it.done() && frames_captured < stack_depth_) {
     JavaScriptFrame* frame = it.frame();
     // If we are materializing objects during deoptimization, inlined
@@ -159,6 +160,8 @@ SamplingHeapProfiler::AllocationNode* SamplingHeapProfiler::AddStack() {
       SharedFunctionInfo* shared = frame->function()->shared();
       stack.push_back(shared);
       frames_captured++;
+    } else {
+      found_arguments_marker_frames = true;
     }
     it.Advance();
   }
@@ -206,6 +209,12 @@ SamplingHeapProfiler::AllocationNode* SamplingHeapProfiler::AddStack() {
     }
     node = node->FindOrAddChildNode(name, script_id, shared->start_position());
   }
+
+  if (found_arguments_marker_frames) {
+    node =
+        node->FindOrAddChildNode("(deopt)", v8::UnboundScript::kNoScriptId, 0);
+  }
+
   return node;
 }
 
