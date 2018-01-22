@@ -1698,7 +1698,8 @@ WasmCodeWrapper EnsureExportedLazyDeoptData(Isolate* isolate,
       return WasmCodeWrapper(code);
     }
     // Clone the lazy builtin into the native module.
-    return WasmCodeWrapper(native_module->CloneLazyBuiltinInto(func_index));
+    return WasmCodeWrapper(
+        native_module->CloneLazyBuiltinInto(code, func_index));
   }
 }
 

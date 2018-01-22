@@ -364,15 +364,11 @@ WasmCode* NativeModule::AddInterpreterWrapper(Handle<Code> code,
   return ret;
 }
 
-WasmCode* NativeModule::SetLazyBuiltin(Handle<Code> code) {
-  DCHECK_NULL(lazy_builtin_);
-  lazy_builtin_ = AddAnonymousCode(code, WasmCode::kLazyStub);
-
+void NativeModule::SetLazyBuiltin(Handle<Code> code) {
+  WasmCode* lazy_builtin = AddAnonymousCode(code, WasmCode::kLazyStub);
   for (uint32_t i = num_imported_functions(), e = FunctionCount(); i < e; ++i) {
-    SetCodeTable(i, lazy_builtin_);
+    SetCodeTable(i, lazy_builtin);
   }
-
-  return lazy_builtin_;
 }
 
 WasmCompiledModule* NativeModule::compiled_module() const {
@@ -655,9 +651,10 @@ WasmCode* NativeModule::Lookup(Address pc) {
   return nullptr;
 }
 
-WasmCode* NativeModule::CloneLazyBuiltinInto(uint32_t index) {
-  DCHECK_NOT_NULL(lazy_builtin());
-  WasmCode* ret = CloneCode(lazy_builtin());
+WasmCode* NativeModule::CloneLazyBuiltinInto(const WasmCode* code,
+                                             uint32_t index) {
+  DCHECK_EQ(wasm::WasmCode::kLazyStub, code->kind());
+  WasmCode* ret = CloneCode(code);
   SetCodeTable(index, ret);
   ret->index_ = Just(index);
   return ret;
@@ -882,10 +879,6 @@ std::unique_ptr<NativeModule> NativeModule::Clone() {
   TRACE_HEAP("%zu cloned from %zu\n", ret->instance_id, instance_id);
   if (!ret) return ret;
 
-  if (lazy_builtin() != nullptr) {
-    ret->lazy_builtin_ = ret->CloneCode(lazy_builtin());
-  }
-
   if (!ret->CloneTrampolinesAndStubs(this)) return nullptr;
 
   std::unordered_map<Address, Address, AddressHasher> reverse_lookup;
@@ -910,20 +903,29 @@ std::unique_ptr<NativeModule> NativeModule::Clone() {
     WasmCode* old_stub = stubs_.find(pair.first)->second;
     PatchTrampolineAndStubCalls(old_stub, new_stub, reverse_lookup);
   }
-  if (lazy_builtin_ != nullptr) {
-    PatchTrampolineAndStubCalls(lazy_builtin_, ret->lazy_builtin_,
-                                reverse_lookup);
-  }
 
+  WasmCode* anonymous_lazy_builtin = nullptr;
   for (uint32_t i = num_imported_functions(), e = FunctionCount(); i < e; ++i) {
     const WasmCode* original_code = GetCode(i);
     switch (original_code->kind()) {
       case WasmCode::kLazyStub: {
-        if (original_code->IsAnonymous()) {
-          ret->SetCodeTable(i, ret->lazy_builtin());
-        } else {
-          if (!ret->CloneLazyBuiltinInto(i)) return nullptr;
+        // Use the first anonymous lazy compile stub hit in this loop as the
+        // canonical copy for all further ones by remembering it locally via
+        // the {anonymous_lazy_builtin} variable. All non-anonymous such stubs
+        // are just cloned directly via {CloneLazyBuiltinInto} below.
+        if (!original_code->IsAnonymous()) {
+          WasmCode* new_code = ret->CloneLazyBuiltinInto(original_code, i);
+          if (new_code == nullptr) return nullptr;
+          PatchTrampolineAndStubCalls(original_code, new_code, reverse_lookup);
+          break;
         }
+        if (anonymous_lazy_builtin == nullptr) {
+          WasmCode* new_code = ret->CloneCode(original_code);
+          if (new_code == nullptr) return nullptr;
+          PatchTrampolineAndStubCalls(original_code, new_code, reverse_lookup);
+          anonymous_lazy_builtin = new_code;
+        }
+        ret->SetCodeTable(i, anonymous_lazy_builtin);
       } break;
       case WasmCode::kFunction: {
         WasmCode* new_code = ret->CloneCode(original_code);

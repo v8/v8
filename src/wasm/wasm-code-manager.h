@@ -204,11 +204,11 @@ class V8_EXPORT_PRIVATE NativeModule final {
   WasmCode* AddInterpreterWrapper(Handle<Code> code, uint32_t index);
 
   // When starting lazy compilation, provide the WasmLazyCompile builtin by
-  // calling SetLazyBuiltin. It will initialize the code table with it, and the
-  // lazy_builtin_ field. The latter is used when creating entries for exported
+  // calling SetLazyBuiltin. It will initialize the code table with it. Copies
+  // of it might be cloned from them later when creating entries for exported
   // functions and indirect callable functions, so that they may be identified
   // by the runtime.
-  WasmCode* SetLazyBuiltin(Handle<Code> code);
+  void SetLazyBuiltin(Handle<Code> code);
 
   // ExportedWrappers are WasmToWasmWrappers for functions placed on import
   // tables. We construct them as-needed.
@@ -219,8 +219,6 @@ class V8_EXPORT_PRIVATE NativeModule final {
   uint32_t FunctionCount() const;
   WasmCode* GetCode(uint32_t index) const;
 
-  WasmCode* lazy_builtin() const { return lazy_builtin_; }
-
   // We special-case lazy cloning because we currently rely on making copies
   // of the lazy builtin, to be able to identify, in the runtime, which function
   // the lazy builtin is a placeholder of. If we used trampolines, we would call
@@ -229,7 +227,7 @@ class V8_EXPORT_PRIVATE NativeModule final {
   // builtin. The logic for seeking though frames would change, though.
   // TODO(mtrofin): perhaps we can do exactly that - either before or after
   // this change.
-  WasmCode* CloneLazyBuiltinInto(uint32_t);
+  WasmCode* CloneLazyBuiltinInto(const WasmCode* code, uint32_t);
 
   bool SetExecutable(bool executable);
 
@@ -319,7 +317,6 @@ class V8_EXPORT_PRIVATE NativeModule final {
   DisjointAllocationPool allocated_memory_;
   std::list<VirtualMemory> owned_memory_;
   WasmCodeManager* wasm_code_manager_;
-  wasm::WasmCode* lazy_builtin_ = nullptr;
   base::Mutex allocation_mutex_;
   Handle<WasmCompiledModule> compiled_module_;
   size_t committed_memory_ = 0;

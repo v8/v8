@@ -187,7 +187,6 @@ NativeModuleSerializer::NativeModuleSerializer(Isolate* isolate,
     : isolate_(isolate), native_module_(module) {
   DCHECK_NOT_NULL(isolate_);
   DCHECK_NOT_NULL(native_module_);
-  DCHECK_NULL(native_module_->lazy_builtin_);
   // TODO(mtrofin): persist the export wrappers. Ideally, we'd only persist
   // the unique ones, i.e. the cache.
   ExternalReferenceTable* table = ExternalReferenceTable::instance(isolate_);
