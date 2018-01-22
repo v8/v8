@@ -997,6 +997,7 @@ Reduction JSCallReducer::ReduceArrayForEach(Handle<JSFunction> function,
   ReplaceWithValue(node, jsgraph()->UndefinedConstant(), effect, control);
   return Replace(jsgraph()->UndefinedConstant());
 }
+
 Reduction JSCallReducer::ReduceArrayReduce(Handle<JSFunction> function,
                                            Node* node,
                                            ArrayReduceDirection direction) {
@@ -1024,22 +1025,21 @@ Reduction JSCallReducer::ReduceArrayReduce(Handle<JSFunction> function,
       NodeProperties::InferReceiverMaps(receiver, effect, &receiver_maps);
   if (result == NodeProperties::kNoReceiverMaps) return NoChange();
 
-  ElementsKind kind = IsDoubleElementsKind(receiver_maps[0]->elements_kind())
-                          ? PACKED_DOUBLE_ELEMENTS
-                          : PACKED_ELEMENTS;
+  ElementsKind kind = receiver_maps[0]->elements_kind();
   for (Handle<Map> receiver_map : receiver_maps) {
-    ElementsKind next_kind = receiver_map->elements_kind();
     if (!CanInlineArrayIteratingBuiltin(receiver_map)) return NoChange();
-    if (!IsFastElementsKind(next_kind) || next_kind == HOLEY_DOUBLE_ELEMENTS) {
+    if (!UnionElementsKindUptoSize(&kind, receiver_map->elements_kind()))
       return NoChange();
-    }
-    if (IsDoubleElementsKind(kind) != IsDoubleElementsKind(next_kind)) {
-      return NoChange();
-    }
-    if (IsHoleyElementsKind(next_kind)) {
-      kind = HOLEY_ELEMENTS;
-    }
   }
+
+  std::function<Node*(Node*)> hole_check = [this, kind](Node* element) {
+    if (IsDoubleElementsKind(kind)) {
+      return graph()->NewNode(simplified()->NumberIsFloat64Hole(), element);
+    } else {
+      return graph()->NewNode(simplified()->ReferenceEqual(), element,
+                              jsgraph()->TheHoleConstant());
+    }
+  };
 
   // Install code dependencies on the {receiver} prototype maps and the
   // global array protector cell.
@@ -1120,10 +1120,8 @@ Reduction JSCallReducer::ReduceArrayReduce(Handle<JSFunction> function,
     cur = SafeLoadElement(kind, receiver, control, &effect, &k, p.feedback());
     Node* next_k = graph()->NewNode(next_op, k, jsgraph()->OneConstant());
 
-    Node* hole_test = graph()->NewNode(simplified()->ReferenceEqual(), cur,
-                                       jsgraph()->TheHoleConstant());
     Node* hole_branch = graph()->NewNode(common()->Branch(BranchHint::kTrue),
-                                         hole_test, control);
+                                         hole_check(cur), control);
     Node* found_el = graph()->NewNode(common()->IfFalse(), hole_branch);
     control = found_el;
     Node* is_hole = graph()->NewNode(common()->IfTrue(), hole_branch);
@@ -1187,10 +1185,8 @@ Reduction JSCallReducer::ReduceArrayReduce(Handle<JSFunction> function,
   if (IsHoleyElementsKind(kind)) {
     // Holey elements kind require a hole check and skipping of the element in
     // the case of a hole.
-    Node* check = graph()->NewNode(simplified()->ReferenceEqual(), element,
-                                   jsgraph()->TheHoleConstant());
-    Node* branch =
-        graph()->NewNode(common()->Branch(BranchHint::kFalse), check, control);
+    Node* branch = graph()->NewNode(common()->Branch(BranchHint::kFalse),
+                                    hole_check(element), control);
     hole_true = graph()->NewNode(common()->IfTrue(), branch);
     hole_false = graph()->NewNode(common()->IfFalse(), branch);
     control = hole_false;
