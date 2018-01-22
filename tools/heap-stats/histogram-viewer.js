@@ -51,6 +51,10 @@ class HistogramViewer extends HTMLElement {
 
   stateChanged() {
     if (this.isValid()) {
+      const overall_bytes = (this.selection.merge_categories) ?
+          this.getPropertyForCategory('overall') :
+          this.getPropertyForInstanceTypes('overall');
+      this.$('#overall').innerHTML = `Overall: ${overall_bytes / KB} KB`;
       this.drawChart();
     } else {
       this.hide();
@@ -62,6 +66,31 @@ class HistogramViewer extends HTMLElement {
     console.assert(this.selection, 'invalid selection');
     return this.data[this.selection.isolate]
         .gcs[this.selection.gc][this.selection.data_set];
+  }
+
+  get selectedInstanceTypes() {
+    console.assert(this.selection, 'invalid selection');
+    return Object.values(this.selection.categories)
+        .reduce((accu, current) => accu.concat(current), []);
+  }
+
+  getPropertyForCategory(property) {
+    return Object.values(this.selection.categories)
+        .reduce(
+            (outer_accu, instance_types) => outer_accu +
+                instance_types.reduce(
+                    (inner_accu, instance_type) => inner_accu +
+                        this.selectedData
+                            .instance_type_data[instance_type][property],
+                    0),
+            0);
+  }
+
+  getPropertyForInstanceTypes(property) {
+    return this.selectedInstanceTypes.reduce(
+        (accu, instance_type) => accu +
+            this.selectedData.instance_type_data[instance_type][property],
+        0);
   }
 
   getCategoryData() {
@@ -89,9 +118,7 @@ class HistogramViewer extends HTMLElement {
   }
 
   getInstanceTypeData() {
-    const instance_types =
-        Object.values(this.selection.categories)
-            .reduce((accu, current) => accu.concat(current), []);
+    const instance_types = this.selectedInstanceTypes;
     const labels = ['Bucket', ...instance_types];
     const data = this.selectedData.bucket_sizes.map(
         (bucket_size, index) =>
