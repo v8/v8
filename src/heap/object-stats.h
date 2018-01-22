@@ -19,28 +19,38 @@
 // tracing.
 //
 // Update LAST_VIRTUAL_TYPE below when changing this macro.
-#define VIRTUAL_INSTANCE_TYPE_LIST(V)    \
-  CODE_KIND_LIST(V)                      \
-  V(BOILERPLATE_ELEMENTS_TYPE)           \
-  V(BOILERPLATE_NAME_DICTIONARY_TYPE)    \
-  V(BOILERPLATE_PROPERTY_ARRAY_TYPE)     \
-  V(BYTECODE_ARRAY_CONSTANT_POOL_TYPE)   \
-  V(BYTECODE_ARRAY_HANDLER_TABLE_TYPE)   \
-  V(DEPENDENT_CODE_TYPE)                 \
-  V(ENUM_CACHE_TYPE)                     \
-  V(ENUM_INDICES_CACHE_TYPE)             \
-  V(FEEDBACK_VECTOR_ENTRY_TYPE)          \
-  V(JS_ARRAY_BOILERPLATE_TYPE)           \
-  V(JS_OBJECT_BOILERPLATE_TYPE)          \
-  V(NOSCRIPT_SHARED_FUNCTION_INFOS_TYPE) \
-  V(NUMBER_STRING_CACHE_TYPE)            \
-  V(PROTOTYPE_USERS_TYPE)                \
-  V(REGEXP_MULTIPLE_CACHE_TYPE)          \
-  V(RETAINED_MAPS_TYPE)                  \
-  V(SCRIPT_LIST_TYPE)                    \
-  V(SERIALIZED_OBJECTS_TYPE)             \
-  V(SINGLE_CHARACTER_STRING_CACHE_TYPE)  \
-  V(STRING_SPLIT_CACHE_TYPE)             \
+#define VIRTUAL_INSTANCE_TYPE_LIST(V)     \
+  CODE_KIND_LIST(V)                       \
+  V(BOILERPLATE_ELEMENTS_TYPE)            \
+  V(BOILERPLATE_PROPERTY_ARRAY_TYPE)      \
+  V(BOILERPLATE_PROPERTY_DICTIONARY_TYPE) \
+  V(BYTECODE_ARRAY_CONSTANT_POOL_TYPE)    \
+  V(BYTECODE_ARRAY_HANDLER_TABLE_TYPE)    \
+  V(CODE_STUBS_TABLE_TYPE)                \
+  V(COW_ARRAY_TYPE)                       \
+  V(DEPENDENT_CODE_TYPE)                  \
+  V(ELEMENTS_TYPE)                        \
+  V(ENUM_CACHE_TYPE)                      \
+  V(ENUM_INDICES_CACHE_TYPE)              \
+  V(FEEDBACK_VECTOR_ENTRY_TYPE)           \
+  V(GLOBAL_ELEMENTS_TYPE)                 \
+  V(GLOBAL_PROPERTIES_TYPE)               \
+  V(JS_ARRAY_BOILERPLATE_TYPE)            \
+  V(JS_COLLETION_TABLE_TYPE)              \
+  V(JS_OBJECT_BOILERPLATE_TYPE)           \
+  V(NOSCRIPT_SHARED_FUNCTION_INFOS_TYPE)  \
+  V(NUMBER_STRING_CACHE_TYPE)             \
+  V(OBJECT_TO_CODE_TYPE)                  \
+  V(PROPERTY_ARRAY_TYPE)                  \
+  V(PROPERTY_DICTIONARY_TYPE)             \
+  V(PROTOTYPE_USERS_TYPE)                 \
+  V(REGEXP_MULTIPLE_CACHE_TYPE)           \
+  V(RETAINED_MAPS_TYPE)                   \
+  V(SCRIPT_LIST_TYPE)                     \
+  V(SERIALIZED_OBJECTS_TYPE)              \
+  V(SINGLE_CHARACTER_STRING_CACHE_TYPE)   \
+  V(STRING_SPLIT_CACHE_TYPE)              \
+  V(STRING_TABLE_TYPE)                    \
   V(WEAK_NEW_SPACE_OBJECT_TO_CODE_TYPE)
 
 namespace v8 {
