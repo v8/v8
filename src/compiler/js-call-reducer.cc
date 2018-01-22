@@ -2949,9 +2949,16 @@ Reduction JSCallReducer::ReduceJSCall(Node* node) {
         case Builtins::kStringPrototypeIndexOf:
           return ReduceStringPrototypeIndexOf(function, node);
         case Builtins::kStringPrototypeCharAt:
-          return ReduceStringPrototypeCharAt(node);
+          return ReduceStringPrototypeStringAt(simplified()->StringCharAt(),
+                                               jsgraph()->EmptyStringConstant(),
+                                               node);
         case Builtins::kStringPrototypeCharCodeAt:
-          return ReduceStringPrototypeCharCodeAt(node);
+          return ReduceStringPrototypeStringAt(simplified()->StringCharCodeAt(),
+                                               jsgraph()->NaNConstant(), node);
+        case Builtins::kStringPrototypeCodePointAt:
+          return ReduceStringPrototypeStringAt(
+              simplified()->StringCodePointAt(), jsgraph()->UndefinedConstant(),
+              node);
         default:
           break;
       }
@@ -3838,65 +3845,15 @@ Reduction JSCallReducer::ReduceArrayPrototypeShift(Node* node) {
 }
 
 // ES6 section 21.1.3.1 String.prototype.charAt ( pos )
-Reduction JSCallReducer::ReduceStringPrototypeCharAt(Node* node) {
-  DCHECK_EQ(IrOpcode::kJSCall, node->opcode());
-  CallParameters const& p = CallParametersOf(node->op());
-  if (p.speculation_mode() == SpeculationMode::kDisallowSpeculation) {
-    return NoChange();
-  }
-
-  Node* receiver = NodeProperties::GetValueInput(node, 1);
-  Node* index = jsgraph()->ZeroConstant();
-  Node* effect = NodeProperties::GetEffectInput(node);
-  Node* control = NodeProperties::GetControlInput(node);
-
-  receiver = effect = graph()->NewNode(simplified()->CheckString(p.feedback()),
-                                       receiver, effect, control);
-  if (node->op()->ValueInputCount() >= 3) {
-    index = effect = graph()->NewNode(simplified()->CheckSmi(p.feedback()),
-                                      NodeProperties::GetValueInput(node, 2),
-                                      effect, control);
-    // Map -0 and NaN to 0 (as per ToInteger), and the values in
-    // the [-2^31,-1] range to the [2^31,2^32-1] range, which will
-    // be considered out-of-bounds as well, because of the maximal
-    // String length limit in V8.
-    STATIC_ASSERT(String::kMaxLength <= kMaxInt);
-    index = graph()->NewNode(simplified()->NumberToUint32(), index);
-  }
-
-  // Determine the {receiver} length.
-  Node* receiver_length =
-      graph()->NewNode(simplified()->StringLength(), receiver);
-
-  // Check if {index} is less than {receiver} length.
-  Node* check =
-      graph()->NewNode(simplified()->NumberLessThan(), index, receiver_length);
-  Node* branch =
-      graph()->NewNode(common()->Branch(BranchHint::kTrue), check, control);
-
-  // Return the character from the {receiver} as single character string.
-  Node* if_true = graph()->NewNode(common()->IfTrue(), branch);
-
-  Node* masked_index = graph()->NewNode(simplified()->MaskIndexWithBound(),
-                                        index, receiver_length);
-
-  Node* vtrue = graph()->NewNode(simplified()->StringCharAt(), receiver,
-                                 masked_index, if_true);
-
-  // Return the empty string otherwise.
-  Node* if_false = graph()->NewNode(common()->IfFalse(), branch);
-  Node* vfalse = jsgraph()->EmptyStringConstant();
-
-  control = graph()->NewNode(common()->Merge(2), if_true, if_false);
-  Node* value = graph()->NewNode(
-      common()->Phi(MachineRepresentation::kTagged, 2), vtrue, vfalse, control);
-
-  ReplaceWithValue(node, value, effect, control);
-  return Replace(value);
-}
-
+// and
 // ES6 section 21.1.3.2 String.prototype.charCodeAt ( pos )
-Reduction JSCallReducer::ReduceStringPrototypeCharCodeAt(Node* node) {
+// and
+// ES6 section 21.1.3.3 String.prototype.codePointAt ( pos )
+Reduction JSCallReducer::ReduceStringPrototypeStringAt(
+    const Operator* string_access_operator, Node* default_return, Node* node) {
+  DCHECK(string_access_operator->opcode() == IrOpcode::kStringCharAt ||
+         string_access_operator->opcode() == IrOpcode::kStringCharCodeAt ||
+         string_access_operator->opcode() == IrOpcode::kStringCodePointAt);
   DCHECK_EQ(IrOpcode::kJSCall, node->opcode());
   CallParameters const& p = CallParametersOf(node->op());
   if (p.speculation_mode() == SpeculationMode::kDisallowSpeculation) {
@@ -3910,11 +3867,15 @@ Reduction JSCallReducer::ReduceStringPrototypeCharCodeAt(Node* node) {
 
   receiver = effect = graph()->NewNode(simplified()->CheckString(p.feedback()),
                                        receiver, effect, control);
+
+  // Determine the {receiver} length.
+  Node* receiver_length =
+      graph()->NewNode(simplified()->StringLength(), receiver);
+
   if (node->op()->ValueInputCount() >= 3) {
     index = effect = graph()->NewNode(simplified()->CheckSmi(p.feedback()),
                                       NodeProperties::GetValueInput(node, 2),
                                       effect, control);
-
     // Map -0 and NaN to 0 (as per ToInteger), and the values in
     // the [-2^31,-1] range to the [2^31,2^32-1] range, which will
     // be considered out-of-bounds as well, because of the maximal
@@ -3923,28 +3884,24 @@ Reduction JSCallReducer::ReduceStringPrototypeCharCodeAt(Node* node) {
     index = graph()->NewNode(simplified()->NumberToUint32(), index);
   }
 
-  // Determine the {receiver} length.
-  Node* receiver_length =
-      graph()->NewNode(simplified()->StringLength(), receiver);
-
   // Check if {index} is less than {receiver} length.
   Node* check =
       graph()->NewNode(simplified()->NumberLessThan(), index, receiver_length);
   Node* branch =
       graph()->NewNode(common()->Branch(BranchHint::kTrue), check, control);
 
-  // Load the character from the {receiver}.
+  // Get the character from {receiver} via operator {charAtOrCharCodeAt}.
   Node* if_true = graph()->NewNode(common()->IfTrue(), branch);
 
-  Node* masked_index = graph()->NewNode(simplified()->MaskIndexWithBound(),
-                                        index, receiver_length);
+  index = graph()->NewNode(simplified()->MaskIndexWithBound(), index,
+                           receiver_length);
 
-  Node* vtrue = graph()->NewNode(simplified()->StringCharCodeAt(), receiver,
-                                 masked_index, if_true);
+  Node* vtrue =
+      graph()->NewNode(string_access_operator, receiver, index, if_true);
 
-  // Return NaN otherwise.
+  // Return the {default_return} otherwise.
   Node* if_false = graph()->NewNode(common()->IfFalse(), branch);
-  Node* vfalse = jsgraph()->NaNConstant();
+  Node* vfalse = default_return;
 
   control = graph()->NewNode(common()->Merge(2), if_true, if_false);
   Node* value = graph()->NewNode(
