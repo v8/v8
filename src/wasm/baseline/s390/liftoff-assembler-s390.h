@@ -104,7 +104,6 @@ UNIMPLEMENTED_GP_BINOP(i32_xor)
 UNIMPLEMENTED_SHIFTOP(i32_shl)
 UNIMPLEMENTED_SHIFTOP(i32_sar)
 UNIMPLEMENTED_SHIFTOP(i32_shr)
-UNIMPLEMENTED_GP_UNOP(i32_eqz)
 UNIMPLEMENTED_GP_UNOP(i32_clz)
 UNIMPLEMENTED_GP_UNOP(i32_ctz)
 UNIMPLEMENTED_GP_UNOP(i32_popcnt)
@@ -131,6 +130,10 @@ void LiftoffAssembler::emit_ptrsize_compare(Register lhs, Register rhs) {
 void LiftoffAssembler::emit_jump(Label* label) { UNIMPLEMENTED(); }
 
 void LiftoffAssembler::emit_cond_jump(Condition cond, Label* label) {
+  UNIMPLEMENTED();
+}
+
+void LiftoffAssembler::emit_i32_set_cond(Condition cond, Register dst) {
   UNIMPLEMENTED();
 }
 

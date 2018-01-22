@@ -481,6 +481,15 @@ class LiftoffCompiler {
     __ PushRegister(kWasmI32, dst_reg);
   }
 
+  void I32Eqz() {
+    LiftoffRegList pinned;
+    LiftoffRegister dst = pinned.set(__ GetUnaryOpTargetRegister(kGpReg));
+    LiftoffRegister src = pinned.set(__ PopToRegister(kGpReg, pinned));
+    asm_->emit_i32_test(src.gp());
+    asm_->emit_i32_set_cond(kEqual, dst.gp());
+    __ PushRegister(kWasmI32, dst);
+  }
+
   void UnOp(Decoder* decoder, WasmOpcode opcode, FunctionSig*,
             const Value& value, Value* result) {
 #define CASE_UNOP(opcode, type, fn, ext_ref_fn)           \
@@ -488,11 +497,13 @@ class LiftoffCompiler {
     type##UnOp(&LiftoffAssembler::emit_##fn, ext_ref_fn); \
     break;
     switch (opcode) {
-      CASE_UNOP(I32Eqz, I32, i32_eqz, nullptr)
       CASE_UNOP(I32Clz, I32, i32_clz, nullptr)
       CASE_UNOP(I32Ctz, I32, i32_ctz, nullptr)
       CASE_UNOP(I32Popcnt, I32, i32_popcnt,
                 &ExternalReference::wasm_word32_popcnt)
+      case WasmOpcode::kExprI32Eqz:
+        I32Eqz();
+        break;
       default:
         return unsupported(decoder, WasmOpcodes::OpcodeName(opcode));
     }
@@ -507,6 +518,16 @@ class LiftoffCompiler {
     LiftoffRegister lhs_reg = __ PopToRegister(kGpReg, pinned);
     (asm_->*emit_fn)(dst_reg.gp(), lhs_reg.gp(), rhs_reg.gp());
     __ PushRegister(kWasmI32, dst_reg);
+  }
+
+  void I32CmpOp(Condition cond) {
+    LiftoffRegList pinned;
+    LiftoffRegister dst = pinned.set(__ GetBinaryOpTargetRegister(kGpReg));
+    LiftoffRegister rhs = pinned.set(__ PopToRegister(kGpReg, pinned));
+    LiftoffRegister lhs = __ PopToRegister(kGpReg, pinned);
+    __ emit_i32_compare(lhs.gp(), rhs.gp());
+    __ emit_i32_set_cond(cond, dst.gp());
+    __ PushRegister(kWasmI32, dst);
   }
 
   void I32ShiftOp(void (LiftoffAssembler::*emit_fn)(Register, Register,
@@ -546,6 +567,9 @@ class LiftoffCompiler {
 #define CASE_BINOP(opcode, type, fn) \
   case WasmOpcode::kExpr##opcode:    \
     return type##BinOp(&LiftoffAssembler::emit_##fn);
+#define CASE_CMPOP(opcode, cond)  \
+  case WasmOpcode::kExpr##opcode: \
+    return I32CmpOp(cond);
 #define CASE_SHIFTOP(opcode, fn)  \
   case WasmOpcode::kExpr##opcode: \
     return I32ShiftOp(&LiftoffAssembler::emit_##fn);
@@ -560,6 +584,8 @@ class LiftoffCompiler {
       CASE_BINOP(I32And, I32, i32_and)
       CASE_BINOP(I32Ior, I32, i32_or)
       CASE_BINOP(I32Xor, I32, i32_xor)
+      CASE_CMPOP(I32Eq, kEqual)
+      CASE_CMPOP(I32Ne, kUnequal)
       CASE_SHIFTOP(I32Shl, i32_shl)
       CASE_SHIFTOP(I32ShrS, i32_sar)
       CASE_SHIFTOP(I32ShrU, i32_shr)
@@ -573,6 +599,7 @@ class LiftoffCompiler {
     }
 #undef CASE_BINOP
 #undef CASE_SHIFTOP
+#undef CASE_CMPOP
 #undef CASE_CCALL_BINOP
   }
 

@@ -358,20 +358,6 @@ void LiftoffAssembler::emit_i32_shr(Register dst, Register lhs, Register rhs,
   liftoff::EmitShiftOperation(this, dst, lhs, rhs, &Assembler::shr_cl, pinned);
 }
 
-bool LiftoffAssembler::emit_i32_eqz(Register dst, Register src) {
-  Register tmp_byte_reg = dst;
-  // Only the lower 4 registers can be addressed as 8-bit registers.
-  if (!dst.is_byte_register()) {
-    LiftoffRegList pinned = LiftoffRegList::ForRegs(src);
-    tmp_byte_reg = GetUnusedRegister(liftoff::kByteRegs, pinned).gp();
-  }
-
-  test(src, src);
-  setcc(zero, tmp_byte_reg);
-  movzx_b(dst, tmp_byte_reg);
-  return true;
-}
-
 bool LiftoffAssembler::emit_i32_clz(Register dst, Register src) {
   Label nonzero_input;
   Label continuation;
@@ -473,6 +459,20 @@ void LiftoffAssembler::emit_jump(Label* label) { jmp(label); }
 
 void LiftoffAssembler::emit_cond_jump(Condition cond, Label* label) {
   j(cond, label);
+}
+
+void LiftoffAssembler::emit_i32_set_cond(Condition cond, Register dst) {
+  Register tmp_byte_reg = dst;
+  // Only the lower 4 registers can be addressed as 8-bit registers.
+  if (!dst.is_byte_register()) {
+    LiftoffRegList pinned = LiftoffRegList::ForRegs(dst);
+    // {mov} does not change the status flags, so calling {GetUnusedRegister}
+    // should be fine here.
+    tmp_byte_reg = GetUnusedRegister(liftoff::kByteRegs, pinned).gp();
+  }
+
+  setcc(cond, tmp_byte_reg);
+  movzx_b(dst, tmp_byte_reg);
 }
 
 void LiftoffAssembler::StackCheck(Label* ool_code) {

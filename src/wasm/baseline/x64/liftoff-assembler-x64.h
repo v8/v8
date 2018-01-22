@@ -361,13 +361,6 @@ void LiftoffAssembler::emit_i32_shr(Register dst, Register lhs, Register rhs,
   liftoff::EmitShiftOperation(this, dst, lhs, rhs, &Assembler::shrl_cl, pinned);
 }
 
-bool LiftoffAssembler::emit_i32_eqz(Register dst, Register src) {
-  testl(src, src);
-  setcc(zero, dst);
-  movzxbl(dst, dst);
-  return true;
-}
-
 bool LiftoffAssembler::emit_i32_clz(Register dst, Register src) {
   Label nonzero_input;
   Label continuation;
@@ -473,6 +466,11 @@ void LiftoffAssembler::emit_jump(Label* label) { jmp(label); }
 
 void LiftoffAssembler::emit_cond_jump(Condition cond, Label* label) {
   j(cond, label);
+}
+
+void LiftoffAssembler::emit_i32_set_cond(Condition cond, Register dst) {
+  setcc(cond, dst);
+  movzxbl(dst, dst);
 }
 
 void LiftoffAssembler::StackCheck(Label* ool_code) {

@@ -321,7 +321,6 @@ class LiftoffAssembler : public TurboAssembler {
                            LiftoffRegList pinned = {});
 
   // i32 unops.
-  inline bool emit_i32_eqz(Register dst, Register src);
   inline bool emit_i32_clz(Register dst, Register src);
   inline bool emit_i32_ctz(Register dst, Register src);
   inline bool emit_i32_popcnt(Register dst, Register src);
@@ -340,6 +339,8 @@ class LiftoffAssembler : public TurboAssembler {
   inline void emit_ptrsize_compare(Register, Register);
   inline void emit_jump(Label*);
   inline void emit_cond_jump(Condition, Label*);
+  // Set {dst} to 1 if condition holds, 0 otherwise.
+  inline void emit_i32_set_cond(Condition, Register dst);
 
   inline void StackCheck(Label* ool_code);
 
