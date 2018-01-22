@@ -198,9 +198,7 @@ inline VRegister CPURegister::Q() const {
 template<typename T>
 struct ImmediateInitializer {
   static const bool kIsIntType = true;
-  static inline RelocInfo::Mode rmode_for(T) {
-    return sizeof(T) == 8 ? RelocInfo::NONE64 : RelocInfo::NONE32;
-  }
+  static inline RelocInfo::Mode rmode_for(T) { return RelocInfo::NONE; }
   static inline int64_t immediate_for(T t) {
     STATIC_ASSERT(sizeof(T) <= 8);
     return t;
@@ -211,9 +209,7 @@ struct ImmediateInitializer {
 template<>
 struct ImmediateInitializer<Smi*> {
   static const bool kIsIntType = false;
-  static inline RelocInfo::Mode rmode_for(Smi* t) {
-    return RelocInfo::NONE64;
-  }
+  static inline RelocInfo::Mode rmode_for(Smi* t) { return RelocInfo::NONE; }
   static inline int64_t immediate_for(Smi* t) {;
     return reinterpret_cast<int64_t>(t);
   }

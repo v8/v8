@@ -1868,13 +1868,10 @@ void TurboAssembler::Call(Address target, RelocInfo::Mode rmode) {
   Bind(&start_call);
 #endif
 
-  // Addresses always have 64 bits, so we shouldn't encounter NONE32.
-  DCHECK(rmode != RelocInfo::NONE32);
-
   UseScratchRegisterScope temps(this);
   Register temp = temps.AcquireX();
 
-  if (rmode == RelocInfo::NONE64) {
+  if (RelocInfo::IsNone(rmode)) {
     // Addresses are 48 bits so we never need to load the upper 16 bits.
     uint64_t imm = reinterpret_cast<uint64_t>(target);
     // If we don't use ARM tagged addresses, the 16 higher bits must be 0.
@@ -1950,27 +1947,15 @@ int TurboAssembler::CallSize(Label* target) {
 int TurboAssembler::CallSize(Address target, RelocInfo::Mode rmode) {
   USE(target);
 
-  // Addresses always have 64 bits, so we shouldn't encounter NONE32.
-  DCHECK(rmode != RelocInfo::NONE32);
-
-  if (rmode == RelocInfo::NONE64) {
-    return kCallSizeWithoutRelocation;
-  } else {
-    return kCallSizeWithRelocation;
-  }
+  return RelocInfo::IsNone(rmode) ? kCallSizeWithoutRelocation
+                                  : kCallSizeWithRelocation;
 }
 
 int TurboAssembler::CallSize(Handle<Code> code, RelocInfo::Mode rmode) {
   USE(code);
 
-  // Addresses always have 64 bits, so we shouldn't encounter NONE32.
-  DCHECK(rmode != RelocInfo::NONE32);
-
-  if (rmode == RelocInfo::NONE64) {
-    return kCallSizeWithoutRelocation;
-  } else {
-    return kCallSizeWithRelocation;
-  }
+  return RelocInfo::IsNone(rmode) ? kCallSizeWithoutRelocation
+                                  : kCallSizeWithRelocation;
 }
 
 

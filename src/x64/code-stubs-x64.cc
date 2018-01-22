@@ -609,7 +609,7 @@ void ProfileEntryHookStub::Generate(MacroAssembler* masm) {
 
   // Call the entry hook function.
   __ Move(rax, FUNCTION_ADDR(isolate()->function_entry_hook()),
-          Assembler::RelocInfoNone());
+          RelocInfo::NONE);
 
   AllowExternalCallThatCantCauseGC scope(masm);
 

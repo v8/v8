@@ -388,7 +388,7 @@ class Operand BASE_EMBEDDED {
  public:
   // Immediate.
   INLINE(explicit Operand(int32_t immediate,
-                          RelocInfo::Mode rmode = RelocInfo::NONE32))
+                          RelocInfo::Mode rmode = RelocInfo::NONE))
       : rm_(no_reg), rmode_(rmode) {
     value_.immediate = immediate;
   }
@@ -400,8 +400,7 @@ class Operand BASE_EMBEDDED {
   INLINE(explicit Operand(Object** opp));
   INLINE(explicit Operand(Context** cpp));
   explicit Operand(Handle<HeapObject> handle);
-  INLINE(explicit Operand(Smi* value))
-      : rm_(no_reg), rmode_(RelocInfo::NONE32) {
+  INLINE(explicit Operand(Smi* value)) : rm_(no_reg), rmode_(RelocInfo::NONE) {
     value_.immediate = reinterpret_cast<intptr_t>(value);
   }
 

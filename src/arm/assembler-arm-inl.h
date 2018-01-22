@@ -189,7 +189,7 @@ Operand::Operand(const ExternalReference& f)
   value_.immediate = reinterpret_cast<int32_t>(f.address());
 }
 
-Operand::Operand(Smi* value) : rmode_(RelocInfo::NONE32) {
+Operand::Operand(Smi* value) : rmode_(RelocInfo::NONE) {
   value_.immediate = reinterpret_cast<intptr_t>(value);
 }
 

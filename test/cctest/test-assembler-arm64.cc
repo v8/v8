@@ -15080,7 +15080,7 @@ TEST(call_no_relocation) {
   {
     Assembler::BlockConstPoolScope scope(&masm);
     call_start = buf + __ pc_offset();
-    __ Call(buf + function.pos(), RelocInfo::NONE64);
+    __ Call(buf + function.pos(), RelocInfo::NONE);
     return_address = buf + __ pc_offset();
   }
   __ Pop(xzr, lr);

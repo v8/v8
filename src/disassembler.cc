@@ -267,7 +267,7 @@ static int DecodeIt(Isolate* isolate, std::ostream* os,
     // already, check if we can find some RelocInfo for the target address in
     // the constant pool.
     if (pcs.empty() && converter.code() != nullptr) {
-      RelocInfo dummy_rinfo(prev_pc, RelocInfo::NONE32, 0, nullptr);
+      RelocInfo dummy_rinfo(prev_pc, RelocInfo::NONE, 0, nullptr);
       if (dummy_rinfo.IsInConstantPool()) {
         byte* constant_pool_entry_address =
             dummy_rinfo.constant_pool_entry_address();

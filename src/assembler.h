@@ -401,8 +401,7 @@ class RelocInfo {
 
     // Pseudo-types
     NUMBER_OF_MODES,
-    NONE32,  // never recorded 32-bit value
-    NONE64,  // never recorded 64-bit value
+    NONE,  // never recorded value
 
     FIRST_REAL_RELOC_MODE = CODE_TARGET,
     LAST_REAL_RELOC_MODE = VENEER_POOL,
@@ -462,9 +461,7 @@ class RelocInfo {
   static inline bool IsInternalReferenceEncoded(Mode mode) {
     return mode == INTERNAL_REFERENCE_ENCODED;
   }
-  static inline bool IsNone(Mode mode) {
-    return mode == NONE32 || mode == NONE64;
-  }
+  static inline bool IsNone(Mode mode) { return mode == NONE; }
   static inline bool IsWasmContextReference(Mode mode) {
     return mode == WASM_CONTEXT_REFERENCE;
   }

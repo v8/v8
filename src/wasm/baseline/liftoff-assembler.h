@@ -283,7 +283,7 @@ class LiftoffAssembler : public TurboAssembler {
   inline void ReserveStackSpace(uint32_t bytes);
 
   inline void LoadConstant(LiftoffRegister, WasmValue,
-                           RelocInfo::Mode rmode = RelocInfo::NONE32);
+                           RelocInfo::Mode rmode = RelocInfo::NONE);
   inline void LoadFromContext(Register dst, uint32_t offset, int size);
   inline void SpillContext(Register context);
   inline void FillContextInto(Register dst);

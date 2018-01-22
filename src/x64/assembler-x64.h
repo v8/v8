@@ -316,7 +316,7 @@ class Immediate BASE_EMBEDDED {
 
  private:
   int32_t value_;
-  RelocInfo::Mode rmode_ = RelocInfo::NONE32;
+  RelocInfo::Mode rmode_ = RelocInfo::NONE;
 
   friend class Assembler;
 };
@@ -494,15 +494,6 @@ class Assembler : public AssemblerBase {
       Isolate* isolate, Address pc, Address target,
       RelocInfo::Mode mode = RelocInfo::INTERNAL_REFERENCE);
 
-  static inline RelocInfo::Mode RelocInfoNone() {
-    if (kPointerSize == kInt64Size) {
-      return RelocInfo::NONE64;
-    } else {
-      DCHECK_EQ(kPointerSize, kInt32Size);
-      return RelocInfo::NONE32;
-    }
-  }
-
   inline Handle<Code> code_target_object_handle_at(Address pc);
   inline Address runtime_entry_at(Address pc);
   // Number of bytes taken up by the branch target in the code.
@@ -667,9 +658,9 @@ class Assembler : public AssemblerBase {
 
   // Loads a 64-bit immediate into a register.
   void movq(Register dst, int64_t value,
-            RelocInfo::Mode rmode = RelocInfo::NONE64);
+            RelocInfo::Mode rmode = RelocInfo::NONE);
   void movq(Register dst, uint64_t value,
-            RelocInfo::Mode rmode = RelocInfo::NONE64);
+            RelocInfo::Mode rmode = RelocInfo::NONE);
 
   void movsxbl(Register dst, Register src);
   void movsxbl(Register dst, const Operand& src);

@@ -467,9 +467,6 @@ void ConstPool::Clear() {
 
 
 bool ConstPool::CanBeShared(RelocInfo::Mode mode) {
-  // Constant pool currently does not support 32-bit entries.
-  DCHECK(mode != RelocInfo::NONE32);
-
   return RelocInfo::IsNone(mode) ||
          (mode >= RelocInfo::FIRST_SHAREABLE_RELOC_MODE);
 }

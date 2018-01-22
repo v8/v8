@@ -616,10 +616,8 @@ bool RelocInfo::RequiresRelocation(Isolate* isolate, const CodeDesc& desc) {
 #ifdef ENABLE_DISASSEMBLER
 const char* RelocInfo::RelocModeName(RelocInfo::Mode rmode) {
   switch (rmode) {
-    case NONE32:
-      return "no reloc 32";
-    case NONE64:
-      return "no reloc 64";
+    case NONE:
+      return "no reloc";
     case EMBEDDED_OBJECT:
       return "embedded object";
     case CODE_TARGET:
@@ -745,8 +743,7 @@ void RelocInfo::Verify(Isolate* isolate) {
     case WASM_GLOBAL_HANDLE:
     case WASM_CALL:
     case JS_TO_WASM_CALL:
-    case NONE32:
-    case NONE64:
+    case NONE:
       break;
     case NUMBER_OF_MODES:
     case PC_JUMP:

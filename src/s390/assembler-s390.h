@@ -345,12 +345,6 @@ C_REGISTERS(DECLARE_C_REGISTER)
 // -----------------------------------------------------------------------------
 // Machine instruction Operands
 
-#if V8_TARGET_ARCH_S390X
-constexpr RelocInfo::Mode kRelocInfo_NONEPTR = RelocInfo::NONE64;
-#else
-constexpr RelocInfo::Mode kRelocInfo_NONEPTR = RelocInfo::NONE32;
-#endif
-
 // Class Operand represents a shifter operand in data processing instructions
 // defining immediate numbers and masks
 typedef uint8_t Length;
@@ -369,7 +363,7 @@ class Operand BASE_EMBEDDED {
  public:
   // immediate
   INLINE(explicit Operand(intptr_t immediate,
-                          RelocInfo::Mode rmode = kRelocInfo_NONEPTR)
+                          RelocInfo::Mode rmode = RelocInfo::NONE)
          : rmode_(rmode)) {
     value_.immediate = immediate;
   }
@@ -379,7 +373,7 @@ class Operand BASE_EMBEDDED {
     value_.immediate = reinterpret_cast<intptr_t>(f.address());
   }
   explicit Operand(Handle<HeapObject> handle);
-  INLINE(explicit Operand(Smi* value) : rmode_(kRelocInfo_NONEPTR)) {
+  INLINE(explicit Operand(Smi* value) : rmode_(RelocInfo::NONE)) {
     value_.immediate = reinterpret_cast<intptr_t>(value);
   }
 

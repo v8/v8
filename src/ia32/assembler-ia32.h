@@ -233,7 +233,7 @@ enum RoundingMode {
 
 class Immediate BASE_EMBEDDED {
  public:
-  inline explicit Immediate(int x, RelocInfo::Mode rmode = RelocInfo::NONE32) {
+  inline explicit Immediate(int x, RelocInfo::Mode rmode = RelocInfo::NONE) {
     value_.immediate = x;
     rmode_ = rmode;
   }
@@ -244,7 +244,7 @@ class Immediate BASE_EMBEDDED {
   inline explicit Immediate(Smi* value)
       : Immediate(reinterpret_cast<intptr_t>(value)) {}
   inline explicit Immediate(Address addr,
-                            RelocInfo::Mode rmode = RelocInfo::NONE32)
+                            RelocInfo::Mode rmode = RelocInfo::NONE)
       : Immediate(reinterpret_cast<int32_t>(addr), rmode) {}
 
   static Immediate EmbeddedNumber(double number);  // Smi or HeapNumber.
@@ -345,20 +345,15 @@ class Operand BASE_EMBEDDED {
 
   // [base + disp/r]
   explicit Operand(Register base, int32_t disp,
-                   RelocInfo::Mode rmode = RelocInfo::NONE32);
+                   RelocInfo::Mode rmode = RelocInfo::NONE);
 
   // [base + index*scale + disp/r]
-  explicit Operand(Register base,
-                   Register index,
-                   ScaleFactor scale,
-                   int32_t disp,
-                   RelocInfo::Mode rmode = RelocInfo::NONE32);
+  explicit Operand(Register base, Register index, ScaleFactor scale,
+                   int32_t disp, RelocInfo::Mode rmode = RelocInfo::NONE);
 
   // [index*scale + disp/r]
-  explicit Operand(Register index,
-                   ScaleFactor scale,
-                   int32_t disp,
-                   RelocInfo::Mode rmode = RelocInfo::NONE32);
+  explicit Operand(Register index, ScaleFactor scale, int32_t disp,
+                   RelocInfo::Mode rmode = RelocInfo::NONE);
 
   static Operand JumpTable(Register index, ScaleFactor scale, Label* table) {
     return Operand(index, scale, reinterpret_cast<int32_t>(table),
