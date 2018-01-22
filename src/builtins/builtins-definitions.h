@@ -756,7 +756,7 @@ namespace internal {
   CPP(ObjectDefineProperties)                                                  \
   CPP(ObjectDefineProperty)                                                    \
   CPP(ObjectDefineSetter)                                                      \
-  TFJ(ObjectEntries, 1, kObject)                                               \
+  CPP(ObjectEntries)                                                           \
   CPP(ObjectFreeze)                                                            \
   TFJ(ObjectGetOwnPropertyDescriptor,                                          \
       SharedFunctionInfo::kDontAdaptArgumentsSentinel)                         \
@@ -786,7 +786,7 @@ namespace internal {
   /* ES #sec-object.prototype.tolocalestring */                                \
   TFJ(ObjectPrototypeToLocaleString, 0)                                        \
   CPP(ObjectSeal)                                                              \
-  TFJ(ObjectValues, 1, kObject)                                                \
+  CPP(ObjectValues)                                                            \
                                                                                \
   /* instanceof */                                                             \
   TFC(OrdinaryHasInstance, Compare, 1)                                         \

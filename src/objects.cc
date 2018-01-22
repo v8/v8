@@ -8791,10 +8791,9 @@ MUST_USE_RESULT Maybe<bool> FastGetOwnValuesOrEntries(
 MaybeHandle<FixedArray> GetOwnValuesOrEntries(Isolate* isolate,
                                               Handle<JSReceiver> object,
                                               PropertyFilter filter,
-                                              bool try_fast_path,
                                               bool get_entries) {
   Handle<FixedArray> values_or_entries;
-  if (try_fast_path && filter == ENUMERABLE_STRINGS) {
+  if (filter == ENUMERABLE_STRINGS) {
     Maybe<bool> fast_values_or_entries = FastGetOwnValuesOrEntries(
         isolate, object, get_entries, &values_or_entries);
     if (fast_values_or_entries.IsNothing()) return MaybeHandle<FixedArray>();
@@ -8847,17 +8846,13 @@ MaybeHandle<FixedArray> GetOwnValuesOrEntries(Isolate* isolate,
 }
 
 MaybeHandle<FixedArray> JSReceiver::GetOwnValues(Handle<JSReceiver> object,
-                                                 PropertyFilter filter,
-                                                 bool try_fast_path) {
-  return GetOwnValuesOrEntries(object->GetIsolate(), object, filter,
-                               try_fast_path, false);
+                                                 PropertyFilter filter) {
+  return GetOwnValuesOrEntries(object->GetIsolate(), object, filter, false);
 }
 
 MaybeHandle<FixedArray> JSReceiver::GetOwnEntries(Handle<JSReceiver> object,
-                                                  PropertyFilter filter,
-                                                  bool try_fast_path) {
-  return GetOwnValuesOrEntries(object->GetIsolate(), object, filter,
-                               try_fast_path, true);
+                                                  PropertyFilter filter) {
+  return GetOwnValuesOrEntries(object->GetIsolate(), object, filter, true);
 }
 
 bool Map::DictionaryElementsInPrototypeChainOnly() {
