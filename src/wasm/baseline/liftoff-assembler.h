@@ -8,8 +8,6 @@
 #include <iosfwd>
 #include <memory>
 
-// Clients of this interface shouldn't depend on lots of compiler internals.
-// Do not include anything from src/compiler here!
 #include "src/base/bits.h"
 #include "src/frames.h"
 #include "src/macro-assembler.h"

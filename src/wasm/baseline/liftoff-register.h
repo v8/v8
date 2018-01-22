@@ -8,8 +8,6 @@
 #include <iosfwd>
 #include <memory>
 
-// Clients of this interface shouldn't depend on lots of compiler internals.
-// Do not include anything from src/compiler here!
 #include "src/base/bits.h"
 #include "src/wasm/baseline/liftoff-assembler-defs.h"
 #include "src/wasm/wasm-opcodes.h"
@@ -211,7 +209,7 @@ class LiftoffRegList {
   template <typename... Regs>
   static LiftoffRegList ForRegs(Regs... regs) {
     std::array<LiftoffRegister, sizeof...(regs)> regs_arr{
-        LiftoffRegister(regs)...};
+        {LiftoffRegister(regs)...}};
     LiftoffRegList list;
     for (LiftoffRegister reg : regs_arr) list.set(reg);
     return list;
