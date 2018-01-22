@@ -23,6 +23,7 @@ from testrunner.testproc.execution import ExecutionProc
 from testrunner.testproc.filter import StatusFileFilterProc, NameFilterProc
 from testrunner.testproc.loader import LoadProc
 from testrunner.testproc.progress import ResultsTracker, TestsCounter
+from testrunner.testproc.rerun import RerunProc
 
 
 DEFAULT_SUITES = ["mjsunit", "webkit", "benchmarks"]
@@ -49,6 +50,8 @@ class NumFuzzer(base_runner.BaseTestRunner):
                       default=False, action="store_true")
     parser.add_option("-j", help="The number of parallel tasks to run",
                       default=0, type="int")
+    parser.add_option("--json-test-results",
+                      help="Path to a file for storing json results.")
     parser.add_option("-p", "--progress",
                       help=("The style of progress indicator"
                             " (verbose, dots, color, mono)"),
@@ -61,6 +64,13 @@ class NumFuzzer(base_runner.BaseTestRunner):
     parser.add_option("--fuzzer-random-seed", default=0,
                       help="Default seed for initializing fuzzer random "
                       "generator")
+    parser.add_option("--rerun-failures-count",
+                      help=("Number of times to rerun each failing test case."
+                            " Very slow tests will be rerun only once."),
+                      default=0, type="int")
+    parser.add_option("--rerun-failures-max",
+                      help="Maximum number of failing test cases to rerun.",
+                      default=100, type="int")
 
     parser.add_option("--stress-marking", default=0, type="int",
                       help="probability [0-10] of adding --stress-marking "
@@ -106,7 +116,15 @@ class NumFuzzer(base_runner.BaseTestRunner):
 
     ctx = self._create_context(options)
     tests = self._load_tests(options, suites, ctx)
-    progress_indicator = progress.PROGRESS_INDICATORS[options.progress]()
+    progress_indicator = progress.IndicatorNotifier()
+    progress_indicator.Register(
+        progress.PROGRESS_INDICATORS[options.progress]())
+    if options.json_test_results:
+      progress_indicator.Register(progress.JsonTestProgressIndicator(
+          options.json_test_results,
+          self.build_config.arch,
+          self.mode_options.execution_mode,
+          ctx.random_seed))
 
     loader = LoadProc()
     fuzzer_rng = random.Random(options.fuzzer_random_seed)
@@ -119,22 +137,24 @@ class NumFuzzer(base_runner.BaseTestRunner):
 
     results = ResultsTracker()
     execproc = ExecutionProc(options.j, ctx)
-    indicator = progress_indicator.ToProgressIndicatorProc()
+    indicators = progress_indicator.ToProgressIndicatorProcs()
     procs = [
       loader,
       NameFilterProc(args) if args else None,
       StatusFileFilterProc(None, None),
       self._create_shard_proc(options),
       fuzzer_proc,
+    ] + indicators + [
       results,
-      indicator,
+      self._create_rerun_proc(options),
       execproc,
     ]
     self._prepare_procs(procs)
     loader.load_tests(tests)
     execproc.start()
 
-    indicator.finished()
+    for indicator in indicators:
+      indicator.finished()
 
     print '>>> %d tests ran' % results.total
     if results.failed:
@@ -167,8 +187,8 @@ class NumFuzzer(base_runner.BaseTestRunner):
                           False,  # Keep i18n on by default.
                           options.random_seed,
                           True,  # No sorting of test cases.
-                          0,  # Don't rerun failing tests.
-                          0,  # No use of a rerun-failing-tests maximum.
+                          options.rerun_failures_count,
+                          options.rerun_failures_max,
                           False,  # No no_harness mode.
                           False,  # Don't use perf data.
                           False)  # Coverage not supported.
@@ -225,6 +245,11 @@ class NumFuzzer(base_runner.BaseTestRunner):
       fuzzers.append(fuzzer.create_gc_interval_config(options.stress_gc))
     return fuzzers
 
+  def _create_rerun_proc(self, options):
+    if not options.rerun_failures_count:
+      return None
+    return RerunProc(options.rerun_failures_count,
+                     options.rerun_failures_max)
 
 if __name__ == '__main__':
   sys.exit(NumFuzzer().execute())

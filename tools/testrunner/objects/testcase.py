@@ -70,7 +70,7 @@ class TestCase(object):
     subtest.origin = self
     subtest.processor = processor
     subtest.procid += '.%s' % subtest_id
-    subtest.keep_output = keep_output
+    subtest.keep_output |= keep_output
     if flags:
       subtest.variant_flags = subtest.variant_flags + flags
     if variant is not None:
