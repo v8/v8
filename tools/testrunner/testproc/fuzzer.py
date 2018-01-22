@@ -32,7 +32,14 @@ class Analyzer(object):
 
 
 class Fuzzer(object):
-  def create_flags_generator(self, test, analysis_value):
+  def create_flags_generator(self, rng, test, analysis_value):
+    """
+    Args:
+      rng: random number generator
+      test: test for which to create flags
+      analysis_value: value returned by the analyzer. None if there is no
+        corresponding analyzer to this fuzzer
+    """
     raise NotImplementedError()
 
 
@@ -109,7 +116,7 @@ class FuzzerProc(base.TestProcProducer):
           # Skip fuzzer for this test since it doesn't have analysis data
           continue
       p = fuzzer_config.probability
-      flag_gen = fuzzer_config.fuzzer.create_flags_generator(test,
+      flag_gen = fuzzer_config.fuzzer.create_flags_generator(self._rng, test,
                                                              analysis_value)
       indexes += [len(gens)] * p
       gens.append((p, flag_gen))
@@ -163,6 +170,10 @@ def create_gc_interval_config(probability):
 def create_compaction_config(probability):
   return FuzzerConfig(probability, None, CompactionFuzzer())
 
+def create_deopt_config(probability, min_interval):
+  return FuzzerConfig(probability, DeoptAnalyzer(min_interval),
+                      DeoptFuzzer(min_interval))
+
 
 class ScavengeAnalyzer(Analyzer):
   def get_analysis_flags(self):
@@ -175,7 +186,7 @@ class ScavengeAnalyzer(Analyzer):
 
 
 class ScavengeFuzzer(Fuzzer):
-  def create_flags_generator(self, test, analysis_value):
+  def create_flags_generator(self, rng, test, analysis_value):
     while True:
       yield ['--stress-scavenge=%d' % analysis_value]
 
@@ -191,7 +202,7 @@ class MarkingAnalyzer(Analyzer):
 
 
 class MarkingFuzzer(Fuzzer):
-  def create_flags_generator(self, test, analysis_value):
+  def create_flags_generator(self, rng, test, analysis_value):
     while True:
       yield ['--stress-marking=%d' % analysis_value]
 
@@ -207,13 +218,47 @@ class GcIntervalAnalyzer(Analyzer):
 
 
 class GcIntervalFuzzer(Fuzzer):
-  def create_flags_generator(self, test, analysis_value):
+  def create_flags_generator(self, rng, test, analysis_value):
     value = analysis_value / 10
     while True:
       yield ['--random-gc-interval=%d' % value]
 
 
 class CompactionFuzzer(Fuzzer):
-  def create_flags_generator(self, test, analysis_value):
+  def create_flags_generator(self, rng, test, analysis_value):
     while True:
       yield ['--stress-compaction-random']
+
+
+class DeoptAnalyzer(Analyzer):
+  MAX_DEOPT=1000000000
+
+  def __init__(self, min_interval):
+    super(DeoptAnalyzer, self).__init__()
+    self._min = min_interval
+
+  def get_analysis_flags(self):
+    return ['--deopt-every-n-times=%d' % self.MAX_DEOPT,
+            '--print-deopt-stress']
+
+  def do_analysis(self, result):
+    for line in reversed(result.output.stdout.splitlines()):
+      if line.startswith('=== Stress deopt counter: '):
+        counter = self.MAX_DEOPT - int(line.split(' ')[-1])
+        if counter < self._min:
+          # Skip this test since we won't generate any meaningful interval with
+          # given minimum.
+          return None
+        return counter
+
+
+class DeoptFuzzer(Fuzzer):
+  def __init__(self, min_interval):
+    super(DeoptFuzzer, self).__init__()
+    self._min = min_interval
+
+  def create_flags_generator(self, rng, test, analysis_value):
+    while True:
+      value = analysis_value / 2
+      interval = rng.randint(self._min, max(value, self._min))
+      yield ['--deopt-every-n-times=%d' % interval]

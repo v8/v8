@@ -87,6 +87,12 @@ class NumFuzzer(base_runner.BaseTestRunner):
     parser.add_option("--stress-gc", default=0, type="int",
                       help="probability [0-10] of adding --random-gc-interval "
                            "flag to the test")
+    parser.add_option("--stress-deopt", default=0, type="int",
+                      help="probability [0-10] of adding --deopt-every-n-times "
+                           "flag to the test")
+    parser.add_option("--stress-deopt-min", default=1, type="int",
+                      help="extends --stress-deopt to have minimum interval "
+                           "between deopt points")
 
     parser.add_option("--tests-count", default=5, type="int",
                       help="Number of tests to generate from each base test")
@@ -199,14 +205,21 @@ class NumFuzzer(base_runner.BaseTestRunner):
 
   def _load_tests(self, options, suites, ctx):
     # Find available test suites and read test cases from them.
+    deopt_fuzzer = bool(options.stress_deopt)
+    gc_stress = bool(options.stress_gc)
+    gc_fuzzer = bool(max([options.stress_marking,
+                          options.stress_scavenge,
+                          options.stress_compaction,
+                          options.stress_gc]))
+
     variables = {
       "arch": self.build_config.arch,
       "asan": self.build_config.asan,
       "byteorder": sys.byteorder,
       "dcheck_always_on": self.build_config.dcheck_always_on,
-      "deopt_fuzzer": False,
-      "gc_fuzzer": True,
-      "gc_stress": True,
+      "deopt_fuzzer": deopt_fuzzer,
+      "gc_fuzzer": gc_fuzzer,
+      "gc_stress": gc_stress,
       "gcov_coverage": self.build_config.gcov_coverage,
       "isolates": options.isolates,
       "mode": self.mode_options.status_mode,
@@ -246,6 +259,9 @@ class NumFuzzer(base_runner.BaseTestRunner):
       fuzzers.append(fuzzer.create_scavenge_config(options.stress_scavenge))
     if options.stress_gc:
       fuzzers.append(fuzzer.create_gc_interval_config(options.stress_gc))
+    if options.stress_deopt:
+      fuzzers.append(fuzzer.create_deopt_config(options.stress_deopt,
+                                                options.stress_deopt_min))
     return fuzzers
 
   def _create_rerun_proc(self, options):
