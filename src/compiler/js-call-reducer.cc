@@ -1104,7 +1104,6 @@ Reduction JSCallReducer::ReduceArrayReduce(Handle<JSFunction> function,
   } else {
     // Find first/last non holey element.
     Node* vloop = k = WireInLoopStart(k, &control, &effect);
-    Node* next_k = graph()->NewNode(next_op, k, jsgraph()->OneConstant());
     Node* loop = control;
     Node* eloop = effect;
     effect = graph()->NewNode(common()->Checkpoint(),
@@ -1119,6 +1118,7 @@ Reduction JSCallReducer::ReduceArrayReduce(Handle<JSFunction> function,
         continue_test, effect, control);
 
     cur = SafeLoadElement(kind, receiver, control, &effect, &k, p.feedback());
+    Node* next_k = graph()->NewNode(next_op, k, jsgraph()->OneConstant());
 
     Node* hole_test = graph()->NewNode(simplified()->ReferenceEqual(), cur,
                                        jsgraph()->TheHoleConstant());
