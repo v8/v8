@@ -10,6 +10,11 @@ from testrunner.local import testsuite
 from testrunner.objects import testcase
 
 
+class VariantsGenerator(testsuite.VariantsGenerator):
+  def _get_variants(self, test):
+    return self._standard_variant
+
+
 class TestSuite(testsuite.TestSuite):
   def ListTests(self, context):
     shell = os.path.abspath(os.path.join(context.shell_dir, self.name))
@@ -49,6 +54,9 @@ class TestSuite(testsuite.TestSuite):
 
   def _test_class(self):
     return TestCase
+
+  def _variants_gen_class(self):
+    return VariantsGenerator
 
   def _LegacyVariantsGeneratorFactory(self):
     return testsuite.StandardLegacyVariantsGenerator
