@@ -10,6 +10,7 @@ from os.path import join
 import multiprocessing
 import os
 import random
+import re
 import shlex
 import subprocess
 import sys
@@ -80,6 +81,13 @@ SLOW_ARCHS = ["arm",
 
 PREDICTABLE_WRAPPER = os.path.join(
     base_runner.BASE_DIR, 'tools', 'predictable_wrapper.py')
+
+# Specifies which builders should use the staging test-runner.
+# Mapping from mastername to list of buildernames. Buildernames can be strings
+# or compiled regexps which will be matched.
+BUILDER_WHITELIST_STAGING = {
+}
+_RE_TYPE = type(re.compile(''))
 
 
 class StandardTestRunner(base_runner.BaseTestRunner):
@@ -213,6 +221,18 @@ class StandardTestRunner(base_runner.BaseTestRunner):
                         dest="random_seed_stress_count",
                         help="Number of runs with different random seeds")
 
+    def _use_staging(self, options):
+      if options.infra_staging:
+        return True
+      builder_configs = BUILDER_WHITELIST_STAGING.get(options.mastername, [])
+      for builder_config in builder_configs:
+        if (isinstance(builder_config, _RE_TYPE) and
+            builder_config.match(options.buildername)):
+          return True
+        if builder_config == options.buildername:
+          return True
+      return False
+
     def _process_options(self, options):
       global VARIANTS
 
@@ -286,6 +306,9 @@ class StandardTestRunner(base_runner.BaseTestRunner):
       if options.variants == "infra_staging":
         options.variants = "exhaustive"
         options.infra_staging = True
+
+      # Use staging on whitelisted masters/builders.
+      options.infra_staging = self._use_staging(options)
 
       # Resolve variant aliases and dedupe.
       # TODO(machenbach): Don't mutate global variable. Rather pass mutated

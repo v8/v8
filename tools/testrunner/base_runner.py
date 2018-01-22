@@ -258,10 +258,12 @@ class BaseTestRunner(object):
 
     # TODO(machenbach): Temporary options for rolling out new test runner
     # features.
-    parser.add_option("--mastername",
-                      help="Mastername property from infrastructure")
-    parser.add_option("--buildername",
-                      help="Buildername property from infrastructure")
+    parser.add_option("--mastername", default='',
+                      help="Mastername property from infrastructure. Not "
+                           "setting this option indicates manual usage.")
+    parser.add_option("--buildername", default='',
+                      help="Buildername property from infrastructure. Not "
+                           "setting this option indicates manual usage.")
 
   def _add_parser_options(self, parser):
     pass
