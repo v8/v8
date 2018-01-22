@@ -1070,15 +1070,19 @@ Reduction JSCallReducer::ReduceArrayReduce(Handle<JSFunction> function,
                                         jsgraph()->UndefinedConstant()});
   const int stack_parameters = static_cast<int>(checkpoint_params.size());
 
-  Builtins::Name builtin =
+  Builtins::Name builtin_lazy =
       left ? Builtins::kArrayReduceLoopLazyDeoptContinuation
            : Builtins::kArrayReduceRightLoopLazyDeoptContinuation;
+
+  Builtins::Name builtin_eager =
+      left ? Builtins::kArrayReduceLoopEagerDeoptContinuation
+           : Builtins::kArrayReduceRightLoopEagerDeoptContinuation;
 
   // Check whether the given callback function is callable. Note that
   // this has to happen outside the loop to make sure we also throw on
   // empty arrays.
   Node* check_frame_state = CreateJavaScriptBuiltinContinuationFrameState(
-      jsgraph(), function, builtin, node->InputAt(0), context,
+      jsgraph(), function, builtin_lazy, node->InputAt(0), context,
       &checkpoint_params[0], stack_parameters - 1, outer_frame_state,
       ContinuationFrameStateMode::LAZY);
   Node* check_fail = nullptr;
@@ -1089,6 +1093,12 @@ Reduction JSCallReducer::ReduceArrayReduce(Handle<JSFunction> function,
   // Set initial accumulator value
   Node* cur = jsgraph()->TheHoleConstant();
 
+  Node* initial_element_frame_state =
+      CreateJavaScriptBuiltinContinuationFrameState(
+          jsgraph(), function, builtin_eager, node->InputAt(0), context,
+          &checkpoint_params[0], stack_parameters, outer_frame_state,
+          ContinuationFrameStateMode::EAGER);
+
   if (node->op()->ValueInputCount() > 3) {
     cur = NodeProperties::GetValueInput(node, 3);
   } else {
@@ -1097,15 +1107,16 @@ Reduction JSCallReducer::ReduceArrayReduce(Handle<JSFunction> function,
     Node* next_k = graph()->NewNode(next_op, k, jsgraph()->OneConstant());
     Node* loop = control;
     Node* eloop = effect;
-    effect = graph()->NewNode(common()->Checkpoint(), check_frame_state, effect,
-                              control);
+    effect = graph()->NewNode(common()->Checkpoint(),
+                              initial_element_frame_state, effect, control);
     Node* continue_test =
         left ? graph()->NewNode(simplified()->NumberLessThan(), k,
                                 original_length)
              : graph()->NewNode(simplified()->NumberLessThanOrEqual(),
                                 jsgraph()->ZeroConstant(), k);
-    effect = graph()->NewNode(simplified()->CheckIf(DeoptimizeReason::kUnknown),
-                              continue_test, effect, control);
+    effect = graph()->NewNode(
+        simplified()->CheckIf(DeoptimizeReason::kNoInitialElement),
+        continue_test, effect, control);
 
     cur = SafeLoadElement(kind, receiver, control, &effect, &k, p.feedback());
 
@@ -1151,7 +1162,7 @@ Reduction JSCallReducer::ReduceArrayReduce(Handle<JSFunction> function,
   control = if_true;
 
   Node* frame_state = CreateJavaScriptBuiltinContinuationFrameState(
-      jsgraph(), function, builtin, node->InputAt(0), context,
+      jsgraph(), function, builtin_eager, node->InputAt(0), context,
       &checkpoint_params[0], stack_parameters, outer_frame_state,
       ContinuationFrameStateMode::EAGER);
 
@@ -1192,7 +1203,7 @@ Reduction JSCallReducer::ReduceArrayReduce(Handle<JSFunction> function,
   }
 
   frame_state = CreateJavaScriptBuiltinContinuationFrameState(
-      jsgraph(), function, builtin, node->InputAt(0), context,
+      jsgraph(), function, builtin_lazy, node->InputAt(0), context,
       &checkpoint_params[0], stack_parameters - 1, outer_frame_state,
       ContinuationFrameStateMode::LAZY);
 

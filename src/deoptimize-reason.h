@@ -53,7 +53,8 @@ namespace internal {
   V(WrongInstanceType, "wrong instance type")                                  \
   V(WrongMap, "wrong map")                                                     \
   V(WrongName, "wrong name")                                                   \
-  V(WrongValue, "wrong value")
+  V(WrongValue, "wrong value")                                                 \
+  V(NoInitialElement, "no initial element")
 
 enum class DeoptimizeReason : uint8_t {
 #define DEOPTIMIZE_REASON(Name, message) k##Name,
