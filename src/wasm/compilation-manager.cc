@@ -47,6 +47,15 @@ std::shared_ptr<AsyncCompileJob> CompilationManager::RemoveJob(
 
 void CompilationManager::TearDown() { jobs_.clear(); }
 
+void CompilationManager::AbortAllJobs() {
+  // Iterate over a copy of {jobs_}, because {job->Abort} modifies {jobs_}.
+  std::vector<AsyncCompileJob*> copy;
+
+  for (auto entry : jobs_) copy.push_back(entry.first);
+
+  for (auto job : copy) job->Abort();
+}
+
 }  // namespace wasm
 }  // namespace internal
 }  // namespace v8

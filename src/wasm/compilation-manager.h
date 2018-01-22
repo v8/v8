@@ -30,10 +30,16 @@ class CompilationManager {
   std::shared_ptr<StreamingDecoder> StartStreamingCompilation(
       Isolate* isolate, Handle<Context> context, Handle<JSPromise> promise);
 
-  // Removes {job} from the list of active compile jobs.
+  // Remove {job} from the list of active compile jobs.
   std::shared_ptr<AsyncCompileJob> RemoveJob(AsyncCompileJob* job);
 
+  // Cancel all AsyncCompileJobs and delete their state immediately.
   void TearDown();
+
+  // Cancel all AsyncCompileJobs so that they are not processed any further,
+  // but delay the deletion of their state until all tasks accessing the
+  // AsyncCompileJob finish their execution.
+  void AbortAllJobs();
 
  private:
   AsyncCompileJob* CreateAsyncCompileJob(Isolate* isolate,
