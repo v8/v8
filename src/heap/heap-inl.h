@@ -620,40 +620,35 @@ AlwaysAllocateScope::~AlwaysAllocateScope() {
 
 CodeSpaceMemoryModificationScope::CodeSpaceMemoryModificationScope(Heap* heap)
     : heap_(heap) {
-  if (heap_->write_protect_code_memory()) {
-    heap_->increment_code_space_memory_modification_scope_depth();
-    heap_->code_space()->SetReadAndWritable();
-    LargePage* page = heap_->lo_space()->first_page();
-    while (page != nullptr) {
-      if (page->IsFlagSet(MemoryChunk::IS_EXECUTABLE)) {
-        CHECK(heap_->memory_allocator()->IsMemoryChunkExecutable(page));
-        page->SetReadAndWritable();
-      }
-      page = page->next_page();
+  heap_->increment_code_space_memory_modification_scope_depth();
+  heap_->code_space()->SetReadAndWritable();
+  LargePage* page = heap_->lo_space()->first_page();
+  while (page != nullptr) {
+    if (page->IsFlagSet(MemoryChunk::IS_EXECUTABLE)) {
+      CHECK(heap_->memory_allocator()->IsMemoryChunkExecutable(page));
+      page->SetReadAndWritable();
     }
+    page = page->next_page();
   }
 }
 
 CodeSpaceMemoryModificationScope::~CodeSpaceMemoryModificationScope() {
-  if (heap_->write_protect_code_memory()) {
-    heap_->decrement_code_space_memory_modification_scope_depth();
-    heap_->code_space()->SetReadAndExecutable();
-    LargePage* page = heap_->lo_space()->first_page();
-    while (page != nullptr) {
-      if (page->IsFlagSet(MemoryChunk::IS_EXECUTABLE)) {
-        CHECK(heap_->memory_allocator()->IsMemoryChunkExecutable(page));
-        page->SetReadAndExecutable();
-      }
-      page = page->next_page();
+  heap_->decrement_code_space_memory_modification_scope_depth();
+  heap_->code_space()->SetReadAndExecutable();
+  LargePage* page = heap_->lo_space()->first_page();
+  while (page != nullptr) {
+    if (page->IsFlagSet(MemoryChunk::IS_EXECUTABLE)) {
+      CHECK(heap_->memory_allocator()->IsMemoryChunkExecutable(page));
+      page->SetReadAndExecutable();
     }
+    page = page->next_page();
   }
 }
 
 CodePageMemoryModificationScope::CodePageMemoryModificationScope(
     MemoryChunk* chunk)
     : chunk_(chunk),
-      scope_active_(chunk_->heap()->write_protect_code_memory() &&
-                    chunk_->IsFlagSet(MemoryChunk::IS_EXECUTABLE)) {
+      scope_active_(chunk_->IsFlagSet(MemoryChunk::IS_EXECUTABLE)) {
   if (scope_active_) {
     DCHECK(chunk_->owner()->identity() == CODE_SPACE ||
            (chunk_->owner()->identity() == LO_SPACE &&
