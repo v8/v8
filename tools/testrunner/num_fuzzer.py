@@ -71,6 +71,9 @@ class NumFuzzer(base_runner.BaseTestRunner):
     parser.add_option("--rerun-failures-max",
                       help="Maximum number of failing test cases to rerun.",
                       default=100, type="int")
+    parser.add_option("--swarming",
+                      help="Indicates running test driver on swarming.",
+                      default=False, action="store_true")
 
     parser.add_option("--stress-marking", default=0, type="int",
                       help="probability [0-10] of adding --stress-marking "
