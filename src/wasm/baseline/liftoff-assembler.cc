@@ -55,15 +55,15 @@ class StackTransferRecipe {
     // First, execute register moves. Then load constants and stack values into
     // registers.
 
-    if ((move_dst_regs & move_src_regs).is_empty()) {
+    if ((move_dst_regs_ & move_src_regs_).is_empty()) {
       // No overlap in src and dst registers. Just execute the moves in any
       // order.
-      for (RegisterMove& rm : register_moves) asm_->Move(rm.dst, rm.src);
-      register_moves.clear();
+      for (RegisterMove& rm : register_moves_) asm_->Move(rm.dst, rm.src);
+      register_moves_.clear();
     } else {
       // Keep use counters of src registers.
       uint32_t src_reg_use_count[kAfterMaxLiftoffRegCode] = {0};
-      for (RegisterMove& rm : register_moves) {
+      for (RegisterMove& rm : register_moves_) {
         ++src_reg_use_count[rm.src.liftoff_code()];
       }
       // Now repeatedly iterate the list of register moves, and execute those
@@ -73,9 +73,9 @@ class StackTransferRecipe {
       // register to the stack, add a RegisterLoad to reload it later, and
       // continue.
       uint32_t next_spill_slot = asm_->cache_state()->stack_height();
-      while (!register_moves.empty()) {
+      while (!register_moves_.empty()) {
         int executed_moves = 0;
-        for (auto& rm : register_moves) {
+        for (auto& rm : register_moves_) {
           if (src_reg_use_count[rm.dst.liftoff_code()] == 0) {
             asm_->Move(rm.dst, rm.src);
             ++executed_moves;
@@ -89,28 +89,28 @@ class StackTransferRecipe {
         if (executed_moves == 0) {
           // There is a cycle. Spill one register, then continue.
           // TODO(clemensh): Use an unused register if available.
-          LiftoffRegister spill_reg = register_moves.back().src;
+          LiftoffRegister spill_reg = register_moves_.back().src;
           asm_->Spill(next_spill_slot, spill_reg);
           // Remember to reload into the destination register later.
-          LoadStackSlot(register_moves.back().dst, next_spill_slot);
+          LoadStackSlot(register_moves_.back().dst, next_spill_slot);
           DCHECK_EQ(1, src_reg_use_count[spill_reg.liftoff_code()]);
           src_reg_use_count[spill_reg.liftoff_code()] = 0;
           ++next_spill_slot;
           executed_moves = 1;
         }
-        register_moves.erase(register_moves.end() - executed_moves,
-                             register_moves.end());
+        register_moves_.erase(register_moves_.end() - executed_moves,
+                              register_moves_.end());
       }
     }
 
-    for (RegisterLoad& rl : register_loads) {
+    for (RegisterLoad& rl : register_loads_) {
       if (rl.is_constant_load) {
         asm_->LoadConstant(rl.dst, rl.constant);
       } else {
         asm_->Fill(rl.dst, rl.stack_slot);
       }
     }
-    register_loads.clear();
+    register_loads_.clear();
   }
 
   void TransferStackSlot(const LiftoffAssembler::CacheState& dst_state,
@@ -160,26 +160,26 @@ class StackTransferRecipe {
 
   void MoveRegister(LiftoffRegister dst, LiftoffRegister src) {
     DCHECK_NE(dst, src);
-    DCHECK(!move_dst_regs.has(dst));
-    move_dst_regs.set(dst);
-    move_src_regs.set(src);
-    register_moves.emplace_back(dst, src);
+    DCHECK(!move_dst_regs_.has(dst));
+    move_dst_regs_.set(dst);
+    move_src_regs_.set(src);
+    register_moves_.emplace_back(dst, src);
   }
 
   void LoadConstant(LiftoffRegister dst, WasmValue value) {
-    register_loads.emplace_back(dst, value);
+    register_loads_.emplace_back(dst, value);
   }
 
   void LoadStackSlot(LiftoffRegister dst, uint32_t stack_index) {
-    register_loads.emplace_back(dst, stack_index);
+    register_loads_.emplace_back(dst, stack_index);
   }
 
  private:
   // TODO(clemensh): Avoid unconditionally allocating on the heap.
-  std::vector<RegisterMove> register_moves;
-  std::vector<RegisterLoad> register_loads;
-  LiftoffRegList move_dst_regs;
-  LiftoffRegList move_src_regs;
+  std::vector<RegisterMove> register_moves_;
+  std::vector<RegisterLoad> register_loads_;
+  LiftoffRegList move_dst_regs_;
+  LiftoffRegList move_src_regs_;
   LiftoffAssembler* const asm_;
 };
 
