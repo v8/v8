@@ -60,6 +60,19 @@
       "results_regexp": "^Generators\\-Generators\\(Score\\): (.+)$"
     },
     {
+      "name": "ArrayLiteralSpread",
+      "path": ["ArrayLiteralSpread"],
+      "main": "run.js",
+      "resources": [],
+      "results_regexp": "^%s\\-ArrayLiteralSpread\\(Score\\): (.+)$",
+      "tests": [
+        {"name": "Babel"},
+        {"name": "ForOfPush"},
+        {"name": "ForOfSet"},
+        {"name": "Spread"}
+      ]
+    },
+    {
       "name": "RestParameters",
       "path": ["RestParameters"],
       "main": "run.js",
