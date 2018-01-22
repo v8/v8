@@ -3360,7 +3360,10 @@ void InstanceBuilder::LoadTableSegments(Handle<FixedArray> code_table,
             const wasm::WasmCode* code = native_module->GetCode(func_index);
             // Only increase the counter for lazy compile builtins (it's not
             // needed otherwise).
-            if (code->kind() == wasm::WasmCode::kFunction) continue;
+            if (code->kind() == wasm::WasmCode::kFunction ||
+                code->kind() == wasm::WasmCode::kWasmToJsWrapper) {
+              continue;
+            }
             DCHECK_EQ(wasm::WasmCode::kLazyStub, code->kind());
           }
           ++num_table_exports[func_index];
