@@ -33,19 +33,23 @@
   V(ENUM_CACHE_TYPE)                      \
   V(ENUM_INDICES_CACHE_TYPE)              \
   V(FEEDBACK_VECTOR_ENTRY_TYPE)           \
+  V(FUNCTION_CONTEXT_TYPE)                \
   V(GLOBAL_ELEMENTS_TYPE)                 \
   V(GLOBAL_PROPERTIES_TYPE)               \
   V(JS_ARRAY_BOILERPLATE_TYPE)            \
   V(JS_COLLETION_TABLE_TYPE)              \
   V(JS_OBJECT_BOILERPLATE_TYPE)           \
+  V(NATIVE_CONTEXT_TYPE)                  \
   V(NOSCRIPT_SHARED_FUNCTION_INFOS_TYPE)  \
   V(NUMBER_STRING_CACHE_TYPE)             \
   V(OBJECT_TO_CODE_TYPE)                  \
+  V(OTHER_CONTEXT_TYPE)                   \
   V(PROPERTY_ARRAY_TYPE)                  \
   V(PROPERTY_DICTIONARY_TYPE)             \
   V(PROTOTYPE_USERS_TYPE)                 \
   V(REGEXP_MULTIPLE_CACHE_TYPE)           \
   V(RETAINED_MAPS_TYPE)                   \
+  V(SCOPE_INFO_TYPE)                      \
   V(SCRIPT_LIST_TYPE)                     \
   V(SERIALIZED_OBJECTS_TYPE)              \
   V(SINGLE_CHARACTER_STRING_CACHE_TYPE)   \

@@ -239,12 +239,14 @@ class ObjectStatsCollectorImpl {
   void RecordVirtualAllocationSiteDetails(AllocationSite* site);
   void RecordVirtualBytecodeArrayDetails(BytecodeArray* bytecode);
   void RecordVirtualCodeDetails(Code* code);
+  void RecordVirtualContext(Context* context);
   void RecordVirtualFeedbackVectorDetails(FeedbackVector* vector);
   void RecordVirtualFixedArrayDetails(FixedArray* array);
   void RecordVirtualJSGlobalObjectDetails(JSGlobalObject* object);
   void RecordVirtualJSCollectionDetails(JSObject* object);
   void RecordVirtualJSObjectDetails(JSObject* object);
   void RecordVirtualMapDetails(Map* map);
+  void RecordVirtualSharedFunctionInfoDetails(SharedFunctionInfo* info);
 
   Heap* heap_;
   ObjectStats* stats_;
@@ -421,7 +423,12 @@ void ObjectStatsCollectorImpl::CollectStatistics(HeapObject* obj, Phase phase) {
         RecordVirtualJSObjectDetails(JSObject::cast(obj));
       } else if (obj->IsJSCollection()) {
         RecordVirtualJSCollectionDetails(JSObject::cast(obj));
+      } else if (obj->IsSharedFunctionInfo()) {
+        RecordVirtualSharedFunctionInfoDetails(SharedFunctionInfo::cast(obj));
+      } else if (obj->IsContext()) {
+        RecordVirtualContext(Context::cast(obj));
       } else if (obj->IsFixedArray()) {
+        // Has to go last as it triggers too eagerly.
         RecordVirtualFixedArrayDetails(FixedArray::cast(obj));
       }
       break;
@@ -527,6 +534,13 @@ void ObjectStatsCollectorImpl::RecordVirtualMapDetails(Map* map) {
   }
 }
 
+void ObjectStatsCollectorImpl::RecordVirtualSharedFunctionInfoDetails(
+    SharedFunctionInfo* info) {
+  // SharedFunctonInfo::feedback_metadata() is a COW array.
+  RecordSimpleVirtualObjectStats(info, info->scope_info(),
+                                 ObjectStats::SCOPE_INFO_TYPE);
+}
+
 void ObjectStatsCollectorImpl::RecordVirtualBytecodeArrayDetails(
     BytecodeArray* bytecode) {
   RecordVirtualObjectStats(bytecode, bytecode->constant_pool(),
@@ -561,6 +575,19 @@ void ObjectStatsCollectorImpl::RecordVirtualCodeDetails(Code* code) {
   RecordVirtualObjectStats(nullptr, code,
                            CodeKindToVirtualInstanceType(code->kind()),
                            code->Size(), 0);
+}
+
+void ObjectStatsCollectorImpl::RecordVirtualContext(Context* context) {
+  if (context->IsNativeContext()) {
+    RecordSimpleVirtualObjectStats(nullptr, context,
+                                   ObjectStats::NATIVE_CONTEXT_TYPE);
+  } else if (context->IsFunctionContext()) {
+    RecordSimpleVirtualObjectStats(nullptr, context,
+                                   ObjectStats::FUNCTION_CONTEXT_TYPE);
+  } else {
+    RecordSimpleVirtualObjectStats(nullptr, context,
+                                   ObjectStats::OTHER_CONTEXT_TYPE);
+  }
 }
 
 class ObjectStatsVisitor {
