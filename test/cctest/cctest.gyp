@@ -31,7 +31,7 @@
   'variables': {
     'v8_code': 1,
     'generated_file': '<(SHARED_INTERMEDIATE_DIR)/resources.cc',
-    'cctest_sources': [  ### gcmole(all) ###
+    'cctest_sources': [
       'compiler/c-signature.h',
       'compiler/call-tester.h',
       'compiler/codegen-tester.cc',
@@ -228,7 +228,7 @@
       'wasm/wasm-run-utils.cc',
       'wasm/wasm-run-utils.h',
     ],
-    'cctest_sources_ia32': [  ### gcmole(arch:ia32) ###
+    'cctest_sources_ia32': [
       'test-assembler-ia32.cc',
       'test-code-stubs.cc',
       'test-code-stubs.h',
@@ -237,7 +237,7 @@
       'test-log-stack-tracer.cc',
       'test-run-wasm-relocation-ia32.cc',
     ],
-    'cctest_sources_x64': [  ### gcmole(arch:x64) ###
+    'cctest_sources_x64': [
       'test-assembler-x64.cc',
       'test-code-stubs.cc',
       'test-code-stubs.h',
@@ -247,7 +247,7 @@
       'test-log-stack-tracer.cc',
       'test-run-wasm-relocation-x64.cc',
     ],
-    'cctest_sources_arm': [  ### gcmole(arch:arm) ###
+    'cctest_sources_arm': [
       'assembler-helper-arm.cc',
       'assembler-helper-arm.h',
       'test-assembler-arm.cc',
@@ -259,7 +259,7 @@
       'test-run-wasm-relocation-arm.cc',
       'test-sync-primitives-arm.cc',
     ],
-    'cctest_sources_arm64': [  ### gcmole(arch:arm64) ###
+    'cctest_sources_arm64': [
       'test-utils-arm64.cc',
       'test-utils-arm64.h',
       'test-assembler-arm64.cc',
@@ -273,19 +273,19 @@
       'test-run-wasm-relocation-arm64.cc',
       'test-sync-primitives-arm64.cc',
     ],
-    'cctest_sources_s390': [  ### gcmole(arch:s390) ###
+    'cctest_sources_s390': [
       'test-assembler-s390.cc',
       'test-code-stubs.cc',
       'test-code-stubs.h',
       'test-disasm-s390.cc',
     ],
-    'cctest_sources_ppc': [  ### gcmole(arch:ppc) ###
+    'cctest_sources_ppc': [
       'test-assembler-ppc.cc',
       'test-code-stubs.cc',
       'test-code-stubs.h',
       'test-disasm-ppc.cc',
     ],
-    'cctest_sources_mips': [  ### gcmole(arch:mips) ###
+    'cctest_sources_mips': [
       'test-assembler-mips.cc',
       'test-code-stubs.cc',
       'test-code-stubs.h',
@@ -293,7 +293,7 @@
       'test-disasm-mips.cc',
       'test-macro-assembler-mips.cc',
     ],
-    'cctest_sources_mipsel': [  ### gcmole(arch:mipsel) ###
+    'cctest_sources_mipsel': [
       'test-assembler-mips.cc',
       'test-code-stubs.cc',
       'test-code-stubs.h',
@@ -301,7 +301,7 @@
       'test-disasm-mips.cc',
       'test-macro-assembler-mips.cc',
     ],
-    'cctest_sources_mips64': [  ### gcmole(arch:mips64) ###
+    'cctest_sources_mips64': [
       'test-assembler-mips64.cc',
       'test-code-stubs.cc',
       'test-code-stubs.h',
@@ -309,7 +309,7 @@
       'test-disasm-mips64.cc',
       'test-macro-assembler-mips64.cc',
     ],
-    'cctest_sources_mips64el': [  ### gcmole(arch:mips64el) ###
+    'cctest_sources_mips64el': [
       'test-assembler-mips64.cc',
       'test-code-stubs.cc',
       'test-code-stubs.h',
@@ -325,8 +325,8 @@
       'type': 'executable',
       'dependencies': [
         'resources',
-        '../../src/v8.gyp:v8_libbase',
-        '../../src/v8.gyp:v8_libplatform',
+        '../../gypfiles/v8.gyp:v8_libbase',
+        '../../gypfiles/v8.gyp:v8_libplatform',
       ],
       'include_dirs': [
         '../..',
@@ -424,13 +424,13 @@
         ['component=="shared_library"', {
           # cctest can't be built against a shared library, so we need to
           # depend on the underlying static target in that case.
-          'dependencies': ['../../src/v8.gyp:v8_maybe_snapshot'],
+          'dependencies': ['../../gypfiles/v8.gyp:v8_maybe_snapshot'],
           'defines': [ 'BUILDING_V8_SHARED', ]
         }, {
-          'dependencies': ['../../src/v8.gyp:v8'],
+          'dependencies': ['../../gypfiles/v8.gyp:v8'],
         }],
         ['v8_use_snapshot=="true"', {
-          'dependencies': ['../../src/v8.gyp:v8_initializers'],
+          'dependencies': ['../../gypfiles/v8.gyp:v8_initializers'],
         }],
       ],
     },
@@ -474,9 +474,9 @@
       'target_name': 'generate-bytecode-expectations',
       'type': 'executable',
       'dependencies': [
-        '../../src/v8.gyp:v8',
-        '../../src/v8.gyp:v8_libbase',
-        '../../src/v8.gyp:v8_libplatform',
+        '../../gypfiles/v8.gyp:v8',
+        '../../gypfiles/v8.gyp:v8_libbase',
+        '../../gypfiles/v8.gyp:v8_libplatform',
       ],
       'include_dirs+': [
         '../..',

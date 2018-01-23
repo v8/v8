@@ -11,7 +11,7 @@
           'type': 'none',
           'dependencies': [
             'cctest/cctest.gyp:cctest_exe_run',
-            '../src/d8.gyp:d8_run',
+            '../gypfiles/d8.gyp:d8_run',
           ],
           'includes': [
             '../gypfiles/features.gypi',
