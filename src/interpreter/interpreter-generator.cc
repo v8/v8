@@ -3103,6 +3103,8 @@ IGNITION_HANDLER(SuspendGenerator, InterpreterAssembler) {
   Node* offset = SmiTag(BytecodeOffset());
   StoreObjectField(generator, JSGeneratorObject::kInputOrDebugPosOffset,
                    offset);
+
+  UpdateInterruptBudgetOnReturn();
   Return(GetAccumulator());
 }
 
