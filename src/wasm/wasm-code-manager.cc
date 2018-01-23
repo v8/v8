@@ -212,18 +212,21 @@ void WasmCode::Disassemble(const char* name, Isolate* isolate,
                        instructions().start() + instruction_size, nullptr);
   os << "\n";
 
-  Object* source_positions_or_undef =
-      owner_->compiled_module()->source_positions()->get(index());
-  if (!source_positions_or_undef->IsUndefined(isolate)) {
-    os << "Source positions:\n pc offset  position\n";
-    for (SourcePositionTableIterator it(
-             ByteArray::cast(source_positions_or_undef));
-         !it.done(); it.Advance()) {
-      os << std::setw(10) << std::hex << it.code_offset() << std::dec
-         << std::setw(10) << it.source_position().ScriptOffset()
-         << (it.is_statement() ? "  statement" : "") << "\n";
+  // Anonymous functions don't have source positions.
+  if (!IsAnonymous()) {
+    Object* source_positions_or_undef =
+        owner_->compiled_module()->source_positions()->get(index());
+    if (!source_positions_or_undef->IsUndefined(isolate)) {
+      os << "Source positions:\n pc offset  position\n";
+      for (SourcePositionTableIterator it(
+               ByteArray::cast(source_positions_or_undef));
+           !it.done(); it.Advance()) {
+        os << std::setw(10) << std::hex << it.code_offset() << std::dec
+           << std::setw(10) << it.source_position().ScriptOffset()
+           << (it.is_statement() ? "  statement" : "") << "\n";
+      }
+      os << "\n";
     }
-    os << "\n";
   }
 
   os << "RelocInfo (size = " << reloc_size_ << ")\n";
