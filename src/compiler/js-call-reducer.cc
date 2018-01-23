@@ -1286,7 +1286,7 @@ Reduction JSCallReducer::ReduceArrayMap(Handle<JSFunction> function,
   if (result == NodeProperties::kNoReceiverMaps) return NoChange();
 
   // Ensure that any changes to the Array species constructor cause deopt.
-  if (!isolate()->IsArraySpeciesLookupChainIntact()) return NoChange();
+  if (!isolate()->IsSpeciesLookupChainIntact()) return NoChange();
 
   const ElementsKind kind = receiver_maps[0]->elements_kind();
 
@@ -1486,7 +1486,7 @@ Reduction JSCallReducer::ReduceArrayFilter(Handle<JSFunction> function,
   if (result == NodeProperties::kNoReceiverMaps) return NoChange();
 
   // And ensure that any changes to the Array species constructor cause deopt.
-  if (!isolate()->IsArraySpeciesLookupChainIntact()) return NoChange();
+  if (!isolate()->IsSpeciesLookupChainIntact()) return NoChange();
 
   const ElementsKind kind = receiver_maps[0]->elements_kind();
   // The output array is packed (filter doesn't visit holes).
@@ -2079,7 +2079,7 @@ Reduction JSCallReducer::ReduceArrayEvery(Handle<JSFunction> function,
   if (result == NodeProperties::kNoReceiverMaps) return NoChange();
 
   // And ensure that any changes to the Array species constructor cause deopt.
-  if (!isolate()->IsArraySpeciesLookupChainIntact()) return NoChange();
+  if (!isolate()->IsSpeciesLookupChainIntact()) return NoChange();
 
   const ElementsKind kind = receiver_maps[0]->elements_kind();
 
@@ -2299,7 +2299,7 @@ Reduction JSCallReducer::ReduceArraySome(Handle<JSFunction> function,
   if (result == NodeProperties::kNoReceiverMaps) return NoChange();
 
   // And ensure that any changes to the Array species constructor cause deopt.
-  if (!isolate()->IsArraySpeciesLookupChainIntact()) return NoChange();
+  if (!isolate()->IsSpeciesLookupChainIntact()) return NoChange();
 
   if (receiver_maps.size() == 0) return NoChange();
 

@@ -1104,7 +1104,7 @@ class Isolate {
   bool IsNoElementsProtectorIntact(Context* context);
   bool IsNoElementsProtectorIntact();
 
-  inline bool IsArraySpeciesLookupChainIntact();
+  inline bool IsSpeciesLookupChainIntact();
   bool IsIsConcatSpreadableLookupChainIntact();
   bool IsIsConcatSpreadableLookupChainIntact(JSReceiver* receiver);
   inline bool IsStringLengthOverflowIntact();
@@ -1131,7 +1131,7 @@ class Isolate {
     UpdateNoElementsProtectorOnSetElement(object);
   }
   void InvalidateArrayConstructorProtector();
-  void InvalidateArraySpeciesProtector();
+  void InvalidateSpeciesProtector();
   void InvalidateIsConcatSpreadableProtector();
   void InvalidateStringLengthOverflowProtector();
   void InvalidateArrayIteratorProtector();

@@ -286,29 +286,35 @@ Node* PromiseBuiltinsAssembler::InternalPromiseThen(Node* context,
                                                     Node* promise,
                                                     Node* on_resolve,
                                                     Node* on_reject) {
-  Isolate* isolate = this->isolate();
-
   // 2. If IsPromise(promise) is false, throw a TypeError exception.
   ThrowIfNotInstanceType(context, promise, JS_PROMISE_TYPE,
                          "Promise.prototype.then");
 
+  // 3. Let C be ? SpeciesConstructor(promise, %Promise%).
+  Label fast_promise_capability(this), slow_constructor(this, Label::kDeferred),
+      slow_promise_capability(this, Label::kDeferred);
   Node* const native_context = LoadNativeContext(context);
   Node* const promise_fun =
       LoadContextElement(native_context, Context::PROMISE_FUNCTION_INDEX);
+  Node* const promise_prototype =
+      LoadContextElement(native_context, Context::PROMISE_PROTOTYPE_INDEX);
+  Node* const promise_map = LoadMap(promise);
+  GotoIfNot(WordEqual(LoadMapPrototype(promise_map), promise_prototype),
+            &slow_constructor);
+  Branch(IsSpeciesProtectorCellInvalid(), &slow_constructor,
+         &fast_promise_capability);
 
-  // 3. Let C be ? SpeciesConstructor(promise, %Promise%).
-  Node* constructor = SpeciesConstructor(context, promise, promise_fun);
+  BIND(&slow_constructor);
+  Node* const constructor =
+      SpeciesConstructor(native_context, promise, promise_fun);
+  Branch(WordEqual(constructor, promise_fun), &fast_promise_capability,
+         &slow_promise_capability);
 
   // 4. Let resultCapability be ? NewPromiseCapability(C).
-  Callable call_callable = CodeFactory::Call(isolate);
-  Label fast_promise_capability(this), promise_capability(this),
-      perform_promise_then(this);
+  Label perform_promise_then(this);
   VARIABLE(var_deferred_promise, MachineRepresentation::kTagged);
   VARIABLE(var_deferred_on_resolve, MachineRepresentation::kTagged);
   VARIABLE(var_deferred_on_reject, MachineRepresentation::kTagged);
-
-  Branch(WordEqual(promise_fun, constructor), &fast_promise_capability,
-         &promise_capability);
 
   BIND(&fast_promise_capability);
   {
@@ -319,7 +325,7 @@ Node* PromiseBuiltinsAssembler::InternalPromiseThen(Node* context,
     Goto(&perform_promise_then);
   }
 
-  BIND(&promise_capability);
+  BIND(&slow_promise_capability);
   {
     Node* const capability = NewPromiseCapability(context, constructor);
     var_deferred_promise.Bind(

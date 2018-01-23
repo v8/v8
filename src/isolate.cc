@@ -3394,11 +3394,11 @@ void Isolate::InvalidateArrayConstructorProtector() {
   DCHECK(!IsArrayConstructorIntact());
 }
 
-void Isolate::InvalidateArraySpeciesProtector() {
+void Isolate::InvalidateSpeciesProtector() {
   DCHECK(factory()->species_protector()->value()->IsSmi());
-  DCHECK(IsArraySpeciesLookupChainIntact());
+  DCHECK(IsSpeciesLookupChainIntact());
   factory()->species_protector()->set_value(Smi::FromInt(kProtectorInvalid));
-  DCHECK(!IsArraySpeciesLookupChainIntact());
+  DCHECK(!IsSpeciesLookupChainIntact());
 }
 
 void Isolate::InvalidateStringLengthOverflowProtector() {

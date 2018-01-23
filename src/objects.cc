@@ -2482,7 +2482,7 @@ MaybeHandle<Object> Object::ArraySpeciesConstructor(
   Handle<Object> default_species = isolate->array_function();
   if (original_array->IsJSArray() &&
       Handle<JSArray>::cast(original_array)->HasArrayPrototype(isolate) &&
-      isolate->IsArraySpeciesLookupChainIntact()) {
+      isolate->IsSpeciesLookupChainIntact()) {
     return default_species;
   }
   Handle<Object> constructor = isolate->factory()->undefined_value();
@@ -16704,7 +16704,7 @@ MaybeHandle<JSTypedArray> JSTypedArray::SpeciesCreate(
   // 3. Let constructor be ? SpeciesConstructor(exemplar, defaultConstructor).
   Handle<Object> ctor = default_ctor;
   if (!exemplar->HasJSTypedArrayPrototype(isolate) ||
-      !isolate->IsArraySpeciesLookupChainIntact()) {
+      !isolate->IsSpeciesLookupChainIntact()) {
     ASSIGN_RETURN_ON_EXCEPTION(
         isolate, ctor,
         Object::SpeciesConstructor(isolate, exemplar, default_ctor),

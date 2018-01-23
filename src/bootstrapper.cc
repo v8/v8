@@ -2397,6 +2397,7 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
     // Setup %PromisePrototype%.
     Handle<JSObject> prototype(
         JSObject::cast(promise_fun->instance_prototype()));
+    native_context()->set_promise_prototype(*prototype);
 
     // Install the @@toStringTag property on the {prototype}.
     JSObject::AddProperty(

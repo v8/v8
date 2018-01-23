@@ -114,12 +114,12 @@ void TestSpeciesProtector(char* code,
 
       v8::internal::Isolate* i_isolate =
           reinterpret_cast<v8::internal::Isolate*>(isolate);
-      CHECK(i_isolate->IsArraySpeciesLookupChainIntact());
+      CHECK(i_isolate->IsSpeciesLookupChainIntact());
       CompileRun(code);
       if (invalidates_species_protector) {
-        CHECK(!i_isolate->IsArraySpeciesLookupChainIntact());
+        CHECK(!i_isolate->IsSpeciesLookupChainIntact());
       } else {
-        CHECK(i_isolate->IsArraySpeciesLookupChainIntact());
+        CHECK(i_isolate->IsSpeciesLookupChainIntact());
       }
 
       v8::Local<v8::Value> my_typed_array = CompileRun("MyTypedArray");
