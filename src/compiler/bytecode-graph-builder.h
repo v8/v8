@@ -252,6 +252,9 @@ class BytecodeGraphBuilder {
   void BuildJumpIfJSReceiver();
 
   void BuildSwitchOnSmi(Node* condition);
+  void BuildSwitchOnGeneratorState(
+      const ZoneVector<ResumeJumpTarget>& resume_jump_targets,
+      bool allow_fallthrough_on_executing);
 
   // Simulates control flow by forward-propagating environments.
   void MergeIntoSuccessorEnvironment(int target_offset);
@@ -382,8 +385,17 @@ class BytecodeGraphBuilder {
 
   // Merge environments are snapshots of the environment at points where the
   // control flow merges. This models a forward data flow propagation of all
-  // values from all predecessors of the merge in question.
+  // values from all predecessors of the merge in question. They are indexed by
+  // the bytecode offset
   ZoneMap<int, Environment*> merge_environments_;
+
+  // Generator merge environments are snapshots of the current resume
+  // environment, tracing back through loop headers to the resume switch of a
+  // generator. They allow us to model a single resume jump as several switch
+  // statements across loop headers, keeping those loop headers reducible,
+  // without having to merge the "executing" environments of the generator into
+  // the "resuming" ones. They are indexed by the suspend id of the resume.
+  ZoneMap<int, Environment*> generator_merge_environments_;
 
   // Exception handlers currently entered by the iteration.
   ZoneStack<ExceptionHandler> exception_handlers_;

@@ -878,7 +878,6 @@ BytecodeGenerator::BytecodeGenerator(
       execution_result_(nullptr),
       incoming_new_target_or_generator_(),
       generator_jump_table_(nullptr),
-      generator_state_(),
       loop_depth_(0),
       catch_prediction_(HandlerTable::UNCAUGHT) {
   DCHECK_EQ(closure_scope(), closure_scope()->GetClosureScope());
@@ -1091,8 +1090,6 @@ void BytecodeGenerator::GenerateBytecodeBody() {
 
 void BytecodeGenerator::AllocateTopLevelRegisters() {
   if (info()->literal()->CanSuspend()) {
-    // Allocate a register for generator_state_.
-    generator_state_ = register_allocator()->NewRegister();
     // Either directly use generator_object_var or allocate a new register for
     // the incoming generator object.
     Variable* generator_object_var = closure_scope()->generator_object_var();
@@ -1124,39 +1121,11 @@ void BytecodeGenerator::VisitIterationHeader(IterationStatement* stmt,
 void BytecodeGenerator::VisitIterationHeader(int first_suspend_id,
                                              int suspend_count,
                                              LoopBuilder* loop_builder) {
-  // Recall that suspend_count is always zero inside ordinary (i.e.
-  // non-generator) functions.
-  if (suspend_count == 0) {
-    loop_builder->LoopHeader();
-  } else {
-    loop_builder->LoopHeaderInGenerator(&generator_jump_table_,
-                                        first_suspend_id, suspend_count);
-
-    // Perform state dispatch on the generator state, assuming this is a resume.
-    builder()
-        ->LoadAccumulatorWithRegister(generator_state_)
-        .SwitchOnSmiNoFeedback(generator_jump_table_);
-
-    // We fall through when the generator state is not in the jump table. If we
-    // are not resuming, we want to fall through to the loop body.
-    // TODO(leszeks): Only generate this test for debug builds, we can skip it
-    // entirely in release assuming that the generator states is always valid.
-    BytecodeLabel not_resuming;
-    builder()
-        ->LoadLiteral(Smi::FromInt(JSGeneratorObject::kGeneratorExecuting))
-        .CompareOperation(Token::Value::EQ_STRICT, generator_state_)
-        .JumpIfTrue(ToBooleanMode::kAlreadyBoolean, &not_resuming);
-
-    // Otherwise this is an error.
-    builder()->Abort(AbortReason::kInvalidJumpTableIndex);
-
-    builder()->Bind(&not_resuming);
-  }
+  loop_builder->LoopHeader();
 }
 
 void BytecodeGenerator::BuildGeneratorPrologue() {
   DCHECK_GT(info()->literal()->suspend_count(), 0);
-  DCHECK(generator_state_.is_valid());
   DCHECK(generator_object().is_valid());
   generator_jump_table_ =
       builder()->AllocateJumpTable(info()->literal()->suspend_count(), 0);
@@ -1174,19 +1143,12 @@ void BytecodeGenerator::BuildGeneratorPrologue() {
     builder()
         ->CallRuntime(Runtime::kInlineGeneratorGetContext, generator_object())
         .PushContext(generator_context)
-        .RestoreGeneratorState(generator_object())
-        .StoreAccumulatorInRegister(generator_state_)
-        .SwitchOnSmiNoFeedback(generator_jump_table_);
+        .SwitchOnGeneratorState(generator_object(), generator_jump_table_);
+    // The switch is guaranteed to jump (or abort), so there is no fall-through.
   }
-  // We fall through when the generator state is not in the jump table.
-  // TODO(leszeks): Only generate this for debug builds.
-  builder()->Abort(AbortReason::kInvalidJumpTableIndex);
 
   // This is a regular call.
-  builder()
-      ->Bind(&regular_call)
-      .LoadLiteral(Smi::FromInt(JSGeneratorObject::kGeneratorExecuting))
-      .StoreAccumulatorInRegister(generator_state_);
+  builder()->Bind(&regular_call);
   // Now fall through to the ordinary function prologue, after which we will run
   // into the generator object creation and other extra code inserted by the
   // parser.
@@ -2878,10 +2840,9 @@ void BytecodeGenerator::BuildSuspendPoint(int suspend_id,
   // Upon resume, we continue here.
   builder()->Bind(generator_jump_table_, suspend_id);
 
-  // Clobbers all registers, updating the state to indicate that we have
-  // finished resuming and setting the accumulator to the [[input_or_debug_pos]]
-  // slot of the generator object.
-  builder()->ResumeGenerator(generator_object(), generator_state_, registers);
+  // Clobbers all registers and sets the accumulator to the
+  // [[input_or_debug_pos]] slot of the generator object.
+  builder()->ResumeGenerator(generator_object(), registers);
 }
 
 void BytecodeGenerator::VisitYield(Yield* expr) {

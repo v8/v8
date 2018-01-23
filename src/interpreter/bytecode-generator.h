@@ -345,7 +345,6 @@ class BytecodeGenerator final : public AstVisitor<BytecodeGenerator> {
   Register incoming_new_target_or_generator_;
 
   BytecodeJumpTable* generator_jump_table_;
-  Register generator_state_;
   int loop_depth_;
 
   HandlerTable::CatchPrediction catch_prediction_;
