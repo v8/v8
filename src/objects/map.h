@@ -242,6 +242,8 @@ class Map : public HeapObject {
   class NewTargetIsBase : public BitField<bool, 27, 1> {};
   class MayHaveInterestingSymbols : public BitField<bool, 28, 1> {};
 
+  STATIC_ASSERT(NumberOfOwnDescriptorsBits::kMax >= kMaxNumberOfDescriptors);
+
   // Keep this bit field at the very end for better code in
   // Builtins::kJSConstructStubGeneric stub.
   // This counter is used for in-object slack tracking.
