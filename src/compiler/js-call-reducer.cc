@@ -3900,9 +3900,9 @@ Reduction JSCallReducer::ReduceStringPrototypeStringAt(
 
   index = graph()->NewNode(simplified()->MaskIndexWithBound(), index,
                            receiver_length);
-
-  Node* vtrue =
-      graph()->NewNode(string_access_operator, receiver, index, if_true);
+  Node* etrue;
+  Node* vtrue = etrue = graph()->NewNode(string_access_operator, receiver,
+                                         index, effect, if_true);
 
   // Return the {default_return} otherwise.
   Node* if_false = graph()->NewNode(common()->IfFalse(), branch);
@@ -3911,6 +3911,7 @@ Reduction JSCallReducer::ReduceStringPrototypeStringAt(
   control = graph()->NewNode(common()->Merge(2), if_true, if_false);
   Node* value = graph()->NewNode(
       common()->Phi(MachineRepresentation::kTagged, 2), vtrue, vfalse, control);
+  effect = graph()->NewNode(common()->EffectPhi(2), etrue, effect, control);
 
   ReplaceWithValue(node, value, effect, control);
   return Replace(value);
