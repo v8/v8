@@ -247,6 +247,7 @@ class ObjectStatsCollectorImpl {
   void RecordVirtualJSCollectionDetails(JSObject* object);
   void RecordVirtualJSObjectDetails(JSObject* object);
   void RecordVirtualMapDetails(Map* map);
+  void RecordVirtualScriptDetails(Script* script);
   void RecordVirtualSharedFunctionInfoDetails(SharedFunctionInfo* info);
 
   Heap* heap_;
@@ -362,8 +363,7 @@ void ObjectStatsCollectorImpl::RecordVirtualJSObjectDetails(JSObject* object) {
   // Properties.
   if (object->HasFastProperties()) {
     PropertyArray* properties = object->property_array();
-    RecordSimpleVirtualObjectStats(object, properties,
-                                   ObjectStats::OBJECT_PROPERTY_ARRAY_TYPE);
+    CHECK_EQ(PROPERTY_ARRAY_TYPE, properties->map()->instance_type());
   } else {
     NameDictionary* properties = object->property_dictionary();
     RecordHashTableVirtualObjectStats(
@@ -428,6 +428,8 @@ void ObjectStatsCollectorImpl::CollectStatistics(HeapObject* obj, Phase phase) {
         RecordVirtualSharedFunctionInfoDetails(SharedFunctionInfo::cast(obj));
       } else if (obj->IsContext()) {
         RecordVirtualContext(Context::cast(obj));
+      } else if (obj->IsScript()) {
+        RecordVirtualScriptDetails(Script::cast(obj));
       } else if (obj->IsFixedArray()) {
         // Has to go last as it triggers too eagerly.
         RecordVirtualFixedArrayDetails(FixedArray::cast(obj));
@@ -535,6 +537,21 @@ void ObjectStatsCollectorImpl::RecordVirtualMapDetails(Map* map) {
   }
 }
 
+void ObjectStatsCollectorImpl::RecordVirtualScriptDetails(Script* script) {
+  FixedArray* infos = script->shared_function_infos();
+  RecordSimpleVirtualObjectStats(
+      script, script->shared_function_infos(),
+      ObjectStats::SCRIPT_SHARED_FUNCTION_INFOS_TYPE);
+  // Split off weak cells from the regular weak cell type.
+  for (int i = 0; i < infos->length(); i++) {
+    if (infos->get(i)->IsWeakCell()) {
+      RecordSimpleVirtualObjectStats(
+          infos, WeakCell::cast(infos->get(i)),
+          ObjectStats::SCRIPT_SHARED_FUNCTION_INFOS_TYPE);
+    }
+  }
+}
+
 void ObjectStatsCollectorImpl::RecordVirtualSharedFunctionInfoDetails(
     SharedFunctionInfo* info) {
   // SharedFunctonInfo::feedback_metadata() is a COW array.
@@ -544,14 +561,12 @@ void ObjectStatsCollectorImpl::RecordVirtualSharedFunctionInfoDetails(
 
 void ObjectStatsCollectorImpl::RecordVirtualBytecodeArrayDetails(
     BytecodeArray* bytecode) {
-  RecordVirtualObjectStats(bytecode, bytecode->constant_pool(),
-                           ObjectStats::BYTECODE_ARRAY_CONSTANT_POOL_TYPE,
-                           bytecode->constant_pool()->Size(),
-                           ObjectStats::kNoOverAllocation);
-  RecordVirtualObjectStats(bytecode, bytecode->handler_table(),
-                           ObjectStats::BYTECODE_ARRAY_HANDLER_TABLE_TYPE,
-                           bytecode->constant_pool()->Size(),
-                           ObjectStats::kNoOverAllocation);
+  RecordSimpleVirtualObjectStats(
+      bytecode, bytecode->constant_pool(),
+      ObjectStats::BYTECODE_ARRAY_CONSTANT_POOL_TYPE);
+  RecordSimpleVirtualObjectStats(
+      bytecode, bytecode->handler_table(),
+      ObjectStats::BYTECODE_ARRAY_HANDLER_TABLE_TYPE);
 }
 
 namespace {

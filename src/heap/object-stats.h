@@ -41,7 +41,6 @@
   V(NATIVE_CONTEXT_TYPE)                  \
   V(NOSCRIPT_SHARED_FUNCTION_INFOS_TYPE)  \
   V(NUMBER_STRING_CACHE_TYPE)             \
-  V(OBJECT_PROPERTY_ARRAY_TYPE)           \
   V(OBJECT_PROPERTY_DICTIONARY_TYPE)      \
   V(OBJECT_TO_CODE_TYPE)                  \
   V(OTHER_CONTEXT_TYPE)                   \
@@ -50,6 +49,7 @@
   V(RETAINED_MAPS_TYPE)                   \
   V(SCOPE_INFO_TYPE)                      \
   V(SCRIPT_LIST_TYPE)                     \
+  V(SCRIPT_SHARED_FUNCTION_INFOS_TYPE)    \
   V(SERIALIZED_OBJECTS_TYPE)              \
   V(SINGLE_CHARACTER_STRING_CACHE_TYPE)   \
   V(STRING_SPLIT_CACHE_TYPE)              \
