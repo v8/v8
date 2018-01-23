@@ -38,20 +38,23 @@ class Fuzzer(object):
       rng: random number generator
       test: test for which to create flags
       analysis_value: value returned by the analyzer. None if there is no
-        corresponding analyzer to this fuzzer
+        corresponding analyzer to this fuzzer or the analysis phase is disabled
     """
     raise NotImplementedError()
 
 
 # TODO(majeski): Allow multiple subtests to run at once.
 class FuzzerProc(base.TestProcProducer):
-  def __init__(self, rng, count, fuzzers, fuzz_duration_sec=0):
+  def __init__(self, rng, count, fuzzers, fuzz_duration_sec=0,
+               disable_analysis=False):
     """
     Args:
       rng: random number generator used to select flags and values for them
       count: number of tests to generate based on each base test
       fuzzers: list of FuzzerConfig instances
       fuzz_duration_sec: how long it should run, overrides count
+      disable_analysis: disable analysis phase and filtering base on it. When
+        set, processor passes None as analysis result to fuzzers
     """
     super(FuzzerProc, self).__init__('Fuzzer')
 
@@ -59,6 +62,7 @@ class FuzzerProc(base.TestProcProducer):
     self._count = count
     self._fuzzer_configs = fuzzers
     self._fuzz_duration_sec = fuzz_duration_sec
+    self._disable_analysis = disable_analysis
     self._gens = {}
 
     self._start_time = None
@@ -73,6 +77,17 @@ class FuzzerProc(base.TestProcProducer):
     if not self._start_time:
       self._start_time = time.time()
 
+    analysis_subtest = self._create_analysis_subtest(test)
+    if analysis_subtest:
+      self._send_test(analysis_subtest)
+    else:
+      self._gens[test.procid] = self._create_gen(test)
+      self._try_send_next_test(test)
+
+  def _create_analysis_subtest(self, test):
+    if self._disable_analysis:
+      return None
+
     analysis_flags = []
     for fuzzer_config in self._fuzzer_configs:
       if fuzzer_config.analyzer:
@@ -80,13 +95,9 @@ class FuzzerProc(base.TestProcProducer):
 
     if analysis_flags:
       analysis_flags = list(set(analysis_flags))
-      subtest = self._create_subtest(test, 'analysis', flags=analysis_flags,
-                                     keep_output=True)
-      self._send_test(subtest)
-      return
+      return self._create_subtest(test, 'analysis', flags=analysis_flags,
+                                  keep_output=True)
 
-    self._gens[test.procid] = self._create_gen(test)
-    self._try_send_next_test(test)
 
   def _result_for(self, test, subtest, result):
     if self._fuzz_duration_sec and not self._stop:
@@ -94,12 +105,13 @@ class FuzzerProc(base.TestProcProducer):
         print '>>> Stopping fuzzing'
         self._stop = True
 
-    if result is not None:
-      # Analysis phase, for fuzzing we drop the result.
-      if result.has_unexpected_output:
-        self._send_result(test, None)
-        return
-      self._gens[test.procid] = self._create_gen(test, result)
+    if not self._disable_analysis:
+      if result is not None:
+        # Analysis phase, for fuzzing we drop the result.
+        if result.has_unexpected_output:
+          self._send_result(test, None)
+          return
+        self._gens[test.procid] = self._create_gen(test, result)
 
     self._try_send_next_test(test)
 
@@ -110,7 +122,7 @@ class FuzzerProc(base.TestProcProducer):
     indexes = []
     for i, fuzzer_config in enumerate(self._fuzzer_configs):
       analysis_value = None
-      if fuzzer_config.analyzer:
+      if analysis_result and fuzzer_config.analyzer:
         analysis_value = fuzzer_config.analyzer.do_analysis(analysis_result)
         if not analysis_value:
           # Skip fuzzer for this test since it doesn't have analysis data
@@ -158,23 +170,6 @@ class FuzzerProc(base.TestProcProducer):
     return seed
 
 
-def create_scavenge_config(probability):
-  return FuzzerConfig(probability, ScavengeAnalyzer(), ScavengeFuzzer())
-
-def create_marking_config(probability):
-  return FuzzerConfig(probability, MarkingAnalyzer(), MarkingFuzzer())
-
-def create_gc_interval_config(probability):
-  return FuzzerConfig(probability, GcIntervalAnalyzer(), GcIntervalFuzzer())
-
-def create_compaction_config(probability):
-  return FuzzerConfig(probability, None, CompactionFuzzer())
-
-def create_deopt_config(probability, min_interval):
-  return FuzzerConfig(probability, DeoptAnalyzer(min_interval),
-                      DeoptFuzzer(min_interval))
-
-
 class ScavengeAnalyzer(Analyzer):
   def get_analysis_flags(self):
     return ['--fuzzer-gc-analysis']
@@ -188,7 +183,7 @@ class ScavengeAnalyzer(Analyzer):
 class ScavengeFuzzer(Fuzzer):
   def create_flags_generator(self, rng, test, analysis_value):
     while True:
-      yield ['--stress-scavenge=%d' % analysis_value]
+      yield ['--stress-scavenge=%d' % (analysis_value or 100)]
 
 
 class MarkingAnalyzer(Analyzer):
@@ -204,7 +199,7 @@ class MarkingAnalyzer(Analyzer):
 class MarkingFuzzer(Fuzzer):
   def create_flags_generator(self, rng, test, analysis_value):
     while True:
-      yield ['--stress-marking=%d' % analysis_value]
+      yield ['--stress-marking=%d' % (analysis_value or 100)]
 
 
 class GcIntervalAnalyzer(Analyzer):
@@ -219,7 +214,10 @@ class GcIntervalAnalyzer(Analyzer):
 
 class GcIntervalFuzzer(Fuzzer):
   def create_flags_generator(self, rng, test, analysis_value):
-    value = analysis_value / 10
+    if analysis_value:
+      value = analysis_value / 10
+    else:
+      value = 10000
     while True:
       yield ['--random-gc-interval=%d' % value]
 
@@ -259,6 +257,26 @@ class DeoptFuzzer(Fuzzer):
 
   def create_flags_generator(self, rng, test, analysis_value):
     while True:
-      value = analysis_value / 2
+      if analysis_value:
+        value = analysis_value / 2
+      else:
+        value = 10000
       interval = rng.randint(self._min, max(value, self._min))
       yield ['--deopt-every-n-times=%d' % interval]
+
+
+FUZZERS = {
+  'scavenge': (ScavengeAnalyzer, ScavengeFuzzer),
+  'marking': (MarkingAnalyzer, MarkingFuzzer),
+  'gc_interval': (GcIntervalAnalyzer, GcIntervalFuzzer),
+  'compaction': (None, CompactionFuzzer),
+  'deopt': (DeoptAnalyzer, DeoptFuzzer),
+}
+
+def create_fuzzer_config(name, probability, *args, **kwargs):
+  analyzer_class, fuzzer_class = FUZZERS[name]
+  return FuzzerConfig(
+      probability,
+      analyzer_class(*args, **kwargs) if analyzer_class else None,
+      fuzzer_class(*args, **kwargs),
+  )

@@ -75,6 +75,7 @@ class NumFuzzer(base_runner.BaseTestRunner):
                       help="Indicates running test driver on swarming.",
                       default=False, action="store_true")
 
+    # Stress gc
     parser.add_option("--stress-marking", default=0, type="int",
                       help="probability [0-10] of adding --stress-marking "
                            "flag to the test")
@@ -87,6 +88,8 @@ class NumFuzzer(base_runner.BaseTestRunner):
     parser.add_option("--stress-gc", default=0, type="int",
                       help="probability [0-10] of adding --random-gc-interval "
                            "flag to the test")
+
+    # Stress deopt
     parser.add_option("--stress-deopt", default=0, type="int",
                       help="probability [0-10] of adding --deopt-every-n-times "
                            "flag to the test")
@@ -99,6 +102,12 @@ class NumFuzzer(base_runner.BaseTestRunner):
     parser.add_option("--total-timeout-sec", default=0, type="int",
                       help="How long should fuzzer run. It overrides "
                            "--tests-count")
+
+    # Combine multiple tests
+    parser.add_option("--combine-tests", default=False, action="store_true",
+                      help="Combine multiple tests as one and run with "
+                           "try-catch wrapper")
+
     return parser
 
 
@@ -142,6 +151,7 @@ class NumFuzzer(base_runner.BaseTestRunner):
         options.tests_count,
         self._create_fuzzer_configs(options),
         options.total_timeout_sec,
+        disable_analysis=options.combine_tests,
     )
 
     results = ResultsTracker()
@@ -251,17 +261,15 @@ class NumFuzzer(base_runner.BaseTestRunner):
 
   def _create_fuzzer_configs(self, options):
     fuzzers = []
-    if options.stress_compaction:
-      fuzzers.append(fuzzer.create_compaction_config(options.stress_compaction))
-    if options.stress_marking:
-      fuzzers.append(fuzzer.create_marking_config(options.stress_marking))
-    if options.stress_scavenge:
-      fuzzers.append(fuzzer.create_scavenge_config(options.stress_scavenge))
-    if options.stress_gc:
-      fuzzers.append(fuzzer.create_gc_interval_config(options.stress_gc))
-    if options.stress_deopt:
-      fuzzers.append(fuzzer.create_deopt_config(options.stress_deopt,
-                                                options.stress_deopt_min))
+    def add(name, prob, *args):
+      if prob:
+        fuzzers.append(fuzzer.create_fuzzer_config(name, prob, *args))
+
+    add('compaction', options.stress_compaction)
+    add('marking', options.stress_marking)
+    add('scavenge', options.stress_scavenge)
+    add('gc_interval', options.stress_gc)
+    add('deopt', options.stress_deopt, options.stress_deopt_min)
     return fuzzers
 
   def _create_rerun_proc(self, options):
