@@ -91,7 +91,11 @@ BUILDER_WHITELIST_STAGING = {
     re.compile(r'V8 Mac.*'),
     re.compile(r'V8 Win.*'),
   ],
+  'client.v8.ports': [
+    re.compile(r'V8 Linux - arm64.*'),
+  ],
   'tryserver.v8': [
+    re.compile(r'v8_linux_arm64.*'),
     re.compile(r'v8_linux64.*'),
     re.compile(r'v8_mac.*'),
     re.compile(r'v8_win.*'),
