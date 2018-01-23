@@ -519,9 +519,6 @@ class WasmCompiledModule : public FixedArray {
                                           Handle<WasmCompiledModule> module);
   static void Reset(Isolate* isolate, WasmCompiledModule* module);
 
-  // TODO(mtrofin): delete this when we don't need FLAG_wasm_jit_to_native
-  static void ResetGCModel(Isolate* isolate, WasmCompiledModule* module);
-
   wasm::NativeModule* GetNativeModule() const;
   void InsertInChain(WasmModuleObject*);
   void RemoveFromChain();

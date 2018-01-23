@@ -1473,65 +1473,6 @@ wasm::NativeModule* WasmCompiledModule::GetNativeModule() const {
   return Managed<wasm::NativeModule>::cast(native_module())->get();
 }
 
-void WasmCompiledModule::ResetGCModel(Isolate* isolate,
-                                      WasmCompiledModule* compiled_module) {
-  DisallowHeapAllocation no_gc;
-  TRACE("Resetting %d\n", compiled_module->instance_id());
-  Object* undefined = *isolate->factory()->undefined_value();
-  Object* fct_obj = compiled_module->code_table();
-  if (fct_obj != nullptr && fct_obj != undefined) {
-    // Patch code to update memory references, global references, and function
-    // table references.
-    Zone specialization_zone(isolate->allocator(), ZONE_NAME);
-    wasm::CodeSpecialization code_specialization(isolate, &specialization_zone);
-
-    // Reset function tables.
-    if (compiled_module->has_function_tables()) {
-      FixedArray* function_tables = compiled_module->function_tables();
-      FixedArray* empty_function_tables =
-          compiled_module->empty_function_tables();
-      if (function_tables != empty_function_tables) {
-        DCHECK_EQ(function_tables->length(), empty_function_tables->length());
-        for (int i = 0, e = function_tables->length(); i < e; ++i) {
-          GlobalHandleAddress func_addr =
-              WasmCompiledModule::GetTableValue(function_tables, i);
-          code_specialization.RelocatePointer(
-              func_addr,
-              WasmCompiledModule::GetTableValue(empty_function_tables, i));
-        }
-        compiled_module->set_function_tables(empty_function_tables);
-      }
-    }
-
-    // TODO(6792): No longer needed once WebAssembly code is off heap.
-    CodeSpaceMemoryModificationScope modification_scope(isolate->heap());
-    FixedArray* functions = FixedArray::cast(fct_obj);
-    for (int i = compiled_module->num_imported_functions(),
-             end = functions->length();
-         i < end; ++i) {
-      Code* code = Code::cast(functions->get(i));
-      // Skip lazy compile stubs.
-      if (code->builtin_index() == Builtins::kWasmCompileLazy) continue;
-      if (code->kind() != Code::WASM_FUNCTION) {
-        // From here on, there should only be wrappers for exported functions.
-        for (; i < end; ++i) {
-          DCHECK_EQ(Code::JS_TO_WASM_FUNCTION,
-                    Code::cast(functions->get(i))->kind());
-        }
-        break;
-      }
-      bool changed = code_specialization.ApplyToWasmCode(
-          WasmCodeWrapper(handle(code)), SKIP_ICACHE_FLUSH);
-      // TODO(wasm): Check if this is faster than passing FLUSH_ICACHE_IF_NEEDED
-      // above.
-      if (changed) {
-        Assembler::FlushICache(isolate, code->instruction_start(),
-                               code->instruction_size());
-      }
-    }
-  }
-}
-
 void WasmCompiledModule::InitId() {
 #if DEBUG
   static uint32_t instance_id_counter = 0;
