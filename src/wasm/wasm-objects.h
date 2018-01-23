@@ -249,6 +249,9 @@ class WasmInstanceObject : public JSObject {
 
   static void ValidateOrphanedInstanceForTesting(
       Isolate* isolate, Handle<WasmInstanceObject> instance);
+
+  static void InstallFinalizer(Isolate* isolate,
+                               Handle<WasmInstanceObject> instance);
 };
 
 // A WASM function that is wrapped and exported to JavaScript.
