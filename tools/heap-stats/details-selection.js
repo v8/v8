@@ -58,7 +58,7 @@ class DetailsSelection extends HTMLElement {
     name_li.innerHTML = CATEGORY_NAMES.get(name);
     const percent_li = document.createElement('li');
     ul.appendChild(percent_li);
-    percent_li.innerHTML = '';
+    percent_li.innerHTML = '0%';
     percent_li.id = name + 'PercentContent';
     const all_li = document.createElement('li');
     ul.appendChild(all_li);
@@ -141,23 +141,31 @@ class DetailsSelection extends HTMLElement {
     this.selection.merge_categories = this.$('#merge-categories').checked;
     this.selection.gc = this.gcSelect.value;
     this.$('#csv-export').disabled = false;
+    this.updatePercentagesInCategory();
     this.dispatchEvent(new CustomEvent(
         'change', {bubbles: true, composed: true, detail: this.selection}));
+  }
 
+  updatePercentagesInCategory() {
     const overalls = {};
     let overall = 0;
-    Object.entries(this.selection.categories).forEach(([key, value]) => {
-      overalls[key] =
+    // Reset all categories.
+    this.selection.category_names.forEach((_, category) => {
+      this.$(`#${category}PercentContent`).innerHTML = '0%';
+    });
+    // Only update categories that have selections.
+    Object.entries(this.selection.categories).forEach(([category, value]) => {
+      overalls[category] =
           Object.values(value).reduce(
               (accu, current) =>
                   accu + this.selectedData.instance_type_data[current].overall,
               0) /
           KB;
-      overall += overalls[key];
+      overall += overalls[category];
     });
-    Object.entries(overalls).forEach(([key, value]) => {
-      this.$('#' + key + 'PercentContent').innerHTML =
-          `${(value / overall * 100).toFixed(1)}%`;
+    Object.entries(overalls).forEach(([category, category_overall]) => {
+      this.$(`#${category}PercentContent`).innerHTML =
+          `${(category_overall / overall * 100).toFixed(1)}%`;
     });
   }
 
