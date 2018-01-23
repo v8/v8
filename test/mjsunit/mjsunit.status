@@ -659,6 +659,8 @@
 
   # BUG(v8:7166).
   'd8/enable-tracing': [SKIP],
+  # Relies on async compilation which requires background tasks.
+  'wasm/streaming-error-position': [SKIP],
 }],  # 'predictable == True'
 
 ##############################################################################
