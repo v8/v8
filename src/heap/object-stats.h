@@ -42,10 +42,10 @@
   V(NATIVE_CONTEXT_TYPE)                  \
   V(NOSCRIPT_SHARED_FUNCTION_INFOS_TYPE)  \
   V(NUMBER_STRING_CACHE_TYPE)             \
+  V(OBJECT_PROPERTY_ARRAY_TYPE)           \
+  V(OBJECT_PROPERTY_DICTIONARY_TYPE)      \
   V(OBJECT_TO_CODE_TYPE)                  \
   V(OTHER_CONTEXT_TYPE)                   \
-  V(PROPERTY_ARRAY_TYPE)                  \
-  V(PROPERTY_DICTIONARY_TYPE)             \
   V(PROTOTYPE_USERS_TYPE)                 \
   V(REGEXP_MULTIPLE_CACHE_TYPE)           \
   V(RETAINED_MAPS_TYPE)                   \

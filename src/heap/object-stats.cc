@@ -362,11 +362,11 @@ void ObjectStatsCollectorImpl::RecordVirtualJSObjectDetails(JSObject* object) {
   if (object->HasFastProperties()) {
     PropertyArray* properties = object->property_array();
     RecordSimpleVirtualObjectStats(object, properties,
-                                   ObjectStats::PROPERTY_ARRAY_TYPE);
+                                   ObjectStats::OBJECT_PROPERTY_ARRAY_TYPE);
   } else {
     NameDictionary* properties = object->property_dictionary();
-    RecordHashTableVirtualObjectStats(object, properties,
-                                      ObjectStats::PROPERTY_DICTIONARY_TYPE);
+    RecordHashTableVirtualObjectStats(
+        object, properties, ObjectStats::OBJECT_PROPERTY_DICTIONARY_TYPE);
   }
   // Elements.
   FixedArrayBase* elements = object->elements();
