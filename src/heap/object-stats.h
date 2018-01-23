@@ -8,10 +8,9 @@
 #include <set>
 
 #include "src/base/ieee754.h"
-#include "src/heap/heap.h"
-#include "src/heap/mark-compact.h"
 #include "src/heap/objects-visiting.h"
 #include "src/objects.h"
+#include "src/objects/code.h"
 
 // These instance types do not exist for actual use but are merely introduced
 // for object stats tracing. In contrast to Code and FixedArray sub types
@@ -59,6 +58,9 @@
 
 namespace v8 {
 namespace internal {
+
+class Heap;
+class Isolate;
 
 class ObjectStats {
  public:

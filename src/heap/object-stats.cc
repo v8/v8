@@ -12,6 +12,7 @@
 #include "src/counters.h"
 #include "src/globals.h"
 #include "src/heap/heap-inl.h"
+#include "src/heap/mark-compact.h"
 #include "src/isolate.h"
 #include "src/objects/compilation-cache-inl.h"
 #include "src/utils.h"

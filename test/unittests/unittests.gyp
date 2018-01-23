@@ -115,6 +115,7 @@
       'heap/item-parallel-job-unittest.cc',
       'heap/marking-unittest.cc',
       'heap/memory-reducer-unittest.cc',
+      'heap/object-stats-unittest.cc',
       'heap/heap-unittest.cc',
       'heap/scavenge-job-unittest.cc',
       'heap/slot-set-unittest.cc',
