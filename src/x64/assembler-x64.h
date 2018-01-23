@@ -357,7 +357,7 @@ class Operand BASE_EMBEDDED {
   Operand(const Operand& base, int32_t offset);
 
   // [rip + disp/r]
-  explicit Operand(Label* label);
+  explicit Operand(Label* label, int addend = 0);
 
   // Checks whether either base or index register is the given register.
   // Does not check the "reg" part of the Operand.
@@ -375,6 +375,8 @@ class Operand BASE_EMBEDDED {
   byte buf_[9];
   // The number of bytes of buf_ in use.
   byte len_;
+
+  int8_t addend_;  // for rip + offset + addend
 
   // Set the ModR/M byte without an encoded 'reg' register. The
   // register is encoded later as part of the emit_operand operation.

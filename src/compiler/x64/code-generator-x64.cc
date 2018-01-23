@@ -579,13 +579,10 @@ void CodeGenerator::AssembleTailCallAfterGap(Instruction* instr,
 //    4. if it is not zero then it jumps to the builtin.
 void CodeGenerator::BailoutIfDeoptimized() {
   Label current;
-  // Load effective address to get the address of the current instruction into
-  // rcx.
-  __ leaq(rcx, Operand(&current));
   __ bind(&current);
   int pc = __ pc_offset();
   int offset = Code::kCodeDataContainerOffset - (Code::kHeaderSize + pc);
-  __ movp(rcx, Operand(rcx, offset));
+  __ movp(rcx, Operand(&current, offset));
   __ testl(FieldOperand(rcx, CodeDataContainer::kKindSpecificFlagsOffset),
            Immediate(1 << Code::kMarkedForDeoptimizationBit));
   Handle<Code> code = isolate()->builtins()->builtin_handle(

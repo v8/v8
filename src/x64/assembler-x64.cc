@@ -207,9 +207,9 @@ Operand::Operand(Register index,
   set_disp32(disp);
 }
 
-
-Operand::Operand(Label* label) : rex_(0), len_(1) {
+Operand::Operand(Label* label, int addend) : rex_(0), len_(1), addend_(addend) {
   DCHECK_NOT_NULL(label);
+  DCHECK(addend == 0 || (is_int8(addend) && label->is_bound()));
   set_modrm(0, rbp);
   set_disp64(reinterpret_cast<intptr_t>(label));
 }
@@ -542,7 +542,7 @@ void Assembler::emit_operand(int code, const Operand& adr) {
     DCHECK_EQ(9u, length);
     Label* label = *bit_cast<Label* const*>(&adr.buf_[1]);
     if (label->is_bound()) {
-      int offset = label->pos() - pc_offset() - sizeof(int32_t);
+      int offset = label->pos() - pc_offset() - sizeof(int32_t) + adr.addend_;
       DCHECK_GE(0, offset);
       emitl(offset);
     } else if (label->is_linked()) {
