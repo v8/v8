@@ -1274,6 +1274,7 @@ DEFINE_BOOL(predictable, false, "enable predictable mode")
 DEFINE_IMPLICATION(predictable, single_threaded)
 DEFINE_NEG_IMPLICATION(predictable, memory_reducer)
 DEFINE_VALUE_IMPLICATION(single_threaded, wasm_num_compilation_tasks, 0)
+DEFINE_NEG_IMPLICATION(single_threaded, wasm_async_compilation)
 
 //
 // Threading related flags.
