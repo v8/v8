@@ -15,12 +15,12 @@ def run_job(job, process_context):
   return job.run(process_context)
 
 
-def create_process_context(requirement):
-  return ProcessContext(base.get_reduce_result_function(requirement))
+def create_process_context(result_reduction):
+  return ProcessContext(result_reduction)
 
 
 JobResult = collections.namedtuple('JobResult', ['id', 'result'])
-ProcessContext = collections.namedtuple('ProcessContext', ['reduce_result_f'])
+ProcessContext = collections.namedtuple('ProcessContext', ['result_reduction'])
 
 
 class Job(object):
@@ -32,9 +32,8 @@ class Job(object):
 
   def run(self, process_ctx):
     output = self.cmd.execute()
-    result = self.outproc.process(output)
-    if not self.keep_output:
-      result = process_ctx.reduce_result_f(result)
+    reduction = process_ctx.result_reduction if not self.keep_output else None
+    result = self.outproc.process(output, reduction)
     return JobResult(self.test_id, result)
 
 

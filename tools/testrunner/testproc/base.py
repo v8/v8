@@ -37,31 +37,6 @@ DROP_OUTPUT = 1
 DROP_PASS_OUTPUT = 2
 DROP_PASS_STDOUT = 3
 
-def get_reduce_result_function(requirement):
-  if requirement == DROP_RESULT:
-    return lambda _: None
-
-  if requirement == DROP_OUTPUT:
-    def f(result):
-      result.output = None
-      return result
-    return f
-
-  if requirement == DROP_PASS_OUTPUT:
-    def f(result):
-      if not result.has_unexpected_output:
-        result.output = None
-      return result
-    return f
-
-  if requirement == DROP_PASS_STDOUT:
-    def f(result):
-      if not result.has_unexpected_output:
-        result.output.stdout = None
-        result.output.stderr = None
-      return result
-    return f
-
 
 class TestProc(object):
   def __init__(self):
@@ -90,8 +65,14 @@ class TestProc(object):
     self._prev_requirement = requirement
     if self._next_proc:
       self._next_proc.setup(max(requirement, self._requirement))
-    if self._prev_requirement < self._requirement:
-      self._reduce_result = get_reduce_result_function(self._prev_requirement)
+
+    # Since we're not winning anything by droping part of the result we are
+    # dropping the whole result or pass it as it is. The real reduction happens
+    # during result creation (in the output processor), so the result is
+    # immutable.
+    if (self._prev_requirement < self._requirement and
+        self._prev_requirement == DROP_RESULT):
+      self._reduce_result = lambda _: None
 
   def next_test(self, test):
     """
