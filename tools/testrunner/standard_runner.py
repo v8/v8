@@ -103,6 +103,11 @@ BUILDER_WHITELIST_STAGING = {
 }
 _RE_TYPE = type(re.compile(''))
 
+# Specifies which architectures are whitelisted to use the staging test-runner.
+# List of arch strings, e.g. "x64".
+ARCH_WHITELIST_STAGING = [
+
+]
 
 class StandardTestRunner(base_runner.BaseTestRunner):
     def __init__(self, *args, **kwargs):
@@ -152,7 +157,12 @@ class StandardTestRunner(base_runner.BaseTestRunner):
                         help="Additional flags to pass to each test command",
                         action="append", default=[])
       parser.add_option("--infra-staging", help="Use new test runner features",
-                        default=False, action="store_true")
+                        dest='infra_staging', default=None,
+                        action="store_true")
+      parser.add_option("--no-infra-staging",
+                        help="Opt out of new test runner features",
+                        dest='infra_staging', default=None,
+                        action="store_false")
       parser.add_option("--isolates", help="Whether to test isolates",
                         default=False, action="store_true")
       parser.add_option("-j", help="The number of parallel tasks to run",
@@ -225,14 +235,18 @@ class StandardTestRunner(base_runner.BaseTestRunner):
                         help="Number of runs with different random seeds")
 
     def _use_staging(self, options):
-      if options.infra_staging:
-        return True
+      if options.infra_staging is not None:
+        # True or False are used to explicitly opt in or out.
+        return options.infra_staging
       builder_configs = BUILDER_WHITELIST_STAGING.get(options.mastername, [])
       for builder_config in builder_configs:
         if (isinstance(builder_config, _RE_TYPE) and
             builder_config.match(options.buildername)):
           return True
         if builder_config == options.buildername:
+          return True
+      for arch in ARCH_WHITELIST_STAGING:
+        if self.build_config.arch == arch:
           return True
       return False
 
