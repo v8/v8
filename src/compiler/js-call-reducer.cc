@@ -1126,6 +1126,9 @@ Reduction JSCallReducer::ReduceArrayReduce(Handle<JSFunction> function,
     Node* is_hole = graph()->NewNode(common()->IfTrue(), hole_branch);
 
     WireInLoopEnd(loop, eloop, vloop, next_k, is_hole, effect);
+    // We did the hole-check, so exclude hole from the type.
+    cur = effect = graph()->NewNode(common()->TypeGuard(Type::NonInternal()),
+                                    cur, effect, control);
     k = next_k;
   }
 
