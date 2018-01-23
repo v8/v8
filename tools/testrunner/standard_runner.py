@@ -110,17 +110,6 @@ class StandardTestRunner(base_runner.BaseTestRunner):
         # Swarming doesn't print how isolated commands are called. Lets make
         # this less cryptic by printing it ourselves.
         print ' '.join(sys.argv)
-
-        if utils.GuessOS() == "macos":
-          # TODO(machenbach): Temporary output for investigating hanging test
-          # driver on mac.
-          print "V8 related processes running on this host:"
-          try:
-            print subprocess.check_output(
-              "ps -e | egrep 'd8|cctest|unittests'", shell=True)
-          except Exception:
-            pass
-
       return self._execute(args, options, suites)
 
     def _add_parser_options(self, parser):
