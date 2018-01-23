@@ -100,8 +100,9 @@ class BytecodeGraphBuilder {
   Node* NewIfDefault() { return NewNode(common()->IfDefault()); }
   Node* NewMerge() { return NewNode(common()->Merge(1), true); }
   Node* NewLoop() { return NewNode(common()->Loop(1), true); }
-  Node* NewBranch(Node* condition, BranchHint hint = BranchHint::kNone) {
-    return NewNode(common()->Branch(hint), condition);
+  Node* NewBranch(Node* condition, BranchHint hint = BranchHint::kNone,
+                  BranchKind kind = BranchKind::kSafetyCheck) {
+    return NewNode(common()->Branch(hint, kind), condition);
   }
   Node* NewSwitch(Node* condition, int control_output_count) {
     return NewNode(common()->Switch(control_output_count), condition);

@@ -2982,7 +2982,7 @@ void BytecodeGraphBuilder::BuildJump() {
 }
 
 void BytecodeGraphBuilder::BuildJumpIf(Node* condition) {
-  NewBranch(condition);
+  NewBranch(condition, BranchHint::kNone, BranchKind::kNoSafetyCheck);
   {
     SubEnvironment sub_environment(this);
     NewIfTrue();
@@ -2992,7 +2992,7 @@ void BytecodeGraphBuilder::BuildJumpIf(Node* condition) {
 }
 
 void BytecodeGraphBuilder::BuildJumpIfNot(Node* condition) {
-  NewBranch(condition);
+  NewBranch(condition, BranchHint::kNone, BranchKind::kNoSafetyCheck);
   {
     SubEnvironment sub_environment(this);
     NewIfFalse();
@@ -3016,7 +3016,8 @@ void BytecodeGraphBuilder::BuildJumpIfNotEqual(Node* comperand) {
 }
 
 void BytecodeGraphBuilder::BuildJumpIfFalse() {
-  NewBranch(environment()->LookupAccumulator());
+  NewBranch(environment()->LookupAccumulator(), BranchHint::kNone,
+            BranchKind::kNoSafetyCheck);
   {
     SubEnvironment sub_environment(this);
     NewIfFalse();
@@ -3028,7 +3029,8 @@ void BytecodeGraphBuilder::BuildJumpIfFalse() {
 }
 
 void BytecodeGraphBuilder::BuildJumpIfTrue() {
-  NewBranch(environment()->LookupAccumulator());
+  NewBranch(environment()->LookupAccumulator(), BranchHint::kNone,
+            BranchKind::kNoSafetyCheck);
   {
     SubEnvironment sub_environment(this);
     NewIfTrue();
