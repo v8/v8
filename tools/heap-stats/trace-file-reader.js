@@ -50,17 +50,32 @@ class TraceFileReader extends HTMLElement {
       return;
     }
 
-    const result = new FileReader();
-    result.onload = (e) => {
-      let contents = e.target.result.split('\n');
-      const return_data = (e.target.result.includes('V8.GC_Objects_Stats')) ?
-          this.createModelFromChromeTraceFile(contents) :
-          this.createModelFromV8TraceFile(contents);
-      this.updateLabel('Finished loading \'' + file.name + '\'.');
-      this.dispatchEvent(new CustomEvent(
-          'change', {bubbles: true, composed: true, detail: return_data}));
-    };
-    result.readAsText(file);
+    const reader = new FileReader();
+
+    if (file.type === 'application/gzip') {
+      reader.onload = (e) => {
+        try {
+          const textResult = pako.inflate(e.target.result, {to: 'string'});
+          this.processRawText(file, textResult);
+        } catch (err) {
+          console.error(err);
+        }
+      };
+      reader.readAsArrayBuffer(file);
+    } else {
+      reader.onload = (e) => this.processRawText(file, e.target.result);
+      reader.readAsText(file);
+    }
+  }
+
+  processRawText(file, result) {
+    let contents = result.split('\n');
+    const return_data = (result.includes('V8.GC_Objects_Stats')) ?
+        this.createModelFromChromeTraceFile(contents) :
+        this.createModelFromV8TraceFile(contents);
+    this.updateLabel('Finished loading \'' + file.name + '\'.');
+    this.dispatchEvent(new CustomEvent(
+        'change', {bubbles: true, composed: true, detail: return_data}));
   }
 
   createOrUpdateEntryIfNeeded(data, keys, entry) {
@@ -193,7 +208,7 @@ class TraceFileReader extends HTMLElement {
         });
       });
     } catch (e) {
-      console.log('Unable to parse chrome trace file.', e);
+      console.error('Unable to parse chrome trace file.', e);
     }
     this.extendAndSanitizeModel(data, keys);
     return data;
