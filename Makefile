@@ -39,6 +39,8 @@ $(warning See https://github.com/v8/v8/wiki/Building-with-GN)
 $(warning Or contact yangguo@chromium.org.)
 $(error Expect the Makefile to be removed soon)
 
+include tools/Makefile.tags
+
 # Special build flags. Use them like this: "make library=shared"
 
 # library=shared || component=shared_library
@@ -421,7 +423,7 @@ native.clean:
 	rm -rf $(OUTDIR)/native
 	find $(OUTDIR) -regex '.*\(host\|target\)\.native\.mk' -delete
 
-clean: $(addsuffix .clean, $(ARCHES) $(ANDROID_ARCHES)) native.clean gtags.clean tags.clean
+clean: $(addsuffix .clean, $(ARCHES) $(ANDROID_ARCHES)) native.clean
 
 # GYP file generation targets.
 OUT_MAKEFILES = $(addprefix $(OUTDIR)/Makefile.,$(BUILDS))
@@ -467,28 +469,6 @@ $(ENVFILE).new:
 	$(eval CXX_TARGET_ARCH:=$(subst aarch64,arm64,$(CXX_TARGET_ARCH)))
 	$(eval CXX_TARGET_ARCH:=$(subst x86_64,x64,$(CXX_TARGET_ARCH)))
 	@mkdir -p $(OUTDIR); echo "GYPFLAGS=$(GYPFLAGS) -Dtarget_arch=$(CXX_TARGET_ARCH)" > $(ENVFILE).new;
-
-# Support for the GNU GLOBAL Source Code Tag System.
-gtags.files: $(GYPFILES) $(ENVFILE)
-	@find include src test -name '*.h' -o -name '*.cc' -o -name '*.c' > $@
-
-# We need to manually set the stack limit here, to work around bugs in
-# gmake-3.81 and global-5.7.1 on recent 64-bit Linux systems.
-# Using $(wildcard ...) gracefully ignores non-existing files, so that stale
-# gtags.files after switching branches don't cause recipe failures.
-GPATH GRTAGS GSYMS GTAGS: gtags.files $(wildcard $(shell cat gtags.files 2> /dev/null))
-	@bash -c 'ulimit -s 10240 && GTAGSFORCECPP=yes gtags -i -q -f $<'
-
-gtags.clean:
-	rm -f gtags.files GPATH GRTAGS GSYMS GTAGS
-
-tags: gtags.files $(wildcard $(shell cat gtags.files 2> /dev/null))
-	@(ctags --version | grep 'Exuberant Ctags' >/dev/null) || \
-		(echo "Please install Exuberant Ctags (check 'ctags --version')" >&2; false)
-	ctags --fields=+l -L $<
-
-tags.clean:
-	rm -r tags
 
 dependencies builddeps:
 	$(error Use 'gclient sync' instead)
