@@ -31,20 +31,23 @@ class StackTransferRecipe {
   struct RegisterMove {
     LiftoffRegister dst;
     LiftoffRegister src;
-    constexpr RegisterMove(LiftoffRegister dst, LiftoffRegister src)
-        : dst(dst), src(src) {}
+    ValueType type;
+    constexpr RegisterMove(LiftoffRegister dst, LiftoffRegister src,
+                           ValueType type)
+        : dst(dst), src(src), type(type) {}
   };
   struct RegisterLoad {
     LiftoffRegister dst;
     bool is_constant_load;  // otherwise load it from the stack.
-    union {
-      uint32_t stack_slot;
-      WasmValue constant;
-    };
+    ValueType type;
+    uint32_t value;  // i32 constant if {is_constant_load}, else stack slot.
     RegisterLoad(LiftoffRegister dst, WasmValue constant)
-        : dst(dst), is_constant_load(true), constant(constant) {}
-    RegisterLoad(LiftoffRegister dst, uint32_t stack_slot)
-        : dst(dst), is_constant_load(false), stack_slot(stack_slot) {}
+        : dst(dst),
+          is_constant_load(true),
+          type(kWasmI32),
+          value(constant.to_i32()) {}
+    RegisterLoad(LiftoffRegister dst, uint32_t stack_slot, ValueType type)
+        : dst(dst), is_constant_load(false), type(type), value(stack_slot) {}
   };
 
  public:
@@ -89,10 +92,11 @@ class StackTransferRecipe {
         if (executed_moves == 0) {
           // There is a cycle. Spill one register, then continue.
           // TODO(clemensh): Use an unused register if available.
-          LiftoffRegister spill_reg = register_moves_.back().src;
-          asm_->Spill(next_spill_slot, spill_reg);
+          RegisterMove& rm = register_moves_.back();
+          LiftoffRegister spill_reg = rm.src;
+          asm_->Spill(next_spill_slot, spill_reg, rm.type);
           // Remember to reload into the destination register later.
-          LoadStackSlot(register_moves_.back().dst, next_spill_slot);
+          LoadStackSlot(register_moves_.back().dst, next_spill_slot, rm.type);
           DCHECK_EQ(1, src_reg_use_count[spill_reg.liftoff_code()]);
           src_reg_use_count[spill_reg.liftoff_code()] = 0;
           ++next_spill_slot;
@@ -105,9 +109,9 @@ class StackTransferRecipe {
 
     for (RegisterLoad& rl : register_loads_) {
       if (rl.is_constant_load) {
-        asm_->LoadConstant(rl.dst, rl.constant);
+        asm_->LoadConstant(rl.dst, WasmValue(rl.value));
       } else {
-        asm_->Fill(rl.dst, rl.stack_slot);
+        asm_->Fill(rl.dst, rl.value, rl.type);
       }
     }
     register_loads_.clear();
@@ -117,15 +121,16 @@ class StackTransferRecipe {
                          uint32_t dst_index, uint32_t src_index) {
     const VarState& dst = dst_state.stack_state[dst_index];
     const VarState& src = __ cache_state()->stack_state[src_index];
+    DCHECK_EQ(dst.type(), src.type());
     switch (dst.loc()) {
       case VarState::kStack:
         switch (src.loc()) {
           case VarState::kStack:
             if (src_index == dst_index) break;
-            asm_->MoveStackValue(dst_index, src_index);
+            asm_->MoveStackValue(dst_index, src_index, src.type());
             break;
           case VarState::kRegister:
-            asm_->Spill(dst_index, src.reg());
+            asm_->Spill(dst_index, src.reg(), src.type());
             break;
           case VarState::kI32Const:
             asm_->Spill(dst_index, WasmValue(src.i32_const()));
@@ -146,11 +151,11 @@ class StackTransferRecipe {
                         uint32_t src_index) {
     switch (src.loc()) {
       case VarState::kStack:
-        LoadStackSlot(dst, src_index);
+        LoadStackSlot(dst, src_index, src.type());
         break;
       case VarState::kRegister:
         DCHECK_EQ(dst.reg_class(), src.reg_class());
-        if (dst != src.reg()) MoveRegister(dst, src.reg());
+        if (dst != src.reg()) MoveRegister(dst, src.reg(), src.type());
         break;
       case VarState::kI32Const:
         LoadConstant(dst, WasmValue(src.i32_const()));
@@ -158,20 +163,23 @@ class StackTransferRecipe {
     }
   }
 
-  void MoveRegister(LiftoffRegister dst, LiftoffRegister src) {
+  void MoveRegister(LiftoffRegister dst, LiftoffRegister src, ValueType type) {
     DCHECK_NE(dst, src);
+    DCHECK_EQ(dst.reg_class(), src.reg_class());
+    DCHECK_EQ(reg_class_for(type), src.reg_class());
     DCHECK(!move_dst_regs_.has(dst));
     move_dst_regs_.set(dst);
     move_src_regs_.set(src);
-    register_moves_.emplace_back(dst, src);
+    register_moves_.emplace_back(dst, src, type);
   }
 
   void LoadConstant(LiftoffRegister dst, WasmValue value) {
     register_loads_.emplace_back(dst, value);
   }
 
-  void LoadStackSlot(LiftoffRegister dst, uint32_t stack_index) {
-    register_loads_.emplace_back(dst, stack_index);
+  void LoadStackSlot(LiftoffRegister dst, uint32_t stack_index,
+                     ValueType type) {
+    register_loads_.emplace_back(dst, stack_index, type);
   }
 
  private:
@@ -182,6 +190,9 @@ class StackTransferRecipe {
   LiftoffRegList move_src_regs_;
   LiftoffAssembler* const asm_;
 };
+
+static constexpr ValueType kWasmIntPtr =
+    kPointerSize == 8 ? kWasmI64 : kWasmI32;
 
 }  // namespace
 
@@ -301,7 +312,7 @@ LiftoffRegister LiftoffAssembler::PopToRegister(RegClass rc,
   switch (slot.loc()) {
     case VarState::kStack: {
       LiftoffRegister reg = GetUnusedRegister(rc, pinned);
-      Fill(reg, cache_state_.stack_height());
+      Fill(reg, cache_state_.stack_height(), slot.type());
       return reg;
     }
     case VarState::kRegister:
@@ -352,7 +363,7 @@ void LiftoffAssembler::Spill(uint32_t index) {
     case VarState::kStack:
       return;
     case VarState::kRegister:
-      Spill(index, slot.reg());
+      Spill(index, slot.reg(), slot.type());
       cache_state_.dec_used(slot.reg());
       break;
     case VarState::kI32Const:
@@ -372,7 +383,7 @@ void LiftoffAssembler::SpillAllRegisters() {
   for (uint32_t i = 0, e = cache_state_.stack_height(); i < e; ++i) {
     auto& slot = cache_state_.stack_state[i];
     if (!slot.is_reg()) continue;
-    Spill(i, slot.reg());
+    Spill(i, slot.reg(), slot.type());
     slot.MakeStack();
   }
   cache_state_.reset_used_registers();
@@ -395,7 +406,7 @@ void LiftoffAssembler::PrepareCall(wasm::FunctionSig* sig,
        idx < end; ++idx) {
     VarState& slot = cache_state_.stack_state[idx];
     if (!slot.is_reg()) continue;
-    Spill(idx, slot.reg());
+    Spill(idx, slot.reg(), slot.type());
     slot.MakeStack();
   }
 
@@ -439,7 +450,8 @@ void LiftoffAssembler::PrepareCall(wasm::FunctionSig* sig,
     LiftoffRegList free_regs = kGpCacheRegList.MaskOut(param_regs);
     if (!free_regs.is_empty()) {
       LiftoffRegister new_target = free_regs.GetFirstRegSet();
-      stack_transfers.MoveRegister(new_target, LiftoffRegister(*target));
+      stack_transfers.MoveRegister(new_target, LiftoffRegister(*target),
+                                   kWasmIntPtr);
       *target = new_target.gp();
     } else {
       PushCallerFrameSlot(LiftoffRegister(*target));
@@ -488,7 +500,7 @@ void LiftoffAssembler::SpillRegister(LiftoffRegister reg) {
     DCHECK_GT(cache_state_.stack_height(), idx);
     auto* slot = &cache_state_.stack_state[idx];
     if (!slot->is_reg() || slot->reg() != reg) continue;
-    Spill(idx, reg);
+    Spill(idx, reg, slot->type());
     slot->MakeStack();
     if (--remaining_uses == 0) break;
   }

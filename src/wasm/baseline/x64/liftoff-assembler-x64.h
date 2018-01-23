@@ -178,12 +178,13 @@ void LiftoffAssembler::LoadCallerFrameSlot(LiftoffRegister dst,
   }
 }
 
-void LiftoffAssembler::MoveStackValue(uint32_t dst_index, uint32_t src_index) {
+void LiftoffAssembler::MoveStackValue(uint32_t dst_index, uint32_t src_index,
+                                      ValueType type) {
   DCHECK_NE(dst_index, src_index);
   if (cache_state_.has_unused_register(kGpReg)) {
     LiftoffRegister reg = GetUnusedRegister(kGpReg);
-    Fill(reg, src_index);
-    Spill(dst_index, reg);
+    Fill(reg, src_index, type);
+    Spill(dst_index, reg, type);
   } else {
     pushq(liftoff::GetStackSlot(src_index));
     popq(liftoff::GetStackSlot(dst_index));
@@ -212,13 +213,24 @@ void LiftoffAssembler::Move(LiftoffRegister dst, LiftoffRegister src) {
   }
 }
 
-void LiftoffAssembler::Spill(uint32_t index, LiftoffRegister reg) {
+void LiftoffAssembler::Spill(uint32_t index, LiftoffRegister reg,
+                             ValueType type) {
   Operand dst = liftoff::GetStackSlot(index);
-  // TODO(clemensh): Handle different sizes here.
-  if (reg.is_gp()) {
-    movq(dst, reg.gp());
-  } else {
-    Movsd(dst, reg.fp());
+  switch (type) {
+    case kWasmI32:
+      movl(dst, reg.gp());
+      break;
+    case kWasmI64:
+      movq(dst, reg.gp());
+      break;
+    case kWasmF32:
+      Movss(dst, reg.fp());
+      break;
+    case kWasmF64:
+      Movsd(dst, reg.fp());
+      break;
+    default:
+      UNREACHABLE();
   }
 }
 
@@ -236,13 +248,24 @@ void LiftoffAssembler::Spill(uint32_t index, WasmValue value) {
   }
 }
 
-void LiftoffAssembler::Fill(LiftoffRegister reg, uint32_t index) {
+void LiftoffAssembler::Fill(LiftoffRegister reg, uint32_t index,
+                            ValueType type) {
   Operand src = liftoff::GetStackSlot(index);
-  // TODO(clemensh): Handle different sizes here.
-  if (reg.is_gp()) {
-    movq(reg.gp(), src);
-  } else {
-    Movsd(reg.fp(), src);
+  switch (type) {
+    case kWasmI32:
+      movl(reg.gp(), src);
+      break;
+    case kWasmI64:
+      movq(reg.gp(), src);
+      break;
+    case kWasmF32:
+      Movss(reg.fp(), src);
+      break;
+    case kWasmF64:
+      Movsd(reg.fp(), src);
+      break;
+    default:
+      UNREACHABLE();
   }
 }
 

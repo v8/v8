@@ -46,7 +46,8 @@ void LiftoffAssembler::LoadCallerFrameSlot(LiftoffRegister dst,
   UNIMPLEMENTED();
 }
 
-void LiftoffAssembler::MoveStackValue(uint32_t dst_index, uint32_t src_index) {
+void LiftoffAssembler::MoveStackValue(uint32_t dst_index, uint32_t src_index,
+                                      ValueType type) {
   UNIMPLEMENTED();
 }
 
@@ -58,7 +59,8 @@ void LiftoffAssembler::Move(LiftoffRegister dst, LiftoffRegister src) {
   UNIMPLEMENTED();
 }
 
-void LiftoffAssembler::Spill(uint32_t index, LiftoffRegister reg) {
+void LiftoffAssembler::Spill(uint32_t index, LiftoffRegister reg,
+                             ValueType type) {
   UNIMPLEMENTED();
 }
 
@@ -66,7 +68,8 @@ void LiftoffAssembler::Spill(uint32_t index, WasmValue value) {
   UNIMPLEMENTED();
 }
 
-void LiftoffAssembler::Fill(LiftoffRegister reg, uint32_t index) {
+void LiftoffAssembler::Fill(LiftoffRegister reg, uint32_t index,
+                            ValueType type) {
   UNIMPLEMENTED();
 }
 

@@ -294,15 +294,15 @@ class LiftoffAssembler : public TurboAssembler {
                     LiftoffRegister src, StoreType type, LiftoffRegList pinned,
                     uint32_t* protected_store_pc = nullptr);
   inline void LoadCallerFrameSlot(LiftoffRegister, uint32_t caller_slot_idx);
-  inline void MoveStackValue(uint32_t dst_index, uint32_t src_index);
+  inline void MoveStackValue(uint32_t dst_index, uint32_t src_index, ValueType);
 
   inline void MoveToReturnRegister(LiftoffRegister);
   // TODO(clemensh): Pass the type to {Move}, to emit more efficient code.
   inline void Move(LiftoffRegister dst, LiftoffRegister src);
 
-  inline void Spill(uint32_t index, LiftoffRegister);
+  inline void Spill(uint32_t index, LiftoffRegister, ValueType);
   inline void Spill(uint32_t index, WasmValue);
-  inline void Fill(LiftoffRegister, uint32_t index);
+  inline void Fill(LiftoffRegister, uint32_t index, ValueType);
 
   // i32 binops.
   inline void emit_i32_add(Register dst, Register lhs, Register rhs);

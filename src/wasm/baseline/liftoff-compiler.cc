@@ -141,6 +141,17 @@ class LiftoffCompiler {
     BindUnboundLabels(decoder);
   }
 
+  bool CheckSupportedType(Decoder* decoder, ValueType type,
+                          const char* context) {
+    char buffer[128];
+    // Check supported types.
+    if (type == kWasmI32 || type == kWasmF32) return true;
+    SNPrintF(ArrayVector(buffer), "%s %s", WasmOpcodes::TypeName(type),
+             context);
+    unsupported(decoder, buffer);
+    return false;
+  }
+
   int GetSafepointTableOffset() const {
     return safepoint_table_builder_.GetCodeOffset();
   }
@@ -235,21 +246,7 @@ class LiftoffCompiler {
     uint32_t num_params =
         static_cast<uint32_t>(call_desc_->ParameterCount()) - 1;
     for (uint32_t i = 0; i < __ num_locals(); ++i) {
-      switch (__ local_type(i)) {
-        case kWasmI32:
-        case kWasmF32:
-          // supported.
-          break;
-        case kWasmI64:
-          unsupported(decoder, "i64 param/local");
-          return;
-        case kWasmF64:
-          unsupported(decoder, "f64 param/local");
-          return;
-        default:
-          unsupported(decoder, "exotic param/local");
-          return;
-      }
+      if (!CheckSupportedType(decoder, __ local_type(i), "param")) return;
     }
     // Input 0 is the call target, the context is at 1.
     constexpr int kContextParameterIndex = 1;
@@ -638,7 +635,7 @@ class LiftoffCompiler {
       case kStack: {
         auto rc = reg_class_for(operand.type);
         LiftoffRegister reg = __ GetUnusedRegister(rc);
-        __ Fill(reg, operand.index);
+        __ Fill(reg, operand.index, operand.type);
         __ PushRegister(slot.type(), reg);
         break;
       }
@@ -649,19 +646,19 @@ class LiftoffCompiler {
   void SetLocalFromStackSlot(LiftoffAssembler::VarState& dst_slot,
                              uint32_t local_index) {
     auto& state = *__ cache_state();
+    ValueType type = dst_slot.type();
     if (dst_slot.is_reg()) {
       LiftoffRegister slot_reg = dst_slot.reg();
       if (state.get_use_count(slot_reg) == 1) {
-        __ Fill(dst_slot.reg(), state.stack_height() - 1);
+        __ Fill(dst_slot.reg(), state.stack_height() - 1, type);
         return;
       }
       state.dec_used(slot_reg);
     }
-    ValueType type = dst_slot.type();
     DCHECK_EQ(type, __ local_type(local_index));
     RegClass rc = reg_class_for(type);
     LiftoffRegister dst_reg = __ GetUnusedRegister(rc);
-    __ Fill(dst_reg, __ cache_state()->stack_height() - 1);
+    __ Fill(dst_reg, __ cache_state()->stack_height() - 1, type);
     dst_slot = LiftoffAssembler::VarState(type, dst_reg);
     __ cache_state()->inc_used(dst_reg);
   }
@@ -889,8 +886,7 @@ class LiftoffCompiler {
                const MemoryAccessOperand<validate>& operand,
                const Value& index_val, Value* result) {
     ValueType value_type = type.value_type();
-    if (value_type != kWasmI32 && value_type != kWasmF32)
-      return unsupported(decoder, "unsupported load type");
+    if (!CheckSupportedType(decoder, value_type, "load")) return;
     LiftoffRegList pinned;
     Register index = pinned.set(__ PopToRegister(kGpReg)).gp();
     if (!env_->use_trap_handler) {
@@ -923,8 +919,7 @@ class LiftoffCompiler {
                 const MemoryAccessOperand<validate>& operand,
                 const Value& index_val, const Value& value_val) {
     ValueType value_type = type.value_type();
-    if (value_type != kWasmI32 && value_type != kWasmF32)
-      return unsupported(decoder, "unsupported store type");
+    if (!CheckSupportedType(decoder, value_type, "store")) return;
     RegClass rc = reg_class_for(value_type);
     LiftoffRegList pinned;
     LiftoffRegister value = pinned.set(__ PopToRegister(rc));
@@ -962,6 +957,9 @@ class LiftoffCompiler {
                   const Value args[], Value returns[]) {
     if (operand.sig->return_count() > 1)
       return unsupported(decoder, "multi-return");
+    if (operand.sig->return_count() == 1 &&
+        !CheckSupportedType(decoder, operand.sig->GetReturn(0), "return"))
+      return;
 
     compiler::CallDescriptor* call_desc =
         compiler::GetWasmCallDescriptor(compilation_zone_, operand.sig);
