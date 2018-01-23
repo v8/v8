@@ -88,10 +88,12 @@ PREDICTABLE_WRAPPER = os.path.join(
 BUILDER_WHITELIST_STAGING = {
   'client.v8': [
     re.compile(r'V8 Linux64.*'),
+    re.compile(r'V8 Mac.*'),
     re.compile(r'V8 Win.*'),
   ],
   'tryserver.v8': [
     re.compile(r'v8_linux64.*'),
+    re.compile(r'v8_mac.*'),
     re.compile(r'v8_win.*'),
   ],
 }
