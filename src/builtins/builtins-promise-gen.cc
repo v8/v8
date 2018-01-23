@@ -487,36 +487,33 @@ Node* PromiseBuiltinsAssembler::InternalPerformPromiseThen(
 
     BIND(&fulfilled_check);
     {
-      Label reject(this);
-      Node* const result = LoadObjectField(promise, JSPromise::kResultOffset);
-      GotoIfNot(IsPromiseStatus(status, v8::Promise::kFulfilled), &reject);
+      Label fulfilled(this), rejected(this, Label::kDeferred), enqueue(this);
+      VARIABLE(var_tasks, MachineRepresentation::kTagged);
+      Branch(IsPromiseStatus(status, v8::Promise::kFulfilled), &fulfilled,
+             &rejected);
 
+      BIND(&fulfilled);
+      {
+        var_tasks.Bind(var_on_resolve.value());
+        Goto(&enqueue);
+      }
+
+      BIND(&rejected);
+      {
+        CSA_ASSERT(this, IsPromiseStatus(status, v8::Promise::kRejected));
+        var_tasks.Bind(var_on_reject.value());
+        GotoIf(PromiseHasHandler(promise), &enqueue);
+        CallRuntime(Runtime::kPromiseRevokeReject, context, promise);
+        Goto(&enqueue);
+      }
+
+      BIND(&enqueue);
+      Node* result = LoadObjectField(promise, JSPromise::kResultOffset);
       Node* info = AllocatePromiseReactionJobInfo(
-          result, var_on_resolve.value(), deferred_promise, deferred_on_resolve,
+          result, var_tasks.value(), deferred_promise, deferred_on_resolve,
           deferred_on_reject, context);
       CallBuiltin(Builtins::kEnqueueMicrotask, NoContextConstant(), info);
       Goto(&out);
-
-      BIND(&reject);
-      {
-        CSA_ASSERT(this, IsPromiseStatus(status, v8::Promise::kRejected));
-        Node* const has_handler = PromiseHasHandler(promise);
-        Label enqueue(this);
-
-        // TODO(gsathya): Fold these runtime calls and move to TF.
-        GotoIf(has_handler, &enqueue);
-        CallRuntime(Runtime::kPromiseRevokeReject, context, promise);
-        Goto(&enqueue);
-
-        BIND(&enqueue);
-        {
-          Node* info = AllocatePromiseReactionJobInfo(
-              result, var_on_reject.value(), deferred_promise,
-              deferred_on_resolve, deferred_on_reject, context);
-          CallBuiltin(Builtins::kEnqueueMicrotask, NoContextConstant(), info);
-          Goto(&out);
-        }
-      }
     }
   }
 
