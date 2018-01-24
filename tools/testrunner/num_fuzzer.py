@@ -123,6 +123,10 @@ class NumFuzzer(base_runner.BaseTestRunner):
     while options.fuzzer_random_seed == 0:
       options.fuzzer_random_seed = random.SystemRandom().randint(-2147483648,
                                                                  2147483647)
+
+    if options.total_timeout_sec:
+      options.tests_count = 0
+
     return True
 
   def _get_default_suite_names(self):
