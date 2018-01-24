@@ -3964,7 +3964,10 @@ void AsyncStreamingProcessor::FinishAsyncCompileJobWithError(ResultBase error) {
       job_->DoSync<AsyncCompileJob::DecodeFail>(std::move(result));
     }
 
-    compilation_unit_builder_->Clear();
+    // Clear the {compilation_unit_builder_} if it exists. This is needed
+    // because there is a check in the destructor of the
+    // {CompilationUnitBuilder} that it is empty.
+    if (compilation_unit_builder_) compilation_unit_builder_->Clear();
   } else {
     job_->DoSync<AsyncCompileJob::DecodeFail>(std::move(result));
   }
