@@ -5,10 +5,6 @@
 #ifndef V8_HEAP_OBJECT_STATS_H_
 #define V8_HEAP_OBJECT_STATS_H_
 
-#include <set>
-
-#include "src/base/ieee754.h"
-#include "src/heap/objects-visiting.h"
 #include "src/objects.h"
 #include "src/objects/code.h"
 
@@ -27,8 +23,10 @@
   V(BYTECODE_ARRAY_HANDLER_TABLE_TYPE)    \
   V(CODE_STUBS_TABLE_TYPE)                \
   V(COW_ARRAY_TYPE)                       \
+  V(DEOPTIMIZATION_DATA_TYPE)             \
   V(DEPENDENT_CODE_TYPE)                  \
   V(ELEMENTS_TYPE)                        \
+  V(EMBEDDED_OBJECT_TYPE)                 \
   V(ENUM_CACHE_TYPE)                      \
   V(ENUM_INDICES_CACHE_TYPE)              \
   V(FEEDBACK_VECTOR_ENTRY_TYPE)           \
@@ -43,6 +41,7 @@
   V(NUMBER_STRING_CACHE_TYPE)             \
   V(OBJECT_PROPERTY_DICTIONARY_TYPE)      \
   V(OBJECT_TO_CODE_TYPE)                  \
+  V(OPTIMIZED_CODE_LITERALS_TYPE)         \
   V(OTHER_CONTEXT_TYPE)                   \
   V(PROTOTYPE_USERS_TYPE)                 \
   V(REGEXP_MULTIPLE_CACHE_TYPE)           \
