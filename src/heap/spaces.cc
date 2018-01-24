@@ -1352,12 +1352,17 @@ void Space::ResumeAllocationObservers() {
 
 void Space::AllocationStep(int bytes_since_last, Address soon_object,
                            int size) {
-  if (AllocationObserversActive()) {
-    heap()->CreateFillerObjectAt(soon_object, size, ClearRecordedSlots::kNo);
-    for (AllocationObserver* observer : allocation_observers_) {
-      observer->AllocationStep(bytes_since_last, soon_object, size);
-    }
+  if (!AllocationObserversActive()) {
+    return;
   }
+
+  DCHECK(!allocation_step_in_progress_);
+  allocation_step_in_progress_ = true;
+  heap()->CreateFillerObjectAt(soon_object, size, ClearRecordedSlots::kNo);
+  for (AllocationObserver* observer : allocation_observers_) {
+    observer->AllocationStep(bytes_since_last, soon_object, size);
+  }
+  allocation_step_in_progress_ = false;
 }
 
 intptr_t Space::GetNextInlineAllocationStepSize() {
@@ -2182,6 +2187,11 @@ bool NewSpace::EnsureAllocation(int size_in_bytes,
 }
 
 void SpaceWithLinearArea::StartNextInlineAllocationStep() {
+  if (allocation_step_in_progress_) {
+    // If we are mid-way through an existing step, don't start a new one.
+    return;
+  }
+
   if (AllocationObserversActive()) {
     top_on_previous_step_ = top();
     UpdateInlineAllocationLimit(0);
@@ -2223,6 +2233,11 @@ void SpaceWithLinearArea::InlineAllocationStep(Address top,
                                                Address top_for_next_step,
                                                Address soon_object,
                                                size_t size) {
+  if (allocation_step_in_progress_) {
+    // Avoid starting a new step if we are mid-way through an existing one.
+    return;
+  }
+
   if (top_on_previous_step_) {
     if (top < top_on_previous_step_) {
       // Generated code decreased the top pointer to do folded allocations.
