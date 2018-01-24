@@ -95,15 +95,16 @@ class DetailsSelection extends HTMLElement {
   }
 
   dataChanged() {
-    this.clearUI();
+    this.selection = {categories: {}};
+    this.resetUI(true);
     this.populateSelect(
         '#isolate-select', Object.keys(this.data).map(v => [v, v]));
     this.handleIsolateChange();
   }
 
-  clearUI() {
-    this.selection = {categories: {}};
-    removeAllChildren(this.isolateSelect);
+  resetUI(resetIsolateSelect) {
+    if (resetIsolateSelect) removeAllChildren(this.isolateSelect);
+
     removeAllChildren(this.datasetSelect);
     removeAllChildren(this.gcSelect);
     this.clearCategories();
@@ -116,7 +117,7 @@ class DetailsSelection extends HTMLElement {
       this.selection.isolate = null;
       return;
     }
-
+    this.resetUI(false);
     this.populateSelect(
         '#dataset-select',
         this.data[this.selection.isolate].data_sets.entries(), 'live');
