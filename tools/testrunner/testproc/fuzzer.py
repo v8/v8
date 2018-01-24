@@ -65,14 +65,17 @@ class FuzzerProc(base.TestProcProducer):
     self._disable_analysis = disable_analysis
     self._gens = {}
 
+    self._start_time = None
+    self._stop = False
+
   def setup(self, requirement=base.DROP_RESULT):
     # Fuzzer is optimized to not store the results
     assert requirement == base.DROP_RESULT
     super(FuzzerProc, self).setup(requirement)
 
   def _next_test(self, test):
-    if self.is_stopped:
-      return
+    if not self._start_time:
+      self._start_time = time.time()
 
     analysis_subtest = self._create_analysis_subtest(test)
     if analysis_subtest:
@@ -97,6 +100,11 @@ class FuzzerProc(base.TestProcProducer):
 
 
   def _result_for(self, test, subtest, result):
+    if self._fuzz_duration_sec and not self._stop:
+      if int(time.time() - self._start_time) > self._fuzz_duration_sec:
+        print '>>> Stopping fuzzing'
+        self._stop = True
+
     if not self._disable_analysis:
       if result is not None:
         # Analysis phase, for fuzzing we drop the result.
@@ -130,7 +138,7 @@ class FuzzerProc(base.TestProcProducer):
       return
 
     i = 0
-    while not self._count or i < self._count:
+    while (self._fuzz_duration_sec and not self._stop) or i < self._count:
       main_index = self._rng.choice(indexes)
       _, main_gen = gens[main_index]
 
@@ -147,7 +155,7 @@ class FuzzerProc(base.TestProcProducer):
       i += 1
 
   def _try_send_next_test(self, test):
-    if not self.is_stopped:
+    if not self._stop:
       for subtest in self._gens[test.procid]:
         self._send_test(subtest)
         return
