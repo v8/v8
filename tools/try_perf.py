@@ -105,10 +105,12 @@ def main():
       'update_depot_tools', shell=True, stderr=subprocess.STDOUT, cwd=V8_BASE)
 
   buildbot_bots = [bot for bot in options.bots if bot not in SWARMING_BOTS]
-  _trigger_bots('master.internal.client.v8', buildbot_bots, options)
+  if buildbot_bots:
+    _trigger_bots('master.internal.client.v8', buildbot_bots, options)
 
   swarming_bots = [bot for bot in options.bots if bot in SWARMING_BOTS]
-  _trigger_bots('luci.v8-internal', swarming_bots, options)
+  if swarming_bots:
+    _trigger_bots('luci.v8-internal', swarming_bots, options)
 
 
 if __name__ == '__main__':  # pragma: no cover
