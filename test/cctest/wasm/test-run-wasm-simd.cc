@@ -1613,7 +1613,7 @@ void RunBinaryLaneOpTest(
   }
 }
 
-WASM_SIMD_COMPILED_TEST(I32x4AddHoriz) {
+WASM_SIMD_TEST(I32x4AddHoriz) {
   RunBinaryLaneOpTest<int32_t>(lower_simd, kExprI32x4AddHoriz, {{1, 5, 9, 13}});
 }
 
