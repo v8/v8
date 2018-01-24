@@ -1135,17 +1135,15 @@ TF_BUILTIN(PromiseHandle, PromiseBuiltinsAssembler) {
 
   VARIABLE(var_reason, MachineRepresentation::kTagged);
 
-  Node* const is_debug_active = IsDebugActive();
-  Label run_handler(this), if_rejectpromise(this), promisehook_before(this),
-      promisehook_after(this), debug_pop(this);
+  Label run_handler(this), if_rejectpromise(this),
+      promisehook_before(this, Label::kDeferred),
+      promisehook_after(this, Label::kDeferred), done(this), out(this);
 
-  GotoIfNot(is_debug_active, &promisehook_before);
-  CallRuntime(Runtime::kDebugPushPromise, context, deferred_promise);
-  Goto(&promisehook_before);
+  Branch(IsPromiseHookEnabledOrDebugIsActive(), &promisehook_before,
+         &run_handler);
 
   BIND(&promisehook_before);
   {
-    GotoIfNot(IsPromiseHookEnabledOrDebugIsActive(), &run_handler);
     CallRuntime(Runtime::kPromiseHookBefore, context, deferred_promise);
     Goto(&run_handler);
   }
@@ -1191,7 +1189,7 @@ TF_BUILTIN(PromiseHandle, PromiseBuiltinsAssembler) {
 
     BIND(&if_internalhandler);
     InternalResolvePromise(context, deferred_promise, var_result.value());
-    Goto(&promisehook_after);
+    Goto(&done);
 
     BIND(&if_customhandler);
     {
@@ -1200,7 +1198,7 @@ TF_BUILTIN(PromiseHandle, PromiseBuiltinsAssembler) {
           context, deferred_on_resolve, UndefinedConstant(),
           var_result.value());
       GotoIfException(maybe_exception, &if_rejectpromise, &var_reason);
-      Goto(&promisehook_after);
+      Goto(&done);
     }
   }
 
@@ -1208,23 +1206,18 @@ TF_BUILTIN(PromiseHandle, PromiseBuiltinsAssembler) {
   {
     CallBuiltin(Builtins::kPromiseHandleReject, context, deferred_promise,
                 deferred_on_reject, var_reason.value());
-    Goto(&promisehook_after);
+    Goto(&done);
   }
 
-  BIND(&promisehook_after);
+  BIND(&done);
   {
-    GotoIfNot(IsPromiseHookEnabledOrDebugIsActive(), &debug_pop);
-    CallRuntime(Runtime::kPromiseHookAfter, context, deferred_promise);
-    Goto(&debug_pop);
-  }
+    Branch(IsPromiseHookEnabledOrDebugIsActive(), &promisehook_after, &out);
 
-  BIND(&debug_pop);
-  {
-    Label out(this);
-
-    GotoIfNot(is_debug_active, &out);
-    CallRuntime(Runtime::kDebugPopPromise, context);
-    Goto(&out);
+    BIND(&promisehook_after);
+    {
+      CallRuntime(Runtime::kPromiseHookAfter, context, deferred_promise);
+      Goto(&out);
+    }
 
     BIND(&out);
     Return(UndefinedConstant());
