@@ -145,8 +145,8 @@ class TraceFileReader extends HTMLElement {
       for (const gc of Object.keys(data[isolate].gcs)) {
         for (const data_set_key of keys[isolate]) {
           const data_set = data[isolate].gcs[gc][data_set_key];
-          // 1. Create a ranked instance type array that sorts instance
-          // types by memory size (overall).
+          // Create a ranked instance type array that sorts instance types by
+          // memory size (overall).
           data_set.ranked_instance_types =
               [...data_set.non_empty_instance_types].sort(function(a, b) {
                 if (data_set.instance_type_data[a].overall >
@@ -159,6 +159,32 @@ class TraceFileReader extends HTMLElement {
                 }
                 return 0;
               });
+
+          // Check that a lower bound for histogram memory does not exceed the
+          // overall counter.
+          const checkHistogram =
+              (type, entry, bucket_sizes, histogram, overallProperty) => {
+                let sum = 0;
+                for (let i = 1; i < entry[histogram].length; i++) {
+                  sum += entry[histogram][i] * bucket_sizes[i - 1];
+                }
+                const overall = entry[overallProperty];
+                if (sum >= overall) {
+                  console.error(
+                      `${type}: sum('${
+                                       histogram
+                                     }') > overall (${sum} > ${overall})`);
+                }
+              };
+          Object.entries(data_set.instance_type_data).forEach(([
+                                                                name, entry
+                                                              ]) => {
+            checkHistogram(
+                name, entry, data_set.bucket_sizes, 'histogram', ' overall');
+            checkHistogram(
+                name, entry, data_set.bucket_sizes, 'over_allocated_histogram',
+                ' over_allocated');
+          });
         }
       }
     }
