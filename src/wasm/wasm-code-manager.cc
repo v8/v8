@@ -30,7 +30,6 @@ namespace internal {
 namespace wasm {
 
 namespace {
-size_t native_module_ids = 0;
 
 #if V8_TARGET_ARCH_X64
 #define __ masm->
@@ -75,6 +74,7 @@ void PatchTrampolineAndStubCalls(
                                    SKIP_ICACHE_FLUSH);
   }
 }
+
 }  // namespace
 
 DisjointAllocationPool::DisjointAllocationPool(Address start, Address end) {
@@ -271,10 +271,12 @@ WasmCode::~WasmCode() {
   }
 }
 
+base::AtomicNumber<size_t> NativeModule::next_id_;
+
 NativeModule::NativeModule(uint32_t num_functions, uint32_t num_imports,
                            bool can_request_more, VirtualMemory* mem,
                            WasmCodeManager* code_manager)
-    : instance_id(native_module_ids++),
+    : instance_id(next_id_.Increment(1)),
       code_table_(num_functions),
       num_imported_functions_(num_imports),
       free_memory_(reinterpret_cast<Address>(mem->address()),
