@@ -71,7 +71,7 @@ class V8_EXPORT_PRIVATE Compiler : public AllStatic {
   static bool ParseAndAnalyze(ParseInfo* parse_info,
                               Handle<SharedFunctionInfo> shared_info,
                               Isolate* isolate);
-  // Rewrite, analyze scopes, and renumber.
+  // Rewrite and analyze scopes.
   static bool Analyze(ParseInfo* parse_info);
 
   // ===========================================================================

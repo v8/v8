@@ -564,8 +564,6 @@
         '../src/assert-scope.cc',
         '../src/ast/ast-function-literal-id-reindexer.cc',
         '../src/ast/ast-function-literal-id-reindexer.h',
-        '../src/ast/ast-numbering.cc',
-        '../src/ast/ast-numbering.h',
         '../src/ast/ast-source-ranges.h',
         '../src/ast/ast-traversal-visitor.h',
         '../src/ast/ast-value-factory.cc',

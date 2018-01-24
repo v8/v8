@@ -10,7 +10,6 @@
 #include "src/api.h"
 #include "src/asmjs/asm-js.h"
 #include "src/assembler-inl.h"
-#include "src/ast/ast-numbering.h"
 #include "src/ast/prettyprinter.h"
 #include "src/ast/scopes.h"
 #include "src/base/optional.h"
@@ -368,16 +367,6 @@ CompilationJob::Status FinalizeUnoptimizedCompilationJob(CompilationJob* job,
     job->RecordUnoptimizedCompilationStats(isolate);
   }
   return status;
-}
-
-bool Renumber(ParseInfo* parse_info) {
-  RuntimeCallTimerScope runtimeTimer(
-      parse_info->runtime_call_stats(),
-      parse_info->on_background_thread()
-          ? RuntimeCallCounterId::kCompileBackgroundRenumber
-          : RuntimeCallCounterId::kCompileRenumber);
-  return AstNumbering::Renumber(parse_info->stack_limit(), parse_info->zone(),
-                                parse_info->literal());
 }
 
 std::unique_ptr<CompilationJob> PrepareAndExecuteUnoptimizedCompileJobs(
@@ -867,7 +856,6 @@ bool Compiler::Analyze(ParseInfo* parse_info) {
           : RuntimeCallCounterId::kCompileAnalyse);
   if (!Rewriter::Rewrite(parse_info)) return false;
   DeclarationScope::Analyze(parse_info);
-  if (!Renumber(parse_info)) return false;
   return true;
 }
 
