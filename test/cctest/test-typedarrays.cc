@@ -108,6 +108,7 @@ void TestSpeciesProtector(char* code,
       CompileRun(("let constructor = " + constructor + ";").c_str());
       v8::Local<v8::Value> constructor_obj = CompileRun(constructor.c_str());
       CHECK_EQ(constructor_obj, CompileRun("x.slice().constructor"));
+      CHECK_EQ(constructor_obj, CompileRun("x.subarray().constructor"));
       CHECK_EQ(constructor_obj, CompileRun("x.map(()=>{}).constructor"));
       std::string decl = "class MyTypedArray extends " + constructor + " { }";
       CompileRun(decl.c_str());
@@ -124,6 +125,7 @@ void TestSpeciesProtector(char* code,
 
       v8::Local<v8::Value> my_typed_array = CompileRun("MyTypedArray");
       CHECK_EQ(my_typed_array, CompileRun("x.slice().constructor"));
+      CHECK_EQ(my_typed_array, CompileRun("x.subarray().constructor"));
       CHECK_EQ(my_typed_array, CompileRun("x.map(()=>{}).constructor"));
     }
     isolate->Exit();

@@ -223,6 +223,11 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
   // Select the minimum of the two provided Number values.
   TNode<Object> NumberMin(SloppyTNode<Object> left, SloppyTNode<Object> right);
 
+  // After converting an index to an integer, calculate a relative index: if
+  // index < 0, max(length + index, 0); else min(index, length)
+  void ConvertToRelativeIndex(Node* context, Variable* var_result, Node* index,
+                              Node* length);
+
   // Tag a Word as a Smi value.
   TNode<Smi> SmiTag(SloppyTNode<IntPtrT> value);
   // Untag a Smi value as a Word.
@@ -1125,6 +1130,8 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
   Node* IsPropertyArray(Node* object);
   Node* IsPropertyCell(Node* object);
   Node* IsPrototypeInitialArrayPrototype(Node* context, Node* map);
+  TNode<BoolT> IsPrototypeTypedArrayPrototype(SloppyTNode<Context> context,
+                                              SloppyTNode<Map> map);
   Node* IsSequentialStringInstanceType(Node* instance_type);
   Node* IsShortExternalStringInstanceType(Node* instance_type);
   Node* IsSpecialReceiverInstanceType(Node* instance_type);

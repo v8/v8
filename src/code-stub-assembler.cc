@@ -581,6 +581,43 @@ TNode<Object> CodeStubAssembler::NumberMin(SloppyTNode<Object> a,
   return TNode<Object>::UncheckedCast(result.value());
 }
 
+void CodeStubAssembler::ConvertToRelativeIndex(Node* context,
+                                               Variable* var_result,
+                                               Node* index, Node* length) {
+  TNode<Object> const index_int =
+      ToInteger(context, index, CodeStubAssembler::kTruncateMinusZero);
+  TNode<Smi> const zero = SmiConstant(0);
+
+  Label done(this);
+  Label if_issmi(this), if_isheapnumber(this, Label::kDeferred);
+  Branch(TaggedIsSmi(index_int), &if_issmi, &if_isheapnumber);
+
+  BIND(&if_issmi);
+  {
+    TNode<Smi> const start_int_smi = CAST(index_int);
+    var_result->Bind(
+        Select(SmiLessThan(start_int_smi, zero),
+               [&] { return SmiMax(SmiAdd(length, start_int_smi), zero); },
+               [&] { return SmiMin(start_int_smi, length); },
+               MachineRepresentation::kTagged));
+    Goto(&done);
+  }
+
+  BIND(&if_isheapnumber);
+  {
+    // If {index} is a heap number, it is definitely out of bounds. If it is
+    // negative, {index} = max({length} + {index}),0) = 0'. If it is positive,
+    // set {index} to {length}.
+    TNode<HeapNumber> const start_int_hn = CAST(index_int);
+    TNode<Float64T> const float_zero = Float64Constant(0.);
+    TNode<Float64T> const start_float = LoadHeapNumberValue(start_int_hn);
+    var_result->Bind(SelectTaggedConstant<Smi>(
+        Float64LessThan(start_float, float_zero), zero, length));
+    Goto(&done);
+  }
+  BIND(&done);
+}
+
 Node* CodeStubAssembler::SmiMod(Node* a, Node* b) {
   VARIABLE(var_result, MachineRepresentation::kTagged);
   Label return_result(this, &var_result),
@@ -4088,6 +4125,18 @@ Node* CodeStubAssembler::IsPrototypeInitialArrayPrototype(Node* context,
       native_context, Context::INITIAL_ARRAY_PROTOTYPE_INDEX);
   Node* proto = LoadMapPrototype(map);
   return WordEqual(proto, initial_array_prototype);
+}
+
+TNode<BoolT> CodeStubAssembler::IsPrototypeTypedArrayPrototype(
+    SloppyTNode<Context> context, SloppyTNode<Map> map) {
+  TNode<Context> const native_context = LoadNativeContext(context);
+  TNode<Object> const typed_array_prototype =
+      LoadContextElement(native_context, Context::TYPED_ARRAY_PROTOTYPE_INDEX);
+  TNode<Object> proto = LoadMapPrototype(map);
+  TNode<Object> proto_of_proto = Select<Object>(
+      IsJSObject(proto), [=] { return LoadMapPrototype(LoadMap(CAST(proto))); },
+      [=] { return NullConstant(); }, MachineRepresentation::kTagged);
+  return WordEqual(proto_of_proto, typed_array_prototype);
 }
 
 Node* CodeStubAssembler::IsCallable(Node* object) {
