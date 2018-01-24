@@ -141,6 +141,7 @@
   V(JSCreateGeneratorObject)    \
   V(JSCreateIterResultObject)   \
   V(JSCreateKeyValueArray)      \
+  V(JSCreatePromise)            \
   V(JSCreateLiteralArray)       \
   V(JSCreateEmptyLiteralArray)  \
   V(JSCreateLiteralObject)      \

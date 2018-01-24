@@ -656,6 +656,7 @@ class V8_EXPORT_PRIVATE JSOperatorBuilder final
                                 PretenureFlag pretenure);
   const Operator* CreateIterResultObject();
   const Operator* CreateKeyValueArray();
+  const Operator* CreatePromise();
   const Operator* CreateLiteralArray(Handle<ConstantElementsPair> constant,
                                      VectorSlotPair const& feedback,
                                      int literal_flags, int number_of_elements);

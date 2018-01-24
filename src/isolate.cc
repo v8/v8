@@ -3368,6 +3368,15 @@ bool Isolate::IsIsConcatSpreadableLookupChainIntact(JSReceiver* receiver) {
   return !receiver->HasProxyInPrototype(this);
 }
 
+bool Isolate::IsPromiseHookProtectorIntact() {
+  PropertyCell* promise_hook_cell = heap()->promise_hook_protector();
+  bool is_promise_hook_protector_intact =
+      Smi::ToInt(promise_hook_cell->value()) == kProtectorValid;
+  DCHECK_IMPLIES(is_promise_hook_protector_intact,
+                 !promise_hook_or_debug_is_active_);
+  return is_promise_hook_protector_intact;
+}
+
 void Isolate::UpdateNoElementsProtectorOnSetElement(Handle<JSObject> object) {
   DisallowHeapAllocation no_gc;
   if (!object->map()->is_prototype_map()) return;
@@ -3425,6 +3434,15 @@ void Isolate::InvalidateArrayBufferNeuteringProtector() {
       factory()->array_buffer_neutering_protector(),
       handle(Smi::FromInt(kProtectorInvalid), this));
   DCHECK(!IsArrayBufferNeuteringIntact());
+}
+
+void Isolate::InvalidatePromiseHookProtector() {
+  DCHECK(factory()->promise_hook_protector()->value()->IsSmi());
+  DCHECK(IsPromiseHookProtectorIntact());
+  PropertyCell::SetValueWithInvalidation(
+      factory()->promise_hook_protector(),
+      handle(Smi::FromInt(kProtectorInvalid), this));
+  DCHECK(!IsPromiseHookProtectorIntact());
 }
 
 bool Isolate::IsAnyInitialArrayPrototype(Handle<JSArray> array) {
@@ -3588,7 +3606,11 @@ void Isolate::FireCallCompletedCallback() {
 }
 
 void Isolate::DebugStateUpdated() {
-  promise_hook_or_debug_is_active_ = promise_hook_ || debug()->is_active();
+  bool promise_hook_or_debug_is_active = promise_hook_ || debug()->is_active();
+  if (promise_hook_or_debug_is_active && IsPromiseHookProtectorIntact()) {
+    InvalidatePromiseHookProtector();
+  }
+  promise_hook_or_debug_is_active_ = promise_hook_or_debug_is_active;
 }
 
 namespace {

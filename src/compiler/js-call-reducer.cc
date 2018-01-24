@@ -2964,6 +2964,10 @@ Reduction JSCallReducer::ReduceJSCall(Node* node) {
           return ReduceStringPrototypeStringAt(
               simplified()->StringCodePointAt(), jsgraph()->UndefinedConstant(),
               node);
+        case Builtins::kAsyncFunctionPromiseCreate:
+          return ReduceAsyncFunctionPromiseCreate(node);
+        case Builtins::kAsyncFunctionPromiseRelease:
+          return ReduceAsyncFunctionPromiseRelease(node);
         default:
           break;
       }
@@ -3914,6 +3918,38 @@ Reduction JSCallReducer::ReduceStringPrototypeStringAt(
   effect = graph()->NewNode(common()->EffectPhi(2), etrue, effect, control);
 
   ReplaceWithValue(node, value, effect, control);
+  return Replace(value);
+}
+
+Reduction JSCallReducer::ReduceAsyncFunctionPromiseCreate(Node* node) {
+  DCHECK_EQ(IrOpcode::kJSCall, node->opcode());
+  Node* context = NodeProperties::GetContextInput(node);
+  Node* effect = NodeProperties::GetEffectInput(node);
+  if (!isolate()->IsPromiseHookProtectorIntact()) return NoChange();
+
+  // Install a code dependency on the promise hook protector cell.
+  dependencies()->AssumePropertyCell(factory()->promise_hook_protector());
+
+  // Morph this {node} into a JSCreatePromise node.
+  RelaxControls(node);
+  node->ReplaceInput(0, context);
+  node->ReplaceInput(1, effect);
+  node->TrimInputCount(2);
+  NodeProperties::ChangeOp(node, javascript()->CreatePromise());
+  return Changed(node);
+}
+
+Reduction JSCallReducer::ReduceAsyncFunctionPromiseRelease(Node* node) {
+  DCHECK_EQ(IrOpcode::kJSCall, node->opcode());
+  if (!isolate()->IsPromiseHookProtectorIntact()) return NoChange();
+
+  // Install a code dependency on the promise hook protector cell.
+  dependencies()->AssumePropertyCell(factory()->promise_hook_protector());
+
+  // The AsyncFunctionPromiseRelease builtin is a no-op as long as neither
+  // the debugger is active nor any promise hook has been installed (ever).
+  Node* value = jsgraph()->UndefinedConstant();
+  ReplaceWithValue(node, value);
   return Replace(value);
 }
 
