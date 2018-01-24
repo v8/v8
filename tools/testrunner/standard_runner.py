@@ -106,7 +106,7 @@ _RE_TYPE = type(re.compile(''))
 # Specifies which architectures are whitelisted to use the staging test-runner.
 # List of arch strings, e.g. "x64".
 ARCH_WHITELIST_STAGING = [
-
+  'x64',
 ]
 
 class StandardTestRunner(base_runner.BaseTestRunner):
