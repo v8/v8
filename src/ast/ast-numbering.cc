@@ -14,9 +14,7 @@ namespace internal {
 
 class AstNumberingVisitor final : public AstVisitor<AstNumberingVisitor> {
  public:
-  AstNumberingVisitor(uintptr_t stack_limit, Zone* zone,
-                      Compiler::EagerInnerFunctionLiterals* eager_literals)
-      : zone_(zone), eager_literals_(eager_literals) {
+  AstNumberingVisitor(uintptr_t stack_limit, Zone* zone) : zone_(zone) {
     InitializeAstVisitor(stack_limit);
   }
 
@@ -39,7 +37,6 @@ class AstNumberingVisitor final : public AstVisitor<AstNumberingVisitor> {
   Zone* zone() const { return zone_; }
 
   Zone* zone_;
-  Compiler::EagerInnerFunctionLiterals* eager_literals_;
   FunctionKind function_kind_;
 
   DEFINE_AST_VISITOR_SUBCLASS_MEMBERS();
@@ -351,14 +348,9 @@ void AstNumberingVisitor::VisitArguments(ZoneList<Expression*>* arguments) {
 
 void AstNumberingVisitor::VisitFunctionLiteral(FunctionLiteral* node) {
   if (node->ShouldEagerCompile()) {
-    if (eager_literals_) {
-      eager_literals_->Add(new (zone())
-                               ThreadedListZoneEntry<FunctionLiteral*>(node));
-    }
-
     // If the function literal is being eagerly compiled, recurse into the
     // declarations and body of the function literal.
-    if (!AstNumbering::Renumber(stack_limit_, zone_, node, eager_literals_)) {
+    if (!AstNumbering::Renumber(stack_limit_, zone_, node)) {
       SetStackOverflow();
       return;
     }
@@ -381,14 +373,13 @@ bool AstNumberingVisitor::Renumber(FunctionLiteral* node) {
   return !HasStackOverflow();
 }
 
-bool AstNumbering::Renumber(
-    uintptr_t stack_limit, Zone* zone, FunctionLiteral* function,
-    Compiler::EagerInnerFunctionLiterals* eager_literals) {
+bool AstNumbering::Renumber(uintptr_t stack_limit, Zone* zone,
+                            FunctionLiteral* function) {
   DisallowHeapAllocation no_allocation;
   DisallowHandleAllocation no_handles;
   DisallowHandleDereference no_deref;
 
-  AstNumberingVisitor visitor(stack_limit, zone, eager_literals);
+  AstNumberingVisitor visitor(stack_limit, zone);
   return visitor.Renumber(function);
 }
 }  // namespace internal

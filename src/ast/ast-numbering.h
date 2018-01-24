@@ -14,21 +14,12 @@ namespace internal {
 class FunctionLiteral;
 class Isolate;
 class Zone;
-template <typename T>
-class ThreadedList;
-template <typename T>
-class ThreadedListZoneEntry;
-template <typename T>
-class ZoneVector;
 
 namespace AstNumbering {
 // Assign bailout IDs, and generator suspend IDs to an AST node tree; perform
-// catch prediction for TryStatements. If |eager_literals| is non-null, adds any
-// eager inner literal functions into it.
-bool Renumber(
-    uintptr_t stack_limit, Zone* zone, FunctionLiteral* function,
-    ThreadedList<ThreadedListZoneEntry<FunctionLiteral*>>* eager_literals);
-}
+// catch prediction for TryStatements.
+bool Renumber(uintptr_t stack_limit, Zone* zone, FunctionLiteral* function);
+}  // namespace AstNumbering
 
 // Some details on suspend IDs
 // -------------------------

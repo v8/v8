@@ -28,8 +28,9 @@ class BytecodeJumpTable;
 
 class BytecodeGenerator final : public AstVisitor<BytecodeGenerator> {
  public:
-  explicit BytecodeGenerator(CompilationInfo* info,
-                             const AstStringConstants* ast_string_constants);
+  explicit BytecodeGenerator(
+      CompilationInfo* info, const AstStringConstants* ast_string_constants,
+      ZoneVector<FunctionLiteral*>* eager_inner_literals);
 
   void GenerateBytecode(uintptr_t stack_limit);
   Handle<BytecodeArray> FinalizeBytecode(Isolate* isolate,
@@ -260,6 +261,8 @@ class BytecodeGenerator final : public AstVisitor<BytecodeGenerator> {
                                          Variable* variable);
   FeedbackSlot GetCachedCreateClosureSlot(FunctionLiteral* literal);
 
+  void AddToEagerLiteralsIfEager(FunctionLiteral* literal);
+
   static constexpr ToBooleanMode ToBooleanModeFromTypeHint(TypeHint type_hint) {
     return type_hint == TypeHint::kBoolean ? ToBooleanMode::kAlreadyBoolean
                                            : ToBooleanMode::kConvertToBoolean;
@@ -320,6 +323,9 @@ class BytecodeGenerator final : public AstVisitor<BytecodeGenerator> {
   const AstStringConstants* ast_string_constants_;
   DeclarationScope* closure_scope_;
   Scope* current_scope_;
+
+  // External vector of literals to be eagerly compiled.
+  ZoneVector<FunctionLiteral*>* eager_inner_literals_;
 
   FeedbackSlotCache* feedback_slot_cache_;
 

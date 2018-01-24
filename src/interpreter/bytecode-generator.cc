@@ -853,8 +853,22 @@ class BytecodeGenerator::IteratorRecord final {
   Register next_;
 };
 
+#ifdef DEBUG
+
+static bool IsInEagerLiterals(
+    FunctionLiteral* literal,
+    const ZoneVector<FunctionLiteral*>& eager_literals) {
+  for (FunctionLiteral* eager_literal : eager_literals) {
+    if (literal == eager_literal) return true;
+  }
+  return false;
+}
+
+#endif  // DEBUG
+
 BytecodeGenerator::BytecodeGenerator(
-    CompilationInfo* info, const AstStringConstants* ast_string_constants)
+    CompilationInfo* info, const AstStringConstants* ast_string_constants,
+    ZoneVector<FunctionLiteral*>* eager_inner_literals)
     : zone_(info->zone()),
       builder_(zone(), info->num_parameters_including_this(),
                info->scope()->num_stack_slots(), info->feedback_vector_spec(),
@@ -863,6 +877,7 @@ BytecodeGenerator::BytecodeGenerator(
       ast_string_constants_(ast_string_constants),
       closure_scope_(info->scope()),
       current_scope_(info->scope()),
+      eager_inner_literals_(eager_inner_literals),
       feedback_slot_cache_(new (zone()) FeedbackSlotCache(zone())),
       globals_builder_(new (zone()) GlobalDeclarationsBuilder(zone())),
       block_coverage_builder_(nullptr),
@@ -1225,6 +1240,7 @@ void BytecodeGenerator::VisitFunctionDeclaration(FunctionDeclaration* decl) {
       FeedbackSlot literal_slot = GetCachedCreateClosureSlot(decl->fun());
       globals_builder()->AddFunctionDeclaration(variable->raw_name(), slot,
                                                 literal_slot, decl->fun());
+      AddToEagerLiteralsIfEager(decl->fun());
       break;
     }
     case VariableLocation::PARAMETER:
@@ -1257,6 +1273,8 @@ void BytecodeGenerator::VisitFunctionDeclaration(FunctionDeclaration* decl) {
       BuildVariableAssignment(variable, Token::INIT, HoleCheckMode::kElided);
       break;
   }
+  DCHECK_IMPLIES(decl->fun()->ShouldEagerCompile(),
+                 IsInEagerLiterals(decl->fun(), *eager_inner_literals_));
 }
 
 void BytecodeGenerator::VisitModuleNamespaceImports() {
@@ -1783,6 +1801,14 @@ void BytecodeGenerator::VisitFunctionLiteral(FunctionLiteral* expr) {
   FeedbackSlot slot = GetCachedCreateClosureSlot(expr);
   builder()->CreateClosure(entry, feedback_index(slot), flags);
   function_literals_.push_back(std::make_pair(expr, entry));
+  AddToEagerLiteralsIfEager(expr);
+}
+
+void BytecodeGenerator::AddToEagerLiteralsIfEager(FunctionLiteral* literal) {
+  if (eager_inner_literals_ && literal->ShouldEagerCompile()) {
+    DCHECK(!IsInEagerLiterals(literal, *eager_inner_literals_));
+    eager_inner_literals_->push_back(literal);
+  }
 }
 
 void BytecodeGenerator::BuildClassLiteral(ClassLiteral* expr) {
