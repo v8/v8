@@ -99,6 +99,9 @@ class StackTransferRecipe {
           LoadStackSlot(register_moves_.back().dst, next_spill_slot, rm.type);
           DCHECK_EQ(1, src_reg_use_count[spill_reg.liftoff_code()]);
           src_reg_use_count[spill_reg.liftoff_code()] = 0;
+          if (next_spill_slot > max_used_spill_slot_) {
+            max_used_spill_slot_ = next_spill_slot;
+          }
           ++next_spill_slot;
           executed_moves = 1;
         }
@@ -182,6 +185,8 @@ class StackTransferRecipe {
     register_loads_.emplace_back(dst, stack_index, type);
   }
 
+  uint32_t max_used_spill_slot() const { return max_used_spill_slot_; }
+
  private:
   // TODO(clemensh): Avoid unconditionally allocating on the heap.
   std::vector<RegisterMove> register_moves_;
@@ -189,6 +194,7 @@ class StackTransferRecipe {
   LiftoffRegList move_dst_regs_;
   LiftoffRegList move_src_regs_;
   LiftoffAssembler* const asm_;
+  uint32_t max_used_spill_slot_ = 0;
 };
 
 static constexpr ValueType kWasmIntPtr =
@@ -391,6 +397,7 @@ void LiftoffAssembler::SpillAllRegisters() {
 
 void LiftoffAssembler::PrepareCall(wasm::FunctionSig* sig,
                                    compiler::CallDescriptor* call_desc,
+                                   uint32_t* max_used_spill_slot,
                                    Register* target) {
   uint32_t num_params = static_cast<uint32_t>(sig->parameter_count());
   // Parameter 0 is the wasm context.
@@ -461,6 +468,10 @@ void LiftoffAssembler::PrepareCall(wasm::FunctionSig* sig,
 
   // Execute the stack transfers before filling the context register.
   stack_transfers.Execute();
+
+  // Record the maximum used stack slot index, such that we can bail out if the
+  // stack grew too large.
+  *max_used_spill_slot = stack_transfers.max_used_spill_slot();
 
   // Reset register use counters.
   cache_state_.reset_used_registers();

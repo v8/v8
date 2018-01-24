@@ -604,8 +604,9 @@ void LiftoffAssembler::CallRuntime(Zone* zone, Runtime::FunctionId fid) {
 
 void LiftoffAssembler::CallIndirect(wasm::FunctionSig* sig,
                                     compiler::CallDescriptor* call_desc,
-                                    Register target) {
-  PrepareCall(sig, call_desc, &target);
+                                    Register target,
+                                    uint32_t* max_used_spill_slot) {
+  PrepareCall(sig, call_desc, max_used_spill_slot, &target);
   if (target == no_reg) {
     add(esp, Immediate(kPointerSize));
     call(Operand(esp, -4));

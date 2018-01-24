@@ -963,7 +963,12 @@ class LiftoffCompiler {
     compiler::CallDescriptor* call_desc =
         compiler::GetWasmCallDescriptor(compilation_zone_, operand.sig);
 
-    __ PrepareCall(operand.sig, call_desc);
+    uint32_t max_used_spill_slot = 0;
+    __ PrepareCall(operand.sig, call_desc, &max_used_spill_slot);
+    if (max_used_spill_slot >
+        __ num_locals() + LiftoffAssembler::kMaxValueStackHeight) {
+      unsupported(decoder, "value stack grows too large in call");
+    }
 
     source_position_table_builder_->AddPosition(
         __ pc_offset(), SourcePosition(decoder->position()), false);
@@ -1076,7 +1081,12 @@ class LiftoffCompiler {
     compiler::CallDescriptor* call_desc =
         compiler::GetWasmCallDescriptor(compilation_zone_, operand.sig);
 
-    __ CallIndirect(operand.sig, call_desc, scratch.gp());
+    uint32_t max_used_spill_slot = 0;
+    __ CallIndirect(operand.sig, call_desc, scratch.gp(), &max_used_spill_slot);
+    if (max_used_spill_slot >
+        __ num_locals() + LiftoffAssembler::kMaxValueStackHeight) {
+      unsupported(decoder, "value stack grows too large in indirect call");
+    }
 
     safepoint_table_builder_.DefineSafepoint(asm_, Safepoint::kSimple, 0,
                                              Safepoint::kNoLazyDeopt);

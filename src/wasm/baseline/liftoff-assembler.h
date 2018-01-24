@@ -271,8 +271,10 @@ class LiftoffAssembler : public TurboAssembler {
   // Load parameters into the right registers / stack slots for the call.
   // Move {*target} into another register if needed and update {*target} to that
   // register, or {no_reg} if target was spilled to the stack.
+  // TODO(clemensh): Remove {max_used_spill_slot} once we support arbitrary
+  // stack sizes.
   void PrepareCall(wasm::FunctionSig*, compiler::CallDescriptor*,
-                   Register* target = nullptr);
+                   uint32_t* max_used_spill_slot, Register* target = nullptr);
   // Process return values of the call.
   void FinishCall(wasm::FunctionSig*, compiler::CallDescriptor*);
 
@@ -365,9 +367,11 @@ class LiftoffAssembler : public TurboAssembler {
 
   inline void CallNativeWasmCode(Address addr);
   inline void CallRuntime(Zone* zone, Runtime::FunctionId fid);
+  // TODO(clemensh): Remove {max_used_spill_slot} once we support arbitrary
+  // stack sizes.
   inline void CallIndirect(wasm::FunctionSig* sig,
-                           compiler::CallDescriptor* call_desc,
-                           Register target);
+                           compiler::CallDescriptor* call_desc, Register target,
+                           uint32_t* max_used_spill_slot);
 
   // Reserve space in the current frame, store address to space in {addr}.
   inline void AllocateStackSlot(Register addr, uint32_t size);
