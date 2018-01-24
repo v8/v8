@@ -2828,13 +2828,29 @@ void BytecodeGraphBuilder::VisitSwitchOnGeneratorState() {
   Node* generator =
       environment()->LookupRegister(bytecode_iterator().GetRegisterOperand(0));
 
-  Node* generator_state =
-      NewNode(javascript()->GeneratorRestoreContinuation(), generator);
+  Node* generator_is_undefined =
+      NewNode(simplified()->ReferenceEqual(), generator,
+              jsgraph()->UndefinedConstant());
 
-  environment()->BindGeneratorState(generator_state);
+  NewBranch(generator_is_undefined);
+  {
+    SubEnvironment resume_env(this);
+    NewIfFalse();
 
-  BuildSwitchOnGeneratorState(bytecode_analysis()->resume_jump_targets(),
-                              false);
+    Node* generator_state =
+        NewNode(javascript()->GeneratorRestoreContinuation(), generator);
+    environment()->BindGeneratorState(generator_state);
+
+    Node* generator_context =
+        NewNode(javascript()->GeneratorRestoreContext(), generator);
+    environment()->SetContext(generator_context);
+
+    BuildSwitchOnGeneratorState(bytecode_analysis()->resume_jump_targets(),
+                                false);
+  }
+
+  // Fallthrough for the first-call case.
+  NewIfTrue();
 }
 
 void BytecodeGraphBuilder::VisitResumeGenerator() {

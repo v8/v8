@@ -3110,19 +3110,26 @@ IGNITION_HANDLER(SuspendGenerator, InterpreterAssembler) {
 
 // SwitchOnGeneratorState <generator> <table_start> <table_length>
 //
-// Loads the |generator|'s state and stores it in the accumulator, before
-// overwriting it with kGeneratorExecuting. Then, jumps to the appropriate
-// resume bytecode, by looking up the generator state in a jump table in the
+// If |generator| is undefined, falls through. Otherwise, loads the
+// generator's state (overwriting it with kGeneratorExecuting), sets the context
+// to the generator's resume context, and performs state dispatch on the
+// generator's state by looking up the generator state in a jump table in the
 // constant pool, starting at |table_start|, and of length |table_length|.
 IGNITION_HANDLER(SwitchOnGeneratorState, InterpreterAssembler) {
   Node* generator_reg = BytecodeOperandReg(0);
   Node* generator = LoadRegister(generator_reg);
+
+  Label fallthrough(this);
+  GotoIf(WordEqual(generator, UndefinedConstant()), &fallthrough);
 
   Node* state =
       LoadObjectField(generator, JSGeneratorObject::kContinuationOffset);
   Node* new_state = SmiConstant(JSGeneratorObject::kGeneratorExecuting);
   StoreObjectField(generator, JSGeneratorObject::kContinuationOffset,
                    new_state);
+
+  Node* context = LoadObjectField(generator, JSGeneratorObject::kContextOffset);
+  SetContext(context);
 
   Node* table_start = BytecodeOperandIdx(1);
   // TODO(leszeks): table_length is only used for a CSA_ASSERT, we don't
@@ -3141,6 +3148,9 @@ IGNITION_HANDLER(SwitchOnGeneratorState, InterpreterAssembler) {
   Node* entry = IntPtrAdd(table_start, case_value);
   Node* relative_jump = LoadAndUntagConstantPoolEntry(entry);
   Jump(relative_jump);
+
+  BIND(&fallthrough);
+  Dispatch();
 }
 
 // ResumeGenerator <generator> <first output register> <register count>

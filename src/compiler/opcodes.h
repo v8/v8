@@ -191,6 +191,7 @@
   V(JSStoreModule)                     \
   V(JSGeneratorStore)                  \
   V(JSGeneratorRestoreContinuation)    \
+  V(JSGeneratorRestoreContext)         \
   V(JSGeneratorRestoreRegister)        \
   V(JSGeneratorRestoreInputOrDebugPos) \
   V(JSStackCheck)                      \

@@ -1822,6 +1822,10 @@ Type* Typer::Visitor::TypeJSGeneratorRestoreContinuation(Node* node) {
   return Type::SignedSmall();
 }
 
+Type* Typer::Visitor::TypeJSGeneratorRestoreContext(Node* node) {
+  return Type::Any();
+}
+
 Type* Typer::Visitor::TypeJSGeneratorRestoreRegister(Node* node) {
   return Type::Any();
 }

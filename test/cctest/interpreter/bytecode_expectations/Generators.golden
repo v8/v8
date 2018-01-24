@@ -13,12 +13,8 @@ snippet: "
 "
 frame size: 3
 parameter count: 1
-bytecode array length: 54
+bytecode array length: 44
 bytecodes: [
-                B(Ldar), R(0),
-                B(JumpIfUndefined), U8(12),
-                B(InvokeIntrinsic), U8(Runtime::k_GeneratorGetContext), R(0), U8(1),
-                B(PushContext), R(1),
                 B(SwitchOnGeneratorState), R(0), U8(0), U8(1),
                 B(Mov), R(closure), R(1),
                 B(Mov), R(this), R(2),
@@ -52,12 +48,8 @@ snippet: "
 "
 frame size: 3
 parameter count: 1
-bytecode array length: 90
+bytecode array length: 80
 bytecodes: [
-                B(Ldar), R(0),
-                B(JumpIfUndefined), U8(12),
-                B(InvokeIntrinsic), U8(Runtime::k_GeneratorGetContext), R(0), U8(1),
-                B(PushContext), R(1),
                 B(SwitchOnGeneratorState), R(0), U8(0), U8(2),
                 B(Mov), R(closure), R(1),
                 B(Mov), R(this), R(2),
@@ -108,12 +100,8 @@ snippet: "
 "
 frame size: 17
 parameter count: 1
-bytecode array length: 346
+bytecode array length: 336
 bytecodes: [
-                B(Ldar), R(2),
-                B(JumpIfUndefined), U8(12),
-                B(InvokeIntrinsic), U8(Runtime::k_GeneratorGetContext), R(2), U8(1),
-                B(PushContext), R(11),
                 B(SwitchOnGeneratorState), R(2), U8(0), U8(2),
                 B(Mov), R(closure), R(11),
                 B(Mov), R(this), R(12),
@@ -271,9 +259,9 @@ constant pool: [
   Smi [9],
 ]
 handlers: [
-  [58, 215, 223],
-  [61, 179, 181],
-  [284, 294, 296],
+  [48, 205, 213],
+  [51, 169, 171],
+  [274, 284, 286],
 ]
 
 ---
@@ -284,12 +272,8 @@ snippet: "
 "
 frame size: 9
 parameter count: 1
-bytecode array length: 227
+bytecode array length: 217
 bytecodes: [
-                B(Ldar), R(0),
-                B(JumpIfUndefined), U8(12),
-                B(InvokeIntrinsic), U8(Runtime::k_GeneratorGetContext), R(0), U8(1),
-                B(PushContext), R(1),
                 B(SwitchOnGeneratorState), R(0), U8(0), U8(2),
                 B(Mov), R(closure), R(1),
                 B(Mov), R(this), R(2),

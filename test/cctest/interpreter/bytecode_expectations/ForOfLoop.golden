@@ -619,12 +619,8 @@ snippet: "
 "
 frame size: 19
 parameter count: 2
-bytecode array length: 308
+bytecode array length: 298
 bytecodes: [
-                B(Ldar), R(3),
-                B(JumpIfUndefined), U8(12),
-                B(InvokeIntrinsic), U8(Runtime::k_GeneratorGetContext), R(3), U8(1),
-                B(PushContext), R(12),
                 B(SwitchOnGeneratorState), R(3), U8(0), U8(1),
                 B(CreateFunctionContext), U8(1),
                 B(PushContext), R(12),
@@ -764,9 +760,9 @@ constant pool: [
   ONE_BYTE_INTERNALIZED_STRING_TYPE [""],
 ]
 handlers: [
-  [66, 184, 192],
-  [69, 148, 150],
-  [252, 262, 264],
+  [56, 174, 182],
+  [59, 138, 140],
+  [242, 252, 254],
 ]
 
 ---
@@ -778,12 +774,8 @@ snippet: "
 "
 frame size: 18
 parameter count: 2
-bytecode array length: 352
+bytecode array length: 342
 bytecodes: [
-                B(Ldar), R(2),
-                B(JumpIfUndefined), U8(12),
-                B(InvokeIntrinsic), U8(Runtime::k_GeneratorGetContext), R(2), U8(1),
-                B(PushContext), R(11),
                 B(SwitchOnGeneratorState), R(2), U8(0), U8(2),
                 B(CreateFunctionContext), U8(1),
                 B(PushContext), R(11),
@@ -944,9 +936,9 @@ constant pool: [
   Smi [9],
 ]
 handlers: [
-  [66, 221, 229],
-  [69, 185, 187],
-  [290, 300, 302],
+  [56, 211, 219],
+  [59, 175, 177],
+  [280, 290, 292],
 ]
 
 ---
@@ -1156,12 +1148,8 @@ snippet: "
 "
 frame size: 24
 parameter count: 2
-bytecode array length: 433
+bytecode array length: 423
 bytecodes: [
-                B(Ldar), R(2),
-                B(JumpIfUndefined), U8(12),
-                B(InvokeIntrinsic), U8(Runtime::k_GeneratorGetContext), R(2), U8(1),
-                B(PushContext), R(12),
                 B(SwitchOnGeneratorState), R(2), U8(0), U8(1),
                 B(CreateFunctionContext), U8(1),
                 B(PushContext), R(12),
@@ -1361,10 +1349,10 @@ constant pool: [
   Smi [9],
 ]
 handlers: [
-  [44, 392, 400],
-  [47, 350, 352],
-  [53, 210, 218],
-  [56, 170, 172],
-  [278, 288, 290],
+  [34, 382, 390],
+  [37, 340, 342],
+  [43, 200, 208],
+  [46, 160, 162],
+  [268, 278, 280],
 ]
 

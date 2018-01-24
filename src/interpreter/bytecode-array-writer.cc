@@ -159,7 +159,6 @@ void BytecodeArrayWriter::UpdateExitSeenInBlock(Bytecode bytecode) {
     case Bytecode::kJump:
     case Bytecode::kJumpConstant:
     case Bytecode::kSuspendGenerator:
-    case Bytecode::kSwitchOnGeneratorState:
       exit_seen_in_block_ = true;
       break;
     default:

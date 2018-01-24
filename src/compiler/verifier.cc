@@ -831,6 +831,10 @@ void Verifier::Visitor::Check(Node* node, const AllNodes& all) {
       CheckTypeIs(node, Type::SignedSmall());
       break;
 
+    case IrOpcode::kJSGeneratorRestoreContext:
+      CheckTypeIs(node, Type::Any());
+      break;
+
     case IrOpcode::kJSGeneratorRestoreRegister:
       CheckTypeIs(node, Type::Any());
       break;

@@ -744,6 +744,8 @@ class V8_EXPORT_PRIVATE JSOperatorBuilder final
 
   // Used to implement Ignition's SwitchOnGeneratorState bytecode.
   const Operator* GeneratorRestoreContinuation();
+  const Operator* GeneratorRestoreContext();
+
   // Used to implement Ignition's ResumeGenerator bytecode.
   const Operator* GeneratorRestoreRegister(int index);
   const Operator* GeneratorRestoreInputOrDebugPos();

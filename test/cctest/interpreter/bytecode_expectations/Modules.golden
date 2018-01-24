@@ -13,12 +13,8 @@ snippet: "
 "
 frame size: 5
 parameter count: 2
-bytecode array length: 72
+bytecode array length: 62
 bytecodes: [
-                B(Ldar), R(0),
-                B(JumpIfUndefined), U8(12),
-                B(InvokeIntrinsic), U8(Runtime::k_GeneratorGetContext), R(0), U8(1),
-                B(PushContext), R(2),
                 B(SwitchOnGeneratorState), R(0), U8(0), U8(1),
                 B(LdaConstant), U8(1),
                 B(Star), R(4),
@@ -58,12 +54,8 @@ snippet: "
 "
 frame size: 5
 parameter count: 2
-bytecode array length: 72
+bytecode array length: 62
 bytecodes: [
-                B(Ldar), R(0),
-                B(JumpIfUndefined), U8(12),
-                B(InvokeIntrinsic), U8(Runtime::k_GeneratorGetContext), R(0), U8(1),
-                B(PushContext), R(2),
                 B(SwitchOnGeneratorState), R(0), U8(0), U8(1),
                 B(LdaConstant), U8(1),
                 B(Star), R(4),
@@ -105,12 +97,8 @@ snippet: "
 "
 frame size: 6
 parameter count: 2
-bytecode array length: 102
+bytecode array length: 92
 bytecodes: [
-                B(Ldar), R(1),
-                B(JumpIfUndefined), U8(12),
-                B(InvokeIntrinsic), U8(Runtime::k_GeneratorGetContext), R(1), U8(1),
-                B(PushContext), R(3),
                 B(SwitchOnGeneratorState), R(1), U8(0), U8(1),
                 B(LdaConstant), U8(1),
                 B(Star), R(5),
@@ -166,12 +154,8 @@ snippet: "
 "
 frame size: 6
 parameter count: 2
-bytecode array length: 100
+bytecode array length: 90
 bytecodes: [
-                B(Ldar), R(1),
-                B(JumpIfUndefined), U8(12),
-                B(InvokeIntrinsic), U8(Runtime::k_GeneratorGetContext), R(1), U8(1),
-                B(PushContext), R(3),
                 B(SwitchOnGeneratorState), R(1), U8(0), U8(1),
                 B(LdaConstant), U8(1),
                 B(Star), R(5),
@@ -225,12 +209,8 @@ snippet: "
 "
 frame size: 6
 parameter count: 2
-bytecode array length: 106
+bytecode array length: 96
 bytecodes: [
-                B(Ldar), R(1),
-                B(JumpIfUndefined), U8(12),
-                B(InvokeIntrinsic), U8(Runtime::k_GeneratorGetContext), R(1), U8(1),
-                B(PushContext), R(3),
                 B(SwitchOnGeneratorState), R(1), U8(0), U8(1),
                 B(LdaConstant), U8(1),
                 B(Star), R(5),
@@ -287,12 +267,8 @@ snippet: "
 "
 frame size: 6
 parameter count: 2
-bytecode array length: 110
+bytecode array length: 100
 bytecodes: [
-                B(Ldar), R(1),
-                B(JumpIfUndefined), U8(12),
-                B(InvokeIntrinsic), U8(Runtime::k_GeneratorGetContext), R(1), U8(1),
-                B(PushContext), R(3),
                 B(SwitchOnGeneratorState), R(1), U8(0), U8(1),
                 B(LdaConstant), U8(1),
                 B(Star), R(5),
@@ -347,12 +323,8 @@ snippet: "
 "
 frame size: 5
 parameter count: 2
-bytecode array length: 85
+bytecode array length: 75
 bytecodes: [
-                B(Ldar), R(0),
-                B(JumpIfUndefined), U8(12),
-                B(InvokeIntrinsic), U8(Runtime::k_GeneratorGetContext), R(0), U8(1),
-                B(PushContext), R(2),
                 B(SwitchOnGeneratorState), R(0), U8(0), U8(1),
                 B(LdaConstant), U8(1),
                 B(Star), R(4),
@@ -398,12 +370,8 @@ snippet: "
 "
 frame size: 7
 parameter count: 2
-bytecode array length: 106
+bytecode array length: 96
 bytecodes: [
-                B(Ldar), R(0),
-                B(JumpIfUndefined), U8(12),
-                B(InvokeIntrinsic), U8(Runtime::k_GeneratorGetContext), R(0), U8(1),
-                B(PushContext), R(2),
                 B(SwitchOnGeneratorState), R(0), U8(0), U8(1),
                 B(LdaConstant), U8(1),
                 B(Star), R(4),
@@ -459,12 +427,8 @@ snippet: "
 "
 frame size: 5
 parameter count: 2
-bytecode array length: 72
+bytecode array length: 62
 bytecodes: [
-                B(Ldar), R(0),
-                B(JumpIfUndefined), U8(12),
-                B(InvokeIntrinsic), U8(Runtime::k_GeneratorGetContext), R(0), U8(1),
-                B(PushContext), R(2),
                 B(SwitchOnGeneratorState), R(0), U8(0), U8(1),
                 B(LdaConstant), U8(1),
                 B(Star), R(4),
@@ -504,12 +468,8 @@ snippet: "
 "
 frame size: 5
 parameter count: 2
-bytecode array length: 72
+bytecode array length: 62
 bytecodes: [
-                B(Ldar), R(0),
-                B(JumpIfUndefined), U8(12),
-                B(InvokeIntrinsic), U8(Runtime::k_GeneratorGetContext), R(0), U8(1),
-                B(PushContext), R(2),
                 B(SwitchOnGeneratorState), R(0), U8(0), U8(1),
                 B(LdaConstant), U8(1),
                 B(Star), R(4),
@@ -550,12 +510,8 @@ snippet: "
 "
 frame size: 8
 parameter count: 2
-bytecode array length: 99
+bytecode array length: 89
 bytecodes: [
-                B(Ldar), R(0),
-                B(JumpIfUndefined), U8(12),
-                B(InvokeIntrinsic), U8(Runtime::k_GeneratorGetContext), R(0), U8(1),
-                B(PushContext), R(3),
                 B(SwitchOnGeneratorState), R(0), U8(0), U8(1),
                 B(LdaConstant), U8(1),
                 B(Star), R(5),

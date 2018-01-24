@@ -1134,28 +1134,13 @@ void BytecodeGenerator::BuildGeneratorPrologue() {
   generator_jump_table_ =
       builder()->AllocateJumpTable(info()->literal()->suspend_count(), 0);
 
-  BytecodeLabel regular_call;
-  builder()
-      ->LoadAccumulatorWithRegister(generator_object())
-      .JumpIfUndefined(&regular_call);
+  // If the generator is not undefined, this is a resume, so perform state
+  // dispatch.
+  builder()->SwitchOnGeneratorState(generator_object(), generator_jump_table_);
 
-  // This is a resume call. Restore the current context and the registers,
-  // then perform state dispatch.
-  {
-    RegisterAllocationScope register_scope(this);
-    Register generator_context = register_allocator()->NewRegister();
-    builder()
-        ->CallRuntime(Runtime::kInlineGeneratorGetContext, generator_object())
-        .PushContext(generator_context)
-        .SwitchOnGeneratorState(generator_object(), generator_jump_table_);
-    // The switch is guaranteed to jump (or abort), so there is no fall-through.
-  }
-
-  // This is a regular call.
-  builder()->Bind(&regular_call);
-  // Now fall through to the ordinary function prologue, after which we will run
-  // into the generator object creation and other extra code inserted by the
-  // parser.
+  // Otherwise, fall-through to the ordinary function prologue, after which we
+  // will run into the generator object creation and other extra code inserted
+  // by the parser.
 }
 
 void BytecodeGenerator::VisitBlock(Block* stmt) {

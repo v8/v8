@@ -576,6 +576,7 @@ CompareOperationHint CompareOperationHintOf(const Operator* op) {
   V(LoadMessage, Operator::kNoThrow | Operator::kNoWrite, 0, 1) \
   V(StoreMessage, Operator::kNoRead | Operator::kNoThrow, 1, 0) \
   V(GeneratorRestoreContinuation, Operator::kNoThrow, 1, 1)     \
+  V(GeneratorRestoreContext, Operator::kNoThrow, 1, 1)          \
   V(GeneratorRestoreInputOrDebugPos, Operator::kNoThrow, 1, 1)  \
   V(StackCheck, Operator::kNoWrite, 0, 0)                       \
   V(Debugger, Operator::kNoProperties, 0, 0)                    \

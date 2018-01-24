@@ -14,12 +14,8 @@ snippet: "
 "
 frame size: 8
 parameter count: 1
-bytecode array length: 202
+bytecode array length: 192
 bytecodes: [
-                B(Ldar), R(0),
-                B(JumpIfUndefined), U8(12),
-                B(InvokeIntrinsic), U8(Runtime::k_GeneratorGetContext), R(0), U8(1),
-                B(PushContext), R(1),
                 B(SwitchOnGeneratorState), R(0), U8(0), U8(2),
                 B(Mov), R(closure), R(1),
                 B(Mov), R(this), R(2),
@@ -117,8 +113,8 @@ constant pool: [
   Smi [23],
 ]
 handlers: [
-  [30, 147, 155],
-  [33, 108, 110],
+  [20, 137, 145],
+  [23, 98, 100],
 ]
 
 ---
@@ -128,12 +124,8 @@ snippet: "
 "
 frame size: 8
 parameter count: 1
-bytecode array length: 246
+bytecode array length: 236
 bytecodes: [
-                B(Ldar), R(0),
-                B(JumpIfUndefined), U8(12),
-                B(InvokeIntrinsic), U8(Runtime::k_GeneratorGetContext), R(0), U8(1),
-                B(PushContext), R(1),
                 B(SwitchOnGeneratorState), R(0), U8(0), U8(3),
                 B(Mov), R(closure), R(1),
                 B(Mov), R(this), R(2),
@@ -251,8 +243,8 @@ constant pool: [
   Smi [23],
 ]
 handlers: [
-  [30, 191, 199],
-  [33, 152, 154],
+  [20, 181, 189],
+  [23, 142, 144],
 ]
 
 ---
@@ -262,12 +254,8 @@ snippet: "
 "
 frame size: 22
 parameter count: 1
-bytecode array length: 506
+bytecode array length: 496
 bytecodes: [
-                B(Ldar), R(2),
-                B(JumpIfUndefined), U8(12),
-                B(InvokeIntrinsic), U8(Runtime::k_GeneratorGetContext), R(2), U8(1),
-                B(PushContext), R(11),
                 B(SwitchOnGeneratorState), R(2), U8(0), U8(3),
                 B(Mov), R(closure), R(11),
                 B(Mov), R(this), R(12),
@@ -504,11 +492,11 @@ constant pool: [
   Smi [23],
 ]
 handlers: [
-  [30, 451, 459],
-  [33, 412, 414],
-  [71, 235, 243],
-  [74, 195, 197],
-  [304, 314, 316],
+  [20, 441, 449],
+  [23, 402, 404],
+  [61, 225, 233],
+  [64, 185, 187],
+  [294, 304, 306],
 ]
 
 ---
@@ -519,12 +507,8 @@ snippet: "
 "
 frame size: 17
 parameter count: 1
-bytecode array length: 492
+bytecode array length: 482
 bytecodes: [
-                B(Ldar), R(0),
-                B(JumpIfUndefined), U8(12),
-                B(InvokeIntrinsic), U8(Runtime::k_GeneratorGetContext), R(0), U8(1),
-                B(PushContext), R(1),
                 B(SwitchOnGeneratorState), R(0), U8(0), U8(5),
                 B(Mov), R(closure), R(1),
                 B(Mov), R(this), R(2),
@@ -744,7 +728,7 @@ constant pool: [
   Smi [23],
 ]
 handlers: [
-  [30, 437, 445],
-  [33, 398, 400],
+  [20, 427, 435],
+  [23, 388, 390],
 ]
 
