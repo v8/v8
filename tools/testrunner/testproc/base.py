@@ -42,6 +42,7 @@ class TestProc(object):
   def __init__(self):
     self._prev_proc = None
     self._next_proc = None
+    self._stopped = False
     self._requirement = DROP_RESULT
     self._prev_requirement = None
     self._reduce_result = lambda result: result
@@ -91,6 +92,15 @@ class TestProc(object):
   def heartbeat(self):
     if self._prev_proc:
       self._prev_proc.heartbeat()
+
+  def stop(self):
+    self._stopped = True
+    if self._prev_proc:
+      self._prev_proc.stop()
+
+  @property
+  def is_stopped(self):
+    return self._stopped
 
   ### Communication
 

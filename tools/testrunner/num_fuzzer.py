@@ -24,6 +24,7 @@ from testrunner.testproc.filter import StatusFileFilterProc, NameFilterProc
 from testrunner.testproc.loader import LoadProc
 from testrunner.testproc.progress import ResultsTracker, TestsCounter
 from testrunner.testproc.rerun import RerunProc
+from testrunner.testproc.timeout import TimeoutProc
 
 
 DEFAULT_SUITES = ["mjsunit", "webkit", "benchmarks"]
@@ -98,10 +99,11 @@ class NumFuzzer(base_runner.BaseTestRunner):
                            "between deopt points")
 
     parser.add_option("--tests-count", default=5, type="int",
-                      help="Number of tests to generate from each base test")
+                      help="Number of tests to generate from each base test. "
+                           "Can be combined with --total-timeout-sec with "
+                           "value 0 to provide infinite number of subtests.")
     parser.add_option("--total-timeout-sec", default=0, type="int",
-                      help="How long should fuzzer run. It overrides "
-                           "--tests-count")
+                      help="How long should fuzzer run")
 
     # Combine multiple tests
     parser.add_option("--combine-tests", default=False, action="store_true",
@@ -165,6 +167,7 @@ class NumFuzzer(base_runner.BaseTestRunner):
       fuzzer_proc,
     ] + indicators + [
       results,
+      self._create_timeout_proc(options),
       self._create_rerun_proc(options),
       execproc,
     ]
@@ -271,6 +274,11 @@ class NumFuzzer(base_runner.BaseTestRunner):
     add('gc_interval', options.stress_gc)
     add('deopt', options.stress_deopt, options.stress_deopt_min)
     return fuzzers
+
+  def _create_timeout_proc(self, options):
+    if not options.total_timeout_sec:
+      return None
+    return TimeoutProc(options.total_timeout_sec)
 
   def _create_rerun_proc(self, options):
     if not options.rerun_failures_count:
