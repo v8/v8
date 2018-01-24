@@ -16,7 +16,7 @@ class AstNumberingVisitor final : public AstVisitor<AstNumberingVisitor> {
  public:
   AstNumberingVisitor(uintptr_t stack_limit, Zone* zone,
                       Compiler::EagerInnerFunctionLiterals* eager_literals)
-      : zone_(zone), eager_literals_(eager_literals), suspend_count_(0) {
+      : zone_(zone), eager_literals_(eager_literals) {
     InitializeAstVisitor(stack_limit);
   }
 
@@ -40,7 +40,6 @@ class AstNumberingVisitor final : public AstVisitor<AstNumberingVisitor> {
 
   Zone* zone_;
   Compiler::EagerInnerFunctionLiterals* eager_literals_;
-  int suspend_count_;
   FunctionKind function_kind_;
 
   DEFINE_AST_VISITOR_SUBCLASS_MEMBERS();
@@ -110,19 +109,12 @@ void AstNumberingVisitor::VisitReturnStatement(ReturnStatement* node) {
 }
 
 void AstNumberingVisitor::VisitSuspend(Suspend* node) {
-  node->set_suspend_id(suspend_count_);
-  suspend_count_++;
   Visit(node->expression());
 }
 
 void AstNumberingVisitor::VisitYield(Yield* node) { VisitSuspend(node); }
 
 void AstNumberingVisitor::VisitYieldStar(YieldStar* node) {
-  node->set_suspend_id(suspend_count_++);
-  if (IsAsyncGeneratorFunction(function_kind_)) {
-    node->set_await_iterator_close_suspend_id(suspend_count_++);
-    node->set_await_delegated_iterator_output_suspend_id(suspend_count_++);
-  }
   Visit(node->expression());
 }
 
@@ -166,17 +158,13 @@ void AstNumberingVisitor::VisitWithStatement(WithStatement* node) {
 }
 
 void AstNumberingVisitor::VisitDoWhileStatement(DoWhileStatement* node) {
-  node->set_first_suspend_id(suspend_count_);
   Visit(node->body());
   Visit(node->cond());
-  node->set_suspend_count(suspend_count_ - node->first_suspend_id());
 }
 
 void AstNumberingVisitor::VisitWhileStatement(WhileStatement* node) {
-  node->set_first_suspend_id(suspend_count_);
   Visit(node->cond());
   Visit(node->body());
-  node->set_suspend_count(suspend_count_ - node->first_suspend_id());
 }
 
 void AstNumberingVisitor::VisitTryCatchStatement(TryCatchStatement* node) {
@@ -207,7 +195,10 @@ void AstNumberingVisitor::VisitAssignment(Assignment* node) {
 
 void AstNumberingVisitor::VisitCompoundAssignment(CompoundAssignment* node) {
   VisitBinaryOperation(node->binary_operation());
-  VisitAssignment(node);
+  // We don't need to recurse down the assignment version since we already did
+  // the binop.
+  DCHECK_EQ(node->target(), node->binary_operation()->left());
+  DCHECK_EQ(node->value(), node->binary_operation()->right());
 }
 
 void AstNumberingVisitor::VisitBinaryOperation(BinaryOperation* node) {
@@ -248,21 +239,17 @@ void AstNumberingVisitor::VisitImportCallExpression(
 
 void AstNumberingVisitor::VisitForInStatement(ForInStatement* node) {
   Visit(node->enumerable());  // Not part of loop.
-  node->set_first_suspend_id(suspend_count_);
   Visit(node->each());
   Visit(node->body());
-  node->set_suspend_count(suspend_count_ - node->first_suspend_id());
 }
 
 void AstNumberingVisitor::VisitForOfStatement(ForOfStatement* node) {
   Visit(node->assign_iterator());  // Not part of loop.
   Visit(node->assign_next());
-  node->set_first_suspend_id(suspend_count_);
   Visit(node->next_result());
   Visit(node->result_done());
   Visit(node->assign_each());
   Visit(node->body());
-  node->set_suspend_count(suspend_count_ - node->first_suspend_id());
 }
 
 void AstNumberingVisitor::VisitConditional(Conditional* node) {
@@ -273,8 +260,10 @@ void AstNumberingVisitor::VisitConditional(Conditional* node) {
 
 void AstNumberingVisitor::VisitIfStatement(IfStatement* node) {
   Visit(node->condition());
-  Visit(node->then_statement());
-  if (node->HasElseStatement()) {
+  if (!node->condition()->ToBooleanIsFalse()) {
+    Visit(node->then_statement());
+  }
+  if (node->HasElseStatement() && !node->condition()->ToBooleanIsTrue()) {
     Visit(node->else_statement());
   }
 }
@@ -289,11 +278,9 @@ void AstNumberingVisitor::VisitSwitchStatement(SwitchStatement* node) {
 
 void AstNumberingVisitor::VisitForStatement(ForStatement* node) {
   if (node->init() != nullptr) Visit(node->init());  // Not part of loop.
-  node->set_first_suspend_id(suspend_count_);
   if (node->cond() != nullptr) Visit(node->cond());
   if (node->next() != nullptr) Visit(node->next());
   Visit(node->body());
-  node->set_suspend_count(suspend_count_ - node->first_suspend_id());
 }
 
 void AstNumberingVisitor::VisitClassLiteral(ClassLiteral* node) {
@@ -390,8 +377,6 @@ bool AstNumberingVisitor::Renumber(FunctionLiteral* node) {
 
   VisitDeclarations(scope->declarations());
   VisitStatements(node->body());
-
-  node->set_suspend_count(suspend_count_);
 
   return !HasStackOverflow();
 }

@@ -146,9 +146,9 @@ class BytecodeGenerator final : public AstVisitor<BytecodeGenerator> {
   void BuildNewLocalWithContext(Scope* scope);
 
   void BuildGeneratorPrologue();
-  void BuildSuspendPoint(int suspend_id, Expression* suspend_expr);
+  void BuildSuspendPoint(Expression* suspend_expr);
 
-  void BuildAwait(int suspend_id, Expression* await_expr);
+  void BuildAwait(Expression* await_expr);
 
   void BuildGetIterator(Expression* iterable, IteratorType hint);
 
@@ -164,7 +164,7 @@ class BytecodeGenerator final : public AstVisitor<BytecodeGenerator> {
   IteratorRecord BuildGetIteratorRecord(Expression* iterable,
                                         IteratorType hint);
   void BuildIteratorNext(const IteratorRecord& iterator, Register next_result);
-  void BuildIteratorClose(const IteratorRecord& iterator, int suspend_id = -1,
+  void BuildIteratorClose(const IteratorRecord& iterator,
                           Expression* expr = nullptr);
   void BuildCallIteratorMethod(Register iterator, const AstRawString* method,
                                RegisterList receiver_and_args,
@@ -213,11 +213,7 @@ class BytecodeGenerator final : public AstVisitor<BytecodeGenerator> {
                                     BytecodeLabels* end_labels,
                                     int coverage_slot);
 
-  // Visit the header/body of a loop iteration.
-  void VisitIterationHeader(IterationStatement* stmt,
-                            LoopBuilder* loop_builder);
-  void VisitIterationHeader(int first_suspend_id, int suspend_count,
-                            LoopBuilder* loop_builder);
+  // Visit the body of a loop iteration.
   void VisitIterationBody(IterationStatement* stmt, LoopBuilder* loop_builder);
 
   // Visit a statement and switch scopes, the context is in the accumulator.
@@ -345,6 +341,7 @@ class BytecodeGenerator final : public AstVisitor<BytecodeGenerator> {
   Register incoming_new_target_or_generator_;
 
   BytecodeJumpTable* generator_jump_table_;
+  int suspend_count_;
   int loop_depth_;
 
   HandlerTable::CatchPrediction catch_prediction_;
