@@ -591,8 +591,16 @@ MemoryChunk* MemoryChunk::Initialize(Heap* heap, Address base, size_t size,
 
   if (executable == EXECUTABLE) {
     chunk->SetFlag(IS_EXECUTABLE);
-    chunk->write_unprotect_counter_ =
-        heap->code_space_memory_modification_scope_depth();
+    if (heap->write_protect_code_memory()) {
+      chunk->write_unprotect_counter_ =
+          heap->code_space_memory_modification_scope_depth();
+    } else {
+      size_t page_size = MemoryAllocator::GetCommitPageSize();
+      DCHECK(IsAddressAligned(area_start, page_size));
+      size_t area_size = RoundUp(area_end - area_start, page_size);
+      CHECK(SetPermissions(area_start, area_size,
+                           PageAllocator::kReadWriteExecute));
+    }
   }
 
   if (reservation != nullptr) {
