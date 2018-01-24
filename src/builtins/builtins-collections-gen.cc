@@ -31,8 +31,7 @@ class BaseCollectionsAssembler : public CodeStubAssembler {
   // Adds an entry to a collection.  For Maps, properly handles extracting the
   // key and value from the entry (see LoadKeyValue()).
   void AddConstructorEntry(Variant variant, TNode<Context> context,
-                           TNode<Object> collection,
-                           TNode<JSFunction> add_function,
+                           TNode<Object> collection, TNode<Object> add_function,
                            TNode<Object> key_value,
                            Label* if_may_have_side_effects = nullptr,
                            Label* if_exception = nullptr,
@@ -87,8 +86,8 @@ class BaseCollectionsAssembler : public CodeStubAssembler {
 
   // Retrieves the collection function that adds an entry. `set` for Maps and
   // `add` for Sets.
-  TNode<JSFunction> GetAddFunction(Variant variant, TNode<Context> context,
-                                   TNode<Object> collection);
+  TNode<Object> GetAddFunction(Variant variant, TNode<Context> context,
+                               TNode<Object> collection);
 
   // Retrieves the collection constructor function.
   TNode<JSFunction> GetConstructor(Variant variant,
@@ -137,7 +136,7 @@ class BaseCollectionsAssembler : public CodeStubAssembler {
 
 void BaseCollectionsAssembler::AddConstructorEntry(
     Variant variant, TNode<Context> context, TNode<Object> collection,
-    TNode<JSFunction> add_function, TNode<Object> key_value,
+    TNode<Object> add_function, TNode<Object> key_value,
     Label* if_may_have_side_effects, Label* if_exception,
     TVariable<Object>* var_exception) {
   CSA_ASSERT(this, Word32BinaryNot(IsTheHole(key_value)));
@@ -292,7 +291,7 @@ void BaseCollectionsAssembler::AddConstructorEntriesFromIterable(
   Label exit(this), loop(this), if_exception(this, Label::kDeferred);
   CSA_ASSERT(this, Word32BinaryNot(IsNullOrUndefined(iterable)));
 
-  TNode<JSFunction> add_func = GetAddFunction(variant, context, collection);
+  TNode<Object> add_func = GetAddFunction(variant, context, collection);
   IteratorBuiltinsAssembler iterator_assembler(this->state());
   IteratorRecord iterator = iterator_assembler.GetIterator(context, iterable);
 
@@ -380,7 +379,7 @@ void BaseCollectionsAssembler::GenerateConstructor(
                  HeapConstant(constructor_function_name));
 }
 
-TNode<JSFunction> BaseCollectionsAssembler::GetAddFunction(
+TNode<Object> BaseCollectionsAssembler::GetAddFunction(
     Variant variant, TNode<Context> context, TNode<Object> collection) {
   Handle<String> add_func_name = (variant == kMap || variant == kWeakMap)
                                      ? isolate()->factory()->set_string()
