@@ -11,7 +11,9 @@ namespace v8 {
 namespace internal {
 namespace wasm {
 
-void LiftoffAssembler::ReserveStackSpace(uint32_t bytes) { UNIMPLEMENTED(); }
+void LiftoffAssembler::ReserveStackSpace(uint32_t stack_slots) {
+  UNIMPLEMENTED();
+}
 
 void LiftoffAssembler::LoadConstant(LiftoffRegister reg, WasmValue value,
                                     RelocInfo::Mode rmode) {

@@ -16,12 +16,15 @@ namespace wasm {
 
 namespace liftoff {
 
+// rbp-8 holds the stack marker, rbp-16 is the wasm context, first stack slot
+// is located at rbp-24.
+constexpr int32_t kConstantStackSpace = 16;
+constexpr int32_t kFirstStackSlotOffset =
+    kConstantStackSpace + LiftoffAssembler::kStackSlotSize;
+
 inline Operand GetStackSlot(uint32_t index) {
-  // rbp-8 holds the stack marker, rbp-16 is the wasm context, first stack slot
-  // is located at rbp-24.
-  constexpr int32_t kFirstStackSlotOffset = -24;
   return Operand(
-      rbp, kFirstStackSlotOffset - index * LiftoffAssembler::kStackSlotSize);
+      rbp, -kFirstStackSlotOffset - index * LiftoffAssembler::kStackSlotSize);
 }
 
 // TODO(clemensh): Make this a constexpr variable once Operand is constexpr.
@@ -33,7 +36,8 @@ static constexpr Register kCCallLastArgAddrReg = rax;
 
 }  // namespace liftoff
 
-void LiftoffAssembler::ReserveStackSpace(uint32_t bytes) {
+void LiftoffAssembler::ReserveStackSpace(uint32_t stack_slots) {
+  uint32_t bytes = liftoff::kConstantStackSpace + kStackSlotSize * stack_slots;
   DCHECK_LE(bytes, kMaxInt);
   subp(rsp, Immediate(bytes));
 }
