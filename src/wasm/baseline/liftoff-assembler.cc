@@ -420,17 +420,20 @@ void LiftoffAssembler::PrepareCall(wasm::FunctionSig* sig,
   StackTransferRecipe stack_transfers(this);
 
   // Now move all parameter values into the right slot for the call.
-  // Process parameters backward, such that we can just pop values from the
-  // stack.
+  // Don't pop values yet, such that the stack height is still correct when
+  // executing the {stack_transfers}.
+  // Process parameters backwards, such that pushes of caller frame slots are
+  // in the correct order.
   LiftoffRegList param_regs;
+  uint32_t param_base = cache_state_.stack_height() - num_params;
   for (uint32_t i = num_params; i > 0; --i) {
     uint32_t param = i - 1;
     ValueType type = sig->GetParam(param);
     RegClass rc = reg_class_for(type);
     compiler::LinkageLocation loc = call_desc->GetInputLocation(
         param + kFirstActualParameter + kInputShift);
-    const VarState& slot = cache_state_.stack_state.back();
-    uint32_t stack_idx = cache_state_.stack_height() - 1;
+    uint32_t stack_idx = param_base + param;
+    const VarState& slot = cache_state_.stack_state[stack_idx];
     if (loc.IsRegister()) {
       DCHECK(!loc.IsAnyRegister());
       int reg_code = loc.AsRegister();
@@ -441,7 +444,6 @@ void LiftoffAssembler::PrepareCall(wasm::FunctionSig* sig,
       DCHECK(loc.IsCallerFrameSlot());
       PushCallerFrameSlot(slot, stack_idx);
     }
-    cache_state_.stack_state.pop_back();
   }
 
   compiler::LinkageLocation context_loc =
@@ -472,6 +474,10 @@ void LiftoffAssembler::PrepareCall(wasm::FunctionSig* sig,
   // Record the maximum used stack slot index, such that we can bail out if the
   // stack grew too large.
   *max_used_spill_slot = stack_transfers.max_used_spill_slot();
+
+  // Pop parameters from the value stack.
+  auto stack_end = cache_state_.stack_state.end();
+  cache_state_.stack_state.erase(stack_end - num_params, stack_end);
 
   // Reset register use counters.
   cache_state_.reset_used_registers();
