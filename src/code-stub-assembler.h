@@ -1725,9 +1725,8 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
                         KeyedAccessStoreMode store_mode, Label* bailout);
 
   Node* CheckForCapacityGrow(Node* object, Node* elements, ElementsKind kind,
-                             KeyedAccessStoreMode store_mode, Node* length,
-                             Node* key, ParameterMode mode, bool is_js_array,
-                             Label* bailout);
+                             Node* length, Node* key, ParameterMode mode,
+                             bool is_js_array, Label* bailout);
 
   Node* CopyElementsOnWrite(Node* object, Node* elements, ElementsKind kind,
                             Node* length, ParameterMode mode, Label* bailout);

@@ -541,13 +541,12 @@ void StoreFastElementStub::GenerateAheadOfTime(Isolate* isolate) {
   StoreFastElementStub(isolate, false, HOLEY_ELEMENTS, STANDARD_STORE)
       .GetCode();
   StoreFastElementStub(isolate, false, HOLEY_ELEMENTS,
-                       STORE_AND_GROW_NO_TRANSITION_HANDLE_COW)
+                       STORE_AND_GROW_NO_TRANSITION)
       .GetCode();
   for (int i = FIRST_FAST_ELEMENTS_KIND; i <= LAST_FAST_ELEMENTS_KIND; i++) {
     ElementsKind kind = static_cast<ElementsKind>(i);
     StoreFastElementStub(isolate, true, kind, STANDARD_STORE).GetCode();
-    StoreFastElementStub(isolate, true, kind,
-                         STORE_AND_GROW_NO_TRANSITION_HANDLE_COW)
+    StoreFastElementStub(isolate, true, kind, STORE_AND_GROW_NO_TRANSITION)
         .GetCode();
   }
 }
