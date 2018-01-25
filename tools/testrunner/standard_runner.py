@@ -87,18 +87,16 @@ PREDICTABLE_WRAPPER = os.path.join(
 # or compiled regexps which will be matched.
 BUILDER_WHITELIST_STAGING = {
   'client.v8': [
-    re.compile(r'V8 Linux64.*'),
-    re.compile(r'V8 Mac.*'),
-    re.compile(r'V8 Win.*'),
+    re.compile(r'.*'),
+  ],
+  'client.v8.clusterfuzz': [
+    re.compile(r'.*'),
   ],
   'client.v8.ports': [
-    re.compile(r'V8 Linux - arm64.*'),
+    re.compile(r'.*'),
   ],
   'tryserver.v8': [
-    re.compile(r'v8_linux_arm64.*'),
-    re.compile(r'v8_linux64.*'),
-    re.compile(r'v8_mac.*'),
-    re.compile(r'v8_win.*'),
+    re.compile(r'.*'),
   ],
 }
 _RE_TYPE = type(re.compile(''))
