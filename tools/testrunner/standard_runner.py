@@ -39,14 +39,13 @@ from testrunner.testproc.variant import VariantProc
 
 TIMEOUT_DEFAULT = 60
 
-# Variants ordered by expected runtime (slowest first).
 VARIANTS = ["default"]
 
 MORE_VARIANTS = [
-  "stress",
-  "stress_incremental_marking",
   "nooptimization",
+  "stress",
   "stress_background_compile",
+  "stress_incremental_marking",
   "wasm_traps",
 ]
 
@@ -112,6 +111,7 @@ class StandardTestRunner(base_runner.BaseTestRunner):
         super(StandardTestRunner, self).__init__(*args, **kwargs)
 
         self.sancov_dir = None
+        self._variants = None
 
     def _get_default_suite_names(self):
       return ['default']
@@ -249,8 +249,6 @@ class StandardTestRunner(base_runner.BaseTestRunner):
       return False
 
     def _process_options(self, options):
-      global VARIANTS
-
       if options.sancov_dir:
         self.sancov_dir = options.sancov_dir
         if not os.path.exists(self.sancov_dir):
@@ -315,9 +313,6 @@ class StandardTestRunner(base_runner.BaseTestRunner):
       if options.random_seed_stress_count <= 1 and options.random_seed == 0:
         options.random_seed = self._random_seed()
 
-      # Use developer defaults if no variant was specified.
-      options.variants = options.variants or "dev"
-
       if options.variants == "infra_staging":
         options.variants = "exhaustive"
         options.infra_staging = True
@@ -325,18 +320,7 @@ class StandardTestRunner(base_runner.BaseTestRunner):
       # Use staging on whitelisted masters/builders.
       options.infra_staging = self._use_staging(options)
 
-      # Resolve variant aliases and dedupe.
-      # TODO(machenbach): Don't mutate global variable. Rather pass mutated
-      # version as local variable.
-      VARIANTS = list(set(reduce(
-          list.__add__,
-          (VARIANT_ALIASES.get(v, [v]) for v in options.variants.split(",")),
-          [],
-      )))
-
-      if not set(VARIANTS).issubset(ALL_VARIANTS):
-        print "All variants must be in %s" % str(ALL_VARIANTS)
-        raise base_runner.TestRunnerError()
+      self._variants = self._parse_variants(options.variants)
 
       def CheckTestMode(name, option):  # pragma: no cover
         if not option in ["run", "skip", "dontcare"]:
@@ -349,6 +333,23 @@ class StandardTestRunner(base_runner.BaseTestRunner):
         base_runner.TEST_MAP["default"].remove("intl")
         # TODO(machenbach): uncomment after infra side lands.
         # base_runner.TEST_MAP["d8_default"].remove("intl")
+
+    def _parse_variants(self, aliases_str):
+      # Use developer defaults if no variant was specified.
+      aliases_str = aliases_str or 'dev'
+      aliases = aliases_str.split(',')
+      user_variants = set(reduce(
+          list.__add__, [VARIANT_ALIASES.get(a, [a]) for a in aliases]))
+
+      result = [v for v in ALL_VARIANTS if v in user_variants]
+      if len(result) == len(user_variants):
+        return result
+
+      for v in user_variants:
+        if v not in ALL_VARIANTS:
+          print 'Unknown variant: %s' % v
+          raise base_runner.TestRunnerError()
+      assert False, 'Unreachable'
 
     def _setup_env(self):
       super(StandardTestRunner, self)._setup_env()
@@ -481,7 +482,7 @@ class StandardTestRunner(base_runner.BaseTestRunner):
         if options.cat:
           verbose.PrintTestSource(s.tests)
           continue
-        variant_gen = s.CreateLegacyVariantsGenerator(VARIANTS)
+        variant_gen = s.CreateLegacyVariantsGenerator(self._variants)
         variant_tests = [ t.create_variant(v, flags)
                           for t in s.tests
                           for v in variant_gen.FilterVariantsByTest(t)
@@ -597,7 +598,7 @@ class StandardTestRunner(base_runner.BaseTestRunner):
         StatusFileFilterProc(options.slow_tests, options.pass_fail_tests),
         self._create_shard_proc(options),
         tests_counter,
-        VariantProc(VARIANTS),
+        VariantProc(self._variants),
         StatusFileFilterProc(options.slow_tests, options.pass_fail_tests),
       ] + indicators + [
         results,
