@@ -1296,7 +1296,7 @@ void Module::ModuleVerify() {
 
   CHECK((status() >= kEvaluating && code()->IsModuleInfo()) ||
         (status() == kInstantiated && code()->IsJSGeneratorObject()) ||
-        (status() >= kInstantiating && code()->IsJSFunction()) ||
+        (status() == kInstantiating && code()->IsJSFunction()) ||
         (code()->IsSharedFunctionInfo()));
 
   CHECK_EQ(status() == kErrored, !exception()->IsTheHole(GetIsolate()));
