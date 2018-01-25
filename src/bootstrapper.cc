@@ -4516,9 +4516,6 @@ void Genesis::InitializeGlobal_harmony_bigint() {
       Context::BIGINT_FUNCTION_INDEX);
 
   // Install the properties of the BigInt constructor.
-  // parseInt(string, radix)
-  SimpleInstallFunction(bigint_fun, "parseInt", Builtins::kBigIntParseInt, 2,
-                        false);
   // asUintN(bits, bigint)
   SimpleInstallFunction(bigint_fun, "asUintN", Builtins::kBigIntAsUintN, 2,
                         false);
