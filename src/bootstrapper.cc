@@ -5314,6 +5314,11 @@ bool Genesis::ConfigureGlobalObjects(
   native_context()->set_js_map_map(js_map_fun->initial_map());
   native_context()->set_js_set_map(js_set_fun->initial_map());
 
+  Handle<JSFunction> js_array_constructor(native_context()->array_function());
+  Handle<JSObject> js_array_prototype(
+      JSObject::cast(js_array_constructor->instance_prototype()));
+  native_context()->set_initial_array_prototype_map(js_array_prototype->map());
+
   return true;
 }
 

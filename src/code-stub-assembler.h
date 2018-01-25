@@ -502,9 +502,15 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
   TNode<Int32T> LoadInstanceType(SloppyTNode<HeapObject> object);
   // Compare the instance the type of the object against the provided one.
   Node* HasInstanceType(Node* object, InstanceType type);
-  // Determines whether the Array Iterator's prototype has changed.
+  // Determines whether Array Iterator's prototype has changed.
   TNode<BoolT> HasInitialArrayIteratorPrototypeMap(
       TNode<Context> native_context);
+  // Determines whether Array's prototype has changed.
+  TNode<BoolT> InitialArrayPrototypeHasInitialArrayPrototypeMap(
+      TNode<Context> native_context);
+  // Determines whether an array's elements map has changed.
+  TNode<BoolT> HasInitialFastElementsKindMap(TNode<Context> native_context,
+                                             TNode<JSArray> jsarray);
   Node* DoesntHaveInstanceType(Node* object, InstanceType type);
   Node* TaggedDoesntHaveInstanceType(Node* any_tagged, InstanceType type);
   // Load the properties backing store of a JSObject.
@@ -1085,6 +1091,9 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
   Node* IsExternalStringInstanceType(Node* instance_type);
   TNode<BoolT> IsFastJSArray(SloppyTNode<Object> object,
                              SloppyTNode<Context> context);
+  TNode<BoolT> IsFastJSArrayWithNoCustomIteration(
+      TNode<Object> object, TNode<Context> context,
+      TNode<Context> native_context);
   Node* IsFeedbackVector(Node* object);
   Node* IsFixedArray(Node* object);
   Node* IsFixedArraySubclass(Node* object);

@@ -897,12 +897,40 @@ TNode<BoolT> CodeStubAssembler::IsFastJSArray(SloppyTNode<Object> object,
   TVARIABLE(BoolT, var_result);
   BIND(&if_true);
   {
-    var_result = ReinterpretCast<BoolT>(Int32Constant(1));
+    var_result = Int32TrueConstant();
     Goto(&exit);
   }
   BIND(&if_false);
   {
-    var_result = ReinterpretCast<BoolT>(Int32Constant(0));
+    var_result = Int32FalseConstant();
+    Goto(&exit);
+  }
+  BIND(&exit);
+  return var_result;
+}
+
+TNode<BoolT> CodeStubAssembler::IsFastJSArrayWithNoCustomIteration(
+    TNode<Object> object, TNode<Context> context,
+    TNode<Context> native_context) {
+  Label if_false(this, Label::kDeferred), if_fast(this), exit(this);
+  GotoIfForceSlowPath(&if_false);
+  TVARIABLE(BoolT, var_result, Int32TrueConstant());
+  BranchIfFastJSArray(object, context, &if_fast, &if_false);
+  BIND(&if_fast);
+  {
+    // Check if the Array.prototype[@@iterator] may have changed.
+    GotoIfNot(InitialArrayPrototypeHasInitialArrayPrototypeMap(native_context),
+              &if_false);
+    // Check if array[@@iterator] may have changed.
+    GotoIfNot(HasInitialFastElementsKindMap(native_context, CAST(object)),
+              &if_false);
+    // Check if the array iterator has changed.
+    Branch(HasInitialArrayIteratorPrototypeMap(native_context), &exit,
+           &if_false);
+  }
+  BIND(&if_false);
+  {
+    var_result = Int32FalseConstant();
     Goto(&exit);
   }
   BIND(&exit);
@@ -1304,11 +1332,33 @@ Node* CodeStubAssembler::HasInstanceType(Node* object,
 
 TNode<BoolT> CodeStubAssembler::HasInitialArrayIteratorPrototypeMap(
     TNode<Context> native_context) {
+  CSA_ASSERT(this, IsNativeContext(native_context));
   TNode<Map> arr_it_proto_map = LoadMap(CAST(LoadContextElement(
       native_context, Context::INITIAL_ARRAY_ITERATOR_PROTOTYPE_INDEX)));
   TNode<Map> initial_map = CAST(LoadContextElement(
       native_context, Context::INITIAL_ARRAY_ITERATOR_PROTOTYPE_MAP_INDEX));
   return WordEqual(arr_it_proto_map, initial_map);
+}
+
+TNode<BoolT>
+CodeStubAssembler::InitialArrayPrototypeHasInitialArrayPrototypeMap(
+    TNode<Context> native_context) {
+  CSA_ASSERT(this, IsNativeContext(native_context));
+  TNode<Map> proto_map = LoadMap(CAST(LoadContextElement(
+      native_context, Context::INITIAL_ARRAY_PROTOTYPE_INDEX)));
+  TNode<Map> initial_map = CAST(LoadContextElement(
+      native_context, Context::INITIAL_ARRAY_PROTOTYPE_MAP_INDEX));
+  return WordEqual(proto_map, initial_map);
+}
+
+TNode<BoolT> CodeStubAssembler::HasInitialFastElementsKindMap(
+    TNode<Context> native_context, TNode<JSArray> jsarray) {
+  CSA_ASSERT(this, IsNativeContext(native_context));
+  TNode<Map> map = LoadMap(jsarray);
+  TNode<Int32T> elements_kind = LoadMapElementsKind(map);
+  TNode<Map> initial_jsarray_element_map =
+      LoadJSArrayElementsMap(elements_kind, native_context);
+  return WordEqual(initial_jsarray_element_map, map);
 }
 
 Node* CodeStubAssembler::DoesntHaveInstanceType(Node* object,
