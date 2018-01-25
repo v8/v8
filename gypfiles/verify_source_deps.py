@@ -27,7 +27,7 @@ GYP_FILES = [
   os.path.join(V8_BASE, 'gypfiles', 'inspector.gypi'),
   os.path.join(V8_BASE, 'gypfiles', 'v8vtune.gyp'),
   os.path.join(V8_BASE, 'gypfiles', 'samples.gyp'),
-  os.path.join(V8_BASE, 'test', 'cctest', 'cctest.gyp'),
+  os.path.join(V8_BASE, 'gypfiles', 'cctest.gyp'),
   os.path.join(V8_BASE, 'test', 'fuzzer', 'fuzzer.gyp'),
   os.path.join(V8_BASE, 'test', 'unittests', 'unittests.gyp'),
   os.path.join(V8_BASE, 'test', 'inspector', 'inspector.gyp'),

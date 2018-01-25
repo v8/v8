@@ -22,7 +22,7 @@
         ['host_os!="mac" or OS!="android"', {
           'dependencies': [
             'samples.gyp:*',
-            '../test/cctest/cctest.gyp:*',
+            'cctest.gyp:*',
             '../test/fuzzer/fuzzer.gyp:*',
             '../test/unittests/unittests.gyp:*',
           ],

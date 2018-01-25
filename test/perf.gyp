@@ -10,7 +10,7 @@
           'target_name': 'perf_run',
           'type': 'none',
           'dependencies': [
-            'cctest/cctest.gyp:cctest_exe_run',
+            '../gypfiles/cctest.gyp:cctest_exe_run',
             '../gypfiles/d8.gyp:d8_run',
           ],
           'includes': [
