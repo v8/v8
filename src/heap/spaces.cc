@@ -1371,7 +1371,7 @@ intptr_t Space::GetNextInlineAllocationStepSize() {
     next_step = next_step ? Min(next_step, observer->bytes_to_next_step())
                           : observer->bytes_to_next_step();
   }
-  DCHECK(allocation_observers_.size() == 0 || next_step != 0);
+  DCHECK(allocation_observers_.size() == 0 || next_step > 0);
   return next_step;
 }
 

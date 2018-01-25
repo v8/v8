@@ -6688,6 +6688,7 @@ void AllocationObserver::AllocationStep(int bytes_allocated,
     step_size_ = GetNextStepSize();
     bytes_to_next_step_ = step_size_;
   }
+  DCHECK_GE(bytes_to_next_step_, 0);
 }
 
 namespace {
