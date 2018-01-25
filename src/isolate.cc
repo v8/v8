@@ -717,16 +717,16 @@ class CaptureStackTraceHelper {
     int code_offset;
     Handle<ByteArray> source_position_table;
     Handle<Object> maybe_cache;
-    Handle<NumberDictionary> cache;
+    Handle<SimpleNumberDictionary> cache;
     if (!FLAG_optimize_for_size) {
       code_offset = summ.code_offset();
       source_position_table =
           handle(summ.abstract_code()->source_position_table(), isolate_);
       maybe_cache = handle(summ.abstract_code()->stack_frame_cache(), isolate_);
-      if (maybe_cache->IsNumberDictionary()) {
-        cache = Handle<NumberDictionary>::cast(maybe_cache);
+      if (maybe_cache->IsSimpleNumberDictionary()) {
+        cache = Handle<SimpleNumberDictionary>::cast(maybe_cache);
       } else {
-        cache = NumberDictionary::New(isolate_, 1);
+        cache = SimpleNumberDictionary::New(isolate_, 1);
       }
       int entry = cache->FindEntry(code_offset);
       if (entry != NumberDictionary::kNotFound) {
@@ -759,7 +759,7 @@ class CaptureStackTraceHelper {
     frame->set_is_constructor(summ.is_constructor());
     frame->set_is_wasm(false);
     if (!FLAG_optimize_for_size) {
-      auto new_cache = NumberDictionary::Set(cache, code_offset, frame);
+      auto new_cache = SimpleNumberDictionary::Set(cache, code_offset, frame);
       if (*new_cache != *cache || !maybe_cache->IsNumberDictionary()) {
         AbstractCode::SetStackFrameCache(summ.abstract_code(), new_cache);
       }

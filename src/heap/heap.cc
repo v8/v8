@@ -644,7 +644,7 @@ const char* Heap::GetSpaceName(int idx) {
   return nullptr;
 }
 
-void Heap::SetRootCodeStubs(NumberDictionary* value) {
+void Heap::SetRootCodeStubs(SimpleNumberDictionary* value) {
   roots_[kCodeStubsRootIndex] = value;
 }
 

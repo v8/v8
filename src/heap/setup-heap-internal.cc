@@ -303,6 +303,7 @@ bool Heap::CreateInitialMaps() {
     ALLOCATE_VARSIZE_MAP(HASH_TABLE_TYPE, name_dictionary)
     ALLOCATE_VARSIZE_MAP(HASH_TABLE_TYPE, global_dictionary)
     ALLOCATE_VARSIZE_MAP(HASH_TABLE_TYPE, number_dictionary)
+    ALLOCATE_VARSIZE_MAP(HASH_TABLE_TYPE, simple_number_dictionary)
     ALLOCATE_VARSIZE_MAP(HASH_TABLE_TYPE, string_table)
     ALLOCATE_VARSIZE_MAP(HASH_TABLE_TYPE, weak_hash_table)
 
@@ -475,7 +476,7 @@ void Heap::CreateInitialObjects() {
 
   // Create the code_stubs dictionary. The initial size is set to avoid
   // expanding the dictionary during bootstrapping.
-  set_code_stubs(*NumberDictionary::New(isolate(), 128));
+  set_code_stubs(*SimpleNumberDictionary::New(isolate(), 128));
 
   {
     HandleScope scope(isolate());
