@@ -37,6 +37,8 @@ class Job(object):
     return JobResult(self.test_id, result)
 
 
+# TODO(majeski): Stop workers when processor is stopped. It will also require
+# to call stop both directions from TimeoutProc.
 class ExecutionProc(base.TestProc):
   """Last processor in the chain. Instead of passing tests further it creates
   commands and output processors, executes them in multiple worker processes and

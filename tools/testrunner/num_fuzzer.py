@@ -19,6 +19,7 @@ from testrunner.objects import context
 
 from testrunner.testproc import fuzzer
 from testrunner.testproc.base import TestProcProducer
+from testrunner.testproc.combiner import CombinerProc
 from testrunner.testproc.execution import ExecutionProc
 from testrunner.testproc.filter import StatusFileFilterProc, NameFilterProc
 from testrunner.testproc.loader import LoadProc
@@ -75,6 +76,15 @@ class NumFuzzer(base_runner.BaseTestRunner):
     parser.add_option("--swarming",
                       help="Indicates running test driver on swarming.",
                       default=False, action="store_true")
+    parser.add_option("--tests-count", default=5, type="int",
+                      help="Number of tests to generate from each base test. "
+                           "Can be combined with --total-timeout-sec with "
+                           "value 0 to provide infinite number of subtests. "
+                           "When --combine-tests is set it indicates how many "
+                           "tests to create in total")
+    parser.add_option("--total-timeout-sec", default=0, type="int",
+                      help="How long should fuzzer run. It overrides "
+                           "--tests-count")
 
     # Stress gc
     parser.add_option("--stress-marking", default=0, type="int",
@@ -98,23 +108,19 @@ class NumFuzzer(base_runner.BaseTestRunner):
                       help="extends --stress-deopt to have minimum interval "
                            "between deopt points")
 
-    parser.add_option("--tests-count", default=5, type="int",
-                      help="Number of tests to generate from each base test. "
-                           "Can be combined with --total-timeout-sec with "
-                           "value 0 to provide infinite number of subtests.")
-    parser.add_option("--total-timeout-sec", default=0, type="int",
-                      help="How long should fuzzer run")
-
     # Combine multiple tests
     parser.add_option("--combine-tests", default=False, action="store_true",
                       help="Combine multiple tests as one and run with "
                            "try-catch wrapper")
+    parser.add_option("--combine-max", default=100, type="int",
+                      help="Maximum number of tests to combine")
+    parser.add_option("--combine-min", default=2, type="int",
+                      help="Minimum number of tests to combine")
 
     return parser
 
 
   def _process_options(self, options):
-    # Special processing of other options, sorted alphabetically.
     options.command_prefix = shlex.split(options.command_prefix)
     options.extra_flags = shlex.split(options.extra_flags)
     if options.j == 0:
@@ -128,6 +134,12 @@ class NumFuzzer(base_runner.BaseTestRunner):
 
     if options.total_timeout_sec:
       options.tests_count = 0
+
+    if options.combine_tests:
+      if options.combine_min > options.combine_max:
+        print ('min_group_size (%d) cannot be larger than max_group_size (%d)' %
+               options.min_group_size, options.max_group_size)
+        raise base_runner.TestRunnerError()
 
     return True
 
@@ -152,14 +164,8 @@ class NumFuzzer(base_runner.BaseTestRunner):
 
     loader = LoadProc()
     fuzzer_rng = random.Random(options.fuzzer_random_seed)
-    fuzzer_proc = fuzzer.FuzzerProc(
-        fuzzer_rng,
-        options.tests_count,
-        self._create_fuzzer_configs(options),
-        options.total_timeout_sec,
-        disable_analysis=options.combine_tests,
-    )
 
+    combiner = self._create_combiner(fuzzer_rng, options)
     results = ResultsTracker()
     execproc = ExecutionProc(options.j, ctx)
     indicators = progress_indicator.ToProgressIndicatorProcs()
@@ -167,8 +173,11 @@ class NumFuzzer(base_runner.BaseTestRunner):
       loader,
       NameFilterProc(args) if args else None,
       StatusFileFilterProc(None, None),
+      # TODO(majeski): Improve sharding when combiner is present. Maybe select
+      # different random seeds for shards instead of splitting tests.
       self._create_shard_proc(options),
-      fuzzer_proc,
+      combiner,
+      self._create_fuzzer(fuzzer_rng, options)
     ] + indicators + [
       results,
       self._create_timeout_proc(options),
@@ -177,6 +186,10 @@ class NumFuzzer(base_runner.BaseTestRunner):
     ]
     self._prepare_procs(procs)
     loader.load_tests(tests)
+
+    # TODO(majeski): maybe some notification from loader would be better?
+    if combiner:
+      combiner.generate_initial_tests(options.j * 4)
     execproc.start()
 
     for indicator in indicators:
@@ -221,6 +234,9 @@ class NumFuzzer(base_runner.BaseTestRunner):
     return ctx
 
   def _load_tests(self, options, suites, ctx):
+    if options.combine_tests:
+      suites = [s for s in suites if s.test_combiner_available()]
+
     # Find available test suites and read test cases from them.
     deopt_fuzzer = bool(options.stress_deopt)
     gc_stress = bool(options.stress_gc)
@@ -265,6 +281,26 @@ class NumFuzzer(base_runner.BaseTestRunner):
     for i in xrange(0, len(procs) - 1):
       procs[i].connect_to(procs[i + 1])
     procs[0].setup()
+
+  def _create_combiner(self, rng, options):
+    if not options.combine_tests:
+      return None
+    return CombinerProc(rng, options.combine_min, options.combine_max,
+                        options.tests_count)
+
+  def _create_fuzzer(self, rng, options):
+    if options.combine_tests:
+      count = 1
+      disable_analysis = True
+    else:
+      count = options.tests_count
+      disable_analysis = False
+    return fuzzer.FuzzerProc(
+        rng,
+        count,
+        self._create_fuzzer_configs(options),
+        disable_analysis,
+    )
 
   def _create_fuzzer_configs(self, options):
     fuzzers = []

@@ -45,14 +45,12 @@ class Fuzzer(object):
 
 # TODO(majeski): Allow multiple subtests to run at once.
 class FuzzerProc(base.TestProcProducer):
-  def __init__(self, rng, count, fuzzers, fuzz_duration_sec=0,
-               disable_analysis=False):
+  def __init__(self, rng, count, fuzzers, disable_analysis=False):
     """
     Args:
       rng: random number generator used to select flags and values for them
       count: number of tests to generate based on each base test
       fuzzers: list of FuzzerConfig instances
-      fuzz_duration_sec: how long it should run, overrides count
       disable_analysis: disable analysis phase and filtering base on it. When
         set, processor passes None as analysis result to fuzzers
     """
@@ -61,7 +59,6 @@ class FuzzerProc(base.TestProcProducer):
     self._rng = rng
     self._count = count
     self._fuzzer_configs = fuzzers
-    self._fuzz_duration_sec = fuzz_duration_sec
     self._disable_analysis = disable_analysis
     self._gens = {}
 
