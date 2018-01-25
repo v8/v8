@@ -177,6 +177,7 @@ Heap::Heap()
       raw_allocations_hash_(0),
       stress_marking_observer_(nullptr),
       stress_scavenge_observer_(nullptr),
+      allocation_step_in_progress_(false),
       max_marking_limit_reached_(0.0),
       ms_count_(0),
       gc_count_(0),
