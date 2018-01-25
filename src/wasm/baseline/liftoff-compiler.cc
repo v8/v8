@@ -995,6 +995,9 @@ class LiftoffCompiler {
                     const Value args[], Value returns[]) {
     if (operand.sig->return_count() > 1)
       return unsupported(decoder, "multi-return");
+    if (operand.sig->return_count() == 1 &&
+        !CheckSupportedType(decoder, operand.sig->GetReturn(0), "return"))
+      return;
 
     // Assume only one table for now.
     uint32_t table_index = 0;
