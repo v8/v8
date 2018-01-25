@@ -194,6 +194,7 @@
       '../test/cctest/wasm/test-run-wasm-js.cc',
       '../test/cctest/wasm/test-run-wasm-module.cc',
       '../test/cctest/wasm/test-run-wasm-relocation.cc',
+      '../test/cctest/wasm/test-run-wasm-sign-extension.cc',
       '../test/cctest/wasm/test-run-wasm-simd.cc',
       '../test/cctest/wasm/test-wasm-breakpoints.cc',
       "../test/cctest/wasm/test-wasm-codegen.cc",

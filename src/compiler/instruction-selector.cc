@@ -1538,6 +1538,16 @@ void InstructionSelector::VisitNode(Node* node) {
       MarkAsRepresentation(type.representation(), node);
       return VisitProtectedLoad(node);
     }
+    case IrOpcode::kSignExtendWord8ToInt32:
+      return MarkAsWord32(node), VisitSignExtendWord8ToInt32(node);
+    case IrOpcode::kSignExtendWord16ToInt32:
+      return MarkAsWord32(node), VisitSignExtendWord16ToInt32(node);
+    case IrOpcode::kSignExtendWord8ToInt64:
+      return MarkAsWord64(node), VisitSignExtendWord8ToInt64(node);
+    case IrOpcode::kSignExtendWord16ToInt64:
+      return MarkAsWord64(node), VisitSignExtendWord16ToInt64(node);
+    case IrOpcode::kSignExtendWord32ToInt64:
+      return MarkAsWord64(node), VisitSignExtendWord32ToInt64(node);
     case IrOpcode::kUnsafePointerAdd:
       MarkAsRepresentation(MachineType::PointerRepresentation(), node);
       return VisitUnsafePointerAdd(node);
@@ -2076,6 +2086,18 @@ void InstructionSelector::VisitBitcastFloat64ToInt64(Node* node) {
 
 
 void InstructionSelector::VisitBitcastInt64ToFloat64(Node* node) {
+  UNIMPLEMENTED();
+}
+
+void InstructionSelector::VisitSignExtendWord8ToInt64(Node* node) {
+  UNIMPLEMENTED();
+}
+
+void InstructionSelector::VisitSignExtendWord16ToInt64(Node* node) {
+  UNIMPLEMENTED();
+}
+
+void InstructionSelector::VisitSignExtendWord32ToInt64(Node* node) {
   UNIMPLEMENTED();
 }
 #endif  // V8_TARGET_ARCH_32_BIT
