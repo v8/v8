@@ -45,10 +45,11 @@ class ExecutionProc(base.TestProc):
   sends results to the previous processor.
   """
 
-  def __init__(self, jobs, context):
+  def __init__(self, jobs, context, outproc_factory=None):
     super(ExecutionProc, self).__init__()
     self._pool = pool.Pool(jobs)
     self._context = context
+    self._outproc_factory = outproc_factory or (lambda t: t.output_proc)
     self._tests = {}
 
   def connect_to(self, next_proc):
@@ -85,8 +86,7 @@ class ExecutionProc(base.TestProc):
     cmd = test.get_command(self._context)
     self._tests[test_id] = test, cmd
 
-    # TODO(majeski): Needs factory for outproc as in local/execution.py
-    outproc = test.output_proc
+    outproc = self._outproc_factory(test)
     self._pool.add([Job(test_id, cmd, outproc, test.keep_output)])
 
   def result_for(self, test, result):

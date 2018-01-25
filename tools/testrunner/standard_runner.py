@@ -585,7 +585,11 @@ class StandardTestRunner(base_runner.BaseTestRunner):
       tests_counter = TestsCounter()
       results = ResultsTracker()
       indicators = progress_indicator.ToProgressIndicatorProcs()
-      execproc = ExecutionProc(jobs, context)
+
+      outproc_factory = None
+      if self.build_config.predictable:
+        outproc_factory = predictable.get_outproc
+      execproc = ExecutionProc(jobs, context, outproc_factory)
 
       procs = [
         loader,
