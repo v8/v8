@@ -65,8 +65,6 @@ class ExecutionProc(base.TestProc):
       )
       for pool_result in it:
         if pool_result.heartbeat:
-          if self.is_stopped:
-            break
           continue
 
         job_result = pool_result.value
@@ -75,11 +73,6 @@ class ExecutionProc(base.TestProc):
         test, result.cmd = self._tests[test_id]
         del self._tests[test_id]
         self._send_result(test, result)
-
-        if self.is_stopped:
-          # Stop first after sending the current result to not waste it.
-          break
-
     except KeyboardInterrupt:
       raise
     except:

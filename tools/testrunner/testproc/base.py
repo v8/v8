@@ -94,12 +94,9 @@ class TestProc(object):
       self._prev_proc.heartbeat()
 
   def stop(self):
-    if not self._stopped:
-      self._stopped = True
-      if self._prev_proc:
-        self._prev_proc.stop()
-      if self._next_proc:
-        self._next_proc.stop()
+    self._stopped = True
+    if self._prev_proc:
+      self._prev_proc.stop()
 
   @property
   def is_stopped(self):
