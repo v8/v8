@@ -527,7 +527,21 @@ TF_BUILTIN(StringCharAt, StringBuiltinsAssembler) {
   Return(result);
 }
 
-TF_BUILTIN(StringCodePointAt, StringBuiltinsAssembler) {
+TF_BUILTIN(StringCodePointAtUTF16, StringBuiltinsAssembler) {
+  Node* receiver = Parameter(Descriptor::kReceiver);
+  Node* position = Parameter(Descriptor::kPosition);
+  // TODO(sigurds) Figure out if passing length as argument pays off.
+  TNode<IntPtrT> length = LoadStringLengthAsWord(receiver);
+  // Load the character code at the {position} from the {receiver}.
+  TNode<Int32T> code =
+      LoadSurrogatePairAt(receiver, length, position, UnicodeEncoding::UTF16);
+  // And return it as TaggedSigned value.
+  // TODO(turbofan): Allow builtins to return values untagged.
+  TNode<Smi> result = SmiFromWord32(code);
+  Return(result);
+}
+
+TF_BUILTIN(StringCodePointAtUTF32, StringBuiltinsAssembler) {
   Node* receiver = Parameter(Descriptor::kReceiver);
   Node* position = Parameter(Descriptor::kPosition);
 
@@ -693,6 +707,8 @@ TF_BUILTIN(StringPrototypeCodePointAt, StringBuiltinsAssembler) {
                    maybe_position, UndefinedConstant(),
                    [this](TNode<String> receiver, TNode<IntPtrT> length,
                           TNode<IntPtrT> index) {
+                     // This is always a call to a builtin from Javascript,
+                     // so we need to produce UTF32.
                      Node* value = LoadSurrogatePairAt(receiver, length, index,
                                                        UnicodeEncoding::UTF32);
                      return SmiFromWord32(value);

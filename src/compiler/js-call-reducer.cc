@@ -2961,7 +2961,7 @@ Reduction JSCallReducer::ReduceJSCall(Node* node) {
                                                node);
         case Builtins::kStringPrototypeCodePointAt:
           return ReduceStringPrototypeStringAt(
-              simplified()->StringCodePointAt(), node);
+              simplified()->StringCodePointAt(UnicodeEncoding::UTF32), node);
         case Builtins::kAsyncFunctionPromiseCreate:
           return ReduceAsyncFunctionPromiseCreate(node);
         case Builtins::kAsyncFunctionPromiseRelease:

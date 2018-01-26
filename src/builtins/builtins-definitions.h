@@ -92,7 +92,8 @@ namespace internal {
                                                                                \
   /* String helpers */                                                         \
   TFC(StringCharAt, StringAt, 1)                                               \
-  TFC(StringCodePointAt, StringAt, 1)                                          \
+  TFC(StringCodePointAtUTF16, StringAt, 1)                                     \
+  TFC(StringCodePointAtUTF32, StringAt, 1)                                     \
   TFC(StringEqual, Compare, 1)                                                 \
   TFC(StringGreaterThan, Compare, 1)                                           \
   TFC(StringGreaterThanOrEqual, Compare, 1)                                    \
