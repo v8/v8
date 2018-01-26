@@ -2092,19 +2092,21 @@ LocalAllocationBuffer& LocalAllocationBuffer::operator=(
 }
 
 void NewSpace::UpdateLinearAllocationArea() {
-  Address old_top = top();
-  Address new_top = to_space_.page_low();
-  InlineAllocationStep(old_top, new_top, nullptr, 0);
+  // Make sure there is no unaccounted allocations.
+  DCHECK(!AllocationObserversActive() || top_on_previous_step_ == top());
 
+  Address new_top = to_space_.page_low();
   MemoryChunk::UpdateHighWaterMark(allocation_info_.top());
   allocation_info_.Reset(new_top, to_space_.page_high());
   original_top_.SetValue(top());
   original_limit_.SetValue(limit());
-  UpdateInlineAllocationLimit(0);
+  StartNextInlineAllocationStep();
   DCHECK_SEMISPACE_ALLOCATION_INFO(allocation_info_, to_space_);
 }
 
 void NewSpace::ResetLinearAllocationArea() {
+  // Do a step to account for memory allocated so far before resetting.
+  InlineAllocationStep(top(), top(), nullptr, 0);
   to_space_.Reset();
   UpdateLinearAllocationArea();
   // Clear all mark-bits in the to-space.
@@ -2132,6 +2134,10 @@ void PagedSpace::UpdateInlineAllocationLimit(size_t min_size) {
 bool NewSpace::AddFreshPage() {
   Address top = allocation_info_.top();
   DCHECK(!Page::IsAtObjectStart(top));
+
+  // Do a step to account for memory allocated on previous page.
+  InlineAllocationStep(top, top, nullptr, 0);
+
   if (!to_space_.AdvancePage()) {
     // No more pages left to advance.
     return false;
