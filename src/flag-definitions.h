@@ -1104,6 +1104,9 @@ DEFINE_BOOL(print_handles, false, "report handles after GC")
 DEFINE_BOOL(check_handle_count, false,
             "Check that there are not too many handles at GC")
 DEFINE_BOOL(print_global_handles, false, "report global handles after GC")
+DEFINE_INT(trace_duplicate_threshold_kb, 0,
+           "print duplicate objects in the heap if their size is more than "
+           "given threshold")
 
 // TurboFan debug-only flags.
 DEFINE_BOOL(trace_turbo_escape, false, "enable tracing in escape analysis")

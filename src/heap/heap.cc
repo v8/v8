@@ -1112,6 +1112,66 @@ void Heap::CollectAllGarbage(int flags, GarbageCollectionReason gc_reason,
   set_current_gc_flags(kNoGCFlags);
 }
 
+namespace {
+
+intptr_t CompareWords(int size, HeapObject* a, HeapObject* b) {
+  int words = size / kPointerSize;
+  DCHECK_EQ(a->Size(), size);
+  DCHECK_EQ(b->Size(), size);
+  intptr_t* slot_a = reinterpret_cast<intptr_t*>(a->address());
+  intptr_t* slot_b = reinterpret_cast<intptr_t*>(b->address());
+  for (int i = 0; i < words; i++) {
+    if (*slot_a != *slot_b) {
+      return *slot_a - *slot_b;
+    }
+    slot_a++;
+    slot_b++;
+  }
+  return 0;
+}
+
+void ReportDuplicates(int size, std::vector<HeapObject*>& objects) {
+  if (objects.size() == 0) return;
+
+  sort(objects.begin(), objects.end(), [size](HeapObject* a, HeapObject* b) {
+    intptr_t c = CompareWords(size, a, b);
+    if (c != 0) return c < 0;
+    return a < b;
+  });
+
+  std::vector<std::pair<int, HeapObject*>> duplicates;
+  HeapObject* current = objects[0];
+  int count = 1;
+  for (size_t i = 1; i < objects.size(); i++) {
+    if (CompareWords(size, current, objects[i]) == 0) {
+      count++;
+    } else {
+      if (count > 1) {
+        duplicates.push_back(std::make_pair(count - 1, current));
+      }
+      count = 1;
+      current = objects[i];
+    }
+  }
+  if (count > 1) {
+    duplicates.push_back(std::make_pair(count - 1, current));
+  }
+
+  int threshold = FLAG_trace_duplicate_threshold_kb * KB;
+
+  sort(duplicates.begin(), duplicates.end());
+  for (auto it = duplicates.rbegin(); it != duplicates.rend(); ++it) {
+    int duplicate_bytes = it->first * size;
+    if (duplicate_bytes < threshold) break;
+    PrintF("%d duplicates of size %d each (%dKB)\n", it->first, size,
+           duplicate_bytes / KB);
+    PrintF("Sample object: ");
+    it->second->Print();
+    PrintF("============================\n");
+  }
+}
+}  // anonymous namespace
+
 void Heap::CollectAllAvailableGarbage(GarbageCollectionReason gc_reason) {
   // Since we are ignoring the return value, the exact choice of space does
   // not matter, so long as we do not specify NEW_SPACE, which would not
@@ -1151,6 +1211,28 @@ void Heap::CollectAllAvailableGarbage(GarbageCollectionReason gc_reason) {
   set_current_gc_flags(kNoGCFlags);
   new_space_->Shrink();
   UncommitFromSpace();
+
+  if (FLAG_trace_duplicate_threshold_kb) {
+    std::map<int, std::vector<HeapObject*>> objects_by_size;
+    PagedSpaces spaces(this);
+    for (PagedSpace* space = spaces.next(); space != nullptr;
+         space = spaces.next()) {
+      HeapObjectIterator it(space);
+      for (HeapObject* obj = it.Next(); obj != nullptr; obj = it.Next()) {
+        objects_by_size[obj->Size()].push_back(obj);
+      }
+    }
+    {
+      LargeObjectIterator it(lo_space());
+      for (HeapObject* obj = it.Next(); obj != nullptr; obj = it.Next()) {
+        objects_by_size[obj->Size()].push_back(obj);
+      }
+    }
+    for (auto it = objects_by_size.rbegin(); it != objects_by_size.rend();
+         ++it) {
+      ReportDuplicates(it->first, it->second);
+    }
+  }
 }
 
 void Heap::ReportExternalMemoryPressure() {
