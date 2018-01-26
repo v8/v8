@@ -2035,7 +2035,7 @@ Reduction JSBuiltinReducer::ReduceStringIteratorNext(Node* node) {
       Node* codepoint = etrue0 = graph()->NewNode(
           simplified()->StringCodePointAt(), string, index, etrue0, if_true0);
       vtrue0 = graph()->NewNode(
-          simplified()->StringFromCodePoint(UnicodeEncoding::UTF16), codepoint);
+          simplified()->StringFromCodePoint(UnicodeEncoding::UTF32), codepoint);
 
       // Update iterator.[[NextIndex]]
       Node* char_length =
