@@ -145,7 +145,6 @@
       '../test/cctest/test-identity-map.cc',
       '../test/cctest/test-intl.cc',
       '../test/cctest/test-inobject-slack-tracking.cc',
-      '../test/cctest/test-isolate-independent-builtins.cc',
       '../test/cctest/test-liveedit.cc',
       '../test/cctest/test-lockers.cc',
       '../test/cctest/test-log.cc',
