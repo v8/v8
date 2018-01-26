@@ -177,8 +177,8 @@ class CombinedTest(testcase.TestCase):
     self._tests = tests
 
   def _prepare_outcomes(self, force_update=True):
-    self._statusfile_outcomes = outproc.OUTCOMES_PASS
-    self.expected_outcomes = outproc.OUTCOMES_PASS
+    self._statusfile_outcomes = outproc.OUTCOMES_PASS_OR_TIMEOUT
+    self.expected_outcomes = outproc.OUTCOMES_PASS_OR_TIMEOUT
 
   def _get_shell_with_flags(self, ctx):
     """In addition to standard set of shell flags it appends:
