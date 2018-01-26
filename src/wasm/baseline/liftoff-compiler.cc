@@ -217,7 +217,7 @@ class LiftoffCompiler {
     }
     if (param_loc.IsCallerFrameSlot()) {
       LiftoffRegister tmp_reg = __ GetUnusedRegister(rc);
-      __ LoadCallerFrameSlot(tmp_reg, -param_loc.AsCallerFrameSlot());
+      __ LoadCallerFrameSlot(tmp_reg, -param_loc.AsCallerFrameSlot(), type);
       __ PushRegister(type, tmp_reg);
       return;
     }
