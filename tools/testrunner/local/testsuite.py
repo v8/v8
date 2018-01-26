@@ -43,7 +43,7 @@ STANDARD_VARIANT = set(["default"])
 class LegacyVariantsGenerator(object):
   def __init__(self, suite, variants):
     self.suite = suite
-    self.all_variants = variants
+    self.all_variants = ALL_VARIANTS & variants
     self.standard_variant = STANDARD_VARIANT & variants
 
   def FilterVariantsByTest(self, test):
