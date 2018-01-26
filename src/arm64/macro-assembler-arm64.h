@@ -550,6 +550,10 @@ class TurboAssembler : public Assembler {
   void Cbnz(const Register& rt, Label* label);
   void Cbz(const Register& rt, Label* label);
 
+  inline void Dmb(BarrierDomain domain, BarrierType type);
+  inline void Dsb(BarrierDomain domain, BarrierType type);
+  inline void Isb();
+
   bool AllowThisStubCall(CodeStub* stub);
   void CallStubDelayed(CodeStub* stub);
   void CallRuntimeDelayed(Zone* zone, Runtime::FunctionId fid,
@@ -1302,8 +1306,6 @@ class MacroAssembler : public TurboAssembler {
                     Condition cond);
   inline void Csneg(const Register& rd, const Register& rn, const Register& rm,
                     Condition cond);
-  inline void Dmb(BarrierDomain domain, BarrierType type);
-  inline void Dsb(BarrierDomain domain, BarrierType type);
   inline void Extr(const Register& rd, const Register& rn, const Register& rm,
                    unsigned lsb);
   inline void Fcsel(const VRegister& fd, const VRegister& fn,
@@ -1346,7 +1348,6 @@ class MacroAssembler : public TurboAssembler {
                      const VRegister& fm, const VRegister& fa);
   inline void Hint(SystemHint code);
   inline void Hlt(int code);
-  inline void Isb();
   inline void Ldnp(const CPURegister& rt, const CPURegister& rt2,
                    const MemOperand& src);
   inline void Movk(const Register& rd, uint64_t imm, int shift = -1);

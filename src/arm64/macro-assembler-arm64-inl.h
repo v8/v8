@@ -461,14 +461,12 @@ void MacroAssembler::Csneg(const Register& rd,
   csneg(rd, rn, rm, cond);
 }
 
-
-void MacroAssembler::Dmb(BarrierDomain domain, BarrierType type) {
+void TurboAssembler::Dmb(BarrierDomain domain, BarrierType type) {
   DCHECK(allow_macro_instructions());
   dmb(domain, type);
 }
 
-
-void MacroAssembler::Dsb(BarrierDomain domain, BarrierType type) {
+void TurboAssembler::Dsb(BarrierDomain domain, BarrierType type) {
   DCHECK(allow_macro_instructions());
   dsb(domain, type);
 }
@@ -737,8 +735,7 @@ void MacroAssembler::Hlt(int code) {
   hlt(code);
 }
 
-
-void MacroAssembler::Isb() {
+void TurboAssembler::Isb() {
   DCHECK(allow_macro_instructions());
   isb();
 }

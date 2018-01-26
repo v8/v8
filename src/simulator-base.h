@@ -46,7 +46,7 @@ class SimulatorBase {
                              Args... args) {
     // Convert all arguments to intptr_t. Fails if any argument is not integral
     // or pointer.
-    std::array<intptr_t, sizeof...(args)> args_arr{ConvertArg(args)...};
+    std::array<intptr_t, sizeof...(args)> args_arr{{ConvertArg(args)...}};
     intptr_t ret = (sim->*call)(entry, args_arr.size(), args_arr.data());
     return ConvertReturn<Return>(ret);
   }
