@@ -177,6 +177,7 @@ class CombinedTest(testcase.TestCase):
     self._tests = tests
 
   def _prepare_outcomes(self, force_update=True):
+    # We tolerate timeout with combined tests.
     self._statusfile_outcomes = outproc.OUTCOMES_PASS_OR_TIMEOUT
     self.expected_outcomes = outproc.OUTCOMES_PASS_OR_TIMEOUT
 
