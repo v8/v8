@@ -670,8 +670,6 @@ class TurboAssembler : public Assembler {
 
   // Load a literal from the inline constant pool.
   inline void Ldr(const CPURegister& rt, const Operand& imm);
-  // Helper function for double immediate.
-  inline void Ldr(const CPURegister& rt, double imm);
 
   // Claim or drop stack space without actually accessing memory.
   //

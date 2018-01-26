@@ -651,10 +651,12 @@ void TurboAssembler::Fmov(VRegister vd, double imm) {
       if (bits == 0) {
         fmov(vd, xzr);
       } else {
-        Ldr(vd, imm);
+        UseScratchRegisterScope temps(this);
+        Register tmp = temps.AcquireX();
+        Mov(tmp, bits);
+        fmov(vd, tmp);
       }
     } else {
-      // TODO(all): consider NEON support for load literal.
       Movi(vd, bits);
     }
   }
@@ -678,12 +680,10 @@ void TurboAssembler::Fmov(VRegister vd, float imm) {
       } else {
         UseScratchRegisterScope temps(this);
         Register tmp = temps.AcquireW();
-        // TODO(all): Use Assembler::ldr(const VRegister& ft, float imm).
         Mov(tmp, bit_cast<uint32_t>(imm));
         Fmov(vd, tmp);
       }
     } else {
-      // TODO(all): consider NEON support for load literal.
       Movi(vd, bits);
     }
   }
@@ -746,12 +746,6 @@ void MacroAssembler::Isb() {
 void TurboAssembler::Ldr(const CPURegister& rt, const Operand& operand) {
   DCHECK(allow_macro_instructions());
   ldr(rt, operand);
-}
-
-void TurboAssembler::Ldr(const CPURegister& rt, double imm) {
-  DCHECK(allow_macro_instructions());
-  DCHECK(rt.Is64Bits());
-  ldr(rt, Immediate(bit_cast<uint64_t>(imm)));
 }
 
 void TurboAssembler::Lsl(const Register& rd, const Register& rn,
