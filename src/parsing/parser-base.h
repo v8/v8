@@ -4809,7 +4809,12 @@ typename ParserBase<Impl>::ExpressionT ParserBase<Impl>::ParseV8Intrinsic(
   ExpressionClassifier classifier(this);
   ExpressionListT args = ParseArguments(&spread_pos, CHECK_OK);
 
-  DCHECK(!spread_pos.IsValid());
+  if (spread_pos.IsValid()) {
+    *ok = false;
+    ReportMessageAt(spread_pos, MessageTemplate::kIntrinsicWithSpread,
+                    kSyntaxError);
+    return impl()->NullExpression();
+  }
 
   return impl()->NewV8Intrinsic(name, args, pos, ok);
 }
