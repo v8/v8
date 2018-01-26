@@ -385,51 +385,6 @@ TARGET_TEST_F(InterpreterAssemblerTest, GetContext) {
   }
 }
 
-TARGET_TEST_F(InterpreterAssemblerTest, RegisterLocation) {
-  TRACED_FOREACH(interpreter::Bytecode, bytecode, kBytecodes) {
-    InterpreterAssemblerTestState state(this, bytecode);
-    InterpreterAssemblerForTest m(&state, bytecode);
-    Node* reg_index_node = m.Parameter(0);
-    Node* reg_location_node = m.RegisterLocation(reg_index_node);
-    EXPECT_THAT(
-        reg_location_node,
-        c::IsIntPtrAdd(c::IsLoadParentFramePointer(),
-                       c::IsWordShl(reg_index_node,
-                                    c::IsIntPtrConstant(kPointerSizeLog2))));
-  }
-}
-
-TARGET_TEST_F(InterpreterAssemblerTest, LoadRegister) {
-  TRACED_FOREACH(interpreter::Bytecode, bytecode, kBytecodes) {
-    InterpreterAssemblerTestState state(this, bytecode);
-    InterpreterAssemblerForTest m(&state, bytecode);
-    Node* reg_index_node = m.Parameter(0);
-    Node* load_reg_node = m.LoadRegister(reg_index_node);
-    EXPECT_THAT(
-        load_reg_node,
-        m.IsLoad(MachineType::AnyTagged(), c::IsLoadParentFramePointer(),
-                 c::IsWordShl(reg_index_node,
-                              c::IsIntPtrConstant(kPointerSizeLog2))));
-  }
-}
-
-TARGET_TEST_F(InterpreterAssemblerTest, StoreRegister) {
-  TRACED_FOREACH(interpreter::Bytecode, bytecode, kBytecodes) {
-    InterpreterAssemblerTestState state(this, bytecode);
-    InterpreterAssemblerForTest m(&state, bytecode);
-    Node* store_value = m.Int32Constant(0xDEADBEEF);
-    Node* reg_index_node = m.Parameter(0);
-    Node* store_reg_node = m.StoreRegister(store_value, reg_index_node);
-    EXPECT_THAT(store_reg_node,
-                m.IsStore(c::StoreRepresentation(MachineRepresentation::kTagged,
-                                                 kNoWriteBarrier),
-                          c::IsLoadParentFramePointer(),
-                          c::IsWordShl(reg_index_node,
-                                       c::IsIntPtrConstant(kPointerSizeLog2)),
-                          store_value));
-  }
-}
-
 TARGET_TEST_F(InterpreterAssemblerTest, LoadConstantPoolEntry) {
   TRACED_FOREACH(interpreter::Bytecode, bytecode, kBytecodes) {
     InterpreterAssemblerTestState state(this, bytecode);
@@ -504,8 +459,8 @@ TARGET_TEST_F(InterpreterAssemblerTest, CallRuntime) {
             CodeFactory::InterpreterCEntry(isolate(), result_size);
 
         Node* function_id = m.Int32Constant(0);
-        Node* first_arg = m.IntPtrConstant(1);
-        Node* arg_count = m.Int32Constant(2);
+        InterpreterAssembler::RegListNodePair registers(m.IntPtrConstant(1),
+                                                        m.Int32Constant(2));
         Node* context = m.IntPtrConstant(4);
 
         Matcher<Node*> function_table = c::IsExternalConstant(
@@ -518,11 +473,13 @@ TARGET_TEST_F(InterpreterAssemblerTest, CallRuntime) {
             m.IsLoad(MachineType::Pointer(), function,
                      c::IsIntPtrConstant(offsetof(Runtime::Function, entry)));
 
-        Node* call_runtime = m.CallRuntimeN(function_id, context, first_arg,
-                                            arg_count, result_size);
-        EXPECT_THAT(call_runtime,
-                    c::IsCall(_, c::IsHeapConstant(builtin.code()), arg_count,
-                              first_arg, function_entry, context, _, _));
+        Node* call_runtime =
+            m.CallRuntimeN(function_id, context, registers, result_size);
+        EXPECT_THAT(
+            call_runtime,
+            c::IsCall(_, c::IsHeapConstant(builtin.code()),
+                      registers.reg_count(), registers.base_reg_location(),
+                      function_entry, context, _, _));
       }
     }
   }

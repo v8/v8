@@ -226,13 +226,12 @@ Node* InterpreterAssembler::RegisterLocation(Node* reg_index) {
                    RegisterFrameOffset(reg_index));
 }
 
-Node* InterpreterAssembler::RegisterFrameOffset(Node* index) {
-  return TimesPointerSize(index);
+Node* InterpreterAssembler::RegisterLocation(Register reg) {
+  return RegisterLocation(IntPtrConstant(reg.ToOperand()));
 }
 
-Node* InterpreterAssembler::LoadRegister(Register reg) {
-  return Load(MachineType::AnyTagged(), GetInterpretedFramePointer(),
-              IntPtrConstant(reg.ToOperand() << kPointerSizeLog2));
+Node* InterpreterAssembler::RegisterFrameOffset(Node* index) {
+  return TimesPointerSize(index);
 }
 
 Node* InterpreterAssembler::LoadRegister(Node* reg_index) {
@@ -240,27 +239,100 @@ Node* InterpreterAssembler::LoadRegister(Node* reg_index) {
               RegisterFrameOffset(reg_index));
 }
 
+Node* InterpreterAssembler::LoadRegister(Register reg) {
+  return Load(MachineType::AnyTagged(), GetInterpretedFramePointer(),
+              IntPtrConstant(reg.ToOperand() << kPointerSizeLog2));
+}
+
 Node* InterpreterAssembler::LoadAndUntagRegister(Register reg) {
   return LoadAndUntagSmi(GetInterpretedFramePointer(), reg.ToOperand()
                                                            << kPointerSizeLog2);
 }
 
-Node* InterpreterAssembler::StoreRegister(Node* value, Register reg) {
-  return StoreNoWriteBarrier(
+Node* InterpreterAssembler::LoadRegisterAtOperandIndex(int operand_index) {
+  return LoadRegister(BytecodeOperandReg(operand_index));
+}
+
+std::pair<Node*, Node*> InterpreterAssembler::LoadRegisterPairAtOperandIndex(
+    int operand_index) {
+  DCHECK_EQ(OperandType::kRegPair,
+            Bytecodes::GetOperandType(bytecode_, operand_index));
+  Node* first_reg_index = BytecodeOperandReg(operand_index);
+  Node* second_reg_index = NextRegister(first_reg_index);
+  return std::make_pair(LoadRegister(first_reg_index),
+                        LoadRegister(second_reg_index));
+}
+
+InterpreterAssembler::RegListNodePair
+InterpreterAssembler::GetRegisterListAtOperandIndex(int operand_index) {
+  DCHECK(Bytecodes::IsRegisterListOperandType(
+      Bytecodes::GetOperandType(bytecode_, operand_index)));
+  DCHECK_EQ(OperandType::kRegCount,
+            Bytecodes::GetOperandType(bytecode_, operand_index + 1));
+  Node* base_reg = RegisterLocation(BytecodeOperandReg(operand_index));
+  Node* reg_count = BytecodeOperandCount(operand_index + 1);
+  return RegListNodePair(base_reg, reg_count);
+}
+
+Node* InterpreterAssembler::LoadRegisterFromRegisterList(
+    const RegListNodePair& reg_list, int index) {
+  Node* location = RegisterLocationInRegisterList(reg_list, index);
+  return Load(MachineType::AnyTagged(), location);
+}
+
+Node* InterpreterAssembler::RegisterLocationInRegisterList(
+    const RegListNodePair& reg_list, int index) {
+  CSA_ASSERT(this,
+             Uint32GreaterThan(reg_list.reg_count(), Int32Constant(index)));
+  Node* offset = RegisterFrameOffset(IntPtrConstant(index));
+  // Register indexes are negative, so subtract index from base location to get
+  // location.
+  return IntPtrSub(reg_list.base_reg_location(), offset);
+}
+
+void InterpreterAssembler::StoreRegister(Node* value, Register reg) {
+  StoreNoWriteBarrier(
       MachineRepresentation::kTagged, GetInterpretedFramePointer(),
       IntPtrConstant(reg.ToOperand() << kPointerSizeLog2), value);
 }
 
-Node* InterpreterAssembler::StoreRegister(Node* value, Node* reg_index) {
-  return StoreNoWriteBarrier(MachineRepresentation::kTagged,
-                             GetInterpretedFramePointer(),
-                             RegisterFrameOffset(reg_index), value);
+void InterpreterAssembler::StoreRegister(Node* value, Node* reg_index) {
+  StoreNoWriteBarrier(MachineRepresentation::kTagged,
+                      GetInterpretedFramePointer(),
+                      RegisterFrameOffset(reg_index), value);
 }
 
-Node* InterpreterAssembler::StoreAndTagRegister(compiler::Node* value,
-                                                Register reg) {
+void InterpreterAssembler::StoreAndTagRegister(Node* value, Register reg) {
   int offset = reg.ToOperand() << kPointerSizeLog2;
-  return StoreAndTagSmi(GetInterpretedFramePointer(), offset, value);
+  StoreAndTagSmi(GetInterpretedFramePointer(), offset, value);
+}
+
+void InterpreterAssembler::StoreRegisterAtOperandIndex(Node* value,
+                                                       int operand_index) {
+  StoreRegister(value, BytecodeOperandReg(operand_index));
+}
+
+void InterpreterAssembler::StoreRegisterPairAtOperandIndex(Node* value1,
+                                                           Node* value2,
+                                                           int operand_index) {
+  DCHECK_EQ(OperandType::kRegOutPair,
+            Bytecodes::GetOperandType(bytecode_, operand_index));
+  Node* first_reg_index = BytecodeOperandReg(operand_index);
+  StoreRegister(value1, first_reg_index);
+  Node* second_reg_index = NextRegister(first_reg_index);
+  StoreRegister(value2, second_reg_index);
+}
+
+void InterpreterAssembler::StoreRegisterTripleAtOperandIndex(
+    Node* value1, Node* value2, Node* value3, int operand_index) {
+  DCHECK_EQ(OperandType::kRegOutTriple,
+            Bytecodes::GetOperandType(bytecode_, operand_index));
+  Node* first_reg_index = BytecodeOperandReg(operand_index);
+  StoreRegister(value1, first_reg_index);
+  Node* second_reg_index = NextRegister(first_reg_index);
+  StoreRegister(value2, second_reg_index);
+  Node* third_reg_index = NextRegister(second_reg_index);
+  StoreRegister(value3, third_reg_index);
 }
 
 Node* InterpreterAssembler::NextRegister(Node* reg_index) {
@@ -324,7 +396,7 @@ compiler::Node* InterpreterAssembler::BytecodeOperandReadUnaligned(
   // Read the most signicant bytecode into bytes[0] and then in order
   // down to least significant in bytes[count - 1].
   DCHECK_LE(count, kMaxCount);
-  compiler::Node* bytes[kMaxCount];
+  Node* bytes[kMaxCount];
   for (int i = 0; i < count; i++) {
     MachineType machine_type = (i == 0) ? msb_type : MachineType::Uint8();
     Node* offset = IntPtrConstant(relative_offset + msb_offset + i * kStep);
@@ -546,6 +618,17 @@ Node* InterpreterAssembler::LoadAndUntagConstantPoolEntry(Node* index) {
   return SmiUntag(LoadConstantPoolEntry(index));
 }
 
+Node* InterpreterAssembler::LoadConstantPoolEntryAtOperandIndex(
+    int operand_index) {
+  Node* index = BytecodeOperandIdx(operand_index);
+  return LoadConstantPoolEntry(index);
+}
+
+Node* InterpreterAssembler::LoadAndUntagConstantPoolEntryAtOperandIndex(
+    int operand_index) {
+  return SmiUntag(LoadConstantPoolEntryAtOperandIndex(operand_index));
+}
+
 Node* InterpreterAssembler::LoadFeedbackVector() {
   Node* function = LoadRegister(Register::function_closure());
   Node* cell = LoadObjectField(function, JSFunction::kFeedbackVectorOffset);
@@ -707,18 +790,30 @@ void InterpreterAssembler::CollectCallFeedback(Node* target, Node* context,
 }
 
 void InterpreterAssembler::CallJSAndDispatch(
-    Node* function, Node* context, Node* first_arg, Node* arg_count,
+    Node* function, Node* context, const RegListNodePair& args,
     ConvertReceiverMode receiver_mode) {
   DCHECK(Bytecodes::MakesCallAlongCriticalPath(bytecode_));
   DCHECK(Bytecodes::IsCallOrConstruct(bytecode_) ||
          bytecode_ == Bytecode::kInvokeIntrinsic);
   DCHECK_EQ(Bytecodes::GetReceiverMode(bytecode_), receiver_mode);
+
+  Node* args_count;
+  if (receiver_mode == ConvertReceiverMode::kNullOrUndefined) {
+    // The receiver is implied, so it is not in the argument list.
+    args_count = args.reg_count();
+  } else {
+    // Subtract the receiver from the argument count.
+    Node* receiver_count = Int32Constant(1);
+    args_count = Int32Sub(args.reg_count(), receiver_count);
+  }
+
   Callable callable = CodeFactory::InterpreterPushArgsThenCall(
       isolate(), receiver_mode, InterpreterPushArgsMode::kOther);
   Node* code_target = HeapConstant(callable.code());
 
   TailCallStubThenBytecodeDispatch(callable.descriptor(), code_target, context,
-                                   arg_count, first_arg, function);
+                                   args_count, args.base_reg_location(),
+                                   function);
   // TailCallStubThenDispatch updates accumulator with result.
   accumulator_use_ = accumulator_use_ | AccumulatorUse::kWrite;
 }
@@ -764,8 +859,8 @@ template V8_EXPORT_PRIVATE void InterpreterAssembler::CallJSAndDispatch(
     ConvertReceiverMode receiver_mode, Node*, Node*, Node*);
 
 void InterpreterAssembler::CallJSWithSpreadAndDispatch(
-    Node* function, Node* context, Node* first_arg, Node* arg_count,
-    Node* slot_id, Node* feedback_vector) {
+    Node* function, Node* context, const RegListNodePair& args, Node* slot_id,
+    Node* feedback_vector) {
   DCHECK(Bytecodes::MakesCallAlongCriticalPath(bytecode_));
   DCHECK_EQ(Bytecodes::GetReceiverMode(bytecode_), ConvertReceiverMode::kAny);
   CollectCallFeedback(function, context, feedback_vector, slot_id);
@@ -775,16 +870,19 @@ void InterpreterAssembler::CallJSWithSpreadAndDispatch(
       InterpreterPushArgsMode::kWithFinalSpread);
   Node* code_target = HeapConstant(callable.code());
 
+  Node* receiver_count = Int32Constant(1);
+  Node* args_count = Int32Sub(args.reg_count(), receiver_count);
   TailCallStubThenBytecodeDispatch(callable.descriptor(), code_target, context,
-                                   arg_count, first_arg, function);
+                                   args_count, args.base_reg_location(),
+                                   function);
   // TailCallStubThenDispatch updates accumulator with result.
   accumulator_use_ = accumulator_use_ | AccumulatorUse::kWrite;
 }
 
 Node* InterpreterAssembler::Construct(Node* target, Node* context,
-                                      Node* new_target, Node* first_arg,
-                                      Node* arg_count, Node* slot_id,
-                                      Node* feedback_vector) {
+                                      Node* new_target,
+                                      const RegListNodePair& args,
+                                      Node* slot_id, Node* feedback_vector) {
   DCHECK(Bytecodes::MakesCallAlongCriticalPath(bytecode_));
   VARIABLE(var_result, MachineRepresentation::kTagged);
   VARIABLE(var_site, MachineRepresentation::kTagged);
@@ -937,8 +1035,8 @@ Node* InterpreterAssembler::Construct(Node* target, Node* context,
         isolate(), InterpreterPushArgsMode::kJSFunction);
     Node* code_target = HeapConstant(callable.code());
     var_result.Bind(CallStub(callable.descriptor(), code_target, context,
-                             arg_count, new_target, target, var_site.value(),
-                             first_arg));
+                             args.reg_count(), new_target, target,
+                             var_site.value(), args.base_reg_location()));
     Goto(&return_result);
   }
 
@@ -950,8 +1048,8 @@ Node* InterpreterAssembler::Construct(Node* target, Node* context,
         isolate(), InterpreterPushArgsMode::kOther);
     Node* code_target = HeapConstant(callable.code());
     var_result.Bind(CallStub(callable.descriptor(), code_target, context,
-                             arg_count, new_target, target, UndefinedConstant(),
-                             first_arg));
+                             args.reg_count(), new_target, target,
+                             UndefinedConstant(), args.base_reg_location()));
     Goto(&return_result);
   }
 
@@ -961,8 +1059,8 @@ Node* InterpreterAssembler::Construct(Node* target, Node* context,
 
 Node* InterpreterAssembler::ConstructWithSpread(Node* target, Node* context,
                                                 Node* new_target,
-                                                Node* first_arg,
-                                                Node* arg_count, Node* slot_id,
+                                                const RegListNodePair& args,
+                                                Node* slot_id,
                                                 Node* feedback_vector) {
   // TODO(bmeurer): Unify this with the Construct bytecode feedback
   // above once we have a way to pass the AllocationSite to the Array
@@ -1075,12 +1173,13 @@ Node* InterpreterAssembler::ConstructWithSpread(Node* target, Node* context,
   Callable callable = CodeFactory::InterpreterPushArgsThenConstruct(
       isolate(), InterpreterPushArgsMode::kWithFinalSpread);
   Node* code_target = HeapConstant(callable.code());
-  return CallStub(callable.descriptor(), code_target, context, arg_count,
-                  new_target, target, UndefinedConstant(), first_arg);
+  return CallStub(callable.descriptor(), code_target, context, args.reg_count(),
+                  new_target, target, UndefinedConstant(),
+                  args.base_reg_location());
 }
 
 Node* InterpreterAssembler::CallRuntimeN(Node* function_id, Node* context,
-                                         Node* first_arg, Node* arg_count,
+                                         const RegListNodePair& args,
                                          int result_size) {
   DCHECK(Bytecodes::MakesCallAlongCriticalPath(bytecode_));
   DCHECK(Bytecodes::IsCallRuntime(bytecode_));
@@ -1099,7 +1198,7 @@ Node* InterpreterAssembler::CallRuntimeN(Node* function_id, Node* context,
            IntPtrConstant(offsetof(Runtime::Function, entry)));
 
   return CallStubR(callable.descriptor(), result_size, code_target, context,
-                   arg_count, first_arg, function_entry);
+                   args.reg_count(), args.base_reg_location(), function_entry);
 }
 
 void InterpreterAssembler::UpdateInterruptBudget(Node* weight, bool backward) {
@@ -1200,7 +1299,7 @@ void InterpreterAssembler::JumpIfWordNotEqual(Node* lhs, Node* rhs,
   JumpConditional(WordNotEqual(lhs, rhs), delta);
 }
 
-Node* InterpreterAssembler::LoadBytecode(compiler::Node* bytecode_offset) {
+Node* InterpreterAssembler::LoadBytecode(Node* bytecode_offset) {
   Node* bytecode =
       Load(MachineType::Uint8(), BytecodeArrayTaggedPointer(), bytecode_offset);
   return ChangeUint32ToWord(bytecode);
@@ -1451,9 +1550,12 @@ void InterpreterAssembler::AbortIfRegisterCountInvalid(Node* register_file,
   BIND(&ok);
 }
 
-Node* InterpreterAssembler::ExportRegisterFile(Node* array,
-                                               Node* register_count) {
+Node* InterpreterAssembler::ExportRegisterFile(
+    Node* array, const RegListNodePair& registers) {
+  Node* register_count = ChangeUint32ToWord(registers.reg_count());
   if (FLAG_debug_code) {
+    CSA_ASSERT(this, IntPtrEqual(registers.base_reg_location(),
+                                 RegisterLocation(Register(0))));
     AbortIfRegisterCountInvalid(array, register_count);
   }
 
@@ -1483,9 +1585,12 @@ Node* InterpreterAssembler::ExportRegisterFile(Node* array,
   return array;
 }
 
-Node* InterpreterAssembler::ImportRegisterFile(Node* array,
-                                               Node* register_count) {
+Node* InterpreterAssembler::ImportRegisterFile(
+    Node* array, const RegListNodePair& registers) {
+  Node* register_count = ChangeUint32ToWord(registers.reg_count());
   if (FLAG_debug_code) {
+    CSA_ASSERT(this, IntPtrEqual(registers.base_reg_location(),
+                                 RegisterLocation(Register(0))));
     AbortIfRegisterCountInvalid(array, register_count);
   }
 
