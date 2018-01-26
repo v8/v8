@@ -1786,9 +1786,6 @@ class MacroAssembler : public TurboAssembler {
                       const ParameterCount& actual, InvokeFlag flag);
   void InvokeFunction(Register function, const ParameterCount& expected,
                       const ParameterCount& actual, InvokeFlag flag);
-  void InvokeFunction(Handle<JSFunction> function,
-                      const ParameterCount& expected,
-                      const ParameterCount& actual, InvokeFlag flag);
 
   // ---- Code generation helpers ----
 

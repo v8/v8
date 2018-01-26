@@ -649,10 +649,6 @@ class MacroAssembler : public TurboAssembler {
                       const ParameterCount& expected,
                       const ParameterCount& actual, InvokeFlag flag);
 
-  void InvokeFunction(Handle<JSFunction> function,
-                      const ParameterCount& expected,
-                      const ParameterCount& actual, InvokeFlag flag);
-
   // ---------------------------------------------------------------------------
   // Conversions between tagged smi values and non-tagged integer values.
 

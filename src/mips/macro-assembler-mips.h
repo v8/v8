@@ -1023,10 +1023,6 @@ class MacroAssembler : public TurboAssembler {
   void InvokeFunction(Register function, const ParameterCount& expected,
                       const ParameterCount& actual, InvokeFlag flag);
 
-  void InvokeFunction(Handle<JSFunction> function,
-                      const ParameterCount& expected,
-                      const ParameterCount& actual, InvokeFlag flag);
-
   // Frame restart support.
   void MaybeDropFrames();
 

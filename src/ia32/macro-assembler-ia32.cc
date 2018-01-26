@@ -1104,14 +1104,6 @@ void MacroAssembler::InvokeFunction(Register fun,
   InvokeFunctionCode(edi, no_reg, expected, actual, flag);
 }
 
-void MacroAssembler::InvokeFunction(Handle<JSFunction> function,
-                                    const ParameterCount& expected,
-                                    const ParameterCount& actual,
-                                    InvokeFlag flag) {
-  Move(edi, function);
-  InvokeFunction(edi, expected, actual, flag);
-}
-
 void MacroAssembler::LoadGlobalProxy(Register dst) {
   mov(dst, NativeContextOperand());
   mov(dst, ContextOperand(dst, Context::GLOBAL_PROXY_INDEX));
