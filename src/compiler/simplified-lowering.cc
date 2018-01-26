@@ -2358,9 +2358,19 @@ class RepresentationSelector {
         return;
       }
       case IrOpcode::kStringCodePointAt: {
-        // TODO(turbofan): Allow builtins to return untagged values.
-        VisitBinop(node, UseInfo::AnyTagged(), UseInfo::TruncatingWord32(),
-                   MachineRepresentation::kTaggedSigned);
+        Type* string_type = TypeOf(node->InputAt(0));
+        if (string_type->Is(Type::SeqString())) {
+          VisitBinop(node, UseInfo::AnyTagged(), UseInfo::TruncatingWord32(),
+                     MachineRepresentation::kWord32);
+          if (lower()) {
+            UnicodeEncoding encoding = UnicodeEncodingOf(node->op());
+            NodeProperties::ChangeOp(
+                node, simplified()->SeqStringCodePointAt(encoding));
+          }
+        } else {
+          VisitBinop(node, UseInfo::AnyTagged(), UseInfo::TruncatingWord32(),
+                     MachineRepresentation::kTaggedSigned);
+        }
         return;
       }
       case IrOpcode::kStringFromCharCode: {

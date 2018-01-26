@@ -858,7 +858,7 @@ bool EffectControlLinearizer::TryWireInStateEffect(Node* node,
       result = LowerStringCodePointAt(node, UnicodeEncodingOf(node->op()));
       break;
     case IrOpcode::kSeqStringCodePointAt:
-      result = LowerSeqStringCharCodeAt(node);
+      result = LowerSeqStringCodePointAt(node, UnicodeEncodingOf(node->op()));
       break;
     case IrOpcode::kStringToLowerCaseIntl:
       result = LowerStringToLowerCaseIntl(node);
@@ -2908,17 +2908,18 @@ Node* EffectControlLinearizer::LowerSeqStringCodePointAt(
       __ Word32Equal(__ Word32And(first_char_code, __ Int32Constant(0xFC00)),
                      __ Int32Constant(0xD800));
   // Return first character code.
-  __ GotoIf(first_out, &return_result, first_char_code);
+  __ GotoIfNot(first_out, &return_result, first_char_code);
   // Check if position + 1 is still in range.
-  Node* length = __ LoadField(AccessBuilder::ForStringLength(), receiver);
+  Node* length = ChangeSmiToInt32(
+      __ LoadField(AccessBuilder::ForStringLength(), receiver));
   Node* next_position = __ Int32Add(position, __ Int32Constant(1));
   Node* next_position_in_range = __ Int32LessThan(next_position, length);
-  __ GotoIf(next_position_in_range, &return_result, first_char_code);
+  __ GotoIfNot(next_position_in_range, &return_result, first_char_code);
 
   // Load second character code.
   Node* second_char_code =
       LoadFromSeqString(receiver, next_position, is_one_byte);
-  // Check if first character code is outside of interval [0xD800, 0xDBFF].
+  // Check if second character code is outside of interval [0xDC00, 0xDFFF].
   Node* second_out =
       __ Word32Equal(__ Word32And(second_char_code, __ Int32Constant(0xFC00)),
                      __ Int32Constant(0xDC00));
