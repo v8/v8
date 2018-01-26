@@ -581,11 +581,13 @@ TNode<Object> CodeStubAssembler::NumberMin(SloppyTNode<Object> a,
   return TNode<Object>::UncheckedCast(result.value());
 }
 
-void CodeStubAssembler::ConvertToRelativeIndex(Node* context,
-                                               Variable* var_result,
-                                               Node* index, Node* length) {
-  TNode<Object> const index_int =
-      ToInteger(context, index, CodeStubAssembler::kTruncateMinusZero);
+TNode<Smi> CodeStubAssembler::ConvertToRelativeIndex(TNode<Context> context,
+                                                     TNode<Object> index,
+                                                     TNode<Smi> length) {
+  TVARIABLE(Smi, result);
+
+  TNode<Number> const index_int =
+      ToInteger_Inline(context, index, CodeStubAssembler::kTruncateMinusZero);
   TNode<Smi> const zero = SmiConstant(0);
 
   Label done(this);
@@ -594,12 +596,12 @@ void CodeStubAssembler::ConvertToRelativeIndex(Node* context,
 
   BIND(&if_issmi);
   {
-    TNode<Smi> const start_int_smi = CAST(index_int);
-    var_result->Bind(
-        Select(SmiLessThan(start_int_smi, zero),
-               [&] { return SmiMax(SmiAdd(length, start_int_smi), zero); },
-               [&] { return SmiMin(start_int_smi, length); },
-               MachineRepresentation::kTagged));
+    TNode<Smi> const index_smi = CAST(index_int);
+    result =
+        Select<Smi>(SmiLessThan(index_smi, zero),
+                    [&] { return SmiMax(SmiAdd(length, index_smi), zero); },
+                    [&] { return SmiMin(index_smi, length); },
+                    MachineRepresentation::kTagged);
     Goto(&done);
   }
 
@@ -608,14 +610,15 @@ void CodeStubAssembler::ConvertToRelativeIndex(Node* context,
     // If {index} is a heap number, it is definitely out of bounds. If it is
     // negative, {index} = max({length} + {index}),0) = 0'. If it is positive,
     // set {index} to {length}.
-    TNode<HeapNumber> const start_int_hn = CAST(index_int);
+    TNode<HeapNumber> const index_hn = CAST(index_int);
     TNode<Float64T> const float_zero = Float64Constant(0.);
-    TNode<Float64T> const start_float = LoadHeapNumberValue(start_int_hn);
-    var_result->Bind(SelectTaggedConstant<Smi>(
-        Float64LessThan(start_float, float_zero), zero, length));
+    TNode<Float64T> const index_float = LoadHeapNumberValue(index_hn);
+    result = SelectTaggedConstant<Smi>(Float64LessThan(index_float, float_zero),
+                                       zero, length);
     Goto(&done);
   }
   BIND(&done);
+  return result;
 }
 
 Node* CodeStubAssembler::SmiMod(Node* a, Node* b) {

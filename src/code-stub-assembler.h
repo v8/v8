@@ -225,8 +225,8 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
 
   // After converting an index to an integer, calculate a relative index: if
   // index < 0, max(length + index, 0); else min(index, length)
-  void ConvertToRelativeIndex(Node* context, Variable* var_result, Node* index,
-                              Node* length);
+  TNode<Smi> ConvertToRelativeIndex(TNode<Context> context, TNode<Object> index,
+                                    TNode<Smi> length);
 
   // Tag a Word as a Smi value.
   TNode<Smi> SmiTag(SloppyTNode<IntPtrT> value);
