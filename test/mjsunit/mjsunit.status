@@ -647,6 +647,12 @@
 
   # Fails allocation on tsan.
   'es6/classes': [PASS, ['tsan', SKIP]],
+
+  # BUG(v8:7313).
+  'regress/regress-crbug-474297': [SKIP],
+  'regress/regress-crbug-491062': [SKIP],
+  'regress/regress-crbug-505007-1': [SKIP],
+  'regress/regress-crbug-506443': [SKIP],
 }],  # 'gc_fuzzer'
 
 ##############################################################################
