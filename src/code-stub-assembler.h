@@ -1117,6 +1117,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
   Node* IsJSObjectInstanceType(Node* instance_type);
   Node* IsJSObjectMap(Node* map);
   Node* IsJSObject(Node* object);
+  Node* IsJSPromiseMap(Node* map);
   Node* IsJSProxy(Node* object);
   Node* IsJSReceiverInstanceType(Node* instance_type);
   Node* IsJSReceiverMap(Node* map);

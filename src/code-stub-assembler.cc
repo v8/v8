@@ -4314,6 +4314,11 @@ Node* CodeStubAssembler::IsJSObject(Node* object) {
   return IsJSObjectMap(LoadMap(object));
 }
 
+Node* CodeStubAssembler::IsJSPromiseMap(Node* map) {
+  CSA_ASSERT(this, IsMap(map));
+  return InstanceTypeEqual(LoadMapInstanceType(map), JS_PROMISE_TYPE);
+}
+
 Node* CodeStubAssembler::IsJSProxy(Node* object) {
   return HasInstanceType(object, JS_PROXY_TYPE);
 }
