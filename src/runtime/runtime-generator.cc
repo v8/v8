@@ -30,6 +30,9 @@ RUNTIME_FUNCTION(Runtime_CreateJSGeneratorObject) {
   generator->set_receiver(*receiver);
   generator->set_register_file(*register_file);
   generator->set_continuation(JSGeneratorObject::kGeneratorExecuting);
+  if (generator->IsJSAsyncGeneratorObject()) {
+    Handle<JSAsyncGeneratorObject>::cast(generator)->set_is_awaiting(0);
+  }
   return *generator;
 }
 

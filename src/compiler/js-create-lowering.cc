@@ -492,8 +492,8 @@ Reduction JSCreateLowering::ReduceJSCreateGeneratorObject(Node* node) {
 
     if (initial_map->instance_type() == JS_ASYNC_GENERATOR_OBJECT_TYPE) {
       a.Store(AccessBuilder::ForJSAsyncGeneratorObjectQueue(), undefined);
-      a.Store(AccessBuilder::ForJSAsyncGeneratorObjectAwaitedPromise(),
-              undefined);
+      a.Store(AccessBuilder::ForJSAsyncGeneratorObjectIsAwaiting(),
+              jsgraph()->ZeroConstant());
     }
 
     // Handle in-object properties, too.

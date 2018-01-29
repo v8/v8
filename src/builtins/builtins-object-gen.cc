@@ -760,7 +760,7 @@ TF_BUILTIN(CreateGeneratorObject, ObjectBuiltinsAssembler) {
 
   // Get the initial map from the function, jumping to the runtime if we don't
   // have one.
-  Label runtime(this);
+  Label done(this), runtime(this);
   GotoIfNot(IsFunctionWithPrototypeSlotMap(LoadMap(closure)), &runtime);
   Node* maybe_map =
       LoadObjectField(closure, JSFunction::kPrototypeOrInitialMapOffset);
@@ -790,7 +790,13 @@ TF_BUILTIN(CreateGeneratorObject, ObjectBuiltinsAssembler) {
   Node* executing = SmiConstant(JSGeneratorObject::kGeneratorExecuting);
   StoreObjectFieldNoWriteBarrier(result, JSGeneratorObject::kContinuationOffset,
                                  executing);
-  Return(result);
+  GotoIfNot(HasInstanceType(maybe_map, JS_ASYNC_GENERATOR_OBJECT_TYPE), &done);
+  StoreObjectFieldNoWriteBarrier(
+      result, JSAsyncGeneratorObject::kIsAwaitingOffset, SmiConstant(0));
+  Goto(&done);
+
+  BIND(&done);
+  { Return(result); }
 
   BIND(&runtime);
   {

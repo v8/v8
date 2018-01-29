@@ -3334,14 +3334,14 @@ class JSAsyncGeneratorObject : public JSGeneratorObject {
   // undefined.
   DECL_ACCESSORS(queue, HeapObject)
 
-  // [awaited_promise]
-  // A reference to the Promise of an AwaitExpression.
-  DECL_ACCESSORS(awaited_promise, HeapObject)
+  // [is_awaiting]
+  // Whether or not the generator is currently awaiting.
+  DECL_INT_ACCESSORS(is_awaiting)
 
   // Layout description.
   static const int kQueueOffset = JSGeneratorObject::kSize;
-  static const int kAwaitedPromiseOffset = kQueueOffset + kPointerSize;
-  static const int kSize = kAwaitedPromiseOffset + kPointerSize;
+  static const int kIsAwaitingOffset = kQueueOffset + kPointerSize;
+  static const int kSize = kIsAwaitingOffset + kPointerSize;
 
  private:
   DISALLOW_IMPLICIT_CONSTRUCTORS(JSAsyncGeneratorObject);

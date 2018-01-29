@@ -2773,8 +2773,7 @@ bool JSGeneratorObject::is_executing() const {
 }
 
 ACCESSORS(JSAsyncGeneratorObject, queue, HeapObject, kQueueOffset)
-ACCESSORS(JSAsyncGeneratorObject, awaited_promise, HeapObject,
-          kAwaitedPromiseOffset)
+SMI_ACCESSORS(JSAsyncGeneratorObject, is_awaiting, kIsAwaitingOffset)
 
 ACCESSORS(JSValue, value, Object, kValueOffset)
 
