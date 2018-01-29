@@ -283,7 +283,7 @@ class CpuFeatures : public AllStatic {
     return (supported_ & (1u << f)) != 0;
   }
 
-  static inline bool SupportsCrankshaft();
+  static inline bool SupportsOptimizer();
 
   static inline bool SupportsWasmSimd128();
 

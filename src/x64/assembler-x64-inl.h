@@ -15,7 +15,7 @@
 namespace v8 {
 namespace internal {
 
-bool CpuFeatures::SupportsCrankshaft() { return true; }
+bool CpuFeatures::SupportsOptimizer() { return true; }
 
 bool CpuFeatures::SupportsWasmSimd128() { return IsSupported(SSE4_1); }
 

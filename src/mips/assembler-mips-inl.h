@@ -46,8 +46,7 @@
 namespace v8 {
 namespace internal {
 
-
-bool CpuFeatures::SupportsCrankshaft() { return IsSupported(FPU); }
+bool CpuFeatures::SupportsOptimizer() { return IsSupported(FPU); }
 
 bool CpuFeatures::SupportsWasmSimd128() { return IsSupported(MIPS_SIMD); }
 
