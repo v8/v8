@@ -56,9 +56,6 @@ class V8_EXPORT_PRIVATE InterpreterAssembler : public CodeStubAssembler {
   // Returns the smi immediate for bytecode operand |operand_index| in the
   // current bytecode.
   compiler::Node* BytecodeOperandImmSmi(int operand_index);
-  // Returns the word-size sign-extended register index for bytecode operand
-  // |operand_index| in the current bytecode.
-  compiler::Node* BytecodeOperandReg(int operand_index);
   // Returns the 32-bit unsigned runtime id immediate for bytecode operand
   // |operand_index| in the current bytecode.
   compiler::Node* BytecodeOperandRuntimeId(int operand_index);
@@ -238,13 +235,13 @@ class V8_EXPORT_PRIVATE InterpreterAssembler : public CodeStubAssembler {
   // Dispatch to the bytecode.
   compiler::Node* Dispatch();
 
-  // Dispatch to bytecode handler.
-  compiler::Node* DispatchToBytecodeHandler(compiler::Node* handler) {
-    return DispatchToBytecodeHandler(handler, BytecodeOffset());
-  }
-
   // Dispatch bytecode as wide operand variant.
   void DispatchWide(OperandScale operand_scale);
+
+  // Dispatch to |target_bytecode| at |new_bytecode_offset|.
+  // |target_bytecode| should be equivalent to loading from the offset.
+  compiler::Node* DispatchToBytecode(compiler::Node* target_bytecode,
+                                     compiler::Node* new_bytecode_offset);
 
   // Abort with the given abort reason.
   void Abort(AbortReason abort_reason);
@@ -269,6 +266,9 @@ class V8_EXPORT_PRIVATE InterpreterAssembler : public CodeStubAssembler {
   // Lazily deserializes the current bytecode's handler and tail-calls into it.
   void DeserializeLazyAndDispatch();
 
+  // Disables poisoning on speculative execution.
+  void DisableSpeculationPoisoning();
+
  private:
   // Returns a tagged pointer to the current function's BytecodeArray object.
   compiler::Node* BytecodeArrayTaggedPointer();
@@ -291,6 +291,14 @@ class V8_EXPORT_PRIVATE InterpreterAssembler : public CodeStubAssembler {
   compiler::Node* NextRegister(compiler::Node* reg_index);
   compiler::Node* LoadRegister(Node* reg_index);
   void StoreRegister(compiler::Node* value, compiler::Node* reg_index);
+
+  // Generates a poison which can be used to mask values on speculative paths.
+  compiler::Node* GenerateSpeculationPoison(Node* current_bytecode);
+
+  // Poison |value| on speculative paths.
+  compiler::Node* PoisonOnSpeculationTagged(Node* value);
+  compiler::Node* PoisonOnSpeculationWord(Node* value);
+  compiler::Node* PoisonOnSpeculationInt32(Node* value);
 
   // Saves and restores interpreter bytecode offset to the interpreter stack
   // frame when performing a call.
@@ -319,16 +327,21 @@ class V8_EXPORT_PRIVATE InterpreterAssembler : public CodeStubAssembler {
   // The |result_type| determines the size and signedness.  of the
   // value read. This method should only be used on architectures that
   // do not support unaligned memory accesses.
-  compiler::Node* BytecodeOperandReadUnaligned(int relative_offset,
-                                               MachineType result_type);
+  compiler::Node* BytecodeOperandReadUnalignedUnpoisoned(
+      int relative_offset, MachineType result_type);
 
-  // Returns zero- or sign-extended to word32 value of the operand.
-  compiler::Node* BytecodeOperandUnsignedByte(int operand_index);
-  compiler::Node* BytecodeOperandSignedByte(int operand_index);
-  compiler::Node* BytecodeOperandUnsignedShort(int operand_index);
-  compiler::Node* BytecodeOperandSignedShort(int operand_index);
-  compiler::Node* BytecodeOperandUnsignedQuad(int operand_index);
-  compiler::Node* BytecodeOperandSignedQuad(int operand_index);
+  // Returns zero- or sign-extended to word32 value of the operand. Values are
+  // not poisoned on speculation - should be used with care.
+  compiler::Node* BytecodeOperandUnsignedByteUnpoisoned(int operand_index);
+  compiler::Node* BytecodeOperandSignedByteUnpoisoned(int operand_index);
+  compiler::Node* BytecodeOperandUnsignedShortUnpoisoned(int operand_index);
+  compiler::Node* BytecodeOperandSignedShortUnpoisoned(int operand_index);
+  compiler::Node* BytecodeOperandUnsignedQuadUnpoisoned(int operand_index);
+  compiler::Node* BytecodeOperandSignedQuadUnpoisoned(int operand_index);
+  compiler::Node* BytecodeSignedOperandUnpoisoned(int operand_index,
+                                                  OperandSize operand_size);
+  compiler::Node* BytecodeUnsignedOperandUnpoisoned(int operand_index,
+                                                    OperandSize operand_size);
 
   // Returns zero- or sign-extended to word32 value of the operand of
   // given size.
@@ -336,6 +349,15 @@ class V8_EXPORT_PRIVATE InterpreterAssembler : public CodeStubAssembler {
                                         OperandSize operand_size);
   compiler::Node* BytecodeUnsignedOperand(int operand_index,
                                           OperandSize operand_size);
+
+  // Returns the word-size sign-extended register index for bytecode operand
+  // |operand_index| in the current bytecode. Value is not poisoned on
+  // speculation since the value loaded from the register is poisoned instead.
+  compiler::Node* BytecodeOperandRegUnpoisoned(int operand_index);
+
+  // Returns the word zero-extended index immediate for bytecode operand
+  // |operand_index| in the current bytecode for use when loading a .
+  compiler::Node* BytecodeOperandConstantPoolIdxUnpoisoned(int operand_index);
 
   // Jump relative to the current bytecode by the |jump_offset|. If |backward|,
   // then jump backward (subtract the offset), otherwise jump forward (add the
@@ -372,18 +394,15 @@ class V8_EXPORT_PRIVATE InterpreterAssembler : public CodeStubAssembler {
   // next dispatch offset.
   void InlineStar();
 
-  // Dispatch to |target_bytecode| at |new_bytecode_offset|.
-  // |target_bytecode| should be equivalent to loading from the offset.
-  compiler::Node* DispatchToBytecode(compiler::Node* target_bytecode,
-                                     compiler::Node* new_bytecode_offset);
-
   // Dispatch to the bytecode handler with code offset |handler|.
   compiler::Node* DispatchToBytecodeHandler(compiler::Node* handler,
-                                            compiler::Node* bytecode_offset);
+                                            compiler::Node* bytecode_offset,
+                                            compiler::Node* target_bytecode);
 
   // Dispatch to the bytecode handler with code entry point |handler_entry|.
   compiler::Node* DispatchToBytecodeHandlerEntry(
-      compiler::Node* handler_entry, compiler::Node* bytecode_offset);
+      compiler::Node* handler_entry, compiler::Node* bytecode_offset,
+      compiler::Node* target_bytecode);
 
   int CurrentBytecodeSize() const;
 
@@ -400,6 +419,8 @@ class V8_EXPORT_PRIVATE InterpreterAssembler : public CodeStubAssembler {
   bool made_call_;
   bool reloaded_frame_ptr_;
   bool bytecode_array_valid_;
+
+  Node* speculation_poison_;
 
   bool disable_stack_check_across_call_;
   compiler::Node* stack_pointer_before_call_;

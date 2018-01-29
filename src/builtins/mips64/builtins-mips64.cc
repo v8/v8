@@ -1003,8 +1003,9 @@ void Builtins::Generate_InterpreterEntryTrampoline(MacroAssembler* masm) {
             masm->isolate())));
   __ Daddu(a0, kInterpreterBytecodeArrayRegister,
            kInterpreterBytecodeOffsetRegister);
-  __ Lbu(a0, MemOperand(a0));
-  __ Dlsa(at, kInterpreterDispatchTableRegister, a0, kPointerSizeLog2);
+  __ Lbu(kInterpreterTargetBytecodeRegister, MemOperand(a0));
+  __ Dlsa(at, kInterpreterDispatchTableRegister,
+          kInterpreterTargetBytecodeRegister, kPointerSizeLog2);
   __ Ld(at, MemOperand(at));
   __ Call(at);
   masm->isolate()->heap()->SetInterpreterEntryReturnPCOffset(masm->pc_offset());
@@ -1227,8 +1228,9 @@ static void Generate_InterpreterEnterBytecode(MacroAssembler* masm) {
   // Dispatch to the target bytecode.
   __ Daddu(a1, kInterpreterBytecodeArrayRegister,
            kInterpreterBytecodeOffsetRegister);
-  __ Lbu(a1, MemOperand(a1));
-  __ Dlsa(a1, kInterpreterDispatchTableRegister, a1, kPointerSizeLog2);
+  __ Lbu(kInterpreterTargetBytecodeRegister, MemOperand(a1));
+  __ Dlsa(a1, kInterpreterDispatchTableRegister,
+          kInterpreterTargetBytecodeRegister, kPointerSizeLog2);
   __ Ld(a1, MemOperand(a1));
   __ Jump(a1);
 }

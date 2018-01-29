@@ -1112,9 +1112,11 @@ void Builtins::Generate_InterpreterEntryTrampoline(MacroAssembler* masm) {
   __ Mov(kInterpreterDispatchTableRegister,
          Operand(ExternalReference::interpreter_dispatch_table_address(
              masm->isolate())));
-  __ Ldrb(x1, MemOperand(kInterpreterBytecodeArrayRegister,
-                         kInterpreterBytecodeOffsetRegister));
-  __ Mov(x1, Operand(x1, LSL, kPointerSizeLog2));
+  __ Ldrb(kInterpreterTargetBytecodeRegister,
+          MemOperand(kInterpreterBytecodeArrayRegister,
+                     kInterpreterBytecodeOffsetRegister));
+  __ Mov(x1,
+         Operand(kInterpreterTargetBytecodeRegister, LSL, kPointerSizeLog2));
   __ Ldr(ip0, MemOperand(kInterpreterDispatchTableRegister, x1));
   __ Call(ip0);
   masm->isolate()->heap()->SetInterpreterEntryReturnPCOffset(masm->pc_offset());
@@ -1344,9 +1346,11 @@ static void Generate_InterpreterEnterBytecode(MacroAssembler* masm) {
   __ SmiUntag(kInterpreterBytecodeOffsetRegister);
 
   // Dispatch to the target bytecode.
-  __ Ldrb(x1, MemOperand(kInterpreterBytecodeArrayRegister,
-                         kInterpreterBytecodeOffsetRegister));
-  __ Mov(x1, Operand(x1, LSL, kPointerSizeLog2));
+  __ Ldrb(kInterpreterTargetBytecodeRegister,
+          MemOperand(kInterpreterBytecodeArrayRegister,
+                     kInterpreterBytecodeOffsetRegister));
+  __ Mov(x1,
+         Operand(kInterpreterTargetBytecodeRegister, LSL, kPointerSizeLog2));
   __ Ldr(ip0, MemOperand(kInterpreterDispatchTableRegister, x1));
   __ Jump(ip0);
 }

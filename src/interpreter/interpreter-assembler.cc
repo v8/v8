@@ -48,6 +48,11 @@ InterpreterAssembler::InterpreterAssembler(CodeAssemblerState* state,
       made_call_(false),
       reloaded_frame_ptr_(false),
       bytecode_array_valid_(true),
+      speculation_poison_(
+          FLAG_untrusted_code_mitigations
+              ? GenerateSpeculationPoison(
+                    Parameter(InterpreterDispatchDescriptor::kTargetBytecode))
+              : nullptr),
       disable_stack_check_across_call_(false),
       stack_pointer_before_call_(nullptr) {
 #ifdef V8_TRACE_IGNITION
@@ -70,6 +75,39 @@ InterpreterAssembler::~InterpreterAssembler() {
   // bytecodes.h.
   DCHECK_EQ(accumulator_use_, Bytecodes::GetAccumulatorUse(bytecode_));
   UnregisterCallGenerationCallbacks();
+}
+
+Node* InterpreterAssembler::GenerateSpeculationPoison(Node* current_bytecode) {
+  // Calculate a mask which has all bits set in the normal case, but has all
+  // bits cleared if we are speculatively executing the wrong bytecode handler.
+  //    difference = (current - expected) | (expected - current)
+  //    poison = ~(difference >> (kBitsPerPointer - 1))
+  Node* expected_bytecode = IntPtrConstant(static_cast<int>(bytecode_));
+  Node* difference = WordOr(IntPtrSub(current_bytecode, expected_bytecode),
+                            IntPtrSub(expected_bytecode, current_bytecode));
+  return WordNot(WordSar(difference, IntPtrConstant(kBitsPerPointer - 1)));
+}
+
+void InterpreterAssembler::DisableSpeculationPoisoning() {
+  speculation_poison_ = nullptr;
+}
+
+Node* InterpreterAssembler::PoisonOnSpeculationTagged(Node* value) {
+  if (speculation_poison_ == nullptr) return value;
+  return BitcastWordToTagged(
+      WordAnd(speculation_poison_, BitcastTaggedToWord(value)));
+}
+
+Node* InterpreterAssembler::PoisonOnSpeculationWord(Node* value) {
+  if (speculation_poison_ == nullptr) return value;
+  return WordAnd(speculation_poison_, value);
+}
+
+Node* InterpreterAssembler::PoisonOnSpeculationInt32(Node* value) {
+  if (speculation_poison_ == nullptr) return value;
+  Node* truncated_speculation_poison =
+      Is64() ? TruncateInt64ToInt32(speculation_poison_) : speculation_poison_;
+  return Word32And(truncated_speculation_poison, value);
 }
 
 Node* InterpreterAssembler::GetInterpretedFramePointer() {
@@ -139,7 +177,7 @@ Node* InterpreterAssembler::GetAccumulatorUnchecked() {
 Node* InterpreterAssembler::GetAccumulator() {
   DCHECK(Bytecodes::ReadsAccumulator(bytecode_));
   accumulator_use_ = accumulator_use_ | AccumulatorUse::kRead;
-  return GetAccumulatorUnchecked();
+  return PoisonOnSpeculationTagged(GetAccumulatorUnchecked());
 }
 
 void InterpreterAssembler::SetAccumulator(Node* value) {
@@ -222,8 +260,8 @@ void InterpreterAssembler::GotoIfHasContextExtensionUpToDepth(Node* context,
 }
 
 Node* InterpreterAssembler::RegisterLocation(Node* reg_index) {
-  return IntPtrAdd(GetInterpretedFramePointer(),
-                   RegisterFrameOffset(reg_index));
+  return PoisonOnSpeculationWord(
+      IntPtrAdd(GetInterpretedFramePointer(), RegisterFrameOffset(reg_index)));
 }
 
 Node* InterpreterAssembler::RegisterLocation(Register reg) {
@@ -235,8 +273,9 @@ Node* InterpreterAssembler::RegisterFrameOffset(Node* index) {
 }
 
 Node* InterpreterAssembler::LoadRegister(Node* reg_index) {
-  return Load(MachineType::AnyTagged(), GetInterpretedFramePointer(),
-              RegisterFrameOffset(reg_index));
+  Node* value = Load(MachineType::AnyTagged(), GetInterpretedFramePointer(),
+                     RegisterFrameOffset(reg_index));
+  return PoisonOnSpeculationTagged(value);
 }
 
 Node* InterpreterAssembler::LoadRegister(Register reg) {
@@ -250,14 +289,14 @@ Node* InterpreterAssembler::LoadAndUntagRegister(Register reg) {
 }
 
 Node* InterpreterAssembler::LoadRegisterAtOperandIndex(int operand_index) {
-  return LoadRegister(BytecodeOperandReg(operand_index));
+  return LoadRegister(BytecodeOperandRegUnpoisoned(operand_index));
 }
 
 std::pair<Node*, Node*> InterpreterAssembler::LoadRegisterPairAtOperandIndex(
     int operand_index) {
   DCHECK_EQ(OperandType::kRegPair,
             Bytecodes::GetOperandType(bytecode_, operand_index));
-  Node* first_reg_index = BytecodeOperandReg(operand_index);
+  Node* first_reg_index = BytecodeOperandRegUnpoisoned(operand_index);
   Node* second_reg_index = NextRegister(first_reg_index);
   return std::make_pair(LoadRegister(first_reg_index),
                         LoadRegister(second_reg_index));
@@ -269,7 +308,8 @@ InterpreterAssembler::GetRegisterListAtOperandIndex(int operand_index) {
       Bytecodes::GetOperandType(bytecode_, operand_index)));
   DCHECK_EQ(OperandType::kRegCount,
             Bytecodes::GetOperandType(bytecode_, operand_index + 1));
-  Node* base_reg = RegisterLocation(BytecodeOperandReg(operand_index));
+  Node* base_reg =
+      RegisterLocation(BytecodeOperandRegUnpoisoned(operand_index));
   Node* reg_count = BytecodeOperandCount(operand_index + 1);
   return RegListNodePair(base_reg, reg_count);
 }
@@ -277,6 +317,7 @@ InterpreterAssembler::GetRegisterListAtOperandIndex(int operand_index) {
 Node* InterpreterAssembler::LoadRegisterFromRegisterList(
     const RegListNodePair& reg_list, int index) {
   Node* location = RegisterLocationInRegisterList(reg_list, index);
+  // Location is already poisoned on speculation, so no need to poison here.
   return Load(MachineType::AnyTagged(), location);
 }
 
@@ -309,7 +350,7 @@ void InterpreterAssembler::StoreAndTagRegister(Node* value, Register reg) {
 
 void InterpreterAssembler::StoreRegisterAtOperandIndex(Node* value,
                                                        int operand_index) {
-  StoreRegister(value, BytecodeOperandReg(operand_index));
+  StoreRegister(value, BytecodeOperandRegUnpoisoned(operand_index));
 }
 
 void InterpreterAssembler::StoreRegisterPairAtOperandIndex(Node* value1,
@@ -317,7 +358,7 @@ void InterpreterAssembler::StoreRegisterPairAtOperandIndex(Node* value1,
                                                            int operand_index) {
   DCHECK_EQ(OperandType::kRegOutPair,
             Bytecodes::GetOperandType(bytecode_, operand_index));
-  Node* first_reg_index = BytecodeOperandReg(operand_index);
+  Node* first_reg_index = BytecodeOperandRegUnpoisoned(operand_index);
   StoreRegister(value1, first_reg_index);
   Node* second_reg_index = NextRegister(first_reg_index);
   StoreRegister(value2, second_reg_index);
@@ -327,7 +368,7 @@ void InterpreterAssembler::StoreRegisterTripleAtOperandIndex(
     Node* value1, Node* value2, Node* value3, int operand_index) {
   DCHECK_EQ(OperandType::kRegOutTriple,
             Bytecodes::GetOperandType(bytecode_, operand_index));
-  Node* first_reg_index = BytecodeOperandReg(operand_index);
+  Node* first_reg_index = BytecodeOperandRegUnpoisoned(operand_index);
   StoreRegister(value1, first_reg_index);
   Node* second_reg_index = NextRegister(first_reg_index);
   StoreRegister(value2, second_reg_index);
@@ -345,7 +386,8 @@ Node* InterpreterAssembler::OperandOffset(int operand_index) {
       Bytecodes::GetOperandOffset(bytecode_, operand_index, operand_scale()));
 }
 
-Node* InterpreterAssembler::BytecodeOperandUnsignedByte(int operand_index) {
+Node* InterpreterAssembler::BytecodeOperandUnsignedByteUnpoisoned(
+    int operand_index) {
   DCHECK_LT(operand_index, Bytecodes::NumberOfOperands(bytecode_));
   DCHECK_EQ(OperandSize::kByte, Bytecodes::GetOperandSize(
                                     bytecode_, operand_index, operand_scale()));
@@ -354,7 +396,8 @@ Node* InterpreterAssembler::BytecodeOperandUnsignedByte(int operand_index) {
               IntPtrAdd(BytecodeOffset(), operand_offset));
 }
 
-Node* InterpreterAssembler::BytecodeOperandSignedByte(int operand_index) {
+Node* InterpreterAssembler::BytecodeOperandSignedByteUnpoisoned(
+    int operand_index) {
   DCHECK_LT(operand_index, Bytecodes::NumberOfOperands(bytecode_));
   DCHECK_EQ(OperandSize::kByte, Bytecodes::GetOperandSize(
                                     bytecode_, operand_index, operand_scale()));
@@ -363,7 +406,7 @@ Node* InterpreterAssembler::BytecodeOperandSignedByte(int operand_index) {
               IntPtrAdd(BytecodeOffset(), operand_offset));
 }
 
-compiler::Node* InterpreterAssembler::BytecodeOperandReadUnaligned(
+Node* InterpreterAssembler::BytecodeOperandReadUnalignedUnpoisoned(
     int relative_offset, MachineType result_type) {
   static const int kMaxCount = 4;
   DCHECK(!TargetSupportsUnalignedAccess());
@@ -414,7 +457,8 @@ compiler::Node* InterpreterAssembler::BytecodeOperandReadUnaligned(
   return result;
 }
 
-Node* InterpreterAssembler::BytecodeOperandUnsignedShort(int operand_index) {
+Node* InterpreterAssembler::BytecodeOperandUnsignedShortUnpoisoned(
+    int operand_index) {
   DCHECK_LT(operand_index, Bytecodes::NumberOfOperands(bytecode_));
   DCHECK_EQ(
       OperandSize::kShort,
@@ -425,11 +469,13 @@ Node* InterpreterAssembler::BytecodeOperandUnsignedShort(int operand_index) {
     return Load(MachineType::Uint16(), BytecodeArrayTaggedPointer(),
                 IntPtrAdd(BytecodeOffset(), IntPtrConstant(operand_offset)));
   } else {
-    return BytecodeOperandReadUnaligned(operand_offset, MachineType::Uint16());
+    return BytecodeOperandReadUnalignedUnpoisoned(operand_offset,
+                                                  MachineType::Uint16());
   }
 }
 
-Node* InterpreterAssembler::BytecodeOperandSignedShort(int operand_index) {
+Node* InterpreterAssembler::BytecodeOperandSignedShortUnpoisoned(
+    int operand_index) {
   DCHECK_LT(operand_index, Bytecodes::NumberOfOperands(bytecode_));
   DCHECK_EQ(
       OperandSize::kShort,
@@ -440,11 +486,13 @@ Node* InterpreterAssembler::BytecodeOperandSignedShort(int operand_index) {
     return Load(MachineType::Int16(), BytecodeArrayTaggedPointer(),
                 IntPtrAdd(BytecodeOffset(), IntPtrConstant(operand_offset)));
   } else {
-    return BytecodeOperandReadUnaligned(operand_offset, MachineType::Int16());
+    return BytecodeOperandReadUnalignedUnpoisoned(operand_offset,
+                                                  MachineType::Int16());
   }
 }
 
-Node* InterpreterAssembler::BytecodeOperandUnsignedQuad(int operand_index) {
+Node* InterpreterAssembler::BytecodeOperandUnsignedQuadUnpoisoned(
+    int operand_index) {
   DCHECK_LT(operand_index, Bytecodes::NumberOfOperands(bytecode_));
   DCHECK_EQ(OperandSize::kQuad, Bytecodes::GetOperandSize(
                                     bytecode_, operand_index, operand_scale()));
@@ -454,11 +502,13 @@ Node* InterpreterAssembler::BytecodeOperandUnsignedQuad(int operand_index) {
     return Load(MachineType::Uint32(), BytecodeArrayTaggedPointer(),
                 IntPtrAdd(BytecodeOffset(), IntPtrConstant(operand_offset)));
   } else {
-    return BytecodeOperandReadUnaligned(operand_offset, MachineType::Uint32());
+    return BytecodeOperandReadUnalignedUnpoisoned(operand_offset,
+                                                  MachineType::Uint32());
   }
 }
 
-Node* InterpreterAssembler::BytecodeOperandSignedQuad(int operand_index) {
+Node* InterpreterAssembler::BytecodeOperandSignedQuadUnpoisoned(
+    int operand_index) {
   DCHECK_LT(operand_index, Bytecodes::NumberOfOperands(bytecode_));
   DCHECK_EQ(OperandSize::kQuad, Bytecodes::GetOperandSize(
                                     bytecode_, operand_index, operand_scale()));
@@ -468,42 +518,55 @@ Node* InterpreterAssembler::BytecodeOperandSignedQuad(int operand_index) {
     return Load(MachineType::Int32(), BytecodeArrayTaggedPointer(),
                 IntPtrAdd(BytecodeOffset(), IntPtrConstant(operand_offset)));
   } else {
-    return BytecodeOperandReadUnaligned(operand_offset, MachineType::Int32());
+    return BytecodeOperandReadUnalignedUnpoisoned(operand_offset,
+                                                  MachineType::Int32());
   }
 }
 
-Node* InterpreterAssembler::BytecodeSignedOperand(int operand_index,
-                                                  OperandSize operand_size) {
+Node* InterpreterAssembler::BytecodeSignedOperandUnpoisoned(
+    int operand_index, OperandSize operand_size) {
   DCHECK(!Bytecodes::IsUnsignedOperandType(
       Bytecodes::GetOperandType(bytecode_, operand_index)));
   switch (operand_size) {
     case OperandSize::kByte:
-      return BytecodeOperandSignedByte(operand_index);
+      return BytecodeOperandSignedByteUnpoisoned(operand_index);
     case OperandSize::kShort:
-      return BytecodeOperandSignedShort(operand_index);
+      return BytecodeOperandSignedShortUnpoisoned(operand_index);
     case OperandSize::kQuad:
-      return BytecodeOperandSignedQuad(operand_index);
+      return BytecodeOperandSignedQuadUnpoisoned(operand_index);
     case OperandSize::kNone:
       UNREACHABLE();
   }
   return nullptr;
 }
 
-Node* InterpreterAssembler::BytecodeUnsignedOperand(int operand_index,
-                                                    OperandSize operand_size) {
+Node* InterpreterAssembler::BytecodeUnsignedOperandUnpoisoned(
+    int operand_index, OperandSize operand_size) {
   DCHECK(Bytecodes::IsUnsignedOperandType(
       Bytecodes::GetOperandType(bytecode_, operand_index)));
   switch (operand_size) {
     case OperandSize::kByte:
-      return BytecodeOperandUnsignedByte(operand_index);
+      return BytecodeOperandUnsignedByteUnpoisoned(operand_index);
     case OperandSize::kShort:
-      return BytecodeOperandUnsignedShort(operand_index);
+      return BytecodeOperandUnsignedShortUnpoisoned(operand_index);
     case OperandSize::kQuad:
-      return BytecodeOperandUnsignedQuad(operand_index);
+      return BytecodeOperandUnsignedQuadUnpoisoned(operand_index);
     case OperandSize::kNone:
       UNREACHABLE();
   }
   return nullptr;
+}
+
+Node* InterpreterAssembler::BytecodeSignedOperand(int operand_index,
+                                                  OperandSize operand_size) {
+  return PoisonOnSpeculationInt32(
+      BytecodeSignedOperandUnpoisoned(operand_index, operand_size));
+}
+
+Node* InterpreterAssembler::BytecodeUnsignedOperand(int operand_index,
+                                                    OperandSize operand_size) {
+  return PoisonOnSpeculationInt32(
+      BytecodeUnsignedOperandUnpoisoned(operand_index, operand_size));
 }
 
 Node* InterpreterAssembler::BytecodeOperandCount(int operand_index) {
@@ -571,13 +634,23 @@ Node* InterpreterAssembler::BytecodeOperandIdxSmi(int operand_index) {
   return SmiTag(BytecodeOperandIdx(operand_index));
 }
 
-Node* InterpreterAssembler::BytecodeOperandReg(int operand_index) {
+Node* InterpreterAssembler::BytecodeOperandConstantPoolIdxUnpoisoned(
+    int operand_index) {
+  DCHECK_EQ(OperandType::kIdx,
+            Bytecodes::GetOperandType(bytecode_, operand_index));
+  OperandSize operand_size =
+      Bytecodes::GetOperandSize(bytecode_, operand_index, operand_scale());
+  return ChangeUint32ToWord(
+      BytecodeUnsignedOperand(operand_index, operand_size));
+}
+
+Node* InterpreterAssembler::BytecodeOperandRegUnpoisoned(int operand_index) {
   DCHECK(Bytecodes::IsRegisterOperandType(
       Bytecodes::GetOperandType(bytecode_, operand_index)));
   OperandSize operand_size =
       Bytecodes::GetOperandSize(bytecode_, operand_index, operand_scale());
   return ChangeInt32ToIntPtr(
-      BytecodeSignedOperand(operand_index, operand_size));
+      BytecodeSignedOperandUnpoisoned(operand_index, operand_size));
 }
 
 Node* InterpreterAssembler::BytecodeOperandRuntimeId(int operand_index) {
@@ -611,7 +684,7 @@ Node* InterpreterAssembler::BytecodeOperandIntrinsicId(int operand_index) {
 Node* InterpreterAssembler::LoadConstantPoolEntry(Node* index) {
   Node* constant_pool = LoadObjectField(BytecodeArrayTaggedPointer(),
                                         BytecodeArray::kConstantPoolOffset);
-  return LoadFixedArrayElement(constant_pool, index);
+  return PoisonOnSpeculationTagged(LoadFixedArrayElement(constant_pool, index));
 }
 
 Node* InterpreterAssembler::LoadAndUntagConstantPoolEntry(Node* index) {
@@ -620,7 +693,7 @@ Node* InterpreterAssembler::LoadAndUntagConstantPoolEntry(Node* index) {
 
 Node* InterpreterAssembler::LoadConstantPoolEntryAtOperandIndex(
     int operand_index) {
-  Node* index = BytecodeOperandIdx(operand_index);
+  Node* index = BytecodeOperandConstantPoolIdxUnpoisoned(operand_index);
   return LoadConstantPoolEntry(index);
 }
 
@@ -1335,7 +1408,7 @@ void InterpreterAssembler::InlineStar() {
 #ifdef V8_TRACE_IGNITION
   TraceBytecode(Runtime::kInterpreterTraceBytecodeEntry);
 #endif
-  StoreRegister(GetAccumulator(), BytecodeOperandReg(0));
+  StoreRegister(GetAccumulator(), BytecodeOperandRegUnpoisoned(0));
 
   DCHECK_EQ(accumulator_use_, Bytecodes::GetAccumulatorUse(bytecode_));
 
@@ -1366,24 +1439,30 @@ Node* InterpreterAssembler::DispatchToBytecode(Node* target_bytecode,
       Load(MachineType::Pointer(), DispatchTableRawPointer(),
            TimesPointerSize(target_bytecode));
 
-  return DispatchToBytecodeHandlerEntry(target_code_entry, new_bytecode_offset);
+  return DispatchToBytecodeHandlerEntry(target_code_entry, new_bytecode_offset,
+                                        target_bytecode);
 }
 
 Node* InterpreterAssembler::DispatchToBytecodeHandler(Node* handler,
-                                                      Node* bytecode_offset) {
+                                                      Node* bytecode_offset,
+                                                      Node* target_bytecode) {
   // TODO(ishell): Add CSA::CodeEntryPoint(code).
   Node* handler_entry =
       IntPtrAdd(BitcastTaggedToWord(handler),
                 IntPtrConstant(Code::kHeaderSize - kHeapObjectTag));
-  return DispatchToBytecodeHandlerEntry(handler_entry, bytecode_offset);
+  return DispatchToBytecodeHandlerEntry(handler_entry, bytecode_offset,
+                                        target_bytecode);
 }
 
 Node* InterpreterAssembler::DispatchToBytecodeHandlerEntry(
-    Node* handler_entry, Node* bytecode_offset) {
+    Node* handler_entry, Node* bytecode_offset, Node* target_bytecode) {
   InterpreterDispatchDescriptor descriptor(isolate());
+  // Propagate speculation poisoning.
+  Node* poisoned_target_bytecode = PoisonOnSpeculationWord(target_bytecode);
   return TailCallBytecodeDispatch(
       descriptor, handler_entry, GetAccumulatorUnchecked(), bytecode_offset,
-      BytecodeArrayTaggedPointer(), DispatchTableRawPointer());
+      BytecodeArrayTaggedPointer(), DispatchTableRawPointer(),
+      poisoned_target_bytecode);
 }
 
 void InterpreterAssembler::DispatchWide(OperandScale operand_scale) {
@@ -1418,7 +1497,8 @@ void InterpreterAssembler::DispatchWide(OperandScale operand_scale) {
       Load(MachineType::Pointer(), DispatchTableRawPointer(),
            TimesPointerSize(target_index));
 
-  DispatchToBytecodeHandlerEntry(target_code_entry, next_bytecode_offset);
+  DispatchToBytecodeHandlerEntry(target_code_entry, next_bytecode_offset,
+                                 next_bytecode);
 }
 
 void InterpreterAssembler::UpdateInterruptBudgetOnReturn() {
@@ -1692,8 +1772,7 @@ void InterpreterAssembler::DeserializeLazyAndDispatch() {
   Node* target_handler =
       CallRuntime(Runtime::kInterpreterDeserializeLazy, context,
                   SmiTag(bytecode), SmiConstant(operand_scale()));
-
-  DispatchToBytecodeHandler(target_handler, bytecode_offset);
+  DispatchToBytecodeHandler(target_handler, bytecode_offset, bytecode);
 }
 
 }  // namespace interpreter

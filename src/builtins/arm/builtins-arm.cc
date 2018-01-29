@@ -1019,11 +1019,13 @@ void Builtins::Generate_InterpreterEntryTrampoline(MacroAssembler* masm) {
   __ mov(kInterpreterDispatchTableRegister,
          Operand(ExternalReference::interpreter_dispatch_table_address(
              masm->isolate())));
-  __ ldrb(r1, MemOperand(kInterpreterBytecodeArrayRegister,
-                         kInterpreterBytecodeOffsetRegister));
-  __ ldr(r4, MemOperand(kInterpreterDispatchTableRegister, r1, LSL,
-                        kPointerSizeLog2));
-  __ Call(r4);
+  __ ldrb(kInterpreterTargetBytecodeRegister,
+          MemOperand(kInterpreterBytecodeArrayRegister,
+                     kInterpreterBytecodeOffsetRegister));
+  __ ldr(r1,
+         MemOperand(kInterpreterDispatchTableRegister,
+                    kInterpreterTargetBytecodeRegister, LSL, kPointerSizeLog2));
+  __ Call(r1);
   masm->isolate()->heap()->SetInterpreterEntryReturnPCOffset(masm->pc_offset());
 
   // Any returns to the entry trampoline are either due to the return bytecode
@@ -1223,12 +1225,14 @@ static void Generate_InterpreterEnterBytecode(MacroAssembler* masm) {
   __ SmiUntag(kInterpreterBytecodeOffsetRegister);
 
   // Dispatch to the target bytecode.
-  __ ldrb(r1, MemOperand(kInterpreterBytecodeArrayRegister,
-                         kInterpreterBytecodeOffsetRegister));
+  __ ldrb(kInterpreterTargetBytecodeRegister,
+          MemOperand(kInterpreterBytecodeArrayRegister,
+                     kInterpreterBytecodeOffsetRegister));
   UseScratchRegisterScope temps(masm);
   Register scratch = temps.Acquire();
-  __ ldr(scratch, MemOperand(kInterpreterDispatchTableRegister, r1, LSL,
-                             kPointerSizeLog2));
+  __ ldr(scratch,
+         MemOperand(kInterpreterDispatchTableRegister,
+                    kInterpreterTargetBytecodeRegister, LSL, kPointerSizeLog2));
   __ Jump(scratch);
 }
 

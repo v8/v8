@@ -2742,10 +2742,10 @@ IGNITION_HANDLER(Debugger, InterpreterAssembler) {
     Node* result_pair =                                                    \
         CallRuntime(Runtime::kDebugBreakOnBytecode, context, accumulator); \
     Node* return_value = Projection(0, result_pair);                       \
-    Node* original_handler = Projection(1, result_pair);                   \
+    Node* original_bytecode = SmiUntag(Projection(1, result_pair));        \
     MaybeDropFrames(context);                                              \
     SetAccumulator(return_value);                                          \
-    DispatchToBytecodeHandler(original_handler);                           \
+    DispatchToBytecode(original_bytecode, BytecodeOffset());               \
   }
 DEBUG_BREAK_BYTECODE_LIST(DEBUG_BREAK);
 #undef DEBUG_BREAK
@@ -3095,7 +3095,10 @@ class DeserializeLazyAssembler : public InterpreterAssembler {
 
   explicit DeserializeLazyAssembler(compiler::CodeAssemblerState* state,
                                     OperandScale operand_scale)
-      : InterpreterAssembler(state, kFakeBytecode, operand_scale) {}
+      : InterpreterAssembler(state, kFakeBytecode, operand_scale) {
+    // Disable speculation poisoning for this handler since we use kFakeBytecode
+    DisableSpeculationPoisoning();
+  }
 
   static void Generate(compiler::CodeAssemblerState* state,
                        OperandScale operand_scale) {
