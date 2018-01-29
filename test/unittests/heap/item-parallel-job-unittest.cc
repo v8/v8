@@ -23,12 +23,18 @@ class ItemParallelJobTest : public TestWithIsolate {
 
 namespace {
 
-class EmptyTask : public ItemParallelJob::Task {
+class SimpleTask : public ItemParallelJob::Task {
  public:
-  explicit EmptyTask(Isolate* isolate, bool* did_run)
+  SimpleTask(Isolate* isolate, bool* did_run)
       : ItemParallelJob::Task(isolate), did_run_(did_run) {}
 
-  void RunInParallel() override { *did_run_ = true; }
+  void RunInParallel() override {
+    ItemParallelJob::Item* item = nullptr;
+    while ((item = GetItem<ItemParallelJob::Item>()) != nullptr) {
+      item->MarkFinished();
+    }
+    *did_run_ = true;
+  }
 
  private:
   bool* did_run_;
@@ -148,16 +154,54 @@ class ItemB : public BaseItem {
 
 }  // namespace
 
-TEST_F(ItemParallelJobTest, EmptyTaskRuns) {
+// TODO(gab): Figure out why skipping the main task when there are 0 work items
+// results in DCHECKs, https://crbug.com/806237.
+TEST_F(ItemParallelJobTest, DISABLED_SimpleTaskWithNoItemsDoesntRun) {
   bool did_run = false;
   ItemParallelJob job(i_isolate()->cancelable_task_manager(),
                       parallel_job_semaphore());
-  job.AddTask(new EmptyTask(i_isolate(), &did_run));
+  job.AddTask(new SimpleTask(i_isolate(), &did_run));
+
+  job.Run();
+  EXPECT_FALSE(did_run);
+}
+
+TEST_F(ItemParallelJobTest, SimpleTaskRuns) {
+  bool did_run = false;
+  ItemParallelJob job(i_isolate()->cancelable_task_manager(),
+                      parallel_job_semaphore());
+  job.AddTask(new SimpleTask(i_isolate(), &did_run));
+
+  // |job| needs at least one work item or it will not spawn the SimpleTask.
+  job.AddItem(new ItemParallelJob::Item);
+
   job.Run();
   EXPECT_TRUE(did_run);
 }
 
-TEST_F(ItemParallelJobTest, FinishAllItems) {
+TEST_F(ItemParallelJobTest, DontSpawnMoreTasksThanItems) {
+  bool did_run1 = false;
+  bool did_run2 = false;
+  bool did_run3 = false;
+  ItemParallelJob job(i_isolate()->cancelable_task_manager(),
+                      parallel_job_semaphore());
+  job.AddTask(new SimpleTask(i_isolate(), &did_run1));
+  job.AddTask(new SimpleTask(i_isolate(), &did_run2));
+  job.AddTask(new SimpleTask(i_isolate(), &did_run3));
+
+  // Schedule only two work items.
+  job.AddItem(new ItemParallelJob::Item);
+  job.AddItem(new ItemParallelJob::Item);
+
+  job.Run();
+  // Only the first two tasks should have been scheduled. Neither is guaranteed
+  // to run though as either may complete the full workload before the other
+  // starts.
+  EXPECT_TRUE(did_run1 || did_run2);
+  EXPECT_FALSE(did_run3);
+}
+
+TEST_F(ItemParallelJobTest, SingleThreadProcessing) {
   const int kItems = 111;
   bool was_processed[kItems];
   for (int i = 0; i < kItems; i++) {
@@ -165,6 +209,27 @@ TEST_F(ItemParallelJobTest, FinishAllItems) {
   }
   ItemParallelJob job(i_isolate()->cancelable_task_manager(),
                       parallel_job_semaphore());
+  job.AddTask(new EagerTask(i_isolate()));
+  for (int i = 0; i < kItems; i++) {
+    job.AddItem(new SimpleItem(&was_processed[i]));
+  }
+  job.Run();
+  for (int i = 0; i < kItems; i++) {
+    EXPECT_TRUE(was_processed[i]);
+  }
+}
+
+TEST_F(ItemParallelJobTest, ParallelProcessing) {
+  const int kItems = 111;
+  bool was_processed[kItems];
+  for (int i = 0; i < kItems; i++) {
+    was_processed[i] = false;
+  }
+  ItemParallelJob job(i_isolate()->cancelable_task_manager(),
+                      parallel_job_semaphore());
+  job.AddTask(new EagerTask(i_isolate()));
+  job.AddTask(new EagerTask(i_isolate()));
+  job.AddTask(new EagerTask(i_isolate()));
   job.AddTask(new EagerTask(i_isolate()));
   for (int i = 0; i < kItems; i++) {
     job.AddItem(new SimpleItem(&was_processed[i]));

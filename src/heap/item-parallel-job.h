@@ -7,8 +7,10 @@
 
 #include <vector>
 
+#include "src/base/macros.h"
 #include "src/base/platform/semaphore.h"
 #include "src/cancelable-task.h"
+#include "src/utils.h"
 #include "src/v8.h"
 
 namespace v8 {
@@ -132,17 +134,32 @@ class ItemParallelJob {
   int NumberOfTasks() const { return static_cast<int>(tasks_.size()); }
 
   void Run() {
-    DCHECK_GE(tasks_.size(), 0);
-    const size_t num_tasks = tasks_.size();
+    DCHECK_GT(tasks_.size(), 0);
     const size_t num_items = items_.size();
+
+    // TODO(gab): Make it impossible to have more |tasks_| than |items_| in the
+    // first place.
+    // TODO(gab): Figure out why |num_tasks == 0| when |num_items == 0| breaks a
+    // lot of stuff, keep running at least the main thread's task until then.
+    const size_t num_tasks = Max(size_t(1), Min(num_items, tasks_.size()));
+
+    for (size_t i = num_tasks; i < tasks_.size(); i++) {
+      // Abort unused tasks right away.
+      Task* aborted_task = tasks_[i];
+      auto aborted = cancelable_task_manager_->TryAbort(aborted_task->id());
+      USE(aborted);
+      DCHECK_EQ(CancelableTaskManager::kTaskAborted, aborted);
+      // CallOnBackgroundThread() usually handles the deletion.
+      delete aborted_task;
+    }
+
     const size_t items_per_task = (num_items + num_tasks - 1) / num_tasks;
     CancelableTaskManager::Id* task_ids =
         new CancelableTaskManager::Id[num_tasks];
-    size_t start_index = 0;
     Task* main_task = nullptr;
-    Task* task = nullptr;
-    for (size_t i = 0; i < num_tasks; i++, start_index += items_per_task) {
-      task = tasks_[i];
+    for (size_t i = 0, start_index = 0; i < num_tasks;
+         i++, start_index += items_per_task) {
+      Task* task = tasks_[i];
       if (start_index >= num_items) {
         start_index -= num_items;
       }
@@ -155,9 +172,11 @@ class ItemParallelJob {
         main_task = task;
       }
     }
+
     // Contribute on main thread.
     main_task->Run();
     delete main_task;
+
     // Wait for background tasks.
     for (size_t i = 0; i < num_tasks; i++) {
       if (cancelable_task_manager_->TryAbort(task_ids[i]) !=
