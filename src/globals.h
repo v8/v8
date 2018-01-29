@@ -1482,9 +1482,7 @@ enum class ConcurrencyMode { kNotConcurrent, kConcurrent };
   C(PendingHandlerFP, pending_handler_fp)                      \
   C(PendingHandlerSP, pending_handler_sp)                      \
   C(ExternalCaughtException, external_caught_exception)        \
-  C(JSEntrySP, js_entry_sp)                                    \
-  C(MicrotaskQueueBailoutIndex, microtask_queue_bailout_index) \
-  C(MicrotaskQueueBailoutCount, microtask_queue_bailout_count)
+  C(JSEntrySP, js_entry_sp)
 
 enum IsolateAddressId {
 #define DECLARE_ENUM(CamelName, hacker_name) k##CamelName##Address,

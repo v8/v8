@@ -819,8 +819,6 @@ namespace internal {
   TFS(PromiseHandleReject, kPromise, kOnReject, kException)                    \
   TFS(PromiseHandle, kValue, kHandler, kDeferredPromise, kDeferredOnResolve,   \
       kDeferredOnReject)                                                       \
-  TFJ(PromiseHandleJS, 5, kValue, kHandler, kDeferredPromise,                  \
-      kDeferredOnResolve, kDeferredOnReject)                                   \
   /* ES #sec-promise.resolve */                                                \
   TFJ(PromiseResolveWrapper, 1, kValue)                                        \
   TFS(PromiseResolve, kConstructor, kValue)                                    \

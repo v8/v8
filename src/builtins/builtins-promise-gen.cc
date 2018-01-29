@@ -1224,20 +1224,6 @@ TF_BUILTIN(PromiseHandle, PromiseBuiltinsAssembler) {
   }
 }
 
-TF_BUILTIN(PromiseHandleJS, PromiseBuiltinsAssembler) {
-  Node* const value = Parameter(Descriptor::kValue);
-  Node* const handler = Parameter(Descriptor::kHandler);
-  Node* const deferred_promise = Parameter(Descriptor::kDeferredPromise);
-  Node* const deferred_on_resolve = Parameter(Descriptor::kDeferredOnResolve);
-  Node* const deferred_on_reject = Parameter(Descriptor::kDeferredOnReject);
-  Node* const context = Parameter(Descriptor::kContext);
-
-  Node* const result =
-      CallBuiltin(Builtins::kPromiseHandle, context, value, handler,
-                  deferred_promise, deferred_on_resolve, deferred_on_reject);
-  Return(result);
-}
-
 // ES#sec-promise.prototype.catch
 // Promise.prototype.catch ( onRejected )
 TF_BUILTIN(PromisePrototypeCatch, PromiseBuiltinsAssembler) {
