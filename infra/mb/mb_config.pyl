@@ -122,6 +122,8 @@
           'gn_debug_x64_asan_no_lsan_static_edge',
       'V8 Linux64 - release builder': 'gn_release_x64_correctness_fuzzer',
       'V8 Linux64 - debug builder': 'gn_debug_x64',
+      'V8 Linux64 - nosnap release builder': 'gn_release_x64_no_snap',
+      'V8 Linux64 - nosnap debug builder': 'gn_debug_x64_no_snap',
       'V8 Linux64 ASAN no inline - release builder':
           'gn_release_x64_asan_symbolized_edge_verify_heap',
       'V8 Linux64 ASAN - debug builder': 'gn_debug_x64_asan_edge',
@@ -433,6 +435,8 @@
       'gn', 'release_bot', 'x64', 'swarming', 'v8_snapshot_internal'],
     'gn_release_x64_minimal_symbols': [
       'gn', 'release_bot', 'x64', 'minimal_symbols', 'swarming'],
+    'gn_release_x64_no_snap': [
+      'gn', 'release_bot', 'x64', 'swarming', 'v8_snapshot_none'],
     'gn_release_x64_trybot': [
       'gn', 'release_trybot', 'x64', 'swarming'],
     'gn_release_x64_test_features_trybot': [
@@ -473,6 +477,8 @@
       'gn', 'debug_bot', 'x64', 'gcc'],
     'gn_debug_x64_minimal_symbols': [
       'gn', 'debug_bot', 'x64', 'minimal_symbols', 'swarming'],
+    'gn_debug_x64_no_snap': [
+      'gn', 'debug_bot', 'x64', 'swarming', 'v8_snapshot_none'],
 
     # GN debug configs for x86.
     'gn_debug_x86': [
