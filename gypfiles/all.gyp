@@ -8,9 +8,9 @@
       'target_name': 'All',
       'type': 'none',
       'dependencies': [
-        '../gypfiles/d8.gyp:d8',
-        '../test/inspector/inspector.gyp:*',
-        '../test/mkgrokdump/mkgrokdump.gyp:*',
+        'd8.gyp:d8',
+        'inspector-test.gyp:*',
+        'mkgrokdump.gyp:*',
       ],
       'conditions': [
         ['component!="shared_library"', {
@@ -23,8 +23,8 @@
           'dependencies': [
             'samples.gyp:*',
             'cctest.gyp:*',
-            '../test/fuzzer/fuzzer.gyp:*',
-            '../test/unittests/unittests.gyp:*',
+            'fuzzer.gyp:*',
+            'unittests.gyp:*',
           ],
         }],
         ['test_isolation_mode != "noop"', {

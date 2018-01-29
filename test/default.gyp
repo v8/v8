@@ -12,13 +12,13 @@
           'dependencies': [
             '../gypfiles/cctest.gyp:cctest_run',
             'debugger/debugger.gyp:debugger_run',
-            'fuzzer/fuzzer.gyp:fuzzer_run',
-            'inspector/inspector.gyp:inspector-test_run',
+            '../gypfiles/fuzzer.gyp:fuzzer_run',
+            '../gypfiles/inspector-test.gyp:inspector-test_run',
             'intl/intl.gyp:intl_run',
             'message/message.gyp:message_run',
             'mjsunit/mjsunit.gyp:mjsunit_run',
             'preparser/preparser.gyp:preparser_run',
-            'unittests/unittests.gyp:unittests_run',
+            '../gypfiles/unittests.gyp:unittests_run',
             'wasm-spec-tests/wasm-spec-tests.gyp:wasm_spec_tests_run',
           ],
           'includes': [

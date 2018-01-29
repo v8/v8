@@ -6,21 +6,21 @@
   'variables': {
     'v8_code': 1,
   },
-  'includes': ['../../gypfiles/toolchain.gypi', '../../gypfiles/features.gypi'],
+  'includes': ['toolchain.gypi', 'features.gypi'],
   'targets': [
     {
       'target_name': 'mkgrokdump',
       'type': 'executable',
       'dependencies': [
-        '../../gypfiles/v8.gyp:v8',
-        '../../gypfiles/v8.gyp:v8_libbase',
-        '../../gypfiles/v8.gyp:v8_libplatform',
+        'v8.gyp:v8',
+        'v8.gyp:v8_libbase',
+        'v8.gyp:v8_libplatform',
       ],
       'include_dirs': [
-        '../..',
+        '..',
       ],
       'sources': [
-        'mkgrokdump.cc',
+        '../test/mkgrokdump/mkgrokdump.cc',
       ],
     },
   ],
@@ -34,10 +34,10 @@
             'mkgrokdump',
           ],
           'includes': [
-            '../../gypfiles/isolate.gypi',
+            'isolate.gypi',
           ],
           'sources': [
-            'mkgrokdump.isolate',
+            '../test/mkgrokdump/mkgrokdump.isolate',
           ],
         },
       ],

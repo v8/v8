@@ -6,25 +6,25 @@
   'variables': {
     'v8_code': 1,
   },
-  'includes': ['../../gypfiles/toolchain.gypi', '../../gypfiles/features.gypi'],
+  'includes': ['toolchain.gypi', 'features.gypi'],
   'targets': [
     {
       'target_name': 'inspector-test',
       'type': 'executable',
       'dependencies': [
-        '../../gypfiles/v8.gyp:v8_libplatform',
-        '../../gypfiles/v8.gyp:v8_libbase',
-        '../../gypfiles/v8.gyp:v8',
+        'v8.gyp:v8_libplatform',
+        'v8.gyp:v8_libbase',
+        'v8.gyp:v8',
       ],
       'include_dirs': [
-        '../..',
+        '..',
       ],
       'sources': [
-        'inspector-test.cc',
-        'isolate-data.cc',
-        'isolate-data.h',
-        'task-runner.cc',
-        'task-runner.h',
+        '../test/inspector/inspector-test.cc',
+        '../test/inspector/isolate-data.cc',
+        '../test/inspector/isolate-data.h',
+        '../test/inspector/task-runner.cc',
+        '../test/inspector/task-runner.h',
       ],
       'conditions': [
         ['v8_enable_i18n_support==1', {
@@ -46,10 +46,10 @@
             'inspector-test',
           ],
           'includes': [
-            '../../gypfiles/isolate.gypi',
+            'isolate.gypi',
           ],
           'sources': [
-            'inspector.isolate',
+            '../test/inspector/inspector.isolate',
           ],
         },
       ],
