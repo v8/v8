@@ -319,6 +319,18 @@ DEFINE_VALUE_IMPLICATION(optimize_for_size, max_semi_space_size, 1)
 DEFINE_BOOL(unbox_double_arrays, true, "automatically unbox arrays of doubles")
 DEFINE_BOOL_READONLY(string_slices, true, "use string slices")
 
+// Flags for Ignition for no-snapshot builds.
+#undef FLAG
+#ifndef V8_USE_SNAPSHOT
+#define FLAG FLAG_FULL
+#else
+#define FLAG FLAG_READONLY
+#endif
+DEFINE_INT(interrupt_budget, 144 * KB,
+           "interrupt budget which should be used for the profiler counter")
+#undef FLAG
+#define FLAG FLAG_FULL
+
 // Flags for Ignition.
 DEFINE_BOOL(ignition_elide_noneffectful_bytecodes, true,
             "elide bytecodes which won't have any external effect")
