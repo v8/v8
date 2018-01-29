@@ -32,15 +32,7 @@ class SimulatorBase {
   static Redirection* redirection() { return redirection_; }
   static void set_redirection(Redirection* r) { redirection_ = r; }
 
- private:
-  // Runtime call support. Uses the isolate in a thread-safe way.
-  static void* RedirectExternalReference(Isolate* isolate,
-                                         void* external_function,
-                                         ExternalReference::Type type);
-
-  static base::Mutex* redirection_mutex_;
-  static Redirection* redirection_;
-
+ protected:
   template <typename Return, typename SimT, typename CallImpl, typename... Args>
   static Return VariadicCall(SimT* sim, CallImpl call, byte* entry,
                              Args... args) {
@@ -50,6 +42,15 @@ class SimulatorBase {
     intptr_t ret = (sim->*call)(entry, args_arr.size(), args_arr.data());
     return ConvertReturn<Return>(ret);
   }
+
+ private:
+  // Runtime call support. Uses the isolate in a thread-safe way.
+  static void* RedirectExternalReference(Isolate* isolate,
+                                         void* external_function,
+                                         ExternalReference::Type type);
+
+  static base::Mutex* redirection_mutex_;
+  static Redirection* redirection_;
 
   // Helper methods to convert arbitrary integer or pointer arguments to the
   // needed generic argument type intptr_t.
