@@ -163,6 +163,10 @@ class BuildConfig(object):
     self.predictable = build_config['v8_enable_verify_predictable']
     self.tsan = build_config['is_tsan']
     self.ubsan_vptr = build_config['is_ubsan_vptr']
+    # Export only for MIPS target
+    if self.arch in ['mips', 'mipsel', 'mips64', 'mips64el']:
+      self.mips_arch_variant = build_config['mips_arch_variant']
+      self.mips_use_msa = build_config['mips_use_msa']
 
   def __str__(self):
     detected_options = []

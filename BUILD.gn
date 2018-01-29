@@ -387,6 +387,9 @@ config("toolchain") {
         "_MIPS_ARCH_MIPS32R6",
         "FPU_MODE_FP64",
       ]
+      if (mips_use_msa) {
+        defines += [ "_MIPS_MSA" ]
+      }
     } else if (mips_arch_variant == "r2") {
       defines += [ "_MIPS_ARCH_MIPS32R2" ]
       if (mips_fpu_mode == "fp64") {
@@ -424,6 +427,9 @@ config("toolchain") {
     }
     if (mips_arch_variant == "r6") {
       defines += [ "_MIPS_ARCH_MIPS64R6" ]
+      if (mips_use_msa) {
+        defines += [ "_MIPS_MSA" ]
+      }
     } else if (mips_arch_variant == "r2") {
       defines += [ "_MIPS_ARCH_MIPS64R2" ]
     }
@@ -883,6 +889,14 @@ action("v8_dump_build_config") {
     "v8_target_cpu=\"$v8_target_cpu\"",
     "v8_use_snapshot=$v8_use_snapshot",
   ]
+
+  if (v8_current_cpu == "mips" || v8_current_cpu == "mipsel" ||
+      v8_current_cpu == "mips64" || v8_current_cpu == "mips64el") {
+    args += [
+      "mips_arch_variant=\"$mips_arch_variant\"",
+      "mips_use_msa=$mips_use_msa",
+    ]
+  }
 }
 
 ###############################################################################

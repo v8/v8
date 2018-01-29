@@ -389,6 +389,12 @@ class StandardTestRunner(base_runner.BaseTestRunner):
                             use_perf_data=not options.swarming,
                             sancov_dir=self.sancov_dir)
 
+      # simd_mips is true if SIMD is fully supported on MIPS
+      simd_mips = (
+        self.build_config.arch in [ 'mipsel', 'mips', 'mips64', 'mips64el'] and
+        self.build_config.mips_arch_variant == "r6" and
+        self.build_config.mips_use_msa)
+
       # TODO(all): Combine "simulator" and "simulator_run".
       # TODO(machenbach): In GN we can derive simulator run from
       # target_arch != v8_target_arch in the dumped build config.
@@ -419,6 +425,7 @@ class StandardTestRunner(base_runner.BaseTestRunner):
         "predictable": self.build_config.predictable,
         "simulator": utils.UseSimulator(self.build_config.arch),
         "simulator_run": simulator_run,
+        "simd_mips": simd_mips,
         "system": utils.GuessOS(),
         "tsan": self.build_config.tsan,
         "ubsan_vptr": self.build_config.ubsan_vptr,
