@@ -91,7 +91,9 @@ hooks = [
     'pattern': '.',
     'action': [
         'python',
-        'v8/gypfiles/landmines.py',
+        'v8/build/landmines.py',
+        '--landmine-scripts',
+        'v8/tools/get_landmines.py',
     ],
   },
   # Pull clang-format binaries using checked-in hashes.
