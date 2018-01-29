@@ -513,10 +513,13 @@ Handle<ClassBoilerplate> ClassBoilerplate::BuildClassBoilerplate(
       case ClassLiteral::Property::SETTER:
         value_kind = ClassBoilerplate::kSetter;
         break;
-      case ClassLiteral::Property::FIELD:
+      case ClassLiteral::Property::PUBLIC_FIELD:
         if (property->is_computed_name()) {
           ++dynamic_argument_index;
         }
+        continue;
+      case ClassLiteral::Property::PRIVATE_FIELD:
+        DCHECK(!property->is_computed_name());
         continue;
     }
 
