@@ -34,7 +34,7 @@ GYP_FILES = [
   os.path.join(V8_BASE, 'test', 'mkgrokdump', 'mkgrokdump.gyp'),
   os.path.join(V8_BASE, 'testing', 'gmock.gyp'),
   os.path.join(V8_BASE, 'testing', 'gtest.gyp'),
-  os.path.join(V8_BASE, 'tools', 'parser-shell.gyp'),
+  os.path.join(V8_BASE, 'gypfiles', 'parser-shell.gyp'),
 ]
 
 ALL_GYP_PREFIXES = [

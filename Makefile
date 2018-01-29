@@ -281,7 +281,7 @@ GYPFILES = third_party/icu/icu.gypi third_party/icu/icu.gyp \
 	   gypfiles/toolchain.gypi gypfiles/all.gyp gypfiles/mac/asan.gyp \
 	   gypfiles/cctest.gyp test/fuzzer/fuzzer.gyp \
 	   test/unittests/unittests.gyp gypfiles/v8.gyp \
-	   tools/parser-shell.gyp testing/gmock.gyp testing/gtest.gyp \
+	   gypfiles/parser-shell.gyp testing/gmock.gyp testing/gtest.gyp \
 	   gypfiles/samples.gyp gypfiles/v8vtune.gyp gypfiles/d8.gyp
 
 # Generates all combinations of ARCHES and MODES, e.g. "ia32.release".

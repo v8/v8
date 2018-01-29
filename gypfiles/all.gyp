@@ -15,7 +15,7 @@
       'conditions': [
         ['component!="shared_library"', {
           'dependencies': [
-            '../tools/parser-shell.gyp:parser-shell',
+            'parser-shell.gyp:parser-shell',
           ],
         }],
         # These items don't compile for Android on Mac.
