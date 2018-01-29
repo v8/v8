@@ -105,6 +105,12 @@ if (is_posix && (v8_enable_backtrace || v8_monolithic)) {
   v8_add_configs += [ "//build/config/gcc:symbol_visibility_default" ]
 }
 
+# On MIPS gcc_target_rpath and ldso_path might be needed for all builds.
+if (target_cpu == "mipsel" || target_cpu == "mips64el" ||
+    target_cpu == "mips" || target_cpu == "mips64") {
+  v8_add_configs += [ "//build/config/gcc:rpath_for_built_shared_libraries" ]
+}
+
 # All templates should be kept in sync.
 template("v8_source_set") {
   if (defined(invoker.split_count) && invoker.split_count > 1 &&
