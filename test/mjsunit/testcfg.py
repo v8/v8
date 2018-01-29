@@ -226,9 +226,10 @@ class SuppressedTestCase(TestCase):
     # Skip tests expected to fail. We suppress all asserts anyways, but some
     # tests are expected to fail with type errors or even dchecks, and we
     # can't differentiate that.
-    if (statusfile.FAIL in self._statusfile_outcomes and
-        not statusfile.SKIP in self._statusfile_outcomes):
-      self._statusfile_outcomes.append(statusfile.SKIP)
+    if statusfile.FAIL in self._statusfile_outcomes:
+      self._statusfile_outcomes = [statusfile.SKIP]
+    else:
+      self.expected_outcomes = self.expected_outcomes + [statusfile.TIMEOUT]
 
   def _get_extra_flags(self, *args, **kwargs):
     return (
