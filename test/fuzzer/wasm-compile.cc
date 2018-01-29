@@ -148,6 +148,20 @@ class WasmGenerator {
         kExprBr, static_cast<uint32_t>(blocks_.size()) - 1 - target_block);
   }
 
+  template <ValueType wanted_type>
+  void br_if(DataRange& data) {
+    // There is always at least the block representing the function body.
+    DCHECK(!blocks_.empty());
+    const uint32_t target_block = data.get<uint32_t>() % blocks_.size();
+    const ValueType break_type = blocks_[target_block];
+
+    Generate(break_type, data);
+    Generate(kWasmI32, data);
+    builder_->EmitWithI32V(
+        kExprBrIf, static_cast<uint32_t>(blocks_.size()) - 1 - target_block);
+    ConvertOrGenerate(break_type, wanted_type, data);
+  }
+
   // TODO(eholk): make this function constexpr once gcc supports it
   static uint8_t max_alignment(WasmOpcode memop) {
     switch (memop) {
@@ -232,6 +246,17 @@ class WasmGenerator {
         kExprF64SConvertI32, kExprF64SConvertI64, kExprF64ConvertF32, kExprNop};
     int arr_idx = idx(dst) << 2 | idx(src);
     builder_->Emit(kConvertOpcodes[arr_idx]);
+  }
+
+  void ConvertOrGenerate(ValueType src, ValueType dst, DataRange& data) {
+    if (src == dst) return;
+    if (src == kWasmStmt && dst != kWasmStmt) {
+      Generate(dst, data);
+    } else if (dst == kWasmStmt && src != kWasmStmt) {
+      builder_->Emit(kExprDrop);
+    } else {
+      Convert(src, dst);
+    }
   }
 
   void call(DataRange& data, ValueType wanted_type) {
@@ -393,6 +418,7 @@ void WasmGenerator::Generate<kWasmStmt>(DataRange& data) {
       &WasmGenerator::block<kWasmStmt>,
       &WasmGenerator::loop<kWasmStmt>,
       &WasmGenerator::br,
+      &WasmGenerator::br_if<kWasmStmt>,
 
       &WasmGenerator::memop<kExprI32StoreMem, kWasmI32>,
       &WasmGenerator::memop<kExprI32StoreMem8, kWasmI32>,
@@ -481,6 +507,7 @@ void WasmGenerator::Generate<kWasmI32>(DataRange& data) {
 
       &WasmGenerator::block<kWasmI32>,
       &WasmGenerator::loop<kWasmI32>,
+      &WasmGenerator::br_if<kWasmI32>,
 
       &WasmGenerator::memop<kExprI32LoadMem>,
       &WasmGenerator::memop<kExprI32LoadMem8S>,
@@ -534,6 +561,7 @@ void WasmGenerator::Generate<kWasmI64>(DataRange& data) {
 
       &WasmGenerator::block<kWasmI64>,
       &WasmGenerator::loop<kWasmI64>,
+      &WasmGenerator::br_if<kWasmI64>,
 
       &WasmGenerator::memop<kExprI64LoadMem>,
       &WasmGenerator::memop<kExprI64LoadMem8S>,
@@ -568,6 +596,7 @@ void WasmGenerator::Generate<kWasmF32>(DataRange& data) {
 
       &WasmGenerator::block<kWasmF32>,
       &WasmGenerator::loop<kWasmF32>,
+      &WasmGenerator::br_if<kWasmF32>,
 
       &WasmGenerator::memop<kExprF32LoadMem>,
 
@@ -596,6 +625,7 @@ void WasmGenerator::Generate<kWasmF64>(DataRange& data) {
 
       &WasmGenerator::block<kWasmF64>,
       &WasmGenerator::loop<kWasmF64>,
+      &WasmGenerator::br_if<kWasmF64>,
 
       &WasmGenerator::memop<kExprF64LoadMem>,
 
