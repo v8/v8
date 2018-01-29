@@ -10,7 +10,7 @@ vars = {
 
 deps = {
   'v8/build':
-    Var('chromium_url') + '/chromium/src/build.git' + '@' + '4ab66b7cf4d8640cd1f164203caba7f5337c9aae',
+    Var('chromium_url') + '/chromium/src/build.git' + '@' + '8bf670e8c3136efccb52f3b969afcf555630f9ad',
   'v8/tools/gyp':
     Var('chromium_url') + '/external/gyp.git' + '@' + 'd61a9397e668fa9843c4aa7da9e79460fe590bfb',
   'v8/third_party/icu':
@@ -18,7 +18,7 @@ deps = {
   'v8/third_party/instrumented_libraries':
     Var('chromium_url') + '/chromium/src/third_party/instrumented_libraries.git' + '@' + 'b7578b4132cf73ca3265e2ee0b7bd0a422a54ebf',
   'v8/buildtools':
-    Var('chromium_url') + '/chromium/buildtools.git' + '@' + '437a616be5b2056336ed3ca5c33c41f7788ede09',
+    Var('chromium_url') + '/chromium/buildtools.git' + '@' + 'f115f4786771afdfacb18a2299541b23e21f4792',
   'v8/base/trace_event/common':
     Var('chromium_url') + '/chromium/src/base/trace_event/common.git' + '@' + '0e9a47d74970bee1bbfc063c47215406f8918699',
   'v8/third_party/android_ndk': {
@@ -30,7 +30,7 @@ deps = {
     'condition': 'checkout_android',
   },
   'v8/third_party/catapult': {
-    'url': Var('chromium_url') + '/catapult.git' + '@' + '8d63750dfb6f6734aaa66a95f553faa0bc93b703',
+    'url': Var('chromium_url') + '/catapult.git' + '@' + '82f653f9a44e39589c490ee2122663cbd95ab21e',
     'condition': 'checkout_android',
   },
   'v8/third_party/colorama/src': {
@@ -316,7 +316,7 @@ hooks = [
     'action': [
       'python',
       'v8/build/fuchsia/update_sdk.py',
-      '226f6dd0cad1d6be63a353ce2649423470729ae9',
+      '893404234442cf13abbc4e22ed996839ff5b1338',
     ],
   },
   {
