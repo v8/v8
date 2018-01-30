@@ -137,6 +137,21 @@ class WasmGenerator {
     Generate<T>(data);
   }
 
+  enum IfType { kIf, kIfElse };
+
+  template <ValueType T, IfType type>
+  void if_(DataRange& data) {
+    static_assert(T == kWasmStmt || type == kIfElse,
+                  "if without else cannot produce a value");
+    Generate<kWasmI32>(data);
+    BlockScope block_scope(this, kExprIf, T, T);
+    Generate<T>(data);
+    if (type == kIfElse) {
+      builder_->Emit(kExprElse);
+      Generate<T>(data);
+    }
+  }
+
   void br(DataRange& data) {
     // There is always at least the block representing the function body.
     DCHECK(!blocks_.empty());
@@ -417,6 +432,8 @@ void WasmGenerator::Generate<kWasmStmt>(DataRange& data) {
   constexpr generate_fn alternates[] = {
       &WasmGenerator::block<kWasmStmt>,
       &WasmGenerator::loop<kWasmStmt>,
+      &WasmGenerator::if_<kWasmStmt, kIf>,
+      &WasmGenerator::if_<kWasmStmt, kIfElse>,
       &WasmGenerator::br,
       &WasmGenerator::br_if<kWasmStmt>,
 
@@ -507,6 +524,7 @@ void WasmGenerator::Generate<kWasmI32>(DataRange& data) {
 
       &WasmGenerator::block<kWasmI32>,
       &WasmGenerator::loop<kWasmI32>,
+      &WasmGenerator::if_<kWasmI32, kIfElse>,
       &WasmGenerator::br_if<kWasmI32>,
 
       &WasmGenerator::memop<kExprI32LoadMem>,
@@ -561,6 +579,7 @@ void WasmGenerator::Generate<kWasmI64>(DataRange& data) {
 
       &WasmGenerator::block<kWasmI64>,
       &WasmGenerator::loop<kWasmI64>,
+      &WasmGenerator::if_<kWasmI64, kIfElse>,
       &WasmGenerator::br_if<kWasmI64>,
 
       &WasmGenerator::memop<kExprI64LoadMem>,
@@ -596,6 +615,7 @@ void WasmGenerator::Generate<kWasmF32>(DataRange& data) {
 
       &WasmGenerator::block<kWasmF32>,
       &WasmGenerator::loop<kWasmF32>,
+      &WasmGenerator::if_<kWasmF32, kIfElse>,
       &WasmGenerator::br_if<kWasmF32>,
 
       &WasmGenerator::memop<kExprF32LoadMem>,
@@ -625,6 +645,7 @@ void WasmGenerator::Generate<kWasmF64>(DataRange& data) {
 
       &WasmGenerator::block<kWasmF64>,
       &WasmGenerator::loop<kWasmF64>,
+      &WasmGenerator::if_<kWasmF64, kIfElse>,
       &WasmGenerator::br_if<kWasmF64>,
 
       &WasmGenerator::memop<kExprF64LoadMem>,
