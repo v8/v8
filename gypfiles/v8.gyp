@@ -2061,9 +2061,10 @@
                 '-L/usr/local/lib -lexecinfo',
             ]},
             'sources': [
+              '../src/base/debug/stack_trace_posix.cc',
               '../src/base/platform/platform-openbsd.cc',
               '../src/base/platform/platform-posix.h',
-              '../src/base/platform/platform-posix.cc'
+              '../src/base/platform/platform-posix.cc',
               '../src/base/platform/platform-posix-time.h',
               '../src/base/platform/platform-posix-time.cc',
             ],
