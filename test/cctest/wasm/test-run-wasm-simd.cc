@@ -1505,7 +1505,7 @@ WASM_SIMD_TEST(I8x16ShrU) {
 // rest false, and comparing for non-equality with zero to convert to a boolean
 // vector.
 #define WASM_SIMD_SELECT_TEST(format)                                        \
-  WASM_SIMD_COMPILED_TEST(S##format##Select) {                               \
+  WASM_SIMD_TEST(S##format##Select) {                                        \
     WasmRunner<int32_t, int32_t, int32_t> r(kExecuteTurbofan, lower_simd);   \
     byte val1 = 0;                                                           \
     byte val2 = 1;                                                           \
@@ -1545,7 +1545,7 @@ WASM_SIMD_SELECT_TEST(8x16)
 // Test Select by making a mask where the 0th and 3rd lanes are non-zero and the
 // rest 0. The mask is not the result of a comparison op.
 #define WASM_SIMD_NON_CANONICAL_SELECT_TEST(format)                           \
-  WASM_SIMD_COMPILED_TEST(S##format##NonCanonicalSelect) {                    \
+  WASM_SIMD_TEST(S##format##NonCanonicalSelect) {                             \
     WasmRunner<int32_t, int32_t, int32_t, int32_t> r(kExecuteTurbofan,        \
                                                      lower_simd);             \
     byte val1 = 0;                                                            \
