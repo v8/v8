@@ -208,6 +208,20 @@ void VisitFloatUnop(InstructionSelector* selector, Node* node, Node* input,
   }
 }
 
+void VisitRRISimd(InstructionSelector* selector, Node* node,
+                  ArchOpcode avx_opcode, ArchOpcode sse_opcode) {
+  IA32OperandGenerator g(selector);
+  InstructionOperand operand0 = g.UseRegister(node->InputAt(0));
+  InstructionOperand operand1 = g.UseImmediate(OpParameter<int32_t>(node));
+  InstructionOperand temps[] = {g.TempSimd128Register()};
+  if (selector->IsSupported(AVX)) {
+    selector->Emit(avx_opcode, g.DefineAsRegister(node), operand0, operand1,
+                   arraysize(temps), temps);
+  } else {
+    selector->Emit(sse_opcode, g.DefineSameAsFirst(node), operand0, operand1,
+                   arraysize(temps), temps);
+  }
+}
 
 }  // namespace
 
@@ -1886,11 +1900,39 @@ void InstructionSelector::VisitF32x4ExtractLane(Node* node) {
   }
 }
 
+#define SIMD_I8X16_SHIFT_OPCODES(V) \
+  V(I8x16Shl)                       \
+  V(I8x16ShrS)                      \
+  V(I8x16ShrU)
+
+#define VISIT_SIMD_I8X16_SHIFT(Op)                  \
+  void InstructionSelector::Visit##Op(Node* node) { \
+    VisitRRISimd(this, node, kAVX##Op, kSSE##Op);   \
+  }
+
+SIMD_I8X16_SHIFT_OPCODES(VISIT_SIMD_I8X16_SHIFT)
+#undef SIMD_I8X16_SHIFT_OPCODES
+#undef VISIT_SIMD_I8X16_SHIFT
+
+void InstructionSelector::VisitI8x16Mul(Node* node) {
+  IA32OperandGenerator g(this);
+  InstructionOperand operand0 = g.UseRegister(node->InputAt(0));
+  InstructionOperand operand1 = g.UseRegister(node->InputAt(1));
+  InstructionOperand temps[] = {g.TempSimd128Register(),
+                                g.TempSimd128Register()};
+  if (IsSupported(AVX)) {
+    Emit(kAVXI8x16Mul, g.DefineAsRegister(node), operand0, operand1,
+         arraysize(temps), temps);
+  } else {
+    Emit(kSSEI8x16Mul, g.DefineSameAsFirst(node), operand0, operand1,
+         arraysize(temps), temps);
+  }
+}
+
 void InstructionSelector::VisitS128Zero(Node* node) {
   IA32OperandGenerator g(this);
   Emit(kIA32S128Zero, g.DefineAsRegister(node));
 }
-
 
 #define VISIT_SIMD_SPLAT(Type)                               \
   void InstructionSelector::Visit##Type##Splat(Node* node) { \

@@ -1215,7 +1215,9 @@ void TurboAssembler::Move(XMMRegister dst, uint64_t src) {
       push(eax);
       Move(eax, Immediate(lower));
       movd(dst, Operand(eax));
-      Move(eax, Immediate(upper));
+      if (upper != lower) {
+        Move(eax, Immediate(upper));
+      }
       pinsrd(dst, Operand(eax), 1);
       pop(eax);
     } else {
