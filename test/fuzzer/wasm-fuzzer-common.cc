@@ -7,7 +7,6 @@
 #include "include/v8.h"
 #include "src/isolate.h"
 #include "src/objects-inl.h"
-#include "src/wasm/wasm-api.h"
 #include "src/wasm/wasm-engine.h"
 #include "src/wasm/wasm-module-builder.h"
 #include "src/wasm/wasm-module.h"
@@ -67,27 +66,35 @@ int FuzzWasmSection(SectionCode section, const uint8_t* data, size_t size) {
 
 void InterpretAndExecuteModule(i::Isolate* isolate,
                                Handle<WasmModuleObject> module_object) {
-  ScheduledErrorThrower thrower(isolate, "WebAssembly Instantiation");
-  // Try to instantiate and interpret the module_object.
-  MaybeHandle<WasmInstanceObject> maybe_instance =
-      isolate->wasm_engine()->SyncInstantiate(
-          isolate, &thrower, module_object,
-          Handle<JSReceiver>::null(),     // imports
-          MaybeHandle<JSArrayBuffer>());  // memory
+  ErrorThrower thrower(isolate, "WebAssembly Instantiation");
+  MaybeHandle<WasmInstanceObject> maybe_instance;
   Handle<WasmInstanceObject> instance;
-  if (!maybe_instance.ToHandle(&instance)) return;
+
+  // Try to instantiate and interpret the module_object.
+  maybe_instance = isolate->wasm_engine()->SyncInstantiate(
+      isolate, &thrower, module_object,
+      Handle<JSReceiver>::null(),     // imports
+      MaybeHandle<JSArrayBuffer>());  // memory
+  if (!maybe_instance.ToHandle(&instance)) {
+    isolate->clear_pending_exception();
+    thrower.Reset();  // Ignore errors.
+    return;
+  }
   if (!testing::InterpretWasmModuleForTesting(isolate, instance, "main", 0,
                                               nullptr)) {
     return;
   }
 
-  // Instantiate and execute the module_object.
+  // Try to instantiate and execute the module_object.
   maybe_instance = isolate->wasm_engine()->SyncInstantiate(
       isolate, &thrower, module_object,
       Handle<JSReceiver>::null(),     // imports
       MaybeHandle<JSArrayBuffer>());  // memory
-  if (!maybe_instance.ToHandle(&instance)) return;
-
+  if (!maybe_instance.ToHandle(&instance)) {
+    isolate->clear_pending_exception();
+    thrower.Reset();  // Ignore errors.
+    return;
+  }
   testing::RunWasmModuleForTesting(isolate, instance, 0, nullptr);
 }
 
