@@ -35,9 +35,9 @@ from testrunner.objects import testcase
 
 
 class TestSuite(testsuite.TestSuite):
-  def __init__(self, *args, **kwargs):
-    super(TestSuite, self).__init__(*args, **kwargs)
-    self.testroot = os.path.join(self.root, "data")
+  def __init__(self, name, root):
+    super(TestSuite, self).__init__(name, root)
+    self.testroot = os.path.join(root, "data")
 
   def ListTests(self, context):
     tests = map(self._create_test, [
@@ -143,5 +143,5 @@ class SuppressedTimeoutTestCase(TestCase):
     self.expected_outcomes = self.expected_outcomes + [statusfile.TIMEOUT]
 
 
-def GetSuite(*args, **kwargs):
-  return TestSuite(*args, **kwargs)
+def GetSuite(name, root):
+  return TestSuite(name, root)

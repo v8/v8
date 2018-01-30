@@ -179,8 +179,7 @@ class CombinedTest(testcase.TestCase):
       passed as arguments.
   """
   def __init__(self, name, tests):
-    super(CombinedTest, self).__init__(tests[0].suite, '', name,
-                                       tests[0].test_config)
+    super(CombinedTest, self).__init__(tests[0].suite, '', name)
     self._tests = tests
 
   def _prepare_outcomes(self, force_update=True):
@@ -196,6 +195,8 @@ class CombinedTest(testcase.TestCase):
     """
     shell = 'd8'
     shell_flags = ['--test', '--disable-abortjs', '--quiet-load']
+    if ctx.random_seed:
+      shell_flags.append('--random-seed=%s' % ctx.random_seed)
     return shell, shell_flags
 
   def _get_cmd_params(self, ctx):
@@ -237,5 +238,5 @@ class SuppressedTestCase(TestCase):
     )
 
 
-def GetSuite(*args, **kwargs):
-  return TestSuite(*args, **kwargs)
+def GetSuite(name, root):
+  return TestSuite(name, root)

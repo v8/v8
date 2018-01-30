@@ -103,5 +103,5 @@ class TestCase(testcase.TestCase):
                            self._expected_fail())
 
 
-def GetSuite(*args, **kwargs):
-  return TestSuite(*args, **kwargs)
+def GetSuite(name, root):
+  return TestSuite(name, root)

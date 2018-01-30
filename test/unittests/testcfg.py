@@ -66,7 +66,7 @@ class TestCase(testcase.TestCase):
   def _get_suite_flags(self, ctx):
     return (
         ["--gtest_filter=" + self.path] +
-        ["--gtest_random_seed=%s" % self.random_seed] +
+        ["--gtest_random_seed=%s" % ctx.random_seed] +
         ["--gtest_print_time=0"]
     )
 
@@ -74,5 +74,5 @@ class TestCase(testcase.TestCase):
     return self.suite.name
 
 
-def GetSuite(*args, **kwargs):
-  return TestSuite(*args, **kwargs)
+def GetSuite(name, root):
+  return TestSuite(name, root)

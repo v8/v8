@@ -321,17 +321,18 @@ class JUnitTestProgressIndicator(ProgressIndicator):
 
 class JsonTestProgressIndicator(ProgressIndicator):
 
-  def __init__(self, json_test_results, arch, mode):
+  def __init__(self, json_test_results, arch, mode, random_seed):
     super(JsonTestProgressIndicator, self).__init__()
     self.json_test_results = json_test_results
     self.arch = arch
     self.mode = mode
+    self.random_seed = random_seed
     self.results = []
     self.tests = []
 
   def ToProgressIndicatorProc(self):
     return progress_proc.JsonTestProgressIndicator(
-        self.json_test_results, self.arch, self.mode)
+        self.json_test_results, self.arch, self.mode, self.random_seed)
 
   def Done(self):
     complete_results = []
@@ -379,16 +380,6 @@ class JsonTestProgressIndicator(ProgressIndicator):
       # will have unexpected_output to be reported here has well.
       return
 
-    random_seed = None
-    for i, flag in enumerate(reversed(test.cmd.args)):
-      if 'random-seed' in flag:
-        if '=' in flag:
-          random_seed = flag.split('=')[1]
-          break
-        elif i > 0:
-          random_seed = test.cmd.args[i - 1]
-          break
-
     self.results.append({
       "name": str(test),
       "flags": test.cmd.args,
@@ -400,7 +391,10 @@ class JsonTestProgressIndicator(ProgressIndicator):
       "result": test.output_proc.get_outcome(output),
       "expected": test.expected_outcomes,
       "duration": output.duration,
-      "random_seed": int(random_seed),
+
+      # TODO(machenbach): This stores only the global random seed from the
+      # context and not possible overrides when using random-seed stress.
+      "random_seed": self.random_seed,
       "target_name": test.get_shell(),
       "variant": test.variant,
     })

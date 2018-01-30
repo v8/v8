@@ -31,5 +31,5 @@ class TestCase(testcase.TestCase):
     return [os.path.join(self.suite.root, self.path + self._get_suffix())]
 
 
-def GetSuite(*args, **kwargs):
-  return TestSuite(*args, **kwargs)
+def GetSuite(name, root):
+  return TestSuite(name, root)

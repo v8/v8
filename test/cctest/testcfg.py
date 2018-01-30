@@ -67,5 +67,5 @@ class TestCase(testcase.TestCase):
     return [self.path]
 
 
-def GetSuite(*args, **kwargs):
-  return TestSuite(*args, **kwargs)
+def GetSuite(name, root):
+  return TestSuite(name, root)

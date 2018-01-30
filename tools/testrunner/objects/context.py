@@ -28,27 +28,24 @@
 
 class Context():
   def __init__(self, arch, mode, shell_dir, mode_flags, verbose, timeout,
-               isolates, command_prefix, extra_flags, noi18n, no_sorting,
-               rerun_failures_count, rerun_failures_max, no_harness,
-               use_perf_data, sancov_dir):
-    # Used by perfdata
+               isolates, command_prefix, extra_flags, noi18n, random_seed,
+               no_sorting, rerun_failures_count, rerun_failures_max, no_harness,
+               use_perf_data, sancov_dir, infra_staging=False):
     self.arch = arch
     self.mode = mode
-    self.no_sorting = no_sorting
-    self.use_perf_data = use_perf_data
-
-    # Used by testcase to create command
+    self.shell_dir = shell_dir
+    self.mode_flags = mode_flags
+    self.verbose = verbose
+    self.timeout = timeout
+    self.isolates = isolates
     self.command_prefix = command_prefix
     self.extra_flags = extra_flags
-    self.isolates = isolates
-    self.mode_flags = mode_flags
-    self.no_harness = no_harness
     self.noi18n = noi18n
-    self.shell_dir = shell_dir
-    self.timeout = timeout
-    self.verbose = verbose
-
-    # Will be deprecated after moving to test processors
+    self.random_seed = random_seed
+    self.no_sorting = no_sorting
     self.rerun_failures_count = rerun_failures_count
     self.rerun_failures_max = rerun_failures_max
+    self.no_harness = no_harness
+    self.use_perf_data = use_perf_data
     self.sancov_dir = sancov_dir
+    self.infra_staging = infra_staging

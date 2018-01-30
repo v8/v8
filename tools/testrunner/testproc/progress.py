@@ -292,7 +292,7 @@ class JUnitTestProgressIndicator(ProgressIndicator):
 
 
 class JsonTestProgressIndicator(ProgressIndicator):
-  def __init__(self, json_test_results, arch, mode):
+  def __init__(self, json_test_results, arch, mode, random_seed):
     super(JsonTestProgressIndicator, self).__init__()
     # We want to drop stdout/err for all passed tests on the first try, but we
     # need to get outputs for all runs after the first one. To accommodate that,
@@ -303,6 +303,7 @@ class JsonTestProgressIndicator(ProgressIndicator):
     self.json_test_results = json_test_results
     self.arch = arch
     self.mode = mode
+    self.random_seed = random_seed
     self.results = []
     self.tests = []
 
@@ -337,7 +338,10 @@ class JsonTestProgressIndicator(ProgressIndicator):
         "result": test.output_proc.get_outcome(output),
         "expected": test.expected_outcomes,
         "duration": output.duration,
-        "random_seed": test.random_seed,
+
+        # TODO(machenbach): This stores only the global random seed from the
+        # context and not possible overrides when using random-seed stress.
+        "random_seed": self.random_seed,
         "target_name": test.get_shell(),
         "variant": test.variant,
       })

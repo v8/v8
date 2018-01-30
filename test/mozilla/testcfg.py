@@ -56,9 +56,9 @@ TEST_DIRS = """
 
 
 class TestSuite(testsuite.TestSuite):
-  def __init__(self, *args, **kwargs):
-    super(TestSuite, self).__init__(*args, **kwargs)
-    self.testroot = os.path.join(self.root, "data")
+  def __init__(self, name, root):
+    super(TestSuite, self).__init__(name, root)
+    self.testroot = os.path.join(root, "data")
 
   def ListTests(self, context):
     tests = []
@@ -118,5 +118,5 @@ class TestCase(testcase.TestCase):
 
 
 
-def GetSuite(*args, **kwargs):
-  return TestSuite(*args, **kwargs)
+def GetSuite(name, root):
+  return TestSuite(name, root)

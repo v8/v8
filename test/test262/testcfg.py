@@ -116,8 +116,8 @@ class TestSuite(testsuite.TestSuite):
   # Match the (...) in '/path/to/v8/test/test262/subdir/test/(...).js'
   # In practice, subdir is data or local-tests
 
-  def __init__(self, *args, **kwargs):
-    super(TestSuite, self).__init__(*args, **kwargs)
+  def __init__(self, name, root):
+    super(TestSuite, self).__init__(name, root)
     self.testroot = os.path.join(self.root, *TEST_262_SUITE_PATH)
     self.harnesspath = os.path.join(self.root, *TEST_262_HARNESS_PATH)
     self.harness = [os.path.join(self.harnesspath, f)
@@ -250,5 +250,5 @@ class TestCase(testcase.TestCase):
     return test262.NoExceptionOutProc(self.expected_outcomes)
 
 
-def GetSuite(*args, **kwargs):
-  return TestSuite(*args, **kwargs)
+def GetSuite(name, root):
+  return TestSuite(name, root)

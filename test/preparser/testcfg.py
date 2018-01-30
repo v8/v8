@@ -85,8 +85,8 @@ class TestSuite(testsuite.TestSuite):
 
 
 class TestCase(testcase.TestCase):
-  def __init__(self, suite, path, name, test_config, source, template_flags):
-    super(TestCase, self).__init__(suite, path, name, test_config)
+  def __init__(self, suite, path, name, source, template_flags):
+    super(TestCase, self).__init__(suite, path, name)
 
     self._source = source
     self._template_flags = template_flags
@@ -113,5 +113,5 @@ class TestCase(testcase.TestCase):
     return self._source
 
 
-def GetSuite(*args, **kwargs):
-  return TestSuite(*args, **kwargs)
+def GetSuite(name, root):
+  return TestSuite(name, root)
