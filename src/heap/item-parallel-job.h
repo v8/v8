@@ -7,10 +7,8 @@
 
 #include <vector>
 
-#include "src/base/macros.h"
 #include "src/base/platform/semaphore.h"
 #include "src/cancelable-task.h"
-#include "src/utils.h"
 #include "src/v8.h"
 
 namespace v8 {
@@ -87,18 +85,11 @@ class ItemParallelJob {
     }
 
    private:
-    // Sets up state required before invoking Run(). If
-    // |start_index is >= items_.size()|, this task will not process work items
-    // (some jobs have more tasks than work items in order to parallelize post-
-    // processing, e.g. scavenging).
     void SetupInternal(base::Semaphore* on_finish, std::vector<Item*>* items,
                        size_t start_index) {
       on_finish_ = on_finish;
       items_ = items;
-      if (start_index < items->size())
-        cur_index_ = start_index;
-      else
-        items_considered_ = items_->size();
+      cur_index_ = start_index;
     }
 
     // We don't allow overriding this method any further.
@@ -141,39 +132,20 @@ class ItemParallelJob {
   int NumberOfTasks() const { return static_cast<int>(tasks_.size()); }
 
   void Run() {
-    DCHECK_GT(tasks_.size(), 0);
-    const size_t num_items = items_.size();
+    DCHECK_GE(tasks_.size(), 0);
     const size_t num_tasks = tasks_.size();
-
-    // Some jobs have more tasks than items (when the items are mere coarse
-    // grain tasks that generate work dynamically for a second phase which all
-    // tasks participate in). Some jobs even have 0 items to preprocess but
-    // still have multiple tasks.
-    // TODO(gab): Figure out a cleaner scheme for this.
-    const size_t num_tasks_processing_items = Min(num_items, tasks_.size());
-
-    // In the event of an uneven workload, distribute an extra item to the first
-    // |items_remainder| tasks.
-    const size_t items_remainder = num_tasks_processing_items > 0
-                                       ? num_items % num_tasks_processing_items
-                                       : 0;
-    // Base |items_per_task|, will be bumped by 1 for the first
-    // |items_remainder| tasks.
-    const size_t items_per_task = num_tasks_processing_items > 0
-                                      ? num_items / num_tasks_processing_items
-                                      : 0;
+    const size_t num_items = items_.size();
+    const size_t items_per_task = (num_items + num_tasks - 1) / num_tasks;
     CancelableTaskManager::Id* task_ids =
         new CancelableTaskManager::Id[num_tasks];
+    size_t start_index = 0;
     Task* main_task = nullptr;
-    for (size_t i = 0, start_index = 0; i < num_tasks;
-         i++, start_index += items_per_task + (i < items_remainder ? 1 : 0)) {
-      Task* task = tasks_[i];
-
-      // By definition there are less |items_remainder| to distribute then
-      // there are tasks processing items so this cannot overflow while we are
-      // assigning work items.
-      DCHECK_IMPLIES(start_index >= num_items, i >= num_tasks_processing_items);
-
+    Task* task = nullptr;
+    for (size_t i = 0; i < num_tasks; i++, start_index += items_per_task) {
+      task = tasks_[i];
+      if (start_index >= num_items) {
+        start_index -= num_items;
+      }
       task->SetupInternal(pending_tasks_, &items_, start_index);
       task_ids[i] = task->id();
       if (i > 0) {
@@ -183,11 +155,9 @@ class ItemParallelJob {
         main_task = task;
       }
     }
-
     // Contribute on main thread.
     main_task->Run();
     delete main_task;
-
     // Wait for background tasks.
     for (size_t i = 0; i < num_tasks; i++) {
       if (cancelable_task_manager_->TryAbort(task_ids[i]) !=
