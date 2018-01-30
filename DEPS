@@ -3,9 +3,10 @@
 # all paths in here must match this assumption.
 
 vars = {
+  'build_for_node': False,
   'checkout_instrumented_libraries': False,
   'chromium_url': 'https://chromium.googlesource.com',
-  'build_for_node': False,
+  'download_mips_toolchain': False,
 }
 
 deps = {
@@ -318,6 +319,19 @@ hooks = [
     'action': [
       'python',
       'v8/build/fuchsia/update_sdk.py',
+    ],
+  },
+  {
+    'name': 'mips_toolchain',
+    'pattern': '.',
+    'condition': 'download_mips_toolchain',
+    'action': [ 'download_from_google_storage',
+                '--no_resume',
+                '--platform=linux',
+                '--no_auth',
+                '-u',
+                '--bucket', 'chromium-v8',
+                '-s', 'v8/tools/mips_toolchain.tar.gz.sha1',
     ],
   },
   {
