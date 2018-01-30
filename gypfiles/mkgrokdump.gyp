@@ -24,23 +24,4 @@
       ],
     },
   ],
-  'conditions': [
-    ['test_isolation_mode != "noop"', {
-      'targets': [
-        {
-          'target_name': 'mkgrokdump_run',
-          'type': 'none',
-          'dependencies': [
-            'mkgrokdump',
-          ],
-          'includes': [
-            'isolate.gypi',
-          ],
-          'sources': [
-            '../test/mkgrokdump/mkgrokdump.isolate',
-          ],
-        },
-      ],
-    }],
-  ],
 }

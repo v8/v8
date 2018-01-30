@@ -464,36 +464,4 @@
       ],
     },
   ],
-  'conditions': [
-    ['test_isolation_mode != "noop"', {
-      'targets': [
-        {
-          'target_name': 'cctest_exe_run',
-          'type': 'none',
-          'dependencies': [
-            'cctest',
-          ],
-          'includes': [
-            'isolate.gypi',
-          ],
-          'sources': [
-            '../test/cctest/cctest_exe.isolate',
-          ],
-        },
-        {
-          'target_name': 'cctest_run',
-          'type': 'none',
-          'dependencies': [
-            'cctest_exe_run',
-          ],
-          'includes': [
-            'isolate.gypi',
-          ],
-          'sources': [
-            '../test/cctest/cctest.isolate',
-          ],
-        },
-      ],
-    }],
-  ],
 }

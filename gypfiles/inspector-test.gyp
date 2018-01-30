@@ -36,23 +36,4 @@
       ],
     },
   ],
-  'conditions': [
-    ['test_isolation_mode != "noop"', {
-      'targets': [
-        {
-          'target_name': 'inspector-test_run',
-          'type': 'none',
-          'dependencies': [
-            'inspector-test',
-          ],
-          'includes': [
-            'isolate.gypi',
-          ],
-          'sources': [
-            '../test/inspector/inspector.isolate',
-          ],
-        },
-      ],
-    }],
-  ],
 }

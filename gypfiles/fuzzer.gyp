@@ -547,27 +547,4 @@
       ],
     },
   ],
-  'conditions': [
-    ['test_isolation_mode != "noop"', {
-      'targets': [
-        {
-          'target_name': 'fuzzer_run',
-          'type': 'none',
-          'dependencies': [
-            'v8_simple_json_fuzzer',
-            'v8_simple_parser_fuzzer',
-            'v8_simple_regexp_builtins_fuzzer',
-            'v8_simple_regexp_fuzzer',
-            'v8_simple_wasm_fuzzer',
-          ],
-          'includes': [
-            'isolate.gypi',
-          ],
-          'sources': [
-            '../test/fuzzer/fuzzer.isolate',
-          ],
-        },
-      ],
-    }],
-  ],
 }

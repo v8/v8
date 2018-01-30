@@ -284,23 +284,4 @@
       ],
     },
   ],
-  'conditions': [
-    ['test_isolation_mode != "noop"', {
-      'targets': [
-        {
-          'target_name': 'unittests_run',
-          'type': 'none',
-          'dependencies': [
-            'unittests',
-          ],
-          'includes': [
-            'isolate.gypi',
-          ],
-          'sources': [
-            '../test/unittests/unittests.isolate',
-          ],
-        },
-      ],
-    }],
-  ],
 }
