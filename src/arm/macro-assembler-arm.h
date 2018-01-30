@@ -482,7 +482,8 @@ class TurboAssembler : public Assembler {
   void VmovExtended(int dst_code, const MemOperand& src);
   void VmovExtended(const MemOperand& dst, int src_code);
 
-  // Register swap.
+  // Register swap. Note that the register operands should be distinct.
+  void Swap(Register srcdst0, Register srcdst1);
   void Swap(DwVfpRegister srcdst0, DwVfpRegister srcdst1);
   void Swap(QwNeonRegister srcdst0, QwNeonRegister srcdst1);
 
@@ -579,11 +580,6 @@ class MacroAssembler : public TurboAssembler {
  public:
   MacroAssembler(Isolate* isolate, void* buffer, int size,
                  CodeObjectRequired create_code_object);
-
-  // Swap two registers.  If the scratch register is omitted then a slightly
-  // less efficient form using xor instead of mov is emitted.
-  void Swap(Register reg1, Register reg2, Register scratch = no_reg,
-            Condition cond = al);
 
   void Mls(Register dst, Register src1, Register src2, Register srcA,
            Condition cond = al);

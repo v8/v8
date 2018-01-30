@@ -491,6 +491,9 @@ class LocationOperand : public InstructionOperand {
     UNREACHABLE();
   }
 
+  // Return true if the locations can be moved to one another.
+  bool IsCompatible(LocationOperand* op);
+
   static LocationOperand* cast(InstructionOperand* op) {
     DCHECK(op->IsAnyLocationOperand());
     return static_cast<LocationOperand*>(op);

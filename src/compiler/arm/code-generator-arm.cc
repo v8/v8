@@ -44,21 +44,7 @@ class ArmOperandConverter final : public InstructionOperandConverter {
   }
 
   Operand InputImmediate(size_t index) {
-    Constant constant = ToConstant(instr_->InputAt(index));
-    switch (constant.type()) {
-      case Constant::kInt32:
-        return Operand(constant.ToInt32());
-      case Constant::kFloat32:
-        return Operand::EmbeddedNumber(constant.ToFloat32());
-      case Constant::kFloat64:
-        return Operand::EmbeddedNumber(constant.ToFloat64().value());
-      case Constant::kInt64:
-      case Constant::kExternalReference:
-      case Constant::kHeapObject:
-      case Constant::kRpoNumber:
-        break;
-    }
-    UNREACHABLE();
+    return ToImmediate(instr_->InputAt(index));
   }
 
   Operand InputOperand2(size_t first_index) {
@@ -122,6 +108,30 @@ class ArmOperandConverter final : public InstructionOperandConverter {
 
   MemOperand InputOffset(size_t first_index = 0) {
     return InputOffset(&first_index);
+  }
+
+  Operand ToImmediate(InstructionOperand* operand) {
+    Constant constant = ToConstant(operand);
+    switch (constant.type()) {
+      case Constant::kInt32:
+        if (RelocInfo::IsWasmReference(constant.rmode())) {
+          return Operand(constant.ToInt32(), constant.rmode());
+        } else {
+          return Operand(constant.ToInt32());
+        }
+      case Constant::kFloat32:
+        return Operand::EmbeddedNumber(constant.ToFloat32());
+      case Constant::kFloat64:
+        return Operand::EmbeddedNumber(constant.ToFloat64().value());
+      case Constant::kExternalReference:
+        return Operand(constant.ToExternalReference());
+      case Constant::kInt64:
+      case Constant::kHeapObject:
+      // TODO(dcarney): loading RPO constants on arm.
+      case Constant::kRpoNumber:
+        break;
+    }
+    UNREACHABLE();
   }
 
   MemOperand ToMemOperand(InstructionOperand* op) const {
@@ -2927,154 +2937,87 @@ void CodeGenerator::FinishCode() { __ CheckConstPool(true, false); }
 void CodeGenerator::AssembleMove(InstructionOperand* source,
                                  InstructionOperand* destination) {
   ArmOperandConverter g(this, nullptr);
-  // Dispatch on the source and destination operand kinds.  Not all
-  // combinations are possible.
-  if (source->IsRegister()) {
-    DCHECK(destination->IsRegister() || destination->IsStackSlot());
-    Register src = g.ToRegister(source);
-    if (destination->IsRegister()) {
-      __ mov(g.ToRegister(destination), src);
-    } else {
-      __ str(src, g.ToMemOperand(destination));
-    }
-  } else if (source->IsStackSlot()) {
-    DCHECK(destination->IsRegister() || destination->IsStackSlot());
-    MemOperand src = g.ToMemOperand(source);
-    if (destination->IsRegister()) {
-      __ ldr(g.ToRegister(destination), src);
-    } else {
-      Register temp = kScratchReg;
-      __ ldr(temp, src);
-      __ str(temp, g.ToMemOperand(destination));
-    }
-  } else if (source->IsConstant()) {
-    Constant src = g.ToConstant(source);
-    if (destination->IsRegister() || destination->IsStackSlot()) {
-      Register dst =
-          destination->IsRegister() ? g.ToRegister(destination) : kScratchReg;
-      switch (src.type()) {
-        case Constant::kInt32:
-          if (RelocInfo::IsWasmReference(src.rmode())) {
-            __ mov(dst, Operand(src.ToInt32(), src.rmode()));
-          } else {
-            __ mov(dst, Operand(src.ToInt32()));
-          }
-          break;
-        case Constant::kInt64:
-          UNREACHABLE();
-          break;
-        case Constant::kFloat32:
-          __ mov(dst, Operand::EmbeddedNumber(src.ToFloat32()));
-          break;
-        case Constant::kFloat64:
-          __ mov(dst, Operand::EmbeddedNumber(src.ToFloat64().value()));
-          break;
-        case Constant::kExternalReference:
-          __ mov(dst, Operand(src.ToExternalReference()));
-          break;
-        case Constant::kHeapObject: {
-          Handle<HeapObject> src_object = src.ToHeapObject();
-          Heap::RootListIndex index;
-          if (IsMaterializableFromRoot(src_object, &index)) {
-            __ LoadRoot(dst, index);
-          } else {
-            __ Move(dst, src_object);
-          }
-          break;
-        }
-        case Constant::kRpoNumber:
-          UNREACHABLE();  // TODO(dcarney): loading RPO constants on arm.
-          break;
-      }
-      if (destination->IsStackSlot()) __ str(dst, g.ToMemOperand(destination));
-    } else if (src.type() == Constant::kFloat32) {
-      if (destination->IsFloatStackSlot()) {
-        MemOperand dst = g.ToMemOperand(destination);
-        Register temp = kScratchReg;
-        __ mov(temp, Operand(bit_cast<int32_t>(src.ToFloat32())));
-        __ str(temp, dst);
+  // Helper function to write the given constant to the dst register.
+  auto MoveConstantToRegister = [&](Register dst, Constant src) {
+    if (src.type() == Constant::kHeapObject) {
+      Handle<HeapObject> src_object = src.ToHeapObject();
+      Heap::RootListIndex index;
+      if (IsMaterializableFromRoot(src_object, &index)) {
+        __ LoadRoot(dst, index);
       } else {
-        SwVfpRegister dst = g.ToFloatRegister(destination);
-        __ vmov(dst, Float32::FromBits(src.ToFloat32AsInt()));
+        __ Move(dst, src_object);
       }
     } else {
-      DCHECK_EQ(Constant::kFloat64, src.type());
-      DwVfpRegister dst = destination->IsFPRegister()
-                              ? g.ToDoubleRegister(destination)
-                              : kScratchDoubleReg;
-      __ vmov(dst, src.ToFloat64(), kScratchReg);
-      if (destination->IsDoubleStackSlot()) {
-        __ vstr(dst, g.ToMemOperand(destination));
-      }
+      __ mov(dst, g.ToImmediate(source));
     }
-  } else if (source->IsFPRegister()) {
-    MachineRepresentation rep = LocationOperand::cast(source)->representation();
-    if (rep == MachineRepresentation::kFloat64) {
-      DwVfpRegister src = g.ToDoubleRegister(source);
-      if (destination->IsDoubleRegister()) {
-        DwVfpRegister dst = g.ToDoubleRegister(destination);
-        __ Move(dst, src);
-      } else {
-        DCHECK(destination->IsDoubleStackSlot());
-        __ vstr(src, g.ToMemOperand(destination));
-      }
-    } else if (rep == MachineRepresentation::kFloat32) {
-      // GapResolver may give us reg codes that don't map to actual s-registers.
-      // Generate code to work around those cases.
-      int src_code = LocationOperand::cast(source)->register_code();
-      if (destination->IsFloatRegister()) {
+  };
+  switch (MoveType::InferMove(source, destination)) {
+    case MoveType::kRegisterToRegister:
+      if (source->IsRegister()) {
+        __ mov(g.ToRegister(destination), g.ToRegister(source));
+      } else if (source->IsFloatRegister()) {
+        DCHECK(destination->IsFloatRegister());
+        // GapResolver may give us reg codes that don't map to actual
+        // s-registers. Generate code to work around those cases.
+        int src_code = LocationOperand::cast(source)->register_code();
         int dst_code = LocationOperand::cast(destination)->register_code();
         __ VmovExtended(dst_code, src_code);
+      } else if (source->IsDoubleRegister()) {
+        __ Move(g.ToDoubleRegister(destination), g.ToDoubleRegister(source));
       } else {
-        DCHECK(destination->IsFloatStackSlot());
-        __ VmovExtended(g.ToMemOperand(destination), src_code);
+        __ Move(g.ToSimd128Register(destination), g.ToSimd128Register(source));
       }
-    } else {
-      DCHECK_EQ(MachineRepresentation::kSimd128, rep);
-      QwNeonRegister src = g.ToSimd128Register(source);
-      if (destination->IsSimd128Register()) {
-        QwNeonRegister dst = g.ToSimd128Register(destination);
-        __ Move(dst, src);
+      return;
+    case MoveType::kRegisterToStack: {
+      MemOperand dst = g.ToMemOperand(destination);
+      if (source->IsRegister()) {
+        __ str(g.ToRegister(source), dst);
+      } else if (source->IsFloatRegister()) {
+        // GapResolver may give us reg codes that don't map to actual
+        // s-registers. Generate code to work around those cases.
+        int src_code = LocationOperand::cast(source)->register_code();
+        __ VmovExtended(dst, src_code);
+      } else if (source->IsDoubleRegister()) {
+        __ vstr(g.ToDoubleRegister(source), dst);
       } else {
-        DCHECK(destination->IsSimd128StackSlot());
-        MemOperand dst = g.ToMemOperand(destination);
+        QwNeonRegister src = g.ToSimd128Register(source);
         __ add(kScratchReg, dst.rn(), Operand(dst.offset()));
         __ vst1(Neon8, NeonListOperand(src.low(), 2),
                 NeonMemOperand(kScratchReg));
       }
+      return;
     }
-  } else if (source->IsFPStackSlot()) {
-    MemOperand src = g.ToMemOperand(source);
-    MachineRepresentation rep =
-        LocationOperand::cast(destination)->representation();
-    if (destination->IsFPRegister()) {
-      if (rep == MachineRepresentation::kFloat64) {
-        __ vldr(g.ToDoubleRegister(destination), src);
-      } else if (rep == MachineRepresentation::kFloat32) {
+    case MoveType::kStackToRegister: {
+      MemOperand src = g.ToMemOperand(source);
+      if (source->IsStackSlot()) {
+        __ ldr(g.ToRegister(destination), src);
+      } else if (source->IsFloatStackSlot()) {
+        DCHECK(destination->IsFloatRegister());
         // GapResolver may give us reg codes that don't map to actual
         // s-registers. Generate code to work around those cases.
         int dst_code = LocationOperand::cast(destination)->register_code();
         __ VmovExtended(dst_code, src);
+      } else if (source->IsDoubleStackSlot()) {
+        __ vldr(g.ToDoubleRegister(destination), src);
       } else {
-        DCHECK_EQ(MachineRepresentation::kSimd128, rep);
         QwNeonRegister dst = g.ToSimd128Register(destination);
         __ add(kScratchReg, src.rn(), Operand(src.offset()));
         __ vld1(Neon8, NeonListOperand(dst.low(), 2),
                 NeonMemOperand(kScratchReg));
       }
-    } else {
-      DCHECK(destination->IsFPStackSlot());
-      if (rep == MachineRepresentation::kFloat64) {
-        DwVfpRegister temp = kScratchDoubleReg;
-        __ vldr(temp, src);
-        __ vstr(temp, g.ToMemOperand(destination));
-      } else if (rep == MachineRepresentation::kFloat32) {
-        SwVfpRegister temp = kScratchDoubleReg.low();
-        __ vldr(temp, src);
-        __ vstr(temp, g.ToMemOperand(destination));
+      return;
+    }
+    case MoveType::kStackToStack: {
+      MemOperand src = g.ToMemOperand(source);
+      MemOperand dst = g.ToMemOperand(destination);
+      if (source->IsStackSlot() || source->IsFloatStackSlot()) {
+        __ ldr(kScratchReg, src);
+        __ str(kScratchReg, dst);
+      } else if (source->IsDoubleStackSlot()) {
+        __ vldr(kScratchDoubleReg, src);
+        __ vstr(kScratchDoubleReg, dst);
       } else {
-        DCHECK_EQ(MachineRepresentation::kSimd128, rep);
-        MemOperand dst = g.ToMemOperand(destination);
+        DCHECK(source->IsSimd128StackSlot());
         __ add(kScratchReg, src.rn(), Operand(src.offset()));
         __ vld1(Neon8, NeonListOperand(kScratchQuadReg.low(), 2),
                 NeonMemOperand(kScratchReg));
@@ -3082,81 +3025,83 @@ void CodeGenerator::AssembleMove(InstructionOperand* source,
         __ vst1(Neon8, NeonListOperand(kScratchQuadReg.low(), 2),
                 NeonMemOperand(kScratchReg));
       }
+      return;
     }
-  } else {
-    UNREACHABLE();
+    case MoveType::kConstantToRegister: {
+      Constant src = g.ToConstant(source);
+      if (destination->IsRegister()) {
+        MoveConstantToRegister(g.ToRegister(destination), src);
+      } else if (destination->IsFloatRegister()) {
+        __ vmov(g.ToFloatRegister(destination),
+                Float32::FromBits(src.ToFloat32AsInt()));
+      } else {
+        __ vmov(g.ToDoubleRegister(destination), src.ToFloat64(), kScratchReg);
+      }
+      return;
+    }
+    case MoveType::kConstantToStack: {
+      Constant src = g.ToConstant(source);
+      MemOperand dst = g.ToMemOperand(destination);
+      if (destination->IsStackSlot()) {
+        MoveConstantToRegister(kScratchReg, src);
+        __ str(kScratchReg, dst);
+      } else if (destination->IsFloatStackSlot()) {
+        __ mov(kScratchReg, Operand(bit_cast<int32_t>(src.ToFloat32())));
+        __ str(kScratchReg, dst);
+      } else {
+        DCHECK(destination->IsDoubleStackSlot());
+        __ vmov(kScratchDoubleReg, src.ToFloat64(), kScratchReg);
+        __ vstr(kScratchDoubleReg, g.ToMemOperand(destination));
+      }
+      return;
+    }
   }
+  UNREACHABLE();
 }
 
 void CodeGenerator::AssembleSwap(InstructionOperand* source,
                                  InstructionOperand* destination) {
   ArmOperandConverter g(this, nullptr);
-  // Dispatch on the source and destination operand kinds.  Not all
-  // combinations are possible.
-  if (source->IsRegister()) {
-    // Register-register.
-    Register temp = kScratchReg;
-    Register src = g.ToRegister(source);
-    if (destination->IsRegister()) {
-      Register dst = g.ToRegister(destination);
-      __ Move(temp, src);
-      __ Move(src, dst);
-      __ Move(dst, temp);
-    } else {
-      DCHECK(destination->IsStackSlot());
-      MemOperand dst = g.ToMemOperand(destination);
-      __ mov(temp, src);
-      __ ldr(src, dst);
-      __ str(temp, dst);
-    }
-  } else if (source->IsStackSlot()) {
-    DCHECK(destination->IsStackSlot());
-    Register temp_0 = kScratchReg;
-    SwVfpRegister temp_1 = kScratchDoubleReg.low();
-    MemOperand src = g.ToMemOperand(source);
-    MemOperand dst = g.ToMemOperand(destination);
-    __ ldr(temp_0, src);
-    __ vldr(temp_1, dst);
-    __ str(temp_0, dst);
-    __ vstr(temp_1, src);
-  } else if (source->IsFPRegister()) {
-    MachineRepresentation rep = LocationOperand::cast(source)->representation();
-    LowDwVfpRegister temp = kScratchDoubleReg;
-    if (rep == MachineRepresentation::kFloat64) {
-      DwVfpRegister src = g.ToDoubleRegister(source);
-      if (destination->IsFPRegister()) {
-        DwVfpRegister dst = g.ToDoubleRegister(destination);
-        __ Swap(src, dst);
-      } else {
-        DCHECK(destination->IsFPStackSlot());
-        MemOperand dst = g.ToMemOperand(destination);
-        __ Move(temp, src);
-        __ vldr(src, dst);
-        __ vstr(temp, dst);
-      }
-    } else if (rep == MachineRepresentation::kFloat32) {
-      int src_code = LocationOperand::cast(source)->register_code();
-      if (destination->IsFPRegister()) {
+  switch (MoveType::InferSwap(source, destination)) {
+    case MoveType::kRegisterToRegister:
+      if (source->IsRegister()) {
+        __ Swap(g.ToRegister(source), g.ToRegister(destination));
+      } else if (source->IsFloatRegister()) {
+        DCHECK(destination->IsFloatRegister());
+        // GapResolver may give us reg codes that don't map to actual
+        // s-registers. Generate code to work around those cases.
+        LowDwVfpRegister temp = kScratchDoubleReg;
+        int src_code = LocationOperand::cast(source)->register_code();
         int dst_code = LocationOperand::cast(destination)->register_code();
         __ VmovExtended(temp.low().code(), src_code);
         __ VmovExtended(src_code, dst_code);
         __ VmovExtended(dst_code, temp.low().code());
+      } else if (source->IsDoubleRegister()) {
+        __ Swap(g.ToDoubleRegister(source), g.ToDoubleRegister(destination));
       } else {
-        DCHECK(destination->IsFPStackSlot());
-        MemOperand dst = g.ToMemOperand(destination);
+        __ Swap(g.ToSimd128Register(source), g.ToSimd128Register(destination));
+      }
+      return;
+    case MoveType::kRegisterToStack: {
+      MemOperand dst = g.ToMemOperand(destination);
+      if (source->IsRegister()) {
+        Register src = g.ToRegister(source);
+        __ mov(kScratchReg, src);
+        __ ldr(src, dst);
+        __ str(kScratchReg, dst);
+      } else if (source->IsFloatRegister()) {
+        int src_code = LocationOperand::cast(source)->register_code();
+        LowDwVfpRegister temp = kScratchDoubleReg;
         __ VmovExtended(temp.low().code(), src_code);
         __ VmovExtended(src_code, dst);
         __ vstr(temp.low(), dst);
-      }
-    } else {
-      DCHECK_EQ(MachineRepresentation::kSimd128, rep);
-      QwNeonRegister src = g.ToSimd128Register(source);
-      if (destination->IsFPRegister()) {
-        QwNeonRegister dst = g.ToSimd128Register(destination);
-        __ Swap(src, dst);
+      } else if (source->IsDoubleRegister()) {
+        DwVfpRegister src = g.ToDoubleRegister(source);
+        __ Move(kScratchDoubleReg, src);
+        __ vldr(src, dst);
+        __ vstr(kScratchDoubleReg, dst);
       } else {
-        DCHECK(destination->IsFPStackSlot());
-        MemOperand dst = g.ToMemOperand(destination);
+        QwNeonRegister src = g.ToSimd128Register(source);
         __ Move(kScratchQuadReg, src);
         __ add(kScratchReg, dst.rn(), Operand(dst.offset()));
         __ vld1(Neon8, NeonListOperand(src.low(), 2),
@@ -3164,44 +3109,49 @@ void CodeGenerator::AssembleSwap(InstructionOperand* source,
         __ vst1(Neon8, NeonListOperand(kScratchQuadReg.low(), 2),
                 NeonMemOperand(kScratchReg));
       }
+      return;
     }
-  } else if (source->IsFPStackSlot()) {
-    DCHECK(destination->IsFPStackSlot());
-    Register temp_0 = kScratchReg;
-    LowDwVfpRegister temp_1 = kScratchDoubleReg;
-    MemOperand src0 = g.ToMemOperand(source);
-    MemOperand dst0 = g.ToMemOperand(destination);
-    MachineRepresentation rep = LocationOperand::cast(source)->representation();
-    if (rep == MachineRepresentation::kFloat64) {
-      MemOperand src1(src0.rn(), src0.offset() + kPointerSize);
-      MemOperand dst1(dst0.rn(), dst0.offset() + kPointerSize);
-      __ vldr(temp_1, dst0);  // Save destination in temp_1.
-      __ ldr(temp_0, src0);   // Then use temp_0 to copy source to destination.
-      __ str(temp_0, dst0);
-      __ ldr(temp_0, src1);
-      __ str(temp_0, dst1);
-      __ vstr(temp_1, src0);
-    } else if (rep == MachineRepresentation::kFloat32) {
-      __ vldr(temp_1.low(), dst0);  // Save destination in temp_1.
-      __ ldr(temp_0, src0);  // Then use temp_0 to copy source to destination.
-      __ str(temp_0, dst0);
-      __ vstr(temp_1.low(), src0);
-    } else {
-      DCHECK_EQ(MachineRepresentation::kSimd128, rep);
-      MemOperand src1(src0.rn(), src0.offset() + kDoubleSize);
-      MemOperand dst1(dst0.rn(), dst0.offset() + kDoubleSize);
-      __ vldr(kScratchQuadReg.low(), dst0);
-      __ vldr(kScratchQuadReg.high(), src0);
-      __ vstr(kScratchQuadReg.low(), src0);
-      __ vstr(kScratchQuadReg.high(), dst0);
-      __ vldr(kScratchQuadReg.low(), dst1);
-      __ vldr(kScratchQuadReg.high(), src1);
-      __ vstr(kScratchQuadReg.low(), src1);
-      __ vstr(kScratchQuadReg.high(), dst1);
+    case MoveType::kStackToStack: {
+      MemOperand src = g.ToMemOperand(source);
+      MemOperand dst = g.ToMemOperand(destination);
+      if (source->IsStackSlot() || source->IsFloatStackSlot()) {
+        Register temp_0 = kScratchReg;
+        SwVfpRegister temp_1 = kScratchDoubleReg.low();
+        __ ldr(temp_0, src);
+        __ vldr(temp_1, dst);
+        __ str(temp_0, dst);
+        __ vstr(temp_1, src);
+      } else if (source->IsDoubleStackSlot()) {
+        Register temp_0 = kScratchReg;
+        LowDwVfpRegister temp_1 = kScratchDoubleReg;
+        // Save destination in temp_1.
+        __ vldr(temp_1, dst);
+        // Then use temp_0 to copy source to destination.
+        __ ldr(temp_0, src);
+        __ str(temp_0, dst);
+        __ ldr(temp_0, MemOperand(src.rn(), src.offset() + kPointerSize));
+        __ str(temp_0, MemOperand(dst.rn(), dst.offset() + kPointerSize));
+        __ vstr(temp_1, src);
+      } else {
+        DCHECK(source->IsSimd128StackSlot());
+        MemOperand src0 = src;
+        MemOperand dst0 = dst;
+        MemOperand src1(src.rn(), src.offset() + kDoubleSize);
+        MemOperand dst1(dst.rn(), dst.offset() + kDoubleSize);
+        __ vldr(kScratchQuadReg.low(), dst0);
+        __ vldr(kScratchQuadReg.high(), src0);
+        __ vstr(kScratchQuadReg.low(), src0);
+        __ vstr(kScratchQuadReg.high(), dst0);
+        __ vldr(kScratchQuadReg.low(), dst1);
+        __ vldr(kScratchQuadReg.high(), src1);
+        __ vstr(kScratchQuadReg.low(), src1);
+        __ vstr(kScratchQuadReg.high(), dst1);
+      }
+      return;
     }
-  } else {
-    // No other combinations are possible.
-    UNREACHABLE();
+    default:
+      UNREACHABLE();
+      break;
   }
 }
 

@@ -1571,6 +1571,34 @@ void TurboAssembler::Move(Register dst, Register src) { Mov(dst, src); }
 void TurboAssembler::Move(Register dst, Handle<HeapObject> x) { Mov(dst, x); }
 void TurboAssembler::Move(Register dst, Smi* src) { Mov(dst, src); }
 
+void TurboAssembler::Swap(Register lhs, Register rhs) {
+  DCHECK(lhs.IsSameSizeAndType(rhs));
+  DCHECK(!lhs.Is(rhs));
+  UseScratchRegisterScope temps(this);
+  Register temp = temps.AcquireX();
+  Mov(temp, rhs);
+  Mov(rhs, lhs);
+  Mov(lhs, temp);
+}
+
+void TurboAssembler::Swap(VRegister lhs, VRegister rhs) {
+  DCHECK(lhs.IsSameSizeAndType(rhs));
+  DCHECK(!lhs.Is(rhs));
+  UseScratchRegisterScope temps(this);
+  VRegister temp = VRegister::no_reg();
+  if (lhs.IsS()) {
+    temp = temps.AcquireS();
+  } else if (lhs.IsD()) {
+    temp = temps.AcquireD();
+  } else {
+    DCHECK(lhs.IsQ());
+    temp = temps.AcquireQ();
+  }
+  Mov(temp, rhs);
+  Mov(rhs, lhs);
+  Mov(lhs, temp);
+}
+
 void TurboAssembler::AssertSmi(Register object, AbortReason reason) {
   if (emit_debug_code()) {
     STATIC_ASSERT(kSmiTag == 0);

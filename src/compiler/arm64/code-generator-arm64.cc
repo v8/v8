@@ -2486,195 +2486,195 @@ void CodeGenerator::FinishCode() { __ CheckConstPool(true, false); }
 void CodeGenerator::AssembleMove(InstructionOperand* source,
                                  InstructionOperand* destination) {
   Arm64OperandConverter g(this, nullptr);
-  // Dispatch on the source and destination operand kinds.  Not all
-  // combinations are possible.
-  if (source->IsRegister()) {
-    DCHECK(destination->IsRegister() || destination->IsStackSlot());
-    Register src = g.ToRegister(source);
-    if (destination->IsRegister()) {
-      __ Mov(g.ToRegister(destination), src);
+  // Helper function to write the given constant to the dst register.
+  auto MoveConstantToRegister = [&](Register dst, Constant src) {
+    if (src.type() == Constant::kHeapObject) {
+      Handle<HeapObject> src_object = src.ToHeapObject();
+      Heap::RootListIndex index;
+      if (IsMaterializableFromRoot(src_object, &index)) {
+        __ LoadRoot(dst, index);
+      } else {
+        __ Mov(dst, src_object);
+      }
     } else {
-      __ Str(src, g.ToMemOperand(destination, tasm()));
+      __ Mov(dst, g.ToImmediate(source));
     }
-  } else if (source->IsStackSlot()) {
-    MemOperand src = g.ToMemOperand(source, tasm());
-    DCHECK(destination->IsRegister() || destination->IsStackSlot());
-    if (destination->IsRegister()) {
-      __ Ldr(g.ToRegister(destination), src);
-    } else {
-      UseScratchRegisterScope scope(tasm());
-      Register temp = scope.AcquireX();
-      __ Ldr(temp, src);
-      __ Str(temp, g.ToMemOperand(destination, tasm()));
-    }
-  } else if (source->IsConstant()) {
-    Constant src = g.ToConstant(ConstantOperand::cast(source));
-    if (destination->IsRegister() || destination->IsStackSlot()) {
-      UseScratchRegisterScope scope(tasm());
-      Register dst = destination->IsRegister() ? g.ToRegister(destination)
-                                               : scope.AcquireX();
-      if (src.type() == Constant::kHeapObject) {
-        Handle<HeapObject> src_object = src.ToHeapObject();
-        Heap::RootListIndex index;
-        if (IsMaterializableFromRoot(src_object, &index)) {
-          __ LoadRoot(dst, index);
+  };
+  switch (MoveType::InferMove(source, destination)) {
+    case MoveType::kRegisterToRegister:
+      if (source->IsRegister()) {
+        __ Mov(g.ToRegister(destination), g.ToRegister(source));
+      } else if (source->IsFloatRegister() || source->IsDoubleRegister()) {
+        __ Mov(g.ToDoubleRegister(destination), g.ToDoubleRegister(source));
+      } else {
+        DCHECK(source->IsSimd128Register());
+        __ Mov(g.ToDoubleRegister(destination).Q(),
+               g.ToDoubleRegister(source).Q());
+      }
+      return;
+    case MoveType::kRegisterToStack: {
+      MemOperand dst = g.ToMemOperand(destination, tasm());
+      if (source->IsRegister()) {
+        __ Str(g.ToRegister(source), dst);
+      } else {
+        VRegister src = g.ToDoubleRegister(source);
+        if (source->IsFloatRegister() || source->IsDoubleRegister()) {
+          __ Str(src, dst);
         } else {
-          __ Mov(dst, src_object);
+          DCHECK(source->IsSimd128Register());
+          __ Str(src.Q(), dst);
         }
-      } else {
-        __ Mov(dst, g.ToImmediate(source));
       }
+      return;
+    }
+    case MoveType::kStackToRegister: {
+      MemOperand src = g.ToMemOperand(source, tasm());
+      if (destination->IsRegister()) {
+        __ Ldr(g.ToRegister(destination), src);
+      } else {
+        VRegister dst = g.ToDoubleRegister(destination);
+        if (destination->IsFloatRegister() || destination->IsDoubleRegister()) {
+          __ Ldr(dst, src);
+        } else {
+          DCHECK(destination->IsSimd128Register());
+          __ Ldr(dst.Q(), src);
+        }
+      }
+      return;
+    }
+    case MoveType::kStackToStack: {
+      MemOperand src = g.ToMemOperand(source, tasm());
+      MemOperand dst = g.ToMemOperand(destination, tasm());
+      if (source->IsSimd128StackSlot()) {
+        UseScratchRegisterScope scope(tasm());
+        VRegister temp = scope.AcquireQ();
+        __ Ldr(temp, src);
+        __ Str(temp, dst);
+      } else {
+        UseScratchRegisterScope scope(tasm());
+        Register temp = scope.AcquireX();
+        __ Ldr(temp, src);
+        __ Str(temp, dst);
+      }
+      return;
+    }
+    case MoveType::kConstantToRegister: {
+      Constant src = g.ToConstant(source);
+      if (destination->IsRegister()) {
+        MoveConstantToRegister(g.ToRegister(destination), src);
+      } else {
+        VRegister dst = g.ToDoubleRegister(destination);
+        if (destination->IsFloatRegister()) {
+          __ Fmov(dst.S(), src.ToFloat32());
+        } else {
+          DCHECK(destination->IsDoubleRegister());
+          __ Fmov(dst, src.ToFloat64().value());
+        }
+      }
+      return;
+    }
+    case MoveType::kConstantToStack: {
+      Constant src = g.ToConstant(source);
+      MemOperand dst = g.ToMemOperand(destination, tasm());
       if (destination->IsStackSlot()) {
-        __ Str(dst, g.ToMemOperand(destination, tasm()));
-      }
-    } else if (src.type() == Constant::kFloat32) {
-      if (destination->IsFPRegister()) {
-        VRegister dst = g.ToDoubleRegister(destination).S();
-        __ Fmov(dst, src.ToFloat32());
-      } else {
-        DCHECK(destination->IsFPStackSlot());
+        UseScratchRegisterScope scope(tasm());
+        Register temp = scope.AcquireX();
+        MoveConstantToRegister(temp, src);
+        __ Str(temp, dst);
+      } else if (destination->IsFloatStackSlot()) {
         if (bit_cast<int32_t>(src.ToFloat32()) == 0) {
-          __ Str(wzr, g.ToMemOperand(destination, tasm()));
+          __ Str(wzr, dst);
         } else {
           UseScratchRegisterScope scope(tasm());
           VRegister temp = scope.AcquireS();
           __ Fmov(temp, src.ToFloat32());
-          __ Str(temp, g.ToMemOperand(destination, tasm()));
+          __ Str(temp, dst);
         }
-      }
-    } else {
-      DCHECK_EQ(Constant::kFloat64, src.type());
-      if (destination->IsFPRegister()) {
-        VRegister dst = g.ToDoubleRegister(destination);
-        __ Fmov(dst, src.ToFloat64().value());
       } else {
-        DCHECK(destination->IsFPStackSlot());
+        DCHECK(destination->IsDoubleStackSlot());
         if (src.ToFloat64().AsUint64() == 0) {
-          __ Str(xzr, g.ToMemOperand(destination, tasm()));
+          __ Str(xzr, dst);
         } else {
           UseScratchRegisterScope scope(tasm());
           VRegister temp = scope.AcquireD();
           __ Fmov(temp, src.ToFloat64().value());
-          __ Str(temp, g.ToMemOperand(destination, tasm()));
+          __ Str(temp, dst);
         }
       }
+      return;
     }
-  } else if (source->IsFPRegister()) {
-    VRegister src = g.ToDoubleRegister(source);
-    if (destination->IsFPRegister()) {
-      VRegister dst = g.ToDoubleRegister(destination);
-      if (destination->IsSimd128Register()) {
-        __ Mov(dst.Q(), src.Q());
-      } else {
-        __ Mov(dst, src);
-      }
-    } else {
-      DCHECK(destination->IsFPStackSlot());
-      MemOperand dst = g.ToMemOperand(destination, tasm());
-      if (destination->IsSimd128StackSlot()) {
-        __ Str(src.Q(), dst);
-      } else {
-        __ Str(src, dst);
-      }
-    }
-  } else if (source->IsFPStackSlot()) {
-    DCHECK(destination->IsFPRegister() || destination->IsFPStackSlot());
-    MemOperand src = g.ToMemOperand(source, tasm());
-    if (destination->IsFPRegister()) {
-      VRegister dst = g.ToDoubleRegister(destination);
-      if (destination->IsSimd128Register()) {
-        __ Ldr(dst.Q(), src);
-      } else {
-        __ Ldr(dst, src);
-      }
-    } else {
-      UseScratchRegisterScope scope(tasm());
-      VRegister temp = scope.AcquireD();
-      MemOperand dst = g.ToMemOperand(destination, tasm());
-      if (destination->IsSimd128StackSlot()) {
-        __ Ldr(temp.Q(), src);
-        __ Str(temp.Q(), dst);
-      } else {
-        __ Ldr(temp, src);
-        __ Str(temp, dst);
-      }
-    }
-  } else {
-    UNREACHABLE();
   }
+  UNREACHABLE();
 }
 
 
 void CodeGenerator::AssembleSwap(InstructionOperand* source,
                                  InstructionOperand* destination) {
   Arm64OperandConverter g(this, nullptr);
-  // Dispatch on the source and destination operand kinds.  Not all
-  // combinations are possible.
-  if (source->IsRegister()) {
-    // Register-register.
-    UseScratchRegisterScope scope(tasm());
-    Register temp = scope.AcquireX();
-    Register src = g.ToRegister(source);
-    if (destination->IsRegister()) {
-      Register dst = g.ToRegister(destination);
-      __ Mov(temp, src);
-      __ Mov(src, dst);
-      __ Mov(dst, temp);
-    } else {
-      DCHECK(destination->IsStackSlot());
-      MemOperand dst = g.ToMemOperand(destination, tasm());
-      __ Mov(temp, src);
-      __ Ldr(src, dst);
-      __ Str(temp, dst);
-    }
-  } else if (source->IsStackSlot() || source->IsFPStackSlot()) {
-    UseScratchRegisterScope scope(tasm());
-    VRegister temp_0 = scope.AcquireD();
-    VRegister temp_1 = scope.AcquireD();
-    MemOperand src = g.ToMemOperand(source, tasm());
-    MemOperand dst = g.ToMemOperand(destination, tasm());
-    if (source->IsSimd128StackSlot()) {
-      __ Ldr(temp_0.Q(), src);
-      __ Ldr(temp_1.Q(), dst);
-      __ Str(temp_0.Q(), dst);
-      __ Str(temp_1.Q(), src);
-    } else {
-      __ Ldr(temp_0, src);
-      __ Ldr(temp_1, dst);
-      __ Str(temp_0, dst);
-      __ Str(temp_1, src);
-    }
-  } else if (source->IsFPRegister()) {
-    UseScratchRegisterScope scope(tasm());
-    VRegister temp = scope.AcquireD();
-    VRegister src = g.ToDoubleRegister(source);
-    if (destination->IsFPRegister()) {
-      VRegister dst = g.ToDoubleRegister(destination);
-      if (source->IsSimd128Register()) {
-        __ Mov(temp.Q(), src.Q());
-        __ Mov(src.Q(), dst.Q());
-        __ Mov(dst.Q(), temp.Q());
+  switch (MoveType::InferSwap(source, destination)) {
+    case MoveType::kRegisterToRegister:
+      if (source->IsRegister()) {
+        __ Swap(g.ToRegister(source), g.ToRegister(destination));
       } else {
-        __ Mov(temp, src);
-        __ Mov(src, dst);
-        __ Mov(dst, temp);
+        VRegister src = g.ToDoubleRegister(source);
+        VRegister dst = g.ToDoubleRegister(destination);
+        if (source->IsFloatRegister() || source->IsDoubleRegister()) {
+          __ Swap(src, dst);
+        } else {
+          DCHECK(source->IsSimd128Register());
+          __ Swap(src.Q(), dst.Q());
+        }
       }
-    } else {
-      DCHECK(destination->IsFPStackSlot());
+      return;
+    case MoveType::kRegisterToStack: {
+      UseScratchRegisterScope scope(tasm());
       MemOperand dst = g.ToMemOperand(destination, tasm());
-      if (source->IsSimd128Register()) {
-        __ Mov(temp.Q(), src.Q());
-        __ Ldr(src.Q(), dst);
-        __ Str(temp.Q(), dst);
-      } else {
+      if (source->IsRegister()) {
+        Register temp = scope.AcquireX();
+        Register src = g.ToRegister(source);
         __ Mov(temp, src);
         __ Ldr(src, dst);
         __ Str(temp, dst);
+      } else {
+        UseScratchRegisterScope scope(tasm());
+        VRegister src = g.ToDoubleRegister(source);
+        if (source->IsFloatRegister() || source->IsDoubleRegister()) {
+          VRegister temp = scope.AcquireD();
+          __ Mov(temp, src);
+          __ Ldr(src, dst);
+          __ Str(temp, dst);
+        } else {
+          DCHECK(source->IsSimd128Register());
+          VRegister temp = scope.AcquireQ();
+          __ Mov(temp, src.Q());
+          __ Ldr(src.Q(), dst);
+          __ Str(temp, dst);
+        }
       }
+      return;
     }
-  } else {
-    // No other combinations are possible.
-    UNREACHABLE();
+    case MoveType::kStackToStack: {
+      UseScratchRegisterScope scope(tasm());
+      MemOperand src = g.ToMemOperand(source, tasm());
+      MemOperand dst = g.ToMemOperand(destination, tasm());
+      VRegister temp_0 = scope.AcquireD();
+      VRegister temp_1 = scope.AcquireD();
+      if (source->IsSimd128StackSlot()) {
+        __ Ldr(temp_0.Q(), src);
+        __ Ldr(temp_1.Q(), dst);
+        __ Str(temp_0.Q(), dst);
+        __ Str(temp_1.Q(), src);
+      } else {
+        __ Ldr(temp_0, src);
+        __ Ldr(temp_1, dst);
+        __ Str(temp_0, dst);
+        __ Str(temp_1, src);
+      }
+      return;
+    }
+    default:
+      UNREACHABLE();
+      break;
   }
 }
 
