@@ -1549,13 +1549,13 @@ class V8_EXPORT ScriptCompiler {
    * It is possible to specify multiple context extensions (obj in the above
    * example).
    */
-  static V8_DEPRECATE_SOON("Use maybe version",
-                           Local<Function> CompileFunctionInContext(
-                               Isolate* isolate, Source* source,
-                               Local<Context> context, size_t arguments_count,
-                               Local<String> arguments[],
-                               size_t context_extension_count,
-                               Local<Object> context_extensions[]));
+  static V8_DEPRECATED("Use maybe version",
+                       Local<Function> CompileFunctionInContext(
+                           Isolate* isolate, Source* source,
+                           Local<Context> context, size_t arguments_count,
+                           Local<String> arguments[],
+                           size_t context_extension_count,
+                           Local<Object> context_extensions[]));
   static V8_WARN_UNUSED_RESULT MaybeLocal<Function> CompileFunctionInContext(
       Local<Context> context, Source* source, size_t arguments_count,
       Local<String> arguments[], size_t context_extension_count,
