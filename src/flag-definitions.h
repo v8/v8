@@ -277,7 +277,6 @@ DEFINE_BOOL(future, FUTURE_BOOL,
             "Implies all staged features that we want to ship in the "
             "not-too-far future")
 
-DEFINE_IMPLICATION(future, background_compile)
 DEFINE_IMPLICATION(future, write_protect_code_memory)
 
 // Flags for experimental implementation features.
@@ -954,7 +953,7 @@ DEFINE_BOOL(preparser_scope_analysis, true,
 DEFINE_IMPLICATION(preparser_scope_analysis, aggressive_lazy_inner_functions)
 
 // compiler.cc
-DEFINE_BOOL(background_compile, false, "enable background compilation")
+DEFINE_BOOL(background_compile, true, "enable background compilation")
 
 // simulator-arm.cc, simulator-arm64.cc and simulator-mips.cc
 DEFINE_BOOL(trace_sim, false, "Trace simulator execution")
