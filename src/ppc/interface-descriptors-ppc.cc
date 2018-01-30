@@ -290,8 +290,9 @@ void ApiCallbackDescriptor::InitializePlatformSpecific(
 void InterpreterDispatchDescriptor::InitializePlatformSpecific(
     CallInterfaceDescriptorData* data) {
   Register registers[] = {
-  kInterpreterAccumulatorRegister, kInterpreterBytecodeOffsetRegister,
-  kInterpreterBytecodeArrayRegister, kInterpreterDispatchTableRegister};
+      kInterpreterAccumulatorRegister, kInterpreterBytecodeOffsetRegister,
+      kInterpreterBytecodeArrayRegister, kInterpreterDispatchTableRegister,
+      kInterpreterTargetBytecodeRegister};
   data->InitializePlatformSpecific(arraysize(registers), registers);
 }
 

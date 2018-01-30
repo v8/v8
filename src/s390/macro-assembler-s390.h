@@ -24,6 +24,7 @@ const Register kInterpreterAccumulatorRegister = r2;
 const Register kInterpreterBytecodeOffsetRegister = r6;
 const Register kInterpreterBytecodeArrayRegister = r7;
 const Register kInterpreterDispatchTableRegister = r8;
+const Register kInterpreterTargetBytecodeRegister = r5;
 const Register kJavaScriptCallArgCountRegister = r2;
 const Register kJavaScriptCallNewTargetRegister = r5;
 const Register kRuntimeCallFunctionRegister = r3;
