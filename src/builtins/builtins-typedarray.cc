@@ -42,16 +42,6 @@ int64_t CapRelativeIndex(Handle<Object> num, int64_t minimum, int64_t maximum) {
                       : std::min<int64_t>(relative, maximum);
 }
 
-MaybeHandle<JSTypedArray> TypedArraySpeciesCreateByLength(
-    Isolate* isolate, Handle<JSTypedArray> exemplar, const char* method_name,
-    int64_t length) {
-  const int argc = 1;
-  ScopedVector<Handle<Object>> argv(argc);
-  argv[0] = isolate->factory()->NewNumberFromInt64(length);
-  return JSTypedArray::SpeciesCreate(isolate, exemplar, argc, argv.start(),
-                                     method_name);
-}
-
 }  // namespace
 
 BUILTIN(TypedArrayPrototypeCopyWithin) {
@@ -275,50 +265,6 @@ BUILTIN(TypedArrayPrototypeReverse) {
   ElementsAccessor* elements = array->GetElementsAccessor();
   elements->Reverse(*array);
   return *array;
-}
-
-BUILTIN(TypedArrayPrototypeSlice) {
-  HandleScope scope(isolate);
-
-  Handle<JSTypedArray> array;
-  const char* method = "%TypedArray%.prototype.slice";
-  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
-      isolate, array, JSTypedArray::Validate(isolate, args.receiver(), method));
-
-  int64_t len = array->length_value();
-  int64_t start = 0;
-  int64_t end = len;
-  {
-    Handle<Object> num = args.atOrUndefined(isolate, 1);
-    if (!num->IsUndefined(isolate)) {
-      ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, num,
-                                         Object::ToInteger(isolate, num));
-      start = CapRelativeIndex(num, 0, len);
-
-      num = args.atOrUndefined(isolate, 2);
-      if (!num->IsUndefined(isolate)) {
-        ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, num,
-                                           Object::ToInteger(isolate, num));
-        end = CapRelativeIndex(num, 0, len);
-      }
-    }
-  }
-
-  int64_t count = std::max<int64_t>(end - start, 0);
-
-  Handle<JSTypedArray> result_array;
-  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
-      isolate, result_array,
-      TypedArraySpeciesCreateByLength(isolate, array, method, count));
-
-  // TODO(cwhan.tunz): should throw.
-  if (V8_UNLIKELY(array->WasNeutered())) return *result_array;
-
-  if (count == 0) return *result_array;
-
-  ElementsAccessor* accessor = array->GetElementsAccessor();
-  return *accessor->Slice(array, static_cast<uint32_t>(start),
-                          static_cast<uint32_t>(end), result_array);
 }
 
 }  // namespace internal

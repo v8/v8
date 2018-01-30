@@ -1102,7 +1102,8 @@ namespace internal {
   /* ES6 %TypedArray%.prototype.set */                                         \
   TFJ(TypedArrayPrototypeSet, SharedFunctionInfo::kDontAdaptArgumentsSentinel) \
   /* ES6 #sec-%typedarray%.prototype.slice */                                  \
-  CPP(TypedArrayPrototypeSlice)                                                \
+  TFJ(TypedArrayPrototypeSlice,                                                \
+      SharedFunctionInfo::kDontAdaptArgumentsSentinel)                         \
   /* ES6 %TypedArray%.prototype.subarray */                                    \
   TFJ(TypedArrayPrototypeSubArray,                                             \
       SharedFunctionInfo::kDontAdaptArgumentsSentinel)                         \

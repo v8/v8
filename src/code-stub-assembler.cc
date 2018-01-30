@@ -618,6 +618,7 @@ TNode<Smi> CodeStubAssembler::ConvertToRelativeIndex(TNode<Context> context,
     Goto(&done);
   }
   BIND(&done);
+  CSA_ASSERT(this, TaggedIsPositiveSmi(result));
   return result;
 }
 

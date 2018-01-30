@@ -106,9 +106,6 @@
   'built-ins/TypedArray/prototype/map/callbackfn-detachbuffer': [FAIL],
   'built-ins/TypedArray/prototype/reduce/callbackfn-detachbuffer': [FAIL],
   'built-ins/TypedArray/prototype/reduceRight/callbackfn-detachbuffer': [FAIL],
-  'built-ins/TypedArray/prototype/slice/detached-buffer-custom-ctor-other-targettype': [FAIL],
-  'built-ins/TypedArray/prototype/slice/detached-buffer-custom-ctor-same-targettype': [FAIL],
-  'built-ins/TypedArray/prototype/slice/detached-buffer-get-ctor': [FAIL],
   'built-ins/TypedArray/prototype/some/callbackfn-detachbuffer': [FAIL],
   'built-ins/TypedArray/prototype/sort/detached-buffer-comparefn': [FAIL],
   # DataView functions should also throw on detached buffers
