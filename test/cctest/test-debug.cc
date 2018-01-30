@@ -6720,17 +6720,13 @@ TEST(BuiltinsExceptionPrediction) {
   v8::HandleScope handle_scope(isolate);
   v8::Context::New(isolate);
 
+  i::Snapshot::EnsureAllBuiltinsAreDeserialized(iisolate);
+
   i::Builtins* builtins = iisolate->builtins();
   bool fail = false;
   for (int i = 0; i < i::Builtins::builtin_count; i++) {
     Code* builtin = builtins->builtin(i);
-
     if (builtin->kind() != Code::BUILTIN) continue;
-    if (builtin->builtin_index() == i::Builtins::kDeserializeLazy &&
-        i::Builtins::IsLazy(i)) {
-      builtin = i::Snapshot::DeserializeBuiltin(iisolate, i);
-    }
-
     auto prediction = builtin->GetBuiltinCatchPrediction();
     USE(prediction);
   }

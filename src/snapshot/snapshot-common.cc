@@ -89,6 +89,10 @@ MaybeHandle<Context> Snapshot::NewContextFromSnapshot(
 
 // static
 Code* Snapshot::DeserializeBuiltin(Isolate* isolate, int builtin_id) {
+  if (FLAG_trace_lazy_deserialization) {
+    PrintF("Lazy-deserializing builtin %s\n", Builtins::name(builtin_id));
+  }
+
   base::ElapsedTimer timer;
   if (FLAG_profile_deserialization) timer.Start();
 
@@ -116,9 +120,33 @@ Code* Snapshot::DeserializeBuiltin(Isolate* isolate, int builtin_id) {
 }
 
 // static
+void Snapshot::EnsureAllBuiltinsAreDeserialized(Isolate* isolate) {
+  if (!FLAG_lazy_deserialization) return;
+
+  Builtins* builtins = isolate->builtins();
+  for (int i = 0; i < Builtins::builtin_count; i++) {
+    if (!Builtins::IsLazy(i)) continue;
+
+    DCHECK_NE(Builtins::kDeserializeLazy, i);
+    Code* code = builtins->builtin(i);
+    if (code->builtin_index() == Builtins::kDeserializeLazy) {
+      code = Snapshot::DeserializeBuiltin(isolate, i);
+    }
+
+    DCHECK_EQ(i, code->builtin_index());
+    DCHECK_EQ(code, builtins->builtin(i));
+  }
+}
+
+// static
 Code* Snapshot::DeserializeHandler(Isolate* isolate,
                                    interpreter::Bytecode bytecode,
                                    interpreter::OperandScale operand_scale) {
+  if (FLAG_trace_lazy_deserialization) {
+    PrintF("Lazy-deserializing handler %s\n",
+           interpreter::Bytecodes::ToString(bytecode, operand_scale).c_str());
+  }
+
   base::ElapsedTimer timer;
   if (FLAG_profile_deserialization) timer.Start();
 

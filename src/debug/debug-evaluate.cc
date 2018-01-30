@@ -759,11 +759,6 @@ bool DebugEvaluate::FunctionHasNoSideEffect(Handle<SharedFunctionInfo> info) {
         DCHECK(Builtins::IsLazy(builtin_index));
         DCHECK_EQ(Builtins::TFJ, Builtins::KindOf(builtin_index));
 
-        if (FLAG_trace_lazy_deserialization) {
-          PrintF("Lazy-deserializing builtin %s\n",
-                 Builtins::name(builtin_index));
-        }
-
         code = Snapshot::DeserializeBuiltin(isolate, builtin_index);
         DCHECK_NE(Builtins::kDeserializeLazy, code->builtin_index());
       }

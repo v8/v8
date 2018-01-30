@@ -17,6 +17,8 @@ TEST(VerifyBuiltinsIsolateIndependence) {
   Isolate* isolate = CcTest::i_isolate();
   HandleScope handle_scope(isolate);
 
+  Snapshot::EnsureAllBuiltinsAreDeserialized(isolate);
+
   // Build a white-list of all isolate-independent RelocInfo entry kinds.
   constexpr int all_real_modes_mask =
       (1 << (RelocInfo::LAST_REAL_RELOC_MODE + 1)) - 1;
@@ -45,12 +47,6 @@ TEST(VerifyBuiltinsIsolateIndependence) {
   bool found_mismatch = false;
   for (int i = 0; i < Builtins::builtin_count; i++) {
     Code* code = isolate->builtins()->builtin(i);
-
-    // Make sure the builtin is deserialized.
-    if (code->builtin_index() == Builtins::kDeserializeLazy &&
-        Builtins::IsLazy(i)) {
-      code = Snapshot::DeserializeBuiltin(isolate, i);
-    }
 
     if (kVerbose) {
       printf("%s %s\n", Builtins::KindNameOf(i), isolate->builtins()->name(i));

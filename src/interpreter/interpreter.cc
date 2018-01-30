@@ -67,11 +67,6 @@ Code* Interpreter::GetAndMaybeDeserializeBytecodeHandler(
   if (!isolate_->heap()->IsDeserializeLazyHandler(code)) return code;
 
   DCHECK(FLAG_lazy_handler_deserialization);
-  if (FLAG_trace_lazy_deserialization) {
-    PrintF("Lazy-deserializing handler %s\n",
-           Bytecodes::ToString(bytecode, operand_scale).c_str());
-  }
-
   DCHECK(Bytecodes::BytecodeHasHandler(bytecode, operand_scale));
   code = Snapshot::DeserializeHandler(isolate_, bytecode, operand_scale);
 
