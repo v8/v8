@@ -1925,15 +1925,21 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       }
       break;
     }
-    case kS390_ExtendSignWord8:
+    case kS390_SignExtendWord8ToInt32:
       __ lbr(i.OutputRegister(), i.InputRegister(0));
       CHECK_AND_ZERO_EXT_OUTPUT(1);
       break;
-    case kS390_ExtendSignWord16:
+    case kS390_SignExtendWord16ToInt32:
       __ lhr(i.OutputRegister(), i.InputRegister(0));
       CHECK_AND_ZERO_EXT_OUTPUT(1);
       break;
-    case kS390_ExtendSignWord32:
+    case kS390_SignExtendWord8ToInt64:
+      __ lgbr(i.OutputRegister(), i.InputRegister(0));
+      break;
+    case kS390_SignExtendWord16ToInt64:
+      __ lghr(i.OutputRegister(), i.InputRegister(0));
+      break;
+    case kS390_SignExtendWord32ToInt64:
       __ lgfr(i.OutputRegister(), i.InputRegister(0));
       break;
     case kS390_Uint32ToUint64:

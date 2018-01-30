@@ -1118,6 +1118,16 @@ void InstructionSelector::VisitTruncateFloat64ToUint32(Node* node) {
   VisitRR(this, kPPC_DoubleToUint32, node);
 }
 
+void InstructionSelector::VisitSignExtendWord8ToInt32(Node* node) {
+  // TODO(mbrandy): inspect input to see if nop is appropriate.
+  VisitRR(this, kPPC_ExtendSignWord8, node);
+}
+
+void InstructionSelector::VisitSignExtendWord16ToInt32(Node* node) {
+  // TODO(mbrandy): inspect input to see if nop is appropriate.
+  VisitRR(this, kPPC_ExtendSignWord16, node);
+}
+
 #if V8_TARGET_ARCH_PPC64
 void InstructionSelector::VisitTryTruncateFloat32ToInt64(Node* node) {
   VisitTryTruncateDouble(this, kPPC_DoubleToInt64, node);
@@ -1144,6 +1154,20 @@ void InstructionSelector::VisitChangeInt32ToInt64(Node* node) {
   VisitRR(this, kPPC_ExtendSignWord32, node);
 }
 
+void InstructionSelector::VisitSignExtendWord8ToInt64(Node* node) {
+  // TODO(mbrandy): inspect input to see if nop is appropriate.
+  VisitRR(this, kPPC_ExtendSignWord8, node);
+}
+
+void InstructionSelector::VisitSignExtendWord16ToInt64(Node* node) {
+  // TODO(mbrandy): inspect input to see if nop is appropriate.
+  VisitRR(this, kPPC_ExtendSignWord16, node);
+}
+
+void InstructionSelector::VisitSignExtendWord32ToInt64(Node* node) {
+  // TODO(mbrandy): inspect input to see if nop is appropriate.
+  VisitRR(this, kPPC_ExtendSignWord32, node);
+}
 
 void InstructionSelector::VisitChangeUint32ToUint64(Node* node) {
   // TODO(mbrandy): inspect input to see if nop is appropriate.

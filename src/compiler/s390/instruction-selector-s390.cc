@@ -329,6 +329,8 @@ ArchOpcode SelectLoadOpcode(Node* node) {
   V(Word32Popcnt)                  \
   V(Float64ExtractLowWord32)       \
   V(Float64ExtractHighWord32)      \
+  V(SignExtendWord8ToInt32)        \
+  V(SignExtendWord16ToInt32)       \
   /* Word32 bin op */              \
   V(Int32Add)                      \
   V(Int32Sub)                      \
@@ -1019,7 +1021,7 @@ static inline bool TryMatchSignExtInt16OrInt8FromWord32Sar(
     Int32BinopMatcher mleft(m.left().node());
     if (mleft.right().Is(16) && m.right().Is(16)) {
       bool canEliminateZeroExt = ProduceWord32Result(mleft.left().node());
-      selector->Emit(kS390_ExtendSignWord16,
+      selector->Emit(kS390_SignExtendWord16ToInt32,
                      canEliminateZeroExt ? g.DefineSameAsFirst(node)
                                          : g.DefineAsRegister(node),
                      g.UseRegister(mleft.left().node()),
@@ -1027,7 +1029,7 @@ static inline bool TryMatchSignExtInt16OrInt8FromWord32Sar(
       return true;
     } else if (mleft.right().Is(24) && m.right().Is(24)) {
       bool canEliminateZeroExt = ProduceWord32Result(mleft.left().node());
-      selector->Emit(kS390_ExtendSignWord8,
+      selector->Emit(kS390_SignExtendWord8ToInt32,
                      canEliminateZeroExt ? g.DefineSameAsFirst(node)
                                          : g.DefineAsRegister(node),
                      g.UseRegister(mleft.left().node()),
@@ -1415,6 +1417,10 @@ static inline bool TryMatchDoubleConstructFromInsert(
     null)                                                                    \
   V(Word32, ChangeUint32ToFloat64, kS390_Uint32ToDouble, OperandMode::kNone, \
     null)                                                                    \
+  V(Word32, SignExtendWord8ToInt32, kS390_SignExtendWord8ToInt32,            \
+    OperandMode::kNone, null)                                                \
+  V(Word32, SignExtendWord16ToInt32, kS390_SignExtendWord16ToInt32,          \
+    OperandMode::kNone, null)                                                \
   V(Word32, BitcastInt32ToFloat32, kS390_BitcastInt32ToFloat32,              \
     OperandMode::kNone, null)
 
@@ -1427,8 +1433,14 @@ static inline bool TryMatchDoubleConstructFromInsert(
     OperandMode::kNone, null)
 #define WORD32_UNARY_OP_LIST(V)                                             \
   WORD32_UNARY_OP_LIST_32(V)                                                \
-  V(Word32, ChangeInt32ToInt64, kS390_ExtendSignWord32, OperandMode::kNone, \
-    null)                                                                   \
+  V(Word32, ChangeInt32ToInt64, kS390_SignExtendWord32ToInt64,              \
+    OperandMode::kNone, null)                                               \
+  V(Word32, SignExtendWord8ToInt64, kS390_SignExtendWord8ToInt64,           \
+    OperandMode::kNone, null)                                               \
+  V(Word32, SignExtendWord16ToInt64, kS390_SignExtendWord16ToInt64,         \
+    OperandMode::kNone, null)                                               \
+  V(Word32, SignExtendWord32ToInt64, kS390_SignExtendWord32ToInt64,         \
+    OperandMode::kNone, null)                                               \
   V(Word32, ChangeUint32ToUint64, kS390_Uint32ToUint64, OperandMode::kNone, \
     [&]() -> bool {                                                         \
       if (ProduceWord32Result(node->InputAt(0))) {                          \
