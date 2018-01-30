@@ -305,6 +305,7 @@ class SystemTest(unittest.TestCase):
       # flags field of the test result.
       # After recent changes we report all flags, including the file names.
       # This is redundant to the command. Needs investigation.
+      self.maxDiff = None
       self.check_cleaned_json_output('expected_test_results1.json', json_path)
 
   def testFlakeWithRerunAndJSONProc(self):
@@ -336,6 +337,7 @@ class SystemTest(unittest.TestCase):
             'Done running sweet/bananaflakes: pass', result.stdout, result)
         self.assertIn('All tests succeeded', result.stdout, result)
       self.assertEqual(0, result.returncode, result)
+      self.maxDiff = None
       self.check_cleaned_json_output('expected_test_results2.json', json_path)
 
   def testAutoDetect(self):
@@ -549,7 +551,10 @@ class SystemTest(unittest.TestCase):
       # timeout was used.
       self.assertEqual(0, result.returncode, result)
 
-  def testRandomSeedStressWithDefault(self):
+  def testRandomSeedStressWithDefaultProc(self):
+    self.testRandomSeedStressWithDefault(infra_staging=True)
+
+  def testRandomSeedStressWithDefault(self, infra_staging=False):
     """Test using random-seed-stress feature has the right number of tests."""
     with temp_base() as basedir:
       result = run_tests(
@@ -559,8 +564,13 @@ class SystemTest(unittest.TestCase):
           '--variants=default',
           '--random-seed-stress-count=2',
           'sweet/bananas',
+          infra_staging=infra_staging,
       )
-      self.assertIn('Running 2 tests', result.stdout, result)
+      if infra_staging:
+        self.assertIn('Running 1 base tests', result.stdout, result)
+        self.assertIn('2 tests ran', result.stdout, result)
+      else:
+        self.assertIn('Running 2 tests', result.stdout, result)
       self.assertEqual(0, result.returncode, result)
 
   def testRandomSeedStressWithSeed(self):

@@ -40,7 +40,7 @@ FLAGS_PATTERN = re.compile(r"//\s+Flags:(.*)")
 
 
 class TestCase(object):
-  def __init__(self, suite, path, name):
+  def __init__(self, suite, path, name, test_config):
     self.suite = suite        # TestSuite object
 
     self.path = path          # string, e.g. 'div-mod', 'test-api/foo'
@@ -59,18 +59,26 @@ class TestCase(object):
     self.procid = '%s/%s' % (self.suite.name, self.name) # unique id
     self.keep_output = False # Can output of this test be dropped
 
+    # Test config contains information needed to build the command.
+    # TODO(majeski): right now it contains only random seed.
+    self._test_config = test_config
+    # Overrides default random seed from test_config if specified.
+    self._random_seed = None
+
     self._statusfile_outcomes = None
-    self._expected_outcomes = None # optimization: None == [statusfile.PASS]
+    self.expected_outcomes = None
     self._statusfile_flags = None
     self._prepare_outcomes()
 
   def create_subtest(self, processor, subtest_id, variant=None, flags=None,
-                     keep_output=False):
+                     keep_output=False, random_seed=None):
     subtest = copy.copy(self)
     subtest.origin = self
     subtest.processor = processor
     subtest.procid += '.%s' % subtest_id
     subtest.keep_output |= keep_output
+    if random_seed:
+      subtest._random_seed = random_seed
     if flags:
       subtest.variant_flags = subtest.variant_flags + flags
     if variant is not None:
@@ -79,7 +87,8 @@ class TestCase(object):
       subtest._prepare_outcomes()
     return subtest
 
-  def create_variant(self, variant, flags, procid_suffix=None):
+  def create_variant(self, variant, flags, procid_suffix=None,
+                     random_seed=None):
     """Makes a shallow copy of the object and updates variant, variant flags and
     all fields that depend on it, e.g. expected outcomes.
 
@@ -88,6 +97,8 @@ class TestCase(object):
       flags         - flags that should be added to origin test's variant flags
       procid_suffix - for multiple variants with the same name set suffix to
         keep procid unique.
+      random_seed   - random seed to use in this variant. None means use base
+        test's random seed.
     """
     other = copy.copy(self)
     if not self.variant_flags:
@@ -99,6 +110,9 @@ class TestCase(object):
       other.procid += '[%s-%s]' % (variant, procid_suffix)
     else:
       other.procid += '[%s]' % variant
+
+    if random_seed:
+      other._random_seed = random_seed
 
     other._prepare_outcomes(variant != self.variant)
 
@@ -171,6 +185,7 @@ class TestCase(object):
   def _get_cmd_params(self, ctx):
     """Gets command parameters and combines them in the following order:
       - files [empty by default]
+      - random seed
       - extra flags (from command line)
       - user flags (variant/fuzzer flags)
       - statusfile flags
@@ -182,6 +197,7 @@ class TestCase(object):
     """
     return (
         self._get_files_params(ctx) +
+        self._get_random_seed_flags() +
         self._get_extra_flags(ctx) +
         self._get_variant_flags() +
         self._get_statusfile_flags() +
@@ -195,6 +211,13 @@ class TestCase(object):
 
   def _get_files_params(self, ctx):
     return []
+
+  def _get_random_seed_flags(self):
+    return ['--random-seed=%d' % self.random_seed]
+
+  @property
+  def random_seed(self):
+    return self._random_seed or self._test_config.random_seed
 
   def _get_extra_flags(self, ctx):
     return ctx.extra_flags
@@ -225,8 +248,6 @@ class TestCase(object):
       shell_flags.append('--test')
     if utils.IsWindows():
       shell += '.exe'
-    if ctx.random_seed:
-      shell_flags.append('--random-seed=%s' % ctx.random_seed)
     return shell, shell_flags
 
   def _get_timeout(self, params, timeout):

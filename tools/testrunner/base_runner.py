@@ -17,10 +17,11 @@ sys.path.insert(
     os.path.dirname(os.path.abspath(__file__))))
 
 
-from local import testsuite
-from local import utils
-
-from testproc.shard import ShardProc
+from testrunner.local import testsuite
+from testrunner.local import utils
+from testrunner.test_config import TestConfig
+from testrunner.testproc.shard import ShardProc
+from testrunner.testproc.timeout import TimeoutProc
 
 
 BASE_DIR = (
@@ -215,7 +216,7 @@ class BaseTestRunner(object):
         raise
 
       args = self._parse_test_args(args)
-      suites = self._get_suites(args, options.verbose)
+      suites = self._get_suites(args, options)
 
       self._setup_env()
       return self._do_execute(suites, args, options)
@@ -255,6 +256,8 @@ class BaseTestRunner(object):
     parser.add_option("--shard-run",
                       help="Run this shard from the split up tests.",
                       default=1, type="int")
+    parser.add_option("--total-timeout-sec", default=0, type="int",
+                      help="How long should fuzzer run")
 
     # TODO(machenbach): Temporary options for rolling out new test runner
     # features.
@@ -480,9 +483,9 @@ class BaseTestRunner(object):
 
     return reduce(list.__add__, map(expand_test_group, args), [])
 
-  def _get_suites(self, args, verbose=False):
+  def _get_suites(self, args, options):
     names = self._args_to_suite_names(args)
-    return self._load_suites(names, verbose)
+    return self._load_suites(names, options)
 
   def _args_to_suite_names(self, args):
     # Use default tests if no test configuration was provided at the cmd line.
@@ -496,13 +499,18 @@ class BaseTestRunner(object):
   def _expand_test_group(self, name):
     return TEST_MAP.get(name, [name])
 
-  def _load_suites(self, names, verbose=False):
+  def _load_suites(self, names, options):
+    test_config = self._create_test_config(options)
     def load_suite(name):
-      if verbose:
+      if options.verbose:
         print '>>> Loading test suite: %s' % name
       return testsuite.TestSuite.LoadTestSuite(
-          os.path.join(self.basedir, 'test', name))
+          os.path.join(self.basedir, 'test', name),
+          test_config)
     return map(load_suite, names)
+
+  def _create_test_config(self, options):
+    return TestConfig(options.random_seed)
 
   # TODO(majeski): remove options & args parameters
   def _do_execute(self, suites, args, options):
@@ -550,3 +558,8 @@ class BaseTestRunner(object):
       return 1, 1
 
     return shard_run, shard_count
+
+  def _create_timeout_proc(self, options):
+    if not options.total_timeout_sec:
+      return None
+    return TimeoutProc(options.total_timeout_sec)

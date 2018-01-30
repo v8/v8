@@ -27,5 +27,5 @@ class TestCase(testcase.TestCase):
   def _get_files_params(self, ctx):
     return [self.name]
 
-def GetSuite(name, root):
-  return TestSuite(name, root)
+def GetSuite(*args, **kwargs):
+  return TestSuite(*args, **kwargs)
