@@ -3085,6 +3085,13 @@ class Serializer : public ValueSerializer::Delegate {
 
   std::unique_ptr<SerializationData> Release() { return std::move(data_); }
 
+  void AppendExternalizedContentsTo(std::vector<ExternalizedContents>* to) {
+    to->insert(to->end(),
+               std::make_move_iterator(externalized_contents_.begin()),
+               std::make_move_iterator(externalized_contents_.end()));
+    externalized_contents_.clear();
+  }
+
  protected:
   // Implements ValueSerializer::Delegate.
   void ThrowDataCloneError(Local<String> message) override {
@@ -3157,7 +3164,7 @@ class Serializer : public ValueSerializer::Delegate {
       return array_buffer->GetContents();
     } else {
       typename T::Contents contents = array_buffer->Externalize();
-      data_->externalized_contents_.emplace_back(contents);
+      externalized_contents_.emplace_back(contents);
       return contents;
     }
   }
@@ -3184,6 +3191,7 @@ class Serializer : public ValueSerializer::Delegate {
   std::unique_ptr<SerializationData> data_;
   std::vector<Global<ArrayBuffer>> array_buffers_;
   std::vector<Global<SharedArrayBuffer>> shared_array_buffers_;
+  std::vector<ExternalizedContents> externalized_contents_;
   size_t current_memory_usage_;
 
   DISALLOW_COPY_AND_ASSIGN(Serializer);
@@ -3242,9 +3250,11 @@ std::unique_ptr<SerializationData> Shell::SerializeValue(
   if (serializer.WriteValue(context, value, transfer).To(&ok)) {
     std::unique_ptr<SerializationData> data = serializer.Release();
     base::LockGuard<base::Mutex> lock_guard(workers_mutex_.Pointer());
-    data->AppendExternalizedContentsTo(&externalized_contents_);
+    serializer.AppendExternalizedContentsTo(&externalized_contents_);
     return data;
   }
+  // Append externalized contents even when WriteValue fails.
+  serializer.AppendExternalizedContentsTo(&externalized_contents_);
   return nullptr;
 }
 
