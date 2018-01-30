@@ -564,6 +564,7 @@ inline WasmOpcode LoadStoreOpcodeOf(MachineType type, bool store) {
 #define WASM_I32_UCONVERT_SAT_F32(x) x, WASM_NUMERIC_OP(kExprI32UConvertSatF32)
 #define WASM_I32_SCONVERT_SAT_F64(x) x, WASM_NUMERIC_OP(kExprI32SConvertSatF64)
 #define WASM_I32_UCONVERT_SAT_F64(x) x, WASM_NUMERIC_OP(kExprI32UConvertSatF64)
+#define WASM_I64_SCONVERT_SAT_F32(x) x, WASM_NUMERIC_OP(kExprI64SConvertSatF32)
 
 //------------------------------------------------------------------------------
 // Memory Operations.

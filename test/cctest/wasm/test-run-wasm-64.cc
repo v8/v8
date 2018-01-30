@@ -73,6 +73,7 @@ namespace test_run_wasm_64 {
   V(I64SConvertF64, true)       \
   V(I64UConvertF32, true)       \
   V(I64UConvertF64, true)       \
+  V(I64SConvertSatF32, true)    \
   V(I64SConvertI32, true)       \
   V(I64UConvertI32, true)       \
   V(F32SConvertI64, true)       \
@@ -848,6 +849,27 @@ WASM_EXEC_TEST(I64SConvertF32a) {
   }
 }
 
+WASM_EXEC_TEST(I64SConvertSatF32a) {
+  EXPERIMENTAL_FLAG_SCOPE(sat_f2i_conversions);
+  WasmRunner<int64_t, float> r(execution_mode);
+  BUILD(r, WASM_I64_SCONVERT_SAT_F32(WASM_GET_LOCAL(0)));
+  FOR_FLOAT32_INPUTS(i) {
+    int64_t expected;
+    if (*i < static_cast<float>(std::numeric_limits<int64_t>::max()) &&
+        *i >= static_cast<float>(std::numeric_limits<int64_t>::min())) {
+      expected = static_cast<int64_t>(*i);
+    } else if (std::isnan(*i)) {
+      expected = static_cast<int64_t>(0);
+    } else if (*i < 0.0) {
+      expected = std::numeric_limits<int64_t>::min();
+    } else {
+      expected = std::numeric_limits<int64_t>::max();
+    }
+    int64_t found = r.Call(*i);
+    CHECK_EQ(expected, found);
+  }
+}
+
 WASM_EXEC_TEST(I64SConvertF64a) {
   WasmRunner<int64_t, double> r(execution_mode);
   BUILD(r, WASM_I64_SCONVERT_F64(WASM_GET_LOCAL(0)));
@@ -1277,6 +1299,29 @@ WASM_EXEC_TEST(I64SConvertF32b) {
     } else {
       CHECK_TRAP64(r.Call(*i));
     }
+  }
+}
+
+WASM_EXEC_TEST(I64SConvertSatF32b) {
+  EXPERIMENTAL_FLAG_SCOPE(sat_f2i_conversions);
+  REQUIRE(I64SConvertSatF32);
+  WasmRunner<int64_t, float> r(execution_mode);
+  BUILD(r, WASM_I64_SCONVERT_SAT_F32(WASM_GET_LOCAL(0)));
+
+  FOR_FLOAT32_INPUTS(i) {
+    int64_t expected;
+    if (*i < static_cast<float>(INT64_MAX) &&
+        *i >= static_cast<float>(INT64_MIN)) {
+      expected = static_cast<int64_t>(*i);
+    } else if (std::isnan(*i)) {
+      expected = static_cast<int64_t>(0);
+    } else if (*i < 0.0) {
+      expected = INT64_MIN;
+    } else {
+      expected = INT64_MAX;
+    }
+    int64_t found = r.Call(*i);
+    CHECK_EQ(expected, found);
   }
 }
 

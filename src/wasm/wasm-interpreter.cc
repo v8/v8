@@ -477,6 +477,17 @@ int64_t ExecuteI64SConvertF32(float a, TrapReason* trap) {
   return output;
 }
 
+int64_t ExecuteI64SConvertSatF32(float a) {
+  TrapReason base_trap = kTrapCount;
+  int64_t val = ExecuteI64SConvertF32(a, &base_trap);
+  if (base_trap == kTrapCount) {
+    return val;
+  }
+  return std::isnan(a) ? 0
+                       : (a < 0.0 ? std::numeric_limits<int64_t>::min()
+                                  : std::numeric_limits<int64_t>::max());
+}
+
 int64_t ExecuteI64SConvertF64(double a, TrapReason* trap) {
   int64_t output;
   if (!float64_to_int64_wrapper(&a, &output)) {
@@ -1565,6 +1576,10 @@ class ThreadImpl {
       case kExprI32UConvertSatF64:
         Push(WasmValue(ExecuteConvertSaturate<uint32_t>(Pop().to<double>())));
         return true;
+      case kExprI64SConvertSatF32: {
+        Push(WasmValue(ExecuteI64SConvertSatF32(Pop().to<float>())));
+        return true;
+      }
       default:
         V8_Fatal(__FILE__, __LINE__, "Unknown or unimplemented opcode #%d:%s",
                  code->start[pc], OpcodeName(code->start[pc]));

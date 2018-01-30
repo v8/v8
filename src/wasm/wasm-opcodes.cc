@@ -101,9 +101,10 @@ const char* WasmOpcodes::OpcodeName(WasmOpcode opcode) {
     CASE_I32_OP(ConvertI64, "wrap/i64")
     CASE_CONVERT_OP(Convert, INT, F32, "f32", "trunc")
     CASE_CONVERT_OP(Convert, INT, F64, "f64", "trunc")
-    // TODO(kschimpf): Add I64 versions of saturating conversions.
+    // TODO(kschimpf): Simplify after filling in other saturating operations.
     CASE_CONVERT_SAT_OP(Convert, I32, F32, "f32", "trunc")
     CASE_CONVERT_SAT_OP(Convert, I32, F64, "f64", "trunc")
+    CASE_I64_OP(SConvertSatF32, "trunc_s::sat/f32")
 
     CASE_CONVERT_OP(Convert, I64, I32, "i32", "extend")
     CASE_CONVERT_OP(Convert, F32, I32, "i32", "convert")

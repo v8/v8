@@ -408,8 +408,9 @@ using WasmName = Vector<const char>;
   V(I32SConvertSatF32, 0xfc00, i_f) \
   V(I32UConvertSatF32, 0xfc01, i_f) \
   V(I32SConvertSatF64, 0xfc02, i_d) \
-  V(I32UConvertSatF64, 0xfc03, i_d)
-// TODO(kschimpf): Add remaining i64 numeric opcodes.
+  V(I32UConvertSatF64, 0xfc03, i_d) \
+  V(I64SConvertSatF32, 0xfc04, l_f)
+// TODO(kschimpf): Add remaining numeric opcodes.
 
 #define FOREACH_ATOMIC_OPCODE(V)               \
   V(I32AtomicLoad, 0xfe10, i_i)                \

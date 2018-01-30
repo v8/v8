@@ -255,8 +255,16 @@ typedef ZoneVector<Node*> NodeVector;
 class WasmGraphBuilder {
  public:
   enum EnforceBoundsCheck : bool { kNeedsBoundsCheck, kCanOmitBoundsCheck };
-  struct IntConvertOps;
-  struct FloatConvertOps;
+  enum class Type {
+    kInt8s,
+    kInt8u,
+    kInt32s,
+    kInt32u,
+    kInt64s,
+    kInt64u,
+    kFloat32,
+    kFloat64
+  };
 
   WasmGraphBuilder(ModuleEnv* env, Zone* zone, JSGraph* graph,
                    Handle<Code> centry_stub, wasm::FunctionSig* sig,
@@ -453,6 +461,7 @@ class WasmGraphBuilder {
 
  private:
   enum class NumericImplementation : uint8_t { kTrap, kSaturate };
+
   static const int kDefaultBufferSize = 16;
 
   Zone* const zone_;
@@ -515,16 +524,10 @@ class WasmGraphBuilder {
   Node* BuildF32CopySign(Node* left, Node* right);
   Node* BuildF64CopySign(Node* left, Node* right);
 
-  Node* BuildI32ConvertOp(Node* input, wasm::WasmCodePosition position,
-                          NumericImplementation impl, const Operator* op,
-                          wasm::WasmOpcode check_op,
-                          const IntConvertOps* int_ops,
-                          const FloatConvertOps* float_ops);
-  Node* BuildConvertCheck(Node* test, Node* result, Node* input,
-                          wasm::WasmCodePosition position,
-                          NumericImplementation impl,
-                          const IntConvertOps* int_ops,
-                          const FloatConvertOps* float_ops);
+  Node* BuildI32ConvertFloat(Node* input, wasm::WasmCodePosition position,
+                             NumericImplementation impl, Type int_type,
+                             Type float_type, const Operator* conv_op,
+                             const wasm::WasmOpcode check_op);
   Node* BuildI32SConvertF32(Node* input, wasm::WasmCodePosition position,
                             NumericImplementation impl);
   Node* BuildI32SConvertF64(Node* input, wasm::WasmCodePosition position,
@@ -571,7 +574,15 @@ class WasmGraphBuilder {
       Node* input, ExternalReference ref,
       MachineRepresentation parameter_representation,
       const MachineType result_type, wasm::WasmCodePosition position);
-  Node* BuildI64SConvertF32(Node* input, wasm::WasmCodePosition position);
+  Node* BuildI64CcallConvertFloat(Node* input, wasm::WasmCodePosition position,
+                                  NumericImplementation impl, Type int_type,
+                                  Type float_type, ExternalReference call_ref);
+  Node* BuildI64TruncConvertFloat(Node* input, wasm::WasmCodePosition position,
+                                  NumericImplementation impl, Type int_type,
+                                  Type float_type, const Operator* trunc_op);
+
+  Node* BuildI64SConvertF32(Node* input, wasm::WasmCodePosition position,
+                            NumericImplementation impl);
   Node* BuildI64UConvertF32(Node* input, wasm::WasmCodePosition position);
   Node* BuildI64SConvertF64(Node* input, wasm::WasmCodePosition position);
   Node* BuildI64UConvertF64(Node* input, wasm::WasmCodePosition position);
