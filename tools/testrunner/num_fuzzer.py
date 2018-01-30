@@ -222,6 +222,10 @@ class NumFuzzer(base_runner.BaseTestRunner):
         timeout = TIMEOUT_DEFAULT;
 
     timeout *= self.mode_options.timeout_scalefactor
+    if options.stress_interrupt_budget:
+      # TODO(machenbach): This should be moved to a more generic config.
+      # Fuzzers have too much timeout in debug mode.
+      timeout = int(timeout * 0.5)
     ctx = context.Context(self.build_config.arch,
                           self.mode_options.execution_mode,
                           self.outdir,
