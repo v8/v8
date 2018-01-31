@@ -191,7 +191,7 @@ class NumFuzzer(base_runner.BaseTestRunner):
                           self.mode_options.execution_mode,
                           self.outdir,
                           self.mode_options.flags, options.verbose,
-                          options.timeout * self.timeout_scalefactor(options),
+                          options.timeout * self._timeout_scalefactor(options),
                           options.isolates,
                           options.command_prefix,
                           options.extra_flags,
