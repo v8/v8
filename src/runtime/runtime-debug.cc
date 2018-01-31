@@ -265,7 +265,10 @@ MaybeHandle<JSArray> Runtime::GetInternalProperties(Isolate* isolate,
     Handle<String> status_str = factory->NewStringFromAsciiChecked(status);
     result->set(1, *status_str);
 
-    Handle<Object> value_obj(promise->result(), isolate);
+    Handle<Object> value_obj(promise->status() == Promise::kPending
+                                 ? isolate->heap()->undefined_value()
+                                 : promise->result(),
+                             isolate);
     Handle<String> promise_value =
         factory->NewStringFromAsciiChecked("[[PromiseValue]]");
     result->set(2, *promise_value);

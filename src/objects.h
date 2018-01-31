@@ -3998,13 +3998,27 @@ class JSMessageObject: public JSObject {
   typedef BodyDescriptor BodyDescriptorWeak;
 };
 
+// Representation of promise objects in the specification. Our layout of
+// JSPromise differs a bit from the layout in the specification, for example
+// there's only a single list of PromiseReaction objects, instead of separate
+// lists for fulfill and reject reactions. The PromiseReaction carries both
+// callbacks from the start, and is eventually morphed into the proper kind of
+// PromiseReactionJobTask when the JSPromise is settled.
+//
+// We also overlay the result and reactions fields on the JSPromise, since
+// the reactions are only necessary for pending promises, whereas the result
+// is only meaningful for settled promises.
 class JSPromise : public JSObject {
  public:
-  // TODO(bmeurer): Overlay {result} and {reactions}!
-  DECL_ACCESSORS(result, Object)
+  // [reactions_or_result]: Smi 0 terminated list of PromiseReaction objects
+  // in case the JSPromise was not settled yet, otherwise the result.
+  DECL_ACCESSORS(reactions_or_result, Object)
 
-  // [reactions]: Smi 0 terminated list of PromiseReaction objects.
-  DECL_ACCESSORS(reactions, Object)
+  // [result]: Checks that the promise is settled and returns the result.
+  inline Object* result() const;
+
+  // [reactions]: Checks that the promise is pending and returns the reactions.
+  inline Object* reactions() const;
 
   DECL_INT_ACCESSORS(flags)
 
@@ -4031,9 +4045,8 @@ class JSPromise : public JSObject {
   DECL_VERIFIER(JSPromise)
 
   // Layout description.
-  static const int kResultOffset = JSObject::kHeaderSize;
-  static const int kReactionsOffset = kResultOffset + kPointerSize;
-  static const int kFlagsOffset = kReactionsOffset + kPointerSize;
+  static const int kReactionsOrResultOffset = JSObject::kHeaderSize;
+  static const int kFlagsOffset = kReactionsOrResultOffset + kPointerSize;
   static const int kSize = kFlagsOffset + kPointerSize;
   static const int kSizeWithEmbedderFields =
       kSize + v8::Promise::kEmbedderFieldCount * kPointerSize;

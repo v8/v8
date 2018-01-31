@@ -1125,10 +1125,11 @@ void PromiseReaction::PromiseReactionVerify() {
 void JSPromise::JSPromiseVerify() {
   CHECK(IsJSPromise());
   JSObjectVerify();
-  VerifyPointer(result());
-  VerifyPointer(reactions());
-  CHECK(reactions()->IsSmi() || reactions()->IsPromiseReaction());
+  VerifyPointer(reactions_or_result());
   VerifySmiField(kFlagsOffset);
+  if (status() == Promise::kPending) {
+    CHECK(reactions()->IsSmi() || reactions()->IsPromiseReaction());
+  }
 }
 
 template <typename Derived>

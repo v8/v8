@@ -1013,14 +1013,12 @@ Reduction JSCreateLowering::ReduceJSCreatePromise(Node* node) {
           jsgraph()->EmptyFixedArrayConstant());
   a.Store(AccessBuilder::ForJSObjectElements(),
           jsgraph()->EmptyFixedArrayConstant());
-  a.Store(AccessBuilder::ForJSObjectOffset(JSPromise::kResultOffset),
-          jsgraph()->UndefinedConstant());
-  a.Store(AccessBuilder::ForJSObjectOffset(JSPromise::kReactionsOffset),
+  a.Store(AccessBuilder::ForJSObjectOffset(JSPromise::kReactionsOrResultOffset),
           jsgraph()->ZeroConstant());
   STATIC_ASSERT(v8::Promise::kPending == 0);
   a.Store(AccessBuilder::ForJSObjectOffset(JSPromise::kFlagsOffset),
           jsgraph()->ZeroConstant());
-  STATIC_ASSERT(JSPromise::kSize == 6 * kPointerSize);
+  STATIC_ASSERT(JSPromise::kSize == 5 * kPointerSize);
   for (int i = 0; i < v8::Promise::kEmbedderFieldCount; ++i) {
     a.Store(
         AccessBuilder::ForJSObjectOffset(JSPromise::kSize + i * kPointerSize),

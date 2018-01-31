@@ -22,21 +22,26 @@ Node* PromiseBuiltinsAssembler::AllocateJSPromise(Node* context) {
   Node* const promise_fun =
       LoadContextElement(native_context, Context::PROMISE_FUNCTION_INDEX);
   CSA_ASSERT(this, IsFunctionWithPrototypeSlotMap(LoadMap(promise_fun)));
-  Node* const initial_map =
+  Node* const promise_map =
       LoadObjectField(promise_fun, JSFunction::kPrototypeOrInitialMapOffset);
-  Node* const instance = AllocateJSObjectFromMap(initial_map);
-  return instance;
+  Node* const promise = Allocate(JSPromise::kSizeWithEmbedderFields);
+  StoreMapNoWriteBarrier(promise, promise_map);
+  StoreObjectFieldRoot(promise, JSPromise::kPropertiesOrHashOffset,
+                       Heap::kEmptyFixedArrayRootIndex);
+  StoreObjectFieldRoot(promise, JSPromise::kElementsOffset,
+                       Heap::kEmptyFixedArrayRootIndex);
+  return promise;
 }
 
 void PromiseBuiltinsAssembler::PromiseInit(Node* promise) {
   STATIC_ASSERT(v8::Promise::kPending == 0);
-  StoreObjectFieldNoWriteBarrier(promise, JSPromise::kReactionsOffset,
+  StoreObjectFieldNoWriteBarrier(promise, JSPromise::kReactionsOrResultOffset,
                                  SmiConstant(Smi::kZero));
   StoreObjectFieldNoWriteBarrier(promise, JSPromise::kFlagsOffset,
                                  SmiConstant(Smi::kZero));
   for (int i = 0; i < v8::Promise::kEmbedderFieldCount; i++) {
     int offset = JSPromise::kSize + i * kPointerSize;
-    StoreObjectFieldNoWriteBarrier(promise, offset, SmiConstant(0));
+    StoreObjectFieldNoWriteBarrier(promise, offset, SmiConstant(Smi::kZero));
   }
 }
 
@@ -60,12 +65,12 @@ Node* PromiseBuiltinsAssembler::AllocateAndInitJSPromise(Node* context,
 
 Node* PromiseBuiltinsAssembler::AllocateAndSetJSPromise(
     Node* context, v8::Promise::PromiseState status, Node* result) {
-  Node* const instance = AllocateJSPromise(context);
+  DCHECK_NE(Promise::kPending, status);
 
-  StoreObjectFieldNoWriteBarrier(instance, JSPromise::kResultOffset, result);
+  Node* const instance = AllocateJSPromise(context);
+  StoreObjectFieldNoWriteBarrier(instance, JSPromise::kReactionsOrResultOffset,
+                                 result);
   STATIC_ASSERT(JSPromise::kStatusShift == 0);
-  StoreObjectFieldNoWriteBarrier(instance, JSPromise::kReactionsOffset,
-                                 SmiConstant(Smi::kZero));
   StoreObjectFieldNoWriteBarrier(instance, JSPromise::kFlagsOffset,
                                  SmiConstant(status));
   for (int i = 0; i < v8::Promise::kEmbedderFieldCount; i++) {
@@ -393,11 +398,11 @@ void PromiseBuiltinsAssembler::InternalPerformPromiseThen(Node* context,
     // Once the {promise} is resolved we decide on the concrete handler to
     // push onto the microtask queue.
     Node* const promise_reactions =
-        LoadObjectField(promise, JSPromise::kReactionsOffset);
+        LoadObjectField(promise, JSPromise::kReactionsOrResultOffset);
     Node* const reaction = AllocatePromiseReaction(promise_reactions, result,
                                                    var_on_fulfilled.value(),
                                                    var_on_rejected.value());
-    StoreObjectField(promise, JSPromise::kReactionsOffset, reaction);
+    StoreObjectField(promise, JSPromise::kReactionsOrResultOffset, reaction);
     Goto(&done);
   }
 
@@ -428,7 +433,8 @@ void PromiseBuiltinsAssembler::InternalPerformPromiseThen(Node* context,
     }
 
     BIND(&enqueue);
-    Node* argument = LoadObjectField(promise, JSPromise::kResultOffset);
+    Node* argument =
+        LoadObjectField(promise, JSPromise::kReactionsOrResultOffset);
     Node* microtask = AllocatePromiseReactionJobTask(
         var_map.value(), context, argument, var_handler.value(), result);
     CallBuiltin(Builtins::kEnqueueMicrotask, NoContextConstant(), microtask);
@@ -583,7 +589,7 @@ void PromiseBuiltinsAssembler::InternalResolvePromise(Node* context,
   {
     Node* const thenable_status = PromiseStatus(result);
     Node* const thenable_value =
-        LoadObjectField(result, JSPromise::kResultOffset);
+        LoadObjectField(result, JSPromise::kReactionsOrResultOffset);
 
     Label if_isnotpending(this);
     GotoIfNot(IsPromiseStatus(thenable_status, v8::Promise::kPending),
@@ -714,7 +720,7 @@ void PromiseBuiltinsAssembler::PromiseFulfill(
   Node* reactions;
   {
     VARIABLE(var_current, MachineRepresentation::kTagged,
-             LoadObjectField(promise, JSPromise::kReactionsOffset));
+             LoadObjectField(promise, JSPromise::kReactionsOrResultOffset));
     VARIABLE(var_reversed, MachineRepresentation::kTagged,
              SmiConstant(Smi::kZero));
 
@@ -735,9 +741,7 @@ void PromiseBuiltinsAssembler::PromiseFulfill(
   }
 
   // Reset the {promise}.
-  StoreObjectField(promise, JSPromise::kResultOffset, result);
-  StoreObjectFieldNoWriteBarrier(promise, JSPromise::kReactionsOffset,
-                                 SmiConstant(Smi::kZero));
+  StoreObjectField(promise, JSPromise::kReactionsOrResultOffset, result);
   PromiseSetStatus(promise, status);
 
   // Morph the {reactions} into PromiseReactionJobTasks and push them

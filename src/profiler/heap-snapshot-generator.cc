@@ -1312,10 +1312,9 @@ void V8HeapExplorer::ExtractJSArrayBufferReferences(
 }
 
 void V8HeapExplorer::ExtractJSPromiseReferences(int entry, JSPromise* promise) {
-  SetInternalReference(promise, entry, "result", promise->result(),
-                       JSPromise::kResultOffset);
-  SetInternalReference(promise, entry, "reactions", promise->reactions(),
-                       JSPromise::kReactionsOffset);
+  SetInternalReference(promise, entry, "reactions_or_result",
+                       promise->reactions_or_result(),
+                       JSPromise::kReactionsOrResultOffset);
 }
 
 void V8HeapExplorer::ExtractFixedArrayReferences(int entry, FixedArray* array) {

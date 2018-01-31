@@ -552,8 +552,11 @@ void JSArray::JSArrayPrint(std::ostream& os) {  // NOLINT
 void JSPromise::JSPromisePrint(std::ostream& os) {  // NOLINT
   JSObjectPrintHeader(os, this, "JSPromise");
   os << "\n - status = " << JSPromise::Status(status());
-  os << "\n - result = " << Brief(result());
-  os << "\n - reactions: " << Brief(reactions());
+  if (status() == Promise::kPending) {
+    os << "\n - reactions = " << Brief(reactions());
+  } else {
+    os << "\n - result = " << Brief(result());
+  }
   os << "\n - has_handler = " << has_handler();
   os << "\n ";
 }

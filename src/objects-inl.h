@@ -2835,12 +2835,20 @@ ACCESSORS(PromiseCapability, promise, HeapObject, kPromiseOffset)
 ACCESSORS(PromiseCapability, resolve, Object, kResolveOffset)
 ACCESSORS(PromiseCapability, reject, Object, kRejectOffset)
 
-ACCESSORS(JSPromise, result, Object, kResultOffset)
-ACCESSORS(JSPromise, reactions, Object, kReactionsOffset)
+ACCESSORS(JSPromise, reactions_or_result, Object, kReactionsOrResultOffset)
 SMI_ACCESSORS(JSPromise, flags, kFlagsOffset)
 BOOL_ACCESSORS(JSPromise, flags, has_handler, kHasHandlerBit)
 BOOL_ACCESSORS(JSPromise, flags, handled_hint, kHandledHintBit)
 
+Object* JSPromise::result() const {
+  DCHECK_NE(Promise::kPending, status());
+  return reactions_or_result();
+}
+
+Object* JSPromise::reactions() const {
+  DCHECK_EQ(Promise::kPending, status());
+  return reactions_or_result();
+}
 
 ElementsKind JSObject::GetElementsKind() {
   ElementsKind kind = map()->elements_kind();
