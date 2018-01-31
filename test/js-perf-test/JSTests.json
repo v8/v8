@@ -203,7 +203,14 @@
         {"name": "StringIndexOfConstant"},
         {"name": "StringIndexOfNonConstant"},
         {"name": "StringCharCodeAtConstant"},
-        {"name": "StringCharCodeAtNonConstant"}
+        {"name": "StringCharCodeAtNonConstant"},
+        {"name": "StringCharCodeAtConstantInbounds"},
+        {"name": "StringCharCodeAtNonConstantInbounds"},
+        {"name": "StringCodePointAtConstant"},
+        {"name": "StringCodePointAtNonConstant"},
+        {"name": "StringCodePointAtConstantInbounds"},
+        {"name": "StringCodePointAtNonConstantInbounds"}
+
       ]
     },
     {

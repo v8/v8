@@ -35,14 +35,14 @@ function StringIndexOfNonConstant() {
   return sum;
 }
 
-new BenchmarkSuite('StringCharCodeAtConstantWithOutOfBounds', [3], [
-  new Benchmark('StringCharCodeAtConstantWithOutOfBounds', true, false, 0,
-  StringCharCodeAtConstantWithOutOfBounds),
+new BenchmarkSuite('StringCharCodeAtConstant', [3], [
+  new Benchmark('StringCharCodeAtConstant', true, false, 0,
+  StringCharCodeAtConstant),
 ]);
 
-new BenchmarkSuite('StringCharCodeAtNonConstantWithOutOfBounds', [3], [
-  new Benchmark('StringCharCodeAtNonConstantWithOutOfBounds', true, false, 0,
-  StringCharCodeAtNonConstantWithOutOfBounds),
+new BenchmarkSuite('StringCharCodeAtNonConstant', [3], [
+  new Benchmark('StringCharCodeAtNonConstant', true, false, 0,
+  StringCharCodeAtNonConstant),
 ]);
 
 new BenchmarkSuite('StringCharCodeAtConstantInbounds', [3], [
@@ -59,7 +59,7 @@ const string = "qweruiplkjhgfdsazxccvbnm";
 const indices = [1, 13, 32, 100, "xx"];
 const indicesInbounds = [1, 7, 13, 17, "xx"];
 
-function StringCharCodeAtConstantWithOutOfBounds() {
+function StringCharCodeAtConstant() {
   var sum = 0;
 
   for (var j = 0; j < indices.length - 1; ++j) {
@@ -69,7 +69,7 @@ function StringCharCodeAtConstantWithOutOfBounds() {
   return sum;
 }
 
-function StringCharCodeAtNonConstantWithOutOfBounds() {
+function StringCharCodeAtNonConstant() {
   var sum = 0;
 
   for (var j = 0; j < indices.length - 1; ++j) {
@@ -99,14 +99,14 @@ function StringCharCodeAtNonConstantInbounds() {
   return sum;
 }
 
-new BenchmarkSuite('StringCodePointAtConstantWithOutOfBounds', [3], [
-  new Benchmark('StringCodePointAtConstantWithOutOfBounds', true, false, 0,
-  StringCodePointAtConstantWithOutOfBounds),
+new BenchmarkSuite('StringCodePointAtConstant', [3], [
+  new Benchmark('StringCodePointAtConstant', true, false, 0,
+  StringCodePointAtConstant),
 ]);
 
-new BenchmarkSuite('StringCodePointAtNonConstantWithOutOfBounds', [3], [
-  new Benchmark('StringCodePointAtNonConstantWithOutOfBounds', true, false, 0,
-  StringCodePointAtNonConstantWithOutOfBounds),
+new BenchmarkSuite('StringCodePointAtNonConstant', [3], [
+  new Benchmark('StringCodePointAtNonConstant', true, false, 0,
+  StringCodePointAtNonConstant),
 ]);
 
 new BenchmarkSuite('StringCodePointAtConstantInbounds', [3], [
@@ -121,7 +121,7 @@ new BenchmarkSuite('StringCodePointAtNonConstantInbounds', [3], [
 
 const unicode_string = "qweräϠ�𝌆krefdäϠ�𝌆ccäϠ�𝌆";
 
-function StringCodePointAtConstantWithOutOfBounds() {
+function StringCodePointAtConstant() {
   var sum = 0;
 
   for (var j = 0; j < indices.length - 1; ++j) {
@@ -131,7 +131,7 @@ function StringCodePointAtConstantWithOutOfBounds() {
   return sum;
 }
 
-function StringCodePointAtNonConstantWithOutOfBounds() {
+function StringCodePointAtNonConstant() {
   var sum = 0;
 
   for (var j = 0; j < indices.length - 1; ++j) {
