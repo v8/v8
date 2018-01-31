@@ -617,10 +617,12 @@ RUNTIME_FUNCTION(Runtime_NotifyContextDisposed) {
 RUNTIME_FUNCTION(Runtime_SetAllocationTimeout) {
   SealHandleScope shs(isolate);
   DCHECK(args.length() == 2 || args.length() == 3);
-#ifdef DEBUG
-  CONVERT_INT32_ARG_CHECKED(interval, 0);
+#ifdef V8_ENABLE_ALLOCATION_TIMEOUT
   CONVERT_INT32_ARG_CHECKED(timeout, 1);
   isolate->heap()->set_allocation_timeout(timeout);
+#endif
+#ifdef DEBUG
+  CONVERT_INT32_ARG_CHECKED(interval, 0);
   FLAG_gc_interval = interval;
   if (args.length() == 3) {
     // Enable/disable inline allocation if requested.
