@@ -3,4 +3,9 @@
 # found in the LICENSE file.
 
 [
+['arch == arm and not simulator_run', {
+  # Timeouts on chromebooks.
+  'ItemParallelJobTest.DistributeItemsMultipleTasks': [SKIP],
+  'ItemParallelJobTest.MoreTasksThanItems': [SKIP],
+}],  # 'arch == arm and not simulator_run'
 ]
