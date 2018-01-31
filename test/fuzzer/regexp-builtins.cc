@@ -296,7 +296,7 @@ std::string GenerateSourceString(FuzzerArgs* args, const std::string& test) {
                          << flags << ";\n"
      << "  re.lastIndex = " << last_index << ";\n"
      << "  const str = '" << subject << "';\n"
-     << "  let result;\n"
+     << "  let result = null;\n"
      << "  let exception = null;\n"
      << "  try {\n"
      << "    result = " << test << "\n"
