@@ -47,6 +47,7 @@ CompilationInfo::CompilationInfo(Zone* zone, Isolate* isolate,
 
   if (FLAG_function_context_specialization) MarkAsFunctionContextSpecializing();
   if (FLAG_turbo_splitting) MarkAsSplittingEnabled();
+  if (!FLAG_turbo_disable_switch_jump_table) SetFlag(kSwitchJumpTableEnabled);
 
   // Collect source positions for optimized code when profiling or if debugger
   // is active, to be able to get more precise source positions at the price of

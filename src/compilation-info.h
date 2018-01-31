@@ -51,6 +51,7 @@ class V8_EXPORT_PRIVATE CompilationInfo final {
     kBailoutOnUninitialized = 1 << 9,
     kLoopPeelingEnabled = 1 << 10,
     kUntrustedCodeMitigations = 1 << 11,
+    kSwitchJumpTableEnabled = 1 << 12,
   };
 
   // TODO(mtrofin): investigate if this might be generalized outside wasm, with
@@ -167,6 +168,10 @@ class V8_EXPORT_PRIVATE CompilationInfo final {
 
   bool has_untrusted_code_mitigations() const {
     return GetFlag(kUntrustedCodeMitigations);
+  }
+
+  bool switch_jump_table_enabled() const {
+    return GetFlag(kSwitchJumpTableEnabled);
   }
 
   // Code getters and setters.

@@ -43,6 +43,7 @@ InstructionSelectorTest::Stream InstructionSelectorTest::StreamBuilder::Build(
   SourcePositionTable source_position_table(graph());
   InstructionSelector selector(test_->zone(), node_count, &linkage, &sequence,
                                schedule, &source_position_table, nullptr,
+                               InstructionSelector::kEnableSwitchJumpTable,
                                source_position_mode, features,
                                InstructionSelector::kDisableScheduling);
   selector.SelectInstructions();

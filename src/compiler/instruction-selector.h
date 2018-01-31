@@ -51,11 +51,16 @@ class V8_EXPORT_PRIVATE InstructionSelector final {
   enum SourcePositionMode { kCallSourcePositions, kAllSourcePositions };
   enum EnableScheduling { kDisableScheduling, kEnableScheduling };
   enum EnableSerialization { kDisableSerialization, kEnableSerialization };
+  enum EnableSwitchJumpTable {
+    kDisableSwitchJumpTable,
+    kEnableSwitchJumpTable
+  };
 
   InstructionSelector(
       Zone* zone, size_t node_count, Linkage* linkage,
       InstructionSequence* sequence, Schedule* schedule,
       SourcePositionTable* source_positions, Frame* frame,
+      EnableSwitchJumpTable enable_switch_jump_table,
       SourcePositionMode source_position_mode = kCallSourcePositions,
       Features features = SupportedFeatures(),
       EnableScheduling enable_scheduling = FLAG_turbo_instruction_scheduling
@@ -445,6 +450,7 @@ class V8_EXPORT_PRIVATE InstructionSelector final {
   InstructionScheduler* scheduler_;
   EnableScheduling enable_scheduling_;
   EnableSerialization enable_serialization_;
+  EnableSwitchJumpTable enable_switch_jump_table_;
   Frame* frame_;
   bool instruction_selection_failed_;
 };

@@ -1525,6 +1525,9 @@ struct InstructionSelectionPhase {
     InstructionSelector selector(
         temp_zone, data->graph()->NodeCount(), linkage, data->sequence(),
         data->schedule(), data->source_positions(), data->frame(),
+        data->info()->switch_jump_table_enabled()
+            ? InstructionSelector::kEnableSwitchJumpTable
+            : InstructionSelector::kDisableSwitchJumpTable,
         data->info()->is_source_positions_enabled()
             ? InstructionSelector::kAllSourcePositions
             : InstructionSelector::kCallSourcePositions,
