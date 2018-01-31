@@ -214,6 +214,7 @@ DEFINE_IMPLICATION(harmony_class_fields, harmony_private_fields)
 
 // Features that are complete (but still behind --harmony/es-staging flag).
 #define HARMONY_STAGED(V)                                               \
+  V(harmony_function_tostring, "harmony Function.prototype.toString")   \
   V(harmony_restrict_constructor_return,                                \
     "harmony disallow non undefined primitive return value from class " \
     "constructor")                                                      \
@@ -226,7 +227,6 @@ DEFINE_IMPLICATION(harmony_class_fields, harmony_private_fields)
   V(harmony_sharedarraybuffer, "harmony sharedarraybuffer")             \
   V(harmony_regexp_named_captures, "harmony regexp named captures")     \
   V(harmony_regexp_property, "harmony Unicode regexp property classes") \
-  V(harmony_function_tostring, "harmony Function.prototype.toString")   \
   V(harmony_promise_finally, "harmony Promise.prototype.finally")
 
 #ifdef V8_INTL_SUPPORT
