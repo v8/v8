@@ -10481,6 +10481,12 @@ void HeapProfiler::SetGetRetainerInfosCallback(
       callback);
 }
 
+void HeapProfiler::SetBuildEmbedderGraphCallback(
+    BuildEmbedderGraphCallback callback) {
+  reinterpret_cast<i::HeapProfiler*>(this)->SetBuildEmbedderGraphCallback(
+      callback);
+}
+
 v8::Testing::StressType internal::Testing::stress_type_ =
     v8::Testing::kStressTypeOpt;
 
