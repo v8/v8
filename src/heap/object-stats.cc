@@ -214,9 +214,12 @@ class ObjectStatsCollectorImpl {
     kIgnoreCow,
   };
 
+  Isolate* isolate() { return heap_->isolate(); }
+
   bool RecordVirtualObjectStats(HeapObject* parent, HeapObject* obj,
                                 ObjectStats::VirtualInstanceType type,
-                                size_t size, size_t over_allocated);
+                                size_t size, size_t over_allocated,
+                                CowMode check_cow_array = kCheckCow);
   // Gets size from |ob| and assumes no over allocating.
   bool RecordSimpleVirtualObjectStats(HeapObject* parent, HeapObject* obj,
                                       ObjectStats::VirtualInstanceType type);
@@ -249,6 +252,7 @@ class ObjectStatsCollectorImpl {
   void RecordVirtualContext(Context* context);
   void RecordVirtualFeedbackVectorDetails(FeedbackVector* vector);
   void RecordVirtualFixedArrayDetails(FixedArray* array);
+  void RecordVirtualFunctionTemplateInfoDetails(FunctionTemplateInfo* fti);
   void RecordVirtualJSGlobalObjectDetails(JSGlobalObject* object);
   void RecordVirtualJSCollectionDetails(JSObject* object);
   void RecordVirtualJSObjectDetails(JSObject* object);
@@ -293,13 +297,13 @@ bool ObjectStatsCollectorImpl::RecordSimpleVirtualObjectStats(
     HeapObject* parent, HeapObject* obj,
     ObjectStats::VirtualInstanceType type) {
   return RecordVirtualObjectStats(parent, obj, type, obj->Size(),
-                                  ObjectStats::kNoOverAllocation);
+                                  ObjectStats::kNoOverAllocation, kCheckCow);
 }
 
 bool ObjectStatsCollectorImpl::RecordVirtualObjectStats(
     HeapObject* parent, HeapObject* obj, ObjectStats::VirtualInstanceType type,
-    size_t size, size_t over_allocated) {
-  if (!SameLiveness(parent, obj) || !ShouldRecordObject(obj, kCheckCow))
+    size_t size, size_t over_allocated, CowMode check_cow_array) {
+  if (!SameLiveness(parent, obj) || !ShouldRecordObject(obj, check_cow_array))
     return false;
 
   if (virtual_objects_.find(obj) == virtual_objects_.end()) {
@@ -337,6 +341,22 @@ void ObjectStatsCollectorImpl::RecordVirtualAllocationSiteDetails(
   FixedArrayBase* elements = boilerplate->elements();
   RecordSimpleVirtualObjectStats(site, elements,
                                  ObjectStats::BOILERPLATE_ELEMENTS_TYPE);
+}
+
+void ObjectStatsCollectorImpl::RecordVirtualFunctionTemplateInfoDetails(
+    FunctionTemplateInfo* fti) {
+  // named_property_handler and indexed_property_handler are recorded as
+  // INTERCEPTOR_INFO_TYPE.
+  if (!fti->call_code()->IsUndefined(isolate())) {
+    RecordSimpleVirtualObjectStats(
+        fti, CallHandlerInfo::cast(fti->call_code()),
+        ObjectStats::FUNCTION_TEMPLATE_INFO_ENTRIES_TYPE);
+  }
+  if (!fti->instance_call_handler()->IsUndefined(isolate())) {
+    RecordSimpleVirtualObjectStats(
+        fti, CallHandlerInfo::cast(fti->instance_call_handler()),
+        ObjectStats::FUNCTION_TEMPLATE_INFO_ENTRIES_TYPE);
+  }
 }
 
 void ObjectStatsCollectorImpl::RecordVirtualJSGlobalObjectDetails(
@@ -400,16 +420,9 @@ void ObjectStatsCollectorImpl::RecordVirtualFeedbackVectorDetails(
 void ObjectStatsCollectorImpl::RecordVirtualFixedArrayDetails(
     FixedArray* array) {
   if (IsCowArray(array)) {
-    // Manually check and dispatch to lower level recording due to COW array
-    // check. No need for SameLiveness as we call it on a single object.
-    if (!ShouldRecordObject(array, kIgnoreCow)) return;
-
-    if (virtual_objects_.find(array) == virtual_objects_.end()) {
-      virtual_objects_.insert(array);
-      stats_->RecordVirtualObjectStats(ObjectStats::COW_ARRAY_TYPE,
-                                       array->Size(),
-                                       ObjectStats::kNoOverAllocation);
-    }
+    RecordVirtualObjectStats(nullptr, array, ObjectStats::COW_ARRAY_TYPE,
+                             array->Size(), ObjectStats::kNoOverAllocation,
+                             kIgnoreCow);
   }
 }
 
@@ -425,6 +438,9 @@ void ObjectStatsCollectorImpl::CollectStatistics(HeapObject* obj, Phase phase) {
         RecordVirtualBytecodeArrayDetails(BytecodeArray::cast(obj));
       } else if (obj->IsCode()) {
         RecordVirtualCodeDetails(Code::cast(obj));
+      } else if (obj->IsFunctionTemplateInfo()) {
+        RecordVirtualFunctionTemplateInfoDetails(
+            FunctionTemplateInfo::cast(obj));
       } else if (obj->IsJSGlobalObject()) {
         RecordVirtualJSGlobalObjectDetails(JSGlobalObject::cast(obj));
       } else if (obj->IsJSObject()) {
@@ -571,6 +587,10 @@ void ObjectStatsCollectorImpl::RecordVirtualSharedFunctionInfoDetails(
   // SharedFunctonInfo::feedback_metadata() is a COW array.
   RecordSimpleVirtualObjectStats(info, info->scope_info(),
                                  ObjectStats::SCOPE_INFO_TYPE);
+  FeedbackMetadata* fm = FeedbackMetadata::cast(info->feedback_metadata());
+  RecordVirtualObjectStats(info, fm, ObjectStats::FEEDBACK_METADATA_TYPE,
+                           fm->Size(), ObjectStats::kNoOverAllocation,
+                           kIgnoreCow);
 }
 
 namespace {

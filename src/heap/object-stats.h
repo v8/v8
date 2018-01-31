@@ -29,8 +29,10 @@
   V(EMBEDDED_OBJECT_TYPE)                 \
   V(ENUM_CACHE_TYPE)                      \
   V(ENUM_INDICES_CACHE_TYPE)              \
+  V(FEEDBACK_METADATA_TYPE)               \
   V(FEEDBACK_VECTOR_ENTRY_TYPE)           \
   V(FUNCTION_CONTEXT_TYPE)                \
+  V(FUNCTION_TEMPLATE_INFO_ENTRIES_TYPE)  \
   V(GLOBAL_ELEMENTS_TYPE)                 \
   V(GLOBAL_PROPERTIES_TYPE)               \
   V(JS_ARRAY_BOILERPLATE_TYPE)            \
