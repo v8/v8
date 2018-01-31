@@ -340,8 +340,8 @@ void Snapshot::CheckVersion(const v8::StartupData* data) {
   CHECK_LT(kVersionStringOffset + kVersionStringLength,
            static_cast<uint32_t>(data->raw_size));
   Version::GetString(Vector<char>(version, kVersionStringLength));
-  if (memcmp(version, data->data + kVersionStringOffset,
-             kVersionStringLength) != 0) {
+  if (strncmp(version, data->data + kVersionStringOffset,
+              kVersionStringLength) != 0) {
     V8_Fatal(__FILE__, __LINE__,
              "Version mismatch between V8 binary and snapshot.\n"
              "#   V8 binary version: %.*s\n"
