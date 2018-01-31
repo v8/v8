@@ -2859,7 +2859,6 @@ group("v8_fuzzers") {
     ":v8_simple_regexp_builtins_fuzzer",
     ":v8_simple_regexp_fuzzer",
     ":v8_simple_wasm_async_fuzzer",
-    ":v8_simple_wasm_call_fuzzer",
     ":v8_simple_wasm_code_fuzzer",
     ":v8_simple_wasm_compile_fuzzer",
     ":v8_simple_wasm_data_section_fuzzer",
@@ -3250,27 +3249,6 @@ v8_source_set("wasm_code_fuzzer") {
 }
 
 v8_fuzzer("wasm_code_fuzzer") {
-}
-
-v8_source_set("wasm_call_fuzzer") {
-  sources = [
-    "test/common/wasm/test-signatures.h",
-    "test/fuzzer/wasm-call.cc",
-  ]
-
-  deps = [
-    ":fuzzer_support",
-    ":lib_wasm_fuzzer_common",
-    ":wasm_module_runner",
-  ]
-
-  configs = [
-    ":external_config",
-    ":internal_config_base",
-  ]
-}
-
-v8_fuzzer("wasm_call_fuzzer") {
 }
 
 v8_source_set("lib_wasm_fuzzer_common") {
