@@ -28,11 +28,11 @@ def setup_testing():
 class NormalResult():
   def __init__(self, result):
     self.result = result
-    self.exception = False
+    self.exception = None
 
 class ExceptionResult():
-  def __init__(self):
-    self.exception = True
+  def __init__(self, exception):
+    self.exception = exception
 
 
 class MaybeResult():
@@ -70,7 +70,7 @@ def Worker(fn, work_queue, done_queue, pause_event, read_again_event,
       except Exception, e:
         traceback.print_exc()
         print(">>> EXCEPTION: %s" % e)
-        done_queue.put(ExceptionResult())
+        done_queue.put(ExceptionResult(e))
   except KeyboardInterrupt:
     assert False, 'Unreachable'
 
@@ -132,6 +132,8 @@ class Pool():
           process_context_fn. All arguments will be pickled and sent beyond the
           process boundary.
     """
+    if self.terminated:
+      return
     try:
       internal_error = False
       gen = iter(gen)
@@ -154,20 +156,15 @@ class Pool():
       while self.processing_count > 0:
         while True:
           try:
-            result = self.done_queue.get(timeout=self.heartbeat_timeout)
-            self.processing_count -= 1
-            break
-          except Empty:
-            # Indicate a heartbeat. The iterator will continue fetching the
-            # next result.
-            yield MaybeResult.create_heartbeat()
-        if result.exception:
-          # TODO(machenbach): Handle a few known types of internal errors
-          # gracefully, e.g. missing test files.
-          internal_error = True
-          continue
-        else:
-          yield MaybeResult.create_result(result.result)
+            result = self._get_result_from_queue()
+          except:
+            # TODO(machenbach): Handle a few known types of internal errors
+            # gracefully, e.g. missing test files.
+            internal_error = True
+            continue
+          yield result
+          break
+
         self.advance(gen)
     except KeyboardInterrupt:
       raise
@@ -175,7 +172,6 @@ class Pool():
       traceback.print_exc()
       print(">>> EXCEPTION: %s" % e)
     finally:
-      # Ignore results
       self.terminate()
 
     if internal_error:
@@ -196,45 +192,63 @@ class Pool():
   def add(self, args):
     """Adds an item to the work queue. Can be called dynamically while
     processing the results from imap_unordered."""
+    assert not self.terminated
+
     self.work_queue.put(args)
     self.processing_count += 1
 
   def terminate(self):
+    """Terminates execution and waits for ongoing jobs."""
+    # Iteration but ignore the results
+    list(self.terminate_with_results())
+
+  def terminate_with_results(self):
+    """Terminates execution and waits for ongoing jobs. It's a generator
+    returning heartbeats and results for all jobs that started before calling
+    terminate.
+    """
     if self.terminated:
       return
     self.terminated = True
-    results = []
 
     self.pause_event.set()
 
     # Drain out work queue from tests
     try:
-      while self.processing_count:
+      while self.processing_count > 0:
         self.work_queue.get(True, 1)
         self.processing_count -= 1
     except Empty:
       pass
 
     # Make sure all processes stop
-    for p in self.processes:
+    for _ in self.processes:
       # During normal tear down the workers block on get(). Feed a poison pill
       # per worker to make them stop.
       self.work_queue.put("STOP")
 
     # Workers stopped reading work queue if stop event is true to not overtake
-    # draining queue, but they should read again to consume poison pill and
-    # possibly more tests that we couldn't get during draining.
+    # main process that drains the queue. They should read again to consume
+    # poison pill and possibly more tests that we couldn't get during draining.
     self.read_again_event.set()
 
     # Wait for results
     while self.processing_count:
-      # TODO(majeski): terminate as generator to return results and heartbeats,
-      result = self.done_queue.get()
-      if result.result:
-        results.append(MaybeResult.create_result(result.result))
-      self.processing_count -= 1
+      result = self._get_result_from_queue()
+      if result.heartbeat or result.value:
+        yield result
 
     for p in self.processes:
       p.join()
 
-    return results
+  def _get_result_from_queue(self):
+    try:
+      result = self.done_queue.get(timeout=self.heartbeat_timeout)
+      self.processing_count -= 1
+    except Empty:
+      return MaybeResult.create_heartbeat()
+
+    if result.exception:
+      raise result.exception
+
+    return MaybeResult.create_result(result.result)

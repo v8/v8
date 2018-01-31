@@ -37,8 +37,6 @@ class Job(object):
     return JobResult(self.test_id, result)
 
 
-# TODO(majeski): Stop workers when processor is stopped. It will also require
-# to call stop both directions from TimeoutProc.
 class ExecutionProc(base.TestProc):
   """Last processor in the chain. Instead of passing tests further it creates
   commands and output processors, executes them in multiple worker processes and
@@ -69,6 +67,9 @@ class ExecutionProc(base.TestProc):
       self._pool.terminate()
 
   def next_test(self, test):
+    if self.is_stopped:
+      return
+
     test_id = test.procid
     cmd = test.get_command(self._context)
     self._tests[test_id] = test, cmd
@@ -80,7 +81,9 @@ class ExecutionProc(base.TestProc):
     assert False, 'ExecutionProc cannot receive results'
 
   def stop(self):
-    for pool_result in self._pool.terminate():
+    super(ExecutionProc, self).stop()
+
+    for pool_result in self._pool.terminate_with_results():
       self._unpack_result(pool_result)
 
   def _unpack_result(self, pool_result):
