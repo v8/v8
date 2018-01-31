@@ -122,6 +122,7 @@ class NumFuzzer(base_runner.BaseTestRunner):
       # TODO(machenbach): This should be moved to a more generic config.
       # Fuzzers have too much timeout in debug mode.
       factor = max(int(factor * 0.25), 1)
+    return factor
 
 
   def _do_execute(self, suites, args, options):
