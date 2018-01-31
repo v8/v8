@@ -7,7 +7,6 @@ import time
 from . import base
 
 
-# TODO(majeski): Signal handler
 class TimeoutProc(base.TestProcObserver):
   def __init__(self, duration_sec):
     super(TimeoutProc, self).__init__()

@@ -40,3 +40,7 @@ class PoolTest(unittest.TestCase):
         pool.add([result.value + 20])
     self.assertEquals(set(range(0, 10) + range(20, 30) + range(40, 50)),
                       results)
+
+
+if __name__ == '__main__':
+    unittest.main()

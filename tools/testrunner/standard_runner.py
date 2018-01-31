@@ -589,6 +589,7 @@ class StandardTestRunner(base_runner.BaseTestRunner):
         VariantProc(self._variants),
         StatusFileFilterProc(options.slow_tests, options.pass_fail_tests),
         self._create_seed_proc(options),
+        self._create_signal_proc(),
       ] + indicators + [
         results,
         self._create_timeout_proc(options),
@@ -615,7 +616,7 @@ class StandardTestRunner(base_runner.BaseTestRunner):
       for indicator in indicators:
         indicator.finished()
 
-      print '>>> %d tests ran' % results.total
+      print '>>> %d tests ran' % (results.total - results.remaining)
 
       exit_code = 0
       if results.failed:

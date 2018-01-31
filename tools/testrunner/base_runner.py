@@ -21,6 +21,7 @@ from testrunner.local import testsuite
 from testrunner.local import utils
 from testrunner.test_config import TestConfig
 from testrunner.testproc.shard import ShardProc
+from testrunner.testproc.sigproc import SignalProc
 from testrunner.testproc.timeout import TimeoutProc
 
 
@@ -567,3 +568,6 @@ class BaseTestRunner(object):
     if not options.total_timeout_sec:
       return None
     return TimeoutProc(options.total_timeout_sec)
+
+  def _create_signal_proc(self):
+    return SignalProc()

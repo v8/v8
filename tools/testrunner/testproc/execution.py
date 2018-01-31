@@ -64,20 +64,7 @@ class ExecutionProc(base.TestProc):
         process_context_args=[self._prev_requirement],
       )
       for pool_result in it:
-        if pool_result.heartbeat:
-          continue
-
-        job_result = pool_result.value
-        test_id, result = job_result
-
-        test, result.cmd = self._tests[test_id]
-        del self._tests[test_id]
-        self._send_result(test, result)
-    except KeyboardInterrupt:
-      raise
-    except:
-      traceback.print_exc()
-      raise
+        self._unpack_result(pool_result)
     finally:
       self._pool.terminate()
 
@@ -91,3 +78,19 @@ class ExecutionProc(base.TestProc):
 
   def result_for(self, test, result):
     assert False, 'ExecutionProc cannot receive results'
+
+  def stop(self):
+    for pool_result in self._pool.terminate():
+      self._unpack_result(pool_result)
+
+  def _unpack_result(self, pool_result):
+    if pool_result.heartbeat:
+      self.heartbeat()
+      return
+
+    job_result = pool_result.value
+    test_id, result = job_result
+
+    test, result.cmd = self._tests[test_id]
+    del self._tests[test_id]
+    self._send_result(test, result)

@@ -175,7 +175,8 @@ class NumFuzzer(base_runner.BaseTestRunner):
       # different random seeds for shards instead of splitting tests.
       self._create_shard_proc(options),
       combiner,
-      self._create_fuzzer(fuzzer_rng, options)
+      self._create_fuzzer(fuzzer_rng, options),
+      self._create_signal_proc(),
     ] + indicators + [
       results,
       self._create_timeout_proc(options),

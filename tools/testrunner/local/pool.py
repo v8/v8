@@ -4,7 +4,9 @@
 # found in the LICENSE file.
 
 from Queue import Empty
+from contextlib import contextmanager
 from multiprocessing import Event, Process, Queue
+import signal
 import traceback
 
 
@@ -27,19 +29,10 @@ class NormalResult():
   def __init__(self, result):
     self.result = result
     self.exception = False
-    self.break_now = False
-
 
 class ExceptionResult():
   def __init__(self):
     self.exception = True
-    self.break_now = False
-
-
-class BreakResult():
-  def __init__(self):
-    self.exception = False
-    self.break_now = True
 
 
 class MaybeResult():
@@ -56,18 +49,22 @@ class MaybeResult():
     return MaybeResult(False, value)
 
 
-def Worker(fn, work_queue, done_queue, done,
+def Worker(fn, work_queue, done_queue, pause_event, read_again_event,
            process_context_fn=None, process_context_args=None):
   """Worker to be run in a child process.
-  The worker stops on two conditions. 1. When the poison pill "STOP" is
-  reached or 2. when the event "done" is set."""
+  The worker stops when the poison pill "STOP" is reached.
+  It pauses when pause event is set and waits until read again event is true.
+  """
   try:
     kwargs = {}
     if process_context_fn and process_context_args is not None:
       kwargs.update(process_context=process_context_fn(*process_context_args))
     for args in iter(work_queue.get, "STOP"):
-      if done.is_set():
-        break
+      if pause_event.is_set():
+        done_queue.put(NormalResult(None))
+        read_again_event.wait()
+        continue
+
       try:
         done_queue.put(NormalResult(fn(*args, **kwargs)))
       except Exception, e:
@@ -75,7 +72,14 @@ def Worker(fn, work_queue, done_queue, done,
         print(">>> EXCEPTION: %s" % e)
         done_queue.put(ExceptionResult())
   except KeyboardInterrupt:
-    done_queue.put(BreakResult())
+    assert False, 'Unreachable'
+
+
+@contextmanager
+def without_sigint():
+    handler = signal.signal(signal.SIGINT, signal.SIG_IGN)
+    yield
+    signal.signal(signal.SIGINT, handler)
 
 
 class Pool():
@@ -93,18 +97,23 @@ class Pool():
     self.processes = []
     self.terminated = False
 
-    # Invariant: count >= #work_queue + #done_queue. It is greater when a
-    # worker takes an item from the work_queue and before the result is
+    # Invariant: processing_count >= #work_queue + #done_queue. It is greater
+    # when a worker takes an item from the work_queue and before the result is
     # submitted to the done_queue. It is equal when no worker is working,
     # e.g. when all workers have finished, and when no results are processed.
     # Count is only accessed by the parent process. Only the parent process is
     # allowed to remove items from the done_queue and to add items to the
     # work_queue.
-    self.count = 0
-    self.work_queue = Queue()
-    self.done_queue = Queue()
-    self.done = Event()
+    self.processing_count = 0
     self.heartbeat_timeout = heartbeat_timeout
+
+    # Disable sigint to make multiprocessing data structure inherit it and
+    # ignore ctrl-c
+    with without_sigint():
+      self.work_queue = Queue()
+      self.done_queue = Queue()
+      self.pause_event = Event()
+      self.read_again_event = Event()
 
   def imap_unordered(self, fn, gen,
                      process_context_fn=None, process_context_args=None):
@@ -128,35 +137,35 @@ class Pool():
       gen = iter(gen)
       self.advance = self._advance_more
 
-      for w in xrange(self.num_workers):
-        p = Process(target=Worker, args=(fn,
-                                         self.work_queue,
-                                         self.done_queue,
-                                         self.done,
-                                         process_context_fn,
-                                         process_context_args))
-        p.start()
-        self.processes.append(p)
+      # Disable sigint to make workers inherit it and ignore ctrl-c
+      with without_sigint():
+        for w in xrange(self.num_workers):
+          p = Process(target=Worker, args=(fn,
+                                          self.work_queue,
+                                          self.done_queue,
+                                          self.pause_event,
+                                          self.read_again_event,
+                                          process_context_fn,
+                                          process_context_args))
+          p.start()
+          self.processes.append(p)
 
       self.advance(gen)
-      while self.count > 0:
+      while self.processing_count > 0:
         while True:
           try:
             result = self.done_queue.get(timeout=self.heartbeat_timeout)
+            self.processing_count -= 1
             break
           except Empty:
             # Indicate a heartbeat. The iterator will continue fetching the
             # next result.
             yield MaybeResult.create_heartbeat()
-        self.count -= 1
         if result.exception:
           # TODO(machenbach): Handle a few known types of internal errors
           # gracefully, e.g. missing test files.
           internal_error = True
           continue
-        elif result.break_now:
-          # A keyboard interrupt happened in one of the worker processes.
-          raise KeyboardInterrupt
         else:
           yield MaybeResult.create_result(result.result)
         self.advance(gen)
@@ -166,15 +175,17 @@ class Pool():
       traceback.print_exc()
       print(">>> EXCEPTION: %s" % e)
     finally:
+      # Ignore results
       self.terminate()
+
     if internal_error:
       raise Exception("Internal error in a worker process.")
 
   def _advance_more(self, gen):
-    while self.count < self.num_workers * self.BUFFER_FACTOR:
+    while self.processing_count < self.num_workers * self.BUFFER_FACTOR:
       try:
         self.work_queue.put(gen.next())
-        self.count += 1
+        self.processing_count += 1
       except StopIteration:
         self.advance = self._advance_empty
         break
@@ -186,31 +197,44 @@ class Pool():
     """Adds an item to the work queue. Can be called dynamically while
     processing the results from imap_unordered."""
     self.work_queue.put(args)
-    self.count += 1
+    self.processing_count += 1
 
   def terminate(self):
     if self.terminated:
       return
     self.terminated = True
+    results = []
 
-    # For exceptional tear down set the "done" event to stop the workers before
-    # they empty the queue buffer.
-    self.done.set()
+    self.pause_event.set()
 
+    # Drain out work queue from tests
+    try:
+      while self.processing_count:
+        self.work_queue.get(True, 1)
+        self.processing_count -= 1
+    except Empty:
+      pass
+
+    # Make sure all processes stop
     for p in self.processes:
       # During normal tear down the workers block on get(). Feed a poison pill
       # per worker to make them stop.
       self.work_queue.put("STOP")
 
+    # Workers stopped reading work queue if stop event is true to not overtake
+    # draining queue, but they should read again to consume poison pill and
+    # possibly more tests that we couldn't get during draining.
+    self.read_again_event.set()
+
+    # Wait for results
+    while self.processing_count:
+      # TODO(majeski): terminate as generator to return results and heartbeats,
+      result = self.done_queue.get()
+      if result.result:
+        results.append(MaybeResult.create_result(result.result))
+      self.processing_count -= 1
+
     for p in self.processes:
       p.join()
 
-    # Drain the queues to prevent failures when queues are garbage collected.
-    try:
-      while True: self.work_queue.get(False)
-    except:
-      pass
-    try:
-      while True: self.done_queue.get(False)
-    except:
-      pass
+    return results
