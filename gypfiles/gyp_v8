@@ -48,7 +48,8 @@ import gyp
 # Add paths so that pymod_do_main(...) can import files.
 sys.path.insert(
     1, os.path.abspath(os.path.join(v8_root, 'tools', 'generate_shim_headers')))
-
+sys.path.append(
+    os.path.abspath(os.path.join(v8_root, 'third_party', 'binutils')))
 
 def GetOutputDirectory():
   """Returns the output directory that GYP will use."""

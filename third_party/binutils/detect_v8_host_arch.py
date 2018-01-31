@@ -38,6 +38,9 @@ def main():
   return 0
 
 def DoMain(_):
+  return DetectHostArch();
+
+def DetectHostArch():
   """Hook to be called from gyp without starting a separate python
   interpreter."""
   host_arch = platform.machine()
