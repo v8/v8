@@ -688,20 +688,16 @@ void TransitionArray::TransitionArrayPrint(std::ostream& os) {  // NOLINT
   os << "\n";
 }
 
-template void FeedbackVectorSpecBase<StaticFeedbackVectorSpec>::Print();
-template void FeedbackVectorSpecBase<FeedbackVectorSpec>::Print();
-
-template <typename Derived>
-void FeedbackVectorSpecBase<Derived>::Print() {
+void FeedbackVectorSpec::Print() {
   OFStream os(stdout);
+
   FeedbackVectorSpecPrint(os);
+
   os << std::flush;
 }
 
-template <typename Derived>
-void FeedbackVectorSpecBase<Derived>::FeedbackVectorSpecPrint(
-    std::ostream& os) {  // NOLINT
-  int slot_count = This()->slots();
+void FeedbackVectorSpec::FeedbackVectorSpecPrint(std::ostream& os) {  // NOLINT
+  int slot_count = slots();
   os << " - slot_count: " << slot_count;
   if (slot_count == 0) {
     os << " (empty)\n";
@@ -709,7 +705,7 @@ void FeedbackVectorSpecBase<Derived>::FeedbackVectorSpecPrint(
   }
 
   for (int slot = 0; slot < slot_count;) {
-    FeedbackSlotKind kind = This()->GetKind(FeedbackSlot(slot));
+    FeedbackSlotKind kind = GetKind(FeedbackSlot(slot));
     int entry_size = FeedbackMetadata::GetSlotSize(kind);
     DCHECK_LT(0, entry_size);
     os << "\n Slot #" << slot << " " << kind;

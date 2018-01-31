@@ -12,34 +12,22 @@
 namespace v8 {
 namespace internal {
 
-template <typename Derived>
-FeedbackSlot FeedbackVectorSpecBase<Derived>::AddSlot(FeedbackSlotKind kind) {
-  int slot = This()->slots();
+FeedbackSlot FeedbackVectorSpec::AddSlot(FeedbackSlotKind kind) {
+  int slot = slots();
   int entries_per_slot = FeedbackMetadata::GetSlotSize(kind);
-  This()->append(kind);
+  append(kind);
   for (int i = 1; i < entries_per_slot; i++) {
-    This()->append(FeedbackSlotKind::kInvalid);
+    append(FeedbackSlotKind::kInvalid);
   }
   return FeedbackSlot(slot);
 }
 
-template FeedbackSlot FeedbackVectorSpecBase<FeedbackVectorSpec>::AddSlot(
-    FeedbackSlotKind kind);
-template FeedbackSlot FeedbackVectorSpecBase<StaticFeedbackVectorSpec>::AddSlot(
-    FeedbackSlotKind kind);
-
-template <typename Derived>
-FeedbackSlot FeedbackVectorSpecBase<Derived>::AddTypeProfileSlot() {
+FeedbackSlot FeedbackVectorSpec::AddTypeProfileSlot() {
   FeedbackSlot slot = AddSlot(FeedbackSlotKind::kTypeProfile);
   CHECK_EQ(FeedbackVectorSpec::kTypeProfileSlotIndex,
            FeedbackVector::GetIndex(slot));
   return slot;
 }
-
-template FeedbackSlot
-FeedbackVectorSpecBase<FeedbackVectorSpec>::AddTypeProfileSlot();
-template FeedbackSlot
-FeedbackVectorSpecBase<StaticFeedbackVectorSpec>::AddTypeProfileSlot();
 
 bool FeedbackVectorSpec::HasTypeProfileSlot() const {
   FeedbackSlot slot =
@@ -77,18 +65,12 @@ void FeedbackMetadata::SetKind(FeedbackSlot slot, FeedbackSlotKind kind) {
   set(index, Smi::FromInt(new_data));
 }
 
-template Handle<FeedbackMetadata> FeedbackMetadata::New(
-    Isolate* isolate, const StaticFeedbackVectorSpec* spec);
-template Handle<FeedbackMetadata> FeedbackMetadata::New(
-    Isolate* isolate, const FeedbackVectorSpec* spec);
-
 // static
-template <typename Spec>
 Handle<FeedbackMetadata> FeedbackMetadata::New(Isolate* isolate,
-                                               const Spec* spec) {
+                                               const FeedbackVectorSpec* spec) {
   Factory* factory = isolate->factory();
 
-  const int slot_count = spec->slots();
+  const int slot_count = spec == nullptr ? 0 : spec->slots();
   const int slot_kinds_length = VectorICComputer::word_count(slot_count);
   const int length = slot_kinds_length + kReservedIndexCount;
   if (length == kReservedIndexCount) {
@@ -96,6 +78,7 @@ Handle<FeedbackMetadata> FeedbackMetadata::New(Isolate* isolate,
   }
 #ifdef DEBUG
   for (int i = 0; i < slot_count;) {
+    DCHECK(spec);
     FeedbackSlotKind kind = spec->GetKind(FeedbackSlot(i));
     int entry_size = FeedbackMetadata::GetSlotSize(kind);
     for (int j = 1; j < entry_size; j++) {
@@ -116,6 +99,7 @@ Handle<FeedbackMetadata> FeedbackMetadata::New(Isolate* isolate,
   Handle<FeedbackMetadata> metadata = Handle<FeedbackMetadata>::cast(array);
 
   for (int i = 0; i < slot_count; i++) {
+    DCHECK(spec);
     FeedbackSlot slot(i);
     FeedbackSlotKind kind = spec->GetKind(slot);
     metadata->SetKind(slot, kind);

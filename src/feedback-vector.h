@@ -300,9 +300,25 @@ class FeedbackVector : public HeapObject {
   DISALLOW_IMPLICIT_CONSTRUCTORS(FeedbackVector);
 };
 
-template <typename Derived>
-class V8_EXPORT_PRIVATE FeedbackVectorSpecBase {
+class V8_EXPORT_PRIVATE FeedbackVectorSpec {
  public:
+  explicit FeedbackVectorSpec(Zone* zone) : slot_kinds_(zone) {
+    slot_kinds_.reserve(16);
+  }
+
+  int slots() const { return static_cast<int>(slot_kinds_.size()); }
+
+  FeedbackSlotKind GetKind(FeedbackSlot slot) const {
+    return static_cast<FeedbackSlotKind>(slot_kinds_.at(slot.ToInt()));
+  }
+
+  bool HasTypeProfileSlot() const;
+
+  // If used, the TypeProfileSlot is always added as the first slot and its
+  // index is constant. If other slots are added before the TypeProfileSlot,
+  // this number changes.
+  static const int kTypeProfileSlotIndex = 0;
+
   FeedbackSlot AddCallICSlot() { return AddSlot(FeedbackSlotKind::kCall); }
 
   FeedbackSlot AddLoadICSlot() {
@@ -380,58 +396,6 @@ class V8_EXPORT_PRIVATE FeedbackVectorSpecBase {
  private:
   FeedbackSlot AddSlot(FeedbackSlotKind kind);
 
-  Derived* This() { return static_cast<Derived*>(this); }
-};
-
-class StaticFeedbackVectorSpec
-    : public FeedbackVectorSpecBase<StaticFeedbackVectorSpec> {
- public:
-  StaticFeedbackVectorSpec() : slot_count_(0) {}
-
-  int slots() const { return slot_count_; }
-
-  FeedbackSlotKind GetKind(FeedbackSlot slot) const {
-    DCHECK(slot.ToInt() >= 0 && slot.ToInt() < slot_count_);
-    return kinds_[slot.ToInt()];
-  }
-
- private:
-  friend class FeedbackVectorSpecBase<StaticFeedbackVectorSpec>;
-
-  void append(FeedbackSlotKind kind) {
-    DCHECK_LT(slot_count_, kMaxLength);
-    kinds_[slot_count_++] = kind;
-  }
-
-  static const int kMaxLength = 12;
-
-  int slot_count_;
-  FeedbackSlotKind kinds_[kMaxLength];
-};
-
-class V8_EXPORT_PRIVATE FeedbackVectorSpec
-    : public FeedbackVectorSpecBase<FeedbackVectorSpec> {
- public:
-  explicit FeedbackVectorSpec(Zone* zone) : slot_kinds_(zone) {
-    slot_kinds_.reserve(16);
-  }
-
-  int slots() const { return static_cast<int>(slot_kinds_.size()); }
-
-  FeedbackSlotKind GetKind(FeedbackSlot slot) const {
-    return static_cast<FeedbackSlotKind>(slot_kinds_.at(slot.ToInt()));
-  }
-
-  bool HasTypeProfileSlot() const;
-
-  // If used, the TypeProfileSlot is always added as the first slot and its
-  // index is constant. If other slots are added before the TypeProfileSlot,
-  // this number changes.
-  static const int kTypeProfileSlotIndex = 0;
-
- private:
-  friend class FeedbackVectorSpecBase<FeedbackVectorSpec>;
-
   void append(FeedbackSlotKind kind) {
     slot_kinds_.push_back(static_cast<unsigned char>(kind));
   }
@@ -466,8 +430,9 @@ class FeedbackMetadata : public FixedArray {
   // Returns slot kind for given slot.
   FeedbackSlotKind GetKind(FeedbackSlot slot) const;
 
-  template <typename Spec>
-  static Handle<FeedbackMetadata> New(Isolate* isolate, const Spec* spec);
+  // If {spec} is null, then it is considered empty.
+  static Handle<FeedbackMetadata> New(Isolate* isolate,
+                                      const FeedbackVectorSpec* spec = nullptr);
 
 #ifdef OBJECT_PRINT
   // For gdb debugging.
