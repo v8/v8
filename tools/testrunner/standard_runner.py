@@ -34,7 +34,9 @@ from testrunner.testproc.progress import (VerboseProgressIndicator,
                                           ResultsTracker,
                                           TestsCounter)
 from testrunner.testproc.rerun import RerunProc
+from testrunner.testproc.seed import SeedProc
 from testrunner.testproc.variant import VariantProc
+from testrunner.utils import random_utils
 
 
 TIMEOUT_DEFAULT = 60
@@ -220,7 +222,9 @@ class StandardTestRunner(base_runner.BaseTestRunner):
                         type=int)
       parser.add_option("--random-seed-stress-count", default=1, type="int",
                         dest="random_seed_stress_count",
-                        help="Number of runs with different random seeds")
+                        help="Number of runs with different random seeds. Only "
+                             "with test processors: 0 means infinite "
+                             "generation.")
 
     def _use_staging(self, options):
       if options.infra_staging is not None:
@@ -302,9 +306,6 @@ class StandardTestRunner(base_runner.BaseTestRunner):
       if options.j == 0:
         options.j = multiprocessing.cpu_count()
 
-      if options.random_seed_stress_count <= 1 and options.random_seed == 0:
-        options.random_seed = self._random_seed()
-
       if options.variants == "infra_staging":
         options.variants = "exhaustive"
         options.infra_staging = True
@@ -356,12 +357,6 @@ class StandardTestRunner(base_runner.BaseTestRunner):
           "allow_user_segv_handler=1",
         ])
 
-    def _random_seed(self):
-      seed = 0
-      while not seed:
-        seed = random.SystemRandom().randint(-2147483648, 2147483647)
-      return seed
-
     def _execute(self, args, options, suites):
       print(">>> Running tests for %s.%s" % (self.build_config.arch,
                                              self.mode_name))
@@ -387,14 +382,12 @@ class StandardTestRunner(base_runner.BaseTestRunner):
                             options.command_prefix,
                             options.extra_flags,
                             self.build_config.no_i18n,
-                            options.random_seed,
                             options.no_sorting,
                             options.rerun_failures_count,
                             options.rerun_failures_max,
                             options.no_harness,
                             use_perf_data=not options.swarming,
-                            sancov_dir=self.sancov_dir,
-                            infra_staging=options.infra_staging)
+                            sancov_dir=self.sancov_dir)
 
       # TODO(all): Combine "simulator" and "simulator_run".
       # TODO(machenbach): In GN we can derive simulator run from
@@ -441,8 +434,7 @@ class StandardTestRunner(base_runner.BaseTestRunner):
         progress_indicator.Register(progress.JsonTestProgressIndicator(
           options.json_test_results,
           self.build_config.arch,
-          self.mode_options.execution_mode,
-          ctx.random_seed))
+          self.mode_options.execution_mode))
       if options.flakiness_results:  # pragma: no cover
         progress_indicator.Register(progress.FlakinessTestProgressIndicator(
             options.flakiness_results))
@@ -480,23 +472,20 @@ class StandardTestRunner(base_runner.BaseTestRunner):
                           for v in variant_gen.FilterVariantsByTest(t)
                           for flags in variant_gen.GetFlagSets(t, v) ]
 
-        if options.random_seed_stress_count > 1:
-          # Duplicate test for random seed stress mode.
-          def iter_seed_flags():
-            for _ in range(0, options.random_seed_stress_count):
-              # Use given random seed for all runs (set by default in
-              # execution.py) or a new random seed if none is specified.
-              if options.random_seed:
-                yield []
-              else:
-                yield ["--random-seed=%d" % self._random_seed()]
-          s.tests = [
-            t.create_variant(t.variant, flags, 'seed-stress-%d' % n)
-            for t in variant_tests
-            for n, flags in enumerate(iter_seed_flags())
-          ]
-        else:
-          s.tests = variant_tests
+        # Duplicate test for random seed stress mode.
+        def iter_seed_flags():
+          for _ in range(0, options.random_seed_stress_count or 1):
+            # Use given random seed for all runs (set by default in
+            # execution.py) or a new random seed if none is specified.
+            if options.random_seed:
+              yield options.random_seed
+            else:
+              yield random_utils.random_seed()
+        s.tests = [
+          t.create_variant(t.variant, [], 'seed-%d' % n, random_seed=val)
+          for t in variant_tests
+          for n, val in enumerate(iter_seed_flags())
+        ]
 
         # Second filtering by status applying also the variant-dependent rules.
         if options.warn_unused:
@@ -592,8 +581,10 @@ class StandardTestRunner(base_runner.BaseTestRunner):
         tests_counter,
         VariantProc(self._variants),
         StatusFileFilterProc(options.slow_tests, options.pass_fail_tests),
+        self._create_seed_proc(options),
       ] + indicators + [
         results,
+        self._create_timeout_proc(options),
         self._create_rerun_proc(context),
         execproc,
       ]
@@ -632,6 +623,11 @@ class StandardTestRunner(base_runner.BaseTestRunner):
               "generated with failure information.")
         exit_code = 0
       return exit_code
+
+    def _create_seed_proc(self, options):
+      if options.random_seed_stress_count == 1 and options.random_seed:
+        return None
+      return SeedProc(options.random_seed_stress_count, options.random_seed)
 
     def _create_rerun_proc(self, ctx):
       if not ctx.rerun_failures_count:

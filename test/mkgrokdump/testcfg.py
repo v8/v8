@@ -44,5 +44,5 @@ class TestCase(testcase.TestCase):
     return mkgrokdump.OutProc(self.expected_outcomes, self.suite.expected_path)
 
 
-def GetSuite(name, root):
-  return TestSuite(name, root)
+def GetSuite(*args, **kwargs):
+  return TestSuite(*args, **kwargs)

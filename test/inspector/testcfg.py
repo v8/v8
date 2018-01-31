@@ -65,5 +65,5 @@ class TestCase(testcase.TestCase):
         os.path.join(self.suite.root, self.path) + EXPECTED_SUFFIX)
 
 
-def GetSuite(name, root):
-  return TestSuite(name, root)
+def GetSuite(*args, **kwargs):
+  return TestSuite(*args, **kwargs)

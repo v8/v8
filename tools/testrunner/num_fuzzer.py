@@ -25,7 +25,7 @@ from testrunner.testproc.filter import StatusFileFilterProc, NameFilterProc
 from testrunner.testproc.loader import LoadProc
 from testrunner.testproc.progress import ResultsTracker, TestsCounter
 from testrunner.testproc.rerun import RerunProc
-from testrunner.testproc.timeout import TimeoutProc
+from testrunner.utils import random_utils
 
 
 DEFAULT_SUITES = ["mjsunit", "webkit", "benchmarks"]
@@ -61,7 +61,7 @@ class NumFuzzer(base_runner.BaseTestRunner):
                       default="mono")
     parser.add_option("-t", "--timeout", help="Timeout in seconds",
                       default= -1, type="int")
-    parser.add_option("--random-seed", default=0,
+    parser.add_option("--random-seed", default=0, type=int,
                       help="Default seed for initializing random generator")
     parser.add_option("--fuzzer-random-seed", default=0,
                       help="Default seed for initializing fuzzer random "
@@ -82,9 +82,6 @@ class NumFuzzer(base_runner.BaseTestRunner):
                            "value 0 to provide infinite number of subtests. "
                            "When --combine-tests is set it indicates how many "
                            "tests to create in total")
-    parser.add_option("--total-timeout-sec", default=0, type="int",
-                      help="How long should fuzzer run. It overrides "
-                           "--tests-count")
 
     # Stress gc
     parser.add_option("--stress-marking", default=0, type="int",
@@ -130,12 +127,8 @@ class NumFuzzer(base_runner.BaseTestRunner):
     options.extra_flags = shlex.split(options.extra_flags)
     if options.j == 0:
       options.j = multiprocessing.cpu_count()
-    while options.random_seed == 0:
-      options.random_seed = random.SystemRandom().randint(-2147483648,
-                                                          2147483647)
-    while options.fuzzer_random_seed == 0:
-      options.fuzzer_random_seed = random.SystemRandom().randint(-2147483648,
-                                                                 2147483647)
+    if not options.fuzzer_random_seed:
+      options.fuzzer_random_seed = random_utils.random_seed()
 
     if options.total_timeout_sec:
       options.tests_count = 0
@@ -165,8 +158,7 @@ class NumFuzzer(base_runner.BaseTestRunner):
       progress_indicator.Register(progress.JsonTestProgressIndicator(
           options.json_test_results,
           self.build_config.arch,
-          self.mode_options.execution_mode,
-          ctx.random_seed))
+          self.mode_options.execution_mode))
 
     loader = LoadProc()
     fuzzer_rng = random.Random(options.fuzzer_random_seed)
@@ -234,7 +226,6 @@ class NumFuzzer(base_runner.BaseTestRunner):
                           options.command_prefix,
                           options.extra_flags,
                           False,  # Keep i18n on by default.
-                          options.random_seed,
                           True,  # No sorting of test cases.
                           options.rerun_failures_count,
                           options.rerun_failures_max,
@@ -335,11 +326,6 @@ class NumFuzzer(base_runner.BaseTestRunner):
     add('interrupt_budget', options.stress_interrupt_budget)
     add('deopt', options.stress_deopt, options.stress_deopt_min)
     return fuzzers
-
-  def _create_timeout_proc(self, options):
-    if not options.total_timeout_sec:
-      return None
-    return TimeoutProc(options.total_timeout_sec)
 
   def _create_rerun_proc(self, options):
     if not options.rerun_failures_count:

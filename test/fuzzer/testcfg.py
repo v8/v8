@@ -60,5 +60,5 @@ class TestCase(testcase.TestCase):
     return 'v8_simple_%s_fuzzer' % group
 
 
-def GetSuite(name, root):
-  return TestSuite(name, root)
+def GetSuite(*args, **kwargs):
+  return TestSuite(*args, **kwargs)

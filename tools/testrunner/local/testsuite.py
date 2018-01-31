@@ -100,21 +100,21 @@ class TestCombiner(object):
 
 class TestSuite(object):
   @staticmethod
-  def LoadTestSuite(root):
+  def LoadTestSuite(root, test_config):
     name = root.split(os.path.sep)[-1]
     f = None
     try:
       (f, pathname, description) = imp.find_module("testcfg", [root])
       module = imp.load_module(name + "_testcfg", f, pathname, description)
-      return module.GetSuite(name, root)
+      return module.GetSuite(name, root, test_config)
     finally:
       if f:
         f.close()
 
-  def __init__(self, name, root):
-    # Note: This might be called concurrently from different processes.
+  def __init__(self, name, root, test_config):
     self.name = name  # string
     self.root = root  # string containing path
+    self.test_config = test_config
     self.tests = None  # list of TestCase objects
     self.statusfile = None
     self.suppress_internals = False
@@ -242,8 +242,8 @@ class TestSuite(object):
       test_class = self._suppressed_test_class()
     else:
       test_class = self._test_class()
-    test = test_class(self, path, self._path_to_name(path), **kwargs)
-    return test
+    return test_class(self, path, self._path_to_name(path), self.test_config,
+                      **kwargs)
 
   def _suppressed_test_class(self):
     """Optional testcase that suppresses assertions. Used by fuzzers that are
