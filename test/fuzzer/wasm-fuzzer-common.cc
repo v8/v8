@@ -82,6 +82,7 @@ void InterpretAndExecuteModule(i::Isolate* isolate,
   }
   if (!testing::InterpretWasmModuleForTesting(isolate, instance, "main", 0,
                                               nullptr)) {
+    isolate->clear_pending_exception();
     return;
   }
 
@@ -95,7 +96,10 @@ void InterpretAndExecuteModule(i::Isolate* isolate,
     thrower.Reset();  // Ignore errors.
     return;
   }
-  testing::RunWasmModuleForTesting(isolate, instance, 0, nullptr);
+  if (testing::RunWasmModuleForTesting(isolate, instance, 0, nullptr) < 0) {
+    isolate->clear_pending_exception();
+    return;
+  }
 }
 
 namespace {
