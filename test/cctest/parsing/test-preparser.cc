@@ -750,7 +750,7 @@ TEST(PreParserScopeAnalysis) {
           scope_with_skipped_functions));
 
       // Do scope allocation (based on the preparsed scope data).
-      i::DeclarationScope::Analyze(&using_scope_data);
+      CHECK(i::DeclarationScope::Analyze(&using_scope_data));
 
       // Parse the lazy function again eagerly to produce baseline data.
       i::ParseInfo not_using_scope_data(shared);
@@ -765,7 +765,7 @@ TEST(PreParserScopeAnalysis) {
           scope_without_skipped_functions));
 
       // Do normal scope allocation.
-      i::DeclarationScope::Analyze(&not_using_scope_data);
+      CHECK(i::DeclarationScope::Analyze(&not_using_scope_data));
 
       // Verify that scope allocation gave the same results when parsing w/ the
       // scope data (and skipping functions), and when parsing without.

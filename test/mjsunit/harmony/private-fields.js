@@ -11,9 +11,8 @@
 // (a) check private field access on proxies.
 // (b) throw reference error on missing private field access.
 // (c) throw when private fields are set without being declared.
-// (d) throw when private fields are accessed outside class bodies.
-// (e) check that private field isn't called 'constructor'.
-// (f) tests involving eval
+// (d) check that private field isn't called 'constructor'.
+// (e) tests involving eval
 {
   class C {
     #a;

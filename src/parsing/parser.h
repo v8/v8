@@ -888,7 +888,7 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
 
   Literal* ExpressionFromLiteral(Token::Value token, int pos);
 
-  V8_INLINE Expression* ExpressionFromIdentifier(
+  V8_INLINE VariableProxy* ExpressionFromIdentifier(
       const AstRawString* name, int start_position,
       InferName infer = InferName::kYes) {
     if (infer == InferName::kYes) {

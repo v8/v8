@@ -844,7 +844,7 @@ TEST(ScopeUsesArgumentsSuperThis) {
       CHECK(i::parsing::ParseProgram(&info, isolate));
       CHECK(i::Rewriter::Rewrite(&info));
       info.ast_value_factory()->Internalize(isolate);
-      i::DeclarationScope::Analyze(&info);
+      CHECK(i::DeclarationScope::Analyze(&info));
       i::DeclarationScope::AllocateScopeInfos(&info, isolate,
                                               i::AnalyzeMode::kRegular);
       CHECK_NOT_NULL(info.literal());
@@ -10292,7 +10292,7 @@ TEST(LexicalLoopVariable) {
     info.set_allow_lazy_parsing(false);
     CHECK(i::parsing::ParseProgram(&info, isolate));
     CHECK(i::Rewriter::Rewrite(&info));
-    i::DeclarationScope::Analyze(&info);
+    CHECK(i::DeclarationScope::Analyze(&info));
     i::DeclarationScope::AllocateScopeInfos(&info, isolate,
                                             i::AnalyzeMode::kRegular);
     CHECK_NOT_NULL(info.literal());
@@ -10303,8 +10303,8 @@ TEST(LexicalLoopVariable) {
     test(info, script_scope);
   };
 
-  // Check `let` loop variables is a stack local when not captured by an eval
-  // or closure within the area of the loop body.
+  // Check `let` loop variables is a stack local when not captured by
+  // an eval or closure within the area of the loop body.
   const char* local_bindings[] = {
       "function loop() {"
       "  for (let loop_var = 0; loop_var < 10; ++loop_var) {"
@@ -10460,6 +10460,106 @@ TEST(LexicalLoopVariable) {
       CHECK(loop_var2->IsContextSlot());
       CHECK_EQ(loop_block->inner_scope()->ContextLocalCount(), 1);
     });
+  }
+}
+
+TEST(PrivateNamesSyntaxError) {
+  i::Isolate* isolate = CcTest::i_isolate();
+  i::HandleScope scope(isolate);
+  LocalContext env;
+
+  auto test = [isolate](const char* program, bool is_lazy) {
+    i::Factory* const factory = isolate->factory();
+    i::Handle<i::String> source =
+        factory->NewStringFromUtf8(i::CStrVector(program)).ToHandleChecked();
+    i::Handle<i::Script> script = factory->NewScript(source);
+    i::ParseInfo info(script);
+
+    info.set_allow_lazy_parsing(is_lazy);
+    i::FLAG_harmony_private_fields = true;
+    CHECK(i::parsing::ParseProgram(&info, isolate));
+    CHECK(i::Rewriter::Rewrite(&info));
+    CHECK(!i::DeclarationScope::Analyze(&info));
+    return info.pending_error_handler()->has_pending_error();
+  };
+
+  const char* data[] = {
+      "class A {"
+      "  foo() { return this.#bar; }"
+      "}",
+
+      "let A = class {"
+      "  foo() { return this.#bar; }"
+      "}",
+
+      "class A {"
+      "  #foo;  "
+      "  bar() { return this.#baz; }"
+      "}",
+
+      "let A = class {"
+      "  #foo;  "
+      "  bar() { return this.#baz; }"
+      "}",
+
+      "class A {"
+      "  bar() {"
+      "    class D { #baz = 1; };"
+      "    return this.#baz;"
+      "  }"
+      "}",
+
+      "let A = class {"
+      "  bar() {"
+      "    class D { #baz = 1; };"
+      "    return this.#baz;"
+      "  }"
+      "}",
+
+      "a.#bar",
+
+      "class Foo {};"
+      "Foo.#bar;",
+
+      "let Foo = class {};"
+      "Foo.#bar;",
+
+      "class Foo {};"
+      "(new Foo).#bar;",
+
+      "let Foo = class {};"
+      "(new Foo).#bar;",
+
+      "class Foo { #bar; };"
+      "(new Foo).#bar;",
+
+      "let Foo = class { #bar; };"
+      "(new Foo).#bar;",
+
+      "function t(){"
+      "  class Foo { getA() { return this.#foo; } }"
+      "}",
+
+      "function t(){"
+      "  return class { getA() { return this.#foo; } }"
+      "}",
+  };
+
+  // TODO(gsathya): The preparser does not track unresolved
+  // variables in top level function which fails this test.
+  const char* parser_data[] = {
+      "function t() {"
+      "  return this.#foo;"
+      "}",
+  };
+
+  for (const char* source : data) {
+    CHECK(test(source, true));
+    CHECK(test(source, false));
+  }
+
+  for (const char* source : parser_data) {
+    CHECK(test(source, false));
   }
 }
 

@@ -298,6 +298,14 @@ class PreParserExpression {
   // and PreParser.
   PreParserExpression* operator->() { return this; }
 
+  void set_is_private_field() {
+    if (variables_ != nullptr) {
+      DCHECK(IsIdentifier());
+      DCHECK_EQ(1, variables_->length());
+      variables_->first()->set_is_private_field();
+    }
+  }
+
   // More dummy implementations of things PreParser doesn't need to track:
   void SetShouldEagerCompile() {}
 

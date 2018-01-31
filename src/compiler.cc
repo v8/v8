@@ -761,6 +761,21 @@ CompilationJob::Status FinalizeOptimizedCompilationJob(CompilationJob* job,
   return CompilationJob::FAILED;
 }
 
+bool FailWithPendingException(Isolate* isolate, ParseInfo* parse_info,
+                              Compiler::ClearExceptionFlag flag) {
+  if (flag == Compiler::CLEAR_EXCEPTION) {
+    isolate->clear_pending_exception();
+  } else if (!isolate->has_pending_exception()) {
+    if (parse_info->pending_error_handler()->has_pending_error()) {
+      parse_info->pending_error_handler()->ReportErrors(
+          isolate, parse_info->script(), parse_info->ast_value_factory());
+    } else {
+      isolate->StackOverflow();
+    }
+  }
+  return false;
+}
+
 MaybeHandle<SharedFunctionInfo> FinalizeTopLevel(
     ParseInfo* parse_info, Isolate* isolate, CompilationJob* outer_function_job,
     CompilationJobList* inner_function_jobs) {
@@ -782,7 +797,8 @@ MaybeHandle<SharedFunctionInfo> FinalizeTopLevel(
   // Finalize compilation of the unoptimized bytecode or asm-js data.
   if (!FinalizeUnoptimizedCode(parse_info, isolate, shared_info,
                                outer_function_job, inner_function_jobs)) {
-    if (!isolate->has_pending_exception()) isolate->StackOverflow();
+    FailWithPendingException(isolate, parse_info,
+                             Compiler::ClearExceptionFlag::KEEP_EXCEPTION);
     return MaybeHandle<SharedFunctionInfo>();
   }
 
@@ -824,22 +840,13 @@ MaybeHandle<SharedFunctionInfo> CompileToplevel(ParseInfo* parse_info,
   std::unique_ptr<CompilationJob> outer_function_job(GenerateUnoptimizedCode(
       parse_info, isolate->allocator(), &inner_function_jobs));
   if (!outer_function_job) {
-    if (!isolate->has_pending_exception()) isolate->StackOverflow();
+    FailWithPendingException(isolate, parse_info,
+                             Compiler::ClearExceptionFlag::KEEP_EXCEPTION);
     return MaybeHandle<SharedFunctionInfo>();
   }
 
   return FinalizeTopLevel(parse_info, isolate, outer_function_job.get(),
                           &inner_function_jobs);
-}
-
-bool FailWithPendingException(Isolate* isolate,
-                              Compiler::ClearExceptionFlag flag) {
-  if (flag == Compiler::CLEAR_EXCEPTION) {
-    isolate->clear_pending_exception();
-  } else if (!isolate->has_pending_exception()) {
-    isolate->StackOverflow();
-  }
-  return false;
 }
 
 }  // namespace
@@ -855,7 +862,7 @@ bool Compiler::Analyze(ParseInfo* parse_info) {
           ? RuntimeCallCounterId::kCompileBackgroundAnalyse
           : RuntimeCallCounterId::kCompileAnalyse);
   if (!Rewriter::Rewrite(parse_info)) return false;
-  DeclarationScope::Analyze(parse_info);
+  if (!DeclarationScope::Analyze(parse_info)) return false;
   return true;
 }
 
@@ -885,18 +892,19 @@ bool Compiler::Compile(Handle<SharedFunctionInfo> shared_info,
   TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.compile"), "V8.CompileCode");
   AggregatedHistogramTimerScope timer(isolate->counters()->compile_lazy());
 
+  // Set up parse info.
+  ParseInfo parse_info(shared_info);
+  parse_info.set_lazy_compile();
+
   // Check if the compiler dispatcher has shared_info enqueued for compile.
   CompilerDispatcher* dispatcher = isolate->compiler_dispatcher();
   if (dispatcher->IsEnqueued(shared_info)) {
     if (!dispatcher->FinishNow(shared_info)) {
-      return FailWithPendingException(isolate, flag);
+      return FailWithPendingException(isolate, &parse_info, flag);
     }
     return true;
   }
 
-  // Set up parse info.
-  ParseInfo parse_info(shared_info);
-  parse_info.set_lazy_compile();
   if (FLAG_preparser_scope_analysis) {
     if (shared_info->HasPreParsedScopeData()) {
       Handle<PreParsedScopeData> data(
@@ -910,7 +918,7 @@ bool Compiler::Compile(Handle<SharedFunctionInfo> shared_info,
 
   // Parse and update ParseInfo with the results.
   if (!parsing::ParseFunction(&parse_info, shared_info, isolate)) {
-    return FailWithPendingException(isolate, flag);
+    return FailWithPendingException(isolate, &parse_info, flag);
   }
 
   // Generate the unoptimized bytecode or asm-js data.
@@ -918,7 +926,7 @@ bool Compiler::Compile(Handle<SharedFunctionInfo> shared_info,
   std::unique_ptr<CompilationJob> outer_function_job(GenerateUnoptimizedCode(
       &parse_info, isolate->allocator(), &inner_function_jobs));
   if (!outer_function_job) {
-    return FailWithPendingException(isolate, flag);
+    return FailWithPendingException(isolate, &parse_info, flag);
   }
 
   // Internalize ast values onto the heap.
@@ -928,7 +936,7 @@ bool Compiler::Compile(Handle<SharedFunctionInfo> shared_info,
   if (!FinalizeUnoptimizedCode(&parse_info, isolate, shared_info,
                                outer_function_job.get(),
                                &inner_function_jobs)) {
-    return FailWithPendingException(isolate, flag);
+    return FailWithPendingException(isolate, &parse_info, flag);
   }
 
   DCHECK(!isolate->has_pending_exception());
