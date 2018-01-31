@@ -587,14 +587,6 @@ void PromiseBuiltinsAssembler::InternalResolvePromise(Node* context,
   // reusing the value from the promise.
   BIND(&if_nativepromise);
   {
-    Node* const thenable_status = PromiseStatus(result);
-    Node* const thenable_value =
-        LoadObjectField(result, JSPromise::kReactionsOrResultOffset);
-
-    Label if_isnotpending(this);
-    GotoIfNot(IsPromiseStatus(thenable_status, v8::Promise::kPending),
-              &if_isnotpending);
-
     // TODO(gsathya): Use a marker here instead of the actual then
     // callback, and check for the marker in PromiseResolveThenableJob
     // and perform PromiseThen.
@@ -602,39 +594,6 @@ void PromiseBuiltinsAssembler::InternalResolvePromise(Node* context,
         LoadContextElement(native_context, Context::PROMISE_THEN_INDEX);
     var_then.Bind(then);
     Goto(&do_enqueue);
-
-    BIND(&if_isnotpending);
-    {
-      Label if_fulfilled(this), if_rejected(this);
-      Branch(IsPromiseStatus(thenable_status, v8::Promise::kFulfilled),
-             &if_fulfilled, &if_rejected);
-
-      BIND(&if_fulfilled);
-      {
-        PromiseFulfill(context, promise, thenable_value,
-                       v8::Promise::kFulfilled);
-        PromiseSetHasHandler(promise);
-        Goto(&out);
-      }
-
-      BIND(&if_rejected);
-      {
-        Label reject(this);
-        Node* const has_handler = PromiseHasHandler(result);
-
-        // Promise has already been rejected, but had no handler.
-        // Revoke previously triggered reject event.
-        GotoIf(has_handler, &reject);
-        CallRuntime(Runtime::kPromiseRevokeReject, context, result);
-        Goto(&reject);
-
-        BIND(&reject);
-        // Don't cause a debug event as this case is forwarding a rejection.
-        InternalPromiseReject(context, promise, thenable_value, false);
-        PromiseSetHasHandler(result);
-        Goto(&out);
-      }
-    }
   }
 
   BIND(&if_notnativepromise);
