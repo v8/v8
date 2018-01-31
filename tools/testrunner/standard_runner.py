@@ -588,6 +588,7 @@ class StandardTestRunner(base_runner.BaseTestRunner):
         tests_counter,
         VariantProc(self._variants),
         StatusFileFilterProc(options.slow_tests, options.pass_fail_tests),
+        self._create_predictable_filter(),
         self._create_seed_proc(options),
         self._create_signal_proc(),
       ] + indicators + [
@@ -631,6 +632,12 @@ class StandardTestRunner(base_runner.BaseTestRunner):
               "generated with failure information.")
         exit_code = 0
       return exit_code
+
+    def _create_predictable_filter(self):
+      if not self.build_config.predictable:
+        return None
+      return predictable.PredictableFilterProc()
+
 
     def _create_seed_proc(self, options):
       if options.random_seed_stress_count == 1:
