@@ -10,6 +10,7 @@
 #include "src/code-stubs.h"
 #include "src/compilation-dependencies.h"
 #include "src/compiler/access-builder.h"
+#include "src/compiler/access-info.h"
 #include "src/compiler/allocation-builder.h"
 #include "src/compiler/js-graph.h"
 #include "src/compiler/linkage.h"
@@ -2966,6 +2967,8 @@ Reduction JSCallReducer::ReduceJSCall(Node* node) {
           return ReduceAsyncFunctionPromiseCreate(node);
         case Builtins::kAsyncFunctionPromiseRelease:
           return ReduceAsyncFunctionPromiseRelease(node);
+        case Builtins::kPromisePrototypeCatch:
+          return ReducePromisePrototypeCatch(node);
         default:
           break;
       }
@@ -3926,6 +3929,64 @@ Reduction JSCallReducer::ReduceAsyncFunctionPromiseRelease(Node* node) {
   Node* value = jsgraph()->UndefinedConstant();
   ReplaceWithValue(node, value);
   return Replace(value);
+}
+
+Reduction JSCallReducer::ReducePromisePrototypeCatch(Node* node) {
+  DCHECK_EQ(IrOpcode::kJSCall, node->opcode());
+  CallParameters const& p = CallParametersOf(node->op());
+  int arity = static_cast<int>(p.arity() - 2);
+  Node* receiver = NodeProperties::GetValueInput(node, 1);
+  Node* effect = NodeProperties::GetEffectInput(node);
+  Node* control = NodeProperties::GetControlInput(node);
+  if (p.speculation_mode() == SpeculationMode::kDisallowSpeculation) {
+    return NoChange();
+  }
+
+  // Check if we know something about {receiver} already.
+  ZoneHandleSet<Map> receiver_maps;
+  NodeProperties::InferReceiverMapsResult result =
+      NodeProperties::InferReceiverMaps(receiver, effect, &receiver_maps);
+  if (result == NodeProperties::kNoReceiverMaps) return NoChange();
+  DCHECK_NE(0, receiver_maps.size());
+  if (receiver_maps.size() != 1) return NoChange();
+  Handle<Map> receiver_map = receiver_maps[0];
+
+  // Lookup the "then" method on the {receiver_map}.
+  PropertyAccessInfo access_info;
+  AccessInfoFactory access_info_factory(dependencies(), native_context(),
+                                        graph()->zone());
+  if (!access_info_factory.ComputePropertyAccessInfo(
+          receiver_map, factory()->then_string(), AccessMode::kLoad,
+          &access_info) ||
+      !access_info.IsDataConstant()) {
+    return NoChange();
+  }
+  dependencies()->AssumePrototypeMapsStable(receiver_map, access_info.holder());
+  Handle<Object> then = access_info.constant();
+
+  // If the {receiver_maps} aren't reliable, we need to repeat the
+  // map check here, guarded by the CALL_IC.
+  if (result == NodeProperties::kUnreliableReceiverMaps) {
+    effect =
+        graph()->NewNode(simplified()->CheckMaps(CheckMapsFlag::kNone,
+                                                 receiver_maps, p.feedback()),
+                         receiver, effect, control);
+  }
+
+  // Massage the {node} to call "then" instead by first removing all inputs
+  // following the onRejected parameter, and then filling up the parameters
+  // to two inputs from the left with undefined.
+  NodeProperties::ReplaceValueInput(node, jsgraph()->Constant(then), 0);
+  NodeProperties::ReplaceEffectInput(node, effect);
+  for (; arity > 1; --arity) node->RemoveInput(3);
+  for (; arity < 2; ++arity) {
+    node->InsertInput(graph()->zone(), 2, jsgraph()->UndefinedConstant());
+  }
+  NodeProperties::ChangeOp(
+      node, javascript()->Call(2 + arity, p.frequency(), p.feedback(),
+                               ConvertReceiverMode::kNotNullOrUndefined,
+                               p.speculation_mode()));
+  return Changed(node);
 }
 
 Graph* JSCallReducer::graph() const { return jsgraph()->graph(); }

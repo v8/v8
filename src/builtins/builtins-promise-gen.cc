@@ -1095,30 +1095,37 @@ TF_BUILTIN(ResolvePromise, PromiseBuiltinsAssembler) {
 TF_BUILTIN(PromisePrototypeCatch, PromiseBuiltinsAssembler) {
   // 1. Let promise be the this value.
   Node* const promise = Parameter(Descriptor::kReceiver);
-  Node* const on_resolve = UndefinedConstant();
-  Node* const on_reject = Parameter(Descriptor::kOnRejected);
+  Node* const on_fulfilled = UndefinedConstant();
+  Node* const on_rejected = Parameter(Descriptor::kOnRejected);
   Node* const context = Parameter(Descriptor::kContext);
 
-  Label if_internalthen(this), if_customthen(this, Label::kDeferred);
-  GotoIf(TaggedIsSmi(promise), &if_customthen);
-  BranchIfFastPath(context, promise, &if_internalthen, &if_customthen);
+  // 2. Return ? Invoke(promise, "then", « undefined, onRejected »).
+  VARIABLE(var_then, MachineRepresentation::kTagged);
+  Label if_fast(this), if_slow(this, Label::kDeferred), done(this);
+  GotoIf(TaggedIsSmi(promise), &if_slow);
+  BranchIfFastPath(context, promise, &if_fast, &if_slow);
 
-  BIND(&if_internalthen);
+  BIND(&if_fast);
   {
-    Node* const result =
-        InternalPromiseThen(context, promise, on_resolve, on_reject);
-    Return(result);
+    Node* const native_context = LoadNativeContext(context);
+    var_then.Bind(
+        LoadContextElement(native_context, Context::PROMISE_THEN_INDEX));
+    Goto(&done);
   }
 
-  BIND(&if_customthen);
+  BIND(&if_slow);
   {
-    Node* const then =
-        GetProperty(context, promise, isolate()->factory()->then_string());
-    Node* const result = CallJS(
-        CodeFactory::Call(isolate(), ConvertReceiverMode::kNotNullOrUndefined),
-        context, then, promise, on_resolve, on_reject);
-    Return(result);
+    var_then.Bind(
+        GetProperty(context, promise, isolate()->factory()->then_string()));
+    Goto(&done);
   }
+
+  BIND(&done);
+  Node* const then = var_then.value();
+  Node* const result = CallJS(
+      CodeFactory::Call(isolate(), ConvertReceiverMode::kNotNullOrUndefined),
+      context, then, promise, on_fulfilled, on_rejected);
+  Return(result);
 }
 
 // ES section #sec-promiseresolvethenablejob
