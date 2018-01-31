@@ -25,6 +25,7 @@ namespace internal {
 namespace {
 
 constexpr bool kVerbose = false;  // For debugging, verbose error messages.
+constexpr uint32_t kRegExpBuiltinsFuzzerHashSeed = 83;
 
 #define REGEXP_BUILTINS(V)   \
   V(Exec, exec)              \
@@ -358,7 +359,13 @@ void CompileRunAndVerify(FuzzerArgs* args, const std::string& source) {
     return;
   }
 
-  CHECK(ResultsAreIdentical(args));
+  if (!ResultsAreIdentical(args)) {
+    uint32_t hash = StringHasher::HashSequentialString(
+        args->input_data, static_cast<int>(args->input_length),
+        kRegExpBuiltinsFuzzerHashSeed);
+    V8_Fatal(__FILE__, __LINE__,
+             "!ResultAreIdentical(args); RegExpBuiltinsFuzzerHash=%x", hash);
+  }
 }
 
 void TestRegExpPrototypeExec(FuzzerArgs* args) {
