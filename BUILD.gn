@@ -520,10 +520,11 @@ config("toolchain") {
 
   if (is_clang) {
     cflags += [
-      "-Wsign-compare",
-
       # TODO(hans): Remove once http://crbug.com/428099 is resolved.
       "-Winconsistent-missing-override",
+
+      # TODO(thakis): Consider enabling this, https://crbug.com/807632
+      "-Wno-implicit-fallthrough",
     ]
 
     if (v8_current_cpu != "mips" && v8_current_cpu != "mipsel") {
