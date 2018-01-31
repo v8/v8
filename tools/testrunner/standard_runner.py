@@ -633,9 +633,10 @@ class StandardTestRunner(base_runner.BaseTestRunner):
       return exit_code
 
     def _create_seed_proc(self, options):
-      if options.random_seed_stress_count == 1 and options.random_seed:
+      if options.random_seed_stress_count == 1:
         return None
-      return SeedProc(options.random_seed_stress_count, options.random_seed)
+      return SeedProc(options.random_seed_stress_count, options.random_seed,
+                      options.j * 4)
 
     def _create_rerun_proc(self, ctx):
       if not ctx.rerun_failures_count:
