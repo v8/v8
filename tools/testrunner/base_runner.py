@@ -21,6 +21,7 @@ sys.path.insert(
 from testrunner.local import testsuite
 from testrunner.local import utils
 from testrunner.test_config import TestConfig
+from testrunner.testproc.rerun import RerunProc
 from testrunner.testproc.shard import ShardProc
 from testrunner.testproc.sigproc import SignalProc
 from testrunner.testproc.timeout import TimeoutProc
@@ -272,6 +273,14 @@ class BaseTestRunner(object):
                       default=1, type="int")
     parser.add_option("--total-timeout-sec", default=0, type="int",
                       help="How long should fuzzer run")
+    parser.add_option("--random-seed", default=0, type=int,
+                      help="Default seed for initializing random generator")
+
+    parser.add_option("--rerun-failures-count", default=0, type=int,
+                      help="Number of times to rerun each failing test case. "
+                           "Very slow tests will be rerun only once.")
+    parser.add_option("--rerun-failures-max", default=100, type=int,
+                      help="Maximum number of failing test cases to rerun")
 
     parser.add_option("--command-prefix", default="",
                       help="Prepended to each shell command used to run a test")
@@ -622,3 +631,9 @@ class BaseTestRunner(object):
 
   def _create_signal_proc(self):
     return SignalProc()
+
+  def _create_rerun_proc(self, options):
+    if not options.rerun_failures_count:
+      return None
+    return RerunProc(options.rerun_failures_count,
+                     options.rerun_failures_max)

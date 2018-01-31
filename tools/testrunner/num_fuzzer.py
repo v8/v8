@@ -23,7 +23,6 @@ from testrunner.testproc.execution import ExecutionProc
 from testrunner.testproc.filter import StatusFileFilterProc, NameFilterProc
 from testrunner.testproc.loader import LoadProc
 from testrunner.testproc.progress import ResultsTracker, TestsCounter
-from testrunner.testproc.rerun import RerunProc
 from testrunner.utils import random_utils
 
 
@@ -45,18 +44,9 @@ class NumFuzzer(base_runner.BaseTestRunner):
                             " (verbose, dots, color, mono)"),
                       choices=progress.PROGRESS_INDICATORS.keys(),
                       default="mono")
-    parser.add_option("--random-seed", default=0, type=int,
-                      help="Default seed for initializing random generator")
     parser.add_option("--fuzzer-random-seed", default=0,
                       help="Default seed for initializing fuzzer random "
                       "generator")
-    parser.add_option("--rerun-failures-count",
-                      help=("Number of times to rerun each failing test case."
-                            " Very slow tests will be rerun only once."),
-                      default=0, type="int")
-    parser.add_option("--rerun-failures-max",
-                      help="Maximum number of failing test cases to rerun.",
-                      default=100, type="int")
     parser.add_option("--swarming",
                       help="Indicates running test driver on swarming.",
                       default=False, action="store_true")
@@ -307,11 +297,6 @@ class NumFuzzer(base_runner.BaseTestRunner):
     add('deopt', options.stress_deopt, options.stress_deopt_min)
     return fuzzers
 
-  def _create_rerun_proc(self, options):
-    if not options.rerun_failures_count:
-      return None
-    return RerunProc(options.rerun_failures_count,
-                     options.rerun_failures_max)
 
 if __name__ == '__main__':
   sys.exit(NumFuzzer().execute())

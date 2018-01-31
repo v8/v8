@@ -32,7 +32,6 @@ from testrunner.testproc.loader import LoadProc
 from testrunner.testproc.progress import (VerboseProgressIndicator,
                                           ResultsTracker,
                                           TestsCounter)
-from testrunner.testproc.rerun import RerunProc
 from testrunner.testproc.seed import SeedProc
 from testrunner.testproc.variant import VariantProc
 from testrunner.utils import random_utils
@@ -168,13 +167,6 @@ class StandardTestRunner(base_runner.BaseTestRunner):
                         help="Path to a file for storing json results.")
       parser.add_option("--flakiness-results",
                         help="Path to a file for storing flakiness json.")
-      parser.add_option("--rerun-failures-count",
-                        help=("Number of times to rerun each failing test case."
-                              " Very slow tests will be rerun only once."),
-                        default=0, type="int")
-      parser.add_option("--rerun-failures-max",
-                        help="Maximum number of failing test cases to rerun.",
-                        default=100, type="int")
       parser.add_option("--dont-skip-slow-simulator-tests",
                         help="Don't skip more slow tests when using a"
                         " simulator.",
@@ -191,9 +183,6 @@ class StandardTestRunner(base_runner.BaseTestRunner):
       parser.add_option("--junittestsuite",
                         help="The testsuite name in the JUnit output file",
                         default="v8tests")
-      parser.add_option("--random-seed", default=0, dest="random_seed",
-                        help="Default seed for initializing random generator",
-                        type=int)
       parser.add_option("--random-seed-stress-count", default=1, type="int",
                         dest="random_seed_stress_count",
                         help="Number of runs with different random seeds. Only "
@@ -555,7 +544,7 @@ class StandardTestRunner(base_runner.BaseTestRunner):
       ] + indicators + [
         results,
         self._create_timeout_proc(options),
-        self._create_rerun_proc(context),
+        self._create_rerun_proc(options),
         execproc,
       ]
 
@@ -605,13 +594,6 @@ class StandardTestRunner(base_runner.BaseTestRunner):
         return None
       return SeedProc(options.random_seed_stress_count, options.random_seed,
                       options.j * 4)
-
-    def _create_rerun_proc(self, ctx):
-      if not ctx.rerun_failures_count:
-        return None
-      return RerunProc(ctx.rerun_failures_count,
-                       ctx.rerun_failures_max)
-
 
 
 if __name__ == '__main__':
