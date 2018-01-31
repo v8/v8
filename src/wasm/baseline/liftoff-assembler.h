@@ -140,22 +140,34 @@ class LiftoffAssembler : public TurboAssembler {
     }
 
     void inc_used(LiftoffRegister reg) {
+      if (reg.is_pair()) {
+        inc_used(reg.low());
+        inc_used(reg.high());
+        return;
+      }
       used_registers.set(reg);
       DCHECK_GT(kMaxInt, register_use_count[reg.liftoff_code()]);
       ++register_use_count[reg.liftoff_code()];
     }
 
     // Returns whether this was the last use.
-    bool dec_used(LiftoffRegister reg) {
+    void dec_used(LiftoffRegister reg) {
       DCHECK(is_used(reg));
+      if (reg.is_pair()) {
+        dec_used(reg.low());
+        dec_used(reg.high());
+        return;
+      }
       int code = reg.liftoff_code();
       DCHECK_LT(0, register_use_count[code]);
-      if (--register_use_count[code] != 0) return false;
-      used_registers.clear(reg);
-      return true;
+      if (--register_use_count[code] == 0) used_registers.clear(reg);
     }
 
     bool is_used(LiftoffRegister reg) const {
+      if (reg.is_pair()) {
+        DCHECK_EQ(is_used(reg.low()), is_used(reg.high()));
+        reg = reg.low();
+      }
       bool used = used_registers.has(reg);
       DCHECK_EQ(used, register_use_count[reg.liftoff_code()] != 0);
       return used;
@@ -237,7 +249,12 @@ class LiftoffAssembler : public TurboAssembler {
 
   // Get an unused register for class {rc}, potentially spilling to free one.
   LiftoffRegister GetUnusedRegister(RegClass rc, LiftoffRegList pinned = {}) {
-    DCHECK(rc == kGpReg || rc == kFpReg);
+    if (kNeedI64RegPair && rc == kGpRegPair) {
+      LiftoffRegList candidates = kGpCacheRegList;
+      LiftoffRegister low = pinned.set(GetUnusedRegister(candidates, pinned));
+      LiftoffRegister high = GetUnusedRegister(candidates, pinned);
+      return LiftoffRegister::ForPair(low, high);
+    }
     LiftoffRegList candidates = GetCacheRegList(rc);
     return GetUnusedRegister(candidates, pinned);
   }

@@ -202,8 +202,7 @@ class LiftoffCompiler {
       LiftoffRegister reg =
           rc == kGpReg ? LiftoffRegister(Register::from_code(reg_code))
                        : LiftoffRegister(DoubleRegister::from_code(reg_code));
-      LiftoffRegList cache_regs =
-          rc == kGpReg ? kGpCacheRegList : kFpCacheRegList;
+      LiftoffRegList cache_regs = GetCacheRegList(rc);
       if (cache_regs.has(reg)) {
         // This is a cache register, just use it.
         __ PushRegister(type, reg);
