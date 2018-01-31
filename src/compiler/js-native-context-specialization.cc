@@ -168,7 +168,7 @@ Reduction JSNativeContextSpecialization::ReduceJSInstanceOf(Node* node) {
   if (m.HasValue() && m.Value()->IsJSObject()) {
     receiver = Handle<JSObject>::cast(m.Value());
   } else if (p.feedback().IsValid()) {
-    InstanceOfICNexus nexus(p.feedback().vector(), p.feedback().slot());
+    FeedbackNexus nexus(p.feedback().vector(), p.feedback().slot());
     if (!nexus.GetConstructorFeedback().ToHandle(&receiver)) return NoChange();
   } else {
     return NoChange();
@@ -1007,9 +1007,9 @@ Reduction JSNativeContextSpecialization::ReduceJSLoadNamed(Node* node) {
     }
   }
 
-  // Extract receiver maps from the load IC using the LoadICNexus.
+  // Extract receiver maps from the load IC using the FeedbackNexus.
   if (!p.feedback().IsValid()) return NoChange();
-  LoadICNexus nexus(p.feedback().vector(), p.feedback().slot());
+  FeedbackNexus nexus(p.feedback().vector(), p.feedback().slot());
 
   // Try to lower the named access based on the {receiver_maps}.
   return ReduceNamedAccessFromNexus(node, value, nexus, p.name(),
@@ -1022,9 +1022,9 @@ Reduction JSNativeContextSpecialization::ReduceJSStoreNamed(Node* node) {
   NamedAccess const& p = NamedAccessOf(node->op());
   Node* const value = NodeProperties::GetValueInput(node, 1);
 
-  // Extract receiver maps from the store IC using the StoreICNexus.
+  // Extract receiver maps from the store IC using the FeedbackNexus.
   if (!p.feedback().IsValid()) return NoChange();
-  StoreICNexus nexus(p.feedback().vector(), p.feedback().slot());
+  FeedbackNexus nexus(p.feedback().vector(), p.feedback().slot());
 
   // Try to lower the named access based on the {receiver_maps}.
   return ReduceNamedAccessFromNexus(node, value, nexus, p.name(),
@@ -1036,9 +1036,9 @@ Reduction JSNativeContextSpecialization::ReduceJSStoreNamedOwn(Node* node) {
   StoreNamedOwnParameters const& p = StoreNamedOwnParametersOf(node->op());
   Node* const value = NodeProperties::GetValueInput(node, 1);
 
-  // Extract receiver maps from the IC using the StoreOwnICNexus.
+  // Extract receiver maps from the IC using the FeedbackNexus.
   if (!p.feedback().IsValid()) return NoChange();
-  StoreOwnICNexus nexus(p.feedback().vector(), p.feedback().slot());
+  FeedbackNexus nexus(p.feedback().vector(), p.feedback().slot());
 
   // Try to lower the creation of a named property based on the {receiver_maps}.
   return ReduceNamedAccessFromNexus(node, value, nexus, p.name(),
@@ -1264,9 +1264,8 @@ Reduction JSNativeContextSpecialization::ReduceElementAccess(
   return Replace(value);
 }
 
-template <typename KeyedICNexus>
 Reduction JSNativeContextSpecialization::ReduceKeyedAccess(
-    Node* node, Node* index, Node* value, KeyedICNexus const& nexus,
+    Node* node, Node* index, Node* value, FeedbackNexus const& nexus,
     AccessMode access_mode, KeyedAccessLoadMode load_mode,
     KeyedAccessStoreMode store_mode) {
   DCHECK(node->opcode() == IrOpcode::kJSLoadProperty ||
@@ -1543,9 +1542,9 @@ Reduction JSNativeContextSpecialization::ReduceJSLoadProperty(Node* node) {
     }
   }
 
-  // Extract receiver maps from the keyed load IC using the KeyedLoadICNexus.
+  // Extract receiver maps from the keyed load IC using the FeedbackNexus.
   if (!p.feedback().IsValid()) return NoChange();
-  KeyedLoadICNexus nexus(p.feedback().vector(), p.feedback().slot());
+  FeedbackNexus nexus(p.feedback().vector(), p.feedback().slot());
 
   // Extract the keyed access load mode from the keyed load IC.
   KeyedAccessLoadMode load_mode = nexus.GetKeyedAccessLoadMode();
@@ -1561,9 +1560,9 @@ Reduction JSNativeContextSpecialization::ReduceJSStoreProperty(Node* node) {
   Node* const index = NodeProperties::GetValueInput(node, 1);
   Node* const value = NodeProperties::GetValueInput(node, 2);
 
-  // Extract receiver maps from the keyed store IC using the KeyedStoreICNexus.
+  // Extract receiver maps from the keyed store IC using the FeedbackNexus.
   if (!p.feedback().IsValid()) return NoChange();
-  KeyedStoreICNexus nexus(p.feedback().vector(), p.feedback().slot());
+  FeedbackNexus nexus(p.feedback().vector(), p.feedback().slot());
 
   // Extract the keyed access store mode from the keyed store IC.
   KeyedAccessStoreMode store_mode = nexus.GetKeyedAccessStoreMode();
@@ -1960,8 +1959,7 @@ Reduction JSNativeContextSpecialization::ReduceJSStoreDataPropertyInLiteral(
 
   if (!p.feedback().IsValid()) return NoChange();
 
-  StoreDataPropertyInLiteralICNexus nexus(p.feedback().vector(),
-                                          p.feedback().slot());
+  FeedbackNexus nexus(p.feedback().vector(), p.feedback().slot());
   if (nexus.IsUninitialized()) {
     return NoChange();
   }

@@ -2340,9 +2340,9 @@ void AccessorAssembler::LoadGlobalIC_TryPropertyCellCase(
     Comment("Load lexical variable");
     TNode<IntPtrT> lexical_handler = SmiUntag(CAST(maybe_weak_cell));
     TNode<IntPtrT> context_index =
-        Signed(DecodeWord<GlobalICNexus::ContextIndexBits>(lexical_handler));
+        Signed(DecodeWord<FeedbackNexus::ContextIndexBits>(lexical_handler));
     TNode<IntPtrT> slot_index =
-        Signed(DecodeWord<GlobalICNexus::SlotIndexBits>(lexical_handler));
+        Signed(DecodeWord<FeedbackNexus::SlotIndexBits>(lexical_handler));
     TNode<Context> context = lazy_context();
     TNode<Context> script_context = LoadScriptContext(context, context_index);
     TNode<Object> result = LoadContextElement(script_context, slot_index);
@@ -2685,9 +2685,9 @@ void AccessorAssembler::StoreGlobalIC(const StoreICParameters* pp) {
     Comment("Store lexical variable");
     TNode<IntPtrT> lexical_handler = SmiUntag(maybe_weak_cell);
     TNode<IntPtrT> context_index =
-        Signed(DecodeWord<GlobalICNexus::ContextIndexBits>(lexical_handler));
+        Signed(DecodeWord<FeedbackNexus::ContextIndexBits>(lexical_handler));
     TNode<IntPtrT> slot_index =
-        Signed(DecodeWord<GlobalICNexus::SlotIndexBits>(lexical_handler));
+        Signed(DecodeWord<FeedbackNexus::SlotIndexBits>(lexical_handler));
     TNode<Context> script_context =
         LoadScriptContext(CAST(pp->context), context_index);
     StoreContextElement(script_context, slot_index, CAST(pp->value));

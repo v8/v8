@@ -4,6 +4,7 @@
 
 #include "src/interpreter/bytecode-array-accessor.h"
 
+#include "src/feedback-vector.h"
 #include "src/interpreter/bytecode-decoder.h"
 #include "src/interpreter/interpreter-intrinsics.h"
 #include "src/objects-inl.h"
@@ -123,6 +124,11 @@ uint32_t BytecodeArrayAccessor::GetIndexOperand(int operand_index) const {
       Bytecodes::GetOperandType(current_bytecode(), operand_index);
   DCHECK_EQ(operand_type, OperandType::kIdx);
   return GetUnsignedOperand(operand_index, operand_type);
+}
+
+FeedbackSlot BytecodeArrayAccessor::GetSlotOperand(int operand_index) const {
+  int index = GetIndexOperand(operand_index);
+  return FeedbackVector::ToSlot(index);
 }
 
 Register BytecodeArrayAccessor::GetRegisterOperand(int operand_index) const {

@@ -770,10 +770,11 @@ RUNTIME_FUNCTION(Runtime_DefineDataPropertyInLiteral) {
   CONVERT_ARG_HANDLE_CHECKED(FeedbackVector, vector, 4);
   CONVERT_SMI_ARG_CHECKED(index, 5);
 
-  StoreDataPropertyInLiteralICNexus nexus(vector, vector->ToSlot(index));
+  FeedbackNexus nexus(vector, FeedbackVector::ToSlot(index));
   if (nexus.ic_state() == UNINITIALIZED) {
     if (name->IsUniqueName()) {
-      nexus.ConfigureMonomorphic(name, handle(object->map()));
+      nexus.ConfigureMonomorphic(name, handle(object->map()),
+                                 Handle<Code>::null());
     } else {
       nexus.ConfigureMegamorphic(PROPERTY);
     }
@@ -833,7 +834,7 @@ RUNTIME_FUNCTION(Runtime_CollectTypeProfile) {
   }
 
   DCHECK(vector->metadata()->HasTypeProfileSlot());
-  CollectTypeProfileNexus nexus(vector, vector->GetTypeProfileSlot());
+  FeedbackNexus nexus(vector, vector->GetTypeProfileSlot());
   nexus.Collect(type, position->value());
 
   return isolate->heap()->undefined_value();

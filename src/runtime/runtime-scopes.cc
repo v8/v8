@@ -123,7 +123,7 @@ Object* DeclareGlobal(
     // named interceptor or the interceptor is not masking.
     if (!global->HasNamedInterceptor() ||
         global->GetNamedInterceptor()->non_masking()) {
-      LoadGlobalICNexus nexus(feedback_vector, slot);
+      FeedbackNexus nexus(feedback_vector, slot);
       nexus.ConfigurePropertyCellMode(it.GetPropertyCell());
     }
   }

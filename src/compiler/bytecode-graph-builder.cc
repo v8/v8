@@ -568,7 +568,7 @@ Node* BytecodeGraphBuilder::BuildLoadNativeContextField(int index) {
 }
 
 VectorSlotPair BytecodeGraphBuilder::CreateVectorSlotPair(int slot_id) {
-  return VectorSlotPair(feedback_vector(), feedback_vector()->ToSlot(slot_id));
+  return VectorSlotPair(feedback_vector(), FeedbackVector::ToSlot(slot_id));
 }
 
 void BytecodeGraphBuilder::CreateGraph() {
@@ -2059,8 +2059,8 @@ void BytecodeGraphBuilder::BuildUnaryOp(const Operator* op) {
   PrepareEagerCheckpoint();
   Node* operand = environment()->LookupAccumulator();
 
-  FeedbackSlot slot = feedback_vector()->ToSlot(
-      bytecode_iterator().GetIndexOperand(kUnaryOperationHintIndex));
+  FeedbackSlot slot =
+      bytecode_iterator().GetSlotOperand(kUnaryOperationHintIndex);
   JSTypeHintLowering::LoweringResult lowering =
       TryBuildSimplifiedUnaryOp(op, operand, slot);
   if (lowering.IsExit()) return;
@@ -2082,8 +2082,8 @@ void BytecodeGraphBuilder::BuildBinaryOp(const Operator* op) {
       environment()->LookupRegister(bytecode_iterator().GetRegisterOperand(0));
   Node* right = environment()->LookupAccumulator();
 
-  FeedbackSlot slot = feedback_vector()->ToSlot(
-      bytecode_iterator().GetIndexOperand(kBinaryOperationHintIndex));
+  FeedbackSlot slot =
+      bytecode_iterator().GetSlotOperand(kBinaryOperationHintIndex);
   JSTypeHintLowering::LoweringResult lowering =
       TryBuildSimplifiedBinaryOp(op, left, right, slot);
   if (lowering.IsExit()) return;
@@ -2103,28 +2103,23 @@ void BytecodeGraphBuilder::BuildBinaryOp(const Operator* op) {
 // feedback.
 BinaryOperationHint BytecodeGraphBuilder::GetBinaryOperationHint(
     int operand_index) {
-  FeedbackSlot slot = feedback_vector()->ToSlot(
-      bytecode_iterator().GetIndexOperand(operand_index));
-  DCHECK_EQ(FeedbackSlotKind::kBinaryOp, feedback_vector()->GetKind(slot));
-  BinaryOpICNexus nexus(feedback_vector(), slot);
+  FeedbackSlot slot = bytecode_iterator().GetSlotOperand(operand_index);
+  FeedbackNexus nexus(feedback_vector(), slot);
   return nexus.GetBinaryOperationFeedback();
 }
 
 // Helper function to create compare operation hint from the recorded type
 // feedback.
 CompareOperationHint BytecodeGraphBuilder::GetCompareOperationHint() {
-  int slot_index = bytecode_iterator().GetIndexOperand(1);
-  FeedbackSlot slot = feedback_vector()->ToSlot(slot_index);
-  DCHECK_EQ(FeedbackSlotKind::kCompareOp, feedback_vector()->GetKind(slot));
-  CompareICNexus nexus(feedback_vector(), slot);
+  FeedbackSlot slot = bytecode_iterator().GetSlotOperand(1);
+  FeedbackNexus nexus(feedback_vector(), slot);
   return nexus.GetCompareOperationFeedback();
 }
 
 // Helper function to create for-in mode from the recorded type feedback.
 ForInMode BytecodeGraphBuilder::GetForInMode(int operand_index) {
-  FeedbackSlot slot = feedback_vector()->ToSlot(
-      bytecode_iterator().GetIndexOperand(operand_index));
-  ForInICNexus nexus(feedback_vector(), slot);
+  FeedbackSlot slot = bytecode_iterator().GetSlotOperand(operand_index);
+  FeedbackNexus nexus(feedback_vector(), slot);
   switch (nexus.GetForInFeedback()) {
     case ForInHint::kNone:
     case ForInHint::kEnumCacheKeysAndIndices:
@@ -2139,13 +2134,13 @@ ForInMode BytecodeGraphBuilder::GetForInMode(int operand_index) {
 
 CallFrequency BytecodeGraphBuilder::ComputeCallFrequency(int slot_id) const {
   if (invocation_frequency_.IsUnknown()) return CallFrequency();
-  CallICNexus nexus(feedback_vector(), feedback_vector()->ToSlot(slot_id));
+  FeedbackNexus nexus(feedback_vector(), FeedbackVector::ToSlot(slot_id));
   return CallFrequency(nexus.ComputeCallFrequency() *
                        invocation_frequency_.value());
 }
 
 SpeculationMode BytecodeGraphBuilder::GetSpeculationMode(int slot_id) const {
-  CallICNexus nexus(feedback_vector(), feedback_vector()->ToSlot(slot_id));
+  FeedbackNexus nexus(feedback_vector(), FeedbackVector::ToSlot(slot_id));
   return nexus.GetSpeculationMode();
 }
 
@@ -2217,8 +2212,8 @@ void BytecodeGraphBuilder::BuildBinaryOpWithImmediate(const Operator* op) {
   Node* left = environment()->LookupAccumulator();
   Node* right = jsgraph()->Constant(bytecode_iterator().GetImmediateOperand(0));
 
-  FeedbackSlot slot = feedback_vector()->ToSlot(
-      bytecode_iterator().GetIndexOperand(kBinaryOperationSmiHintIndex));
+  FeedbackSlot slot =
+      bytecode_iterator().GetSlotOperand(kBinaryOperationSmiHintIndex);
   JSTypeHintLowering::LoweringResult lowering =
       TryBuildSimplifiedBinaryOp(op, left, right, slot);
   if (lowering.IsExit()) return;
@@ -2332,8 +2327,7 @@ void BytecodeGraphBuilder::BuildCompareOp(const Operator* op) {
       environment()->LookupRegister(bytecode_iterator().GetRegisterOperand(0));
   Node* right = environment()->LookupAccumulator();
 
-  int slot_index = bytecode_iterator().GetIndexOperand(1);
-  FeedbackSlot slot = feedback_vector()->ToSlot(slot_index);
+  FeedbackSlot slot = bytecode_iterator().GetSlotOperand(1);
   JSTypeHintLowering::LoweringResult lowering =
       TryBuildSimplifiedBinaryOp(op, left, right, slot);
   if (lowering.IsExit()) return;
@@ -2496,8 +2490,7 @@ void BytecodeGraphBuilder::VisitToNumber() {
   PrepareEagerCheckpoint();
   Node* object = environment()->LookupAccumulator();
 
-  FeedbackSlot slot =
-      feedback_vector()->ToSlot(bytecode_iterator().GetIndexOperand(0));
+  FeedbackSlot slot = bytecode_iterator().GetSlotOperand(0);
   JSTypeHintLowering::LoweringResult lowering =
       TryBuildSimplifiedToNumber(object, slot);
 
@@ -2518,8 +2511,7 @@ void BytecodeGraphBuilder::VisitToNumeric() {
 
   // If we have some kind of Number feedback, we do the same lowering as for
   // ToNumber.
-  FeedbackSlot slot =
-      feedback_vector()->ToSlot(bytecode_iterator().GetIndexOperand(0));
+  FeedbackSlot slot = bytecode_iterator().GetSlotOperand(0);
   JSTypeHintLowering::LoweringResult lowering =
       TryBuildSimplifiedToNumber(object, slot);
 
@@ -2681,8 +2673,7 @@ void BytecodeGraphBuilder::VisitForInPrepare() {
   PrepareEagerCheckpoint();
   Node* enumerator = environment()->LookupAccumulator();
 
-  FeedbackSlot slot =
-      feedback_vector()->ToSlot(bytecode_iterator().GetIndexOperand(1));
+  FeedbackSlot slot = bytecode_iterator().GetSlotOperand(1);
   JSTypeHintLowering::LoweringResult lowering =
       TryBuildSimplifiedForInPrepare(enumerator, slot);
   if (lowering.IsExit()) return;
@@ -2723,8 +2714,7 @@ void BytecodeGraphBuilder::VisitForInNext() {
                            environment()->GetControlDependency());
   environment()->UpdateEffectDependency(index);
 
-  FeedbackSlot slot =
-      feedback_vector()->ToSlot(bytecode_iterator().GetIndexOperand(3));
+  FeedbackSlot slot = bytecode_iterator().GetSlotOperand(3);
   JSTypeHintLowering::LoweringResult lowering = TryBuildSimplifiedForInNext(
       receiver, cache_array, cache_type, index, slot);
   if (lowering.IsExit()) return;

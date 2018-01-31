@@ -742,11 +742,11 @@ void InterpreterAssembler::IncrementCallCount(Node* feedback_vector,
   Comment("increment call count");
   Node* call_count =
       LoadFeedbackVectorSlot(feedback_vector, slot_id, kPointerSize);
-  // The lowest {CallICNexus::CallCountField::kShift} bits of the call
+  // The lowest {FeedbackNexus::CallCountField::kShift} bits of the call
   // count are used as flags. To increment the call count by 1 we hence
-  // have to increment by 1 << {CallICNexus::CallCountField::kShift}.
-  Node* new_count =
-      SmiAdd(call_count, SmiConstant(1 << CallICNexus::CallCountField::kShift));
+  // have to increment by 1 << {FeedbackNexus::CallCountField::kShift}.
+  Node* new_count = SmiAdd(
+      call_count, SmiConstant(1 << FeedbackNexus::CallCountField::kShift));
   // Count is Smi, so we don't need a write barrier.
   StoreFeedbackVectorSlot(feedback_vector, slot_id, new_count,
                           SKIP_WRITE_BARRIER, kPointerSize);

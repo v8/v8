@@ -3044,9 +3044,9 @@ Reduction JSCallReducer::ReduceJSCall(Node* node) {
     return reduction.Changed() ? reduction : Changed(node);
   }
 
-  // Extract feedback from the {node} using the CallICNexus.
+  // Extract feedback from the {node} using the FeedbackNexus.
   if (!p.feedback().IsValid()) return NoChange();
-  CallICNexus nexus(p.feedback().vector(), p.feedback().slot());
+  FeedbackNexus nexus(p.feedback().vector(), p.feedback().slot());
   if (nexus.IsUninitialized()) {
     if (flags() & kBailoutOnUninitialized) {
       // Introduce a SOFT deopt if the call {node} wasn't executed so far.
@@ -3114,9 +3114,9 @@ Reduction JSCallReducer::ReduceJSConstruct(Node* node) {
   Node* effect = NodeProperties::GetEffectInput(node);
   Node* control = NodeProperties::GetControlInput(node);
 
-  // Extract feedback from the {node} using the CallICNexus.
+  // Extract feedback from the {node} using the FeedbackNexus.
   if (p.feedback().IsValid()) {
-    CallICNexus nexus(p.feedback().vector(), p.feedback().slot());
+    FeedbackNexus nexus(p.feedback().vector(), p.feedback().slot());
     if (nexus.IsUninitialized()) {
       if (flags() & kBailoutOnUninitialized) {
         // Introduce a SOFT deopt if the construct {node} wasn't executed so

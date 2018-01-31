@@ -171,10 +171,8 @@ TEST(VectorCallICStates) {
   Handle<FeedbackVector> feedback_vector =
       Handle<FeedbackVector>(f->feedback_vector(), isolate);
   FeedbackSlot slot(0);
-  CallICNexus nexus(feedback_vector, slot);
+  FeedbackNexus nexus(feedback_vector, slot);
   CHECK_EQ(MONOMORPHIC, nexus.StateFromFeedback());
-  // CallIC doesn't return map feedback.
-  CHECK(!nexus.FindFirstMap());
 
   CompileRun("f(function() { return 16; })");
   CHECK_EQ(GENERIC, nexus.StateFromFeedback());
@@ -200,7 +198,7 @@ TEST(VectorCallFeedback) {
   Handle<FeedbackVector> feedback_vector =
       Handle<FeedbackVector>(f->feedback_vector(), isolate);
   FeedbackSlot slot(0);
-  CallICNexus nexus(feedback_vector, slot);
+  FeedbackNexus nexus(feedback_vector, slot);
 
   CHECK_EQ(MONOMORPHIC, nexus.StateFromFeedback());
   CHECK(nexus.GetFeedback()->IsWeakCell());
@@ -224,7 +222,7 @@ TEST(VectorCallFeedbackForArray) {
   Handle<FeedbackVector> feedback_vector =
       Handle<FeedbackVector>(f->feedback_vector(), isolate);
   FeedbackSlot slot(0);
-  CallICNexus nexus(feedback_vector, slot);
+  FeedbackNexus nexus(feedback_vector, slot);
 
   CHECK_EQ(MONOMORPHIC, nexus.StateFromFeedback());
   CHECK(nexus.GetFeedback()->IsWeakCell());
@@ -252,7 +250,7 @@ TEST(VectorCallCounts) {
   Handle<FeedbackVector> feedback_vector =
       Handle<FeedbackVector>(f->feedback_vector(), isolate);
   FeedbackSlot slot(0);
-  CallICNexus nexus(feedback_vector, slot);
+  FeedbackNexus nexus(feedback_vector, slot);
   CHECK_EQ(MONOMORPHIC, nexus.StateFromFeedback());
 
   CompileRun("f(foo); f(foo);");
@@ -281,7 +279,7 @@ TEST(VectorConstructCounts) {
       Handle<FeedbackVector>(f->feedback_vector(), isolate);
 
   FeedbackSlot slot(0);
-  CallICNexus nexus(feedback_vector, slot);
+  FeedbackNexus nexus(feedback_vector, slot);
   CHECK_EQ(MONOMORPHIC, nexus.StateFromFeedback());
 
   CHECK(feedback_vector->Get(slot)->IsWeakCell());
@@ -312,7 +310,7 @@ TEST(VectorSpeculationMode) {
       Handle<FeedbackVector>(f->feedback_vector(), isolate);
 
   FeedbackSlot slot(0);
-  CallICNexus nexus(feedback_vector, slot);
+  FeedbackNexus nexus(feedback_vector, slot);
   CHECK_EQ(SpeculationMode::kAllowSpeculation, nexus.GetSpeculationMode());
 
   CompileRun("f(Foo); f(Foo);");
@@ -342,7 +340,7 @@ TEST(VectorLoadICStates) {
   Handle<FeedbackVector> feedback_vector =
       Handle<FeedbackVector>(f->feedback_vector(), isolate);
   FeedbackSlot slot(0);
-  LoadICNexus nexus(feedback_vector, slot);
+  FeedbackNexus nexus(feedback_vector, slot);
   CHECK_EQ(PREMONOMORPHIC, nexus.StateFromFeedback());
 
   CompileRun("f(o)");
@@ -408,9 +406,9 @@ TEST(VectorLoadGlobalICSlotSharing) {
   FeedbackSlot slot1 = helper.slot(0);
   FeedbackSlot slot2 = helper.slot(1);
   CHECK_EQ(MONOMORPHIC,
-           LoadGlobalICNexus(feedback_vector, slot1).StateFromFeedback());
+           FeedbackNexus(feedback_vector, slot1).StateFromFeedback());
   CHECK_EQ(MONOMORPHIC,
-           LoadGlobalICNexus(feedback_vector, slot2).StateFromFeedback());
+           FeedbackNexus(feedback_vector, slot2).StateFromFeedback());
 }
 
 
@@ -431,7 +429,7 @@ TEST(VectorLoadICOnSmi) {
   Handle<FeedbackVector> feedback_vector =
       Handle<FeedbackVector>(f->feedback_vector(), isolate);
   FeedbackSlot slot(0);
-  LoadICNexus nexus(feedback_vector, slot);
+  FeedbackNexus nexus(feedback_vector, slot);
   CHECK_EQ(PREMONOMORPHIC, nexus.StateFromFeedback());
 
   CompileRun("f(34)");
@@ -632,7 +630,7 @@ TEST(VectorStoreICBasic) {
   FeedbackVectorHelper helper(feedback_vector);
   CHECK_EQ(1, helper.slot_count());
   FeedbackSlot slot(0);
-  StoreICNexus nexus(feedback_vector, slot);
+  FeedbackNexus nexus(feedback_vector, slot);
   CHECK_EQ(MONOMORPHIC, nexus.StateFromFeedback());
 }
 
@@ -657,7 +655,7 @@ TEST(StoreOwnIC) {
   CHECK_EQ(2, helper.slot_count());
   CHECK_SLOT_KIND(helper, 0, FeedbackSlotKind::kLiteral);
   CHECK_SLOT_KIND(helper, 1, FeedbackSlotKind::kStoreOwnNamed);
-  StoreOwnICNexus nexus(feedback_vector, helper.slot(1));
+  FeedbackNexus nexus(feedback_vector, helper.slot(1));
   CHECK_EQ(MONOMORPHIC, nexus.StateFromFeedback());
 }
 

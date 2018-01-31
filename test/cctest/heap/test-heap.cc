@@ -3031,14 +3031,8 @@ static void CheckVectorIC(Handle<JSFunction> f, int slot_index,
   Handle<FeedbackVector> vector = Handle<FeedbackVector>(f->feedback_vector());
   FeedbackVectorHelper helper(vector);
   FeedbackSlot slot = helper.slot(slot_index);
-  if (vector->IsLoadIC(slot)) {
-    LoadICNexus nexus(vector, slot);
-    CHECK(nexus.StateFromFeedback() == desired_state);
-  } else {
-    CHECK(vector->IsKeyedLoadIC(slot));
-    KeyedLoadICNexus nexus(vector, slot);
-    CHECK(nexus.StateFromFeedback() == desired_state);
-  }
+  FeedbackNexus nexus(vector, slot);
+  CHECK(nexus.StateFromFeedback() == desired_state);
 }
 
 TEST(IncrementalMarkingPreservesMonomorphicConstructor) {
@@ -4238,7 +4232,7 @@ void CheckIC(Handle<JSFunction> function, int slot_index,
              InlineCacheState state) {
   FeedbackVector* vector = function->feedback_vector();
   FeedbackSlot slot(slot_index);
-  LoadICNexus nexus(vector, slot);
+  FeedbackNexus nexus(vector, slot);
   CHECK_EQ(nexus.StateFromFeedback(), state);
 }
 

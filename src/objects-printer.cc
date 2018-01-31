@@ -769,7 +769,7 @@ void FeedbackVector::FeedbackVectorPrint(std::ostream& os) {  // NOLINT
     FeedbackSlotKind kind = iter.kind();
 
     os << "\n - slot " << slot << " " << kind << " ";
-    FeedbackSlotPrint(os, slot, kind);
+    FeedbackSlotPrint(os, slot);
 
     int entry_size = iter.entry_size();
     if (entry_size > 0) os << " {";
@@ -784,71 +784,62 @@ void FeedbackVector::FeedbackVectorPrint(std::ostream& os) {  // NOLINT
 
 void FeedbackVector::FeedbackSlotPrint(std::ostream& os,
                                        FeedbackSlot slot) {  // NOLINT
-  FeedbackSlotPrint(os, slot, GetKind(slot));
+  FeedbackNexus nexus(this, slot);
+  nexus.Print(os);
 }
 
-void FeedbackVector::FeedbackSlotPrint(std::ostream& os, FeedbackSlot slot,
-                                       FeedbackSlotKind kind) {  // NOLINT
-  switch (kind) {
-    case FeedbackSlotKind::kLoadProperty: {
-      LoadICNexus nexus(this, slot);
-      os << Code::ICState2String(nexus.StateFromFeedback());
-      break;
-    }
+namespace {
+
+const char* ICState2String(InlineCacheState state) {
+  switch (state) {
+    case UNINITIALIZED:
+      return "UNINITIALIZED";
+    case PREMONOMORPHIC:
+      return "PREMONOMORPHIC";
+    case MONOMORPHIC:
+      return "MONOMORPHIC";
+    case RECOMPUTE_HANDLER:
+      return "RECOMPUTE_HANDLER";
+    case POLYMORPHIC:
+      return "POLYMORPHIC";
+    case MEGAMORPHIC:
+      return "MEGAMORPHIC";
+    case GENERIC:
+      return "GENERIC";
+  }
+  UNREACHABLE();
+}
+}  // anonymous namespace
+
+void FeedbackNexus::Print(std::ostream& os) {  // NOLINT
+  switch (kind()) {
+    case FeedbackSlotKind::kCall:
+    case FeedbackSlotKind::kLoadProperty:
+    case FeedbackSlotKind::kLoadKeyed:
     case FeedbackSlotKind::kLoadGlobalInsideTypeof:
-    case FeedbackSlotKind::kLoadGlobalNotInsideTypeof: {
-      LoadGlobalICNexus nexus(this, slot);
-      os << Code::ICState2String(nexus.StateFromFeedback());
-      break;
-    }
-    case FeedbackSlotKind::kLoadKeyed: {
-      KeyedLoadICNexus nexus(this, slot);
-      os << Code::ICState2String(nexus.StateFromFeedback());
-      break;
-    }
-    case FeedbackSlotKind::kCall: {
-      CallICNexus nexus(this, slot);
-      os << Code::ICState2String(nexus.StateFromFeedback());
-      break;
-    }
+    case FeedbackSlotKind::kLoadGlobalNotInsideTypeof:
     case FeedbackSlotKind::kStoreNamedSloppy:
     case FeedbackSlotKind::kStoreNamedStrict:
     case FeedbackSlotKind::kStoreOwnNamed:
     case FeedbackSlotKind::kStoreGlobalSloppy:
-    case FeedbackSlotKind::kStoreGlobalStrict: {
-      StoreICNexus nexus(this, slot);
-      os << Code::ICState2String(nexus.StateFromFeedback());
-      break;
-    }
+    case FeedbackSlotKind::kStoreGlobalStrict:
     case FeedbackSlotKind::kStoreKeyedSloppy:
+    case FeedbackSlotKind::kInstanceOf:
+    case FeedbackSlotKind::kStoreDataPropertyInLiteral:
     case FeedbackSlotKind::kStoreKeyedStrict: {
-      KeyedStoreICNexus nexus(this, slot);
-      os << Code::ICState2String(nexus.StateFromFeedback());
+      os << ICState2String(StateFromFeedback());
       break;
     }
     case FeedbackSlotKind::kBinaryOp: {
-      BinaryOpICNexus nexus(this, slot);
-      os << "BinaryOp:" << nexus.GetBinaryOperationFeedback();
+      os << "BinaryOp:" << GetBinaryOperationFeedback();
       break;
     }
     case FeedbackSlotKind::kCompareOp: {
-      CompareICNexus nexus(this, slot);
-      os << "CompareOp:" << nexus.GetCompareOperationFeedback();
+      os << "CompareOp:" << GetCompareOperationFeedback();
       break;
     }
     case FeedbackSlotKind::kForIn: {
-      ForInICNexus nexus(this, slot);
-      os << "ForIn:" << nexus.GetForInFeedback();
-      break;
-    }
-    case FeedbackSlotKind::kInstanceOf: {
-      InstanceOfICNexus nexus(this, slot);
-      os << Code::ICState2String(nexus.StateFromFeedback());
-      break;
-    }
-    case FeedbackSlotKind::kStoreDataPropertyInLiteral: {
-      StoreDataPropertyInLiteralICNexus nexus(this, slot);
-      os << Code::ICState2String(nexus.StateFromFeedback());
+      os << "ForIn:" << GetForInFeedback();
       break;
     }
     case FeedbackSlotKind::kCreateClosure:

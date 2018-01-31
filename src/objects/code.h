@@ -133,11 +133,6 @@ class Code : public HeapObject {
 
   static const char* Kind2String(Kind kind);
 
-#if defined(OBJECT_PRINT) || defined(ENABLE_DISASSEMBLER)
-  // Printing
-  static const char* ICState2String(InlineCacheState state);
-#endif  // defined(OBJECT_PRINT) || defined(ENABLE_DISASSEMBLER)
-
 #ifdef ENABLE_DISASSEMBLER
   void Disassemble(const char* name, std::ostream& os,
                    void* current_pc = nullptr);  // NOLINT

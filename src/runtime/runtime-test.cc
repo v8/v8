@@ -184,7 +184,7 @@ RUNTIME_FUNCTION(Runtime_TypeProfile) {
     FeedbackVector* vector = function->feedback_vector();
     if (vector->metadata()->HasTypeProfileSlot()) {
       FeedbackSlot slot = vector->GetTypeProfileSlot();
-      CollectTypeProfileNexus nexus(vector, slot);
+      FeedbackNexus nexus(vector, slot);
       return nexus.GetTypeProfile();
     }
   }

@@ -77,9 +77,9 @@ class JSNativeContextSpecialization final : public AdvancedReducer {
                                 AccessMode access_mode,
                                 KeyedAccessLoadMode load_mode,
                                 KeyedAccessStoreMode store_mode);
-  template <typename KeyedICNexus>
   Reduction ReduceKeyedAccess(Node* node, Node* index, Node* value,
-                              KeyedICNexus const& nexus, AccessMode access_mode,
+                              FeedbackNexus const& nexus,
+                              AccessMode access_mode,
                               KeyedAccessLoadMode load_mode,
                               KeyedAccessStoreMode store_mode);
   Reduction ReduceNamedAccessFromNexus(Node* node, Node* value,
