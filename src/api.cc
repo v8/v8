@@ -7401,11 +7401,9 @@ Maybe<bool> Promise::Resolver::Resolve(Local<Context> context,
   ENTER_V8(isolate, context, Promise_Resolver, Resolve, Nothing<bool>(),
            i::HandleScope);
   auto self = Utils::OpenHandle(this);
-  i::Handle<i::Object> argv[] = {self, Utils::OpenHandle(*value)};
   has_pending_exception =
-      i::Execution::Call(isolate, isolate->promise_resolve(),
-                         isolate->factory()->undefined_value(), arraysize(argv),
-                         argv)
+      i::JSPromise::Resolve(i::Handle<i::JSPromise>::cast(self),
+                            Utils::OpenHandle(*value))
           .is_null();
   RETURN_ON_FAILED_EXECUTION_PRIMITIVE(bool);
   return Just(true);
@@ -7424,14 +7422,9 @@ Maybe<bool> Promise::Resolver::Reject(Local<Context> context,
   ENTER_V8(isolate, context, Promise_Resolver, Reject, Nothing<bool>(),
            i::HandleScope);
   auto self = Utils::OpenHandle(this);
-
-  // We pass true to trigger the debugger's on exception handler.
-  i::Handle<i::Object> argv[] = {self, Utils::OpenHandle(*value),
-                                 isolate->factory()->ToBoolean(true)};
   has_pending_exception =
-      i::Execution::Call(isolate, isolate->promise_internal_reject(),
-                         isolate->factory()->undefined_value(), arraysize(argv),
-                         argv)
+      i::JSPromise::Reject(i::Handle<i::JSPromise>::cast(self),
+                           Utils::OpenHandle(*value))
           .is_null();
   RETURN_ON_FAILED_EXECUTION_PRIMITIVE(bool);
   return Just(true);

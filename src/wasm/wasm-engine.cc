@@ -3,7 +3,7 @@
 // found in the LICENSE file.
 
 #include "src/wasm/wasm-engine.h"
-#include "src/api.h"
+
 #include "src/objects-inl.h"
 #include "src/wasm/module-compiler.h"
 
@@ -56,30 +56,6 @@ MaybeHandle<WasmInstanceObject> WasmEngine::SyncInstantiate(
                                      memory);
 }
 
-namespace {
-
-// TODO(titzer): these utilities are duplicated in module-compiler.cc
-void WasmEngineRejectPromise(Isolate* isolate, Handle<Context> context,
-                             ErrorThrower& thrower, Handle<JSPromise> promise) {
-  Local<Promise::Resolver> resolver =
-      Utils::PromiseToLocal(promise).As<Promise::Resolver>();
-  auto maybe = resolver->Reject(Utils::ToLocal(context),
-                                Utils::ToLocal(thrower.Reify()));
-  CHECK_IMPLIES(!maybe.FromMaybe(false), isolate->has_scheduled_exception());
-}
-
-void WasmEngineResolvePromise(Isolate* isolate, Handle<Context> context,
-                              Handle<JSPromise> promise,
-                              Handle<Object> result) {
-  Local<Promise::Resolver> resolver =
-      Utils::PromiseToLocal(promise).As<Promise::Resolver>();
-  auto maybe =
-      resolver->Resolve(Utils::ToLocal(context), Utils::ToLocal(result));
-  CHECK_IMPLIES(!maybe.FromMaybe(false), isolate->has_scheduled_exception());
-}
-
-}  // namespace
-
 void WasmEngine::AsyncInstantiate(Isolate* isolate, Handle<JSPromise> promise,
                                   Handle<WasmModuleObject> module_object,
                                   MaybeHandle<JSReceiver> imports) {
@@ -87,12 +63,10 @@ void WasmEngine::AsyncInstantiate(Isolate* isolate, Handle<JSPromise> promise,
   MaybeHandle<WasmInstanceObject> instance_object = SyncInstantiate(
       isolate, &thrower, module_object, imports, Handle<JSArrayBuffer>::null());
   if (thrower.error()) {
-    WasmEngineRejectPromise(isolate, handle(isolate->context()), thrower,
-                            promise);
+    JSPromise::Reject(promise, thrower.Reify());
     return;
   }
-  WasmEngineResolvePromise(isolate, handle(isolate->context()), promise,
-                           instance_object.ToHandleChecked());
+  JSPromise::Resolve(promise, instance_object.ToHandleChecked());
 }
 
 void WasmEngine::AsyncCompile(Isolate* isolate, Handle<JSPromise> promise,
@@ -113,13 +87,11 @@ void WasmEngine::AsyncCompile(Isolate* isolate, Handle<JSPromise> promise,
       module_object = SyncCompile(isolate, &thrower, bytes);
     }
     if (thrower.error()) {
-      WasmEngineRejectPromise(isolate, handle(isolate->context()), thrower,
-                              promise);
+      JSPromise::Reject(promise, thrower.Reify());
       return;
     }
     Handle<WasmModuleObject> module = module_object.ToHandleChecked();
-    WasmEngineResolvePromise(isolate, handle(isolate->context()), promise,
-                             module);
+    JSPromise::Resolve(promise, module);
     return;
   }
 

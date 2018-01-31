@@ -15913,6 +15913,29 @@ const char* JSPromise::Status(v8::Promise::PromiseState status) {
   UNREACHABLE();
 }
 
+// static
+MaybeHandle<Object> JSPromise::Resolve(Handle<JSPromise> promise,
+                                       Handle<Object> value) {
+  Isolate* isolate = promise->GetIsolate();
+  Handle<Object> argv[] = {promise, value};
+  MaybeHandle<Object> result = Execution::Call(
+      isolate, isolate->promise_resolve(),
+      isolate->factory()->undefined_value(), arraysize(argv), argv);
+  return result;
+}
+
+// static
+MaybeHandle<Object> JSPromise::Reject(Handle<JSPromise> promise,
+                                      Handle<Object> value) {
+  Isolate* isolate = promise->GetIsolate();
+  // We pass true to trigger the debugger's on exception handler.
+  Handle<Object> argv[] = {promise, value, isolate->factory()->ToBoolean(true)};
+  MaybeHandle<Object> result = Execution::Call(
+      isolate, isolate->promise_internal_reject(),
+      isolate->factory()->undefined_value(), arraysize(argv), argv);
+  return result;
+}
+
 namespace {
 
 JSRegExp::Flags RegExpFlagsFromString(Handle<String> flags, bool* success) {

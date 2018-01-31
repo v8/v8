@@ -4018,6 +4018,12 @@ class JSPromise : public JSObject {
   static const char* Status(v8::Promise::PromiseState status);
   v8::Promise::PromiseState status() const;
 
+  // Resolve/reject the promise with a given value.
+  static MaybeHandle<Object> Resolve(Handle<JSPromise> promise,
+                                     Handle<Object> value);
+  static MaybeHandle<Object> Reject(Handle<JSPromise> promise,
+                                    Handle<Object> value);
+
   DECL_CAST(JSPromise)
 
   // Dispatched behavior.
