@@ -1521,6 +1521,12 @@ void MacroAssembler::JumpToExternalReference(const ExternalReference& builtin,
   Jump(stub.GetCode(), RelocInfo::CODE_TARGET);
 }
 
+void MacroAssembler::JumpToInstructionStream(const InstructionStream* stream) {
+  intptr_t bytes_address = static_cast<intptr_t>(stream->bytes());
+  mov(kOffHeapTrampolineRegister, Operand(bytes_address));
+  Jump(kOffHeapTrampolineRegister);
+}
+
 void MacroAssembler::IncrementCounter(StatsCounter* counter, int value,
                                       Register scratch1, Register scratch2) {
   DCHECK(value > 0 && is_int8(value));

@@ -26,6 +26,7 @@ constexpr Register kInterpreterDispatchTableRegister = t6;
 constexpr Register kInterpreterTargetBytecodeRegister = t3;
 constexpr Register kJavaScriptCallArgCountRegister = a0;
 constexpr Register kJavaScriptCallNewTargetRegister = a3;
+constexpr Register kOffHeapTrampolineRegister = at;
 constexpr Register kRuntimeCallFunctionRegister = a1;
 constexpr Register kRuntimeCallArgCountRegister = a0;
 
@@ -1085,6 +1086,9 @@ const Operand& rt = Operand(zero_reg), BranchDelaySlot bd = PROTECT
   void JumpToExternalReference(const ExternalReference& builtin,
                                BranchDelaySlot bd = PROTECT,
                                bool builtin_exit_frame = false);
+
+  // Generates a trampoline to jump to the off-heap instruction stream.
+  void JumpToInstructionStream(const InstructionStream* stream);
 
   // -------------------------------------------------------------------------
   // StatsCounter support.

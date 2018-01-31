@@ -15,6 +15,7 @@
 #include "src/external-reference-table.h"
 #include "src/frames-inl.h"
 #include "src/heap/heap-inl.h"
+#include "src/instruction-stream.h"
 #include "src/objects-inl.h"
 #include "src/register-configuration.h"
 #include "src/x64/assembler-x64.h"
@@ -1629,6 +1630,12 @@ void MacroAssembler::Jump(Address destination, RelocInfo::Mode rmode) {
 void MacroAssembler::Jump(Handle<Code> code_object, RelocInfo::Mode rmode) {
   // TODO(X64): Inline this
   jmp(code_object, rmode);
+}
+
+void MacroAssembler::JumpToInstructionStream(const InstructionStream* stream) {
+  Address bytes_address = reinterpret_cast<Address>(stream->bytes());
+  Move(kOffHeapTrampolineRegister, bytes_address, RelocInfo::NONE);
+  jmp(kOffHeapTrampolineRegister);
 }
 
 int TurboAssembler::CallSize(ExternalReference ext) {

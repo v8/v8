@@ -18,6 +18,7 @@
 #include "src/double.h"
 #include "src/external-reference-table.h"
 #include "src/frames-inl.h"
+#include "src/instruction-stream.h"
 #include "src/objects-inl.h"
 #include "src/register-configuration.h"
 #include "src/runtime/runtime.h"
@@ -1685,6 +1686,12 @@ void MacroAssembler::JumpToExternalReference(const ExternalReference& builtin,
   CEntryStub stub(isolate(), 1, kDontSaveFPRegs, kArgvOnStack,
                   builtin_exit_frame);
   Jump(stub.GetCode(), RelocInfo::CODE_TARGET);
+}
+
+void MacroAssembler::JumpToInstructionStream(const InstructionStream* stream) {
+  int32_t bytes_address = reinterpret_cast<int32_t>(stream->bytes());
+  mov(kOffHeapTrampolineRegister, Operand(bytes_address, RelocInfo::NONE));
+  Jump(kOffHeapTrampolineRegister);
 }
 
 void MacroAssembler::IncrementCounter(StatsCounter* counter, int value,

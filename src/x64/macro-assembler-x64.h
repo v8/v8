@@ -39,6 +39,7 @@ constexpr Register kRootRegister = r13;  // callee save
 // Actual value of root register is offset from the root array's start
 // to take advantage of negitive 8-bit displacement values.
 constexpr int kRootRegisterBias = 128;
+constexpr Register kOffHeapTrampolineRegister = kScratchRegister;
 
 // Convenience for platform-independent signatures.
 typedef Operand MemOperand;
@@ -784,6 +785,9 @@ class MacroAssembler : public TurboAssembler {
   void Jump(ExternalReference ext);
   void Jump(const Operand& op);
   void Jump(Handle<Code> code_object, RelocInfo::Mode rmode);
+
+  // Generates a trampoline to jump to the off-heap instruction stream.
+  void JumpToInstructionStream(const InstructionStream* stream);
 
   // Non-x64 instructions.
   // Push/pop all general purpose registers.

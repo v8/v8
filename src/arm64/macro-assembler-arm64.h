@@ -54,6 +54,7 @@ namespace internal {
 #define kInterpreterTargetBytecodeRegister x18
 #define kJavaScriptCallArgCountRegister x0
 #define kJavaScriptCallNewTargetRegister x3
+#define kOffHeapTrampolineRegister ip0
 #define kRuntimeCallFunctionRegister x1
 #define kRuntimeCallArgCountRegister x0
 
@@ -1765,6 +1766,9 @@ class MacroAssembler : public TurboAssembler {
   // Jump to a runtime routine.
   void JumpToExternalReference(const ExternalReference& builtin,
                                bool builtin_exit_frame = false);
+
+  // Generates a trampoline to jump to the off-heap instruction stream.
+  void JumpToInstructionStream(const InstructionStream* stream);
 
   // Registers used through the invocation chain are hard-coded.
   // We force passing the parameters to ensure the contracts are correctly

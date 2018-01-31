@@ -75,6 +75,7 @@ class HeapObjectToIndexHashMap;
 class HeapProfiler;
 class InlineRuntimeFunctionsTable;
 class InnerPointerToCodeCache;
+class InstructionStream;
 class Logger;
 class MaterializedObjectStore;
 class OptimizingCompileDispatcher;
@@ -1249,6 +1250,10 @@ class Isolate {
     return &partial_snapshot_cache_;
   }
 
+  void PushOffHeapCode(InstructionStream* stream) {
+    off_heap_code_.emplace_back(stream);
+  }
+
   void set_array_buffer_allocator(v8::ArrayBuffer::Allocator* allocator) {
     array_buffer_allocator_ = allocator;
   }
@@ -1619,6 +1624,12 @@ class Isolate {
   BasicBlockProfiler* basic_block_profiler_;
 
   std::vector<Object*> partial_snapshot_cache_;
+
+  // Stores off-heap instruction streams. Only used if --stress-off-heap-code
+  // is enabled.
+  // TODO(jgruber,v8:6666): Remove once isolate-independent builtins are
+  // implemented.
+  std::vector<InstructionStream*> off_heap_code_;
 
   v8::ArrayBuffer::Allocator* array_buffer_allocator_;
 

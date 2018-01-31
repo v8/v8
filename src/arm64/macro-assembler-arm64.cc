@@ -15,6 +15,7 @@
 #include "src/frame-constants.h"
 #include "src/frames-inl.h"
 #include "src/heap/heap-inl.h"
+#include "src/instruction-stream.h"
 #include "src/register-configuration.h"
 #include "src/runtime/runtime.h"
 
@@ -1759,6 +1760,12 @@ void MacroAssembler::JumpToExternalReference(const ExternalReference& builtin,
   CEntryStub stub(isolate(), 1, kDontSaveFPRegs, kArgvOnStack,
                   builtin_exit_frame);
   Jump(stub.GetCode(), RelocInfo::CODE_TARGET);
+}
+
+void MacroAssembler::JumpToInstructionStream(const InstructionStream* stream) {
+  uint64_t bytes_address = reinterpret_cast<uint64_t>(stream->bytes());
+  Mov(kOffHeapTrampolineRegister, bytes_address);
+  Br(kOffHeapTrampolineRegister);
 }
 
 void MacroAssembler::TailCallRuntime(Runtime::FunctionId fid) {

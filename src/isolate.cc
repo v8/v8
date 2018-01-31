@@ -20,6 +20,7 @@
 #include "src/base/utils/random-number-generator.h"
 #include "src/basic-block-profiler.h"
 #include "src/bootstrapper.h"
+#include "src/callable.h"
 #include "src/cancelable-task.h"
 #include "src/code-stubs.h"
 #include "src/compilation-cache.h"
@@ -32,6 +33,7 @@
 #include "src/external-reference-table.h"
 #include "src/frames-inl.h"
 #include "src/ic/stub-cache.h"
+#include "src/instruction-stream.h"
 #include "src/interface-descriptors.h"
 #include "src/interpreter/interpreter.h"
 #include "src/isolate-inl.h"
@@ -2676,6 +2678,12 @@ void Isolate::Deinit() {
   root_index_map_ = nullptr;
 
   ClearSerializerData();
+
+  for (InstructionStream* stream : off_heap_code_) {
+    CHECK(FLAG_stress_off_heap_code);
+    delete stream;
+  }
+  off_heap_code_.clear();
 }
 
 
@@ -2832,6 +2840,110 @@ void PrintBuiltinSizes(Isolate* isolate) {
            code->instruction_size());
   }
 }
+
+#ifdef DEBUG
+bool BuiltinAliasesOffHeapTrampolineRegister(Isolate* isolate,
+                                             int builtin_index) {
+  switch (Builtins::KindOf(builtin_index)) {
+    case Builtins::CPP:
+    case Builtins::TFC:
+    case Builtins::TFH:
+    case Builtins::TFJ:
+    case Builtins::TFS:
+      break;
+    case Builtins::API:
+    case Builtins::ASM:
+      // TODO(jgruber): Extend checks to remaining kinds.
+      return false;
+  }
+
+  Callable callable = Builtins::CallableFor(
+      isolate, static_cast<Builtins::Name>(builtin_index));
+  CallInterfaceDescriptor descriptor = callable.descriptor();
+
+  if (descriptor.ContextRegister() == kOffHeapTrampolineRegister) {
+    return true;
+  }
+
+  for (int i = 0; i < descriptor.GetRegisterParameterCount(); i++) {
+    Register reg = descriptor.GetRegisterParameter(i);
+    if (reg == kOffHeapTrampolineRegister) return true;
+  }
+
+  return false;
+}
+#endif
+
+void ChangeToOffHeapTrampoline(Isolate* isolate, Handle<Code> code,
+                               InstructionStream* stream) {
+  DCHECK(Builtins::IsIsolateIndependent(code->builtin_index()));
+  HandleScope scope(isolate);
+
+  constexpr size_t buffer_size = 256;  // Enough to fit the single jmp.
+  byte buffer[buffer_size];            // NOLINT(runtime/arrays)
+
+  // Generate replacement code that simply tail-calls the off-heap code.
+  MacroAssembler masm(isolate, buffer, buffer_size, CodeObjectRequired::kYes);
+  DCHECK(
+      !BuiltinAliasesOffHeapTrampolineRegister(isolate, code->builtin_index()));
+  DCHECK(!masm.has_frame());
+  {
+    FrameScope scope(&masm, StackFrame::NONE);
+    masm.JumpToInstructionStream(stream);
+  }
+
+  CodeDesc desc;
+  masm.GetCode(isolate, &desc);
+
+  // Hack in an empty reloc info to satisfy the GC.
+  DCHECK_EQ(0, desc.reloc_size);
+  Handle<ByteArray> reloc_info =
+      isolate->factory()->NewByteArray(desc.reloc_size, TENURED);
+  code->set_relocation_info(*reloc_info);
+
+  // Overwrites the original code.
+  code->CopyFrom(desc);
+
+  // TODO(jgruber): CopyFrom isn't intended to overwrite existing code, and
+  // doesn't update things like instruction_size. The result is a code object in
+  // which the first instructions are overwritten while the rest remain intact
+  // (but are never executed). That's fine for our current purposes, just
+  // manually zero the trailing part.
+
+  DCHECK_LE(desc.instr_size, code->instruction_size());
+  byte* trailing_instruction_start =
+      code->instruction_start() + desc.instr_size;
+  size_t trailing_instruction_size = code->instruction_size() - desc.instr_size;
+  std::memset(trailing_instruction_start, 0, trailing_instruction_size);
+}
+
+void LogInstructionStream(Isolate* isolate, const InstructionStream* stream) {
+  // TODO(jgruber): Log the given instruction stream object (the profiler needs
+  // this to assign ticks to builtins).
+}
+
+void MoveBuiltinsOffHeap(Isolate* isolate) {
+  DCHECK(FLAG_stress_off_heap_code);
+  HandleScope scope(isolate);
+  Builtins* builtins = isolate->builtins();
+
+  // TODO(jgruber): Support stack iteration with off-heap on-stack builtins.
+
+  // Lazy deserialization would defeat our off-heap stress test (we'd
+  // deserialize later without moving off-heap), so force eager
+  // deserialization.
+  Snapshot::EnsureAllBuiltinsAreDeserialized(isolate);
+
+  CodeSpaceMemoryModificationScope code_allocation(isolate->heap());
+  for (int i = 0; i < Builtins::builtin_count; i++) {
+    if (!Builtins::IsIsolateIndependent(i)) continue;
+    Handle<Code> code(builtins->builtin(i));
+    InstructionStream* stream = new InstructionStream(*code);
+    LogInstructionStream(isolate, stream);
+    ChangeToOffHeapTrampoline(isolate, code, stream);
+    isolate->PushOffHeapCode(stream);
+  }
+}
 }  // namespace
 
 bool Isolate::Init(StartupDeserializer* des) {
@@ -2979,6 +3091,13 @@ bool Isolate::Init(StartupDeserializer* des) {
   setup_delegate_ = nullptr;
 
   if (FLAG_print_builtin_size) PrintBuiltinSizes(this);
+
+  if (FLAG_stress_off_heap_code && !serializer_enabled()) {
+    // Artificially move code off-heap to help find & verify related code
+    // paths. Lazy deserialization should be off to avoid confusion around
+    // replacing just the kDeserializeLazy code object.
+    MoveBuiltinsOffHeap(this);
+  }
 
   // Finish initialization of ThreadLocal after deserialization is done.
   clear_pending_exception();

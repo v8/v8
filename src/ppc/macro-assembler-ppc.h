@@ -28,6 +28,7 @@ const Register kInterpreterDispatchTableRegister = r17;
 const Register kInterpreterTargetBytecodeRegister = r14;
 const Register kJavaScriptCallArgCountRegister = r3;
 const Register kJavaScriptCallNewTargetRegister = r6;
+const Register kOffHeapTrampolineRegister = ip;
 const Register kRuntimeCallFunctionRegister = r4;
 const Register kRuntimeCallArgCountRegister = r3;
 
@@ -929,6 +930,9 @@ class MacroAssembler : public TurboAssembler {
   // Jump to a runtime routine.
   void JumpToExternalReference(const ExternalReference& builtin,
                                bool builtin_exit_frame = false);
+
+  // Generates a trampoline to jump to the off-heap instruction stream.
+  void JumpToInstructionStream(const InstructionStream* stream);
 
   // ---------------------------------------------------------------------------
   // StatsCounter support

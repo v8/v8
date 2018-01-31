@@ -170,30 +170,11 @@ Callable Builtins::CallableFor(Isolate* isolate, Name name) {
     BUILTIN_LIST(IGNORE_BUILTIN, IGNORE_BUILTIN, IGNORE_BUILTIN, CASE_OTHER,
                  CASE_OTHER, CASE_OTHER, IGNORE_BUILTIN)
 #undef CASE_OTHER
-    case kArrayFilterLoopEagerDeoptContinuation:
-    case kArrayFilterLoopLazyDeoptContinuation:
-    case kArrayEveryLoopEagerDeoptContinuation:
-    case kArrayEveryLoopLazyDeoptContinuation:
-    case kArrayFindIndexLoopAfterCallbackLazyDeoptContinuation:
-    case kArrayFindIndexLoopEagerDeoptContinuation:
-    case kArrayFindIndexLoopLazyDeoptContinuation:
-    case kArrayFindLoopAfterCallbackLazyDeoptContinuation:
-    case kArrayFindLoopEagerDeoptContinuation:
-    case kArrayFindLoopLazyDeoptContinuation:
-    case kArrayForEach:
-    case kArrayForEachLoopEagerDeoptContinuation:
-    case kArrayForEachLoopLazyDeoptContinuation:
-    case kArrayMapLoopEagerDeoptContinuation:
-    case kArrayMapLoopLazyDeoptContinuation:
-    case kArrayReduceLoopEagerDeoptContinuation:
-    case kArrayReduceLoopLazyDeoptContinuation:
-    case kArrayReduceRightLoopEagerDeoptContinuation:
-    case kArrayReduceRightLoopLazyDeoptContinuation:
-    case kArraySomeLoopEagerDeoptContinuation:
-    case kArraySomeLoopLazyDeoptContinuation:
-    case kConsoleAssert:
-      return Callable(code, BuiltinDescriptor(isolate));
     default:
+      Builtins::Kind kind = Builtins::KindOf(name);
+      if (kind == TFJ || kind == CPP) {
+        return Callable(code, BuiltinDescriptor(isolate));
+      }
       UNREACHABLE();
   }
   CallInterfaceDescriptor descriptor(isolate, key);

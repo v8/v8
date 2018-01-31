@@ -14,6 +14,7 @@
 #include "src/external-reference-table.h"
 #include "src/frame-constants.h"
 #include "src/frames-inl.h"
+#include "src/instruction-stream.h"
 #include "src/runtime/runtime.h"
 
 #include "src/ia32/assembler-ia32-inl.h"
@@ -860,6 +861,12 @@ void MacroAssembler::JumpToExternalReference(const ExternalReference& ext,
   CEntryStub ces(isolate(), 1, kDontSaveFPRegs, kArgvOnStack,
                  builtin_exit_frame);
   jmp(ces.GetCode(), RelocInfo::CODE_TARGET);
+}
+
+void MacroAssembler::JumpToInstructionStream(const InstructionStream* stream) {
+  Address bytes_address = reinterpret_cast<Address>(stream->bytes());
+  mov(kOffHeapTrampolineRegister, Immediate(bytes_address, RelocInfo::NONE));
+  jmp(kOffHeapTrampolineRegister);
 }
 
 void TurboAssembler::PrepareForTailCall(

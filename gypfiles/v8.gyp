@@ -1046,6 +1046,8 @@
         '../src/ic/ic.h',
         '../src/identity-map.cc',
         '../src/identity-map.h',
+        '../src/instruction-stream.cc',
+        '../src/instruction-stream.h',
         '../src/interface-descriptors.cc',
         '../src/interface-descriptors.h',
         '../src/interpreter/block-coverage-builder.h',

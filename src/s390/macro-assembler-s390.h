@@ -27,6 +27,7 @@ const Register kInterpreterDispatchTableRegister = r8;
 const Register kInterpreterTargetBytecodeRegister = r5;
 const Register kJavaScriptCallArgCountRegister = r2;
 const Register kJavaScriptCallNewTargetRegister = r5;
+const Register kOffHeapTrampolineRegister = ip;
 const Register kRuntimeCallFunctionRegister = r3;
 const Register kRuntimeCallArgCountRegister = r2;
 
@@ -1082,6 +1083,9 @@ class MacroAssembler : public TurboAssembler {
   // Jump to a runtime routine.
   void JumpToExternalReference(const ExternalReference& builtin,
                                bool builtin_exit_frame = false);
+
+  // Generates a trampoline to jump to the off-heap instruction stream.
+  void JumpToInstructionStream(const InstructionStream* stream);
 
   // Compare the object in a register to a value and jump if they are equal.
   void JumpIfRoot(Register with, Heap::RootListIndex index, Label* if_equal) {

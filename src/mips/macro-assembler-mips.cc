@@ -14,6 +14,7 @@
 #include "src/debug/debug.h"
 #include "src/external-reference-table.h"
 #include "src/frames-inl.h"
+#include "src/instruction-stream.h"
 #include "src/mips/assembler-mips-inl.h"
 #include "src/mips/macro-assembler-mips.h"
 #include "src/register-configuration.h"
@@ -4457,6 +4458,12 @@ void MacroAssembler::JumpToExternalReference(const ExternalReference& builtin,
        zero_reg,
        Operand(zero_reg),
        bd);
+}
+
+void MacroAssembler::JumpToInstructionStream(const InstructionStream* stream) {
+  int32_t bytes_address = reinterpret_cast<int32_t>(stream->bytes());
+  li(kOffHeapTrampolineRegister, Operand(bytes_address, RelocInfo::NONE));
+  Jump(kOffHeapTrampolineRegister);
 }
 
 void MacroAssembler::IncrementCounter(StatsCounter* counter, int value,

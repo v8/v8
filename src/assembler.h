@@ -57,6 +57,7 @@ class ApiFunction;
 namespace internal {
 
 // Forward declarations.
+class InstructionStream;
 class Isolate;
 class SourcePosition;
 class StatsCounter;
