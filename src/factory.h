@@ -388,6 +388,12 @@ class V8_EXPORT_PRIVATE Factory final {
       Handle<ByteArray> source_position_table,
       Handle<SimpleNumberDictionary> stack_frame_cache);
 
+  // Allocate various microtasks.
+  Handle<CallableTask> NewCallableTask(Handle<JSReceiver> callable,
+                                       Handle<Context> context);
+  Handle<CallbackTask> NewCallbackTask(Handle<Foreign> callback,
+                                       Handle<Foreign> data);
+
   // Foreign objects are pretenured when allocated by the bootstrapper.
   Handle<Foreign> NewForeign(Address addr,
                              PretenureFlag pretenure = NOT_TENURED);

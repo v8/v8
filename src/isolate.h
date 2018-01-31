@@ -1205,7 +1205,7 @@ class Isolate {
   void ReportPromiseReject(Handle<JSPromise> promise, Handle<Object> value,
                            v8::PromiseRejectEvent event);
 
-  void EnqueueMicrotask(Handle<Object> microtask);
+  void EnqueueMicrotask(Handle<Microtask> microtask);
   void RunMicrotasks();
   bool IsRunningMicrotasks() const { return is_running_microtasks_; }
 

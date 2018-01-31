@@ -2779,11 +2779,7 @@ TEST(JSPromise) {
   const v8::HeapGraphNode* pending = GetProperty(
       env->GetIsolate(), global, v8::HeapGraphEdge::kProperty, "pending");
   CHECK(GetProperty(env->GetIsolate(), pending, v8::HeapGraphEdge::kInternal,
-                    "deferred_promise"));
-  CHECK(GetProperty(env->GetIsolate(), pending, v8::HeapGraphEdge::kInternal,
-                    "fulfill_reactions"));
-  CHECK(GetProperty(env->GetIsolate(), pending, v8::HeapGraphEdge::kInternal,
-                    "reject_reactions"));
+                    "reactions"));
 
   const char* objectNames[] = {"resolved", "rejected", "pending", "chained"};
   for (auto objectName : objectNames) {

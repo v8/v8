@@ -1015,20 +1015,12 @@ Reduction JSCreateLowering::ReduceJSCreatePromise(Node* node) {
           jsgraph()->EmptyFixedArrayConstant());
   a.Store(AccessBuilder::ForJSObjectOffset(JSPromise::kResultOffset),
           jsgraph()->UndefinedConstant());
-  a.Store(AccessBuilder::ForJSObjectOffset(JSPromise::kDeferredPromiseOffset),
-          jsgraph()->UndefinedConstant());
-  a.Store(AccessBuilder::ForJSObjectOffset(JSPromise::kDeferredOnResolveOffset),
-          jsgraph()->UndefinedConstant());
-  a.Store(AccessBuilder::ForJSObjectOffset(JSPromise::kDeferredOnRejectOffset),
-          jsgraph()->UndefinedConstant());
-  a.Store(AccessBuilder::ForJSObjectOffset(JSPromise::kFulfillReactionsOffset),
-          jsgraph()->UndefinedConstant());
-  a.Store(AccessBuilder::ForJSObjectOffset(JSPromise::kRejectReactionsOffset),
-          jsgraph()->UndefinedConstant());
+  a.Store(AccessBuilder::ForJSObjectOffset(JSPromise::kReactionsOffset),
+          jsgraph()->ZeroConstant());
   STATIC_ASSERT(v8::Promise::kPending == 0);
   a.Store(AccessBuilder::ForJSObjectOffset(JSPromise::kFlagsOffset),
           jsgraph()->ZeroConstant());
-  STATIC_ASSERT(JSPromise::kSize == 10 * kPointerSize);
+  STATIC_ASSERT(JSPromise::kSize == 6 * kPointerSize);
   for (int i = 0; i < v8::Promise::kEmbedderFieldCount; ++i) {
     a.Store(
         AccessBuilder::ForJSObjectOffset(JSPromise::kSize + i * kPointerSize),

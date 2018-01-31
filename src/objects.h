@@ -140,8 +140,7 @@
 //     - SharedFunctionInfo
 //     - Struct
 //       - AccessorInfo
-//       - PromiseResolveThenableJobInfo
-//       - PromiseReactionJobInfo
+//       - PromiseReaction
 //       - PromiseCapability
 //       - AccessorPair
 //       - AccessCheckInfo
@@ -159,6 +158,13 @@
 //       - SourcePositionTableWithFrameCache
 //       - CodeCache
 //       - PrototypeInfo
+//       - Microtask
+//         - CallbackTask
+//         - CallableTask
+//         - PromiseReactionJobTask
+//           - PromiseFulfillReactionJobTask
+//           - PromiseRejectReactionJobTask
+//         - PromiseResolveThenableJobTask
 //       - Module
 //       - ModuleInfoEntry
 //       - PreParsedScopeData
@@ -367,13 +373,19 @@ const int kStubMinorKeyBits = kSmiValueSize - kStubMajorKeyBits - 1;
   V(MODULE_INFO_ENTRY_TYPE)                                     \
   V(MODULE_TYPE)                                                \
   V(OBJECT_TEMPLATE_INFO_TYPE)                                  \
-  V(PROMISE_REACTION_JOB_INFO_TYPE)                             \
-  V(PROMISE_RESOLVE_THENABLE_JOB_INFO_TYPE)                     \
+  V(PROMISE_CAPABILITY_TYPE)                                    \
+  V(PROMISE_REACTION_TYPE)                                      \
   V(PROTOTYPE_INFO_TYPE)                                        \
   V(SCRIPT_TYPE)                                                \
   V(STACK_FRAME_INFO_TYPE)                                      \
   V(TUPLE2_TYPE)                                                \
   V(TUPLE3_TYPE)                                                \
+                                                                \
+  V(CALLABLE_TASK_TYPE)                                         \
+  V(CALLBACK_TASK_TYPE)                                         \
+  V(PROMISE_FULFILL_REACTION_JOB_TASK_TYPE)                     \
+  V(PROMISE_REJECT_REACTION_JOB_TASK_TYPE)                      \
+  V(PROMISE_RESOLVE_THENABLE_JOB_TASK_TYPE)                     \
                                                                 \
   V(FIXED_ARRAY_TYPE)                                           \
   V(DESCRIPTOR_ARRAY_TYPE)                                      \
@@ -555,15 +567,21 @@ const int kStubMinorKeyBits = kSmiValueSize - kStubMajorKeyBits - 1;
   V(MODULE_INFO_ENTRY, ModuleInfoEntry, module_info_entry)                   \
   V(MODULE, Module, module)                                                  \
   V(OBJECT_TEMPLATE_INFO, ObjectTemplateInfo, object_template_info)          \
-  V(PROMISE_REACTION_JOB_INFO, PromiseReactionJobInfo,                       \
-    promise_reaction_job_info)                                               \
-  V(PROMISE_RESOLVE_THENABLE_JOB_INFO, PromiseResolveThenableJobInfo,        \
-    promise_resolve_thenable_job_info)                                       \
+  V(PROMISE_CAPABILITY, PromiseCapability, promise_capability)               \
+  V(PROMISE_REACTION, PromiseReaction, promise_reaction)                     \
   V(PROTOTYPE_INFO, PrototypeInfo, prototype_info)                           \
   V(SCRIPT, Script, script)                                                  \
   V(STACK_FRAME_INFO, StackFrameInfo, stack_frame_info)                      \
   V(TUPLE2, Tuple2, tuple2)                                                  \
-  V(TUPLE3, Tuple3, tuple3)
+  V(TUPLE3, Tuple3, tuple3)                                                  \
+  V(CALLABLE_TASK, CallableTask, callable_task)                              \
+  V(CALLBACK_TASK, CallbackTask, callback_task)                              \
+  V(PROMISE_FULFILL_REACTION_JOB_TASK, PromiseFulfillReactionJobTask,        \
+    promise_fulfill_reaction_job_task)                                       \
+  V(PROMISE_REJECT_REACTION_JOB_TASK, PromiseRejectReactionJobTask,          \
+    promise_reject_reaction_job_task)                                        \
+  V(PROMISE_RESOLVE_THENABLE_JOB_TASK, PromiseResolveThenableJobTask,        \
+    promise_resolve_thenable_job_task)
 
 #define DATA_HANDLER_LIST(V)                        \
   V(LOAD_HANDLER, LoadHandler, 1, load_handler1)    \
@@ -737,13 +755,19 @@ enum InstanceType : uint16_t {
   MODULE_INFO_ENTRY_TYPE,
   MODULE_TYPE,
   OBJECT_TEMPLATE_INFO_TYPE,
-  PROMISE_REACTION_JOB_INFO_TYPE,
-  PROMISE_RESOLVE_THENABLE_JOB_INFO_TYPE,
+  PROMISE_CAPABILITY_TYPE,
+  PROMISE_REACTION_TYPE,
   PROTOTYPE_INFO_TYPE,
   SCRIPT_TYPE,
   STACK_FRAME_INFO_TYPE,
   TUPLE2_TYPE,
   TUPLE3_TYPE,
+
+  CALLABLE_TASK_TYPE,  // FIRST_MICROTASK_TYPE
+  CALLBACK_TASK_TYPE,
+  PROMISE_FULFILL_REACTION_JOB_TASK_TYPE,
+  PROMISE_REJECT_REACTION_JOB_TASK_TYPE,
+  PROMISE_RESOLVE_THENABLE_JOB_TASK_TYPE,  // LAST_MICROTASK_TYPE
 
   // FixedArrays.
   FIXED_ARRAY_TYPE,  // FIRST_FIXED_ARRAY_TYPE
@@ -834,6 +858,9 @@ enum InstanceType : uint16_t {
   // Boundaries for testing if given HeapObject is a subclass of FixedArray.
   FIRST_FIXED_ARRAY_TYPE = FIXED_ARRAY_TYPE,
   LAST_FIXED_ARRAY_TYPE = TRANSITION_ARRAY_TYPE,
+  // Boundaries for testing if given HeapObject is a subclass of Microtask.
+  FIRST_MICROTASK_TYPE = CALLABLE_TASK_TYPE,
+  LAST_MICROTASK_TYPE = PROMISE_RESOLVE_THENABLE_JOB_TASK_TYPE,
   // Boundaries for testing for a fixed typed array.
   FIRST_FIXED_TYPED_ARRAY_TYPE = FIXED_INT8_ARRAY_TYPE,
   LAST_FIXED_TYPED_ARRAY_TYPE = FIXED_UINT8_CLAMPED_ARRAY_TYPE,
@@ -911,6 +938,7 @@ class FixedArrayBase;
 class PropertyArray;
 class FunctionLiteral;
 class JSGlobalObject;
+class JSPromise;
 class KeyAccumulator;
 class LayoutDescriptor;
 class LookupIterator;
@@ -1046,6 +1074,7 @@ template <class C> inline bool Is(Object* obj);
   V(LoadHandler)                          \
   V(Map)                                  \
   V(MapCache)                             \
+  V(Microtask)                            \
   V(ModuleInfo)                           \
   V(MutableHeapNumber)                    \
   V(Name)                                 \
@@ -1059,7 +1088,7 @@ template <class C> inline bool Is(Object* obj);
   V(OrderedHashMap)                       \
   V(OrderedHashSet)                       \
   V(PreParsedScopeData)                   \
-  V(PromiseCapability)                    \
+  V(PromiseReactionJobTask)               \
   V(PropertyArray)                        \
   V(PropertyCell)                         \
   V(PropertyDescriptorObject)             \
@@ -2871,84 +2900,203 @@ class Tuple3 : public Tuple2 {
   DISALLOW_IMPLICIT_CONSTRUCTORS(Tuple3);
 };
 
-class PromiseCapability : public Tuple3 {
+// Abstract base class for all microtasks that can be scheduled on the
+// microtask queue. This class merely serves the purpose of a marker
+// interface.
+class Microtask : public Struct {
  public:
-  DECL_CAST(PromiseCapability)
-  DECL_PRINTER(PromiseCapability)
-  DECL_VERIFIER(PromiseCapability)
+  // Dispatched behavior.
+  DECL_CAST(Microtask)
+  DECL_VERIFIER(Microtask)
 
-  DECL_ACCESSORS(promise, Object)
+ private:
+  DISALLOW_IMPLICIT_CONSTRUCTORS(Microtask);
+};
+
+// A CallbackTask is a special Microtask that allows us to schedule
+// C++ microtask callbacks on the microtask queue. This is heavily
+// used by Blink for example.
+class CallbackTask : public Microtask {
+ public:
+  DECL_ACCESSORS(callback, Foreign)
+  DECL_ACCESSORS(data, Foreign)
+
+  static const int kCallbackOffset = Microtask::kHeaderSize;
+  static const int kDataOffset = kCallbackOffset + kPointerSize;
+  static const int kSize = kDataOffset + kPointerSize;
+
+  // Dispatched behavior.
+  DECL_CAST(CallbackTask)
+  DECL_PRINTER(CallbackTask)
+  DECL_VERIFIER(CallbackTask)
+
+ private:
+  DISALLOW_IMPLICIT_CONSTRUCTORS(CallbackTask)
+};
+
+// A CallableTask is a special (internal) Microtask that allows us to
+// schedule arbitrary callables on the microtask queue. We use this
+// for various tests of the microtask queue.
+class CallableTask : public Microtask {
+ public:
+  DECL_ACCESSORS(callable, JSReceiver)
+  DECL_ACCESSORS(context, Context)
+
+  static const int kCallableOffset = Microtask::kHeaderSize;
+  static const int kContextOffset = kCallableOffset + kPointerSize;
+  static const int kSize = kContextOffset + kPointerSize;
+
+  // Dispatched behavior.
+  DECL_CAST(CallableTask)
+  DECL_PRINTER(CallableTask)
+  DECL_VERIFIER(CallableTask)
+  void BriefPrintDetails(std::ostream& os);
+
+ private:
+  DISALLOW_IMPLICIT_CONSTRUCTORS(CallableTask);
+};
+
+// Struct to hold state required for PromiseReactionJob. See the comment on the
+// PromiseReaction below for details on how this is being managed to reduce the
+// memory and allocation overhead. This is the base class for the concrete
+//
+//   - PromiseFulfillReactionJobTask
+//   - PromiseRejectReactionJobTask
+//
+// classes, which are used to represent either reactions, and we distinguish
+// them by their instance types.
+class PromiseReactionJobTask : public Microtask {
+ public:
+  DECL_ACCESSORS(argument, Object)
+  DECL_ACCESSORS(context, Context)
+  DECL_ACCESSORS(handler, HeapObject)
+  // [promise_or_capability]: Either a JSPromise or a PromiseCapability.
+  DECL_ACCESSORS(promise_or_capability, HeapObject)
+
+  static const int kArgumentOffset = Microtask::kHeaderSize;
+  static const int kContextOffset = kArgumentOffset + kPointerSize;
+  static const int kHandlerOffset = kContextOffset + kPointerSize;
+  static const int kPromiseOrCapabilityOffset = kHandlerOffset + kPointerSize;
+  static const int kSize = kPromiseOrCapabilityOffset + kPointerSize;
+
+  // Dispatched behavior.
+  DECL_CAST(PromiseReactionJobTask)
+  DECL_VERIFIER(PromiseReactionJobTask)
+
+ private:
+  DISALLOW_IMPLICIT_CONSTRUCTORS(PromiseReactionJobTask);
+};
+
+// Struct to hold state required for a PromiseReactionJob of type "Fulfill".
+class PromiseFulfillReactionJobTask : public PromiseReactionJobTask {
+ public:
+  // Dispatched behavior.
+  DECL_CAST(PromiseFulfillReactionJobTask)
+  DECL_PRINTER(PromiseFulfillReactionJobTask)
+  DECL_VERIFIER(PromiseFulfillReactionJobTask)
+
+ private:
+  DISALLOW_IMPLICIT_CONSTRUCTORS(PromiseFulfillReactionJobTask);
+};
+
+// Struct to hold state required for a PromiseReactionJob of type "Reject".
+class PromiseRejectReactionJobTask : public PromiseReactionJobTask {
+ public:
+  // Dispatched behavior.
+  DECL_CAST(PromiseRejectReactionJobTask)
+  DECL_PRINTER(PromiseRejectReactionJobTask)
+  DECL_VERIFIER(PromiseRejectReactionJobTask)
+
+ private:
+  DISALLOW_IMPLICIT_CONSTRUCTORS(PromiseRejectReactionJobTask);
+};
+
+// A container struct to hold state required for PromiseResolveThenableJob.
+class PromiseResolveThenableJobTask : public Microtask {
+ public:
+  DECL_ACCESSORS(context, Context)
+  DECL_ACCESSORS(promise_to_resolve, JSPromise)
+  DECL_ACCESSORS(then, JSReceiver)
+  DECL_ACCESSORS(thenable, JSReceiver)
+
+  static const int kContextOffset = Microtask::kHeaderSize;
+  static const int kPromiseToResolveOffset = kContextOffset + kPointerSize;
+  static const int kThenOffset = kPromiseToResolveOffset + kPointerSize;
+  static const int kThenableOffset = kThenOffset + kPointerSize;
+  static const int kSize = kThenableOffset + kPointerSize;
+
+  // Dispatched behavior.
+  DECL_CAST(PromiseResolveThenableJobTask)
+  DECL_PRINTER(PromiseResolveThenableJobTask)
+  DECL_VERIFIER(PromiseResolveThenableJobTask)
+
+ private:
+  DISALLOW_IMPLICIT_CONSTRUCTORS(PromiseResolveThenableJobTask);
+};
+
+// Struct to hold the state of a PromiseCapability.
+class PromiseCapability : public Struct {
+ public:
+  DECL_ACCESSORS(promise, HeapObject)
   DECL_ACCESSORS(resolve, Object)
   DECL_ACCESSORS(reject, Object)
 
-  static const int kPromiseOffset = Tuple3::kValue1Offset;
-  static const int kResolveOffset = Tuple3::kValue2Offset;
-  static const int kRejectOffset = Tuple3::kValue3Offset;
-  static const int kSize = Tuple3::kSize;
+  static const int kPromiseOffset = Struct::kHeaderSize;
+  static const int kResolveOffset = kPromiseOffset + kPointerSize;
+  static const int kRejectOffset = kResolveOffset + kPointerSize;
+  static const int kSize = kRejectOffset + kPointerSize;
+
+  // Dispatched behavior.
+  DECL_CAST(PromiseCapability)
+  DECL_PRINTER(PromiseCapability)
+  DECL_VERIFIER(PromiseCapability)
 
  private:
   DISALLOW_IMPLICIT_CONSTRUCTORS(PromiseCapability);
 };
 
-// A container struct to hold state required for PromiseResolveThenableJob.
-class PromiseResolveThenableJobInfo : public Struct {
+// A representation of promise reaction. This differs from the specification
+// in that the PromiseReaction here holds both handlers for the fulfill and
+// the reject case. When a JSPromise is eventually resolved (either via
+// fulfilling it or rejecting it), we morph this PromiseReaction object in
+// memory into a proper PromiseReactionJobTask and schedule it on the queue
+// of microtasks. So the size of PromiseReaction and the size of the
+// PromiseReactionJobTask has to be same for this to work.
+//
+// The PromiseReaction::promise_or_capability field can either hold a JSPromise
+// instance (in the fast case of a native promise) or a PromiseCapability in
+// case of a Promise subclass.
+//
+// We need to keep the context in the PromiseReaction so that we can run
+// the default handlers (in case they are undefined) in the proper context.
+//
+// The PromiseReaction objects form a singly-linked list, terminated by
+// Smi 0. On the JSPromise instance they are linked in reverse order,
+// and are turned into the proper order again when scheduling them on
+// the microtask queue.
+class PromiseReaction : public Struct {
  public:
-  DECL_ACCESSORS(thenable, JSReceiver)
-  DECL_ACCESSORS(then, JSReceiver)
-  DECL_ACCESSORS(resolve, JSFunction)
-  DECL_ACCESSORS(reject, JSFunction)
+  enum Type { kFulfill, kReject };
 
-  DECL_ACCESSORS(context, Context)
+  DECL_ACCESSORS(next, Object)
+  DECL_ACCESSORS(reject_handler, HeapObject)
+  DECL_ACCESSORS(fulfill_handler, HeapObject)
+  DECL_ACCESSORS(promise_or_capability, HeapObject)
 
-  static const int kThenableOffset = Struct::kHeaderSize;
-  static const int kThenOffset = kThenableOffset + kPointerSize;
-  static const int kResolveOffset = kThenOffset + kPointerSize;
-  static const int kRejectOffset = kResolveOffset + kPointerSize;
-  static const int kContextOffset = kRejectOffset + kPointerSize;
-  static const int kSize = kContextOffset + kPointerSize;
+  static const int kNextOffset = Struct::kHeaderSize;
+  static const int kRejectHandlerOffset = kNextOffset + kPointerSize;
+  static const int kFulfillHandlerOffset = kRejectHandlerOffset + kPointerSize;
+  static const int kPromiseOrCapabilityOffset =
+      kFulfillHandlerOffset + kPointerSize;
+  static const int kSize = kPromiseOrCapabilityOffset + kPointerSize;
 
-  DECL_CAST(PromiseResolveThenableJobInfo)
-  DECL_PRINTER(PromiseResolveThenableJobInfo)
-  DECL_VERIFIER(PromiseResolveThenableJobInfo)
+  // Dispatched behavior.
+  DECL_CAST(PromiseReaction)
+  DECL_PRINTER(PromiseReaction)
+  DECL_VERIFIER(PromiseReaction)
 
  private:
-  DISALLOW_IMPLICIT_CONSTRUCTORS(PromiseResolveThenableJobInfo);
-};
-
-class JSPromise;
-
-// Struct to hold state required for PromiseReactionJob.
-class PromiseReactionJobInfo : public Struct {
- public:
-  DECL_ACCESSORS(value, Object)
-  DECL_ACCESSORS(tasks, Object)
-
-  // Check comment in JSPromise for information on what state these
-  // deferred fields could be in.
-  DECL_ACCESSORS(deferred_promise, Object)
-  DECL_ACCESSORS(deferred_on_resolve, Object)
-  DECL_ACCESSORS(deferred_on_reject, Object)
-
-  DECL_INT_ACCESSORS(debug_id)
-
-  DECL_ACCESSORS(context, Context)
-
-  static const int kValueOffset = Struct::kHeaderSize;
-  static const int kTasksOffset = kValueOffset + kPointerSize;
-  static const int kDeferredPromiseOffset = kTasksOffset + kPointerSize;
-  static const int kDeferredOnResolveOffset =
-      kDeferredPromiseOffset + kPointerSize;
-  static const int kDeferredOnRejectOffset =
-      kDeferredOnResolveOffset + kPointerSize;
-  static const int kContextOffset = kDeferredOnRejectOffset + kPointerSize;
-  static const int kSize = kContextOffset + kPointerSize;
-
-  DECL_CAST(PromiseReactionJobInfo)
-  DECL_PRINTER(PromiseReactionJobInfo)
-  DECL_VERIFIER(PromiseReactionJobInfo)
-
- private:
-  DISALLOW_IMPLICIT_CONSTRUCTORS(PromiseReactionJobInfo);
+  DISALLOW_IMPLICIT_CONSTRUCTORS(PromiseReaction);
 };
 
 class AsyncGeneratorRequest : public Struct {
@@ -3852,26 +4000,11 @@ class JSMessageObject: public JSObject {
 
 class JSPromise : public JSObject {
  public:
+  // TODO(bmeurer): Overlay {result} and {reactions}!
   DECL_ACCESSORS(result, Object)
 
-  // There are 3 possible states for these fields --
-  // 1) Undefined -- This is the zero state when there is no callback
-  // or deferred fields registered.
-  //
-  // 2) Object -- There is a single callback directly attached to the
-  // fulfill_reactions, reject_reactions and the deferred fields are
-  // directly attached to the slots. In this state, deferred_promise
-  // is a JSReceiver and deferred_on_{resolve, reject} are Callables.
-  //
-  // 3) FixedArray -- There is more than one callback and deferred
-  // fields attached to a FixedArray.
-  //
-  // The callback can be a Callable or a Symbol.
-  DECL_ACCESSORS(deferred_promise, Object)
-  DECL_ACCESSORS(deferred_on_resolve, Object)
-  DECL_ACCESSORS(deferred_on_reject, Object)
-  DECL_ACCESSORS(fulfill_reactions, Object)
-  DECL_ACCESSORS(reject_reactions, Object)
+  // [reactions]: Smi 0 terminated list of PromiseReaction objects.
+  DECL_ACCESSORS(reactions, Object)
 
   DECL_INT_ACCESSORS(flags)
 
@@ -3893,16 +4026,8 @@ class JSPromise : public JSObject {
 
   // Layout description.
   static const int kResultOffset = JSObject::kHeaderSize;
-  static const int kDeferredPromiseOffset = kResultOffset + kPointerSize;
-  static const int kDeferredOnResolveOffset =
-      kDeferredPromiseOffset + kPointerSize;
-  static const int kDeferredOnRejectOffset =
-      kDeferredOnResolveOffset + kPointerSize;
-  static const int kFulfillReactionsOffset =
-      kDeferredOnRejectOffset + kPointerSize;
-  static const int kRejectReactionsOffset =
-      kFulfillReactionsOffset + kPointerSize;
-  static const int kFlagsOffset = kRejectReactionsOffset + kPointerSize;
+  static const int kReactionsOffset = kResultOffset + kPointerSize;
+  static const int kFlagsOffset = kReactionsOffset + kPointerSize;
   static const int kSize = kFlagsOffset + kPointerSize;
   static const int kSizeWithEmbedderFields =
       kSize + v8::Promise::kEmbedderFieldCount * kPointerSize;

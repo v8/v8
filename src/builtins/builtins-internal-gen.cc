@@ -628,6 +628,9 @@ class InternalBuiltinsAssembler : public CodeStubAssembler {
   void EnterMicrotaskContext(TNode<Context> context);
   void LeaveMicrotaskContext();
 
+  void RunPromiseHook(Runtime::FunctionId id, TNode<Context> context,
+                      SloppyTNode<HeapObject> promise_or_capability);
+
   TNode<Object> GetPendingException() {
     auto ref = ExternalReference(kPendingExceptionAddress, isolate());
     return TNode<Object>::UncheckedCast(
@@ -745,6 +748,28 @@ void InternalBuiltinsAssembler::LeaveMicrotaskContext() {
   }
 }
 
+void InternalBuiltinsAssembler::RunPromiseHook(
+    Runtime::FunctionId id, TNode<Context> context,
+    SloppyTNode<HeapObject> promise_or_capability) {
+  Label hook(this, Label::kDeferred), done_hook(this);
+  Branch(IsPromiseHookEnabledOrDebugIsActive(), &hook, &done_hook);
+  BIND(&hook);
+  {
+    // Get to the underlying JSPromise instance.
+    Node* const promise =
+        Select(IsJSPromise(promise_or_capability),
+               [=] { return promise_or_capability; },
+               [=] {
+                 return LoadObjectField(promise_or_capability,
+                                        PromiseCapability::kPromiseOffset);
+               },
+               MachineRepresentation::kTagged);
+    CallRuntime(id, context, promise);
+    Goto(&done_hook);
+  }
+  BIND(&done_hook);
+}
+
 TF_BUILTIN(EnqueueMicrotask, InternalBuiltinsAssembler) {
   Node* microtask = Parameter(Descriptor::kMicrotask);
 
@@ -820,7 +845,7 @@ TF_BUILTIN(RunMicrotasks, InternalBuiltinsAssembler) {
   BIND(&init_queue_loop);
   {
     TVARIABLE(IntPtrT, index, IntPtrConstant(0));
-    Label loop(this, &index);
+    Label loop(this, &index), loop_next(this);
 
     TNode<IntPtrT> num_tasks = GetPendingMicrotaskCount();
     ReturnIf(IntPtrEqual(num_tasks, IntPtrConstant(0)), UndefinedConstant());
@@ -847,31 +872,56 @@ TF_BUILTIN(RunMicrotasks, InternalBuiltinsAssembler) {
       TNode<Map> microtask_map = LoadMap(microtask);
       TNode<Int32T> microtask_type = LoadMapInstanceType(microtask_map);
 
-      Label is_call_handler_info(this);
-      Label is_function(this);
-      Label is_promise_resolve_thenable_job(this);
-      Label is_promise_reaction_job(this);
-      Label is_unreachable(this);
+      VARIABLE(var_exception, MachineRepresentation::kTagged,
+               TheHoleConstant());
+      Label if_exception(this, Label::kDeferred);
+      Label is_callable(this), is_callback(this),
+          is_promise_fulfill_reaction_job(this),
+          is_promise_reject_reaction_job(this),
+          is_promise_resolve_thenable_job(this),
+          is_unreachable(this, Label::kDeferred);
 
-      int32_t case_values[] = {TUPLE3_TYPE,  // CallHandlerInfo
-                               JS_FUNCTION_TYPE,
-                               PROMISE_RESOLVE_THENABLE_JOB_INFO_TYPE,
-                               PROMISE_REACTION_JOB_INFO_TYPE};
-
-      Label* case_labels[] = {&is_call_handler_info, &is_function,
-                              &is_promise_resolve_thenable_job,
-                              &is_promise_reaction_job};
-
+      int32_t case_values[] = {CALLABLE_TASK_TYPE, CALLBACK_TASK_TYPE,
+                               PROMISE_FULFILL_REACTION_JOB_TASK_TYPE,
+                               PROMISE_REJECT_REACTION_JOB_TASK_TYPE,
+                               PROMISE_RESOLVE_THENABLE_JOB_TASK_TYPE};
+      Label* case_labels[] = {
+          &is_callable, &is_callback, &is_promise_fulfill_reaction_job,
+          &is_promise_reject_reaction_job, &is_promise_resolve_thenable_job};
       static_assert(arraysize(case_values) == arraysize(case_labels), "");
       Switch(microtask_type, &is_unreachable, case_values, case_labels,
              arraysize(case_labels));
 
-      BIND(&is_call_handler_info);
+      BIND(&is_callable);
+      {
+        // Enter the context of the {microtask}.
+        TNode<Context> microtask_context = TNode<Context>::UncheckedCast(
+            LoadObjectField(microtask, CallableTask::kContextOffset));
+        TNode<Context> native_context =
+            TNode<Context>::UncheckedCast(LoadNativeContext(microtask_context));
+        CSA_ASSERT(this, IsNativeContext(native_context));
+        EnterMicrotaskContext(microtask_context);
+        SetCurrentContext(native_context);
+
+        TNode<JSReceiver> callable = TNode<JSReceiver>::UncheckedCast(
+            LoadObjectField(microtask, CallableTask::kCallableOffset));
+        Node* const result = CallJS(
+            CodeFactory::Call(isolate(), ConvertReceiverMode::kNullOrUndefined),
+            microtask_context, callable, UndefinedConstant());
+        GotoIfException(result, &if_exception, &var_exception);
+        Goto(&loop_next);
+      }
+
+      BIND(&is_callback);
       {
         Node* const microtask_callback =
-            LoadObjectField(microtask, CallHandlerInfo::kCallbackOffset);
+            LoadObjectField(microtask, CallbackTask::kCallbackOffset);
         Node* const microtask_data =
-            LoadObjectField(microtask, CallHandlerInfo::kDataOffset);
+            LoadObjectField(microtask, CallbackTask::kDataOffset);
+
+        // We don't have a context for callback tasks, so we just execute
+        // them in the current native context.
+        EnterMicrotaskContext(current_context);
 
         // If this turns out to become a bottleneck because of the calls
         // to C++ via CEntryStub, we can choose to speed them up using a
@@ -882,167 +932,125 @@ TF_BUILTIN(RunMicrotasks, InternalBuiltinsAssembler) {
         //
         // But from our current measurements it doesn't seem to be a
         // serious performance problem, even if the microtask is full
-        // of CallHandlerInfo tasks (which is not a realistic use case
-        // anyways).
-        Label if_continue(this);
+        // of CallHandlerTasks (which is not a realistic use case anyways).
         Node* const result =
             CallRuntime(Runtime::kRunMicrotaskCallback, current_context,
                         microtask_callback, microtask_data);
-        GotoIfException(result, &if_continue);
-        Goto(&if_continue);
-        BIND(&if_continue);
-        Branch(IntPtrLessThan(index, num_tasks), &loop, &init_queue_loop);
-      }
-
-      BIND(&is_function);
-      {
-        Label cont(this);
-        VARIABLE(exception, MachineRepresentation::kTagged, TheHoleConstant());
-        TNode<Context> fn_context = TNode<Context>::UncheckedCast(
-            LoadObjectField(microtask, JSFunction::kContextOffset));
-        TNode<Context> native_context =
-            TNode<Context>::UncheckedCast(LoadNativeContext(fn_context));
-        SetCurrentContext(native_context);
-        EnterMicrotaskContext(fn_context);
-        Node* const call = CallJS(CodeFactory::Call(isolate()), native_context,
-                                  microtask, UndefinedConstant());
-        GotoIfException(call, &cont);
-        Goto(&cont);
-        BIND(&cont);
-        LeaveMicrotaskContext();
-        SetCurrentContext(current_context);
-        Branch(IntPtrLessThan(index, num_tasks), &loop, &init_queue_loop);
+        GotoIfException(result, &if_exception, &var_exception);
+        Goto(&loop_next);
       }
 
       BIND(&is_promise_resolve_thenable_job);
       {
-        VARIABLE(exception, MachineRepresentation::kTagged, TheHoleConstant());
+        // Enter the context of the {microtask}.
         TNode<Context> microtask_context =
             TNode<Context>::UncheckedCast(LoadObjectField(
-                microtask, PromiseResolveThenableJobInfo::kContextOffset));
+                microtask, PromiseResolveThenableJobTask::kContextOffset));
         TNode<Context> native_context =
             TNode<Context>::UncheckedCast(LoadNativeContext(microtask_context));
-        SetCurrentContext(native_context);
+        CSA_ASSERT(this, IsNativeContext(native_context));
         EnterMicrotaskContext(microtask_context);
+        SetCurrentContext(native_context);
 
-        Label if_unhandled_exception(this), done(this);
-        Node* const ret = CallBuiltin(Builtins::kPromiseResolveThenableJob,
-                                      native_context, microtask);
-        GotoIfException(ret, &if_unhandled_exception, &exception);
-        Goto(&done);
+        Node* const promise_to_resolve = LoadObjectField(
+            microtask, PromiseResolveThenableJobTask::kPromiseToResolveOffset);
+        Node* const then = LoadObjectField(
+            microtask, PromiseResolveThenableJobTask::kThenOffset);
+        Node* const thenable = LoadObjectField(
+            microtask, PromiseResolveThenableJobTask::kThenableOffset);
 
-        BIND(&if_unhandled_exception);
-        CallRuntime(Runtime::kReportMessage, native_context, exception.value());
-        Goto(&done);
-
-        BIND(&done);
-        LeaveMicrotaskContext();
-        SetCurrentContext(current_context);
-
-        Branch(IntPtrLessThan(index, num_tasks), &loop, &init_queue_loop);
+        Node* const result =
+            CallBuiltin(Builtins::kPromiseResolveThenableJob, microtask_context,
+                        promise_to_resolve, thenable, then);
+        GotoIfException(result, &if_exception, &var_exception);
+        Goto(&loop_next);
       }
 
-      BIND(&is_promise_reaction_job);
+      BIND(&is_promise_fulfill_reaction_job);
       {
-        Label if_multiple(this);
-        Label if_single(this);
-
-        Node* const value =
-            LoadObjectField(microtask, PromiseReactionJobInfo::kValueOffset);
-        Node* const tasks =
-            LoadObjectField(microtask, PromiseReactionJobInfo::kTasksOffset);
-        Node* const deferred_promises = LoadObjectField(
-            microtask, PromiseReactionJobInfo::kDeferredPromiseOffset);
-        Node* const deferred_on_resolves = LoadObjectField(
-            microtask, PromiseReactionJobInfo::kDeferredOnResolveOffset);
-        Node* const deferred_on_rejects = LoadObjectField(
-            microtask, PromiseReactionJobInfo::kDeferredOnRejectOffset);
-
+        // Enter the context of the {microtask}.
         TNode<Context> microtask_context = TNode<Context>::UncheckedCast(
-            LoadObjectField(microtask, PromiseReactionJobInfo::kContextOffset));
+            LoadObjectField(microtask, PromiseReactionJobTask::kContextOffset));
         TNode<Context> native_context =
             TNode<Context>::UncheckedCast(LoadNativeContext(microtask_context));
-        SetCurrentContext(native_context);
+        CSA_ASSERT(this, IsNativeContext(native_context));
         EnterMicrotaskContext(microtask_context);
+        SetCurrentContext(native_context);
 
-        Branch(IsFixedArray(deferred_promises), &if_multiple, &if_single);
+        Node* const argument =
+            LoadObjectField(microtask, PromiseReactionJobTask::kArgumentOffset);
+        Node* const handler =
+            LoadObjectField(microtask, PromiseReactionJobTask::kHandlerOffset);
+        Node* const promise_or_capability = LoadObjectField(
+            microtask, PromiseReactionJobTask::kPromiseOrCapabilityOffset);
 
-        BIND(&if_single);
-        {
-          CallBuiltin(Builtins::kPromiseHandle, native_context, value, tasks,
-                      deferred_promises, deferred_on_resolves,
-                      deferred_on_rejects);
-          LeaveMicrotaskContext();
-          SetCurrentContext(current_context);
-          Branch(IntPtrLessThan(index, num_tasks), &loop, &init_queue_loop);
-        }
+        // Run the promise before/debug hook if enabled.
+        RunPromiseHook(Runtime::kPromiseHookBefore, microtask_context,
+                       promise_or_capability);
 
-        BIND(&if_multiple);
-        {
-          TVARIABLE(IntPtrT, inner_index, IntPtrConstant(0));
-          TNode<IntPtrT> inner_length =
-              LoadAndUntagFixedArrayBaseLength(deferred_promises);
-          Label inner_loop(this, &inner_index), done(this);
+        Node* const result =
+            CallBuiltin(Builtins::kPromiseFulfillReactionJob, microtask_context,
+                        argument, handler, promise_or_capability);
+        GotoIfException(result, &if_exception, &var_exception);
 
-          CSA_ASSERT(this, IntPtrGreaterThan(inner_length, IntPtrConstant(0)));
-          Goto(&inner_loop);
-          BIND(&inner_loop);
-          {
-            Node* const task = LoadFixedArrayElement(tasks, inner_index);
-            Node* const deferred_promise =
-                LoadFixedArrayElement(deferred_promises, inner_index);
-            Node* const deferred_on_resolve =
-                LoadFixedArrayElement(deferred_on_resolves, inner_index);
-            Node* const deferred_on_reject =
-                LoadFixedArrayElement(deferred_on_rejects, inner_index);
-            CallBuiltin(Builtins::kPromiseHandle, native_context, value, task,
-                        deferred_promise, deferred_on_resolve,
-                        deferred_on_reject);
-            inner_index = IntPtrAdd(inner_index, IntPtrConstant(1));
-            Branch(IntPtrLessThan(inner_index, inner_length), &inner_loop,
-                   &done);
-          }
-          BIND(&done);
+        // Run the promise after/debug hook if enabled.
+        RunPromiseHook(Runtime::kPromiseHookAfter, microtask_context,
+                       promise_or_capability);
 
-          LeaveMicrotaskContext();
-          SetCurrentContext(current_context);
+        Goto(&loop_next);
+      }
 
-          Branch(IntPtrLessThan(index, num_tasks), &loop, &init_queue_loop);
-        }
+      BIND(&is_promise_reject_reaction_job);
+      {
+        // Enter the context of the {microtask}.
+        TNode<Context> microtask_context = TNode<Context>::UncheckedCast(
+            LoadObjectField(microtask, PromiseReactionJobTask::kContextOffset));
+        TNode<Context> native_context =
+            TNode<Context>::UncheckedCast(LoadNativeContext(microtask_context));
+        CSA_ASSERT(this, IsNativeContext(native_context));
+        EnterMicrotaskContext(microtask_context);
+        SetCurrentContext(native_context);
+
+        Node* const argument =
+            LoadObjectField(microtask, PromiseReactionJobTask::kArgumentOffset);
+        Node* const handler =
+            LoadObjectField(microtask, PromiseReactionJobTask::kHandlerOffset);
+        Node* const promise_or_capability = LoadObjectField(
+            microtask, PromiseReactionJobTask::kPromiseOrCapabilityOffset);
+
+        // Run the promise before/debug hook if enabled.
+        RunPromiseHook(Runtime::kPromiseHookBefore, microtask_context,
+                       promise_or_capability);
+
+        Node* const result =
+            CallBuiltin(Builtins::kPromiseRejectReactionJob, microtask_context,
+                        argument, handler, promise_or_capability);
+        GotoIfException(result, &if_exception, &var_exception);
+
+        // Run the promise after/debug hook if enabled.
+        RunPromiseHook(Runtime::kPromiseHookAfter, microtask_context,
+                       promise_or_capability);
+
+        Goto(&loop_next);
       }
 
       BIND(&is_unreachable);
       Unreachable();
+
+      BIND(&if_exception);
+      {
+        // Report unhandled exceptions from microtasks.
+        CallRuntime(Runtime::kReportMessage, current_context,
+                    var_exception.value());
+        Goto(&loop_next);
+      }
+
+      BIND(&loop_next);
+      LeaveMicrotaskContext();
+      SetCurrentContext(current_context);
+      Branch(IntPtrLessThan(index, num_tasks), &loop, &init_queue_loop);
     }
   }
-}
-
-TF_BUILTIN(PromiseResolveThenableJob, InternalBuiltinsAssembler) {
-  VARIABLE(exception, MachineRepresentation::kTagged, TheHoleConstant());
-  Callable call = CodeFactory::Call(isolate());
-  Label reject_promise(this, Label::kDeferred);
-  TNode<PromiseResolveThenableJobInfo> microtask =
-      TNode<PromiseResolveThenableJobInfo>::UncheckedCast(
-          Parameter(Descriptor::kMicrotask));
-  TNode<Context> context =
-      TNode<Context>::UncheckedCast(Parameter(Descriptor::kContext));
-
-  TNode<JSReceiver> thenable = TNode<JSReceiver>::UncheckedCast(LoadObjectField(
-      microtask, PromiseResolveThenableJobInfo::kThenableOffset));
-  TNode<JSReceiver> then = TNode<JSReceiver>::UncheckedCast(
-      LoadObjectField(microtask, PromiseResolveThenableJobInfo::kThenOffset));
-  TNode<JSFunction> resolve = TNode<JSFunction>::UncheckedCast(LoadObjectField(
-      microtask, PromiseResolveThenableJobInfo::kResolveOffset));
-  TNode<JSFunction> reject = TNode<JSFunction>::UncheckedCast(
-      LoadObjectField(microtask, PromiseResolveThenableJobInfo::kRejectOffset));
-
-  Node* const result = CallJS(call, context, then, thenable, resolve, reject);
-  GotoIfException(result, &reject_promise, &exception);
-  Return(UndefinedConstant());
-
-  BIND(&reject_promise);
-  CallJS(call, context, reject, UndefinedConstant(), exception.value());
-  Return(UndefinedConstant());
 }
 
 TF_BUILTIN(AbortJS, CodeStubAssembler) {

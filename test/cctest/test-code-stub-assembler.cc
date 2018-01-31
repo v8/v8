@@ -2069,74 +2069,6 @@ TEST(AllocateAndSetJSPromise) {
   CHECK(!js_promise->has_handler());
 }
 
-TEST(AllocatePromiseReactionJobInfo) {
-  Isolate* isolate(CcTest::InitIsolateOnce());
-
-  const int kNumParams = 1;
-  CodeAssemblerTester asm_tester(isolate, kNumParams);
-  CodeStubAssembler m(asm_tester.state());
-  PromiseBuiltinsAssembler p(asm_tester.state());
-
-  Node* const context = m.Parameter(kNumParams + 2);
-  Node* const tasks =
-      m.AllocateFixedArray(PACKED_ELEMENTS, m.IntPtrConstant(1));
-  m.StoreFixedArrayElement(tasks, 0, m.UndefinedConstant());
-  Node* const deferred_promise =
-      m.AllocateFixedArray(PACKED_ELEMENTS, m.IntPtrConstant(1));
-  m.StoreFixedArrayElement(deferred_promise, 0, m.UndefinedConstant());
-  Node* const info = m.AllocatePromiseReactionJobInfo(
-      m.SmiConstant(1), tasks, deferred_promise, m.UndefinedConstant(),
-      m.UndefinedConstant(), context);
-  m.Return(info);
-
-  FunctionTester ft(asm_tester.GenerateCode(), kNumParams);
-  Handle<Object> result =
-      ft.Call(isolate->factory()->undefined_value()).ToHandleChecked();
-  CHECK(result->IsPromiseReactionJobInfo());
-  Handle<PromiseReactionJobInfo> promise_info =
-      Handle<PromiseReactionJobInfo>::cast(result);
-  CHECK_EQ(Smi::FromInt(1), promise_info->value());
-  CHECK(promise_info->tasks()->IsFixedArray());
-  CHECK(promise_info->deferred_promise()->IsFixedArray());
-  CHECK(promise_info->deferred_on_resolve()->IsUndefined(isolate));
-  CHECK(promise_info->deferred_on_reject()->IsUndefined(isolate));
-  CHECK(promise_info->context()->IsContext());
-}
-
-TEST(AllocatePromiseResolveThenableJobInfo) {
-  Isolate* isolate(CcTest::InitIsolateOnce());
-
-  const int kNumParams = 1;
-  CodeAssemblerTester asm_tester(isolate, kNumParams);
-  PromiseBuiltinsAssembler p(asm_tester.state());
-
-  Node* const context = p.Parameter(kNumParams + 2);
-  Node* const native_context = p.LoadNativeContext(context);
-  Node* const thenable = p.AllocateAndInitJSPromise(context);
-  Node* const then =
-      p.GetProperty(context, thenable, isolate->factory()->then_string());
-  Node* resolve = nullptr;
-  Node* reject = nullptr;
-  std::tie(resolve, reject) = p.CreatePromiseResolvingFunctions(
-      thenable, p.FalseConstant(), native_context);
-
-  Node* const info = p.AllocatePromiseResolveThenableJobInfo(
-      thenable, then, resolve, reject, context);
-  p.Return(info);
-
-  FunctionTester ft(asm_tester.GenerateCode(), kNumParams);
-  Handle<Object> result =
-      ft.Call(isolate->factory()->undefined_value()).ToHandleChecked();
-  CHECK(result->IsPromiseResolveThenableJobInfo());
-  Handle<PromiseResolveThenableJobInfo> promise_info =
-      Handle<PromiseResolveThenableJobInfo>::cast(result);
-  CHECK(promise_info->thenable()->IsJSPromise());
-  CHECK(promise_info->then()->IsJSFunction());
-  CHECK(promise_info->resolve()->IsJSFunction());
-  CHECK(promise_info->reject()->IsJSFunction());
-  CHECK(promise_info->context()->IsContext());
-}
-
 TEST(IsSymbol) {
   Isolate* isolate(CcTest::InitIsolateOnce());
 
@@ -2357,7 +2289,7 @@ TEST(CreatePromiseGetCapabilitiesExecutorContext) {
   Node* const context = m.Parameter(kNumParams + 2);
   Node* const native_context = m.LoadNativeContext(context);
 
-  Node* const map = m.LoadRoot(Heap::kTuple3MapRootIndex);
+  Node* const map = m.LoadRoot(Heap::kPromiseCapabilityMapRootIndex);
   Node* const capability = m.AllocateStruct(map);
   m.StoreObjectFieldNoWriteBarrier(
       capability, PromiseCapability::kPromiseOffset, m.UndefinedConstant());

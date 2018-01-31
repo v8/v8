@@ -322,7 +322,15 @@ bool HeapObject::IsJSWeakCollection() const {
 
 bool HeapObject::IsJSCollection() const { return IsJSMap() || IsJSSet(); }
 
-bool HeapObject::IsPromiseCapability() const { return IsTuple3(); }
+bool HeapObject::IsMicrotask() const {
+  InstanceType instance_type = map()->instance_type();
+  return (instance_type >= FIRST_MICROTASK_TYPE &&
+          instance_type <= LAST_MICROTASK_TYPE);
+}
+
+bool HeapObject::IsPromiseReactionJobTask() const {
+  return IsPromiseFulfillReactionJobTask() || IsPromiseRejectReactionJobTask();
+}
 
 bool HeapObject::IsEnumCache() const { return IsTuple2(); }
 
@@ -554,6 +562,7 @@ CAST_ACCESSOR(AllocationSite)
 CAST_ACCESSOR(AsyncGeneratorRequest)
 CAST_ACCESSOR(BigInt)
 CAST_ACCESSOR(BoilerplateDescription)
+CAST_ACCESSOR(CallbackTask)
 CAST_ACCESSOR(CallHandlerInfo)
 CAST_ACCESSOR(Cell)
 CAST_ACCESSOR(ConstantElementsPair)
@@ -561,6 +570,7 @@ CAST_ACCESSOR(ContextExtension)
 CAST_ACCESSOR(DescriptorArray)
 CAST_ACCESSOR(EnumCache)
 CAST_ACCESSOR(Foreign)
+CAST_ACCESSOR(CallableTask)
 CAST_ACCESSOR(FunctionTemplateInfo)
 CAST_ACCESSOR(GlobalDictionary)
 CAST_ACCESSOR(HeapObject)
@@ -582,6 +592,7 @@ CAST_ACCESSOR(JSReceiver)
 CAST_ACCESSOR(JSStringIterator)
 CAST_ACCESSOR(JSValue)
 CAST_ACCESSOR(LayoutDescriptor)
+CAST_ACCESSOR(Microtask)
 CAST_ACCESSOR(NameDictionary)
 CAST_ACCESSOR(NormalizedMapCache)
 CAST_ACCESSOR(NumberDictionary)
@@ -593,8 +604,11 @@ CAST_ACCESSOR(Oddball)
 CAST_ACCESSOR(OrderedHashMap)
 CAST_ACCESSOR(OrderedHashSet)
 CAST_ACCESSOR(PromiseCapability)
-CAST_ACCESSOR(PromiseReactionJobInfo)
-CAST_ACCESSOR(PromiseResolveThenableJobInfo)
+CAST_ACCESSOR(PromiseReaction)
+CAST_ACCESSOR(PromiseReactionJobTask)
+CAST_ACCESSOR(PromiseFulfillReactionJobTask)
+CAST_ACCESSOR(PromiseRejectReactionJobTask)
+CAST_ACCESSOR(PromiseResolveThenableJobTask)
 CAST_ACCESSOR(PropertyArray)
 CAST_ACCESSOR(PropertyCell)
 CAST_ACCESSOR(PrototypeInfo)
@@ -2277,21 +2291,11 @@ bool AccessorInfo::has_getter() {
   return result;
 }
 
-ACCESSORS(PromiseResolveThenableJobInfo, thenable, JSReceiver, kThenableOffset)
-ACCESSORS(PromiseResolveThenableJobInfo, then, JSReceiver, kThenOffset)
-ACCESSORS(PromiseResolveThenableJobInfo, resolve, JSFunction, kResolveOffset)
-ACCESSORS(PromiseResolveThenableJobInfo, reject, JSFunction, kRejectOffset)
-ACCESSORS(PromiseResolveThenableJobInfo, context, Context, kContextOffset);
-
-ACCESSORS(PromiseReactionJobInfo, value, Object, kValueOffset);
-ACCESSORS(PromiseReactionJobInfo, tasks, Object, kTasksOffset);
-ACCESSORS(PromiseReactionJobInfo, deferred_promise, Object,
-          kDeferredPromiseOffset);
-ACCESSORS(PromiseReactionJobInfo, deferred_on_resolve, Object,
-          kDeferredOnResolveOffset);
-ACCESSORS(PromiseReactionJobInfo, deferred_on_reject, Object,
-          kDeferredOnRejectOffset);
-ACCESSORS(PromiseReactionJobInfo, context, Context, kContextOffset);
+ACCESSORS(PromiseReaction, next, Object, kNextOffset)
+ACCESSORS(PromiseReaction, reject_handler, HeapObject, kRejectHandlerOffset)
+ACCESSORS(PromiseReaction, fulfill_handler, HeapObject, kFulfillHandlerOffset)
+ACCESSORS(PromiseReaction, promise_or_capability, HeapObject,
+          kPromiseOrCapabilityOffset)
 
 ACCESSORS(AsyncGeneratorRequest, next, Object, kNextOffset)
 SMI_ACCESSORS(AsyncGeneratorRequest, resume_mode, kResumeModeOffset)
@@ -2809,18 +2813,30 @@ SMI_ACCESSORS(JSMessageObject, start_position, kStartPositionOffset)
 SMI_ACCESSORS(JSMessageObject, end_position, kEndPositionOffset)
 SMI_ACCESSORS(JSMessageObject, error_level, kErrorLevelOffset)
 
+ACCESSORS(CallableTask, callable, JSReceiver, kCallableOffset)
+ACCESSORS(CallableTask, context, Context, kContextOffset)
 
+ACCESSORS(CallbackTask, callback, Foreign, kCallbackOffset)
+ACCESSORS(CallbackTask, data, Foreign, kDataOffset)
 
-ACCESSORS(PromiseCapability, promise, Object, kPromiseOffset)
+ACCESSORS(PromiseResolveThenableJobTask, context, Context, kContextOffset)
+ACCESSORS(PromiseResolveThenableJobTask, promise_to_resolve, JSPromise,
+          kPromiseToResolveOffset)
+ACCESSORS(PromiseResolveThenableJobTask, then, JSReceiver, kThenOffset)
+ACCESSORS(PromiseResolveThenableJobTask, thenable, JSReceiver, kThenableOffset)
+
+ACCESSORS(PromiseReactionJobTask, context, Context, kContextOffset)
+ACCESSORS(PromiseReactionJobTask, argument, Object, kArgumentOffset);
+ACCESSORS(PromiseReactionJobTask, handler, HeapObject, kHandlerOffset);
+ACCESSORS(PromiseReactionJobTask, promise_or_capability, HeapObject,
+          kPromiseOrCapabilityOffset);
+
+ACCESSORS(PromiseCapability, promise, HeapObject, kPromiseOffset)
 ACCESSORS(PromiseCapability, resolve, Object, kResolveOffset)
 ACCESSORS(PromiseCapability, reject, Object, kRejectOffset)
 
 ACCESSORS(JSPromise, result, Object, kResultOffset)
-ACCESSORS(JSPromise, deferred_promise, Object, kDeferredPromiseOffset)
-ACCESSORS(JSPromise, deferred_on_resolve, Object, kDeferredOnResolveOffset)
-ACCESSORS(JSPromise, deferred_on_reject, Object, kDeferredOnRejectOffset)
-ACCESSORS(JSPromise, fulfill_reactions, Object, kFulfillReactionsOffset)
-ACCESSORS(JSPromise, reject_reactions, Object, kRejectReactionsOffset)
+ACCESSORS(JSPromise, reactions, Object, kReactionsOffset)
 SMI_ACCESSORS(JSPromise, flags, kFlagsOffset)
 BOOL_ACCESSORS(JSPromise, flags, has_handler, kHasHandlerBit)
 BOOL_ACCESSORS(JSPromise, flags, handled_hint, kHandledHintBit)

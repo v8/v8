@@ -7460,7 +7460,7 @@ class V8_EXPORT Isolate {
   /**
    * Enqueues the callback to the Microtask Work Queue
    */
-  void EnqueueMicrotask(MicrotaskCallback microtask, void* data = NULL);
+  void EnqueueMicrotask(MicrotaskCallback callback, void* data = nullptr);
 
   /**
    * Controls how Microtasks are invoked. See MicrotasksPolicy for details.

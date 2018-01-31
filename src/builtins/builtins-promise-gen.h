@@ -90,8 +90,18 @@ class PromiseBuiltinsAssembler : public CodeStubAssembler {
   Node* AllocateAndSetJSPromise(Node* context, v8::Promise::PromiseState status,
                                 Node* result);
 
-  Node* AllocatePromiseResolveThenableJobInfo(Node* result, Node* then,
-                                              Node* resolve, Node* reject,
+  Node* AllocatePromiseReaction(Node* next, Node* promise_or_capability,
+                                Node* fulfill_handler, Node* reject_handler);
+
+  Node* AllocatePromiseReactionJobTask(Heap::RootListIndex map_root_index,
+                                       Node* context, Node* argument,
+                                       Node* handler,
+                                       Node* promise_or_capability);
+  Node* AllocatePromiseReactionJobTask(Node* map, Node* context, Node* argument,
+                                       Node* handler,
+                                       Node* promise_or_capability);
+  Node* AllocatePromiseResolveThenableJobTask(Node* promise_to_resolve,
+                                              Node* then, Node* thenable,
                                               Node* context);
 
   std::pair<Node*, Node*> CreatePromiseResolvingFunctions(
@@ -120,11 +130,9 @@ class PromiseBuiltinsAssembler : public CodeStubAssembler {
   Node* InternalPromiseThen(Node* context, Node* promise, Node* on_resolve,
                             Node* on_reject);
 
-  Node* InternalPerformPromiseThen(Node* context, Node* promise,
-                                   Node* on_resolve, Node* on_reject,
-                                   Node* deferred_promise,
-                                   Node* deferred_on_resolve,
-                                   Node* deferred_on_reject);
+  void InternalPerformPromiseThen(Node* context, Node* promise,
+                                  Node* on_fulfill, Node* on_reject,
+                                  Node* result);
 
   void InternalResolvePromise(Node* context, Node* promise, Node* result);
 
@@ -171,7 +179,12 @@ class PromiseBuiltinsAssembler : public CodeStubAssembler {
                                  const NodeGenerator& handled_by);
 
   Node* PromiseStatus(Node* promise);
-  void PerformFulfillClosure(Node* context, Node* value, bool should_resolve);
+  void PerformFulfillClosure(Node* context, Node* value,
+                             PromiseReaction::Type type);
+
+  void PromiseReactionJob(Node* context, Node* argument, Node* handler,
+                          Node* promise_or_capability,
+                          PromiseReaction::Type type);
 
  private:
   Node* IsPromiseStatus(Node* actual, v8::Promise::PromiseState expected);
