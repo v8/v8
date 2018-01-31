@@ -43,7 +43,7 @@ class TestCase(testcase.TestCase):
 
     self._source_flags = self._parse_source_flags()
 
-  def _get_files_params(self, ctx):
+  def _get_files_params(self):
     return [
       os.path.join(self.suite.root, PROTOCOL_TEST_JS),
       os.path.join(self.suite.root, self.path + self._get_suffix()),

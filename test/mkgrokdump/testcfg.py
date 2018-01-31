@@ -33,7 +33,7 @@ class TestCase(testcase.TestCase):
   def _get_statusfile_flags(self):
     return []
 
-  def _get_mode_flags(self, ctx):
+  def _get_mode_flags(self):
     return []
 
   def get_shell(self):

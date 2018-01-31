@@ -90,9 +90,9 @@ class TestCase(testcase.TestCase):
     files.append(os.path.join(self.suite.root, "resources/standalone-post.js"))
     return files
 
-  def _get_files_params(self, ctx):
+  def _get_files_params(self):
     files = self._source_files
-    if ctx.isolates:
+    if self._test_config.isolates:
       files = files + ['--isolate'] + files
     return files
 

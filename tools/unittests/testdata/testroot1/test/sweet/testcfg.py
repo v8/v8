@@ -24,7 +24,7 @@ class TestCase(testcase.TestCase):
   def get_shell(self):
     return 'd8_mocked.py'
 
-  def _get_files_params(self, ctx):
+  def _get_files_params(self):
     return [self.name]
 
 def GetSuite(*args, **kwargs):

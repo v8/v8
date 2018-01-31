@@ -59,7 +59,7 @@ class TestCase(testcase.TestCase):
 
     self._source_flags = self._parse_source_flags()
 
-  def _get_files_params(self, ctx):
+  def _get_files_params(self):
     files = map(lambda f: os.path.join(self.suite.root, f), [
         'assert.js',
         'utils.js',
@@ -68,14 +68,14 @@ class TestCase(testcase.TestCase):
         'regexp-assert.js',
     ])
 
-    if ctx.isolates:
+    if self._test_config.isolates:
       files += ['--isolate'] + files
     return files
 
   def _get_source_flags(self):
     return self._source_flags
 
-  def _get_suite_flags(self, ctx):
+  def _get_suite_flags(self):
     return ['--allow-natives-syntax']
 
   def _get_source_path(self):

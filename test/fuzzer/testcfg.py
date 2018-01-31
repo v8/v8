@@ -42,7 +42,7 @@ class TestSuite(testsuite.TestSuite):
 
 
 class TestCase(testcase.TestCase):
-  def _get_files_params(self, ctx):
+  def _get_files_params(self):
     suite, name = self.path.split('/')
     return [os.path.join(self.suite.root, suite, name)]
 
@@ -52,7 +52,7 @@ class TestCase(testcase.TestCase):
   def _get_statusfile_flags(self):
     return []
 
-  def _get_mode_flags(self, ctx):
+  def _get_mode_flags(self):
     return []
 
   def get_shell(self):

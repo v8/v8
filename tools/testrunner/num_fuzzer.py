@@ -7,7 +7,6 @@
 
 import multiprocessing
 import random
-import shlex
 import sys
 
 # Adds testrunner to the path hence it has to be imported at the beggining.
@@ -29,11 +28,6 @@ from testrunner.utils import random_utils
 
 
 DEFAULT_SUITES = ["mjsunit", "webkit", "benchmarks"]
-TIMEOUT_DEFAULT = 60
-
-# Double the timeout for these:
-SLOW_ARCHS = ["arm",
-              "mipsel"]
 
 
 class NumFuzzer(base_runner.BaseTestRunner):
@@ -41,15 +35,7 @@ class NumFuzzer(base_runner.BaseTestRunner):
     super(NumFuzzer, self).__init__(*args, **kwargs)
 
   def _add_parser_options(self, parser):
-    parser.add_option("--command-prefix",
-                      help="Prepended to each shell command used to run a test",
-                      default="")
     parser.add_option("--dump-results-file", help="Dump maximum limit reached")
-    parser.add_option("--extra-flags",
-                      help="Additional flags to pass to each test command",
-                      default="")
-    parser.add_option("--isolates", help="Whether to test isolates",
-                      default=False, action="store_true")
     parser.add_option("-j", help="The number of parallel tasks to run",
                       default=0, type="int")
     parser.add_option("--json-test-results",
@@ -59,8 +45,6 @@ class NumFuzzer(base_runner.BaseTestRunner):
                             " (verbose, dots, color, mono)"),
                       choices=progress.PROGRESS_INDICATORS.keys(),
                       default="mono")
-    parser.add_option("-t", "--timeout", help="Timeout in seconds",
-                      default= -1, type="int")
     parser.add_option("--random-seed", default=0, type=int,
                       help="Default seed for initializing random generator")
     parser.add_option("--fuzzer-random-seed", default=0,
@@ -123,8 +107,6 @@ class NumFuzzer(base_runner.BaseTestRunner):
 
 
   def _process_options(self, options):
-    options.command_prefix = shlex.split(options.command_prefix)
-    options.extra_flags = shlex.split(options.extra_flags)
     if options.j == 0:
       options.j = multiprocessing.cpu_count()
     if not options.fuzzer_random_seed:
@@ -143,6 +125,14 @@ class NumFuzzer(base_runner.BaseTestRunner):
 
   def _get_default_suite_names(self):
     return DEFAULT_SUITES
+
+  def _timeout_scalefactor(self, options):
+    factor = super(NumFuzzer, self)._timeout_scalefactor(options)
+    if options.stress_interrupt_budget:
+      # TODO(machenbach): This should be moved to a more generic config.
+      # Fuzzers have too much timeout in debug mode.
+      factor = max(int(factor * 0.25), 1)
+
 
   def _do_execute(self, suites, args, options):
     print(">>> Running tests for %s.%s" % (self.build_config.arch,
@@ -206,24 +196,12 @@ class NumFuzzer(base_runner.BaseTestRunner):
 
   def _create_context(self, options):
     # Populate context object.
-    timeout = options.timeout
-    if timeout == -1:
-      # Simulators are slow, therefore allow a longer default timeout.
-      if self.build_config.arch in SLOW_ARCHS:
-        timeout = 2 * TIMEOUT_DEFAULT;
-      else:
-        timeout = TIMEOUT_DEFAULT;
-
-    timeout *= self.mode_options.timeout_scalefactor
-    if options.stress_interrupt_budget:
-      # TODO(machenbach): This should be moved to a more generic config.
-      # Fuzzers have too much timeout in debug mode.
-      timeout = int(timeout * 0.5)
     ctx = context.Context(self.build_config.arch,
                           self.mode_options.execution_mode,
                           self.outdir,
                           self.mode_options.flags, options.verbose,
-                          timeout, options.isolates,
+                          options.timeout * self.timeout_scalefactor(options),
+                          options.isolates,
                           options.command_prefix,
                           options.extra_flags,
                           False,  # Keep i18n on by default.

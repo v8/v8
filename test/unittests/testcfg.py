@@ -17,16 +17,16 @@ class VariantsGenerator(testsuite.VariantsGenerator):
 
 class TestSuite(testsuite.TestSuite):
   def ListTests(self, context):
-    shell = os.path.abspath(os.path.join(context.shell_dir, self.name))
+    shell = os.path.abspath(os.path.join(self.test_config.shell_dir, self.name))
     if utils.IsWindows():
       shell += ".exe"
 
     output = None
     for i in xrange(3): # Try 3 times in case of errors.
       cmd = command.Command(
-        cmd_prefix=context.command_prefix,
+        cmd_prefix=self.test_config.command_prefix,
         shell=shell,
-        args=['--gtest_list_tests'] + context.extra_flags)
+        args=['--gtest_list_tests'] + self.test_config.extra_flags)
       output = cmd.execute()
       if output.exit_code == 0:
         break
@@ -63,7 +63,7 @@ class TestSuite(testsuite.TestSuite):
 
 
 class TestCase(testcase.TestCase):
-  def _get_suite_flags(self, ctx):
+  def _get_suite_flags(self):
     return (
         ["--gtest_filter=" + self.path] +
         ["--gtest_random_seed=%s" % self.random_seed] +

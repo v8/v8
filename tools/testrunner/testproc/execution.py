@@ -71,7 +71,7 @@ class ExecutionProc(base.TestProc):
       return
 
     test_id = test.procid
-    cmd = test.get_command(self._context)
+    cmd = test.get_command()
     self._tests[test_id] = test, cmd
 
     outproc = self._outproc_factory(test)

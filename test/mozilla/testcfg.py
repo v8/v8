@@ -86,7 +86,7 @@ class TestSuite(testsuite.TestSuite):
 
 
 class TestCase(testcase.TestCase):
-  def _get_files_params(self, ctx):
+  def _get_files_params(self):
     files = [os.path.join(self.suite.root, "mozilla-shell-emulation.js")]
     testfilename = self.path + ".js"
     testfilepath = testfilename.split("/")
@@ -100,7 +100,7 @@ class TestCase(testcase.TestCase):
     files.append(os.path.join(self.suite.testroot, testfilename))
     return files
 
-  def _get_suite_flags(self, ctx):
+  def _get_suite_flags(self):
     return ['--expose-gc']
 
   def _get_source_path(self):

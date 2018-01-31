@@ -109,7 +109,7 @@ class TestSuite(testsuite.TestSuite):
 
 
 class TestCase(testcase.TestCase):
-  def _get_files_params(self, ctx):
+  def _get_files_params(self):
     path = self.path
     testroot = self.suite.testroot
     files = []

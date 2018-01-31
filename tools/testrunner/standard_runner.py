@@ -11,7 +11,6 @@ import multiprocessing
 import os
 import random
 import re
-import shlex
 import subprocess
 import sys
 import time
@@ -38,8 +37,6 @@ from testrunner.testproc.seed import SeedProc
 from testrunner.testproc.variant import VariantProc
 from testrunner.utils import random_utils
 
-
-TIMEOUT_DEFAULT = 60
 
 VARIANTS = ["default"]
 
@@ -70,15 +67,6 @@ GC_STRESS_FLAGS = ["--gc-interval=500", "--stress-compaction",
 RANDOM_GC_STRESS_FLAGS = ["--random-gc-interval=5000",
                           "--stress-compaction-random"]
 
-# Double the timeout for these:
-SLOW_ARCHS = ["arm",
-              "mips",
-              "mipsel",
-              "mips64",
-              "mips64el",
-              "s390",
-              "s390x",
-              "arm64"]
 
 PREDICTABLE_WRAPPER = os.path.join(
     base_runner.BASE_DIR, 'tools', 'predictable_wrapper.py')
@@ -139,13 +127,6 @@ class StandardTestRunner(base_runner.BaseTestRunner):
       parser.add_option("--random-gc-stress",
                         help="Switch on random GC stress mode",
                         default=False, action="store_true")
-      parser.add_option("--command-prefix",
-                        help="Prepended to each shell command used to run a"
-                        " test",
-                        default="")
-      parser.add_option("--extra-flags",
-                        help="Additional flags to pass to each test command",
-                        action="append", default=[])
       parser.add_option("--infra-staging", help="Use new test runner features",
                         dest='infra_staging', default=None,
                         action="store_true")
@@ -153,13 +134,8 @@ class StandardTestRunner(base_runner.BaseTestRunner):
                         help="Opt out of new test runner features",
                         dest='infra_staging', default=None,
                         action="store_false")
-      parser.add_option("--isolates", help="Whether to test isolates",
-                        default=False, action="store_true")
       parser.add_option("-j", help="The number of parallel tasks to run",
                         default=0, type="int")
-      parser.add_option("--no-harness", "--noharness",
-                        help="Run without test harness of a given suite",
-                        default=False, action="store_true")
       parser.add_option("--no-presubmit", "--nopresubmit",
                         help='Skip presubmit checks (deprecated)',
                         default=False, dest="no_presubmit", action="store_true")
@@ -209,8 +185,6 @@ class StandardTestRunner(base_runner.BaseTestRunner):
                         default=False, action="store_true")
       parser.add_option("--time", help="Print timing information after running",
                         default=False, action="store_true")
-      parser.add_option("-t", "--timeout", help="Timeout in seconds",
-                        default=TIMEOUT_DEFAULT, type="int")
       parser.add_option("--warn-unused", help="Report unused rules",
                         default=False, action="store_true")
       parser.add_option("--junitout", help="File name of the JUnit output")
@@ -250,9 +224,6 @@ class StandardTestRunner(base_runner.BaseTestRunner):
         if not os.path.exists(self.sancov_dir):
           print("sancov-dir %s doesn't exist" % self.sancov_dir)
           raise base_runner.TestRunnerError()
-
-      options.command_prefix = shlex.split(options.command_prefix)
-      options.extra_flags = sum(map(shlex.split, options.extra_flags), [])
 
       if options.gc_stress:
         options.extra_flags += GC_STRESS_FLAGS
@@ -361,23 +332,13 @@ class StandardTestRunner(base_runner.BaseTestRunner):
       print(">>> Running tests for %s.%s" % (self.build_config.arch,
                                              self.mode_name))
       # Populate context object.
-
-      # Simulators are slow, therefore allow a longer timeout.
-      if self.build_config.arch in SLOW_ARCHS:
-        options.timeout *= 2
-
-      options.timeout *= self.mode_options.timeout_scalefactor
-
-      if self.build_config.predictable:
-        # Predictable mode is slower.
-        options.timeout *= 2
-
       ctx = context.Context(self.build_config.arch,
                             self.mode_options.execution_mode,
                             self.outdir,
                             self.mode_options.flags,
                             options.verbose,
-                            options.timeout,
+                            options.timeout *
+                              self._timeout_scalefactor(options),
                             options.isolates,
                             options.command_prefix,
                             options.extra_flags,
@@ -503,7 +464,7 @@ class StandardTestRunner(base_runner.BaseTestRunner):
         s.tests = self._shard_tests(s.tests, options)
 
         for t in s.tests:
-          t.cmd = t.get_command(ctx)
+          t.cmd = t.get_command()
 
         num_tests += len(s.tests)
 
