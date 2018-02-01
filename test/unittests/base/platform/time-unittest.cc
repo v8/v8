@@ -153,20 +153,14 @@ TEST(Time, NowResolution) {
 
 
 TEST(TimeTicks, NowResolution) {
-  // We assume that TimeTicks::Now() has at least 16ms resolution.
-  static const TimeDelta kTargetGranularity = TimeDelta::FromMilliseconds(16);
+  // TimeTicks::Now() is documented as having "no worse than one microsecond"
+  // resolution. Unless !TimeTicks::IsHighResolution() in which case the clock
+  // could be as coarse as ~15.6ms.
+  const TimeDelta kTargetGranularity = TimeTicks::IsHighResolution()
+                                           ? TimeDelta::FromMicroseconds(1)
+                                           : TimeDelta::FromMilliseconds(16);
   ResolutionTest<TimeTicks>(&TimeTicks::Now, kTargetGranularity);
 }
-
-
-TEST(TimeTicks, HighResolutionNowResolution) {
-  if (!TimeTicks::IsHighResolutionClockWorking()) return;
-
-  // We assume that TimeTicks::HighResolutionNow() has sub-ms resolution.
-  static const TimeDelta kTargetGranularity = TimeDelta::FromMilliseconds(1);
-  ResolutionTest<TimeTicks>(&TimeTicks::HighResolutionNow, kTargetGranularity);
-}
-
 
 TEST(TimeTicks, IsMonotonic) {
   TimeTicks previous_normal_ticks;

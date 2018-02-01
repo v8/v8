@@ -5,6 +5,8 @@
 #ifndef V8_BASE_PLATFORM_TIME_H_
 #define V8_BASE_PLATFORM_TIME_H_
 
+#include <stdint.h>
+
 #include <ctime>
 #include <iosfwd>
 #include <limits>
@@ -177,21 +179,28 @@ namespace time_internal {
 template<class TimeClass>
 class TimeBase {
  public:
-  static const int64_t kHoursPerDay = 24;
-  static const int64_t kMillisecondsPerSecond = 1000;
-  static const int64_t kMillisecondsPerDay =
+  static constexpr int64_t kHoursPerDay = 24;
+  static constexpr int64_t kMillisecondsPerSecond = 1000;
+  static constexpr int64_t kMillisecondsPerDay =
       kMillisecondsPerSecond * 60 * 60 * kHoursPerDay;
-  static const int64_t kMicrosecondsPerMillisecond = 1000;
-  static const int64_t kMicrosecondsPerSecond =
+  static constexpr int64_t kMicrosecondsPerMillisecond = 1000;
+  static constexpr int64_t kMicrosecondsPerSecond =
       kMicrosecondsPerMillisecond * kMillisecondsPerSecond;
-  static const int64_t kMicrosecondsPerMinute = kMicrosecondsPerSecond * 60;
-  static const int64_t kMicrosecondsPerHour = kMicrosecondsPerMinute * 60;
-  static const int64_t kMicrosecondsPerDay =
+  static constexpr int64_t kMicrosecondsPerMinute = kMicrosecondsPerSecond * 60;
+  static constexpr int64_t kMicrosecondsPerHour = kMicrosecondsPerMinute * 60;
+  static constexpr int64_t kMicrosecondsPerDay =
       kMicrosecondsPerHour * kHoursPerDay;
-  static const int64_t kMicrosecondsPerWeek = kMicrosecondsPerDay * 7;
-  static const int64_t kNanosecondsPerMicrosecond = 1000;
-  static const int64_t kNanosecondsPerSecond =
+  static constexpr int64_t kMicrosecondsPerWeek = kMicrosecondsPerDay * 7;
+  static constexpr int64_t kNanosecondsPerMicrosecond = 1000;
+  static constexpr int64_t kNanosecondsPerSecond =
       kNanosecondsPerMicrosecond * kMicrosecondsPerSecond;
+
+#if V8_OS_WIN
+  // To avoid overflow in QPC to Microseconds calculations, since we multiply
+  // by kMicrosecondsPerSecond, then the QPC value should not exceed
+  // (2^63 - 1) / 1E6. If it exceeds that threshold, we divide then multiply.
+  static constexpr int64_t kQPCOverflowThreshold = INT64_C(0x8637BD05AF7);
+#endif
 
   // Returns true if this object has not been initialized.
   //
@@ -345,21 +354,20 @@ class V8_BASE_EXPORT TimeTicks final
  public:
   TimeTicks() : TimeBase(0) {}
 
-  // Platform-dependent tick count representing "right now."
-  // The resolution of this clock is ~1-15ms.  Resolution varies depending
-  // on hardware/operating system configuration.
+  // Platform-dependent tick count representing "right now." When
+  // IsHighResolution() returns false, the resolution of the clock could be as
+  // coarse as ~15.6ms. Otherwise, the resolution should be no worse than one
+  // microsecond.
   // This method never returns a null TimeTicks.
   static TimeTicks Now();
 
-  // Returns a platform-dependent high-resolution tick count. Implementation
-  // is hardware dependent and may or may not return sub-millisecond
-  // resolution.  THIS CALL IS GENERALLY MUCH MORE EXPENSIVE THAN Now() AND
-  // SHOULD ONLY BE USED WHEN IT IS REALLY NEEDED.
-  // This method never returns a null TimeTicks.
+  // This is equivalent to Now() but DCHECKs that IsHighResolution(). Useful for
+  // test frameworks that rely on high resolution clocks (in practice all
+  // platforms but low-end Windows devices have high resolution clocks).
   static TimeTicks HighResolutionNow();
 
   // Returns true if the high-resolution clock is working on this system.
-  static bool IsHighResolutionClockWorking();
+  static bool IsHighResolution();
 
  private:
   friend class time_internal::TimeBase<TimeTicks>;
