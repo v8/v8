@@ -396,7 +396,7 @@ class StandardTestRunner(base_runner.BaseTestRunner):
         progress_indicator.Register(progress.FlakinessTestProgressIndicator(
             options.flakiness_results))
 
-      if options.infra_staging:
+      if True:
         for s in suites:
           s.ReadStatusFile(variables)
           s.ReadTestCases()

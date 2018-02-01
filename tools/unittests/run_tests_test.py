@@ -172,10 +172,11 @@ class SystemTest(unittest.TestCase):
           'sweet/bananas',
           'sweet/raspberries',
       )
-      self.assertIn('Running 4 tests', result.stdout, result)
+      self.assertIn('Running 2 base tests', result.stdout, result)
       self.assertIn('Done running sweet/bananas: pass', result.stdout, result)
-      self.assertIn('Total time:', result.stderr, result)
-      self.assertIn('sweet/bananas', result.stderr, result)
+      # TODO(majeski): Implement for test processors
+      # self.assertIn('Total time:', result.stderr, result)
+      # self.assertIn('sweet/bananas', result.stderr, result)
       self.assertEqual(0, result.returncode, result)
 
   def testShardedProc(self):
@@ -201,6 +202,7 @@ class SystemTest(unittest.TestCase):
           self.assertIn('Done running sweet/raspberries', result.stdout, result)
         self.assertEqual(0, result.returncode, result)
 
+  @unittest.skip("incompatible with test processors")
   def testSharded(self):
     """Test running a particular shard."""
     with temp_base() as basedir:
@@ -224,7 +226,7 @@ class SystemTest(unittest.TestCase):
   def testFailProc(self):
     self.testFail(infra_staging=True)
 
-  def testFail(self, infra_staging=False):
+  def testFail(self, infra_staging=True):
     """Test running only failing tests in two variants."""
     with temp_base() as basedir:
       result = run_tests(
@@ -271,7 +273,7 @@ class SystemTest(unittest.TestCase):
   def testFailWithRerunAndJSONProc(self):
     self.testFailWithRerunAndJSON(infra_staging=True)
 
-  def testFailWithRerunAndJSON(self, infra_staging=False):
+  def testFailWithRerunAndJSON(self, infra_staging=True):
     """Test re-running a failing test and output to json."""
     with temp_base() as basedir:
       json_path = os.path.join(basedir, 'out.json')
@@ -311,7 +313,7 @@ class SystemTest(unittest.TestCase):
   def testFlakeWithRerunAndJSONProc(self):
     self.testFlakeWithRerunAndJSON(infra_staging=True)
 
-  def testFlakeWithRerunAndJSON(self, infra_staging=False):
+  def testFlakeWithRerunAndJSON(self, infra_staging=True):
     """Test re-running a failing test and output to json."""
     with temp_base(baseroot='testroot2') as basedir:
       json_path = os.path.join(basedir, 'out.json')
@@ -378,7 +380,7 @@ class SystemTest(unittest.TestCase):
   def testSkipsProc(self):
     self.testSkips(infra_staging=True)
 
-  def testSkips(self, infra_staging=False):
+  def testSkips(self, infra_staging=True):
     """Test skipping tests in status file for a specific variant."""
     with temp_base() as basedir:
       result = run_tests(
@@ -399,7 +401,7 @@ class SystemTest(unittest.TestCase):
   def testDefaultProc(self):
     self.testDefault(infra_staging=True)
 
-  def testDefault(self, infra_staging=False):
+  def testDefault(self, infra_staging=True):
     """Test using default test suites, though no tests are run since they don't
     exist in a test setting.
     """
@@ -461,6 +463,7 @@ class SystemTest(unittest.TestCase):
       self.assertIn('Running tests for x64.release', result.stdout, result)
       self.assertEqual(0, result.returncode, result)
 
+  @unittest.skip("not available with test processors")
   def testReport(self):
     """Test the report feature.
 
@@ -479,6 +482,7 @@ class SystemTest(unittest.TestCase):
           result.stdout, result)
       self.assertEqual(1, result.returncode, result)
 
+  @unittest.skip("not available with test processors")
   def testWarnUnusedRules(self):
     """Test the unused-rules feature."""
     with temp_base() as basedir:
@@ -493,6 +497,7 @@ class SystemTest(unittest.TestCase):
       self.assertIn( 'Unused rule: regress/', result.stdout, result)
       self.assertEqual(1, result.returncode, result)
 
+  @unittest.skip("not available with test processors")
   def testCatNoSources(self):
     """Test printing sources, but the suite's tests have none available."""
     with temp_base() as basedir:
@@ -510,7 +515,7 @@ class SystemTest(unittest.TestCase):
   def testPredictableProc(self):
     self.testPredictable(infra_staging=True)
 
-  def testPredictable(self, infra_staging=False):
+  def testPredictable(self, infra_staging=True):
     """Test running a test in verify-predictable mode.
 
     The test will fail because of missing allocation output. We verify that and
@@ -554,7 +559,7 @@ class SystemTest(unittest.TestCase):
   def testRandomSeedStressWithDefaultProc(self):
     self.testRandomSeedStressWithDefault(infra_staging=True)
 
-  def testRandomSeedStressWithDefault(self, infra_staging=False):
+  def testRandomSeedStressWithDefault(self, infra_staging=True):
     """Test using random-seed-stress feature has the right number of tests."""
     with temp_base() as basedir:
       result = run_tests(
@@ -585,7 +590,8 @@ class SystemTest(unittest.TestCase):
           '--random-seed=123',
           'sweet/strawberries',
       )
-      self.assertIn('Running 2 tests', result.stdout, result)
+      self.assertIn('Running 1 base tests', result.stdout, result)
+      self.assertIn('2 tests ran', result.stdout, result)
       # We use a failing test so that the command is printed and we can verify
       # that the right random seed was passed.
       self.assertIn('--random-seed=123', result.stdout, result)
@@ -610,7 +616,8 @@ class SystemTest(unittest.TestCase):
       )
       # Both tests are either marked as running in only default or only
       # slow variant.
-      self.assertIn('Running 2 tests', result.stdout, result)
+      self.assertIn('Running 2 base tests', result.stdout, result)
+      self.assertIn('2 tests ran', result.stdout, result)
       self.assertEqual(0, result.returncode, result)
 
   def testStatusFilePresubmit(self):
@@ -623,7 +630,7 @@ class SystemTest(unittest.TestCase):
   def testDotsProgressProc(self):
     self.testDotsProgress(infra_staging=True)
 
-  def testDotsProgress(self, infra_staging=False):
+  def testDotsProgress(self, infra_staging=True):
     with temp_base() as basedir:
       result = run_tests(
           basedir,
