@@ -319,6 +319,9 @@ config("features") {
   if (v8_check_microtasks_scopes_consistency) {
     defines += [ "V8_CHECK_MICROTASKS_SCOPES_CONSISTENCY" ]
   }
+  if (is_clang) {
+    defines += [ "V8_IS_CLANG=1" ]
+  }
 }
 
 config("toolchain") {
