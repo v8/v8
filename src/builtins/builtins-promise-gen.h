@@ -127,9 +127,6 @@ class PromiseBuiltinsAssembler : public CodeStubAssembler {
   void AppendPromiseCallback(int offset, compiler::Node* promise,
                              compiler::Node* value);
 
-  Node* InternalPromiseThen(Node* context, Node* promise, Node* on_resolve,
-                            Node* on_reject);
-
   void InternalPerformPromiseThen(Node* context, Node* promise,
                                   Node* on_fulfill, Node* on_reject,
                                   Node* result);

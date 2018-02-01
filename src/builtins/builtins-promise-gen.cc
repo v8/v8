@@ -290,71 +290,6 @@ void PromiseBuiltinsAssembler::AppendPromiseCallback(int offset, Node* promise,
   StoreObjectField(promise, offset, new_elements);
 }
 
-Node* PromiseBuiltinsAssembler::InternalPromiseThen(Node* context,
-                                                    Node* promise,
-                                                    Node* on_fulfill,
-                                                    Node* on_reject) {
-  // 2. If IsPromise(promise) is false, throw a TypeError exception.
-  ThrowIfNotInstanceType(context, promise, JS_PROMISE_TYPE,
-                         "Promise.prototype.then");
-
-  // 3. Let C be ? SpeciesConstructor(promise, %Promise%).
-  Label fast_promise_capability(this), slow_constructor(this, Label::kDeferred),
-      slow_promise_capability(this, Label::kDeferred);
-  Node* const native_context = LoadNativeContext(context);
-  Node* const promise_fun =
-      LoadContextElement(native_context, Context::PROMISE_FUNCTION_INDEX);
-  Node* const promise_prototype =
-      LoadContextElement(native_context, Context::PROMISE_PROTOTYPE_INDEX);
-  Node* const promise_map = LoadMap(promise);
-  GotoIfNot(WordEqual(LoadMapPrototype(promise_map), promise_prototype),
-            &slow_constructor);
-  Branch(IsSpeciesProtectorCellInvalid(), &slow_constructor,
-         &fast_promise_capability);
-
-  BIND(&slow_constructor);
-  Node* const constructor =
-      SpeciesConstructor(native_context, promise, promise_fun);
-  Branch(WordEqual(constructor, promise_fun), &fast_promise_capability,
-         &slow_promise_capability);
-
-  // 4. Let resultCapability be ? NewPromiseCapability(C).
-  Label perform_promise_then(this);
-  VARIABLE(var_result_promise, MachineRepresentation::kTagged);
-  VARIABLE(var_result_promise_or_capability, MachineRepresentation::kTagged);
-
-  BIND(&fast_promise_capability);
-  {
-    Node* const result_promise = AllocateAndInitJSPromise(context, promise);
-    var_result_promise.Bind(result_promise);
-    var_result_promise_or_capability.Bind(result_promise);
-    CSA_ASSERT(this, IsJSPromise(var_result_promise_or_capability.value()));
-    Goto(&perform_promise_then);
-  }
-
-  BIND(&slow_promise_capability);
-  {
-    Node* const capability = NewPromiseCapability(context, constructor);
-    var_result_promise.Bind(
-        LoadObjectField(capability, PromiseCapability::kPromiseOffset));
-    var_result_promise_or_capability.Bind(capability);
-    CSA_ASSERT(this,
-               IsPromiseCapability(var_result_promise_or_capability.value()));
-    Goto(&perform_promise_then);
-  }
-
-  // 5. Return PerformPromiseThen(promise, onFulfilled, onRejected,
-  //    resultCapability).
-  BIND(&perform_promise_then);
-  CSA_ASSERT(
-      this,
-      Word32Or(IsJSPromise(var_result_promise_or_capability.value()),
-               IsPromiseCapability(var_result_promise_or_capability.value())));
-  InternalPerformPromiseThen(context, promise, on_fulfill, on_reject,
-                             var_result_promise_or_capability.value());
-  return var_result_promise.value();
-}
-
 void PromiseBuiltinsAssembler::InternalPerformPromiseThen(Node* context,
                                                           Node* promise,
                                                           Node* on_fulfilled,
@@ -1020,13 +955,69 @@ TF_BUILTIN(PromiseInternalConstructor, PromiseBuiltinsAssembler) {
 TF_BUILTIN(PromisePrototypeThen, PromiseBuiltinsAssembler) {
   // 1. Let promise be the this value.
   Node* const promise = Parameter(Descriptor::kReceiver);
-  Node* const on_resolve = Parameter(Descriptor::kOnFullfilled);
-  Node* const on_reject = Parameter(Descriptor::kOnRejected);
+  Node* const on_fulfilled = Parameter(Descriptor::kOnFulfilled);
+  Node* const on_rejected = Parameter(Descriptor::kOnRejected);
   Node* const context = Parameter(Descriptor::kContext);
 
-  Node* const result =
-      InternalPromiseThen(context, promise, on_resolve, on_reject);
-  Return(result);
+  // 2. If IsPromise(promise) is false, throw a TypeError exception.
+  ThrowIfNotInstanceType(context, promise, JS_PROMISE_TYPE,
+                         "Promise.prototype.then");
+
+  // 3. Let C be ? SpeciesConstructor(promise, %Promise%).
+  Label fast_promise_capability(this), slow_constructor(this, Label::kDeferred),
+      slow_promise_capability(this, Label::kDeferred);
+  Node* const native_context = LoadNativeContext(context);
+  Node* const promise_fun =
+      LoadContextElement(native_context, Context::PROMISE_FUNCTION_INDEX);
+  Node* const promise_prototype =
+      LoadContextElement(native_context, Context::PROMISE_PROTOTYPE_INDEX);
+  Node* const promise_map = LoadMap(promise);
+  GotoIfNot(WordEqual(LoadMapPrototype(promise_map), promise_prototype),
+            &slow_constructor);
+  Branch(IsSpeciesProtectorCellInvalid(), &slow_constructor,
+         &fast_promise_capability);
+
+  BIND(&slow_constructor);
+  Node* const constructor =
+      SpeciesConstructor(native_context, promise, promise_fun);
+  Branch(WordEqual(constructor, promise_fun), &fast_promise_capability,
+         &slow_promise_capability);
+
+  // 4. Let resultCapability be ? NewPromiseCapability(C).
+  Label perform_promise_then(this);
+  VARIABLE(var_result_promise, MachineRepresentation::kTagged);
+  VARIABLE(var_result_promise_or_capability, MachineRepresentation::kTagged);
+
+  BIND(&fast_promise_capability);
+  {
+    Node* const result_promise = AllocateAndInitJSPromise(context, promise);
+    var_result_promise.Bind(result_promise);
+    var_result_promise_or_capability.Bind(result_promise);
+    CSA_ASSERT(this, IsJSPromise(var_result_promise_or_capability.value()));
+    Goto(&perform_promise_then);
+  }
+
+  BIND(&slow_promise_capability);
+  {
+    Node* const capability = NewPromiseCapability(context, constructor);
+    var_result_promise.Bind(
+        LoadObjectField(capability, PromiseCapability::kPromiseOffset));
+    var_result_promise_or_capability.Bind(capability);
+    CSA_ASSERT(this,
+               IsPromiseCapability(var_result_promise_or_capability.value()));
+    Goto(&perform_promise_then);
+  }
+
+  // 5. Return PerformPromiseThen(promise, onFulfilled, onRejected,
+  //    resultCapability).
+  BIND(&perform_promise_then);
+  CSA_ASSERT(
+      this,
+      Word32Or(IsJSPromise(var_result_promise_or_capability.value()),
+               IsPromiseCapability(var_result_promise_or_capability.value())));
+  InternalPerformPromiseThen(context, promise, on_fulfilled, on_rejected,
+                             var_result_promise_or_capability.value());
+  Return(var_result_promise.value());
 }
 
 // ES#sec-promise-resolve-functions

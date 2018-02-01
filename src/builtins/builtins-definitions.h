@@ -810,7 +810,7 @@ namespace internal {
   TFJ(PromiseRejectClosure, 1, kValue)                                         \
   TFJ(PromiseAllResolveElementClosure, 1, kValue)                              \
   /* ES #sec-promise.prototype.then */                                         \
-  TFJ(PromisePrototypeThen, 2, kOnFullfilled, kOnRejected)                     \
+  TFJ(PromisePrototypeThen, 2, kOnFulfilled, kOnRejected)                      \
   /* ES #sec-promise.prototype.catch */                                        \
   TFJ(PromisePrototypeCatch, 1, kOnRejected)                                   \
   /* ES #sec-fulfillpromise */                                                 \
