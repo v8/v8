@@ -2066,9 +2066,9 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kX64F32x4Splat: {
       XMMRegister dst = i.OutputSimd128Register();
       if (instr->InputAt(0)->IsFPRegister()) {
-        __ Movss(dst, i.InputDoubleRegister(0));
+        __ movss(dst, i.InputDoubleRegister(0));
       } else {
-        __ Movss(dst, i.InputOperand(0));
+        __ movss(dst, i.InputOperand(0));
       }
       __ shufps(dst, dst, 0x0);
       break;
@@ -2087,6 +2087,34 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ insertps(i.OutputSimd128Register(), i.InputDoubleRegister(2), select);
       break;
     }
+    case kX64F32x4Abs: {
+      XMMRegister dst = i.OutputSimd128Register();
+      XMMRegister src = i.InputSimd128Register(0);
+      if (dst == src) {
+        __ pcmpeqd(kScratchDoubleReg, kScratchDoubleReg);
+        __ psrld(kScratchDoubleReg, 1);
+        __ andps(i.OutputSimd128Register(), kScratchDoubleReg);
+      } else {
+        __ pcmpeqd(dst, dst);
+        __ psrld(dst, 1);
+        __ andps(dst, i.InputSimd128Register(0));
+      }
+      break;
+    }
+    case kX64F32x4Neg: {
+      XMMRegister dst = i.OutputSimd128Register();
+      XMMRegister src = i.InputSimd128Register(0);
+      if (dst == src) {
+        __ pcmpeqd(kScratchDoubleReg, kScratchDoubleReg);
+        __ pslld(kScratchDoubleReg, 31);
+        __ xorps(i.OutputSimd128Register(), kScratchDoubleReg);
+      } else {
+        __ pcmpeqd(dst, dst);
+        __ pslld(dst, 31);
+        __ xorps(dst, i.InputSimd128Register(0));
+      }
+      break;
+    }
     case kX64F32x4RecipApprox: {
       __ rcpps(i.OutputSimd128Register(), i.InputSimd128Register(0));
       break;
@@ -2098,6 +2126,11 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kX64F32x4Add: {
       DCHECK_EQ(i.OutputSimd128Register(), i.InputSimd128Register(0));
       __ addps(i.OutputSimd128Register(), i.InputSimd128Register(1));
+      break;
+    }
+    case kX64F32x4AddHoriz: {
+      DCHECK_EQ(i.OutputSimd128Register(), i.InputSimd128Register(0));
+      __ haddps(i.OutputSimd128Register(), i.InputSimd128Register(1));
       break;
     }
     case kX64F32x4Sub: {
@@ -2273,7 +2306,6 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       XMMRegister dst = i.OutputSimd128Register();
       __ movd(dst, i.InputRegister(0));
       __ pshuflw(dst, dst, 0x0);
-      __ pshufhw(dst, dst, 0x0);
       __ pshufd(dst, dst, 0x0);
       break;
     }

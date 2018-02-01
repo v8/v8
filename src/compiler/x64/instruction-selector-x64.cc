@@ -2374,6 +2374,7 @@ VISIT_ATOMIC_BINOP(Xor)
 
 #define SIMD_BINOP_LIST(V) \
   V(F32x4Add)              \
+  V(F32x4AddHoriz)         \
   V(F32x4Sub)              \
   V(F32x4Mul)              \
   V(F32x4Min)              \
@@ -2435,6 +2436,8 @@ VISIT_ATOMIC_BINOP(Xor)
   V(S128Xor)
 
 #define SIMD_UNOP_LIST(V) \
+  V(F32x4Abs)             \
+  V(F32x4Neg)             \
   V(F32x4RecipApprox)     \
   V(F32x4RecipSqrtApprox) \
   V(I32x4Neg)             \

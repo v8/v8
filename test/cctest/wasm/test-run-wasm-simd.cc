@@ -494,16 +494,12 @@ void RunF32x4UnOpTest(LowerSimd lower_simd, WasmOpcode simd_op,
   }
 }
 
-#if V8_TARGET_ARCH_ARM || V8_TARGET_ARCH_ARM64 || V8_TARGET_ARCH_MIPS || \
-    V8_TARGET_ARCH_MIPS64 || V8_TARGET_ARCH_IA32
 WASM_SIMD_TEST(F32x4Abs) {
   RunF32x4UnOpTest(lower_simd, kExprF32x4Abs, std::abs);
 }
 WASM_SIMD_TEST(F32x4Neg) {
   RunF32x4UnOpTest(lower_simd, kExprF32x4Neg, Negate);
 }
-#endif  // V8_TARGET_ARCH_ARM || V8_TARGET_ARCH_ARM64 || V8_TARGET_ARCH_MIPS ||
-        // V8_TARGET_ARCH_MIPS64 || V8_TARGET_ARCH_IA32
 
 #if V8_TARGET_ARCH_ARM || V8_TARGET_ARCH_ARM64 || V8_TARGET_ARCH_MIPS || \
     V8_TARGET_ARCH_MIPS64 || V8_TARGET_ARCH_X64
@@ -1621,16 +1617,16 @@ WASM_SIMD_COMPILED_TEST(I16x8AddHoriz) {
   RunBinaryLaneOpTest<int16_t>(lower_simd, kExprI16x8AddHoriz,
                                {{1, 5, 9, 13, 17, 21, 25, 29}});
 }
+
+WASM_SIMD_COMPILED_TEST(F32x4AddHoriz) {
+  RunBinaryLaneOpTest<float>(lower_simd, kExprF32x4AddHoriz,
+                             {{1.0f, 5.0f, 9.0f, 13.0f}});
+}
 #endif  // V8_TARGET_ARCH_ARM || V8_TARGET_ARCH_ARM64 || V8_TARGET_ARCH_X64 ||
         // V8_TARGET_ARCH_MIPS || V8_TARGET_ARCH_MIPS64
 
 #if V8_TARGET_ARCH_ARM || V8_TARGET_ARCH_ARM64 || V8_TARGET_ARCH_MIPS || \
     V8_TARGET_ARCH_MIPS64
-WASM_SIMD_COMPILED_TEST(F32x4AddHoriz) {
-  RunBinaryLaneOpTest<float>(lower_simd, kExprF32x4AddHoriz,
-                             {{1.0f, 5.0f, 9.0f, 13.0f}});
-}
-
 // Test some regular shuffles that may have special handling on some targets.
 // Test a normal and unary versions (where second operand isn't used).
 WASM_SIMD_COMPILED_TEST(S32x4Dup) {
