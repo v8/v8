@@ -179,8 +179,6 @@ class NumFuzzer(base_runner.BaseTestRunner):
 
     if results.failed:
       return 1
-    if results.remaining:
-      return 2
     return 0
 
   def _setup_suites(self, options, suites):

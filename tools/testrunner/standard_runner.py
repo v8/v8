@@ -570,8 +570,6 @@ class StandardTestRunner(base_runner.BaseTestRunner):
       exit_code = 0
       if results.failed:
         exit_code = 1
-      if results.remaining:
-        exit_code = 2
       if not results.total:
         exit_code = 3
 
