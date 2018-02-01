@@ -325,6 +325,8 @@ void PerfJitLogger::LogWriteDebugInfo(Code* code, SharedFunctionInfo* shared) {
     entry_count++;
   }
   if (entry_count == 0) return;
+  // The WasmToJS wrapper stubs have source position entries.
+  if (!shared->HasSourceCode()) return;
   Handle<Script> script(Script::cast(shared->script()));
 
   PerfJitCodeDebugInfo debug_info;
