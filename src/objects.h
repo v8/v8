@@ -4033,10 +4033,10 @@ class JSPromise : public JSObject {
   v8::Promise::PromiseState status() const;
 
   // Resolve/reject the promise with a given value.
-  static MaybeHandle<Object> Resolve(Handle<JSPromise> promise,
-                                     Handle<Object> value);
-  static MaybeHandle<Object> Reject(Handle<JSPromise> promise,
-                                    Handle<Object> value);
+  MUST_USE_RESULT static MaybeHandle<Object> Resolve(Handle<JSPromise> promise,
+                                                     Handle<Object> value);
+  MUST_USE_RESULT static MaybeHandle<Object> Reject(Handle<JSPromise> promise,
+                                                    Handle<Object> value);
 
   DECL_CAST(JSPromise)
 

@@ -63,10 +63,13 @@ void WasmEngine::AsyncInstantiate(Isolate* isolate, Handle<JSPromise> promise,
   MaybeHandle<WasmInstanceObject> instance_object = SyncInstantiate(
       isolate, &thrower, module_object, imports, Handle<JSArrayBuffer>::null());
   if (thrower.error()) {
-    JSPromise::Reject(promise, thrower.Reify());
+    MaybeHandle<Object> result = JSPromise::Reject(promise, thrower.Reify());
+    CHECK_EQ(result.is_null(), isolate->has_pending_exception());
     return;
   }
-  JSPromise::Resolve(promise, instance_object.ToHandleChecked());
+  Handle<WasmInstanceObject> instance = instance_object.ToHandleChecked();
+  MaybeHandle<Object> result = JSPromise::Resolve(promise, instance);
+  CHECK_EQ(result.is_null(), isolate->has_pending_exception());
 }
 
 void WasmEngine::AsyncCompile(Isolate* isolate, Handle<JSPromise> promise,
@@ -87,11 +90,13 @@ void WasmEngine::AsyncCompile(Isolate* isolate, Handle<JSPromise> promise,
       module_object = SyncCompile(isolate, &thrower, bytes);
     }
     if (thrower.error()) {
-      JSPromise::Reject(promise, thrower.Reify());
+      MaybeHandle<Object> result = JSPromise::Reject(promise, thrower.Reify());
+      CHECK_EQ(result.is_null(), isolate->has_pending_exception());
       return;
     }
     Handle<WasmModuleObject> module = module_object.ToHandleChecked();
-    JSPromise::Resolve(promise, module);
+    MaybeHandle<Object> result = JSPromise::Resolve(promise, module);
+    CHECK_EQ(result.is_null(), isolate->has_pending_exception());
     return;
   }
 

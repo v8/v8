@@ -3459,14 +3459,18 @@ void AsyncCompileJob::AsyncCompileFailed(ErrorThrower& thrower) {
   // {job} keeps the {this} pointer alive.
   std::shared_ptr<AsyncCompileJob> job =
       isolate_->wasm_engine()->compilation_manager()->RemoveJob(this);
-  JSPromise::Reject(module_promise_, thrower.Reify());
+  MaybeHandle<Object> promise_result =
+      JSPromise::Reject(module_promise_, thrower.Reify());
+  CHECK_EQ(promise_result.is_null(), isolate_->has_pending_exception());
 }
 
 void AsyncCompileJob::AsyncCompileSucceeded(Handle<Object> result) {
   // {job} keeps the {this} pointer alive.
   std::shared_ptr<AsyncCompileJob> job =
       isolate_->wasm_engine()->compilation_manager()->RemoveJob(this);
-  JSPromise::Resolve(module_promise_, result);
+  MaybeHandle<Object> promise_result =
+      JSPromise::Resolve(module_promise_, result);
+  CHECK_EQ(promise_result.is_null(), isolate_->has_pending_exception());
 }
 
 // A closure to run a compilation step (either as foreground or background
