@@ -43,7 +43,9 @@ NO_HARNESS_PATTERN = re.compile(r"^// NO HARNESS$", flags=re.MULTILINE)
 
 # Flags known to misbehave when combining arbitrary mjsunit tests.
 COMBINE_TESTS_FLAGS_BLACKLIST = [
+  '--check-handle-count',
   '--mock-arraybuffer-allocator',
+  '--print-ast',
   '--wasm-lazy-compilation',
 ]
 
