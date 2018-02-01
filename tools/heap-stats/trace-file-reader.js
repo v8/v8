@@ -73,16 +73,14 @@ class TraceFileReader extends HTMLElement {
     const return_data = (result.includes('V8.GC_Objects_Stats')) ?
         this.createModelFromChromeTraceFile(contents) :
         this.createModelFromV8TraceFile(contents);
+    this.extendAndSanitizeModel(return_data);
     this.updateLabel('Finished loading \'' + file.name + '\'.');
     this.dispatchEvent(new CustomEvent(
         'change', {bubbles: true, composed: true, detail: return_data}));
   }
 
-  createOrUpdateEntryIfNeeded(data, keys, entry) {
+  createOrUpdateEntryIfNeeded(data, entry) {
     console.assert(entry.isolate, 'entry should have an isolate');
-    if (!(entry.isolate in keys)) {
-      keys[entry.isolate] = new Set();
-    }
     if (!(entry.isolate in data)) {
       data[entry.isolate] = {
         non_empty_instance_types: new Set(),
@@ -106,7 +104,7 @@ class TraceFileReader extends HTMLElement {
     }
   }
 
-  createDatasetIfNeeded(data, keys, entry, data_set) {
+  createDatasetIfNeeded(data, entry, data_set) {
     if (!(data_set in data[entry.isolate].gcs[entry.id])) {
       data[entry.isolate].gcs[entry.id][data_set] = {
         instance_type_data: {},
@@ -117,9 +115,7 @@ class TraceFileReader extends HTMLElement {
     }
   }
 
-  addInstanceTypeData(
-      data, keys, isolate, gc_id, data_set, instance_type, entry) {
-    keys[isolate].add(data_set);
+  addInstanceTypeData(data, isolate, gc_id, data_set, instance_type, entry) {
     data[isolate].gcs[gc_id][data_set].instance_type_data[instance_type] = {
       overall: entry.overall,
       count: entry.count,
@@ -136,14 +132,16 @@ class TraceFileReader extends HTMLElement {
     }
   }
 
-  extendAndSanitizeModel(data, keys) {
+  extendAndSanitizeModel(data) {
     const checkNonNegativeProperty = (obj, property) => {
       console.assert(obj[property] >= 0, 'negative property', obj, property);
     };
 
     for (const isolate of Object.keys(data)) {
-      for (const gc of Object.keys(data[isolate].gcs)) {
-        for (const data_set_key of keys[isolate]) {
+      const isolate_data = data[isolate];
+      for (const gc of Object.keys(isolate_data.gcs)) {
+        const gc_data = isolate_data.gcs[gc];
+        for (const data_set_key of isolate_data.data_sets) {
           const data_set = data[isolate].gcs[gc][data_set_key];
           // Create a ranked instance type array that sorts instance types by
           // memory size (overall).
@@ -191,52 +189,66 @@ class TraceFileReader extends HTMLElement {
   }
 
   createModelFromChromeTraceFile(contents) {
-    console.log('Processing log as chrome trace file.');
-    const data = Object.create(null);  // Final data container.
-    const keys = Object.create(null);  // Collecting 'keys' per isolate.
+    // Trace files support two formats.
+    // {traceEvents: [ data ]}
+    const kObjectTraceFile = {
+      name: 'object',
+      endToken: ']}',
+      getDataArray: o => o.traceEvents
+    };
+    // [ data ]
+    const kArrayTraceFile = {
+      name: 'array',
+      endToken: ']',
+      getDataArray: o => o
+    };
+    const handler =
+        (contents[0][0] === '{') ? kObjectTraceFile : kArrayTraceFile;
+    console.log(`Processing log as chrome trace file (${handler.name}).`);
 
     // Pop last line in log as it might be broken.
     contents.pop();
     // Remove trailing comma.
     contents[contents.length - 1] = contents[contents.length - 1].slice(0, -1);
     // Terminate JSON.
-    const sanitized_contents = [...contents, ']}'].join('');
+    const sanitized_contents = [...contents, handler.endToken].join('');
+
+    const data = Object.create(null);  // Final data container.
     try {
       const raw_data = JSON.parse(sanitized_contents);
-      const objects_stats_data =
-          raw_data.traceEvents.filter(e => e.name == 'V8.GC_Objects_Stats');
-      objects_stats_data.forEach(trace_data => {
-        const actual_data = trace_data.args;
-        const data_sets = new Set(Object.keys(actual_data));
-        Object.keys(actual_data).forEach(data_set => {
-          const string_entry = actual_data[data_set];
-          try {
-            const entry = JSON.parse(string_entry);
-            this.createOrUpdateEntryIfNeeded(data, keys, entry);
-            this.createDatasetIfNeeded(data, keys, entry, data_set);
-            const isolate = entry.isolate;
-            const time = entry.time;
-            const gc_id = entry.id;
-            data[isolate].gcs[gc_id].time = time;
-            data[isolate].gcs[gc_id][data_set].bucket_sizes =
-                entry.bucket_sizes;
-            for (let [instance_type, value] of Object.entries(
-                     entry.type_data)) {
-              // Trace file format uses markers that do not have actual
-              // properties.
-              if (!('overall' in value)) continue;
-              this.addInstanceTypeData(
-                  data, keys, isolate, gc_id, data_set, instance_type, value);
-            }
-          } catch (e) {
-            console.log('Unable to parse data set entry', e);
-          }
-        });
-      });
+      const raw_array_data = handler.getDataArray(raw_data);
+      raw_array_data.filter(e => e.name === 'V8.GC_Objects_Stats')
+          .forEach(trace_data => {
+            const actual_data = trace_data.args;
+            const data_sets = new Set(Object.keys(actual_data));
+            Object.keys(actual_data).forEach(data_set => {
+              const string_entry = actual_data[data_set];
+              try {
+                const entry = JSON.parse(string_entry);
+                this.createOrUpdateEntryIfNeeded(data, entry);
+                this.createDatasetIfNeeded(data, entry, data_set);
+                const isolate = entry.isolate;
+                const time = entry.time;
+                const gc_id = entry.id;
+                data[isolate].gcs[gc_id].time = time;
+                data[isolate].gcs[gc_id][data_set].bucket_sizes =
+                    entry.bucket_sizes;
+                for (let [instance_type, value] of Object.entries(
+                         entry.type_data)) {
+                  // Trace file format uses markers that do not have actual
+                  // properties.
+                  if (!('overall' in value)) continue;
+                  this.addInstanceTypeData(
+                      data, isolate, gc_id, data_set, instance_type, value);
+                }
+              } catch (e) {
+                console.log('Unable to parse data set entry', e);
+              }
+            });
+          });
     } catch (e) {
       console.error('Unable to parse chrome trace file.', e);
     }
-    this.extendAndSanitizeModel(data, keys);
     return data;
   }
 
@@ -254,14 +266,12 @@ class TraceFileReader extends HTMLElement {
     });
 
     const data = Object.create(null);  // Final data container.
-    const keys = Object.create(null);  // Collecting 'keys' per isolate.
-
     for (var entry of contents) {
       if (entry === null || entry.type === undefined) {
         continue;
       }
       if (entry.type === 'zone') {
-        this.createOrUpdateEntryIfNeeded(data, keys, entry);
+        this.createOrUpdateEntryIfNeeded(data, entry);
         const stacktrace = ('stacktrace' in entry) ? entry.stacktrace : [];
         data[entry.isolate].samples.zone[entry.time] = {
           allocated: entry.allocated,
@@ -270,26 +280,26 @@ class TraceFileReader extends HTMLElement {
         };
       } else if (
           entry.type === 'zonecreation' || entry.type === 'zonedestruction') {
-        this.createOrUpdateEntryIfNeeded(data, keys, entry);
+        this.createOrUpdateEntryIfNeeded(data, entry);
         data[entry.isolate].zonetags.push(
             Object.assign({opening: entry.type === 'zonecreation'}, entry));
       } else if (entry.type === 'gc_descriptor') {
-        this.createOrUpdateEntryIfNeeded(data, keys, entry);
+        this.createOrUpdateEntryIfNeeded(data, entry);
         data[entry.isolate].gcs[entry.id].time = entry.time;
         if ('zone' in entry)
           data[entry.isolate].gcs[entry.id].malloced = entry.zone;
       } else if (entry.type === 'instance_type_data') {
         if (entry.id in data[entry.isolate].gcs) {
-          this.createOrUpdateEntryIfNeeded(data, keys, entry);
-          this.createDatasetIfNeeded(data, keys, entry, entry.key);
+          this.createOrUpdateEntryIfNeeded(data, entry);
+          this.createDatasetIfNeeded(data, entry, entry.key);
           this.addInstanceTypeData(
-              data, keys, entry.isolate, entry.id, entry.key,
+              data, entry.isolate, entry.id, entry.key,
               entry.instance_type_name, entry);
         }
       } else if (entry.type === 'bucket_sizes') {
         if (entry.id in data[entry.isolate].gcs) {
-          this.createOrUpdateEntryIfNeeded(data, keys, entry);
-          this.createDatasetIfNeeded(data, keys, entry, entry.key);
+          this.createOrUpdateEntryIfNeeded(data, entry);
+          this.createDatasetIfNeeded(data, entry, entry.key);
           data[entry.isolate].gcs[entry.id][entry.key].bucket_sizes =
               entry.sizes;
         }
@@ -297,7 +307,6 @@ class TraceFileReader extends HTMLElement {
         console.log('Unknown entry type: ' + entry.type);
       }
     }
-    this.extendAndSanitizeModel(data, keys);
     return data;
   }
 }
