@@ -109,7 +109,7 @@ class X64OperandGenerator final : public OperandGenerator {
         DCHECK(scale_exponent >= 0 && scale_exponent <= 3);
         inputs[(*input_count)++] = UseRegister(index);
         if (displacement != nullptr) {
-          inputs[(*input_count)++] = displacement_mode
+          inputs[(*input_count)++] = displacement_mode == kNegativeDisplacement
                                          ? UseNegatedImmediate(displacement)
                                          : UseImmediate(displacement);
           static const AddressingMode kMRnI_modes[] = {kMode_MR1I, kMode_MR2I,
@@ -717,6 +717,10 @@ bool TryMatchLoadWord64AndShiftRight(InstructionSelector* selector, Node* node,
         }
         inputs[input_count++] = ImmediateOperand(ImmediateOperand::INLINE, 4);
       } else {
+        // In the case that the base address was zero, the displacement will be
+        // in a register and replacing it with an immediate is not allowed. This
+        // usually only happens in dead code anyway.
+        if (!inputs[input_count - 1].IsImmediate()) return false;
         int32_t displacement = g.GetImmediateIntegerValue(mleft.displacement());
         inputs[input_count - 1] =
             ImmediateOperand(ImmediateOperand::INLINE, displacement + 4);
