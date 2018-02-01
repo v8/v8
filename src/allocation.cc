@@ -160,6 +160,7 @@ void* AllocatePages(void* address, size_t size, size_t alignment,
 }
 
 bool FreePages(void* address, const size_t size) {
+  DCHECK_EQ(0UL, size & (GetPageAllocator()->AllocatePageSize() - 1));
   bool result = GetPageAllocator()->FreePages(address, size);
 #if defined(LEAK_SANITIZER)
   if (result) {
@@ -260,7 +261,9 @@ void VirtualMemory::Free() {
   size_t size = size_;
   CHECK(InVM(address, size));
   Reset();
-  CHECK(FreePages(address, size));
+  // FreePages expects size to be aligned to allocation granularity. Trimming
+  // may leave size at only commit granularity. Align it here.
+  CHECK(FreePages(address, RoundUp(size, AllocatePageSize())));
 }
 
 void VirtualMemory::TakeControl(VirtualMemory* from) {

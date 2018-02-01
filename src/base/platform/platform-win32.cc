@@ -836,8 +836,7 @@ void* OS::Allocate(void* address, size_t size, size_t alignment,
 // static
 bool OS::Free(void* address, const size_t size) {
   DCHECK_EQ(0, reinterpret_cast<uintptr_t>(address) % AllocatePageSize());
-  // TODO(bbudge) Add DCHECK_EQ(0, size % AllocatePageSize()) when callers
-  // pass the correct size on Windows.
+  DCHECK_EQ(0, size % AllocatePageSize());
   USE(size);
   return VirtualFree(address, 0, MEM_RELEASE) != 0;
 }
