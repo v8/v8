@@ -4862,7 +4862,8 @@ void Heap::ZapFromSpace() {
        PageRange(new_space_->FromSpaceStart(), new_space_->FromSpaceEnd())) {
     for (Address cursor = page->area_start(), limit = page->area_end();
          cursor < limit; cursor += kPointerSize) {
-      Memory::Address_at(cursor) = kFromSpaceZapValue;
+      Memory::Address_at(cursor) =
+          reinterpret_cast<Address>(kFromSpaceZapValue);
     }
   }
 }

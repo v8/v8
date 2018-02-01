@@ -1099,7 +1099,7 @@ bool MemoryAllocator::UncommitBlock(Address start, size_t size) {
 
 void MemoryAllocator::ZapBlock(Address start, size_t size) {
   for (size_t s = 0; s + kPointerSize <= size; s += kPointerSize) {
-    Memory::Address_at(start + s) = kZapValue;
+    Memory::Address_at(start + s) = reinterpret_cast<Address>(kZapValue);
   }
 }
 

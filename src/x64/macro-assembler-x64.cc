@@ -186,7 +186,8 @@ void MacroAssembler::PushAddress(ExternalReference source) {
   int64_t address = reinterpret_cast<int64_t>(source.address());
   if (is_int32(address) && !serializer_enabled()) {
     if (emit_debug_code()) {
-      Move(kScratchRegister, kZapValue, Assembler::RelocInfoNone());
+      Move(kScratchRegister, reinterpret_cast<Address>(kZapValue),
+           Assembler::RelocInfoNone());
     }
     Push(Immediate(static_cast<int32_t>(address)));
     return;
@@ -255,8 +256,9 @@ void MacroAssembler::RecordWriteField(Register object, int offset,
   // Clobber clobbered input registers when running with the debug-code flag
   // turned on to provoke errors.
   if (emit_debug_code()) {
-    Move(value, kZapValue, Assembler::RelocInfoNone());
-    Move(dst, kZapValue, Assembler::RelocInfoNone());
+    Move(value, reinterpret_cast<Address>(kZapValue),
+         Assembler::RelocInfoNone());
+    Move(dst, reinterpret_cast<Address>(kZapValue), Assembler::RelocInfoNone());
   }
 }
 
@@ -386,8 +388,10 @@ void MacroAssembler::RecordWrite(Register object, Register address,
   // Clobber clobbered registers when running with the debug-code flag
   // turned on to provoke errors.
   if (emit_debug_code()) {
-    Move(address, kZapValue, Assembler::RelocInfoNone());
-    Move(value, kZapValue, Assembler::RelocInfoNone());
+    Move(address, reinterpret_cast<Address>(kZapValue),
+         Assembler::RelocInfoNone());
+    Move(value, reinterpret_cast<Address>(kZapValue),
+         Assembler::RelocInfoNone());
   }
 }
 
