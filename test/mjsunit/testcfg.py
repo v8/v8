@@ -25,6 +25,8 @@
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+from collections import OrderedDict
+import itertools
 import os
 import re
 
@@ -39,6 +41,11 @@ SELF_SCRIPT_PATTERN = re.compile(r"//\s+Env: TEST_FILE_NAME")
 MODULE_PATTERN = re.compile(r"^// MODULE$", flags=re.MULTILINE)
 NO_HARNESS_PATTERN = re.compile(r"^// NO HARNESS$", flags=re.MULTILINE)
 
+# Flags known to misbehave when combining arbitrary mjsunit tests.
+COMBINE_TESTS_FLAGS_BLACKLIST = [
+  '--mock-arraybuffer-allocator',
+  '--wasm-lazy-compilation',
+]
 
 class TestSuite(testsuite.TestSuite):
   def ListTests(self):
@@ -164,9 +171,9 @@ class TestCombiner(testsuite.TestCombiner):
     if 'async' in source_code:
       return None
 
-    # TODO(majeski): Investigate if we can maybe ignore the flags while
-    # grouping.
-    return str(sorted(list(set(source_flags + test._get_statusfile_flags()))))
+    # TODO(machenbach): Remove grouping if combining tests in a flag-independent
+    # way works well.
+    return 1
 
   def _combined_test_class(self):
     return CombinedTest
@@ -206,11 +213,48 @@ class CombinedTest(testcase.TestCase):
       [t._files_suffix[0] for t in self._tests]
     )
 
+  def _merge_flags(self, flags):
+    """Merges flags from a list of flags.
+
+    Flag values not starting with '-' are merged with the preceeding flag,
+    e.g. --foo 1 will become --foo=1. All other flags remain the same.
+
+    Returns: A generator of flags.
+    """
+    if not flags:
+      return
+    # Iterate over flag pairs. ['-'] is a sentinel value for the last iteration.
+    for flag1, flag2 in itertools.izip(flags, flags[1:] + ['-']):
+      if not flag2.startswith('-'):
+        assert '=' not in flag1
+        yield flag1 + '=' + flag2
+      elif flag1.startswith('-'):
+        yield flag1
+
+
+  def _get_combined_flags(self, flags_gen):
+    """Combines all flags - dedupes, keeps order and filters some flags.
+
+    Args:
+      flags_gen: Generator for flag lists.
+    Returns: A list of flags.
+    """
+    merged_flags = self._merge_flags(list(itertools.chain(*flags_gen)))
+    unique_flags = OrderedDict((flag, True) for flag in merged_flags).keys()
+    return [
+      flag for flag in unique_flags
+      if flag not in COMBINE_TESTS_FLAGS_BLACKLIST
+    ]
+
   def _get_source_flags(self):
-    return self._tests[0]._get_source_flags()
+    # Combine flags from all source files.
+    return self._get_combined_flags(
+        test._get_source_flags() for test in self._tests)
 
   def _get_statusfile_flags(self):
-    return self._tests[0]._get_statusfile_flags()
+    # Combine flags from all status file entries.
+    return self._get_combined_flags(
+        test._get_statusfile_flags() for test in self._tests)
 
 
 class SuppressedTestCase(TestCase):
