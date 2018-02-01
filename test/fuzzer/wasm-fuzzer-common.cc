@@ -135,6 +135,15 @@ std::ostream& operator<<(std::ostream& os, const PrintSig& print) {
   return os << "]";
 }
 
+struct PrintName {
+  WasmName name;
+  PrintName(ModuleWireBytes wire_bytes, WireBytesRef ref)
+      : name(wire_bytes.GetNameOrNull(ref)) {}
+};
+std::ostream& operator<<(std::ostream& os, const PrintName& name) {
+  return os.write(name.name.start(), name.name.size());
+}
+
 void GenerateTestCase(Isolate* isolate, ModuleWireBytes wire_bytes,
                       bool compiles) {
   constexpr bool kVerifyFunctions = false;
@@ -167,12 +176,17 @@ void GenerateTestCase(Isolate* isolate, ModuleWireBytes wire_bytes,
     }
   }
 
+  for (WasmGlobal& glob : module->globals) {
+    os << "  builder.addGlobal(" << ValueTypeToConstantName(glob.type) << ", "
+       << glob.mutability << ");\n";
+  }
+
   Zone tmp_zone(isolate->allocator(), ZONE_NAME);
 
   for (const WasmFunction& func : module->functions) {
     Vector<const uint8_t> func_code = wire_bytes.GetFunctionBytes(&func);
-    os << "  // Generate function " << func.func_index + 1 << " of "
-       << module->functions.size() << ".\n";
+    os << "  // Generate function " << func.func_index << " (out of "
+       << module->functions.size() << ").\n";
     // Generate signature.
     os << "  sig" << func.func_index << " = makeSig("
        << PrintParameters(func.sig) << ", " << PrintReturns(func.sig) << ");\n";
@@ -202,16 +216,21 @@ void GenerateTestCase(Isolate* isolate, ModuleWireBytes wire_bytes,
     FunctionBody func_body(func.sig, func.code.offset(), func_code.start(),
                            func_code.end());
     PrintRawWasmCode(isolate->allocator(), func_body, module, kOmitLocals);
-    os << "            ])";
-    if (func.func_index == 0) os << "\n            .exportAs('main')";
-    os << ";\n ";
+    os << "            ]);\n";
+  }
+
+  for (WasmExport& exp : module->export_table) {
+    if (exp.kind != kExternalFunction) continue;
+    os << "  builder.addExport('" << PrintName(wire_bytes, exp.name) << "', "
+       << exp.index << ");\n";
   }
 
   if (compiles) {
     os << "  var module = builder.instantiate();\n"
           "  module.exports.main(1, 2, 3);\n";
   } else {
-    os << "  assertThrows(function() { builder.instantiate(); });\n";
+    os << "  assertThrows(function() { builder.instantiate(); }, "
+          "WebAssembly.CompileError);\n";
   }
   os << "})();\n";
 }
