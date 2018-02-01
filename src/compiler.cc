@@ -1063,17 +1063,16 @@ MaybeHandle<JSFunction> Compiler::GetFunctionFromEval(
   // is unused (just 0), which means it's an available field to use to indicate
   // this separation. But to make sure we're not causing other false hits, we
   // negate the scope position.
-  int position = eval_scope_position;
   if (FLAG_harmony_function_tostring &&
       restriction == ONLY_SINGLE_FUNCTION_LITERAL &&
       parameters_end_pos != kNoSourcePosition) {
     // use the parameters_end_pos as the eval_scope_position in the eval cache.
     DCHECK_EQ(eval_scope_position, 0);
-    position = -parameters_end_pos;
+    eval_scope_position = -parameters_end_pos;
   }
   CompilationCache* compilation_cache = isolate->compilation_cache();
   InfoVectorPair eval_result = compilation_cache->LookupEval(
-      source, outer_info, context, language_mode, position);
+      source, outer_info, context, language_mode, eval_scope_position);
   Handle<Cell> vector;
   if (eval_result.has_vector()) {
     vector = Handle<Cell>(eval_result.vector(), isolate);
