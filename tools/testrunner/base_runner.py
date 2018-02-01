@@ -36,8 +36,6 @@ BASE_DIR = (
 
 DEFAULT_OUT_GN = 'out.gn'
 
-ARCH_GUESS = utils.DefaultArch()
-
 # Map of test name synonyms to lists of test suites. Should be ordered by
 # expected runtimes (suites with slow test cases first). These groups are
 # invoked in separate steps on the bots.
@@ -241,6 +239,7 @@ class BaseTestRunner(object):
 
       args = self._parse_test_args(args)
       suites = self._get_suites(args, options)
+      self._load_status_files(suites, options)
 
       self._setup_env()
       return self._do_execute(suites, args, options)
@@ -272,16 +271,14 @@ class BaseTestRunner(object):
                       " and buildbot builds): %s" % MODES.keys())
     parser.add_option("--shell-dir", help="DEPRECATED! Executables from build "
                       "directory will be used")
-    parser.add_option("--shard-count",
-                      help="Split tests into this number of shards",
-                      default=1, type="int")
-    parser.add_option("--shard-run",
-                      help="Run this shard from the split up tests.",
-                      default=1, type="int")
     parser.add_option("--total-timeout-sec", default=0, type="int",
                       help="How long should fuzzer run")
-    parser.add_option("--random-seed", default=0, type=int,
-                      help="Default seed for initializing random generator")
+
+    # Shard
+    parser.add_option("--shard-count", default=1, type=int,
+                      help="Split tests into this number of shards")
+    parser.add_option("--shard-run", default=1, type=int,
+                      help="Run this shard from the split up tests.")
 
     # Progress
     parser.add_option("-p", "--progress",
@@ -311,6 +308,8 @@ class BaseTestRunner(object):
     parser.add_option("--no-harness", "--noharness",
                       default=False, action="store_true",
                       help="Run without test harness of a given suite")
+    parser.add_option("--random-seed", default=0, type=int,
+                      help="Default seed for initializing random generator")
     parser.add_option("-t", "--timeout", default=60, type=int,
                       help="Timeout for single test in seconds")
     parser.add_option("-v", "--verbose", default=False, action="store_true",
@@ -556,9 +555,6 @@ class BaseTestRunner(object):
   def _get_default_suite_names(self):
     return []
 
-  def _expand_test_group(self, name):
-    return TEST_MAP.get(name, [name])
-
   def _load_suites(self, names, options):
     test_config = self._create_test_config(options)
     def load_suite(name):
@@ -568,6 +564,46 @@ class BaseTestRunner(object):
           os.path.join(self.basedir, 'test', name),
           test_config)
     return map(load_suite, names)
+
+  def _load_status_files(self, suites, options):
+    # simd_mips is true if SIMD is fully supported on MIPS
+    variables = self._get_statusfile_variables(options)
+    for s in suites:
+      s.ReadStatusFile(variables)
+
+  def _get_statusfile_variables(self, options):
+    simd_mips = (
+      self.build_config.arch in ['mipsel', 'mips', 'mips64', 'mips64el'] and
+      self.build_config.mips_arch_variant == "r6" and
+      self.build_config.mips_use_msa)
+
+    # TODO(all): Combine "simulator" and "simulator_run".
+    # TODO(machenbach): In GN we can derive simulator run from
+    # target_arch != v8_target_arch in the dumped build config.
+    return {
+      "arch": self.build_config.arch,
+      "asan": self.build_config.asan,
+      "byteorder": sys.byteorder,
+      "dcheck_always_on": self.build_config.dcheck_always_on,
+      "deopt_fuzzer": False,
+      "gc_fuzzer": False,
+      "gc_stress": False,
+      "gcov_coverage": self.build_config.gcov_coverage,
+      "isolates": options.isolates,
+      "mode": self.mode_options.status_mode,
+      "msan": self.build_config.msan,
+      "no_harness": options.no_harness,
+      "no_i18n": self.build_config.no_i18n,
+      "no_snap": self.build_config.no_snap,
+      "novfp3": False,
+      "predictable": self.build_config.predictable,
+      "simd_mips": simd_mips,
+      "simulator": utils.UseSimulator(self.build_config.arch),
+      "simulator_run": False,
+      "system": utils.GuessOS(),
+      "tsan": self.build_config.tsan,
+      "ubsan_vptr": self.build_config.ubsan_vptr,
+    }
 
   def _create_test_config(self, options):
     timeout = options.timeout * self._timeout_scalefactor(options)

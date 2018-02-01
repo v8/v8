@@ -115,6 +115,18 @@ class NumFuzzer(base_runner.BaseTestRunner):
       factor = max(int(factor * 0.25), 1)
     return factor
 
+  def _get_statusfile_variables(self, options):
+    variables = (
+        super(NumFuzzer, self)._get_statusfile_variables(options))
+    variables.update({
+      'deopt_fuzzer': bool(options.stress_deopt),
+      'gc_stress': bool(options.stress_gc),
+      'gc_fuzzer': bool(max([options.stress_marking,
+                             options.stress_scavenge,
+                             options.stress_compaction,
+                             options.stress_gc])),
+    })
+    return variables
 
   def _do_execute(self, suites, args, options):
     print(">>> Running tests for %s.%s" % (self.build_config.arch,
@@ -177,41 +189,9 @@ class NumFuzzer(base_runner.BaseTestRunner):
       suites = [s for s in suites if s.test_combiner_available()]
 
     # Find available test suites and read test cases from them.
-    deopt_fuzzer = bool(options.stress_deopt)
-    gc_stress = bool(options.stress_gc)
-    gc_fuzzer = bool(max([options.stress_marking,
-                          options.stress_scavenge,
-                          options.stress_compaction,
-                          options.stress_gc]))
-
-    variables = {
-      "arch": self.build_config.arch,
-      "asan": self.build_config.asan,
-      "byteorder": sys.byteorder,
-      "dcheck_always_on": self.build_config.dcheck_always_on,
-      "deopt_fuzzer": deopt_fuzzer,
-      "gc_fuzzer": gc_fuzzer,
-      "gc_stress": gc_stress,
-      "gcov_coverage": self.build_config.gcov_coverage,
-      "isolates": options.isolates,
-      "mode": self.mode_options.status_mode,
-      "msan": self.build_config.msan,
-      "no_harness": False,
-      "no_i18n": self.build_config.no_i18n,
-      "no_snap": self.build_config.no_snap,
-      "novfp3": False,
-      "predictable": self.build_config.predictable,
-      "simd_mips": True,
-      "simulator": utils.UseSimulator(self.build_config.arch),
-      "simulator_run": False,
-      "system": utils.GuessOS(),
-      "tsan": self.build_config.tsan,
-      "ubsan_vptr": self.build_config.ubsan_vptr,
-    }
 
     tests = []
     for s in suites:
-      s.ReadStatusFile(variables)
       s.ReadTestCases()
       tests += s.tests
     return tests

@@ -25,6 +25,8 @@ from testrunner.testproc.variant import VariantProc
 from testrunner.utils import random_utils
 
 
+ARCH_GUESS = utils.DefaultArch()
+
 VARIANTS = ["default"]
 
 MORE_VARIANTS = [
@@ -258,53 +260,30 @@ class StandardTestRunner(base_runner.BaseTestRunner):
           "allow_user_segv_handler=1",
         ])
 
-    def _execute(self, args, options, suites):
-      print(">>> Running tests for %s.%s" % (self.build_config.arch,
-                                             self.mode_name))
-      # simd_mips is true if SIMD is fully supported on MIPS
-      simd_mips = (
-        self.build_config.arch in [ 'mipsel', 'mips', 'mips64', 'mips64el'] and
-        self.build_config.mips_arch_variant == "r6" and
-        self.build_config.mips_use_msa)
+    def _get_statusfile_variables(self, options):
+      variables = (
+          super(StandardTestRunner, self)._get_statusfile_variables(options))
 
-      # TODO(all): Combine "simulator" and "simulator_run".
-      # TODO(machenbach): In GN we can derive simulator run from
-      # target_arch != v8_target_arch in the dumped build config.
       simulator_run = (
         not options.dont_skip_simulator_slow_tests and
         self.build_config.arch in [
           'arm64', 'arm', 'mipsel', 'mips', 'mips64', 'mips64el', 'ppc',
           'ppc64', 's390', 's390x'] and
-        bool(base_runner.ARCH_GUESS) and
-        self.build_config.arch != base_runner.ARCH_GUESS)
-      # Find available test suites and read test cases from them.
-      variables = {
-        "arch": self.build_config.arch,
-        "asan": self.build_config.asan,
-        "byteorder": sys.byteorder,
-        "dcheck_always_on": self.build_config.dcheck_always_on,
-        "deopt_fuzzer": False,
-        "gc_fuzzer": False,
-        "gc_stress": options.gc_stress or options.random_gc_stress,
-        "gcov_coverage": self.build_config.gcov_coverage,
-        "isolates": options.isolates,
-        "mode": self.mode_options.status_mode,
-        "msan": self.build_config.msan,
-        "no_harness": options.no_harness,
-        "no_i18n": self.build_config.no_i18n,
-        "no_snap": self.build_config.no_snap,
-        "novfp3": options.novfp3,
-        "predictable": self.build_config.predictable,
-        "simulator": utils.UseSimulator(self.build_config.arch),
-        "simulator_run": simulator_run,
-        "simd_mips": simd_mips,
-        "system": utils.GuessOS(),
-        "tsan": self.build_config.tsan,
-        "ubsan_vptr": self.build_config.ubsan_vptr,
-      }
+        bool(ARCH_GUESS) and
+        self.build_config.arch != ARCH_GUESS)
+
+      variables.update({
+        'gc_stress': options.gc_stress or options.random_gc_stress,
+        'novfp3': options.novfp3,
+        'simulator_run': simulator_run,
+      })
+      return variables
+
+    def _execute(self, args, options, suites):
+      print(">>> Running tests for %s.%s" % (self.build_config.arch,
+                                             self.mode_name))
 
       for s in suites:
-        s.ReadStatusFile(variables)
         s.ReadTestCases()
 
       return self._run_test_procs(suites, args, options)
