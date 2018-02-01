@@ -32,10 +32,12 @@ class V8_EXPORT_PRIVATE BranchElimination final
  private:
   struct BranchCondition {
     Node* condition;
+    Node* branch;
     bool is_true;
 
     bool operator==(BranchCondition other) const {
-      return condition == other.condition && is_true == other.is_true;
+      return condition == other.condition && branch == other.branch &&
+             is_true == other.is_true;
     }
     bool operator!=(BranchCondition other) const { return !(*this == other); }
   };
@@ -45,8 +47,8 @@ class V8_EXPORT_PRIVATE BranchElimination final
   // (true or false).
   class ControlPathConditions : public FunctionalList<BranchCondition> {
    public:
-    Maybe<bool> LookupCondition(Node* condition) const;
-    void AddCondition(Zone* zone, Node* condition, bool is_true,
+    bool LookupCondition(Node* condition, Node** branch, bool* is_true) const;
+    void AddCondition(Zone* zone, Node* condition, Node* branch, bool is_true,
                       ControlPathConditions hint);
 
    private:
@@ -64,7 +66,8 @@ class V8_EXPORT_PRIVATE BranchElimination final
   Reduction TakeConditionsFromFirstControl(Node* node);
   Reduction UpdateConditions(Node* node, ControlPathConditions conditions);
   Reduction UpdateConditions(Node* node, ControlPathConditions prev_conditions,
-                             Node* current_condition, bool is_true_branch);
+                             Node* current_condition, Node* current_branch,
+                             bool is_true_branch);
 
   Node* dead() const { return dead_; }
   Graph* graph() const;

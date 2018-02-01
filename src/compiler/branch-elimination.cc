@@ -57,17 +57,23 @@ Reduction BranchElimination::ReduceBranch(Node* node) {
   Node* condition = node->InputAt(0);
   Node* control_input = NodeProperties::GetControlInput(node, 0);
   ControlPathConditions from_input = node_conditions_.Get(control_input);
-  Maybe<bool> condition_value = from_input.LookupCondition(condition);
+  Node* branch;
+  bool condition_value;
   // If we know the condition we can discard the branch.
-  if (condition_value.IsJust()) {
-    bool known_value = condition_value.FromJust();
+  if (from_input.LookupCondition(condition, &branch, &condition_value)) {
+    // Mark the branch as a safety check.
+    if (IsSafetyCheckOf(node->op()) == IsSafetyCheck::kSafetyCheck) {
+      NodeProperties::ChangeOp(branch,
+                               common()->MarkAsSafetyCheck(branch->op()));
+    }
+
     for (Node* const use : node->uses()) {
       switch (use->opcode()) {
         case IrOpcode::kIfTrue:
-          Replace(use, known_value ? control_input : dead());
+          Replace(use, condition_value ? control_input : dead());
           break;
         case IrOpcode::kIfFalse:
-          Replace(use, known_value ? dead() : control_input);
+          Replace(use, condition_value ? dead() : control_input);
           break;
         default:
           UNREACHABLE();
@@ -95,10 +101,17 @@ Reduction BranchElimination::ReduceDeoptimizeConditional(Node* node) {
   }
 
   ControlPathConditions conditions = node_conditions_.Get(control);
-  Maybe<bool> condition_value = conditions.LookupCondition(condition);
-  if (condition_value.IsJust()) {
+  bool condition_value;
+  Node* branch;
+  if (conditions.LookupCondition(condition, &branch, &condition_value)) {
+    // Mark the branch as a safety check.
+    if (p.is_safety_check() == IsSafetyCheck::kSafetyCheck) {
+      NodeProperties::ChangeOp(branch,
+                               common()->MarkAsSafetyCheck(branch->op()));
+    }
+
     // If we know the condition we can discard the branch.
-    if (condition_is_true == condition_value.FromJust()) {
+    if (condition_is_true == condition_value) {
       // We don't update the conditions here, because we're replacing {node}
       // with the {control} node that already contains the right information.
       ReplaceWithValue(node, dead(), effect, control);
@@ -112,7 +125,7 @@ Reduction BranchElimination::ReduceDeoptimizeConditional(Node* node) {
     }
     return Replace(dead());
   }
-  return UpdateConditions(node, conditions, condition, condition_is_true);
+  return UpdateConditions(node, conditions, condition, node, condition_is_true);
 }
 
 Reduction BranchElimination::ReduceIf(Node* node, bool is_true_branch) {
@@ -126,7 +139,7 @@ Reduction BranchElimination::ReduceIf(Node* node, bool is_true_branch) {
     return NoChange();
   }
   Node* condition = branch->InputAt(0);
-  return UpdateConditions(node, from_branch, condition, is_true_branch);
+  return UpdateConditions(node, from_branch, condition, branch, is_true_branch);
 }
 
 
@@ -198,36 +211,40 @@ Reduction BranchElimination::UpdateConditions(
 
 Reduction BranchElimination::UpdateConditions(
     Node* node, ControlPathConditions prev_conditions, Node* current_condition,
-    bool is_true_branch) {
+    Node* current_branch, bool is_true_branch) {
   ControlPathConditions original = node_conditions_.Get(node);
   // The control path for the node is the path obtained by appending the
   // current_condition to the prev_conditions. Use the original control path as
   // a hint to avoid allocations.
-  prev_conditions.AddCondition(zone_, current_condition, is_true_branch,
-                               original);
+  prev_conditions.AddCondition(zone_, current_condition, current_branch,
+                               is_true_branch, original);
   return UpdateConditions(node, prev_conditions);
 }
 
 void BranchElimination::ControlPathConditions::AddCondition(
-    Zone* zone, Node* condition, bool is_true, ControlPathConditions hint) {
-  DCHECK(LookupCondition(condition).IsNothing());
-  PushFront({condition, is_true}, zone, hint);
+    Zone* zone, Node* condition, Node* branch, bool is_true,
+    ControlPathConditions hint) {
+  DCHECK_EQ(false, LookupCondition(condition, nullptr, nullptr));
+  PushFront({condition, branch, is_true}, zone, hint);
 }
 
-
-Maybe<bool> BranchElimination::ControlPathConditions::LookupCondition(
-    Node* condition) const {
+bool BranchElimination::ControlPathConditions::LookupCondition(
+    Node* condition, Node** branch, bool* is_true) const {
   for (BranchCondition element : *this) {
-    if (element.condition == condition) return Just<bool>(element.is_true);
+    if (element.condition == condition) {
+      *is_true = element.is_true;
+      *branch = element.branch;
+      return true;
+    }
   }
-  return Nothing<bool>();
-}
+  return false;
+  }
 
-Graph* BranchElimination::graph() const { return jsgraph()->graph(); }
+  Graph* BranchElimination::graph() const { return jsgraph()->graph(); }
 
-CommonOperatorBuilder* BranchElimination::common() const {
-  return jsgraph()->common();
-}
+  CommonOperatorBuilder* BranchElimination::common() const {
+    return jsgraph()->common();
+  }
 
 }  // namespace compiler
 }  // namespace internal

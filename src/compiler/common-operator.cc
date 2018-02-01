@@ -96,6 +96,26 @@ IsSafetyCheck IsSafetyCheckOf(const Operator* op) {
   return DeoptimizeParametersOf(op).is_safety_check();
 }
 
+const Operator* CommonOperatorBuilder::MarkAsSafetyCheck(const Operator* op) {
+  if (op->opcode() == IrOpcode::kBranch) {
+    BranchOperatorInfo info = BranchOperatorInfoOf(op);
+    if (info.is_safety_check == IsSafetyCheck::kSafetyCheck) return op;
+    return Branch(info.hint, IsSafetyCheck::kSafetyCheck);
+  }
+  DeoptimizeParameters p = DeoptimizeParametersOf(op);
+  if (p.is_safety_check() == IsSafetyCheck::kSafetyCheck) return op;
+  switch (op->opcode()) {
+    case IrOpcode::kDeoptimizeIf:
+      return DeoptimizeIf(p.kind(), p.reason(), p.feedback(),
+                          IsSafetyCheck::kSafetyCheck);
+    case IrOpcode::kDeoptimizeUnless:
+      return DeoptimizeUnless(p.kind(), p.reason(), p.feedback(),
+                              IsSafetyCheck::kSafetyCheck);
+    default:
+      UNREACHABLE();
+  }
+}
+
 bool operator==(SelectParameters const& lhs, SelectParameters const& rhs) {
   return lhs.representation() == rhs.representation() &&
          lhs.hint() == rhs.hint();

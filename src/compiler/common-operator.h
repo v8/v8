@@ -476,6 +476,8 @@ class V8_EXPORT_PRIVATE CommonOperatorBuilder final
       FrameStateType type, int parameter_count, int local_count,
       Handle<SharedFunctionInfo> shared_info);
 
+  const Operator* MarkAsSafetyCheck(const Operator* op);
+
  private:
   Zone* zone() const { return zone_; }
 
