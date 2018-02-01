@@ -16,7 +16,7 @@ class VariantsGenerator(testsuite.VariantsGenerator):
 
 
 class TestSuite(testsuite.TestSuite):
-  def ListTests(self, context):
+  def ListTests(self):
     shell = os.path.abspath(os.path.join(self.test_config.shell_dir, self.name))
     if utils.IsWindows():
       shell += ".exe"

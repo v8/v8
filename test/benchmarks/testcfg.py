@@ -39,7 +39,7 @@ class TestSuite(testsuite.TestSuite):
     super(TestSuite, self).__init__(*args, **kwargs)
     self.testroot = os.path.join(self.root, "data")
 
-  def ListTests(self, context):
+  def ListTests(self):
     tests = map(self._create_test, [
         "kraken/ai-astar",
         "kraken/audio-beat-detection",

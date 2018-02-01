@@ -20,7 +20,7 @@ class TestSuite(testsuite.TestSuite):
           'wasm_globals_section', 'wasm_imports_section', 'wasm_memory_section',
           'wasm_names_section', 'wasm_types_section' )
 
-  def ListTests(self, context):
+  def ListTests(self):
     tests = []
     for subtest in TestSuite.SUB_TESTS:
       for fname in os.listdir(os.path.join(self.root, subtest)):

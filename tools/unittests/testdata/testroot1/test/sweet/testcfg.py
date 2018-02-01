@@ -10,7 +10,7 @@ from testrunner.local import testsuite
 from testrunner.objects import testcase
 
 class TestSuite(testsuite.TestSuite):
-  def ListTests(self, context):
+  def ListTests(self):
     return map(
         self._create_test,
         ['bananas', 'apples', 'cherries', 'strawberries', 'raspberries'],

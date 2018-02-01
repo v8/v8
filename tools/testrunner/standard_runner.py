@@ -399,16 +399,15 @@ class StandardTestRunner(base_runner.BaseTestRunner):
       if options.infra_staging:
         for s in suites:
           s.ReadStatusFile(variables)
-          s.ReadTestCases(ctx)
+          s.ReadTestCases()
 
-        return self._run_test_procs(suites, args, options, progress_indicator,
-                                    ctx)
+        return self._run_test_procs(suites, args, options, progress_indicator)
 
       all_tests = []
       num_tests = 0
       for s in suites:
         s.ReadStatusFile(variables)
-        s.ReadTestCases(ctx)
+        s.ReadTestCases()
         if len(args) > 0:
           s.FilterTestCasesByArgs(args)
         all_tests += s.tests
@@ -515,8 +514,7 @@ class StandardTestRunner(base_runner.BaseTestRunner):
         count += 1
       return shard
 
-    def _run_test_procs(self, suites, args, options, progress_indicator,
-                        context):
+    def _run_test_procs(self, suites, args, options, progress_indicator):
       jobs = options.j
 
       print '>>> Running with test processors'
@@ -528,7 +526,7 @@ class StandardTestRunner(base_runner.BaseTestRunner):
       outproc_factory = None
       if self.build_config.predictable:
         outproc_factory = predictable.get_outproc
-      execproc = ExecutionProc(jobs, context, outproc_factory)
+      execproc = ExecutionProc(jobs, outproc_factory)
 
       procs = [
         loader,

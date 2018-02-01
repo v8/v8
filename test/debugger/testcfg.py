@@ -12,7 +12,7 @@ FILES_PATTERN = re.compile(r"//\s+Files:(.*)")
 MODULE_PATTERN = re.compile(r"^// MODULE$", flags=re.MULTILINE)
 
 class TestSuite(testsuite.TestSuite):
-  def ListTests(self, context):
+  def ListTests(self):
     tests = []
     for dirname, dirs, files in os.walk(self.root):
       for dotted in [x for x in dirs if x.startswith('.')]:

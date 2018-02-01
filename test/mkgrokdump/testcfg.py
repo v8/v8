@@ -18,7 +18,7 @@ class TestSuite(testsuite.TestSuite):
     v8_path = os.path.dirname(os.path.dirname(os.path.abspath(self.root)))
     self.expected_path = os.path.join(v8_path, 'tools', 'v8heapconst.py')
 
-  def ListTests(self, context):
+  def ListTests(self):
     test = self._create_test(SHELL)
     return [test]
 

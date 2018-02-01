@@ -14,7 +14,6 @@ import base_runner
 
 from testrunner.local import progress
 from testrunner.local import utils
-from testrunner.objects import context
 
 from testrunner.testproc import fuzzer
 from testrunner.testproc.base import TestProcProducer
@@ -129,9 +128,8 @@ class NumFuzzer(base_runner.BaseTestRunner):
     print(">>> Running tests for %s.%s" % (self.build_config.arch,
                                            self.mode_name))
 
-    ctx = self._create_context(options)
     self._setup_suites(options, suites)
-    tests = self._load_tests(options, suites, ctx)
+    tests = self._load_tests(options, suites)
     progress_indicator = progress.IndicatorNotifier()
     progress_indicator.Register(
         progress.PROGRESS_INDICATORS[options.progress]())
@@ -146,7 +144,7 @@ class NumFuzzer(base_runner.BaseTestRunner):
 
     combiner = self._create_combiner(fuzzer_rng, options)
     results = ResultsTracker()
-    execproc = ExecutionProc(options.j, ctx)
+    execproc = ExecutionProc(options.j)
     indicators = progress_indicator.ToProgressIndicatorProcs()
     procs = [
       loader,
@@ -185,25 +183,6 @@ class NumFuzzer(base_runner.BaseTestRunner):
       return 2
     return 0
 
-  def _create_context(self, options):
-    # Populate context object.
-    ctx = context.Context(self.build_config.arch,
-                          self.mode_options.execution_mode,
-                          self.outdir,
-                          self.mode_options.flags, options.verbose,
-                          options.timeout * self._timeout_scalefactor(options),
-                          options.isolates,
-                          options.command_prefix,
-                          options.extra_flags,
-                          False,  # Keep i18n on by default.
-                          True,  # No sorting of test cases.
-                          options.rerun_failures_count,
-                          options.rerun_failures_max,
-                          False,  # No no_harness mode.
-                          False,  # Don't use perf data.
-                          False)  # Coverage not supported.
-    return ctx
-
   def _setup_suites(self, options, suites):
     """Sets additional configurations on test suites based on options."""
     if options.stress_interrupt_budget:
@@ -211,7 +190,7 @@ class NumFuzzer(base_runner.BaseTestRunner):
       for suite in suites:
         suite.do_suppress_internals()
 
-  def _load_tests(self, options, suites, ctx):
+  def _load_tests(self, options, suites):
     if options.combine_tests:
       suites = [s for s in suites if s.test_combiner_available()]
 
@@ -251,7 +230,7 @@ class NumFuzzer(base_runner.BaseTestRunner):
     tests = []
     for s in suites:
       s.ReadStatusFile(variables)
-      s.ReadTestCases(ctx)
+      s.ReadTestCases()
       tests += s.tests
     return tests
 

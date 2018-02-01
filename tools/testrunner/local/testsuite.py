@@ -130,7 +130,7 @@ class TestSuite(object):
     """
     self.suppress_internals = True
 
-  def ListTests(self, context):
+  def ListTests(self):
     raise NotImplementedError
 
   def _LegacyVariantsGeneratorFactory(self):
@@ -171,8 +171,8 @@ class TestSuite(object):
   def ReadStatusFile(self, variables):
     self.statusfile = statusfile.StatusFile(self.status_file(), variables)
 
-  def ReadTestCases(self, context):
-    self.tests = self.ListTests(context)
+  def ReadTestCases(self):
+    self.tests = self.ListTests()
 
 
   def FilterTestCasesByStatus(self,

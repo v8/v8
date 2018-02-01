@@ -37,7 +37,7 @@ SHELL = 'cctest'
 
 
 class TestSuite(testsuite.TestSuite):
-  def ListTests(self, context):
+  def ListTests(self):
     shell = os.path.abspath(os.path.join(self.test_config.shell_dir, SHELL))
     if utils.IsWindows():
       shell += ".exe"

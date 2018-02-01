@@ -158,7 +158,7 @@ class TestSuite(testsuite.TestSuite):
       if f:
         f.close()
 
-  def ListTests(self, context):
+  def ListTests(self):
     testnames = set()
     for dirname, dirs, files in itertools.chain(os.walk(self.testroot),
                                                 os.walk(self.localtestroot)):

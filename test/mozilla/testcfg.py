@@ -60,7 +60,7 @@ class TestSuite(testsuite.TestSuite):
     super(TestSuite, self).__init__(*args, **kwargs)
     self.testroot = os.path.join(self.root, "data")
 
-  def ListTests(self, context):
+  def ListTests(self):
     tests = []
     for testdir in TEST_DIRS:
       current_root = os.path.join(self.testroot, testdir)

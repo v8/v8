@@ -60,7 +60,7 @@ class TestSuite(testsuite.TestSuite):
       return MkTest
     execfile(pathname, {"Test": Test, "Template": Template})
 
-  def ListTests(self, context):
+  def ListTests(self):
     result = []
 
     # Find all .pyt files in this directory.

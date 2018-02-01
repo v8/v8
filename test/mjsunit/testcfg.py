@@ -41,7 +41,7 @@ NO_HARNESS_PATTERN = re.compile(r"^// NO HARNESS$", flags=re.MULTILINE)
 
 
 class TestSuite(testsuite.TestSuite):
-  def ListTests(self, context):
+  def ListTests(self):
     tests = []
     for dirname, dirs, files in os.walk(self.root, followlinks=True):
       for dotted in [x for x in dirs if x.startswith('.')]:

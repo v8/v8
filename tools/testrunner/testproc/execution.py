@@ -43,10 +43,9 @@ class ExecutionProc(base.TestProc):
   sends results to the previous processor.
   """
 
-  def __init__(self, jobs, context, outproc_factory=None):
+  def __init__(self, jobs, outproc_factory=None):
     super(ExecutionProc, self).__init__()
     self._pool = pool.Pool(jobs)
-    self._context = context
     self._outproc_factory = outproc_factory or (lambda t: t.output_proc)
     self._tests = {}
 
