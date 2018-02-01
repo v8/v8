@@ -1377,9 +1377,7 @@ intptr_t Space::GetNextInlineAllocationStepSize() {
 
 PagedSpace::PagedSpace(Heap* heap, AllocationSpace space,
                        Executability executable)
-    : SpaceWithLinearArea(heap, space, executable),
-      anchor_(this),
-      free_list_(this) {
+    : SpaceWithLinearArea(heap, space, executable), anchor_(this) {
   area_size_ = MemoryAllocator::PageAreaSize(space);
   accounting_stats_.Clear();
 }
@@ -1582,7 +1580,8 @@ bool PagedSpace::Expand() {
   // Pages created during bootstrapping may contain immortal immovable objects.
   if (!heap()->deserialization_complete()) page->MarkNeverEvacuate();
   AddPage(page);
-  Free(page->area_start(), page->area_size());
+  Free(page->area_start(), page->area_size(),
+       SpaceAccountingMode::kSpaceAccounted);
   DCHECK(Capacity() <= heap()->MaxOldGenerationSize());
   return true;
 }
@@ -1618,7 +1617,8 @@ void PagedSpace::DecreaseLimit(Address new_limit) {
   DCHECK_GE(old_limit, new_limit);
   if (new_limit != old_limit) {
     SetTopAndLimit(top(), new_limit);
-    Free(new_limit, old_limit - new_limit);
+    Free(new_limit, old_limit - new_limit,
+         SpaceAccountingMode::kSpaceAccounted);
     if (heap()->incremental_marking()->black_allocation()) {
       Page::FromAllocationAreaAddress(new_limit)->DestroyBlackArea(new_limit,
                                                                    old_limit);
@@ -1704,7 +1704,8 @@ void PagedSpace::FreeLinearAllocationArea() {
   InlineAllocationStep(current_top, nullptr, nullptr, 0);
   SetTopAndLimit(nullptr, nullptr);
   DCHECK_GE(current_limit, current_top);
-  Free(current_top, current_limit - current_top);
+  Free(current_top, current_limit - current_top,
+       SpaceAccountingMode::kSpaceAccounted);
 }
 
 void PagedSpace::ReleasePage(Page* page) {
@@ -1800,7 +1801,7 @@ bool PagedSpace::RefillLinearAllocationAreaFromFreeList(size_t size_in_bytes) {
   DCHECK_LE(limit, end);
   DCHECK_LE(size_in_bytes, limit - start);
   if (limit != end) {
-    Free(limit, end - limit);
+    Free(limit, end - limit, SpaceAccountingMode::kSpaceAccounted);
   }
   SetLinearAllocationArea(start, limit);
 
@@ -2650,7 +2651,7 @@ FreeSpace* FreeListCategory::TryPickNodeFromList(size_t minimum_size,
 
   FreeSpace* node = PickNodeFromList(node_size);
   if ((node != nullptr) && (*node_size < minimum_size)) {
-    Free(node, *node_size, kLinkCategory);
+    Free(node->address(), *node_size, kLinkCategory);
     *node_size = 0;
     return nullptr;
   }
@@ -2683,9 +2684,10 @@ FreeSpace* FreeListCategory::SearchForNodeInList(size_t minimum_size,
   return nullptr;
 }
 
-void FreeListCategory::Free(FreeSpace* free_space, size_t size_in_bytes,
+void FreeListCategory::Free(Address start, size_t size_in_bytes,
                             FreeMode mode) {
   CHECK(page()->CanAllocate());
+  FreeSpace* free_space = FreeSpace::cast(HeapObject::FromAddress(start));
   free_space->set_next(top());
   set_top(free_space);
   available_ += size_in_bytes;
@@ -2713,7 +2715,7 @@ void FreeListCategory::Relink() {
   owner()->AddCategory(this);
 }
 
-FreeList::FreeList(PagedSpace* owner) : owner_(owner), wasted_bytes_(0) {
+FreeList::FreeList() : wasted_bytes_(0) {
   for (int i = kFirstCategory; i < kNumberOfCategories; i++) {
     categories_[i] = nullptr;
   }
@@ -2731,11 +2733,6 @@ void FreeList::Reset() {
 }
 
 size_t FreeList::Free(Address start, size_t size_in_bytes, FreeMode mode) {
-  if (size_in_bytes == 0) return 0;
-
-  owner()->heap()->CreateFillerObjectAt(start, static_cast<int>(size_in_bytes),
-                                        ClearRecordedSlots::kNo);
-
   Page* page = Page::FromAddress(start);
   page->DecreaseAllocatedBytes(size_in_bytes);
 
@@ -2746,11 +2743,10 @@ size_t FreeList::Free(Address start, size_t size_in_bytes, FreeMode mode) {
     return size_in_bytes;
   }
 
-  FreeSpace* free_space = FreeSpace::cast(HeapObject::FromAddress(start));
   // Insert other blocks at the head of a free list of the appropriate
   // magnitude.
   FreeListCategoryType type = SelectFreeListCategoryType(size_in_bytes);
-  page->free_list_category(type)->Free(free_space, size_in_bytes, mode);
+  page->free_list_category(type)->Free(start, size_in_bytes, mode);
   DCHECK_EQ(page->AvailableInFreeList(),
             page->AvailableInFreeListFromAllocatedBytes());
   return 0;

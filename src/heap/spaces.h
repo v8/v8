@@ -139,6 +139,8 @@ enum FreeListCategoryType {
 
 enum FreeMode { kLinkCategory, kDoNotLinkCategory };
 
+enum class SpaceAccountingMode { kSpaceAccounted, kSpaceUnaccounted };
+
 enum RememberedSetType {
   OLD_TO_NEW,
   OLD_TO_OLD,
@@ -180,7 +182,7 @@ class FreeListCategory {
   // category is currently unlinked.
   void Relink();
 
-  void Free(FreeSpace* node, size_t size_in_bytes, FreeMode mode);
+  void Free(Address address, size_t size_in_bytes, FreeMode mode);
 
   // Picks a node from the list and stores its size in |node_size|. Returns
   // nullptr if the category is empty.
@@ -1751,7 +1753,7 @@ class V8_EXPORT_PRIVATE FreeList {
     return kHuge;
   }
 
-  explicit FreeList(PagedSpace* owner);
+  FreeList();
 
   // Adds a node on the free list. The block of size {size_in_bytes} starting
   // at {start} is placed on the free list. The return value is the number of
@@ -1799,7 +1801,6 @@ class V8_EXPORT_PRIVATE FreeList {
   size_t EvictFreeListItems(Page* page);
   bool ContainsPageFreeListItems(Page* page);
 
-  PagedSpace* owner() { return owner_; }
   size_t wasted_bytes() { return wasted_bytes_.Value(); }
 
   template <typename Callback>
@@ -1894,13 +1895,10 @@ class V8_EXPORT_PRIVATE FreeList {
     return categories_[type];
   }
 
-  PagedSpace* owner_;
   base::AtomicNumber<size_t> wasted_bytes_;
   FreeListCategory* categories_[kNumberOfCategories];
 
   friend class FreeListCategory;
-
-  DISALLOW_IMPLICIT_CONSTRUCTORS(FreeList);
 };
 
 // LocalAllocationBuffer represents a linear allocation area that is created
@@ -2106,11 +2104,22 @@ class V8_EXPORT_PRIVATE PagedSpace
   MUST_USE_RESULT inline AllocationResult AllocateRaw(
       int size_in_bytes, AllocationAlignment alignment);
 
+  size_t Free(Address start, size_t size_in_bytes, SpaceAccountingMode mode) {
+    if (size_in_bytes == 0) return 0;
+    heap_->CreateFillerObjectAt(start, static_cast<int>(size_in_bytes),
+                                ClearRecordedSlots::kNo);
+    if (mode == SpaceAccountingMode::kSpaceAccounted) {
+      return AccountedFree(start, size_in_bytes);
+    } else {
+      return UnaccountedFree(start, size_in_bytes);
+    }
+  }
+
   // Give a block of memory to the space's free list.  It might be added to
   // the free list or accounted as waste.
   // If add_to_freelist is false then just accounting stats are updated and
   // no attempt to add area to free list is made.
-  size_t Free(Address start, size_t size_in_bytes) {
+  size_t AccountedFree(Address start, size_t size_in_bytes) {
     size_t wasted = free_list_.Free(start, size_in_bytes, kLinkCategory);
     Page* page = Page::FromAddress(start);
     accounting_stats_.DecreaseAllocatedBytes(size_in_bytes, page);
