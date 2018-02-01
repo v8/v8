@@ -143,6 +143,8 @@ void* GetRandomMmapAddr() { return GetPageAllocator()->GetRandomMmapAddr(); }
 
 void* AllocatePages(void* address, size_t size, size_t alignment,
                     PageAllocator::Permission access) {
+  DCHECK_EQ(address, AlignedAddress(address, alignment));
+  DCHECK_EQ(0UL, size & (GetPageAllocator()->AllocatePageSize() - 1));
   void* result = nullptr;
   for (int i = 0; i < kAllocationTries; ++i) {
     result =

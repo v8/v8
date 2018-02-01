@@ -710,7 +710,8 @@ MemoryChunk* MemoryAllocator::AllocateChunk(size_t reserve_area_size,
   VirtualMemory reservation;
   Address area_start = nullptr;
   Address area_end = nullptr;
-  void* address_hint = heap->GetRandomMmapAddr();
+  void* address_hint =
+      AlignedAddress(heap->GetRandomMmapAddr(), MemoryChunk::kAlignment);
 
   //
   // MemoryChunk layout:
