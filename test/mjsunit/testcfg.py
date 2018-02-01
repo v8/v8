@@ -41,11 +41,16 @@ SELF_SCRIPT_PATTERN = re.compile(r"//\s+Env: TEST_FILE_NAME")
 MODULE_PATTERN = re.compile(r"^// MODULE$", flags=re.MULTILINE)
 NO_HARNESS_PATTERN = re.compile(r"^// NO HARNESS$", flags=re.MULTILINE)
 
-# Flags known to misbehave when combining arbitrary mjsunit tests.
+# Flags known to misbehave when combining arbitrary mjsunit tests. Can also
+# be compiled regular expressions.
 COMBINE_TESTS_FLAGS_BLACKLIST = [
   '--check-handle-count',
+  '--enable-tracing',
+  re.compile('--experimental.*'),
+  '--expose-trigger-failure',
   '--mock-arraybuffer-allocator',
   '--print-ast',
+  re.compile('--trace.*'),
   '--wasm-lazy-compilation',
 ]
 
@@ -233,6 +238,14 @@ class CombinedTest(testcase.TestCase):
       elif flag1.startswith('-'):
         yield flag1
 
+  def _is_flag_blacklisted(self, flag):
+    for item in COMBINE_TESTS_FLAGS_BLACKLIST:
+      if isinstance(item, basestring):
+        if item == flag:
+          return True
+      elif item.match(flag):
+        return True
+    return False
 
   def _get_combined_flags(self, flags_gen):
     """Combines all flags - dedupes, keeps order and filters some flags.
@@ -245,7 +258,7 @@ class CombinedTest(testcase.TestCase):
     unique_flags = OrderedDict((flag, True) for flag in merged_flags).keys()
     return [
       flag for flag in unique_flags
-      if flag not in COMBINE_TESTS_FLAGS_BLACKLIST
+      if not self._is_flag_blacklisted(flag)
     ]
 
   def _get_source_flags(self):
