@@ -706,6 +706,7 @@
         '../src/compiler/frame-elider.h',
         '../src/compiler/frame-states.cc',
         '../src/compiler/frame-states.h',
+        '../src/compiler/functional-list.h',
         '../src/compiler/gap-resolver.cc',
         '../src/compiler/gap-resolver.h',
         '../src/compiler/graph-assembler.cc',

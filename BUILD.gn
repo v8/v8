@@ -1410,6 +1410,7 @@ v8_source_set("v8_base") {
     "src/compiler/frame-states.h",
     "src/compiler/frame.cc",
     "src/compiler/frame.h",
+    "src/compiler/functional-list.h",
     "src/compiler/gap-resolver.cc",
     "src/compiler/gap-resolver.h",
     "src/compiler/graph-assembler.cc",
