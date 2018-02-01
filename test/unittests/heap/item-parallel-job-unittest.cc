@@ -67,6 +67,9 @@ class EagerTask : public ItemParallelJob::Task {
   }
 };
 
+// A OneShotBarrier is meant to be passed to |counter| users. Users should
+// either Signal() or Wait() when done (based on whether they want to return
+// immediately or wait until others are also done).
 class OneShotBarrier {
  public:
   explicit OneShotBarrier(size_t counter) : counter_(counter) {
@@ -87,21 +90,34 @@ class OneShotBarrier {
     mutex_.Unlock();
   }
 
+  void Signal() {
+    mutex_.Lock();
+    counter_--;
+    if (counter_ == 0) {
+      condition_.NotifyAll();
+    }
+    mutex_.Unlock();
+  }
+
  private:
   base::Mutex mutex_;
   base::ConditionVariable condition_;
   size_t counter_;
 };
 
-// A task that only processes a single item. If |did_process_an_item| is
-// non-null, will set it to true if it does process an item. Otherwise, it will
-// expect to get an item to process (and will report a failure if it doesn't).
+// A task that only processes a single item. Signals |barrier| when done; if
+// |wait_when_done|, will blocks until all other tasks have signaled |barrier|.
+// If |did_process_an_item| is non-null, will set it to true if it does process
+// an item. Otherwise, it will expect to get an item to process (and will report
+// a failure if it doesn't).
 class TaskProcessingOneItem : public ItemParallelJob::Task {
  public:
   TaskProcessingOneItem(Isolate* isolate, OneShotBarrier* barrier,
+                        bool wait_when_done,
                         bool* did_process_an_item = nullptr)
       : ItemParallelJob::Task(isolate),
         barrier_(barrier),
+        wait_when_done_(wait_when_done),
         did_process_an_item_(did_process_an_item) {}
 
   void RunInParallel() override {
@@ -118,12 +134,16 @@ class TaskProcessingOneItem : public ItemParallelJob::Task {
       item->MarkFinished();
     }
 
-    // Avoid canceling the remaining tasks with a simple barrier.
-    barrier_->Wait();
+    if (wait_when_done_) {
+      barrier_->Wait();
+    } else {
+      barrier_->Signal();
+    }
   }
 
  private:
   OneShotBarrier* barrier_;
+  bool wait_when_done_;
   bool* did_process_an_item_;
 };
 
@@ -199,10 +219,8 @@ TEST_F(ItemParallelJobTest, SimpleTaskWithSimpleItemRuns) {
 }
 
 TEST_F(ItemParallelJobTest, MoreTasksThanItems) {
-  // Note: this test will hang if the platform doesn't at least run kNumTasks
-  // worker threads.
-  const int kNumTasks = 4;
-  const int kNumItems = kNumTasks - 2;
+  const int kNumTasks = 128;
+  const int kNumItems = kNumTasks - 4;
 
   TaskProcessingOneItem* tasks[kNumTasks] = {};
   bool did_process_an_item[kNumTasks] = {};
@@ -214,7 +232,10 @@ TEST_F(ItemParallelJobTest, MoreTasksThanItems) {
   // should be assigned an item to execute.
   OneShotBarrier barrier(kNumTasks);
   for (int i = 0; i < kNumTasks; i++) {
-    tasks[i] = new TaskProcessingOneItem(i_isolate(), &barrier,
+    // Block the main thread when done to prevent it from returning control to
+    // the job (which could cancel tasks that have yet to be scheduled).
+    const bool wait_when_done = i == 0;
+    tasks[i] = new TaskProcessingOneItem(i_isolate(), &barrier, wait_when_done,
                                          &did_process_an_item[i]);
     job.AddTask(tasks[i]);
   }
@@ -247,16 +268,19 @@ TEST_F(ItemParallelJobTest, SingleThreadProcessing) {
 }
 
 TEST_F(ItemParallelJobTest, DistributeItemsMultipleTasks) {
-  // Note: this test will hang if the platform doesn't at least run
-  // kItemsAndTasks worker threads.
-  const int kItemsAndTasks = 4;
+  const int kItemsAndTasks = 256;
   bool was_processed[kItemsAndTasks] = {};
   OneShotBarrier barrier(kItemsAndTasks);
   ItemParallelJob job(i_isolate()->cancelable_task_manager(),
                       parallel_job_semaphore());
   for (int i = 0; i < kItemsAndTasks; i++) {
     job.AddItem(new SimpleItem(&was_processed[i]));
-    job.AddTask(new TaskProcessingOneItem(i_isolate(), &barrier));
+
+    // Block the main thread when done to prevent it from returning control to
+    // the job (which could cancel tasks that have yet to be scheduled).
+    const bool wait_when_done = i == 0;
+    job.AddTask(
+        new TaskProcessingOneItem(i_isolate(), &barrier, wait_when_done));
   }
   job.Run();
   for (int i = 0; i < kItemsAndTasks; i++) {
