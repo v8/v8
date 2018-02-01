@@ -2878,6 +2878,7 @@ void CheckEmbedderGraphSnapshot(v8::Isolate* isolate,
 }
 
 TEST(EmbedderGraph) {
+  i::FLAG_heap_profiler_use_embedder_graph = true;
   LocalContext env;
   v8::HandleScope scope(env->GetIsolate());
   i::Isolate* isolate = reinterpret_cast<i::Isolate*>(env->GetIsolate());

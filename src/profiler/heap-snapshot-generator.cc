@@ -2223,7 +2223,8 @@ bool NativeObjectsExplorer::IterateAndExtractReferences(
     SnapshotFiller* filler) {
   filler_ = filler;
 
-  if (snapshot_->profiler()->HasBuildEmbedderGraphCallback()) {
+  if (FLAG_heap_profiler_use_embedder_graph &&
+      snapshot_->profiler()->HasBuildEmbedderGraphCallback()) {
     v8::HandleScope scope(reinterpret_cast<v8::Isolate*>(isolate_));
     DisallowHeapAllocation no_allocation;
     EmbedderGraphImpl graph;

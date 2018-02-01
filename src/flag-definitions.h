@@ -910,7 +910,8 @@ DEFINE_INT(histogram_interval, 600000,
 // heap-snapshot-generator.cc
 DEFINE_BOOL(heap_profiler_trace_objects, false,
             "Dump heap object allocations/movements/size_updates")
-
+DEFINE_BOOL(heap_profiler_use_embedder_graph, true,
+            "Use the new EmbedderGraph API to get embedder nodes")
 
 // sampling-heap-profiler.cc
 DEFINE_BOOL(sampling_heap_profiler_suppress_randomness, false,
