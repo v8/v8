@@ -49,10 +49,6 @@ class TestCase(object):
     self.variant = None       # name of the used testing variant
     self.variant_flags = []   # list of strings, flags specific to this test
 
-    self.id = None  # int, used to map result back to TestCase instance
-    self.run = 1  # The nth time this test is executed.
-    self.cmd = None
-
     # Fields used by the test processors.
     self.origin = None # Test that this test is subtest of.
     self.processor = None # Processor that created this subtest.
@@ -61,12 +57,13 @@ class TestCase(object):
 
     # Test config contains information needed to build the command.
     self._test_config = test_config
-    # Overrides default random seed from test_config if specified.
-    self._random_seed = None
+    self._random_seed = None # Overrides test config value if not None
 
+    # Outcomes
     self._statusfile_outcomes = None
     self.expected_outcomes = None
     self._statusfile_flags = None
+
     self._prepare_outcomes()
 
   def create_subtest(self, processor, subtest_id, variant=None, flags=None,
@@ -85,37 +82,6 @@ class TestCase(object):
       subtest.variant = variant
       subtest._prepare_outcomes()
     return subtest
-
-  def create_variant(self, variant, flags, procid_suffix=None,
-                     random_seed=None):
-    """Makes a shallow copy of the object and updates variant, variant flags and
-    all fields that depend on it, e.g. expected outcomes.
-
-    Args
-      variant       - variant name
-      flags         - flags that should be added to origin test's variant flags
-      procid_suffix - for multiple variants with the same name set suffix to
-        keep procid unique.
-      random_seed   - random seed to use in this variant. None means use base
-        test's random seed.
-    """
-    other = copy.copy(self)
-    if not self.variant_flags:
-      other.variant_flags = flags
-    else:
-      other.variant_flags = self.variant_flags + flags
-    other.variant = variant
-    if procid_suffix:
-      other.procid += '[%s-%s]' % (variant, procid_suffix)
-    else:
-      other.procid += '[%s]' % variant
-
-    if random_seed:
-      other._random_seed = random_seed
-
-    other._prepare_outcomes(variant != self.variant)
-
-    return other
 
   def _prepare_outcomes(self, force_update=True):
     if force_update or self._statusfile_outcomes is None:
@@ -303,18 +269,9 @@ class TestCase(object):
     # Make sure that test cases are sorted correctly if sorted without
     # key function. But using a key function is preferred for speed.
     return cmp(
-        (self.suite.name, self.name, self.variant_flags),
-        (other.suite.name, other.name, other.variant_flags)
+        (self.suite.name, self.name, self.variant),
+        (other.suite.name, other.name, other.variant)
     )
-
-  def __hash__(self):
-    return hash((self.suite.name, self.name, ''.join(self.variant_flags)))
 
   def __str__(self):
     return self.suite.name + '/' + self.name
-
-  # TODO(majeski): Rename `id` field or `get_id` function since they're
-  # unrelated.
-  def get_id(self):
-    return '%s/%s %s' % (
-        self.suite.name, self.name, ' '.join(self.variant_flags))

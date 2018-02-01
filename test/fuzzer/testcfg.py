@@ -37,9 +37,6 @@ class TestSuite(testsuite.TestSuite):
   def _variants_gen_class(self):
     return VariantsGenerator
 
-  def _LegacyVariantsGeneratorFactory(self):
-    return testsuite.StandardLegacyVariantsGenerator
-
 
 class TestCase(testcase.TestCase):
   def _get_files_params(self):

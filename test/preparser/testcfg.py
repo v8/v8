@@ -77,9 +77,6 @@ class TestSuite(testsuite.TestSuite):
   def _test_class(self):
     return TestCase
 
-  def _LegacyVariantsGeneratorFactory(self):
-    return testsuite.StandardLegacyVariantsGenerator
-
   def _variants_gen_class(self):
     return VariantsGenerator
 

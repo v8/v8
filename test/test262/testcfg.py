@@ -70,32 +70,6 @@ TEST_262_RELPATH_REGEXP = re.compile(
 sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)),
                              *TEST_262_TOOLS_PATH))
 
-ALL_VARIANT_FLAGS_STRICT = dict(
-    (v, [flags + ["--use-strict"] for flags in flag_sets])
-    for v, flag_sets in testsuite.ALL_VARIANT_FLAGS.iteritems()
-)
-
-ALL_VARIANT_FLAGS_BOTH = dict(
-    (v, [flags for flags in testsuite.ALL_VARIANT_FLAGS[v] +
-                            ALL_VARIANT_FLAGS_STRICT[v]])
-    for v in testsuite.ALL_VARIANT_FLAGS
-)
-
-ALL_VARIANTS = {
-  'nostrict': testsuite.ALL_VARIANT_FLAGS,
-  'strict': ALL_VARIANT_FLAGS_STRICT,
-  'both': ALL_VARIANT_FLAGS_BOTH,
-}
-
-class LegacyVariantsGenerator(testsuite.LegacyVariantsGenerator):
-  def GetFlagSets(self, test, variant):
-    test_record = test.test_record
-    if "noStrict" in test_record:
-      return ALL_VARIANTS["nostrict"][variant]
-    if "onlyStrict" in test_record:
-      return ALL_VARIANTS["strict"][variant]
-    return ALL_VARIANTS["both"][variant]
-
 
 class VariantsGenerator(testsuite.VariantsGenerator):
   def gen(self, test):
@@ -183,9 +157,6 @@ class TestSuite(testsuite.TestSuite):
 
   def _test_class(self):
     return TestCase
-
-  def _LegacyVariantsGeneratorFactory(self):
-    return LegacyVariantsGenerator
 
   def _variants_gen_class(self):
     return VariantsGenerator
