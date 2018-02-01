@@ -702,7 +702,27 @@ void PrintIndex(StringStream* accumulator, StackFrame::PrintMode mode,
                 int index) {
   accumulator->Add((mode == StackFrame::OVERVIEW) ? "%5d: " : "[%d]: ", index);
 }
+
+const char* StringForStackFrameType(StackFrame::Type type) {
+  switch (type) {
+#define CASE(value, name) \
+  case StackFrame::value: \
+    return #name;
+    STACK_FRAME_TYPE_LIST(CASE)
+#undef CASE
+    default:
+      UNREACHABLE();
+  }
+}
 }  // namespace
+
+void StackFrame::Print(StringStream* accumulator, PrintMode mode,
+                       int index) const {
+  DisallowHeapAllocation no_gc;
+  PrintIndex(accumulator, mode, index);
+  accumulator->Add(StringForStackFrameType(type()));
+  accumulator->Add(" [pc: %p]\n", pc());
+}
 
 void BuiltinExitFrame::Print(StringStream* accumulator, PrintMode mode,
                              int index) const {
