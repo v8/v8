@@ -5,33 +5,21 @@
 # found in the LICENSE file.
 
 
-from collections import OrderedDict
-from os.path import join
 import multiprocessing
 import os
-import random
 import re
-import subprocess
 import sys
-import time
 
 # Adds testrunner to the path hence it has to be imported at the beggining.
 import base_runner
 
-from testrunner.local import execution
-from testrunner.local import progress
-from testrunner.local import testsuite
 from testrunner.local import utils
-from testrunner.local import verbose
 from testrunner.local.variants import ALL_VARIANTS
-from testrunner.objects import context
 from testrunner.objects import predictable
 from testrunner.testproc.execution import ExecutionProc
 from testrunner.testproc.filter import StatusFileFilterProc, NameFilterProc
 from testrunner.testproc.loader import LoadProc
-from testrunner.testproc.progress import (VerboseProgressIndicator,
-                                          ResultsTracker,
-                                          TestsCounter)
+from testrunner.testproc.progress import ResultsTracker, TestsCounter
 from testrunner.testproc.seed import SeedProc
 from testrunner.testproc.variant import VariantProc
 from testrunner.utils import random_utils
@@ -70,20 +58,6 @@ RANDOM_GC_STRESS_FLAGS = ["--random-gc-interval=5000",
 PREDICTABLE_WRAPPER = os.path.join(
     base_runner.BASE_DIR, 'tools', 'predictable_wrapper.py')
 
-# Staging default. When set to True it overwrites the two options below.
-USE_STAGING = True
-
-# Specifies which builders should use the staging test-runner.
-# Mapping from mastername to list of buildernames. Buildernames can be strings
-# or compiled regexps which will be matched.
-BUILDER_WHITELIST_STAGING = {
-}
-_RE_TYPE = type(re.compile(''))
-
-# Specifies which architectures are whitelisted to use the staging test-runner.
-# List of arch strings, e.g. "x64".
-ARCH_WHITELIST_STAGING = [
-]
 
 class StandardTestRunner(base_runner.BaseTestRunner):
     def __init__(self, *args, **kwargs):
@@ -153,18 +127,11 @@ class StandardTestRunner(base_runner.BaseTestRunner):
                         default=False, action="store_true",
                         help="Deprecated. "
                              "Equivalent to passing --variants=exhaustive")
-      parser.add_option("-p", "--progress",
-                        help=("The style of progress indicator"
-                              " (verbose, dots, color, mono)"),
-                        choices=progress.PROGRESS_INDICATORS.keys(),
-                        default="mono")
       parser.add_option("--quickcheck", default=False, action="store_true",
                         help=("Quick check mode (skip slow tests)"))
       parser.add_option("--report", help="Print a summary of the tests to be"
                         " run",
                         default=False, action="store_true")
-      parser.add_option("--json-test-results",
-                        help="Path to a file for storing json results.")
       parser.add_option("--flakiness-results",
                         help="Path to a file for storing flakiness json.")
       parser.add_option("--dont-skip-slow-simulator-tests",
@@ -179,33 +146,11 @@ class StandardTestRunner(base_runner.BaseTestRunner):
                         default=False, action="store_true")
       parser.add_option("--warn-unused", help="Report unused rules",
                         default=False, action="store_true")
-      parser.add_option("--junitout", help="File name of the JUnit output")
-      parser.add_option("--junittestsuite",
-                        help="The testsuite name in the JUnit output file",
-                        default="v8tests")
       parser.add_option("--random-seed-stress-count", default=1, type="int",
                         dest="random_seed_stress_count",
                         help="Number of runs with different random seeds. Only "
                              "with test processors: 0 means infinite "
                              "generation.")
-
-    def _use_staging(self, options):
-      if options.infra_staging is not None:
-        # True or False are used to explicitly opt in or out.
-        return options.infra_staging
-      if USE_STAGING:
-        return True
-      builder_configs = BUILDER_WHITELIST_STAGING.get(options.mastername, [])
-      for builder_config in builder_configs:
-        if (isinstance(builder_config, _RE_TYPE) and
-            builder_config.match(options.buildername)):
-          return True
-        if builder_config == options.buildername:
-          return True
-      for arch in ARCH_WHITELIST_STAGING:
-        if self.build_config.arch == arch:
-          return True
-      return False
 
     def _process_options(self, options):
       if options.sancov_dir:
@@ -268,10 +213,6 @@ class StandardTestRunner(base_runner.BaseTestRunner):
 
       if options.variants == "infra_staging":
         options.variants = "exhaustive"
-        options.infra_staging = True
-
-      # Use staging on whitelisted masters/builders.
-      options.infra_staging = self._use_staging(options)
 
       self._variants = self._parse_variants(options.variants)
 
@@ -320,25 +261,6 @@ class StandardTestRunner(base_runner.BaseTestRunner):
     def _execute(self, args, options, suites):
       print(">>> Running tests for %s.%s" % (self.build_config.arch,
                                              self.mode_name))
-      # Populate context object.
-      ctx = context.Context(self.build_config.arch,
-                            self.mode_options.execution_mode,
-                            self.outdir,
-                            self.mode_options.flags,
-                            options.verbose,
-                            options.timeout *
-                              self._timeout_scalefactor(options),
-                            options.isolates,
-                            options.command_prefix,
-                            options.extra_flags,
-                            self.build_config.no_i18n,
-                            options.no_sorting,
-                            options.rerun_failures_count,
-                            options.rerun_failures_max,
-                            options.no_harness,
-                            use_perf_data=not options.swarming,
-                            sancov_dir=self.sancov_dir)
-
       # simd_mips is true if SIMD is fully supported on MIPS
       simd_mips = (
         self.build_config.arch in [ 'mipsel', 'mips', 'mips64', 'mips64el'] and
@@ -381,147 +303,20 @@ class StandardTestRunner(base_runner.BaseTestRunner):
         "ubsan_vptr": self.build_config.ubsan_vptr,
       }
 
-      progress_indicator = progress.IndicatorNotifier()
-      progress_indicator.Register(
-        progress.PROGRESS_INDICATORS[options.progress]())
-      if options.junitout:  # pragma: no cover
-        progress_indicator.Register(progress.JUnitTestProgressIndicator(
-            options.junitout, options.junittestsuite))
-      if options.json_test_results:
-        progress_indicator.Register(progress.JsonTestProgressIndicator(
-          options.json_test_results,
-          self.build_config.arch,
-          self.mode_options.execution_mode))
-      if options.flakiness_results:  # pragma: no cover
-        progress_indicator.Register(progress.FlakinessTestProgressIndicator(
-            options.flakiness_results))
-
-      if True:
-        for s in suites:
-          s.ReadStatusFile(variables)
-          s.ReadTestCases()
-
-        return self._run_test_procs(suites, args, options, progress_indicator)
-
-      all_tests = []
-      num_tests = 0
       for s in suites:
         s.ReadStatusFile(variables)
         s.ReadTestCases()
-        if len(args) > 0:
-          s.FilterTestCasesByArgs(args)
-        all_tests += s.tests
 
-        # First filtering by status applying the generic rules (tests without
-        # variants)
-        if options.warn_unused:
-          tests = [(t.name, t.variant) for t in s.tests]
-          s.statusfile.warn_unused_rules(tests, check_variant_rules=False)
-        s.FilterTestCasesByStatus(options.slow_tests, options.pass_fail_tests)
+      return self._run_test_procs(suites, args, options)
 
-        if options.cat:
-          verbose.PrintTestSource(s.tests)
-          continue
-        variant_gen = s.CreateLegacyVariantsGenerator(self._variants)
-        variant_tests = [ t.create_variant(v, flags)
-                          for t in s.tests
-                          for v in variant_gen.FilterVariantsByTest(t)
-                          for flags in variant_gen.GetFlagSets(t, v) ]
-
-        # Duplicate test for random seed stress mode.
-        def iter_seed_flags():
-          for _ in range(0, options.random_seed_stress_count or 1):
-            # Use given random seed for all runs (set by default in
-            # execution.py) or a new random seed if none is specified.
-            if options.random_seed:
-              yield options.random_seed
-            else:
-              yield random_utils.random_seed()
-        s.tests = [
-          t.create_variant(t.variant, [], 'seed-%d' % n, random_seed=val)
-          for t in variant_tests
-          for n, val in enumerate(iter_seed_flags())
-        ]
-
-        # Second filtering by status applying also the variant-dependent rules.
-        if options.warn_unused:
-          tests = [(t.name, t.variant) for t in s.tests]
-          s.statusfile.warn_unused_rules(tests, check_variant_rules=True)
-
-        s.FilterTestCasesByStatus(options.slow_tests, options.pass_fail_tests)
-        s.tests = self._shard_tests(s.tests, options)
-
-        for t in s.tests:
-          t.cmd = t.get_command()
-
-        num_tests += len(s.tests)
-
-      if options.cat:
-        return 0  # We're done here.
-
-      if options.report:
-        verbose.PrintReport(all_tests)
-
-      # Run the tests.
-      start_time = time.time()
-
-      if self.build_config.predictable:
-        outproc_factory = predictable.get_outproc
-      else:
-        outproc_factory = None
-
-      runner = execution.Runner(suites, progress_indicator, ctx,
-                                outproc_factory)
-      exit_code = runner.Run(options.j)
-      overall_duration = time.time() - start_time
-
-      if options.time:
-        verbose.PrintTestDurations(suites, runner.outputs, overall_duration)
-
-      if num_tests == 0:
-        exit_code = 3
-        print("Warning: no tests were run!")
-
-      if exit_code == 1 and options.json_test_results:
-        print("Force exit code 0 after failures. Json test results file "
-              "generated with failure information.")
-        exit_code = 0
-
-      if self.sancov_dir:
-        # If tests ran with sanitizer coverage, merge coverage files in the end.
-        try:
-          print "Merging sancov files."
-          subprocess.check_call([
-            sys.executable,
-            join(self.basedir, "tools", "sanitizers", "sancov_merger.py"),
-            "--coverage-dir=%s" % self.sancov_dir])
-        except:
-          print >> sys.stderr, "Error: Merging sancov files failed."
-          exit_code = 1
-
-      return exit_code
-
-    def _shard_tests(self, tests, options):
-      shard_run, shard_count = self._get_shard_info(options)
-
-      if shard_count < 2:
-        return tests
-      count = 0
-      shard = []
-      for test in tests:
-        if count % shard_count == shard_run - 1:
-          shard.append(test)
-        count += 1
-      return shard
-
-    def _run_test_procs(self, suites, args, options, progress_indicator):
+    def _run_test_procs(self, suites, args, options):
       jobs = options.j
 
       print '>>> Running with test processors'
       loader = LoadProc()
       tests_counter = TestsCounter()
       results = ResultsTracker()
-      indicators = progress_indicator.ToProgressIndicatorProcs()
+      indicators = self._create_progress_indicators(options)
 
       outproc_factory = None
       if self.build_config.predictable:

@@ -21,6 +21,7 @@ sys.path.insert(
 from testrunner.local import testsuite
 from testrunner.local import utils
 from testrunner.test_config import TestConfig
+from testrunner.testproc import progress
 from testrunner.testproc.rerun import RerunProc
 from testrunner.testproc.shard import ShardProc
 from testrunner.testproc.sigproc import SignalProc
@@ -152,6 +153,12 @@ MODES = {
   ),
 }
 
+PROGRESS_INDICATORS = {
+  'verbose': progress.VerboseProgressIndicator,
+  'dots': progress.DotsProgressIndicator,
+  'color': progress.ColorProgressIndicator,
+  'mono': progress.MonochromeProgressIndicator,
+}
 
 class TestRunnerError(Exception):
   pass
@@ -276,12 +283,25 @@ class BaseTestRunner(object):
     parser.add_option("--random-seed", default=0, type=int,
                       help="Default seed for initializing random generator")
 
+    # Progress
+    parser.add_option("-p", "--progress",
+                      choices=PROGRESS_INDICATORS.keys(), default="mono",
+                      help="The style of progress indicator (verbose, dots, "
+                           "color, mono)")
+    parser.add_option("--json-test-results",
+                      help="Path to a file for storing json results.")
+    parser.add_option("--junitout", help="File name of the JUnit output")
+    parser.add_option("--junittestsuite", default="v8tests",
+                      help="The testsuite name in the JUnit output file")
+
+    # Rerun
     parser.add_option("--rerun-failures-count", default=0, type=int,
                       help="Number of times to rerun each failing test case. "
                            "Very slow tests will be rerun only once.")
     parser.add_option("--rerun-failures-max", default=100, type=int,
                       help="Maximum number of failing test cases to rerun")
 
+    # Test config
     parser.add_option("--command-prefix", default="",
                       help="Prepended to each shell command used to run a test")
     parser.add_option("--extra-flags", action="append", default=[],
@@ -623,6 +643,18 @@ class BaseTestRunner(object):
       return 1, 1
 
     return shard_run, shard_count
+
+  def _create_progress_indicators(self, options):
+    procs = [PROGRESS_INDICATORS[options.progress]()]
+    if options.junitout:
+      procs.append(progress.JUnitTestProgressIndicator(options.junitout,
+                                                       options.junittestsuite))
+    if options.json_test_results:
+      procs.append(progress.JsonTestProgressIndicator(
+        options.json_test_results,
+        self.build_config.arch,
+        self.mode_options.execution_mode))
+    return procs
 
   def _create_timeout_proc(self, options):
     if not options.total_timeout_sec:

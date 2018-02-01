@@ -12,7 +12,6 @@ import sys
 # Adds testrunner to the path hence it has to be imported at the beggining.
 import base_runner
 
-from testrunner.local import progress
 from testrunner.local import utils
 
 from testrunner.testproc import fuzzer
@@ -36,13 +35,6 @@ class NumFuzzer(base_runner.BaseTestRunner):
     parser.add_option("--dump-results-file", help="Dump maximum limit reached")
     parser.add_option("-j", help="The number of parallel tasks to run",
                       default=0, type="int")
-    parser.add_option("--json-test-results",
-                      help="Path to a file for storing json results.")
-    parser.add_option("-p", "--progress",
-                      help=("The style of progress indicator"
-                            " (verbose, dots, color, mono)"),
-                      choices=progress.PROGRESS_INDICATORS.keys(),
-                      default="mono")
     parser.add_option("--fuzzer-random-seed", default=0,
                       help="Default seed for initializing fuzzer random "
                       "generator")
@@ -130,14 +122,6 @@ class NumFuzzer(base_runner.BaseTestRunner):
 
     self._setup_suites(options, suites)
     tests = self._load_tests(options, suites)
-    progress_indicator = progress.IndicatorNotifier()
-    progress_indicator.Register(
-        progress.PROGRESS_INDICATORS[options.progress]())
-    if options.json_test_results:
-      progress_indicator.Register(progress.JsonTestProgressIndicator(
-          options.json_test_results,
-          self.build_config.arch,
-          self.mode_options.execution_mode))
 
     loader = LoadProc()
     fuzzer_rng = random.Random(options.fuzzer_random_seed)
@@ -145,7 +129,7 @@ class NumFuzzer(base_runner.BaseTestRunner):
     combiner = self._create_combiner(fuzzer_rng, options)
     results = ResultsTracker()
     execproc = ExecutionProc(options.j)
-    indicators = progress_indicator.ToProgressIndicatorProcs()
+    indicators = self._create_progress_indicators(options)
     procs = [
       loader,
       NameFilterProc(args) if args else None,
