@@ -1163,6 +1163,7 @@ void TurboAssembler::Usdc1(FPURegister fd, const MemOperand& rs,
 void TurboAssembler::Ldc1(FPURegister fd, const MemOperand& src) {
   // Workaround for non-8-byte alignment of HeapNumber, convert 64-bit
   // load to two 32-bit loads.
+  BlockTrampolinePoolScope block_trampoline_pool(this);
   DCHECK(Register::kMantissaOffset <= 4 && Register::kExponentOffset <= 4);
   MemOperand tmp = src;
   AdjustBaseAndOffset(tmp, OffsetAccessType::TWO_ACCESSES);
@@ -1186,6 +1187,7 @@ void TurboAssembler::Ldc1(FPURegister fd, const MemOperand& src) {
 void TurboAssembler::Sdc1(FPURegister fd, const MemOperand& src) {
   // Workaround for non-8-byte alignment of HeapNumber, convert 64-bit
   // store to two 32-bit stores.
+  BlockTrampolinePoolScope block_trampoline_pool(this);
   DCHECK(Register::kMantissaOffset <= 4 && Register::kExponentOffset <= 4);
   MemOperand tmp = src;
   AdjustBaseAndOffset(tmp, OffsetAccessType::TWO_ACCESSES);
