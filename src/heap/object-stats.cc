@@ -259,6 +259,7 @@ class ObjectStatsCollectorImpl {
   void RecordVirtualMapDetails(Map* map);
   void RecordVirtualScriptDetails(Script* script);
   void RecordVirtualSharedFunctionInfoDetails(SharedFunctionInfo* info);
+  void RecordVirtualJSFunctionDetails(JSFunction* function);
 
   Heap* heap_;
   ObjectStats* stats_;
@@ -441,6 +442,8 @@ void ObjectStatsCollectorImpl::CollectStatistics(HeapObject* obj, Phase phase) {
       } else if (obj->IsFunctionTemplateInfo()) {
         RecordVirtualFunctionTemplateInfoDetails(
             FunctionTemplateInfo::cast(obj));
+      } else if (obj->IsJSFunction()) {
+        RecordVirtualJSFunctionDetails(JSFunction::cast(obj));
       } else if (obj->IsJSGlobalObject()) {
         RecordVirtualJSGlobalObjectDetails(JSGlobalObject::cast(obj));
       } else if (obj->IsJSObject()) {
@@ -591,6 +594,15 @@ void ObjectStatsCollectorImpl::RecordVirtualSharedFunctionInfoDetails(
   RecordVirtualObjectStats(info, fm, ObjectStats::FEEDBACK_METADATA_TYPE,
                            fm->Size(), ObjectStats::kNoOverAllocation,
                            kIgnoreCow);
+}
+
+void ObjectStatsCollectorImpl::RecordVirtualJSFunctionDetails(
+    JSFunction* function) {
+  // Uncompiled JSFunctions get their own category.
+  if (!function->is_compiled()) {
+    RecordSimpleVirtualObjectStats(nullptr, function,
+                                   ObjectStats::UNCOMPILED_JS_FUNCTION_TYPE);
+  }
 }
 
 namespace {
