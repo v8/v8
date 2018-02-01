@@ -87,11 +87,6 @@ CodeEntry* CodeEntry::UnresolvedEntryCreateTrait::Create() {
 
 CodeEntry::~CodeEntry() {
   delete line_info_;
-  for (auto location : inline_locations_) {
-    for (auto entry : location.second) {
-      delete entry;
-    }
-  }
 }
 
 
@@ -137,12 +132,13 @@ int CodeEntry::GetSourceLine(int pc_offset) const {
   return v8::CpuProfileNode::kNoLineNumberInfo;
 }
 
-void CodeEntry::AddInlineStack(int pc_offset,
-                               std::vector<CodeEntry*> inline_stack) {
+void CodeEntry::AddInlineStack(
+    int pc_offset, std::vector<std::unique_ptr<CodeEntry>> inline_stack) {
   inline_locations_.insert(std::make_pair(pc_offset, std::move(inline_stack)));
 }
 
-const std::vector<CodeEntry*>* CodeEntry::GetInlineStack(int pc_offset) const {
+const std::vector<std::unique_ptr<CodeEntry>>* CodeEntry::GetInlineStack(
+    int pc_offset) const {
   auto it = inline_locations_.find(pc_offset);
   return it != inline_locations_.end() ? &it->second : nullptr;
 }
@@ -684,11 +680,13 @@ void ProfileGenerator::RecordTickSample(const TickSample& sample) {
         // Find out if the entry has an inlining stack associated.
         int pc_offset =
             static_cast<int>(stack_pos - entry->instruction_start());
-        const std::vector<CodeEntry*>* inline_stack =
+        const std::vector<std::unique_ptr<CodeEntry>>* inline_stack =
             entry->GetInlineStack(pc_offset);
         if (inline_stack) {
-          entries.insert(entries.end(), inline_stack->rbegin(),
-                         inline_stack->rend());
+          std::transform(
+              inline_stack->rbegin(), inline_stack->rend(),
+              std::back_inserter(entries),
+              [](const std::unique_ptr<CodeEntry>& ptr) { return ptr.get(); });
         }
         // Skip unresolved frames (e.g. internal frame) and get source line of
         // the first JS caller.

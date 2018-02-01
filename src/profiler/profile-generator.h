@@ -91,8 +91,10 @@ class CodeEntry {
 
   int GetSourceLine(int pc_offset) const;
 
-  void AddInlineStack(int pc_offset, std::vector<CodeEntry*> inline_stack);
-  const std::vector<CodeEntry*>* GetInlineStack(int pc_offset) const;
+  void AddInlineStack(int pc_offset,
+                      std::vector<std::unique_ptr<CodeEntry>> inline_stack);
+  const std::vector<std::unique_ptr<CodeEntry>>* GetInlineStack(
+      int pc_offset) const;
 
   void AddDeoptInlinedFrames(int deopt_id, std::vector<CpuProfileDeoptFrame>);
   bool HasDeoptInlinedFramesFor(int deopt_id) const;
@@ -163,7 +165,7 @@ class CodeEntry {
   JITLineInfoTable* line_info_;
   Address instruction_start_;
   // Should be an unordered_map, but it doesn't currently work on Win & MacOS.
-  std::map<int, std::vector<CodeEntry*>> inline_locations_;
+  std::map<int, std::vector<std::unique_ptr<CodeEntry>>> inline_locations_;
   std::map<int, std::vector<CpuProfileDeoptFrame>> deopt_inlined_frames_;
 
   DISALLOW_COPY_AND_ASSIGN(CodeEntry);
