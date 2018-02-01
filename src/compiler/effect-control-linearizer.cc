@@ -3692,8 +3692,9 @@ Node* EffectControlLinearizer::LowerLoadTypedElement(Node* node) {
   // Compute the effective storage pointer, handling the case where the
   // {external} pointer is the effective storage pointer (i.e. the {base}
   // is Smi zero).
-  Node* storage = NumberMatcher(base).Is(0) ? external : __ UnsafePointerAdd(
-                                                             base, external);
+  Node* storage = IntPtrMatcher(base).Is(0)
+                      ? external
+                      : __ UnsafePointerAdd(base, external);
 
   // Perform the actual typed element access.
   return __ LoadElement(AccessBuilder::ForTypedArrayElement(array_type, true),
@@ -3715,8 +3716,9 @@ void EffectControlLinearizer::LowerStoreTypedElement(Node* node) {
   // Compute the effective storage pointer, handling the case where the
   // {external} pointer is the effective storage pointer (i.e. the {base}
   // is Smi zero).
-  Node* storage = NumberMatcher(base).Is(0) ? external : __ UnsafePointerAdd(
-                                                             base, external);
+  Node* storage = IntPtrMatcher(base).Is(0)
+                      ? external
+                      : __ UnsafePointerAdd(base, external);
 
   // Perform the actual typed element access.
   __ StoreElement(AccessBuilder::ForTypedArrayElement(array_type, true),
