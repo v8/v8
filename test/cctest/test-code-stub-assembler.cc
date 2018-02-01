@@ -2328,8 +2328,10 @@ TEST(NewPromiseCapability) {
     Node* const promise_constructor =
         m.LoadContextElement(native_context, Context::PROMISE_FUNCTION_INDEX);
 
+    Node* const debug_event = m.TrueConstant();
     Node* const capability =
-        m.NewPromiseCapability(context, promise_constructor);
+        m.CallBuiltin(Builtins::kNewPromiseCapability, context,
+                      promise_constructor, debug_event);
     m.Return(capability);
 
     FunctionTester ft(asm_tester.GenerateCode(), kNumParams);
@@ -2372,7 +2374,9 @@ TEST(NewPromiseCapability) {
     Node* const context = m.Parameter(kNumParams + 2);
 
     Node* const constructor = m.Parameter(1);
-    Node* const capability = m.NewPromiseCapability(context, constructor);
+    Node* const debug_event = m.TrueConstant();
+    Node* const capability = m.CallBuiltin(Builtins::kNewPromiseCapability,
+                                           context, constructor, debug_event);
     m.Return(capability);
 
     FunctionTester ft(asm_tester.GenerateCode(), kNumParams);

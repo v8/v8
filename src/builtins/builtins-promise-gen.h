@@ -115,9 +115,6 @@ class PromiseBuiltinsAssembler : public CodeStubAssembler {
   Node* CreatePromiseGetCapabilitiesExecutorContext(Node* native_context,
                                                     Node* promise_capability);
 
-  Node* NewPromiseCapability(Node* context, Node* constructor,
-                             Node* debug_event = nullptr);
-
  protected:
   void PromiseInit(Node* promise);
 

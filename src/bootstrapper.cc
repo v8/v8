@@ -2361,12 +2361,6 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
         isolate, Builtins::kPromiseGetCapabilitiesExecutor,
         factory->empty_string(), factory->Object_string(), 2);
     native_context()->set_promise_get_capabilities_executor_shared_fun(*info);
-
-    // %new_promise_capability(C, debugEvent)
-    Handle<JSFunction> new_promise_capability =
-        SimpleCreateFunction(isolate, factory->empty_string(),
-                             Builtins::kNewPromiseCapability, 2, false);
-    native_context()->set_new_promise_capability(*new_promise_capability);
   }
 
   {  // -- P r o m i s e

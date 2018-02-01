@@ -106,31 +106,27 @@ PromiseBuiltinsAssembler::CreatePromiseResolvingFunctions(
   return std::make_pair(resolve, reject);
 }
 
-Node* PromiseBuiltinsAssembler::NewPromiseCapability(Node* context,
-                                                     Node* constructor,
-                                                     Node* debug_event) {
-  if (debug_event == nullptr) {
-    debug_event = TrueConstant();
-  }
+// ES section #sec-newpromisecapability
+TF_BUILTIN(NewPromiseCapability, PromiseBuiltinsAssembler) {
+  Node* const context = Parameter(Descriptor::kContext);
+  Node* const constructor = Parameter(Descriptor::kConstructor);
+  Node* const debug_event = Parameter(Descriptor::kDebugEvent);
+  Node* const native_context = LoadNativeContext(context);
 
   Label if_not_constructor(this, Label::kDeferred),
-      if_notcallable(this, Label::kDeferred);
+      if_notcallable(this, Label::kDeferred), if_fast_promise_capability(this),
+      if_slow_promise_capability(this, Label::kDeferred);
   GotoIf(TaggedIsSmi(constructor), &if_not_constructor);
   GotoIfNot(IsConstructorMap(LoadMap(constructor)), &if_not_constructor);
-
-  Node* native_context = LoadNativeContext(context);
-
-  VARIABLE(var_capability, MachineRepresentation::kTagged);
-  Label if_builtin_promise(this), if_custom_promise(this, Label::kDeferred),
-      done(this);
   Branch(WordEqual(constructor,
                    LoadContextElement(native_context,
                                       Context::PROMISE_FUNCTION_INDEX)),
-         &if_builtin_promise, &if_custom_promise);
+         &if_fast_promise_capability, &if_slow_promise_capability);
 
-  BIND(&if_builtin_promise);
+  BIND(&if_fast_promise_capability);
   {
-    Node* promise = AllocateAndInitJSPromise(context, UndefinedConstant());
+    Node* promise =
+        AllocateAndInitJSPromise(native_context, UndefinedConstant());
 
     Node* resolve = nullptr;
     Node* reject = nullptr;
@@ -145,11 +141,10 @@ Node* PromiseBuiltinsAssembler::NewPromiseCapability(Node* context,
                                    PromiseCapability::kResolveOffset, resolve);
     StoreObjectFieldNoWriteBarrier(capability, PromiseCapability::kRejectOffset,
                                    reject);
-    var_capability.Bind(capability);
-    Goto(&done);
+    Return(capability);
   }
 
-  BIND(&if_custom_promise);
+  BIND(&if_slow_promise_capability);
   {
     Node* capability = Allocate(PromiseCapability::kSize);
     StoreMapNoWriteBarrier(capability, Heap::kPromiseCapabilityMapRootIndex);
@@ -159,7 +154,6 @@ Node* PromiseBuiltinsAssembler::NewPromiseCapability(Node* context,
                          Heap::kUndefinedValueRootIndex);
     StoreObjectFieldRoot(capability, PromiseCapability::kRejectOffset,
                          Heap::kUndefinedValueRootIndex);
-    var_capability.Bind(capability);
 
     Node* executor_context =
         CreatePromiseGetCapabilitiesExecutorContext(capability, native_context);
@@ -170,8 +164,8 @@ Node* PromiseBuiltinsAssembler::NewPromiseCapability(Node* context,
     Node* executor = AllocateFunctionWithMapAndContext(
         function_map, executor_info, executor_context);
 
-    Node* promise = ConstructJS(CodeFactory::Construct(isolate()), context,
-                                constructor, executor);
+    Node* promise = ConstructJS(CodeFactory::Construct(isolate()),
+                                native_context, constructor, executor);
     StoreObjectField(capability, PromiseCapability::kPromiseOffset, promise);
 
     Node* resolve =
@@ -183,8 +177,7 @@ Node* PromiseBuiltinsAssembler::NewPromiseCapability(Node* context,
         LoadObjectField(capability, PromiseCapability::kRejectOffset);
     GotoIf(TaggedIsSmi(reject), &if_notcallable);
     GotoIfNot(IsCallable(reject), &if_notcallable);
-
-    Goto(&done);
+    Return(capability);
   }
 
   BIND(&if_not_constructor);
@@ -192,9 +185,6 @@ Node* PromiseBuiltinsAssembler::NewPromiseCapability(Node* context,
 
   BIND(&if_notcallable);
   ThrowTypeError(context, MessageTemplate::kPromiseNonCallable);
-
-  BIND(&done);
-  return var_capability.value();
 }
 
 Node* PromiseBuiltinsAssembler::CreatePromiseContext(Node* native_context,
@@ -999,7 +989,9 @@ TF_BUILTIN(PromisePrototypeThen, PromiseBuiltinsAssembler) {
 
   BIND(&slow_promise_capability);
   {
-    Node* const capability = NewPromiseCapability(context, constructor);
+    Node* const debug_event = TrueConstant();
+    Node* const capability = CallBuiltin(Builtins::kNewPromiseCapability,
+                                         context, constructor, debug_event);
     var_result_promise.Bind(
         LoadObjectField(capability, PromiseCapability::kPromiseOffset));
     var_result_promise_or_capability.Bind(capability);
@@ -1321,7 +1313,9 @@ TF_BUILTIN(PromiseResolve, PromiseBuiltinsAssembler) {
 
     BIND(&if_notnativepromise);
     {
-      Node* const capability = NewPromiseCapability(context, constructor);
+      Node* const debug_event = TrueConstant();
+      Node* const capability = CallBuiltin(Builtins::kNewPromiseCapability,
+                                           context, constructor, debug_event);
 
       Node* const resolve =
           LoadObjectField(capability, PromiseCapability::kResolveOffset);
@@ -1361,17 +1355,6 @@ TF_BUILTIN(PromiseGetCapabilitiesExecutor, PromiseBuiltinsAssembler) {
   ThrowTypeError(context, MessageTemplate::kPromiseExecutorAlreadyInvoked);
 }
 
-// ES6 #sec-newpromisecapability
-TF_BUILTIN(NewPromiseCapability, PromiseBuiltinsAssembler) {
-  Node* constructor = Parameter(Descriptor::kConstructor);
-  Node* debug_event = Parameter(Descriptor::kDebugEvent);
-  Node* context = Parameter(Descriptor::kContext);
-
-  CSA_ASSERT_JS_ARGC_EQ(this, 2);
-
-  Return(NewPromiseCapability(context, constructor, debug_event));
-}
-
 TF_BUILTIN(PromiseReject, PromiseBuiltinsAssembler) {
   // 1. Let C be the this value.
   Node* const receiver = Parameter(Descriptor::kReceiver);
@@ -1402,7 +1385,9 @@ TF_BUILTIN(PromiseReject, PromiseBuiltinsAssembler) {
   BIND(&if_custompromise);
   {
     // 3. Let promiseCapability be ? NewPromiseCapability(C).
-    Node* const capability = NewPromiseCapability(context, receiver);
+    Node* const debug_event = TrueConstant();
+    Node* const capability = CallBuiltin(Builtins::kNewPromiseCapability,
+                                         context, receiver, debug_event);
 
     // 4. Perform ? Call(promiseCapability.[[Reject]], undefined, « r »).
     Node* const reject =
@@ -1875,7 +1860,8 @@ TF_BUILTIN(PromiseAll, PromiseBuiltinsAssembler) {
   // Don't fire debugEvent so that forwarding the rejection through all does not
   // trigger redundant ExceptionEvents
   Node* const debug_event = FalseConstant();
-  Node* const capability = NewPromiseCapability(context, receiver, debug_event);
+  Node* const capability = CallBuiltin(Builtins::kNewPromiseCapability, context,
+                                       receiver, debug_event);
 
   VARIABLE(var_exception, MachineRepresentation::kTagged, TheHoleConstant());
   Label reject_promise(this, &var_exception, Label::kDeferred);
@@ -2001,7 +1987,8 @@ TF_BUILTIN(PromiseRace, PromiseBuiltinsAssembler) {
   // Don't fire debugEvent so that forwarding the rejection through all does not
   // trigger redundant ExceptionEvents
   Node* const debug_event = FalseConstant();
-  Node* const capability = NewPromiseCapability(context, receiver, debug_event);
+  Node* const capability = CallBuiltin(Builtins::kNewPromiseCapability, context,
+                                       receiver, debug_event);
 
   Node* const resolve =
       LoadObjectField(capability, PromiseCapability::kResolveOffset);
