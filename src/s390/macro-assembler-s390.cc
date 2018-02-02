@@ -15,6 +15,7 @@
 #include "src/debug/debug.h"
 #include "src/external-reference-table.h"
 #include "src/frames-inl.h"
+#include "src/instruction-stream.h"
 #include "src/register-configuration.h"
 #include "src/runtime/runtime.h"
 
@@ -1522,7 +1523,7 @@ void MacroAssembler::JumpToExternalReference(const ExternalReference& builtin,
 }
 
 void MacroAssembler::JumpToInstructionStream(const InstructionStream* stream) {
-  intptr_t bytes_address = static_cast<intptr_t>(stream->bytes());
+  intptr_t bytes_address = reinterpret_cast<intptr_t>(stream->bytes());
   mov(kOffHeapTrampolineRegister, Operand(bytes_address));
   Jump(kOffHeapTrampolineRegister);
 }
