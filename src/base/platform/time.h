@@ -47,7 +47,7 @@ class TimeBase;
 
 class V8_BASE_EXPORT TimeDelta final {
  public:
-  TimeDelta() : delta_(0) {}
+  constexpr TimeDelta() : delta_(0) {}
 
   // Converts units of time to TimeDeltas.
   static TimeDelta FromDays(int days);
@@ -59,6 +59,27 @@ class V8_BASE_EXPORT TimeDelta final {
     return TimeDelta(microseconds);
   }
   static TimeDelta FromNanoseconds(int64_t nanoseconds);
+
+  // Returns the maximum time delta, which should be greater than any reasonable
+  // time delta we might compare it to. Adding or subtracting the maximum time
+  // delta to a time or another time delta has an undefined result.
+  static constexpr TimeDelta Max();
+
+  // Returns the minimum time delta, which should be less than than any
+  // reasonable time delta we might compare it to. Adding or subtracting the
+  // minimum time delta to a time or another time delta has an undefined result.
+  static constexpr TimeDelta Min();
+
+  // Returns true if the time delta is zero.
+  constexpr bool IsZero() const { return delta_ == 0; }
+
+  // Returns true if the time delta is the maximum/minimum time delta.
+  constexpr bool IsMax() const {
+    return delta_ == std::numeric_limits<int64_t>::max();
+  }
+  constexpr bool IsMin() const {
+    return delta_ == std::numeric_limits<int64_t>::min();
+  }
 
   // Returns the time delta in some unit. The F versions return a floating
   // point value, the "regular" versions return a rounded-down value.
@@ -73,7 +94,7 @@ class V8_BASE_EXPORT TimeDelta final {
   double InMillisecondsF() const;
   int64_t InMilliseconds() const;
   int64_t InMillisecondsRoundedUp() const;
-  int64_t InMicroseconds() const { return delta_; }
+  int64_t InMicroseconds() const;
   int64_t InNanoseconds() const;
 
   // Converts to/from Mach time specs.
@@ -105,9 +126,7 @@ class V8_BASE_EXPORT TimeDelta final {
     delta_ -= other.delta_;
     return *this;
   }
-  TimeDelta operator-() const {
-    return TimeDelta(-delta_);
-  }
+  constexpr TimeDelta operator-() const { return TimeDelta(-delta_); }
 
   double TimesOf(const TimeDelta& other) const {
     return static_cast<double>(delta_) / static_cast<double>(other.delta_);
@@ -137,22 +156,22 @@ class V8_BASE_EXPORT TimeDelta final {
   }
 
   // Comparison operators.
-  bool operator==(const TimeDelta& other) const {
+  constexpr bool operator==(const TimeDelta& other) const {
     return delta_ == other.delta_;
   }
-  bool operator!=(const TimeDelta& other) const {
+  constexpr bool operator!=(const TimeDelta& other) const {
     return delta_ != other.delta_;
   }
-  bool operator<(const TimeDelta& other) const {
+  constexpr bool operator<(const TimeDelta& other) const {
     return delta_ < other.delta_;
   }
-  bool operator<=(const TimeDelta& other) const {
+  constexpr bool operator<=(const TimeDelta& other) const {
     return delta_ <= other.delta_;
   }
-  bool operator>(const TimeDelta& other) const {
+  constexpr bool operator>(const TimeDelta& other) const {
     return delta_ > other.delta_;
   }
-  bool operator>=(const TimeDelta& other) const {
+  constexpr bool operator>=(const TimeDelta& other) const {
     return delta_ >= other.delta_;
   }
 
@@ -161,12 +180,21 @@ class V8_BASE_EXPORT TimeDelta final {
   // Constructs a delta given the duration in microseconds. This is private
   // to avoid confusion by callers with an integer constructor. Use
   // FromSeconds, FromMilliseconds, etc. instead.
-  explicit TimeDelta(int64_t delta) : delta_(delta) {}
+  explicit constexpr TimeDelta(int64_t delta) : delta_(delta) {}
 
   // Delta in microseconds.
   int64_t delta_;
 };
 
+// static
+constexpr TimeDelta TimeDelta::Max() {
+  return TimeDelta(std::numeric_limits<int64_t>::max());
+}
+
+// static
+constexpr TimeDelta TimeDelta::Min() {
+  return TimeDelta(std::numeric_limits<int64_t>::min());
+}
 
 namespace time_internal {
 
@@ -207,12 +235,24 @@ class TimeBase {
   // Warning: Be careful when writing code that performs math on time values,
   // since it's possible to produce a valid "zero" result that should not be
   // interpreted as a "null" value.
-  bool IsNull() const {
-    return us_ == 0;
+  constexpr bool IsNull() const { return us_ == 0; }
+
+  // Returns the maximum/minimum times, which should be greater/less than any
+  // reasonable time with which we might compare it.
+  static TimeClass Max() {
+    return TimeClass(std::numeric_limits<int64_t>::max());
+  }
+  static TimeClass Min() {
+    return TimeClass(std::numeric_limits<int64_t>::min());
   }
 
-  // Returns true if this object represents the maximum time.
-  bool IsMax() const { return us_ == std::numeric_limits<int64_t>::max(); }
+  // Returns true if this object represents the maximum/minimum time.
+  constexpr bool IsMax() const {
+    return us_ == std::numeric_limits<int64_t>::max();
+  }
+  constexpr bool IsMin() const {
+    return us_ == std::numeric_limits<int64_t>::min();
+  }
 
   // For serializing only. Use FromInternalValue() to reconstitute. Please don't
   // use this and do arithmetic on it, as it is more error prone than using the
@@ -272,7 +312,7 @@ class TimeBase {
   static TimeClass FromInternalValue(int64_t us) { return TimeClass(us); }
 
  protected:
-  explicit TimeBase(int64_t us) : us_(us) {}
+  explicit constexpr TimeBase(int64_t us) : us_(us) {}
 
   // Time value in a microsecond timebase.
   int64_t us_;
@@ -290,7 +330,7 @@ class TimeBase {
 class V8_BASE_EXPORT Time final : public time_internal::TimeBase<Time> {
  public:
   // Contains the nullptr time. Use Time::Now() to get the current time.
-  Time() : TimeBase(0) {}
+  constexpr Time() : TimeBase(0) {}
 
   // Returns the current time. Watch out, the system might adjust its clock
   // in which case time will actually go backwards. We don't guarantee that
@@ -305,10 +345,6 @@ class V8_BASE_EXPORT Time final : public time_internal::TimeBase<Time> {
 
   // Returns the time for epoch in Unix-like system (Jan 1, 1970).
   static Time UnixEpoch() { return Time(0); }
-
-  // Returns the maximum time, which should be greater than any reasonable time
-  // with which we might compare it.
-  static Time Max() { return Time(std::numeric_limits<int64_t>::max()); }
 
   // Converts to/from POSIX time specs.
   static Time FromTimespec(struct timespec ts);
@@ -329,7 +365,7 @@ class V8_BASE_EXPORT Time final : public time_internal::TimeBase<Time> {
 
  private:
   friend class time_internal::TimeBase<Time>;
-  explicit Time(int64_t us) : TimeBase(us) {}
+  explicit constexpr Time(int64_t us) : TimeBase(us) {}
 };
 
 V8_BASE_EXPORT std::ostream& operator<<(std::ostream&, const Time&);
@@ -352,7 +388,7 @@ inline Time operator+(const TimeDelta& delta, const Time& time) {
 class V8_BASE_EXPORT TimeTicks final
     : public time_internal::TimeBase<TimeTicks> {
  public:
-  TimeTicks() : TimeBase(0) {}
+  constexpr TimeTicks() : TimeBase(0) {}
 
   // Platform-dependent tick count representing "right now." When
   // IsHighResolution() returns false, the resolution of the clock could be as
@@ -374,7 +410,7 @@ class V8_BASE_EXPORT TimeTicks final
 
   // Please use Now() to create a new object. This is for internal use
   // and testing. Ticks are in microseconds.
-  explicit TimeTicks(int64_t ticks) : TimeBase(ticks) {}
+  explicit constexpr TimeTicks(int64_t ticks) : TimeBase(ticks) {}
 };
 
 inline TimeTicks operator+(const TimeDelta& delta, const TimeTicks& ticks) {
@@ -389,7 +425,7 @@ inline TimeTicks operator+(const TimeDelta& delta, const TimeTicks& ticks) {
 class V8_BASE_EXPORT ThreadTicks final
     : public time_internal::TimeBase<ThreadTicks> {
  public:
-  ThreadTicks() : TimeBase(0) {}
+  constexpr ThreadTicks() : TimeBase(0) {}
 
   // Returns true if ThreadTicks::Now() is supported on this system.
   static bool IsSupported();
@@ -424,7 +460,7 @@ class V8_BASE_EXPORT ThreadTicks final
 
   // Please use Now() or GetForThread() to create a new object. This is for
   // internal use and testing. Ticks are in microseconds.
-  explicit ThreadTicks(int64_t ticks) : TimeBase(ticks) {}
+  explicit constexpr ThreadTicks(int64_t ticks) : TimeBase(ticks) {}
 
 #if V8_OS_WIN
   // Returns the frequency of the TSC in ticks per second, or 0 if it hasn't

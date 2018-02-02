@@ -143,41 +143,83 @@ TimeDelta TimeDelta::FromNanoseconds(int64_t nanoseconds) {
 
 
 int TimeDelta::InDays() const {
+  if (IsMax()) {
+    // Preserve max to prevent overflow.
+    return std::numeric_limits<int>::max();
+  }
   return static_cast<int>(delta_ / Time::kMicrosecondsPerDay);
 }
 
-
 int TimeDelta::InHours() const {
+  if (IsMax()) {
+    // Preserve max to prevent overflow.
+    return std::numeric_limits<int>::max();
+  }
   return static_cast<int>(delta_ / Time::kMicrosecondsPerHour);
 }
 
-
 int TimeDelta::InMinutes() const {
+  if (IsMax()) {
+    // Preserve max to prevent overflow.
+    return std::numeric_limits<int>::max();
+  }
   return static_cast<int>(delta_ / Time::kMicrosecondsPerMinute);
 }
 
-
 double TimeDelta::InSecondsF() const {
+  if (IsMax()) {
+    // Preserve max to prevent overflow.
+    return std::numeric_limits<double>::infinity();
+  }
   return static_cast<double>(delta_) / Time::kMicrosecondsPerSecond;
 }
 
-
 int64_t TimeDelta::InSeconds() const {
+  if (IsMax()) {
+    // Preserve max to prevent overflow.
+    return std::numeric_limits<int64_t>::max();
+  }
   return delta_ / Time::kMicrosecondsPerSecond;
 }
 
-
 double TimeDelta::InMillisecondsF() const {
+  if (IsMax()) {
+    // Preserve max to prevent overflow.
+    return std::numeric_limits<double>::infinity();
+  }
   return static_cast<double>(delta_) / Time::kMicrosecondsPerMillisecond;
 }
 
-
 int64_t TimeDelta::InMilliseconds() const {
+  if (IsMax()) {
+    // Preserve max to prevent overflow.
+    return std::numeric_limits<int64_t>::max();
+  }
   return delta_ / Time::kMicrosecondsPerMillisecond;
 }
 
+int64_t TimeDelta::InMillisecondsRoundedUp() const {
+  if (IsMax()) {
+    // Preserve max to prevent overflow.
+    return std::numeric_limits<int64_t>::max();
+  }
+  return (delta_ + Time::kMicrosecondsPerMillisecond - 1) /
+         Time::kMicrosecondsPerMillisecond;
+}
+
+int64_t TimeDelta::InMicroseconds() const {
+  if (IsMax()) {
+    // Preserve max to prevent overflow.
+    return std::numeric_limits<int64_t>::max();
+  }
+  return delta_;
+}
 
 int64_t TimeDelta::InNanoseconds() const {
+  if (IsMax()) {
+    // Preserve max to prevent overflow.
+    return std::numeric_limits<int64_t>::max();
+  }
   return delta_ * Time::kNanosecondsPerMicrosecond;
 }
 
