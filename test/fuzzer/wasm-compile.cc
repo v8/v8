@@ -479,6 +479,7 @@ void WasmGenerator::Generate<kWasmStmt>(DataRange& data) {
   if (recursion_limit_reached() || data.size() == 0) return;
 
   constexpr generate_fn alternates[] = {
+      &WasmGenerator::sequence<kWasmStmt, kWasmStmt>,
       &WasmGenerator::block<kWasmStmt>,
       &WasmGenerator::loop<kWasmStmt>,
       &WasmGenerator::if_<kWasmStmt, kIf>,
