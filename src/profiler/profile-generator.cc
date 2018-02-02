@@ -85,11 +85,6 @@ CodeEntry* CodeEntry::UnresolvedEntryCreateTrait::Create() {
                        CodeEntry::kUnresolvedFunctionName);
 }
 
-CodeEntry::~CodeEntry() {
-  delete line_info_;
-}
-
-
 uint32_t CodeEntry::GetHash() const {
   uint32_t hash = ComputeIntegerHash(tag());
   if (script_id_ != v8::UnboundScript::kNoScriptId) {

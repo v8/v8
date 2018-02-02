@@ -47,9 +47,8 @@ class CodeEntry {
                    const char* resource_name = CodeEntry::kEmptyResourceName,
                    int line_number = v8::CpuProfileNode::kNoLineNumberInfo,
                    int column_number = v8::CpuProfileNode::kNoColumnNumberInfo,
-                   JITLineInfoTable* line_info = nullptr,
+                   std::unique_ptr<JITLineInfoTable> line_info = nullptr,
                    Address instruction_start = nullptr);
-  ~CodeEntry();
 
   const char* name_prefix() const { return name_prefix_; }
   bool has_name_prefix() const { return name_prefix_[0] != '\0'; }
@@ -57,7 +56,7 @@ class CodeEntry {
   const char* resource_name() const { return resource_name_; }
   int line_number() const { return line_number_; }
   int column_number() const { return column_number_; }
-  const JITLineInfoTable* line_info() const { return line_info_; }
+  const JITLineInfoTable* line_info() const { return line_info_.get(); }
   int script_id() const { return script_id_; }
   void set_script_id(int script_id) { script_id_ = script_id; }
   int position() const { return position_; }
@@ -162,7 +161,7 @@ class CodeEntry {
   const char* bailout_reason_;
   const char* deopt_reason_;
   int deopt_id_;
-  JITLineInfoTable* line_info_;
+  std::unique_ptr<JITLineInfoTable> line_info_;
   Address instruction_start_;
   // Should be an unordered_map, but it doesn't currently work on Win & MacOS.
   std::map<int, std::vector<std::unique_ptr<CodeEntry>>> inline_locations_;
