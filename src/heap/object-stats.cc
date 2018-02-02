@@ -404,17 +404,89 @@ void ObjectStatsCollectorImpl::RecordVirtualJSObjectDetails(JSObject* object) {
   RecordSimpleVirtualObjectStats(object, elements, ObjectStats::ELEMENTS_TYPE);
 }
 
+static ObjectStats::VirtualInstanceType GetFeedbackSlotType(
+    Object* obj, FeedbackSlotKind kind, Isolate* isolate) {
+  switch (kind) {
+    case FeedbackSlotKind::kCall:
+      if (obj == *isolate->factory()->uninitialized_symbol() ||
+          obj == *isolate->factory()->premonomorphic_symbol()) {
+        return ObjectStats::FEEDBACK_VECTOR_SLOT_CALL_UNUSED_TYPE;
+      }
+      return ObjectStats::FEEDBACK_VECTOR_SLOT_CALL_TYPE;
+
+    case FeedbackSlotKind::kLoadProperty:
+    case FeedbackSlotKind::kLoadGlobalInsideTypeof:
+    case FeedbackSlotKind::kLoadGlobalNotInsideTypeof:
+    case FeedbackSlotKind::kLoadKeyed:
+      if (obj == *isolate->factory()->uninitialized_symbol() ||
+          obj == *isolate->factory()->premonomorphic_symbol()) {
+        return ObjectStats::FEEDBACK_VECTOR_SLOT_LOAD_UNUSED_TYPE;
+      }
+      return ObjectStats::FEEDBACK_VECTOR_SLOT_LOAD_TYPE;
+
+    case FeedbackSlotKind::kStoreNamedSloppy:
+    case FeedbackSlotKind::kStoreNamedStrict:
+    case FeedbackSlotKind::kStoreOwnNamed:
+    case FeedbackSlotKind::kStoreGlobalSloppy:
+    case FeedbackSlotKind::kStoreGlobalStrict:
+    case FeedbackSlotKind::kStoreKeyedSloppy:
+    case FeedbackSlotKind::kStoreKeyedStrict:
+      if (obj == *isolate->factory()->uninitialized_symbol() ||
+          obj == *isolate->factory()->premonomorphic_symbol()) {
+        return ObjectStats::FEEDBACK_VECTOR_SLOT_STORE_UNUSED_TYPE;
+      }
+      return ObjectStats::FEEDBACK_VECTOR_SLOT_STORE_TYPE;
+
+    case FeedbackSlotKind::kBinaryOp:
+    case FeedbackSlotKind::kCompareOp:
+      return ObjectStats::FEEDBACK_VECTOR_SLOT_ENUM_TYPE;
+
+    default:
+      return ObjectStats::FEEDBACK_VECTOR_SLOT_OTHER_TYPE;
+  }
+}
+
 void ObjectStatsCollectorImpl::RecordVirtualFeedbackVectorDetails(
     FeedbackVector* vector) {
-  // Except for allocation
-  for (int i = 0; i < vector->length(); i++) {
-    Object* raw_object = vector->get(i);
-    if (!raw_object->IsHeapObject()) continue;
-    HeapObject* object = HeapObject::cast(raw_object);
-    if (object->IsCell() || object->IsFixedArray()) {
-      RecordSimpleVirtualObjectStats(vector, object,
-                                     ObjectStats::FEEDBACK_VECTOR_ENTRY_TYPE);
+  if (virtual_objects_.find(vector) == virtual_objects_.end()) {
+    // Manually insert the feedback vector into the virtual object list, since
+    // we're logging its component parts separately.
+    virtual_objects_.insert(vector);
+
+    size_t calculated_size = 0;
+
+    // Log the feedback vector's header (fixed fields).
+    size_t header_size =
+        reinterpret_cast<Address>(vector->slots_start()) - vector->address();
+    stats_->RecordVirtualObjectStats(ObjectStats::FEEDBACK_VECTOR_HEADER_TYPE,
+                                     header_size,
+                                     ObjectStats::kNoOverAllocation);
+    calculated_size += header_size;
+
+    // Iterate over the feedback slots and log each one.
+    FeedbackMetadataIterator it(vector->metadata());
+    while (it.HasNext()) {
+      FeedbackSlot slot = it.Next();
+      // Log the entry (or entries) taken up by this slot.
+      size_t slot_size = it.entry_size() * kPointerSize;
+      stats_->RecordVirtualObjectStats(
+          GetFeedbackSlotType(vector->Get(slot), it.kind(), heap_->isolate()),
+          slot_size, ObjectStats::kNoOverAllocation);
+      calculated_size += slot_size;
+
+      // Log the monomorphic/polymorphic helper objects that this slot owns.
+      for (int i = 0; i < it.entry_size(); i++) {
+        Object* raw_object = vector->get(slot.ToInt() + i);
+        if (!raw_object->IsHeapObject()) continue;
+        HeapObject* object = HeapObject::cast(raw_object);
+        if (object->IsCell() || object->IsFixedArray()) {
+          RecordSimpleVirtualObjectStats(
+              vector, object, ObjectStats::FEEDBACK_VECTOR_ENTRY_TYPE);
+        }
+      }
     }
+
+    CHECK_EQ(calculated_size, vector->Size());
   }
 }
 
