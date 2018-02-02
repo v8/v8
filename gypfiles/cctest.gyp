@@ -6,6 +6,18 @@
   'variables': {
     'v8_code': 1,
     'generated_file': '<(SHARED_INTERMEDIATE_DIR)/resources.cc',
+    'inputs': [
+      '<(SHARED_INTERMEDIATE_DIR)/test-isolate-independent-builtins/f-arm.bin',
+      '<(SHARED_INTERMEDIATE_DIR)/test-isolate-independent-builtins/f-arm64.bin',
+      '<(SHARED_INTERMEDIATE_DIR)/test-isolate-independent-builtins/f-ia32.bin',
+      '<(SHARED_INTERMEDIATE_DIR)/test-isolate-independent-builtins/f-mips.bin',
+      '<(SHARED_INTERMEDIATE_DIR)/test-isolate-independent-builtins/f-mips64.bin',
+      '<(SHARED_INTERMEDIATE_DIR)/test-isolate-independent-builtins/f-ppc.bin',
+      '<(SHARED_INTERMEDIATE_DIR)/test-isolate-independent-builtins/f-s390.bin',
+      '<(SHARED_INTERMEDIATE_DIR)/test-isolate-independent-builtins/f-x64-win.bin',
+      '<(SHARED_INTERMEDIATE_DIR)/test-isolate-independent-builtins/f-x64.bin',
+      '<(SHARED_INTERMEDIATE_DIR)/test-isolate-independent-builtins/string.bin',
+    ],
     'cctest_sources': [
       '../test/cctest/compiler/c-signature.h',
       '../test/cctest/compiler/call-tester.h',
@@ -302,6 +314,7 @@
       'type': 'executable',
       'dependencies': [
         'resources',
+        'test-isolate-independent-builtins-files',
         'v8.gyp:v8_libbase',
         'v8.gyp:v8_libplatform',
       ],
@@ -409,6 +422,27 @@
         ['v8_use_snapshot=="true"', {
           'dependencies': ['v8.gyp:v8_initializers'],
         }],
+      ],
+    },
+    {
+      'target_name': 'test-isolate-independent-builtins-files',
+      'type': 'none',
+      'copies': [
+        {
+          'destination': '<(SHARED_INTERMEDIATE_DIR)/test-isolate-independent-builtins/',
+          'files': [
+            '../test/cctest/test-isolate-independent-builtins/f-arm.bin',
+            '../test/cctest/test-isolate-independent-builtins/f-arm64.bin',
+            '../test/cctest/test-isolate-independent-builtins/f-ia32.bin',
+            '../test/cctest/test-isolate-independent-builtins/f-mips.bin',
+            '../test/cctest/test-isolate-independent-builtins/f-mips64.bin',
+            '../test/cctest/test-isolate-independent-builtins/f-ppc.bin',
+            '../test/cctest/test-isolate-independent-builtins/f-s390.bin',
+            '../test/cctest/test-isolate-independent-builtins/f-x64-win.bin',
+            '../test/cctest/test-isolate-independent-builtins/f-x64.bin',
+            '../test/cctest/test-isolate-independent-builtins/string.bin',
+          ],
+        },
       ],
     },
     {
