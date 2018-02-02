@@ -647,6 +647,18 @@
 
   # Fails allocation on tsan.
   'es6/classes': [PASS, ['tsan', SKIP]],
+
+  # Tests that fail some assertions due to checking internal state sensitive
+  # to GC. We mark PASS,FAIL to not skip those tests on the endurance fuzzer.
+  'array-literal-feedback': [PASS, FAIL],
+  'compiler/native-context-specialization-hole-check': [PASS, FAIL],
+  'elements-transition-hoisting': [PASS, FAIL],
+  'es6/collections-constructor-custom-iterator': [PASS, FAIL],
+  'keyed-load-with-symbol-key': [PASS, FAIL],
+  'regress/regress-3709': [PASS, FAIL],
+  'regress/regress-trap-allocation-memento': [PASS, FAIL],
+  'regress/regress-unlink-closures-on-deopt': [PASS, FAIL],
+  'shared-function-tier-up-turbo': [PASS, FAIL],
 }],  # 'gc_fuzzer'
 
 ##############################################################################
@@ -663,6 +675,12 @@
 
   # Often crashes due to memory consumption.
   'regress/regress-655573': [SKIP],
+
+  # TSAN allocation failures.
+  'deep-recursion': [PASS, ['tsan', SKIP]],
+  'regress/regress-430201b': [PASS, ['tsan', SKIP]],
+  'regress/regress-crbug-493779': [PASS, ['tsan', SKIP]],
+  'regress/wasm/regress-763439': [PASS, ['tsan', SKIP]],
 }],  # 'endurance_fuzzer'
 
 ##############################################################################
