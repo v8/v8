@@ -5,7 +5,6 @@
 # found in the LICENSE file.
 
 
-import multiprocessing
 import random
 import sys
 
@@ -32,15 +31,9 @@ class NumFuzzer(base_runner.BaseTestRunner):
     super(NumFuzzer, self).__init__(*args, **kwargs)
 
   def _add_parser_options(self, parser):
-    parser.add_option("--dump-results-file", help="Dump maximum limit reached")
-    parser.add_option("-j", help="The number of parallel tasks to run",
-                      default=0, type="int")
     parser.add_option("--fuzzer-random-seed", default=0,
                       help="Default seed for initializing fuzzer random "
                       "generator")
-    parser.add_option("--swarming",
-                      help="Indicates running test driver on swarming.",
-                      default=False, action="store_true")
     parser.add_option("--tests-count", default=5, type="int",
                       help="Number of tests to generate from each base test. "
                            "Can be combined with --total-timeout-sec with "
@@ -88,8 +81,6 @@ class NumFuzzer(base_runner.BaseTestRunner):
 
 
   def _process_options(self, options):
-    if options.j == 0:
-      options.j = multiprocessing.cpu_count()
     if not options.fuzzer_random_seed:
       options.fuzzer_random_seed = random_utils.random_seed()
 
@@ -129,13 +120,7 @@ class NumFuzzer(base_runner.BaseTestRunner):
     })
     return variables
 
-  def _do_execute(self, suites, args, options):
-    print(">>> Running tests for %s.%s" % (self.build_config.arch,
-                                           self.mode_name))
-
-    self._setup_suites(options, suites)
-    tests = self._load_tests(options, suites)
-
+  def _do_execute(self, tests, args, options):
     loader = LoadProc()
     fuzzer_rng = random.Random(options.fuzzer_random_seed)
 
@@ -178,30 +163,20 @@ class NumFuzzer(base_runner.BaseTestRunner):
       return 1
     return 0
 
-  def _setup_suites(self, options, suites):
+  def _load_suites(self, names, options):
+    suites = super(NumFuzzer, self)._load_suites(names, options)
+    if options.combine_tests:
+      suites = [s for s in suites if s.test_combiner_available()]
+    return suites
+
+  def _prepare_suites(self, suites, options):
     """Sets additional configurations on test suites based on options."""
+    super(NumFuzzer, self)._prepare_suites(suites, options)
+
     if options.stress_interrupt_budget:
       # Changing interrupt budget forces us to suppress certain test assertions.
       for suite in suites:
         suite.do_suppress_internals()
-
-  def _load_tests(self, options, suites):
-    if options.combine_tests:
-      suites = [s for s in suites if s.test_combiner_available()]
-
-    # Find available test suites and read test cases from them.
-
-    tests = []
-    for s in suites:
-      s.ReadTestCases()
-      tests += s.tests
-    return tests
-
-  def _prepare_procs(self, procs):
-    procs = filter(None, procs)
-    for i in xrange(0, len(procs) - 1):
-      procs[i].connect_to(procs[i + 1])
-    procs[0].setup()
 
   def _create_combiner(self, rng, options):
     if not options.combine_tests:

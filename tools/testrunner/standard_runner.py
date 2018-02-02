@@ -5,7 +5,6 @@
 # found in the LICENSE file.
 
 
-import multiprocessing
 import os
 import re
 import sys
@@ -71,53 +70,13 @@ class StandardTestRunner(base_runner.BaseTestRunner):
     def _get_default_suite_names(self):
       return ['default']
 
-    def _do_execute(self, suites, args, options):
-      if options.swarming:
-        # Swarming doesn't print how isolated commands are called. Lets make
-        # this less cryptic by printing it ourselves.
-        print ' '.join(sys.argv)
-      return self._execute(args, options, suites)
-
     def _add_parser_options(self, parser):
-      parser.add_option("--sancov-dir",
-                        help="Directory where to collect coverage data")
-      parser.add_option("--cfi-vptr",
-                        help="Run tests with UBSAN cfi_vptr option.",
-                        default=False, action="store_true")
       parser.add_option("--novfp3",
                         help="Indicates that V8 was compiled without VFP3"
                         " support",
                         default=False, action="store_true")
-      parser.add_option("--cat", help="Print the source of the tests",
-                        default=False, action="store_true")
-      parser.add_option("--slow-tests",
-                        help="Regard slow tests (run|skip|dontcare)",
-                        default="dontcare")
-      parser.add_option("--pass-fail-tests",
-                        help="Regard pass|fail tests (run|skip|dontcare)",
-                        default="dontcare")
-      parser.add_option("--gc-stress",
-                        help="Switch on GC stress mode",
-                        default=False, action="store_true")
-      parser.add_option("--random-gc-stress",
-                        help="Switch on random GC stress mode",
-                        default=False, action="store_true")
-      parser.add_option("--infra-staging", help="Use new test runner features",
-                        dest='infra_staging', default=None,
-                        action="store_true")
-      parser.add_option("--no-infra-staging",
-                        help="Opt out of new test runner features",
-                        dest='infra_staging', default=None,
-                        action="store_false")
-      parser.add_option("-j", help="The number of parallel tasks to run",
-                        default=0, type="int")
-      parser.add_option("--no-presubmit", "--nopresubmit",
-                        help='Skip presubmit checks (deprecated)',
-                        default=False, dest="no_presubmit", action="store_true")
-      parser.add_option("--no-sorting", "--nosorting",
-                        help="Don't sort tests according to duration of last"
-                        " run.",
-                        default=False, dest="no_sorting", action="store_true")
+
+      # Variants
       parser.add_option("--no-variants", "--novariants",
                         help="Deprecated. "
                              "Equivalent to passing --variants=default",
@@ -129,30 +88,66 @@ class StandardTestRunner(base_runner.BaseTestRunner):
                         default=False, action="store_true",
                         help="Deprecated. "
                              "Equivalent to passing --variants=exhaustive")
+
+      # Filters
+      parser.add_option("--slow-tests", default="dontcare",
+                        help="Regard slow tests (run|skip|dontcare)")
+      parser.add_option("--pass-fail-tests", default="dontcare",
+                        help="Regard pass|fail tests (run|skip|dontcare)")
       parser.add_option("--quickcheck", default=False, action="store_true",
                         help=("Quick check mode (skip slow tests)"))
-      parser.add_option("--report", help="Print a summary of the tests to be"
-                        " run",
-                        default=False, action="store_true")
-      parser.add_option("--flakiness-results",
-                        help="Path to a file for storing flakiness json.")
       parser.add_option("--dont-skip-slow-simulator-tests",
                         help="Don't skip more slow tests when using a"
                         " simulator.",
                         default=False, action="store_true",
                         dest="dont_skip_simulator_slow_tests")
-      parser.add_option("--swarming",
-                        help="Indicates running test driver on swarming.",
+
+      # Stress modes
+      parser.add_option("--gc-stress",
+                        help="Switch on GC stress mode",
                         default=False, action="store_true")
-      parser.add_option("--time", help="Print timing information after running",
-                        default=False, action="store_true")
-      parser.add_option("--warn-unused", help="Report unused rules",
+      parser.add_option("--random-gc-stress",
+                        help="Switch on random GC stress mode",
                         default=False, action="store_true")
       parser.add_option("--random-seed-stress-count", default=1, type="int",
                         dest="random_seed_stress_count",
                         help="Number of runs with different random seeds. Only "
                              "with test processors: 0 means infinite "
                              "generation.")
+
+      # Noop
+      parser.add_option("--cfi-vptr",
+                        help="Run tests with UBSAN cfi_vptr option.",
+                        default=False, action="store_true")
+      parser.add_option("--infra-staging", help="Use new test runner features",
+                        dest='infra_staging', default=None,
+                        action="store_true")
+      parser.add_option("--no-infra-staging",
+                        help="Opt out of new test runner features",
+                        dest='infra_staging', default=None,
+                        action="store_false")
+      parser.add_option("--no-sorting", "--nosorting",
+                        help="Don't sort tests according to duration of last"
+                        " run.",
+                        default=False, dest="no_sorting", action="store_true")
+      parser.add_option("--no-presubmit", "--nopresubmit",
+                        help='Skip presubmit checks (deprecated)',
+                        default=False, dest="no_presubmit", action="store_true")
+
+      # Unimplemented for test processors
+      parser.add_option("--sancov-dir",
+                        help="Directory where to collect coverage data")
+      parser.add_option("--cat", help="Print the source of the tests",
+                        default=False, action="store_true")
+      parser.add_option("--flakiness-results",
+                        help="Path to a file for storing flakiness json.")
+      parser.add_option("--time", help="Print timing information after running",
+                        default=False, action="store_true")
+      parser.add_option("--warn-unused", help="Report unused rules",
+                        default=False, action="store_true")
+      parser.add_option("--report", default=False, action="store_true",
+                        help="Print a summary of the tests to be run")
+
 
     def _process_options(self, options):
       if options.sancov_dir:
@@ -209,9 +204,6 @@ class StandardTestRunner(base_runner.BaseTestRunner):
       # msan.
       if self.build_config.msan:
         options.variants = "default"
-
-      if options.j == 0:
-        options.j = multiprocessing.cpu_count()
 
       if options.variants == "infra_staging":
         options.variants = "exhaustive"
@@ -279,16 +271,7 @@ class StandardTestRunner(base_runner.BaseTestRunner):
       })
       return variables
 
-    def _execute(self, args, options, suites):
-      print(">>> Running tests for %s.%s" % (self.build_config.arch,
-                                             self.mode_name))
-
-      for s in suites:
-        s.ReadTestCases()
-
-      return self._run_test_procs(suites, args, options)
-
-    def _run_test_procs(self, suites, args, options):
+    def _do_execute(self, tests, args, options):
       jobs = options.j
 
       print '>>> Running with test processors'
@@ -320,15 +303,9 @@ class StandardTestRunner(base_runner.BaseTestRunner):
         execproc,
       ]
 
-      procs = filter(None, procs)
-
-      for i in xrange(0, len(procs) - 1):
-        procs[i].connect_to(procs[i + 1])
-
-      tests = [t for s in suites for t in s.tests]
+      self._prepare_procs(procs)
       tests.sort(key=lambda t: t.is_slow, reverse=True)
 
-      loader.setup()
       loader.load_tests(tests)
 
       print '>>> Running %d base tests' % tests_counter.total

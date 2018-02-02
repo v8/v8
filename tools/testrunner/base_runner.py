@@ -5,6 +5,7 @@
 
 from collections import OrderedDict
 import json
+import multiprocessing
 import optparse
 import os
 import shlex
@@ -227,6 +228,10 @@ class BaseTestRunner(object):
     try:
       parser = self._create_parser()
       options, args = self._parse_args(parser, sys_args)
+      if options.swarming:
+        # Swarming doesn't print how isolated commands are called. Lets make
+        # this less cryptic by printing it ourselves.
+        print ' '.join(sys.argv)
 
       self._load_build_config(options)
 
@@ -239,10 +244,14 @@ class BaseTestRunner(object):
 
       args = self._parse_test_args(args)
       suites = self._get_suites(args, options)
-      self._load_status_files(suites, options)
+      self._prepare_suites(suites, options)
 
       self._setup_env()
-      return self._do_execute(suites, args, options)
+
+      print(">>> Running tests for %s.%s" % (self.build_config.arch,
+                                            self.mode_name))
+      tests = [t for s in suites for t in s.tests]
+      return self._do_execute(tests, args, options)
     except TestRunnerError:
       return 1
     except KeyboardInterrupt:
@@ -273,6 +282,11 @@ class BaseTestRunner(object):
                       "directory will be used")
     parser.add_option("--total-timeout-sec", default=0, type="int",
                       help="How long should fuzzer run")
+    parser.add_option("--swarming", default=False, action="store_true",
+                      help="Indicates running test driver on swarming.")
+
+    parser.add_option("-j", help="The number of parallel tasks to run",
+                      default=0, type=int)
 
     # Shard
     parser.add_option("--shard-count", default=1, type=int,
@@ -446,6 +460,9 @@ class BaseTestRunner(object):
       print('Warning: --shell-dir is deprecated. Searching for executables in '
             'build directory (%s) instead.' % self.outdir)
 
+    if options.j == 0:
+      options.j = multiprocessing.cpu_count()
+
     options.command_prefix = shlex.split(options.command_prefix)
     options.extra_flags = sum(map(shlex.split, options.extra_flags), [])
 
@@ -565,6 +582,11 @@ class BaseTestRunner(object):
           test_config)
     return map(load_suite, names)
 
+  def _prepare_suites(self, suites, options):
+    self._load_status_files(suites, options)
+    for s in suites:
+      s.ReadTestCases()
+
   def _load_status_files(self, suites, options):
     # simd_mips is true if SIMD is fully supported on MIPS
     variables = self._get_statusfile_variables(options)
@@ -637,6 +659,12 @@ class BaseTestRunner(object):
   # TODO(majeski): remove options & args parameters
   def _do_execute(self, suites, args, options):
     raise NotImplementedError()
+
+  def _prepare_procs(self, procs):
+    procs = filter(None, procs)
+    for i in xrange(0, len(procs) - 1):
+      procs[i].connect_to(procs[i + 1])
+    procs[0].setup()
 
   def _create_shard_proc(self, options):
     myid, count = self._get_shard_info(options)
