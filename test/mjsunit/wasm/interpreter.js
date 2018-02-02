@@ -296,7 +296,7 @@ function checkStack(stack, expected_lines) {
   } catch (e) {
     if (!(e instanceof TypeError)) throw e;
     checkStack(stripPath(e.stack), [
-      'TypeError: invalid type',                                // -
+      'TypeError: ' + kTrapMsgs[kTrapTypeError],                // -
       '    at direct (wasm-function[1]:1)',                     // -
       '    at main (wasm-function[3]:3)',                       // -
       /^    at testIllegalImports \(interpreter.js:\d+:22\)$/,  // -
@@ -309,7 +309,7 @@ function checkStack(stack, expected_lines) {
   } catch (e) {
     if (!(e instanceof TypeError)) throw e;
     checkStack(stripPath(e.stack), [
-      'TypeError: invalid type',                                // -
+      'TypeError: ' + kTrapMsgs[kTrapTypeError],                // -
       '    at indirect (wasm-function[2]:1)',                   // -
       '    at main (wasm-function[3]:3)',                       // -
       /^    at testIllegalImports \(interpreter.js:\d+:22\)$/,  // -

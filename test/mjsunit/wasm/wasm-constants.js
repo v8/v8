@@ -374,7 +374,7 @@ let kTrapRemByZero            = 4;
 let kTrapFloatUnrepresentable = 5;
 let kTrapFuncInvalid          = 6;
 let kTrapFuncSigMismatch      = 7;
-let kTrapInvalidIndex         = 8;
+let kTrapTypeError            = 8;
 
 let kTrapMsgs = [
   "unreachable",
@@ -382,10 +382,10 @@ let kTrapMsgs = [
   "divide by zero",
   "divide result unrepresentable",
   "remainder by zero",
-  "integer result unrepresentable",
-  "invalid function",
+  "float unrepresentable in integer range",
+  "invalid index into function table",
   "function signature mismatch",
-  "invalid index into function table"
+  "wasm function signature contains illegal type"
 ];
 
 function assertTraps(trap, code) {
