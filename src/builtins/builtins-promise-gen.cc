@@ -256,30 +256,6 @@ void PromiseBuiltinsAssembler::PromiseSetHandledHint(Node* promise) {
   StoreObjectFieldNoWriteBarrier(promise, JSPromise::kFlagsOffset, new_flags);
 }
 
-void PromiseBuiltinsAssembler::AppendPromiseCallback(int offset, Node* promise,
-                                                     Node* value) {
-  Node* elements = LoadObjectField(promise, offset);
-  Node* length = LoadFixedArrayBaseLength(elements);
-  CodeStubAssembler::ParameterMode mode = OptimalParameterMode();
-  length = TaggedToParameter(length, mode);
-
-  Node* delta = IntPtrOrSmiConstant(1, mode);
-  Node* new_capacity = IntPtrOrSmiAdd(length, delta, mode);
-
-  const WriteBarrierMode barrier_mode = UPDATE_WRITE_BARRIER;
-  int additional_offset = 0;
-
-  ExtractFixedArrayFlags flags;
-  flags |= ExtractFixedArrayFlag::kFixedArrays;
-  Node* new_elements =
-      ExtractFixedArray(elements, nullptr, length, new_capacity, flags, mode);
-
-  StoreFixedArrayElement(new_elements, length, value, barrier_mode,
-                         additional_offset, mode);
-
-  StoreObjectField(promise, offset, new_elements);
-}
-
 void PromiseBuiltinsAssembler::InternalPerformPromiseThen(Node* context,
                                                           Node* promise,
                                                           Node* on_fulfilled,

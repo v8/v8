@@ -121,9 +121,6 @@ class PromiseBuiltinsAssembler : public CodeStubAssembler {
   void PromiseSetHasHandler(Node* promise);
   void PromiseSetHandledHint(Node* promise);
 
-  void AppendPromiseCallback(int offset, compiler::Node* promise,
-                             compiler::Node* value);
-
   void InternalPerformPromiseThen(Node* context, Node* promise,
                                   Node* on_fulfill, Node* on_reject,
                                   Node* result);
