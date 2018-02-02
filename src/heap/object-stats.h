@@ -60,6 +60,8 @@
   V(SCOPE_INFO_TYPE)                        \
   V(SCRIPT_LIST_TYPE)                       \
   V(SCRIPT_SHARED_FUNCTION_INFOS_TYPE)      \
+  V(SCRIPT_SOURCE_EXTERNAL_TYPE)            \
+  V(SCRIPT_SOURCE_NON_EXTERNAL_TYPE)        \
   V(SERIALIZED_OBJECTS_TYPE)                \
   V(SINGLE_CHARACTER_STRING_CACHE_TYPE)     \
   V(STRING_SPLIT_CACHE_TYPE)                \

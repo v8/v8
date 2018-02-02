@@ -650,6 +650,27 @@ void ObjectStatsCollectorImpl::RecordVirtualScriptDetails(Script* script) {
           ObjectStats::SCRIPT_SHARED_FUNCTION_INFOS_TYPE);
     }
   }
+
+  // Log the size of external source code.
+  Object* source = script->source();
+  if (source->IsExternalString()) {
+    // The contents of external strings aren't on the heap, so we have to record
+    // them manually.
+    ExternalString* external_source_string = ExternalString::cast(source);
+    size_t length_multiplier = external_source_string->IsTwoByteRepresentation()
+                                   ? kShortSize
+                                   : kCharSize;
+    size_t off_heap_size = external_source_string->length() * length_multiplier;
+    size_t on_heap_size = external_source_string->Size();
+    RecordVirtualObjectStats(script, external_source_string,
+                             ObjectStats::SCRIPT_SOURCE_EXTERNAL_TYPE,
+                             on_heap_size + off_heap_size,
+                             ObjectStats::kNoOverAllocation);
+  } else if (source->IsHeapObject()) {
+    RecordSimpleVirtualObjectStats(
+        script, HeapObject::cast(source),
+        ObjectStats::SCRIPT_SOURCE_NON_EXTERNAL_TYPE);
+  }
 }
 
 void ObjectStatsCollectorImpl::RecordVirtualSharedFunctionInfoDetails(
