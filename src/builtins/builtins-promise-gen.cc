@@ -256,36 +256,18 @@ void PromiseBuiltinsAssembler::PromiseSetHandledHint(Node* promise) {
   StoreObjectFieldNoWriteBarrier(promise, JSPromise::kFlagsOffset, new_flags);
 }
 
-void PromiseBuiltinsAssembler::InternalPerformPromiseThen(Node* context,
-                                                          Node* promise,
-                                                          Node* on_fulfilled,
-                                                          Node* on_rejected,
-                                                          Node* result) {
-  CSA_ASSERT(this, TaggedIsNotSmi(result));
-  CSA_ASSERT(this, Word32Or(IsJSPromise(result), IsPromiseCapability(result)));
-
-  // 3. If IsCallable(onFulfilled) is false, then
-  //    a. Set onFulfilled to undefined.
-  VARIABLE(var_on_fulfilled, MachineRepresentation::kTagged, on_fulfilled);
-  Label if_fulfilled_done(this), if_fulfilled_notcallable(this);
-  GotoIf(TaggedIsSmi(on_fulfilled), &if_fulfilled_notcallable);
-  Branch(IsCallable(on_fulfilled), &if_fulfilled_done,
-         &if_fulfilled_notcallable);
-  BIND(&if_fulfilled_notcallable);
-  var_on_fulfilled.Bind(UndefinedConstant());
-  Goto(&if_fulfilled_done);
-  BIND(&if_fulfilled_done);
-
-  // 4. If IsCallable(onRejected) is false, then
-  //    a. Set onRejected to undefined.
-  VARIABLE(var_on_rejected, MachineRepresentation::kTagged, on_rejected);
-  Label if_rejected_done(this), if_rejected_notcallable(this);
-  GotoIf(TaggedIsSmi(on_rejected), &if_rejected_notcallable);
-  Branch(IsCallable(on_rejected), &if_rejected_done, &if_rejected_notcallable);
-  BIND(&if_rejected_notcallable);
-  var_on_rejected.Bind(UndefinedConstant());
-  Goto(&if_rejected_done);
-  BIND(&if_rejected_done);
+// ES section #sec-performpromisethen
+void PromiseBuiltinsAssembler::PerformPromiseThen(
+    Node* context, Node* promise, Node* on_fulfilled, Node* on_rejected,
+    Node* result_promise_or_capability) {
+  CSA_ASSERT(this, TaggedIsNotSmi(promise));
+  CSA_ASSERT(this, IsJSPromise(promise));
+  CSA_ASSERT(this,
+             Word32Or(IsCallable(on_fulfilled), IsUndefined(on_fulfilled)));
+  CSA_ASSERT(this, Word32Or(IsCallable(on_rejected), IsUndefined(on_rejected)));
+  CSA_ASSERT(this, TaggedIsNotSmi(result_promise_or_capability));
+  CSA_ASSERT(this, Word32Or(IsJSPromise(result_promise_or_capability),
+                            IsPromiseCapability(result_promise_or_capability)));
 
   Label if_pending(this), if_notpending(this), done(this);
   Node* const status = PromiseStatus(promise);
@@ -300,9 +282,9 @@ void PromiseBuiltinsAssembler::InternalPerformPromiseThen(Node* context,
     // push onto the microtask queue.
     Node* const promise_reactions =
         LoadObjectField(promise, JSPromise::kReactionsOrResultOffset);
-    Node* const reaction = AllocatePromiseReaction(promise_reactions, result,
-                                                   var_on_fulfilled.value(),
-                                                   var_on_rejected.value());
+    Node* const reaction =
+        AllocatePromiseReaction(promise_reactions, result_promise_or_capability,
+                                on_fulfilled, on_rejected);
     StoreObjectField(promise, JSPromise::kReactionsOrResultOffset, reaction);
     Goto(&done);
   }
@@ -319,7 +301,7 @@ void PromiseBuiltinsAssembler::InternalPerformPromiseThen(Node* context,
     BIND(&if_fulfilled);
     {
       var_map.Bind(LoadRoot(Heap::kPromiseFulfillReactionJobTaskMapRootIndex));
-      var_handler.Bind(var_on_fulfilled.value());
+      var_handler.Bind(on_fulfilled);
       Goto(&enqueue);
     }
 
@@ -327,7 +309,7 @@ void PromiseBuiltinsAssembler::InternalPerformPromiseThen(Node* context,
     {
       CSA_ASSERT(this, IsPromiseStatus(status, v8::Promise::kRejected));
       var_map.Bind(LoadRoot(Heap::kPromiseRejectReactionJobTaskMapRootIndex));
-      var_handler.Bind(var_on_rejected.value());
+      var_handler.Bind(on_rejected);
       GotoIf(PromiseHasHandler(promise), &enqueue);
       CallRuntime(Runtime::kPromiseRevokeReject, context, promise);
       Goto(&enqueue);
@@ -337,13 +319,30 @@ void PromiseBuiltinsAssembler::InternalPerformPromiseThen(Node* context,
     Node* argument =
         LoadObjectField(promise, JSPromise::kReactionsOrResultOffset);
     Node* microtask = AllocatePromiseReactionJobTask(
-        var_map.value(), context, argument, var_handler.value(), result);
+        var_map.value(), context, argument, var_handler.value(),
+        result_promise_or_capability);
     CallBuiltin(Builtins::kEnqueueMicrotask, NoContextConstant(), microtask);
     Goto(&done);
   }
 
   BIND(&done);
   PromiseSetHasHandler(promise);
+}
+
+// ES section #sec-performpromisethen
+TF_BUILTIN(PerformPromiseThen, PromiseBuiltinsAssembler) {
+  Node* const context = Parameter(Descriptor::kContext);
+  Node* const promise = Parameter(Descriptor::kPromise);
+  Node* const on_fulfilled = Parameter(Descriptor::kOnFulfilled);
+  Node* const on_rejected = Parameter(Descriptor::kOnRejected);
+  Node* const result_promise = Parameter(Descriptor::kResultPromise);
+
+  CSA_ASSERT(this, TaggedIsNotSmi(result_promise));
+  CSA_ASSERT(this, IsJSPromise(result_promise));
+
+  PerformPromiseThen(context, promise, on_fulfilled, on_rejected,
+                     result_promise);
+  Return(result_promise);
 }
 
 // Promise fast path implementations rely on unmodified JSPromise instances.
@@ -957,9 +956,8 @@ TF_BUILTIN(PromisePrototypeThen, PromiseBuiltinsAssembler) {
   BIND(&fast_promise_capability);
   {
     Node* const result_promise = AllocateAndInitJSPromise(context, promise);
-    var_result_promise.Bind(result_promise);
     var_result_promise_or_capability.Bind(result_promise);
-    CSA_ASSERT(this, IsJSPromise(var_result_promise_or_capability.value()));
+    var_result_promise.Bind(result_promise);
     Goto(&perform_promise_then);
   }
 
@@ -971,21 +969,47 @@ TF_BUILTIN(PromisePrototypeThen, PromiseBuiltinsAssembler) {
     var_result_promise.Bind(
         LoadObjectField(capability, PromiseCapability::kPromiseOffset));
     var_result_promise_or_capability.Bind(capability);
-    CSA_ASSERT(this,
-               IsPromiseCapability(var_result_promise_or_capability.value()));
     Goto(&perform_promise_then);
   }
 
   // 5. Return PerformPromiseThen(promise, onFulfilled, onRejected,
   //    resultCapability).
   BIND(&perform_promise_then);
-  CSA_ASSERT(
-      this,
-      Word32Or(IsJSPromise(var_result_promise_or_capability.value()),
-               IsPromiseCapability(var_result_promise_or_capability.value())));
-  InternalPerformPromiseThen(context, promise, on_fulfilled, on_rejected,
-                             var_result_promise_or_capability.value());
-  Return(var_result_promise.value());
+  {
+    // We do some work of the PerformPromiseThen operation here, in that
+    // we check the handlers and turn non-callable handlers into undefined.
+    // This is because this is the one and only callsite of PerformPromiseThen
+    // that has to do this.
+
+    // 3. If IsCallable(onFulfilled) is false, then
+    //    a. Set onFulfilled to undefined.
+    VARIABLE(var_on_fulfilled, MachineRepresentation::kTagged, on_fulfilled);
+    Label if_fulfilled_done(this), if_fulfilled_notcallable(this);
+    GotoIf(TaggedIsSmi(on_fulfilled), &if_fulfilled_notcallable);
+    Branch(IsCallable(on_fulfilled), &if_fulfilled_done,
+           &if_fulfilled_notcallable);
+    BIND(&if_fulfilled_notcallable);
+    var_on_fulfilled.Bind(UndefinedConstant());
+    Goto(&if_fulfilled_done);
+    BIND(&if_fulfilled_done);
+
+    // 4. If IsCallable(onRejected) is false, then
+    //    a. Set onRejected to undefined.
+    VARIABLE(var_on_rejected, MachineRepresentation::kTagged, on_rejected);
+    Label if_rejected_done(this), if_rejected_notcallable(this);
+    GotoIf(TaggedIsSmi(on_rejected), &if_rejected_notcallable);
+    Branch(IsCallable(on_rejected), &if_rejected_done,
+           &if_rejected_notcallable);
+    BIND(&if_rejected_notcallable);
+    var_on_rejected.Bind(UndefinedConstant());
+    Goto(&if_rejected_done);
+    BIND(&if_rejected_done);
+
+    PerformPromiseThen(context, promise, var_on_fulfilled.value(),
+                       var_on_rejected.value(),
+                       var_result_promise_or_capability.value());
+    Return(var_result_promise.value());
+  }
 }
 
 // ES#sec-promise-resolve-functions
@@ -1619,20 +1643,6 @@ TF_BUILTIN(RejectNativePromise, PromiseBuiltinsAssembler) {
   CSA_ASSERT(this, IsBoolean(debug_event));
   InternalPromiseReject(context, promise, value, debug_event);
   Return(UndefinedConstant());
-}
-
-TF_BUILTIN(PerformNativePromiseThen, PromiseBuiltinsAssembler) {
-  Node* const promise = Parameter(Descriptor::kPromise);
-  Node* const resolve_reaction = Parameter(Descriptor::kResolveReaction);
-  Node* const reject_reaction = Parameter(Descriptor::kRejectReaction);
-  Node* const result_promise = Parameter(Descriptor::kResultPromise);
-  Node* const context = Parameter(Descriptor::kContext);
-
-  CSA_ASSERT(this, IsJSPromise(result_promise));
-
-  InternalPerformPromiseThen(context, promise, resolve_reaction,
-                             reject_reaction, result_promise);
-  Return(result_promise);
 }
 
 Node* PromiseBuiltinsAssembler::PerformPromiseAll(

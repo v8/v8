@@ -219,8 +219,6 @@ namespace internal {
   /* Promise helpers */                                                        \
   TFS(ResolveNativePromise, kPromise, kValue)                                  \
   TFS(RejectNativePromise, kPromise, kValue, kDebugEvent)                      \
-  TFS(PerformNativePromiseThen, kPromise, kResolveReaction, kRejectReaction,   \
-      kResultPromise)                                                          \
   TFS(EnqueueMicrotask, kMicrotask)                                            \
   TFC(RunMicrotasks, RunMicrotasks, 1)                                         \
                                                                                \
@@ -811,6 +809,8 @@ namespace internal {
   TFJ(PromiseAllResolveElementClosure, 1, kValue)                              \
   /* ES #sec-promise.prototype.then */                                         \
   TFJ(PromisePrototypeThen, 2, kOnFulfilled, kOnRejected)                      \
+  /* ES #sec-performpromisethen */                                             \
+  TFS(PerformPromiseThen, kPromise, kOnFulfilled, kOnRejected, kResultPromise) \
   /* ES #sec-promise.prototype.catch */                                        \
   TFJ(PromisePrototypeCatch, 1, kOnRejected)                                   \
   /* ES #sec-fulfillpromise */                                                 \
@@ -1246,7 +1246,6 @@ namespace internal {
   V(AsyncGeneratorResolve)                           \
   V(AsyncGeneratorAwaitCaught)                       \
   V(AsyncGeneratorAwaitUncaught)                     \
-  V(PerformNativePromiseThen)                        \
   V(PromiseAll)                                      \
   V(PromiseConstructor)                              \
   V(PromiseFulfillReactionJob)                       \

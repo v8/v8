@@ -2969,6 +2969,8 @@ Reduction JSCallReducer::ReduceJSCall(Node* node) {
           return ReduceAsyncFunctionPromiseRelease(node);
         case Builtins::kPromisePrototypeCatch:
           return ReducePromisePrototypeCatch(node);
+        case Builtins::kPromisePrototypeThen:
+          return ReducePromisePrototypeThen(node);
         default:
           break;
       }
@@ -3987,6 +3989,87 @@ Reduction JSCallReducer::ReducePromisePrototypeCatch(Node* node) {
                                ConvertReceiverMode::kNotNullOrUndefined,
                                p.speculation_mode()));
   return Changed(node);
+}
+
+Reduction JSCallReducer::ReducePromisePrototypeThen(Node* node) {
+  DCHECK_EQ(IrOpcode::kJSCall, node->opcode());
+  CallParameters const& p = CallParametersOf(node->op());
+  Node* receiver = NodeProperties::GetValueInput(node, 1);
+  Node* on_fulfilled = node->op()->ValueInputCount() > 2
+                           ? NodeProperties::GetValueInput(node, 2)
+                           : jsgraph()->UndefinedConstant();
+  Node* on_rejected = node->op()->ValueInputCount() > 3
+                          ? NodeProperties::GetValueInput(node, 3)
+                          : jsgraph()->UndefinedConstant();
+  Node* context = NodeProperties::GetContextInput(node);
+  Node* effect = NodeProperties::GetEffectInput(node);
+  Node* control = NodeProperties::GetControlInput(node);
+  if (p.speculation_mode() == SpeculationMode::kDisallowSpeculation) {
+    return NoChange();
+  }
+
+  // Check that promises aren't being observed through (debug) hooks.
+  if (!isolate()->IsPromiseHookProtectorIntact()) return NoChange();
+
+  // Check if the @@species protector is intact. The @@species protector
+  // guards the "constructor" lookup on all JSPromise instances and the
+  // initial Promise.prototype, as well as the  Symbol.species lookup on
+  // the Promise constructor.
+  if (!isolate()->IsSpeciesLookupChainIntact()) return NoChange();
+
+  // Check if we know something about {receiver} already.
+  ZoneHandleSet<Map> receiver_maps;
+  NodeProperties::InferReceiverMapsResult infer_receiver_maps_result =
+      NodeProperties::InferReceiverMaps(receiver, effect, &receiver_maps);
+  if (infer_receiver_maps_result == NodeProperties::kNoReceiverMaps) {
+    return NoChange();
+  }
+  DCHECK_NE(0, receiver_maps.size());
+
+  // Check whether all {receiver_maps} are JSPromise maps and
+  // have the initial Promise.prototype as their [[Prototype]].
+  for (Handle<Map> receiver_map : receiver_maps) {
+    if (!receiver_map->IsJSPromiseMap()) return NoChange();
+    if (receiver_map->prototype() != native_context()->promise_prototype()) {
+      return NoChange();
+    }
+  }
+
+  // Add a code dependency on the necessary protectors.
+  dependencies()->AssumePropertyCell(factory()->promise_hook_protector());
+  dependencies()->AssumePropertyCell(factory()->species_protector());
+
+  // If the {receiver_maps} aren't reliable, we need to repeat the
+  // map check here, guarded by the CALL_IC.
+  if (infer_receiver_maps_result == NodeProperties::kUnreliableReceiverMaps) {
+    effect =
+        graph()->NewNode(simplified()->CheckMaps(CheckMapsFlag::kNone,
+                                                 receiver_maps, p.feedback()),
+                         receiver, effect, control);
+  }
+
+  // Check that {on_fulfilled} is callable.
+  on_fulfilled = graph()->NewNode(
+      common()->Select(MachineRepresentation::kTagged, BranchHint::kTrue),
+      graph()->NewNode(simplified()->ObjectIsCallable(), on_fulfilled),
+      on_fulfilled, jsgraph()->UndefinedConstant());
+
+  // Check that {on_rejected} is callable.
+  on_rejected = graph()->NewNode(
+      common()->Select(MachineRepresentation::kTagged, BranchHint::kTrue),
+      graph()->NewNode(simplified()->ObjectIsCallable(), on_rejected),
+      on_rejected, jsgraph()->UndefinedConstant());
+
+  // Create the resulting JSPromise.
+  Node* result = effect =
+      graph()->NewNode(javascript()->CreatePromise(), context, effect);
+
+  // Chain {result} onto {receiver}.
+  result = effect = graph()->NewNode(javascript()->PerformPromiseThen(),
+                                     receiver, on_fulfilled, on_rejected,
+                                     result, context, effect, control);
+  ReplaceWithValue(node, result, effect, control);
+  return Replace(result);
 }
 
 Graph* JSCallReducer::graph() const { return jsgraph()->graph(); }

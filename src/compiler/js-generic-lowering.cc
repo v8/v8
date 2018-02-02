@@ -766,6 +766,13 @@ void JSGenericLowering::LowerJSDebugger(Node* node) {
   ReplaceWithStubCall(node, callable, flags);
 }
 
+void JSGenericLowering::LowerJSPerformPromiseThen(Node* node) {
+  CallDescriptor::Flags flags = FrameStateFlagForCall(node);
+  Callable callable =
+      Builtins::CallableFor(isolate(), Builtins::kPerformPromiseThen);
+  ReplaceWithStubCall(node, callable, flags);
+}
+
 Zone* JSGenericLowering::zone() const { return graph()->zone(); }
 
 

@@ -121,9 +121,9 @@ class PromiseBuiltinsAssembler : public CodeStubAssembler {
   void PromiseSetHasHandler(Node* promise);
   void PromiseSetHandledHint(Node* promise);
 
-  void InternalPerformPromiseThen(Node* context, Node* promise,
-                                  Node* on_fulfill, Node* on_reject,
-                                  Node* result);
+  void PerformPromiseThen(Node* context, Node* promise, Node* on_fulfilled,
+                          Node* on_rejected,
+                          Node* result_promise_or_capability);
 
   void InternalResolvePromise(Node* context, Node* promise, Node* result);
 
@@ -177,7 +177,6 @@ class PromiseBuiltinsAssembler : public CodeStubAssembler {
                           Node* promise_or_capability,
                           PromiseReaction::Type type);
 
- private:
   Node* IsPromiseStatus(Node* actual, v8::Promise::PromiseState expected);
   void PromiseSetStatus(Node* promise, v8::Promise::PromiseState status);
 

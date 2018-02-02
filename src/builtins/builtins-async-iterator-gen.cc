@@ -128,7 +128,7 @@ void AsyncFromSyncBuiltinsAssembler::Generate_AsyncFromSyncIteratorMethod(
 
   // Perform ! PerformPromiseThen(valueWrapperCapability.[[Promise]],
   //     onFulfilled, undefined, promiseCapability).
-  Return(CallBuiltin(Builtins::kPerformNativePromiseThen, context, wrapper,
+  Return(CallBuiltin(Builtins::kPerformPromiseThen, context, wrapper,
                      on_fulfilled, UndefinedConstant(), promise));
 
   BIND(&reject_promise);
