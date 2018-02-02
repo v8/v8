@@ -2917,6 +2917,25 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
                i.InputOperand(1));
       break;
     }
+    case kSSES128Select: {
+      DCHECK_EQ(i.OutputSimd128Register(), i.InputSimd128Register(0));
+      // Mask used here is stored in dst.
+      XMMRegister dst = i.OutputSimd128Register();
+      __ movaps(kScratchDoubleReg, i.InputSimd128Register(1));
+      __ xorps(kScratchDoubleReg, i.InputSimd128Register(2));
+      __ andps(dst, kScratchDoubleReg);
+      __ xorps(dst, i.InputSimd128Register(2));
+      break;
+    }
+    case kAVXS128Select: {
+      CpuFeatureScope avx_scope(tasm(), AVX);
+      XMMRegister dst = i.OutputSimd128Register();
+      __ vxorps(kScratchDoubleReg, i.InputSimd128Register(2),
+                i.InputOperand(1));
+      __ vandps(dst, kScratchDoubleReg, i.InputOperand(0));
+      __ vxorps(dst, dst, i.InputSimd128Register(2));
+      break;
+    }
     case kIA32StackCheck: {
       ExternalReference const stack_limit =
           ExternalReference::address_of_stack_limit(__ isolate());

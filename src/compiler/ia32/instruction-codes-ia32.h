@@ -278,7 +278,9 @@ namespace compiler {
   V(SSES128Or)                     \
   V(AVXS128Or)                     \
   V(SSES128Xor)                    \
-  V(AVXS128Xor)
+  V(AVXS128Xor)                    \
+  V(SSES128Select)                 \
+  V(AVXS128Select)
 
 // Addressing modes represent the "shape" of inputs to an instruction.
 // Many instructions support multiple addressing modes. Addressing modes

@@ -1499,8 +1499,6 @@ WASM_SIMD_TEST(I8x16ShrU) {
 #endif  // V8_TARGET_ARCH_ARM || V8_TARGET_ARCH_ARM64 || V8_TARGET_ARCH_MIPS ||
         // V8_TARGET_ARCH_MIPS64 || V8_TARGET_ARCH_IA32
 
-#if V8_TARGET_ARCH_ARM || V8_TARGET_ARCH_ARM64 || V8_TARGET_ARCH_X64 || \
-    V8_TARGET_ARCH_MIPS || V8_TARGET_ARCH_MIPS64
 // Test Select by making a mask where the 0th and 3rd lanes are true and the
 // rest false, and comparing for non-equality with zero to convert to a boolean
 // vector.
@@ -1580,6 +1578,8 @@ WASM_SIMD_NON_CANONICAL_SELECT_TEST(32x4)
 WASM_SIMD_NON_CANONICAL_SELECT_TEST(16x8)
 WASM_SIMD_NON_CANONICAL_SELECT_TEST(8x16)
 
+#if V8_TARGET_ARCH_ARM || V8_TARGET_ARCH_ARM64 || V8_TARGET_ARCH_X64 || \
+    V8_TARGET_ARCH_MIPS || V8_TARGET_ARCH_MIPS64
 // Test binary ops with two lane test patterns, all lanes distinct.
 template <typename T>
 void RunBinaryLaneOpTest(

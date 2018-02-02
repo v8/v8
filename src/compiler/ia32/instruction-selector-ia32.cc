@@ -1936,6 +1936,19 @@ void InstructionSelector::VisitS128Zero(Node* node) {
   Emit(kIA32S128Zero, g.DefineAsRegister(node));
 }
 
+void InstructionSelector::VisitS128Select(Node* node) {
+  IA32OperandGenerator g(this);
+  InstructionOperand operand2 = g.UseRegister(node->InputAt(2));
+  if (IsSupported(AVX)) {
+    Emit(kAVXS128Select, g.DefineAsRegister(node), g.Use(node->InputAt(0)),
+         g.Use(node->InputAt(1)), operand2);
+  } else {
+    Emit(kSSES128Select, g.DefineSameAsFirst(node),
+         g.UseRegister(node->InputAt(0)), g.UseRegister(node->InputAt(1)),
+         operand2);
+  }
+}
+
 #define VISIT_SIMD_SPLAT(Type)                               \
   void InstructionSelector::Visit##Type##Splat(Node* node) { \
     VisitRO(this, node, kIA32##Type##Splat);                 \

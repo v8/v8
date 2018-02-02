@@ -261,6 +261,8 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kAVXS128Or:
     case kSSES128Xor:
     case kAVXS128Xor:
+    case kSSES128Select:
+    case kAVXS128Select:
       return (instr->addressing_mode() == kMode_None)
           ? kNoOpcodeFlags
           : kIsLoadOperation | kHasSideEffect;
