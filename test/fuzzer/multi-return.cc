@@ -282,7 +282,7 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {
       returns[i] = Constant(callee, type, 42);
       outputs[i] = 42;
     } else {
-      int n = input.NextInt8(counts[index(type)]);
+      int n = input.NextInt32(counts[index(type)]);
       int k = 0;
       while (desc->GetParameterType(k) != desc->GetReturnType(i) || --n > 0) {
         ++k;
