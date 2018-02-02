@@ -9,6 +9,8 @@
 // This include does not have a guard, because it is a template-style include,
 // which can be included multiple times in different modes.  It expects to have
 // a mode defined before it's included.  The modes are FLAG_MODE_... below:
+//
+// PRESUBMIT_INTENTIONALLY_MISSING_INCLUDE_GUARD
 
 #define DEFINE_IMPLICATION(whenflag, thenflag)              \
   DEFINE_VALUE_IMPLICATION(whenflag, thenflag, true)

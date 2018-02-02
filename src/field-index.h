@@ -134,4 +134,4 @@ class FieldIndex final {
 }  // namespace internal
 }  // namespace v8
 
-#endif
+#endif  // V8_FIELD_INDEX_H_

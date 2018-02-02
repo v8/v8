@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef V8_WASM_INTERPRETER_H_
-#define V8_WASM_INTERPRETER_H_
+#ifndef V8_WASM_WASM_INTERPRETER_H_
+#define V8_WASM_WASM_INTERPRETER_H_
 
 #include "src/wasm/wasm-opcodes.h"
 #include "src/wasm/wasm-value.h"
@@ -230,4 +230,4 @@ class V8_EXPORT_PRIVATE WasmInterpreter {
 }  // namespace internal
 }  // namespace v8
 
-#endif  // V8_WASM_INTERPRETER_H_
+#endif  // V8_WASM_WASM_INTERPRETER_H_

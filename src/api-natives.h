@@ -62,4 +62,4 @@ class ApiNatives {
 }  // namespace internal
 }  // namespace v8
 
-#endif
+#endif  // V8_API_NATIVES_H_

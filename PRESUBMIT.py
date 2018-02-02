@@ -153,6 +153,62 @@ def _CheckUnwantedDependencies(input_api, output_api):
   return results
 
 
+def _CheckHeadersHaveIncludeGuards(input_api, output_api):
+  """Ensures that all header files have include guards."""
+  file_inclusion_pattern = r'src/.+\.h'
+
+  def FilterFile(affected_file):
+    black_list = (_EXCLUDED_PATHS +
+                  input_api.DEFAULT_BLACK_LIST)
+    return input_api.FilterSourceFile(
+      affected_file,
+      white_list=(file_inclusion_pattern, ),
+      black_list=black_list)
+
+  leading_src_pattern = input_api.re.compile(r'^src/')
+  dash_dot_slash_pattern = input_api.re.compile(r'[-./]')
+  def PathToGuardMacro(path):
+    """Guards should be of the form V8_PATH_TO_FILE_WITHOUT_SRC_H_."""
+    x = input_api.re.sub(leading_src_pattern, 'v8_', path)
+    x = input_api.re.sub(dash_dot_slash_pattern, '_', x)
+    x = x.upper() + "_"
+    return x
+
+  problems = []
+  for f in input_api.AffectedSourceFiles(FilterFile):
+    local_path = f.LocalPath()
+    guard_macro = PathToGuardMacro(local_path)
+    guard_patterns = [
+            input_api.re.compile(r'^#ifndef ' + guard_macro + '$'),
+            input_api.re.compile(r'^#define ' + guard_macro + '$'),
+            input_api.re.compile(r'^#endif  // ' + guard_macro + '$')]
+    skip_check_pattern = input_api.re.compile(
+            r'^// PRESUBMIT_INTENTIONALLY_MISSING_INCLUDE_GUARD')
+    found_patterns = [ False, False, False ]
+    file_omitted = False
+
+    for line in f.NewContents():
+      for i in range(len(guard_patterns)):
+        if guard_patterns[i].match(line):
+            found_patterns[i] = True
+      if skip_check_pattern.match(line):
+        file_omitted = True
+        break
+
+    if not file_omitted and not all(found_patterns):
+      problems.append(
+        '%s: Missing include guard \'%s\'' % (local_path, guard_macro))
+
+  if problems:
+    return [output_api.PresubmitError(
+        'You added one or more header files without an appropriate\n'
+        'include guard. Add the include guard {#ifndef,#define,#endif}\n'
+        'triplet or omit the check entirely through the magic comment:\n'
+        '"// PRESUBMIT_INTENTIONALLY_MISSING_INCLUDE_GUARD".', problems)]
+  else:
+    return []
+
+
 # TODO(mstarzinger): Similar checking should be made available as part of
 # tools/presubmit.py (note that tools/check-inline-includes.sh exists).
 def _CheckNoInlineHeaderIncludesInNormalHeaders(input_api, output_api):
@@ -275,6 +331,7 @@ def _CommonChecks(input_api, output_api):
   results.extend(_CheckUnwantedDependencies(input_api, output_api))
   results.extend(
       _CheckNoProductionCodeUsingTestOnlyFunctions(input_api, output_api))
+  results.extend(_CheckHeadersHaveIncludeGuards(input_api, output_api))
   results.extend(
       _CheckNoInlineHeaderIncludesInNormalHeaders(input_api, output_api))
   results.extend(_CheckMissingFiles(input_api, output_api))

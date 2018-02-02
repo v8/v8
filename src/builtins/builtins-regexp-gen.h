@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef V8_BUILTINS_BUILTINS_REGEXP_H_
-#define V8_BUILTINS_BUILTINS_REGEXP_H_
+#ifndef V8_BUILTINS_BUILTINS_REGEXP_GEN_H_
+#define V8_BUILTINS_BUILTINS_REGEXP_GEN_H_
 
 #include "src/code-stub-assembler.h"
 
@@ -119,4 +119,4 @@ class RegExpBuiltinsAssembler : public CodeStubAssembler {
 }  // namespace internal
 }  // namespace v8
 
-#endif  // V8_BUILTINS_BUILTINS_REGEXP_H_
+#endif  // V8_BUILTINS_BUILTINS_REGEXP_GEN_H_

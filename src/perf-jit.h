@@ -131,4 +131,5 @@ class PerfJitLogger : public CodeEventLogger {
 #endif  // V8_OS_LINUX
 }  // namespace internal
 }  // namespace v8
-#endif
+
+#endif  // V8_PERF_JIT_H_

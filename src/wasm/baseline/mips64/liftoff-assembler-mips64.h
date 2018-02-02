@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef V8_WASM_BASELINE_LIFTOFF_ASSEMBLER_MIPS64_H_
-#define V8_WASM_BASELINE_LIFTOFF_ASSEMBLER_MIPS64_H_
+#ifndef V8_WASM_BASELINE_MIPS64_LIFTOFF_ASSEMBLER_MIPS64_H_
+#define V8_WASM_BASELINE_MIPS64_LIFTOFF_ASSEMBLER_MIPS64_H_
 
 #include "src/wasm/baseline/liftoff-assembler.h"
 
@@ -205,4 +205,4 @@ void LiftoffAssembler::DeallocateStackSlot(uint32_t size) { UNIMPLEMENTED(); }
 }  // namespace internal
 }  // namespace v8
 
-#endif  // V8_WASM_BASELINE_LIFTOFF_ASSEMBLER_MIPS64_H_
+#endif  // V8_WASM_BASELINE_MIPS64_LIFTOFF_ASSEMBLER_MIPS64_H_

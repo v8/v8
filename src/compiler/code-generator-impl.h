@@ -224,4 +224,4 @@ inline bool HasCallDescriptorFlag(Instruction* instr,
 }  // namespace internal
 }  // namespace v8
 
-#endif  // V8_COMPILER_CODE_GENERATOR_IMPL_H
+#endif  // V8_COMPILER_CODE_GENERATOR_IMPL_H_

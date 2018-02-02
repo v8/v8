@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef V8_CALL_INTERFACE_DESCRIPTOR_H_
-#define V8_CALL_INTERFACE_DESCRIPTOR_H_
+#ifndef V8_INTERFACE_DESCRIPTORS_H_
+#define V8_INTERFACE_DESCRIPTORS_H_
 
 #include <memory>
 
@@ -917,4 +917,4 @@ INTERFACE_DESCRIPTOR_LIST(DEF_KEY)
 #include "src/arm/interface-descriptors-arm.h"
 #endif
 
-#endif  // V8_CALL_INTERFACE_DESCRIPTOR_H_
+#endif  // V8_INTERFACE_DESCRIPTORS_H_

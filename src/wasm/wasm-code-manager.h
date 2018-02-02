@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef V8_WASM_HEAP_H_
-#define V8_WASM_HEAP_H_
+#ifndef V8_WASM_WASM_CODE_MANAGER_H_
+#define V8_WASM_WASM_CODE_MANAGER_H_
 
 #include <functional>
 #include <list>
@@ -413,4 +413,5 @@ uint32_t GetWasmCalleeTag(RelocInfo* rinfo);
 }  // namespace wasm
 }  // namespace internal
 }  // namespace v8
-#endif
+
+#endif  // V8_WASM_WASM_CODE_MANAGER_H_

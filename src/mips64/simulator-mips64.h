@@ -9,8 +9,8 @@
 // which will start execution in the Simulator or forwards to the real entry
 // on a MIPS HW platform.
 
-#ifndef V8_MIPS_SIMULATOR_MIPS_H_
-#define V8_MIPS_SIMULATOR_MIPS_H_
+#ifndef V8_MIPS64_SIMULATOR_MIPS64_H_
+#define V8_MIPS64_SIMULATOR_MIPS64_H_
 
 #include "src/allocation.h"
 #include "src/mips64/constants-mips64.h"
@@ -586,4 +586,4 @@ class Simulator : public SimulatorBase {
 }  // namespace v8
 
 #endif  // defined(USE_SIMULATOR)
-#endif  // V8_MIPS_SIMULATOR_MIPS_H_
+#endif  // V8_MIPS64_SIMULATOR_MIPS64_H_

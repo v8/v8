@@ -8,8 +8,8 @@
 #include "src/utils.h"
 #include "src/zone/zone.h"
 
-#ifndef V8_SRC_ZONE_ZONE_CHUNK_LIST_H_
-#define V8_SRC_ZONE_ZONE_CHUNK_LIST_H_
+#ifndef V8_ZONE_ZONE_CHUNK_LIST_H_
+#define V8_ZONE_ZONE_CHUNK_LIST_H_
 
 namespace v8 {
 namespace internal {
@@ -372,4 +372,4 @@ void ZoneChunkList<T>::CopyTo(T* ptr) {
 }  // namespace internal
 }  // namespace v8
 
-#endif  // V8_SRC_ZONE_ZONE_CHUNK_LIST_H_
+#endif  // V8_ZONE_ZONE_CHUNK_LIST_H_

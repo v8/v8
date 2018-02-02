@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef WASM_ENGINE_H_
-#define WASM_ENGINE_H_
+#ifndef V8_WASM_WASM_ENGINE_H_
+#define V8_WASM_WASM_ENGINE_H_
 
 #include <memory>
 
@@ -85,4 +85,4 @@ class V8_EXPORT_PRIVATE WasmEngine {
 }  // namespace internal
 }  // namespace v8
 
-#endif
+#endif  // V8_WASM_WASM_ENGINE_H_

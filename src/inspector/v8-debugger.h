@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef V8_INSPECTOR_V8DEBUGGER_H_
-#define V8_INSPECTOR_V8DEBUGGER_H_
+#ifndef V8_INSPECTOR_V8_DEBUGGER_H_
+#define V8_INSPECTOR_V8_DEBUGGER_H_
 
 #include <list>
 #include <unordered_map>
@@ -240,4 +240,4 @@ class V8Debugger : public v8::debug::DebugDelegate {
 
 }  // namespace v8_inspector
 
-#endif  // V8_INSPECTOR_V8DEBUGGER_H_
+#endif  // V8_INSPECTOR_V8_DEBUGGER_H_

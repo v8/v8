@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef V8_COMPILER_REGISTER_CONFIGURATION_H_
-#define V8_COMPILER_REGISTER_CONFIGURATION_H_
+#ifndef V8_REGISTER_CONFIGURATION_H_
+#define V8_REGISTER_CONFIGURATION_H_
 
 #include "src/base/macros.h"
 #include "src/globals.h"
@@ -165,4 +165,4 @@ class V8_EXPORT_PRIVATE RegisterConfiguration {
 }  // namespace internal
 }  // namespace v8
 
-#endif  // V8_COMPILER_REGISTER_CONFIGURATION_H_
+#endif  // V8_REGISTER_CONFIGURATION_H_

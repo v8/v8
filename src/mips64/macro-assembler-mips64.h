@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef V8_MIPS_MACRO_ASSEMBLER_MIPS_H_
-#define V8_MIPS_MACRO_ASSEMBLER_MIPS_H_
+#ifndef V8_MIPS64_MACRO_ASSEMBLER_MIPS64_H_
+#define V8_MIPS64_MACRO_ASSEMBLER_MIPS64_H_
 
 #include "src/assembler.h"
 #include "src/globals.h"
@@ -1302,4 +1302,4 @@ void TurboAssembler::GenerateSwitchTable(Register index, size_t case_count,
 }  // namespace internal
 }  // namespace v8
 
-#endif  // V8_MIPS_MACRO_ASSEMBLER_MIPS_H_
+#endif  // V8_MIPS64_MACRO_ASSEMBLER_MIPS64_H_

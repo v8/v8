@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef V8_BUILTINS_BUILTINS_PROMISE_H_
-#define V8_BUILTINS_BUILTINS_PROMISE_H_
+#ifndef V8_BUILTINS_BUILTINS_PROMISE_GEN_H_
+#define V8_BUILTINS_BUILTINS_PROMISE_GEN_H_
 
 #include "src/code-stub-assembler.h"
 #include "src/contexts.h"
@@ -186,4 +186,4 @@ class PromiseBuiltinsAssembler : public CodeStubAssembler {
 }  // namespace internal
 }  // namespace v8
 
-#endif  // V8_BUILTINS_BUILTINS_PROMISE_H_
+#endif  // V8_BUILTINS_BUILTINS_PROMISE_GEN_H_

@@ -131,4 +131,4 @@ class V8_EXPORT_PRIVATE BytecodeArrayAccessor {
 }  // namespace internal
 }  // namespace v8
 
-#endif  // V8_INTERPRETER_BYTECODE_GRAPH_ACCESSOR_H_
+#endif  // V8_INTERPRETER_BYTECODE_ARRAY_ACCESSOR_H_

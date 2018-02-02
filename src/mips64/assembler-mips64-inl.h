@@ -33,9 +33,8 @@
 // modified significantly by Google Inc.
 // Copyright 2012 the V8 project authors. All rights reserved.
 
-
-#ifndef V8_MIPS_ASSEMBLER_MIPS_INL_H_
-#define V8_MIPS_ASSEMBLER_MIPS_INL_H_
+#ifndef V8_MIPS64_ASSEMBLER_MIPS64_INL_H_
+#define V8_MIPS64_ASSEMBLER_MIPS64_INL_H_
 
 #include "src/mips64/assembler-mips64.h"
 
@@ -342,4 +341,4 @@ EnsureSpace::EnsureSpace(Assembler* assembler) { assembler->CheckBuffer(); }
 }  // namespace internal
 }  // namespace v8
 
-#endif  // V8_MIPS_ASSEMBLER_MIPS_INL_H_
+#endif  // V8_MIPS64_ASSEMBLER_MIPS64_INL_H_

@@ -2234,4 +2234,4 @@ class UseScratchRegisterScope {
 }  // namespace internal
 }  // namespace v8
 
-#endif  // V8_ARM_ASSEMBLER_MIPS_H_
+#endif  // V8_MIPS_ASSEMBLER_MIPS_H_

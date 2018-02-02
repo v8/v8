@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef V8_HEAP_ITEM_PARALLEL_JOB_
-#define V8_HEAP_ITEM_PARALLEL_JOB_
+#ifndef V8_HEAP_ITEM_PARALLEL_JOB_H_
+#define V8_HEAP_ITEM_PARALLEL_JOB_H_
 
 #include <vector>
 
@@ -209,4 +209,4 @@ class ItemParallelJob {
 }  // namespace internal
 }  // namespace v8
 
-#endif  // V8_HEAP_ITEM_PARALLEL_JOB_
+#endif  // V8_HEAP_ITEM_PARALLEL_JOB_H_

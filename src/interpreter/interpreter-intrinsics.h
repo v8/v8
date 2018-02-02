@@ -64,4 +64,4 @@ class IntrinsicsHelper {
 }  // namespace internal
 }  // namespace v8
 
-#endif
+#endif  // V8_INTERPRETER_INTERPRETER_INTRINSICS_H_

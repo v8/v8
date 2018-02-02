@@ -289,4 +289,4 @@ class DateCache {
 }  // namespace internal
 }  // namespace v8
 
-#endif
+#endif  // V8_DATE_H_

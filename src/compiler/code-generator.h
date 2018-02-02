@@ -394,4 +394,4 @@ class CodeGenerator final : public GapResolver::Assembler {
 }  // namespace internal
 }  // namespace v8
 
-#endif  // V8_COMPILER_CODE_GENERATOR_H
+#endif  // V8_COMPILER_CODE_GENERATOR_H_
