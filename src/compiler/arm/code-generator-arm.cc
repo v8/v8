@@ -584,18 +584,23 @@ void CodeGenerator::AssembleTailCallAfterGap(Instruction* instr,
 // Check if the code object is marked for deoptimization. If it is, then it
 // jumps to the CompileLazyDeoptimizedCode builtin. In order to do this we need
 // to:
-//    1. compute the offset of the {CodeDataContainer} from our current location
-//       and load it.
-//    2. read from memory the word that contains that bit, which can be found in
+//    1. read from memory the word that contains that bit, which can be found in
 //       the flags in the referenced {CodeDataContainer} object;
-//    3. test kMarkedForDeoptimizationBit in those flags; and
-//    4. if it is not zero then it jumps to the builtin.
+//    2. test kMarkedForDeoptimizationBit in those flags; and
+//    3. if it is not zero then it jumps to the builtin.
 void CodeGenerator::BailoutIfDeoptimized() {
-  int pc_offset = __ pc_offset();
-  int offset = Code::kCodeDataContainerOffset -
-               (Code::kHeaderSize + pc_offset + TurboAssembler::kPcLoadDelta);
-  // We can use the register pc - 8 for the address of the current instruction.
-  __ ldr_pcrel(ip, offset);
+  if (FLAG_debug_code) {
+    // Check that {kJavaScriptCallCodeStartRegister} is correct.
+    int pc_offset = __ pc_offset();
+    // We can use the register pc - 8 for the address of the current
+    // instruction.
+    __ add(ip, pc, Operand(pc_offset - TurboAssembler::kPcLoadDelta));
+    __ cmp(ip, kJavaScriptCallCodeStartRegister);
+    __ Assert(eq, AbortReason::kWrongFunctionCodeStart);
+  }
+
+  int offset = Code::kCodeDataContainerOffset - Code::kHeaderSize;
+  __ ldr(ip, MemOperand(kJavaScriptCallCodeStartRegister, offset));
   __ ldr(ip, FieldMemOperand(ip, CodeDataContainer::kKindSpecificFlagsOffset));
   __ tst(ip, Operand(1 << Code::kMarkedForDeoptimizationBit));
   Handle<Code> code = isolate()->builtins()->builtin_handle(
@@ -716,9 +721,10 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
         __ cmp(cp, kScratchReg);
         __ Assert(eq, AbortReason::kWrongFunctionContext);
       }
-      __ ldr(ip, FieldMemOperand(func, JSFunction::kCodeOffset));
-      __ add(ip, ip, Operand(Code::kHeaderSize - kHeapObjectTag));
-      __ Call(ip);
+      static_assert(kJavaScriptCallCodeStartRegister == r2, "ABI mismatch");
+      __ ldr(r2, FieldMemOperand(func, JSFunction::kCodeOffset));
+      __ add(r2, r2, Operand(Code::kHeaderSize - kHeapObjectTag));
+      __ Call(r2);
       RecordCallPosition(instr);
       DCHECK_EQ(LeaveCC, i.OutputSBit());
       frame_access_state()->ClearSPDelta();

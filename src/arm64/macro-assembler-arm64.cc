@@ -2242,7 +2242,7 @@ void MacroAssembler::InvokeFunctionCode(Register function, Register new_target,
     // We call indirectly through the code field in the function to
     // allow recompilation to take effect without changing any of the
     // call sites.
-    Register code = x4;
+    Register code = kJavaScriptCallCodeStartRegister;
     Ldr(code, FieldMemOperand(function, JSFunction::kCodeOffset));
     Add(code, code, Operand(Code::kHeaderSize - kHeapObjectTag));
     if (flag == CALL_FUNCTION) {

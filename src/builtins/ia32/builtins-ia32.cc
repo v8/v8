@@ -101,7 +101,7 @@ static void GenerateTailCallToReturnedCode(MacroAssembler* masm,
     __ push(edi);
 
     __ CallRuntime(function_id, 1);
-    __ mov(ebx, eax);
+    __ mov(ecx, eax);
 
     // Restore target function and new target.
     __ pop(edx);
@@ -110,15 +110,9 @@ static void GenerateTailCallToReturnedCode(MacroAssembler* masm,
     __ SmiUntag(eax);
   }
 
-  __ lea(ebx, FieldOperand(ebx, Code::kHeaderSize));
-  __ jmp(ebx);
-}
-
-static void GenerateTailCallToSharedCode(MacroAssembler* masm) {
-  __ mov(ebx, FieldOperand(edi, JSFunction::kSharedFunctionInfoOffset));
-  __ mov(ebx, FieldOperand(ebx, SharedFunctionInfo::kCodeOffset));
-  __ lea(ebx, FieldOperand(ebx, Code::kHeaderSize));
-  __ jmp(ebx);
+  static_assert(kJavaScriptCallCodeStartRegister == ecx, "ABI mismatch");
+  __ lea(ecx, FieldOperand(ecx, Code::kHeaderSize));
+  __ jmp(ecx);
 }
 
 namespace {
@@ -590,6 +584,7 @@ void Builtins::Generate_ResumeGeneratorTrampoline(MacroAssembler* masm) {
     // We abuse new.target both to indicate that this is a resume call and to
     // pass in the generator object.  In ordinary calls, new.target is always
     // undefined because generator functions are non-constructable.
+    static_assert(kJavaScriptCallCodeStartRegister == ecx, "ABI mismatch");
     __ mov(ecx, FieldOperand(edi, JSFunction::kCodeOffset));
     __ add(ecx, Immediate(Code::kHeaderSize - kHeapObjectTag));
     __ jmp(ecx);
@@ -748,10 +743,12 @@ static void MaybeTailCallOptimizedCodeSlot(MacroAssembler* masm,
     // register.
     ReplaceClosureCodeWithOptimizedCode(masm, optimized_code_entry, closure,
                                         edx, eax, feedback_vector);
-    __ add(optimized_code_entry, Immediate(Code::kHeaderSize - kHeapObjectTag));
+    static_assert(kJavaScriptCallCodeStartRegister == ecx, "ABI mismatch");
+    __ Move(ecx, optimized_code_entry);
+    __ add(ecx, Immediate(Code::kHeaderSize - kHeapObjectTag));
     __ pop(edx);
     __ pop(eax);
-    __ jmp(optimized_code_entry);
+    __ jmp(ecx);
 
     // Optimized code slot contains deoptimized code, evict it and re-enter the
     // closure's code.
@@ -1338,7 +1335,11 @@ void Builtins::Generate_CheckOptimizationMarker(MacroAssembler* masm) {
   MaybeTailCallOptimizedCodeSlot(masm, feedback_vector, ecx);
 
   // Otherwise, tail call the SFI code.
-  GenerateTailCallToSharedCode(masm);
+  static_assert(kJavaScriptCallCodeStartRegister == ecx, "ABI mismatch");
+  __ mov(ecx, FieldOperand(edi, JSFunction::kSharedFunctionInfoOffset));
+  __ mov(ecx, FieldOperand(ecx, SharedFunctionInfo::kCodeOffset));
+  __ lea(ecx, FieldOperand(ecx, Code::kHeaderSize));
+  __ jmp(ecx);
 }
 
 void Builtins::Generate_CompileLazyDeoptimizedCode(MacroAssembler* masm) {
@@ -1550,6 +1551,7 @@ void Builtins::Generate_InstantiateAsmJs(MacroAssembler* masm) {
   }
   // On failure, tail call back to regular js by re-calling the function
   // which has be reset to the compile lazy builtin.
+  static_assert(kJavaScriptCallCodeStartRegister == ecx, "ABI mismatch");
   __ mov(ecx, FieldOperand(edi, JSFunction::kCodeOffset));
   __ add(ecx, Immediate(Code::kHeaderSize - kHeapObjectTag));
   __ jmp(ecx);
@@ -2585,6 +2587,7 @@ void Builtins::Generate_ArgumentsAdaptorTrampoline(MacroAssembler* masm) {
   // eax : expected number of arguments
   // edx : new target (passed through to callee)
   // edi : function (passed through to callee)
+  static_assert(kJavaScriptCallCodeStartRegister == ecx, "ABI mismatch");
   __ mov(ecx, FieldOperand(edi, JSFunction::kCodeOffset));
   __ add(ecx, Immediate(Code::kHeaderSize - kHeapObjectTag));
   __ call(ecx);
@@ -2600,6 +2603,7 @@ void Builtins::Generate_ArgumentsAdaptorTrampoline(MacroAssembler* masm) {
   // Dont adapt arguments.
   // -------------------------------------------
   __ bind(&dont_adapt_arguments);
+  static_assert(kJavaScriptCallCodeStartRegister == ecx, "ABI mismatch");
   __ mov(ecx, FieldOperand(edi, JSFunction::kCodeOffset));
   __ add(ecx, Immediate(Code::kHeaderSize - kHeapObjectTag));
   __ jmp(ecx);

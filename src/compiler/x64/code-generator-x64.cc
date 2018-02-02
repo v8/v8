@@ -572,17 +572,26 @@ void CodeGenerator::AssembleTailCallAfterGap(Instruction* instr,
 
 // Check if the code object is marked for deoptimization. If it is, then it
 // jumps to CompileLazyDeoptimizedCode builtin. In order to do this we need to:
-//    1. load the address of the current instruction;
-//    2. read from memory the word that contains that bit, which can be found in
+//    1. read from memory the word that contains that bit, which can be found in
 //       the flags in the referenced {CodeDataContainer} object;
-//    3. test kMarkedForDeoptimizationBit in those flags; and
-//    4. if it is not zero then it jumps to the builtin.
+//    2. test kMarkedForDeoptimizationBit in those flags; and
+//    3. if it is not zero then it jumps to the builtin.
 void CodeGenerator::BailoutIfDeoptimized() {
-  Label current;
-  __ bind(&current);
-  int pc = __ pc_offset();
-  int offset = Code::kCodeDataContainerOffset - (Code::kHeaderSize + pc);
-  __ movp(rcx, Operand(&current, offset));
+  if (FLAG_debug_code) {
+    // Check that {kJavaScriptCallCodeStartRegister} is correct.
+    Label current;
+    // Load effective address to get the address of the current instruction into
+    // rcx.
+    __ leaq(rbx, Operand(&current));
+    __ bind(&current);
+    int pc = __ pc_offset();
+    __ subq(rbx, Immediate(pc));
+    __ cmpq(rbx, kJavaScriptCallCodeStartRegister);
+    __ Assert(equal, AbortReason::kWrongFunctionCodeStart);
+  }
+
+  int offset = Code::kCodeDataContainerOffset - Code::kHeaderSize;
+  __ movp(rcx, Operand(kJavaScriptCallCodeStartRegister, offset));
   __ testl(FieldOperand(rcx, CodeDataContainer::kKindSpecificFlagsOffset),
            Immediate(1 << Code::kMarkedForDeoptimizationBit));
   Handle<Code> code = isolate()->builtins()->builtin_handle(
@@ -706,6 +715,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
         __ cmpp(rsi, FieldOperand(func, JSFunction::kContextOffset));
         __ Assert(equal, AbortReason::kWrongFunctionContext);
       }
+      static_assert(kJavaScriptCallCodeStartRegister == rcx, "ABI mismatch");
       __ movp(rcx, FieldOperand(func, JSFunction::kCodeOffset));
       __ addp(rcx, Immediate(Code::kHeaderSize - kHeapObjectTag));
       __ call(rcx);
