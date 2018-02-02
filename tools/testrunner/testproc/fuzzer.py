@@ -220,7 +220,8 @@ class CompactionFuzzer(Fuzzer):
 class InterruptBudgetFuzzer(Fuzzer):
   def create_flags_generator(self, rng, test, analysis_value):
     while True:
-      yield ['--interrupt-budget=%d' % rng.randint(1, 144 * 1024)]
+      limit = 1 + int(rng.random() * 144)
+      yield ['--interrupt-budget=%d' % rng.randint(1, limit * 1024)]
 
 
 class DeoptAnalyzer(Analyzer):
