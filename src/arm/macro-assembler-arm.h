@@ -308,15 +308,15 @@ class TurboAssembler : public Assembler {
   inline bool AllowThisStubCall(CodeStub* stub);
 
   void LslPair(Register dst_low, Register dst_high, Register src_low,
-               Register src_high, Register scratch, Register shift);
+               Register src_high, Register shift);
   void LslPair(Register dst_low, Register dst_high, Register src_low,
                Register src_high, uint32_t shift);
   void LsrPair(Register dst_low, Register dst_high, Register src_low,
-               Register src_high, Register scratch, Register shift);
+               Register src_high, Register shift);
   void LsrPair(Register dst_low, Register dst_high, Register src_low,
                Register src_high, uint32_t shift);
   void AsrPair(Register dst_low, Register dst_high, Register src_low,
-               Register src_high, Register scratch, Register shift);
+               Register src_high, Register shift);
   void AsrPair(Register dst_low, Register dst_high, Register src_low,
                Register src_high, uint32_t shift);
 

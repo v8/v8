@@ -56,8 +56,9 @@ namespace internal {
   V(r0)  V(r1)  V(r2)  V(r3)  V(r4)  V(r5)  V(r6)  V(r7)  \
   V(r8)  V(r9)  V(r10) V(fp)  V(ip)  V(sp)  V(lr)  V(pc)
 
-#define ALLOCATABLE_GENERAL_REGISTERS(V) \
-  V(r0)  V(r1)  V(r2)  V(r3)  V(r4)  V(r5)  V(r6)  V(r7)  V(r8)
+#define ALLOCATABLE_GENERAL_REGISTERS(V)                  \
+  V(r0)  V(r1)  V(r2)  V(r3)  V(r4)  V(r5)  V(r6)  V(r7)  \
+  V(r8)  V(r9)
 
 #define FLOAT_REGISTERS(V)                                \
   V(s0)  V(s1)  V(s2)  V(s3)  V(s4)  V(s5)  V(s6)  V(s7)  \

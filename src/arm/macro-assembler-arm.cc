@@ -940,9 +940,11 @@ void TurboAssembler::ReplaceLane(QwNeonRegister dst, QwNeonRegister src,
 
 void TurboAssembler::LslPair(Register dst_low, Register dst_high,
                              Register src_low, Register src_high,
-                             Register scratch, Register shift) {
+                             Register shift) {
   DCHECK(!AreAliased(dst_high, src_low));
   DCHECK(!AreAliased(dst_high, shift));
+  UseScratchRegisterScope temps(this);
+  Register scratch = temps.Acquire();
 
   Label less_than_32;
   Label done;
@@ -986,9 +988,11 @@ void TurboAssembler::LslPair(Register dst_low, Register dst_high,
 
 void TurboAssembler::LsrPair(Register dst_low, Register dst_high,
                              Register src_low, Register src_high,
-                             Register scratch, Register shift) {
+                             Register shift) {
   DCHECK(!AreAliased(dst_low, src_high));
   DCHECK(!AreAliased(dst_low, shift));
+  UseScratchRegisterScope temps(this);
+  Register scratch = temps.Acquire();
 
   Label less_than_32;
   Label done;
@@ -1033,9 +1037,11 @@ void TurboAssembler::LsrPair(Register dst_low, Register dst_high,
 
 void TurboAssembler::AsrPair(Register dst_low, Register dst_high,
                              Register src_low, Register src_high,
-                             Register scratch, Register shift) {
+                             Register shift) {
   DCHECK(!AreAliased(dst_low, src_high));
   DCHECK(!AreAliased(dst_low, shift));
+  UseScratchRegisterScope temps(this);
+  Register scratch = temps.Acquire();
 
   Label less_than_32;
   Label done;

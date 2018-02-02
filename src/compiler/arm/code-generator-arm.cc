@@ -21,9 +21,6 @@ namespace compiler {
 
 #define __ tasm()->
 
-#define kScratchReg r9
-
-
 // Adds Arm-specific methods to convert InstructionOperands.
 class ArmOperandConverter final : public InstructionOperandConverter {
  public:
@@ -589,20 +586,23 @@ void CodeGenerator::AssembleTailCallAfterGap(Instruction* instr,
 //    2. test kMarkedForDeoptimizationBit in those flags; and
 //    3. if it is not zero then it jumps to the builtin.
 void CodeGenerator::BailoutIfDeoptimized() {
+  UseScratchRegisterScope temps(tasm());
+  Register scratch = temps.Acquire();
   if (FLAG_debug_code) {
     // Check that {kJavaScriptCallCodeStartRegister} is correct.
     int pc_offset = __ pc_offset();
     // We can use the register pc - 8 for the address of the current
     // instruction.
-    __ add(ip, pc, Operand(pc_offset - TurboAssembler::kPcLoadDelta));
-    __ cmp(ip, kJavaScriptCallCodeStartRegister);
+    __ add(scratch, pc, Operand(pc_offset - TurboAssembler::kPcLoadDelta));
+    __ cmp(scratch, kJavaScriptCallCodeStartRegister);
     __ Assert(eq, AbortReason::kWrongFunctionCodeStart);
   }
 
   int offset = Code::kCodeDataContainerOffset - Code::kHeaderSize;
-  __ ldr(ip, MemOperand(kJavaScriptCallCodeStartRegister, offset));
-  __ ldr(ip, FieldMemOperand(ip, CodeDataContainer::kKindSpecificFlagsOffset));
-  __ tst(ip, Operand(1 << Code::kMarkedForDeoptimizationBit));
+  __ ldr(scratch, MemOperand(kJavaScriptCallCodeStartRegister, offset));
+  __ ldr(scratch,
+         FieldMemOperand(scratch, CodeDataContainer::kKindSpecificFlagsOffset));
+  __ tst(scratch, Operand(1 << Code::kMarkedForDeoptimizationBit));
   Handle<Code> code = isolate()->builtins()->builtin_handle(
       Builtins::kCompileLazyDeoptimizedCode);
   __ Jump(code, RelocInfo::CODE_TARGET, ne);
@@ -626,9 +626,11 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       if (instr->InputAt(0)->IsImmediate()) {
         __ Call(i.InputCode(0), RelocInfo::CODE_TARGET);
       } else {
-        __ add(ip, i.InputRegister(0),
+        UseScratchRegisterScope temps(tasm());
+        Register scratch = temps.Acquire();
+        __ add(scratch, i.InputRegister(0),
                Operand(Code::kHeaderSize - kHeapObjectTag));
-        __ Call(ip);
+        __ Call(scratch);
       }
       RecordCallPosition(instr);
       DCHECK_EQ(LeaveCC, i.OutputSBit());
@@ -672,9 +674,11 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       if (instr->InputAt(0)->IsImmediate()) {
         __ Jump(i.InputCode(0), RelocInfo::CODE_TARGET);
       } else {
-        __ add(ip, i.InputRegister(0),
+        UseScratchRegisterScope temps(tasm());
+        Register scratch = temps.Acquire();
+        __ add(scratch, i.InputRegister(0),
                Operand(Code::kHeaderSize - kHeapObjectTag));
-        __ Jump(ip);
+        __ Jump(scratch);
       }
       DCHECK_EQ(LeaveCC, i.OutputSBit());
       unwinding_info_writer_.MarkBlockWillExit();
@@ -716,9 +720,11 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kArchCallJSFunction: {
       Register func = i.InputRegister(0);
       if (FLAG_debug_code) {
+        UseScratchRegisterScope temps(tasm());
+        Register scratch = temps.Acquire();
         // Check the function's context matches the context argument.
-        __ ldr(kScratchReg, FieldMemOperand(func, JSFunction::kContextOffset));
-        __ cmp(cp, kScratchReg);
+        __ ldr(scratch, FieldMemOperand(func, JSFunction::kContextOffset));
+        __ cmp(cp, scratch);
         __ Assert(eq, AbortReason::kWrongFunctionContext);
       }
       static_assert(kJavaScriptCallCodeStartRegister == r2, "ABI mismatch");
@@ -1170,7 +1176,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
                    i.InputRegister(1), i.InputInt32(2));
       } else {
         __ LslPair(i.OutputRegister(0), second_output, i.InputRegister(0),
-                   i.InputRegister(1), kScratchReg, i.InputRegister(2));
+                   i.InputRegister(1), i.InputRegister(2));
       }
       break;
     }
@@ -1182,7 +1188,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
                    i.InputRegister(1), i.InputInt32(2));
       } else {
         __ LsrPair(i.OutputRegister(0), second_output, i.InputRegister(0),
-                   i.InputRegister(1), kScratchReg, i.InputRegister(2));
+                   i.InputRegister(1), i.InputRegister(2));
       }
       break;
     }
@@ -1194,7 +1200,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
                    i.InputRegister(1), i.InputInt32(2));
       } else {
         __ AsrPair(i.OutputRegister(0), second_output, i.InputRegister(0),
-                   i.InputRegister(1), kScratchReg, i.InputRegister(2));
+                   i.InputRegister(1), i.InputRegister(2));
       }
       break;
     }
@@ -3030,10 +3036,11 @@ void CodeGenerator::AssembleMove(InstructionOperand* source,
       } else if (source->IsDoubleRegister()) {
         __ vstr(g.ToDoubleRegister(source), dst);
       } else {
+        UseScratchRegisterScope temps(tasm());
+        Register temp = temps.Acquire();
         QwNeonRegister src = g.ToSimd128Register(source);
-        __ add(kScratchReg, dst.rn(), Operand(dst.offset()));
-        __ vst1(Neon8, NeonListOperand(src.low(), 2),
-                NeonMemOperand(kScratchReg));
+        __ add(temp, dst.rn(), Operand(dst.offset()));
+        __ vst1(Neon8, NeonListOperand(src.low(), 2), NeonMemOperand(temp));
       }
       return;
     }
@@ -3050,34 +3057,34 @@ void CodeGenerator::AssembleMove(InstructionOperand* source,
       } else if (source->IsDoubleStackSlot()) {
         __ vldr(g.ToDoubleRegister(destination), src);
       } else {
+        UseScratchRegisterScope temps(tasm());
+        Register temp = temps.Acquire();
         QwNeonRegister dst = g.ToSimd128Register(destination);
-        __ add(kScratchReg, src.rn(), Operand(src.offset()));
-        __ vld1(Neon8, NeonListOperand(dst.low(), 2),
-                NeonMemOperand(kScratchReg));
+        __ add(temp, src.rn(), Operand(src.offset()));
+        __ vld1(Neon8, NeonListOperand(dst.low(), 2), NeonMemOperand(temp));
       }
       return;
     }
     case MoveType::kStackToStack: {
       MemOperand src = g.ToMemOperand(source);
       MemOperand dst = g.ToMemOperand(destination);
+      UseScratchRegisterScope temps(tasm());
       if (source->IsStackSlot() || source->IsFloatStackSlot()) {
-        __ ldr(kScratchReg, src);
-        __ str(kScratchReg, dst);
+        SwVfpRegister temp = temps.AcquireS();
+        __ vldr(temp, src);
+        __ vstr(temp, dst);
       } else if (source->IsDoubleStackSlot()) {
-        UseScratchRegisterScope temps(tasm());
         DwVfpRegister temp = temps.AcquireD();
         __ vldr(temp, src);
         __ vstr(temp, dst);
       } else {
         DCHECK(source->IsSimd128StackSlot());
-        UseScratchRegisterScope temps(tasm());
+        Register temp = temps.Acquire();
         QwNeonRegister temp_q = temps.AcquireQ();
-        __ add(kScratchReg, src.rn(), Operand(src.offset()));
-        __ vld1(Neon8, NeonListOperand(temp_q.low(), 2),
-                NeonMemOperand(kScratchReg));
-        __ add(kScratchReg, dst.rn(), Operand(dst.offset()));
-        __ vst1(Neon8, NeonListOperand(temp_q.low(), 2),
-                NeonMemOperand(kScratchReg));
+        __ add(temp, src.rn(), Operand(src.offset()));
+        __ vld1(Neon8, NeonListOperand(temp_q.low(), 2), NeonMemOperand(temp));
+        __ add(temp, dst.rn(), Operand(dst.offset()));
+        __ vst1(Neon8, NeonListOperand(temp_q.low(), 2), NeonMemOperand(temp));
       }
       return;
     }
@@ -3089,7 +3096,9 @@ void CodeGenerator::AssembleMove(InstructionOperand* source,
         __ vmov(g.ToFloatRegister(destination),
                 Float32::FromBits(src.ToFloat32AsInt()));
       } else {
-        __ vmov(g.ToDoubleRegister(destination), src.ToFloat64(), kScratchReg);
+        // TODO(arm): Look into optimizing this further if possible. Supporting
+        // the NEON version of VMOV may help.
+        __ vmov(g.ToDoubleRegister(destination), src.ToFloat64());
       }
       return;
     }
@@ -3097,16 +3106,31 @@ void CodeGenerator::AssembleMove(InstructionOperand* source,
       Constant src = g.ToConstant(source);
       MemOperand dst = g.ToMemOperand(destination);
       if (destination->IsStackSlot()) {
-        MoveConstantToRegister(kScratchReg, src);
-        __ str(kScratchReg, dst);
+        UseScratchRegisterScope temps(tasm());
+        // Acquire a S register instead of a general purpose register in case
+        // `vstr` needs one to compute the address of `dst`.
+        SwVfpRegister s_temp = temps.AcquireS();
+        {
+          // TODO(arm): This sequence could be optimized further if necessary by
+          // writing the constant directly into `s_temp`.
+          UseScratchRegisterScope temps(tasm());
+          Register temp = temps.Acquire();
+          MoveConstantToRegister(temp, src);
+          __ vmov(s_temp, temp);
+        }
+        __ vstr(s_temp, dst);
       } else if (destination->IsFloatStackSlot()) {
-        __ mov(kScratchReg, Operand(bit_cast<int32_t>(src.ToFloat32())));
-        __ str(kScratchReg, dst);
+        UseScratchRegisterScope temps(tasm());
+        SwVfpRegister temp = temps.AcquireS();
+        __ vmov(temp, Float32::FromBits(src.ToFloat32AsInt()));
+        __ vstr(temp, dst);
       } else {
         DCHECK(destination->IsDoubleStackSlot());
         UseScratchRegisterScope temps(tasm());
         DwVfpRegister temp = temps.AcquireD();
-        __ vmov(temp, src.ToFloat64(), kScratchReg);
+        // TODO(arm): Look into optimizing this further if possible. Supporting
+        // the NEON version of VMOV may help.
+        __ vmov(temp, src.ToFloat64());
         __ vstr(temp, g.ToMemOperand(destination));
       }
       return;
@@ -3143,9 +3167,11 @@ void CodeGenerator::AssembleSwap(InstructionOperand* source,
       MemOperand dst = g.ToMemOperand(destination);
       if (source->IsRegister()) {
         Register src = g.ToRegister(source);
-        __ mov(kScratchReg, src);
+        UseScratchRegisterScope temps(tasm());
+        SwVfpRegister temp = temps.AcquireS();
+        __ vmov(temp, src);
         __ ldr(src, dst);
-        __ str(kScratchReg, dst);
+        __ vstr(temp, dst);
       } else if (source->IsFloatRegister()) {
         int src_code = LocationOperand::cast(source)->register_code();
         UseScratchRegisterScope temps(tasm());
@@ -3163,13 +3189,12 @@ void CodeGenerator::AssembleSwap(InstructionOperand* source,
       } else {
         QwNeonRegister src = g.ToSimd128Register(source);
         UseScratchRegisterScope temps(tasm());
+        Register temp = temps.Acquire();
         QwNeonRegister temp_q = temps.AcquireQ();
         __ Move(temp_q, src);
-        __ add(kScratchReg, dst.rn(), Operand(dst.offset()));
-        __ vld1(Neon8, NeonListOperand(src.low(), 2),
-                NeonMemOperand(kScratchReg));
-        __ vst1(Neon8, NeonListOperand(temp_q.low(), 2),
-                NeonMemOperand(kScratchReg));
+        __ add(temp, dst.rn(), Operand(dst.offset()));
+        __ vld1(Neon8, NeonListOperand(src.low(), 2), NeonMemOperand(temp));
+        __ vst1(Neon8, NeonListOperand(temp_q.low(), 2), NeonMemOperand(temp));
       }
       return;
     }
@@ -3177,25 +3202,21 @@ void CodeGenerator::AssembleSwap(InstructionOperand* source,
       MemOperand src = g.ToMemOperand(source);
       MemOperand dst = g.ToMemOperand(destination);
       if (source->IsStackSlot() || source->IsFloatStackSlot()) {
-        Register temp_0 = kScratchReg;
         UseScratchRegisterScope temps(tasm());
+        SwVfpRegister temp_0 = temps.AcquireS();
         SwVfpRegister temp_1 = temps.AcquireS();
-        __ ldr(temp_0, src);
-        __ vldr(temp_1, dst);
-        __ str(temp_0, dst);
-        __ vstr(temp_1, src);
+        __ vldr(temp_0, dst);
+        __ vldr(temp_1, src);
+        __ vstr(temp_0, src);
+        __ vstr(temp_1, dst);
       } else if (source->IsDoubleStackSlot()) {
         UseScratchRegisterScope temps(tasm());
-        Register temp_0 = kScratchReg;
+        DwVfpRegister temp_0 = temps.AcquireD();
         DwVfpRegister temp_1 = temps.AcquireD();
-        // Save destination in temp_1.
-        __ vldr(temp_1, dst);
-        // Then use temp_0 to copy source to destination.
-        __ ldr(temp_0, src);
-        __ str(temp_0, dst);
-        __ ldr(temp_0, MemOperand(src.rn(), src.offset() + kPointerSize));
-        __ str(temp_0, MemOperand(dst.rn(), dst.offset() + kPointerSize));
-        __ vstr(temp_1, src);
+        __ vldr(temp_0, dst);
+        __ vldr(temp_1, src);
+        __ vstr(temp_0, src);
+        __ vstr(temp_1, dst);
       } else {
         DCHECK(source->IsSimd128StackSlot());
         MemOperand src0 = src;
@@ -3228,7 +3249,6 @@ void CodeGenerator::AssembleJumpTable(Label** targets, size_t target_count) {
 }
 
 #undef __
-#undef kScratchReg
 
 }  // namespace compiler
 }  // namespace internal
