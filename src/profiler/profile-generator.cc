@@ -524,9 +524,9 @@ void CodeMap::MoveCode(Address from, Address to) {
 }
 
 void CodeMap::Print() {
-  for (auto it = code_map_.begin(); it != code_map_.end(); ++it) {
-    base::OS::Print("%p %5d %s\n", static_cast<void*>(it->first),
-                    it->second.size, it->second.entry->name());
+  for (const auto& pair : code_map_) {
+    base::OS::Print("%p %5d %s\n", static_cast<void*>(pair.first),
+                    pair.second.size, pair.second.entry->name());
   }
 }
 
