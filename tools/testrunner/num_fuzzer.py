@@ -120,6 +120,7 @@ class NumFuzzer(base_runner.BaseTestRunner):
         super(NumFuzzer, self)._get_statusfile_variables(options))
     variables.update({
       'deopt_fuzzer': bool(options.stress_deopt),
+      'endurance_fuzzer': bool(options.combine_tests),
       'gc_stress': bool(options.stress_gc),
       'gc_fuzzer': bool(max([options.stress_marking,
                              options.stress_scavenge,

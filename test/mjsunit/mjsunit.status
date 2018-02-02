@@ -650,6 +650,22 @@
 }],  # 'gc_fuzzer'
 
 ##############################################################################
+['endurance_fuzzer', {
+  # BUG(v8:7400).
+  'wasm/lazy-compilation': [SKIP],
+  'regress/wasm/regress-7353': [SKIP],
+  'regress/wasm/regress-739768': [SKIP],
+  'regress/wasm/regress-803427': [SKIP],
+  'regress/wasm/regress-803788': [SKIP],
+  'regress/wasm/regress-724851': [SKIP],
+  'regress/wasm/regress-736584': [SKIP],
+  'regress/wasm/regress-715216b': [SKIP],
+
+  # Often crashes due to memory consumption.
+  'regress/regress-655573': [SKIP],
+}],  # 'endurance_fuzzer'
+
+##############################################################################
 ['predictable == True', {
 
   # Skip tests that are known to be non-deterministic.

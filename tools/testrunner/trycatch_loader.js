@@ -9,17 +9,34 @@
 // It can't prevent %AbortJS function from aborting execution, so it should be
 // used with d8's --disable-abortjs flag to ignore all possible errors inside
 // tests.
-for (let jstest of arguments) {
+
+// We use -- as an additional separator for test preamble files and test files.
+// The preamble files (before --) will be loaded in each realm before each
+// test.
+var separator = arguments.indexOf("--")
+var preamble = arguments.slice(0, separator)
+var tests = arguments.slice(separator + 1)
+
+var preambleString = ""
+for (let jstest of preamble) {
+  preambleString += "load(\"" + jstest + "\");"
+}
+
+for (let jstest of tests) {
   print("Loading " + jstest);
+  let start = performance.now();
 
   // anonymous function to not populate global namespace.
   (function () {
     let realm = Realm.create();
     try {
-      Realm.eval(realm, "load(\"" + jstest + "\");");
+      Realm.eval(realm, preambleString + "load(\"" + jstest + "\");");
     } catch (err) {
       // ignore all errors
     }
     Realm.dispose(realm);
   })();
+
+  let durationSec = ((performance.now() - start) / 1000.0).toFixed(2);
+  print("Duration " + durationSec + "s");
 }
