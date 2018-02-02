@@ -134,14 +134,16 @@ void CodeSerializer::SerializeObject(HeapObject* obj, HowToCode how_to_code,
     // TODO(7110): Enable serializing of Asm modules once the AsmWasmData
     // is context independent.
     DCHECK(!sfi->IsApiFunction() && !sfi->HasAsmWasmData());
-    // Do not serialize when a debugger is active.
-    DCHECK(sfi->debug_info()->IsSmi());
+    // Clear debug info.
+    Object* debug_info = sfi->debug_info();
+    sfi->set_debug_info(Smi::kZero);
 
     // Mark SFI to indicate whether the code is cached.
     bool was_deserialized = sfi->deserialized();
     sfi->set_deserialized(sfi->is_compiled());
     SerializeGeneric(obj, how_to_code, where_to_point);
     sfi->set_deserialized(was_deserialized);
+    sfi->set_debug_info(debug_info);
     return;
   }
 
