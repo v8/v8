@@ -402,17 +402,21 @@ class ParserBase {
     int suspend_count() const { return suspend_count_; }
 
     FunctionKind kind() const { return scope()->function_kind(); }
-    FunctionState* outer() const { return outer_function_state_; }
 
     void RewindDestructuringAssignments(int pos) {
       destructuring_assignments_to_rewrite_.Rewind(pos);
     }
 
-    void SetDestructuringAssignmentsScope(int pos, Scope* scope) {
-      for (int i = pos; i < destructuring_assignments_to_rewrite_.length();
-           ++i) {
-        destructuring_assignments_to_rewrite_[i]->set_scope(scope);
+    void AdoptDestructuringAssignmentsFromParentState(int pos) {
+      const auto& outer_assignments =
+          outer_function_state_->destructuring_assignments_to_rewrite_;
+      DCHECK_GE(outer_assignments.length(), pos);
+      for (int i = pos; i < outer_assignments.length(); ++i) {
+        auto expr = outer_assignments[i];
+        expr->set_scope(scope_);
+        destructuring_assignments_to_rewrite_.Add(expr, scope_->zone());
       }
+      outer_function_state_->RewindDestructuringAssignments(pos);
     }
 
     const ZoneList<RewritableExpressionT>&
@@ -2900,7 +2904,6 @@ ParserBase<Impl>::ParseAssignmentExpression(bool accept_IN, bool* ok) {
     // Because the arrow's parameters were parsed in the outer scope,
     // we need to fix up the scope chain appropriately.
     scope_snapshot.Reparent(scope);
-    function_state_->SetDestructuringAssignmentsScope(rewritable_length, scope);
 
     FormalParametersT parameters(scope);
     if (!classifier()->is_simple_parameter_list()) {
@@ -4396,6 +4399,11 @@ ParserBase<Impl>::ParseArrowFunctionLiteral(
     FunctionState function_state(&function_state_, &scope_,
                                  formal_parameters.scope);
 
+    // Move any queued destructuring assignments which appeared
+    // in this function's parameter list into its own function_state.
+    function_state.AdoptDestructuringAssignmentsFromParentState(
+        rewritable_length);
+
     Expect(Token::ARROW, CHECK_OK);
 
     if (peek() == Token::LBRACE) {
@@ -4419,14 +4427,10 @@ ParserBase<Impl>::ParseArrowFunctionLiteral(
         USE(result);
         formal_parameters.scope->ResetAfterPreparsing(ast_value_factory_,
                                                       false);
-
         // Discard any queued destructuring assignments which appeared
-        // in this function's parameter list.
-        FunctionState* parent_state = function_state.outer();
-        DCHECK_NOT_NULL(parent_state);
-        DCHECK_GE(parent_state->destructuring_assignments_to_rewrite().length(),
-                  rewritable_length);
-        parent_state->RewindDestructuringAssignments(rewritable_length);
+        // in this function's parameter list, and which were adopted
+        // into this function state, above.
+        function_state.RewindDestructuringAssignments(0);
       } else {
         Consume(Token::LBRACE);
         body = impl()->NewStatementList(8);
