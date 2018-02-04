@@ -48,6 +48,7 @@ COMBINE_TESTS_FLAGS_BLACKLIST = [
   '--enable-tracing',
   re.compile('--experimental.*'),
   '--expose-trigger-failure',
+  re.compile('--harmony.*'),
   '--mock-arraybuffer-allocator',
   '--print-ast',
   re.compile('--trace.*'),
@@ -205,12 +206,20 @@ class CombinedTest(testcase.TestCase):
     """In addition to standard set of shell flags it appends:
       --disable-abortjs: %AbortJS can abort the test even inside
         trycatch-wrapper, so we disable it.
+      --es-staging: We blacklist all harmony flags due to false positives,
+          but always pass the staging flag to cover the mature features.
       --omit-quit: Calling quit() in JS would otherwise early terminate.
       --quiet-load: suppress any stdout from load() function used by
         trycatch-wrapper.
     """
     shell = 'd8'
-    shell_flags = ['--test', '--disable-abortjs', '--omit-quit', '--quiet-load']
+    shell_flags = [
+      '--test',
+      '--disable-abortjs',
+      '--es-staging',
+      '--omit-quit',
+      '--quiet-load',
+    ]
     return shell, shell_flags
 
   def _get_cmd_params(self):
