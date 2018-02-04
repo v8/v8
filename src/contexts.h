@@ -338,7 +338,6 @@ enum ContextLookupFlags {
   V(PROMISE_ALL_RESOLVE_ELEMENT_SHARED_FUN, SharedFunctionInfo,                \
     promise_all_resolve_element_shared_fun)                                    \
   V(PROMISE_PROTOTYPE_INDEX, JSObject, promise_prototype)                      \
-  V(PROMISE_PROTOTYPE_MAP_INDEX, Map, promise_prototype_map)                   \
   V(REGEXP_EXEC_FUNCTION_INDEX, JSFunction, regexp_exec_function)              \
   V(REGEXP_FUNCTION_INDEX, JSFunction, regexp_function)                        \
   V(REGEXP_LAST_MATCH_INFO_INDEX, RegExpMatchInfo, regexp_last_match_info)     \

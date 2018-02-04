@@ -3482,6 +3482,13 @@ bool Isolate::IsPromiseHookProtectorIntact() {
   return is_promise_hook_protector_intact;
 }
 
+bool Isolate::IsPromiseThenLookupChainIntact() {
+  PropertyCell* promise_then_cell = heap()->promise_then_protector();
+  bool is_promise_then_protector_intact =
+      Smi::ToInt(promise_then_cell->value()) == kProtectorValid;
+  return is_promise_then_protector_intact;
+}
+
 void Isolate::UpdateNoElementsProtectorOnSetElement(Handle<JSObject> object) {
   DisallowHeapAllocation no_gc;
   if (!object->map()->is_prototype_map()) return;
@@ -3548,6 +3555,15 @@ void Isolate::InvalidatePromiseHookProtector() {
       factory()->promise_hook_protector(),
       handle(Smi::FromInt(kProtectorInvalid), this));
   DCHECK(!IsPromiseHookProtectorIntact());
+}
+
+void Isolate::InvalidatePromiseThenProtector() {
+  DCHECK(factory()->promise_then_protector()->value()->IsSmi());
+  DCHECK(IsPromiseThenLookupChainIntact());
+  PropertyCell::SetValueWithInvalidation(
+      factory()->promise_then_protector(),
+      handle(Smi::FromInt(kProtectorInvalid), this));
+  DCHECK(!IsPromiseThenLookupChainIntact());
 }
 
 bool Isolate::IsAnyInitialArrayPrototype(Handle<JSArray> array) {

@@ -2420,10 +2420,6 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
     Handle<Map> prototype_map(prototype->map());
     Map::SetShouldBeFastPrototypeMap(prototype_map, true, isolate);
 
-    // Store the initial Promise.prototype map. This is used in fast-path
-    // checks. Do not alter the prototype after this point.
-    native_context()->set_promise_prototype_map(*prototype_map);
-
     {  // Internal: PromiseInternalConstructor
        // Also exposed as extrasUtils.createPromise.
       Handle<JSFunction> function =
@@ -4445,7 +4441,6 @@ void Genesis::InitializeGlobal_harmony_promise_finally() {
   // to prototype, so we update the saved map.
   Handle<Map> prototype_map(prototype->map());
   Map::SetShouldBeFastPrototypeMap(prototype_map, true, isolate());
-  native_context()->set_promise_prototype_map(*prototype_map);
 
   {
     Handle<SharedFunctionInfo> info = SimpleCreateSharedFunctionInfo(

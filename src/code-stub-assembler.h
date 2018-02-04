@@ -1143,7 +1143,6 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
   Node* IsShortExternalStringInstanceType(Node* instance_type);
   Node* IsSpecialReceiverInstanceType(Node* instance_type);
   Node* IsSpecialReceiverMap(Node* map);
-  Node* IsSpeciesProtectorCellInvalid();
   Node* IsStringInstanceType(Node* instance_type);
   Node* IsString(Node* object);
   Node* IsSymbolInstanceType(Node* instance_type);
@@ -1155,6 +1154,9 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
   inline Node* IsSharedFunctionInfo(Node* object) {
     return IsSharedFunctionInfoMap(LoadMap(object));
   }
+
+  Node* IsPromiseThenProtectorCellInvalid();
+  Node* IsSpeciesProtectorCellInvalid();
 
   // True iff |object| is a Smi or a HeapNumber.
   Node* IsNumber(Node* object);

@@ -306,6 +306,14 @@ void LookupIterator::InternalUpdateProtector() {
     if (holder_->IsJSArray()) {
       isolate_->InvalidateArrayIteratorProtector();
     }
+  } else if (*name_ == heap()->then_string()) {
+    if (!isolate_->IsPromiseThenLookupChainIntact()) return;
+    // Setting the "then" property on any JSPromise instance or on the
+    // initial %PromisePrototype% invalidates the Promise#then protector.
+    if (holder_->IsJSPromise() ||
+        isolate_->IsInAnyContext(*holder_, Context::PROMISE_PROTOTYPE_INDEX)) {
+      isolate_->InvalidatePromiseThenProtector();
+    }
   }
 }
 

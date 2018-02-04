@@ -112,8 +112,6 @@ TEST(ContextMaps) {
                            Context::STRING_FUNCTION_INDEX);
   VerifyStoredPrototypeMap(isolate, Context::REGEXP_PROTOTYPE_MAP_INDEX,
                            Context::REGEXP_FUNCTION_INDEX);
-  VerifyStoredPrototypeMap(isolate, Context::PROMISE_PROTOTYPE_MAP_INDEX,
-                           Context::PROMISE_FUNCTION_INDEX);
 }
 
 TEST(InitialObjects) {

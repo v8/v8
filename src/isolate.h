@@ -1106,6 +1106,10 @@ class Isolate {
   // active.
   bool IsPromiseHookProtectorIntact();
 
+  // Make sure a lookup of "then" on any JSPromise whose [[Prototype]] is the
+  // initial %PromisePrototype% yields the initial method.
+  bool IsPromiseThenLookupChainIntact();
+
   // On intent to set an element in object, make sure that appropriate
   // notifications occur if the set is on the elements of the array or
   // object prototype. Also ensure that changes to prototype chain between
@@ -1127,6 +1131,7 @@ class Isolate {
   void InvalidateArrayIteratorProtector();
   void InvalidateArrayBufferNeuteringProtector();
   void InvalidatePromiseHookProtector();
+  void InvalidatePromiseThenProtector();
 
   // Returns true if array is the initial array prototype in any native context.
   bool IsAnyInitialArrayPrototype(Handle<JSArray> array);

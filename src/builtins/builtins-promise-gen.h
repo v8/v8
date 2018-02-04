@@ -127,15 +127,17 @@ class PromiseBuiltinsAssembler : public CodeStubAssembler {
 
   void InternalResolvePromise(Node* context, Node* promise, Node* result);
 
-  void BranchIfFastPath(Node* context, Node* promise, Label* if_isunmodified,
-                        Label* if_ismodified);
-
-  void BranchIfFastPath(Node* native_context, Node* promise_fun, Node* promise,
-                        Label* if_isunmodified, Label* if_ismodified);
-
   Node* CreatePromiseContext(Node* native_context, int slots);
   void PromiseFulfill(Node* context, Node* promise, Node* result,
                       v8::Promise::PromiseState status);
+
+  // We can skip the "then" lookup on {receiver_map} if it's [[Prototype]]
+  // is the (initial) Promise.prototype and the Promise#then() protector
+  // is intact, as that guards the lookup path for the "then" property
+  // on JSPromise instances which have the (initial) %PromisePrototype%.
+  void BranchIfPromiseThenLookupChainIntact(Node* native_context,
+                                            Node* receiver_map, Label* if_fast,
+                                            Label* if_slow);
 
   void BranchIfAccessCheckFailed(Node* context, Node* native_context,
                                  Node* promise_constructor, Node* executor,

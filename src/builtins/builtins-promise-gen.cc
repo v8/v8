@@ -345,50 +345,6 @@ TF_BUILTIN(PerformPromiseThen, PromiseBuiltinsAssembler) {
   Return(result_promise);
 }
 
-// Promise fast path implementations rely on unmodified JSPromise instances.
-// We use a fairly coarse granularity for this and simply check whether both
-// the promise itself is unmodified (i.e. its map has not changed) and its
-// prototype is unmodified.
-// TODO(gsathya): Refactor this out to prevent code dupe with builtins-regexp
-void PromiseBuiltinsAssembler::BranchIfFastPath(Node* context, Node* promise,
-                                                Label* if_isunmodified,
-                                                Label* if_ismodified) {
-  Node* const native_context = LoadNativeContext(context);
-  Node* const promise_fun =
-      LoadContextElement(native_context, Context::PROMISE_FUNCTION_INDEX);
-  BranchIfFastPath(native_context, promise_fun, promise, if_isunmodified,
-                   if_ismodified);
-}
-
-void PromiseBuiltinsAssembler::BranchIfFastPath(Node* native_context,
-                                                Node* promise_fun,
-                                                Node* promise,
-                                                Label* if_isunmodified,
-                                                Label* if_ismodified) {
-  CSA_ASSERT(this, IsNativeContext(native_context));
-  CSA_ASSERT(this,
-             WordEqual(promise_fun,
-                       LoadContextElement(native_context,
-                                          Context::PROMISE_FUNCTION_INDEX)));
-
-  GotoIfForceSlowPath(if_ismodified);
-
-  Node* const map = LoadMap(promise);
-  Node* const initial_map =
-      LoadObjectField(promise_fun, JSFunction::kPrototypeOrInitialMapOffset);
-  Node* const has_initialmap = WordEqual(map, initial_map);
-
-  GotoIfNot(has_initialmap, if_ismodified);
-
-  Node* const initial_proto_initial_map =
-      LoadContextElement(native_context, Context::PROMISE_PROTOTYPE_MAP_INDEX);
-  Node* const proto_map = LoadMap(CAST(LoadMapPrototype(map)));
-  Node* const proto_has_initialmap =
-      WordEqual(proto_map, initial_proto_initial_map);
-
-  Branch(proto_has_initialmap, if_isunmodified, if_ismodified);
-}
-
 Node* PromiseBuiltinsAssembler::AllocatePromiseReaction(
     Node* next, Node* promise_or_capability, Node* fulfill_handler,
     Node* reject_handler) {
@@ -452,14 +408,13 @@ Node* PromiseBuiltinsAssembler::AllocatePromiseResolveThenableJobTask(
 void PromiseBuiltinsAssembler::InternalResolvePromise(Node* context,
                                                       Node* promise,
                                                       Node* result) {
-  Isolate* isolate = this->isolate();
+  CSA_ASSERT(this, TaggedIsNotSmi(promise));
+  CSA_ASSERT(this, IsJSPromise(promise));
 
+  Label do_enqueue(this), fulfill(this), if_cycle(this, Label::kDeferred),
+      if_rejectpromise(this, Label::kDeferred), out(this);
   VARIABLE(var_reason, MachineRepresentation::kTagged);
   VARIABLE(var_then, MachineRepresentation::kTagged);
-
-  Label do_enqueue(this), fulfill(this), if_nocycle(this),
-      if_cycle(this, Label::kDeferred),
-      if_rejectpromise(this, Label::kDeferred), out(this);
 
   Label cycle_check(this);
   GotoIfNot(IsPromiseHookEnabledOrDebugIsActive(), &cycle_check);
@@ -468,39 +423,40 @@ void PromiseBuiltinsAssembler::InternalResolvePromise(Node* context,
 
   BIND(&cycle_check);
   // 6. If SameValue(resolution, promise) is true, then
-  BranchIfSameValue(promise, result, &if_cycle, &if_nocycle);
-  BIND(&if_nocycle);
+  // We can use pointer comparison here, since the {promise} is guaranteed
+  // to be a JSPromise inside this function and thus is reference comparable.
+  GotoIf(WordEqual(promise, result), &if_cycle);
 
   // 7. If Type(resolution) is not Object, then
   GotoIf(TaggedIsSmi(result), &fulfill);
-  GotoIfNot(IsJSReceiver(result), &fulfill);
+  Node* const result_map = LoadMap(result);
+  GotoIfNot(IsJSReceiverMap(result_map), &fulfill);
 
-  Label if_nativepromise(this), if_notnativepromise(this, Label::kDeferred);
+  // We can skip the "then" lookup on {result} if it's [[Prototype]]
+  // is the (initial) Promise.prototype and the Promise#then protector
+  // is intact, as that guards the lookup path for the "then" property
+  // on JSPromise instances which have the (initial) %PromisePrototype%.
+  Label if_fast(this), if_slow(this, Label::kDeferred);
   Node* const native_context = LoadNativeContext(context);
-  Node* const promise_fun =
-      LoadContextElement(native_context, Context::PROMISE_FUNCTION_INDEX);
-  BranchIfFastPath(native_context, promise_fun, result, &if_nativepromise,
-                   &if_notnativepromise);
+  BranchIfPromiseThenLookupChainIntact(native_context, result_map, &if_fast,
+                                       &if_slow);
 
   // Resolution is a native promise and if it's already resolved or
   // rejected, shortcircuit the resolution procedure by directly
   // reusing the value from the promise.
-  BIND(&if_nativepromise);
+  BIND(&if_fast);
   {
-    // TODO(gsathya): Use a marker here instead of the actual then
-    // callback, and check for the marker in PromiseResolveThenableJob
-    // and perform PromiseThen.
     Node* const then =
         LoadContextElement(native_context, Context::PROMISE_THEN_INDEX);
     var_then.Bind(then);
     Goto(&do_enqueue);
   }
 
-  BIND(&if_notnativepromise);
+  BIND(&if_slow);
   {
     // 8. Let then be Get(resolution, "then").
     Node* const then =
-        GetProperty(context, result, isolate->factory()->then_string());
+        GetProperty(context, result, isolate()->factory()->then_string());
 
     // 9. If then is an abrupt completion, then
     GotoIfException(then, &if_rejectpromise, &var_reason);
@@ -518,18 +474,21 @@ void PromiseBuiltinsAssembler::InternalResolvePromise(Node* context,
     Node* const info = AllocatePromiseResolveThenableJobTask(
         promise, var_then.value(), result, native_context);
 
-    Label enqueue(this);
-    GotoIfNot(IsDebugActive(), &enqueue);
+    Label enqueue(this), is_debug_active(this, Label::kDeferred);
+    Branch(IsDebugActive(), &is_debug_active, &enqueue);
 
-    GotoIf(TaggedIsSmi(result), &enqueue);
-    GotoIfNot(HasInstanceType(result, JS_PROMISE_TYPE), &enqueue);
+    BIND(&is_debug_active);
+    {
+      GotoIf(TaggedIsSmi(result), &enqueue);
+      GotoIfNot(IsJSPromise(result), &enqueue);
 
-    // Mark the dependency of the new promise on the resolution
-    Node* const key =
-        HeapConstant(isolate->factory()->promise_handled_by_symbol());
-    CallRuntime(Runtime::kSetProperty, context, result, key, promise,
-                SmiConstant(LanguageMode::kStrict));
-    Goto(&enqueue);
+      // Mark the dependency of the new promise on the resolution
+      Node* const key =
+          HeapConstant(isolate()->factory()->promise_handled_by_symbol());
+      CallRuntime(Runtime::kSetProperty, context, result, key, promise,
+                  SmiConstant(LanguageMode::kStrict));
+      Goto(&enqueue);
+    }
 
     // 12. Perform EnqueueJob("PromiseJobs",
     // PromiseResolveThenableJob, « promise, resolution, thenAction»).
@@ -651,6 +610,20 @@ void PromiseBuiltinsAssembler::PromiseFulfill(
     }
     BIND(&done_loop);
   }
+}
+
+void PromiseBuiltinsAssembler::BranchIfPromiseThenLookupChainIntact(
+    Node* native_context, Node* receiver_map, Label* if_fast, Label* if_slow) {
+  CSA_ASSERT(this, IsMap(receiver_map));
+  CSA_ASSERT(this, IsNativeContext(native_context));
+
+  GotoIfForceSlowPath(if_slow);
+  GotoIfNot(IsJSPromiseMap(receiver_map), if_slow);
+  Node* const promise_prototype =
+      LoadContextElement(native_context, Context::PROMISE_PROTOTYPE_INDEX);
+  GotoIfNot(WordEqual(LoadMapPrototype(receiver_map), promise_prototype),
+            if_slow);
+  Branch(IsPromiseThenProtectorCellInvalid(), if_slow, if_fast);
 }
 
 void PromiseBuiltinsAssembler::BranchIfAccessCheckFailed(
@@ -1036,7 +1009,7 @@ TF_BUILTIN(ResolvePromise, PromiseBuiltinsAssembler) {
 // Promise.prototype.catch ( onRejected )
 TF_BUILTIN(PromisePrototypeCatch, PromiseBuiltinsAssembler) {
   // 1. Let promise be the this value.
-  Node* const promise = Parameter(Descriptor::kReceiver);
+  Node* const receiver = Parameter(Descriptor::kReceiver);
   Node* const on_fulfilled = UndefinedConstant();
   Node* const on_rejected = Parameter(Descriptor::kOnRejected);
   Node* const context = Parameter(Descriptor::kContext);
@@ -1044,12 +1017,18 @@ TF_BUILTIN(PromisePrototypeCatch, PromiseBuiltinsAssembler) {
   // 2. Return ? Invoke(promise, "then", « undefined, onRejected »).
   VARIABLE(var_then, MachineRepresentation::kTagged);
   Label if_fast(this), if_slow(this, Label::kDeferred), done(this);
-  GotoIf(TaggedIsSmi(promise), &if_slow);
-  BranchIfFastPath(context, promise, &if_fast, &if_slow);
+  GotoIf(TaggedIsSmi(receiver), &if_slow);
+  Node* const receiver_map = LoadMap(receiver);
+  // We can skip the "then" lookup on {receiver} if it's [[Prototype]]
+  // is the (initial) Promise.prototype and the Promise#then protector
+  // is intact, as that guards the lookup path for the "then" property
+  // on JSPromise instances which have the (initial) %PromisePrototype%.
+  Node* const native_context = LoadNativeContext(context);
+  BranchIfPromiseThenLookupChainIntact(native_context, receiver_map, &if_fast,
+                                       &if_slow);
 
   BIND(&if_fast);
   {
-    Node* const native_context = LoadNativeContext(context);
     var_then.Bind(
         LoadContextElement(native_context, Context::PROMISE_THEN_INDEX));
     Goto(&done);
@@ -1058,7 +1037,7 @@ TF_BUILTIN(PromisePrototypeCatch, PromiseBuiltinsAssembler) {
   BIND(&if_slow);
   {
     var_then.Bind(
-        GetProperty(context, promise, isolate()->factory()->then_string()));
+        GetProperty(context, receiver, isolate()->factory()->then_string()));
     Goto(&done);
   }
 
@@ -1066,7 +1045,7 @@ TF_BUILTIN(PromisePrototypeCatch, PromiseBuiltinsAssembler) {
   Node* const then = var_then.value();
   Node* const result = CallJS(
       CodeFactory::Call(isolate(), ConvertReceiverMode::kNotNullOrUndefined),
-      context, then, promise, on_fulfilled, on_rejected);
+      context, then, receiver, on_fulfilled, on_rejected);
   Return(result);
 }
 

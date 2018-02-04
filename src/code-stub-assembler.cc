@@ -4165,6 +4165,13 @@ Node* CodeStubAssembler::IsNoElementsProtectorCellInvalid() {
   return WordEqual(cell_value, invalid);
 }
 
+Node* CodeStubAssembler::IsPromiseThenProtectorCellInvalid() {
+  Node* invalid = SmiConstant(Isolate::kProtectorInvalid);
+  Node* cell = LoadRoot(Heap::kPromiseThenProtectorRootIndex);
+  Node* cell_value = LoadObjectField(cell, PropertyCell::kValueOffset);
+  return WordEqual(cell_value, invalid);
+}
+
 Node* CodeStubAssembler::IsSpeciesProtectorCellInvalid() {
   Node* invalid = SmiConstant(Isolate::kProtectorInvalid);
   Node* cell = LoadRoot(Heap::kSpeciesProtectorRootIndex);
@@ -7560,6 +7567,7 @@ void CodeStubAssembler::CheckForAssociatedProtector(Node* name,
          if_protector);
   GotoIf(WordEqual(name, LoadRoot(Heap::kis_concat_spreadable_symbolRootIndex)),
          if_protector);
+  GotoIf(WordEqual(name, LoadRoot(Heap::kthen_stringRootIndex)), if_protector);
   // Fall through if no case matched.
 }
 
