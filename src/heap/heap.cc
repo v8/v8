@@ -1816,12 +1816,12 @@ void Heap::MarkCompact() {
 void Heap::MinorMarkCompact() {
   DCHECK(FLAG_minor_mc);
 
+  PauseAllocationObserversScope pause_observers(this);
   SetGCState(MINOR_MARK_COMPACT);
   LOG(isolate_, ResourceEvent("MinorMarkCompact", "begin"));
 
   TRACE_GC(tracer(), GCTracer::Scope::MINOR_MC);
   AlwaysAllocateScope always_allocate(isolate());
-  PauseAllocationObserversScope pause_observers(this);
   IncrementalMarking::PauseBlackAllocationScope pause_black_allocation(
       incremental_marking());
   CodeSpaceMemoryModificationScope code_modifcation(this);

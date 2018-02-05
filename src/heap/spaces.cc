@@ -71,6 +71,8 @@ bool HeapObjectIterator::AdvanceToNextPage() {
 
 PauseAllocationObserversScope::PauseAllocationObserversScope(Heap* heap)
     : heap_(heap) {
+  DCHECK_EQ(heap->gc_state(), Heap::NOT_IN_GC);
+
   for (SpaceIterator it(heap_); it.has_next();) {
     it.next()->PauseAllocationObservers();
   }
