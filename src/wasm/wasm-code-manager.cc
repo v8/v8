@@ -393,13 +393,16 @@ WasmCode* NativeModule::AddAnonymousCode(Handle<Code> code,
     reloc_info.reset(new byte[code->relocation_size()]);
     memcpy(reloc_info.get(), code->relocation_start(), code->relocation_size());
   }
+  std::shared_ptr<ProtectedInstructions> protected_instructions(
+      new ProtectedInstructions(0));
   WasmCode* ret = AddOwnedCode(
       {code->instruction_start(),
        static_cast<size_t>(code->instruction_size())},
       std::move(reloc_info), static_cast<size_t>(code->relocation_size()),
       Nothing<uint32_t>(), kind, code->constant_pool_offset(),
       (code->has_safepoint_info() ? code->stack_slots() : 0),
-      (code->has_safepoint_info() ? code->safepoint_table_offset() : 0), {});
+      (code->has_safepoint_info() ? code->safepoint_table_offset() : 0),
+      protected_instructions);
   if (ret == nullptr) return nullptr;
   intptr_t delta = ret->instructions().start() - code->instruction_start();
   int mask = RelocInfo::kApplyMask | RelocInfo::kCodeTargetMask |

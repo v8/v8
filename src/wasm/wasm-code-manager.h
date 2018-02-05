@@ -120,6 +120,9 @@ class V8_EXPORT_PRIVATE WasmCode final {
   void ResetTrapHandlerIndex();
 
   const ProtectedInstructions& protected_instructions() const {
+    // TODO(mstarzinger): Code that doesn't have trapping instruction should
+    // not be required to have this vector, make it possible to be null.
+    DCHECK_NOT_NULL(protected_instructions_);
     return *protected_instructions_.get();
   }
 
