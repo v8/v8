@@ -417,7 +417,7 @@
       "resources": [
         "filter.js", "map.js", "every.js", "join.js", "some.js",
         "reduce.js", "reduce-right.js", "to-string.js", "find.js",
-        "find-index.js", "of.js"
+        "find-index.js", "from.js", "of.js"
       ],
       "flags": [
         "--allow-natives-syntax"
@@ -493,7 +493,16 @@
         {"name": "SmallTransplantedArrayOf"},
         {"name": "SmallDoubleArrayOf"},
         {"name": "SmallStringArrayOf"},
-        {"name": "SmallMixedArrayOf"}
+        {"name": "SmallMixedArrayOf"},
+        {"name": "SmiArrayFrom"},
+        {"name": "SmallSmiArrayFrom"},
+        {"name": "SmiArrayNoMapFrom"},
+        {"name": "SmiArrayNoIteratorFrom"},
+        {"name": "TransplantedArrayFrom"},
+        {"name": "DoubleArrayFrom"},
+        {"name": "StringArrayFrom"},
+        {"name": "StringArrayNoMapFrom"},
+        {"name": "MixedArrayFrom"}
       ]
     },
     {
