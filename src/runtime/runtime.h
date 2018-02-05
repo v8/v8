@@ -557,7 +557,6 @@ namespace internal {
 #define FOR_EACH_INTRINSIC_TEST(F)            \
   F(Abort, 1, 1)                              \
   F(AbortJS, 1, 1)                            \
-  F(CheckWasmWrapperElision, 2, 1)            \
   F(ClearFunctionFeedback, 1, 1)              \
   F(CompleteInobjectSlackTracking, 1, 1)      \
   F(ConstructConsString, 2, 1)                \
