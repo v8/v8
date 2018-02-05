@@ -2917,9 +2917,11 @@ void ChangeToOffHeapTrampoline(Isolate* isolate, Handle<Code> code,
   std::memset(trailing_instruction_start, 0, trailing_instruction_size);
 }
 
-void LogInstructionStream(Isolate* isolate, const InstructionStream* stream) {
-  // TODO(jgruber): Log the given instruction stream object (the profiler needs
-  // this to assign ticks to builtins).
+void LogInstructionStream(Isolate* isolate, Code* code,
+                          const InstructionStream* stream) {
+  if (isolate->logger()->is_logging_code_events() || isolate->is_profiling()) {
+    isolate->logger()->LogInstructionStream(code, stream);
+  }
 }
 
 void MoveBuiltinsOffHeap(Isolate* isolate) {
@@ -2939,7 +2941,7 @@ void MoveBuiltinsOffHeap(Isolate* isolate) {
     if (!Builtins::IsIsolateIndependent(i)) continue;
     Handle<Code> code(builtins->builtin(i));
     InstructionStream* stream = new InstructionStream(*code);
-    LogInstructionStream(isolate, stream);
+    LogInstructionStream(isolate, *code, stream);
     ChangeToOffHeapTrampoline(isolate, code, stream);
     isolate->PushOffHeapCode(stream);
   }

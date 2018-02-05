@@ -5,6 +5,7 @@
 #include "src/profiler/profiler-listener.h"
 
 #include "src/deoptimizer.h"
+#include "src/instruction-stream.h"
 #include "src/objects-inl.h"
 #include "src/profiler/cpu-profiler.h"
 #include "src/profiler/profile-generator-inl.h"
@@ -161,6 +162,20 @@ void ProfilerListener::RegExpCodeCreateEvent(AbstractCode* code,
                             CpuProfileNode::kNoColumnNumberInfo, nullptr,
                             code->instruction_start());
   rec->size = code->ExecutableSize();
+  DispatchCodeEvent(evt_rec);
+}
+
+void ProfilerListener::InstructionStreamCreateEvent(
+    CodeEventListener::LogEventsAndTags tag, const InstructionStream* stream,
+    const char* description) {
+  CodeEventsContainer evt_rec(CodeEventRecord::CODE_CREATION);
+  CodeCreateEventRecord* rec = &evt_rec.CodeCreateEventRecord_;
+  rec->start = stream->bytes();
+  rec->entry = NewCodeEntry(
+      tag, description, CodeEntry::kEmptyNamePrefix,
+      CodeEntry::kEmptyResourceName, CpuProfileNode::kNoLineNumberInfo,
+      CpuProfileNode::kNoColumnNumberInfo, nullptr, stream->bytes());
+  rec->size = static_cast<unsigned>(stream->byte_length());
   DispatchCodeEvent(evt_rec);
 }
 

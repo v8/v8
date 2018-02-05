@@ -7,6 +7,7 @@
 
 #include <map>
 
+#include "src/instruction-stream.h"
 #include "src/isolate.h"
 #include "src/log.h"
 #include "src/objects.h"
@@ -115,6 +116,10 @@ class CodeAddressMap : public CodeEventLogger {
   void LogRecordedBuffer(AbstractCode* code, SharedFunctionInfo*,
                          const char* name, int length) override {
     address_to_name_map_.Insert(code->address(), name, length);
+  }
+  void LogRecordedBuffer(const InstructionStream* stream, const char* name,
+                         int length) override {
+    address_to_name_map_.Insert(stream->bytes(), name, length);
   }
 
   NameMap address_to_name_map_;

@@ -14,6 +14,7 @@ namespace v8 {
 namespace internal {
 
 class AbstractCode;
+class InstructionStream;
 class Name;
 class SharedFunctionInfo;
 class String;
@@ -68,6 +69,9 @@ class CodeEventListener {
   virtual void GetterCallbackEvent(Name* name, Address entry_point) = 0;
   virtual void SetterCallbackEvent(Name* name, Address entry_point) = 0;
   virtual void RegExpCodeCreateEvent(AbstractCode* code, String* source) = 0;
+  virtual void InstructionStreamCreateEvent(LogEventsAndTags tag,
+                                            const InstructionStream* stream,
+                                            const char* description) = 0;
   virtual void CodeMoveEvent(AbstractCode* from, Address to) = 0;
   virtual void SharedFunctionInfoMoveEvent(Address from, Address to) = 0;
   virtual void CodeMovingGCEvent() = 0;
@@ -125,6 +129,11 @@ class CodeEventDispatcher {
   }
   void RegExpCodeCreateEvent(AbstractCode* code, String* source) {
     CODE_EVENT_DISPATCH(RegExpCodeCreateEvent(code, source));
+  }
+  void InstructionStreamCreateEvent(LogEventsAndTags tag,
+                                    const InstructionStream* stream,
+                                    const char* description) {
+    CODE_EVENT_DISPATCH(InstructionStreamCreateEvent(tag, stream, description));
   }
   void CodeMoveEvent(AbstractCode* from, Address to) {
     CODE_EVENT_DISPATCH(CodeMoveEvent(from, to));
