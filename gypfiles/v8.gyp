@@ -195,6 +195,8 @@
         '../src/builtins/builtins-typedarray-gen.cc',
         '../src/builtins/builtins-utils-gen.h',
         '../src/builtins/builtins-wasm-gen.cc',
+        '../src/builtins/growable-fixed-array-gen.cc',
+        '../src/builtins/growable-fixed-array-gen.h',
         '../src/builtins/setup-builtins-internal.cc',
         '../src/heap/setup-heap-internal.cc',
         '../src/ic/accessor-assembler.cc',

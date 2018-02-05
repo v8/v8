@@ -7,6 +7,7 @@
 #include "src/builtins/builtins-constructor-gen.h"
 #include "src/builtins/builtins-utils-gen.h"
 #include "src/builtins/builtins.h"
+#include "src/builtins/growable-fixed-array-gen.h"
 #include "src/code-factory.h"
 #include "src/code-stub-assembler.h"
 #include "src/counters.h"
@@ -1795,153 +1796,6 @@ Node* RegExpBuiltinsAssembler::AdvanceStringIndex(Node* const string,
   return var_result.value();
 }
 
-namespace {
-
-// Utility class implementing a growable fixed array through CSA.
-class GrowableFixedArray {
-  typedef CodeStubAssembler::Label Label;
-  typedef CodeStubAssembler::Variable Variable;
-
- public:
-  explicit GrowableFixedArray(CodeStubAssembler* a)
-      : assembler_(a),
-        var_array_(a, MachineRepresentation::kTagged),
-        var_length_(a, MachineType::PointerRepresentation()),
-        var_capacity_(a, MachineType::PointerRepresentation()) {
-    Initialize();
-  }
-
-  Node* length() const { return var_length_.value(); }
-
-  Variable* var_array() { return &var_array_; }
-  Variable* var_length() { return &var_length_; }
-  Variable* var_capacity() { return &var_capacity_; }
-
-  void Push(Node* const value) {
-    CodeStubAssembler* a = assembler_;
-
-    Node* const length = var_length_.value();
-    Node* const capacity = var_capacity_.value();
-
-    Label grow(a), store(a);
-    a->Branch(a->IntPtrEqual(capacity, length), &grow, &store);
-
-    a->BIND(&grow);
-    {
-      Node* const new_capacity = NewCapacity(a, capacity);
-      Node* const new_array = ResizeFixedArray(length, new_capacity);
-
-      var_capacity_.Bind(new_capacity);
-      var_array_.Bind(new_array);
-      a->Goto(&store);
-    }
-
-    a->BIND(&store);
-    {
-      Node* const array = var_array_.value();
-      a->StoreFixedArrayElement(array, length, value);
-
-      Node* const new_length = a->IntPtrAdd(length, a->IntPtrConstant(1));
-      var_length_.Bind(new_length);
-    }
-  }
-
-  Node* ToJSArray(Node* const context) {
-    CodeStubAssembler* a = assembler_;
-
-    const ElementsKind kind = PACKED_ELEMENTS;
-
-    Node* const native_context = a->LoadNativeContext(context);
-    Node* const array_map = a->LoadJSArrayElementsMap(kind, native_context);
-
-    // Shrink to fit if necessary.
-    {
-      Label next(a);
-
-      Node* const length = var_length_.value();
-      Node* const capacity = var_capacity_.value();
-
-      a->GotoIf(a->WordEqual(length, capacity), &next);
-
-      Node* const array = ResizeFixedArray(length, length);
-      var_array_.Bind(array);
-      var_capacity_.Bind(length);
-      a->Goto(&next);
-
-      a->BIND(&next);
-    }
-
-    Node* const result_length = a->SmiTag(length());
-    Node* const result = a->AllocateUninitializedJSArrayWithoutElements(
-        array_map, result_length, nullptr);
-
-    // Note: We do not currently shrink the fixed array.
-
-    a->StoreObjectField(result, JSObject::kElementsOffset, var_array_.value());
-
-    return result;
-  }
-
- private:
-  void Initialize() {
-    CodeStubAssembler* a = assembler_;
-
-    const ElementsKind kind = PACKED_ELEMENTS;
-
-    static const int kInitialArraySize = 8;
-    Node* const capacity = a->IntPtrConstant(kInitialArraySize);
-    Node* const array = a->AllocateFixedArray(kind, capacity);
-
-    a->FillFixedArrayWithValue(kind, array, a->IntPtrConstant(0), capacity,
-                               Heap::kTheHoleValueRootIndex);
-
-    var_array_.Bind(array);
-    var_capacity_.Bind(capacity);
-    var_length_.Bind(a->IntPtrConstant(0));
-  }
-
-  Node* NewCapacity(CodeStubAssembler* a,
-                    compiler::SloppyTNode<IntPtrT> current_capacity) {
-    CSA_ASSERT(a, a->IntPtrGreaterThan(current_capacity, a->IntPtrConstant(0)));
-
-    // Growth rate is analog to JSObject::NewElementsCapacity:
-    // new_capacity = (current_capacity + (current_capacity >> 1)) + 16.
-
-    Node* const new_capacity = a->IntPtrAdd(
-        a->IntPtrAdd(current_capacity, a->WordShr(current_capacity, 1)),
-        a->IntPtrConstant(16));
-
-    return new_capacity;
-  }
-
-  // Creates a new array with {new_capacity} and copies the first
-  // {element_count} elements from the current array.
-  Node* ResizeFixedArray(Node* const element_count, Node* const new_capacity) {
-    CodeStubAssembler* a = assembler_;
-
-    CSA_ASSERT(a, a->IntPtrGreaterThan(element_count, a->IntPtrConstant(0)));
-    CSA_ASSERT(a, a->IntPtrGreaterThan(new_capacity, a->IntPtrConstant(0)));
-    CSA_ASSERT(a, a->IntPtrGreaterThanOrEqual(new_capacity, element_count));
-
-    Node* const from_array = var_array_.value();
-
-    CodeStubAssembler::ExtractFixedArrayFlags flags;
-    flags |= CodeStubAssembler::ExtractFixedArrayFlag::kFixedArrays;
-    Node* to_array = a->ExtractFixedArray(from_array, nullptr, element_count,
-                                          new_capacity, flags);
-
-    return to_array;
-  }
-
- private:
-  CodeStubAssembler* const assembler_;
-  Variable var_array_;
-  Variable var_length_;
-  Variable var_capacity_;
-};
-
-}  // namespace
-
 void RegExpBuiltinsAssembler::RegExpPrototypeMatchBody(Node* const context,
                                                        Node* const regexp,
                                                        Node* const string,
@@ -1975,7 +1829,7 @@ void RegExpBuiltinsAssembler::RegExpPrototypeMatchBody(Node* const context,
 
     // Allocate an array to store the resulting match strings.
 
-    GrowableFixedArray array(this);
+    GrowableFixedArray array(state());
 
     // Loop preparations. Within the loop, collect results from RegExpExec
     // and store match strings in the array.
@@ -2052,7 +1906,7 @@ void RegExpBuiltinsAssembler::RegExpPrototypeMatchBody(Node* const context,
 
         // Store the match, growing the fixed array if needed.
 
-        array.Push(match);
+        array.Push(CAST(match));
 
         // Advance last index if the match is the empty string.
 
@@ -2087,7 +1941,7 @@ void RegExpBuiltinsAssembler::RegExpPrototypeMatchBody(Node* const context,
     {
       // Wrap the match in a JSArray.
 
-      Node* const result = array.ToJSArray(context);
+      Node* const result = array.ToJSArray(CAST(context));
       Return(result);
     }
   }
@@ -2343,7 +2197,7 @@ void RegExpBuiltinsAssembler::RegExpPrototypeSplitBody(Node* const context,
 
   // Loop preparations.
 
-  GrowableFixedArray array(this);
+  GrowableFixedArray array(state());
 
   VARIABLE(var_last_matched_until, MachineRepresentation::kTagged);
   VARIABLE(var_next_search_from, MachineRepresentation::kTagged);
@@ -2423,7 +2277,7 @@ void RegExpBuiltinsAssembler::RegExpPrototypeSplitBody(Node* const context,
       Node* const from = last_matched_until;
       Node* const to = match_from;
 
-      Node* const substr = SubString(context, string, from, to);
+      TNode<String> const substr = CAST(SubString(context, string, from, to));
       array.Push(substr);
 
       GotoIf(WordEqual(array.length(), int_limit), &out);
@@ -2476,7 +2330,7 @@ void RegExpBuiltinsAssembler::RegExpPrototypeSplitBody(Node* const context,
 
         BIND(&store_value);
         {
-          array.Push(var_value.value());
+          array.Push(CAST(var_value.value()));
           GotoIf(WordEqual(array.length(), int_limit), &out);
 
           Node* const new_reg = IntPtrAdd(reg, IntPtrConstant(2));
@@ -2500,7 +2354,7 @@ void RegExpBuiltinsAssembler::RegExpPrototypeSplitBody(Node* const context,
     Node* const from = var_last_matched_until.value();
     Node* const to = string_length;
 
-    Node* const substr = SubString(context, string, from, to);
+    TNode<String> const substr = CAST(SubString(context, string, from, to));
     array.Push(substr);
 
     Goto(&out);
@@ -2508,7 +2362,7 @@ void RegExpBuiltinsAssembler::RegExpPrototypeSplitBody(Node* const context,
 
   BIND(&out);
   {
-    Node* const result = array.ToJSArray(context);
+    Node* const result = array.ToJSArray(CAST(context));
     Return(result);
   }
 
