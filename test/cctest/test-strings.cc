@@ -1505,7 +1505,7 @@ static uint16_t ConvertLatin1(uint16_t c) {
 #ifndef V8_INTL_SUPPORT
 static void CheckCanonicalEquivalence(uint16_t c, uint16_t test) {
   uint16_t expect = ConvertLatin1<unibrow::Ecma262UnCanonicalize, true>(c);
-  if (expect > unibrow::Latin1::kMaxChar) expect = 0;
+  if (expect > unibrow::Latin1::kMaxChar || expect == 0) expect = c;
   CHECK_EQ(expect, test);
 }
 
@@ -1514,7 +1514,7 @@ TEST(Latin1IgnoreCase) {
   for (uint16_t c = unibrow::Latin1::kMaxChar + 1; c != 0; c++) {
     uint16_t lower = ConvertLatin1<unibrow::ToLowercase, false>(c);
     uint16_t upper = ConvertLatin1<unibrow::ToUppercase, false>(c);
-    uint16_t test = unibrow::Latin1::ConvertNonLatin1ToLatin1(c);
+    uint16_t test = unibrow::Latin1::TryConvertToLatin1(c);
     // Filter out all character whose upper is not their lower or vice versa.
     if (lower == 0 && upper == 0) {
       CheckCanonicalEquivalence(c, test);
