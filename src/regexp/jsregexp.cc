@@ -2768,13 +2768,16 @@ RegExpNode* TextNode::FilterOneByte(int depth) {
       Vector<const uc16> quarks = elm.atom()->data();
       for (int j = 0; j < quarks.length(); j++) {
         uint16_t c = quarks[j];
-        if (elm.atom()->ignore_case()) {
-          c = unibrow::Latin1::TryConvertToLatin1(c);
-        }
-        if (c > unibrow::Latin1::kMaxChar) return set_replacement(nullptr);
-        // Replace quark in case we converted to Latin-1.
-        uint16_t* writable_quarks = const_cast<uint16_t*>(quarks.start());
-        writable_quarks[j] = c;
+        if (c <= String::kMaxOneByteCharCode) continue;
+        if (!IgnoreCase(elm.atom()->flags())) return set_replacement(nullptr);
+        // Here, we need to check for characters whose upper and lower cases
+        // are outside the Latin-1 range.
+        uint16_t converted = unibrow::Latin1::ConvertNonLatin1ToLatin1(c);
+        // Character is outside Latin-1 completely
+        if (converted == 0) return set_replacement(nullptr);
+        // Convert quark to Latin-1 in place.
+        uint16_t* copy = const_cast<uint16_t*>(quarks.start());
+        copy[j] = converted;
       }
     } else {
       DCHECK(elm.text_type() == TextElement::CHAR_CLASS);
@@ -3206,17 +3209,10 @@ void TextNode::TextEmitPass(RegExpCompiler* compiler,
         if (first_element_checked && i == 0 && j == 0) continue;
         if (DeterminedAlready(quick_check, elm.cp_offset() + j)) continue;
         EmitCharacterFunction* emit_function = nullptr;
-        uc16 quark = quarks[j];
-        if (elm.atom()->ignore_case()) {
-          // Everywhere else we assume that a non-Latin-1 character cannot match
-          // a Latin-1 character. Avoid the cases where this is assumption is
-          // invalid by using the Latin1 equivalent instead.
-          quark = unibrow::Latin1::TryConvertToLatin1(quark);
-        }
         switch (pass) {
           case NON_LATIN1_MATCH:
             DCHECK(one_byte);
-            if (quark > String::kMaxOneByteCharCode) {
+            if (quarks[j] > String::kMaxOneByteCharCode) {
               assembler->GoTo(backtrack);
               return;
             }
@@ -3236,8 +3232,8 @@ void TextNode::TextEmitPass(RegExpCompiler* compiler,
         if (emit_function != nullptr) {
           bool bounds_check = *checked_up_to < cp_offset + j || read_backward();
           bool bound_checked =
-              emit_function(isolate, compiler, quark, backtrack, cp_offset + j,
-                            bounds_check, preloaded);
+              emit_function(isolate, compiler, quarks[j], backtrack,
+                            cp_offset + j, bounds_check, preloaded);
           if (bound_checked) UpdateBoundsCheck(cp_offset + j, checked_up_to);
         }
       }

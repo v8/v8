@@ -93,11 +93,15 @@ size_t Utf8Decoder<kBufferSize>::WriteUtf16(uint16_t* data,
 class Latin1 {
  public:
   static const unsigned kMaxChar = 0xff;
-  // Convert the character to Latin-1 case equivalent if possible.
-  static inline uint16_t TryConvertToLatin1(uint16_t);
+  // Returns 0 if character does not convert to single latin-1 character
+  // or if the character doesn't not convert back to latin-1 via inverse
+  // operation (upper to lower, etc).
+  static inline uint16_t ConvertNonLatin1ToLatin1(uint16_t);
 };
 
-uint16_t Latin1::TryConvertToLatin1(uint16_t c) {
+
+uint16_t Latin1::ConvertNonLatin1ToLatin1(uint16_t c) {
+  DCHECK_GT(c, Latin1::kMaxChar);
   switch (c) {
     // This are equivalent characters in unicode.
     case 0x39c:
@@ -108,7 +112,7 @@ uint16_t Latin1::TryConvertToLatin1(uint16_t c) {
     case 0x178:
       return 0xff;
   }
-  return c;
+  return 0;
 }
 
 
