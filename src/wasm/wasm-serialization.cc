@@ -737,6 +737,7 @@ MaybeHandle<WasmCompiledModule> DeserializeNativeModule(
       export_wrappers, std::vector<wasm::GlobalHandleAddress>(),
       trap_handler::IsTrapHandlerEnabled());
   compiled_module->OnWasmModuleDecodingComplete(shared);
+  script->set_wasm_compiled_module(*compiled_module);
   NativeModuleDeserializer deserializer(isolate,
                                         compiled_module->GetNativeModule());
   if (!deserializer.Read(data)) return {};
