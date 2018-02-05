@@ -18,13 +18,15 @@ namespace wasm {
 
 static constexpr bool kNeedI64RegPair = kPointerSize == 4;
 
-enum RegClass {
+enum RegClass : uint8_t {
   kGpReg,
   kFpReg,
   // {kGpRegPair} equals {kNoReg} if {kNeedI64RegPair} is false.
   kGpRegPair,
   kNoReg = kGpRegPair + kNeedI64RegPair
 };
+
+enum RegPairHalf : uint8_t { kLowWord, kHighWord };
 
 // TODO(clemensh): Use a switch once we require C++14 support.
 static inline constexpr RegClass reg_class_for(ValueType type) {
@@ -58,10 +60,11 @@ static constexpr int kBitsPerLiftoffRegCode =
     32 - base::bits::CountLeadingZeros<uint32_t>(kAfterMaxLiftoffRegCode - 1);
 static constexpr int kBitsPerGpRegCode =
     32 - base::bits::CountLeadingZeros<uint32_t>(kMaxGpRegCode);
+static constexpr int kBitsPerGpRegPair = 1 + 2 * kBitsPerGpRegCode;
 
 class LiftoffRegister {
   static constexpr int needed_bits =
-      kNeedI64RegPair ? 1 + 2 * kBitsPerGpRegCode : kBitsPerLiftoffRegCode;
+      Max(kNeedI64RegPair ? kBitsPerGpRegPair : 0, kBitsPerLiftoffRegCode);
   using storage_t = std::conditional<
       needed_bits <= 8, uint8_t,
       std::conditional<needed_bits <= 16, uint16_t, uint32_t>::type>::type;
@@ -96,11 +99,11 @@ class LiftoffRegister {
     }
   }
 
-  static LiftoffRegister ForPair(LiftoffRegister reg1, LiftoffRegister reg2) {
+  static LiftoffRegister ForPair(LiftoffRegister low, LiftoffRegister high) {
     DCHECK(kNeedI64RegPair);
-    DCHECK_NE(reg1, reg2);
-    storage_t combined_code = reg1.liftoff_code() |
-                              reg2.liftoff_code() << kBitsPerGpRegCode |
+    DCHECK_NE(low, high);
+    storage_t combined_code = low.gp().code() |
+                              high.gp().code() << kBitsPerGpRegCode |
                               1 << (2 * kBitsPerGpRegCode);
     return LiftoffRegister(combined_code);
   }

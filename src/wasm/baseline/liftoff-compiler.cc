@@ -616,7 +616,10 @@ class LiftoffCompiler {
   }
 
   void I64Const(Decoder* decoder, Value* result, int64_t value) {
-    unsupported(decoder, "i64.const");
+    LiftoffRegister reg = __ GetUnusedRegister(reg_class_for(kWasmI64));
+    __ LoadConstant(reg, WasmValue(value));
+    __ PushRegister(kWasmI64, reg);
+    CheckStackSizeLimit(decoder);
   }
 
   void F32Const(Decoder* decoder, Value* result, float value) {
@@ -996,6 +999,10 @@ class LiftoffCompiler {
 
     compiler::CallDescriptor* call_desc =
         compiler::GetWasmCallDescriptor(compilation_zone_, operand.sig);
+    if (kPointerSize == 4) {
+      call_desc =
+          compiler::GetI32WasmCallDescriptor(compilation_zone_, call_desc);
+    }
 
     uint32_t max_used_spill_slot = 0;
     __ PrepareCall(operand.sig, call_desc, &max_used_spill_slot);
@@ -1117,6 +1124,10 @@ class LiftoffCompiler {
 
     compiler::CallDescriptor* call_desc =
         compiler::GetWasmCallDescriptor(compilation_zone_, operand.sig);
+    if (kPointerSize == 4) {
+      call_desc =
+          compiler::GetI32WasmCallDescriptor(compilation_zone_, call_desc);
+    }
 
     uint32_t max_used_spill_slot = 0;
     __ CallIndirect(operand.sig, call_desc, scratch.gp(), &max_used_spill_slot);

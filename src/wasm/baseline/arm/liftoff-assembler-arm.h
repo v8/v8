@@ -76,6 +76,10 @@ void LiftoffAssembler::Fill(LiftoffRegister reg, uint32_t index,
   UNIMPLEMENTED();
 }
 
+void LiftoffAssembler::FillI64Half(Register, uint32_t half_index) {
+  UNREACHABLE();
+}
+
 #define UNIMPLEMENTED_GP_BINOP(name)                             \
   void LiftoffAssembler::emit_##name(Register dst, Register lhs, \
                                      Register rhs) {             \
@@ -147,7 +151,8 @@ void LiftoffAssembler::AssertUnreachable(AbortReason reason) {
 }
 
 void LiftoffAssembler::PushCallerFrameSlot(const VarState& src,
-                                           uint32_t src_index) {
+                                           uint32_t src_index,
+                                           RegPairHalf half) {
   UNIMPLEMENTED();
 }
 

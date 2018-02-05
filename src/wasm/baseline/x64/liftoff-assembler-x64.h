@@ -284,6 +284,10 @@ void LiftoffAssembler::Fill(LiftoffRegister reg, uint32_t index,
   }
 }
 
+void LiftoffAssembler::FillI64Half(Register, uint32_t half_index) {
+  UNREACHABLE();
+}
+
 void LiftoffAssembler::emit_i32_add(Register dst, Register lhs, Register rhs) {
   if (lhs != dst) {
     leal(dst, Operand(lhs, rhs, times_1, 0));
@@ -502,7 +506,7 @@ void LiftoffAssembler::AssertUnreachable(AbortReason reason) {
 }
 
 void LiftoffAssembler::PushCallerFrameSlot(const VarState& src,
-                                           uint32_t src_index) {
+                                           uint32_t src_index, RegPairHalf) {
   switch (src.loc()) {
     case VarState::kStack:
       pushq(liftoff::GetStackSlot(src_index));
