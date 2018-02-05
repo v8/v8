@@ -232,10 +232,7 @@ TEST(GenerateTestFunctionData) {
 #elif V8_TARGET_ARCH_S390
   Assembler masm(isolate, nullptr, 0);
 
-  __ lhi(r1, Operand(3));
-  __ llilf(r2, Operand(4));
-  __ lgr(r2, r2);
-  __ ar(r2, r1);
+  __ agr(r2, r3);
   __ b(r14);
 #else  // Unknown architecture.
 #error "Unknown architecture."
