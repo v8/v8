@@ -3254,9 +3254,8 @@ void CodeGenerator::AssembleArchLookupSwitch(Instruction* instr) {
   Register input = i.InputRegister(0);
   for (size_t index = 2; index < instr->InputCount(); index += 2) {
     __ li(at, Operand(i.InputInt32(index + 0)));
-    __ beq(input, at, GetLabel(i.InputRpo(index + 1)));
+    __ Branch(GetLabel(i.InputRpo(index + 1)), eq, input, Operand(at));
   }
-  __ nop();  // Branch delay slot of the last beq.
   AssembleArchJump(i.InputRpo(1));
 }
 
