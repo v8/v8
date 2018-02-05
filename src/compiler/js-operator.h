@@ -651,9 +651,10 @@ class V8_EXPORT_PRIVATE JSOperatorBuilder final
   const Operator* CreateArguments(CreateArgumentsType type);
   const Operator* CreateArray(size_t arity, Handle<AllocationSite> site);
   const Operator* CreateBoundFunction(size_t arity, Handle<Map> map);
-  const Operator* CreateClosure(Handle<SharedFunctionInfo> shared_info,
-                                VectorSlotPair const& feedback,
-                                PretenureFlag pretenure);
+  const Operator* CreateClosure(
+      Handle<SharedFunctionInfo> shared_info,
+      VectorSlotPair const& feedback = VectorSlotPair(),
+      PretenureFlag pretenure = NOT_TENURED);
   const Operator* CreateIterResultObject();
   const Operator* CreateKeyValueArray();
   const Operator* CreatePromise();

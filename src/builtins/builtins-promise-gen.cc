@@ -612,6 +612,62 @@ void PromiseBuiltinsAssembler::PromiseFulfill(
   }
 }
 
+template <typename... TArgs>
+Node* PromiseBuiltinsAssembler::InvokeThen(Node* native_context, Node* receiver,
+                                           TArgs... args) {
+  CSA_ASSERT(this, IsNativeContext(native_context));
+
+  VARIABLE(var_result, MachineRepresentation::kTagged);
+  Label if_fast(this), if_slow(this, Label::kDeferred), done(this, &var_result);
+  GotoIf(TaggedIsSmi(receiver), &if_slow);
+  Node* const receiver_map = LoadMap(receiver);
+  // We can skip the "then" lookup on {receiver} if it's [[Prototype]]
+  // is the (initial) Promise.prototype and the Promise#then protector
+  // is intact, as that guards the lookup path for the "then" property
+  // on JSPromise instances which have the (initial) %PromisePrototype%.
+  BranchIfPromiseThenLookupChainIntact(native_context, receiver_map, &if_fast,
+                                       &if_slow);
+
+  BIND(&if_fast);
+  {
+    Node* const then =
+        LoadContextElement(native_context, Context::PROMISE_THEN_INDEX);
+    Node* const result =
+        CallJS(CodeFactory::CallFunction(
+                   isolate(), ConvertReceiverMode::kNotNullOrUndefined),
+               native_context, then, receiver, args...);
+    var_result.Bind(result);
+    Goto(&done);
+  }
+
+  BIND(&if_slow);
+  {
+    Node* const then = GetProperty(native_context, receiver,
+                                   isolate()->factory()->then_string());
+    Node* const result = CallJS(
+        CodeFactory::Call(isolate(), ConvertReceiverMode::kNotNullOrUndefined),
+        native_context, then, receiver, args...);
+    var_result.Bind(result);
+    Goto(&done);
+  }
+
+  BIND(&done);
+  return var_result.value();
+}
+
+void PromiseBuiltinsAssembler::BranchIfPromiseSpeciesLookupChainIntact(
+    Node* native_context, Node* promise_map, Label* if_fast, Label* if_slow) {
+  CSA_ASSERT(this, IsNativeContext(native_context));
+  CSA_ASSERT(this, IsJSPromiseMap(promise_map));
+
+  Node* const promise_prototype =
+      LoadContextElement(native_context, Context::PROMISE_PROTOTYPE_INDEX);
+  GotoIfForceSlowPath(if_slow);
+  GotoIfNot(WordEqual(LoadMapPrototype(promise_map), promise_prototype),
+            if_slow);
+  Branch(IsSpeciesProtectorCellInvalid(), if_slow, if_fast);
+}
+
 void PromiseBuiltinsAssembler::BranchIfPromiseThenLookupChainIntact(
     Node* native_context, Node* receiver_map, Label* if_fast, Label* if_slow) {
   CSA_ASSERT(this, IsMap(receiver_map));
@@ -907,13 +963,9 @@ TF_BUILTIN(PromisePrototypeThen, PromiseBuiltinsAssembler) {
   Node* const native_context = LoadNativeContext(context);
   Node* const promise_fun =
       LoadContextElement(native_context, Context::PROMISE_FUNCTION_INDEX);
-  Node* const promise_prototype =
-      LoadContextElement(native_context, Context::PROMISE_PROTOTYPE_INDEX);
   Node* const promise_map = LoadMap(promise);
-  GotoIfNot(WordEqual(LoadMapPrototype(promise_map), promise_prototype),
-            &slow_constructor);
-  Branch(IsSpeciesProtectorCellInvalid(), &slow_constructor,
-         &fast_promise_capability);
+  BranchIfPromiseSpeciesLookupChainIntact(
+      native_context, promise_map, &fast_promise_capability, &slow_constructor);
 
   BIND(&slow_constructor);
   Node* const constructor =
@@ -1015,38 +1067,8 @@ TF_BUILTIN(PromisePrototypeCatch, PromiseBuiltinsAssembler) {
   Node* const context = Parameter(Descriptor::kContext);
 
   // 2. Return ? Invoke(promise, "then", « undefined, onRejected »).
-  VARIABLE(var_then, MachineRepresentation::kTagged);
-  Label if_fast(this), if_slow(this, Label::kDeferred), done(this);
-  GotoIf(TaggedIsSmi(receiver), &if_slow);
-  Node* const receiver_map = LoadMap(receiver);
-  // We can skip the "then" lookup on {receiver} if it's [[Prototype]]
-  // is the (initial) Promise.prototype and the Promise#then protector
-  // is intact, as that guards the lookup path for the "then" property
-  // on JSPromise instances which have the (initial) %PromisePrototype%.
   Node* const native_context = LoadNativeContext(context);
-  BranchIfPromiseThenLookupChainIntact(native_context, receiver_map, &if_fast,
-                                       &if_slow);
-
-  BIND(&if_fast);
-  {
-    var_then.Bind(
-        LoadContextElement(native_context, Context::PROMISE_THEN_INDEX));
-    Goto(&done);
-  }
-
-  BIND(&if_slow);
-  {
-    var_then.Bind(
-        GetProperty(context, receiver, isolate()->factory()->then_string()));
-    Goto(&done);
-  }
-
-  BIND(&done);
-  Node* const then = var_then.value();
-  Node* const result = CallJS(
-      CodeFactory::Call(isolate(), ConvertReceiverMode::kNotNullOrUndefined),
-      context, then, receiver, on_fulfilled, on_rejected);
-  Return(result);
+  Return(InvokeThen(native_context, receiver, on_fulfilled, on_rejected));
 }
 
 // ES section #sec-promiseresolvethenablejob
@@ -1461,16 +1483,11 @@ TF_BUILTIN(PromiseThenFinally, PromiseBuiltinsAssembler) {
     CallBuiltin(Builtins::kPromiseResolve, context, constructor, result);
 
   // 7. Let valueThunk be equivalent to a function that returns value.
-  Node* native_context = LoadNativeContext(context);
+  Node* const native_context = LoadNativeContext(context);
   Node* const value_thunk = CreateValueThunkFunction(value, native_context);
 
   // 8. Return ? Invoke(promise, "then", « valueThunk »).
-  Node* const promise_then =
-    GetProperty(context, promise, factory()->then_string());
-  Node* const result_promise = CallJS(
-      CodeFactory::Call(isolate(), ConvertReceiverMode::kNotNullOrUndefined),
-      context, promise_then, promise, value_thunk);
-  Return(result_promise);
+  Return(InvokeThen(native_context, promise, value_thunk));
 }
 
 TF_BUILTIN(PromiseThrowerFinally, PromiseBuiltinsAssembler) {
@@ -1523,35 +1540,44 @@ TF_BUILTIN(PromiseCatchFinally, PromiseBuiltinsAssembler) {
     CallBuiltin(Builtins::kPromiseResolve, context, constructor, result);
 
   // 7. Let thrower be equivalent to a function that throws reason.
-  Node* native_context = LoadNativeContext(context);
+  Node* const native_context = LoadNativeContext(context);
   Node* const thrower = CreateThrowerFunction(reason, native_context);
 
   // 8. Return ? Invoke(promise, "then", « thrower »).
-  Node* const promise_then =
-    GetProperty(context, promise, factory()->then_string());
-  Node* const result_promise = CallJS(
-      CodeFactory::Call(isolate(), ConvertReceiverMode::kNotNullOrUndefined),
-      context, promise_then, promise, thrower);
-  Return(result_promise);
+  Return(InvokeThen(native_context, promise, thrower));
 }
 
 TF_BUILTIN(PromisePrototypeFinally, PromiseBuiltinsAssembler) {
   CSA_ASSERT_JS_ARGC_EQ(this, 1);
 
   // 1.  Let promise be the this value.
-  Node* const promise = Parameter(Descriptor::kReceiver);
+  Node* const receiver = Parameter(Descriptor::kReceiver);
   Node* const on_finally = Parameter(Descriptor::kOnFinally);
   Node* const context = Parameter(Descriptor::kContext);
 
   // 2. If Type(promise) is not Object, throw a TypeError exception.
-  ThrowIfNotJSReceiver(context, promise, MessageTemplate::kCalledOnNonObject,
+  ThrowIfNotJSReceiver(context, receiver, MessageTemplate::kCalledOnNonObject,
                        "Promise.prototype.finally");
 
   // 3. Let C be ? SpeciesConstructor(promise, %Promise%).
   Node* const native_context = LoadNativeContext(context);
   Node* const promise_fun =
       LoadContextElement(native_context, Context::PROMISE_FUNCTION_INDEX);
-  Node* const constructor = SpeciesConstructor(context, promise, promise_fun);
+  VARIABLE(var_constructor, MachineRepresentation::kTagged, promise_fun);
+  Label slow_constructor(this, Label::kDeferred), done_constructor(this);
+  Node* const receiver_map = LoadMap(receiver);
+  GotoIfNot(IsJSPromiseMap(receiver_map), &slow_constructor);
+  BranchIfPromiseSpeciesLookupChainIntact(native_context, receiver_map,
+                                          &done_constructor, &slow_constructor);
+  BIND(&slow_constructor);
+  {
+    Node* const constructor =
+        SpeciesConstructor(context, receiver, promise_fun);
+    var_constructor.Bind(constructor);
+    Goto(&done_constructor);
+  }
+  BIND(&done_constructor);
+  Node* const constructor = var_constructor.value();
 
   // 4. Assert: IsConstructor(C) is true.
   CSA_ASSERT(this, IsConstructor(constructor));
@@ -1593,13 +1619,8 @@ TF_BUILTIN(PromisePrototypeFinally, PromiseBuiltinsAssembler) {
 
   // 7. Return ? Invoke(promise, "then", « thenFinally, catchFinally »).
   BIND(&perform_finally);
-  Node* const promise_then =
-    GetProperty(context, promise, factory()->then_string());
-  Node* const result_promise = CallJS(
-      CodeFactory::Call(isolate(), ConvertReceiverMode::kNotNullOrUndefined),
-      context, promise_then, promise, var_then_finally.value(),
-      var_catch_finally.value());
-  Return(result_promise);
+  Return(InvokeThen(native_context, receiver, var_then_finally.value(),
+                    var_catch_finally.value()));
 }
 
 TF_BUILTIN(ResolveNativePromise, PromiseBuiltinsAssembler) {

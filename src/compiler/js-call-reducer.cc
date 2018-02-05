@@ -5,6 +5,7 @@
 #include "src/compiler/js-call-reducer.h"
 
 #include "src/api.h"
+#include "src/builtins/builtins-promise-gen.h"
 #include "src/builtins/builtins-utils.h"
 #include "src/code-factory.h"
 #include "src/code-stubs.h"
@@ -2968,6 +2969,8 @@ Reduction JSCallReducer::ReduceJSCall(Node* node) {
           return ReduceAsyncFunctionPromiseRelease(node);
         case Builtins::kPromisePrototypeCatch:
           return ReducePromisePrototypeCatch(node);
+        case Builtins::kPromisePrototypeFinally:
+          return ReducePromisePrototypeFinally(node);
         case Builtins::kPromisePrototypeThen:
           return ReducePromisePrototypeThen(node);
         default:
@@ -3932,6 +3935,7 @@ Reduction JSCallReducer::ReduceAsyncFunctionPromiseRelease(Node* node) {
   return Replace(value);
 }
 
+// ES section #sec-promise.prototype.catch
 Reduction JSCallReducer::ReducePromisePrototypeCatch(Node* node) {
   DCHECK_EQ(IrOpcode::kJSCall, node->opcode());
   CallParameters const& p = CallParametersOf(node->op());
@@ -3991,7 +3995,150 @@ Reduction JSCallReducer::ReducePromisePrototypeCatch(Node* node) {
       node, javascript()->Call(2 + arity, p.frequency(), p.feedback(),
                                ConvertReceiverMode::kNotNullOrUndefined,
                                p.speculation_mode()));
-  return Changed(node);
+  Reduction const reduction = ReducePromisePrototypeThen(node);
+  return reduction.Changed() ? reduction : Changed(node);
+}
+
+// ES section #sec-promise.prototype.finally
+Reduction JSCallReducer::ReducePromisePrototypeFinally(Node* node) {
+  DCHECK_EQ(IrOpcode::kJSCall, node->opcode());
+  CallParameters const& p = CallParametersOf(node->op());
+  int arity = static_cast<int>(p.arity() - 2);
+  Node* receiver = NodeProperties::GetValueInput(node, 1);
+  Node* on_finally = arity >= 1 ? NodeProperties::GetValueInput(node, 2)
+                                : jsgraph()->UndefinedConstant();
+  Node* effect = NodeProperties::GetEffectInput(node);
+  Node* control = NodeProperties::GetControlInput(node);
+  if (p.speculation_mode() == SpeculationMode::kDisallowSpeculation) {
+    return NoChange();
+  }
+
+  // Check that promises aren't being observed through (debug) hooks.
+  if (!isolate()->IsPromiseHookProtectorIntact()) return NoChange();
+
+  // Check that the Promise#then protector is intact. This protector guards
+  // that all JSPromise instances whose [[Prototype]] is the initial
+  // %PromisePrototype% yield the initial %PromisePrototype%.then method
+  // when looking up "then".
+  if (!isolate()->IsPromiseThenLookupChainIntact()) return NoChange();
+
+  // Also check that the @@species protector is intact, which guards the
+  // lookup of "constructor" on JSPromise instances, whoch [[Prototype]] is
+  // the initial %PromisePrototype%, and the Symbol.species lookup on the
+  // %PromisePrototype%.
+  if (!isolate()->IsSpeciesLookupChainIntact()) return NoChange();
+
+  // Check if we know something about {receiver} already.
+  ZoneHandleSet<Map> receiver_maps;
+  NodeProperties::InferReceiverMapsResult result =
+      NodeProperties::InferReceiverMaps(receiver, effect, &receiver_maps);
+  if (result == NodeProperties::kNoReceiverMaps) return NoChange();
+  DCHECK_NE(0, receiver_maps.size());
+
+  // Check whether all {receiver_maps} are JSPromise maps and
+  // have the initial Promise.prototype as their [[Prototype]].
+  for (Handle<Map> receiver_map : receiver_maps) {
+    if (!receiver_map->IsJSPromiseMap()) return NoChange();
+    if (receiver_map->prototype() != native_context()->promise_prototype()) {
+      return NoChange();
+    }
+  }
+
+  // Add a code dependency on the necessary protectors.
+  dependencies()->AssumePropertyCell(factory()->promise_hook_protector());
+  dependencies()->AssumePropertyCell(factory()->promise_then_protector());
+  dependencies()->AssumePropertyCell(factory()->species_protector());
+
+  // If the {receiver_maps} aren't reliable, we need to repeat the
+  // map check here, guarded by the CALL_IC.
+  if (result == NodeProperties::kUnreliableReceiverMaps) {
+    effect =
+        graph()->NewNode(simplified()->CheckMaps(CheckMapsFlag::kNone,
+                                                 receiver_maps, p.feedback()),
+                         receiver, effect, control);
+  }
+
+  // Check if {on_finally} is callable, and if so wrap it into appropriate
+  // closures that perform the finalization.
+  Node* check = graph()->NewNode(simplified()->ObjectIsCallable(), on_finally);
+  Node* branch =
+      graph()->NewNode(common()->Branch(BranchHint::kTrue), check, control);
+
+  Node* if_true = graph()->NewNode(common()->IfTrue(), branch);
+  Node* etrue = effect;
+  Node* catch_true;
+  Node* then_true;
+  {
+    Node* context = jsgraph()->HeapConstant(native_context());
+    Node* constructor = jsgraph()->HeapConstant(
+        handle(native_context()->promise_function(), isolate()));
+
+    // Allocate shared context for the closures below.
+    context = etrue = graph()->NewNode(
+        javascript()->CreateFunctionContext(
+            PromiseBuiltinsAssembler::kPromiseFinallyContextLength,
+            FUNCTION_SCOPE),
+        context, context, etrue, if_true);
+    etrue =
+        graph()->NewNode(simplified()->StoreField(AccessBuilder::ForContextSlot(
+                             PromiseBuiltinsAssembler::kOnFinallySlot)),
+                         context, on_finally, etrue, if_true);
+    etrue =
+        graph()->NewNode(simplified()->StoreField(AccessBuilder::ForContextSlot(
+                             PromiseBuiltinsAssembler::kConstructorSlot)),
+                         context, constructor, etrue, if_true);
+
+    // Allocate the closure for the reject case.
+    Handle<SharedFunctionInfo> catch_finally(
+        native_context()->promise_catch_finally_shared_fun(), isolate());
+    catch_true = etrue = graph()->NewNode(
+        javascript()->CreateClosure(catch_finally), context, etrue, if_true);
+
+    // Allocate the closure for the fulfill case.
+    Handle<SharedFunctionInfo> then_finally(
+        native_context()->promise_then_finally_shared_fun(), isolate());
+    then_true = etrue = graph()->NewNode(
+        javascript()->CreateClosure(then_finally), context, etrue, if_true);
+  }
+
+  Node* if_false = graph()->NewNode(common()->IfFalse(), branch);
+  Node* efalse = effect;
+  Node* catch_false = on_finally;
+  Node* then_false = on_finally;
+
+  control = graph()->NewNode(common()->Merge(2), if_true, if_false);
+  effect = graph()->NewNode(common()->EffectPhi(2), etrue, efalse, control);
+  Node* catch_finally =
+      graph()->NewNode(common()->Phi(MachineRepresentation::kTagged, 2),
+                       catch_true, catch_false, control);
+  Node* then_finally =
+      graph()->NewNode(common()->Phi(MachineRepresentation::kTagged, 2),
+                       then_true, then_false, control);
+
+  // At this point we definitely know that {receiver} has one of the
+  // {receiver_maps}, so insert a MapGuard as a hint for the lowering
+  // of the call to "then" below.
+  effect = graph()->NewNode(simplified()->MapGuard(receiver_maps), receiver,
+                            effect, control);
+
+  // Massage the {node} to call "then" instead by first removing all inputs
+  // following the onFinally parameter, and then replacing the only parameter
+  // input with the {on_finally} value.
+  Node* target = jsgraph()->Constant(handle(native_context()->promise_then()));
+  NodeProperties::ReplaceValueInput(node, target, 0);
+  NodeProperties::ReplaceEffectInput(node, effect);
+  NodeProperties::ReplaceControlInput(node, control);
+  for (; arity > 2; --arity) node->RemoveInput(2);
+  for (; arity < 2; ++arity)
+    node->InsertInput(graph()->zone(), 2, then_finally);
+  node->ReplaceInput(2, then_finally);
+  node->ReplaceInput(3, catch_finally);
+  NodeProperties::ChangeOp(
+      node, javascript()->Call(2 + arity, p.frequency(), p.feedback(),
+                               ConvertReceiverMode::kNotNullOrUndefined,
+                               p.speculation_mode()));
+  Reduction const reduction = ReducePromisePrototypeThen(node);
+  return reduction.Changed() ? reduction : Changed(node);
 }
 
 Reduction JSCallReducer::ReducePromisePrototypeThen(Node* node) {

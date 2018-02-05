@@ -901,49 +901,59 @@ Reduction JSCreateLowering::ReduceJSCreateClosure(Node* node) {
   Node* effect = NodeProperties::GetEffectInput(node);
   Node* control = NodeProperties::GetControlInput(node);
   Node* context = NodeProperties::GetContextInput(node);
+  Node* feedback_vector = jsgraph()->UndefinedConstant();
 
   // Use inline allocation of closures only for instantiation sites that have
   // seen more than one instantiation, this simplifies the generated code and
   // also serves as a heuristic of which allocation sites benefit from it.
-  FeedbackSlot slot(FeedbackVector::ToSlot(p.feedback().index()));
-  Handle<Cell> vector_cell(Cell::cast(p.feedback().vector()->Get(slot)));
-  if (vector_cell->map() == isolate()->heap()->many_closures_cell_map()) {
-    Handle<Map> function_map(
-        Map::cast(native_context()->get(shared->function_map_index())));
-    Node* lazy_compile_builtin = jsgraph()->HeapConstant(
-        handle(isolate()->builtins()->builtin(Builtins::kCompileLazy)));
-    DCHECK(!function_map->IsInobjectSlackTrackingInProgress());
-    DCHECK(!function_map->is_dictionary_map());
-
-    // Emit code to allocate the JSFunction instance.
-    STATIC_ASSERT(JSFunction::kSizeWithoutPrototype == 7 * kPointerSize);
-    AllocationBuilder a(jsgraph(), effect, control);
-    a.Allocate(function_map->instance_size());
-    a.Store(AccessBuilder::ForMap(), function_map);
-    a.Store(AccessBuilder::ForJSObjectPropertiesOrHash(),
-            jsgraph()->EmptyFixedArrayConstant());
-    a.Store(AccessBuilder::ForJSObjectElements(),
-            jsgraph()->EmptyFixedArrayConstant());
-    a.Store(AccessBuilder::ForJSFunctionSharedFunctionInfo(), shared);
-    a.Store(AccessBuilder::ForJSFunctionContext(), context);
-    a.Store(AccessBuilder::ForJSFunctionFeedbackVector(), vector_cell);
-    a.Store(AccessBuilder::ForJSFunctionCode(), lazy_compile_builtin);
-    STATIC_ASSERT(JSFunction::kSizeWithoutPrototype == 7 * kPointerSize);
-    if (function_map->has_prototype_slot()) {
-      a.Store(AccessBuilder::ForJSFunctionPrototypeOrInitialMap(),
-              jsgraph()->TheHoleConstant());
-      STATIC_ASSERT(JSFunction::kSizeWithPrototype == 8 * kPointerSize);
+  if (p.feedback().IsValid()) {
+    FeedbackSlot slot(FeedbackVector::ToSlot(p.feedback().index()));
+    Handle<Cell> vector_cell(Cell::cast(p.feedback().vector()->Get(slot)));
+    if (vector_cell->map() != isolate()->heap()->many_closures_cell_map()) {
+      return NoChange();
     }
-    for (int i = 0; i < function_map->GetInObjectProperties(); i++) {
-      a.Store(AccessBuilder::ForJSObjectInObjectProperty(function_map, i),
-              jsgraph()->UndefinedConstant());
-    }
-    RelaxControls(node);
-    a.FinishAndChange(node);
-    return Changed(node);
+    feedback_vector = jsgraph()->HeapConstant(vector_cell);
+  } else {
+    // CreateClosure without a feedback vector is only allowed for
+    // native (builtin) functions.
+    DCHECK(shared->native());
   }
 
-  return NoChange();
+  Handle<Map> function_map(
+      Map::cast(native_context()->get(shared->function_map_index())));
+  Node* lazy_compile_builtin = jsgraph()->HeapConstant(handle(
+      shared->native() ? shared->code()
+                       : isolate()->builtins()->builtin(Builtins::kCompileLazy),
+      isolate()));
+  DCHECK(!function_map->IsInobjectSlackTrackingInProgress());
+  DCHECK(!function_map->is_dictionary_map());
+
+  // Emit code to allocate the JSFunction instance.
+  STATIC_ASSERT(JSFunction::kSizeWithoutPrototype == 7 * kPointerSize);
+  AllocationBuilder a(jsgraph(), effect, control);
+  a.Allocate(function_map->instance_size(), p.pretenure(), Type::Function());
+  a.Store(AccessBuilder::ForMap(), function_map);
+  a.Store(AccessBuilder::ForJSObjectPropertiesOrHash(),
+          jsgraph()->EmptyFixedArrayConstant());
+  a.Store(AccessBuilder::ForJSObjectElements(),
+          jsgraph()->EmptyFixedArrayConstant());
+  a.Store(AccessBuilder::ForJSFunctionSharedFunctionInfo(), shared);
+  a.Store(AccessBuilder::ForJSFunctionContext(), context);
+  a.Store(AccessBuilder::ForJSFunctionFeedbackVector(), feedback_vector);
+  a.Store(AccessBuilder::ForJSFunctionCode(), lazy_compile_builtin);
+  STATIC_ASSERT(JSFunction::kSizeWithoutPrototype == 7 * kPointerSize);
+  if (function_map->has_prototype_slot()) {
+    a.Store(AccessBuilder::ForJSFunctionPrototypeOrInitialMap(),
+            jsgraph()->TheHoleConstant());
+    STATIC_ASSERT(JSFunction::kSizeWithPrototype == 8 * kPointerSize);
+  }
+  for (int i = 0; i < function_map->GetInObjectProperties(); i++) {
+    a.Store(AccessBuilder::ForJSObjectInObjectProperty(function_map, i),
+            jsgraph()->UndefinedConstant());
+  }
+  RelaxControls(node);
+  a.FinishAndChange(node);
+  return Changed(node);
 }
 
 Reduction JSCreateLowering::ReduceJSCreateIterResultObject(Node* node) {

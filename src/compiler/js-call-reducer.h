@@ -102,6 +102,7 @@ class JSCallReducer final : public AdvancedReducer {
   Reduction ReduceAsyncFunctionPromiseCreate(Node* node);
   Reduction ReduceAsyncFunctionPromiseRelease(Node* node);
   Reduction ReducePromisePrototypeCatch(Node* node);
+  Reduction ReducePromisePrototypeFinally(Node* node);
   Reduction ReducePromisePrototypeThen(Node* node);
 
   Reduction ReduceSoftDeoptimize(Node* node, DeoptimizeReason reason);
