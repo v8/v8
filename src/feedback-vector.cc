@@ -575,25 +575,29 @@ InlineCacheState FeedbackNexus::StateFromFeedback() const {
     case FeedbackSlotKind::kLoadKeyed: {
       if (feedback == *FeedbackVector::UninitializedSentinel(isolate)) {
         return UNINITIALIZED;
-      } else if (feedback == *FeedbackVector::MegamorphicSentinel(isolate)) {
+      }
+      if (feedback == *FeedbackVector::MegamorphicSentinel(isolate)) {
         return MEGAMORPHIC;
-      } else if (feedback == *FeedbackVector::PremonomorphicSentinel(isolate)) {
+      }
+      if (feedback == *FeedbackVector::PremonomorphicSentinel(isolate)) {
         return PREMONOMORPHIC;
-      } else if (feedback->IsFixedArray()) {
+      }
+      if (feedback->IsFixedArray()) {
         // Determine state purely by our structure, don't check if the maps are
         // cleared.
         return POLYMORPHIC;
-      } else if (feedback->IsWeakCell()) {
+      }
+      if (feedback->IsWeakCell()) {
         // Don't check if the map is cleared.
         return MONOMORPHIC;
-      } else if (feedback->IsName()) {
+      }
+      if (feedback->IsName()) {
         DCHECK(IsKeyedLoadICKind(kind()) || IsKeyedStoreICKind(kind()));
         Object* extra = GetFeedbackExtra();
         FixedArray* extra_array = FixedArray::cast(extra);
         return extra_array->length() > 2 ? POLYMORPHIC : MONOMORPHIC;
       }
-
-      return UNINITIALIZED;
+      UNREACHABLE();
     }
     case FeedbackSlotKind::kCall: {
       if (feedback == *FeedbackVector::MegamorphicSentinel(isolate)) {
