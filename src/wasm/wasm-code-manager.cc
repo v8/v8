@@ -833,6 +833,7 @@ std::unique_ptr<NativeModule> WasmCodeManager::NewNativeModule(
     return ret;
   }
 
+  V8::FatalProcessOutOfMemory("WasmCodeManager::NewNativeModule");
   return nullptr;
 }
 
