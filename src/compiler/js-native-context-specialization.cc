@@ -945,16 +945,6 @@ Reduction JSNativeContextSpecialization::ReduceNamedAccessFromNexus(
     return ReduceGlobalAccess(node, nullptr, value, name, access_mode);
   }
 
-  // Check if the {nexus} reports type feedback for the IC.
-  if (nexus.IsUninitialized()) {
-    if (flags() & kBailoutOnUninitialized) {
-      return ReduceSoftDeoptimize(
-          node,
-          DeoptimizeReason::kInsufficientTypeFeedbackForGenericNamedAccess);
-    }
-    return NoChange();
-  }
-
   // Extract receiver maps from the IC using the {nexus}.
   MapHandles receiver_maps;
   if (!ExtractReceiverMaps(receiver, effect, nexus, &receiver_maps)) {
@@ -967,6 +957,7 @@ Reduction JSNativeContextSpecialization::ReduceNamedAccessFromNexus(
     }
     return NoChange();
   }
+  DCHECK(!nexus.IsUninitialized());
 
   // Try to lower the named access based on the {receiver_maps}.
   return ReduceNamedAccess(node, value, receiver_maps, name, access_mode);
@@ -1353,16 +1344,6 @@ Reduction JSNativeContextSpecialization::ReduceKeyedAccess(
     }
   }
 
-  // Check if the {nexus} reports type feedback for the IC.
-  if (nexus.IsUninitialized()) {
-    if (flags() & kBailoutOnUninitialized) {
-      return ReduceSoftDeoptimize(
-          node,
-          DeoptimizeReason::kInsufficientTypeFeedbackForGenericKeyedAccess);
-    }
-    return NoChange();
-  }
-
   // Extract receiver maps from the {nexus}.
   MapHandles receiver_maps;
   if (!ExtractReceiverMaps(receiver, effect, nexus, &receiver_maps)) {
@@ -1375,6 +1356,7 @@ Reduction JSNativeContextSpecialization::ReduceKeyedAccess(
     }
     return NoChange();
   }
+  DCHECK(!nexus.IsUninitialized());
 
   // Optimize access for constant {index}.
   HeapObjectMatcher mindex(index);
@@ -2665,6 +2647,7 @@ bool JSNativeContextSpecialization::ExtractReceiverMaps(
     Node* receiver, Node* effect, FeedbackNexus const& nexus,
     MapHandles* receiver_maps) {
   DCHECK_EQ(0, receiver_maps->size());
+  if (nexus.IsUninitialized()) return true;
   // See if we can infer a concrete type for the {receiver}.
   if (InferReceiverMaps(receiver, effect, receiver_maps)) {
     // We can assume that the {receiver} still has the inferred {receiver_maps}.
