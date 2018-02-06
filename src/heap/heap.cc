@@ -2010,11 +2010,10 @@ int Heap::NumberOfScavengeTasks() {
   if (!FLAG_parallel_scavenge) return 1;
   const int num_scavenge_tasks =
       static_cast<int>(new_space()->TotalCapacity()) / MB;
-  return Max(
-      1,
-      Min(Min(num_scavenge_tasks, kMaxScavengerTasks),
-          static_cast<int>(
-              V8::GetCurrentPlatform()->NumberOfAvailableBackgroundThreads())));
+  static int num_cores =
+      1 + static_cast<int>(
+              V8::GetCurrentPlatform()->NumberOfAvailableBackgroundThreads());
+  return Max(1, Min(Min(num_scavenge_tasks, kMaxScavengerTasks), num_cores));
 }
 
 void Heap::Scavenge() {
