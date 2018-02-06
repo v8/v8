@@ -255,16 +255,6 @@ typedef ZoneVector<Node*> NodeVector;
 class WasmGraphBuilder {
  public:
   enum EnforceBoundsCheck : bool { kNeedsBoundsCheck, kCanOmitBoundsCheck };
-  enum class Type {
-    kInt8s,
-    kInt8u,
-    kInt32s,
-    kInt32u,
-    kInt64s,
-    kInt64u,
-    kFloat32,
-    kFloat64
-  };
 
   WasmGraphBuilder(ModuleEnv* env, Zone* zone, JSGraph* graph,
                    Handle<Code> centry_stub, wasm::FunctionSig* sig,
@@ -459,9 +449,10 @@ class WasmGraphBuilder {
 
   bool use_trap_handler() const { return env_ && env_->use_trap_handler; }
 
- private:
-  enum class NumericImplementation : uint8_t { kTrap, kSaturate };
+  JSGraph* jsgraph() { return jsgraph_; }
+  Graph* graph();
 
+ private:
   static const int kDefaultBufferSize = 16;
 
   Zone* const zone_;
@@ -496,10 +487,6 @@ class WasmGraphBuilder {
 
   compiler::SourcePositionTable* const source_position_table_ = nullptr;
 
-  // Internal helper methods.
-  JSGraph* jsgraph() { return jsgraph_; }
-  Graph* graph();
-
   Node* String(const char* string);
   Node* MemBuffer(uint32_t offset);
   // BoundsCheckMem receives a uint32 {index} node and returns a ptrsize index.
@@ -524,18 +511,8 @@ class WasmGraphBuilder {
   Node* BuildF32CopySign(Node* left, Node* right);
   Node* BuildF64CopySign(Node* left, Node* right);
 
-  Node* BuildI32ConvertFloat(Node* input, wasm::WasmCodePosition position,
-                             NumericImplementation impl, Type int_type,
-                             Type float_type, const Operator* conv_op,
-                             const wasm::WasmOpcode check_op);
-  Node* BuildI32SConvertF32(Node* input, wasm::WasmCodePosition position,
-                            NumericImplementation impl);
-  Node* BuildI32SConvertF64(Node* input, wasm::WasmCodePosition position,
-                            NumericImplementation impl);
-  Node* BuildI32UConvertF32(Node* input, wasm::WasmCodePosition position,
-                            NumericImplementation impl);
-  Node* BuildI32UConvertF64(Node* input, wasm::WasmCodePosition position,
-                            NumericImplementation impl);
+  Node* BuildIntConvertFloat(Node* input, wasm::WasmCodePosition position,
+                             wasm::WasmOpcode);
   Node* BuildI32Ctz(Node* input);
   Node* BuildI32Popcnt(Node* input);
   Node* BuildI64Ctz(Node* input);
@@ -574,15 +551,8 @@ class WasmGraphBuilder {
       Node* input, ExternalReference ref,
       MachineRepresentation parameter_representation,
       const MachineType result_type, wasm::WasmCodePosition position);
-  Node* BuildI64CcallConvertFloat(Node* input, wasm::WasmCodePosition position,
-                                  NumericImplementation impl, Type int_type,
-                                  Type float_type, ExternalReference call_ref);
-  Node* BuildI64TruncConvertFloat(Node* input, wasm::WasmCodePosition position,
-                                  NumericImplementation impl, Type int_type,
-                                  Type float_type, const Operator* trunc_op);
-
-  Node* BuildI64SConvertF32(Node* input, wasm::WasmCodePosition position,
-                            NumericImplementation impl);
+  Node* BuildCcallConvertFloat(Node* input, wasm::WasmCodePosition position,
+                               wasm::WasmOpcode opcode);
   Node* BuildI64UConvertF32(Node* input, wasm::WasmCodePosition position);
   Node* BuildI64SConvertF64(Node* input, wasm::WasmCodePosition position);
   Node* BuildI64UConvertF64(Node* input, wasm::WasmCodePosition position);
