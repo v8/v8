@@ -2100,7 +2100,7 @@ void Heap::Scavenge() {
     {
       // Parallel phase scavenging all copied and promoted objects.
       TRACE_GC(tracer(), GCTracer::Scope::SCAVENGER_SCAVENGE_PARALLEL);
-      job.Run();
+      job.Run(isolate()->async_counters());
       DCHECK(copied_list.IsGlobalEmpty());
       DCHECK(promotion_list.IsGlobalEmpty());
     }

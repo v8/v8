@@ -2072,7 +2072,7 @@ void MinorMarkCompactCollector::MarkRootSetInParallel() {
         job.AddTask(
             new YoungGenerationMarkingTask(isolate(), this, worklist(), i));
       }
-      job.Run();
+      job.Run(isolate()->async_counters());
       DCHECK(worklist()->IsGlobalEmpty());
     }
   }
@@ -3253,7 +3253,7 @@ void MarkCompactCollectorBase::CreateAndExecuteEvacuationTasks(
       evacuators[i]->AddObserver(migration_observer);
     job->AddTask(new PageEvacuationTask(heap()->isolate(), evacuators[i]));
   }
-  job->Run();
+  job->Run(isolate()->async_counters());
   for (int i = 0; i < wanted_num_tasks; i++) {
     evacuators[i]->Finalize();
     delete evacuators[i];
@@ -3936,7 +3936,7 @@ void MarkCompactCollector::UpdatePointersAfterEvacuation() {
           isolate(),
           GCTracer::BackgroundScope::MC_BACKGROUND_EVACUATE_UPDATE_POINTERS));
     }
-    updating_job.Run();
+    updating_job.Run(isolate()->async_counters());
   }
 
   {
@@ -3968,7 +3968,7 @@ void MarkCompactCollector::UpdatePointersAfterEvacuation() {
             isolate(),
             GCTracer::BackgroundScope::MC_BACKGROUND_EVACUATE_UPDATE_POINTERS));
       }
-      updating_job.Run();
+      updating_job.Run(isolate()->async_counters());
       heap()->array_buffer_collector()->FreeAllocationsOnBackgroundThread();
     }
   }
@@ -4030,7 +4030,7 @@ void MinorMarkCompactCollector::UpdatePointersAfterEvacuation() {
   {
     TRACE_GC(heap()->tracer(),
              GCTracer::Scope::MINOR_MC_EVACUATE_UPDATE_POINTERS_SLOTS);
-    updating_job.Run();
+    updating_job.Run(isolate()->async_counters());
     heap()->array_buffer_collector()->FreeAllocationsOnBackgroundThread();
   }
 

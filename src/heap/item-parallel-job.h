@@ -8,8 +8,10 @@
 #include <vector>
 
 #include "src/base/macros.h"
+#include "src/base/optional.h"
 #include "src/base/platform/semaphore.h"
 #include "src/cancelable-task.h"
+#include "src/counters.h"
 #include "src/utils.h"
 #include "src/v8.h"
 
@@ -27,6 +29,9 @@ class Isolate;
 //
 // Items need to be marked as finished after processing them. Task and Item
 // ownership is transferred to the job.
+//
+// Each parallel (non-main thread) task will report the time between the job
+// being created and it being scheduled to |gc_parallel_task_latency_histogram|.
 class ItemParallelJob {
  public:
   class Task;
@@ -63,7 +68,12 @@ class ItemParallelJob {
           cur_index_(0),
           items_considered_(0),
           on_finish_(nullptr) {}
-    virtual ~Task() {}
+    virtual ~Task() {
+      // The histogram is reset in RunInternal(). If it's still around it means
+      // this task was cancelled before being scheduled.
+      if (gc_parallel_task_latency_histogram_)
+        gc_parallel_task_latency_histogram_->RecordAbandon();
+    }
 
     virtual void RunInParallel() = 0;
 
@@ -90,19 +100,33 @@ class ItemParallelJob {
     // Sets up state required before invoking Run(). If
     // |start_index is >= items_.size()|, this task will not process work items
     // (some jobs have more tasks than work items in order to parallelize post-
-    // processing, e.g. scavenging).
+    // processing, e.g. scavenging). If |gc_parallel_task_latency_histogram| is
+    // provided, it will be used to report histograms on the latency between
+    // posting the task and it being scheduled.
     void SetupInternal(base::Semaphore* on_finish, std::vector<Item*>* items,
-                       size_t start_index) {
+                       size_t start_index,
+                       base::Optional<AsyncTimedHistogram>
+                           gc_parallel_task_latency_histogram) {
       on_finish_ = on_finish;
       items_ = items;
-      if (start_index < items->size())
+
+      if (start_index < items->size()) {
         cur_index_ = start_index;
-      else
+      } else {
         items_considered_ = items_->size();
+      }
+
+      gc_parallel_task_latency_histogram_ =
+          std::move(gc_parallel_task_latency_histogram);
     }
 
     // We don't allow overriding this method any further.
     void RunInternal() final {
+      if (gc_parallel_task_latency_histogram_) {
+        gc_parallel_task_latency_histogram_->RecordDone();
+        gc_parallel_task_latency_histogram_.reset();
+      }
+
       RunInParallel();
       on_finish_->Signal();
     }
@@ -111,6 +135,7 @@ class ItemParallelJob {
     size_t cur_index_;
     size_t items_considered_;
     base::Semaphore* on_finish_;
+    base::Optional<AsyncTimedHistogram> gc_parallel_task_latency_histogram_;
 
     friend class ItemParallelJob;
     friend class Item;
@@ -140,10 +165,15 @@ class ItemParallelJob {
   int NumberOfItems() const { return static_cast<int>(items_.size()); }
   int NumberOfTasks() const { return static_cast<int>(tasks_.size()); }
 
-  void Run() {
+  // Runs this job. Reporting metrics in a thread-safe manner to
+  // |async_counters|.
+  void Run(std::shared_ptr<Counters> async_counters) {
     DCHECK_GT(tasks_.size(), 0);
     const size_t num_items = items_.size();
     const size_t num_tasks = tasks_.size();
+
+    AsyncTimedHistogram gc_parallel_task_latency_histogram(
+        async_counters->gc_parallel_task_latency(), async_counters);
 
     // Some jobs have more tasks than items (when the items are mere coarse
     // grain tasks that generate work dynamically for a second phase which all
@@ -174,7 +204,9 @@ class ItemParallelJob {
       // assigning work items.
       DCHECK_IMPLIES(start_index >= num_items, i >= num_tasks_processing_items);
 
-      task->SetupInternal(pending_tasks_, &items_, start_index);
+      task->SetupInternal(pending_tasks_, &items_, start_index,
+                          i > 0 ? gc_parallel_task_latency_histogram
+                                : base::Optional<AsyncTimedHistogram>());
       task_ids[i] = task->id();
       if (i > 0) {
         V8::GetCurrentPlatform()->CallOnBackgroundThread(
