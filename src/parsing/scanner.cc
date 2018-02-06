@@ -1510,13 +1510,15 @@ uc32 Scanner::ScanUnicodeEscape() {
   KEYWORD_GROUP('y')                                        \
   KEYWORD("yield", Token::YIELD)                            \
   KEYWORD_GROUP('_')                                        \
-  KEYWORD("__proto__", Token::PROTO_UNDERSCORED)
+  KEYWORD("__proto__", Token::PROTO_UNDERSCORED)            \
+  KEYWORD_GROUP('#')                                        \
+  KEYWORD("#constructor", Token::PRIVATE_CONSTRUCTOR)
 
 static Token::Value KeywordOrIdentifierToken(const uint8_t* input,
                                              int input_length) {
   DCHECK_GE(input_length, 1);
   const int kMinLength = 2;
-  const int kMaxLength = 11;
+  const int kMaxLength = 12;
   if (input_length < kMinLength || input_length > kMaxLength) {
     return Token::IDENTIFIER;
   }

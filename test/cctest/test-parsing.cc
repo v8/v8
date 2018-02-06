@@ -5129,6 +5129,9 @@ TEST(PrivateClassFieldsErrors) {
     "#async a = 0",
     "#async a",
 
+    "#constructor",
+    "#constructor = function() {}",
+
     "# a = 0",
     "#a() { }",
     "get #a() { }",

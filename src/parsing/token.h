@@ -195,6 +195,7 @@ namespace internal {
   C(NAME, "name", 0)                                               \
   C(PROTO_UNDERSCORED, "__proto__", 0)                             \
   C(CONSTRUCTOR, "constructor", 0)                                 \
+  C(PRIVATE_CONSTRUCTOR, "#constructor", 0)                        \
   C(PROTOTYPE, "prototype", 0)                                     \
   C(EVAL, "eval", 0)                                               \
   C(ARGUMENTS, "arguments", 0)                                     \

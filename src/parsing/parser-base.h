@@ -1454,6 +1454,10 @@ class ParserBase {
       return this->scanner()->CurrentMatchesContextualEscaped(
           Token::CONSTRUCTOR);
     }
+    bool IsPrivateConstructor() {
+      return this->scanner()->CurrentMatchesContextualEscaped(
+          Token::PRIVATE_CONSTRUCTOR);
+    }
     bool IsPrototype() {
       return this->scanner()->CurrentMatchesContextualEscaped(Token::PROTOTYPE);
     }
@@ -2345,7 +2349,7 @@ ParserBase<Impl>::ParseClassPropertyDefinition(
           *ok = false;
           return impl()->NullLiteralProperty();
         }
-        if (!*is_computed_name && name_token != Token::PRIVATE_NAME) {
+        if (!*is_computed_name) {
           checker->CheckClassFieldName(*is_static,
                                        CHECK_OK_CUSTOM(NullLiteralProperty));
         }
@@ -6223,7 +6227,7 @@ void ParserBase<Impl>::ClassLiteralChecker::CheckClassFieldName(bool is_static,
     return;
   }
 
-  if (IsConstructor()) {
+  if (IsConstructor() || IsPrivateConstructor()) {
     this->parser()->ReportMessage(MessageTemplate::kConstructorClassField);
     *ok = false;
     return;
