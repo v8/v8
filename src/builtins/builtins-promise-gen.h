@@ -29,11 +29,8 @@ class PromiseBuiltinsAssembler : public CodeStubAssembler {
 
  protected:
   enum PromiseAllResolveElementContextSlots {
-    // Whether the resolve callback was already called.
-    kPromiseAllResolveElementAlreadyVisitedSlot = Context::MIN_CONTEXT_SLOTS,
-
-    // Index into the values array
-    kPromiseAllResolveElementIndexSlot,
+    // Index into the values array, or -1 if the callback was already called
+    kPromiseAllResolveElementIndexSlot = Context::MIN_CONTEXT_SLOTS,
 
     // Remaining elements count (mutable HeapNumber)
     kPromiseAllResolveElementRemainingElementsSlot,

@@ -1704,9 +1704,6 @@ Node* PromiseBuiltinsAssembler::PerformPromiseAll(
     Node* const resolve_context =
         CreatePromiseContext(native_context, kPromiseAllResolveElementLength);
     StoreContextElementNoWriteBarrier(
-        resolve_context, kPromiseAllResolveElementAlreadyVisitedSlot,
-        SmiConstant(0));
-    StoreContextElementNoWriteBarrier(
         resolve_context, kPromiseAllResolveElementIndexSlot, var_index.value());
     StoreContextElementNoWriteBarrier(
         resolve_context, kPromiseAllResolveElementRemainingElementsSlot,
@@ -1890,18 +1887,15 @@ TF_BUILTIN(PromiseAllResolveElementClosure, PromiseBuiltinsAssembler) {
   CSA_ASSERT(this, SmiEqual(LoadFixedArrayBaseLength(context),
                             SmiConstant(kPromiseAllResolveElementLength)));
 
-  Label already_called(this), resolve_promise(this);
-  GotoIf(SmiEqual(LoadContextElement(
-                      context, kPromiseAllResolveElementAlreadyVisitedSlot),
-                  SmiConstant(1)),
-         &already_called);
-  StoreContextElementNoWriteBarrier(
-      context, kPromiseAllResolveElementAlreadyVisitedSlot, SmiConstant(1));
-
   Node* const index =
       LoadContextElement(context, kPromiseAllResolveElementIndexSlot);
   Node* const values_array =
       LoadContextElement(context, kPromiseAllResolveElementValuesArraySlot);
+
+  Label already_called(this, Label::kDeferred), resolve_promise(this);
+  GotoIf(SmiLessThan(index, SmiConstant(Smi::kZero)), &already_called);
+  StoreContextElementNoWriteBarrier(context, kPromiseAllResolveElementIndexSlot,
+                                    SmiConstant(-1));
 
   // Set element in FixedArray
   Label runtime_set_element(this), did_set_element(this);
