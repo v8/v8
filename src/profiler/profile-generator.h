@@ -338,12 +338,13 @@ class CodeMap {
 class CpuProfilesCollection {
  public:
   explicit CpuProfilesCollection(Isolate* isolate);
-  ~CpuProfilesCollection();
 
   void set_cpu_profiler(CpuProfiler* profiler) { profiler_ = profiler; }
   bool StartProfiling(const char* title, bool record_samples);
   CpuProfile* StopProfiling(const char* title);
-  std::vector<CpuProfile*>* profiles() { return &finished_profiles_; }
+  std::vector<std::unique_ptr<CpuProfile>>* profiles() {
+    return &finished_profiles_;
+  }
   const char* GetName(Name* name) { return resource_names_.GetName(name); }
   bool IsLastProfile(const char* title);
   void RemoveProfile(CpuProfile* profile);
@@ -358,11 +359,11 @@ class CpuProfilesCollection {
 
  private:
   StringsStorage resource_names_;
-  std::vector<CpuProfile*> finished_profiles_;
+  std::vector<std::unique_ptr<CpuProfile>> finished_profiles_;
   CpuProfiler* profiler_;
 
   // Accessed by VM thread and profile generator thread.
-  std::vector<CpuProfile*> current_profiles_;
+  std::vector<std::unique_ptr<CpuProfile>> current_profiles_;
   base::Semaphore current_profiles_semaphore_;
 
   DISALLOW_COPY_AND_ASSIGN(CpuProfilesCollection);
