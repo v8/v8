@@ -3740,17 +3740,8 @@ bool Bootstrapper::CompileNative(Isolate* isolate, Vector<const char> name,
                                  Handle<Object> argv[],
                                  NativesFlag natives_flag) {
   SuppressDebug compiling_natives(isolate->debug());
-  // During genesis, the boilerplate for stack overflow won't work until the
-  // environment has been at least partially initialized. Add a stack check
-  // before entering JS code to catch overflow early.
-  StackLimitCheck check(isolate);
-  if (check.JsHasOverflowed(kStackSpaceRequiredForCompilation * KB)) {
-    isolate->StackOverflow();
-    return false;
-  }
 
   Handle<Context> context(isolate->context());
-
   Handle<String> script_name =
       isolate->factory()->NewStringFromUtf8(name).ToHandleChecked();
   MaybeHandle<SharedFunctionInfo> maybe_function_info =
@@ -5453,15 +5444,6 @@ Genesis::Genesis(
   // on all function exits.
   SaveContext saved_context(isolate);
 
-  // During genesis, the boilerplate for stack overflow won't work until the
-  // environment has been at least partially initialized. Add a stack check
-  // before entering JS code to catch overflow early.
-  StackLimitCheck check(isolate);
-  if (check.HasOverflowed()) {
-    isolate->StackOverflow();
-    return;
-  }
-
   // The deserializer needs to hook up references to the global proxy.
   // Create an uninitialized global proxy now if we don't have one
   // and initialize it later in CreateNewGlobals.
@@ -5589,15 +5571,6 @@ Genesis::Genesis(Isolate* isolate,
   // Before creating the roots we must save the context and restore it
   // on all function exits.
   SaveContext saved_context(isolate);
-
-  // During genesis, the boilerplate for stack overflow won't work until the
-  // environment has been at least partially initialized. Add a stack check
-  // before entering JS code to catch overflow early.
-  StackLimitCheck check(isolate);
-  if (check.HasOverflowed()) {
-    isolate->StackOverflow();
-    return;
-  }
 
   const int proxy_size = JSGlobalProxy::SizeWithEmbedderFields(
       global_proxy_template->InternalFieldCount());
