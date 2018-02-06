@@ -999,6 +999,7 @@
         '../src/heap/invalidated-slots-inl.h',
         '../src/heap/invalidated-slots.cc',
         '../src/heap/invalidated-slots.h',
+        '../src/heap/item-parallel-job.cc',
         '../src/heap/item-parallel-job.h',
         '../src/heap/local-allocator.h',
         '../src/heap/mark-compact-inl.h',

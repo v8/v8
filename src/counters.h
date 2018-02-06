@@ -261,7 +261,7 @@ enum class HistogramTimerResolution { MILLISECOND, MICROSECOND };
 
 // A thread safe histogram timer. It also allows distributions of
 // nested timed results.
-class V8_EXPORT_PRIVATE TimedHistogram : public Histogram {
+class TimedHistogram : public Histogram {
  public:
   // Start the timer. Log if isolate non-null.
   void Start(base::ElapsedTimer* timer, Isolate* isolate);
@@ -313,7 +313,7 @@ class TimedHistogramScope {
 // AsyncTimedHistogram can be moved/copied to avoid computing Now() multiple
 // times when the times of multiple tasks are identical; each copy will generate
 // its own report.
-class V8_EXPORT_PRIVATE AsyncTimedHistogram {
+class AsyncTimedHistogram {
  public:
   explicit AsyncTimedHistogram(TimedHistogram* histogram,
                                std::shared_ptr<Counters> async_counters)
