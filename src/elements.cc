@@ -12,7 +12,6 @@
 #include "src/messages.h"
 #include "src/objects-inl.h"
 #include "src/utils.h"
-#include "src/zone/zone.h"
 
 // Each concrete ElementsAccessor can handle exactly one ElementsKind,
 // several abstract ElementsAccessor classes are used to allow sharing
@@ -3298,15 +3297,15 @@ class TypedElementsAccessor
       std::memmove(dest_data + offset * element_size, source_data,
                    length * element_size);
     } else {
-      Isolate* isolate = source->GetIsolate();
-      Zone zone(isolate->allocator(), ZONE_NAME);
+      std::unique_ptr<uint8_t[]> cloned_source_elements;
 
       // If the typedarrays are overlapped, clone the source.
       if (dest_data + dest_byte_length > source_data &&
           source_data + source_byte_length > dest_data) {
-        uint8_t* temp_data = zone.NewArray<uint8_t>(source_byte_length);
-        std::memcpy(temp_data, source_data, source_byte_length);
-        source_data = temp_data;
+        cloned_source_elements.reset(new uint8_t[source_byte_length]);
+        std::memcpy(cloned_source_elements.get(), source_data,
+                    source_byte_length);
+        source_data = cloned_source_elements.get();
       }
 
       switch (source->GetElementsKind()) {
