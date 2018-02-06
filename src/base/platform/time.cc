@@ -459,7 +459,16 @@ struct timeval Time::ToTimeval() const {
 
 // static
 TimeTicks TimeTicks::HighResolutionNow() {
-  DCHECK(TimeTicks::IsHighResolution());
+  static bool verified_high_resolution_available = false;
+  if (!verified_high_resolution_available) {
+    if (!TimeTicks::IsHighResolution()) {
+      OS::PrintError(
+          "\n\n"
+          "WARNING: High-resolution TimeTicks are not available on this system."
+          "\n\n");
+    }
+    verified_high_resolution_available = true;
+  }
   return TimeTicks::Now();
 }
 
