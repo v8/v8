@@ -63,6 +63,11 @@ void ItemParallelJob::Run(std::shared_ptr<Counters> async_counters) {
   const size_t num_items = items_.size();
   const size_t num_tasks = tasks_.size();
 
+  TRACE_EVENT_INSTANT2(TRACE_DISABLED_BY_DEFAULT("v8.gc"),
+                       "ItemParallelJob::Run", TRACE_EVENT_SCOPE_THREAD,
+                       "num_tasks", static_cast<int>(num_tasks), "num_items",
+                       static_cast<int>(num_items));
+
   AsyncTimedHistogram gc_parallel_task_latency_histogram(
       async_counters->gc_parallel_task_latency(), async_counters);
 
