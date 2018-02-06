@@ -909,6 +909,8 @@ TF_BUILTIN(RunMicrotasks, InternalBuiltinsAssembler) {
             CodeFactory::Call(isolate(), ConvertReceiverMode::kNullOrUndefined),
             microtask_context, callable, UndefinedConstant());
         GotoIfException(result, &if_exception, &var_exception);
+        LeaveMicrotaskContext();
+        SetCurrentContext(current_context);
         Goto(&loop_next);
       }
 
@@ -918,10 +920,6 @@ TF_BUILTIN(RunMicrotasks, InternalBuiltinsAssembler) {
             LoadObjectField(microtask, CallbackTask::kCallbackOffset);
         Node* const microtask_data =
             LoadObjectField(microtask, CallbackTask::kDataOffset);
-
-        // We don't have a context for callback tasks, so we just execute
-        // them in the current native context.
-        EnterMicrotaskContext(current_context);
 
         // If this turns out to become a bottleneck because of the calls
         // to C++ via CEntryStub, we can choose to speed them up using a
@@ -933,10 +931,8 @@ TF_BUILTIN(RunMicrotasks, InternalBuiltinsAssembler) {
         // But from our current measurements it doesn't seem to be a
         // serious performance problem, even if the microtask is full
         // of CallHandlerTasks (which is not a realistic use case anyways).
-        Node* const result =
-            CallRuntime(Runtime::kRunMicrotaskCallback, current_context,
-                        microtask_callback, microtask_data);
-        GotoIfException(result, &if_exception, &var_exception);
+        CallRuntime(Runtime::kRunMicrotaskCallback, current_context,
+                    microtask_callback, microtask_data);
         Goto(&loop_next);
       }
 
@@ -963,6 +959,8 @@ TF_BUILTIN(RunMicrotasks, InternalBuiltinsAssembler) {
             CallBuiltin(Builtins::kPromiseResolveThenableJob, microtask_context,
                         promise_to_resolve, thenable, then);
         GotoIfException(result, &if_exception, &var_exception);
+        LeaveMicrotaskContext();
+        SetCurrentContext(current_context);
         Goto(&loop_next);
       }
 
@@ -997,6 +995,8 @@ TF_BUILTIN(RunMicrotasks, InternalBuiltinsAssembler) {
         RunPromiseHook(Runtime::kPromiseHookAfter, microtask_context,
                        promise_or_capability);
 
+        LeaveMicrotaskContext();
+        SetCurrentContext(current_context);
         Goto(&loop_next);
       }
 
@@ -1031,6 +1031,8 @@ TF_BUILTIN(RunMicrotasks, InternalBuiltinsAssembler) {
         RunPromiseHook(Runtime::kPromiseHookAfter, microtask_context,
                        promise_or_capability);
 
+        LeaveMicrotaskContext();
+        SetCurrentContext(current_context);
         Goto(&loop_next);
       }
 
@@ -1042,12 +1044,12 @@ TF_BUILTIN(RunMicrotasks, InternalBuiltinsAssembler) {
         // Report unhandled exceptions from microtasks.
         CallRuntime(Runtime::kReportMessage, current_context,
                     var_exception.value());
+        LeaveMicrotaskContext();
+        SetCurrentContext(current_context);
         Goto(&loop_next);
       }
 
       BIND(&loop_next);
-      LeaveMicrotaskContext();
-      SetCurrentContext(current_context);
       Branch(IntPtrLessThan(index, num_tasks), &loop, &init_queue_loop);
     }
   }
