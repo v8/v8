@@ -23,7 +23,7 @@
 
   // Exercise all of the extras utils:
   // - v8.createPrivateSymbol
-  // - v8.simpleBind, v8.uncurryThis
+  // - v8.uncurryThis
   // - v8.InternalPackedArray
   // - v8.createPromise, v8.resolvePromise, v8.rejectPromise
 
@@ -35,7 +35,7 @@
   const apply = v8.uncurryThis(Function.prototype.apply);
 
   const Promise = global.Promise;
-  const Promise_resolve = v8.simpleBind(Promise.resolve, Promise);
+  const Promise_resolve = Promise.resolve.bind(Promise);
 
   const arrayToTest = new v8.InternalPackedArray();
   arrayToTest.push(1);
