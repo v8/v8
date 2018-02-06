@@ -1818,6 +1818,9 @@ class YoungGenerationMarkingTask : public ItemParallelJob::Task {
       TimedScope scope(&marking_time);
       MarkingItem* item = nullptr;
       while ((item = GetItem<MarkingItem>()) != nullptr) {
+        TRACE_BACKGROUND_GC(
+            collector_->heap()->tracer(),
+            GCTracer::BackgroundScope::MINOR_MC_BACKGROUND_MARKING);
         item->Process(this);
         item->MarkFinished();
         EmptyLocalMarkingWorklist();
@@ -3204,6 +3207,7 @@ class PageEvacuationTask : public ItemParallelJob::Task {
     TRACE_BACKGROUND_GC(tracer_, evacuator_->GetBackgroundTracingScope());
     PageEvacuationItem* item = nullptr;
     while ((item = GetItem<PageEvacuationItem>()) != nullptr) {
+      TRACE_BACKGROUND_GC(tracer_, evacuator_->GetBackgroundTracingScope());
       evacuator_->EvacuatePage(item->page());
       item->MarkFinished();
     }
@@ -3520,6 +3524,7 @@ class PointersUpdatingTask : public ItemParallelJob::Task {
     TRACE_BACKGROUND_GC(tracer_, scope_);
     UpdatingItem* item = nullptr;
     while ((item = GetItem<UpdatingItem>()) != nullptr) {
+      TRACE_BACKGROUND_GC(tracer_, scope_);
       item->Process();
       item->MarkFinished();
     }
