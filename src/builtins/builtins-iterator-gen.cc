@@ -16,6 +16,14 @@ IteratorRecord IteratorBuiltinsAssembler::GetIterator(Node* context,
                                                       Label* if_exception,
                                                       Variable* exception) {
   Node* method = GetProperty(context, object, factory()->iterator_symbol());
+  return GetIterator(context, object, method, if_exception, exception);
+}
+
+IteratorRecord IteratorBuiltinsAssembler::GetIterator(Node* context,
+                                                      Node* object,
+                                                      Node* method,
+                                                      Label* if_exception,
+                                                      Variable* exception) {
   GotoIfException(method, if_exception, exception);
 
   Callable callable = CodeFactory::Call(isolate());

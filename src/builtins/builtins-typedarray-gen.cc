@@ -3,8 +3,10 @@
 // found in the LICENSE file.
 
 #include "src/builtins/builtins-constructor-gen.h"
+#include "src/builtins/builtins-iterator-gen.h"
 #include "src/builtins/builtins-utils-gen.h"
 #include "src/builtins/builtins.h"
+#include "src/builtins/growable-fixed-array-gen.h"
 #include "src/code-stub-assembler.h"
 #include "src/handles-inl.h"
 
@@ -51,6 +53,9 @@ class TypedArrayBuiltinsAssembler : public CodeStubAssembler {
                             TNode<HeapObject> array_like,
                             TNode<Object> initial_length,
                             TNode<Smi> element_size);
+  void ConstructByIterable(TNode<Context> context, TNode<JSTypedArray> holder,
+                           TNode<JSReceiver> iterable,
+                           TNode<Object> iterator_fn, TNode<Smi> element_size);
 
   void SetupTypedArray(TNode<JSTypedArray> holder, TNode<Smi> length,
                        TNode<Number> byte_offset, TNode<Number> byte_length);
@@ -745,17 +750,75 @@ void TypedArrayBuiltinsAssembler::ConstructByArrayLike(
   BIND(&done);
 }
 
-TF_BUILTIN(TypedArrayConstructByArrayLike, TypedArrayBuiltinsAssembler) {
-  TNode<JSTypedArray> holder = CAST(Parameter(Descriptor::kHolder));
-  TNode<HeapObject> array_like = CAST(Parameter(Descriptor::kArrayLike));
-  TNode<Object> initial_length = CAST(Parameter(Descriptor::kLength));
-  TNode<Smi> element_size = CAST(Parameter(Descriptor::kElementSize));
-  CSA_ASSERT(this, TaggedIsSmi(element_size));
-  TNode<Context> context = CAST(Parameter(Descriptor::kContext));
+void TypedArrayBuiltinsAssembler::ConstructByIterable(
+    TNode<Context> context, TNode<JSTypedArray> holder,
+    TNode<JSReceiver> iterable, TNode<Object> iterator_fn,
+    TNode<Smi> element_size) {
+  CSA_ASSERT(this, IsCallable(iterator_fn));
+  Label fast_path(this), slow_path(this), done(this);
 
+  TVARIABLE(JSReceiver, array_like);
+  TVARIABLE(Object, initial_length);
+
+  // This is a fast-path for ignoring the iterator.
+  // TODO(petermarshall): Port to CSA.
+  Node* elided =
+      CallRuntime(Runtime::kIterableToListCanBeElided, context, iterable);
+  CSA_ASSERT(this, IsBoolean(elided));
+  Branch(IsTrue(elided), &fast_path, &slow_path);
+
+  BIND(&fast_path);
+  {
+    TNode<JSArray> js_array_iterable = CAST(iterable);
+    // This .length access is unobservable, because it being observable would
+    // mean that iteration has side effects, and we wouldn't reach this path.
+    array_like = js_array_iterable;
+    initial_length = LoadJSArrayLength(js_array_iterable);
+    Goto(&done);
+  }
+
+  BIND(&slow_path);
+  {
+    IteratorBuiltinsAssembler iterator_assembler(state());
+
+    // 1. Let iteratorRecord be ? GetIterator(items, method).
+    IteratorRecord iterator_record =
+        iterator_assembler.GetIterator(context, iterable, iterator_fn);
+
+    // 2. Let values be a new empty List.
+    GrowableFixedArray values(state());
+
+    Variable* vars[] = {values.var_array(), values.var_length(),
+                        values.var_capacity()};
+    Label loop_start(this, 3, vars), loop_end(this);
+    Goto(&loop_start);
+    // 3. Let next be true.
+    // 4. Repeat, while next is not false
+    BIND(&loop_start);
+    {
+      //  a. Set next to ? IteratorStep(iteratorRecord).
+      TNode<Object> next = CAST(
+          iterator_assembler.IteratorStep(context, iterator_record, &loop_end));
+      //  b. If next is not false, then
+      //   i. Let nextValue be ? IteratorValue(next).
+      TNode<Object> next_value =
+          CAST(iterator_assembler.IteratorValue(context, next));
+      //   ii. Append nextValue to the end of the List values.
+      values.Push(next_value);
+      Goto(&loop_start);
+    }
+    BIND(&loop_end);
+
+    // 5. Return values.
+    TNode<JSArray> js_array_values = values.ToJSArray(context);
+    array_like = js_array_values;
+    initial_length = LoadJSArrayLength(js_array_values);
+    Goto(&done);
+  }
+
+  BIND(&done);
   ConstructByArrayLike(context, holder, array_like, initial_length,
                        element_size);
-  Return(UndefinedConstant());
 }
 
 TF_BUILTIN(TypedArrayConstructor, TypedArrayBuiltinsAssembler) {
@@ -771,8 +834,7 @@ TF_BUILTIN(TypedArrayConstructor, TypedArrayBuiltinsAssembler) {
 
 TF_BUILTIN(TypedArrayConstructor_ConstructStub, TypedArrayBuiltinsAssembler) {
   Label if_arg1isbuffer(this), if_arg1istypedarray(this),
-      if_arg1isreceiver(this), if_iteratorundefined(this),
-      if_arg1isnumber(this), done(this);
+      if_arg1isreceiver(this), if_arg1isnumber(this), done(this);
 
   TNode<Object> new_target = CAST(Parameter(BuiltinDescriptor::kNewTarget));
   CSA_ASSERT(this, IsNotUndefined(new_target));
@@ -811,18 +873,15 @@ TF_BUILTIN(TypedArrayConstructor_ConstructStub, TypedArrayBuiltinsAssembler) {
 
   BIND(&if_arg1isreceiver);
   {
+    Label if_iteratorundefined(this), if_iteratornotcallable(this);
     // Get iterator symbol
-    TNode<Object> iteratorFn = CAST(
-        GetProperty(context, arg1, isolate()->factory()->iterator_symbol()));
-    GotoIf(IsUndefined(iteratorFn), &if_iteratorundefined);
+    TNode<Object> iteratorFn =
+        CAST(GetMethod(context, arg1, isolate()->factory()->iterator_symbol(),
+                       &if_iteratorundefined));
+    GotoIf(TaggedIsSmi(iteratorFn), &if_iteratornotcallable);
+    GotoIfNot(IsCallable(iteratorFn), &if_iteratornotcallable);
 
-    // Call ConstructByIterable.
-    // TODO(petermarshall): Port ConstructByIterable to CSA.
-    Node* construct_iterable =
-        LoadContextElement(LoadNativeContext(context),
-                           Context::TYPED_ARRAY_CONSTRUCT_BY_ITERABLE_INDEX);
-    CallJS(CodeFactory::Call(isolate()), context, construct_iterable,
-           UndefinedConstant(), holder, arg1, iteratorFn, element_size);
+    ConstructByIterable(context, holder, CAST(arg1), iteratorFn, element_size);
     Goto(&done);
 
     BIND(&if_iteratorundefined);
@@ -835,6 +894,9 @@ TF_BUILTIN(TypedArrayConstructor_ConstructStub, TypedArrayBuiltinsAssembler) {
                            element_size);
       Goto(&done);
     }
+
+    BIND(&if_iteratornotcallable);
+    { ThrowTypeError(context, MessageTemplate::kIteratorSymbolNonCallable); }
   }
 
   // First arg was a number or fell through and will be treated as a number.

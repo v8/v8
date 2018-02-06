@@ -1064,8 +1064,6 @@ namespace internal {
   TFS(TypedArrayInitialize, kHolder, kLength, kElementSize, kInitialize)       \
   TFS(TypedArrayInitializeWithBuffer, kHolder, kLength, kBuffer, kElementSize, \
       kByteOffset)                                                             \
-  TFJ(TypedArrayConstructByArrayLike, 4, kHolder, kArrayLike, kLength,         \
-      kElementSize)                                                            \
   TFJ(TypedArrayConstructor, SharedFunctionInfo::kDontAdaptArgumentsSentinel)  \
   TFJ(TypedArrayConstructor_ConstructStub,                                     \
       SharedFunctionInfo::kDontAdaptArgumentsSentinel)                         \

@@ -22,6 +22,9 @@ class IteratorBuiltinsAssembler : public CodeStubAssembler {
   IteratorRecord GetIterator(Node* context, Node* object,
                              Label* if_exception = nullptr,
                              Variable* exception = nullptr);
+  IteratorRecord GetIterator(Node* context, Node* object, Node* method,
+                             Label* if_exception = nullptr,
+                             Variable* exception = nullptr);
 
   // https://tc39.github.io/ecma262/#sec-iteratorstep
   // Returns `false` if the iterator is done, otherwise returns an

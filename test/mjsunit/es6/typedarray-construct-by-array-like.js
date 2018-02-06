@@ -120,6 +120,31 @@ tests.push(function TestConstructFromArrayNoIteratorWithGetter(constr) {
   assertArrayEquals([1, 2, 22], ta);
 });
 
+tests.push(function TestConstructFromArrayNullIterator(constr) {
+  var arr = [1, 2, 3];
+  arr[Symbol.iterator] = null;
+
+  var ta = new Uint8Array(arr);
+
+  assertArrayEquals([1, 2, 3], ta);
+});
+
+tests.push(function TestConstructFromArrayUndefinedIterator(constr) {
+  var arr = [1, 2, 3];
+  arr[Symbol.iterator] = undefined;
+
+  var ta = new Uint8Array(arr);
+
+  assertArrayEquals([1, 2, 3], ta);
+});
+
+tests.push(function TestConstructFromArrayNonCallableIterator(constr) {
+  var arr = [1, 2, 3];
+  arr[Symbol.iterator] = 1;
+
+  assertThrows(() => new Uint8Array(arr), TypeError);
+});
+
 tests.push(function TestConstructFromArray(constr) {
   var n = 64;
   var jsArray = [];

@@ -340,6 +340,7 @@ class ErrorUtils : public AllStatic {
   T(InvalidRegExpExecResult,                                                   \
     "RegExp exec method returned something other than an Object or null")      \
   T(IteratorResultNotAnObject, "Iterator result % is not an object")           \
+  T(IteratorSymbolNonCallable, "Found non-callable @@iterator")                \
   T(IteratorValueNotAnObject, "Iterator value % is not an entry object")       \
   T(LanguageID, "Language ID should be string or object.")                     \
   T(MethodCalledOnWrongObject,                                                 \
