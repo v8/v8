@@ -245,6 +245,10 @@ void* OS::GetRandomMmapAddr() {
   // Little-endian Linux: 48 bits of virtual addressing.
   raw_addr &= uint64_t{0x3FFFFFFFF000};
 #endif
+#elif V8_TARGET_ARCH_MIPS64
+  // We allocate code in 256 MB aligned segments because of optimizations using
+  // J instruction that require that all code is within a single 256 MB segment
+  raw_addr &= uint64_t{0x3FFFE0000000};
 #elif V8_TARGET_ARCH_S390X
   // Linux on Z uses bits 22-32 for Region Indexing, which translates to 42 bits
   // of virtual addressing.  Truncate to 40 bits to allow kernel chance to
