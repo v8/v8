@@ -45,14 +45,12 @@ bool DebugInfo::HasBreakPoint(int source_position) {
 Object* DebugInfo::GetBreakPointInfo(int source_position) {
   DCHECK(HasBreakInfo());
   Isolate* isolate = GetIsolate();
-  if (!break_points()->IsUndefined(isolate)) {
-    for (int i = 0; i < break_points()->length(); i++) {
-      if (!break_points()->get(i)->IsUndefined(isolate)) {
-        BreakPointInfo* break_point_info =
-            BreakPointInfo::cast(break_points()->get(i));
-        if (break_point_info->source_position() == source_position) {
-          return break_point_info;
-        }
+  for (int i = 0; i < break_points()->length(); i++) {
+    if (!break_points()->get(i)->IsUndefined(isolate)) {
+      BreakPointInfo* break_point_info =
+          BreakPointInfo::cast(break_points()->get(i));
+      if (break_point_info->source_position() == source_position) {
+        return break_point_info;
       }
     }
   }
@@ -63,7 +61,6 @@ bool DebugInfo::ClearBreakPoint(Handle<DebugInfo> debug_info,
                                 Handle<Object> break_point_object) {
   DCHECK(debug_info->HasBreakInfo());
   Isolate* isolate = debug_info->GetIsolate();
-  if (debug_info->break_points()->IsUndefined(isolate)) return false;
 
   for (int i = 0; i < debug_info->break_points()->length(); i++) {
     if (debug_info->break_points()->get(i)->IsUndefined(isolate)) continue;
@@ -139,7 +136,6 @@ Handle<Object> DebugInfo::GetBreakPointObjects(int source_position) {
 int DebugInfo::GetBreakPointCount() {
   DCHECK(HasBreakInfo());
   Isolate* isolate = GetIsolate();
-  if (break_points()->IsUndefined(isolate)) return 0;
   int count = 0;
   for (int i = 0; i < break_points()->length(); i++) {
     if (!break_points()->get(i)->IsUndefined(isolate)) {
@@ -155,15 +151,13 @@ Handle<Object> DebugInfo::FindBreakPointInfo(
     Handle<DebugInfo> debug_info, Handle<Object> break_point_object) {
   DCHECK(debug_info->HasBreakInfo());
   Isolate* isolate = debug_info->GetIsolate();
-  if (!debug_info->break_points()->IsUndefined(isolate)) {
-    for (int i = 0; i < debug_info->break_points()->length(); i++) {
-      if (!debug_info->break_points()->get(i)->IsUndefined(isolate)) {
-        Handle<BreakPointInfo> break_point_info = Handle<BreakPointInfo>(
-            BreakPointInfo::cast(debug_info->break_points()->get(i)), isolate);
-        if (BreakPointInfo::HasBreakPointObject(break_point_info,
-                                                break_point_object)) {
-          return break_point_info;
-        }
+  for (int i = 0; i < debug_info->break_points()->length(); i++) {
+    if (!debug_info->break_points()->get(i)->IsUndefined(isolate)) {
+      Handle<BreakPointInfo> break_point_info = Handle<BreakPointInfo>(
+          BreakPointInfo::cast(debug_info->break_points()->get(i)), isolate);
+      if (BreakPointInfo::HasBreakPointObject(break_point_info,
+                                              break_point_object)) {
+        return break_point_info;
       }
     }
   }

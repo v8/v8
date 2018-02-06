@@ -680,7 +680,6 @@ int Debug::FindBreakablePosition(Handle<DebugInfo> debug_info,
 
 void Debug::ApplyBreakPoints(Handle<DebugInfo> debug_info) {
   DisallowHeapAllocation no_gc;
-  if (debug_info->break_points()->IsUndefined(isolate_)) return;
   FixedArray* break_points = debug_info->break_points();
   for (int i = 0; i < break_points->length(); i++) {
     if (break_points->get(i)->IsUndefined(isolate_)) continue;
