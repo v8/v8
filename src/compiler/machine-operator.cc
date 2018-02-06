@@ -575,7 +575,7 @@ struct MachineOperatorGlobalCache {
   };                                                                           \
   AtomicStore##Type##Operator kAtomicStore##Type;
   ATOMIC_REPRESENTATION_LIST(ATOMIC_STORE)
-#undef STORE
+#undef ATOMIC_STORE
 
 #define ATOMIC_OP(op, type)                                                    \
   struct op##type##Operator : public Operator1<MachineType> {                  \
@@ -971,6 +971,19 @@ const Operator* MachineOperatorBuilder::S8x16Shuffle(
       Operator1<uint8_t*>(IrOpcode::kS8x16Shuffle, Operator::kPure, "Shuffle",
                           2, 0, 0, 1, 0, 0, array);
 }
+
+#undef PURE_BINARY_OP_LIST_32
+#undef PURE_BINARY_OP_LIST_64
+#undef MACHINE_PURE_OP_LIST
+#undef PURE_OPTIONAL_OP_LIST
+#undef OVERFLOW_OP_LIST
+#undef MACHINE_TYPE_LIST
+#undef MACHINE_REPRESENTATION_LIST
+#undef ATOMIC_TYPE_LIST
+#undef ATOMIC_REPRESENTATION_LIST
+#undef SIMD_LANE_OP_LIST
+#undef SIMD_FORMAT_LIST
+#undef STACK_SLOT_CACHED_SIZES_ALIGNMENTS_LIST
 
 }  // namespace compiler
 }  // namespace internal
