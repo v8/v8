@@ -56,7 +56,7 @@ FieldAccess AccessBuilder::ForHeapNumberValue() {
 FieldAccess AccessBuilder::ForBigIntBitfield() {
   FieldAccess access = {
       kTaggedBase,        BigInt::kBitfieldOffset, MaybeHandle<Name>(),
-      MaybeHandle<Map>(), TypeCache::Get().kInt32, MachineType::Int32(),
+      MaybeHandle<Map>(), TypeCache::Get().kInt32, MachineType::IntPtr(),
       kNoWriteBarrier};
   return access;
 }
