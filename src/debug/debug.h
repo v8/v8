@@ -58,6 +58,7 @@ enum DebugBreakType {
   DEBUG_BREAK_SLOT_AT_CALL,
   DEBUG_BREAK_SLOT_AT_RETURN,
   DEBUG_BREAK_SLOT_AT_SUSPEND,
+  DEBUG_BREAK_AT_ENTRY,
 };
 
 enum IgnoreBreakMode {
@@ -84,6 +85,10 @@ class BreakLocation {
   inline bool IsDebuggerStatement() const {
     return type_ == DEBUGGER_STATEMENT;
   }
+  inline bool IsDebugBreakAtEntry() const {
+    bool result = type_ == DEBUG_BREAK_AT_ENTRY;
+    return result;
+  }
 
   bool HasBreakPoint(Handle<DebugInfo> debug_info) const;
 
@@ -104,6 +109,12 @@ class BreakLocation {
         generator_obj_reg_index_(generator_obj_reg_index) {
     DCHECK_NE(NOT_DEBUG_BREAK, type_);
   }
+
+  BreakLocation(int position, DebugBreakType type)
+      : code_offset_(0),
+        type_(type),
+        position_(position),
+        generator_obj_reg_index_(0) {}
 
   static int BreakIndexFromCodeOffset(Handle<DebugInfo> debug_info,
                                       Handle<AbstractCode> abstract_code,
@@ -224,7 +235,9 @@ class Debug {
 
   // Internal logic
   bool Load();
-  void Break(JavaScriptFrame* frame);
+  // The break target may not be the top-most frame, since we may be
+  // breaking before entering a function that cannot contain break points.
+  void Break(JavaScriptFrame* frame, Handle<JSFunction> break_target);
 
   // Scripts handling.
   Handle<FixedArray> GetLoadedScripts();
@@ -271,6 +284,8 @@ class Debug {
   int NextAsyncTaskId(Handle<JSObject> promise);
 
   bool IsBlackboxed(Handle<SharedFunctionInfo> shared);
+
+  bool CanBreakAtEntry(Handle<SharedFunctionInfo> shared);
 
   void SetDebugDelegate(debug::DebugDelegate* delegate, bool pass_ownership);
 
@@ -382,6 +397,10 @@ class Debug {
   StepAction last_step_action() { return thread_local_.last_step_action_; }
 
   DebugFeatureTracker* feature_tracker() { return &feature_tracker_; }
+
+  // For functions in which we cannot set a break point, use a canonical
+  // source position for break points.
+  static const int kBreakAtEntryPosition = 0;
 
  private:
   explicit Debug(Isolate* isolate);

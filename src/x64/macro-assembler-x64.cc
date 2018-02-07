@@ -2392,12 +2392,31 @@ void MacroAssembler::InvokePrologue(const ParameterCount& expected,
 void MacroAssembler::CheckDebugHook(Register fun, Register new_target,
                                     const ParameterCount& expected,
                                     const ParameterCount& actual) {
-  Label skip_hook;
+  Label skip_hook, call_hook;
+  ExternalReference debug_is_active =
+      ExternalReference::debug_is_active_address(isolate());
+  Operand debug_is_active_operand = ExternalOperand(debug_is_active);
+  cmpb(debug_is_active_operand, Immediate(0));
+  j(equal, &skip_hook);
+
   ExternalReference debug_hook_active =
       ExternalReference::debug_hook_on_function_call_address(isolate());
   Operand debug_hook_active_operand = ExternalOperand(debug_hook_active);
   cmpb(debug_hook_active_operand, Immediate(0));
-  j(equal, &skip_hook);
+  j(not_equal, &call_hook);
+
+  movp(kScratchRegister,
+       FieldOperand(fun, JSFunction::kSharedFunctionInfoOffset));
+  movp(kScratchRegister,
+       FieldOperand(kScratchRegister, SharedFunctionInfo::kDebugInfoOffset));
+  JumpIfSmi(kScratchRegister, &skip_hook);
+  movp(kScratchRegister,
+       FieldOperand(kScratchRegister, DebugInfo::kFlagsOffset));
+  SmiToInteger32(kScratchRegister, kScratchRegister);
+  testp(kScratchRegister, Immediate(DebugInfo::kBreakAtEntry));
+  j(zero, &skip_hook);
+
+  bind(&call_hook);
   {
     FrameScope frame(this,
                      has_frame() ? StackFrame::NONE : StackFrame::INTERNAL);

@@ -43,7 +43,7 @@ RUNTIME_FUNCTION_RETURN_PAIR(Runtime_DebugBreakOnBytecode) {
 
   // Get the top-most JavaScript frame.
   JavaScriptFrameIterator it(isolate);
-  isolate->debug()->Break(it.frame());
+  isolate->debug()->Break(it.frame(), handle(it.frame()->function()));
 
   // Return the handler from the original bytecode array.
   DCHECK(it.frame()->is_interpreted());
@@ -1826,6 +1826,10 @@ RUNTIME_FUNCTION(Runtime_DebugOnFunctionCall) {
   CONVERT_ARG_HANDLE_CHECKED(JSFunction, fun, 0);
   if (isolate->debug()->last_step_action() >= StepIn) {
     isolate->debug()->PrepareStepIn(fun);
+  }
+  if (fun->shared()->HasDebugInfo() &&
+      fun->shared()->GetDebugInfo()->BreakAtEntry()) {
+    isolate->debug()->Break(nullptr, fun);
   }
   if (isolate->needs_side_effect_check() &&
       !isolate->debug()->PerformSideEffectCheck(fun)) {

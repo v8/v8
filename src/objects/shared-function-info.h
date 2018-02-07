@@ -342,7 +342,11 @@ class SharedFunctionInfo : public HeapObject {
   static Handle<Object> GetSourceCode(Handle<SharedFunctionInfo> shared);
   static Handle<Object> GetSourceCodeHarmony(Handle<SharedFunctionInfo> shared);
 
-  // Tells whether this function should be subject to debugging.
+  // Tells whether this function should be subject to debugging, e.g. for
+  // - scope inspection
+  // - internal break points
+  // - coverage and type profile
+  // - error stack trace
   inline bool IsSubjectToDebugging();
 
   // Whether this function is defined in user-provided JavaScript code.

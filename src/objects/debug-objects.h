@@ -24,7 +24,9 @@ class DebugInfo : public Struct {
     kNone = 0,
     kHasBreakInfo = 1 << 0,
     kPreparedForBreakpoints = 1 << 1,
-    kHasCoverageInfo = 2 << 1,
+    kHasCoverageInfo = 1 << 2,
+    kBreakAtEntry = 1 << 3,
+    kCanBreakAtEntry = 1 << 4
   };
   typedef base::Flags<Flag> Flags;
 
@@ -50,6 +52,12 @@ class DebugInfo : public Struct {
   // Clears all fields related to break points. Returns true iff the
   // DebugInfo is now empty.
   bool ClearBreakInfo();
+
+  // Accessors to flag whether to break before entering the function.
+  // This is used to break for functions with no source, e.g. builtins.
+  void SetBreakAtEntry();
+  void ClearBreakAtEntry();
+  bool BreakAtEntry() const;
 
   // The instrumented bytecode array for functions with break points.
   DECL_ACCESSORS(debug_bytecode_array, Object)
@@ -77,6 +85,10 @@ class DebugInfo : public Struct {
 
   inline BytecodeArray* OriginalBytecodeArray();
   inline BytecodeArray* DebugBytecodeArray();
+
+  // Returns whether we should be able to break before entering the function.
+  // This is true for functions with no source, e.g. builtins.
+  bool CanBreakAtEntry() const;
 
   // --- Block Coverage ---
   // ----------------------

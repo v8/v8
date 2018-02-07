@@ -23,10 +23,28 @@ bool DebugInfo::ClearBreakInfo() {
   set_debug_bytecode_array(isolate->heap()->undefined_value());
   set_break_points(isolate->heap()->empty_fixed_array());
 
-  int new_flags = flags() & ~kHasBreakInfo & ~kPreparedForBreakpoints;
+  int new_flags = flags();
+  new_flags &= ~kHasBreakInfo & ~kPreparedForBreakpoints;
+  new_flags &= ~kBreakAtEntry & ~kCanBreakAtEntry;
   set_flags(new_flags);
 
   return new_flags == kNone;
+}
+
+void DebugInfo::SetBreakAtEntry() {
+  DCHECK(CanBreakAtEntry());
+  set_flags(flags() | kBreakAtEntry);
+}
+
+void DebugInfo::ClearBreakAtEntry() {
+  DCHECK(CanBreakAtEntry());
+  set_flags(flags() & ~kBreakAtEntry);
+}
+
+bool DebugInfo::BreakAtEntry() const { return (flags() & kBreakAtEntry) != 0; }
+
+bool DebugInfo::CanBreakAtEntry() const {
+  return (flags() & kCanBreakAtEntry) != 0;
 }
 
 // Check if there is a break point at this source position.

@@ -13622,7 +13622,6 @@ bool SharedFunctionInfo::HasBreakInfo() const {
   if (!HasDebugInfo()) return false;
   DebugInfo* info = DebugInfo::cast(debug_info());
   bool has_break_info = info->HasBreakInfo();
-  DCHECK_IMPLIES(has_break_info, HasBytecodeArray());
   return has_break_info;
 }
 

@@ -451,6 +451,7 @@ class MacroAssembler : public TurboAssembler {
                           const ParameterCount& actual, InvokeFlag flag);
 
   // On function call, call into the debugger if necessary.
+  // This may clobber ecx.
   void CheckDebugHook(Register fun, Register new_target,
                       const ParameterCount& expected,
                       const ParameterCount& actual);

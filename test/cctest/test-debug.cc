@@ -1139,6 +1139,32 @@ TEST(BreakPointReturn) {
   CheckDebuggerUnloaded();
 }
 
+// Test that a break point can be set at a return store location.
+TEST(BreakPointBuiltin) {
+  break_point_hit_count = 0;
+  DebugLocalContext env;
+  v8::HandleScope scope(env->GetIsolate());
+
+  SetDebugEventListener(env->GetIsolate(), DebugEventBreakPointHitCount);
+  v8::Local<v8::Function> builtin =
+      CompileRun("String.prototype.repeat").As<v8::Function>();
+
+  CompileRun("'a'.repeat(10)");
+  CHECK_EQ(0, break_point_hit_count);
+
+  // Run with breakpoint
+  int bp = SetBreakPoint(builtin, 0);
+  CompileRun("'b'.repeat(10)");
+  CHECK_EQ(1, break_point_hit_count);
+
+  // Run without breakpoints.
+  ClearBreakPoint(bp);
+  CompileRun("'b'.repeat(10)");
+  CHECK_EQ(1, break_point_hit_count);
+
+  SetDebugEventListener(env->GetIsolate(), nullptr);
+  CheckDebuggerUnloaded();
+}
 
 static void CallWithBreakPoints(v8::Local<v8::Context> context,
                                 v8::Local<v8::Object> recv,
@@ -6764,8 +6790,9 @@ TEST(DebugGetPossibleBreakpointsReturnLocations) {
 
 TEST(DebugEvaluateNoSideEffect) {
   LocalContext env;
+  v8::HandleScope scope(env->GetIsolate());
+  EnableDebugger(env->GetIsolate());
   i::Isolate* isolate = CcTest::i_isolate();
-  i::HandleScope scope(isolate);
   std::vector<i::Handle<i::JSFunction>> all_functions;
   {
     i::HeapIterator iterator(isolate->heap());
@@ -6786,4 +6813,5 @@ TEST(DebugEvaluateNoSideEffect) {
     }
     if (failed) isolate->clear_pending_exception();
   }
+  DisableDebugger(env->GetIsolate());
 }
