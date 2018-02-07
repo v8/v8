@@ -124,50 +124,28 @@ class TypedArrayBuiltinsAssembler : public CodeStubAssembler {
                                                TNode<JSTypedArray> dest,
                                                TNode<IntPtrT> source_length,
                                                TNode<IntPtrT> offset);
+
+  typedef std::function<void(ElementsKind, int, int)> TypedArraySwitchCase;
+
+  void DispatchTypedArrayByElementsKind(
+      TNode<Word32T> elements_kind, const TypedArraySwitchCase& case_function);
 };
 
 TNode<Map> TypedArrayBuiltinsAssembler::LoadMapForType(
     TNode<JSTypedArray> array) {
-  Label unreachable(this), done(this);
-  Label uint8_elements(this), uint8_clamped_elements(this), int8_elements(this),
-      uint16_elements(this), int16_elements(this), uint32_elements(this),
-      int32_elements(this), float32_elements(this), float64_elements(this);
-  Label* elements_kind_labels[] = {
-      &uint8_elements,  &uint8_clamped_elements, &int8_elements,
-      &uint16_elements, &int16_elements,         &uint32_elements,
-      &int32_elements,  &float32_elements,       &float64_elements};
-  int32_t elements_kinds[] = {
-      UINT8_ELEMENTS,  UINT8_CLAMPED_ELEMENTS, INT8_ELEMENTS,
-      UINT16_ELEMENTS, INT16_ELEMENTS,         UINT32_ELEMENTS,
-      INT32_ELEMENTS,  FLOAT32_ELEMENTS,       FLOAT64_ELEMENTS};
-  const size_t kTypedElementsKindCount = LAST_FIXED_TYPED_ARRAY_ELEMENTS_KIND -
-                                         FIRST_FIXED_TYPED_ARRAY_ELEMENTS_KIND +
-                                         1;
-  DCHECK_EQ(kTypedElementsKindCount, arraysize(elements_kinds));
-  DCHECK_EQ(kTypedElementsKindCount, arraysize(elements_kind_labels));
-
   TVARIABLE(Map, var_typed_map);
-
   TNode<Map> array_map = LoadMap(array);
   TNode<Int32T> elements_kind = LoadMapElementsKind(array_map);
-  Switch(elements_kind, &unreachable, elements_kinds, elements_kind_labels,
-         kTypedElementsKindCount);
 
-  for (int i = 0; i < static_cast<int>(kTypedElementsKindCount); i++) {
-    BIND(elements_kind_labels[i]);
-    {
-      ElementsKind kind = static_cast<ElementsKind>(elements_kinds[i]);
-      ExternalArrayType type =
-          isolate()->factory()->GetArrayTypeFromElementsKind(kind);
-      Handle<Map> map(isolate()->heap()->MapForFixedTypedArray(type));
-      var_typed_map = HeapConstant(map);
-      Goto(&done);
-    }
-  }
+  DispatchTypedArrayByElementsKind(
+      elements_kind,
+      [&](ElementsKind kind, int size, int typed_array_fun_index) {
+        ExternalArrayType type =
+            isolate()->factory()->GetArrayTypeFromElementsKind(kind);
+        Handle<Map> map(isolate()->heap()->MapForFixedTypedArray(type));
+        var_typed_map = HeapConstant(map);
+      });
 
-  BIND(&unreachable);
-  { Unreachable(); }
-  BIND(&done);
   return var_typed_map;
 }
 
@@ -980,47 +958,13 @@ TNode<Word32T> TypedArrayBuiltinsAssembler::LoadElementsKind(
 TNode<IntPtrT> TypedArrayBuiltinsAssembler::GetTypedArrayElementSize(
     TNode<Word32T> elements_kind) {
   TVARIABLE(IntPtrT, element_size);
-  Label next(this), if_unknown_type(this, Label::kDeferred);
 
-  size_t const kTypedElementsKindCount = LAST_FIXED_TYPED_ARRAY_ELEMENTS_KIND -
-                                         FIRST_FIXED_TYPED_ARRAY_ELEMENTS_KIND +
-                                         1;
+  DispatchTypedArrayByElementsKind(
+      elements_kind,
+      [&](ElementsKind el_kind, int size, int typed_array_fun_index) {
+        element_size = IntPtrConstant(size);
+      });
 
-  int32_t elements_kinds[kTypedElementsKindCount] = {
-#define TYPED_ARRAY_CASE(Type, type, TYPE, ctype, size) TYPE##_ELEMENTS,
-      TYPED_ARRAYS(TYPED_ARRAY_CASE)
-#undef TYPED_ARRAY_CASE
-  };
-
-#define TYPED_ARRAY_CASE(Type, type, TYPE, ctype, size) \
-  Label if_##type##array(this);
-  TYPED_ARRAYS(TYPED_ARRAY_CASE)
-#undef TYPED_ARRAY_CASE
-
-  Label* elements_kind_labels[kTypedElementsKindCount] = {
-#define TYPED_ARRAY_CASE(Type, type, TYPE, ctype, size) &if_##type##array,
-      TYPED_ARRAYS(TYPED_ARRAY_CASE)
-#undef TYPED_ARRAY_CASE
-  };
-
-  Switch(elements_kind, &if_unknown_type, elements_kinds, elements_kind_labels,
-         kTypedElementsKindCount);
-
-#define TYPED_ARRAY_CASE(Type, type, TYPE, ctype, size) \
-  BIND(&if_##type##array);                              \
-  {                                                     \
-    element_size = IntPtrConstant(size);                \
-    Goto(&next);                                        \
-  }
-  TYPED_ARRAYS(TYPED_ARRAY_CASE)
-#undef TYPED_ARRAY_CASE
-
-  BIND(&if_unknown_type);
-  {
-    element_size = IntPtrConstant(0);
-    Goto(&next);
-  }
-  BIND(&next);
   return element_size;
 }
 
@@ -1029,46 +973,12 @@ TNode<Object> TypedArrayBuiltinsAssembler::GetDefaultConstructor(
   TVARIABLE(IntPtrT, context_slot);
   TNode<Word32T> elements_kind = LoadElementsKind(exemplar);
 
-  Label next(this), constructor_found(this),
-      if_unknown_type(this, Label::kDeferred);
+  DispatchTypedArrayByElementsKind(
+      elements_kind,
+      [&](ElementsKind el_kind, int size, int typed_array_function_index) {
+        context_slot = IntPtrConstant(typed_array_function_index);
+      });
 
-  size_t const kTypedElementsKindCount = LAST_FIXED_TYPED_ARRAY_ELEMENTS_KIND -
-                                         FIRST_FIXED_TYPED_ARRAY_ELEMENTS_KIND +
-                                         1;
-
-  int32_t elements_kinds[kTypedElementsKindCount] = {
-#define TYPED_ARRAY_CASE(Type, type, TYPE, ctype, size) TYPE##_ELEMENTS,
-      TYPED_ARRAYS(TYPED_ARRAY_CASE)
-#undef TYPED_ARRAY_CASE
-  };
-
-#define TYPED_ARRAY_CASE(Type, type, TYPE, ctype, size) \
-  Label if_##type##array(this);
-  TYPED_ARRAYS(TYPED_ARRAY_CASE)
-#undef TYPED_ARRAY_CASE
-
-  Label* elements_kind_labels[kTypedElementsKindCount] = {
-#define TYPED_ARRAY_CASE(Type, type, TYPE, ctype, size) &if_##type##array,
-      TYPED_ARRAYS(TYPED_ARRAY_CASE)
-#undef TYPED_ARRAY_CASE
-  };
-
-  Switch(elements_kind, &if_unknown_type, elements_kinds, elements_kind_labels,
-         kTypedElementsKindCount);
-
-#define TYPED_ARRAY_CASE(Type, type, TYPE, ctype, size)             \
-  BIND(&if_##type##array);                                          \
-  {                                                                 \
-    context_slot = IntPtrConstant(Context::TYPE##_ARRAY_FUN_INDEX); \
-    Goto(&next);                                                    \
-  }
-  TYPED_ARRAYS(TYPED_ARRAY_CASE)
-#undef TYPED_ARRAY_CASE
-
-  BIND(&if_unknown_type);
-  Unreachable();
-
-  BIND(&next);
   return LoadContextElement(LoadNativeContext(context), context_slot);
 }
 
@@ -1331,6 +1241,46 @@ void TypedArrayBuiltinsAssembler::CallCCopyTypedArrayElementsToTypedArray(
                  MachineType::AnyTagged(), MachineType::UintPtr(),
                  MachineType::UintPtr(), f, source, dest, source_length,
                  offset);
+}
+
+void TypedArrayBuiltinsAssembler::DispatchTypedArrayByElementsKind(
+    TNode<Word32T> elements_kind, const TypedArraySwitchCase& case_function) {
+  Label next(this), if_unknown_type(this, Label::kDeferred);
+
+  int32_t elements_kinds[] = {
+#define TYPED_ARRAY_CASE(Type, type, TYPE, ctype, size) TYPE##_ELEMENTS,
+      TYPED_ARRAYS(TYPED_ARRAY_CASE)
+#undef TYPED_ARRAY_CASE
+  };
+
+#define TYPED_ARRAY_CASE(Type, type, TYPE, ctype, size) \
+  Label if_##type##array(this);
+  TYPED_ARRAYS(TYPED_ARRAY_CASE)
+#undef TYPED_ARRAY_CASE
+
+  Label* elements_kind_labels[] = {
+#define TYPED_ARRAY_CASE(Type, type, TYPE, ctype, size) &if_##type##array,
+      TYPED_ARRAYS(TYPED_ARRAY_CASE)
+#undef TYPED_ARRAY_CASE
+  };
+  STATIC_ASSERT(arraysize(elements_kinds) == arraysize(elements_kind_labels));
+
+  Switch(elements_kind, &if_unknown_type, elements_kinds, elements_kind_labels,
+         arraysize(elements_kinds));
+
+#define TYPED_ARRAY_CASE(Type, type, TYPE, ctype, size)                    \
+  BIND(&if_##type##array);                                                 \
+  {                                                                        \
+    case_function(TYPE##_ELEMENTS, size, Context::TYPE##_ARRAY_FUN_INDEX); \
+    Goto(&next);                                                           \
+  }
+  TYPED_ARRAYS(TYPED_ARRAY_CASE)
+#undef TYPED_ARRAY_CASE
+
+  BIND(&if_unknown_type);
+  Unreachable();
+
+  BIND(&next);
 }
 
 // ES #sec-get-%typedarray%.prototype.set
