@@ -80,6 +80,10 @@ class TypedArrayBuiltinsAssembler : public CodeStubAssembler {
                                                  TNode<Smi> len,
                                                  const char* method_name);
 
+  TNode<JSTypedArray> CreateByLength(TNode<Context> context,
+                                     TNode<Object> constructor, TNode<Smi> len,
+                                     const char* method_name);
+
   TNode<JSArrayBuffer> GetBuffer(TNode<Context> context,
                                  TNode<JSTypedArray> array);
 
@@ -113,6 +117,9 @@ class TypedArrayBuiltinsAssembler : public CodeStubAssembler {
 
   void DispatchTypedArrayByElementsKind(
       TNode<Word32T> elements_kind, const TypedArraySwitchCase& case_function);
+
+  void DebugSanityCheckTypedArrayIndex(TNode<JSTypedArray> array,
+                                       SloppyTNode<Smi> index);
 };
 
 }  // namespace internal

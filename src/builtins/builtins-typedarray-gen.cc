@@ -926,6 +926,12 @@ TNode<JSTypedArray> TypedArrayBuiltinsAssembler::SpeciesCreateByLength(
   TNode<Object> constructor = TypedArraySpeciesConstructor(context, exemplar);
   CSA_ASSERT(this, IsJSFunction(constructor));
 
+  return CreateByLength(context, constructor, len, method_name);
+}
+
+TNode<JSTypedArray> TypedArrayBuiltinsAssembler::CreateByLength(
+    TNode<Context> context, TNode<Object> constructor, TNode<Smi> len,
+    const char* method_name) {
   // Let newTypedArray be ? Construct(constructor, argumentList).
   TNode<Object> new_object = CAST(ConstructJS(CodeFactory::Construct(isolate()),
                                               context, constructor, len));
@@ -1542,6 +1548,89 @@ TF_BUILTIN(TypedArrayPrototypeKeys, TypedArrayBuiltinsAssembler) {
   Node* receiver = Parameter(Descriptor::kReceiver);
   GenerateTypedArrayPrototypeIterationMethod(
       context, receiver, "%TypedArray%.prototype.keys()", IterationKind::kKeys);
+}
+
+void TypedArrayBuiltinsAssembler::DebugSanityCheckTypedArrayIndex(
+    TNode<JSTypedArray> array, SloppyTNode<Smi> index) {
+#ifdef DEBUG
+  TNode<JSArrayBuffer> buffer =
+      LoadObjectField<JSArrayBuffer>(array, JSArrayBufferView::kBufferOffset);
+  CSA_ASSERT(this, Word32BinaryNot(IsDetachedBuffer(buffer)));
+  TNode<Smi> array_length =
+      LoadObjectField<Smi>(array, JSTypedArray::kLengthOffset);
+  CSA_ASSERT(this, SmiLessThan(index, array_length));
+#endif
+}
+
+// ES6 #sec-%typedarray%.of
+TF_BUILTIN(TypedArrayOf, TypedArrayBuiltinsAssembler) {
+  TNode<Context> context = CAST(Parameter(BuiltinDescriptor::kContext));
+
+  // 1. Let len be the actual number of arguments passed to this function.
+  TNode<Int32T> argc =
+      UncheckedCast<Int32T>(Parameter(BuiltinDescriptor::kArgumentsCount));
+  TNode<Smi> length = SmiFromWord32(argc);
+  // 2. Let items be the List of arguments passed to this function.
+  CodeStubArguments args(this, length, nullptr, ParameterMode::SMI_PARAMETERS,
+                         CodeStubArguments::ReceiverMode::kHasReceiver);
+
+  Label if_not_constructor(this, Label::kDeferred),
+      unreachable(this, Label::kDeferred);
+
+  // 3. Let C be the this value.
+  // 4. If IsConstructor(C) is false, throw a TypeError exception.
+  TNode<Object> receiver = args.GetReceiver();
+  GotoIf(TaggedIsSmi(receiver), &if_not_constructor);
+  GotoIfNot(IsConstructor(receiver), &if_not_constructor);
+
+  // 5. Let newObj be ? TypedArrayCreate(C, len).
+  TNode<JSTypedArray> new_typed_array =
+      CreateByLength(context, receiver, length, "%TypedArray%.of");
+
+  TNode<Word32T> elements_kind = LoadElementsKind(new_typed_array);
+
+  // 6. Let k be 0.
+  // 7. Repeat, while k < len
+  //  a. Let kValue be items[k].
+  //  b. Let Pk be ! ToString(k).
+  //  c. Perform ? Set(newObj, Pk, kValue, true).
+  //  d. Increase k by 1.
+  DispatchTypedArrayByElementsKind(
+      elements_kind,
+      [&](ElementsKind kind, int size, int typed_array_fun_index) {
+        BuildFastLoop(
+            SmiConstant(0), length,
+            [&](Node* index) {
+              TNode<Object> item =
+                  args.AtIndex(index, ParameterMode::SMI_PARAMETERS);
+              TNode<Number> number = ToNumber_Inline(context, item);
+
+              // ToNumber may execute JavaScript code, but it cannot access
+              // arguments array and new typed array.
+              DebugSanityCheckTypedArrayIndex(new_typed_array, index);
+
+              // Since we can guarantee that "number" is Number type,
+              // PrepareValueForWriteToTypedArray cannot bail out.
+              Node* value =
+                  PrepareValueForWriteToTypedArray(number, kind, &unreachable);
+
+              // GC may move backing store in ToNumber, thus load backing store
+              // everytime in this loop.
+              TNode<IntPtrT> backing_store =
+                  UncheckedCast<IntPtrT>(LoadDataPtr(new_typed_array));
+              StoreElement(backing_store, kind, index, value, SMI_PARAMETERS);
+            },
+            1, ParameterMode::SMI_PARAMETERS, IndexAdvanceMode::kPost);
+      });
+
+  // 8. Return newObj.
+  args.PopAndReturn(new_typed_array);
+
+  BIND(&unreachable);
+  Unreachable();
+
+  BIND(&if_not_constructor);
+  ThrowTypeError(context, MessageTemplate::kNotConstructor, receiver);
 }
 
 #undef V8_TYPED_ARRAY_MAX_SIZE_IN_HEAP

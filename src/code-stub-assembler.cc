@@ -5611,6 +5611,30 @@ TNode<Numeric> CodeStubAssembler::NonNumberToNumeric(
   return UncheckedCast<Numeric>(result);
 }
 
+TNode<Number> CodeStubAssembler::ToNumber_Inline(TNode<Context> context,
+                                                 TNode<Object> input) {
+  TVARIABLE(Number, var_result);
+  Label end(this), not_smi(this, Label::kDeferred);
+
+  GotoIfNot(TaggedIsSmi(input), &not_smi);
+  var_result = CAST(input);
+  Goto(&end);
+
+  BIND(&not_smi);
+  {
+    var_result = Select<Number>(
+        IsHeapNumber(input), [=] { return CAST(input); },
+        [=] {
+          return CallBuiltin(Builtins::kNonNumberToNumeric, context, input);
+        },
+        MachineRepresentation::kTagged);
+    Goto(&end);
+  }
+
+  BIND(&end);
+  return var_result;
+}
+
 TNode<Number> CodeStubAssembler::ToNumber(SloppyTNode<Context> context,
                                           SloppyTNode<Object> input,
                                           BigIntHandling bigint_handling) {

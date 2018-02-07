@@ -3004,6 +3004,9 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
     InstallSpeciesGetter(typed_array_fun);
     native_context()->set_typed_array_function(*typed_array_fun);
 
+    SimpleInstallFunction(typed_array_fun, "of", Builtins::kTypedArrayOf, 0,
+                          false);
+
     // Setup %TypedArrayPrototype%.
     Handle<JSObject> prototype(
         JSObject::cast(typed_array_fun->instance_prototype()));

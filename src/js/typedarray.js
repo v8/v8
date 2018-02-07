@@ -203,20 +203,6 @@ DEFINE_METHOD(
 );
 
 
-// ES6 draft 08-24-14, section 22.2.2.2
-DEFINE_METHOD(
-  GlobalTypedArray,
-  of() {
-    var length = arguments.length;
-    var array = TypedArrayCreate(this, length);
-    for (var i = 0; i < length; i++) {
-      array[i] = arguments[i];
-    }
-    return array;
-  }
-);
-
-
 // ES#sec-iterabletoarraylike Runtime Semantics: IterableToArrayLike( items )
 function IterableToArrayLike(items) {
   var iterable = GetMethod(items, iteratorSymbol);

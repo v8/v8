@@ -1125,6 +1125,8 @@ namespace internal {
   /* ES6 %TypedArray%.prototype.forEach */                                     \
   TFJ(TypedArrayPrototypeForEach,                                              \
       SharedFunctionInfo::kDontAdaptArgumentsSentinel)                         \
+  /* ES6 %TypedArray%.of */                                                    \
+  TFJ(TypedArrayOf, SharedFunctionInfo::kDontAdaptArgumentsSentinel)           \
                                                                                \
   /* Wasm */                                                                   \
   ASM(WasmCompileLazy)                                                         \
