@@ -1598,6 +1598,10 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
                                   Node* name_index, Variable* var_details,
                                   Variable* var_value);
 
+  void LoadPropertyFromFastObject(Node* object, Node* map, Node* descriptors,
+                                  Node* name_index, Node* details,
+                                  Variable* var_value);
+
   void LoadPropertyFromNameDictionary(Node* dictionary, Node* entry,
                                       Variable* var_details,
                                       Variable* var_value);
@@ -1924,11 +1928,15 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
   void DescriptorLookupBinary(Node* unique_name, Node* descriptors, Node* nof,
                               Label* if_found, Variable* var_name_index,
                               Label* if_not_found);
+  Node* DescriptorNumberToIndex(SloppyTNode<Uint32T> descriptor_number);
   // Implements DescriptorArray::ToKeyIndex.
   // Returns an untagged IntPtr.
   Node* DescriptorArrayToKeyIndex(Node* descriptor_number);
   // Implements DescriptorArray::GetKey.
   Node* DescriptorArrayGetKey(Node* descriptors, Node* descriptor_number);
+  // Implements DescriptorArray::GetKey.
+  TNode<Uint32T> DescriptorArrayGetDetails(TNode<DescriptorArray> descriptors,
+                                           TNode<Uint32T> descriptor_number);
 
   Node* CallGetterIfAccessor(Node* value, Node* details, Node* context,
                              Node* receiver, Label* if_bailout,
