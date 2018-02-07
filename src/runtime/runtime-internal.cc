@@ -206,30 +206,6 @@ RUNTIME_FUNCTION(Runtime_NewSyntaxError) {
   return *isolate->factory()->NewSyntaxError(message_template, arg0);
 }
 
-RUNTIME_FUNCTION(Runtime_ThrowCannotConvertToPrimitive) {
-  HandleScope scope(isolate);
-  THROW_NEW_ERROR_RETURN_FAILURE(
-      isolate, NewTypeError(MessageTemplate::kCannotConvertToPrimitive));
-}
-
-RUNTIME_FUNCTION(Runtime_ThrowIncompatibleMethodReceiver) {
-  HandleScope scope(isolate);
-  DCHECK_EQ(2, args.length());
-  CONVERT_ARG_HANDLE_CHECKED(Object, arg0, 0);
-  CONVERT_ARG_HANDLE_CHECKED(Object, arg1, 1);
-  THROW_NEW_ERROR_RETURN_FAILURE(
-      isolate,
-      NewTypeError(MessageTemplate::kIncompatibleMethodReceiver, arg0, arg1));
-}
-
-RUNTIME_FUNCTION(Runtime_ThrowInvalidHint) {
-  HandleScope scope(isolate);
-  DCHECK_EQ(1, args.length());
-  CONVERT_ARG_HANDLE_CHECKED(Object, hint, 0);
-  THROW_NEW_ERROR_RETURN_FAILURE(
-      isolate, NewTypeError(MessageTemplate::kInvalidHint, hint));
-}
-
 RUNTIME_FUNCTION(Runtime_ThrowInvalidStringLength) {
   HandleScope scope(isolate);
   THROW_NEW_ERROR_RETURN_FAILURE(isolate, NewInvalidStringLengthError());
@@ -258,31 +234,12 @@ RUNTIME_FUNCTION(Runtime_ThrowSymbolIteratorInvalid) {
       isolate, NewTypeError(MessageTemplate::kSymbolIteratorInvalid));
 }
 
-RUNTIME_FUNCTION(Runtime_ThrowNonCallableInInstanceOfCheck) {
-  HandleScope scope(isolate);
-  THROW_NEW_ERROR_RETURN_FAILURE(
-      isolate, NewTypeError(MessageTemplate::kNonCallableInInstanceOfCheck));
-}
-
-RUNTIME_FUNCTION(Runtime_ThrowNonObjectInInstanceOfCheck) {
-  HandleScope scope(isolate);
-  THROW_NEW_ERROR_RETURN_FAILURE(
-      isolate, NewTypeError(MessageTemplate::kNonObjectInInstanceOfCheck));
-}
-
 RUNTIME_FUNCTION(Runtime_ThrowNotConstructor) {
   HandleScope scope(isolate);
   DCHECK_EQ(1, args.length());
   CONVERT_ARG_HANDLE_CHECKED(Object, object, 0);
   THROW_NEW_ERROR_RETURN_FAILURE(
       isolate, NewTypeError(MessageTemplate::kNotConstructor, object));
-}
-
-RUNTIME_FUNCTION(Runtime_ThrowGeneratorRunning) {
-  HandleScope scope(isolate);
-  DCHECK_EQ(0, args.length());
-  THROW_NEW_ERROR_RETURN_FAILURE(
-      isolate, NewTypeError(MessageTemplate::kGeneratorRunning));
 }
 
 RUNTIME_FUNCTION(Runtime_ThrowApplyNonFunction) {
@@ -454,14 +411,6 @@ RUNTIME_FUNCTION(Runtime_ThrowCalledNonCallable) {
   THROW_NEW_ERROR_RETURN_FAILURE(isolate, NewTypeError(id, callsite));
 }
 
-RUNTIME_FUNCTION(Runtime_ThrowCalledOnNullOrUndefined) {
-  HandleScope scope(isolate);
-  DCHECK_EQ(1, args.length());
-  CONVERT_ARG_HANDLE_CHECKED(String, name, 0);
-  THROW_NEW_ERROR_RETURN_FAILURE(
-      isolate, NewTypeError(MessageTemplate::kCalledOnNullOrUndefined, name));
-}
-
 RUNTIME_FUNCTION(Runtime_ThrowConstructedNonConstructable) {
   HandleScope scope(isolate);
   DCHECK_EQ(1, args.length());
@@ -484,14 +433,6 @@ RUNTIME_FUNCTION(Runtime_ThrowConstructorReturnedNonObject) {
   THROW_NEW_ERROR_RETURN_FAILURE(
       isolate,
       NewTypeError(MessageTemplate::kDerivedConstructorReturnedNonObject));
-}
-
-RUNTIME_FUNCTION(Runtime_ThrowUndefinedOrNullToObject) {
-  HandleScope scope(isolate);
-  DCHECK_EQ(1, args.length());
-  CONVERT_ARG_HANDLE_CHECKED(String, name, 0);
-  THROW_NEW_ERROR_RETURN_FAILURE(
-      isolate, NewTypeError(MessageTemplate::kUndefinedOrNullToObject, name));
 }
 
 // ES6 section 7.3.17 CreateListFromArrayLike (obj)

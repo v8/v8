@@ -3163,8 +3163,7 @@ TF_BUILTIN(ArrayPrototypeKeys, ArrayPrototypeIterationAssembler) {
 }
 
 TF_BUILTIN(ArrayIteratorPrototypeNext, CodeStubAssembler) {
-  Handle<String> operation = factory()->NewStringFromAsciiChecked(
-      "Array Iterator.prototype.next", TENURED);
+  const char* method_name = "Array Iterator.prototype.next";
 
   Node* context = Parameter(Descriptor::kContext);
   Node* iterator = Parameter(Descriptor::kReceiver);
@@ -3558,14 +3557,12 @@ TF_BUILTIN(ArrayIteratorPrototypeNext, CodeStubAssembler) {
   BIND(&throw_bad_receiver);
   {
     // The {receiver} is not a valid JSArrayIterator.
-    CallRuntime(Runtime::kThrowIncompatibleMethodReceiver, context,
-                HeapConstant(operation), iterator);
-    Unreachable();
+    ThrowTypeError(context, MessageTemplate::kIncompatibleMethodReceiver,
+                   StringConstant(method_name), iterator);
   }
 
   BIND(&if_isdetached);
-  ThrowTypeError(context, MessageTemplate::kDetachedOperation,
-                 HeapConstant(operation));
+  ThrowTypeError(context, MessageTemplate::kDetachedOperation, method_name);
 }
 
 }  // namespace internal

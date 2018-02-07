@@ -3873,9 +3873,8 @@ TNode<String> CodeStubAssembler::ToThisString(Node* context, Node* value,
       BIND(&if_valueisnullorundefined);
       {
         // The {value} is either null or undefined.
-        CallRuntime(Runtime::kThrowCalledOnNullOrUndefined, context,
-                    StringConstant(method_name));
-        Unreachable();
+        ThrowTypeError(context, MessageTemplate::kCalledOnNullOrUndefined,
+                       method_name);
       }
     }
   }
@@ -4018,14 +4017,6 @@ Node* CodeStubAssembler::ToThisValue(Node* context, Node* value,
   return var_value.value();
 }
 
-void CodeStubAssembler::ThrowIncompatibleMethodReceiver(Node* context,
-                                                        const char* method_name,
-                                                        Node* receiver) {
-  CallRuntime(Runtime::kThrowIncompatibleMethodReceiver, context,
-              StringConstant(method_name), receiver);
-  Unreachable();
-}
-
 Node* CodeStubAssembler::ThrowIfNotInstanceType(Node* context, Node* value,
                                                 InstanceType instance_type,
                                                 char const* method_name) {
@@ -4043,7 +4034,8 @@ Node* CodeStubAssembler::ThrowIfNotInstanceType(Node* context, Node* value,
 
   // The {value} is not a compatible receiver for this method.
   BIND(&throw_exception);
-  ThrowIncompatibleMethodReceiver(context, method_name, value);
+  ThrowTypeError(context, MessageTemplate::kIncompatibleMethodReceiver,
+                 StringConstant(method_name), value);
 
   BIND(&out);
   return var_value_map.value();
@@ -10069,16 +10061,10 @@ Node* CodeStubAssembler::InstanceOf(Node* object, Node* callable,
   }
 
   BIND(&if_notcallable);
-  {
-    CallRuntime(Runtime::kThrowNonCallableInInstanceOfCheck, context);
-    Unreachable();
-  }
+  { ThrowTypeError(context, MessageTemplate::kNonCallableInInstanceOfCheck); }
 
   BIND(&if_notreceiver);
-  {
-    CallRuntime(Runtime::kThrowNonObjectInInstanceOfCheck, context);
-    Unreachable();
-  }
+  { ThrowTypeError(context, MessageTemplate::kNonObjectInInstanceOfCheck); }
 
   BIND(&return_true);
   var_result.Bind(TrueConstant());

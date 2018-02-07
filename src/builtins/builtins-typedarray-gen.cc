@@ -312,10 +312,8 @@ void TypedArrayBuiltinsAssembler::ConstructByLength(TNode<Context> context,
 
   BIND(&invalid_length);
   {
-    CallRuntime(Runtime::kThrowRangeError, context,
-                SmiConstant(MessageTemplate::kInvalidTypedArrayLength),
-                converted_length);
-    Unreachable();
+    ThrowRangeError(context, MessageTemplate::kInvalidTypedArrayLength,
+                    converted_length);
   }
 
   BIND(&done);
@@ -422,11 +420,7 @@ void TypedArrayBuiltinsAssembler::ConstructByArrayBuffer(
   }
 
   BIND(&invalid_offset_error);
-  {
-    CallRuntime(Runtime::kThrowRangeError, context,
-                SmiConstant(MessageTemplate::kInvalidOffset), byte_offset);
-    Unreachable();
-  }
+  { ThrowRangeError(context, MessageTemplate::kInvalidOffset, byte_offset); }
 
   BIND(&start_offset_error);
   {
@@ -450,9 +444,7 @@ void TypedArrayBuiltinsAssembler::ConstructByArrayBuffer(
 
   BIND(&invalid_length);
   {
-    CallRuntime(Runtime::kThrowRangeError, context,
-                SmiConstant(MessageTemplate::kInvalidTypedArrayLength), length);
-    Unreachable();
+    ThrowRangeError(context, MessageTemplate::kInvalidTypedArrayLength, length);
   }
 
   BIND(&detached_error);
@@ -615,10 +607,8 @@ void TypedArrayBuiltinsAssembler::ConstructByArrayLike(
 
   BIND(&invalid_length);
   {
-    CallRuntime(Runtime::kThrowRangeError, context,
-                SmiConstant(MessageTemplate::kInvalidTypedArrayLength),
-                initial_length);
-    Unreachable();
+    ThrowRangeError(context, MessageTemplate::kInvalidTypedArrayLength,
+                    initial_length);
   }
 
   BIND(&done);
@@ -806,9 +796,8 @@ void TypedArrayBuiltinsAssembler::GenerateTypedArrayPrototypeGetter(
   BIND(&receiver_is_incompatible);
   {
     // The {receiver} is not a valid JSTypedArray.
-    CallRuntime(Runtime::kThrowIncompatibleMethodReceiver, context,
-                StringConstant(method_name), receiver);
-    Unreachable();
+    ThrowTypeError(context, MessageTemplate::kIncompatibleMethodReceiver,
+                   StringConstant(method_name), receiver);
   }
 }
 
@@ -1488,7 +1477,6 @@ void TypedArrayBuiltinsAssembler::GenerateTypedArrayPrototypeIterationMethod(
     Node* context, Node* receiver, const char* method_name,
     IterationKind iteration_kind) {
   Label throw_bad_receiver(this, Label::kDeferred);
-  Label throw_typeerror(this, Label::kDeferred);
 
   GotoIf(TaggedIsSmi(receiver), &throw_bad_receiver);
 
@@ -1506,22 +1494,11 @@ void TypedArrayBuiltinsAssembler::GenerateTypedArrayPrototypeIterationMethod(
   Return(CreateArrayIterator(receiver, map, instance_type, context,
                              iteration_kind));
 
-  VARIABLE(var_message, MachineRepresentation::kTagged);
   BIND(&throw_bad_receiver);
-  var_message.Bind(SmiConstant(MessageTemplate::kNotTypedArray));
-  Goto(&throw_typeerror);
+  ThrowTypeError(context, MessageTemplate::kNotTypedArray, method_name);
 
   BIND(&if_receiverisneutered);
-  var_message.Bind(SmiConstant(MessageTemplate::kDetachedOperation));
-  Goto(&throw_typeerror);
-
-  BIND(&throw_typeerror);
-  {
-    Node* method_arg = StringConstant(method_name);
-    Node* result = CallRuntime(Runtime::kThrowTypeError, context,
-                               var_message.value(), method_arg);
-    Return(result);
-  }
+  ThrowTypeError(context, MessageTemplate::kDetachedOperation, method_name);
 }
 
 // ES6 #sec-%typedarray%.prototype.values

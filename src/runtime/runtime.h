@@ -127,8 +127,7 @@ namespace internal {
 
 #define FOR_EACH_INTRINSIC_DATE(F) \
   F(IsDate, 1, 1)                  \
-  F(DateCurrentTime, 0, 1)         \
-  F(ThrowNotDateError, 0, 1)
+  F(DateCurrentTime, 0, 1)
 
 #define FOR_EACH_INTRINSIC_DEBUG(F)             \
   F(HandleDebuggerStatement, 0, 1)              \
@@ -310,28 +309,20 @@ namespace internal {
   F(StackGuard, 0, 1)                                                \
   F(Throw, 1, 1)                                                     \
   F(ThrowApplyNonFunction, 1, 1)                                     \
-  F(ThrowCannotConvertToPrimitive, 0, 1)                             \
   F(ThrowCalledNonCallable, 1, 1)                                    \
-  F(ThrowCalledOnNullOrUndefined, 1, 1)                              \
   F(ThrowConstructedNonConstructable, 1, 1)                          \
   F(ThrowConstructorReturnedNonObject, 0, 1)                         \
-  F(ThrowGeneratorRunning, 0, 1)                                     \
-  F(ThrowIncompatibleMethodReceiver, 2, 1)                           \
-  F(ThrowInvalidHint, 1, 1)                                          \
   F(ThrowInvalidStringLength, 0, 1)                                  \
   F(ThrowInvalidTypedArrayAlignment, 2, 1)                           \
   F(ThrowIteratorResultNotAnObject, 1, 1)                            \
   F(ThrowThrowMethodMissing, 0, 1)                                   \
   F(ThrowSymbolIteratorInvalid, 0, 1)                                \
-  F(ThrowNonCallableInInstanceOfCheck, 0, 1)                         \
-  F(ThrowNonObjectInInstanceOfCheck, 0, 1)                           \
   F(ThrowNotConstructor, 1, 1)                                       \
   F(ThrowRangeError, -1 /* >= 1 */, 1)                               \
   F(ThrowReferenceError, 1, 1)                                       \
   F(ThrowStackOverflow, 0, 1)                                        \
   F(ThrowSymbolAsyncIteratorInvalid, 0, 1)                           \
   F(ThrowTypeError, -1 /* >= 1 */, 1)                                \
-  F(ThrowUndefinedOrNullToObject, 1, 1)                              \
   F(Typeof, 1, 1)                                                    \
   F(UnwindAndFindExceptionHandler, 0, 1)                             \
   F(AllowDynamicFunction, 1, 1)                                      \

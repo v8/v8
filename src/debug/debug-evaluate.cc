@@ -348,10 +348,6 @@ bool IntrinsicHasNoSideEffect(Runtime::FunctionId id) {
   V(ArrayIncludes_Slow)                  \
   V(ArrayIsArray)                        \
   V(ThrowTypeError)                      \
-  V(ThrowCalledOnNullOrUndefined)        \
-  V(ThrowIncompatibleMethodReceiver)     \
-  V(ThrowInvalidHint)                    \
-  V(ThrowNotDateError)                   \
   V(ThrowRangeError)                     \
   V(ToName)                              \
   V(GetOwnPropertyDescriptor)            \

@@ -1035,10 +1035,6 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
   Node* ToThisValue(Node* context, Node* value, PrimitiveType primitive_type,
                     char const* method_name);
 
-  // Throws a TypeError for {method_name}. Terminates the current block.
-  void ThrowIncompatibleMethodReceiver(Node* context, char const* method_name,
-                                       Node* receiver);
-
   // Throws a TypeError for {method_name} if {value} is not of the given
   // instance type. Returns {value}'s map.
   Node* ThrowIfNotInstanceType(Node* context, Node* value,

@@ -911,9 +911,8 @@ void KeyedStoreGenericAssembler::EmitGenericPropertyStore(
 
       BIND(&strict);
       {
-        Node* message = SmiConstant(MessageTemplate::kNoSetterInCallback);
-        TailCallRuntime(Runtime::kThrowTypeError, p->context, message, p->name,
-                        var_accessor_holder.value());
+        ThrowTypeError(p->context, MessageTemplate::kNoSetterInCallback,
+                       p->name, var_accessor_holder.value());
       }
     }
   }
@@ -926,10 +925,9 @@ void KeyedStoreGenericAssembler::EmitGenericPropertyStore(
 
     BIND(&strict);
     {
-      Node* message = SmiConstant(MessageTemplate::kStrictReadOnlyProperty);
       Node* type = Typeof(p->receiver);
-      TailCallRuntime(Runtime::kThrowTypeError, p->context, message, p->name,
-                      type, p->receiver);
+      ThrowTypeError(p->context, MessageTemplate::kStrictReadOnlyProperty,
+                     p->name, type, p->receiver);
     }
   }
 

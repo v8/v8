@@ -62,7 +62,7 @@ void ConversionBuiltinsAssembler::Generate_NonPrimitiveToPrimitive(
     BIND(&if_resultisnotprimitive);
     {
       // Somehow the @@toPrimitive method on {input} didn't yield a primitive.
-      TailCallRuntime(Runtime::kThrowCannotConvertToPrimitive, context);
+      ThrowTypeError(context, MessageTemplate::kCannotConvertToPrimitive);
     }
   }
 
@@ -208,7 +208,7 @@ void ConversionBuiltinsAssembler::Generate_OrdinaryToPrimitive(
     BIND(&if_methodisnotcallable);
   }
 
-  TailCallRuntime(Runtime::kThrowCannotConvertToPrimitive, context);
+  ThrowTypeError(context, MessageTemplate::kCannotConvertToPrimitive);
 
   BIND(&return_result);
   Return(var_result.value());
@@ -383,8 +383,8 @@ TF_BUILTIN(ToObject, CodeStubAssembler) {
   Return(js_value);
 
   BIND(&if_noconstructor);
-  TailCallRuntime(Runtime::kThrowUndefinedOrNullToObject, context,
-                  StringConstant("ToObject"));
+  ThrowTypeError(context, MessageTemplate::kUndefinedOrNullToObject,
+                 "ToObject");
 
   BIND(&if_jsreceiver);
   Return(object);

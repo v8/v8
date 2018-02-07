@@ -1761,7 +1761,8 @@ TF_BUILTIN(MapIteratorPrototypeNext, CollectionsBuiltinsAssembler) {
   Branch(InstanceTypeEqual(receiver_instance_type, JS_MAP_VALUE_ITERATOR_TYPE),
          &if_receiver_valid, &if_receiver_invalid);
   BIND(&if_receiver_invalid);
-  ThrowIncompatibleMethodReceiver(context, kMethodName, receiver);
+  ThrowTypeError(context, MessageTemplate::kIncompatibleMethodReceiver,
+                 StringConstant(kMethodName), receiver);
   BIND(&if_receiver_valid);
 
   // Check if the {receiver} is exhausted.
@@ -1974,7 +1975,8 @@ TF_BUILTIN(SetIteratorPrototypeNext, CollectionsBuiltinsAssembler) {
       InstanceTypeEqual(receiver_instance_type, JS_SET_KEY_VALUE_ITERATOR_TYPE),
       &if_receiver_valid, &if_receiver_invalid);
   BIND(&if_receiver_invalid);
-  ThrowIncompatibleMethodReceiver(context, kMethodName, receiver);
+  ThrowTypeError(context, MessageTemplate::kIncompatibleMethodReceiver,
+                 StringConstant(kMethodName), receiver);
   BIND(&if_receiver_valid);
 
   // Check if the {receiver} is exhausted.

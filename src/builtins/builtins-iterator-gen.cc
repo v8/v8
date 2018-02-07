@@ -35,13 +35,7 @@ IteratorRecord IteratorBuiltinsAssembler::GetIterator(Node* context,
   Branch(IsJSReceiver(iterator), &get_next, &if_notobject);
 
   BIND(&if_notobject);
-  {
-    Node* ret =
-        CallRuntime(Runtime::kThrowTypeError, context,
-                    SmiConstant(MessageTemplate::kNotAnIterator), iterator);
-    GotoIfException(ret, if_exception, exception);
-    Unreachable();
-  }
+  { ThrowTypeError(context, MessageTemplate::kNotAnIterator, iterator); }
 
   BIND(&get_next);
   Node* const next = GetProperty(context, iterator, factory()->next_string());

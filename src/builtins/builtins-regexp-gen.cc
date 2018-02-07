@@ -1385,8 +1385,7 @@ TF_BUILTIN(RegExpPrototypeCompile, RegExpBuiltinsAssembler) {
       Label next(this);
       GotoIf(IsUndefined(maybe_flags), &next);
 
-      Node* const message_id = SmiConstant(MessageTemplate::kRegExpFlags);
-      TailCallRuntime(Runtime::kThrowTypeError, context, message_id);
+      ThrowTypeError(context, MessageTemplate::kRegExpFlags);
 
       BIND(&next);
     }
@@ -1451,12 +1450,8 @@ TF_BUILTIN(RegExpPrototypeSourceGetter, RegExpBuiltinsAssembler) {
 
     BIND(&if_isnotprototype);
     {
-      Node* const message_id = SmiConstant(MessageTemplate::kRegExpNonRegExp);
-      Node* const method_name_str =
-          HeapConstant(isolate->factory()->NewStringFromAsciiChecked(
-              "RegExp.prototype.source"));
-      TailCallRuntime(Runtime::kThrowTypeError, context, message_id,
-                      method_name_str);
+      ThrowTypeError(context, MessageTemplate::kRegExpNonRegExp,
+                     "RegExp.prototype.source");
     }
   }
 }
@@ -1534,8 +1529,6 @@ Node* RegExpBuiltinsAssembler::FlagGetter(Node* const context,
 void RegExpBuiltinsAssembler::FlagGetter(Node* context, Node* receiver,
                                          JSRegExp::Flag flag, int counter,
                                          const char* method_name) {
-  Isolate* isolate = this->isolate();
-
   // Check whether we have an unmodified regexp instance.
   Label if_isunmodifiedjsregexp(this),
       if_isnotunmodifiedjsregexp(this, Label::kDeferred);
@@ -1574,14 +1567,7 @@ void RegExpBuiltinsAssembler::FlagGetter(Node* context, Node* receiver,
     }
 
     BIND(&if_isnotprototype);
-    {
-      Node* const message_id = SmiConstant(MessageTemplate::kRegExpNonRegExp);
-      Node* const method_name_str = HeapConstant(
-          isolate->factory()->NewStringFromAsciiChecked(method_name));
-      CallRuntime(Runtime::kThrowTypeError, context, message_id,
-                  method_name_str);
-      Unreachable();
-    }
+    { ThrowTypeError(context, MessageTemplate::kRegExpNonRegExp, method_name); }
   }
 }
 

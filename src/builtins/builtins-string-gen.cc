@@ -1011,8 +1011,8 @@ void StringBuiltinsAssembler::RequireObjectCoercible(Node* const context,
   Branch(IsNullOrUndefined(value), &throw_exception, &out);
 
   BIND(&throw_exception);
-  TailCallRuntime(Runtime::kThrowCalledOnNullOrUndefined, context,
-                  StringConstant(method_name));
+  ThrowTypeError(context, MessageTemplate::kCalledOnNullOrUndefined,
+                 method_name);
 
   BIND(&out);
 }
@@ -1209,11 +1209,10 @@ TF_BUILTIN(StringPrototypeRepeat, StringBuiltinsAssembler) {
 
   BIND(&invalid_count);
   {
-    CallRuntime(Runtime::kThrowRangeError, context,
-                SmiConstant(MessageTemplate::kInvalidCountValue),
-                var_count.value());
-    Unreachable();
+    ThrowRangeError(context, MessageTemplate::kInvalidCountValue,
+                    var_count.value());
   }
+
   BIND(&invalid_string_length);
   {
     CallRuntime(Runtime::kThrowInvalidStringLength, context);
@@ -2318,9 +2317,8 @@ TF_BUILTIN(StringIteratorPrototypeNext, StringBuiltinsAssembler) {
   BIND(&throw_bad_receiver);
   {
     // The {receiver} is not a valid JSGeneratorObject.
-    CallRuntime(Runtime::kThrowIncompatibleMethodReceiver, context,
-                StringConstant("String Iterator.prototype.next"), iterator);
-    Unreachable();
+    ThrowTypeError(context, MessageTemplate::kIncompatibleMethodReceiver,
+                   StringConstant("String Iterator.prototype.next"), iterator);
   }
 }
 
