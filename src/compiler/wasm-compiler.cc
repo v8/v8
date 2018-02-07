@@ -785,16 +785,16 @@ Node* WasmGraphBuilder::Unop(wasm::WasmOpcode opcode, Node* input,
       op = m->SignExtendWord32ToInt64();
       break;
     case wasm::kExprI64SConvertF32:
+    case wasm::kExprI64UConvertF32:
+    case wasm::kExprI64SConvertF64:
+    case wasm::kExprI64UConvertF64:
     case wasm::kExprI64SConvertSatF32:
+    case wasm::kExprI64UConvertSatF32:
+    case wasm::kExprI64SConvertSatF64:
+    case wasm::kExprI64UConvertSatF64:
       return jsgraph()->machine()->Is32()
                  ? BuildCcallConvertFloat(input, position, opcode)
                  : BuildIntConvertFloat(input, position, opcode);
-    case wasm::kExprI64SConvertF64:
-      return BuildI64SConvertF64(input, position);
-    case wasm::kExprI64UConvertF32:
-      return BuildI64UConvertF32(input, position);
-    case wasm::kExprI64UConvertF64:
-      return BuildI64UConvertF64(input, position);
     case wasm::kExprI32AsmjsLoadMem8S:
       return BuildAsmjsLoadMem(MachineType::Int8(), input);
     case wasm::kExprI32AsmjsLoadMem8U:
@@ -1395,8 +1395,15 @@ MachineType IntConvertType(wasm::WasmOpcode opcode) {
     case wasm::kExprI32UConvertSatF64:
       return MachineType::Uint32();
     case wasm::kExprI64SConvertF32:
+    case wasm::kExprI64SConvertF64:
     case wasm::kExprI64SConvertSatF32:
+    case wasm::kExprI64SConvertSatF64:
       return MachineType::Int64();
+    case wasm::kExprI64UConvertF32:
+    case wasm::kExprI64UConvertF64:
+    case wasm::kExprI64UConvertSatF32:
+    case wasm::kExprI64UConvertSatF64:
+      return MachineType::Uint64();
     default:
       UNREACHABLE();
   }
@@ -1407,14 +1414,20 @@ MachineType FloatConvertType(wasm::WasmOpcode opcode) {
     case wasm::kExprI32SConvertF32:
     case wasm::kExprI32UConvertF32:
     case wasm::kExprI32SConvertSatF32:
-    case wasm::kExprI32UConvertSatF32:
     case wasm::kExprI64SConvertF32:
+    case wasm::kExprI64UConvertF32:
+    case wasm::kExprI32UConvertSatF32:
     case wasm::kExprI64SConvertSatF32:
+    case wasm::kExprI64UConvertSatF32:
       return MachineType::Float32();
     case wasm::kExprI32SConvertF64:
     case wasm::kExprI32UConvertF64:
+    case wasm::kExprI64SConvertF64:
+    case wasm::kExprI64UConvertF64:
     case wasm::kExprI32SConvertSatF64:
     case wasm::kExprI32UConvertSatF64:
+    case wasm::kExprI64SConvertSatF64:
+    case wasm::kExprI64UConvertSatF64:
       return MachineType::Float64();
     default:
       UNREACHABLE();
@@ -1438,6 +1451,15 @@ const Operator* ConvertOp(WasmGraphBuilder* builder, wasm::WasmOpcode opcode) {
     case wasm::kExprI64SConvertF32:
     case wasm::kExprI64SConvertSatF32:
       return builder->jsgraph()->machine()->TryTruncateFloat32ToInt64();
+    case wasm::kExprI64UConvertF32:
+    case wasm::kExprI64UConvertSatF32:
+      return builder->jsgraph()->machine()->TryTruncateFloat32ToUint64();
+    case wasm::kExprI64SConvertF64:
+    case wasm::kExprI64SConvertSatF64:
+      return builder->jsgraph()->machine()->TryTruncateFloat64ToInt64();
+    case wasm::kExprI64UConvertF64:
+    case wasm::kExprI64UConvertSatF64:
+      return builder->jsgraph()->machine()->TryTruncateFloat64ToUint64();
     default:
       UNREACHABLE();
   }
@@ -1469,12 +1491,18 @@ bool IsTrappingConvertOp(wasm::WasmOpcode opcode) {
     case wasm::kExprI32SConvertF64:
     case wasm::kExprI32UConvertF64:
     case wasm::kExprI64SConvertF32:
+    case wasm::kExprI64UConvertF32:
+    case wasm::kExprI64SConvertF64:
+    case wasm::kExprI64UConvertF64:
       return true;
     case wasm::kExprI32SConvertSatF64:
     case wasm::kExprI32UConvertSatF64:
     case wasm::kExprI32SConvertSatF32:
     case wasm::kExprI32UConvertSatF32:
     case wasm::kExprI64SConvertSatF32:
+    case wasm::kExprI64UConvertSatF32:
+    case wasm::kExprI64SConvertSatF64:
+    case wasm::kExprI64UConvertSatF64:
       return false;
     default:
       UNREACHABLE();
@@ -1890,93 +1918,6 @@ Node* WasmGraphBuilder::BuildIntToFloatConversionInstruction(
   return load;
 }
 
-Node* WasmGraphBuilder::BuildI64UConvertF32(Node* input,
-                                            wasm::WasmCodePosition position) {
-  if (jsgraph()->machine()->Is32()) {
-    return BuildFloatToIntConversionInstruction(
-        input, ExternalReference::wasm_float32_to_uint64(jsgraph()->isolate()),
-        MachineRepresentation::kFloat32, MachineType::Int64(), position);
-  } else {
-    Node* trunc = graph()->NewNode(
-        jsgraph()->machine()->TryTruncateFloat32ToUint64(), input);
-    Node* result = graph()->NewNode(jsgraph()->common()->Projection(0), trunc,
-                                    graph()->start());
-    Node* overflow = graph()->NewNode(jsgraph()->common()->Projection(1), trunc,
-                                      graph()->start());
-    ZeroCheck64(wasm::kTrapFloatUnrepresentable, overflow, position);
-    return result;
-  }
-}
-
-Node* WasmGraphBuilder::BuildI64SConvertF64(Node* input,
-                                            wasm::WasmCodePosition position) {
-  if (jsgraph()->machine()->Is32()) {
-    return BuildFloatToIntConversionInstruction(
-        input, ExternalReference::wasm_float64_to_int64(jsgraph()->isolate()),
-        MachineRepresentation::kFloat64, MachineType::Int64(), position);
-  } else {
-    Node* trunc = graph()->NewNode(
-        jsgraph()->machine()->TryTruncateFloat64ToInt64(), input);
-    Node* result = graph()->NewNode(jsgraph()->common()->Projection(0), trunc,
-                                    graph()->start());
-    Node* overflow = graph()->NewNode(jsgraph()->common()->Projection(1), trunc,
-                                      graph()->start());
-    ZeroCheck64(wasm::kTrapFloatUnrepresentable, overflow, position);
-    return result;
-  }
-}
-
-Node* WasmGraphBuilder::BuildI64UConvertF64(Node* input,
-                                            wasm::WasmCodePosition position) {
-  if (jsgraph()->machine()->Is32()) {
-    return BuildFloatToIntConversionInstruction(
-        input, ExternalReference::wasm_float64_to_uint64(jsgraph()->isolate()),
-        MachineRepresentation::kFloat64, MachineType::Int64(), position);
-  } else {
-    Node* trunc = graph()->NewNode(
-        jsgraph()->machine()->TryTruncateFloat64ToUint64(), input);
-    Node* result = graph()->NewNode(jsgraph()->common()->Projection(0), trunc,
-                                    graph()->start());
-    Node* overflow = graph()->NewNode(jsgraph()->common()->Projection(1), trunc,
-                                      graph()->start());
-    ZeroCheck64(wasm::kTrapFloatUnrepresentable, overflow, position);
-    return result;
-  }
-}
-
-// TODO(kschimpf) Remove this method once BuildI64UConvertF32,
-// BuildI64SConvertF64, and BuildI64UConvertF64 have been moved over to use
-// method BuildCcallConvertFloat() below.
-Node* WasmGraphBuilder::BuildFloatToIntConversionInstruction(
-    Node* input, ExternalReference ref,
-    MachineRepresentation parameter_representation,
-    const MachineType result_type, wasm::WasmCodePosition position) {
-  Node* stack_slot_param = graph()->NewNode(
-      jsgraph()->machine()->StackSlot(parameter_representation));
-  Node* stack_slot_result = graph()->NewNode(
-      jsgraph()->machine()->StackSlot(result_type.representation()));
-  const Operator* store_op = jsgraph()->machine()->Store(
-      StoreRepresentation(parameter_representation, kNoWriteBarrier));
-  *effect_ =
-      graph()->NewNode(store_op, stack_slot_param, jsgraph()->Int32Constant(0),
-                       input, *effect_, *control_);
-  MachineSignature::Builder sig_builder(jsgraph()->zone(), 1, 2);
-  sig_builder.AddReturn(MachineType::Int32());
-  sig_builder.AddParam(MachineType::Pointer());
-  sig_builder.AddParam(MachineType::Pointer());
-  Node* function = graph()->NewNode(jsgraph()->common()->ExternalConstant(ref));
-  ZeroCheck32(wasm::kTrapFloatUnrepresentable,
-              BuildCCall(sig_builder.Build(), function, stack_slot_param,
-                         stack_slot_result),
-              position);
-  const Operator* load_op = jsgraph()->machine()->Load(result_type);
-  Node* load =
-      graph()->NewNode(load_op, stack_slot_result, jsgraph()->Int32Constant(0),
-                       *effect_, *control_);
-  *effect_ = load;
-  return load;
-}
-
 namespace {
 
 ExternalReference convert_ccall_ref(WasmGraphBuilder* builder,
@@ -1985,6 +1926,18 @@ ExternalReference convert_ccall_ref(WasmGraphBuilder* builder,
     case wasm::kExprI64SConvertF32:
     case wasm::kExprI64SConvertSatF32:
       return ExternalReference::wasm_float32_to_int64(
+          builder->jsgraph()->isolate());
+    case wasm::kExprI64UConvertF32:
+    case wasm::kExprI64UConvertSatF32:
+      return ExternalReference::wasm_float32_to_uint64(
+          builder->jsgraph()->isolate());
+    case wasm::kExprI64SConvertF64:
+    case wasm::kExprI64SConvertSatF64:
+      return ExternalReference::wasm_float64_to_int64(
+          builder->jsgraph()->isolate());
+    case wasm::kExprI64UConvertF64:
+    case wasm::kExprI64UConvertSatF64:
+      return ExternalReference::wasm_float64_to_uint64(
           builder->jsgraph()->isolate());
     default:
       UNREACHABLE();

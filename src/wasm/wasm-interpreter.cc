@@ -496,6 +496,17 @@ int64_t ExecuteI64SConvertF64(double a, TrapReason* trap) {
   return output;
 }
 
+int64_t ExecuteI64SConvertSatF64(double a) {
+  TrapReason base_trap = kTrapCount;
+  int64_t val = ExecuteI64SConvertF64(a, &base_trap);
+  if (base_trap == kTrapCount) {
+    return val;
+  }
+  return std::isnan(a) ? 0
+                       : (a < 0.0 ? std::numeric_limits<int64_t>::min()
+                                  : std::numeric_limits<int64_t>::max());
+}
+
 uint64_t ExecuteI64UConvertF32(float a, TrapReason* trap) {
   uint64_t output;
   if (!float32_to_uint64_wrapper(&a, &output)) {
@@ -504,12 +515,34 @@ uint64_t ExecuteI64UConvertF32(float a, TrapReason* trap) {
   return output;
 }
 
+uint64_t ExecuteI64UConvertSatF32(float a) {
+  TrapReason base_trap = kTrapCount;
+  uint64_t val = ExecuteI64UConvertF32(a, &base_trap);
+  if (base_trap == kTrapCount) {
+    return val;
+  }
+  return std::isnan(a) ? 0
+                       : (a < 0.0 ? std::numeric_limits<uint64_t>::min()
+                                  : std::numeric_limits<uint64_t>::max());
+}
+
 uint64_t ExecuteI64UConvertF64(double a, TrapReason* trap) {
   uint64_t output;
   if (!float64_to_uint64_wrapper(&a, &output)) {
     *trap = kTrapFloatUnrepresentable;
   }
   return output;
+}
+
+uint64_t ExecuteI64UConvertSatF64(double a) {
+  TrapReason base_trap = kTrapCount;
+  int64_t val = ExecuteI64UConvertF64(a, &base_trap);
+  if (base_trap == kTrapCount) {
+    return val;
+  }
+  return std::isnan(a) ? 0
+                       : (a < 0.0 ? std::numeric_limits<uint64_t>::min()
+                                  : std::numeric_limits<uint64_t>::max());
 }
 
 inline int64_t ExecuteI64SConvertI32(int32_t a, TrapReason* trap) {
@@ -1576,10 +1609,18 @@ class ThreadImpl {
       case kExprI32UConvertSatF64:
         Push(WasmValue(ExecuteConvertSaturate<uint32_t>(Pop().to<double>())));
         return true;
-      case kExprI64SConvertSatF32: {
+      case kExprI64SConvertSatF32:
         Push(WasmValue(ExecuteI64SConvertSatF32(Pop().to<float>())));
         return true;
-      }
+      case kExprI64UConvertSatF32:
+        Push(WasmValue(ExecuteI64UConvertSatF32(Pop().to<float>())));
+        return true;
+      case kExprI64SConvertSatF64:
+        Push(WasmValue(ExecuteI64SConvertSatF64(Pop().to<double>())));
+        return true;
+      case kExprI64UConvertSatF64:
+        Push(WasmValue(ExecuteI64UConvertSatF64(Pop().to<double>())));
+        return true;
       default:
         V8_Fatal(__FILE__, __LINE__, "Unknown or unimplemented opcode #%d:%s",
                  code->start[pc], OpcodeName(code->start[pc]));

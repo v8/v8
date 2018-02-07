@@ -547,15 +547,8 @@ class WasmGraphBuilder {
   Node* BuildF64SConvertI64(Node* input);
   Node* BuildF64UConvertI64(Node* input);
 
-  Node* BuildFloatToIntConversionInstruction(
-      Node* input, ExternalReference ref,
-      MachineRepresentation parameter_representation,
-      const MachineType result_type, wasm::WasmCodePosition position);
   Node* BuildCcallConvertFloat(Node* input, wasm::WasmCodePosition position,
                                wasm::WasmOpcode opcode);
-  Node* BuildI64UConvertF32(Node* input, wasm::WasmCodePosition position);
-  Node* BuildI64SConvertF64(Node* input, wasm::WasmCodePosition position);
-  Node* BuildI64UConvertF64(Node* input, wasm::WasmCodePosition position);
 
   Node* BuildI32DivS(Node* left, Node* right, wasm::WasmCodePosition position);
   Node* BuildI32RemS(Node* left, Node* right, wasm::WasmCodePosition position);
