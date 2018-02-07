@@ -1840,6 +1840,8 @@ int DisassemblerX64::TwoByteOpcodeInstruction(byte* data) {
         } else if (opcode == 0xD9) {
           mnemonic = "psubusw";
         } else if (opcode == 0xDA) {
+          mnemonic = "pand";
+        } else if (opcode == 0xDB) {
           mnemonic = "pminub";
         } else if (opcode == 0xDC) {
           mnemonic = "paddusb";
@@ -1857,6 +1859,8 @@ int DisassemblerX64::TwoByteOpcodeInstruction(byte* data) {
           mnemonic = "psubsw";
         } else if (opcode == 0xEA) {
           mnemonic = "pminsw";
+        } else if (opcode == 0xEB) {
+          mnemonic = "por";
         } else if (opcode == 0xEC) {
           mnemonic = "paddsb";
         } else if (opcode == 0xED) {
@@ -2814,6 +2818,11 @@ int Disassembler::InstructionDecode(v8::internal::Vector<char> buffer,
   return d.InstructionDecode(buffer, instruction);
 }
 
+int Disassembler::InstructionDecodeForTesting(v8::internal::Vector<char> buffer,
+                                              byte* instruction) {
+  DisassemblerX64 d(converter_, ABORT_ON_UNIMPLEMENTED_OPCODE);
+  return d.InstructionDecode(buffer, instruction);
+}
 
 // The X64 assembler does not use constant pools.
 int Disassembler::ConstantPoolSizeAt(byte* instruction) {
