@@ -35,20 +35,6 @@ v8_executable("cctest") {
 v8_source_set("cctest_sources") {
   testonly = true
 
-  # Create a dependency from this target to the generated files below.
-  inputs = [
-    "$root_gen_dir/test-isolate-independent-builtins/f-arm64.bin",
-    "$root_gen_dir/test-isolate-independent-builtins/f-arm.bin",
-    "$root_gen_dir/test-isolate-independent-builtins/f-ia32.bin",
-    "$root_gen_dir/test-isolate-independent-builtins/f-mips64.bin",
-    "$root_gen_dir/test-isolate-independent-builtins/f-mips.bin",
-    "$root_gen_dir/test-isolate-independent-builtins/f-ppc.bin",
-    "$root_gen_dir/test-isolate-independent-builtins/f-s390.bin",
-    "$root_gen_dir/test-isolate-independent-builtins/f-x64.bin",
-    "$root_gen_dir/test-isolate-independent-builtins/f-x64-win.bin",
-    "$root_gen_dir/test-isolate-independent-builtins/string.bin",
-  ]
-
   sources = [
     "$target_gen_dir/resources.cc",
 
@@ -375,7 +361,6 @@ v8_source_set("cctest_sources") {
 
   public_deps = [
     ":resources",
-    ":test-isolate-independent-builtins-files",
     "../..:v8_initializers",
     "../..:v8_libbase",
     "../..:v8_libplatform",
@@ -422,25 +407,6 @@ v8_source_set("cctest_sources") {
     # MSVS wants this for gay-{precision,shortest}.cc.
     cflags += [ "/bigobj" ]
   }
-}
-
-copy("test-isolate-independent-builtins-files") {
-  sources = [
-    "test-isolate-independent-builtins/f-arm.bin",
-    "test-isolate-independent-builtins/f-arm64.bin",
-    "test-isolate-independent-builtins/f-ia32.bin",
-    "test-isolate-independent-builtins/f-mips.bin",
-    "test-isolate-independent-builtins/f-mips64.bin",
-    "test-isolate-independent-builtins/f-ppc.bin",
-    "test-isolate-independent-builtins/f-s390.bin",
-    "test-isolate-independent-builtins/f-x64-win.bin",
-    "test-isolate-independent-builtins/f-x64.bin",
-    "test-isolate-independent-builtins/string.bin",
-  ]
-
-  outputs = [
-    "$root_gen_dir/test-isolate-independent-builtins/{{source_file_part}}",
-  ]
 }
 
 action("resources") {
