@@ -2,12 +2,13 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "src/builtins/builtins-typedarray-gen.h"
+
 #include "src/builtins/builtins-constructor-gen.h"
 #include "src/builtins/builtins-iterator-gen.h"
 #include "src/builtins/builtins-utils-gen.h"
 #include "src/builtins/builtins.h"
 #include "src/builtins/growable-fixed-array-gen.h"
-#include "src/code-stub-assembler.h"
 #include "src/handles-inl.h"
 
 namespace v8 {
@@ -25,111 +26,6 @@ using TNode = compiler::TNode<T>;
 
 // -----------------------------------------------------------------------------
 // ES6 section 22.2 TypedArray Objects
-
-class TypedArrayBuiltinsAssembler : public CodeStubAssembler {
- public:
-  explicit TypedArrayBuiltinsAssembler(compiler::CodeAssemblerState* state)
-      : CodeStubAssembler(state) {}
-
- protected:
-  void GenerateTypedArrayPrototypeGetter(Node* context, Node* receiver,
-                                         const char* method_name,
-                                         int object_offset);
-  void GenerateTypedArrayPrototypeIterationMethod(Node* context, Node* receiver,
-                                                  const char* method_name,
-                                                  IterationKind iteration_kind);
-
-  void ConstructByLength(TNode<Context> context, TNode<JSTypedArray> holder,
-                         TNode<Object> length, TNode<Smi> element_size);
-  void ConstructByArrayBuffer(TNode<Context> context,
-                              TNode<JSTypedArray> holder,
-                              TNode<JSArrayBuffer> buffer,
-                              TNode<Object> byte_offset, TNode<Object> length,
-                              TNode<Smi> element_size);
-  void ConstructByTypedArray(TNode<Context> context, TNode<JSTypedArray> holder,
-                             TNode<JSTypedArray> typed_array,
-                             TNode<Smi> element_size);
-  void ConstructByArrayLike(TNode<Context> context, TNode<JSTypedArray> holder,
-                            TNode<HeapObject> array_like,
-                            TNode<Object> initial_length,
-                            TNode<Smi> element_size);
-  void ConstructByIterable(TNode<Context> context, TNode<JSTypedArray> holder,
-                           TNode<JSReceiver> iterable,
-                           TNode<Object> iterator_fn, TNode<Smi> element_size);
-
-  void SetupTypedArray(TNode<JSTypedArray> holder, TNode<Smi> length,
-                       TNode<Number> byte_offset, TNode<Number> byte_length);
-  void AttachBuffer(TNode<JSTypedArray> holder, TNode<JSArrayBuffer> buffer,
-                    TNode<Map> map, TNode<Smi> length,
-                    TNode<Number> byte_offset);
-
-  TNode<Map> LoadMapForType(TNode<JSTypedArray> array);
-  TNode<UintPtrT> CalculateExternalPointer(TNode<UintPtrT> backing_store,
-                                           TNode<Number> byte_offset);
-  Node* LoadDataPtr(Node* typed_array);
-  TNode<BoolT> ByteLengthIsValid(TNode<Number> byte_length);
-
-  // Returns true if kind is either UINT8_ELEMENTS or UINT8_CLAMPED_ELEMENTS.
-  TNode<Word32T> IsUint8ElementsKind(TNode<Word32T> kind);
-
-  // Loads the element kind of TypedArray instance.
-  TNode<Word32T> LoadElementsKind(TNode<Object> typed_array);
-
-  // Returns the byte size of an element for a TypedArray elements kind.
-  TNode<IntPtrT> GetTypedArrayElementSize(TNode<Word32T> elements_kind);
-
-  TNode<Object> GetDefaultConstructor(TNode<Context> context,
-                                      TNode<JSTypedArray> exemplar);
-
-  TNode<Object> TypedArraySpeciesConstructor(TNode<Context> context,
-                                             TNode<JSTypedArray> exemplar);
-
-  TNode<JSTypedArray> SpeciesCreateByArrayBuffer(TNode<Context> context,
-                                                 TNode<JSTypedArray> exemplar,
-                                                 TNode<JSArrayBuffer> buffer,
-                                                 TNode<Number> byte_offset,
-                                                 TNode<Smi> len,
-                                                 const char* method_name);
-
-  TNode<JSTypedArray> SpeciesCreateByLength(TNode<Context> context,
-                                            TNode<JSTypedArray> exemplar,
-                                            TNode<Smi> len,
-                                            const char* method_name);
-
-  TNode<JSArrayBuffer> GetBuffer(TNode<Context> context,
-                                 TNode<JSTypedArray> array);
-
-  TNode<JSTypedArray> ValidateTypedArray(TNode<Context> context,
-                                         TNode<Object> obj,
-                                         const char* method_name);
-
-  // Fast path for setting a TypedArray (source) onto another TypedArray
-  // (target) at an element offset.
-  void SetTypedArraySource(TNode<Context> context, TNode<JSTypedArray> source,
-                           TNode<JSTypedArray> target, TNode<IntPtrT> offset,
-                           Label* call_runtime, Label* if_source_too_large);
-
-  void SetJSArraySource(TNode<Context> context, TNode<JSArray> source,
-                        TNode<JSTypedArray> target, TNode<IntPtrT> offset,
-                        Label* call_runtime, Label* if_source_too_large);
-
-  void CallCMemmove(TNode<IntPtrT> dest_ptr, TNode<IntPtrT> src_ptr,
-                    TNode<IntPtrT> byte_length);
-
-  void CallCCopyFastNumberJSArrayElementsToTypedArray(
-      TNode<Context> context, TNode<JSArray> source, TNode<JSTypedArray> dest,
-      TNode<IntPtrT> source_length, TNode<IntPtrT> offset);
-
-  void CallCCopyTypedArrayElementsToTypedArray(TNode<JSTypedArray> source,
-                                               TNode<JSTypedArray> dest,
-                                               TNode<IntPtrT> source_length,
-                                               TNode<IntPtrT> offset);
-
-  typedef std::function<void(ElementsKind, int, int)> TypedArraySwitchCase;
-
-  void DispatchTypedArrayByElementsKind(
-      TNode<Word32T> elements_kind, const TypedArraySwitchCase& case_function);
-};
 
 TNode<Map> TypedArrayBuiltinsAssembler::LoadMapForType(
     TNode<JSTypedArray> array) {

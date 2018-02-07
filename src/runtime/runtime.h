@@ -645,8 +645,7 @@ namespace internal {
   F(IsTypedArray, 1, 1)                  \
   F(IsSharedTypedArray, 1, 1)            \
   F(IsSharedIntegerTypedArray, 1, 1)     \
-  F(IsSharedInteger32TypedArray, 1, 1)   \
-  F(TypedArraySpeciesCreateByLength, 2, 1)
+  F(IsSharedInteger32TypedArray, 1, 1)
 
 #define FOR_EACH_INTRINSIC_WASM(F)   \
   F(WasmGrowMemory, 1, 1)            \

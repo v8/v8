@@ -193,6 +193,7 @@
         '../src/builtins/builtins-string-gen.h',
         '../src/builtins/builtins-symbol-gen.cc',
         '../src/builtins/builtins-typedarray-gen.cc',
+        '../src/builtins/builtins-typedarray-gen.h',
         '../src/builtins/builtins-utils-gen.h',
         '../src/builtins/builtins-wasm-gen.cc',
         '../src/builtins/growable-fixed-array-gen.cc',

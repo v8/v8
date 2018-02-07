@@ -16727,33 +16727,6 @@ MaybeHandle<JSTypedArray> JSTypedArray::Create(Isolate* isolate,
   return new_array;
 }
 
-// static
-MaybeHandle<JSTypedArray> JSTypedArray::SpeciesCreate(
-    Isolate* isolate, Handle<JSTypedArray> exemplar, int argc,
-    Handle<Object>* argv, const char* method_name) {
-  // 1. Assert: exemplar is an Object that has a [[TypedArrayName]] internal
-  // slot.
-  DCHECK(exemplar->IsJSTypedArray());
-
-  // 2. Let defaultConstructor be the intrinsic object listed in column one of
-  // Table 51 for exemplar.[[TypedArrayName]].
-  Handle<JSFunction> default_ctor =
-      JSTypedArray::DefaultConstructor(isolate, exemplar);
-
-  // 3. Let constructor be ? SpeciesConstructor(exemplar, defaultConstructor).
-  Handle<Object> ctor = default_ctor;
-  if (!exemplar->HasJSTypedArrayPrototype(isolate) ||
-      !isolate->IsSpeciesLookupChainIntact()) {
-    ASSIGN_RETURN_ON_EXCEPTION(
-        isolate, ctor,
-        Object::SpeciesConstructor(isolate, exemplar, default_ctor),
-        JSTypedArray);
-  }
-
-  // 4. Return ? TypedArrayCreate(constructor, argumentList).
-  return Create(isolate, ctor, argc, argv, method_name);
-}
-
 void JSGlobalObject::InvalidatePropertyCell(Handle<JSGlobalObject> global,
                                             Handle<Name> name) {
   // Regardless of whether the property is there or not invalidate

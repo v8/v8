@@ -836,9 +836,6 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
   Node* AllocateJSIteratorResult(Node* context, Node* value, Node* done);
   Node* AllocateJSIteratorResultForEntry(Node* context, Node* key, Node* value);
 
-  Node* TypedArraySpeciesCreateByLength(Node* context, Node* originalArray,
-                                        Node* len);
-
   void FillFixedArrayWithValue(ElementsKind kind, Node* array, Node* from_index,
                                Node* to_index,
                                Heap::RootListIndex value_root_index,

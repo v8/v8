@@ -310,11 +310,6 @@ class JSTypedArray : public JSArrayBufferView {
                                           Handle<Object> default_ctor, int argc,
                                           Handle<Object>* argv,
                                           const char* method_name);
-  // ES7 section 22.2.4.7 TypedArraySpeciesCreate ( exemplar, argumentList )
-  static MaybeHandle<JSTypedArray> SpeciesCreate(Isolate* isolate,
-                                                 Handle<JSTypedArray> exemplar,
-                                                 int argc, Handle<Object>* argv,
-                                                 const char* method_name);
 
   // Dispatched behavior.
   DECL_PRINTER(JSTypedArray)

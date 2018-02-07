@@ -3,6 +3,7 @@
 // found in the LICENSE file.
 
 #include "src/builtins/builtins-string-gen.h"
+#include "src/builtins/builtins-typedarray-gen.h"
 #include "src/builtins/builtins-utils-gen.h"
 #include "src/builtins/builtins.h"
 #include "src/code-stub-assembler.h"
@@ -200,7 +201,13 @@ Node* ArrayBuiltinsAssembler::FindProcessor(Node* k_value, Node* k) {
 
   void ArrayBuiltinsAssembler::TypedArrayMapResultGenerator() {
     // 6. Let A be ? TypedArraySpeciesCreate(O, len).
-    Node* a = TypedArraySpeciesCreateByLength(context(), o(), len_);
+    TNode<JSTypedArray> original_array = CAST(o());
+    TNode<Smi> length = CAST(len_);
+    const char* method_name = "%TypedArray%.prototype.map";
+
+    TypedArrayBuiltinsAssembler typedarray_asm(state());
+    TNode<JSTypedArray> a = typedarray_asm.SpeciesCreateByLength(
+        CAST(context()), original_array, length, method_name);
     // In the Spec and our current implementation, the length check is already
     // performed in TypedArraySpeciesCreate.
     CSA_ASSERT(this,
