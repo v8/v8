@@ -2108,6 +2108,9 @@ class ThreadImpl {
               WasmInstanceObject::GrowMemory(isolate, instance, delta_pages);
           Push(WasmValue(result));
           len = 1 + operand.length;
+          // Treat one grow_memory instruction like 1000 other instructions,
+          // because it is a really expensive operation.
+          if (max > 0) max = std::max(0, max - 1000);
           break;
         }
         case kExprMemorySize: {
