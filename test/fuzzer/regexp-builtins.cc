@@ -121,7 +121,11 @@ std::string GenerateRandomString(FuzzerArgs* args, size_t length) {
 
 std::string GenerateRandomPattern(FuzzerArgs* args) {
   const int kMaxPatternLength = 16;
-  return GenerateRandomString(args, (RandomByte(args) % kMaxPatternLength) + 1);
+  std::string s =
+      GenerateRandomString(args, (RandomByte(args) % kMaxPatternLength) + 1);
+  // A leading '*' would be a comment instead of a regexp literal.
+  if (s[0] == '*') s[0] = '.';
+  return s;
 }
 
 std::string PickRandomPresetPattern(FuzzerArgs* args) {
