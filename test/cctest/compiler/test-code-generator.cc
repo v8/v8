@@ -275,13 +275,7 @@ void PrintStateValue(std::ostream& os, Isolate* isolate, Handle<Object> value,
 }
 
 bool TestSimd128Moves() {
-#if defined(V8_TARGET_ARCH_MIPS) || defined(V8_TARGET_ARCH_MIPS64)
-  // TODO(mips): Implement support for the kSimd128 representation in
-  // AssembleMove and AssembleSwap on MIPS.
-  return false;
-#else
   return CpuFeatures::SupportsWasmSimd128();
-#endif
 }
 
 }  // namespace

@@ -1670,8 +1670,15 @@ void InstructionSelector::EmitPrepareArguments(
   } else {
     int push_count = static_cast<int>(descriptor->StackParameterCount());
     if (push_count > 0) {
+      // Calculate needed space
+      int stack_size = 0;
+      for (PushParameter input : (*arguments)) {
+        if (input.node) {
+          stack_size += input.location.GetSizeInPointers();
+        }
+      }
       Emit(kMips64StackClaim, g.NoOutput(),
-           g.TempImmediate(push_count << kPointerSizeLog2));
+           g.TempImmediate(stack_size << kPointerSizeLog2));
     }
     for (size_t n = 0; n < arguments->size(); ++n) {
       PushParameter input = (*arguments)[n];

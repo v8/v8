@@ -1924,7 +1924,12 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     }
     case kMips64StoreToStackSlot: {
       if (instr->InputAt(0)->IsFPRegister()) {
-        __ Sdc1(i.InputDoubleRegister(0), MemOperand(sp, i.InputInt32(1)));
+        if (instr->InputAt(0)->IsSimd128Register()) {
+          CpuFeatureScope msa_scope(tasm(), MIPS_SIMD);
+          __ st_b(i.InputSimd128Register(0), MemOperand(sp, i.InputInt32(1)));
+        } else {
+          __ Sdc1(i.InputDoubleRegister(0), MemOperand(sp, i.InputInt32(1)));
+        }
       } else {
         __ Sd(i.InputRegister(0), MemOperand(sp, i.InputInt32(1)));
       }
@@ -3769,23 +3774,50 @@ void CodeGenerator::AssembleMove(InstructionOperand* source,
       }
     }
   } else if (source->IsFPRegister()) {
-    FPURegister src = g.ToDoubleRegister(source);
-    if (destination->IsFPRegister()) {
-      FPURegister dst = g.ToDoubleRegister(destination);
-      __ Move(dst, src);
+    MachineRepresentation rep = LocationOperand::cast(source)->representation();
+    if (rep == MachineRepresentation::kSimd128) {
+      CpuFeatureScope msa_scope(tasm(), MIPS_SIMD);
+      MSARegister src = g.ToSimd128Register(source);
+      if (destination->IsSimd128Register()) {
+        MSARegister dst = g.ToSimd128Register(destination);
+        __ move_v(dst, src);
+      } else {
+        DCHECK(destination->IsSimd128StackSlot());
+        __ st_b(src, g.ToMemOperand(destination));
+      }
     } else {
-      DCHECK(destination->IsFPStackSlot());
-      __ Sdc1(src, g.ToMemOperand(destination));
+      FPURegister src = g.ToDoubleRegister(source);
+      if (destination->IsFPRegister()) {
+        FPURegister dst = g.ToDoubleRegister(destination);
+        __ Move(dst, src);
+      } else {
+        DCHECK(destination->IsFPStackSlot());
+        __ Sdc1(src, g.ToMemOperand(destination));
+      }
     }
   } else if (source->IsFPStackSlot()) {
     DCHECK(destination->IsFPRegister() || destination->IsFPStackSlot());
     MemOperand src = g.ToMemOperand(source);
-    if (destination->IsFPRegister()) {
-      __ Ldc1(g.ToDoubleRegister(destination), src);
+    MachineRepresentation rep = LocationOperand::cast(source)->representation();
+    if (rep == MachineRepresentation::kSimd128) {
+      CpuFeatureScope msa_scope(tasm(), MIPS_SIMD);
+      if (destination->IsSimd128Register()) {
+        __ ld_b(g.ToSimd128Register(destination), src);
+      } else {
+        DCHECK(destination->IsSimd128StackSlot());
+        MSARegister temp = kSimd128ScratchReg;
+        __ ld_b(temp, src);
+        __ st_b(temp, g.ToMemOperand(destination));
+      }
     } else {
-      FPURegister temp = kScratchDoubleReg;
-      __ Ldc1(temp, src);
-      __ Sdc1(temp, g.ToMemOperand(destination));
+      if (destination->IsFPRegister()) {
+        __ Ldc1(g.ToDoubleRegister(destination), src);
+      } else {
+        DCHECK(destination->IsFPStackSlot());
+        FPURegister temp = kScratchDoubleReg;
+        __ Ldc1(temp, src);
+        __ Sdc1(temp, g.ToMemOperand(destination));
+      }
     }
   } else {
     UNREACHABLE();
@@ -3825,34 +3857,73 @@ void CodeGenerator::AssembleSwap(InstructionOperand* source,
     __ Sd(temp_0, dst);
     __ Sd(temp_1, src);
   } else if (source->IsFPRegister()) {
-    FPURegister temp = kScratchDoubleReg;
-    FPURegister src = g.ToDoubleRegister(source);
-    if (destination->IsFPRegister()) {
-      FPURegister dst = g.ToDoubleRegister(destination);
-      __ Move(temp, src);
-      __ Move(src, dst);
-      __ Move(dst, temp);
+    MachineRepresentation rep = LocationOperand::cast(source)->representation();
+    if (rep == MachineRepresentation::kSimd128) {
+      CpuFeatureScope msa_scope(tasm(), MIPS_SIMD);
+      MSARegister temp = kSimd128ScratchReg;
+      MSARegister src = g.ToSimd128Register(source);
+      if (destination->IsSimd128Register()) {
+        MSARegister dst = g.ToSimd128Register(destination);
+        __ move_v(temp, src);
+        __ move_v(src, dst);
+        __ move_v(dst, temp);
+      } else {
+        DCHECK(destination->IsSimd128StackSlot());
+        MemOperand dst = g.ToMemOperand(destination);
+        __ move_v(temp, src);
+        __ ld_b(src, dst);
+        __ st_b(temp, dst);
+      }
     } else {
-      DCHECK(destination->IsFPStackSlot());
-      MemOperand dst = g.ToMemOperand(destination);
-      __ Move(temp, src);
-      __ Ldc1(src, dst);
-      __ Sdc1(temp, dst);
+      FPURegister temp = kScratchDoubleReg;
+      FPURegister src = g.ToDoubleRegister(source);
+      if (destination->IsFPRegister()) {
+        FPURegister dst = g.ToDoubleRegister(destination);
+        __ Move(temp, src);
+        __ Move(src, dst);
+        __ Move(dst, temp);
+      } else {
+        DCHECK(destination->IsFPStackSlot());
+        MemOperand dst = g.ToMemOperand(destination);
+        __ Move(temp, src);
+        __ Ldc1(src, dst);
+        __ Sdc1(temp, dst);
+      }
     }
   } else if (source->IsFPStackSlot()) {
     DCHECK(destination->IsFPStackSlot());
     Register temp_0 = kScratchReg;
-    FPURegister temp_1 = kScratchDoubleReg;
     MemOperand src0 = g.ToMemOperand(source);
     MemOperand src1(src0.rm(), src0.offset() + kIntSize);
     MemOperand dst0 = g.ToMemOperand(destination);
     MemOperand dst1(dst0.rm(), dst0.offset() + kIntSize);
-    __ Ldc1(temp_1, dst0);  // Save destination in temp_1.
-    __ Lw(temp_0, src0);    // Then use temp_0 to copy source to destination.
-    __ Sw(temp_0, dst0);
-    __ Lw(temp_0, src1);
-    __ Sw(temp_0, dst1);
-    __ Sdc1(temp_1, src0);
+    MachineRepresentation rep = LocationOperand::cast(source)->representation();
+    if (rep == MachineRepresentation::kSimd128) {
+      MemOperand src2(src0.rm(), src0.offset() + 2 * kIntSize);
+      MemOperand src3(src0.rm(), src0.offset() + 3 * kIntSize);
+      MemOperand dst2(dst0.rm(), dst0.offset() + 2 * kIntSize);
+      MemOperand dst3(dst0.rm(), dst0.offset() + 3 * kIntSize);
+      CpuFeatureScope msa_scope(tasm(), MIPS_SIMD);
+      MSARegister temp_1 = kSimd128ScratchReg;
+      __ ld_b(temp_1, dst0);  // Save destination in temp_1.
+      __ Lw(temp_0, src0);    // Then use temp_0 to copy source to destination.
+      __ Sw(temp_0, dst0);
+      __ Lw(temp_0, src1);
+      __ Sw(temp_0, dst1);
+      __ Lw(temp_0, src2);
+      __ Sw(temp_0, dst2);
+      __ Lw(temp_0, src3);
+      __ Sw(temp_0, dst3);
+      __ st_b(temp_1, src0);
+    } else {
+      FPURegister temp_1 = kScratchDoubleReg;
+      __ Ldc1(temp_1, dst0);  // Save destination in temp_1.
+      __ Lw(temp_0, src0);    // Then use temp_0 to copy source to destination.
+      __ Sw(temp_0, dst0);
+      __ Lw(temp_0, src1);
+      __ Sw(temp_0, dst1);
+      __ Sdc1(temp_1, src0);
+    }
   } else {
     // No other combinations are possible.
     UNREACHABLE();

@@ -1677,9 +1677,12 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
         LocationOperand* op = LocationOperand::cast(instr->InputAt(0));
         if (op->representation() == MachineRepresentation::kFloat64) {
           __ Sdc1(i.InputDoubleRegister(0), MemOperand(sp, i.InputInt32(1)));
-        } else {
-          DCHECK_EQ(MachineRepresentation::kFloat32, op->representation());
+        } else if (op->representation() == MachineRepresentation::kFloat32) {
           __ swc1(i.InputSingleRegister(0), MemOperand(sp, i.InputInt32(1)));
+        } else {
+          DCHECK_EQ(MachineRepresentation::kSimd128, op->representation());
+          CpuFeatureScope msa_scope(tasm(), MIPS_SIMD);
+          __ st_b(i.InputSimd128Register(0), MemOperand(sp, i.InputInt32(1)));
         }
       } else {
         __ sw(i.InputRegister(0), MemOperand(sp, i.InputInt32(1)));
@@ -3498,21 +3501,33 @@ void CodeGenerator::AssembleMove(InstructionOperand* source,
       }
     }
   } else if (source->IsFPRegister()) {
-    FPURegister src = g.ToDoubleRegister(source);
-    if (destination->IsFPRegister()) {
-      FPURegister dst = g.ToDoubleRegister(destination);
-      __ Move(dst, src);
-    } else {
-      DCHECK(destination->IsFPStackSlot());
-      MachineRepresentation rep =
-          LocationOperand::cast(source)->representation();
-      if (rep == MachineRepresentation::kFloat64) {
-        __ Sdc1(src, g.ToMemOperand(destination));
-      } else if (rep == MachineRepresentation::kFloat32) {
-        __ swc1(src, g.ToMemOperand(destination));
+    MachineRepresentation rep = LocationOperand::cast(source)->representation();
+    if (rep == MachineRepresentation::kSimd128) {
+      CpuFeatureScope msa_scope(tasm(), MIPS_SIMD);
+      MSARegister src = g.ToSimd128Register(source);
+      if (destination->IsSimd128Register()) {
+        MSARegister dst = g.ToSimd128Register(destination);
+        __ move_v(dst, src);
       } else {
-        DCHECK_EQ(MachineRepresentation::kSimd128, rep);
-        UNREACHABLE();
+        DCHECK(destination->IsSimd128StackSlot());
+        __ st_b(src, g.ToMemOperand(destination));
+      }
+    } else {
+      FPURegister src = g.ToDoubleRegister(source);
+      if (destination->IsFPRegister()) {
+        FPURegister dst = g.ToDoubleRegister(destination);
+        __ Move(dst, src);
+      } else {
+        DCHECK(destination->IsFPStackSlot());
+        MachineRepresentation rep =
+            LocationOperand::cast(source)->representation();
+        if (rep == MachineRepresentation::kFloat64) {
+          __ Sdc1(src, g.ToMemOperand(destination));
+        } else if (rep == MachineRepresentation::kFloat32) {
+          __ swc1(src, g.ToMemOperand(destination));
+        } else {
+          UNREACHABLE();
+        }
       }
     }
   } else if (source->IsFPStackSlot()) {
@@ -3526,7 +3541,8 @@ void CodeGenerator::AssembleMove(InstructionOperand* source,
         __ lwc1(g.ToDoubleRegister(destination), src);
       } else {
         DCHECK_EQ(MachineRepresentation::kSimd128, rep);
-        UNREACHABLE();
+        CpuFeatureScope msa_scope(tasm(), MIPS_SIMD);
+        __ ld_b(g.ToSimd128Register(destination), src);
       }
     } else {
       FPURegister temp = kScratchDoubleReg;
@@ -3538,7 +3554,10 @@ void CodeGenerator::AssembleMove(InstructionOperand* source,
         __ swc1(temp, g.ToMemOperand(destination));
       } else {
         DCHECK_EQ(MachineRepresentation::kSimd128, rep);
-        UNREACHABLE();
+        CpuFeatureScope msa_scope(tasm(), MIPS_SIMD);
+        MSARegister temp = kSimd128ScratchReg;
+        __ ld_b(temp, src);
+        __ st_b(temp, g.ToMemOperand(destination));
       }
     }
   } else {
@@ -3579,29 +3598,50 @@ void CodeGenerator::AssembleSwap(InstructionOperand* source,
     __ sw(temp_0, dst);
     __ sw(temp_1, src);
   } else if (source->IsFPRegister()) {
-    FPURegister temp = kScratchDoubleReg;
-    FPURegister src = g.ToDoubleRegister(source);
     if (destination->IsFPRegister()) {
-      FPURegister dst = g.ToDoubleRegister(destination);
-      __ Move(temp, src);
-      __ Move(src, dst);
-      __ Move(dst, temp);
+      MachineRepresentation rep =
+          LocationOperand::cast(source)->representation();
+      if (rep == MachineRepresentation::kSimd128) {
+        CpuFeatureScope msa_scope(tasm(), MIPS_SIMD);
+        MSARegister temp = kSimd128ScratchReg;
+        MSARegister src = g.ToSimd128Register(source);
+        MSARegister dst = g.ToSimd128Register(destination);
+        __ move_v(temp, src);
+        __ move_v(src, dst);
+        __ move_v(dst, temp);
+      } else {
+        FPURegister temp = kScratchDoubleReg;
+        FPURegister src = g.ToDoubleRegister(source);
+        FPURegister dst = g.ToDoubleRegister(destination);
+        __ Move(temp, src);
+        __ Move(src, dst);
+        __ Move(dst, temp);
+      }
     } else {
       DCHECK(destination->IsFPStackSlot());
       MemOperand dst = g.ToMemOperand(destination);
       MachineRepresentation rep =
           LocationOperand::cast(source)->representation();
       if (rep == MachineRepresentation::kFloat64) {
+        FPURegister temp = kScratchDoubleReg;
+        FPURegister src = g.ToDoubleRegister(source);
         __ Move(temp, src);
         __ Ldc1(src, dst);
         __ Sdc1(temp, dst);
       } else if (rep == MachineRepresentation::kFloat32) {
+        FPURegister temp = kScratchDoubleReg;
+        FPURegister src = g.ToFloatRegister(source);
         __ Move(temp, src);
         __ lwc1(src, dst);
         __ swc1(temp, dst);
       } else {
         DCHECK_EQ(MachineRepresentation::kSimd128, rep);
-        UNREACHABLE();
+        CpuFeatureScope msa_scope(tasm(), MIPS_SIMD);
+        MSARegister temp = kSimd128ScratchReg;
+        MSARegister src = g.ToSimd128Register(source);
+        __ move_v(temp, src);
+        __ ld_b(src, dst);
+        __ st_b(temp, dst);
       }
     }
   } else if (source->IsFPStackSlot()) {
@@ -3627,7 +3667,24 @@ void CodeGenerator::AssembleSwap(InstructionOperand* source,
       __ swc1(temp_1, src0);
     } else {
       DCHECK_EQ(MachineRepresentation::kSimd128, rep);
-      UNREACHABLE();
+      MemOperand src1(src0.rm(), src0.offset() + kIntSize);
+      MemOperand dst1(dst0.rm(), dst0.offset() + kIntSize);
+      MemOperand src2(src0.rm(), src0.offset() + 2 * kIntSize);
+      MemOperand dst2(dst0.rm(), dst0.offset() + 2 * kIntSize);
+      MemOperand src3(src0.rm(), src0.offset() + 3 * kIntSize);
+      MemOperand dst3(dst0.rm(), dst0.offset() + 3 * kIntSize);
+      CpuFeatureScope msa_scope(tasm(), MIPS_SIMD);
+      MSARegister temp_1 = kSimd128ScratchReg;
+      __ ld_b(temp_1, dst0);  // Save destination in temp_1.
+      __ lw(temp_0, src0);    // Then use temp_0 to copy source to destination.
+      __ sw(temp_0, dst0);
+      __ lw(temp_0, src1);
+      __ sw(temp_0, dst1);
+      __ lw(temp_0, src2);
+      __ sw(temp_0, dst2);
+      __ lw(temp_0, src3);
+      __ sw(temp_0, dst3);
+      __ st_b(temp_1, src0);
     }
   } else {
     // No other combinations are possible.
