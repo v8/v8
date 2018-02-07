@@ -2752,18 +2752,35 @@ void BytecodeGraphBuilder::VisitSuspendGenerator() {
       jsgraph()->Constant(bytecode_iterator().current_offset() +
                           (BytecodeArray::kHeaderSize - kHeapObjectTag));
 
+  const BytecodeLivenessState* liveness = bytecode_analysis()->GetInLivenessFor(
+      bytecode_iterator().current_offset());
+
+  // Maybe overallocate the value list since we don't know how many registers
+  // are live.
+  // TODO(leszeks): We could get this count from liveness rather than the
+  // register list.
   int value_input_count = 3 + register_count;
 
   Node** value_inputs = local_zone()->NewArray<Node*>(value_input_count);
   value_inputs[0] = generator;
   value_inputs[1] = suspend_id;
   value_inputs[2] = offset;
+
+  int count_written = 0;
   for (int i = 0; i < register_count; ++i) {
-    value_inputs[3 + i] =
-        environment()->LookupRegister(interpreter::Register(i));
+    if (liveness == nullptr || liveness->RegisterIsLive(i)) {
+      while (count_written < i) {
+        value_inputs[3 + count_written++] = jsgraph()->OptimizedOutConstant();
+      }
+      value_inputs[3 + count_written++] =
+          environment()->LookupRegister(interpreter::Register(i));
+      DCHECK_EQ(count_written, i + 1);
+    }
   }
 
-  MakeNode(javascript()->GeneratorStore(register_count), value_input_count,
+  // Use the actual written count rather than the register count to create the
+  // node.
+  MakeNode(javascript()->GeneratorStore(count_written), 3 + count_written,
            value_inputs, false);
 
   // TODO(leszeks): This over-approximates the liveness at exit, only the
@@ -2849,14 +2866,19 @@ void BytecodeGraphBuilder::VisitResumeGenerator() {
   interpreter::Register first_reg = bytecode_iterator().GetRegisterOperand(1);
   // We assume we are restoring registers starting fromm index 0.
   CHECK_EQ(0, first_reg.index());
-  int register_count =
-      static_cast<int>(bytecode_iterator().GetRegisterCountOperand(2));
+
+  const BytecodeLivenessState* liveness =
+      bytecode_analysis()->GetOutLivenessFor(
+          bytecode_iterator().current_offset());
 
   // Bijection between registers and array indices must match that used in
   // InterpreterAssembler::ExportRegisterFile.
-  for (int i = 0; i < register_count; ++i) {
-    Node* value = NewNode(javascript()->GeneratorRestoreRegister(i), generator);
-    environment()->BindRegister(interpreter::Register(i), value);
+  for (int i = 0; i < environment()->register_count(); ++i) {
+    if (liveness == nullptr || liveness->RegisterIsLive(i)) {
+      Node* value =
+          NewNode(javascript()->GeneratorRestoreRegister(i), generator);
+      environment()->BindRegister(interpreter::Register(i), value);
+    }
   }
 
   // Update the accumulator with the generator's input_or_debug_pos.

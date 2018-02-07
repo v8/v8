@@ -2034,9 +2034,11 @@ Reduction JSTypedLowering::ReduceJSGeneratorStore(Node* node) {
 
   for (int i = 0; i < register_count; ++i) {
     Node* value = NodeProperties::GetValueInput(node, 3 + i);
-    effect = graph()->NewNode(
-        simplified()->StoreField(AccessBuilder::ForFixedArraySlot(i)), array,
-        value, effect, control);
+    if (value != jsgraph()->OptimizedOutConstant()) {
+      effect = graph()->NewNode(
+          simplified()->StoreField(AccessBuilder::ForFixedArraySlot(i)), array,
+          value, effect, control);
+    }
   }
 
   effect = graph()->NewNode(simplified()->StoreField(context_field), generator,
