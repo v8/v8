@@ -2058,30 +2058,39 @@ bool InternalPromiseHasUserDefinedRejectHandler(Isolate* isolate,
     return true;
   }
 
-  if (promise->status() == Promise::kPending) {
-    for (Handle<Object> current(promise->reactions(), isolate);
-         !current->IsSmi();) {
-      Handle<PromiseReaction> reaction = Handle<PromiseReaction>::cast(current);
-      Handle<HeapObject> promise_or_capability(
-          reaction->promise_or_capability(), isolate);
-      Handle<JSPromise> promise = Handle<JSPromise>::cast(
-          promise_or_capability->IsJSPromise()
-              ? promise_or_capability
-              : handle(Handle<PromiseCapability>::cast(promise_or_capability)
-                           ->promise(),
-                       isolate));
-      if (reaction->reject_handler()->IsUndefined(isolate)) {
-        if (InternalPromiseHasUserDefinedRejectHandler(isolate, promise)) {
-          return true;
-        }
-      } else {
-        Handle<JSReceiver> current_handler(
-            JSReceiver::cast(reaction->reject_handler()), isolate);
-        if (PromiseHandlerCheck(isolate, current_handler, promise)) {
-          return true;
-        }
+  Handle<Object> queue(promise->reject_reactions(), isolate);
+  Handle<Object> deferred_promise(promise->deferred_promise(), isolate);
+
+  if (queue->IsUndefined(isolate)) {
+    return false;
+  }
+
+  if (queue->IsCallable()) {
+    return PromiseHandlerCheck(isolate, Handle<JSReceiver>::cast(queue),
+                               Handle<JSReceiver>::cast(deferred_promise));
+  }
+
+  if (queue->IsSymbol()) {
+    return InternalPromiseHasUserDefinedRejectHandler(
+        isolate, Handle<JSPromise>::cast(deferred_promise));
+  }
+
+  Handle<FixedArray> queue_arr = Handle<FixedArray>::cast(queue);
+  Handle<FixedArray> deferred_promise_arr =
+      Handle<FixedArray>::cast(deferred_promise);
+  for (int i = 0; i < deferred_promise_arr->length(); i++) {
+    Handle<JSReceiver> deferred_promise_item(
+        JSReceiver::cast(deferred_promise_arr->get(i)));
+    if (queue_arr->get(i)->IsSymbol()) {
+      if (InternalPromiseHasUserDefinedRejectHandler(
+              isolate, Handle<JSPromise>::cast(deferred_promise_item))) {
+        return true;
       }
-      current = handle(reaction->next(), isolate);
+    } else {
+      Handle<JSReceiver> queue_item(JSReceiver::cast(queue_arr->get(i)));
+      if (PromiseHandlerCheck(isolate, queue_item, deferred_promise_item)) {
+        return true;
+      }
     }
   }
 
@@ -3486,13 +3495,6 @@ bool Isolate::IsPromiseHookProtectorIntact() {
   return is_promise_hook_protector_intact;
 }
 
-bool Isolate::IsPromiseThenLookupChainIntact() {
-  PropertyCell* promise_then_cell = heap()->promise_then_protector();
-  bool is_promise_then_protector_intact =
-      Smi::ToInt(promise_then_cell->value()) == kProtectorValid;
-  return is_promise_then_protector_intact;
-}
-
 void Isolate::UpdateNoElementsProtectorOnSetElement(Handle<JSObject> object) {
   DisallowHeapAllocation no_gc;
   if (!object->map()->is_prototype_map()) return;
@@ -3559,15 +3561,6 @@ void Isolate::InvalidatePromiseHookProtector() {
       factory()->promise_hook_protector(),
       handle(Smi::FromInt(kProtectorInvalid), this));
   DCHECK(!IsPromiseHookProtectorIntact());
-}
-
-void Isolate::InvalidatePromiseThenProtector() {
-  DCHECK(factory()->promise_then_protector()->value()->IsSmi());
-  DCHECK(IsPromiseThenLookupChainIntact());
-  PropertyCell::SetValueWithInvalidation(
-      factory()->promise_then_protector(),
-      handle(Smi::FromInt(kProtectorInvalid), this));
-  DCHECK(!IsPromiseThenLookupChainIntact());
 }
 
 bool Isolate::IsAnyInitialArrayPrototype(Handle<JSArray> array) {
@@ -3845,16 +3838,20 @@ void Isolate::ReportPromiseReject(Handle<JSPromise> promise,
       v8::Utils::StackTraceToLocal(stack_trace)));
 }
 
-void Isolate::EnqueueMicrotask(Handle<Microtask> microtask) {
+void Isolate::EnqueueMicrotask(Handle<Object> microtask) {
+  DCHECK(microtask->IsJSFunction() || microtask->IsCallHandlerInfo() ||
+         microtask->IsPromiseResolveThenableJobInfo() ||
+         microtask->IsPromiseReactionJobInfo());
   Handle<FixedArray> queue(heap()->microtask_queue(), this);
   int num_tasks = pending_microtask_count();
-  DCHECK_LE(num_tasks, queue->length());
-  if (num_tasks == queue->length()) {
-    queue = factory()->CopyFixedArrayAndGrow(queue, std::max(num_tasks, 8));
+  DCHECK(num_tasks <= queue->length());
+  if (num_tasks == 0) {
+    queue = factory()->NewFixedArray(8);
+    heap()->set_microtask_queue(*queue);
+  } else if (num_tasks == queue->length()) {
+    queue = factory()->CopyFixedArrayAndGrow(queue, num_tasks);
     heap()->set_microtask_queue(*queue);
   }
-  DCHECK_LE(8, queue->length());
-  DCHECK_LT(num_tasks, queue->length());
   DCHECK(queue->get(num_tasks)->IsUndefined(this));
   queue->set(num_tasks, *microtask);
   set_pending_microtask_count(num_tasks + 1);

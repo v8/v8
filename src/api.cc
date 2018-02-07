@@ -8705,20 +8705,22 @@ void Isolate::RunMicrotasks() {
   reinterpret_cast<i::Isolate*>(this)->RunMicrotasks();
 }
 
-void Isolate::EnqueueMicrotask(Local<Function> function) {
+void Isolate::EnqueueMicrotask(Local<Function> microtask) {
   i::Isolate* isolate = reinterpret_cast<i::Isolate*>(this);
-  i::Handle<i::CallableTask> microtask = isolate->factory()->NewCallableTask(
-      Utils::OpenHandle(*function), isolate->native_context());
-  isolate->EnqueueMicrotask(microtask);
+  isolate->EnqueueMicrotask(Utils::OpenHandle(*microtask));
 }
 
-void Isolate::EnqueueMicrotask(MicrotaskCallback callback, void* data) {
+void Isolate::EnqueueMicrotask(MicrotaskCallback microtask, void* data) {
   i::Isolate* isolate = reinterpret_cast<i::Isolate*>(this);
   i::HandleScope scope(isolate);
-  i::Handle<i::CallbackTask> microtask = isolate->factory()->NewCallbackTask(
-      isolate->factory()->NewForeign(reinterpret_cast<i::Address>(callback)),
-      isolate->factory()->NewForeign(reinterpret_cast<i::Address>(data)));
-  isolate->EnqueueMicrotask(microtask);
+  i::Handle<i::CallHandlerInfo> callback_info =
+      i::Handle<i::CallHandlerInfo>::cast(
+          isolate->factory()->NewStruct(i::TUPLE3_TYPE, i::NOT_TENURED));
+  SET_FIELD_WRAPPED(callback_info, set_callback, microtask);
+  SET_FIELD_WRAPPED(callback_info, set_js_callback,
+                    callback_info->redirected_callback());
+  SET_FIELD_WRAPPED(callback_info, set_data, data);
+  isolate->EnqueueMicrotask(callback_info);
 }
 
 

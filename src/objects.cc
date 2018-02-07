@@ -3540,10 +3540,6 @@ void Tuple3::BriefPrintDetails(std::ostream& os) {
      << Brief(value3());
 }
 
-void CallableTask::BriefPrintDetails(std::ostream& os) {
-  os << " callable=" << Brief(callable());
-}
-
 void HeapObject::Iterate(ObjectVisitor* v) { IterateFast<ObjectVisitor>(v); }
 
 

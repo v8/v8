@@ -237,6 +237,8 @@
   V(promise_forwarding_handler_symbol)      \
   V(promise_handled_by_symbol)              \
   V(promise_async_id_symbol)                \
+  V(promise_default_resolve_handler_symbol) \
+  V(promise_default_reject_handler_symbol)  \
   V(sealed_symbol)                          \
   V(stack_trace_symbol)                     \
   V(strict_function_transition_symbol)      \

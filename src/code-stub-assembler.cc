@@ -4157,13 +4157,6 @@ Node* CodeStubAssembler::IsNoElementsProtectorCellInvalid() {
   return WordEqual(cell_value, invalid);
 }
 
-Node* CodeStubAssembler::IsPromiseThenProtectorCellInvalid() {
-  Node* invalid = SmiConstant(Isolate::kProtectorInvalid);
-  Node* cell = LoadRoot(Heap::kPromiseThenProtectorRootIndex);
-  Node* cell_value = LoadObjectField(cell, PropertyCell::kValueOffset);
-  return WordEqual(cell_value, invalid);
-}
-
 Node* CodeStubAssembler::IsSpeciesProtectorCellInvalid() {
   Node* invalid = SmiConstant(Isolate::kProtectorInvalid);
   Node* cell = LoadRoot(Heap::kSpeciesProtectorRootIndex);
@@ -4319,10 +4312,6 @@ Node* CodeStubAssembler::IsJSPromiseMap(Node* map) {
   return InstanceTypeEqual(LoadMapInstanceType(map), JS_PROMISE_TYPE);
 }
 
-Node* CodeStubAssembler::IsJSPromise(Node* object) {
-  return IsJSPromiseMap(LoadMap(object));
-}
-
 Node* CodeStubAssembler::IsJSProxy(Node* object) {
   return HasInstanceType(object, JS_PROXY_TYPE);
 }
@@ -4367,10 +4356,6 @@ Node* CodeStubAssembler::IsFixedArraySubclass(Node* object) {
                        instance_type, Int32Constant(FIRST_FIXED_ARRAY_TYPE)),
                    Int32LessThanOrEqual(instance_type,
                                         Int32Constant(LAST_FIXED_ARRAY_TYPE)));
-}
-
-Node* CodeStubAssembler::IsPromiseCapability(Node* object) {
-  return HasInstanceType(object, PROMISE_CAPABILITY_TYPE);
 }
 
 Node* CodeStubAssembler::IsPropertyArray(Node* object) {
@@ -7583,7 +7568,6 @@ void CodeStubAssembler::CheckForAssociatedProtector(Node* name,
          if_protector);
   GotoIf(WordEqual(name, LoadRoot(Heap::kis_concat_spreadable_symbolRootIndex)),
          if_protector);
-  GotoIf(WordEqual(name, LoadRoot(Heap::kthen_stringRootIndex)), if_protector);
   // Fall through if no case matched.
 }
 
@@ -10716,6 +10700,28 @@ Node* CodeStubAssembler::AllocateFunctionWithMapAndContext(Node* map,
   StoreObjectFieldNoWriteBarrier(fun, JSFunction::kContextOffset, context);
   StoreObjectFieldNoWriteBarrier(fun, JSFunction::kCodeOffset, code);
   return fun;
+}
+
+Node* CodeStubAssembler::AllocatePromiseReactionJobInfo(
+    Node* value, Node* tasks, Node* deferred_promise, Node* deferred_on_resolve,
+    Node* deferred_on_reject, Node* context) {
+  Node* const result = Allocate(PromiseReactionJobInfo::kSize);
+  StoreMapNoWriteBarrier(result, Heap::kPromiseReactionJobInfoMapRootIndex);
+  StoreObjectFieldNoWriteBarrier(result, PromiseReactionJobInfo::kValueOffset,
+                                 value);
+  StoreObjectFieldNoWriteBarrier(result, PromiseReactionJobInfo::kTasksOffset,
+                                 tasks);
+  StoreObjectFieldNoWriteBarrier(
+      result, PromiseReactionJobInfo::kDeferredPromiseOffset, deferred_promise);
+  StoreObjectFieldNoWriteBarrier(
+      result, PromiseReactionJobInfo::kDeferredOnResolveOffset,
+      deferred_on_resolve);
+  StoreObjectFieldNoWriteBarrier(
+      result, PromiseReactionJobInfo::kDeferredOnRejectOffset,
+      deferred_on_reject);
+  StoreObjectFieldNoWriteBarrier(result, PromiseReactionJobInfo::kContextOffset,
+                                 context);
+  return result;
 }
 
 Node* CodeStubAssembler::MarkerIsFrameType(Node* marker_or_function,
