@@ -2293,6 +2293,22 @@ TF_BUILTIN(ArrayReduceLoopContinuation, ArrayBuiltinsAssembler) {
       MissingPropertyMode::kSkip);
 }
 
+TF_BUILTIN(ArrayReducePreLoopEagerDeoptContinuation, ArrayBuiltinsAssembler) {
+  Node* context = Parameter(Descriptor::kContext);
+  Node* receiver = Parameter(Descriptor::kReceiver);
+  Node* callbackfn = Parameter(Descriptor::kCallbackFn);
+  Node* len = Parameter(Descriptor::kLength);
+
+  Callable stub(
+      Builtins::CallableFor(isolate(), Builtins::kArrayReduceLoopContinuation));
+  // Simulate starting the loop at 0, but ensuring that the accumulator is
+  // the hole. The continuation stub will search for the initial non-hole
+  // element, rightly throwing an exception if not found.
+  Return(CallStub(stub, context, receiver, callbackfn, UndefinedConstant(),
+                  TheHoleConstant(), receiver, SmiConstant(0), len,
+                  UndefinedConstant()));
+}
+
 TF_BUILTIN(ArrayReduceLoopEagerDeoptContinuation, ArrayBuiltinsAssembler) {
   Node* context = Parameter(Descriptor::kContext);
   Node* receiver = Parameter(Descriptor::kReceiver);
@@ -2381,6 +2397,23 @@ TF_BUILTIN(ArrayReduceRightLoopContinuation, ArrayBuiltinsAssembler) {
       &ArrayBuiltinsAssembler::ReduceProcessor,
       &ArrayBuiltinsAssembler::ReducePostLoopAction, MissingPropertyMode::kSkip,
       ForEachDirection::kReverse);
+}
+
+TF_BUILTIN(ArrayReduceRightPreLoopEagerDeoptContinuation,
+           ArrayBuiltinsAssembler) {
+  Node* context = Parameter(Descriptor::kContext);
+  Node* receiver = Parameter(Descriptor::kReceiver);
+  Node* callbackfn = Parameter(Descriptor::kCallbackFn);
+  Node* len = Parameter(Descriptor::kLength);
+
+  Callable stub(Builtins::CallableFor(
+      isolate(), Builtins::kArrayReduceRightLoopContinuation));
+  // Simulate starting the loop at 0, but ensuring that the accumulator is
+  // the hole. The continuation stub will search for the initial non-hole
+  // element, rightly throwing an exception if not found.
+  Return(CallStub(stub, context, receiver, callbackfn, UndefinedConstant(),
+                  TheHoleConstant(), receiver, SmiConstant(0), len,
+                  UndefinedConstant()));
 }
 
 TF_BUILTIN(ArrayReduceRightLoopEagerDeoptContinuation, ArrayBuiltinsAssembler) {

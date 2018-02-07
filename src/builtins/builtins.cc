@@ -226,8 +226,10 @@ bool Builtins::IsLazy(int index) {
     case kArrayEveryLoopLazyDeoptContinuation:     // https://crbug.com/v8/6786.
     case kArrayFilterLoopEagerDeoptContinuation:   // https://crbug.com/v8/6786.
     case kArrayFilterLoopLazyDeoptContinuation:    // https://crbug.com/v8/6786.
+    case kArrayReducePreLoopEagerDeoptContinuation:
     case kArrayReduceLoopEagerDeoptContinuation:   // https://crbug.com/v8/6786.
     case kArrayReduceLoopLazyDeoptContinuation:    // https://crbug.com/v8/6786.
+    case kArrayReduceRightPreLoopEagerDeoptContinuation:
     case kArrayReduceRightLoopEagerDeoptContinuation:
     case kArrayReduceRightLoopLazyDeoptContinuation:
     case kArraySomeLoopEagerDeoptContinuation:  // https://crbug.com/v8/6786.
