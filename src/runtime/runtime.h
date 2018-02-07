@@ -56,9 +56,6 @@ namespace internal {
   F(SpreadIterablePrepare, 1, 1)
 
 #define FOR_EACH_INTRINSIC_ATOMICS(F)           \
-  F(ThrowNotIntegerSharedTypedArrayError, 1, 1) \
-  F(ThrowNotInt32SharedTypedArrayError, 1, 1)   \
-  F(ThrowInvalidAtomicAccessIndexError, 0, 1)   \
   F(AtomicsExchange, 3, 1)                      \
   F(AtomicsCompareExchange, 4, 1)               \
   F(AtomicsAdd, 3, 1)                           \
@@ -632,20 +629,15 @@ namespace internal {
   F(WasmTraceMemory, 1, 1)
 
 #define FOR_EACH_INTRINSIC_TYPEDARRAY(F) \
-  F(ArrayBufferGetByteLength, 1, 1)      \
   F(ArrayBufferNeuter, 1, 1)             \
   F(TypedArrayCopyElements, 3, 1)        \
-  F(ArrayBufferViewGetByteOffset, 1, 1)  \
   F(ArrayBufferViewWasNeutered, 1, 1)    \
   F(TypedArrayGetLength, 1, 1)           \
   F(TypedArrayGetBuffer, 1, 1)           \
   F(TypedArraySortFast, 1, 1)            \
   F(TypedArraySet, 2, 1)                 \
   F(TypedArraySlice, 4, 1)               \
-  F(IsTypedArray, 1, 1)                  \
-  F(IsSharedTypedArray, 1, 1)            \
-  F(IsSharedIntegerTypedArray, 1, 1)     \
-  F(IsSharedInteger32TypedArray, 1, 1)
+  F(IsTypedArray, 1, 1)
 
 #define FOR_EACH_INTRINSIC_WASM(F)   \
   F(WasmGrowMemory, 1, 1)            \

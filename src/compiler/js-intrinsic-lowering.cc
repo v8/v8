@@ -81,9 +81,6 @@ Reduction JSIntrinsicLowering::Reduce(Node* node) {
       return ReduceCall(node);
     case Runtime::kInlineGetSuperConstructor:
       return ReduceGetSuperConstructor(node);
-    case Runtime::kInlineArrayBufferViewGetByteOffset:
-      return ReduceArrayBufferViewField(
-          node, AccessBuilder::ForJSArrayBufferViewByteOffset());
     case Runtime::kInlineArrayBufferViewWasNeutered:
       return ReduceArrayBufferViewWasNeutered(node);
     case Runtime::kInlineMaxSmi:

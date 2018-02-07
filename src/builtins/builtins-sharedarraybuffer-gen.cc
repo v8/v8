@@ -69,9 +69,8 @@ void SharedArrayBufferBuiltinsAssembler::ValidateSharedTypedArray(
 
   BIND(&invalid);
   {
-    CallRuntime(Runtime::kThrowNotIntegerSharedTypedArrayError, context,
-                tagged);
-    Unreachable();
+    ThrowTypeError(context, MessageTemplate::kNotIntegerSharedTypedArray,
+                   tagged);
   }
 
   BIND(&not_float_or_clamped);
@@ -101,10 +100,7 @@ Node* SharedArrayBufferBuiltinsAssembler::ConvertTaggedAtomicIndexToWord32(
   Goto(&done);
 
   BIND(&range_error);
-  {
-    CallRuntime(Runtime::kThrowInvalidAtomicAccessIndexError, context);
-    Unreachable();
-  }
+  { ThrowRangeError(context, MessageTemplate::kInvalidAtomicAccessIndex); }
 
   BIND(&done);
   return var_result.value();
@@ -119,8 +115,7 @@ void SharedArrayBufferBuiltinsAssembler::ValidateAtomicIndex(Node* array,
       context, LoadObjectField(array, JSTypedArray::kLengthOffset));
   GotoIf(Uint32LessThan(index_word, array_length_word32), &check_passed);
 
-  CallRuntime(Runtime::kThrowInvalidAtomicAccessIndexError, context);
-  Unreachable();
+  ThrowRangeError(context, MessageTemplate::kInvalidAtomicAccessIndex);
 
   BIND(&check_passed);
 }
