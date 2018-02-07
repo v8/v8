@@ -682,6 +682,12 @@ TEST(PreParserScopeAnalysis) {
          i::FLAG_harmony_public_fields = false;
          i::FLAG_harmony_static_fields = false;
        }},
+      {"class X { #x = 1 }; new X;",
+       [] { i::FLAG_harmony_private_fields = true; },
+       [] { i::FLAG_harmony_private_fields = false; }},
+      {"function t() { return class { #x = 1 }; } new t();",
+       [] { i::FLAG_harmony_private_fields = true; },
+       [] { i::FLAG_harmony_private_fields = false; }},
   };
 
   for (unsigned outer_ix = 0; outer_ix < arraysize(outers); ++outer_ix) {

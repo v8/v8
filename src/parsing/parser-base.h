@@ -1126,10 +1126,10 @@ class ParserBase {
                                 bool* ok);
   ExpressionT ParseObjectLiteral(bool* ok);
   ClassLiteralPropertyT ParseClassPropertyDefinition(
-      ClassLiteralChecker* checker, ClassInfo* class_info, bool has_extends,
-      bool* is_computed_name, bool* has_seen_constructor,
-      ClassLiteralProperty::Kind* property_kind, bool* is_static,
-      bool* has_name_static_property, bool* ok);
+      ClassLiteralChecker* checker, ClassInfo* class_info,
+      IdentifierT* property_name, bool has_extends, bool* is_computed_name,
+      bool* has_seen_constructor, ClassLiteralProperty::Kind* property_kind,
+      bool* is_static, bool* has_name_static_property, bool* ok);
   ExpressionT ParseClassFieldInitializer(ClassInfo* class_info, bool is_static,
                                          bool* ok);
   ObjectLiteralPropertyT ParseObjectPropertyDefinition(
@@ -2271,8 +2271,8 @@ typename ParserBase<Impl>::ExpressionT ParserBase<Impl>::ParsePropertyName(
 template <typename Impl>
 typename ParserBase<Impl>::ClassLiteralPropertyT
 ParserBase<Impl>::ParseClassPropertyDefinition(
-    ClassLiteralChecker* checker, ClassInfo* class_info, bool has_extends,
-    bool* is_computed_name, bool* has_seen_constructor,
+    ClassLiteralChecker* checker, ClassInfo* class_info, IdentifierT* name,
+    bool has_extends, bool* is_computed_name, bool* has_seen_constructor,
     ClassLiteralProperty::Kind* property_kind, bool* is_static,
     bool* has_name_static_property, bool* ok) {
   DCHECK_NOT_NULL(has_seen_constructor);
@@ -2290,19 +2290,19 @@ ParserBase<Impl>::ParseClassPropertyDefinition(
                  allow_harmony_private_fields());
 
   int name_token_position = scanner()->peek_location().beg_pos;
-  IdentifierT name = impl()->NullIdentifier();
+  *name = impl()->NullIdentifier();
   ExpressionT name_expression;
   if (name_token == Token::STATIC) {
     Consume(Token::STATIC);
     name_token_position = scanner()->peek_location().beg_pos;
     if (peek() == Token::LPAREN) {
       kind = PropertyKind::kMethodProperty;
-      name = impl()->GetSymbol();  // TODO(bakkot) specialize on 'static'
-      name_expression = factory()->NewStringLiteral(name, position());
+      *name = impl()->GetSymbol();  // TODO(bakkot) specialize on 'static'
+      name_expression = factory()->NewStringLiteral(*name, position());
     } else if (peek() == Token::ASSIGN || peek() == Token::SEMICOLON ||
                peek() == Token::RBRACE) {
-      name = impl()->GetSymbol();  // TODO(bakkot) specialize on 'static'
-      name_expression = factory()->NewStringLiteral(name, position());
+      *name = impl()->GetSymbol();  // TODO(bakkot) specialize on 'static'
+      name_expression = factory()->NewStringLiteral(*name, position());
     } else if (peek() == Token::PRIVATE_NAME) {
       DCHECK(allow_harmony_private_fields());
       // TODO(gsathya): Make a better error message for this.
@@ -2311,21 +2311,21 @@ ParserBase<Impl>::ParseClassPropertyDefinition(
       return impl()->NullLiteralProperty();
     } else {
       *is_static = true;
-      name_expression = ParsePropertyName(&name, &kind, &is_generator, &is_get,
+      name_expression = ParsePropertyName(name, &kind, &is_generator, &is_get,
                                           &is_set, &is_async, is_computed_name,
                                           CHECK_OK_CUSTOM(NullLiteralProperty));
     }
   } else if (name_token == Token::PRIVATE_NAME) {
     Consume(Token::PRIVATE_NAME);
-    name = impl()->GetSymbol();
-    name_expression = factory()->NewStringLiteral(name, position());
+    *name = impl()->GetSymbol();
+    name_expression = factory()->NewStringLiteral(*name, position());
   } else {
-    name_expression = ParsePropertyName(&name, &kind, &is_generator, &is_get,
+    name_expression = ParsePropertyName(name, &kind, &is_generator, &is_get,
                                         &is_set, &is_async, is_computed_name,
                                         CHECK_OK_CUSTOM(NullLiteralProperty));
   }
 
-  if (!*has_name_static_property && *is_static && impl()->IsName(name)) {
+  if (!*has_name_static_property && *is_static && impl()->IsName(*name)) {
     *has_name_static_property = true;
   }
 
@@ -2359,7 +2359,7 @@ ParserBase<Impl>::ParseClassPropertyDefinition(
         ClassLiteralPropertyT result = factory()->NewClassLiteralProperty(
             name_expression, initializer, *property_kind, *is_static,
             *is_computed_name);
-        impl()->SetFunctionNameFromPropertyName(result, name);
+        impl()->SetFunctionNameFromPropertyName(result, *name);
         return result;
 
       } else {
@@ -2387,14 +2387,14 @@ ParserBase<Impl>::ParseClassPropertyDefinition(
 
       FunctionKind kind = MethodKindFor(is_generator, is_async);
 
-      if (!*is_static && impl()->IsConstructor(name)) {
+      if (!*is_static && impl()->IsConstructor(*name)) {
         *has_seen_constructor = true;
         kind = has_extends ? FunctionKind::kDerivedConstructor
                            : FunctionKind::kBaseConstructor;
       }
 
       ExpressionT value = impl()->ParseFunctionLiteral(
-          name, scanner()->location(), kSkipFunctionNameCheck, kind,
+          *name, scanner()->location(), kSkipFunctionNameCheck, kind,
           FLAG_harmony_function_tostring ? name_token_position
                                          : kNoSourcePosition,
           FunctionLiteral::kAccessorOrMethod, language_mode(), nullptr,
@@ -2404,7 +2404,7 @@ ParserBase<Impl>::ParseClassPropertyDefinition(
       ClassLiteralPropertyT result = factory()->NewClassLiteralProperty(
           name_expression, value, *property_kind, *is_static,
           *is_computed_name);
-      impl()->SetFunctionNameFromPropertyName(result, name);
+      impl()->SetFunctionNameFromPropertyName(result, *name);
       return result;
     }
 
@@ -2419,14 +2419,14 @@ ParserBase<Impl>::ParseClassPropertyDefinition(
         // Runtime_DefineAccessorPropertyUnchecked and since we can determine
         // this statically we can skip the extra runtime check.
         name_expression =
-            factory()->NewStringLiteral(name, name_expression->position());
+            factory()->NewStringLiteral(*name, name_expression->position());
       }
 
       FunctionKind kind = is_get ? FunctionKind::kGetterFunction
                                  : FunctionKind::kSetterFunction;
 
       FunctionLiteralT value = impl()->ParseFunctionLiteral(
-          name, scanner()->location(), kSkipFunctionNameCheck, kind,
+          *name, scanner()->location(), kSkipFunctionNameCheck, kind,
           FLAG_harmony_function_tostring ? name_token_position
                                          : kNoSourcePosition,
           FunctionLiteral::kAccessorOrMethod, language_mode(), nullptr,
@@ -2440,7 +2440,7 @@ ParserBase<Impl>::ParseClassPropertyDefinition(
       const AstRawString* prefix =
           is_get ? ast_value_factory()->get_space_string()
                  : ast_value_factory()->set_space_string();
-      impl()->SetFunctionNameFromPropertyName(result, name, prefix);
+      impl()->SetFunctionNameFromPropertyName(result, *name, prefix);
       return result;
     }
     case PropertyKind::kSpreadProperty:
@@ -4548,11 +4548,12 @@ typename ParserBase<Impl>::ExpressionT ParserBase<Impl>::ParseClassLiteral(
     bool is_static;
     ClassLiteralProperty::Kind property_kind;
     ExpressionClassifier property_classifier(this);
+    IdentifierT property_name;
     // If we haven't seen the constructor yet, it potentially is the next
     // property.
     bool is_constructor = !class_info.has_seen_constructor;
     ClassLiteralPropertyT property = ParseClassPropertyDefinition(
-        &checker, &class_info, has_extends, &is_computed_name,
+        &checker, &class_info, &property_name, has_extends, &is_computed_name,
         &class_info.has_seen_constructor, &property_kind, &is_static,
         &class_info.has_name_static_property, CHECK_OK);
     if (!class_info.has_static_computed_names && is_static &&
@@ -4567,9 +4568,9 @@ typename ParserBase<Impl>::ExpressionT ParserBase<Impl>::ParseClassLiteral(
     ValidateExpression(CHECK_OK);
     AccumulateFormalParameterContainmentErrors();
 
-    impl()->DeclareClassProperty(name, property, property_kind, is_static,
-                                 is_constructor, is_computed_name, &class_info,
-                                 CHECK_OK);
+    impl()->DeclareClassProperty(name, property, property_name, property_kind,
+                                 is_static, is_constructor, is_computed_name,
+                                 &class_info, CHECK_OK);
     impl()->InferFunctionName();
   }
 

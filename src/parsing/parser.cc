@@ -3316,6 +3316,7 @@ Variable* Parser::CreateSyntheticContextVariable(const AstRawString* name,
 //   - properties
 void Parser::DeclareClassProperty(const AstRawString* class_name,
                                   ClassLiteralProperty* property,
+                                  const AstRawString* property_name,
                                   ClassLiteralProperty::Kind kind,
                                   bool is_static, bool is_constructor,
                                   bool is_computed_name, ClassInfo* class_info,
@@ -3359,8 +3360,8 @@ void Parser::DeclareClassProperty(const AstRawString* class_name,
   }
 
   if (kind == ClassLiteralProperty::PRIVATE_FIELD) {
-    Variable* private_field_name_var = CreateSyntheticContextVariable(
-        property->key()->AsLiteral()->AsRawPropertyName(), CHECK_OK_VOID);
+    Variable* private_field_name_var =
+        CreateSyntheticContextVariable(property_name, CHECK_OK_VOID);
     property->set_private_field_name_var(private_field_name_var);
     class_info->properties->Add(property, zone());
   }

@@ -377,6 +377,7 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
                                       int class_token_pos, bool* ok);
   V8_INLINE void DeclareClassProperty(const AstRawString* class_name,
                                       ClassLiteralProperty* property,
+                                      const AstRawString* property_name,
                                       ClassLiteralProperty::Kind kind,
                                       bool is_static, bool is_constructor,
                                       bool is_computed_name,

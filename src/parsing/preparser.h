@@ -1151,17 +1151,22 @@ class PreParser : public ParserBase<PreParser> {
   }
   V8_INLINE void DeclareClassProperty(const PreParserIdentifier& class_name,
                                       const PreParserExpression& property,
+                                      const PreParserIdentifier& property_name,
                                       ClassLiteralProperty::Kind kind,
                                       bool is_static, bool is_constructor,
                                       bool is_computed_name,
                                       ClassInfo* class_info, bool* ok) {
-    // TODO(gsathya): Fix preparsed scope data for PRIVATE_FIELDs by
-    // allocating context variable here.
     if (kind == ClassLiteralProperty::PUBLIC_FIELD && is_computed_name) {
       scope()->DeclareVariableName(
           ClassFieldVariableName(ast_value_factory(),
                                  class_info->computed_field_count),
           CONST);
+    }
+
+    if (kind == ClassLiteralProperty::PRIVATE_FIELD &&
+        property_name.string_ != nullptr) {
+      DCHECK(track_unresolved_variables_);
+      scope()->DeclareVariableName(property_name.string_, CONST);
     }
   }
 
