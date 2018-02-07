@@ -637,25 +637,31 @@ void CodeGenerator::AssembleTailCallAfterGap(Instruction* instr,
 // Check if the code object is marked for deoptimization. If it is, then it
 // jumps to the CompileLazyDeoptimizedCode builtin. In order to do this we need
 // to:
-//    1. load the address of the current instruction;
-//    2. read from memory the word that contains that bit, which can be found in
+//    1. read from memory the word that contains that bit, which can be found in
 //       the flags in the referenced {CodeDataContainer} object;
-//    3. test kMarkedForDeoptimizationBit in those flags; and
-//    4. if it is not zero then it jumps to the builtin.
+//    2. test kMarkedForDeoptimizationBit in those flags; and
+//    3. if it is not zero then it jumps to the builtin.
 void CodeGenerator::BailoutIfDeoptimized() {
-  Label current;
-  // This push on ra and the pop below together ensure that we restore the
-  // register ra, which is needed while computing frames for deoptimization.
-  __ push(ra);
-  // The bal instruction puts the address of the current instruction into
-  // the return address (ra) register, which we can use later on.
-  __ bal(&current);
-  __ nop();
-  int pc = __ pc_offset();
-  __ bind(&current);
-  int offset = Code::kCodeDataContainerOffset - (Code::kHeaderSize + pc);
-  __ Ld(a2, MemOperand(ra, offset));
-  __ pop(ra);
+  if (FLAG_debug_code) {
+    // Check that {kJavaScriptCallCodeStartRegister} is correct.
+    Label current;
+    // This push on ra and the pop below together ensure that we restore the
+    // register ra, which is needed while computing frames for deoptimization.
+    __ push(ra);
+    // The bal instruction puts the address of the current instruction into
+    // the return address (ra) register, which we can use later on.
+    __ bal(&current);
+    __ nop();
+    int pc = __ pc_offset();
+    __ bind(&current);
+    __ li(at, Operand(pc));
+    __ Dsubu(at, ra, at);
+    __ Assert(eq, AbortReason::kWrongFunctionCodeStart,
+              kJavaScriptCallCodeStartRegister, Operand(at));
+    __ pop(ra);
+  }
+  int offset = Code::kCodeDataContainerOffset - Code::kHeaderSize;
+  __ Ld(a2, MemOperand(kJavaScriptCallCodeStartRegister, offset));
   __ Lw(a2, FieldMemOperand(a2, CodeDataContainer::kKindSpecificFlagsOffset));
   __ And(a2, a2, Operand(1 << Code::kMarkedForDeoptimizationBit));
   Handle<Code> code = isolate()->builtins()->builtin_handle(
@@ -746,9 +752,10 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
         __ Assert(eq, AbortReason::kWrongFunctionContext, cp,
                   Operand(kScratchReg));
       }
-      __ Ld(at, FieldMemOperand(func, JSFunction::kCodeOffset));
-      __ Daddu(at, at, Operand(Code::kHeaderSize - kHeapObjectTag));
-      __ Call(at);
+      static_assert(kJavaScriptCallCodeStartRegister == a2, "ABI mismatch");
+      __ Ld(a2, FieldMemOperand(func, JSFunction::kCodeOffset));
+      __ Daddu(a2, a2, Operand(Code::kHeaderSize - kHeapObjectTag));
+      __ Call(a2);
       RecordCallPosition(instr);
       frame_access_state()->ClearSPDelta();
       break;

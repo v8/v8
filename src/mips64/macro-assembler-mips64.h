@@ -25,6 +25,7 @@ constexpr Register kInterpreterBytecodeArrayRegister = t1;
 constexpr Register kInterpreterDispatchTableRegister = t2;
 constexpr Register kInterpreterTargetBytecodeRegister = a7;
 constexpr Register kJavaScriptCallArgCountRegister = a0;
+constexpr Register kJavaScriptCallCodeStartRegister = a2;
 constexpr Register kJavaScriptCallNewTargetRegister = a3;
 constexpr Register kOffHeapTrampolineRegister = at;
 constexpr Register kRuntimeCallFunctionRegister = a1;
