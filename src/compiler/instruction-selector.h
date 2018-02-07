@@ -359,6 +359,8 @@ class V8_EXPORT_PRIVATE InstructionSelector final {
   void VisitUnreachable(Node* node);
   void VisitDeadValue(Node* node);
 
+  void VisitWordCompareZero(Node* user, Node* value, FlagsContinuation* cont);
+
   void EmitPrepareArguments(ZoneVector<compiler::PushParameter>* arguments,
                             const CallDescriptor* descriptor, Node* node);
   void EmitPrepareResults(ZoneVector<compiler::PushParameter>* results,
