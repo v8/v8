@@ -157,7 +157,7 @@
           'gn_debug_simulate_arm64_no_snap',
       'V8 Linux - arm64 - sim - gc stress': 'gn_debug_simulate_arm64',
       # Mips.
-      'V8 Mips - builder': 'gyp_release_mips_no_snap_no_i18n',
+      'V8 Mips - builder': 'gn_release_mips_no_snap_no_i18n',
       'V8 Linux - mipsel - sim - builder': 'gn_release_simulate_mipsel',
       'V8 Linux - mips64el - sim - builder': 'gn_release_simulate_mips64el',
       # PPC.
@@ -535,9 +535,9 @@
       'gn', 'release_bot', 'x86', 'swarming', 'dcheck_always_on',
       'v8_enable_slow_dchecks', 'v8_verify_csa'],
 
-    # Gyp release configs for mips.
-    'gyp_release_mips_no_snap_no_i18n': [
-      'gyp', 'release', 'mips', 'crosscompile', 'no_sysroot', 'static',
+    # GN release configs for mips.
+    'gn_release_mips_no_snap_no_i18n': [
+      'gn', 'release', 'mips', 'crosscompile', 'no_sysroot', 'static',
       'v8_no_i18n', 'v8_snapshot_none'],
 
     # Gyp release configs for x64.
@@ -668,8 +668,13 @@
     },
 
     'mips': {
+      'mixins': ['mips_bundled_toolchain'],
       'gn_args': 'target_cpu="mips"',
       'gyp_defines': 'target_arch=mips',
+    },
+
+    'mips_bundled_toolchain': {
+      'gn_args': 'custom_toolchain="//tools/toolchain:mips-bundled"',
     },
 
     'msan': {
