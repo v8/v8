@@ -67,7 +67,6 @@
       'V8 Linux64 - debug builder': 'gn_debug_x64',
       'V8 Linux64 - custom snapshot - debug builder': 'gn_debug_x64_custom',
       'V8 Linux64 - internal snapshot': 'gn_release_x64_internal',
-      'V8 Linux64 - gyp': 'gyp_release_x64',
       'V8 Linux64 - verify csa': 'gn_release_x64_verify_csa',
       # Windows.
       'V8 Win32 - builder': 'gn_release_x86_minimal_symbols',
@@ -210,7 +209,6 @@
       'v8_linux64_fyi_rel_ng': 'gn_release_x64_test_features_trybot',
       'v8_linux64_rel_ng': 'gn_release_x64_test_features_trybot',
       'v8_linux64_verify_csa_rel_ng': 'gn_release_x64_verify_csa',
-      'v8_linux64_gyp_rel_ng': 'gyp_release_x64',
       'v8_linux64_asan_rel_ng': 'gn_release_x64_asan_minimal_symbols',
       'v8_linux64_msan_rel': 'gn_release_simulate_arm64_msan_minimal_symbols',
       'v8_linux64_sanitizer_coverage_rel':
@@ -539,10 +537,6 @@
     'gn_release_mips_no_snap_no_i18n': [
       'gn', 'release', 'mips', 'crosscompile', 'no_sysroot', 'static',
       'v8_no_i18n', 'v8_snapshot_none'],
-
-    # Gyp release configs for x64.
-    'gyp_release_x64': [
-      'gyp', 'release_bot', 'x64', 'no_sysroot', 'swarming'],
   },
 
   'mixins': {
@@ -648,8 +642,6 @@
       'gn_args': 'use_goma=true',
       'gyp_defines': 'use_goma=1',
     },
-
-    'gyp': {'type': 'gyp'},
 
     'hard_float': {
       'gn_args': 'arm_float_abi="hard"',
