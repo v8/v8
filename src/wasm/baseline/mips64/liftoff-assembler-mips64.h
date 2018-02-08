@@ -11,23 +11,58 @@ namespace v8 {
 namespace internal {
 namespace wasm {
 
+namespace liftoff {
+
+// sp-8 holds the stack marker, sp-16 is the wasm context, first stack slot
+// is located at sp-24.
+constexpr int32_t kConstantStackSpace = 16;
+
+inline MemOperand GetContextOperand() { return MemOperand(sp, -16); }
+
+}  // namespace liftoff
+
 void LiftoffAssembler::ReserveStackSpace(uint32_t stack_slots) {
-  UNIMPLEMENTED();
+  uint32_t bytes = liftoff::kConstantStackSpace + kStackSlotSize * stack_slots;
+  DCHECK_LE(bytes, kMaxInt);
+  daddiu(sp, sp, -bytes);
 }
 
 void LiftoffAssembler::LoadConstant(LiftoffRegister reg, WasmValue value,
                                     RelocInfo::Mode rmode) {
-  UNIMPLEMENTED();
+  switch (value.type()) {
+    case kWasmI32:
+      TurboAssembler::li(reg.gp(), Operand(value.to_i32(), rmode));
+      break;
+    case kWasmI64:
+      TurboAssembler::li(reg.gp(), Operand(value.to_i64(), rmode));
+      break;
+    case kWasmF32:
+      TurboAssembler::Move(reg.fp(), value.to_f32_boxed().get_scalar());
+      break;
+    default:
+      UNREACHABLE();
+  }
 }
 
 void LiftoffAssembler::LoadFromContext(Register dst, uint32_t offset,
                                        int size) {
-  UNIMPLEMENTED();
+  DCHECK_LE(offset, kMaxInt);
+  ld(dst, liftoff::GetContextOperand());
+  DCHECK(size == 4 || size == 8);
+  if (size == 4) {
+    lw(dst, MemOperand(dst, offset));
+  } else {
+    ld(dst, MemOperand(dst, offset));
+  }
 }
 
-void LiftoffAssembler::SpillContext(Register context) { UNIMPLEMENTED(); }
+void LiftoffAssembler::SpillContext(Register context) {
+  sd(context, liftoff::GetContextOperand());
+}
 
-void LiftoffAssembler::FillContextInto(Register dst) { UNIMPLEMENTED(); }
+void LiftoffAssembler::FillContextInto(Register dst) {
+  ld(dst, liftoff::GetContextOperand());
+}
 
 void LiftoffAssembler::Load(LiftoffRegister dst, Register src_addr,
                             Register offset_reg, uint32_t offset_imm,
@@ -55,11 +90,22 @@ void LiftoffAssembler::MoveStackValue(uint32_t dst_index, uint32_t src_index,
 }
 
 void LiftoffAssembler::MoveToReturnRegister(LiftoffRegister reg) {
-  UNIMPLEMENTED();
+  LiftoffRegister dst = reg.is_gp() ? LiftoffRegister(v0) : LiftoffRegister(f0);
+  if (reg != dst) Move(dst, reg);
 }
 
 void LiftoffAssembler::Move(LiftoffRegister dst, LiftoffRegister src) {
-  UNIMPLEMENTED();
+  // The caller should check that the registers are not equal. For most
+  // occurences, this is already guaranteed, so no need to check within this
+  // method.
+  DCHECK_NE(dst, src);
+  DCHECK_EQ(dst.reg_class(), src.reg_class());
+  // TODO(ksreten): Handle different sizes here.
+  if (dst.is_gp()) {
+    TurboAssembler::Move(dst.gp(), src.gp());
+  } else {
+    TurboAssembler::Move(dst.fp(), src.fp());
+  }
 }
 
 void LiftoffAssembler::Spill(uint32_t index, LiftoffRegister reg,
@@ -165,7 +211,8 @@ void LiftoffAssembler::PushRegisters(LiftoffRegList regs) { UNIMPLEMENTED(); }
 void LiftoffAssembler::PopRegisters(LiftoffRegList regs) { UNIMPLEMENTED(); }
 
 void LiftoffAssembler::DropStackSlotsAndRet(uint32_t num_stack_slots) {
-  UNIMPLEMENTED();
+  DCHECK_LT(num_stack_slots, (1 << 16) / kPointerSize);
+  TurboAssembler::DropAndRet(static_cast<int>(num_stack_slots * kPointerSize));
 }
 
 void LiftoffAssembler::PrepareCCall(uint32_t num_params, const Register* args) {
