@@ -481,33 +481,33 @@ void LiftoffAssembler::PrepareCall(wasm::FunctionSig* sig,
   uint32_t param_base = cache_state_.stack_height() - num_params;
   uint32_t call_desc_input_idx = static_cast<uint32_t>(call_desc->InputCount());
   for (uint32_t i = num_params; i > 0; --i) {
-    uint32_t param = i - 1;
+    const uint32_t param = i - 1;
     ValueType type = sig->GetParam(param);
-    const int num_lowered_params = kNeedI64RegPair && type == kWasmI64 ? 2 : 1;
-    uint32_t stack_idx = param_base + param;
+    const bool is_pair = kNeedI64RegPair && type == kWasmI64;
+    const int num_lowered_params = is_pair ? 2 : 1;
+    const uint32_t stack_idx = param_base + param;
     const VarState& slot = cache_state_.stack_state[stack_idx];
     // Process both halfs of register pair separately, because they are passed
     // as separate parameters. One or both of them could end up on the stack.
     for (int lowered_idx = 0; lowered_idx < num_lowered_params; ++lowered_idx) {
+      const RegPairHalf half =
+          is_pair && lowered_idx == 0 ? kHighWord : kLowWord;
       --call_desc_input_idx;
       compiler::LinkageLocation loc =
           call_desc->GetInputLocation(call_desc_input_idx);
       if (loc.IsRegister()) {
         DCHECK(!loc.IsAnyRegister());
-        int reg_code = loc.AsRegister();
-        RegClass rc = num_lowered_params == 2 ? kGpReg : reg_class_for(type);
-        LiftoffRegister reg = LiftoffRegister::from_code(rc, reg_code);
+        RegClass rc = is_pair ? kGpReg : reg_class_for(type);
+        LiftoffRegister reg = LiftoffRegister::from_code(rc, loc.AsRegister());
         param_regs.set(reg);
-        if (num_lowered_params == 1) {
-          stack_transfers.LoadIntoRegister(reg, slot, stack_idx);
+        if (is_pair) {
+          stack_transfers.LoadI64HalfIntoRegister(reg, slot, stack_idx, half);
         } else {
-          stack_transfers.LoadI64HalfIntoRegister(
-              reg, slot, stack_idx, lowered_idx == 0 ? kHighWord : kLowWord);
+          stack_transfers.LoadIntoRegister(reg, slot, stack_idx);
         }
       } else {
         DCHECK(loc.IsCallerFrameSlot());
-        PushCallerFrameSlot(slot, stack_idx,
-                            lowered_idx == 0 ? kHighWord : kLowWord);
+        PushCallerFrameSlot(slot, stack_idx, half);
       }
     }
   }

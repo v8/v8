@@ -536,7 +536,8 @@ void LiftoffAssembler::PushCallerFrameSlot(const VarState& src,
   switch (src.loc()) {
     case VarState::kStack:
       DCHECK_NE(kWasmF64, src.type());  // TODO(clemensh): Implement this.
-      push(liftoff::GetHalfStackSlot(2 * src_index + half == kLowWord ? 0 : 1));
+      push(liftoff::GetHalfStackSlot(2 * src_index +
+                                     (half == kLowWord ? 0 : 1)));
       break;
     case VarState::kRegister:
       PushCallerFrameSlot(
