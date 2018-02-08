@@ -43,7 +43,7 @@ String16 calculateHash(const String16& str) {
   const uint32_t* data = nullptr;
   size_t sizeInBytes = sizeof(UChar) * str.length();
   data = reinterpret_cast<const uint32_t*>(str.characters16());
-  for (size_t i = 0; i < sizeInBytes / 4; i += 4) {
+  for (size_t i = 0; i < sizeInBytes / 4; ++i) {
 #if V8_TARGET_LITTLE_ENDIAN
     uint32_t v = data[i];
 #else
