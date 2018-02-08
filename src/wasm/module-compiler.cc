@@ -660,6 +660,7 @@ Address CompileLazy(Isolate* isolate) {
         func_index, isolate->heap()->undefined_value());
 
     DCHECK_LT(0, patched);
+    USE(patched);
   }
 
   return result->instructions().start();
@@ -1075,6 +1076,7 @@ const wasm::WasmCode* LazyCompilationOrchestrator::CompileFromJsToWasm(
     }
     DCHECK_LT(0, patched);
     TRACE_LAZY("Patched %d location(s) in the caller.\n", patched);
+    USE(patched);
 
 #ifdef DEBUG
     it.next();
@@ -1122,6 +1124,7 @@ const wasm::WasmCode* LazyCompilationOrchestrator::CompileDirectCall(
                                        ->module()
                                        ->functions[caller_func_index]
                                        .code.offset();
+    int num_non_compiled_functions = 0;
     for (RelocIterator it(wasm_caller->instructions(),
                           wasm_caller->reloc_info(),
                           wasm_caller->constant_pool(),
@@ -1142,6 +1145,8 @@ const wasm::WasmCode* LazyCompilationOrchestrator::CompileDirectCall(
         non_compiled_functions.push_back(Nothing<uint32_t>());
         continue;
       }
+      ++num_non_compiled_functions;
+
       uint32_t called_func_index =
           ExtractDirectCallIndex(decoder, func_bytes + byte_pos);
       DCHECK_LT(called_func_index,
@@ -1154,8 +1159,9 @@ const wasm::WasmCode* LazyCompilationOrchestrator::CompileDirectCall(
       }
     }
 
-    TRACE_LAZY("Found %zu non-compiled functions in caller.\n",
-               non_compiled_functions.size());
+    TRACE_LAZY("Found %d non-compiled functions in caller.\n",
+               num_non_compiled_functions);
+    USE(num_non_compiled_functions);
   }
   uint32_t func_to_return_idx = 0;
 
@@ -1215,6 +1221,7 @@ const wasm::WasmCode* LazyCompilationOrchestrator::CompileDirectCall(
 
   DCHECK_LT(0, patched);
   TRACE_LAZY("Patched %d location(s) in the caller.\n", patched);
+  USE(patched);
 
   return ret;
 }
