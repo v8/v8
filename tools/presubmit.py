@@ -281,8 +281,7 @@ class SourceProcessor(SourceFileProcessor):
   Check that all files include a copyright notice and no trailing whitespaces.
   """
 
-  RELEVANT_EXTENSIONS = ['.js', '.cc', '.h', '.py', '.c',
-                         '.status', '.gyp', '.gypi']
+  RELEVANT_EXTENSIONS = ['.js', '.cc', '.h', '.py', '.c', '.status']
 
   def __init__(self):
     self.runtime_function_call_pattern = self.CreateRuntimeFunctionCallMatcher()
@@ -332,7 +331,7 @@ class SourceProcessor(SourceFileProcessor):
 
   def IgnoreDir(self, name):
     return (super(SourceProcessor, self).IgnoreDir(name) or
-            name in ('third_party', 'gyp', 'out', 'obj', 'DerivedSources'))
+            name in ('third_party', 'out', 'obj', 'DerivedSources'))
 
   IGNORE_COPYRIGHTS = ['box2d.js',
                        'cpplint.py',

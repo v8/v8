@@ -79,7 +79,6 @@ include_rules = [
 # checkdeps.py shouldn't check for includes in these directories:
 skip_child_includes = [
   'build',
-  'gypfiles',
   'third_party',
 ]
 
@@ -333,13 +332,6 @@ hooks = [
                 '--bucket', 'chromium-v8',
                 '-s', 'v8/tools/mips_toolchain.tar.gz.sha1',
     ],
-  },
-  {
-    # A change to a .gyp, .gypi, or to GYP itself should run the generator.
-    'name': 'regyp_if_needed',
-    'pattern': '.',
-    'condition': 'build_for_node != True',
-    'action': ['python', 'v8/gypfiles/gyp_v8', '--running-as-hook'],
   },
   # Download and initialize "vpython" VirtualEnv environment packages.
   {

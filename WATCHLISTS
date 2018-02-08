@@ -64,9 +64,6 @@
     'merges': {
       'filepath': '.',
     },
-    'gypfiles': {
-      'filepath': 'gypfiles/',
-    },
     'inspector': {
       'filepath': 'inspector',
     },
@@ -115,9 +112,6 @@
     'merges': [
       # Only enabled on branches created with tools/release/create_release.py
       # 'v8-merges@googlegroups.com',
-    ],
-    'gypfiles': [
-      'machenbach@chromium.org',
     ],
     'inspector': [
       'devtools-reviews@chromium.org',
