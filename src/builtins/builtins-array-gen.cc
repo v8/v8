@@ -2,6 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "src/builtins/builtins-iterator-gen.h"
 #include "src/builtins/builtins-string-gen.h"
 #include "src/builtins/builtins-typedarray-gen.h"
 #include "src/builtins/builtins-utils-gen.h"
@@ -1817,21 +1818,48 @@ TF_BUILTIN(ArrayPrototypeFindIndex, ArrayBuiltinsAssembler) {
       MissingPropertyMode::kUseUndefined, ForEachDirection::kForward);
 }
 
-// ES #sec-array.of
-TF_BUILTIN(ArrayOf, CodeStubAssembler) {
-  TNode<Int32T> argc =
-      UncheckedCast<Int32T>(Parameter(BuiltinDescriptor::kArgumentsCount));
-  TNode<Smi> length = SmiFromWord32(argc);
+class ArrayPopulatorAssembler : public CodeStubAssembler {
+ public:
+  explicit ArrayPopulatorAssembler(compiler::CodeAssemblerState* state)
+      : CodeStubAssembler(state) {}
 
-  TNode<Context> context = CAST(Parameter(BuiltinDescriptor::kContext));
+  TNode<Object> ConstructArrayLike(TNode<Context> context,
+                                   TNode<Object> receiver) {
+    TVARIABLE(Object, array);
+    Label is_constructor(this), is_not_constructor(this), done(this);
+    GotoIf(TaggedIsSmi(receiver), &is_not_constructor);
+    Branch(IsConstructor(receiver), &is_constructor, &is_not_constructor);
 
-  CodeStubArguments args(this, length, nullptr, ParameterMode::SMI_PARAMETERS,
-                         CodeStubArguments::ReceiverMode::kHasReceiver);
+    BIND(&is_constructor);
+    {
+      array = CAST(
+          ConstructJS(CodeFactory::Construct(isolate()), context, receiver));
+      Goto(&done);
+    }
 
-  TVARIABLE(Object, array);
-  TNode<Object> receiver = args.GetReceiver();
-  {
-    Label is_constructor(this), is_not_constructor(this), next(this);
+    BIND(&is_not_constructor);
+    {
+      Label allocate_js_array(this);
+
+      TNode<Map> array_map = CAST(LoadContextElement(
+          context, Context::JS_ARRAY_PACKED_SMI_ELEMENTS_MAP_INDEX));
+
+      array = CAST(AllocateJSArray(PACKED_SMI_ELEMENTS, array_map,
+                                   SmiConstant(0), SmiConstant(0), nullptr,
+                                   ParameterMode::SMI_PARAMETERS));
+      Goto(&done);
+    }
+
+    BIND(&done);
+    return array;
+  }
+
+  TNode<Object> ConstructArrayLike(TNode<Context> context,
+                                   TNode<Object> receiver,
+                                   TNode<Number> length) {
+    TVARIABLE(Object, array);
+    Label is_constructor(this), is_not_constructor(this), done(this);
+    CSA_ASSERT(this, IsNumberNormalized(length));
     GotoIf(TaggedIsSmi(receiver), &is_not_constructor);
     Branch(IsConstructor(receiver), &is_constructor, &is_not_constructor);
 
@@ -1839,30 +1867,24 @@ TF_BUILTIN(ArrayOf, CodeStubAssembler) {
     {
       array = CAST(ConstructJS(CodeFactory::Construct(isolate()), context,
                                receiver, length));
-      Goto(&next);
+      Goto(&done);
     }
 
     BIND(&is_not_constructor);
     {
-      Label allocate_js_array(this), runtime(this);
+      Label allocate_js_array(this);
 
-      Branch(
-          SmiAbove(length, SmiConstant(JSArray::kInitialMaxFastElementArray)),
-          &runtime, &allocate_js_array);
-
-      BIND(&allocate_js_array);
-      {
-        TNode<Map> array_map = CAST(LoadContextElement(
-            context, Context::JS_ARRAY_PACKED_SMI_ELEMENTS_MAP_INDEX));
-
-        // TODO(delphick): Consider using
-        // AllocateUninitializedJSArrayWithElements to avoid initializing an
-        // array and then writing over it.
-        array = CAST(AllocateJSArray(PACKED_SMI_ELEMENTS, array_map, length,
-                                     SmiConstant(0), nullptr,
-                                     ParameterMode::SMI_PARAMETERS));
-        Goto(&next);
-      }
+      Label next(this), runtime(this, Label::kDeferred);
+      TNode<Smi> limit = SmiConstant(JSArray::kInitialMaxFastElementArray);
+      CSA_ASSERT_BRANCH(this, [=](Label* ok, Label* not_ok) {
+        BranchIfNumberRelationalComparison(Operation::kGreaterThanOrEqual,
+                                           length, SmiConstant(0), ok, not_ok);
+      });
+      // This check also transitively covers the case where length is too big
+      // to be representable by a SMI and so is not usable with
+      // AllocateJSArray.
+      BranchIfNumberRelationalComparison(Operation::kGreaterThanOrEqual, length,
+                                         limit, &runtime, &next);
 
       BIND(&runtime);
       {
@@ -1871,24 +1893,31 @@ TF_BUILTIN(ArrayOf, CodeStubAssembler) {
             LoadContextElement(native_context, Context::ARRAY_FUNCTION_INDEX));
         array = CallRuntime(Runtime::kNewArray, context, array_function, length,
                             array_function, UndefinedConstant());
-        Goto(&next);
+        Goto(&done);
       }
+
+      BIND(&next);
+      CSA_ASSERT(this, TaggedIsSmi(length));
+
+      TNode<Map> array_map = CAST(LoadContextElement(
+          context, Context::JS_ARRAY_PACKED_SMI_ELEMENTS_MAP_INDEX));
+
+      // TODO(delphick): Consider using
+      // AllocateUninitializedJSArrayWithElements to avoid initializing an
+      // array and then writing over it.
+      array = CAST(AllocateJSArray(PACKED_SMI_ELEMENTS, array_map, length,
+                                   SmiConstant(0), nullptr,
+                                   ParameterMode::SMI_PARAMETERS));
+      Goto(&done);
     }
 
-    BIND(&next);
+    BIND(&done);
+    return array;
   }
 
-  BuildFastLoop(SmiConstant(0), length,
-                [this, context, &array, args](Node* index) {
-                  CallRuntime(
-                      Runtime::kCreateDataProperty, context,
-                      static_cast<Node*>(array), index,
-                      args.AtIndex(index, ParameterMode::SMI_PARAMETERS));
-                },
-                1, ParameterMode::SMI_PARAMETERS, IndexAdvanceMode::kPost);
-
-  {
-    Label fast(this), runtime(this), next(this);
+  void GenerateSetLength(TNode<Context> context, TNode<Object> array,
+                         TNode<Number> length) {
+    Label fast(this), runtime(this), done(this);
     // Only set the length in this stub if
     // 1) the array has fast elements,
     // 2) the length is writable,
@@ -1897,30 +1926,32 @@ TF_BUILTIN(ArrayOf, CodeStubAssembler) {
     // 1) Check that the array has fast elements.
     // TODO(delphick): Consider changing this since it does an an unnecessary
     // check for SMIs.
-    // TODO(delphick): Also we could hoist this to after the array
-    // construction and copy the args into array in the same way as the Array
-    // constructor.
+    // TODO(delphick): Also we could hoist this to after the array construction
+    // and copy the args into array in the same way as the Array constructor.
     BranchIfFastJSArray(array, context, &fast, &runtime);
 
     BIND(&fast);
     {
       TNode<JSArray> fast_array = CAST(array);
 
-      CSA_ASSERT(this, TaggedIsPositiveSmi(LoadJSArrayLength(fast_array)));
-      Node* old_length = LoadObjectField(fast_array, JSArray::kLengthOffset);
+      TNode<Smi> length_smi = CAST(length);
+      TNode<Smi> old_length = LoadFastJSArrayLength(fast_array);
+      CSA_ASSERT(this, TaggedIsPositiveSmi(old_length));
 
       // 2) Ensure that the length is writable.
+      // TODO(delphick): This check may be redundant due to the
+      // BranchIfFastJSArray above.
       EnsureArrayLengthWritable(LoadMap(fast_array), &runtime);
 
       // 3) If the created array already has a length greater than required,
       //    then use the runtime to set the property as that will insert holes
       //    into the excess elements and/or shrink the backing store.
-      GotoIf(SmiLessThan(length, old_length), &runtime);
+      GotoIf(SmiLessThan(length_smi, old_length), &runtime);
 
       StoreObjectFieldNoWriteBarrier(fast_array, JSArray::kLengthOffset,
-                                     length);
+                                     length_smi);
 
-      Goto(&next);
+      Goto(&done);
     }
 
     BIND(&runtime);
@@ -1928,11 +1959,235 @@ TF_BUILTIN(ArrayOf, CodeStubAssembler) {
       CallRuntime(Runtime::kSetProperty, context, static_cast<Node*>(array),
                   CodeStubAssembler::LengthStringConstant(), length,
                   SmiConstant(LanguageMode::kStrict));
-      Goto(&next);
+      Goto(&done);
     }
 
-    BIND(&next);
+    BIND(&done);
   }
+};
+
+// ES #sec-array.from
+TF_BUILTIN(ArrayFrom, ArrayPopulatorAssembler) {
+  TNode<Context> context = CAST(Parameter(BuiltinDescriptor::kContext));
+  TNode<Int32T> argc =
+      UncheckedCast<Int32T>(Parameter(BuiltinDescriptor::kArgumentsCount));
+
+  CodeStubArguments args(this, ChangeInt32ToIntPtr(argc));
+
+  TNode<Object> map_function = args.GetOptionalArgumentValue(1);
+
+  // If map_function is not undefined, then ensure it's callable else throw.
+  {
+    Label no_error(this), error(this);
+    GotoIf(IsUndefined(map_function), &no_error);
+    GotoIf(TaggedIsSmi(map_function), &error);
+    Branch(IsCallable(map_function), &no_error, &error);
+
+    BIND(&error);
+    ThrowTypeError(context, MessageTemplate::kCalledNonCallable, map_function);
+
+    BIND(&no_error);
+  }
+
+  Label iterable(this), not_iterable(this), finished(this), if_exception(this);
+
+  TNode<Object> this_arg = args.GetOptionalArgumentValue(2);
+  TNode<Object> items = args.GetOptionalArgumentValue(0);
+  // The spec doesn't require ToObject to be called directly on the iterable
+  // branch, but it's part of GetMethod that is in the spec.
+  // TODO(delphick): Create ToObject_Inline to fast-path the expected case.
+  TNode<Object> array_like =
+      CAST(CallBuiltin(Builtins::kToObject, context, items));
+
+  TVARIABLE(Object, array);
+  TVARIABLE(Number, length);
+
+  // Determine whether items[Symbol.iterator] is defined:
+  IteratorBuiltinsAssembler iterator_assembler(state());
+  Node* iterator_method =
+      iterator_assembler.GetIteratorMethod(context, array_like);
+  Branch(IsNullOrUndefined(iterator_method), &not_iterable, &iterable);
+
+  BIND(&iterable);
+  {
+    TVARIABLE(Number, index, SmiConstant(0));
+    TVARIABLE(Object, var_exception);
+    Label loop(this, &index), loop_done(this),
+        on_exception(this, Label::kDeferred),
+        index_overflow(this, Label::kDeferred);
+
+    // Check that the method is callable.
+    {
+      Label get_method_not_callable(this, Label::kDeferred), next(this);
+      GotoIf(TaggedIsSmi(iterator_method), &get_method_not_callable);
+      GotoIfNot(IsCallable(iterator_method), &get_method_not_callable);
+      Goto(&next);
+
+      BIND(&get_method_not_callable);
+      ThrowTypeError(context, MessageTemplate::kCalledNonCallable,
+                     iterator_method);
+
+      BIND(&next);
+    }
+
+    // Construct the output array with empty length.
+    array = ConstructArrayLike(context, args.GetReceiver());
+
+    // Actually get the iterator and throw if the iterator method does not yield
+    // one.
+    IteratorRecord iterator_record =
+        iterator_assembler.GetIterator(context, items, iterator_method);
+
+    TNode<Context> native_context = LoadNativeContext(context);
+    TNode<Object> fast_iterator_result_map =
+        LoadContextElement(native_context, Context::ITERATOR_RESULT_MAP_INDEX);
+
+    Goto(&loop);
+
+    BIND(&loop);
+    {
+      // Loop while iterator is not done.
+      TNode<Object> next = CAST(iterator_assembler.IteratorStep(
+          context, iterator_record, &loop_done, fast_iterator_result_map));
+      TVARIABLE(Object, value,
+                CAST(iterator_assembler.IteratorValue(
+                    context, next, fast_iterator_result_map)));
+
+      // If a map_function is supplied then call it (using this_arg as
+      // receiver), on the value returned from the iterator. Exceptions are
+      // caught so the iterator can be closed.
+      {
+        Label next(this);
+        GotoIf(IsUndefined(map_function), &next);
+
+        CSA_ASSERT(this, IsCallable(map_function));
+        Node* v = CallJS(CodeFactory::Call(isolate()), context, map_function,
+                         this_arg, static_cast<Node*>(value),
+                         static_cast<Node*>(index));
+        GotoIfException(v, &on_exception, &var_exception);
+        value = CAST(v);
+        Goto(&next);
+        BIND(&next);
+      }
+
+      // Store the result in the output object (catching any exceptions so the
+      // iterator can be closed).
+      Node* define_status = CallRuntime(
+          Runtime::kCreateDataProperty, context, static_cast<Node*>(array),
+          static_cast<Node*>(index), static_cast<Node*>(value));
+      GotoIfException(define_status, &on_exception, &var_exception);
+
+      index = CAST(NumberInc(index));
+
+      // The spec requires that we throw an exception if index reaches 2^53-1,
+      // but an empty loop would take >100 days to do this many iterations. To
+      // actually run for that long would require an iterator that never set
+      // done to true and a target array which somehow never ran out of memory,
+      // e.g. a proxy that discarded the values. Ignoring this case just means
+      // we would repeatedly call CreateDataProperty with index = 2^53.
+      CSA_ASSERT_BRANCH(this, [&](Label* ok, Label* not_ok) {
+        BranchIfNumberRelationalComparison(Operation::kLessThan, index,
+                                           NumberConstant(kMaxSafeInteger), ok,
+                                           not_ok);
+      });
+      Goto(&loop);
+    }
+
+    BIND(&loop_done);
+    {
+      length = index;
+      Goto(&finished);
+    }
+
+    BIND(&on_exception);
+    {
+      // Close the iterator, rethrowing either the passed exception or
+      // exceptions thrown during the close.
+      iterator_assembler.IteratorCloseOnException(context, iterator_record,
+                                                  &var_exception);
+    }
+  }
+
+  // Since there's no iterator, items cannot be a Fast JS Array.
+  BIND(&not_iterable);
+  {
+    CSA_ASSERT(this, Word32BinaryNot(IsFastJSArray(array_like, context)));
+
+    // Treat array_like as an array and try to get its length.
+    length = CAST(ToLength_Inline(
+        context, GetProperty(context, array_like, factory()->length_string())));
+
+    // Construct an array using the receiver as constructor with the same length
+    // as the input array.
+    array = ConstructArrayLike(context, args.GetReceiver(), length);
+
+    TVARIABLE(Number, index, SmiConstant(0));
+
+    GotoIf(SmiEqual(length, SmiConstant(0)), &finished);
+
+    // Loop from 0 to length-1.
+    {
+      Label loop(this, &index);
+      Goto(&loop);
+      BIND(&loop);
+      TVARIABLE(Object, value);
+
+      value = CAST(GetProperty(context, array_like, index));
+
+      // If a map_function is supplied then call it (using this_arg as
+      // receiver), on the value retrieved from the array.
+      {
+        Label next(this);
+        GotoIf(IsUndefined(map_function), &next);
+
+        CSA_ASSERT(this, IsCallable(map_function));
+        value = CAST(CallJS(CodeFactory::Call(isolate()), context, map_function,
+                            this_arg, static_cast<Node*>(value),
+                            static_cast<Node*>(index)));
+        Goto(&next);
+        BIND(&next);
+      }
+
+      // Store the result in the output object.
+      CallRuntime(Runtime::kCreateDataProperty, context,
+                  static_cast<Node*>(array), static_cast<Node*>(index),
+                  static_cast<Node*>(value));
+      index = CAST(NumberInc(index));
+      BranchIfNumberRelationalComparison(Operation::kLessThan, index, length,
+                                         &loop, &finished);
+    }
+  }
+
+  BIND(&finished);
+
+  // Finally set the length on the output and return it.
+  GenerateSetLength(context, array, length);
+  args.PopAndReturn(array);
+}
+
+// ES #sec-array.of
+TF_BUILTIN(ArrayOf, ArrayPopulatorAssembler) {
+  TNode<Int32T> argc =
+      UncheckedCast<Int32T>(Parameter(BuiltinDescriptor::kArgumentsCount));
+  TNode<Smi> length = SmiFromWord32(argc);
+
+  TNode<Context> context = CAST(Parameter(BuiltinDescriptor::kContext));
+
+  CodeStubArguments args(this, length, nullptr, ParameterMode::SMI_PARAMETERS);
+
+  TNode<Object> array = ConstructArrayLike(context, args.GetReceiver(), length);
+
+  // TODO(delphick): Avoid using CreateDataProperty on the fast path.
+  BuildFastLoop(SmiConstant(0), length,
+                [=](Node* index) {
+                  CallRuntime(
+                      Runtime::kCreateDataProperty, context,
+                      static_cast<Node*>(array), index,
+                      args.AtIndex(index, ParameterMode::SMI_PARAMETERS));
+                },
+                1, ParameterMode::SMI_PARAMETERS, IndexAdvanceMode::kPost);
+
+  GenerateSetLength(context, array, length);
   args.PopAndReturn(array);
 }
 

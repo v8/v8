@@ -1157,6 +1157,9 @@ class TypedCodeAssemblerVariable : public CodeAssemblerVariable {
   operator Node*() const { return value(); }
 
   void operator=(TNode<T> value) { Bind(value); }
+  void operator=(const TypedCodeAssemblerVariable<T>& variable) {
+    Bind(variable.value());
+  }
 
  private:
   using CodeAssemblerVariable::Bind;

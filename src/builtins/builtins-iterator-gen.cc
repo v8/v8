@@ -11,11 +11,16 @@ namespace internal {
 
 using compiler::Node;
 
+Node* IteratorBuiltinsAssembler::GetIteratorMethod(Node* context,
+                                                   Node* object) {
+  return GetProperty(context, object, factory()->iterator_symbol());
+}
+
 IteratorRecord IteratorBuiltinsAssembler::GetIterator(Node* context,
                                                       Node* object,
                                                       Label* if_exception,
                                                       Variable* exception) {
-  Node* method = GetProperty(context, object, factory()->iterator_symbol());
+  Node* method = GetIteratorMethod(context, object);
   return GetIterator(context, object, method, if_exception, exception);
 }
 
