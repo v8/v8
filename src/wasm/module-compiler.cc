@@ -628,6 +628,7 @@ Address CompileLazy(Isolate* isolate) {
 
   int func_index = static_cast<int>(result->index());
   if (!exp_deopt_data_entry.is_null() && exp_deopt_data_entry->IsFixedArray()) {
+    int patched = 0;
     Handle<FixedArray> exp_deopt_data =
         Handle<FixedArray>::cast(exp_deopt_data_entry);
 
@@ -644,8 +645,12 @@ Address CompileLazy(Isolate* isolate) {
       DisallowHeapAllocation no_gc;
       int exp_index = Smi::ToInt(exp_deopt_data->get(idx + 1));
       FixedArray* exp_table = FixedArray::cast(exp_deopt_data->get(idx));
-      exp_table->set(compiler::FunctionTableCodeOffset(exp_index),
-                     *foreign_holder);
+      int table_index = compiler::FunctionTableCodeOffset(exp_index);
+      DCHECK_EQ(Foreign::cast(exp_table->get(table_index))->foreign_address(),
+                lazy_stub_or_copy->instructions().start());
+
+      exp_table->set(table_index, *foreign_holder);
+      ++patched;
     }
     // TODO(6792): No longer needed once WebAssembly code is off heap.
     CodeSpaceMemoryModificationScope modification_scope(isolate->heap());
@@ -653,6 +658,8 @@ Address CompileLazy(Isolate* isolate) {
     // do the patching redundantly.
     compiled_module->lazy_compile_data()->set(
         func_index, isolate->heap()->undefined_value());
+
+    DCHECK_LT(0, patched);
   }
 
   return result->instructions().start();
@@ -693,6 +700,20 @@ const wasm::WasmCode* LazyCompilationOrchestrator::CompileFunction(
   compilation_timer.Start();
   Handle<WasmCompiledModule> compiled_module(instance->compiled_module(),
                                              isolate);
+
+  // TODO(wasm): Refactor this to only get the name if it is really needed for
+  // tracing / debugging.
+  std::string func_name;
+  {
+    WasmName name = Vector<const char>::cast(
+        compiled_module->shared()->GetRawFunctionName(func_index));
+    // Copy to std::string, because the underlying string object might move on
+    // the heap.
+    func_name.assign(name.start(), static_cast<size_t>(name.length()));
+  }
+
+  TRACE_LAZY("Compiling function %s, %d.\n", func_name.c_str(), func_index);
+
   if (FLAG_wasm_jit_to_native) {
     wasm::WasmCode* existing_code = compiled_module->GetNativeModule()->GetCode(
         static_cast<uint32_t>(func_index));
@@ -719,16 +740,7 @@ const wasm::WasmCode* LazyCompilationOrchestrator::CompileFunction(
   FunctionBody body{func->sig, func->code.offset(),
                     module_start + func->code.offset(),
                     module_start + func->code.end_offset()};
-  // TODO(wasm): Refactor this to only get the name if it is really needed for
-  // tracing / debugging.
-  std::string func_name;
-  {
-    WasmName name = Vector<const char>::cast(
-        compiled_module->shared()->GetRawFunctionName(func_index));
-    // Copy to std::string, because the underlying string object might move on
-    // the heap.
-    func_name.assign(name.start(), static_cast<size_t>(name.length()));
-  }
+
   ErrorThrower thrower(isolate, "WasmLazyCompile");
   compiler::WasmCompilationUnit unit(isolate, &module_env,
                                      compiled_module->GetNativeModule(), body,
@@ -844,6 +856,11 @@ const WasmCode* WasmExtractWasmToWasmCallee(const WasmCodeManager* code_manager,
                      wasm_to_wasm->constant_pool(),                            \
                      RelocInfo::ModeMask(RelocInfo::JS_TO_WASM_CALL));         \
     DCHECK(!it.done());                                                        \
+    DCHECK_EQ(WasmCode::kLazyStub,                                             \
+              isolate->wasm_engine()                                           \
+                  ->code_manager()                                             \
+                  ->GetCodeFromStartAddress(it.rinfo()->js_to_wasm_address())  \
+                  ->kind());                                                   \
     it.rinfo()->set_js_to_wasm_address(isolate,                                \
                                        new_target->instructions().start());    \
     it.next();                                                                 \
@@ -951,8 +968,6 @@ Handle<Code> LazyCompilationOrchestrator::CompileLazyOnGCHeap(
     DCHECK(!non_compiled_functions.empty() || !wasm_to_wasm_callee.is_null());
   }
 
-  TRACE_LAZY("Compiling function %d.\n", func_to_return_idx);
-
   // TODO(clemensh): compile all functions in non_compiled_functions in
   // background, wait for func_to_return_idx.
   CompileFunction(isolate, instance, func_to_return_idx);
@@ -1033,6 +1048,7 @@ const wasm::WasmCode* LazyCompilationOrchestrator::CompileFromJsToWasm(
   CompileFunction(isolate, instance, exported_func_index);
   {
     DisallowHeapAllocation no_gc;
+    int patched = 0;
     CodeSpaceMemoryModificationScope modification_scope(isolate->heap());
     RelocIterator it(*js_to_wasm_caller,
                      RelocInfo::ModeMask(RelocInfo::JS_TO_WASM_CALL));
@@ -1045,10 +1061,20 @@ const wasm::WasmCode* LazyCompilationOrchestrator::CompileFromJsToWasm(
     DCHECK_NOT_NULL(callee_compiled);
     if (current_callee->kind() == WasmCode::kWasmToWasmWrapper) {
       WasmPatchWasmToWasmWrapper(isolate, current_callee, callee_compiled);
+      ++patched;
     } else {
+      DCHECK_EQ(WasmCode::kLazyStub,
+                isolate->wasm_engine()
+                    ->code_manager()
+                    ->GetCodeFromStartAddress(it.rinfo()->js_to_wasm_address())
+                    ->kind());
       it.rinfo()->set_js_to_wasm_address(
           isolate, callee_compiled->instructions().start());
+      ++patched;
     }
+    DCHECK_LT(0, patched);
+    TRACE_LAZY("Patched %d location(s) in the caller.\n", patched);
+
 #ifdef DEBUG
     it.next();
     DCHECK(it.done());
@@ -1126,6 +1152,9 @@ const wasm::WasmCode* LazyCompilationOrchestrator::CompileDirectCall(
         maybe_func_to_return_idx = Just(called_func_index);
       }
     }
+
+    TRACE_LAZY("Found %zu non-compiled functions in caller.\n",
+               non_compiled_functions.size());
   }
   uint32_t func_to_return_idx = 0;
 
@@ -1147,10 +1176,12 @@ const wasm::WasmCode* LazyCompilationOrchestrator::CompileDirectCall(
   const WasmCode* ret = CompileFunction(isolate, instance, func_to_return_idx);
   DCHECK_NOT_NULL(ret);
 
+  int patched = 0;
   if (last_callee->kind() == WasmCode::kWasmToWasmWrapper) {
     // We can finish it all here by compiling the target wasm function and
     // patching the wasm_to_wasm caller.
     WasmPatchWasmToWasmWrapper(isolate, last_callee, ret);
+    ++patched;
   } else {
     Handle<WasmCompiledModule> compiled_module(instance->compiled_module(),
                                                isolate);
@@ -1158,7 +1189,6 @@ const wasm::WasmCode* LazyCompilationOrchestrator::CompileDirectCall(
     // Now patch the code object with all functions which are now compiled. This
     // will pick up any other compiled functions, not only {ret}.
     size_t idx = 0;
-    size_t patched = 0;
     for (RelocIterator
              it(wasm_caller->instructions(), wasm_caller->reloc_info(),
                 wasm_caller->constant_pool(),
@@ -1170,13 +1200,21 @@ const wasm::WasmCode* LazyCompilationOrchestrator::CompileDirectCall(
       const WasmCode* callee_compiled =
           compiled_module->GetNativeModule()->GetCode(lookup);
       if (callee_compiled->kind() != WasmCode::kFunction) continue;
+      DCHECK_EQ(WasmCode::kLazyStub,
+                isolate->wasm_engine()
+                    ->code_manager()
+                    ->GetCodeFromStartAddress(it.rinfo()->wasm_call_address())
+                    ->kind());
       it.rinfo()->set_wasm_call_address(
           isolate, callee_compiled->instructions().start());
       ++patched;
     }
     DCHECK_EQ(non_compiled_functions.size(), idx);
-    TRACE_LAZY("Patched %zu location(s) in the caller.\n", patched);
   }
+
+  DCHECK_LT(0, patched);
+  TRACE_LAZY("Patched %d location(s) in the caller.\n", patched);
+
   return ret;
 }
 
