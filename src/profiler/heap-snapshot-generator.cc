@@ -1311,23 +1311,9 @@ void V8HeapExplorer::ExtractJSArrayBufferReferences(
 }
 
 void V8HeapExplorer::ExtractJSPromiseReferences(int entry, JSPromise* promise) {
-  SetInternalReference(promise, entry, "result", promise->result(),
-                       JSPromise::kResultOffset);
-  SetInternalReference(promise, entry, "deferred_promise",
-                       promise->deferred_promise(),
-                       JSPromise::kDeferredPromiseOffset);
-  SetInternalReference(promise, entry, "deferred_on_resolve",
-                       promise->deferred_on_resolve(),
-                       JSPromise::kDeferredOnResolveOffset);
-  SetInternalReference(promise, entry, "deferred_on_reject",
-                       promise->deferred_on_reject(),
-                       JSPromise::kDeferredOnRejectOffset);
-  SetInternalReference(promise, entry, "fulfill_reactions",
-                       promise->fulfill_reactions(),
-                       JSPromise::kFulfillReactionsOffset);
-  SetInternalReference(promise, entry, "reject_reactions",
-                       promise->reject_reactions(),
-                       JSPromise::kRejectReactionsOffset);
+  SetInternalReference(promise, entry, "reactions_or_result",
+                       promise->reactions_or_result(),
+                       JSPromise::kReactionsOrResultOffset);
 }
 
 void V8HeapExplorer::ExtractFixedArrayReferences(int entry, FixedArray* array) {

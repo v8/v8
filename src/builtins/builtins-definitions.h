@@ -219,11 +219,8 @@ namespace internal {
   /* Promise helpers */                                                        \
   TFS(ResolveNativePromise, kPromise, kValue)                                  \
   TFS(RejectNativePromise, kPromise, kValue, kDebugEvent)                      \
-  TFS(PerformNativePromiseThen, kPromise, kResolveReaction, kRejectReaction,   \
-      kResultPromise)                                                          \
   TFS(EnqueueMicrotask, kMicrotask)                                            \
   TFC(RunMicrotasks, RunMicrotasks, 1)                                         \
-  TFS(PromiseResolveThenableJob, kMicrotask)                                   \
                                                                                \
   /* Object property helpers */                                                \
   TFS(HasProperty, kKey, kObject)                                              \
@@ -802,7 +799,7 @@ namespace internal {
   /* ES6 #sec-getcapabilitiesexecutor-functions */                             \
   TFJ(PromiseGetCapabilitiesExecutor, 2, kResolve, kReject)                    \
   /* ES6 #sec-newpromisecapability */                                          \
-  TFJ(NewPromiseCapability, 2, kConstructor, kDebugEvent)                      \
+  TFS(NewPromiseCapability, kConstructor, kDebugEvent)                         \
   /* ES6 #sec-promise-executor */                                              \
   TFJ(PromiseConstructor, 1, kExecutor)                                        \
   TFJ(PromiseInternalConstructor, 1, kParent)                                  \
@@ -813,14 +810,18 @@ namespace internal {
   TFJ(PromiseRejectClosure, 1, kValue)                                         \
   TFJ(PromiseAllResolveElementClosure, 1, kValue)                              \
   /* ES #sec-promise.prototype.then */                                         \
-  TFJ(PromisePrototypeThen, 2, kOnFullfilled, kOnRejected)                     \
+  TFJ(PromisePrototypeThen, 2, kOnFulfilled, kOnRejected)                      \
+  /* ES #sec-performpromisethen */                                             \
+  TFS(PerformPromiseThen, kPromise, kOnFulfilled, kOnRejected, kResultPromise) \
   /* ES #sec-promise.prototype.catch */                                        \
   TFJ(PromisePrototypeCatch, 1, kOnRejected)                                   \
   /* ES #sec-fulfillpromise */                                                 \
   TFJ(ResolvePromise, 2, kPromise, kValue)                                     \
-  TFS(PromiseHandleReject, kPromise, kOnReject, kException)                    \
-  TFS(PromiseHandle, kValue, kHandler, kDeferredPromise, kDeferredOnResolve,   \
-      kDeferredOnReject)                                                       \
+  /* ES #sec-promisereactionjob */                                             \
+  TFS(PromiseRejectReactionJob, kReason, kHandler, kPromiseOrCapability)       \
+  TFS(PromiseFulfillReactionJob, kValue, kHandler, kPromiseOrCapability)       \
+  /* ES #sec-promiseresolvethenablejob */                                      \
+  TFS(PromiseResolveThenableJob, kPromiseToResolve, kThenable, kThen)          \
   /* ES #sec-promise.resolve */                                                \
   TFJ(PromiseResolveWrapper, 1, kValue)                                        \
   TFS(PromiseResolve, kConstructor, kValue)                                    \
@@ -1247,10 +1248,9 @@ namespace internal {
   V(AsyncGeneratorResolve)                           \
   V(AsyncGeneratorAwaitCaught)                       \
   V(AsyncGeneratorAwaitUncaught)                     \
-  V(PerformNativePromiseThen)                        \
   V(PromiseAll)                                      \
   V(PromiseConstructor)                              \
-  V(PromiseHandle)                                   \
+  V(PromiseFulfillReactionJob)                       \
   V(PromiseRace)                                     \
   V(PromiseResolve)                                  \
   V(PromiseResolveClosure)                           \
@@ -1260,7 +1260,7 @@ namespace internal {
 
 // The exception thrown in the following builtins are caught internally and will
 // not be propagated further or re-thrown
-#define BUILTIN_EXCEPTION_CAUGHT_PREDICTION_LIST(V) V(PromiseHandleReject)
+#define BUILTIN_EXCEPTION_CAUGHT_PREDICTION_LIST(V) V(PromiseRejectReactionJob)
 
 #define IGNORE_BUILTIN(...)
 

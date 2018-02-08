@@ -21648,6 +21648,42 @@ TEST(RunMicrotasksWithoutEnteringContext) {
   isolate->SetMicrotasksPolicy(v8::MicrotasksPolicy::kAuto);
 }
 
+static void Regress808911_MicrotaskCallback(void* data) {
+  // So here we expect "current context" to be context1 and
+  // "entered or microtask context" to be context2.
+  v8::Isolate* isolate = static_cast<v8::Isolate*>(data);
+  CHECK(isolate->GetCurrentContext() != isolate->GetEnteredContext());
+  CHECK(isolate->GetCurrentContext() !=
+        isolate->GetEnteredOrMicrotaskContext());
+}
+
+static void Regress808911_CurrentContextWrapper(
+    const v8::FunctionCallbackInfo<Value>& info) {
+  // So here we expect "current context" to be context1 and
+  // "entered or microtask context" to be context2.
+  v8::Isolate* isolate = info.GetIsolate();
+  CHECK(isolate->GetCurrentContext() != isolate->GetEnteredContext());
+  CHECK(isolate->GetCurrentContext() !=
+        isolate->GetEnteredOrMicrotaskContext());
+  isolate->EnqueueMicrotask(Regress808911_MicrotaskCallback, isolate);
+  isolate->RunMicrotasks();
+}
+
+THREADED_TEST(Regress808911) {
+  v8::Isolate* isolate = CcTest::isolate();
+  HandleScope handle_scope(isolate);
+  Local<Context> context1 = Context::New(isolate);
+  Local<Function> function;
+  {
+    Context::Scope context_scope(context1);
+    function = Function::New(context1, Regress808911_CurrentContextWrapper)
+                   .ToLocalChecked();
+  }
+  Local<Context> context2 = Context::New(isolate);
+  Context::Scope context_scope(context2);
+  function->CallAsFunction(context2, v8::Undefined(isolate), 0, nullptr)
+      .ToLocalChecked();
+}
 
 TEST(ScopedMicrotasks) {
   LocalContext env;

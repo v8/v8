@@ -2361,12 +2361,6 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
         isolate, Builtins::kPromiseGetCapabilitiesExecutor,
         factory->empty_string(), factory->Object_string(), 2);
     native_context()->set_promise_get_capabilities_executor_shared_fun(*info);
-
-    // %new_promise_capability(C, debugEvent)
-    Handle<JSFunction> new_promise_capability =
-        SimpleCreateFunction(isolate, factory->empty_string(),
-                             Builtins::kNewPromiseCapability, 2, false);
-    native_context()->set_new_promise_capability(*new_promise_capability);
   }
 
   {  // -- P r o m i s e
@@ -2425,10 +2419,6 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
 
     Handle<Map> prototype_map(prototype->map());
     Map::SetShouldBeFastPrototypeMap(prototype_map, true, isolate);
-
-    // Store the initial Promise.prototype map. This is used in fast-path
-    // checks. Do not alter the prototype after this point.
-    native_context()->set_promise_prototype_map(*prototype_map);
 
     {  // Internal: PromiseInternalConstructor
        // Also exposed as extrasUtils.createPromise.
@@ -4437,7 +4427,6 @@ void Genesis::InitializeGlobal_harmony_promise_finally() {
   // to prototype, so we update the saved map.
   Handle<Map> prototype_map(prototype->map());
   Map::SetShouldBeFastPrototypeMap(prototype_map, true, isolate());
-  native_context()->set_promise_prototype_map(*prototype_map);
 
   {
     Handle<SharedFunctionInfo> info = SimpleCreateSharedFunctionInfo(

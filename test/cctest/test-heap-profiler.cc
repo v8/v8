@@ -2794,21 +2794,17 @@ TEST(JSPromise) {
   const v8::HeapGraphNode* resolved = GetProperty(
       env->GetIsolate(), global, v8::HeapGraphEdge::kProperty, "resolved");
   CHECK(GetProperty(env->GetIsolate(), resolved, v8::HeapGraphEdge::kInternal,
-                    "result"));
+                    "reactions_or_result"));
 
   const v8::HeapGraphNode* rejected = GetProperty(
       env->GetIsolate(), global, v8::HeapGraphEdge::kProperty, "rejected");
   CHECK(GetProperty(env->GetIsolate(), rejected, v8::HeapGraphEdge::kInternal,
-                    "result"));
+                    "reactions_or_result"));
 
   const v8::HeapGraphNode* pending = GetProperty(
       env->GetIsolate(), global, v8::HeapGraphEdge::kProperty, "pending");
   CHECK(GetProperty(env->GetIsolate(), pending, v8::HeapGraphEdge::kInternal,
-                    "deferred_promise"));
-  CHECK(GetProperty(env->GetIsolate(), pending, v8::HeapGraphEdge::kInternal,
-                    "fulfill_reactions"));
-  CHECK(GetProperty(env->GetIsolate(), pending, v8::HeapGraphEdge::kInternal,
-                    "reject_reactions"));
+                    "reactions_or_result"));
 
   const char* objectNames[] = {"resolved", "rejected", "pending", "chained"};
   for (auto objectName : objectNames) {

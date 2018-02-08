@@ -29,11 +29,8 @@ class PromiseBuiltinsAssembler : public CodeStubAssembler {
 
  protected:
   enum PromiseAllResolveElementContextSlots {
-    // Whether the resolve callback was already called.
-    kPromiseAllResolveElementAlreadyVisitedSlot = Context::MIN_CONTEXT_SLOTS,
-
-    // Index into the values array
-    kPromiseAllResolveElementIndexSlot,
+    // Index into the values array, or -1 if the callback was already called
+    kPromiseAllResolveElementIndexSlot = Context::MIN_CONTEXT_SLOTS,
 
     // Remaining elements count (mutable HeapNumber)
     kPromiseAllResolveElementRemainingElementsSlot,
@@ -90,8 +87,18 @@ class PromiseBuiltinsAssembler : public CodeStubAssembler {
   Node* AllocateAndSetJSPromise(Node* context, v8::Promise::PromiseState status,
                                 Node* result);
 
-  Node* AllocatePromiseResolveThenableJobInfo(Node* result, Node* then,
-                                              Node* resolve, Node* reject,
+  Node* AllocatePromiseReaction(Node* next, Node* promise_or_capability,
+                                Node* fulfill_handler, Node* reject_handler);
+
+  Node* AllocatePromiseReactionJobTask(Heap::RootListIndex map_root_index,
+                                       Node* context, Node* argument,
+                                       Node* handler,
+                                       Node* promise_or_capability);
+  Node* AllocatePromiseReactionJobTask(Node* map, Node* context, Node* argument,
+                                       Node* handler,
+                                       Node* promise_or_capability);
+  Node* AllocatePromiseResolveThenableJobTask(Node* promise_to_resolve,
+                                              Node* then, Node* thenable,
                                               Node* context);
 
   std::pair<Node*, Node*> CreatePromiseResolvingFunctions(
@@ -105,38 +112,40 @@ class PromiseBuiltinsAssembler : public CodeStubAssembler {
   Node* CreatePromiseGetCapabilitiesExecutorContext(Node* native_context,
                                                     Node* promise_capability);
 
-  Node* NewPromiseCapability(Node* context, Node* constructor,
-                             Node* debug_event = nullptr);
-
  protected:
   void PromiseInit(Node* promise);
 
   void PromiseSetHasHandler(Node* promise);
   void PromiseSetHandledHint(Node* promise);
 
-  void AppendPromiseCallback(int offset, compiler::Node* promise,
-                             compiler::Node* value);
-
-  Node* InternalPromiseThen(Node* context, Node* promise, Node* on_resolve,
-                            Node* on_reject);
-
-  Node* InternalPerformPromiseThen(Node* context, Node* promise,
-                                   Node* on_resolve, Node* on_reject,
-                                   Node* deferred_promise,
-                                   Node* deferred_on_resolve,
-                                   Node* deferred_on_reject);
+  void PerformPromiseThen(Node* context, Node* promise, Node* on_fulfilled,
+                          Node* on_rejected,
+                          Node* result_promise_or_capability);
 
   void InternalResolvePromise(Node* context, Node* promise, Node* result);
-
-  void BranchIfFastPath(Node* context, Node* promise, Label* if_isunmodified,
-                        Label* if_ismodified);
-
-  void BranchIfFastPath(Node* native_context, Node* promise_fun, Node* promise,
-                        Label* if_isunmodified, Label* if_ismodified);
 
   Node* CreatePromiseContext(Node* native_context, int slots);
   void PromiseFulfill(Node* context, Node* promise, Node* result,
                       v8::Promise::PromiseState status);
+
+  // We can shortcut the SpeciesConstructor on {promise_map} if it's
+  // [[Prototype]] is the (initial)  Promise.prototype and the @@species
+  // protector is intact, as that guards the lookup path for the "constructor"
+  // property on JSPromise instances which have the %PromisePrototype%.
+  void BranchIfPromiseSpeciesLookupChainIntact(Node* native_context,
+                                               Node* promise_map,
+                                               Label* if_fast, Label* if_slow);
+
+  // We can skip the "then" lookup on {receiver_map} if it's [[Prototype]]
+  // is the (initial) Promise.prototype and the Promise#then() protector
+  // is intact, as that guards the lookup path for the "then" property
+  // on JSPromise instances which have the (initial) %PromisePrototype%.
+  void BranchIfPromiseThenLookupChainIntact(Node* native_context,
+                                            Node* receiver_map, Label* if_fast,
+                                            Label* if_slow);
+
+  template <typename... TArgs>
+  Node* InvokeThen(Node* native_context, Node* receiver, TArgs... args);
 
   void BranchIfAccessCheckFailed(Node* context, Node* native_context,
                                  Node* promise_constructor, Node* executor,
@@ -171,9 +180,13 @@ class PromiseBuiltinsAssembler : public CodeStubAssembler {
                                  const NodeGenerator& handled_by);
 
   Node* PromiseStatus(Node* promise);
-  void PerformFulfillClosure(Node* context, Node* value, bool should_resolve);
+  void PerformFulfillClosure(Node* context, Node* value,
+                             PromiseReaction::Type type);
 
- private:
+  void PromiseReactionJob(Node* context, Node* argument, Node* handler,
+                          Node* promise_or_capability,
+                          PromiseReaction::Type type);
+
   Node* IsPromiseStatus(Node* actual, v8::Promise::PromiseState expected);
   void PromiseSetStatus(Node* promise, v8::Promise::PromiseState status);
 

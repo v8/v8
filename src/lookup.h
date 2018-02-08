@@ -275,11 +275,12 @@ class V8_EXPORT_PRIVATE LookupIterator final BASE_EMBEDDED {
   inline void UpdateProtector() {
     if (IsElement()) return;
     // This list must be kept in sync with
-    // CodeStubAssembler::HasAssociatedProtector!
+    // CodeStubAssembler::CheckForAssociatedProtector!
     if (*name_ == heap()->is_concat_spreadable_symbol() ||
         *name_ == heap()->constructor_string() ||
         *name_ == heap()->species_symbol() ||
-        *name_ == heap()->iterator_symbol()) {
+        *name_ == heap()->iterator_symbol() ||
+        *name_ == heap()->then_string()) {
       InternalUpdateProtector();
     }
   }
