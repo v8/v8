@@ -42,26 +42,33 @@ class StackTransferRecipe {
       kStack,     // fill a register from a stack slot.
       kHalfStack  // fill one half of a register pair from half a stack slot.
     };
+
     LiftoffRegister dst;
     LoadKind kind;
     ValueType type;
-    uint32_t value;  // i32 constant value or stack index, depending on kind.
+    int32_t value;  // i32 constant value or stack index, depending on kind.
+
     // Named constructors.
     static RegisterLoad Const(LiftoffRegister dst, WasmValue constant) {
-      return {dst, kConstant, kWasmI32, constant.to_u32()};
+      if (constant.type() == kWasmI32) {
+        return {dst, kConstant, kWasmI32, constant.to_i32()};
+      }
+      DCHECK_EQ(kWasmI64, constant.type());
+      DCHECK_EQ(constant.to_i32_unchecked(), constant.to_i64_unchecked());
+      return {dst, kConstant, kWasmI64, constant.to_i32_unchecked()};
     }
-    static RegisterLoad Stack(LiftoffRegister dst, uint32_t stack_index,
+    static RegisterLoad Stack(LiftoffRegister dst, int32_t stack_index,
                               ValueType type) {
       return {dst, kStack, type, stack_index};
     }
     static RegisterLoad HalfStack(LiftoffRegister dst,
-                                  uint32_t half_stack_index) {
+                                  int32_t half_stack_index) {
       return {dst, kHalfStack, kWasmI32, half_stack_index};
     }
 
    private:
     RegisterLoad(LiftoffRegister dst, LoadKind kind, ValueType type,
-                 uint32_t value)
+                 int32_t value)
         : dst(dst), kind(kind), type(type), value(value) {}
   };
 
@@ -128,7 +135,9 @@ class StackTransferRecipe {
     for (RegisterLoad& rl : register_loads_) {
       switch (rl.kind) {
         case RegisterLoad::kConstant:
-          asm_->LoadConstant(rl.dst, WasmValue(rl.value));
+          asm_->LoadConstant(rl.dst, rl.type == kWasmI64
+                                         ? WasmValue(int64_t{rl.value})
+                                         : WasmValue(int32_t{rl.value}));
           break;
         case RegisterLoad::kStack:
           asm_->Fill(rl.dst, rl.value, rl.type);
@@ -157,15 +166,15 @@ class StackTransferRecipe {
           case VarState::kRegister:
             asm_->Spill(dst_index, src.reg(), src.type());
             break;
-          case VarState::kI32Const:
-            asm_->Spill(dst_index, WasmValue(src.i32_const()));
+          case VarState::KIntConst:
+            asm_->Spill(dst_index, src.constant());
             break;
         }
         break;
       case VarState::kRegister:
         LoadIntoRegister(dst.reg(), src, src_index);
         break;
-      case VarState::kI32Const:
+      case VarState::KIntConst:
         DCHECK_EQ(dst, src);
         break;
     }
@@ -182,8 +191,8 @@ class StackTransferRecipe {
         DCHECK_EQ(dst.reg_class(), src.reg_class());
         if (dst != src.reg()) MoveRegister(dst, src.reg(), src.type());
         break;
-      case VarState::kI32Const:
-        LoadConstant(dst, WasmValue(src.i32_const()));
+      case VarState::KIntConst:
+        LoadConstant(dst, src.constant());
         break;
     }
   }
@@ -205,8 +214,10 @@ class StackTransferRecipe {
         if (dst != src_half) MoveRegister(dst, src_half, kWasmI32);
         break;
       }
-      case VarState::kI32Const:
-        int32_t value = half == kLowWord ? src.i32_const() : 0;
+      case VarState::KIntConst:
+        int32_t value = src.i32_const();
+        // The high word is the sign extension of the low word.
+        if (half == kHighWord) value = value >> 31;
         LoadConstant(dst, WasmValue(value));
         break;
     }
@@ -382,9 +393,9 @@ LiftoffRegister LiftoffAssembler::PopToRegister(RegClass rc,
       DCHECK_EQ(rc, slot.reg_class());
       cache_state_.dec_used(slot.reg());
       return slot.reg();
-    case VarState::kI32Const: {
+    case VarState::KIntConst: {
       LiftoffRegister reg = GetUnusedRegister(rc, pinned);
-      LoadConstant(reg, WasmValue(slot.i32_const()));
+      LoadConstant(reg, slot.constant());
       return reg;
     }
   }
@@ -429,8 +440,8 @@ void LiftoffAssembler::Spill(uint32_t index) {
       Spill(index, slot.reg(), slot.type());
       cache_state_.dec_used(slot.reg());
       break;
-    case VarState::kI32Const:
-      Spill(index, WasmValue(slot.i32_const()));
+    case VarState::KIntConst:
+      Spill(index, slot.constant());
       break;
   }
   slot.MakeStack();
@@ -619,7 +630,7 @@ std::ostream& operator<<(std::ostream& os, VarState slot) {
       return os << "s";
     case VarState::kRegister:
       return os << slot.reg();
-    case VarState::kI32Const:
+    case VarState::KIntConst:
       return os << "c" << slot.i32_const();
   }
   UNREACHABLE();

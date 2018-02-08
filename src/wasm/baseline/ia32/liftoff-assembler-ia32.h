@@ -545,8 +545,10 @@ void LiftoffAssembler::PushCallerFrameSlot(const VarState& src,
               ? (half == kLowWord ? src.reg().low() : src.reg().high())
               : src.reg());
       break;
-    case VarState::kI32Const:
-      push(Immediate(src.i32_const()));
+    case VarState::KIntConst:
+      // The high word is the sign extension of the low word.
+      push(Immediate(half == kLowWord ? src.i32_const()
+                                      : src.i32_const() >> 31));
       break;
   }
 }

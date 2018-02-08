@@ -36,26 +36,27 @@ class LiftoffAssembler : public TurboAssembler {
 
   class VarState {
    public:
-    enum Location : uint8_t { kStack, kRegister, kI32Const };
+    enum Location : uint8_t { kStack, kRegister, KIntConst };
 
     explicit VarState(ValueType type) : loc_(kStack), type_(type) {}
     explicit VarState(ValueType type, LiftoffRegister r)
         : loc_(kRegister), type_(type), reg_(r) {
       DCHECK_EQ(r.reg_class(), reg_class_for(type));
     }
-    explicit VarState(ValueType type, uint32_t i32_const)
-        : loc_(kI32Const), type_(type), i32_const_(i32_const) {
+    explicit VarState(ValueType type, int32_t i32_const)
+        : loc_(KIntConst), type_(type), i32_const_(i32_const) {
       DCHECK(type_ == kWasmI32 || type_ == kWasmI64);
     }
 
     bool operator==(const VarState& other) const {
       if (loc_ != other.loc_) return false;
+      if (type_ != other.type_) return false;
       switch (loc_) {
         case kStack:
           return true;
         case kRegister:
           return reg_ == other.reg_;
-        case kI32Const:
+        case KIntConst:
           return i32_const_ == other.i32_const_;
       }
       UNREACHABLE();
@@ -65,16 +66,23 @@ class LiftoffAssembler : public TurboAssembler {
     bool is_gp_reg() const { return loc_ == kRegister && reg_.is_gp(); }
     bool is_fp_reg() const { return loc_ == kRegister && reg_.is_fp(); }
     bool is_reg() const { return loc_ == kRegister; }
-    bool is_const() const { return loc_ == kI32Const; }
+    bool is_const() const { return loc_ == KIntConst; }
 
     ValueType type() const { return type_; }
 
     Location loc() const { return loc_; }
 
-    uint32_t i32_const() const {
-      DCHECK_EQ(loc_, kI32Const);
+    int32_t i32_const() const {
+      DCHECK_EQ(loc_, KIntConst);
       return i32_const_;
     }
+    WasmValue constant() const {
+      DCHECK(type_ == kWasmI32 || type_ == kWasmI64);
+      DCHECK_EQ(loc_, KIntConst);
+      return type_ == kWasmI32 ? WasmValue(i32_const_)
+                               : WasmValue(int64_t{i32_const_});
+    }
+
     Register gp_reg() const { return reg().gp(); }
     DoubleRegister fp_reg() const { return reg().fp(); }
     LiftoffRegister reg() const {
@@ -93,7 +101,7 @@ class LiftoffAssembler : public TurboAssembler {
 
     union {
       LiftoffRegister reg_;  // used if loc_ == kRegister
-      uint32_t i32_const_;   // used if loc_ == kI32Const
+      int32_t i32_const_;    // used if loc_ == KIntConst
     };
   };
 

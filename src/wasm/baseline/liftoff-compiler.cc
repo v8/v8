@@ -20,7 +20,7 @@ namespace internal {
 namespace wasm {
 
 constexpr auto kRegister = LiftoffAssembler::VarState::kRegister;
-constexpr auto kI32Const = LiftoffAssembler::VarState::kI32Const;
+constexpr auto KIntConst = LiftoffAssembler::VarState::KIntConst;
 constexpr auto kStack = LiftoffAssembler::VarState::kStack;
 
 namespace {
@@ -616,9 +616,18 @@ class LiftoffCompiler {
   }
 
   void I64Const(Decoder* decoder, Value* result, int64_t value) {
-    LiftoffRegister reg = __ GetUnusedRegister(reg_class_for(kWasmI64));
-    __ LoadConstant(reg, WasmValue(value));
-    __ PushRegister(kWasmI64, reg);
+    // The {VarState} stores constant values as int32_t, thus we only store
+    // 64-bit constants in this field if it fits in an int32_t. Larger values
+    // cannot be used as immediate value anyway, so we can also just put them in
+    // a register immediately.
+    int32_t value_i32 = static_cast<int32_t>(value);
+    if (value_i32 == value) {
+      __ cache_state()->stack_state.emplace_back(kWasmI64, value_i32);
+    } else {
+      LiftoffRegister reg = __ GetUnusedRegister(reg_class_for(kWasmI64));
+      __ LoadConstant(reg, WasmValue(value));
+      __ PushRegister(kWasmI64, reg);
+    }
     CheckStackSizeLimit(decoder);
   }
 
@@ -664,7 +673,7 @@ class LiftoffCompiler {
       case kRegister:
         __ PushRegister(slot.type(), slot.reg());
         break;
-      case kI32Const:
+      case KIntConst:
         __ cache_state()->stack_state.emplace_back(operand.type,
                                                    slot.i32_const());
         break;
@@ -709,7 +718,7 @@ class LiftoffCompiler {
         target_slot = source_slot;
         if (is_tee) state.inc_used(target_slot.reg());
         break;
-      case kI32Const:
+      case KIntConst:
         __ DropStackSlot(&target_slot);
         target_slot = source_slot;
         break;

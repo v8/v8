@@ -23,8 +23,13 @@ constexpr int32_t kFirstStackSlotOffset =
     kConstantStackSpace + LiftoffAssembler::kStackSlotSize;
 
 inline Operand GetStackSlot(uint32_t index) {
-  return Operand(
-      rbp, -kFirstStackSlotOffset - index * LiftoffAssembler::kStackSlotSize);
+  int32_t offset = index * LiftoffAssembler::kStackSlotSize;
+  return Operand(rbp, -kFirstStackSlotOffset - offset);
+}
+
+inline Operand GetHalfStackSlot(uint32_t half_index) {
+  int32_t offset = half_index * (LiftoffAssembler::kStackSlotSize / 2);
+  return Operand(rbp, -kFirstStackSlotOffset - offset);
 }
 
 // TODO(clemensh): Make this a constexpr variable once Operand is constexpr.
@@ -255,6 +260,16 @@ void LiftoffAssembler::Spill(uint32_t index, WasmValue value) {
     case kWasmI32:
       movl(dst, Immediate(value.to_i32()));
       break;
+    case kWasmI64: {
+      // We could use movq, but this would require a temporary register. For
+      // simplicity (and to avoid potentially having to spill another register),
+      // we use two movl instructions.
+      int32_t low_word = static_cast<int32_t>(value.to_i64());
+      int32_t high_word = static_cast<int32_t>(value.to_i64() >> 32);
+      movl(dst, Immediate(low_word));
+      movl(liftoff::GetHalfStackSlot(2 * index + 1), Immediate(high_word));
+      break;
+    }
     case kWasmF32:
       movl(dst, Immediate(value.to_f32_boxed().get_bits()));
       break;
@@ -514,7 +529,7 @@ void LiftoffAssembler::PushCallerFrameSlot(const VarState& src,
     case VarState::kRegister:
       PushCallerFrameSlot(src.reg());
       break;
-    case VarState::kI32Const:
+    case VarState::KIntConst:
       pushq(Immediate(src.i32_const()));
       break;
   }
