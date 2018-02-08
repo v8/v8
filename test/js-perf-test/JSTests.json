@@ -494,15 +494,15 @@
         {"name": "SmallDoubleArrayOf"},
         {"name": "SmallStringArrayOf"},
         {"name": "SmallMixedArrayOf"},
-        {"name": "SmiArrayFrom"},
-        {"name": "SmallSmiArrayFrom"},
-        {"name": "SmiArrayNoMapFrom"},
-        {"name": "SmiArrayNoIteratorFrom"},
-        {"name": "TransplantedArrayFrom"},
-        {"name": "DoubleArrayFrom"},
-        {"name": "StringArrayFrom"},
-        {"name": "StringArrayNoMapFrom"},
-        {"name": "MixedArrayFrom"}
+        {"name": "SmiFrom"},
+        {"name": "SmallSmiFrom"},
+        {"name": "SmiNoMapFrom"},
+        {"name": "SmiNoIteratorFrom"},
+        {"name": "TransplantedFrom"},
+        {"name": "DoubleFrom"},
+        {"name": "StringFrom"},
+        {"name": "StringNoMapFrom"},
+        {"name": "MixedFrom"}
       ]
     },
     {
