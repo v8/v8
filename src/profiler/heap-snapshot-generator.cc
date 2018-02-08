@@ -184,7 +184,6 @@ HeapSnapshot::HeapSnapshot(HeapProfiler* profiler)
 
 void HeapSnapshot::Delete() {
   profiler_->RemoveSnapshot(this);
-  delete this;
 }
 
 

@@ -91,7 +91,7 @@ class HeapProfiler {
 
   // Mapping from HeapObject addresses to objects' uids.
   std::unique_ptr<HeapObjectsMap> ids_;
-  std::vector<HeapSnapshot*> snapshots_;
+  std::vector<std::unique_ptr<HeapSnapshot>> snapshots_;
   std::unique_ptr<StringsStorage> names_;
   std::vector<v8::HeapProfiler::WrapperInfoCallback> wrapper_callbacks_;
   std::unique_ptr<AllocationTracker> allocation_tracker_;
