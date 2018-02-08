@@ -4143,7 +4143,10 @@ class V8_EXPORT WasmModuleObjectBuilderStreaming final {
   // The buffer passed into OnBytesReceived is owned by the caller.
   void OnBytesReceived(const uint8_t*, size_t size);
   void Finish();
-  void Abort(Local<Value> exception);
+  // Abort streaming compilation. If {exception} has a value, then the promise
+  // associated with streaming compilation is rejected with that value. If
+  // {exception} does not have value, the promise does not get rejected.
+  void Abort(MaybeLocal<Value> exception);
   Local<Promise> GetPromise();
 
   ~WasmModuleObjectBuilderStreaming();

@@ -7686,24 +7686,23 @@ void WasmModuleObjectBuilderStreaming::Finish() {
       {wire_bytes.get(), wire_bytes.get() + total_size_}, false);
 }
 
-void WasmModuleObjectBuilderStreaming::Abort(Local<Value> exception) {
+void WasmModuleObjectBuilderStreaming::Abort(MaybeLocal<Value> exception) {
   Local<Promise> promise = GetPromise();
   // The promise has already been resolved, e.g. because of a compilation
   // error.
   if (promise->State() != v8::Promise::kPending) return;
   if (i::FLAG_wasm_stream_compilation) streaming_decoder_->Abort();
 
-  // If there is no exception, then we do not reject the promise. The reason is
-  // that 'no exception' indicates that we are in a ScriptForbiddenScope, which
-  // means that it is not allowed to reject the promise at the moment, or
-  // execute any other JavaScript code.
+  // If no exception value is provided, we do not reject the promise. This can
+  // happen when streaming compilation gets aborted when no script execution is
+  // allowed anymore, e.g. when a browser tab gets refreshed.
   if (exception.IsEmpty()) return;
 
   Local<Promise::Resolver> resolver = promise.As<Promise::Resolver>();
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate_);
   i::HandleScope scope(i_isolate);
   Local<Context> context = Utils::ToLocal(handle(i_isolate->context()));
-  auto maybe = resolver->Reject(context, exception);
+  auto maybe = resolver->Reject(context, exception.ToLocalChecked());
   CHECK_IMPLIES(!maybe.FromMaybe(false), i_isolate->has_scheduled_exception());
 }
 
