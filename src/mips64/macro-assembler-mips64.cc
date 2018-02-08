@@ -4282,10 +4282,10 @@ void MacroAssembler::CheckDebugHook(Register fun, Register new_target,
   Lb(t0, MemOperand(t0));
   Branch(&call_hook, ne, t0, Operand(zero_reg));
 
-  Lw(t0, FieldMemOperand(fun, JSFunction::kSharedFunctionInfoOffset));
-  Lw(t0, FieldMemOperand(t0, SharedFunctionInfo::kDebugInfoOffset));
+  Ld(t0, FieldMemOperand(fun, JSFunction::kSharedFunctionInfoOffset));
+  Ld(t0, FieldMemOperand(t0, SharedFunctionInfo::kDebugInfoOffset));
   JumpIfSmi(t0, &skip_hook);
-  Lw(t0, FieldMemOperand(t0, DebugInfo::kFlagsOffset));
+  Ld(t0, FieldMemOperand(t0, DebugInfo::kFlagsOffset));
   And(t0, t0, Operand(Smi::FromInt(DebugInfo::kBreakAtEntry)));
   Branch(&skip_hook, eq, t0, Operand(zero_reg));
 
