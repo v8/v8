@@ -2771,11 +2771,6 @@ Isolate::~Isolate() {
 
   delete allocator_;
   allocator_ = nullptr;
-
-#if USE_SIMULATOR
-  Simulator::TearDown(simulator_i_cache_);
-  simulator_i_cache_ = nullptr;
-#endif
 }
 
 

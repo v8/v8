@@ -476,7 +476,7 @@ void Assembler::set_target_address_at(Isolate* isolate, Address pc,
     *(p + 3) = instr4;
     *(p + 4) = instr5;
     if (icache_flush_mode != SKIP_ICACHE_FLUSH) {
-      Assembler::FlushICache(isolate, p, 5 * kInstrSize);
+      Assembler::FlushICache(p, 5 * kInstrSize);
     }
 #else
     uint32_t* p = reinterpret_cast<uint32_t*>(pc);
@@ -491,7 +491,7 @@ void Assembler::set_target_address_at(Isolate* isolate, Address pc,
     *p = instr1;
     *(p + 1) = instr2;
     if (icache_flush_mode != SKIP_ICACHE_FLUSH) {
-      Assembler::FlushICache(isolate, p, 2 * kInstrSize);
+      Assembler::FlushICache(p, 2 * kInstrSize);
     }
 #endif
     return;

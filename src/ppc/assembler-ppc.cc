@@ -2151,7 +2151,7 @@ PatchingAssembler::~PatchingAssembler() {
 }
 
 void PatchingAssembler::FlushICache(Isolate* isolate) {
-  Assembler::FlushICache(isolate, buffer_, buffer_size_ - kGap);
+  Assembler::FlushICache(buffer_, buffer_size_ - kGap);
 }
 
 }  // namespace internal

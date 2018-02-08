@@ -339,7 +339,7 @@ void Assembler::set_target_address_at(Isolate* isolate, Address pc,
     Memory::Address_at(constant_pool_entry_address(pc, constant_pool)) = target;
     // Intuitively, we would think it is necessary to always flush the
     // instruction cache after patching a target address in the code as follows:
-    //   Assembler::FlushICache(isolate, pc, sizeof(target));
+    //   Assembler::FlushICache(pc, sizeof(target));
     // However, on ARM, no instruction is actually patched in the case
     // of embedded constants of the form:
     // ldr   ip, [pp, #...]
@@ -357,7 +357,7 @@ void Assembler::set_target_address_at(Isolate* isolate, Address pc,
     DCHECK(IsMovW(Memory::int32_at(pc)));
     DCHECK(IsMovT(Memory::int32_at(pc + kInstrSize)));
     if (icache_flush_mode != SKIP_ICACHE_FLUSH) {
-      Assembler::FlushICache(isolate, pc, 2 * kInstrSize);
+      Assembler::FlushICache(pc, 2 * kInstrSize);
     }
   } else {
     // This is an mov / orr immediate load. Patch the immediate embedded in
@@ -377,7 +377,7 @@ void Assembler::set_target_address_at(Isolate* isolate, Address pc,
            IsOrrImmed(Memory::int32_at(pc + 2 * kInstrSize)) &&
            IsOrrImmed(Memory::int32_at(pc + 3 * kInstrSize)));
     if (icache_flush_mode != SKIP_ICACHE_FLUSH) {
-      Assembler::FlushICache(isolate, pc, 4 * kInstrSize);
+      Assembler::FlushICache(pc, 4 * kInstrSize);
     }
   }
 }

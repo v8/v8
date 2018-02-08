@@ -163,7 +163,7 @@ class AssemblerBase: public Malloced {
 
   static const int kMinimalBufferSize = 4*KB;
 
-  static void FlushICache(Isolate* isolate, void* start, size_t size);
+  static void FlushICache(void* start, size_t size);
 
  protected:
   // The buffer into which code and relocation info are generated. It could
@@ -801,9 +801,7 @@ class ExternalReference BASE_EMBEDDED {
 
   static void SetUp();
 
-  // These functions must use the isolate in a thread-safe way.
-  typedef void* ExternalReferenceRedirector(Isolate* isolate, void* original,
-                                            Type type);
+  typedef void* ExternalReferenceRedirector(void* original, Type type);
 
   ExternalReference() : address_(nullptr) {}
 
@@ -1074,9 +1072,8 @@ class ExternalReference BASE_EMBEDDED {
         reinterpret_cast<ExternalReferenceRedirector*>(
             isolate->external_reference_redirector());
     void* address = reinterpret_cast<void*>(address_arg);
-    void* answer = (redirector == nullptr)
-                       ? address
-                       : (*redirector)(isolate, address, type);
+    void* answer =
+        (redirector == nullptr) ? address : (*redirector)(address, type);
     return answer;
   }
 

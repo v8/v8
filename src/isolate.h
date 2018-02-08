@@ -380,17 +380,6 @@ class ThreadLocalTop BASE_EMBEDDED {
 };
 
 
-#if USE_SIMULATOR
-
-#define ISOLATE_INIT_SIMULATOR_LIST(V)  \
-  V(base::CustomMatcherHashMap*, simulator_i_cache, nullptr)
-#else
-
-#define ISOLATE_INIT_SIMULATOR_LIST(V)
-
-#endif
-
-
 #ifdef DEBUG
 
 #define ISOLATE_INIT_DEBUG_ARRAY_LIST(V)               \
@@ -451,8 +440,7 @@ typedef std::vector<HeapObject*> DebugObjectCache;
   V(debug::Coverage::Mode, code_coverage_mode, debug::Coverage::kBestEffort)  \
   V(debug::TypeProfile::Mode, type_profile_mode, debug::TypeProfile::kNone)   \
   V(int, last_stack_frame_info_id, 0)                                         \
-  V(int, last_console_context_id, 0)                                          \
-  ISOLATE_INIT_SIMULATOR_LIST(V)
+  V(int, last_console_context_id, 0)
 
 #define THREAD_LOCAL_TOP_ACCESSOR(type, name)                        \
   inline void set_##name(type v) { thread_local_top_.name##_ = v; }  \
@@ -1310,10 +1298,6 @@ class Isolate {
 
   PRINTF_FORMAT(2, 3) void PrintWithTimestamp(const char* format, ...);
 
-#ifdef USE_SIMULATOR
-  base::Mutex* simulator_i_cache_mutex() { return &simulator_i_cache_mutex_; }
-#endif
-
   void set_allow_atomics_wait(bool set) { allow_atomics_wait_ = set; }
   bool allow_atomics_wait() { return allow_atomics_wait_; }
 
@@ -1646,10 +1630,6 @@ class Isolate {
 
   v8::Isolate::AbortOnUncaughtExceptionCallback
       abort_on_uncaught_exception_callback_;
-
-#ifdef USE_SIMULATOR
-  base::Mutex simulator_i_cache_mutex_;
-#endif
 
   bool allow_atomics_wait_;
 

@@ -5480,7 +5480,7 @@ void PatchingAssembler::Emit(Address addr) {
 }
 
 void PatchingAssembler::FlushICache(Isolate* isolate) {
-  Assembler::FlushICache(isolate, buffer_, buffer_size_ - kGap);
+  Assembler::FlushICache(buffer_, buffer_size_ - kGap);
 }
 
 UseScratchRegisterScope::UseScratchRegisterScope(Assembler* assembler)

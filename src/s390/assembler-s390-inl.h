@@ -315,7 +315,7 @@ void Assembler::set_target_address_at(Isolate* isolate, Address pc,
     Instruction::SetInstructionBits<SixByteInstr>(reinterpret_cast<byte*>(pc),
                                                   instr_1);
     if (icache_flush_mode != SKIP_ICACHE_FLUSH) {
-      Assembler::FlushICache(isolate, pc, 6);
+      Assembler::FlushICache(pc, 6);
     }
     patched = true;
   } else {
@@ -344,7 +344,7 @@ void Assembler::set_target_address_at(Isolate* isolate, Address pc,
       Instruction::SetInstructionBits<SixByteInstr>(
           reinterpret_cast<byte*>(pc + instr1_length), instr_2);
       if (icache_flush_mode != SKIP_ICACHE_FLUSH) {
-        Assembler::FlushICache(isolate, pc, 12);
+        Assembler::FlushICache(pc, 12);
       }
       patched = true;
     }
@@ -358,7 +358,7 @@ void Assembler::set_target_address_at(Isolate* isolate, Address pc,
       Instruction::SetInstructionBits<SixByteInstr>(reinterpret_cast<byte*>(pc),
                                                     instr_1);
       if (icache_flush_mode != SKIP_ICACHE_FLUSH) {
-        Assembler::FlushICache(isolate, pc, 6);
+        Assembler::FlushICache(pc, 6);
       }
       patched = true;
     }

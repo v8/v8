@@ -3703,7 +3703,7 @@ class PatchingAssembler : public Assembler {
     DCHECK(IsConstPoolEmpty());
     // Flush the Instruction cache.
     size_t length = buffer_size_ - kGap;
-    if (isolate_ != nullptr) Assembler::FlushICache(isolate_, buffer_, length);
+    if (isolate_ != nullptr) Assembler::FlushICache(buffer_, length);
   }
 
   // See definition of PatchAdrFar() for details.

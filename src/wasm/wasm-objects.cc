@@ -1546,7 +1546,7 @@ void WasmCompiledModule::Reset(Isolate* isolate,
     // TODO(wasm): Check if this is faster than passing FLUSH_ICACHE_IF_NEEDED
     // above.
     if (changed) {
-      Assembler::FlushICache(isolate, code->instructions().start(),
+      Assembler::FlushICache(code->instructions().start(),
                              code->instructions().size());
     }
   }

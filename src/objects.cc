@@ -14010,7 +14010,7 @@ void Code::Relocate(intptr_t delta) {
   for (RelocIterator it(this, RelocInfo::kApplyMask); !it.done(); it.next()) {
     it.rinfo()->apply(delta);
   }
-  Assembler::FlushICache(GetIsolate(), instruction_start(), instruction_size());
+  Assembler::FlushICache(instruction_start(), instruction_size());
 }
 
 
@@ -14062,7 +14062,7 @@ void Code::CopyFrom(const CodeDesc& desc) {
       it.rinfo()->apply(delta);
     }
   }
-  Assembler::FlushICache(GetIsolate(), instruction_start(), instruction_size());
+  Assembler::FlushICache(instruction_start(), instruction_size());
 }
 
 

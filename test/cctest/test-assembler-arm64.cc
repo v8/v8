@@ -196,13 +196,13 @@ static void InitializeVM() {
   RESET();                                                                     \
   START_AFTER_RESET();
 
-#define RUN()                                                       \
-  MakeAssemblerBufferExecutable(buf, allocated);                    \
-  Assembler::FlushICache(isolate, buf, masm.SizeOfGeneratedCode()); \
-  {                                                                 \
-    void (*test_function)(void);                                    \
-    memcpy(&test_function, &buf, sizeof(buf));                      \
-    test_function();                                                \
+#define RUN()                                              \
+  MakeAssemblerBufferExecutable(buf, allocated);           \
+  Assembler::FlushICache(buf, masm.SizeOfGeneratedCode()); \
+  {                                                        \
+    void (*test_function)(void);                           \
+    memcpy(&test_function, &buf, sizeof(buf));             \
+    test_function();                                       \
   }
 
 #define END()                   \

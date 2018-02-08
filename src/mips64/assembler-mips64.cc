@@ -4258,7 +4258,7 @@ void Assembler::set_target_value_at(Isolate* isolate, Address pc,
              (target & kImm16Mask);
 
   if (icache_flush_mode != SKIP_ICACHE_FLUSH) {
-    Assembler::FlushICache(isolate, pc, 4 * Assembler::kInstrSize);
+    Assembler::FlushICache(pc, 4 * Assembler::kInstrSize);
   }
 }
 

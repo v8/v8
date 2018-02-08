@@ -38,8 +38,7 @@ static void UpdateFunctionTableSizeReferences(Handle<Code> code,
     }
   }
   if (modified) {
-    Assembler::FlushICache(isolate, code->instruction_start(),
-                           code->instruction_size());
+    Assembler::FlushICache(code->instruction_start(), code->instruction_size());
   }
 }
 

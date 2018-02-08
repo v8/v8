@@ -211,7 +211,7 @@ void RelocInfo::set_embedded_address(Isolate* isolate, Address address,
                                      ICacheFlushMode icache_flush_mode) {
   Memory::Address_at(pc_) = address;
   if (icache_flush_mode != SKIP_ICACHE_FLUSH) {
-    Assembler::FlushICache(isolate, pc_, sizeof(Address));
+    Assembler::FlushICache(pc_, sizeof(Address));
   }
 }
 
@@ -219,7 +219,7 @@ void RelocInfo::set_embedded_size(Isolate* isolate, uint32_t size,
                                   ICacheFlushMode icache_flush_mode) {
   Memory::uint32_at(pc_) = size;
   if (icache_flush_mode != SKIP_ICACHE_FLUSH) {
-    Assembler::FlushICache(isolate, pc_, sizeof(uint32_t));
+    Assembler::FlushICache(pc_, sizeof(uint32_t));
   }
 }
 

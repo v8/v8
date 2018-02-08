@@ -93,8 +93,7 @@ void ObjectDeserializer::
   for (Code* code : new_code_objects()) {
     // Record all references to embedded objects in the new code object.
     isolate()->heap()->RecordWritesIntoCode(code);
-    Assembler::FlushICache(isolate(), code->instruction_start(),
-                           code->instruction_size());
+    Assembler::FlushICache(code->instruction_start(), code->instruction_size());
   }
 }
 

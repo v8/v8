@@ -356,10 +356,6 @@ class V8_EXPORT_PRIVATE WasmCodeManager final {
   WasmCode* GetCodeFromStartAddress(Address pc) const;
   intptr_t remaining_uncommitted() const;
 
-  // TODO(mtrofin): replace this API with an alternative that is Isolate-
-  // independent.
-  void FlushICache(Address start, size_t size);
-
  private:
   friend class NativeModule;
 

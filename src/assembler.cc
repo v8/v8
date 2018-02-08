@@ -176,12 +176,12 @@ AssemblerBase::~AssemblerBase() {
   if (own_buffer_) DeleteArray(buffer_);
 }
 
-void AssemblerBase::FlushICache(Isolate* isolate, void* start, size_t size) {
+void AssemblerBase::FlushICache(void* start, size_t size) {
   if (size == 0) return;
 
 #if defined(USE_SIMULATOR)
-  base::LockGuard<base::Mutex> lock_guard(isolate->simulator_i_cache_mutex());
-  Simulator::FlushICache(isolate->simulator_i_cache(), start, size);
+  base::LockGuard<base::Mutex> lock_guard(Simulator::i_cache_mutex());
+  Simulator::FlushICache(Simulator::i_cache(), start, size);
 #else
   CpuFeatures::FlushICache(start, size);
 #endif  // USE_SIMULATOR

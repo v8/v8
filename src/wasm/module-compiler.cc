@@ -785,7 +785,7 @@ const wasm::WasmCode* LazyCompilationOrchestrator::CompileFunction(
 
   if (!code_wrapper.IsCodeObject()) {
     const wasm::WasmCode* wasm_code = code_wrapper.GetWasmCode();
-    Assembler::FlushICache(isolate, wasm_code->instructions().start(),
+    Assembler::FlushICache(wasm_code->instructions().start(),
                            wasm_code->instructions().size());
     counters->wasm_generated_code_size()->Increment(
         static_cast<int>(wasm_code->instructions().size()));
@@ -793,8 +793,7 @@ const wasm::WasmCode* LazyCompilationOrchestrator::CompileFunction(
         static_cast<int>(wasm_code->reloc_info().size()));
 
   } else {
-    Assembler::FlushICache(isolate, code->instruction_start(),
-                           code->instruction_size());
+    Assembler::FlushICache(code->instruction_start(), code->instruction_size());
     counters->wasm_generated_code_size()->Increment(code->body_size());
     counters->wasm_reloc_size()->Increment(code->relocation_info()->length());
   }
@@ -1530,21 +1529,20 @@ bool compile_lazy(const WasmModule* module) {
          (FLAG_asm_wasm_lazy_compilation && module->is_asm_js());
 }
 
-void FlushICache(Isolate* isolate, const wasm::NativeModule* native_module) {
+void FlushICache(const wasm::NativeModule* native_module) {
   for (uint32_t i = 0, e = native_module->FunctionCount(); i < e; ++i) {
     const wasm::WasmCode* code = native_module->GetCode(i);
     if (code == nullptr) continue;
-    Assembler::FlushICache(isolate, code->instructions().start(),
+    Assembler::FlushICache(code->instructions().start(),
                            code->instructions().size());
   }
 }
 
-void FlushICache(Isolate* isolate, Handle<FixedArray> functions) {
+void FlushICache(Handle<FixedArray> functions) {
   for (int i = 0, e = functions->length(); i < e; ++i) {
     if (!functions->get(i)->IsCode()) continue;
     Code* code = Code::cast(functions->get(i));
-    Assembler::FlushICache(isolate, code->instruction_start(),
-                           code->instruction_size());
+    Assembler::FlushICache(code->instruction_start(), code->instruction_size());
   }
 }
 
@@ -2375,11 +2373,11 @@ MaybeHandle<WasmInstanceObject> InstanceBuilder::Build() {
   code_specialization.ApplyToWholeInstance(*instance, SKIP_ICACHE_FLUSH);
 
   if (FLAG_wasm_jit_to_native) {
-    FlushICache(isolate_, native_module);
+    FlushICache(native_module);
   } else {
-    FlushICache(isolate_, code_table);
+    FlushICache(code_table);
   }
-  FlushICache(isolate_, wrapper_table);
+  FlushICache(wrapper_table);
 
   //--------------------------------------------------------------------------
   // Unpack and notify signal handler of protected instructions.

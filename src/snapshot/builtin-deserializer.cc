@@ -136,8 +136,7 @@ Code* BuiltinDeserializer::DeserializeBuiltinRaw(int builtin_id) {
 
   // Flush the instruction cache.
   Code* code = Code::cast(o);
-  Assembler::FlushICache(isolate(), code->instruction_start(),
-                         code->instruction_size());
+  Assembler::FlushICache(code->instruction_start(), code->instruction_size());
 
   return code;
 }
@@ -161,8 +160,7 @@ Code* BuiltinDeserializer::DeserializeHandlerRaw(Bytecode bytecode,
 
   // Flush the instruction cache.
   Code* code = Code::cast(o);
-  Assembler::FlushICache(isolate(), code->instruction_start(),
-                         code->instruction_size());
+  Assembler::FlushICache(code->instruction_start(), code->instruction_size());
 
   return code;
 }
