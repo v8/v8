@@ -5822,7 +5822,7 @@ intptr_t Simulator::CallImpl(byte* entry, int argument_count,
   return get_register(r0);
 }
 
-int32_t Simulator::CallFPImpl(byte* entry, double d0, double d1) {
+intptr_t Simulator::CallFPImpl(byte* entry, double d0, double d1) {
   if (use_eabi_hardfloat()) {
     set_d_register_from_double(0, d0);
     set_d_register_from_double(1, d1);
