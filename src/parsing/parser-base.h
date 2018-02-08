@@ -428,10 +428,6 @@ class ParserBase {
       return &reported_errors_;
     }
 
-    ZoneList<RewritableExpressionT>* non_patterns_to_rewrite() {
-      return &non_patterns_to_rewrite_;
-    }
-
     bool next_function_is_likely_called() const {
       return next_function_is_likely_called_;
     }
@@ -481,7 +477,6 @@ class ParserBase {
     DeclarationScope* scope_;
 
     ZoneList<RewritableExpressionT> destructuring_assignments_to_rewrite_;
-    ZoneList<RewritableExpressionT> non_patterns_to_rewrite_;
 
     ZoneList<typename ExpressionClassifier::Error> reported_errors_;
 
@@ -1574,7 +1569,6 @@ ParserBase<Impl>::FunctionState::FunctionState(
       outer_function_state_(*function_state_stack),
       scope_(scope),
       destructuring_assignments_to_rewrite_(16, scope->zone()),
-      non_patterns_to_rewrite_(0, scope->zone()),
       reported_errors_(16, scope->zone()),
       dont_optimize_reason_(BailoutReason::kNoReason),
       suspend_count_(0),
