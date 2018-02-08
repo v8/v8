@@ -60,9 +60,14 @@ class MovableLabel {
 };
 #endif
 
-wasm::WasmValue WasmPtrValue(void* ptr) {
+wasm::WasmValue WasmPtrValue(uintptr_t ptr) {
   using int_t = std::conditional<kPointerSize == 8, uint64_t, uint32_t>::type;
-  return wasm::WasmValue(reinterpret_cast<int_t>(ptr));
+  static_assert(sizeof(int_t) == sizeof(uintptr_t), "weird uintptr_t");
+  return wasm::WasmValue(static_cast<int_t>(ptr));
+}
+
+wasm::WasmValue WasmPtrValue(void* ptr) {
+  return WasmPtrValue(reinterpret_cast<uintptr_t>(ptr));
 }
 
 class LiftoffCompiler {
@@ -1126,6 +1131,11 @@ class LiftoffCompiler {
       __ Load(scratch, scratch.gp(), no_reg,
               Foreign::kForeignAddressOffset - kHeapObjectTag, kPointerLoadType,
               pinned);
+    } else {
+      // Move the pointer from the Code object to the instruction start.
+      __ LoadConstant(tmp_const,
+                      WasmPtrValue(Code::kHeaderSize - kHeapObjectTag));
+      __ emit_ptrsize_add(scratch.gp(), scratch.gp(), tmp_const.gp());
     }
 
     source_position_table_builder_->AddPosition(
