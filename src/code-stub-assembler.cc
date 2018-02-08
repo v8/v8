@@ -45,6 +45,23 @@ void CodeStubAssembler::HandleBreakOnNode() {
   BreakOnNode(node_id);
 }
 
+void CodeStubAssembler::Assert(const BranchGenerator& branch,
+                               const char* message, const char* file, int line,
+                               Node* extra_node1, const char* extra_node1_name,
+                               Node* extra_node2, const char* extra_node2_name,
+                               Node* extra_node3, const char* extra_node3_name,
+                               Node* extra_node4, const char* extra_node4_name,
+                               Node* extra_node5,
+                               const char* extra_node5_name) {
+#if defined(DEBUG)
+  if (FLAG_debug_code) {
+    Check(branch, message, file, line, extra_node1, extra_node1_name,
+          extra_node2, extra_node2_name, extra_node3, extra_node3_name,
+          extra_node4, extra_node4_name, extra_node5, extra_node5_name);
+  }
+#endif
+}
+
 void CodeStubAssembler::Assert(const NodeGenerator& condition_body,
                                const char* message, const char* file, int line,
                                Node* extra_node1, const char* extra_node1_name,
@@ -74,7 +91,7 @@ void MaybePrintNodeWithName(CodeStubAssembler* csa, Node* node,
 }  // namespace
 #endif
 
-void CodeStubAssembler::Check(const NodeGenerator& condition_body,
+void CodeStubAssembler::Check(const BranchGenerator& branch,
                               const char* message, const char* file, int line,
                               Node* extra_node1, const char* extra_node1_name,
                               Node* extra_node2, const char* extra_node2_name,
@@ -88,9 +105,7 @@ void CodeStubAssembler::Check(const NodeGenerator& condition_body,
   } else {
     Comment("[ Assert");
   }
-  Node* condition = condition_body();
-  DCHECK_NOT_NULL(condition);
-  Branch(condition, &ok, &not_ok);
+  branch(&ok, &not_ok);
 
   BIND(&not_ok);
   DCHECK_NOT_NULL(message);
@@ -117,6 +132,24 @@ void CodeStubAssembler::Check(const NodeGenerator& condition_body,
 
   BIND(&ok);
   Comment("] Assert");
+}
+
+void CodeStubAssembler::Check(const NodeGenerator& condition_body,
+                              const char* message, const char* file, int line,
+                              Node* extra_node1, const char* extra_node1_name,
+                              Node* extra_node2, const char* extra_node2_name,
+                              Node* extra_node3, const char* extra_node3_name,
+                              Node* extra_node4, const char* extra_node4_name,
+                              Node* extra_node5, const char* extra_node5_name) {
+  BranchGenerator branch = [=](Label* ok, Label* not_ok) {
+    Node* condition = condition_body();
+    DCHECK_NOT_NULL(condition);
+    Branch(condition, ok, not_ok);
+  };
+
+  Check(branch, message, file, line, extra_node1, extra_node1_name, extra_node2,
+        extra_node2_name, extra_node3, extra_node3_name, extra_node4,
+        extra_node4_name, extra_node5, extra_node5_name);
 }
 
 Node* CodeStubAssembler::Select(SloppyTNode<BoolT> condition,

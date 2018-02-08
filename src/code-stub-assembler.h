@@ -323,8 +323,16 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
   Node* InnerAllocate(Node* previous, Node* offset);
   Node* IsRegularHeapObjectSize(Node* size);
 
+  typedef std::function<void(Label*, Label*)> BranchGenerator;
   typedef std::function<Node*()> NodeGenerator;
 
+  void Assert(const BranchGenerator& branch, const char* message = nullptr,
+              const char* file = nullptr, int line = 0,
+              Node* extra_node1 = nullptr, const char* extra_node1_name = "",
+              Node* extra_node2 = nullptr, const char* extra_node2_name = "",
+              Node* extra_node3 = nullptr, const char* extra_node3_name = "",
+              Node* extra_node4 = nullptr, const char* extra_node4_name = "",
+              Node* extra_node5 = nullptr, const char* extra_node5_name = "");
   void Assert(const NodeGenerator& condition_body,
               const char* message = nullptr, const char* file = nullptr,
               int line = 0, Node* extra_node1 = nullptr,
@@ -333,6 +341,13 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
               const char* extra_node3_name = "", Node* extra_node4 = nullptr,
               const char* extra_node4_name = "", Node* extra_node5 = nullptr,
               const char* extra_node5_name = "");
+  void Check(const BranchGenerator& branch, const char* message = nullptr,
+             const char* file = nullptr, int line = 0,
+             Node* extra_node1 = nullptr, const char* extra_node1_name = "",
+             Node* extra_node2 = nullptr, const char* extra_node2_name = "",
+             Node* extra_node3 = nullptr, const char* extra_node3_name = "",
+             Node* extra_node4 = nullptr, const char* extra_node4_name = "",
+             Node* extra_node5 = nullptr, const char* extra_node5_name = "");
   void Check(const NodeGenerator& condition_body, const char* message = nullptr,
              const char* file = nullptr, int line = 0,
              Node* extra_node1 = nullptr, const char* extra_node1_name = "",
@@ -2167,21 +2182,29 @@ class ToDirectStringAssembler : public CodeStubAssembler {
   CSA_ASSERT_STRINGIFY_EXTRA_VALUES_5(__VA_ARGS__, nullptr, nullptr, nullptr, \
                                       nullptr, nullptr)
 
-#define CSA_ASSERT_GET_CONDITION(x, ...) (x)
-#define CSA_ASSERT_GET_CONDITION_STR(x, ...) #x
+#define CSA_ASSERT_GET_FIRST(x, ...) (x)
+#define CSA_ASSERT_GET_FIRST_STR(x, ...) #x
 
 // CSA_ASSERT(csa, <condition>, <extra values to print...>)
 
 // We have to jump through some hoops to allow <extra values to print...> to be
 // empty.
-#define CSA_ASSERT(csa, ...)                                                 \
-  (csa)->Assert(                                                             \
-      [&]() -> compiler::Node* {                                             \
-        return base::implicit_cast<compiler::SloppyTNode<Word32T>>(          \
-            EXPAND(CSA_ASSERT_GET_CONDITION(__VA_ARGS__)));                  \
-      },                                                                     \
-      EXPAND(CSA_ASSERT_GET_CONDITION_STR(__VA_ARGS__)), __FILE__, __LINE__, \
+#define CSA_ASSERT(csa, ...)                                             \
+  (csa)->Assert(                                                         \
+      [&]() -> compiler::Node* {                                         \
+        return base::implicit_cast<compiler::SloppyTNode<Word32T>>(      \
+            EXPAND(CSA_ASSERT_GET_FIRST(__VA_ARGS__)));                  \
+      },                                                                 \
+      EXPAND(CSA_ASSERT_GET_FIRST_STR(__VA_ARGS__)), __FILE__, __LINE__, \
       CSA_ASSERT_STRINGIFY_EXTRA_VALUES(__VA_ARGS__))
+
+// CSA_ASSERT_BRANCH(csa, [](Label* ok, Label* not_ok) {...},
+//     <extra values to print...>)
+
+#define CSA_ASSERT_BRANCH(csa, ...)                                      \
+  (csa)->Assert(EXPAND(CSA_ASSERT_GET_FIRST(__VA_ARGS__)),               \
+                EXPAND(CSA_ASSERT_GET_FIRST_STR(__VA_ARGS__)), __FILE__, \
+                __LINE__, CSA_ASSERT_STRINGIFY_EXTRA_VALUES(__VA_ARGS__))
 
 #define CSA_ASSERT_JS_ARGC_OP(csa, Op, op, expected)                      \
   (csa)->Assert(                                                          \
@@ -2208,6 +2231,7 @@ class ToDirectStringAssembler : public CodeStubAssembler {
   TVariable<type> name(CSA_DEBUG_INFO(name), __VA_ARGS__)
 #else  // DEBUG
 #define CSA_ASSERT(csa, ...) ((void)0)
+#define CSA_ASSERT_BRANCH(csa, ...) ((void)0)
 #define CSA_ASSERT_JS_ARGC_EQ(csa, expected) ((void)0)
 #define BIND(label) Bind(label)
 #define VARIABLE(name, ...) Variable name(this, __VA_ARGS__)

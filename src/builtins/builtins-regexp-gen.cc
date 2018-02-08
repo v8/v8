@@ -442,18 +442,11 @@ Node* RegExpBuiltinsAssembler::RegExpExecInternal(Node* const context,
   // contains the uninitialized sentinel as a smi.
 
   Node* const code = var_code.value();
-#ifdef DEBUG
-  {
-    Label next(this);
-    GotoIfNot(TaggedIsSmi(code), &next);
-
-    CSA_ASSERT(this,
-               SmiEqual(code, SmiConstant(JSRegExp::kUninitializedValue)));
-    Goto(&next);
-
-    BIND(&next);
-  }
-#endif
+  CSA_ASSERT_BRANCH(this, [=](Label* ok, Label* not_ok) {
+    GotoIfNot(TaggedIsSmi(code), ok);
+    Branch(SmiEqual(code, SmiConstant(JSRegExp::kUninitializedValue)), ok,
+           not_ok);
+  });
   GotoIf(TaggedIsSmi(code), &runtime);
   CSA_ASSERT(this, HasInstanceType(code, CODE_TYPE));
 
