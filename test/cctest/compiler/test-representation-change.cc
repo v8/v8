@@ -429,7 +429,7 @@ TEST(SignednessInWord32) {
   CheckChange(IrOpcode::kCheckedTruncateTaggedToWord32,
               MachineRepresentation::kTagged, Type::NonInternal(),
               MachineRepresentation::kWord32,
-              UseInfo::CheckedNumberOrOddballAsWord32());
+              UseInfo::CheckedNumberOrOddballAsWord32(VectorSlotPair()));
 
   CheckTwoChanges(IrOpcode::kChangeInt32ToFloat64,
                   IrOpcode::kTruncateFloat64ToFloat32,

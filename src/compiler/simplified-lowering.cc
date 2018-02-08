@@ -87,24 +87,24 @@ MachineRepresentation MachineRepresentationFromArrayType(
 }
 
 UseInfo CheckedUseInfoAsWord32FromHint(
-    NumberOperationHint hint,
+    NumberOperationHint hint, const VectorSlotPair& feedback = VectorSlotPair(),
     IdentifyZeros identify_zeros = kDistinguishZeros) {
   switch (hint) {
     case NumberOperationHint::kSignedSmall:
     case NumberOperationHint::kSignedSmallInputs:
-      return UseInfo::CheckedSignedSmallAsWord32(identify_zeros,
-                                                 VectorSlotPair());
+      return UseInfo::CheckedSignedSmallAsWord32(identify_zeros, feedback);
     case NumberOperationHint::kSigned32:
-      return UseInfo::CheckedSigned32AsWord32(identify_zeros, VectorSlotPair());
+      return UseInfo::CheckedSigned32AsWord32(identify_zeros, feedback);
     case NumberOperationHint::kNumber:
-      return UseInfo::CheckedNumberAsWord32();
+      return UseInfo::CheckedNumberAsWord32(feedback);
     case NumberOperationHint::kNumberOrOddball:
-      return UseInfo::CheckedNumberOrOddballAsWord32();
+      return UseInfo::CheckedNumberOrOddballAsWord32(feedback);
   }
   UNREACHABLE();
 }
 
-UseInfo CheckedUseInfoAsFloat64FromHint(NumberOperationHint hint) {
+UseInfo CheckedUseInfoAsFloat64FromHint(NumberOperationHint hint,
+                                        const VectorSlotPair& feedback) {
   switch (hint) {
     case NumberOperationHint::kSignedSmall:
     case NumberOperationHint::kSignedSmallInputs:
@@ -113,9 +113,9 @@ UseInfo CheckedUseInfoAsFloat64FromHint(NumberOperationHint hint) {
       UNREACHABLE();
       break;
     case NumberOperationHint::kNumber:
-      return UseInfo::CheckedNumberAsFloat64();
+      return UseInfo::CheckedNumberAsFloat64(feedback);
     case NumberOperationHint::kNumberOrOddball:
-      return UseInfo::CheckedNumberOrOddballAsFloat64();
+      return UseInfo::CheckedNumberOrOddballAsFloat64(feedback);
   }
   UNREACHABLE();
 }
@@ -1321,13 +1321,14 @@ class RepresentationSelector {
           !right_feedback_type->Maybe(Type::MinusZero())) {
         left_identify_zeros = kIdentifyZeros;
       }
-      UseInfo left_use =
-          CheckedUseInfoAsWord32FromHint(hint, left_identify_zeros);
+      UseInfo left_use = CheckedUseInfoAsWord32FromHint(hint, VectorSlotPair(),
+                                                        left_identify_zeros);
       // For CheckedInt32Add and CheckedInt32Sub, we don't need to do
       // a minus zero check for the right hand side, since we already
       // know that the left hand side is a proper Signed32 value,
       // potentially guarded by a check.
-      UseInfo right_use = CheckedUseInfoAsWord32FromHint(hint, kIdentifyZeros);
+      UseInfo right_use = CheckedUseInfoAsWord32FromHint(hint, VectorSlotPair(),
+                                                         kIdentifyZeros);
       VisitBinop(node, left_use, right_use, MachineRepresentation::kWord32,
                  Type::Signed32());
     }
@@ -1357,7 +1358,7 @@ class RepresentationSelector {
     }
 
     // default case => Float64Add/Sub
-    VisitBinop(node, UseInfo::CheckedNumberOrOddballAsFloat64(),
+    VisitBinop(node, UseInfo::CheckedNumberOrOddballAsFloat64(VectorSlotPair()),
                MachineRepresentation::kFloat64, Type::Number());
     if (lower()) {
       ChangeToPureOp(node, Float64Op(node));
@@ -1456,7 +1457,7 @@ class RepresentationSelector {
       return;
     }
     // default case => Float64Mod
-    VisitBinop(node, UseInfo::CheckedNumberOrOddballAsFloat64(),
+    VisitBinop(node, UseInfo::CheckedNumberOrOddballAsFloat64(VectorSlotPair()),
                MachineRepresentation::kFloat64, Type::Number());
     if (lower()) ChangeToPureOp(node, Float64Op(node));
     return;
@@ -1719,7 +1720,8 @@ class RepresentationSelector {
             DCHECK_NE(IrOpcode::kSpeculativeNumberEqual, node->opcode());
           // Fallthrough
           case NumberOperationHint::kNumber:
-            VisitBinop(node, CheckedUseInfoAsFloat64FromHint(hint),
+            VisitBinop(node,
+                       CheckedUseInfoAsFloat64FromHint(hint, VectorSlotPair()),
                        MachineRepresentation::kBit);
             if (lower()) ChangeToPureOp(node, Float64Op(node));
             return;
@@ -1792,7 +1794,8 @@ class RepresentationSelector {
         }
 
         // Checked float64 x float64 => float64
-        VisitBinop(node, UseInfo::CheckedNumberOrOddballAsFloat64(),
+        VisitBinop(node,
+                   UseInfo::CheckedNumberOrOddballAsFloat64(VectorSlotPair()),
                    MachineRepresentation::kFloat64, Type::Number());
         if (lower()) ChangeToPureOp(node, Float64Op(node));
         return;
@@ -1886,7 +1889,8 @@ class RepresentationSelector {
         }
 
         // default case => Float64Div
-        VisitBinop(node, UseInfo::CheckedNumberOrOddballAsFloat64(),
+        VisitBinop(node,
+                   UseInfo::CheckedNumberOrOddballAsFloat64(VectorSlotPair()),
                    MachineRepresentation::kFloat64, Type::Number());
         if (lower()) ChangeToPureOp(node, Float64Op(node));
         return;
@@ -2709,17 +2713,20 @@ class RepresentationSelector {
         return;
       }
       case IrOpcode::kSpeculativeToNumber: {
-        NumberOperationHint const hint = NumberOperationHintOf(node->op());
-        switch (hint) {
+        NumberOperationParameters const& p =
+            NumberOperationParametersOf(node->op());
+        switch (p.hint()) {
           case NumberOperationHint::kSigned32:
           case NumberOperationHint::kSignedSmall:
           case NumberOperationHint::kSignedSmallInputs:
-            VisitUnop(node, CheckedUseInfoAsWord32FromHint(hint),
+            VisitUnop(node,
+                      CheckedUseInfoAsWord32FromHint(p.hint(), p.feedback()),
                       MachineRepresentation::kWord32, Type::Signed32());
             break;
           case NumberOperationHint::kNumber:
           case NumberOperationHint::kNumberOrOddball:
-            VisitUnop(node, CheckedUseInfoAsFloat64FromHint(hint),
+            VisitUnop(node,
+                      CheckedUseInfoAsFloat64FromHint(p.hint(), p.feedback()),
                       MachineRepresentation::kFloat64);
             break;
         }

@@ -390,8 +390,8 @@ JSTypeHintLowering::LoweringResult JSTypeHintLowering::ReduceToNumberOperation(
   if (BinaryOperationHintToNumberOperationHint(
           nexus.GetBinaryOperationFeedback(), &hint)) {
     Node* node = jsgraph()->graph()->NewNode(
-        jsgraph()->simplified()->SpeculativeToNumber(hint), input, effect,
-        control);
+        jsgraph()->simplified()->SpeculativeToNumber(hint, VectorSlotPair()),
+        input, effect, control);
     return LoweringResult::SideEffectFree(node, node, control);
   }
   return LoweringResult::NoChange();

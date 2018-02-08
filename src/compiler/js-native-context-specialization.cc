@@ -2173,10 +2173,10 @@ JSNativeContextSpecialization::BuildElementAccess(
       case AccessMode::kStore: {
         // Ensure that the {value} is actually a Number or an Oddball,
         // and truncate it to a Number appropriately.
-        value = effect =
-            graph()->NewNode(simplified()->SpeculativeToNumber(
-                                 NumberOperationHint::kNumberOrOddball),
-                             value, effect, control);
+        value = effect = graph()->NewNode(
+            simplified()->SpeculativeToNumber(
+                NumberOperationHint::kNumberOrOddball, VectorSlotPair()),
+            value, effect, control);
 
         // Introduce the appropriate truncation for {value}. Currently we
         // only need to do this for ClamedUint8Array {receiver}s, as the

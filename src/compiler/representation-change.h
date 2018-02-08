@@ -209,21 +209,23 @@ class UseInfo {
                    Truncation::Any(identify_zeros), TypeCheckKind::kSigned32,
                    feedback);
   }
-  static UseInfo CheckedNumberAsFloat64() {
+  static UseInfo CheckedNumberAsFloat64(const VectorSlotPair& feedback) {
     return UseInfo(MachineRepresentation::kFloat64, Truncation::Any(),
-                   TypeCheckKind::kNumber);
+                   TypeCheckKind::kNumber, feedback);
   }
-  static UseInfo CheckedNumberAsWord32() {
+  static UseInfo CheckedNumberAsWord32(const VectorSlotPair& feedback) {
     return UseInfo(MachineRepresentation::kWord32, Truncation::Word32(),
-                   TypeCheckKind::kNumber);
+                   TypeCheckKind::kNumber, feedback);
   }
-  static UseInfo CheckedNumberOrOddballAsFloat64() {
+  static UseInfo CheckedNumberOrOddballAsFloat64(
+      const VectorSlotPair& feedback) {
     return UseInfo(MachineRepresentation::kFloat64, Truncation::Any(),
-                   TypeCheckKind::kNumberOrOddball);
+                   TypeCheckKind::kNumberOrOddball, feedback);
   }
-  static UseInfo CheckedNumberOrOddballAsWord32() {
+  static UseInfo CheckedNumberOrOddballAsWord32(
+      const VectorSlotPair& feedback) {
     return UseInfo(MachineRepresentation::kWord32, Truncation::Word32(),
-                   TypeCheckKind::kNumberOrOddball);
+                   TypeCheckKind::kNumberOrOddball, feedback);
   }
 
   // Undetermined representation.

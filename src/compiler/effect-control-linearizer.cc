@@ -1935,7 +1935,8 @@ Node* EffectControlLinearizer::BuildCheckedHeapNumberOrOddballToFloat64(
 
 Node* EffectControlLinearizer::LowerCheckedTaggedToFloat64(Node* node,
                                                            Node* frame_state) {
-  CheckTaggedInputMode mode = CheckTaggedInputModeOf(node->op());
+  CheckTaggedInputParameters const& p =
+      CheckTaggedInputParametersOf(node->op());
   Node* value = node->InputAt(0);
 
   auto if_smi = __ MakeLabel();
@@ -1947,7 +1948,7 @@ Node* EffectControlLinearizer::LowerCheckedTaggedToFloat64(Node* node,
   // In the Smi case, just convert to int32 and then float64.
   // Otherwise, check heap numberness and load the number.
   Node* number = BuildCheckedHeapNumberOrOddballToFloat64(
-      mode, VectorSlotPair(), value, frame_state);
+      p.mode(), p.feedback(), value, frame_state);
   __ Goto(&done, number);
 
   __ Bind(&if_smi);

@@ -588,10 +588,11 @@ Node* RepresentationChanger::GetFloat64RepresentationFor(
     } else if (use_info.type_check() == TypeCheckKind::kNumber ||
                (use_info.type_check() == TypeCheckKind::kNumberOrOddball &&
                 !output_type->Maybe(Type::BooleanOrNullOrNumber()))) {
-      op = simplified()->CheckedTaggedToFloat64(CheckTaggedInputMode::kNumber);
+      op = simplified()->CheckedTaggedToFloat64(CheckTaggedInputMode::kNumber,
+                                                use_info.feedback());
     } else if (use_info.type_check() == TypeCheckKind::kNumberOrOddball) {
       op = simplified()->CheckedTaggedToFloat64(
-          CheckTaggedInputMode::kNumberOrOddball);
+          CheckTaggedInputMode::kNumberOrOddball, use_info.feedback());
     }
   } else if (output_rep == MachineRepresentation::kFloat32) {
     op = machine()->ChangeFloat32ToFloat64();
