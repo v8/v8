@@ -1216,13 +1216,29 @@ void MacroAssembler::InvokePrologue(const ParameterCount& expected,
 void MacroAssembler::CheckDebugHook(Register fun, Register new_target,
                                     const ParameterCount& expected,
                                     const ParameterCount& actual) {
-  Label skip_hook;
+  Label skip_hook, call_hook;
+
+  ExternalReference debug_is_active =
+      ExternalReference::debug_is_active_address(isolate());
+  mov(r6, Operand(debug_is_active));
+  tm(MemOperand(r6), Operand::Zero());
+  bne(&skip_hook);
+
   ExternalReference debug_hook_avtive =
       ExternalReference::debug_hook_on_function_call_address(isolate());
   mov(r6, Operand(debug_hook_avtive));
-  LoadB(r6, MemOperand(r6));
-  CmpP(r6, Operand::Zero());
+  tm(MemOperand(r6), Operand::Zero());
+  beq(&call_hook);
+
+  LoadP(r6, FieldMemOperand(fun, JSFunction::kSharedFunctionInfoOffset));
+  LoadP(r6, FieldMemOperand(r6, SharedFunctionInfo::kDebugInfoOffset));
+  JumpIfSmi(r6, &skip_hook);
+  LoadP(r6, FieldMemOperand(r6, DebugInfo::kFlagsOffset));
+  SmiUntag(r0, r6);
+  tmll(r0, Operand(DebugInfo::kBreakAtEntry));
   beq(&skip_hook);
+
+  bind(&call_hook);
   {
     FrameScope frame(this,
                      has_frame() ? StackFrame::NONE : StackFrame::INTERNAL);

@@ -1190,14 +1190,33 @@ void MacroAssembler::InvokePrologue(const ParameterCount& expected,
 void MacroAssembler::CheckDebugHook(Register fun, Register new_target,
                                     const ParameterCount& expected,
                                     const ParameterCount& actual) {
-  Label skip_hook;
+  Label skip_hook, call_hook;
+
+  ExternalReference debug_is_active =
+      ExternalReference::debug_is_active_address(isolate());
+  mov(r7, Operand(debug_is_active));
+  LoadByte(r7, MemOperand(r7), r0);
+  extsb(r7, r7);
+  CmpSmiLiteral(r7, Smi::kZero, r0);
+  beq(&skip_hook);
+
   ExternalReference debug_hook_avtive =
       ExternalReference::debug_hook_on_function_call_address(isolate());
   mov(r7, Operand(debug_hook_avtive));
   LoadByte(r7, MemOperand(r7), r0);
   extsb(r7, r7);
   CmpSmiLiteral(r7, Smi::kZero, r0);
-  beq(&skip_hook);
+  bne(&call_hook);
+
+  LoadP(r7, FieldMemOperand(fun, JSFunction::kSharedFunctionInfoOffset));
+  LoadP(r7, FieldMemOperand(r7, SharedFunctionInfo::kDebugInfoOffset));
+  JumpIfSmi(r7, &skip_hook);
+  LoadP(r7, FieldMemOperand(r7, DebugInfo::kFlagsOffset));
+  SmiUntag(r0, r7);
+  andi(r0, r0, Operand(DebugInfo::kBreakAtEntry));
+  beq(&skip_hook, cr0);
+
+  bind(&call_hook);
   {
     FrameScope frame(this,
                      has_frame() ? StackFrame::NONE : StackFrame::INTERNAL);
