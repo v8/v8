@@ -22,7 +22,8 @@ ALL_VARIANT_FLAGS = {
   # Trigger stress sampling allocation profiler with sample interval = 2^14
   "stress_sampling": [["--stress-sampling-allocation-profiler=16384"]],
   "trusted": [["--no-untrusted-code-mitigations"]],
-  "wasm_traps": [["--wasm_trap_handler", "--invoke-weak-callbacks", "--wasm-jit-to-native"]],
+  "wasm_traps": [["--wasm-trap-handler", "--invoke-weak-callbacks"]],
+  "wasm_no_native": [["--no-wasm-jit-to-native"]],
 }
 
 SLOW_VARIANTS = set([
