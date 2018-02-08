@@ -1842,11 +1842,6 @@ Type* Typer::Visitor::TypeJSStackCheck(Node* node) { return Type::Any(); }
 
 Type* Typer::Visitor::TypeJSDebugger(Node* node) { return Type::Any(); }
 
-Type* Typer::Visitor::TypeJSPerformPromiseThen(Node* node) {
-  // TODO(turbofan): Introduce a Type::Promise here.
-  return Type::OtherObject();
-}
-
 // Simplified operators.
 
 Type* Typer::Visitor::TypeBooleanNot(Node* node) { return Type::Boolean(); }

@@ -75,9 +75,7 @@ RUNTIME_FUNCTION(Runtime_PromiseRevokeReject) {
 RUNTIME_FUNCTION(Runtime_EnqueueMicrotask) {
   HandleScope scope(isolate);
   DCHECK_EQ(1, args.length());
-  CONVERT_ARG_HANDLE_CHECKED(JSFunction, function, 0);
-  Handle<CallableTask> microtask =
-      isolate->factory()->NewCallableTask(function, isolate->native_context());
+  CONVERT_ARG_HANDLE_CHECKED(JSFunction, microtask, 0);
   isolate->EnqueueMicrotask(microtask);
   return isolate->heap()->undefined_value();
 }

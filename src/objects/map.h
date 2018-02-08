@@ -713,7 +713,6 @@ class Map : public HeapObject {
   inline bool IsPrimitiveMap() const;
   inline bool IsJSReceiverMap() const;
   inline bool IsJSObjectMap() const;
-  inline bool IsJSPromiseMap() const;
   inline bool IsJSArrayMap() const;
   inline bool IsJSFunctionMap() const;
   inline bool IsStringMap() const;
