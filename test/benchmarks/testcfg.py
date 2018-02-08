@@ -104,9 +104,6 @@ class TestSuite(testsuite.TestSuite):
   def _test_class(self):
     return TestCase
 
-  def _suppressed_test_class(self):
-    return SuppressedTimeoutTestCase
-
 
 class TestCase(testcase.TestCase):
   def _get_files_params(self):
@@ -134,13 +131,6 @@ class TestCase(testcase.TestCase):
 
   def _get_source_path(self):
     return os.path.join(self.suite.testroot, self.path + self._get_suffix())
-
-
-class SuppressedTimeoutTestCase(TestCase):
-  """The same as a standard test case allowing timeouts."""
-  def _prepare_outcomes(self, *args, **kwargs):
-    super(SuppressedTimeoutTestCase, self)._prepare_outcomes(*args, **kwargs)
-    self.expected_outcomes = self.expected_outcomes + [statusfile.TIMEOUT]
 
 
 def GetSuite(*args, **kwargs):

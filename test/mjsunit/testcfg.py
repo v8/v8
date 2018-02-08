@@ -297,8 +297,6 @@ class SuppressedTestCase(TestCase):
     # can't differentiate that.
     if statusfile.FAIL in self._statusfile_outcomes:
       self._statusfile_outcomes = [statusfile.SKIP]
-    else:
-      self.expected_outcomes = self.expected_outcomes + [statusfile.TIMEOUT]
 
   def _get_extra_flags(self, *args, **kwargs):
     return (
