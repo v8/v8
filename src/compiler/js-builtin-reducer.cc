@@ -39,6 +39,14 @@ class JSCallReduction {
     return function->shared()->HasBuiltinFunctionId();
   }
 
+  bool BuiltinCanBeInlined() {
+    DCHECK_EQ(IrOpcode::kJSCall, node_->opcode());
+    HeapObjectMatcher m(NodeProperties::GetValueInput(node_, 0));
+    Handle<JSFunction> function = Handle<JSFunction>::cast(m.Value());
+    // Do not inline if the builtin may have break points.
+    return !function->shared()->HasBreakInfo();
+  }
+
   // Retrieves the BuiltinFunctionId as described above.
   BuiltinFunctionId GetBuiltinFunctionId() {
     DCHECK_EQ(IrOpcode::kJSCall, node_->opcode());
@@ -2207,6 +2215,7 @@ Reduction JSBuiltinReducer::Reduce(Node* node) {
 
   // Dispatch according to the BuiltinFunctionId if present.
   if (!r.HasBuiltinFunctionId()) return NoChange();
+  if (!r.BuiltinCanBeInlined()) return NoChange();
   switch (r.GetBuiltinFunctionId()) {
     case kArrayEntries:
       return ReduceArrayIterator(node, IterationKind::kEntries);

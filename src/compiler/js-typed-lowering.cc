@@ -1666,6 +1666,12 @@ Reduction JSTypedLowering::ReduceJSCall(Node* node) {
     Handle<JSFunction> function =
         Handle<JSFunction>::cast(target_type->AsHeapConstant()->Value());
     Handle<SharedFunctionInfo> shared(function->shared(), isolate());
+
+    if (function->shared()->HasBreakInfo()) {
+      // Do not inline the call if we need to check whether to break at entry.
+      return NoChange();
+    }
+
     const int builtin_index = shared->code()->builtin_index();
     const bool is_builtin = (builtin_index != -1);
 
@@ -1697,6 +1703,7 @@ Reduction JSTypedLowering::ReduceJSCall(Node* node) {
     CallDescriptor::Flags flags = CallDescriptor::kNeedsFrameState;
     Node* new_target = jsgraph()->UndefinedConstant();
     Node* argument_count = jsgraph()->Constant(arity);
+
     if (NeedsArgumentAdaptorFrame(shared, arity)) {
       // Patch {node} to an indirect call via the ArgumentsAdaptorTrampoline.
       Callable callable = CodeFactory::ArgumentAdaptor(isolate());

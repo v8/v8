@@ -1141,6 +1141,7 @@ TEST(BreakPointReturn) {
 
 // Test that a break point can be set at a return store location.
 TEST(BreakPointBuiltin) {
+  i::FLAG_allow_natives_syntax = true;
   break_point_hit_count = 0;
   DebugLocalContext env;
   v8::HandleScope scope(env->GetIsolate());
@@ -1149,10 +1150,11 @@ TEST(BreakPointBuiltin) {
   v8::Local<v8::Function> builtin =
       CompileRun("String.prototype.repeat").As<v8::Function>();
 
+  // === Test simple builtin ===
   CompileRun("'a'.repeat(10)");
   CHECK_EQ(0, break_point_hit_count);
 
-  // Run with breakpoint
+  // Run with breakpoint.
   int bp = SetBreakPoint(builtin, 0);
   CompileRun("'b'.repeat(10)");
   CHECK_EQ(1, break_point_hit_count);
@@ -1161,6 +1163,70 @@ TEST(BreakPointBuiltin) {
   ClearBreakPoint(bp);
   CompileRun("'b'.repeat(10)");
   CHECK_EQ(1, break_point_hit_count);
+
+  // === Test inlined builtin ===
+  break_point_hit_count = 0;
+  builtin = CompileRun("Math.sin").As<v8::Function>();
+  CompileRun("function test(x) { return 1 + Math.sin(x) }");
+  CompileRun(
+      "test(0.5); test(0.6);"
+      "%OptimizeFunctionOnNextCall(test); test(0.7);");
+  CHECK_EQ(0, break_point_hit_count);
+
+  // Run with breakpoint.
+  bp = SetBreakPoint(builtin, 0);
+  CompileRun("Math.sin(0.1);");
+  CHECK_EQ(1, break_point_hit_count);
+  CompileRun("test(0.2);");
+  CHECK_EQ(2, break_point_hit_count);
+
+  // Re-optimize.
+  CompileRun("%OptimizeFunctionOnNextCall(test);");
+  CompileRun("test(0.3);");
+  CHECK_EQ(3, break_point_hit_count);
+
+  // Run without breakpoints.
+  ClearBreakPoint(bp);
+  CompileRun("test(0.3);");
+  CHECK_EQ(3, break_point_hit_count);
+
+  SetDebugEventListener(env->GetIsolate(), nullptr);
+  CheckDebuggerUnloaded();
+}
+
+TEST(BreakPointInlining) {
+  i::FLAG_allow_natives_syntax = true;
+  break_point_hit_count = 0;
+  DebugLocalContext env;
+  v8::HandleScope scope(env->GetIsolate());
+
+  SetDebugEventListener(env->GetIsolate(), DebugEventBreakPointHitCount);
+
+  break_point_hit_count = 0;
+  v8::Local<v8::Function> inlinee =
+      CompileRun("function f(x) { return x*2; } f").As<v8::Function>();
+  CompileRun("function test(x) { return 1 + f(x) }");
+  CompileRun(
+      "test(0.5); test(0.6);"
+      "%OptimizeFunctionOnNextCall(test); test(0.7);");
+  CHECK_EQ(0, break_point_hit_count);
+
+  // Run with breakpoint.
+  int bp = SetBreakPoint(inlinee, 0);
+  CompileRun("f(0.1);");
+  CHECK_EQ(1, break_point_hit_count);
+  CompileRun("test(0.2);");
+  CHECK_EQ(2, break_point_hit_count);
+
+  // Re-optimize.
+  CompileRun("%OptimizeFunctionOnNextCall(test);");
+  CompileRun("test(0.3);");
+  CHECK_EQ(3, break_point_hit_count);
+
+  // Run without breakpoints.
+  ClearBreakPoint(bp);
+  CompileRun("test(0.3);");
+  CHECK_EQ(3, break_point_hit_count);
 
   SetDebugEventListener(env->GetIsolate(), nullptr);
   CheckDebuggerUnloaded();
