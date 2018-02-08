@@ -4,7 +4,7 @@
 
 #include "src/libsampler/sampler.h"
 
-#if V8_OS_POSIX && !V8_OS_CYGWIN
+#if V8_OS_POSIX && !V8_OS_CYGWIN && !V8_OS_FUCHSIA
 
 #define USE_SIGNALS
 
@@ -13,7 +13,7 @@
 #include <signal.h>
 #include <sys/time.h>
 
-#if !V8_OS_QNX && !V8_OS_FUCHSIA && !V8_OS_AIX
+#if !V8_OS_QNX && !V8_OS_AIX
 #include <sys/syscall.h>  // NOLINT
 #endif
 
@@ -38,6 +38,13 @@
 #elif V8_OS_WIN || V8_OS_CYGWIN
 
 #include "src/base/win32-headers.h"
+
+#elif V8_OS_FUCHSIA
+
+#include <zircon/process.h>
+#include <zircon/syscalls.h>
+#include <zircon/syscalls/debug.h>
+#include <zircon/types.h>
 
 #endif
 
@@ -336,6 +343,28 @@ class Sampler::PlatformData {
  private:
   HANDLE profiled_thread_;
 };
+
+#elif V8_OS_FUCHSIA
+
+class Sampler::PlatformData {
+ public:
+  PlatformData() {
+    zx_handle_duplicate(zx_thread_self(), ZX_RIGHT_SAME_RIGHTS,
+                        &profiled_thread_);
+  }
+  ~PlatformData() {
+    if (profiled_thread_ != ZX_HANDLE_INVALID) {
+      zx_handle_close(profiled_thread_);
+      profiled_thread_ = ZX_HANDLE_INVALID;
+    }
+  }
+
+  zx_handle_t profiled_thread() { return profiled_thread_; }
+
+ private:
+  zx_handle_t profiled_thread_ = ZX_HANDLE_INVALID;
+};
+
 #endif  // USE_SIGNALS
 
 
@@ -415,7 +444,7 @@ void SignalHandler::FillRegisterState(void* context, RegisterState* state) {
 #if !(V8_OS_OPENBSD || (V8_OS_LINUX && (V8_HOST_ARCH_PPC || V8_HOST_ARCH_S390)))
   mcontext_t& mcontext = ucontext->uc_mcontext;
 #endif
-#if V8_OS_LINUX || V8_OS_FUCHSIA
+#if V8_OS_LINUX
 #if V8_HOST_ARCH_IA32
   state->pc = reinterpret_cast<void*>(mcontext.gregs[REG_EIP]);
   state->sp = reinterpret_cast<void*>(mcontext.gregs[REG_ESP]);
@@ -662,6 +691,54 @@ void Sampler::DoSample() {
     SampleStack(state);
   }
   ResumeThread(profiled_thread);
+}
+
+#elif V8_OS_FUCHSIA
+
+void Sampler::DoSample() {
+  zx_handle_t profiled_thread = platform_data()->profiled_thread();
+  if (profiled_thread == ZX_HANDLE_INVALID) return;
+
+  if (zx_task_suspend(profiled_thread) != ZX_OK) return;
+
+  // Wait for the target thread to become suspended, or to exit.
+  // TODO(wez): There is currently no suspension count for threads, so there
+  // is a risk that some other caller resumes the thread in-between our suspend
+  // and wait calls, causing us to miss the SUSPENDED signal. We apply a 100ms
+  // deadline to protect against hanging the sampler thread in this case.
+  zx_signals_t signals = 0;
+  zx_status_t suspended = zx_object_wait_one(
+      profiled_thread, ZX_THREAD_SUSPENDED | ZX_THREAD_TERMINATED,
+      zx_deadline_after(ZX_MSEC(100)), &signals);
+  if (suspended != ZX_OK || (signals & ZX_THREAD_SUSPENDED) == 0) {
+    zx_task_resume(profiled_thread, 0);
+    return;
+  }
+
+// Fetch a copy of its "general register" states.
+#if V8_HOST_ARCH_X64
+  zx_x86_64_general_regs_t thread_state;
+#elif V8_HOST_ARCH_ARM64
+  zx_arm64_general_regs_t thread_state;
+#endif
+  uint32_t thread_state_size = 0;
+  if (zx_thread_read_state(profiled_thread, ZX_THREAD_STATE_REGSET0,
+                           &thread_state, sizeof(thread_state),
+                           &thread_state_size) == ZX_OK) {
+    v8::RegisterState state;
+#if V8_HOST_ARCH_X64
+    state.pc = reinterpret_cast<void*>(thread_state.rip);
+    state.sp = reinterpret_cast<void*>(thread_state.rsp);
+    state.fp = reinterpret_cast<void*>(thread_state.rbp);
+#elif V8_HOST_ARCH_ARM64
+    state.pc = reinterpret_cast<void*>(thread_state.pc);
+    state.sp = reinterpret_cast<void*>(thread_state.sp);
+    state.fp = reinterpret_cast<void*>(thread_state.r[29]);
+#endif
+    SampleStack(state);
+  }
+
+  zx_task_resume(profiled_thread, 0);
 }
 
 #endif  // USE_SIGNALS

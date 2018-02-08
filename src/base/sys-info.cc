@@ -101,7 +101,7 @@ int64_t SysInfo::AmountOfPhysicalMemory() {
 
 // static
 int64_t SysInfo::AmountOfVirtualMemory() {
-#if V8_OS_WIN
+#if V8_OS_WIN || V8_OS_FUCHSIA
   return 0;
 #elif V8_OS_POSIX
   struct rlimit rlim;
