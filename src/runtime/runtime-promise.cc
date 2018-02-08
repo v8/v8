@@ -136,7 +136,9 @@ RUNTIME_FUNCTION(Runtime_PromiseHookInit) {
 RUNTIME_FUNCTION(Runtime_PromiseHookResolve) {
   HandleScope scope(isolate);
   DCHECK_EQ(1, args.length());
-  CONVERT_ARG_HANDLE_CHECKED(JSPromise, promise, 0);
+  CONVERT_ARG_HANDLE_CHECKED(JSReceiver, maybe_promise, 0);
+  if (!maybe_promise->IsJSPromise()) return isolate->heap()->undefined_value();
+  Handle<JSPromise> promise = Handle<JSPromise>::cast(maybe_promise);
   isolate->RunPromiseHook(PromiseHookType::kResolve, promise,
                           isolate->factory()->undefined_value());
   return isolate->heap()->undefined_value();
@@ -145,11 +147,12 @@ RUNTIME_FUNCTION(Runtime_PromiseHookResolve) {
 RUNTIME_FUNCTION(Runtime_PromiseHookBefore) {
   HandleScope scope(isolate);
   DCHECK_EQ(1, args.length());
-  CONVERT_ARG_HANDLE_CHECKED(JSObject, promise, 0);
+  CONVERT_ARG_HANDLE_CHECKED(JSReceiver, maybe_promise, 0);
+  if (!maybe_promise->IsJSPromise()) return isolate->heap()->undefined_value();
+  Handle<JSPromise> promise = Handle<JSPromise>::cast(maybe_promise);
   if (isolate->debug()->is_active()) isolate->PushPromise(promise);
   if (promise->IsJSPromise()) {
-    isolate->RunPromiseHook(PromiseHookType::kBefore,
-                            Handle<JSPromise>::cast(promise),
+    isolate->RunPromiseHook(PromiseHookType::kBefore, promise,
                             isolate->factory()->undefined_value());
   }
   return isolate->heap()->undefined_value();
@@ -158,11 +161,12 @@ RUNTIME_FUNCTION(Runtime_PromiseHookBefore) {
 RUNTIME_FUNCTION(Runtime_PromiseHookAfter) {
   HandleScope scope(isolate);
   DCHECK_EQ(1, args.length());
-  CONVERT_ARG_HANDLE_CHECKED(JSObject, promise, 0);
+  CONVERT_ARG_HANDLE_CHECKED(JSReceiver, maybe_promise, 0);
+  if (!maybe_promise->IsJSPromise()) return isolate->heap()->undefined_value();
+  Handle<JSPromise> promise = Handle<JSPromise>::cast(maybe_promise);
   if (isolate->debug()->is_active()) isolate->PopPromise();
   if (promise->IsJSPromise()) {
-    isolate->RunPromiseHook(PromiseHookType::kAfter,
-                            Handle<JSPromise>::cast(promise),
+    isolate->RunPromiseHook(PromiseHookType::kAfter, promise,
                             isolate->factory()->undefined_value());
   }
   return isolate->heap()->undefined_value();

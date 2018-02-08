@@ -17963,6 +17963,21 @@ TEST(PromiseHook) {
   // 6) resolve hook (p1)
   CHECK_EQ(6, promise_hook_data->promise_hook_count);
 
+  promise_hook_data->Reset();
+  source =
+      "class X extends Promise {\n"
+      "  static get [Symbol.species]() {\n"
+      "    return Y;\n"
+      "  }\n"
+      "}\n"
+      "class Y {\n"
+      "  constructor(executor) {\n"
+      "    return new Proxy(new Promise(executor), {});\n"
+      "  }\n"
+      "}\n"
+      "var x = X.resolve().then(() => {});\n";
+
+  CompileRun(source);
   delete promise_hook_data;
   isolate->SetPromiseHook(nullptr);
 }
