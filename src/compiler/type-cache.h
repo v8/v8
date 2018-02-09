@@ -95,8 +95,8 @@ class TypeCache final {
   // [0, kMaxUInt32].
   Type* const kJSArrayLengthType = Type::Unsigned32();
 
-  // The JSTyped::length property always contains a tagged number in the range
-  // [0, kMaxSmiValue].
+  // The JSTypedArray::length property always contains a tagged number in the
+  // range [0, kMaxSmiValue].
   Type* const kJSTypedArrayLengthType = Type::UnsignedSmall();
 
   // The String::length property always contains a smi in the range

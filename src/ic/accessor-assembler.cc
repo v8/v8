@@ -300,18 +300,18 @@ void AccessorAssembler::HandleLoadICSmiHandlerCase(
       Comment("out of bounds elements access");
       Label return_undefined(this);
 
-      // Negative indices aren't valid array indices (according to
-      // the ECMAScript specification), and are stored as properties
-      // in V8, not elements. So we cannot handle them here.
-      GotoIf(IntPtrLessThan(intptr_index, IntPtrConstant(0)), miss);
-
       // Check if we're allowed to handle OOB accesses.
       Node* allow_out_of_bounds =
           IsSetWord<LoadHandler::AllowOutOfBoundsBits>(handler_word);
       GotoIfNot(allow_out_of_bounds, miss);
 
-      // For typed arrays we never lookup elements in the prototype chain.
+      // Negative indices aren't valid array indices (according to
+      // the ECMAScript specification), and are stored as properties
+      // in V8, not elements. So we cannot handle them here, except
+      // in case of typed arrays, where integer indexed properties
+      // aren't looked up in the prototype chain.
       GotoIf(IsJSTypedArray(holder), &return_undefined);
+      GotoIf(IntPtrLessThan(intptr_index, IntPtrConstant(0)), miss);
 
       // For all other receivers we need to check that the prototype chain
       // doesn't contain any elements.
@@ -1803,10 +1803,12 @@ void AccessorAssembler::GenericElementLoad(Node* receiver, Node* receiver_map,
   BIND(&if_oob);
   {
     Comment("out of bounds");
-    // Negative keys can't take the fast OOB path.
-    GotoIf(IntPtrLessThan(index, IntPtrConstant(0)), slow);
     // Positive OOB indices are effectively the same as hole loads.
-    Goto(&if_element_hole);
+    GotoIf(IntPtrGreaterThanOrEqual(index, IntPtrConstant(0)),
+           &if_element_hole);
+    // Negative keys can't take the fast OOB path, except for typed arrays.
+    GotoIfNot(InstanceTypeEqual(instance_type, JS_TYPED_ARRAY_TYPE), slow);
+    Return(UndefinedConstant());
   }
 
   BIND(&if_element_hole);

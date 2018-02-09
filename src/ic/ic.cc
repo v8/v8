@@ -1201,8 +1201,14 @@ MaybeHandle<Object> KeyedLoadIC::Load(Handle<Object> object,
                                Object);
   } else if (FLAG_use_ic && !object->IsAccessCheckNeeded() &&
              !object->IsJSValue()) {
-    if ((object->IsJSReceiver() || object->IsString()) &&
-        key->ToArrayIndex(&index)) {
+    // For regular JSReceiver or String {object}s the {key} must be a positive
+    // array index, for JSTypedArray {object}s we can also support negative
+    // {key}s which we just map into the [2*31,2*32-1] range (via a bit_cast).
+    // This is valid since JSTypedArray::length is always a Smi.
+    if (((object->IsJSReceiver() || object->IsString()) &&
+         key->ToArrayIndex(&index)) ||
+        (object->IsJSTypedArray() &&
+         key->ToInt32(bit_cast<int32_t*>(&index)))) {
       KeyedAccessLoadMode load_mode = GetLoadMode(object, index);
       UpdateLoadElement(Handle<HeapObject>::cast(object), load_mode);
       if (is_vector_set()) {
@@ -2005,7 +2011,13 @@ MaybeHandle<Object> KeyedStoreIC::Store(Handle<Object> object,
     old_receiver_map = handle(receiver->map(), isolate());
     is_arguments = receiver->IsJSArgumentsObject();
     bool is_proxy = receiver->IsJSProxy();
-    key_is_valid_index = key->IsSmi() && Smi::ToInt(*key) >= 0;
+    // For JSTypedArray {object}s we can handle negative indices as OOB
+    // accesses, since integer indexed properties are never looked up
+    // on the prototype chain. For this we simply map the negative {key}s
+    // to the [2**31,2**32-1] range, which is safe since JSTypedArray::length
+    // is always an unsigned Smi.
+    key_is_valid_index =
+        key->IsSmi() && (Smi::ToInt(*key) >= 0 || object->IsJSTypedArray());
     if (!is_arguments && !is_proxy) {
       if (key_is_valid_index) {
         uint32_t index = static_cast<uint32_t>(Smi::ToInt(*key));

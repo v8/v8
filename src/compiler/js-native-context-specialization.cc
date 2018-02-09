@@ -2104,12 +2104,18 @@ JSNativeContextSpecialization::BuildElementAccess(
 
     if (load_mode == LOAD_IGNORE_OUT_OF_BOUNDS ||
         store_mode == STORE_NO_TRANSITION_IGNORE_OUT_OF_BOUNDS) {
-      // Check that the {index} is a valid array index, we do the actual
-      // bounds check below and just skip the store below if it's out of
+      // Only check that the {index} is in Signed32 range. We do the actual
+      // bounds check below and just skip the property access if it's out of
       // bounds for the {receiver}.
       index = effect = graph()->NewNode(
-          simplified()->CheckBounds(VectorSlotPair()), index,
-          jsgraph()->Constant(Smi::kMaxValue), effect, control);
+          simplified()->SpeculativeToNumber(NumberOperationHint::kSigned32,
+                                            VectorSlotPair()),
+          index, effect, control);
+
+      // Cast the {index} to Unsigned32 range, so that the bounds checks
+      // below are performed on unsigned values, which means that all the
+      // Negative32 values are treated as out-of-bounds.
+      index = graph()->NewNode(simplified()->NumberToUint32(), index);
     } else {
       // Check that the {index} is in the valid range for the {receiver}.
       index = effect =

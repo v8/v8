@@ -7952,13 +7952,13 @@ void CodeStubAssembler::EmitElementStore(Node* object, Node* key, Node* value,
         parameter_mode);
 
     if (store_mode == STORE_NO_TRANSITION_IGNORE_OUT_OF_BOUNDS) {
-      // Skip the store if we write beyond the length.
-      GotoIfNot(IntPtrLessThan(key, length), &done);
-      // ... but bailout if the key is negative.
+      // Skip the store if we write beyond the length or
+      // to a property with a negative integer index.
+      GotoIfNot(UintPtrLessThan(key, length), &done);
     } else {
       DCHECK_EQ(STANDARD_STORE, store_mode);
+      GotoIfNot(UintPtrLessThan(key, length), bailout);
     }
-    GotoIfNot(UintPtrLessThan(key, length), bailout);
 
     // Backing store = external_pointer + base_pointer.
     Node* external_pointer =
