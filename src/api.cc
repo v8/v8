@@ -11,7 +11,6 @@
 #include <cmath>  // For isnan.
 #include <limits>
 #include <vector>
-#include "include/v8-debug.h"
 #include "include/v8-profiler.h"
 #include "include/v8-testing.h"
 #include "include/v8-util.h"
@@ -9154,78 +9153,6 @@ Local<StackTrace> Exception::GetStackTrace(Local<Value> exception) {
 
 
 // --- D e b u g   S u p p o r t ---
-
-bool Debug::SetDebugEventListener(Isolate* isolate, EventCallback that,
-                                  Local<Value> data) {
-  i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
-  if (that == nullptr) {
-    ENTER_V8_NO_SCRIPT_NO_EXCEPTION(i_isolate);
-    i::HandleScope scope(i_isolate);
-    i_isolate->debug()->SetDebugDelegate(nullptr, false);
-  } else {
-    // Might create the Debug context.
-    ENTER_V8_FOR_NEW_CONTEXT(i_isolate);
-    i::HandleScope scope(i_isolate);
-    i::Handle<i::Object> i_data = i_isolate->factory()->undefined_value();
-    if (!data.IsEmpty()) i_data = Utils::OpenHandle(*data);
-    i::NativeDebugDelegate* delegate =
-        new i::NativeDebugDelegate(i_isolate, that, i_data);
-    i_isolate->debug()->SetDebugDelegate(delegate, true);
-  }
-  return true;
-}
-
-void Debug::DebugBreak(Isolate* isolate) { debug::DebugBreak(isolate); }
-
-void Debug::CancelDebugBreak(Isolate* isolate) {
-  debug::CancelDebugBreak(isolate);
-}
-
-bool Debug::CheckDebugBreak(Isolate* isolate) {
-  i::Isolate* internal_isolate = reinterpret_cast<i::Isolate*>(isolate);
-  return internal_isolate->stack_guard()->CheckDebugBreak();
-}
-
-void Debug::SetMessageHandler(Isolate* isolate,
-                              v8::Debug::MessageHandler handler) {}
-
-void Debug::SendCommand(Isolate* isolate, const uint16_t* command, int length,
-                        ClientData* client_data) {}
-
-MaybeLocal<Value> Debug::Call(Local<Context> context,
-                              v8::Local<v8::Function> fun,
-                              v8::Local<v8::Value> data) {
-  return debug::Call(context, fun, data);
-}
-
-void Debug::ProcessDebugMessages(Isolate* isolate) {}
-
-Local<Context> Debug::GetDebugContext(Isolate* isolate) {
-  return debug::GetDebugContext(isolate);
-}
-
-MaybeLocal<Context> Debug::GetDebuggedContext(Isolate* isolate) {
-  i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
-  ENTER_V8_NO_SCRIPT_NO_EXCEPTION(i_isolate);
-  if (!i_isolate->debug()->in_debug_scope()) return MaybeLocal<Context>();
-  i::Handle<i::Object> calling = i_isolate->GetCallingNativeContext();
-  if (calling.is_null()) return MaybeLocal<Context>();
-  return Utils::ToLocal(i::Handle<i::Context>::cast(calling));
-}
-
-void Debug::SetLiveEditEnabled(Isolate* isolate, bool enable) {
-  debug::SetLiveEditEnabled(isolate, enable);
-}
-
-bool Debug::IsTailCallEliminationEnabled(Isolate* isolate) { return false; }
-
-void Debug::SetTailCallEliminationEnabled(Isolate* isolate, bool enabled) {
-}
-
-MaybeLocal<Array> Debug::GetInternalProperties(Isolate* v8_isolate,
-                                               Local<Value> value) {
-  return debug::GetInternalProperties(v8_isolate, value);
-}
 
 void debug::SetContextId(Local<Context> context, int id) {
   Utils::OpenHandle(*context)->set_debug_context_id(i::Smi::FromInt(id));

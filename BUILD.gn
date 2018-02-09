@@ -1212,7 +1212,6 @@ v8_source_set("v8_base") {
     "//base/trace_event/common/trace_event_common.h",
 
     ### gcmole(all) ###
-    "include/v8-debug.h",
     "include/v8-inspector-protocol.h",
     "include/v8-inspector.h",
     "include/v8-platform.h",
@@ -2595,7 +2594,7 @@ v8_component("v8_libbase") {
     if (current_os != "aix") {
       sources += [
         "src/base/platform/platform-posix-time.cc",
-        "src/base/platform/platform-posix-time.h"
+        "src/base/platform/platform-posix-time.h",
       ]
     }
   }

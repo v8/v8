@@ -25,11 +25,8 @@
 #include "src/string-stream.h"
 #include "src/v8threads.h"
 
-#include "include/v8-debug.h"
-
 namespace v8 {
 namespace internal {
-
 
 // Forward declarations.
 class DebugScope;
@@ -656,7 +653,6 @@ class NativeDebugDelegate : public LegacyDebugDelegate {
     virtual v8::Local<v8::Object> GetEventData() const;
     virtual v8::Local<v8::Context> GetEventContext() const;
     virtual v8::Local<v8::Value> GetCallbackData() const;
-    virtual v8::Debug::ClientData* GetClientData() const { return nullptr; }
     virtual v8::Isolate* GetIsolate() const;
 
    private:

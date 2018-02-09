@@ -30,8 +30,6 @@
 #include "src/snapshot/natives.h"
 #include "src/wasm/wasm-objects-inl.h"
 
-#include "include/v8-debug.h"
-
 namespace v8 {
 namespace internal {
 

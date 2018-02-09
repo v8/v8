@@ -10,7 +10,6 @@
 #include <queue>
 #include <vector>
 
-#include "include/v8-debug.h"
 #include "src/allocation.h"
 #include "src/base/atomicops.h"
 #include "src/builtins/builtins.h"
