@@ -3297,8 +3297,9 @@ void CodeGenerator::AssembleArchTrap(Instruction* instr,
                              tasm()->isolate()),
                          0);
         __ LeaveFrame(StackFrame::WASM_COMPILED);
-        CallDescriptor* descriptor = gen_->linkage()->GetIncomingDescriptor();
-        int pop_count = static_cast<int>(descriptor->StackParameterCount());
+        auto call_descriptor = gen_->linkage()->GetIncomingDescriptor();
+        int pop_count =
+            static_cast<int>(call_descriptor->StackParameterCount());
         pop_count += (pop_count & 1);  // align
         __ Drop(pop_count);
         __ Ret();
@@ -3552,9 +3553,9 @@ void CodeGenerator::AssembleArchTableSwitch(Instruction* instr) {
 }
 
 void CodeGenerator::FinishFrame(Frame* frame) {
-  CallDescriptor* descriptor = linkage()->GetIncomingDescriptor();
+  auto call_descriptor = linkage()->GetIncomingDescriptor();
 
-  const RegList saves_fpu = descriptor->CalleeSavedFPRegisters();
+  const RegList saves_fpu = call_descriptor->CalleeSavedFPRegisters();
   if (saves_fpu != 0) {
     int count = base::bits::CountPopulation(saves_fpu);
     DCHECK_EQ(kNumCalleeSavedFPU, count);
@@ -3562,7 +3563,7 @@ void CodeGenerator::FinishFrame(Frame* frame) {
                                             (kDoubleSize / kPointerSize));
   }
 
-  const RegList saves = descriptor->CalleeSavedRegisters();
+  const RegList saves = call_descriptor->CalleeSavedRegisters();
   if (saves != 0) {
     int count = base::bits::CountPopulation(saves);
     DCHECK_EQ(kNumCalleeSaved, count + 1);
@@ -3571,15 +3572,15 @@ void CodeGenerator::FinishFrame(Frame* frame) {
 }
 
 void CodeGenerator::AssembleConstructFrame() {
-  CallDescriptor* descriptor = linkage()->GetIncomingDescriptor();
+  auto call_descriptor = linkage()->GetIncomingDescriptor();
 
   if (frame_access_state()->has_frame()) {
-    if (descriptor->IsCFunctionCall()) {
+    if (call_descriptor->IsCFunctionCall()) {
       __ Push(ra, fp);
       __ mov(fp, sp);
-    } else if (descriptor->IsJSFunctionCall()) {
+    } else if (call_descriptor->IsJSFunctionCall()) {
       __ Prologue();
-      if (descriptor->PushArgumentCount()) {
+      if (call_descriptor->PushArgumentCount()) {
         __ Push(kJavaScriptCallArgCountRegister);
       }
     } else {
@@ -3587,8 +3588,8 @@ void CodeGenerator::AssembleConstructFrame() {
     }
   }
 
-  int shrink_slots =
-      frame()->GetTotalFrameSlotCount() - descriptor->CalculateFixedFrameSize();
+  int shrink_slots = frame()->GetTotalFrameSlotCount() -
+                     call_descriptor->CalculateFixedFrameSize();
 
   if (info()->is_osr()) {
     // TurboFan OSR-compiled functions cannot be entered directly.
@@ -3603,8 +3604,8 @@ void CodeGenerator::AssembleConstructFrame() {
     shrink_slots -= osr_helper()->UnoptimizedFrameSlots();
   }
 
-  const RegList saves = descriptor->CalleeSavedRegisters();
-  const RegList saves_fpu = descriptor->CalleeSavedFPRegisters();
+  const RegList saves = call_descriptor->CalleeSavedRegisters();
+  const RegList saves_fpu = call_descriptor->CalleeSavedFPRegisters();
   const int returns = frame()->GetReturnSlotCount();
 
   // Skip callee-saved and return slots, which are pushed below.
@@ -3634,7 +3635,7 @@ void CodeGenerator::AssembleConstructFrame() {
 }
 
 void CodeGenerator::AssembleReturn(InstructionOperand* pop) {
-  CallDescriptor* descriptor = linkage()->GetIncomingDescriptor();
+  auto call_descriptor = linkage()->GetIncomingDescriptor();
 
   const int returns = frame()->GetReturnSlotCount();
   if (returns != 0) {
@@ -3642,19 +3643,19 @@ void CodeGenerator::AssembleReturn(InstructionOperand* pop) {
   }
 
   // Restore GP registers.
-  const RegList saves = descriptor->CalleeSavedRegisters();
+  const RegList saves = call_descriptor->CalleeSavedRegisters();
   if (saves != 0) {
     __ MultiPop(saves);
   }
 
   // Restore FPU registers.
-  const RegList saves_fpu = descriptor->CalleeSavedFPRegisters();
+  const RegList saves_fpu = call_descriptor->CalleeSavedFPRegisters();
   if (saves_fpu != 0) {
     __ MultiPopFPU(saves_fpu);
   }
 
   MipsOperandConverter g(this, nullptr);
-  if (descriptor->IsCFunctionCall()) {
+  if (call_descriptor->IsCFunctionCall()) {
     AssembleDeconstructFrame();
   } else if (frame_access_state()->has_frame()) {
     // Canonicalize JSFunction return sites for now unless they have an variable
@@ -3671,7 +3672,7 @@ void CodeGenerator::AssembleReturn(InstructionOperand* pop) {
       AssembleDeconstructFrame();
     }
   }
-  int pop_count = static_cast<int>(descriptor->StackParameterCount());
+  int pop_count = static_cast<int>(call_descriptor->StackParameterCount());
   if (pop->IsImmediate()) {
     pop_count += g.ToConstant(pop).ToInt32();
   } else {

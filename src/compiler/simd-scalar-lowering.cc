@@ -588,9 +588,9 @@ Node* SimdScalarLowering::BuildF64Trunc(Node* input) {
     args[3] = graph()->start();
     Signature<MachineType>::Builder sig_builder(zone(), 0, 1);
     sig_builder.AddParam(MachineType::Pointer());
-    CallDescriptor* desc =
+    auto call_descriptor =
         Linkage::GetSimplifiedCDescriptor(zone(), sig_builder.Build());
-    Node* call = graph()->NewNode(common()->Call(desc), 4, args);
+    Node* call = graph()->NewNode(common()->Call(call_descriptor), 4, args);
     return graph()->NewNode(machine()->Load(LoadRepresentation::Float64()),
                             stack_slot, jsgraph_->Int32Constant(0), call,
                             graph()->start());
@@ -789,18 +789,18 @@ void SimdScalarLowering::LowerNode(Node* node) {
     }
     case IrOpcode::kCall: {
       // TODO(turbofan): Make wasm code const-correct wrt. CallDescriptor.
-      CallDescriptor* descriptor =
+      auto call_descriptor =
           const_cast<CallDescriptor*>(CallDescriptorOf(node->op()));
       if (DefaultLowering(node) ||
-          (descriptor->ReturnCount() == 1 &&
-           descriptor->GetReturnType(0) == MachineType::Simd128())) {
+          (call_descriptor->ReturnCount() == 1 &&
+           call_descriptor->GetReturnType(0) == MachineType::Simd128())) {
         // We have to adjust the call descriptor.
-        const Operator* op =
-            common()->Call(GetI32WasmCallDescriptorForSimd(zone(), descriptor));
+        const Operator* op = common()->Call(
+            GetI32WasmCallDescriptorForSimd(zone(), call_descriptor));
         NodeProperties::ChangeOp(node, op);
       }
-      if (descriptor->ReturnCount() == 1 &&
-          descriptor->GetReturnType(0) == MachineType::Simd128()) {
+      if (call_descriptor->ReturnCount() == 1 &&
+          call_descriptor->GetReturnType(0) == MachineType::Simd128()) {
         // We access the additional return values through projections.
         Node* rep_node[kNumLanes32];
         for (int i = 0; i < kNumLanes32; ++i) {

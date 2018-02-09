@@ -292,32 +292,32 @@ class PipelineData {
     register_allocation_data_ = nullptr;
   }
 
-  void InitializeInstructionSequence(const CallDescriptor* descriptor) {
+  void InitializeInstructionSequence(const CallDescriptor* call_descriptor) {
     DCHECK_NULL(sequence_);
     InstructionBlocks* instruction_blocks =
         InstructionSequence::InstructionBlocksFor(instruction_zone(),
                                                   schedule());
     sequence_ = new (instruction_zone())
         InstructionSequence(isolate(), instruction_zone(), instruction_blocks);
-    if (descriptor && descriptor->RequiresFrameAsIncoming()) {
+    if (call_descriptor && call_descriptor->RequiresFrameAsIncoming()) {
       sequence_->instruction_blocks()[0]->mark_needs_frame();
     } else {
-      DCHECK_EQ(0u, descriptor->CalleeSavedFPRegisters());
-      DCHECK_EQ(0u, descriptor->CalleeSavedRegisters());
+      DCHECK_EQ(0u, call_descriptor->CalleeSavedFPRegisters());
+      DCHECK_EQ(0u, call_descriptor->CalleeSavedRegisters());
     }
   }
 
-  void InitializeFrameData(CallDescriptor* descriptor) {
+  void InitializeFrameData(CallDescriptor* call_descriptor) {
     DCHECK_NULL(frame_);
     int fixed_frame_size = 0;
-    if (descriptor != nullptr) {
-      fixed_frame_size = descriptor->CalculateFixedFrameSize();
+    if (call_descriptor != nullptr) {
+      fixed_frame_size = call_descriptor->CalculateFixedFrameSize();
     }
     frame_ = new (codegen_zone()) Frame(fixed_frame_size);
   }
 
   void InitializeRegisterAllocationData(const RegisterConfiguration* config,
-                                        CallDescriptor* descriptor) {
+                                        CallDescriptor* call_descriptor) {
     DCHECK_NULL(register_allocation_data_);
     register_allocation_data_ = new (register_allocation_zone())
         RegisterAllocationData(config, register_allocation_zone(), frame(),
@@ -451,7 +451,7 @@ class PipelineImpl final {
   void RunPrintAndVerify(const char* phase, bool untyped = false);
   Handle<Code> GenerateCode(CallDescriptor* call_descriptor);
   void AllocateRegisters(const RegisterConfiguration* config,
-                         CallDescriptor* descriptor, bool run_verifier);
+                         CallDescriptor* call_descriptor, bool run_verifier);
 
   CompilationInfo* info() const;
   Isolate* isolate() const;
@@ -895,7 +895,7 @@ class PipelineWasmCompilationJob final : public CompilationJob {
  public:
   explicit PipelineWasmCompilationJob(
       CompilationInfo* info, Isolate* isolate, JSGraph* jsgraph,
-      CallDescriptor* descriptor, SourcePositionTable* source_positions,
+      CallDescriptor* call_descriptor, SourcePositionTable* source_positions,
       std::vector<trap_handler::ProtectedInstructionData>* protected_insts,
       bool asmjs_origin)
       : CompilationJob(isolate->stack_guard()->real_climit(), nullptr, info,
@@ -906,7 +906,7 @@ class PipelineWasmCompilationJob final : public CompilationJob {
         data_(&zone_stats_, isolate, info, jsgraph, pipeline_statistics_.get(),
               source_positions, protected_insts),
         pipeline_(&data_),
-        linkage_(descriptor),
+        linkage_(call_descriptor),
         asmjs_origin_(asmjs_origin) {}
 
  protected:
@@ -2022,8 +2022,7 @@ Handle<Code> Pipeline::GenerateCodeForTesting(CompilationInfo* info,
 Handle<Code> Pipeline::GenerateCodeForTesting(CompilationInfo* info,
                                               Isolate* isolate, Graph* graph,
                                               Schedule* schedule) {
-  CallDescriptor* call_descriptor =
-      Linkage::ComputeIncoming(info->zone(), info);
+  auto call_descriptor = Linkage::ComputeIncoming(info->zone(), info);
   return GenerateCodeForTesting(info, isolate, call_descriptor, graph,
                                 schedule);
 }
@@ -2081,10 +2080,10 @@ CompilationJob* Pipeline::NewCompilationJob(Handle<JSFunction> function,
 // static
 CompilationJob* Pipeline::NewWasmCompilationJob(
     CompilationInfo* info, Isolate* isolate, JSGraph* jsgraph,
-    CallDescriptor* descriptor, SourcePositionTable* source_positions,
+    CallDescriptor* call_descriptor, SourcePositionTable* source_positions,
     std::vector<trap_handler::ProtectedInstructionData>* protected_instructions,
     wasm::ModuleOrigin asmjs_origin) {
-  return new PipelineWasmCompilationJob(info, isolate, jsgraph, descriptor,
+  return new PipelineWasmCompilationJob(info, isolate, jsgraph, call_descriptor,
                                         source_positions,
                                         protected_instructions, asmjs_origin);
 }
@@ -2115,7 +2114,7 @@ void PipelineImpl::ComputeScheduledGraph() {
 }
 
 bool PipelineImpl::SelectInstructions(Linkage* linkage) {
-  CallDescriptor* call_descriptor = linkage->GetIncomingDescriptor();
+  auto call_descriptor = linkage->GetIncomingDescriptor();
   PipelineData* data = this->data_;
 
   // We should have a scheduled graph.
@@ -2286,7 +2285,7 @@ Handle<Code> PipelineImpl::GenerateCode(CallDescriptor* call_descriptor) {
 }
 
 void PipelineImpl::AllocateRegisters(const RegisterConfiguration* config,
-                                     CallDescriptor* descriptor,
+                                     CallDescriptor* call_descriptor,
                                      bool run_verifier) {
   PipelineData* data = this->data_;
   // Don't track usage for this zone in compiler stats.
@@ -2304,7 +2303,7 @@ void PipelineImpl::AllocateRegisters(const RegisterConfiguration* config,
   data_->sequence()->ValidateDeferredBlockExitPaths();
 #endif
 
-  data->InitializeRegisterAllocationData(config, descriptor);
+  data->InitializeRegisterAllocationData(config, call_descriptor);
   if (info()->is_osr()) data->osr_helper()->SetupFrame(data->frame());
 
   Run<MeetRegisterConstraintsPhase>();

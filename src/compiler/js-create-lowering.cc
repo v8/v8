@@ -684,37 +684,37 @@ Reduction JSCreateLowering::ReduceNewArrayToStubCall(
   if (arity == 0) {
     ArrayNoArgumentConstructorStub stub(isolate(), elements_kind,
                                         override_mode);
-    CallDescriptor* desc = Linkage::GetStubCallDescriptor(
+    auto call_descriptor = Linkage::GetStubCallDescriptor(
         isolate(), graph()->zone(), stub.GetCallInterfaceDescriptor(),
         arity + 1, CallDescriptor::kNeedsFrameState, properties);
     node->ReplaceInput(0, jsgraph()->HeapConstant(stub.GetCode()));
     node->InsertInput(graph()->zone(), 2, type_info);
     node->InsertInput(graph()->zone(), 3, jsgraph()->Constant(arity));
     node->InsertInput(graph()->zone(), 4, jsgraph()->UndefinedConstant());
-    NodeProperties::ChangeOp(node, common()->Call(desc));
+    NodeProperties::ChangeOp(node, common()->Call(call_descriptor));
   } else if (arity == 1) {
     // Require elements kind to "go holey".
     ArraySingleArgumentConstructorStub stub(
         isolate(), GetHoleyElementsKind(elements_kind), override_mode);
-    CallDescriptor* desc = Linkage::GetStubCallDescriptor(
+    auto call_descriptor = Linkage::GetStubCallDescriptor(
         isolate(), graph()->zone(), stub.GetCallInterfaceDescriptor(),
         arity + 1, CallDescriptor::kNeedsFrameState, properties);
     node->ReplaceInput(0, jsgraph()->HeapConstant(stub.GetCode()));
     node->InsertInput(graph()->zone(), 2, type_info);
     node->InsertInput(graph()->zone(), 3, jsgraph()->Constant(arity));
     node->InsertInput(graph()->zone(), 4, jsgraph()->UndefinedConstant());
-    NodeProperties::ChangeOp(node, common()->Call(desc));
+    NodeProperties::ChangeOp(node, common()->Call(call_descriptor));
   } else {
     DCHECK_GT(arity, 1);
     ArrayNArgumentsConstructorStub stub(isolate());
-    CallDescriptor* desc = Linkage::GetStubCallDescriptor(
+    auto call_descriptor = Linkage::GetStubCallDescriptor(
         isolate(), graph()->zone(), stub.GetCallInterfaceDescriptor(),
         arity + 1, CallDescriptor::kNeedsFrameState);
     node->ReplaceInput(0, jsgraph()->HeapConstant(stub.GetCode()));
     node->InsertInput(graph()->zone(), 2, type_info);
     node->InsertInput(graph()->zone(), 3, jsgraph()->Constant(arity));
     node->InsertInput(graph()->zone(), 4, jsgraph()->UndefinedConstant());
-    NodeProperties::ChangeOp(node, common()->Call(desc));
+    NodeProperties::ChangeOp(node, common()->Call(call_descriptor));
   }
   return Changed(node);
 }

@@ -62,8 +62,8 @@ class MachineRepresentationInferrer {
                           : MachineRepresentation::kBit;
       case IrOpcode::kCall:
       case IrOpcode::kCallWithCallerSavedRegisters: {
-        CallDescriptor const* desc = CallDescriptorOf(input->op());
-        return desc->GetReturnType(index).representation();
+        auto call_descriptor = CallDescriptorOf(input->op());
+        return call_descriptor->GetReturnType(index).representation();
       }
       default:
         return MachineRepresentation::kNone;
@@ -132,10 +132,10 @@ class MachineRepresentationInferrer {
             break;
           case IrOpcode::kCall:
           case IrOpcode::kCallWithCallerSavedRegisters: {
-            CallDescriptor const* desc = CallDescriptorOf(node->op());
-            if (desc->ReturnCount() > 0) {
+            auto call_descriptor = CallDescriptorOf(node->op());
+            if (call_descriptor->ReturnCount() > 0) {
               representation_vector_[node->id()] =
-                  desc->GetReturnType(0).representation();
+                  call_descriptor->GetReturnType(0).representation();
             } else {
               representation_vector_[node->id()] =
                   MachineRepresentation::kTagged;
@@ -737,15 +737,15 @@ class MachineRepresentationChecker {
   }
 
   void CheckCallInputs(Node const* node) {
-    CallDescriptor const* desc = CallDescriptorOf(node->op());
+    auto call_descriptor = CallDescriptorOf(node->op());
     std::ostringstream str;
     bool should_log_error = false;
-    for (size_t i = 0; i < desc->InputCount(); ++i) {
+    for (size_t i = 0; i < call_descriptor->InputCount(); ++i) {
       Node const* input = node->InputAt(static_cast<int>(i));
       MachineRepresentation const input_type =
           inferrer_->GetRepresentation(input);
       MachineRepresentation const expected_input_type =
-          desc->GetInputType(i).representation();
+          call_descriptor->GetInputType(i).representation();
       if (!IsCompatible(expected_input_type, input_type)) {
         if (!should_log_error) {
           should_log_error = true;

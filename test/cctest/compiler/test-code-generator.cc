@@ -41,7 +41,8 @@ int GetSlotSizeInBytes(MachineRepresentation rep) {
 }
 
 // Forward declaration.
-Handle<Code> BuildTeardownFunction(Isolate* isolate, CallDescriptor* descriptor,
+Handle<Code> BuildTeardownFunction(Isolate* isolate,
+                                   CallDescriptor* call_descriptor,
                                    std::vector<AllocatedOperand> parameters);
 
 // Build the `setup` function. It takes a code object and a FixedArray as
@@ -69,15 +70,16 @@ Handle<Code> BuildTeardownFunction(Isolate* isolate, CallDescriptor* descriptor,
 // |                |                     | results into lanes of a new        |
 // |                |                     | 128-bit vector.                    |
 //
-Handle<Code> BuildSetupFunction(Isolate* isolate, CallDescriptor* descriptor,
+Handle<Code> BuildSetupFunction(Isolate* isolate,
+                                CallDescriptor* call_descriptor,
                                 std::vector<AllocatedOperand> parameters) {
   CodeAssemblerTester tester(isolate, 2);
   CodeStubAssembler assembler(tester.state());
   std::vector<Node*> params;
   // The first parameter is always the callee.
   params.push_back(__ Parameter(0));
-  params.push_back(
-      __ HeapConstant(BuildTeardownFunction(isolate, descriptor, parameters)));
+  params.push_back(__ HeapConstant(
+      BuildTeardownFunction(isolate, call_descriptor, parameters)));
   // First allocate the FixedArray which will hold the final results. Here we
   // should take care of all allocations, meaning we allocate HeapNumbers and
   // FixedArrays representing Simd128 values.
@@ -140,7 +142,7 @@ Handle<Code> BuildSetupFunction(Isolate* isolate, CallDescriptor* descriptor,
     params.push_back(element);
   }
   __ Return(tester.raw_assembler_for_testing()->AddNode(
-      tester.raw_assembler_for_testing()->common()->Call(descriptor),
+      tester.raw_assembler_for_testing()->common()->Call(call_descriptor),
       static_cast<int>(params.size()), params.data()));
   return tester.GenerateCodeCloseAndEscape();
 }
@@ -187,9 +189,10 @@ Handle<Code> BuildSetupFunction(Isolate* isolate, CallDescriptor* descriptor,
 // SKIP_WRITE_BARRIER. The reason for this is that `RecordWrite` may clobber the
 // top 64 bits of Simd128 registers. This is the case on x64, ia32 and Arm64 for
 // example.
-Handle<Code> BuildTeardownFunction(Isolate* isolate, CallDescriptor* descriptor,
+Handle<Code> BuildTeardownFunction(Isolate* isolate,
+                                   CallDescriptor* call_descriptor,
                                    std::vector<AllocatedOperand> parameters) {
-  CodeAssemblerTester tester(isolate, descriptor);
+  CodeAssemblerTester tester(isolate, call_descriptor);
   CodeStubAssembler assembler(tester.state());
   Node* result_array = __ Parameter(1);
   for (int i = 0; i < static_cast<int>(parameters.size()); i++) {

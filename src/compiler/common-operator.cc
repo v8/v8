@@ -1369,65 +1369,70 @@ const Operator* CommonOperatorBuilder::FrameState(
       state_info);                                // parameter
 }
 
-
-const Operator* CommonOperatorBuilder::Call(const CallDescriptor* descriptor) {
+const Operator* CommonOperatorBuilder::Call(
+    const CallDescriptor* call_descriptor) {
   class CallOperator final : public Operator1<const CallDescriptor*> {
    public:
-    explicit CallOperator(const CallDescriptor* descriptor)
+    explicit CallOperator(const CallDescriptor* call_descriptor)
         : Operator1<const CallDescriptor*>(
-              IrOpcode::kCall, descriptor->properties(), "Call",
-              descriptor->InputCount() + descriptor->FrameStateCount(),
-              Operator::ZeroIfPure(descriptor->properties()),
-              Operator::ZeroIfEliminatable(descriptor->properties()),
-              descriptor->ReturnCount(),
-              Operator::ZeroIfPure(descriptor->properties()),
-              Operator::ZeroIfNoThrow(descriptor->properties()), descriptor) {}
+              IrOpcode::kCall, call_descriptor->properties(), "Call",
+              call_descriptor->InputCount() +
+                  call_descriptor->FrameStateCount(),
+              Operator::ZeroIfPure(call_descriptor->properties()),
+              Operator::ZeroIfEliminatable(call_descriptor->properties()),
+              call_descriptor->ReturnCount(),
+              Operator::ZeroIfPure(call_descriptor->properties()),
+              Operator::ZeroIfNoThrow(call_descriptor->properties()),
+              call_descriptor) {}
 
     void PrintParameter(std::ostream& os, PrintVerbosity verbose) const {
       os << "[" << *parameter() << "]";
     }
   };
-  return new (zone()) CallOperator(descriptor);
+  return new (zone()) CallOperator(call_descriptor);
 }
 
 const Operator* CommonOperatorBuilder::CallWithCallerSavedRegisters(
-    const CallDescriptor* descriptor) {
+    const CallDescriptor* call_descriptor) {
   class CallOperator final : public Operator1<const CallDescriptor*> {
    public:
-    explicit CallOperator(const CallDescriptor* descriptor)
+    explicit CallOperator(const CallDescriptor* call_descriptor)
         : Operator1<const CallDescriptor*>(
-              IrOpcode::kCallWithCallerSavedRegisters, descriptor->properties(),
-              "CallWithCallerSavedRegisters",
-              descriptor->InputCount() + descriptor->FrameStateCount(),
-              Operator::ZeroIfPure(descriptor->properties()),
-              Operator::ZeroIfEliminatable(descriptor->properties()),
-              descriptor->ReturnCount(),
-              Operator::ZeroIfPure(descriptor->properties()),
-              Operator::ZeroIfNoThrow(descriptor->properties()), descriptor) {}
+              IrOpcode::kCallWithCallerSavedRegisters,
+              call_descriptor->properties(), "CallWithCallerSavedRegisters",
+              call_descriptor->InputCount() +
+                  call_descriptor->FrameStateCount(),
+              Operator::ZeroIfPure(call_descriptor->properties()),
+              Operator::ZeroIfEliminatable(call_descriptor->properties()),
+              call_descriptor->ReturnCount(),
+              Operator::ZeroIfPure(call_descriptor->properties()),
+              Operator::ZeroIfNoThrow(call_descriptor->properties()),
+              call_descriptor) {}
 
     void PrintParameter(std::ostream& os, PrintVerbosity verbose) const {
       os << "[" << *parameter() << "]";
     }
   };
-  return new (zone()) CallOperator(descriptor);
+  return new (zone()) CallOperator(call_descriptor);
 }
 
 const Operator* CommonOperatorBuilder::TailCall(
-    const CallDescriptor* descriptor) {
+    const CallDescriptor* call_descriptor) {
   class TailCallOperator final : public Operator1<const CallDescriptor*> {
    public:
-    explicit TailCallOperator(const CallDescriptor* descriptor)
+    explicit TailCallOperator(const CallDescriptor* call_descriptor)
         : Operator1<const CallDescriptor*>(
               IrOpcode::kTailCall,
-              descriptor->properties() | Operator::kNoThrow, "TailCall",
-              descriptor->InputCount() + descriptor->FrameStateCount(), 1, 1, 0,
-              0, 1, descriptor) {}
+              call_descriptor->properties() | Operator::kNoThrow, "TailCall",
+              call_descriptor->InputCount() +
+                  call_descriptor->FrameStateCount(),
+              1, 1, 0, 0, 1, call_descriptor) {}
 
     void PrintParameter(std::ostream& os, PrintVerbosity verbose) const {
       os << "[" << *parameter() << "]";
     }
   };
-  return new (zone()) TailCallOperator(descriptor);
+  return new (zone()) TailCallOperator(call_descriptor);
 }
 
 const Operator* CommonOperatorBuilder::Projection(size_t index) {

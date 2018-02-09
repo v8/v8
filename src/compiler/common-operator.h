@@ -459,10 +459,10 @@ class V8_EXPORT_PRIVATE CommonOperatorBuilder final
   const Operator* FrameState(BailoutId bailout_id,
                              OutputFrameStateCombine state_combine,
                              const FrameStateFunctionInfo* function_info);
-  const Operator* Call(const CallDescriptor* descriptor);
+  const Operator* Call(const CallDescriptor* call_descriptor);
   const Operator* CallWithCallerSavedRegisters(
-      const CallDescriptor* descriptor);
-  const Operator* TailCall(const CallDescriptor* descriptor);
+      const CallDescriptor* call_descriptor);
+  const Operator* TailCall(const CallDescriptor* call_descriptor);
   const Operator* Projection(size_t index);
   const Operator* Retain();
   const Operator* TypeGuard(Type* type);

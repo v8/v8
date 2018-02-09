@@ -2195,8 +2195,9 @@ void CodeGenerator::AssembleArchTrap(Instruction* instr,
                              __ isolate()),
                          0);
         __ LeaveFrame(StackFrame::WASM_COMPILED);
-        CallDescriptor* descriptor = gen_->linkage()->GetIncomingDescriptor();
-        int pop_count = static_cast<int>(descriptor->StackParameterCount());
+        auto call_descriptor = gen_->linkage()->GetIncomingDescriptor();
+        int pop_count =
+            static_cast<int>(call_descriptor->StackParameterCount());
         pop_count += (pop_count & 1);  // align
         __ Drop(pop_count);
         __ Ret();
@@ -2272,11 +2273,11 @@ void CodeGenerator::AssembleArchTableSwitch(Instruction* instr) {
 
 void CodeGenerator::FinishFrame(Frame* frame) {
   frame->AlignFrame(16);
-  CallDescriptor* descriptor = linkage()->GetIncomingDescriptor();
+  auto call_descriptor = linkage()->GetIncomingDescriptor();
 
   // Save FP registers.
   CPURegList saves_fp = CPURegList(CPURegister::kVRegister, kDRegSizeInBits,
-                                   descriptor->CalleeSavedFPRegisters());
+                                   call_descriptor->CalleeSavedFPRegisters());
   int saved_count = saves_fp.Count();
   if (saved_count != 0) {
     DCHECK(saves_fp.list() == CPURegList::GetCalleeSavedV().list());
@@ -2286,7 +2287,7 @@ void CodeGenerator::FinishFrame(Frame* frame) {
   }
 
   CPURegList saves = CPURegList(CPURegister::kRegister, kXRegSizeInBits,
-                                descriptor->CalleeSavedRegisters());
+                                call_descriptor->CalleeSavedRegisters());
   saved_count = saves.Count();
   if (saved_count != 0) {
     DCHECK_EQ(saved_count % 2, 0);
@@ -2295,25 +2296,25 @@ void CodeGenerator::FinishFrame(Frame* frame) {
 }
 
 void CodeGenerator::AssembleConstructFrame() {
-  CallDescriptor* descriptor = linkage()->GetIncomingDescriptor();
+  auto call_descriptor = linkage()->GetIncomingDescriptor();
   __ AssertSpAligned();
 
   // The frame has been previously padded in CodeGenerator::FinishFrame().
   DCHECK_EQ(frame()->GetTotalFrameSlotCount() % 2, 0);
-  int shrink_slots =
-      frame()->GetTotalFrameSlotCount() - descriptor->CalculateFixedFrameSize();
+  int shrink_slots = frame()->GetTotalFrameSlotCount() -
+                     call_descriptor->CalculateFixedFrameSize();
 
   CPURegList saves = CPURegList(CPURegister::kRegister, kXRegSizeInBits,
-                                descriptor->CalleeSavedRegisters());
+                                call_descriptor->CalleeSavedRegisters());
   CPURegList saves_fp = CPURegList(CPURegister::kVRegister, kDRegSizeInBits,
-                                   descriptor->CalleeSavedFPRegisters());
+                                   call_descriptor->CalleeSavedFPRegisters());
   // The number of slots for returns has to be even to ensure the correct stack
   // alignment.
   const int returns = RoundUp(frame()->GetReturnSlotCount(), 2);
 
   if (frame_access_state()->has_frame()) {
     // Link the frame
-    if (descriptor->IsJSFunctionCall()) {
+    if (call_descriptor->IsJSFunctionCall()) {
       __ Prologue();
     } else {
       __ Push(lr, fp);
@@ -2382,9 +2383,9 @@ void CodeGenerator::AssembleConstructFrame() {
     // frame-specific header information, i.e. claiming the extra slot that
     // other platforms explicitly push for STUB (code object) frames and frames
     // recording their argument count.
-    switch (descriptor->kind()) {
+    switch (call_descriptor->kind()) {
       case CallDescriptor::kCallJSFunction:
-        if (descriptor->PushArgumentCount()) {
+        if (call_descriptor->PushArgumentCount()) {
           __ Claim(shrink_slots + 1);  // Claim extra slot for argc.
           __ Str(kJavaScriptCallArgCountRegister,
                  MemOperand(fp, OptimizedBuiltinFrameConstants::kArgCOffset));
@@ -2426,7 +2427,7 @@ void CodeGenerator::AssembleConstructFrame() {
 }
 
 void CodeGenerator::AssembleReturn(InstructionOperand* pop) {
-  CallDescriptor* descriptor = linkage()->GetIncomingDescriptor();
+  auto call_descriptor = linkage()->GetIncomingDescriptor();
 
   const int returns = RoundUp(frame()->GetReturnSlotCount(), 2);
 
@@ -2436,19 +2437,19 @@ void CodeGenerator::AssembleReturn(InstructionOperand* pop) {
 
   // Restore registers.
   CPURegList saves = CPURegList(CPURegister::kRegister, kXRegSizeInBits,
-                                descriptor->CalleeSavedRegisters());
+                                call_descriptor->CalleeSavedRegisters());
   __ PopCPURegList(saves);
 
   // Restore fp registers.
   CPURegList saves_fp = CPURegList(CPURegister::kVRegister, kDRegSizeInBits,
-                                   descriptor->CalleeSavedFPRegisters());
+                                   call_descriptor->CalleeSavedFPRegisters());
   __ PopCPURegList(saves_fp);
 
   unwinding_info_writer_.MarkBlockWillExit();
 
   Arm64OperandConverter g(this, nullptr);
-  int pop_count = static_cast<int>(descriptor->StackParameterCount());
-  if (descriptor->IsCFunctionCall()) {
+  int pop_count = static_cast<int>(call_descriptor->StackParameterCount());
+  if (call_descriptor->IsCFunctionCall()) {
     AssembleDeconstructFrame();
   } else if (frame_access_state()->has_frame()) {
     // Canonicalize JSFunction return sites for now unless they have an variable

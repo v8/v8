@@ -227,14 +227,14 @@ void WasmGraphBuilder::StackCheck(wasm::WasmCodePosition position,
   Handle<Code> code = BUILTIN_CODE(jsgraph()->isolate(), WasmStackGuard);
   CallInterfaceDescriptor idesc =
       WasmRuntimeCallDescriptor(jsgraph()->isolate());
-  CallDescriptor* desc = Linkage::GetStubCallDescriptor(
+  auto call_descriptor = Linkage::GetStubCallDescriptor(
       jsgraph()->isolate(), jsgraph()->zone(), idesc, 0,
       CallDescriptor::kNoFlags, Operator::kNoProperties,
       MachineType::AnyTagged(), 1, Linkage::kNoContext);
   Node* stub_code = jsgraph()->HeapConstant(code);
 
-  Node* call = graph()->NewNode(jsgraph()->common()->Call(desc), stub_code,
-                                *effect, stack_check.if_false);
+  Node* call = graph()->NewNode(jsgraph()->common()->Call(call_descriptor),
+                                stub_code, *effect, stack_check.if_false);
 
   SetSourcePosition(call, position);
 
@@ -2513,10 +2513,10 @@ Node* WasmGraphBuilder::BuildCCall(MachineSignature* sig, Node* function,
   DCHECK_EQ(sizeof...(args), sig->parameter_count());
   Node* const call_args[] = {function, args..., *effect_, *control_};
 
-  CallDescriptor* desc =
+  auto call_descriptor =
       Linkage::GetSimplifiedCDescriptor(jsgraph()->zone(), sig);
 
-  const Operator* op = jsgraph()->common()->Call(desc);
+  const Operator* op = jsgraph()->common()->Call(call_descriptor);
   Node* call = graph()->NewNode(op, arraysize(call_args), call_args);
   *effect_ = call;
   return call;
@@ -2542,8 +2542,8 @@ Node* WasmGraphBuilder::BuildWasmCall(wasm::FunctionSig* sig, Node** args,
   args[params + 2] = *effect_;
   args[params + 3] = *control_;
 
-  CallDescriptor* descriptor = GetWasmCallDescriptor(jsgraph()->zone(), sig);
-  const Operator* op = jsgraph()->common()->Call(descriptor);
+  auto call_descriptor = GetWasmCallDescriptor(jsgraph()->zone(), sig);
+  const Operator* op = jsgraph()->common()->Call(call_descriptor);
   Node* call = graph()->NewNode(op, static_cast<int>(count), args);
   SetSourcePosition(call, position);
 
@@ -2811,13 +2811,14 @@ Node* WasmGraphBuilder::ToJS(Node* node, wasm::ValueType type) {
 Node* WasmGraphBuilder::BuildJavaScriptToNumber(Node* node, Node* js_context) {
   Callable callable =
       Builtins::CallableFor(jsgraph()->isolate(), Builtins::kToNumber);
-  CallDescriptor* desc = Linkage::GetStubCallDescriptor(
+  auto call_descriptor = Linkage::GetStubCallDescriptor(
       jsgraph()->isolate(), jsgraph()->zone(), callable.descriptor(), 0,
       CallDescriptor::kNoFlags, Operator::kNoProperties);
   Node* stub_code = jsgraph()->HeapConstant(callable.code());
 
-  Node* result = graph()->NewNode(jsgraph()->common()->Call(desc), stub_code,
-                                  node, js_context, *effect_, *control_);
+  Node* result =
+      graph()->NewNode(jsgraph()->common()->Call(call_descriptor), stub_code,
+                       node, js_context, *effect_, *control_);
 
   SetSourcePosition(result, 1);
 
@@ -2963,10 +2964,10 @@ Node* WasmGraphBuilder::BuildAllocateHeapNumberWithValue(Node* value,
       graph()->NewNode(common->BeginRegion(RegionObservability::kNotObservable),
                        graph()->start());
   if (!allocate_heap_number_operator_.is_set()) {
-    CallDescriptor* descriptor = Linkage::GetStubCallDescriptor(
+    auto call_descriptor = Linkage::GetStubCallDescriptor(
         jsgraph()->isolate(), jsgraph()->zone(), callable.descriptor(), 0,
         CallDescriptor::kNoFlags, Operator::kNoThrow);
-    allocate_heap_number_operator_.set(common->Call(descriptor));
+    allocate_heap_number_operator_.set(common->Call(call_descriptor));
   }
   Node* heap_number = graph()->NewNode(allocate_heap_number_operator_.get(),
                                        target, js_context, effect, control);
@@ -3042,9 +3043,10 @@ void WasmGraphBuilder::BuildJSToWasmWrapper(WasmCodeWrapper wasm_code,
 
     // We only need a dummy call descriptor.
     wasm::FunctionSig::Builder dummy_sig_builder(jsgraph()->zone(), 0, 0);
-    CallDescriptor* desc =
+    auto call_descriptor =
         GetWasmCallDescriptor(jsgraph()->zone(), dummy_sig_builder.Build());
-    *effect_ = graph()->NewNode(jsgraph()->common()->Call(desc), pos, args);
+    *effect_ =
+        graph()->NewNode(jsgraph()->common()->Call(call_descriptor), pos, args);
     Return(jsgraph()->UndefinedConstant());
     return;
   }
@@ -3067,9 +3069,10 @@ void WasmGraphBuilder::BuildJSToWasmWrapper(WasmCodeWrapper wasm_code,
   args[pos++] = *control_;
 
   // Call the wasm code.
-  CallDescriptor* desc = GetWasmCallDescriptor(jsgraph()->zone(), sig_);
+  auto call_descriptor = GetWasmCallDescriptor(jsgraph()->zone(), sig_);
 
-  Node* call = graph()->NewNode(jsgraph()->common()->Call(desc), count, args);
+  Node* call =
+      graph()->NewNode(jsgraph()->common()->Call(call_descriptor), count, args);
   *effect_ = call;
 
   // Clear the ThreadInWasmFlag
@@ -3127,7 +3130,7 @@ bool WasmGraphBuilder::BuildWasmToJSWrapper(
 
   // Build the start and the parameter nodes.
   Isolate* isolate = jsgraph()->isolate();
-  CallDescriptor* desc;
+  CallDescriptor* call_descriptor;
   Node* start = Start(wasm_count + 3);
   *effect_ = start;
   *control_ = start;
@@ -3177,7 +3180,7 @@ bool WasmGraphBuilder::BuildWasmToJSWrapper(
             handle(isolate->heap()->undefined_value(), isolate));
       }
 
-      desc = Linkage::GetJSCallDescriptor(
+      call_descriptor = Linkage::GetJSCallDescriptor(
           graph()->zone(), false, wasm_count + 1, CallDescriptor::kNoFlags);
 
       // Convert wasm numbers to JS values.
@@ -3189,7 +3192,8 @@ bool WasmGraphBuilder::BuildWasmToJSWrapper(
       args[pos++] = *effect_;
       args[pos++] = *control_;
 
-      call = graph()->NewNode(jsgraph()->common()->Call(desc), pos, args);
+      call = graph()->NewNode(jsgraph()->common()->Call(call_descriptor), pos,
+                              args);
     }
   }
 
@@ -3204,9 +3208,9 @@ bool WasmGraphBuilder::BuildWasmToJSWrapper(
     args[pos++] = jsgraph()->Constant(
         handle(isolate->heap()->undefined_value(), isolate));  // receiver
 
-    desc = Linkage::GetStubCallDescriptor(isolate, graph()->zone(),
-                                          callable.descriptor(), wasm_count + 1,
-                                          CallDescriptor::kNoFlags);
+    call_descriptor = Linkage::GetStubCallDescriptor(
+        isolate, graph()->zone(), callable.descriptor(), wasm_count + 1,
+        CallDescriptor::kNoFlags);
 
     // Convert wasm numbers to JS values.
     pos = AddParameterNodes(args, pos, wasm_count, sig_);
@@ -3221,7 +3225,8 @@ bool WasmGraphBuilder::BuildWasmToJSWrapper(
     args[pos++] = *effect_;
     args[pos++] = *control_;
 
-    call = graph()->NewNode(jsgraph()->common()->Call(desc), pos, args);
+    call =
+        graph()->NewNode(jsgraph()->common()->Call(call_descriptor), pos, args);
   }
 
   *effect_ = call;
@@ -3283,9 +3288,9 @@ void WasmGraphBuilder::BuildWasmToWasmWrapper(WasmCodeWrapper wasm_code,
   args[pos++] = *control_;
 
   // Tail-call the wasm code.
-  CallDescriptor* desc = GetWasmCallDescriptor(jsgraph()->zone(), sig_);
-  Node* tail_call =
-      graph()->NewNode(jsgraph()->common()->TailCall(desc), count, args);
+  auto call_descriptor = GetWasmCallDescriptor(jsgraph()->zone(), sig_);
+  Node* tail_call = graph()->NewNode(
+      jsgraph()->common()->TailCall(call_descriptor), count, args);
   MergeControlToEnd(jsgraph(), tail_call);
 }
 
@@ -3404,10 +3409,10 @@ void WasmGraphBuilder::BuildCWasmEntry(Address wasm_context_address) {
   DCHECK_EQ(arg_count, pos);
 
   // Call the wasm code.
-  CallDescriptor* desc = GetWasmCallDescriptor(jsgraph()->zone(), sig_);
+  auto call_descriptor = GetWasmCallDescriptor(jsgraph()->zone(), sig_);
 
-  Node* call =
-      graph()->NewNode(jsgraph()->common()->Call(desc), arg_count, args);
+  Node* call = graph()->NewNode(jsgraph()->common()->Call(call_descriptor),
+                                arg_count, args);
   *effect_ = call;
 
   // Store the return value.
@@ -3649,7 +3654,7 @@ Node* WasmGraphBuilder::BuildCallToRuntimeWithContext(Runtime::FunctionId f,
                                                       Node** parameters,
                                                       int parameter_count) {
   const Runtime::Function* fun = Runtime::FunctionForId(f);
-  CallDescriptor* desc = Linkage::GetRuntimeCallDescriptor(
+  auto call_descriptor = Linkage::GetRuntimeCallDescriptor(
       jsgraph()->zone(), f, fun->nargs, Operator::kNoProperties,
       CallDescriptor::kNoFlags);
   // CEntryStubConstant nodes have to be created and cached in the main
@@ -3672,8 +3677,8 @@ Node* WasmGraphBuilder::BuildCallToRuntimeWithContext(Runtime::FunctionId f,
   inputs[count++] = *effect_;
   inputs[count++] = *control_;
 
-  Node* node = jsgraph()->graph()->NewNode(jsgraph()->common()->Call(desc),
-                                           count, inputs);
+  Node* node = jsgraph()->graph()->NewNode(
+      jsgraph()->common()->Call(call_descriptor), count, inputs);
   *effect_ = node;
 
   return node;
@@ -5199,19 +5204,20 @@ void WasmCompilationUnit::ExecuteTurbofanCompilation() {
     tf_.compilation_zone_.reset(new Zone(isolate_->allocator(), ZONE_NAME));
 
     // Run the compiler pipeline to generate machine code.
-    CallDescriptor* descriptor =
+    auto call_descriptor =
         GetWasmCallDescriptor(tf_.compilation_zone_.get(), func_body_.sig);
     if (tf_.jsgraph_->machine()->Is32()) {
-      descriptor =
-          GetI32WasmCallDescriptor(tf_.compilation_zone_.get(), descriptor);
+      call_descriptor = GetI32WasmCallDescriptor(tf_.compilation_zone_.get(),
+                                                 call_descriptor);
     }
     tf_.info_.reset(new CompilationInfo(
         GetDebugName(tf_.compilation_zone_.get(), func_name_, func_index_),
         tf_.compilation_zone_.get(), Code::WASM_FUNCTION));
 
     tf_.job_.reset(Pipeline::NewWasmCompilationJob(
-        tf_.info_.get(), isolate_, tf_.jsgraph_, descriptor, source_positions,
-        protected_instructions_.get(), env_->module->origin()));
+        tf_.info_.get(), isolate_, tf_.jsgraph_, call_descriptor,
+        source_positions, protected_instructions_.get(),
+        env_->module->origin()));
     ok_ = tf_.job_->ExecuteJob() == CompilationJob::SUCCEEDED;
     // TODO(bradnelson): Improve histogram handling of size_t.
     counters()->wasm_compile_function_peak_memory_bytes()->AddSample(

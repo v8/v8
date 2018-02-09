@@ -2216,14 +2216,14 @@ void InstructionSelector::VisitFloat64LessThanOrEqual(Node* node) {
 }
 
 void InstructionSelector::EmitPrepareArguments(
-    ZoneVector<PushParameter>* arguments, const CallDescriptor* descriptor,
+    ZoneVector<PushParameter>* arguments, const CallDescriptor* call_descriptor,
     Node* node) {
   S390OperandGenerator g(this);
 
   // Prepare for C function call.
-  if (descriptor->IsCFunctionCall()) {
-    Emit(kArchPrepareCallCFunction |
-             MiscField::encode(static_cast<int>(descriptor->ParameterCount())),
+  if (call_descriptor->IsCFunctionCall()) {
+    Emit(kArchPrepareCallCFunction | MiscField::encode(static_cast<int>(
+                                         call_descriptor->ParameterCount())),
          0, nullptr, 0, nullptr);
 
     // Poke any stack arguments.
@@ -2536,9 +2536,9 @@ void InstructionSelector::VisitF32x4ExtractLane(Node* node) { UNIMPLEMENTED(); }
 
 void InstructionSelector::VisitF32x4ReplaceLane(Node* node) { UNIMPLEMENTED(); }
 
-void InstructionSelector::EmitPrepareResults(ZoneVector<PushParameter>* results,
-                                             const CallDescriptor* descriptor,
-                                             Node* node) {
+void InstructionSelector::EmitPrepareResults(
+    ZoneVector<PushParameter>* results, const CallDescriptor* call_descriptor,
+    Node* node) {
   // TODO(John): Port.
 }
 

@@ -315,10 +315,10 @@ WasmFunctionWrapper::WasmFunctionWrapper(Zone* zone, int num_params)
   signature_ = sig_builder.Build();
 }
 
-void WasmFunctionWrapper::Init(CallDescriptor* descriptor,
+void WasmFunctionWrapper::Init(CallDescriptor* call_descriptor,
                                MachineType return_type,
                                Vector<MachineType> param_types) {
-  DCHECK_NOT_NULL(descriptor);
+  DCHECK_NOT_NULL(call_descriptor);
   DCHECK_EQ(signature_->parameter_count(), param_types.length() + 1);
 
   // Create the TF graph for the wrapper.
@@ -349,8 +349,8 @@ void WasmFunctionWrapper::Init(CallDescriptor* descriptor,
 
   parameters[parameter_count++] = effect;
   parameters[parameter_count++] = graph()->start();
-  Node* call =
-      graph()->NewNode(common()->Call(descriptor), parameter_count, parameters);
+  Node* call = graph()->NewNode(common()->Call(call_descriptor),
+                                parameter_count, parameters);
 
   if (!return_type.IsNone()) {
     effect = graph()->NewNode(
@@ -373,7 +373,7 @@ Handle<Code> WasmFunctionWrapper::GetWrapperCode() {
   if (code_.is_null()) {
     Isolate* isolate = CcTest::InitIsolateOnce();
 
-    CallDescriptor* descriptor =
+    auto call_descriptor =
         compiler::Linkage::GetSimplifiedCDescriptor(zone(), signature_, true);
 
     if (kPointerSize == 4) {
@@ -394,7 +394,7 @@ Handle<Code> WasmFunctionWrapper::GetWrapperCode() {
     CompilationInfo info(ArrayVector("testing"), graph()->zone(),
                          Code::C_WASM_ENTRY);
     code_ = compiler::Pipeline::GenerateCodeForTesting(
-        &info, isolate, descriptor, graph(), nullptr);
+        &info, isolate, call_descriptor, graph(), nullptr);
     CHECK(!code_.is_null());
 #ifdef ENABLE_DISASSEMBLER
     if (FLAG_print_opt_code) {

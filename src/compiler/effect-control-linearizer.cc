@@ -1365,10 +1365,10 @@ void EffectControlLinearizer::LowerCheckMaps(Node* node, Node* frame_state) {
 
       Operator::Properties properties = Operator::kNoDeopt | Operator::kNoThrow;
       Runtime::FunctionId id = Runtime::kTryMigrateInstance;
-      CallDescriptor const* desc = Linkage::GetRuntimeCallDescriptor(
+      auto call_descriptor = Linkage::GetRuntimeCallDescriptor(
           graph()->zone(), id, 1, properties, CallDescriptor::kNoFlags);
       Node* result =
-          __ Call(desc, __ CEntryStubConstant(1), value,
+          __ Call(call_descriptor, __ CEntryStubConstant(1), value,
                   __ ExternalConstant(ExternalReference(id, isolate())),
                   __ Int32Constant(1), __ NoContextConstant());
       Node* check = ObjectIsSmi(result);
@@ -2043,9 +2043,9 @@ Node* EffectControlLinearizer::LowerNumberToString(Node* node) {
       Builtins::CallableFor(isolate(), Builtins::kNumberToString);
   Operator::Properties properties = Operator::kEliminatable;
   CallDescriptor::Flags flags = CallDescriptor::kNoFlags;
-  CallDescriptor* desc = Linkage::GetStubCallDescriptor(
+  auto call_descriptor = Linkage::GetStubCallDescriptor(
       isolate(), graph()->zone(), callable.descriptor(), 0, flags, properties);
-  return __ Call(desc, __ HeapConstant(callable.code()), argument,
+  return __ Call(call_descriptor, __ HeapConstant(callable.code()), argument,
                  __ NoContextConstant());
 }
 
@@ -2380,9 +2380,9 @@ Node* EffectControlLinearizer::LowerTypeOf(Node* node) {
   Callable const callable = Builtins::CallableFor(isolate(), Builtins::kTypeof);
   Operator::Properties const properties = Operator::kEliminatable;
   CallDescriptor::Flags const flags = CallDescriptor::kNoAllocate;
-  CallDescriptor* desc = Linkage::GetStubCallDescriptor(
+  auto call_descriptor = Linkage::GetStubCallDescriptor(
       isolate(), graph()->zone(), callable.descriptor(), 0, flags, properties);
-  return __ Call(desc, __ HeapConstant(callable.code()), obj,
+  return __ Call(call_descriptor, __ HeapConstant(callable.code()), obj,
                  __ NoContextConstant());
 }
 
@@ -2392,9 +2392,9 @@ Node* EffectControlLinearizer::LowerClassOf(Node* node) {
       Builtins::CallableFor(isolate(), Builtins::kClassOf);
   Operator::Properties const properties = Operator::kEliminatable;
   CallDescriptor::Flags const flags = CallDescriptor::kNoAllocate;
-  CallDescriptor* desc = Linkage::GetStubCallDescriptor(
+  auto call_descriptor = Linkage::GetStubCallDescriptor(
       isolate(), graph()->zone(), callable.descriptor(), 0, flags, properties);
-  return __ Call(desc, __ HeapConstant(callable.code()), obj,
+  return __ Call(call_descriptor, __ HeapConstant(callable.code()), obj,
                  __ NoContextConstant());
 }
 
@@ -2404,9 +2404,9 @@ Node* EffectControlLinearizer::LowerToBoolean(Node* node) {
       Builtins::CallableFor(isolate(), Builtins::kToBoolean);
   Operator::Properties const properties = Operator::kEliminatable;
   CallDescriptor::Flags const flags = CallDescriptor::kNoAllocate;
-  CallDescriptor* desc = Linkage::GetStubCallDescriptor(
+  auto call_descriptor = Linkage::GetStubCallDescriptor(
       isolate(), graph()->zone(), callable.descriptor(), 0, flags, properties);
-  return __ Call(desc, __ HeapConstant(callable.code()), obj,
+  return __ Call(call_descriptor, __ HeapConstant(callable.code()), obj,
                  __ NoContextConstant());
 }
 
@@ -2584,10 +2584,10 @@ Node* EffectControlLinearizer::LowerNewArgumentsElements(Node* node) {
       Builtins::CallableFor(isolate(), Builtins::kNewArgumentsElements);
   Operator::Properties const properties = node->op()->properties();
   CallDescriptor::Flags const flags = CallDescriptor::kNoFlags;
-  CallDescriptor* desc = Linkage::GetStubCallDescriptor(
+  auto call_descriptor = Linkage::GetStubCallDescriptor(
       isolate(), graph()->zone(), callable.descriptor(), 0, flags, properties);
-  return __ Call(desc, __ HeapConstant(callable.code()), frame, length,
-                 __ SmiConstant(mapped_count), __ NoContextConstant());
+  return __ Call(call_descriptor, __ HeapConstant(callable.code()), frame,
+                 length, __ SmiConstant(mapped_count), __ NoContextConstant());
 }
 
 Node* EffectControlLinearizer::LowerNewConsString(Node* node) {
@@ -2657,9 +2657,9 @@ Node* EffectControlLinearizer::LowerSameValue(Node* node) {
       Builtins::CallableFor(isolate(), Builtins::kSameValue);
   Operator::Properties properties = Operator::kEliminatable;
   CallDescriptor::Flags flags = CallDescriptor::kNoFlags;
-  CallDescriptor* desc = Linkage::GetStubCallDescriptor(
+  auto call_descriptor = Linkage::GetStubCallDescriptor(
       isolate(), graph()->zone(), callable.descriptor(), 0, flags, properties);
-  return __ Call(desc, __ HeapConstant(callable.code()), lhs, rhs,
+  return __ Call(call_descriptor, __ HeapConstant(callable.code()), lhs, rhs,
                  __ NoContextConstant());
 }
 
@@ -2679,9 +2679,9 @@ Node* EffectControlLinearizer::LowerStringToNumber(Node* node) {
       Builtins::CallableFor(isolate(), Builtins::kStringToNumber);
   Operator::Properties properties = Operator::kEliminatable;
   CallDescriptor::Flags flags = CallDescriptor::kNoFlags;
-  CallDescriptor* desc = Linkage::GetStubCallDescriptor(
+  auto call_descriptor = Linkage::GetStubCallDescriptor(
       isolate(), graph()->zone(), callable.descriptor(), 0, flags, properties);
-  return __ Call(desc, __ HeapConstant(callable.code()), string,
+  return __ Call(call_descriptor, __ HeapConstant(callable.code()), string,
                  __ NoContextConstant());
 }
 
@@ -2693,10 +2693,10 @@ Node* EffectControlLinearizer::LowerStringCharAt(Node* node) {
       Builtins::CallableFor(isolate(), Builtins::kStringCharAt);
   Operator::Properties properties = Operator::kNoThrow | Operator::kNoWrite;
   CallDescriptor::Flags flags = CallDescriptor::kNoFlags;
-  CallDescriptor* desc = Linkage::GetStubCallDescriptor(
+  auto call_descriptor = Linkage::GetStubCallDescriptor(
       isolate(), graph()->zone(), callable.descriptor(), 0, flags, properties);
-  return __ Call(desc, __ HeapConstant(callable.code()), receiver, position,
-                 __ NoContextConstant());
+  return __ Call(call_descriptor, __ HeapConstant(callable.code()), receiver,
+                 position, __ NoContextConstant());
 }
 
 Node* EffectControlLinearizer::LowerStringCharCodeAt(Node* node) {
@@ -2823,12 +2823,13 @@ Node* EffectControlLinearizer::LowerStringCharCodeAt(Node* node) {
     {
       Operator::Properties properties = Operator::kNoDeopt | Operator::kNoThrow;
       Runtime::FunctionId id = Runtime::kStringCharCodeAt;
-      CallDescriptor const* desc = Linkage::GetRuntimeCallDescriptor(
+      auto call_descriptor = Linkage::GetRuntimeCallDescriptor(
           graph()->zone(), id, 2, properties, CallDescriptor::kNoFlags);
-      Node* result = __ Call(
-          desc, __ CEntryStubConstant(1), receiver, ChangeInt32ToSmi(position),
-          __ ExternalConstant(ExternalReference(id, isolate())),
-          __ Int32Constant(2), __ NoContextConstant());
+      Node* result =
+          __ Call(call_descriptor, __ CEntryStubConstant(1), receiver,
+                  ChangeInt32ToSmi(position),
+                  __ ExternalConstant(ExternalReference(id, isolate())),
+                  __ Int32Constant(2), __ NoContextConstant());
       __ Goto(&loop_done, ChangeSmiToInt32(result));
     }
 
@@ -2851,11 +2852,11 @@ Node* EffectControlLinearizer::LowerStringCodePointAt(
   Callable const callable = Builtins::CallableFor(isolate(), builtin);
   Operator::Properties properties = Operator::kNoThrow | Operator::kNoWrite;
   CallDescriptor::Flags flags = CallDescriptor::kNoFlags;
-  CallDescriptor* desc = Linkage::GetStubCallDescriptor(
+  auto call_descriptor = Linkage::GetStubCallDescriptor(
       isolate(), graph()->zone(), callable.descriptor(), 0, flags, properties,
       MachineType::TaggedSigned());
-  return __ Call(desc, __ HeapConstant(callable.code()), receiver, position,
-                 __ NoContextConstant());
+  return __ Call(call_descriptor, __ HeapConstant(callable.code()), receiver,
+                 position, __ NoContextConstant());
 }
 
 Node* EffectControlLinearizer::LoadFromSeqString(Node* receiver, Node* position,
@@ -2994,12 +2995,12 @@ Node* EffectControlLinearizer::LowerStringFromCharCode(Node* node) {
   {
     Operator::Properties properties = Operator::kNoDeopt | Operator::kNoThrow;
     Runtime::FunctionId id = Runtime::kStringCharFromCode;
-    CallDescriptor const* desc = Linkage::GetRuntimeCallDescriptor(
+    auto call_descriptor = Linkage::GetRuntimeCallDescriptor(
         graph()->zone(), id, 1, properties, CallDescriptor::kNoFlags);
-    Node* vtrue1 =
-        __ Call(desc, __ CEntryStubConstant(1), ChangeInt32ToSmi(code),
-                __ ExternalConstant(ExternalReference(id, isolate())),
-                __ Int32Constant(1), __ NoContextConstant());
+    Node* vtrue1 = __ Call(
+        call_descriptor, __ CEntryStubConstant(1), ChangeInt32ToSmi(code),
+        __ ExternalConstant(ExternalReference(id, isolate())),
+        __ Int32Constant(1), __ NoContextConstant());
     __ Goto(&done, vtrue1);
   }
   __ Bind(&done);
@@ -3015,9 +3016,9 @@ Node* EffectControlLinearizer::LowerStringToLowerCaseIntl(Node* node) {
       Builtins::CallableFor(isolate(), Builtins::kStringToLowerCaseIntl);
   Operator::Properties properties = Operator::kNoDeopt | Operator::kNoThrow;
   CallDescriptor::Flags flags = CallDescriptor::kNoFlags;
-  CallDescriptor* desc = Linkage::GetStubCallDescriptor(
+  auto call_descriptor = Linkage::GetStubCallDescriptor(
       isolate(), graph()->zone(), callable.descriptor(), 0, flags, properties);
-  return __ Call(desc, __ HeapConstant(callable.code()), receiver,
+  return __ Call(call_descriptor, __ HeapConstant(callable.code()), receiver,
                  __ NoContextConstant());
 }
 
@@ -3025,9 +3026,9 @@ Node* EffectControlLinearizer::LowerStringToUpperCaseIntl(Node* node) {
   Node* receiver = node->InputAt(0);
   Operator::Properties properties = Operator::kNoDeopt | Operator::kNoThrow;
   Runtime::FunctionId id = Runtime::kStringToUpperCaseIntl;
-  CallDescriptor const* desc = Linkage::GetRuntimeCallDescriptor(
+  auto call_descriptor = Linkage::GetRuntimeCallDescriptor(
       graph()->zone(), id, 1, properties, CallDescriptor::kNoFlags);
-  return __ Call(desc, __ CEntryStubConstant(1), receiver,
+  return __ Call(call_descriptor, __ CEntryStubConstant(1), receiver,
                  __ ExternalConstant(ExternalReference(id, isolate())),
                  __ Int32Constant(1), __ NoContextConstant());
 }
@@ -3180,10 +3181,10 @@ Node* EffectControlLinearizer::LowerStringIndexOf(Node* node) {
       Builtins::CallableFor(isolate(), Builtins::kStringIndexOf);
   Operator::Properties properties = Operator::kEliminatable;
   CallDescriptor::Flags flags = CallDescriptor::kNoFlags;
-  CallDescriptor* desc = Linkage::GetStubCallDescriptor(
+  auto call_descriptor = Linkage::GetStubCallDescriptor(
       isolate(), graph()->zone(), callable.descriptor(), 0, flags, properties);
-  return __ Call(desc, __ HeapConstant(callable.code()), subject, search_string,
-                 position, __ NoContextConstant());
+  return __ Call(call_descriptor, __ HeapConstant(callable.code()), subject,
+                 search_string, position, __ NoContextConstant());
 }
 
 Node* EffectControlLinearizer::LowerStringLength(Node* node) {
@@ -3199,9 +3200,9 @@ Node* EffectControlLinearizer::LowerStringComparison(Callable const& callable,
 
   Operator::Properties properties = Operator::kEliminatable;
   CallDescriptor::Flags flags = CallDescriptor::kNoFlags;
-  CallDescriptor* desc = Linkage::GetStubCallDescriptor(
+  auto call_descriptor = Linkage::GetStubCallDescriptor(
       isolate(), graph()->zone(), callable.descriptor(), 0, flags, properties);
-  return __ Call(desc, __ HeapConstant(callable.code()), lhs, rhs,
+  return __ Call(call_descriptor, __ HeapConstant(callable.code()), lhs, rhs,
                  __ NoContextConstant());
 }
 
@@ -3308,10 +3309,10 @@ void EffectControlLinearizer::LowerCheckEqualsInternalizedString(
       builder.AddParam(MachineType::AnyTagged());
       Node* try_internalize_string_function = __ ExternalConstant(
           ExternalReference::try_internalize_string_function(isolate()));
-      CallDescriptor const* const desc =
+      auto call_descriptor =
           Linkage::GetSimplifiedCDescriptor(graph()->zone(), builder.Build());
-      Node* val_internalized =
-          __ Call(common()->Call(desc), try_internalize_string_function, val);
+      Node* val_internalized = __ Call(common()->Call(call_descriptor),
+                                       try_internalize_string_function, val);
 
       // Now see if the results match.
       __ DeoptimizeIfNot(DeoptimizeReason::kWrongName, VectorSlotPair(),
@@ -3486,10 +3487,10 @@ Node* EffectControlLinearizer::LowerEnsureWritableFastElements(Node* node) {
   Callable callable =
       Builtins::CallableFor(isolate(), Builtins::kCopyFastSmiOrObjectElements);
   CallDescriptor::Flags flags = CallDescriptor::kNoFlags;
-  CallDescriptor const* const desc = Linkage::GetStubCallDescriptor(
+  auto call_descriptor = Linkage::GetStubCallDescriptor(
       isolate(), graph()->zone(), callable.descriptor(), 0, flags, properties);
-  Node* result = __ Call(desc, __ HeapConstant(callable.code()), object,
-                         __ NoContextConstant());
+  Node* result = __ Call(call_descriptor, __ HeapConstant(callable.code()),
+                         object, __ NoContextConstant());
   __ Goto(&done, result);
 
   __ Bind(&done);
@@ -3522,11 +3523,12 @@ Node* EffectControlLinearizer::LowerMaybeGrowFastElements(Node* node,
           : Builtins::CallableFor(isolate(),
                                   Builtins::kGrowFastSmiOrObjectElements);
   CallDescriptor::Flags call_flags = CallDescriptor::kNoFlags;
-  CallDescriptor const* const desc = Linkage::GetStubCallDescriptor(
+  auto call_descriptor = Linkage::GetStubCallDescriptor(
       isolate(), graph()->zone(), callable.descriptor(), 0, call_flags,
       properties);
-  Node* new_elements = __ Call(desc, __ HeapConstant(callable.code()), object,
-                               ChangeInt32ToSmi(index), __ NoContextConstant());
+  Node* new_elements =
+      __ Call(call_descriptor, __ HeapConstant(callable.code()), object,
+              ChangeInt32ToSmi(index), __ NoContextConstant());
 
   // Ensure that we were able to grow the {elements}.
   __ DeoptimizeIf(DeoptimizeReason::kCouldNotGrowElements, params.feedback(),
@@ -3565,9 +3567,9 @@ void EffectControlLinearizer::LowerTransitionElementsKind(Node* node) {
       // Instance migration, call out to the runtime for {object}.
       Operator::Properties properties = Operator::kNoDeopt | Operator::kNoThrow;
       Runtime::FunctionId id = Runtime::kTransitionElementsKind;
-      CallDescriptor const* desc = Linkage::GetRuntimeCallDescriptor(
+      auto call_descriptor = Linkage::GetRuntimeCallDescriptor(
           graph()->zone(), id, 2, properties, CallDescriptor::kNoFlags);
-      __ Call(desc, __ CEntryStubConstant(1), object, target_map,
+      __ Call(call_descriptor, __ CEntryStubConstant(1), object, target_map,
               __ ExternalConstant(ExternalReference(id, isolate())),
               __ Int32Constant(2), __ NoContextConstant());
       break;
@@ -3742,9 +3744,9 @@ void EffectControlLinearizer::TransitionElementsTo(Node* node, Node* array,
     // Instance migration, call out to the runtime for {array}.
     Operator::Properties properties = Operator::kNoDeopt | Operator::kNoThrow;
     Runtime::FunctionId id = Runtime::kTransitionElementsKind;
-    CallDescriptor const* desc = Linkage::GetRuntimeCallDescriptor(
+    auto call_descriptor = Linkage::GetRuntimeCallDescriptor(
         graph()->zone(), id, 2, properties, CallDescriptor::kNoFlags);
-    __ Call(desc, __ CEntryStubConstant(1), array, target_map,
+    __ Call(call_descriptor, __ CEntryStubConstant(1), array, target_map,
             __ ExternalConstant(ExternalReference(id, isolate())),
             __ Int32Constant(2), __ NoContextConstant());
   }
@@ -4089,9 +4091,9 @@ void EffectControlLinearizer::LowerRuntimeAbort(Node* node) {
   AbortReason reason = AbortReasonOf(node->op());
   Operator::Properties properties = Operator::kNoDeopt | Operator::kNoThrow;
   Runtime::FunctionId id = Runtime::kAbort;
-  CallDescriptor const* desc = Linkage::GetRuntimeCallDescriptor(
+  auto call_descriptor = Linkage::GetRuntimeCallDescriptor(
       graph()->zone(), id, 1, properties, CallDescriptor::kNoFlags);
-  __ Call(desc, __ CEntryStubConstant(1),
+  __ Call(call_descriptor, __ CEntryStubConstant(1),
           jsgraph()->SmiConstant(static_cast<int>(reason)),
           __ ExternalConstant(ExternalReference(id, isolate())),
           __ Int32Constant(1), __ NoContextConstant());
@@ -4126,13 +4128,13 @@ Node* EffectControlLinearizer::LowerConvertReceiver(Node* node) {
       Operator::Properties properties = Operator::kEliminatable;
       Callable callable = Builtins::CallableFor(isolate(), Builtins::kToObject);
       CallDescriptor::Flags flags = CallDescriptor::kNoFlags;
-      CallDescriptor const* const desc = Linkage::GetStubCallDescriptor(
+      auto call_descriptor = Linkage::GetStubCallDescriptor(
           isolate(), graph()->zone(), callable.descriptor(), 0, flags,
           properties);
       Node* native_context = __ LoadField(
           AccessBuilder::ForJSGlobalProxyNativeContext(), global_proxy);
-      Node* result = __ Call(desc, __ HeapConstant(callable.code()), value,
-                             native_context);
+      Node* result = __ Call(call_descriptor, __ HeapConstant(callable.code()),
+                             value, native_context);
       __ Goto(&done_convert, result);
 
       __ Bind(&done_convert);
@@ -4162,13 +4164,13 @@ Node* EffectControlLinearizer::LowerConvertReceiver(Node* node) {
       Operator::Properties properties = Operator::kEliminatable;
       Callable callable = Builtins::CallableFor(isolate(), Builtins::kToObject);
       CallDescriptor::Flags flags = CallDescriptor::kNoFlags;
-      CallDescriptor const* const desc = Linkage::GetStubCallDescriptor(
+      auto call_descriptor = Linkage::GetStubCallDescriptor(
           isolate(), graph()->zone(), callable.descriptor(), 0, flags,
           properties);
       Node* native_context = __ LoadField(
           AccessBuilder::ForJSGlobalProxyNativeContext(), global_proxy);
-      Node* result = __ Call(desc, __ HeapConstant(callable.code()), value,
-                             native_context);
+      Node* result = __ Call(call_descriptor, __ HeapConstant(callable.code()),
+                             value, native_context);
       __ Goto(&done_convert, result);
 
       // Replace the {value} with the {global_proxy}.
@@ -4519,11 +4521,11 @@ Node* EffectControlLinearizer::LowerFindOrderedHashMapEntry(Node* node) {
         Builtins::CallableFor(isolate(), Builtins::kFindOrderedHashMapEntry);
     Operator::Properties const properties = node->op()->properties();
     CallDescriptor::Flags const flags = CallDescriptor::kNoFlags;
-    CallDescriptor* desc = Linkage::GetStubCallDescriptor(
+    auto call_descriptor = Linkage::GetStubCallDescriptor(
         isolate(), graph()->zone(), callable.descriptor(), 0, flags,
         properties);
-    return __ Call(desc, __ HeapConstant(callable.code()), table, key,
-                   __ NoContextConstant());
+    return __ Call(call_descriptor, __ HeapConstant(callable.code()), table,
+                   key, __ NoContextConstant());
   }
 }
 

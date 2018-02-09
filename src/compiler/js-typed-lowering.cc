@@ -573,13 +573,13 @@ Reduction JSTypedLowering::ReduceJSAdd(Node* node) {
     // JSAdd(x, y:string) => CallStub[StringAdd](x, y)
     Callable const callable =
         CodeFactory::StringAdd(isolate(), flags, NOT_TENURED);
-    CallDescriptor const* const desc = Linkage::GetStubCallDescriptor(
+    auto call_descriptor = Linkage::GetStubCallDescriptor(
         isolate(), graph()->zone(), callable.descriptor(), 0,
         CallDescriptor::kNeedsFrameState, properties);
     DCHECK_EQ(1, OperatorProperties::GetFrameStateInputCount(node->op()));
     node->InsertInput(graph()->zone(), 0,
                       jsgraph()->HeapConstant(callable.code()));
-    NodeProperties::ChangeOp(node, common()->Call(desc));
+    NodeProperties::ChangeOp(node, common()->Call(call_descriptor));
     return Changed(node);
   }
   return NoChange();
@@ -1092,12 +1092,13 @@ Reduction JSTypedLowering::ReduceJSToObject(Node* node) {
   {
     // Convert {receiver} using the ToObjectStub.
     Callable callable = Builtins::CallableFor(isolate(), Builtins::kToObject);
-    CallDescriptor const* const desc = Linkage::GetStubCallDescriptor(
+    auto call_descriptor = Linkage::GetStubCallDescriptor(
         isolate(), graph()->zone(), callable.descriptor(), 0,
         CallDescriptor::kNeedsFrameState, node->op()->properties());
-    rfalse = efalse = if_false = graph()->NewNode(
-        common()->Call(desc), jsgraph()->HeapConstant(callable.code()),
-        receiver, context, frame_state, efalse, if_false);
+    rfalse = efalse = if_false =
+        graph()->NewNode(common()->Call(call_descriptor),
+                         jsgraph()->HeapConstant(callable.code()), receiver,
+                         context, frame_state, efalse, if_false);
   }
 
   // Update potential {IfException} uses of {node} to point to the above
@@ -1491,10 +1492,10 @@ void ReduceBuiltin(Isolate* isolate, JSGraph* jsgraph, Node* node,
   static const int kReturnCount = 1;
   const char* debug_name = Builtins::name(builtin_index);
   Operator::Properties properties = node->op()->properties();
-  CallDescriptor* desc = Linkage::GetCEntryStubCallDescriptor(
+  auto call_descriptor = Linkage::GetCEntryStubCallDescriptor(
       zone, kReturnCount, argc, debug_name, properties, flags);
 
-  NodeProperties::ChangeOp(node, jsgraph->common()->Call(desc));
+  NodeProperties::ChangeOp(node, jsgraph->common()->Call(call_descriptor));
 }
 
 bool NeedsArgumentAdaptorFrame(Handle<SharedFunctionInfo> shared, int arity) {
@@ -1832,12 +1833,13 @@ Reduction JSTypedLowering::ReduceJSForInNext(Node* node) {
         // {receiver} (does the ToName conversion implicitly).
         Callable const callable =
             Builtins::CallableFor(isolate(), Builtins::kForInFilter);
-        CallDescriptor const* const desc = Linkage::GetStubCallDescriptor(
+        auto call_descriptor = Linkage::GetStubCallDescriptor(
             isolate(), graph()->zone(), callable.descriptor(), 0,
             CallDescriptor::kNeedsFrameState);
-        vfalse = efalse = if_false = graph()->NewNode(
-            common()->Call(desc), jsgraph()->HeapConstant(callable.code()), key,
-            receiver, context, frame_state, effect, if_false);
+        vfalse = efalse = if_false =
+            graph()->NewNode(common()->Call(call_descriptor),
+                             jsgraph()->HeapConstant(callable.code()), key,
+                             receiver, context, frame_state, effect, if_false);
 
         // Update potential {IfException} uses of {node} to point to the above
         // ForInFilter stub call node instead.

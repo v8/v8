@@ -631,9 +631,9 @@ constexpr int kWasmContextParameterIndex = 0;
 V8_EXPORT_PRIVATE CallDescriptor* GetWasmCallDescriptor(
     Zone* zone, wasm::FunctionSig* signature);
 V8_EXPORT_PRIVATE CallDescriptor* GetI32WasmCallDescriptor(
-    Zone* zone, CallDescriptor* descriptor);
+    Zone* zone, CallDescriptor* call_descriptor);
 V8_EXPORT_PRIVATE CallDescriptor* GetI32WasmCallDescriptorForSimd(
-    Zone* zone, CallDescriptor* descriptor);
+    Zone* zone, CallDescriptor* call_descriptor);
 
 }  // namespace compiler
 }  // namespace internal

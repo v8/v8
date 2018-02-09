@@ -1022,8 +1022,8 @@ class RepresentationSelector {
   }
 
   void VisitCall(Node* node, SimplifiedLowering* lowering) {
-    const CallDescriptor* desc = CallDescriptorOf(node->op());
-    int params = static_cast<int>(desc->ParameterCount());
+    auto call_descriptor = CallDescriptorOf(node->op());
+    int params = static_cast<int>(call_descriptor->ParameterCount());
     int value_input_count = node->op()->ValueInputCount();
     // Propagate representation information from call descriptor.
     for (int i = 0; i < value_input_count; i++) {
@@ -1033,15 +1033,15 @@ class RepresentationSelector {
       } else if ((i - 1) < params) {
         ProcessInput(node, i,
                      TruncatingUseInfoFromRepresentation(
-                         desc->GetInputType(i).representation()));
+                         call_descriptor->GetInputType(i).representation()));
       } else {
         ProcessInput(node, i, UseInfo::AnyTagged());
       }
     }
     ProcessRemainingInputs(node, value_input_count);
 
-    if (desc->ReturnCount() > 0) {
-      SetOutput(node, desc->GetReturnType(0).representation());
+    if (call_descriptor->ReturnCount() > 0) {
+      SetOutput(node, call_descriptor->GetReturnType(0).representation());
     } else {
       SetOutput(node, MachineRepresentation::kTagged);
     }
@@ -3828,10 +3828,10 @@ Operator const* SimplifiedLowering::ToNumberOperator() {
   if (!to_number_operator_.is_set()) {
     Callable callable = Builtins::CallableFor(isolate(), Builtins::kToNumber);
     CallDescriptor::Flags flags = CallDescriptor::kNeedsFrameState;
-    CallDescriptor* desc = Linkage::GetStubCallDescriptor(
+    auto call_descriptor = Linkage::GetStubCallDescriptor(
         isolate(), graph()->zone(), callable.descriptor(), 0, flags,
         Operator::kNoProperties);
-    to_number_operator_.set(common()->Call(desc));
+    to_number_operator_.set(common()->Call(call_descriptor));
   }
   return to_number_operator_.get();
 }
@@ -3840,10 +3840,10 @@ Operator const* SimplifiedLowering::ToNumericOperator() {
   if (!to_numeric_operator_.is_set()) {
     Callable callable = Builtins::CallableFor(isolate(), Builtins::kToNumeric);
     CallDescriptor::Flags flags = CallDescriptor::kNeedsFrameState;
-    CallDescriptor* desc = Linkage::GetStubCallDescriptor(
+    auto call_descriptor = Linkage::GetStubCallDescriptor(
         isolate(), graph()->zone(), callable.descriptor(), 0, flags,
         Operator::kNoProperties);
-    to_numeric_operator_.set(common()->Call(desc));
+    to_numeric_operator_.set(common()->Call(call_descriptor));
   }
   return to_numeric_operator_.get();
 }

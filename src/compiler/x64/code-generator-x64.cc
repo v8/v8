@@ -2833,8 +2833,8 @@ void CodeGenerator::AssembleArchTrap(Instruction* instr,
                              __ isolate()),
                          0);
         __ LeaveFrame(StackFrame::WASM_COMPILED);
-        CallDescriptor* descriptor = gen_->linkage()->GetIncomingDescriptor();
-        size_t pop_size = descriptor->StackParameterCount() * kPointerSize;
+        auto call_descriptor = gen_->linkage()->GetIncomingDescriptor();
+        size_t pop_size = call_descriptor->StackParameterCount() * kPointerSize;
         // Use rcx as a scratch register, we return anyways immediately.
         __ Ret(static_cast<int>(pop_size), rcx);
       } else {
@@ -2926,9 +2926,9 @@ static const int kQuadWordSize = 16;
 }  // namespace
 
 void CodeGenerator::FinishFrame(Frame* frame) {
-  CallDescriptor* descriptor = linkage()->GetIncomingDescriptor();
+  auto call_descriptor = linkage()->GetIncomingDescriptor();
 
-  const RegList saves_fp = descriptor->CalleeSavedFPRegisters();
+  const RegList saves_fp = call_descriptor->CalleeSavedFPRegisters();
   if (saves_fp != 0) {
     frame->AlignSavedCalleeRegisterSlots();
     if (saves_fp != 0) {  // Save callee-saved XMM registers.
@@ -2937,7 +2937,7 @@ void CodeGenerator::FinishFrame(Frame* frame) {
                                               (kQuadWordSize / kPointerSize));
     }
   }
-  const RegList saves = descriptor->CalleeSavedRegisters();
+  const RegList saves = call_descriptor->CalleeSavedRegisters();
   if (saves != 0) {  // Save callee-saved registers.
     int count = 0;
     for (int i = Register::kNumRegisters - 1; i >= 0; i--) {
@@ -2950,16 +2950,16 @@ void CodeGenerator::FinishFrame(Frame* frame) {
 }
 
 void CodeGenerator::AssembleConstructFrame() {
-  CallDescriptor* descriptor = linkage()->GetIncomingDescriptor();
+  auto call_descriptor = linkage()->GetIncomingDescriptor();
   if (frame_access_state()->has_frame()) {
     int pc_base = __ pc_offset();
 
-    if (descriptor->IsCFunctionCall()) {
+    if (call_descriptor->IsCFunctionCall()) {
       __ pushq(rbp);
       __ movq(rbp, rsp);
-    } else if (descriptor->IsJSFunctionCall()) {
+    } else if (call_descriptor->IsJSFunctionCall()) {
       __ Prologue();
-      if (descriptor->PushArgumentCount()) {
+      if (call_descriptor->PushArgumentCount()) {
         __ pushq(kJavaScriptCallArgCountRegister);
       }
     } else {
@@ -2968,8 +2968,8 @@ void CodeGenerator::AssembleConstructFrame() {
 
     unwinding_info_writer_.MarkFrameConstructed(pc_base);
   }
-  int shrink_slots =
-      frame()->GetTotalFrameSlotCount() - descriptor->CalculateFixedFrameSize();
+  int shrink_slots = frame()->GetTotalFrameSlotCount() -
+                     call_descriptor->CalculateFixedFrameSize();
 
   if (info()->is_osr()) {
     // TurboFan OSR-compiled functions cannot be entered directly.
@@ -2984,8 +2984,8 @@ void CodeGenerator::AssembleConstructFrame() {
     shrink_slots -= static_cast<int>(osr_helper()->UnoptimizedFrameSlots());
   }
 
-  const RegList saves = descriptor->CalleeSavedRegisters();
-  const RegList saves_fp = descriptor->CalleeSavedFPRegisters();
+  const RegList saves = call_descriptor->CalleeSavedRegisters();
+  const RegList saves_fp = call_descriptor->CalleeSavedFPRegisters();
 
   if (shrink_slots > 0) {
     if (info()->IsWasm() && shrink_slots > 128) {
@@ -3058,10 +3058,10 @@ void CodeGenerator::AssembleConstructFrame() {
 }
 
 void CodeGenerator::AssembleReturn(InstructionOperand* pop) {
-  CallDescriptor* descriptor = linkage()->GetIncomingDescriptor();
+  auto call_descriptor = linkage()->GetIncomingDescriptor();
 
   // Restore registers.
-  const RegList saves = descriptor->CalleeSavedRegisters();
+  const RegList saves = call_descriptor->CalleeSavedRegisters();
   if (saves != 0) {
     const int returns = frame()->GetReturnSlotCount();
     if (returns != 0) {
@@ -3072,7 +3072,7 @@ void CodeGenerator::AssembleReturn(InstructionOperand* pop) {
       __ popq(Register::from_code(i));
     }
   }
-  const RegList saves_fp = descriptor->CalleeSavedFPRegisters();
+  const RegList saves_fp = call_descriptor->CalleeSavedFPRegisters();
   if (saves_fp != 0) {
     const uint32_t saves_fp_count = base::bits::CountPopulation(saves_fp);
     const int stack_size = saves_fp_count * kQuadWordSize;
@@ -3092,11 +3092,11 @@ void CodeGenerator::AssembleReturn(InstructionOperand* pop) {
 
   // Might need rcx for scratch if pop_size is too big or if there is a variable
   // pop count.
-  DCHECK_EQ(0u, descriptor->CalleeSavedRegisters() & rcx.bit());
-  DCHECK_EQ(0u, descriptor->CalleeSavedRegisters() & rdx.bit());
-  size_t pop_size = descriptor->StackParameterCount() * kPointerSize;
+  DCHECK_EQ(0u, call_descriptor->CalleeSavedRegisters() & rcx.bit());
+  DCHECK_EQ(0u, call_descriptor->CalleeSavedRegisters() & rdx.bit());
+  size_t pop_size = call_descriptor->StackParameterCount() * kPointerSize;
   X64OperandConverter g(this, nullptr);
-  if (descriptor->IsCFunctionCall()) {
+  if (call_descriptor->IsCFunctionCall()) {
     AssembleDeconstructFrame();
   } else if (frame_access_state()->has_frame()) {
     if (pop->IsImmediate() && g.ToConstant(pop).ToInt32() == 0) {

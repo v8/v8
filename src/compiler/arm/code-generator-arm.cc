@@ -2725,8 +2725,9 @@ void CodeGenerator::AssembleArchTrap(Instruction* instr,
                              __ isolate()),
                          0);
         __ LeaveFrame(StackFrame::WASM_COMPILED);
-        CallDescriptor* descriptor = gen_->linkage()->GetIncomingDescriptor();
-        int pop_count = static_cast<int>(descriptor->StackParameterCount());
+        auto call_descriptor = gen_->linkage()->GetIncomingDescriptor();
+        int pop_count =
+            static_cast<int>(call_descriptor->StackParameterCount());
         __ Drop(pop_count);
         __ Ret();
       } else {
@@ -2796,9 +2797,9 @@ void CodeGenerator::AssembleArchTableSwitch(Instruction* instr) {
 }
 
 void CodeGenerator::FinishFrame(Frame* frame) {
-  CallDescriptor* descriptor = linkage()->GetIncomingDescriptor();
+  auto call_descriptor = linkage()->GetIncomingDescriptor();
 
-  const RegList saves_fp = descriptor->CalleeSavedFPRegisters();
+  const RegList saves_fp = call_descriptor->CalleeSavedFPRegisters();
   if (saves_fp != 0) {
     frame->AlignSavedCalleeRegisterSlots();
   }
@@ -2812,7 +2813,7 @@ void CodeGenerator::FinishFrame(Frame* frame) {
     frame->AllocateSavedCalleeRegisterSlots((last - first + 1) *
                                             (kDoubleSize / kPointerSize));
   }
-  const RegList saves = descriptor->CalleeSavedRegisters();
+  const RegList saves = call_descriptor->CalleeSavedRegisters();
   if (saves != 0) {
     // Save callee-saved registers.
     frame->AllocateSavedCalleeRegisterSlots(base::bits::CountPopulation(saves));
@@ -2820,14 +2821,14 @@ void CodeGenerator::FinishFrame(Frame* frame) {
 }
 
 void CodeGenerator::AssembleConstructFrame() {
-  CallDescriptor* descriptor = linkage()->GetIncomingDescriptor();
+  auto call_descriptor = linkage()->GetIncomingDescriptor();
   if (frame_access_state()->has_frame()) {
-    if (descriptor->IsCFunctionCall()) {
+    if (call_descriptor->IsCFunctionCall()) {
       __ Push(lr, fp);
       __ mov(fp, sp);
-    } else if (descriptor->IsJSFunctionCall()) {
+    } else if (call_descriptor->IsJSFunctionCall()) {
       __ Prologue();
-      if (descriptor->PushArgumentCount()) {
+      if (call_descriptor->PushArgumentCount()) {
         __ Push(kJavaScriptCallArgCountRegister);
       }
     } else {
@@ -2837,8 +2838,8 @@ void CodeGenerator::AssembleConstructFrame() {
     unwinding_info_writer_.MarkFrameConstructed(__ pc_offset());
   }
 
-  int shrink_slots =
-      frame()->GetTotalFrameSlotCount() - descriptor->CalculateFixedFrameSize();
+  int shrink_slots = frame()->GetTotalFrameSlotCount() -
+                     call_descriptor->CalculateFixedFrameSize();
 
   if (info()->is_osr()) {
     // TurboFan OSR-compiled functions cannot be entered directly.
@@ -2853,8 +2854,8 @@ void CodeGenerator::AssembleConstructFrame() {
     shrink_slots -= osr_helper()->UnoptimizedFrameSlots();
   }
 
-  const RegList saves = descriptor->CalleeSavedRegisters();
-  const RegList saves_fp = descriptor->CalleeSavedFPRegisters();
+  const RegList saves = call_descriptor->CalleeSavedRegisters();
+  const RegList saves_fp = call_descriptor->CalleeSavedFPRegisters();
 
   if (shrink_slots > 0) {
     if (info()->IsWasm()) {
@@ -2932,8 +2933,8 @@ void CodeGenerator::AssembleConstructFrame() {
 }
 
 void CodeGenerator::AssembleReturn(InstructionOperand* pop) {
-  CallDescriptor* descriptor = linkage()->GetIncomingDescriptor();
-  int pop_count = static_cast<int>(descriptor->StackParameterCount());
+  auto call_descriptor = linkage()->GetIncomingDescriptor();
+  int pop_count = static_cast<int>(call_descriptor->StackParameterCount());
 
   const int returns = frame()->GetReturnSlotCount();
   if (returns != 0) {
@@ -2942,13 +2943,13 @@ void CodeGenerator::AssembleReturn(InstructionOperand* pop) {
   }
 
   // Restore registers.
-  const RegList saves = descriptor->CalleeSavedRegisters();
+  const RegList saves = call_descriptor->CalleeSavedRegisters();
   if (saves != 0) {
     __ ldm(ia_w, sp, saves);
   }
 
   // Restore FP registers.
-  const RegList saves_fp = descriptor->CalleeSavedFPRegisters();
+  const RegList saves_fp = call_descriptor->CalleeSavedFPRegisters();
   if (saves_fp != 0) {
     STATIC_ASSERT(DwVfpRegister::kNumRegisters == 32);
     uint32_t last = base::bits::CountLeadingZeros32(saves_fp) - 1;
@@ -2960,7 +2961,7 @@ void CodeGenerator::AssembleReturn(InstructionOperand* pop) {
   unwinding_info_writer_.MarkBlockWillExit();
 
   ArmOperandConverter g(this, nullptr);
-  if (descriptor->IsCFunctionCall()) {
+  if (call_descriptor->IsCFunctionCall()) {
     AssembleDeconstructFrame();
   } else if (frame_access_state()->has_frame()) {
     // Canonicalize JSFunction return sites for now unless they have an variable

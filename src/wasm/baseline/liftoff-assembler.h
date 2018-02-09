@@ -412,8 +412,8 @@ class LiftoffAssembler : public TurboAssembler {
   // TODO(clemensh): Remove {max_used_spill_slot} once we support arbitrary
   // stack sizes.
   inline void CallIndirect(wasm::FunctionSig* sig,
-                           compiler::CallDescriptor* call_desc, Register target,
-                           uint32_t* max_used_spill_slot);
+                           compiler::CallDescriptor* call_descriptor,
+                           Register target, uint32_t* max_used_spill_slot);
 
   // Reserve space in the current frame, store address to space in {addr}.
   inline void AllocateStackSlot(Register addr, uint32_t size);

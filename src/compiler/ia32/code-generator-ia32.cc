@@ -3148,8 +3148,8 @@ void CodeGenerator::AssembleArchTrap(Instruction* instr,
                              __ isolate()),
                          0);
         __ LeaveFrame(StackFrame::WASM_COMPILED);
-        CallDescriptor* descriptor = gen_->linkage()->GetIncomingDescriptor();
-        size_t pop_size = descriptor->StackParameterCount() * kPointerSize;
+        auto call_descriptor = gen_->linkage()->GetIncomingDescriptor();
+        size_t pop_size = call_descriptor->StackParameterCount() * kPointerSize;
         // Use ecx as a scratch register, we return anyways immediately.
         __ Ret(static_cast<int>(pop_size), ecx);
       } else {
@@ -3375,8 +3375,8 @@ void CodeGenerator::AssembleArchTableSwitch(Instruction* instr) {
 //                                            ^ esp                        ^ ebp
 
 void CodeGenerator::FinishFrame(Frame* frame) {
-  CallDescriptor* descriptor = linkage()->GetIncomingDescriptor();
-  const RegList saves = descriptor->CalleeSavedRegisters();
+  auto call_descriptor = linkage()->GetIncomingDescriptor();
+  const RegList saves = call_descriptor->CalleeSavedRegisters();
   if (saves != 0) {  // Save callee-saved registers.
     DCHECK(!info()->is_osr());
     int pushed = 0;
@@ -3389,14 +3389,14 @@ void CodeGenerator::FinishFrame(Frame* frame) {
 }
 
 void CodeGenerator::AssembleConstructFrame() {
-  CallDescriptor* descriptor = linkage()->GetIncomingDescriptor();
+  auto call_descriptor = linkage()->GetIncomingDescriptor();
   if (frame_access_state()->has_frame()) {
-    if (descriptor->IsCFunctionCall()) {
+    if (call_descriptor->IsCFunctionCall()) {
       __ push(ebp);
       __ mov(ebp, esp);
-    } else if (descriptor->IsJSFunctionCall()) {
+    } else if (call_descriptor->IsJSFunctionCall()) {
       __ Prologue();
-      if (descriptor->PushArgumentCount()) {
+      if (call_descriptor->PushArgumentCount()) {
         __ push(kJavaScriptCallArgCountRegister);
       }
     } else {
@@ -3404,8 +3404,8 @@ void CodeGenerator::AssembleConstructFrame() {
     }
   }
 
-  int shrink_slots =
-      frame()->GetTotalFrameSlotCount() - descriptor->CalculateFixedFrameSize();
+  int shrink_slots = frame()->GetTotalFrameSlotCount() -
+                     call_descriptor->CalculateFixedFrameSize();
 
   if (info()->is_osr()) {
     // TurboFan OSR-compiled functions cannot be entered directly.
@@ -3420,7 +3420,7 @@ void CodeGenerator::AssembleConstructFrame() {
     shrink_slots -= osr_helper()->UnoptimizedFrameSlots();
   }
 
-  const RegList saves = descriptor->CalleeSavedRegisters();
+  const RegList saves = call_descriptor->CalleeSavedRegisters();
   if (shrink_slots > 0) {
     if (info()->IsWasm() && shrink_slots > 128) {
       // For WebAssembly functions with big frames we have to do the stack
@@ -3479,9 +3479,9 @@ void CodeGenerator::AssembleConstructFrame() {
 }
 
 void CodeGenerator::AssembleReturn(InstructionOperand* pop) {
-  CallDescriptor* descriptor = linkage()->GetIncomingDescriptor();
+  auto call_descriptor = linkage()->GetIncomingDescriptor();
 
-  const RegList saves = descriptor->CalleeSavedRegisters();
+  const RegList saves = call_descriptor->CalleeSavedRegisters();
   // Restore registers.
   if (saves != 0) {
     const int returns = frame()->GetReturnSlotCount();
@@ -3496,10 +3496,10 @@ void CodeGenerator::AssembleReturn(InstructionOperand* pop) {
 
   // Might need ecx for scratch if pop_size is too big or if there is a variable
   // pop count.
-  DCHECK_EQ(0u, descriptor->CalleeSavedRegisters() & ecx.bit());
-  size_t pop_size = descriptor->StackParameterCount() * kPointerSize;
+  DCHECK_EQ(0u, call_descriptor->CalleeSavedRegisters() & ecx.bit());
+  size_t pop_size = call_descriptor->StackParameterCount() * kPointerSize;
   IA32OperandConverter g(this, nullptr);
-  if (descriptor->IsCFunctionCall()) {
+  if (call_descriptor->IsCFunctionCall()) {
     AssembleDeconstructFrame();
   } else if (frame_access_state()->has_frame()) {
     // Canonicalize JSFunction return sites for now if they always have the same
@@ -3516,8 +3516,8 @@ void CodeGenerator::AssembleReturn(InstructionOperand* pop) {
       AssembleDeconstructFrame();
     }
   }
-  DCHECK_EQ(0u, descriptor->CalleeSavedRegisters() & edx.bit());
-  DCHECK_EQ(0u, descriptor->CalleeSavedRegisters() & ecx.bit());
+  DCHECK_EQ(0u, call_descriptor->CalleeSavedRegisters() & edx.bit());
+  DCHECK_EQ(0u, call_descriptor->CalleeSavedRegisters() & ecx.bit());
   if (pop->IsImmediate()) {
     DCHECK_EQ(Constant::kInt32, g.ToConstant(pop).type());
     pop_size += g.ToConstant(pop).ToInt32() * kPointerSize;

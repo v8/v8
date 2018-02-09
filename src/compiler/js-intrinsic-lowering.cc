@@ -420,12 +420,12 @@ Reduction JSIntrinsicLowering::Change(Node* node, const Operator* op, Node* a,
 
 Reduction JSIntrinsicLowering::Change(Node* node, Callable const& callable,
                                       int stack_parameter_count) {
-  CallDescriptor const* const desc = Linkage::GetStubCallDescriptor(
+  auto call_descriptor = Linkage::GetStubCallDescriptor(
       isolate(), graph()->zone(), callable.descriptor(), stack_parameter_count,
       CallDescriptor::kNeedsFrameState, node->op()->properties());
   node->InsertInput(graph()->zone(), 0,
                     jsgraph()->HeapConstant(callable.code()));
-  NodeProperties::ChangeOp(node, common()->Call(desc));
+  NodeProperties::ChangeOp(node, common()->Call(call_descriptor));
   return Changed(node);
 }
 

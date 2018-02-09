@@ -1683,7 +1683,7 @@ void InstructionSelector::VisitFloat64Ieee754Unop(Node* node,
 }
 
 void InstructionSelector::EmitPrepareArguments(
-    ZoneVector<PushParameter>* arguments, const CallDescriptor* descriptor,
+    ZoneVector<PushParameter>* arguments, const CallDescriptor* call_descriptor,
     Node* node) {
   Arm64OperandGenerator g(this);
 
@@ -1723,9 +1723,9 @@ void InstructionSelector::EmitPrepareArguments(
   }
 }
 
-void InstructionSelector::EmitPrepareResults(ZoneVector<PushParameter>* results,
-                                             const CallDescriptor* descriptor,
-                                             Node* node) {
+void InstructionSelector::EmitPrepareResults(
+    ZoneVector<PushParameter>* results, const CallDescriptor* call_descriptor,
+    Node* node) {
   Arm64OperandGenerator g(this);
 
   int reverse_slot = 0;
@@ -1734,7 +1734,7 @@ void InstructionSelector::EmitPrepareResults(ZoneVector<PushParameter>* results,
     reverse_slot += output.location.GetSizeInPointers();
     // Skip any alignment holes in nodes.
     if (output.node == nullptr) continue;
-    DCHECK(!descriptor->IsCFunctionCall());
+    DCHECK(!call_descriptor->IsCFunctionCall());
 
     if (output.location.GetType() == MachineType::Float32()) {
       MarkAsFloat32(output.node);

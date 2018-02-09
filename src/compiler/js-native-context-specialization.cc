@@ -1644,7 +1644,7 @@ Node* JSNativeContextSpecialization::InlineApiCall(
   CallApiCallbackStub stub(isolate(), argc);
   CallInterfaceDescriptor call_interface_descriptor =
       stub.GetCallInterfaceDescriptor();
-  CallDescriptor* call_descriptor = Linkage::GetStubCallDescriptor(
+  auto call_descriptor = Linkage::GetStubCallDescriptor(
       isolate(), graph()->zone(), call_interface_descriptor,
       call_interface_descriptor.GetStackParameterCount() + argc +
           1 /* implicit receiver */,

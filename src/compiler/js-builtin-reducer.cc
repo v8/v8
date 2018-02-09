@@ -1029,12 +1029,13 @@ Reduction JSBuiltinReducer::ReduceCollectionIteratorNext(
         receiver, effect, control);
     Callable const callable =
         Builtins::CallableFor(isolate(), Builtins::kOrderedHashTableHealIndex);
-    CallDescriptor const* const desc = Linkage::GetStubCallDescriptor(
+    auto call_descriptor = Linkage::GetStubCallDescriptor(
         isolate(), graph()->zone(), callable.descriptor(), 0,
         CallDescriptor::kNoFlags, Operator::kEliminatable);
-    index = effect = graph()->NewNode(
-        common()->Call(desc), jsgraph()->HeapConstant(callable.code()), table,
-        index, jsgraph()->NoContextConstant(), effect);
+    index = effect =
+        graph()->NewNode(common()->Call(call_descriptor),
+                         jsgraph()->HeapConstant(callable.code()), table, index,
+                         jsgraph()->NoContextConstant(), effect);
     NodeProperties::SetType(index, type_cache_.kFixedArrayLengthType);
 
     // Update the {index} and {table} on the {receiver}.
@@ -1972,13 +1973,13 @@ Reduction JSBuiltinReducer::ReduceStringConcat(Node* node) {
       // builtin instead of the calling function.
       Callable const callable =
           CodeFactory::StringAdd(isolate(), flags, NOT_TENURED);
-      CallDescriptor const* const desc = Linkage::GetStubCallDescriptor(
+      auto call_descriptor = Linkage::GetStubCallDescriptor(
           isolate(), graph()->zone(), callable.descriptor(), 0,
           CallDescriptor::kNeedsFrameState,
           Operator::kNoDeopt | Operator::kNoWrite);
       node->ReplaceInput(0, jsgraph()->HeapConstant(callable.code()));
       node->ReplaceInput(1, receiver);
-      NodeProperties::ChangeOp(node, common()->Call(desc));
+      NodeProperties::ChangeOp(node, common()->Call(call_descriptor));
       return Changed(node);
     }
   }

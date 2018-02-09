@@ -362,7 +362,7 @@ TARGET_TEST_F(InstructionSelectorTest, CallJSFunctionWithDeopt) {
   ZoneVector<MachineType> int32_type(1, MachineType::Int32(), zone());
   ZoneVector<MachineType> empty_types(zone());
 
-  CallDescriptor* descriptor = Linkage::GetJSCallDescriptor(
+  auto call_descriptor = Linkage::GetJSCallDescriptor(
       zone(), false, 1, CallDescriptor::kNeedsFrameState);
 
   // Build frame state for the state before the call.
@@ -383,7 +383,7 @@ TARGET_TEST_F(InstructionSelectorTest, CallJSFunctionWithDeopt) {
   // Build the call.
   Node* nodes[] = {function_node,      receiver, m.UndefinedConstant(),
                    m.Int32Constant(1), context,  state_node};
-  Node* call = m.CallNWithFrameState(descriptor, arraysize(nodes), nodes);
+  Node* call = m.CallNWithFrameState(call_descriptor, arraysize(nodes), nodes);
   m.Return(call);
 
   Stream s = m.Build(kAllExceptNopInstructions);
@@ -419,7 +419,7 @@ TARGET_TEST_F(InstructionSelectorTest, CallStubWithDeopt) {
   ZoneVector<MachineType> tagged_type(1, MachineType::AnyTagged(), zone());
 
   Callable callable = Builtins::CallableFor(isolate(), Builtins::kToObject);
-  CallDescriptor* descriptor = Linkage::GetStubCallDescriptor(
+  auto call_descriptor = Linkage::GetStubCallDescriptor(
       isolate(), zone(), callable.descriptor(), 1,
       CallDescriptor::kNeedsFrameState, Operator::kNoProperties);
 
@@ -444,7 +444,7 @@ TARGET_TEST_F(InstructionSelectorTest, CallStubWithDeopt) {
   // Build the call.
   Node* stub_code = m.HeapConstant(callable.code());
   Node* nodes[] = {stub_code, function_node, receiver, context, state_node};
-  Node* call = m.CallNWithFrameState(descriptor, arraysize(nodes), nodes);
+  Node* call = m.CallNWithFrameState(call_descriptor, arraysize(nodes), nodes);
   m.Return(call);
 
   Stream s = m.Build(kAllExceptNopInstructions);
@@ -514,7 +514,7 @@ TARGET_TEST_F(InstructionSelectorTest, CallStubWithDeoptRecursiveFrameState) {
   ZoneVector<MachineType> float64_type(1, MachineType::Float64(), zone());
 
   Callable callable = Builtins::CallableFor(isolate(), Builtins::kToObject);
-  CallDescriptor* descriptor = Linkage::GetStubCallDescriptor(
+  auto call_descriptor = Linkage::GetStubCallDescriptor(
       isolate(), zone(), callable.descriptor(), 1,
       CallDescriptor::kNeedsFrameState, Operator::kNoProperties);
 
@@ -553,7 +553,7 @@ TARGET_TEST_F(InstructionSelectorTest, CallStubWithDeoptRecursiveFrameState) {
   // Build the call.
   Node* stub_code = m.HeapConstant(callable.code());
   Node* nodes[] = {stub_code, function_node, receiver, context2, state_node};
-  Node* call = m.CallNWithFrameState(descriptor, arraysize(nodes), nodes);
+  Node* call = m.CallNWithFrameState(call_descriptor, arraysize(nodes), nodes);
   m.Return(call);
 
   Stream s = m.Build(kAllExceptNopInstructions);

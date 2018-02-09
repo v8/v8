@@ -362,9 +362,9 @@ class V8_EXPORT_PRIVATE InstructionSelector final {
   void VisitWordCompareZero(Node* user, Node* value, FlagsContinuation* cont);
 
   void EmitPrepareArguments(ZoneVector<compiler::PushParameter>* arguments,
-                            const CallDescriptor* descriptor, Node* node);
+                            const CallDescriptor* call_descriptor, Node* node);
   void EmitPrepareResults(ZoneVector<compiler::PushParameter>* results,
-                          const CallDescriptor* descriptor, Node* node);
+                          const CallDescriptor* call_descriptor, Node* node);
 
   void EmitIdentity(Node* node);
   bool CanProduceSignalingNaN(Node* node);

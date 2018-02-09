@@ -2442,8 +2442,9 @@ void CodeGenerator::AssembleArchTrap(Instruction* instr,
                              __ isolate()),
                          0);
         __ LeaveFrame(StackFrame::WASM_COMPILED);
-        CallDescriptor* descriptor = gen_->linkage()->GetIncomingDescriptor();
-        int pop_count = static_cast<int>(descriptor->StackParameterCount());
+        auto call_descriptor = gen_->linkage()->GetIncomingDescriptor();
+        int pop_count =
+            static_cast<int>(call_descriptor->StackParameterCount());
         __ Drop(pop_count);
         __ Ret();
       } else {
@@ -2543,8 +2544,8 @@ void CodeGenerator::AssembleArchTableSwitch(Instruction* instr) {
 }
 
 void CodeGenerator::FinishFrame(Frame* frame) {
-  CallDescriptor* descriptor = linkage()->GetIncomingDescriptor();
-  const RegList double_saves = descriptor->CalleeSavedFPRegisters();
+  auto call_descriptor = linkage()->GetIncomingDescriptor();
+  const RegList double_saves = call_descriptor->CalleeSavedFPRegisters();
 
   // Save callee-saved Double registers.
   if (double_saves != 0) {
@@ -2555,7 +2556,7 @@ void CodeGenerator::FinishFrame(Frame* frame) {
                                             (kDoubleSize / kPointerSize));
   }
   // Save callee-saved registers.
-  const RegList saves = descriptor->CalleeSavedRegisters();
+  const RegList saves = call_descriptor->CalleeSavedRegisters();
   if (saves != 0) {
     // register save area does not include the fp or constant pool pointer.
     const int num_saves = kNumCalleeSaved - 1;
@@ -2565,15 +2566,15 @@ void CodeGenerator::FinishFrame(Frame* frame) {
 }
 
 void CodeGenerator::AssembleConstructFrame() {
-  CallDescriptor* descriptor = linkage()->GetIncomingDescriptor();
+  auto call_descriptor = linkage()->GetIncomingDescriptor();
 
   if (frame_access_state()->has_frame()) {
-    if (descriptor->IsCFunctionCall()) {
+    if (call_descriptor->IsCFunctionCall()) {
       __ Push(r14, fp);
       __ LoadRR(fp, sp);
-    } else if (descriptor->IsJSFunctionCall()) {
+    } else if (call_descriptor->IsJSFunctionCall()) {
       __ Prologue(ip);
-      if (descriptor->PushArgumentCount()) {
+      if (call_descriptor->PushArgumentCount()) {
         __ Push(kJavaScriptCallArgCountRegister);
       }
     } else {
@@ -2584,8 +2585,8 @@ void CodeGenerator::AssembleConstructFrame() {
     }
   }
 
-  int shrink_slots =
-      frame()->GetTotalFrameSlotCount() - descriptor->CalculateFixedFrameSize();
+  int shrink_slots = frame()->GetTotalFrameSlotCount() -
+                     call_descriptor->CalculateFixedFrameSize();
   if (info()->is_osr()) {
     // TurboFan OSR-compiled functions cannot be entered directly.
     __ Abort(AbortReason::kShouldNotDirectlyEnterOsrFunction);
@@ -2599,7 +2600,7 @@ void CodeGenerator::AssembleConstructFrame() {
     shrink_slots -= osr_helper()->UnoptimizedFrameSlots();
   }
 
-  const RegList double_saves = descriptor->CalleeSavedFPRegisters();
+  const RegList double_saves = call_descriptor->CalleeSavedFPRegisters();
   if (shrink_slots > 0) {
     __ lay(sp, MemOperand(sp, -shrink_slots * kPointerSize));
   }
@@ -2612,7 +2613,7 @@ void CodeGenerator::AssembleConstructFrame() {
   }
 
   // Save callee-saved registers.
-  const RegList saves = descriptor->CalleeSavedRegisters();
+  const RegList saves = call_descriptor->CalleeSavedRegisters();
   if (saves != 0) {
     __ MultiPush(saves);
     // register save area does not include the fp or constant pool pointer.
@@ -2620,23 +2621,23 @@ void CodeGenerator::AssembleConstructFrame() {
 }
 
 void CodeGenerator::AssembleReturn(InstructionOperand* pop) {
-  CallDescriptor* descriptor = linkage()->GetIncomingDescriptor();
-  int pop_count = static_cast<int>(descriptor->StackParameterCount());
+  auto call_descriptor = linkage()->GetIncomingDescriptor();
+  int pop_count = static_cast<int>(call_descriptor->StackParameterCount());
 
   // Restore registers.
-  const RegList saves = descriptor->CalleeSavedRegisters();
+  const RegList saves = call_descriptor->CalleeSavedRegisters();
   if (saves != 0) {
     __ MultiPop(saves);
   }
 
   // Restore double registers.
-  const RegList double_saves = descriptor->CalleeSavedFPRegisters();
+  const RegList double_saves = call_descriptor->CalleeSavedFPRegisters();
   if (double_saves != 0) {
     __ MultiPopDoubles(double_saves);
   }
 
   S390OperandConverter g(this, nullptr);
-  if (descriptor->IsCFunctionCall()) {
+  if (call_descriptor->IsCFunctionCall()) {
     AssembleDeconstructFrame();
   } else if (frame_access_state()->has_frame()) {
     // Canonicalize JSFunction return sites for now unless they have an variable

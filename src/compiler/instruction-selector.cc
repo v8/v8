@@ -653,16 +653,16 @@ size_t InstructionSelector::AddInputsToFrameStateDescriptor(
 // TODO(bmeurer): Get rid of the CallBuffer business and make
 // InstructionSelector::VisitCall platform independent instead.
 struct CallBuffer {
-  CallBuffer(Zone* zone, const CallDescriptor* descriptor,
+  CallBuffer(Zone* zone, const CallDescriptor* call_descriptor,
              FrameStateDescriptor* frame_state)
-      : descriptor(descriptor),
+      : descriptor(call_descriptor),
         frame_state_descriptor(frame_state),
         output_nodes(zone),
         outputs(zone),
         instruction_args(zone),
         pushed_nodes(zone) {
-    output_nodes.reserve(descriptor->ReturnCount());
-    outputs.reserve(descriptor->ReturnCount());
+    output_nodes.reserve(call_descriptor->ReturnCount());
+    outputs.reserve(call_descriptor->ReturnCount());
     pushed_nodes.reserve(input_count());
     instruction_args.reserve(input_count() + frame_state_value_count());
   }
@@ -2351,15 +2351,15 @@ void InstructionSelector::VisitConstant(Node* node) {
 
 void InstructionSelector::VisitCall(Node* node, BasicBlock* handler) {
   OperandGenerator g(this);
-  const CallDescriptor* descriptor = CallDescriptorOf(node->op());
+  auto call_descriptor = CallDescriptorOf(node->op());
 
   FrameStateDescriptor* frame_state_descriptor = nullptr;
-  if (descriptor->NeedsFrameState()) {
+  if (call_descriptor->NeedsFrameState()) {
     frame_state_descriptor = GetFrameStateDescriptor(
-        node->InputAt(static_cast<int>(descriptor->InputCount())));
+        node->InputAt(static_cast<int>(call_descriptor->InputCount())));
   }
 
-  CallBuffer buffer(zone(), descriptor, frame_state_descriptor);
+  CallBuffer buffer(zone(), call_descriptor, frame_state_descriptor);
 
   // Compute InstructionOperands for inputs and outputs.
   // TODO(turbofan): on some architectures it's probably better to use
@@ -2369,10 +2369,10 @@ void InstructionSelector::VisitCall(Node* node, BasicBlock* handler) {
   CallBufferFlags call_buffer_flags(kCallCodeImmediate | kCallAddressImmediate);
   InitializeCallBuffer(node, &buffer, call_buffer_flags, false);
 
-  EmitPrepareArguments(&(buffer.pushed_nodes), descriptor, node);
+  EmitPrepareArguments(&(buffer.pushed_nodes), call_descriptor, node);
 
   // Pass label of exception handler block.
-  CallDescriptor::Flags flags = descriptor->flags();
+  CallDescriptor::Flags flags = call_descriptor->flags();
   if (handler) {
     DCHECK_EQ(IrOpcode::kIfException, handler->front()->opcode());
     flags |= CallDescriptor::kHasExceptionHandler;
@@ -2381,11 +2381,10 @@ void InstructionSelector::VisitCall(Node* node, BasicBlock* handler) {
 
   // Select the appropriate opcode based on the call type.
   InstructionCode opcode = kArchNop;
-  switch (descriptor->kind()) {
+  switch (call_descriptor->kind()) {
     case CallDescriptor::kCallAddress:
-      opcode =
-          kArchCallCFunction |
-          MiscField::encode(static_cast<int>(descriptor->ParameterCount()));
+      opcode = kArchCallCFunction | MiscField::encode(static_cast<int>(
+                                        call_descriptor->ParameterCount()));
       break;
     case CallDescriptor::kCallCodeObject:
       opcode = kArchCallCodeObject | MiscField::encode(flags);
@@ -2407,7 +2406,7 @@ void InstructionSelector::VisitCall(Node* node, BasicBlock* handler) {
   if (instruction_selection_failed()) return;
   call_instr->MarkAsCall();
 
-  EmitPrepareResults(&(buffer.output_nodes), descriptor, node);
+  EmitPrepareResults(&(buffer.output_nodes), call_descriptor, node);
 }
 
 void InstructionSelector::VisitCallWithCallerSavedRegisters(
@@ -2424,13 +2423,13 @@ void InstructionSelector::VisitCallWithCallerSavedRegisters(
 
 void InstructionSelector::VisitTailCall(Node* node) {
   OperandGenerator g(this);
-  CallDescriptor const* descriptor = CallDescriptorOf(node->op());
+  auto call_descriptor = CallDescriptorOf(node->op());
 
   CallDescriptor* caller = linkage()->GetIncomingDescriptor();
   DCHECK(caller->CanTailCall(node));
   const CallDescriptor* callee = CallDescriptorOf(node->op());
   int stack_param_delta = callee->GetStackParameterDelta(caller);
-  CallBuffer buffer(zone(), descriptor, nullptr);
+  CallBuffer buffer(zone(), call_descriptor, nullptr);
 
   // Compute InstructionOperands for inputs and outputs.
   CallBufferFlags flags(kCallCodeImmediate | kCallTail);
@@ -2443,7 +2442,7 @@ void InstructionSelector::VisitTailCall(Node* node) {
   InstructionCode opcode;
   InstructionOperandVector temps(zone());
   if (linkage()->GetIncomingDescriptor()->IsJSFunctionCall()) {
-    switch (descriptor->kind()) {
+    switch (call_descriptor->kind()) {
       case CallDescriptor::kCallCodeObject:
         opcode = kArchTailCallCodeObjectFromJSFunction;
         break;
@@ -2456,7 +2455,7 @@ void InstructionSelector::VisitTailCall(Node* node) {
       temps.push_back(g.TempRegister());
     }
   } else {
-    switch (descriptor->kind()) {
+    switch (call_descriptor->kind()) {
       case CallDescriptor::kCallCodeObject:
         opcode = kArchTailCallCodeObject;
         break;
@@ -2471,7 +2470,7 @@ void InstructionSelector::VisitTailCall(Node* node) {
         return;
     }
   }
-  opcode |= MiscField::encode(descriptor->flags());
+  opcode |= MiscField::encode(call_descriptor->flags());
 
   Emit(kArchPrepareTailCall, g.NoOutput());
 

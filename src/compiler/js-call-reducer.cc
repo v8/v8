@@ -673,14 +673,14 @@ Reduction JSCallReducer::ReduceReflectGet(Node* node) {
   Node* vtrue;
   {
     Callable callable = CodeFactory::GetProperty(isolate());
-    CallDescriptor const* const desc = Linkage::GetStubCallDescriptor(
+    auto call_descriptor = Linkage::GetStubCallDescriptor(
         isolate(), graph()->zone(), callable.descriptor(), 0,
         CallDescriptor::kNeedsFrameState, Operator::kNoProperties,
         MachineType::AnyTagged(), 1);
     Node* stub_code = jsgraph()->HeapConstant(callable.code());
     vtrue = etrue = if_true =
-        graph()->NewNode(common()->Call(desc), stub_code, target, key, context,
-                         frame_state, etrue, if_true);
+        graph()->NewNode(common()->Call(call_descriptor), stub_code, target,
+                         key, context, frame_state, etrue, if_true);
   }
 
   // Rewire potential exception edges.
@@ -2587,7 +2587,7 @@ Reduction JSCallReducer::ReduceCallApiFunction(Node* node,
   Handle<Object> data(call_handler_info->data(), isolate());
   CallApiCallbackStub stub(isolate(), argc);
   CallInterfaceDescriptor cid = stub.GetCallInterfaceDescriptor();
-  CallDescriptor* call_descriptor = Linkage::GetStubCallDescriptor(
+  auto call_descriptor = Linkage::GetStubCallDescriptor(
       isolate(), graph()->zone(), cid,
       cid.GetStackParameterCount() + argc + 1 /* implicit receiver */,
       CallDescriptor::kNeedsFrameState, Operator::kNoProperties,
@@ -3827,7 +3827,7 @@ Reduction JSCallReducer::ReduceArrayPrototypeShift(Node* node) {
     {
       // Call the generic C++ implementation.
       const int builtin_index = Builtins::kArrayShift;
-      CallDescriptor const* const desc = Linkage::GetCEntryStubCallDescriptor(
+      auto call_descriptor = Linkage::GetCEntryStubCallDescriptor(
           graph()->zone(), 1, BuiltinArguments::kNumExtraArgsWithReceiver,
           Builtins::name(builtin_index), node->op()->properties(),
           CallDescriptor::kNeedsFrameState);
@@ -3839,7 +3839,7 @@ Reduction JSCallReducer::ReduceArrayPrototypeShift(Node* node) {
       Node* argc =
           jsgraph()->Constant(BuiltinArguments::kNumExtraArgsWithReceiver);
       if_false1 = efalse1 = vfalse1 =
-          graph()->NewNode(common()->Call(desc), stub_code, receiver,
+          graph()->NewNode(common()->Call(call_descriptor), stub_code, receiver,
                            jsgraph()->PaddingConstant(), argc, target,
                            jsgraph()->UndefinedConstant(), entry, argc, context,
                            frame_state, efalse1, if_false1);

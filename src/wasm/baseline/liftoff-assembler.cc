@@ -463,7 +463,7 @@ void LiftoffAssembler::SpillAllRegisters() {
 }
 
 void LiftoffAssembler::PrepareCall(wasm::FunctionSig* sig,
-                                   compiler::CallDescriptor* call_desc,
+                                   compiler::CallDescriptor* call_descriptor,
                                    uint32_t* max_used_spill_slot,
                                    Register* target) {
   uint32_t num_params = static_cast<uint32_t>(sig->parameter_count());
@@ -489,7 +489,8 @@ void LiftoffAssembler::PrepareCall(wasm::FunctionSig* sig,
   // in the correct order.
   LiftoffRegList param_regs;
   uint32_t param_base = cache_state_.stack_height() - num_params;
-  uint32_t call_desc_input_idx = static_cast<uint32_t>(call_desc->InputCount());
+  uint32_t call_desc_input_idx =
+      static_cast<uint32_t>(call_descriptor->InputCount());
   for (uint32_t i = num_params; i > 0; --i) {
     const uint32_t param = i - 1;
     ValueType type = sig->GetParam(param);
@@ -504,7 +505,7 @@ void LiftoffAssembler::PrepareCall(wasm::FunctionSig* sig,
           is_pair && lowered_idx == 0 ? kHighWord : kLowWord;
       --call_desc_input_idx;
       compiler::LinkageLocation loc =
-          call_desc->GetInputLocation(call_desc_input_idx);
+          call_descriptor->GetInputLocation(call_desc_input_idx);
       if (loc.IsRegister()) {
         DCHECK(!loc.IsAnyRegister());
         RegClass rc = is_pair ? kGpReg : reg_class_for(type);
@@ -525,7 +526,7 @@ void LiftoffAssembler::PrepareCall(wasm::FunctionSig* sig,
   DCHECK_EQ(call_desc_input_idx, kInputShift + 1);
 
   compiler::LinkageLocation context_loc =
-      call_desc->GetInputLocation(kInputShift);
+      call_descriptor->GetInputLocation(kInputShift);
   DCHECK(context_loc.IsRegister() && !context_loc.IsAnyRegister());
   Register context_reg = Register::from_code(context_loc.AsRegister());
   param_regs.set(LiftoffRegister(context_reg));
@@ -565,20 +566,20 @@ void LiftoffAssembler::PrepareCall(wasm::FunctionSig* sig,
 }
 
 void LiftoffAssembler::FinishCall(wasm::FunctionSig* sig,
-                                  compiler::CallDescriptor* call_desc) {
+                                  compiler::CallDescriptor* call_descriptor) {
   const size_t return_count = sig->return_count();
   if (return_count != 0) {
     DCHECK_EQ(1, return_count);
     ValueType return_type = sig->GetReturn(0);
     const bool need_pair = kNeedI64RegPair && return_type == kWasmI64;
-    DCHECK_EQ(need_pair ? 2 : 1, call_desc->ReturnCount());
+    DCHECK_EQ(need_pair ? 2 : 1, call_descriptor->ReturnCount());
     RegClass rc = need_pair ? kGpReg : reg_class_for(return_type);
     LiftoffRegister return_reg = LiftoffRegister::from_code(
-        rc, call_desc->GetReturnLocation(0).AsRegister());
+        rc, call_descriptor->GetReturnLocation(0).AsRegister());
     DCHECK(GetCacheRegList(rc).has(return_reg));
     if (need_pair) {
       LiftoffRegister high_reg = LiftoffRegister::from_code(
-          rc, call_desc->GetReturnLocation(1).AsRegister());
+          rc, call_descriptor->GetReturnLocation(1).AsRegister());
       DCHECK(GetCacheRegList(rc).has(high_reg));
       return_reg = LiftoffRegister::ForPair(return_reg, high_reg);
     }

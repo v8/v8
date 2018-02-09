@@ -125,14 +125,16 @@ class LiftoffCompiler {
   };
 
   LiftoffCompiler(LiftoffAssembler* liftoff_asm,
-                  compiler::CallDescriptor* call_desc, compiler::ModuleEnv* env,
+                  compiler::CallDescriptor* call_descriptor,
+                  compiler::ModuleEnv* env,
                   compiler::RuntimeExceptionSupport runtime_exception_support,
                   SourcePositionTableBuilder* source_position_table_builder,
                   std::vector<trap_handler::ProtectedInstructionData>*
                       protected_instructions,
                   Zone* compilation_zone, std::unique_ptr<Zone>* codegen_zone)
       : asm_(liftoff_asm),
-        call_desc_(GetLoweredCallDescriptor(compilation_zone, call_desc)),
+        descriptor_(
+            GetLoweredCallDescriptor(compilation_zone, call_descriptor)),
         env_(env),
         min_size_(uint64_t{env_->module->initial_pages} * wasm::kWasmPageSize),
         max_size_(uint64_t{env_->module->has_maximum_pages
@@ -217,7 +219,7 @@ class LiftoffCompiler {
     LiftoffRegList pinned;
     for (int pair_idx = 0; pair_idx < num_lowered_params; ++pair_idx) {
       compiler::LinkageLocation param_loc =
-          call_desc_->GetInputLocation(input_idx + pair_idx);
+          descriptor_->GetInputLocation(input_idx + pair_idx);
       // Initialize to anything, will be set in both arms of the if.
       LiftoffRegister in_reg = LiftoffRegister::from_code(kGpReg, 0);
       if (param_loc.IsRegister()) {
@@ -280,7 +282,7 @@ class LiftoffCompiler {
     constexpr int kContextParameterIndex = 1;
     // Store the context parameter to a special stack slot.
     compiler::LinkageLocation context_loc =
-        call_desc_->GetInputLocation(kContextParameterIndex);
+        descriptor_->GetInputLocation(kContextParameterIndex);
     DCHECK(context_loc.IsRegister());
     DCHECK(!context_loc.IsAnyRegister());
     Register context_reg = Register::from_code(context_loc.AsRegister());
@@ -290,7 +292,7 @@ class LiftoffCompiler {
     for (uint32_t param_idx = 0; param_idx < num_params; ++param_idx) {
       input_idx += ProcessParameter(__ local_type(param_idx), input_idx);
     }
-    DCHECK_EQ(input_idx, call_desc_->InputCount());
+    DCHECK_EQ(input_idx, descriptor_->InputCount());
     // Set to a gp register, to mark this uninitialized.
     LiftoffRegister zero_double_reg(Register::from_code<0>());
     DCHECK(zero_double_reg.is_gp());
@@ -461,14 +463,15 @@ class LiftoffCompiler {
     DCHECK_LE(num_args, kMaxArgs);
 
     MachineSignature sig(kNumReturns, num_args, kReps);
-    compiler::CallDescriptor* desc =
+    auto call_descriptor =
         compiler::Linkage::GetSimplifiedCDescriptor(compilation_zone_, &sig);
 
     // Before making a call, spill all cache registers.
     __ SpillAllRegisters();
 
     // Store arguments on our stack, then align the stack for calling to C.
-    uint32_t num_params = static_cast<uint32_t>(desc->ParameterCount());
+    uint32_t num_params =
+        static_cast<uint32_t>(call_descriptor->ParameterCount());
     __ PrepareCCall(num_params, arg_regs);
 
     // Set parameters (in sp[0], sp[8], ...).
@@ -477,7 +480,7 @@ class LiftoffCompiler {
       constexpr size_t kInputShift = 1;  // Input 0 is the call target.
 
       compiler::LinkageLocation loc =
-          desc->GetInputLocation(param + kInputShift);
+          call_descriptor->GetInputLocation(param + kInputShift);
       if (loc.IsRegister()) {
         Register reg = Register::from_code(loc.AsRegister());
         // Load address of that parameter to the register.
@@ -493,7 +496,8 @@ class LiftoffCompiler {
     __ CallC(ext_ref, num_params);
 
     // Load return value.
-    compiler::LinkageLocation return_loc = desc->GetReturnLocation(0);
+    compiler::LinkageLocation return_loc =
+        call_descriptor->GetReturnLocation(0);
     DCHECK(return_loc.IsRegister());
     Register return_reg = Register::from_code(return_loc.AsRegister());
     if (return_reg != res_reg) {
@@ -698,7 +702,7 @@ class LiftoffCompiler {
     }
     __ LeaveFrame(StackFrame::WASM_COMPILED);
     __ DropStackSlotsAndRet(
-        static_cast<uint32_t>(call_desc_->StackParameterCount()));
+        static_cast<uint32_t>(descriptor_->StackParameterCount()));
   }
 
   void GetLocal(Decoder* decoder, Value* result,
@@ -936,16 +940,15 @@ class LiftoffCompiler {
   }
 
   void GenerateRuntimeCall(int num_args, Register* args) {
-    compiler::CallDescriptor* desc =
-        compiler::Linkage::GetRuntimeCallDescriptor(
-            compilation_zone_, Runtime::kWasmTraceMemory, num_args,
-            compiler::Operator::kNoProperties,
-            compiler::CallDescriptor::kNoFlags);
+    auto call_descriptor = compiler::Linkage::GetRuntimeCallDescriptor(
+        compilation_zone_, Runtime::kWasmTraceMemory, num_args,
+        compiler::Operator::kNoProperties, compiler::CallDescriptor::kNoFlags);
     // Currently, only one argument is supported. More arguments require some
     // caution for the parallel register moves (reuse StackTransferRecipe).
     DCHECK_EQ(1, num_args);
     constexpr size_t kInputShift = 1;  // Input 0 is the call target.
-    compiler::LinkageLocation param_loc = desc->GetInputLocation(kInputShift);
+    compiler::LinkageLocation param_loc =
+        call_descriptor->GetInputLocation(kInputShift);
     if (param_loc.IsRegister()) {
       Register reg = Register::from_code(param_loc.AsRegister());
       __ Move(LiftoffRegister(reg), LiftoffRegister(args[0]),
@@ -1044,12 +1047,13 @@ class LiftoffCompiler {
                             "return"))
       return;
 
-    compiler::CallDescriptor* call_desc =
+    auto call_descriptor =
         compiler::GetWasmCallDescriptor(compilation_zone_, operand.sig);
-    call_desc = GetLoweredCallDescriptor(compilation_zone_, call_desc);
+    call_descriptor =
+        GetLoweredCallDescriptor(compilation_zone_, call_descriptor);
 
     uint32_t max_used_spill_slot = 0;
-    __ PrepareCall(operand.sig, call_desc, &max_used_spill_slot);
+    __ PrepareCall(operand.sig, call_descriptor, &max_used_spill_slot);
     if (max_used_spill_slot >
         __ num_locals() + LiftoffAssembler::kMaxValueStackHeight) {
       unsupported(decoder, "value stack grows too large in call");
@@ -1072,7 +1076,7 @@ class LiftoffCompiler {
     safepoint_table_builder_.DefineSafepoint(asm_, Safepoint::kSimple, 0,
                                              Safepoint::kNoLazyDeopt);
 
-    __ FinishCall(operand.sig, call_desc);
+    __ FinishCall(operand.sig, call_descriptor);
   }
 
   void CallIndirect(Decoder* decoder, const Value& index_val,
@@ -1172,12 +1176,14 @@ class LiftoffCompiler {
     source_position_table_builder_->AddPosition(
         __ pc_offset(), SourcePosition(decoder->position()), false);
 
-    compiler::CallDescriptor* call_desc =
+    auto call_descriptor =
         compiler::GetWasmCallDescriptor(compilation_zone_, operand.sig);
-    call_desc = GetLoweredCallDescriptor(compilation_zone_, call_desc);
+    call_descriptor =
+        GetLoweredCallDescriptor(compilation_zone_, call_descriptor);
 
     uint32_t max_used_spill_slot = 0;
-    __ CallIndirect(operand.sig, call_desc, scratch.gp(), &max_used_spill_slot);
+    __ CallIndirect(operand.sig, call_descriptor, scratch.gp(),
+                    &max_used_spill_slot);
     if (max_used_spill_slot >
         __ num_locals() + LiftoffAssembler::kMaxValueStackHeight) {
       unsupported(decoder, "value stack grows too large in indirect call");
@@ -1186,7 +1192,7 @@ class LiftoffCompiler {
     safepoint_table_builder_.DefineSafepoint(asm_, Safepoint::kSimple, 0,
                                              Safepoint::kNoLazyDeopt);
 
-    __ FinishCall(operand.sig, call_desc);
+    __ FinishCall(operand.sig, call_descriptor);
   }
 
   void SimdOp(Decoder* decoder, WasmOpcode opcode, Vector<Value> args,
@@ -1225,7 +1231,7 @@ class LiftoffCompiler {
 
  private:
   LiftoffAssembler* const asm_;
-  compiler::CallDescriptor* const call_desc_;
+  compiler::CallDescriptor* const descriptor_;
   compiler::ModuleEnv* const env_;
   // {min_size_} and {max_size_} are cached values computed from the ModuleEnv.
   const uint64_t min_size_;
@@ -1277,11 +1283,11 @@ bool compiler::WasmCompilationUnit::ExecuteLiftoffCompilation() {
 
   Zone zone(isolate_->allocator(), "LiftoffCompilationZone");
   const wasm::WasmModule* module = env_ ? env_->module : nullptr;
-  auto* call_desc = compiler::GetWasmCallDescriptor(&zone, func_body_.sig);
+  auto call_descriptor = compiler::GetWasmCallDescriptor(&zone, func_body_.sig);
   base::Optional<TimedHistogramScope> liftoff_compile_time_scope(
       base::in_place, counters()->liftoff_compile_time());
   wasm::WasmFullDecoder<wasm::Decoder::kValidate, wasm::LiftoffCompiler>
-      decoder(&zone, module, func_body_, &liftoff_.asm_, call_desc, env_,
+      decoder(&zone, module, func_body_, &liftoff_.asm_, call_descriptor, env_,
               runtime_exception_support_,
               &liftoff_.source_position_table_builder_,
               protected_instructions_.get(), &zone, &liftoff_.codegen_zone_);

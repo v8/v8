@@ -1650,14 +1650,14 @@ void InstructionSelector::VisitFloat64Ieee754Unop(Node* node,
 }
 
 void InstructionSelector::EmitPrepareArguments(
-    ZoneVector<PushParameter>* arguments, const CallDescriptor* descriptor,
+    ZoneVector<PushParameter>* arguments, const CallDescriptor* call_descriptor,
     Node* node) {
   Mips64OperandGenerator g(this);
 
   // Prepare for C function call.
-  if (descriptor->IsCFunctionCall()) {
-    Emit(kArchPrepareCallCFunction |
-             MiscField::encode(static_cast<int>(descriptor->ParameterCount())),
+  if (call_descriptor->IsCFunctionCall()) {
+    Emit(kArchPrepareCallCFunction | MiscField::encode(static_cast<int>(
+                                         call_descriptor->ParameterCount())),
          0, nullptr, 0, nullptr);
 
     // Poke any stack arguments.
@@ -1668,7 +1668,7 @@ void InstructionSelector::EmitPrepareArguments(
       ++slot;
     }
   } else {
-    int push_count = static_cast<int>(descriptor->StackParameterCount());
+    int push_count = static_cast<int>(call_descriptor->StackParameterCount());
     if (push_count > 0) {
       // Calculate needed space
       int stack_size = 0;
@@ -1690,9 +1690,9 @@ void InstructionSelector::EmitPrepareArguments(
   }
 }
 
-void InstructionSelector::EmitPrepareResults(ZoneVector<PushParameter>* results,
-                                             const CallDescriptor* descriptor,
-                                             Node* node) {
+void InstructionSelector::EmitPrepareResults(
+    ZoneVector<PushParameter>* results, const CallDescriptor* call_descriptor,
+    Node* node) {
   Mips64OperandGenerator g(this);
 
   int reverse_slot = 0;
@@ -1700,7 +1700,7 @@ void InstructionSelector::EmitPrepareResults(ZoneVector<PushParameter>* results,
     if (!output.location.IsCallerFrameSlot()) continue;
     // Skip any alignment holes in nodes.
     if (output.node != nullptr) {
-      DCHECK(!descriptor->IsCFunctionCall());
+      DCHECK(!call_descriptor->IsCFunctionCall());
       if (output.location.GetType() == MachineType::Float32()) {
         MarkAsFloat32(output.node);
       } else if (output.location.GetType() == MachineType::Float64()) {
