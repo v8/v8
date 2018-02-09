@@ -928,10 +928,21 @@ Reduction JSCreateLowering::ReduceJSCreateClosure(Node* node) {
   DCHECK(!function_map->IsInobjectSlackTrackingInProgress());
   DCHECK(!function_map->is_dictionary_map());
 
+  // TODO(turbofan): We should use the pretenure flag from {p} here,
+  // but currently the heuristic in the parser works against us, as
+  // it marks closures like
+  //
+  //   args[l] = function(...) { ... }
+  //
+  // for old-space allocation, which doesn't always make sense. For
+  // example in case of the bluebird-parallel benchmark, where this
+  // is a core part of the *promisify* logic (see crbug.com/810132).
+  PretenureFlag pretenure = NOT_TENURED;
+
   // Emit code to allocate the JSFunction instance.
   STATIC_ASSERT(JSFunction::kSizeWithoutPrototype == 7 * kPointerSize);
   AllocationBuilder a(jsgraph(), effect, control);
-  a.Allocate(function_map->instance_size(), p.pretenure(), Type::Function());
+  a.Allocate(function_map->instance_size(), pretenure, Type::Function());
   a.Store(AccessBuilder::ForMap(), function_map);
   a.Store(AccessBuilder::ForJSObjectPropertiesOrHash(),
           jsgraph()->EmptyFixedArrayConstant());
