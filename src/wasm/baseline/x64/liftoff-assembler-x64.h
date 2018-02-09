@@ -112,19 +112,31 @@ void LiftoffAssembler::Load(LiftoffRegister dst, Register src_addr,
   if (protected_load_pc) *protected_load_pc = pc_offset();
   switch (type.value()) {
     case LoadType::kI32Load8U:
+    case LoadType::kI64Load8U:
       movzxbl(dst.gp(), src_op);
       break;
     case LoadType::kI32Load8S:
       movsxbl(dst.gp(), src_op);
       break;
+    case LoadType::kI64Load8S:
+      movsxbq(dst.gp(), src_op);
+      break;
     case LoadType::kI32Load16U:
+    case LoadType::kI64Load16U:
       movzxwl(dst.gp(), src_op);
       break;
     case LoadType::kI32Load16S:
       movsxwl(dst.gp(), src_op);
       break;
+    case LoadType::kI64Load16S:
+      movsxwq(dst.gp(), src_op);
+      break;
     case LoadType::kI32Load:
+    case LoadType::kI64Load32U:
       movl(dst.gp(), src_op);
+      break;
+    case LoadType::kI64Load32S:
+      movsxlq(dst.gp(), src_op);
       break;
     case LoadType::kI64Load:
       movq(dst.gp(), src_op);
@@ -157,12 +169,15 @@ void LiftoffAssembler::Store(Register dst_addr, Register offset_reg,
   if (protected_store_pc) *protected_store_pc = pc_offset();
   switch (type.value()) {
     case StoreType::kI32Store8:
+    case StoreType::kI64Store8:
       movb(dst_op, src.gp());
       break;
     case StoreType::kI32Store16:
+    case StoreType::kI64Store16:
       movw(dst_op, src.gp());
       break;
     case StoreType::kI32Store:
+    case StoreType::kI64Store32:
       movl(dst_op, src.gp());
       break;
     case StoreType::kI64Store:

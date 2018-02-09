@@ -102,13 +102,17 @@ void LiftoffAssembler::Load(LiftoffRegister dst, Register src_addr,
                             Register offset_reg, uint32_t offset_imm,
                             LoadType type, LiftoffRegList pinned,
                             uint32_t* protected_load_pc) {
+  DCHECK_EQ(type.value_type() == kWasmI64, dst.is_pair());
+  Register src = no_reg;
   Operand src_op = offset_reg == no_reg
                        ? Operand(src_addr, offset_imm)
                        : Operand(src_addr, offset_reg, times_1, offset_imm);
-  if (offset_imm > kMaxInt) {
-    // The immediate can not be encoded in the operand. Load it to a register
-    // first.
-    Register src = GetUnusedRegister(kGpReg, pinned).gp();
+  uint32_t max_offset = offset_imm + 4 * (type.value() == LoadType::kI64Load);
+  DCHECK_LE(offset_imm, max_offset);  // no overflow
+  if (max_offset > static_cast<uint32_t>(std::numeric_limits<int32_t>::max())) {
+    // The immediate(s) can not be encoded in the operand. Load the offset to a
+    // register first.
+    src = GetUnusedRegister(kGpReg, pinned).gp();
     mov(src, Immediate(offset_imm));
     if (offset_reg != no_reg) {
       emit_ptrsize_add(src, src, offset_reg);
@@ -116,6 +120,7 @@ void LiftoffAssembler::Load(LiftoffRegister dst, Register src_addr,
     src_op = Operand(src_addr, src, times_1, 0);
   }
   if (protected_load_pc) *protected_load_pc = pc_offset();
+
   switch (type.value()) {
     case LoadType::kI32Load8U:
       movzx_b(dst.gp(), src_op);
@@ -123,18 +128,60 @@ void LiftoffAssembler::Load(LiftoffRegister dst, Register src_addr,
     case LoadType::kI32Load8S:
       movsx_b(dst.gp(), src_op);
       break;
+    case LoadType::kI64Load8U:
+      movzx_b(dst.low_gp(), src_op);
+      xor_(dst.high_gp(), dst.high_gp());
+      break;
+    case LoadType::kI64Load8S:
+      movsx_b(dst.low_gp(), src_op);
+      mov(dst.high_gp(), dst.low_gp());
+      sar(dst.high_gp(), 31);
+      break;
     case LoadType::kI32Load16U:
       movzx_w(dst.gp(), src_op);
       break;
     case LoadType::kI32Load16S:
       movsx_w(dst.gp(), src_op);
       break;
+    case LoadType::kI64Load16U:
+      movzx_w(dst.low_gp(), src_op);
+      xor_(dst.high_gp(), dst.high_gp());
+      break;
+    case LoadType::kI64Load16S:
+      movsx_w(dst.low_gp(), src_op);
+      mov(dst.high_gp(), dst.low_gp());
+      sar(dst.high_gp(), 31);
+      break;
     case LoadType::kI32Load:
       mov(dst.gp(), src_op);
+      break;
+    case LoadType::kI64Load32U:
+      mov(dst.low_gp(), src_op);
+      xor_(dst.high_gp(), dst.high_gp());
+      break;
+    case LoadType::kI64Load32S:
+      mov(dst.low_gp(), src_op);
+      mov(dst.high_gp(), dst.low_gp());
+      sar(dst.high_gp(), 31);
       break;
     case LoadType::kF32Load:
       movss(dst.fp(), src_op);
       break;
+    case LoadType::kI64Load: {
+      // Compute the operand for the load of the upper half.
+      Operand upper_src_op =
+          offset_reg == no_reg
+              ? Operand(src_addr, offset_imm + 4)
+              : Operand(src_addr, offset_reg, times_1, offset_imm + 4);
+      if (src != no_reg) {
+        src_op = Operand(src_addr, src, times_1, 4);
+      }
+      // The high word has to be mov'ed first, such that this is the protected
+      // instruction. The mov of the low word cannot segfault.
+      mov(dst.high_gp(), upper_src_op);
+      mov(dst.low_gp(), src_op);
+      break;
+    }
     default:
       UNREACHABLE();
   }
@@ -144,13 +191,17 @@ void LiftoffAssembler::Store(Register dst_addr, Register offset_reg,
                              uint32_t offset_imm, LiftoffRegister src,
                              StoreType type, LiftoffRegList pinned,
                              uint32_t* protected_store_pc) {
+  DCHECK_EQ(type.value_type() == kWasmI64, src.is_pair());
+  Register dst = no_reg;
   Operand dst_op = offset_reg == no_reg
                        ? Operand(dst_addr, offset_imm)
                        : Operand(dst_addr, offset_reg, times_1, offset_imm);
-  if (offset_imm > kMaxInt) {
-    // The immediate can not be encoded in the operand. Load it to a register
-    // first.
-    Register dst = pinned.set(GetUnusedRegister(kGpReg, pinned).gp());
+  uint32_t max_offset = offset_imm + 4 * (type.value() == StoreType::kI64Store);
+  DCHECK_LE(offset_imm, max_offset);  // no overflow
+  if (max_offset > static_cast<uint32_t>(std::numeric_limits<int32_t>::max())) {
+    // The immediate(s) can not be encoded in the operand. Load the offset to a
+    // register first.
+    dst = pinned.set(GetUnusedRegister(kGpReg, pinned).gp());
     mov(dst, Immediate(offset_imm));
     if (offset_reg != no_reg) {
       emit_ptrsize_add(dst, dst, offset_reg);
@@ -158,7 +209,11 @@ void LiftoffAssembler::Store(Register dst_addr, Register offset_reg,
     dst_op = Operand(dst_addr, dst, times_1, 0);
   }
   if (protected_store_pc) *protected_store_pc = pc_offset();
+
   switch (type.value()) {
+    case StoreType::kI64Store8:
+      src = src.low();
+    // fall through
     case StoreType::kI32Store8:
       // Only the lower 4 registers can be addressed as 8-bit registers.
       if (src.gp().is_byte_register()) {
@@ -169,12 +224,33 @@ void LiftoffAssembler::Store(Register dst_addr, Register offset_reg,
         mov_b(dst_op, byte_src);
       }
       break;
+    case StoreType::kI64Store16:
+      src = src.low();
+    // fall through
     case StoreType::kI32Store16:
       mov_w(dst_op, src.gp());
       break;
+    case StoreType::kI64Store32:
+      src = src.low();
+    // fall through
     case StoreType::kI32Store:
       mov(dst_op, src.gp());
       break;
+    case StoreType::kI64Store: {
+      // Compute the operand for the store of the upper half.
+      Operand upper_dst_op =
+          offset_reg == no_reg
+              ? Operand(dst_addr, offset_imm + 4)
+              : Operand(dst_addr, offset_reg, times_1, offset_imm + 4);
+      if (dst != no_reg) {
+        dst_op = Operand(dst_addr, dst, times_1, 4);
+      }
+      // The high word has to be mov'ed first, such that this is the protected
+      // instruction. The mov of the low word cannot segfault.
+      mov(upper_dst_op, src.high_gp());
+      mov(dst_op, src.low_gp());
+      break;
+    }
     case StoreType::kF32Store:
       movss(dst_op, src.fp());
       break;

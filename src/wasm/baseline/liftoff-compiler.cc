@@ -70,6 +70,11 @@ wasm::WasmValue WasmPtrValue(void* ptr) {
   return WasmPtrValue(reinterpret_cast<uintptr_t>(ptr));
 }
 
+constexpr ValueType kTypesArr_ilf[] = {kWasmI32, kWasmI64, kWasmF32};
+constexpr ValueType kTypesArr_if[] = {kWasmI32, kWasmF32};
+constexpr Vector<const ValueType> kTypes_ilf = ArrayVector(kTypesArr_ilf);
+constexpr Vector<const ValueType> kTypes_if = ArrayVector(kTypesArr_if);
+
 class LiftoffCompiler {
  public:
   MOVE_ONLY_NO_DEFAULT_CONSTRUCTOR(LiftoffCompiler);
@@ -146,11 +151,14 @@ class LiftoffCompiler {
     BindUnboundLabels(decoder);
   }
 
-  bool CheckSupportedType(Decoder* decoder, ValueType type,
-                          const char* context) {
+  bool CheckSupportedType(Decoder* decoder,
+                          Vector<const ValueType> supported_types,
+                          ValueType type, const char* context) {
     char buffer[128];
     // Check supported types.
-    if (type == kWasmI32 || type == kWasmF32) return true;
+    for (ValueType supported : supported_types) {
+      if (type == supported) return true;
+    }
     SNPrintF(ArrayVector(buffer), "%s %s", WasmOpcodes::TypeName(type),
              context);
     unsupported(decoder, buffer);
@@ -249,7 +257,8 @@ class LiftoffCompiler {
     uint32_t num_params =
         static_cast<uint32_t>(call_desc_->ParameterCount()) - 1;
     for (uint32_t i = 0; i < __ num_locals(); ++i) {
-      if (!CheckSupportedType(decoder, __ local_type(i), "param")) return;
+      if (!CheckSupportedType(decoder, kTypes_if, __ local_type(i), "param"))
+        return;
     }
     // Input 0 is the call target, the context is at 1.
     constexpr int kContextParameterIndex = 1;
@@ -936,7 +945,7 @@ class LiftoffCompiler {
                const MemoryAccessOperand<validate>& operand,
                const Value& index_val, Value* result) {
     ValueType value_type = type.value_type();
-    if (!CheckSupportedType(decoder, value_type, "load")) return;
+    if (!CheckSupportedType(decoder, kTypes_ilf, value_type, "load")) return;
     LiftoffRegList pinned;
     Register index = pinned.set(__ PopToRegister(kGpReg)).gp();
     if (!env_->use_trap_handler) {
@@ -969,7 +978,7 @@ class LiftoffCompiler {
                 const MemoryAccessOperand<validate>& operand,
                 const Value& index_val, const Value& value_val) {
     ValueType value_type = type.value_type();
-    if (!CheckSupportedType(decoder, value_type, "store")) return;
+    if (!CheckSupportedType(decoder, kTypes_ilf, value_type, "store")) return;
     RegClass rc = reg_class_for(value_type);
     LiftoffRegList pinned;
     LiftoffRegister value = pinned.set(__ PopToRegister(rc));
@@ -1008,7 +1017,8 @@ class LiftoffCompiler {
     if (operand.sig->return_count() > 1)
       return unsupported(decoder, "multi-return");
     if (operand.sig->return_count() == 1 &&
-        !CheckSupportedType(decoder, operand.sig->GetReturn(0), "return"))
+        !CheckSupportedType(decoder, kTypes_if, operand.sig->GetReturn(0),
+                            "return"))
       return;
 
     compiler::CallDescriptor* call_desc =
@@ -1051,7 +1061,8 @@ class LiftoffCompiler {
     if (operand.sig->return_count() > 1)
       return unsupported(decoder, "multi-return");
     if (operand.sig->return_count() == 1 &&
-        !CheckSupportedType(decoder, operand.sig->GetReturn(0), "return"))
+        !CheckSupportedType(decoder, kTypes_if, operand.sig->GetReturn(0),
+                            "return"))
       return;
 
     // Assume only one table for now.
