@@ -1251,7 +1251,8 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
   TNode<Number> ToNumber(
       SloppyTNode<Context> context, SloppyTNode<Object> input,
       BigIntHandling bigint_handling = BigIntHandling::kThrow);
-  TNode<Number> ToNumber_Inline(TNode<Context> context, TNode<Object> input);
+  TNode<Number> ToNumber_Inline(SloppyTNode<Context> context,
+                                SloppyTNode<Object> input);
 
   // Converts |input| to one of 2^32 integer values in the range 0 through
   // 2^32-1, inclusive.

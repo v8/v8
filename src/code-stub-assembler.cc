@@ -5623,8 +5623,8 @@ TNode<Numeric> CodeStubAssembler::NonNumberToNumeric(
   return UncheckedCast<Numeric>(result);
 }
 
-TNode<Number> CodeStubAssembler::ToNumber_Inline(TNode<Context> context,
-                                                 TNode<Object> input) {
+TNode<Number> CodeStubAssembler::ToNumber_Inline(SloppyTNode<Context> context,
+                                                 SloppyTNode<Object> input) {
   TVARIABLE(Number, var_result);
   Label end(this), not_smi(this, Label::kDeferred);
 

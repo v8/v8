@@ -340,7 +340,7 @@ Node* ArrayBuiltinsAssembler::FindProcessor(Node* k_value, Node* k) {
 
     BIND(&fast);
     // #sec-integerindexedelementset 3. Let numValue be ? ToNumber(value).
-    Node* num_value = ToNumber(context(), mapped_value);
+    Node* num_value = ToNumber_Inline(context(), mapped_value);
     // The only way how this can bailout is because of a detached buffer.
     EmitElementStore(a(), k, num_value, false, source_elements_kind_,
                      KeyedAccessStoreMode::STANDARD_STORE, &detached);
@@ -524,6 +524,8 @@ Node* ArrayBuiltinsAssembler::FindProcessor(Node* k_value, Node* k) {
 
     BIND(&distinguish_types);
 
+    generator(this);
+
     if (direction == ForEachDirection::kForward) {
       k_.Bind(SmiConstant(0));
     } else {
@@ -538,7 +540,6 @@ Node* ArrayBuiltinsAssembler::FindProcessor(Node* k_value, Node* k) {
       Label done(this);
       source_elements_kind_ = ElementsKindForInstanceType(
           static_cast<InstanceType>(instance_types[i]));
-      generator(this);
       // TODO(tebbi): Silently cancelling the loop on buffer detachment is a
       // spec violation. Should go to &throw_detached and throw a TypeError
       // instead.
