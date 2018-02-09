@@ -729,7 +729,8 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       }
       static_assert(kJavaScriptCallCodeStartRegister == a2, "ABI mismatch");
       __ lw(a2, FieldMemOperand(func, JSFunction::kCodeOffset));
-      __ Call(a2, Code::kHeaderSize - kHeapObjectTag);
+      __ Addu(a2, a2, Code::kHeaderSize - kHeapObjectTag);
+      __ Call(a2);
       RecordCallPosition(instr);
       frame_access_state()->ClearSPDelta();
       frame_access_state()->SetFrameAccessToDefault();

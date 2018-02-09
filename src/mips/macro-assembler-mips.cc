@@ -4075,10 +4075,12 @@ void MacroAssembler::InvokeFunctionCode(Register function, Register new_target,
     Register code = kJavaScriptCallCodeStartRegister;
     lw(code, FieldMemOperand(function, JSFunction::kCodeOffset));
     if (flag == CALL_FUNCTION) {
-      Call(code, Code::kHeaderSize - kHeapObjectTag);
+      Addu(code, code, Code::kHeaderSize - kHeapObjectTag);
+      Call(code);
     } else {
       DCHECK(flag == JUMP_FUNCTION);
-      Jump(code, Code::kHeaderSize - kHeapObjectTag);
+      Addu(code, code, Code::kHeaderSize - kHeapObjectTag);
+      Jump(code);
     }
     // Continue here if InvokePrologue does handle the invocation due to
     // mismatched parameter counts.
