@@ -10,8 +10,8 @@ namespace v8 {
 namespace internal {
 
 void GrowableFixedArray::Push(TNode<Object> const value) {
-  TNode<IntPtrT> const length = var_length_;
-  TNode<IntPtrT> const capacity = var_capacity_;
+  TNode<IntPtrT> const length = var_length_.value();
+  TNode<IntPtrT> const capacity = var_capacity_.value();
 
   Label grow(this), store(this);
   Branch(IntPtrEqual(capacity, length), &grow, &store);
@@ -19,14 +19,14 @@ void GrowableFixedArray::Push(TNode<Object> const value) {
   BIND(&grow);
   {
     var_capacity_ = NewCapacity(capacity);
-    var_array_ = ResizeFixedArray(length, var_capacity_);
+    var_array_ = ResizeFixedArray(length, var_capacity_.value());
 
     Goto(&store);
   }
 
   BIND(&store);
   {
-    TNode<FixedArray> const array = var_array_;
+    TNode<FixedArray> const array = var_array_.value();
     StoreFixedArrayElement(array, length, value);
 
     var_length_ = IntPtrAdd(length, IntPtrConstant(1));
@@ -43,8 +43,8 @@ TNode<JSArray> GrowableFixedArray::ToJSArray(TNode<Context> const context) {
   {
     Label next(this);
 
-    TNode<IntPtrT> const length = var_length_;
-    TNode<IntPtrT> const capacity = var_capacity_;
+    TNode<IntPtrT> const length = var_length_.value();
+    TNode<IntPtrT> const capacity = var_capacity_.value();
 
     GotoIf(WordEqual(length, capacity), &next);
 
@@ -60,7 +60,7 @@ TNode<JSArray> GrowableFixedArray::ToJSArray(TNode<Context> const context) {
       CAST(AllocateUninitializedJSArrayWithoutElements(array_map, result_length,
                                                        nullptr));
 
-  StoreObjectField(result, JSObject::kElementsOffset, var_array_);
+  StoreObjectField(result, JSObject::kElementsOffset, var_array_.value());
 
   return result;
 }
@@ -86,7 +86,7 @@ TNode<FixedArray> GrowableFixedArray::ResizeFixedArray(
   CSA_ASSERT(this, IntPtrGreaterThanOrEqual(new_capacity, IntPtrConstant(0)));
   CSA_ASSERT(this, IntPtrGreaterThanOrEqual(new_capacity, element_count));
 
-  TNode<FixedArray> const from_array = var_array_;
+  TNode<FixedArray> const from_array = var_array_.value();
 
   CodeStubAssembler::ExtractFixedArrayFlags flags;
   flags |= CodeStubAssembler::ExtractFixedArrayFlag::kFixedArrays;

@@ -26,7 +26,7 @@ class GrowableFixedArray : public CodeStubAssembler {
     var_length_ = IntPtrConstant(0);
   }
 
-  TNode<IntPtrT> length() const { return var_length_; }
+  TNode<IntPtrT> length() const { return var_length_.value(); }
 
   TVariable<FixedArray>* var_array() { return &var_array_; }
   TVariable<IntPtrT>* var_length() { return &var_length_; }

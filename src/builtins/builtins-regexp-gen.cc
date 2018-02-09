@@ -1063,13 +1063,13 @@ Node* RegExpBuiltinsAssembler::FlagsGetter(Node* const context,
     Node* const flags_smi = LoadObjectField(regexp, JSRegExp::kFlagsOffset);
     var_flags = SmiUntag(flags_smi);
 
-#define CASE_FOR_FLAG(FLAG)                          \
-  do {                                               \
-    Label next(this);                                \
-    GotoIfNot(IsSetWord(var_flags, FLAG), &next);    \
-    var_length = SmiAdd(var_length, SmiConstant(1)); \
-    Goto(&next);                                     \
-    BIND(&next);                                     \
+#define CASE_FOR_FLAG(FLAG)                                  \
+  do {                                                       \
+    Label next(this);                                        \
+    GotoIfNot(IsSetWord(var_flags.value(), FLAG), &next);    \
+    var_length = SmiAdd(var_length.value(), SmiConstant(1)); \
+    Goto(&next);                                             \
+    BIND(&next);                                             \
   } while (false)
 
     CASE_FOR_FLAG(JSRegExp::kGlobal);
@@ -1093,8 +1093,8 @@ Node* RegExpBuiltinsAssembler::FlagsGetter(Node* const context,
     Label if_isflagset(this);                                              \
     BranchIfToBooleanIsTrue(flag, &if_isflagset, &next);                   \
     BIND(&if_isflagset);                                                   \
-    var_length = SmiAdd(var_length, SmiConstant(1));                       \
-    var_flags = Signed(WordOr(var_flags, IntPtrConstant(FLAG)));           \
+    var_length = SmiAdd(var_length.value(), SmiConstant(1));               \
+    var_flags = Signed(WordOr(var_flags.value(), IntPtrConstant(FLAG)));   \
     Goto(&next);                                                           \
     BIND(&next);                                                           \
   } while (false)
@@ -1112,7 +1112,7 @@ Node* RegExpBuiltinsAssembler::FlagsGetter(Node* const context,
   // char for each set flag.
 
   {
-    Node* const result = AllocateSeqOneByteString(context, var_length);
+    Node* const result = AllocateSeqOneByteString(context, var_length.value());
 
     VARIABLE(var_offset, MachineType::PointerRepresentation(),
              IntPtrConstant(SeqOneByteString::kHeaderSize - kHeapObjectTag));
@@ -1120,7 +1120,7 @@ Node* RegExpBuiltinsAssembler::FlagsGetter(Node* const context,
 #define CASE_FOR_FLAG(FLAG, CHAR)                              \
   do {                                                         \
     Label next(this);                                          \
-    GotoIfNot(IsSetWord(var_flags, FLAG), &next);              \
+    GotoIfNot(IsSetWord(var_flags.value(), FLAG), &next);      \
     Node* const value = Int32Constant(CHAR);                   \
     StoreNoWriteBarrier(MachineRepresentation::kWord8, result, \
                         var_offset.value(), value);            \
@@ -2533,9 +2533,9 @@ Node* RegExpBuiltinsAssembler::ReplaceGlobalCallableFastPath(
     Goto(&loop);
     BIND(&loop);
     {
-      GotoIfNot(IntPtrLessThan(var_i, end), &create_result);
+      GotoIfNot(IntPtrLessThan(var_i.value(), end), &create_result);
 
-      Node* const elem = LoadFixedArrayElement(res_elems, var_i);
+      Node* const elem = LoadFixedArrayElement(res_elems, var_i.value());
 
       Label if_issmi(this), if_isstring(this), loop_epilogue(this);
       Branch(TaggedIsSmi(elem), &if_issmi, &if_isstring);
@@ -2559,9 +2559,10 @@ Node* RegExpBuiltinsAssembler::ReplaceGlobalCallableFastPath(
 
         BIND(&if_isnegativeorzero);
         {
-          var_i = IntPtrAdd(var_i, int_one);
+          var_i = IntPtrAdd(var_i.value(), int_one);
 
-          Node* const next_elem = LoadFixedArrayElement(res_elems, var_i);
+          Node* const next_elem =
+              LoadFixedArrayElement(res_elems, var_i.value());
 
           var_match_start = SmiSub(next_elem, elem);
           Goto(&loop_epilogue);
@@ -2573,13 +2574,13 @@ Node* RegExpBuiltinsAssembler::ReplaceGlobalCallableFastPath(
         CSA_ASSERT(this, IsString(elem));
 
         Callable call_callable = CodeFactory::Call(isolate);
-        TNode<Smi> match_start = var_match_start;
+        TNode<Smi> match_start = var_match_start.value();
         Node* const replacement_obj =
             CallJS(call_callable, context, replace_callable, undefined, elem,
                    match_start, string);
 
         Node* const replacement_str = ToString_Inline(context, replacement_obj);
-        StoreFixedArrayElement(res_elems, var_i, replacement_str);
+        StoreFixedArrayElement(res_elems, var_i.value(), replacement_str);
 
         TNode<Smi> const elem_length = LoadStringLengthAsSmi(elem);
         var_match_start = SmiAdd(match_start, elem_length);
@@ -2589,7 +2590,7 @@ Node* RegExpBuiltinsAssembler::ReplaceGlobalCallableFastPath(
 
       BIND(&loop_epilogue);
       {
-        var_i = IntPtrAdd(var_i, int_one);
+        var_i = IntPtrAdd(var_i.value(), int_one);
         Goto(&loop);
       }
     }

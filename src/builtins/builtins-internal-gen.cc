@@ -863,9 +863,9 @@ TF_BUILTIN(RunMicrotasks, InternalBuiltinsAssembler) {
     Goto(&loop);
     BIND(&loop);
     {
-      TNode<HeapObject> microtask =
-          TNode<HeapObject>::UncheckedCast(LoadFixedArrayElement(queue, index));
-      index = IntPtrAdd(index, IntPtrConstant(1));
+      TNode<HeapObject> microtask = TNode<HeapObject>::UncheckedCast(
+          LoadFixedArrayElement(queue, index.value()));
+      index = IntPtrAdd(index.value(), IntPtrConstant(1));
 
       CSA_ASSERT(this, TaggedIsNotSmi(microtask));
 
@@ -1050,7 +1050,7 @@ TF_BUILTIN(RunMicrotasks, InternalBuiltinsAssembler) {
       }
 
       BIND(&loop_next);
-      Branch(IntPtrLessThan(index, num_tasks), &loop, &init_queue_loop);
+      Branch(IntPtrLessThan(index.value(), num_tasks), &loop, &init_queue_loop);
     }
   }
 }

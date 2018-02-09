@@ -651,8 +651,8 @@ TNode<Smi> CodeStubAssembler::ConvertToRelativeIndex(TNode<Context> context,
     Goto(&done);
   }
   BIND(&done);
-  CSA_ASSERT(this, TaggedIsPositiveSmi(result));
-  return result;
+  CSA_ASSERT(this, TaggedIsPositiveSmi(result.value()));
+  return result.value();
 }
 
 Node* CodeStubAssembler::SmiMod(Node* a, Node* b) {
@@ -776,7 +776,7 @@ TNode<Number> CodeStubAssembler::SmiMul(SloppyTNode<Smi> a,
   }
 
   BIND(&return_result);
-  return var_result;
+  return var_result.value();
 }
 
 Node* CodeStubAssembler::TrySmiDiv(Node* dividend, Node* divisor,
@@ -943,7 +943,7 @@ TNode<BoolT> CodeStubAssembler::IsFastJSArray(SloppyTNode<Object> object,
     Goto(&exit);
   }
   BIND(&exit);
-  return var_result;
+  return var_result.value();
 }
 
 TNode<BoolT> CodeStubAssembler::IsFastJSArrayWithNoCustomIteration(
@@ -971,7 +971,7 @@ TNode<BoolT> CodeStubAssembler::IsFastJSArrayWithNoCustomIteration(
     Goto(&exit);
   }
   BIND(&exit);
-  return var_result;
+  return var_result.value();
 }
 
 void CodeStubAssembler::BranchIfFastJSArray(Node* object, Node* context,
@@ -1545,16 +1545,16 @@ TNode<Object> CodeStubAssembler::LoadMapConstructor(SloppyTNode<Map> map) {
   Goto(&loop);
   BIND(&loop);
   {
-    GotoIf(TaggedIsSmi(result), &done);
+    GotoIf(TaggedIsSmi(result.value()), &done);
     Node* is_map_type =
-        InstanceTypeEqual(LoadInstanceType(CAST(result)), MAP_TYPE);
+        InstanceTypeEqual(LoadInstanceType(CAST(result.value())), MAP_TYPE);
     GotoIfNot(is_map_type, &done);
-    result =
-        LoadObjectField(CAST(result), Map::kConstructorOrBackPointerOffset);
+    result = LoadObjectField(CAST(result.value()),
+                             Map::kConstructorOrBackPointerOffset);
     Goto(&loop);
   }
   BIND(&done);
-  return result;
+  return result.value();
 }
 
 Node* CodeStubAssembler::LoadMapEnumLength(SloppyTNode<Map> map) {
@@ -1620,11 +1620,11 @@ TNode<IntPtrT> CodeStubAssembler::LoadJSReceiverIdentityHash(
 
   BIND(&done);
   if (if_no_hash != nullptr) {
-    GotoIf(
-        IntPtrEqual(var_hash, IntPtrConstant(PropertyArray::kNoHashSentinel)),
-        if_no_hash);
+    GotoIf(IntPtrEqual(var_hash.value(),
+                       IntPtrConstant(PropertyArray::kNoHashSentinel)),
+           if_no_hash);
   }
-  return var_hash;
+  return var_hash.value();
 }
 
 TNode<Uint32T> CodeStubAssembler::LoadNameHashField(SloppyTNode<Name> name) {
@@ -2128,7 +2128,7 @@ TNode<Smi> CodeStubAssembler::BuildAppendJSArray(ElementsKind kind,
   VARIABLE(var_elements, MachineRepresentation::kTagged, LoadElements(array));
 
   // Resize the capacity of the fixed array if it doesn't fit.
-  TNode<IntPtrT> first = *arg_index;
+  TNode<IntPtrT> first = arg_index->value();
   Node* growth = WordToParameter(
       IntPtrSub(UncheckedCast<IntPtrT>(args->GetLength(INTPTR_PARAMETERS)),
                 first),
@@ -2161,12 +2161,12 @@ TNode<Smi> CodeStubAssembler::BuildAppendJSArray(ElementsKind kind,
     var_tagged_length = length;
     Node* diff = SmiSub(length, LoadFastJSArrayLength(array));
     StoreObjectFieldNoWriteBarrier(array, JSArray::kLengthOffset, length);
-    *arg_index = IntPtrAdd(*arg_index, SmiUntag(diff));
+    *arg_index = IntPtrAdd(arg_index->value(), SmiUntag(diff));
     Goto(bailout);
   }
 
   BIND(&success);
-  return var_tagged_length;
+  return var_tagged_length.value();
 }
 
 void CodeStubAssembler::TryStoreArrayElement(ElementsKind kind,
@@ -3804,7 +3804,7 @@ TNode<Number> CodeStubAssembler::ChangeFloat64ToTagged(
     Goto(&if_join);
   }
   BIND(&if_join);
-  return var_result;
+  return var_result.value();
 }
 
 TNode<Number> CodeStubAssembler::ChangeInt32ToTagged(
@@ -3833,7 +3833,7 @@ TNode<Number> CodeStubAssembler::ChangeInt32ToTagged(
   }
   Goto(&if_join);
   BIND(&if_join);
-  return var_result;
+  return var_result.value();
 }
 
 TNode<Number> CodeStubAssembler::ChangeUint32ToTagged(
@@ -3874,7 +3874,7 @@ TNode<Number> CodeStubAssembler::ChangeUint32ToTagged(
   Goto(&if_join);
 
   BIND(&if_join);
-  return var_result;
+  return var_result.value();
 }
 
 TNode<String> CodeStubAssembler::ToThisString(Node* context, Node* value,
@@ -3939,7 +3939,7 @@ TNode<Float64T> CodeStubAssembler::ChangeNumberToFloat64(
   }
 
   BIND(&done);
-  return result;
+  return result.value();
 }
 
 TNode<UintPtrT> CodeStubAssembler::ChangeNonnegativeNumberToUintPtr(
@@ -3959,7 +3959,7 @@ TNode<UintPtrT> CodeStubAssembler::ChangeNonnegativeNumberToUintPtr(
   Goto(&done);
 
   BIND(&done);
-  return result;
+  return result.value();
 }
 
 Node* CodeStubAssembler::TimesPointerSize(Node* value) {
@@ -4702,7 +4702,7 @@ TNode<Int32T> CodeStubAssembler::StringCharCodeAt(SloppyTNode<String> string,
   }
 
   BIND(&return_result);
-  return var_result;
+  return var_result.value();
 }
 
 TNode<String> CodeStubAssembler::StringFromCharCode(TNode<Int32T> code) {
@@ -5368,7 +5368,7 @@ TNode<Number> CodeStubAssembler::StringToNumber(SloppyTNode<String> input) {
   }
 
   BIND(&end);
-  return var_result;
+  return var_result.value();
 }
 
 Node* CodeStubAssembler::NumberToString(Node* argument) {
@@ -5644,7 +5644,7 @@ TNode<Number> CodeStubAssembler::ToNumber_Inline(SloppyTNode<Context> context,
   }
 
   BIND(&end);
-  return var_result;
+  return var_result.value();
 }
 
 TNode<Number> CodeStubAssembler::ToNumber(SloppyTNode<Context> context,
@@ -5677,7 +5677,7 @@ TNode<Number> CodeStubAssembler::ToNumber(SloppyTNode<Context> context,
   }
 
   BIND(&end);
-  return var_result;
+  return var_result.value();
 }
 
 void CodeStubAssembler::TaggedToNumeric(Node* context, Node* value, Label* done,
@@ -5997,7 +5997,7 @@ TNode<Number> CodeStubAssembler::ToInteger(SloppyTNode<Context> context,
     Label return_zero(this, Label::kDeferred);
 
     // Load the current {arg} value.
-    TNode<Object> arg = var_arg;
+    TNode<Object> arg = var_arg.value();
 
     // Check if {arg} is a Smi.
     GotoIf(TaggedIsSmi(arg), &out);
@@ -6042,8 +6042,9 @@ TNode<Number> CodeStubAssembler::ToInteger(SloppyTNode<Context> context,
   }
 
   BIND(&out);
-  if (mode == kTruncateMinusZero) CSA_ASSERT(this, IsNumberNormalized(var_arg));
-  return CAST(var_arg);
+  if (mode == kTruncateMinusZero)
+    CSA_ASSERT(this, IsNumberNormalized(var_arg.value()));
+  return CAST(var_arg.value());
 }
 
 TNode<Uint32T> CodeStubAssembler::DecodeWord32(SloppyTNode<Word32T> word32,
@@ -8425,19 +8426,22 @@ void CodeStubAssembler::BranchIfNumberRelationalComparison(
   {
     switch (op) {
       case Operation::kLessThan:
-        Branch(Float64LessThan(var_left_float, var_right_float), if_true,
-               if_false);
+        Branch(Float64LessThan(var_left_float.value(), var_right_float.value()),
+               if_true, if_false);
         break;
       case Operation::kLessThanOrEqual:
-        Branch(Float64LessThanOrEqual(var_left_float, var_right_float), if_true,
-               if_false);
+        Branch(Float64LessThanOrEqual(var_left_float.value(),
+                                      var_right_float.value()),
+               if_true, if_false);
         break;
       case Operation::kGreaterThan:
-        Branch(Float64GreaterThan(var_left_float, var_right_float), if_true,
-               if_false);
+        Branch(
+            Float64GreaterThan(var_left_float.value(), var_right_float.value()),
+            if_true, if_false);
         break;
       case Operation::kGreaterThanOrEqual:
-        Branch(Float64GreaterThanOrEqual(var_left_float, var_right_float),
+        Branch(Float64GreaterThanOrEqual(var_left_float.value(),
+                                         var_right_float.value()),
                if_true, if_false);
         break;
       default:
@@ -8831,19 +8835,22 @@ Node* CodeStubAssembler::RelationalComparison(Operation op, Node* left,
   {
     switch (op) {
       case Operation::kLessThan:
-        Branch(Float64LessThan(var_left_float, var_right_float), &return_true,
-               &return_false);
+        Branch(Float64LessThan(var_left_float.value(), var_right_float.value()),
+               &return_true, &return_false);
         break;
       case Operation::kLessThanOrEqual:
-        Branch(Float64LessThanOrEqual(var_left_float, var_right_float),
+        Branch(Float64LessThanOrEqual(var_left_float.value(),
+                                      var_right_float.value()),
                &return_true, &return_false);
         break;
       case Operation::kGreaterThan:
-        Branch(Float64GreaterThan(var_left_float, var_right_float),
-               &return_true, &return_false);
+        Branch(
+            Float64GreaterThan(var_left_float.value(), var_right_float.value()),
+            &return_true, &return_false);
         break;
       case Operation::kGreaterThanOrEqual:
-        Branch(Float64GreaterThanOrEqual(var_left_float, var_right_float),
+        Branch(Float64GreaterThanOrEqual(var_left_float.value(),
+                                         var_right_float.value()),
                &return_true, &return_false);
         break;
       default:
@@ -8864,7 +8871,7 @@ Node* CodeStubAssembler::RelationalComparison(Operation op, Node* left,
   }
 
   BIND(&end);
-  return var_result;
+  return var_result.value();
 }
 
 Node* CodeStubAssembler::CollectFeedbackForString(Node* instance_type) {
@@ -9272,8 +9279,8 @@ Node* CodeStubAssembler::Equal(Node* left, Node* right, Node* context,
 
   BIND(&do_float_comparison);
   {
-    Branch(Float64Equal(var_left_float, var_right_float), &if_equal,
-           &if_notequal);
+    Branch(Float64Equal(var_left_float.value(), var_right_float.value()),
+           &if_equal, &if_notequal);
   }
 
   BIND(&if_equal);
@@ -9803,8 +9810,8 @@ TNode<Oddball> CodeStubAssembler::HasProperty(SloppyTNode<HeapObject> object,
   }
 
   BIND(&end);
-  CSA_ASSERT(this, IsBoolean(result));
-  return result;
+  CSA_ASSERT(this, IsBoolean(result.value()));
+  return result.value();
 }
 
 Node* CodeStubAssembler::ClassOf(Node* value) {
@@ -10637,7 +10644,7 @@ TNode<Object> CodeStubArguments::GetOptionalArgumentValue(
   assembler_->Goto(&argument_done);
 
   assembler_->BIND(&argument_done);
-  return result;
+  return result.value();
 }
 
 void CodeStubArguments::ForEach(

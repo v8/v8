@@ -1144,17 +1144,9 @@ class TypedCodeAssemblerVariable : public CodeAssemblerVariable {
                               initial_value) {}
 #endif  // DEBUG
 
-  template <class U, class = typename std::enable_if<
-                         std::is_convertible<TNode<T>, TNode<U>>::value>::type>
-  operator TNode<U>() const {
-    return TNode<T>::UncheckedCast(value());
+  TNode<T> value() const {
+    return TNode<T>::UncheckedCast(CodeAssemblerVariable::value());
   }
-  template <class U, class = typename std::enable_if<
-                         std::is_convertible<TNode<T>, TNode<U>>::value>::type>
-  operator SloppyTNode<U>() const {
-    return value();
-  }
-  operator Node*() const { return value(); }
 
   void operator=(TNode<T> value) { Bind(value); }
   void operator=(const TypedCodeAssemblerVariable<T>& variable) {
@@ -1163,7 +1155,6 @@ class TypedCodeAssemblerVariable : public CodeAssemblerVariable {
 
  private:
   using CodeAssemblerVariable::Bind;
-  using CodeAssemblerVariable::value;
 };
 
 class CodeAssemblerLabel {

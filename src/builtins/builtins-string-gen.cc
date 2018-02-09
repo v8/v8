@@ -264,21 +264,23 @@ void StringBuiltinsAssembler::StringEqual_Loop(
   {
     // If {offset} equals {end}, no difference was found, so the
     // strings are equal.
-    GotoIf(WordEqual(var_offset, length), if_equal);
+    GotoIf(WordEqual(var_offset.value(), length), if_equal);
 
     // Load the next characters from {lhs} and {rhs}.
     Node* lhs_value =
         Load(lhs_type, lhs_data,
-             WordShl(var_offset, ElementSizeLog2Of(lhs_type.representation())));
+             WordShl(var_offset.value(),
+                     ElementSizeLog2Of(lhs_type.representation())));
     Node* rhs_value =
         Load(rhs_type, rhs_data,
-             WordShl(var_offset, ElementSizeLog2Of(rhs_type.representation())));
+             WordShl(var_offset.value(),
+                     ElementSizeLog2Of(rhs_type.representation())));
 
     // Check if the characters match.
     GotoIf(Word32NotEqual(lhs_value, rhs_value), if_not_equal);
 
     // Advance to next character.
-    var_offset = IntPtrAdd(var_offset, IntPtrConstant(1));
+    var_offset = IntPtrAdd(var_offset.value(), IntPtrConstant(1));
     Goto(&loop);
   }
 }
@@ -372,13 +374,13 @@ void StringBuiltinsAssembler::GenerateStringRelationalComparison(Node* context,
     {
       // Check if {offset} equals {end}.
       Label if_done(this), if_notdone(this);
-      Branch(WordEqual(var_offset, end), &if_done, &if_notdone);
+      Branch(WordEqual(var_offset.value(), end), &if_done, &if_notdone);
 
       BIND(&if_notdone);
       {
         // Load the next characters from {lhs} and {rhs}.
-        Node* lhs_value = Load(MachineType::Uint8(), lhs, var_offset);
-        Node* rhs_value = Load(MachineType::Uint8(), rhs, var_offset);
+        Node* lhs_value = Load(MachineType::Uint8(), lhs, var_offset.value());
+        Node* rhs_value = Load(MachineType::Uint8(), rhs, var_offset.value());
 
         // Check if the characters match.
         Label if_valueissame(this), if_valueisnotsame(this);
@@ -388,7 +390,7 @@ void StringBuiltinsAssembler::GenerateStringRelationalComparison(Node* context,
         BIND(&if_valueissame);
         {
           // Advance to next character.
-          var_offset = IntPtrAdd(var_offset, IntPtrConstant(1));
+          var_offset = IntPtrAdd(var_offset.value(), IntPtrConstant(1));
         }
         Goto(&loop);
 
@@ -613,11 +615,12 @@ TF_BUILTIN(StringFromCharCode, CodeStubAssembler) {
 
       // The {code16} fits into the SeqOneByteString {one_byte_result}.
       Node* offset = ElementOffsetFromIndex(
-          var_max_index, UINT8_ELEMENTS, CodeStubAssembler::INTPTR_PARAMETERS,
+          var_max_index.value(), UINT8_ELEMENTS,
+          CodeStubAssembler::INTPTR_PARAMETERS,
           SeqOneByteString::kHeaderSize - kHeapObjectTag);
       StoreNoWriteBarrier(MachineRepresentation::kWord8, one_byte_result,
                           offset, code16);
-      var_max_index = IntPtrAdd(var_max_index, IntPtrConstant(1));
+      var_max_index = IntPtrAdd(var_max_index.value(), IntPtrConstant(1));
     });
     arguments.PopAndReturn(one_byte_result);
 
@@ -632,16 +635,17 @@ TF_BUILTIN(StringFromCharCode, CodeStubAssembler) {
     // their corresponding positions in the new 16-bit string.
     TNode<IntPtrT> zero = IntPtrConstant(0);
     CopyStringCharacters(one_byte_result, two_byte_result, zero, zero,
-                         var_max_index, String::ONE_BYTE_ENCODING,
+                         var_max_index.value(), String::ONE_BYTE_ENCODING,
                          String::TWO_BYTE_ENCODING);
 
     // Write the character that caused the 8-bit to 16-bit fault.
-    Node* max_index_offset = ElementOffsetFromIndex(
-        var_max_index, UINT16_ELEMENTS, CodeStubAssembler::INTPTR_PARAMETERS,
-        SeqTwoByteString::kHeaderSize - kHeapObjectTag);
+    Node* max_index_offset =
+        ElementOffsetFromIndex(var_max_index.value(), UINT16_ELEMENTS,
+                               CodeStubAssembler::INTPTR_PARAMETERS,
+                               SeqTwoByteString::kHeaderSize - kHeapObjectTag);
     StoreNoWriteBarrier(MachineRepresentation::kWord16, two_byte_result,
                         max_index_offset, code16);
-    var_max_index = IntPtrAdd(var_max_index, IntPtrConstant(1));
+    var_max_index = IntPtrAdd(var_max_index.value(), IntPtrConstant(1));
 
     // Resume copying the passed-in arguments from the same place where the
     // 8-bit copy stopped, but this time copying over all of the characters
@@ -654,14 +658,14 @@ TF_BUILTIN(StringFromCharCode, CodeStubAssembler) {
               Word32And(code32, Int32Constant(String::kMaxUtf16CodeUnit));
 
           Node* offset = ElementOffsetFromIndex(
-              var_max_index, UINT16_ELEMENTS,
+              var_max_index.value(), UINT16_ELEMENTS,
               CodeStubAssembler::INTPTR_PARAMETERS,
               SeqTwoByteString::kHeaderSize - kHeapObjectTag);
           StoreNoWriteBarrier(MachineRepresentation::kWord16, two_byte_result,
                               offset, code16);
-          var_max_index = IntPtrAdd(var_max_index, IntPtrConstant(1));
+          var_max_index = IntPtrAdd(var_max_index.value(), IntPtrConstant(1));
         },
-        var_max_index);
+        var_max_index.value());
 
     arguments.PopAndReturn(two_byte_result);
   }
@@ -1553,14 +1557,15 @@ class StringPadAssembler : public StringBuiltinsAssembler {
       GotoIf(IsUndefined(fill), &pad);
 
       var_fill_string = ToString_Inline(context, fill);
-      var_fill_length = LoadStringLengthAsWord(var_fill_string);
+      var_fill_length = LoadStringLengthAsWord(var_fill_string.value());
 
-      Branch(IntPtrGreaterThan(var_fill_length, IntPtrConstant(0)), &pad,
-             &dont_pad);
+      Branch(IntPtrGreaterThan(var_fill_length.value(), IntPtrConstant(0)),
+             &pad, &dont_pad);
     }
     BIND(&pad);
     {
-      CSA_ASSERT(this, IntPtrGreaterThan(var_fill_length, IntPtrConstant(0)));
+      CSA_ASSERT(this,
+                 IntPtrGreaterThan(var_fill_length.value(), IntPtrConstant(0)));
       CSA_ASSERT(this, SmiGreaterThan(max_length, string_length));
 
       Callable stringadd_callable =
@@ -1570,22 +1575,22 @@ class StringPadAssembler : public StringBuiltinsAssembler {
       VARIABLE(var_pad, MachineRepresentation::kTagged);
 
       Label single_char_fill(this), multi_char_fill(this), return_result(this);
-      Branch(IntPtrEqual(var_fill_length, IntPtrConstant(1)), &single_char_fill,
-             &multi_char_fill);
+      Branch(IntPtrEqual(var_fill_length.value(), IntPtrConstant(1)),
+             &single_char_fill, &multi_char_fill);
 
       // Fast path for a single character fill.  No need to calculate number of
       // repetitions or remainder.
       BIND(&single_char_fill);
       {
         var_pad.Bind(CallBuiltin(Builtins::kStringRepeat, context,
-                                 static_cast<Node*>(var_fill_string),
+                                 static_cast<Node*>(var_fill_string.value()),
                                  pad_length));
         Goto(&return_result);
       }
       BIND(&multi_char_fill);
       {
         TNode<Int32T> const fill_length_word32 =
-            TruncateWordToWord32(var_fill_length);
+            TruncateWordToWord32(var_fill_length.value());
         TNode<Int32T> const pad_length_word32 = SmiToWord32(pad_length);
         TNode<Int32T> const repetitions_word32 =
             Int32Div(pad_length_word32, fill_length_word32);
@@ -1593,15 +1598,14 @@ class StringPadAssembler : public StringBuiltinsAssembler {
             Int32Mod(pad_length_word32, fill_length_word32);
 
         var_pad.Bind(CallBuiltin(Builtins::kStringRepeat, context,
-                                 static_cast<Node*>(var_fill_string),
+                                 var_fill_string.value(),
                                  SmiFromWord32(repetitions_word32)));
 
         GotoIfNot(remaining_word32, &return_result);
         {
-          Node* const remainder_string =
-              CallBuiltin(Builtins::kSubString, context,
-                          static_cast<Node*>(var_fill_string), SmiConstant(0),
-                          SmiFromWord32(remaining_word32));
+          Node* const remainder_string = CallBuiltin(
+              Builtins::kSubString, context, var_fill_string.value(),
+              SmiConstant(0), SmiFromWord32(remaining_word32));
           var_pad.Bind(CallStub(stringadd_callable, context, var_pad.value(),
                                 remainder_string));
           Goto(&return_result);
@@ -1682,9 +1686,11 @@ TF_BUILTIN(StringPrototypeSlice, StringBuiltinsAssembler) {
   Label return_emptystring(this);
   BIND(&out);
   {
-    GotoIf(SmiLessThanOrEqual(var_end, var_start), &return_emptystring);
-    Node* const result = SubString(context, subject_string, var_start, var_end,
-                                   SubStringFlags::FROM_TO_ARE_BOUNDED);
+    GotoIf(SmiLessThanOrEqual(var_end.value(), var_start.value()),
+           &return_emptystring);
+    Node* const result =
+        SubString(context, subject_string, var_start.value(), var_end.value(),
+                  SubStringFlags::FROM_TO_ARE_BOUNDED);
     args.PopAndReturn(result);
   }
 
@@ -1841,16 +1847,16 @@ TF_BUILTIN(StringPrototypeSubstr, StringBuiltinsAssembler) {
 
   TVARIABLE(Smi, var_result_length);
 
-  Branch(TaggedIsSmi(var_length), &if_issmi, &if_isheapnumber);
+  Branch(TaggedIsSmi(var_length.value()), &if_issmi, &if_isheapnumber);
 
   // Set {length} to min(max({length}, 0), {string_length} - {start}
   BIND(&if_issmi);
   {
-    TNode<Smi> const positive_length = SmiMax(CAST(var_length), zero);
-    TNode<Smi> const minimal_length = SmiSub(string_length, var_start);
+    TNode<Smi> const positive_length = SmiMax(CAST(var_length.value()), zero);
+    TNode<Smi> const minimal_length = SmiSub(string_length, var_start.value());
     var_result_length = SmiMin(positive_length, minimal_length);
 
-    GotoIfNot(SmiLessThanOrEqual(var_result_length, zero), &out);
+    GotoIfNot(SmiLessThanOrEqual(var_result_length.value(), zero), &out);
     args.PopAndReturn(EmptyStringConstant());
   }
 
@@ -1860,11 +1866,12 @@ TF_BUILTIN(StringPrototypeSubstr, StringBuiltinsAssembler) {
     // two cases according to the spec: if it is negative, "" is returned; if
     // it is positive, then length is set to {string_length} - {start}.
 
-    CSA_ASSERT(this, IsHeapNumber(var_length));
+    CSA_ASSERT(this, IsHeapNumber(var_length.value()));
 
     Label if_isnegative(this), if_ispositive(this);
     TNode<Float64T> const float_zero = Float64Constant(0.);
-    TNode<Float64T> const length_float = LoadHeapNumberValue(CAST(var_length));
+    TNode<Float64T> const length_float =
+        LoadHeapNumberValue(CAST(var_length.value()));
     Branch(Float64LessThan(length_float, float_zero), &if_isnegative,
            &if_ispositive);
 
@@ -1873,16 +1880,16 @@ TF_BUILTIN(StringPrototypeSubstr, StringBuiltinsAssembler) {
 
     BIND(&if_ispositive);
     {
-      var_result_length = SmiSub(string_length, var_start);
-      GotoIfNot(SmiLessThanOrEqual(var_result_length, zero), &out);
+      var_result_length = SmiSub(string_length, var_start.value());
+      GotoIfNot(SmiLessThanOrEqual(var_result_length.value(), zero), &out);
       args.PopAndReturn(EmptyStringConstant());
     }
   }
 
   BIND(&out);
   {
-    TNode<Smi> const end = SmiAdd(var_start, var_result_length);
-    Node* const result = SubString(context, string, var_start, end);
+    TNode<Smi> const end = SmiAdd(var_start.value(), var_result_length.value());
+    Node* const result = SubString(context, string, var_start.value(), end);
     args.PopAndReturn(result);
   }
 }
@@ -1933,7 +1940,7 @@ TNode<Smi> StringBuiltinsAssembler::ToSmiBetweenZeroAnd(
   }
 
   BIND(&out);
-  return var_result;
+  return var_result.value();
 }
 
 TF_BUILTIN(SubString, CodeStubAssembler) {
@@ -2050,9 +2057,10 @@ void StringTrimAssembler::Generate(String::TrimMode mode,
         IntPtrConstant(-1), -1, &return_emptystring);
   }
 
-  arguments.PopAndReturn(SubString(context, string, SmiTag(var_start),
-                                   SmiAdd(SmiTag(var_end), SmiConstant(1)),
-                                   SubStringFlags::FROM_TO_ARE_BOUNDED));
+  arguments.PopAndReturn(
+      SubString(context, string, SmiTag(var_start.value()),
+                SmiAdd(SmiTag(var_end.value()), SmiConstant(1)),
+                SubStringFlags::FROM_TO_ARE_BOUNDED));
 
   BIND(&if_runtime);
   arguments.PopAndReturn(
@@ -2215,21 +2223,21 @@ TNode<Int32T> StringBuiltinsAssembler::LoadSurrogatePairAt(
   var_result = StringCharCodeAt(string, index);
   var_trail = Int32Constant(0);
 
-  GotoIf(Word32NotEqual(Word32And(var_result, Int32Constant(0xFC00)),
+  GotoIf(Word32NotEqual(Word32And(var_result.value(), Int32Constant(0xFC00)),
                         Int32Constant(0xD800)),
          &return_result);
   TNode<IntPtrT> next_index = IntPtrAdd(index, IntPtrConstant(1));
 
   GotoIfNot(IntPtrLessThan(next_index, length), &return_result);
   var_trail = StringCharCodeAt(string, next_index);
-  Branch(Word32Equal(Word32And(var_trail, Int32Constant(0xFC00)),
+  Branch(Word32Equal(Word32And(var_trail.value(), Int32Constant(0xFC00)),
                      Int32Constant(0xDC00)),
          &handle_surrogate_pair, &return_result);
 
   BIND(&handle_surrogate_pair);
   {
-    TNode<Int32T> lead = var_result;
-    TNode<Int32T> trail = var_trail;
+    TNode<Int32T> lead = var_result.value();
+    TNode<Int32T> trail = var_trail.value();
 
     // Check that this path is only taken if a surrogate pair is found
     CSA_SLOW_ASSERT(this,
@@ -2266,7 +2274,7 @@ TNode<Int32T> StringBuiltinsAssembler::LoadSurrogatePairAt(
   }
 
   BIND(&return_result);
-  return var_result;
+  return var_result.value();
 }
 
 // ES6 #sec-%stringiteratorprototype%.next

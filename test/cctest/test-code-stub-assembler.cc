@@ -1894,7 +1894,7 @@ class AppendJSArrayCodeStubAssembler : public CodeStubAssembler {
     Return(length);
 
     BIND(&bailout);
-    Return(SmiTag(IntPtrAdd(arg_index, IntPtrConstant(2))));
+    Return(SmiTag(IntPtrAdd(arg_index.value(), IntPtrConstant(2))));
 
     FunctionTester ft(csa_tester->GenerateCode(), kNumParams);
 

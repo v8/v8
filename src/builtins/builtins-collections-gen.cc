@@ -144,8 +144,8 @@ void BaseCollectionsAssembler::AddConstructorEntry(
     TVARIABLE(Object, value);
     LoadKeyValue(context, key_value, &key, &value, if_may_have_side_effects,
                  if_exception, var_exception);
-    Node* key_n = key;
-    Node* value_n = value;
+    Node* key_n = key.value();
+    Node* value_n = value.value();
     Node* ret = CallJS(CodeFactory::Call(isolate()), context, add_function,
                        collection, key_n, value_n);
     GotoIfException(ret, if_exception, var_exception);
@@ -164,7 +164,7 @@ void BaseCollectionsAssembler::AddConstructorEntries(
             IsFastJSArrayWithNoCustomIteration(initial_entries, context,
                                                native_context));
   TNode<IntPtrT> at_least_space_for =
-      EstimatedInitialSize(initial_entries, use_fast_loop);
+      EstimatedInitialSize(initial_entries, use_fast_loop.value());
   Label allocate_table(this, &use_fast_loop), exit(this), fast_loop(this),
       slow_loop(this, Label::kDeferred);
   Goto(&allocate_table);
@@ -176,7 +176,7 @@ void BaseCollectionsAssembler::AddConstructorEntries(
     GotoIfNot(
         HasInitialCollectionPrototype(variant, native_context, collection),
         &slow_loop);
-    Branch(use_fast_loop, &fast_loop, &slow_loop);
+    Branch(use_fast_loop.value(), &fast_loop, &slow_loop);
   }
   BIND(&fast_loop);
   {
@@ -515,7 +515,7 @@ TNode<Object> BaseCollectionsAssembler::LoadAndNormalizeFixedDoubleArrayElement(
     Goto(&next);
   }
   BIND(&next);
-  return entry;
+  return entry.value();
 }
 
 void BaseCollectionsAssembler::LoadKeyValue(
@@ -598,11 +598,11 @@ void BaseCollectionsAssembler::LoadKeyValue(
     } else {
       *key = UncheckedCast<Object>(GetProperty(
           context, maybe_array, isolate()->factory()->zero_string()));
-      GotoIfException(*key, if_exception, var_exception);
+      GotoIfException(key->value(), if_exception, var_exception);
 
       *value = UncheckedCast<Object>(GetProperty(
           context, maybe_array, isolate()->factory()->one_string()));
-      GotoIfException(*value, if_exception, var_exception);
+      GotoIfException(value->value(), if_exception, var_exception);
       Goto(&exit);
     }
     BIND(&if_notobject);
@@ -2222,16 +2222,15 @@ TNode<IntPtrT> WeakCollectionsBuiltinsAssembler::FindKeyIndex(
   BIND(&loop);
   TNode<IntPtrT> key_index;
   {
-    key_index = KeyIndexFromEntry(var_entry);
+    key_index = KeyIndexFromEntry(var_entry.value());
     TNode<Object> entry_key = CAST(LoadFixedArrayElement(table, key_index));
 
     key_compare(entry_key, &if_found);
 
     // See HashTable::NextProbe().
     Increment(&var_count);
-    var_entry = WordAnd(IntPtrAdd(UncheckedCast<IntPtrT>(var_entry),
-                                  UncheckedCast<IntPtrT>(var_count)),
-                        entry_mask);
+    var_entry =
+        WordAnd(IntPtrAdd(var_entry.value(), var_count.value()), entry_mask);
     Goto(&loop);
   }
 
@@ -2477,8 +2476,8 @@ TF_BUILTIN(WeakCollectionSet, WeakCollectionsBuiltinsAssembler) {
   TNode<IntPtrT> entry_mask = EntryMask(capacity);
 
   TVARIABLE(IntPtrT, var_hash, LoadJSReceiverIdentityHash(key, &if_no_hash));
-  TNode<IntPtrT> key_index =
-      FindKeyIndexForKey(table, key, var_hash, entry_mask, &if_not_found);
+  TNode<IntPtrT> key_index = FindKeyIndexForKey(table, key, var_hash.value(),
+                                                entry_mask, &if_not_found);
 
   StoreFixedArrayElement(table, ValueIndexFromKeyIndex(key_index), value);
   Return(collection);
@@ -2500,14 +2499,14 @@ TF_BUILTIN(WeakCollectionSet, WeakCollectionsBuiltinsAssembler) {
            &call_runtime);
 
     TNode<IntPtrT> insertion_key_index =
-        FindKeyIndexForInsertion(table, var_hash, entry_mask);
+        FindKeyIndexForInsertion(table, var_hash.value(), entry_mask);
     AddEntry(table, insertion_key_index, key, value, number_of_elements);
     Return(collection);
   }
   BIND(&call_runtime);
   {
     CallRuntime(Runtime::kWeakCollectionSet, context, collection, key, value,
-                SmiTag(var_hash));
+                SmiTag(var_hash.value()));
     Return(collection);
   }
 }

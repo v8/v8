@@ -1019,7 +1019,7 @@ TF_BUILTIN(ArrayPrototypePush, CodeStubAssembler) {
   // the most generic implementation for the rest of the array.
   BIND(&smi_transition);
   {
-    Node* arg = args.AtIndex(arg_index);
+    Node* arg = args.AtIndex(arg_index.value());
     GotoIf(TaggedIsSmi(arg), &default_label);
     Node* length = LoadJSArrayLength(receiver);
     // TODO(danno): Use the KeyedStoreGeneric stub here when possible,
@@ -1066,7 +1066,7 @@ TF_BUILTIN(ArrayPrototypePush, CodeStubAssembler) {
   // on the most generic implementation for the rest of the array.
   BIND(&double_transition);
   {
-    Node* arg = args.AtIndex(arg_index);
+    Node* arg = args.AtIndex(arg_index.value());
     GotoIfNumber(arg, &default_label);
     Node* length = LoadJSArrayLength(receiver);
     // TODO(danno): Use the KeyedStoreGeneric stub here when possible,
@@ -1094,7 +1094,7 @@ TF_BUILTIN(ArrayPrototypePush, CodeStubAssembler) {
           CallRuntime(Runtime::kSetProperty, context, receiver, length, arg,
                       SmiConstant(LanguageMode::kStrict));
         },
-        arg_index);
+        arg_index.value());
     args.PopAndReturn(LoadJSArrayLength(receiver));
   }
 
@@ -1852,7 +1852,7 @@ class ArrayPopulatorAssembler : public CodeStubAssembler {
     }
 
     BIND(&done);
-    return array;
+    return array.value();
   }
 
   TNode<Object> ConstructArrayLike(TNode<Context> context,
@@ -1913,7 +1913,7 @@ class ArrayPopulatorAssembler : public CodeStubAssembler {
     }
 
     BIND(&done);
-    return array;
+    return array.value();
   }
 
   void GenerateSetLength(TNode<Context> context, TNode<Object> array,
@@ -2063,8 +2063,7 @@ TF_BUILTIN(ArrayFrom, ArrayPopulatorAssembler) {
 
         CSA_ASSERT(this, IsCallable(map_function));
         Node* v = CallJS(CodeFactory::Call(isolate()), context, map_function,
-                         this_arg, static_cast<Node*>(value),
-                         static_cast<Node*>(index));
+                         this_arg, value.value(), index.value());
         GotoIfException(v, &on_exception, &var_exception);
         value = CAST(v);
         Goto(&next);
@@ -2073,12 +2072,12 @@ TF_BUILTIN(ArrayFrom, ArrayPopulatorAssembler) {
 
       // Store the result in the output object (catching any exceptions so the
       // iterator can be closed).
-      Node* define_status = CallRuntime(
-          Runtime::kCreateDataProperty, context, static_cast<Node*>(array),
-          static_cast<Node*>(index), static_cast<Node*>(value));
+      Node* define_status =
+          CallRuntime(Runtime::kCreateDataProperty, context, array.value(),
+                      index.value(), value.value());
       GotoIfException(define_status, &on_exception, &var_exception);
 
-      index = CAST(NumberInc(index));
+      index = CAST(NumberInc(index.value()));
 
       // The spec requires that we throw an exception if index reaches 2^53-1,
       // but an empty loop would take >100 days to do this many iterations. To
@@ -2087,7 +2086,7 @@ TF_BUILTIN(ArrayFrom, ArrayPopulatorAssembler) {
       // e.g. a proxy that discarded the values. Ignoring this case just means
       // we would repeatedly call CreateDataProperty with index = 2^53.
       CSA_ASSERT_BRANCH(this, [&](Label* ok, Label* not_ok) {
-        BranchIfNumberRelationalComparison(Operation::kLessThan, index,
+        BranchIfNumberRelationalComparison(Operation::kLessThan, index.value(),
                                            NumberConstant(kMaxSafeInteger), ok,
                                            not_ok);
       });
@@ -2120,11 +2119,11 @@ TF_BUILTIN(ArrayFrom, ArrayPopulatorAssembler) {
 
     // Construct an array using the receiver as constructor with the same length
     // as the input array.
-    array = ConstructArrayLike(context, args.GetReceiver(), length);
+    array = ConstructArrayLike(context, args.GetReceiver(), length.value());
 
     TVARIABLE(Number, index, SmiConstant(0));
 
-    GotoIf(SmiEqual(length, SmiConstant(0)), &finished);
+    GotoIf(SmiEqual(length.value(), SmiConstant(0)), &finished);
 
     // Loop from 0 to length-1.
     {
@@ -2133,7 +2132,7 @@ TF_BUILTIN(ArrayFrom, ArrayPopulatorAssembler) {
       BIND(&loop);
       TVARIABLE(Object, value);
 
-      value = CAST(GetProperty(context, array_like, index));
+      value = CAST(GetProperty(context, array_like, index.value()));
 
       // If a map_function is supplied then call it (using this_arg as
       // receiver), on the value retrieved from the array.
@@ -2143,27 +2142,25 @@ TF_BUILTIN(ArrayFrom, ArrayPopulatorAssembler) {
 
         CSA_ASSERT(this, IsCallable(map_function));
         value = CAST(CallJS(CodeFactory::Call(isolate()), context, map_function,
-                            this_arg, static_cast<Node*>(value),
-                            static_cast<Node*>(index)));
+                            this_arg, value.value(), index.value()));
         Goto(&next);
         BIND(&next);
       }
 
       // Store the result in the output object.
-      CallRuntime(Runtime::kCreateDataProperty, context,
-                  static_cast<Node*>(array), static_cast<Node*>(index),
-                  static_cast<Node*>(value));
-      index = CAST(NumberInc(index));
-      BranchIfNumberRelationalComparison(Operation::kLessThan, index, length,
-                                         &loop, &finished);
+      CallRuntime(Runtime::kCreateDataProperty, context, array.value(),
+                  index.value(), value.value());
+      index = CAST(NumberInc(index.value()));
+      BranchIfNumberRelationalComparison(Operation::kLessThan, index.value(),
+                                         length.value(), &loop, &finished);
     }
   }
 
   BIND(&finished);
 
   // Finally set the length on the output and return it.
-  GenerateSetLength(context, array, length);
-  args.PopAndReturn(array);
+  GenerateSetLength(context, array.value(), length.value());
+  args.PopAndReturn(array.value());
 }
 
 // ES #sec-array.of

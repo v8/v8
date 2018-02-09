@@ -42,7 +42,7 @@ TNode<Map> TypedArrayBuiltinsAssembler::LoadMapForType(
         var_typed_map = HeapConstant(map);
       });
 
-  return var_typed_map;
+  return var_typed_map.value();
 }
 
 // The byte_offset can be higher than Smi range, in which case to perform the
@@ -279,7 +279,8 @@ TF_BUILTIN(TypedArrayInitialize, TypedArrayBuiltinsAssembler) {
 
   BIND(&attach_buffer);
   {
-    AttachBuffer(holder, var_buffer, fixed_typed_map, length, byte_offset);
+    AttachBuffer(holder, var_buffer.value(), fixed_typed_map, length,
+                 byte_offset);
     Goto(&done);
   }
 
@@ -502,10 +503,10 @@ void TypedArrayBuiltinsAssembler::ConstructByTypedArray(
 
   BIND(&construct);
   {
-    ConstructByArrayLike(context, holder, typed_array, source_length,
+    ConstructByArrayLike(context, holder, typed_array, source_length.value(),
                          element_size);
-    Node* proto =
-        GetProperty(context, buffer_constructor, PrototypeStringConstant());
+    Node* proto = GetProperty(context, buffer_constructor.value(),
+                              PrototypeStringConstant());
     // TODO(petermarshall): Correct for realm as per 9.1.14 step 4.
     TNode<JSArrayBuffer> buffer = LoadObjectField<JSArrayBuffer>(
         holder, JSArrayBufferView::kBufferOffset);
@@ -548,7 +549,7 @@ TNode<BoolT> TypedArrayBuiltinsAssembler::ByteLengthIsValid(
   Goto(&done);
 
   BIND(&done);
-  return is_valid;
+  return is_valid.value();
 }
 
 void TypedArrayBuiltinsAssembler::ConstructByArrayLike(
@@ -681,8 +682,8 @@ void TypedArrayBuiltinsAssembler::ConstructByIterable(
   }
 
   BIND(&done);
-  ConstructByArrayLike(context, holder, array_like, initial_length,
-                       element_size);
+  ConstructByArrayLike(context, holder, array_like.value(),
+                       initial_length.value(), element_size);
 }
 
 TF_BUILTIN(TypedArrayConstructor, TypedArrayBuiltinsAssembler) {
@@ -850,7 +851,7 @@ TNode<IntPtrT> TypedArrayBuiltinsAssembler::GetTypedArrayElementSize(
         element_size = IntPtrConstant(size);
       });
 
-  return element_size;
+  return element_size.value();
 }
 
 TNode<Object> TypedArrayBuiltinsAssembler::GetDefaultConstructor(
@@ -864,7 +865,7 @@ TNode<Object> TypedArrayBuiltinsAssembler::GetDefaultConstructor(
         context_slot = IntPtrConstant(typed_array_function_index);
       });
 
-  return LoadContextElement(LoadNativeContext(context), context_slot);
+  return LoadContextElement(LoadNativeContext(context), context_slot.value());
 }
 
 TNode<Object> TypedArrayBuiltinsAssembler::TypedArraySpeciesConstructor(
@@ -887,7 +888,7 @@ TNode<Object> TypedArrayBuiltinsAssembler::TypedArraySpeciesConstructor(
   Goto(&done);
 
   BIND(&done);
-  return var_constructor;
+  return var_constructor.value();
 }
 
 TNode<JSTypedArray> TypedArrayBuiltinsAssembler::SpeciesCreateByArrayBuffer(
@@ -961,7 +962,7 @@ TNode<JSArrayBuffer> TypedArrayBuiltinsAssembler::GetBuffer(
   }
 
   BIND(&done);
-  return CAST(var_result);
+  return CAST(var_result.value());
 }
 
 TNode<JSTypedArray> TypedArrayBuiltinsAssembler::ValidateTypedArray(
@@ -1408,7 +1409,8 @@ TF_BUILTIN(TypedArrayPrototypeSubArray, TypedArrayBuiltinsAssembler) {
   BIND(&offset_done);
 
   // 11. Let newLength be max(endIndex - beginIndex, 0).
-  TNode<Smi> new_length = SmiMax(SmiSub(var_end, var_begin), SmiConstant(0));
+  TNode<Smi> new_length =
+      SmiMax(SmiSub(var_end.value(), var_begin.value()), SmiConstant(0));
 
   // 12. Let constructorName be the String value of O.[[TypedArrayName]].
   // 13. Let elementSize be the Number value of the Element Size value specified
@@ -1421,7 +1423,7 @@ TF_BUILTIN(TypedArrayPrototypeSubArray, TypedArrayBuiltinsAssembler) {
       LoadObjectField<Number>(source, JSTypedArray::kByteOffsetOffset);
 
   // 15. Let beginByteOffset be srcByteOffset + beginIndex × elementSize.
-  TNode<Number> offset = SmiMul(var_begin, SmiFromWord(element_size));
+  TNode<Number> offset = SmiMul(var_begin.value(), SmiFromWord(element_size));
   TNode<Number> begin_byte_offset = CAST(NumberAdd(source_byte_offset, offset));
 
   // 16. Let argumentsList be « buffer, beginByteOffset, newLength ».
