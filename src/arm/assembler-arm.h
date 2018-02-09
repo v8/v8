@@ -1787,7 +1787,6 @@ class PatchingAssembler : public Assembler {
   ~PatchingAssembler();
 
   void Emit(Address addr);
-  void FlushICache(Isolate* isolate);
 };
 
 // This scope utility allows scratch registers to be managed safely. The

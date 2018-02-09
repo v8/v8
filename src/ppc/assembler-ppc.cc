@@ -2150,10 +2150,6 @@ PatchingAssembler::~PatchingAssembler() {
   DCHECK_EQ(reloc_info_writer.pos(), buffer_ + buffer_size_);
 }
 
-void PatchingAssembler::FlushICache(Isolate* isolate) {
-  Assembler::FlushICache(buffer_, buffer_size_ - kGap);
-}
-
 }  // namespace internal
 }  // namespace v8
 

@@ -5479,10 +5479,6 @@ void PatchingAssembler::Emit(Address addr) {
   emit(reinterpret_cast<Instr>(addr));
 }
 
-void PatchingAssembler::FlushICache(Isolate* isolate) {
-  Assembler::FlushICache(buffer_, buffer_size_ - kGap);
-}
-
 UseScratchRegisterScope::UseScratchRegisterScope(Assembler* assembler)
     : assembler_(assembler),
       old_available_(*assembler->GetScratchRegisterList()),

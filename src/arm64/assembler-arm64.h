@@ -3677,18 +3677,9 @@ class PatchingAssembler : public Assembler {
   // If more or fewer instructions than expected are generated or if some
   // relocation information takes space in the buffer, the PatchingAssembler
   // will crash trying to grow the buffer.
-
-  // This version will flush at destruction.
-  PatchingAssembler(Isolate* isolate, byte* start, unsigned count)
-      : PatchingAssembler(IsolateData(isolate), start, count) {
-    CHECK_NOT_NULL(isolate);
-    isolate_ = isolate;
-  }
-
-  // This version will not flush.
+  // Note that the instruction cache will not be flushed.
   PatchingAssembler(IsolateData isolate_data, byte* start, unsigned count)
-      : Assembler(isolate_data, start, count * kInstructionSize + kGap),
-        isolate_(nullptr) {
+      : Assembler(isolate_data, start, count * kInstructionSize + kGap) {
     // Block constant pool emission.
     StartBlockPools();
   }
@@ -3701,18 +3692,12 @@ class PatchingAssembler : public Assembler {
     DCHECK((pc_offset() + kGap) == buffer_size_);
     // Verify no relocation information has been emitted.
     DCHECK(IsConstPoolEmpty());
-    // Flush the Instruction cache.
-    size_t length = buffer_size_ - kGap;
-    if (isolate_ != nullptr) Assembler::FlushICache(buffer_, length);
   }
 
   // See definition of PatchAdrFar() for details.
   static constexpr int kAdrFarPatchableNNops = 2;
   static constexpr int kAdrFarPatchableNInstrs = kAdrFarPatchableNNops + 2;
   void PatchAdrFar(int64_t target_offset);
-
- private:
-  Isolate* isolate_;
 };
 
 

@@ -1658,8 +1658,6 @@ class PatchingAssembler : public Assembler {
  public:
   PatchingAssembler(IsolateData isolate_data, byte* address, int instructions);
   ~PatchingAssembler();
-
-  void FlushICache(Isolate* isolate);
 };
 
 }  // namespace internal
