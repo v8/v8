@@ -83,7 +83,9 @@ class StackTransferRecipe {
     if ((move_dst_regs_ & move_src_regs_).is_empty()) {
       // No overlap in src and dst registers. Just execute the moves in any
       // order.
-      for (RegisterMove& rm : register_moves_) asm_->Move(rm.dst, rm.src);
+      for (RegisterMove& rm : register_moves_) {
+        asm_->Move(rm.dst, rm.src, rm.type);
+      }
       register_moves_.clear();
     } else {
       // Keep use counters of src registers.
@@ -102,7 +104,7 @@ class StackTransferRecipe {
         int executed_moves = 0;
         for (auto& rm : register_moves_) {
           if (src_reg_use_count[rm.dst.liftoff_code()] == 0) {
-            asm_->Move(rm.dst, rm.src);
+            asm_->Move(rm.dst, rm.src, rm.type);
             ++executed_moves;
             DCHECK_LT(0, src_reg_use_count[rm.src.liftoff_code()]);
             --src_reg_use_count[rm.src.liftoff_code()];
@@ -264,9 +266,6 @@ class StackTransferRecipe {
   LiftoffAssembler* const asm_;
   uint32_t max_used_spill_slot_ = 0;
 };
-
-static constexpr ValueType kWasmIntPtr =
-    kPointerSize == 8 ? kWasmI64 : kWasmI32;
 
 }  // namespace
 
@@ -578,6 +577,19 @@ void LiftoffAssembler::FinishCall(wasm::FunctionSig* sig,
         LiftoffRegister::from_code(reg_class_for(return_type), return_reg_code);
     DCHECK(!cache_state_.is_used(return_reg));
     PushRegister(return_type, return_reg);
+  }
+}
+
+void LiftoffAssembler::Move(LiftoffRegister dst, LiftoffRegister src,
+                            ValueType type) {
+  DCHECK_EQ(dst.reg_class(), src.reg_class());
+  if (kNeedI64RegPair && dst.is_pair()) {
+    if (dst.low() != src.low()) Move(dst.low_gp(), src.low_gp(), kWasmI32);
+    if (dst.high() != src.high()) Move(dst.high_gp(), src.high_gp(), kWasmI32);
+  } else if (dst.is_gp()) {
+    Move(dst.gp(), src.gp(), type);
+  } else {
+    Move(dst.fp(), src.fp(), type);
   }
 }
 

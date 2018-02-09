@@ -226,25 +226,33 @@ void LiftoffAssembler::MoveStackValue(uint32_t dst_index, uint32_t src_index,
   }
 }
 
-void LiftoffAssembler::MoveToReturnRegister(LiftoffRegister reg) {
+void LiftoffAssembler::MoveToReturnRegister(LiftoffRegister reg,
+                                            ValueType type) {
   // TODO(wasm): Extract the destination register from the CallDescriptor.
   // TODO(wasm): Add multi-return support.
   LiftoffRegister dst =
       reg.is_gp() ? LiftoffRegister(rax) : LiftoffRegister(xmm1);
-  if (reg != dst) Move(dst, reg);
+  if (reg != dst) Move(dst, reg, type);
 }
 
-void LiftoffAssembler::Move(LiftoffRegister dst, LiftoffRegister src) {
-  // The caller should check that the registers are not equal. For most
-  // occurences, this is already guaranteed, so no need to check within this
-  // method.
+void LiftoffAssembler::Move(Register dst, Register src, ValueType type) {
   DCHECK_NE(dst, src);
-  DCHECK_EQ(dst.reg_class(), src.reg_class());
-  // TODO(clemensh): Handle different sizes here.
-  if (dst.is_gp()) {
-    movq(dst.gp(), src.gp());
+  if (type == kWasmI32) {
+    movl(dst, src);
   } else {
-    Movsd(dst.fp(), src.fp());
+    DCHECK_EQ(kWasmI64, type);
+    movq(dst, src);
+  }
+}
+
+void LiftoffAssembler::Move(DoubleRegister dst, DoubleRegister src,
+                            ValueType type) {
+  DCHECK_NE(dst, src);
+  if (type == kWasmF32) {
+    Movss(dst, src);
+  } else {
+    DCHECK_EQ(kWasmF64, type);
+    Movsd(dst, src);
   }
 }
 

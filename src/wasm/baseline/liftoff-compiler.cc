@@ -212,19 +212,26 @@ class LiftoffCompiler {
     if (param_loc.IsRegister()) {
       DCHECK(!param_loc.IsAnyRegister());
       int reg_code = param_loc.AsRegister();
-      LiftoffRegister reg =
-          rc == kGpReg ? LiftoffRegister(Register::from_code(reg_code))
-                       : LiftoffRegister(DoubleRegister::from_code(reg_code));
-      LiftoffRegList cache_regs = GetCacheRegList(rc);
-      if (cache_regs.has(reg)) {
+      RegList cache_regs = rc == kGpReg ? kLiftoffAssemblerGpCacheRegs
+                                        : kLiftoffAssemblerFpCacheRegs;
+      if (cache_regs & (1 << reg_code)) {
         // This is a cache register, just use it.
+        LiftoffRegister reg =
+            rc == kGpReg ? LiftoffRegister(Register::from_code(reg_code))
+                         : LiftoffRegister(DoubleRegister::from_code(reg_code));
         __ PushRegister(type, reg);
         return;
       }
       // Move to a cache register.
+      // Note that we cannot create a {LiftoffRegister} for reg_code, since
+      // {LiftoffRegister} can only store cache regs.
       LiftoffRegister cache_reg = __ GetUnusedRegister(rc);
-      __ Move(cache_reg, reg);
-      __ PushRegister(type, reg);
+      if (rc == kGpReg) {
+        __ Move(cache_reg.gp(), Register::from_code(reg_code), type);
+      } else {
+        __ Move(cache_reg.fp(), DoubleRegister::from_code(reg_code), type);
+      }
+      __ PushRegister(type, cache_reg);
       return;
     }
     if (param_loc.IsCallerFrameSlot()) {
@@ -477,7 +484,9 @@ class LiftoffCompiler {
     DCHECK(return_loc.IsRegister());
     Register return_reg = Register::from_code(return_loc.AsRegister());
     if (return_reg != res_reg) {
-      __ Move(LiftoffRegister(res_reg), LiftoffRegister(return_reg));
+      DCHECK_EQ(MachineRepresentation::kWord32,
+                sig.GetReturn(0).representation());
+      __ Move(LiftoffRegister(res_reg), LiftoffRegister(return_reg), kWasmI32);
     }
   }
 
@@ -672,7 +681,7 @@ class LiftoffCompiler {
       if (values.size() > 1) return unsupported(decoder, "multi-return");
       RegClass rc = reg_class_for(values[0].type);
       LiftoffRegister reg = __ PopToRegister(rc);
-      __ MoveToReturnRegister(reg);
+      __ MoveToReturnRegister(reg, values[0].type);
     }
     __ LeaveFrame(StackFrame::WASM_COMPILED);
     __ DropStackSlotsAndRet(
@@ -926,7 +935,8 @@ class LiftoffCompiler {
     compiler::LinkageLocation param_loc = desc->GetInputLocation(kInputShift);
     if (param_loc.IsRegister()) {
       Register reg = Register::from_code(param_loc.AsRegister());
-      __ Move(LiftoffRegister(reg), LiftoffRegister(args[0]));
+      __ Move(LiftoffRegister(reg), LiftoffRegister(args[0]),
+              LiftoffAssembler::kWasmIntPtr);
     } else {
       DCHECK(param_loc.IsCallerFrameSlot());
       __ PushCallerFrameSlot(LiftoffRegister(args[0]));
@@ -1075,7 +1085,7 @@ class LiftoffCompiler {
     if (__ cache_state()->is_used(index)) {
       LiftoffRegister new_index =
           __ GetUnusedRegister(kGpReg, LiftoffRegList::ForRegs(index));
-      __ Move(new_index, index);
+      __ Move(new_index, index, kWasmI32);
       index = new_index;
     }
 

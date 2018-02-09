@@ -90,30 +90,26 @@ void LiftoffAssembler::MoveStackValue(uint32_t dst_index, uint32_t src_index,
   UNIMPLEMENTED();
 }
 
-void LiftoffAssembler::MoveToReturnRegister(LiftoffRegister reg) {
+void LiftoffAssembler::MoveToReturnRegister(LiftoffRegister reg,
+                                            ValueType type) {
   // TODO(wasm): Extract the destination register from the CallDescriptor.
   // TODO(wasm): Add multi-return support.
   LiftoffRegister dst =
       reg.is_pair()
           ? LiftoffRegister::ForPair(LiftoffRegister(v0), LiftoffRegister(v1))
           : reg.is_gp() ? LiftoffRegister(v0) : LiftoffRegister(f0);
-  if (reg != dst) Move(dst, reg);
+  if (reg != dst) Move(dst, reg, type);
 }
 
-void LiftoffAssembler::Move(LiftoffRegister dst, LiftoffRegister src) {
-  // The caller should check that the registers are not equal. For most
-  // occurences, this is already guaranteed, so no need to check within this
-  // method.
+void LiftoffAssembler::Move(Register dst, Register src, ValueType type) {
   DCHECK_NE(dst, src);
-  DCHECK_EQ(dst.reg_class(), src.reg_class());
-  if (src.is_pair()) {
-    TurboAssembler::Move(dst.low_gp(), src.low_gp());
-    TurboAssembler::Move(dst.high_gp(), src.high_gp());
-  } else if (src.is_gp()) {
-    TurboAssembler::mov(dst.gp(), src.gp());
-  } else {
-    TurboAssembler::Move(dst.fp(), src.fp());
-  }
+  TurboAssembler::mov(dst, src);
+}
+
+void LiftoffAssembler::Move(DoubleRegister dst, DoubleRegister src,
+                            ValueType type) {
+  DCHECK_NE(dst, src);
+  TurboAssembler::Move(dst, src);
 }
 
 void LiftoffAssembler::Spill(uint32_t index, LiftoffRegister reg,

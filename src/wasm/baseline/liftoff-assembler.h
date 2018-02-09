@@ -34,6 +34,9 @@ class LiftoffAssembler : public TurboAssembler {
   // Each slot in our stack frame currently has exactly 8 bytes.
   static constexpr uint32_t kStackSlotSize = 8;
 
+  static constexpr ValueType kWasmIntPtr =
+      kPointerSize == 8 ? kWasmI64 : kWasmI32;
+
   class VarState {
    public:
     enum Location : uint8_t { kStack, kRegister, KIntConst };
@@ -311,6 +314,8 @@ class LiftoffAssembler : public TurboAssembler {
   // Process return values of the call.
   void FinishCall(wasm::FunctionSig*, compiler::CallDescriptor*);
 
+  void Move(LiftoffRegister dst, LiftoffRegister src, ValueType);
+
   ////////////////////////////////////
   // Platform-specific part.        //
   ////////////////////////////////////
@@ -332,9 +337,9 @@ class LiftoffAssembler : public TurboAssembler {
                                   ValueType);
   inline void MoveStackValue(uint32_t dst_index, uint32_t src_index, ValueType);
 
-  inline void MoveToReturnRegister(LiftoffRegister);
-  // TODO(clemensh): Pass the type to {Move}, to emit more efficient code.
-  inline void Move(LiftoffRegister dst, LiftoffRegister src);
+  inline void MoveToReturnRegister(LiftoffRegister src, ValueType);
+  inline void Move(Register dst, Register src, ValueType);
+  inline void Move(DoubleRegister dst, DoubleRegister src, ValueType);
 
   inline void Spill(uint32_t index, LiftoffRegister, ValueType);
   inline void Spill(uint32_t index, WasmValue);

@@ -54,11 +54,17 @@ void LiftoffAssembler::MoveStackValue(uint32_t dst_index, uint32_t src_index,
   UNIMPLEMENTED();
 }
 
-void LiftoffAssembler::MoveToReturnRegister(LiftoffRegister reg) {
+void LiftoffAssembler::MoveToReturnRegister(LiftoffRegister reg,
+                                            ValueType type) {
   UNIMPLEMENTED();
 }
 
-void LiftoffAssembler::Move(LiftoffRegister dst, LiftoffRegister src) {
+void LiftoffAssembler::Move(Register dst, Register src, ValueType type) {
+  UNIMPLEMENTED();
+}
+
+void LiftoffAssembler::Move(DoubleRegister dst, DoubleRegister src,
+                            ValueType type) {
   UNIMPLEMENTED();
 }
 
