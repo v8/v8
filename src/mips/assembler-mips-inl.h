@@ -271,7 +271,7 @@ void RelocInfo::WipeOut(Isolate* isolate) {
 }
 
 template <typename ObjectVisitor>
-void RelocInfo::Visit(Isolate* isolate, ObjectVisitor* visitor) {
+void RelocInfo::Visit(ObjectVisitor* visitor) {
   RelocInfo::Mode mode = rmode();
   if (mode == RelocInfo::EMBEDDED_OBJECT) {
     visitor->VisitEmbeddedPointer(host(), this);

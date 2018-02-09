@@ -592,7 +592,7 @@ class RelocInfo {
   INLINE(void WipeOut(Isolate* isolate));
 
   template <typename ObjectVisitor>
-  inline void Visit(Isolate* isolate, ObjectVisitor* v);
+  inline void Visit(ObjectVisitor* v);
 
 #ifdef DEBUG
   // Check whether the given code contains relocation information that

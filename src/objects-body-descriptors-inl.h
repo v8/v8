@@ -378,9 +378,8 @@ class Code::BodyDescriptor final : public BodyDescriptorBase {
     IteratePointers(obj, kRelocationInfoOffset, kDataStart, v);
 
     RelocIterator it(Code::cast(obj), mode_mask);
-    Isolate* isolate = obj->GetIsolate();
     for (; !it.done(); it.next()) {
-      it.rinfo()->Visit(isolate, v);
+      it.rinfo()->Visit(v);
     }
   }
 
