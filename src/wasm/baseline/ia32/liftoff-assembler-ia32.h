@@ -347,6 +347,13 @@ void LiftoffAssembler::Spill(uint32_t index, WasmValue value) {
     case kWasmI32:
       mov(dst, Immediate(value.to_i32()));
       break;
+    case kWasmI64: {
+      int32_t low_word = value.to_i64();
+      int32_t high_word = value.to_i64() >> 32;
+      mov(dst, Immediate(low_word));
+      mov(liftoff::GetHalfStackSlot(2 * index + 1), Immediate(high_word));
+      break;
+    }
     case kWasmF32:
       mov(dst, Immediate(value.to_f32_boxed().get_bits()));
       break;

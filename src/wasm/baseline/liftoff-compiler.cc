@@ -70,10 +70,14 @@ wasm::WasmValue WasmPtrValue(void* ptr) {
   return WasmPtrValue(reinterpret_cast<uintptr_t>(ptr));
 }
 
+compiler::CallDescriptor* GetLoweredCallDescriptor(
+    Zone* zone, compiler::CallDescriptor* call_desc) {
+  return kPointerSize == 4 ? compiler::GetI32WasmCallDescriptor(zone, call_desc)
+                           : call_desc;
+}
+
 constexpr ValueType kTypesArr_ilf[] = {kWasmI32, kWasmI64, kWasmF32};
-constexpr ValueType kTypesArr_if[] = {kWasmI32, kWasmF32};
 constexpr Vector<const ValueType> kTypes_ilf = ArrayVector(kTypesArr_ilf);
-constexpr Vector<const ValueType> kTypes_if = ArrayVector(kTypesArr_if);
 
 class LiftoffCompiler {
  public:
@@ -128,7 +132,7 @@ class LiftoffCompiler {
                       protected_instructions,
                   Zone* compilation_zone, std::unique_ptr<Zone>* codegen_zone)
       : asm_(liftoff_asm),
-        call_desc_(call_desc),
+        call_desc_(GetLoweredCallDescriptor(compilation_zone, call_desc)),
         env_(env),
         min_size_(uint64_t{env_->module->initial_pages} * wasm::kWasmPageSize),
         max_size_(uint64_t{env_->module->has_maximum_pages
@@ -204,43 +208,48 @@ class LiftoffCompiler {
     }
   }
 
-  void ProcessParameter(uint32_t param_idx, uint32_t input_location) {
-    ValueType type = __ local_type(param_idx);
-    RegClass rc = reg_class_for(type);
-    compiler::LinkageLocation param_loc =
-        call_desc_->GetInputLocation(input_location);
-    if (param_loc.IsRegister()) {
-      DCHECK(!param_loc.IsAnyRegister());
-      int reg_code = param_loc.AsRegister();
-      RegList cache_regs = rc == kGpReg ? kLiftoffAssemblerGpCacheRegs
-                                        : kLiftoffAssemblerFpCacheRegs;
-      if (cache_regs & (1 << reg_code)) {
-        // This is a cache register, just use it.
-        LiftoffRegister reg =
-            rc == kGpReg ? LiftoffRegister(Register::from_code(reg_code))
-                         : LiftoffRegister(DoubleRegister::from_code(reg_code));
-        __ PushRegister(type, reg);
-        return;
+  // Returns the number of inputs processed (1 or 2).
+  uint32_t ProcessParameter(ValueType type, uint32_t input_idx) {
+    const int num_lowered_params = 1 + (kNeedI64RegPair && type == kWasmI64);
+    // Initialize to anything, will be set in the loop and used afterwards.
+    LiftoffRegister reg = LiftoffRegister::from_code(kGpReg, 0);
+    RegClass rc = num_lowered_params == 1 ? reg_class_for(type) : kGpReg;
+    LiftoffRegList pinned;
+    for (int pair_idx = 0; pair_idx < num_lowered_params; ++pair_idx) {
+      compiler::LinkageLocation param_loc =
+          call_desc_->GetInputLocation(input_idx + pair_idx);
+      // Initialize to anything, will be set in both arms of the if.
+      LiftoffRegister in_reg = LiftoffRegister::from_code(kGpReg, 0);
+      if (param_loc.IsRegister()) {
+        DCHECK(!param_loc.IsAnyRegister());
+        int reg_code = param_loc.AsRegister();
+        RegList cache_regs = rc == kGpReg ? kLiftoffAssemblerGpCacheRegs
+                                          : kLiftoffAssemblerFpCacheRegs;
+        if (cache_regs & (1 << reg_code)) {
+          // This is a cache register, just use it.
+          in_reg = LiftoffRegister::from_code(rc, reg_code);
+        } else {
+          // Move to a cache register (spill one if necessary).
+          // Note that we cannot create a {LiftoffRegister} for reg_code, since
+          // {LiftoffRegister} can only store cache regs.
+          LiftoffRegister in_reg = __ GetUnusedRegister(rc, pinned);
+          if (rc == kGpReg) {
+            __ Move(in_reg.gp(), Register::from_code(reg_code), type);
+          } else {
+            __ Move(in_reg.fp(), DoubleRegister::from_code(reg_code), type);
+          }
+        }
+      } else if (param_loc.IsCallerFrameSlot()) {
+        in_reg = __ GetUnusedRegister(rc, pinned);
+        ValueType lowered_type = num_lowered_params == 1 ? type : kWasmI32;
+        __ LoadCallerFrameSlot(in_reg, -param_loc.AsCallerFrameSlot(),
+                               lowered_type);
       }
-      // Move to a cache register.
-      // Note that we cannot create a {LiftoffRegister} for reg_code, since
-      // {LiftoffRegister} can only store cache regs.
-      LiftoffRegister cache_reg = __ GetUnusedRegister(rc);
-      if (rc == kGpReg) {
-        __ Move(cache_reg.gp(), Register::from_code(reg_code), type);
-      } else {
-        __ Move(cache_reg.fp(), DoubleRegister::from_code(reg_code), type);
-      }
-      __ PushRegister(type, cache_reg);
-      return;
+      reg = pair_idx == 0 ? in_reg : LiftoffRegister::ForPair(reg, in_reg);
+      pinned.set(reg);
     }
-    if (param_loc.IsCallerFrameSlot()) {
-      LiftoffRegister tmp_reg = __ GetUnusedRegister(rc);
-      __ LoadCallerFrameSlot(tmp_reg, -param_loc.AsCallerFrameSlot(), type);
-      __ PushRegister(type, tmp_reg);
-      return;
-    }
-    UNREACHABLE();
+    __ PushRegister(type, reg);
+    return num_lowered_params;
   }
 
   void StackCheck(wasm::WasmCodePosition position) {
@@ -262,9 +271,9 @@ class LiftoffCompiler {
     __ ReserveStackSpace(__ GetTotalFrameSlotCount());
     // Parameter 0 is the wasm context.
     uint32_t num_params =
-        static_cast<uint32_t>(call_desc_->ParameterCount()) - 1;
+        static_cast<uint32_t>(decoder->sig_->parameter_count());
     for (uint32_t i = 0; i < __ num_locals(); ++i) {
-      if (!CheckSupportedType(decoder, kTypes_if, __ local_type(i), "param"))
+      if (!CheckSupportedType(decoder, kTypes_ilf, __ local_type(i), "param"))
         return;
     }
     // Input 0 is the call target, the context is at 1.
@@ -276,19 +285,24 @@ class LiftoffCompiler {
     DCHECK(!context_loc.IsAnyRegister());
     Register context_reg = Register::from_code(context_loc.AsRegister());
     __ SpillContext(context_reg);
-    uint32_t param_idx = 0;
-    for (; param_idx < num_params; ++param_idx) {
-      constexpr int kFirstActualParameterIndex = kContextParameterIndex + 1;
-      ProcessParameter(param_idx, param_idx + kFirstActualParameterIndex);
+    // Input 0 is the code target, 1 is the context. First parameter at 2.
+    uint32_t input_idx = kContextParameterIndex + 1;
+    for (uint32_t param_idx = 0; param_idx < num_params; ++param_idx) {
+      input_idx += ProcessParameter(__ local_type(param_idx), input_idx);
     }
+    DCHECK_EQ(input_idx, call_desc_->InputCount());
     // Set to a gp register, to mark this uninitialized.
     LiftoffRegister zero_double_reg(Register::from_code<0>());
     DCHECK(zero_double_reg.is_gp());
-    for (; param_idx < __ num_locals(); ++param_idx) {
+    for (uint32_t param_idx = num_params; param_idx < __ num_locals();
+         ++param_idx) {
       ValueType type = decoder->GetLocalType(param_idx);
       switch (type) {
         case kWasmI32:
           __ cache_state()->stack_state.emplace_back(kWasmI32, uint32_t{0});
+          break;
+        case kWasmI64:
+          __ cache_state()->stack_state.emplace_back(kWasmI64, uint32_t{0});
           break;
         case kWasmF32:
           if (zero_double_reg.is_gp()) {
@@ -309,7 +323,6 @@ class LiftoffCompiler {
     // is never a position of any instruction in the function.
     StackCheck(0);
 
-    DCHECK_EQ(__ num_locals(), param_idx);
     DCHECK_EQ(__ num_locals(), __ cache_state()->stack_height());
     CheckStackSizeLimit(decoder);
   }
@@ -1027,16 +1040,13 @@ class LiftoffCompiler {
     if (operand.sig->return_count() > 1)
       return unsupported(decoder, "multi-return");
     if (operand.sig->return_count() == 1 &&
-        !CheckSupportedType(decoder, kTypes_if, operand.sig->GetReturn(0),
+        !CheckSupportedType(decoder, kTypes_ilf, operand.sig->GetReturn(0),
                             "return"))
       return;
 
     compiler::CallDescriptor* call_desc =
         compiler::GetWasmCallDescriptor(compilation_zone_, operand.sig);
-    if (kPointerSize == 4) {
-      call_desc =
-          compiler::GetI32WasmCallDescriptor(compilation_zone_, call_desc);
-    }
+    call_desc = GetLoweredCallDescriptor(compilation_zone_, call_desc);
 
     uint32_t max_used_spill_slot = 0;
     __ PrepareCall(operand.sig, call_desc, &max_used_spill_slot);
@@ -1071,7 +1081,7 @@ class LiftoffCompiler {
     if (operand.sig->return_count() > 1)
       return unsupported(decoder, "multi-return");
     if (operand.sig->return_count() == 1 &&
-        !CheckSupportedType(decoder, kTypes_if, operand.sig->GetReturn(0),
+        !CheckSupportedType(decoder, kTypes_ilf, operand.sig->GetReturn(0),
                             "return"))
       return;
 
@@ -1164,10 +1174,7 @@ class LiftoffCompiler {
 
     compiler::CallDescriptor* call_desc =
         compiler::GetWasmCallDescriptor(compilation_zone_, operand.sig);
-    if (kPointerSize == 4) {
-      call_desc =
-          compiler::GetI32WasmCallDescriptor(compilation_zone_, call_desc);
-    }
+    call_desc = GetLoweredCallDescriptor(compilation_zone_, call_desc);
 
     uint32_t max_used_spill_slot = 0;
     __ CallIndirect(operand.sig, call_desc, scratch.gp(), &max_used_spill_slot);
