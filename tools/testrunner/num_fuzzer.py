@@ -169,16 +169,11 @@ class NumFuzzer(base_runner.BaseTestRunner):
     suites = super(NumFuzzer, self)._load_suites(names, options)
     if options.combine_tests:
       suites = [s for s in suites if s.test_combiner_available()]
-    return suites
-
-  def _prepare_suites(self, suites, options):
-    """Sets additional configurations on test suites based on options."""
-    super(NumFuzzer, self)._prepare_suites(suites, options)
-
     if options.stress_interrupt_budget:
       # Changing interrupt budget forces us to suppress certain test assertions.
       for suite in suites:
         suite.do_suppress_internals()
+    return suites
 
   def _create_combiner(self, rng, options):
     if not options.combine_tests:
