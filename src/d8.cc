@@ -957,9 +957,7 @@ void Shell::DoHostImportModuleDynamically(void* import_data) {
 
   std::string source_url = ToSTLString(isolate, referrer);
   std::string dir_name =
-      DirName(IsAbsolutePath(source_url)
-                  ? source_url
-                  : NormalizePath(source_url, GetWorkingDirectory()));
+      DirName(NormalizePath(source_url, GetWorkingDirectory()));
   std::string file_name = ToSTLString(isolate, specifier);
   std::string absolute_path = NormalizePath(file_name, dir_name);
 
