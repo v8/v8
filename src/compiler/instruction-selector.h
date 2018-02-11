@@ -55,12 +55,17 @@ class V8_EXPORT_PRIVATE InstructionSelector final {
     kDisableSwitchJumpTable,
     kEnableSwitchJumpTable
   };
+  enum EnableSpeculationPoison {
+    kDisableSpeculationPoison,
+    kEnableSpeculationPoison
+  };
 
   InstructionSelector(
       Zone* zone, size_t node_count, Linkage* linkage,
       InstructionSequence* sequence, Schedule* schedule,
       SourcePositionTable* source_positions, Frame* frame,
       EnableSwitchJumpTable enable_switch_jump_table,
+      EnableSpeculationPoison enable_speculation_poison,
       SourcePositionMode source_position_mode = kCallSourcePositions,
       Features features = SupportedFeatures(),
       EnableScheduling enable_scheduling = FLAG_turbo_instruction_scheduling
@@ -282,7 +287,8 @@ class V8_EXPORT_PRIVATE InstructionSelector final {
   enum CallBufferFlag {
     kCallCodeImmediate = 1u << 0,
     kCallAddressImmediate = 1u << 1,
-    kCallTail = 1u << 2
+    kCallTail = 1u << 2,
+    kCallFixedTargetRegister = 1u << 3,
   };
   typedef base::Flags<CallBufferFlag> CallBufferFlags;
 
@@ -453,6 +459,7 @@ class V8_EXPORT_PRIVATE InstructionSelector final {
   EnableScheduling enable_scheduling_;
   EnableSerialization enable_serialization_;
   EnableSwitchJumpTable enable_switch_jump_table_;
+  EnableSpeculationPoison enable_speculation_poison_;
   Frame* frame_;
   bool instruction_selection_failed_;
 };

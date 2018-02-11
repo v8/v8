@@ -504,6 +504,7 @@ void CodeGenerator::AssembleTailCallAfterGap(Instruction* instr,
 //    3. if it is not zero then it jumps to the builtin.
 void CodeGenerator::BailoutIfDeoptimized() {
   if (FLAG_debug_code) {
+    __ push(eax);  // Push eax so we can use it as a scratch register.
     // Check that {kJavaScriptCallCodeStartRegister} is correct.
     Label current;
     __ call(&current);
@@ -512,10 +513,11 @@ void CodeGenerator::BailoutIfDeoptimized() {
     // In order to get the address of the current instruction, we first need
     // to use a call and then use a pop, thus pushing the return address to
     // the stack and then popping it into the register.
-    __ pop(ebx);
-    __ sub(ebx, Immediate(pc));
-    __ cmp(ebx, kJavaScriptCallCodeStartRegister);
+    __ pop(eax);
+    __ sub(eax, Immediate(pc));
+    __ cmp(eax, kJavaScriptCallCodeStartRegister);
     __ Assert(equal, AbortReason::kWrongFunctionCodeStart);
+    __ pop(eax);  // Restore eax.
   }
 
   int offset = Code::kCodeDataContainerOffset - Code::kHeaderSize;
@@ -525,6 +527,33 @@ void CodeGenerator::BailoutIfDeoptimized() {
   Handle<Code> code = isolate()->builtins()->builtin_handle(
       Builtins::kCompileLazyDeoptimizedCode);
   __ j(not_zero, code, RelocInfo::CODE_TARGET);
+}
+
+void CodeGenerator::GenerateSpeculationPoison() {
+  __ push(eax);  // Push eax so we can use it as a scratch register.
+
+  // In order to get the address of the current instruction, we first need
+  // to use a call and then use a pop, thus pushing the return address to
+  // the stack and then popping it into the register.
+  Label current;
+  __ call(&current);
+  int pc = __ pc_offset();
+  __ bind(&current);
+  __ pop(eax);
+  __ sub(eax, Immediate(pc));
+
+  // Calculate a mask which has all bits set in the normal case, but has all
+  // bits cleared if we are speculatively executing the wrong PC.
+  //    difference = (current - expected) | (expected - current)
+  //    poison = ~(difference >> (kBitsPerPointer - 1))
+  __ mov(kSpeculationPoisonRegister, eax);
+  __ sub(kSpeculationPoisonRegister, kJavaScriptCallCodeStartRegister);
+  __ sub(kJavaScriptCallCodeStartRegister, eax);
+  __ or_(kSpeculationPoisonRegister, kJavaScriptCallCodeStartRegister);
+  __ sar(kSpeculationPoisonRegister, kBitsPerPointer - 1);
+  __ not_(kSpeculationPoisonRegister);
+
+  __ pop(eax);  // Restore eax.
 }
 
 // Assembles an instruction after register allocation, producing machine code.

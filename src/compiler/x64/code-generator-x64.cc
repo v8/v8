@@ -591,12 +591,32 @@ void CodeGenerator::BailoutIfDeoptimized() {
   }
 
   int offset = Code::kCodeDataContainerOffset - Code::kHeaderSize;
-  __ movp(rcx, Operand(kJavaScriptCallCodeStartRegister, offset));
-  __ testl(FieldOperand(rcx, CodeDataContainer::kKindSpecificFlagsOffset),
+  __ movp(rbx, Operand(kJavaScriptCallCodeStartRegister, offset));
+  __ testl(FieldOperand(rbx, CodeDataContainer::kKindSpecificFlagsOffset),
            Immediate(1 << Code::kMarkedForDeoptimizationBit));
   Handle<Code> code = isolate()->builtins()->builtin_handle(
       Builtins::kCompileLazyDeoptimizedCode);
   __ j(not_zero, code, RelocInfo::CODE_TARGET);
+}
+
+void CodeGenerator::GenerateSpeculationPoison() {
+  // Calculate a mask which has all bits set in the normal case, but has all
+  // bits cleared if we are speculatively executing the wrong PC.
+  //    difference = (current - expected) | (expected - current)
+  //    poison = ~(difference >> (kBitsPerPointer - 1))
+  Label current;
+  __ bind(&current);
+  int pc = __ pc_offset();
+  __ leaq(rbx, Operand(&current));
+  if (pc != 0) {
+    __ subq(rbx, Immediate(pc));
+  }
+  __ movp(kSpeculationPoisonRegister, rbx);
+  __ subq(kSpeculationPoisonRegister, kJavaScriptCallCodeStartRegister);
+  __ subq(kJavaScriptCallCodeStartRegister, rbx);
+  __ orq(kSpeculationPoisonRegister, kJavaScriptCallCodeStartRegister);
+  __ sarq(kSpeculationPoisonRegister, Immediate(kBitsPerPointer - 1));
+  __ notq(kSpeculationPoisonRegister);
 }
 
 // Assembles an instruction after register allocation, producing machine code.
@@ -698,6 +718,10 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kArchTailCallAddress: {
       CHECK(!HasImmediateInput(instr, 0));
       Register reg = i.InputRegister(0);
+      if (HasCallDescriptorFlag(instr, CallDescriptor::kFixedTargetRegister)) {
+        static_assert(kJavaScriptCallCodeStartRegister == rcx, "ABI mismatch");
+        DCHECK_EQ(rcx, reg);
+      }
       if (HasCallDescriptorFlag(instr, CallDescriptor::kRetpoline)) {
         __ RetpolineJump(reg);
       } else {

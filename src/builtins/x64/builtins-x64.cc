@@ -1006,13 +1006,12 @@ void Builtins::Generate_InterpreterEntryTrampoline(MacroAssembler* masm) {
   __ Move(
       kInterpreterDispatchTableRegister,
       ExternalReference::interpreter_dispatch_table_address(masm->isolate()));
-  __ movzxbp(kInterpreterTargetBytecodeRegister,
-             Operand(kInterpreterBytecodeArrayRegister,
-                     kInterpreterBytecodeOffsetRegister, times_1, 0));
-  __ movp(rbx,
-          Operand(kInterpreterDispatchTableRegister,
-                  kInterpreterTargetBytecodeRegister, times_pointer_size, 0));
-  __ call(rbx);
+  __ movzxbp(r11, Operand(kInterpreterBytecodeArrayRegister,
+                          kInterpreterBytecodeOffsetRegister, times_1, 0));
+  __ movp(
+      kJavaScriptCallCodeStartRegister,
+      Operand(kInterpreterDispatchTableRegister, r11, times_pointer_size, 0));
+  __ call(kJavaScriptCallCodeStartRegister);
   masm->isolate()->heap()->SetInterpreterEntryReturnPCOffset(masm->pc_offset());
 
   // Any returns to the entry trampoline are either due to the return bytecode
@@ -1239,13 +1238,12 @@ static void Generate_InterpreterEnterBytecode(MacroAssembler* masm) {
                     kInterpreterBytecodeOffsetRegister);
 
   // Dispatch to the target bytecode.
-  __ movzxbp(kInterpreterTargetBytecodeRegister,
-             Operand(kInterpreterBytecodeArrayRegister,
-                     kInterpreterBytecodeOffsetRegister, times_1, 0));
-  __ movp(rbx,
-          Operand(kInterpreterDispatchTableRegister,
-                  kInterpreterTargetBytecodeRegister, times_pointer_size, 0));
-  __ jmp(rbx);
+  __ movzxbp(r11, Operand(kInterpreterBytecodeArrayRegister,
+                          kInterpreterBytecodeOffsetRegister, times_1, 0));
+  __ movp(
+      kJavaScriptCallCodeStartRegister,
+      Operand(kInterpreterDispatchTableRegister, r11, times_pointer_size, 0));
+  __ jmp(kJavaScriptCallCodeStartRegister);
 }
 
 void Builtins::Generate_InterpreterEnterBytecodeAdvance(MacroAssembler* masm) {

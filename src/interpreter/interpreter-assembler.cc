@@ -48,11 +48,8 @@ InterpreterAssembler::InterpreterAssembler(CodeAssemblerState* state,
       made_call_(false),
       reloaded_frame_ptr_(false),
       bytecode_array_valid_(true),
-      speculation_poison_(
-          FLAG_untrusted_code_mitigations
-              ? GenerateSpeculationPoison(
-                    Parameter(InterpreterDispatchDescriptor::kTargetBytecode))
-              : nullptr),
+      speculation_poison_(FLAG_untrusted_code_mitigations ? SpeculationPoison()
+                                                          : nullptr),
       disable_stack_check_across_call_(false),
       stack_pointer_before_call_(nullptr) {
 #ifdef V8_TRACE_IGNITION
@@ -75,21 +72,6 @@ InterpreterAssembler::~InterpreterAssembler() {
   // bytecodes.h.
   DCHECK_EQ(accumulator_use_, Bytecodes::GetAccumulatorUse(bytecode_));
   UnregisterCallGenerationCallbacks();
-}
-
-Node* InterpreterAssembler::GenerateSpeculationPoison(Node* current_bytecode) {
-  // Calculate a mask which has all bits set in the normal case, but has all
-  // bits cleared if we are speculatively executing the wrong bytecode handler.
-  //    difference = (current - expected) | (expected - current)
-  //    poison = ~(difference >> (kBitsPerPointer - 1))
-  Node* expected_bytecode = IntPtrConstant(static_cast<int>(bytecode_));
-  Node* difference = WordOr(IntPtrSub(current_bytecode, expected_bytecode),
-                            IntPtrSub(expected_bytecode, current_bytecode));
-  return WordNot(WordSar(difference, IntPtrConstant(kBitsPerPointer - 1)));
-}
-
-void InterpreterAssembler::DisableSpeculationPoisoning() {
-  speculation_poison_ = nullptr;
 }
 
 Node* InterpreterAssembler::PoisonOnSpeculationTagged(Node* value) {
@@ -1458,11 +1440,10 @@ Node* InterpreterAssembler::DispatchToBytecodeHandlerEntry(
     Node* handler_entry, Node* bytecode_offset, Node* target_bytecode) {
   InterpreterDispatchDescriptor descriptor(isolate());
   // Propagate speculation poisoning.
-  Node* poisoned_target_bytecode = PoisonOnSpeculationWord(target_bytecode);
+  Node* poisoned_handler_entry = PoisonOnSpeculationWord(handler_entry);
   return TailCallBytecodeDispatch(
-      descriptor, handler_entry, GetAccumulatorUnchecked(), bytecode_offset,
-      BytecodeArrayTaggedPointer(), DispatchTableRawPointer(),
-      poisoned_target_bytecode);
+      descriptor, poisoned_handler_entry, GetAccumulatorUnchecked(),
+      bytecode_offset, BytecodeArrayTaggedPointer(), DispatchTableRawPointer());
 }
 
 void InterpreterAssembler::DispatchWide(OperandScale operand_scale) {

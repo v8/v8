@@ -52,6 +52,7 @@ class V8_EXPORT_PRIVATE CompilationInfo final {
     kLoopPeelingEnabled = 1 << 10,
     kUntrustedCodeMitigations = 1 << 11,
     kSwitchJumpTableEnabled = 1 << 12,
+    kGenerateSpeculationPoison = 1 << 13,
   };
 
   // TODO(mtrofin): investigate if this might be generalized outside wasm, with
@@ -172,6 +173,12 @@ class V8_EXPORT_PRIVATE CompilationInfo final {
 
   bool switch_jump_table_enabled() const {
     return GetFlag(kSwitchJumpTableEnabled);
+  }
+
+  bool is_speculation_poison_enabled() const {
+    bool enabled = GetFlag(kGenerateSpeculationPoison);
+    DCHECK_IMPLIES(enabled, has_untrusted_code_mitigations());
+    return enabled;
   }
 
   // Code getters and setters.

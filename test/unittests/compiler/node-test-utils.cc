@@ -2025,6 +2025,9 @@ Matcher<Node*> IsParameter(const Matcher<int> index_matcher) {
   return MakeMatcher(new IsParameterMatcher(index_matcher));
 }
 
+Matcher<Node*> IsSpeculationPoison() {
+  return MakeMatcher(new TestNodeMatcher(IrOpcode::kSpeculationPoison));
+}
 
 Matcher<Node*> IsLoadFramePointer() {
   return MakeMatcher(new TestNodeMatcher(IrOpcode::kLoadFramePointer));

@@ -58,6 +58,8 @@ CodeAssemblerState::CodeAssemblerState(
     Isolate* isolate, Zone* zone, const CallInterfaceDescriptor& descriptor,
     Code::Kind kind, const char* name, size_t result_size, uint32_t stub_key,
     int32_t builtin_index)
+    // TODO(rmcilroy): Should we use Linkage::GetBytecodeDispatchDescriptor for
+    // bytecode handlers?
     : CodeAssemblerState(
           isolate, zone,
           Linkage::GetStubCallDescriptor(
@@ -420,6 +422,10 @@ Node* CodeAssembler::LoadParentFramePointer() {
 
 Node* CodeAssembler::LoadStackPointer() {
   return raw_assembler()->LoadStackPointer();
+}
+
+Node* CodeAssembler::SpeculationPoison() {
+  return raw_assembler()->SpeculationPoison();
 }
 
 #define DEFINE_CODE_ASSEMBLER_BINARY_OP(name, ResType, Arg1Type, Arg2Type) \
@@ -1141,7 +1147,7 @@ Node* CodeAssembler::TailCallBytecodeDispatch(
 // CSA-generated code
 template V8_EXPORT_PRIVATE Node* CodeAssembler::TailCallBytecodeDispatch(
     const CallInterfaceDescriptor& descriptor, Node* target, Node*, Node*,
-    Node*, Node*, Node*);
+    Node*, Node*);
 
 Node* CodeAssembler::CallCFunctionN(Signature<MachineType>* signature,
                                     int input_count, Node* const* inputs) {

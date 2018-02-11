@@ -3095,10 +3095,7 @@ class DeserializeLazyAssembler : public InterpreterAssembler {
 
   explicit DeserializeLazyAssembler(compiler::CodeAssemblerState* state,
                                     OperandScale operand_scale)
-      : InterpreterAssembler(state, kFakeBytecode, operand_scale) {
-    // Disable speculation poisoning for this handler since we use kFakeBytecode
-    DisableSpeculationPoisoning();
-  }
+      : InterpreterAssembler(state, kFakeBytecode, operand_scale) {}
 
   static void Generate(compiler::CodeAssemblerState* state,
                        OperandScale operand_scale) {

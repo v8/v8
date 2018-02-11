@@ -119,6 +119,7 @@ class MachineRepresentationInferrer {
           case IrOpcode::kLoadStackPointer:
           case IrOpcode::kLoadFramePointer:
           case IrOpcode::kLoadParentFramePointer:
+          case IrOpcode::kSpeculationPoison:
             representation_vector_[node->id()] =
                 MachineType::PointerRepresentation();
             break;

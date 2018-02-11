@@ -1015,13 +1015,12 @@ void Builtins::Generate_InterpreterEntryTrampoline(MacroAssembler* masm) {
   __ mov(kInterpreterDispatchTableRegister,
          Operand(ExternalReference::interpreter_dispatch_table_address(
              masm->isolate())));
-  __ ldrb(kInterpreterTargetBytecodeRegister,
-          MemOperand(kInterpreterBytecodeArrayRegister,
-                     kInterpreterBytecodeOffsetRegister));
-  __ ldr(r1,
-         MemOperand(kInterpreterDispatchTableRegister,
-                    kInterpreterTargetBytecodeRegister, LSL, kPointerSizeLog2));
-  __ Call(r1);
+  __ ldrb(r4, MemOperand(kInterpreterBytecodeArrayRegister,
+                         kInterpreterBytecodeOffsetRegister));
+  __ ldr(
+      kJavaScriptCallCodeStartRegister,
+      MemOperand(kInterpreterDispatchTableRegister, r4, LSL, kPointerSizeLog2));
+  __ Call(kJavaScriptCallCodeStartRegister);
   masm->isolate()->heap()->SetInterpreterEntryReturnPCOffset(masm->pc_offset());
 
   // Any returns to the entry trampoline are either due to the return bytecode
@@ -1221,15 +1220,14 @@ static void Generate_InterpreterEnterBytecode(MacroAssembler* masm) {
   __ SmiUntag(kInterpreterBytecodeOffsetRegister);
 
   // Dispatch to the target bytecode.
-  __ ldrb(kInterpreterTargetBytecodeRegister,
-          MemOperand(kInterpreterBytecodeArrayRegister,
-                     kInterpreterBytecodeOffsetRegister));
   UseScratchRegisterScope temps(masm);
   Register scratch = temps.Acquire();
-  __ ldr(scratch,
-         MemOperand(kInterpreterDispatchTableRegister,
-                    kInterpreterTargetBytecodeRegister, LSL, kPointerSizeLog2));
-  __ Jump(scratch);
+  __ ldrb(scratch, MemOperand(kInterpreterBytecodeArrayRegister,
+                              kInterpreterBytecodeOffsetRegister));
+  __ ldr(kJavaScriptCallCodeStartRegister,
+         MemOperand(kInterpreterDispatchTableRegister, scratch, LSL,
+                    kPointerSizeLog2));
+  __ Jump(kJavaScriptCallCodeStartRegister);
 }
 
 void Builtins::Generate_InterpreterEnterBytecodeAdvance(MacroAssembler* masm) {

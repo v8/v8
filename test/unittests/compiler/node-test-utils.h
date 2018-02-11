@@ -448,6 +448,7 @@ Matcher<Node*> IsNumberToBoolean(const Matcher<Node*>& input_matcher);
 Matcher<Node*> IsNumberToInt32(const Matcher<Node*>& input_matcher);
 Matcher<Node*> IsNumberToUint32(const Matcher<Node*>& input_matcher);
 Matcher<Node*> IsParameter(const Matcher<int> index_matcher);
+Matcher<Node*> IsSpeculationPoison();
 Matcher<Node*> IsLoadFramePointer();
 Matcher<Node*> IsLoadParentFramePointer();
 Matcher<Node*> IsPlainPrimitiveToNumber(const Matcher<Node*>& input_matcher);

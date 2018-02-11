@@ -600,6 +600,7 @@
   V(Float64ExtractHighWord32)   \
   V(Float64InsertLowWord32)     \
   V(Float64InsertHighWord32)    \
+  V(SpeculationPoison)          \
   V(LoadStackPointer)           \
   V(LoadFramePointer)           \
   V(LoadParentFramePointer)     \

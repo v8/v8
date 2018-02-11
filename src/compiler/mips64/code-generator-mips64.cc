@@ -669,6 +669,40 @@ void CodeGenerator::BailoutIfDeoptimized() {
   __ Jump(code, RelocInfo::CODE_TARGET, ne, a2, Operand(zero_reg));
 }
 
+void CodeGenerator::GenerateSpeculationPoison() {
+  // This push on ra and the pop below together ensure that we restore the
+  // register ra, which is needed while computing speculation poison.
+  __ push(ra);
+
+  // The bal instruction puts the address of the current instruction into
+  // the return address (ra) register, which we can use later on.
+  Label current;
+  __ bal(&current);
+  __ nop();
+  int pc = __ pc_offset();
+  __ bind(&current);
+  __ li(at, Operand(pc));
+  __ Dsubu(at, ra, at);
+
+  // Calculate a mask which has all bits set in the normal case, but has all
+  // bits cleared if we are speculatively executing the wrong PC.
+  //    difference = (current - expected) | (expected - current)
+  //    poison = ~(difference >> (kBitsPerPointer - 1))
+  __ Move(kSpeculationPoisonRegister, at);
+  __ subu(kSpeculationPoisonRegister, kSpeculationPoisonRegister,
+          kJavaScriptCallCodeStartRegister);
+  __ subu(kJavaScriptCallCodeStartRegister, kJavaScriptCallCodeStartRegister,
+          at);
+  __ or_(kSpeculationPoisonRegister, kSpeculationPoisonRegister,
+         kJavaScriptCallCodeStartRegister);
+  __ sra(kSpeculationPoisonRegister, kSpeculationPoisonRegister,
+         kBitsPerPointer - 1);
+  __ nor(kSpeculationPoisonRegister, kSpeculationPoisonRegister,
+         kSpeculationPoisonRegister);
+
+  __ pop(ra);  // Restore ra
+}
+
 // Assembles an instruction after register allocation, producing machine code.
 CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     Instruction* instr) {

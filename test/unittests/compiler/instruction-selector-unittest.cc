@@ -44,6 +44,7 @@ InstructionSelectorTest::Stream InstructionSelectorTest::StreamBuilder::Build(
   InstructionSelector selector(test_->zone(), node_count, &linkage, &sequence,
                                schedule, &source_position_table, nullptr,
                                InstructionSelector::kEnableSwitchJumpTable,
+                               InstructionSelector::kEnableSpeculationPoison,
                                source_position_mode, features,
                                InstructionSelector::kDisableScheduling);
   selector.SelectInstructions();

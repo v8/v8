@@ -47,11 +47,11 @@ namespace internal {
 #define kJSFunctionRegister x1
 #define kContextRegister cp
 #define kAllocateSizeRegister x1
+#define kSpeculationPoisonRegister x18
 #define kInterpreterAccumulatorRegister x0
 #define kInterpreterBytecodeOffsetRegister x19
 #define kInterpreterBytecodeArrayRegister x20
 #define kInterpreterDispatchTableRegister x21
-#define kInterpreterTargetBytecodeRegister x18
 #define kJavaScriptCallArgCountRegister x0
 #define kJavaScriptCallCodeStartRegister x2
 #define kJavaScriptCallNewTargetRegister x3

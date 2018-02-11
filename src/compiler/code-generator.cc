@@ -148,11 +148,14 @@ void CodeGenerator::AssembleCode() {
     ProfileEntryHookStub::MaybeCallEntryHookDelayed(tasm(), zone());
   }
 
-  // TODO(jupvfranco): This should be the first thing in the code,
-  // or otherwise MaybeCallEntryHookDelayed may happen twice (for
-  // optimized and deoptimized code).
-  // We want to bailout only from JS functions, which are the only ones
-  // that are optimized.
+  if (info->is_speculation_poison_enabled()) {
+    GenerateSpeculationPoison();
+  }
+
+  // TODO(jupvfranco): This should be the first thing in the code after
+  // generating speculation poison, or otherwise MaybeCallEntryHookDelayed may
+  // happen twice (for optimized and deoptimized code). We want to bailout only
+  // from JS functions, which are the only ones that are optimized.
   if (info->IsOptimizing()) {
     DCHECK(linkage()->GetIncomingDescriptor()->IsJSFunctionCall());
     BailoutIfDeoptimized();

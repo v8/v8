@@ -266,9 +266,6 @@ class V8_EXPORT_PRIVATE InterpreterAssembler : public CodeStubAssembler {
   // Lazily deserializes the current bytecode's handler and tail-calls into it.
   void DeserializeLazyAndDispatch();
 
-  // Disables poisoning on speculative execution.
-  void DisableSpeculationPoisoning();
-
  private:
   // Returns a tagged pointer to the current function's BytecodeArray object.
   compiler::Node* BytecodeArrayTaggedPointer();
@@ -291,9 +288,6 @@ class V8_EXPORT_PRIVATE InterpreterAssembler : public CodeStubAssembler {
   compiler::Node* NextRegister(compiler::Node* reg_index);
   compiler::Node* LoadRegister(Node* reg_index);
   void StoreRegister(compiler::Node* value, compiler::Node* reg_index);
-
-  // Generates a poison which can be used to mask values on speculative paths.
-  compiler::Node* GenerateSpeculationPoison(Node* current_bytecode);
 
   // Poison |value| on speculative paths.
   compiler::Node* PoisonOnSpeculationTagged(Node* value);

@@ -25,6 +25,7 @@ InstructionSelector::InstructionSelector(
     InstructionSequence* sequence, Schedule* schedule,
     SourcePositionTable* source_positions, Frame* frame,
     EnableSwitchJumpTable enable_switch_jump_table,
+    EnableSpeculationPoison enable_speculation_poison,
     SourcePositionMode source_position_mode, Features features,
     EnableScheduling enable_scheduling,
     EnableSerialization enable_serialization)
@@ -47,6 +48,7 @@ InstructionSelector::InstructionSelector(
       enable_scheduling_(enable_scheduling),
       enable_serialization_(enable_serialization),
       enable_switch_jump_table_(enable_switch_jump_table),
+      enable_speculation_poison_(enable_speculation_poison),
       frame_(frame),
       instruction_selection_failed_(false) {
   instructions_.reserve(node_count);
@@ -760,19 +762,24 @@ void InstructionSelector::InitializeCallBuffer(Node* call, CallBuffer* buffer,
   Node* callee = call->InputAt(0);
   bool call_code_immediate = (flags & kCallCodeImmediate) != 0;
   bool call_address_immediate = (flags & kCallAddressImmediate) != 0;
+  bool call_use_fixed_target_reg = (flags & kCallFixedTargetRegister) != 0;
   switch (buffer->descriptor->kind()) {
     case CallDescriptor::kCallCodeObject:
       buffer->instruction_args.push_back(
           (call_code_immediate && callee->opcode() == IrOpcode::kHeapConstant)
               ? g.UseImmediate(callee)
-              : g.UseRegister(callee));
+              : call_use_fixed_target_reg
+                    ? g.UseFixed(callee, kJavaScriptCallCodeStartRegister)
+                    : g.UseRegister(callee));
       break;
     case CallDescriptor::kCallAddress:
       buffer->instruction_args.push_back(
           (call_address_immediate &&
            callee->opcode() == IrOpcode::kExternalConstant)
               ? g.UseImmediate(callee)
-              : g.UseRegister(callee));
+              : call_use_fixed_target_reg
+                    ? g.UseFixed(callee, kJavaScriptCallCodeStartRegister)
+                    : g.UseRegister(callee));
       break;
     case CallDescriptor::kCallWasmFunction:
       buffer->instruction_args.push_back(
@@ -780,7 +787,9 @@ void InstructionSelector::InitializeCallBuffer(Node* call, CallBuffer* buffer,
            (callee->opcode() == IrOpcode::kRelocatableInt64Constant ||
             callee->opcode() == IrOpcode::kRelocatableInt32Constant))
               ? g.UseImmediate(callee)
-              : g.UseRegister(callee));
+              : call_use_fixed_target_reg
+                    ? g.UseFixed(callee, kJavaScriptCallCodeStartRegister)
+                    : g.UseRegister(callee));
       break;
     case CallDescriptor::kCallJSFunction:
       buffer->instruction_args.push_back(
@@ -1472,6 +1481,8 @@ void InstructionSelector::VisitNode(Node* node) {
       return MarkAsFloat64(node), VisitFloat64InsertLowWord32(node);
     case IrOpcode::kFloat64InsertHighWord32:
       return MarkAsFloat64(node), VisitFloat64InsertHighWord32(node);
+    case IrOpcode::kSpeculationPoison:
+      return VisitSpeculationPoison(node);
     case IrOpcode::kStackSlot:
       return VisitStackSlot(node);
     case IrOpcode::kLoadStackPointer:
@@ -1790,6 +1801,14 @@ void InstructionSelector::VisitNode(Node* node) {
                node->opcode(), node->op()->mnemonic(), node->id());
       break;
   }
+}
+
+void InstructionSelector::VisitSpeculationPoison(Node* node) {
+  CHECK(enable_speculation_poison_ == kEnableSpeculationPoison);
+  OperandGenerator g(this);
+  Emit(kArchNop, g.DefineAsLocation(node, LinkageLocation::ForRegister(
+                                              kSpeculationPoisonRegister.code(),
+                                              MachineType::UintPtr())));
 }
 
 void InstructionSelector::VisitLoadStackPointer(Node* node) {
@@ -2435,6 +2454,9 @@ void InstructionSelector::VisitTailCall(Node* node) {
   CallBufferFlags flags(kCallCodeImmediate | kCallTail);
   if (IsTailCallAddressImmediate()) {
     flags |= kCallAddressImmediate;
+  }
+  if (callee->flags() & CallDescriptor::kFixedTargetRegister) {
+    flags |= kCallFixedTargetRegister;
   }
   InitializeCallBuffer(node, &buffer, flags, true, stack_param_delta);
 

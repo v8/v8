@@ -185,6 +185,10 @@ class CodeGenerator final : public GapResolver::Assembler {
   // from the JS functions referring it.
   void BailoutIfDeoptimized();
 
+  // Generates a mask which can be used to poison values when we detect
+  // the code is executing speculatively.
+  void GenerateSpeculationPoison();
+
   // Generates an architecture-specific, descriptor-specific prologue
   // to set up a stack frame.
   void AssembleConstructFrame();

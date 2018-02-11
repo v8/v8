@@ -51,7 +51,6 @@ class InterpreterAssemblerTest : public TestWithIsolateAndZone {
 
     Matcher<Node*> IsWordNot(const Matcher<Node*>& value_matcher);
 
-    Matcher<compiler::Node*> IsSpeculationPoison();
     Matcher<compiler::Node*> IsPoisonTagged(
         const Matcher<compiler::Node*> value_matcher);
     Matcher<compiler::Node*> IsPoisonInt32(

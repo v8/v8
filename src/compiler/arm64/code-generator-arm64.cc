@@ -563,6 +563,30 @@ void CodeGenerator::BailoutIfDeoptimized() {
   __ Bind(&not_deoptimized);
 }
 
+void CodeGenerator::GenerateSpeculationPoison() {
+  UseScratchRegisterScope temps(tasm());
+  Register scratch = temps.AcquireX();
+
+  // We can use adr to load a pc relative location.
+  int pc_offset = __ pc_offset();
+  __ adr(scratch, -pc_offset);
+
+  // Calculate a mask which has all bits set in the normal case, but has all
+  // bits cleared if we are speculatively executing the wrong PC.
+  //    difference = (current - expected) | (expected - current)
+  //    poison = ~(difference >> (kBitsPerPointer - 1))
+  __ Mov(kSpeculationPoisonRegister, scratch);
+  __ Sub(kSpeculationPoisonRegister, kSpeculationPoisonRegister,
+         kJavaScriptCallCodeStartRegister);
+  __ Sub(kJavaScriptCallCodeStartRegister, kJavaScriptCallCodeStartRegister,
+         scratch);
+  __ Orr(kSpeculationPoisonRegister, kSpeculationPoisonRegister,
+         kJavaScriptCallCodeStartRegister);
+  __ Asr(kSpeculationPoisonRegister, kSpeculationPoisonRegister,
+         kBitsPerPointer - 1);
+  __ Mvn(kSpeculationPoisonRegister, Operand(kSpeculationPoisonRegister));
+}
+
 // Assembles an instruction after register allocation, producing machine code.
 CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     Instruction* instr) {

@@ -710,6 +710,9 @@ class V8_EXPORT_PRIVATE CodeAssembler {
   // Access to the stack pointer
   Node* LoadStackPointer();
 
+  // Poison mask for speculation.
+  Node* SpeculationPoison();
+
   // Load raw memory location.
   Node* Load(MachineType rep, Node* base);
   template <class Type>

@@ -1535,6 +1535,9 @@ struct InstructionSelectionPhase {
         data->info()->switch_jump_table_enabled()
             ? InstructionSelector::kEnableSwitchJumpTable
             : InstructionSelector::kDisableSwitchJumpTable,
+        data->info()->is_speculation_poison_enabled()
+            ? InstructionSelector::kEnableSpeculationPoison
+            : InstructionSelector::kDisableSpeculationPoison,
         data->info()->is_source_positions_enabled()
             ? InstructionSelector::kAllSourcePositions
             : InstructionSelector::kCallSourcePositions,

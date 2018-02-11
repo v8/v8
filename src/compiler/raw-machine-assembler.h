@@ -744,6 +744,9 @@ class V8_EXPORT_PRIVATE RawMachineAssembler {
   Node* StringConstant(const char* string) {
     return HeapConstant(isolate()->factory()->InternalizeUtf8String(string));
   }
+  Node* SpeculationPoison() {
+    return AddNode(machine()->SpeculationPoison(), graph()->start());
+  }
 
   // Call a given call descriptor and the given arguments.
   // The call target is passed as part of the {inputs} array.
@@ -905,6 +908,7 @@ class V8_EXPORT_PRIVATE RawMachineAssembler {
   CommonOperatorBuilder common_;
   CallDescriptor* call_descriptor_;
   NodeVector parameters_;
+  Node* speculation_poison_;
   BasicBlock* current_block_;
 
   DISALLOW_COPY_AND_ASSIGN(RawMachineAssembler);

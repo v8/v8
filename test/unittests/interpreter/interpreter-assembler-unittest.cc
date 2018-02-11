@@ -268,37 +268,24 @@ Matcher<Node*> InterpreterAssemblerTest::InterpreterAssemblerForTest::
 }
 
 Matcher<compiler::Node*>
-InterpreterAssemblerTest::InterpreterAssemblerForTest::IsSpeculationPoison() {
-  Matcher<compiler::Node*> current =
-      c::IsParameter(InterpreterDispatchDescriptor::kTargetBytecode);
-  int bytecode_int = static_cast<int>(bytecode());
-  Matcher<compiler::Node*> expected = c::IsIntPtrConstant(bytecode_int);
-  Matcher<compiler::Node*> diff = c::IsWordOr(
-      bytecode_int == 0 ? current : c::IsIntPtrSub(current, expected),
-      c::IsIntPtrSub(expected, current));
-  return IsWordNot(
-      c::IsWordSar(diff, c::IsIntPtrConstant(kBitsPerPointer - 1)));
-}
-
-Matcher<compiler::Node*>
 InterpreterAssemblerTest::InterpreterAssemblerForTest::IsPoisonTagged(
     const Matcher<compiler::Node*> value_matcher) {
-  return IsBitcastWordToTagged(
-      IsWordAnd(IsSpeculationPoison(), IsBitcastTaggedToWord(value_matcher)));
+  return IsBitcastWordToTagged(IsWordAnd(c::IsSpeculationPoison(),
+                                         IsBitcastTaggedToWord(value_matcher)));
 }
 
 Matcher<compiler::Node*>
 InterpreterAssemblerTest::InterpreterAssemblerForTest::IsPoisonWord(
     const Matcher<compiler::Node*> value_matcher) {
-  return IsWordAnd(IsSpeculationPoison(), value_matcher);
+  return IsWordAnd(c::IsSpeculationPoison(), value_matcher);
 }
 
 Matcher<compiler::Node*>
 InterpreterAssemblerTest::InterpreterAssemblerForTest::IsPoisonInt32(
     const Matcher<compiler::Node*> value_matcher) {
   Matcher<compiler::Node*> truncated_speculation_poison =
-      Is64() ? c::IsTruncateInt64ToInt32(IsSpeculationPoison())
-             : IsSpeculationPoison();
+      Is64() ? c::IsTruncateInt64ToInt32(c::IsSpeculationPoison())
+             : c::IsSpeculationPoison();
   return IsWord32And(truncated_speculation_poison, value_matcher);
 }
 

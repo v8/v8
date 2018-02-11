@@ -938,13 +938,12 @@ void Builtins::Generate_InterpreterEntryTrampoline(MacroAssembler* masm) {
   __ mov(kInterpreterDispatchTableRegister,
          Immediate(ExternalReference::interpreter_dispatch_table_address(
              masm->isolate())));
-  __ movzx_b(kInterpreterTargetBytecodeRegister,
-             Operand(kInterpreterBytecodeArrayRegister,
-                     kInterpreterBytecodeOffsetRegister, times_1, 0));
-  __ mov(edx,
-         Operand(kInterpreterDispatchTableRegister,
-                 kInterpreterTargetBytecodeRegister, times_pointer_size, 0));
-  __ call(edx);
+  __ movzx_b(ebx, Operand(kInterpreterBytecodeArrayRegister,
+                          kInterpreterBytecodeOffsetRegister, times_1, 0));
+  __ mov(
+      kJavaScriptCallCodeStartRegister,
+      Operand(kInterpreterDispatchTableRegister, ebx, times_pointer_size, 0));
+  __ call(kJavaScriptCallCodeStartRegister);
   masm->isolate()->heap()->SetInterpreterEntryReturnPCOffset(masm->pc_offset());
 
   // Any returns to the entry trampoline are either due to the return bytecode
@@ -962,7 +961,7 @@ void Builtins::Generate_InterpreterEntryTrampoline(MacroAssembler* masm) {
   __ movzx_b(ebx, Operand(kInterpreterBytecodeArrayRegister,
                           kInterpreterBytecodeOffsetRegister, times_1, 0));
   AdvanceBytecodeOffsetOrReturn(masm, kInterpreterBytecodeArrayRegister,
-                                kInterpreterBytecodeOffsetRegister, ebx, edx,
+                                kInterpreterBytecodeOffsetRegister, ebx, ecx,
                                 &do_return);
   __ jmp(&do_dispatch);
 
@@ -1268,13 +1267,12 @@ static void Generate_InterpreterEnterBytecode(MacroAssembler* masm) {
   __ SmiUntag(kInterpreterBytecodeOffsetRegister);
 
   // Dispatch to the target bytecode.
-  __ movzx_b(kInterpreterTargetBytecodeRegister,
-             Operand(kInterpreterBytecodeArrayRegister,
-                     kInterpreterBytecodeOffsetRegister, times_1, 0));
-  __ mov(edx,
-         Operand(kInterpreterDispatchTableRegister,
-                 kInterpreterTargetBytecodeRegister, times_pointer_size, 0));
-  __ jmp(edx);
+  __ movzx_b(ebx, Operand(kInterpreterBytecodeArrayRegister,
+                          kInterpreterBytecodeOffsetRegister, times_1, 0));
+  __ mov(
+      kJavaScriptCallCodeStartRegister,
+      Operand(kInterpreterDispatchTableRegister, ebx, times_pointer_size, 0));
+  __ jmp(kJavaScriptCallCodeStartRegister);
 }
 
 void Builtins::Generate_InterpreterEnterBytecodeAdvance(MacroAssembler* masm) {
@@ -1292,7 +1290,7 @@ void Builtins::Generate_InterpreterEnterBytecodeAdvance(MacroAssembler* masm) {
   // Advance to the next bytecode.
   Label if_return;
   AdvanceBytecodeOffsetOrReturn(masm, kInterpreterBytecodeArrayRegister,
-                                kInterpreterBytecodeOffsetRegister, ebx, edx,
+                                kInterpreterBytecodeOffsetRegister, ebx, ecx,
                                 &if_return);
 
   // Convert new bytecode offset to a Smi and save in the stackframe.

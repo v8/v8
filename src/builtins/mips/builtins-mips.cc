@@ -1003,11 +1003,10 @@ void Builtins::Generate_InterpreterEntryTrampoline(MacroAssembler* masm) {
             masm->isolate())));
   __ Addu(a0, kInterpreterBytecodeArrayRegister,
           kInterpreterBytecodeOffsetRegister);
-  __ lbu(kInterpreterTargetBytecodeRegister, MemOperand(a0));
-  __ Lsa(at, kInterpreterDispatchTableRegister,
-         kInterpreterTargetBytecodeRegister, kPointerSizeLog2);
-  __ lw(at, MemOperand(at));
-  __ Call(at);
+  __ lbu(t3, MemOperand(a0));
+  __ Lsa(at, kInterpreterDispatchTableRegister, t3, kPointerSizeLog2);
+  __ lw(kJavaScriptCallCodeStartRegister, MemOperand(at));
+  __ Call(kJavaScriptCallCodeStartRegister);
   masm->isolate()->heap()->SetInterpreterEntryReturnPCOffset(masm->pc_offset());
 
   // Any returns to the entry trampoline are either due to the return bytecode
@@ -1227,11 +1226,10 @@ static void Generate_InterpreterEnterBytecode(MacroAssembler* masm) {
   // Dispatch to the target bytecode.
   __ Addu(a1, kInterpreterBytecodeArrayRegister,
           kInterpreterBytecodeOffsetRegister);
-  __ lbu(kInterpreterTargetBytecodeRegister, MemOperand(a1));
-  __ Lsa(a1, kInterpreterDispatchTableRegister,
-         kInterpreterTargetBytecodeRegister, kPointerSizeLog2);
-  __ lw(a1, MemOperand(a1));
-  __ Jump(a1);
+  __ lbu(t3, MemOperand(a1));
+  __ Lsa(a1, kInterpreterDispatchTableRegister, t3, kPointerSizeLog2);
+  __ lw(kJavaScriptCallCodeStartRegister, MemOperand(a1));
+  __ Jump(kJavaScriptCallCodeStartRegister);
 }
 
 void Builtins::Generate_InterpreterEnterBytecodeAdvance(MacroAssembler* masm) {

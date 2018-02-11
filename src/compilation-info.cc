@@ -59,7 +59,11 @@ CompilationInfo::CompilationInfo(Zone* zone, Isolate* isolate,
 
 CompilationInfo::CompilationInfo(Vector<const char> debug_name, Zone* zone,
                                  Code::Kind code_kind)
-    : CompilationInfo(debug_name, code_kind, STUB, zone) {}
+    : CompilationInfo(debug_name, code_kind, STUB, zone) {
+  if (code_kind == Code::BYTECODE_HANDLER && has_untrusted_code_mitigations()) {
+    SetFlag(CompilationInfo::kGenerateSpeculationPoison);
+  }
+}
 
 CompilationInfo::CompilationInfo(Vector<const char> debug_name,
                                  Code::Kind code_kind, Mode mode, Zone* zone)
