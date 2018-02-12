@@ -1689,8 +1689,7 @@ TF_BUILTIN(StringPrototypeSlice, StringBuiltinsAssembler) {
     GotoIf(SmiLessThanOrEqual(var_end.value(), var_start.value()),
            &return_emptystring);
     Node* const result =
-        SubString(context, subject_string, var_start.value(), var_end.value(),
-                  SubStringFlags::FROM_TO_ARE_BOUNDED);
+        SubString(subject_string, var_start.value(), var_end.value());
     args.PopAndReturn(result);
   }
 
@@ -1889,7 +1888,7 @@ TF_BUILTIN(StringPrototypeSubstr, StringBuiltinsAssembler) {
   BIND(&out);
   {
     TNode<Smi> const end = SmiAdd(var_start.value(), var_result_length.value());
-    Node* const result = SubString(context, string, var_start.value(), end);
+    Node* const result = SubString(string, var_start.value(), end);
     args.PopAndReturn(result);
   }
 }
@@ -1944,12 +1943,11 @@ TNode<Smi> StringBuiltinsAssembler::ToSmiBetweenZeroAnd(
 }
 
 TF_BUILTIN(SubString, CodeStubAssembler) {
-  Node* context = Parameter(Descriptor::kContext);
   Node* string = Parameter(Descriptor::kString);
   Node* from = Parameter(Descriptor::kFrom);
   Node* to = Parameter(Descriptor::kTo);
 
-  Return(SubString(context, string, from, to));
+  Return(SubString(string, from, to));
 }
 
 // ES6 #sec-string.prototype.substring
@@ -2002,8 +2000,7 @@ TF_BUILTIN(StringPrototypeSubstring, StringBuiltinsAssembler) {
 
   BIND(&out);
   {
-    Node* result =
-        SubString(context, string, var_start.value(), var_end.value());
+    Node* result = SubString(string, var_start.value(), var_end.value());
     args.PopAndReturn(result);
   }
 }
@@ -2058,9 +2055,8 @@ void StringTrimAssembler::Generate(String::TrimMode mode,
   }
 
   arguments.PopAndReturn(
-      SubString(context, string, SmiTag(var_start.value()),
-                SmiAdd(SmiTag(var_end.value()), SmiConstant(1)),
-                SubStringFlags::FROM_TO_ARE_BOUNDED));
+      SubString(string, SmiTag(var_start.value()),
+                SmiAdd(SmiTag(var_end.value()), SmiConstant(1))));
 
   BIND(&if_runtime);
   arguments.PopAndReturn(
