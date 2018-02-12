@@ -99,8 +99,6 @@ class MetaBuildWrapper(object):
                         dest='isolate_map_files')
       subp.add_argument('-g', '--goma-dir',
                         help='path to goma directory')
-      # TODO(machenbach): Remove after removing on infra-side.
-      subp.add_argument('--gyp-script', help='Deprecated')
       subp.add_argument('--android-version-code',
                         help='Sets GN arg android_default_version_code')
       subp.add_argument('--android-version-name',
