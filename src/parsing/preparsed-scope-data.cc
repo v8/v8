@@ -396,6 +396,7 @@ void ProducedPreParsedScopeData::SaveDataForVariable(Variable* var) {
   // Store the variable name in debug mode; this way we can check that we
   // restore data to the correct variable.
   const AstRawString* name = var->raw_name();
+  byte_data_->WriteUint8(name->is_one_byte());
   byte_data_->WriteUint32(name->length());
   for (int i = 0; i < name->length(); ++i) {
     byte_data_->WriteUint8(name->raw_data()[i]);
@@ -605,9 +606,20 @@ void ConsumedPreParsedScopeData::RestoreData(Scope* scope) {
 void ConsumedPreParsedScopeData::RestoreDataForVariable(Variable* var) {
 #ifdef DEBUG
   const AstRawString* name = var->raw_name();
+  bool data_one_byte = scope_data_->ReadUint8();
+  DCHECK_IMPLIES(name->is_one_byte(), data_one_byte);
   DCHECK_EQ(scope_data_->ReadUint32(), static_cast<uint32_t>(name->length()));
-  for (int i = 0; i < name->length(); ++i) {
-    DCHECK_EQ(scope_data_->ReadUint8(), name->raw_data()[i]);
+  if (!name->is_one_byte() && data_one_byte) {
+    // It's possible that "name" is a two-byte representation of the string
+    // stored in the data.
+    for (int i = 0; i < 2 * name->length(); i += 2) {
+      DCHECK_EQ(scope_data_->ReadUint8(), name->raw_data()[i]);
+      DCHECK_EQ(0, name->raw_data()[i + 1]);
+    }
+  } else {
+    for (int i = 0; i < name->length(); ++i) {
+      DCHECK_EQ(scope_data_->ReadUint8(), name->raw_data()[i]);
+    }
   }
 #endif
   uint8_t variable_data = scope_data_->ReadQuarter();
