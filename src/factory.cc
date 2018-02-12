@@ -1203,6 +1203,20 @@ Handle<CallbackTask> Factory::NewCallbackTask(Handle<Foreign> callback,
   return microtask;
 }
 
+Handle<PromiseResolveThenableJobTask> Factory::NewPromiseResolveThenableJobTask(
+    Handle<JSPromise> promise_to_resolve, Handle<JSReceiver> then,
+    Handle<JSReceiver> thenable, Handle<Context> context) {
+  DCHECK(then->IsCallable());
+  Handle<PromiseResolveThenableJobTask> microtask =
+      Handle<PromiseResolveThenableJobTask>::cast(
+          NewStruct(PROMISE_RESOLVE_THENABLE_JOB_TASK_TYPE));
+  microtask->set_promise_to_resolve(*promise_to_resolve);
+  microtask->set_then(*then);
+  microtask->set_thenable(*thenable);
+  microtask->set_context(*context);
+  return microtask;
+}
+
 Handle<Foreign> Factory::NewForeign(Address addr, PretenureFlag pretenure) {
   CALL_HEAP_FUNCTION(isolate(),
                      isolate()->heap()->AllocateForeign(addr, pretenure),

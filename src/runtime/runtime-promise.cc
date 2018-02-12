@@ -14,27 +14,6 @@
 namespace v8 {
 namespace internal {
 
-namespace {
-
-void PromiseRejectEvent(Isolate* isolate, Handle<JSPromise> promise,
-                        Handle<Object> rejected_promise, Handle<Object> value,
-                        bool debug_event) {
-  isolate->RunPromiseHook(PromiseHookType::kResolve, promise,
-                          isolate->factory()->undefined_value());
-
-  if (isolate->debug()->is_active() && debug_event) {
-    isolate->debug()->OnPromiseReject(rejected_promise, value);
-  }
-
-  // Report only if we don't actually have a handler.
-  if (!promise->has_handler()) {
-    isolate->ReportPromiseReject(promise, value,
-                                 v8::kPromiseRejectWithNoHandler);
-  }
-}
-
-}  // namespace
-
 RUNTIME_FUNCTION(Runtime_PromiseRejectEventFromStack) {
   DCHECK_EQ(2, args.length());
   HandleScope scope(isolate);
@@ -43,21 +22,19 @@ RUNTIME_FUNCTION(Runtime_PromiseRejectEventFromStack) {
 
   Handle<Object> rejected_promise = promise;
   if (isolate->debug()->is_active()) {
-    // If the Promise.reject call is caught, then this will return
-    // undefined, which will be interpreted by PromiseRejectEvent
-    // as being a caught exception event.
+    // If the Promise.reject() call is caught, then this will return
+    // undefined, which we interpret as being a caught exception event.
     rejected_promise = isolate->GetPromiseOnStackOnThrow();
   }
-  PromiseRejectEvent(isolate, promise, rejected_promise, value, true);
-  return isolate->heap()->undefined_value();
-}
+  isolate->RunPromiseHook(PromiseHookType::kResolve, promise,
+                          isolate->factory()->undefined_value());
+  isolate->debug()->OnPromiseReject(rejected_promise, value);
 
-RUNTIME_FUNCTION(Runtime_ReportPromiseReject) {
-  DCHECK_EQ(2, args.length());
-  HandleScope scope(isolate);
-  CONVERT_ARG_HANDLE_CHECKED(JSPromise, promise, 0);
-  CONVERT_ARG_HANDLE_CHECKED(Object, value, 1);
-  isolate->ReportPromiseReject(promise, value, v8::kPromiseRejectWithNoHandler);
+  // Report only if we don't actually have a handler.
+  if (!promise->has_handler()) {
+    isolate->ReportPromiseReject(promise, value,
+                                 v8::kPromiseRejectWithNoHandler);
+  }
   return isolate->heap()->undefined_value();
 }
 
@@ -133,17 +110,6 @@ RUNTIME_FUNCTION(Runtime_PromiseHookInit) {
   return isolate->heap()->undefined_value();
 }
 
-RUNTIME_FUNCTION(Runtime_PromiseHookResolve) {
-  HandleScope scope(isolate);
-  DCHECK_EQ(1, args.length());
-  CONVERT_ARG_HANDLE_CHECKED(JSReceiver, maybe_promise, 0);
-  if (!maybe_promise->IsJSPromise()) return isolate->heap()->undefined_value();
-  Handle<JSPromise> promise = Handle<JSPromise>::cast(maybe_promise);
-  isolate->RunPromiseHook(PromiseHookType::kResolve, promise,
-                          isolate->factory()->undefined_value());
-  return isolate->heap()->undefined_value();
-}
-
 RUNTIME_FUNCTION(Runtime_PromiseHookBefore) {
   HandleScope scope(isolate);
   DCHECK_EQ(1, args.length());
@@ -170,6 +136,26 @@ RUNTIME_FUNCTION(Runtime_PromiseHookAfter) {
                             isolate->factory()->undefined_value());
   }
   return isolate->heap()->undefined_value();
+}
+
+RUNTIME_FUNCTION(Runtime_RejectPromise) {
+  HandleScope scope(isolate);
+  DCHECK_EQ(3, args.length());
+  CONVERT_ARG_HANDLE_CHECKED(JSPromise, promise, 0);
+  CONVERT_ARG_HANDLE_CHECKED(Object, reason, 1);
+  CONVERT_ARG_HANDLE_CHECKED(Oddball, debug_event, 2);
+  return *JSPromise::Reject(promise, reason, debug_event->BooleanValue());
+}
+
+RUNTIME_FUNCTION(Runtime_ResolvePromise) {
+  HandleScope scope(isolate);
+  DCHECK_EQ(2, args.length());
+  CONVERT_ARG_HANDLE_CHECKED(JSPromise, promise, 0);
+  CONVERT_ARG_HANDLE_CHECKED(Object, resolution, 1);
+  Handle<Object> result;
+  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, result,
+                                     JSPromise::Resolve(promise, resolution));
+  return *result;
 }
 
 }  // namespace internal

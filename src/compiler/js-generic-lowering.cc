@@ -85,6 +85,9 @@ REPLACE_STUB_CALL(ToName)
 REPLACE_STUB_CALL(ToObject)
 REPLACE_STUB_CALL(ToString)
 REPLACE_STUB_CALL(ForInEnumerate)
+REPLACE_STUB_CALL(PerformPromiseThen)
+REPLACE_STUB_CALL(RejectPromise)
+REPLACE_STUB_CALL(ResolvePromise)
 #undef REPLACE_STUB_CALL
 
 void JSGenericLowering::ReplaceWithStubCall(Node* node, Callable callable,
@@ -763,13 +766,6 @@ void JSGenericLowering::LowerJSStackCheck(Node* node) {
 void JSGenericLowering::LowerJSDebugger(Node* node) {
   CallDescriptor::Flags flags = FrameStateFlagForCall(node);
   Callable callable = CodeFactory::HandleDebuggerStatement(isolate());
-  ReplaceWithStubCall(node, callable, flags);
-}
-
-void JSGenericLowering::LowerJSPerformPromiseThen(Node* node) {
-  CallDescriptor::Flags flags = FrameStateFlagForCall(node);
-  Callable callable =
-      Builtins::CallableFor(isolate(), Builtins::kPerformPromiseThen);
   ReplaceWithStubCall(node, callable, flags);
 }
 

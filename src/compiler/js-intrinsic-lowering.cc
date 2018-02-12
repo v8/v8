@@ -67,6 +67,10 @@ Reduction JSIntrinsicLowering::Reduce(Node* node) {
       return ReduceIsJSReceiver(node);
     case Runtime::kInlineIsSmi:
       return ReduceIsSmi(node);
+    case Runtime::kInlineRejectPromise:
+      return ReduceRejectPromise(node);
+    case Runtime::kInlineResolvePromise:
+      return ReduceResolvePromise(node);
     case Runtime::kInlineToInteger:
       return ReduceToInteger(node);
     case Runtime::kInlineToLength:
@@ -254,6 +258,17 @@ Reduction JSIntrinsicLowering::ReduceIsSmi(Node* node) {
   return Change(node, simplified()->ObjectIsSmi());
 }
 
+Reduction JSIntrinsicLowering::ReduceRejectPromise(Node* node) {
+  RelaxControls(node);
+  NodeProperties::ChangeOp(node, javascript()->RejectPromise());
+  return Changed(node);
+}
+
+Reduction JSIntrinsicLowering::ReduceResolvePromise(Node* node) {
+  RelaxControls(node);
+  NodeProperties::ChangeOp(node, javascript()->ResolvePromise());
+  return Changed(node);
+}
 
 Reduction JSIntrinsicLowering::Change(Node* node, const Operator* op) {
   // Replace all effect uses of {node} with the effect dependency.

@@ -193,7 +193,7 @@ void AsyncGeneratorBuiltinsAssembler::AsyncGeneratorEnqueue(
         MakeTypeError(MessageTemplate::kIncompatibleMethodReceiver, context,
                       StringConstant(method_name), generator);
 
-    CallBuiltin(Builtins::kRejectNativePromise, context, promise, error,
+    CallBuiltin(Builtins::kRejectPromise, context, promise, error,
                 TrueConstant());
     args->PopAndReturn(promise);
   }
@@ -525,7 +525,7 @@ TF_BUILTIN(AsyncGeneratorResolve, AsyncGeneratorBuiltinsAssembler) {
   }
 
   // Perform Call(promiseCapability.[[Resolve]], undefined, «iteratorResult»).
-  CallBuiltin(Builtins::kResolveNativePromise, context, promise, iter_result);
+  CallBuiltin(Builtins::kResolvePromise, context, promise, iter_result);
 
   // Per spec, AsyncGeneratorResolve() returns undefined. However, for the
   // benefit of %TraceExit(), return the Promise.
@@ -541,7 +541,7 @@ TF_BUILTIN(AsyncGeneratorReject, AsyncGeneratorBuiltinsAssembler) {
   Node* const next = TakeFirstAsyncGeneratorRequestFromQueue(generator);
   Node* const promise = LoadPromiseFromAsyncGeneratorRequest(next);
 
-  Return(CallBuiltin(Builtins::kRejectNativePromise, context, promise, value,
+  Return(CallBuiltin(Builtins::kRejectPromise, context, promise, value,
                      TrueConstant()));
 }
 

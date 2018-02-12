@@ -185,9 +185,13 @@ extrasUtils.uncurryThis = function uncurryThis(func) {
   };
 };
 
+extrasUtils.resolvePromise = function resolvePromise(promise, resolution) {
+  %_ResolvePromise(promise, resolution);
+}
+
 // We pass true to trigger the debugger's on exception handler.
 extrasUtils.rejectPromise = function rejectPromise(promise, reason) {
-  %promise_internal_reject(promise, reason, true);
+  %_RejectPromise(promise, reason, true);
 }
 
 extrasUtils.markPromiseAsHandled = function markPromiseAsHandled(promise) {

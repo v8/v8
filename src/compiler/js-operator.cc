@@ -582,6 +582,8 @@ CompareOperationHint CompareOperationHintOf(const Operator* op) {
   V(StackCheck, Operator::kNoWrite, 0, 0)                              \
   V(Debugger, Operator::kNoProperties, 0, 0)                           \
   V(PerformPromiseThen, Operator::kNoDeopt | Operator::kNoThrow, 4, 1) \
+  V(RejectPromise, Operator::kNoDeopt | Operator::kNoThrow, 3, 1)      \
+  V(ResolvePromise, Operator::kNoDeopt | Operator::kNoThrow, 2, 1)     \
   V(GetSuperConstructor, Operator::kNoWrite, 1, 1)
 
 #define BINARY_OP_LIST(V) V(Add)

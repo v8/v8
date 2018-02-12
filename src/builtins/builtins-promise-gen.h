@@ -122,11 +122,10 @@ class PromiseBuiltinsAssembler : public CodeStubAssembler {
                           Node* on_rejected,
                           Node* result_promise_or_capability);
 
-  void InternalResolvePromise(Node* context, Node* promise, Node* result);
-
   Node* CreatePromiseContext(Node* native_context, int slots);
-  void PromiseFulfill(Node* context, Node* promise, Node* result,
-                      v8::Promise::PromiseState status);
+
+  Node* TriggerPromiseReactions(Node* context, Node* promise, Node* result,
+                                PromiseReaction::Type type);
 
   // We can shortcut the SpeciesConstructor on {promise_map} if it's
   // [[Prototype]] is the (initial)  Promise.prototype and the @@species
@@ -151,10 +150,6 @@ class PromiseBuiltinsAssembler : public CodeStubAssembler {
                                  Node* promise_constructor, Node* executor,
                                  Label* if_noaccess);
 
-  void InternalPromiseReject(Node* context, Node* promise, Node* value,
-                             bool debug_event);
-  void InternalPromiseReject(Node* context, Node* promise, Node* value,
-                             Node* debug_event);
   std::pair<Node*, Node*> CreatePromiseFinallyFunctions(Node* on_finally,
                                                         Node* constructor,
                                                         Node* native_context);
@@ -180,8 +175,6 @@ class PromiseBuiltinsAssembler : public CodeStubAssembler {
                                  const NodeGenerator& handled_by);
 
   Node* PromiseStatus(Node* promise);
-  void PerformFulfillClosure(Node* context, Node* value,
-                             PromiseReaction::Type type);
 
   void PromiseReactionJob(Node* context, Node* argument, Node* handler,
                           Node* promise_or_capability,

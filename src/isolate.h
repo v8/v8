@@ -1096,6 +1096,7 @@ class Isolate {
   // Make sure a lookup of "then" on any JSPromise whose [[Prototype]] is the
   // initial %PromisePrototype% yields the initial method.
   bool IsPromiseThenLookupChainIntact();
+  bool IsPromiseThenLookupChainIntact(Handle<JSReceiver> receiver);
 
   // On intent to set an element in object, make sure that appropriate
   // notifications occur if the set is on the elements of the array or

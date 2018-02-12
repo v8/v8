@@ -36,6 +36,8 @@ namespace interpreter {
   V(IsJSWeakSet, is_js_weak_set, 1)                                   \
   V(IsSmi, is_smi, 1)                                                 \
   V(IsTypedArray, is_typed_array, 1)                                  \
+  V(RejectPromise, reject_promise, 3)                                 \
+  V(ResolvePromise, resolve_promise, 2)                               \
   V(ToString, to_string, 1)                                           \
   V(ToLength, to_length, 1)                                           \
   V(ToInteger, to_integer, 1)                                         \

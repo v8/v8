@@ -53,6 +53,8 @@ class V8_EXPORT_PRIVATE JSIntrinsicLowering final
   Reduction ReduceIsInstanceType(Node* node, InstanceType instance_type);
   Reduction ReduceIsJSReceiver(Node* node);
   Reduction ReduceIsSmi(Node* node);
+  Reduction ReduceRejectPromise(Node* node);
+  Reduction ReduceResolvePromise(Node* node);
   Reduction ReduceToInteger(Node* node);
   Reduction ReduceToLength(Node* node);
   Reduction ReduceToNumber(Node* node);

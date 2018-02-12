@@ -2540,7 +2540,7 @@ void BytecodeGenerator::BuildAsyncReturn(int source_position) {
     BuildVariableLoad(var_promise, HoleCheckMode::kElided);
     builder()
         ->StoreAccumulatorInRegister(promise)
-        .CallJSRuntime(Context::PROMISE_RESOLVE_INDEX, args)
+        .CallRuntime(Runtime::kInlineResolvePromise, args)
         .LoadAccumulatorWithRegister(promise);
   }
 

@@ -2258,8 +2258,9 @@ TEST(AllocateFunctionWithMapAndContext) {
       m.AllocateAndInitJSPromise(context, m.UndefinedConstant());
   Node* promise_context = m.CreatePromiseResolvingFunctionsContext(
       promise, m.BooleanConstant(false), native_context);
-  Node* resolve_info =
-      m.LoadContextElement(native_context, Context::PROMISE_RESOLVE_SHARED_FUN);
+  Node* resolve_info = m.LoadContextElement(
+      native_context,
+      Context::PROMISE_CAPABILITY_DEFAULT_RESOLVE_SHARED_FUN_INDEX);
   Node* const map = m.LoadContextElement(
       native_context, Context::STRICT_FUNCTION_WITHOUT_PROTOTYPE_MAP_INDEX);
   Node* const resolve =
@@ -2275,8 +2276,10 @@ TEST(AllocateFunctionWithMapAndContext) {
   CHECK_EQ(isolate->heap()->empty_fixed_array(), fun->elements());
   CHECK_EQ(isolate->heap()->undefined_cell(), fun->feedback_vector_cell());
   CHECK(!fun->has_prototype_slot());
-  CHECK_EQ(*isolate->promise_resolve_shared_fun(), fun->shared());
-  CHECK_EQ(isolate->promise_resolve_shared_fun()->code(), fun->code());
+  CHECK_EQ(*isolate->promise_capability_default_resolve_shared_fun(),
+           fun->shared());
+  CHECK_EQ(isolate->promise_capability_default_resolve_shared_fun()->code(),
+           fun->code());
 }
 
 TEST(CreatePromiseGetCapabilitiesExecutorContext) {
@@ -2345,10 +2348,10 @@ TEST(NewPromiseCapability) {
     CHECK(result->promise()->IsJSPromise());
     CHECK(result->resolve()->IsJSFunction());
     CHECK(result->reject()->IsJSFunction());
-    CHECK_EQ(isolate->native_context()->promise_resolve_shared_fun(),
-             JSFunction::cast(result->resolve())->shared());
-    CHECK_EQ(isolate->native_context()->promise_reject_shared_fun(),
+    CHECK_EQ(*isolate->promise_capability_default_reject_shared_fun(),
              JSFunction::cast(result->reject())->shared());
+    CHECK_EQ(*isolate->promise_capability_default_resolve_shared_fun(),
+             JSFunction::cast(result->resolve())->shared());
 
     Handle<JSFunction> callbacks[] = {
         handle(JSFunction::cast(result->resolve())),

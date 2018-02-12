@@ -456,7 +456,6 @@ namespace internal {
 #define FOR_EACH_INTRINSIC_PROMISE(F)  \
   F(EnqueueMicrotask, 1, 1)            \
   F(PromiseHookInit, 2, 1)             \
-  F(PromiseHookResolve, 1, 1)          \
   F(PromiseHookBefore, 1, 1)           \
   F(PromiseHookAfter, 1, 1)            \
   F(PromiseMarkAsHandled, 1, 1)        \
@@ -464,7 +463,8 @@ namespace internal {
   F(PromiseRevokeReject, 1, 1)         \
   F(PromiseResult, 1, 1)               \
   F(PromiseStatus, 1, 1)               \
-  F(ReportPromiseReject, 2, 1)
+  F(RejectPromise, 3, 1)               \
+  F(ResolvePromise, 2, 1)
 
 #define FOR_EACH_INTRINSIC_PROXY(F) \
   F(IsJSProxy, 1, 1)                \

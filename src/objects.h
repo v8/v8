@@ -4033,14 +4033,19 @@ class JSPromise : public JSObject {
   // block in an async function.
   DECL_BOOLEAN_ACCESSORS(handled_hint)
 
-  static const char* Status(v8::Promise::PromiseState status);
-  v8::Promise::PromiseState status() const;
+  static const char* Status(Promise::PromiseState status);
+  Promise::PromiseState status() const;
+  void set_status(Promise::PromiseState status);
 
-  // Resolve/reject the promise with a given value.
+  // ES section #sec-fulfillpromise
+  static Handle<Object> Fulfill(Handle<JSPromise> promise,
+                                Handle<Object> value);
+  // ES section #sec-rejectpromise
+  static Handle<Object> Reject(Handle<JSPromise> promise, Handle<Object> reason,
+                               bool debug_event = true);
+  // ES section #sec-promise-resolve-functions
   MUST_USE_RESULT static MaybeHandle<Object> Resolve(Handle<JSPromise> promise,
-                                                     Handle<Object> value);
-  MUST_USE_RESULT static MaybeHandle<Object> Reject(Handle<JSPromise> promise,
-                                                    Handle<Object> value);
+                                                     Handle<Object> resolution);
 
   DECL_CAST(JSPromise)
 
@@ -4066,6 +4071,13 @@ class JSPromise : public JSObject {
   STATIC_ASSERT(v8::Promise::kPending == 0);
   STATIC_ASSERT(v8::Promise::kFulfilled == 1);
   STATIC_ASSERT(v8::Promise::kRejected == 2);
+
+ private:
+  // ES section #sec-triggerpromisereactions
+  static Handle<Object> TriggerPromiseReactions(Isolate* isolate,
+                                                Handle<Object> reactions,
+                                                Handle<Object> argument,
+                                                PromiseReaction::Type type);
 };
 
 class AllocationSite: public Struct {

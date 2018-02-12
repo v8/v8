@@ -3141,7 +3141,7 @@ Expression* Parser::BuildResolvePromise(Expression* value, int pos) {
   args->Add(factory()->NewVariableProxy(PromiseVariable()), zone());
   args->Add(value, zone());
   Expression* call_runtime =
-      factory()->NewCallRuntime(Context::PROMISE_RESOLVE_INDEX, args, pos);
+      factory()->NewCallRuntime(Runtime::kInlineResolvePromise, args, pos);
   return factory()->NewBinaryOperation(
       Token::COMMA, call_runtime,
       factory()->NewVariableProxy(PromiseVariable()), pos);
@@ -3155,8 +3155,8 @@ Expression* Parser::BuildRejectPromise(Expression* value, int pos) {
   args->Add(factory()->NewVariableProxy(PromiseVariable()), zone());
   args->Add(value, zone());
   args->Add(factory()->NewBooleanLiteral(false, pos), zone());
-  Expression* call_runtime = factory()->NewCallRuntime(
-      Context::PROMISE_INTERNAL_REJECT_INDEX, args, pos);
+  Expression* call_runtime =
+      factory()->NewCallRuntime(Runtime::kInlineRejectPromise, args, pos);
   return factory()->NewBinaryOperation(
       Token::COMMA, call_runtime,
       factory()->NewVariableProxy(PromiseVariable()), pos);

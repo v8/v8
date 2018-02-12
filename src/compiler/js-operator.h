@@ -756,6 +756,8 @@ class V8_EXPORT_PRIVATE JSOperatorBuilder final
   const Operator* Debugger();
 
   const Operator* PerformPromiseThen();
+  const Operator* RejectPromise();
+  const Operator* ResolvePromise();
 
   const Operator* CreateFunctionContext(int slot_count, ScopeType scope_type);
   const Operator* CreateCatchContext(const Handle<String>& name,

@@ -3488,6 +3488,16 @@ bool Isolate::IsPromiseThenLookupChainIntact() {
   return is_promise_then_protector_intact;
 }
 
+bool Isolate::IsPromiseThenLookupChainIntact(Handle<JSReceiver> receiver) {
+  DisallowHeapAllocation no_gc;
+  if (!receiver->IsJSPromise()) return false;
+  if (!IsInAnyContext(receiver->map()->prototype(),
+                      Context::PROMISE_PROTOTYPE_INDEX)) {
+    return false;
+  }
+  return IsPromiseThenLookupChainIntact();
+}
+
 void Isolate::UpdateNoElementsProtectorOnSetElement(Handle<JSObject> object) {
   DisallowHeapAllocation no_gc;
   if (!object->map()->is_prototype_map()) return;

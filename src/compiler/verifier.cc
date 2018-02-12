@@ -860,6 +860,17 @@ void Verifier::Visitor::Check(Node* node, const AllNodes& all) {
       CheckValueInputIs(node, 3, Type::Any());
       CheckTypeIs(node, Type::OtherObject());
       break;
+    case IrOpcode::kJSRejectPromise:
+      CheckValueInputIs(node, 0, Type::Any());
+      CheckValueInputIs(node, 1, Type::Any());
+      CheckValueInputIs(node, 2, Type::Any());
+      CheckTypeIs(node, Type::Undefined());
+      break;
+    case IrOpcode::kJSResolvePromise:
+      CheckValueInputIs(node, 0, Type::Any());
+      CheckValueInputIs(node, 1, Type::Any());
+      CheckTypeIs(node, Type::Undefined());
+      break;
 
     case IrOpcode::kComment:
     case IrOpcode::kDebugAbort:

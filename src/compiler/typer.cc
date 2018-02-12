@@ -1847,6 +1847,14 @@ Type* Typer::Visitor::TypeJSPerformPromiseThen(Node* node) {
   return Type::OtherObject();
 }
 
+Type* Typer::Visitor::TypeJSRejectPromise(Node* node) {
+  return Type::Undefined();
+}
+
+Type* Typer::Visitor::TypeJSResolvePromise(Node* node) {
+  return Type::Undefined();
+}
+
 // Simplified operators.
 
 Type* Typer::Visitor::TypeBooleanNot(Node* node) { return Type::Boolean(); }

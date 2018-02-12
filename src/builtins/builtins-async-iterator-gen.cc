@@ -136,7 +136,7 @@ void AsyncFromSyncBuiltinsAssembler::Generate_AsyncFromSyncIteratorMethod(
 
   // Perform ! Call(valueWrapperCapability.[[Resolve]], undefined, «
   // throwValue »).
-  CallBuiltin(Builtins::kResolveNativePromise, context, wrapper, value);
+  CallBuiltin(Builtins::kResolvePromise, context, wrapper, value);
 
   // Let onFulfilled be a new built-in function object as defined in
   // Async Iterator Value Unwrap Functions.
@@ -151,7 +151,7 @@ void AsyncFromSyncBuiltinsAssembler::Generate_AsyncFromSyncIteratorMethod(
   BIND(&reject_promise);
   {
     Node* const exception = var_exception.value();
-    CallBuiltin(Builtins::kRejectNativePromise, context, promise, exception,
+    CallBuiltin(Builtins::kRejectPromise, context, promise, exception,
                 TrueConstant());
     Return(promise);
   }
@@ -228,6 +228,7 @@ std::pair<Node*, Node*> AsyncFromSyncBuiltinsAssembler::LoadIteratorResult(
   BIND(&done);
   return std::make_pair(var_value.value(), var_done.value());
 }
+
 }  // namespace
 
 // https://tc39.github.io/proposal-async-iteration/
@@ -263,7 +264,7 @@ TF_BUILTIN(AsyncFromSyncIteratorPrototypeReturn,
     // Perform ! Call(promiseCapability.[[Resolve]], undefined, « iterResult »).
     // IfAbruptRejectPromise(nextDone, promiseCapability).
     // Return promiseCapability.[[Promise]].
-    PromiseFulfill(context, promise, iter_result, v8::Promise::kFulfilled);
+    CallBuiltin(Builtins::kResolvePromise, context, promise, iter_result);
     Return(promise);
   };
 

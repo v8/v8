@@ -2437,31 +2437,17 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
       native_context()->set_is_promise(*function);
     }
 
-    {  // Internal: ResolvePromise
-       // Also exposed as extrasUtils.resolvePromise.
-      Handle<JSFunction> function = SimpleCreateFunction(
-          isolate, factory->empty_string(), Builtins::kResolvePromise, 2, true);
-      function->shared()->set_native(false);
-      native_context()->set_promise_resolve(*function);
-    }
-
-    {  // Internal: InternalPromiseReject
-      Handle<JSFunction> function =
-          SimpleCreateFunction(isolate, factory->empty_string(),
-                               Builtins::kInternalPromiseReject, 3, true);
-      function->shared()->set_native(false);
-      native_context()->set_promise_internal_reject(*function);
-    }
-
     {
       Handle<SharedFunctionInfo> info = SimpleCreateSharedFunctionInfo(
-          isolate, Builtins::kPromiseResolveClosure, factory->empty_string(),
-          1);
-      native_context()->set_promise_resolve_shared_fun(*info);
+          isolate, Builtins::kPromiseCapabilityDefaultResolve,
+          factory->empty_string(), 1);
+      native_context()->set_promise_capability_default_resolve_shared_fun(
+          *info);
 
       info = SimpleCreateSharedFunctionInfo(
-          isolate, Builtins::kPromiseRejectClosure, factory->empty_string(), 1);
-      native_context()->set_promise_reject_shared_fun(*info);
+          isolate, Builtins::kPromiseCapabilityDefaultReject,
+          factory->empty_string(), 1);
+      native_context()->set_promise_capability_default_reject_shared_fun(*info);
     }
 
     {
@@ -4654,8 +4640,6 @@ bool Genesis::InstallNatives(GlobalContextType context_type) {
 
   InstallFunction(extras_utils, isolate()->promise_internal_constructor(),
                   factory()->NewStringFromAsciiChecked("createPromise"));
-  InstallFunction(extras_utils, isolate()->promise_resolve(),
-                  factory()->NewStringFromAsciiChecked("resolvePromise"));
   InstallFunction(extras_utils, isolate()->is_promise(),
                   factory()->NewStringFromAsciiChecked("isPromise"));
 

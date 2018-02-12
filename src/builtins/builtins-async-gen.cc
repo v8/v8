@@ -106,7 +106,7 @@ Node* AsyncBuiltinsAssembler::Await(
   }
 
   // Perform ! Call(promiseCapability.[[Resolve]], undefined, « promise »).
-  CallBuiltin(Builtins::kResolveNativePromise, context, wrapped_value, value);
+  CallBuiltin(Builtins::kResolvePromise, context, wrapped_value, value);
 
   // The Promise will be thrown away and not handled, but it shouldn't trigger
   // unhandled reject events as its work is done

@@ -68,9 +68,7 @@ enum ContextLookupFlags {
   V(NEW_PROMISE_CAPABILITY_INDEX, JSFunction, new_promise_capability)       \
   V(PROMISE_INTERNAL_CONSTRUCTOR_INDEX, JSFunction,                         \
     promise_internal_constructor)                                           \
-  V(PROMISE_INTERNAL_REJECT_INDEX, JSFunction, promise_internal_reject)     \
   V(IS_PROMISE_INDEX, JSFunction, is_promise)                               \
-  V(PROMISE_RESOLVE_INDEX, JSFunction, promise_resolve)                     \
   V(PROMISE_THEN_INDEX, JSFunction, promise_then)                           \
   V(ASYNC_GENERATOR_AWAIT_CAUGHT, JSFunction, async_generator_await_caught) \
   V(ASYNC_GENERATOR_AWAIT_UNCAUGHT, JSFunction, async_generator_await_uncaught)
@@ -320,9 +318,10 @@ enum ContextLookupFlags {
   V(PROXY_REVOKE_SHARED_FUN, SharedFunctionInfo, proxy_revoke_shared_fun)      \
   V(PROMISE_GET_CAPABILITIES_EXECUTOR_SHARED_FUN, SharedFunctionInfo,          \
     promise_get_capabilities_executor_shared_fun)                              \
-  V(PROMISE_RESOLVE_SHARED_FUN, SharedFunctionInfo,                            \
-    promise_resolve_shared_fun)                                                \
-  V(PROMISE_REJECT_SHARED_FUN, SharedFunctionInfo, promise_reject_shared_fun)  \
+  V(PROMISE_CAPABILITY_DEFAULT_REJECT_SHARED_FUN_INDEX, SharedFunctionInfo,    \
+    promise_capability_default_reject_shared_fun)                              \
+  V(PROMISE_CAPABILITY_DEFAULT_RESOLVE_SHARED_FUN_INDEX, SharedFunctionInfo,   \
+    promise_capability_default_resolve_shared_fun)                             \
   V(PROMISE_THEN_FINALLY_SHARED_FUN, SharedFunctionInfo,                       \
     promise_then_finally_shared_fun)                                           \
   V(PROMISE_CATCH_FINALLY_SHARED_FUN, SharedFunctionInfo,                      \

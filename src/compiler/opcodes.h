@@ -196,6 +196,8 @@
   V(JSGeneratorRestoreRegister)        \
   V(JSGeneratorRestoreInputOrDebugPos) \
   V(JSPerformPromiseThen)              \
+  V(JSRejectPromise)                   \
+  V(JSResolvePromise)                  \
   V(JSStackCheck)                      \
   V(JSDebugger)
 
