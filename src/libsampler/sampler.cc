@@ -46,6 +46,21 @@
 #include <zircon/syscalls/debug.h>
 #include <zircon/types.h>
 
+// TODO(wez): Remove this once the Fuchsia SDK has rolled.
+#if defined(ZX_THREAD_STATE_REGSET0)
+#define ZX_THREAD_STATE_GENERAL_REGS ZX_THREAD_STATE_REGSET0
+zx_status_t zx_thread_read_state(zx_handle_t h, uint32_t k, void* b, size_t l) {
+  uint32_t dummy_out_len = 0;
+  return zx_thread_read_state(h, k, b, static_cast<uint32_t>(l),
+                              &dummy_out_len);
+}
+#if defined(__x86_64__)
+typedef zx_x86_64_general_regs_t zx_thread_state_general_regs_t;
+#else
+typedef zx_arm64_general_regs_t zx_thread_state_general_regs_t;
+#endif
+#endif  // !defined(ZX_THREAD_STATE_GENERAL_REGS)
+
 #endif
 
 #include <algorithm>
@@ -715,16 +730,10 @@ void Sampler::DoSample() {
     return;
   }
 
-// Fetch a copy of its "general register" states.
-#if V8_HOST_ARCH_X64
-  zx_x86_64_general_regs_t thread_state;
-#elif V8_HOST_ARCH_ARM64
-  zx_arm64_general_regs_t thread_state;
-#endif
-  uint32_t thread_state_size = 0;
-  if (zx_thread_read_state(profiled_thread, ZX_THREAD_STATE_REGSET0,
-                           &thread_state, sizeof(thread_state),
-                           &thread_state_size) == ZX_OK) {
+  // Fetch a copy of its "general register" states.
+  zx_thread_state_general_regs_t thread_state = {};
+  if (zx_thread_read_state(profiled_thread, ZX_THREAD_STATE_GENERAL_REGS,
+                           &thread_state, sizeof(thread_state)) == ZX_OK) {
     v8::RegisterState state;
 #if V8_HOST_ARCH_X64
     state.pc = reinterpret_cast<void*>(thread_state.rip);
@@ -740,6 +749,11 @@ void Sampler::DoSample() {
 
   zx_task_resume(profiled_thread, 0);
 }
+
+// TODO(wez): Remove this once the Fuchsia SDK has rolled.
+#if defined(ZX_THREAD_STATE_REGSET0)
+#undef ZX_THREAD_STATE_GENERAL_REGS
+#endif
 
 #endif  // USE_SIGNALS
 
