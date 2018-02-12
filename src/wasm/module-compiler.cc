@@ -3007,6 +3007,20 @@ void InstanceBuilder::ProcessExports(
     // Fill the table to cache the exported JSFunction wrappers.
     js_wrappers_.insert(js_wrappers_.begin(), module_->functions.size(),
                         Handle<JSFunction>::null());
+
+    // If an imported WebAssembly function gets exported, the exported function
+    // has to be identical to to imported function. Therefore we put all
+    // imported WebAssembly functions into the js_wrappers_ list.
+    for (int index = 0, end = static_cast<int>(module_->import_table.size());
+         index < end; ++index) {
+      WasmImport& import = module_->import_table[index];
+      if (import.kind == kExternalFunction) {
+        Handle<Object> value = sanitized_imports_[index].value;
+        if (WasmExportedFunction::IsWasmExportedFunction(*value)) {
+          js_wrappers_[import.index] = Handle<JSFunction>::cast(value);
+        }
+      }
+    }
   }
 
   Handle<JSObject> exports_object;
