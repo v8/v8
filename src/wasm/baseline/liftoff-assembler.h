@@ -373,6 +373,12 @@ class LiftoffAssembler : public TurboAssembler {
                            DoubleRegister rhs);
   inline void emit_f32_mul(DoubleRegister dst, DoubleRegister lhs,
                            DoubleRegister rhs);
+  inline void emit_f64_add(DoubleRegister dst, DoubleRegister lhs,
+                           DoubleRegister rhs);
+  inline void emit_f64_sub(DoubleRegister dst, DoubleRegister lhs,
+                           DoubleRegister rhs);
+  inline void emit_f64_mul(DoubleRegister dst, DoubleRegister lhs,
+                           DoubleRegister rhs);
 
   inline void emit_i32_test(Register);
   inline void emit_i32_compare(Register, Register);

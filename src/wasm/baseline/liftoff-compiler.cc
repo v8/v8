@@ -599,9 +599,9 @@ class LiftoffCompiler {
     __ PushRegister(kWasmI32, dst_reg);
   }
 
-  void F32BinOp(void (LiftoffAssembler::*emit_fn)(DoubleRegister,
-                                                  DoubleRegister,
-                                                  DoubleRegister)) {
+  void FloatBinOp(void (LiftoffAssembler::*emit_fn)(DoubleRegister,
+                                                    DoubleRegister,
+                                                    DoubleRegister)) {
     LiftoffRegList pinned;
     LiftoffRegister target_reg =
         pinned.set(__ GetBinaryOpTargetRegister(kFpReg));
@@ -648,9 +648,12 @@ class LiftoffCompiler {
       CASE_SHIFTOP(I32ShrU, i32_shr)
       CASE_CCALL_BINOP(I32Rol, I32, wasm_word32_rol)
       CASE_CCALL_BINOP(I32Ror, I32, wasm_word32_ror)
-      CASE_BINOP(F32Add, F32, f32_add)
-      CASE_BINOP(F32Sub, F32, f32_sub)
-      CASE_BINOP(F32Mul, F32, f32_mul)
+      CASE_BINOP(F32Add, Float, f32_add)
+      CASE_BINOP(F32Sub, Float, f32_sub)
+      CASE_BINOP(F32Mul, Float, f32_mul)
+      CASE_BINOP(F64Add, Float, f64_add)
+      CASE_BINOP(F64Sub, Float, f64_sub)
+      CASE_BINOP(F64Mul, Float, f64_mul)
       default:
         return unsupported(decoder, WasmOpcodes::OpcodeName(opcode));
     }
@@ -689,7 +692,10 @@ class LiftoffCompiler {
   }
 
   void F64Const(Decoder* decoder, Value* result, double value) {
-    unsupported(decoder, "f64.const");
+    LiftoffRegister reg = __ GetUnusedRegister(kFpReg);
+    __ LoadConstant(reg, WasmValue(value));
+    __ PushRegister(kWasmF64, reg);
+    CheckStackSizeLimit(decoder);
   }
 
   void Drop(Decoder* decoder, const Value& value) {

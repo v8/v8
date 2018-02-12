@@ -58,14 +58,17 @@ void LiftoffAssembler::LoadConstant(LiftoffRegister reg, WasmValue value,
       }
       break;
     case kWasmI64:
-      if (value.to_i64() == 0 && RelocInfo::IsNone(rmode)) {
-        xorq(reg.gp(), reg.gp());
+      if (RelocInfo::IsNone(rmode)) {
+        TurboAssembler::Set(reg.gp(), value.to_i64());
       } else {
         movq(reg.gp(), value.to_i64(), rmode);
       }
       break;
     case kWasmF32:
       TurboAssembler::Move(reg.fp(), value.to_f32_boxed().get_bits());
+      break;
+    case kWasmF64:
+      TurboAssembler::Move(reg.fp(), value.to_f64_boxed().get_bits());
       break;
     default:
       UNREACHABLE();
@@ -502,6 +505,47 @@ void LiftoffAssembler::emit_f32_mul(DoubleRegister dst, DoubleRegister lhs,
   } else {
     if (dst != lhs) movss(dst, lhs);
     mulss(dst, rhs);
+  }
+}
+
+void LiftoffAssembler::emit_f64_add(DoubleRegister dst, DoubleRegister lhs,
+                                    DoubleRegister rhs) {
+  if (CpuFeatures::IsSupported(AVX)) {
+    CpuFeatureScope scope(this, AVX);
+    vaddsd(dst, lhs, rhs);
+  } else if (dst == rhs) {
+    addsd(dst, lhs);
+  } else {
+    if (dst != lhs) movsd(dst, lhs);
+    addsd(dst, rhs);
+  }
+}
+
+void LiftoffAssembler::emit_f64_sub(DoubleRegister dst, DoubleRegister lhs,
+                                    DoubleRegister rhs) {
+  if (CpuFeatures::IsSupported(AVX)) {
+    CpuFeatureScope scope(this, AVX);
+    vsubsd(dst, lhs, rhs);
+  } else if (dst == rhs) {
+    movsd(kScratchDoubleReg, rhs);
+    movsd(dst, lhs);
+    subsd(dst, kScratchDoubleReg);
+  } else {
+    if (dst != lhs) movsd(dst, lhs);
+    subsd(dst, rhs);
+  }
+}
+
+void LiftoffAssembler::emit_f64_mul(DoubleRegister dst, DoubleRegister lhs,
+                                    DoubleRegister rhs) {
+  if (CpuFeatures::IsSupported(AVX)) {
+    CpuFeatureScope scope(this, AVX);
+    vmulsd(dst, lhs, rhs);
+  } else if (dst == rhs) {
+    mulsd(dst, lhs);
+  } else {
+    if (dst != lhs) movsd(dst, lhs);
+    mulsd(dst, rhs);
   }
 }
 
