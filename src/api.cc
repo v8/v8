@@ -4587,10 +4587,10 @@ MaybeLocal<Array> v8::Object::GetPropertyNames(Local<Context> context) {
       v8::IndexFilter::kIncludeIndices);
 }
 
-MaybeLocal<Array> v8::Object::GetPropertyNames(Local<Context> context,
-                                               KeyCollectionMode mode,
-                                               PropertyFilter property_filter,
-                                               IndexFilter index_filter) {
+MaybeLocal<Array> v8::Object::GetPropertyNames(
+    Local<Context> context, KeyCollectionMode mode,
+    PropertyFilter property_filter, IndexFilter index_filter,
+    KeyConversionMode key_conversion) {
   PREPARE_FOR_EXECUTION(context, Object, GetPropertyNames, Array);
   auto self = Utils::OpenHandle(this);
   i::Handle<i::FixedArray> value;
@@ -4600,7 +4600,8 @@ MaybeLocal<Array> v8::Object::GetPropertyNames(Local<Context> context,
   accumulator.set_skip_indices(index_filter == IndexFilter::kSkipIndices);
   has_pending_exception = accumulator.CollectKeys(self, self).IsNothing();
   RETURN_ON_FAILED_EXECUTION(Array);
-  value = accumulator.GetKeys(i::GetKeysConversion::kKeepNumbers);
+  value =
+      accumulator.GetKeys(static_cast<i::GetKeysConversion>(key_conversion));
   DCHECK(self->map()->EnumLength() == i::kInvalidEnumCacheSentinel ||
          self->map()->EnumLength() == 0 ||
          self->map()->instance_descriptors()->GetEnumCache()->keys() != *value);
@@ -4624,10 +4625,11 @@ Local<Array> v8::Object::GetOwnPropertyNames() {
   RETURN_TO_LOCAL_UNCHECKED(GetOwnPropertyNames(context), Array);
 }
 
-MaybeLocal<Array> v8::Object::GetOwnPropertyNames(Local<Context> context,
-                                                  PropertyFilter filter) {
+MaybeLocal<Array> v8::Object::GetOwnPropertyNames(
+    Local<Context> context, PropertyFilter filter,
+    KeyConversionMode key_conversion) {
   return GetPropertyNames(context, KeyCollectionMode::kOwnOnly, filter,
-                          v8::IndexFilter::kIncludeIndices);
+                          v8::IndexFilter::kIncludeIndices, key_conversion);
 }
 
 MaybeLocal<String> v8::Object::ObjectProtoToString(Local<Context> context) {

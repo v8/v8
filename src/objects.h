@@ -1932,7 +1932,10 @@ enum AccessorComponent {
   ACCESSOR_SETTER
 };
 
-enum class GetKeysConversion { kKeepNumbers, kConvertToString };
+enum class GetKeysConversion {
+  kKeepNumbers = static_cast<int>(v8::KeyConversionMode::kKeepNumbers),
+  kConvertToString = static_cast<int>(v8::KeyConversionMode::kConvertToString)
+};
 
 enum class KeyCollectionMode {
   kOwnOnly = static_cast<int>(v8::KeyCollectionMode::kOwnOnly),
