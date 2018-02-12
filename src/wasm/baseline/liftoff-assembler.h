@@ -442,6 +442,9 @@ class LiftoffAssembler : public TurboAssembler {
 
   CacheState* cache_state() { return &cache_state_; }
 
+  bool did_bailout() { return bailout_reason_ != nullptr; }
+  const char* bailout_reason() const { return bailout_reason_; }
+
  private:
   uint32_t num_locals_ = 0;
   static constexpr uint32_t kInlineLocalTypes = 8;
@@ -452,9 +455,14 @@ class LiftoffAssembler : public TurboAssembler {
   static_assert(sizeof(ValueType) == 1,
                 "Reconsider this inlining if ValueType gets bigger");
   CacheState cache_state_;
+  const char* bailout_reason_ = nullptr;
 
   LiftoffRegister SpillOneRegister(LiftoffRegList candidates,
                                    LiftoffRegList pinned);
+
+  void bailout(const char* reason) {
+    if (bailout_reason_ == nullptr) bailout_reason_ = reason;
+  }
 };
 
 std::ostream& operator<<(std::ostream& os, LiftoffAssembler::VarState);

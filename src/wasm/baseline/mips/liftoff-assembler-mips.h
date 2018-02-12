@@ -7,6 +7,8 @@
 
 #include "src/wasm/baseline/liftoff-assembler.h"
 
+#define BAILOUT(reason) bailout("mips " reason)
+
 namespace v8 {
 namespace internal {
 namespace wasm {
@@ -69,25 +71,25 @@ void LiftoffAssembler::Load(LiftoffRegister dst, Register src_addr,
                             Register offset_reg, uint32_t offset_imm,
                             LoadType type, LiftoffRegList pinned,
                             uint32_t* protected_load_pc) {
-  UNIMPLEMENTED();
+  BAILOUT("Load");
 }
 
 void LiftoffAssembler::Store(Register dst_addr, Register offset_reg,
                              uint32_t offset_imm, LiftoffRegister src,
                              StoreType type, LiftoffRegList pinned,
                              uint32_t* protected_store_pc) {
-  UNIMPLEMENTED();
+  BAILOUT("Store");
 }
 
 void LiftoffAssembler::LoadCallerFrameSlot(LiftoffRegister dst,
                                            uint32_t caller_slot_idx,
                                            ValueType type) {
-  UNIMPLEMENTED();
+  BAILOUT("LoadCallerFrameSlot");
 }
 
 void LiftoffAssembler::MoveStackValue(uint32_t dst_index, uint32_t src_index,
                                       ValueType type) {
-  UNIMPLEMENTED();
+  BAILOUT("MoveStackValue");
 }
 
 void LiftoffAssembler::MoveToReturnRegister(LiftoffRegister reg,
@@ -114,40 +116,41 @@ void LiftoffAssembler::Move(DoubleRegister dst, DoubleRegister src,
 
 void LiftoffAssembler::Spill(uint32_t index, LiftoffRegister reg,
                              ValueType type) {
-  UNIMPLEMENTED();
+  BAILOUT("Spill register");
 }
 
 void LiftoffAssembler::Spill(uint32_t index, WasmValue value) {
-  UNIMPLEMENTED();
+  BAILOUT("Spill value");
 }
 
 void LiftoffAssembler::Fill(LiftoffRegister reg, uint32_t index,
                             ValueType type) {
-  UNIMPLEMENTED();
+  BAILOUT("Fill");
 }
 
 void LiftoffAssembler::FillI64Half(Register, uint32_t half_index) {
-  UNREACHABLE();
+  BAILOUT("FillI64Half");
 }
 
 #define UNIMPLEMENTED_GP_BINOP(name)                             \
   void LiftoffAssembler::emit_##name(Register dst, Register lhs, \
                                      Register rhs) {             \
-    UNIMPLEMENTED();                                             \
+    BAILOUT("gp binop");                                         \
   }
 #define UNIMPLEMENTED_GP_UNOP(name)                                \
   bool LiftoffAssembler::emit_##name(Register dst, Register src) { \
-    UNIMPLEMENTED();                                               \
+    BAILOUT("gp unop");                                            \
+    return false;                                                  \
   }
 #define UNIMPLEMENTED_FP_BINOP(name)                                         \
   void LiftoffAssembler::emit_##name(DoubleRegister dst, DoubleRegister lhs, \
                                      DoubleRegister rhs) {                   \
-    UNIMPLEMENTED();                                                         \
+    BAILOUT("fp binop");                                                     \
   }
 #define UNIMPLEMENTED_SHIFTOP(name)                                            \
   void LiftoffAssembler::emit_##name(Register dst, Register lhs, Register rhs, \
                                      LiftoffRegList pinned) {                  \
-    UNIMPLEMENTED();                                                           \
+    BAILOUT("shiftop");                                                        \
   }
 
 UNIMPLEMENTED_GP_BINOP(i32_add)
@@ -172,47 +175,53 @@ UNIMPLEMENTED_FP_BINOP(f32_mul)
 #undef UNIMPLEMENTED_FP_BINOP
 #undef UNIMPLEMENTED_SHIFTOP
 
-void LiftoffAssembler::emit_i32_test(Register reg) { UNIMPLEMENTED(); }
+void LiftoffAssembler::emit_i32_test(Register reg) { BAILOUT("emit_i32_test"); }
 
 void LiftoffAssembler::emit_i32_compare(Register lhs, Register rhs) {
-  UNIMPLEMENTED();
+  BAILOUT("emit_i32_compare");
 }
 
 void LiftoffAssembler::emit_ptrsize_compare(Register lhs, Register rhs) {
-  UNIMPLEMENTED();
+  BAILOUT("emit_ptrsize_compare");
 }
 
-void LiftoffAssembler::emit_jump(Label* label) { UNIMPLEMENTED(); }
+void LiftoffAssembler::emit_jump(Label* label) { BAILOUT("emit_jump"); }
 
 void LiftoffAssembler::emit_cond_jump(Condition cond, Label* label) {
-  UNIMPLEMENTED();
+  BAILOUT("emit_cond_jump");
 }
 
 void LiftoffAssembler::emit_i32_set_cond(Condition cond, Register dst) {
-  UNIMPLEMENTED();
+  BAILOUT("emit_i32_set_cond");
 }
 
-void LiftoffAssembler::StackCheck(Label* ool_code) { UNIMPLEMENTED(); }
+void LiftoffAssembler::StackCheck(Label* ool_code) { BAILOUT("StackCheck"); }
 
-void LiftoffAssembler::CallTrapCallbackForTesting() { UNIMPLEMENTED(); }
+void LiftoffAssembler::CallTrapCallbackForTesting() {
+  BAILOUT("CallTrapCallbackForTesting");
+}
 
 void LiftoffAssembler::AssertUnreachable(AbortReason reason) {
-  UNIMPLEMENTED();
+  BAILOUT("AssertUnreachable");
 }
 
 void LiftoffAssembler::PushCallerFrameSlot(const VarState& src,
                                            uint32_t src_index,
                                            RegPairHalf half) {
-  UNIMPLEMENTED();
+  BAILOUT("PushCallerFrameSlot");
 }
 
 void LiftoffAssembler::PushCallerFrameSlot(LiftoffRegister reg) {
-  UNIMPLEMENTED();
+  BAILOUT("PushCallerFrameSlot reg");
 }
 
-void LiftoffAssembler::PushRegisters(LiftoffRegList regs) { UNIMPLEMENTED(); }
+void LiftoffAssembler::PushRegisters(LiftoffRegList regs) {
+  BAILOUT("PushRegisters");
+}
 
-void LiftoffAssembler::PopRegisters(LiftoffRegList regs) { UNIMPLEMENTED(); }
+void LiftoffAssembler::PopRegisters(LiftoffRegList regs) {
+  BAILOUT("PopRegisters");
+}
 
 void LiftoffAssembler::DropStackSlotsAndRet(uint32_t num_stack_slots) {
   DCHECK_LT(num_stack_slots, (1 << 16) / kPointerSize);  // 16 bit immediate
@@ -220,44 +229,50 @@ void LiftoffAssembler::DropStackSlotsAndRet(uint32_t num_stack_slots) {
 }
 
 void LiftoffAssembler::PrepareCCall(uint32_t num_params, const Register* args) {
-  UNIMPLEMENTED();
+  BAILOUT("PrepareCCall");
 }
 
 void LiftoffAssembler::SetCCallRegParamAddr(Register dst, uint32_t param_idx,
                                             uint32_t num_params) {
-  UNIMPLEMENTED();
+  BAILOUT("SetCCallRegParamAddr");
 }
 
 void LiftoffAssembler::SetCCallStackParamAddr(uint32_t stack_param_idx,
                                               uint32_t param_idx,
                                               uint32_t num_params) {
-  UNIMPLEMENTED();
+  BAILOUT("SetCCallStackParamAddr");
 }
 
 void LiftoffAssembler::CallC(ExternalReference ext_ref, uint32_t num_params) {
-  UNIMPLEMENTED();
+  BAILOUT("CallC");
 }
 
-void LiftoffAssembler::CallNativeWasmCode(Address addr) { UNIMPLEMENTED(); }
+void LiftoffAssembler::CallNativeWasmCode(Address addr) {
+  BAILOUT("CallNativeWasmCode");
+}
 
 void LiftoffAssembler::CallRuntime(Zone* zone, Runtime::FunctionId fid) {
-  UNIMPLEMENTED();
+  BAILOUT("CallRuntime");
 }
 
 void LiftoffAssembler::CallIndirect(wasm::FunctionSig* sig,
                                     compiler::CallDescriptor* call_descriptor,
                                     Register target) {
-  UNIMPLEMENTED();
+  BAILOUT("CallIndirect");
 }
 
 void LiftoffAssembler::AllocateStackSlot(Register addr, uint32_t size) {
-  UNIMPLEMENTED();
+  BAILOUT("AllocateStackSlot");
 }
 
-void LiftoffAssembler::DeallocateStackSlot(uint32_t size) { UNIMPLEMENTED(); }
+void LiftoffAssembler::DeallocateStackSlot(uint32_t size) {
+  BAILOUT("DeallocateStackSlot");
+}
 
 }  // namespace wasm
 }  // namespace internal
 }  // namespace v8
+
+#undef BAILOUT
 
 #endif  // V8_WASM_BASELINE_MIPS_LIFTOFF_ASSEMBLER_MIPS_H_

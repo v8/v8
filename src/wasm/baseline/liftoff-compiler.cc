@@ -157,6 +157,12 @@ class LiftoffCompiler {
     BindUnboundLabels(decoder);
   }
 
+  bool DidAssemblerBailout(Decoder* decoder) {
+    if (decoder->failed() || !asm_->did_bailout()) return false;
+    unsupported(decoder, asm_->bailout_reason());
+    return true;
+  }
+
   bool CheckSupportedType(Decoder* decoder,
                           Vector<const ValueType> supported_types,
                           ValueType type, const char* context) {
@@ -264,13 +270,16 @@ class LiftoffCompiler {
   }
 
   void StartFunctionBody(Decoder* decoder, Control* block) {
-    if (!kLiftoffAssemblerImplementedOnThisPlatform) {
-      unsupported(decoder, "platform");
-      return;
-    }
     __ EnterFrame(StackFrame::WASM_COMPILED);
     __ set_has_frame(true);
     __ ReserveStackSpace(__ GetTotalFrameSlotCount());
+    // {ReserveStackSpace} is the first platform-specific assembler method.
+    // If this failed, we can bail out immediately, avoiding runtime overhead
+    // and potential failures because of other unimplemented methods.
+    // A platform implementing {ReserveStackSpace} must ensure that we can
+    // finish compilation without errors even if we hit unimplemented
+    // LiftoffAssembler methods.
+    if (DidAssemblerBailout(decoder)) return;
     // Parameter 0 is the wasm context.
     uint32_t num_params =
         static_cast<uint32_t>(decoder->sig_->parameter_count());
@@ -368,6 +377,7 @@ class LiftoffCompiler {
   }
 
   void FinishFunction(Decoder* decoder) {
+    if (DidAssemblerBailout(decoder)) return;
     for (OutOfLineCode& ool : out_of_line_code_) {
       GenerateOutOfLineCode(ool);
     }
