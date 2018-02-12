@@ -23,9 +23,6 @@ bool CpuFeatures::SupportsWasmSimd128() { return IsSupported(SSE4_1); }
 // Implementation of Assembler
 
 
-static const byte kCallOpcode = 0xE8;
-
-
 void Assembler::emitl(uint32_t x) {
   Memory::uint32_at(pc_) = x;
   pc_ += sizeof(uint32_t);

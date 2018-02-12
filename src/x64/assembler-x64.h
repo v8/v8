@@ -81,9 +81,6 @@ namespace internal {
   V(r14)                                 \
   V(r15)
 
-// The length of pushq(rbp), movp(rbp, rsp), Push(rsi) and Push(rdi).
-constexpr int kNoCodeAgeSequenceLength = kPointerSize == kInt64Size ? 6 : 17;
-
 enum RegisterCode {
 #define REGISTER_CODE(R) kRegCode_##R,
   GENERAL_REGISTERS(REGISTER_CODE)

@@ -50,9 +50,6 @@ bool CpuFeatures::SupportsOptimizer() { return true; }
 
 bool CpuFeatures::SupportsWasmSimd128() { return IsSupported(SSE4_1); }
 
-static const byte kCallOpcode = 0xE8;
-static const int kNoCodeAgeSequenceLength = 5;
-
 
 // The modes possibly affected by apply must be in kApplyMask.
 void RelocInfo::apply(intptr_t delta) {

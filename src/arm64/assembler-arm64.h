@@ -68,7 +68,6 @@ namespace internal {
 // clang-format on
 
 constexpr int kRegListSizeInBits = sizeof(RegList) * kBitsPerByte;
-static const int kNoCodeAgeSequenceLength = 5 * kInstructionSize;
 
 const int kNumRegs = kNumberOfRegisters;
 // Registers x0-x17 are caller-saved.

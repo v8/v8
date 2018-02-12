@@ -1774,8 +1774,6 @@ class Assembler : public AssemblerBase {
   std::forward_list<HeapObjectRequest> heap_object_requests_;
 };
 
-constexpr int kNoCodeAgeSequenceLength = 3 * Assembler::kInstrSize;
-
 class EnsureSpace BASE_EMBEDDED {
  public:
   INLINE(explicit EnsureSpace(Assembler* assembler));
