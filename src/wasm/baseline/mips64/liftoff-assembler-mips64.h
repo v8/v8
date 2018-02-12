@@ -241,8 +241,7 @@ void LiftoffAssembler::CallRuntime(Zone* zone, Runtime::FunctionId fid) {
 
 void LiftoffAssembler::CallIndirect(wasm::FunctionSig* sig,
                                     compiler::CallDescriptor* call_descriptor,
-                                    Register target,
-                                    uint32_t* max_used_spill_slot) {
+                                    Register target) {
   UNIMPLEMENTED();
 }
 

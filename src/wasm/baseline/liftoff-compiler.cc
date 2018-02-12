@@ -1182,8 +1182,9 @@ class LiftoffCompiler {
         GetLoweredCallDescriptor(compilation_zone_, call_descriptor);
 
     uint32_t max_used_spill_slot = 0;
-    __ CallIndirect(operand.sig, call_descriptor, scratch.gp(),
-                    &max_used_spill_slot);
+    Register target = scratch.gp();
+    __ PrepareCall(operand.sig, call_descriptor, &max_used_spill_slot, &target);
+    __ CallIndirect(operand.sig, call_descriptor, target);
     if (max_used_spill_slot >
         __ num_locals() + LiftoffAssembler::kMaxValueStackHeight) {
       unsupported(decoder, "value stack grows too large in indirect call");

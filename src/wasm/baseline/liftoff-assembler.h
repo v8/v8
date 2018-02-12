@@ -409,11 +409,10 @@ class LiftoffAssembler : public TurboAssembler {
 
   inline void CallNativeWasmCode(Address addr);
   inline void CallRuntime(Zone* zone, Runtime::FunctionId fid);
-  // TODO(clemensh): Remove {max_used_spill_slot} once we support arbitrary
-  // stack sizes.
+  // Indirect call: If {target == no_reg}, then pop the target from the stack.
   inline void CallIndirect(wasm::FunctionSig* sig,
                            compiler::CallDescriptor* call_descriptor,
-                           Register target, uint32_t* max_used_spill_slot);
+                           Register target);
 
   // Reserve space in the current frame, store address to space in {addr}.
   inline void AllocateStackSlot(Register addr, uint32_t size);
