@@ -4187,30 +4187,6 @@ class V8_EXPORT WasmModuleObjectBuilderStreaming final {
   std::shared_ptr<internal::wasm::StreamingDecoder> streaming_decoder_;
 };
 
-class V8_EXPORT WasmModuleObjectBuilder final {
- public:
-  WasmModuleObjectBuilder(Isolate* isolate) : isolate_(isolate) {}
-  // The buffer passed into OnBytesReceived is owned by the caller.
-  void OnBytesReceived(const uint8_t*, size_t size);
-  MaybeLocal<WasmCompiledModule> Finish();
-
- private:
-  Isolate* isolate_ = nullptr;
-  // TODO(ahaas): We probably need none of this below here once streamed
-  // compilation is implemented.
-  typedef std::pair<std::unique_ptr<const uint8_t[]>, size_t> Buffer;
-
-  // Disable copy semantics *in this implementation*. We can choose to
-  // relax this, albeit it's not clear why.
-  WasmModuleObjectBuilder(const WasmModuleObjectBuilder&) = delete;
-  WasmModuleObjectBuilder(WasmModuleObjectBuilder&&) = default;
-  WasmModuleObjectBuilder& operator=(const WasmModuleObjectBuilder&) = delete;
-  WasmModuleObjectBuilder& operator=(WasmModuleObjectBuilder&&) = default;
-
-  std::vector<Buffer> received_buffers_;
-  size_t total_size_ = 0;
-};
-
 #ifndef V8_ARRAY_BUFFER_INTERNAL_FIELD_COUNT
 // The number of required internal fields can be defined by embedder.
 #define V8_ARRAY_BUFFER_INTERNAL_FIELD_COUNT 2

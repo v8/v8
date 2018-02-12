@@ -445,67 +445,6 @@ TEST(DeserializeWireBytesAndSerializedDataInvalid) {
   Cleanup();
 }
 
-std::unique_ptr<const uint8_t[]> CreatePayload(const uint8_t* start,
-                                               size_t size) {
-  uint8_t* ret = new uint8_t[size];
-  memcpy(ret, start, size);
-  return std::unique_ptr<const uint8_t[]>(const_cast<const uint8_t*>(ret));
-}
-
-TEST(ModuleBuilder) {
-  v8::internal::AccountingAllocator allocator;
-  Zone zone(&allocator, ZONE_NAME);
-  ZoneBuffer buffer(&zone);
-  WasmSerializationTest::BuildWireBytes(&zone, &buffer);
-  CHECK_GT(buffer.size(), 0);
-  size_t third = buffer.size() / 3;
-  size_t first_mark = third - 2;
-  size_t second_mark = buffer.size() - 2 - third;
-  CHECK_LT(0, first_mark);
-  CHECK(first_mark < second_mark);
-  CHECK(second_mark < buffer.size());
-  Isolate* i_isolate = CcTest::InitIsolateOnce();
-  v8::WasmModuleObjectBuilder builder(CcTest::isolate());
-  std::unique_ptr<const uint8_t[]> first_part =
-      CreatePayload(buffer.begin(), first_mark);
-  std::unique_ptr<const uint8_t[]> second_part =
-      CreatePayload(buffer.begin() + first_mark, second_mark - first_mark);
-  std::unique_ptr<const uint8_t[]> third_part =
-      CreatePayload(buffer.begin() + second_mark, buffer.size() - second_mark);
-  builder.OnBytesReceived(first_part.get(), first_mark);
-  builder.OnBytesReceived(second_part.get(), second_mark - first_mark);
-  builder.OnBytesReceived(third_part.get(), buffer.size() - second_mark);
-  {
-    HandleScope scope(i_isolate);
-    v8::MaybeLocal<v8::WasmCompiledModule> maybe_module = builder.Finish();
-    CHECK(!maybe_module.IsEmpty());
-  }
-}
-
-TEST(FailingModuleBuilder) {
-  v8::internal::AccountingAllocator allocator;
-  Zone zone(&allocator, ZONE_NAME);
-  ZoneBuffer buffer(&zone);
-  WasmSerializationTest::BuildWireBytes(&zone, &buffer);
-  CHECK_GT(buffer.size(), 0);
-  size_t third = buffer.size() / 3;
-  size_t first_mark = third - 2;
-  size_t second_mark = buffer.size() - 2 - third;
-  CHECK_LT(0, first_mark);
-  CHECK(first_mark < second_mark);
-  CHECK(second_mark < buffer.size());
-  Isolate* i_isolate = CcTest::InitIsolateOnce();
-  v8::WasmModuleObjectBuilder builder(CcTest::isolate());
-  std::unique_ptr<const uint8_t[]> first_part =
-      CreatePayload(buffer.begin(), first_mark);
-  builder.OnBytesReceived(first_part.get(), first_mark);
-  {
-    HandleScope scope(i_isolate);
-    v8::MaybeLocal<v8::WasmCompiledModule> maybe_module = builder.Finish();
-    CHECK(maybe_module.IsEmpty());
-  }
-}
-
 bool False(v8::Local<v8::Context> context, v8::Local<v8::String> source) {
   return false;
 }

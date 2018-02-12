@@ -7709,29 +7709,6 @@ WasmModuleObjectBuilderStreaming::~WasmModuleObjectBuilderStreaming() {
   promise_.Reset();
 }
 
-void WasmModuleObjectBuilder::OnBytesReceived(const uint8_t* bytes,
-                                              size_t size) {
-  std::unique_ptr<uint8_t[]> cloned_bytes(new uint8_t[size]);
-  memcpy(cloned_bytes.get(), bytes, size);
-  received_buffers_.push_back(
-      Buffer(std::unique_ptr<const uint8_t[]>(
-                 const_cast<const uint8_t*>(cloned_bytes.release())),
-             size));
-  total_size_ += size;
-}
-
-MaybeLocal<WasmCompiledModule> WasmModuleObjectBuilder::Finish() {
-  std::unique_ptr<uint8_t[]> wire_bytes(new uint8_t[total_size_]);
-  uint8_t* insert_at = wire_bytes.get();
-
-  for (size_t i = 0; i < received_buffers_.size(); ++i) {
-    const Buffer& buff = received_buffers_[i];
-    memcpy(insert_at, buff.first.get(), buff.second);
-    insert_at += buff.second;
-  }
-  return WasmCompiledModule::Compile(isolate_, wire_bytes.get(), total_size_);
-}
-
 // static
 v8::ArrayBuffer::Allocator* v8::ArrayBuffer::Allocator::NewDefaultAllocator() {
   return new ArrayBufferAllocator();
