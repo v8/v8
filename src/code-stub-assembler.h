@@ -1269,6 +1269,9 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
   // Convert any object to a Primitive.
   Node* JSReceiverToPrimitive(Node* context, Node* input);
 
+  TNode<JSReceiver> ToObject(SloppyTNode<Context> context,
+                             SloppyTNode<Object> input);
+
   enum ToIntegerTruncationMode {
     kNoTruncation,
     kTruncateMinusZero,

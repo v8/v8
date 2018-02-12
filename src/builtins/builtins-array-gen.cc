@@ -399,7 +399,7 @@ Node* ArrayBuiltinsAssembler::FindProcessor(Node* k_value, Node* k) {
 
     // 1. Let O be ToObject(this value).
     // 2. ReturnIfAbrupt(O)
-    o_ = CallBuiltin(Builtins::kToObject, context(), receiver());
+    o_ = ToObject(context(), receiver());
 
     // 3. Let len be ToLength(Get(O, "length")).
     // 4. ReturnIfAbrupt(len).
@@ -1328,7 +1328,7 @@ TF_BUILTIN(ArrayPrototypeSlice, ArrayPrototypeSliceCodeStubAssembler) {
   BIND(&generic_length);
   // 1. Let O be ToObject(this value).
   // 2. ReturnIfAbrupt(O).
-  o.Bind(CallBuiltin(Builtins::kToObject, context, receiver));
+  o.Bind(ToObject(context, receiver));
 
   // 3. Let len be ToLength(Get(O, "length")).
   // 4. ReturnIfAbrupt(len).
@@ -1996,9 +1996,7 @@ TF_BUILTIN(ArrayFrom, ArrayPopulatorAssembler) {
   TNode<Object> items = args.GetOptionalArgumentValue(0);
   // The spec doesn't require ToObject to be called directly on the iterable
   // branch, but it's part of GetMethod that is in the spec.
-  // TODO(delphick): Create ToObject_Inline to fast-path the expected case.
-  TNode<Object> array_like =
-      CAST(CallBuiltin(Builtins::kToObject, context, items));
+  TNode<JSReceiver> array_like = ToObject(context, items);
 
   TVARIABLE(Object, array);
   TVARIABLE(Number, length);
@@ -3381,7 +3379,7 @@ class ArrayPrototypeIterationAssembler : public CodeStubAssembler {
 
     BIND(&if_isnotobject);
     {
-      Node* result = CallBuiltin(Builtins::kToObject, context, receiver);
+      Node* result = ToObject(context, receiver);
       var_array.Bind(result);
       var_map.Bind(LoadMap(result));
       var_type.Bind(LoadMapInstanceType(var_map.value()));

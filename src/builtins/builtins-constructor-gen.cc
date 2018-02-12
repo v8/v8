@@ -662,7 +662,7 @@ TF_BUILTIN(ObjectConstructor, ConstructorBuiltinsAssembler) {
   args.PopAndReturn(EmitCreateEmptyObjectLiteral(context));
 
   BIND(&return_to_object);
-  args.PopAndReturn(CallBuiltin(Builtins::kToObject, context, value));
+  args.PopAndReturn(ToObject(context, value));
 }
 
 TF_BUILTIN(ObjectConstructor_ConstructStub, ConstructorBuiltinsAssembler) {
@@ -687,7 +687,7 @@ TF_BUILTIN(ObjectConstructor_ConstructStub, ConstructorBuiltinsAssembler) {
   args.PopAndReturn(EmitFastNewObject(context, target, new_target));
 
   BIND(&return_to_object);
-  args.PopAndReturn(CallBuiltin(Builtins::kToObject, context, value));
+  args.PopAndReturn(ToObject(context, value));
 }
 
 TF_BUILTIN(NumberConstructor, ConstructorBuiltinsAssembler) {

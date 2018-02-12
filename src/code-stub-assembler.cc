@@ -5909,6 +5909,11 @@ Node* CodeStubAssembler::JSReceiverToPrimitive(Node* context, Node* input) {
   return result.value();
 }
 
+TNode<JSReceiver> CodeStubAssembler::ToObject(SloppyTNode<Context> context,
+                                              SloppyTNode<Object> input) {
+  return CAST(CallBuiltin(Builtins::kToObject, context, input));
+}
+
 Node* CodeStubAssembler::ToSmiIndex(Node* const input, Node* const context,
                                     Label* range_error) {
   VARIABLE(result, MachineRepresentation::kTagged, input);

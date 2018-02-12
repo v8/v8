@@ -187,17 +187,17 @@ TNode<Uint32T> ObjectEntriesValuesBuiltinsAssembler::HasHiddenPrototype(
 void ObjectEntriesValuesBuiltinsAssembler::GetOwnValuesOrEntries(
     TNode<Context> context, TNode<Object> maybe_object,
     CollectType collect_type) {
-  TNode<JSObject> object = TNode<JSObject>::UncheckedCast(
-      CallBuiltin(Builtins::kToObject, context, maybe_object));
+  TNode<JSReceiver> receiver = ToObject(context, maybe_object);
 
   Label if_call_runtime_with_fast_path(this, Label::kDeferred),
       if_call_runtime(this, Label::kDeferred),
       if_no_properties(this, Label::kDeferred);
 
-  TNode<Map> map = LoadMap(object);
+  TNode<Map> map = LoadMap(receiver);
   GotoIfNot(IsJSObjectMap(map), &if_call_runtime);
   GotoIfMapHasSlowProperties(map, &if_call_runtime);
 
+  TNode<JSObject> object = CAST(receiver);
   TNode<FixedArrayBase> elements = LoadElements(object);
   // If the object has elements, we treat it as slow case.
   // So, we go to runtime call.
@@ -232,10 +232,12 @@ void ObjectEntriesValuesBuiltinsAssembler::GetOwnValuesOrEntries(
   {
     // In slow case, we simply call runtime.
     if (collect_type == CollectType::kEntries) {
-      Return(CallRuntime(Runtime::kObjectEntriesSkipFastPath, context, object));
+      Return(
+          CallRuntime(Runtime::kObjectEntriesSkipFastPath, context, receiver));
     } else {
       DCHECK(collect_type == CollectType::kValues);
-      Return(CallRuntime(Runtime::kObjectValuesSkipFastPath, context, object));
+      Return(
+          CallRuntime(Runtime::kObjectValuesSkipFastPath, context, receiver));
     }
   }
 }
@@ -607,7 +609,7 @@ TF_BUILTIN(ObjectPrototypeIsPrototypeOf, ObjectBuiltinsAssembler) {
     GotoIfNot(IsJSReceiver(value), &if_valueisnotreceiver);
 
     // Simulate the ToObject invocation on {receiver}.
-    CallBuiltin(Builtins::kToObject, context, receiver);
+    ToObject(context, receiver);
     Unreachable();
   }
 
@@ -877,9 +879,8 @@ TF_BUILTIN(ObjectPrototypeToString, ObjectBuiltinsAssembler) {
 
     BIND(&return_generic);
     {
-      Node* tag = GetProperty(
-          context, CallBuiltin(Builtins::kToObject, context, receiver),
-          LoadRoot(Heap::kto_string_tag_symbolRootIndex));
+      Node* tag = GetProperty(context, ToObject(context, receiver),
+                              LoadRoot(Heap::kto_string_tag_symbolRootIndex));
       GotoIf(TaggedIsSmi(tag), &return_default);
       GotoIfNot(IsString(tag), &return_default);
       ReturnToStringFormat(context, tag);
@@ -895,7 +896,7 @@ TF_BUILTIN(ObjectPrototypeValueOf, CodeStubAssembler) {
   Node* receiver = Parameter(Descriptor::kReceiver);
   Node* context = Parameter(Descriptor::kContext);
 
-  Return(CallBuiltin(Builtins::kToObject, context, receiver));
+  Return(ToObject(context, receiver));
 }
 
 // ES #sec-object.create
@@ -1119,7 +1120,7 @@ TF_BUILTIN(ObjectGetOwnPropertyDescriptor, ObjectBuiltinsAssembler) {
   Node* key = args.GetOptionalArgumentValue(1);
 
   // 1. Let obj be ? ToObject(O).
-  object = CallBuiltin(Builtins::kToObject, context, object);
+  object = ToObject(context, object);
 
   // 2. Let key be ? ToPropertyKey(P).
   key = ToName(context, key);
