@@ -12985,6 +12985,56 @@ void JSFunction::EnsureHasInitialMap(Handle<JSFunction> function) {
   map->StartInobjectSlackTracking();
 }
 
+namespace {
+bool FastInitializeDerivedMap(Isolate* isolate, Handle<JSFunction> new_target,
+                              Handle<JSFunction> constructor,
+                              Handle<Map> constructor_initial_map) {
+  // Check that |function|'s initial map still in sync with the |constructor|,
+  // otherwise we must create a new initial map for |function|.
+  if (new_target->has_initial_map() &&
+      new_target->initial_map()->GetConstructor() == *constructor) {
+    DCHECK(new_target->instance_prototype()->IsJSReceiver());
+    return true;
+  }
+  InstanceType instance_type = constructor_initial_map->instance_type();
+  DCHECK(CanSubclassHaveInobjectProperties(instance_type));
+  // Create a new map with the size and number of in-object properties
+  // suggested by |function|.
+
+  // Link initial map and constructor function if the new.target is actually a
+  // subclass constructor.
+  if (!IsDerivedConstructor(new_target->shared()->kind())) return false;
+
+  int instance_size;
+  int in_object_properties;
+  int embedder_fields =
+      JSObject::GetEmbedderFieldCount(*constructor_initial_map);
+  bool success = JSFunction::CalculateInstanceSizeForDerivedClass(
+      new_target, instance_type, embedder_fields, &instance_size,
+      &in_object_properties);
+
+  Handle<Map> map;
+  if (success) {
+    int pre_allocated = constructor_initial_map->GetInObjectProperties() -
+                        constructor_initial_map->UnusedPropertyFields();
+    CHECK_LE(constructor_initial_map->instance_size(), instance_size);
+    int unused_property_fields = in_object_properties - pre_allocated;
+    map = Map::CopyInitialMap(constructor_initial_map, instance_size,
+                              in_object_properties, unused_property_fields);
+  } else {
+    map = Map::CopyInitialMap(constructor_initial_map);
+  }
+  map->set_new_target_is_base(false);
+  Handle<Object> prototype(new_target->instance_prototype(), isolate);
+  JSFunction::SetInitialMap(new_target, map, prototype);
+  DCHECK(new_target->instance_prototype()->IsJSReceiver());
+  map->SetConstructor(*constructor);
+  map->set_construction_counter(Map::kNoSlackTracking);
+  map->StartInobjectSlackTracking();
+  return true;
+}
+
+}  // namespace
 
 // static
 MaybeHandle<Map> JSFunction::GetDerivedMap(Isolate* isolate,
@@ -12995,54 +13045,15 @@ MaybeHandle<Map> JSFunction::GetDerivedMap(Isolate* isolate,
   Handle<Map> constructor_initial_map(constructor->initial_map(), isolate);
   if (*new_target == *constructor) return constructor_initial_map;
 
+  Handle<Map> result_map;
   // Fast case, new.target is a subclass of constructor. The map is cacheable
   // (and may already have been cached). new.target.prototype is guaranteed to
   // be a JSReceiver.
   if (new_target->IsJSFunction()) {
     Handle<JSFunction> function = Handle<JSFunction>::cast(new_target);
-
-    // Check that |function|'s initial map still in sync with the |constructor|,
-    // otherwise we must create a new initial map for |function|.
-    if (function->has_initial_map() &&
-        function->initial_map()->GetConstructor() == *constructor) {
+    if (FastInitializeDerivedMap(isolate, function, constructor,
+                                 constructor_initial_map)) {
       return handle(function->initial_map(), isolate);
-    }
-
-    // Create a new map with the size and number of in-object properties
-    // suggested by |function|.
-
-    // Link initial map and constructor function if the new.target is actually a
-    // subclass constructor.
-    if (IsDerivedConstructor(function->shared()->kind())) {
-      Handle<Object> prototype(function->instance_prototype(), isolate);
-      InstanceType instance_type = constructor_initial_map->instance_type();
-      DCHECK(CanSubclassHaveInobjectProperties(instance_type));
-      int embedder_fields =
-          JSObject::GetEmbedderFieldCount(*constructor_initial_map);
-      int pre_allocated = constructor_initial_map->GetInObjectProperties() -
-                          constructor_initial_map->UnusedPropertyFields();
-      int instance_size;
-      int in_object_properties;
-      bool success = CalculateInstanceSizeForDerivedClass(
-          function, instance_type, embedder_fields, &instance_size,
-          &in_object_properties);
-
-      int unused_property_fields = in_object_properties - pre_allocated;
-
-      Handle<Map> map;
-      if (success) {
-        map = Map::CopyInitialMap(constructor_initial_map, instance_size,
-                                  in_object_properties, unused_property_fields);
-      } else {
-        map = Map::CopyInitialMap(constructor_initial_map);
-      }
-      map->set_new_target_is_base(false);
-
-      JSFunction::SetInitialMap(function, map, prototype);
-      map->SetConstructor(*constructor);
-      map->set_construction_counter(Map::kNoSlackTracking);
-      map->StartInobjectSlackTracking();
-      return map;
     }
   }
 
@@ -13085,7 +13096,7 @@ MaybeHandle<Map> JSFunction::GetDerivedMap(Isolate* isolate,
 
   Handle<Map> map = Map::CopyInitialMap(constructor_initial_map);
   map->set_new_target_is_base(false);
-  DCHECK(prototype->IsJSReceiver());
+  CHECK(prototype->IsJSReceiver());
   if (map->prototype() != *prototype) Map::SetPrototype(map, prototype);
   map->SetConstructor(*constructor);
   return map;
@@ -13779,15 +13790,17 @@ void JSFunction::CalculateInstanceSizeHelper(InstanceType instance_type,
                                              int* instance_size,
                                              int* in_object_properties) {
   int header_size = JSObject::GetHeaderSize(instance_type, has_prototype_slot);
-  DCHECK_LE(requested_embedder_fields,
-            (JSObject::kMaxInstanceSize - header_size) >> kPointerSizeLog2);
+  int max_nof_fields =
+      (JSObject::kMaxInstanceSize - header_size) >> kPointerSizeLog2;
+  CHECK_LE(max_nof_fields, JSObject::kMaxInObjectProperties);
+  *in_object_properties = Min(requested_in_object_properties, max_nof_fields);
+  CHECK_LE(requested_embedder_fields, max_nof_fields - *in_object_properties);
   *instance_size =
-      Min(header_size +
-              ((requested_embedder_fields + requested_in_object_properties)
-               << kPointerSizeLog2),
-          JSObject::kMaxInstanceSize);
-  *in_object_properties = ((*instance_size - header_size) >> kPointerSizeLog2) -
-                          requested_embedder_fields;
+      header_size +
+      ((requested_embedder_fields + *in_object_properties) << kPointerSizeLog2);
+  CHECK_EQ(*in_object_properties,
+           ((*instance_size - header_size) >> kPointerSizeLog2) -
+               requested_embedder_fields);
 }
 
 // static
@@ -13797,7 +13810,6 @@ bool JSFunction::CalculateInstanceSizeForDerivedClass(
     int* in_object_properties) {
   Isolate* isolate = function->GetIsolate();
   int expected_nof_properties = 0;
-  bool result = true;
   for (PrototypeIterator iter(isolate, function, kStartAtReceiver);
        !iter.IsAtEnd(); iter.Advance()) {
     Handle<JSReceiver> current =
@@ -13810,21 +13822,24 @@ bool JSFunction::CalculateInstanceSizeForDerivedClass(
     if (shared->is_compiled() ||
         Compiler::Compile(func, Compiler::CLEAR_EXCEPTION)) {
       DCHECK(shared->is_compiled());
-      expected_nof_properties += shared->expected_nof_properties();
+      int count = shared->expected_nof_properties();
+      // Check that the estimate is sane.
+      if (expected_nof_properties <= JSObject::kMaxInObjectProperties - count) {
+        expected_nof_properties += count;
+      } else {
+        expected_nof_properties = JSObject::kMaxInObjectProperties;
+      }
     } else if (!shared->is_compiled()) {
       // In case there was a compilation error for the constructor we will
       // throw an error during instantiation. Hence we directly return 0;
-      result = false;
-      break;
+      return false;
     }
-    if (!IsDerivedConstructor(shared->kind())) {
-      break;
-    }
+    if (!IsDerivedConstructor(shared->kind())) break;
   }
   CalculateInstanceSizeHelper(instance_type, true, requested_embedder_fields,
                               expected_nof_properties, instance_size,
                               in_object_properties);
-  return result;
+  return true;
 }
 
 
