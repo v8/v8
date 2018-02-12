@@ -1056,6 +1056,31 @@ void CodeGenerator::BailoutIfDeoptimized() {
   __ Jump(code, RelocInfo::CODE_TARGET, ne);
 }
 
+void CodeGenerator::GenerateSpeculationPoison() {
+  Register scratch = r1;
+
+  Label current_pc;
+  __ larl(scratch, &current_pc);
+
+  __ bind(&current_pc);
+  __ SubP(scratch, Operand(__ pc_offset()));
+
+  // Calculate a mask which has all bits set in the normal case, but has all
+  // bits cleared if we are speculatively executing the wrong PC.
+  //    difference = (current - expected) | (expected - current)
+  //    poison = ~(difference >> (kBitsPerPointer - 1))
+  __ LoadRR(kSpeculationPoisonRegister, scratch);
+  __ SubP(kSpeculationPoisonRegister, kSpeculationPoisonRegister,
+          kJavaScriptCallCodeStartRegister);
+  __ SubP(kJavaScriptCallCodeStartRegister, kJavaScriptCallCodeStartRegister,
+          scratch);
+  __ OrP(kSpeculationPoisonRegister, kSpeculationPoisonRegister,
+         kJavaScriptCallCodeStartRegister);
+  __ ShiftRightArithP(kSpeculationPoisonRegister, kSpeculationPoisonRegister,
+                      Operand(kBitsPerPointer - 1));
+  __ NotP(kSpeculationPoisonRegister, kSpeculationPoisonRegister);
+}
+
 // Assembles an instruction after register allocation, producing machine code.
 CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     Instruction* instr) {

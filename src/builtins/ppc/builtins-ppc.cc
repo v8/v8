@@ -1034,13 +1034,12 @@ void Builtins::Generate_InterpreterEntryTrampoline(MacroAssembler* masm) {
   __ mov(kInterpreterDispatchTableRegister,
          Operand(ExternalReference::interpreter_dispatch_table_address(
              masm->isolate())));
-  __ lbzx(kInterpreterTargetBytecodeRegister,
-          MemOperand(kInterpreterBytecodeArrayRegister,
-                     kInterpreterBytecodeOffsetRegister));
-  __ ShiftLeftImm(ip, kInterpreterTargetBytecodeRegister,
-                  Operand(kPointerSizeLog2));
-  __ LoadPX(ip, MemOperand(kInterpreterDispatchTableRegister, ip));
-  __ Call(ip);
+  __ lbzx(r6, MemOperand(kInterpreterBytecodeArrayRegister,
+                         kInterpreterBytecodeOffsetRegister));
+  __ ShiftLeftImm(r6, r6, Operand(kPointerSizeLog2));
+  __ LoadPX(kJavaScriptCallCodeStartRegister,
+            MemOperand(kInterpreterDispatchTableRegister, r6));
+  __ Call(kJavaScriptCallCodeStartRegister);
 
   masm->isolate()->heap()->SetInterpreterEntryReturnPCOffset(masm->pc_offset());
 
@@ -1263,13 +1262,12 @@ static void Generate_InterpreterEnterBytecode(MacroAssembler* masm) {
   __ SmiUntag(kInterpreterBytecodeOffsetRegister);
 
   // Dispatch to the target bytecode.
-  __ lbzx(kInterpreterTargetBytecodeRegister,
-          MemOperand(kInterpreterBytecodeArrayRegister,
-                     kInterpreterBytecodeOffsetRegister));
-  __ ShiftLeftImm(ip, kInterpreterTargetBytecodeRegister,
-                  Operand(kPointerSizeLog2));
-  __ LoadPX(ip, MemOperand(kInterpreterDispatchTableRegister, ip));
-  __ Jump(ip);
+  __ lbzx(ip, MemOperand(kInterpreterBytecodeArrayRegister,
+                         kInterpreterBytecodeOffsetRegister));
+  __ ShiftLeftImm(ip, ip, Operand(kPointerSizeLog2));
+  __ LoadPX(kJavaScriptCallCodeStartRegister,
+            MemOperand(kInterpreterDispatchTableRegister, ip));
+  __ Jump(kJavaScriptCallCodeStartRegister);
 }
 
 void Builtins::Generate_InterpreterEnterBytecodeAdvance(MacroAssembler* masm) {
