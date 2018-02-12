@@ -6,6 +6,8 @@ vars = {
   'build_for_node': False,
   'checkout_instrumented_libraries': False,
   'chromium_url': 'https://chromium.googlesource.com',
+  'download_gcmole': False,
+  'download_jsfunfuzz': False,
   'download_mips_toolchain': False,
 }
 
@@ -136,21 +138,23 @@ hooks = [
   {
     'name': 'gcmole',
     'pattern': '.',
-    'condition': 'build_for_node != True',
-    # TODO(machenbach): Insert condition and remove GYP_DEFINES dependency.
-    'action': [
-        'python',
-        'v8/tools/gcmole/download_gcmole_tools.py',
+    'condition': 'download_gcmole',
+    'action': [ 'download_from_google_storage',
+                '--bucket', 'chrome-v8-gcmole',
+                '-u', '--no_resume',
+                '-s', 'v8/tools/gcmole/gcmole-tools.tar.gz.sha1',
+                '--platform=linux*',
     ],
   },
   {
     'name': 'jsfunfuzz',
     'pattern': '.',
-    'condition': 'build_for_node != True',
-    # TODO(machenbach): Insert condition and remove GYP_DEFINES dependency.
-    'action': [
-        'python',
-        'v8/tools/jsfunfuzz/download_jsfunfuzz.py',
+    'condition': 'download_jsfunfuzz',
+    'action': [ 'download_from_google_storage',
+                '--bucket', 'chrome-v8-jsfunfuzz',
+                '-u', '--no_resume',
+                '-s', 'v8/tools/jsfunfuzz/jsfunfuzz.tar.gz.sha1',
+                '--platform=linux*',
     ],
   },
   # Pull luci-go binaries (isolate, swarming) using checked-in hashes.
