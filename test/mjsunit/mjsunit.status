@@ -406,6 +406,7 @@
 
   # Too slow.
   'harmony/regexp-property-lu-ui': [SKIP],
+  'regress/regress-165637': [SKIP],
 
   # Flaky with baseline?
   'regress/regress-2185-2': [SKIP],
