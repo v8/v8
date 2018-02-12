@@ -317,11 +317,13 @@ TEST(VectorSpeculationMode) {
   CHECK_EQ(3, nexus.GetCallCount());
   CHECK_EQ(SpeculationMode::kAllowSpeculation, nexus.GetSpeculationMode());
 
-  nexus.SetSpeculationMode(SpeculationMode::kAllowSpeculation);
   nexus.SetSpeculationMode(SpeculationMode::kDisallowSpeculation);
   CHECK_EQ(SpeculationMode::kDisallowSpeculation, nexus.GetSpeculationMode());
+  CHECK_EQ(3, nexus.GetCallCount());
+
   nexus.SetSpeculationMode(SpeculationMode::kAllowSpeculation);
   CHECK_EQ(SpeculationMode::kAllowSpeculation, nexus.GetSpeculationMode());
+  CHECK_EQ(3, nexus.GetCallCount());
 }
 
 TEST(VectorLoadICStates) {

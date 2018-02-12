@@ -718,9 +718,9 @@ void FeedbackNexus::SetSpeculationMode(SpeculationMode mode) {
 
   Object* call_count = GetFeedbackExtra();
   CHECK(call_count->IsSmi());
-  uint32_t value = static_cast<uint32_t>(Smi::ToInt(call_count));
-  int result = static_cast<int>(CallCountField::decode(value) |
-                                SpeculationModeField::encode(mode));
+  uint32_t count = static_cast<uint32_t>(Smi::ToInt(call_count));
+  uint32_t value = CallCountField::encode(CallCountField::decode(count));
+  int result = static_cast<int>(value | SpeculationModeField::encode(mode));
   SetFeedbackExtra(Smi::FromInt(result), SKIP_WRITE_BARRIER);
 }
 
