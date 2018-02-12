@@ -17,6 +17,7 @@
 #include "src/objects-inl.h"
 #include "src/objects.h"
 #include "src/simulator.h"
+#include "src/wasm/wasm-limits.h"
 #include "src/zone/accounting-allocator.h"
 #include "src/zone/zone.h"
 #include "test/fuzzer/fuzzer-support.h"
@@ -227,7 +228,11 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {
   InputProvider input(data, size);
   // Create randomized descriptor.
   size_t param_count = input.NumNonZeroBytes(0, kNumTypes);
+  if (param_count > Code::kMaxArguments) return 0;
+
   size_t return_count = input.NumNonZeroBytes(param_count + 1, kNumTypes);
+  if (return_count > wasm::kV8MaxWasmFunctionMultiReturns) return 0;
+
   CallDescriptor* desc =
       CreateRandomCallDescriptor(&zone, return_count, param_count, &input);
 
