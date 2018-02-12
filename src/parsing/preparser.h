@@ -1344,9 +1344,6 @@ class PreParser : public ParserBase<PreParser> {
       const PreParserExpression& expression) {}
   V8_INLINE static void InferFunctionName() {}
 
-  V8_INLINE static void CheckAssigningFunctionLiteralToProperty(
-      const PreParserExpression& left, const PreParserExpression& right) {}
-
   V8_INLINE void MarkExpressionAsAssigned(
       const PreParserExpression& expression) {
     // TODO(marja): To be able to produce the same errors, the preparser needs

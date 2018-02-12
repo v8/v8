@@ -687,16 +687,6 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
     fni_->Infer();
   }
 
-  // If we assign a function literal to a property we pretenure the
-  // literal so it can be added as a constant function property.
-  V8_INLINE static void CheckAssigningFunctionLiteralToProperty(
-      Expression* left, Expression* right) {
-    DCHECK_NOT_NULL(left);
-    if (left->IsProperty() && right->IsFunctionLiteral()) {
-      right->AsFunctionLiteral()->set_pretenure();
-    }
-  }
-
   // Determine if the expression is a variable proxy and mark it as being used
   // in an assignment or with a increment/decrement operator.
   V8_INLINE static void MarkExpressionAsAssigned(Expression* expression) {
