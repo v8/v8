@@ -25,6 +25,28 @@
 namespace v8 {
 namespace internal {
 
+// Heap Verification Overview
+// --------------------------
+// - Each InstanceType has a separate XXXVerify method which checks an object's
+//   integrity in isolation.
+// - --verify-heap will iterate over all gc spaces and call ObjectVerify() on
+//   every encountered tagged pointer.
+// - Verification should be pushed down to the specific instance type if its
+//   integrity is independent of an outer object.
+// - In cases where the InstanceType is too genernic (e.g. FixedArray) the
+//   XXXVerify of the outer method has to do recursive verification.
+// - If the corresponding objects have inheritence the parent's Verify method
+//   is called as well.
+// - For any field containing pointes VerifyPointer(...) should be called.
+//
+// Caveats
+// -------
+// - Assume that any of the verify methods is incomplete!
+// - Some integrity checks are only partially done due to objects being in
+//   partially initialized states when a gc happens, for instance when outer
+//   objects are allocted before inner ones.
+//
+
 #ifdef VERIFY_HEAP
 
 void Object::ObjectVerify() {
