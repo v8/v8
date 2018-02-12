@@ -4,8 +4,7 @@
 
 # Use this to run several variants of the tests.
 ALL_VARIANT_FLAGS = {
-  "code_serializer": [["--cache=after-execute"]],
-  "code_serializer_full_code_cache": [["--cache=full-code-cache"]],
+  "code_serializer": [["--cache=code"]],
   "default": [[]],
   "future": [["--future"]],
   # Alias of exhaustive variants, but triggering new test framework features.

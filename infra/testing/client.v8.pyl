@@ -17,12 +17,6 @@
     {'name': 'test262_variants', 'variant': 'code_serializer', 'shards': 1},
     {'name': 'benchmarks', 'variant': 'code_serializer', 'shards': 1},
   ],
-  'V8 Linux - debug': [
-    {'name': 'd8testing', 'variant': 'code_serializer_full_code_cache', 'shards': 1},
-    {'name': 'mozilla', 'variant': 'code_serializer_full_code_cache', 'shards': 1},
-    {'name': 'test262_variants', 'variant': 'code_serializer_full_code_cache', 'shards': 1},
-    {'name': 'benchmarks', 'variant': 'code_serializer_full_code_cache', 'shards': 1},
-  ],
   'V8 Linux - gc stress': [
     {'name': 'mjsunit', 'variant': 'slow_path', 'shards': 2},
   ],
