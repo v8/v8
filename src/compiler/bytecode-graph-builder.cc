@@ -1584,12 +1584,21 @@ void BytecodeGraphBuilder::VisitGetTemplateObject() {
   Handle<TemplateObjectDescription> description =
       Handle<TemplateObjectDescription>::cast(
           bytecode_iterator().GetConstantForIndexOperand(0));
-  // It's not observable when the template object is created, so we
-  // can just create it eagerly during graph building and bake in
-  // the JSArray constant here.
-  Node* template_object =
-      jsgraph()->HeapConstant(TemplateObjectDescription::GetTemplateObject(
-          description, native_context()));
+  FeedbackSlot slot = bytecode_iterator().GetSlotOperand(1);
+  FeedbackNexus nexus(feedback_vector(), slot);
+
+  Handle<JSArray> cached_value;
+  if (nexus.GetFeedback() == Smi::kZero) {
+    // It's not observable when the template object is created, so we
+    // can just create it eagerly during graph building and bake in
+    // the JSArray constant here.
+    cached_value = TemplateObjectDescription::CreateTemplateObject(description);
+    nexus.vector()->Set(slot, *cached_value);
+  } else {
+    cached_value = handle(JSArray::cast(nexus.GetFeedback()));
+  }
+
+  Node* template_object = jsgraph()->HeapConstant(cached_value);
   environment()->BindAccumulator(template_object);
 }
 

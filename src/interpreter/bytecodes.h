@@ -233,7 +233,8 @@ namespace interpreter {
   V(CreateEmptyObjectLiteral, AccumulatorUse::kWrite)                          \
                                                                                \
   /* Tagged templates */                                                       \
-  V(GetTemplateObject, AccumulatorUse::kWrite, OperandType::kIdx)              \
+  V(GetTemplateObject, AccumulatorUse::kWrite, OperandType::kIdx,              \
+    OperandType::kIdx)                                                         \
                                                                                \
   /* Closure allocation */                                                     \
   V(CreateClosure, AccumulatorUse::kWrite, OperandType::kIdx,                  \

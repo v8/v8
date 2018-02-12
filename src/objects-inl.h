@@ -112,8 +112,7 @@ TYPE_CHECKER(PropertyDescriptorObject, FIXED_ARRAY_TYPE)
 TYPE_CHECKER(SmallOrderedHashMap, SMALL_ORDERED_HASH_MAP_TYPE)
 TYPE_CHECKER(SmallOrderedHashSet, SMALL_ORDERED_HASH_SET_TYPE)
 TYPE_CHECKER(SourcePositionTableWithFrameCache, TUPLE2_TYPE)
-TYPE_CHECKER(TemplateMap, HASH_TABLE_TYPE)
-TYPE_CHECKER(TemplateObjectDescription, TUPLE3_TYPE)
+TYPE_CHECKER(TemplateObjectDescription, TUPLE2_TYPE)
 TYPE_CHECKER(TransitionArray, TRANSITION_ARRAY_TYPE)
 TYPE_CHECKER(WasmInstanceObject, WASM_INSTANCE_TYPE)
 TYPE_CHECKER(WasmMemoryObject, WASM_MEMORY_TYPE)
@@ -624,7 +623,6 @@ CAST_ACCESSOR(StringSet)
 CAST_ACCESSOR(StringTable)
 CAST_ACCESSOR(Struct)
 CAST_ACCESSOR(TemplateInfo)
-CAST_ACCESSOR(TemplateMap)
 CAST_ACCESSOR(TemplateObjectDescription)
 CAST_ACCESSOR(Tuple2)
 CAST_ACCESSOR(Tuple3)
@@ -2365,7 +2363,6 @@ bool ConstantElementsPair::is_empty() const {
   return constant_values()->length() == 0;
 }
 
-SMI_ACCESSORS(TemplateObjectDescription, hash, kHashOffset)
 ACCESSORS(TemplateObjectDescription, raw_strings, FixedArray, kRawStringsOffset)
 ACCESSORS(TemplateObjectDescription, cooked_strings, FixedArray,
           kCookedStringsOffset)

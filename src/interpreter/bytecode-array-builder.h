@@ -240,7 +240,7 @@ class V8_EXPORT_PRIVATE BytecodeArrayBuilder final {
   // Gets or creates the template for a TemplateObjectDescription which will
   // be inserted at constant pool index |template_object_description_entry|.
   BytecodeArrayBuilder& GetTemplateObject(
-      size_t template_object_description_entry);
+      size_t template_object_description_entry, int feedback_slot);
 
   // Push the context in accumulator as the new context, and store in register
   // |context|.

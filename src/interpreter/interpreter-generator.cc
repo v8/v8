@@ -2417,18 +2417,34 @@ IGNITION_HANDLER(CreateEmptyObjectLiteral, InterpreterAssembler) {
   Dispatch();
 }
 
-// GetTemplateObject
+// GetTemplateObject <descriptor_idx> <literal_idx>
 //
 // Creates the template to pass for tagged templates and returns it in the
 // accumulator, creating and caching the site object on-demand as per the
 // specification.
 IGNITION_HANDLER(GetTemplateObject, InterpreterAssembler) {
-  Node* description = LoadConstantPoolEntryAtOperandIndex(0);
-  Node* context = GetContext();
+  Node* feedback_vector = LoadFeedbackVector();
+  Node* slot = BytecodeOperandIdx(1);
+  Node* cached_value =
+      LoadFeedbackVectorSlot(feedback_vector, slot, 0, INTPTR_PARAMETERS);
 
-  Node* result = CallRuntime(Runtime::kGetTemplateObject, context, description);
-  SetAccumulator(result);
+  Label call_runtime(this, Label::kDeferred);
+  GotoIf(WordEqual(cached_value, SmiConstant(0)), &call_runtime);
+
+  SetAccumulator(cached_value);
   Dispatch();
+
+  BIND(&call_runtime);
+  {
+    Node* description = LoadConstantPoolEntryAtOperandIndex(0);
+    Node* context = GetContext();
+    Node* result =
+        CallRuntime(Runtime::kCreateTemplateObject, context, description);
+    StoreFeedbackVectorSlot(feedback_vector, slot, result, UPDATE_WRITE_BARRIER,
+                            0, INTPTR_PARAMETERS);
+    SetAccumulator(result);
+    Dispatch();
+  }
 }
 
 // CreateClosure <index> <slot> <tenured>

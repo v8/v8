@@ -316,6 +316,9 @@ void CompilationCache::PutEval(Handle<String> source,
                                Handle<Cell> literals, int position) {
   if (!IsEnabled()) return;
 
+  // TemplateObject feedback slots disable eval caching
+  if (function_info->feedback_metadata()->HasTemplateObjectSlot()) return;
+
   HandleScope scope(isolate());
   if (context->IsNativeContext()) {
     eval_global_.Put(source, outer_info, function_info, context, literals,

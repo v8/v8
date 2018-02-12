@@ -683,8 +683,8 @@ Handle<TemplateObjectDescription> GetTemplateObject::GetOrBuildDescription(
       }
     }
   }
-  return isolate->factory()->NewTemplateObjectDescription(
-      this->hash(), raw_strings, cooked_strings);
+  return isolate->factory()->NewTemplateObjectDescription(raw_strings,
+                                                          cooked_strings);
 }
 
 static bool IsCommutativeOperationWithSmiLiteral(Token::Value op) {

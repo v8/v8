@@ -958,7 +958,6 @@ class FeedbackVector;
 class WeakCell;
 class TransitionArray;
 class TemplateList;
-class TemplateMap;
 template <typename T>
 class ZoneForwardList;
 
@@ -1114,7 +1113,6 @@ template <class C> inline bool Is(Object* obj);
   V(Symbol)                               \
   V(TemplateInfo)                         \
   V(TemplateList)                         \
-  V(TemplateMap)                          \
   V(TemplateObjectDescription)            \
   V(ThinString)                           \
   V(TransitionArray)                      \

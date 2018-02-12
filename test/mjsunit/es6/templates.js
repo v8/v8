@@ -342,27 +342,30 @@ var obj = {
   var a = 1;
   var b = 2;
 
-  tag`head${a}tail`;
-  tag`head${b}tail`;
-
+  // Call-sites are cached by ParseNode. Same tag call in a loop
+  // means same template object
+  for (var i = 0; i < 2; ++i) {
+    tag`head${i == 0 ? a : b}tail`;
+  }
   assertEquals(2, callSites.length);
   assertSame(callSites[0], callSites[1]);
 
-  eval("tag`head${a}tail`");
-  assertEquals(3, callSites.length);
-  assertSame(callSites[1], callSites[2]);
-
-  eval("tag`head${b}tail`");
+  // Tag calls within eval() never have the same ParseNode as the same tag
+  // call from a different eval() invocation.
+  for (var i = 0; i < 2; ++i) {
+    eval("tag`head${i == 0 ? a : b}tail`");
+  }
   assertEquals(4, callSites.length);
-  assertSame(callSites[2], callSites[3]);
+  assertTrue(callSites[1] !== callSites[2]);
+  assertTrue(callSites[2] !== callSites[3]);
 
   (new Function("tag", "a", "b", "return tag`head${a}tail`;"))(tag, 1, 2);
   assertEquals(5, callSites.length);
-  assertSame(callSites[3], callSites[4]);
+  assertTrue(callSites[3] !== callSites[4]);
 
   (new Function("tag", "a", "b", "return tag`head${b}tail`;"))(tag, 1, 2);
   assertEquals(6, callSites.length);
-  assertSame(callSites[4], callSites[5]);
+  assertTrue(callSites[4] !== callSites[5]);
 
   callSites = [];
 
@@ -374,17 +377,19 @@ var obj = {
 
   callSites = [];
 
-  eval("tag`\\\r\n\\\n\\\r`");
-  eval("tag`\\\r\n\\\n\\\r`");
+  for (var i = 0; i < 2; ++i) {
+    eval("tag`\\\r\n\\\n\\\r`");
+  }
   assertEquals(2, callSites.length);
-  assertSame(callSites[0], callSites[1]);
+  assertTrue(callSites[0] !== callSites[1]);
   assertEquals("", callSites[0][0]);
   assertEquals("\\\n\\\n\\\n", callSites[0].raw[0]);
 
   callSites = [];
 
-  tag`\uc548\ub155`;
-  tag`\uc548\ub155`;
+  for (var i = 0; i < 2; ++i) {
+    tag`\uc548\ub155`;
+  }
   assertEquals(2, callSites.length);
   assertSame(callSites[0], callSites[1]);
   assertEquals("안녕", callSites[0][0]);

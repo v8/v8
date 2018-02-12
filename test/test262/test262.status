@@ -292,6 +292,14 @@
   'language/statements/try/tco-finally': [SKIP],
   'language/statements/while/tco-body': [SKIP],
 
+  # https://github.com/tc39/test262/pull/972
+  'language/expressions/tagged-template/cache-identical-source-new-function': [FAIL],
+  'language/expressions/tagged-template/cache-identical-source': [FAIL],
+  'language/expressions/tagged-template/cache-differing-expressions-eval': [FAIL],
+  'language/expressions/tagged-template/cache-identical-source-eval': [FAIL],
+  'language/expressions/tagged-template/cache-differing-expressions-new-function': [FAIL],
+  'language/expressions/tagged-template/cache-differing-expressions': [FAIL],
+
   # https://bugs.chromium.org/p/v8/issues/detail?id=5064
   'language/expressions/arrow-function/dflt-params-duplicates': [FAIL],
   'language/expressions/async-arrow-function/dflt-params-duplicates': [FAIL],

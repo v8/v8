@@ -3673,9 +3673,8 @@ Expression* Parser::CloseTemplateLiteral(TemplateLiteralState* state, int start,
     return expr;
   } else {
     // GetTemplateObject
-    const int32_t hash = ComputeTemplateLiteralHash(lit);
     Expression* template_object =
-        factory()->NewGetTemplateObject(cooked_strings, raw_strings, hash, pos);
+        factory()->NewGetTemplateObject(cooked_strings, raw_strings, pos);
 
     // Call TagFn
     ZoneList<Expression*>* call_args =
@@ -3684,51 +3683,6 @@ Expression* Parser::CloseTemplateLiteral(TemplateLiteralState* state, int start,
     call_args->AddAll(*expressions, zone());
     return factory()->NewTaggedTemplate(tag, call_args, pos);
   }
-}
-
-namespace {
-
-// http://burtleburtle.net/bob/hash/integer.html
-uint32_t HalfAvalance(uint32_t a) {
-  a = (a + 0x479AB41D) + (a << 8);
-  a = (a ^ 0xE4AA10CE) ^ (a >> 5);
-  a = (a + 0x9942F0A6) - (a << 14);
-  a = (a ^ 0x5AEDD67D) ^ (a >> 3);
-  a = (a + 0x17BEA992) + (a << 7);
-  return a;
-}
-
-}  // namespace
-
-int32_t Parser::ComputeTemplateLiteralHash(const TemplateLiteral* lit) {
-  const ZoneList<const AstRawString*>* raw_strings = lit->raw();
-  int total = raw_strings->length();
-  DCHECK_GT(total, 0);
-
-  uint32_t running_hash = 0;
-
-  for (int index = 0; index < total; ++index) {
-    if (index) {
-      running_hash = StringHasher::ComputeRunningHashOneByte(
-          running_hash, "${}", 3);
-    }
-
-    const AstRawString* raw_string = raw_strings->at(index);
-    if (raw_string->is_one_byte()) {
-      const char* data = reinterpret_cast<const char*>(raw_string->raw_data());
-      running_hash = StringHasher::ComputeRunningHashOneByte(
-          running_hash, data, raw_string->length());
-    } else {
-      const uc16* data = reinterpret_cast<const uc16*>(raw_string->raw_data());
-      running_hash = StringHasher::ComputeRunningHash(running_hash, data,
-                                                      raw_string->length());
-    }
-  }
-
-  // Pass {running_hash} throught a decent 'half avalance' hash function
-  // and take the most significant bits (in Smi range).
-  return static_cast<int32_t>(HalfAvalance(running_hash)) >>
-         (sizeof(int32_t) * CHAR_BIT - kSmiValueSize);
 }
 
 namespace {

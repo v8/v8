@@ -326,7 +326,7 @@ namespace internal {
   F(Typeof, 1, 1)                                                    \
   F(UnwindAndFindExceptionHandler, 0, 1)                             \
   F(AllowDynamicFunction, 1, 1)                                      \
-  F(GetTemplateObject, 1, 1)                                         \
+  F(CreateTemplateObject, 1, 1)                                      \
   F(ReportMessage, 1, 1)
 
 #define FOR_EACH_INTRINSIC_LITERALS(F) \

@@ -149,13 +149,11 @@ Handle<ConstantElementsPair> Factory::NewConstantElementsPair(
 }
 
 Handle<TemplateObjectDescription> Factory::NewTemplateObjectDescription(
-    int hash, Handle<FixedArray> raw_strings,
-    Handle<FixedArray> cooked_strings) {
+    Handle<FixedArray> raw_strings, Handle<FixedArray> cooked_strings) {
   DCHECK_EQ(raw_strings->length(), cooked_strings->length());
   DCHECK_LT(0, raw_strings->length());
   Handle<TemplateObjectDescription> result =
-      Handle<TemplateObjectDescription>::cast(NewStruct(TUPLE3_TYPE, TENURED));
-  result->set_hash(hash);
+      Handle<TemplateObjectDescription>::cast(NewStruct(TUPLE2_TYPE, TENURED));
   result->set_raw_strings(*raw_strings);
   result->set_cooked_strings(*cooked_strings);
   return result;

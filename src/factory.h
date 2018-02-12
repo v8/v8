@@ -165,8 +165,7 @@ class V8_EXPORT_PRIVATE Factory final {
 
   // Create a new TemplateObjectDescription struct.
   Handle<TemplateObjectDescription> NewTemplateObjectDescription(
-      int hash, Handle<FixedArray> raw_strings,
-      Handle<FixedArray> cooked_strings);
+      Handle<FixedArray> raw_strings, Handle<FixedArray> cooked_strings);
 
   // Create a pre-tenured empty AccessorPair.
   Handle<AccessorPair> NewAccessorPair();

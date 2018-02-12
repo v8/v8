@@ -973,8 +973,8 @@ BytecodeArrayBuilder& BytecodeArrayBuilder::CreateEmptyObjectLiteral() {
 }
 
 BytecodeArrayBuilder& BytecodeArrayBuilder::GetTemplateObject(
-    size_t template_object_description_entry) {
-  OutputGetTemplateObject(template_object_description_entry);
+    size_t template_object_description_entry, int feedback_slot) {
+  OutputGetTemplateObject(template_object_description_entry, feedback_slot);
   return *this;
 }
 
