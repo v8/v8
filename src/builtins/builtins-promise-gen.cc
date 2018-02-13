@@ -896,35 +896,90 @@ TF_BUILTIN(PromisePrototypeCatch, PromiseBuiltinsAssembler) {
 
 // ES #sec-promiseresolvethenablejob
 TF_BUILTIN(PromiseResolveThenableJob, PromiseBuiltinsAssembler) {
-  Node* context = Parameter(Descriptor::kContext);
-  Node* promise_to_resolve = Parameter(Descriptor::kPromiseToResolve);
-  Node* thenable = Parameter(Descriptor::kThenable);
-  Node* then = Parameter(Descriptor::kThen);
+  Node* const native_context = Parameter(Descriptor::kContext);
+  Node* const promise_to_resolve = Parameter(Descriptor::kPromiseToResolve);
+  Node* const thenable = Parameter(Descriptor::kThenable);
+  Node* const then = Parameter(Descriptor::kThen);
 
-  Node* native_context = LoadNativeContext(context);
+  CSA_ASSERT(this, TaggedIsNotSmi(thenable));
+  CSA_ASSERT(this, IsJSReceiver(thenable));
+  CSA_ASSERT(this, IsJSPromise(promise_to_resolve));
+  CSA_ASSERT(this, IsNativeContext(native_context));
 
-  // TODO(bmeurer): Add a fast-path for the case that {thenable} is a
-  // JSPromise and {then} is the original Promise.prototype.then method.
-  Node* resolve = nullptr;
-  Node* reject = nullptr;
-  std::tie(resolve, reject) = CreatePromiseResolvingFunctions(
-      promise_to_resolve, FalseConstant(), native_context);
+  // We can use a simple optimization here if we know that {then} is the initial
+  // Promise.prototype.then method, and {thenable} is a JSPromise whose
+  // @@species lookup chain is intact: We can connect {thenable} and
+  // {promise_to_resolve} directly in that case and avoid the allocation of a
+  // temporary JSPromise and the closures plus context.
+  //
+  // We take the generic (slow-)path if a PromiseHook is enabled or the debugger
+  // is active, to make sure we expose spec compliant behavior.
+  Label if_fast(this), if_slow(this, Label::kDeferred);
+  Node* const promise_then =
+      LoadContextElement(native_context, Context::PROMISE_THEN_INDEX);
+  GotoIfNot(WordEqual(then, promise_then), &if_slow);
+  Node* const thenable_map = LoadMap(thenable);
+  GotoIfNot(IsJSPromiseMap(thenable_map), &if_slow);
+  GotoIf(IsPromiseHookEnabledOrDebugIsActive(), &if_slow);
+  BranchIfPromiseSpeciesLookupChainIntact(native_context, thenable_map,
+                                          &if_fast, &if_slow);
 
-  Label if_exception(this, Label::kDeferred);
-  VARIABLE(var_exception, MachineRepresentation::kTagged, TheHoleConstant());
-  Node* result = CallJS(
-      CodeFactory::Call(isolate(), ConvertReceiverMode::kNotNullOrUndefined),
-      native_context, then, thenable, resolve, reject);
-  GotoIfException(result, &if_exception, &var_exception);
-  Return(result);
-
-  BIND(&if_exception);
+  BIND(&if_fast);
   {
-    // We need to reject the thenable.
-    Node* result = CallJS(
-        CodeFactory::Call(isolate(), ConvertReceiverMode::kNullOrUndefined),
-        native_context, UndefinedConstant(), var_exception.value());
+    // We know that the {thenable} is a JSPromise, which doesn't require
+    // any special treatment and that {then} corresponds to the initial
+    // Promise.prototype.then method. So instead of allocating a temporary
+    // JSPromise to connect the {thenable} with the {promise_to_resolve},
+    // we can directly schedule the {promise_to_resolve} with default
+    // handlers onto the {thenable} promise. This does not only save the
+    // JSPromise allocation, but also avoids the allocation of the two
+    // resolving closures and the shared context.
+    //
+    // What happens normally in this case is
+    //
+    //   resolve, reject = CreateResolvingFunctions(promise_to_resolve)
+    //   result_capability = NewPromiseCapability(%Promise%)
+    //   PerformPromiseThen(thenable, resolve, reject, result_capability)
+    //
+    // which means that PerformPromiseThen will either schedule a new
+    // PromiseReaction with resolve and reject or a PromiseReactionJob
+    // with resolve or reject based on the state of {thenable}. And
+    // resolve or reject will just invoke the default [[Resolve]] or
+    // [[Reject]] functions on the {promise_to_resolve}.
+    //
+    // This is the same as just doing
+    //
+    //   PerformPromiseThen(thenable, undefined, undefined, promise_to_resolve)
+    //
+    // which performs exactly the same (observable) steps.
+    TailCallBuiltin(Builtins::kPerformPromiseThen, native_context, thenable,
+                    UndefinedConstant(), UndefinedConstant(),
+                    promise_to_resolve);
+  }
+
+  BIND(&if_slow);
+  {
+    Node* resolve = nullptr;
+    Node* reject = nullptr;
+    std::tie(resolve, reject) = CreatePromiseResolvingFunctions(
+        promise_to_resolve, FalseConstant(), native_context);
+
+    Label if_exception(this, Label::kDeferred);
+    VARIABLE(var_exception, MachineRepresentation::kTagged, TheHoleConstant());
+    Node* const result = CallJS(
+        CodeFactory::Call(isolate(), ConvertReceiverMode::kNotNullOrUndefined),
+        native_context, then, thenable, resolve, reject);
+    GotoIfException(result, &if_exception, &var_exception);
     Return(result);
+
+    BIND(&if_exception);
+    {
+      // We need to reject the {thenable}.
+      Node* const result = CallJS(
+          CodeFactory::Call(isolate(), ConvertReceiverMode::kNullOrUndefined),
+          native_context, UndefinedConstant(), var_exception.value());
+      Return(result);
+    }
   }
 }
 

@@ -956,7 +956,7 @@ TF_BUILTIN(RunMicrotasks, InternalBuiltinsAssembler) {
             microtask, PromiseResolveThenableJobTask::kThenableOffset);
 
         Node* const result =
-            CallBuiltin(Builtins::kPromiseResolveThenableJob, microtask_context,
+            CallBuiltin(Builtins::kPromiseResolveThenableJob, native_context,
                         promise_to_resolve, thenable, then);
         GotoIfException(result, &if_exception, &var_exception);
         LeaveMicrotaskContext();

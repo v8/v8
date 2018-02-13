@@ -18022,6 +18022,18 @@ TEST(PromiseHook) {
       "var x = X.resolve().then(() => {});\n";
 
   CompileRun(source);
+
+  promise_hook_data->Reset();
+  source =
+      "var resolve, value = '';\n"
+      "var p = new Promise(r => resolve = r);\n";
+
+  CompileRun(source);
+  CHECK_EQ(v8::Promise::kPending, GetPromise("p")->State());
+  CompileRun("resolve(Promise.resolve(value));\n");
+  CHECK_EQ(v8::Promise::kFulfilled, GetPromise("p")->State());
+  CHECK_EQ(9, promise_hook_data->promise_hook_count);
+
   delete promise_hook_data;
   isolate->SetPromiseHook(nullptr);
 }
