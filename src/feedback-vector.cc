@@ -416,11 +416,6 @@ Handle<FixedArray> FeedbackNexus::EnsureExtraArrayOfSize(int length) {
 void FeedbackNexus::ConfigureUninitialized() {
   Isolate* isolate = GetIsolate();
   switch (kind()) {
-    case FeedbackSlotKind::kCreateClosure:
-    case FeedbackSlotKind::kLiteral:
-    case FeedbackSlotKind::kTemplateObject:
-      break;
-
     case FeedbackSlotKind::kStoreGlobalSloppy:
     case FeedbackSlotKind::kStoreGlobalStrict:
     case FeedbackSlotKind::kLoadGlobalNotInsideTypeof:
@@ -436,22 +431,11 @@ void FeedbackNexus::ConfigureUninitialized() {
       SetFeedbackExtra(Smi::kZero, SKIP_WRITE_BARRIER);
       break;
     }
-    case FeedbackSlotKind::kBinaryOp:
-    case FeedbackSlotKind::kCompareOp:
-    case FeedbackSlotKind::kForIn:
-    case FeedbackSlotKind::kTypeProfile:
     case FeedbackSlotKind::kInstanceOf: {
       SetFeedback(*FeedbackVector::UninitializedSentinel(isolate),
                   SKIP_WRITE_BARRIER);
       break;
     }
-    case FeedbackSlotKind::kStoreNamedSloppy:
-    case FeedbackSlotKind::kStoreNamedStrict:
-    case FeedbackSlotKind::kStoreKeyedSloppy:
-    case FeedbackSlotKind::kStoreKeyedStrict:
-    case FeedbackSlotKind::kStoreOwnNamed:
-    case FeedbackSlotKind::kLoadProperty:
-    case FeedbackSlotKind::kLoadKeyed:
     case FeedbackSlotKind::kStoreDataPropertyInLiteral: {
       SetFeedback(*FeedbackVector::UninitializedSentinel(isolate),
                   SKIP_WRITE_BARRIER);
@@ -459,11 +443,8 @@ void FeedbackNexus::ConfigureUninitialized() {
                        SKIP_WRITE_BARRIER);
       break;
     }
-
-    case FeedbackSlotKind::kKindsNumber:
-    case FeedbackSlotKind::kInvalid:
+    default:
       UNREACHABLE();
-      break;
   }
 }
 
