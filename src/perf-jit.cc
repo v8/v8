@@ -236,7 +236,7 @@ void PerfJitLogger::LogRecordedBuffer(AbstractCode* abstract_code,
   code_load.process_id_ =
       static_cast<uint32_t>(base::OS::GetCurrentProcessId());
   code_load.thread_id_ = static_cast<uint32_t>(base::OS::GetCurrentThreadId());
-  code_load.vma_ = 0x0;  //  Our addresses are absolute.
+  code_load.vma_ = reinterpret_cast<uint64_t>(code_pointer);
   code_load.code_address_ = reinterpret_cast<uint64_t>(code_pointer);
   code_load.code_size_ = code_size;
   code_load.code_id_ = code_index_;
