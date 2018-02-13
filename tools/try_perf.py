@@ -110,7 +110,7 @@ def main():
 
   swarming_bots = [bot for bot in options.bots if bot in SWARMING_BOTS]
   if swarming_bots:
-    _trigger_bots('luci.v8-internal', swarming_bots, options)
+    _trigger_bots('luci.v8-internal.try', swarming_bots, options)
 
 
 if __name__ == '__main__':  # pragma: no cover
