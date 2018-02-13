@@ -401,9 +401,16 @@ void SimdScalarLowering::LowerBinaryOp(Node* node, SimdType input_rep_type,
     }
   } else {
     for (int i = 0; i < num_lanes / 2; ++i) {
+#if defined(V8_TARGET_BIG_ENDIAN)
+      rep_node[i] =
+          graph()->NewNode(op, rep_right[i * 2], rep_right[i * 2 + 1]);
+      rep_node[i + num_lanes / 2] =
+          graph()->NewNode(op, rep_left[i * 2], rep_left[i * 2 + 1]);
+#else
       rep_node[i] = graph()->NewNode(op, rep_left[i * 2], rep_left[i * 2 + 1]);
       rep_node[i + num_lanes / 2] =
           graph()->NewNode(op, rep_right[i * 2], rep_right[i * 2 + 1]);
+#endif
     }
   }
   ReplaceNode(node, rep_node, num_lanes);

@@ -333,7 +333,6 @@
   'test-run-wasm-simd/RunWasm_S32x4NonCanonicalSelect_compiled': [SKIP],
   'test-run-wasm-simd/RunWasm_S16x8NonCanonicalSelect_compiled': [SKIP],
   'test-run-wasm-simd/RunWasm_S8x16NonCanonicalSelect_compiled': [SKIP],
-  'test-run-wasm-simd/RunWasm_I32x4AddHoriz_compiled': [SKIP],
   'test-run-wasm-simd/RunWasm_I16x8AddHoriz_compiled': [SKIP],
   'test-run-wasm-simd/RunWasm_F32x4AddHoriz_compiled': [SKIP],
   'test-run-wasm-simd/RunWasm_S32x4Dup_compiled': [SKIP],
