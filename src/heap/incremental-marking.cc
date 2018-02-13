@@ -203,11 +203,13 @@ class IncrementalMarkingRootMarkingVisitor : public RootVisitor {
       IncrementalMarking* incremental_marking)
       : heap_(incremental_marking->heap()) {}
 
-  void VisitRootPointer(Root root, Object** p) override {
+  void VisitRootPointer(Root root, const char* description,
+                        Object** p) override {
     MarkObjectByPointer(p);
   }
 
-  void VisitRootPointers(Root root, Object** start, Object** end) override {
+  void VisitRootPointers(Root root, const char* description, Object** start,
+                         Object** end) override {
     for (Object** p = start; p < end; p++) MarkObjectByPointer(p);
   }
 

@@ -2272,7 +2272,8 @@ void Heap::ExternalStringTable::PromoteAllNewSpaceStrings() {
 
 void Heap::ExternalStringTable::IterateNewSpaceStrings(RootVisitor* v) {
   if (!new_space_strings_.empty()) {
-    v->VisitRootPointers(Root::kExternalStringsTable, new_space_strings_.data(),
+    v->VisitRootPointers(Root::kExternalStringsTable, nullptr,
+                         new_space_strings_.data(),
                          new_space_strings_.data() + new_space_strings_.size());
   }
 }
@@ -2280,7 +2281,8 @@ void Heap::ExternalStringTable::IterateNewSpaceStrings(RootVisitor* v) {
 void Heap::ExternalStringTable::IterateAll(RootVisitor* v) {
   IterateNewSpaceStrings(v);
   if (!old_space_strings_.empty()) {
-    v->VisitRootPointers(Root::kExternalStringsTable, old_space_strings_.data(),
+    v->VisitRootPointers(Root::kExternalStringsTable, nullptr,
+                         old_space_strings_.data(),
                          old_space_strings_.data() + old_space_strings_.size());
   }
 }
@@ -2386,7 +2388,8 @@ void Heap::VisitExternalResources(v8::ExternalResourceVisitor* visitor) {
     explicit ExternalStringTableVisitorAdapter(
         v8::ExternalResourceVisitor* visitor)
         : visitor_(visitor) {}
-    virtual void VisitRootPointers(Root root, Object** start, Object** end) {
+    virtual void VisitRootPointers(Root root, const char* description,
+                                   Object** start, Object** end) {
       for (Object** p = start; p < end; p++) {
         DCHECK((*p)->IsExternalString());
         visitor_->VisitExternalString(
@@ -4977,8 +4980,9 @@ void Heap::IterateWeakRoots(RootVisitor* v, VisitMode mode) {
   const bool isMinorGC = mode == VISIT_ALL_IN_SCAVENGE ||
                          mode == VISIT_ALL_IN_MINOR_MC_MARK ||
                          mode == VISIT_ALL_IN_MINOR_MC_UPDATE;
-  v->VisitRootPointer(Root::kStringTable, reinterpret_cast<Object**>(
-                                              &roots_[kStringTableRootIndex]));
+  v->VisitRootPointer(
+      Root::kStringTable, nullptr,
+      reinterpret_cast<Object**>(&roots_[kStringTableRootIndex]));
   v->Synchronize(VisitorSynchronization::kStringTable);
   if (!isMinorGC && mode != VISIT_ALL_IN_SWEEP_NEWSPACE &&
       mode != VISIT_FOR_SERIALIZATION) {
@@ -4993,13 +4997,13 @@ void Heap::IterateWeakRoots(RootVisitor* v, VisitMode mode) {
 void Heap::IterateSmiRoots(RootVisitor* v) {
   // Acquire execution access since we are going to read stack limit values.
   ExecutionAccess access(isolate());
-  v->VisitRootPointers(Root::kSmiRootList, &roots_[kSmiRootsStart],
+  v->VisitRootPointers(Root::kSmiRootList, nullptr, &roots_[kSmiRootsStart],
                        &roots_[kRootListLength]);
   v->Synchronize(VisitorSynchronization::kSmiRootList);
 }
 
 void Heap::IterateEncounteredWeakCollections(RootVisitor* visitor) {
-  visitor->VisitRootPointer(Root::kWeakCollections,
+  visitor->VisitRootPointer(Root::kWeakCollections, nullptr,
                             &encountered_weak_collections_);
 }
 
@@ -5013,9 +5017,13 @@ class FixStaleLeftTrimmedHandlesVisitor : public RootVisitor {
     USE(heap_);
   }
 
-  void VisitRootPointer(Root root, Object** p) override { FixHandle(p); }
+  void VisitRootPointer(Root root, const char* description,
+                        Object** p) override {
+    FixHandle(p);
+  }
 
-  void VisitRootPointers(Root root, Object** start, Object** end) override {
+  void VisitRootPointers(Root root, const char* description, Object** start,
+                         Object** end) override {
     for (Object** p = start; p < end; p++) FixHandle(p);
   }
 
@@ -5051,7 +5059,7 @@ void Heap::IterateStrongRoots(RootVisitor* v, VisitMode mode) {
   const bool isMinorGC = mode == VISIT_ALL_IN_SCAVENGE ||
                          mode == VISIT_ALL_IN_MINOR_MC_MARK ||
                          mode == VISIT_ALL_IN_MINOR_MC_UPDATE;
-  v->VisitRootPointers(Root::kStrongRootList, &roots_[0],
+  v->VisitRootPointers(Root::kStrongRootList, nullptr, &roots_[0],
                        &roots_[kStrongRootListLength]);
   v->Synchronize(VisitorSynchronization::kStrongRootList);
 
@@ -5126,7 +5134,7 @@ void Heap::IterateStrongRoots(RootVisitor* v, VisitMode mode) {
 
   // Iterate over other strong roots (currently only identity maps).
   for (StrongRootsList* list = strong_roots_list_; list; list = list->next) {
-    v->VisitRootPointers(Root::kStrongRoots, list->start, list->end);
+    v->VisitRootPointers(Root::kStrongRoots, nullptr, list->start, list->end);
   }
   v->Synchronize(VisitorSynchronization::kStrongRoots);
 
@@ -6135,7 +6143,8 @@ void Heap::FatalProcessOutOfMemory(const char* location, bool is_heap_oom) {
 
 class PrintHandleVisitor : public RootVisitor {
  public:
-  void VisitRootPointers(Root root, Object** start, Object** end) override {
+  void VisitRootPointers(Root root, const char* description, Object** start,
+                         Object** end) override {
     for (Object** p = start; p < end; p++)
       PrintF("  handle %p to %p\n", reinterpret_cast<void*>(p),
              reinterpret_cast<void*>(*p));
@@ -6157,7 +6166,8 @@ class CheckHandleCountVisitor : public RootVisitor {
   ~CheckHandleCountVisitor() override {
     CHECK_GT(HandleScope::kCheckHandleThreshold, handle_count_);
   }
-  void VisitRootPointers(Root root, Object** start, Object** end) override {
+  void VisitRootPointers(Root root, const char* description, Object** start,
+                         Object** end) override {
     handle_count_ += end - start;
   }
 
@@ -6307,7 +6317,8 @@ class UnreachableObjectsFilter : public HeapObjectsFilter {
       MarkPointers(start, end);
     }
 
-    void VisitRootPointers(Root root, Object** start, Object** end) override {
+    void VisitRootPointers(Root root, const char* description, Object** start,
+                           Object** end) override {
       MarkPointers(start, end);
     }
 
@@ -6631,8 +6642,9 @@ void VerifyPointersVisitor::VisitPointers(HeapObject* host, Object** start,
   VerifyPointers(start, end);
 }
 
-void VerifyPointersVisitor::VisitRootPointers(Root root, Object** start,
-                                              Object** end) {
+void VerifyPointersVisitor::VisitRootPointers(Root root,
+                                              const char* description,
+                                              Object** start, Object** end) {
   VerifyPointers(start, end);
 }
 
@@ -6648,8 +6660,8 @@ void VerifyPointersVisitor::VerifyPointers(Object** start, Object** end) {
   }
 }
 
-void VerifySmisVisitor::VisitRootPointers(Root root, Object** start,
-                                          Object** end) {
+void VerifySmisVisitor::VisitRootPointers(Root root, const char* description,
+                                          Object** start, Object** end) {
   for (Object** current = start; current < end; current++) {
     CHECK((*current)->IsSmi());
   }

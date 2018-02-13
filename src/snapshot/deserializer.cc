@@ -60,8 +60,9 @@ Deserializer<AllocatorT>::~Deserializer() {
 // This is called on the roots.  It is the driver of the deserialization
 // process.  It is also called on the body of each function.
 template <class AllocatorT>
-void Deserializer<AllocatorT>::VisitRootPointers(Root root, Object** start,
-                                                 Object** end) {
+void Deserializer<AllocatorT>::VisitRootPointers(Root root,
+                                                 const char* description,
+                                                 Object** start, Object** end) {
   // Builtins and bytecode handlers are deserialized in a separate pass by the
   // BuiltinDeserializer.
   if (root == Root::kBuiltins || root == Root::kDispatchTable) return;

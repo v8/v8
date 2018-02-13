@@ -52,7 +52,8 @@ ScriptData* CodeSerializer::Serialize(Isolate* isolate,
 ScriptData* CodeSerializer::Serialize(Handle<HeapObject> obj) {
   DisallowHeapAllocation no_gc;
 
-  VisitRootPointer(Root::kHandleScope, Handle<Object>::cast(obj).location());
+  VisitRootPointer(Root::kHandleScope, nullptr,
+                   Handle<Object>::cast(obj).location());
   SerializeDeferredObjects();
   Pad();
 

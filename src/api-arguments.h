@@ -19,7 +19,8 @@ template <int kArrayLength>
 class CustomArgumentsBase : public Relocatable {
  public:
   virtual inline void IterateInstance(RootVisitor* v) {
-    v->VisitRootPointers(Root::kRelocatable, values_, values_ + kArrayLength);
+    v->VisitRootPointers(Root::kRelocatable, nullptr, values_,
+                         values_ + kArrayLength);
   }
 
  protected:

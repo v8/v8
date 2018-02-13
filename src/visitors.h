@@ -62,11 +62,13 @@ class RootVisitor BASE_EMBEDDED {
 
   // Visits a contiguous arrays of pointers in the half-open range
   // [start, end). Any or all of the values may be modified on return.
-  virtual void VisitRootPointers(Root root, Object** start, Object** end) = 0;
+  virtual void VisitRootPointers(Root root, const char* description,
+                                 Object** start, Object** end) = 0;
 
   // Handy shorthand for visiting a single pointer.
-  virtual void VisitRootPointer(Root root, Object** p) {
-    VisitRootPointers(root, p, p + 1);
+  virtual void VisitRootPointer(Root root, const char* description,
+                                Object** p) {
+    VisitRootPointers(root, description, p, p + 1);
   }
 
   // Intended for serialization/deserialization checking: insert, or

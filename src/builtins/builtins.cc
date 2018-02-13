@@ -86,7 +86,7 @@ Builtins::Name Builtins::GetBuiltinFromBailoutId(BailoutId id) {
 void Builtins::TearDown() { initialized_ = false; }
 
 void Builtins::IterateBuiltins(RootVisitor* v) {
-  v->VisitRootPointers(Root::kBuiltins, &builtins_[0],
+  v->VisitRootPointers(Root::kBuiltins, nullptr, &builtins_[0],
                        &builtins_[0] + builtin_count);
 }
 

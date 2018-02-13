@@ -160,12 +160,13 @@ void Scavenger::Finalize() {
   allocator_.Finalize();
 }
 
-void RootScavengeVisitor::VisitRootPointer(Root root, Object** p) {
+void RootScavengeVisitor::VisitRootPointer(Root root, const char* description,
+                                           Object** p) {
   ScavengePointer(p);
 }
 
-void RootScavengeVisitor::VisitRootPointers(Root root, Object** start,
-                                            Object** end) {
+void RootScavengeVisitor::VisitRootPointers(Root root, const char* description,
+                                            Object** start, Object** end) {
   // Copy all HeapObject pointers in [start, end)
   for (Object** p = start; p < end; p++) ScavengePointer(p);
 }

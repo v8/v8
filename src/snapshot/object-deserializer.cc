@@ -76,7 +76,7 @@ MaybeHandle<HeapObject> ObjectDeserializer::Deserialize(Isolate* isolate) {
   {
     DisallowHeapAllocation no_gc;
     Object* root;
-    VisitRootPointer(Root::kPartialSnapshotCache, &root);
+    VisitRootPointer(Root::kPartialSnapshotCache, nullptr, &root);
     DeserializeDeferredObjects();
     FlushICacheForNewCodeObjectsAndRecordEmbeddedObjects();
     result = Handle<HeapObject>(HeapObject::cast(root));

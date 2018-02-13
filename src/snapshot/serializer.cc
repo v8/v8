@@ -92,8 +92,9 @@ bool Serializer<AllocatorT>::MustBeDeferred(HeapObject* object) {
 }
 
 template <class AllocatorT>
-void Serializer<AllocatorT>::VisitRootPointers(Root root, Object** start,
-                                               Object** end) {
+void Serializer<AllocatorT>::VisitRootPointers(Root root,
+                                               const char* description,
+                                               Object** start, Object** end) {
   // Builtins and bytecode handlers are serialized in a separate pass by the
   // BuiltinSerializer.
   if (root == Root::kBuiltins || root == Root::kDispatchTable) return;

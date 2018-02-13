@@ -221,16 +221,19 @@ void Isolate::IterateThread(ThreadVisitor* v, char* t) {
 
 void Isolate::Iterate(RootVisitor* v, ThreadLocalTop* thread) {
   // Visit the roots from the top for a given thread.
-  v->VisitRootPointer(Root::kTop, &thread->pending_exception_);
-  v->VisitRootPointer(Root::kTop, &thread->wasm_caught_exception_);
-  v->VisitRootPointer(Root::kTop, &thread->pending_message_obj_);
-  v->VisitRootPointer(Root::kTop, bit_cast<Object**>(&(thread->context_)));
-  v->VisitRootPointer(Root::kTop, &thread->scheduled_exception_);
+  v->VisitRootPointer(Root::kTop, nullptr, &thread->pending_exception_);
+  v->VisitRootPointer(Root::kTop, nullptr, &thread->wasm_caught_exception_);
+  v->VisitRootPointer(Root::kTop, nullptr, &thread->pending_message_obj_);
+  v->VisitRootPointer(Root::kTop, nullptr,
+                      bit_cast<Object**>(&(thread->context_)));
+  v->VisitRootPointer(Root::kTop, nullptr, &thread->scheduled_exception_);
 
   for (v8::TryCatch* block = thread->try_catch_handler(); block != nullptr;
        block = block->next_) {
-    v->VisitRootPointer(Root::kTop, bit_cast<Object**>(&(block->exception_)));
-    v->VisitRootPointer(Root::kTop, bit_cast<Object**>(&(block->message_obj_)));
+    v->VisitRootPointer(Root::kTop, nullptr,
+                        bit_cast<Object**>(&(block->exception_)));
+    v->VisitRootPointer(Root::kTop, nullptr,
+                        bit_cast<Object**>(&(block->message_obj_)));
   }
 
   // Iterate over pointers on native execution stack.

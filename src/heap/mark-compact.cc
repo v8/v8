@@ -72,7 +72,8 @@ class MarkingVerifier : public ObjectVisitor, public RootVisitor {
     VerifyPointers(start, end);
   }
 
-  void VisitRootPointers(Root root, Object** start, Object** end) override {
+  void VisitRootPointers(Root root, const char* description, Object** start,
+                         Object** end) override {
     VerifyPointers(start, end);
   }
 
@@ -240,7 +241,8 @@ class EvacuationVerifier : public ObjectVisitor, public RootVisitor {
     VerifyPointers(start, end);
   }
 
-  void VisitRootPointers(Root root, Object** start, Object** end) override {
+  void VisitRootPointers(Root root, const char* description, Object** start,
+                         Object** end) override {
     VerifyPointers(start, end);
   }
 
@@ -369,12 +371,14 @@ class RootMarkingVisitorSeedOnly : public RootVisitor {
     buffered_objects_.reserve(kBufferSize);
   }
 
-  void VisitRootPointer(Root root, Object** p) override {
+  void VisitRootPointer(Root root, const char* description,
+                        Object** p) override {
     if (!(*p)->IsHeapObject()) return;
     AddObject(*p);
   }
 
-  void VisitRootPointers(Root root, Object** start, Object** end) override {
+  void VisitRootPointers(Root root, const char* description, Object** start,
+                         Object** end) override {
     for (Object** p = start; p < end; p++) {
       if (!(*p)->IsHeapObject()) continue;
       AddObject(*p);
@@ -973,11 +977,12 @@ class MarkCompactCollector::RootMarkingVisitor final : public RootVisitor {
   explicit RootMarkingVisitor(MarkCompactCollector* collector)
       : collector_(collector) {}
 
-  void VisitRootPointer(Root root, Object** p) final {
+  void VisitRootPointer(Root root, const char* description, Object** p) final {
     MarkObjectByPointer(root, p);
   }
 
-  void VisitRootPointers(Root root, Object** start, Object** end) final {
+  void VisitRootPointers(Root root, const char* description, Object** start,
+                         Object** end) final {
     for (Object** p = start; p < end; p++) MarkObjectByPointer(root, p);
   }
 
@@ -1066,7 +1071,8 @@ class ExternalStringTableCleaner : public RootVisitor {
  public:
   explicit ExternalStringTableCleaner(Heap* heap) : heap_(heap) {}
 
-  void VisitRootPointers(Root root, Object** start, Object** end) override {
+  void VisitRootPointers(Root root, const char* description, Object** start,
+                         Object** end) override {
     // Visit all HeapObject pointers in [start, end).
     MarkCompactCollector::NonAtomicMarkingState* marking_state =
         heap_->mark_compact_collector()->non_atomic_marking_state();
@@ -1101,7 +1107,8 @@ class YoungGenerationExternalStringTableCleaner : public RootVisitor {
       : heap_(collector->heap()),
         marking_state_(collector->non_atomic_marking_state()) {}
 
-  void VisitRootPointers(Root root, Object** start, Object** end) override {
+  void VisitRootPointers(Root root, const char* description, Object** start,
+                         Object** end) override {
     DCHECK_EQ(static_cast<int>(root),
               static_cast<int>(Root::kExternalStringsTable));
     // Visit all HeapObject pointers in [start, end).
@@ -1766,11 +1773,13 @@ class MinorMarkCompactCollector::RootMarkingVisitor : public RootVisitor {
       : collector_(collector),
         marking_state_(collector_->non_atomic_marking_state()) {}
 
-  void VisitRootPointer(Root root, Object** p) override {
+  void VisitRootPointer(Root root, const char* description,
+                        Object** p) override {
     MarkObjectByPointer(p);
   }
 
-  void VisitRootPointers(Root root, Object** start, Object** end) override {
+  void VisitRootPointers(Root root, const char* description, Object** start,
+                         Object** end) override {
     for (Object** p = start; p < end; p++) MarkObjectByPointer(p);
   }
 
@@ -1979,12 +1988,14 @@ class GlobalHandlesMarkingItem : public MarkingItem {
     explicit GlobalHandlesRootMarkingVisitor(YoungGenerationMarkingTask* task)
         : task_(task) {}
 
-    void VisitRootPointer(Root root, Object** p) override {
+    void VisitRootPointer(Root root, const char* description,
+                          Object** p) override {
       DCHECK_EQ(Root::kGlobalHandles, root);
       task_->MarkObject(*p);
     }
 
-    void VisitRootPointers(Root root, Object** start, Object** end) override {
+    void VisitRootPointers(Root root, const char* description, Object** start,
+                           Object** end) override {
       DCHECK_EQ(Root::kGlobalHandles, root);
       for (Object** p = start; p < end; p++) {
         task_->MarkObject(*p);
@@ -2860,11 +2871,13 @@ class PointersUpdatingVisitor : public ObjectVisitor, public RootVisitor {
     for (Object** p = start; p < end; p++) UpdateSlotInternal(p);
   }
 
-  void VisitRootPointer(Root root, Object** p) override {
+  void VisitRootPointer(Root root, const char* description,
+                        Object** p) override {
     UpdateSlotInternal(p);
   }
 
-  void VisitRootPointers(Root root, Object** start, Object** end) override {
+  void VisitRootPointers(Root root, const char* description, Object** start,
+                         Object** end) override {
     for (Object** p = start; p < end; p++) UpdateSlotInternal(p);
   }
 

@@ -69,7 +69,7 @@ void CompilationSubCache::Age() {
 }
 
 void CompilationSubCache::Iterate(RootVisitor* v) {
-  v->VisitRootPointers(Root::kCompilationCache, &tables_[0],
+  v->VisitRootPointers(Root::kCompilationCache, nullptr, &tables_[0],
                        &tables_[generations_]);
 }
 

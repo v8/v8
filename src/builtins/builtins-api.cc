@@ -149,7 +149,7 @@ class RelocatableArguments : public BuiltinArguments, public Relocatable {
 
   virtual inline void IterateInstance(RootVisitor* v) {
     if (length() == 0) return;
-    v->VisitRootPointers(Root::kRelocatable, lowest_address(),
+    v->VisitRootPointers(Root::kRelocatable, nullptr, lowest_address(),
                          highest_address() + 1);
   }
 

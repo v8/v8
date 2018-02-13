@@ -167,7 +167,8 @@ class Serializer : public SerializerDeserializer {
 
   virtual bool MustBeDeferred(HeapObject* object);
 
-  void VisitRootPointers(Root root, Object** start, Object** end) override;
+  void VisitRootPointers(Root root, const char* description, Object** start,
+                         Object** end) override;
 
   void PutRoot(int index, HeapObject* object, HowToCode how, WhereToPoint where,
                int skip);

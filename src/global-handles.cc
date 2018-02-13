@@ -596,7 +596,7 @@ void GlobalHandles::IterateWeakRootsForFinalizers(RootVisitor* v) {
       DCHECK(!node->IsPhantomCallback());
       DCHECK(!node->IsPhantomResetHandle());
       // Finalizers need to survive.
-      v->VisitRootPointer(Root::kGlobalHandles, node->location());
+      v->VisitRootPointer(Root::kGlobalHandles, nullptr, node->location());
     }
   }
 }
@@ -635,7 +635,7 @@ void GlobalHandles::IterateNewSpaceStrongAndDependentRoots(RootVisitor* v) {
   for (Node* node : new_space_nodes_) {
     if (node->IsStrongRetainer() ||
         (node->IsWeakRetainer() && node->is_active())) {
-      v->VisitRootPointer(Root::kGlobalHandles, node->location());
+      v->VisitRootPointer(Root::kGlobalHandles, nullptr, node->location());
     }
   }
 }
@@ -649,7 +649,7 @@ void GlobalHandles::IterateNewSpaceStrongAndDependentRootsAndIdentifyUnmodified(
     }
     if (node->IsStrongRetainer() ||
         (node->IsWeakRetainer() && node->is_active())) {
-      v->VisitRootPointer(Root::kGlobalHandles, node->location());
+      v->VisitRootPointer(Root::kGlobalHandles, nullptr, node->location());
     }
   }
 }
@@ -685,7 +685,7 @@ void GlobalHandles::IterateNewSpaceWeakUnmodifiedRootsForFinalizers(
       DCHECK(!node->IsPhantomCallback());
       DCHECK(!node->IsPhantomResetHandle());
       // Finalizers need to survive.
-      v->VisitRootPointer(Root::kGlobalHandles, node->location());
+      v->VisitRootPointer(Root::kGlobalHandles, nullptr, node->location());
     }
   }
 }
@@ -712,7 +712,7 @@ void GlobalHandles::IterateNewSpaceWeakUnmodifiedRootsForPhantomHandles(
         }
       } else {
         // Node survived and needs to be visited.
-        v->VisitRootPointer(Root::kGlobalHandles, node->location());
+        v->VisitRootPointer(Root::kGlobalHandles, nullptr, node->location());
       }
     }
   }
@@ -902,7 +902,7 @@ int GlobalHandles::PostGarbageCollectionProcessing(
 void GlobalHandles::IterateStrongRoots(RootVisitor* v) {
   for (NodeIterator it(this); !it.done(); it.Advance()) {
     if (it.node()->IsStrongRetainer()) {
-      v->VisitRootPointer(Root::kGlobalHandles, it.node()->location());
+      v->VisitRootPointer(Root::kGlobalHandles, nullptr, it.node()->location());
     }
   }
 }
@@ -912,7 +912,7 @@ DISABLE_CFI_PERF
 void GlobalHandles::IterateAllRoots(RootVisitor* v) {
   for (NodeIterator it(this); !it.done(); it.Advance()) {
     if (it.node()->IsRetainer()) {
-      v->VisitRootPointer(Root::kGlobalHandles, it.node()->location());
+      v->VisitRootPointer(Root::kGlobalHandles, nullptr, it.node()->location());
     }
   }
 }
@@ -921,7 +921,7 @@ DISABLE_CFI_PERF
 void GlobalHandles::IterateAllNewSpaceRoots(RootVisitor* v) {
   for (Node* node : new_space_nodes_) {
     if (node->IsRetainer()) {
-      v->VisitRootPointer(Root::kGlobalHandles, node->location());
+      v->VisitRootPointer(Root::kGlobalHandles, nullptr, node->location());
     }
   }
 }
@@ -932,7 +932,7 @@ void GlobalHandles::IterateNewSpaceRoots(RootVisitor* v, size_t start,
   for (size_t i = start; i < end; ++i) {
     Node* node = new_space_nodes_[i];
     if (node->IsRetainer()) {
-      v->VisitRootPointer(Root::kGlobalHandles, node->location());
+      v->VisitRootPointer(Root::kGlobalHandles, nullptr, node->location());
     }
   }
 }
@@ -1054,7 +1054,7 @@ void EternalHandles::IterateAllRoots(RootVisitor* visitor) {
   int limit = size_;
   for (Object** block : blocks_) {
     DCHECK_GT(limit, 0);
-    visitor->VisitRootPointers(Root::kEternalHandles, block,
+    visitor->VisitRootPointers(Root::kEternalHandles, nullptr, block,
                                block + Min(limit, kSize));
     limit -= kSize;
   }
@@ -1062,7 +1062,8 @@ void EternalHandles::IterateAllRoots(RootVisitor* visitor) {
 
 void EternalHandles::IterateNewSpaceRoots(RootVisitor* visitor) {
   for (int index : new_space_indices_) {
-    visitor->VisitRootPointer(Root::kEternalHandles, GetLocation(index));
+    visitor->VisitRootPointer(Root::kEternalHandles, nullptr,
+                              GetLocation(index));
   }
 }
 

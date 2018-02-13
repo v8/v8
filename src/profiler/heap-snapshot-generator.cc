@@ -1498,7 +1498,8 @@ class RootsReferencesExtractor : public RootVisitor {
         heap_(heap) {
   }
 
-  void VisitRootPointers(Root root, Object** start, Object** end) override {
+  void VisitRootPointers(Root root, const char* description, Object** start,
+                         Object** end) override {
     if (collecting_all_references_) {
       for (Object** p = start; p < end; p++) all_references_.push_back(*p);
     } else {
@@ -1930,7 +1931,8 @@ void V8HeapExplorer::TagFixedArraySubType(const FixedArray* array,
 
 class GlobalObjectsEnumerator : public RootVisitor {
  public:
-  void VisitRootPointers(Root root, Object** start, Object** end) override {
+  void VisitRootPointers(Root root, const char* description, Object** start,
+                         Object** end) override {
     for (Object** p = start; p < end; p++) {
       if (!(*p)->IsNativeContext()) continue;
       JSObject* proxy = Context::cast(*p)->global_proxy();
