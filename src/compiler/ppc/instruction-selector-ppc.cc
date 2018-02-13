@@ -194,7 +194,7 @@ void InstructionSelector::VisitLoad(Node* node) {
   PPCOperandGenerator g(this);
   Node* base = node->InputAt(0);
   Node* offset = node->InputAt(1);
-  ArchOpcode opcode = kArchNop;
+  InstructionCode opcode = kArchNop;
   ImmediateMode mode = kInt16Imm;
   switch (load_rep.representation()) {
     case MachineRepresentation::kFloat32:
@@ -234,6 +234,12 @@ void InstructionSelector::VisitLoad(Node* node) {
       UNREACHABLE();
       return;
   }
+
+  if (node->opcode() == IrOpcode::kPoisonedLoad &&
+      load_poisoning_ == LoadPoisoning::kDoPoison) {
+    opcode |= MiscField::encode(kMemoryAccessPoisoned);
+  }
+
   if (g.CanBeImmediate(offset, mode)) {
     Emit(opcode | AddressingModeField::encode(kMode_MRI),
          g.DefineAsRegister(node), g.UseRegister(base), g.UseImmediate(offset));
@@ -245,6 +251,8 @@ void InstructionSelector::VisitLoad(Node* node) {
          g.DefineAsRegister(node), g.UseRegister(base), g.UseRegister(offset));
   }
 }
+
+void InstructionSelector::VisitPoisonedLoad(Node* node) { VisitLoad(node); }
 
 void InstructionSelector::VisitProtectedLoad(Node* node) {
   // TODO(eholk)
@@ -2249,6 +2257,9 @@ InstructionSelector::AlignmentRequirements() {
   return MachineOperatorBuilder::AlignmentRequirements::
       FullUnalignedAccessSupport();
 }
+
+// static
+bool InstructionSelector::SupportsSpeculationPoisoning() { return false; }
 
 }  // namespace compiler
 }  // namespace internal

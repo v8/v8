@@ -719,16 +719,23 @@ void InstructionSelector::VisitDebugAbort(Node* node) {
 
 void InstructionSelector::VisitLoad(Node* node) {
   S390OperandGenerator g(this);
-  ArchOpcode opcode = SelectLoadOpcode(node);
+  InstructionCode opcode = SelectLoadOpcode(node);
   InstructionOperand outputs[1];
   outputs[0] = g.DefineAsRegister(node);
   InstructionOperand inputs[3];
   size_t input_count = 0;
   AddressingMode mode =
       g.GetEffectiveAddressMemoryOperand(node, inputs, &input_count);
-  InstructionCode code = opcode | AddressingModeField::encode(mode);
-  Emit(code, 1, outputs, input_count, inputs);
+  opcode |= AddressingModeField::encode(mode);
+  if (node->opcode() == IrOpcode::kPoisonedLoad &&
+      load_poisoning_ == LoadPoisoning::kDoPoison) {
+    opcode |= MiscField::encode(kMemoryAccessPoisoned);
+  }
+
+  Emit(opcode, 1, outputs, input_count, inputs);
 }
+
+void InstructionSelector::VisitPoisonedLoad(Node* node) { VisitLoad(node); }
 
 void InstructionSelector::VisitProtectedLoad(Node* node) {
   // TODO(eholk)
@@ -2582,6 +2589,9 @@ InstructionSelector::AlignmentRequirements() {
   return MachineOperatorBuilder::AlignmentRequirements::
       FullUnalignedAccessSupport();
 }
+
+// static
+bool InstructionSelector::SupportsSpeculationPoisoning() { return false; }
 
 }  // namespace compiler
 }  // namespace internal

@@ -4284,6 +4284,8 @@ bool AreAliased(DoubleRegister reg1, DoubleRegister reg2, DoubleRegister reg3,
 }
 #endif
 
+void TurboAssembler::ResetSpeculationPoisonRegister() { UNREACHABLE(); }
+
 }  // namespace internal
 }  // namespace v8
 
