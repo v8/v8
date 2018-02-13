@@ -3029,6 +3029,8 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
                           Builtins::kTypedArrayPrototypeEvery, 1, false);
     SimpleInstallFunction(prototype, "fill",
                           Builtins::kTypedArrayPrototypeFill, 1, false);
+    SimpleInstallFunction(prototype, "filter",
+                          Builtins::kTypedArrayPrototypeFilter, 1, false);
     SimpleInstallFunction(prototype, "find", Builtins::kTypedArrayPrototypeFind,
                           1, false);
     SimpleInstallFunction(prototype, "findIndex",

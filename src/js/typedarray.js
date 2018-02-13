@@ -19,10 +19,7 @@ var InnerArrayJoin;
 var InnerArraySort;
 var InnerArrayToLocaleString;
 var InternalArray = utils.InternalArray;
-var MathMax = global.Math.max;
-var MathMin = global.Math.min;
 var iteratorSymbol = utils.ImportNow("iterator_symbol");
-var speciesSymbol = utils.ImportNow("species_symbol");
 
 macro TYPED_ARRAYS(FUNCTION)
 FUNCTION(Uint8Array, 1)
@@ -56,25 +53,6 @@ utils.Import(function(from) {
   InnerArrayToLocaleString = from.InnerArrayToLocaleString;
 });
 
-// ES2015 7.3.20
-function SpeciesConstructor(object, defaultConstructor) {
-  var constructor = object.constructor;
-  if (IS_UNDEFINED(constructor)) {
-    return defaultConstructor;
-  }
-  if (!IS_RECEIVER(constructor)) {
-    throw %make_type_error(kConstructorNotReceiver);
-  }
-  var species = constructor[speciesSymbol];
-  if (IS_NULL_OR_UNDEFINED(species)) {
-    return defaultConstructor;
-  }
-  if (%IsConstructor(species)) {
-    return species;
-  }
-  throw %make_type_error(kSpeciesNotConstructor);
-}
-
 // --------------- Typed Arrays ---------------------
 
 // ES6 section 22.2.3.5.1 ValidateTypedArray ( O )
@@ -83,20 +61,6 @@ function ValidateTypedArray(array, methodName) {
 
   if (%_ArrayBufferViewWasNeutered(array))
     throw %make_type_error(kDetachedOperation, methodName);
-}
-
-function TypedArrayDefaultConstructor(typedArray) {
-  switch (%_ClassOf(typedArray)) {
-macro TYPED_ARRAY_CONSTRUCTOR_CASE(NAME, ELEMENT_SIZE)
-    case "NAME":
-      return GlobalNAME;
-endmacro
-TYPED_ARRAYS(TYPED_ARRAY_CONSTRUCTOR_CASE)
-  }
-  // The TypeError should not be generated since all callers should
-  // have already called ValidateTypedArray.
-  throw %make_type_error(kIncompatibleMethodReceiver,
-                      "TypedArrayDefaultConstructor", this);
 }
 
 function TypedArrayCreate(constructor, arg0, arg1, arg2) {
@@ -111,50 +75,6 @@ function TypedArrayCreate(constructor, arg0, arg1, arg2) {
   }
   return newTypedArray;
 }
-
-function TypedArraySpeciesCreate(exemplar, arg0, arg1, arg2) {
-  var defaultConstructor = TypedArrayDefaultConstructor(exemplar);
-  var constructor = SpeciesConstructor(exemplar, defaultConstructor);
-  return TypedArrayCreate(constructor, arg0, arg1, arg2);
-}
-
-// The following functions cannot be made efficient on sparse arrays while
-// preserving the semantics, since the calls to the receiver function can add
-// or delete elements from the array.
-function InnerTypedArrayFilter(f, receiver, array, length, result) {
-  var result_length = 0;
-  for (var i = 0; i < length; i++) {
-    if (i in array) {
-      var element = array[i];
-      if (%_Call(f, receiver, element, i, array)) {
-        %CreateDataProperty(result, result_length, element);
-        result_length++;
-      }
-    }
-  }
-  return result;
-}
-
-
-// ES6 draft 07-15-13, section 22.2.3.9
-DEFINE_METHOD_LEN(
-  GlobalTypedArray.prototype,
-  filter(f, thisArg) {
-    ValidateTypedArray(this, "%TypeArray%.prototype.filter");
-
-    var length = %_TypedArrayGetLength(this);
-    if (!IS_CALLABLE(f)) throw %make_type_error(kCalledNonCallable, f);
-    var result = new InternalArray();
-    InnerTypedArrayFilter(f, thisArg, this, length, result);
-    var captured = result.length;
-    var output = TypedArraySpeciesCreate(this, captured);
-    for (var i = 0; i < captured; i++) {
-      output[i] = result[i];
-    }
-    return output;
-  },
-  1  /* Set function length. */
-);
 
 // ES6 draft 05-18-15, section 22.2.3.25
 DEFINE_METHOD(

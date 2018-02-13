@@ -99,7 +99,6 @@
   'built-ins/TypedArrays/internals/DefineOwnProperty/tonumber-value-detached-buffer': [FAIL],
   # Some TypedArray methods throw due to the same bug, from Get
   'built-ins/TypedArray/prototype/every/callbackfn-detachbuffer': [FAIL],
-  'built-ins/TypedArray/prototype/filter/callbackfn-detachbuffer': [FAIL],
   'built-ins/TypedArray/prototype/find/predicate-may-detach-buffer': [FAIL],
   'built-ins/TypedArray/prototype/findIndex/predicate-may-detach-buffer': [FAIL],
   'built-ins/TypedArray/prototype/forEach/callbackfn-detachbuffer': [FAIL],

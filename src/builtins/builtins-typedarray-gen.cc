@@ -936,7 +936,7 @@ TNode<JSTypedArray> TypedArrayBuiltinsAssembler::CreateByLength(
   TNode<Smi> new_length =
       LoadObjectField<Smi>(new_typed_array, JSTypedArray::kLengthOffset);
   GotoIfNot(SmiLessThan(new_length, len), &if_length_is_not_short);
-  ThrowTypeError(context, MessageTemplate::kNotTypedArray);
+  ThrowTypeError(context, MessageTemplate::kTypedArrayTooShort);
 
   BIND(&if_length_is_not_short);
   return new_typed_array;
@@ -1610,6 +1610,105 @@ TF_BUILTIN(TypedArrayOf, TypedArrayBuiltinsAssembler) {
 
   BIND(&if_not_constructor);
   ThrowTypeError(context, MessageTemplate::kNotConstructor, receiver);
+}
+
+// ES %TypedArray%.prototype.filter
+TF_BUILTIN(TypedArrayPrototypeFilter, TypedArrayBuiltinsAssembler) {
+  const char* method_name = "%TypedArray%.prototype.filter";
+
+  TNode<Context> context = CAST(Parameter(BuiltinDescriptor::kContext));
+  CodeStubArguments args(
+      this, ChangeInt32ToIntPtr(Parameter(BuiltinDescriptor::kArgumentsCount)));
+
+  Label if_callback_not_callable(this, Label::kDeferred),
+      detached(this, Label::kDeferred);
+
+  // 1. Let O be the this value.
+  // 2. Perform ? ValidateTypedArray(O).
+  TNode<Object> receiver = args.GetReceiver();
+  TNode<JSTypedArray> source =
+      ValidateTypedArray(context, receiver, method_name);
+
+  // 3. Let len be O.[[ArrayLength]].
+  TNode<Smi> length = LoadObjectField<Smi>(source, JSTypedArray::kLengthOffset);
+
+  // 4. If IsCallable(callbackfn) is false, throw a TypeError exception.
+  TNode<Object> callbackfn = args.GetOptionalArgumentValue(0);
+  GotoIf(TaggedIsSmi(callbackfn), &if_callback_not_callable);
+  GotoIfNot(IsCallable(callbackfn), &if_callback_not_callable);
+
+  // 5. If thisArg is present, let T be thisArg; else let T be undefined.
+  TNode<Object> this_arg = args.GetOptionalArgumentValue(1);
+
+  TNode<JSArrayBuffer> source_buffer =
+      LoadObjectField<JSArrayBuffer>(source, JSArrayBufferView::kBufferOffset);
+  TNode<Word32T> elements_kind = LoadElementsKind(source);
+  GrowableFixedArray values(state());
+  VariableList vars(
+      {values.var_array(), values.var_length(), values.var_capacity()}, zone());
+
+  // 6. Let kept be a new empty List.
+  // 7. Let k be 0.
+  // 8. Let captured be 0.
+  // 9. Repeat, while k < len
+  BuildFastLoop(
+      vars, SmiConstant(0), length,
+      [&](Node* index) {
+        GotoIf(IsDetachedBuffer(source_buffer), &detached);
+
+        TVARIABLE(Number, value);
+        // a. Let Pk be ! ToString(k).
+        // b. Let kValue be ? Get(O, Pk).
+        DispatchTypedArrayByElementsKind(
+            elements_kind,
+            [&](ElementsKind kind, int size, int typed_array_fun_index) {
+              TNode<IntPtrT> backing_store =
+                  UncheckedCast<IntPtrT>(LoadDataPtr(source));
+              value = CAST(LoadFixedTypedArrayElementAsTagged(
+                  backing_store, index, kind, ParameterMode::SMI_PARAMETERS));
+            });
+
+        // c. Let selected be ToBoolean(Call(callbackfn, T, kValue, k, O))
+        Node* selected =
+            CallJS(CodeFactory::Call(isolate()), context, callbackfn, this_arg,
+                   value.value(), index, source);
+
+        Label true_continue(this), false_continue(this);
+        BranchIfToBooleanIsTrue(selected, &true_continue, &false_continue);
+
+        BIND(&true_continue);
+        // d. If selected is true, then
+        //   i. Append kValue to the end of kept.
+        //   ii. Increase captured by 1.
+        values.Push(value.value());
+        Goto(&false_continue);
+
+        BIND(&false_continue);
+      },
+      1, ParameterMode::SMI_PARAMETERS, IndexAdvanceMode::kPost);
+
+  TNode<JSArray> values_array = values.ToJSArray(context);
+  TNode<Smi> captured = LoadFastJSArrayLength(values_array);
+
+  // 10. Let A be ? TypedArraySpeciesCreate(O, captured).
+  TNode<JSTypedArray> result_array =
+      SpeciesCreateByLength(context, source, captured, method_name);
+
+  // 11. Let n be 0.
+  // 12. For each element e of kept, do
+  //   a. Perform ! Set(A, ! ToString(n), e, true).
+  //   b. Increment n by 1.
+  CallRuntime(Runtime::kTypedArrayCopyElements, context, result_array,
+              values_array, captured);
+
+  // 13. Return A.
+  args.PopAndReturn(result_array);
+
+  BIND(&if_callback_not_callable);
+  ThrowTypeError(context, MessageTemplate::kCalledNonCallable, callbackfn);
+
+  BIND(&detached);
+  ThrowTypeError(context, MessageTemplate::kDetachedOperation, method_name);
 }
 
 #undef V8_TYPED_ARRAY_MAX_SIZE_IN_HEAP
