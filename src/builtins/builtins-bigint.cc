@@ -70,14 +70,6 @@ BUILTIN(BigIntAsIntN) {
   return *BigInt::AsIntN(bits->Number(), bigint);
 }
 
-BUILTIN(BigIntPrototypeToLocaleString) {
-  HandleScope scope(isolate);
-
-  // TODO(jkummerow): Implement.
-
-  UNIMPLEMENTED();
-}
-
 namespace {
 
 MaybeHandle<BigInt> ThisBigIntValue(Isolate* isolate, Handle<Object> value,
@@ -100,18 +92,14 @@ MaybeHandle<BigInt> ThisBigIntValue(Isolate* isolate, Handle<Object> value,
       BigInt);
 }
 
-}  // namespace
-
-BUILTIN(BigIntPrototypeToString) {
-  HandleScope scope(isolate);
+Object* BigIntToStringImpl(Handle<Object> receiver, Handle<Object> radix,
+                           Isolate* isolate, const char* builtin_name) {
   // 1. Let x be ? thisBigIntValue(this value).
   Handle<BigInt> x;
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
-      isolate, x,
-      ThisBigIntValue(isolate, args.receiver(), "BigInt.prototype.toString"));
+      isolate, x, ThisBigIntValue(isolate, receiver, builtin_name));
   // 2. If radix is not present, let radixNumber be 10.
   // 3. Else if radix is undefined, let radixNumber be 10.
-  Handle<Object> radix = args.atOrUndefined(isolate, 1);
   int radix_number;
   if (radix->IsUndefined(isolate)) {
     radix_number = 10;
@@ -129,6 +117,22 @@ BUILTIN(BigIntPrototypeToString) {
   // Return the String representation of this Number value using the radix
   // specified by radixNumber.
   RETURN_RESULT_OR_FAILURE(isolate, BigInt::ToString(x, radix_number));
+}
+
+}  // namespace
+
+BUILTIN(BigIntPrototypeToLocaleString) {
+  HandleScope scope(isolate);
+  Handle<Object> radix = args.atOrUndefined(isolate, 1);
+  return BigIntToStringImpl(args.receiver(), radix, isolate,
+                            "BigInt.prototype.toLocaleString");
+}
+
+BUILTIN(BigIntPrototypeToString) {
+  HandleScope scope(isolate);
+  Handle<Object> radix = args.atOrUndefined(isolate, 1);
+  return BigIntToStringImpl(args.receiver(), radix, isolate,
+                            "BigInt.prototype.toString");
 }
 
 BUILTIN(BigIntPrototypeValueOf) {
