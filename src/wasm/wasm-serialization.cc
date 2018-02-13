@@ -633,7 +633,7 @@ bool NativeModuleDeserializer::ReadCode() {
       case RelocInfo::CODE_TARGET: {
         uint32_t tag = GetWasmCalleeTag(iter.rinfo());
         Address target = GetTrampolineOrStubFromTag(tag);
-        iter.rinfo()->set_target_address(nullptr, target, SKIP_WRITE_BARRIER,
+        iter.rinfo()->set_target_address(target, SKIP_WRITE_BARRIER,
                                          SKIP_ICACHE_FLUSH);
         break;
       }
@@ -642,8 +642,8 @@ bool NativeModuleDeserializer::ReadCode() {
             reinterpret_cast<intptr_t>(iter.rinfo()->target_address()));
         Address address =
             ExternalReferenceTable::instance(isolate_)->address(orig_target);
-        iter.rinfo()->set_target_runtime_entry(
-            nullptr, address, SKIP_WRITE_BARRIER, SKIP_ICACHE_FLUSH);
+        iter.rinfo()->set_target_runtime_entry(address, SKIP_WRITE_BARRIER,
+                                               SKIP_ICACHE_FLUSH);
         break;
       }
       default:

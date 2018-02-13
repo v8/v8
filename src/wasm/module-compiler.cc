@@ -262,7 +262,7 @@ class JSToWasmWrapperCache {
               target->builtin_index() == Builtins::kIllegal ||
               target->builtin_index() == Builtins::kWasmCompileLazy) {
             it.rinfo()->set_target_address(
-                isolate, wasm_code.GetCode()->instruction_start());
+                wasm_code.GetCode()->instruction_start());
             break;
           }
         }
@@ -271,9 +271,9 @@ class JSToWasmWrapperCache {
                          RelocInfo::ModeMask(RelocInfo::JS_TO_WASM_CALL));
         DCHECK(!it.done());
         it.rinfo()->set_js_to_wasm_address(
-            isolate, wasm_code.is_null()
-                         ? nullptr
-                         : wasm_code.GetWasmCode()->instructions().start());
+            wasm_code.is_null()
+                ? nullptr
+                : wasm_code.GetWasmCode()->instructions().start());
       }
       return code;
     }
@@ -862,8 +862,7 @@ const WasmCode* WasmExtractWasmToWasmCallee(const WasmCodeManager* code_manager,
                   ->code_manager()                                             \
                   ->GetCodeFromStartAddress(it.rinfo()->js_to_wasm_address())  \
                   ->kind());                                                   \
-    it.rinfo()->set_js_to_wasm_address(isolate,                                \
-                                       new_target->instructions().start());    \
+    it.rinfo()->set_js_to_wasm_address(new_target->instructions().start());    \
     it.next();                                                                 \
     DCHECK(it.done());                                                         \
   } while (0)
@@ -877,7 +876,7 @@ void PatchWasmToWasmWrapper(Isolate* isolate, Code* wasm_to_wasm,
   DCHECK_EQ(Builtins::kWasmCompileLazy,
             Code::GetCodeFromTargetAddress(it.rinfo()->target_address())
                 ->builtin_index());
-  it.rinfo()->set_target_address(isolate, new_target->instruction_start());
+  it.rinfo()->set_target_address(new_target->instruction_start());
 #ifdef DEBUG
   it.next();
   DCHECK(it.done());
@@ -1022,8 +1021,7 @@ Handle<Code> LazyCompilationOrchestrator::CompileLazyOnGCHeap(
         continue;
       }
       DCHECK_EQ(Code::WASM_FUNCTION, callee_compiled->kind());
-      it.rinfo()->set_target_address(isolate,
-                                     callee_compiled->instruction_start());
+      it.rinfo()->set_target_address(callee_compiled->instruction_start());
       ++patched;
     }
     DCHECK_EQ(non_compiled_functions.size(), idx);
@@ -1070,7 +1068,7 @@ const wasm::WasmCode* LazyCompilationOrchestrator::CompileFromJsToWasm(
                     ->GetCodeFromStartAddress(it.rinfo()->js_to_wasm_address())
                     ->kind());
       it.rinfo()->set_js_to_wasm_address(
-          isolate, callee_compiled->instructions().start());
+          callee_compiled->instructions().start());
       ++patched;
     }
     DCHECK_LT(0, patched);
@@ -1212,7 +1210,7 @@ const wasm::WasmCode* LazyCompilationOrchestrator::CompileDirectCall(
                     ->GetCodeFromStartAddress(it.rinfo()->wasm_call_address())
                     ->kind());
       it.rinfo()->set_wasm_call_address(
-          isolate, callee_compiled->instructions().start());
+          callee_compiled->instructions().start());
       ++patched;
     }
     DCHECK_EQ(non_compiled_functions.size(), idx);

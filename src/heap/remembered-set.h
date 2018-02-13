@@ -298,8 +298,7 @@ class UpdateTypedSlotHelper {
     Object* new_target = old_target;
     SlotCallbackResult result = callback(&new_target);
     if (new_target != old_target) {
-      rinfo->set_target_address(old_target->GetIsolate(),
-                                Code::cast(new_target)->instruction_start());
+      rinfo->set_target_address(Code::cast(new_target)->instruction_start());
     }
     return result;
   }

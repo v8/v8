@@ -32,8 +32,7 @@ static void UpdateFunctionTableSizeReferences(Handle<Code> code,
   for (RelocIterator it(*code, mode_mask); !it.done(); it.next()) {
     RelocInfo::Mode mode = it.rinfo()->rmode();
     if (RelocInfo::IsWasmFunctionTableSizeReference(mode)) {
-      it.rinfo()->update_wasm_function_table_size_reference(isolate, old_size,
-                                                            new_size);
+      it.rinfo()->update_wasm_function_table_size_reference(old_size, new_size);
       modified = true;
     }
   }

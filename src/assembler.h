@@ -512,25 +512,22 @@ class RelocInfo {
   Address wasm_call_address() const;
 
   void set_wasm_context_reference(
-      Isolate* isolate, Address address,
+      Address address,
       ICacheFlushMode icache_flush_mode = FLUSH_ICACHE_IF_NEEDED);
   void update_wasm_function_table_size_reference(
-      Isolate* isolate, uint32_t old_base, uint32_t new_base,
+      uint32_t old_base, uint32_t new_base,
       ICacheFlushMode icache_flush_mode = FLUSH_ICACHE_IF_NEEDED);
   void set_target_address(
-      Isolate* isolate, Address target,
+      Address target,
       WriteBarrierMode write_barrier_mode = UPDATE_WRITE_BARRIER,
       ICacheFlushMode icache_flush_mode = FLUSH_ICACHE_IF_NEEDED);
 
-  void set_global_handle(
-      Isolate* isolate, Address address,
-      ICacheFlushMode icache_flush_mode = FLUSH_ICACHE_IF_NEEDED);
+  void set_global_handle(Address address, ICacheFlushMode icache_flush_mode =
+                                              FLUSH_ICACHE_IF_NEEDED);
   void set_wasm_call_address(
-      Isolate*, Address,
-      ICacheFlushMode icache_flush_mode = FLUSH_ICACHE_IF_NEEDED);
+      Address, ICacheFlushMode icache_flush_mode = FLUSH_ICACHE_IF_NEEDED);
   void set_js_to_wasm_address(
-      Isolate*, Address,
-      ICacheFlushMode icache_flush_mode = FLUSH_ICACHE_IF_NEEDED);
+      Address, ICacheFlushMode icache_flush_mode = FLUSH_ICACHE_IF_NEEDED);
 
   // this relocation applies to;
   // can only be called if IsCodeTarget(rmode_) || IsRuntimeEntry(rmode_)
@@ -543,7 +540,7 @@ class RelocInfo {
       ICacheFlushMode icache_flush_mode = FLUSH_ICACHE_IF_NEEDED));
   INLINE(Address target_runtime_entry(Assembler* origin));
   INLINE(void set_target_runtime_entry(
-      Isolate* isolate, Address target,
+      Address target,
       WriteBarrierMode write_barrier_mode = UPDATE_WRITE_BARRIER,
       ICacheFlushMode icache_flush_mode = FLUSH_ICACHE_IF_NEEDED));
   INLINE(Cell* target_cell());
@@ -589,7 +586,7 @@ class RelocInfo {
 
   // Wipe out a relocation to a fixed value, used for making snapshots
   // reproducible.
-  INLINE(void WipeOut(Isolate* isolate));
+  INLINE(void WipeOut());
 
   template <typename ObjectVisitor>
   inline void Visit(ObjectVisitor* v);
@@ -597,7 +594,7 @@ class RelocInfo {
 #ifdef DEBUG
   // Check whether the given code contains relocation information that
   // either is position-relative or movable by the garbage collector.
-  static bool RequiresRelocation(Isolate* isolate, const CodeDesc& desc);
+  static bool RequiresRelocation(const CodeDesc& desc);
 #endif
 
 #ifdef ENABLE_DISASSEMBLER
@@ -613,10 +610,8 @@ class RelocInfo {
   static const int kApplyMask;  // Modes affected by apply.  Depends on arch.
 
  private:
-  void set_embedded_address(Isolate* isolate, Address address,
-                            ICacheFlushMode flush_mode);
-  void set_embedded_size(Isolate* isolate, uint32_t size,
-                         ICacheFlushMode flush_mode);
+  void set_embedded_address(Address address, ICacheFlushMode flush_mode);
+  void set_embedded_size(uint32_t size, ICacheFlushMode flush_mode);
 
   uint32_t embedded_size() const;
   Address embedded_address() const;

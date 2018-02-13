@@ -301,16 +301,16 @@ const int kLastChunkTagBits = 1;
 const int kLastChunkTagMask = 1;
 const int kLastChunkTag = 1;
 
-void RelocInfo::set_wasm_context_reference(Isolate* isolate, Address address,
+void RelocInfo::set_wasm_context_reference(Address address,
                                            ICacheFlushMode icache_flush_mode) {
   DCHECK(IsWasmContextReference(rmode_));
-  set_embedded_address(isolate, address, icache_flush_mode);
+  set_embedded_address(address, icache_flush_mode);
 }
 
-void RelocInfo::set_global_handle(Isolate* isolate, Address address,
+void RelocInfo::set_global_handle(Address address,
                                   ICacheFlushMode icache_flush_mode) {
   DCHECK_EQ(rmode_, WASM_GLOBAL_HANDLE);
-  set_embedded_address(isolate, address, icache_flush_mode);
+  set_embedded_address(address, icache_flush_mode);
 }
 
 Address RelocInfo::wasm_call_address() const {
@@ -318,10 +318,10 @@ Address RelocInfo::wasm_call_address() const {
   return Assembler::target_address_at(pc_, constant_pool_);
 }
 
-void RelocInfo::set_wasm_call_address(Isolate* isolate, Address address,
+void RelocInfo::set_wasm_call_address(Address address,
                                       ICacheFlushMode icache_flush_mode) {
   DCHECK_EQ(rmode_, WASM_CALL);
-  Assembler::set_target_address_at(isolate, pc_, constant_pool_, address,
+  Assembler::set_target_address_at(pc_, constant_pool_, address,
                                    icache_flush_mode);
 }
 
@@ -341,17 +341,16 @@ Address RelocInfo::wasm_context_reference() const {
 }
 
 void RelocInfo::update_wasm_function_table_size_reference(
-    Isolate* isolate, uint32_t old_size, uint32_t new_size,
-    ICacheFlushMode icache_flush_mode) {
+    uint32_t old_size, uint32_t new_size, ICacheFlushMode icache_flush_mode) {
   DCHECK(IsWasmFunctionTableSizeReference(rmode_));
-  set_embedded_size(isolate, new_size, icache_flush_mode);
+  set_embedded_size(new_size, icache_flush_mode);
 }
 
-void RelocInfo::set_target_address(Isolate* isolate, Address target,
+void RelocInfo::set_target_address(Address target,
                                    WriteBarrierMode write_barrier_mode,
                                    ICacheFlushMode icache_flush_mode) {
   DCHECK(IsCodeTarget(rmode_) || IsRuntimeEntry(rmode_) || IsWasmCall(rmode_));
-  Assembler::set_target_address_at(isolate, pc_, constant_pool_, target,
+  Assembler::set_target_address_at(pc_, constant_pool_, target,
                                    icache_flush_mode);
   if (write_barrier_mode == UPDATE_WRITE_BARRIER && host() != nullptr &&
       IsCodeTarget(rmode_)) {
@@ -601,7 +600,7 @@ RelocIterator::RelocIterator(Vector<byte> instructions,
 // Implementation of RelocInfo
 
 #ifdef DEBUG
-bool RelocInfo::RequiresRelocation(Isolate* isolate, const CodeDesc& desc) {
+bool RelocInfo::RequiresRelocation(const CodeDesc& desc) {
   // Ensure there are no code targets or embedded objects present in the
   // deoptimization entries, they would require relocation after code
   // generation.

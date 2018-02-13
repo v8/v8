@@ -50,7 +50,7 @@ WASM_COMPILED_EXEC_TEST(RunPatchWasmContext) {
     for (RelocIterator it(*code, filter); !it.done(); it.next()) {
       CHECK_EQ(old_wasm_context_address, it.rinfo()->wasm_context_reference());
       it.rinfo()->set_wasm_context_reference(
-          isolate, reinterpret_cast<Address>(&new_wasm_context));
+          reinterpret_cast<Address>(&new_wasm_context));
       patched = true;
     }
     CHECK(patched);

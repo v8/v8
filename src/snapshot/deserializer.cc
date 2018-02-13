@@ -480,9 +480,9 @@ bool Deserializer<AllocatorT>::ReadData(Object** current, Object** limit,
         Address pc = code->entry() + pc_offset;
         Address target = code->entry() + target_offset;
         Assembler::deserialization_set_target_internal_reference_at(
-            isolate, pc, target, data == kInternalReference
-                                     ? RelocInfo::INTERNAL_REFERENCE
-                                     : RelocInfo::INTERNAL_REFERENCE_ENCODED);
+            pc, target,
+            data == kInternalReference ? RelocInfo::INTERNAL_REFERENCE
+                                       : RelocInfo::INTERNAL_REFERENCE_ENCODED);
         break;
       }
 
@@ -746,7 +746,7 @@ Object** Deserializer<AllocatorT>::ReadDataCase(Isolate* isolate,
     if (how == kFromCode) {
       Address location_of_branch_data = reinterpret_cast<Address>(current);
       Assembler::deserialization_set_special_target_at(
-          isolate, location_of_branch_data,
+          location_of_branch_data,
           Code::cast(HeapObject::FromAddress(current_object_address)),
           reinterpret_cast<Address>(new_object));
       location_of_branch_data += Assembler::kSpecialTargetSize;

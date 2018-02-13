@@ -83,8 +83,7 @@ bool IsAtWasmDirectCallTarget(RelocIterator& it) {
 
 }  // namespace
 
-CodeSpecialization::CodeSpecialization(Isolate* isolate, Zone* zone)
-    : isolate_(isolate) {}
+CodeSpecialization::CodeSpecialization(Isolate* isolate, Zone* zone) {}
 
 CodeSpecialization::~CodeSpecialization() {}
 
@@ -172,24 +171,23 @@ bool CodeSpecialization::ApplyToWholeInstance(
       RelocInfo::Mode mode = it.rinfo()->rmode();
       switch (mode) {
         case RelocInfo::WASM_CONTEXT_REFERENCE:
-          it.rinfo()->set_wasm_context_reference(export_wrapper->GetIsolate(),
-                                                 new_wasm_context_address_,
+          it.rinfo()->set_wasm_context_reference(new_wasm_context_address_,
                                                  icache_flush_mode);
           break;
         case RelocInfo::JS_TO_WASM_CALL: {
           DCHECK(FLAG_wasm_jit_to_native);
           const WasmCode* new_code = native_module->GetCode(exp.index);
-          it.rinfo()->set_js_to_wasm_address(
-              nullptr, new_code->instructions().start(), SKIP_ICACHE_FLUSH);
+          it.rinfo()->set_js_to_wasm_address(new_code->instructions().start(),
+                                             SKIP_ICACHE_FLUSH);
         } break;
         case RelocInfo::CODE_TARGET: {
           DCHECK(!FLAG_wasm_jit_to_native);
           // Ignore calls to other builtins like ToNumber.
           if (!IsAtWasmDirectCallTarget(it)) continue;
           Code* new_code = Code::cast(code_table->get(exp.index));
-          it.rinfo()->set_target_address(
-              new_code->GetIsolate(), new_code->instruction_start(),
-              UPDATE_WRITE_BARRIER, SKIP_ICACHE_FLUSH);
+          it.rinfo()->set_target_address(new_code->instruction_start(),
+                                         UPDATE_WRITE_BARRIER,
+                                         SKIP_ICACHE_FLUSH);
         } break;
         default:
           UNREACHABLE();
@@ -266,8 +264,7 @@ bool CodeSpecialization::ApplyToWasmCode(WasmCodeWrapper code,
         FixedArray* code_table =
             relocate_direct_calls_instance_->compiled_module()->code_table();
         Code* new_code = Code::cast(code_table->get(called_func_index));
-        it.rinfo()->set_target_address(new_code->GetIsolate(),
-                                       new_code->instruction_start(),
+        it.rinfo()->set_target_address(new_code->instruction_start(),
                                        UPDATE_WRITE_BARRIER, icache_flush_mode);
         changed = true;
       } break;
@@ -291,8 +288,8 @@ bool CodeSpecialization::ApplyToWasmCode(WasmCodeWrapper code,
             patch_direct_calls_helper->decoder,
             patch_direct_calls_helper->func_bytes + byte_pos);
         const WasmCode* new_code = native_module->GetCode(called_func_index);
-        it.rinfo()->set_wasm_call_address(
-            isolate_, new_code->instructions().start(), icache_flush_mode);
+        it.rinfo()->set_wasm_call_address(new_code->instructions().start(),
+                                          icache_flush_mode);
         changed = true;
       } break;
       case RelocInfo::WASM_GLOBAL_HANDLE: {
@@ -301,14 +298,14 @@ bool CodeSpecialization::ApplyToWasmCode(WasmCodeWrapper code,
         auto entry = pointers_to_relocate_.find(old_ptr);
         if (entry != pointers_to_relocate_.end()) {
           Address new_ptr = entry->second;
-          it.rinfo()->set_global_handle(isolate_, new_ptr, icache_flush_mode);
+          it.rinfo()->set_global_handle(new_ptr, icache_flush_mode);
           changed = true;
         }
       } break;
       case RelocInfo::WASM_FUNCTION_TABLE_SIZE_REFERENCE:
         DCHECK(patch_table_size);
         it.rinfo()->update_wasm_function_table_size_reference(
-            isolate_, old_function_table_size_, new_function_table_size_,
+            old_function_table_size_, new_function_table_size_,
             icache_flush_mode);
         changed = true;
         break;

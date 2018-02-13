@@ -567,9 +567,9 @@ class Assembler : public AssemblerBase {
   // The isolate argument is unused (and may be nullptr) when skipping flushing.
   static Address target_address_at(Address pc);
   INLINE(static void set_target_address_at)
-  (Isolate* isolate, Address pc, Address target,
+  (Address pc, Address target,
    ICacheFlushMode icache_flush_mode = FLUSH_ICACHE_IF_NEEDED) {
-    set_target_value_at(isolate, pc, reinterpret_cast<uint32_t>(target),
+    set_target_value_at(pc, reinterpret_cast<uint32_t>(target),
                         icache_flush_mode);
   }
   // On MIPS there is no Constant Pool so we skip that parameter.
@@ -577,13 +577,13 @@ class Assembler : public AssemblerBase {
     return target_address_at(pc);
   }
   INLINE(static void set_target_address_at(
-      Isolate* isolate, Address pc, Address constant_pool, Address target,
+      Address pc, Address constant_pool, Address target,
       ICacheFlushMode icache_flush_mode = FLUSH_ICACHE_IF_NEEDED)) {
-    set_target_address_at(isolate, pc, target, icache_flush_mode);
+    set_target_address_at(pc, target, icache_flush_mode);
   }
 
   static void set_target_value_at(
-      Isolate* isolate, Address pc, uint32_t target,
+      Address pc, uint32_t target,
       ICacheFlushMode icache_flush_mode = FLUSH_ICACHE_IF_NEEDED);
 
   // Return the code target address at a call site from the return address
@@ -596,12 +596,11 @@ class Assembler : public AssemblerBase {
   // This is for calls and branches within generated code.  The serializer
   // has already deserialized the lui/ori instructions etc.
   inline static void deserialization_set_special_target_at(
-      Isolate* isolate, Address instruction_payload, Code* code,
-      Address target);
+      Address instruction_payload, Code* code, Address target);
 
   // This sets the internal reference at the pc.
   inline static void deserialization_set_target_internal_reference_at(
-      Isolate* isolate, Address pc, Address target,
+      Address pc, Address target,
       RelocInfo::Mode mode = RelocInfo::INTERNAL_REFERENCE);
 
   // Size of an instruction.

@@ -127,7 +127,7 @@ Address RelocInfo::embedded_address() const { return Memory::Address_at(pc_); }
 
 uint32_t RelocInfo::embedded_size() const { return Memory::uint32_at(pc_); }
 
-void RelocInfo::set_embedded_address(Isolate* isolate, Address address,
+void RelocInfo::set_embedded_address(Address address,
                                      ICacheFlushMode icache_flush_mode) {
   Memory::Address_at(pc_) = address;
   if (icache_flush_mode != SKIP_ICACHE_FLUSH) {
@@ -135,7 +135,7 @@ void RelocInfo::set_embedded_address(Isolate* isolate, Address address,
   }
 }
 
-void RelocInfo::set_embedded_size(Isolate* isolate, uint32_t size,
+void RelocInfo::set_embedded_size(uint32_t size,
                                   ICacheFlushMode icache_flush_mode) {
   Memory::uint32_at(pc_) = size;
   if (icache_flush_mode != SKIP_ICACHE_FLUSH) {
@@ -143,10 +143,10 @@ void RelocInfo::set_embedded_size(Isolate* isolate, uint32_t size,
   }
 }
 
-void RelocInfo::set_js_to_wasm_address(Isolate* isolate, Address address,
+void RelocInfo::set_js_to_wasm_address(Address address,
                                        ICacheFlushMode icache_flush_mode) {
   DCHECK_EQ(rmode_, JS_TO_WASM_CALL);
-  set_embedded_address(isolate, address, icache_flush_mode);
+  set_embedded_address(address, icache_flush_mode);
 }
 
 Address RelocInfo::js_to_wasm_address() const {

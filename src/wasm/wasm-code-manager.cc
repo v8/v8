@@ -70,7 +70,7 @@ void PatchTrampolineAndStubCalls(
 #else
     Address new_target = old_target;
 #endif
-    it.rinfo()->set_target_address(nullptr, new_target, SKIP_WRITE_BARRIER,
+    it.rinfo()->set_target_address(new_target, SKIP_WRITE_BARRIER,
                                    SKIP_ICACHE_FLUSH);
   }
 }
@@ -415,8 +415,7 @@ WasmCode* NativeModule::AddAnonymousCode(Handle<Code> code,
     if (RelocInfo::IsCodeTarget(it.rinfo()->rmode())) {
       Code* call_target =
           Code::GetCodeFromTargetAddress(orig_it.rinfo()->target_address());
-      it.rinfo()->set_target_address(nullptr,
-                                     GetLocalAddressFor(handle(call_target)),
+      it.rinfo()->set_target_address(GetLocalAddressFor(handle(call_target)),
                                      SKIP_WRITE_BARRIER, SKIP_ICACHE_FLUSH);
     } else {
       if (RelocInfo::IsEmbeddedObject(it.rinfo()->rmode())) {
@@ -471,12 +470,12 @@ WasmCode* NativeModule::AddCode(
       // code object
       Handle<Object> p = it.rinfo()->target_object_handle(origin);
       Code* code = Code::cast(*p);
-      it.rinfo()->set_target_address(nullptr, GetLocalAddressFor(handle(code)),
+      it.rinfo()->set_target_address(GetLocalAddressFor(handle(code)),
                                      SKIP_WRITE_BARRIER, SKIP_ICACHE_FLUSH);
     } else if (RelocInfo::IsRuntimeEntry(mode)) {
       Address p = it.rinfo()->target_runtime_entry(origin);
-      it.rinfo()->set_target_runtime_entry(
-          origin->isolate(), p, SKIP_WRITE_BARRIER, SKIP_ICACHE_FLUSH);
+      it.rinfo()->set_target_runtime_entry(p, SKIP_WRITE_BARRIER,
+                                           SKIP_ICACHE_FLUSH);
     } else {
       intptr_t delta = ret->instructions().start() - desc.buffer;
       it.rinfo()->apply(delta);
@@ -564,7 +563,7 @@ void NativeModule::Link(uint32_t index) {
     if (target == nullptr) continue;
     Address target_addr = target->instructions().start();
     DCHECK_NOT_NULL(target);
-    it.rinfo()->set_wasm_call_address(nullptr, target_addr,
+    it.rinfo()->set_wasm_call_address(target_addr,
                                       ICacheFlushMode::SKIP_ICACHE_FLUSH);
   }
 }
@@ -1036,8 +1035,8 @@ void SetWasmCalleeTag(RelocInfo* rinfo, uint32_t tag) {
 #if V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_IA32
   *(reinterpret_cast<uint32_t*>(rinfo->target_address_address())) = tag;
 #else
-  rinfo->set_target_address(nullptr, reinterpret_cast<Address>(tag),
-                            SKIP_WRITE_BARRIER, SKIP_ICACHE_FLUSH);
+  rinfo->set_target_address(reinterpret_cast<Address>(tag), SKIP_WRITE_BARRIER,
+                            SKIP_ICACHE_FLUSH);
 #endif
 }
 

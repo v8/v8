@@ -588,8 +588,7 @@ void RedirectCallsitesInCodeGC(Code* code, CodeRelocationMapGC& map) {
     Code* target = Code::GetCodeFromTargetAddress(it.rinfo()->target_address());
     Handle<Code>* new_target = map.Find(target);
     if (!new_target) continue;
-    it.rinfo()->set_target_address(code->GetIsolate(),
-                                   (*new_target)->instruction_start());
+    it.rinfo()->set_target_address((*new_target)->instruction_start());
   }
 }
 
@@ -603,7 +602,7 @@ void RedirectCallsitesInCode(Isolate* isolate, const wasm::WasmCode* code,
     Address target = it.rinfo()->target_address();
     auto new_target = map->find(target);
     if (new_target == map->end()) continue;
-    it.rinfo()->set_wasm_call_address(isolate, new_target->second);
+    it.rinfo()->set_wasm_call_address(new_target->second);
   }
 }
 
@@ -615,7 +614,7 @@ void RedirectCallsitesInJSWrapperCode(Isolate* isolate, Code* code,
     Address target = it.rinfo()->js_to_wasm_address();
     auto new_target = map->find(target);
     if (new_target == map->end()) continue;
-    it.rinfo()->set_js_to_wasm_address(isolate, new_target->second);
+    it.rinfo()->set_js_to_wasm_address(new_target->second);
   }
 }
 

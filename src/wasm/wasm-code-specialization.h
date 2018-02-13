@@ -47,7 +47,6 @@ class CodeSpecialization {
                        ICacheFlushMode = FLUSH_ICACHE_IF_NEEDED);
 
  private:
-  Isolate* isolate_;
   Address new_wasm_context_address_ = 0;
 
   uint32_t old_function_table_size_ = 0;
