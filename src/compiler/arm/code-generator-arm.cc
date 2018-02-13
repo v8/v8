@@ -578,6 +578,17 @@ void CodeGenerator::AssembleTailCallAfterGap(Instruction* instr,
                                 first_unused_stack_slot);
 }
 
+// Check that {kJavaScriptCallCodeStartRegister} is correct.
+void CodeGenerator::AssembleCodeStartRegisterCheck() {
+  UseScratchRegisterScope temps(tasm());
+  Register scratch = temps.Acquire();
+  int pc_offset = __ pc_offset();
+  // We can use the register pc - 8 for the address of the current instruction.
+  __ sub(scratch, pc, Operand(pc_offset + TurboAssembler::kPcLoadDelta));
+  __ cmp(scratch, kJavaScriptCallCodeStartRegister);
+  __ Assert(eq, AbortReason::kWrongFunctionCodeStart);
+}
+
 // Check if the code object is marked for deoptimization. If it is, then it
 // jumps to the CompileLazyDeoptimizedCode builtin. In order to do this we need
 // to:
@@ -588,16 +599,6 @@ void CodeGenerator::AssembleTailCallAfterGap(Instruction* instr,
 void CodeGenerator::BailoutIfDeoptimized() {
   UseScratchRegisterScope temps(tasm());
   Register scratch = temps.Acquire();
-  if (FLAG_debug_code) {
-    // Check that {kJavaScriptCallCodeStartRegister} is correct.
-    int pc_offset = __ pc_offset();
-    // We can use the register pc - 8 for the address of the current
-    // instruction.
-    __ add(scratch, pc, Operand(pc_offset - TurboAssembler::kPcLoadDelta));
-    __ cmp(scratch, kJavaScriptCallCodeStartRegister);
-    __ Assert(eq, AbortReason::kWrongFunctionCodeStart);
-  }
-
   int offset = Code::kCodeDataContainerOffset - Code::kHeaderSize;
   __ ldr(scratch, MemOperand(kJavaScriptCallCodeStartRegister, offset));
   __ ldr(scratch,
@@ -612,10 +613,9 @@ void CodeGenerator::GenerateSpeculationPoison() {
   UseScratchRegisterScope temps(tasm());
   Register scratch = temps.Acquire();
 
-  // We can use the register pc - 8 for the address of the current
-  // instruction.
+  // We can use the register pc - 8 for the address of the current instruction.
   int pc_offset = __ pc_offset();
-  __ add(scratch, pc, Operand(pc_offset - TurboAssembler::kPcLoadDelta));
+  __ sub(scratch, pc, Operand(pc_offset + TurboAssembler::kPcLoadDelta));
 
   // Calculate a mask which has all bits set in the normal case, but has all
   // bits cleared if we are speculatively executing the wrong PC.

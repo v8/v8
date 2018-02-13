@@ -495,6 +495,23 @@ void CodeGenerator::AssembleTailCallAfterGap(Instruction* instr,
                                 first_unused_stack_slot);
 }
 
+// Check that {kJavaScriptCallCodeStartRegister} is correct.
+void CodeGenerator::AssembleCodeStartRegisterCheck() {
+  __ push(eax);  // Push eax so we can use it as a scratch register.
+  Label current;
+  __ call(&current);
+  int pc = __ pc_offset();
+  __ bind(&current);
+  // In order to get the address of the current instruction, we first need
+  // to use a call and then use a pop, thus pushing the return address to
+  // the stack and then popping it into the register.
+  __ pop(eax);
+  __ sub(eax, Immediate(pc));
+  __ cmp(eax, kJavaScriptCallCodeStartRegister);
+  __ Assert(equal, AbortReason::kWrongFunctionCodeStart);
+  __ pop(eax);  // Restore eax.
+}
+
 // Check if the code object is marked for deoptimization. If it is, then it
 // jumps to the CompileLazyDeoptimizedCode builtin. In order to do this we need
 // to:
@@ -503,23 +520,6 @@ void CodeGenerator::AssembleTailCallAfterGap(Instruction* instr,
 //    2. test kMarkedForDeoptimizationBit in those flags; and
 //    3. if it is not zero then it jumps to the builtin.
 void CodeGenerator::BailoutIfDeoptimized() {
-  if (FLAG_debug_code) {
-    __ push(eax);  // Push eax so we can use it as a scratch register.
-    // Check that {kJavaScriptCallCodeStartRegister} is correct.
-    Label current;
-    __ call(&current);
-    int pc = __ pc_offset();
-    __ bind(&current);
-    // In order to get the address of the current instruction, we first need
-    // to use a call and then use a pop, thus pushing the return address to
-    // the stack and then popping it into the register.
-    __ pop(eax);
-    __ sub(eax, Immediate(pc));
-    __ cmp(eax, kJavaScriptCallCodeStartRegister);
-    __ Assert(equal, AbortReason::kWrongFunctionCodeStart);
-    __ pop(eax);  // Restore eax.
-  }
-
   int offset = Code::kCodeDataContainerOffset - Code::kHeaderSize;
   __ mov(ecx, Operand(kJavaScriptCallCodeStartRegister, offset));
   __ test(FieldOperand(ecx, CodeDataContainer::kKindSpecificFlagsOffset),

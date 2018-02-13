@@ -179,6 +179,10 @@ class CodeGenerator final : public GapResolver::Assembler {
   void AssembleArchLookupSwitch(Instruction* instr);
   void AssembleArchTableSwitch(Instruction* instr);
 
+  // Generates code that checks whether the {kJavaScriptCallCodeStartRegister}
+  // contains the expected pointer to the start of the instruction stream.
+  void AssembleCodeStartRegisterCheck();
+
   // When entering a code that is marked for deoptimization, rather continuing
   // with its execution, we jump to a lazy compiled code. We need to do this
   // because this code has already been deoptimized and needs to be unlinked

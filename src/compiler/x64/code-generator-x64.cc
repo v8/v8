@@ -570,6 +570,18 @@ void CodeGenerator::AssembleTailCallAfterGap(Instruction* instr,
                                 first_unused_stack_slot);
 }
 
+// Check that {kJavaScriptCallCodeStartRegister} is correct.
+void CodeGenerator::AssembleCodeStartRegisterCheck() {
+  Label current;
+  // Load effective address to get the address of the current instruction.
+  __ leaq(rbx, Operand(&current));
+  __ bind(&current);
+  int pc = __ pc_offset();
+  __ subq(rbx, Immediate(pc));
+  __ cmpq(rbx, kJavaScriptCallCodeStartRegister);
+  __ Assert(equal, AbortReason::kWrongFunctionCodeStart);
+}
+
 // Check if the code object is marked for deoptimization. If it is, then it
 // jumps to CompileLazyDeoptimizedCode builtin. In order to do this we need to:
 //    1. read from memory the word that contains that bit, which can be found in
@@ -577,19 +589,6 @@ void CodeGenerator::AssembleTailCallAfterGap(Instruction* instr,
 //    2. test kMarkedForDeoptimizationBit in those flags; and
 //    3. if it is not zero then it jumps to the builtin.
 void CodeGenerator::BailoutIfDeoptimized() {
-  if (FLAG_debug_code) {
-    // Check that {kJavaScriptCallCodeStartRegister} is correct.
-    Label current;
-    // Load effective address to get the address of the current instruction into
-    // rcx.
-    __ leaq(rbx, Operand(&current));
-    __ bind(&current);
-    int pc = __ pc_offset();
-    __ subq(rbx, Immediate(pc));
-    __ cmpq(rbx, kJavaScriptCallCodeStartRegister);
-    __ Assert(equal, AbortReason::kWrongFunctionCodeStart);
-  }
-
   int offset = Code::kCodeDataContainerOffset - Code::kHeaderSize;
   __ movp(rbx, Operand(kJavaScriptCallCodeStartRegister, offset));
   __ testl(FieldOperand(rbx, CodeDataContainer::kKindSpecificFlagsOffset),

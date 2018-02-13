@@ -618,6 +618,25 @@ void CodeGenerator::AssembleTailCallAfterGap(Instruction* instr,
                                 first_unused_stack_slot);
 }
 
+// Check that {kJavaScriptCallCodeStartRegister} is correct.
+void CodeGenerator::AssembleCodeStartRegisterCheck() {
+  Label current;
+  // This push on ra and the pop below together ensure that we restore the
+  // register ra, which is needed while computing frames for deoptimization.
+  __ push(ra);
+  // The bal instruction puts the address of the current instruction into
+  // the return address (ra) register, which we can use later on.
+  __ bal(&current);
+  __ nop();
+  int pc = __ pc_offset();
+  __ bind(&current);
+  __ li(at, pc);
+  __ subu(at, ra, at);
+  __ Assert(eq, AbortReason::kWrongFunctionCodeStart,
+            kJavaScriptCallCodeStartRegister, Operand(at));
+  __ pop(ra);
+}
+
 // Check if the code object is marked for deoptimization. If it is, then it
 // jumps to the CompileLazyDeoptimizedCode builtin. In order to do this we need
 // to:
@@ -626,24 +645,6 @@ void CodeGenerator::AssembleTailCallAfterGap(Instruction* instr,
 //    2. test kMarkedForDeoptimizationBit in those flags; and
 //    3. if it is not zero then it jumps to the builtin.
 void CodeGenerator::BailoutIfDeoptimized() {
-  if (FLAG_debug_code) {
-    // Check that {kJavaScriptCallCodeStartRegister} is correct.
-    Label current;
-    // This push on ra and the pop below together ensure that we restore the
-    // register ra, which is needed while computing frames for deoptimization.
-    __ push(ra);
-    // The bal instruction puts the address of the current instruction into
-    // the return address (ra) register, which we can use later on.
-    __ bal(&current);
-    __ nop();
-    int pc = __ pc_offset();
-    __ bind(&current);
-    __ li(at, pc);
-    __ subu(at, ra, at);
-    __ Assert(eq, AbortReason::kWrongFunctionCodeStart,
-              kJavaScriptCallCodeStartRegister, Operand(at));
-    __ pop(ra);
-  }
   int offset = Code::kCodeDataContainerOffset - Code::kHeaderSize;
   __ lw(a2, MemOperand(kJavaScriptCallCodeStartRegister, offset));
   __ lw(a2, FieldMemOperand(a2, CodeDataContainer::kKindSpecificFlagsOffset));

@@ -148,6 +148,12 @@ void CodeGenerator::AssembleCode() {
     ProfileEntryHookStub::MaybeCallEntryHookDelayed(tasm(), zone());
   }
 
+  // Check that {kJavaScriptCallCodeStartRegister} has been set correctly.
+  if (FLAG_debug_code & (info->code_kind() == Code::OPTIMIZED_FUNCTION ||
+                         info->code_kind() == Code::BYTECODE_HANDLER)) {
+    AssembleCodeStartRegisterCheck();
+  }
+
   if (info->is_speculation_poison_enabled()) {
     GenerateSpeculationPoison();
   }
