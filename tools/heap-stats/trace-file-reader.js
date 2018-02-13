@@ -82,15 +82,7 @@ class TraceFileReader extends HTMLElement {
   createOrUpdateEntryIfNeeded(data, entry) {
     console.assert(entry.isolate, 'entry should have an isolate');
     if (!(entry.isolate in data)) {
-      data[entry.isolate] = {
-        non_empty_instance_types: new Set(),
-        gcs: {},
-        zonetags: [],
-        samples: {zone: {}},
-        start: null,
-        end: null,
-        data_sets: new Set()
-      };
+      data[entry.isolate] = new Isolate(entry.isolate);
     }
     const data_object = data[entry.isolate];
     if (('id' in entry) && !(entry.id in data_object.gcs)) {
@@ -137,55 +129,7 @@ class TraceFileReader extends HTMLElement {
       console.assert(obj[property] >= 0, 'negative property', obj, property);
     };
 
-    for (const isolate of Object.keys(data)) {
-      const isolate_data = data[isolate];
-      for (const gc of Object.keys(isolate_data.gcs)) {
-        const gc_data = isolate_data.gcs[gc];
-        for (const data_set_key of isolate_data.data_sets) {
-          const data_set = data[isolate].gcs[gc][data_set_key];
-          // Create a ranked instance type array that sorts instance types by
-          // memory size (overall).
-          data_set.ranked_instance_types =
-              [...data_set.non_empty_instance_types].sort(function(a, b) {
-                if (data_set.instance_type_data[a].overall >
-                    data_set.instance_type_data[b].overall) {
-                  return 1;
-                } else if (
-                    data_set.instance_type_data[a].overall <
-                    data_set.instance_type_data[b].overall) {
-                  return -1;
-                }
-                return 0;
-              });
-
-          // Check that a lower bound for histogram memory does not exceed the
-          // overall counter.
-          const checkHistogram =
-              (type, entry, bucket_sizes, histogram, overallProperty) => {
-                let sum = 0;
-                for (let i = 1; i < entry[histogram].length; i++) {
-                  sum += entry[histogram][i] * bucket_sizes[i - 1];
-                }
-                const overall = entry[overallProperty];
-                if (sum >= overall) {
-                  console.error(
-                      `${type}: sum('${
-                                       histogram
-                                     }') > overall (${sum} > ${overall})`);
-                }
-              };
-          Object.entries(data_set.instance_type_data).forEach(([
-                                                                name, entry
-                                                              ]) => {
-            checkHistogram(
-                name, entry, data_set.bucket_sizes, 'histogram', ' overall');
-            checkHistogram(
-                name, entry, data_set.bucket_sizes, 'over_allocated_histogram',
-                ' over_allocated');
-          });
-        }
-      }
-    }
+    Object.values(data).forEach(isolate => isolate.finalize());
   }
 
   createModelFromChromeTraceFile(contents) {

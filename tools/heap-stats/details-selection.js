@@ -99,9 +99,16 @@ class DetailsSelection extends HTMLElement {
   dataChanged() {
     this.selection = {categories: {}};
     this.resetUI(true);
-    this.populateSelect(
-        '#isolate-select', Object.keys(this.data).map(v => [v, v]));
+    this.populateIsolateSelect();
     this.handleIsolateChange();
+  }
+
+  populateIsolateSelect() {
+    let entries = Object.entries(this.data);
+    // Sorty by peak heap memory consumption.
+    entries.sort((a, b) => b[1].peakMemory - a[1].peakMemory);
+    this.populateSelect(
+        '#isolate-select', entries, (key, isolate) => isolate.getLabel());
   }
 
   resetUI(resetIsolateSelect) {
@@ -124,11 +131,12 @@ class DetailsSelection extends HTMLElement {
     this.resetUI(false);
     this.populateSelect(
         '#dataset-select',
-        this.data[this.selection.isolate].data_sets.entries(), 'live');
+        this.data[this.selection.isolate].data_sets.entries(), null, 'live');
     this.populateSelect(
         '#gc-select',
         Object.keys(this.data[this.selection.isolate].gcs)
-            .map(v => [v, this.data[this.selection.isolate].gcs[v].time]));
+            .map(v => [v, this.data[this.selection.isolate].gcs[v].time]),
+        time => time + 'ms');
     this.populateCategories();
     this.notifySelectionChanged();
   }
@@ -213,10 +221,12 @@ class DetailsSelection extends HTMLElement {
     return option;
   }
 
-  populateSelect(id, iterable, autoselect = null) {
-    for (let [value, text] of iterable) {
-      const option = this.createOption(value, text);
-      if (autoselect === value) {
+  populateSelect(id, iterable, labelFn = null, autoselect = null) {
+    if (labelFn == null) labelFn = e => e;
+    for (let [key, value] of iterable) {
+      const label = labelFn(key, value);
+      const option = this.createOption(key, label);
+      if (autoselect === key) {
         option.selected = 'selected';
       }
       this.$(id).appendChild(option);
