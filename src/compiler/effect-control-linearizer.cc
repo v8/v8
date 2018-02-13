@@ -726,9 +726,8 @@ bool EffectControlLinearizer::TryWireInStateEffect(Node* node,
       break;
     case IrOpcode::kCheckedTaggedSignedToInt32:
       if (frame_state == nullptr) {
-        V8_Fatal(__FILE__, __LINE__, "No frame state (zapped by #%d: %s)",
-                 frame_state_zapper_->id(),
-                 frame_state_zapper_->op()->mnemonic());
+        FATAL("No frame state (zapped by #%d: %s)", frame_state_zapper_->id(),
+              frame_state_zapper_->op()->mnemonic());
       }
       result = LowerCheckedTaggedSignedToInt32(node, frame_state);
       break;
@@ -972,10 +971,10 @@ bool EffectControlLinearizer::TryWireInStateEffect(Node* node,
   }
 
   if ((result ? 1 : 0) != node->op()->ValueOutputCount()) {
-    V8_Fatal(__FILE__, __LINE__,
-             "Effect control linearizer lowering of '%s':"
-             " value output count does not agree.",
-             node->op()->mnemonic());
+    FATAL(
+        "Effect control linearizer lowering of '%s':"
+        " value output count does not agree.",
+        node->op()->mnemonic());
   }
 
   *effect = gasm()->ExtractCurrentEffect();

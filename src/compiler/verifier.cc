@@ -191,20 +191,18 @@ void Verifier::Visitor::Check(Node* node, const AllNodes& all) {
         }
       }
       if (discovered_if_success && !discovered_if_exception) {
-        V8_Fatal(__FILE__, __LINE__,
-                 "#%d:%s should be followed by IfSuccess/IfException, but is "
-                 "only followed by single #%d:%s",
-                 node->id(), node->op()->mnemonic(),
-                 discovered_if_success->id(),
-                 discovered_if_success->op()->mnemonic());
+        FATAL(
+            "#%d:%s should be followed by IfSuccess/IfException, but is "
+            "only followed by single #%d:%s",
+            node->id(), node->op()->mnemonic(), discovered_if_success->id(),
+            discovered_if_success->op()->mnemonic());
       }
       if (discovered_if_exception && !discovered_if_success) {
-        V8_Fatal(__FILE__, __LINE__,
-                 "#%d:%s should be followed by IfSuccess/IfException, but is "
-                 "only followed by single #%d:%s",
-                 node->id(), node->op()->mnemonic(),
-                 discovered_if_exception->id(),
-                 discovered_if_exception->op()->mnemonic());
+        FATAL(
+            "#%d:%s should be followed by IfSuccess/IfException, but is "
+            "only followed by single #%d:%s",
+            node->id(), node->op()->mnemonic(), discovered_if_exception->id(),
+            discovered_if_exception->op()->mnemonic());
       }
       if (discovered_if_success || discovered_if_exception) {
         CHECK_EQ(2, total_number_of_control_uses);
@@ -312,8 +310,8 @@ void Verifier::Visitor::Check(Node* node, const AllNodes& all) {
             break;
           }
           default: {
-            V8_Fatal(__FILE__, __LINE__, "Switch #%d illegally used by #%d:%s",
-                     node->id(), use->id(), use->op()->mnemonic());
+            FATAL("Switch #%d illegally used by #%d:%s", node->id(), use->id(),
+                  use->op()->mnemonic());
             break;
           }
         }
@@ -1708,9 +1706,8 @@ void Verifier::Run(Graph* graph, Typing typing, CheckInputs check_inputs,
           other->opcode() == IrOpcode::kProjection &&
           other->InputAt(0) == node &&
           ProjectionIndexOf(other->op()) == ProjectionIndexOf(proj->op())) {
-        V8_Fatal(__FILE__, __LINE__,
-                 "Node #%d:%s has duplicate projections #%d and #%d",
-                 node->id(), node->op()->mnemonic(), proj->id(), other->id());
+        FATAL("Node #%d:%s has duplicate projections #%d and #%d", node->id(),
+              node->op()->mnemonic(), proj->id(), other->id());
       }
     }
   }
@@ -1761,10 +1758,9 @@ static void CheckInputsDominate(Schedule* schedule, BasicBlock* block,
     Node* input = node->InputAt(j);
     if (!HasDominatingDef(schedule, node->InputAt(j), block, use_block,
                           use_pos)) {
-      V8_Fatal(__FILE__, __LINE__,
-               "Node #%d:%s in B%d is not dominated by input@%d #%d:%s",
-               node->id(), node->op()->mnemonic(), block->rpo_number(), j,
-               input->id(), input->op()->mnemonic());
+      FATAL("Node #%d:%s in B%d is not dominated by input@%d #%d:%s",
+            node->id(), node->op()->mnemonic(), block->rpo_number(), j,
+            input->id(), input->op()->mnemonic());
     }
   }
   // Ensure that nodes are dominated by their control inputs;
@@ -1774,10 +1770,9 @@ static void CheckInputsDominate(Schedule* schedule, BasicBlock* block,
       node->opcode() != IrOpcode::kEnd) {
     Node* ctl = NodeProperties::GetControlInput(node);
     if (!Dominates(schedule, ctl, node)) {
-      V8_Fatal(__FILE__, __LINE__,
-               "Node #%d:%s in B%d is not dominated by control input #%d:%s",
-               node->id(), node->op()->mnemonic(), block->rpo_number(),
-               ctl->id(), ctl->op()->mnemonic());
+      FATAL("Node #%d:%s in B%d is not dominated by control input #%d:%s",
+            node->id(), node->op()->mnemonic(), block->rpo_number(), ctl->id(),
+            ctl->op()->mnemonic());
     }
   }
 }
@@ -1870,8 +1865,8 @@ void ScheduleVerifier::Run(Schedule* schedule) {
       BitVector* block_doms = dominators[block->id().ToSize()];
       BasicBlock* idom = block->dominator();
       if (idom != nullptr && !block_doms->Contains(idom->id().ToInt())) {
-        V8_Fatal(__FILE__, __LINE__, "Block B%d is not dominated by B%d",
-                 block->rpo_number(), idom->rpo_number());
+        FATAL("Block B%d is not dominated by B%d", block->rpo_number(),
+              idom->rpo_number());
       }
       for (size_t s = 0; s < block->SuccessorCount(); s++) {
         BasicBlock* succ = block->SuccessorAt(s);
@@ -1907,9 +1902,8 @@ void ScheduleVerifier::Run(Schedule* schedule) {
             schedule->GetBlockById(BasicBlock::Id::FromInt(it.Current()));
         if (dom != idom &&
             !dominators[idom->id().ToSize()]->Contains(dom->id().ToInt())) {
-          V8_Fatal(__FILE__, __LINE__,
-                   "Block B%d is not immediately dominated by B%d",
-                   block->rpo_number(), idom->rpo_number());
+          FATAL("Block B%d is not immediately dominated by B%d",
+                block->rpo_number(), idom->rpo_number());
         }
       }
     }

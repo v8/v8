@@ -1063,11 +1063,11 @@ Node* RepresentationChanger::TypeError(Node* node,
     std::ostringstream use_str;
     use_str << use;
 
-    V8_Fatal(__FILE__, __LINE__,
-             "RepresentationChangerError: node #%d:%s of "
-             "%s cannot be changed to %s",
-             node->id(), node->op()->mnemonic(), out_str.str().c_str(),
-             use_str.str().c_str());
+    FATAL(
+        "RepresentationChangerError: node #%d:%s of "
+        "%s cannot be changed to %s",
+        node->id(), node->op()->mnemonic(), out_str.str().c_str(),
+        use_str.str().c_str());
   }
   return node;
 }

@@ -2005,8 +2005,8 @@ void Scope::ResolveTo(ParseInfo* info, VariableProxy* proxy, Variable* var) {
       // The following variable name may be minified. If so, disable
       // minification in js2c.py for better output.
       Handle<String> name = proxy->raw_name()->string();
-      V8_Fatal(__FILE__, __LINE__, "Unbound variable: '%s' in native script.",
-               name->ToCString().get());
+      FATAL("Unbound variable: '%s' in native script.",
+            name->ToCString().get());
     }
     VariableLocation location = var->location();
     DCHECK(location == VariableLocation::LOCAL ||

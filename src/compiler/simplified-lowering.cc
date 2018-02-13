@@ -3060,8 +3060,7 @@ class RepresentationSelector {
       case IrOpcode::kDeadValue:
         return SetOutput(node, MachineRepresentation::kNone);
       default:
-        V8_Fatal(
-            __FILE__, __LINE__,
+        FATAL(
             "Representation inference: unsupported opcode %i (%s), node #%i\n.",
             node->opcode(), node->op()->mnemonic(), node->id());
         break;

@@ -792,7 +792,7 @@ static void InitializeTlsBaseOffset() {
   size_t buffer_size = kBufferSize;
   int ctl_name[] = { CTL_KERN , KERN_OSRELEASE };
   if (sysctl(ctl_name, 2, buffer, &buffer_size, nullptr, 0) != 0) {
-    V8_Fatal(__FILE__, __LINE__, "V8 failed to get kernel version");
+    FATAL("V8 failed to get kernel version");
   }
   // The buffer now contains a string of the form XX.YY.ZZ, where
   // XX is the major kernel version component.
@@ -826,8 +826,7 @@ static void CheckFastTls(Thread::LocalStorageKey key) {
   Thread::SetThreadLocal(key, expected);
   void* actual = Thread::GetExistingThreadLocal(key);
   if (expected != actual) {
-    V8_Fatal(__FILE__, __LINE__,
-             "V8 failed to initialize fast TLS on current kernel");
+    FATAL("V8 failed to initialize fast TLS on current kernel");
   }
   Thread::SetThreadLocal(key, nullptr);
 }

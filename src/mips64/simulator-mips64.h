@@ -473,10 +473,10 @@ class Simulator : public SimulatorBase {
     Instruction* instr_after_compact_branch =
         reinterpret_cast<Instruction*>(current_pc + Instruction::kInstrSize);
     if (instr_after_compact_branch->IsForbiddenAfterBranch()) {
-      V8_Fatal(__FILE__, __LINE__,
-               "Error: Unexpected instruction 0x%08x immediately after a "
-               "compact branch instruction.",
-               *reinterpret_cast<uint32_t*>(instr_after_compact_branch));
+      FATAL(
+          "Error: Unexpected instruction 0x%08x immediately after a "
+          "compact branch instruction.",
+          *reinterpret_cast<uint32_t*>(instr_after_compact_branch));
     }
   }
 
@@ -503,9 +503,8 @@ class Simulator : public SimulatorBase {
     }
 
     if (instr->IsForbiddenAfterBranch()) {
-      V8_Fatal(__FILE__, __LINE__,
-               "Eror:Unexpected %i opcode in a branch delay slot.",
-               instr->OpcodeValue());
+      FATAL("Eror:Unexpected %i opcode in a branch delay slot.",
+            instr->OpcodeValue());
     }
     InstructionDecode(instr);
     SNPrintF(trace_buf_, " ");

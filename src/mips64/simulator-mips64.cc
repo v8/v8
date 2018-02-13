@@ -2478,8 +2478,7 @@ void Simulator::PrintStopInfo(uint64_t code) {
 
 
 void Simulator::SignalException(Exception e) {
-  V8_Fatal(__FILE__, __LINE__, "Error: Exception %i raised.",
-           static_cast<int>(e));
+  FATAL("Error: Exception %i raised.", static_cast<int>(e));
 }
 
 // Min/Max template functions for Double and Single arguments.

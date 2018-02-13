@@ -53,9 +53,9 @@ namespace compiler {
 #define WASM_64 0
 #endif
 
-#define FATAL_UNSUPPORTED_OPCODE(opcode)                               \
-  V8_Fatal(__FILE__, __LINE__, "Unsupported opcode 0x%x:%s", (opcode), \
-           wasm::WasmOpcodes::OpcodeName(opcode));
+#define FATAL_UNSUPPORTED_OPCODE(opcode)        \
+  FATAL("Unsupported opcode 0x%x:%s", (opcode), \
+        wasm::WasmOpcodes::OpcodeName(opcode));
 
 namespace {
 

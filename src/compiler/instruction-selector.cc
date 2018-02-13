@@ -1802,8 +1802,8 @@ void InstructionSelector::VisitNode(Node* node) {
     case IrOpcode::kS1x16AllTrue:
       return MarkAsWord32(node), VisitS1x16AllTrue(node);
     default:
-      V8_Fatal(__FILE__, __LINE__, "Unexpected operator #%d:%s @ node #%d",
-               node->opcode(), node->op()->mnemonic(), node->id());
+      FATAL("Unexpected operator #%d:%s @ node #%d", node->opcode(),
+            node->op()->mnemonic(), node->id());
       break;
   }
 }

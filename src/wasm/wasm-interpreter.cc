@@ -1622,8 +1622,8 @@ class ThreadImpl {
         Push(WasmValue(ExecuteI64UConvertSatF64(Pop().to<double>())));
         return true;
       default:
-        V8_Fatal(__FILE__, __LINE__, "Unknown or unimplemented opcode #%d:%s",
-                 code->start[pc], OpcodeName(code->start[pc]));
+        FATAL("Unknown or unimplemented opcode #%d:%s", code->start[pc],
+              OpcodeName(code->start[pc]));
         UNREACHABLE();
     }
     return false;
@@ -2233,8 +2233,8 @@ class ThreadImpl {
 #undef EXECUTE_UNOP
 
         default:
-          V8_Fatal(__FILE__, __LINE__, "Unknown or unimplemented opcode #%d:%s",
-                   code->start[pc], OpcodeName(code->start[pc]));
+          FATAL("Unknown or unimplemented opcode #%d:%s", code->start[pc],
+                OpcodeName(code->start[pc]));
           UNREACHABLE();
       }
 

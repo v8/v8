@@ -342,14 +342,14 @@ void Snapshot::CheckVersion(const v8::StartupData* data) {
   Version::GetString(Vector<char>(version, kVersionStringLength));
   if (strncmp(version, data->data + kVersionStringOffset,
               kVersionStringLength) != 0) {
-    V8_Fatal(__FILE__, __LINE__,
-             "Version mismatch between V8 binary and snapshot.\n"
-             "#   V8 binary version: %.*s\n"
-             "#    Snapshot version: %.*s\n"
-             "# The snapshot consists of %d bytes and contains %d context(s).",
-             kVersionStringLength, version, kVersionStringLength,
-             data->data + kVersionStringOffset, data->raw_size,
-             ExtractNumContexts(data));
+    FATAL(
+        "Version mismatch between V8 binary and snapshot.\n"
+        "#   V8 binary version: %.*s\n"
+        "#    Snapshot version: %.*s\n"
+        "# The snapshot consists of %d bytes and contains %d context(s).",
+        kVersionStringLength, version, kVersionStringLength,
+        data->data + kVersionStringOffset, data->raw_size,
+        ExtractNumContexts(data));
   }
 }
 
