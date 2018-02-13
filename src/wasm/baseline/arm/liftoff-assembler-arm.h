@@ -138,23 +138,16 @@ UNIMPLEMENTED_FP_BINOP(f64_mul)
 #undef UNIMPLEMENTED_FP_BINOP
 #undef UNIMPLEMENTED_SHIFTOP
 
-void LiftoffAssembler::emit_i32_test(Register reg) { BAILOUT("emit_i32_test"); }
-
-void LiftoffAssembler::emit_i32_compare(Register lhs, Register rhs) {
-  BAILOUT("emit_i32_compare");
-}
-
-void LiftoffAssembler::emit_ptrsize_compare(Register lhs, Register rhs) {
-  BAILOUT("emit_ptrsize_compare");
-}
-
 void LiftoffAssembler::emit_jump(Label* label) { BAILOUT("emit_jump"); }
 
-void LiftoffAssembler::emit_cond_jump(Condition cond, Label* label) {
+void LiftoffAssembler::emit_cond_jump(Condition cond, Label* label,
+                                      ValueType type, Register lhs,
+                                      Register rhs) {
   BAILOUT("emit_cond_jump");
 }
 
-void LiftoffAssembler::emit_i32_set_cond(Condition cond, Register dst) {
+void LiftoffAssembler::emit_i32_set_cond(Condition cond, Register dst,
+                                         Register lhs, Register rhs) {
   BAILOUT("emit_i32_set_cond");
 }
 

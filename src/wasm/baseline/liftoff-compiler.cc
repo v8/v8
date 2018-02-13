@@ -431,8 +431,8 @@ class LiftoffCompiler {
 
     // Test the condition, jump to else if zero.
     Register value = __ PopToRegister(kGpReg).gp();
-    __ emit_i32_test(value);
-    __ emit_cond_jump(kEqual, if_block->else_state->label.get());
+    __ emit_cond_jump(kEqual, if_block->else_state->label.get(), kWasmI32,
+                      value);
 
     if_block->label_state.stack_base = __ cache_state()->stack_height();
     // Store the state (after popping the value) for executing the else branch.
@@ -534,8 +534,7 @@ class LiftoffCompiler {
     LiftoffRegList pinned;
     LiftoffRegister dst = pinned.set(__ GetUnaryOpTargetRegister(kGpReg));
     LiftoffRegister src = pinned.set(__ PopToRegister(kGpReg, pinned));
-    asm_->emit_i32_test(src.gp());
-    asm_->emit_i32_set_cond(kEqual, dst.gp());
+    asm_->emit_i32_set_cond(kEqual, dst.gp(), src.gp());
     __ PushRegister(kWasmI32, dst);
   }
 
@@ -574,8 +573,7 @@ class LiftoffCompiler {
     LiftoffRegister dst = pinned.set(__ GetBinaryOpTargetRegister(kGpReg));
     LiftoffRegister rhs = pinned.set(__ PopToRegister(kGpReg, pinned));
     LiftoffRegister lhs = __ PopToRegister(kGpReg, pinned);
-    __ emit_i32_compare(lhs.gp(), rhs.gp());
-    __ emit_i32_set_cond(cond, dst.gp());
+    __ emit_i32_set_cond(cond, dst.gp(), lhs.gp(), rhs.gp());
     __ PushRegister(kWasmI32, dst);
   }
 
@@ -853,8 +851,7 @@ class LiftoffCompiler {
   void BrIf(Decoder* decoder, const Value& cond, Control* target) {
     Label cont_false;
     Register value = __ PopToRegister(kGpReg).gp();
-    __ emit_i32_test(value);
-    __ emit_cond_jump(kEqual, &cont_false);
+    __ emit_cond_jump(kEqual, &cont_false, kWasmI32, value);
 
     Br(target);
     __ bind(&cont_false);
@@ -907,8 +904,8 @@ class LiftoffCompiler {
     __ LoadFromContext(mem_size.gp(), offsetof(WasmContext, mem_size), 4);
     __ LoadConstant(end_offset_reg, WasmValue(end_offset));
     if (end_offset >= min_size_) {
-      __ emit_i32_compare(end_offset_reg.gp(), mem_size.gp());
-      __ emit_cond_jump(kUnsignedGreaterEqual, trap_label);
+      __ emit_cond_jump(kUnsignedGreaterEqual, trap_label, kWasmI32,
+                        end_offset_reg.gp(), mem_size.gp());
     }
 
     // Just reuse the end_offset register for computing the effective size.
@@ -916,8 +913,8 @@ class LiftoffCompiler {
     __ emit_i32_sub(effective_size_reg.gp(), mem_size.gp(),
                     end_offset_reg.gp());
 
-    __ emit_i32_compare(index, effective_size_reg.gp());
-    __ emit_cond_jump(kUnsignedGreaterEqual, trap_label);
+    __ emit_cond_jump(kUnsignedGreaterEqual, trap_label, kWasmI32, index,
+                      effective_size_reg.gp());
   }
 
   void TraceMemoryOperation(bool is_store, MachineRepresentation rep,
@@ -1136,8 +1133,8 @@ class LiftoffCompiler {
 
       __ LoadConstant(tmp_const, WasmValue(table_size),
                       RelocInfo::WASM_FUNCTION_TABLE_SIZE_REFERENCE);
-      __ emit_i32_compare(index.gp(), tmp_const.gp());
-      __ emit_cond_jump(kUnsignedGreaterEqual, trap_label);
+      __ emit_cond_jump(kUnsignedGreaterEqual, trap_label, kWasmI32, index.gp(),
+                        tmp_const.gp());
     }
 
     wasm::GlobalHandleAddress function_table_handle_address =
@@ -1168,11 +1165,11 @@ class LiftoffCompiler {
     DCHECK_GE(kMaxInt, canonical_sig_num);
 
     __ LoadConstant(tmp_const, WasmPtrValue(Smi::FromInt(canonical_sig_num)));
-    __ emit_ptrsize_compare(scratch.gp(), tmp_const.gp());
 
     Label* trap_label = AddOutOfLineTrap(
         decoder->position(), Builtins::kThrowWasmTrapFuncSigMismatch);
-    __ emit_cond_jump(kUnequal, trap_label);
+    __ emit_cond_jump(kUnequal, trap_label, LiftoffAssembler::kWasmIntPtr,
+                      scratch.gp(), tmp_const.gp());
 
     // Load code object.
     __ Load(scratch, table.gp(), index.gp(), kFixedArrayOffset + kPointerSize,

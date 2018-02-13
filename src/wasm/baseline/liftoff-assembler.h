@@ -380,13 +380,12 @@ class LiftoffAssembler : public TurboAssembler {
   inline void emit_f64_mul(DoubleRegister dst, DoubleRegister lhs,
                            DoubleRegister rhs);
 
-  inline void emit_i32_test(Register);
-  inline void emit_i32_compare(Register, Register);
-  inline void emit_ptrsize_compare(Register, Register);
   inline void emit_jump(Label*);
-  inline void emit_cond_jump(Condition, Label*);
+  inline void emit_cond_jump(Condition, Label*, ValueType value, Register lhs,
+                             Register rhs = no_reg);
   // Set {dst} to 1 if condition holds, 0 otherwise.
-  inline void emit_i32_set_cond(Condition, Register dst);
+  inline void emit_i32_set_cond(Condition, Register dst, Register lhs,
+                                Register rhs = no_reg);
 
   inline void StackCheck(Label* ool_code);
 

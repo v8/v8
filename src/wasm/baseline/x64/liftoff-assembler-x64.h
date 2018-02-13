@@ -549,23 +549,38 @@ void LiftoffAssembler::emit_f64_mul(DoubleRegister dst, DoubleRegister lhs,
   }
 }
 
-void LiftoffAssembler::emit_i32_test(Register reg) { testl(reg, reg); }
-
-void LiftoffAssembler::emit_i32_compare(Register lhs, Register rhs) {
-  cmpl(lhs, rhs);
-}
-
-void LiftoffAssembler::emit_ptrsize_compare(Register lhs, Register rhs) {
-  cmpp(lhs, rhs);
-}
-
 void LiftoffAssembler::emit_jump(Label* label) { jmp(label); }
 
-void LiftoffAssembler::emit_cond_jump(Condition cond, Label* label) {
+void LiftoffAssembler::emit_cond_jump(Condition cond, Label* label,
+                                      ValueType type, Register lhs,
+                                      Register rhs) {
+  if (rhs != no_reg) {
+    switch (type) {
+      case kWasmI32:
+        cmpl(lhs, rhs);
+        break;
+      case kWasmI64:
+        cmpq(lhs, rhs);
+        break;
+      default:
+        UNREACHABLE();
+    }
+  } else {
+    DCHECK_EQ(type, kWasmI32);
+    testl(lhs, lhs);
+  }
+
   j(cond, label);
 }
 
-void LiftoffAssembler::emit_i32_set_cond(Condition cond, Register dst) {
+void LiftoffAssembler::emit_i32_set_cond(Condition cond, Register dst,
+                                         Register lhs, Register rhs) {
+  if (rhs != no_reg) {
+    cmpl(lhs, rhs);
+  } else {
+    testl(lhs, lhs);
+  }
+
   setcc(cond, dst);
   movzxbl(dst, dst);
 }

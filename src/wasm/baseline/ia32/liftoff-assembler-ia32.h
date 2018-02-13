@@ -609,23 +609,35 @@ void LiftoffAssembler::emit_f64_mul(DoubleRegister dst, DoubleRegister lhs,
   }
 }
 
-void LiftoffAssembler::emit_i32_test(Register reg) { test(reg, reg); }
-
-void LiftoffAssembler::emit_i32_compare(Register lhs, Register rhs) {
-  cmp(lhs, rhs);
-}
-
-void LiftoffAssembler::emit_ptrsize_compare(Register lhs, Register rhs) {
-  emit_i32_compare(lhs, rhs);
-}
-
 void LiftoffAssembler::emit_jump(Label* label) { jmp(label); }
 
-void LiftoffAssembler::emit_cond_jump(Condition cond, Label* label) {
+void LiftoffAssembler::emit_cond_jump(Condition cond, Label* label,
+                                      ValueType type, Register lhs,
+                                      Register rhs) {
+  if (rhs != no_reg) {
+    switch (type) {
+      case kWasmI32:
+        cmp(lhs, rhs);
+        break;
+      default:
+        UNREACHABLE();
+    }
+  } else {
+    DCHECK_EQ(type, kWasmI32);
+    test(lhs, lhs);
+  }
+
   j(cond, label);
 }
 
-void LiftoffAssembler::emit_i32_set_cond(Condition cond, Register dst) {
+void LiftoffAssembler::emit_i32_set_cond(Condition cond, Register dst,
+                                         Register lhs, Register rhs) {
+  if (rhs != no_reg) {
+    cmp(lhs, rhs);
+  } else {
+    test(lhs, lhs);
+  }
+
   Register tmp_byte_reg = dst;
   // Only the lower 4 registers can be addressed as 8-bit registers.
   if (!dst.is_byte_register()) {

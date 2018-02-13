@@ -77,7 +77,7 @@ constexpr Condition kUnsignedLessEqual = below_equal;
 constexpr Condition kUnsignedGreaterThan = above;
 constexpr Condition kUnsignedGreaterEqual = above_equal;
 
-#elif V8_TARGET_ARCH_MIPS
+#elif V8_TARGET_ARCH_MIPS || V8_TARGET_ARCH_MIPS64
 
 constexpr Condition kEqual = eq;
 constexpr Condition kUnequal = ne;
