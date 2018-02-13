@@ -485,6 +485,9 @@ class RelocInfo {
   intptr_t data() const { return data_; }
   Code* host() const { return host_; }
   Address constant_pool() const { return constant_pool_; }
+  void set_constant_pool(Address constant_pool) {
+    constant_pool_ = constant_pool;
+  }
 
   // Apply a relocation by delta bytes. When the code object is moved, PC
   // relative addresses have to be updated as well as absolute addresses
