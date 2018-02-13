@@ -111,12 +111,6 @@ class V8_EXPORT_PRIVATE CompilationInfo final {
   JavaScriptFrame* osr_frame() const { return osr_frame_; }
   int num_parameters() const;
   int num_parameters_including_this() const;
-  bool is_this_defined() const;
-
-  void set_parameter_count(int parameter_count) {
-    DCHECK(IsStub());
-    parameter_count_ = parameter_count;
-  }
 
   bool has_bytecode_array() const { return !bytecode_array_.is_null(); }
   Handle<BytecodeArray> bytecode_array() const { return bytecode_array_; }
@@ -353,9 +347,6 @@ class V8_EXPORT_PRIVATE CompilationInfo final {
   BailoutReason bailout_reason_;
 
   InlinedFunctionList inlined_functions_;
-
-  // Number of parameters used for compilation of stubs that require arguments.
-  int parameter_count_;
 
   int optimization_id_;
 

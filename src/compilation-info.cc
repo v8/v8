@@ -80,7 +80,6 @@ CompilationInfo::CompilationInfo(Vector<const char> debug_name,
       deferred_handles_(nullptr),
       dependencies_(nullptr),
       bailout_reason_(BailoutReason::kNoReason),
-      parameter_count_(0),
       optimization_id_(-1),
       debug_name_(debug_name) {}
 
@@ -99,14 +98,14 @@ DeclarationScope* CompilationInfo::scope() const {
 }
 
 int CompilationInfo::num_parameters() const {
-  return !IsStub() ? scope()->num_parameters() : parameter_count_;
+  DCHECK(!IsStub());
+  return scope()->num_parameters();
 }
 
 int CompilationInfo::num_parameters_including_this() const {
-  return num_parameters() + (is_this_defined() ? 1 : 0);
+  DCHECK(!IsStub());
+  return scope()->num_parameters() + 1;
 }
-
-bool CompilationInfo::is_this_defined() const { return !IsStub(); }
 
 void CompilationInfo::set_deferred_handles(
     std::shared_ptr<DeferredHandles> deferred_handles) {
