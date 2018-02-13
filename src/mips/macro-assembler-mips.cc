@@ -5292,6 +5292,8 @@ bool AreAliased(Register reg1, Register reg2, Register reg3, Register reg4,
   return n_of_valid_regs != n_of_non_aliasing_regs;
 }
 
+void TurboAssembler::ResetSpeculationPoisonRegister() { UNREACHABLE(); }
+
 }  // namespace internal
 }  // namespace v8
 

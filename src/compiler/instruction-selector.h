@@ -41,7 +41,6 @@ struct PushParameter {
 };
 
 enum class FrameStateInputKind { kAny, kStackSlot };
-
 // Instruction selection generates an InstructionSequence for a given Schedule.
 class V8_EXPORT_PRIVATE InstructionSelector final {
  public:
@@ -71,7 +70,8 @@ class V8_EXPORT_PRIVATE InstructionSelector final {
       EnableScheduling enable_scheduling = FLAG_turbo_instruction_scheduling
                                                ? kEnableScheduling
                                                : kDisableScheduling,
-      EnableSerialization enable_serialization = kDisableSerialization);
+      EnableSerialization enable_serialization = kDisableSerialization,
+      LoadPoisoning poisoning = LoadPoisoning::kDontPoison);
 
   // Visit code for the entire graph with the included schedule.
   bool SelectInstructions();
@@ -167,6 +167,9 @@ class V8_EXPORT_PRIVATE InstructionSelector final {
   static MachineOperatorBuilder::Flags SupportedMachineOperatorFlags();
 
   static MachineOperatorBuilder::AlignmentRequirements AlignmentRequirements();
+
+  // TODO(jarin) This is temporary until the poisoning is universally supported.
+  static bool SupportsSpeculationPoisoning();
 
   // ===========================================================================
   // ============ Architecture-independent graph covering methods. =============
@@ -460,6 +463,7 @@ class V8_EXPORT_PRIVATE InstructionSelector final {
   EnableSerialization enable_serialization_;
   EnableSwitchJumpTable enable_switch_jump_table_;
   EnableSpeculationPoison enable_speculation_poison_;
+  LoadPoisoning load_poisoning_;
   Frame* frame_;
   bool instruction_selection_failed_;
 };

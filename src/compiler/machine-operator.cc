@@ -37,7 +37,8 @@ std::ostream& operator<<(std::ostream& os, StoreRepresentation rep) {
 LoadRepresentation LoadRepresentationOf(Operator const* op) {
   DCHECK(IrOpcode::kLoad == op->opcode() ||
          IrOpcode::kProtectedLoad == op->opcode() ||
-         IrOpcode::kAtomicLoad == op->opcode());
+         IrOpcode::kAtomicLoad == op->opcode() ||
+         IrOpcode::kPoisonedLoad == op->opcode());
   return OpParameter<LoadRepresentation>(op);
 }
 
@@ -460,6 +461,14 @@ struct MachineOperatorGlobalCache {
               Operator::kNoDeopt | Operator::kNoThrow | Operator::kNoWrite,   \
               "Load", 2, 1, 1, 1, 1, 0, MachineType::Type()) {}               \
   };                                                                          \
+  struct PoisonedLoad##Type##Operator final                                   \
+      : public Operator1<LoadRepresentation> {                                \
+    PoisonedLoad##Type##Operator()                                            \
+        : Operator1<LoadRepresentation>(                                      \
+              IrOpcode::kPoisonedLoad,                                        \
+              Operator::kNoDeopt | Operator::kNoThrow | Operator::kNoWrite,   \
+              "PoisonedLoad", 2, 1, 1, 1, 1, 0, MachineType::Type()) {}       \
+  };                                                                          \
   struct UnalignedLoad##Type##Operator final                                  \
       : public Operator1<UnalignedLoadRepresentation> {                       \
     UnalignedLoad##Type##Operator()                                           \
@@ -477,6 +486,7 @@ struct MachineOperatorGlobalCache {
               1, 1, 1, 0, MachineType::Type()) {}                             \
   };                                                                          \
   Load##Type##Operator kLoad##Type;                                           \
+  PoisonedLoad##Type##Operator kPoisonedLoad##Type;                           \
   UnalignedLoad##Type##Operator kUnalignedLoad##Type;                         \
   ProtectedLoad##Type##Operator kProtectedLoad##Type;
   MACHINE_TYPE_LIST(LOAD)
@@ -732,6 +742,16 @@ const Operator* MachineOperatorBuilder::Load(LoadRepresentation rep) {
     return &cache_.kLoad##Type;     \
   }
     MACHINE_TYPE_LIST(LOAD)
+#undef LOAD
+  UNREACHABLE();
+}
+
+const Operator* MachineOperatorBuilder::PoisonedLoad(LoadRepresentation rep) {
+#define LOAD(Type)                      \
+  if (rep == MachineType::Type()) {     \
+    return &cache_.kPoisonedLoad##Type; \
+  }
+  MACHINE_TYPE_LIST(LOAD)
 #undef LOAD
   UNREACHABLE();
 }

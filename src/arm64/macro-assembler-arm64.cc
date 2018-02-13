@@ -3299,6 +3299,7 @@ InlineSmiCheckInfo::InlineSmiCheckInfo(Address info)
   }
 }
 
+void TurboAssembler::ResetSpeculationPoisonRegister() { UNREACHABLE(); }
 
 #undef __
 

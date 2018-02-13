@@ -28,7 +28,7 @@ InstructionSelector::InstructionSelector(
     EnableSpeculationPoison enable_speculation_poison,
     SourcePositionMode source_position_mode, Features features,
     EnableScheduling enable_scheduling,
-    EnableSerialization enable_serialization)
+    EnableSerialization enable_serialization, LoadPoisoning load_poisoning)
     : zone_(zone),
       linkage_(linkage),
       sequence_(sequence),
@@ -49,6 +49,7 @@ InstructionSelector::InstructionSelector(
       enable_serialization_(enable_serialization),
       enable_switch_jump_table_(enable_switch_jump_table),
       enable_speculation_poison_(enable_speculation_poison),
+      load_poisoning_(load_poisoning),
       frame_(frame),
       instruction_selection_failed_(false) {
   instructions_.reserve(node_count);
@@ -1004,7 +1005,6 @@ void InstructionSelector::VisitControl(BasicBlock* block) {
       return VisitTailCall(input);
     }
     case BasicBlock::kBranch: {
-      DCHECK_EQ(IrOpcode::kBranch, input->opcode());
       BasicBlock* tbranch = block->SuccessorAt(0);
       BasicBlock* fbranch = block->SuccessorAt(1);
       if (tbranch == fbranch) return VisitGoto(tbranch);
@@ -1171,6 +1171,11 @@ void InstructionSelector::VisitNode(Node* node) {
       LoadRepresentation type = LoadRepresentationOf(node->op());
       MarkAsRepresentation(type.representation(), node);
       return VisitLoad(node);
+    }
+    case IrOpcode::kPoisonedLoad: {
+      LoadRepresentation type = LoadRepresentationOf(node->op());
+      MarkAsRepresentation(type.representation(), node);
+      return VisitPoisonedLoad(node);
     }
     case IrOpcode::kStore:
       return VisitStore(node);
@@ -2543,21 +2548,33 @@ void InstructionSelector::VisitReturn(Node* ret) {
 
 void InstructionSelector::VisitBranch(Node* branch, BasicBlock* tbranch,
                                       BasicBlock* fbranch) {
-  FlagsContinuation cont(kNotEqual, tbranch, fbranch);
+  LoadPoisoning poisoning =
+      IsSafetyCheckOf(branch->op()) == IsSafetyCheck::kSafetyCheck
+          ? load_poisoning_
+          : LoadPoisoning::kDontPoison;
+  FlagsContinuation cont =
+      FlagsContinuation::ForBranch(kNotEqual, tbranch, fbranch, poisoning);
   VisitWordCompareZero(branch, branch->InputAt(0), &cont);
 }
 
 void InstructionSelector::VisitDeoptimizeIf(Node* node) {
   DeoptimizeParameters p = DeoptimizeParametersOf(node->op());
+  LoadPoisoning poisoning = p.is_safety_check() == IsSafetyCheck::kSafetyCheck
+                                ? load_poisoning_
+                                : LoadPoisoning::kDontPoison;
   FlagsContinuation cont = FlagsContinuation::ForDeoptimize(
-      kNotEqual, p.kind(), p.reason(), p.feedback(), node->InputAt(1));
+      kNotEqual, p.kind(), p.reason(), p.feedback(), node->InputAt(1),
+      poisoning);
   VisitWordCompareZero(node, node->InputAt(0), &cont);
 }
 
 void InstructionSelector::VisitDeoptimizeUnless(Node* node) {
   DeoptimizeParameters p = DeoptimizeParametersOf(node->op());
+  LoadPoisoning poisoning = p.is_safety_check() == IsSafetyCheck::kSafetyCheck
+                                ? load_poisoning_
+                                : LoadPoisoning::kDontPoison;
   FlagsContinuation cont = FlagsContinuation::ForDeoptimize(
-      kEqual, p.kind(), p.reason(), p.feedback(), node->InputAt(1));
+      kEqual, p.kind(), p.reason(), p.feedback(), node->InputAt(1), poisoning);
   VisitWordCompareZero(node, node->InputAt(0), &cont);
 }
 

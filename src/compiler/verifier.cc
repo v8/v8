@@ -268,12 +268,13 @@ void Verifier::Visitor::Check(Node* node, const AllNodes& all) {
       break;
     }
     case IrOpcode::kIfTrue:
-    case IrOpcode::kIfFalse:
-      CHECK_EQ(IrOpcode::kBranch,
-               NodeProperties::GetControlInput(node, 0)->opcode());
+    case IrOpcode::kIfFalse: {
+      Node* control = NodeProperties::GetControlInput(node, 0);
+      CHECK(control->opcode() == IrOpcode::kBranch);
       // Type is empty.
       CheckNotTyped(node);
       break;
+    }
     case IrOpcode::kIfSuccess: {
       // IfSuccess and IfException continuation only on throwing nodes.
       Node* input = NodeProperties::GetControlInput(node, 0);
@@ -1498,6 +1499,7 @@ void Verifier::Visitor::Check(Node* node, const AllNodes& all) {
     // Machine operators
     // -----------------------
     case IrOpcode::kLoad:
+    case IrOpcode::kPoisonedLoad:
     case IrOpcode::kProtectedLoad:
     case IrOpcode::kProtectedStore:
     case IrOpcode::kStore:

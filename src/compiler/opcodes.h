@@ -556,6 +556,7 @@
   V(DebugBreak)                 \
   V(Comment)                    \
   V(Load)                       \
+  V(PoisonedLoad)               \
   V(Store)                      \
   V(StackSlot)                  \
   V(Word32Popcnt)               \

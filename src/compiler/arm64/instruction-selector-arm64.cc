@@ -629,8 +629,15 @@ void InstructionSelector::VisitLoad(Node* node) {
       UNREACHABLE();
       return;
   }
+  if (node->opcode() == IrOpcode::kPoisonedLoad &&
+      load_poisoning_ == LoadPoisoning::kDoPoison) {
+    opcode |= MiscField::encode(kMemoryAccessPoisoned);
+  }
+
   EmitLoad(this, node, opcode, immediate_mode, rep);
 }
+
+void InstructionSelector::VisitPoisonedLoad(Node* node) { VisitLoad(node); }
 
 void InstructionSelector::VisitProtectedLoad(Node* node) {
   // TODO(eholk)
@@ -3145,6 +3152,9 @@ InstructionSelector::AlignmentRequirements() {
   return MachineOperatorBuilder::AlignmentRequirements::
       FullUnalignedAccessSupport();
 }
+
+// static
+bool InstructionSelector::SupportsSpeculationPoisoning() { return false; }
 
 }  // namespace compiler
 }  // namespace internal

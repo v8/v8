@@ -2179,6 +2179,11 @@ void CodeGenerator::AssembleArchBranch(Instruction* instr, BranchInfo* branch) {
   if (!branch->fallthru) __ B(flabel);  // no fallthru to flabel.
 }
 
+void CodeGenerator::AssembleBranchPoisoning(FlagsCondition condition,
+                                            Instruction* instr) {
+  UNREACHABLE();
+}
+
 void CodeGenerator::AssembleArchDeoptBranch(Instruction* instr,
                                             BranchInfo* branch) {
   AssembleArchBranch(instr, branch);
@@ -2708,7 +2713,6 @@ void CodeGenerator::AssembleJumpTable(Label** targets, size_t target_count) {
   // On 64-bit ARM we emit the jump tables inline.
   UNREACHABLE();
 }
-
 
 #undef __
 

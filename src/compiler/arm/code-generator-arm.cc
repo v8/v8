@@ -30,7 +30,9 @@ class ArmOperandConverter final : public InstructionOperandConverter {
   SBit OutputSBit() const {
     switch (instr_->flags_mode()) {
       case kFlags_branch:
+      case kFlags_branch_and_poison:
       case kFlags_deoptimize:
+      case kFlags_deoptimize_and_poison:
       case kFlags_set:
       case kFlags_trap:
         return SetCC;
@@ -2701,6 +2703,11 @@ void CodeGenerator::AssembleArchBranch(Instruction* instr, BranchInfo* branch) {
   Condition cc = FlagsConditionToCondition(branch->condition);
   __ b(cc, tlabel);
   if (!branch->fallthru) __ b(flabel);  // no fallthru to flabel.
+}
+
+void CodeGenerator::AssembleBranchPoisoning(FlagsCondition condition,
+                                            Instruction* instr) {
+  UNREACHABLE();
 }
 
 void CodeGenerator::AssembleArchDeoptBranch(Instruction* instr,

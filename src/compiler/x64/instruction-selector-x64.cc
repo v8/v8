@@ -307,10 +307,15 @@ void InstructionSelector::VisitLoad(Node* node) {
       g.GetEffectiveAddressMemoryOperand(node, inputs, &input_count);
   InstructionCode code = opcode | AddressingModeField::encode(mode);
   if (node->opcode() == IrOpcode::kProtectedLoad) {
-    code |= MiscField::encode(X64MemoryProtection::kProtected);
+    code |= MiscField::encode(kMemoryAccessProtected);
+  } else if (node->opcode() == IrOpcode::kPoisonedLoad &&
+             load_poisoning_ == LoadPoisoning::kDoPoison) {
+    code |= MiscField::encode(kMemoryAccessPoisoned);
   }
   Emit(code, 1, outputs, input_count, inputs);
 }
+
+void InstructionSelector::VisitPoisonedLoad(Node* node) { VisitLoad(node); }
 
 void InstructionSelector::VisitProtectedLoad(Node* node) { VisitLoad(node); }
 
@@ -391,7 +396,7 @@ void InstructionSelector::VisitProtectedStore(Node* node) {
   AddressingMode addressing_mode =
       g.GetEffectiveAddressMemoryOperand(node, inputs, &input_count);
   InstructionCode code = opcode | AddressingModeField::encode(addressing_mode) |
-                         MiscField::encode(X64MemoryProtection::kProtected);
+                         MiscField::encode(kMemoryAccessProtected);
   InstructionOperand value_operand =
       g.CanBeImmediate(value) ? g.UseImmediate(value) : g.UseRegister(value);
   inputs[input_count++] = value_operand;
@@ -1139,7 +1144,8 @@ bool ZeroExtendsWord32ToWord64(Node* node) {
           return false;
       }
     }
-    case IrOpcode::kLoad: {
+    case IrOpcode::kLoad:
+    case IrOpcode::kPoisonedLoad: {
       // The movzxbl/movsxbl/movzxwl/movsxwl/movl operations implicitly
       // zero-extend to 64-bit on x64, so the zero-extension is a no-op.
       LoadRepresentation load_rep = LoadRepresentationOf(node->op());
@@ -2531,6 +2537,9 @@ InstructionSelector::AlignmentRequirements() {
   return MachineOperatorBuilder::AlignmentRequirements::
       FullUnalignedAccessSupport();
 }
+
+// static
+bool InstructionSelector::SupportsSpeculationPoisoning() { return true; }
 
 }  // namespace compiler
 }  // namespace internal

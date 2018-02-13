@@ -534,6 +534,8 @@ class TurboAssembler : public Assembler {
 #endif
   }
 
+  void ResetSpeculationPoisonRegister();
+
  private:
   bool has_frame_ = false;
   Isolate* const isolate_;

@@ -328,6 +328,8 @@ class TurboAssembler : public Assembler {
                      Register exclusion2 = no_reg,
                      Register exclusion3 = no_reg);
 
+  void ResetSpeculationPoisonRegister();
+
  private:
   bool has_frame_ = false;
   Isolate* const isolate_;

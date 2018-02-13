@@ -878,6 +878,8 @@ class TurboAssembler : public Assembler {
   void Dlsa(Register rd, Register rs, Register rt, uint8_t sa,
             Register scratch = at);
 
+  void ResetSpeculationPoisonRegister();
+
  protected:
   inline Register GetRtAsRegisterHelper(const Operand& rt, Register scratch);
   inline int32_t GetOffset(int32_t offset, Label* L, OffsetSize bits);

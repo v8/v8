@@ -847,6 +847,8 @@ class TurboAssembler : public Assembler {
     BranchF64(bd, target, nan, cc, cmp1, cmp2);
   }
 
+  void ResetSpeculationPoisonRegister();
+
  protected:
   void BranchLong(Label* L, BranchDelaySlot bdslot);
 

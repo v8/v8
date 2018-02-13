@@ -479,6 +479,8 @@ class TurboAssembler : public Assembler {
                      Register exclusion2 = no_reg,
                      Register exclusion3 = no_reg);
 
+  void ResetSpeculationPoisonRegister();
+
  protected:
   static const int kSmiShift = kSmiTagSize + kSmiShiftSize;
   int smi_count = 0;

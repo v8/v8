@@ -365,7 +365,8 @@ int InstructionScheduler::GetInstructionFlags(const Instruction* instr) const {
 
 bool InstructionScheduler::IsBlockTerminator(const Instruction* instr) const {
   return ((GetInstructionFlags(instr) & kIsBlockTerminator) ||
-          (instr->flags_mode() == kFlags_branch));
+          (instr->flags_mode() == kFlags_branch) ||
+          (instr->flags_mode() == kFlags_branch_and_poison));
 }
 
 

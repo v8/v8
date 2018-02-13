@@ -584,6 +584,7 @@ class V8_EXPORT_PRIVATE MachineOperatorBuilder final
 
   // load [base + index]
   const Operator* Load(LoadRepresentation rep);
+  const Operator* PoisonedLoad(LoadRepresentation rep);
   const Operator* ProtectedLoad(LoadRepresentation rep);
 
   // store [base + index], value

@@ -348,7 +348,13 @@ void MemoryOptimizer::VisitLoadElement(Node* node,
   ElementAccess const& access = ElementAccessOf(node->op());
   Node* index = node->InputAt(1);
   node->ReplaceInput(1, ComputeIndex(access, index));
-  NodeProperties::ChangeOp(node, machine()->Load(access.machine_type));
+  if (access.machine_type.representation() ==
+      MachineRepresentation::kTaggedPointer) {
+    NodeProperties::ChangeOp(node, machine()->Load(access.machine_type));
+  } else {
+    NodeProperties::ChangeOp(node,
+                             machine()->PoisonedLoad(access.machine_type));
+  }
   EnqueueUses(node, state);
 }
 
@@ -357,7 +363,13 @@ void MemoryOptimizer::VisitLoadField(Node* node, AllocationState const* state) {
   FieldAccess const& access = FieldAccessOf(node->op());
   Node* offset = jsgraph()->IntPtrConstant(access.offset - access.tag());
   node->InsertInput(graph()->zone(), 1, offset);
-  NodeProperties::ChangeOp(node, machine()->Load(access.machine_type));
+  if (access.machine_type.representation() ==
+      MachineRepresentation::kTaggedPointer) {
+    NodeProperties::ChangeOp(node, machine()->Load(access.machine_type));
+  } else {
+    NodeProperties::ChangeOp(node,
+                             machine()->PoisonedLoad(access.machine_type));
+  }
   EnqueueUses(node, state);
 }
 

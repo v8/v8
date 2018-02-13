@@ -285,8 +285,14 @@ void InstructionSelector::VisitLoad(Node* node) {
   AddressingMode mode =
       g.GetEffectiveAddressMemoryOperand(node, inputs, &input_count);
   InstructionCode code = opcode | AddressingModeField::encode(mode);
+  if (node->opcode() == IrOpcode::kPoisonedLoad &&
+      load_poisoning_ == LoadPoisoning::kDoPoison) {
+    code |= MiscField::encode(kMemoryAccessPoisoned);
+  }
   Emit(code, 1, outputs, input_count, inputs);
 }
+
+void InstructionSelector::VisitPoisonedLoad(Node* node) { VisitLoad(node); }
 
 void InstructionSelector::VisitProtectedLoad(Node* node) {
   // TODO(eholk)
@@ -2029,6 +2035,9 @@ InstructionSelector::AlignmentRequirements() {
   return MachineOperatorBuilder::AlignmentRequirements::
       FullUnalignedAccessSupport();
 }
+
+// static
+bool InstructionSelector::SupportsSpeculationPoisoning() { return false; }
 
 }  // namespace compiler
 }  // namespace internal

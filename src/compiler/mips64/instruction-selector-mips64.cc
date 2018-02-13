@@ -379,7 +379,7 @@ void EmitLoad(InstructionSelector* selector, Node* node, InstructionCode opcode,
 void InstructionSelector::VisitLoad(Node* node) {
   LoadRepresentation load_rep = LoadRepresentationOf(node->op());
 
-  ArchOpcode opcode = kArchNop;
+  InstructionCode opcode = kArchNop;
   switch (load_rep.representation()) {
     case MachineRepresentation::kFloat32:
       opcode = kMips64Lwc1;
@@ -410,9 +410,15 @@ void InstructionSelector::VisitLoad(Node* node) {
       UNREACHABLE();
       return;
   }
+  if (node->opcode() == IrOpcode::kPoisonedLoad &&
+      load_poisoning_ == LoadPoisoning::kDoPoison) {
+    opcode |= MiscField::encode(kMemoryAccessPoisoned);
+  }
 
   EmitLoad(this, node, opcode);
 }
+
+void InstructionSelector::VisitPoisonedLoad(Node* node) { VisitLoad(node); }
 
 void InstructionSelector::VisitProtectedLoad(Node* node) {
   // TODO(eholk)
@@ -2957,6 +2963,9 @@ InstructionSelector::AlignmentRequirements() {
         NoUnalignedAccessSupport();
   }
 }
+
+// static
+bool InstructionSelector::SupportsSpeculationPoisoning() { return false; }
 
 #undef SIMD_BINOP_LIST
 #undef SIMD_SHIFT_OP_LIST

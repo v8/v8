@@ -1195,6 +1195,8 @@ class TurboAssembler : public Assembler {
   inline void Fcvtas(const Register& rd, const VRegister& fn);
   inline void Fcvtau(const Register& rd, const VRegister& fn);
 
+  void ResetSpeculationPoisonRegister();
+
  protected:
   // The actual Push and Pop implementations. These don't generate any code
   // other than that required for the push or pop. This allows

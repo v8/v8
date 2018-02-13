@@ -86,7 +86,8 @@ class CodeGenerator final : public GapResolver::Assembler {
                          int start_source_position,
                          JumpOptimizationInfo* jump_opt,
                          std::vector<trap_handler::ProtectedInstructionData>*
-                             protected_instructions);
+                             protected_instructions,
+                         LoadPoisoning load_poisoning);
 
   // Generate native code. After calling AssembleCode, call FinalizeCode to
   // produce the actual code object. If an error occurs during either phase,
@@ -150,10 +151,24 @@ class CodeGenerator final : public GapResolver::Assembler {
   // Assemble instructions for the specified block.
   CodeGenResult AssembleBlock(const InstructionBlock* block);
 
+  // Inserts mask update at the beginning of an instruction block if the
+  // predecessor blocks ends with a masking branch.
+  void TryInsertBranchPoisoning(const InstructionBlock* block);
+
+  // Initializes the masking register.
+  // Eventually, this should be always threaded through from the caller
+  // (in the proplogue) or from a callee (after a call).
+  void InitializePoisonForLoadsIfNeeded();
+
   // Assemble code for the specified instruction.
   CodeGenResult AssembleInstruction(Instruction* instr,
                                     const InstructionBlock* block);
   void AssembleGaps(Instruction* instr);
+
+  // Compute branch info from given instruction. Returns a valid rpo number
+  // if the branch is redundant, the returned rpo number point to the target
+  // basic block.
+  RpoNumber ComputeBranchInfo(BranchInfo* branch, Instruction* instr);
 
   // Returns true if a instruction is a tail call that needs to adjust the stack
   // pointer before execution. The stack slot index to the empty slot above the
@@ -182,6 +197,8 @@ class CodeGenerator final : public GapResolver::Assembler {
   // Generates code that checks whether the {kJavaScriptCallCodeStartRegister}
   // contains the expected pointer to the start of the instruction stream.
   void AssembleCodeStartRegisterCheck();
+
+  void AssembleBranchPoisoning(FlagsCondition condition, Instruction* instr);
 
   // When entering a code that is marked for deoptimization, rather continuing
   // with its execution, we jump to a lazy compiled code. We need to do this
@@ -396,6 +413,7 @@ class CodeGenerator final : public GapResolver::Assembler {
   SourcePositionTableBuilder source_position_table_builder_;
   std::vector<trap_handler::ProtectedInstructionData>* protected_instructions_;
   CodeGenResult result_;
+  LoadPoisoning load_poisoning_;
 };
 
 }  // namespace compiler

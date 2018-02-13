@@ -31,6 +31,9 @@ class V8_EXPORT_PRIVATE RegisterConfiguration {
   // Default RegisterConfigurations for the target architecture.
   static const RegisterConfiguration* Default();
 
+  // Register configuration with reserved masking register.
+  static const RegisterConfiguration* Poisoning();
+
   static const RegisterConfiguration* RestrictGeneralRegisters(
       RegList registers);
 

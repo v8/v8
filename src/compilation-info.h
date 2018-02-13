@@ -45,14 +45,15 @@ class V8_EXPORT_PRIVATE CompilationInfo final {
     kAccessorInliningEnabled = 1 << 3,
     kFunctionContextSpecializing = 1 << 4,
     kInliningEnabled = 1 << 5,
-    kDisableFutureOptimization = 1 << 6,
-    kSplittingEnabled = 1 << 7,
-    kSourcePositionsEnabled = 1 << 8,
-    kBailoutOnUninitialized = 1 << 9,
-    kLoopPeelingEnabled = 1 << 10,
-    kUntrustedCodeMitigations = 1 << 11,
-    kSwitchJumpTableEnabled = 1 << 12,
-    kGenerateSpeculationPoison = 1 << 13,
+    kPoisonLoads = 1 << 6,
+    kDisableFutureOptimization = 1 << 7,
+    kSplittingEnabled = 1 << 8,
+    kSourcePositionsEnabled = 1 << 9,
+    kBailoutOnUninitialized = 1 << 10,
+    kLoopPeelingEnabled = 1 << 11,
+    kUntrustedCodeMitigations = 1 << 12,
+    kSwitchJumpTableEnabled = 1 << 13,
+    kGenerateSpeculationPoison = 1 << 14,
   };
 
   // TODO(mtrofin): investigate if this might be generalized outside wasm, with
@@ -155,6 +156,9 @@ class V8_EXPORT_PRIVATE CompilationInfo final {
 
   void MarkAsInliningEnabled() { SetFlag(kInliningEnabled); }
   bool is_inlining_enabled() const { return GetFlag(kInliningEnabled); }
+
+  void MarkAsPoisonLoads() { SetFlag(kPoisonLoads); }
+  bool is_poison_loads() const { return GetFlag(kPoisonLoads); }
 
   void MarkAsSplittingEnabled() { SetFlag(kSplittingEnabled); }
   bool is_splitting_enabled() const { return GetFlag(kSplittingEnabled); }

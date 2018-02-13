@@ -425,6 +425,11 @@ void CEntryStub::Generate(MacroAssembler* masm) {
   __ movp(Operand(rbp, StandardFrameConstants::kContextOffset), rsi);
   __ bind(&skip);
 
+  // Reset the masking register.
+  if (FLAG_branch_load_poisoning) {
+    __ ResetSpeculationPoisonRegister();
+  }
+
   // Compute the handler entry address and jump to it.
   __ movp(rdi, masm->ExternalOperand(pending_handler_entrypoint_address));
   __ jmp(rdi);

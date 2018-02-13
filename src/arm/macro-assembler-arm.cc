@@ -2307,6 +2307,8 @@ bool AreAliased(Register reg1,
 }
 #endif
 
+void TurboAssembler::ResetSpeculationPoisonRegister() { UNREACHABLE(); }
+
 }  // namespace internal
 }  // namespace v8
 

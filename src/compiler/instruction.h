@@ -892,7 +892,8 @@ class V8_EXPORT_PRIVATE Instruction final {
 
   bool IsDeoptimizeCall() const {
     return arch_opcode() == ArchOpcode::kArchDeoptimize ||
-           FlagsModeField::decode(opcode()) == kFlags_deoptimize;
+           FlagsModeField::decode(opcode()) == kFlags_deoptimize ||
+           FlagsModeField::decode(opcode()) == kFlags_deoptimize_and_poison;
   }
 
   bool IsTrap() const {
@@ -1662,6 +1663,8 @@ struct PrintableInstructionSequence {
 
 V8_EXPORT_PRIVATE std::ostream& operator<<(
     std::ostream& os, const PrintableInstructionSequence& code);
+
+enum class LoadPoisoning { kDoPoison, kDontPoison };
 
 }  // namespace compiler
 }  // namespace internal

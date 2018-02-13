@@ -336,10 +336,12 @@ class PipelineData {
 
   void InitializeCodeGenerator(Linkage* linkage) {
     DCHECK_NULL(code_generator_);
-    code_generator_ =
-        new CodeGenerator(codegen_zone(), frame(), linkage, sequence(), info(),
-                          isolate(), osr_helper_, start_source_position_,
-                          jump_optimization_info_, protected_instructions_);
+    code_generator_ = new CodeGenerator(
+        codegen_zone(), frame(), linkage, sequence(), info(), isolate(),
+        osr_helper_, start_source_position_, jump_optimization_info_,
+        protected_instructions_,
+        info()->is_poison_loads() ? LoadPoisoning::kDoPoison
+                                  : LoadPoisoning::kDontPoison);
   }
 
   void BeginPhaseKind(const char* phase_kind_name) {
@@ -789,6 +791,9 @@ PipelineCompilationJob::Status PipelineCompilationJob::PrepareJobImpl(
   }
   if (FLAG_inline_accessors) {
     compilation_info()->MarkAsAccessorInliningEnabled();
+  }
+  if (FLAG_branch_load_poisoning) {
+    compilation_info()->MarkAsPoisonLoads();
   }
   if (compilation_info()->closure()->feedback_vector_cell()->map() ==
       isolate->heap()->one_closure_cell_map()) {
@@ -1547,7 +1552,9 @@ struct InstructionSelectionPhase {
             : InstructionSelector::kDisableScheduling,
         data->isolate()->serializer_enabled()
             ? InstructionSelector::kEnableSerialization
-            : InstructionSelector::kDisableSerialization);
+            : InstructionSelector::kDisableSerialization,
+        data->info()->is_poison_loads() ? LoadPoisoning::kDoPoison
+                                        : LoadPoisoning::kDontPoison);
     if (!selector.SelectInstructions()) {
       data->set_compilation_failed();
     }
@@ -2198,6 +2205,11 @@ bool PipelineImpl::SelectInstructions(Linkage* linkage) {
     std::unique_ptr<const RegisterConfiguration> config;
     config.reset(RegisterConfiguration::RestrictGeneralRegisters(registers));
     AllocateRegisters(config.get(), call_descriptor, run_verifier);
+  } else if (data->info()->is_poison_loads()) {
+    CHECK(InstructionSelector::SupportsSpeculationPoisoning());
+    CHECK_NE(kSpeculationPoisonRegister, Register::no_reg());
+    AllocateRegisters(RegisterConfiguration::Poisoning(), call_descriptor,
+                      run_verifier);
   } else {
     AllocateRegisters(RegisterConfiguration::Default(), call_descriptor,
                       run_verifier);

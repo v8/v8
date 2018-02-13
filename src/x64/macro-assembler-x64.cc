@@ -2763,6 +2763,11 @@ void TurboAssembler::CheckPageFlag(Register object, Register scratch, int mask,
   }
   j(cc, condition_met, condition_met_distance);
 }
+
+void TurboAssembler::ResetSpeculationPoisonRegister() {
+  Set(kSpeculationPoisonRegister, -1);
+}
+
 }  // namespace internal
 }  // namespace v8
 

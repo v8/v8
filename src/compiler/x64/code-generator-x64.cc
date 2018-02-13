@@ -296,13 +296,25 @@ class WasmOutOfLineTrap final : public OutOfLineCode {
 void EmitOOLTrapIfNeeded(Zone* zone, CodeGenerator* codegen,
                          InstructionCode opcode, Instruction* instr,
                          X64OperandConverter& i, int pc) {
-  const X64MemoryProtection protection =
-      static_cast<X64MemoryProtection>(MiscField::decode(opcode));
-  if (protection == X64MemoryProtection::kProtected) {
+  const MemoryAccessMode access_mode =
+      static_cast<MemoryAccessMode>(MiscField::decode(opcode));
+  if (access_mode == kMemoryAccessProtected) {
     const bool frame_elided = !codegen->frame_access_state()->has_frame();
     new (zone) WasmOutOfLineTrap(codegen, pc, frame_elided, instr);
   }
 }
+
+void EmitWordLoadPoisoningIfNeeded(CodeGenerator* codegen,
+                                   InstructionCode opcode, Instruction* instr,
+                                   X64OperandConverter& i) {
+  const MemoryAccessMode access_mode =
+      static_cast<MemoryAccessMode>(MiscField::decode(opcode));
+  if (access_mode == kMemoryAccessPoisoned) {
+    Register value = i.OutputRegister();
+    codegen->tasm()->andq(value, kSpeculationPoisonRegister);
+  }
+}
+
 }  // namespace
 
 
@@ -1772,20 +1784,24 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       EmitOOLTrapIfNeeded(zone(), this, opcode, instr, i, __ pc_offset());
       ASSEMBLE_MOVX(movsxbl);
       __ AssertZeroExtended(i.OutputRegister());
+      EmitWordLoadPoisoningIfNeeded(this, opcode, instr, i);
       break;
     case kX64Movzxbl:
       EmitOOLTrapIfNeeded(zone(), this, opcode, instr, i, __ pc_offset());
       ASSEMBLE_MOVX(movzxbl);
       __ AssertZeroExtended(i.OutputRegister());
+      EmitWordLoadPoisoningIfNeeded(this, opcode, instr, i);
       break;
     case kX64Movsxbq:
       EmitOOLTrapIfNeeded(zone(), this, opcode, instr, i, __ pc_offset());
       ASSEMBLE_MOVX(movsxbq);
+      EmitWordLoadPoisoningIfNeeded(this, opcode, instr, i);
       break;
     case kX64Movzxbq:
       EmitOOLTrapIfNeeded(zone(), this, opcode, instr, i, __ pc_offset());
       ASSEMBLE_MOVX(movzxbq);
       __ AssertZeroExtended(i.OutputRegister());
+      EmitWordLoadPoisoningIfNeeded(this, opcode, instr, i);
       break;
     case kX64Movb: {
       EmitOOLTrapIfNeeded(zone(), this, opcode, instr, i, __ pc_offset());
@@ -1796,17 +1812,20 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       } else {
         __ movb(operand, i.InputRegister(index));
       }
+      EmitWordLoadPoisoningIfNeeded(this, opcode, instr, i);
       break;
     }
     case kX64Movsxwl:
       EmitOOLTrapIfNeeded(zone(), this, opcode, instr, i, __ pc_offset());
       ASSEMBLE_MOVX(movsxwl);
       __ AssertZeroExtended(i.OutputRegister());
+      EmitWordLoadPoisoningIfNeeded(this, opcode, instr, i);
       break;
     case kX64Movzxwl:
       EmitOOLTrapIfNeeded(zone(), this, opcode, instr, i, __ pc_offset());
       ASSEMBLE_MOVX(movzxwl);
       __ AssertZeroExtended(i.OutputRegister());
+      EmitWordLoadPoisoningIfNeeded(this, opcode, instr, i);
       break;
     case kX64Movsxwq:
       EmitOOLTrapIfNeeded(zone(), this, opcode, instr, i, __ pc_offset());
@@ -1816,6 +1835,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       EmitOOLTrapIfNeeded(zone(), this, opcode, instr, i, __ pc_offset());
       ASSEMBLE_MOVX(movzxwq);
       __ AssertZeroExtended(i.OutputRegister());
+      EmitWordLoadPoisoningIfNeeded(this, opcode, instr, i);
       break;
     case kX64Movw: {
       EmitOOLTrapIfNeeded(zone(), this, opcode, instr, i, __ pc_offset());
@@ -1826,6 +1846,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       } else {
         __ movw(operand, i.InputRegister(index));
       }
+      EmitWordLoadPoisoningIfNeeded(this, opcode, instr, i);
       break;
     }
     case kX64Movl:
@@ -1850,10 +1871,12 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
           __ movl(operand, i.InputRegister(index));
         }
       }
+      EmitWordLoadPoisoningIfNeeded(this, opcode, instr, i);
       break;
     case kX64Movsxlq:
       EmitOOLTrapIfNeeded(zone(), this, opcode, instr, i, __ pc_offset());
       ASSEMBLE_MOVX(movsxlq);
+      EmitWordLoadPoisoningIfNeeded(this, opcode, instr, i);
       break;
     case kX64Movq:
       EmitOOLTrapIfNeeded(zone(), this, opcode, instr, i, __ pc_offset());
@@ -1868,6 +1891,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
           __ movq(operand, i.InputRegister(index));
         }
       }
+      EmitWordLoadPoisoningIfNeeded(this, opcode, instr, i);
       break;
     case kX64Movss:
       EmitOOLTrapIfNeeded(zone(), this, opcode, instr, i, __ pc_offset());
@@ -2775,6 +2799,19 @@ void CodeGenerator::AssembleArchBranch(Instruction* instr, BranchInfo* branch) {
   if (!branch->fallthru) __ jmp(flabel, flabel_distance);
 }
 
+void CodeGenerator::AssembleBranchPoisoning(FlagsCondition condition,
+                                            Instruction* instr) {
+  // TODO(jarin) Handle float comparisons (kUnordered[Not]Equal).
+  if (condition == kUnorderedEqual || condition == kUnorderedNotEqual) {
+    return;
+  }
+
+  condition = NegateFlagsCondition(condition);
+  __ movl(kScratchRegister, Immediate(0));
+  __ cmovq(FlagsConditionToCondition(condition), kSpeculationPoisonRegister,
+           kScratchRegister);
+}
+
 void CodeGenerator::AssembleArchDeoptBranch(Instruction* instr,
                                             BranchInfo* branch) {
   Label::Distance flabel_distance =
@@ -2915,7 +2952,6 @@ void CodeGenerator::AssembleArchBoolean(Instruction* instr,
   __ bind(&done);
 }
 
-
 void CodeGenerator::AssembleArchLookupSwitch(Instruction* instr) {
   X64OperandConverter i(this, instr);
   Register input = i.InputRegister(0);
@@ -3005,6 +3041,7 @@ void CodeGenerator::AssembleConstructFrame() {
     if (FLAG_code_comments) __ RecordComment("-- OSR entrypoint --");
     osr_pc_offset_ = __ pc_offset();
     shrink_slots -= static_cast<int>(osr_helper()->UnoptimizedFrameSlots());
+    InitializePoisonForLoadsIfNeeded();
   }
 
   const RegList saves = call_descriptor->CalleeSavedRegisters();
@@ -3405,7 +3442,6 @@ void CodeGenerator::AssembleSwap(InstructionOperand* source,
       break;
   }
 }
-
 
 void CodeGenerator::AssembleJumpTable(Label** targets, size_t target_count) {
   for (size_t index = 0; index < target_count; ++index) {

@@ -269,8 +269,6 @@ namespace compiler {
   V(M8I)  /* [      %r2*8 + K] */      \
   V(Root) /* [%root       + K] */
 
-enum X64MemoryProtection { kUnprotected = 0, kProtected = 1 };
-
 }  // namespace compiler
 }  // namespace internal
 }  // namespace v8

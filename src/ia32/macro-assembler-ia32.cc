@@ -1666,6 +1666,8 @@ void TurboAssembler::CheckPageFlag(Register object, Register scratch, int mask,
   j(cc, condition_met, condition_met_distance);
 }
 
+void TurboAssembler::ResetSpeculationPoisonRegister() { UNREACHABLE(); }
+
 }  // namespace internal
 }  // namespace v8
 

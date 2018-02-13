@@ -42,7 +42,8 @@ CodeGenerator::CodeGenerator(
     InstructionSequence* code, CompilationInfo* info, Isolate* isolate,
     base::Optional<OsrHelper> osr_helper, int start_source_position,
     JumpOptimizationInfo* jump_opt,
-    std::vector<trap_handler::ProtectedInstructionData>* protected_instructions)
+    std::vector<trap_handler::ProtectedInstructionData>* protected_instructions,
+    LoadPoisoning load_poisoning)
     : zone_(codegen_zone),
       isolate_(isolate),
       frame_access_state_(nullptr),
@@ -72,7 +73,8 @@ CodeGenerator::CodeGenerator(
       optimized_out_literal_id_(-1),
       source_position_table_builder_(info->SourcePositionRecordingMode()),
       protected_instructions_(protected_instructions),
-      result_(kSuccess) {
+      result_(kSuccess),
+      load_poisoning_(load_poisoning) {
   for (int i = 0; i < code->InstructionBlockCount(); ++i) {
     new (&labels_[i]) Label;
   }
@@ -138,6 +140,8 @@ void CodeGenerator::AssembleCode() {
   // MANUAL indicates that the scope shouldn't actually generate code to set up
   // the frame (that is done in AssemblePrologue).
   FrameScope frame_scope(tasm(), StackFrame::MANUAL);
+
+  InitializePoisonForLoadsIfNeeded();
 
   if (info->is_source_positions_enabled()) {
     AssembleSourcePosition(start_source_position());
@@ -227,6 +231,9 @@ void CodeGenerator::AssembleCode() {
       frame_access_state()->MarkHasFrame(block->needs_frame());
 
       tasm()->bind(GetLabel(current_block_));
+
+      TryInsertBranchPoisoning(block);
+
       if (block->must_construct_frame()) {
         AssembleConstructFrame();
         // We need to setup the root register after we assemble the prologue, to
@@ -297,6 +304,38 @@ void CodeGenerator::AssembleCode() {
 
   safepoints()->Emit(tasm(), frame()->GetTotalFrameSlotCount());
   result_ = kSuccess;
+}
+
+void CodeGenerator::TryInsertBranchPoisoning(const InstructionBlock* block) {
+  // See if our predecessor was a basic block terminated by a branch_and_poison
+  // instruction. If yes, then perform the masking based on the flags.
+  if (block->PredecessorCount() != 1) return;
+  RpoNumber pred_rpo = (block->predecessors())[0];
+  const InstructionBlock* pred = code()->InstructionBlockAt(pred_rpo);
+  if (pred->code_start() == pred->code_end()) return;
+  Instruction* instr = code()->InstructionAt(pred->code_end() - 1);
+  FlagsMode mode = FlagsModeField::decode(instr->opcode());
+  switch (mode) {
+    case kFlags_branch_and_poison: {
+      BranchInfo branch;
+      RpoNumber target = ComputeBranchInfo(&branch, instr);
+      if (!target.IsValid()) {
+        // Non-trivial branch, add the masking code.
+        FlagsCondition condition = branch.condition;
+        if (branch.false_label == GetLabel(block->rpo_number())) {
+          condition = NegateFlagsCondition(condition);
+        }
+        AssembleBranchPoisoning(condition, instr);
+      }
+      break;
+    }
+    case kFlags_deoptimize_and_poison: {
+      UNREACHABLE();
+      break;
+    }
+    default:
+      break;
+  }
 }
 
 Handle<ByteArray> CodeGenerator::GetSourcePositionTable() {
@@ -545,6 +584,29 @@ CodeGenerator::MoveType::Type CodeGenerator::MoveType::InferSwap(
   }
 }
 
+RpoNumber CodeGenerator::ComputeBranchInfo(BranchInfo* branch,
+                                           Instruction* instr) {
+  // Assemble a branch after this instruction.
+  InstructionOperandConverter i(this, instr);
+  RpoNumber true_rpo = i.InputRpo(instr->InputCount() - 2);
+  RpoNumber false_rpo = i.InputRpo(instr->InputCount() - 1);
+
+  if (true_rpo == false_rpo) {
+    return true_rpo;
+  }
+  FlagsCondition condition = FlagsConditionField::decode(instr->opcode());
+  if (IsNextInAssemblyOrder(true_rpo)) {
+    // true block is next, can fall through if condition negated.
+    std::swap(true_rpo, false_rpo);
+    condition = NegateFlagsCondition(condition);
+  }
+  branch->condition = condition;
+  branch->true_label = GetLabel(true_rpo);
+  branch->false_label = GetLabel(false_rpo);
+  branch->fallthru = IsNextInAssemblyOrder(false_rpo);
+  return RpoNumber::Invalid();
+}
+
 CodeGenerator::CodeGenResult CodeGenerator::AssembleInstruction(
     Instruction* instr, const InstructionBlock* block) {
   int first_unused_stack_slot;
@@ -570,34 +632,23 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleInstruction(
 
   FlagsCondition condition = FlagsConditionField::decode(instr->opcode());
   switch (mode) {
-    case kFlags_branch: {
-      // Assemble a branch after this instruction.
-      InstructionOperandConverter i(this, instr);
-      RpoNumber true_rpo = i.InputRpo(instr->InputCount() - 2);
-      RpoNumber false_rpo = i.InputRpo(instr->InputCount() - 1);
-
-      if (true_rpo == false_rpo) {
+    case kFlags_branch:
+    case kFlags_branch_and_poison: {
+      BranchInfo branch;
+      RpoNumber target = ComputeBranchInfo(&branch, instr);
+      if (target.IsValid()) {
         // redundant branch.
-        if (!IsNextInAssemblyOrder(true_rpo)) {
-          AssembleArchJump(true_rpo);
+        if (!IsNextInAssemblyOrder(target)) {
+          AssembleArchJump(target);
         }
         return kSuccess;
       }
-      if (IsNextInAssemblyOrder(true_rpo)) {
-        // true block is next, can fall through if condition negated.
-        std::swap(true_rpo, false_rpo);
-        condition = NegateFlagsCondition(condition);
-      }
-      BranchInfo branch;
-      branch.condition = condition;
-      branch.true_label = GetLabel(true_rpo);
-      branch.false_label = GetLabel(false_rpo);
-      branch.fallthru = IsNextInAssemblyOrder(false_rpo);
       // Assemble architecture-specific branch.
       AssembleArchBranch(instr, &branch);
       break;
     }
-    case kFlags_deoptimize: {
+    case kFlags_deoptimize:
+    case kFlags_deoptimize_and_poison: {
       // Assemble a conditional eager deoptimization after this instruction.
       InstructionOperandConverter i(this, instr);
       size_t frame_state_offset = MiscField::decode(instr->opcode());
@@ -612,6 +663,9 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleInstruction(
       // Assemble architecture-specific branch.
       AssembleArchDeoptBranch(instr, &branch);
       tasm()->bind(&continue_label);
+      if (mode == kFlags_deoptimize_and_poison) {
+        AssembleBranchPoisoning(NegateFlagsCondition(branch.condition), instr);
+      }
       break;
     }
     case kFlags_set: {
@@ -627,6 +681,12 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleInstruction(
       break;
     }
   }
+
+  // TODO(jarin) We should thread the flag through rather than set it.
+  if (instr->IsCall()) {
+    InitializePoisonForLoadsIfNeeded();
+  }
+
   return kSuccess;
 }
 
@@ -1133,6 +1193,12 @@ DeoptimizationExit* CodeGenerator::AddDeoptimizationExit(
       DeoptimizationExit(deoptimization_id, current_source_position_);
   deoptimization_exits_.push_back(exit);
   return exit;
+}
+
+void CodeGenerator::InitializePoisonForLoadsIfNeeded() {
+  if (load_poisoning_ == LoadPoisoning::kDoPoison) {
+    tasm()->ResetSpeculationPoisonRegister();
+  }
 }
 
 OutOfLineCode::OutOfLineCode(CodeGenerator* gen)
