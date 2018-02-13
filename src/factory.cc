@@ -3113,6 +3113,19 @@ Handle<Map> Factory::CreateClassFunctionMap(Handle<JSFunction> empty_function) {
   return map;
 }
 
+Handle<JSPromise> Factory::NewJSPromiseWithoutHook(PretenureFlag pretenure) {
+  CALL_HEAP_FUNCTION(isolate(),
+                     isolate()->heap()->AllocateJSPromise(
+                         *isolate()->promise_function(), pretenure),
+                     JSPromise);
+}
+
+Handle<JSPromise> Factory::NewJSPromise(PretenureFlag pretenure) {
+  Handle<JSPromise> promise = NewJSPromiseWithoutHook(pretenure);
+  isolate()->RunPromiseHook(PromiseHookType::kInit, promise, undefined_value());
+  return promise;
+}
+
 // static
 NewFunctionArgs NewFunctionArgs::ForWasm(Handle<String> name, Handle<Code> code,
                                          Handle<Map> map) {

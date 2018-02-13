@@ -3407,6 +3407,21 @@ AllocationResult Heap::Allocate(Map* map, AllocationSpace space,
   return result;
 }
 
+AllocationResult Heap::AllocateJSPromise(JSFunction* constructor,
+                                         PretenureFlag pretenure) {
+  AllocationResult allocation = AllocateJSObject(constructor, pretenure);
+  JSPromise* promise = nullptr;
+  if (!allocation.To(&promise)) return allocation;
+
+  // Setup JSPromise fields
+  promise->set_reactions_or_result(Smi::kZero);
+  promise->set_flags(0);
+  for (int i = 0; i < v8::Promise::kEmbedderFieldCount; i++) {
+    promise->SetEmbedderField(i, Smi::kZero);
+  }
+  return promise;
+}
+
 void Heap::InitializeJSObjectFromMap(JSObject* obj, Object* properties,
                                      Map* map) {
   obj->set_raw_properties_or_hash(properties);
