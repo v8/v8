@@ -966,6 +966,8 @@ class Heap {
   // Returns whether SetUp has been called.
   bool HasBeenSetUp();
 
+  void stop_using_tasks() { use_tasks_ = false; }
+
   bool use_tasks() const { return use_tasks_; }
 
   // ===========================================================================
