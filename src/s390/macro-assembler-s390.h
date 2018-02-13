@@ -1004,6 +1004,8 @@ class TurboAssembler : public Assembler {
   void CheckPageFlag(Register object, Register scratch, int mask, Condition cc,
                      Label* condition_met);
 
+  void ResetSpeculationPoisonRegister();
+
  private:
   static const int kSmiShift = kSmiTagSize + kSmiShiftSize;
 
