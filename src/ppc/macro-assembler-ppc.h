@@ -650,8 +650,6 @@ class TurboAssembler : public Assembler {
 #endif
   }
 
-  void ResetSpeculationPoisonRegister();
-
  private:
   static const int kSmiShift = kSmiTagSize + kSmiShiftSize;
 
