@@ -1172,7 +1172,8 @@ class V8_EXPORT_PRIVATE MemoryAllocator {
         : heap_(heap),
           allocator_(allocator),
           pending_unmapping_tasks_semaphore_(0),
-          concurrent_unmapping_tasks_active_(0) {
+          pending_unmapping_tasks_(0),
+          active_unmapping_tasks_(0) {
       chunks_[kRegular].reserve(kReservedQueueingSlots);
       chunks_[kPooled].reserve(kReservedQueueingSlots);
     }
@@ -1240,6 +1241,8 @@ class V8_EXPORT_PRIVATE MemoryAllocator {
       return chunk;
     }
 
+    bool MakeRoomForNewTasks();
+
     template <FreeMode mode>
     void PerformFreeMemoryOnQueuedChunks();
 
@@ -1249,7 +1252,8 @@ class V8_EXPORT_PRIVATE MemoryAllocator {
     std::vector<MemoryChunk*> chunks_[kNumberOfChunkQueues];
     CancelableTaskManager::Id task_ids_[kMaxUnmapperTasks];
     base::Semaphore pending_unmapping_tasks_semaphore_;
-    intptr_t concurrent_unmapping_tasks_active_;
+    intptr_t pending_unmapping_tasks_;
+    base::AtomicNumber<intptr_t> active_unmapping_tasks_;
 
     friend class MemoryAllocator;
   };
