@@ -59,13 +59,9 @@ namespace internal {
 // Forward declarations.
 class InstructionStream;
 class Isolate;
+class SCTableReference;
 class SourcePosition;
 class StatsCounter;
-
-void SetUpJSCallerSavedCodeData();
-
-// Return the code of the n-th saved register available to JavaScript.
-int JSCallerSavedCode(int n);
 
 // -----------------------------------------------------------------------------
 // Optimization for far-jmp like instructions that can be replaced by shorter.
@@ -734,14 +730,8 @@ class RelocIterator: public Malloced {
   DISALLOW_COPY_AND_ASSIGN(RelocIterator);
 };
 
-
 //------------------------------------------------------------------------------
-// External function
-
-//----------------------------------------------------------------------------
-class SCTableReference;
-class Debug_Address;
-
+// External references
 
 // An ExternalReference represents a C++ address used in the generated
 // code. All references to C++ functions and variables must be encapsulated in

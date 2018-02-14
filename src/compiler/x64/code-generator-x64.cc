@@ -595,7 +595,8 @@ void CodeGenerator::AssembleCodeStartRegisterCheck() {
 }
 
 // Check if the code object is marked for deoptimization. If it is, then it
-// jumps to CompileLazyDeoptimizedCode builtin. In order to do this we need to:
+// jumps to the CompileLazyDeoptimizedCode builtin. In order to do this we need
+// to:
 //    1. read from memory the word that contains that bit, which can be found in
 //       the flags in the referenced {CodeDataContainer} object;
 //    2. test kMarkedForDeoptimizationBit in those flags; and

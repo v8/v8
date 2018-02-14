@@ -1874,22 +1874,5 @@ void Assembler::RequestHeapObject(HeapObjectRequest request) {
   heap_object_requests_.push_front(request);
 }
 
-namespace {
-int caller_saved_codes[kNumJSCallerSaved];
-}
-
-void SetUpJSCallerSavedCodeData() {
-  int i = 0;
-  for (int r = 0; r < kNumRegs; r++)
-    if ((kJSCallerSaved & (1 << r)) != 0) caller_saved_codes[i++] = r;
-
-  DCHECK_EQ(i, kNumJSCallerSaved);
-}
-
-int JSCallerSavedCode(int n) {
-  DCHECK(0 <= n && n < kNumJSCallerSaved);
-  return caller_saved_codes[n];
-}
-
 }  // namespace internal
 }  // namespace v8
