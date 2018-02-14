@@ -25,11 +25,8 @@ class SignalProc(base.TestProcObserver):
     self._on_event()
 
   def _on_ctrlc(self, _signum, _stack_frame):
-    if not self._ctrlc:
-      print '>>> Ctrl-C detected, waiting for ongoing tests to finish...'
-      self._ctrlc = True
-    else:
-      print '>>> Pressing Ctrl-C again won\'t make this faster...'
+    print '>>> Ctrl-C detected, waiting for ongoing tests to finish...'
+    self._ctrlc = True
 
   def _on_event(self):
     if self._ctrlc:
