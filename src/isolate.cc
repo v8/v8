@@ -315,61 +315,44 @@ Handle<String> Isolate::StackTraceString() {
   }
 }
 
-void Isolate::PushStackTraceAndDie(unsigned int magic1, void* ptr1, void* ptr2,
-                                   unsigned int magic2) {
-  PushStackTraceAndDie(magic1, ptr1, ptr2, nullptr, nullptr, nullptr, nullptr,
-                       nullptr, nullptr, magic2);
-}
-
-void Isolate::PushStackTraceAndDie(unsigned int magic1, void* ptr1, void* ptr2,
-                                   void* ptr3, void* ptr4, void* ptr5,
-                                   void* ptr6, void* ptr7, void* ptr8,
-                                   unsigned int magic2) {
-  const int kMaxStackTraceSize = 32 * KB;
-  Handle<String> trace = StackTraceString();
-  uint8_t buffer[kMaxStackTraceSize];
-  int length = Min(kMaxStackTraceSize - 1, trace->length());
-  String::WriteToFlat(*trace, buffer, 0, length);
-  buffer[length] = '\0';
-  // TODO(dcarney): convert buffer to utf8?
-  base::OS::PrintError(
-      "Stacktrace:"
-      "\n   magic1=%x magic2=%x ptr1=%p ptr2=%p ptr3=%p ptr4=%p ptr5=%p "
-      "ptr6=%p ptr7=%p ptr8=%p\n\n%s",
-      magic1, magic2, ptr1, ptr2, ptr3, ptr4, ptr5, ptr6, ptr7, ptr8,
-      reinterpret_cast<char*>(buffer));
-  PushCodeObjectsAndDie(0xDEADC0DE, ptr1, ptr2, ptr3, ptr4, ptr5, ptr6, ptr7,
-                        ptr8, 0xDEADC0DE);
-}
-
-void Isolate::PushCodeObjectsAndDie(unsigned int magic1, void* ptr1, void* ptr2,
-                                    void* ptr3, void* ptr4, void* ptr5,
-                                    void* ptr6, void* ptr7, void* ptr8,
-                                    unsigned int magic2) {
-  const int kMaxCodeObjects = 16;
-  // Mark as volatile to lower the probability of optimizing code_objects
-  // away. The first and last entries are set to the magic markers, making it
-  // easier to spot the array on the stack.
-  void* volatile code_objects[kMaxCodeObjects + 2];
-  code_objects[0] = reinterpret_cast<void*>(magic1);
-  code_objects[kMaxCodeObjects + 1] = reinterpret_cast<void*>(magic2);
-  StackFrameIterator it(this);
-  int numCodeObjects = 0;
-  for (; !it.done() && numCodeObjects < kMaxCodeObjects; it.Advance()) {
-    code_objects[1 + numCodeObjects++] = it.frame()->unchecked_code();
-  }
-
-  // Keep the top raw code object pointers on the stack in the hope that the
-  // corresponding pages end up more frequently in the minidump.
-  base::OS::PrintError(
-      "\nCodeObjects (%p length=%i): 1:%p 2:%p 3:%p 4:%p..."
-      "\n   magic1=%x magic2=%x ptr1=%p ptr2=%p ptr3=%p ptr4=%p ptr5=%p "
-      "ptr6=%p ptr7=%p ptr8=%p\n\n",
-      static_cast<void*>(code_objects[0]), numCodeObjects,
-      static_cast<void*>(code_objects[1]), static_cast<void*>(code_objects[2]),
-      static_cast<void*>(code_objects[3]), static_cast<void*>(code_objects[4]),
-      magic1, magic2, ptr1, ptr2, ptr3, ptr4, ptr5, ptr6, ptr7, ptr8);
+void Isolate::PushStackTraceAndDie(void* ptr1, void* ptr2, void* ptr3,
+                                   void* ptr4) {
+  StackTraceFailureMessage message(this, ptr1, ptr2, ptr3, ptr4);
+  message.Print();
   base::OS::Abort();
+}
+
+void StackTraceFailureMessage::Print() volatile {
+  // Print the details of this failure message object, including its own address
+  // to force stack allocation.
+  base::OS::PrintError(
+      "Stacktrace:\n   ptr1=%p\n    ptr2=%p\n    ptr3=%p\n    ptr4=%p\n    "
+      "failure_message_object=%p\n%s",
+      ptr1_, ptr2_, ptr3_, ptr4_, this, &js_stack_trace_[0]);
+}
+
+StackTraceFailureMessage::StackTraceFailureMessage(Isolate* isolate, void* ptr1,
+                                                   void* ptr2, void* ptr3,
+                                                   void* ptr4) {
+  isolate_ = isolate;
+  ptr1_ = ptr1;
+  ptr2_ = ptr2;
+  ptr3_ = ptr3;
+  ptr4_ = ptr4;
+  // Write a stracktrace into the {js_stack_trace_} buffer.
+  const size_t buffer_length = arraysize(js_stack_trace_);
+  memset(&js_stack_trace_, 0, buffer_length);
+  FixedStringAllocator fixed(&js_stack_trace_[0], buffer_length - 1);
+  StringStream accumulator(&fixed, StringStream::kPrintObjectConcise);
+  isolate->PrintStack(&accumulator, Isolate::kPrintStackVerbose);
+  // Keeping a reference to the last code objects to increase likelyhood that
+  // they get included in the minidump.
+  const size_t code_objects_length = arraysize(code_objects_);
+  size_t i = 0;
+  StackFrameIterator it(isolate);
+  for (; !it.done() && i < code_objects_length; it.Advance()) {
+    code_objects_[i++] = it.frame()->unchecked_code();
+  }
 }
 
 namespace {

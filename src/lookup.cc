@@ -211,8 +211,7 @@ Handle<JSReceiver> LookupIterator::GetRootForNonJSReceiver(
   auto root =
       handle(receiver->GetPrototypeChainRootMap(isolate)->prototype(), isolate);
   if (root->IsNull(isolate)) {
-    unsigned int magic = 0xBBBBBBBB;
-    isolate->PushStackTraceAndDie(magic, *receiver, nullptr, magic);
+    isolate->PushStackTraceAndDie(*receiver);
   }
   return Handle<JSReceiver>::cast(root);
 }

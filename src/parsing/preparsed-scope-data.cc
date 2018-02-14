@@ -571,8 +571,7 @@ void ConsumedPreParsedScopeData::RestoreData(Scope* scope) {
   if (scope_data_->RemainingBytes() < kUint8Size) {
     // Temporary debugging code for detecting inconsistent data. Write debug
     // information on the stack, then crash.
-    data_->GetIsolate()->PushStackTraceAndDie(0xC0DEFEE, nullptr, nullptr,
-                                              0xC0DEFEE);
+    data_->GetIsolate()->PushStackTraceAndDie();
   }
 
   // scope_type is stored only in debug mode.

@@ -716,16 +716,10 @@ class Isolate {
   Handle<String> StackTraceString();
   // Stores a stack trace in a stack-allocated temporary buffer which will
   // end up in the minidump for debugging purposes.
-  NO_INLINE(void PushStackTraceAndDie(unsigned int magic1, void* ptr1,
-                                      void* ptr2, unsigned int magic2));
-  NO_INLINE(void PushStackTraceAndDie(unsigned int magic1, void* ptr1,
-                                      void* ptr2, void* ptr3, void* ptr4,
-                                      void* ptr5, void* ptr6, void* ptr7,
-                                      void* ptr8, unsigned int magic2));
-  NO_INLINE(void PushCodeObjectsAndDie(unsigned int magic, void* ptr1,
-                                       void* ptr2, void* ptr3, void* ptr4,
-                                       void* ptr5, void* ptr6, void* ptr7,
-                                       void* ptr8, unsigned int magic2));
+  NO_INLINE(void PushStackTraceAndDie(void* ptr1 = nullptr,
+                                      void* ptr2 = nullptr,
+                                      void* ptr3 = nullptr,
+                                      void* ptr4 = nullptr));
   Handle<FixedArray> CaptureCurrentStackTrace(
       int frame_limit, StackTrace::StackTraceOptions options);
   Handle<Object> CaptureSimpleStackTrace(Handle<JSReceiver> error_object,
@@ -1872,6 +1866,29 @@ class CodeTracer final : public Malloced {
   EmbeddedVector<char, 128> filename_;
   FILE* file_;
   int scope_depth_;
+};
+
+class StackTraceFailureMessage {
+ public:
+  explicit StackTraceFailureMessage(Isolate* isolate, void* ptr1 = nullptr,
+                                    void* ptr2 = nullptr, void* ptr3 = nullptr,
+                                    void* ptr4 = nullptr);
+
+  V8_NOINLINE void Print() volatile;
+
+  static const uintptr_t kStartMarker = 0xdecade30;
+  static const uintptr_t kEndMarker = 0xdecade31;
+  static const int kStacktraceBufferSize = 32 * KB;
+
+  uintptr_t start_marker_ = kStartMarker;
+  void* isolate_;
+  void* ptr1_;
+  void* ptr2_;
+  void* ptr3_;
+  void* ptr4_;
+  void* code_objects_[4];
+  char js_stack_trace_[kStacktraceBufferSize];
+  uintptr_t end_marker_ = kEndMarker;
 };
 
 }  // namespace internal
