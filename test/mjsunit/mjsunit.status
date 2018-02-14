@@ -680,6 +680,9 @@
   # BUG(v8:7429).
   'regress/regress-599414-array-concat-fast-path': [SKIP],
 
+  # BUG(v8:7438).
+  'regress/regress-crbug-808192': [SKIP],
+
   # Often crashes due to memory consumption.
   'regress/regress-655573': [SKIP],
 
