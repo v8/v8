@@ -907,6 +907,13 @@ void GlobalHandles::IterateStrongRoots(RootVisitor* v) {
   }
 }
 
+void GlobalHandles::IterateWeakRoots(RootVisitor* v) {
+  for (NodeIterator it(this); !it.done(); it.Advance()) {
+    if (it.node()->IsWeak()) {
+      v->VisitRootPointer(Root::kGlobalHandles, nullptr, it.node()->location());
+    }
+  }
+}
 
 DISABLE_CFI_PERF
 void GlobalHandles::IterateAllRoots(RootVisitor* v) {

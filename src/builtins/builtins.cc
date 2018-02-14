@@ -86,8 +86,9 @@ Builtins::Name Builtins::GetBuiltinFromBailoutId(BailoutId id) {
 void Builtins::TearDown() { initialized_ = false; }
 
 void Builtins::IterateBuiltins(RootVisitor* v) {
-  v->VisitRootPointers(Root::kBuiltins, nullptr, &builtins_[0],
-                       &builtins_[0] + builtin_count);
+  for (int i = 0; i < builtin_count; i++) {
+    v->VisitRootPointer(Root::kBuiltins, name(i), &builtins_[i]);
+  }
 }
 
 const char* Builtins::Lookup(byte* pc) {

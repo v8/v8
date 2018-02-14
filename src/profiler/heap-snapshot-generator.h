@@ -165,8 +165,8 @@ class HeapSnapshot {
   HeapProfiler* profiler() { return profiler_; }
   HeapEntry* root() { return &entries_[root_index_]; }
   HeapEntry* gc_roots() { return &entries_[gc_roots_index_]; }
-  HeapEntry* gc_subroot(int index) {
-    return &entries_[gc_subroot_indexes_[index]];
+  HeapEntry* gc_subroot(Root root) {
+    return &entries_[gc_subroot_indexes_[static_cast<int>(root)]];
   }
   std::vector<HeapEntry>& entries() { return entries_; }
   std::deque<HeapGraphEdge>& edges() { return edges_; }
@@ -191,12 +191,12 @@ class HeapSnapshot {
  private:
   HeapEntry* AddRootEntry();
   HeapEntry* AddGcRootsEntry();
-  HeapEntry* AddGcSubrootEntry(int tag, SnapshotObjectId id);
+  HeapEntry* AddGcSubrootEntry(Root root, SnapshotObjectId id);
 
   HeapProfiler* profiler_;
   int root_index_;
   int gc_roots_index_;
-  int gc_subroot_indexes_[VisitorSynchronization::kNumberOfSyncTags];
+  int gc_subroot_indexes_[static_cast<int>(Root::kNumberOfRoots)];
   std::vector<HeapEntry> entries_;
   std::deque<HeapGraphEdge> edges_;
   std::deque<HeapGraphEdge*> children_;
@@ -445,9 +445,9 @@ class V8HeapExplorer : public HeapEntriesAllocator {
 
   void SetUserGlobalReference(Object* user_global);
   void SetRootGcRootsReference();
-  void SetGcRootsReference(VisitorSynchronization::SyncTag tag);
-  void SetGcSubrootReference(
-      VisitorSynchronization::SyncTag tag, bool is_weak, Object* child);
+  void SetGcRootsReference(Root root);
+  void SetGcSubrootReference(Root root, const char* description, bool is_weak,
+                             Object* child);
   const char* GetStrongGcSubrootName(Object* object);
   void TagObject(Object* obj, const char* tag);
   void TagFixedArraySubType(const FixedArray* array,

@@ -1167,15 +1167,15 @@ class Heap {
   // Iterators. ================================================================
   // ===========================================================================
 
-  // Iterates over all roots in the heap.
   void IterateRoots(RootVisitor* v, VisitMode mode);
-  // Iterates over all strong roots in the heap.
   void IterateStrongRoots(RootVisitor* v, VisitMode mode);
   // Iterates over entries in the smi roots list.  Only interesting to the
   // serializer/deserializer, since GC does not care about smis.
   void IterateSmiRoots(RootVisitor* v);
-  // Iterates over all the other roots in the heap.
+  // Iterates over weak string tables.
   void IterateWeakRoots(RootVisitor* v, VisitMode mode);
+  // Iterates over weak global handles.
+  void IterateWeakGlobalHandles(RootVisitor* v);
 
   // ===========================================================================
   // Store buffer API. =========================================================

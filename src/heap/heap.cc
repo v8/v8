@@ -462,30 +462,6 @@ bool Heap::IsRetainingPathTarget(HeapObject* object,
   return false;
 }
 
-namespace {
-const char* RootToString(Root root) {
-  switch (root) {
-#define ROOT_CASE(root_id, ignore, description) \
-  case Root::root_id:                           \
-    return description;
-    ROOT_ID_LIST(ROOT_CASE)
-#undef ROOT_CASE
-    case Root::kCodeFlusher:
-      return "(Code flusher)";
-    case Root::kPartialSnapshotCache:
-      return "(Partial snapshot cache)";
-    case Root::kWeakCollections:
-      return "(Weak collections)";
-    case Root::kWrapperTracing:
-      return "(Wrapper tracing)";
-    case Root::kUnknown:
-      return "(Unknown)";
-  }
-  UNREACHABLE();
-  return nullptr;
-}
-}  // namespace
-
 void Heap::PrintRetainingPath(HeapObject* target, RetainingPathOption option) {
   PrintF("\n\n\n");
   PrintF("#################################################\n");
@@ -528,7 +504,7 @@ void Heap::PrintRetainingPath(HeapObject* target, RetainingPathOption option) {
   }
   PrintF("\n");
   PrintF("^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n");
-  PrintF("Root: %s\n", RootToString(root));
+  PrintF("Root: %s\n", RootVisitor::RootName(root));
   PrintF("-------------------------------------------------\n");
 }
 
@@ -5146,6 +5122,9 @@ void Heap::IterateStrongRoots(RootVisitor* v, VisitMode mode) {
   }
 }
 
+void Heap::IterateWeakGlobalHandles(RootVisitor* v) {
+  isolate_->global_handles()->IterateWeakRoots(v);
+}
 
 // TODO(1236194): Since the heap size is configurable on the command line
 // and through the API, we should gracefully handle the case that the heap

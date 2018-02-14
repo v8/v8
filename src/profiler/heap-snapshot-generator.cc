@@ -176,7 +176,7 @@ HeapSnapshot::HeapSnapshot(HeapProfiler* profiler)
                 ((kPointerSize == 8) && (sizeof(HeapGraphEdge) == 24)));
   STATIC_ASSERT(((kPointerSize == 4) && (sizeof(HeapEntry) == 28)) ||
                 ((kPointerSize == 8) && (sizeof(HeapEntry) == 40)));
-  for (int i = 0; i < VisitorSynchronization::kNumberOfSyncTags; ++i) {
+  for (int i = 0; i < static_cast<int>(Root::kNumberOfRoots); ++i) {
     gc_subroot_indexes_[i] = HeapEntry::kNoEntry;
   }
 }
@@ -196,8 +196,8 @@ void HeapSnapshot::AddSyntheticRootEntries() {
   AddRootEntry();
   AddGcRootsEntry();
   SnapshotObjectId id = HeapObjectsMap::kGcRootsFirstSubrootId;
-  for (int tag = 0; tag < VisitorSynchronization::kNumberOfSyncTags; tag++) {
-    AddGcSubrootEntry(tag, id);
+  for (int root = 0; root < static_cast<int>(Root::kNumberOfRoots); root++) {
+    AddGcSubrootEntry(static_cast<Root>(root), id);
     id += HeapObjectsMap::kObjectIdStep;
   }
   DCHECK_EQ(HeapObjectsMap::kFirstAvailableObjectId, id);
@@ -229,13 +229,11 @@ HeapEntry* HeapSnapshot::AddGcRootsEntry() {
   return entry;
 }
 
-
-HeapEntry* HeapSnapshot::AddGcSubrootEntry(int tag, SnapshotObjectId id) {
-  DCHECK_EQ(gc_subroot_indexes_[tag], HeapEntry::kNoEntry);
-  DCHECK(0 <= tag && tag < VisitorSynchronization::kNumberOfSyncTags);
-  HeapEntry* entry = AddEntry(HeapEntry::kSynthetic,
-                              VisitorSynchronization::kTagNames[tag], id, 0, 0);
-  gc_subroot_indexes_[tag] = entry->index();
+HeapEntry* HeapSnapshot::AddGcSubrootEntry(Root root, SnapshotObjectId id) {
+  DCHECK_EQ(gc_subroot_indexes_[static_cast<int>(root)], HeapEntry::kNoEntry);
+  HeapEntry* entry =
+      AddEntry(HeapEntry::kSynthetic, RootVisitor::RootName(root), id, 0, 0);
+  gc_subroot_indexes_[static_cast<int>(root)] = entry->index();
   return entry;
 }
 
@@ -306,7 +304,7 @@ const SnapshotObjectId HeapObjectsMap::kGcRootsFirstSubrootId =
     HeapObjectsMap::kGcRootsObjectId + HeapObjectsMap::kObjectIdStep;
 const SnapshotObjectId HeapObjectsMap::kFirstAvailableObjectId =
     HeapObjectsMap::kGcRootsFirstSubrootId +
-    VisitorSynchronization::kNumberOfSyncTags * HeapObjectsMap::kObjectIdStep;
+    static_cast<int>(Root::kNumberOfRoots) * HeapObjectsMap::kObjectIdStep;
 
 HeapObjectsMap::HeapObjectsMap(Heap* heap)
     : next_id_(kFirstAvailableObjectId), heap_(heap) {
@@ -732,15 +730,15 @@ class SnapshotFiller {
     HeapEntry* parent_entry = &snapshot_->entries()[parent];
     parent_entry->SetNamedReference(type, reference_name, child_entry);
   }
-  void SetNamedAutoIndexReference(HeapGraphEdge::Type type,
-                                  int parent,
+  void SetNamedAutoIndexReference(HeapGraphEdge::Type type, int parent,
+                                  const char* description,
                                   HeapEntry* child_entry) {
     HeapEntry* parent_entry = &snapshot_->entries()[parent];
     int index = parent_entry->children_count() + 1;
-    parent_entry->SetNamedReference(
-        type,
-        names_->GetName(index),
-        child_entry);
+    const char* name = description
+                           ? names_->GetFormatted("%d / %s", index, description)
+                           : names_->GetName(index);
+    parent_entry->SetNamedReference(type, name, child_entry);
   }
 
  private:
@@ -1480,74 +1478,30 @@ HeapEntry* V8HeapExplorer::GetEntry(Object* obj) {
 }
 
 class RootsReferencesExtractor : public RootVisitor {
- private:
-  struct IndexTag {
-    IndexTag(size_t index, VisitorSynchronization::SyncTag tag)
-        : index(index), tag(tag) {}
-    size_t index;
-    VisitorSynchronization::SyncTag tag;
-  };
-
  public:
-  explicit RootsReferencesExtractor(Heap* heap)
-      : collecting_all_references_(false),
-        previous_reference_count_(0),
-        heap_(heap) {
+  explicit RootsReferencesExtractor(V8HeapExplorer* explorer)
+      : explorer_(explorer), visiting_weak_roots_(false) {}
+
+  void SetVisitingWeakRoots() { visiting_weak_roots_ = true; }
+
+  void VisitRootPointer(Root root, const char* description,
+                        Object** object) override {
+    if (root == Root::kBuiltins) {
+      explorer_->TagBuiltinCodeObject(Code::cast(*object), description);
+    }
+    explorer_->SetGcSubrootReference(root, description, visiting_weak_roots_,
+                                     *object);
   }
 
   void VisitRootPointers(Root root, const char* description, Object** start,
                          Object** end) override {
-    if (collecting_all_references_) {
-      for (Object** p = start; p < end; p++) all_references_.push_back(*p);
-    } else {
-      for (Object** p = start; p < end; p++) strong_references_.push_back(*p);
-    }
-  }
-
-  void SetCollectingAllReferences() { collecting_all_references_ = true; }
-
-  void FillReferences(V8HeapExplorer* explorer) {
-    DCHECK_LE(strong_references_.size(), all_references_.size());
-    Builtins* builtins = heap_->isolate()->builtins();
-    USE(builtins);
-    size_t strong_index = 0, all_index = 0, tags_index = 0;
-    int builtin_index = 0;
-    while (all_index < all_references_.size()) {
-      bool is_strong =
-          strong_index < strong_references_.size() &&
-          strong_references_[strong_index] == all_references_[all_index];
-      explorer->SetGcSubrootReference(reference_tags_[tags_index].tag,
-                                      !is_strong,
-                                      all_references_[all_index]);
-      if (reference_tags_[tags_index].tag ==
-          VisitorSynchronization::kBuiltins) {
-        DCHECK(all_references_[all_index]->IsCode());
-        explorer->TagBuiltinCodeObject(
-            Code::cast(all_references_[all_index]),
-            builtins->name(builtin_index++));
-      }
-      ++all_index;
-      if (is_strong) ++strong_index;
-      if (reference_tags_[tags_index].index == all_index) ++tags_index;
-    }
-    CHECK_EQ(strong_index, strong_references_.size());
-  }
-
-  void Synchronize(VisitorSynchronization::SyncTag tag) override {
-    if (collecting_all_references_ &&
-        previous_reference_count_ != all_references_.size()) {
-      previous_reference_count_ = all_references_.size();
-      reference_tags_.emplace_back(previous_reference_count_, tag);
-    }
+    for (Object** p = start; p < end; p++)
+      VisitRootPointer(root, description, p);
   }
 
  private:
-  bool collecting_all_references_;
-  std::vector<Object*> strong_references_;
-  std::vector<Object*> all_references_;
-  size_t previous_reference_count_;
-  std::vector<IndexTag> reference_tags_;
-  Heap* heap_;
+  V8HeapExplorer* explorer_;
+  bool visiting_weak_roots_;
 };
 
 
@@ -1557,18 +1511,17 @@ bool V8HeapExplorer::IterateAndExtractReferences(
 
   // Create references to the synthetic roots.
   SetRootGcRootsReference();
-  for (int tag = 0; tag < VisitorSynchronization::kNumberOfSyncTags; tag++) {
-    SetGcRootsReference(static_cast<VisitorSynchronization::SyncTag>(tag));
+  for (int root = 0; root < static_cast<int>(Root::kNumberOfRoots); root++) {
+    SetGcRootsReference(static_cast<Root>(root));
   }
 
   // Make sure builtin code objects get their builtin tags
   // first. Otherwise a particular JSFunction object could set
   // its custom name to a generic builtin.
-  RootsReferencesExtractor extractor(heap_);
+  RootsReferencesExtractor extractor(this);
   heap_->IterateRoots(&extractor, VISIT_ONLY_STRONG);
-  extractor.SetCollectingAllReferences();
-  heap_->IterateRoots(&extractor, VISIT_ALL);
-  extractor.FillReferences(this);
+  extractor.SetVisitingWeakRoots();
+  heap_->IterateWeakGlobalHandles(&extractor);
 
   // We have to do two passes as sometimes FixedArrays are used
   // to weakly hold their items, and it's impossible to distinguish
@@ -1829,45 +1782,37 @@ void V8HeapExplorer::SetRootGcRootsReference() {
 void V8HeapExplorer::SetUserGlobalReference(Object* child_obj) {
   HeapEntry* child_entry = GetEntry(child_obj);
   DCHECK_NOT_NULL(child_entry);
-  filler_->SetNamedAutoIndexReference(
-      HeapGraphEdge::kShortcut,
-      snapshot_->root()->index(),
-      child_entry);
+  filler_->SetNamedAutoIndexReference(HeapGraphEdge::kShortcut,
+                                      snapshot_->root()->index(), nullptr,
+                                      child_entry);
 }
 
-void V8HeapExplorer::SetGcRootsReference(VisitorSynchronization::SyncTag tag) {
-  filler_->SetIndexedAutoIndexReference(
-      HeapGraphEdge::kElement,
-      snapshot_->gc_roots()->index(),
-      snapshot_->gc_subroot(tag));
+void V8HeapExplorer::SetGcRootsReference(Root root) {
+  filler_->SetIndexedAutoIndexReference(HeapGraphEdge::kElement,
+                                        snapshot_->gc_roots()->index(),
+                                        snapshot_->gc_subroot(root));
 }
 
-void V8HeapExplorer::SetGcSubrootReference(
-    VisitorSynchronization::SyncTag tag, bool is_weak, Object* child_obj) {
+void V8HeapExplorer::SetGcSubrootReference(Root root, const char* description,
+                                           bool is_weak, Object* child_obj) {
   HeapEntry* child_entry = GetEntry(child_obj);
   if (child_entry == nullptr) return;
   const char* name = GetStrongGcSubrootName(child_obj);
+  HeapGraphEdge::Type edge_type =
+      is_weak ? HeapGraphEdge::kWeak : HeapGraphEdge::kInternal;
   if (name != nullptr) {
-    DCHECK(!is_weak);
-    filler_->SetNamedReference(HeapGraphEdge::kInternal,
-                               snapshot_->gc_subroot(tag)->index(), name,
-                               child_entry);
+    filler_->SetNamedReference(edge_type, snapshot_->gc_subroot(root)->index(),
+                               name, child_entry);
   } else {
-    if (is_weak) {
-      filler_->SetNamedAutoIndexReference(HeapGraphEdge::kWeak,
-                                          snapshot_->gc_subroot(tag)->index(),
-                                          child_entry);
-    } else {
-      filler_->SetIndexedAutoIndexReference(HeapGraphEdge::kElement,
-                                            snapshot_->gc_subroot(tag)->index(),
-                                            child_entry);
-    }
+    filler_->SetNamedAutoIndexReference(edge_type,
+                                        snapshot_->gc_subroot(root)->index(),
+                                        description, child_entry);
   }
 
   // Add a shortcut to JS global object reference at snapshot root.
   // That allows the user to easily find global objects. They are
   // also used as starting points in distance calculations.
-  if (is_weak || !child_obj->IsNativeContext()) return;
+  if (!child_obj->IsNativeContext()) return;
 
   JSGlobalObject* global = Context::cast(child_obj)->global_object();
   if (!global->IsJSGlobalObject()) return;
@@ -2325,9 +2270,7 @@ void NativeObjectsExplorer::SetNativeRootReference(
   // potentially-stale pointer.
   child_entry = filler_->FindEntry(info);
   filler_->SetNamedAutoIndexReference(
-      HeapGraphEdge::kInternal,
-      group_entry->index(),
-      child_entry);
+      HeapGraphEdge::kInternal, group_entry->index(), nullptr, child_entry);
 }
 
 
