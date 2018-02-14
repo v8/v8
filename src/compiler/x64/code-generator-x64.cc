@@ -584,12 +584,7 @@ void CodeGenerator::AssembleTailCallAfterGap(Instruction* instr,
 
 // Check that {kJavaScriptCallCodeStartRegister} is correct.
 void CodeGenerator::AssembleCodeStartRegisterCheck() {
-  Label current;
-  // Load effective address to get the address of the current instruction.
-  __ leaq(rbx, Operand(&current));
-  __ bind(&current);
-  int pc = __ pc_offset();
-  __ subq(rbx, Immediate(pc));
+  __ ComputeCodeStartAddress(rbx);
   __ cmpq(rbx, kJavaScriptCallCodeStartRegister);
   __ Assert(equal, AbortReason::kWrongFunctionCodeStart);
 }
@@ -616,13 +611,7 @@ void CodeGenerator::GenerateSpeculationPoison() {
   // bits cleared if we are speculatively executing the wrong PC.
   //    difference = (current - expected) | (expected - current)
   //    poison = ~(difference >> (kBitsPerPointer - 1))
-  Label current;
-  __ bind(&current);
-  int pc = __ pc_offset();
-  __ leaq(rbx, Operand(&current));
-  if (pc != 0) {
-    __ subq(rbx, Immediate(pc));
-  }
+  __ ComputeCodeStartAddress(rbx);
   __ movp(kSpeculationPoisonRegister, rbx);
   __ subq(kSpeculationPoisonRegister, kJavaScriptCallCodeStartRegister);
   __ subq(kJavaScriptCallCodeStartRegister, rbx);

@@ -1195,6 +1195,10 @@ class TurboAssembler : public Assembler {
   inline void Fcvtas(const Register& rd, const VRegister& fn);
   inline void Fcvtau(const Register& rd, const VRegister& fn);
 
+  // Compute the start of the generated instruction stream from the current PC.
+  // This is an alternative to embedding the {CodeObject} handle as a reference.
+  void ComputeCodeStartAddress(const Register& rd);
+
   void ResetSpeculationPoisonRegister();
 
  protected:

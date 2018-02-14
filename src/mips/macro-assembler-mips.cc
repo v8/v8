@@ -5292,6 +5292,24 @@ bool AreAliased(Register reg1, Register reg2, Register reg3, Register reg4,
   return n_of_valid_regs != n_of_non_aliasing_regs;
 }
 
+void TurboAssembler::ComputeCodeStartAddress(Register dst) {
+  // This push on ra and the pop below together ensure that we restore the
+  // register ra, which is needed while computing the code start address.
+  push(ra);
+
+  // The bal instruction puts the address of the current instruction into
+  // the return address (ra) register, which we can use later on.
+  Label current;
+  bal(&current);
+  nop();
+  int pc = pc_offset();
+  bind(&current);
+  li(dst, pc);
+  subu(dst, ra, dst);
+
+  pop(ra);  // Restore ra
+}
+
 void TurboAssembler::ResetSpeculationPoisonRegister() { UNREACHABLE(); }
 
 }  // namespace internal

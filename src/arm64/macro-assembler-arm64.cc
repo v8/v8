@@ -3299,6 +3299,11 @@ InlineSmiCheckInfo::InlineSmiCheckInfo(Address info)
   }
 }
 
+void TurboAssembler::ComputeCodeStartAddress(const Register& rd) {
+  // We can use adr to load a pc relative location.
+  adr(rd, -pc_offset());
+}
+
 void TurboAssembler::ResetSpeculationPoisonRegister() { UNREACHABLE(); }
 
 #undef __

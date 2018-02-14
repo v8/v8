@@ -537,8 +537,7 @@ void CodeGenerator::AssembleTailCallAfterGap(Instruction* instr,
 void CodeGenerator::AssembleCodeStartRegisterCheck() {
   UseScratchRegisterScope temps(tasm());
   Register scratch = temps.AcquireX();
-  int pc_offset = __ pc_offset();
-  __ adr(scratch, -pc_offset);
+  __ ComputeCodeStartAddress(scratch);
   __ cmp(scratch, kJavaScriptCallCodeStartRegister);
   __ Assert(eq, AbortReason::kWrongFunctionCodeStart);
 }
@@ -569,14 +568,11 @@ void CodeGenerator::GenerateSpeculationPoison() {
   UseScratchRegisterScope temps(tasm());
   Register scratch = temps.AcquireX();
 
-  // We can use adr to load a pc relative location.
-  int pc_offset = __ pc_offset();
-  __ adr(scratch, -pc_offset);
-
   // Calculate a mask which has all bits set in the normal case, but has all
   // bits cleared if we are speculatively executing the wrong PC.
   //    difference = (current - expected) | (expected - current)
   //    poison = ~(difference >> (kBitsPerPointer - 1))
+  __ ComputeCodeStartAddress(scratch);
   __ Mov(kSpeculationPoisonRegister, scratch);
   __ Sub(kSpeculationPoisonRegister, kSpeculationPoisonRegister,
          kJavaScriptCallCodeStartRegister);

@@ -2307,6 +2307,11 @@ bool AreAliased(Register reg1,
 }
 #endif
 
+void TurboAssembler::ComputeCodeStartAddress(Register dst) {
+  // We can use the register pc - 8 for the address of the current instruction.
+  sub(dst, pc, Operand(pc_offset() + TurboAssembler::kPcLoadDelta));
+}
+
 void TurboAssembler::ResetSpeculationPoisonRegister() { UNREACHABLE(); }
 
 }  // namespace internal

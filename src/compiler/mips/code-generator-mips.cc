@@ -620,21 +620,9 @@ void CodeGenerator::AssembleTailCallAfterGap(Instruction* instr,
 
 // Check that {kJavaScriptCallCodeStartRegister} is correct.
 void CodeGenerator::AssembleCodeStartRegisterCheck() {
-  Label current;
-  // This push on ra and the pop below together ensure that we restore the
-  // register ra, which is needed while computing frames for deoptimization.
-  __ push(ra);
-  // The bal instruction puts the address of the current instruction into
-  // the return address (ra) register, which we can use later on.
-  __ bal(&current);
-  __ nop();
-  int pc = __ pc_offset();
-  __ bind(&current);
-  __ li(at, pc);
-  __ subu(at, ra, at);
+  __ ComputeCodeStartAddress(at);
   __ Assert(eq, AbortReason::kWrongFunctionCodeStart,
             kJavaScriptCallCodeStartRegister, Operand(at));
-  __ pop(ra);
 }
 
 // Check if the code object is marked for deoptimization. If it is, then it
@@ -655,24 +643,11 @@ void CodeGenerator::BailoutIfDeoptimized() {
 }
 
 void CodeGenerator::GenerateSpeculationPoison() {
-  // This push on ra and the pop below together ensure that we restore the
-  // register ra, which is needed while computing speculation poison.
-  __ push(ra);
-
-  // The bal instruction puts the address of the current instruction into
-  // the return address (ra) register, which we can use later on.
-  Label current;
-  __ bal(&current);
-  __ nop();
-  int pc = __ pc_offset();
-  __ bind(&current);
-  __ li(at, pc);
-  __ subu(at, ra, at);
-
   // Calculate a mask which has all bits set in the normal case, but has all
   // bits cleared if we are speculatively executing the wrong PC.
   //    difference = (current - expected) | (expected - current)
   //    poison = ~(difference >> (kBitsPerPointer - 1))
+  __ ComputeCodeStartAddress(at);
   __ Move(kSpeculationPoisonRegister, at);
   __ subu(kSpeculationPoisonRegister, kSpeculationPoisonRegister,
           kJavaScriptCallCodeStartRegister);
@@ -684,8 +659,6 @@ void CodeGenerator::GenerateSpeculationPoison() {
          kBitsPerPointer - 1);
   __ nor(kSpeculationPoisonRegister, kSpeculationPoisonRegister,
          kSpeculationPoisonRegister);
-
-  __ pop(ra);  // Restore ra
 }
 
 // Assembles an instruction after register allocation, producing machine code.

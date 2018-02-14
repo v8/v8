@@ -1666,6 +1666,20 @@ void TurboAssembler::CheckPageFlag(Register object, Register scratch, int mask,
   j(cc, condition_met, condition_met_distance);
 }
 
+void TurboAssembler::ComputeCodeStartAddress(Register dst) {
+  // In order to get the address of the current instruction, we first need
+  // to use a call and then use a pop, thus pushing the return address to
+  // the stack and then popping it into the register.
+  Label current;
+  call(&current);
+  int pc = pc_offset();
+  bind(&current);
+  pop(dst);
+  if (pc != 0) {
+    sub(dst, Immediate(pc));
+  }
+}
+
 void TurboAssembler::ResetSpeculationPoisonRegister() { UNREACHABLE(); }
 
 }  // namespace internal

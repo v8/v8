@@ -584,9 +584,7 @@ void CodeGenerator::AssembleTailCallAfterGap(Instruction* instr,
 void CodeGenerator::AssembleCodeStartRegisterCheck() {
   UseScratchRegisterScope temps(tasm());
   Register scratch = temps.Acquire();
-  int pc_offset = __ pc_offset();
-  // We can use the register pc - 8 for the address of the current instruction.
-  __ sub(scratch, pc, Operand(pc_offset + TurboAssembler::kPcLoadDelta));
+  __ ComputeCodeStartAddress(scratch);
   __ cmp(scratch, kJavaScriptCallCodeStartRegister);
   __ Assert(eq, AbortReason::kWrongFunctionCodeStart);
 }
@@ -615,14 +613,11 @@ void CodeGenerator::GenerateSpeculationPoison() {
   UseScratchRegisterScope temps(tasm());
   Register scratch = temps.Acquire();
 
-  // We can use the register pc - 8 for the address of the current instruction.
-  int pc_offset = __ pc_offset();
-  __ sub(scratch, pc, Operand(pc_offset + TurboAssembler::kPcLoadDelta));
-
   // Calculate a mask which has all bits set in the normal case, but has all
   // bits cleared if we are speculatively executing the wrong PC.
   //    difference = (current - expected) | (expected - current)
   //    poison = ~(difference >> (kBitsPerPointer - 1))
+  __ ComputeCodeStartAddress(scratch);
   __ mov(kSpeculationPoisonRegister, scratch);
   __ sub(kSpeculationPoisonRegister, kSpeculationPoisonRegister,
          kJavaScriptCallCodeStartRegister);

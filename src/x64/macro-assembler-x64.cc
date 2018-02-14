@@ -2764,6 +2764,17 @@ void TurboAssembler::CheckPageFlag(Register object, Register scratch, int mask,
   j(cc, condition_met, condition_met_distance);
 }
 
+void TurboAssembler::ComputeCodeStartAddress(Register dst) {
+  Label current;
+  // Load effective address to get the address of the current instruction.
+  leaq(dst, Operand(&current));
+  bind(&current);
+  int pc = pc_offset();
+  if (pc != 0) {
+    subq(dst, Immediate(pc));
+  }
+}
+
 void TurboAssembler::ResetSpeculationPoisonRegister() {
   Set(kSpeculationPoisonRegister, -1);
 }

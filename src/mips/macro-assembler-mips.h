@@ -847,6 +847,10 @@ class TurboAssembler : public Assembler {
     BranchF64(bd, target, nan, cc, cmp1, cmp2);
   }
 
+  // Compute the start of the generated instruction stream from the current PC.
+  // This is an alternative to embedding the {CodeObject} handle as a reference.
+  void ComputeCodeStartAddress(Register dst);
+
   void ResetSpeculationPoisonRegister();
 
  protected:

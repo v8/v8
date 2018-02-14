@@ -328,6 +328,10 @@ class TurboAssembler : public Assembler {
                      Register exclusion2 = no_reg,
                      Register exclusion3 = no_reg);
 
+  // Compute the start of the generated instruction stream from the current PC.
+  // This is an alternative to embedding the {CodeObject} handle as a reference.
+  void ComputeCodeStartAddress(Register dst);
+
   void ResetSpeculationPoisonRegister();
 
  private:

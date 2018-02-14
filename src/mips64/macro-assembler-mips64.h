@@ -878,6 +878,10 @@ class TurboAssembler : public Assembler {
   void Dlsa(Register rd, Register rs, Register rt, uint8_t sa,
             Register scratch = at);
 
+  // Compute the start of the generated instruction stream from the current PC.
+  // This is an alternative to embedding the {CodeObject} handle as a reference.
+  void ComputeCodeStartAddress(Register dst);
+
   void ResetSpeculationPoisonRegister();
 
  protected:

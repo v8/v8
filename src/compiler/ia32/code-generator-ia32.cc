@@ -498,15 +498,7 @@ void CodeGenerator::AssembleTailCallAfterGap(Instruction* instr,
 // Check that {kJavaScriptCallCodeStartRegister} is correct.
 void CodeGenerator::AssembleCodeStartRegisterCheck() {
   __ push(eax);  // Push eax so we can use it as a scratch register.
-  Label current;
-  __ call(&current);
-  int pc = __ pc_offset();
-  __ bind(&current);
-  // In order to get the address of the current instruction, we first need
-  // to use a call and then use a pop, thus pushing the return address to
-  // the stack and then popping it into the register.
-  __ pop(eax);
-  __ sub(eax, Immediate(pc));
+  __ ComputeCodeStartAddress(eax);
   __ cmp(eax, kJavaScriptCallCodeStartRegister);
   __ Assert(equal, AbortReason::kWrongFunctionCodeStart);
   __ pop(eax);  // Restore eax.
@@ -532,20 +524,11 @@ void CodeGenerator::BailoutIfDeoptimized() {
 void CodeGenerator::GenerateSpeculationPoison() {
   __ push(eax);  // Push eax so we can use it as a scratch register.
 
-  // In order to get the address of the current instruction, we first need
-  // to use a call and then use a pop, thus pushing the return address to
-  // the stack and then popping it into the register.
-  Label current;
-  __ call(&current);
-  int pc = __ pc_offset();
-  __ bind(&current);
-  __ pop(eax);
-  __ sub(eax, Immediate(pc));
-
   // Calculate a mask which has all bits set in the normal case, but has all
   // bits cleared if we are speculatively executing the wrong PC.
   //    difference = (current - expected) | (expected - current)
   //    poison = ~(difference >> (kBitsPerPointer - 1))
+  __ ComputeCodeStartAddress(eax);
   __ mov(kSpeculationPoisonRegister, eax);
   __ sub(kSpeculationPoisonRegister, kJavaScriptCallCodeStartRegister);
   __ sub(kJavaScriptCallCodeStartRegister, eax);
