@@ -8,10 +8,10 @@ found in the LICENSE file. -->
 <head>
   <meta charset="UTF-8">
   <title>V8 Heap Statistics</title>
-  <link href='https://fonts.googleapis.com/css?family=Roboto' rel='stylesheet' type='text/css'>
-  <script type="text/javascript"
+  <link href='https://fonts.googleapis.com/css?family=Roboto' rel='stylesheet'>
+  <script
           src="https://www.gstatic.com/charts/loader.js"></script>
-  <script type="text/javascript"
+  <script
           src="https://cdnjs.cloudflare.com/ajax/libs/pako/1.0.6/pako_inflate.min.js"
           integrity="sha256-N1z6ddQzX83fjw8v7uSNe7/MgOmMKdwFUv1+AJMDqNM="
           crossorigin="anonymous"></script>
@@ -21,8 +21,7 @@ found in the LICENSE file. -->
   <link rel="import" href="histogram-viewer.html">
   <link rel="import" href="trace-file-reader.html">
 
-  <style type="text/css">
-
+  <style>
 body {
   font-family: 'Roboto', sans-serif;
   margin-left: 5%;
@@ -30,7 +29,7 @@ body {
 }
 
   </style>
-  <script type="text/javascript">
+  <script>
 
 'use strict';
 
@@ -70,6 +69,11 @@ function globalSelectionChangedA(e) {
 
 <body>
   <trace-file-reader onchange="globalDataChanged(event)"></trace-file-reader>
+
+  <details-selection id="details-selection" onchange="globalSelectionChangedA(event)"></details-selection>
+  <global-timeline id="global-timeline"></global-timeline>
+  <histogram-viewer id="histogram-viewer"></histogram-viewer>
+
   <h1>V8 Heap Statistics</h1>
   <p>Visualize object statistics that have been gathered using</p>
   <ul>
@@ -86,9 +90,6 @@ function globalSelectionChangedA(e) {
     requiring <a
          href="https://en.wikipedia.org/wiki/Cross-origin_resource_sharing">CORS</a>.
   </p>
-  <details-selection id="details-selection" onchange="globalSelectionChangedA(event)"></details-selection>
-  <global-timeline id="global-timeline"></global-timeline>
-  <histogram-viewer id="histogram-viewer"></histogram-viewer>
 </body>
 
 </html>

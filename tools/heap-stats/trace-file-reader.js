@@ -23,6 +23,10 @@ class TraceFileReader extends HTMLElement {
     return this.shadowRoot.querySelector(id);
   }
 
+  get section() {
+    return this.$('#fileReaderSection');
+  }
+
   updateLabel(text) {
     this.$('#label').innerText = text;
   }
@@ -50,6 +54,7 @@ class TraceFileReader extends HTMLElement {
       return;
     }
 
+    this.section.className = 'loading';
     const reader = new FileReader();
 
     if (['application/gzip', 'application/x-gzip'].includes(file.type)) {
@@ -57,8 +62,10 @@ class TraceFileReader extends HTMLElement {
         try {
           const textResult = pako.inflate(e.target.result, {to: 'string'});
           this.processRawText(file, textResult);
+          this.section.className = 'success';
         } catch (err) {
           console.error(err);
+          this.section.className = 'failure';
         }
       };
       reader.readAsArrayBuffer(file);
