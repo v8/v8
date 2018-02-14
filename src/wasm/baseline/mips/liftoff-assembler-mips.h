@@ -140,7 +140,7 @@ void LiftoffAssembler::FillI64Half(Register, uint32_t half_index) {
 #define UNIMPLEMENTED_GP_UNOP(name)                                \
   bool LiftoffAssembler::emit_##name(Register dst, Register src) { \
     BAILOUT("gp unop");                                            \
-    return false;                                                  \
+    return true;                                                   \
   }
 #define UNIMPLEMENTED_FP_BINOP(name)                                         \
   void LiftoffAssembler::emit_##name(DoubleRegister dst, DoubleRegister lhs, \
