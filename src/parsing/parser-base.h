@@ -2982,6 +2982,8 @@ ParserBase<Impl>::ParseAssignmentExpression(bool accept_IN, bool* ok) {
     function_state_->AddProperty();
   }
 
+  impl()->CheckAssigningFunctionLiteralToProperty(expression, right);
+
   if (fni_ != nullptr) {
     // Check if the right hand side is a call to avoid inferring a
     // name if we're dealing with "a = function(){...}();"-like
