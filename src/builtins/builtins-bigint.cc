@@ -123,7 +123,7 @@ Object* BigIntToStringImpl(Handle<Object> receiver, Handle<Object> radix,
 
 BUILTIN(BigIntPrototypeToLocaleString) {
   HandleScope scope(isolate);
-  Handle<Object> radix = args.atOrUndefined(isolate, 1);
+  Handle<Object> radix = isolate->factory()->undefined_value();
   return BigIntToStringImpl(args.receiver(), radix, isolate,
                             "BigInt.prototype.toLocaleString");
 }
