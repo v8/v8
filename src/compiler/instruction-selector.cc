@@ -1005,6 +1005,7 @@ void InstructionSelector::VisitControl(BasicBlock* block) {
       return VisitTailCall(input);
     }
     case BasicBlock::kBranch: {
+      DCHECK_EQ(IrOpcode::kBranch, input->opcode());
       BasicBlock* tbranch = block->SuccessorAt(0);
       BasicBlock* fbranch = block->SuccessorAt(1);
       if (tbranch == fbranch) return VisitGoto(tbranch);

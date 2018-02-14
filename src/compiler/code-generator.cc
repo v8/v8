@@ -141,8 +141,6 @@ void CodeGenerator::AssembleCode() {
   // the frame (that is done in AssemblePrologue).
   FrameScope frame_scope(tasm(), StackFrame::MANUAL);
 
-  InitializePoisonForLoadsIfNeeded();
-
   if (info->is_source_positions_enabled()) {
     AssembleSourcePosition(start_source_position());
   }
@@ -160,6 +158,8 @@ void CodeGenerator::AssembleCode() {
 
   if (info->is_speculation_poison_enabled()) {
     GenerateSpeculationPoison();
+  } else {
+    InitializePoisonForLoadsIfNeeded();
   }
 
   // TODO(jupvfranco): This should be the first thing in the code after

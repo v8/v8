@@ -268,7 +268,7 @@ void Verifier::Visitor::Check(Node* node, const AllNodes& all) {
     case IrOpcode::kIfTrue:
     case IrOpcode::kIfFalse: {
       Node* control = NodeProperties::GetControlInput(node, 0);
-      CHECK(control->opcode() == IrOpcode::kBranch);
+      CHECK_EQ(IrOpcode::kBranch, control->opcode());
       // Type is empty.
       CheckNotTyped(node);
       break;

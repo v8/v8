@@ -41,6 +41,7 @@ struct PushParameter {
 };
 
 enum class FrameStateInputKind { kAny, kStackSlot };
+
 // Instruction selection generates an InstructionSequence for a given Schedule.
 class V8_EXPORT_PRIVATE InstructionSelector final {
  public:

@@ -123,11 +123,12 @@ bool JumpThreading::ComputeForwarding(Zone* local_zone,
             fallthru = false;
           }
           break;
-      }
-      if (fallthru) {
-        int next = 1 + block->rpo_number().ToInt();
-        if (next < code->InstructionBlockCount()) fw = RpoNumber::FromInt(next);
-      }
+        }
+        if (fallthru) {
+          int next = 1 + block->rpo_number().ToInt();
+          if (next < code->InstructionBlockCount())
+            fw = RpoNumber::FromInt(next);
+        }
       }
       state.Forward(fw);
     }

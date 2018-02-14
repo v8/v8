@@ -2207,7 +2207,6 @@ bool PipelineImpl::SelectInstructions(Linkage* linkage) {
     AllocateRegisters(config.get(), call_descriptor, run_verifier);
   } else if (data->info()->is_poison_loads()) {
     CHECK(InstructionSelector::SupportsSpeculationPoisoning());
-    CHECK_NE(kSpeculationPoisonRegister, Register::no_reg());
     AllocateRegisters(RegisterConfiguration::Poisoning(), call_descriptor,
                       run_verifier);
   } else {
