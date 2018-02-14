@@ -276,6 +276,7 @@ void Deoptimizer::DeoptimizeAll(Isolate* isolate) {
     CodeTracer::Scope scope(isolate->GetCodeTracer());
     PrintF(scope.file(), "[deoptimize all code in all contexts]\n");
   }
+  isolate->AbortConcurrentOptimization(BlockingBehavior::kBlock);
   DisallowHeapAllocation no_allocation;
   // For all contexts, mark all code, then deoptimize.
   Object* context = isolate->heap()->native_contexts_list();

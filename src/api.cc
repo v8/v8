@@ -10405,7 +10405,7 @@ void Testing::PrepareStressRun(int run) {
 void Testing::DeoptimizeAll(Isolate* isolate) {
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
   i::HandleScope scope(i_isolate);
-  internal::Deoptimizer::DeoptimizeAll(i_isolate);
+  i::Deoptimizer::DeoptimizeAll(i_isolate);
 }
 
 

@@ -1142,6 +1142,7 @@ TEST(BreakPointReturn) {
 // Test that a break point can be set at a return store location.
 TEST(BreakPointBuiltin) {
   i::FLAG_allow_natives_syntax = true;
+  i::FLAG_block_concurrent_recompilation = true;
   break_point_hit_count = 0;
   DebugLocalContext env;
   v8::HandleScope scope(env->GetIsolate());
@@ -1188,6 +1189,56 @@ TEST(BreakPointBuiltin) {
   // Run without breakpoints.
   ClearBreakPoint(bp);
   CompileRun("test(0.3);");
+  CHECK_EQ(3, break_point_hit_count);
+
+  // === Test concurrent optimization ===
+  break_point_hit_count = 0;
+  builtin = CompileRun("Math.sin").As<v8::Function>();
+  CompileRun("function test(x) { return 1 + Math.sin(x) }");
+  // Trigger concurrent compile job. It is suspended until unblock.
+  CompileRun(
+      "test(0.5); test(0.6);"
+      "%OptimizeFunctionOnNextCall(test, 'concurrent'); test(0.7);");
+  CHECK_EQ(0, break_point_hit_count);
+
+  // Run with breakpoint.
+  bp = SetBreakPoint(builtin, 0);
+  // Have the concurrent compile job finish now.
+  CompileRun(
+      "%UnblockConcurrentRecompilation();"
+      "%GetOptimizationStatus(test, 'sync');");
+  CompileRun("test(0.2);");
+  CHECK_EQ(1, break_point_hit_count);
+
+  // Run without breakpoints.
+  ClearBreakPoint(bp);
+  CompileRun("test(0.3);");
+  CHECK_EQ(1, break_point_hit_count);
+
+  // === Test builtin represented as operator ===
+  break_point_hit_count = 0;
+  builtin = CompileRun("String.prototype.indexOf").As<v8::Function>();
+  CompileRun("function test(x) { return 1 + 'foo'.indexOf(x) }");
+  CompileRun(
+      "test('a'); test('b');"
+      "%OptimizeFunctionOnNextCall(test); test('c');");
+  CHECK_EQ(0, break_point_hit_count);
+
+  // Run with breakpoint.
+  bp = SetBreakPoint(builtin, 0);
+  CompileRun("'bar'.indexOf('x');");
+  CHECK_EQ(1, break_point_hit_count);
+  CompileRun("test('d');");
+  CHECK_EQ(2, break_point_hit_count);
+
+  // Re-optimize.
+  CompileRun("%OptimizeFunctionOnNextCall(test);");
+  CompileRun("test('e');");
+  CHECK_EQ(3, break_point_hit_count);
+
+  // Run without breakpoints.
+  ClearBreakPoint(bp);
+  CompileRun("test('f');");
   CHECK_EQ(3, break_point_hit_count);
 
   SetDebugEventListener(env->GetIsolate(), nullptr);

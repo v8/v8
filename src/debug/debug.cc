@@ -12,7 +12,6 @@
 #include "src/bootstrapper.h"
 #include "src/code-stubs.h"
 #include "src/compilation-cache.h"
-#include "src/compiler-dispatcher/optimizing-compile-dispatcher.h"
 #include "src/compiler.h"
 #include "src/debug/debug-evaluate.h"
 #include "src/debug/liveedit.h"
@@ -1140,10 +1139,7 @@ class RedirectActiveFunctions : public ThreadVisitor {
 void Debug::DeoptimizeFunction(Handle<SharedFunctionInfo> shared) {
   // Deoptimize all code compiled from this shared function info including
   // inlining.
-  if (isolate_->concurrent_recompilation_enabled()) {
-    isolate_->optimizing_compile_dispatcher()->Flush(
-        OptimizingCompileDispatcher::BlockingBehavior::kBlock);
-  }
+  isolate_->AbortConcurrentOptimization(BlockingBehavior::kBlock);
 
   // Make sure we abort incremental marking.
   isolate_->heap()->CollectAllGarbage(Heap::kMakeHeapIterableMask,

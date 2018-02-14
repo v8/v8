@@ -17,7 +17,6 @@
 #include "src/bootstrapper.h"
 #include "src/code-stubs.h"
 #include "src/compilation-cache.h"
-#include "src/compiler-dispatcher/optimizing-compile-dispatcher.h"
 #include "src/conversions.h"
 #include "src/debug/debug.h"
 #include "src/deoptimizer.h"
@@ -1166,12 +1165,9 @@ void Heap::CollectAllAvailableGarbage(GarbageCollectionReason gc_reason) {
   }
   RuntimeCallTimerScope runtime_timer(
       isolate(), RuntimeCallCounterId::kGC_Custom_AllAvailableGarbage);
-  if (isolate()->concurrent_recompilation_enabled()) {
-    // The optimizing compiler may be unnecessarily holding on to memory.
-    DisallowHeapAllocation no_recursive_gc;
-    isolate()->optimizing_compile_dispatcher()->Flush(
-        OptimizingCompileDispatcher::BlockingBehavior::kDontBlock);
-  }
+
+  // The optimizing compiler may be unnecessarily holding on to memory.
+  isolate()->AbortConcurrentOptimization(BlockingBehavior::kDontBlock);
   isolate()->ClearSerializerData();
   set_current_gc_flags(kMakeHeapIterableMask | kReduceMemoryFootprintMask);
   isolate_->compilation_cache()->Clear();
@@ -1375,11 +1371,8 @@ int Heap::NotifyContextDisposed(bool dependant_context) {
     event.time_ms = MonotonicallyIncreasingTimeInMs();
     memory_reducer_->NotifyPossibleGarbage(event);
   }
-  if (isolate()->concurrent_recompilation_enabled()) {
-    // Flush the queued recompilation tasks.
-    isolate()->optimizing_compile_dispatcher()->Flush(
-        OptimizingCompileDispatcher::BlockingBehavior::kDontBlock);
-  }
+  isolate()->AbortConcurrentOptimization(BlockingBehavior::kDontBlock);
+
   number_of_disposed_maps_ = retained_maps()->Length();
   tracer()->AddContextDisposalTime(MonotonicallyIncreasingTimeInMs());
   return ++contexts_disposed_;
@@ -4526,12 +4519,8 @@ class MemoryPressureInterruptTask : public CancelableTask {
 
 void Heap::CheckMemoryPressure() {
   if (HighMemoryPressure()) {
-    if (isolate()->concurrent_recompilation_enabled()) {
-      // The optimizing compiler may be unnecessarily holding on to memory.
-      DisallowHeapAllocation no_recursive_gc;
-      isolate()->optimizing_compile_dispatcher()->Flush(
-          OptimizingCompileDispatcher::BlockingBehavior::kDontBlock);
-    }
+    // The optimizing compiler may be unnecessarily holding on to memory.
+    isolate()->AbortConcurrentOptimization(BlockingBehavior::kDontBlock);
   }
   if (memory_pressure_level_.Value() == MemoryPressureLevel::kCritical) {
     CollectGarbageOnMemoryPressure();

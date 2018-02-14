@@ -1139,6 +1139,9 @@ class Isolate {
   OptimizingCompileDispatcher* optimizing_compile_dispatcher() {
     return optimizing_compile_dispatcher_;
   }
+  // Flushes all pending concurrent optimzation jobs from the optimizing
+  // compile dispatcher's queue.
+  void AbortConcurrentOptimization(BlockingBehavior blocking_behavior);
 
   int id() const { return static_cast<int>(id_); }
 

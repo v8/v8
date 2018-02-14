@@ -1463,6 +1463,8 @@ inline std::ostream& operator<<(std::ostream& os,
   return os;
 }
 
+enum class BlockingBehavior { kBlock, kDontBlock };
+
 enum class ConcurrencyMode { kNotConcurrent, kConcurrent };
 
 #define FOR_EACH_ISOLATE_ADDRESS_NAME(C)                       \

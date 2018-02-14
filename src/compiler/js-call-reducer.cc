@@ -2887,6 +2887,9 @@ Reduction JSCallReducer::ReduceJSCall(Node* node) {
       Handle<JSFunction> function = Handle<JSFunction>::cast(m.Value());
       Handle<SharedFunctionInfo> shared(function->shared(), isolate());
 
+      // Do not reduce calls to functions with break points.
+      if (shared->HasBreakInfo()) return NoChange();
+
       // Raise a TypeError if the {target} is a "classConstructor".
       if (IsClassConstructor(shared->kind())) {
         NodeProperties::ReplaceValueInputs(node, target);
