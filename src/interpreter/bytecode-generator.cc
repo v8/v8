@@ -2117,7 +2117,7 @@ void BytecodeGenerator::VisitObjectLiteral(ObjectLiteral* expr) {
         UNREACHABLE();
       case ObjectLiteral::Property::MATERIALIZED_LITERAL:
         DCHECK(!CompileTimeValue::IsCompileTimeValue(property->value()));
-      // Fall through.
+        V8_FALLTHROUGH;
       case ObjectLiteral::Property::COMPUTED: {
         // It is safe to use [[Put]] here because the boilerplate already
         // contains computed properties with an uninitialized value.

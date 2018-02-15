@@ -208,6 +208,7 @@ void PrintWasmText(const WasmModule* module, const ModuleWireBytes& wire_bytes,
             UNREACHABLE();
             break;
         }
+        break;
       }
 
         // This group is just printed by their internal opcode name, as they

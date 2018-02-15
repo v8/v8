@@ -680,7 +680,7 @@ class WasmDecoder : public Decoder {
             type = kWasmS128;
             break;
           }
-        // else fall through to default.
+          V8_FALLTHROUGH;
         default:
           decoder->error(decoder->pc() - 1, "invalid local type");
           return false;
@@ -1103,6 +1103,7 @@ class WasmDecoder : public Decoder {
             }
           }
         }
+        V8_FALLTHROUGH;
       }
       default:
         V8_Fatal(__FILE__, __LINE__, "unimplemented opcode: %x (%s)", opcode,

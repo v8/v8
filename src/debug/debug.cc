@@ -467,7 +467,7 @@ void Debug::Break(JavaScriptFrame* frame, Handle<JSFunction> break_target) {
     case StepNext:
       // Step next should not break in a deeper frame than target frame.
       if (current_frame_count > target_frame_count) return;
-    // Fall through.
+      V8_FALLTHROUGH;
     case StepIn: {
       // Special case "next" and "in" for generators that are about to suspend.
       if (location.IsSuspend()) {
@@ -1046,7 +1046,7 @@ void Debug::PrepareStep(StepAction step_action) {
     }
     case StepNext:
       thread_local_.target_frame_count_ = current_frame_count;
-    // Fall through.
+      V8_FALLTHROUGH;
     case StepIn:
       // TODO(clemensh): Implement stepping from JS into wasm.
       FloodWithOneShot(shared);

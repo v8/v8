@@ -768,6 +768,7 @@ Node* RepresentationChanger::GetBitRepresentationFor(
       } else if (m.Is(factory()->true_value())) {
         return jsgraph()->Int32Constant(1);
       }
+      break;
     }
     default:
       break;

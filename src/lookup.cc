@@ -897,7 +897,7 @@ bool LookupIterator::SkipInterceptor(JSObject* holder) {
     switch (interceptor_state_) {
       case InterceptorState::kUninitialized:
         interceptor_state_ = InterceptorState::kSkipNonMasking;
-      // Fall through.
+        V8_FALLTHROUGH;
       case InterceptorState::kSkipNonMasking:
         return true;
       case InterceptorState::kProcessNonMasking:
@@ -948,13 +948,13 @@ LookupIterator::State LookupIterator::LookupInSpecialHolder(
       if (map->is_access_check_needed()) {
         if (is_element || !name_->IsPrivate()) return ACCESS_CHECK;
       }
-    // Fall through.
+      V8_FALLTHROUGH;
     case ACCESS_CHECK:
       if (check_interceptor() && HasInterceptor<is_element>(map) &&
           !SkipInterceptor<is_element>(JSObject::cast(holder))) {
         if (is_element || !name_->IsPrivate()) return INTERCEPTOR;
       }
-    // Fall through.
+      V8_FALLTHROUGH;
     case INTERCEPTOR:
       if (!is_element && map->IsJSGlobalObjectMap()) {
         GlobalDictionary* dict =

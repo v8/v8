@@ -10,6 +10,7 @@
 #include "src/base/optional.h"
 #include "src/base/platform/elapsed-timer.h"
 #include "src/base/platform/platform.h"
+#include "src/base/v8-fallthrough.h"
 #include "src/builtins/builtins.h"
 #include "src/code-factory.h"
 #include "src/compiler/access-builder.h"
@@ -1044,12 +1045,14 @@ Node* WasmGraphBuilder::BuildChangeEndiannessStore(
     case wasm::kWasmF64:
       value = graph()->NewNode(m->BitcastFloat64ToInt64(), node);
       isFloat = true;
+      V8_FALLTHROUGH;
     case wasm::kWasmI64:
       result = jsgraph()->Int64Constant(0);
       break;
     case wasm::kWasmF32:
       value = graph()->NewNode(m->BitcastFloat32ToInt32(), node);
       isFloat = true;
+      V8_FALLTHROUGH;
     case wasm::kWasmI32:
       result = jsgraph()->Int32Constant(0);
       break;
@@ -1191,12 +1194,14 @@ Node* WasmGraphBuilder::BuildChangeEndiannessLoad(Node* node,
     case MachineRepresentation::kFloat64:
       value = graph()->NewNode(m->BitcastFloat64ToInt64(), node);
       isFloat = true;
+      V8_FALLTHROUGH;
     case MachineRepresentation::kWord64:
       result = jsgraph()->Int64Constant(0);
       break;
     case MachineRepresentation::kFloat32:
       value = graph()->NewNode(m->BitcastFloat32ToInt32(), node);
       isFloat = true;
+      V8_FALLTHROUGH;
     case MachineRepresentation::kWord32:
     case MachineRepresentation::kWord16:
       result = jsgraph()->Int32Constant(0);
@@ -2052,13 +2057,13 @@ Node* WasmGraphBuilder::Throw(uint32_t tag,
     switch (sig->GetParam(i)) {
       case wasm::kWasmF32:
         value = graph()->NewNode(m->BitcastFloat32ToInt32(), value);
-      // Intentionally fall to next case.
+        V8_FALLTHROUGH;
       case wasm::kWasmI32:
         BuildEncodeException32BitValue(&index, value);
         break;
       case wasm::kWasmF64:
         value = graph()->NewNode(m->BitcastFloat64ToInt64(), value);
-      // Intentionally fall to next case.
+        V8_FALLTHROUGH;
       case wasm::kWasmI64: {
         Node* upper32 = graph()->NewNode(
             m->TruncateInt64ToInt32(),
@@ -5166,7 +5171,7 @@ void WasmCompilationUnit::ExecuteCompilation() {
       liftoff_.~LiftoffData();
       mode_ = WasmCompilationUnit::CompilationMode::kTurbofan;
       new (&tf_) TurbofanData();
-    // fall-through
+      V8_FALLTHROUGH;
     case WasmCompilationUnit::CompilationMode::kTurbofan:
       ExecuteTurbofanCompilation();
       break;

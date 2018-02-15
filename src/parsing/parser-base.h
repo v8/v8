@@ -12,6 +12,7 @@
 #include "src/ast/scopes.h"
 #include "src/bailout-reason.h"
 #include "src/base/hashmap.h"
+#include "src/base/v8-fallthrough.h"
 #include "src/counters.h"
 #include "src/globals.h"
 #include "src/log.h"
@@ -1853,7 +1854,7 @@ typename ParserBase<Impl>::ExpressionT ParserBase<Impl>::ParsePrimaryExpression(
       }
       // CoverCallExpressionAndAsyncArrowHead
       *is_async = true;
-    /* falls through */
+      V8_FALLTHROUGH;
     case Token::IDENTIFIER:
     case Token::LET:
     case Token::STATIC:
@@ -2243,7 +2244,7 @@ typename ParserBase<Impl>::ExpressionT ParserBase<Impl>::ParsePropertyName(
         }
         return expression;
       }
-    // Fall-through.
+      V8_FALLTHROUGH;
 
     default:
       *name = ParseIdentifierName(CHECK_OK);
@@ -3043,6 +3044,7 @@ typename ParserBase<Impl>::ExpressionT ParserBase<Impl>::ParseYieldExpression(
         // a regular yield, given only one look-ahead token.
         if (!delegating) break;
         // Delegating yields require an RHS; fall through.
+        V8_FALLTHROUGH;
       default:
         expression = ParseAssignmentExpression(accept_IN, CHECK_OK);
         ValidateExpression(CHECK_OK);
@@ -4974,7 +4976,7 @@ typename ParserBase<Impl>::StatementT ParserBase<Impl>::ParseStatementListItem(
         Consume(Token::ASYNC);
         return ParseAsyncFunctionDeclaration(nullptr, false, ok);
       }
-    /* falls through */
+      break;
     default:
       break;
   }
@@ -5075,7 +5077,7 @@ typename ParserBase<Impl>::StatementT ParserBase<Impl>::ParseStatement(
         *ok = false;
         return impl()->NullStatement();
       }
-    // Falls through
+      V8_FALLTHROUGH;
     default:
       return ParseExpressionOrLabelledStatement(labels, allow_function, ok);
   }

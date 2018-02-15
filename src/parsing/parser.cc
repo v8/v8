@@ -1294,7 +1294,7 @@ Statement* Parser::ParseExportDefault(bool* ok) {
         result = ParseAsyncFunctionDeclaration(&local_names, true, CHECK_OK);
         break;
       }
-    /* falls through */
+      V8_FALLTHROUGH;
 
     default: {
       int pos = position();

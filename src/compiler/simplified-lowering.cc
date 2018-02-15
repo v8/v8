@@ -1718,7 +1718,7 @@ class RepresentationSelector {
             // on Oddballs, so make sure we don't accidentially sneak in a
             // hint with Oddball feedback here.
             DCHECK_NE(IrOpcode::kSpeculativeNumberEqual, node->opcode());
-          // Fallthrough
+            V8_FALLTHROUGH;
           case NumberOperationHint::kNumber:
             VisitBinop(node,
                        CheckedUseInfoAsFloat64FromHint(hint, VectorSlotPair()),

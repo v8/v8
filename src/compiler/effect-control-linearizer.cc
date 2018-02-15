@@ -826,6 +826,7 @@ bool EffectControlLinearizer::TryWireInStateEffect(Node* node,
       break;
     case IrOpcode::kDeadValue:
       result = LowerDeadValue(node);
+      break;
     case IrOpcode::kStringFromCharCode:
       result = LowerStringFromCharCode(node);
       break;

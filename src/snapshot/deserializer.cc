@@ -379,8 +379,11 @@ bool Deserializer<AllocatorT>::ReadData(Object** current, Object** limit,
   CASE_STATEMENT(where, how, within, NEW_SPACE)  \
   CASE_BODY(where, how, within, NEW_SPACE)       \
   CASE_STATEMENT(where, how, within, OLD_SPACE)  \
+  V8_FALLTHROUGH;                                \
   CASE_STATEMENT(where, how, within, CODE_SPACE) \
+  V8_FALLTHROUGH;                                \
   CASE_STATEMENT(where, how, within, MAP_SPACE)  \
+  V8_FALLTHROUGH;                                \
   CASE_STATEMENT(where, how, within, LO_SPACE)   \
   CASE_BODY(where, how, within, kAnyOldSpace)
 
@@ -586,7 +589,7 @@ bool Deserializer<AllocatorT>::ReadData(Object** current, Object** limit,
         int skip = source_.GetInt();
         current = reinterpret_cast<Object**>(
             reinterpret_cast<intptr_t>(current) + skip);
-        // Fall through.
+        V8_FALLTHROUGH;
       }
 
       SIXTEEN_CASES(kRootArrayConstants)
@@ -605,7 +608,7 @@ bool Deserializer<AllocatorT>::ReadData(Object** current, Object** limit,
         int skip = source_.GetInt();
         current = reinterpret_cast<Object**>(
             reinterpret_cast<Address>(current) + skip);
-        // Fall through.
+        V8_FALLTHROUGH;
       }
 
       FOUR_CASES(kHotObject)

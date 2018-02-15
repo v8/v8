@@ -5,6 +5,7 @@
 #ifndef V8_HEAP_SPACES_INL_H_
 #define V8_HEAP_SPACES_INL_H_
 
+#include "src/base/v8-fallthrough.h"
 #include "src/heap/incremental-marking.h"
 #include "src/heap/spaces.h"
 #include "src/msan.h"
@@ -230,23 +231,23 @@ MemoryChunk* MemoryChunkIterator::next() {
     case kOldSpaceState: {
       if (old_iterator_ != heap_->old_space()->end()) return *(old_iterator_++);
       state_ = kMapState;
-      // Fall through.
+      V8_FALLTHROUGH;
     }
     case kMapState: {
       if (map_iterator_ != heap_->map_space()->end()) return *(map_iterator_++);
       state_ = kCodeState;
-      // Fall through.
+      V8_FALLTHROUGH;
     }
     case kCodeState: {
       if (code_iterator_ != heap_->code_space()->end())
         return *(code_iterator_++);
       state_ = kLargeObjectState;
-      // Fall through.
+      V8_FALLTHROUGH;
     }
     case kLargeObjectState: {
       if (lo_iterator_ != heap_->lo_space()->end()) return *(lo_iterator_++);
       state_ = kFinishedState;
-      // Fall through;
+      V8_FALLTHROUGH;
     }
     case kFinishedState:
       return nullptr;

@@ -1953,6 +1953,7 @@ void Assembler::Nop(int n) {
     switch (n) {
       case 2:
         emit(0x66);
+        V8_FALLTHROUGH;
       case 1:
         emit(0x90);
         return;
@@ -1969,6 +1970,7 @@ void Assembler::Nop(int n) {
         return;
       case 6:
         emit(0x66);
+        V8_FALLTHROUGH;
       case 5:
         emit(0x0F);
         emit(0x1F);
@@ -1989,12 +1991,15 @@ void Assembler::Nop(int n) {
       case 11:
         emit(0x66);
         n--;
+        V8_FALLTHROUGH;
       case 10:
         emit(0x66);
         n--;
+        V8_FALLTHROUGH;
       case 9:
         emit(0x66);
         n--;
+        V8_FALLTHROUGH;
       case 8:
         emit(0x0F);
         emit(0x1F);

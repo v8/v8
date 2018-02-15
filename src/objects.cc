@@ -1272,7 +1272,7 @@ Handle<Object> JSReceiver::GetDataProperty(LookupIterator* it) {
         // Support calling this method without an active context, but refuse
         // access to access-checked objects in that case.
         if (it->isolate()->context() != nullptr && it->HasAccess()) continue;
-      // Fall through.
+        V8_FALLTHROUGH;
       case LookupIterator::JSPROXY:
         it->NotFound();
         return it->isolate()->factory()->undefined_value();
@@ -4932,7 +4932,7 @@ Maybe<bool> Object::SetPropertyInternal(LookupIterator* it,
         if (it->HolderIsReceiverOrHiddenPrototype()) {
           return SetDataProperty(it, value);
         }
-      // Fall through.
+        V8_FALLTHROUGH;
       case LookupIterator::TRANSITION:
         *found = false;
         return Nothing<bool>();
@@ -5017,7 +5017,7 @@ Maybe<bool> Object::SetSuperProperty(LookupIterator* it, Handle<Object> value,
           return JSObject::SetPropertyWithAccessor(&own_lookup, value,
                                                    should_throw);
         }
-      // Fall through.
+        V8_FALLTHROUGH;
       case LookupIterator::INTEGER_INDEXED_EXOTIC:
         return RedefineIncompatibleProperty(isolate, it->GetName(), value,
                                             should_throw);
@@ -15739,7 +15739,7 @@ int JSObject::GetFastElementsUsage() {
                          : store->length();
     case FAST_SLOPPY_ARGUMENTS_ELEMENTS:
       store = SloppyArgumentsElements::cast(store)->arguments();
-    // Fall through.
+      V8_FALLTHROUGH;
     case HOLEY_SMI_ELEMENTS:
     case HOLEY_ELEMENTS:
     case FAST_STRING_WRAPPER_ELEMENTS:
@@ -19398,12 +19398,12 @@ PropertyCellType PropertyCell::UpdatedType(Handle<PropertyCell> cell,
       return PropertyCellType::kConstant;
     case PropertyCellType::kConstant:
       if (*value == cell->value()) return PropertyCellType::kConstant;
-    // Fall through.
+      V8_FALLTHROUGH;
     case PropertyCellType::kConstantType:
       if (RemainsConstantType(cell, value)) {
         return PropertyCellType::kConstantType;
       }
-    // Fall through.
+      V8_FALLTHROUGH;
     case PropertyCellType::kMutable:
       return PropertyCellType::kMutable;
   }

@@ -10,6 +10,7 @@
 
 #include "src/base/compiler-specific.h"
 #include "src/base/lazy-instance.h"
+#include "src/base/v8-fallthrough.h"
 #include "src/disasm.h"
 #include "src/x64/sse-instr.h"
 
@@ -2707,7 +2708,8 @@ int DisassemblerX64::InstructionDecode(v8::internal::Vector<char> out_buffer,
         break;
 
       case 0xF6:
-        byte_size_operand_ = true;  // fall through
+        byte_size_operand_ = true;
+        V8_FALLTHROUGH;
       case 0xF7:
         data += F6F7Instruction(data);
         break;

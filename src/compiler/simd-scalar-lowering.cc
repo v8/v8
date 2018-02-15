@@ -653,7 +653,8 @@ void SimdScalarLowering::LowerShiftOp(Node* node, SimdType type) {
             graph()->NewNode(machine()->Word32Shr(), rep_node[i], shift_node);
         break;
       case IrOpcode::kI16x8ShrU:
-        rep_node[i] = Mask(rep_node[i], kMask16);  // Fall through.
+        rep_node[i] = Mask(rep_node[i], kMask16);
+        V8_FALLTHROUGH;
       case IrOpcode::kI32x4ShrU:
         rep_node[i] =
             graph()->NewNode(machine()->Word32Shr(), rep_node[i], shift_node);

@@ -1056,7 +1056,7 @@ void MemoryAllocator::Free(MemoryChunk* chunk) {
       DCHECK_EQ(chunk->size(), static_cast<size_t>(MemoryChunk::kPageSize));
       DCHECK_EQ(chunk->executable(), NOT_EXECUTABLE);
       chunk->SetFlag(MemoryChunk::POOLED);
-    // Fall through to kPreFreeAndQueue.
+      V8_FALLTHROUGH;
     case kPreFreeAndQueue:
       PreFreeMemory(chunk);
       // The chunks added to this queue will be freed by a concurrent thread.

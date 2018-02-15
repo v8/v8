@@ -641,14 +641,14 @@ void IC::PatchCache(Handle<Name> name, Handle<Object> handler) {
         UpdateMonomorphicIC(handler, name);
         break;
       }
-    // Fall through.
+      V8_FALLTHROUGH;
     case POLYMORPHIC:
       if (UpdatePolymorphicIC(name, handler)) break;
       if (!is_keyed() || state() == RECOMPUTE_HANDLER) {
         CopyICToMegamorphicCache(name);
       }
       ConfigureVectorState(MEGAMORPHIC, name);
-    // Fall through.
+      V8_FALLTHROUGH;
     case MEGAMORPHIC:
       UpdateMegamorphicCache(*receiver_map(), *name, *handler);
       // Indicate that we've handled this case.
@@ -1793,7 +1793,7 @@ Handle<Map> KeyedStoreIC::ComputeTransitionedMap(
     }
     case STORE_NO_TRANSITION_IGNORE_OUT_OF_BOUNDS:
       DCHECK(map->has_fixed_typed_array_elements());
-    // Fall through
+      V8_FALLTHROUGH;
     case STORE_NO_TRANSITION_HANDLE_COW:
     case STANDARD_STORE:
     case STORE_AND_GROW_NO_TRANSITION_HANDLE_COW:
