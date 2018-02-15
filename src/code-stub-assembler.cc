@@ -8005,8 +8005,7 @@ Node* CodeStubAssembler::CheckForCapacityGrow(
     KeyedAccessStoreMode store_mode, Node* length, Node* key,
     ParameterMode mode, bool is_js_array, Label* bailout) {
   VARIABLE(checked_elements, MachineRepresentation::kTagged);
-  Label grow_case(this), no_grow_case(this), done(this),
-      grow_bailout(this, Label::kDeferred);
+  Label grow_case(this), no_grow_case(this), done(this);
 
   Node* condition;
   if (IsHoleyOrDictionaryElementsKind(kind)) {
@@ -8027,21 +8026,8 @@ Node* CodeStubAssembler::CheckForCapacityGrow(
 
     {
       Node* new_elements = TryGrowElementsCapacity(
-          object, elements, kind, key, current_capacity, mode, &grow_bailout);
+          object, elements, kind, key, current_capacity, mode, bailout);
       checked_elements.Bind(new_elements);
-      Goto(&fits_capacity);
-    }
-
-    BIND(&grow_bailout);
-    {
-      Node* tagged_key = mode == SMI_PARAMETERS
-                             ? key
-                             : ChangeInt32ToTagged(TruncateWordToWord32(key));
-      Node* maybe_elements = CallRuntime(
-          Runtime::kGrowArrayElements, NoContextConstant(), object, tagged_key);
-      GotoIf(TaggedIsSmi(maybe_elements), bailout);
-      CSA_ASSERT(this, IsFixedArrayWithKind(maybe_elements, kind));
-      checked_elements.Bind(maybe_elements);
       Goto(&fits_capacity);
     }
 
