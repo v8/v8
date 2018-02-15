@@ -203,8 +203,11 @@ DEFINE_IMPLICATION(harmony_class_fields, harmony_public_fields)
 DEFINE_IMPLICATION(harmony_class_fields, harmony_static_fields)
 DEFINE_IMPLICATION(harmony_class_fields, harmony_private_fields)
 
+// Update bootstrapper.cc whenever adding a new feature flag.
+
 // Features that are still work in progress (behind individual flags).
 #define HARMONY_INPROGRESS(V)                                         \
+  V(harmony_subsume_json, "harmony subsume JSON")                     \
   V(harmony_array_prototype_values, "harmony Array.prototype.values") \
   V(harmony_function_sent, "harmony function.sent")                   \
   V(harmony_do_expressions, "harmony do-expressions")                 \

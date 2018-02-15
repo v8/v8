@@ -273,7 +273,7 @@ TEST(UsingCachedData) {
   CcTest::i_isolate()->stack_guard()->SetStackLimit(
       i::GetCurrentStackPosition() - 128 * 1024);
 
-  // Source containing functions that might be lazily compiled  and all types
+  // Source containing functions that might be lazily compiled and all types
   // of symbols (string, propertyName, regexp).
   const char* source =
       "var x = 42;"
@@ -1478,7 +1478,10 @@ void TestParserSync(const char* source, const ParserFlag* varying_flags,
                     bool is_module = false, bool test_preparser = true,
                     bool ignore_error_msg = false) {
   i::Handle<i::String> str =
-      CcTest::i_isolate()->factory()->NewStringFromAsciiChecked(source);
+      CcTest::i_isolate()
+          ->factory()
+          ->NewStringFromUtf8(Vector<const char>(source, strlen(source)))
+          .ToHandleChecked();
   for (int bits = 0; bits < (1 << varying_flags_length); bits++) {
     i::EnumSet<ParserFlag> flags;
     for (size_t flag_index = 0; flag_index < varying_flags_length;
@@ -3899,13 +3902,40 @@ TEST(BothModesUseCount) {
 
 TEST(LineOrParagraphSeparatorAsLineTerminator) {
   // Tests that both preparsing and parsing accept U+2028 LINE SEPARATOR and
-  // U+2029 PARAGRAPH SEPARATOR as LineTerminator symbols.
+  // U+2029 PARAGRAPH SEPARATOR as LineTerminator symbols outside of string
+  // literals.
   const char* context_data[][2] = {{"", ""}, {nullptr, nullptr}};
-  const char* statement_data[] = {"\x31\xE2\x80\xA8\x32",  // "1<U+2028>2"
-                                  "\x31\xE2\x80\xA9\x32",  // "1<U+2029>2"
+  const char* statement_data[] = {"\x31\xE2\x80\xA8\x32",  // 1<U+2028>2
+                                  "\x31\xE2\x80\xA9\x32",  // 1<U+2029>2
+                                  nullptr};
+
+  RunParserSyncTest(context_data, statement_data, kSuccess);
+}
+
+TEST(LineOrParagraphSeparatorInStringLiteral) {
+  // Tests that both preparsing and parsing treat U+2028 LINE SEPARATOR and
+  // U+2029 PARAGRAPH SEPARATOR as line terminators within string literals.
+  const char* context_data[][2] = {
+      {"\"", "\""}, {"'", "'"}, {nullptr, nullptr}};
+  const char* statement_data[] = {"\x31\xE2\x80\xA8\x32",  // 1<U+2028>2
+                                  "\x31\xE2\x80\xA9\x32",  // 1<U+2029>2
                                   nullptr};
 
   RunParserSyncTest(context_data, statement_data, kError);
+}
+
+TEST(LineOrParagraphSeparatorInStringLiteralHarmony) {
+  // Tests that both preparsing and parsing don't treat U+2028 LINE SEPARATOR
+  // and U+2029 PARAGRAPH SEPARATOR as line terminators within string literals
+  // with the "subsume JSON" flag enabled.
+  v8::internal::FLAG_harmony_subsume_json = true;
+  const char* context_data[][2] = {
+      {"\"", "\""}, {"'", "'"}, {nullptr, nullptr}};
+  const char* statement_data[] = {"\x31\xE2\x80\xA8\x32",  // 1<U+2028>2
+                                  "\x31\xE2\x80\xA9\x32",  // 1<U+2029>2
+                                  nullptr};
+
+  RunParserSyncTest(context_data, statement_data, kSuccess);
 }
 
 TEST(ErrorsArrowFormalParameters) {
