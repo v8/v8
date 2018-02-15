@@ -1540,8 +1540,10 @@ class WasmFullDecoder : public WasmDecoder<validate> {
             if (!this->Validate(this->pc_, operand, control_.size())) break;
             Control* c = control_at(operand.depth);
             if (!TypeCheckBreak(c)) break;
-            CALL_INTERFACE_IF_REACHABLE(Br, c);
-            BreakTo(c);
+            if (control_.back().reachable()) {
+              CALL_INTERFACE(Br, c);
+              c->br_merge()->reached = true;
+            }
             len = 1 + operand.length;
             EndControl();
             break;
@@ -1549,28 +1551,38 @@ class WasmFullDecoder : public WasmDecoder<validate> {
           case kExprBrIf: {
             BreakDepthOperand<validate> operand(this, this->pc_);
             auto cond = Pop(0, kWasmI32);
+            if (this->failed()) break;
             if (!this->Validate(this->pc_, operand, control_.size())) break;
             Control* c = control_at(operand.depth);
             if (!TypeCheckBreak(c)) break;
-            CALL_INTERFACE_IF_REACHABLE(BrIf, cond, c);
-            BreakTo(c);
+            if (control_.back().reachable()) {
+              CALL_INTERFACE(BrIf, cond, c);
+              c->br_merge()->reached = true;
+            }
             len = 1 + operand.length;
             break;
           }
           case kExprBrTable: {
             BranchTableOperand<validate> operand(this, this->pc_);
             BranchTableIterator<validate> iterator(this, operand);
-            if (!this->Validate(this->pc_, operand, control_.size())) break;
             auto key = Pop(0, kWasmI32);
+            if (this->failed()) break;
+            if (!this->Validate(this->pc_, operand, control_.size())) break;
             uint32_t br_arity = 0;
+            std::vector<bool> br_targets(control_.size());
             while (iterator.has_next()) {
               const uint32_t i = iterator.cur_index();
               const byte* pos = iterator.pc();
               uint32_t target = iterator.next();
               if (!VALIDATE(target < control_.size())) {
-                this->error(pos, "improper branch in br_table");
+                this->errorf(pos,
+                             "improper branch in br_table target %u (depth %u)",
+                             i, target);
                 break;
               }
+              // Avoid redundant break target checks.
+              if (br_targets[target]) continue;
+              br_targets[target] = true;
               // Check that label types match up.
               Control* c = control_at(target);
               uint32_t arity = c->br_merge()->arity;
@@ -1578,15 +1590,22 @@ class WasmFullDecoder : public WasmDecoder<validate> {
                 br_arity = arity;
               } else if (!VALIDATE(br_arity == arity)) {
                 this->errorf(pos,
-                             "inconsistent arity in br_table target %d"
+                             "inconsistent arity in br_table target %u"
                              " (previous was %u, this one %u)",
                              i, br_arity, arity);
               }
               if (!TypeCheckBreak(c)) break;
-              BreakTo(c);
             }
+            if (this->failed()) break;
 
-            CALL_INTERFACE_IF_REACHABLE(BrTable, operand, key);
+            if (control_.back().reachable()) {
+              CALL_INTERFACE(BrTable, operand, key);
+
+              for (uint32_t depth = control_depth(); depth-- > 0;) {
+                if (!br_targets[depth]) continue;
+                control_at(depth)->br_merge()->reached = true;
+              }
+            }
 
             len = 1 + iterator.length();
             EndControl();
@@ -2254,10 +2273,6 @@ class WasmFullDecoder : public WasmDecoder<validate> {
   }
 
   int startrel(const byte* ptr) { return static_cast<int>(ptr - this->start_); }
-
-  inline void BreakTo(Control* c) {
-    if (control_.back().reachable()) c->br_merge()->reached = true;
-  }
 
   void FallThruTo(Control* c) {
     DCHECK_EQ(c, &control_.back());
