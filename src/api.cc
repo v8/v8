@@ -33,6 +33,7 @@
 #include "src/conversions-inl.h"
 #include "src/counters.h"
 #include "src/debug/debug-coverage.h"
+#include "src/debug/debug-evaluate.h"
 #include "src/debug/debug-type-profile.h"
 #include "src/debug/debug.h"
 #include "src/deoptimizer.h"
@@ -9733,6 +9734,18 @@ v8::Local<debug::GeneratorObject> debug::GeneratorObject::Cast(
     v8::Local<v8::Value> value) {
   CHECK(value->IsGeneratorObject());
   return ToApiHandle<debug::GeneratorObject>(Utils::OpenHandle(*value));
+}
+
+MaybeLocal<v8::Value> debug::EvaluateGlobal(v8::Isolate* isolate,
+                                            v8::Local<v8::String> source) {
+  i::Isolate* internal_isolate = reinterpret_cast<i::Isolate*>(isolate);
+  PREPARE_FOR_DEBUG_INTERFACE_EXECUTION_WITH_ISOLATE(internal_isolate, Value);
+  Local<Value> result;
+  has_pending_exception = !ToLocal<Value>(
+      i::DebugEvaluate::Global(internal_isolate, Utils::OpenHandle(*source)),
+      &result);
+  RETURN_ON_FAILED_EXECUTION(Value);
+  RETURN_ESCAPED(result);
 }
 
 void debug::QueryObjects(v8::Local<v8::Context> v8_context,

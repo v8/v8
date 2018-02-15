@@ -21,29 +21,25 @@
 namespace v8 {
 namespace internal {
 
-static inline bool IsDebugContext(Isolate* isolate, Context* context) {
-  return context->native_context() == *isolate->debug()->debug_context();
-}
-
 MaybeHandle<Object> DebugEvaluate::Global(Isolate* isolate,
                                           Handle<String> source) {
-  // Handle the processing of break.
-  DisableBreak disable_break_scope(isolate->debug());
-
-  // Enter the top context from before the debugger was invoked.
-  SaveContext save(isolate);
-  SaveContext* top = &save;
-  while (top != nullptr && IsDebugContext(isolate, *top->context())) {
-    top = top->prev();
-  }
-  if (top != nullptr) isolate->set_context(*top->context());
-
-  // Get the native context now set to the top context from before the
-  // debugger was invoked.
   Handle<Context> context = isolate->native_context();
-  Handle<JSObject> receiver(context->global_proxy());
-  Handle<SharedFunctionInfo> outer_info(context->closure()->shared(), isolate);
-  return Evaluate(isolate, outer_info, context, receiver, source, false);
+  ScriptOriginOptions origin_options(false, true);
+  MaybeHandle<SharedFunctionInfo> maybe_function_info =
+      Compiler::GetSharedFunctionInfoForScript(
+          source, isolate->factory()->empty_string(), 0, 0, origin_options,
+          MaybeHandle<Object>(), context, nullptr, nullptr,
+          ScriptCompiler::kNoCompileOptions, ScriptCompiler::kNoCacheNoReason,
+          NOT_NATIVES_CODE, MaybeHandle<FixedArray>());
+
+  Handle<SharedFunctionInfo> shared_info;
+  if (!maybe_function_info.ToHandle(&shared_info)) return MaybeHandle<Object>();
+
+  Handle<JSFunction> fun =
+      isolate->factory()->NewFunctionFromSharedFunctionInfo(shared_info,
+                                                            context);
+  return Execution::Call(isolate, fun,
+                         Handle<JSObject>(context->global_proxy()), 0, nullptr);
 }
 
 MaybeHandle<Object> DebugEvaluate::Local(Isolate* isolate,
