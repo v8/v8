@@ -127,7 +127,8 @@ class BytecodeGenerator final : public AstVisitor<BytecodeGenerator> {
   void BuildVariableAssignment(
       Variable* variable, Token::Value op, HoleCheckMode hole_check_mode,
       LookupHoistingMode lookup_hoisting_mode = LookupHoistingMode::kNormal);
-  void BuildLiteralCompareNil(Token::Value compare_op, NilValue nil);
+  void BuildLiteralCompareNil(Token::Value compare_op,
+                              BytecodeArrayBuilder::NilValue nil);
   void BuildReturn(int source_position = kNoSourcePosition);
   void BuildAsyncReturn(int source_position = kNoSourcePosition);
   void BuildAsyncGeneratorReturn();

@@ -1225,11 +1225,6 @@ Handle<Foreign> Factory::NewForeign(Address addr, PretenureFlag pretenure) {
 }
 
 
-Handle<Foreign> Factory::NewForeign(const AccessorDescriptor* desc) {
-  return NewForeign((Address) desc, TENURED);
-}
-
-
 Handle<ByteArray> Factory::NewByteArray(int length, PretenureFlag pretenure) {
   DCHECK_LE(0, length);
   CALL_HEAP_FUNCTION(

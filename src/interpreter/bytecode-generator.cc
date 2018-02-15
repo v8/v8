@@ -3896,7 +3896,8 @@ void BytecodeGenerator::VisitNaryOperation(NaryOperation* expr) {
   }
 }
 
-void BytecodeGenerator::BuildLiteralCompareNil(Token::Value op, NilValue nil) {
+void BytecodeGenerator::BuildLiteralCompareNil(
+    Token::Value op, BytecodeArrayBuilder::NilValue nil) {
   if (execution_result()->IsTest()) {
     TestResultScope* test_result = execution_result()->AsTest();
     switch (test_result->fallthrough()) {
@@ -3935,11 +3936,11 @@ void BytecodeGenerator::VisitCompareOperation(CompareOperation* expr) {
   } else if (expr->IsLiteralCompareUndefined(&sub_expr)) {
     VisitForAccumulatorValue(sub_expr);
     builder()->SetExpressionPosition(expr);
-    BuildLiteralCompareNil(expr->op(), kUndefinedValue);
+    BuildLiteralCompareNil(expr->op(), BytecodeArrayBuilder::kUndefinedValue);
   } else if (expr->IsLiteralCompareNull(&sub_expr)) {
     VisitForAccumulatorValue(sub_expr);
     builder()->SetExpressionPosition(expr);
-    BuildLiteralCompareNil(expr->op(), kNullValue);
+    BuildLiteralCompareNil(expr->op(), BytecodeArrayBuilder::kNullValue);
   } else {
     Register lhs = VisitForRegisterValue(expr->left());
     VisitForAccumulatorValue(expr->right());

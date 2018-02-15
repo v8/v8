@@ -539,25 +539,6 @@ enum AllocationAlignment { kWordAligned, kDoubleAligned, kDoubleUnaligned };
 
 enum class AccessMode { ATOMIC, NON_ATOMIC };
 
-// Possible outcomes for decisions.
-enum class Decision : uint8_t { kUnknown, kTrue, kFalse };
-
-inline size_t hash_value(Decision decision) {
-  return static_cast<uint8_t>(decision);
-}
-
-inline std::ostream& operator<<(std::ostream& os, Decision decision) {
-  switch (decision) {
-    case Decision::kUnknown:
-      return os << "Unknown";
-    case Decision::kTrue:
-      return os << "True";
-    case Decision::kFalse:
-      return os << "False";
-  }
-  UNREACHABLE();
-}
-
 // Supported write barrier modes.
 enum WriteBarrierKind : uint8_t {
   kNoWriteBarrier,
@@ -628,9 +609,6 @@ enum NativesFlag {
   NATIVES_CODE,
   INSPECTOR_CODE
 };
-
-// JavaScript defines two kinds of 'nil'.
-enum NilValue { kNullValue, kUndefinedValue };
 
 // ParseRestriction is used to restrict the set of valid statements in a
 // unit of compilation.  Restriction violations cause a syntax error.
@@ -747,15 +725,6 @@ typedef IeeeDoubleBigEndianArchType IeeeDoubleArchType;
 constexpr int kIeeeDoubleMantissaWordOffset = 4;
 constexpr int kIeeeDoubleExponentWordOffset = 0;
 #endif
-
-// AccessorCallback
-struct AccessorDescriptor {
-  Object* (*getter)(Isolate* isolate, Object* object, void* data);
-  Object* (*setter)(
-      Isolate* isolate, JSObject* object, Object* value, void* data);
-  void* data;
-};
-
 
 // -----------------------------------------------------------------------------
 // Macros
@@ -887,13 +856,6 @@ inline std::ostream& operator<<(std::ostream& os, CreateArgumentsType type) {
   }
   UNREACHABLE();
 }
-
-// Used to specify if a macro instruction must perform a smi check on tagged
-// values.
-enum SmiCheckType {
-  DONT_DO_SMI_CHECK,
-  DO_SMI_CHECK
-};
 
 enum ScopeType : uint8_t {
   EVAL_SCOPE,      // The top-level scope for an eval source.
@@ -1059,21 +1021,10 @@ enum VariableLocation : uint8_t {
 // immediately initialized upon creation (kCreatedInitialized).
 enum InitializationFlag : uint8_t { kNeedsInitialization, kCreatedInitialized };
 
-enum class HoleCheckMode { kRequired, kElided };
-
 enum MaybeAssignedFlag : uint8_t { kNotAssigned, kMaybeAssigned };
 
 // Serialized in PreparseData, so numeric values should not be changed.
 enum ParseErrorType { kSyntaxError = 0, kReferenceError = 1 };
-
-
-enum MinusZeroMode {
-  TREAT_MINUS_ZERO_AS_ZERO,
-  FAIL_ON_MINUS_ZERO
-};
-
-
-enum Signedness { kSigned, kUnsigned };
 
 enum FunctionKind : uint16_t {
   kNormalFunction = 0,

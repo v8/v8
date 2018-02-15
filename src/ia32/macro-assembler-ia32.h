@@ -478,8 +478,7 @@ class MacroAssembler : public TurboAssembler {
   void CmpInstanceType(Register map, InstanceType type);
 
   void DoubleToI(Register result_reg, XMMRegister input_reg,
-                 XMMRegister scratch, MinusZeroMode minus_zero_mode,
-                 Label* lost_precision, Label* is_nan, Label* minus_zero,
+                 XMMRegister scratch, Label* lost_precision, Label* is_nan,
                  Label::Distance dst = Label::kFar);
 
   // Smi tagging support.

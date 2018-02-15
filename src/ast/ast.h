@@ -1475,6 +1475,7 @@ class ArrayLiteral final : public AggregateLiteral {
   ZoneList<Expression*>* values_;
 };
 
+enum class HoleCheckMode { kRequired, kElided };
 
 class VariableProxy final : public Expression {
  public:

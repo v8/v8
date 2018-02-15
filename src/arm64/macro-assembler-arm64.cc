@@ -1993,41 +1993,6 @@ int TurboAssembler::CallSize(Handle<Code> code, RelocInfo::Mode rmode) {
                                   : kCallSizeWithRelocation;
 }
 
-
-void MacroAssembler::JumpIfHeapNumber(Register object, Label* on_heap_number,
-                                      SmiCheckType smi_check_type) {
-  Label on_not_heap_number;
-
-  if (smi_check_type == DO_SMI_CHECK) {
-    JumpIfSmi(object, &on_not_heap_number);
-  }
-
-  AssertNotSmi(object);
-
-  UseScratchRegisterScope temps(this);
-  Register temp = temps.AcquireX();
-  Ldr(temp, FieldMemOperand(object, HeapObject::kMapOffset));
-  JumpIfRoot(temp, Heap::kHeapNumberMapRootIndex, on_heap_number);
-
-  Bind(&on_not_heap_number);
-}
-
-
-void MacroAssembler::JumpIfNotHeapNumber(Register object,
-                                         Label* on_not_heap_number,
-                                         SmiCheckType smi_check_type) {
-  if (smi_check_type == DO_SMI_CHECK) {
-    JumpIfSmi(object, on_not_heap_number);
-  }
-
-  AssertNotSmi(object);
-
-  UseScratchRegisterScope temps(this);
-  Register temp = temps.AcquireX();
-  Ldr(temp, FieldMemOperand(object, HeapObject::kMapOffset));
-  JumpIfNotRoot(temp, Heap::kHeapNumberMapRootIndex, on_not_heap_number);
-}
-
 void MacroAssembler::TryRepresentDoubleAsInt(Register as_int, VRegister value,
                                              VRegister scratch_d,
                                              Label* on_successful_conversion,

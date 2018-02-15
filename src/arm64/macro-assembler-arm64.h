@@ -1727,11 +1727,6 @@ class MacroAssembler : public TurboAssembler {
   // via --debug-code.
   void AssertUndefinedOrAllocationSite(Register object);
 
-  void JumpIfHeapNumber(Register object, Label* on_heap_number,
-                        SmiCheckType smi_check_type = DONT_DO_SMI_CHECK);
-  void JumpIfNotHeapNumber(Register object, Label* on_not_heap_number,
-                           SmiCheckType smi_check_type = DONT_DO_SMI_CHECK);
-
   // Try to represent a double as a signed 64-bit int.
   // This succeeds if the result compares equal to the input, so inputs of -0.0
   // are represented as 0 and handled as a success.

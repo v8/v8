@@ -25,6 +25,8 @@ class JSOperatorBuilder;
 class SimplifiedOperatorBuilder;
 class TypeCache;
 
+enum Signedness { kSigned, kUnsigned };
+
 // Lowers JS-level operators to simplified operators based on types.
 class V8_EXPORT_PRIVATE JSTypedLowering final
     : public NON_EXPORTED_BASE(AdvancedReducer) {

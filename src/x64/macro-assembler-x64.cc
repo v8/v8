@@ -2039,29 +2039,13 @@ void TurboAssembler::SlowTruncateToIDelayed(Zone* zone, Register result_reg) {
 }
 
 void MacroAssembler::DoubleToI(Register result_reg, XMMRegister input_reg,
-                               XMMRegister scratch,
-                               MinusZeroMode minus_zero_mode,
-                               Label* lost_precision, Label* is_nan,
-                               Label* minus_zero, Label::Distance dst) {
+                               XMMRegister scratch, Label* lost_precision,
+                               Label* is_nan, Label::Distance dst) {
   Cvttsd2si(result_reg, input_reg);
   Cvtlsi2sd(kScratchDoubleReg, result_reg);
   Ucomisd(kScratchDoubleReg, input_reg);
   j(not_equal, lost_precision, dst);
   j(parity_even, is_nan, dst);  // NaN.
-  if (minus_zero_mode == FAIL_ON_MINUS_ZERO) {
-    Label done;
-    // The integer converted back is equal to the original. We
-    // only have to test if we got -0 as an input.
-    testl(result_reg, result_reg);
-    j(not_zero, &done, Label::kNear);
-    Movmskpd(result_reg, input_reg);
-    // Bit 0 contains the sign of the double in input_reg.
-    // If input was positive, we are ok and return 0, otherwise
-    // jump to minus_zero.
-    andl(result_reg, Immediate(1));
-    j(not_zero, minus_zero, dst);
-    bind(&done);
-  }
 }
 
 

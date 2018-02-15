@@ -401,10 +401,6 @@ class V8_EXPORT_PRIVATE Factory final {
   Handle<Foreign> NewForeign(Address addr,
                              PretenureFlag pretenure = NOT_TENURED);
 
-  // Allocate a new foreign object.  The foreign is pretenured (allocated
-  // directly in the old generation).
-  Handle<Foreign> NewForeign(const AccessorDescriptor* foreign);
-
   Handle<ByteArray> NewByteArray(int length,
                                  PretenureFlag pretenure = NOT_TENURED);
 
