@@ -945,7 +945,7 @@ class V8_EXPORT EscapableHandleScope : public HandleScope {
  */
 class V8_EXPORT SealHandleScope {
  public:
-  SealHandleScope(Isolate* isolate);
+  explicit SealHandleScope(Isolate* isolate);
   ~SealHandleScope();
 
   SealHandleScope(const SealHandleScope&) = delete;
@@ -4147,7 +4147,7 @@ class V8_EXPORT WasmCompiledModule : public Object {
 // to simply WasmModuleObjectBuilder
 class V8_EXPORT WasmModuleObjectBuilderStreaming final {
  public:
-  WasmModuleObjectBuilderStreaming(Isolate* isolate);
+  explicit WasmModuleObjectBuilderStreaming(Isolate* isolate);
   // The buffer passed into OnBytesReceived is owned by the caller.
   void OnBytesReceived(const uint8_t*, size_t size);
   void Finish();
@@ -8213,7 +8213,7 @@ class V8_EXPORT TryCatch {
    * all TryCatch blocks should be stack allocated because the memory
    * location itself is compared against JavaScript try/catch blocks.
    */
-  TryCatch(Isolate* isolate);
+  explicit TryCatch(Isolate* isolate);
 
   /**
    * Unregisters and deletes this try/catch block.
