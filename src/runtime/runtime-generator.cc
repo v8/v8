@@ -11,6 +11,12 @@
 namespace v8 {
 namespace internal {
 
+RUNTIME_FUNCTION(Runtime_IsJSGeneratorObject) {
+  SealHandleScope shs(isolate);
+  DCHECK_EQ(1, args.length());
+  return isolate->heap()->ToBoolean(args[0]->IsJSGeneratorObject());
+}
+
 RUNTIME_FUNCTION(Runtime_CreateJSGeneratorObject) {
   HandleScope scope(isolate);
   DCHECK_EQ(2, args.length());

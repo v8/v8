@@ -136,9 +136,6 @@ class SharedFunctionInfo : public HeapObject {
   DECL_INT_ACCESSORS(unique_id)
 #endif
 
-  // [instance class name]: class name for instances.
-  DECL_ACCESSORS(instance_class_name, String)
-
   // [function data]: This field holds some additional data for function.
   // Currently it has one of:
   //  - a FunctionTemplateInfo to make benefit the API [IsApiFunction()].
@@ -428,7 +425,6 @@ class SharedFunctionInfo : public HeapObject {
   V(kScopeInfoOffset, kPointerSize)           \
   V(kOuterScopeInfoOffset, kPointerSize)      \
   V(kConstructStubOffset, kPointerSize)       \
-  V(kInstanceClassNameOffset, kPointerSize)   \
   V(kFunctionDataOffset, kPointerSize)        \
   V(kScriptOffset, kPointerSize)              \
   V(kDebugInfoOffset, kPointerSize)           \

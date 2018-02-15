@@ -514,7 +514,6 @@ class V8_EXPORT_PRIVATE SimplifiedOperatorBuilder final
   const Operator* SameValue();
 
   const Operator* TypeOf();
-  const Operator* ClassOf();
 
   const Operator* ToBoolean();
 

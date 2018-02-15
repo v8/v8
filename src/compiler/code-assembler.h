@@ -197,6 +197,7 @@ enum class ObjectType {
 
 class AccessCheckNeeded;
 class ClassBoilerplate;
+class BooleanWrapper;
 class CompilationCacheTable;
 class Constructor;
 class Filler;
@@ -208,8 +209,11 @@ class JSSloppyArgumentsObject;
 class MapCache;
 class MutableHeapNumber;
 class NativeContext;
+class NumberWrapper;
+class ScriptWrapper;
 class SloppyArgumentsElements;
 class StringWrapper;
+class SymbolWrapper;
 class Undetectable;
 class UniqueName;
 class WasmMemoryObject;

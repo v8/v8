@@ -1150,10 +1150,6 @@ Type* Typer::Visitor::TypeJSNegate(Node* node) {
   return TypeUnaryOp(node, Negate);
 }
 
-Type* Typer::Visitor::TypeClassOf(Node* node) {
-  return Type::InternalizedStringOrNull();
-}
-
 Type* Typer::Visitor::TypeTypeOf(Node* node) {
   return Type::InternalizedString();
 }
@@ -1772,8 +1768,6 @@ Type* Typer::Visitor::TypeJSCallRuntime(Node* node) {
       return TypeUnaryOp(node, ToObject);
     case Runtime::kInlineToString:
       return TypeUnaryOp(node, ToString);
-    case Runtime::kInlineClassOf:
-      return Type::InternalizedStringOrNull();
     case Runtime::kHasInPrototypeChain:
       return Type::Boolean();
     default:

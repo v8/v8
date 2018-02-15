@@ -94,8 +94,6 @@ Reduction JSIntrinsicLowering::Reduce(Node* node) {
                                         AccessBuilder::ForJSTypedArrayLength());
     case Runtime::kInlineTheHole:
       return ReduceTheHole(node);
-    case Runtime::kInlineClassOf:
-      return ReduceClassOf(node);
     case Runtime::kInlineStringMaxLength:
       return ReduceStringMaxLength(node);
     default:
@@ -379,16 +377,6 @@ Reduction JSIntrinsicLowering::ReduceTheHole(Node* node) {
   Node* value = jsgraph()->TheHoleConstant();
   ReplaceWithValue(node, value);
   return Replace(value);
-}
-
-Reduction JSIntrinsicLowering::ReduceClassOf(Node* node) {
-  RelaxEffectsAndControls(node);
-  // The ClassOf operator has a single value input and control input.
-  Node* control_input = NodeProperties::GetControlInput(node, 0);
-  node->TrimInputCount(2);
-  node->ReplaceInput(1, control_input);
-  NodeProperties::ChangeOp(node, simplified()->ClassOf());
-  return Changed(node);
 }
 
 Reduction JSIntrinsicLowering::ReduceStringMaxLength(Node* node) {

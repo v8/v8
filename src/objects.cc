@@ -1313,24 +1313,24 @@ Handle<SharedFunctionInfo> FunctionTemplateInfo::GetOrCreateSharedFunctionInfo(
   if (current_info->IsSharedFunctionInfo()) {
     return handle(SharedFunctionInfo::cast(current_info), isolate);
   }
-  Handle<Object> class_name(info->class_name(), isolate);
   Handle<Name> name;
   Handle<String> name_string;
   if (maybe_name.ToHandle(&name) && name->IsString()) {
     name_string = Handle<String>::cast(name);
+  } else if (info->class_name()->IsString()) {
+    name_string = handle(String::cast(info->class_name()));
   } else {
-    name_string = class_name->IsString() ? Handle<String>::cast(class_name)
-                                         : isolate->factory()->empty_string();
+    name_string = isolate->factory()->empty_string();
   }
   Handle<Code> code = BUILTIN_CODE(isolate, HandleApiCall);
   bool is_constructor;
   FunctionKind function_kind;
-  if (!info->remove_prototype()) {
-    is_constructor = true;
-    function_kind = kNormalFunction;
-  } else {
+  if (info->remove_prototype()) {
     is_constructor = false;
     function_kind = kConciseMethod;
+  } else {
+    is_constructor = true;
+    function_kind = kNormalFunction;
   }
   Handle<SharedFunctionInfo> result = isolate->factory()->NewSharedFunctionInfo(
       name_string, code, is_constructor, function_kind);
@@ -1339,9 +1339,6 @@ Handle<SharedFunctionInfo> FunctionTemplateInfo::GetOrCreateSharedFunctionInfo(
   }
 
   result->set_length(info->length());
-  if (class_name->IsString()) {
-    result->set_instance_class_name(String::cast(*class_name));
-  }
   result->set_api_func_data(*info);
   result->DontAdaptArguments();
   DCHECK(result->IsApiFunction());
@@ -3593,20 +3590,63 @@ void HeapNumber::HeapNumberPrint(std::ostream& os) {  // NOLINT
   (*reinterpret_cast<const byte*>(FIELD_ADDR_CONST(p, offset)))
 
 String* JSReceiver::class_name() {
-  if (IsFunction()) {
-    return GetHeap()->Function_string();
+  if (IsFunction()) return GetHeap()->Function_string();
+  if (IsJSArgumentsObject()) return GetHeap()->Arguments_string();
+  if (IsJSArray()) return GetHeap()->Array_string();
+  if (IsJSArrayBuffer()) {
+    if (JSArrayBuffer::cast(this)->is_shared()) {
+      return GetHeap()->SharedArrayBuffer_string();
+    }
+    return GetHeap()->ArrayBuffer_string();
   }
+  if (IsJSArrayIterator()) return GetHeap()->ArrayIterator_string();
+  if (IsJSDate()) return GetHeap()->Date_string();
+  if (IsJSError()) return GetHeap()->Error_string();
+  if (IsJSGeneratorObject()) return GetHeap()->Generator_string();
+  if (IsJSMap()) return GetHeap()->Map_string();
+  if (IsJSMapIterator()) return GetHeap()->MapIterator_string();
+  if (IsJSProxy()) {
+    return map()->is_callable() ? GetHeap()->Function_string()
+                                : GetHeap()->Object_string();
+  }
+  if (IsJSRegExp()) return GetHeap()->RegExp_string();
+  if (IsJSSet()) return GetHeap()->Set_string();
+  if (IsJSSetIterator()) return GetHeap()->SetIterator_string();
+  if (IsJSTypedArray()) {
+#define SWITCH_KIND(Type, type, TYPE, ctype, size) \
+  if (map()->elements_kind() == TYPE##_ELEMENTS) { \
+    return GetHeap()->Type##Array_string();        \
+  }
+    TYPED_ARRAYS(SWITCH_KIND)
+#undef SWITCH_KIND
+  }
+  if (IsJSValue()) {
+    Object* value = JSValue::cast(this)->value();
+    if (value->IsBoolean()) return GetHeap()->Boolean_string();
+    if (value->IsString()) return GetHeap()->String_string();
+    if (value->IsNumber()) return GetHeap()->Number_string();
+    if (value->IsBigInt()) return GetHeap()->BigInt_string();
+    if (value->IsSymbol()) return GetHeap()->Symbol_string();
+    if (value->IsScript()) return GetHeap()->Script_string();
+    UNREACHABLE();
+  }
+  if (IsJSWeakMap()) return GetHeap()->WeakMap_string();
+  if (IsJSWeakSet()) return GetHeap()->WeakSet_string();
+  if (IsJSGlobalProxy()) return GetHeap()->global_string();
+
   Object* maybe_constructor = map()->GetConstructor();
   if (maybe_constructor->IsJSFunction()) {
     JSFunction* constructor = JSFunction::cast(maybe_constructor);
-    return String::cast(constructor->shared()->instance_class_name());
-  } else if (maybe_constructor->IsFunctionTemplateInfo()) {
-    FunctionTemplateInfo* info = FunctionTemplateInfo::cast(maybe_constructor);
-    return info->class_name()->IsString() ? String::cast(info->class_name())
-                                          : GetHeap()->empty_string();
+    if (constructor->shared()->IsApiFunction()) {
+      maybe_constructor = constructor->shared()->get_api_func_data();
+    }
   }
 
-  // If the constructor is not present, return "Object".
+  if (maybe_constructor->IsFunctionTemplateInfo()) {
+    FunctionTemplateInfo* info = FunctionTemplateInfo::cast(maybe_constructor);
+    if (info->class_name()->IsString()) return String::cast(info->class_name());
+  }
+
   return GetHeap()->Object_string();
 }
 
@@ -12422,9 +12462,7 @@ void JSObject::OptimizeAsPrototype(Handle<JSObject> object,
     Object* maybe_constructor = object->map()->GetConstructor();
     if (maybe_constructor->IsJSFunction()) {
       JSFunction* constructor = JSFunction::cast(maybe_constructor);
-      Isolate* isolate = object->GetIsolate();
-      if (!constructor->shared()->IsApiFunction() &&
-          object->class_name() == isolate->heap()->Object_string()) {
+      if (!constructor->shared()->IsApiFunction()) {
         Context* context = constructor->context()->native_context();
         JSFunction* object_function = context->object_function();
         object->map()->SetConstructor(object_function);

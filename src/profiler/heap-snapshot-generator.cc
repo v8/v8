@@ -1147,9 +1147,6 @@ void V8HeapExplorer::ExtractSharedFunctionInfoReferences(
                        "scope_info", shared->scope_info(),
                        SharedFunctionInfo::kScopeInfoOffset);
   SetInternalReference(obj, entry,
-                       "instance_class_name", shared->instance_class_name(),
-                       SharedFunctionInfo::kInstanceClassNameOffset);
-  SetInternalReference(obj, entry,
                        "script", shared->script(),
                        SharedFunctionInfo::kScriptOffset);
   const char* construct_stub_name = name ?

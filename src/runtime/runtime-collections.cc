@@ -11,6 +11,18 @@
 namespace v8 {
 namespace internal {
 
+RUNTIME_FUNCTION(Runtime_IsJSMapIterator) {
+  SealHandleScope shs(isolate);
+  DCHECK_EQ(1, args.length());
+  return isolate->heap()->ToBoolean(args[0]->IsJSMapIterator());
+}
+
+RUNTIME_FUNCTION(Runtime_IsJSSetIterator) {
+  SealHandleScope shs(isolate);
+  DCHECK_EQ(1, args.length());
+  return isolate->heap()->ToBoolean(args[0]->IsJSSetIterator());
+}
+
 RUNTIME_FUNCTION(Runtime_TheHole) {
   SealHandleScope shs(isolate);
   DCHECK_EQ(0, args.length());

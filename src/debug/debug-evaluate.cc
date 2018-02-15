@@ -292,7 +292,6 @@ bool IntrinsicHasNoSideEffect(Runtime::FunctionId id) {
   V(IsJSWeakSet)                         \
   V(IsRegExp)                            \
   V(IsTypedArray)                        \
-  V(ClassOf)                             \
   /* Loads */                            \
   V(LoadLookupSlotForCall)               \
   /* Arrays */                           \
@@ -328,6 +327,7 @@ bool IntrinsicHasNoSideEffect(Runtime::FunctionId id) {
   /* Collections */                      \
   V(GenericHash)                         \
   /* Called from builtins */             \
+  V(ClassOf)                             \
   V(StringAdd)                           \
   V(StringParseFloat)                    \
   V(StringParseInt)                      \

@@ -193,7 +193,6 @@ namespace internal {
   TFC(ToInteger, TypeConversion, 1)                                            \
   TFC(ToInteger_TruncateMinusZero, TypeConversion, 1)                          \
   TFC(ToLength, TypeConversion, 1)                                             \
-  TFC(ClassOf, Typeof, 1)                                                      \
   TFC(Typeof, Typeof, 1)                                                       \
   TFC(GetSuperConstructor, Typeof, 1)                                          \
                                                                                \

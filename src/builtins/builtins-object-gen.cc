@@ -672,9 +672,7 @@ TF_BUILTIN(ObjectPrototypeToString, ObjectBuiltinsAssembler) {
     Branch(IsString(var_tag.value()), &if_tagisstring, &if_tagisnotstring);
     BIND(&if_tagisnotstring);
     {
-      var_tag.Bind(
-          CallStub(Builtins::CallableFor(isolate(), Builtins::kClassOf),
-                   context, receiver));
+      var_tag.Bind(CallRuntime(Runtime::kClassOf, context, receiver));
       Goto(&if_tagisstring);
     }
     BIND(&if_tagisstring);

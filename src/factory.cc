@@ -2489,9 +2489,6 @@ Handle<SharedFunctionInfo> Factory::NewSharedFunctionInfo(
       NewSharedFunctionInfo(name, code, IsConstructable(kind), kind);
   shared->set_scope_info(*scope_info);
   shared->set_outer_scope_info(*the_hole_value());
-  if (IsGeneratorFunction(kind)) {
-    shared->set_instance_class_name(isolate()->heap()->Generator_string());
-  }
   return shared;
 }
 
@@ -2561,7 +2558,6 @@ Handle<SharedFunctionInfo> Factory::NewSharedFunctionInfo(
       is_constructor ? isolate()->builtins()->JSConstructStubGeneric()
                      : BUILTIN_CODE(isolate(), ConstructedNonConstructable);
   share->SetConstructStub(*construct_stub);
-  share->set_instance_class_name(*Object_string());
   share->set_script(*undefined_value(), SKIP_WRITE_BARRIER);
   share->set_debug_info(Smi::kZero, SKIP_WRITE_BARRIER);
   share->set_function_identifier(*undefined_value(), SKIP_WRITE_BARRIER);

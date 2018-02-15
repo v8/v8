@@ -585,6 +585,11 @@ namespace internal {
   F(HasFixedUint8ClampedElements, 1, 1)       \
   F(HasFixedUint8Elements, 1, 1)              \
   F(HasHoleyElements, 1, 1)                   \
+  F(IsJSError, 1, 1)                          \
+  F(IsJSGeneratorObject, 1, 1)                \
+  F(IsJSMapIterator, 1, 1)                    \
+  F(IsScriptWrapper, 1, 1)                    \
+  F(IsJSSetIterator, 1, 1)                    \
   F(HasObjectElements, 1, 1)                  \
   F(HasSloppyArgumentsElements, 1, 1)         \
   F(HasSmiElements, 1, 1)                     \

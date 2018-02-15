@@ -2324,7 +2324,6 @@ class RepresentationSelector {
                    MachineRepresentation::kTaggedPointer);
         return;
       }
-      case IrOpcode::kClassOf:
       case IrOpcode::kTypeOf: {
         return VisitUnop(node, UseInfo::AnyTagged(),
                          MachineRepresentation::kTaggedPointer);

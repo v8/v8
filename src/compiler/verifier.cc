@@ -745,10 +745,6 @@ void Verifier::Visitor::Check(Node* node, const AllNodes& all) {
       // Type is Boolean.
       CheckTypeIs(node, Type::Boolean());
       break;
-    case IrOpcode::kClassOf:
-      // Type is InternaliedString \/ Null.
-      CheckTypeIs(node, Type::InternalizedStringOrNull());
-      break;
     case IrOpcode::kTypeOf:
       // Type is InternalizedString.
       CheckTypeIs(node, Type::InternalizedString());

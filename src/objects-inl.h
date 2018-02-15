@@ -419,6 +419,22 @@ bool HeapObject::IsStringWrapper() const {
   return IsJSValue() && JSValue::cast(this)->value()->IsString();
 }
 
+bool HeapObject::IsBooleanWrapper() const {
+  return IsJSValue() && JSValue::cast(this)->value()->IsBoolean();
+}
+
+bool HeapObject::IsScriptWrapper() const {
+  return IsJSValue() && JSValue::cast(this)->value()->IsScript();
+}
+
+bool HeapObject::IsNumberWrapper() const {
+  return IsJSValue() && JSValue::cast(this)->value()->IsNumber();
+}
+
+bool HeapObject::IsSymbolWrapper() const {
+  return IsJSValue() && JSValue::cast(this)->value()->IsSymbol();
+}
+
 bool HeapObject::IsBoolean() const {
   return IsOddball() &&
          ((Oddball::cast(this)->kind() & Oddball::kNotBooleanMask) == 0);
@@ -820,10 +836,6 @@ MaybeHandle<Object> Object::ToIndex(Isolate* isolate, Handle<Object> input,
                                     MessageTemplate::Template error_index) {
   if (input->IsSmi() && Smi::ToInt(*input) >= 0) return input;
   return ConvertToIndex(isolate, input, error_index);
-}
-
-bool Object::HasSpecificClassOf(String* name) {
-  return this->IsJSObject() && (JSObject::cast(this)->class_name() == name);
 }
 
 MaybeHandle<Object> Object::GetProperty(Handle<Object> object,

@@ -365,12 +365,6 @@ Node* IntrinsicsGenerator::Call(
   return nullptr;  // We never return from the CallJSAndDispatch above.
 }
 
-Node* IntrinsicsGenerator::ClassOf(
-    const InterpreterAssembler::RegListNodePair& args, Node* context) {
-  Node* value = __ LoadRegisterFromRegisterList(args, 0);
-  return __ ClassOf(value);
-}
-
 Node* IntrinsicsGenerator::CreateAsyncFromSyncIterator(
     const InterpreterAssembler::RegListNodePair& args, Node* context) {
   InterpreterAssembler::Label not_receiver(

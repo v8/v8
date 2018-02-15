@@ -806,9 +806,6 @@ bool EffectControlLinearizer::TryWireInStateEffect(Node* node,
     case IrOpcode::kTypeOf:
       result = LowerTypeOf(node);
       break;
-    case IrOpcode::kClassOf:
-      result = LowerClassOf(node);
-      break;
     case IrOpcode::kNewDoubleElements:
       result = LowerNewDoubleElements(node);
       break;
@@ -2377,18 +2374,6 @@ Node* EffectControlLinearizer::LowerObjectIsUndetectable(Node* node) {
 Node* EffectControlLinearizer::LowerTypeOf(Node* node) {
   Node* obj = node->InputAt(0);
   Callable const callable = Builtins::CallableFor(isolate(), Builtins::kTypeof);
-  Operator::Properties const properties = Operator::kEliminatable;
-  CallDescriptor::Flags const flags = CallDescriptor::kNoAllocate;
-  auto call_descriptor = Linkage::GetStubCallDescriptor(
-      isolate(), graph()->zone(), callable.descriptor(), 0, flags, properties);
-  return __ Call(call_descriptor, __ HeapConstant(callable.code()), obj,
-                 __ NoContextConstant());
-}
-
-Node* EffectControlLinearizer::LowerClassOf(Node* node) {
-  Node* obj = node->InputAt(0);
-  Callable const callable =
-      Builtins::CallableFor(isolate(), Builtins::kClassOf);
   Operator::Properties const properties = Operator::kEliminatable;
   CallDescriptor::Flags const flags = CallDescriptor::kNoAllocate;
   auto call_descriptor = Linkage::GetStubCallDescriptor(

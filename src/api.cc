@@ -3554,24 +3554,22 @@ bool Value::IsWebAssemblyCompiledModule() const {
          js_obj->map()->GetConstructor();
 }
 
-#define VALUE_IS_SPECIFIC_TYPE(Type, Class)                            \
-  bool Value::Is##Type() const {                                       \
-    i::Handle<i::Object> obj = Utils::OpenHandle(this);                \
-    if (!obj->IsHeapObject()) return false;                            \
-    i::Isolate* isolate = i::HeapObject::cast(*obj)->GetIsolate();     \
-    return obj->HasSpecificClassOf(isolate->heap()->Class##_string()); \
+#define VALUE_IS_SPECIFIC_TYPE(Type, Check)             \
+  bool Value::Is##Type() const {                        \
+    i::Handle<i::Object> obj = Utils::OpenHandle(this); \
+    return obj->Is##Check();                            \
   }
 
-VALUE_IS_SPECIFIC_TYPE(ArgumentsObject, Arguments)
-VALUE_IS_SPECIFIC_TYPE(BooleanObject, Boolean)
-VALUE_IS_SPECIFIC_TYPE(NumberObject, Number)
-VALUE_IS_SPECIFIC_TYPE(StringObject, String)
-VALUE_IS_SPECIFIC_TYPE(SymbolObject, Symbol)
-VALUE_IS_SPECIFIC_TYPE(Date, Date)
-VALUE_IS_SPECIFIC_TYPE(Map, Map)
-VALUE_IS_SPECIFIC_TYPE(Set, Set)
-VALUE_IS_SPECIFIC_TYPE(WeakMap, WeakMap)
-VALUE_IS_SPECIFIC_TYPE(WeakSet, WeakSet)
+VALUE_IS_SPECIFIC_TYPE(ArgumentsObject, JSArgumentsObject)
+VALUE_IS_SPECIFIC_TYPE(BooleanObject, BooleanWrapper)
+VALUE_IS_SPECIFIC_TYPE(NumberObject, NumberWrapper)
+VALUE_IS_SPECIFIC_TYPE(StringObject, StringWrapper)
+VALUE_IS_SPECIFIC_TYPE(SymbolObject, SymbolWrapper)
+VALUE_IS_SPECIFIC_TYPE(Date, JSDate)
+VALUE_IS_SPECIFIC_TYPE(Map, JSMap)
+VALUE_IS_SPECIFIC_TYPE(Set, JSSet)
+VALUE_IS_SPECIFIC_TYPE(WeakMap, JSWeakMap)
+VALUE_IS_SPECIFIC_TYPE(WeakSet, JSWeakSet)
 
 #undef VALUE_IS_SPECIFIC_TYPE
 
@@ -3963,55 +3961,36 @@ void v8::SharedArrayBuffer::CheckCast(Value* that) {
 
 void v8::Date::CheckCast(v8::Value* that) {
   i::Handle<i::Object> obj = Utils::OpenHandle(that);
-  i::Isolate* isolate = nullptr;
-  if (obj->IsHeapObject()) isolate = i::HeapObject::cast(*obj)->GetIsolate();
-  Utils::ApiCheck(isolate != nullptr &&
-                      obj->HasSpecificClassOf(isolate->heap()->Date_string()),
-                  "v8::Date::Cast()", "Could not convert to date");
+  Utils::ApiCheck(obj->IsJSDate(), "v8::Date::Cast()",
+                  "Could not convert to date");
 }
 
 
 void v8::StringObject::CheckCast(v8::Value* that) {
   i::Handle<i::Object> obj = Utils::OpenHandle(that);
-  i::Isolate* isolate = nullptr;
-  if (obj->IsHeapObject()) isolate = i::HeapObject::cast(*obj)->GetIsolate();
-  Utils::ApiCheck(isolate != nullptr &&
-                      obj->HasSpecificClassOf(isolate->heap()->String_string()),
-                  "v8::StringObject::Cast()",
+  Utils::ApiCheck(obj->IsStringWrapper(), "v8::StringObject::Cast()",
                   "Could not convert to StringObject");
 }
 
 
 void v8::SymbolObject::CheckCast(v8::Value* that) {
   i::Handle<i::Object> obj = Utils::OpenHandle(that);
-  i::Isolate* isolate = nullptr;
-  if (obj->IsHeapObject()) isolate = i::HeapObject::cast(*obj)->GetIsolate();
-  Utils::ApiCheck(isolate != nullptr &&
-                      obj->HasSpecificClassOf(isolate->heap()->Symbol_string()),
-                  "v8::SymbolObject::Cast()",
+  Utils::ApiCheck(obj->IsSymbolWrapper(), "v8::SymbolObject::Cast()",
                   "Could not convert to SymbolObject");
 }
 
 
 void v8::NumberObject::CheckCast(v8::Value* that) {
   i::Handle<i::Object> obj = Utils::OpenHandle(that);
-  i::Isolate* isolate = nullptr;
-  if (obj->IsHeapObject()) isolate = i::HeapObject::cast(*obj)->GetIsolate();
-  Utils::ApiCheck(isolate != nullptr &&
-                      obj->HasSpecificClassOf(isolate->heap()->Number_string()),
-                  "v8::NumberObject::Cast()",
+  Utils::ApiCheck(obj->IsNumberWrapper(), "v8::NumberObject::Cast()",
                   "Could not convert to NumberObject");
 }
 
 
 void v8::BooleanObject::CheckCast(v8::Value* that) {
   i::Handle<i::Object> obj = Utils::OpenHandle(that);
-  i::Isolate* isolate = nullptr;
-  if (obj->IsHeapObject()) isolate = i::HeapObject::cast(*obj)->GetIsolate();
-  Utils::ApiCheck(
-      isolate != nullptr &&
-          obj->HasSpecificClassOf(isolate->heap()->Boolean_string()),
-      "v8::BooleanObject::Cast()", "Could not convert to BooleanObject");
+  Utils::ApiCheck(obj->IsBooleanWrapper(), "v8::BooleanObject::Cast()",
+                  "Could not convert to BooleanObject");
 }
 
 

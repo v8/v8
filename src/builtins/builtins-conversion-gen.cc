@@ -390,13 +390,6 @@ TF_BUILTIN(ToObject, CodeStubAssembler) {
   Return(object);
 }
 
-// Deprecated ES5 [[Class]] internal property (used to implement %_ClassOf).
-TF_BUILTIN(ClassOf, CodeStubAssembler) {
-  Node* object = Parameter(TypeofDescriptor::kObject);
-
-  Return(ClassOf(object));
-}
-
 // ES6 section 12.5.5 typeof operator
 TF_BUILTIN(Typeof, CodeStubAssembler) {
   Node* object = Parameter(TypeofDescriptor::kObject);

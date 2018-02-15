@@ -179,7 +179,6 @@ bool Linkage::NeedsFrameStateInput(Runtime::FunctionId function) {
       return false;
 
     // Some inline intrinsics are also safe to call without a FrameState.
-    case Runtime::kInlineClassOf:
     case Runtime::kInlineCreateIterResultObject:
     case Runtime::kInlineGeneratorClose:
     case Runtime::kInlineGeneratorGetInputOrDebugPos:

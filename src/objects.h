@@ -985,12 +985,13 @@ template <class C> inline bool Is(Object* obj);
   V(BigInt)                               \
   V(BoilerplateDescription)               \
   V(Boolean)                              \
+  V(BooleanWrapper)                       \
   V(BreakPoint)                           \
   V(BreakPointInfo)                       \
   V(ByteArray)                            \
   V(BytecodeArray)                        \
-  V(Callable)                             \
   V(CallHandlerInfo)                      \
+  V(Callable)                             \
   V(Cell)                                 \
   V(ClassBoilerplate)                     \
   V(Code)                                 \
@@ -1081,6 +1082,7 @@ template <class C> inline bool Is(Object* obj);
   V(NativeContext)                        \
   V(NormalizedMapCache)                   \
   V(NumberDictionary)                     \
+  V(NumberWrapper)                        \
   V(ObjectHashSet)                        \
   V(ObjectHashTable)                      \
   V(Oddball)                              \
@@ -1094,6 +1096,7 @@ template <class C> inline bool Is(Object* obj);
   V(RegExpMatchInfo)                      \
   V(ScopeInfo)                            \
   V(ScriptContextTable)                   \
+  V(ScriptWrapper)                        \
   V(SeqOneByteString)                     \
   V(SeqString)                            \
   V(SeqTwoByteString)                     \
@@ -1111,6 +1114,7 @@ template <class C> inline bool Is(Object* obj);
   V(StringWrapper)                        \
   V(Struct)                               \
   V(Symbol)                               \
+  V(SymbolWrapper)                        \
   V(TemplateInfo)                         \
   V(TemplateList)                         \
   V(TemplateObjectDescription)            \
@@ -1241,8 +1245,6 @@ class Object {
   // Returns true if the object is of the correct type to be used as a
   // implementation of a JSObject's elements.
   inline bool HasValidElements();
-
-  inline bool HasSpecificClassOf(String* name);
 
   bool BooleanValue();                                      // ECMA-262 9.2.
 

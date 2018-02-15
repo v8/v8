@@ -1865,8 +1865,6 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
                              SloppyTNode<Context> context,
                              HasPropertyLookupMode mode);
 
-  Node* ClassOf(Node* object);
-
   Node* Typeof(Node* value);
 
   Node* GetSuperConstructor(Node* value, Node* context);

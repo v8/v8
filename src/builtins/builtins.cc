@@ -280,7 +280,6 @@ bool Builtins::IsIsolateIndependent(int index) {
     case kContinueToJavaScriptBuiltinWithResult:
 #ifndef DEBUG
 #if !V8_TARGET_ARCH_IA32
-    case kClassOf:
     case kConstructFunction:
     case kTypeof:
     case kWeakMapLookupHashIndex:
