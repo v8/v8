@@ -221,9 +221,6 @@
   V(zero_string, "0")
 
 #define PRIVATE_SYMBOL_LIST(V)              \
-  V(array_iteration_kind_symbol)            \
-  V(array_iterator_next_symbol)             \
-  V(array_iterator_object_symbol)           \
   V(call_site_frame_array_symbol)           \
   V(call_site_frame_index_symbol)           \
   V(console_context_id_symbol)              \
