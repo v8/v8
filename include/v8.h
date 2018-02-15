@@ -145,7 +145,7 @@ class Heap;
 class HeapObject;
 class Isolate;
 class Object;
-struct StreamedSource;
+struct ScriptStreamingData;
 template<typename T> class CustomArguments;
 class PropertyCallbackArguments;
 class FunctionCallbackArguments;
@@ -1406,14 +1406,14 @@ class V8_EXPORT ScriptCompiler {
     // object is alive.
     const CachedData* GetCachedData() const;
 
-    internal::StreamedSource* impl() const { return impl_; }
+    internal::ScriptStreamingData* impl() const { return impl_; }
 
     // Prevent copying.
     StreamedSource(const StreamedSource&) = delete;
     StreamedSource& operator=(const StreamedSource&) = delete;
 
    private:
-    internal::StreamedSource* impl_;
+    internal::ScriptStreamingData* impl_;
   };
 
   /**

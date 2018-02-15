@@ -30,11 +30,13 @@
 #include "src/messages.h"
 #include "src/objects/map.h"
 #include "src/parsing/parse-info.h"
+#include "src/parsing/parser.h"
 #include "src/parsing/parsing.h"
 #include "src/parsing/rewriter.h"
 #include "src/parsing/scanner-character-streams.h"
 #include "src/runtime-profiler.h"
 #include "src/snapshot/code-serializer.h"
+#include "src/unicode-cache.h"
 #include "src/vm-state-inl.h"
 
 namespace v8 {
@@ -854,6 +856,126 @@ MaybeHandle<SharedFunctionInfo> CompileToplevel(ParseInfo* parse_info,
                           &inner_function_jobs);
 }
 
+std::unique_ptr<CompilationJob> CompileTopLevelOnBackgroundThread(
+    ParseInfo* parse_info, AccountingAllocator* allocator,
+    CompilationJobList* inner_function_jobs) {
+  DisallowHeapAllocation no_allocation;
+  DisallowHandleAllocation no_handles;
+  DisallowHandleDereference no_deref;
+  TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.compile"),
+               "V8.CompileCodeBackground");
+  RuntimeCallTimerScope runtimeTimer(
+      parse_info->runtime_call_stats(),
+      parse_info->is_eval() ? RuntimeCallCounterId::kCompileBackgroundEval
+                            : RuntimeCallCounterId::kCompileBackgroundScript);
+
+  LanguageMode language_mode = construct_language_mode(FLAG_use_strict);
+  parse_info->set_language_mode(
+      stricter_language_mode(parse_info->language_mode(), language_mode));
+
+  // Can't access scope info data off-main-thread.
+  DCHECK(!parse_info->consumed_preparsed_scope_data()->HasData());
+
+  // Generate the unoptimized bytecode or asm-js data.
+  std::unique_ptr<CompilationJob> outer_function_job(
+      GenerateUnoptimizedCode(parse_info, allocator, inner_function_jobs));
+  return outer_function_job;
+}
+
+class BackgroundCompileTask : public ScriptCompiler::ScriptStreamingTask {
+ public:
+  BackgroundCompileTask(ScriptStreamingData* source, Isolate* isolate);
+
+  virtual void Run();
+
+ private:
+  ScriptStreamingData* source_;  // Not owned.
+  int stack_size_;
+  ScriptData* script_data_;
+  AccountingAllocator* allocator_;
+  TimedHistogram* timer_;
+
+  DISALLOW_COPY_AND_ASSIGN(BackgroundCompileTask);
+};
+
+BackgroundCompileTask::BackgroundCompileTask(ScriptStreamingData* source,
+                                             Isolate* isolate)
+    : source_(source),
+      stack_size_(i::FLAG_stack_size),
+      script_data_(nullptr),
+      timer_(isolate->counters()->compile_script_on_background()) {
+  VMState<PARSER> state(isolate);
+
+  // Prepare the data for the internalization phase and compilation phase, which
+  // will happen in the main thread after parsing.
+  ParseInfo* info = new ParseInfo(isolate->allocator());
+  info->InitFromIsolate(isolate);
+  if (V8_UNLIKELY(FLAG_runtime_stats)) {
+    info->set_runtime_call_stats(new (info->zone()) RuntimeCallStats());
+  } else {
+    info->set_runtime_call_stats(nullptr);
+  }
+  info->set_toplevel();
+  std::unique_ptr<Utf16CharacterStream> stream(
+      ScannerStream::For(source->source_stream.get(), source->encoding,
+                         info->runtime_call_stats()));
+  info->set_character_stream(std::move(stream));
+  info->set_unicode_cache(&source_->unicode_cache);
+  info->set_allow_lazy_parsing();
+  if (V8_UNLIKELY(info->block_coverage_enabled())) {
+    info->AllocateSourceRangeMap();
+  }
+  LanguageMode language_mode = construct_language_mode(FLAG_use_strict);
+  info->set_language_mode(
+      stricter_language_mode(info->language_mode(), language_mode));
+
+  source->info.reset(info);
+  allocator_ = isolate->allocator();
+
+  // Parser needs to stay alive for finalizing the parsing on the main
+  // thread.
+  source_->parser.reset(new Parser(source_->info.get()));
+  source_->parser->DeserializeScopeChain(source_->info.get(),
+                                         MaybeHandle<ScopeInfo>());
+}
+
+void BackgroundCompileTask::Run() {
+  TimedHistogramScope timer(timer_);
+  DisallowHeapAllocation no_allocation;
+  DisallowHandleAllocation no_handles;
+  DisallowHandleDereference no_deref;
+
+  source_->info->set_on_background_thread(true);
+
+  // Reset the stack limit of the parser to reflect correctly that we're on a
+  // background thread.
+  uintptr_t old_stack_limit = source_->info->stack_limit();
+  uintptr_t stack_limit = GetCurrentStackPosition() - stack_size_ * KB;
+  source_->info->set_stack_limit(stack_limit);
+  source_->parser->set_stack_limit(stack_limit);
+
+  source_->parser->ParseOnBackground(source_->info.get());
+  if (FLAG_background_compile && source_->info->literal() != nullptr) {
+    // Parsing has succeeded, compile.
+    source_->outer_function_job = CompileTopLevelOnBackgroundThread(
+        source_->info.get(), allocator_, &source_->inner_function_jobs);
+  }
+
+  if (script_data_ != nullptr) {
+    source_->cached_data.reset(new ScriptCompiler::CachedData(
+        script_data_->data(), script_data_->length(),
+        ScriptCompiler::CachedData::BufferOwned));
+    script_data_->ReleaseDataOwnership();
+    delete script_data_;
+    script_data_ = nullptr;
+  }
+
+  source_->info->EmitBackgroundParseStatisticsOnBackgroundThread();
+
+  source_->info->set_on_background_thread(false);
+  source_->info->set_stack_limit(old_stack_limit);
+}
+
 }  // namespace
 
 // ----------------------------------------------------------------------------
@@ -1622,77 +1744,59 @@ MaybeHandle<SharedFunctionInfo> Compiler::GetSharedFunctionInfoForScript(
   return maybe_result;
 }
 
-std::unique_ptr<CompilationJob> Compiler::CompileTopLevelOnBackgroundThread(
-    ParseInfo* parse_info, AccountingAllocator* allocator,
-    CompilationJobList* inner_function_jobs) {
-  DisallowHeapAllocation no_allocation;
-  DisallowHandleAllocation no_handles;
-  DisallowHandleDereference no_deref;
-  TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.compile"),
-               "V8.CompileCodeBackground");
-  RuntimeCallTimerScope runtimeTimer(
-      parse_info->runtime_call_stats(),
-      parse_info->is_eval() ? RuntimeCallCounterId::kCompileBackgroundEval
-                            : RuntimeCallCounterId::kCompileBackgroundScript);
-
-  LanguageMode language_mode = construct_language_mode(FLAG_use_strict);
-  parse_info->set_language_mode(
-      stricter_language_mode(parse_info->language_mode(), language_mode));
-
-  // Can't access scope info data off-main-thread.
-  DCHECK(!parse_info->consumed_preparsed_scope_data()->HasData());
-
-  // Generate the unoptimized bytecode or asm-js data.
-  std::unique_ptr<CompilationJob> outer_function_job(
-      GenerateUnoptimizedCode(parse_info, allocator, inner_function_jobs));
-  return outer_function_job;
+ScriptCompiler::ScriptStreamingTask* Compiler::NewBackgroundCompileTask(
+    ScriptStreamingData* source, Isolate* isolate) {
+  return new BackgroundCompileTask(source, isolate);
 }
 
-Handle<SharedFunctionInfo> Compiler::GetSharedFunctionInfoForBackgroundCompile(
-    Handle<Script> script, ParseInfo* parse_info, int source_length,
-    CompilationJob* outer_function_job,
-    CompilationJobList* inner_function_jobs) {
+MaybeHandle<SharedFunctionInfo>
+Compiler::GetSharedFunctionInfoForStreamedScript(
+    Handle<Script> script, ScriptStreamingData* streaming_data,
+    int source_length) {
   Isolate* isolate = script->GetIsolate();
   ScriptCompileTimerScope compile_timer(
       isolate, ScriptCompiler::kNoCacheBecauseStreamingSource);
   PostponeInterruptsScope postpone(isolate);
 
-  // TODO(titzer): increment the counters in caller.
   isolate->counters()->total_load_size()->Increment(source_length);
   isolate->counters()->total_compile_size()->Increment(source_length);
 
-  if (outer_function_job == nullptr) {
-    // Compilation failed on background thread - throw an exception.
-    if (!isolate->has_pending_exception()) isolate->StackOverflow();
-    return Handle<SharedFunctionInfo>();
+  ParseInfo* parse_info = streaming_data->info.get();
+  parse_info->set_script(script);
+  parse_info->UpdateBackgroundParseStatisticsOnMainThread(isolate);
+
+  streaming_data->parser->UpdateStatistics(isolate, script);
+  streaming_data->parser->HandleSourceURLComments(isolate, script);
+
+  if (parse_info->literal() == nullptr) {
+    // Parsing has failed - report error messages.
+    parse_info->pending_error_handler()->ReportErrors(
+        isolate, script, parse_info->ast_value_factory());
+    streaming_data->Release();
+    return MaybeHandle<SharedFunctionInfo>();
   }
 
-  Handle<SharedFunctionInfo> result;
-  if (FinalizeTopLevel(parse_info, isolate, outer_function_job,
-                       inner_function_jobs)
-          .ToHandle(&result)) {
+  // Parsing has succeeded - finalize compilation.
+  MaybeHandle<SharedFunctionInfo> result;
+  if (i::FLAG_background_compile) {
+    // Finalize background compilation.
+    if (streaming_data->outer_function_job) {
+      result = FinalizeTopLevel(parse_info, isolate,
+                                streaming_data->outer_function_job.get(),
+                                &streaming_data->inner_function_jobs);
+    } else {
+      // Compilation failed on background thread - throw an exception.
+      if (!isolate->has_pending_exception()) isolate->StackOverflow();
+    }
+  } else {
+    // Compilation on main thread.
+    result = CompileToplevel(parse_info, isolate);
+  }
+
+  if (!result.is_null()) {
     isolate->debug()->OnAfterCompile(script);
   }
-  return result;
-}
-
-Handle<SharedFunctionInfo> Compiler::GetSharedFunctionInfoForStreamedScript(
-    Handle<Script> script, ParseInfo* parse_info, int source_length) {
-  Isolate* isolate = script->GetIsolate();
-  ScriptCompileTimerScope compile_timer(
-      isolate, ScriptCompiler::kNoCacheBecauseStreamingSource);
-  // TODO(titzer): increment the counters in caller.
-  isolate->counters()->total_load_size()->Increment(source_length);
-  isolate->counters()->total_compile_size()->Increment(source_length);
-
-  LanguageMode language_mode = construct_language_mode(FLAG_use_strict);
-  parse_info->set_language_mode(
-      stricter_language_mode(parse_info->language_mode(), language_mode));
-
-  Handle<SharedFunctionInfo> result;
-  if (CompileToplevel(parse_info, isolate).ToHandle(&result)) {
-    isolate->debug()->OnAfterCompile(script);
-  }
+  streaming_data->Release();
   return result;
 }
 
@@ -1777,6 +1881,23 @@ void Compiler::PostInstantiation(Handle<JSFunction> function,
       function->set_code(code);
     }
   }
+}
+
+// ----------------------------------------------------------------------------
+// Implementation of ScriptStreamingData
+
+ScriptStreamingData::ScriptStreamingData(
+    ScriptCompiler::ExternalSourceStream* source_stream,
+    ScriptCompiler::StreamedSource::Encoding encoding)
+    : source_stream(source_stream), encoding(encoding) {}
+
+ScriptStreamingData::~ScriptStreamingData() {}
+
+void ScriptStreamingData::Release() {
+  parser.reset();
+  info.reset();
+  outer_function_job.reset();
+  inner_function_jobs.clear();
 }
 
 }  // namespace internal

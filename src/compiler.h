@@ -13,6 +13,7 @@
 #include "src/code-events.h"
 #include "src/contexts.h"
 #include "src/isolate.h"
+#include "src/unicode-cache.h"
 #include "src/zone/zone.h"
 
 namespace v8 {
@@ -23,7 +24,9 @@ class CompilationInfo;
 class CompilationJob;
 class JavaScriptFrame;
 class ParseInfo;
+class Parser;
 class ScriptData;
+struct ScriptStreamingData;
 
 typedef std::forward_list<std::unique_ptr<CompilationJob>> CompilationJobList;
 
@@ -53,11 +56,12 @@ class V8_EXPORT_PRIVATE Compiler : public AllStatic {
   static bool CompileOptimized(Handle<JSFunction> function, ConcurrencyMode);
   static MaybeHandle<JSArray> CompileForLiveEdit(Handle<Script> script);
 
-  // Compile top level code on a background thread. Should be finalized by
-  // GetSharedFunctionInfoForBackgroundCompile.
-  static std::unique_ptr<CompilationJob> CompileTopLevelOnBackgroundThread(
-      ParseInfo* parse_info, AccountingAllocator* allocator,
-      CompilationJobList* inner_function_jobs);
+  // Creates a new task that when run will parse and compile the streamed
+  // script associated with |streaming_data| and can be finalized with
+  // Compiler::GetSharedFunctionInfoForStreamedScript.
+  // Note: does not take ownership of streaming_data.
+  static ScriptCompiler::ScriptStreamingTask* NewBackgroundCompileTask(
+      ScriptStreamingData* streaming_data, Isolate* isolate);
 
   // Generate and install code from previously queued compilation job.
   static bool FinalizeCompilationJob(CompilationJob* job, Isolate* isolate);
@@ -123,16 +127,13 @@ class V8_EXPORT_PRIVATE Compiler : public AllStatic {
       MaybeHandle<FixedArray> maybe_host_defined_options);
 
   // Create a shared function info object for a Script that has already been
-  // parsed while the script was being loaded from a streamed source.
-  static Handle<SharedFunctionInfo> GetSharedFunctionInfoForStreamedScript(
-      Handle<Script> script, ParseInfo* info, int source_length);
-
-  // Create a shared function info object for a Script that has already been
-  // compiled on a background thread.
-  static Handle<SharedFunctionInfo> GetSharedFunctionInfoForBackgroundCompile(
-      Handle<Script> script, ParseInfo* parse_info, int source_length,
-      CompilationJob* outer_function_job,
-      CompilationJobList* inner_function_jobs);
+  // parsed and possibly compiled on a background thread while being loaded from
+  // a streamed source. On return, the data held by |streaming_data| will have
+  // been released, however the object itself isn't freed and is still owned by
+  // the caller.
+  static MaybeHandle<SharedFunctionInfo> GetSharedFunctionInfoForStreamedScript(
+      Handle<Script> script, ScriptStreamingData* streaming_data,
+      int source_length);
 
   // Create a shared function info object for the given function literal
   // node (the code may be lazily compiled).
@@ -235,6 +236,34 @@ class V8_EXPORT_PRIVATE CompilationJob {
     }
     return status;
   }
+};
+
+// Contains all data which needs to be transmitted between threads for
+// background parsing and compiling and finalizing it on the main thread.
+struct ScriptStreamingData {
+  ScriptStreamingData(ScriptCompiler::ExternalSourceStream* source_stream,
+                      ScriptCompiler::StreamedSource::Encoding encoding);
+  ~ScriptStreamingData();
+
+  void Release();
+
+  // Internal implementation of v8::ScriptCompiler::StreamedSource.
+  std::unique_ptr<ScriptCompiler::ExternalSourceStream> source_stream;
+  ScriptCompiler::StreamedSource::Encoding encoding;
+  std::unique_ptr<ScriptCompiler::CachedData> cached_data;
+
+  // Data needed for parsing, and data needed to to be passed between thread
+  // between parsing and compilation. These need to be initialized before the
+  // compilation starts.
+  UnicodeCache unicode_cache;
+  std::unique_ptr<ParseInfo> info;
+  std::unique_ptr<Parser> parser;
+
+  // Data needed for finalizing compilation after background compilation.
+  std::unique_ptr<CompilationJob> outer_function_job;
+  CompilationJobList inner_function_jobs;
+
+  DISALLOW_COPY_AND_ASSIGN(ScriptStreamingData);
 };
 
 }  // namespace internal

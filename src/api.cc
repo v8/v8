@@ -49,7 +49,6 @@
 #include "src/json-stringifier.h"
 #include "src/messages.h"
 #include "src/objects-inl.h"
-#include "src/parsing/background-parsing-task.h"
 #include "src/parsing/parser.h"
 #include "src/parsing/scanner-character-streams.h"
 #include "src/pending-compilation-error-handler.h"
@@ -2030,11 +2029,9 @@ bool ScriptCompiler::ExternalSourceStream::SetBookmark() { return false; }
 
 void ScriptCompiler::ExternalSourceStream::ResetToBookmark() { UNREACHABLE(); }
 
-
 ScriptCompiler::StreamedSource::StreamedSource(ExternalSourceStream* stream,
                                                Encoding encoding)
-    : impl_(new i::StreamedSource(stream, encoding)) {}
-
+    : impl_(new i::ScriptStreamingData(stream, encoding)) {}
 
 ScriptCompiler::StreamedSource::~StreamedSource() { delete impl_; }
 
@@ -2552,9 +2549,11 @@ ScriptCompiler::ScriptStreamingTask* ScriptCompiler::StartStreamingScript(
   if (!i::FLAG_script_streaming) {
     return nullptr;
   }
+  // We don't support other compile options on streaming background compiles.
+  // TODO(rmcilroy): remove CompileOptions from the API.
+  CHECK(options == ScriptCompiler::kNoCompileOptions);
   i::Isolate* isolate = reinterpret_cast<i::Isolate*>(v8_isolate);
-  return new i::BackgroundParsingTask(source->impl(), options,
-                                      i::FLAG_stack_size, isolate);
+  return i::Compiler::NewBackgroundCompileTask(source->impl(), isolate);
 }
 
 
@@ -2564,7 +2563,8 @@ MaybeLocal<Script> ScriptCompiler::Compile(Local<Context> context,
                                            const ScriptOrigin& origin) {
   PREPARE_FOR_EXECUTION(context, ScriptCompiler, Compile, Script);
   TRACE_EVENT_CALL_STATS_SCOPED(isolate, "v8", "V8.ScriptCompiler");
-  i::StreamedSource* source = v8_source->impl();
+  TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.compile"),
+               "V8.CompileStreamedScript");
   i::Handle<i::String> str = Utils::OpenHandle(*(full_source_string));
   i::Handle<i::Script> script = isolate->factory()->NewScript(str);
   if (isolate->NeedsSourcePositionsForProfiling()) {
@@ -2591,31 +2591,14 @@ MaybeLocal<Script> ScriptCompiler::Compile(Local<Context> context,
         *Utils::OpenHandle(*(origin.SourceMapUrl())));
   }
 
-  source->info->set_script(script);
-  source->parser->UpdateStatistics(isolate, script);
-  source->info->UpdateBackgroundParseStatisticsOnMainThread(isolate);
-  source->parser->HandleSourceURLComments(isolate, script);
+  i::ScriptStreamingData* streaming_data = v8_source->impl();
+  i::MaybeHandle<i::SharedFunctionInfo> maybe_function_info =
+      i::Compiler::GetSharedFunctionInfoForStreamedScript(
+          script, streaming_data, str->length());
 
   i::Handle<i::SharedFunctionInfo> result;
-  if (source->info->literal() == nullptr) {
-    // Parsing has failed - report error messages.
-    source->info->pending_error_handler()->ReportErrors(
-        isolate, script, source->info->ast_value_factory());
-  } else {
-    // Parsing has succeeded - finalize compile.
-    if (i::FLAG_background_compile) {
-      result = i::Compiler::GetSharedFunctionInfoForBackgroundCompile(
-          script, source->info.get(), str->length(),
-          source->outer_function_job.get(), &source->inner_function_jobs);
-    } else {
-      result = i::Compiler::GetSharedFunctionInfoForStreamedScript(
-          script, source->info.get(), str->length());
-    }
-  }
-  has_pending_exception = result.is_null();
+  has_pending_exception = !maybe_function_info.ToHandle(&result);
   if (has_pending_exception) isolate->ReportPendingMessages();
-
-  source->Release();
 
   RETURN_ON_FAILED_EXECUTION(Script);
 

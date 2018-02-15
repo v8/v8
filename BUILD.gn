@@ -1891,8 +1891,6 @@ v8_source_set("v8_base") {
     "src/objects/template-objects.h",
     "src/ostreams.cc",
     "src/ostreams.h",
-    "src/parsing/background-parsing-task.cc",
-    "src/parsing/background-parsing-task.h",
     "src/parsing/duplicate-finder.h",
     "src/parsing/expression-classifier.h",
     "src/parsing/expression-scope-reparenter.cc",
