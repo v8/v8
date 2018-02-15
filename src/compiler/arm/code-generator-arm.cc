@@ -323,6 +323,17 @@ Condition FlagsConditionToCondition(FlagsCondition condition) {
   UNREACHABLE();
 }
 
+void EmitWordLoadPoisoningIfNeeded(CodeGenerator* codegen,
+                                   InstructionCode opcode, Instruction* instr,
+                                   ArmOperandConverter& i) {
+  const MemoryAccessMode access_mode =
+      static_cast<MemoryAccessMode>(MiscField::decode(opcode));
+  if (access_mode == kMemoryAccessPoisoned) {
+    Register value = i.OutputRegister();
+    codegen->tasm()->and_(value, value, Operand(kSpeculationPoisonRegister));
+  }
+}
+
 }  // namespace
 
 #define ASSEMBLE_ATOMIC_LOAD_INTEGER(asm_instr)                       \
@@ -1505,10 +1516,12 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kArmLdrb:
       __ ldrb(i.OutputRegister(), i.InputOffset());
       DCHECK_EQ(LeaveCC, i.OutputSBit());
+      EmitWordLoadPoisoningIfNeeded(this, opcode, instr, i);
       break;
     case kArmLdrsb:
       __ ldrsb(i.OutputRegister(), i.InputOffset());
       DCHECK_EQ(LeaveCC, i.OutputSBit());
+      EmitWordLoadPoisoningIfNeeded(this, opcode, instr, i);
       break;
     case kArmStrb:
       __ strb(i.InputRegister(0), i.InputOffset(1));
@@ -1516,9 +1529,11 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     case kArmLdrh:
       __ ldrh(i.OutputRegister(), i.InputOffset());
+      EmitWordLoadPoisoningIfNeeded(this, opcode, instr, i);
       break;
     case kArmLdrsh:
       __ ldrsh(i.OutputRegister(), i.InputOffset());
+      EmitWordLoadPoisoningIfNeeded(this, opcode, instr, i);
       break;
     case kArmStrh:
       __ strh(i.InputRegister(0), i.InputOffset(1));
@@ -1526,6 +1541,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     case kArmLdr:
       __ ldr(i.OutputRegister(), i.InputOffset());
+      EmitWordLoadPoisoningIfNeeded(this, opcode, instr, i);
       break;
     case kArmStr:
       __ str(i.InputRegister(0), i.InputOffset(1));
@@ -2702,7 +2718,15 @@ void CodeGenerator::AssembleArchBranch(Instruction* instr, BranchInfo* branch) {
 
 void CodeGenerator::AssembleBranchPoisoning(FlagsCondition condition,
                                             Instruction* instr) {
-  UNREACHABLE();
+  // TODO(jarin) Handle float comparisons (kUnordered[Not]Equal).
+  if (condition == kUnorderedEqual || condition == kUnorderedNotEqual) {
+    return;
+  }
+
+  condition = NegateFlagsCondition(condition);
+  __ eor(kSpeculationPoisonRegister, kSpeculationPoisonRegister,
+         Operand(kSpeculationPoisonRegister), SBit::LeaveCC,
+         FlagsConditionToCondition(condition));
 }
 
 void CodeGenerator::AssembleArchDeoptBranch(Instruction* instr,
@@ -2879,6 +2903,7 @@ void CodeGenerator::AssembleConstructFrame() {
     if (FLAG_code_comments) __ RecordComment("-- OSR entrypoint --");
     osr_pc_offset_ = __ pc_offset();
     shrink_slots -= osr_helper()->UnoptimizedFrameSlots();
+    InitializePoisonForLoadsIfNeeded();
   }
 
   const RegList saves = call_descriptor->CalleeSavedRegisters();

@@ -2312,7 +2312,9 @@ void TurboAssembler::ComputeCodeStartAddress(Register dst) {
   sub(dst, pc, Operand(pc_offset() + TurboAssembler::kPcLoadDelta));
 }
 
-void TurboAssembler::ResetSpeculationPoisonRegister() { UNREACHABLE(); }
+void TurboAssembler::ResetSpeculationPoisonRegister() {
+  mov(kSpeculationPoisonRegister, Operand(-1));
+}
 
 }  // namespace internal
 }  // namespace v8
