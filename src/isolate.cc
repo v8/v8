@@ -2826,6 +2826,7 @@ void PrintBuiltinSizes(Isolate* isolate) {
   }
 }
 
+#ifdef V8_EMBEDDED_BUILTINS
 #ifdef DEBUG
 bool BuiltinAliasesOffHeapTrampolineRegister(Isolate* isolate,
                                              int builtin_index) {
@@ -2931,6 +2932,7 @@ void MoveBuiltinsOffHeap(Isolate* isolate) {
     isolate->PushOffHeapCode(stream);
   }
 }
+#endif  // V8_EMBEDDED_BUILTINS
 }  // namespace
 
 bool Isolate::Init(StartupDeserializer* des) {
@@ -3079,12 +3081,14 @@ bool Isolate::Init(StartupDeserializer* des) {
 
   if (FLAG_print_builtin_size) PrintBuiltinSizes(this);
 
+#ifdef V8_EMBEDDED_BUILTINS
   if (FLAG_stress_off_heap_code && !serializer_enabled()) {
     // Artificially move code off-heap to help find & verify related code
     // paths. Lazy deserialization should be off to avoid confusion around
     // replacing just the kDeserializeLazy code object.
     MoveBuiltinsOffHeap(this);
   }
+#endif
 
   // Finish initialization of ThreadLocal after deserialization is done.
   clear_pending_exception();

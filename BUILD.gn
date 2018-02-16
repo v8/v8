@@ -64,6 +64,9 @@ declare_args() {
   # Enable fast mksnapshot runs.
   v8_enable_fast_mksnapshot = false
 
+  # Enable embedded builtins.
+  v8_enable_embedded_builtins = false
+
   # Enable code-generation-time checking of types in the CodeStubAssembler.
   v8_enable_verify_csa = false
 
@@ -318,6 +321,9 @@ config("features") {
   }
   if (v8_check_microtasks_scopes_consistency) {
     defines += [ "V8_CHECK_MICROTASKS_SCOPES_CONSISTENCY" ]
+  }
+  if (v8_enable_embedded_builtins) {
+    defines += [ "V8_EMBEDDED_BUILTINS" ]
   }
 }
 
