@@ -112,6 +112,7 @@ TEST_F(MemoryAllocationPermissionsTest, DoTest) {
   TestPermissions(PageAllocator::Permission::kNoAccess, false, false);
   TestPermissions(PageAllocator::Permission::kReadWrite, true, true);
   TestPermissions(PageAllocator::Permission::kReadWriteExecute, true, true);
+  TestPermissions(PageAllocator::Permission::kReadExecute, true, false);
 }
 #endif  // V8_OS_POSIX
 
