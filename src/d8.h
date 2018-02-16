@@ -351,6 +351,7 @@ class ShellOptions {
   int read_from_tcp_port;
   bool enable_os_system = false;
   bool quiet_load = false;
+  int thread_pool_size = 0;
 };
 
 class Shell : public i::AllStatic {

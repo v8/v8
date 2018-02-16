@@ -2898,6 +2898,9 @@ bool Shell::SetOptions(int argc, char* argv[]) {
     } else if (strcmp(argv[i], "--quiet-load") == 0) {
       options.quiet_load = true;
       argv[i] = nullptr;
+    } else if (strncmp(argv[i], "--thread-pool-size=", 19) == 0) {
+      options.thread_pool_size = atoi(argv[i] + 19);
+      argv[i] = nullptr;
     }
   }
 
@@ -3326,8 +3329,8 @@ int Shell::Main(int argc, char* argv[]) {
 
   platform::tracing::TracingController* tracing_controller = tracing.get();
   g_platform = v8::platform::NewDefaultPlatform(
-      0, v8::platform::IdleTaskSupport::kEnabled, in_process_stack_dumping,
-      std::move(tracing));
+      options.thread_pool_size, v8::platform::IdleTaskSupport::kEnabled,
+      in_process_stack_dumping, std::move(tracing));
   if (i::FLAG_verify_predictable) {
     g_platform.reset(new PredictablePlatform(std::move(g_platform)));
   }
