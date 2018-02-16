@@ -1331,35 +1331,45 @@ TEST(CompilationCacheCachingBehavior) {
   }
 
   // The script should be in the cache now.
-  InfoVectorPair pair = compilation_cache->LookupScript(
-      source, Handle<Object>(), 0, 0, v8::ScriptOriginOptions(true, false),
-      native_context, language_mode);
-  CHECK(pair.has_shared());
-
-  // Check that the code cache entry survives at least on GC.
-  // (Unless --optimize-for-size, in which case it might get collected
-  // immediately.)
-  if (!FLAG_optimize_for_size) {
-    CcTest::CollectAllGarbage();
-    pair = compilation_cache->LookupScript(source, Handle<Object>(), 0, 0,
-                                           v8::ScriptOriginOptions(true, false),
-                                           native_context, language_mode);
-    CHECK(pair.has_shared());
+  {
+    v8::HandleScope scope(CcTest::isolate());
+    MaybeHandle<SharedFunctionInfo> cached_script =
+        compilation_cache->LookupScript(source, Handle<Object>(), 0, 0,
+                                        v8::ScriptOriginOptions(true, false),
+                                        native_context, language_mode);
+    CHECK(!cached_script.is_null());
   }
 
-  // Progress code age until it's old and ready for GC.
-  const int kAgingThreshold = 6;
-  for (int i = 0; i < kAgingThreshold; i++) {
-    CHECK(pair.shared()->HasBytecodeArray());
-    pair.shared()->bytecode_array()->MakeOlder();
+  // Check that the code cache entry survives at least one GC.
+  {
+    CcTest::CollectAllGarbage();
+    v8::HandleScope scope(CcTest::isolate());
+    MaybeHandle<SharedFunctionInfo> cached_script =
+        compilation_cache->LookupScript(source, Handle<Object>(), 0, 0,
+                                        v8::ScriptOriginOptions(true, false),
+                                        native_context, language_mode);
+    CHECK(!cached_script.is_null());
+
+    // Progress code age until it's old and ready for GC.
+    Handle<SharedFunctionInfo> shared = cached_script.ToHandleChecked();
+    CHECK(shared->HasBytecodeArray());
+    const int kAgingThreshold = 6;
+    for (int i = 0; i < kAgingThreshold; i++) {
+      shared->bytecode_array()->MakeOlder();
+    }
   }
 
   CcTest::CollectAllGarbage();
-  // Ensure code aging cleared the entry from the cache.
-  pair = compilation_cache->LookupScript(source, Handle<Object>(), 0, 0,
-                                         v8::ScriptOriginOptions(true, false),
-                                         native_context, language_mode);
-  CHECK(!pair.has_shared());
+
+  {
+    v8::HandleScope scope(CcTest::isolate());
+    // Ensure code aging cleared the entry from the cache.
+    MaybeHandle<SharedFunctionInfo> cached_script =
+        compilation_cache->LookupScript(source, Handle<Object>(), 0, 0,
+                                        v8::ScriptOriginOptions(true, false),
+                                        native_context, language_mode);
+    CHECK(cached_script.is_null());
+  }
 }
 
 

@@ -79,14 +79,16 @@ class CompilationCacheScript : public CompilationSubCache {
  public:
   explicit CompilationCacheScript(Isolate* isolate);
 
-  InfoVectorPair Lookup(Handle<String> source, MaybeHandle<Object> name,
-                        int line_offset, int column_offset,
-                        ScriptOriginOptions resource_options,
-                        Handle<Context> context, LanguageMode language_mode);
+  MaybeHandle<SharedFunctionInfo> Lookup(Handle<String> source,
+                                         MaybeHandle<Object> name,
+                                         int line_offset, int column_offset,
+                                         ScriptOriginOptions resource_options,
+                                         Handle<Context> context,
+                                         LanguageMode language_mode);
 
   void Put(Handle<String> source, Handle<Context> context,
-           LanguageMode language_mode, Handle<SharedFunctionInfo> function_info,
-           Handle<Cell> literals);
+           LanguageMode language_mode,
+           Handle<SharedFunctionInfo> function_info);
 
  private:
   bool HasOrigin(Handle<SharedFunctionInfo> function_info,
@@ -152,11 +154,10 @@ class CompilationCache {
   // Finds the script shared function info for a source
   // string. Returns an empty handle if the cache doesn't contain a
   // script for the given source string with the right origin.
-  InfoVectorPair LookupScript(Handle<String> source, MaybeHandle<Object> name,
-                              int line_offset, int column_offset,
-                              ScriptOriginOptions resource_options,
-                              Handle<Context> context,
-                              LanguageMode language_mode);
+  MaybeHandle<SharedFunctionInfo> LookupScript(
+      Handle<String> source, MaybeHandle<Object> name, int line_offset,
+      int column_offset, ScriptOriginOptions resource_options,
+      Handle<Context> context, LanguageMode language_mode);
 
   // Finds the shared function info for a source string for eval in a
   // given context.  Returns an empty handle if the cache doesn't
@@ -175,8 +176,7 @@ class CompilationCache {
   // info. This may overwrite an existing mapping.
   void PutScript(Handle<String> source, Handle<Context> context,
                  LanguageMode language_mode,
-                 Handle<SharedFunctionInfo> function_info,
-                 Handle<Cell> literals);
+                 Handle<SharedFunctionInfo> function_info);
 
   // Associate the (source, context->closure()->shared(), kind) triple
   // with the shared function info. This may overwrite an existing mapping.

@@ -123,11 +123,11 @@ bool CompilationCacheScript::HasOrigin(Handle<SharedFunctionInfo> function_info,
 // be cached in the same script generation. Currently the first use
 // will be cached, but subsequent code from different source / line
 // won't.
-InfoVectorPair CompilationCacheScript::Lookup(
+MaybeHandle<SharedFunctionInfo> CompilationCacheScript::Lookup(
     Handle<String> source, MaybeHandle<Object> name, int line_offset,
     int column_offset, ScriptOriginOptions resource_options,
     Handle<Context> context, LanguageMode language_mode) {
-  InfoVectorPair result;
+  MaybeHandle<SharedFunctionInfo> result;
 
   // Probe the script generation tables. Make sure not to leak handles
   // into the caller's handle scope.
@@ -135,19 +135,15 @@ InfoVectorPair CompilationCacheScript::Lookup(
     const int generation = 0;
     DCHECK_EQ(generations(), 1);
     Handle<CompilationCacheTable> table = GetTable(generation);
-    InfoVectorPair probe = table->LookupScript(source, context, language_mode);
-    if (probe.has_shared()) {
-      Handle<SharedFunctionInfo> function_info(probe.shared(), isolate());
-      Handle<Cell> vector_handle;
-      if (probe.has_vector()) {
-        vector_handle = Handle<Cell>(probe.vector(), isolate());
-      }
+    MaybeHandle<SharedFunctionInfo> probe =
+        table->LookupScript(source, context, language_mode);
+    Handle<SharedFunctionInfo> function_info;
+    if (probe.ToHandle(&function_info)) {
       // Break when we've found a suitable shared function info that
       // matches the origin.
       if (HasOrigin(function_info, name, line_offset, column_offset,
                     resource_options)) {
-        result = InfoVectorPair(*function_info,
-                                probe.has_vector() ? *vector_handle : nullptr);
+        result = scope.CloseAndEscape(function_info);
       }
     }
   }
@@ -155,19 +151,13 @@ InfoVectorPair CompilationCacheScript::Lookup(
   // Once outside the manacles of the handle scope, we need to recheck
   // to see if we actually found a cached script. If so, we return a
   // handle created in the caller's handle scope.
-  if (result.has_shared()) {
+  Handle<SharedFunctionInfo> function_info;
+  if (result.ToHandle(&function_info)) {
 #ifdef DEBUG
     // Since HasOrigin can allocate, we need to protect the SharedFunctionInfo
-    // and the FeedbackVector with handles during the call.
-    Handle<SharedFunctionInfo> shared(result.shared(), isolate());
-    Handle<Cell> vector_handle;
-    if (result.has_vector()) {
-      vector_handle = Handle<Cell>(result.vector(), isolate());
-    }
-    DCHECK(
-        HasOrigin(shared, name, line_offset, column_offset, resource_options));
-    result =
-        InfoVectorPair(*shared, result.has_vector() ? *vector_handle : nullptr);
+    // with handles during the call.
+    DCHECK(HasOrigin(function_info, name, line_offset, column_offset,
+                     resource_options));
 #endif
     isolate()->counters()->compilation_cache_hits()->Increment();
   } else {
@@ -178,12 +168,11 @@ InfoVectorPair CompilationCacheScript::Lookup(
 
 void CompilationCacheScript::Put(Handle<String> source, Handle<Context> context,
                                  LanguageMode language_mode,
-                                 Handle<SharedFunctionInfo> function_info,
-                                 Handle<Cell> literals) {
+                                 Handle<SharedFunctionInfo> function_info) {
   HandleScope scope(isolate());
   Handle<CompilationCacheTable> table = GetFirstTable();
-  SetFirstTable(CompilationCacheTable::PutScript(
-      table, source, context, language_mode, function_info, literals));
+  SetFirstTable(CompilationCacheTable::PutScript(table, source, context,
+                                                 language_mode, function_info));
 }
 
 InfoVectorPair CompilationCacheEval::Lookup(
@@ -263,12 +252,11 @@ void CompilationCache::Remove(Handle<SharedFunctionInfo> function_info) {
   script_.Remove(function_info);
 }
 
-InfoVectorPair CompilationCache::LookupScript(
+MaybeHandle<SharedFunctionInfo> CompilationCache::LookupScript(
     Handle<String> source, MaybeHandle<Object> name, int line_offset,
     int column_offset, ScriptOriginOptions resource_options,
     Handle<Context> context, LanguageMode language_mode) {
-  InfoVectorPair empty_result;
-  if (!IsEnabled()) return empty_result;
+  if (!IsEnabled()) return MaybeHandle<SharedFunctionInfo>();
 
   return script_.Lookup(source, name, line_offset, column_offset,
                         resource_options, context, language_mode);
@@ -302,11 +290,10 @@ MaybeHandle<FixedArray> CompilationCache::LookupRegExp(Handle<String> source,
 
 void CompilationCache::PutScript(Handle<String> source, Handle<Context> context,
                                  LanguageMode language_mode,
-                                 Handle<SharedFunctionInfo> function_info,
-                                 Handle<Cell> literals) {
+                                 Handle<SharedFunctionInfo> function_info) {
   if (!IsEnabled()) return;
 
-  script_.Put(source, context, language_mode, function_info, literals);
+  script_.Put(source, context, language_mode, function_info);
 }
 
 void CompilationCache::PutEval(Handle<String> source,

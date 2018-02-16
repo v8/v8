@@ -1322,11 +1322,12 @@ TEST(CodeSerializerPromotedToCompilationCache) {
   Handle<SharedFunctionInfo> copy = CompileScript(
       isolate, src, src, &cache, v8::ScriptCompiler::kConsumeCodeCache);
 
-  InfoVectorPair pair = isolate->compilation_cache()->LookupScript(
-      src, src, 0, 0, v8::ScriptOriginOptions(), isolate->native_context(),
-      LanguageMode::kSloppy);
+  MaybeHandle<SharedFunctionInfo> shared =
+      isolate->compilation_cache()->LookupScript(
+          src, src, 0, 0, v8::ScriptOriginOptions(), isolate->native_context(),
+          LanguageMode::kSloppy);
 
-  CHECK(pair.shared() == *copy);
+  CHECK(*shared.ToHandleChecked() == *copy);
 
   delete cache;
 }

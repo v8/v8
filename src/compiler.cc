@@ -1658,7 +1658,6 @@ MaybeHandle<SharedFunctionInfo> Compiler::GetSharedFunctionInfoForScript(
 
   // Do a lookup in the compilation cache but not for extensions.
   MaybeHandle<SharedFunctionInfo> maybe_result;
-  Handle<Cell> vector;
   if (extension == nullptr) {
     bool can_consume_code_cache =
         compile_options == ScriptCompiler::kConsumeCodeCache &&
@@ -1668,11 +1667,13 @@ MaybeHandle<SharedFunctionInfo> Compiler::GetSharedFunctionInfoForScript(
     }
 
     // First check per-isolate compilation cache.
-    InfoVectorPair pair = compilation_cache->LookupScript(
+    maybe_result = compilation_cache->LookupScript(
         source, script_details.name_obj, script_details.line_offset,
         script_details.column_offset, origin_options, isolate->native_context(),
         language_mode);
-    if (can_consume_code_cache && !pair.has_shared()) {
+    if (!maybe_result.is_null()) {
+      compile_timer.set_hit_isolate_cache();
+    } else if (can_consume_code_cache) {
       compile_timer.set_consuming_code_cache();
       // Then check cached code provided by embedder.
       HistogramTimerScope timer(isolate->counters()->compile_deserialize());
@@ -1685,11 +1686,8 @@ MaybeHandle<SharedFunctionInfo> Compiler::GetSharedFunctionInfoForScript(
               .ToHandle(&inner_result)) {
         // Promote to per-isolate compilation cache.
         DCHECK(inner_result->is_compiled());
-        Handle<FeedbackVector> feedback_vector =
-            FeedbackVector::New(isolate, inner_result);
-        vector = isolate->factory()->NewCell(feedback_vector);
         compilation_cache->PutScript(source, isolate->native_context(),
-                                     language_mode, inner_result, vector);
+                                     language_mode, inner_result);
         Handle<Script> script(Script::cast(inner_result->script()), isolate);
         isolate->debug()->OnAfterCompile(script);
         if (isolate->NeedsSourcePositionsForProfiling()) {
@@ -1699,14 +1697,6 @@ MaybeHandle<SharedFunctionInfo> Compiler::GetSharedFunctionInfoForScript(
       }
       // Deserializer failed. Fall through to compile.
       compile_timer.set_consuming_code_cache_failed();
-    } else {
-      if (pair.has_shared()) {
-        maybe_result = MaybeHandle<SharedFunctionInfo>(pair.shared(), isolate);
-        compile_timer.set_hit_isolate_cache();
-      }
-      if (pair.has_vector()) {
-        vector = Handle<Cell>(pair.vector(), isolate);
-      }
     }
   }
 
@@ -1727,13 +1717,9 @@ MaybeHandle<SharedFunctionInfo> Compiler::GetSharedFunctionInfoForScript(
     maybe_result = CompileToplevel(&parse_info, isolate);
     Handle<SharedFunctionInfo> result;
     if (extension == nullptr && maybe_result.ToHandle(&result)) {
-      // We need a feedback vector.
       DCHECK(result->is_compiled());
-      Handle<FeedbackVector> feedback_vector =
-          FeedbackVector::New(isolate, result);
-      vector = isolate->factory()->NewCell(feedback_vector);
       compilation_cache->PutScript(source, isolate->native_context(),
-                                   language_mode, result, vector);
+                                   language_mode, result);
     }
 
     if (maybe_result.is_null()) {

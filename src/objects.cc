@@ -17520,23 +17520,19 @@ Cell* SearchLiteralsMap(CompilationCacheTable* cache, int cache_entry,
 
 }  // namespace
 
-InfoVectorPair CompilationCacheTable::LookupScript(Handle<String> src,
-                                                   Handle<Context> context,
-                                                   LanguageMode language_mode) {
-  InfoVectorPair empty_result;
+MaybeHandle<SharedFunctionInfo> CompilationCacheTable::LookupScript(
+    Handle<String> src, Handle<Context> context, LanguageMode language_mode) {
   Handle<SharedFunctionInfo> shared(context->closure()->shared());
   StringSharedKey key(src, shared, language_mode, kNoSourcePosition);
   int entry = FindEntry(&key);
-  if (entry == kNotFound) return empty_result;
+  if (entry == kNotFound) return MaybeHandle<SharedFunctionInfo>();
   int index = EntryToIndex(entry);
-  if (!get(index)->IsFixedArray()) return empty_result;
+  if (!get(index)->IsFixedArray()) return MaybeHandle<SharedFunctionInfo>();
   Object* obj = get(index + 1);
   if (obj->IsSharedFunctionInfo()) {
-    Cell* literals =
-        SearchLiteralsMap(this, index + 2, context->native_context());
-    return InfoVectorPair(SharedFunctionInfo::cast(obj), literals);
+    return handle(SharedFunctionInfo::cast(obj));
   }
-  return empty_result;
+  return MaybeHandle<SharedFunctionInfo>();
 }
 
 InfoVectorPair CompilationCacheTable::LookupEval(
@@ -17586,7 +17582,7 @@ Handle<CompilationCacheTable> CompilationCacheTable::Put(
 Handle<CompilationCacheTable> CompilationCacheTable::PutScript(
     Handle<CompilationCacheTable> cache, Handle<String> src,
     Handle<Context> context, LanguageMode language_mode,
-    Handle<SharedFunctionInfo> value, Handle<Cell> literals) {
+    Handle<SharedFunctionInfo> value) {
   Isolate* isolate = cache->GetIsolate();
   Handle<SharedFunctionInfo> shared(context->closure()->shared());
   Handle<Context> native_context(context->native_context());
@@ -17596,7 +17592,6 @@ Handle<CompilationCacheTable> CompilationCacheTable::PutScript(
   int entry = cache->FindInsertionEntry(key.Hash());
   cache->set(EntryToIndex(entry), *k);
   cache->set(EntryToIndex(entry) + 1, *value);
-  AddToLiteralsMap(cache, EntryToIndex(entry) + 2, native_context, literals);
   cache->ElementAdded();
   return cache;
 }
