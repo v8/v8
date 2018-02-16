@@ -497,6 +497,8 @@ DEFINE_DEBUG_BOOL(wasm_trace_native_heap, false,
                   "trace wasm native heap events")
 DEFINE_BOOL(wasm_jit_to_native, true,
             "JIT wasm code to native (not JS GC) memory")
+DEFINE_BOOL(wasm_write_protect_code_memory, false,
+            "write protect code memory on the wasm native heap")
 DEFINE_IMPLICATION(future, wasm_jit_to_native)
 DEFINE_BOOL(wasm_trace_serialization, false,
             "trace serialization/deserialization")
