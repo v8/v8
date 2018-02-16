@@ -5,6 +5,7 @@
 #ifndef V8_INSPECTOR_V8_DEBUGGER_AGENT_IMPL_H_
 #define V8_INSPECTOR_V8_DEBUGGER_AGENT_IMPL_H_
 
+#include <deque>
 #include <vector>
 
 #include "src/base/macros.h"
@@ -191,6 +192,9 @@ class V8DebuggerAgentImpl : public protocol::Debugger::Backend {
   ScriptsMap m_scripts;
   BreakpointIdToDebuggerBreakpointIdsMap m_breakpointIdToDebuggerBreakpointIds;
   DebuggerBreakpointIdToBreakpointIdMap m_debuggerBreakpointIdToBreakpointId;
+
+  std::deque<String16> m_failedToParseAnonymousScriptIds;
+  void cleanupOldFailedToParseAnonymousScriptsIfNeeded();
 
   using BreakReason =
       std::pair<String16, std::unique_ptr<protocol::DictionaryValue>>;
