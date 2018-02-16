@@ -4490,22 +4490,22 @@ Node* WasmGraphBuilder::Simd8x16ShuffleOp(const uint8_t shuffle[16],
 
 #define ATOMIC_BINOP_LIST(V)              \
   V(I32AtomicAdd, Add, Uint32)            \
-  V(I32AtomicSub, Sub, Uint32)            \
-  V(I32AtomicAnd, And, Uint32)            \
-  V(I32AtomicOr, Or, Uint32)              \
-  V(I32AtomicXor, Xor, Uint32)            \
-  V(I32AtomicExchange, Exchange, Uint32)  \
   V(I32AtomicAdd8U, Add, Uint8)           \
-  V(I32AtomicSub8U, Sub, Uint8)           \
-  V(I32AtomicAnd8U, And, Uint8)           \
-  V(I32AtomicOr8U, Or, Uint8)             \
-  V(I32AtomicXor8U, Xor, Uint8)           \
-  V(I32AtomicExchange8U, Exchange, Uint8) \
   V(I32AtomicAdd16U, Add, Uint16)         \
+  V(I32AtomicSub, Sub, Uint32)            \
+  V(I32AtomicSub8U, Sub, Uint8)           \
   V(I32AtomicSub16U, Sub, Uint16)         \
+  V(I32AtomicAnd, And, Uint32)            \
+  V(I32AtomicAnd8U, And, Uint8)           \
   V(I32AtomicAnd16U, And, Uint16)         \
+  V(I32AtomicOr, Or, Uint32)              \
+  V(I32AtomicOr8U, Or, Uint8)             \
   V(I32AtomicOr16U, Or, Uint16)           \
+  V(I32AtomicXor, Xor, Uint32)            \
+  V(I32AtomicXor8U, Xor, Uint8)           \
   V(I32AtomicXor16U, Xor, Uint16)         \
+  V(I32AtomicExchange, Exchange, Uint32)  \
+  V(I32AtomicExchange8U, Exchange, Uint8) \
   V(I32AtomicExchange16U, Exchange, Uint16)
 
 #define ATOMIC_TERNARY_LIST(V)                          \

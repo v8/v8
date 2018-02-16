@@ -56,25 +56,25 @@ struct WasmException;
 
 #define ATOMIC_OP_LIST(V)              \
   V(I32AtomicLoad, Uint32)             \
-  V(I32AtomicAdd, Uint32)              \
-  V(I32AtomicSub, Uint32)              \
-  V(I32AtomicAnd, Uint32)              \
-  V(I32AtomicOr, Uint32)               \
-  V(I32AtomicXor, Uint32)              \
-  V(I32AtomicExchange, Uint32)         \
   V(I32AtomicLoad8U, Uint8)            \
-  V(I32AtomicAdd8U, Uint8)             \
-  V(I32AtomicSub8U, Uint8)             \
-  V(I32AtomicAnd8U, Uint8)             \
-  V(I32AtomicOr8U, Uint8)              \
-  V(I32AtomicXor8U, Uint8)             \
-  V(I32AtomicExchange8U, Uint8)        \
   V(I32AtomicLoad16U, Uint16)          \
+  V(I32AtomicAdd, Uint32)              \
+  V(I32AtomicAdd8U, Uint8)             \
   V(I32AtomicAdd16U, Uint16)           \
+  V(I32AtomicSub, Uint32)              \
+  V(I32AtomicSub8U, Uint8)             \
   V(I32AtomicSub16U, Uint16)           \
+  V(I32AtomicAnd, Uint32)              \
+  V(I32AtomicAnd8U, Uint8)             \
   V(I32AtomicAnd16U, Uint16)           \
+  V(I32AtomicOr, Uint32)               \
+  V(I32AtomicOr8U, Uint8)              \
   V(I32AtomicOr16U, Uint16)            \
+  V(I32AtomicXor, Uint32)              \
+  V(I32AtomicXor8U, Uint8)             \
   V(I32AtomicXor16U, Uint16)           \
+  V(I32AtomicExchange, Uint32)         \
+  V(I32AtomicExchange8U, Uint8)        \
   V(I32AtomicExchange16U, Uint16)      \
   V(I32AtomicCompareExchange, Uint32)  \
   V(I32AtomicCompareExchange8U, Uint8) \
