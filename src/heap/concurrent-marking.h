@@ -53,7 +53,7 @@ class ConcurrentMarking {
     COMPLETE_TASKS_FOR_TESTING,
   };
 
-  static constexpr int kMaxTasks = 4;
+  static constexpr int kMaxTasks = 8;
   using MarkingWorklist = Worklist<HeapObject*, 64 /* segment size */>;
 
   ConcurrentMarking(Heap* heap, MarkingWorklist* shared,
