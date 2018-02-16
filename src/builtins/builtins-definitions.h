@@ -812,7 +812,6 @@ namespace internal {
   TFS(NewPromiseCapability, kConstructor, kDebugEvent)                         \
   /* ES6 #sec-promise-executor */                                              \
   TFJ(PromiseConstructor, 1, kExecutor)                                        \
-  TFJ(PromiseInternalConstructor, 1, kParent)                                  \
   CPP(IsPromise)                                                               \
   /* ES #sec-promise.prototype.then */                                         \
   TFJ(PromisePrototypeThen, 2, kOnFulfilled, kOnRejected)                      \
@@ -840,6 +839,12 @@ namespace internal {
   TFJ(PromiseAllResolveElementClosure, 1, kValue)                              \
   /* ES #sec-promise.race */                                                   \
   TFJ(PromiseRace, 1, kIterable)                                               \
+  /* V8 Extras: v8.createPromise(parent) */                                    \
+  TFJ(PromiseInternalConstructor, 1, kParent)                                  \
+  /* V8 Extras: v8.rejectPromise(promise, reason) */                           \
+  TFJ(PromiseInternalReject, 2, kPromise, kReason)                             \
+  /* V8 Extras: v8.resolvePromise(promise, resolution) */                      \
+  TFJ(PromiseInternalResolve, 2, kPromise, kResolution)                        \
                                                                                \
   /* Proxy */                                                                  \
   TFJ(ProxyConstructor, 0)                                                     \

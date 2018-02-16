@@ -781,10 +781,29 @@ TF_BUILTIN(PromiseConstructor, PromiseBuiltinsAssembler) {
   }
 }
 
+// V8 Extras: v8.createPromise(parent)
 TF_BUILTIN(PromiseInternalConstructor, PromiseBuiltinsAssembler) {
   Node* const parent = Parameter(Descriptor::kParent);
   Node* const context = Parameter(Descriptor::kContext);
   Return(AllocateAndInitJSPromise(context, parent));
+}
+
+// V8 Extras: v8.rejectPromise(promise, reason)
+TF_BUILTIN(PromiseInternalReject, PromiseBuiltinsAssembler) {
+  Node* const promise = Parameter(Descriptor::kPromise);
+  Node* const reason = Parameter(Descriptor::kReason);
+  Node* const context = Parameter(Descriptor::kContext);
+  // We pass true to trigger the debugger's on exception handler.
+  Return(CallBuiltin(Builtins::kRejectPromise, context, promise, reason,
+                     TrueConstant()));
+}
+
+// V8 Extras: v8.resolvePromise(promise, resolution)
+TF_BUILTIN(PromiseInternalResolve, PromiseBuiltinsAssembler) {
+  Node* const promise = Parameter(Descriptor::kPromise);
+  Node* const resolution = Parameter(Descriptor::kResolution);
+  Node* const context = Parameter(Descriptor::kContext);
+  Return(CallBuiltin(Builtins::kResolvePromise, context, promise, resolution));
 }
 
 // ES#sec-promise.prototype.then

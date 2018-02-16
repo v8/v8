@@ -4608,12 +4608,30 @@ bool Genesis::InstallNatives(GlobalContextType context_type) {
 
   InstallInternalArray(extras_utils, "InternalPackedArray", PACKED_ELEMENTS);
 
+  // v8.createPromise(parent)
   Handle<JSFunction> promise_internal_constructor =
       SimpleCreateFunction(isolate(), factory()->empty_string(),
                            Builtins::kPromiseInternalConstructor, 1, true);
   promise_internal_constructor->shared()->set_native(false);
   InstallFunction(extras_utils, promise_internal_constructor,
                   factory()->NewStringFromAsciiChecked("createPromise"));
+
+  // v8.rejectPromise(promise, reason)
+  Handle<JSFunction> promise_internal_reject =
+      SimpleCreateFunction(isolate(), factory()->empty_string(),
+                           Builtins::kPromiseInternalReject, 2, true);
+  promise_internal_reject->shared()->set_native(false);
+  InstallFunction(extras_utils, promise_internal_reject,
+                  factory()->NewStringFromAsciiChecked("rejectPromise"));
+
+  // v8.resolvePromise(promise, resolution)
+  Handle<JSFunction> promise_internal_resolve =
+      SimpleCreateFunction(isolate(), factory()->empty_string(),
+                           Builtins::kPromiseInternalResolve, 2, true);
+  promise_internal_resolve->shared()->set_native(false);
+  InstallFunction(extras_utils, promise_internal_resolve,
+                  factory()->NewStringFromAsciiChecked("resolvePromise"));
+
   InstallFunction(extras_utils, isolate()->is_promise(),
                   factory()->NewStringFromAsciiChecked("isPromise"));
 

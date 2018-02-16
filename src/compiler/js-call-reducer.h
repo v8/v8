@@ -103,6 +103,9 @@ class JSCallReducer final : public AdvancedReducer {
   Reduction ReduceAsyncFunctionPromiseRelease(Node* node);
   Reduction ReducePromiseCapabilityDefaultReject(Node* node);
   Reduction ReducePromiseCapabilityDefaultResolve(Node* node);
+  Reduction ReducePromiseInternalConstructor(Node* node);
+  Reduction ReducePromiseInternalReject(Node* node);
+  Reduction ReducePromiseInternalResolve(Node* node);
   Reduction ReducePromisePrototypeCatch(Node* node);
   Reduction ReducePromisePrototypeFinally(Node* node);
   Reduction ReducePromisePrototypeThen(Node* node);

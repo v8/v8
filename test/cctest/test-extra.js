@@ -49,6 +49,22 @@
       arrayToTest[1] === 1 && slicedArray.length === 2 &&
       slicedArray[0] === "c" && slicedArray[1] === 1;
 
+  binding.testCreatePromise = function() {
+    return v8.createPromise();
+  }
+
+  binding.testCreatePromiseWithParent = function(parent) {
+    return v8.createPromise(parent);
+  }
+
+  binding.testRejectPromise = function(promise, reason) {
+    return v8.rejectPromise(promise, reason);
+  }
+
+  binding.testResolvePromise = function(promise, resolution) {
+    return v8.resolvePromise(promise, resolution);
+  }
+
   binding.testExtraCanUseUtils = function() {
     const fulfilledPromise = v8.createPromise();
     v8.resolvePromise(
