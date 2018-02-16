@@ -8,16 +8,7 @@ This file emits the list of reasons why a particular build needs to be clobbered
 (or a list of 'landmines').
 """
 
-import os
 import sys
-
-SCRIPT_DIR = os.path.dirname(os.path.realpath(__file__))
-CHECKOUT_ROOT = os.path.abspath(os.path.join(SCRIPT_DIR, os.pardir))
-sys.path.insert(0, os.path.join(CHECKOUT_ROOT, 'build'))
-import landmine_utils
-
-
-platform = landmine_utils.platform  # pylint: disable=invalid-name
 
 
 def print_landmines():  # pylint: disable=invalid-name
