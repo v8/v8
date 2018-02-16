@@ -149,7 +149,8 @@ Object* PrepareElementsForSort(Handle<JSObject> object, uint32_t limit) {
     JSObject::ValidateElements(*object);
   } else if (object->HasFixedTypedArrayElements()) {
     // Typed arrays cannot have holes or undefined elements.
-    return Smi::FromInt(FixedArrayBase::cast(object->elements())->length());
+    int array_length = FixedArrayBase::cast(object->elements())->length();
+    return Smi::FromInt(Min(limit, static_cast<uint32_t>(array_length)));
   } else if (!object->HasDoubleElements()) {
     JSObject::EnsureWritableFastElements(object);
   }
