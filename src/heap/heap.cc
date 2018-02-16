@@ -55,6 +55,7 @@
 #include "src/snapshot/snapshot.h"
 #include "src/tracing/trace-event.h"
 #include "src/trap-handler/trap-handler.h"
+#include "src/unicode-decoder.h"
 #include "src/unicode-inl.h"
 #include "src/utils-inl.h"
 #include "src/utils.h"
@@ -3575,28 +3576,17 @@ static inline void WriteOneByteData(Vector<const char> vector, uint8_t* chars,
 
 static inline void WriteTwoByteData(Vector<const char> vector, uint16_t* chars,
                                     int len) {
-  const uint8_t* stream = reinterpret_cast<const uint8_t*>(vector.start());
-  size_t stream_length = vector.length();
-  while (stream_length != 0) {
-    size_t consumed = 0;
-    uint32_t c = unibrow::Utf8::ValueOf(stream, stream_length, &consumed);
+  unibrow::Utf8Iterator it = unibrow::Utf8Iterator(vector);
+  while (!it.Done()) {
+    DCHECK_GT(len, 0);
+    len -= 1;
+
+    uint16_t c = *it;
+    ++it;
     DCHECK_NE(unibrow::Utf8::kBadChar, c);
-    DCHECK(consumed <= stream_length);
-    stream_length -= consumed;
-    stream += consumed;
-    if (c > unibrow::Utf16::kMaxNonSurrogateCharCode) {
-      len -= 2;
-      if (len < 0) break;
-      *chars++ = unibrow::Utf16::LeadSurrogate(c);
-      *chars++ = unibrow::Utf16::TrailSurrogate(c);
-    } else {
-      len -= 1;
-      if (len < 0) break;
-      *chars++ = c;
-    }
+    *chars++ = c;
   }
-  DCHECK_EQ(0, stream_length);
-  DCHECK_EQ(0, len);
+  DCHECK_EQ(len, 0);
 }
 
 

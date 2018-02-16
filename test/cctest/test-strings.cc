@@ -1582,6 +1582,63 @@ TEST(ExternalStringIndexOf) {
                    .FromJust());
 }
 
+#define GC_INSIDE_NEW_STRING_FROM_UTF8_SUB_STRING(NAME, STRING)                \
+  TEST(GCInsideNewStringFromUtf8SubStringWith##NAME) {                         \
+    CcTest::InitializeVM();                                                    \
+    LocalContext context;                                                      \
+    v8::HandleScope scope(CcTest::isolate());                                  \
+    Factory* factory = CcTest::i_isolate()->factory();                         \
+    Heap* heap = CcTest::i_isolate()->heap();                                  \
+    /* Length must be bigger than the buffer size of the Utf8Decoder. */       \
+    const char* buf = STRING;                                                  \
+    size_t len = strlen(buf);                                                  \
+    Handle<String> main_string =                                               \
+        factory                                                                \
+            ->NewStringFromOneByte(Vector<const uint8_t>(                      \
+                reinterpret_cast<const uint8_t*>(buf), len))                   \
+            .ToHandleChecked();                                                \
+    CHECK(heap->InNewSpace(*main_string));                                     \
+    /* Next allocation will cause GC. */                                       \
+    heap::SimulateFullSpace(CcTest::i_isolate()->heap()->new_space());         \
+    /* Offset by two to check substring-ing. */                                \
+    Handle<String> s = factory                                                 \
+                           ->NewStringFromUtf8SubString(                       \
+                               Handle<SeqOneByteString>::cast(main_string), 2, \
+                               static_cast<int>(len - 2))                      \
+                           .ToHandleChecked();                                 \
+    Handle<String> expected_string =                                           \
+        factory->NewStringFromUtf8(Vector<const char>(buf + 2, len - 2))       \
+            .ToHandleChecked();                                                \
+    CHECK(s->Equals(*expected_string));                                        \
+  }
+
+GC_INSIDE_NEW_STRING_FROM_UTF8_SUB_STRING(
+    OneByte,
+    "QQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQ"
+    "QQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQ"
+    "QQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQ"
+    "QQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQ"
+    "QQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQ"
+    "QQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQ"
+    "QQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQ"
+    "QQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQ"
+    "QQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQ")
+GC_INSIDE_NEW_STRING_FROM_UTF8_SUB_STRING(
+    TwoByte,
+    "QQ\xF0\x9F\x98\x8D\xF0\x9F\x98\x8D"
+    "QQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQ"
+    "QQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQ"
+    "QQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQ"
+    "QQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQ"
+    "QQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQ"
+    "QQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQ"
+    "QQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQ"
+    "QQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQ"
+    "QQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQQ"
+    "QQ\xF0\x9F\x98\x8D\xF0\x9F\x98\x8D")
+
+#undef GC_INSIDE_NEW_STRING_FROM_UTF8_SUB_STRING
+
 }  // namespace test_strings
 }  // namespace internal
 }  // namespace v8
