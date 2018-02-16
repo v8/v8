@@ -738,7 +738,11 @@ bool WasmCodeManager::Commit(Address start, size_t size) {
     remaining_uncommitted_.Increment(size);
     return false;
   }
-  bool ret = SetPermissions(start, size, PageAllocator::kReadWrite);
+  PageAllocator::Permission permission = FLAG_wasm_write_protect_code_memory
+                                             ? PageAllocator::kReadWrite
+                                             : PageAllocator::kReadWriteExecute;
+
+  bool ret = SetPermissions(start, size, permission);
   TRACE_HEAP("Setting rw permissions for %p:%p\n",
              reinterpret_cast<void*>(start),
              reinterpret_cast<void*>(start + size));
@@ -843,38 +847,40 @@ bool NativeModule::SetExecutable(bool executable) {
   PageAllocator::Permission permission =
       executable ? PageAllocator::kReadExecute : PageAllocator::kReadWrite;
 
+  if (FLAG_wasm_write_protect_code_memory) {
 #if V8_OS_WIN
-  // On windows, we need to switch permissions per separate virtual memory
-  // reservation. This is really just a problem when the NativeModule is
-  // growable (meaning can_request_more_memory_). That's 32-bit in production,
-  // or unittests.
-  // For now, in that case, we commit at reserved memory granularity.
-  // Technically, that may be a waste, because we may reserve more than we use.
-  // On 32-bit though, the scarce resource is the address space - committed or
-  // not.
-  if (can_request_more_memory_) {
-    for (auto& vmem : owned_memory_) {
-      if (!SetPermissions(vmem.address(), vmem.size(), permission)) {
+    // On windows, we need to switch permissions per separate virtual memory
+    // reservation. This is really just a problem when the NativeModule is
+    // growable (meaning can_request_more_memory_). That's 32-bit in production,
+    // or unittests.
+    // For now, in that case, we commit at reserved memory granularity.
+    // Technically, that may be a waste, because we may reserve more than we
+    // use. On 32-bit though, the scarce resource is the address space -
+    // committed or not.
+    if (can_request_more_memory_) {
+      for (auto& vmem : owned_memory_) {
+        if (!SetPermissions(vmem.address(), vmem.size(), permission)) {
+          return false;
+        }
+        TRACE_HEAP("Set %p:%p to executable:%d\n", vmem.address(), vmem.end(),
+                   executable);
+      }
+      is_executable_ = executable;
+      return true;
+    }
+#endif
+    for (auto& range : allocated_memory_.ranges()) {
+      // allocated_memory_ is fine-grained, so we need to
+      // page-align it.
+      size_t range_size = RoundUp(
+          static_cast<size_t>(range.second - range.first), AllocatePageSize());
+      if (!SetPermissions(range.first, range_size, permission)) {
         return false;
       }
-      TRACE_HEAP("Set %p:%p to executable:%d\n", vmem.address(), vmem.end(),
-                 executable);
+      TRACE_HEAP("Set %p:%p to executable:%d\n",
+                 reinterpret_cast<void*>(range.first),
+                 reinterpret_cast<void*>(range.second), executable);
     }
-    is_executable_ = executable;
-    return true;
-  }
-#endif
-  for (auto& range : allocated_memory_.ranges()) {
-    // allocated_memory_ is fine-grained, so we need to
-    // page-align it.
-    size_t range_size = RoundUp(static_cast<size_t>(range.second - range.first),
-                                AllocatePageSize());
-    if (!SetPermissions(range.first, range_size, permission)) {
-      return false;
-    }
-    TRACE_HEAP("Set %p:%p to executable:%d\n",
-               reinterpret_cast<void*>(range.first),
-               reinterpret_cast<void*>(range.second), executable);
   }
   is_executable_ = executable;
   return true;
