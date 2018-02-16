@@ -2672,6 +2672,7 @@ class JSObject: public JSReceiver {
   STATIC_ASSERT(kHeaderSize == Internals::kJSObjectHeaderSize);
   static const int kMaxInObjectProperties =
       (kMaxInstanceSize - kHeaderSize) >> kPointerSizeLog2;
+  STATIC_ASSERT(kMaxInObjectProperties <= kMaxNumberOfDescriptors);
 
   class BodyDescriptor;
   // No weak fields.
