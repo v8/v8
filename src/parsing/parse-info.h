@@ -85,6 +85,7 @@ class V8_EXPORT_PRIVATE ParseInfo {
                 set_on_background_thread)
   FLAG_ACCESSOR(kWrappedAsFunction, is_wrapped_as_function,
                 set_wrapped_as_function)
+  FLAG_ACCESSOR(kAllowEvalCache, allow_eval_cache, set_allow_eval_cache)
 #undef FLAG_ACCESSOR
 
   void set_parse_restriction(ParseRestriction restriction) {
@@ -263,6 +264,7 @@ class V8_EXPORT_PRIVATE ParseInfo {
     kIsAsmWasmBroken = 1 << 12,
     kOnBackgroundThread = 1 << 13,
     kWrappedAsFunction = 1 << 14,  // Implicitly wrapped as function.
+    kAllowEvalCache = 1 << 15,
   };
 
   //------------- Inputs to parsing and scope analysis -----------------------

@@ -35,16 +35,6 @@ int FeedbackMetadata::slot_count() const {
   return Smi::ToInt(get(kSlotsCountIndex));
 }
 
-bool FeedbackMetadata::HasTemplateObjectSlot() const {
-  DisallowHeapAllocation no_gc;
-  FeedbackMetadataIterator iter(const_cast<FeedbackMetadata*>(this));
-  while (iter.HasNext()) {
-    iter.Next();
-    if (iter.kind() == FeedbackSlotKind::kTemplateObject) return true;
-  }
-  return false;
-}
-
 // static
 FeedbackVector* FeedbackVector::cast(Object* obj) {
   DCHECK(obj->IsFeedbackVector());
@@ -58,7 +48,6 @@ int FeedbackMetadata::GetSlotSize(FeedbackSlotKind kind) {
     case FeedbackSlotKind::kCompareOp:
     case FeedbackSlotKind::kBinaryOp:
     case FeedbackSlotKind::kLiteral:
-    case FeedbackSlotKind::kTemplateObject:
     case FeedbackSlotKind::kCreateClosure:
     case FeedbackSlotKind::kTypeProfile:
       return 1;
@@ -318,7 +307,6 @@ void FeedbackVector::ComputeCounts(int* with_type_info, int* generic,
       }
       case FeedbackSlotKind::kCreateClosure:
       case FeedbackSlotKind::kLiteral:
-      case FeedbackSlotKind::kTemplateObject:
         break;
       case FeedbackSlotKind::kInvalid:
       case FeedbackSlotKind::kKindsNumber:

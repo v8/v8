@@ -2913,6 +2913,9 @@ Parser::LazyParsingResult Parser::SkipFunction(
     *ok = false;
     return kLazyParsingComplete;
   }
+
+  set_allow_eval_cache(reusable_preparser()->allow_eval_cache());
+
   PreParserLogger* logger = reusable_preparser()->logger();
   function_scope->set_end_position(logger->end());
   Expect(Token::RBRACE, CHECK_OK_VALUE(kLazyParsingComplete));

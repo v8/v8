@@ -4174,7 +4174,7 @@ void BytecodeGenerator::VisitGetTemplateObject(GetTemplateObject* expr) {
   builder()->SetExpressionPosition(expr);
   size_t entry = builder()->AllocateDeferredConstantPoolEntry();
   template_objects_.push_back(std::make_pair(expr, entry));
-  FeedbackSlot literal_slot = feedback_spec()->AddTemplateObjectSlot();
+  FeedbackSlot literal_slot = feedback_spec()->AddLiteralSlot();
   builder()->GetTemplateObject(entry, feedback_index(literal_slot));
 }
 

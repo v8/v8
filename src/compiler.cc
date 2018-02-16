@@ -1088,9 +1088,11 @@ MaybeHandle<JSFunction> Compiler::GetFunctionFromEval(
 
   Handle<SharedFunctionInfo> shared_info;
   Handle<Script> script;
+  bool allow_eval_cache;
   if (eval_result.has_shared()) {
     shared_info = Handle<SharedFunctionInfo>(eval_result.shared(), isolate);
     script = Handle<Script>(Script::cast(shared_info->script()), isolate);
+    allow_eval_cache = true;
   } else {
     script = isolate->factory()->NewScript(source);
     if (isolate->NeedsSourcePositionsForProfiling()) {
@@ -1134,6 +1136,7 @@ MaybeHandle<JSFunction> Compiler::GetFunctionFromEval(
     if (!CompileToplevel(&parse_info, isolate).ToHandle(&shared_info)) {
       return MaybeHandle<JSFunction>();
     }
+    allow_eval_cache = parse_info.allow_eval_cache();
   }
 
   // If caller is strict mode, the result must be in strict mode as well.
@@ -1148,20 +1151,24 @@ MaybeHandle<JSFunction> Compiler::GetFunctionFromEval(
       result = isolate->factory()->NewFunctionFromSharedFunctionInfo(
           shared_info, context, NOT_TENURED);
       JSFunction::EnsureLiterals(result);
-      // Make sure to cache this result.
-      Handle<Cell> new_vector(result->feedback_vector_cell(), isolate);
-      compilation_cache->PutEval(source, outer_info, context, shared_info,
-                                 new_vector, eval_scope_position);
+      if (allow_eval_cache) {
+        // Make sure to cache this result.
+        Handle<Cell> new_vector(result->feedback_vector_cell(), isolate);
+        compilation_cache->PutEval(source, outer_info, context, shared_info,
+                                   new_vector, eval_scope_position);
+      }
     }
   } else {
     result = isolate->factory()->NewFunctionFromSharedFunctionInfo(
         shared_info, context, NOT_TENURED);
     JSFunction::EnsureLiterals(result);
-    // Add the SharedFunctionInfo and the LiteralsArray to the eval cache if
-    // we didn't retrieve from there.
-    Handle<Cell> vector(result->feedback_vector_cell(), isolate);
-    compilation_cache->PutEval(source, outer_info, context, shared_info, vector,
-                               eval_scope_position);
+    if (allow_eval_cache) {
+      // Add the SharedFunctionInfo and the LiteralsArray to the eval cache if
+      // we didn't retrieve from there.
+      Handle<Cell> vector(result->feedback_vector_cell(), isolate);
+      compilation_cache->PutEval(source, outer_info, context, shared_info,
+                                 vector, eval_scope_position);
+    }
   }
 
   // OnAfterCompile has to be called after we create the JSFunction, which we

@@ -284,7 +284,8 @@ class ParserBase {
         allow_harmony_dynamic_import_(false),
         allow_harmony_import_meta_(false),
         allow_harmony_optional_catch_binding_(false),
-        allow_harmony_private_fields_(false) {}
+        allow_harmony_private_fields_(false),
+        allow_eval_cache_(true) {}
 
 #define ALLOW_ACCESSORS(name)                           \
   bool allow_##name() const { return allow_##name##_; } \
@@ -298,6 +299,7 @@ class ParserBase {
   ALLOW_ACCESSORS(harmony_dynamic_import);
   ALLOW_ACCESSORS(harmony_import_meta);
   ALLOW_ACCESSORS(harmony_optional_catch_binding);
+  ALLOW_ACCESSORS(eval_cache);
 
 #undef ALLOW_ACCESSORS
 
@@ -1556,6 +1558,7 @@ class ParserBase {
   bool allow_harmony_import_meta_;
   bool allow_harmony_optional_catch_binding_;
   bool allow_harmony_private_fields_;
+  bool allow_eval_cache_;
 
   friend class DiscardableZoneScope;
 };
@@ -4671,6 +4674,12 @@ typename ParserBase<Impl>::ExpressionT ParserBase<Impl>::ParseTemplateLiteral(
   // When parsing a TemplateLiteral, we must have scanned either an initial
   // TEMPLATE_SPAN, or a TEMPLATE_TAIL.
   DCHECK(peek() == Token::TEMPLATE_SPAN || peek() == Token::TEMPLATE_TAIL);
+
+  if (tagged) {
+    // TaggedTemplate expressions prevent the eval compilation cache from being
+    // used. This flag is only used if an eval is being parsed.
+    set_allow_eval_cache(false);
+  }
 
   bool forbid_illegal_escapes = !tagged;
 

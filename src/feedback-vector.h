@@ -48,7 +48,6 @@ enum class FeedbackSlotKind {
   kTypeProfile,
   kCreateClosure,
   kLiteral,
-  kTemplateObject,
   kForIn,
   kInstanceOf,
 
@@ -380,9 +379,6 @@ class V8_EXPORT_PRIVATE FeedbackVectorSpec {
   }
 
   FeedbackSlot AddLiteralSlot() { return AddSlot(FeedbackSlotKind::kLiteral); }
-  FeedbackSlot AddTemplateObjectSlot() {
-    return AddSlot(FeedbackSlotKind::kTemplateObject);
-  }
 
   FeedbackSlot AddStoreDataPropertyInLiteralICSlot() {
     return AddSlot(FeedbackSlotKind::kStoreDataPropertyInLiteral);
@@ -430,8 +426,6 @@ class FeedbackMetadata : public FixedArray {
 
   // Returns number of slots in the vector.
   inline int slot_count() const;
-
-  inline bool HasTemplateObjectSlot() const;
 
   // Returns slot kind for given slot.
   FeedbackSlotKind GetKind(FeedbackSlot slot) const;

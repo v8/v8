@@ -842,7 +842,6 @@ void FeedbackNexus::Print(std::ostream& os) {  // NOLINT
     }
     case FeedbackSlotKind::kCreateClosure:
     case FeedbackSlotKind::kLiteral:
-    case FeedbackSlotKind::kTemplateObject:
     case FeedbackSlotKind::kTypeProfile:
       break;
     case FeedbackSlotKind::kInvalid:

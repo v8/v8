@@ -45,6 +45,9 @@ bool ParseProgram(ParseInfo* info, Isolate* isolate) {
   } else {
     result->scope()->AttachOuterScopeInfo(info, isolate);
     info->set_language_mode(info->literal()->language_mode());
+    if (info->is_eval()) {
+      info->set_allow_eval_cache(parser.allow_eval_cache());
+    }
   }
   parser.UpdateStatistics(isolate, info->script());
   return (result != nullptr);
@@ -79,6 +82,9 @@ bool ParseFunction(ParseInfo* info, Handle<SharedFunctionInfo> shared_info,
                                                 info->ast_value_factory());
   } else {
     result->scope()->AttachOuterScopeInfo(info, isolate);
+    if (info->is_eval()) {
+      info->set_allow_eval_cache(parser.allow_eval_cache());
+    }
   }
   parser.UpdateStatistics(isolate, info->script());
   return (result != nullptr);

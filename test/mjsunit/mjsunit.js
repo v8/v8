@@ -55,6 +55,9 @@ MjsUnitAssertionError.prototype.toString = function () {
 // For known primitive values, please use assertEquals.
 var assertSame;
 
+// Inverse of assertSame.
+var assertNotSame;
+
 // Expected and found values are identical primitive values or functions
 // or similarly structured objects (checking internal properties
 // of, e.g., Number and Date objects, the elements of arrays
@@ -375,6 +378,16 @@ var failWithMessage;
     fail(PrettyPrint(expected), found, name_opt);
   };
 
+  assertNotSame = function assertNotSame(expected, found, name_opt) {
+    // TODO(mstarzinger): We should think about using Harmony's egal operator
+    // or the function equivalent Object.is() here.
+    if (found !== expected) {
+      if (expected === 0 || (1 / expected) !== (1 / found)) return;
+    } else if (!((expected !== expected) && (found !== found))) {
+      return;
+    }
+    fail(PrettyPrint(expected), found, name_opt);
+  }
 
   assertEquals = function assertEquals(expected, found, name_opt) {
     if (!deepEquals(found, expected)) {

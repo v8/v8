@@ -173,8 +173,6 @@ const char* FeedbackMetadata::Kind2String(FeedbackSlotKind kind) {
       return "kCreateClosure";
     case FeedbackSlotKind::kLiteral:
       return "Literal";
-    case FeedbackSlotKind::kTemplateObject:
-      return "TemplateObject";
     case FeedbackSlotKind::kTypeProfile:
       return "TypeProfile";
     case FeedbackSlotKind::kForIn:
@@ -257,7 +255,6 @@ Handle<FeedbackVector> FeedbackVector::New(Isolate* isolate,
         break;
       }
       case FeedbackSlotKind::kLiteral:
-      case FeedbackSlotKind::kTemplateObject:
         vector->set(index, Smi::kZero, SKIP_WRITE_BARRIER);
         break;
       case FeedbackSlotKind::kCall:
@@ -464,7 +461,6 @@ bool FeedbackNexus::Clear() {
       break;
 
     case FeedbackSlotKind::kLiteral:
-    case FeedbackSlotKind::kTemplateObject:
       SetFeedback(Smi::kZero, SKIP_WRITE_BARRIER);
       feedback_updated = true;
       break;
@@ -535,7 +531,6 @@ InlineCacheState FeedbackNexus::StateFromFeedback() const {
   switch (kind()) {
     case FeedbackSlotKind::kCreateClosure:
     case FeedbackSlotKind::kLiteral:
-    case FeedbackSlotKind::kTemplateObject:
       // CreateClosure and literal slots don't have a notion of state.
       UNREACHABLE();
       break;
