@@ -3625,7 +3625,6 @@ class RememberedSetUpdatingItem : public UpdatingItem {
   }
 
  private:
-  template <AccessMode access_mode>
   inline SlotCallbackResult CheckAndUpdateOldToNewSlot(Address slot_address) {
     Object** slot = reinterpret_cast<Object**>(slot_address);
     if (heap_->InFromSpace(*slot)) {
@@ -3633,13 +3632,7 @@ class RememberedSetUpdatingItem : public UpdatingItem {
       DCHECK(heap_object->IsHeapObject());
       MapWord map_word = heap_object->map_word();
       if (map_word.IsForwardingAddress()) {
-        if (access_mode == AccessMode::ATOMIC) {
-          HeapObject** heap_obj_slot = reinterpret_cast<HeapObject**>(slot);
-          base::AsAtomicPointer::Relaxed_Store(heap_obj_slot,
-                                               map_word.ToForwardingAddress());
-        } else {
-          *slot = map_word.ToForwardingAddress();
-        }
+        *slot = map_word.ToForwardingAddress();
       }
       // If the object was in from space before and is after executing the
       // callback in to space, the object is still live.
@@ -3675,12 +3668,10 @@ class RememberedSetUpdatingItem : public UpdatingItem {
 
   void UpdateUntypedPointers() {
     if (chunk_->slot_set<OLD_TO_NEW, AccessMode::NON_ATOMIC>() != nullptr) {
-        RememberedSet<OLD_TO_NEW>::Iterate(
-            chunk_,
-            [this](Address slot) {
-              return CheckAndUpdateOldToNewSlot<AccessMode::NON_ATOMIC>(slot);
-            },
-            SlotSet::PREFREE_EMPTY_BUCKETS);
+      RememberedSet<OLD_TO_NEW>::Iterate(
+          chunk_,
+          [this](Address slot) { return CheckAndUpdateOldToNewSlot(slot); },
+          SlotSet::PREFREE_EMPTY_BUCKETS);
     }
     if ((updating_mode_ == RememberedSetUpdatingMode::ALL) &&
         (chunk_->slot_set<OLD_TO_OLD, AccessMode::NON_ATOMIC>() != nullptr)) {
@@ -3719,7 +3710,7 @@ class RememberedSetUpdatingItem : public UpdatingItem {
           [isolate, this](SlotType slot_type, Address host_addr, Address slot) {
             return UpdateTypedSlotHelper::UpdateTypedSlot(
                 isolate, slot_type, slot, [this](Object** slot) {
-                  return CheckAndUpdateOldToNewSlot<AccessMode::NON_ATOMIC>(
+                  return CheckAndUpdateOldToNewSlot(
                       reinterpret_cast<Address>(slot));
                 });
           });
