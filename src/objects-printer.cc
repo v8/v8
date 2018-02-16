@@ -50,7 +50,7 @@ void HeapObject::PrintHeader(std::ostream& os, const char* id) {  // NOLINT
   }
   os << "]";
   if (GetHeap()->InOldSpace(this)) os << " in OldSpace";
-  if (!IsMap()) os << "\n - map = " << Brief(map());
+  if (!IsMap()) os << "\n - map: " << Brief(map());
 }
 
 
@@ -414,14 +414,14 @@ void PrintSloppyArgumentElements(std::ostream& os, ElementsKind kind,
                                  SloppyArgumentsElements* elements) {
   Isolate* isolate = elements->GetIsolate();
   FixedArray* arguments_store = elements->arguments();
-  os << "\n    0: context = " << Brief(elements->context())
-     << "\n    1: arguments_store = " << Brief(arguments_store)
+  os << "\n    0: context: " << Brief(elements->context())
+     << "\n    1: arguments_store: " << Brief(arguments_store)
      << "\n    parameter to context slot map:";
   for (uint32_t i = 0; i < elements->parameter_map_length(); i++) {
     uint32_t raw_index = i + SloppyArgumentsElements::kParameterMapStart;
     Object* mapped_entry = elements->get_mapped_entry(i);
     os << "\n    " << raw_index << ": param(" << i
-       << ") = " << Brief(mapped_entry);
+       << "): " << Brief(mapped_entry);
     if (mapped_entry->IsTheHole(isolate)) {
       os << " in the arguments_store[" << i << "]";
     } else {
@@ -430,7 +430,7 @@ void PrintSloppyArgumentElements(std::ostream& os, ElementsKind kind,
   }
   if (arguments_store->length() == 0) return;
   os << "\n }"
-     << "\n - arguments_store = " << Brief(arguments_store) << " "
+     << "\n - arguments_store: " << Brief(arguments_store) << " "
      << ElementsKindToString(arguments_store->map()->elements_kind()) << " {";
   if (kind == FAST_SLOPPY_ARGUMENTS_ELEMENTS) {
     PrintFixedArrayElements(os, arguments_store);
@@ -445,7 +445,7 @@ void PrintSloppyArgumentElements(std::ostream& os, ElementsKind kind,
 void JSObject::PrintElements(std::ostream& os) {  // NOLINT
   // Don't call GetElementsKind, its validation code can cause the printer to
   // fail when debugging.
-  os << " - elements = " << Brief(elements()) << " {";
+  os << " - elements: " << Brief(elements()) << " {";
   if (elements()->length() == 0) {
     os << " }\n";
     return;
@@ -501,14 +501,14 @@ static void JSObjectPrintHeader(std::ostream& os, JSObject* obj,
     os << "DictionaryProperties";
   }
   PrototypeIterator iter(obj->GetIsolate(), obj);
-  os << "]\n - prototype = " << reinterpret_cast<void*>(iter.GetCurrent());
-  os << "\n - elements = " << Brief(obj->elements()) << " ["
+  os << "]\n - prototype: " << Brief(iter.GetCurrent());
+  os << "\n - elements: " << Brief(obj->elements()) << " ["
      << ElementsKindToString(obj->map()->elements_kind());
   if (obj->elements()->IsCowArray()) os << " (COW)";
   os << "]";
   Object* hash = obj->GetHash();
   if (hash->IsSmi()) {
-    os << "\n - hash = " << Brief(hash);
+    os << "\n - hash: " << Brief(hash);
   }
   if (obj->GetEmbedderFieldCount() > 0) {
     os << "\n - embedder fields: " << obj->GetEmbedderFieldCount();
@@ -518,7 +518,7 @@ static void JSObjectPrintHeader(std::ostream& os, JSObject* obj,
 
 static void JSObjectPrintBody(std::ostream& os, JSObject* obj,  // NOLINT
                               bool print_elements = true) {
-  os << "\n - properties = ";
+  os << "\n - properties: ";
   Object* properties_or_hash = obj->raw_properties_or_hash();
   if (!properties_or_hash->IsSmi()) {
     os << Brief(properties_or_hash);
@@ -547,26 +547,26 @@ void JSObject::JSObjectPrint(std::ostream& os) {  // NOLINT
 
 void JSArray::JSArrayPrint(std::ostream& os) {  // NOLINT
   JSObjectPrintHeader(os, this, "JSArray");
-  os << "\n - length = " << Brief(this->length());
+  os << "\n - length: " << Brief(this->length());
   JSObjectPrintBody(os, this);
 }
 
 void JSPromise::JSPromisePrint(std::ostream& os) {  // NOLINT
   JSObjectPrintHeader(os, this, "JSPromise");
-  os << "\n - status = " << JSPromise::Status(status());
+  os << "\n - status: " << JSPromise::Status(status());
   if (status() == Promise::kPending) {
-    os << "\n - reactions = " << Brief(reactions());
+    os << "\n - reactions: " << Brief(reactions());
   } else {
-    os << "\n - result = " << Brief(result());
+    os << "\n - result: " << Brief(result());
   }
-  os << "\n - has_handler = " << has_handler();
+  os << "\n - has_handler: " << has_handler();
   os << "\n ";
 }
 
 void JSRegExp::JSRegExpPrint(std::ostream& os) {  // NOLINT
   JSObjectPrintHeader(os, this, "JSRegExp");
-  os << "\n - data = " << Brief(data());
-  os << "\n - source = " << Brief(source());
+  os << "\n - data: " << Brief(data());
+  os << "\n - source: " << Brief(source());
   JSObjectPrintBody(os, this);
 }
 
@@ -854,7 +854,7 @@ void FeedbackNexus::Print(std::ostream& os) {  // NOLINT
 
 void JSValue::JSValuePrint(std::ostream& os) {  // NOLINT
   JSObjectPrintHeader(os, this, "JSValue");
-  os << "\n - value = " << Brief(value());
+  os << "\n - value: " << Brief(value());
   JSObjectPrintBody(os, this);
 }
 
@@ -919,7 +919,7 @@ static const char* const weekdays[] = {
 
 void JSDate::JSDatePrint(std::ostream& os) {  // NOLINT
   JSObjectPrintHeader(os, this, "JSDate");
-  os << "\n - value = " << Brief(value());
+  os << "\n - value: " << Brief(value());
   if (!year()->IsSmi()) {
     os << "\n - time = NaN\n";
   } else {
@@ -941,9 +941,9 @@ void JSDate::JSDatePrint(std::ostream& os) {  // NOLINT
 
 void JSProxy::JSProxyPrint(std::ostream& os) {  // NOLINT
   HeapObject::PrintHeader(os, "JSProxy");
-  os << "\n - target = ";
+  os << "\n - target: ";
   target()->ShortPrint(os);
-  os << "\n - handler = ";
+  os << "\n - handler: ";
   handler()->ShortPrint(os);
   os << "\n";
 }
@@ -951,21 +951,21 @@ void JSProxy::JSProxyPrint(std::ostream& os) {  // NOLINT
 
 void JSSet::JSSetPrint(std::ostream& os) {  // NOLINT
   JSObjectPrintHeader(os, this, "JSSet");
-  os << " - table = " << Brief(table());
+  os << " - table: " << Brief(table());
   JSObjectPrintBody(os, this);
 }
 
 
 void JSMap::JSMapPrint(std::ostream& os) {  // NOLINT
   JSObjectPrintHeader(os, this, "JSMap");
-  os << " - table = " << Brief(table());
+  os << " - table: " << Brief(table());
   JSObjectPrintBody(os, this);
 }
 
 void JSCollectionIterator::JSCollectionIteratorPrint(
     std::ostream& os) {  // NOLINT
-  os << "\n - table = " << Brief(table());
-  os << "\n - index = " << Brief(index());
+  os << "\n - table: " << Brief(table());
+  os << "\n - index: " << Brief(index());
   os << "\n";
 }
 
@@ -984,22 +984,22 @@ void JSMapIterator::JSMapIteratorPrint(std::ostream& os) {  // NOLINT
 
 void JSWeakMap::JSWeakMapPrint(std::ostream& os) {  // NOLINT
   JSObjectPrintHeader(os, this, "JSWeakMap");
-  os << "\n - table = " << Brief(table());
+  os << "\n - table: " << Brief(table());
   JSObjectPrintBody(os, this);
 }
 
 
 void JSWeakSet::JSWeakSetPrint(std::ostream& os) {  // NOLINT
   JSObjectPrintHeader(os, this, "JSWeakSet");
-  os << "\n - table = " << Brief(table());
+  os << "\n - table: " << Brief(table());
   JSObjectPrintBody(os, this);
 }
 
 
 void JSArrayBuffer::JSArrayBufferPrint(std::ostream& os) {  // NOLINT
   JSObjectPrintHeader(os, this, "JSArrayBuffer");
-  os << "\n - backing_store = " << backing_store();
-  os << "\n - byte_length = " << Brief(byte_length());
+  os << "\n - backing_store: " << backing_store();
+  os << "\n - byte_length: " << Brief(byte_length());
   if (is_external()) os << "\n - external";
   if (is_neuterable()) os << "\n - neuterable";
   if (was_neutered()) os << "\n - neutered";
@@ -1012,10 +1012,10 @@ void JSArrayBuffer::JSArrayBufferPrint(std::ostream& os) {  // NOLINT
 
 void JSTypedArray::JSTypedArrayPrint(std::ostream& os) {  // NOLINT
   JSObjectPrintHeader(os, this, "JSTypedArray");
-  os << "\n - buffer = " << Brief(buffer());
-  os << "\n - byte_offset = " << Brief(byte_offset());
-  os << "\n - byte_length = " << Brief(byte_length());
-  os << "\n - length = " << Brief(length());
+  os << "\n - buffer: " << Brief(buffer());
+  os << "\n - byte_offset: " << Brief(byte_offset());
+  os << "\n - byte_length: " << Brief(byte_length());
+  os << "\n - length: " << Brief(length());
   if (WasNeutered()) os << "\n - neutered";
   JSObjectPrintBody(os, this, !WasNeutered());
 }
@@ -1024,18 +1024,17 @@ void JSArrayIterator::JSArrayIteratorPrint(std::ostream& os) {  // NOLING
   JSObjectPrintHeader(os, this, "JSArrayIterator");
 
   InstanceType instance_type = map()->instance_type();
-  std::string type;
+  os << "\n - type: ";
   if (instance_type <= LAST_ARRAY_KEY_ITERATOR_TYPE) {
-    type = "keys";
+    os << "keys";
   } else if (instance_type <= LAST_ARRAY_KEY_VALUE_ITERATOR_TYPE) {
-    type = "entries";
+    os << "entries";
   } else {
-    type = "values";
+    os << "values";
   }
 
-  os << "\n - type = " << type;
-  os << "\n - object = " << Brief(object());
-  os << "\n - index = " << Brief(index());
+  os << "\n - object: " << Brief(object());
+  os << "\n - index: " << Brief(index());
 
   JSObjectPrintBody(os, this);
 }
@@ -1043,8 +1042,8 @@ void JSArrayIterator::JSArrayIteratorPrint(std::ostream& os) {  // NOLING
 void JSDataView::JSDataViewPrint(std::ostream& os) {  // NOLINT
   JSObjectPrintHeader(os, this, "JSDataView");
   os << "\n - buffer =" << Brief(buffer());
-  os << "\n - byte_offset = " << Brief(byte_offset());
-  os << "\n - byte_length = " << Brief(byte_length());
+  os << "\n - byte_offset: " << Brief(byte_offset());
+  os << "\n - byte_length: " << Brief(byte_length());
   if (WasNeutered()) os << "\n - neutered";
   JSObjectPrintBody(os, this, !WasNeutered());
 }
@@ -1052,9 +1051,9 @@ void JSDataView::JSDataViewPrint(std::ostream& os) {  // NOLINT
 
 void JSBoundFunction::JSBoundFunctionPrint(std::ostream& os) {  // NOLINT
   JSObjectPrintHeader(os, this, "JSBoundFunction");
-  os << "\n - bound_target_function = " << Brief(bound_target_function());
-  os << "\n - bound_this = " << Brief(bound_this());
-  os << "\n - bound_arguments = " << Brief(bound_arguments());
+  os << "\n - bound_target_function: " << Brief(bound_target_function());
+  os << "\n - bound_this: " << Brief(bound_this());
+  os << "\n - bound_arguments: " << Brief(bound_arguments());
   JSObjectPrintBody(os, this);
 }
 
@@ -1090,7 +1089,7 @@ std::ostream& operator<<(std::ostream& os, FunctionKind kind) {
 
 void JSFunction::JSFunctionPrint(std::ostream& os) {  // NOLINT
   JSObjectPrintHeader(os, this, "Function");
-  os << "\n - function prototype = ";
+  os << "\n - function prototype: ";
   if (has_prototype_slot()) {
     if (has_prototype()) {
       os << Brief(prototype());
@@ -1098,13 +1097,13 @@ void JSFunction::JSFunctionPrint(std::ostream& os) {  // NOLINT
         os << " (non-instance prototype)";
       }
     }
-    os << "\n - initial_map = ";
+    os << "\n - initial_map: ";
     if (has_initial_map()) os << Brief(initial_map());
   } else {
     os << "<no-prototype-slot>";
   }
-  os << "\n - shared_info = " << Brief(shared());
-  os << "\n - name = " << Brief(shared()->name());
+  os << "\n - shared_info: " << Brief(shared());
+  os << "\n - name: " << Brief(shared()->name());
 
   // Print Builtin name for builtin functions
   int builtin_index = code()->builtin_index();
@@ -1120,15 +1119,15 @@ void JSFunction::JSFunctionPrint(std::ostream& os) {  // NOLINT
     }
   }
 
-  os << "\n - formal_parameter_count = "
+  os << "\n - formal_parameter_count: "
      << shared()->internal_formal_parameter_count();
-  os << "\n - kind = " << shared()->kind();
-  os << "\n - context = " << Brief(context());
-  os << "\n - code = " << Brief(code());
+  os << "\n - kind: " << shared()->kind();
+  os << "\n - context: " << Brief(context());
+  os << "\n - code: " << Brief(code());
   if (IsInterpreted()) {
     os << "\n - interpreted";
     if (shared()->HasBytecodeArray()) {
-      os << "\n - bytecode = " << shared()->bytecode_array();
+      os << "\n - bytecode: " << shared()->bytecode_array();
     }
   }
   if (WasmExportedFunction::IsWasmExportedFunction(this)) {
@@ -1151,7 +1150,7 @@ void JSFunction::JSFunctionPrint(std::ostream& os) {  // NOLINT
 
 void SharedFunctionInfo::PrintSourceCode(std::ostream& os) {
   if (HasSourceCode()) {
-    os << "\n - source code = ";
+    os << "\n - source code: ";
     String* source = String::cast(Script::cast(script())->source());
     int start = start_position();
     int length = end_position() - start;
@@ -1163,26 +1162,26 @@ void SharedFunctionInfo::PrintSourceCode(std::ostream& os) {
 
 void SharedFunctionInfo::SharedFunctionInfoPrint(std::ostream& os) {  // NOLINT
   HeapObject::PrintHeader(os, "SharedFunctionInfo");
-  os << "\n - name = ";
+  os << "\n - name: ";
   if (has_shared_name()) {
     os << Brief(raw_name());
   } else {
     os << "<no-shared-name>";
   }
-  os << "\n - kind = " << kind();
+  os << "\n - kind: " << kind();
   if (needs_home_object()) {
     os << "\n - needs_home_object";
   }
-  os << "\n - function_map_index = " << function_map_index();
-  os << "\n - formal_parameter_count = " << internal_formal_parameter_count();
-  os << "\n - expected_nof_properties = " << expected_nof_properties();
-  os << "\n - language_mode = " << language_mode();
-  os << " - code = " << Brief(code());
+  os << "\n - function_map_index: " << function_map_index();
+  os << "\n - formal_parameter_count: " << internal_formal_parameter_count();
+  os << "\n - expected_nof_properties: " << expected_nof_properties();
+  os << "\n - language_mode: " << language_mode();
+  os << " - code: " << Brief(code());
   if (HasBytecodeArray()) {
-    os << "\n - bytecode_array = " << bytecode_array();
+    os << "\n - bytecode_array: " << bytecode_array();
   }
   if (HasAsmWasmData()) {
-    os << "\n - asm_wasm_data = " << Brief(asm_wasm_data());
+    os << "\n - asm_wasm_data: " << Brief(asm_wasm_data());
   }
   PrintSourceCode(os);
   // Script files are often large, hard to read.
@@ -1195,20 +1194,20 @@ void SharedFunctionInfo::SharedFunctionInfoPrint(std::ostream& os) {  // NOLINT
   } else if (is_declaration()) {
     os << "\n - declaration";
   }
-  os << "\n - function token position = " << function_token_position();
-  os << "\n - start position = " << start_position();
-  os << "\n - end position = " << end_position();
+  os << "\n - function token position: " << function_token_position();
+  os << "\n - start position: " << start_position();
+  os << "\n - end position: " << end_position();
   if (HasDebugInfo()) {
-    os << "\n - debug info = " << Brief(debug_info());
+    os << "\n - debug info: " << Brief(debug_info());
   } else {
     os << "\n - no debug info";
   }
-  os << "\n - scope info = " << Brief(scope_info());
-  os << "\n - length = " << length();
-  os << "\n - feedback_metadata = ";
+  os << "\n - scope info: " << Brief(scope_info());
+  os << "\n - length: " << length();
+  os << "\n - feedback_metadata: ";
   feedback_metadata()->FeedbackMetadataPrint(os);
   if (HasPreParsedScopeData()) {
-    os << "\n - preparsed scope data = " << preparsed_scope_data();
+    os << "\n - preparsed scope data: " << preparsed_scope_data();
   } else {
     os << "\n - no preparsed scope data";
   }
@@ -1219,7 +1218,7 @@ void SharedFunctionInfo::SharedFunctionInfoPrint(std::ostream& os) {  // NOLINT
 void JSGlobalProxy::JSGlobalProxyPrint(std::ostream& os) {  // NOLINT
   JSObjectPrintHeader(os, this, "JSGlobalProxy");
   if (!GetIsolate()->bootstrapper()->IsActive()) {
-    os << "\n - native context = " << Brief(native_context());
+    os << "\n - native context: " << Brief(native_context());
   }
   JSObjectPrintBody(os, this);
 }
@@ -1228,9 +1227,9 @@ void JSGlobalProxy::JSGlobalProxyPrint(std::ostream& os) {  // NOLINT
 void JSGlobalObject::JSGlobalObjectPrint(std::ostream& os) {  // NOLINT
   JSObjectPrintHeader(os, this, "JSGlobalObject");
   if (!GetIsolate()->bootstrapper()->IsActive()) {
-    os << "\n - native context = " << Brief(native_context());
+    os << "\n - native context: " << Brief(native_context());
   }
-  os << "\n - global proxy = " << Brief(global_proxy());
+  os << "\n - global proxy: " << Brief(global_proxy());
   JSObjectPrintBody(os, this);
 }
 
