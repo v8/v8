@@ -217,6 +217,12 @@ class CompactionFuzzer(Fuzzer):
       yield ['--stress-compaction-random']
 
 
+class ThreadPoolSizeFuzzer(Fuzzer):
+  def create_flags_generator(self, rng, test, analysis_value):
+    while True:
+      yield ['--thread-pool-size=%d' % rng.randint(1, 8)]
+
+
 class InterruptBudgetFuzzer(Fuzzer):
   def create_flags_generator(self, rng, test, analysis_value):
     while True:
@@ -268,6 +274,7 @@ FUZZERS = {
   'interrupt_budget': (None, InterruptBudgetFuzzer),
   'marking': (MarkingAnalyzer, MarkingFuzzer),
   'scavenge': (ScavengeAnalyzer, ScavengeFuzzer),
+  'threads': (None, ThreadPoolSizeFuzzer),
 }
 
 

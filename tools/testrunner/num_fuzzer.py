@@ -55,6 +55,9 @@ class NumFuzzer(base_runner.BaseTestRunner):
     parser.add_option("--stress-gc", default=0, type="int",
                       help="probability [0-10] of adding --random-gc-interval "
                            "flag to the test")
+    parser.add_option("--stress-thread-pool-size", default=0, type="int",
+                      help="probability [0-10] of adding --thread-pool-size "
+                           "flag to the test")
 
     # Stress deopt
     parser.add_option("--stress-deopt", default=0, type="int",
@@ -117,7 +120,8 @@ class NumFuzzer(base_runner.BaseTestRunner):
       'gc_fuzzer': bool(max([options.stress_marking,
                              options.stress_scavenge,
                              options.stress_compaction,
-                             options.stress_gc])),
+                             options.stress_gc,
+                             options.stress_thread_pool_size])),
     })
     return variables
 
@@ -208,6 +212,7 @@ class NumFuzzer(base_runner.BaseTestRunner):
     add('marking', options.stress_marking)
     add('scavenge', options.stress_scavenge)
     add('gc_interval', options.stress_gc)
+    add('threads', options.stress_thread_pool_size)
     add('interrupt_budget', options.stress_interrupt_budget)
     add('deopt', options.stress_deopt, options.stress_deopt_min)
     return fuzzers
