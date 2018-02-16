@@ -347,15 +347,15 @@ TF_BUILTIN(PerformPromiseThen, PromiseBuiltinsAssembler) {
   Return(result_promise);
 }
 
-Node* PromiseBuiltinsAssembler::AllocatePromiseReaction(
-    Node* next, Node* promise_or_capability, Node* fulfill_handler,
-    Node* reject_handler) {
+Node* PromiseBuiltinsAssembler::AllocatePromiseReaction(Node* next,
+                                                        Node* payload,
+                                                        Node* fulfill_handler,
+                                                        Node* reject_handler) {
   Node* const reaction = Allocate(PromiseReaction::kSize);
   StoreMapNoWriteBarrier(reaction, Heap::kPromiseReactionMapRootIndex);
   StoreObjectFieldNoWriteBarrier(reaction, PromiseReaction::kNextOffset, next);
-  StoreObjectFieldNoWriteBarrier(reaction,
-                                 PromiseReaction::kPromiseOrCapabilityOffset,
-                                 promise_or_capability);
+  StoreObjectFieldNoWriteBarrier(reaction, PromiseReaction::kPayloadOffset,
+                                 payload);
   StoreObjectFieldNoWriteBarrier(
       reaction, PromiseReaction::kFulfillHandlerOffset, fulfill_handler);
   StoreObjectFieldNoWriteBarrier(
@@ -364,8 +364,7 @@ Node* PromiseBuiltinsAssembler::AllocatePromiseReaction(
 }
 
 Node* PromiseBuiltinsAssembler::AllocatePromiseReactionJobTask(
-    Node* map, Node* context, Node* argument, Node* handler,
-    Node* promise_or_capability) {
+    Node* map, Node* context, Node* argument, Node* handler, Node* payload) {
   Node* const microtask = Allocate(PromiseReactionJobTask::kSize);
   StoreMapNoWriteBarrier(microtask, map);
   StoreObjectFieldNoWriteBarrier(
@@ -375,19 +374,18 @@ Node* PromiseBuiltinsAssembler::AllocatePromiseReactionJobTask(
   StoreObjectFieldNoWriteBarrier(
       microtask, PromiseReactionJobTask::kHandlerOffset, handler);
   StoreObjectFieldNoWriteBarrier(
-      microtask, PromiseReactionJobTask::kPromiseOrCapabilityOffset,
-      promise_or_capability);
+      microtask, PromiseReactionJobTask::kPayloadOffset, payload);
   return microtask;
 }
 
 Node* PromiseBuiltinsAssembler::AllocatePromiseReactionJobTask(
     Heap::RootListIndex map_root_index, Node* context, Node* argument,
-    Node* handler, Node* promise_or_capability) {
+    Node* handler, Node* payload) {
   DCHECK(map_root_index == Heap::kPromiseFulfillReactionJobTaskMapRootIndex ||
          map_root_index == Heap::kPromiseRejectReactionJobTaskMapRootIndex);
   Node* const map = LoadRoot(map_root_index);
   return AllocatePromiseReactionJobTask(map, context, argument, handler,
-                                        promise_or_capability);
+                                        payload);
 }
 
 Node* PromiseBuiltinsAssembler::AllocatePromiseResolveThenableJobTask(
@@ -460,8 +458,8 @@ Node* PromiseBuiltinsAssembler::TriggerPromiseReactions(
                          context);
         STATIC_ASSERT(PromiseReaction::kFulfillHandlerOffset ==
                       PromiseReactionJobTask::kHandlerOffset);
-        STATIC_ASSERT(PromiseReaction::kPromiseOrCapabilityOffset ==
-                      PromiseReactionJobTask::kPromiseOrCapabilityOffset);
+        STATIC_ASSERT(PromiseReaction::kPayloadOffset ==
+                      PromiseReactionJobTask::kPayloadOffset);
       } else {
         Node* handler =
             LoadObjectField(current, PromiseReaction::kRejectHandlerOffset);
@@ -473,8 +471,8 @@ Node* PromiseBuiltinsAssembler::TriggerPromiseReactions(
                          context);
         StoreObjectField(current, PromiseReactionJobTask::kHandlerOffset,
                          handler);
-        STATIC_ASSERT(PromiseReaction::kPromiseOrCapabilityOffset ==
-                      PromiseReactionJobTask::kPromiseOrCapabilityOffset);
+        STATIC_ASSERT(PromiseReaction::kPayloadOffset ==
+                      PromiseReactionJobTask::kPayloadOffset);
       }
       CallBuiltin(Builtins::kEnqueueMicrotask, NoContextConstant(), current);
       Goto(&loop);
@@ -1004,20 +1002,28 @@ TF_BUILTIN(PromiseResolveThenableJob, PromiseBuiltinsAssembler) {
 
 // ES #sec-promisereactionjob
 void PromiseBuiltinsAssembler::PromiseReactionJob(Node* context, Node* argument,
-                                                  Node* handler,
-                                                  Node* promise_or_capability,
+                                                  Node* handler, Node* payload,
                                                   PromiseReaction::Type type) {
   CSA_ASSERT(this, TaggedIsNotSmi(handler));
-  CSA_ASSERT(this, Word32Or(IsUndefined(handler), IsCallable(handler)));
-  CSA_ASSERT(this, TaggedIsNotSmi(promise_or_capability));
-  CSA_ASSERT(this, Word32Or(IsJSPromise(promise_or_capability),
-                            IsPromiseCapability(promise_or_capability)));
+  CSA_ASSERT(this, Word32Or(IsCallable(handler),
+                            Word32Or(IsCode(handler), IsUndefined(handler))));
+  CSA_ASSERT(this, TaggedIsNotSmi(payload));
 
   VARIABLE(var_handler_result, MachineRepresentation::kTagged, argument);
-  Label if_handler_callable(this), if_fulfill(this), if_reject(this);
-  Branch(IsUndefined(handler),
-         type == PromiseReaction::kFulfill ? &if_fulfill : &if_reject,
-         &if_handler_callable);
+  Label if_handler_callable(this), if_fulfill(this), if_reject(this),
+      if_code_handler(this);
+
+  GotoIf(IsUndefined(handler),
+         type == PromiseReaction::kFulfill ? &if_fulfill : &if_reject);
+  Branch(IsCode(handler), &if_code_handler, &if_handler_callable);
+
+  BIND(&if_code_handler);
+  {
+    // The {handler} is a Code object that knows how to deal with
+    // the {payload} and the {argument}.
+    PromiseReactionHandlerDescriptor descriptor(isolate());
+    TailCallStub(descriptor, handler, context, argument, payload);
+  }
 
   BIND(&if_handler_callable);
   {
@@ -1033,24 +1039,22 @@ void PromiseBuiltinsAssembler::PromiseReactionJob(Node* context, Node* argument,
   {
     Label if_promise(this), if_promise_capability(this, Label::kDeferred);
     Node* const value = var_handler_result.value();
-    Branch(IsPromiseCapability(promise_or_capability), &if_promise_capability,
-           &if_promise);
+    Branch(IsPromiseCapability(payload), &if_promise_capability, &if_promise);
 
     BIND(&if_promise);
     {
       // For fast native promises we can skip the indirection
       // via the promiseCapability.[[Resolve]] function and
       // run the resolve logic directly from here.
-      TailCallBuiltin(Builtins::kResolvePromise, context, promise_or_capability,
-                      value);
+      TailCallBuiltin(Builtins::kResolvePromise, context, payload, value);
     }
 
     BIND(&if_promise_capability);
     {
       // In the general case we need to call the (user provided)
       // promiseCapability.[[Resolve]] function.
-      Node* const resolve = LoadObjectField(promise_or_capability,
-                                            PromiseCapability::kResolveOffset);
+      Node* const resolve =
+          LoadObjectField(payload, PromiseCapability::kResolveOffset);
       Node* const result = CallJS(
           CodeFactory::Call(isolate(), ConvertReceiverMode::kNullOrUndefined),
           context, resolve, UndefinedConstant(), value);
@@ -1063,16 +1067,15 @@ void PromiseBuiltinsAssembler::PromiseReactionJob(Node* context, Node* argument,
   if (type == PromiseReaction::kReject) {
     Label if_promise(this), if_promise_capability(this, Label::kDeferred);
     Node* const reason = var_handler_result.value();
-    Branch(IsPromiseCapability(promise_or_capability), &if_promise_capability,
-           &if_promise);
+    Branch(IsPromiseCapability(payload), &if_promise_capability, &if_promise);
 
     BIND(&if_promise);
     {
       // For fast native promises we can skip the indirection
       // via the promiseCapability.[[Reject]] function and
       // run the resolve logic directly from here.
-      TailCallBuiltin(Builtins::kRejectPromise, context, promise_or_capability,
-                      reason, FalseConstant());
+      TailCallBuiltin(Builtins::kRejectPromise, context, payload, reason,
+                      FalseConstant());
     }
 
     BIND(&if_promise_capability);
@@ -1082,8 +1085,8 @@ void PromiseBuiltinsAssembler::PromiseReactionJob(Node* context, Node* argument,
       Label if_exception(this, Label::kDeferred);
       VARIABLE(var_exception, MachineRepresentation::kTagged,
                TheHoleConstant());
-      Node* const reject = LoadObjectField(promise_or_capability,
-                                           PromiseCapability::kRejectOffset);
+      Node* const reject =
+          LoadObjectField(payload, PromiseCapability::kRejectOffset);
       Node* const result = CallJS(
           CodeFactory::Call(isolate(), ConvertReceiverMode::kNullOrUndefined),
           context, reject, UndefinedConstant(), reason);
@@ -1100,8 +1103,7 @@ void PromiseBuiltinsAssembler::PromiseReactionJob(Node* context, Node* argument,
     // predictions in the debugger will be wrong, which just walks the stack
     // and checks for certain builtins.
     TailCallBuiltin(Builtins::kPromiseRejectReactionJob, context,
-                    var_handler_result.value(), UndefinedConstant(),
-                    promise_or_capability);
+                    var_handler_result.value(), UndefinedConstant(), payload);
   }
 }
 
@@ -1110,10 +1112,9 @@ TF_BUILTIN(PromiseFulfillReactionJob, PromiseBuiltinsAssembler) {
   Node* const context = Parameter(Descriptor::kContext);
   Node* const value = Parameter(Descriptor::kValue);
   Node* const handler = Parameter(Descriptor::kHandler);
-  Node* const promise_or_capability =
-      Parameter(Descriptor::kPromiseOrCapability);
+  Node* const payload = Parameter(Descriptor::kPayload);
 
-  PromiseReactionJob(context, value, handler, promise_or_capability,
+  PromiseReactionJob(context, value, handler, payload,
                      PromiseReaction::kFulfill);
 }
 
@@ -1122,10 +1123,9 @@ TF_BUILTIN(PromiseRejectReactionJob, PromiseBuiltinsAssembler) {
   Node* const context = Parameter(Descriptor::kContext);
   Node* const reason = Parameter(Descriptor::kReason);
   Node* const handler = Parameter(Descriptor::kHandler);
-  Node* const promise_or_capability =
-      Parameter(Descriptor::kPromiseOrCapability);
+  Node* const payload = Parameter(Descriptor::kPayload);
 
-  PromiseReactionJob(context, reason, handler, promise_or_capability,
+  PromiseReactionJob(context, reason, handler, payload,
                      PromiseReaction::kReject);
 }
 

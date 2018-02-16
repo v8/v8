@@ -21,36 +21,17 @@ class AsyncFunctionBuiltinsAssembler : public AsyncBuiltinsAssembler {
                           Node* const awaited, Node* const outer_promise,
                           const bool is_predicted_as_caught);
 
-  void AsyncFunctionAwaitResumeClosure(
-      Node* const context, Node* const sent_value,
-      JSGeneratorObject::ResumeMode resume_mode);
+  void AsyncFunctionAwaitResume(Node* const context, Node* const argument,
+                                Node* const generator,
+                                JSGeneratorObject::ResumeMode resume_mode);
 };
 
-namespace {
-
-// Describe fields of Context associated with AsyncFunctionAwait resume
-// closures.
-// TODO(jgruber): Refactor to reuse code for upcoming async-generators.
-class AwaitContext {
- public:
-  enum Fields { kGeneratorSlot = Context::MIN_CONTEXT_SLOTS, kLength };
-};
-
-}  // anonymous namespace
-
-void AsyncFunctionBuiltinsAssembler::AsyncFunctionAwaitResumeClosure(
-    Node* context, Node* sent_value,
+void AsyncFunctionBuiltinsAssembler::AsyncFunctionAwaitResume(
+    Node* const context, Node* const argument, Node* const generator,
     JSGeneratorObject::ResumeMode resume_mode) {
+  CSA_ASSERT(this, IsJSGeneratorObject(generator));
   DCHECK(resume_mode == JSGeneratorObject::kNext ||
          resume_mode == JSGeneratorObject::kThrow);
-
-  Node* const generator =
-      LoadContextElement(context, AwaitContext::kGeneratorSlot);
-  CSA_SLOW_ASSERT(this, HasInstanceType(generator, JS_GENERATOR_OBJECT_TYPE));
-
-  // Inline version of GeneratorPrototypeNext / GeneratorPrototypeReturn with
-  // unnecessary runtime checks removed.
-  // TODO(jgruber): Refactor to reuse code from builtins-generator.cc.
 
   // Ensure that the generator is neither closed nor running.
   CSA_SLOW_ASSERT(
@@ -66,7 +47,7 @@ void AsyncFunctionBuiltinsAssembler::AsyncFunctionAwaitResumeClosure(
 
   // Resume the {receiver} using our trampoline.
   Callable callable = CodeFactory::ResumeGenerator(isolate());
-  CallStub(callable, context, sent_value, generator);
+  CallStub(callable, context, argument, generator);
 
   // The resulting Promise is a throwaway, so it doesn't matter what it
   // resolves to. What is important is that we don't end up keeping the
@@ -74,22 +55,21 @@ void AsyncFunctionBuiltinsAssembler::AsyncFunctionAwaitResumeClosure(
   // of ResumeGenerator, as that would create a memory leak.
 }
 
-TF_BUILTIN(AsyncFunctionAwaitRejectClosure, AsyncFunctionBuiltinsAssembler) {
-  CSA_ASSERT_JS_ARGC_EQ(this, 1);
-  Node* const sentError = Parameter(Descriptor::kSentError);
+TF_BUILTIN(AsyncFunctionAwaitFulfill, AsyncFunctionBuiltinsAssembler) {
+  Node* const argument = Parameter(Descriptor::kArgument);
+  Node* const generator = Parameter(Descriptor::kGenerator);
   Node* const context = Parameter(Descriptor::kContext);
-
-  AsyncFunctionAwaitResumeClosure(context, sentError,
-                                  JSGeneratorObject::kThrow);
+  AsyncFunctionAwaitResume(context, argument, generator,
+                           JSGeneratorObject::kNext);
   Return(UndefinedConstant());
 }
 
-TF_BUILTIN(AsyncFunctionAwaitResolveClosure, AsyncFunctionBuiltinsAssembler) {
-  CSA_ASSERT_JS_ARGC_EQ(this, 1);
-  Node* const sentValue = Parameter(Descriptor::kSentValue);
+TF_BUILTIN(AsyncFunctionAwaitReject, AsyncFunctionBuiltinsAssembler) {
+  Node* const argument = Parameter(Descriptor::kArgument);
+  Node* const generator = Parameter(Descriptor::kGenerator);
   Node* const context = Parameter(Descriptor::kContext);
-
-  AsyncFunctionAwaitResumeClosure(context, sentValue, JSGeneratorObject::kNext);
+  AsyncFunctionAwaitResume(context, argument, generator,
+                           JSGeneratorObject::kThrow);
   Return(UndefinedConstant());
 }
 
@@ -105,25 +85,42 @@ TF_BUILTIN(AsyncFunctionAwaitResolveClosure, AsyncFunctionBuiltinsAssembler) {
 void AsyncFunctionBuiltinsAssembler::AsyncFunctionAwait(
     Node* const context, Node* const generator, Node* const awaited,
     Node* const outer_promise, const bool is_predicted_as_caught) {
-  CSA_SLOW_ASSERT(this, HasInstanceType(generator, JS_GENERATOR_OBJECT_TYPE));
-  CSA_SLOW_ASSERT(this, HasInstanceType(outer_promise, JS_PROMISE_TYPE));
+  CSA_SLOW_ASSERT(this, IsJSGeneratorObject(generator));
+  CSA_SLOW_ASSERT(this, IsJSPromise(outer_promise));
 
-  ContextInitializer init_closure_context = [&](Node* context) {
-    StoreContextElementNoWriteBarrier(context, AwaitContext::kGeneratorSlot,
-                                      generator);
-  };
+  Node* const native_context = LoadNativeContext(context);
+  Node* const promise = AllocateAndInitJSPromise(native_context);
 
-  // TODO(jgruber): AsyncBuiltinsAssembler::Await currently does not reuse
-  // the awaited promise if it is already a promise. Reuse is non-spec compliant
-  // but part of our old behavior gives us a couple of percent
-  // performance boost.
-  // TODO(jgruber): Use a faster specialized version of
-  // InternalPerformPromiseThen.
+  Node* const promise_reactions =
+      LoadObjectField(promise, JSPromise::kReactionsOrResultOffset);
+  Node* const fulfill_handler = HeapConstant(
+      Builtins::CallableFor(isolate(), Builtins::kAsyncFunctionAwaitFulfill)
+          .code());
+  Node* const reject_handler = HeapConstant(
+      Builtins::CallableFor(isolate(), Builtins::kAsyncFunctionAwaitReject)
+          .code());
+  Node* const reaction = AllocatePromiseReaction(
+      promise_reactions, generator, fulfill_handler, reject_handler);
+  StoreObjectField(promise, JSPromise::kReactionsOrResultOffset, reaction);
+  PromiseSetHasHandler(promise);
 
-  Await(context, generator, awaited, outer_promise, AwaitContext::kLength,
-        init_closure_context, Context::ASYNC_FUNCTION_AWAIT_RESOLVE_SHARED_FUN,
-        Context::ASYNC_FUNCTION_AWAIT_REJECT_SHARED_FUN,
-        is_predicted_as_caught);
+  // Perform ! Call(promiseCapability.[[Resolve]], undefined, « value »).
+  CallBuiltin(Builtins::kResolvePromise, native_context, promise, awaited);
+
+  {
+    Label done(this);
+    GotoIfNot(IsDebugActive(), &done);
+    CallRuntime(Runtime::kSetProperty, native_context, generator,
+                LoadRoot(Heap::kgenerator_outer_promise_symbolRootIndex),
+                outer_promise, SmiConstant(LanguageMode::kStrict));
+    if (is_predicted_as_caught) {
+      GotoIf(TaggedIsSmi(awaited), &done);
+      GotoIfNot(IsJSPromise(awaited), &done);
+      PromiseSetHandledHint(awaited);
+    }
+    Goto(&done);
+    BIND(&done);
+  }
 
   // Return outer promise to avoid adding an load of the outer promise before
   // suspending in BytecodeGenerator.

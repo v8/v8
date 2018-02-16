@@ -87,16 +87,14 @@ class PromiseBuiltinsAssembler : public CodeStubAssembler {
   Node* AllocateAndSetJSPromise(Node* context, v8::Promise::PromiseState status,
                                 Node* result);
 
-  Node* AllocatePromiseReaction(Node* next, Node* promise_or_capability,
+  Node* AllocatePromiseReaction(Node* next, Node* payload,
                                 Node* fulfill_handler, Node* reject_handler);
 
   Node* AllocatePromiseReactionJobTask(Heap::RootListIndex map_root_index,
                                        Node* context, Node* argument,
-                                       Node* handler,
-                                       Node* promise_or_capability);
+                                       Node* handler, Node* payload);
   Node* AllocatePromiseReactionJobTask(Node* map, Node* context, Node* argument,
-                                       Node* handler,
-                                       Node* promise_or_capability);
+                                       Node* handler, Node* payload);
   Node* AllocatePromiseResolveThenableJobTask(Node* promise_to_resolve,
                                               Node* then, Node* thenable,
                                               Node* context);
@@ -177,8 +175,7 @@ class PromiseBuiltinsAssembler : public CodeStubAssembler {
   Node* PromiseStatus(Node* promise);
 
   void PromiseReactionJob(Node* context, Node* argument, Node* handler,
-                          Node* promise_or_capability,
-                          PromiseReaction::Type type);
+                          Node* payload, PromiseReaction::Type type);
 
   Node* IsPromiseStatus(Node* actual, v8::Promise::PromiseState expected);
   void PromiseSetStatus(Node* promise, v8::Promise::PromiseState status);

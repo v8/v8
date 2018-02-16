@@ -629,7 +629,7 @@ class InternalBuiltinsAssembler : public CodeStubAssembler {
   void LeaveMicrotaskContext();
 
   void RunPromiseHook(Runtime::FunctionId id, TNode<Context> context,
-                      SloppyTNode<HeapObject> promise_or_capability);
+                      SloppyTNode<HeapObject> payload);
 
   TNode<Object> GetPendingException() {
     auto ref = ExternalReference(kPendingExceptionAddress, isolate());
@@ -750,21 +750,12 @@ void InternalBuiltinsAssembler::LeaveMicrotaskContext() {
 
 void InternalBuiltinsAssembler::RunPromiseHook(
     Runtime::FunctionId id, TNode<Context> context,
-    SloppyTNode<HeapObject> promise_or_capability) {
+    SloppyTNode<HeapObject> payload) {
   Label hook(this, Label::kDeferred), done_hook(this);
   Branch(IsPromiseHookEnabledOrDebugIsActive(), &hook, &done_hook);
   BIND(&hook);
   {
-    // Get to the underlying JSPromise instance.
-    Node* const promise =
-        Select(IsJSPromise(promise_or_capability),
-               [=] { return promise_or_capability; },
-               [=] {
-                 return LoadObjectField(promise_or_capability,
-                                        PromiseCapability::kPromiseOffset);
-               },
-               MachineRepresentation::kTagged);
-    CallRuntime(id, context, promise);
+    CallRuntime(id, context, payload);
     Goto(&done_hook);
   }
   BIND(&done_hook);
@@ -979,21 +970,19 @@ TF_BUILTIN(RunMicrotasks, InternalBuiltinsAssembler) {
             LoadObjectField(microtask, PromiseReactionJobTask::kArgumentOffset);
         Node* const handler =
             LoadObjectField(microtask, PromiseReactionJobTask::kHandlerOffset);
-        Node* const promise_or_capability = LoadObjectField(
-            microtask, PromiseReactionJobTask::kPromiseOrCapabilityOffset);
+        Node* const payload =
+            LoadObjectField(microtask, PromiseReactionJobTask::kPayloadOffset);
 
         // Run the promise before/debug hook if enabled.
-        RunPromiseHook(Runtime::kPromiseHookBefore, microtask_context,
-                       promise_or_capability);
+        RunPromiseHook(Runtime::kPromiseHookBefore, microtask_context, payload);
 
         Node* const result =
             CallBuiltin(Builtins::kPromiseFulfillReactionJob, microtask_context,
-                        argument, handler, promise_or_capability);
+                        argument, handler, payload);
         GotoIfException(result, &if_exception, &var_exception);
 
         // Run the promise after/debug hook if enabled.
-        RunPromiseHook(Runtime::kPromiseHookAfter, microtask_context,
-                       promise_or_capability);
+        RunPromiseHook(Runtime::kPromiseHookAfter, microtask_context, payload);
 
         LeaveMicrotaskContext();
         SetCurrentContext(current_context);
@@ -1015,21 +1004,19 @@ TF_BUILTIN(RunMicrotasks, InternalBuiltinsAssembler) {
             LoadObjectField(microtask, PromiseReactionJobTask::kArgumentOffset);
         Node* const handler =
             LoadObjectField(microtask, PromiseReactionJobTask::kHandlerOffset);
-        Node* const promise_or_capability = LoadObjectField(
-            microtask, PromiseReactionJobTask::kPromiseOrCapabilityOffset);
+        Node* const payload =
+            LoadObjectField(microtask, PromiseReactionJobTask::kPayloadOffset);
 
         // Run the promise before/debug hook if enabled.
-        RunPromiseHook(Runtime::kPromiseHookBefore, microtask_context,
-                       promise_or_capability);
+        RunPromiseHook(Runtime::kPromiseHookBefore, microtask_context, payload);
 
         Node* const result =
             CallBuiltin(Builtins::kPromiseRejectReactionJob, microtask_context,
-                        argument, handler, promise_or_capability);
+                        argument, handler, payload);
         GotoIfException(result, &if_exception, &var_exception);
 
         // Run the promise after/debug hook if enabled.
-        RunPromiseHook(Runtime::kPromiseHookAfter, microtask_context,
-                       promise_or_capability);
+        RunPromiseHook(Runtime::kPromiseHookAfter, microtask_context, payload);
 
         LeaveMicrotaskContext();
         SetCurrentContext(current_context);

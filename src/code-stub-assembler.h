@@ -1085,6 +1085,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
   Node* IsCallableMap(Node* map);
   Node* IsCallable(Node* object);
   Node* IsCell(Node* object);
+  Node* IsCode(Node* object);
   Node* IsConsStringInstanceType(Node* instance_type);
   Node* IsConstructorMap(Node* map);
   Node* IsConstructor(Node* object);
@@ -1115,6 +1116,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
   Node* IsJSFunctionInstanceType(Node* instance_type);
   Node* IsJSFunctionMap(Node* object);
   Node* IsJSFunction(Node* object);
+  Node* IsJSGeneratorObject(Node* object);
   Node* IsJSGlobalProxyInstanceType(Node* instance_type);
   Node* IsJSGlobalProxy(Node* object);
   Node* IsJSObjectInstanceType(Node* instance_type);

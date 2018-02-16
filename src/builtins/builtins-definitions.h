@@ -365,10 +365,10 @@ namespace internal {
   CPP(ArrayBufferPrototypeSlice)                                               \
                                                                                \
   /* AsyncFunction */                                                          \
+  TFC(AsyncFunctionAwaitFulfill, PromiseReactionHandler, 1)                    \
+  TFC(AsyncFunctionAwaitReject, PromiseReactionHandler, 1)                     \
   TFJ(AsyncFunctionAwaitCaught, 3, kGenerator, kAwaited, kOuterPromise)        \
   TFJ(AsyncFunctionAwaitUncaught, 3, kGenerator, kAwaited, kOuterPromise)      \
-  TFJ(AsyncFunctionAwaitRejectClosure, 1, kSentError)                          \
-  TFJ(AsyncFunctionAwaitResolveClosure, 1, kSentValue)                         \
   TFJ(AsyncFunctionPromiseCreate, 0)                                           \
   TFJ(AsyncFunctionPromiseRelease, 1, kPromise)                                \
                                                                                \
@@ -820,8 +820,8 @@ namespace internal {
   /* ES #sec-promise.prototype.catch */                                        \
   TFJ(PromisePrototypeCatch, 1, kOnRejected)                                   \
   /* ES #sec-promisereactionjob */                                             \
-  TFS(PromiseRejectReactionJob, kReason, kHandler, kPromiseOrCapability)       \
-  TFS(PromiseFulfillReactionJob, kValue, kHandler, kPromiseOrCapability)       \
+  TFS(PromiseRejectReactionJob, kReason, kHandler, kPayload)                   \
+  TFS(PromiseFulfillReactionJob, kValue, kHandler, kPayload)                   \
   /* ES #sec-promiseresolvethenablejob */                                      \
   TFS(PromiseResolveThenableJob, kPromiseToResolve, kThenable, kThen)          \
   /* ES #sec-promise.resolve */                                                \

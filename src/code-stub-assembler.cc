@@ -4220,6 +4220,10 @@ Node* CodeStubAssembler::IsCell(Node* object) {
   return WordEqual(LoadMap(object), LoadRoot(Heap::kCellMapRootIndex));
 }
 
+Node* CodeStubAssembler::IsCode(Node* object) {
+  return HasInstanceType(object, CODE_TYPE);
+}
+
 Node* CodeStubAssembler::IsConstructorMap(Node* map) {
   CSA_ASSERT(this, IsMap(map));
   return IsSetWord32<Map::IsConstructorBit>(LoadMapBitField(map));
@@ -4533,6 +4537,10 @@ Node* CodeStubAssembler::IsDictionary(Node* object) {
 Node* CodeStubAssembler::IsNumberDictionary(Node* object) {
   return WordEqual(LoadMap(object),
                    LoadRoot(Heap::kNumberDictionaryMapRootIndex));
+}
+
+Node* CodeStubAssembler::IsJSGeneratorObject(Node* object) {
+  return HasInstanceType(object, JS_GENERATOR_OBJECT_TYPE);
 }
 
 Node* CodeStubAssembler::IsJSFunctionInstanceType(Node* instance_type) {

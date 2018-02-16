@@ -2977,15 +2977,16 @@ class PromiseReactionJobTask : public Microtask {
  public:
   DECL_ACCESSORS(argument, Object)
   DECL_ACCESSORS(context, Context)
+  // [handler]: This is either a Code object, a Callable or Undefined.
   DECL_ACCESSORS(handler, HeapObject)
-  // [promise_or_capability]: Either a JSPromise or a PromiseCapability.
-  DECL_ACCESSORS(promise_or_capability, HeapObject)
+  // [payload]: Usually a JSPromise or a PromiseCapability.
+  DECL_ACCESSORS(payload, HeapObject)
 
   static const int kArgumentOffset = Microtask::kHeaderSize;
   static const int kContextOffset = kArgumentOffset + kPointerSize;
   static const int kHandlerOffset = kContextOffset + kPointerSize;
-  static const int kPromiseOrCapabilityOffset = kHandlerOffset + kPointerSize;
-  static const int kSize = kPromiseOrCapabilityOffset + kPointerSize;
+  static const int kPayloadOffset = kHandlerOffset + kPointerSize;
+  static const int kSize = kPayloadOffset + kPointerSize;
 
   // Dispatched behavior.
   DECL_CAST(PromiseReactionJobTask)
@@ -3071,9 +3072,10 @@ class PromiseCapability : public Struct {
 // of microtasks. So the size of PromiseReaction and the size of the
 // PromiseReactionJobTask has to be same for this to work.
 //
-// The PromiseReaction::promise_or_capability field can either hold a JSPromise
-// instance (in the fast case of a native promise) or a PromiseCapability in
-// case of a Promise subclass.
+// The PromiseReaction::payload field usually holds a JSPromise
+// instance (in the fast case of a native promise) or a PromiseCapability
+// in case of a custom promise. For await we store the JSGeneratorObject
+// here and use custom Code handlers.
 //
 // We need to keep the context in the PromiseReaction so that we can run
 // the default handlers (in case they are undefined) in the proper context.
@@ -3087,16 +3089,18 @@ class PromiseReaction : public Struct {
   enum Type { kFulfill, kReject };
 
   DECL_ACCESSORS(next, Object)
+  // [reject_handler]: This is either a Code object, a Callable or Undefined.
   DECL_ACCESSORS(reject_handler, HeapObject)
+  // [fulfill_handler]: This is either a Code object, a Callable or Undefined.
   DECL_ACCESSORS(fulfill_handler, HeapObject)
-  DECL_ACCESSORS(promise_or_capability, HeapObject)
+  // [payload]: Usually a JSPromise or a PromiseCapability.
+  DECL_ACCESSORS(payload, HeapObject)
 
   static const int kNextOffset = Struct::kHeaderSize;
   static const int kRejectHandlerOffset = kNextOffset + kPointerSize;
   static const int kFulfillHandlerOffset = kRejectHandlerOffset + kPointerSize;
-  static const int kPromiseOrCapabilityOffset =
-      kFulfillHandlerOffset + kPointerSize;
-  static const int kSize = kPromiseOrCapabilityOffset + kPointerSize;
+  static const int kPayloadOffset = kFulfillHandlerOffset + kPointerSize;
+  static const int kSize = kPayloadOffset + kPointerSize;
 
   // Dispatched behavior.
   DECL_CAST(PromiseReaction)
@@ -4050,6 +4054,11 @@ class JSPromise : public JSObject {
   // ES section #sec-promise-resolve-functions
   MUST_USE_RESULT static MaybeHandle<Object> Resolve(Handle<JSPromise> promise,
                                                      Handle<Object> resolution);
+
+  // This is a helper that extracts the JSPromise from the input
+  // {object}, which is used as a payload for PromiseReaction and
+  // PromiseReactionJobTask.
+  MUST_USE_RESULT static MaybeHandle<JSPromise> From(Handle<HeapObject> object);
 
   DECL_CAST(JSPromise)
 

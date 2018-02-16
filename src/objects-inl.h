@@ -2301,8 +2301,7 @@ bool AccessorInfo::has_getter() {
 ACCESSORS(PromiseReaction, next, Object, kNextOffset)
 ACCESSORS(PromiseReaction, reject_handler, HeapObject, kRejectHandlerOffset)
 ACCESSORS(PromiseReaction, fulfill_handler, HeapObject, kFulfillHandlerOffset)
-ACCESSORS(PromiseReaction, promise_or_capability, HeapObject,
-          kPromiseOrCapabilityOffset)
+ACCESSORS(PromiseReaction, payload, HeapObject, kPayloadOffset)
 
 ACCESSORS(AsyncGeneratorRequest, next, Object, kNextOffset)
 SMI_ACCESSORS(AsyncGeneratorRequest, resume_mode, kResumeModeOffset)
@@ -2834,8 +2833,7 @@ ACCESSORS(PromiseResolveThenableJobTask, thenable, JSReceiver, kThenableOffset)
 ACCESSORS(PromiseReactionJobTask, context, Context, kContextOffset)
 ACCESSORS(PromiseReactionJobTask, argument, Object, kArgumentOffset);
 ACCESSORS(PromiseReactionJobTask, handler, HeapObject, kHandlerOffset);
-ACCESSORS(PromiseReactionJobTask, promise_or_capability, HeapObject,
-          kPromiseOrCapabilityOffset);
+ACCESSORS(PromiseReactionJobTask, payload, HeapObject, kPayloadOffset);
 
 ACCESSORS(PromiseCapability, promise, HeapObject, kPromiseOffset)
 ACCESSORS(PromiseCapability, resolve, Object, kResolveOffset)
