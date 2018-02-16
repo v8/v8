@@ -5328,8 +5328,7 @@ TNode<String> CodeStubAssembler::StringFromCodePoint(TNode<Int32T> codepoint,
   return CAST(var_result.value());
 }
 
-TNode<Number> CodeStubAssembler::StringToNumber(SloppyTNode<String> input) {
-  CSA_SLOW_ASSERT(this, IsString(input));
+TNode<Number> CodeStubAssembler::StringToNumber(TNode<String> input) {
   Label runtime(this, Label::kDeferred);
   Label end(this);
 
@@ -5510,7 +5509,8 @@ Node* CodeStubAssembler::NonNumberToNumberOrNumeric(
     BIND(&if_inputisstring);
     {
       // The {input} is a String, use the fast stub to convert it to a Number.
-      var_result.Bind(StringToNumber(input));
+      TNode<String> string_input = CAST(input);
+      var_result.Bind(StringToNumber(string_input));
       Goto(&end);
     }
 

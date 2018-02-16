@@ -1227,7 +1227,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
   // Type conversion helpers.
   enum class BigIntHandling { kConvertToNumber, kThrow };
   // Convert a String to a Number.
-  TNode<Number> StringToNumber(SloppyTNode<String> input);
+  TNode<Number> StringToNumber(TNode<String> input);
   // Convert a Number to a String.
   Node* NumberToString(Node* input);
   // Convert an object to a name.

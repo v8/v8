@@ -99,7 +99,7 @@ TF_BUILTIN(NonPrimitiveToPrimitive_String, ConversionBuiltinsAssembler) {
 }
 
 TF_BUILTIN(StringToNumber, CodeStubAssembler) {
-  Node* input = Parameter(Descriptor::kArgument);
+  TNode<String> input = CAST(Parameter(Descriptor::kArgument));
 
   Return(StringToNumber(input));
 }
