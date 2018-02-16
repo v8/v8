@@ -50,7 +50,7 @@ void HeapObject::PrintHeader(std::ostream& os, const char* id) {  // NOLINT
   }
   os << "]";
   if (GetHeap()->InOldSpace(this)) os << " in OldSpace";
-  os << "\n - map = " << Brief(map());
+  if (!IsMap()) os << "\n - map = " << Brief(map());
 }
 
 
@@ -494,7 +494,7 @@ static void JSObjectPrintHeader(std::ostream& os, JSObject* obj,
   obj->PrintHeader(os, id);
   // Don't call GetElementsKind, its validation code can cause the printer to
   // fail when debugging.
-  os << "\n - map = " << reinterpret_cast<void*>(obj->map()) << " [";
+  os << " [";
   if (obj->HasFastProperties()) {
     os << "FastProperties";
   } else {
@@ -655,7 +655,6 @@ void AliasedArgumentsEntry::AliasedArgumentsEntryPrint(
 
 void FixedArray::FixedArrayPrint(std::ostream& os) {  // NOLINT
   HeapObject::PrintHeader(os, IsHashTable() ? "HashTable" : "FixedArray");
-  os << "\n - map = " << Brief(map());
   os << "\n - length: " << length();
   PrintFixedArrayElements(os, this);
   os << "\n";
@@ -1204,7 +1203,7 @@ void SharedFunctionInfo::SharedFunctionInfoPrint(std::ostream& os) {  // NOLINT
   } else {
     os << "\n - no debug info";
   }
-  os << "\n - scope info" << Brief(scope_info());
+  os << "\n - scope info = " << Brief(scope_info());
   os << "\n - length = " << length();
   os << "\n - feedback_metadata = ";
   feedback_metadata()->FeedbackMetadataPrint(os);
@@ -1668,6 +1667,11 @@ void PrintScopeInfoList(ScopeInfo* scope_info, std::ostream& os,
 
 void ScopeInfo::ScopeInfoPrint(std::ostream& os) {  // NOLINT
   HeapObject::PrintHeader(os, "ScopeInfo");
+  if (length() == 0) {
+    os << "\n - length = 0";
+    return;
+  }
+
   os << "\n - scope type: " << scope_type();
   os << "\n - language mode: " << language_mode();
   os << "\n - local count: " << LocalCount();
