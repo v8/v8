@@ -3914,7 +3914,9 @@ TEST(LineOrParagraphSeparatorAsLineTerminator) {
 
 TEST(LineOrParagraphSeparatorInStringLiteral) {
   // Tests that both preparsing and parsing treat U+2028 LINE SEPARATOR and
-  // U+2029 PARAGRAPH SEPARATOR as line terminators within string literals.
+  // U+2029 PARAGRAPH SEPARATOR as line terminators within string literals
+  // when the "subsume JSON" flag is disabled.
+  v8::internal::FLAG_harmony_subsume_json = false;
   const char* context_data[][2] = {
       {"\"", "\""}, {"'", "'"}, {nullptr, nullptr}};
   const char* statement_data[] = {"\x31\xE2\x80\xA8\x32",  // 1<U+2028>2
@@ -3927,7 +3929,7 @@ TEST(LineOrParagraphSeparatorInStringLiteral) {
 TEST(LineOrParagraphSeparatorInStringLiteralHarmony) {
   // Tests that both preparsing and parsing don't treat U+2028 LINE SEPARATOR
   // and U+2029 PARAGRAPH SEPARATOR as line terminators within string literals
-  // with the "subsume JSON" flag enabled.
+  // when the "subsume JSON" flag is enabled.
   v8::internal::FLAG_harmony_subsume_json = true;
   const char* context_data[][2] = {
       {"\"", "\""}, {"'", "'"}, {nullptr, nullptr}};

@@ -510,6 +510,10 @@
   # Test262 Bug: https://bugs.ecmascript.org/show_bug.cgi?id=596
   'built-ins/Array/prototype/sort/bug_596_1': [PASS, FAIL_OK],
 
+  # https://bugs.chromium.org/p/v8/issues/detail?id=7418
+  'language/line-terminators/S7.3_A2.3': [FAIL],
+  'language/line-terminators/S7.3_A2.4': [FAIL],
+
   # https://github.com/tc39/test262/pull/688#pullrequestreview-14025354
   'built-ins/Function/internals/Construct/derived-this-uninitialized-realm': [FAIL],
 
