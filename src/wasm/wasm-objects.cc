@@ -404,9 +404,8 @@ Handle<JSArrayBuffer> GrowMemoryBuffer(Isolate* isolate,
   if ((enable_guard_regions || old_size == new_size) && old_size != 0) {
     DCHECK_NOT_NULL(old_buffer->backing_store());
     if (old_size != new_size) {
-      isolate->array_buffer_allocator()->SetProtection(
-          old_mem_start, new_size,
-          v8::ArrayBuffer::Allocator::Protection::kReadWrite);
+      CHECK(i::SetPermissions(old_mem_start, new_size,
+                              PageAllocator::kReadWrite));
       reinterpret_cast<v8::Isolate*>(isolate)
           ->AdjustAmountOfExternalAllocatedMemory(pages * wasm::kWasmPageSize);
     }

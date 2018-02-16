@@ -19211,10 +19211,11 @@ void JSArrayBuffer::FreeBackingStore(Isolate* isolate, Allocation allocation) {
     // actually a buffer we are tracking.
     isolate->wasm_engine()->allocation_tracker()->ReleaseAddressSpace(
         allocation.length);
+    CHECK(FreePages(allocation.allocation_base, allocation.length));
+  } else {
+    isolate->array_buffer_allocator()->Free(allocation.allocation_base,
+                                            allocation.length);
   }
-
-  isolate->array_buffer_allocator()->Free(allocation.allocation_base,
-                                          allocation.length, allocation.mode);
 }
 
 void JSArrayBuffer::Setup(Handle<JSArrayBuffer> array_buffer, Isolate* isolate,

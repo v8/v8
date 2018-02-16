@@ -84,15 +84,18 @@ class ArrayBufferAllocatorBase : public v8::ArrayBuffer::Allocator {
     allocator_->Free(data, length);
   }
 
-  void* Reserve(size_t length) override { return allocator_->Reserve(length); }
+  void* Reserve(size_t length) override {
+    UNIMPLEMENTED();
+    return nullptr;
+  }
 
   void Free(void* data, size_t length, AllocationMode mode) override {
-    allocator_->Free(data, length, mode);
+    UNIMPLEMENTED();
   }
 
   void SetProtection(void* data, size_t length,
                      Protection protection) override {
-    allocator_->SetProtection(data, length, protection);
+    UNIMPLEMENTED();
   }
 
  private:
@@ -119,18 +122,6 @@ class ShellArrayBufferAllocator : public ArrayBufferAllocatorBase {
     } else {
       ArrayBufferAllocatorBase::Free(data, length);
     }
-  }
-
-  void* Reserve(size_t length) override {
-    // |length| must be over the threshold so we can distinguish VM from
-    // malloced memory.
-    DCHECK_LE(kVMThreshold, length);
-    return ArrayBufferAllocatorBase::Reserve(length);
-  }
-
-  void Free(void* data, size_t length, AllocationMode) override {
-    // Ignore allocation mode; the appropriate action is determined by |length|.
-    Free(data, length);
   }
 
  private:
@@ -170,14 +161,6 @@ class MockArrayBufferAllocator : public ArrayBufferAllocatorBase {
 
   void Free(void* data, size_t length) override {
     return ArrayBufferAllocatorBase::Free(data, Adjust(length));
-  }
-
-  void* Reserve(size_t length) override {
-    return ArrayBufferAllocatorBase::Reserve(Adjust(length));
-  }
-
-  void Free(void* data, size_t length, AllocationMode mode) override {
-    return ArrayBufferAllocatorBase::Free(data, Adjust(length), mode);
   }
 
  private:
@@ -2574,7 +2557,11 @@ void SourceGroup::JoinThread() {
 
 ExternalizedContents::~ExternalizedContents() {
   if (base_ != nullptr) {
-    Shell::array_buffer_allocator->Free(base_, length_, mode_);
+    if (mode_ == ArrayBuffer::Allocator::AllocationMode::kReservation) {
+      CHECK(i::FreePages(base_, length_));
+    } else {
+      Shell::array_buffer_allocator->Free(base_, length_);
+    }
   }
 }
 

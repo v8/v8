@@ -461,16 +461,7 @@ void* v8::ArrayBuffer::Allocator::Reserve(size_t length) { UNIMPLEMENTED(); }
 
 void v8::ArrayBuffer::Allocator::Free(void* data, size_t length,
                                       AllocationMode mode) {
-  switch (mode) {
-    case AllocationMode::kNormal: {
-      Free(data, length);
-      return;
-    }
-    case AllocationMode::kReservation: {
-      UNIMPLEMENTED();
-      return;
-    }
-  }
+  UNIMPLEMENTED();
 }
 
 void v8::ArrayBuffer::Allocator::SetProtection(
@@ -483,7 +474,7 @@ namespace {
 
 class ArrayBufferAllocator : public v8::ArrayBuffer::Allocator {
  public:
-  virtual void* Allocate(size_t length) {
+  void* Allocate(size_t length) override {
 #if V8_OS_AIX && _LINUX_SOURCE_COMPAT
     // Work around for GCC bug on AIX
     // See: https://gcc.gnu.org/bugzilla/show_bug.cgi?id=79839
@@ -494,7 +485,7 @@ class ArrayBufferAllocator : public v8::ArrayBuffer::Allocator {
     return data;
   }
 
-  virtual void* AllocateUninitialized(size_t length) {
+  void* AllocateUninitialized(size_t length) override {
 #if V8_OS_AIX && _LINUX_SOURCE_COMPAT
     // Work around for GCC bug on AIX
     // See: https://gcc.gnu.org/bugzilla/show_bug.cgi?id=79839
@@ -505,42 +496,7 @@ class ArrayBufferAllocator : public v8::ArrayBuffer::Allocator {
     return data;
   }
 
-  virtual void Free(void* data, size_t) { free(data); }
-
-  virtual void* Reserve(size_t length) {
-    size_t page_size = i::AllocatePageSize();
-    size_t allocated = RoundUp(length, page_size);
-    void* address = i::AllocatePages(i::GetRandomMmapAddr(), allocated,
-                                     page_size, PageAllocator::kNoAccess);
-    return address;
-  }
-
-  virtual void Free(void* data, size_t length,
-                    v8::ArrayBuffer::Allocator::AllocationMode mode) {
-    switch (mode) {
-      case v8::ArrayBuffer::Allocator::AllocationMode::kNormal: {
-        return Free(data, length);
-      }
-      case v8::ArrayBuffer::Allocator::AllocationMode::kReservation: {
-        size_t page_size = i::AllocatePageSize();
-        size_t allocated = RoundUp(length, page_size);
-        CHECK(i::FreePages(data, allocated));
-        return;
-      }
-    }
-  }
-
-  virtual void SetProtection(
-      void* data, size_t length,
-      v8::ArrayBuffer::Allocator::Protection protection) {
-    DCHECK(protection == v8::ArrayBuffer::Allocator::Protection::kNoAccess ||
-           protection == v8::ArrayBuffer::Allocator::Protection::kReadWrite);
-    PageAllocator::Permission permission =
-        (protection == v8::ArrayBuffer::Allocator::Protection::kReadWrite)
-            ? PageAllocator::kReadWrite
-            : PageAllocator::kNoAccess;
-    CHECK(i::SetPermissions(data, length, permission));
-  }
+  void Free(void* data, size_t) override { free(data); }
 };
 
 bool RunExtraCode(Isolate* isolate, Local<Context> context,

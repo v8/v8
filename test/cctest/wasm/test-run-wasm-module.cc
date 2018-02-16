@@ -1017,8 +1017,13 @@ struct ManuallyExternalizedBuffer {
   }
   ~ManuallyExternalizedBuffer() {
     if (!buffer_->has_guard_region()) {
-      isolate_->array_buffer_allocator()->Free(
-          allocation_base_, allocation_length_, buffer_->allocation_mode());
+      if (buffer_->allocation_mode() ==
+          ArrayBuffer::Allocator::AllocationMode::kReservation) {
+        CHECK(v8::internal::FreePages(allocation_base_, allocation_length_));
+      } else {
+        isolate_->array_buffer_allocator()->Free(allocation_base_,
+                                                 allocation_length_);
+      }
     }
   }
 };
