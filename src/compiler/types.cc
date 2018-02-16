@@ -276,6 +276,7 @@ Type::bitset BitsetType::Lub(i::Map* map) {
     case FEEDBACK_VECTOR_TYPE:
     case PROPERTY_ARRAY_TYPE:
     case FOREIGN_TYPE:
+    case SCOPE_INFO_TYPE:
     case SCRIPT_TYPE:
     case CODE_TYPE:
     case PROPERTY_CELL_TYPE:

@@ -57,7 +57,6 @@
   V(PROTOTYPE_USERS_TYPE)                   \
   V(REGEXP_MULTIPLE_CACHE_TYPE)             \
   V(RETAINED_MAPS_TYPE)                     \
-  V(SCOPE_INFO_TYPE)                        \
   V(SCRIPT_LIST_TYPE)                       \
   V(SCRIPT_SHARED_FUNCTION_INFOS_TYPE)      \
   V(SCRIPT_SOURCE_EXTERNAL_TYPE)            \

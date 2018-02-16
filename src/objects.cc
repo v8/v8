@@ -3103,6 +3103,7 @@ VisitorId Map::GetVisitorId(Map* map) {
     case HASH_TABLE_TYPE:
     case FIXED_ARRAY_TYPE:
     case DESCRIPTOR_ARRAY_TYPE:
+    case SCOPE_INFO_TYPE:
       return kVisitFixedArray;
 
     case FIXED_DOUBLE_ARRAY_TYPE:
@@ -3434,6 +3435,9 @@ void HeapObject::HeapObjectShortPrint(std::ostream& os) {  // NOLINT
     break;
       STRUCT_LIST(MAKE_STRUCT_CASE)
 #undef MAKE_STRUCT_CASE
+    case SCOPE_INFO_TYPE:
+      os << "<ScopeInfo[" << ScopeInfo::cast(this)->length() << "]>";
+      break;
     case CODE_TYPE: {
       Code* code = Code::cast(this);
       os << "<Code " << Code::Kind2String(code->kind());

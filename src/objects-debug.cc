@@ -87,12 +87,13 @@ void HeapObject::HeapObjectVerify() {
   CHECK(map()->IsMap());
   InstanceType instance_type = map()->instance_type();
 
-  if (instance_type < FIRST_NONSTRING_TYPE) {
-    String::cast(this)->StringVerify();
-    return;
-  }
 
   switch (instance_type) {
+#define STRING_TYPE_CASE(TYPE, size, name, camel_name) case TYPE:
+    STRING_TYPE_LIST(STRING_TYPE_CASE)
+#undef STRING_TYPE_CASE
+    String::cast(this)->StringVerify();
+    break;
     case SYMBOL_TYPE:
       Symbol::cast(this)->SymbolVerify();
       break;
@@ -108,6 +109,7 @@ void HeapObject::HeapObjectVerify() {
       break;
     case HASH_TABLE_TYPE:
     case FIXED_ARRAY_TYPE:
+    case SCOPE_INFO_TYPE:
       FixedArray::cast(this)->FixedArrayVerify();
       break;
     case FIXED_DOUBLE_ARRAY_TYPE:
@@ -288,10 +290,6 @@ void HeapObject::HeapObjectVerify() {
 
     case STORE_HANDLER_TYPE:
       StoreHandler::cast(this)->StoreHandlerVerify();
-      break;
-
-    default:
-      UNREACHABLE();
       break;
   }
 }

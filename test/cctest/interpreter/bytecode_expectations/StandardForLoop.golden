@@ -132,8 +132,8 @@ bytecodes: [
   /*   61 S> */ B(Return),
 ]
 constant pool: [
-  FIXED_ARRAY_TYPE,
-  FIXED_ARRAY_TYPE,
+  SCOPE_INFO_TYPE,
+  SCOPE_INFO_TYPE,
   ONE_BYTE_INTERNALIZED_STRING_TYPE ["eval"],
   ONE_BYTE_INTERNALIZED_STRING_TYPE ["1"],
 ]
@@ -207,7 +207,7 @@ bytecodes: [
   /*   80 S> */ B(Return),
 ]
 constant pool: [
-  FIXED_ARRAY_TYPE,
+  SCOPE_INFO_TYPE,
   SHARED_FUNCTION_INFO_TYPE,
 ]
 handlers: [
@@ -454,7 +454,7 @@ bytecodes: [
 ]
 constant pool: [
   ONE_BYTE_INTERNALIZED_STRING_TYPE [".catch"],
-  FIXED_ARRAY_TYPE,
+  SCOPE_INFO_TYPE,
   Smi [6],
   Smi [9],
 ]
@@ -562,7 +562,7 @@ bytecodes: [
 constant pool: [
   Smi [58],
   ONE_BYTE_INTERNALIZED_STRING_TYPE [".catch"],
-  FIXED_ARRAY_TYPE,
+  SCOPE_INFO_TYPE,
   Smi [6],
   Smi [9],
 ]

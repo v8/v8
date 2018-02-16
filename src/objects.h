@@ -390,6 +390,7 @@ const int kStubMinorKeyBits = kSmiValueSize - kStubMajorKeyBits - 1;
   V(FIXED_ARRAY_TYPE)                                           \
   V(DESCRIPTOR_ARRAY_TYPE)                                      \
   V(HASH_TABLE_TYPE)                                            \
+  V(SCOPE_INFO_TYPE)                                            \
   V(TRANSITION_ARRAY_TYPE)                                      \
                                                                 \
   V(CELL_TYPE)                                                  \
@@ -773,6 +774,7 @@ enum InstanceType : uint16_t {
   FIXED_ARRAY_TYPE,  // FIRST_FIXED_ARRAY_TYPE
   DESCRIPTOR_ARRAY_TYPE,
   HASH_TABLE_TYPE,
+  SCOPE_INFO_TYPE,
   TRANSITION_ARRAY_TYPE,  // LAST_FIXED_ARRAY_TYPE
 
   // Misc.

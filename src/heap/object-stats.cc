@@ -1,4 +1,5 @@
 // Copyright 2015 the V8 project authors. All rights reserved.
+//
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -681,8 +682,6 @@ void ObjectStatsCollectorImpl::RecordVirtualSharedFunctionInfoDetails(
         nullptr, info, ObjectStats::UNCOMPILED_SHARED_FUNCTION_INFO_TYPE);
   }
   // SharedFunctonInfo::feedback_metadata() is a COW array.
-  RecordSimpleVirtualObjectStats(info, info->scope_info(),
-                                 ObjectStats::SCOPE_INFO_TYPE);
   FeedbackMetadata* fm = FeedbackMetadata::cast(info->feedback_metadata());
   RecordVirtualObjectStats(info, fm, ObjectStats::FEEDBACK_METADATA_TYPE,
                            fm->Size(), ObjectStats::kNoOverAllocation,

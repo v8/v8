@@ -35,6 +35,7 @@ class Zone;
 class ScopeInfo : public FixedArray {
  public:
   DECL_CAST(ScopeInfo)
+  DECL_PRINTER(ScopeInfo)
 
   // Return the type of this scope.
   ScopeType scope_type();
@@ -186,10 +187,6 @@ class ScopeInfo : public FixedArray {
 
   // Serializes empty scope info.
   V8_EXPORT_PRIVATE static ScopeInfo* Empty(Isolate* isolate);
-
-#ifdef DEBUG
-  void Print();
-#endif
 
 // The layout of the static part of a ScopeInfo is as follows. Each entry is
 // numeric and occupies one array slot.

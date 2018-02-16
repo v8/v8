@@ -78,8 +78,8 @@ int PropertyDetails::field_width_in_words() const {
 }
 
 TYPE_CHECKER(BigInt, BIGINT_TYPE)
-TYPE_CHECKER(BreakPoint, TUPLE2_TYPE)
 TYPE_CHECKER(BreakPointInfo, TUPLE2_TYPE)
+TYPE_CHECKER(BreakPoint, TUPLE2_TYPE)
 TYPE_CHECKER(CallHandlerInfo, TUPLE3_TYPE)
 TYPE_CHECKER(Cell, CELL_TYPE)
 TYPE_CHECKER(ConstantElementsPair, TUPLE2_TYPE)
@@ -109,6 +109,7 @@ TYPE_CHECKER(PreParsedScopeData, TUPLE2_TYPE)
 TYPE_CHECKER(PropertyArray, PROPERTY_ARRAY_TYPE)
 TYPE_CHECKER(PropertyCell, PROPERTY_CELL_TYPE)
 TYPE_CHECKER(PropertyDescriptorObject, FIXED_ARRAY_TYPE)
+TYPE_CHECKER(ScopeInfo, SCOPE_INFO_TYPE)
 TYPE_CHECKER(SmallOrderedHashMap, SMALL_ORDERED_HASH_MAP_TYPE)
 TYPE_CHECKER(SmallOrderedHashSet, SMALL_ORDERED_HASH_SET_TYPE)
 TYPE_CHECKER(SourcePositionTableWithFrameCache, TUPLE2_TYPE)
@@ -400,10 +401,6 @@ bool HeapObject::IsNativeContext() const {
 
 bool HeapObject::IsScriptContextTable() const {
   return map() == GetHeap()->script_context_table_map();
-}
-
-bool HeapObject::IsScopeInfo() const {
-  return map() == GetHeap()->scope_info_map();
 }
 
 template <>

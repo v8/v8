@@ -41,7 +41,6 @@ void Object::Print(std::ostream& os) {  // NOLINT
   }
 }
 
-
 void HeapObject::PrintHeader(std::ostream& os, const char* id) {  // NOLINT
   os << reinterpret_cast<void*>(this) << ": [";
   if (id != nullptr) {
@@ -51,6 +50,7 @@ void HeapObject::PrintHeader(std::ostream& os, const char* id) {  // NOLINT
   }
   os << "]";
   if (GetHeap()->InOldSpace(this)) os << " in OldSpace";
+  os << "\n - map = " << Brief(map());
 }
 
 
@@ -244,9 +244,11 @@ void HeapObject::HeapObjectPrint(std::ostream& os) {  // NOLINT
     case LOAD_HANDLER_TYPE:
       LoadHandler::cast(this)->LoadHandlerPrint(os);
       break;
-
     case STORE_HANDLER_TYPE:
       StoreHandler::cast(this)->StoreHandlerPrint(os);
+      break;
+    case SCOPE_INFO_TYPE:
+      ScopeInfo::cast(this)->ScopeInfoPrint(os);
       break;
 
     default:
@@ -661,7 +663,6 @@ void FixedArray::FixedArrayPrint(std::ostream& os) {  // NOLINT
 
 void PropertyArray::PropertyArrayPrint(std::ostream& os) {  // NOLINT
   HeapObject::PrintHeader(os, "PropertyArray");
-  os << "\n - map = " << Brief(map());
   os << "\n - length: " << length();
   os << "\n - hash: " << Hash();
   PrintFixedArrayElements(os, this);
@@ -670,7 +671,6 @@ void PropertyArray::PropertyArrayPrint(std::ostream& os) {  // NOLINT
 
 void FixedDoubleArray::FixedDoubleArrayPrint(std::ostream& os) {  // NOLINT
   HeapObject::PrintHeader(os, "FixedDoubleArray");
-  os << "\n - map = " << Brief(map());
   os << "\n - length: " << length();
   DoPrintElements<FixedDoubleArray>(os, this);
   os << "\n";
@@ -942,7 +942,6 @@ void JSDate::JSDatePrint(std::ostream& os) {  // NOLINT
 
 void JSProxy::JSProxyPrint(std::ostream& os) {  // NOLINT
   HeapObject::PrintHeader(os, "JSProxy");
-  os << "\n - map = " << reinterpret_cast<void*>(map());
   os << "\n - target = ";
   target()->ShortPrint(os);
   os << "\n - handler = ";
@@ -1205,6 +1204,7 @@ void SharedFunctionInfo::SharedFunctionInfoPrint(std::ostream& os) {  // NOLINT
   } else {
     os << "\n - no debug info";
   }
+  os << "\n - scope info" << Brief(scope_info());
   os << "\n - length = " << length();
   os << "\n - feedback_metadata = ";
   feedback_metadata()->FeedbackMetadataPrint(os);
@@ -1646,6 +1646,53 @@ void Script::ScriptPrint(std::ostream& os) {  // NOLINT
   os << "\n";
 }
 
+namespace {
+void PrintScopeInfoList(ScopeInfo* scope_info, std::ostream& os,
+                        const char* list_name, int nof_internal_slots,
+                        int start, int length) {
+  if (length <= 0) return;
+  int end = start + length;
+  os << "\n - " << list_name;
+  if (nof_internal_slots > 0) {
+    os << " " << start << "-" << end << " [internal slots]";
+  }
+  os << " {\n";
+  for (int i = nof_internal_slots; start < end; ++i, ++start) {
+    os << "    - " << i << ": ";
+    String::cast(scope_info->get(start))->ShortPrint(os);
+    os << "\n";
+  }
+  os << "  }";
+}
+}  // namespace
+
+void ScopeInfo::ScopeInfoPrint(std::ostream& os) {  // NOLINT
+  HeapObject::PrintHeader(os, "ScopeInfo");
+  os << "\n - scope type: " << scope_type();
+  os << "\n - language mode: " << language_mode();
+  os << "\n - local count: " << LocalCount();
+  os << "\n - stack slot count: " << StackSlotCount();
+  if (HasReceiver()) os << "\n - has receiver";
+  if (HasNewTarget()) os << "\n - needs new target";
+  if (HasOuterScopeInfo()) {
+    os << "\n - outer scope info: " << Brief(OuterScopeInfo());
+  }
+  if (HasFunctionName()) {
+    os << "\n - function name: ";
+    FunctionName()->ShortPrint(os);
+  }
+  os << "\n - length: " << length();
+  if (length() > 0) {
+    PrintScopeInfoList(this, os, "parameters", 0, ParameterNamesIndex(),
+                       ParameterCount());
+    PrintScopeInfoList(this, os, "stack slots", 0, StackLocalNamesIndex(),
+                       StackLocalCount());
+    PrintScopeInfoList(this, os, "context slots", Context::MIN_CONTEXT_SLOTS,
+                       ContextLocalNamesIndex(), ContextLocalCount());
+    // TODO(neis): Print module stuff if present.
+  }
+  os << "\n";
+}
 
 void DebugInfo::DebugInfoPrint(std::ostream& os) {  // NOLINT
   HeapObject::PrintHeader(os, "DebugInfo");
