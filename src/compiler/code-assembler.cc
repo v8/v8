@@ -1601,3 +1601,15 @@ Smi* CheckObjectType(Object* value, Smi* type, String* location) {
 
 }  // namespace internal
 }  // namespace v8
+
+#undef REPEAT_1_TO_2
+#undef REPEAT_1_TO_3
+#undef REPEAT_1_TO_4
+#undef REPEAT_1_TO_5
+#undef REPEAT_1_TO_6
+#undef REPEAT_1_TO_7
+#undef REPEAT_1_TO_8
+#undef REPEAT_1_TO_9
+#undef REPEAT_1_TO_10
+#undef REPEAT_1_TO_11
+#undef REPEAT_1_TO_12

@@ -2629,12 +2629,6 @@ void InstructionSelector::VisitSpeculationFence(Node* node) { UNREACHABLE(); }
   V(I16x8)                \
   V(I8x16)
 
-// TODO(mostynb@opera.com): this is never used, remove it?
-#define SIMD_FORMAT_LIST(V) \
-  V(32x4)                   \
-  V(16x8)                   \
-  V(8x16)
-
 #define SIMD_UNOP_LIST(V)                                  \
   V(F32x4SConvertI32x4, kMips64F32x4SConvertI32x4)         \
   V(F32x4UConvertI32x4, kMips64F32x4UConvertI32x4)         \
@@ -2970,7 +2964,6 @@ bool InstructionSelector::SupportsSpeculationPoisoning() { return false; }
 #undef SIMD_BINOP_LIST
 #undef SIMD_SHIFT_OP_LIST
 #undef SIMD_UNOP_LIST
-#undef SIMD_FORMAT_LIST
 #undef SIMD_TYPE_LIST
 #undef TRACE_UNIMPL
 #undef TRACE

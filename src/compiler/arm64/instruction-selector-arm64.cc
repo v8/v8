@@ -1245,6 +1245,7 @@ void InstructionSelector::VisitWord64Ror(Node* node) {
   }
 RR_OP_LIST(RR_VISITOR)
 #undef RR_VISITOR
+#undef RR_OP_LIST
 
 #define RRR_VISITOR(Name, opcode)                     \
   void InstructionSelector::Visit##Name(Node* node) { \
@@ -1252,6 +1253,7 @@ RR_OP_LIST(RR_VISITOR)
   }
 RRR_OP_LIST(RRR_VISITOR)
 #undef RRR_VISITOR
+#undef RRR_OP_LIST
 
 void InstructionSelector::VisitWord32Ctz(Node* node) { UNREACHABLE(); }
 
@@ -2794,11 +2796,6 @@ void InstructionSelector::VisitInt64AbsWithOverflow(Node* node) {
   V(I16x8)                \
   V(I8x16)
 
-#define SIMD_FORMAT_LIST(V) \
-  V(32x4, 4)                \
-  V(16x8, 8)                \
-  V(8x16, 16)
-
 #define SIMD_UNOP_LIST(V)                                 \
   V(F32x4SConvertI32x4, kArm64F32x4SConvertI32x4)         \
   V(F32x4UConvertI32x4, kArm64F32x4UConvertI32x4)         \
@@ -2931,6 +2928,7 @@ SIMD_TYPE_LIST(SIMD_VISIT_EXTRACT_LANE)
   }
 SIMD_TYPE_LIST(SIMD_VISIT_REPLACE_LANE)
 #undef SIMD_VISIT_REPLACE_LANE
+#undef SIMD_TYPE_LIST
 
 #define SIMD_VISIT_UNOP(Name, instruction)            \
   void InstructionSelector::Visit##Name(Node* node) { \
@@ -2938,6 +2936,7 @@ SIMD_TYPE_LIST(SIMD_VISIT_REPLACE_LANE)
   }
 SIMD_UNOP_LIST(SIMD_VISIT_UNOP)
 #undef SIMD_VISIT_UNOP
+#undef SIMD_UNOP_LIST
 
 #define SIMD_VISIT_SHIFT_OP(Name)                     \
   void InstructionSelector::Visit##Name(Node* node) { \
@@ -2945,6 +2944,7 @@ SIMD_UNOP_LIST(SIMD_VISIT_UNOP)
   }
 SIMD_SHIFT_OP_LIST(SIMD_VISIT_SHIFT_OP)
 #undef SIMD_VISIT_SHIFT_OP
+#undef SIMD_SHIFT_OP_LIST
 
 #define SIMD_VISIT_BINOP(Name, instruction)           \
   void InstructionSelector::Visit##Name(Node* node) { \
@@ -2952,6 +2952,7 @@ SIMD_SHIFT_OP_LIST(SIMD_VISIT_SHIFT_OP)
   }
 SIMD_BINOP_LIST(SIMD_VISIT_BINOP)
 #undef SIMD_VISIT_BINOP
+#undef SIMD_BINOP_LIST
 
 void InstructionSelector::VisitS128Select(Node* node) {
   Arm64OperandGenerator g(this);

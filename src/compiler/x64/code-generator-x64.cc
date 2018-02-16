@@ -2771,6 +2771,19 @@ Condition FlagsConditionToCondition(FlagsCondition condition) {
   UNREACHABLE();
 }
 
+#undef ASSEMBLE_UNOP
+#undef ASSEMBLE_BINOP
+#undef ASSEMBLE_COMPARE
+#undef ASSEMBLE_MULT
+#undef ASSEMBLE_SHIFT
+#undef ASSEMBLE_MOVX
+#undef ASSEMBLE_SSE_BINOP
+#undef ASSEMBLE_SSE_UNOP
+#undef ASSEMBLE_AVX_BINOP
+#undef ASSEMBLE_IEEE754_BINOP
+#undef ASSEMBLE_IEEE754_UNOP
+#undef ASSEMBLE_ATOMIC_BINOP
+
 }  // namespace
 
 // Assembles branches after this instruction.

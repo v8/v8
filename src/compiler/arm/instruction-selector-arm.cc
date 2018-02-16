@@ -1404,6 +1404,7 @@ void InstructionSelector::VisitUint32Mod(Node* node) {
   }
 RR_OP_LIST(RR_VISITOR)
 #undef RR_VISITOR
+#undef RR_OP_LIST
 
 #define RR_VISITOR_V8(Name, opcode)                   \
   void InstructionSelector::Visit##Name(Node* node) { \
@@ -1412,6 +1413,7 @@ RR_OP_LIST(RR_VISITOR)
   }
 RR_OP_LIST_V8(RR_VISITOR_V8)
 #undef RR_VISITOR_V8
+#undef RR_OP_LIST_V8
 
 #define RRR_VISITOR(Name, opcode)                     \
   void InstructionSelector::Visit##Name(Node* node) { \
@@ -1419,6 +1421,7 @@ RR_OP_LIST_V8(RR_VISITOR_V8)
   }
 RRR_OP_LIST(RRR_VISITOR)
 #undef RRR_VISITOR
+#undef RRR_OP_LIST
 
 void InstructionSelector::VisitFloat32Add(Node* node) {
   ArmOperandGenerator g(this);
@@ -2299,11 +2302,6 @@ VISIT_ATOMIC_BINOP(Xor)
   V(I16x8)                \
   V(I8x16)
 
-#define SIMD_FORMAT_LIST(V) \
-  V(32x4, 4)                \
-  V(16x8, 8)                \
-  V(8x16, 16)
-
 #define SIMD_UNOP_LIST(V)                               \
   V(F32x4SConvertI32x4, kArmF32x4SConvertI32x4)         \
   V(F32x4UConvertI32x4, kArmF32x4UConvertI32x4)         \
@@ -2436,6 +2434,7 @@ SIMD_TYPE_LIST(SIMD_VISIT_EXTRACT_LANE)
   }
 SIMD_TYPE_LIST(SIMD_VISIT_REPLACE_LANE)
 #undef SIMD_VISIT_REPLACE_LANE
+#undef SIMD_TYPE_LIST
 
 #define SIMD_VISIT_UNOP(Name, instruction)            \
   void InstructionSelector::Visit##Name(Node* node) { \
@@ -2443,6 +2442,7 @@ SIMD_TYPE_LIST(SIMD_VISIT_REPLACE_LANE)
   }
 SIMD_UNOP_LIST(SIMD_VISIT_UNOP)
 #undef SIMD_VISIT_UNOP
+#undef SIMD_UNOP_LIST
 
 #define SIMD_VISIT_SHIFT_OP(Name)                     \
   void InstructionSelector::Visit##Name(Node* node) { \
@@ -2450,6 +2450,7 @@ SIMD_UNOP_LIST(SIMD_VISIT_UNOP)
   }
 SIMD_SHIFT_OP_LIST(SIMD_VISIT_SHIFT_OP)
 #undef SIMD_VISIT_SHIFT_OP
+#undef SIMD_SHIFT_OP_LIST
 
 #define SIMD_VISIT_BINOP(Name, instruction)           \
   void InstructionSelector::Visit##Name(Node* node) { \
@@ -2457,6 +2458,7 @@ SIMD_SHIFT_OP_LIST(SIMD_VISIT_SHIFT_OP)
   }
 SIMD_BINOP_LIST(SIMD_VISIT_BINOP)
 #undef SIMD_VISIT_BINOP
+#undef SIMD_BINOP_LIST
 
 void InstructionSelector::VisitS128Select(Node* node) {
   ArmOperandGenerator g(this);
