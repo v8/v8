@@ -103,7 +103,8 @@ class FixedArray : public FixedArrayBase {
 
   // Return a grown copy if the index is bigger than the array's length.
   static Handle<FixedArray> SetAndGrow(Handle<FixedArray> array, int index,
-                                       Handle<Object> value);
+                                       Handle<Object> value,
+                                       PretenureFlag pretenure = NOT_TENURED);
 
   // Setter that uses write barrier.
   inline void set(int index, Object* value);

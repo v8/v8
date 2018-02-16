@@ -220,7 +220,8 @@ Handle<FixedArray> Factory::NewFixedArrayWithHoles(int length,
       FixedArray);
 }
 
-Handle<FixedArray> Factory::NewUninitializedFixedArray(int length) {
+Handle<FixedArray> Factory::NewUninitializedFixedArray(
+    int length, PretenureFlag pretenure) {
   DCHECK_LE(0, length);
   if (length == 0) return empty_fixed_array();
 
@@ -228,7 +229,7 @@ Handle<FixedArray> Factory::NewUninitializedFixedArray(int length) {
   // array. After getting canary/performance coverage, either remove the
   // function or revert to returning uninitilized array.
   CALL_HEAP_FUNCTION(isolate(),
-                     isolate()->heap()->AllocateFixedArray(length, NOT_TENURED),
+                     isolate()->heap()->AllocateFixedArray(length, pretenure),
                      FixedArray);
 }
 

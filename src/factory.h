@@ -101,7 +101,8 @@ class V8_EXPORT_PRIVATE Factory final {
       int length, PretenureFlag pretenure = NOT_TENURED);
 
   // Allocates an uninitialized fixed array. It must be filled by the caller.
-  Handle<FixedArray> NewUninitializedFixedArray(int length);
+  Handle<FixedArray> NewUninitializedFixedArray(
+      int length, PretenureFlag pretenure = NOT_TENURED);
 
   // Allocates a feedback vector whose slots are initialized with undefined
   // values.

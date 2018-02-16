@@ -10083,7 +10083,8 @@ Handle<Map> Map::CopyReplaceDescriptor(Handle<Map> map,
 }
 
 Handle<FixedArray> FixedArray::SetAndGrow(Handle<FixedArray> array, int index,
-                                          Handle<Object> value) {
+                                          Handle<Object> value,
+                                          PretenureFlag pretenure) {
   if (index < array->length()) {
     array->set(index, *value);
     return array;
@@ -10093,7 +10094,8 @@ Handle<FixedArray> FixedArray::SetAndGrow(Handle<FixedArray> array, int index,
     capacity = JSObject::NewElementsCapacity(capacity);
   } while (capacity <= index);
   Handle<FixedArray> new_array =
-      array->GetIsolate()->factory()->NewUninitializedFixedArray(capacity);
+      array->GetIsolate()->factory()->NewUninitializedFixedArray(capacity,
+                                                                 pretenure);
   array->CopyTo(0, *new_array, 0, array->length());
   new_array->FillWithHoles(array->length(), new_array->length());
   new_array->set(index, *value);
