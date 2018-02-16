@@ -856,8 +856,6 @@ class V8_EXPORT_PRIVATE Factory final {
   // Converts the given ToPrimitive hint to it's string representation.
   Handle<String> ToPrimitiveHintString(ToPrimitiveHint hint);
 
-  Handle<JSPromise> NewJSPromiseWithoutHook(
-      PretenureFlag pretenure = NOT_TENURED);
   Handle<JSPromise> NewJSPromise(PretenureFlag pretenure = NOT_TENURED);
 
  private:
@@ -887,6 +885,9 @@ class V8_EXPORT_PRIVATE Factory final {
   // Create a JSArray with no elements and no length.
   Handle<JSArray> NewJSArray(ElementsKind elements_kind,
                              PretenureFlag pretenure = NOT_TENURED);
+
+  Handle<JSPromise> NewJSPromiseWithoutHook(
+      PretenureFlag pretenure = NOT_TENURED);
 };
 
 // Utility class to simplify argument handling around JSFunction creation.
