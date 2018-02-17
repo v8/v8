@@ -597,7 +597,8 @@ class LiftoffCompiler {
     __ PushRegister(kWasmI32, dst_reg);
   }
 
-  void FloatBinOp(void (LiftoffAssembler::*emit_fn)(DoubleRegister,
+  void FloatBinOp(ValueType type,
+                  void (LiftoffAssembler::*emit_fn)(DoubleRegister,
                                                     DoubleRegister,
                                                     DoubleRegister)) {
     LiftoffRegList pinned;
@@ -606,14 +607,17 @@ class LiftoffCompiler {
     LiftoffRegister rhs_reg = pinned.set(__ PopToRegister(kFpReg, pinned));
     LiftoffRegister lhs_reg = __ PopToRegister(kFpReg, pinned);
     (asm_->*emit_fn)(target_reg.fp(), lhs_reg.fp(), rhs_reg.fp());
-    __ PushRegister(kWasmF32, target_reg);
+    __ PushRegister(type, target_reg);
   }
 
   void BinOp(Decoder* decoder, WasmOpcode opcode, FunctionSig*,
              const Value& lhs, const Value& rhs, Value* result) {
-#define CASE_BINOP(opcode, type, fn) \
-  case WasmOpcode::kExpr##opcode:    \
-    return type##BinOp(&LiftoffAssembler::emit_##fn);
+#define CASE_I32_BINOP(opcode, fn) \
+  case WasmOpcode::kExpr##opcode:  \
+    return I32BinOp(&LiftoffAssembler::emit_##fn);
+#define CASE_FLOAT_BINOP(opcode, type, fn) \
+  case WasmOpcode::kExpr##opcode:          \
+    return FloatBinOp(kWasm##type, &LiftoffAssembler::emit_##fn);
 #define CASE_CMPOP(opcode, cond)  \
   case WasmOpcode::kExpr##opcode: \
     return I32CmpOp(cond);
@@ -625,12 +629,12 @@ class LiftoffCompiler {
     type##CCallBinOp(ExternalReference::ext_ref_fn(asm_->isolate())); \
     break;
     switch (opcode) {
-      CASE_BINOP(I32Add, I32, i32_add)
-      CASE_BINOP(I32Sub, I32, i32_sub)
-      CASE_BINOP(I32Mul, I32, i32_mul)
-      CASE_BINOP(I32And, I32, i32_and)
-      CASE_BINOP(I32Ior, I32, i32_or)
-      CASE_BINOP(I32Xor, I32, i32_xor)
+      CASE_I32_BINOP(I32Add, i32_add)
+      CASE_I32_BINOP(I32Sub, i32_sub)
+      CASE_I32_BINOP(I32Mul, i32_mul)
+      CASE_I32_BINOP(I32And, i32_and)
+      CASE_I32_BINOP(I32Ior, i32_or)
+      CASE_I32_BINOP(I32Xor, i32_xor)
       CASE_CMPOP(I32Eq, kEqual)
       CASE_CMPOP(I32Ne, kUnequal)
       CASE_CMPOP(I32LtS, kSignedLessThan)
@@ -646,16 +650,17 @@ class LiftoffCompiler {
       CASE_SHIFTOP(I32ShrU, i32_shr)
       CASE_CCALL_BINOP(I32Rol, I32, wasm_word32_rol)
       CASE_CCALL_BINOP(I32Ror, I32, wasm_word32_ror)
-      CASE_BINOP(F32Add, Float, f32_add)
-      CASE_BINOP(F32Sub, Float, f32_sub)
-      CASE_BINOP(F32Mul, Float, f32_mul)
-      CASE_BINOP(F64Add, Float, f64_add)
-      CASE_BINOP(F64Sub, Float, f64_sub)
-      CASE_BINOP(F64Mul, Float, f64_mul)
+      CASE_FLOAT_BINOP(F32Add, F32, f32_add)
+      CASE_FLOAT_BINOP(F32Sub, F32, f32_sub)
+      CASE_FLOAT_BINOP(F32Mul, F32, f32_mul)
+      CASE_FLOAT_BINOP(F64Add, F64, f64_add)
+      CASE_FLOAT_BINOP(F64Sub, F64, f64_sub)
+      CASE_FLOAT_BINOP(F64Mul, F64, f64_mul)
       default:
         return unsupported(decoder, WasmOpcodes::OpcodeName(opcode));
     }
-#undef CASE_BINOP
+#undef CASE_I32_BINOP
+#undef CASE_FLOAT_BINOP
 #undef CASE_SHIFTOP
 #undef CASE_CMPOP
 #undef CASE_CCALL_BINOP
