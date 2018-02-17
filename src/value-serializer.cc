@@ -161,6 +161,8 @@ enum class ArrayBufferViewTag : uint8_t {
   kUint32Array = 'D',
   kFloat32Array = 'f',
   kFloat64Array = 'F',
+  kBigInt64Array = 'q',
+  kBigUint64Array = 'Q',
   kDataView = '?',
 };
 
@@ -1644,6 +1646,16 @@ MaybeHandle<JSArrayBufferView> ValueDeserializer::ReadJSArrayBufferView(
   uint32_t id = next_id_++;
   ExternalArrayType external_array_type = kExternalInt8Array;
   unsigned element_size = 0;
+
+  if (!FLAG_harmony_bigint) {
+    // Refuse to construct BigInt64Arrays unless the flag is on.
+    ArrayBufferViewTag cast_tag = static_cast<ArrayBufferViewTag>(tag);
+    if (cast_tag == ArrayBufferViewTag::kBigInt64Array ||
+        cast_tag == ArrayBufferViewTag::kBigUint64Array) {
+      return MaybeHandle<JSArrayBufferView>();
+    }
+  }
+
   switch (static_cast<ArrayBufferViewTag>(tag)) {
     case ArrayBufferViewTag::kDataView: {
       Handle<JSDataView> data_view =

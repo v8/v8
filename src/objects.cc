@@ -3224,6 +3224,8 @@ VisitorId Map::GetVisitorId(Map* map) {
     case FIXED_INT32_ARRAY_TYPE:
     case FIXED_FLOAT32_ARRAY_TYPE:
     case FIXED_UINT8_CLAMPED_ARRAY_TYPE:
+    case FIXED_BIGUINT64_ARRAY_TYPE:
+    case FIXED_BIGINT64_ARRAY_TYPE:
       return kVisitFixedTypedArrayBase;
 
     case FIXED_FLOAT64_ARRAY_TYPE:
@@ -5115,7 +5117,19 @@ Maybe<bool> Object::SetDataProperty(LookupIterator* it, Handle<Object> value) {
   Handle<Object> to_assign = value;
   // Convert the incoming value to a number for storing into typed arrays.
   if (it->IsElement() && receiver->HasFixedTypedArrayElements()) {
-    if (!value->IsNumber() && !value->IsUndefined(it->isolate())) {
+    ElementsKind elements_kind = receiver->GetElementsKind();
+    if (elements_kind == BIGINT64_ELEMENTS ||
+        elements_kind == BIGUINT64_ELEMENTS) {
+      ASSIGN_RETURN_ON_EXCEPTION_VALUE(it->isolate(), to_assign,
+                                       BigInt::FromObject(it->isolate(), value),
+                                       Nothing<bool>());
+      // We have to recheck the length. However, it can only change if the
+      // underlying buffer was neutered, so just check that.
+      if (Handle<JSArrayBufferView>::cast(receiver)->WasNeutered()) {
+        return Just(true);
+        // TODO(neis): According to the spec, this should throw a TypeError.
+      }
+    } else if (!value->IsNumber() && !value->IsUndefined(it->isolate())) {
       ASSIGN_RETURN_ON_EXCEPTION_VALUE(
           it->isolate(), to_assign, Object::ToNumber(value), Nothing<bool>());
       // We have to recheck the length. However, it can only change if the
@@ -19588,7 +19602,7 @@ ElementsKind JSArrayIterator::ElementsKindForInstanceType(InstanceType type) {
       DCHECK_LE(type, LAST_ARRAY_ITERATOR_TYPE);
     }
 
-    if (type <= JS_UINT8_CLAMPED_ARRAY_VALUE_ITERATOR_TYPE) {
+    if (type <= JS_BIGINT64_ARRAY_VALUE_ITERATOR_TYPE) {
       kind =
           static_cast<ElementsKind>(FIRST_FIXED_TYPED_ARRAY_ELEMENTS_KIND +
                                     (type - FIRST_ARRAY_VALUE_ITERATOR_TYPE));

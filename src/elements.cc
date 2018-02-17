@@ -38,6 +38,8 @@
 //     - FixedFloat32ElementsAccessor
 //     - FixedFloat64ElementsAccessor
 //     - FixedUint8ClampedElementsAccessor
+//     - FixedBigUint64ElementsAccessor
+//     - FixedBigInt64ElementsAccessor
 //   - DictionaryElementsAccessor
 //   - SloppyArgumentsElementsAccessor
 //     - FastSloppyArgumentsElementsAccessor
@@ -89,7 +91,9 @@ enum Where { AT_START, AT_END };
   V(FixedFloat32ElementsAccessor, FLOAT32_ELEMENTS, FixedFloat32Array)        \
   V(FixedFloat64ElementsAccessor, FLOAT64_ELEMENTS, FixedFloat64Array)        \
   V(FixedUint8ClampedElementsAccessor, UINT8_CLAMPED_ELEMENTS,                \
-    FixedUint8ClampedArray)
+    FixedUint8ClampedArray)                                                   \
+  V(FixedBigUint64ElementsAccessor, BIGUINT64_ELEMENTS, FixedBigUint64Array)  \
+  V(FixedBigInt64ElementsAccessor, BIGINT64_ELEMENTS, FixedBigInt64Array)
 
 template<ElementsKind Kind> class ElementsKindTraits {
  public:
@@ -2994,15 +2998,9 @@ class TypedElementsAccessor
                           uint32_t end) {
     Handle<JSTypedArray> array = Handle<JSTypedArray>::cast(receiver);
     DCHECK(!array->WasNeutered());
-    DCHECK(obj_value->IsNumber());
+    DCHECK(obj_value->IsNumeric());
 
-    ctype value;
-    if (obj_value->IsSmi()) {
-      value = BackingStore::from(Smi::ToInt(*obj_value));
-    } else {
-      DCHECK(obj_value->IsHeapNumber());
-      value = BackingStore::from(HeapNumber::cast(*obj_value)->value());
-    }
+    ctype value = BackingStore::FromHandle(obj_value);
 
     // Ensure indexes are within array bounds
     DCHECK_LE(0, start);
@@ -3033,41 +3031,49 @@ class TypedElementsAccessor
         length > static_cast<uint32_t>(elements->length())) {
       return Just(true);
     }
-    if (!value->IsNumber()) return Just(false);
-
-    double search_value = value->Number();
-
-    if (!std::isfinite(search_value)) {
-      // Integral types cannot represent +Inf or NaN
-      if (AccessorClass::kind() < FLOAT32_ELEMENTS ||
-          AccessorClass::kind() > FLOAT64_ELEMENTS) {
-        return Just(false);
-      }
-    } else if (search_value < std::numeric_limits<ctype>::lowest() ||
-               search_value > std::numeric_limits<ctype>::max()) {
-      // Return false if value can't be represented in this space
-      return Just(false);
-    }
-
+    ctype typed_search_value;
     // Prototype has no elements, and not searching for the hole --- limit
     // search to backing store length.
     if (static_cast<uint32_t>(elements->length()) < length) {
       length = elements->length();
     }
 
-    if (!std::isnan(search_value)) {
-      for (uint32_t k = start_from; k < length; ++k) {
-        double element_k = elements->get_scalar(k);
-        if (element_k == search_value) return Just(true);
-      }
-      return Just(false);
+    if (Kind == BIGINT64_ELEMENTS || Kind == BIGUINT64_ELEMENTS) {
+      if (!value->IsBigInt()) return Just(false);
+      bool lossless;
+      typed_search_value = BackingStore::FromHandle(value, &lossless);
+      if (!lossless) return Just(false);
     } else {
-      for (uint32_t k = start_from; k < length; ++k) {
-        double element_k = elements->get_scalar(k);
-        if (std::isnan(element_k)) return Just(true);
+      if (!value->IsNumber()) return Just(false);
+      double search_value = value->Number();
+      if (!std::isfinite(search_value)) {
+        // Integral types cannot represent +Inf or NaN.
+        if (Kind < FLOAT32_ELEMENTS || Kind > FLOAT64_ELEMENTS) {
+          return Just(false);
+        }
+        if (std::isnan(search_value)) {
+          for (uint32_t k = start_from; k < length; ++k) {
+            double element_k = elements->get_scalar(k);
+            if (std::isnan(element_k)) return Just(true);
+          }
+          return Just(false);
+        }
+      } else if (search_value < std::numeric_limits<ctype>::lowest() ||
+                 search_value > std::numeric_limits<ctype>::max()) {
+        // Return false if value can't be represented in this space.
+        return Just(false);
       }
-      return Just(false);
+      typed_search_value = static_cast<ctype>(search_value);
+      if (static_cast<double>(typed_search_value) != search_value) {
+        return Just(false);  // Loss of precision.
+      }
     }
+
+    for (uint32_t k = start_from; k < length; ++k) {
+      ctype element_k = elements->get_scalar(k);
+      if (element_k == typed_search_value) return Just(true);
+    }
+    return Just(false);
   }
 
   static Maybe<int64_t> IndexOfValueImpl(Isolate* isolate,
@@ -3079,35 +3085,39 @@ class TypedElementsAccessor
     if (WasNeutered(*receiver)) return Just<int64_t>(-1);
 
     BackingStore* elements = BackingStore::cast(receiver->elements());
-    if (!value->IsNumber()) return Just<int64_t>(-1);
+    ctype typed_search_value;
 
-    double search_value = value->Number();
-
-    if (!std::isfinite(search_value)) {
-      // Integral types cannot represent +Inf or NaN.
-      if (AccessorClass::kind() < FLOAT32_ELEMENTS ||
-          AccessorClass::kind() > FLOAT64_ELEMENTS) {
+    if (Kind == BIGINT64_ELEMENTS || Kind == BIGUINT64_ELEMENTS) {
+      if (!value->IsBigInt()) return Just<int64_t>(-1);
+      bool lossless;
+      typed_search_value = BackingStore::FromHandle(value, &lossless);
+      if (!lossless) return Just<int64_t>(-1);
+    } else {
+      if (!value->IsNumber()) return Just<int64_t>(-1);
+      double search_value = value->Number();
+      if (!std::isfinite(search_value)) {
+        // Integral types cannot represent +Inf or NaN.
+        if (Kind < FLOAT32_ELEMENTS || Kind > FLOAT64_ELEMENTS) {
+          return Just<int64_t>(-1);
+        }
+        if (std::isnan(search_value)) {
+          return Just<int64_t>(-1);
+        }
+      } else if (search_value < std::numeric_limits<ctype>::lowest() ||
+                 search_value > std::numeric_limits<ctype>::max()) {
+        // Return false if value can't be represented in this ElementsKind.
         return Just<int64_t>(-1);
       }
-    } else if (search_value < std::numeric_limits<ctype>::lowest() ||
-               search_value > std::numeric_limits<ctype>::max()) {
-      // Return false if value can't be represented in this ElementsKind.
-      return Just<int64_t>(-1);
+      typed_search_value = static_cast<ctype>(search_value);
+      if (static_cast<double>(typed_search_value) != search_value) {
+        return Just<int64_t>(-1);  // Loss of precision.
+      }
     }
 
     // Prototype has no elements, and not searching for the hole --- limit
     // search to backing store length.
     if (static_cast<uint32_t>(elements->length()) < length) {
       length = elements->length();
-    }
-
-    if (std::isnan(search_value)) {
-      return Just<int64_t>(-1);
-    }
-
-    ctype typed_search_value = static_cast<ctype>(search_value);
-    if (static_cast<double>(typed_search_value) != search_value) {
-      return Just<int64_t>(-1);  // Loss of precision.
     }
 
     for (uint32_t k = start_from; k < length; ++k) {
@@ -3124,28 +3134,34 @@ class TypedElementsAccessor
     DisallowHeapAllocation no_gc;
     DCHECK(!WasNeutered(*receiver));
 
-    if (!value->IsNumber()) return Just<int64_t>(-1);
     BackingStore* elements = BackingStore::cast(receiver->elements());
+    ctype typed_search_value;
 
-    double search_value = value->Number();
-
-    if (!std::isfinite(search_value)) {
-      if (std::is_integral<ctype>::value) {
-        // Integral types cannot represent +Inf or NaN.
-        return Just<int64_t>(-1);
-      } else if (std::isnan(search_value)) {
-        // Strict Equality Comparison of NaN is always false.
+    if (Kind == BIGINT64_ELEMENTS || Kind == BIGUINT64_ELEMENTS) {
+      if (!value->IsBigInt()) return Just<int64_t>(-1);
+      bool lossless;
+      typed_search_value = BackingStore::FromHandle(value, &lossless);
+      if (!lossless) return Just<int64_t>(-1);
+    } else {
+      if (!value->IsNumber()) return Just<int64_t>(-1);
+      double search_value = value->Number();
+      if (!std::isfinite(search_value)) {
+        if (std::is_integral<ctype>::value) {
+          // Integral types cannot represent +Inf or NaN.
+          return Just<int64_t>(-1);
+        } else if (std::isnan(search_value)) {
+          // Strict Equality Comparison of NaN is always false.
+          return Just<int64_t>(-1);
+        }
+      } else if (search_value < std::numeric_limits<ctype>::lowest() ||
+                 search_value > std::numeric_limits<ctype>::max()) {
+        // Return -1 if value can't be represented in this ElementsKind.
         return Just<int64_t>(-1);
       }
-    } else if (search_value < std::numeric_limits<ctype>::lowest() ||
-               search_value > std::numeric_limits<ctype>::max()) {
-      // Return -1 if value can't be represented in this ElementsKind.
-      return Just<int64_t>(-1);
-    }
-
-    ctype typed_search_value = static_cast<ctype>(search_value);
-    if (static_cast<double>(typed_search_value) != search_value) {
-      return Just<int64_t>(-1);  // Loss of precision.
+      typed_search_value = static_cast<ctype>(search_value);
+      if (static_cast<double>(typed_search_value) != search_value) {
+        return Just<int64_t>(-1);  // Loss of precision.
+      }
     }
 
     DCHECK_LT(start_from, elements->length());
@@ -3349,6 +3365,7 @@ class TypedElementsAccessor
   static bool TryCopyElementsFastNumber(Context* context, JSArray* source,
                                         JSTypedArray* destination,
                                         size_t length, uint32_t offset) {
+    if (Kind == BIGINT64_ELEMENTS || Kind == BIGUINT64_ELEMENTS) return false;
     Isolate* isolate = source->GetIsolate();
     DisallowHeapAllocation no_gc;
     DisallowJavascriptExecution no_js(isolate);
@@ -3429,7 +3446,13 @@ class TypedElementsAccessor
       Handle<Object> elem;
       ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, elem,
                                          Object::GetProperty(&it));
-      ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, elem, Object::ToNumber(elem));
+      if (Kind == BIGINT64_ELEMENTS || Kind == BIGUINT64_ELEMENTS) {
+        ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, elem,
+                                           BigInt::FromObject(isolate, elem));
+      } else {
+        ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, elem,
+                                           Object::ToNumber(elem));
+      }
 
       if (V8_UNLIKELY(destination->WasNeutered())) {
         const char* op = "set";
@@ -3463,6 +3486,24 @@ class TypedElementsAccessor
     // All conversions from TypedArrays can be done without allocation.
     if (source->IsJSTypedArray()) {
       Handle<JSTypedArray> source_ta = Handle<JSTypedArray>::cast(source);
+      ElementsKind source_kind = source_ta->GetElementsKind();
+      bool source_is_bigint =
+          source_kind == BIGINT64_ELEMENTS || source_kind == BIGUINT64_ELEMENTS;
+      bool target_is_bigint =
+          Kind == BIGINT64_ELEMENTS || Kind == BIGUINT64_ELEMENTS;
+      if (target_is_bigint) {
+        if (V8_UNLIKELY(!source_is_bigint)) {
+          Handle<Object> first =
+              JSReceiver::GetElement(isolate, source_ta, 0).ToHandleChecked();
+          THROW_NEW_ERROR_RETURN_FAILURE(
+              isolate, NewTypeError(MessageTemplate::kBigIntFromObject, first));
+        }
+      } else {
+        if (V8_UNLIKELY(source_is_bigint)) {
+          THROW_NEW_ERROR_RETURN_FAILURE(
+              isolate, NewTypeError(MessageTemplate::kBigIntToNumber));
+        }
+      }
       CopyElementsFromTypedArray(*source_ta, *destination_ta, length, offset);
       return *isolate->factory()->undefined_value();
     }

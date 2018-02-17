@@ -1405,6 +1405,8 @@ enum ExternalArrayType {
   kExternalFloat32Array,
   kExternalFloat64Array,
   kExternalUint8ClampedArray,
+  kExternalBigInt64Array,
+  kExternalBigUint64Array,
 };
 
 struct AssemblerDebugInfo {
