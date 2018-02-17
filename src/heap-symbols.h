@@ -22,8 +22,6 @@
   V(await_string, "await")                                         \
   V(BigInt_string, "BigInt")                                       \
   V(bigint_string, "bigint")                                       \
-  V(BigInt64Array_string, "BigInt64Array")                         \
-  V(BigUint64Array_string, "BigUint64Array")                       \
   V(bind_string, "bind")                                           \
   V(Boolean_string, "Boolean")                                     \
   V(boolean_string, "boolean")                                     \

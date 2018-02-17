@@ -835,15 +835,10 @@ TNode<Word32T> TypedArrayBuiltinsAssembler::IsUint8ElementsKind(
                   Word32Equal(kind, Int32Constant(UINT8_CLAMPED_ELEMENTS)));
 }
 
-TNode<Word32T> TypedArrayBuiltinsAssembler::IsBigInt64ElementsKind(
-    TNode<Word32T> kind) {
-  return Word32Or(Word32Equal(kind, Int32Constant(BIGINT64_ELEMENTS)),
-                  Word32Equal(kind, Int32Constant(BIGUINT64_ELEMENTS)));
-}
-
 TNode<Word32T> TypedArrayBuiltinsAssembler::LoadElementsKind(
-    TNode<JSTypedArray> typed_array) {
-  return LoadMapElementsKind(LoadMap(typed_array));
+    TNode<Object> typed_array) {
+  CSA_ASSERT(this, IsJSTypedArray(typed_array));
+  return LoadMapElementsKind(LoadMap(CAST(typed_array)));
 }
 
 TNode<IntPtrT> TypedArrayBuiltinsAssembler::GetTypedArrayElementSize(
@@ -1028,7 +1023,7 @@ void TypedArrayBuiltinsAssembler::SetTypedArraySource(
   CSA_ASSERT(this,
              UintPtrGreaterThanOrEqual(source_byte_length, IntPtrConstant(0)));
 
-  Label call_memmove(this), fast_c_call(this), out(this), exception(this);
+  Label call_memmove(this), fast_c_call(this), out(this);
 
   // A fast memmove call can be used when the source and target types are are
   // the same or either Uint8 or Uint8Clamped.
@@ -1050,19 +1045,12 @@ void TypedArrayBuiltinsAssembler::SetTypedArraySource(
         this, UintPtrGreaterThanOrEqual(
                   IntPtrMul(target_length, target_el_size), IntPtrConstant(0)));
 
-    GotoIf(Word32NotEqual(IsBigInt64ElementsKind(source_el_kind),
-                          IsBigInt64ElementsKind(target_el_kind)),
-           &exception);
-
     TNode<IntPtrT> source_length =
         LoadAndUntagObjectField(source, JSTypedArray::kLengthOffset);
     CallCCopyTypedArrayElementsToTypedArray(source, target, source_length,
                                             offset);
     Goto(&out);
   }
-
-  BIND(&exception);
-  ThrowTypeError(context, MessageTemplate::kBigIntMixedTypes);
 
   BIND(&out);
 }
@@ -1105,7 +1093,6 @@ void TypedArrayBuiltinsAssembler::SetJSArraySource(
   }
 
   BIND(&fast_c_call);
-  GotoIf(IsBigInt64ElementsKind(LoadElementsKind(target)), call_runtime);
   CallCCopyFastNumberJSArrayElementsToTypedArray(context, source, target,
                                                  source_length, offset);
   Goto(&out);
@@ -1128,7 +1115,6 @@ void TypedArrayBuiltinsAssembler::
                                                    TNode<JSTypedArray> dest,
                                                    TNode<IntPtrT> source_length,
                                                    TNode<IntPtrT> offset) {
-  CSA_ASSERT(this, Word32Not(IsBigInt64ElementsKind(LoadElementsKind(dest))));
   TNode<ExternalReference> f = ExternalConstant(
       ExternalReference::copy_fast_number_jsarray_elements_to_typed_array(
           isolate()));
@@ -1596,28 +1582,22 @@ TF_BUILTIN(TypedArrayOf, TypedArrayBuiltinsAssembler) {
             [&](Node* index) {
               TNode<Object> item =
                   args.AtIndex(index, ParameterMode::SMI_PARAMETERS);
-              if (kind == BIGINT64_ELEMENTS || kind == BIGUINT64_ELEMENTS) {
-                // TODO(jkummerow): Add inline support.
-                CallRuntime(Runtime::kSetProperty, context, new_typed_array,
-                            index, item, SmiConstant(LanguageMode::kSloppy));
-              } else {
-                TNode<Number> number = ToNumber_Inline(context, item);
+              TNode<Number> number = ToNumber_Inline(context, item);
 
-                // ToNumber may execute JavaScript code, but it cannot access
-                // arguments array and new typed array.
-                DebugSanityCheckTypedArrayIndex(new_typed_array, index);
+              // ToNumber may execute JavaScript code, but it cannot access
+              // arguments array and new typed array.
+              DebugSanityCheckTypedArrayIndex(new_typed_array, index);
 
-                // Since we can guarantee that "number" is Number type,
-                // PrepareValueForWriteToTypedArray cannot bail out.
-                Node* value = PrepareValueForWriteToTypedArray(number, kind,
-                                                               &unreachable);
+              // Since we can guarantee that "number" is Number type,
+              // PrepareValueForWriteToTypedArray cannot bail out.
+              Node* value =
+                  PrepareValueForWriteToTypedArray(number, kind, &unreachable);
 
-                // GC may move backing store in ToNumber, thus load backing
-                // store everytime in this loop.
-                TNode<IntPtrT> backing_store =
-                    UncheckedCast<IntPtrT>(LoadDataPtr(new_typed_array));
-                StoreElement(backing_store, kind, index, value, SMI_PARAMETERS);
-              }
+              // GC may move backing store in ToNumber, thus load backing store
+              // everytime in this loop.
+              TNode<IntPtrT> backing_store =
+                  UncheckedCast<IntPtrT>(LoadDataPtr(new_typed_array));
+              StoreElement(backing_store, kind, index, value, SMI_PARAMETERS);
             },
             1, ParameterMode::SMI_PARAMETERS, IndexAdvanceMode::kPost);
       });
@@ -1676,7 +1656,7 @@ TF_BUILTIN(TypedArrayPrototypeFilter, TypedArrayBuiltinsAssembler) {
       [&](Node* index) {
         GotoIf(IsDetachedBuffer(source_buffer), &detached);
 
-        TVARIABLE(Numeric, value);
+        TVARIABLE(Number, value);
         // a. Let Pk be ! ToString(k).
         // b. Let kValue be ? Get(O, Pk).
         DispatchTypedArrayByElementsKind(

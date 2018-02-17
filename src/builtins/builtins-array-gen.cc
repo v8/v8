@@ -339,21 +339,11 @@ Node* ArrayBuiltinsAssembler::FindProcessor(Node* k_value, Node* k) {
     Branch(fast_typed_array_target_, &fast, &slow);
 
     BIND(&fast);
-    // #sec-integerindexedelementset
-    // 5. If arrayTypeName is "BigUint64Array" or "BigInt64Array", let
-    // numValue be ? ToBigInt(v).
-    // 6. Otherwise, let numValue be ? ToNumber(value).
-    Node* num_value;
-    if (source_elements_kind_ == BIGINT64_ELEMENTS ||
-        source_elements_kind_ == BIGUINT64_ELEMENTS) {
-      num_value = ToBigInt(context(), mapped_value);
-    } else {
-      num_value = ToNumber_Inline(context(), mapped_value);
-    }
+    // #sec-integerindexedelementset 3. Let numValue be ? ToNumber(value).
+    Node* num_value = ToNumber_Inline(context(), mapped_value);
     // The only way how this can bailout is because of a detached buffer.
     EmitElementStore(a(), k, num_value, false, source_elements_kind_,
-                     KeyedAccessStoreMode::STANDARD_STORE, &detached,
-                     context());
+                     KeyedAccessStoreMode::STANDARD_STORE, &detached);
     Goto(&done);
 
     BIND(&slow);
@@ -363,7 +353,7 @@ Node* ArrayBuiltinsAssembler::FindProcessor(Node* k_value, Node* k) {
 
     BIND(&detached);
     // tc39.github.io/ecma262/#sec-integerindexedelementset
-    // 8. If IsDetachedBuffer(buffer) is true, throw a TypeError exception.
+    // 5. If IsDetachedBuffer(buffer) is true, throw a TypeError exception.
     ThrowTypeError(context_, MessageTemplate::kDetachedOperation, name_);
 
     BIND(&done);
@@ -3671,8 +3661,6 @@ TF_BUILTIN(ArrayIteratorPrototypeNext, CodeStubAssembler) {
           JS_INT32_ARRAY_KEY_VALUE_ITERATOR_TYPE,
           JS_FLOAT32_ARRAY_KEY_VALUE_ITERATOR_TYPE,
           JS_FLOAT64_ARRAY_KEY_VALUE_ITERATOR_TYPE,
-          JS_BIGUINT64_ARRAY_KEY_VALUE_ITERATOR_TYPE,
-          JS_BIGINT64_ARRAY_KEY_VALUE_ITERATOR_TYPE,
           JS_UINT8_ARRAY_VALUE_ITERATOR_TYPE,
           JS_UINT8_CLAMPED_ARRAY_VALUE_ITERATOR_TYPE,
           JS_INT8_ARRAY_VALUE_ITERATOR_TYPE,
@@ -3682,23 +3670,19 @@ TF_BUILTIN(ArrayIteratorPrototypeNext, CodeStubAssembler) {
           JS_INT32_ARRAY_VALUE_ITERATOR_TYPE,
           JS_FLOAT32_ARRAY_VALUE_ITERATOR_TYPE,
           JS_FLOAT64_ARRAY_VALUE_ITERATOR_TYPE,
-          JS_BIGUINT64_ARRAY_VALUE_ITERATOR_TYPE,
-          JS_BIGINT64_ARRAY_VALUE_ITERATOR_TYPE,
       };
 
       Label uint8_values(this), int8_values(this), uint16_values(this),
           int16_values(this), uint32_values(this), int32_values(this),
-          float32_values(this), float64_values(this), biguint64_values(this),
-          bigint64_values(this);
+          float32_values(this), float64_values(this);
       Label* kInstanceTypeHandlers[] = {
-          &allocate_key_result, &uint8_values,     &uint8_values,
-          &int8_values,         &uint16_values,    &int16_values,
-          &uint32_values,       &int32_values,     &float32_values,
-          &float64_values,      &biguint64_values, &bigint64_values,
-          &uint8_values,        &uint8_values,     &int8_values,
-          &uint16_values,       &int16_values,     &uint32_values,
-          &int32_values,        &float32_values,   &float64_values,
-          &biguint64_values,    &bigint64_values,
+          &allocate_key_result, &uint8_values,  &uint8_values,
+          &int8_values,         &uint16_values, &int16_values,
+          &uint32_values,       &int32_values,  &float32_values,
+          &float64_values,      &uint8_values,  &uint8_values,
+          &int8_values,         &uint16_values, &int16_values,
+          &uint32_values,       &int32_values,  &float32_values,
+          &float64_values,
       };
 
       var_done.Bind(FalseConstant());
@@ -3760,18 +3744,6 @@ TF_BUILTIN(ArrayIteratorPrototypeNext, CodeStubAssembler) {
         Node* value_float64 = LoadFixedTypedArrayElement(
             data_ptr, index, FLOAT64_ELEMENTS, SMI_PARAMETERS);
         var_value.Bind(AllocateHeapNumberWithValue(value_float64));
-        Goto(&allocate_entry_if_needed);
-      }
-      BIND(&biguint64_values);
-      {
-        var_value.Bind(LoadFixedTypedArrayElementAsTagged(
-            data_ptr, index, BIGUINT64_ELEMENTS, SMI_PARAMETERS));
-        Goto(&allocate_entry_if_needed);
-      }
-      BIND(&bigint64_values);
-      {
-        var_value.Bind(LoadFixedTypedArrayElementAsTagged(
-            data_ptr, index, BIGINT64_ELEMENTS, SMI_PARAMETERS));
         Goto(&allocate_entry_if_needed);
       }
     }

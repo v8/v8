@@ -1738,154 +1738,6 @@ Node* CodeStubAssembler::LoadFixedTypedArrayElement(
 Node* CodeStubAssembler::LoadFixedTypedArrayElementAsTagged(
     Node* data_pointer, Node* index_node, ElementsKind elements_kind,
     ParameterMode parameter_mode) {
-  if (elements_kind == BIGINT64_ELEMENTS) {
-    Node* offset =
-        ElementOffsetFromIndex(index_node, elements_kind, parameter_mode, 0);
-    TVARIABLE(BigInt, var_result);
-    Label done(this), if_zero(this);
-    if (Is64()) {
-      TNode<IntPtrT> value = UncheckedCast<IntPtrT>(
-          Load(MachineType::IntPtr(), data_pointer, offset));
-      Label if_positive(this), if_negative(this);
-      GotoIf(IntPtrEqual(value, IntPtrConstant(0)), &if_zero);
-      var_result = AllocateRawBigInt(IntPtrConstant(1));
-      Branch(IntPtrGreaterThan(value, IntPtrConstant(0)), &if_positive,
-             &if_negative);
-
-      BIND(&if_positive);
-      {
-        StoreBigIntBitfield(var_result.value(),
-                            IntPtrConstant(BigInt::SignBits::encode(false) |
-                                           BigInt::LengthBits::encode(1)));
-        StoreBigIntDigit(var_result.value(), 0, Unsigned(value));
-        Goto(&done);
-      }
-
-      BIND(&if_negative);
-      {
-        StoreBigIntBitfield(var_result.value(),
-                            IntPtrConstant(BigInt::SignBits::encode(true) |
-                                           BigInt::LengthBits::encode(1)));
-        StoreBigIntDigit(var_result.value(), 0,
-                         Unsigned(IntPtrSub(IntPtrConstant(0), value)));
-        Goto(&done);
-      }
-    } else {
-      DCHECK(!Is64());
-      TVARIABLE(WordT, var_sign,
-                IntPtrConstant(BigInt::SignBits::encode(false)));
-      TVARIABLE(IntPtrT, var_low);
-      TVARIABLE(IntPtrT, var_high);
-      var_low = UncheckedCast<IntPtrT>(
-          Load(MachineType::UintPtr(), data_pointer, offset));
-      var_high = UncheckedCast<IntPtrT>(
-          Load(MachineType::UintPtr(), data_pointer,
-               Int32Add(offset, Int32Constant(kPointerSize))));
-
-      Label high_zero(this), negative(this), allocate_one_digit(this),
-          allocate_two_digits(this);
-
-      GotoIf(WordEqual(var_high.value(), IntPtrConstant(0)), &high_zero);
-      Branch(IntPtrLessThan(var_high.value(), IntPtrConstant(0)), &negative,
-             &allocate_two_digits);
-
-      BIND(&high_zero);
-      Branch(WordEqual(var_low.value(), IntPtrConstant(0)), &if_zero,
-             &allocate_one_digit);
-
-      BIND(&negative);
-      {
-        var_sign = IntPtrConstant(BigInt::SignBits::encode(true));
-        // We must negate the value by computing "0 - (high|low)", performing
-        // both parts of the subtraction separately and manually taking care
-        // of the carry bit (which is 1 iff low != 0).
-        var_high = IntPtrSub(IntPtrConstant(0), var_high.value());
-        Label carry(this), no_carry(this);
-        Branch(WordEqual(var_low.value(), IntPtrConstant(0)), &no_carry,
-               &carry);
-        BIND(&carry);
-        var_high = IntPtrSub(var_high.value(), IntPtrConstant(1));
-        Goto(&no_carry);
-        BIND(&no_carry);
-        var_low = IntPtrSub(IntPtrConstant(0), var_low.value());
-        // var_high was non-zero going into this block, but subtracting the
-        // carry bit from it could bring us back onto the "one digit" path.
-        Branch(WordEqual(var_high.value(), IntPtrConstant(0)),
-               &allocate_one_digit, &allocate_two_digits);
-      }
-
-      BIND(&allocate_one_digit);
-      {
-        var_result = AllocateRawBigInt(IntPtrConstant(1));
-        StoreBigIntBitfield(
-            var_result.value(),
-            WordOr(var_sign.value(),
-                   IntPtrConstant(BigInt::LengthBits::encode(1))));
-        StoreBigIntDigit(var_result.value(), 0, Unsigned(var_low.value()));
-        Goto(&done);
-      }
-
-      BIND(&allocate_two_digits);
-      {
-        var_result = AllocateRawBigInt(IntPtrConstant(2));
-        StoreBigIntBitfield(
-            var_result.value(),
-            WordOr(var_sign.value(),
-                   IntPtrConstant(BigInt::LengthBits::encode(2))));
-        StoreBigIntDigit(var_result.value(), 0, Unsigned(var_low.value()));
-        StoreBigIntDigit(var_result.value(), 1, Unsigned(var_high.value()));
-        Goto(&done);
-      }
-    }
-    BIND(&if_zero);
-    var_result = AllocateBigInt(IntPtrConstant(0));
-    Goto(&done);
-
-    BIND(&done);
-    return var_result.value();
-  } else if (elements_kind == BIGUINT64_ELEMENTS) {
-    Node* offset =
-        ElementOffsetFromIndex(index_node, elements_kind, parameter_mode, 0);
-    TVARIABLE(BigInt, var_result);
-    Label if_zero(this), done(this);
-    if (Is64()) {
-      TNode<UintPtrT> value = UncheckedCast<UintPtrT>(
-          Load(MachineType::UintPtr(), data_pointer, offset));
-      GotoIf(IntPtrEqual(value, IntPtrConstant(0)), &if_zero);
-      var_result = AllocateBigInt(IntPtrConstant(1));
-      StoreBigIntDigit(var_result.value(), 0, value);
-      Goto(&done);
-    } else {
-      DCHECK(!Is64());
-      Label high_zero(this);
-
-      TNode<UintPtrT> low = UncheckedCast<UintPtrT>(
-          Load(MachineType::UintPtr(), data_pointer, offset));
-      TNode<UintPtrT> high = UncheckedCast<UintPtrT>(
-          Load(MachineType::UintPtr(), data_pointer,
-               Int32Add(offset, Int32Constant(kPointerSize))));
-
-      GotoIf(WordEqual(high, IntPtrConstant(0)), &high_zero);
-      var_result = AllocateBigInt(IntPtrConstant(2));
-      StoreBigIntDigit(var_result.value(), 0, low);
-      StoreBigIntDigit(var_result.value(), 1, high);
-      Goto(&done);
-
-      BIND(&high_zero);
-      GotoIf(WordEqual(low, IntPtrConstant(0)), &if_zero);
-      var_result = AllocateBigInt(IntPtrConstant(1));
-      StoreBigIntDigit(var_result.value(), 0, low);
-      Goto(&done);
-    }
-    BIND(&if_zero);
-    var_result = AllocateBigInt(IntPtrConstant(0));
-    Goto(&done);
-
-    BIND(&done);
-    return var_result.value();
-  }
-
-  // TODO(jkummerow): Inline this call, and unify a bit more with the above.
   Node* value = LoadFixedTypedArrayElement(data_pointer, index_node,
                                            elements_kind, parameter_mode);
   switch (elements_kind) {
@@ -2400,38 +2252,6 @@ TNode<HeapNumber> CodeStubAssembler::AllocateHeapNumberWithValue(
   TNode<HeapNumber> result = AllocateHeapNumber(mode);
   StoreHeapNumberValue(result, value);
   return result;
-}
-
-TNode<BigInt> CodeStubAssembler::AllocateBigInt(TNode<IntPtrT> length) {
-  TNode<BigInt> result = AllocateRawBigInt(length);
-  STATIC_ASSERT(BigInt::LengthBits::kShift == 0);
-  StoreBigIntBitfield(result, length);
-  return result;
-}
-
-TNode<BigInt> CodeStubAssembler::AllocateRawBigInt(TNode<IntPtrT> length) {
-  // This is currently used only for 64-bit wide BigInts. If more general
-  // applicability is required, a large-object check must be added.
-  CSA_ASSERT(this, UintPtrLessThan(length, IntPtrConstant(3)));
-
-  TNode<IntPtrT> size = IntPtrAdd(IntPtrConstant(BigInt::kHeaderSize),
-                                  Signed(WordShl(length, kPointerSizeLog2)));
-  Node* raw_result = Allocate(size, kNone);
-  StoreMapNoWriteBarrier(raw_result, Heap::kBigIntMapRootIndex);
-  return UncheckedCast<BigInt>(raw_result);
-}
-
-void CodeStubAssembler::StoreBigIntBitfield(TNode<BigInt> bigint,
-                                            TNode<WordT> bitfield) {
-  StoreObjectFieldNoWriteBarrier(bigint, BigInt::kBitfieldOffset, bitfield,
-                                 MachineType::PointerRepresentation());
-}
-
-void CodeStubAssembler::StoreBigIntDigit(TNode<BigInt> bigint, int digit_index,
-                                         TNode<UintPtrT> digit) {
-  StoreObjectFieldNoWriteBarrier(
-      bigint, BigInt::kDigitsOffset + digit_index * kPointerSize, digit,
-      UintPtrT::kMachineRepresentation);
 }
 
 Node* CodeStubAssembler::AllocateSeqOneByteString(int length,
@@ -5852,27 +5672,6 @@ TNode<Number> CodeStubAssembler::ToNumber(SloppyTNode<Context> context,
   return var_result.value();
 }
 
-TNode<BigInt> CodeStubAssembler::ToBigInt(SloppyTNode<Context> context,
-                                          SloppyTNode<Object> input) {
-  TVARIABLE(BigInt, var_result);
-  Label if_bigint(this), done(this), if_throw(this);
-
-  GotoIf(TaggedIsSmi(input), &if_throw);
-  GotoIf(IsBigInt(input), &if_bigint);
-  var_result = CAST(CallRuntime(Runtime::kToBigInt, context, input));
-  Goto(&done);
-
-  BIND(&if_bigint);
-  var_result = CAST(input);
-  Goto(&done);
-
-  BIND(&if_throw);
-  ThrowTypeError(context, MessageTemplate::kBigIntFromObject, input);
-
-  BIND(&done);
-  return var_result.value();
-}
-
 void CodeStubAssembler::TaggedToNumeric(Node* context, Node* value, Label* done,
                                         Variable* var_numeric) {
   TaggedToNumeric(context, value, done, var_numeric, nullptr);
@@ -7339,8 +7138,6 @@ void CodeStubAssembler::TryLookupElement(Node* object, Node* map,
       FLOAT32_ELEMENTS,
       FLOAT64_ELEMENTS,
       UINT8_CLAMPED_ELEMENTS,
-      BIGUINT64_ELEMENTS,
-      BIGINT64_ELEMENTS,
   };
   Label* labels[] = {
       &if_isobjectorsmi, &if_isobjectorsmi, &if_isobjectorsmi,
@@ -7350,8 +7147,6 @@ void CodeStubAssembler::TryLookupElement(Node* object, Node* map,
       &if_isfaststringwrapper,
       &if_isslowstringwrapper,
       if_not_found,
-      &if_typedarray,
-      &if_typedarray,
       &if_typedarray,
       &if_typedarray,
       &if_typedarray,
@@ -8073,7 +7868,6 @@ Node* CodeStubAssembler::PrepareValueForWriteToTypedArray(
   // same layout as the HeapNumber for the HeapNumber::value field. This
   // way we can also properly optimize stores of oddballs to typed arrays.
   GotoIf(IsHeapNumber(input), &if_heapnumber);
-  STATIC_ASSERT(HeapNumber::kValueOffset == Oddball::kToNumberRawOffset);
   Branch(HasInstanceType(input, ODDBALL_TYPE), &if_heapnumber, bailout);
 
   BIND(&if_heapnumber);
@@ -8119,7 +7913,7 @@ void CodeStubAssembler::EmitElementStore(Node* object, Node* key, Node* value,
                                          bool is_jsarray,
                                          ElementsKind elements_kind,
                                          KeyedAccessStoreMode store_mode,
-                                         Label* bailout, Node* context) {
+                                         Label* bailout) {
   CSA_ASSERT(this, Word32BinaryNot(IsJSProxy(object)));
 
   Node* elements = LoadElements(object);
@@ -8131,16 +7925,9 @@ void CodeStubAssembler::EmitElementStore(Node* object, Node* key, Node* value,
 
   // TODO(ishell): introduce TryToIntPtrOrSmi() and use OptimalParameterMode().
   ParameterMode parameter_mode = INTPTR_PARAMETERS;
-  Node* intptr_key = TryToIntptr(key, bailout);
+  key = TryToIntptr(key, bailout);
 
   if (IsFixedTypedArrayElementsKind(elements_kind)) {
-    if (elements_kind == BIGINT64_ELEMENTS ||
-        elements_kind == BIGUINT64_ELEMENTS) {
-      // TODO(jkummerow): Add inline support.
-      CallRuntime(Runtime::kSetProperty, context, object, key, value,
-                  SmiConstant(LanguageMode::kSloppy));
-      return;
-    }
     Label done(this);
     // TODO(ishell): call ToNumber() on value and don't bailout but be careful
     // to call it only once if we decide to bailout because of bounds checks.
@@ -8164,10 +7951,10 @@ void CodeStubAssembler::EmitElementStore(Node* object, Node* key, Node* value,
     if (store_mode == STORE_NO_TRANSITION_IGNORE_OUT_OF_BOUNDS) {
       // Skip the store if we write beyond the length or
       // to a property with a negative integer index.
-      GotoIfNot(UintPtrLessThan(intptr_key, length), &done);
+      GotoIfNot(UintPtrLessThan(key, length), &done);
     } else {
       DCHECK_EQ(STANDARD_STORE, store_mode);
-      GotoIfNot(UintPtrLessThan(intptr_key, length), bailout);
+      GotoIfNot(UintPtrLessThan(key, length), bailout);
     }
 
     // Backing store = external_pointer + base_pointer.
@@ -8178,8 +7965,7 @@ void CodeStubAssembler::EmitElementStore(Node* object, Node* key, Node* value,
         LoadObjectField(elements, FixedTypedArrayBase::kBasePointerOffset);
     Node* backing_store =
         IntPtrAdd(external_pointer, BitcastTaggedToWord(base_pointer));
-    StoreElement(backing_store, elements_kind, intptr_key, value,
-                 parameter_mode);
+    StoreElement(backing_store, elements_kind, key, value, parameter_mode);
     Goto(&done);
 
     BIND(&done);
@@ -8202,11 +7988,11 @@ void CodeStubAssembler::EmitElementStore(Node* object, Node* key, Node* value,
   }
 
   if (IsGrowStoreMode(store_mode)) {
-    elements = CheckForCapacityGrow(object, elements, elements_kind, store_mode,
-                                    length, intptr_key, parameter_mode,
-                                    is_jsarray, bailout);
+    elements =
+        CheckForCapacityGrow(object, elements, elements_kind, store_mode,
+                             length, key, parameter_mode, is_jsarray, bailout);
   } else {
-    GotoIfNot(UintPtrLessThan(intptr_key, length), bailout);
+    GotoIfNot(UintPtrLessThan(key, length), bailout);
   }
 
   // If we didn't grow {elements}, it might still be COW, in which case we
@@ -8219,7 +8005,7 @@ void CodeStubAssembler::EmitElementStore(Node* object, Node* key, Node* value,
   }
 
   CSA_ASSERT(this, Word32BinaryNot(IsFixedCOWArrayMap(LoadMap(elements))));
-  StoreElement(elements, elements_kind, intptr_key, value, parameter_mode);
+  StoreElement(elements, elements_kind, key, value, parameter_mode);
 }
 
 Node* CodeStubAssembler::CheckForCapacityGrow(

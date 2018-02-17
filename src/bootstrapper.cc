@@ -1787,8 +1787,6 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
   V(FLOAT32_ARRAY, KEY_VALUE, float32_array, key_value)                     \
   V(FLOAT64_ARRAY, KEY_VALUE, float64_array, key_value)                     \
   V(UINT8_CLAMPED_ARRAY, KEY_VALUE, uint8_clamped_array, key_value)         \
-  V(BIGUINT64_ARRAY, KEY_VALUE, biguint64_array, key_value)                 \
-  V(BIGINT64_ARRAY, KEY_VALUE, bigint64_array, key_value)                   \
   V(FAST_SMI_ARRAY, KEY_VALUE, fast_smi_array, key_value)                   \
   V(FAST_HOLEY_SMI_ARRAY, KEY_VALUE, fast_holey_smi_array, key_value)       \
   V(FAST_ARRAY, KEY_VALUE, fast_array, key_value)                           \
@@ -1805,8 +1803,6 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
   V(FLOAT32_ARRAY, VALUE, float32_array, value)                             \
   V(FLOAT64_ARRAY, VALUE, float64_array, value)                             \
   V(UINT8_CLAMPED_ARRAY, VALUE, uint8_clamped_array, value)                 \
-  V(BIGUINT64_ARRAY, VALUE, biguint64_array, value)                         \
-  V(BIGINT64_ARRAY, VALUE, bigint64_array, value)                           \
   V(FAST_SMI_ARRAY, VALUE, fast_smi_array, value)                           \
   V(FAST_HOLEY_SMI_ARRAY, VALUE, fast_holey_smi_array, value)               \
   V(FAST_ARRAY, VALUE, fast_array, value)                                   \
@@ -4408,19 +4404,10 @@ void Genesis::InitializeGlobal_harmony_promise_finally() {
 }
 
 void Genesis::InitializeGlobal_harmony_bigint() {
+  if (!FLAG_harmony_bigint) return;
+
   Factory* factory = isolate()->factory();
   Handle<JSGlobalObject> global(native_context()->global_object());
-  if (!FLAG_harmony_bigint) {
-    // Typed arrays are installed by default; remove them if the flag is off.
-    CHECK(JSObject::DeleteProperty(
-              global, factory->InternalizeUtf8String("BigInt64Array"))
-              .ToChecked());
-    CHECK(JSObject::DeleteProperty(
-              global, factory->InternalizeUtf8String("BigUint64Array"))
-              .ToChecked());
-    return;
-  }
-
   Handle<JSFunction> bigint_fun =
       InstallFunction(global, "BigInt", JS_VALUE_TYPE, JSValue::kSize, 0,
                       factory->the_hole_value(), Builtins::kBigIntConstructor);

@@ -75,8 +75,7 @@ namespace internal {
   F(BigIntEqualToString, 2, 1)       \
   F(BigIntToBoolean, 1, 1)           \
   F(BigIntToNumber, 1, 1)            \
-  F(BigIntUnaryOp, 2, 1)             \
-  F(ToBigInt, 1, 1)
+  F(BigIntUnaryOp, 2, 1)
 
 #define FOR_EACH_INTRINSIC_CLASSES(F)       \
   F(ThrowUnsupportedSuperError, 0, 1)       \
@@ -575,8 +574,6 @@ namespace internal {
   F(HasDoubleElements, 1, 1)                  \
   F(HasFastElements, 1, 1)                    \
   F(HasFastProperties, 1, 1)                  \
-  F(HasFixedBigInt64Elements, 1, 1)           \
-  F(HasFixedBigUint64Elements, 1, 1)          \
   F(HasFixedFloat32Elements, 1, 1)            \
   F(HasFixedFloat64Elements, 1, 1)            \
   F(HasFixedInt16Elements, 1, 1)              \

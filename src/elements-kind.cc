@@ -30,8 +30,6 @@ int ElementsKindToShiftSize(ElementsKind elements_kind) {
     case PACKED_DOUBLE_ELEMENTS:
     case HOLEY_DOUBLE_ELEMENTS:
     case FLOAT64_ELEMENTS:
-    case BIGINT64_ELEMENTS:
-    case BIGUINT64_ELEMENTS:
       return 3;
     case PACKED_SMI_ELEMENTS:
     case PACKED_ELEMENTS:

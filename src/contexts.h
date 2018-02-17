@@ -116,8 +116,6 @@ enum ContextLookupFlags {
   V(WEAKMAP_SET_INDEX, JSFunction, weakmap_set)                           \
   V(WEAKSET_ADD_INDEX, JSFunction, weakset_add)
 
-// If you add something here, also add it to ARRAY_ITERATOR_LIST in
-// bootstrapper.cc.
 #define NATIVE_CONTEXT_JS_ARRAY_ITERATOR_MAPS(V)                               \
   V(TYPED_ARRAY_KEY_ITERATOR_MAP_INDEX, Map, typed_array_key_iterator_map)     \
   V(FAST_ARRAY_KEY_ITERATOR_MAP_INDEX, Map, fast_array_key_iterator_map)       \
@@ -141,10 +139,6 @@ enum ContextLookupFlags {
     float64_array_key_value_iterator_map)                                      \
   V(UINT8_CLAMPED_ARRAY_KEY_VALUE_ITERATOR_MAP_INDEX, Map,                     \
     uint8_clamped_array_key_value_iterator_map)                                \
-  V(BIGUINT64_ARRAY_KEY_VALUE_ITERATOR_MAP_INDEX, Map,                         \
-    biguint64_array_key_value_iterator_map)                                    \
-  V(BIGINT64_ARRAY_KEY_VALUE_ITERATOR_MAP_INDEX, Map,                          \
-    bigint64_array_key_value_iterator_map)                                     \
                                                                                \
   V(FAST_SMI_ARRAY_KEY_VALUE_ITERATOR_MAP_INDEX, Map,                          \
     fast_smi_array_key_value_iterator_map)                                     \
@@ -175,10 +169,6 @@ enum ContextLookupFlags {
     float64_array_value_iterator_map)                                          \
   V(UINT8_CLAMPED_ARRAY_VALUE_ITERATOR_MAP_INDEX, Map,                         \
     uint8_clamped_array_value_iterator_map)                                    \
-  V(BIGUINT64_ARRAY_VALUE_ITERATOR_MAP_INDEX, Map,                             \
-    biguint64_array_value_iterator_map)                                        \
-  V(BIGINT64_ARRAY_VALUE_ITERATOR_MAP_INDEX, Map,                              \
-    bigint64_array_value_iterator_map)                                         \
                                                                                \
   V(FAST_SMI_ARRAY_VALUE_ITERATOR_MAP_INDEX, Map,                              \
     fast_smi_array_value_iterator_map)                                         \
@@ -225,8 +215,6 @@ enum ContextLookupFlags {
     async_generator_return_closed_reject_shared_fun)                           \
   V(ATOMICS_OBJECT, JSObject, atomics_object)                                  \
   V(BIGINT_FUNCTION_INDEX, JSFunction, bigint_function)                        \
-  V(BIGINT64_ARRAY_FUN_INDEX, JSFunction, bigint64_array_fun)                  \
-  V(BIGUINT64_ARRAY_FUN_INDEX, JSFunction, biguint64_array_fun)                \
   V(BOOLEAN_FUNCTION_INDEX, JSFunction, boolean_function)                      \
   V(BOUND_FUNCTION_WITH_CONSTRUCTOR_MAP_INDEX, Map,                            \
     bound_function_with_constructor_map)                                       \

@@ -31,8 +31,6 @@ FUNCTION(Int32Array, 4)
 FUNCTION(Float32Array, 4)
 FUNCTION(Float64Array, 8)
 FUNCTION(Uint8ClampedArray, 1)
-FUNCTION(BigUint64Array, 8)
-FUNCTION(BigInt64Array, 8)
 endmacro
 
 macro DECLARE_GLOBALS(NAME, SIZE)

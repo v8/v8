@@ -36,8 +36,6 @@ class TypeCache final {
   Type* const kUint32 = Type::Unsigned32();
   Type* const kFloat32 = Type::Number();
   Type* const kFloat64 = Type::Number();
-  Type* const kBigInt64 = Type::BigInt();
-  Type* const kBigUint64 = Type::BigInt();
 
   Type* const kHoleySmi =
       Type::Union(Type::SignedSmall(), Type::Hole(), zone());

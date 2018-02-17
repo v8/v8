@@ -332,7 +332,7 @@ TF_STUB(ElementsTransitionAndStoreStub, CodeStubAssembler) {
     TransitionElementsKind(receiver, map, stub->from_kind(), stub->to_kind(),
                            stub->is_jsarray(), &miss);
     EmitElementStore(receiver, key, value, stub->is_jsarray(), stub->to_kind(),
-                     stub->store_mode(), &miss, context);
+                     stub->store_mode(), &miss);
     Return(value);
   }
 
@@ -524,7 +524,7 @@ TF_STUB(StoreFastElementStub, CodeStubAssembler) {
   Label miss(this);
 
   EmitElementStore(receiver, key, value, stub->is_js_array(),
-                   stub->elements_kind(), stub->store_mode(), &miss, context);
+                   stub->elements_kind(), stub->store_mode(), &miss);
   Return(value);
 
   BIND(&miss);

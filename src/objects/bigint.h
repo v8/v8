@@ -137,11 +137,6 @@ class V8_EXPORT_PRIVATE BigInt : public BigIntBase {
   static Handle<BigInt> AsIntN(uint64_t n, Handle<BigInt> x);
   static MaybeHandle<BigInt> AsUintN(uint64_t n, Handle<BigInt> x);
 
-  static Handle<BigInt> FromInt64(Isolate* isolate, int64_t n);
-  static Handle<BigInt> FromUint64(Isolate* isolate, uint64_t n);
-  int64_t AsInt64(bool* lossless = nullptr);
-  uint64_t AsUint64(bool* lossless = nullptr);
-
   DECL_CAST(BigInt)
   DECL_VERIFIER(BigInt)
   DECL_PRINTER(BigInt)

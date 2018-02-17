@@ -2319,16 +2319,6 @@ class V8_EXPORT Value : public Data {
   bool IsFloat64Array() const;
 
   /**
-   * Returns true if this value is a BigInt64Array.
-   */
-  bool IsBigInt64Array() const;
-
-  /**
-   * Returns true if this value is a BigUint64Array.
-   */
-  bool IsBigUint64Array() const;
-
-  /**
    * Returns true if this value is a DataView.
    */
   bool IsDataView() const;
@@ -4636,37 +4626,6 @@ class V8_EXPORT Float64Array : public TypedArray {
   static void CheckCast(Value* obj);
 };
 
-/**
- * An instance of BigInt64Array constructor.
- */
-class V8_EXPORT BigInt64Array : public TypedArray {
- public:
-  static Local<BigInt64Array> New(Local<ArrayBuffer> array_buffer,
-                                  size_t byte_offset, size_t length);
-  static Local<BigInt64Array> New(Local<SharedArrayBuffer> shared_array_buffer,
-                                  size_t byte_offset, size_t length);
-  V8_INLINE static BigInt64Array* Cast(Value* obj);
-
- private:
-  BigInt64Array();
-  static void CheckCast(Value* obj);
-};
-
-/**
- * An instance of BigUint64Array constructor.
- */
-class V8_EXPORT BigUint64Array : public TypedArray {
- public:
-  static Local<BigUint64Array> New(Local<ArrayBuffer> array_buffer,
-                                   size_t byte_offset, size_t length);
-  static Local<BigUint64Array> New(Local<SharedArrayBuffer> shared_array_buffer,
-                                   size_t byte_offset, size_t length);
-  V8_INLINE static BigUint64Array* Cast(Value* obj);
-
- private:
-  BigUint64Array();
-  static void CheckCast(Value* obj);
-};
 
 /**
  * An instance of DataView constructor (ES6 draft 15.13.7).

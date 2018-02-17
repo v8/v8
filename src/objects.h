@@ -355,8 +355,6 @@ const int kStubMinorKeyBits = kSmiValueSize - kStubMajorKeyBits - 1;
   V(FIXED_FLOAT32_ARRAY_TYPE)                                   \
   V(FIXED_FLOAT64_ARRAY_TYPE)                                   \
   V(FIXED_UINT8_CLAMPED_ARRAY_TYPE)                             \
-  V(FIXED_BIGINT64_ARRAY_TYPE)                                  \
-  V(FIXED_BIGUINT64_ARRAY_TYPE)                                 \
                                                                 \
   V(FIXED_DOUBLE_ARRAY_TYPE)                                    \
   V(FILLER_TYPE)                                                \
@@ -519,8 +517,6 @@ const int kStubMinorKeyBits = kSmiValueSize - kStubMajorKeyBits - 1;
   V(JS_FLOAT32_ARRAY_KEY_VALUE_ITERATOR_TYPE)           \
   V(JS_FLOAT64_ARRAY_KEY_VALUE_ITERATOR_TYPE)           \
   V(JS_UINT8_CLAMPED_ARRAY_KEY_VALUE_ITERATOR_TYPE)     \
-  V(JS_BIGUINT64_ARRAY_KEY_VALUE_ITERATOR_TYPE)         \
-  V(JS_BIGINT64_ARRAY_KEY_VALUE_ITERATOR_TYPE)          \
                                                         \
   V(JS_FAST_SMI_ARRAY_KEY_VALUE_ITERATOR_TYPE)          \
   V(JS_FAST_HOLEY_SMI_ARRAY_KEY_VALUE_ITERATOR_TYPE)    \
@@ -539,8 +535,6 @@ const int kStubMinorKeyBits = kSmiValueSize - kStubMajorKeyBits - 1;
   V(JS_FLOAT32_ARRAY_VALUE_ITERATOR_TYPE)               \
   V(JS_FLOAT64_ARRAY_VALUE_ITERATOR_TYPE)               \
   V(JS_UINT8_CLAMPED_ARRAY_VALUE_ITERATOR_TYPE)         \
-  V(JS_BIGUINT64_ARRAY_VALUE_ITERATOR_TYPE)             \
-  V(JS_BIGINT64_ARRAY_VALUE_ITERATOR_TYPE)              \
                                                         \
   V(JS_FAST_SMI_ARRAY_VALUE_ITERATOR_TYPE)              \
   V(JS_FAST_HOLEY_SMI_ARRAY_VALUE_ITERATOR_TYPE)        \
@@ -743,9 +737,7 @@ enum InstanceType : uint16_t {
   FIXED_UINT32_ARRAY_TYPE,
   FIXED_FLOAT32_ARRAY_TYPE,
   FIXED_FLOAT64_ARRAY_TYPE,
-  FIXED_UINT8_CLAMPED_ARRAY_TYPE,
-  FIXED_BIGINT64_ARRAY_TYPE,
-  FIXED_BIGUINT64_ARRAY_TYPE,  // LAST_FIXED_TYPED_ARRAY_TYPE
+  FIXED_UINT8_CLAMPED_ARRAY_TYPE,  // LAST_FIXED_TYPED_ARRAY_TYPE
   FIXED_DOUBLE_ARRAY_TYPE,
   FILLER_TYPE,  // LAST_DATA_TYPE
 
@@ -873,7 +865,7 @@ enum InstanceType : uint16_t {
   LAST_MICROTASK_TYPE = PROMISE_RESOLVE_THENABLE_JOB_TASK_TYPE,
   // Boundaries for testing for a fixed typed array.
   FIRST_FIXED_TYPED_ARRAY_TYPE = FIXED_INT8_ARRAY_TYPE,
-  LAST_FIXED_TYPED_ARRAY_TYPE = FIXED_BIGUINT64_ARRAY_TYPE,
+  LAST_FIXED_TYPED_ARRAY_TYPE = FIXED_UINT8_CLAMPED_ARRAY_TYPE,
   // Boundary for promotion to old space.
   LAST_DATA_TYPE = FILLER_TYPE,
   // Boundary for objects represented as JSReceiver (i.e. JSObject or JSProxy).
@@ -1027,8 +1019,6 @@ template <class C> inline bool Is(Object* obj);
   V(FixedArray)                           \
   V(FixedArrayBase)                       \
   V(FixedArrayExact)                      \
-  V(FixedBigInt64Array)                   \
-  V(FixedBigUint64Array)                  \
   V(FixedDoubleArray)                     \
   V(FixedFloat32Array)                    \
   V(FixedFloat64Array)                    \
@@ -2324,8 +2314,6 @@ class JSObject: public JSReceiver {
   inline bool HasFixedUint32Elements();
   inline bool HasFixedFloat32Elements();
   inline bool HasFixedFloat64Elements();
-  inline bool HasFixedBigInt64Elements();
-  inline bool HasFixedBigUint64Elements();
 
   inline bool HasFastArgumentsElements();
   inline bool HasSlowArgumentsElements();

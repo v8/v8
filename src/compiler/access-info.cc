@@ -25,11 +25,7 @@ bool CanInlineElementAccess(Handle<Map> map) {
   if (map->has_indexed_interceptor()) return false;
   ElementsKind const elements_kind = map->elements_kind();
   if (IsFastElementsKind(elements_kind)) return true;
-  if (IsFixedTypedArrayElementsKind(elements_kind) &&
-      elements_kind != BIGUINT64_ELEMENTS &&
-      elements_kind != BIGINT64_ELEMENTS) {
-    return true;
-  }
+  if (IsFixedTypedArrayElementsKind(elements_kind)) return true;
   return false;
 }
 

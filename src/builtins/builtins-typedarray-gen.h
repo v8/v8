@@ -61,11 +61,8 @@ class TypedArrayBuiltinsAssembler : public CodeStubAssembler {
   // Returns true if kind is either UINT8_ELEMENTS or UINT8_CLAMPED_ELEMENTS.
   TNode<Word32T> IsUint8ElementsKind(TNode<Word32T> kind);
 
-  // Returns true if kind is either BIGINT64_ELEMENTS or BIGUINT64_ELEMENTS.
-  TNode<Word32T> IsBigInt64ElementsKind(TNode<Word32T> kind);
-
   // Loads the element kind of TypedArray instance.
-  TNode<Word32T> LoadElementsKind(TNode<JSTypedArray> typed_array);
+  TNode<Word32T> LoadElementsKind(TNode<Object> typed_array);
 
   // Returns the byte size of an element for a TypedArray elements kind.
   TNode<IntPtrT> GetTypedArrayElementSize(TNode<Word32T> elements_kind);
