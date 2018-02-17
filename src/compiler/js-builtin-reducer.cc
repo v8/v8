@@ -253,7 +253,7 @@ Reduction JSBuiltinReducer::ReduceArrayIterator(Handle<Map> receiver_map,
         map_index = Context::TYPED_ARRAY_KEY_ITERATOR_MAP_INDEX;
       } else {
         DCHECK_GE(receiver_map->elements_kind(), UINT8_ELEMENTS);
-        DCHECK_LE(receiver_map->elements_kind(), UINT8_CLAMPED_ELEMENTS);
+        DCHECK_LE(receiver_map->elements_kind(), BIGINT64_ELEMENTS);
         map_index = (kind == IterationKind::kValues
                          ? Context::UINT8_ARRAY_VALUE_ITERATOR_MAP_INDEX
                          : Context::UINT8_ARRAY_KEY_VALUE_ITERATOR_MAP_INDEX) +
