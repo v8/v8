@@ -5,7 +5,11 @@
 #ifndef V8_HEAP_CONCURRENT_MARKING_H_
 #define V8_HEAP_CONCURRENT_MARKING_H_
 
+#include "include/v8-platform.h"
 #include "src/allocation.h"
+#include "src/base/atomic-utils.h"
+#include "src/base/platform/condition-variable.h"
+#include "src/base/platform/mutex.h"
 #include "src/cancelable-task.h"
 #include "src/heap/spaces.h"
 #include "src/heap/worklist.h"
@@ -36,7 +40,7 @@ class ConcurrentMarking {
     ConcurrentMarking* concurrent_marking_;
   };
 
-  static const int kMaxTasks = 4;
+  static constexpr int kMaxTasks = 4;
   using MarkingWorklist = Worklist<HeapObject*, 64 /* segment size */>;
 
   ConcurrentMarking(Heap* heap, MarkingWorklist* shared,
@@ -68,25 +72,26 @@ class ConcurrentMarking {
     // The concurrent marker waits on this condition until the request
     // flag is cleared by the main thread.
     base::ConditionVariable interrupt_condition;
+
     LiveBytesMap live_bytes;
-    size_t marked_bytes;
+    size_t marked_bytes = 0;
     char cache_line_padding[64];
   };
   class Task;
   void Run(int task_id, TaskState* task_state);
-  Heap* heap_;
-  MarkingWorklist* shared_;
-  MarkingWorklist* bailout_;
-  MarkingWorklist* on_hold_;
-  WeakObjects* weak_objects_;
+  Heap* const heap_;
+  MarkingWorklist* const shared_;
+  MarkingWorklist* const bailout_;
+  MarkingWorklist* const on_hold_;
+  WeakObjects* const weak_objects_;
   TaskState task_state_[kMaxTasks + 1];
-  base::AtomicNumber<size_t> total_marked_bytes_;
+  base::AtomicNumber<size_t> total_marked_bytes_{0};
   base::Mutex pending_lock_;
   base::ConditionVariable pending_condition_;
-  int pending_task_count_;
-  bool is_pending_[kMaxTasks + 1];
-  CancelableTaskManager::Id cancelable_id_[kMaxTasks + 1];
-  int task_count_;
+  int pending_task_count_ = 0;
+  bool is_pending_[kMaxTasks + 1] = {};
+  CancelableTaskManager::Id cancelable_id_[kMaxTasks + 1] = {};
+  int task_count_ = 0;
 };
 
 }  // namespace internal
