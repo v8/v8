@@ -509,6 +509,7 @@ void ConcurrentMarking::ScheduleTasks() {
   DCHECK(heap_->use_tasks());
   if (!FLAG_concurrent_marking) return;
   base::LockGuard<base::Mutex> guard(&pending_lock_);
+  DCHECK_EQ(0, pending_task_count_);
   if (task_count_ == 0) {
     // TODO(ulan): Increase the number of tasks for platforms that benefit
     // from it.
@@ -520,7 +521,7 @@ void ConcurrentMarking::ScheduleTasks() {
     task_count_ = Max(Min(task_count_, kMaxTasks), 1);
   }
   // Task id 0 is for the main thread.
-  for (int i = 1; i <= task_count_ && pending_task_count_ < task_count_; i++) {
+  for (int i = 1; i <= task_count_; i++) {
     if (!is_pending_[i]) {
       if (FLAG_trace_concurrent_marking) {
         heap_->isolate()->PrintWithTimestamp(
@@ -535,6 +536,7 @@ void ConcurrentMarking::ScheduleTasks() {
           task, v8::Platform::kShortRunningTask);
     }
   }
+  DCHECK_EQ(task_count_, pending_task_count_);
 }
 
 void ConcurrentMarking::RescheduleTasksIfNeeded() {
