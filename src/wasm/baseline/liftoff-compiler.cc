@@ -857,9 +857,70 @@ class LiftoffCompiler {
     __ bind(&cont_false);
   }
 
+  // Generate a branch table case, potentially reusing previously generated
+  // stack transfer code.
+  void GenerateBrCase(Decoder* decoder, uint32_t br_depth,
+                      std::map<uint32_t, MovableLabel>& br_targets) {
+    MovableLabel& label = br_targets[br_depth];
+    if (label.get()->is_bound()) {
+      __ jmp(label.get());
+    } else {
+      __ bind(label.get());
+      Br(decoder->control_at(br_depth));
+    }
+  }
+
+  // Generate a branch table for input in [min, max).
+  // TODO(wasm): Generate a real branch table (like TF TableSwitch).
+  void GenerateBrTable(Decoder* decoder, LiftoffRegister tmp,
+                       LiftoffRegister value, uint32_t min, uint32_t max,
+                       BranchTableIterator<validate>& table_iterator,
+                       std::map<uint32_t, MovableLabel>& br_targets) {
+    DCHECK_LT(min, max);
+    // Check base case.
+    if (max == min + 1) {
+      DCHECK_EQ(min, table_iterator.cur_index());
+      GenerateBrCase(decoder, table_iterator.next(), br_targets);
+      return;
+    }
+
+    uint32_t split = min + (max - min) / 2;
+    Label upper_half;
+    __ LoadConstant(tmp, WasmValue(split));
+    __ emit_cond_jump(kUnsignedGreaterEqual, &upper_half, kWasmI32, value.gp(),
+                      tmp.gp());
+    // Emit br table for lower half:
+    GenerateBrTable(decoder, tmp, value, min, split, table_iterator,
+                    br_targets);
+    __ bind(&upper_half);
+    // Emit br table for upper half:
+    GenerateBrTable(decoder, tmp, value, split, max, table_iterator,
+                    br_targets);
+  }
+
   void BrTable(Decoder* decoder, const BranchTableOperand<validate>& operand,
                const Value& key) {
-    unsupported(decoder, "br_table");
+    LiftoffRegList pinned;
+    LiftoffRegister value = pinned.set(__ PopToRegister(kGpReg));
+    BranchTableIterator<validate> table_iterator(decoder, operand);
+    std::map<uint32_t, MovableLabel> br_targets;
+
+    if (operand.table_count > 0) {
+      LiftoffRegister tmp = __ GetUnusedRegister(kGpReg, pinned);
+      __ LoadConstant(tmp, WasmValue(uint32_t{operand.table_count}));
+      Label case_default;
+      __ emit_cond_jump(kUnsignedGreaterEqual, &case_default, kWasmI32,
+                        value.gp(), tmp.gp());
+
+      GenerateBrTable(decoder, tmp, value, 0, operand.table_count,
+                      table_iterator, br_targets);
+
+      __ bind(&case_default);
+    }
+
+    // Generate the default case.
+    GenerateBrCase(decoder, table_iterator.next(), br_targets);
+    DCHECK(!table_iterator.has_next());
   }
 
   void Else(Decoder* decoder, Control* if_block) {

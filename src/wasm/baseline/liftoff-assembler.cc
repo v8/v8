@@ -419,6 +419,8 @@ void LiftoffAssembler::MergeStackWith(CacheState& target, uint32_t arity) {
   //             ^target_stack_base
   uint32_t stack_height = cache_state_.stack_height();
   uint32_t target_stack_height = target.stack_height();
+  DCHECK_LE(target_stack_height, stack_height);
+  DCHECK_LE(arity, target_stack_height);
   uint32_t stack_base = stack_height - arity;
   uint32_t target_stack_base = target_stack_height - arity;
   StackTransferRecipe transfers(this);
