@@ -23,6 +23,7 @@ ALL_VARIANT_FLAGS = {
   "stress_sampling": [["--stress-sampling-allocation-profiler=16384"]],
   "trusted": [["--no-untrusted-code-mitigations"]],
   "wasm_traps": [["--wasm_trap_handler", "--invoke-weak-callbacks", "--wasm-jit-to-native"]],
+  "wasm_no_native": [["--no-wasm-jit-to-native"]],
 }
 
 ALL_VARIANTS = set(ALL_VARIANT_FLAGS.keys())

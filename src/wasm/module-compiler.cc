@@ -891,7 +891,8 @@ compiler::ModuleEnv CreateModuleEnvFromCompiledModule(
   std::vector<GlobalHandleAddress> function_tables;
 
   int num_function_tables = static_cast<int>(module->function_tables.size());
-  FixedArray* ft = compiled_module->function_tables();
+  FixedArray* ft =
+      num_function_tables == 0 ? nullptr : compiled_module->function_tables();
   for (int i = 0; i < num_function_tables; ++i) {
     // TODO(clemensh): defer these handles for concurrent compilation.
     function_tables.push_back(WasmCompiledModule::GetTableValue(ft, i));
@@ -3466,14 +3467,20 @@ void InstanceBuilder::LoadTableSegments(Handle<FixedArray> code_table,
                 Code::cast(code_table->get(static_cast<int>(func_index)));
             // Only increase the counter for lazy compile builtins (it's not
             // needed otherwise).
-            if (code->is_wasm_code()) continue;
-            DCHECK_EQ(Builtins::kWasmCompileLazy, code->builtin_index());
+            if (code->builtin_index() != Builtins::kWasmCompileLazy) {
+              DCHECK(code->kind() == Code::WASM_FUNCTION ||
+                     code->kind() == Code::WASM_TO_JS_FUNCTION);
+              continue;
+            }
           } else {
             const wasm::WasmCode* code = native_module->GetCode(func_index);
             // Only increase the counter for lazy compile builtins (it's not
             // needed otherwise).
-            if (code->kind() == wasm::WasmCode::kFunction) continue;
-            DCHECK_EQ(wasm::WasmCode::kLazyStub, code->kind());
+            if (code->kind() != wasm::WasmCode::kLazyStub) {
+              DCHECK(code->kind() == wasm::WasmCode::kFunction ||
+                     code->kind() == wasm::WasmCode::kWasmToJsWrapper);
+              continue;
+            }
           }
           ++num_table_exports[func_index];
         }
