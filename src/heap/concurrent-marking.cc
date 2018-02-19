@@ -436,13 +436,8 @@ void ConcurrentMarking::Run(int task_id, TaskState* task_state) {
                       GCTracer::BackgroundScope::MC_BACKGROUND_MARKING);
   size_t kBytesUntilInterruptCheck = 64 * KB;
   int kObjectsUntilInterrupCheck = 1000;
-  LiveBytesMap* live_bytes = nullptr;
-  {
-    base::LockGuard<base::Mutex> guard(&task_state->lock);
-    live_bytes = &task_state->live_bytes;
-  }
-  ConcurrentMarkingVisitor visitor(shared_, bailout_, live_bytes, weak_objects_,
-                                   task_id);
+  ConcurrentMarkingVisitor visitor(shared_, bailout_, &task_state->live_bytes,
+                                   weak_objects_, task_id);
   double time_ms;
   size_t marked_bytes = 0;
   if (FLAG_trace_concurrent_marking) {
@@ -451,48 +446,41 @@ void ConcurrentMarking::Run(int task_id, TaskState* task_state) {
   }
   {
     TimedScope scope(&time_ms);
-    {
-      base::LockGuard<base::Mutex> guard(&task_state->lock);
-      bool done = false;
-      while (!done) {
-        size_t current_marked_bytes = 0;
-        int objects_processed = 0;
-        while (current_marked_bytes < kBytesUntilInterruptCheck &&
-               objects_processed < kObjectsUntilInterrupCheck) {
-          HeapObject* object;
-          if (!shared_->Pop(task_id, &object)) {
-            done = true;
-            break;
-          }
-          objects_processed++;
-          Address new_space_top = heap_->new_space()->original_top();
-          Address new_space_limit = heap_->new_space()->original_limit();
-          Address addr = object->address();
-          if (new_space_top <= addr && addr < new_space_limit) {
-            on_hold_->Push(task_id, object);
-          } else {
-            Map* map = object->synchronized_map();
-            current_marked_bytes += visitor.Visit(map, object);
-          }
-        }
-        marked_bytes += current_marked_bytes;
-        base::AsAtomicWord::Relaxed_Store<size_t>(&task_state->marked_bytes,
-                                                  marked_bytes);
-        if (task_state->interrupt_request.Value()) {
-          TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.gc"),
-                       "ConcurrentMarking::Run Paused");
-          task_state->interrupt_condition.Wait(&task_state->lock);
-        } else if (task_state->preemption_request.Value()) {
-          TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.gc"),
-                       "ConcurrentMarking::Run Preempted");
+
+    bool done = false;
+    while (!done) {
+      size_t current_marked_bytes = 0;
+      int objects_processed = 0;
+      while (current_marked_bytes < kBytesUntilInterruptCheck &&
+             objects_processed < kObjectsUntilInterrupCheck) {
+        HeapObject* object;
+        if (!shared_->Pop(task_id, &object)) {
+          done = true;
           break;
         }
+        objects_processed++;
+        Address new_space_top = heap_->new_space()->original_top();
+        Address new_space_limit = heap_->new_space()->original_limit();
+        Address addr = object->address();
+        if (new_space_top <= addr && addr < new_space_limit) {
+          on_hold_->Push(task_id, object);
+        } else {
+          Map* map = object->synchronized_map();
+          current_marked_bytes += visitor.Visit(map, object);
+        }
       }
-      // The lock is also required to synchronize with worklist update after
-      // young generation GC.
-      bailout_->FlushToGlobal(task_id);
-      on_hold_->FlushToGlobal(task_id);
+      marked_bytes += current_marked_bytes;
+      base::AsAtomicWord::Relaxed_Store<size_t>(&task_state->marked_bytes,
+                                                marked_bytes);
+      if (task_state->preemption_request.Value()) {
+        TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.gc"),
+                     "ConcurrentMarking::Run Preempted");
+        break;
+      }
     }
+    bailout_->FlushToGlobal(task_id);
+    on_hold_->FlushToGlobal(task_id);
+
     weak_objects_->weak_cells.FlushToGlobal(task_id);
     weak_objects_->transition_arrays.FlushToGlobal(task_id);
     base::AsAtomicWord::Relaxed_Store<size_t>(&task_state->marked_bytes, 0);
@@ -534,7 +522,6 @@ void ConcurrentMarking::ScheduleTasks() {
             "Scheduling concurrent marking task %d\n", i);
       }
       task_state_[i].preemption_request.SetValue(false);
-      task_state_[i].interrupt_request.SetValue(false);
       is_pending_[i] = true;
       ++pending_task_count_;
       Task* task = new Task(heap_->isolate(), this, &task_state_[i], i);
@@ -623,23 +610,12 @@ size_t ConcurrentMarking::TotalMarkedBytes() {
 ConcurrentMarking::PauseScope::PauseScope(ConcurrentMarking* concurrent_marking)
     : concurrent_marking_(concurrent_marking) {
   if (!FLAG_concurrent_marking) return;
-  // Request task_state for all tasks.
-  for (int i = 1; i <= kMaxTasks; i++) {
-    concurrent_marking_->task_state_[i].interrupt_request.SetValue(true);
-  }
-  // Now take a lock to ensure that the tasks are waiting.
-  for (int i = 1; i <= kMaxTasks; i++) {
-    concurrent_marking_->task_state_[i].lock.Lock();
-  }
+  concurrent_marking_->Stop(ConcurrentMarking::StopRequest::PREEMPT_TASKS);
 }
 
 ConcurrentMarking::PauseScope::~PauseScope() {
   if (!FLAG_concurrent_marking) return;
-  for (int i = kMaxTasks; i >= 1; i--) {
-    concurrent_marking_->task_state_[i].interrupt_request.SetValue(false);
-    concurrent_marking_->task_state_[i].interrupt_condition.NotifyAll();
-    concurrent_marking_->task_state_[i].lock.Unlock();
-  }
+  concurrent_marking_->RescheduleTasksIfNeeded();
 }
 
 }  // namespace internal
