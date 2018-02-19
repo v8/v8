@@ -4688,7 +4688,7 @@ Handle<Code> CompileJSToWasmWrapper(Isolate* isolate, wasm::WasmModule* module,
 #endif
 
   if (must_record_function_compilation(isolate)) {
-    RecordFunctionCompilation(CodeEventListener::FUNCTION_TAG, isolate, code,
+    RecordFunctionCompilation(CodeEventListener::STUB_TAG, isolate, code,
                               "%.*s", func_name.length(), func_name.start());
   }
 
@@ -4821,7 +4821,7 @@ Handle<Code> CompileWasmToJSWrapper(
 #endif
 
   if (must_record_function_compilation(isolate)) {
-    RecordFunctionCompilation(CodeEventListener::FUNCTION_TAG, isolate, code,
+    RecordFunctionCompilation(CodeEventListener::STUB_TAG, isolate, code,
                               "%.*s", func_name.length(), func_name.start());
   }
 
@@ -4894,7 +4894,7 @@ Handle<Code> CompileWasmToWasmWrapper(Isolate* isolate, WasmCodeWrapper target,
     buffer.Dispose();
   }
   if (isolate->logger()->is_logging_code_events() || isolate->is_profiling()) {
-    RecordFunctionCompilation(CodeEventListener::FUNCTION_TAG, isolate, code,
+    RecordFunctionCompilation(CodeEventListener::STUB_TAG, isolate, code,
                               "wasm-to-wasm");
   }
 
@@ -4957,7 +4957,7 @@ Handle<Code> CompileWasmInterpreterEntry(Isolate* isolate, uint32_t func_index,
 #endif
 
     if (must_record_function_compilation(isolate)) {
-      RecordFunctionCompilation(CodeEventListener::FUNCTION_TAG, isolate, code,
+      RecordFunctionCompilation(CodeEventListener::STUB_TAG, isolate, code,
                                 "%.*s", func_name.length(), func_name.start());
     }
   }
@@ -5320,13 +5320,15 @@ WasmCodeWrapper WasmCompilationUnit::FinishTurbofanCompilation(
     if (!code) {
       return WasmCodeWrapper(code);
     }
-    // TODO(mtrofin): add CodeEventListener call - see the non-native case.
     if (FLAG_trace_wasm_decode_time) {
       double codegen_ms = codegen_timer.Elapsed().InMillisecondsF();
       PrintF("wasm-code-generation ok: %u bytes, %0.3f ms code generation\n",
              static_cast<unsigned>(func_body_.end - func_body_.start),
              codegen_ms);
     }
+
+    PROFILE(isolate_,
+            CodeCreateEvent(CodeEventListener::FUNCTION_TAG, code, func_name_));
 
     Handle<ByteArray> source_positions =
         tf_.job_->compilation_info()->wasm_code_desc()->source_positions_table;
@@ -5408,14 +5410,16 @@ WasmCodeWrapper WasmCompilationUnit::FinishLiftoffCompilation(
     PackProtectedInstructions(code);
     ret = WasmCodeWrapper(code);
   } else {
-    // TODO(mtrofin): figure a way to raise events.
-    // Consider lifting it to FinishCompilation.
+    // TODO(herhut) Consider lifting it to FinishCompilation.
     native_module_->compiled_module()->source_positions()->set(
         func_index_, *source_positions);
-    ret = WasmCodeWrapper(
+    wasm::WasmCode* code =
         native_module_->AddCode(desc, liftoff_.asm_.GetTotalFrameSlotCount(),
                                 func_index_, liftoff_.safepoint_table_offset_,
-                                std::move(protected_instructions_), true));
+                                std::move(protected_instructions_), true);
+    PROFILE(isolate_,
+            CodeCreateEvent(CodeEventListener::FUNCTION_TAG, code, func_name_));
+    ret = WasmCodeWrapper(code);
   }
 #ifdef ENABLE_DISASSEMBLER
   if (FLAG_print_code || FLAG_print_wasm_code) {

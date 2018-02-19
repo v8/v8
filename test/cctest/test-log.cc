@@ -705,6 +705,8 @@ TEST(Issue539892) {
                            const char* name, int length) override {}
     void LogRecordedBuffer(const i::InstructionStream* stream, const char* name,
                            int length) override {}
+    void LogRecordedBuffer(i::wasm::WasmCode* code, const char* name,
+                           int length) override {}
   } code_event_logger;
   SETUP_FLAGS();
   v8::Isolate::CreateParams create_params;

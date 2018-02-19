@@ -1819,6 +1819,28 @@ bool WasmCompiledModule::SetBreakPoint(
   return true;
 }
 
+void WasmCompiledModule::LogWasmCodes(Isolate* isolate) {
+  wasm::NativeModule* native_module = GetNativeModule();
+  if (native_module == nullptr) return;
+  const uint32_t number_of_codes = native_module->FunctionCount();
+  if (has_shared()) {
+    Handle<WasmSharedModuleData> shared_handle(shared(), isolate);
+    for (uint32_t i = 0; i < number_of_codes; i++) {
+      wasm::WasmCode* code = native_module->GetCode(i);
+      if (code == nullptr) continue;
+      int name_length;
+      Handle<String> name(
+          WasmSharedModuleData::GetFunctionName(isolate, shared_handle, i));
+      auto cname = name->ToCString(AllowNullsFlag::DISALLOW_NULLS,
+                                   RobustnessFlag::ROBUST_STRING_TRAVERSAL,
+                                   &name_length);
+      wasm::WasmName wasm_name(cname.get(), name_length);
+      PROFILE(isolate, CodeCreateEvent(CodeEventListener::FUNCTION_TAG, code,
+                                       wasm_name));
+    }
+  }
+}
+
 void AttachWasmFunctionInfo(Isolate* isolate, Handle<Code> code,
                             MaybeHandle<WeakCell> weak_instance,
                             int func_index) {

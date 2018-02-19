@@ -34,6 +34,7 @@
 #include "src/instruction-stream.h"
 #include "src/objects-inl.h"
 #include "src/source-position-table.h"
+#include "src/wasm/wasm-code-manager.h"
 
 #if V8_OS_LINUX
 #include <fcntl.h>
@@ -214,7 +215,11 @@ void PerfJitLogger::LogRecordedBuffer(AbstractCode* abstract_code,
 
   // Debug info has to be emitted first.
   if (FLAG_perf_prof && shared != nullptr) {
-    LogWriteDebugInfo(code, shared);
+    // TODO(herhut): This currently breaks for js2wasm/wasm2js functions.
+    if (code->kind() != Code::JS_TO_WASM_FUNCTION &&
+        code->kind() != Code::WASM_TO_JS_FUNCTION) {
+      LogWriteDebugInfo(code, shared);
+    }
   }
 
   const char* code_name = name;
@@ -227,11 +232,27 @@ void PerfJitLogger::LogRecordedBuffer(AbstractCode* abstract_code,
   // Unwinding info comes right after debug info.
   if (FLAG_perf_prof_unwinding_info) LogWriteUnwindingInfo(code);
 
+  WriteJitCodeLoadEntry(code_pointer, code_size, code_name, length);
+}
+
+void PerfJitLogger::LogRecordedBuffer(wasm::WasmCode* code, const char* name,
+                                      int length) {
+  base::LockGuard<base::RecursiveMutex> guard_file(file_mutex_.Pointer());
+
+  if (perf_output_handle_ == nullptr) return;
+
+  WriteJitCodeLoadEntry(code->instructions().start(),
+                        code->instructions().length(), name, length);
+}
+
+void PerfJitLogger::WriteJitCodeLoadEntry(const uint8_t* code_pointer,
+                                          uint32_t code_size, const char* name,
+                                          int name_length) {
   static const char string_terminator[] = "\0";
 
   PerfJitCodeLoad code_load;
   code_load.event_ = PerfJitCodeLoad::kLoad;
-  code_load.size_ = sizeof(code_load) + length + 1 + code_size;
+  code_load.size_ = sizeof(code_load) + name_length + 1 + code_size;
   code_load.time_stamp_ = GetTimestamp();
   code_load.process_id_ =
       static_cast<uint32_t>(base::OS::GetCurrentProcessId());
@@ -244,7 +265,7 @@ void PerfJitLogger::LogRecordedBuffer(AbstractCode* abstract_code,
   code_index_++;
 
   LogWriteBytes(reinterpret_cast<const char*>(&code_load), sizeof(code_load));
-  LogWriteBytes(code_name, length);
+  LogWriteBytes(name, name_length);
   LogWriteBytes(string_terminator, 1);
   LogWriteBytes(reinterpret_cast<const char*>(code_pointer), code_size);
 }

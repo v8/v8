@@ -556,6 +556,8 @@ class WasmCompiledModule : public FixedArray {
   static Address GetTableValue(FixedArray* table, int index);
   inline void ReplaceCodeTableForTesting(Handle<FixedArray> testing_table);
 
+  void LogWasmCodes(Isolate* isolate);
+
  private:
   void InitId();
 

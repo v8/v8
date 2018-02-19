@@ -74,6 +74,11 @@ class Profiler;
 class ProfilerListener;
 class RuntimeCallTimer;
 class Ticker;
+class WasmCompiledModule;
+
+namespace wasm {
+class WasmCode;
+}
 
 #undef LOG
 #define LOG(isolate, Call)                              \
@@ -176,6 +181,8 @@ class Logger : public CodeEventListener {
   void CodeCreateEvent(CodeEventListener::LogEventsAndTags tag,
                        AbstractCode* code, SharedFunctionInfo* shared,
                        Name* source, int line, int column);
+  void CodeCreateEvent(CodeEventListener::LogEventsAndTags tag,
+                       wasm::WasmCode* code, wasm::WasmName name);
   // Emits a code deoptimization event.
   void CodeDisableOptEvent(AbstractCode* code, SharedFunctionInfo* shared);
   void CodeMovingGCEvent();
@@ -237,6 +244,7 @@ class Logger : public CodeEventListener {
 
   void LogExistingFunction(Handle<SharedFunctionInfo> shared,
                            Handle<AbstractCode> code);
+  void LogCompiledModule(Handle<WasmCompiledModule> module);
   // Logs all compiled functions found in the heap.
   void LogCompiledFunctions();
   // Logs all accessor callbacks found in the heap.
@@ -385,6 +393,9 @@ class CodeEventLogger : public CodeEventListener {
   void CodeCreateEvent(LogEventsAndTags tag, AbstractCode* code,
                        SharedFunctionInfo* shared, Name* source, int line,
                        int column) override;
+  void CodeCreateEvent(LogEventsAndTags tag, wasm::WasmCode* code,
+                       wasm::WasmName name) override;
+
   void RegExpCodeCreateEvent(AbstractCode* code, String* source) override;
   void InstructionStreamCreateEvent(LogEventsAndTags tag,
                                     const InstructionStream* stream,
@@ -404,6 +415,8 @@ class CodeEventLogger : public CodeEventListener {
                                  const char* name, int length) = 0;
   virtual void LogRecordedBuffer(const InstructionStream* stream,
                                  const char* name, int length) = 0;
+  virtual void LogRecordedBuffer(wasm::WasmCode* code, const char* name,
+                                 int length) = 0;
 
   NameBuffer* name_buffer_;
 };
