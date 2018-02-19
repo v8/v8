@@ -124,57 +124,6 @@ DEFINE_METHOD(
   }
 );
 
-
-// ES#sec-iterabletoarraylike Runtime Semantics: IterableToArrayLike( items )
-function IterableToArrayLike(items) {
-  var iterable = GetMethod(items, iteratorSymbol);
-  if (!IS_UNDEFINED(iterable)) {
-    var internal_array = new InternalArray();
-    var i = 0;
-    for (var value of
-         { [iteratorSymbol]() { return GetIterator(items, iterable) } }) {
-      internal_array[i] = value;
-      i++;
-    }
-    var array = [];
-    %MoveArrayContents(internal_array, array);
-    return array;
-  }
-  return TO_OBJECT(items);
-}
-
-
-// ES#sec-%typedarray%.from
-// %TypedArray%.from ( source [ , mapfn [ , thisArg ] ] )
-DEFINE_METHOD_LEN(
-  GlobalTypedArray,
-  'from'(source, mapfn, thisArg) {
-    if (!%IsConstructor(this)) throw %make_type_error(kNotConstructor, this);
-    var mapping;
-    if (!IS_UNDEFINED(mapfn)) {
-      if (!IS_CALLABLE(mapfn)) throw %make_type_error(kCalledNonCallable, this);
-      mapping = true;
-    } else {
-      mapping = false;
-    }
-    var arrayLike = IterableToArrayLike(source);
-    var length = TO_LENGTH(arrayLike.length);
-    var targetObject = TypedArrayCreate(this, length);
-    var value, mappedValue;
-    for (var i = 0; i < length; i++) {
-      value = arrayLike[i];
-      if (mapping) {
-        mappedValue = %_Call(mapfn, thisArg, value, i);
-      } else {
-        mappedValue = value;
-      }
-      targetObject[i] = mappedValue;
-    }
-    return targetObject;
-  },
-  1  /* Set function length. */
-);
-
 // TODO(bmeurer): Migrate this to a proper builtin.
 function TypedArrayConstructor() {
   throw %make_type_error(kConstructAbstractClass, "TypedArray");

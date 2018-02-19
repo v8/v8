@@ -1231,7 +1231,7 @@ RUNTIME_FUNCTION(Runtime_CreateDataProperty) {
 RUNTIME_FUNCTION(Runtime_IterableToListCanBeElided) {
   HandleScope scope(isolate);
   DCHECK_EQ(1, args.length());
-  CONVERT_ARG_HANDLE_CHECKED(JSReceiver, obj, 0);
+  CONVERT_ARG_HANDLE_CHECKED(HeapObject, obj, 0);
 
   if (!obj->IsJSObject()) return isolate->heap()->ToBoolean(false);
 

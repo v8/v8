@@ -956,12 +956,12 @@ Node* CodeAssembler::Projection(int index, Node* value) {
 
 void CodeAssembler::GotoIfException(Node* node, Label* if_exception,
                                     Variable* exception_var) {
-  DCHECK(!node->op()->HasProperty(Operator::kNoThrow));
-
   if (if_exception == nullptr) {
     // If no handler is supplied, don't add continuations
     return;
   }
+
+  DCHECK(!node->op()->HasProperty(Operator::kNoThrow));
 
   Label success(this), exception(this, Label::kDeferred);
   success.MergeVariables();

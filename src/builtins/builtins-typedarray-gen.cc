@@ -622,68 +622,11 @@ void TypedArrayBuiltinsAssembler::ConstructByIterable(
   CSA_ASSERT(this, IsCallable(iterator_fn));
   Label fast_path(this), slow_path(this), done(this);
 
-  TVARIABLE(JSReceiver, array_like);
-  TVARIABLE(Object, initial_length);
-
-  // This is a fast-path for ignoring the iterator.
-  // TODO(petermarshall): Port to CSA.
-  Node* elided =
-      CallRuntime(Runtime::kIterableToListCanBeElided, context, iterable);
-  CSA_ASSERT(this, IsBoolean(elided));
-  Branch(IsTrue(elided), &fast_path, &slow_path);
-
-  BIND(&fast_path);
-  {
-    TNode<JSArray> js_array_iterable = CAST(iterable);
-    // This .length access is unobservable, because it being observable would
-    // mean that iteration has side effects, and we wouldn't reach this path.
-    array_like = js_array_iterable;
-    initial_length = LoadJSArrayLength(js_array_iterable);
-    Goto(&done);
-  }
-
-  BIND(&slow_path);
-  {
-    IteratorBuiltinsAssembler iterator_assembler(state());
-
-    // 1. Let iteratorRecord be ? GetIterator(items, method).
-    IteratorRecord iterator_record =
-        iterator_assembler.GetIterator(context, iterable, iterator_fn);
-
-    // 2. Let values be a new empty List.
-    GrowableFixedArray values(state());
-
-    Variable* vars[] = {values.var_array(), values.var_length(),
-                        values.var_capacity()};
-    Label loop_start(this, 3, vars), loop_end(this);
-    Goto(&loop_start);
-    // 3. Let next be true.
-    // 4. Repeat, while next is not false
-    BIND(&loop_start);
-    {
-      //  a. Set next to ? IteratorStep(iteratorRecord).
-      TNode<Object> next = CAST(
-          iterator_assembler.IteratorStep(context, iterator_record, &loop_end));
-      //  b. If next is not false, then
-      //   i. Let nextValue be ? IteratorValue(next).
-      TNode<Object> next_value =
-          CAST(iterator_assembler.IteratorValue(context, next));
-      //   ii. Append nextValue to the end of the List values.
-      values.Push(next_value);
-      Goto(&loop_start);
-    }
-    BIND(&loop_end);
-
-    // 5. Return values.
-    TNode<JSArray> js_array_values = values.ToJSArray(context);
-    array_like = js_array_values;
-    initial_length = LoadJSArrayLength(js_array_values);
-    Goto(&done);
-  }
-
-  BIND(&done);
-  ConstructByArrayLike(context, holder, array_like.value(),
-                       initial_length.value(), element_size);
+  TNode<JSArray> array_like = CAST(
+      CallBuiltin(Builtins::kIterableToList, context, iterable, iterator_fn));
+  TNode<Object> initial_length = LoadJSArrayLength(array_like);
+  ConstructByArrayLike(context, holder, array_like, initial_length,
+                       element_size);
 }
 
 TF_BUILTIN(TypedArrayConstructor, TypedArrayBuiltinsAssembler) {
@@ -1630,6 +1573,251 @@ TF_BUILTIN(TypedArrayOf, TypedArrayBuiltinsAssembler) {
 
   BIND(&if_not_constructor);
   ThrowTypeError(context, MessageTemplate::kNotConstructor, receiver);
+}
+
+TF_BUILTIN(IterableToList, TypedArrayBuiltinsAssembler) {
+  TNode<Context> context = CAST(Parameter(Descriptor::kContext));
+  TNode<Object> iterable = CAST(Parameter(Descriptor::kIterable));
+  TNode<Object> iterator_fn = CAST(Parameter(Descriptor::kIteratorFn));
+
+  Label fast_path(this), slow_path(this), done(this);
+
+  TVARIABLE(JSArray, created_list);
+
+  // This is a fast-path for ignoring the iterator.
+  // TODO(petermarshall): Port to CSA.
+  Node* elided =
+      CallRuntime(Runtime::kIterableToListCanBeElided, context, iterable);
+  CSA_ASSERT(this, IsBoolean(elided));
+  Branch(IsTrue(elided), &fast_path, &slow_path);
+
+  BIND(&fast_path);
+  {
+    created_list = CAST(iterable);
+    Goto(&done);
+  }
+
+  BIND(&slow_path);
+  {
+    IteratorBuiltinsAssembler iterator_assembler(state());
+
+    // 1. Let iteratorRecord be ? GetIterator(items, method).
+    IteratorRecord iterator_record =
+        iterator_assembler.GetIterator(context, iterable, iterator_fn);
+
+    // 2. Let values be a new empty List.
+    GrowableFixedArray values(state());
+
+    Variable* vars[] = {values.var_array(), values.var_length(),
+                        values.var_capacity()};
+    Label loop_start(this, 3, vars), loop_end(this);
+    Goto(&loop_start);
+    // 3. Let next be true.
+    // 4. Repeat, while next is not false
+    BIND(&loop_start);
+    {
+      //  a. Set next to ? IteratorStep(iteratorRecord).
+      TNode<Object> next = CAST(
+          iterator_assembler.IteratorStep(context, iterator_record, &loop_end));
+      //  b. If next is not false, then
+      //   i. Let nextValue be ? IteratorValue(next).
+      TNode<Object> next_value =
+          CAST(iterator_assembler.IteratorValue(context, next));
+      //   ii. Append nextValue to the end of the List values.
+      values.Push(next_value);
+      Goto(&loop_start);
+    }
+    BIND(&loop_end);
+
+    // 5. Return values.
+    TNode<JSArray> js_array_values = values.ToJSArray(context);
+    created_list = js_array_values;
+    Goto(&done);
+  }
+
+  BIND(&done);
+  Return(created_list.value());
+}
+
+// ES6 #sec-%typedarray%.from
+TF_BUILTIN(TypedArrayFrom, TypedArrayBuiltinsAssembler) {
+  TNode<Context> context = CAST(Parameter(BuiltinDescriptor::kContext));
+
+  Label check_iterator(this), from_array_like(this), fast_path(this),
+      slow_path(this), create_typed_array(this),
+      if_not_constructor(this, Label::kDeferred),
+      if_map_fn_not_callable(this, Label::kDeferred),
+      if_iterator_fn_not_callable(this, Label::kDeferred),
+      unreachable(this, Label::kDeferred);
+
+  CodeStubArguments args(
+      this, ChangeInt32ToIntPtr(Parameter(BuiltinDescriptor::kArgumentsCount)));
+  TNode<Object> source = args.GetOptionalArgumentValue(0);
+
+  // 5. If thisArg is present, let T be thisArg; else let T be undefined.
+  TNode<Object> this_arg = args.GetOptionalArgumentValue(2);
+
+  // 1. Let C be the this value.
+  // 2. If IsConstructor(C) is false, throw a TypeError exception.
+  TNode<Object> receiver = args.GetReceiver();
+  GotoIf(TaggedIsSmi(receiver), &if_not_constructor);
+  GotoIfNot(IsConstructor(receiver), &if_not_constructor);
+
+  // 3. If mapfn is present and mapfn is not undefined, then
+  TNode<Object> map_fn = args.GetOptionalArgumentValue(1);
+  TVARIABLE(BoolT, mapping, Int32FalseConstant());
+  GotoIf(IsUndefined(map_fn), &check_iterator);
+
+  //  a. If IsCallable(mapfn) is false, throw a TypeError exception.
+  //  b. Let mapping be true.
+  // 4. Else, let mapping be false.
+  GotoIf(TaggedIsSmi(map_fn), &if_map_fn_not_callable);
+  GotoIfNot(IsCallable(map_fn), &if_map_fn_not_callable);
+  mapping = Int32TrueConstant();
+  Goto(&check_iterator);
+
+  TVARIABLE(Object, final_source);
+  TVARIABLE(Smi, final_length);
+
+  // We split up this builtin differently to the way it is written in the spec.
+  // We already have great code in the elements accessor for copying from a
+  // JSArray into a TypedArray, so we use that when possible. We only avoid
+  // calling into the elements accessor when we have a mapping function, because
+  // we can't handle that. Here, presence of a mapping function is the slow
+  // path. We also combine the two different loops in the specification
+  // (starting at 7.e and 13) because they are essentially identical. We also
+  // save on code-size this way.
+
+  BIND(&check_iterator);
+  {
+    // 6. Let usingIterator be ? GetMethod(source, @@iterator).
+    TNode<Object> iterator_fn =
+        CAST(GetMethod(context, source, isolate()->factory()->iterator_symbol(),
+                       &from_array_like));
+    GotoIf(TaggedIsSmi(iterator_fn), &if_iterator_fn_not_callable);
+    GotoIfNot(IsCallable(iterator_fn), &if_iterator_fn_not_callable);
+
+    // We are using the iterator.
+    Label if_length_not_smi(this, Label::kDeferred);
+    // 7. If usingIterator is not undefined, then
+    //  a. Let values be ? IterableToList(source, usingIterator).
+    //  b. Let len be the number of elements in values.
+    TNode<JSArray> values = CAST(
+        CallBuiltin(Builtins::kIterableToList, context, source, iterator_fn));
+
+    // This is not a spec'd limit, so it doesn't particularly matter when we
+    // throw the range error for typed array length > MaxSmi.
+    TNode<Object> raw_length = LoadJSArrayLength(values);
+    GotoIfNot(TaggedIsSmi(raw_length), &if_length_not_smi);
+
+    final_length = CAST(raw_length);
+    final_source = values;
+    Goto(&create_typed_array);
+
+    BIND(&if_length_not_smi);
+    ThrowRangeError(context, MessageTemplate::kInvalidTypedArrayLength,
+                    raw_length);
+  }
+
+  BIND(&from_array_like);
+  {
+    Label if_length_not_smi(this, Label::kDeferred);
+    final_source = CAST(source);
+
+    // 10. Let len be ? ToLength(? Get(arrayLike, "length")).
+    Node* raw_length =
+        GetProperty(context, final_source.value(), LengthStringConstant());
+    final_length = CAST(ToSmiLength(raw_length, context, &if_length_not_smi));
+    Goto(&create_typed_array);
+
+    BIND(&if_length_not_smi);
+    ThrowRangeError(context, MessageTemplate::kInvalidTypedArrayLength,
+                    raw_length);
+  }
+
+  TVARIABLE(JSTypedArray, target_obj);
+
+  BIND(&create_typed_array);
+  {
+    // 7c/11. Let targetObj be ? TypedArrayCreate(C, «len»).
+    target_obj = CreateByLength(context, receiver, final_length.value(),
+                                "%TypedArray%.from");
+
+    Branch(mapping.value(), &slow_path, &fast_path);
+  }
+
+  BIND(&fast_path);
+  {
+    Label done(this);
+    GotoIf(SmiEqual(final_length.value(), SmiConstant(0)), &done);
+
+    CallRuntime(Runtime::kTypedArrayCopyElements, context, target_obj.value(),
+                final_source.value(), final_length.value());
+    Goto(&done);
+
+    BIND(&done);
+    args.PopAndReturn(target_obj.value());
+  }
+
+  BIND(&slow_path);
+  TNode<Word32T> elements_kind = LoadElementsKind(target_obj.value());
+
+  // 7e/13 : Copy the elements
+  BuildFastLoop(
+      SmiConstant(0), final_length.value(),
+      [&](Node* index) {
+        TNode<String> const index_string = NumberToString(CAST(index));
+        TNode<Object> const k_value =
+            CAST(GetProperty(context, final_source.value(), index_string));
+
+        TNode<Object> const mapped_value =
+            CAST(CallJS(CodeFactory::Call(isolate()), context, map_fn, this_arg,
+                        k_value, index));
+
+        TNode<Number> const number_value =
+            ToNumber_Inline(context, mapped_value);
+        // map_fn or ToNumber could have executed JavaScript code, but
+        // they could not have accessed the new typed array.
+        DebugSanityCheckTypedArrayIndex(target_obj.value(), index);
+
+        DispatchTypedArrayByElementsKind(
+            elements_kind,
+            [&](ElementsKind kind, int size, int typed_array_fun_index) {
+              if (kind == BIGINT64_ELEMENTS || kind == BIGUINT64_ELEMENTS) {
+                // TODO(jkummerow): Add inline support.
+                CallRuntime(Runtime::kSetProperty, context, target_obj.value(),
+                            index, number_value,
+                            SmiConstant(LanguageMode::kSloppy));
+              } else {
+                // Since we can guarantee that "number_value" is Number type,
+                // PrepareValueForWriteToTypedArray cannot bail out.
+                Node* const final_value = PrepareValueForWriteToTypedArray(
+                    number_value, kind, &unreachable);
+
+                // GC may move backing store in map_fn, thus load backing
+                // store in each iteration of this loop.
+                TNode<IntPtrT> const backing_store =
+                    UncheckedCast<IntPtrT>(LoadDataPtr(target_obj.value()));
+                StoreElement(backing_store, kind, index, final_value,
+                             SMI_PARAMETERS);
+              }
+            });
+      },
+      1, ParameterMode::SMI_PARAMETERS, IndexAdvanceMode::kPost);
+
+  args.PopAndReturn(target_obj.value());
+
+  BIND(&if_not_constructor);
+  ThrowTypeError(context, MessageTemplate::kNotConstructor, receiver);
+
+  BIND(&if_map_fn_not_callable);
+  ThrowTypeError(context, MessageTemplate::kCalledNonCallable, map_fn);
+
+  BIND(&if_iterator_fn_not_callable);
+  ThrowTypeError(context, MessageTemplate::kIteratorSymbolNonCallable);
+
+  BIND(&unreachable);
+  Unreachable();
 }
 
 // ES %TypedArray%.prototype.filter

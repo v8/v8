@@ -3504,8 +3504,12 @@ class TypedElementsAccessor
               isolate, NewTypeError(MessageTemplate::kBigIntToNumber));
         }
       }
-      CopyElementsFromTypedArray(*source_ta, *destination_ta, length, offset);
-      return *isolate->factory()->undefined_value();
+      // If we have to copy more elements than we have in the source, we need to
+      // do special handling and conversion; that happens in the slow case.
+      if (length + offset <= source_ta->length_value()) {
+        CopyElementsFromTypedArray(*source_ta, *destination_ta, length, offset);
+        return *isolate->factory()->undefined_value();
+      }
     }
 
     // Fast cases for packed numbers kinds where we don't need to allocate.

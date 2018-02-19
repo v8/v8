@@ -1071,6 +1071,7 @@ namespace internal {
   TFJ(SymbolPrototypeValueOf, 0)                                               \
                                                                                \
   /* TypedArray */                                                             \
+  TFS(IterableToList, kIterable, kIteratorFn)                                  \
   TFS(TypedArrayInitialize, kHolder, kLength, kElementSize, kInitialize)       \
   TFS(TypedArrayInitializeWithBuffer, kHolder, kLength, kBuffer, kElementSize, \
       kByteOffset)                                                             \
@@ -1140,6 +1141,8 @@ namespace internal {
       SharedFunctionInfo::kDontAdaptArgumentsSentinel)                         \
   /* ES6 %TypedArray%.of */                                                    \
   TFJ(TypedArrayOf, SharedFunctionInfo::kDontAdaptArgumentsSentinel)           \
+  /* ES6 %TypedArray%.from */                                                  \
+  TFJ(TypedArrayFrom, SharedFunctionInfo::kDontAdaptArgumentsSentinel)         \
                                                                                \
   /* Wasm */                                                                   \
   ASM(WasmCompileLazy)                                                         \

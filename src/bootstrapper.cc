@@ -2947,6 +2947,8 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
 
     SimpleInstallFunction(typed_array_fun, "of", Builtins::kTypedArrayOf, 0,
                           false);
+    SimpleInstallFunction(typed_array_fun, "from", Builtins::kTypedArrayFrom, 1,
+                          false);
 
     // Setup %TypedArrayPrototype%.
     Handle<JSObject> prototype(
