@@ -480,8 +480,6 @@ void ConcurrentMarking::Run(int task_id, TaskState* task_state) {
                                                   marked_bytes);
         if (task_state->interrupt_request.Value()) {
           task_state->interrupt_condition.Wait(&task_state->lock);
-        } else if (task_state->preemption_request.Value()) {
-          break;
         }
       }
       // The lock is also required to synchronize with worklist update after
@@ -529,7 +527,6 @@ void ConcurrentMarking::ScheduleTasks() {
         heap_->isolate()->PrintWithTimestamp(
             "Scheduling concurrent marking task %d\n", i);
       }
-      task_state_[i].preemption_request.SetValue(false);
       task_state_[i].interrupt_request.SetValue(false);
       is_pending_[i] = true;
       ++pending_task_count_;
@@ -553,22 +550,25 @@ void ConcurrentMarking::RescheduleTasksIfNeeded() {
   }
 }
 
-void ConcurrentMarking::Stop(StopRequest stop_request) {
+void ConcurrentMarking::WaitForTasks() {
   if (!FLAG_concurrent_marking) return;
   base::LockGuard<base::Mutex> guard(&pending_lock_);
+  while (pending_task_count_ > 0) {
+    pending_condition_.Wait(&pending_lock_);
+  }
+}
 
-  if (stop_request != StopRequest::COMPLETE_TASKS_FOR_TESTING) {
-    CancelableTaskManager* task_manager =
-        heap_->isolate()->cancelable_task_manager();
-    for (int i = 1; i <= task_count_; i++) {
-      if (is_pending_[i]) {
-        if (task_manager->TryAbort(cancelable_id_[i]) ==
-            CancelableTaskManager::kTaskAborted) {
-          is_pending_[i] = false;
-          --pending_task_count_;
-        } else if (stop_request == StopRequest::PREEMPT_TASKS) {
-          task_state_[i].preemption_request.SetValue(true);
-        }
+void ConcurrentMarking::EnsureCompleted() {
+  if (!FLAG_concurrent_marking) return;
+  base::LockGuard<base::Mutex> guard(&pending_lock_);
+  CancelableTaskManager* task_manager =
+      heap_->isolate()->cancelable_task_manager();
+  for (int i = 1; i <= task_count_; i++) {
+    if (is_pending_[i]) {
+      if (task_manager->TryAbort(cancelable_id_[i]) ==
+          CancelableTaskManager::kTaskAborted) {
+        is_pending_[i] = false;
+        --pending_task_count_;
       }
     }
   }
