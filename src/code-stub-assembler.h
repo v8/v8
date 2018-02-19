@@ -1121,6 +1121,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
   Node* IsJSArrayInstanceType(Node* instance_type);
   Node* IsJSArrayMap(Node* object);
   Node* IsJSArray(Node* object);
+  Node* IsJSAsyncGeneratorObject(Node* object);
   Node* IsJSFunctionInstanceType(Node* instance_type);
   Node* IsJSFunctionMap(Node* object);
   Node* IsJSFunction(Node* object);

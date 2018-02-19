@@ -235,6 +235,8 @@ bool Builtins::IsLazy(int index) {
     case kArrayReduceRightLoopLazyDeoptContinuation:
     case kArraySomeLoopEagerDeoptContinuation:  // https://crbug.com/v8/6786.
     case kArraySomeLoopLazyDeoptContinuation:   // https://crbug.com/v8/6786.
+    case kAsyncGeneratorAwaitCaught:            // https://crbug.com/v8/6786.
+    case kAsyncGeneratorAwaitUncaught:          // https://crbug.com/v8/6786.
     case kCheckOptimizationMarker:
     case kCompileLazy:
     case kDeserializeLazy:

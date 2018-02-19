@@ -4561,6 +4561,10 @@ Node* CodeStubAssembler::IsJSArrayMap(Node* map) {
   return IsJSArrayInstanceType(LoadMapInstanceType(map));
 }
 
+Node* CodeStubAssembler::IsJSAsyncGeneratorObject(Node* object) {
+  return HasInstanceType(object, JS_ASYNC_GENERATOR_OBJECT_TYPE);
+}
+
 Node* CodeStubAssembler::IsFixedArray(Node* object) {
   return HasInstanceType(object, FIXED_ARRAY_TYPE);
 }

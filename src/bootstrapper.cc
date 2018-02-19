@@ -1615,38 +1615,6 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
         SimpleCreateFunction(isolate, factory->empty_string(),
                              Builtins::kAsyncGeneratorAwaitUncaught, 1, false);
     native_context()->set_async_generator_await_uncaught(*await_uncaught);
-
-    Handle<SharedFunctionInfo> info = SimpleCreateSharedFunctionInfo(
-        isolate, Builtins::kAsyncGeneratorAwaitResolveClosure,
-        factory->empty_string(), 1);
-    native_context()->set_async_generator_await_resolve_shared_fun(*info);
-
-    info = SimpleCreateSharedFunctionInfo(
-        isolate, Builtins::kAsyncGeneratorAwaitRejectClosure,
-        factory->empty_string(), 1);
-    native_context()->set_async_generator_await_reject_shared_fun(*info);
-
-    info = SimpleCreateSharedFunctionInfo(
-        isolate, Builtins::kAsyncGeneratorYieldResolveClosure,
-        factory->empty_string(), 1);
-    native_context()->set_async_generator_yield_resolve_shared_fun(*info);
-
-    info = SimpleCreateSharedFunctionInfo(
-        isolate, Builtins::kAsyncGeneratorReturnResolveClosure,
-        factory->empty_string(), 1);
-    native_context()->set_async_generator_return_resolve_shared_fun(*info);
-
-    info = SimpleCreateSharedFunctionInfo(
-        isolate, Builtins::kAsyncGeneratorReturnClosedResolveClosure,
-        factory->empty_string(), 1);
-    native_context()->set_async_generator_return_closed_resolve_shared_fun(
-        *info);
-
-    info = SimpleCreateSharedFunctionInfo(
-        isolate, Builtins::kAsyncGeneratorReturnClosedRejectClosure,
-        factory->empty_string(), 1);
-    native_context()->set_async_generator_return_closed_reject_shared_fun(
-        *info);
   }
 
   {  // --- A r r a y ---

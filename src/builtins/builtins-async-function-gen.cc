@@ -88,39 +88,9 @@ void AsyncFunctionBuiltinsAssembler::AsyncFunctionAwait(
   CSA_SLOW_ASSERT(this, IsJSGeneratorObject(generator));
   CSA_SLOW_ASSERT(this, IsJSPromise(outer_promise));
 
-  Node* const native_context = LoadNativeContext(context);
-  Node* const promise = AllocateAndInitJSPromise(native_context);
-
-  Node* const promise_reactions =
-      LoadObjectField(promise, JSPromise::kReactionsOrResultOffset);
-  Node* const fulfill_handler = HeapConstant(
-      Builtins::CallableFor(isolate(), Builtins::kAsyncFunctionAwaitFulfill)
-          .code());
-  Node* const reject_handler = HeapConstant(
-      Builtins::CallableFor(isolate(), Builtins::kAsyncFunctionAwaitReject)
-          .code());
-  Node* const reaction = AllocatePromiseReaction(
-      promise_reactions, generator, fulfill_handler, reject_handler);
-  StoreObjectField(promise, JSPromise::kReactionsOrResultOffset, reaction);
-  PromiseSetHasHandler(promise);
-
-  // Perform ! Call(promiseCapability.[[Resolve]], undefined, « value »).
-  CallBuiltin(Builtins::kResolvePromise, native_context, promise, awaited);
-
-  {
-    Label done(this);
-    GotoIfNot(IsDebugActive(), &done);
-    CallRuntime(Runtime::kSetProperty, native_context, generator,
-                LoadRoot(Heap::kgenerator_outer_promise_symbolRootIndex),
-                outer_promise, SmiConstant(LanguageMode::kStrict));
-    if (is_predicted_as_caught) {
-      GotoIf(TaggedIsSmi(awaited), &done);
-      GotoIfNot(IsJSPromise(awaited), &done);
-      PromiseSetHandledHint(awaited);
-    }
-    Goto(&done);
-    BIND(&done);
-  }
+  Await(context, generator, awaited, outer_promise,
+        Builtins::kAsyncFunctionAwaitFulfill,
+        Builtins::kAsyncFunctionAwaitReject, is_predicted_as_caught);
 
   // Return outer promise to avoid adding an load of the outer promise before
   // suspending in BytecodeGenerator.
