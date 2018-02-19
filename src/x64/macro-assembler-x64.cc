@@ -2470,13 +2470,13 @@ void TurboAssembler::EnterFrame(StackFrame::Type type) {
   if (type == StackFrame::INTERNAL) {
     Move(kScratchRegister, CodeObject(), RelocInfo::EMBEDDED_OBJECT);
     Push(kScratchRegister);
-  }
-  if (emit_debug_code()) {
-    Move(kScratchRegister,
-         isolate()->factory()->undefined_value(),
-         RelocInfo::EMBEDDED_OBJECT);
-    cmpp(Operand(rsp, 0), kScratchRegister);
-    Check(not_equal, AbortReason::kCodeObjectNotProperlyPatched);
+    // Check at runtime that this code object was patched correctly.
+    if (emit_debug_code()) {
+      Move(kScratchRegister, isolate()->factory()->undefined_value(),
+           RelocInfo::EMBEDDED_OBJECT);
+      cmpp(Operand(rsp, 0), kScratchRegister);
+      Check(not_equal, AbortReason::kCodeObjectNotProperlyPatched);
+    }
   }
 }
 

@@ -596,10 +596,11 @@ void TurboAssembler::EnterFrame(StackFrame::Type type) {
   push(Immediate(StackFrame::TypeToMarker(type)));
   if (type == StackFrame::INTERNAL) {
     push(Immediate(CodeObject()));
-  }
-  if (emit_debug_code()) {
-    cmp(Operand(esp, 0), Immediate(isolate()->factory()->undefined_value()));
-    Check(not_equal, AbortReason::kCodeObjectNotProperlyPatched);
+    // Check at runtime that this code object was patched correctly.
+    if (emit_debug_code()) {
+      cmp(Operand(esp, 0), Immediate(isolate()->factory()->undefined_value()));
+      Check(not_equal, AbortReason::kCodeObjectNotProperlyPatched);
+    }
   }
 }
 
