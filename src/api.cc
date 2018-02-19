@@ -1026,6 +1026,10 @@ void* V8::ClearWeak(i::Object** location) {
   return i::GlobalHandles::ClearWeakness(location);
 }
 
+void V8::AnnotateStrongRetainer(i::Object** location, const char* label) {
+  i::GlobalHandles::AnnotateStrongRetainer(location, label);
+}
+
 void V8::DisposeGlobal(i::Object** location) {
   i::GlobalHandles::Destroy(location);
 }

@@ -554,6 +554,14 @@ template <class T> class PersistentBase {
   V8_INLINE void ClearWeak() { ClearWeak<void>(); }
 
   /**
+   * Annotates the strong handle with the given label, which is then used by the
+   * heap snapshot generator as a name of the edge from the root to the handle.
+   * The function does not take ownership of the label and assumes that the
+   * label is valid as long as the handle is valid.
+   */
+  V8_INLINE void AnnotateStrongRetainer(const char* label);
+
+  /**
    * Allows the embedder to tell the v8 garbage collector that a certain object
    * is alive. Only allowed when the embedder is asked to trace its heap by
    * EmbedderHeapTracer.
@@ -8018,6 +8026,8 @@ class V8_EXPORT V8 {
                        WeakCallbackInfo<void>::Callback weak_callback);
   static void MakeWeak(internal::Object*** location_addr);
   static void* ClearWeak(internal::Object** location);
+  static void AnnotateStrongRetainer(internal::Object** location,
+                                     const char* label);
   static Value* Eternalize(Isolate* isolate, Value* handle);
 
   static void RegisterExternallyReferencedObject(internal::Object** object,
@@ -9223,6 +9233,12 @@ template <typename P>
 P* PersistentBase<T>::ClearWeak() {
   return reinterpret_cast<P*>(
     V8::ClearWeak(reinterpret_cast<internal::Object**>(this->val_)));
+}
+
+template <class T>
+void PersistentBase<T>::AnnotateStrongRetainer(const char* label) {
+  V8::AnnotateStrongRetainer(reinterpret_cast<internal::Object**>(this->val_),
+                             label);
 }
 
 template <class T>

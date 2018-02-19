@@ -77,6 +77,8 @@ class GlobalHandles {
 
   static void MakeWeak(Object*** location_addr);
 
+  static void AnnotateStrongRetainer(Object** location, const char* label);
+
   void RecordStats(HeapStats* stats);
 
   // Returns the current number of handles to global objects.

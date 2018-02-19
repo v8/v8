@@ -2893,6 +2893,36 @@ TEST(EmbedderGraph) {
   CheckEmbedderGraphSnapshot(env->GetIsolate(), snapshot);
 }
 
+bool EndsWith(const char* a, const char* b) {
+  size_t length_a = strlen(a);
+  size_t length_b = strlen(b);
+  return (length_a >= length_b) && !strcmp(a + length_a - length_b, b);
+}
+
+TEST(StrongHandleAnnotation) {
+  LocalContext env;
+  v8::HandleScope scope(env->GetIsolate());
+  v8::Persistent<v8::Object> handle1, handle2;
+  handle1.Reset(env->GetIsolate(), v8::Object::New(env->GetIsolate()));
+  handle2.Reset(env->GetIsolate(), v8::Object::New(env->GetIsolate()));
+  handle1.AnnotateStrongRetainer("my_label");
+  handle2.AnnotateStrongRetainer("my_label");
+  v8::HeapProfiler* heap_profiler = env->GetIsolate()->GetHeapProfiler();
+  const v8::HeapSnapshot* snapshot = heap_profiler->TakeHeapSnapshot();
+  const v8::HeapGraphNode* gc_roots = GetRootChild(snapshot, "(GC roots)");
+  CHECK(gc_roots);
+  const v8::HeapGraphNode* global_handles =
+      GetChildByName(gc_roots, "(Global handles)");
+  CHECK(global_handles);
+  int found = 0;
+  for (int i = 0, count = global_handles->GetChildrenCount(); i < count; ++i) {
+    const v8::HeapGraphEdge* edge = global_handles->GetChild(i);
+    v8::String::Utf8Value edge_name(CcTest::isolate(), edge->GetName());
+    if (EndsWith(*edge_name, "my_label")) ++found;
+  }
+  CHECK_EQ(2, found);
+}
+
 static inline i::Address ToAddress(int n) {
   return reinterpret_cast<i::Address>(n);
 }
