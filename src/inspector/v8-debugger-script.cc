@@ -13,7 +13,7 @@ namespace v8_inspector {
 namespace {
 
 const char hexDigits[17] = "0123456789ABCDEF";
-const char kGlobalHandleLabel[] = "DevTools debugger";
+const char kGlobalDebuggerScriptHandleLabel[] = "DevTools debugger";
 
 void appendUnsignedAsHex(uint64_t number, String16Builder* destination) {
   for (size_t i = 0; i < 8; ++i) {
@@ -148,7 +148,7 @@ class ActualScript : public V8DebuggerScript {
     m_isModule = script->IsModule();
 
     m_script.Reset(m_isolate, script);
-    m_script.AnnotateStrongRetainer(kGlobalHandleLabel);
+    m_script.AnnotateStrongRetainer(kGlobalDebuggerScriptHandleLabel);
   }
 
   bool isLiveEdit() const override { return m_isLiveEdit; }
@@ -266,7 +266,7 @@ class WasmVirtualScript : public V8DebuggerScript {
       : V8DebuggerScript(isolate, std::move(id), std::move(url)),
         m_script(isolate, script),
         m_wasmTranslation(wasmTranslation) {
-    m_script.AnnotateStrongRetainer(kGlobalHandleLabel);
+    m_script.AnnotateStrongRetainer(kGlobalDebuggerScriptHandleLabel);
     int num_lines = 0;
     int last_newline = -1;
     size_t next_newline = source.find('\n', last_newline + 1);
