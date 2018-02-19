@@ -1239,7 +1239,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
   // Convert a String to a Number.
   TNode<Number> StringToNumber(TNode<String> input);
   // Convert a Number to a String.
-  Node* NumberToString(Node* input);
+  TNode<String> NumberToString(TNode<Number> input);
   // Convert an object to a name.
   Node* ToName(Node* context, Node* input);
   // Convert a Non-Number object to a Number.

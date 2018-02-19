@@ -5542,8 +5542,8 @@ TNode<Number> CodeStubAssembler::StringToNumber(TNode<String> input) {
   return var_result.value();
 }
 
-Node* CodeStubAssembler::NumberToString(Node* argument) {
-  VARIABLE(result, MachineRepresentation::kTagged);
+TNode<String> CodeStubAssembler::NumberToString(TNode<Number> input) {
+  TVARIABLE(String, result);
   Label runtime(this, Label::kDeferred), smi(this), done(this, &result);
 
   // Load the number string cache.
@@ -5554,23 +5554,22 @@ Node* CodeStubAssembler::NumberToString(Node* argument) {
   // TODO(ishell): cleanup mask handling.
   Node* mask =
       BitcastTaggedToWord(LoadFixedArrayBaseLength(number_string_cache));
-  Node* one = IntPtrConstant(1);
+  TNode<IntPtrT> one = IntPtrConstant(1);
   mask = IntPtrSub(mask, one);
 
-  GotoIf(TaggedIsSmi(argument), &smi);
+  GotoIf(TaggedIsSmi(input), &smi);
 
-  // Argument isn't smi, check to see if it's a heap-number.
-  GotoIfNot(IsHeapNumber(argument), &runtime);
+  TNode<HeapNumber> heap_number_input = CAST(input);
 
   // Make a hash from the two 32-bit values of the double.
-  Node* low =
-      LoadObjectField(argument, HeapNumber::kValueOffset, MachineType::Int32());
-  Node* high = LoadObjectField(argument, HeapNumber::kValueOffset + kIntSize,
-                               MachineType::Int32());
-  Node* hash = Word32Xor(low, high);
-  hash = ChangeInt32ToIntPtr(hash);
-  hash = WordShl(hash, one);
-  Node* index = WordAnd(hash, WordSar(mask, SmiShiftBitsConstant()));
+  TNode<Int32T> low =
+      LoadObjectField<Int32T>(heap_number_input, HeapNumber::kValueOffset);
+  TNode<Int32T> high = LoadObjectField<Int32T>(
+      heap_number_input, HeapNumber::kValueOffset + kIntSize);
+  TNode<Word32T> hash = Word32Xor(low, high);
+  TNode<WordT> word_hash = WordShl(ChangeInt32ToIntPtr(hash), one);
+  TNode<WordT> index =
+      WordAnd(word_hash, WordSar(mask, SmiShiftBitsConstant()));
 
   // Cache entry's key must be a heap number
   Node* number_key = LoadFixedArrayElement(number_string_cache, index);
@@ -5587,14 +5586,15 @@ Node* CodeStubAssembler::NumberToString(Node* argument) {
 
   // Heap number match, return value from cache entry.
   IncrementCounter(isolate()->counters()->number_to_string_native(), 1);
-  result.Bind(LoadFixedArrayElement(number_string_cache, index, kPointerSize));
+  result =
+      CAST(LoadFixedArrayElement(number_string_cache, index, kPointerSize));
   Goto(&done);
 
   BIND(&runtime);
   {
     // No cache entry, go to the runtime.
-    result.Bind(CallRuntime(Runtime::kNumberToStringSkipCache,
-                            NoContextConstant(), argument));
+    result = CAST(CallRuntime(Runtime::kNumberToStringSkipCache,
+                              NoContextConstant(), input));
   }
   Goto(&done);
 
@@ -5602,20 +5602,19 @@ Node* CodeStubAssembler::NumberToString(Node* argument) {
   {
     // Load the smi key, make sure it matches the smi we're looking for.
     Node* smi_index = BitcastWordToTagged(
-        WordAnd(WordShl(BitcastTaggedToWord(argument), one), mask));
+        WordAnd(WordShl(BitcastTaggedToWord(input), one), mask));
     Node* smi_key = LoadFixedArrayElement(number_string_cache, smi_index, 0,
                                           SMI_PARAMETERS);
-    GotoIf(WordNotEqual(smi_key, argument), &runtime);
+    GotoIf(WordNotEqual(smi_key, input), &runtime);
 
     // Smi match, return value from cache entry.
     IncrementCounter(isolate()->counters()->number_to_string_native(), 1);
-    result.Bind(LoadFixedArrayElement(number_string_cache, smi_index,
-                                      kPointerSize, SMI_PARAMETERS));
+    result = CAST(LoadFixedArrayElement(number_string_cache, smi_index,
+                                        kPointerSize, SMI_PARAMETERS));
     Goto(&done);
   }
 
   BIND(&done);
-  CSA_ASSERT(this, IsString(result.value()));
   return result.value();
 }
 
@@ -6041,7 +6040,8 @@ TNode<String> CodeStubAssembler::ToString(SloppyTNode<Context> context,
   Branch(IsHeapNumberMap(input_map), &is_number, &not_heap_number);
 
   BIND(&is_number);
-  result.Bind(NumberToString(input));
+  TNode<Number> number_input = CAST(input);
+  result.Bind(NumberToString(number_input));
   Goto(&done);
 
   BIND(&not_heap_number);

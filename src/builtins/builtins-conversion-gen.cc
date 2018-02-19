@@ -144,7 +144,7 @@ TF_BUILTIN(ToNumber, CodeStubAssembler) {
 
 // ES section #sec-tostring-applied-to-the-number-type
 TF_BUILTIN(NumberToString, CodeStubAssembler) {
-  Node* input = Parameter(Descriptor::kArgument);
+  TNode<Number> input = CAST(Parameter(Descriptor::kArgument));
 
   Return(NumberToString(input));
 }
