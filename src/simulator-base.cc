@@ -74,6 +74,7 @@ void* SimulatorBase::RedirectExternalReference(void* external_function,
 Redirection::Redirection(void* external_function, ExternalReference::Type type)
     : external_function_(external_function), type_(type), next_(nullptr) {
   next_ = Simulator::redirection();
+  base::LockGuard<base::Mutex> lock_guard(Simulator::i_cache_mutex());
   Simulator::SetRedirectInstruction(
       reinterpret_cast<Instruction*>(address_of_instruction()));
   Simulator::FlushICache(Simulator::i_cache(),
