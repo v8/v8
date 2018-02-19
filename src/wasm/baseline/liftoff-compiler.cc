@@ -558,76 +558,51 @@ class LiftoffCompiler {
 #undef CASE_UNOP
   }
 
-  void I32BinOp(void (LiftoffAssembler::*emit_fn)(Register, Register,
-                                                  Register)) {
+  template <ValueType type, typename EmitFn>
+  void EmitBinOp(EmitFn fn) {
+    constexpr RegClass rc = reg_class_for(type);
     LiftoffRegList pinned;
-    LiftoffRegister dst_reg = pinned.set(__ GetBinaryOpTargetRegister(kGpReg));
-    LiftoffRegister rhs_reg = pinned.set(__ PopToRegister(kGpReg, pinned));
-    LiftoffRegister lhs_reg = __ PopToRegister(kGpReg, pinned);
-    (asm_->*emit_fn)(dst_reg.gp(), lhs_reg.gp(), rhs_reg.gp());
-    __ PushRegister(kWasmI32, dst_reg);
-  }
-
-  void I32CmpOp(Condition cond) {
-    LiftoffRegList pinned;
-    LiftoffRegister dst = pinned.set(__ GetBinaryOpTargetRegister(kGpReg));
-    LiftoffRegister rhs = pinned.set(__ PopToRegister(kGpReg, pinned));
-    LiftoffRegister lhs = __ PopToRegister(kGpReg, pinned);
-    __ emit_i32_set_cond(cond, dst.gp(), lhs.gp(), rhs.gp());
-    __ PushRegister(kWasmI32, dst);
-  }
-
-  void I32ShiftOp(void (LiftoffAssembler::*emit_fn)(Register, Register,
-                                                    Register, LiftoffRegList)) {
-    LiftoffRegList pinned;
-    LiftoffRegister dst_reg = pinned.set(__ GetBinaryOpTargetRegister(kGpReg));
-    LiftoffRegister rhs_reg = pinned.set(__ PopToRegister(kGpReg, pinned));
-    LiftoffRegister lhs_reg = __ PopToRegister(kGpReg, pinned);
-    (asm_->*emit_fn)(dst_reg.gp(), lhs_reg.gp(), rhs_reg.gp(), {});
-    __ PushRegister(kWasmI32, dst_reg);
-  }
-
-  void I32CCallBinOp(ExternalReference ext_ref) {
-    LiftoffRegList pinned;
-    LiftoffRegister dst_reg = pinned.set(__ GetBinaryOpTargetRegister(kGpReg));
-    LiftoffRegister rhs_reg = pinned.set(__ PopToRegister(kGpReg, pinned));
-    LiftoffRegister lhs_reg = __ PopToRegister(kGpReg, pinned);
-    Register args[] = {lhs_reg.gp(), rhs_reg.gp()};
-    GenerateCCall(dst_reg.gp(), arraysize(args), args, ext_ref);
-    __ PushRegister(kWasmI32, dst_reg);
-  }
-
-  void FloatBinOp(ValueType type,
-                  void (LiftoffAssembler::*emit_fn)(DoubleRegister,
-                                                    DoubleRegister,
-                                                    DoubleRegister)) {
-    LiftoffRegList pinned;
-    LiftoffRegister target_reg =
-        pinned.set(__ GetBinaryOpTargetRegister(kFpReg));
-    LiftoffRegister rhs_reg = pinned.set(__ PopToRegister(kFpReg, pinned));
-    LiftoffRegister lhs_reg = __ PopToRegister(kFpReg, pinned);
-    (asm_->*emit_fn)(target_reg.fp(), lhs_reg.fp(), rhs_reg.fp());
-    __ PushRegister(type, target_reg);
+    LiftoffRegister dst = pinned.set(__ GetBinaryOpTargetRegister(rc));
+    LiftoffRegister rhs = pinned.set(__ PopToRegister(rc, pinned));
+    LiftoffRegister lhs = __ PopToRegister(rc, pinned);
+    fn(dst, lhs, rhs);
+    __ PushRegister(type, dst);
   }
 
   void BinOp(Decoder* decoder, WasmOpcode opcode, FunctionSig*,
              const Value& lhs, const Value& rhs, Value* result) {
-#define CASE_I32_BINOP(opcode, fn) \
-  case WasmOpcode::kExpr##opcode:  \
-    return I32BinOp(&LiftoffAssembler::emit_##fn);
-#define CASE_FLOAT_BINOP(opcode, type, fn) \
-  case WasmOpcode::kExpr##opcode:          \
-    return FloatBinOp(kWasm##type, &LiftoffAssembler::emit_##fn);
-#define CASE_CMPOP(opcode, cond)  \
-  case WasmOpcode::kExpr##opcode: \
-    return I32CmpOp(cond);
-#define CASE_SHIFTOP(opcode, fn)  \
-  case WasmOpcode::kExpr##opcode: \
-    return I32ShiftOp(&LiftoffAssembler::emit_##fn);
-#define CASE_CCALL_BINOP(opcode, type, ext_ref_fn)                    \
-  case WasmOpcode::kExpr##opcode:                                     \
-    type##CCallBinOp(ExternalReference::ext_ref_fn(asm_->isolate())); \
-    break;
+#define CASE_I32_BINOP(opcode, fn)                                           \
+  case WasmOpcode::kExpr##opcode:                                            \
+    return EmitBinOp<kWasmI32>(                                              \
+        [=](LiftoffRegister dst, LiftoffRegister lhs, LiftoffRegister rhs) { \
+          __ emit_##fn(dst.gp(), lhs.gp(), rhs.gp());                        \
+        });
+#define CASE_FLOAT_BINOP(opcode, type, fn)                                   \
+  case WasmOpcode::kExpr##opcode:                                            \
+    return EmitBinOp<kWasm##type>(                                           \
+        [=](LiftoffRegister dst, LiftoffRegister lhs, LiftoffRegister rhs) { \
+          __ emit_##fn(dst.fp(), lhs.fp(), rhs.fp());                        \
+        });
+#define CASE_CMPOP(opcode, cond)                                             \
+  case WasmOpcode::kExpr##opcode:                                            \
+    return EmitBinOp<kWasmI32>(                                              \
+        [=](LiftoffRegister dst, LiftoffRegister lhs, LiftoffRegister rhs) { \
+          __ emit_i32_set_cond(cond, dst.gp(), lhs.gp(), rhs.gp());          \
+        });
+#define CASE_SHIFTOP(opcode, fn)                                             \
+  case WasmOpcode::kExpr##opcode:                                            \
+    return EmitBinOp<kWasmI32>(                                              \
+        [=](LiftoffRegister dst, LiftoffRegister lhs, LiftoffRegister rhs) { \
+          __ emit_##fn(dst.gp(), lhs.gp(), rhs.gp(), {});                    \
+        });
+#define CASE_CCALL_BINOP(opcode, type, ext_ref_fn)                           \
+  case WasmOpcode::kExpr##opcode:                                            \
+    return EmitBinOp<kWasmI32>(                                              \
+        [=](LiftoffRegister dst, LiftoffRegister lhs, LiftoffRegister rhs) { \
+          Register args[] = {lhs.gp(), rhs.gp()};                            \
+          auto ext_ref = ExternalReference::ext_ref_fn(__ isolate());        \
+          GenerateCCall(dst.gp(), arraysize(args), args, ext_ref);           \
+        });
     switch (opcode) {
       CASE_I32_BINOP(I32Add, i32_add)
       CASE_I32_BINOP(I32Sub, i32_sub)
