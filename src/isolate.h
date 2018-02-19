@@ -1112,7 +1112,7 @@ class Isolate {
   void InvalidateStringLengthOverflowProtector();
   void InvalidateArrayIteratorProtector();
   void InvalidateArrayBufferNeuteringProtector();
-  void InvalidatePromiseHookProtector();
+  V8_EXPORT_PRIVATE void InvalidatePromiseHookProtector();
   void InvalidatePromiseThenProtector();
 
   // Returns true if array is the initial array prototype in any native context.

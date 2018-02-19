@@ -3268,6 +3268,11 @@ Reduction JSCallReducer::ReduceJSConstruct(Node* node) {
           return Changed(node);
         }
       }
+
+      // Check for the PromiseConstructor
+      if (*function == function->native_context()->promise_function()) {
+        return ReducePromiseConstructor(node);
+      }
     } else if (m.Value()->IsJSBoundFunction()) {
       Handle<JSBoundFunction> function =
           Handle<JSBoundFunction>::cast(m.Value());
@@ -4073,6 +4078,124 @@ Reduction JSCallReducer::ReducePromiseCapabilityDefaultResolve(Node* node) {
   Node* value = jsgraph()->UndefinedConstant();
   ReplaceWithValue(node, value, effect, control);
   return Replace(value);
+}
+
+Reduction JSCallReducer::ReducePromiseConstructor(Node* node) {
+  DCHECK_EQ(IrOpcode::kJSConstruct, node->opcode());
+  ConstructParameters const& p = ConstructParametersOf(node->op());
+  int arity = static_cast<int>(p.arity() - 2);
+  // We only inline when we have the executor.
+  if (arity < 1) return NoChange();
+  Node* target = NodeProperties::GetValueInput(node, 0);
+  Node* executor = NodeProperties::GetValueInput(node, 1);
+  Node* new_target = NodeProperties::GetValueInput(node, arity + 1);
+
+  Node* context = NodeProperties::GetContextInput(node);
+  Node* outer_frame_state = NodeProperties::GetFrameStateInput(node);
+  Node* effect = NodeProperties::GetEffectInput(node);
+  Node* control = NodeProperties::GetControlInput(node);
+
+  if (!FLAG_experimental_inline_promise_constructor) return NoChange();
+
+  // Only handle builtins Promises, not subclasses.
+  if (target != new_target) return NoChange();
+
+  // Add a code dependency on the promise hook protector.
+  dependencies()->AssumePropertyCell(factory()->promise_hook_protector());
+
+  // Check if executor is callable
+  Node* check_fail = nullptr;
+  Node* check_throw = nullptr;
+  // TODO(petermarshall): The frame state is wrong here.
+  WireInCallbackIsCallableCheck(executor, context, outer_frame_state, effect,
+                                &control, &check_fail, &check_throw);
+
+  // Create the resulting JSPromise.
+  Node* promise = effect =
+      graph()->NewNode(javascript()->CreatePromise(), context, effect);
+
+  // 8. CreatePromiseResolvingFunctions
+  // Allocate a promise context for the closures below.
+  Node* promise_context = effect = graph()->NewNode(
+      javascript()->CreateFunctionContext(
+          PromiseBuiltinsAssembler::kPromiseContextLength, FUNCTION_SCOPE),
+      context, context, effect, control);
+  effect =
+      graph()->NewNode(simplified()->StoreField(AccessBuilder::ForContextSlot(
+                           PromiseBuiltinsAssembler::kPromiseSlot)),
+                       promise_context, promise, effect, control);
+  effect = graph()->NewNode(
+      simplified()->StoreField(AccessBuilder::ForContextSlot(
+          PromiseBuiltinsAssembler::kDebugEventSlot)),
+      promise_context, jsgraph()->TrueConstant(), effect, control);
+
+  // Allocate the closure for the resolve case.
+  Handle<SharedFunctionInfo> resolve_shared(
+      native_context()->promise_capability_default_resolve_shared_fun(),
+      isolate());
+  Node* resolve = effect =
+      graph()->NewNode(javascript()->CreateClosure(resolve_shared),
+                       promise_context, effect, control);
+
+  // Allocate the closure for the reject case.
+  Handle<SharedFunctionInfo> reject_shared(
+      native_context()->promise_capability_default_reject_shared_fun(),
+      isolate());
+  Node* reject = effect =
+      graph()->NewNode(javascript()->CreateClosure(reject_shared),
+                       promise_context, effect, control);
+
+  // 9. Call executor with both resolving functions
+  effect = control = graph()->NewNode(
+      javascript()->Call(4, p.frequency(), VectorSlotPair(),
+                         ConvertReceiverMode::kNullOrUndefined,
+                         SpeculationMode::kDisallowSpeculation),
+      executor, jsgraph()->UndefinedConstant(), resolve, reject, context,
+      outer_frame_state, effect, control);
+
+  Node* exception_effect = effect;
+  Node* exception_control = control;
+  {
+    Node* reason = exception_effect = exception_control = graph()->NewNode(
+        common()->IfException(), exception_control, exception_effect);
+    // 10a. Call reject if the call to executor threw.
+    exception_effect = exception_control = graph()->NewNode(
+        javascript()->Call(3, p.frequency(), VectorSlotPair(),
+                           ConvertReceiverMode::kNullOrUndefined,
+                           SpeculationMode::kDisallowSpeculation),
+        reject, jsgraph()->UndefinedConstant(), reason, context,
+        outer_frame_state, exception_effect, exception_control);
+
+    // Rewire potential exception edges.
+    Node* on_exception = nullptr;
+    if (NodeProperties::IsExceptionalCall(node, &on_exception)) {
+      RewirePostCallbackExceptionEdges(check_throw, on_exception,
+                                       exception_effect, &check_fail,
+                                       &exception_control);
+    }
+  }
+
+  Node* success_effect = effect;
+  Node* success_control = control;
+  {
+    success_control = graph()->NewNode(common()->IfSuccess(), success_control);
+  }
+
+  control =
+      graph()->NewNode(common()->Merge(2), success_control, exception_control);
+  effect = graph()->NewNode(common()->EffectPhi(2), success_effect,
+                            exception_effect, control);
+
+  // Wire up the branch for the case when IsCallable fails for the executor.
+  // Since {check_throw} is an unconditional throw, it's impossible to
+  // return a successful completion. Therefore, we simply connect the successful
+  // completion to the graph end.
+  Node* throw_node =
+      graph()->NewNode(common()->Throw(), check_throw, check_fail);
+  NodeProperties::MergeControlToEnd(graph(), common(), throw_node);
+
+  ReplaceWithValue(node, promise, effect, control);
+  return Replace(promise);
 }
 
 // V8 Extras: v8.createPromise(parent)

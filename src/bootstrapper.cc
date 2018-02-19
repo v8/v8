@@ -2383,12 +2383,14 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
       Handle<SharedFunctionInfo> info = SimpleCreateSharedFunctionInfo(
           isolate, Builtins::kPromiseCapabilityDefaultResolve,
           factory->empty_string(), 1);
+      info->set_native(true);
       native_context()->set_promise_capability_default_resolve_shared_fun(
           *info);
 
       info = SimpleCreateSharedFunctionInfo(
           isolate, Builtins::kPromiseCapabilityDefaultReject,
           factory->empty_string(), 1);
+      info->set_native(true);
       native_context()->set_promise_capability_default_reject_shared_fun(*info);
     }
 

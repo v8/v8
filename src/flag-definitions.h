@@ -485,6 +485,8 @@ DEFINE_BOOL(turbo_store_elimination, true,
 DEFINE_BOOL(trace_store_elimination, false, "trace store elimination")
 DEFINE_BOOL(turbo_rewrite_far_jumps, true,
             "rewrite far to near jumps (ia32,x64)")
+DEFINE_BOOL(experimental_inline_promise_constructor, false,
+            "inline the Promise constructor in TurboFan")
 
 #ifdef DISABLE_UNTRUSTED_CODE_MITIGATIONS
 #define V8_DEFAULT_UNTRUSTED_CODE_MITIGATIONS false
