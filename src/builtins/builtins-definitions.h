@@ -367,8 +367,8 @@ namespace internal {
   /* AsyncFunction */                                                          \
   TFC(AsyncFunctionAwaitFulfill, PromiseReactionHandler, 1)                    \
   TFC(AsyncFunctionAwaitReject, PromiseReactionHandler, 1)                     \
-  TFJ(AsyncFunctionAwaitCaught, 3, kGenerator, kAwaited, kOuterPromise)        \
-  TFJ(AsyncFunctionAwaitUncaught, 3, kGenerator, kAwaited, kOuterPromise)      \
+  TFS(AsyncFunctionAwaitCaught, kGenerator, kValue, kOuterPromise)             \
+  TFS(AsyncFunctionAwaitUncaught, kGenerator, kValue, kOuterPromise)           \
   TFJ(AsyncFunctionPromiseCreate, 0)                                           \
   TFJ(AsyncFunctionPromiseRelease, 1, kPromise)                                \
                                                                                \
@@ -1178,8 +1178,8 @@ namespace internal {
                                                                                \
   /* Await (proposal-async-iteration/#await), with resume behaviour */         \
   /* specific to Async Generators. Internal / Not exposed to JS code. */       \
-  TFJ(AsyncGeneratorAwaitCaught, 2, kGenerator, kAwaited)                      \
-  TFJ(AsyncGeneratorAwaitUncaught, 2, kGenerator, kAwaited)                    \
+  TFS(AsyncGeneratorAwaitCaught, kGenerator, kValue)                           \
+  TFS(AsyncGeneratorAwaitUncaught, kGenerator, kValue)                         \
   TFC(AsyncGeneratorAwaitFulfill, PromiseReactionHandler, 1)                   \
   TFC(AsyncGeneratorAwaitReject, PromiseReactionHandler, 1)                    \
   TFC(AsyncGeneratorYieldFulfill, PromiseReactionHandler, 1)                   \
@@ -1257,11 +1257,7 @@ namespace internal {
   V(AsyncFromSyncIteratorPrototypeNext)              \
   V(AsyncFromSyncIteratorPrototypeReturn)            \
   V(AsyncFromSyncIteratorPrototypeThrow)             \
-  V(AsyncFunctionAwaitCaught)                        \
-  V(AsyncFunctionAwaitUncaught)                      \
   V(AsyncGeneratorResolve)                           \
-  V(AsyncGeneratorAwaitCaught)                       \
-  V(AsyncGeneratorAwaitUncaught)                     \
   V(PromiseAll)                                      \
   V(PromiseConstructor)                              \
   V(PromiseFulfillReactionJob)                       \

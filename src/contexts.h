@@ -32,46 +32,40 @@ enum ContextLookupFlags {
 // must always be allocated via Heap::AllocateContext() or
 // Factory::NewContext.
 
-#define NATIVE_CONTEXT_INTRINSIC_FUNCTIONS(V)                               \
-  V(ASYNC_FUNCTION_AWAIT_CAUGHT_INDEX, JSFunction,                          \
-    async_function_await_caught)                                            \
-  V(ASYNC_FUNCTION_AWAIT_UNCAUGHT_INDEX, JSFunction,                        \
-    async_function_await_uncaught)                                          \
-  V(ASYNC_FUNCTION_PROMISE_CREATE_INDEX, JSFunction,                        \
-    async_function_promise_create)                                          \
-  V(ASYNC_FUNCTION_PROMISE_RELEASE_INDEX, JSFunction,                       \
-    async_function_promise_release)                                         \
-  V(IS_ARRAYLIKE, JSFunction, is_arraylike)                                 \
-  V(GENERATOR_NEXT_INTERNAL, JSFunction, generator_next_internal)           \
-  V(MAKE_ERROR_INDEX, JSFunction, make_error)                               \
-  V(MAKE_RANGE_ERROR_INDEX, JSFunction, make_range_error)                   \
-  V(MAKE_SYNTAX_ERROR_INDEX, JSFunction, make_syntax_error)                 \
-  V(MAKE_TYPE_ERROR_INDEX, JSFunction, make_type_error)                     \
-  V(MAKE_URI_ERROR_INDEX, JSFunction, make_uri_error)                       \
-  V(OBJECT_CREATE, JSFunction, object_create)                               \
-  V(OBJECT_DEFINE_PROPERTIES, JSFunction, object_define_properties)         \
-  V(OBJECT_DEFINE_PROPERTY, JSFunction, object_define_property)             \
-  V(OBJECT_GET_PROTOTYPE_OF, JSFunction, object_get_prototype_of)           \
-  V(OBJECT_IS_EXTENSIBLE, JSFunction, object_is_extensible)                 \
-  V(OBJECT_IS_FROZEN, JSFunction, object_is_frozen)                         \
-  V(OBJECT_IS_SEALED, JSFunction, object_is_sealed)                         \
-  V(OBJECT_KEYS, JSFunction, object_keys)                                   \
-  V(REGEXP_INTERNAL_MATCH, JSFunction, regexp_internal_match)               \
-  V(REFLECT_APPLY_INDEX, JSFunction, reflect_apply)                         \
-  V(REFLECT_CONSTRUCT_INDEX, JSFunction, reflect_construct)                 \
-  V(REFLECT_DEFINE_PROPERTY_INDEX, JSFunction, reflect_define_property)     \
-  V(REFLECT_DELETE_PROPERTY_INDEX, JSFunction, reflect_delete_property)     \
-  V(SPREAD_ARGUMENTS_INDEX, JSFunction, spread_arguments)                   \
-  V(SPREAD_ITERABLE_INDEX, JSFunction, spread_iterable)                     \
-  V(MATH_FLOOR_INDEX, JSFunction, math_floor)                               \
-  V(MATH_POW_INDEX, JSFunction, math_pow)                                   \
-  V(NEW_PROMISE_CAPABILITY_INDEX, JSFunction, new_promise_capability)       \
-  V(PROMISE_INTERNAL_CONSTRUCTOR_INDEX, JSFunction,                         \
-    promise_internal_constructor)                                           \
-  V(IS_PROMISE_INDEX, JSFunction, is_promise)                               \
-  V(PROMISE_THEN_INDEX, JSFunction, promise_then)                           \
-  V(ASYNC_GENERATOR_AWAIT_CAUGHT, JSFunction, async_generator_await_caught) \
-  V(ASYNC_GENERATOR_AWAIT_UNCAUGHT, JSFunction, async_generator_await_uncaught)
+#define NATIVE_CONTEXT_INTRINSIC_FUNCTIONS(V)                           \
+  V(ASYNC_FUNCTION_PROMISE_CREATE_INDEX, JSFunction,                    \
+    async_function_promise_create)                                      \
+  V(ASYNC_FUNCTION_PROMISE_RELEASE_INDEX, JSFunction,                   \
+    async_function_promise_release)                                     \
+  V(IS_ARRAYLIKE, JSFunction, is_arraylike)                             \
+  V(GENERATOR_NEXT_INTERNAL, JSFunction, generator_next_internal)       \
+  V(MAKE_ERROR_INDEX, JSFunction, make_error)                           \
+  V(MAKE_RANGE_ERROR_INDEX, JSFunction, make_range_error)               \
+  V(MAKE_SYNTAX_ERROR_INDEX, JSFunction, make_syntax_error)             \
+  V(MAKE_TYPE_ERROR_INDEX, JSFunction, make_type_error)                 \
+  V(MAKE_URI_ERROR_INDEX, JSFunction, make_uri_error)                   \
+  V(OBJECT_CREATE, JSFunction, object_create)                           \
+  V(OBJECT_DEFINE_PROPERTIES, JSFunction, object_define_properties)     \
+  V(OBJECT_DEFINE_PROPERTY, JSFunction, object_define_property)         \
+  V(OBJECT_GET_PROTOTYPE_OF, JSFunction, object_get_prototype_of)       \
+  V(OBJECT_IS_EXTENSIBLE, JSFunction, object_is_extensible)             \
+  V(OBJECT_IS_FROZEN, JSFunction, object_is_frozen)                     \
+  V(OBJECT_IS_SEALED, JSFunction, object_is_sealed)                     \
+  V(OBJECT_KEYS, JSFunction, object_keys)                               \
+  V(REGEXP_INTERNAL_MATCH, JSFunction, regexp_internal_match)           \
+  V(REFLECT_APPLY_INDEX, JSFunction, reflect_apply)                     \
+  V(REFLECT_CONSTRUCT_INDEX, JSFunction, reflect_construct)             \
+  V(REFLECT_DEFINE_PROPERTY_INDEX, JSFunction, reflect_define_property) \
+  V(REFLECT_DELETE_PROPERTY_INDEX, JSFunction, reflect_delete_property) \
+  V(SPREAD_ARGUMENTS_INDEX, JSFunction, spread_arguments)               \
+  V(SPREAD_ITERABLE_INDEX, JSFunction, spread_iterable)                 \
+  V(MATH_FLOOR_INDEX, JSFunction, math_floor)                           \
+  V(MATH_POW_INDEX, JSFunction, math_pow)                               \
+  V(NEW_PROMISE_CAPABILITY_INDEX, JSFunction, new_promise_capability)   \
+  V(PROMISE_INTERNAL_CONSTRUCTOR_INDEX, JSFunction,                     \
+    promise_internal_constructor)                                       \
+  V(IS_PROMISE_INDEX, JSFunction, is_promise)                           \
+  V(PROMISE_THEN_INDEX, JSFunction, promise_then)
 
 #define NATIVE_CONTEXT_IMPORTED_FIELDS(V)                                 \
   V(ARRAY_CONCAT_INDEX, JSFunction, array_concat)                         \

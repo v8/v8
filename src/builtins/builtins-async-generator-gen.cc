@@ -241,9 +241,9 @@ void AsyncGeneratorBuiltinsAssembler::AsyncGeneratorAwaitResume(
 
 template <typename Descriptor>
 void AsyncGeneratorBuiltinsAssembler::AsyncGeneratorAwait(bool is_catchable) {
-  Node* generator = Parameter(Descriptor::kGenerator);
-  Node* value = Parameter(Descriptor::kAwaited);
-  Node* context = Parameter(Descriptor::kContext);
+  Node* const generator = Parameter(Descriptor::kGenerator);
+  Node* const value = Parameter(Descriptor::kValue);
+  Node* const context = Parameter(Descriptor::kContext);
 
   CSA_SLOW_ASSERT(this, TaggedIsAsyncGenerator(generator));
 

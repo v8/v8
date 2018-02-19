@@ -1605,18 +1605,6 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
     native_context()->set_async_iterator_value_unwrap_shared_fun(*info);
   }
 
-  {  // --- A s y n c G e n e r a t o r ---
-    Handle<JSFunction> await_caught =
-        SimpleCreateFunction(isolate, factory->empty_string(),
-                             Builtins::kAsyncGeneratorAwaitCaught, 1, false);
-    native_context()->set_async_generator_await_caught(*await_caught);
-
-    Handle<JSFunction> await_uncaught =
-        SimpleCreateFunction(isolate, factory->empty_string(),
-                             Builtins::kAsyncGeneratorAwaitUncaught, 1, false);
-    native_context()->set_async_generator_await_uncaught(*await_uncaught);
-  }
-
   {  // --- A r r a y ---
     Handle<JSFunction> array_function = InstallFunction(
         global, "Array", JS_ARRAY_TYPE, JSArray::kSize, 0,
@@ -4123,20 +4111,6 @@ void Bootstrapper::ExportFromRuntime(Isolate* isolate,
 
     JSFunction::SetPrototype(async_function_constructor,
                              async_function_prototype);
-
-    {
-      Handle<JSFunction> function =
-          SimpleCreateFunction(isolate, factory->empty_string(),
-                               Builtins::kAsyncFunctionAwaitCaught, 2, false);
-      native_context->set_async_function_await_caught(*function);
-    }
-
-    {
-      Handle<JSFunction> function =
-          SimpleCreateFunction(isolate, factory->empty_string(),
-                               Builtins::kAsyncFunctionAwaitUncaught, 2, false);
-      native_context->set_async_function_await_uncaught(*function);
-    }
 
     {
       Handle<JSFunction> function =

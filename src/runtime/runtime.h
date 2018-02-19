@@ -243,9 +243,13 @@ namespace internal {
   F(GeneratorGetFunction, 1, 1)         \
   F(GeneratorGetReceiver, 1, 1)         \
   F(GeneratorGetInputOrDebugPos, 1, 1)  \
+  F(AsyncFunctionAwaitCaught, 3, 1)     \
+  F(AsyncFunctionAwaitUncaught, 3, 1)   \
   F(AsyncGeneratorResolve, 3, 1)        \
   F(AsyncGeneratorReject, 2, 1)         \
   F(AsyncGeneratorYield, 3, 1)          \
+  F(AsyncGeneratorAwaitCaught, 2, 1)    \
+  F(AsyncGeneratorAwaitUncaught, 2, 1)  \
   F(GeneratorGetContinuation, 1, 1)     \
   F(GeneratorGetSourcePosition, 1, 1)   \
   F(GeneratorGetResumeMode, 1, 1)       \
