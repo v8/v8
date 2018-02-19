@@ -479,12 +479,8 @@ void ConcurrentMarking::Run(int task_id, TaskState* task_state) {
         base::AsAtomicWord::Relaxed_Store<size_t>(&task_state->marked_bytes,
                                                   marked_bytes);
         if (task_state->interrupt_request.Value()) {
-          TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.gc"),
-                       "ConcurrentMarking::Run Paused");
           task_state->interrupt_condition.Wait(&task_state->lock);
         } else if (task_state->preemption_request.Value()) {
-          TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.gc"),
-                       "ConcurrentMarking::Run Preempted");
           break;
         }
       }
