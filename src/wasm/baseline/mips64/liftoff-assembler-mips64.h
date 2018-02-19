@@ -130,40 +130,66 @@ void LiftoffAssembler::FillI64Half(Register, uint32_t half_index) {
   UNREACHABLE();
 }
 
-#define UNIMPLEMENTED_GP_BINOP(name)                             \
-  void LiftoffAssembler::emit_##name(Register dst, Register lhs, \
-                                     Register rhs) {             \
-    BAILOUT("gp binop");                                         \
+void LiftoffAssembler::emit_i32_mul(Register dst, Register lhs, Register rhs) {
+  TurboAssembler::Mul(dst, lhs, rhs);
+}
+
+#define I32_BINOP(name, instruction)                                 \
+  void LiftoffAssembler::emit_i32_##name(Register dst, Register lhs, \
+                                         Register rhs) {             \
+    instruction(dst, lhs, rhs);                                      \
   }
-#define UNIMPLEMENTED_GP_UNOP(name)                                \
-  bool LiftoffAssembler::emit_##name(Register dst, Register src) { \
-    BAILOUT("gp unop");                                            \
-    return true;                                                   \
+
+// clang-format off
+I32_BINOP(add, addu)
+I32_BINOP(sub, subu)
+I32_BINOP(and, and_)
+I32_BINOP(or, or_)
+I32_BINOP(xor, xor_)
+// clang-format on
+
+#undef I32_BINOP
+
+void LiftoffAssembler::emit_ptrsize_add(Register dst, Register lhs,
+                                        Register rhs) {
+  TurboAssembler::Daddu(dst, lhs, rhs);
+}
+
+bool LiftoffAssembler::emit_i32_clz(Register dst, Register src) {
+  TurboAssembler::Clz(dst, src);
+  return true;
+}
+
+bool LiftoffAssembler::emit_i32_ctz(Register dst, Register src) {
+  TurboAssembler::Ctz(dst, src);
+  return true;
+}
+
+bool LiftoffAssembler::emit_i32_popcnt(Register dst, Register src) {
+  TurboAssembler::Popcnt(dst, src);
+  return true;
+}
+
+#define I32_SHIFTOP(name, instruction)                                   \
+  void LiftoffAssembler::emit_i32_##name(                                \
+      Register dst, Register lhs, Register rhs, LiftoffRegList pinned) { \
+    instruction(dst, lhs, rhs);                                          \
   }
+
+// clang-format off
+I32_SHIFTOP(shl, sllv)
+I32_SHIFTOP(sar, srav)
+I32_SHIFTOP(shr, srlv)
+// clang-format on
+
+#undef I32_SHIFTOP
+
 #define UNIMPLEMENTED_FP_BINOP(name)                                         \
   void LiftoffAssembler::emit_##name(DoubleRegister dst, DoubleRegister lhs, \
                                      DoubleRegister rhs) {                   \
     BAILOUT("fp binop");                                                     \
   }
-#define UNIMPLEMENTED_SHIFTOP(name)                                            \
-  void LiftoffAssembler::emit_##name(Register dst, Register lhs, Register rhs, \
-                                     LiftoffRegList pinned) {                  \
-    BAILOUT("shiftop");                                                        \
-  }
 
-UNIMPLEMENTED_GP_BINOP(i32_add)
-UNIMPLEMENTED_GP_BINOP(i32_sub)
-UNIMPLEMENTED_GP_BINOP(i32_mul)
-UNIMPLEMENTED_GP_BINOP(i32_and)
-UNIMPLEMENTED_GP_BINOP(i32_or)
-UNIMPLEMENTED_GP_BINOP(i32_xor)
-UNIMPLEMENTED_SHIFTOP(i32_shl)
-UNIMPLEMENTED_SHIFTOP(i32_sar)
-UNIMPLEMENTED_SHIFTOP(i32_shr)
-UNIMPLEMENTED_GP_UNOP(i32_clz)
-UNIMPLEMENTED_GP_UNOP(i32_ctz)
-UNIMPLEMENTED_GP_UNOP(i32_popcnt)
-UNIMPLEMENTED_GP_BINOP(ptrsize_add)
 UNIMPLEMENTED_FP_BINOP(f32_add)
 UNIMPLEMENTED_FP_BINOP(f32_sub)
 UNIMPLEMENTED_FP_BINOP(f32_mul)
@@ -171,10 +197,7 @@ UNIMPLEMENTED_FP_BINOP(f64_add)
 UNIMPLEMENTED_FP_BINOP(f64_sub)
 UNIMPLEMENTED_FP_BINOP(f64_mul)
 
-#undef UNIMPLEMENTED_GP_BINOP
-#undef UNIMPLEMENTED_GP_UNOP
 #undef UNIMPLEMENTED_FP_BINOP
-#undef UNIMPLEMENTED_SHIFTOP
 
 void LiftoffAssembler::emit_jump(Label* label) {
   TurboAssembler::Branch(label);
