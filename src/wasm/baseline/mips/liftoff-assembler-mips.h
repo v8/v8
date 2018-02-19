@@ -46,6 +46,9 @@ void LiftoffAssembler::LoadConstant(LiftoffRegister reg, WasmValue value,
     case kWasmF32:
       TurboAssembler::Move(reg.fp(), value.to_f32_boxed().get_scalar());
       break;
+    case kWasmF64:
+      BAILOUT("LoadConstant kWasmF64");
+      break;
     default:
       UNREACHABLE();
   }
