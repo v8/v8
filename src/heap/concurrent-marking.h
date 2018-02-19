@@ -30,8 +30,7 @@ using LiveBytesMap =
 class ConcurrentMarking {
  public:
   // When the scope is entered, the concurrent marking tasks
-  // are preempted and are not looking at the heap objects, concurrent marking
-  // is resumed when the scope is exited.
+  // are paused and are not looking at the heap objects.
   class PauseScope {
    public:
     explicit PauseScope(ConcurrentMarking* concurrent_marking);
@@ -81,6 +80,16 @@ class ConcurrentMarking {
     // The main thread sets this flag to true when it wants the concurrent
     // marker to give up the worker thread.
     base::AtomicValue<bool> preemption_request;
+
+    // When the concurrent marking task has this lock, then objects in the
+    // heap are guaranteed to not move.
+    base::Mutex lock;
+    // The main thread sets this flag to true, when it wants the concurrent
+    // maker to give up the lock.
+    base::AtomicValue<bool> interrupt_request;
+    // The concurrent marker waits on this condition until the request
+    // flag is cleared by the main thread.
+    base::ConditionVariable interrupt_condition;
 
     LiveBytesMap live_bytes;
     size_t marked_bytes = 0;
