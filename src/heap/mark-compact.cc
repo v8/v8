@@ -866,7 +866,9 @@ void MarkCompactCollector::Prepare() {
   if (was_marked_incrementally_ && heap_->ShouldAbortIncrementalMarking()) {
     heap()->incremental_marking()->Stop();
     heap()->incremental_marking()->AbortBlackAllocation();
-    FinishConcurrentMarking(ConcurrentMarking::StopRequest::PREEMPT_TASKS);
+    // TODO(gab): PREEMPT_TASKS here in a follow-up CL.
+    FinishConcurrentMarking(
+        ConcurrentMarking::StopRequest::COMPLETE_ONGOING_TASKS);
     heap()->incremental_marking()->Deactivate();
     ClearMarkbits();
     AbortWeakCollections();
