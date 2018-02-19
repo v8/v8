@@ -217,16 +217,14 @@ class DontEmitDebugCodeScope BASE_EMBEDDED {
 // snapshot and the running VM.
 class PredictableCodeSizeScope {
  public:
-  explicit PredictableCodeSizeScope(AssemblerBase* assembler);
   PredictableCodeSizeScope(AssemblerBase* assembler, int expected_size);
   ~PredictableCodeSizeScope();
-  void ExpectSize(int expected_size) { expected_size_ = expected_size; }
 
  private:
-  AssemblerBase* assembler_;
-  int expected_size_;
-  int start_offset_;
-  bool old_value_;
+  AssemblerBase* const assembler_;
+  int const expected_size_;
+  int const start_offset_;
+  bool const old_value_;
 };
 
 

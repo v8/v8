@@ -577,8 +577,8 @@ void ProfileEntryHookStub::MaybeCallEntryHookDelayed(TurboAssembler* tasm,
                                                      Zone* zone) {
   if (tasm->isolate()->function_entry_hook() != nullptr) {
     tasm->MaybeCheckConstPool();
-    PredictableCodeSizeScope predictable(tasm);
-    predictable.ExpectSize(tasm->CallStubSize() + 2 * Assembler::kInstrSize);
+    PredictableCodeSizeScope predictable(
+        tasm, tasm->CallStubSize() + 2 * Assembler::kInstrSize);
     tasm->push(lr);
     tasm->CallStubDelayed(new (zone) ProfileEntryHookStub(nullptr));
     tasm->pop(lr);
@@ -589,8 +589,8 @@ void ProfileEntryHookStub::MaybeCallEntryHook(MacroAssembler* masm) {
   if (masm->isolate()->function_entry_hook() != nullptr) {
     ProfileEntryHookStub stub(masm->isolate());
     masm->MaybeCheckConstPool();
-    PredictableCodeSizeScope predictable(masm);
-    predictable.ExpectSize(masm->CallStubSize() + 2 * Assembler::kInstrSize);
+    PredictableCodeSizeScope predictable(
+        masm, masm->CallStubSize() + 2 * Assembler::kInstrSize);
     __ push(lr);
     __ CallStub(&stub);
     __ pop(lr);

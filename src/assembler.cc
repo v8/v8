@@ -195,9 +195,6 @@ void AssemblerBase::Print(Isolate* isolate) {
 // -----------------------------------------------------------------------------
 // Implementation of PredictableCodeSizeScope
 
-PredictableCodeSizeScope::PredictableCodeSizeScope(AssemblerBase* assembler)
-    : PredictableCodeSizeScope(assembler, -1) {}
-
 PredictableCodeSizeScope::PredictableCodeSizeScope(AssemblerBase* assembler,
                                                    int expected_size)
     : assembler_(assembler),
@@ -208,10 +205,7 @@ PredictableCodeSizeScope::PredictableCodeSizeScope(AssemblerBase* assembler,
 }
 
 PredictableCodeSizeScope::~PredictableCodeSizeScope() {
-  // TODO(svenpanne) Remove the 'if' when everything works.
-  if (expected_size_ >= 0) {
-    CHECK_EQ(expected_size_, assembler_->pc_offset() - start_offset_);
-  }
+  CHECK_EQ(expected_size_, assembler_->pc_offset() - start_offset_);
   assembler_->set_predictable_code_size(old_value_);
 }
 
