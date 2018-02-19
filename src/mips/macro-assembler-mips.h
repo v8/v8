@@ -562,6 +562,8 @@ class TurboAssembler : public Assembler {
   void Movf(Register rd, Register rs, uint16_t cc = 0);
 
   void Clz(Register rd, Register rs);
+  void Ctz(Register rd, Register rs);
+  void Popcnt(Register rd, Register rs);
 
   // Int64Lowering instructions
   void AddPair(Register dst_low, Register dst_high, Register left_low,

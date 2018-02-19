@@ -604,6 +604,10 @@ class TurboAssembler : public Assembler {
   void Movf(Register rd, Register rs, uint16_t cc = 0);
 
   void Clz(Register rd, Register rs);
+  void Ctz(Register rd, Register rs);
+  void Dctz(Register rd, Register rs);
+  void Popcnt(Register rd, Register rs);
+  void Dpopcnt(Register rd, Register rs);
 
   // MIPS64 R2 instruction macro.
   void Ext(Register rt, Register rs, uint16_t pos, uint16_t size);
