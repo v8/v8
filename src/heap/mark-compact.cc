@@ -16,7 +16,6 @@
 #include "src/global-handles.h"
 #include "src/heap/array-buffer-collector.h"
 #include "src/heap/array-buffer-tracker-inl.h"
-#include "src/heap/concurrent-marking.h"
 #include "src/heap/gc-tracer.h"
 #include "src/heap/incremental-marking.h"
 #include "src/heap/invalidated-slots-inl.h"
@@ -867,7 +866,9 @@ void MarkCompactCollector::Prepare() {
   if (was_marked_incrementally_ && heap_->ShouldAbortIncrementalMarking()) {
     heap()->incremental_marking()->Stop();
     heap()->incremental_marking()->AbortBlackAllocation();
-    FinishConcurrentMarking();
+    // TODO(gab): PREEMPT_TASKS here in a follow-up CL.
+    FinishConcurrentMarking(
+        ConcurrentMarking::StopRequest::COMPLETE_ONGOING_TASKS);
     heap()->incremental_marking()->Deactivate();
     ClearMarkbits();
     AbortWeakCollections();
@@ -903,9 +904,10 @@ void MarkCompactCollector::Prepare() {
 #endif
 }
 
-void MarkCompactCollector::FinishConcurrentMarking() {
+void MarkCompactCollector::FinishConcurrentMarking(
+    ConcurrentMarking::StopRequest stop_request) {
   if (FLAG_concurrent_marking) {
-    heap()->concurrent_marking()->EnsureCompleted();
+    heap()->concurrent_marking()->Stop(stop_request);
     heap()->concurrent_marking()->FlushLiveBytes(non_atomic_marking_state());
   }
 }
@@ -2358,7 +2360,8 @@ void MarkCompactCollector::MarkLiveObjects() {
     }
     ProcessMarkingWorklist();
 
-    FinishConcurrentMarking();
+    FinishConcurrentMarking(
+        ConcurrentMarking::StopRequest::COMPLETE_ONGOING_TASKS);
     ProcessMarkingWorklist();
   }
 

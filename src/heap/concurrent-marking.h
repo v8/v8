@@ -40,6 +40,17 @@ class ConcurrentMarking {
     ConcurrentMarking* concurrent_marking_;
   };
 
+  enum class StopRequest {
+    // Preempt ongoing tasks ASAP (and cancel unstarted tasks).
+    PREEMPT_TASKS,
+    // Wait for ongoing tasks to complete (and cancels unstarted tasks).
+    COMPLETE_ONGOING_TASKS,
+    // Wait for all scheduled tasks to complete (only use this in tests that
+    // control the full stack -- otherwise tasks cancelled by the platform can
+    // make this call hang).
+    COMPLETE_TASKS_FOR_TESTING,
+  };
+
   static constexpr int kMaxTasks = 4;
   using MarkingWorklist = Worklist<HeapObject*, 64 /* segment size */>;
 
@@ -47,9 +58,12 @@ class ConcurrentMarking {
                     MarkingWorklist* bailout, MarkingWorklist* on_hold,
                     WeakObjects* weak_objects);
 
+  // Schedules asynchronous tasks to perform concurrent marking. Objects in the
+  // heap should not be moved while these are active (can be stopped safely via
+  // Stop() or PauseScope).
   void ScheduleTasks();
-  void WaitForTasks();
-  void EnsureCompleted();
+  void Stop(StopRequest stop_request);
+
   void RescheduleTasksIfNeeded();
   // Flushes the local live bytes into the given marking state.
   void FlushLiveBytes(MajorNonAtomicMarkingState* marking_state);
@@ -63,6 +77,10 @@ class ConcurrentMarking {
 
  private:
   struct TaskState {
+    // The main thread sets this flag to true when it wants the concurrent
+    // marker to give up the worker thread.
+    base::AtomicValue<bool> preemption_request;
+
     // When the concurrent marking task has this lock, then objects in the
     // heap are guaranteed to not move.
     base::Mutex lock;
