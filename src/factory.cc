@@ -1459,8 +1459,10 @@ Handle<HeapNumber> Factory::NewHeapNumber(MutableMode mode,
                      HeapNumber);
 }
 
-Handle<FreshlyAllocatedBigInt> Factory::NewBigInt(int length) {
-  CALL_HEAP_FUNCTION(isolate(), isolate()->heap()->AllocateBigInt(length),
+Handle<FreshlyAllocatedBigInt> Factory::NewBigInt(int length,
+                                                  PretenureFlag pretenure) {
+  CALL_HEAP_FUNCTION(isolate(),
+                     isolate()->heap()->AllocateBigInt(length, pretenure),
                      FreshlyAllocatedBigInt);
 }
 

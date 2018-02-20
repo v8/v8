@@ -500,7 +500,8 @@ class V8_EXPORT_PRIVATE Factory final {
 
   // Allocates a new BigInt with {length} digits. Only to be used by
   // MutableBigInt::New*.
-  Handle<FreshlyAllocatedBigInt> NewBigInt(int length);
+  Handle<FreshlyAllocatedBigInt> NewBigInt(
+      int length, PretenureFlag pretenure = NOT_TENURED);
 
   Handle<JSObject> NewArgumentsObject(Handle<JSFunction> callee, int length);
 

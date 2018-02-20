@@ -40,7 +40,8 @@ class MutableBigInt : public FreshlyAllocatedBigInt {
   static Handle<BigInt> MakeImmutable(Handle<MutableBigInt> result);
 
   // Allocation helpers.
-  static MaybeHandle<MutableBigInt> New(Isolate* isolate, int length);
+  static MaybeHandle<MutableBigInt> New(Isolate* isolate, int length,
+                                        PretenureFlag pretenure = NOT_TENURED);
   static Handle<BigInt> NewFromInt(Isolate* isolate, int value);
   static Handle<BigInt> NewFromSafeInteger(Isolate* isolate, double value);
   void InitializeDigits(int length, byte value = 0);
@@ -182,12 +183,14 @@ class MutableBigInt : public FreshlyAllocatedBigInt {
   void set_64_bits(uint64_t bits);
 };
 
-MaybeHandle<MutableBigInt> MutableBigInt::New(Isolate* isolate, int length) {
+MaybeHandle<MutableBigInt> MutableBigInt::New(Isolate* isolate, int length,
+                                              PretenureFlag pretenure) {
   if (length > BigInt::kMaxLength) {
     THROW_NEW_ERROR(isolate, NewRangeError(MessageTemplate::kBigIntTooBig),
                     MutableBigInt);
   }
-  Handle<MutableBigInt> result = Cast(isolate->factory()->NewBigInt(length));
+  Handle<MutableBigInt> result =
+      Cast(isolate->factory()->NewBigInt(length, pretenure));
   result->set_length(length);
   result->set_sign(false);
 #if DEBUG
@@ -1702,7 +1705,8 @@ static const int kBitsPerCharTableShift = 5;
 static const size_t kBitsPerCharTableMultiplier = 1u << kBitsPerCharTableShift;
 
 MaybeHandle<FreshlyAllocatedBigInt> BigInt::AllocateFor(
-    Isolate* isolate, int radix, int charcount, ShouldThrow should_throw) {
+    Isolate* isolate, int radix, int charcount, ShouldThrow should_throw,
+    PretenureFlag pretenure) {
   DCHECK(2 <= radix && radix <= 36);
   DCHECK_GE(charcount, 0);
   size_t bits_per_char = kMaxBitsPerChar[radix];
@@ -1717,7 +1721,7 @@ MaybeHandle<FreshlyAllocatedBigInt> BigInt::AllocateFor(
       int length = (static_cast<int>(bits_min) + kDigitBits - 1) / kDigitBits;
       if (length <= kMaxLength) {
         Handle<MutableBigInt> result =
-            MutableBigInt::New(isolate, length).ToHandleChecked();
+            MutableBigInt::New(isolate, length, pretenure).ToHandleChecked();
         result->InitializeDigits(length);
         return result;
       }

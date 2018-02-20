@@ -2570,12 +2570,12 @@ AllocationResult Heap::AllocateHeapNumber(MutableMode mode,
   return result;
 }
 
-AllocationResult Heap::AllocateBigInt(int length) {
+AllocationResult Heap::AllocateBigInt(int length, PretenureFlag pretenure) {
   if (length < 0 || length > BigInt::kMaxLength) {
     v8::internal::Heap::FatalProcessOutOfMemory("invalid BigInt length", true);
   }
   int size = BigInt::SizeFor(length);
-  AllocationSpace space = SelectSpace(NOT_TENURED);
+  AllocationSpace space = SelectSpace(pretenure);
   HeapObject* result = nullptr;
   {
     AllocationResult allocation = AllocateRaw(size, space);

@@ -172,7 +172,8 @@ class V8_EXPORT_PRIVATE BigInt : public BigIntBase {
   // Special functions for StringToBigIntHelper:
   static Handle<BigInt> Zero(Isolate* isolate);
   static MaybeHandle<FreshlyAllocatedBigInt> AllocateFor(
-      Isolate* isolate, int radix, int charcount, ShouldThrow should_throw);
+      Isolate* isolate, int radix, int charcount, ShouldThrow should_throw,
+      PretenureFlag pretenure);
   static void InplaceMultiplyAdd(Handle<FreshlyAllocatedBigInt> x,
                                  uintptr_t factor, uintptr_t summand);
   static Handle<BigInt> Finalize(Handle<FreshlyAllocatedBigInt> x, bool sign);

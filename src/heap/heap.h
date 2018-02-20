@@ -2092,7 +2092,8 @@ class Heap {
   MUST_USE_RESULT AllocationResult AllocateHeapNumber(
       MutableMode mode = IMMUTABLE, PretenureFlag pretenure = NOT_TENURED);
 
-  MUST_USE_RESULT AllocationResult AllocateBigInt(int length);
+  MUST_USE_RESULT AllocationResult
+  AllocateBigInt(int length, PretenureFlag pretenure = NOT_TENURED);
 
   // Allocates a byte array of the specified length
   MUST_USE_RESULT AllocationResult

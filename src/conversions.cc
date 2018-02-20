@@ -917,9 +917,12 @@ class StringToBigIntHelper : public StringToIntHelper {
     // Optimization opportunity: Would it makes sense to scan for trailing
     // junk before allocating the result?
     int charcount = length() - cursor();
-    // TODO(adamk): Pretenure if this is for a literal.
-    MaybeHandle<FreshlyAllocatedBigInt> maybe =
-        BigInt::AllocateFor(isolate(), radix(), charcount, should_throw());
+    // For literals, we pretenure the allocated BigInt, since it's about
+    // to be stored in the interpreter's constants array.
+    PretenureFlag pretenure =
+        behavior_ == Behavior::kLiteral ? TENURED : NOT_TENURED;
+    MaybeHandle<FreshlyAllocatedBigInt> maybe = BigInt::AllocateFor(
+        isolate(), radix(), charcount, should_throw(), pretenure);
     if (!maybe.ToHandle(&result_)) {
       set_state(kError);
     }
