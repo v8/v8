@@ -198,6 +198,11 @@ static bool ValidateSnapshot(const v8::HeapSnapshot* snapshot, int depth = 3) {
   return unretained_entries_count == 0;
 }
 
+bool EndsWith(const char* a, const char* b) {
+  size_t length_a = strlen(a);
+  size_t length_b = strlen(b);
+  return (length_a >= length_b) && !strcmp(a + length_a - length_b, b);
+}
 
 TEST(HeapSnapshot) {
   LocalContext env2;
@@ -719,6 +724,38 @@ TEST(HeapSnapshotInternalReferences) {
                     v8::HeapGraphEdge::kInternal, "1"));
 }
 
+TEST(HeapSnapshotEphemeron) {
+  LocalContext env;
+  v8::HandleScope scope(env->GetIsolate());
+  v8::HeapProfiler* heap_profiler = env->GetIsolate()->GetHeapProfiler();
+
+  CompileRun(
+      "class KeyClass{};\n"
+      "class ValueClass{};\n"
+      "var wm = new WeakMap();\n"
+      "function foo(key) { wm.set(key, new ValueClass()); }\n"
+      "var key = new KeyClass();\n"
+      "foo(key);");
+  const v8::HeapSnapshot* snapshot = heap_profiler->TakeHeapSnapshot();
+  CHECK(ValidateSnapshot(snapshot));
+  const v8::HeapGraphNode* global = GetGlobalObject(snapshot);
+
+  const v8::HeapGraphNode* key = GetProperty(
+      env->GetIsolate(), global, v8::HeapGraphEdge::kProperty, "key");
+  CHECK(key);
+  bool success = false;
+  for (int i = 0, count = key->GetChildrenCount(); i < count; ++i) {
+    const v8::HeapGraphEdge* edge = key->GetChild(i);
+    const v8::HeapGraphNode* child = edge->GetToNode();
+    if (!strcmp("ValueClass", GetName(child))) {
+      v8::String::Utf8Value edge_name(CcTest::isolate(), edge->GetName());
+      CHECK(EndsWith(*edge_name, " / WeakMap"));
+      success = true;
+      break;
+    }
+  }
+  CHECK(success);
+}
 
 TEST(HeapSnapshotAddressReuse) {
   LocalContext env;
@@ -2892,12 +2929,6 @@ TEST(EmbedderGraph) {
   const v8::HeapSnapshot* snapshot = heap_profiler->TakeHeapSnapshot();
   CHECK(ValidateSnapshot(snapshot));
   CheckEmbedderGraphSnapshot(env->GetIsolate(), snapshot);
-}
-
-bool EndsWith(const char* a, const char* b) {
-  size_t length_a = strlen(a);
-  size_t length_b = strlen(b);
-  return (length_a >= length_b) && !strcmp(a + length_a - length_b, b);
 }
 
 TEST(StrongHandleAnnotation) {

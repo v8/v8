@@ -1336,12 +1336,20 @@ void V8HeapExplorer::ExtractFixedArrayReferences(int entry, FixedArray* array) {
         int key_index =
             ObjectHashTable::EntryToIndex(i) + ObjectHashTable::kEntryKeyIndex;
         int value_index = ObjectHashTable::EntryToValueIndex(i);
-        SetWeakReference(table, entry, key_index, table->get(key_index),
+        Object* key = table->get(key_index);
+        Object* value = table->get(value_index);
+        SetWeakReference(table, entry, key_index, key,
                          table->OffsetOfElementAt(key_index));
-        SetInternalReference(table, entry, value_index, table->get(value_index),
+        SetInternalReference(table, entry, value_index, value,
                              table->OffsetOfElementAt(value_index));
-        // TODO(alph): Add a strong link (shortcut?) from key to value per
-        //             WeakMap the key was added to. See crbug.com/778739
+        HeapEntry* key_entry = GetEntry(key);
+        int key_entry_index = key_entry->index();
+        HeapEntry* value_entry = GetEntry(value);
+        if (key_entry && value_entry) {
+          filler_->SetNamedAutoIndexReference(HeapGraphEdge::kInternal,
+                                              key_entry_index, "WeakMap",
+                                              value_entry);
+        }
       }
       break;
     }
