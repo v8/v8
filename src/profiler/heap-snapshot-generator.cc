@@ -2218,12 +2218,16 @@ bool NativeObjectsExplorer::IterateAndExtractReferences(
     // Fill edges of the graph.
     for (const auto& edge : graph.edges()) {
       HeapEntry* from = EntryForEmbedderGraphNode(edge.from);
-      HeapEntry* to = EntryForEmbedderGraphNode(edge.to);
       // The |from| and |to| can nullptr if the corrsponding node is a V8 node
       // pointing to a Smi.
-      if (from && to) {
+      if (!from) continue;
+      // Adding an entry for |edge.to| can invalidate the |from| entry because
+      // it is an address in std::vector. Use index instead of pointer.
+      int from_index = from->index();
+      HeapEntry* to = EntryForEmbedderGraphNode(edge.to);
+      if (to) {
         filler_->SetIndexedAutoIndexReference(HeapGraphEdge::kElement,
-                                              from->index(), to);
+                                              from_index, to);
       }
     }
   } else {
