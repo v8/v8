@@ -1088,6 +1088,8 @@ class ParserBase {
 
   IdentifierT ParseIdentifierName(bool* ok);
 
+  ExpressionT ParseIdentifierNameOrPrivateName(bool* ok);
+
   ExpressionT ParseRegExpLiteral(bool* ok);
 
   ExpressionT ParsePrimaryExpression(bool* is_async, bool* ok);
@@ -1785,6 +1787,27 @@ typename ParserBase<Impl>::IdentifierT ParserBase<Impl>::ParseIdentifierName(
   }
 
   return impl()->GetSymbol();
+}
+
+template <typename Impl>
+typename ParserBase<Impl>::ExpressionT
+ParserBase<Impl>::ParseIdentifierNameOrPrivateName(bool* ok) {
+  int pos = position();
+  IdentifierT name;
+  ExpressionT key;
+  if (allow_harmony_private_fields() && peek() == Token::PRIVATE_NAME) {
+    Consume(Token::PRIVATE_NAME);
+    name = impl()->GetSymbol();
+    auto key_proxy =
+        impl()->ExpressionFromIdentifier(name, pos, InferName::kNo);
+    key_proxy->set_is_private_field();
+    key = key_proxy;
+  } else {
+    name = ParseIdentifierName(CHECK_OK);
+    key = factory()->NewStringLiteral(name, pos);
+  }
+  impl()->PushLiteralName(name);
+  return key;
 }
 
 template <typename Impl>
@@ -3420,10 +3443,8 @@ ParserBase<Impl>::ParseLeftHandSideExpression(bool* ok) {
         ArrowFormalParametersUnexpectedToken();
         Consume(Token::PERIOD);
         int pos = position();
-        IdentifierT name = ParseIdentifierName(CHECK_OK);
-        result = factory()->NewProperty(
-            result, factory()->NewStringLiteral(name, pos), pos);
-        impl()->PushLiteralName(name);
+        ExpressionT key = ParseIdentifierNameOrPrivateName(CHECK_OK);
+        result = factory()->NewProperty(result, key, pos);
         break;
       }
 
@@ -3720,21 +3741,8 @@ ParserBase<Impl>::ParseMemberExpressionContinuation(ExpressionT expression,
 
         Consume(Token::PERIOD);
         int pos = peek_position();
-        ExpressionT key;
-        IdentifierT name;
-        if (allow_harmony_private_fields() && peek() == Token::PRIVATE_NAME) {
-          Consume(Token::PRIVATE_NAME);
-          name = impl()->GetSymbol();
-          auto key_proxy =
-              impl()->ExpressionFromIdentifier(name, pos, InferName::kNo);
-          key_proxy->set_is_private_field();
-          key = key_proxy;
-        } else {
-          name = ParseIdentifierName(CHECK_OK);
-          key = factory()->NewStringLiteral(name, pos);
-        }
+        ExpressionT key = ParseIdentifierNameOrPrivateName(CHECK_OK);
         expression = factory()->NewProperty(expression, key, pos);
-        impl()->PushLiteralName(name);
         break;
       }
       case Token::TEMPLATE_SPAN:

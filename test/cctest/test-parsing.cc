@@ -5089,6 +5089,16 @@ TEST(PrivateNameNoErrors) {
     "foo.#b.#a",
     "foo.#b.#a()",
 
+    "foo().#a",
+    "foo().b.#a",
+    "foo().b().#a",
+    "foo().b().#a()",
+    "foo().b().#a.bar",
+    "foo().b().#a.bar()",
+
+    "foo(this.#a)",
+    "foo(bar().#a)",
+
     "new foo.#a",
     "new foo.#b.#a",
     "new foo.#b.#a()",

@@ -353,3 +353,27 @@
   //assertThrows(() => p.getA(), ReferenceError);
   assertEquals(1, p[symbol]);
 }
+
+{
+  class C {
+    #a = 1;
+    b;
+    getA() { return this.b().#a; }
+  }
+
+  let c = new C();
+  c.b = () => c;
+  assertEquals(1, c.getA());
+}
+
+{
+  class C {
+    #a = 1;
+    b;
+    getA(arg) { return arg.b().#a; }
+  }
+
+  let c = new C();
+  c.b = () => c;
+  assertEquals(1, c.getA(c));
+}
