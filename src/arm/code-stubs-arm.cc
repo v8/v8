@@ -385,10 +385,11 @@ void CEntryStub::Generate(MacroAssembler* masm) {
   __ cmp(cp, Operand(0));
   __ str(cp, MemOperand(fp, StandardFrameConstants::kContextOffset), ne);
 
-  // Reset the masking register.
-  if (FLAG_branch_load_poisoning) {
-    __ ResetSpeculationPoisonRegister();
-  }
+  // Reset the masking register. This is done independent of the underlying
+  // feature flag {FLAG_branch_load_poisoning} to make the snapshot work with
+  // both configurations. It is safe to always do this, because the underlying
+  // register is caller-saved and can be arbitrarily clobbered.
+  __ ResetSpeculationPoisonRegister();
 
   // Compute the handler entry address and jump to it.
   ConstantPoolUnavailableScope constant_pool_unavailable(masm);
