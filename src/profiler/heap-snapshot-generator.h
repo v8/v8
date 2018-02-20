@@ -113,6 +113,7 @@ class HeapEntry BASE_EMBEDDED {
 
   HeapSnapshot* snapshot() { return snapshot_; }
   Type type() const { return static_cast<Type>(type_); }
+  void set_type(Type type) { type_ = type; }
   const char* name() const { return name_; }
   void set_name(const char* name) { name_ = name; }
   SnapshotObjectId id() const { return id_; }

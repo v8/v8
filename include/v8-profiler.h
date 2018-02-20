@@ -648,6 +648,12 @@ class V8_EXPORT EmbedderGraph {
     virtual ~Node() = default;
     virtual const char* Name() = 0;
     virtual size_t SizeInBytes() = 0;
+    /**
+     * The corresponding V8 wrapper node if not null.
+     * During heap snapshot generation the embedder node and the V8 wrapper
+     * node will be merged into one node to simplify retaining paths.
+     */
+    virtual Node* WrapperNode() { return nullptr; }
     virtual bool IsRootNode() { return false; }
     /** Must return true for non-V8 nodes. */
     virtual bool IsEmbedderNode() { return true; }

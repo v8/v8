@@ -1812,7 +1812,7 @@ void V8HeapExplorer::SetGcSubrootReference(Root root, const char* description,
   // Add a shortcut to JS global object reference at snapshot root.
   // That allows the user to easily find global objects. They are
   // also used as starting points in distance calculations.
-  if (!child_obj->IsNativeContext()) return;
+  if (is_weak || !child_obj->IsNativeContext()) return;
 
   JSGlobalObject* global = Context::cast(child_obj)->global_object();
   if (!global->IsJSGlobalObject()) return;
@@ -2016,29 +2016,52 @@ HeapEntry* BasicHeapEntriesAllocator::AllocateEntry(HeapThing ptr) {
 
 class EmbedderGraphEntriesAllocator : public HeapEntriesAllocator {
  public:
-  EmbedderGraphEntriesAllocator(HeapSnapshot* snapshot,
-                                HeapEntry::Type entries_type)
+  explicit EmbedderGraphEntriesAllocator(HeapSnapshot* snapshot)
       : snapshot_(snapshot),
         names_(snapshot_->profiler()->names()),
-        heap_object_map_(snapshot_->profiler()->heap_object_map()),
-        entries_type_(entries_type) {}
+        heap_object_map_(snapshot_->profiler()->heap_object_map()) {}
   virtual HeapEntry* AllocateEntry(HeapThing ptr);
 
  private:
   HeapSnapshot* snapshot_;
   StringsStorage* names_;
   HeapObjectsMap* heap_object_map_;
-  HeapEntry::Type entries_type_;
 };
+
+namespace {
+
+const char* EmbedderGraphNodeName(StringsStorage* names,
+                                  EmbedderGraphImpl::Node* node) {
+  return names->GetCopy(node->Name());
+}
+
+HeapEntry::Type EmbedderGraphNodeType(EmbedderGraphImpl::Node* node) {
+  return HeapEntry::kNative;
+}
+
+// Merges the names of an embedder node and its wrapper node.
+// If the wrapper node name contains a tag suffix (part after '/') then the
+// result is the embedder node name concatenated with the tag suffix.
+// Otherwise, the result is the embedder node name.
+const char* MergeNames(StringsStorage* names, const char* embedder_name,
+                       const char* wrapper_name) {
+  for (const char* suffix = wrapper_name; suffix; suffix++) {
+    if (*suffix == '/') {
+      return names->GetFormatted("%s %s", embedder_name, suffix);
+    }
+  }
+  return embedder_name;
+}
+
+}  // anonymous namespace
 
 HeapEntry* EmbedderGraphEntriesAllocator::AllocateEntry(HeapThing ptr) {
   EmbedderGraphImpl::Node* node =
       reinterpret_cast<EmbedderGraphImpl::Node*>(ptr);
   DCHECK(node->IsEmbedderNode());
-  const char* name = names_->GetCopy(node->Name());
   size_t size = node->SizeInBytes();
   return snapshot_->AddEntry(
-      entries_type_, name,
+      EmbedderGraphNodeType(node), EmbedderGraphNodeName(names_, node),
       static_cast<SnapshotObjectId>(reinterpret_cast<uintptr_t>(node) << 1),
       static_cast<int>(size), 0);
 }
@@ -2056,7 +2079,7 @@ NativeObjectsExplorer::NativeObjectsExplorer(
       native_entries_allocator_(
           new BasicHeapEntriesAllocator(snapshot, HeapEntry::kNative)),
       embedder_graph_entries_allocator_(
-          new EmbedderGraphEntriesAllocator(snapshot, HeapEntry::kNative)),
+          new EmbedderGraphEntriesAllocator(snapshot)),
       filler_(nullptr) {}
 
 NativeObjectsExplorer::~NativeObjectsExplorer() {
@@ -2149,6 +2172,10 @@ std::vector<HeapObject*>* NativeObjectsExplorer::GetVectorMaybeDisposeInfo(
 
 HeapEntry* NativeObjectsExplorer::EntryForEmbedderGraphNode(
     EmbedderGraphImpl::Node* node) {
+  EmbedderGraphImpl::Node* wrapper = node->WrapperNode();
+  if (wrapper) {
+    node = wrapper;
+  }
   if (node->IsEmbedderNode()) {
     return filler_->FindOrAddEntry(node,
                                    embedder_graph_entries_allocator_.get());
@@ -2172,12 +2199,20 @@ bool NativeObjectsExplorer::IterateAndExtractReferences(
     DisallowHeapAllocation no_allocation;
     EmbedderGraphImpl graph;
     snapshot_->profiler()->BuildEmbedderGraph(isolate_, &graph);
-    // Fill root nodes of the graph.
     for (const auto& node : graph.nodes()) {
       if (node->IsRootNode()) {
         filler_->SetIndexedAutoIndexReference(
             HeapGraphEdge::kElement, snapshot_->root()->index(),
             EntryForEmbedderGraphNode(node.get()));
+      }
+      // Adjust the name and the type of the V8 wrapper node.
+      auto wrapper = node->WrapperNode();
+      if (wrapper) {
+        HeapEntry* wrapper_entry = EntryForEmbedderGraphNode(wrapper);
+        wrapper_entry->set_name(
+            MergeNames(names_, EmbedderGraphNodeName(names_, node.get()),
+                       wrapper_entry->name()));
+        wrapper_entry->set_type(EmbedderGraphNodeType(node.get()));
       }
     }
     // Fill edges of the graph.

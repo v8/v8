@@ -2816,16 +2816,19 @@ TEST(JSPromise) {
 
 class EmbedderNode : public v8::EmbedderGraph::Node {
  public:
-  explicit EmbedderNode(const char* name, size_t size)
-      : name_(name), size_(size) {}
+  EmbedderNode(const char* name, size_t size,
+               v8::EmbedderGraph::Node* wrapper_node = nullptr)
+      : name_(name), size_(size), wrapper_node_(wrapper_node) {}
 
   // Graph::Node overrides.
   const char* Name() override { return name_; }
   size_t SizeInBytes() override { return size_; }
+  Node* WrapperNode() override { return wrapper_node_; }
 
  private:
   const char* name_;
   size_t size_;
+  Node* wrapper_node_;
 };
 
 class EmbedderRootNode : public EmbedderNode {
@@ -2921,6 +2924,45 @@ TEST(StrongHandleAnnotation) {
     if (EndsWith(*edge_name, "my_label")) ++found;
   }
   CHECK_EQ(2, found);
+}
+
+void BuildEmbedderGraphWithWrapperNode(v8::Isolate* v8_isolate,
+                                       v8::EmbedderGraph* graph) {
+  using Node = v8::EmbedderGraph::Node;
+  Node* global_node = graph->V8Node(*global_object_pointer);
+  Node* wrapper_node = graph->AddNode(
+      std::unique_ptr<Node>(new EmbedderNode("WrapperNode / TAG", 10)));
+  Node* embedder_node = graph->AddNode(std::unique_ptr<Node>(
+      new EmbedderNode("EmbedderNode", 10, wrapper_node)));
+  Node* other_node =
+      graph->AddNode(std::unique_ptr<Node>(new EmbedderNode("OtherNode", 20)));
+  graph->AddEdge(global_node, embedder_node);
+  graph->AddEdge(wrapper_node, other_node);
+}
+
+TEST(EmbedderGraphWithWrapperNode) {
+  i::FLAG_heap_profiler_use_embedder_graph = true;
+  LocalContext env;
+  v8::HandleScope scope(env->GetIsolate());
+  i::Isolate* isolate = reinterpret_cast<i::Isolate*>(env->GetIsolate());
+  v8::Local<v8::Value> global_object =
+      v8::Utils::ToLocal(i::Handle<i::JSObject>(
+          (isolate->context()->native_context()->global_object())));
+  global_object_pointer = &global_object;
+  v8::HeapProfiler* heap_profiler = env->GetIsolate()->GetHeapProfiler();
+  heap_profiler->SetBuildEmbedderGraphCallback(
+      BuildEmbedderGraphWithWrapperNode);
+  const v8::HeapSnapshot* snapshot = heap_profiler->TakeHeapSnapshot();
+  CHECK(ValidateSnapshot(snapshot));
+  const v8::HeapGraphNode* global = GetGlobalObject(snapshot);
+  const v8::HeapGraphNode* embedder_node =
+      GetChildByName(global, "EmbedderNode / TAG");
+  const v8::HeapGraphNode* other_node =
+      GetChildByName(embedder_node, "OtherNode");
+  CHECK(other_node);
+  const v8::HeapGraphNode* wrapper_node =
+      GetChildByName(embedder_node, "WrapperNode / TAG");
+  CHECK(!wrapper_node);
 }
 
 static inline i::Address ToAddress(int n) {
