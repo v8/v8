@@ -401,7 +401,7 @@ class LiftoffAssembler : public TurboAssembler {
   // Push a value to the stack (will become a caller frame slot).
   inline void PushCallerFrameSlot(const VarState& src, uint32_t src_index,
                                   RegPairHalf half);
-  inline void PushCallerFrameSlot(LiftoffRegister reg);
+  inline void PushCallerFrameSlot(LiftoffRegister reg, ValueType type);
   inline void PushRegisters(LiftoffRegList);
   inline void PopRegisters(LiftoffRegList);
 

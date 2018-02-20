@@ -256,7 +256,8 @@ void LiftoffAssembler::PushCallerFrameSlot(const VarState& src,
   BAILOUT("PushCallerFrameSlot");
 }
 
-void LiftoffAssembler::PushCallerFrameSlot(LiftoffRegister reg) {
+void LiftoffAssembler::PushCallerFrameSlot(LiftoffRegister reg,
+                                           ValueType type) {
   BAILOUT("PushCallerFrameSlot reg");
 }
 

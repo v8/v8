@@ -684,15 +684,20 @@ void LiftoffAssembler::PushCallerFrameSlot(const VarState& src,
                                            RegPairHalf half) {
   switch (src.loc()) {
     case VarState::kStack:
-      DCHECK_NE(kWasmF64, src.type());  // TODO(clemensh): Implement this.
       push(liftoff::GetHalfStackSlot(2 * src_index +
                                      (half == kLowWord ? 0 : 1)));
+      if (src.type() == kWasmF64) {
+        DCHECK_EQ(kLowWord, half);
+        push(liftoff::GetHalfStackSlot(2 * src_index + 1));
+      }
       break;
     case VarState::kRegister:
-      PushCallerFrameSlot(
-          src.type() == kWasmI64
-              ? (half == kLowWord ? src.reg().low() : src.reg().high())
-              : src.reg());
+      if (src.type() == kWasmI64) {
+        PushCallerFrameSlot(
+            half == kLowWord ? src.reg().low() : src.reg().high(), kWasmI32);
+      } else {
+        PushCallerFrameSlot(src.reg(), src.type());
+      }
       break;
     case VarState::KIntConst:
       // The high word is the sign extension of the low word.
@@ -702,12 +707,23 @@ void LiftoffAssembler::PushCallerFrameSlot(const VarState& src,
   }
 }
 
-void LiftoffAssembler::PushCallerFrameSlot(LiftoffRegister reg) {
-  if (reg.is_gp()) {
-    push(reg.gp());
-  } else {
-    sub(esp, Immediate(kPointerSize));
-    movss(Operand(esp, 0), reg.fp());
+void LiftoffAssembler::PushCallerFrameSlot(LiftoffRegister reg,
+                                           ValueType type) {
+  switch (type) {
+    case kWasmI32:
+      push(reg.gp());
+      break;
+    case kWasmF32:
+      sub(esp, Immediate(sizeof(float)));
+      movss(Operand(esp, 0), reg.fp());
+      break;
+    case kWasmF64:
+      sub(esp, Immediate(sizeof(double)));
+      movsd(Operand(esp, 0), reg.fp());
+      break;
+    default:
+      // Also kWasmI64 is unreachable, as it will always be pushed as two halfs.
+      UNREACHABLE();
   }
 }
 

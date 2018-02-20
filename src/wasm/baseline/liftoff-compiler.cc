@@ -78,6 +78,8 @@ compiler::CallDescriptor* GetLoweredCallDescriptor(
 
 constexpr ValueType kTypesArr_ilf[] = {kWasmI32, kWasmI64, kWasmF32};
 constexpr Vector<const ValueType> kTypes_ilf = ArrayVector(kTypesArr_ilf);
+constexpr ValueType kTypesArr_ilfd[] = {kWasmI32, kWasmI64, kWasmF32, kWasmF64};
+constexpr Vector<const ValueType> kTypes_ilfd = ArrayVector(kTypesArr_ilfd);
 
 class LiftoffCompiler {
  public:
@@ -284,7 +286,7 @@ class LiftoffCompiler {
     uint32_t num_params =
         static_cast<uint32_t>(decoder->sig_->parameter_count());
     for (uint32_t i = 0; i < __ num_locals(); ++i) {
-      if (!CheckSupportedType(decoder, kTypes_ilf, __ local_type(i), "param"))
+      if (!CheckSupportedType(decoder, kTypes_ilfd, __ local_type(i), "param"))
         return;
     }
     // Input 0 is the call target, the context is at 1.
@@ -316,13 +318,15 @@ class LiftoffCompiler {
           __ cache_state()->stack_state.emplace_back(kWasmI64, uint32_t{0});
           break;
         case kWasmF32:
+        case kWasmF64:
           if (zero_double_reg.is_gp()) {
             // Note: This might spill one of the registers used to hold
             // parameters.
             zero_double_reg = __ GetUnusedRegister(kFpReg);
-            __ LoadConstant(zero_double_reg, WasmValue(0.f));
+            // Zero is represented by the bit pattern 0 for both f32 and f64.
+            __ LoadConstant(zero_double_reg, WasmValue(0.));
           }
-          __ PushRegister(kWasmF32, zero_double_reg);
+          __ PushRegister(type, zero_double_reg);
           break;
         default:
           UNIMPLEMENTED();
@@ -1011,7 +1015,8 @@ class LiftoffCompiler {
               LiftoffAssembler::kWasmIntPtr);
     } else {
       DCHECK(param_loc.IsCallerFrameSlot());
-      __ PushCallerFrameSlot(LiftoffRegister(args[0]));
+      __ PushCallerFrameSlot(LiftoffRegister(args[0]),
+                             LiftoffAssembler::kWasmIntPtr);
     }
 
     // Allocate the codegen zone if not done before.
@@ -1099,7 +1104,7 @@ class LiftoffCompiler {
     if (operand.sig->return_count() > 1)
       return unsupported(decoder, "multi-return");
     if (operand.sig->return_count() == 1 &&
-        !CheckSupportedType(decoder, kTypes_ilf, operand.sig->GetReturn(0),
+        !CheckSupportedType(decoder, kTypes_ilfd, operand.sig->GetReturn(0),
                             "return"))
       return;
 
@@ -1141,7 +1146,7 @@ class LiftoffCompiler {
     if (operand.sig->return_count() > 1)
       return unsupported(decoder, "multi-return");
     if (operand.sig->return_count() == 1 &&
-        !CheckSupportedType(decoder, kTypes_ilf, operand.sig->GetReturn(0),
+        !CheckSupportedType(decoder, kTypes_ilfd, operand.sig->GetReturn(0),
                             "return"))
       return;
 

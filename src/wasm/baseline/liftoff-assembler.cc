@@ -544,7 +544,7 @@ void LiftoffAssembler::PrepareCall(wasm::FunctionSig* sig,
                                    kWasmIntPtr);
       *target = new_target.gp();
     } else {
-      PushCallerFrameSlot(LiftoffRegister(*target));
+      PushCallerFrameSlot(LiftoffRegister(*target), kWasmIntPtr);
       *target = no_reg;
     }
   }
@@ -594,8 +594,9 @@ void LiftoffAssembler::Move(LiftoffRegister dst, LiftoffRegister src,
                             ValueType type) {
   DCHECK_EQ(dst.reg_class(), src.reg_class());
   if (kNeedI64RegPair && dst.is_pair()) {
-    if (dst.low() != src.low()) Move(dst.low_gp(), src.low_gp(), kWasmI32);
-    if (dst.high() != src.high()) Move(dst.high_gp(), src.high_gp(), kWasmI32);
+    // Use the {StackTransferRecipe} to move pairs, as the registers in the
+    // pairs might overlap.
+    StackTransferRecipe(this).MoveRegister(dst, src, type);
   } else if (dst.is_gp()) {
     Move(dst.gp(), src.gp(), type);
   } else {

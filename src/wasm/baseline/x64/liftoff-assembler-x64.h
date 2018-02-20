@@ -620,7 +620,7 @@ void LiftoffAssembler::PushCallerFrameSlot(const VarState& src,
       pushq(liftoff::GetStackSlot(src_index));
       break;
     case VarState::kRegister:
-      PushCallerFrameSlot(src.reg());
+      PushCallerFrameSlot(src.reg(), src.type());
       break;
     case VarState::KIntConst:
       pushq(Immediate(src.i32_const()));
@@ -628,12 +628,23 @@ void LiftoffAssembler::PushCallerFrameSlot(const VarState& src,
   }
 }
 
-void LiftoffAssembler::PushCallerFrameSlot(LiftoffRegister reg) {
-  if (reg.is_gp()) {
-    pushq(reg.gp());
-  } else {
-    subp(rsp, Immediate(kPointerSize));
-    Movsd(Operand(rsp, 0), reg.fp());
+void LiftoffAssembler::PushCallerFrameSlot(LiftoffRegister reg,
+                                           ValueType type) {
+  switch (type) {
+    case kWasmI32:
+    case kWasmI64:
+      pushq(reg.gp());
+      break;
+    case kWasmF32:
+      subp(rsp, Immediate(kPointerSize));
+      Movss(Operand(rsp, 0), reg.fp());
+      break;
+    case kWasmF64:
+      subp(rsp, Immediate(kPointerSize));
+      Movsd(Operand(rsp, 0), reg.fp());
+      break;
+    default:
+      UNREACHABLE();
   }
 }
 
