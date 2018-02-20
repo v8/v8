@@ -63,7 +63,6 @@ class BackgroundParsingTask : public ScriptCompiler::ScriptStreamingTask {
  private:
   StreamedSource* source_;  // Not owned.
   int stack_size_;
-  ScriptData* script_data_;
   AccountingAllocator* allocator_;
   TimedHistogram* timer_;
 };

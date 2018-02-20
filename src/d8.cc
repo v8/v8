@@ -604,8 +604,9 @@ bool Shell::ExecuteString(Isolate* isolate, Local<String> source,
     Local<Context> context(isolate->GetCurrentContext());
     ScriptOrigin origin(name);
 
-    if (options.compile_options == ScriptCompiler::kConsumeCodeCache ||
-        options.compile_options == ScriptCompiler::kConsumeParserCache) {
+    DCHECK(options.compile_options != ScriptCompiler::kProduceParserCache);
+    DCHECK(options.compile_options != ScriptCompiler::kConsumeParserCache);
+    if (options.compile_options == ScriptCompiler::kConsumeCodeCache) {
       ScriptCompiler::CachedData* cached_code =
           LookupCodeCache(isolate, source);
       if (cached_code != nullptr) {
@@ -639,9 +640,6 @@ bool Shell::ExecuteString(Isolate* isolate, Local<String> source,
       ScriptCompiler::Source script_source(source, origin);
       maybe_script = ScriptCompiler::Compile(context, &script_source,
                                              options.compile_options);
-      if (options.compile_options == ScriptCompiler::kProduceParserCache) {
-        StoreInCodeCache(isolate, source, script_source.GetCachedData());
-      }
     }
 
     Local<Script> script;
@@ -2837,8 +2835,6 @@ bool Shell::SetOptions(int argc, char* argv[]) {
         options.compile_options = v8::ScriptCompiler::kNoCompileOptions;
         options.code_cache_options =
             ShellOptions::CodeCacheOptions::kProduceCache;
-      } else if (strncmp(value, "=parse", 7) == 0) {
-        options.compile_options = v8::ScriptCompiler::kProduceParserCache;
       } else if (strncmp(value, "=none", 6) == 0) {
         options.compile_options = v8::ScriptCompiler::kNoCompileOptions;
         options.code_cache_options =
@@ -3420,14 +3416,9 @@ int Shell::Main(int argc, char* argv[]) {
       result = RunMain(isolate, argc, argv, false);
 
       // Change the options to consume cache
-      if (options.compile_options == v8::ScriptCompiler::kProduceParserCache) {
-        options.compile_options = v8::ScriptCompiler::kConsumeParserCache;
-      } else {
-        DCHECK(options.compile_options == v8::ScriptCompiler::kEagerCompile ||
-               options.compile_options ==
-                   v8::ScriptCompiler::kNoCompileOptions);
-        options.compile_options = v8::ScriptCompiler::kConsumeCodeCache;
-      }
+      DCHECK(options.compile_options == v8::ScriptCompiler::kEagerCompile ||
+             options.compile_options == v8::ScriptCompiler::kNoCompileOptions);
+      options.compile_options = v8::ScriptCompiler::kConsumeCodeCache;
 
       printf("============ Run: Consume code cache ============\n");
       // Second run to consume the cache in new isolate

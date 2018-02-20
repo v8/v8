@@ -2327,17 +2327,21 @@ MaybeLocal<UnboundScript> ScriptCompiler::CompileUnboundInternal(
   ENTER_V8_NO_SCRIPT(isolate, v8_isolate->GetCurrentContext(), ScriptCompiler,
                      CompileUnbound, MaybeLocal<UnboundScript>(),
                      InternalEscapableScope);
-  bool produce_cache = options == kProduceParserCache ||
-                       options == kProduceCodeCache ||
-                       options == kProduceFullCodeCache;
-
-  // Don't try to produce any kind of cache when the debugger is loaded.
-  if (isolate->debug()->is_loaded() && produce_cache) {
+  // ProduceParserCache, ProduceCodeCache, ProduceFullCodeCache and
+  // ConsumeParserCache are not supported. They are present only for
+  // backward compatability. All these options behave as kNoCompileOptions.
+  if (options == kConsumeParserCache) {
+    // We do not support parser caches anymore. Just set cached_data to
+    // rejected to signal an error.
+    options = kNoCompileOptions;
+    source->cached_data->rejected = true;
+  } else if (options == kProduceParserCache || options == kProduceCodeCache ||
+             options == kProduceFullCodeCache) {
     options = kNoCompileOptions;
   }
 
   i::ScriptData* script_data = nullptr;
-  if (options == kConsumeParserCache || options == kConsumeCodeCache) {
+  if (options == kConsumeCodeCache) {
     DCHECK(source->cached_data);
     // ScriptData takes care of pointer-aligning the data.
     script_data = new i::ScriptData(source->cached_data->data,
@@ -2383,13 +2387,7 @@ MaybeLocal<UnboundScript> ScriptCompiler::CompileUnboundInternal(
   }
   RETURN_ON_FAILED_EXECUTION(UnboundScript);
 
-  if (produce_cache && script_data != nullptr) {
-    // script_data now contains the data that was generated. source will
-    // take the ownership.
-    source->cached_data = new CachedData(
-        script_data->data(), script_data->length(), CachedData::BufferOwned);
-    script_data->ReleaseDataOwnership();
-  } else if (options == kConsumeParserCache || options == kConsumeCodeCache) {
+  if (options == kConsumeCodeCache) {
     source->cached_data->rejected = script_data->rejected();
   }
   delete script_data;

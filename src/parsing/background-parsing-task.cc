@@ -23,15 +23,11 @@ BackgroundParsingTask::BackgroundParsingTask(
     int stack_size, Isolate* isolate)
     : source_(source),
       stack_size_(stack_size),
-      script_data_(nullptr),
       timer_(isolate->counters()->compile_script_on_background()) {
   // We don't set the context to the CompilationInfo yet, because the background
   // thread cannot do anything with it anyway. We set it just before compilation
   // on the foreground thread.
-  DCHECK(options == ScriptCompiler::kProduceParserCache ||
-         options == ScriptCompiler::kProduceCodeCache ||
-         options == ScriptCompiler::kProduceFullCodeCache ||
-         options == ScriptCompiler::kNoCompileOptions ||
+  DCHECK(options == ScriptCompiler::kNoCompileOptions ||
          options == ScriptCompiler::kEagerCompile);
 
   VMState<PARSER> state(isolate);
@@ -51,12 +47,10 @@ BackgroundParsingTask::BackgroundParsingTask(
                          info->runtime_call_stats()));
   info->set_character_stream(std::move(stream));
   info->set_unicode_cache(&source_->unicode_cache);
-  info->set_compile_options(options);
   info->set_allow_lazy_parsing();
   if (V8_UNLIKELY(info->block_coverage_enabled())) {
     info->AllocateSourceRangeMap();
   }
-  info->set_cached_data(&script_data_);
   LanguageMode language_mode = construct_language_mode(FLAG_use_strict);
   info->set_language_mode(
       stricter_language_mode(info->language_mode(), language_mode));
@@ -91,15 +85,6 @@ void BackgroundParsingTask::Run() {
     // Parsing has succeeded, compile.
     source_->outer_function_job = Compiler::CompileTopLevelOnBackgroundThread(
         source_->info.get(), allocator_, &source_->inner_function_jobs);
-  }
-
-  if (script_data_ != nullptr) {
-    source_->cached_data.reset(new ScriptCompiler::CachedData(
-        script_data_->data(), script_data_->length(),
-        ScriptCompiler::CachedData::BufferOwned));
-    script_data_->ReleaseDataOwnership();
-    delete script_data_;
-    script_data_ = nullptr;
   }
 
   source_->info->EmitBackgroundParseStatisticsOnBackgroundThread();

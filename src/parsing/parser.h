@@ -14,7 +14,6 @@
 #include "src/globals.h"
 #include "src/parsing/parser-base.h"
 #include "src/parsing/parsing.h"
-#include "src/parsing/preparse-data-format.h"
 #include "src/parsing/preparse-data.h"
 #include "src/parsing/preparser.h"
 #include "src/utils.h"
@@ -27,7 +26,6 @@ namespace internal {
 
 class ConsumedPreParsedScopeData;
 class ParseInfo;
-class ScriptData;
 class ParserTarget;
 class ParserTargetScope;
 class PendingCompilationErrorHandler;
@@ -76,47 +74,6 @@ class FunctionEntry BASE_EMBEDDED {
   Vector<unsigned> backing_;
 };
 
-
-// Wrapper around ScriptData to provide parser-specific functionality.
-class ParseData {
- public:
-  static ParseData* FromCachedData(ScriptData* cached_data) {
-    ParseData* pd = new ParseData(cached_data);
-    if (pd->IsSane()) return pd;
-    cached_data->Reject();
-    delete pd;
-    return nullptr;
-  }
-
-  void Initialize();
-  FunctionEntry GetFunctionEntry(int start);
-  int FunctionCount();
-
-  unsigned* Data() {  // Writable data as unsigned int array.
-    return reinterpret_cast<unsigned*>(const_cast<byte*>(script_data_->data()));
-  }
-
-  void Reject() { script_data_->Reject(); }
-
-  bool rejected() const { return script_data_->rejected(); }
-
- private:
-  explicit ParseData(ScriptData* script_data) : script_data_(script_data) {}
-
-  bool IsSane();
-  unsigned Magic();
-  unsigned Version();
-  int FunctionsSize();
-  int Length() const {
-    // Script data length is already checked to be a multiple of unsigned size.
-    return script_data_->length() / sizeof(unsigned);
-  }
-
-  ScriptData* script_data_;
-  int function_index_;
-
-  DISALLOW_COPY_AND_ASSIGN(ParseData);
-};
 
 // ----------------------------------------------------------------------------
 // JAVASCRIPT PARSING
@@ -192,8 +149,6 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
   ~Parser() {
     delete reusable_preparser_;
     reusable_preparser_ = nullptr;
-    delete cached_parse_data_;
-    cached_parse_data_ = nullptr;
   }
 
   static bool IsPreParser() { return false; }
@@ -276,19 +231,7 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
   ZoneList<const AstRawString*>* PrepareWrappedArguments(ParseInfo* info,
                                                          Zone* zone);
 
-  void SetCachedData(ParseInfo* info);
-
   void StitchAst(ParseInfo* top_level_parse_info, Isolate* isolate);
-
-  ScriptCompiler::CompileOptions compile_options() const {
-    return compile_options_;
-  }
-  bool consume_cached_parse_data() const {
-    return compile_options_ == ScriptCompiler::kConsumeParserCache;
-  }
-  bool produce_cached_parse_data() const {
-    return compile_options_ == ScriptCompiler::kProduceParserCache;
-  }
 
   PreParser* reusable_preparser() {
     if (reusable_preparser_ == nullptr) {
@@ -1145,7 +1088,6 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
   ParserTarget* target_stack_;  // for break, continue statements
 
   ScriptCompiler::CompileOptions compile_options_;
-  ParseData* cached_parse_data_;
 
   // Other information which will be stored in Parser and moved to Isolate after
   // parsing.
@@ -1153,7 +1095,6 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
   int total_preparse_skipped_;
   bool allow_lazy_;
   bool temp_zoned_;
-  ParserLogger* log_;
   ConsumedPreParsedScopeData* consumed_preparsed_scope_data_;
 
   // If not kNoSourcePosition, indicates that the first function literal

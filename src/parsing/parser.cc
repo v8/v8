@@ -29,81 +29,7 @@
 namespace v8 {
 namespace internal {
 
-ScriptData::ScriptData(const byte* data, int length)
-    : owns_data_(false), rejected_(false), data_(data), length_(length) {
-  if (!IsAligned(reinterpret_cast<intptr_t>(data), kPointerAlignment)) {
-    byte* copy = NewArray<byte>(length);
-    DCHECK(IsAligned(reinterpret_cast<intptr_t>(copy), kPointerAlignment));
-    CopyBytes(copy, data, length);
-    data_ = copy;
-    AcquireDataOwnership();
-  }
-}
 
-FunctionEntry ParseData::GetFunctionEntry(int start) {
-  // The current pre-data entry must be a FunctionEntry with the given
-  // start position.
-  if ((function_index_ + FunctionEntry::kSize <= Length()) &&
-      (static_cast<int>(Data()[function_index_]) == start)) {
-    int index = function_index_;
-    function_index_ += FunctionEntry::kSize;
-    Vector<unsigned> subvector(&(Data()[index]), FunctionEntry::kSize);
-    return FunctionEntry(subvector);
-  }
-  return FunctionEntry();
-}
-
-
-int ParseData::FunctionCount() {
-  int functions_size = FunctionsSize();
-  if (functions_size < 0) return 0;
-  if (functions_size % FunctionEntry::kSize != 0) return 0;
-  return functions_size / FunctionEntry::kSize;
-}
-
-
-bool ParseData::IsSane() {
-  if (!IsAligned(script_data_->length(), sizeof(unsigned))) return false;
-  // Check that the header data is valid and doesn't specify
-  // point to positions outside the store.
-  int data_length = Length();
-  if (data_length < PreparseDataConstants::kHeaderSize) return false;
-  if (Magic() != PreparseDataConstants::kMagicNumber) return false;
-  if (Version() != PreparseDataConstants::kCurrentVersion) return false;
-  // Check that the space allocated for function entries is sane.
-  int functions_size = FunctionsSize();
-  if (functions_size < 0) return false;
-  if (functions_size % FunctionEntry::kSize != 0) return false;
-  // Check that the total size has room for header and function entries.
-  int minimum_size =
-      PreparseDataConstants::kHeaderSize + functions_size;
-  if (data_length < minimum_size) return false;
-  return true;
-}
-
-
-void ParseData::Initialize() {
-  // Prepares state for use.
-  int data_length = Length();
-  if (data_length >= PreparseDataConstants::kHeaderSize) {
-    function_index_ = PreparseDataConstants::kHeaderSize;
-  }
-}
-
-
-unsigned ParseData::Magic() {
-  return Data()[PreparseDataConstants::kMagicOffset];
-}
-
-
-unsigned ParseData::Version() {
-  return Data()[PreparseDataConstants::kVersionOffset];
-}
-
-
-int ParseData::FunctionsSize() {
-  return static_cast<int>(Data()[PreparseDataConstants::kFunctionsSizeOffset]);
-}
 
 // Helper for putting parts of the parse results into a temporary zone when
 // parsing inner function bodies.
@@ -152,17 +78,6 @@ class DiscardableZoneScope {
 
   DISALLOW_COPY_AND_ASSIGN(DiscardableZoneScope);
 };
-
-void Parser::SetCachedData(ParseInfo* info) {
-  DCHECK_NULL(cached_parse_data_);
-  if (consume_cached_parse_data()) {
-    if (allow_lazy_) {
-      cached_parse_data_ = ParseData::FromCachedData(*info->cached_data());
-      if (cached_parse_data_ != nullptr) return;
-    }
-    compile_options_ = ScriptCompiler::kNoCompileOptions;
-  }
-}
 
 FunctionLiteral* Parser::DefaultConstructor(const AstRawString* name,
                                             bool call_super, int pos,
@@ -511,11 +426,8 @@ Parser::Parser(ParseInfo* info)
       mode_(PARSE_EAGERLY),  // Lazy mode must be set explicitly.
       source_range_map_(info->source_range_map()),
       target_stack_(nullptr),
-      compile_options_(info->compile_options()),
-      cached_parse_data_(nullptr),
       total_preparse_skipped_(0),
       temp_zoned_(false),
-      log_(nullptr),
       consumed_preparsed_scope_data_(info->consumed_preparsed_scope_data()),
       parameters_end_pos_(info->parameters_end_pos()) {
   // Even though we were passed ParseInfo, we should not store it in
@@ -603,18 +515,6 @@ FunctionLiteral* Parser::ParseProgram(Isolate* isolate, ParseInfo* info) {
   fni_ = new (zone()) FuncNameInferrer(ast_value_factory(), zone());
 
   // Initialize parser state.
-  ParserLogger logger;
-
-  if (produce_cached_parse_data()) {
-    if (allow_lazy_) {
-      log_ = &logger;
-    } else {
-      compile_options_ = ScriptCompiler::kNoCompileOptions;
-    }
-  } else if (consume_cached_parse_data()) {
-    cached_parse_data_->Initialize();
-  }
-
   DeserializeScopeChain(info, info->maybe_outer_scope_info());
 
   scanner_.Initialize(info->character_stream(), info->is_module());
@@ -622,11 +522,6 @@ FunctionLiteral* Parser::ParseProgram(Isolate* isolate, ParseInfo* info) {
   MaybeResetCharacterStream(info, result);
 
   HandleSourceURLComments(isolate, info->script());
-
-  if (produce_cached_parse_data() && result != nullptr) {
-    *info->cached_data() = logger.GetScriptData();
-  }
-  log_ = nullptr;
 
   if (V8_UNLIKELY(FLAG_log_function_events) && result != nullptr) {
     double ms = timer.Elapsed().InMillisecondsF();
@@ -2832,38 +2727,11 @@ Parser::LazyParsingResult Parser::SkipFunction(
 
   DCHECK_NE(kNoSourcePosition, function_scope->start_position());
   DCHECK_EQ(kNoSourcePosition, parameters_end_pos_);
-  if (produce_cached_parse_data()) CHECK(log_);
 
   DCHECK_IMPLIES(IsArrowFunction(kind),
                  scanner()->current_token() == Token::ARROW);
 
-  // Inner functions are not part of the cached data.
-  if (!is_inner_function && consume_cached_parse_data() &&
-      !cached_parse_data_->rejected()) {
-    // If we have cached data, we use it to skip parsing the function. The data
-    // contains the information we need to construct the lazy function.
-    FunctionEntry entry =
-        cached_parse_data_->GetFunctionEntry(function_scope->start_position());
-    // Check that cached data is valid. If not, mark it as invalid (the embedder
-    // handles it). Note that end position greater than end of stream is safe,
-    // and hard to check.
-    if (entry.is_valid() &&
-        entry.end_pos() > function_scope->start_position()) {
-      total_preparse_skipped_ += entry.end_pos() - position();
-      function_scope->set_end_position(entry.end_pos());
-      scanner()->SeekForward(entry.end_pos() - 1);
-      Expect(Token::RBRACE, CHECK_OK_VALUE(kLazyParsingComplete));
-      *num_parameters = entry.num_parameters();
-      SetLanguageMode(function_scope, entry.language_mode());
-      if (entry.uses_super_property())
-        function_scope->RecordSuperPropertyUsage();
-      SkipFunctionLiterals(entry.num_inner_functions());
-      return kLazyParsingComplete;
-    }
-    cached_parse_data_->Reject();
-  }
-
-  // FIXME(marja): There are 3 ways to skip functions now. Unify them.
+  // FIXME(marja): There are 2 ways to skip functions now. Unify them.
   DCHECK_NOT_NULL(consumed_preparsed_scope_data_);
   if (consumed_preparsed_scope_data_->HasData()) {
     DCHECK(FLAG_preparser_scope_analysis);
@@ -2924,13 +2792,6 @@ Parser::LazyParsingResult Parser::SkipFunction(
       function_scope->end_position() - function_scope->start_position();
   *num_parameters = logger->num_parameters();
   SkipFunctionLiterals(logger->num_inner_functions());
-  if (!is_inner_function && produce_cached_parse_data()) {
-    DCHECK(log_);
-    log_->LogFunction(function_scope->start_position(),
-                      function_scope->end_position(), *num_parameters,
-                      language_mode(), function_scope->NeedsHomeObject(),
-                      logger->num_inner_functions());
-  }
   return kLazyParsingComplete;
 }
 
@@ -3573,15 +3434,6 @@ void Parser::ParseOnBackground(ParseInfo* info) {
   DCHECK_NULL(info->literal());
   FunctionLiteral* result = nullptr;
 
-  ParserLogger logger;
-  if (produce_cached_parse_data()) {
-    if (allow_lazy_) {
-      log_ = &logger;
-    } else {
-      compile_options_ = ScriptCompiler::kNoCompileOptions;
-    }
-  }
-
   scanner_.Initialize(info->character_stream(), info->is_module());
   DCHECK(info->maybe_outer_scope_info().is_null());
 
@@ -3605,11 +3457,6 @@ void Parser::ParseOnBackground(ParseInfo* info) {
 
   // We cannot internalize on a background thread; a foreground task will take
   // care of calling AstValueFactory::Internalize just before compilation.
-
-  if (produce_cached_parse_data()) {
-    if (result != nullptr) *info->cached_data() = logger.GetScriptData();
-    log_ = nullptr;
-  }
 }
 
 Parser::TemplateLiteralState Parser::OpenTemplateLiteral(int pos) {

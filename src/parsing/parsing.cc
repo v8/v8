@@ -36,7 +36,6 @@ bool ParseProgram(ParseInfo* info, Isolate* isolate) {
   // Ok to use Isolate here; this function is only called in the main thread.
   DCHECK(parser.parsing_on_main_thread_);
 
-  parser.SetCachedData(info);
   result = parser.ParseProgram(isolate, info);
   info->set_literal(result);
   if (result == nullptr) {

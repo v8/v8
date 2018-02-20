@@ -1235,15 +1235,6 @@ MaybeHandle<JSFunction> Compiler::GetWrappedFunction(
   return Handle<JSFunction>::cast(result);
 }
 
-namespace {
-
-bool ShouldProduceCodeCache(ScriptCompiler::CompileOptions options) {
-  return options == ScriptCompiler::kProduceCodeCache ||
-         options == ScriptCompiler::kProduceFullCodeCache;
-}
-
-}  // namespace
-
 bool Compiler::CodeGenerationFromStringsAllowed(Isolate* isolate,
                                                 Handle<Context> context,
                                                 Handle<String> source) {
@@ -1500,14 +1491,8 @@ MaybeHandle<SharedFunctionInfo> Compiler::GetSharedFunctionInfoForScript(
   if (compile_options == ScriptCompiler::kNoCompileOptions ||
       compile_options == ScriptCompiler::kEagerCompile) {
     cached_data = nullptr;
-  } else if (compile_options == ScriptCompiler::kProduceParserCache ||
-             ShouldProduceCodeCache(compile_options)) {
-    DCHECK(cached_data && !*cached_data);
-    DCHECK_NULL(extension);
-    DCHECK(!isolate->debug()->is_loaded());
   } else {
-    DCHECK(compile_options == ScriptCompiler::kConsumeParserCache ||
-           compile_options == ScriptCompiler::kConsumeCodeCache);
+    DCHECK(compile_options == ScriptCompiler::kConsumeCodeCache);
     DCHECK(cached_data && *cached_data);
     DCHECK_NULL(extension);
   }
@@ -1571,13 +1556,8 @@ MaybeHandle<SharedFunctionInfo> Compiler::GetSharedFunctionInfoForScript(
     }
   }
 
-  base::ElapsedTimer timer;
-  if (FLAG_profile_deserialization && ShouldProduceCodeCache(compile_options)) {
-    timer.Start();
-  }
-
-  if (maybe_result.is_null() || ShouldProduceCodeCache(compile_options)) {
-    // No cache entry found, or embedder wants a code cache. Compile the script.
+  if (maybe_result.is_null()) {
+    // No cache entry found compile the script.
 
     // Create a script object describing the script to be compiled.
     Handle<Script> script = isolate->factory()->NewScript(source);
@@ -1607,21 +1587,15 @@ MaybeHandle<SharedFunctionInfo> Compiler::GetSharedFunctionInfoForScript(
       script->set_host_defined_options(*host_defined_options);
     }
 
-    // Compile the function and add it to the cache.
+    // Compile the function and add it to the isolate cache.
     ParseInfo parse_info(script);
     Zone compile_zone(isolate->allocator(), ZONE_NAME);
     if (resource_options.IsModule()) parse_info.set_module();
-    if (compile_options != ScriptCompiler::kNoCompileOptions) {
-      parse_info.set_cached_data(cached_data);
-    }
-    parse_info.set_compile_options(compile_options);
     parse_info.set_extension(extension);
     if (!context->IsNativeContext()) {
       parse_info.set_outer_scope_info(handle(context->scope_info()));
     }
-    parse_info.set_eager(
-        (compile_options == ScriptCompiler::kProduceFullCodeCache) ||
-        (compile_options == ScriptCompiler::kEagerCompile));
+    parse_info.set_eager(compile_options == ScriptCompiler::kEagerCompile);
 
     parse_info.set_language_mode(
         stricter_language_mode(parse_info.language_mode(), language_mode));
@@ -1635,22 +1609,6 @@ MaybeHandle<SharedFunctionInfo> Compiler::GetSharedFunctionInfoForScript(
       vector = isolate->factory()->NewCell(feedback_vector);
       compilation_cache->PutScript(source, context, language_mode, result,
                                    vector);
-      if (ShouldProduceCodeCache(compile_options) &&
-          !script->ContainsAsmModule()) {
-        compile_timer.set_producing_code_cache();
-
-        HistogramTimerScope histogram_timer(
-            isolate->counters()->compile_serialize());
-        RuntimeCallTimerScope runtimeTimer(
-            isolate, RuntimeCallCounterId::kCompileSerialize);
-        TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.compile"),
-                     "V8.CompileSerialize");
-        *cached_data = CodeSerializer::Serialize(isolate, result, source);
-        if (FLAG_profile_deserialization) {
-          PrintF("[Compiling and serializing took %0.3f ms]\n",
-                 timer.Elapsed().InMillisecondsF());
-        }
-      }
     }
 
     if (maybe_result.is_null()) {
