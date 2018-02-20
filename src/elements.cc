@@ -721,19 +721,8 @@ class ElementsAccessorBase : public InternalElementsAccessor {
     return Subclass::SliceImpl(receiver, start, end);
   }
 
-  Handle<JSObject> Slice(Handle<JSObject> receiver, uint32_t start,
-                         uint32_t end, Handle<JSObject> result) final {
-    return Subclass::SliceWithResultImpl(receiver, start, end, result);
-  }
-
   static Handle<JSObject> SliceImpl(Handle<JSObject> receiver, uint32_t start,
                                     uint32_t end) {
-    UNREACHABLE();
-  }
-
-  static Handle<JSObject> SliceWithResultImpl(Handle<JSObject> receiver,
-                                              uint32_t start, uint32_t end,
-                                              Handle<JSObject> result) {
     UNREACHABLE();
   }
 
@@ -1036,6 +1025,18 @@ class ElementsAccessorBase : public InternalElementsAccessor {
                     Handle<FixedArrayBase> destination, int size) {
     Subclass::CopyElementsImpl(*source, 0, *destination, source_kind, 0,
                                kPackedSizeNotKnown, size);
+  }
+
+  void CopyTypedArrayElementsSlice(JSTypedArray* source,
+                                   JSTypedArray* destination, size_t start,
+                                   size_t end) {
+    Subclass::CopyTypedArrayElementsSliceImpl(source, destination, start, end);
+  }
+
+  static void CopyTypedArrayElementsSliceImpl(JSTypedArray* source,
+                                              JSTypedArray* destination,
+                                              size_t start, size_t end) {
+    UNREACHABLE();
   }
 
   Object* CopyElements(Handle<JSReceiver> source, Handle<JSObject> destination,
@@ -3201,55 +3202,52 @@ class TypedElementsAccessor
     return result;
   }
 
-  static Handle<JSObject> SliceWithResultImpl(Handle<JSObject> receiver,
-                                              uint32_t start, uint32_t end,
-                                              Handle<JSObject> result) {
-    Isolate* isolate = receiver->GetIsolate();
-    DCHECK(!WasNeutered(*receiver));
-    DCHECK(result->IsJSTypedArray());
-    DCHECK(!WasNeutered(*result));
+  static void CopyTypedArrayElementsSliceImpl(JSTypedArray* source,
+                                              JSTypedArray* destination,
+                                              size_t start, size_t end) {
+    DisallowHeapAllocation no_gc;
+    DCHECK_EQ(destination->GetElementsKind(), AccessorClass::kind());
+    DCHECK(!source->WasNeutered());
+    DCHECK(!destination->WasNeutered());
     DCHECK_LE(start, end);
+    DCHECK_LE(end, source->length_value());
 
-    Handle<JSTypedArray> array = Handle<JSTypedArray>::cast(receiver);
-    Handle<JSTypedArray> result_array = Handle<JSTypedArray>::cast(result);
-    DCHECK_LE(end, array->length_value());
+    size_t count = end - start;
+    DCHECK_LE(count, destination->length_value());
+
+    FixedTypedArrayBase* src_elements =
+        FixedTypedArrayBase::cast(source->elements());
+    BackingStore* dest_elements = BackingStore::cast(destination->elements());
+
+    size_t element_size = source->element_size();
+    uint8_t* source_data =
+        static_cast<uint8_t*>(src_elements->DataPtr()) + start * element_size;
 
     // Fast path for the same type result array
-    if (result_array->type() == array->type()) {
-      int64_t element_size = array->element_size();
-      int64_t count = end - start;
+    if (source->type() == destination->type()) {
+      uint8_t* dest_data = static_cast<uint8_t*>(dest_elements->DataPtr());
 
-      DisallowHeapAllocation no_gc;
-      BackingStore* src_elements = BackingStore::cast(receiver->elements());
-      BackingStore* result_elements =
-          BackingStore::cast(result_array->elements());
-
-      DCHECK_LE(count, result_elements->length());
-      uint8_t* src =
-          static_cast<uint8_t*>(src_elements->DataPtr()) + start * element_size;
-      uint8_t* result = static_cast<uint8_t*>(result_elements->DataPtr());
-      if (array->buffer() != result_array->buffer()) {
-        std::memcpy(result, src, count * element_size);
-      } else {
-        // The spec defines the copy-step iteratively, which means that we
-        // cannot use memcpy if the buffer is shared.
-        uint8_t* end = src + count * element_size;
-        while (src < end) {
-          *result++ = *src++;
-        }
+      // The spec defines the copy-step iteratively, which means that we
+      // cannot use memcpy if the buffer is shared.
+      uint8_t* end_ptr = source_data + count * element_size;
+      while (source_data < end_ptr) {
+        *dest_data++ = *source_data++;
       }
-      return result_array;
+      return;
     }
 
-    // If the types of the two typed arrays are different, properly convert
-    // elements
-    Handle<BackingStore> from(BackingStore::cast(array->elements()), isolate);
-    ElementsAccessor* result_accessor = result_array->GetElementsAccessor();
-    for (uint32_t i = start; i < end; i++) {
-      Handle<Object> elem = AccessorClass::GetImpl(isolate, *from, i);
-      result_accessor->Set(result_array, i - start, *elem);
+    switch (source->GetElementsKind()) {
+#define TYPED_ARRAY_CASE(Type, type, TYPE, ctype, size)                     \
+  case TYPE##_ELEMENTS:                                                     \
+    CopyBetweenBackingStores<Type##ArrayTraits>(source_data, dest_elements, \
+                                                count, 0);                  \
+    break;
+      TYPED_ARRAYS(TYPED_ARRAY_CASE)
+#undef TYPED_ARRAY_CASE
+      default:
+        UNREACHABLE();
+        break;
     }
-    return result_array;
   }
 
   static bool HasSimpleRepresentation(InstanceType type) {
@@ -4502,6 +4500,13 @@ void CopyTypedArrayElementsToTypedArray(JSTypedArray* source,
     default:
       UNREACHABLE();
   }
+}
+
+void CopyTypedArrayElementsSlice(JSTypedArray* source,
+                                 JSTypedArray* destination, uintptr_t start,
+                                 uintptr_t end) {
+  destination->GetElementsAccessor()->CopyTypedArrayElementsSlice(
+      source, destination, start, end);
 }
 
 void ElementsAccessor::InitializeOncePerProcess() {

@@ -116,6 +116,11 @@ class TypedArrayBuiltinsAssembler : public CodeStubAssembler {
                                                TNode<IntPtrT> source_length,
                                                TNode<IntPtrT> offset);
 
+  void CallCCopyTypedArrayElementsSlice(TNode<JSTypedArray> source,
+                                        TNode<JSTypedArray> dest,
+                                        TNode<IntPtrT> start,
+                                        TNode<IntPtrT> end);
+
   typedef std::function<void(ElementsKind, int, int)> TypedArraySwitchCase;
 
   void DispatchTypedArrayByElementsKind(

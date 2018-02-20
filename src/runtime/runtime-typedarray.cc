@@ -192,29 +192,5 @@ RUNTIME_FUNCTION(Runtime_TypedArraySet) {
   return accessor->CopyElements(source, target, int_l, uint_offset);
 }
 
-// 22.2.3.4 %TypedArray%.prototype.slice ( start, end )
-RUNTIME_FUNCTION(Runtime_TypedArraySlice) {
-  HandleScope scope(isolate);
-  Handle<JSTypedArray> source = args.at<JSTypedArray>(0);
-  Handle<Smi> start = args.at<Smi>(1);
-  Handle<Smi> end = args.at<Smi>(2);
-  Handle<JSTypedArray> result = args.at<JSTypedArray>(3);
-
-  DCHECK(!source->WasNeutered());
-  DCHECK(!result->WasNeutered());
-  DCHECK_LE(start->value(), end->value());
-
-  ElementsKind source_kind = source->GetElementsKind();
-  ElementsKind result_kind = result->GetElementsKind();
-  if ((source_kind == BIGINT64_ELEMENTS || source_kind == BIGUINT64_ELEMENTS) !=
-      (result_kind == BIGINT64_ELEMENTS || result_kind == BIGUINT64_ELEMENTS)) {
-    THROW_NEW_ERROR_RETURN_FAILURE(
-        isolate, NewTypeError(MessageTemplate::kBigIntMixedTypes));
-  }
-
-  ElementsAccessor* accessor = source->GetElementsAccessor();
-  return *accessor->Slice(source, start->value(), end->value(), result);
-}
-
 }  // namespace internal
 }  // namespace v8

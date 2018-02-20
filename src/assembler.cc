@@ -1456,6 +1456,12 @@ ExternalReference ExternalReference::copy_typed_array_elements_to_typed_array(
       Redirect(isolate, FUNCTION_ADDR(CopyTypedArrayElementsToTypedArray)));
 }
 
+ExternalReference ExternalReference::copy_typed_array_elements_slice(
+    Isolate* isolate) {
+  return ExternalReference(
+      Redirect(isolate, FUNCTION_ADDR(CopyTypedArrayElementsSlice)));
+}
+
 ExternalReference ExternalReference::try_internalize_string_function(
     Isolate* isolate) {
   return ExternalReference(Redirect(

@@ -984,6 +984,7 @@ class ExternalReference BASE_EMBEDDED {
       Isolate* isolate);
   static ExternalReference copy_typed_array_elements_to_typed_array(
       Isolate* isolate);
+  static ExternalReference copy_typed_array_elements_slice(Isolate* isolate);
 
   static ExternalReference page_flags(Page* page);
 

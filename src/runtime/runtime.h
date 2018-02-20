@@ -643,7 +643,6 @@ namespace internal {
   F(TypedArrayGetBuffer, 1, 1)           \
   F(TypedArraySortFast, 1, 1)            \
   F(TypedArraySet, 2, 1)                 \
-  F(TypedArraySlice, 4, 1)               \
   F(IsTypedArray, 1, 1)
 
 #define FOR_EACH_INTRINSIC_WASM(F)   \

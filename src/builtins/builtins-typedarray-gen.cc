@@ -1092,6 +1092,16 @@ void TypedArrayBuiltinsAssembler::CallCCopyTypedArrayElementsToTypedArray(
                  offset);
 }
 
+void TypedArrayBuiltinsAssembler::CallCCopyTypedArrayElementsSlice(
+    TNode<JSTypedArray> source, TNode<JSTypedArray> dest, TNode<IntPtrT> start,
+    TNode<IntPtrT> end) {
+  TNode<ExternalReference> f = ExternalConstant(
+      ExternalReference::copy_typed_array_elements_slice(isolate()));
+  CallCFunction4(MachineType::AnyTagged(), MachineType::AnyTagged(),
+                 MachineType::AnyTagged(), MachineType::UintPtr(),
+                 MachineType::UintPtr(), f, source, dest, start, end);
+}
+
 void TypedArrayBuiltinsAssembler::DispatchTypedArrayByElementsKind(
     TNode<Word32T> elements_kind, const TypedArraySwitchCase& case_function) {
   Label next(this), if_unknown_type(this, Label::kDeferred);
@@ -1220,8 +1230,9 @@ TF_BUILTIN(TypedArrayPrototypeSet, TypedArrayBuiltinsAssembler) {
 // ES %TypedArray%.prototype.slice
 TF_BUILTIN(TypedArrayPrototypeSlice, TypedArrayBuiltinsAssembler) {
   const char* method_name = "%TypedArray%.prototype.slice";
-  Label call_runtime(this), call_memmove(this), if_count_is_not_zero(this),
-      if_typed_array_is_neutered(this, Label::kDeferred);
+  Label call_c(this), call_memmove(this), if_count_is_not_zero(this),
+      if_typed_array_is_neutered(this, Label::kDeferred),
+      if_bigint_mixed_types(this, Label::kDeferred);
 
   TNode<Context> context = CAST(Parameter(BuiltinDescriptor::kContext));
   CodeStubArguments args(
@@ -1272,16 +1283,15 @@ TF_BUILTIN(TypedArrayPrototypeSlice, TypedArrayBuiltinsAssembler) {
   // sharing the same buffer, use memmove.
   TNode<Word32T> source_el_kind = LoadElementsKind(source);
   TNode<Word32T> target_el_kind = LoadElementsKind(result_array);
-  GotoIfNot(Word32Equal(source_el_kind, target_el_kind), &call_runtime);
+  GotoIfNot(Word32Equal(source_el_kind, target_el_kind), &call_c);
 
   TNode<Object> target_buffer =
       LoadObjectField(result_array, JSTypedArray::kBufferOffset);
-  Branch(WordEqual(receiver_buffer, target_buffer), &call_runtime,
-         &call_memmove);
+  Branch(WordEqual(receiver_buffer, target_buffer), &call_c, &call_memmove);
 
   BIND(&call_memmove);
   {
-    GotoIfForceSlowPath(&call_runtime);
+    GotoIfForceSlowPath(&call_c);
 
     TNode<IntPtrT> target_data_ptr =
         UncheckedCast<IntPtrT>(LoadDataPtr(result_array));
@@ -1312,12 +1322,22 @@ TF_BUILTIN(TypedArrayPrototypeSlice, TypedArrayBuiltinsAssembler) {
     args.PopAndReturn(result_array);
   }
 
-  BIND(&call_runtime);
-  args.PopAndReturn(CallRuntime(Runtime::kTypedArraySlice, context, source,
-                                start_index, end_index, result_array));
+  BIND(&call_c);
+  {
+    GotoIf(Word32NotEqual(IsBigInt64ElementsKind(source_el_kind),
+                          IsBigInt64ElementsKind(target_el_kind)),
+           &if_bigint_mixed_types);
+
+    CallCCopyTypedArrayElementsSlice(
+        source, result_array, SmiToWord(start_index), SmiToWord(end_index));
+    args.PopAndReturn(result_array);
+  }
 
   BIND(&if_typed_array_is_neutered);
   ThrowTypeError(context, MessageTemplate::kDetachedOperation, method_name);
+
+  BIND(&if_bigint_mixed_types);
+  ThrowTypeError(context, MessageTemplate::kBigIntMixedTypes);
 }
 
 // ES %TypedArray%.prototype.subarray
