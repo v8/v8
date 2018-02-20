@@ -358,7 +358,12 @@ bool IntrinsicHasNoSideEffect(Runtime::FunctionId id) {
   V(NewObject)                           \
   V(CompleteInobjectSlackTrackingForMap) \
   V(HasInPrototypeChain)                 \
-  V(StringMaxLength)
+  V(StringMaxLength)                     \
+  /* Test */                             \
+  V(OptimizeOsr)                         \
+  V(OptimizeFunctionOnNextCall)          \
+  V(UnblockConcurrentRecompilation)      \
+  V(GetOptimizationStatus)
 
 #define CASE(Name)       \
   case Runtime::k##Name: \

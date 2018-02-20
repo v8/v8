@@ -1824,16 +1824,20 @@ RUNTIME_FUNCTION(Runtime_DebugOnFunctionCall) {
   HandleScope scope(isolate);
   DCHECK_EQ(1, args.length());
   CONVERT_ARG_HANDLE_CHECKED(JSFunction, fun, 0);
-  if (isolate->debug()->last_step_action() >= StepIn) {
-    isolate->debug()->PrepareStepIn(fun);
+  if (isolate->debug()->needs_check_on_function_call()) {
+    // Ensure that the callee will perform debug check on function call too.
+    Deoptimizer::DeoptimizeFunction(*fun);
+    if (isolate->debug()->last_step_action() >= StepIn) {
+      isolate->debug()->PrepareStepIn(fun);
+    }
+    if (isolate->needs_side_effect_check() &&
+        !isolate->debug()->PerformSideEffectCheck(fun)) {
+      return isolate->heap()->exception();
+    }
   }
   if (fun->shared()->HasDebugInfo() &&
       fun->shared()->GetDebugInfo()->BreakAtEntry()) {
     isolate->debug()->Break(nullptr, fun);
-  }
-  if (isolate->needs_side_effect_check() &&
-      !isolate->debug()->PerformSideEffectCheck(fun)) {
-    return isolate->heap()->exception();
   }
   return isolate->heap()->undefined_value();
 }

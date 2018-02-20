@@ -609,6 +609,11 @@ MaybeHandle<Code> GetOptimizedCode(Handle<JSFunction> function,
     function->ClearOptimizationMarker();
   }
 
+  if (isolate->debug()->needs_check_on_function_call()) {
+    // Do not optimize when debugger needs to hook into every call.
+    return MaybeHandle<Code>();
+  }
+
   Handle<Code> cached_code;
   if (GetCodeFromOptimizedCodeCache(function, osr_offset)
           .ToHandle(&cached_code)) {

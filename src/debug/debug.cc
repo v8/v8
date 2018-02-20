@@ -2230,7 +2230,6 @@ bool Debug::PerformSideEffectCheck(Handle<JSFunction> function) {
       !Compiler::Compile(function, Compiler::KEEP_EXCEPTION)) {
     return false;
   }
-  Deoptimizer::DeoptimizeFunction(*function);
   if (!SharedFunctionInfo::HasNoSideEffect(handle(function->shared()))) {
     if (FLAG_trace_side_effect_free_debug_evaluate) {
       PrintF("[debug-evaluate] Function %s failed side effect check.\n",

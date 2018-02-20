@@ -358,6 +358,10 @@ class Debug {
   inline bool in_debug_scope() const {
     return !!base::Relaxed_Load(&thread_local_.current_debug_scope_);
   }
+  inline bool needs_check_on_function_call() const {
+    return hook_on_function_call_;
+  }
+
   void set_break_points_active(bool v) { break_points_active_ = v; }
   bool break_points_active() const { return break_points_active_; }
 
