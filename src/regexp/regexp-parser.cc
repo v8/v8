@@ -1986,8 +1986,14 @@ bool RegExpBuilder::AddQuantifierToAtom(
   } else if (terms_.length() > 0) {
     DCHECK(last_added_ == ADD_ATOM);
     atom = terms_.RemoveLast();
-    // With /u, lookarounds are not quantifiable.
-    if (unicode() && atom->IsLookaround()) return false;
+    if (atom->IsLookaround()) {
+      // With /u, lookarounds are not quantifiable.
+      if (unicode()) return false;
+      // Lookbehinds are not quantifiable.
+      if (atom->AsLookaround()->type() == RegExpLookaround::LOOKBEHIND) {
+        return false;
+      }
+    }
     if (atom->max_match() == 0) {
       // Guaranteed to only match an empty string.
       LAST(ADD_TERM);
