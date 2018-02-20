@@ -175,9 +175,6 @@ void LiftoffAssembler::Load(LiftoffRegister dst, Register src_addr,
       mov(dst.high_gp(), dst.low_gp());
       sar(dst.high_gp(), 31);
       break;
-    case LoadType::kF32Load:
-      movss(dst.fp(), src_op);
-      break;
     case LoadType::kI64Load: {
       // Compute the operand for the load of the upper half.
       Operand upper_src_op =
@@ -193,6 +190,12 @@ void LiftoffAssembler::Load(LiftoffRegister dst, Register src_addr,
       mov(dst.low_gp(), src_op);
       break;
     }
+    case LoadType::kF32Load:
+      movss(dst.fp(), src_op);
+      break;
+    case LoadType::kF64Load:
+      movsd(dst.fp(), src_op);
+      break;
     default:
       UNREACHABLE();
   }
@@ -264,6 +267,9 @@ void LiftoffAssembler::Store(Register dst_addr, Register offset_reg,
     }
     case StoreType::kF32Store:
       movss(dst_op, src.fp());
+      break;
+    case StoreType::kF64Store:
+      movsd(dst_op, src.fp());
       break;
     default:
       UNREACHABLE();

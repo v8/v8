@@ -158,6 +158,9 @@ void LiftoffAssembler::Load(LiftoffRegister dst, Register src_addr,
     case LoadType::kF32Load:
       Movss(dst.fp(), src_op);
       break;
+    case LoadType::kF64Load:
+      Movsd(dst.fp(), src_op);
+      break;
     default:
       UNREACHABLE();
   }
@@ -199,6 +202,9 @@ void LiftoffAssembler::Store(Register dst_addr, Register offset_reg,
       break;
     case StoreType::kF32Store:
       Movss(dst_op, src.fp());
+      break;
+    case StoreType::kF64Store:
+      Movsd(dst_op, src.fp());
       break;
     default:
       UNREACHABLE();

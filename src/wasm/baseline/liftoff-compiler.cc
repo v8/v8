@@ -76,8 +76,6 @@ compiler::CallDescriptor* GetLoweredCallDescriptor(
                            : call_desc;
 }
 
-constexpr ValueType kTypesArr_ilf[] = {kWasmI32, kWasmI64, kWasmF32};
-constexpr Vector<const ValueType> kTypes_ilf = ArrayVector(kTypesArr_ilf);
 constexpr ValueType kTypesArr_ilfd[] = {kWasmI32, kWasmI64, kWasmF32, kWasmF64};
 constexpr Vector<const ValueType> kTypes_ilfd = ArrayVector(kTypesArr_ilfd);
 
@@ -1032,7 +1030,7 @@ class LiftoffCompiler {
                const MemoryAccessOperand<validate>& operand,
                const Value& index_val, Value* result) {
     ValueType value_type = type.value_type();
-    if (!CheckSupportedType(decoder, kTypes_ilf, value_type, "load")) return;
+    if (!CheckSupportedType(decoder, kTypes_ilfd, value_type, "load")) return;
     LiftoffRegList pinned;
     Register index = pinned.set(__ PopToRegister(kGpReg)).gp();
     if (!env_->use_trap_handler) {
@@ -1065,7 +1063,7 @@ class LiftoffCompiler {
                 const MemoryAccessOperand<validate>& operand,
                 const Value& index_val, const Value& value_val) {
     ValueType value_type = type.value_type();
-    if (!CheckSupportedType(decoder, kTypes_ilf, value_type, "store")) return;
+    if (!CheckSupportedType(decoder, kTypes_ilfd, value_type, "store")) return;
     RegClass rc = reg_class_for(value_type);
     LiftoffRegList pinned;
     LiftoffRegister value = pinned.set(__ PopToRegister(rc));
