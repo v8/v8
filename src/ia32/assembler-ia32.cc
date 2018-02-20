@@ -411,6 +411,7 @@ void Assembler::Nop(int bytes) {
     switch (bytes) {
       case 2:
         EMIT(0x66);
+        V8_FALLTHROUGH;
       case 1:
         EMIT(0x90);
         return;
@@ -427,6 +428,7 @@ void Assembler::Nop(int bytes) {
         return;
       case 6:
         EMIT(0x66);
+        V8_FALLTHROUGH;
       case 5:
         EMIT(0xF);
         EMIT(0x1F);
@@ -447,12 +449,15 @@ void Assembler::Nop(int bytes) {
       case 11:
         EMIT(0x66);
         bytes--;
+        V8_FALLTHROUGH;
       case 10:
         EMIT(0x66);
         bytes--;
+        V8_FALLTHROUGH;
       case 9:
         EMIT(0x66);
         bytes--;
+        V8_FALLTHROUGH;
       case 8:
         EMIT(0xF);
         EMIT(0x1F);

@@ -1654,6 +1654,7 @@ void InstructionSelector::VisitChangeUint32ToUint64(Node* node) {
         default:
           break;
       }
+      break;
     }
     default:
       break;
@@ -2003,7 +2004,8 @@ bool TryEmitCbzOrTbz(InstructionSelector* selector, Node* node, uint32_t value,
           return true;
         }
       }
-    }  // Fall through.
+      V8_FALLTHROUGH;
+    }
     case kUnsignedLessThanOrEqual:
     case kUnsignedGreaterThan: {
       if (value != 0) return false;

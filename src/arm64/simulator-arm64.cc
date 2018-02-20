@@ -1449,7 +1449,7 @@ void Simulator::VisitUnconditionalBranch(Instruction* instr) {
   switch (instr->Mask(UnconditionalBranchMask)) {
     case BL:
       set_lr(instr->following());
-      // Fall through.
+      V8_FALLTHROUGH;
     case B:
       set_pc(instr->ImmPCOffsetTarget());
       break;
@@ -1477,7 +1477,7 @@ void Simulator::VisitUnconditionalBranchToRegister(Instruction* instr) {
         // this, but if we do trap to allow debugging.
         Debug();
       }
-      // Fall through.
+      V8_FALLTHROUGH;
     }
     case BR:
     case RET: set_pc(target); break;
@@ -1629,7 +1629,7 @@ void Simulator::LogicalHelper(Instruction* instr, T op2) {
   // Switch on the logical operation, stripping out the NOT bit, as it has a
   // different meaning for logical immediate instructions.
   switch (instr->Mask(LogicalOpMask & ~NOT)) {
-    case ANDS: update_flags = true;  // Fall through.
+    case ANDS: update_flags = true; V8_FALLTHROUGH;
     case AND: result = op1 & op2; break;
     case ORR: result = op1 | op2; break;
     case EOR: result = op1 ^ op2; break;
@@ -4397,15 +4397,18 @@ void Simulator::NEONLoadStoreMultiStructHelper(const Instruction* instr,
     case NEON_LD1_4v:
     case NEON_LD1_4v_post:
       ld1(vf, vreg(reg[3]), addr[3]);
-      count++;  // Fall through.
+      count++;
+      V8_FALLTHROUGH;
     case NEON_LD1_3v:
     case NEON_LD1_3v_post:
       ld1(vf, vreg(reg[2]), addr[2]);
-      count++;  // Fall through.
+      count++;
+      V8_FALLTHROUGH;
     case NEON_LD1_2v:
     case NEON_LD1_2v_post:
       ld1(vf, vreg(reg[1]), addr[1]);
-      count++;  // Fall through.
+      count++;
+      V8_FALLTHROUGH;
     case NEON_LD1_1v:
     case NEON_LD1_1v_post:
       ld1(vf, vreg(reg[0]), addr[0]);
@@ -4413,15 +4416,18 @@ void Simulator::NEONLoadStoreMultiStructHelper(const Instruction* instr,
     case NEON_ST1_4v:
     case NEON_ST1_4v_post:
       st1(vf, vreg(reg[3]), addr[3]);
-      count++;  // Fall through.
+      count++;
+      V8_FALLTHROUGH;
     case NEON_ST1_3v:
     case NEON_ST1_3v_post:
       st1(vf, vreg(reg[2]), addr[2]);
-      count++;  // Fall through.
+      count++;
+      V8_FALLTHROUGH;
     case NEON_ST1_2v:
     case NEON_ST1_2v_post:
       st1(vf, vreg(reg[1]), addr[1]);
-      count++;  // Fall through.
+      count++;
+      V8_FALLTHROUGH;
     case NEON_ST1_1v:
     case NEON_ST1_1v_post:
       st1(vf, vreg(reg[0]), addr[0]);
@@ -4534,7 +4540,8 @@ void Simulator::NEONLoadStoreSingleStructHelper(const Instruction* instr,
     case NEON_LD3_b_post:
     case NEON_LD4_b:
     case NEON_LD4_b_post:
-      do_load = true;  // Fall through.
+      do_load = true;
+      V8_FALLTHROUGH;
     case NEON_ST1_b:
     case NEON_ST1_b_post:
     case NEON_ST2_b:
@@ -4553,7 +4560,8 @@ void Simulator::NEONLoadStoreSingleStructHelper(const Instruction* instr,
     case NEON_LD3_h_post:
     case NEON_LD4_h:
     case NEON_LD4_h_post:
-      do_load = true;  // Fall through.
+      do_load = true;
+      V8_FALLTHROUGH;
     case NEON_ST1_h:
     case NEON_ST1_h_post:
     case NEON_ST2_h:
@@ -4573,7 +4581,8 @@ void Simulator::NEONLoadStoreSingleStructHelper(const Instruction* instr,
     case NEON_LD3_s_post:
     case NEON_LD4_s:
     case NEON_LD4_s_post:
-      do_load = true;  // Fall through.
+      do_load = true;
+      V8_FALLTHROUGH;
     case NEON_ST1_s:
     case NEON_ST1_s_post:
     case NEON_ST2_s:

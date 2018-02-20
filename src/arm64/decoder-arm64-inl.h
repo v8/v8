@@ -462,6 +462,7 @@ void Decoder<V>::DecodeDataProcessing(Instruction* instr) {
             }
             break;
           }
+          V8_FALLTHROUGH;
         }
         case 1:
         case 3:

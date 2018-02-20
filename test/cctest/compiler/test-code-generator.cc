@@ -206,7 +206,7 @@ Handle<Code> BuildTeardownFunction(Isolate* isolate,
       case MachineRepresentation::kFloat32:
         param =
             tester.raw_assembler_for_testing()->ChangeFloat32ToFloat64(param);
-      // Fallthrough
+        V8_FALLTHROUGH;
       case MachineRepresentation::kFloat64:
         __ StoreObjectFieldNoWriteBarrier(
             __ LoadFixedArrayElement(result_array, i), HeapNumber::kValueOffset,

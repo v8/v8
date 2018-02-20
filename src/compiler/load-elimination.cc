@@ -1346,7 +1346,7 @@ int LoadElimination::FieldIndexOf(FieldAccess const& access) {
       if (kDoubleSize != kPointerSize) {
         return -1;  // We currently only track pointer size fields.
       }
-      V8_FALLTHROUGH;
+      break;
     case MachineRepresentation::kTaggedSigned:
     case MachineRepresentation::kTaggedPointer:
     case MachineRepresentation::kTagged:

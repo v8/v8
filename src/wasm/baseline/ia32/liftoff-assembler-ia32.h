@@ -227,7 +227,7 @@ void LiftoffAssembler::Store(Register dst_addr, Register offset_reg,
   switch (type.value()) {
     case StoreType::kI64Store8:
       src = src.low();
-    // fall through
+      V8_FALLTHROUGH;
     case StoreType::kI32Store8:
       // Only the lower 4 registers can be addressed as 8-bit registers.
       if (src.gp().is_byte_register()) {
@@ -240,13 +240,13 @@ void LiftoffAssembler::Store(Register dst_addr, Register offset_reg,
       break;
     case StoreType::kI64Store16:
       src = src.low();
-    // fall through
+      V8_FALLTHROUGH;
     case StoreType::kI32Store16:
       mov_w(dst_op, src.gp());
       break;
     case StoreType::kI64Store32:
       src = src.low();
-    // fall through
+      V8_FALLTHROUGH;
     case StoreType::kI32Store:
       mov(dst_op, src.gp());
       break;

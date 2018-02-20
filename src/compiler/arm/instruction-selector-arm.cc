@@ -1166,6 +1166,7 @@ void InstructionSelector::VisitInt32Add(Node* node) {
                g.UseRegister(mleft.left().node()), g.TempImmediate(0));
           return;
         }
+        break;
       }
       case IrOpcode::kWord32Sar: {
         Int32BinopMatcher mleft(m.left().node());
@@ -1184,6 +1185,7 @@ void InstructionSelector::VisitInt32Add(Node* node) {
             return;
           }
         }
+        break;
       }
       default:
         break;
@@ -1220,6 +1222,7 @@ void InstructionSelector::VisitInt32Add(Node* node) {
                g.UseRegister(mright.left().node()), g.TempImmediate(0));
           return;
         }
+        break;
       }
       case IrOpcode::kWord32Sar: {
         Int32BinopMatcher mright(m.right().node());
@@ -1238,6 +1241,7 @@ void InstructionSelector::VisitInt32Add(Node* node) {
             return;
           }
         }
+        break;
       }
       default:
         break;

@@ -1388,6 +1388,7 @@ void InstructionSelector::VisitChangeUint32ToUint64(Node* node) {
             break;
         }
       }
+      break;
     }
     default:
       break;

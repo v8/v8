@@ -77,6 +77,8 @@ class IA32OperandGenerator final : public OperandGenerator {
         Handle<HeapObject> value = OpParameter<Handle<HeapObject>>(node);
         Isolate* isolate = value->GetIsolate();
         return !isolate->heap()->InNewSpace(*value);
+#else
+        return false;
 #endif
       }
       default:
