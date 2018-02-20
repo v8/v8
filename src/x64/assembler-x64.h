@@ -814,6 +814,8 @@ class Assembler : public AssemblerBase {
     immediate_arithmetic_op_8(0x5, dst, src);
   }
 
+  void sub_sp_32(uint32_t imm);
+
   void testb(Register dst, Register src);
   void testb(Register reg, Immediate mask);
   void testb(const Operand& op, Immediate mask);

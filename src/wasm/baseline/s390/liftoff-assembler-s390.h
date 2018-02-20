@@ -13,8 +13,14 @@ namespace v8 {
 namespace internal {
 namespace wasm {
 
-void LiftoffAssembler::ReserveStackSpace(uint32_t stack_slots) {
-  BAILOUT("ReserveStackSpace");
+uint32_t LiftoffAssembler::PrepareStackFrame() {
+  BAILOUT("PrepareStackFrame");
+  return 0;
+}
+
+void LiftoffAssembler::PatchPrepareStackFrame(uint32_t offset,
+                                              uint32_t stack_slots) {
+  BAILOUT("PatchPrepareStackFrame");
 }
 
 void LiftoffAssembler::LoadConstant(LiftoffRegister reg, WasmValue value,
@@ -100,7 +106,7 @@ void LiftoffAssembler::FillI64Half(Register, uint32_t half_index) {
 #define UNIMPLEMENTED_GP_UNOP(name)                                \
   bool LiftoffAssembler::emit_##name(Register dst, Register src) { \
     BAILOUT("gp unop");                                            \
-    return false;                                                  \
+    return true;                                                   \
   }
 #define UNIMPLEMENTED_FP_BINOP(name)                                         \
   void LiftoffAssembler::emit_##name(DoubleRegister dst, DoubleRegister lhs, \

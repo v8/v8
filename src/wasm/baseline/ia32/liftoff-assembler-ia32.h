@@ -49,10 +49,21 @@ static constexpr Register kCCallLastArgAddrReg = eax;
 
 static constexpr DoubleRegister kScratchDoubleReg = xmm7;
 
-void LiftoffAssembler::ReserveStackSpace(uint32_t stack_slots) {
+uint32_t LiftoffAssembler::PrepareStackFrame() {
+  uint32_t offset = static_cast<uint32_t>(pc_offset());
+  sub_sp_32(0);
+  return offset;
+}
+
+void LiftoffAssembler::PatchPrepareStackFrame(uint32_t offset,
+                                              uint32_t stack_slots) {
   uint32_t bytes = liftoff::kConstantStackSpace + kStackSlotSize * stack_slots;
   DCHECK_LE(bytes, kMaxInt);
-  sub(esp, Immediate(bytes));
+  // We can't run out of space, just pass anything big enough to not cause the
+  // assembler to try to grow the buffer.
+  constexpr int kAvailableSpace = 64;
+  Assembler patching_assembler(isolate(), buffer_ + offset, kAvailableSpace);
+  patching_assembler.sub_sp_32(bytes);
 }
 
 void LiftoffAssembler::LoadConstant(LiftoffRegister reg, WasmValue value,

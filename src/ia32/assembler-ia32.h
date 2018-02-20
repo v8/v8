@@ -783,6 +783,7 @@ class Assembler : public AssemblerBase {
   void sub(Register dst, Register src) { sub(dst, Operand(src)); }
   void sub(Register dst, const Operand& src);
   void sub(const Operand& dst, Register src);
+  void sub_sp_32(uint32_t imm);
 
   void test(Register reg, const Immediate& imm);
   void test(Register reg0, Register reg1) { test(reg0, Operand(reg1)); }

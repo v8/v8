@@ -1311,6 +1311,13 @@ void Assembler::sub(const Operand& dst, Register src) {
   emit_operand(src, dst);
 }
 
+void Assembler::sub_sp_32(uint32_t imm) {
+  EnsureSpace ensure_space(this);
+  EMIT(0x81);  // using a literal 32-bit immediate.
+  static constexpr Register ireg = Register::from_code<5>();
+  emit_operand(ireg, Operand(esp));
+  emit(imm);
+}
 
 void Assembler::test(Register reg, const Immediate& imm) {
   if (imm.is_uint8()) {

@@ -2198,6 +2198,12 @@ void Assembler::store_rax(ExternalReference ref) {
   store_rax(ref.address(), RelocInfo::EXTERNAL_REFERENCE);
 }
 
+void Assembler::sub_sp_32(uint32_t imm) {
+  emit_rex_64();
+  emit(0x81);  // using a literal 32-bit immediate.
+  emit_modrm(0x5, rsp);
+  emitl(imm);
+}
 
 void Assembler::testb(Register dst, Register src) {
   EnsureSpace ensure_space(this);

@@ -272,11 +272,11 @@ class LiftoffCompiler {
   void StartFunctionBody(Decoder* decoder, Control* block) {
     __ EnterFrame(StackFrame::WASM_COMPILED);
     __ set_has_frame(true);
-    __ ReserveStackSpace(__ GetTotalFrameSlotCount());
-    // {ReserveStackSpace} is the first platform-specific assembler method.
+    pc_offset_stack_frame_construction_ = __ PrepareStackFrame();
+    // {PrepareStackFrame} is the first platform-specific assembler method.
     // If this failed, we can bail out immediately, avoiding runtime overhead
     // and potential failures because of other unimplemented methods.
-    // A platform implementing {ReserveStackSpace} must ensure that we can
+    // A platform implementing {PrepareStackFrame} must ensure that we can
     // finish compilation without errors even if we hit unimplemented
     // LiftoffAssembler methods.
     if (DidAssemblerBailout(decoder)) return;
@@ -382,6 +382,8 @@ class LiftoffCompiler {
       GenerateOutOfLineCode(ool);
     }
     safepoint_table_builder_.Emit(asm_, __ GetTotalFrameSlotCount());
+    __ PatchPrepareStackFrame(pc_offset_stack_frame_construction_,
+                              __ GetTotalFrameSlotCount());
   }
 
   void OnFirstError(Decoder* decoder) {
@@ -1304,6 +1306,9 @@ class LiftoffCompiler {
   // code generation (in FinishCompilation).
   std::unique_ptr<Zone>* codegen_zone_;
   SafepointTableBuilder safepoint_table_builder_;
+  // The pc offset of the instructions to reserve the stack frame. Needed to
+  // patch the actually needed stack size in the end.
+  uint32_t pc_offset_stack_frame_construction_ = 0;
 
   void TraceCacheState(Decoder* decoder) const {
 #ifdef DEBUG

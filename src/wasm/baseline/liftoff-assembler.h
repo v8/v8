@@ -320,7 +320,12 @@ class LiftoffAssembler : public TurboAssembler {
   // Platform-specific part.        //
   ////////////////////////////////////
 
-  inline void ReserveStackSpace(uint32_t bytes);
+  // This function emits machine code to prepare the stack frame, before the
+  // size of the stack frame is known. It returns an offset in the machine code
+  // which can later be patched (via {PatchPrepareStackFrame)} when the size of
+  // the frame is known.
+  inline uint32_t PrepareStackFrame();
+  inline void PatchPrepareStackFrame(uint32_t offset, uint32_t stack_slots);
 
   inline void LoadConstant(LiftoffRegister, WasmValue,
                            RelocInfo::Mode rmode = RelocInfo::NONE);

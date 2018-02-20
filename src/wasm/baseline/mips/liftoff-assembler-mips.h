@@ -23,10 +23,21 @@ inline MemOperand GetContextOperand() { return MemOperand(sp, -16); }
 
 }  // namespace liftoff
 
-void LiftoffAssembler::ReserveStackSpace(uint32_t stack_slots) {
+uint32_t LiftoffAssembler::PrepareStackFrame() {
+  uint32_t offset = static_cast<uint32_t>(pc_offset());
+  addiu(sp, sp, 0);
+  return offset;
+}
+
+void LiftoffAssembler::PatchPrepareStackFrame(uint32_t offset,
+                                              uint32_t stack_slots) {
   uint32_t bytes = liftoff::kConstantStackSpace + kStackSlotSize * stack_slots;
   DCHECK_LE(bytes, kMaxInt);
-  addiu(sp, sp, -bytes);
+  // We can't run out of space, just pass anything big enough to not cause the
+  // assembler to try to grow the buffer.
+  constexpr int kAvailableSpace = 64;
+  Assembler patching_assembler(isolate(), buffer_ + offset, kAvailableSpace);
+  patching_assembler.addiu(sp, sp, -bytes);
 }
 
 void LiftoffAssembler::LoadConstant(LiftoffRegister reg, WasmValue value,

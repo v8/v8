@@ -13,8 +13,14 @@ namespace v8 {
 namespace internal {
 namespace wasm {
 
-void LiftoffAssembler::ReserveStackSpace(uint32_t stack_slots) {
-  BAILOUT("ReserveStackSpace");
+uint32_t LiftoffAssembler::PrepareStackFrame() {
+  BAILOUT("PrepareStackFrame");
+  return 0;
+}
+
+void LiftoffAssembler::PatchPrepareStackFrame(uint32_t offset,
+                                              uint32_t stack_slots) {
+  BAILOUT("PatchPrepareStackFrame");
 }
 
 void LiftoffAssembler::LoadConstant(LiftoffRegister reg, WasmValue value,
