@@ -181,6 +181,7 @@ int RegisterHandlerData(
       new_size = int_max;
     }
     if (new_size == gNumCodeObjects) {
+      free(data);
       return kInvalidIndex;
     }
 
@@ -215,6 +216,7 @@ int RegisterHandlerData(
 
     return static_cast<int>(i);
   } else {
+    free(data);
     return kInvalidIndex;
   }
 }
