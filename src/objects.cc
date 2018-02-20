@@ -13010,7 +13010,7 @@ bool FastInitializeDerivedMap(Isolate* isolate, Handle<JSFunction> new_target,
   if (success) {
     int pre_allocated = constructor_initial_map->GetInObjectProperties() -
                         constructor_initial_map->UnusedPropertyFields();
-    CHECK_LE(constructor_initial_map->instance_size(), instance_size);
+    CHECK_LE(constructor_initial_map->UsedInstanceSize(), instance_size);
     int unused_property_fields = in_object_properties - pre_allocated;
     map = Map::CopyInitialMap(constructor_initial_map, instance_size,
                               in_object_properties, unused_property_fields);
