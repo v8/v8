@@ -825,7 +825,8 @@ namespace internal {
   /* ES #sec-promiseresolvethenablejob */                                      \
   TFS(PromiseResolveThenableJob, kPromiseToResolve, kThenable, kThen)          \
   /* ES #sec-promise.resolve */                                                \
-  TFJ(PromiseResolveWrapper, 1, kValue)                                        \
+  TFJ(PromiseResolveTrampoline, 1, kValue)                                     \
+  /* ES #sec-promise-resolve */                                                \
   TFS(PromiseResolve, kConstructor, kValue)                                    \
   /* ES #sec-promise.reject */                                                 \
   TFJ(PromiseReject, 1, kReason)                                               \

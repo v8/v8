@@ -1836,9 +1836,16 @@ Type* Typer::Visitor::TypeJSStackCheck(Node* node) { return Type::Any(); }
 
 Type* Typer::Visitor::TypeJSDebugger(Node* node) { return Type::Any(); }
 
+Type* Typer::Visitor::TypeJSFulfillPromise(Node* node) {
+  return Type::Undefined();
+}
+
 Type* Typer::Visitor::TypeJSPerformPromiseThen(Node* node) {
-  // TODO(turbofan): Introduce a Type::Promise here.
-  return Type::OtherObject();
+  return Type::Receiver();
+}
+
+Type* Typer::Visitor::TypeJSPromiseResolve(Node* node) {
+  return Type::Receiver();
 }
 
 Type* Typer::Visitor::TypeJSRejectPromise(Node* node) {

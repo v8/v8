@@ -76,6 +76,10 @@ Reduction JSNativeContextSpecialization::Reduce(Node* node) {
       return ReduceJSHasInPrototypeChain(node);
     case IrOpcode::kJSOrdinaryHasInstance:
       return ReduceJSOrdinaryHasInstance(node);
+    case IrOpcode::kJSPromiseResolve:
+      return ReduceJSPromiseResolve(node);
+    case IrOpcode::kJSResolvePromise:
+      return ReduceJSResolvePromise(node);
     case IrOpcode::kJSLoadContext:
       return ReduceJSLoadContext(node);
     case IrOpcode::kJSLoadGlobal:
@@ -409,6 +413,87 @@ Reduction JSNativeContextSpecialization::ReduceJSOrdinaryHasInstance(
   }
 
   return NoChange();
+}
+
+// ES section #sec-promise-resolve
+Reduction JSNativeContextSpecialization::ReduceJSPromiseResolve(Node* node) {
+  DCHECK_EQ(IrOpcode::kJSPromiseResolve, node->opcode());
+  Node* constructor = NodeProperties::GetValueInput(node, 0);
+  Node* value = NodeProperties::GetValueInput(node, 1);
+  Node* context = NodeProperties::GetContextInput(node);
+  Node* frame_state = NodeProperties::GetFrameStateInput(node);
+  Node* effect = NodeProperties::GetEffectInput(node);
+  Node* control = NodeProperties::GetControlInput(node);
+
+  // Check if the {constructor} is the %Promise% function.
+  HeapObjectMatcher m(constructor);
+  if (!m.Is(handle(native_context()->promise_function()))) return NoChange();
+
+  // Check if we know something about the {value}.
+  ZoneHandleSet<Map> value_maps;
+  NodeProperties::InferReceiverMapsResult result =
+      NodeProperties::InferReceiverMaps(value, effect, &value_maps);
+  if (result == NodeProperties::kNoReceiverMaps) return NoChange();
+  DCHECK_NE(0, value_maps.size());
+
+  // Check that the {value} cannot be a JSPromise.
+  for (Handle<Map> const value_map : value_maps) {
+    if (value_map->IsJSPromiseMap()) return NoChange();
+  }
+
+  // Create a %Promise% instance and resolve it with {value}.
+  Node* promise = effect =
+      graph()->NewNode(javascript()->CreatePromise(), context, effect);
+  effect = graph()->NewNode(javascript()->ResolvePromise(), promise, value,
+                            context, frame_state, effect, control);
+  ReplaceWithValue(node, promise, effect, control);
+  return Replace(promise);
+}
+
+// ES section #sec-promise-resolve-functions
+Reduction JSNativeContextSpecialization::ReduceJSResolvePromise(Node* node) {
+  DCHECK_EQ(IrOpcode::kJSResolvePromise, node->opcode());
+  Node* promise = NodeProperties::GetValueInput(node, 0);
+  Node* resolution = NodeProperties::GetValueInput(node, 1);
+  Node* context = NodeProperties::GetContextInput(node);
+  Node* effect = NodeProperties::GetEffectInput(node);
+  Node* control = NodeProperties::GetControlInput(node);
+
+  // Check if we know something about the {resolution}.
+  ZoneHandleSet<Map> resolution_maps;
+  NodeProperties::InferReceiverMapsResult result =
+      NodeProperties::InferReceiverMaps(resolution, effect, &resolution_maps);
+  if (result != NodeProperties::kReliableReceiverMaps) return NoChange();
+  DCHECK_NE(0, resolution_maps.size());
+
+  // Compute property access info for "then" on {resolution}.
+  PropertyAccessInfo access_info;
+  AccessInfoFactory access_info_factory(dependencies(), native_context(),
+                                        graph()->zone());
+  if (!access_info_factory.ComputePropertyAccessInfo(
+          MapHandles(resolution_maps.begin(), resolution_maps.end()),
+          factory()->then_string(), AccessMode::kLoad, &access_info)) {
+    return NoChange();
+  }
+
+  // We can further optimize the case where {resolution}
+  // definitely doesn't have a "then" property.
+  if (!access_info.IsNotFound()) return NoChange();
+  PropertyAccessBuilder access_builder(jsgraph(), dependencies());
+
+  // Add proper dependencies on the {resolution}s [[Prototype]]s.
+  Handle<JSObject> holder;
+  if (access_info.holder().ToHandle(&holder)) {
+    access_builder.AssumePrototypesStable(native_context(),
+                                          access_info.receiver_maps(), holder);
+  }
+
+  // Simply fulfill the {promise} with the {resolution}.
+  Node* value = effect =
+      graph()->NewNode(javascript()->FulfillPromise(), promise, resolution,
+                       context, effect, control);
+  ReplaceWithValue(node, value, effect, control);
+  return Replace(value);
 }
 
 Reduction JSNativeContextSpecialization::ReduceJSLoadContext(Node* node) {

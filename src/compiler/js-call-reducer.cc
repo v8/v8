@@ -2997,6 +2997,8 @@ Reduction JSCallReducer::ReduceJSCall(Node* node) {
           return ReducePromisePrototypeFinally(node);
         case Builtins::kPromisePrototypeThen:
           return ReducePromisePrototypeThen(node);
+        case Builtins::kPromiseResolveTrampoline:
+          return ReducePromiseResolveTrampoline(node);
         default:
           break;
       }
@@ -4425,6 +4427,44 @@ Reduction JSCallReducer::ReducePromisePrototypeThen(Node* node) {
                                      result, context, effect, control);
   ReplaceWithValue(node, result, effect, control);
   return Replace(result);
+}
+
+// ES section #sec-promise.resolve
+Reduction JSCallReducer::ReducePromiseResolveTrampoline(Node* node) {
+  DCHECK_EQ(IrOpcode::kJSCall, node->opcode());
+  Node* receiver = NodeProperties::GetValueInput(node, 1);
+  Node* value = node->op()->ValueInputCount() > 2
+                    ? NodeProperties::GetValueInput(node, 2)
+                    : jsgraph()->UndefinedConstant();
+  Node* context = NodeProperties::GetContextInput(node);
+  Node* frame_state = NodeProperties::GetFrameStateInput(node);
+  Node* effect = NodeProperties::GetEffectInput(node);
+  Node* control = NodeProperties::GetControlInput(node);
+
+  // Check if we know something about {receiver} already.
+  ZoneHandleSet<Map> receiver_maps;
+  NodeProperties::InferReceiverMapsResult infer_receiver_maps_result =
+      NodeProperties::InferReceiverMaps(receiver, effect, &receiver_maps);
+  if (infer_receiver_maps_result == NodeProperties::kNoReceiverMaps) {
+    return NoChange();
+  }
+  DCHECK_NE(0, receiver_maps.size());
+
+  // Only reduce when all {receiver_maps} are JSReceiver maps.
+  for (Handle<Map> receiver_map : receiver_maps) {
+    if (!receiver_map->IsJSReceiverMap()) return NoChange();
+  }
+
+  // Morph the {node} into a JSPromiseResolve operation.
+  node->ReplaceInput(0, receiver);
+  node->ReplaceInput(1, value);
+  node->ReplaceInput(2, context);
+  node->ReplaceInput(3, frame_state);
+  node->ReplaceInput(4, effect);
+  node->ReplaceInput(5, control);
+  node->TrimInputCount(6);
+  NodeProperties::ChangeOp(node, javascript()->PromiseResolve());
+  return Changed(node);
 }
 
 Graph* JSCallReducer::graph() const { return jsgraph()->graph(); }

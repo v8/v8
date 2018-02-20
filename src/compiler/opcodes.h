@@ -195,7 +195,9 @@
   V(JSGeneratorRestoreContext)         \
   V(JSGeneratorRestoreRegister)        \
   V(JSGeneratorRestoreInputOrDebugPos) \
+  V(JSFulfillPromise)                  \
   V(JSPerformPromiseThen)              \
+  V(JSPromiseResolve)                  \
   V(JSRejectPromise)                   \
   V(JSResolvePromise)                  \
   V(JSStackCheck)                      \

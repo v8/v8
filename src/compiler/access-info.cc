@@ -537,6 +537,18 @@ bool AccessInfoFactory::ComputePropertyAccessInfo(
   return false;
 }
 
+bool AccessInfoFactory::ComputePropertyAccessInfo(
+    MapHandles const& maps, Handle<Name> name, AccessMode access_mode,
+    PropertyAccessInfo* access_info) {
+  ZoneVector<PropertyAccessInfo> access_infos(zone());
+  if (ComputePropertyAccessInfos(maps, name, access_mode, &access_infos) &&
+      access_infos.size() == 1) {
+    *access_info = access_infos.front();
+    return true;
+  }
+  return false;
+}
+
 bool AccessInfoFactory::ComputePropertyAccessInfos(
     MapHandles const& maps, Handle<Name> name, AccessMode access_mode,
     ZoneVector<PropertyAccessInfo>* access_infos) {

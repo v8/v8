@@ -62,6 +62,8 @@ class JSNativeContextSpecialization final : public AdvancedReducer {
   Reduction ReduceJSInstanceOf(Node* node);
   Reduction ReduceJSHasInPrototypeChain(Node* node);
   Reduction ReduceJSOrdinaryHasInstance(Node* node);
+  Reduction ReduceJSPromiseResolve(Node* node);
+  Reduction ReduceJSResolvePromise(Node* node);
   Reduction ReduceJSLoadContext(Node* node);
   Reduction ReduceJSLoadGlobal(Node* node);
   Reduction ReduceJSStoreGlobal(Node* node);

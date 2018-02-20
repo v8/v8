@@ -2336,7 +2336,7 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
     SimpleInstallFunction(promise_fun, "race", Builtins::kPromiseRace, 1, true);
 
     SimpleInstallFunction(promise_fun, "resolve",
-                          Builtins::kPromiseResolveWrapper, 1, true);
+                          Builtins::kPromiseResolveTrampoline, 1, true);
 
     SimpleInstallFunction(promise_fun, "reject", Builtins::kPromiseReject, 1,
                           true);

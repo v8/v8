@@ -754,7 +754,9 @@ class V8_EXPORT_PRIVATE JSOperatorBuilder final
   const Operator* StackCheck();
   const Operator* Debugger();
 
+  const Operator* FulfillPromise();
   const Operator* PerformPromiseThen();
+  const Operator* PromiseResolve();
   const Operator* RejectPromise();
   const Operator* ResolvePromise();
 

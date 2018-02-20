@@ -1129,7 +1129,7 @@ TF_BUILTIN(PromiseRejectReactionJob, PromiseBuiltinsAssembler) {
                      PromiseReaction::kReject);
 }
 
-TF_BUILTIN(PromiseResolveWrapper, PromiseBuiltinsAssembler) {
+TF_BUILTIN(PromiseResolveTrampoline, PromiseBuiltinsAssembler) {
   //  1. Let C be the this value.
   Node* receiver = Parameter(Descriptor::kReceiver);
   Node* value = Parameter(Descriptor::kValue);
