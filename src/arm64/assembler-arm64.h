@@ -1752,6 +1752,9 @@ class Assembler : public AssemblerBase {
   // Instruction synchronization barrier
   void isb();
 
+  // Conditional speculation barrier.
+  void csdb();
+
   // Alias for system instructions.
   void nop() { hint(NOP); }
 

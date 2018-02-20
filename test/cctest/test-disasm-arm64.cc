@@ -2038,6 +2038,9 @@ TEST_(barriers) {
   // ISB
   COMPARE(Isb(), "isb");
 
+  // CSDB
+  COMPARE(Csdb(), "csdb");
+
   CLEANUP();
 }
 

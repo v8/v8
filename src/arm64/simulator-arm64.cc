@@ -2955,7 +2955,9 @@ void Simulator::VisitSystem(Instruction* instr) {
   } else if (instr->Mask(SystemHintFMask) == SystemHintFixed) {
     DCHECK(instr->Mask(SystemHintMask) == HINT);
     switch (instr->ImmHint()) {
-      case NOP: break;
+      case NOP:
+      case CSDB:
+        break;
       default: UNIMPLEMENTED();
     }
   } else if (instr->Mask(MemBarrierFMask) == MemBarrierFixed) {

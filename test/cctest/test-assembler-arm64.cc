@@ -11849,8 +11849,7 @@ TEST(system_msr) {
   TEARDOWN();
 }
 
-
-TEST(system_nop) {
+TEST(system) {
   INIT_V8();
   SETUP();
   RegisterDump before;
@@ -11858,6 +11857,7 @@ TEST(system_nop) {
   START();
   before.Dump(&masm);
   __ Nop();
+  __ Csdb();
   END();
 
   RUN();

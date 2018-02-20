@@ -2989,6 +2989,8 @@ void Assembler::isb() {
   Emit(ISB | ImmBarrierDomain(FullSystem) | ImmBarrierType(BarrierAll));
 }
 
+void Assembler::csdb() { hint(CSDB); }
+
 void Assembler::fmov(const VRegister& vd, double imm) {
   if (vd.IsScalar()) {
     DCHECK(vd.Is1D());

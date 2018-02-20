@@ -1246,6 +1246,11 @@ void DisassemblingDecoder::VisitSystem(Instruction* instr) {
         form = nullptr;
         break;
       }
+      case CSDB: {
+        mnemonic = "csdb";
+        form = nullptr;
+        break;
+      }
     }
   } else if (instr->Mask(MemBarrierFMask) == MemBarrierFixed) {
     switch (instr->Mask(MemBarrierMask)) {

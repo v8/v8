@@ -559,6 +559,7 @@ class TurboAssembler : public Assembler {
   inline void Dmb(BarrierDomain domain, BarrierType type);
   inline void Dsb(BarrierDomain domain, BarrierType type);
   inline void Isb();
+  inline void Csdb();
 
   bool AllowThisStubCall(CodeStub* stub);
   void CallStubDelayed(CodeStub* stub);

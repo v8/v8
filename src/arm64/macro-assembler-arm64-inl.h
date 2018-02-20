@@ -416,6 +416,11 @@ void MacroAssembler::CmovX(const Register& rd,
   }
 }
 
+void TurboAssembler::Csdb() {
+  DCHECK(allow_macro_instructions());
+  csdb();
+}
+
 void TurboAssembler::Cset(const Register& rd, Condition cond) {
   DCHECK(allow_macro_instructions());
   DCHECK(!rd.IsZero());
