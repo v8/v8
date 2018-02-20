@@ -339,12 +339,25 @@ Reduction JSCallReducer::ReduceFunctionPrototypeBind(Node* node) {
 Reduction JSCallReducer::ReduceFunctionPrototypeCall(Node* node) {
   DCHECK_EQ(IrOpcode::kJSCall, node->opcode());
   CallParameters const& p = CallParametersOf(node->op());
-  Handle<JSFunction> call = Handle<JSFunction>::cast(
-      HeapObjectMatcher(NodeProperties::GetValueInput(node, 0)).Value());
+  Node* target = NodeProperties::GetValueInput(node, 0);
+  Node* effect = NodeProperties::GetEffectInput(node);
+  Node* control = NodeProperties::GetControlInput(node);
+
   // Change context of {node} to the Function.prototype.call context,
   // to ensure any exception is thrown in the correct context.
-  NodeProperties::ReplaceContextInput(
-      node, jsgraph()->HeapConstant(handle(call->context(), isolate())));
+  Node* context;
+  HeapObjectMatcher m(target);
+  if (m.HasValue()) {
+    Handle<JSFunction> function = Handle<JSFunction>::cast(m.Value());
+    context = jsgraph()->HeapConstant(handle(function->context(), isolate()));
+  } else {
+    context = effect = graph()->NewNode(
+        simplified()->LoadField(AccessBuilder::ForJSFunctionContext()), target,
+        effect, control);
+  }
+  NodeProperties::ReplaceContextInput(node, context);
+  NodeProperties::ReplaceEffectInput(node, effect);
+
   // Remove the target from {node} and use the receiver as target instead, and
   // the thisArg becomes the new target.  If thisArg was not provided, insert
   // undefined instead.
@@ -811,8 +824,8 @@ void JSCallReducer::WireInLoopEnd(Node* loop, Node* eloop, Node* vloop, Node* k,
   eloop->ReplaceInput(1, effect);
 }
 
-Reduction JSCallReducer::ReduceArrayForEach(Handle<JSFunction> function,
-                                            Node* node) {
+Reduction JSCallReducer::ReduceArrayForEach(Node* node,
+                                            Handle<SharedFunctionInfo> shared) {
   if (!FLAG_turbo_inline_array_builtins) return NoChange();
   DCHECK_EQ(IrOpcode::kJSCall, node->opcode());
   CallParameters const& p = CallParametersOf(node->op());
@@ -885,7 +898,7 @@ Reduction JSCallReducer::ReduceArrayForEach(Handle<JSFunction> function,
   // Check whether the given callback function is callable. Note that this has
   // to happen outside the loop to make sure we also throw on empty arrays.
   Node* check_frame_state = CreateJavaScriptBuiltinContinuationFrameState(
-      jsgraph(), function, Builtins::kArrayForEachLoopLazyDeoptContinuation,
+      jsgraph(), shared, Builtins::kArrayForEachLoopLazyDeoptContinuation,
       node->InputAt(0), context, &checkpoint_params[0], stack_parameters,
       outer_frame_state, ContinuationFrameStateMode::LAZY);
   Node* check_fail = nullptr;
@@ -908,7 +921,7 @@ Reduction JSCallReducer::ReduceArrayForEach(Handle<JSFunction> function,
   control = if_true;
 
   Node* frame_state = CreateJavaScriptBuiltinContinuationFrameState(
-      jsgraph(), function, Builtins::kArrayForEachLoopEagerDeoptContinuation,
+      jsgraph(), shared, Builtins::kArrayForEachLoopEagerDeoptContinuation,
       node->InputAt(0), context, &checkpoint_params[0], stack_parameters,
       outer_frame_state, ContinuationFrameStateMode::EAGER);
 
@@ -956,7 +969,7 @@ Reduction JSCallReducer::ReduceArrayForEach(Handle<JSFunction> function,
   }
 
   frame_state = CreateJavaScriptBuiltinContinuationFrameState(
-      jsgraph(), function, Builtins::kArrayForEachLoopLazyDeoptContinuation,
+      jsgraph(), shared, Builtins::kArrayForEachLoopLazyDeoptContinuation,
       node->InputAt(0), context, &checkpoint_params[0], stack_parameters,
       outer_frame_state, ContinuationFrameStateMode::LAZY);
 
@@ -999,16 +1012,16 @@ Reduction JSCallReducer::ReduceArrayForEach(Handle<JSFunction> function,
   return Replace(jsgraph()->UndefinedConstant());
 }
 
-Reduction JSCallReducer::ReduceArrayReduce(Handle<JSFunction> function,
-                                           Node* node,
-                                           ArrayReduceDirection direction) {
+Reduction JSCallReducer::ReduceArrayReduce(Node* node,
+                                           ArrayReduceDirection direction,
+                                           Handle<SharedFunctionInfo> shared) {
   if (!FLAG_turbo_inline_array_builtins) return NoChange();
   DCHECK_EQ(IrOpcode::kJSCall, node->opcode());
   CallParameters const& p = CallParametersOf(node->op());
   if (p.speculation_mode() == SpeculationMode::kDisallowSpeculation) {
     return NoChange();
   }
-  bool left = direction == ArrayReduceDirection::kArrayReduceLeft;
+  bool left = direction == ArrayReduceDirection::kLeft;
 
   Node* outer_frame_state = NodeProperties::GetFrameStateInput(node);
   Node* effect = NodeProperties::GetEffectInput(node);
@@ -1076,7 +1089,7 @@ Reduction JSCallReducer::ReduceArrayReduce(Handle<JSFunction> function,
          jsgraph()->UndefinedConstant()});
     const int stack_parameters = static_cast<int>(checkpoint_params.size());
     check_frame_state = CreateJavaScriptBuiltinContinuationFrameState(
-        jsgraph(), function, builtin_lazy, node->InputAt(0), context,
+        jsgraph(), shared, builtin_lazy, node->InputAt(0), context,
         checkpoint_params.data(), stack_parameters - 1, outer_frame_state,
         ContinuationFrameStateMode::LAZY);
   }
@@ -1104,7 +1117,7 @@ Reduction JSCallReducer::ReduceArrayReduce(Handle<JSFunction> function,
     const int stack_parameters = static_cast<int>(checkpoint_params.size());
     Node* find_first_element_frame_state =
         CreateJavaScriptBuiltinContinuationFrameState(
-            jsgraph(), function, builtin_eager, node->InputAt(0), context,
+            jsgraph(), shared, builtin_eager, node->InputAt(0), context,
             checkpoint_params.data(), stack_parameters, outer_frame_state,
             ContinuationFrameStateMode::EAGER);
 
@@ -1173,7 +1186,7 @@ Reduction JSCallReducer::ReduceArrayReduce(Handle<JSFunction> function,
         {receiver, fncallback, k, original_length, curloop});
     const int stack_parameters = static_cast<int>(checkpoint_params.size());
     Node* frame_state = CreateJavaScriptBuiltinContinuationFrameState(
-        jsgraph(), function, builtin_eager, node->InputAt(0), context,
+        jsgraph(), shared, builtin_eager, node->InputAt(0), context,
         checkpoint_params.data(), stack_parameters, outer_frame_state,
         ContinuationFrameStateMode::EAGER);
     effect =
@@ -1219,7 +1232,7 @@ Reduction JSCallReducer::ReduceArrayReduce(Handle<JSFunction> function,
         {receiver, fncallback, next_k, original_length, curloop});
     const int stack_parameters = static_cast<int>(checkpoint_params.size());
     Node* frame_state = CreateJavaScriptBuiltinContinuationFrameState(
-        jsgraph(), function, builtin_lazy, node->InputAt(0), context,
+        jsgraph(), shared, builtin_lazy, node->InputAt(0), context,
         checkpoint_params.data(), stack_parameters - 1, outer_frame_state,
         ContinuationFrameStateMode::LAZY);
 
@@ -1273,8 +1286,8 @@ Reduction JSCallReducer::ReduceArrayReduce(Handle<JSFunction> function,
   return Replace(curloop);
 }
 
-Reduction JSCallReducer::ReduceArrayMap(Handle<JSFunction> function,
-                                        Node* node) {
+Reduction JSCallReducer::ReduceArrayMap(Node* node,
+                                        Handle<SharedFunctionInfo> shared) {
   if (!FLAG_turbo_inline_array_builtins) return NoChange();
   DCHECK_EQ(IrOpcode::kJSCall, node->opcode());
   CallParameters const& p = CallParametersOf(node->op());
@@ -1350,7 +1363,7 @@ Reduction JSCallReducer::ReduceArrayMap(Handle<JSFunction> function,
   // Check whether the given callback function is callable. Note that this has
   // to happen outside the loop to make sure we also throw on empty arrays.
   Node* check_frame_state = CreateJavaScriptBuiltinContinuationFrameState(
-      jsgraph(), function, Builtins::kArrayMapLoopLazyDeoptContinuation,
+      jsgraph(), shared, Builtins::kArrayMapLoopLazyDeoptContinuation,
       node->InputAt(0), context, &checkpoint_params[0], stack_parameters,
       outer_frame_state, ContinuationFrameStateMode::LAZY);
   Node* check_fail = nullptr;
@@ -1373,7 +1386,7 @@ Reduction JSCallReducer::ReduceArrayMap(Handle<JSFunction> function,
   control = if_true;
 
   Node* frame_state = CreateJavaScriptBuiltinContinuationFrameState(
-      jsgraph(), function, Builtins::kArrayMapLoopEagerDeoptContinuation,
+      jsgraph(), shared, Builtins::kArrayMapLoopEagerDeoptContinuation,
       node->InputAt(0), context, &checkpoint_params[0], stack_parameters,
       outer_frame_state, ContinuationFrameStateMode::EAGER);
 
@@ -1422,7 +1435,7 @@ Reduction JSCallReducer::ReduceArrayMap(Handle<JSFunction> function,
   // This frame state is dealt with by hand in
   // ArrayMapLoopLazyDeoptContinuation.
   frame_state = CreateJavaScriptBuiltinContinuationFrameState(
-      jsgraph(), function, Builtins::kArrayMapLoopLazyDeoptContinuation,
+      jsgraph(), shared, Builtins::kArrayMapLoopLazyDeoptContinuation,
       node->InputAt(0), context, &checkpoint_params[0], stack_parameters,
       outer_frame_state, ContinuationFrameStateMode::LAZY);
 
@@ -1474,8 +1487,8 @@ Reduction JSCallReducer::ReduceArrayMap(Handle<JSFunction> function,
   return Replace(a);
 }
 
-Reduction JSCallReducer::ReduceArrayFilter(Handle<JSFunction> function,
-                                           Node* node) {
+Reduction JSCallReducer::ReduceArrayFilter(Node* node,
+                                           Handle<SharedFunctionInfo> shared) {
   if (!FLAG_turbo_inline_array_builtins) return NoChange();
   DCHECK_EQ(IrOpcode::kJSCall, node->opcode());
   CallParameters const& p = CallParametersOf(node->op());
@@ -1569,7 +1582,7 @@ Reduction JSCallReducer::ReduceArrayFilter(Handle<JSFunction> function,
     const int stack_parameters = static_cast<int>(checkpoint_params.size());
 
     Node* check_frame_state = CreateJavaScriptBuiltinContinuationFrameState(
-        jsgraph(), function, Builtins::kArrayFilterLoopLazyDeoptContinuation,
+        jsgraph(), shared, Builtins::kArrayFilterLoopLazyDeoptContinuation,
         node->InputAt(0), context, &checkpoint_params[0], stack_parameters,
         outer_frame_state, ContinuationFrameStateMode::LAZY);
     WireInCallbackIsCallableCheck(fncallback, context, check_frame_state,
@@ -1597,7 +1610,7 @@ Reduction JSCallReducer::ReduceArrayFilter(Handle<JSFunction> function,
     const int stack_parameters = static_cast<int>(checkpoint_params.size());
 
     Node* frame_state = CreateJavaScriptBuiltinContinuationFrameState(
-        jsgraph(), function, Builtins::kArrayFilterLoopEagerDeoptContinuation,
+        jsgraph(), shared, Builtins::kArrayFilterLoopEagerDeoptContinuation,
         node->InputAt(0), context, &checkpoint_params[0], stack_parameters,
         outer_frame_state, ContinuationFrameStateMode::EAGER);
 
@@ -1654,7 +1667,7 @@ Reduction JSCallReducer::ReduceArrayFilter(Handle<JSFunction> function,
     const int stack_parameters = static_cast<int>(checkpoint_params.size());
 
     Node* frame_state = CreateJavaScriptBuiltinContinuationFrameState(
-        jsgraph(), function, Builtins::kArrayFilterLoopLazyDeoptContinuation,
+        jsgraph(), shared, Builtins::kArrayFilterLoopLazyDeoptContinuation,
         node->InputAt(0), context, &checkpoint_params[0], stack_parameters,
         outer_frame_state, ContinuationFrameStateMode::LAZY);
 
@@ -1683,7 +1696,7 @@ Reduction JSCallReducer::ReduceArrayFilter(Handle<JSFunction> function,
                                           callback_value});
     const int stack_parameters = static_cast<int>(checkpoint_params.size());
     Node* frame_state = CreateJavaScriptBuiltinContinuationFrameState(
-        jsgraph(), function, Builtins::kArrayFilterLoopLazyDeoptContinuation,
+        jsgraph(), shared, Builtins::kArrayFilterLoopLazyDeoptContinuation,
         node->InputAt(0), context, &checkpoint_params[0], stack_parameters,
         outer_frame_state, ContinuationFrameStateMode::EAGER);
 
@@ -1729,9 +1742,8 @@ Reduction JSCallReducer::ReduceArrayFilter(Handle<JSFunction> function,
   return Replace(a);
 }
 
-Reduction JSCallReducer::ReduceArrayFind(ArrayFindVariant variant,
-                                         Handle<JSFunction> function,
-                                         Node* node) {
+Reduction JSCallReducer::ReduceArrayFind(Node* node, ArrayFindVariant variant,
+                                         Handle<SharedFunctionInfo> shared) {
   if (!FLAG_turbo_inline_array_builtins) return NoChange();
   DCHECK_EQ(IrOpcode::kJSCall, node->opcode());
   CallParameters const& p = CallParametersOf(node->op());
@@ -1817,8 +1829,8 @@ Reduction JSCallReducer::ReduceArrayFind(ArrayFindVariant variant,
   Node* check_throw = nullptr;
   {
     Node* frame_state = CreateJavaScriptBuiltinContinuationFrameState(
-        jsgraph(), function, lazy_continuation_builtin, node->InputAt(0),
-        context, &checkpoint_params[0], stack_parameters, outer_frame_state,
+        jsgraph(), shared, lazy_continuation_builtin, node->InputAt(0), context,
+        &checkpoint_params[0], stack_parameters, outer_frame_state,
         ContinuationFrameStateMode::LAZY);
     WireInCallbackIsCallableCheck(fncallback, context, frame_state, effect,
                                   &control, &check_fail, &check_throw);
@@ -1843,7 +1855,7 @@ Reduction JSCallReducer::ReduceArrayFind(ArrayFindVariant variant,
   // Check the map hasn't changed during the iteration.
   {
     Node* frame_state = CreateJavaScriptBuiltinContinuationFrameState(
-        jsgraph(), function, eager_continuation_builtin, node->InputAt(0),
+        jsgraph(), shared, eager_continuation_builtin, node->InputAt(0),
         context, &checkpoint_params[0], stack_parameters, outer_frame_state,
         ContinuationFrameStateMode::EAGER);
 
@@ -1886,7 +1898,7 @@ Reduction JSCallReducer::ReduceArrayFind(ArrayFindVariant variant,
         static_cast<int>(call_checkpoint_params.size());
 
     Node* frame_state = CreateJavaScriptBuiltinContinuationFrameState(
-        jsgraph(), function, after_callback_lazy_continuation_builtin,
+        jsgraph(), shared, after_callback_lazy_continuation_builtin,
         node->InputAt(0), context, &call_checkpoint_params[0],
         call_stack_parameters, outer_frame_state,
         ContinuationFrameStateMode::LAZY);
@@ -2067,8 +2079,8 @@ Node* JSCallReducer::SafeLoadElement(ElementsKind kind, Node* receiver,
   return element;
 }
 
-Reduction JSCallReducer::ReduceArrayEvery(Handle<JSFunction> function,
-                                          Node* node) {
+Reduction JSCallReducer::ReduceArrayEvery(Node* node,
+                                          Handle<SharedFunctionInfo> shared) {
   if (!FLAG_turbo_inline_array_builtins) return NoChange();
   DCHECK_EQ(IrOpcode::kJSCall, node->opcode());
   CallParameters const& p = CallParametersOf(node->op());
@@ -2139,7 +2151,7 @@ Reduction JSCallReducer::ReduceArrayEvery(Handle<JSFunction> function,
     const int stack_parameters = static_cast<int>(checkpoint_params.size());
 
     Node* check_frame_state = CreateJavaScriptBuiltinContinuationFrameState(
-        jsgraph(), function, Builtins::kArrayEveryLoopLazyDeoptContinuation,
+        jsgraph(), shared, Builtins::kArrayEveryLoopLazyDeoptContinuation,
         node->InputAt(0), context, &checkpoint_params[0], stack_parameters,
         outer_frame_state, ContinuationFrameStateMode::LAZY);
     WireInCallbackIsCallableCheck(fncallback, context, check_frame_state,
@@ -2165,7 +2177,7 @@ Reduction JSCallReducer::ReduceArrayEvery(Handle<JSFunction> function,
     const int stack_parameters = static_cast<int>(checkpoint_params.size());
 
     Node* frame_state = CreateJavaScriptBuiltinContinuationFrameState(
-        jsgraph(), function, Builtins::kArrayEveryLoopEagerDeoptContinuation,
+        jsgraph(), shared, Builtins::kArrayEveryLoopEagerDeoptContinuation,
         node->InputAt(0), context, &checkpoint_params[0], stack_parameters,
         outer_frame_state, ContinuationFrameStateMode::EAGER);
 
@@ -2221,7 +2233,7 @@ Reduction JSCallReducer::ReduceArrayEvery(Handle<JSFunction> function,
     const int stack_parameters = static_cast<int>(checkpoint_params.size());
 
     Node* frame_state = CreateJavaScriptBuiltinContinuationFrameState(
-        jsgraph(), function, Builtins::kArrayEveryLoopLazyDeoptContinuation,
+        jsgraph(), shared, Builtins::kArrayEveryLoopLazyDeoptContinuation,
         node->InputAt(0), context, &checkpoint_params[0], stack_parameters,
         outer_frame_state, ContinuationFrameStateMode::LAZY);
 
@@ -2287,8 +2299,8 @@ Reduction JSCallReducer::ReduceArrayEvery(Handle<JSFunction> function,
   return Replace(return_value);
 }
 
-Reduction JSCallReducer::ReduceArraySome(Handle<JSFunction> function,
-                                         Node* node) {
+Reduction JSCallReducer::ReduceArraySome(Node* node,
+                                         Handle<SharedFunctionInfo> shared) {
   if (!FLAG_turbo_inline_array_builtins) return NoChange();
   DCHECK_EQ(IrOpcode::kJSCall, node->opcode());
   CallParameters const& p = CallParametersOf(node->op());
@@ -2361,7 +2373,7 @@ Reduction JSCallReducer::ReduceArraySome(Handle<JSFunction> function,
     const int stack_parameters = static_cast<int>(checkpoint_params.size());
 
     Node* check_frame_state = CreateJavaScriptBuiltinContinuationFrameState(
-        jsgraph(), function, Builtins::kArraySomeLoopLazyDeoptContinuation,
+        jsgraph(), shared, Builtins::kArraySomeLoopLazyDeoptContinuation,
         node->InputAt(0), context, &checkpoint_params[0], stack_parameters,
         outer_frame_state, ContinuationFrameStateMode::LAZY);
     WireInCallbackIsCallableCheck(fncallback, context, check_frame_state,
@@ -2392,7 +2404,7 @@ Reduction JSCallReducer::ReduceArraySome(Handle<JSFunction> function,
     const int stack_parameters = static_cast<int>(checkpoint_params.size());
 
     Node* frame_state = CreateJavaScriptBuiltinContinuationFrameState(
-        jsgraph(), function, Builtins::kArraySomeLoopEagerDeoptContinuation,
+        jsgraph(), shared, Builtins::kArraySomeLoopEagerDeoptContinuation,
         node->InputAt(0), context, &checkpoint_params[0], stack_parameters,
         outer_frame_state, ContinuationFrameStateMode::EAGER);
 
@@ -2448,7 +2460,7 @@ Reduction JSCallReducer::ReduceArraySome(Handle<JSFunction> function,
     const int stack_parameters = static_cast<int>(checkpoint_params.size());
 
     Node* frame_state = CreateJavaScriptBuiltinContinuationFrameState(
-        jsgraph(), function, Builtins::kArraySomeLoopLazyDeoptContinuation,
+        jsgraph(), shared, Builtins::kArraySomeLoopLazyDeoptContinuation,
         node->InputAt(0), context, &checkpoint_params[0], stack_parameters,
         outer_frame_state, ContinuationFrameStateMode::LAZY);
 
@@ -2516,19 +2528,20 @@ Reduction JSCallReducer::ReduceArraySome(Handle<JSFunction> function,
   return Replace(return_value);
 }
 
-Reduction JSCallReducer::ReduceCallApiFunction(Node* node,
-                                               Handle<JSFunction> function) {
+Reduction JSCallReducer::ReduceCallApiFunction(
+    Node* node, Handle<SharedFunctionInfo> shared) {
   DCHECK_EQ(IrOpcode::kJSCall, node->opcode());
   CallParameters const& p = CallParametersOf(node->op());
   int const argc = static_cast<int>(p.arity()) - 2;
+  Node* target = NodeProperties::GetValueInput(node, 0);
   Node* receiver = (p.convert_mode() == ConvertReceiverMode::kNullOrUndefined)
                        ? jsgraph()->HeapConstant(global_proxy())
                        : NodeProperties::GetValueInput(node, 1);
   Node* effect = NodeProperties::GetEffectInput(node);
+  Node* control = NodeProperties::GetControlInput(node);
 
   Handle<FunctionTemplateInfo> function_template_info(
-      FunctionTemplateInfo::cast(function->shared()->function_data()));
-  Handle<Context> context(function->context());
+      FunctionTemplateInfo::cast(shared->function_data()));
 
   // CallApiCallbackStub expects the target in a register, so we count it out,
   // and counts the receiver as an implicit argument, so we count the receiver
@@ -2577,6 +2590,11 @@ Reduction JSCallReducer::ReduceCallApiFunction(Node* node,
     }
   }
 
+  // Load the {target}s context.
+  Node* context = effect = graph()->NewNode(
+      simplified()->LoadField(AccessBuilder::ForJSFunctionContext()), target,
+      effect, control);
+
   // CallApiCallbackStub's register arguments: code, target, call data, holder,
   // function address.
   // TODO(turbofan): Consider introducing a JSCallApiCallback operator for
@@ -2600,14 +2618,14 @@ Reduction JSCallReducer::ReduceCallApiFunction(Node* node,
       &api_function, ExternalReference::DIRECT_API_CALL, isolate());
   node->InsertInput(graph()->zone(), 0,
                     jsgraph()->HeapConstant(stub.GetCode()));
-  node->ReplaceInput(1, jsgraph()->Constant(context));
+  node->ReplaceInput(1, context);
   node->InsertInput(graph()->zone(), 2, jsgraph()->Constant(data));
   node->InsertInput(graph()->zone(), 3, holder);
   node->InsertInput(graph()->zone(), 4,
                     jsgraph()->ExternalConstant(function_reference));
   node->ReplaceInput(5, receiver);
-  // Remove context input.
-  node->RemoveInput(6 + argc);
+  node->RemoveInput(6 + argc);           // Remove context input.
+  node->ReplaceInput(7 + argc, effect);  // Update effect input.
   NodeProperties::ChangeOp(node, common()->Call(call_descriptor));
   return Changed(node);
 }
@@ -2885,127 +2903,11 @@ Reduction JSCallReducer::ReduceJSCall(Node* node) {
   if (m.HasValue()) {
     if (m.Value()->IsJSFunction()) {
       Handle<JSFunction> function = Handle<JSFunction>::cast(m.Value());
-      Handle<SharedFunctionInfo> shared(function->shared(), isolate());
-
-      // Do not reduce calls to functions with break points.
-      if (shared->HasBreakInfo()) return NoChange();
-
-      // Raise a TypeError if the {target} is a "classConstructor".
-      if (IsClassConstructor(shared->kind())) {
-        NodeProperties::ReplaceValueInputs(node, target);
-        NodeProperties::ChangeOp(
-            node, javascript()->CallRuntime(
-                      Runtime::kThrowConstructorNonCallableError, 1));
-        return Changed(node);
-      }
 
       // Don't inline cross native context.
       if (function->native_context() != *native_context()) return NoChange();
 
-      // Check for known builtin functions.
-      switch (shared->code()->builtin_index()) {
-        case Builtins::kArrayConstructor:
-          return ReduceArrayConstructor(node);
-        case Builtins::kBooleanConstructor:
-          return ReduceBooleanConstructor(node);
-        case Builtins::kFunctionPrototypeApply:
-          return ReduceFunctionPrototypeApply(node);
-        case Builtins::kFastFunctionPrototypeBind:
-          return ReduceFunctionPrototypeBind(node);
-        case Builtins::kFunctionPrototypeCall:
-          return ReduceFunctionPrototypeCall(node);
-        case Builtins::kFunctionPrototypeHasInstance:
-          return ReduceFunctionPrototypeHasInstance(node);
-        case Builtins::kObjectConstructor:
-          return ReduceObjectConstructor(node);
-        case Builtins::kObjectGetPrototypeOf:
-          return ReduceObjectGetPrototypeOf(node);
-        case Builtins::kObjectIs:
-          return ReduceObjectIs(node);
-        case Builtins::kObjectPrototypeGetProto:
-          return ReduceObjectPrototypeGetProto(node);
-        case Builtins::kObjectPrototypeHasOwnProperty:
-          return ReduceObjectPrototypeHasOwnProperty(node);
-        case Builtins::kObjectPrototypeIsPrototypeOf:
-          return ReduceObjectPrototypeIsPrototypeOf(node);
-        case Builtins::kReflectApply:
-          return ReduceReflectApply(node);
-        case Builtins::kReflectConstruct:
-          return ReduceReflectConstruct(node);
-        case Builtins::kReflectGet:
-          return ReduceReflectGet(node);
-        case Builtins::kReflectGetPrototypeOf:
-          return ReduceReflectGetPrototypeOf(node);
-        case Builtins::kReflectHas:
-          return ReduceReflectHas(node);
-        case Builtins::kArrayForEach:
-          return ReduceArrayForEach(function, node);
-        case Builtins::kArrayMap:
-          return ReduceArrayMap(function, node);
-        case Builtins::kArrayFilter:
-          return ReduceArrayFilter(function, node);
-        case Builtins::kArrayReduce:
-          return ReduceArrayReduce(function, node,
-                                   ArrayReduceDirection::kArrayReduceLeft);
-        case Builtins::kArrayReduceRight:
-          return ReduceArrayReduce(function, node,
-                                   ArrayReduceDirection::kArrayReduceRight);
-        case Builtins::kArrayPrototypeFind:
-          return ReduceArrayFind(ArrayFindVariant::kFind, function, node);
-        case Builtins::kArrayPrototypeFindIndex:
-          return ReduceArrayFind(ArrayFindVariant::kFindIndex, function, node);
-        case Builtins::kArrayEvery:
-          return ReduceArrayEvery(function, node);
-        case Builtins::kArraySome:
-          return ReduceArraySome(function, node);
-        case Builtins::kArrayPrototypePush:
-          return ReduceArrayPrototypePush(node);
-        case Builtins::kArrayPrototypePop:
-          return ReduceArrayPrototypePop(node);
-        case Builtins::kArrayPrototypeShift:
-          return ReduceArrayPrototypeShift(node);
-        case Builtins::kReturnReceiver:
-          return ReduceReturnReceiver(node);
-        case Builtins::kStringPrototypeIndexOf:
-          return ReduceStringPrototypeIndexOf(function, node);
-        case Builtins::kStringPrototypeCharAt:
-          return ReduceStringPrototypeStringAt(simplified()->StringCharAt(),
-                                               node);
-        case Builtins::kStringPrototypeCharCodeAt:
-          return ReduceStringPrototypeStringAt(simplified()->StringCharCodeAt(),
-                                               node);
-        case Builtins::kStringPrototypeCodePointAt:
-          return ReduceStringPrototypeStringAt(
-              simplified()->StringCodePointAt(UnicodeEncoding::UTF32), node);
-        case Builtins::kAsyncFunctionPromiseCreate:
-          return ReduceAsyncFunctionPromiseCreate(node);
-        case Builtins::kAsyncFunctionPromiseRelease:
-          return ReduceAsyncFunctionPromiseRelease(node);
-        case Builtins::kPromiseCapabilityDefaultReject:
-          return ReducePromiseCapabilityDefaultReject(node);
-        case Builtins::kPromiseCapabilityDefaultResolve:
-          return ReducePromiseCapabilityDefaultResolve(node);
-        case Builtins::kPromiseInternalConstructor:
-          return ReducePromiseInternalConstructor(node);
-        case Builtins::kPromiseInternalReject:
-          return ReducePromiseInternalReject(node);
-        case Builtins::kPromiseInternalResolve:
-          return ReducePromiseInternalResolve(node);
-        case Builtins::kPromisePrototypeCatch:
-          return ReducePromisePrototypeCatch(node);
-        case Builtins::kPromisePrototypeFinally:
-          return ReducePromisePrototypeFinally(node);
-        case Builtins::kPromisePrototypeThen:
-          return ReducePromisePrototypeThen(node);
-        case Builtins::kPromiseResolveTrampoline:
-          return ReducePromiseResolveTrampoline(node);
-        default:
-          break;
-      }
-
-      if (!FLAG_runtime_stats && shared->IsApiFunction()) {
-        return ReduceCallApiFunction(node, function);
-      }
+      return ReduceJSCall(node, handle(function->shared(), isolate()));
     } else if (m.Value()->IsJSBoundFunction()) {
       Handle<JSBoundFunction> function =
           Handle<JSBoundFunction>::cast(m.Value());
@@ -3041,6 +2943,15 @@ Reduction JSCallReducer::ReduceJSCall(Node* node) {
     // Don't mess with other {node}s that have a constant {target}.
     // TODO(bmeurer): Also support proxies here.
     return NoChange();
+  }
+
+  // If {target} is the result of a JSCreateClosure operation, we can
+  // just immediately try to inline based on the SharedFunctionInfo,
+  // since TurboFan generally doesn't inline cross-context, and hence
+  // the {target} must have the same native context as the call site.
+  if (target->opcode() == IrOpcode::kJSCreateClosure) {
+    CreateClosureParameters const& p = CreateClosureParametersOf(target->op());
+    return ReduceJSCall(node, p.shared_info());
   }
 
   // If {target} is the result of a JSCreateBoundFunction operation,
@@ -3114,6 +3025,125 @@ Reduction JSCallReducer::ReduceJSCall(Node* node) {
       Reduction const reduction = ReduceJSCall(node);
       return reduction.Changed() ? reduction : Changed(node);
     }
+  }
+  return NoChange();
+}
+
+Reduction JSCallReducer::ReduceJSCall(Node* node,
+                                      Handle<SharedFunctionInfo> shared) {
+  DCHECK_EQ(IrOpcode::kJSCall, node->opcode());
+  Node* target = NodeProperties::GetValueInput(node, 0);
+
+  // Do not reduce calls to functions with break points.
+  if (shared->HasBreakInfo()) return NoChange();
+
+  // Raise a TypeError if the {target} is a "classConstructor".
+  if (IsClassConstructor(shared->kind())) {
+    NodeProperties::ReplaceValueInputs(node, target);
+    NodeProperties::ChangeOp(
+        node, javascript()->CallRuntime(
+                  Runtime::kThrowConstructorNonCallableError, 1));
+    return Changed(node);
+  }
+
+  // Check for known builtin functions.
+  switch (shared->code()->builtin_index()) {
+    case Builtins::kArrayConstructor:
+      return ReduceArrayConstructor(node);
+    case Builtins::kBooleanConstructor:
+      return ReduceBooleanConstructor(node);
+    case Builtins::kFunctionPrototypeApply:
+      return ReduceFunctionPrototypeApply(node);
+    case Builtins::kFastFunctionPrototypeBind:
+      return ReduceFunctionPrototypeBind(node);
+    case Builtins::kFunctionPrototypeCall:
+      return ReduceFunctionPrototypeCall(node);
+    case Builtins::kFunctionPrototypeHasInstance:
+      return ReduceFunctionPrototypeHasInstance(node);
+    case Builtins::kObjectConstructor:
+      return ReduceObjectConstructor(node);
+    case Builtins::kObjectGetPrototypeOf:
+      return ReduceObjectGetPrototypeOf(node);
+    case Builtins::kObjectIs:
+      return ReduceObjectIs(node);
+    case Builtins::kObjectPrototypeGetProto:
+      return ReduceObjectPrototypeGetProto(node);
+    case Builtins::kObjectPrototypeHasOwnProperty:
+      return ReduceObjectPrototypeHasOwnProperty(node);
+    case Builtins::kObjectPrototypeIsPrototypeOf:
+      return ReduceObjectPrototypeIsPrototypeOf(node);
+    case Builtins::kReflectApply:
+      return ReduceReflectApply(node);
+    case Builtins::kReflectConstruct:
+      return ReduceReflectConstruct(node);
+    case Builtins::kReflectGet:
+      return ReduceReflectGet(node);
+    case Builtins::kReflectGetPrototypeOf:
+      return ReduceReflectGetPrototypeOf(node);
+    case Builtins::kReflectHas:
+      return ReduceReflectHas(node);
+    case Builtins::kArrayForEach:
+      return ReduceArrayForEach(node, shared);
+    case Builtins::kArrayMap:
+      return ReduceArrayMap(node, shared);
+    case Builtins::kArrayFilter:
+      return ReduceArrayFilter(node, shared);
+    case Builtins::kArrayReduce:
+      return ReduceArrayReduce(node, ArrayReduceDirection::kLeft, shared);
+    case Builtins::kArrayReduceRight:
+      return ReduceArrayReduce(node, ArrayReduceDirection::kRight, shared);
+    case Builtins::kArrayPrototypeFind:
+      return ReduceArrayFind(node, ArrayFindVariant::kFind, shared);
+    case Builtins::kArrayPrototypeFindIndex:
+      return ReduceArrayFind(node, ArrayFindVariant::kFindIndex, shared);
+    case Builtins::kArrayEvery:
+      return ReduceArrayEvery(node, shared);
+    case Builtins::kArraySome:
+      return ReduceArraySome(node, shared);
+    case Builtins::kArrayPrototypePush:
+      return ReduceArrayPrototypePush(node);
+    case Builtins::kArrayPrototypePop:
+      return ReduceArrayPrototypePop(node);
+    case Builtins::kArrayPrototypeShift:
+      return ReduceArrayPrototypeShift(node);
+    case Builtins::kReturnReceiver:
+      return ReduceReturnReceiver(node);
+    case Builtins::kStringPrototypeIndexOf:
+      return ReduceStringPrototypeIndexOf(node);
+    case Builtins::kStringPrototypeCharAt:
+      return ReduceStringPrototypeStringAt(simplified()->StringCharAt(), node);
+    case Builtins::kStringPrototypeCharCodeAt:
+      return ReduceStringPrototypeStringAt(simplified()->StringCharCodeAt(),
+                                           node);
+    case Builtins::kStringPrototypeCodePointAt:
+      return ReduceStringPrototypeStringAt(
+          simplified()->StringCodePointAt(UnicodeEncoding::UTF32), node);
+    case Builtins::kAsyncFunctionPromiseCreate:
+      return ReduceAsyncFunctionPromiseCreate(node);
+    case Builtins::kAsyncFunctionPromiseRelease:
+      return ReduceAsyncFunctionPromiseRelease(node);
+    case Builtins::kPromiseCapabilityDefaultReject:
+      return ReducePromiseCapabilityDefaultReject(node);
+    case Builtins::kPromiseCapabilityDefaultResolve:
+      return ReducePromiseCapabilityDefaultResolve(node);
+    case Builtins::kPromiseInternalConstructor:
+      return ReducePromiseInternalConstructor(node);
+    case Builtins::kPromiseInternalReject:
+      return ReducePromiseInternalReject(node);
+    case Builtins::kPromiseInternalResolve:
+      return ReducePromiseInternalResolve(node);
+    case Builtins::kPromisePrototypeCatch:
+      return ReducePromisePrototypeCatch(node);
+    case Builtins::kPromisePrototypeFinally:
+      return ReducePromisePrototypeFinally(node);
+    case Builtins::kPromisePrototypeThen:
+      return ReducePromisePrototypeThen(node);
+    default:
+      break;
+  }
+
+  if (!FLAG_runtime_stats && shared->IsApiFunction()) {
+    return ReduceCallApiFunction(node, shared);
   }
   return NoChange();
 }
@@ -3360,8 +3390,7 @@ Reduction JSCallReducer::ReduceJSConstruct(Node* node) {
 
 // ES6 String.prototype.indexOf(searchString [, position])
 // #sec-string.prototype.indexof
-Reduction JSCallReducer::ReduceStringPrototypeIndexOf(
-    Handle<JSFunction> function, Node* node) {
+Reduction JSCallReducer::ReduceStringPrototypeIndexOf(Node* node) {
   DCHECK_EQ(IrOpcode::kJSCall, node->opcode());
   CallParameters const& p = CallParametersOf(node->op());
   if (p.speculation_mode() == SpeculationMode::kDisallowSpeculation) {

@@ -151,7 +151,7 @@ Node* CreateStubBuiltinContinuationFrameState(
     ContinuationFrameStateMode mode);
 
 Node* CreateJavaScriptBuiltinContinuationFrameState(
-    JSGraph* graph, Handle<JSFunction> function, Builtins::Name name,
+    JSGraph* graph, Handle<SharedFunctionInfo> shared, Builtins::Name name,
     Node* target, Node* context, Node* const* stack_parameters,
     int stack_parameter_count, Node* outer_frame_state,
     ContinuationFrameStateMode mode);

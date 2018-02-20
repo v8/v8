@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --allow-natives-syntax --opt
+// Flags: --allow-natives-syntax
 
 (function() {
   var resolve, value;
@@ -23,5 +23,25 @@
   foo();
   %OptimizeFunctionOnNextCall(foo);
   foo();
+  setTimeout(_ => assertEquals(1, value));
+})();
+
+(function() {
+  var value;
+  function foo(x) { return new Promise((resolve, reject) => resolve(x)); }
+  foo(1);
+  foo(1);
+  %OptimizeFunctionOnNextCall(foo);
+  foo(1).then(v => value = v);
+  setTimeout(_ => assertEquals(1, value));
+})();
+
+(function() {
+  var value;
+  function foo(x) { return new Promise((resolve, reject) => reject(x)); }
+  foo(1);
+  foo(1);
+  %OptimizeFunctionOnNextCall(foo);
+  foo(1).catch(v => value = v);
   setTimeout(_ => assertEquals(1, value));
 })();

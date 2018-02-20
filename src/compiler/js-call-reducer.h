@@ -52,10 +52,10 @@ class V8_EXPORT_PRIVATE JSCallReducer final : public AdvancedReducer {
   void Finalize() final;
 
  private:
-  enum ArrayReduceDirection { kArrayReduceLeft, kArrayReduceRight };
   Reduction ReduceArrayConstructor(Node* node);
   Reduction ReduceBooleanConstructor(Node* node);
-  Reduction ReduceCallApiFunction(Node* node, Handle<JSFunction> function);
+  Reduction ReduceCallApiFunction(Node* node,
+                                  Handle<SharedFunctionInfo> shared);
   Reduction ReduceFunctionPrototypeApply(Node* node);
   Reduction ReduceFunctionPrototypeBind(Node* node);
   Reduction ReduceFunctionPrototypeCall(Node* node);
@@ -72,16 +72,17 @@ class V8_EXPORT_PRIVATE JSCallReducer final : public AdvancedReducer {
   Reduction ReduceReflectGet(Node* node);
   Reduction ReduceReflectGetPrototypeOf(Node* node);
   Reduction ReduceReflectHas(Node* node);
-  Reduction ReduceArrayForEach(Handle<JSFunction> function, Node* node);
-  Reduction ReduceArrayReduce(Handle<JSFunction> function, Node* node,
-                              ArrayReduceDirection direction);
-  Reduction ReduceArrayMap(Handle<JSFunction> function, Node* node);
-  Reduction ReduceArrayFilter(Handle<JSFunction> function, Node* node);
-  enum class ArrayFindVariant : uint8_t { kFind, kFindIndex };
-  Reduction ReduceArrayFind(ArrayFindVariant variant,
-                            Handle<JSFunction> function, Node* node);
-  Reduction ReduceArrayEvery(Handle<JSFunction> function, Node* node);
-  Reduction ReduceArraySome(Handle<JSFunction> function, Node* node);
+  Reduction ReduceArrayForEach(Node* node, Handle<SharedFunctionInfo> shared);
+  enum class ArrayReduceDirection { kLeft, kRight };
+  Reduction ReduceArrayReduce(Node* node, ArrayReduceDirection direction,
+                              Handle<SharedFunctionInfo> shared);
+  Reduction ReduceArrayMap(Node* node, Handle<SharedFunctionInfo> shared);
+  Reduction ReduceArrayFilter(Node* node, Handle<SharedFunctionInfo> shared);
+  enum class ArrayFindVariant { kFind, kFindIndex };
+  Reduction ReduceArrayFind(Node* node, ArrayFindVariant variant,
+                            Handle<SharedFunctionInfo> shared);
+  Reduction ReduceArrayEvery(Node* node, Handle<SharedFunctionInfo> shared);
+  Reduction ReduceArraySome(Node* node, Handle<SharedFunctionInfo> shared);
   Reduction ReduceArrayPrototypePush(Node* node);
   Reduction ReduceArrayPrototypePop(Node* node);
   Reduction ReduceArrayPrototypeShift(Node* node);
@@ -92,11 +93,11 @@ class V8_EXPORT_PRIVATE JSCallReducer final : public AdvancedReducer {
   Reduction ReduceJSConstructWithArrayLike(Node* node);
   Reduction ReduceJSConstructWithSpread(Node* node);
   Reduction ReduceJSCall(Node* node);
+  Reduction ReduceJSCall(Node* node, Handle<SharedFunctionInfo> shared);
   Reduction ReduceJSCallWithArrayLike(Node* node);
   Reduction ReduceJSCallWithSpread(Node* node);
   Reduction ReduceReturnReceiver(Node* node);
-  Reduction ReduceStringPrototypeIndexOf(Handle<JSFunction> function,
-                                         Node* node);
+  Reduction ReduceStringPrototypeIndexOf(Node* node);
   Reduction ReduceStringPrototypeStringAt(
       const Operator* string_access_operator, Node* node);
   Reduction ReduceAsyncFunctionPromiseCreate(Node* node);
