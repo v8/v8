@@ -3060,6 +3060,7 @@ class RepresentationSelector {
         // Assume the output is tagged.
         return SetOutput(node, MachineRepresentation::kTagged);
       case IrOpcode::kDeadValue:
+        ProcessInput(node, 0, UseInfo::Any());
         return SetOutput(node, MachineRepresentation::kNone);
       default:
         FATAL(
