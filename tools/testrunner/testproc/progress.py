@@ -103,6 +103,15 @@ class SimpleProgressIndicator(ProgressIndicator):
 
 
 class VerboseProgressIndicator(SimpleProgressIndicator):
+  def __init__(self):
+    super(VerboseProgressIndicator, self).__init__()
+    self._last_printed_time = time.time()
+
+  def _print(self, text):
+    print text
+    sys.stdout.flush()
+    self._last_printed_time = time.time()
+
   def _on_result_for(self, test, result):
     super(VerboseProgressIndicator, self)._on_result_for(test, result)
     # TODO(majeski): Support for dummy/grouped results
@@ -113,12 +122,13 @@ class VerboseProgressIndicator(SimpleProgressIndicator):
         outcome = 'FAIL'
     else:
       outcome = 'pass'
-    print 'Done running %s: %s' % (test, outcome)
-    sys.stdout.flush()
+    self._print('Done running %s: %s' % (test, outcome))
 
   def _on_heartbeat(self):
-    print 'Still working...'
-    sys.stdout.flush()
+    if time.time() - self._last_printed_time > 30:
+      # Print something every 30 seconds to not get killed by an output
+      # timeout.
+      self._print('Still working...')
 
 
 class DotsProgressIndicator(SimpleProgressIndicator):

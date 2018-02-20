@@ -19,6 +19,9 @@ class TimeoutProc(base.TestProcObserver):
   def _on_result_for(self, test, result):
     self._on_event()
 
+  def _on_heartbeat(self):
+    self._on_event()
+
   def _on_event(self):
     if not self.is_stopped:
       if time.time() - self._start > self._duration_sec:

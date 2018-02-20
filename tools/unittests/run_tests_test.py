@@ -147,7 +147,9 @@ class SystemTest(unittest.TestCase):
     sys.path.append(TOOLS_ROOT)
     global standard_runner
     from testrunner import standard_runner
+    from testrunner.local import command
     from testrunner.local import pool
+    command.setup_testing()
     pool.setup_testing()
 
   @classmethod
@@ -396,7 +398,7 @@ class SystemTest(unittest.TestCase):
       else:
         self.assertIn('Running 1 base tests', result.stdout, result)
         self.assertIn('0 tests ran', result.stdout, result)
-      self.assertEqual(3, result.returncode, result)
+      self.assertEqual(2, result.returncode, result)
 
   def testDefaultProc(self):
     self.testDefault(infra_staging=True)
@@ -416,14 +418,14 @@ class SystemTest(unittest.TestCase):
       else:
         self.assertIn('Running 0 base tests', result.stdout, result)
         self.assertIn('0 tests ran', result.stdout, result)
-      self.assertEqual(3, result.returncode, result)
+      self.assertEqual(2, result.returncode, result)
 
   def testNoBuildConfig(self):
     """Test failing run when build config is not found."""
     with temp_base() as basedir:
       result = run_tests(basedir)
       self.assertIn('Failed to load build config', result.stdout, result)
-      self.assertEqual(1, result.returncode, result)
+      self.assertEqual(5, result.returncode, result)
 
   def testGNOption(self):
     """Test using gn option, but no gn build folder is found."""
@@ -439,7 +441,7 @@ class SystemTest(unittest.TestCase):
       result = run_tests(basedir, '--mode=Release')
       self.assertIn('execution mode (release) for release is inconsistent '
                     'with build config (debug)', result.stdout, result)
-      self.assertEqual(1, result.returncode, result)
+      self.assertEqual(5, result.returncode, result)
 
   def testInconsistentArch(self):
     """Test failing run when attempting to wrongly override the arch."""
@@ -448,13 +450,13 @@ class SystemTest(unittest.TestCase):
       self.assertIn(
           '--arch value (ia32) inconsistent with build config (x64).',
           result.stdout, result)
-      self.assertEqual(1, result.returncode, result)
+      self.assertEqual(5, result.returncode, result)
 
   def testWrongVariant(self):
     """Test using a bogus variant."""
     with temp_base() as basedir:
       result = run_tests(basedir, '--mode=Release', '--variants=meh')
-      self.assertEqual(1, result.returncode, result)
+      self.assertEqual(5, result.returncode, result)
 
   def testModeFromBuildConfig(self):
     """Test auto-detection of mode from build config."""

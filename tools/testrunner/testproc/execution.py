@@ -52,18 +52,15 @@ class ExecutionProc(base.TestProc):
   def connect_to(self, next_proc):
     assert False, 'ExecutionProc cannot be connected to anything'
 
-  def start(self):
-    try:
-      it = self._pool.imap_unordered(
+  def run(self):
+    it = self._pool.imap_unordered(
         fn=run_job,
         gen=[],
         process_context_fn=create_process_context,
         process_context_args=[self._prev_requirement],
-      )
-      for pool_result in it:
-        self._unpack_result(pool_result)
-    finally:
-      self._pool.terminate()
+    )
+    for pool_result in it:
+      self._unpack_result(pool_result)
 
   def next_test(self, test):
     if self.is_stopped:
@@ -81,9 +78,7 @@ class ExecutionProc(base.TestProc):
 
   def stop(self):
     super(ExecutionProc, self).stop()
-
-    for pool_result in self._pool.terminate_with_results():
-      self._unpack_result(pool_result)
+    self._pool.abort()
 
   def _unpack_result(self, pool_result):
     if pool_result.heartbeat:

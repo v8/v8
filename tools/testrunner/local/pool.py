@@ -5,9 +5,13 @@
 
 from Queue import Empty
 from contextlib import contextmanager
-from multiprocessing import Event, Process, Queue
+from multiprocessing import Process, Queue
+import os
 import signal
+import time
 import traceback
+
+from . import command
 
 
 def setup_testing():
@@ -15,14 +19,13 @@ def setup_testing():
   to make coverage work.
   """
   global Queue
-  global Event
   global Process
   del Queue
-  del Event
   del Process
   from Queue import Queue
-  from threading import Event
   from threading import Thread as Process
+  # Monkeypatch threading Queue to look like multiprocessing Queue.
+  Queue.cancel_join_thread = lambda self: None
 
 
 class NormalResult():
@@ -49,37 +52,43 @@ class MaybeResult():
     return MaybeResult(False, value)
 
 
-def Worker(fn, work_queue, done_queue, pause_event, read_again_event,
+def Worker(fn, work_queue, done_queue,
            process_context_fn=None, process_context_args=None):
   """Worker to be run in a child process.
   The worker stops when the poison pill "STOP" is reached.
-  It pauses when pause event is set and waits until read again event is true.
   """
   try:
     kwargs = {}
     if process_context_fn and process_context_args is not None:
       kwargs.update(process_context=process_context_fn(*process_context_args))
     for args in iter(work_queue.get, "STOP"):
-      if pause_event.is_set():
-        done_queue.put(NormalResult(None))
-        read_again_event.wait()
-        continue
-
       try:
         done_queue.put(NormalResult(fn(*args, **kwargs)))
+      except command.AbortException:
+        # SIGINT, SIGTERM or internal hard timeout.
+        break
       except Exception, e:
         traceback.print_exc()
         print(">>> EXCEPTION: %s" % e)
         done_queue.put(ExceptionResult(e))
+    # When we reach here on normal tear down, all items have been pulled from
+    # the done_queue before and this should have no effect. On fast abort, it's
+    # possible that a fast worker left items on the done_queue in memory, which
+    # will never be pulled. This call purges those to avoid a deadlock.
+    done_queue.cancel_join_thread()
   except KeyboardInterrupt:
     assert False, 'Unreachable'
 
 
 @contextmanager
-def without_sigint():
-    handler = signal.signal(signal.SIGINT, signal.SIG_IGN)
+def without_sig():
+  int_handler = signal.signal(signal.SIGINT, signal.SIG_IGN)
+  term_handler = signal.signal(signal.SIGTERM, signal.SIG_IGN)
+  try:
     yield
-    signal.signal(signal.SIGINT, handler)
+  finally:
+    signal.signal(signal.SIGINT, int_handler)
+    signal.signal(signal.SIGTERM, term_handler)
 
 
 class Pool():
@@ -92,10 +101,11 @@ class Pool():
   # Necessary to not overflow the queue's pipe if a keyboard interrupt happens.
   BUFFER_FACTOR = 4
 
-  def __init__(self, num_workers, heartbeat_timeout=30):
+  def __init__(self, num_workers, heartbeat_timeout=1):
     self.num_workers = num_workers
     self.processes = []
     self.terminated = False
+    self.abort_now = False
 
     # Invariant: processing_count >= #work_queue + #done_queue. It is greater
     # when a worker takes an item from the work_queue and before the result is
@@ -107,13 +117,11 @@ class Pool():
     self.processing_count = 0
     self.heartbeat_timeout = heartbeat_timeout
 
-    # Disable sigint to make multiprocessing data structure inherit it and
-    # ignore ctrl-c
-    with without_sigint():
+    # Disable sigint and sigterm to prevent subprocesses from capturing the
+    # signals.
+    with without_sig():
       self.work_queue = Queue()
       self.done_queue = Queue()
-      self.pause_event = Event()
-      self.read_again_event = Event()
 
   def imap_unordered(self, fn, gen,
                      process_context_fn=None, process_context_args=None):
@@ -139,14 +147,13 @@ class Pool():
       gen = iter(gen)
       self.advance = self._advance_more
 
-      # Disable sigint to make workers inherit it and ignore ctrl-c
-      with without_sigint():
+      # Disable sigint and sigterm to prevent subprocesses from capturing the
+      # signals.
+      with without_sig():
         for w in xrange(self.num_workers):
           p = Process(target=Worker, args=(fn,
                                           self.work_queue,
                                           self.done_queue,
-                                          self.pause_event,
-                                          self.read_again_event,
                                           process_context_fn,
                                           process_context_args))
           p.start()
@@ -156,23 +163,31 @@ class Pool():
       while self.processing_count > 0:
         while True:
           try:
+            # Read from result queue in a responsive fashion. If available,
+            # this will return a normal result immediately or a heartbeat on
+            # heartbeat timeout (default 1 second).
             result = self._get_result_from_queue()
           except:
             # TODO(machenbach): Handle a few known types of internal errors
             # gracefully, e.g. missing test files.
             internal_error = True
             continue
+
+          if self.abort_now:
+            # SIGINT, SIGTERM or internal hard timeout.
+            return
+
           yield result
           break
 
         self.advance(gen)
     except KeyboardInterrupt:
-      raise
+      assert False, 'Unreachable'
     except Exception as e:
       traceback.print_exc()
       print(">>> EXCEPTION: %s" % e)
     finally:
-      self.terminate()
+      self._terminate()
 
     if internal_error:
       raise Exception("Internal error in a worker process.")
@@ -197,27 +212,28 @@ class Pool():
     self.work_queue.put(args)
     self.processing_count += 1
 
-  def terminate(self):
-    """Terminates execution and waits for ongoing jobs."""
-    # Iteration but ignore the results
-    list(self.terminate_with_results())
+  def abort(self):
+    """Schedules abort on next queue read.
 
-  def terminate_with_results(self):
-    """Terminates execution and waits for ongoing jobs. It's a generator
-    returning heartbeats and results for all jobs that started before calling
-    terminate.
+    This is safe to call when handling SIGINT, SIGTERM or when an internal
+    hard timeout is reached.
+    """
+    self.abort_now = True
+
+  def _terminate(self):
+    """Terminates execution and cleans up the queues.
+
+    If abort() was called before termination, this also terminates the
+    subprocesses and doesn't wait for ongoing tests.
     """
     if self.terminated:
       return
     self.terminated = True
 
-    self.pause_event.set()
-
     # Drain out work queue from tests
     try:
-      while self.processing_count > 0:
-        self.work_queue.get(True, 1)
-        self.processing_count -= 1
+      while True:
+        self.work_queue.get(True, 0.1)
     except Empty:
       pass
 
@@ -227,28 +243,39 @@ class Pool():
       # per worker to make them stop.
       self.work_queue.put("STOP")
 
-    # Workers stopped reading work queue if stop event is true to not overtake
-    # main process that drains the queue. They should read again to consume
-    # poison pill and possibly more tests that we couldn't get during draining.
-    self.read_again_event.set()
-
-    # Wait for results
-    while self.processing_count:
-      result = self._get_result_from_queue()
-      if result.heartbeat or result.value:
-        yield result
+    if self.abort_now:
+      for p in self.processes:
+        os.kill(p.pid, signal.SIGTERM)
 
     for p in self.processes:
       p.join()
 
-  def _get_result_from_queue(self):
+    # Drain the queues to prevent stderr chatter when queues are garbage
+    # collected.
     try:
-      result = self.done_queue.get(timeout=self.heartbeat_timeout)
-      self.processing_count -= 1
-    except Empty:
-      return MaybeResult.create_heartbeat()
+      while True: self.work_queue.get(False)
+    except:
+      pass
+    try:
+      while True: self.done_queue.get(False)
+    except:
+      pass
 
-    if result.exception:
-      raise result.exception
+  def _get_result_from_queue(self):
+    """Attempts to get the next result from the queue.
 
-    return MaybeResult.create_result(result.result)
+    Returns: A wrapped result if one was available within heartbeat timeout,
+        a heartbeat result otherwise.
+    Raises:
+        Exception: If an exception occured when processing the task on the
+            worker side, it is reraised here.
+    """
+    while True:
+      try:
+        result = self.done_queue.get(timeout=self.heartbeat_timeout)
+        self.processing_count -= 1
+        if result.exception:
+          raise result.exception
+        return MaybeResult.create_result(result.result)
+      except Empty:
+        return MaybeResult.create_heartbeat()

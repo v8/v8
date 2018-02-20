@@ -132,6 +132,7 @@ class NumFuzzer(base_runner.BaseTestRunner):
     combiner = self._create_combiner(fuzzer_rng, options)
     results = ResultsTracker()
     execproc = ExecutionProc(options.j)
+    sigproc = self._create_signal_proc()
     indicators = self._create_progress_indicators(options)
     procs = [
       loader,
@@ -143,7 +144,7 @@ class NumFuzzer(base_runner.BaseTestRunner):
       ForgiveTimeoutProc(),
       combiner,
       self._create_fuzzer(fuzzer_rng, options),
-      self._create_signal_proc(),
+      sigproc,
     ] + indicators + [
       results,
       self._create_timeout_proc(options),
@@ -156,18 +157,20 @@ class NumFuzzer(base_runner.BaseTestRunner):
     # TODO(majeski): maybe some notification from loader would be better?
     if combiner:
       combiner.generate_initial_tests(options.j * 4)
-    execproc.start()
+
+    # This starts up worker processes and blocks until all tests are
+    # processed.
+    execproc.run()
 
     for indicator in indicators:
       indicator.finished()
 
     print '>>> %d tests ran' % results.total
     if results.failed:
-      print '>>> %d tests failed' % results.failed
+      return utils.EXIT_CODE_FAILURES
 
-    if results.failed:
-      return 1
-    return 0
+    # Indicate if a SIGINT or SIGTERM happened.
+    return sigproc.exit_code
 
   def _load_suites(self, names, options):
     suites = super(NumFuzzer, self)._load_suites(names, options)

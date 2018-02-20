@@ -253,9 +253,9 @@ class BaseTestRunner(object):
       tests = [t for s in suites for t in s.tests]
       return self._do_execute(tests, args, options)
     except TestRunnerError:
-      return 1
+      return utils.EXIT_CODE_INTERNAL_ERROR
     except KeyboardInterrupt:
-      return 2
+      return utils.EXIT_CODE_INTERRUPTED
 
   def _create_parser(self):
     parser = optparse.OptionParser()

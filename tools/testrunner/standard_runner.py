@@ -284,6 +284,7 @@ class StandardTestRunner(base_runner.BaseTestRunner):
       if self.build_config.predictable:
         outproc_factory = predictable.get_outproc
       execproc = ExecutionProc(jobs, outproc_factory)
+      sigproc = self._create_signal_proc()
 
       procs = [
         loader,
@@ -295,7 +296,7 @@ class StandardTestRunner(base_runner.BaseTestRunner):
         StatusFileFilterProc(options.slow_tests, options.pass_fail_tests),
         self._create_predictable_filter(),
         self._create_seed_proc(options),
-        self._create_signal_proc(),
+        sigproc,
       ] + indicators + [
         results,
         self._create_timeout_proc(options),
@@ -311,30 +312,34 @@ class StandardTestRunner(base_runner.BaseTestRunner):
       print '>>> Running %d base tests' % tests_counter.total
       tests_counter.remove_from_chain()
 
-      execproc.start()
+      # This starts up worker processes and blocks until all tests are
+      # processed.
+      execproc.run()
 
       for indicator in indicators:
         indicator.finished()
 
       print '>>> %d tests ran' % (results.total - results.remaining)
 
-      exit_code = 0
+      exit_code = utils.EXIT_CODE_PASS
       if results.failed:
-        exit_code = 1
+        exit_code = utils.EXIT_CODE_FAILURES
       if not results.total:
-        exit_code = 3
+        exit_code = utils.EXIT_CODE_NO_TESTS
 
-      if exit_code == 1 and options.json_test_results:
+      # Indicate if a SIGINT or SIGTERM happened.
+      exit_code = max(exit_code, sigproc.exit_code)
+
+      if exit_code == utils.EXIT_CODE_FAILURES and options.json_test_results:
         print("Force exit code 0 after failures. Json test results file "
               "generated with failure information.")
-        exit_code = 0
+        exit_code = utils.EXIT_CODE_PASS
       return exit_code
 
     def _create_predictable_filter(self):
       if not self.build_config.predictable:
         return None
       return predictable.PredictableFilterProc()
-
 
     def _create_seed_proc(self, options):
       if options.random_seed_stress_count == 1:
