@@ -118,11 +118,14 @@ void ProfilerListener::CodeCreateEvent(CodeEventListener::LogEventsAndTags tag,
   CodeEventsContainer evt_rec(CodeEventRecord::CODE_CREATION);
   CodeCreateEventRecord* rec = &evt_rec.CodeCreateEventRecord_;
   rec->start = code->instructions().start();
+  // TODO(herhut): Instead of sanitizing here, make sure all wasm functions
+  //               have names.
+  const char* name_ptr =
+      name.start() == nullptr ? "<anonymous>" : GetFunctionName(name.start());
   rec->entry = NewCodeEntry(
-      tag, GetFunctionName(name.start()), CodeEntry::kEmptyNamePrefix,
-      CodeEntry::kEmptyResourceName, CpuProfileNode::kNoLineNumberInfo,
-      CpuProfileNode::kNoColumnNumberInfo, nullptr,
-      code->instructions().start());
+      tag, name_ptr, CodeEntry::kEmptyNamePrefix, CodeEntry::kEmptyResourceName,
+      CpuProfileNode::kNoLineNumberInfo, CpuProfileNode::kNoColumnNumberInfo,
+      nullptr, code->instructions().start());
   rec->size = code->instructions().length();
   DispatchCodeEvent(evt_rec);
 }
