@@ -2981,6 +2981,48 @@ TEST(EmbedderGraphWithWrapperNode) {
   CHECK(!wrapper_node2);
 }
 
+class EmbedderNodeWithPrefix : public v8::EmbedderGraph::Node {
+ public:
+  EmbedderNodeWithPrefix(const char* prefix, const char* name)
+      : prefix_(prefix), name_(name) {}
+
+  // Graph::Node overrides.
+  const char* Name() override { return name_; }
+  size_t SizeInBytes() override { return 0; }
+  const char* NamePrefix() override { return prefix_; }
+
+ private:
+  const char* prefix_;
+  const char* name_;
+};
+
+void BuildEmbedderGraphWithPrefix(v8::Isolate* v8_isolate,
+                                  v8::EmbedderGraph* graph) {
+  using Node = v8::EmbedderGraph::Node;
+  Node* global_node = graph->V8Node(*global_object_pointer);
+  Node* node = graph->AddNode(
+      std::unique_ptr<Node>(new EmbedderNodeWithPrefix("Detached", "Node")));
+  graph->AddEdge(global_node, node);
+}
+
+TEST(EmbedderGraphWithPrefix) {
+  i::FLAG_heap_profiler_use_embedder_graph = true;
+  LocalContext env;
+  v8::HandleScope scope(env->GetIsolate());
+  i::Isolate* isolate = reinterpret_cast<i::Isolate*>(env->GetIsolate());
+  v8::Local<v8::Value> global_object =
+      v8::Utils::ToLocal(i::Handle<i::JSObject>(
+          (isolate->context()->native_context()->global_object())));
+  global_object_pointer = &global_object;
+  v8::HeapProfiler* heap_profiler = env->GetIsolate()->GetHeapProfiler();
+  heap_profiler->SetBuildEmbedderGraphCallback(BuildEmbedderGraphWithPrefix);
+  const v8::HeapSnapshot* snapshot = heap_profiler->TakeHeapSnapshot();
+  CHECK(ValidateSnapshot(snapshot));
+  const v8::HeapGraphNode* global = GetGlobalObject(snapshot);
+  const v8::HeapGraphNode* node = GetChildByName(global, "Detached Node");
+  CHECK(node);
+}
+
 static inline i::Address ToAddress(int n) {
   return reinterpret_cast<i::Address>(n);
 }

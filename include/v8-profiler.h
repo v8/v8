@@ -657,6 +657,10 @@ class V8_EXPORT EmbedderGraph {
     virtual bool IsRootNode() { return false; }
     /** Must return true for non-V8 nodes. */
     virtual bool IsEmbedderNode() { return true; }
+    /**
+     * Optional name prefix. It is used in Chrome for tagging detached nodes.
+     */
+    virtual const char* NamePrefix() { return nullptr; }
 
    private:
     Node(const Node&) = delete;

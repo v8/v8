@@ -2032,7 +2032,9 @@ namespace {
 
 const char* EmbedderGraphNodeName(StringsStorage* names,
                                   EmbedderGraphImpl::Node* node) {
-  return names->GetCopy(node->Name());
+  const char* prefix = node->NamePrefix();
+  return prefix ? names->GetFormatted("%s %s", prefix, node->Name())
+                : names->GetCopy(node->Name());
 }
 
 HeapEntry::Type EmbedderGraphNodeType(EmbedderGraphImpl::Node* node) {
