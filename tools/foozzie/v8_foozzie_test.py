@@ -1,3 +1,4 @@
+#!/usr/bin/env python
 # Copyright 2016 the V8 project authors. All rights reserved.
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
@@ -8,11 +9,42 @@ import sys
 import unittest
 
 import v8_foozzie
+import v8_fuzz_config
 import v8_suppressions
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 FOOZZIE = os.path.join(BASE_DIR, 'v8_foozzie.py')
 TEST_DATA = os.path.join(BASE_DIR, 'testdata')
+
+
+class ConfigTest(unittest.TestCase):
+  def testExperiments(self):
+    """Test that probabilities add up to 100 and that all config names exist.
+    """
+    EXPERIMENTS = v8_fuzz_config.FOOZZIE_EXPERIMENTS
+    CONFIGS = v8_foozzie.CONFIGS
+    assert sum(x[0] for x in EXPERIMENTS) == 100
+    assert all(map(lambda x: x[1] in CONFIGS, EXPERIMENTS))
+    assert all(map(lambda x: x[2] in CONFIGS, EXPERIMENTS))
+    assert all(map(lambda x: x[3].endswith('d8'), EXPERIMENTS))
+
+  def testConfig(self):
+    """Smoke test how to choose experiments.
+
+    When experiment distribution changes this test might change, too.
+    """
+    class Rng(object):
+      def random(self):
+        return 0.5
+    self.assertEqual(
+        [
+          '--first-config=ignition',
+          '--second-config=ignition_turbo',
+          '--second-d8=d8',
+        ],
+        v8_fuzz_config.Config('foo', Rng()).choose_foozzie_flags(),
+    )
+
 
 class UnitTest(unittest.TestCase):
   def testDiff(self):
@@ -109,3 +141,7 @@ class SystemTest(unittest.TestCase):
     e = ctx.exception
     self.assertEquals(v8_foozzie.RETURN_FAIL, e.returncode)
     self.assertEquals(expected_output, cut_verbose_output(e.output))
+
+
+if __name__ == '__main__':
+  unittest.main()
