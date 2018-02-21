@@ -162,15 +162,15 @@ class V8_EXPORT_PRIVATE RawMachineAssembler {
 
   // Atomic memory operations.
   Node* AtomicLoad(MachineType type, Node* base, Node* index) {
-    return AddNode(machine()->AtomicLoad(type), base, index);
+    return AddNode(machine()->Word32AtomicLoad(type), base, index);
   }
   Node* AtomicStore(MachineRepresentation rep, Node* base, Node* index,
                     Node* value) {
-    return AddNode(machine()->AtomicStore(rep), base, index, value);
+    return AddNode(machine()->Word32AtomicStore(rep), base, index, value);
   }
 #define ATOMIC_FUNCTION(name)                                                 \
   Node* Atomic##name(MachineType rep, Node* base, Node* index, Node* value) { \
-    return AddNode(machine()->Atomic##name(rep), base, index, value);         \
+    return AddNode(machine()->Word32Atomic##name(rep), base, index, value);   \
   }
   ATOMIC_FUNCTION(Exchange);
   ATOMIC_FUNCTION(Add);
@@ -182,7 +182,7 @@ class V8_EXPORT_PRIVATE RawMachineAssembler {
 
   Node* AtomicCompareExchange(MachineType rep, Node* base, Node* index,
                               Node* old_value, Node* new_value) {
-    return AddNode(machine()->AtomicCompareExchange(rep), base, index,
+    return AddNode(machine()->Word32AtomicCompareExchange(rep), base, index,
                    old_value, new_value);
   }
 

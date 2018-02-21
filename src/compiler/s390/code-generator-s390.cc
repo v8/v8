@@ -2260,28 +2260,28 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kS390_Lay:
       __ lay(i.OutputRegister(), i.MemoryOperand());
       break;
-    case kAtomicLoadInt8:
+    case kWord32AtomicLoadInt8:
       __ LoadB(i.OutputRegister(), i.MemoryOperand());
       break;
-    case kAtomicLoadUint8:
+    case kWord32AtomicLoadUint8:
       __ LoadlB(i.OutputRegister(), i.MemoryOperand());
       break;
-    case kAtomicLoadInt16:
+    case kWord32AtomicLoadInt16:
       __ LoadHalfWordP(i.OutputRegister(), i.MemoryOperand());
       break;
-    case kAtomicLoadUint16:
+    case kWord32AtomicLoadUint16:
       __ LoadLogicalHalfWordP(i.OutputRegister(), i.MemoryOperand());
       break;
-    case kAtomicLoadWord32:
+    case kWord32AtomicLoadWord32:
       __ LoadlW(i.OutputRegister(), i.MemoryOperand());
       break;
-    case kAtomicStoreWord8:
+    case kWord32AtomicStoreWord8:
       __ StoreByte(i.InputRegister(0), i.MemoryOperand(nullptr, 1));
       break;
-    case kAtomicStoreWord16:
+    case kWord32AtomicStoreWord16:
       __ StoreHalfWord(i.InputRegister(0), i.MemoryOperand(nullptr, 1));
       break;
-    case kAtomicStoreWord32:
+    case kWord32AtomicStoreWord32:
       __ StoreW(i.InputRegister(0), i.MemoryOperand(nullptr, 1));
       break;
 //         0x aa bb cc dd
@@ -2337,8 +2337,8 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     ATOMIC_EXCHANGE(start, end, shift_amount, -idx * 2);         \
   }
 #endif
-    case kAtomicExchangeInt8:
-    case kAtomicExchangeUint8: {
+    case kWord32AtomicExchangeInt8:
+    case kWord32AtomicExchangeUint8: {
       Register base = i.InputRegister(0);
       Register index = i.InputRegister(1);
       Register value = i.InputRegister(2);
@@ -2369,15 +2369,15 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       ATOMIC_EXCHANGE_BYTE(3);
 
       __ bind(&done);
-      if (opcode == kAtomicExchangeInt8) {
+      if (opcode == kWord32AtomicExchangeInt8) {
         __ lbr(output, output);
       } else {
         __ llcr(output, output);
       }
       break;
     }
-    case kAtomicExchangeInt16:
-    case kAtomicExchangeUint16: {
+    case kWord32AtomicExchangeInt16:
+    case kWord32AtomicExchangeUint16: {
       Register base = i.InputRegister(0);
       Register index = i.InputRegister(1);
       Register value = i.InputRegister(2);
@@ -2396,14 +2396,14 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       ATOMIC_EXCHANGE_HALFWORD(1);
 
       __ bind(&done);
-      if (opcode == kAtomicExchangeInt8) {
+      if (opcode == kWord32AtomicExchangeInt8) {
         __ lhr(output, output);
       } else {
         __ llhr(output, output);
       }
       break;
     }
-    case kAtomicExchangeWord32: {
+    case kWord32AtomicExchangeWord32: {
       Register base = i.InputRegister(0);
       Register index = i.InputRegister(1);
       Register value = i.InputRegister(2);

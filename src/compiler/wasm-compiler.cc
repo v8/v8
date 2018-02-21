@@ -4583,15 +4583,15 @@ Node* WasmGraphBuilder::AtomicOp(wasm::WasmOpcode opcode, Node* const* inputs,
   // TODO(gdeepti): Add alignment validation, traps on misalignment
   Node* node;
   switch (opcode) {
-#define BUILD_ATOMIC_BINOP(Name, Operation, Type)                       \
-  case wasm::kExpr##Name: {                                             \
-    Node* index =                                                       \
-        BoundsCheckMem(wasm::WasmOpcodes::MemSize(MachineType::Type()), \
-                       inputs[0], offset, position, kNeedsBoundsCheck); \
-    node = graph()->NewNode(                                            \
-        jsgraph()->machine()->Atomic##Operation(MachineType::Type()),   \
-        MemBuffer(offset), index, inputs[1], *effect_, *control_);      \
-    break;                                                              \
+#define BUILD_ATOMIC_BINOP(Name, Operation, Type)                           \
+  case wasm::kExpr##Name: {                                                 \
+    Node* index =                                                           \
+        BoundsCheckMem(wasm::WasmOpcodes::MemSize(MachineType::Type()),     \
+                       inputs[0], offset, position, kNeedsBoundsCheck);     \
+    node = graph()->NewNode(                                                \
+        jsgraph()->machine()->Word32Atomic##Operation(MachineType::Type()), \
+        MemBuffer(offset), index, inputs[1], *effect_, *control_);          \
+    break;                                                                  \
   }
     ATOMIC_BINOP_LIST(BUILD_ATOMIC_BINOP)
 #undef BUILD_ATOMIC_BINOP
@@ -4602,7 +4602,7 @@ Node* WasmGraphBuilder::AtomicOp(wasm::WasmOpcode opcode, Node* const* inputs,
         BoundsCheckMem(wasm::WasmOpcodes::MemSize(MachineType::Type()),       \
                        inputs[0], offset, position, kNeedsBoundsCheck);       \
     node = graph()->NewNode(                                                  \
-        jsgraph()->machine()->Atomic##Operation(MachineType::Type()),         \
+        jsgraph()->machine()->Word32Atomic##Operation(MachineType::Type()),   \
         MemBuffer(offset), index, inputs[1], inputs[2], *effect_, *control_); \
     break;                                                                    \
   }
@@ -4615,22 +4615,22 @@ Node* WasmGraphBuilder::AtomicOp(wasm::WasmOpcode opcode, Node* const* inputs,
         BoundsCheckMem(wasm::WasmOpcodes::MemSize(MachineType::Type()), \
                        inputs[0], offset, position, kNeedsBoundsCheck); \
     node = graph()->NewNode(                                            \
-        jsgraph()->machine()->AtomicLoad(MachineType::Type()),          \
+        jsgraph()->machine()->Word32AtomicLoad(MachineType::Type()),    \
         MemBuffer(offset), index, *effect_, *control_);                 \
     break;                                                              \
   }
     ATOMIC_LOAD_LIST(BUILD_ATOMIC_LOAD_OP)
 #undef BUILD_ATOMIC_LOAD_OP
 
-#define BUILD_ATOMIC_STORE_OP(Name, Type, Rep)                          \
-  case wasm::kExpr##Name: {                                             \
-    Node* index =                                                       \
-        BoundsCheckMem(wasm::WasmOpcodes::MemSize(MachineType::Type()), \
-                       inputs[0], offset, position, kNeedsBoundsCheck); \
-    node = graph()->NewNode(                                            \
-        jsgraph()->machine()->AtomicStore(MachineRepresentation::Rep),  \
-        MemBuffer(offset), index, inputs[1], *effect_, *control_);      \
-    break;                                                              \
+#define BUILD_ATOMIC_STORE_OP(Name, Type, Rep)                               \
+  case wasm::kExpr##Name: {                                                  \
+    Node* index =                                                            \
+        BoundsCheckMem(wasm::WasmOpcodes::MemSize(MachineType::Type()),      \
+                       inputs[0], offset, position, kNeedsBoundsCheck);      \
+    node = graph()->NewNode(                                                 \
+        jsgraph()->machine()->Word32AtomicStore(MachineRepresentation::Rep), \
+        MemBuffer(offset), index, inputs[1], *effect_, *control_);           \
+    break;                                                                   \
   }
     ATOMIC_STORE_LIST(BUILD_ATOMIC_STORE_OP)
 #undef BUILD_ATOMIC_STORE_OP

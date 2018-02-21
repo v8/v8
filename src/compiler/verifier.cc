@@ -1679,15 +1679,15 @@ void Verifier::Visitor::Check(Node* node, const AllNodes& all) {
     case IrOpcode::kLoadParentFramePointer:
     case IrOpcode::kUnalignedLoad:
     case IrOpcode::kUnalignedStore:
-    case IrOpcode::kAtomicLoad:
-    case IrOpcode::kAtomicStore:
-    case IrOpcode::kAtomicExchange:
-    case IrOpcode::kAtomicCompareExchange:
-    case IrOpcode::kAtomicAdd:
-    case IrOpcode::kAtomicSub:
-    case IrOpcode::kAtomicAnd:
-    case IrOpcode::kAtomicOr:
-    case IrOpcode::kAtomicXor:
+    case IrOpcode::kWord32AtomicLoad:
+    case IrOpcode::kWord32AtomicStore:
+    case IrOpcode::kWord32AtomicExchange:
+    case IrOpcode::kWord32AtomicCompareExchange:
+    case IrOpcode::kWord32AtomicAdd:
+    case IrOpcode::kWord32AtomicSub:
+    case IrOpcode::kWord32AtomicAnd:
+    case IrOpcode::kWord32AtomicOr:
+    case IrOpcode::kWord32AtomicXor:
     case IrOpcode::kSpeculationFence:
     case IrOpcode::kSignExtendWord8ToInt32:
     case IrOpcode::kSignExtendWord16ToInt32:

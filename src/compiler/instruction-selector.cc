@@ -1539,18 +1539,18 @@ void InstructionSelector::VisitNode(Node* node) {
       MarkAsWord32(node);
       MarkPairProjectionsAsWord32(node);
       return VisitWord32PairSar(node);
-    case IrOpcode::kAtomicLoad: {
+    case IrOpcode::kWord32AtomicLoad: {
       LoadRepresentation type = LoadRepresentationOf(node->op());
       MarkAsRepresentation(type.representation(), node);
-      return VisitAtomicLoad(node);
+      return VisitWord32AtomicLoad(node);
     }
-    case IrOpcode::kAtomicStore:
-      return VisitAtomicStore(node);
+    case IrOpcode::kWord32AtomicStore:
+      return VisitWord32AtomicStore(node);
 #define ATOMIC_CASE(name)                                    \
-  case IrOpcode::kAtomic##name: {                            \
+  case IrOpcode::kWord32Atomic##name: {                      \
     MachineType type = AtomicOpRepresentationOf(node->op()); \
     MarkAsRepresentation(type.representation(), node);       \
-    return VisitAtomic##name(node);                          \
+    return VisitWord32Atomic##name(node);                    \
   }
       ATOMIC_CASE(Exchange)
       ATOMIC_CASE(CompareExchange)
