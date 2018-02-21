@@ -2938,6 +2938,14 @@ void BuildEmbedderGraphWithWrapperNode(v8::Isolate* v8_isolate,
       graph->AddNode(std::unique_ptr<Node>(new EmbedderNode("OtherNode", 20)));
   graph->AddEdge(global_node, embedder_node);
   graph->AddEdge(wrapper_node, other_node);
+
+  Node* wrapper_node2 = graph->AddNode(
+      std::unique_ptr<Node>(new EmbedderNode("WrapperNode2", 10)));
+  Node* embedder_node2 = graph->AddNode(std::unique_ptr<Node>(
+      new EmbedderNode("EmbedderNode2", 10, wrapper_node2)));
+  graph->AddEdge(global_node, embedder_node2);
+  graph->AddEdge(embedder_node2, wrapper_node2);
+  graph->AddEdge(wrapper_node2, other_node);
 }
 
 TEST(EmbedderGraphWithWrapperNode) {
@@ -2963,6 +2971,14 @@ TEST(EmbedderGraphWithWrapperNode) {
   const v8::HeapGraphNode* wrapper_node =
       GetChildByName(embedder_node, "WrapperNode / TAG");
   CHECK(!wrapper_node);
+
+  const v8::HeapGraphNode* embedder_node2 =
+      GetChildByName(global, "EmbedderNode2");
+  other_node = GetChildByName(embedder_node2, "OtherNode");
+  CHECK(other_node);
+  const v8::HeapGraphNode* wrapper_node2 =
+      GetChildByName(embedder_node, "WrapperNode2");
+  CHECK(!wrapper_node2);
 }
 
 static inline i::Address ToAddress(int n) {

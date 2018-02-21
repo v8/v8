@@ -2045,7 +2045,7 @@ HeapEntry::Type EmbedderGraphNodeType(EmbedderGraphImpl::Node* node) {
 // Otherwise, the result is the embedder node name.
 const char* MergeNames(StringsStorage* names, const char* embedder_name,
                        const char* wrapper_name) {
-  for (const char* suffix = wrapper_name; suffix; suffix++) {
+  for (const char* suffix = wrapper_name; *suffix; suffix++) {
     if (*suffix == '/') {
       return names->GetFormatted("%s %s", embedder_name, suffix);
     }
