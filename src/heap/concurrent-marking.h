@@ -30,14 +30,16 @@ using LiveBytesMap =
 class ConcurrentMarking {
  public:
   // When the scope is entered, the concurrent marking tasks
-  // are paused and are not looking at the heap objects.
+  // are preempted and are not looking at the heap objects, concurrent marking
+  // is resumed when the scope is exited.
   class PauseScope {
    public:
     explicit PauseScope(ConcurrentMarking* concurrent_marking);
     ~PauseScope();
 
    private:
-    ConcurrentMarking* concurrent_marking_;
+    ConcurrentMarking* const concurrent_marking_;
+    const bool resume_on_exit_;
   };
 
   enum class StopRequest {
@@ -62,7 +64,10 @@ class ConcurrentMarking {
   // heap should not be moved while these are active (can be stopped safely via
   // Stop() or PauseScope).
   void ScheduleTasks();
-  void Stop(StopRequest stop_request);
+
+  // Stops concurrent marking per |stop_request|'s semantics. Returns true
+  // if concurrent marking was in progress, false otherwise.
+  bool Stop(StopRequest stop_request);
 
   void RescheduleTasksIfNeeded();
   // Flushes the local live bytes into the given marking state.
@@ -80,16 +85,6 @@ class ConcurrentMarking {
     // The main thread sets this flag to true when it wants the concurrent
     // marker to give up the worker thread.
     base::AtomicValue<bool> preemption_request;
-
-    // When the concurrent marking task has this lock, then objects in the
-    // heap are guaranteed to not move.
-    base::Mutex lock;
-    // The main thread sets this flag to true, when it wants the concurrent
-    // maker to give up the lock.
-    base::AtomicValue<bool> interrupt_request;
-    // The concurrent marker waits on this condition until the request
-    // flag is cleared by the main thread.
-    base::ConditionVariable interrupt_condition;
 
     LiveBytesMap live_bytes;
     size_t marked_bytes = 0;
