@@ -2371,6 +2371,11 @@ void Assembler::isb(BarrierOption option) {
   }
 }
 
+void Assembler::csdb() {
+  // Details available in Arm Cache Speculation Side-channels white paper,
+  // version 1.1, page 4.
+  emit(0xE320F014);
+}
 
 // Coprocessor instructions.
 void Assembler::cdp(Coprocessor coproc,

@@ -2308,8 +2308,15 @@ void Simulator::DecodeType01(Instruction* instr) {
       PrintF("%08x\n", instr->InstructionBits());
       UNIMPLEMENTED();
     }
-  } else if ((type == 1) && instr->IsNopType1()) {
-    // NOP.
+  } else if ((type == 1) && instr->IsNopLikeType1()) {
+    if (instr->BitField(7, 0) == 0) {
+      // NOP.
+    } else if (instr->BitField(7, 0) == 20) {
+      // CSDB.
+    } else {
+      PrintF("%08x\n", instr->InstructionBits());
+      UNIMPLEMENTED();
+    }
   } else {
     int rd = instr->RdValue();
     int rn = instr->RnValue();

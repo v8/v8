@@ -960,6 +960,9 @@ class Assembler : public AssemblerBase {
   void dsb(BarrierOption option);
   void isb(BarrierOption option);
 
+  // Conditional speculation barrier.
+  void csdb();
+
   // Coprocessor instructions
 
   void cdp(Coprocessor coproc, int opcode_1,
