@@ -480,6 +480,8 @@ Matcher<Node*> IsWord32ReverseBytes(const Matcher<Node*>& value_matcher);
 
 Matcher<Node*> IsStackSlot();
 
+Matcher<Node*> IsSpeculativeToNumber(const Matcher<Node*>& value_matcher);
+
 // Helpers
 static inline Matcher<Node*> IsIntPtrConstant(const intptr_t value) {
   return kPointerSize == 8 ? IsInt64Constant(static_cast<int64_t>(value))
