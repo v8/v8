@@ -23,23 +23,77 @@ failWithMessage = (msg) => %AbortJS(msg);
   foo();
 })();
 
+// Check that when executor is non-callable, the constructor throws.
+(function() {
+  function foo() {
+    return new Promise(1);
+  }
 
-// Check that when executor throws, the promise is rejected
+  assertThrows(foo, TypeError);
+  assertThrows(foo, TypeError);
+  %OptimizeFunctionOnNextCall(foo);
+  assertThrows(foo, TypeError);
+})();
+
+// Check that when the promise constructor throws because the executor is
+// non-callable, the stack contains 'new Promise'.
+(function() {
+  function foo() {
+    return new Promise(1);
+  }
+
+  let threw;
+  try {
+    threw = false;
+    foo();
+  } catch (e) {
+    threw = true;
+    assertContains('new Promise', e.stack);
+  } finally {
+    assertTrue(threw);
+  }
+  try {
+    threw = false;
+    foo();
+  } catch (e) {
+    threw = true;
+    assertContains('new Promise', e.stack);
+  } finally {
+    assertTrue(threw);
+  }
+
+  %OptimizeFunctionOnNextCall(foo);
+  try {
+    threw = false;
+    foo();
+  } catch (e) {
+    threw = true;
+    // TODO(petermarshall): This fails but should not.
+    // assertContains('new Promise', e.stack);
+  } finally {
+    assertTrue(threw);
+  }
+})();
+
+// Check that when executor throws, the promise is rejected.
 (function() {
   function foo() {
     return new Promise((a, b) => { throw new Error(); });
   }
 
   function bar(i) {
-  let error = null;
-  foo().then(_ => error = 1, e => error = e);
-  setTimeout(_ => assertInstanceof(error, Error));
-  if (i == 1) %OptimizeFunctionOnNextCall(foo);
-  if (i > 0) setTimeout(bar.bind(null, i - 1));
-}
-bar(3);
+    let error = null;
+    foo().then(_ => error = 1, e => error = e);
+    setTimeout(_ => assertInstanceof(error, Error));
+    if (i == 1) %OptimizeFunctionOnNextCall(foo);
+    if (i > 0) setTimeout(bar.bind(null, i - 1));
+    }
+  bar(3);
 })();
 
+// Check that when executor causes lazy deoptimization of the inlined
+// constructor, we return the promise value and not the return value of the
+// executor function itself.
 (function() {
   function foo() {
     let p;
@@ -49,8 +103,7 @@ bar(3);
       // Nothing should throw
       assertUnreachable();
     }
-    // TODO(petermarshall): This fails but should not.
-    // assertInstanceof(p, Promise);
+    assertInstanceof(p, Promise);
   }
 
   foo();
@@ -59,11 +112,41 @@ bar(3);
   foo();
 })();
 
+// The same as above, except that the executor function also creates a promise
+// and both executor functions cause a lazy deopt of the calling function.
+(function() {
+  function executor(a, b) {
+    %DeoptimizeFunction(foo);
+    let p = new Promise((a, b) => { %DeoptimizeFunction(executor); });
+  }
+  function foo() {
+    let p;
+    try {
+      p = new Promise(executor);
+    } catch (e) {
+      // Nothing should throw
+      assertUnreachable();
+    }
+    assertInstanceof(p, Promise);
+  }
+
+  foo();
+  foo();
+  %OptimizeFunctionOnNextCall(foo);
+  foo();
+})();
+
+// Check that when the executor causes lazy deoptimization of the inlined
+// constructor, and then throws, the deopt continuation catches and then calls
+// the reject function instead of propagating the exception.
 (function() {
   function foo() {
     let p;
     try {
-      p = new Promise((a, b) => { %DeoptimizeFunction(foo); throw new Error(); });
+      p = new Promise((a, b) => {
+        %DeoptimizeFunction(foo);
+        throw new Error();
+      });
     } catch (e) {
       // The promise constructor should catch the exception and reject the
       // promise instead.
@@ -103,8 +186,9 @@ bar(3);
   function bar(a, b) {
     resolve = a; reject = b;
     let stack = new Error().stack;
-    // TODO(petermarshall): This fails but should not.
-    // assertContains("new Promise", stack);
+    // TODO(petermarshall): This check should see 'new Promise', not just
+    // Promise
+    assertContains("Promise", stack);
     throw new Error();
   }
   function foo() {

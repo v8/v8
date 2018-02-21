@@ -247,6 +247,7 @@ bool Builtins::IsLazy(int index) {
     case kInterpreterEnterBytecodeDispatch:
     case kInterpreterEntryTrampoline:
     case kObjectConstructor_ConstructStub:    // https://crbug.com/v8/6787.
+    case kPromiseConstructorLazyDeoptContinuation:  // crbug/v8/6786.
     case kProxyConstructor_ConstructStub:     // https://crbug.com/v8/6787.
     case kNumberConstructor_ConstructStub:    // https://crbug.com/v8/6787.
     case kStringConstructor_ConstructStub:    // https://crbug.com/v8/6787.

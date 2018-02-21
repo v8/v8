@@ -666,6 +666,11 @@ TF_BUILTIN(PromiseCapabilityDefaultResolve, PromiseBuiltinsAssembler) {
   Return(CallBuiltin(Builtins::kResolvePromise, context, promise, resolution));
 }
 
+TF_BUILTIN(PromiseConstructorLazyDeoptContinuation, PromiseBuiltinsAssembler) {
+  Node* promise = Parameter(Descriptor::kPromise);
+  Return(promise);
+}
+
 // ES6 #sec-promise-executor
 TF_BUILTIN(PromiseConstructor, PromiseBuiltinsAssembler) {
   Node* const executor = Parameter(Descriptor::kExecutor);

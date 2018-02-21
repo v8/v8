@@ -810,6 +810,7 @@ namespace internal {
   TFJ(PromiseGetCapabilitiesExecutor, 2, kResolve, kReject)                    \
   /* ES6 #sec-newpromisecapability */                                          \
   TFS(NewPromiseCapability, kConstructor, kDebugEvent)                         \
+  TFJ(PromiseConstructorLazyDeoptContinuation, 2, kPromise, kResult)           \
   /* ES6 #sec-promise-executor */                                              \
   TFJ(PromiseConstructor, 1, kExecutor)                                        \
   CPP(IsPromise)                                                               \

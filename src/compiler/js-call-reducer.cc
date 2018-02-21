@@ -4174,13 +4174,31 @@ Reduction JSCallReducer::ReducePromiseConstructor(Node* node) {
       graph()->NewNode(javascript()->CreateClosure(reject_shared),
                        promise_context, effect, control);
 
+  Handle<SharedFunctionInfo> promise_function_info =
+      handle(native_context()->promise_function()->shared());
+
+  // The first param is undefined for the receiver.
+  std::vector<Node*> checkpoint_params(
+      {jsgraph()->UndefinedConstant(), promise});
+  const int stack_parameters = static_cast<int>(checkpoint_params.size());
+
+  // This simple continuation just returns the created promise.
+  // TODO(petermarshall): If the executor function causes lazy deopt, and it
+  // also throws an exception, we should catch the exception and call the reject
+  // function.
+  Node* frame_state = CreateJavaScriptBuiltinContinuationFrameState(
+      jsgraph(), promise_function_info,
+      Builtins::kPromiseConstructorLazyDeoptContinuation, target, context,
+      &checkpoint_params[0], stack_parameters, outer_frame_state,
+      ContinuationFrameStateMode::LAZY);
+
   // 9. Call executor with both resolving functions
   effect = control = graph()->NewNode(
       javascript()->Call(4, p.frequency(), VectorSlotPair(),
                          ConvertReceiverMode::kNullOrUndefined,
                          SpeculationMode::kDisallowSpeculation),
       executor, jsgraph()->UndefinedConstant(), resolve, reject, context,
-      outer_frame_state, effect, control);
+      frame_state, effect, control);
 
   Node* exception_effect = effect;
   Node* exception_control = control;
