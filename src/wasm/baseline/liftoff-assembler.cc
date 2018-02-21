@@ -123,9 +123,6 @@ class StackTransferRecipe {
           LoadStackSlot(register_moves_.back().dst, next_spill_slot, rm.type);
           DCHECK_EQ(1, src_reg_use_count[spill_reg.liftoff_code()]);
           src_reg_use_count[spill_reg.liftoff_code()] = 0;
-          if (next_spill_slot > max_used_spill_slot_) {
-            max_used_spill_slot_ = next_spill_slot;
-          }
           ++next_spill_slot;
           executed_moves = 1;
         }
@@ -255,8 +252,6 @@ class StackTransferRecipe {
     register_loads_.push_back(RegisterLoad::HalfStack(dst, half_stack_index));
   }
 
-  uint32_t max_used_spill_slot() const { return max_used_spill_slot_; }
-
  private:
   // TODO(clemensh): Avoid unconditionally allocating on the heap.
   std::vector<RegisterMove> register_moves_;
@@ -264,7 +259,6 @@ class StackTransferRecipe {
   LiftoffRegList move_dst_regs_;
   LiftoffRegList move_src_regs_;
   LiftoffAssembler* const asm_;
-  uint32_t max_used_spill_slot_ = 0;
 };
 
 }  // namespace
@@ -466,7 +460,6 @@ void LiftoffAssembler::SpillAllRegisters() {
 
 void LiftoffAssembler::PrepareCall(wasm::FunctionSig* sig,
                                    compiler::CallDescriptor* call_descriptor,
-                                   uint32_t* max_used_spill_slot,
                                    Register* target,
                                    LiftoffRegister* explicit_context) {
   uint32_t num_params = static_cast<uint32_t>(sig->parameter_count());
@@ -557,10 +550,6 @@ void LiftoffAssembler::PrepareCall(wasm::FunctionSig* sig,
   // Execute the stack transfers before filling the context register.
   stack_transfers.Execute();
 
-  // Record the maximum used stack slot index, such that we can bail out if the
-  // stack grew too large.
-  *max_used_spill_slot = stack_transfers.max_used_spill_slot();
-
   // Pop parameters from the value stack.
   auto stack_end = cache_state_.stack_state.end();
   cache_state_.stack_state.erase(stack_end - num_params, stack_end);
@@ -647,10 +636,6 @@ void LiftoffAssembler::set_num_locals(uint32_t num_locals) {
         reinterpret_cast<ValueType*>(malloc(num_locals * sizeof(ValueType)));
     DCHECK_NOT_NULL(more_local_types_);
   }
-}
-
-uint32_t LiftoffAssembler::GetTotalFrameSlotCount() const {
-  return num_locals() + kMaxValueStackHeight;
 }
 
 std::ostream& operator<<(std::ostream& os, VarState slot) {

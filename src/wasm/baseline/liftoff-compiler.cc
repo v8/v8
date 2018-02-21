@@ -200,14 +200,6 @@ class LiftoffCompiler {
 #endif
   }
 
-  void CheckStackSizeLimit(Decoder* decoder) {
-    DCHECK_GE(__ cache_state()->stack_height(), __ num_locals());
-    int stack_height = __ cache_state()->stack_height() - __ num_locals();
-    if (stack_height > LiftoffAssembler::kMaxValueStackHeight) {
-      unsupported(decoder, "value stack grows too large");
-    }
-  }
-
   void StartFunction(Decoder* decoder) {
     int num_locals = decoder->NumLocals();
     __ set_num_locals(num_locals);
@@ -337,7 +329,6 @@ class LiftoffCompiler {
     StackCheck(0);
 
     DCHECK_EQ(__ num_locals(), __ cache_state()->stack_height());
-    CheckStackSizeLimit(decoder);
   }
 
   void GenerateOutOfLineCode(OutOfLineCode& ool) {
@@ -647,7 +638,6 @@ class LiftoffCompiler {
 
   void I32Const(Decoder* decoder, Value* result, int32_t value) {
     __ cache_state()->stack_state.emplace_back(kWasmI32, value);
-    CheckStackSizeLimit(decoder);
   }
 
   void I64Const(Decoder* decoder, Value* result, int64_t value) {
@@ -663,21 +653,18 @@ class LiftoffCompiler {
       __ LoadConstant(reg, WasmValue(value));
       __ PushRegister(kWasmI64, reg);
     }
-    CheckStackSizeLimit(decoder);
   }
 
   void F32Const(Decoder* decoder, Value* result, float value) {
     LiftoffRegister reg = __ GetUnusedRegister(kFpReg);
     __ LoadConstant(reg, WasmValue(value));
     __ PushRegister(kWasmF32, reg);
-    CheckStackSizeLimit(decoder);
   }
 
   void F64Const(Decoder* decoder, Value* result, double value) {
     LiftoffRegister reg = __ GetUnusedRegister(kFpReg);
     __ LoadConstant(reg, WasmValue(value));
     __ PushRegister(kWasmF64, reg);
-    CheckStackSizeLimit(decoder);
   }
 
   void Drop(Decoder* decoder, const Value& value) {
@@ -723,7 +710,6 @@ class LiftoffCompiler {
         break;
       }
     }
-    CheckStackSizeLimit(decoder);
   }
 
   void SetLocalFromStackSlot(LiftoffAssembler::VarState& dst_slot,
@@ -794,7 +780,6 @@ class LiftoffCompiler {
       return unsupported(decoder, "global > kPointerSize");
     __ Load(value, addr, no_reg, global->offset, type, pinned);
     __ PushRegister(global->type, value);
-    CheckStackSizeLimit(decoder);
   }
 
   void SetGlobal(Decoder* decoder, const Value& value,
@@ -1051,7 +1036,6 @@ class LiftoffCompiler {
                        protected_load_pc);
     }
     __ PushRegister(value_type, value);
-    CheckStackSizeLimit(decoder);
 
     if (FLAG_wasm_trace_memory) {
       TraceMemoryOperation(false, type.mem_type().representation(), index,
@@ -1111,12 +1095,7 @@ class LiftoffCompiler {
     call_descriptor =
         GetLoweredCallDescriptor(compilation_zone_, call_descriptor);
 
-    uint32_t max_used_spill_slot = 0;
-    __ PrepareCall(operand.sig, call_descriptor, &max_used_spill_slot);
-    if (max_used_spill_slot >
-        __ num_locals() + LiftoffAssembler::kMaxValueStackHeight) {
-      unsupported(decoder, "value stack grows too large in call");
-    }
+    __ PrepareCall(operand.sig, call_descriptor);
 
     source_position_table_builder_->AddPosition(
         __ pc_offset(), SourcePosition(decoder->position()), false);
@@ -1285,15 +1264,9 @@ class LiftoffCompiler {
     call_descriptor =
         GetLoweredCallDescriptor(compilation_zone_, call_descriptor);
 
-    uint32_t max_used_spill_slot = 0;
     Register target = scratch.gp();
-    __ PrepareCall(operand.sig, call_descriptor, &max_used_spill_slot, &target,
-                   explicit_context);
+    __ PrepareCall(operand.sig, call_descriptor, &target, explicit_context);
     __ CallIndirect(operand.sig, call_descriptor, target);
-    if (max_used_spill_slot >
-        __ num_locals() + LiftoffAssembler::kMaxValueStackHeight) {
-      unsupported(decoder, "value stack grows too large in indirect call");
-    }
 
     safepoint_table_builder_.DefineSafepoint(asm_, Safepoint::kSimple, 0,
                                              Safepoint::kNoLazyDeopt);

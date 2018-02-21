@@ -278,6 +278,7 @@ void LiftoffAssembler::Move(DoubleRegister dst, DoubleRegister src,
 
 void LiftoffAssembler::Spill(uint32_t index, LiftoffRegister reg,
                              ValueType type) {
+  RecordUsedSpillSlot(index);
   Operand dst = liftoff::GetStackSlot(index);
   switch (type) {
     case kWasmI32:
@@ -298,6 +299,7 @@ void LiftoffAssembler::Spill(uint32_t index, LiftoffRegister reg,
 }
 
 void LiftoffAssembler::Spill(uint32_t index, WasmValue value) {
+  RecordUsedSpillSlot(index);
   Operand dst = liftoff::GetStackSlot(index);
   switch (value.type()) {
     case kWasmI32:

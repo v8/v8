@@ -27,10 +27,6 @@ struct ModuleEnv;
 
 class LiftoffAssembler : public TurboAssembler {
  public:
-  // TODO(clemensh): Remove this limitation by allocating more stack space if
-  // needed.
-  static constexpr int kMaxValueStackHeight = 8;
-
   // Each slot in our stack frame currently has exactly 8 bytes.
   static constexpr uint32_t kStackSlotSize = 8;
 
@@ -304,13 +300,17 @@ class LiftoffAssembler : public TurboAssembler {
   void SpillLocals();
   void SpillAllRegisters();
 
+  // Call this method whenever spilling something, such that the number of used
+  // spill slot can be tracked and the stack frame will be allocated big enough.
+  void RecordUsedSpillSlot(uint32_t index) {
+    if (index >= num_used_spill_slots_) num_used_spill_slots_ = index + 1;
+  }
+
   // Load parameters into the right registers / stack slots for the call.
   // Move {*target} into another register if needed and update {*target} to that
   // register, or {no_reg} if target was spilled to the stack.
-  // TODO(clemensh): Remove {max_used_spill_slot} once we support arbitrary
-  // stack sizes.
   void PrepareCall(wasm::FunctionSig*, compiler::CallDescriptor*,
-                   uint32_t* max_used_spill_slot, Register* target = nullptr,
+                   Register* target = nullptr,
                    LiftoffRegister* explicit_context = nullptr);
   // Process return values of the call.
   void FinishCall(wasm::FunctionSig*, compiler::CallDescriptor*);
@@ -436,7 +436,9 @@ class LiftoffAssembler : public TurboAssembler {
   uint32_t num_locals() const { return num_locals_; }
   void set_num_locals(uint32_t num_locals);
 
-  uint32_t GetTotalFrameSlotCount() const;
+  uint32_t GetTotalFrameSlotCount() const {
+    return num_locals_ + num_used_spill_slots_;
+  }
 
   ValueType local_type(uint32_t index) {
     DCHECK_GT(num_locals_, index);
@@ -466,6 +468,7 @@ class LiftoffAssembler : public TurboAssembler {
   static_assert(sizeof(ValueType) == 1,
                 "Reconsider this inlining if ValueType gets bigger");
   CacheState cache_state_;
+  uint32_t num_used_spill_slots_ = 0;
   const char* bailout_reason_ = nullptr;
 
   LiftoffRegister SpillOneRegister(LiftoffRegList candidates,

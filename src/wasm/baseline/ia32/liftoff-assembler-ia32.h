@@ -338,6 +338,7 @@ void LiftoffAssembler::Move(DoubleRegister dst, DoubleRegister src,
 
 void LiftoffAssembler::Spill(uint32_t index, LiftoffRegister reg,
                              ValueType type) {
+  RecordUsedSpillSlot(index);
   Operand dst = liftoff::GetStackSlot(index);
   switch (type) {
     case kWasmI32:
@@ -359,6 +360,7 @@ void LiftoffAssembler::Spill(uint32_t index, LiftoffRegister reg,
 }
 
 void LiftoffAssembler::Spill(uint32_t index, WasmValue value) {
+  RecordUsedSpillSlot(index);
   Operand dst = liftoff::GetStackSlot(index);
   switch (value.type()) {
     case kWasmI32:
@@ -689,12 +691,12 @@ void LiftoffAssembler::PushCallerFrameSlot(const VarState& src,
                                            RegPairHalf half) {
   switch (src.loc()) {
     case VarState::kStack:
-      push(liftoff::GetHalfStackSlot(2 * src_index +
-                                     (half == kLowWord ? 0 : 1)));
       if (src.type() == kWasmF64) {
         DCHECK_EQ(kLowWord, half);
-        push(liftoff::GetHalfStackSlot(2 * src_index + 1));
+        push(liftoff::GetHalfStackSlot(2 * src_index - 1));
       }
+      push(liftoff::GetHalfStackSlot(2 * src_index +
+                                     (half == kLowWord ? 0 : 1)));
       break;
     case VarState::kRegister:
       if (src.type() == kWasmI64) {
