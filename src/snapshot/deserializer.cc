@@ -647,12 +647,17 @@ bool Deserializer<AllocatorT>::ReadData(Object** current, Object** limit,
         break;
       }
 
+#ifdef DEBUG
+#define UNUSED_CASE(byte_code) \
+  case byte_code:              \
+    UNREACHABLE();
+      UNUSED_SERIALIZER_BYTE_CODES(UNUSED_CASE)
+#endif
+#undef UNUSED_CASE
+
 #undef SIXTEEN_CASES
 #undef FOUR_CASES
 #undef SINGLE_CASE
-
-      default:
-        UNREACHABLE();
     }
   }
   CHECK_EQ(limit, current);
