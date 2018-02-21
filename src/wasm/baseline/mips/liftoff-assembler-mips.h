@@ -58,7 +58,7 @@ void LiftoffAssembler::LoadConstant(LiftoffRegister reg, WasmValue value,
       TurboAssembler::Move(reg.fp(), value.to_f32_boxed().get_scalar());
       break;
     case kWasmF64:
-      BAILOUT("LoadConstant kWasmF64");
+      TurboAssembler::Move(reg.fp(), value.to_f64_boxed().get_scalar());
       break;
     default:
       UNREACHABLE();
@@ -113,7 +113,7 @@ void LiftoffAssembler::MoveToReturnRegister(LiftoffRegister reg,
   LiftoffRegister dst =
       reg.is_pair()
           ? LiftoffRegister::ForPair(LiftoffRegister(v0), LiftoffRegister(v1))
-          : reg.is_gp() ? LiftoffRegister(v0) : LiftoffRegister(f0);
+          : reg.is_gp() ? LiftoffRegister(v0) : LiftoffRegister(f2);
   if (reg != dst) Move(dst, reg, type);
 }
 
@@ -192,28 +192,26 @@ bool LiftoffAssembler::emit_i32_popcnt(Register dst, Register src) {
     instruction(dst, lhs, rhs);                                          \
   }
 
-// clang-format off
 I32_SHIFTOP(shl, sllv)
 I32_SHIFTOP(sar, srav)
 I32_SHIFTOP(shr, srlv)
-// clang-format on
 
 #undef I32_SHIFTOP
 
-#define UNIMPLEMENTED_FP_BINOP(name)                                         \
+#define FP_BINOP(name, instruction)                                          \
   void LiftoffAssembler::emit_##name(DoubleRegister dst, DoubleRegister lhs, \
                                      DoubleRegister rhs) {                   \
-    BAILOUT("fp binop");                                                     \
+    instruction(dst, lhs, rhs);                                              \
   }
 
-UNIMPLEMENTED_FP_BINOP(f32_add)
-UNIMPLEMENTED_FP_BINOP(f32_sub)
-UNIMPLEMENTED_FP_BINOP(f32_mul)
-UNIMPLEMENTED_FP_BINOP(f64_add)
-UNIMPLEMENTED_FP_BINOP(f64_sub)
-UNIMPLEMENTED_FP_BINOP(f64_mul)
+FP_BINOP(f32_add, add_s)
+FP_BINOP(f32_sub, sub_s)
+FP_BINOP(f32_mul, mul_s)
+FP_BINOP(f64_add, add_d)
+FP_BINOP(f64_sub, sub_d)
+FP_BINOP(f64_mul, mul_d)
 
-#undef UNIMPLEMENTED_FP_BINOP
+#undef FP_BINOP
 
 void LiftoffAssembler::emit_jump(Label* label) {
   TurboAssembler::Branch(label);
