@@ -428,8 +428,7 @@ void TurboAssembler::Cset(const Register& rd, Condition cond) {
   cset(rd, cond);
 }
 
-
-void MacroAssembler::Csetm(const Register& rd, Condition cond) {
+void TurboAssembler::Csetm(const Register& rd, Condition cond) {
   DCHECK(allow_macro_instructions());
   DCHECK(!rd.IsZero());
   DCHECK((cond != al) && (cond != nv));

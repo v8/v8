@@ -607,17 +607,13 @@ void CodeGenerator::BailoutIfDeoptimized() {
 }
 
 void CodeGenerator::GenerateSpeculationPoison() {
-  // Calculate a mask which has all bits set in the normal case, but has all
+  // Set a mask which has all bits set in the normal case, but has all
   // bits cleared if we are speculatively executing the wrong PC.
-  //    difference = (current - expected) | (expected - current)
-  //    poison = ~(difference >> (kBitsPerPointer - 1))
   __ ComputeCodeStartAddress(rbx);
-  __ movp(kSpeculationPoisonRegister, rbx);
-  __ subq(kSpeculationPoisonRegister, kJavaScriptCallCodeStartRegister);
-  __ subq(kJavaScriptCallCodeStartRegister, rbx);
-  __ orq(kSpeculationPoisonRegister, kJavaScriptCallCodeStartRegister);
-  __ sarq(kSpeculationPoisonRegister, Immediate(kBitsPerPointer - 1));
-  __ notq(kSpeculationPoisonRegister);
+  __ movp(kSpeculationPoisonRegister, Immediate(0));
+  __ cmpp(kJavaScriptCallCodeStartRegister, rbx);
+  __ movp(rbx, Immediate(-1));
+  __ cmovq(equal, kSpeculationPoisonRegister, rbx);
 }
 
 // Assembles an instruction after register allocation, producing machine code.

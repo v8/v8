@@ -568,21 +568,12 @@ void CodeGenerator::GenerateSpeculationPoison() {
   UseScratchRegisterScope temps(tasm());
   Register scratch = temps.AcquireX();
 
-  // Calculate a mask which has all bits set in the normal case, but has all
+  // Set a mask which has all bits set in the normal case, but has all
   // bits cleared if we are speculatively executing the wrong PC.
-  //    difference = (current - expected) | (expected - current)
-  //    poison = ~(difference >> (kBitsPerPointer - 1))
   __ ComputeCodeStartAddress(scratch);
-  __ Mov(kSpeculationPoisonRegister, scratch);
-  __ Sub(kSpeculationPoisonRegister, kSpeculationPoisonRegister,
-         kJavaScriptCallCodeStartRegister);
-  __ Sub(kJavaScriptCallCodeStartRegister, kJavaScriptCallCodeStartRegister,
-         scratch);
-  __ Orr(kSpeculationPoisonRegister, kSpeculationPoisonRegister,
-         kJavaScriptCallCodeStartRegister);
-  __ Asr(kSpeculationPoisonRegister, kSpeculationPoisonRegister,
-         kBitsPerPointer - 1);
-  __ Mvn(kSpeculationPoisonRegister, Operand(kSpeculationPoisonRegister));
+  __ Cmp(kJavaScriptCallCodeStartRegister, scratch);
+  __ Csetm(kSpeculationPoisonRegister, eq);
+  __ Csdb();
 }
 
 // Assembles an instruction after register allocation, producing machine code.

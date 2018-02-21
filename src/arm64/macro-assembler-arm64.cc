@@ -595,11 +595,8 @@ void TurboAssembler::ConditionalCompareMacro(const Register& rn,
   }
 }
 
-
-void MacroAssembler::Csel(const Register& rd,
-                          const Register& rn,
-                          const Operand& operand,
-                          Condition cond) {
+void TurboAssembler::Csel(const Register& rd, const Register& rn,
+                          const Operand& operand, Condition cond) {
   DCHECK(allow_macro_instructions());
   DCHECK(!rd.IsZero());
   DCHECK((cond != al) && (cond != nv));

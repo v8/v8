@@ -524,17 +524,13 @@ void CodeGenerator::BailoutIfDeoptimized() {
 void CodeGenerator::GenerateSpeculationPoison() {
   __ push(eax);  // Push eax so we can use it as a scratch register.
 
-  // Calculate a mask which has all bits set in the normal case, but has all
+  // Set a mask which has all bits set in the normal case, but has all
   // bits cleared if we are speculatively executing the wrong PC.
-  //    difference = (current - expected) | (expected - current)
-  //    poison = ~(difference >> (kBitsPerPointer - 1))
   __ ComputeCodeStartAddress(eax);
-  __ mov(kSpeculationPoisonRegister, eax);
-  __ sub(kSpeculationPoisonRegister, kJavaScriptCallCodeStartRegister);
-  __ sub(kJavaScriptCallCodeStartRegister, eax);
-  __ or_(kSpeculationPoisonRegister, kJavaScriptCallCodeStartRegister);
-  __ sar(kSpeculationPoisonRegister, kBitsPerPointer - 1);
-  __ not_(kSpeculationPoisonRegister);
+  __ mov(kSpeculationPoisonRegister, Immediate(0));
+  __ cmp(kJavaScriptCallCodeStartRegister, eax);
+  __ mov(eax, Immediate(-1));
+  __ cmov(equal, kSpeculationPoisonRegister, eax);
 
   __ pop(eax);  // Restore eax.
 }

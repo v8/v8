@@ -645,6 +645,8 @@ class TurboAssembler : public Assembler {
   inline void Cmp(const Register& rn, const Operand& operand);
   inline void Subs(const Register& rd, const Register& rn,
                    const Operand& operand);
+  void Csel(const Register& rd, const Register& rn, const Operand& operand,
+            Condition cond);
 
   // Emits a runtime assert that the stack pointer is aligned.
   void AssertSpAligned();
@@ -1011,6 +1013,7 @@ class TurboAssembler : public Assembler {
   void CanonicalizeNaN(const VRegister& reg) { CanonicalizeNaN(reg, reg); }
 
   inline void Cset(const Register& rd, Condition cond);
+  inline void Csetm(const Register& rd, Condition cond);
   inline void Fccmp(const VRegister& fn, const VRegister& fm, StatusFlags nzcv,
                     Condition cond);
   inline void Csinc(const Register& rd, const Register& rn, const Register& rm,
@@ -1295,8 +1298,6 @@ class MacroAssembler : public TurboAssembler {
 
   inline void Ccmn(const Register& rn, const Operand& operand, StatusFlags nzcv,
                    Condition cond);
-  void Csel(const Register& rd, const Register& rn, const Operand& operand,
-            Condition cond);
 
 #define DECLARE_FUNCTION(FN, OP) \
   inline void FN(const Register& rs, const Register& rt, const Register& rn);
@@ -1314,7 +1315,6 @@ class MacroAssembler : public TurboAssembler {
   inline void Cinv(const Register& rd, const Register& rn, Condition cond);
   inline void CzeroX(const Register& rd, Condition cond);
   inline void CmovX(const Register& rd, const Register& rn, Condition cond);
-  inline void Csetm(const Register& rd, Condition cond);
   inline void Csinv(const Register& rd, const Register& rn, const Register& rm,
                     Condition cond);
   inline void Csneg(const Register& rd, const Register& rn, const Register& rm,
