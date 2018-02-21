@@ -678,7 +678,13 @@ void RelocInfo::Print(Isolate* isolate, std::ostream& os) {  // NOLINT
     } else {
       Code* code = Code::GetCodeFromTargetAddress(code_target);
       DCHECK(code->IsCode());
-      os << " (" << Code::Kind2String(code->kind()) << ") ";
+      os << " (" << Code::Kind2String(code->kind());
+      if (Builtins::IsBuiltinId(code->builtin_index())) {
+        os << " " << Builtins::name(code->builtin_index());
+      } else if (code->kind() == Code::STUB) {
+        os << " " << CodeStub::MajorName(CodeStub::GetMajorKey(code));
+      }
+      os << ") ";
     }
     os << " (" << static_cast<const void*>(target_address()) << ")";
   } else if (IsRuntimeEntry(rmode_) && isolate->deoptimizer_data() != nullptr) {
