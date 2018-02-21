@@ -38,6 +38,8 @@ class WasmCompiledModule;
 class WasmDebugInfo;
 class WasmInstanceObject;
 
+#define WASM_CONTEXT_TABLES FLAG_wasm_jit_to_native
+
 #define DECL_OOL_QUERY(type) static bool Is##type(Object* object);
 #define DECL_OOL_CAST(type) static type* cast(Object* object);
 
@@ -55,6 +57,15 @@ class WasmInstanceObject;
   static const int k##name##Offset = \
       kSize + (k##name##Index - kFieldCount) * kPointerSize;
 
+// An entry in an indirect dispatch table.
+struct IndirectFunctionTableEntry {
+  int32_t sig_id = 0;
+  WasmContext* context = nullptr;
+  Address target = nullptr;
+
+  MOVE_ONLY_WITH_DEFAULT_CONSTRUCTORS(IndirectFunctionTableEntry)
+};
+
 // Wasm context used to store the mem_size and mem_start address of the linear
 // memory. These variables can be accessed at C++ level at graph build time
 // (e.g., initialized during instance building / changed at runtime by
@@ -67,13 +78,26 @@ struct WasmContext {
   uint32_t mem_size = 0;  // TODO(titzer): uintptr_t?
   uint32_t mem_mask = 0;  // TODO(titzer): uintptr_t?
   byte* globals_start = nullptr;
+  // TODO(wasm): pad these entries to a power of two.
+  IndirectFunctionTableEntry* table = nullptr;
+  uint32_t table_size = 0;
 
-  inline void SetRawMemory(void* mem_start, size_t mem_size) {
+  void SetRawMemory(void* mem_start, size_t mem_size) {
     DCHECK_LE(mem_size, wasm::kV8MaxWasmMemoryPages * wasm::kWasmPageSize);
     this->mem_start = static_cast<byte*>(mem_start);
     this->mem_size = static_cast<uint32_t>(mem_size);
     this->mem_mask = base::bits::RoundUpToPowerOfTwo32(this->mem_size) - 1;
     DCHECK_LE(mem_size, this->mem_mask + 1);
+  }
+
+  ~WasmContext() {
+    if (table) free(table);
+    mem_start = nullptr;
+    mem_size = 0;
+    mem_mask = 0;
+    globals_start = nullptr;
+    table = nullptr;
+    table_size = 0;
   }
 };
 
@@ -137,9 +161,13 @@ class WasmTableObject : public JSObject {
   static void Set(Isolate* isolate, Handle<WasmTableObject> table,
                   int32_t index, Handle<JSFunction> function);
 
-  static void UpdateDispatchTables(Handle<WasmTableObject> table, int index,
-                                   wasm::FunctionSig* sig,
-                                   Handle<Object> code_or_foreign);
+  static void UpdateDispatchTables(Isolate* isolate,
+                                   Handle<WasmTableObject> table,
+                                   int table_index, wasm::FunctionSig* sig,
+                                   Handle<WasmInstanceObject> from_instance,
+                                   WasmCodeWrapper wasm_code, int func_index);
+
+  static void ClearDispatchTables(Handle<WasmTableObject> table, int index);
 };
 
 // Representation of a WebAssembly.Memory JavaScript-level object.
@@ -481,9 +509,7 @@ class WasmCompiledModule : public FixedArray {
   MACRO(SMALL_CONST_NUMBER, uint32_t, num_imported_functions) \
   MACRO(CONST_OBJECT, FixedArray, code_table)                 \
   MACRO(OBJECT, FixedArray, function_tables)                  \
-  MACRO(OBJECT, FixedArray, signature_tables)                 \
-  MACRO(CONST_OBJECT, FixedArray, empty_function_tables)      \
-  MACRO(CONST_OBJECT, FixedArray, empty_signature_tables)
+  MACRO(CONST_OBJECT, FixedArray, empty_function_tables)
 
 // TODO(mtrofin): this is unnecessary when we stop needing
 // FLAG_wasm_jit_to_native, because we have instance_id on NativeModule.

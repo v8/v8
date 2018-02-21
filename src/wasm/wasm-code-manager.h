@@ -245,19 +245,7 @@ class V8_EXPORT_PRIVATE NativeModule final {
   WasmCompiledModule* compiled_module() const;
   void SetCompiledModule(Handle<WasmCompiledModule>);
 
-  // Shorthand accessors to the specialization data content.
-  std::vector<wasm::GlobalHandleAddress>& function_tables() {
-    return specialization_data_.function_tables;
-  }
-
-  std::vector<wasm::GlobalHandleAddress>& empty_function_tables() {
-    return specialization_data_.empty_function_tables;
-  }
-
   uint32_t num_imported_functions() const { return num_imported_functions_; }
-  size_t num_function_tables() const {
-    return specialization_data_.empty_function_tables.size();
-  }
 
   size_t committed_memory() const { return committed_memory_; }
   const size_t instance_id = 0;
@@ -267,6 +255,7 @@ class V8_EXPORT_PRIVATE NativeModule final {
   friend class WasmCodeManager;
   friend class NativeModuleSerializer;
   friend class NativeModuleDeserializer;
+  friend class NativeModuleModificationScope;
 
   struct WasmCodeUniquePtrComparer {
     bool operator()(const std::unique_ptr<WasmCode>& a,
@@ -325,14 +314,7 @@ class V8_EXPORT_PRIVATE NativeModule final {
   size_t committed_memory_ = 0;
   bool can_request_more_memory_;
   bool is_executable_ = false;
-
-  // Specialization data that needs to be serialized and cloned.
-  // Keeping it groupped together because it makes cloning of all these
-  // elements a 1 line copy.
-  struct {
-    std::vector<wasm::GlobalHandleAddress> function_tables;
-    std::vector<wasm::GlobalHandleAddress> empty_function_tables;
-  } specialization_data_;
+  int modification_scope_depth_ = 0;
 };
 
 class V8_EXPORT_PRIVATE WasmCodeManager final {

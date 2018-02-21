@@ -215,6 +215,7 @@ class V8_EXPORT_PRIVATE WasmInterpreter {
   // Manually adds code to the interpreter for the given function.
   void SetFunctionCodeForTesting(const WasmFunction* function,
                                  const byte* start, const byte* end);
+  void SetCallIndirectTestMode();
 
   // Computes the control transfers for the given bytecode. Used internally in
   // the interpreter, but exposed for testing.

@@ -1141,12 +1141,14 @@ class LiftoffCompiler {
   void CallIndirect(Decoder* decoder, const Value& index_val,
                     const CallIndirectOperand<validate>& operand,
                     const Value args[], Value returns[]) {
-    if (operand.sig->return_count() > 1)
+    if (operand.sig->return_count() > 1) {
       return unsupported(decoder, "multi-return");
+    }
     if (operand.sig->return_count() == 1 &&
         !CheckSupportedType(decoder, kTypes_ilfd, operand.sig->GetReturn(0),
-                            "return"))
+                            "return")) {
       return;
+    }
 
     // Assume only one table for now.
     uint32_t table_index = 0;
@@ -1169,63 +1171,106 @@ class LiftoffCompiler {
         pinned.set(__ GetUnusedRegister(kGpReg, pinned));
     LiftoffRegister scratch = pinned.set(__ GetUnusedRegister(kGpReg, pinned));
 
+    LiftoffRegister* explicit_context = nullptr;
+
     // Bounds check against the table size.
-    {
-      uint32_t table_size =
-          env_->module->function_tables[table_index].initial_size;
+    Label* invalid_func_label = AddOutOfLineTrap(
+        decoder->position(), Builtins::kThrowWasmTrapFuncInvalid);
 
-      Label* trap_label = AddOutOfLineTrap(decoder->position(),
-                                           Builtins::kThrowWasmTrapFuncInvalid);
-
-      __ LoadConstant(tmp_const, WasmValue(table_size),
-                      RelocInfo::WASM_FUNCTION_TABLE_SIZE_REFERENCE);
-      __ emit_cond_jump(kUnsignedGreaterEqual, trap_label, kWasmI32, index.gp(),
-                        tmp_const.gp());
-    }
-
-    wasm::GlobalHandleAddress function_table_handle_address =
-        env_->function_tables[table_index];
-    __ LoadConstant(table, WasmPtrValue(function_table_handle_address),
-                    RelocInfo::WASM_GLOBAL_HANDLE);
     static constexpr LoadType kPointerLoadType =
         kPointerSize == 8 ? LoadType::kI64Load : LoadType::kI32Load;
-    __ Load(table, table.gp(), no_reg, 0, kPointerLoadType, pinned);
-
-    // Load signature from the table and check.
-    // The table is a FixedArray; signatures are encoded as SMIs.
-    // [sig1, code1, sig2, code2, sig3, code3, ...]
-    static_assert(compiler::kFunctionTableEntrySize == 2, "consistency");
-    static_assert(compiler::kFunctionTableSignatureOffset == 0, "consistency");
-    static_assert(compiler::kFunctionTableCodeOffset == 1, "consistency");
-    constexpr int kFixedArrayOffset = FixedArray::kHeaderSize - kHeapObjectTag;
-    __ LoadConstant(tmp_const, WasmValue(kPointerSizeLog2 + 1));
-    // Shift index such that it's the offset of the signature in the FixedArray.
-    __ emit_i32_shl(index.gp(), index.gp(), tmp_const.gp(), pinned);
-
-    // Load the signature.
-    __ Load(scratch, table.gp(), index.gp(), kFixedArrayOffset,
-            kPointerLoadType, pinned);
+    static constexpr int kFixedArrayOffset =
+        FixedArray::kHeaderSize - kHeapObjectTag;
 
     uint32_t canonical_sig_num = env_->module->signature_ids[operand.sig_index];
     DCHECK_GE(canonical_sig_num, 0);
     DCHECK_GE(kMaxInt, canonical_sig_num);
 
-    __ LoadConstant(tmp_const, WasmPtrValue(Smi::FromInt(canonical_sig_num)));
-
-    Label* trap_label = AddOutOfLineTrap(
-        decoder->position(), Builtins::kThrowWasmTrapFuncSigMismatch);
-    __ emit_cond_jump(kUnequal, trap_label, LiftoffAssembler::kWasmIntPtr,
-                      scratch.gp(), tmp_const.gp());
-
-    // Load code object.
-    __ Load(scratch, table.gp(), index.gp(), kFixedArrayOffset + kPointerSize,
-            kPointerLoadType, pinned);
-    if (FLAG_wasm_jit_to_native) {
-      // The table holds a Foreign pointing to the instruction start.
-      __ Load(scratch, scratch.gp(), no_reg,
-              Foreign::kForeignAddressOffset - kHeapObjectTag, kPointerLoadType,
+    if (WASM_CONTEXT_TABLES) {
+      // Compare against table size stored in {wasm_context->table_size}.
+      __ LoadFromContext(tmp_const.gp(), offsetof(WasmContext, table_size),
+                         sizeof(uint32_t));
+      __ emit_cond_jump(kUnsignedGreaterEqual, invalid_func_label, kWasmI32,
+                        index.gp(), tmp_const.gp());
+      // Load the table from {wasm_context->table}
+      __ LoadFromContext(table.gp(), offsetof(WasmContext, table),
+                         kPointerSize);
+      // Load the signature from {wasm_context->table[$index].sig_id}
+      // == wasm_context.table + $index * #sizeof(IndirectionFunctionTableEntry)
+      //    + #offsetof(sig_id)
+      __ LoadConstant(
+          tmp_const,
+          WasmValue(static_cast<uint32_t>(sizeof(IndirectFunctionTableEntry))));
+      __ emit_i32_mul(index.gp(), index.gp(), tmp_const.gp());
+      __ Load(scratch, table.gp(), index.gp(),
+              offsetof(IndirectFunctionTableEntry, sig_id), LoadType::kI32Load,
               pinned);
+
+      __ LoadConstant(tmp_const, WasmValue(canonical_sig_num));
+
+      Label* sig_mismatch_label = AddOutOfLineTrap(
+          decoder->position(), Builtins::kThrowWasmTrapFuncSigMismatch);
+      __ emit_cond_jump(kUnequal, sig_mismatch_label,
+                        LiftoffAssembler::kWasmIntPtr, scratch.gp(),
+                        tmp_const.gp());
+
+      // Load the target address from {wasm_context->table[$index].target}
+      __ Load(scratch, table.gp(), index.gp(),
+              offsetof(IndirectFunctionTableEntry, target), kPointerLoadType,
+              pinned);
+
+      // Load the context from {wasm_context->table[$index].context}
+      // TODO(wasm): directly allocate the correct context register to avoid
+      // any potential moves.
+      __ Load(tmp_const, table.gp(), index.gp(),
+              offsetof(IndirectFunctionTableEntry, context), kPointerLoadType,
+              pinned);
+      explicit_context = &tmp_const;
     } else {
+      // Compare against table size, which is a patchable constant.
+      uint32_t table_size =
+          env_->module->function_tables[table_index].initial_size;
+
+      __ LoadConstant(tmp_const, WasmValue(table_size),
+                      RelocInfo::WASM_FUNCTION_TABLE_SIZE_REFERENCE);
+
+      __ emit_cond_jump(kUnsignedGreaterEqual, invalid_func_label, kWasmI32,
+                        index.gp(), tmp_const.gp());
+
+      wasm::GlobalHandleAddress function_table_handle_address =
+          env_->function_tables[table_index];
+      __ LoadConstant(table, WasmPtrValue(function_table_handle_address),
+                      RelocInfo::WASM_GLOBAL_HANDLE);
+      __ Load(table, table.gp(), no_reg, 0, kPointerLoadType, pinned);
+
+      // Load signature from the table and check.
+      // The table is a FixedArray; signatures are encoded as SMIs.
+      // [sig1, code1, sig2, code2, sig3, code3, ...]
+      static_assert(compiler::kFunctionTableEntrySize == 2, "consistency");
+      static_assert(compiler::kFunctionTableSignatureOffset == 0,
+                    "consistency");
+      static_assert(compiler::kFunctionTableCodeOffset == 1, "consistency");
+      __ LoadConstant(tmp_const, WasmValue(kPointerSizeLog2 + 1));
+      // Shift index such that it's the offset of the signature in the
+      // FixedArray.
+      __ emit_i32_shl(index.gp(), index.gp(), tmp_const.gp(), pinned);
+
+      // Load the signature.
+      __ Load(scratch, table.gp(), index.gp(), kFixedArrayOffset,
+              kPointerLoadType, pinned);
+
+      __ LoadConstant(tmp_const, WasmPtrValue(Smi::FromInt(canonical_sig_num)));
+
+      Label* sig_mismatch_label = AddOutOfLineTrap(
+          decoder->position(), Builtins::kThrowWasmTrapFuncSigMismatch);
+      __ emit_cond_jump(kUnequal, sig_mismatch_label,
+                        LiftoffAssembler::kWasmIntPtr, scratch.gp(),
+                        tmp_const.gp());
+
+      // Load code object.
+      __ Load(scratch, table.gp(), index.gp(), kFixedArrayOffset + kPointerSize,
+              kPointerLoadType, pinned);
+
       // Move the pointer from the Code object to the instruction start.
       __ LoadConstant(tmp_const,
                       WasmPtrValue(Code::kHeaderSize - kHeapObjectTag));
@@ -1242,7 +1287,8 @@ class LiftoffCompiler {
 
     uint32_t max_used_spill_slot = 0;
     Register target = scratch.gp();
-    __ PrepareCall(operand.sig, call_descriptor, &max_used_spill_slot, &target);
+    __ PrepareCall(operand.sig, call_descriptor, &max_used_spill_slot, &target,
+                   explicit_context);
     __ CallIndirect(operand.sig, call_descriptor, target);
     if (max_used_spill_slot >
         __ num_locals() + LiftoffAssembler::kMaxValueStackHeight) {

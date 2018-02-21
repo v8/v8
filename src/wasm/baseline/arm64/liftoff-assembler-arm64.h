@@ -218,7 +218,7 @@ void LiftoffAssembler::CallRuntime(Zone* zone, Runtime::FunctionId fid) {
 }
 
 void LiftoffAssembler::CallIndirect(wasm::FunctionSig* sig,
-                                    compiler::CallDescriptor* call_descriptor,
+                                    compiler::CallDescriptor* call_desc,
                                     Register target) {
   BAILOUT("CallIndirect");
 }

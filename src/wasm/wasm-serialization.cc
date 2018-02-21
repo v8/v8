@@ -209,12 +209,7 @@ NativeModuleSerializer::NativeModuleSerializer(Isolate* isolate,
 
 size_t NativeModuleSerializer::MeasureHeader() const {
   return sizeof(uint32_t) +  // total wasm fct count
-         sizeof(
-             uint32_t) +  // imported fcts - i.e. index of first wasm function
-         sizeof(uint32_t) +  // table count
-         native_module_->specialization_data_.function_tables.size()
-             // function table, containing pointers
-             * sizeof(GlobalHandleAddress);
+         sizeof(uint32_t);  // imported fcts - i.e. index of first wasm function
 }
 
 void NativeModuleSerializer::BufferHeader() {
@@ -224,13 +219,6 @@ void NativeModuleSerializer::BufferHeader() {
   Writer writer(remaining_);
   writer.Write(native_module_->FunctionCount());
   writer.Write(native_module_->num_imported_functions());
-  writer.Write(static_cast<uint32_t>(
-      native_module_->specialization_data_.function_tables.size()));
-  for (size_t i = 0,
-              e = native_module_->specialization_data_.function_tables.size();
-       i < e; ++i) {
-    writer.Write(native_module_->specialization_data_.function_tables[i]);
-  }
 }
 
 size_t NativeModuleSerializer::GetCodeHeaderSize() {
@@ -554,16 +542,6 @@ bool NativeModuleDeserializer::ReadHeader() {
   bool ok = functions == native_module_->FunctionCount() &&
             imports == native_module_->num_imported_functions();
   if (!ok) return false;
-  size_t table_count = reader.Read<uint32_t>();
-
-  std::vector<GlobalHandleAddress> funcs(table_count);
-  for (size_t i = 0; i < table_count; ++i) {
-    funcs[i] = reader.Read<GlobalHandleAddress>();
-  }
-  native_module_->function_tables() = funcs;
-  // resize, so that from here on the native module can be
-  // asked about num_function_tables().
-  native_module_->empty_function_tables().resize(table_count);
 
   unread_ = unread_ + (start_size - reader.current_buffer().size());
   return true;

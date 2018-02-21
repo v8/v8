@@ -968,6 +968,9 @@ class CodeMap {
   // This handle is set and reset by the SetInstanceObject() /
   // ClearInstanceObject() method, which is used by the HeapObjectsScope.
   Handle<WasmInstanceObject> instance_;
+  // TODO(wasm): Remove this testing wart. It is needed because interpreter
+  // entry stubs are not generated in testing the interpreter in cctests.
+  bool call_indirect_through_module_ = false;
 
  public:
   CodeMap(Isolate* isolate, const WasmModule* module,
@@ -984,6 +987,12 @@ class CodeMap {
                     module_start + function.code.end_offset());
       }
     }
+  }
+
+  bool call_indirect_through_module() { return call_indirect_through_module_; }
+
+  void set_call_indirect_through_module(bool val) {
+    call_indirect_through_module_ = val;
   }
 
   void SetInstanceObject(Handle<WasmInstanceObject> instance) {
@@ -2553,7 +2562,8 @@ class ThreadImpl {
     }
     if (code->kind() == wasm::WasmCode::kWasmToJsWrapper) {
       return CallExternalJSFunction(isolate, WasmCodeWrapper(code), signature);
-    } else if (code->kind() == wasm::WasmCode::kWasmToWasmWrapper) {
+    } else if (code->kind() == wasm::WasmCode::kWasmToWasmWrapper ||
+               code->kind() == wasm::WasmCode::kInterpreterStub) {
       return CallExternalWasmFunction(isolate, WasmCodeWrapper(code),
                                       signature);
     }
@@ -2582,23 +2592,8 @@ class ThreadImpl {
   ExternalCallResult CallIndirectFunction(uint32_t table_index,
                                           uint32_t entry_index,
                                           uint32_t sig_index) {
-    bool no_func_tables = !codemap()->has_instance();
-    if (FLAG_wasm_jit_to_native) {
-      no_func_tables = no_func_tables || codemap()
-                                             ->instance()
-                                             ->compiled_module()
-                                             ->GetNativeModule()
-                                             ->function_tables()
-                                             .empty();
-    } else {
-      no_func_tables =
-          no_func_tables ||
-          !codemap()->instance()->compiled_module()->has_function_tables();
-    }
-    if (no_func_tables) {
-      // No instance. Rely on the information stored in the WasmModule.
-      // TODO(wasm): This is only needed for testing. Refactor testing to use
-      // the same paths as production.
+    if (codemap()->call_indirect_through_module()) {
+      // Rely on the information stored in the WasmModule.
       InterpreterCode* code =
           codemap()->GetIndirectCode(table_index, entry_index);
       if (!code) return {ExternalCallResult::INVALID_FUNC};
@@ -2632,7 +2627,7 @@ class ThreadImpl {
       DCHECK_EQ(canonical_sig_index,
                 module()->signature_map.Find(module()->signatures[sig_index]));
 
-      if (!FLAG_wasm_jit_to_native) {
+      if (!WASM_CONTEXT_TABLES) {
         // Check signature.
         FixedArray* fun_tables = compiled_module->function_tables();
         if (table_index >= static_cast<uint32_t>(fun_tables->length())) {
@@ -2659,33 +2654,23 @@ class ThreadImpl {
         target_gc = Code::cast(fun_table->get(
             compiler::FunctionTableCodeOffset(static_cast<int>(entry_index))));
       } else {
-        // Check signature.
-        std::vector<GlobalHandleAddress>& fun_tables =
-            compiled_module->GetNativeModule()->function_tables();
-        if (table_index >= fun_tables.size()) {
+        // The function table is stored in the wasm context.
+        // TODO(wasm): the wasm interpreter currently supports only one table.
+        CHECK_EQ(0, table_index);
+        // Bounds check against table size.
+        if (entry_index >= wasm_context_->table_size) {
           return {ExternalCallResult::INVALID_FUNC};
         }
-        // Reconstitute the global handle to the function table, from the
-        // address stored in the respective table of tables.
-        FixedArray* fun_table =
-            *reinterpret_cast<FixedArray**>(fun_tables[table_index]);
-        // Function tables store <smi, code> pairs.
-        int num_funcs_in_table =
-            fun_table->length() / compiler::kFunctionTableEntrySize;
-        if (entry_index >= static_cast<uint32_t>(num_funcs_in_table)) {
-          return {ExternalCallResult::INVALID_FUNC};
-        }
-        int found_sig = Smi::ToInt(fun_table->get(
-            compiler::FunctionTableSigOffset(static_cast<int>(entry_index))));
-        if (static_cast<uint32_t>(found_sig) != canonical_sig_index) {
+        // Signature check.
+        int32_t entry_sig = wasm_context_->table[entry_index].sig_id;
+        if (entry_sig != static_cast<int32_t>(canonical_sig_index)) {
           return {ExternalCallResult::SIGNATURE_MISMATCH};
         }
-
+        // Load the target address (first instruction of code).
+        Address first_instr = wasm_context_->table[entry_index].target;
+        // TODO(titzer): load the wasm context instead of relying on the
+        // target code being specialized to the target instance.
         // Get code object.
-        Address first_instr =
-            Foreign::cast(fun_table->get(compiler::FunctionTableCodeOffset(
-                              static_cast<int>(entry_index))))
-                ->foreign_address();
         target =
             isolate->wasm_engine()->code_manager()->GetCodeFromStartAddress(
                 first_instr);
@@ -2976,6 +2961,10 @@ void WasmInterpreter::SetFunctionCodeForTesting(const WasmFunction* function,
                                                 const byte* start,
                                                 const byte* end) {
   internals_->codemap_.SetFunctionCode(function, start, end);
+}
+
+void WasmInterpreter::SetCallIndirectTestMode() {
+  internals_->codemap_.set_call_indirect_through_module(true);
 }
 
 ControlTransferMap WasmInterpreter::ComputeControlTransfersForTesting(

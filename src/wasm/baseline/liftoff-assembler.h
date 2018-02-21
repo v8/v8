@@ -310,7 +310,8 @@ class LiftoffAssembler : public TurboAssembler {
   // TODO(clemensh): Remove {max_used_spill_slot} once we support arbitrary
   // stack sizes.
   void PrepareCall(wasm::FunctionSig*, compiler::CallDescriptor*,
-                   uint32_t* max_used_spill_slot, Register* target = nullptr);
+                   uint32_t* max_used_spill_slot, Register* target = nullptr,
+                   LiftoffRegister* explicit_context = nullptr);
   // Process return values of the call.
   void FinishCall(wasm::FunctionSig*, compiler::CallDescriptor*);
 

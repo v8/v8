@@ -372,7 +372,8 @@ class WasmGraphBuilder {
   Node* ToJS(Node* node, wasm::ValueType type);
   Node* FromJS(Node* node, Node* js_context, wasm::ValueType type);
   Node* Invert(Node* node);
-  void EnsureFunctionTableNodes();
+  void GetFunctionTableNodes(uint32_t table_index, Node** table,
+                             Node** table_size);
 
   //-----------------------------------------------------------------------
   // Operations that concern the linear memory.
@@ -506,7 +507,8 @@ class WasmGraphBuilder {
   template <typename... Args>
   Node* BuildCCall(MachineSignature* sig, Node* function, Args... args);
   Node* BuildWasmCall(wasm::FunctionSig* sig, Node** args, Node*** rets,
-                      wasm::WasmCodePosition position);
+                      wasm::WasmCodePosition position,
+                      Node* wasm_context = nullptr);
 
   Node* BuildF32CopySign(Node* left, Node* right);
   Node* BuildF64CopySign(Node* left, Node* right);

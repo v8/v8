@@ -681,7 +681,9 @@ wasm::WasmInterpreter* WasmDebugInfo::SetupForTesting(
   auto interp_handle =
       Managed<wasm::InterpreterHandle>::Allocate(isolate, isolate, *debug_info);
   debug_info->set(kInterpreterHandleIndex, *interp_handle);
-  return interp_handle->get()->interpreter();
+  auto ret = interp_handle->get()->interpreter();
+  ret->SetCallIndirectTestMode();
+  return ret;
 }
 
 bool WasmDebugInfo::IsWasmDebugInfo(Object* object) {

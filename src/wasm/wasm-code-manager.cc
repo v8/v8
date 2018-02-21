@@ -950,7 +950,6 @@ std::unique_ptr<NativeModule> NativeModule::Clone() {
         UNREACHABLE();
     }
   }
-  ret->specialization_data_ = specialization_data_;
   return ret;
 }
 
@@ -1021,14 +1020,14 @@ intptr_t WasmCodeManager::remaining_uncommitted() const {
 NativeModuleModificationScope::NativeModuleModificationScope(
     NativeModule* native_module)
     : native_module_(native_module) {
-  if (native_module_) {
+  if (native_module_ && (native_module_->modification_scope_depth_++) == 0) {
     bool success = native_module_->SetExecutable(false);
     CHECK(success);
   }
 }
 
 NativeModuleModificationScope::~NativeModuleModificationScope() {
-  if (native_module_) {
+  if (native_module_ && (native_module_->modification_scope_depth_--) == 1) {
     bool success = native_module_->SetExecutable(true);
     CHECK(success);
   }
