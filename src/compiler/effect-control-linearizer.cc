@@ -1492,8 +1492,8 @@ Node* EffectControlLinearizer::LowerCheckString(Node* node, Node* frame_state) {
 
   Node* check = __ Uint32LessThan(value_instance_type,
                                   __ Uint32Constant(FIRST_NONSTRING_TYPE));
-  __ DeoptimizeIfNot(DeoptimizeReason::kWrongInstanceType, params.feedback(),
-                     check, frame_state);
+  __ DeoptimizeIfNot(DeoptimizeReason::kNotAString, params.feedback(), check,
+                     frame_state);
   return value;
 }
 
