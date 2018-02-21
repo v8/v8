@@ -1228,6 +1228,56 @@ void Scanner::ScanDecimalDigits() {
     AddLiteralCharAdvance();
 }
 
+bool Scanner::ScanBinaryDigits() {
+  // we must have at least one binary digit after 'b'/'B'
+  if (!IsBinaryDigit(c0_)) return false;
+  while (IsBinaryDigit(c0_)) {
+    AddLiteralCharAdvance();
+  }
+  return true;
+}
+
+bool Scanner::ScanOctalDigits() {
+  // we must have at least one octal digit after 'o'/'O'
+  if (!IsOctalDigit(c0_)) return false;
+  while (IsOctalDigit(c0_)) {
+    AddLiteralCharAdvance();
+  }
+
+  return true;
+}
+
+bool Scanner::ScanImplicitOctalDigits(int start_pos) {
+  // (possible) octal number
+  while (true) {
+    if (c0_ == '8' || c0_ == '9') return false;
+    if (c0_ < '0' || '7' < c0_) {
+      // Octal literal finished.
+      octal_pos_ = Location(start_pos, source_pos());
+      octal_message_ = MessageTemplate::kStrictOctalLiteral;
+      break;
+    }
+    AddLiteralCharAdvance();
+  }
+  return true;
+}
+
+bool Scanner::ScanHexDigits() {
+  // we must have at least one hex digit after 'x'/'X'
+  if (!IsHexDigit(c0_)) return false;
+  while (IsHexDigit(c0_)) {
+    AddLiteralCharAdvance();
+  }
+  return true;
+}
+
+bool Scanner::ScanSignedInteger() {
+  if (c0_ == '+' || c0_ == '-') AddLiteralCharAdvance();
+  // we must have at least one decimal digit after 'e'/'E'
+  if (!IsDecimalDigit(c0_)) return false;
+  ScanDecimalDigits();
+  return true;
+}
 
 Token::Value Scanner::ScanNumber(bool seen_period) {
   DCHECK(IsDecimalDigit(c0_));  // the first digit of the number or the fraction
@@ -1257,52 +1307,22 @@ Token::Value Scanner::ScanNumber(bool seen_period) {
       // either 0, 0exxx, 0Exxx, 0.xxx, a hex number, a binary number or
       // an octal number.
       if (c0_ == 'x' || c0_ == 'X') {
-        // hex number
+        AddLiteralCharAdvance();
         kind = HEX;
-        AddLiteralCharAdvance();
-        if (!IsHexDigit(c0_)) {
-          // we must have at least one hex digit after 'x'/'X'
-          return Token::ILLEGAL;
-        }
-        while (IsHexDigit(c0_)) {
-          AddLiteralCharAdvance();
-        }
+        if (!ScanHexDigits()) return Token::ILLEGAL;
       } else if (c0_ == 'o' || c0_ == 'O') {
+        AddLiteralCharAdvance();
         kind = OCTAL;
-        AddLiteralCharAdvance();
-        if (!IsOctalDigit(c0_)) {
-          // we must have at least one octal digit after 'o'/'O'
-          return Token::ILLEGAL;
-        }
-        while (IsOctalDigit(c0_)) {
-          AddLiteralCharAdvance();
-        }
+        if (!ScanOctalDigits()) return Token::ILLEGAL;
       } else if (c0_ == 'b' || c0_ == 'B') {
-        kind = BINARY;
         AddLiteralCharAdvance();
-        if (!IsBinaryDigit(c0_)) {
-          // we must have at least one binary digit after 'b'/'B'
-          return Token::ILLEGAL;
-        }
-        while (IsBinaryDigit(c0_)) {
-          AddLiteralCharAdvance();
-        }
+        kind = BINARY;
+        if (!ScanBinaryDigits()) return Token::ILLEGAL;
       } else if ('0' <= c0_ && c0_ <= '7') {
-        // (possible) octal number
         kind = IMPLICIT_OCTAL;
-        while (true) {
-          if (c0_ == '8' || c0_ == '9') {
-            at_start = false;
-            kind = DECIMAL_WITH_LEADING_ZERO;
-            break;
-          }
-          if (c0_  < '0' || '7'  < c0_) {
-            // Octal literal finished.
-            octal_pos_ = Location(start_pos, source_pos());
-            octal_message_ = MessageTemplate::kStrictOctalLiteral;
-            break;
-          }
-          AddLiteralCharAdvance();
+        if (!ScanImplicitOctalDigits(start_pos)) {
+          kind = DECIMAL_WITH_LEADING_ZERO;
+          at_start = false;
         }
       } else if (c0_ == '8' || c0_ == '9') {
         kind = DECIMAL_WITH_LEADING_ZERO;
@@ -1311,6 +1331,7 @@ Token::Value Scanner::ScanNumber(bool seen_period) {
 
     // Parse decimal digits and allow trailing fractional part.
     if (kind == DECIMAL || kind == DECIMAL_WITH_LEADING_ZERO) {
+      // This is an optimization for parsing Decimal numbers as Smi's.
       if (at_start) {
         uint64_t value = 0;
         while (IsDecimalDigit(c0_)) {
@@ -1365,17 +1386,14 @@ Token::Value Scanner::ScanNumber(bool seen_period) {
   } else if (c0_ == 'e' || c0_ == 'E') {
     // scan exponent, if any
     DCHECK(kind != HEX);  // 'e'/'E' must be scanned as part of the hex number
+
     if (!(kind == DECIMAL || kind == DECIMAL_WITH_LEADING_ZERO))
       return Token::ILLEGAL;
+
     // scan exponent
     AddLiteralCharAdvance();
-    if (c0_ == '+' || c0_ == '-')
-      AddLiteralCharAdvance();
-    if (!IsDecimalDigit(c0_)) {
-      // we must have at least one decimal digit after 'e'/'E'
-      return Token::ILLEGAL;
-    }
-    ScanDecimalDigits();
+
+    if (!ScanSignedInteger()) return Token::ILLEGAL;
   }
 
   // The source character immediately following a numeric literal must
@@ -1556,6 +1574,9 @@ static Token::Value KeywordOrIdentifierToken(const uint8_t* input,
       KEYWORDS(KEYWORD_GROUP_CASE, KEYWORD)
   }
   return Token::IDENTIFIER;
+#undef KEYWORDS
+#undef KEYWORD
+#undef KEYWORD_GROUP_CASE
 }
 
 Token::Value Scanner::ScanIdentifierOrKeyword() {
