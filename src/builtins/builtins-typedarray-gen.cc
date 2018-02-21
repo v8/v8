@@ -138,7 +138,7 @@ TF_BUILTIN(TypedArrayInitialize, TypedArrayBuiltinsAssembler) {
   Label setup_holder(this), allocate_on_heap(this), aligned(this),
       allocate_elements(this), allocate_off_heap(this),
       allocate_off_heap_no_init(this), attach_buffer(this), done(this);
-  VARIABLE(var_total_size, MachineType::PointerRepresentation());
+  TVARIABLE(IntPtrT, var_total_size);
 
   // SmiMul returns a heap number in case of Smi overflow.
   TNode<Number> byte_length = SmiMul(length, element_size);
@@ -201,17 +201,18 @@ TF_BUILTIN(TypedArrayInitialize, TypedArrayBuiltinsAssembler) {
 
     // Fix alignment if needed.
     DCHECK_EQ(0, FixedTypedArrayBase::kHeaderSize & kObjectAlignmentMask);
-    Node* aligned_header_size =
+    TNode<IntPtrT> aligned_header_size =
         IntPtrConstant(FixedTypedArrayBase::kHeaderSize + kObjectAlignmentMask);
-    Node* size = IntPtrAdd(word_byte_length, aligned_header_size);
-    var_total_size.Bind(WordAnd(size, IntPtrConstant(~kObjectAlignmentMask)));
+    TNode<IntPtrT> size = IntPtrAdd(word_byte_length, aligned_header_size);
+    var_total_size = WordAnd(size, IntPtrConstant(~kObjectAlignmentMask));
     Goto(&allocate_elements);
   }
 
   BIND(&aligned);
   {
-    Node* header_size = IntPtrConstant(FixedTypedArrayBase::kHeaderSize);
-    var_total_size.Bind(IntPtrAdd(word_byte_length, header_size));
+    TNode<IntPtrT> header_size =
+        IntPtrConstant(FixedTypedArrayBase::kHeaderSize);
+    var_total_size = IntPtrAdd(word_byte_length, header_size);
     Goto(&allocate_elements);
   }
 
