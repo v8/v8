@@ -169,9 +169,6 @@ var isInterpreted;
 // Returns true if given function is optimized.
 var isOptimized;
 
-// Returns true if given function is compiled by Crankshaft.
-var isCrankshafted;
-
 // Returns true if given function is compiled by TurboFan.
 var isTurboFanned;
 
@@ -668,14 +665,6 @@ var failWithMessage;
     assertTrue((opt_status & V8OptimizationStatus.kIsFunction) !== 0,
                "not a function");
     return (opt_status & V8OptimizationStatus.kOptimized) !== 0;
-  }
-
-  isCrankshafted = function isCrankshafted(fun) {
-    var opt_status = OptimizationStatus(fun, "");
-    assertTrue((opt_status & V8OptimizationStatus.kIsFunction) !== 0,
-               "not a function");
-    return (opt_status & V8OptimizationStatus.kOptimized) !== 0 &&
-           (opt_status & V8OptimizationStatus.kTurboFanned) === 0;
   }
 
   isTurboFanned = function isTurboFanned(fun) {
