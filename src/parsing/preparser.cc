@@ -49,6 +49,8 @@ PreParserIdentifier GetSymbolHelper(Scanner* scanner) {
       return PreParserIdentifier::Await();
     case Token::ASYNC:
       return PreParserIdentifier::Async();
+    case Token::PRIVATE_NAME:
+      return PreParserIdentifier::PrivateName();
     default:
       break;
   }

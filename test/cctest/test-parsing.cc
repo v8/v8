@@ -4940,6 +4940,14 @@ TEST(PrivateClassFieldsErrors) {
     "#a = f(arguments)",
     "#a = () => () => arguments",
 
+    "foo() { delete this.#a }",
+    "foo() { delete this.x.#a }",
+    "foo() { delete this.x().#a }",
+
+    "foo() { delete f.#a }",
+    "foo() { delete f.x.#a }",
+    "foo() { delete f.x().#a }",
+
     // ASI requires a linebreak
     "#a b",
     "#a = 0 b",

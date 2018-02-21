@@ -3234,10 +3234,16 @@ typename ParserBase<Impl>::ExpressionT ParserBase<Impl>::ParseUnaryExpression(
     ExpressionT expression = ParseUnaryExpression(CHECK_OK);
     ValidateExpression(CHECK_OK);
 
-    if (op == Token::DELETE && is_strict(language_mode())) {
-      if (impl()->IsIdentifier(expression)) {
+    if (op == Token::DELETE) {
+      if (impl()->IsIdentifier(expression) && is_strict(language_mode())) {
         // "delete identifier" is a syntax error in strict mode.
         ReportMessage(MessageTemplate::kStrictDelete);
+        *ok = false;
+        return impl()->NullExpression();
+      }
+
+      if (impl()->IsPropertyWithPrivateFieldKey(expression)) {
+        ReportMessage(MessageTemplate::kDeletePrivateField);
         *ok = false;
         return impl()->NullExpression();
       }

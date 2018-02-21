@@ -3316,6 +3316,15 @@ void Parser::CheckConflictingVarDeclarations(Scope* scope, bool* ok) {
   }
 }
 
+bool Parser::IsPropertyWithPrivateFieldKey(Expression* expression) {
+  if (!expression->IsProperty()) return false;
+  Property* property = expression->AsProperty();
+
+  if (!property->key()->IsVariableProxy()) return false;
+  VariableProxy* key = property->key()->AsVariableProxy();
+
+  return key->is_private_field();
+}
 
 void Parser::InsertShadowingVarBindingInitializers(Block* inner_block) {
   // For each var-binding that shadows a parameter, insert an assignment

@@ -51,6 +51,9 @@ class PreParserIdentifier {
   static PreParserIdentifier Name() {
     return PreParserIdentifier(kNameIdentifier);
   }
+  static PreParserIdentifier PrivateName() {
+    return PreParserIdentifier(kPrivateNameIdentifier);
+  }
   bool IsNull() const { return type_ == kNullIdentifier; }
   bool IsEval() const { return type_ == kEvalIdentifier; }
   bool IsArguments() const { return type_ == kArgumentsIdentifier; }
@@ -58,6 +61,7 @@ class PreParserIdentifier {
   bool IsConstructor() const { return type_ == kConstructorIdentifier; }
   bool IsAwait() const { return type_ == kAwaitIdentifier; }
   bool IsName() const { return type_ == kNameIdentifier; }
+  bool IsPrivateName() const { return type_ == kPrivateNameIdentifier; }
 
  private:
   enum Type {
@@ -68,7 +72,8 @@ class PreParserIdentifier {
     kConstructorIdentifier,
     kAwaitIdentifier,
     kAsyncIdentifier,
-    kNameIdentifier
+    kNameIdentifier,
+    kPrivateNameIdentifier
   };
 
   explicit PreParserIdentifier(Type type) : type_(type), string_(nullptr) {}
@@ -169,6 +174,12 @@ class PreParserExpression {
                                variables);
   }
 
+  static PreParserExpression ThisPropertyWithPrivateFieldKey() {
+    return PreParserExpression(TypeField::encode(kExpression) |
+                               ExpressionTypeField::encode(
+                                   kThisPropertyExpressionWithPrivateFieldKey));
+  }
+
   static PreParserExpression ThisProperty() {
     return PreParserExpression(
         TypeField::encode(kExpression) |
@@ -179,6 +190,12 @@ class PreParserExpression {
     return PreParserExpression(
         TypeField::encode(kExpression) |
         ExpressionTypeField::encode(kPropertyExpression));
+  }
+
+  static PreParserExpression PropertyWithPrivateFieldKey() {
+    return PreParserExpression(
+        TypeField::encode(kExpression) |
+        ExpressionTypeField::encode(kPropertyExpressionWithPrivateFieldKey));
   }
 
   static PreParserExpression Call() {
@@ -254,13 +271,27 @@ class PreParserExpression {
 
   bool IsThisProperty() const {
     return TypeField::decode(code_) == kExpression &&
-           ExpressionTypeField::decode(code_) == kThisPropertyExpression;
+           (ExpressionTypeField::decode(code_) == kThisPropertyExpression ||
+            ExpressionTypeField::decode(code_) ==
+                kThisPropertyExpressionWithPrivateFieldKey);
   }
 
   bool IsProperty() const {
     return TypeField::decode(code_) == kExpression &&
            (ExpressionTypeField::decode(code_) == kPropertyExpression ||
-            ExpressionTypeField::decode(code_) == kThisPropertyExpression);
+            ExpressionTypeField::decode(code_) == kThisPropertyExpression ||
+            ExpressionTypeField::decode(code_) ==
+                kPropertyExpressionWithPrivateFieldKey ||
+            ExpressionTypeField::decode(code_) ==
+                kThisPropertyExpressionWithPrivateFieldKey);
+  }
+
+  bool IsPropertyWithPrivateFieldKey() const {
+    return TypeField::decode(code_) == kExpression &&
+           (ExpressionTypeField::decode(code_) ==
+                kPropertyExpressionWithPrivateFieldKey ||
+            ExpressionTypeField::decode(code_) ==
+                kThisPropertyExpressionWithPrivateFieldKey);
   }
 
   bool IsCall() const {
@@ -301,6 +332,7 @@ class PreParserExpression {
   void set_is_private_field() {
     if (variables_ != nullptr) {
       DCHECK(IsIdentifier());
+      DCHECK(AsIdentifier().IsPrivateName());
       DCHECK_EQ(1, variables_->length());
       variables_->first()->set_is_private_field();
     }
@@ -328,7 +360,9 @@ class PreParserExpression {
   enum ExpressionType {
     kThisExpression,
     kThisPropertyExpression,
+    kThisPropertyExpressionWithPrivateFieldKey,
     kPropertyExpression,
+    kPropertyExpressionWithPrivateFieldKey,
     kCallExpression,
     kCallEvalExpression,
     kCallTaggedTemplateExpression,
@@ -589,8 +623,16 @@ class PreParserFactory {
   PreParserExpression NewVariableProxy(void* variable) {
     return PreParserExpression::Default();
   }
+
   PreParserExpression NewProperty(const PreParserExpression& obj,
                                   const PreParserExpression& key, int pos) {
+    if (key.IsIdentifier() && key.AsIdentifier().IsPrivateName()) {
+      if (obj.IsThis()) {
+        return PreParserExpression::ThisPropertyWithPrivateFieldKey();
+      }
+      return PreParserExpression::PropertyWithPrivateFieldKey();
+    }
+
     if (obj.IsThis()) {
       return PreParserExpression::ThisProperty();
     }
@@ -992,6 +1034,10 @@ class PreParser : public ParserBase<PreParser> {
   V8_INLINE PreParserExpression CloseTemplateLiteral(
       TemplateLiteralState* state, int start, const PreParserExpression& tag) {
     return PreParserExpression::Default();
+  }
+  V8_INLINE bool IsPropertyWithPrivateFieldKey(
+      const PreParserExpression& expression) {
+    return expression.IsPropertyWithPrivateFieldKey();
   }
   V8_INLINE void CheckConflictingVarDeclarations(Scope* scope, bool* ok) {}
 

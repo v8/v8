@@ -401,6 +401,8 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
   // hoisted over such a scope.
   void CheckConflictingVarDeclarations(Scope* scope, bool* ok);
 
+  bool IsPropertyWithPrivateFieldKey(Expression* property);
+
   // Insert initializer statements for var-bindings shadowing parameter bindings
   // from a non-simple parameter list.
   void InsertShadowingVarBindingInitializers(Block* block);

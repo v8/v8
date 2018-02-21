@@ -259,6 +259,7 @@ class ErrorUtils : public AllStatic {
   T(Debugger, "Debugger: %")                                                   \
   T(DebuggerLoading, "Error loading debugger")                                 \
   T(DefaultOptionsMissing, "Internal % error. Default options are missing.")   \
+  T(DeletePrivateField, "Private fields can not be deleted")                   \
   T(UncaughtException, "Uncaught %")                                           \
   T(Unsupported, "Not supported")                                              \
   T(WrongServiceType, "Internal error, wrong service type: %")                 \
