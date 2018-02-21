@@ -635,7 +635,10 @@
   'shared-function-tier-up-turbo': [SKIP],
 
   # Fails deopt_fuzzer due to --deopt_every_n_times
-  'es6/array-iterator-turbo': [SKIP]
+  'es6/array-iterator-turbo': [SKIP],
+
+  # BUG(v8:7466).
+  'compiler/promise-constructor': [SKIP],
 }],  # 'deopt_fuzzer == True'
 
 ##############################################################################
