@@ -6644,12 +6644,11 @@ bool Heap::AllowedToBeMigrated(HeapObject* obj, AllocationSpace dst) {
   AllocationSpace src = chunk->owner()->identity();
   switch (src) {
     case NEW_SPACE:
-      return dst == src || dst == OLD_SPACE;
+      return dst == NEW_SPACE || dst == OLD_SPACE;
     case OLD_SPACE:
-      return dst == src &&
-             (dst == OLD_SPACE || obj->IsFiller() || obj->IsExternalString());
+      return dst == OLD_SPACE;
     case CODE_SPACE:
-      return dst == src && type == CODE_TYPE;
+      return dst == CODE_SPACE && type == CODE_TYPE;
     case MAP_SPACE:
     case LO_SPACE:
       return false;
