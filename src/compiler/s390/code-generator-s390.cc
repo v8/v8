@@ -260,28 +260,28 @@ Condition FlagsConditionToCondition(FlagsCondition condition, ArchOpcode op) {
       // unsigned number never less than 0
       if (op == kS390_LoadAndTestWord32 || op == kS390_LoadAndTestWord64)
         return CC_NOP;
-    // fall through
+    V8_FALLTHROUGH;
     case kSignedLessThan:
       return lt;
     case kUnsignedGreaterThanOrEqual:
       // unsigned number always greater than or equal 0
       if (op == kS390_LoadAndTestWord32 || op == kS390_LoadAndTestWord64)
         return CC_ALWAYS;
-    // fall through
+    V8_FALLTHROUGH;
     case kSignedGreaterThanOrEqual:
       return ge;
     case kUnsignedLessThanOrEqual:
       // unsigned number never less than 0
       if (op == kS390_LoadAndTestWord32 || op == kS390_LoadAndTestWord64)
         return CC_EQ;
-    // fall through
+    V8_FALLTHROUGH;
     case kSignedLessThanOrEqual:
       return le;
     case kUnsignedGreaterThan:
       // unsigned number always greater than or equal 0
       if (op == kS390_LoadAndTestWord32 || op == kS390_LoadAndTestWord64)
         return ne;
-    // fall through
+    V8_FALLTHROUGH;
     case kSignedGreaterThan:
       return gt;
     case kOverflow:
