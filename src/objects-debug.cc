@@ -307,6 +307,7 @@ void Symbol::SymbolVerify() {
   CHECK(HasHashCode());
   CHECK_GT(Hash(), 0);
   CHECK(name()->IsUndefined(GetIsolate()) || name()->IsString());
+  CHECK_IMPLIES(IsPrivateField(), IsPrivate());
 }
 
 

@@ -1994,6 +1994,9 @@ void AccessorAssembler::GenericPropertyLoad(Node* receiver, Node* receiver_map,
     // TODO(jkummerow): Consider supporting JSModuleNamespace.
     GotoIfNot(InstanceTypeEqual(instance_type, JS_PROXY_TYPE), slow);
 
+    // Private field/symbol lookup is not supported.
+    GotoIf(IsPrivateSymbol(p->name), slow);
+
     direct_exit.ReturnCallStub(
         Builtins::CallableFor(isolate(), Builtins::kProxyGetProperty),
         p->context, receiver /*holder is the same as receiver*/, p->name,

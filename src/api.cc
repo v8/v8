@@ -4356,7 +4356,7 @@ Maybe<bool> v8::Object::SetPrivate(Local<Context> context, Local<Private> key,
     desc.set_enumerable(false);
     desc.set_configurable(true);
     desc.set_value(value_obj);
-    return i::JSProxy::SetPrivateProperty(
+    return i::JSProxy::SetPrivateSymbol(
         isolate, i::Handle<i::JSProxy>::cast(self),
         i::Handle<i::Symbol>::cast(key_obj), &desc, i::kDontThrow);
   }

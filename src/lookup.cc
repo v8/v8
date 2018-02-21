@@ -320,35 +320,41 @@ void LookupIterator::PrepareForDataProperty(Handle<Object> value) {
   DCHECK(state_ == DATA || state_ == ACCESSOR);
   DCHECK(HolderIsReceiverOrHiddenPrototype());
 
-  Handle<JSObject> holder = GetHolder<JSObject>();
+  Handle<JSReceiver> holder = GetHolder<JSReceiver>();
+  // JSProxy does not have fast properties so we do an early return.
+  DCHECK_IMPLIES(holder->IsJSProxy(), !holder->HasFastProperties());
+  DCHECK_IMPLIES(holder->IsJSProxy(), name()->IsPrivate());
+  if (holder->IsJSProxy()) return;
+
+  Handle<JSObject> holder_obj = Handle<JSObject>::cast(holder);
 
   if (IsElement()) {
-    ElementsKind kind = holder->GetElementsKind();
+    ElementsKind kind = holder_obj->GetElementsKind();
     ElementsKind to = value->OptimalElementsKind();
     if (IsHoleyOrDictionaryElementsKind(kind)) to = GetHoleyElementsKind(to);
     to = GetMoreGeneralElementsKind(kind, to);
 
     if (kind != to) {
-      JSObject::TransitionElementsKind(holder, to);
+      JSObject::TransitionElementsKind(holder_obj, to);
     }
 
     // Copy the backing store if it is copy-on-write.
     if (IsSmiOrObjectElementsKind(to)) {
-      JSObject::EnsureWritableFastElements(holder);
+      JSObject::EnsureWritableFastElements(holder_obj);
     }
     return;
   }
 
-  if (holder->IsJSGlobalObject()) {
+  if (holder_obj->IsJSGlobalObject()) {
     Handle<GlobalDictionary> dictionary(
-        JSGlobalObject::cast(*holder)->global_dictionary());
+        JSGlobalObject::cast(*holder_obj)->global_dictionary());
     Handle<PropertyCell> cell(dictionary->CellAt(dictionary_entry()));
     property_details_ = cell->property_details();
     PropertyCell::PrepareForValue(dictionary, dictionary_entry(), value,
                                   property_details_);
     return;
   }
-  if (!holder->HasFastProperties()) return;
+  if (!holder_obj->HasFastProperties()) return;
 
   PropertyConstness new_constness = kConst;
   if (FLAG_track_constant_fields) {
@@ -362,7 +368,7 @@ void LookupIterator::PrepareForDataProperty(Handle<Object> value) {
     new_constness = kMutable;
   }
 
-  Handle<Map> old_map(holder->map(), isolate_);
+  Handle<Map> old_map(holder_obj->map(), isolate_);
   Handle<Map> new_map = Map::PrepareForDataProperty(
       old_map, descriptor_number(), new_constness, value);
 
@@ -375,7 +381,7 @@ void LookupIterator::PrepareForDataProperty(Handle<Object> value) {
     return;
   }
 
-  JSObject::MigrateToMap(holder, new_map);
+  JSObject::MigrateToMap(holder_obj, new_map);
   ReloadPropertyInformation<false>();
 }
 
@@ -384,38 +390,47 @@ void LookupIterator::ReconfigureDataProperty(Handle<Object> value,
                                              PropertyAttributes attributes) {
   DCHECK(state_ == DATA || state_ == ACCESSOR);
   DCHECK(HolderIsReceiverOrHiddenPrototype());
-  Handle<JSObject> holder = GetHolder<JSObject>();
+
+  Handle<JSReceiver> holder = GetHolder<JSReceiver>();
+
+  // Property details can never change for private fields.
+  if (holder->IsJSProxy()) {
+    DCHECK(name()->IsPrivate());
+    return;
+  }
+
+  Handle<JSObject> holder_obj = Handle<JSObject>::cast(holder);
   if (IsElement()) {
-    DCHECK(!holder->HasFixedTypedArrayElements());
-    DCHECK(attributes != NONE || !holder->HasFastElements());
-    Handle<FixedArrayBase> elements(holder->elements());
-    holder->GetElementsAccessor()->Reconfigure(holder, elements, number_, value,
-                                               attributes);
+    DCHECK(!holder_obj->HasFixedTypedArrayElements());
+    DCHECK(attributes != NONE || !holder_obj->HasFastElements());
+    Handle<FixedArrayBase> elements(holder_obj->elements());
+    holder_obj->GetElementsAccessor()->Reconfigure(holder_obj, elements,
+                                                   number_, value, attributes);
     ReloadPropertyInformation<true>();
-  } else if (holder->HasFastProperties()) {
-    Handle<Map> old_map(holder->map(), isolate_);
+  } else if (holder_obj->HasFastProperties()) {
+    Handle<Map> old_map(holder_obj->map(), isolate_);
     Handle<Map> new_map = Map::ReconfigureExistingProperty(
         old_map, descriptor_number(), i::kData, attributes);
     // Force mutable to avoid changing constant value by reconfiguring
     // kData -> kAccessor -> kData.
     new_map = Map::PrepareForDataProperty(new_map, descriptor_number(),
                                           kMutable, value);
-    JSObject::MigrateToMap(holder, new_map);
+    JSObject::MigrateToMap(holder_obj, new_map);
     ReloadPropertyInformation<false>();
   }
 
-  if (!IsElement() && !holder->HasFastProperties()) {
+  if (!IsElement() && !holder_obj->HasFastProperties()) {
     PropertyDetails details(kData, attributes, PropertyCellType::kMutable);
-    if (holder->IsJSGlobalObject()) {
+    if (holder_obj->IsJSGlobalObject()) {
       Handle<GlobalDictionary> dictionary(
-          JSGlobalObject::cast(*holder)->global_dictionary());
+          JSGlobalObject::cast(*holder_obj)->global_dictionary());
 
       Handle<PropertyCell> cell = PropertyCell::PrepareForValue(
           dictionary, dictionary_entry(), value, details);
       cell->set_value(*value);
       property_details_ = cell->property_details();
     } else {
-      Handle<NameDictionary> dictionary(holder->property_dictionary());
+      Handle<NameDictionary> dictionary(holder_obj->property_dictionary());
       PropertyDetails original_details =
           dictionary->DetailsAt(dictionary_entry());
       int enumeration_index = original_details.dictionary_index();
@@ -431,7 +446,7 @@ void LookupIterator::ReconfigureDataProperty(Handle<Object> value,
 
 #if VERIFY_HEAP
   if (FLAG_verify_heap) {
-    holder->JSObjectVerify();
+    holder->HeapObjectVerify();
   }
 #endif
 }
@@ -441,9 +456,10 @@ void LookupIterator::ReconfigureDataProperty(Handle<Object> value,
 // Returns true if a new transition has been created, or false if an existing
 // transition was followed.
 bool LookupIterator::PrepareTransitionToDataProperty(
-    Handle<JSObject> receiver, Handle<Object> value,
+    Handle<JSReceiver> receiver, Handle<Object> value,
     PropertyAttributes attributes, Object::StoreFromKeyed store_mode) {
-  DCHECK(receiver.is_identical_to(GetStoreTarget()));
+  DCHECK_IMPLIES(receiver->IsJSProxy(), name()->IsPrivate());
+  DCHECK(receiver.is_identical_to(GetStoreTarget<JSReceiver>()));
   if (state_ == TRANSITION) return false;
 
   if (!IsElement() && name()->IsPrivate()) {
@@ -511,10 +527,11 @@ bool LookupIterator::PrepareTransitionToDataProperty(
   return created_new_map;
 }
 
-void LookupIterator::ApplyTransitionToDataProperty(Handle<JSObject> receiver) {
+void LookupIterator::ApplyTransitionToDataProperty(
+    Handle<JSReceiver> receiver) {
   DCHECK_EQ(TRANSITION, state_);
 
-  DCHECK(receiver.is_identical_to(GetStoreTarget()));
+  DCHECK(receiver.is_identical_to(GetStoreTarget<JSReceiver>()));
   holder_ = receiver;
   if (receiver->IsJSGlobalObject()) {
     JSObject::InvalidatePrototypeChains(receiver->map());
@@ -523,7 +540,10 @@ void LookupIterator::ApplyTransitionToDataProperty(Handle<JSObject> receiver) {
   }
   Handle<Map> transition = transition_map();
   bool simple_transition = transition->GetBackPointer() == receiver->map();
-  JSObject::MigrateToMap(receiver, transition);
+
+  if (!receiver->IsJSProxy()) {
+    JSObject::MigrateToMap(Handle<JSObject>::cast(receiver), transition);
+  }
 
   if (simple_transition) {
     int number = transition->LastAdded();
@@ -534,7 +554,7 @@ void LookupIterator::ApplyTransitionToDataProperty(Handle<JSObject> receiver) {
     Handle<NameDictionary> dictionary(receiver->property_dictionary(),
                                       isolate_);
     int entry;
-    if (receiver->map()->is_prototype_map()) {
+    if (receiver->map()->is_prototype_map() && receiver->IsJSObject()) {
       JSObject::InvalidatePrototypeChains(receiver->map());
     }
     dictionary = NameDictionary::Add(dictionary, name(),
@@ -560,6 +580,7 @@ void LookupIterator::Delete() {
     ElementsAccessor* accessor = object->GetElementsAccessor();
     accessor->Delete(object, number_);
   } else {
+    DCHECK(!name()->IsPrivateField());
     bool is_prototype_map = holder->map()->is_prototype_map();
     RuntimeCallTimerScope stats_scope(
         isolate_, is_prototype_map
@@ -589,7 +610,7 @@ void LookupIterator::TransitionToAccessorProperty(
   // Can only be called when the receiver is a JSObject. JSProxy has to be
   // handled via a trap. Adding properties to primitive values is not
   // observable.
-  Handle<JSObject> receiver = GetStoreTarget();
+  Handle<JSObject> receiver = GetStoreTarget<JSObject>();
   if (!IsElement() && name()->IsPrivate()) {
     attributes = static_cast<PropertyAttributes>(attributes | DONT_ENUM);
   }
@@ -653,7 +674,7 @@ void LookupIterator::TransitionToAccessorProperty(
 
 void LookupIterator::TransitionToAccessorPair(Handle<Object> pair,
                                               PropertyAttributes attributes) {
-  Handle<JSObject> receiver = GetStoreTarget();
+  Handle<JSObject> receiver = GetStoreTarget<JSObject>();
   holder_ = receiver;
 
   PropertyDetails details(kAccessor, attributes, PropertyCellType::kMutable);
@@ -882,6 +903,7 @@ void LookupIterator::WriteDataValue(Handle<Object> value,
         JSGlobalObject::cast(*holder)->global_dictionary();
     dictionary->CellAt(dictionary_entry())->set_value(*value);
   } else {
+    DCHECK_IMPLIES(holder->IsJSProxy(), name()->IsPrivate());
     NameDictionary* dictionary = holder->property_dictionary();
     dictionary->ValueAtPut(dictionary_entry(), *value);
   }
@@ -1010,6 +1032,7 @@ LookupIterator::State LookupIterator::LookupInRegularHolder(
     number_ = static_cast<uint32_t>(number);
     property_details_ = descriptors->GetDetails(number_);
   } else {
+    DCHECK_IMPLIES(holder->IsJSProxy(), name()->IsPrivate());
     NameDictionary* dict = holder->property_dictionary();
     int number = dict->FindEntry(name_);
     if (number == NameDictionary::kNotFound) return NotFound(holder);

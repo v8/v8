@@ -34,6 +34,14 @@ MaybeHandle<Object> Runtime::GetObjectProperty(Isolate* isolate,
 
   MaybeHandle<Object> result = Object::GetProperty(&it);
   if (is_found_out) *is_found_out = it.IsFound();
+
+  if (!it.IsFound() && key->IsSymbol() &&
+      Symbol::cast(*key)->is_private_field()) {
+    THROW_NEW_ERROR(
+        isolate,
+        NewTypeError(MessageTemplate::kInvalidPrivateFieldAccess, key, object),
+        Object);
+  }
   return result;
 }
 
@@ -389,6 +397,14 @@ MaybeHandle<Object> Runtime::SetObjectProperty(Isolate* isolate,
   LookupIterator it =
       LookupIterator::PropertyOrElement(isolate, object, key, &success);
   if (!success) return MaybeHandle<Object>();
+
+  if (!it.IsFound() && key->IsSymbol() &&
+      Symbol::cast(*key)->is_private_field()) {
+    THROW_NEW_ERROR(
+        isolate,
+        NewTypeError(MessageTemplate::kInvalidPrivateFieldAccess, key, object),
+        Object);
+  }
 
   MAYBE_RETURN_NULL(Object::SetProperty(&it, value, language_mode,
                                         Object::MAY_BE_STORE_FROM_KEYED));
@@ -1257,6 +1273,28 @@ RUNTIME_FUNCTION(Runtime_GetOwnPropertyDescriptor) {
 
   if (!found.FromJust()) return isolate->heap()->undefined_value();
   return *desc.ToPropertyDescriptorObject(isolate);
+}
+
+RUNTIME_FUNCTION(Runtime_AddPrivateField) {
+  HandleScope scope(isolate);
+  DCHECK_EQ(3, args.length());
+  CONVERT_ARG_HANDLE_CHECKED(JSReceiver, o, 0);
+  CONVERT_ARG_HANDLE_CHECKED(Symbol, key, 1);
+  CONVERT_ARG_HANDLE_CHECKED(Object, value, 2);
+  DCHECK(key->is_private_field());
+
+  LookupIterator it =
+      LookupIterator::PropertyOrElement(isolate, o, key, LookupIterator::OWN);
+
+  if (it.IsFound()) {
+    THROW_NEW_ERROR_RETURN_FAILURE(
+        isolate, NewTypeError(MessageTemplate::kVarRedeclaration, key));
+  }
+
+  CHECK(Object::AddDataProperty(&it, value, NONE, kDontThrow,
+                                Object::MAY_BE_STORE_FROM_KEYED)
+            .FromJust());
+  return isolate->heap()->undefined_value();
 }
 
 }  // namespace internal

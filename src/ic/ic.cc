@@ -455,6 +455,19 @@ MaybeHandle<Object> LoadIC::Load(Handle<Object> object, Handle<Name> name) {
   LookupIterator it(object, name);
   LookupForRead(&it);
 
+  if (name->IsPrivate()) {
+    if (name->IsPrivateField() && !it.IsFound()) {
+      return TypeError(MessageTemplate::kInvalidPrivateFieldAccess, object,
+                       name);
+    }
+
+    // IC handling of private symbols/fields lookup on JSProxy is not
+    // supported.
+    if (object->IsJSProxy()) {
+      use_ic = false;
+    }
+  }
+
   if (it.IsFound() || !ShouldThrowReferenceError()) {
     // Update inline cache and stub cache.
     if (use_ic) UpdateCaches(&it);
@@ -1295,7 +1308,7 @@ bool StoreIC::LookupForWrite(LookupIterator* it, Handle<Object> value,
     }
   }
 
-  receiver = it->GetStoreTarget();
+  receiver = it->GetStoreTarget<JSObject>();
   if (it->ExtendingNonExtensible(receiver)) return false;
   created_new_transition_ =
       it->PrepareTransitionToDataProperty(receiver, value, NONE, store_mode);
@@ -1390,7 +1403,23 @@ MaybeHandle<Object> StoreIC::Store(Handle<Object> object, Handle<Name> name,
 
   LookupIterator it = LookupIterator::ForTransitionHandler(
       isolate(), object, name, value, cached_handler, transition_map);
-  if (FLAG_use_ic) UpdateCaches(&it, value, store_mode, cached_handler);
+
+  bool use_ic = FLAG_use_ic;
+
+  if (name->IsPrivate()) {
+    if (name->IsPrivateField() && !it.IsFound()) {
+      return TypeError(MessageTemplate::kInvalidPrivateFieldAccess, object,
+                       name);
+    }
+
+    // IC handling of private fields/symbols stores on JSProxy is not
+    // supported.
+    if (object->IsJSProxy()) {
+      use_ic = false;
+    }
+  }
+
+  if (use_ic) UpdateCaches(&it, value, store_mode, cached_handler);
 
   MAYBE_RETURN_NULL(
       Object::SetProperty(&it, value, language_mode(), store_mode));
@@ -1445,7 +1474,7 @@ Handle<Object> StoreIC::ComputeHandler(LookupIterator* lookup) {
     case LookupIterator::TRANSITION: {
       Handle<JSObject> holder = lookup->GetHolder<JSObject>();
 
-      Handle<JSObject> store_target = lookup->GetStoreTarget();
+      Handle<JSObject> store_target = lookup->GetStoreTarget<JSObject>();
       if (store_target->IsJSGlobalObject()) {
         TRACE_HANDLER_STATS(isolate(), StoreIC_StoreGlobalTransitionDH);
 

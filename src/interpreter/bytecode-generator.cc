@@ -1861,7 +1861,7 @@ void BytecodeGenerator::BuildClassLiteral(ClassLiteral* expr) {
         // initializer function.
         continue;
       } else if (property->kind() == ClassLiteral::Property::PRIVATE_FIELD) {
-        builder()->CallRuntime(Runtime::kCreatePrivateSymbol);
+        builder()->CallRuntime(Runtime::kCreatePrivateFieldSymbol);
         DCHECK_NOT_NULL(property->private_field_name_var());
         BuildVariableAssignment(property->private_field_name_var(), Token::INIT,
                                 HoleCheckMode::kElided);
@@ -1966,7 +1966,11 @@ void BytecodeGenerator::VisitInitializeClassFieldsStatement(
     VisitForRegisterValue(property->value(), value);
     VisitSetHomeObject(value, constructor, property);
 
-    builder()->CallRuntime(Runtime::kCreateDataProperty, args);
+    Runtime::FunctionId function_id =
+        property->kind() == ClassLiteral::Property::PUBLIC_FIELD
+            ? Runtime::kCreateDataProperty
+            : Runtime::kAddPrivateField;
+    builder()->CallRuntime(function_id, args);
   }
 }
 

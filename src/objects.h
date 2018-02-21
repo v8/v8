@@ -4599,10 +4599,10 @@ class JSProxy: public JSReceiver {
   // No weak fields.
   typedef BodyDescriptor BodyDescriptorWeak;
 
-  static Maybe<bool> SetPrivateProperty(Isolate* isolate, Handle<JSProxy> proxy,
-                                        Handle<Symbol> private_name,
-                                        PropertyDescriptor* desc,
-                                        ShouldThrow should_throw);
+  static Maybe<bool> SetPrivateSymbol(Isolate* isolate, Handle<JSProxy> proxy,
+                                      Handle<Symbol> private_name,
+                                      PropertyDescriptor* desc,
+                                      ShouldThrow should_throw);
 
  private:
   DISALLOW_IMPLICIT_CONSTRUCTORS(JSProxy);

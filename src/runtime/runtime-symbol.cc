@@ -35,6 +35,12 @@ RUNTIME_FUNCTION(Runtime_CreatePrivateSymbol) {
   return *symbol;
 }
 
+RUNTIME_FUNCTION(Runtime_CreatePrivateFieldSymbol) {
+  HandleScope scope(isolate);
+  DCHECK_EQ(0, args.length());
+  Handle<Symbol> symbol = isolate->factory()->NewPrivateFieldSymbol();
+  return *symbol;
+}
 
 RUNTIME_FUNCTION(Runtime_SymbolDescription) {
   SealHandleScope shs(isolate);

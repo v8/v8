@@ -433,6 +433,7 @@ namespace internal {
   F(HasInPrototypeChain, 2, 1)                                  \
   F(CreateIterResultObject, 2, 1)                               \
   F(CreateDataProperty, 3, 1)                                   \
+  F(AddPrivateField, 3, 1)                                      \
   F(IterableToListCanBeElided, 1, 1)                            \
   F(GetOwnPropertyDescriptor, 2, 1)
 
@@ -547,6 +548,7 @@ namespace internal {
 #define FOR_EACH_INTRINSIC_SYMBOL(F)       \
   F(CreateSymbol, 1, 1)                    \
   F(CreatePrivateSymbol, -1 /* <= 1 */, 1) \
+  F(CreatePrivateFieldSymbol, 0, 1)        \
   F(SymbolDescription, 1, 1)               \
   F(SymbolDescriptiveString, 1, 1)         \
   F(SymbolIsPrivate, 1, 1)

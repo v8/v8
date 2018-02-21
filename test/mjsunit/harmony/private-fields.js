@@ -8,9 +8,6 @@
 "use strict";
 
 // TODO(gsathya): Missing tests:
-// (a) check private field access on proxies.
-// (b) throw reference error on missing private field access.
-// (c) throw when private fields are set without being declared.
 // (d) tests involving eval
 {
   class C {
@@ -47,17 +44,6 @@
 
   let c = new C;
   assertEquals(1, c.getB());
-}
-
-{
-  class C {
-    #b = this.#a;
-    #a = 1;
-    getB() { return this.#b; }
-  }
-
-  let c = new C;
-  assertEquals(undefined, c.getB());
 }
 
 {
@@ -162,8 +148,18 @@
   assertEquals(undefined, c.a);
   assertEquals(1, c.getA(c));
 
-  //TODO(gsathya): This should be a TypeError.
-  //assertThrows(() => c.getA(new B), TypeError);
+  assertThrows(() => c.getA(new B), TypeError);
+}
+
+{
+  class A {
+    #a = 1;
+    getA() { return this.#a; }
+  }
+
+  class B extends A {}
+  let b = new B;
+  assertEquals(1, b.getA());
 }
 
 {
@@ -285,8 +281,8 @@
   assertEquals(3, a.getA());
   assertEquals(5, b.getA());
 
-  // assertThrows(() => a.getA.call(b), ReferenceError);
-  // assertThrows(() => b.getA.call(a), ReferenceError);
+  assertThrows(() => a.getA.call(b), TypeError);
+  assertThrows(() => b.getA.call(a), TypeError);
 }
 
 {
@@ -323,14 +319,24 @@
   assertEquals(1, b.getA.call(a));
   assertEquals(1, b.get_A(a));
 }
-// {
-//   class C {
-//     b = this.#a;
-//     #a = 1;
-//   }
 
-//   assertThrows(() => new C, ReferenceError);
-// }
+{
+  class C {
+    b = this.#a;
+    #a = 1;
+  }
+
+  assertThrows(() => new C, TypeError);
+}
+
+{
+  class C {
+    #b = this.#a;
+    #a = 1;
+  }
+
+  assertThrows(() => new C, TypeError);
+}
 
 {
   let symbol = Symbol();
@@ -339,6 +345,7 @@
     #a = 1;
     [symbol] = 1;
     getA() { return this.#a; }
+    setA(val) { this.#a = val; }
   }
 
   var p = new Proxy(new C, {
@@ -350,8 +357,63 @@
     }
   });
 
-  //assertThrows(() => p.getA(), ReferenceError);
+  assertThrows(() => p.getA(), TypeError);
+  assertThrows(() => p.setA(1), TypeError);
   assertEquals(1, p[symbol]);
+}
+
+{
+  class C {
+    #b = Object.freeze(this);
+    #a = 1;
+    getA() { return this.#a; }
+  }
+
+  let c = new C;
+  assertEquals(1, c.getA());
+}
+
+{
+  class C {
+    #a = 1;
+    setA(another, val) { another.#a = val; }
+    getA(another) { return another.#a; }
+  }
+
+  let c = new C;
+  assertThrows(() => c.setA({}, 2), TypeError);
+  c.setA(c, 3);
+  assertEquals(3, c.getA(c));
+}
+
+{
+  class A {
+    constructor(arg) {
+      return arg;
+    }
+  }
+
+  class C extends A {
+    #x = 1;
+
+    constructor(arg) {
+      super(arg);
+    }
+
+    getX(arg) {
+      return arg.#x;
+    }
+  }
+
+  let leaker = new Proxy({}, {});
+  let c = new C(leaker);
+  assertEquals(1, C.prototype.getX(leaker));
+  assertSame(c, leaker);
+
+  c = new C();
+  assertThrows(() => new C(c), TypeError);
+
+  new C(1);
 }
 
 {

@@ -994,6 +994,12 @@ Handle<Symbol> Factory::NewPrivateSymbol() {
   return symbol;
 }
 
+Handle<Symbol> Factory::NewPrivateFieldSymbol() {
+  Handle<Symbol> symbol = NewSymbol();
+  symbol->set_is_private_field();
+  return symbol;
+}
+
 Handle<Context> Factory::NewNativeContext() {
   Handle<FixedArray> array =
       NewFixedArray(Context::NATIVE_CONTEXT_SLOTS, TENURED);
