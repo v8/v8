@@ -751,8 +751,10 @@ class TurboAssembler : public Assembler {
     }
   }
 
-  void Move(FPURegister dst, float imm);
-  void Move(FPURegister dst, double imm);
+  void Move(FPURegister dst, float imm) { Move(dst, bit_cast<uint32_t>(imm)); }
+  void Move(FPURegister dst, double imm) { Move(dst, bit_cast<uint64_t>(imm)); }
+  void Move(FPURegister dst, uint32_t src);
+  void Move(FPURegister dst, uint64_t src);
 
   inline void MulBranchOvf(Register dst, Register left, const Operand& right,
                            Label* overflow_label, Register scratch = at) {

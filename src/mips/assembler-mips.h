@@ -1891,8 +1891,6 @@ class Assembler : public AssemblerBase {
     return internal_trampoline_exception_;
   }
 
-  void DoubleAsTwoUInt32(double d, uint32_t* lo, uint32_t* hi);
-
   bool is_trampoline_emitted() const {
     return trampoline_emitted_;
   }

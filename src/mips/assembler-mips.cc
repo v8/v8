@@ -2498,15 +2498,6 @@ void Assembler::cfc1(Register rt, FPUControlRegister fs) {
 }
 
 
-void Assembler::DoubleAsTwoUInt32(double d, uint32_t* lo, uint32_t* hi) {
-  uint64_t i;
-  memcpy(&i, &d, 8);
-
-  *lo = i & 0xFFFFFFFF;
-  *hi = i >> 32;
-}
-
-
 void Assembler::movn_s(FPURegister fd, FPURegister fs, Register rt) {
   DCHECK(!IsMipsArchVariant(kMips32r6));
   GenInstrRegister(COP1, S, rt, fs, fd, MOVN_C);

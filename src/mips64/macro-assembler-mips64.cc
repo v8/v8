@@ -2704,39 +2704,38 @@ void TurboAssembler::FmoveLow(FPURegister dst, Register src_low) {
   mthc1(scratch, dst);
 }
 
-void TurboAssembler::Move(FPURegister dst, float imm) {
+void TurboAssembler::Move(FPURegister dst, uint32_t src) {
   UseScratchRegisterScope temps(this);
   Register scratch = temps.Acquire();
-  li(scratch, Operand(bit_cast<int32_t>(imm)));
+  li(scratch, Operand(static_cast<int32_t>(src)));
   mtc1(scratch, dst);
 }
 
-void TurboAssembler::Move(FPURegister dst, double imm) {
-  int64_t imm_bits = bit_cast<int64_t>(imm);
+void TurboAssembler::Move(FPURegister dst, uint64_t src) {
   // Handle special values first.
-  if (imm_bits == bit_cast<int64_t>(0.0) && has_double_zero_reg_set_) {
+  if (src == bit_cast<uint64_t>(0.0) && has_double_zero_reg_set_) {
     mov_d(dst, kDoubleRegZero);
-  } else if (imm_bits == bit_cast<int64_t>(-0.0) && has_double_zero_reg_set_) {
+  } else if (src == bit_cast<uint64_t>(-0.0) && has_double_zero_reg_set_) {
     Neg_d(dst, kDoubleRegZero);
   } else {
-    uint32_t lo, hi;
-    DoubleAsTwoUInt32(imm, &lo, &hi);
-    // Move the low part of the double into the lower bits of the corresponding
-    // FPU register.
+    uint32_t lo = src & 0xFFFFFFFF;
+    uint32_t hi = src >> 32;
+    // Move the low part of the double into the lower of the corresponding FPU
+    // register of FPU register pair.
     if (lo != 0) {
       UseScratchRegisterScope temps(this);
       Register scratch = temps.Acquire();
-      li(scratch, lo);
+      li(scratch, Operand(lo));
       mtc1(scratch, dst);
     } else {
       mtc1(zero_reg, dst);
     }
-    // Move the high part of the double into the high bits of the corresponding
-    // FPU register.
+    // Move the high part of the double into the higher of the corresponding FPU
+    // register of FPU register pair.
     if (hi != 0) {
       UseScratchRegisterScope temps(this);
       Register scratch = temps.Acquire();
-      li(scratch, hi);
+      li(scratch, Operand(hi));
       mthc1(scratch, dst);
     } else {
       mthc1(zero_reg, dst);

@@ -50,10 +50,10 @@ void LiftoffAssembler::LoadConstant(LiftoffRegister reg, WasmValue value,
       TurboAssembler::li(reg.gp(), Operand(value.to_i64(), rmode));
       break;
     case kWasmF32:
-      TurboAssembler::Move(reg.fp(), value.to_f32_boxed().get_scalar());
+      TurboAssembler::Move(reg.fp(), value.to_f32_boxed().get_bits());
       break;
     case kWasmF64:
-      TurboAssembler::Move(reg.fp(), value.to_f64_boxed().get_scalar());
+      TurboAssembler::Move(reg.fp(), value.to_f64_boxed().get_bits());
       break;
     default:
       UNREACHABLE();
