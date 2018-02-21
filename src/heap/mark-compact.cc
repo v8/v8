@@ -1361,6 +1361,8 @@ class EvacuateVisitorBase : public HeapObjectVisitor {
   static void RawMigrateObject(EvacuateVisitorBase* base, HeapObject* dst,
                                HeapObject* src, int size,
                                AllocationSpace dest) {
+    TRACE_EVENT1(TRACE_DISABLED_BY_DEFAULT("v8.gc"),
+                 "EvacuateVisitorBase::RawMigrateObject", "dest", dest);
     Address dst_addr = dst->address();
     Address src_addr = src->address();
     DCHECK(base->heap_->AllowedToBeMigrated(src, dest));
@@ -1403,6 +1405,9 @@ class EvacuateVisitorBase : public HeapObjectVisitor {
   inline bool TryEvacuateObject(AllocationSpace target_space,
                                 HeapObject* object, int size,
                                 HeapObject** target_object) {
+    TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.gc"),
+                 "EvacuateVisitorBase::TryEvacuateObject");
+
 #ifdef VERIFY_HEAP
     if (AbortCompactionForTesting(object)) return false;
 #endif  // VERIFY_HEAP
@@ -1418,6 +1423,8 @@ class EvacuateVisitorBase : public HeapObjectVisitor {
 
   inline void ExecuteMigrationObservers(AllocationSpace dest, HeapObject* src,
                                         HeapObject* dst, int size) {
+    TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.gc"),
+                 "EvacuateVisitorBase::ExecuteMigrationObservers");
     for (MigrationObserver* obs : observers_) {
       obs->Move(dest, src, dst, size);
     }
@@ -1425,6 +1432,8 @@ class EvacuateVisitorBase : public HeapObjectVisitor {
 
   inline void MigrateObject(HeapObject* dst, HeapObject* src, int size,
                             AllocationSpace dest) {
+    TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.gc"),
+                 "EvacuateVisitorBase::MigrateObject");
     migration_function_(this, dst, src, size, dest);
   }
 
@@ -1469,6 +1478,8 @@ class EvacuateNewSpaceVisitor final : public EvacuateVisitorBase {
         is_incremental_marking_(heap->incremental_marking()->IsMarking()) {}
 
   inline bool Visit(HeapObject* object, int size) override {
+    TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.gc"),
+                 "EvacuateNewSpaceVisitor::Visit");
     if (TryEvacuateWithoutCopy(object)) return true;
     HeapObject* target_object = nullptr;
     if (heap_->ShouldBePromoted(object->address()) &&
@@ -1571,10 +1582,16 @@ class EvacuateNewSpacePageVisitor final : public HeapObjectVisitor {
   }
 
   inline bool Visit(HeapObject* object, int size) {
+    TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.gc"),
+                 "EvacuateNewSpacePageVisitor::Visit");
     if (mode == NEW_TO_NEW) {
+      TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.gc"),
+                   "EvacuateNewSpacePageVisitor::Visit UpdateAllocationSite");
       heap_->UpdateAllocationSite(object->map(), object,
                                   local_pretenuring_feedback_);
     } else if (mode == NEW_TO_OLD) {
+      TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.gc"),
+                   "EvacuateNewSpacePageVisitor::Visit IterateBodyFast");
       object->IterateBodyFast(record_visitor_);
     }
     return true;
@@ -1597,6 +1614,8 @@ class EvacuateOldSpaceVisitor final : public EvacuateVisitorBase {
       : EvacuateVisitorBase(heap, local_allocator, record_visitor) {}
 
   inline bool Visit(HeapObject* object, int size) override {
+    TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.gc"),
+                 "EvacuateOldSpaceVisitor::Visit");
     HeapObject* target_object = nullptr;
     if (TryEvacuateObject(
             Page::FromAddress(object->address())->owner()->identity(), object,
@@ -1613,6 +1632,8 @@ class EvacuateRecordOnlyVisitor final : public HeapObjectVisitor {
   explicit EvacuateRecordOnlyVisitor(Heap* heap) : heap_(heap) {}
 
   inline bool Visit(HeapObject* object, int size) {
+    TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.gc"),
+                 "EvacuateRecordOnlyVisitor::Visit");
     RecordMigratedSlotVisitor visitor(heap_->mark_compact_collector());
     object->IterateBody(&visitor);
     return true;
