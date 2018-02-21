@@ -115,25 +115,34 @@ class V8_EXPORT_PRIVATE Compiler : public AllStatic {
       Handle<Context> context, Handle<String> source,
       ParseRestriction restriction, int parameters_end_pos);
 
-  // Create a shared function info object for a String source within a context.
-  static MaybeHandle<SharedFunctionInfo> GetSharedFunctionInfoForScript(
-      Handle<String> source, MaybeHandle<Object> maybe_script_name,
-      int line_offset, int column_offset, ScriptOriginOptions resource_options,
-      MaybeHandle<Object> maybe_source_map_url, Handle<Context> context,
-      v8::Extension* extension, ScriptData** cached_data,
-      ScriptCompiler::CompileOptions compile_options,
-      ScriptCompiler::NoCacheReason no_cache_reason,
-      NativesFlag is_natives_code,
-      MaybeHandle<FixedArray> maybe_host_defined_options);
+  struct ScriptDetails {
+    ScriptDetails() : line_offset(0), column_offset(0) {}
+    explicit ScriptDetails(Handle<Object> script_name)
+        : line_offset(0), column_offset(0), name_obj(script_name) {}
 
-  // Create a shared function info object for a Script that has already been
-  // parsed and possibly compiled on a background thread while being loaded from
-  // a streamed source. On return, the data held by |streaming_data| will have
-  // been released, however the object itself isn't freed and is still owned by
-  // the caller.
+    int line_offset;
+    int column_offset;
+    i::MaybeHandle<i::Object> name_obj;
+    i::MaybeHandle<i::Object> source_map_url;
+    i::MaybeHandle<i::FixedArray> host_defined_options;
+  };
+
+  // Create a shared function info object for a String source.
+  static MaybeHandle<SharedFunctionInfo> GetSharedFunctionInfoForScript(
+      Handle<String> source, const ScriptDetails& script_details,
+      ScriptOriginOptions origin_options, v8::Extension* extension,
+      ScriptData** cached_data, ScriptCompiler::CompileOptions compile_options,
+      ScriptCompiler::NoCacheReason no_cache_reason,
+      NativesFlag is_natives_code);
+
+  // Create a shared function info object for a Script source that has already
+  // been parsed and possibly compiled on a background thread while being loaded
+  // from a streamed source. On return, the data held by |streaming_data| will
+  // have been released, however the object itself isn't freed and is still
+  // owned by the caller.
   static MaybeHandle<SharedFunctionInfo> GetSharedFunctionInfoForStreamedScript(
-      Handle<Script> script, ScriptStreamingData* streaming_data,
-      int source_length);
+      Handle<String> source, const ScriptDetails& script_details,
+      ScriptOriginOptions origin_options, ScriptStreamingData* streaming_data);
 
   // Create a shared function info object for the given function literal
   // node (the code may be lazily compiled).

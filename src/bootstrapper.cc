@@ -3666,10 +3666,9 @@ bool Bootstrapper::CompileNative(Isolate* isolate, Vector<const char> name,
       isolate->factory()->NewStringFromUtf8(name).ToHandleChecked();
   MaybeHandle<SharedFunctionInfo> maybe_function_info =
       Compiler::GetSharedFunctionInfoForScript(
-          source, script_name, 0, 0, ScriptOriginOptions(),
-          MaybeHandle<Object>(), context, nullptr, nullptr,
-          ScriptCompiler::kNoCompileOptions, ScriptCompiler::kNoCacheNoReason,
-          natives_flag, MaybeHandle<FixedArray>());
+          source, Compiler::ScriptDetails(script_name), ScriptOriginOptions(),
+          nullptr, nullptr, ScriptCompiler::kNoCompileOptions,
+          ScriptCompiler::kNoCacheNoReason, natives_flag);
   Handle<SharedFunctionInfo> function_info;
   if (!maybe_function_info.ToHandle(&function_info)) return false;
 
@@ -3732,11 +3731,9 @@ bool Genesis::CompileExtension(Isolate* isolate, v8::Extension* extension) {
         factory->NewStringFromUtf8(name).ToHandleChecked();
     MaybeHandle<SharedFunctionInfo> maybe_function_info =
         Compiler::GetSharedFunctionInfoForScript(
-            source, script_name, 0, 0, ScriptOriginOptions(),
-            MaybeHandle<Object>(), context, extension, nullptr,
-            ScriptCompiler::kNoCompileOptions,
-            ScriptCompiler::kNoCacheBecauseV8Extension, EXTENSION_CODE,
-            MaybeHandle<FixedArray>());
+            source, Compiler::ScriptDetails(script_name), ScriptOriginOptions(),
+            extension, nullptr, ScriptCompiler::kNoCompileOptions,
+            ScriptCompiler::kNoCacheBecauseV8Extension, EXTENSION_CODE);
     if (!maybe_function_info.ToHandle(&function_info)) return false;
     cache->Add(name, function_info);
   }

@@ -2315,6 +2315,37 @@ MaybeLocal<Value> Module::Evaluate(Local<Context> context) {
   RETURN_ESCAPED(result);
 }
 
+namespace {
+
+i::Compiler::ScriptDetails GetScriptDetails(
+    i::Isolate* isolate, Local<Value> resource_name,
+    Local<Integer> resource_line_offset, Local<Integer> resource_column_offset,
+    Local<Value> source_map_url, Local<PrimitiveArray> host_defined_options) {
+  i::Compiler::ScriptDetails script_details;
+  if (!resource_name.IsEmpty()) {
+    script_details.name_obj = Utils::OpenHandle(*(resource_name));
+  }
+  if (!resource_line_offset.IsEmpty()) {
+    script_details.line_offset =
+        static_cast<int>(resource_line_offset->Value());
+  }
+  if (!resource_column_offset.IsEmpty()) {
+    script_details.column_offset =
+        static_cast<int>(resource_column_offset->Value());
+  }
+  script_details.host_defined_options = isolate->factory()->empty_fixed_array();
+  if (!host_defined_options.IsEmpty()) {
+    script_details.host_defined_options =
+        Utils::OpenHandle(*(host_defined_options));
+  }
+  if (!source_map_url.IsEmpty()) {
+    script_details.source_map_url = Utils::OpenHandle(*(source_map_url));
+  }
+  return script_details;
+}
+
+}  // namespace
+
 MaybeLocal<UnboundScript> ScriptCompiler::CompileUnboundInternal(
     Isolate* v8_isolate, Source* source, CompileOptions options,
     NoCacheReason no_cache_reason) {
@@ -2347,32 +2378,14 @@ MaybeLocal<UnboundScript> ScriptCompiler::CompileUnboundInternal(
   i::Handle<i::String> str = Utils::OpenHandle(*(source->source_string));
   i::Handle<i::SharedFunctionInfo> result;
   TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.compile"), "V8.CompileScript");
-  i::MaybeHandle<i::Object> name_obj;
-  i::MaybeHandle<i::Object> source_map_url;
-  i::MaybeHandle<i::FixedArray> host_defined_options =
-      isolate->factory()->empty_fixed_array();
-  int line_offset = 0;
-  int column_offset = 0;
-  if (!source->resource_name.IsEmpty()) {
-    name_obj = Utils::OpenHandle(*(source->resource_name));
-  }
-  if (!source->host_defined_options.IsEmpty()) {
-    host_defined_options = Utils::OpenHandle(*(source->host_defined_options));
-  }
-  if (!source->resource_line_offset.IsEmpty()) {
-    line_offset = static_cast<int>(source->resource_line_offset->Value());
-  }
-  if (!source->resource_column_offset.IsEmpty()) {
-    column_offset = static_cast<int>(source->resource_column_offset->Value());
-  }
-  if (!source->source_map_url.IsEmpty()) {
-    source_map_url = Utils::OpenHandle(*(source->source_map_url));
-  }
+  i::Compiler::ScriptDetails script_details = GetScriptDetails(
+      isolate, source->resource_name, source->resource_line_offset,
+      source->resource_column_offset, source->source_map_url,
+      source->host_defined_options);
   i::MaybeHandle<i::SharedFunctionInfo> maybe_function_info =
       i::Compiler::GetSharedFunctionInfoForScript(
-          str, name_obj, line_offset, column_offset, source->resource_options,
-          source_map_url, isolate->native_context(), nullptr, &script_data,
-          options, no_cache_reason, i::NOT_NATIVES_CODE, host_defined_options);
+          str, script_details, source->resource_options, nullptr, &script_data,
+          options, no_cache_reason, i::NOT_NATIVES_CODE);
   has_pending_exception = !maybe_function_info.ToHandle(&result);
   if (has_pending_exception && script_data != nullptr) {
     // This case won't happen during normal operation; we have compiled
@@ -2564,36 +2577,17 @@ MaybeLocal<Script> ScriptCompiler::Compile(Local<Context> context,
   TRACE_EVENT_CALL_STATS_SCOPED(isolate, "v8", "V8.ScriptCompiler");
   TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.compile"),
                "V8.CompileStreamedScript");
-  i::Handle<i::String> str = Utils::OpenHandle(*(full_source_string));
-  i::Handle<i::Script> script = isolate->factory()->NewScript(str);
-  if (isolate->NeedsSourcePositionsForProfiling()) {
-    i::Script::InitLineEnds(script);
-  }
-  if (!origin.ResourceName().IsEmpty()) {
-    script->set_name(*Utils::OpenHandle(*(origin.ResourceName())));
-  }
-  if (!origin.HostDefinedOptions().IsEmpty()) {
-    script->set_host_defined_options(
-        *Utils::OpenHandle(*(origin.HostDefinedOptions())));
-  }
-  if (!origin.ResourceLineOffset().IsEmpty()) {
-    script->set_line_offset(
-        static_cast<int>(origin.ResourceLineOffset()->Value()));
-  }
-  if (!origin.ResourceColumnOffset().IsEmpty()) {
-    script->set_column_offset(
-        static_cast<int>(origin.ResourceColumnOffset()->Value()));
-  }
-  script->set_origin_options(origin.Options());
-  if (!origin.SourceMapUrl().IsEmpty()) {
-    script->set_source_mapping_url(
-        *Utils::OpenHandle(*(origin.SourceMapUrl())));
-  }
 
+  i::Handle<i::String> str = Utils::OpenHandle(*(full_source_string));
+  i::Compiler::ScriptDetails script_details = GetScriptDetails(
+      isolate, origin.ResourceName(), origin.ResourceLineOffset(),
+      origin.ResourceColumnOffset(), origin.SourceMapUrl(),
+      origin.HostDefinedOptions());
   i::ScriptStreamingData* streaming_data = v8_source->impl();
+
   i::MaybeHandle<i::SharedFunctionInfo> maybe_function_info =
       i::Compiler::GetSharedFunctionInfoForStreamedScript(
-          script, streaming_data, str->length());
+          str, script_details, origin.Options(), streaming_data);
 
   i::Handle<i::SharedFunctionInfo> result;
   has_pending_exception = !maybe_function_info.ToHandle(&result);
@@ -9493,13 +9487,11 @@ MaybeLocal<UnboundScript> debug::CompileInspectorScript(Isolate* v8_isolate,
     ScriptOriginOptions origin_options;
     i::MaybeHandle<i::SharedFunctionInfo> maybe_function_info =
         i::Compiler::GetSharedFunctionInfoForScript(
-            str, i::MaybeHandle<i::Object>(), 0, 0, origin_options,
-            i::MaybeHandle<i::Object>(), isolate->native_context(), nullptr,
+            str, i::Compiler::ScriptDetails(), origin_options, nullptr,
             &script_data, ScriptCompiler::kNoCompileOptions,
             ScriptCompiler::kNoCacheBecauseInspector,
             i::FLAG_expose_inspector_scripts ? i::NOT_NATIVES_CODE
-                                             : i::INSPECTOR_CODE,
-            i::MaybeHandle<i::FixedArray>());
+                                             : i::INSPECTOR_CODE);
     has_pending_exception = !maybe_function_info.ToHandle(&result);
     RETURN_ON_FAILED_EXECUTION(UnboundScript);
   }

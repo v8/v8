@@ -1597,16 +1597,47 @@ struct ScriptCompileTimerScope {
   }
 };
 
+Handle<Script> NewScript(Isolate* isolate, Handle<String> source,
+                         Compiler::ScriptDetails script_details,
+                         ScriptOriginOptions origin_options,
+                         NativesFlag natives) {
+  // Create a script object describing the script to be compiled.
+  Handle<Script> script = isolate->factory()->NewScript(source);
+  if (isolate->NeedsSourcePositionsForProfiling()) {
+    Script::InitLineEnds(script);
+  }
+  if (natives == NATIVES_CODE) {
+    script->set_type(Script::TYPE_NATIVE);
+  } else if (natives == EXTENSION_CODE) {
+    script->set_type(Script::TYPE_EXTENSION);
+  } else if (natives == INSPECTOR_CODE) {
+    script->set_type(Script::TYPE_INSPECTOR);
+  }
+  Handle<Object> script_name;
+  if (script_details.name_obj.ToHandle(&script_name)) {
+    script->set_name(*script_name);
+    script->set_line_offset(script_details.line_offset);
+    script->set_column_offset(script_details.column_offset);
+  }
+  script->set_origin_options(origin_options);
+  Handle<Object> source_map_url;
+  if (script_details.source_map_url.ToHandle(&source_map_url)) {
+    script->set_source_mapping_url(*source_map_url);
+  }
+  Handle<FixedArray> host_defined_options;
+  if (script_details.host_defined_options.ToHandle(&host_defined_options)) {
+    script->set_host_defined_options(*host_defined_options);
+  }
+  return script;
+}
+
 }  // namespace
 
 MaybeHandle<SharedFunctionInfo> Compiler::GetSharedFunctionInfoForScript(
-    Handle<String> source, MaybeHandle<Object> maybe_script_name,
-    int line_offset, int column_offset, ScriptOriginOptions resource_options,
-    MaybeHandle<Object> maybe_source_map_url, Handle<Context> context,
-    v8::Extension* extension, ScriptData** cached_data,
-    ScriptCompiler::CompileOptions compile_options,
-    ScriptCompiler::NoCacheReason no_cache_reason, NativesFlag natives,
-    MaybeHandle<FixedArray> maybe_host_defined_options) {
+    Handle<String> source, const Compiler::ScriptDetails& script_details,
+    ScriptOriginOptions origin_options, v8::Extension* extension,
+    ScriptData** cached_data, ScriptCompiler::CompileOptions compile_options,
+    ScriptCompiler::NoCacheReason no_cache_reason, NativesFlag natives) {
   Isolate* isolate = source->GetIsolate();
   ScriptCompileTimerScope compile_timer(isolate, no_cache_reason);
 
@@ -1638,8 +1669,9 @@ MaybeHandle<SharedFunctionInfo> Compiler::GetSharedFunctionInfoForScript(
 
     // First check per-isolate compilation cache.
     InfoVectorPair pair = compilation_cache->LookupScript(
-        source, maybe_script_name, line_offset, column_offset, resource_options,
-        context, language_mode);
+        source, script_details.name_obj, script_details.line_offset,
+        script_details.column_offset, origin_options, isolate->native_context(),
+        language_mode);
     if (can_consume_code_cache && !pair.has_shared()) {
       compile_timer.set_consuming_code_cache();
       // Then check cached code provided by embedder.
@@ -1656,8 +1688,8 @@ MaybeHandle<SharedFunctionInfo> Compiler::GetSharedFunctionInfoForScript(
         Handle<FeedbackVector> feedback_vector =
             FeedbackVector::New(isolate, inner_result);
         vector = isolate->factory()->NewCell(feedback_vector);
-        compilation_cache->PutScript(source, context, language_mode,
-                                     inner_result, vector);
+        compilation_cache->PutScript(source, isolate->native_context(),
+                                     language_mode, inner_result, vector);
         Handle<Script> script(Script::cast(inner_result->script()), isolate);
         isolate->debug()->OnAfterCompile(script);
         if (isolate->NeedsSourcePositionsForProfiling()) {
@@ -1680,43 +1712,14 @@ MaybeHandle<SharedFunctionInfo> Compiler::GetSharedFunctionInfoForScript(
 
   if (maybe_result.is_null()) {
     // No cache entry found compile the script.
-
-    // Create a script object describing the script to be compiled.
-    Handle<Script> script = isolate->factory()->NewScript(source);
-    if (isolate->NeedsSourcePositionsForProfiling()) {
-      Script::InitLineEnds(script);
-    }
-    if (natives == NATIVES_CODE) {
-      script->set_type(Script::TYPE_NATIVE);
-    } else if (natives == EXTENSION_CODE) {
-      script->set_type(Script::TYPE_EXTENSION);
-    } else if (natives == INSPECTOR_CODE) {
-      script->set_type(Script::TYPE_INSPECTOR);
-    }
-    Handle<Object> script_name;
-    if (maybe_script_name.ToHandle(&script_name)) {
-      script->set_name(*script_name);
-      script->set_line_offset(line_offset);
-      script->set_column_offset(column_offset);
-    }
-    script->set_origin_options(resource_options);
-    Handle<Object> source_map_url;
-    if (maybe_source_map_url.ToHandle(&source_map_url)) {
-      script->set_source_mapping_url(*source_map_url);
-    }
-    Handle<FixedArray> host_defined_options;
-    if (maybe_host_defined_options.ToHandle(&host_defined_options)) {
-      script->set_host_defined_options(*host_defined_options);
-    }
+    Handle<Script> script =
+        NewScript(isolate, source, script_details, origin_options, natives);
 
     // Compile the function and add it to the isolate cache.
     ParseInfo parse_info(script);
     Zone compile_zone(isolate->allocator(), ZONE_NAME);
-    if (resource_options.IsModule()) parse_info.set_module();
+    if (origin_options.IsModule()) parse_info.set_module();
     parse_info.set_extension(extension);
-    if (!context->IsNativeContext()) {
-      parse_info.set_outer_scope_info(handle(context->scope_info()));
-    }
     parse_info.set_eager(compile_options == ScriptCompiler::kEagerCompile);
 
     parse_info.set_language_mode(
@@ -1729,8 +1732,8 @@ MaybeHandle<SharedFunctionInfo> Compiler::GetSharedFunctionInfoForScript(
       Handle<FeedbackVector> feedback_vector =
           FeedbackVector::New(isolate, result);
       vector = isolate->factory()->NewCell(feedback_vector);
-      compilation_cache->PutScript(source, context, language_mode, result,
-                                   vector);
+      compilation_cache->PutScript(source, isolate->native_context(),
+                                   language_mode, result, vector);
     }
 
     if (maybe_result.is_null()) {
@@ -1751,20 +1754,23 @@ ScriptCompiler::ScriptStreamingTask* Compiler::NewBackgroundCompileTask(
 
 MaybeHandle<SharedFunctionInfo>
 Compiler::GetSharedFunctionInfoForStreamedScript(
-    Handle<Script> script, ScriptStreamingData* streaming_data,
-    int source_length) {
-  Isolate* isolate = script->GetIsolate();
+    Handle<String> source, const ScriptDetails& script_details,
+    ScriptOriginOptions origin_options, ScriptStreamingData* streaming_data) {
+  Isolate* isolate = source->GetIsolate();
   ScriptCompileTimerScope compile_timer(
       isolate, ScriptCompiler::kNoCacheBecauseStreamingSource);
   PostponeInterruptsScope postpone(isolate);
 
+  int source_length = source->length();
   isolate->counters()->total_load_size()->Increment(source_length);
   isolate->counters()->total_compile_size()->Increment(source_length);
 
   ParseInfo* parse_info = streaming_data->info.get();
-  parse_info->set_script(script);
   parse_info->UpdateBackgroundParseStatisticsOnMainThread(isolate);
 
+  Handle<Script> script = NewScript(isolate, source, script_details,
+                                    origin_options, NOT_NATIVES_CODE);
+  parse_info->set_script(script);
   streaming_data->parser->UpdateStatistics(isolate, script);
   streaming_data->parser->HandleSourceURLComments(isolate, script);
 

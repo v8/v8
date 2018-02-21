@@ -27,10 +27,9 @@ MaybeHandle<Object> DebugEvaluate::Global(Isolate* isolate,
   ScriptOriginOptions origin_options(false, true);
   MaybeHandle<SharedFunctionInfo> maybe_function_info =
       Compiler::GetSharedFunctionInfoForScript(
-          source, isolate->factory()->empty_string(), 0, 0, origin_options,
-          MaybeHandle<Object>(), context, nullptr, nullptr,
-          ScriptCompiler::kNoCompileOptions, ScriptCompiler::kNoCacheNoReason,
-          NOT_NATIVES_CODE, MaybeHandle<FixedArray>());
+          source, Compiler::ScriptDetails(isolate->factory()->empty_string()),
+          origin_options, nullptr, nullptr, ScriptCompiler::kNoCompileOptions,
+          ScriptCompiler::kNoCacheNoReason, NOT_NATIVES_CODE);
 
   Handle<SharedFunctionInfo> shared_info;
   if (!maybe_function_info.ToHandle(&shared_info)) return MaybeHandle<Object>();
