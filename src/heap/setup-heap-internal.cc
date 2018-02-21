@@ -659,6 +659,9 @@ void Heap::CreateInitialObjects() {
   set_deserialize_lazy_handler_wide(Smi::kZero);
   set_deserialize_lazy_handler_extra_wide(Smi::kZero);
 
+  // Initialize builtins constants table.
+  set_builtins_constants_table(empty_fixed_array());
+
   // Initialize context slot cache.
   isolate_->context_slot_cache()->Clear();
 

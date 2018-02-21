@@ -6518,6 +6518,10 @@ void Heap::SetDeserializeLazyHandlerExtraWide(Code* code) {
   set_deserialize_lazy_handler_extra_wide(code);
 }
 
+void Heap::SetBuiltinsConstantsTable(FixedArray* cache) {
+  set_builtins_constants_table(cache);
+}
+
 size_t Heap::NumberOfTrackedHeapObjectTypes() {
   return ObjectStats::OBJECT_STATS_COUNT;
 }

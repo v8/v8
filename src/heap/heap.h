@@ -250,6 +250,8 @@ using v8::MemoryPressureLevel;
   /* slots refer to the code with the reference to the weak object. */         \
   V(ArrayList, weak_new_space_object_to_code_list,                             \
     WeakNewSpaceObjectToCodeList)                                              \
+  /* Indirection lists for isolate-independent builtins */                     \
+  V(FixedArray, builtins_constants_table, BuiltinsConstantsTable)              \
   /* Feedback vectors that we need for code coverage or type profile */        \
   V(Object, feedback_vectors_for_profiling_tools,                              \
     FeedbackVectorsForProfilingTools)                                          \
@@ -1120,6 +1122,8 @@ class Heap {
   void SetDeserializeLazyHandler(Code* code);
   void SetDeserializeLazyHandlerWide(Code* code);
   void SetDeserializeLazyHandlerExtraWide(Code* code);
+
+  void SetBuiltinsConstantsTable(FixedArray* cache);
 
   // ===========================================================================
   // Inline allocation. ========================================================

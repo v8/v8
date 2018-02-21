@@ -766,12 +766,22 @@ void InstructionSelector::InitializeCallBuffer(Node* call, CallBuffer* buffer,
   bool call_use_fixed_target_reg = (flags & kCallFixedTargetRegister) != 0;
   switch (buffer->descriptor->kind()) {
     case CallDescriptor::kCallCodeObject:
+      // TODO(jgruber, v8:7449): The below is a hack to support tail-calls from
+      // JS-linkage callers with a register code target. The problem is that the
+      // code target register may be clobbered before the final jmp by
+      // AssemblePopArgumentsAdaptorFrame. As a more permanent fix we could
+      // entirely remove support for tail-calls from JS-linkage callers.
       buffer->instruction_args.push_back(
           (call_code_immediate && callee->opcode() == IrOpcode::kHeapConstant)
               ? g.UseImmediate(callee)
               : call_use_fixed_target_reg
                     ? g.UseFixed(callee, kJavaScriptCallCodeStartRegister)
+#ifdef V8_EMBEDDED_BUILTINS
+                    : is_tail_call ? g.UseUniqueRegister(callee)
+                                   : g.UseRegister(callee));
+#else
                     : g.UseRegister(callee));
+#endif
       break;
     case CallDescriptor::kCallAddress:
       buffer->instruction_args.push_back(

@@ -22,48 +22,49 @@ class StubCache;
 
 enum class PrimitiveType { kBoolean, kNumber, kString, kSymbol };
 
-#define HEAP_CONSTANT_LIST(V)                                            \
-  V(AccessorInfoMap, accessor_info_map, AccessorInfoMap)                 \
-  V(AccessorPairMap, accessor_pair_map, AccessorPairMap)                 \
-  V(AllocationSiteMap, allocation_site_map, AllocationSiteMap)           \
-  V(BooleanMap, boolean_map, BooleanMap)                                 \
-  V(CodeMap, code_map, CodeMap)                                          \
-  V(EmptyPropertyDictionary, empty_property_dictionary,                  \
-    EmptyPropertyDictionary)                                             \
-  V(EmptyFixedArray, empty_fixed_array, EmptyFixedArray)                 \
-  V(EmptySlowElementDictionary, empty_slow_element_dictionary,           \
-    EmptySlowElementDictionary)                                          \
-  V(empty_string, empty_string, EmptyString)                             \
-  V(EmptyWeakCell, empty_weak_cell, EmptyWeakCell)                       \
-  V(FalseValue, false_value, False)                                      \
-  V(FeedbackVectorMap, feedback_vector_map, FeedbackVectorMap)           \
-  V(FixedArrayMap, fixed_array_map, FixedArrayMap)                       \
-  V(FixedCOWArrayMap, fixed_cow_array_map, FixedCOWArrayMap)             \
-  V(FixedDoubleArrayMap, fixed_double_array_map, FixedDoubleArrayMap)    \
-  V(FunctionTemplateInfoMap, function_template_info_map,                 \
-    FunctionTemplateInfoMap)                                             \
-  V(GlobalPropertyCellMap, global_property_cell_map, PropertyCellMap)    \
-  V(has_instance_symbol, has_instance_symbol, HasInstanceSymbol)         \
-  V(HeapNumberMap, heap_number_map, HeapNumberMap)                       \
-  V(length_string, length_string, LengthString)                          \
-  V(ManyClosuresCellMap, many_closures_cell_map, ManyClosuresCellMap)    \
-  V(MetaMap, meta_map, MetaMap)                                          \
-  V(MinusZeroValue, minus_zero_value, MinusZero)                         \
-  V(MutableHeapNumberMap, mutable_heap_number_map, MutableHeapNumberMap) \
-  V(NanValue, nan_value, Nan)                                            \
-  V(NoClosuresCellMap, no_closures_cell_map, NoClosuresCellMap)          \
-  V(NullValue, null_value, Null)                                         \
-  V(OneClosureCellMap, one_closure_cell_map, OneClosureCellMap)          \
-  V(prototype_string, prototype_string, PrototypeString)                 \
-  V(SpeciesProtector, species_protector, SpeciesProtector)               \
-  V(StoreHandler0Map, store_handler0_map, StoreHandler0Map)              \
-  V(SymbolMap, symbol_map, SymbolMap)                                    \
-  V(TheHoleValue, the_hole_value, TheHole)                               \
-  V(TrueValue, true_value, True)                                         \
-  V(Tuple2Map, tuple2_map, Tuple2Map)                                    \
-  V(Tuple3Map, tuple3_map, Tuple3Map)                                    \
-  V(UndefinedValue, undefined_value, Undefined)                          \
-  V(WeakCellMap, weak_cell_map, WeakCellMap)                             \
+#define HEAP_CONSTANT_LIST(V)                                                 \
+  V(AccessorInfoMap, accessor_info_map, AccessorInfoMap)                      \
+  V(AccessorPairMap, accessor_pair_map, AccessorPairMap)                      \
+  V(AllocationSiteMap, allocation_site_map, AllocationSiteMap)                \
+  V(BooleanMap, boolean_map, BooleanMap)                                      \
+  V(BuiltinsConstantsTable, builtins_constants_table, BuiltinsConstantsTable) \
+  V(CodeMap, code_map, CodeMap)                                               \
+  V(EmptyPropertyDictionary, empty_property_dictionary,                       \
+    EmptyPropertyDictionary)                                                  \
+  V(EmptyFixedArray, empty_fixed_array, EmptyFixedArray)                      \
+  V(EmptySlowElementDictionary, empty_slow_element_dictionary,                \
+    EmptySlowElementDictionary)                                               \
+  V(empty_string, empty_string, EmptyString)                                  \
+  V(EmptyWeakCell, empty_weak_cell, EmptyWeakCell)                            \
+  V(FalseValue, false_value, False)                                           \
+  V(FeedbackVectorMap, feedback_vector_map, FeedbackVectorMap)                \
+  V(FixedArrayMap, fixed_array_map, FixedArrayMap)                            \
+  V(FixedCOWArrayMap, fixed_cow_array_map, FixedCOWArrayMap)                  \
+  V(FixedDoubleArrayMap, fixed_double_array_map, FixedDoubleArrayMap)         \
+  V(FunctionTemplateInfoMap, function_template_info_map,                      \
+    FunctionTemplateInfoMap)                                                  \
+  V(GlobalPropertyCellMap, global_property_cell_map, PropertyCellMap)         \
+  V(has_instance_symbol, has_instance_symbol, HasInstanceSymbol)              \
+  V(HeapNumberMap, heap_number_map, HeapNumberMap)                            \
+  V(length_string, length_string, LengthString)                               \
+  V(ManyClosuresCellMap, many_closures_cell_map, ManyClosuresCellMap)         \
+  V(MetaMap, meta_map, MetaMap)                                               \
+  V(MinusZeroValue, minus_zero_value, MinusZero)                              \
+  V(MutableHeapNumberMap, mutable_heap_number_map, MutableHeapNumberMap)      \
+  V(NanValue, nan_value, Nan)                                                 \
+  V(NoClosuresCellMap, no_closures_cell_map, NoClosuresCellMap)               \
+  V(NullValue, null_value, Null)                                              \
+  V(OneClosureCellMap, one_closure_cell_map, OneClosureCellMap)               \
+  V(prototype_string, prototype_string, PrototypeString)                      \
+  V(SpeciesProtector, species_protector, SpeciesProtector)                    \
+  V(StoreHandler0Map, store_handler0_map, StoreHandler0Map)                   \
+  V(SymbolMap, symbol_map, SymbolMap)                                         \
+  V(TheHoleValue, the_hole_value, TheHole)                                    \
+  V(TrueValue, true_value, True)                                              \
+  V(Tuple2Map, tuple2_map, Tuple2Map)                                         \
+  V(Tuple3Map, tuple3_map, Tuple3Map)                                         \
+  V(UndefinedValue, undefined_value, Undefined)                               \
+  V(WeakCellMap, weak_cell_map, WeakCellMap)                                  \
   V(SharedFunctionInfoMap, shared_function_info_map, SharedFunctionInfoMap)
 
 // Returned from IteratorBuiltinsAssembler::GetIterator(). Struct is declared
@@ -1596,6 +1597,90 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
                          Variable* var_details, Variable* var_raw_value,
                          Label* if_not_found, Label* if_bailout,
                          GetOwnPropertyMode mode);
+
+#ifdef V8_EMBEDDED_BUILTINS
+#if V8_TARGET_ARCH_IA32
+#error "ia32 does not yet support embedded builtins"
+#endif
+
+  // Off-heap builtins cannot embed constants within the code object itself,
+  // and thus need to load them from the root list.
+  bool ShouldLoadConstantsFromRootList() const {
+    return (isolate()->serializer_enabled() &&
+            isolate()->builtins_constants_table_builder() != nullptr);
+  }
+
+  TNode<Code> LookupConstantCodeTarget(Handle<Code> code);
+
+  template <class... TArgs>
+  Node* CallStub(Callable const& callable, Node* context, TArgs... args) {
+    if (ShouldLoadConstantsFromRootList()) {
+      TNode<Code> target = LookupConstantCodeTarget(callable.code());
+      return compiler::CodeAssembler::CallStub(callable.descriptor(), target,
+                                               context, args...);
+    } else {
+      return compiler::CodeAssembler::CallStub(callable, context, args...);
+    }
+  }
+
+  template <class... TArgs>
+  Node* CallStub(const CallInterfaceDescriptor& descriptor, Node* target,
+                 Node* context, TArgs... args) {
+    // Just a forwarding definition, required due to the other overload above.
+    return compiler::CodeAssembler::CallStub(descriptor, target, context,
+                                             args...);
+  }
+
+  template <class... TArgs>
+  Node* TailCallStub(Callable const& callable, Node* context, TArgs... args) {
+    if (ShouldLoadConstantsFromRootList()) {
+      TNode<Code> target = LookupConstantCodeTarget(callable.code());
+      return compiler::CodeAssembler::TailCallStub(callable.descriptor(),
+                                                   target, context, args...);
+    } else {
+      return compiler::CodeAssembler::TailCallStub(callable, context, args...);
+    }
+  }
+
+  template <class... TArgs>
+  Node* TailCallStub(const CallInterfaceDescriptor& descriptor, Node* target,
+                     Node* context, TArgs... args) {
+    // Just a forwarding definition, required due to the other overload above.
+    return compiler::CodeAssembler::TailCallStub(descriptor, target, context,
+                                                 args...);
+  }
+
+  template <class... TArgs>
+  TNode<Object> CallRuntime(Runtime::FunctionId function,
+                            SloppyTNode<Object> context, TArgs... args) {
+    if (ShouldLoadConstantsFromRootList()) {
+      auto function_info = Runtime::FunctionForId(function);
+      Handle<Code> code =
+          CodeFactory::RuntimeCEntry(isolate(), function_info->result_size);
+      TNode<Code> target = LookupConstantCodeTarget(code);
+      return compiler::CodeAssembler::CallRuntime(function, target, context,
+                                                  args...);
+    } else {
+      return compiler::CodeAssembler::CallRuntime(function, context, args...);
+    }
+  }
+
+  template <class... TArgs>
+  TNode<Object> TailCallRuntime(Runtime::FunctionId function,
+                                SloppyTNode<Object> context, TArgs... args) {
+    if (ShouldLoadConstantsFromRootList()) {
+      auto function_info = Runtime::FunctionForId(function);
+      Handle<Code> code =
+          CodeFactory::RuntimeCEntry(isolate(), function_info->result_size);
+      TNode<Code> target = LookupConstantCodeTarget(code);
+      return compiler::CodeAssembler::TailCallRuntime(function, target, context,
+                                                      args...);
+    } else {
+      return compiler::CodeAssembler::TailCallRuntime(function, context,
+                                                      args...);
+    }
+  }
+#endif  // V8_EMBEDDED_BUILTINS
 
   Node* GetProperty(Node* context, Node* receiver, Handle<Name> name) {
     return GetProperty(context, receiver, HeapConstant(name));

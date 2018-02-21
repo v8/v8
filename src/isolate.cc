@@ -20,6 +20,7 @@
 #include "src/base/utils/random-number-generator.h"
 #include "src/basic-block-profiler.h"
 #include "src/bootstrapper.h"
+#include "src/builtins/constants-table-builder.h"
 #include "src/callable.h"
 #include "src/cancelable-task.h"
 #include "src/code-stubs.h"
@@ -3041,6 +3042,9 @@ bool Isolate::Init(StartupDeserializer* des) {
   if (create_heap_objects) {
     // Terminate the partial snapshot cache so we can iterate.
     partial_snapshot_cache_.push_back(heap_.undefined_value());
+#ifdef V8_EMBEDDED_BUILTINS
+    builtins_constants_table_builder_ = new BuiltinsConstantsTableBuilder(this);
+#endif
   }
 
   InitializeThreadLocal();
@@ -3072,6 +3076,14 @@ bool Isolate::Init(StartupDeserializer* des) {
     load_stub_cache_->Initialize();
     store_stub_cache_->Initialize();
     setup_delegate_->SetupInterpreter(interpreter_);
+
+#ifdef V8_EMBEDDED_BUILTINS
+    if (create_heap_objects) {
+      builtins_constants_table_builder_->Finalize();
+      delete builtins_constants_table_builder_;
+      builtins_constants_table_builder_ = nullptr;
+    }
+#endif  // V8_EMBEDDED_BUILTINS
 
     heap_.NotifyDeserializationComplete();
   }

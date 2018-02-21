@@ -1,7 +1,10 @@
 // Copyright 2016 the V8 project authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
+
 #include "src/code-stub-assembler.h"
+
+#include "src/builtins/constants-table-builder.h"
 #include "src/code-factory.h"
 #include "src/frames-inl.h"
 #include "src/frames.h"
@@ -7301,6 +7304,23 @@ void CodeStubAssembler::TryGetOwnProperty(
     Goto(if_found_value);
   }
 }
+
+#ifdef V8_EMBEDDED_BUILTINS
+TNode<Code> CodeStubAssembler::LookupConstantCodeTarget(Handle<Code> code) {
+  DCHECK(isolate()->serializer_enabled());
+  // The builtins constants table is loaded through the root register on all
+  // supported platforms. This is checked by the
+  // VerifyBuiltinsIsolateIndependence cctest, which disallows embedded objects
+  // in isolate-independent builtins.
+  BuiltinsConstantsTableBuilder* builder =
+      isolate()->builtins_constants_table_builder();
+  uint32_t index = builder->AddObject(code);
+  DCHECK(isolate()->heap()->RootCanBeTreatedAsConstant(
+      Heap::kBuiltinsConstantsTableRootIndex));
+  TNode<FixedArray> cache = BuiltinsConstantsTableConstant();
+  return CAST(LoadFixedArrayElement(cache, index));
+}
+#endif  // V8_EMBEDDED_BUILTINS
 
 void CodeStubAssembler::TryLookupElement(Node* object, Node* map,
                                          Node* instance_type,

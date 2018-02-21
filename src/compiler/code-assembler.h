@@ -913,6 +913,18 @@ class V8_EXPORT_PRIVATE CodeAssembler {
     return CallRuntimeImpl(function, context,
                            base::implicit_cast<SloppyTNode<Object>>(args)...);
   }
+#ifdef V8_EMBEDDED_BUILTINS
+  template <class... TArgs>
+  TNode<Object> CallRuntimeImpl(Runtime::FunctionId function,
+                                TNode<Code> target, SloppyTNode<Object> context,
+                                TArgs... args);
+  template <class... TArgs>
+  TNode<Object> CallRuntime(Runtime::FunctionId function, TNode<Code> target,
+                            SloppyTNode<Object> context, TArgs... args) {
+    return CallRuntimeImpl(function, target, context,
+                           base::implicit_cast<SloppyTNode<Object>>(args)...);
+  }
+#endif
 
   template <class... TArgs>
   TNode<Object> TailCallRuntimeImpl(Runtime::FunctionId function,
@@ -923,6 +935,20 @@ class V8_EXPORT_PRIVATE CodeAssembler {
     return TailCallRuntimeImpl(
         function, context, base::implicit_cast<SloppyTNode<Object>>(args)...);
   }
+#ifdef V8_EMBEDDED_BUILTINS
+  template <class... TArgs>
+  TNode<Object> TailCallRuntimeImpl(Runtime::FunctionId function,
+                                    TNode<Code> target,
+                                    SloppyTNode<Object> context, TArgs... args);
+  template <class... TArgs>
+  TNode<Object> TailCallRuntime(Runtime::FunctionId function,
+                                TNode<Code> target, SloppyTNode<Object> context,
+                                TArgs... args) {
+    return TailCallRuntimeImpl(
+        function, target, context,
+        base::implicit_cast<SloppyTNode<Object>>(args)...);
+  }
+#endif
 
   //
   // If context passed to CallStub is nullptr, it won't be passed to the stub.

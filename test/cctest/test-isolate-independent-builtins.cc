@@ -19,6 +19,7 @@ namespace v8 {
 namespace internal {
 namespace test_isolate_independent_builtins {
 
+#ifdef V8_EMBEDDED_BUILTINS
 TEST(VerifyBuiltinsIsolateIndependence) {
   Isolate* isolate = CcTest::i_isolate();
   HandleScope handle_scope(isolate);
@@ -81,6 +82,7 @@ TEST(VerifyBuiltinsIsolateIndependence) {
 
   CHECK(!found_mismatch);
 }
+#endif  // V8_EMBEDDED_BUILTINS
 
 // V8_CC_MSVC is true for both MSVC and clang on windows. clang can handle
 // __asm__-style inline assembly but MSVC cannot, and thus we need a more

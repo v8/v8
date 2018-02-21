@@ -194,6 +194,14 @@ void* IdentityMapBase::DeleteEntry(Object* key) {
   return DeleteIndex(index);
 }
 
+Object* IdentityMapBase::KeyAtIndex(int index) const {
+  DCHECK_LE(0, index);
+  DCHECK_LT(index, capacity_);
+  DCHECK_NE(keys_[index], heap_->not_mapped_symbol());
+  CHECK(is_iterable());  // Must be iterable to access by index;
+  return keys_[index];
+}
+
 IdentityMapBase::RawEntry IdentityMapBase::EntryAtIndex(int index) const {
   DCHECK_LE(0, index);
   DCHECK_LT(index, capacity_);

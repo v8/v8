@@ -48,6 +48,7 @@ class AddressToIndexHashMap;
 class AstStringConstants;
 class BasicBlockProfiler;
 class Bootstrapper;
+class BuiltinsConstantsTableBuilder;
 class CallInterfaceDescriptorData;
 class CancelableTaskManager;
 class CodeEventDispatcher;
@@ -1244,6 +1245,12 @@ class Isolate {
     off_heap_code_.emplace_back(stream);
   }
 
+#ifdef V8_EMBEDDED_BUILTINS
+  BuiltinsConstantsTableBuilder* builtins_constants_table_builder() const {
+    return builtins_constants_table_builder_;
+  }
+#endif
+
   void set_array_buffer_allocator(v8::ArrayBuffer::Allocator* allocator) {
     array_buffer_allocator_ = allocator;
   }
@@ -1616,6 +1623,12 @@ class Isolate {
   // TODO(jgruber,v8:6666): Remove once isolate-independent builtins are
   // implemented.
   std::vector<InstructionStream*> off_heap_code_;
+
+#ifdef V8_EMBEDDED_BUILTINS
+  // Used during builtins compilation to build the builtins constants table,
+  // which is stored on the root list prior to serialization.
+  BuiltinsConstantsTableBuilder* builtins_constants_table_builder_ = nullptr;
+#endif
 
   v8::ArrayBuffer::Allocator* array_buffer_allocator_;
 

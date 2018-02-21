@@ -283,14 +283,28 @@ bool Builtins::IsIsolateIndependent(int index) {
     case kContinueToJavaScriptBuiltin:
     case kContinueToJavaScriptBuiltinWithResult:
 #ifndef DEBUG
-#if !V8_TARGET_ARCH_IA32
+    case kAsyncFunctionAwaitFulfill:
+    case kAsyncFunctionAwaitReject:
+    case kAsyncGeneratorAwaitFulfill:
+    case kAsyncGeneratorAwaitReject:
+    case kAsyncGeneratorReturnClosedFulfill:
+    case kAsyncGeneratorReturnClosedReject:
+    case kAsyncGeneratorReturnFulfill:
+    case kAsyncGeneratorYieldFulfill:
     case kConstructFunction:
-    case kTypeof:
-    case kWeakMapLookupHashIndex:
-#endif
+    case kKeyedLoadICTrampoline:
+    case kKeyedStoreICTrampoline:
+    case kLoadGlobalICInsideTypeofTrampoline:
+    case kLoadGlobalICTrampoline:
     case kLoadIC_StringLength:
     case kLoadIC_StringWrapperLength:
+    case kLoadICTrampoline:
     case kOrderedHashTableHealIndex:
+    case kStoreGlobalICTrampoline:
+    case kStoreICTrampoline:
+    case kStringRepeat:
+    case kTypeof:
+    case kWeakMapLookupHashIndex:
 #endif
       return true;
     default:
