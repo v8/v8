@@ -35,7 +35,7 @@ void LiftoffAssembler::PatchPrepareStackFrame(uint32_t offset,
   DCHECK_LE(bytes, kMaxInt);
   // We can't run out of space, just pass anything big enough to not cause the
   // assembler to try to grow the buffer.
-  constexpr int kAvailableSpace = 64;
+  constexpr int kAvailableSpace = 256;
   Assembler patching_assembler(isolate(), buffer_ + offset, kAvailableSpace);
   patching_assembler.daddiu(sp, sp, -bytes);
 }
