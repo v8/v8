@@ -106,6 +106,8 @@ test_both(function from(BigArray) {
   assertThrows(() => BigArray.from([4, 5]), TypeError);
   var c = BigArray.from([6, 7], BigInt);
   assertArrayEquals([6n, 7n], c);
+  assertThrows(() => Int32Array.from([4n, 5n]), TypeError);
+  assertThrows(() => Int32Array.from([4, 5], BigInt), TypeError);
 });
 
 test(function from_mixed() {

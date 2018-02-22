@@ -127,7 +127,7 @@ class TypedArrayBuiltinsAssembler : public CodeStubAssembler {
       TNode<Word32T> elements_kind, const TypedArraySwitchCase& case_function);
 
   void DebugSanityCheckTypedArrayIndex(TNode<JSTypedArray> array,
-                                       SloppyTNode<Smi> index);
+                                       TNode<IntPtrT> index);
 };
 
 }  // namespace internal

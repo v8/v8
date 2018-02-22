@@ -1700,6 +1700,18 @@ Node* CodeStubAssembler::LoadFixedArrayElement(Node* object, Node* index_node,
   return Load(MachineType::AnyTagged(), object, offset);
 }
 
+TNode<RawPtrT> CodeStubAssembler::LoadFixedTypedArrayBackingStore(
+    TNode<FixedTypedArrayBase> typed_array) {
+  // Backing store = external_pointer + base_pointer.
+  Node* external_pointer =
+      LoadObjectField(typed_array, FixedTypedArrayBase::kExternalPointerOffset,
+                      MachineType::Pointer());
+  Node* base_pointer =
+      LoadObjectField(typed_array, FixedTypedArrayBase::kBasePointerOffset);
+  return UncheckedCast<RawPtrT>(
+      IntPtrAdd(external_pointer, BitcastTaggedToWord(base_pointer)));
+}
+
 Node* CodeStubAssembler::LoadFixedTypedArrayElement(
     Node* data_pointer, Node* index_node, ElementsKind elements_kind,
     ParameterMode parameter_mode) {
@@ -2435,6 +2447,18 @@ void CodeStubAssembler::StoreBigIntDigit(TNode<BigInt> bigint, int digit_index,
   StoreObjectFieldNoWriteBarrier(
       bigint, BigInt::kDigitsOffset + digit_index * kPointerSize, digit,
       UintPtrT::kMachineRepresentation);
+}
+
+TNode<WordT> CodeStubAssembler::LoadBigIntBitfield(TNode<BigInt> bigint) {
+  return UncheckedCast<WordT>(
+      LoadObjectField(bigint, BigInt::kBitfieldOffset, MachineType::UintPtr()));
+}
+
+TNode<UintPtrT> CodeStubAssembler::LoadBigIntDigit(TNode<BigInt> bigint,
+                                                   int digit_index) {
+  return UncheckedCast<UintPtrT>(LoadObjectField(
+      bigint, BigInt::kDigitsOffset + digit_index * kPointerSize,
+      MachineType::UintPtr()));
 }
 
 Node* CodeStubAssembler::AllocateSeqOneByteString(int length,
@@ -5819,7 +5843,7 @@ TNode<Number> CodeStubAssembler::ToNumber_Inline(SloppyTNode<Context> context,
     var_result = Select<Number>(
         IsHeapNumber(input), [=] { return CAST(input); },
         [=] {
-          return CallBuiltin(Builtins::kNonNumberToNumeric, context, input);
+          return CallBuiltin(Builtins::kNonNumberToNumber, context, input);
         },
         MachineRepresentation::kTagged);
     Goto(&end);
@@ -7871,23 +7895,23 @@ Node* CodeStubAssembler::LoadReceiverMap(Node* receiver) {
                 MachineRepresentation::kTagged);
 }
 
-Node* CodeStubAssembler::TryToIntptr(Node* key, Label* miss) {
-  VARIABLE(var_intptr_key, MachineType::PointerRepresentation());
+TNode<IntPtrT> CodeStubAssembler::TryToIntptr(Node* key, Label* miss) {
+  TVARIABLE(IntPtrT, var_intptr_key);
   Label done(this, &var_intptr_key), key_is_smi(this);
   GotoIf(TaggedIsSmi(key), &key_is_smi);
   // Try to convert a heap number to a Smi.
   GotoIfNot(IsHeapNumber(key), miss);
   {
-    Node* value = LoadHeapNumberValue(key);
-    Node* int_value = RoundFloat64ToInt32(value);
+    TNode<Float64T> value = LoadHeapNumberValue(key);
+    TNode<Int32T> int_value = RoundFloat64ToInt32(value);
     GotoIfNot(Float64Equal(value, ChangeInt32ToFloat64(int_value)), miss);
-    var_intptr_key.Bind(ChangeInt32ToIntPtr(int_value));
+    var_intptr_key = ChangeInt32ToIntPtr(int_value);
     Goto(&done);
   }
 
   BIND(&key_is_smi);
   {
-    var_intptr_key.Bind(SmiUntag(key));
+    var_intptr_key = SmiUntag(key);
     Goto(&done);
   }
 
@@ -8084,7 +8108,7 @@ Node* CodeStubAssembler::Float64ToUint8Clamped(Node* float64_value) {
 }
 
 Node* CodeStubAssembler::PrepareValueForWriteToTypedArray(
-    Node* input, ElementsKind elements_kind, Label* bailout) {
+    TNode<Object> input, ElementsKind elements_kind, TNode<Context> context) {
   DCHECK(IsFixedTypedArrayElementsKind(elements_kind));
 
   MachineRepresentation rep;
@@ -8109,18 +8133,24 @@ Node* CodeStubAssembler::PrepareValueForWriteToTypedArray(
   }
 
   VARIABLE(var_result, rep);
-  Label done(this, &var_result), if_smi(this), if_heapnumber(this);
-  GotoIf(TaggedIsSmi(input), &if_smi);
+  VARIABLE(var_input, MachineRepresentation::kTagged, input);
+  Label done(this, &var_result), if_smi(this), if_heapnumber_or_oddball(this),
+      convert(this), loop(this, &var_input);
+  Goto(&loop);
+  BIND(&loop);
+  GotoIf(TaggedIsSmi(var_input.value()), &if_smi);
   // We can handle both HeapNumber and Oddball here, since Oddball has the
   // same layout as the HeapNumber for the HeapNumber::value field. This
   // way we can also properly optimize stores of oddballs to typed arrays.
-  GotoIf(IsHeapNumber(input), &if_heapnumber);
+  GotoIf(IsHeapNumber(var_input.value()), &if_heapnumber_or_oddball);
   STATIC_ASSERT(HeapNumber::kValueOffset == Oddball::kToNumberRawOffset);
-  Branch(HasInstanceType(input, ODDBALL_TYPE), &if_heapnumber, bailout);
+  Branch(HasInstanceType(var_input.value(), ODDBALL_TYPE),
+         &if_heapnumber_or_oddball, &convert);
 
-  BIND(&if_heapnumber);
+  BIND(&if_heapnumber_or_oddball);
   {
-    Node* value = LoadHeapNumberValue(input);
+    Node* value = UncheckedCast<Float64T>(LoadObjectField(
+        var_input.value(), HeapNumber::kValueOffset, MachineType::Float64()));
     if (rep == MachineRepresentation::kWord32) {
       if (elements_kind == UINT8_CLAMPED_ELEMENTS) {
         value = Float64ToUint8Clamped(value);
@@ -8138,7 +8168,7 @@ Node* CodeStubAssembler::PrepareValueForWriteToTypedArray(
 
   BIND(&if_smi);
   {
-    Node* value = SmiToWord32(input);
+    Node* value = SmiToWord32(var_input.value());
     if (rep == MachineRepresentation::kFloat32) {
       value = RoundInt32ToFloat32(value);
     } else if (rep == MachineRepresentation::kFloat64) {
@@ -8153,8 +8183,67 @@ Node* CodeStubAssembler::PrepareValueForWriteToTypedArray(
     Goto(&done);
   }
 
+  BIND(&convert);
+  {
+    var_input.Bind(CallBuiltin(Builtins::kNonNumberToNumber, context, input));
+    Goto(&loop);
+  }
+
   BIND(&done);
   return var_result.value();
+}
+
+void CodeStubAssembler::EmitBigTypedArrayElementStore(
+    TNode<JSTypedArray> object, TNode<FixedTypedArrayBase> elements,
+    TNode<IntPtrT> intptr_key, TNode<Object> value, TNode<Context> context,
+    Label* opt_if_neutered) {
+  TNode<BigInt> bigint_value = ToBigInt(context, value);
+  TNode<WordT> bitfield = LoadBigIntBitfield(bigint_value);
+  TNode<UintPtrT> length = DecodeWord<BigIntBase::LengthBits>(bitfield);
+  TNode<UintPtrT> sign = DecodeWord<BigIntBase::SignBits>(bitfield);
+  TVARIABLE(UintPtrT, var_low, Unsigned(IntPtrConstant(0)));
+  // Only used on 32-bit platforms.
+  TVARIABLE(UintPtrT, var_high, Unsigned(IntPtrConstant(0)));
+  Label do_store(this);
+  GotoIf(WordEqual(length, IntPtrConstant(0)), &do_store);
+  var_low = LoadBigIntDigit(bigint_value, 0);
+  if (!Is64()) {
+    Label load_done(this);
+    GotoIf(WordEqual(length, IntPtrConstant(1)), &load_done);
+    var_high = LoadBigIntDigit(bigint_value, 1);
+    Goto(&load_done);
+    BIND(&load_done);
+  }
+  GotoIf(WordEqual(sign, IntPtrConstant(0)), &do_store);
+  // Negative value. Simulate two's complement.
+  if (!Is64()) {
+    var_high = Unsigned(IntPtrSub(IntPtrConstant(0), var_high.value()));
+    Label no_carry(this);
+    GotoIf(WordEqual(var_low.value(), IntPtrConstant(0)), &no_carry);
+    var_high = Unsigned(IntPtrSub(var_high.value(), IntPtrConstant(1)));
+    Goto(&no_carry);
+    BIND(&no_carry);
+  }
+  var_low = Unsigned(IntPtrSub(IntPtrConstant(0), var_low.value()));
+  Goto(&do_store);
+
+  BIND(&do_store);
+  if (opt_if_neutered != nullptr) {
+    // Check if buffer has been neutered.
+    Node* buffer = LoadObjectField(object, JSArrayBufferView::kBufferOffset);
+    GotoIf(IsDetachedBuffer(buffer), opt_if_neutered);
+  }
+
+  Node* backing_store = LoadFixedTypedArrayBackingStore(elements);
+  Node* offset = ElementOffsetFromIndex(intptr_key, BIGINT64_ELEMENTS,
+                                        INTPTR_PARAMETERS, 0);
+  MachineRepresentation rep = WordT::kMachineRepresentation;
+  StoreNoWriteBarrier(rep, backing_store, offset, var_low.value());
+  if (!Is64()) {
+    StoreNoWriteBarrier(rep, backing_store,
+                        IntPtrAdd(offset, IntPtrConstant(kPointerSize)),
+                        var_high.value());
+  }
 }
 
 void CodeStubAssembler::EmitElementStore(Node* object, Node* key, Node* value,
@@ -8173,31 +8262,10 @@ void CodeStubAssembler::EmitElementStore(Node* object, Node* key, Node* value,
 
   // TODO(ishell): introduce TryToIntPtrOrSmi() and use OptimalParameterMode().
   ParameterMode parameter_mode = INTPTR_PARAMETERS;
-  Node* intptr_key = TryToIntptr(key, bailout);
+  TNode<IntPtrT> intptr_key = TryToIntptr(key, bailout);
 
   if (IsFixedTypedArrayElementsKind(elements_kind)) {
-    if (elements_kind == BIGINT64_ELEMENTS ||
-        elements_kind == BIGUINT64_ELEMENTS) {
-      // TODO(jkummerow): Add inline support.
-      CallRuntime(Runtime::kSetProperty, context, object, key, value,
-                  SmiConstant(LanguageMode::kSloppy));
-      return;
-    }
     Label done(this);
-    // TODO(ishell): call ToNumber() on value and don't bailout but be careful
-    // to call it only once if we decide to bailout because of bounds checks.
-
-    value = PrepareValueForWriteToTypedArray(value, elements_kind, bailout);
-
-    // There must be no allocations between the buffer load and
-    // and the actual store to backing store, because GC may decide that
-    // the buffer is not alive or move the elements.
-    // TODO(ishell): introduce DisallowHeapAllocationCode scope here.
-
-    // Check if buffer has been neutered.
-    Node* buffer = LoadObjectField(object, JSArrayBufferView::kBufferOffset);
-    GotoIf(IsDetachedBuffer(buffer), bailout);
-
     // Bounds check.
     Node* length = TaggedToParameter(
         CAST(LoadObjectField(object, JSTypedArray::kLengthOffset)),
@@ -8212,16 +8280,28 @@ void CodeStubAssembler::EmitElementStore(Node* object, Node* key, Node* value,
       GotoIfNot(UintPtrLessThan(intptr_key, length), bailout);
     }
 
-    // Backing store = external_pointer + base_pointer.
-    Node* external_pointer =
-        LoadObjectField(elements, FixedTypedArrayBase::kExternalPointerOffset,
-                        MachineType::Pointer());
-    Node* base_pointer =
-        LoadObjectField(elements, FixedTypedArrayBase::kBasePointerOffset);
-    Node* backing_store =
-        IntPtrAdd(external_pointer, BitcastTaggedToWord(base_pointer));
-    StoreElement(backing_store, elements_kind, intptr_key, value,
-                 parameter_mode);
+    TNode<Object> value_obj = UncheckedCast<Object>(value);
+    if (elements_kind == BIGINT64_ELEMENTS ||
+        elements_kind == BIGUINT64_ELEMENTS) {
+      EmitBigTypedArrayElementStore(CAST(object), CAST(elements), intptr_key,
+                                    value_obj, CAST(context), bailout);
+    } else {
+      value = PrepareValueForWriteToTypedArray(value_obj, elements_kind,
+                                               CAST(context));
+
+      // There must be no allocations between the buffer load and
+      // and the actual store to backing store, because GC may decide that
+      // the buffer is not alive or move the elements.
+      // TODO(ishell): introduce DisallowHeapAllocationCode scope here.
+
+      // Check if buffer has been neutered.
+      Node* buffer = LoadObjectField(object, JSArrayBufferView::kBufferOffset);
+      GotoIf(IsDetachedBuffer(buffer), bailout);
+
+      Node* backing_store = LoadFixedTypedArrayBackingStore(CAST(elements));
+      StoreElement(backing_store, elements_kind, intptr_key, value,
+                   parameter_mode);
+    }
     Goto(&done);
 
     BIND(&done);

@@ -632,6 +632,8 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
   Node* LoadDoubleWithHoleCheck(
       Node* base, Node* offset, Label* if_hole,
       MachineType machine_type = MachineType::Float64());
+  TNode<RawPtrT> LoadFixedTypedArrayBackingStore(
+      TNode<FixedTypedArrayBase> typed_array);
   Node* LoadFixedTypedArrayElement(
       Node* data_pointer, Node* index_node, ElementsKind elements_kind,
       ParameterMode parameter_mode = INTPTR_PARAMETERS);
@@ -760,6 +762,8 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
   void StoreBigIntBitfield(TNode<BigInt> bigint, TNode<WordT> bitfield);
   void StoreBigIntDigit(TNode<BigInt> bigint, int digit_index,
                         TNode<UintPtrT> digit);
+  TNode<WordT> LoadBigIntBitfield(TNode<BigInt> bigint);
+  TNode<UintPtrT> LoadBigIntDigit(TNode<BigInt> bigint, int digit_index);
   // Allocate a SeqOneByteString with the given length.
   Node* AllocateSeqOneByteString(int length, AllocationFlags flags = kNone);
   Node* AllocateSeqOneByteString(Node* context, TNode<Smi> length,
@@ -1837,12 +1841,20 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
   Node* Int32ToUint8Clamped(Node* int32_value);
   Node* Float64ToUint8Clamped(Node* float64_value);
 
-  Node* PrepareValueForWriteToTypedArray(Node* key, ElementsKind elements_kind,
-                                         Label* bailout);
+  Node* PrepareValueForWriteToTypedArray(TNode<Object> input,
+                                         ElementsKind elements_kind,
+                                         TNode<Context> context);
 
   // Store value to an elements array with given elements kind.
   void StoreElement(Node* elements, ElementsKind kind, Node* index, Node* value,
                     ParameterMode mode);
+
+  void EmitBigTypedArrayElementStore(TNode<JSTypedArray> object,
+                                     TNode<FixedTypedArrayBase> elements,
+                                     TNode<IntPtrT> intptr_key,
+                                     TNode<Object> value,
+                                     TNode<Context> context,
+                                     Label* opt_if_neutered);
 
   void EmitElementStore(Node* object, Node* key, Node* value, bool is_jsarray,
                         ElementsKind elements_kind,
@@ -2052,7 +2064,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
                              Node* receiver, Label* if_bailout,
                              GetOwnPropertyMode mode = kCallJSGetter);
 
-  Node* TryToIntptr(Node* key, Label* miss);
+  TNode<IntPtrT> TryToIntptr(Node* key, Label* miss);
 
   void BranchIfPrototypesHaveNoElements(Node* receiver_map,
                                         Label* definitely_no_elements,

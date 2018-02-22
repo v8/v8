@@ -523,11 +523,7 @@ Node* TypedArrayBuiltinsAssembler::LoadDataPtr(Node* typed_array) {
   CSA_ASSERT(this, IsJSTypedArray(typed_array));
   Node* elements = LoadElements(typed_array);
   CSA_ASSERT(this, IsFixedTypedArray(elements));
-  Node* base_pointer = BitcastTaggedToWord(
-      LoadObjectField(elements, FixedTypedArrayBase::kBasePointerOffset));
-  Node* external_pointer = BitcastTaggedToWord(
-      LoadObjectField(elements, FixedTypedArrayBase::kExternalPointerOffset));
-  return IntPtrAdd(base_pointer, external_pointer);
+  return LoadFixedTypedArrayBackingStore(CAST(elements));
 }
 
 TNode<BoolT> TypedArrayBuiltinsAssembler::ByteLengthIsValid(
@@ -1508,14 +1504,14 @@ TF_BUILTIN(TypedArrayPrototypeKeys, TypedArrayBuiltinsAssembler) {
 }
 
 void TypedArrayBuiltinsAssembler::DebugSanityCheckTypedArrayIndex(
-    TNode<JSTypedArray> array, SloppyTNode<Smi> index) {
+    TNode<JSTypedArray> array, TNode<IntPtrT> index) {
 #ifdef DEBUG
   TNode<JSArrayBuffer> buffer =
       LoadObjectField<JSArrayBuffer>(array, JSArrayBufferView::kBufferOffset);
   CSA_ASSERT(this, Word32BinaryNot(IsDetachedBuffer(buffer)));
-  TNode<Smi> array_length =
-      LoadObjectField<Smi>(array, JSTypedArray::kLengthOffset);
-  CSA_ASSERT(this, SmiLessThan(index, array_length));
+  TNode<IntPtrT> array_length =
+      LoadAndUntagObjectField(array, JSTypedArray::kLengthOffset);
+  CSA_ASSERT(this, IntPtrLessThan(index, array_length));
 #endif
 }
 
@@ -1524,15 +1520,13 @@ TF_BUILTIN(TypedArrayOf, TypedArrayBuiltinsAssembler) {
   TNode<Context> context = CAST(Parameter(BuiltinDescriptor::kContext));
 
   // 1. Let len be the actual number of arguments passed to this function.
-  TNode<Int32T> argc =
-      UncheckedCast<Int32T>(Parameter(BuiltinDescriptor::kArgumentsCount));
-  TNode<Smi> length = SmiFromWord32(argc);
+  TNode<IntPtrT> length = ChangeInt32ToIntPtr(
+      UncheckedCast<Int32T>(Parameter(BuiltinDescriptor::kArgumentsCount)));
   // 2. Let items be the List of arguments passed to this function.
-  CodeStubArguments args(this, length, nullptr, ParameterMode::SMI_PARAMETERS,
+  CodeStubArguments args(this, length, nullptr, INTPTR_PARAMETERS,
                          CodeStubArguments::ReceiverMode::kHasReceiver);
 
-  Label if_not_constructor(this, Label::kDeferred),
-      unreachable(this, Label::kDeferred);
+  Label if_not_constructor(this, Label::kDeferred);
 
   // 3. Let C be the this value.
   // 4. If IsConstructor(C) is false, throw a TypeError exception.
@@ -1542,7 +1536,7 @@ TF_BUILTIN(TypedArrayOf, TypedArrayBuiltinsAssembler) {
 
   // 5. Let newObj be ? TypedArrayCreate(C, len).
   TNode<JSTypedArray> new_typed_array =
-      CreateByLength(context, receiver, length, "%TypedArray%.of");
+      CreateByLength(context, receiver, SmiTag(length), "%TypedArray%.of");
 
   TNode<Word32T> elements_kind = LoadElementsKind(new_typed_array);
 
@@ -1555,42 +1549,37 @@ TF_BUILTIN(TypedArrayOf, TypedArrayBuiltinsAssembler) {
   DispatchTypedArrayByElementsKind(
       elements_kind,
       [&](ElementsKind kind, int size, int typed_array_fun_index) {
+        TNode<FixedTypedArrayBase> elements =
+            CAST(LoadElements(new_typed_array));
         BuildFastLoop(
-            SmiConstant(0), length,
+            IntPtrConstant(0), length,
             [&](Node* index) {
-              TNode<Object> item =
-                  args.AtIndex(index, ParameterMode::SMI_PARAMETERS);
+              TNode<Object> item = args.AtIndex(index, INTPTR_PARAMETERS);
+              TNode<IntPtrT> intptr_index = UncheckedCast<IntPtrT>(index);
               if (kind == BIGINT64_ELEMENTS || kind == BIGUINT64_ELEMENTS) {
-                // TODO(jkummerow): Add inline support.
-                CallRuntime(Runtime::kSetProperty, context, new_typed_array,
-                            index, item, SmiConstant(LanguageMode::kSloppy));
+                EmitBigTypedArrayElementStore(
+                    new_typed_array, elements, intptr_index, item, context,
+                    nullptr /* no need to check for neutered buffer */);
               } else {
-                TNode<Number> number = ToNumber_Inline(context, item);
-
-                // ToNumber may execute JavaScript code, but it cannot access
-                // arguments array and new typed array.
-                DebugSanityCheckTypedArrayIndex(new_typed_array, index);
-
-                // Since we can guarantee that "number" is Number type,
-                // PrepareValueForWriteToTypedArray cannot bail out.
-                Node* value = PrepareValueForWriteToTypedArray(number, kind,
-                                                               &unreachable);
+                Node* value =
+                    PrepareValueForWriteToTypedArray(item, kind, context);
 
                 // GC may move backing store in ToNumber, thus load backing
                 // store everytime in this loop.
-                TNode<IntPtrT> backing_store =
-                    UncheckedCast<IntPtrT>(LoadDataPtr(new_typed_array));
-                StoreElement(backing_store, kind, index, value, SMI_PARAMETERS);
+                TNode<RawPtrT> backing_store =
+                    LoadFixedTypedArrayBackingStore(elements);
+                StoreElement(backing_store, kind, index, value,
+                             INTPTR_PARAMETERS);
               }
+              // ToNumber/ToBigInt may execute JavaScript code, but they cannot
+              // access arguments array and new typed array.
+              DebugSanityCheckTypedArrayIndex(new_typed_array, intptr_index);
             },
-            1, ParameterMode::SMI_PARAMETERS, IndexAdvanceMode::kPost);
+            1, ParameterMode::INTPTR_PARAMETERS, IndexAdvanceMode::kPost);
       });
 
   // 8. Return newObj.
   args.PopAndReturn(new_typed_array);
-
-  BIND(&unreachable);
-  Unreachable();
 
   BIND(&if_not_constructor);
   ThrowTypeError(context, MessageTemplate::kNotConstructor, receiver);
@@ -1668,8 +1657,7 @@ TF_BUILTIN(TypedArrayFrom, TypedArrayBuiltinsAssembler) {
       slow_path(this), create_typed_array(this),
       if_not_constructor(this, Label::kDeferred),
       if_map_fn_not_callable(this, Label::kDeferred),
-      if_iterator_fn_not_callable(this, Label::kDeferred),
-      unreachable(this, Label::kDeferred);
+      if_iterator_fn_not_callable(this, Label::kDeferred);
 
   CodeStubArguments args(
       this, ChangeInt32ToIntPtr(Parameter(BuiltinDescriptor::kArgumentsCount)));
@@ -1784,45 +1772,41 @@ TF_BUILTIN(TypedArrayFrom, TypedArrayBuiltinsAssembler) {
   TNode<Word32T> elements_kind = LoadElementsKind(target_obj.value());
 
   // 7e/13 : Copy the elements
+  TNode<FixedTypedArrayBase> elements = CAST(LoadElements(target_obj.value()));
   BuildFastLoop(
       SmiConstant(0), final_length.value(),
       [&](Node* index) {
-        TNode<String> const index_string = NumberToString(CAST(index));
         TNode<Object> const k_value =
-            CAST(GetProperty(context, final_source.value(), index_string));
+            CAST(GetProperty(context, final_source.value(), index));
 
         TNode<Object> const mapped_value =
             CAST(CallJS(CodeFactory::Call(isolate()), context, map_fn, this_arg,
                         k_value, index));
 
-        TNode<Number> const number_value =
-            ToNumber_Inline(context, mapped_value);
-        // map_fn or ToNumber could have executed JavaScript code, but
-        // they could not have accessed the new typed array.
-        DebugSanityCheckTypedArrayIndex(target_obj.value(), index);
-
+        TNode<IntPtrT> intptr_index = SmiUntag(index);
         DispatchTypedArrayByElementsKind(
             elements_kind,
             [&](ElementsKind kind, int size, int typed_array_fun_index) {
               if (kind == BIGINT64_ELEMENTS || kind == BIGUINT64_ELEMENTS) {
-                // TODO(jkummerow): Add inline support.
-                CallRuntime(Runtime::kSetProperty, context, target_obj.value(),
-                            index, number_value,
-                            SmiConstant(LanguageMode::kSloppy));
+                EmitBigTypedArrayElementStore(
+                    target_obj.value(), elements, intptr_index, mapped_value,
+                    context,
+                    nullptr /* no need to check for neutered buffer */);
               } else {
-                // Since we can guarantee that "number_value" is Number type,
-                // PrepareValueForWriteToTypedArray cannot bail out.
                 Node* const final_value = PrepareValueForWriteToTypedArray(
-                    number_value, kind, &unreachable);
+                    mapped_value, kind, context);
 
                 // GC may move backing store in map_fn, thus load backing
                 // store in each iteration of this loop.
-                TNode<IntPtrT> const backing_store =
-                    UncheckedCast<IntPtrT>(LoadDataPtr(target_obj.value()));
+                TNode<RawPtrT> backing_store =
+                    LoadFixedTypedArrayBackingStore(elements);
                 StoreElement(backing_store, kind, index, final_value,
                              SMI_PARAMETERS);
               }
             });
+        // map_fn or ToNumber or ToBigint could have executed JavaScript code,
+        // but they could not have accessed the new typed array.
+        DebugSanityCheckTypedArrayIndex(target_obj.value(), intptr_index);
       },
       1, ParameterMode::SMI_PARAMETERS, IndexAdvanceMode::kPost);
 
@@ -1836,9 +1820,6 @@ TF_BUILTIN(TypedArrayFrom, TypedArrayBuiltinsAssembler) {
 
   BIND(&if_iterator_fn_not_callable);
   ThrowTypeError(context, MessageTemplate::kIteratorSymbolNonCallable);
-
-  BIND(&unreachable);
-  Unreachable();
 }
 
 // ES %TypedArray%.prototype.filter
