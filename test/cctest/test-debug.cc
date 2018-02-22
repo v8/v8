@@ -182,6 +182,24 @@ static int SetBreakPoint(v8::Local<v8::Function> fun, int position) {
   return break_point;
 }
 
+// Set a break point in a function with a position relative to function start,
+// and return the associated break point number.
+static i::Handle<i::BreakPoint> SetBreakPoint(v8::Local<v8::Function> fun,
+                                              int position,
+                                              const char* condition) {
+  i::Handle<i::JSFunction> function =
+      i::Handle<i::JSFunction>::cast(v8::Utils::OpenHandle(*fun));
+  position += function->shared()->start_position();
+  static int break_point_index = 0;
+  i::Isolate* isolate = function->GetIsolate();
+  i::Debug* debug = isolate->debug();
+  i::Handle<i::BreakPoint> break_point = isolate->factory()->NewBreakPoint(
+      ++break_point_index,
+      isolate->factory()->NewStringFromAsciiChecked(condition));
+
+  debug->SetBreakPoint(function, break_point, &position);
+  return break_point;
+}
 
 // Set a break point in a function using the Debug object and return the
 // associated break point number.
@@ -258,6 +276,11 @@ static void ClearBreakPoint(int break_point) {
       Handle<Object>(v8::internal::Smi::FromInt(break_point), isolate));
 }
 
+static void ClearBreakPoint(i::Handle<i::BreakPoint> break_point) {
+  v8::internal::Isolate* isolate = CcTest::i_isolate();
+  v8::internal::Debug* debug = isolate->debug();
+  debug->ClearBreakPoint(break_point);
+}
 
 // Clear a break point using the global Debug object.
 static void ClearBreakPointFromJS(v8::Isolate* isolate,
@@ -949,6 +972,37 @@ TEST(BreakPointICStore) {
   CheckDebuggerUnloaded();
 }
 
+// Test that a break point can be set at an IC store location.
+TEST(BreakPointCondition) {
+  break_point_hit_count = 0;
+  DebugLocalContext env;
+  v8::HandleScope scope(env->GetIsolate());
+
+  SetDebugEventListener(env->GetIsolate(), DebugEventBreakPointHitCount);
+  CompileRun("var a = false");
+  v8::Local<v8::Function> foo =
+      CompileFunction(&env, "function foo() { return 1 }", "foo");
+  // Run without breakpoints.
+  CompileRun("foo()");
+  CHECK_EQ(0, break_point_hit_count);
+
+  // Run with breakpoint
+  i::Handle<i::BreakPoint> bp = SetBreakPoint(foo, 0, "a == true");
+  CompileRun("foo()");
+  CHECK_EQ(0, break_point_hit_count);
+
+  CompileRun("a = true");
+  CompileRun("foo()");
+  CHECK_EQ(1, break_point_hit_count);
+
+  // Run without breakpoints.
+  ClearBreakPoint(bp);
+  CompileRun("foo()");
+  CHECK_EQ(1, break_point_hit_count);
+
+  SetDebugEventListener(env->GetIsolate(), nullptr);
+  CheckDebuggerUnloaded();
+}
 
 // Test that a break point can be set at an IC load location.
 TEST(BreakPointICLoad) {
