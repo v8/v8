@@ -79,6 +79,7 @@
   V(Float64Array_string, "Float64Array")                           \
   V(fraction_string, "fraction")                                   \
   V(Function_string, "Function")                                   \
+  V(function_native_code_string, "function () { [native code] }")  \
   V(function_string, "function")                                   \
   V(function_to_string, "[object Function]")                       \
   V(Generator_string, "Generator")                                 \

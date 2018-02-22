@@ -305,8 +305,15 @@ BUILTIN(FunctionPrototypeToString) {
   Handle<Object> receiver = args.receiver();
   if (receiver->IsJSBoundFunction()) {
     return *JSBoundFunction::ToString(Handle<JSBoundFunction>::cast(receiver));
-  } else if (receiver->IsJSFunction()) {
+  }
+  if (receiver->IsJSFunction()) {
     return *JSFunction::ToString(Handle<JSFunction>::cast(receiver));
+  }
+  // With the revised toString behavior, all callable objects are valid
+  // receivers for this method.
+  if (FLAG_harmony_function_tostring && receiver->IsJSReceiver() &&
+      JSReceiver::cast(*receiver)->map()->is_callable()) {
+    return isolate->heap()->function_native_code_string();
   }
   THROW_NEW_ERROR_RETURN_FAILURE(
       isolate, NewTypeError(MessageTemplate::kNotGeneric,

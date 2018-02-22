@@ -13212,9 +13212,6 @@ bool JSFunction::SetName(Handle<JSFunction> function, Handle<Name> name,
 
 namespace {
 
-char const kNativeCodeSource[] = "function () { [native code] }";
-
-
 Handle<String> NativeCodeFunctionSourceString(
     Handle<SharedFunctionInfo> shared_info) {
   Isolate* const isolate = shared_info->GetIsolate();
@@ -13231,7 +13228,7 @@ Handle<String> NativeCodeFunctionSourceString(
 // static
 Handle<String> JSBoundFunction::ToString(Handle<JSBoundFunction> function) {
   Isolate* const isolate = function->GetIsolate();
-  return isolate->factory()->NewStringFromAsciiChecked(kNativeCodeSource);
+  return isolate->factory()->function_native_code_string();
 }
 
 
