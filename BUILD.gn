@@ -2978,7 +2978,7 @@ v8_executable("d8") {
   }
 
   if (v8_correctness_fuzzer) {
-    deps += [ "tools/foozzie:v8_correctness_fuzzer_resources" ]
+    deps += [ "tools/clusterfuzz:v8_correctness_fuzzer_resources" ]
   }
 
   defines = []
