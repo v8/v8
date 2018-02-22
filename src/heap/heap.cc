@@ -2472,6 +2472,7 @@ AllocationResult Heap::AllocatePartialMap(InstanceType instance_type,
                    Map::ConstructionCounterBits::encode(Map::kNoSlackTracking);
   map->set_bit_field3(bit_field3);
   map->set_weak_cell_cache(Smi::kZero);
+  map->set_prototype_validity_cell(Smi::kZero);
   map->set_elements_kind(TERMINAL_FAST_ELEMENTS_KIND);
   return map;
 }
@@ -2507,6 +2508,7 @@ AllocationResult Heap::AllocateMap(InstanceType instance_type,
   map->set_dependent_code(DependentCode::cast(empty_fixed_array()),
                           SKIP_WRITE_BARRIER);
   map->set_weak_cell_cache(Smi::kZero);
+  map->set_prototype_validity_cell(Smi::kZero);
   map->set_raw_transitions(Smi::kZero);
   map->SetInObjectUnusedPropertyFields(inobject_properties);
   map->set_instance_descriptors(empty_descriptor_array());

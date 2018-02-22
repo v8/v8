@@ -559,6 +559,20 @@ class Map : public HeapObject {
   // [weak cell cache]: cache that stores a weak cell pointing to this map.
   DECL_ACCESSORS(weak_cell_cache, Object)
 
+  // [prototype_validity_cell]: Cell containing the validity bit for prototype
+  // chains or Smi(0) if uninitialized.
+  // The meaning of this validity cell is different for prototype maps and
+  // non-prototype maps.
+  // For prototype maps the validity bit "guards" modifications of prototype
+  // chains going through this object. When a prototype object changes, both its
+  // own validity cell and those of all "downstream" prototypes are invalidated;
+  // handlers for a given receiver embed the currently valid cell for that
+  // receiver's prototype during their creation and check it on execution.
+  // For non-prototype maps which are used as transitioning store handlers this
+  // field contains the validity cell which guards modifications of this map's
+  // prototype.
+  DECL_ACCESSORS(prototype_validity_cell, Object)
+
   inline PropertyDetails GetLastDescriptorDetails() const;
 
   inline int LastAdded() const;
@@ -773,6 +787,7 @@ class Map : public HeapObject {
   V(kLayoutDescriptorOffset, FLAG_unbox_double_fields ? kPointerSize : 0)   \
   V(kDependentCodeOffset, kPointerSize)                                     \
   V(kWeakCellCacheOffset, kPointerSize)                                     \
+  V(kPrototypeValidityCellOffset, kPointerSize)                             \
   V(kPointerFieldsEndOffset, 0)                                             \
   /* Total size. */                                                         \
   V(kSize, 0)

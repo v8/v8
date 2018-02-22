@@ -2934,13 +2934,7 @@ class PrototypeInfo : public Struct {
   // is stored. Returns UNREGISTERED if this prototype has not been registered.
   inline int registry_slot() const;
   inline void set_registry_slot(int slot);
-  // [validity_cell]: Cell containing the validity bit for prototype chains
-  // going through this object, or Smi(0) if uninitialized.
-  // When a prototype object changes its map, then both its own validity cell
-  // and those of all "downstream" prototypes are invalidated; handlers for a
-  // given receiver embed the currently valid cell for that receiver's prototype
-  // during their compilation and check it on execution.
-  DECL_ACCESSORS(validity_cell, Object)
+
   // [bit_field]
   inline int bit_field() const;
   inline void set_bit_field(int bit_field);
