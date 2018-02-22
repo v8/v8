@@ -1753,7 +1753,7 @@ Reduction JSTypedLowering::ReduceJSCall(Node* node) {
   if (p.convert_mode() != convert_mode) {
     NodeProperties::ChangeOp(
         node, javascript()->Call(p.arity(), p.frequency(), p.feedback(),
-                                 convert_mode));
+                                 convert_mode, p.speculation_mode()));
     return Changed(node);
   }
 
