@@ -10,7 +10,7 @@
 
 
 // This will be overridden in the test cases. The override can be minimized.
-var __PrettyPrint = function __PrettyPrint(msg) { print(msg); };
+var prettyPrinted = function prettyPrinted(msg) { return msg; };
 
 // Mock Math.random.
 (function () {
@@ -121,16 +121,16 @@ Object.defineProperty(
   ];
   Worker = function(code){
     try {
-      __PrettyPrint(eval(code));
+      print(prettyPrinted(eval(code)));
     } catch(e) {
-      __PrettyPrint(e);
+      print(prettyPrinted(e));
     }
     this.getMessage = function(){
       index = (index + 1) % 10;
       return workerMessages[index];
     }
     this.postMessage = function(msg){
-      __PrettyPrint(msg);
+      print(prettyPrinted(msg));
     }
   };
 })();

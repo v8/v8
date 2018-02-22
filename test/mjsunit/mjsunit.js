@@ -178,6 +178,8 @@ var testAsync;
 // Monkey-patchable all-purpose failure handler.
 var failWithMessage;
 
+// Returns a pretty-printed string representation of the passed value.
+var prettyPrinted;
 
 (function () {  // Scope for utility functions.
 
@@ -224,7 +226,7 @@ var failWithMessage;
   }
 
 
-  function PrettyPrint(value) {
+  prettyPrinted = function prettyPrinted(value) {
     switch (typeof value) {
       case "string":
         return JSON.stringify(value);
@@ -247,11 +249,12 @@ var failWithMessage;
           case "String":
           case "Boolean":
           case "Date":
-            return objectClass + "(" + PrettyPrint(ValueOf(value)) + ")";
+            return objectClass + "(" + prettyPrinted(ValueOf(value)) + ")";
           case "RegExp":
             return RegExpPrototypeToString.call(value);
           case "Array":
-            var mapped = ArrayPrototypeMap.call(value, PrettyPrintArrayElement);
+            var mapped = ArrayPrototypeMap.call(
+                value, prettyPrintedArrayElement);
             var joined = ArrayPrototypeJoin.call(mapped, ",");
             return "[" + joined + "]";
           case "Uint8Array":
@@ -279,9 +282,9 @@ var failWithMessage;
   }
 
 
-  function PrettyPrintArrayElement(value, index, array) {
+  function prettyPrintedArrayElement(value, index, array) {
     if (value === undefined && !(index in array)) return "";
-    return PrettyPrint(value);
+    return prettyPrinted(value);
   }
 
 
@@ -296,7 +299,7 @@ var failWithMessage;
       message += " (" + name_opt + ")";
     }
 
-    var foundText = PrettyPrint(found);
+    var foundText = prettyPrinted(found);
     if (expectedText.length <= 40 && foundText.length <= 40) {
       message += ": expected <" + expectedText + "> found <" + foundText + ">";
     } else {
@@ -372,7 +375,7 @@ var failWithMessage;
     } else if ((expected !== expected) && (found !== found)) {
       return;
     }
-    fail(PrettyPrint(expected), found, name_opt);
+    fail(prettyPrinted(expected), found, name_opt);
   };
 
   assertNotSame = function assertNotSame(expected, found, name_opt) {
@@ -383,18 +386,18 @@ var failWithMessage;
     } else if (!((expected !== expected) && (found !== found))) {
       return;
     }
-    fail(PrettyPrint(expected), found, name_opt);
+    fail(prettyPrinted(expected), found, name_opt);
   }
 
   assertEquals = function assertEquals(expected, found, name_opt) {
     if (!deepEquals(found, expected)) {
-      fail(PrettyPrint(expected), found, name_opt);
+      fail(prettyPrinted(expected), found, name_opt);
     }
   };
 
   assertNotEquals = function assertNotEquals(expected, found, name_opt) {
     if (deepEquals(found, expected)) {
-      fail("not equals to " + PrettyPrint(expected), found, name_opt);
+      fail("not equals to " + prettyPrinted(expected), found, name_opt);
     }
   };
 
@@ -402,7 +405,7 @@ var failWithMessage;
   assertEqualsDelta =
       function assertEqualsDelta(expected, found, delta, name_opt) {
     if (Math.abs(expected - found) > delta) {
-      fail(PrettyPrint(expected) + " +- " + PrettyPrint(delta), found, name_opt);
+      fail(prettyPrinted(expected) + " +- " + prettyPrinted(delta), found, name_opt);
     }
   };
 
@@ -509,7 +512,7 @@ var failWithMessage;
       if (typeof actualConstructor === "function") {
         actualTypeName = actualConstructor.name || String(actualConstructor);
       }
-      failWithMessage("Object <" + PrettyPrint(obj) + "> is not an instance of <" +
+      failWithMessage("Object <" + prettyPrinted(obj) + "> is not an instance of <" +
                (type.name || type) + ">" +
                (actualTypeName ? " but of <" + actualTypeName + ">" : ""));
     }
@@ -781,7 +784,7 @@ var failWithMessage;
     equals(expected, found, name_opt) {
       this.actualAsserts_++;
       if (!deepEquals(expected, found)) {
-        this.fail(PrettyPrint(expected), found, name_opt);
+        this.fail(prettyPrinted(expected), found, name_opt);
       }
     }
 
