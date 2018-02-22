@@ -634,6 +634,18 @@ class V8_EXPORT_PRIVATE CodeAssembler {
 #define CAST(x) Cast(x, "")
 #endif
 
+#ifdef V8_EMBEDDED_BUILTINS
+  // Off-heap builtins cannot embed constants within the code object itself,
+  // and thus need to load them from the root list.
+  bool ShouldLoadConstantsFromRootList() const {
+    return (isolate()->serializer_enabled() &&
+            isolate()->builtins_constants_table_builder() != nullptr);
+  }
+
+  TNode<Code> LookupConstantCodeTarget(Handle<Code> code);
+  TNode<HeapObject> LookupConstant(Handle<HeapObject> object);
+#endif
+
   // Constants.
   TNode<Int32T> Int32Constant(int32_t value);
   TNode<Int64T> Int64Constant(int64_t value);

@@ -6,6 +6,7 @@
 
 #include <ostream>
 
+#include "src/builtins/constants-table-builder.h"
 #include "src/code-factory.h"
 #include "src/compiler/graph.h"
 #include "src/compiler/instruction-selector.h"
@@ -234,6 +235,37 @@ bool CodeAssembler::IsIntPtrAbsWithOverflowSupported() const {
                 : IsInt32AbsWithOverflowSupported();
 }
 
+#ifdef V8_EMBEDDED_BUILTINS
+TNode<Code> CodeAssembler::LookupConstantCodeTarget(Handle<Code> code) {
+  return CAST(LookupConstant(code));
+}
+
+TNode<HeapObject> CodeAssembler::LookupConstant(Handle<HeapObject> object) {
+  DCHECK(isolate()->serializer_enabled());
+
+  // Ensure the given object is in the builtins constants table and fetch its
+  // index.
+  BuiltinsConstantsTableBuilder* builder =
+      isolate()->builtins_constants_table_builder();
+  uint32_t index = builder->AddObject(object);
+
+  // The builtins constants table is loaded through the root register on all
+  // supported platforms. This is checked by the
+  // VerifyBuiltinsIsolateIndependence cctest, which disallows embedded objects
+  // in isolate-independent builtins.
+  DCHECK(isolate()->heap()->RootCanBeTreatedAsConstant(
+      Heap::kBuiltinsConstantsTableRootIndex));
+  TNode<FixedArray> builtins_constants_table = UncheckedCast<FixedArray>(
+      LoadRoot(Heap::kBuiltinsConstantsTableRootIndex));
+
+  // Generate the lookup.
+  const int32_t header_size = FixedArray::kHeaderSize - kHeapObjectTag;
+  TNode<IntPtrT> offset = IntPtrConstant(header_size + kPointerSize * index);
+  return UncheckedCast<HeapObject>(
+      Load(MachineType::AnyTagged(), builtins_constants_table, offset));
+}
+#endif  // V8_EMBEDDED_BUILTINS
+
 TNode<Int32T> CodeAssembler::Int32Constant(int32_t value) {
   return UncheckedCast<Int32T>(raw_assembler()->Int32Constant(value));
 }
@@ -266,6 +298,16 @@ TNode<Smi> CodeAssembler::SmiConstant(int value) {
 
 TNode<HeapObject> CodeAssembler::UntypedHeapConstant(
     Handle<HeapObject> object) {
+#ifdef V8_EMBEDDED_BUILTINS
+  // Root constants are simply loaded from the root list, while non-root
+  // constants must be looked up from the builtins constants table.
+  if (ShouldLoadConstantsFromRootList()) {
+    Heap::RootListIndex root_index;
+    if (!isolate()->heap()->IsRootHandle(object, &root_index)) {
+      return LookupConstant(object);
+    }
+  }
+#endif  // V8_EMBEDDED_BUILTINS
   return UncheckedCast<HeapObject>(raw_assembler()->HeapConstant(object));
 }
 

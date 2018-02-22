@@ -300,6 +300,7 @@ bool Builtins::IsIsolateIndependent(int index) {
     case kLoadIC_StringWrapperLength:
     case kLoadICTrampoline:
     case kOrderedHashTableHealIndex:
+    case kPromiseFulfillReactionJob:
     case kStoreGlobalICTrampoline:
     case kStoreICTrampoline:
     case kStringRepeat:

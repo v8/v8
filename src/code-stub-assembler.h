@@ -27,7 +27,6 @@ enum class PrimitiveType { kBoolean, kNumber, kString, kSymbol };
   V(AccessorPairMap, accessor_pair_map, AccessorPairMap)                      \
   V(AllocationSiteMap, allocation_site_map, AllocationSiteMap)                \
   V(BooleanMap, boolean_map, BooleanMap)                                      \
-  V(BuiltinsConstantsTable, builtins_constants_table, BuiltinsConstantsTable) \
   V(CodeMap, code_map, CodeMap)                                               \
   V(EmptyPropertyDictionary, empty_property_dictionary,                       \
     EmptyPropertyDictionary)                                                  \
@@ -1609,15 +1608,6 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
 #if V8_TARGET_ARCH_IA32
 #error "ia32 does not yet support embedded builtins"
 #endif
-
-  // Off-heap builtins cannot embed constants within the code object itself,
-  // and thus need to load them from the root list.
-  bool ShouldLoadConstantsFromRootList() const {
-    return (isolate()->serializer_enabled() &&
-            isolate()->builtins_constants_table_builder() != nullptr);
-  }
-
-  TNode<Code> LookupConstantCodeTarget(Handle<Code> code);
 
   template <class... TArgs>
   Node* CallStub(Callable const& callable, Node* context, TArgs... args) {
