@@ -4094,11 +4094,15 @@ class V8_EXPORT Proxy : public Object {
 class V8_EXPORT WasmCompiledModule : public Object {
  public:
   typedef std::pair<std::unique_ptr<const uint8_t[]>, size_t> SerializedModule;
-  // A buffer that is owned by the caller.
+  /**
+   * A buffer that is owned by the caller.
+   */
   typedef std::pair<const uint8_t*, size_t> CallerOwnedBuffer;
 
-  // An opaque, native heap object for transferring wasm modules. It
-  // supports move semantics, and does not support copy semantics.
+  /**
+   * An opaque, native heap object for transferring wasm modules. It
+   * supports move semantics, and does not support copy semantics.
+   */
   class TransferrableModule final {
    public:
     TransferrableModule(TransferrableModule&& src) = default;
@@ -4117,35 +4121,41 @@ class V8_EXPORT WasmCompiledModule : public Object {
     OwnedBuffer wire_bytes = {nullptr, 0};
   };
 
-  // Get an in-memory, non-persistable, and context-independent (meaning,
-  // suitable for transfer to another Isolate and Context) representation
-  // of this wasm compiled module.
+  /**
+   * Get an in-memory, non-persistable, and context-independent (meaning,
+   * suitable for transfer to another Isolate and Context) representation
+   * of this wasm compiled module.
+   */
   TransferrableModule GetTransferrableModule();
 
-  // Efficiently re-create a WasmCompiledModule, without recompiling, from
-  // a TransferrableModule.
+  /**
+   * Efficiently re-create a WasmCompiledModule, without recompiling, from
+   * a TransferrableModule.
+   */
   static MaybeLocal<WasmCompiledModule> FromTransferrableModule(
       Isolate* isolate, const TransferrableModule&);
 
-  // Get the wasm-encoded bytes that were used to compile this module.
+  /**
+   * Get the wasm-encoded bytes that were used to compile this module.
+   */
   Local<String> GetWasmWireBytes();
 
-  // Serialize the compiled module. The serialized data does not include the
-  // uncompiled bytes.
+  /**
+   * Serialize the compiled module. The serialized data does not include the
+   * uncompiled bytes.
+   */
   SerializedModule Serialize();
 
-  // If possible, deserialize the module, otherwise compile it from the provided
-  // uncompiled bytes.
+  /**
+   * If possible, deserialize the module, otherwise compile it from the provided
+   * uncompiled bytes.
+   */
   static MaybeLocal<WasmCompiledModule> DeserializeOrCompile(
       Isolate* isolate, const CallerOwnedBuffer& serialized_module,
       const CallerOwnedBuffer& wire_bytes);
   V8_INLINE static WasmCompiledModule* Cast(Value* obj);
 
  private:
-  // TODO(ahaas): please remove the friend once streamed compilation is
-  // implemented
-  friend class WasmModuleObjectBuilder;
-
   static MaybeLocal<WasmCompiledModule> Deserialize(
       Isolate* isolate, const CallerOwnedBuffer& serialized_module,
       const CallerOwnedBuffer& wire_bytes);
@@ -4166,12 +4176,16 @@ class V8_EXPORT WasmCompiledModule : public Object {
 class V8_EXPORT WasmModuleObjectBuilderStreaming final {
  public:
   explicit WasmModuleObjectBuilderStreaming(Isolate* isolate);
-  // The buffer passed into OnBytesReceived is owned by the caller.
+  /**
+   * The buffer passed into OnBytesReceived is owned by the caller.
+   */
   void OnBytesReceived(const uint8_t*, size_t size);
   void Finish();
-  // Abort streaming compilation. If {exception} has a value, then the promise
-  // associated with streaming compilation is rejected with that value. If
-  // {exception} does not have value, the promise does not get rejected.
+  /**
+   * Abort streaming compilation. If {exception} has a value, then the promise
+   * associated with streaming compilation is rejected with that value. If
+   * {exception} does not have value, the promise does not get rejected.
+   */
   void Abort(MaybeLocal<Value> exception);
   Local<Promise> GetPromise();
 
@@ -4191,11 +4205,13 @@ class V8_EXPORT WasmModuleObjectBuilderStreaming final {
   Isolate* isolate_ = nullptr;
 
 #if V8_CC_MSVC
-  // We don't need the static Copy API, so the default
-  // NonCopyablePersistentTraits would be sufficient, however,
-  // MSVC eagerly instantiates the Copy.
-  // We ensure we don't use Copy, however, by compiling with the
-  // defaults everywhere else.
+  /**
+   * We don't need the static Copy API, so the default
+   * NonCopyablePersistentTraits would be sufficient, however,
+   * MSVC eagerly instantiates the Copy.
+   * We ensure we don't use Copy, however, by compiling with the
+   * defaults everywhere else.
+   */
   Persistent<Promise, CopyablePersistentTraits<Promise>> promise_;
 #else
   Persistent<Promise> promise_;
