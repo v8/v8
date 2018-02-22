@@ -483,7 +483,7 @@ MUST_USE_RESULT MaybeHandle<Code> GetCodeFromOptimizedCodeCache(
   Handle<SharedFunctionInfo> shared(function->shared());
   DisallowHeapAllocation no_gc;
   if (osr_offset.IsNone()) {
-    if (function->feedback_vector_cell()->value()->IsFeedbackVector()) {
+    if (function->feedback_cell()->value()->IsFeedbackVector()) {
       FeedbackVector* feedback_vector = function->feedback_vector();
       feedback_vector->EvictOptimizedCodeMarkedForDeoptimization(
           function->shared(), "GetCodeFromOptimizedCodeCache");
@@ -1085,8 +1085,8 @@ bool Compiler::Compile(Handle<JSFunction> function, ClearExceptionFlag flag) {
   if (!shared_info->is_compiled() && !Compile(shared_info, flag)) return false;
   Handle<Code> code = handle(shared_info->code(), isolate);
 
-  // Allocate literals for the JSFunction.
-  JSFunction::EnsureLiterals(function);
+  // Allocate FeedbackVector for the JSFunction.
+  JSFunction::EnsureFeedbackVector(function);
 
   // Optimize now if --always-opt is enabled.
   if (FLAG_always_opt && !function->shared()->HasAsmWasmData()) {
@@ -1206,11 +1206,11 @@ MaybeHandle<JSFunction> Compiler::GetFunctionFromEval(
     eval_scope_position = -parameters_end_pos;
   }
   CompilationCache* compilation_cache = isolate->compilation_cache();
-  InfoVectorPair eval_result = compilation_cache->LookupEval(
+  InfoCellPair eval_result = compilation_cache->LookupEval(
       source, outer_info, context, language_mode, eval_scope_position);
-  Handle<Cell> vector;
-  if (eval_result.has_vector()) {
-    vector = Handle<Cell>(eval_result.vector(), isolate);
+  Handle<FeedbackCell> feedback_cell;
+  if (eval_result.has_feedback_cell()) {
+    feedback_cell = handle(eval_result.feedback_cell(), isolate);
   }
 
   Handle<SharedFunctionInfo> shared_info;
@@ -1271,30 +1271,31 @@ MaybeHandle<JSFunction> Compiler::GetFunctionFromEval(
 
   Handle<JSFunction> result;
   if (eval_result.has_shared()) {
-    if (eval_result.has_vector()) {
+    if (eval_result.has_feedback_cell()) {
       result = isolate->factory()->NewFunctionFromSharedFunctionInfo(
-          shared_info, context, vector, NOT_TENURED);
+          shared_info, context, feedback_cell, NOT_TENURED);
     } else {
       result = isolate->factory()->NewFunctionFromSharedFunctionInfo(
           shared_info, context, NOT_TENURED);
-      JSFunction::EnsureLiterals(result);
+      JSFunction::EnsureFeedbackVector(result);
       if (allow_eval_cache) {
         // Make sure to cache this result.
-        Handle<Cell> new_vector(result->feedback_vector_cell(), isolate);
+        Handle<FeedbackCell> new_feedback_cell(result->feedback_cell(),
+                                               isolate);
         compilation_cache->PutEval(source, outer_info, context, shared_info,
-                                   new_vector, eval_scope_position);
+                                   new_feedback_cell, eval_scope_position);
       }
     }
   } else {
     result = isolate->factory()->NewFunctionFromSharedFunctionInfo(
         shared_info, context, NOT_TENURED);
-    JSFunction::EnsureLiterals(result);
+    JSFunction::EnsureFeedbackVector(result);
     if (allow_eval_cache) {
       // Add the SharedFunctionInfo and the LiteralsArray to the eval cache if
       // we didn't retrieve from there.
-      Handle<Cell> vector(result->feedback_vector_cell(), isolate);
+      Handle<FeedbackCell> new_feedback_cell(result->feedback_cell(), isolate);
       compilation_cache->PutEval(source, outer_info, context, shared_info,
-                                 vector, eval_scope_position);
+                                 new_feedback_cell, eval_scope_position);
     }
   }
 
@@ -1870,8 +1871,7 @@ void Compiler::PostInstantiation(Handle<JSFunction> function,
   if (FLAG_always_opt && shared->allows_lazy_compilation() &&
       !shared->optimization_disabled() && !shared->HasAsmWasmData() &&
       shared->is_compiled()) {
-    // TODO(mvstanton): pass pretenure flag to EnsureLiterals.
-    JSFunction::EnsureLiterals(function);
+    JSFunction::EnsureFeedbackVector(function);
 
     if (!function->IsOptimized()) {
       // Only mark for optimization if we don't already have optimized code.
@@ -1882,8 +1882,7 @@ void Compiler::PostInstantiation(Handle<JSFunction> function,
   }
 
   if (shared->is_compiled() && !shared->HasAsmWasmData()) {
-    // TODO(mvstanton): pass pretenure flag to EnsureLiterals.
-    JSFunction::EnsureLiterals(function);
+    JSFunction::EnsureFeedbackVector(function);
 
     Code* code = function->feedback_vector()->optimized_code();
     if (code != nullptr) {

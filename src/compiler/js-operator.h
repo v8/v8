@@ -18,6 +18,7 @@ namespace internal {
 class AllocationSite;
 class BoilerplateDescription;
 class ConstantElementsPair;
+class FeedbackCell;
 class SharedFunctionInfo;
 
 namespace compiler {
@@ -533,18 +534,20 @@ const CreateBoundFunctionParameters& CreateBoundFunctionParametersOf(
 class CreateClosureParameters final {
  public:
   CreateClosureParameters(Handle<SharedFunctionInfo> shared_info,
-                          VectorSlotPair const& feedback,
+                          Handle<FeedbackCell> feedback_cell,
                           PretenureFlag pretenure)
-      : shared_info_(shared_info), feedback_(feedback), pretenure_(pretenure) {}
+      : shared_info_(shared_info),
+        feedback_cell_(feedback_cell),
+        pretenure_(pretenure) {}
 
   Handle<SharedFunctionInfo> shared_info() const { return shared_info_; }
-  VectorSlotPair const& feedback() const { return feedback_; }
+  Handle<FeedbackCell> feedback_cell() const { return feedback_cell_; }
   PretenureFlag pretenure() const { return pretenure_; }
 
  private:
-  const Handle<SharedFunctionInfo> shared_info_;
-  VectorSlotPair const feedback_;
-  const PretenureFlag pretenure_;
+  Handle<SharedFunctionInfo> const shared_info_;
+  Handle<FeedbackCell> const feedback_cell_;
+  PretenureFlag const pretenure_;
 };
 
 bool operator==(CreateClosureParameters const&, CreateClosureParameters const&);
@@ -651,10 +654,9 @@ class V8_EXPORT_PRIVATE JSOperatorBuilder final
   const Operator* CreateArguments(CreateArgumentsType type);
   const Operator* CreateArray(size_t arity, Handle<AllocationSite> site);
   const Operator* CreateBoundFunction(size_t arity, Handle<Map> map);
-  const Operator* CreateClosure(
-      Handle<SharedFunctionInfo> shared_info,
-      VectorSlotPair const& feedback = VectorSlotPair(),
-      PretenureFlag pretenure = NOT_TENURED);
+  const Operator* CreateClosure(Handle<SharedFunctionInfo> shared_info,
+                                Handle<FeedbackCell> feedback_cell,
+                                PretenureFlag pretenure = NOT_TENURED);
   const Operator* CreateIterResultObject();
   const Operator* CreateKeyValueArray();
   const Operator* CreatePromise();

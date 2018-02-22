@@ -175,14 +175,16 @@ void CompilationCacheScript::Put(Handle<String> source, Handle<Context> context,
                                                  language_mode, function_info));
 }
 
-InfoVectorPair CompilationCacheEval::Lookup(
-    Handle<String> source, Handle<SharedFunctionInfo> outer_info,
-    Handle<Context> native_context, LanguageMode language_mode, int position) {
+InfoCellPair CompilationCacheEval::Lookup(Handle<String> source,
+                                          Handle<SharedFunctionInfo> outer_info,
+                                          Handle<Context> native_context,
+                                          LanguageMode language_mode,
+                                          int position) {
   HandleScope scope(isolate());
   // Make sure not to leak the table into the surrounding handle
   // scope. Otherwise, we risk keeping old tables around even after
   // having cleared the cache.
-  InfoVectorPair result;
+  InfoCellPair result;
   const int generation = 0;
   DCHECK_EQ(generations(), 1);
   Handle<CompilationCacheTable> table = GetTable(generation);
@@ -200,12 +202,13 @@ void CompilationCacheEval::Put(Handle<String> source,
                                Handle<SharedFunctionInfo> outer_info,
                                Handle<SharedFunctionInfo> function_info,
                                Handle<Context> native_context,
-                               Handle<Cell> literals, int position) {
+                               Handle<FeedbackCell> feedback_cell,
+                               int position) {
   HandleScope scope(isolate());
   Handle<CompilationCacheTable> table = GetFirstTable();
   table =
       CompilationCacheTable::PutEval(table, source, outer_info, function_info,
-                                     native_context, literals, position);
+                                     native_context, feedback_cell, position);
   SetFirstTable(table);
 }
 
@@ -262,10 +265,12 @@ MaybeHandle<SharedFunctionInfo> CompilationCache::LookupScript(
                         resource_options, context, language_mode);
 }
 
-InfoVectorPair CompilationCache::LookupEval(
-    Handle<String> source, Handle<SharedFunctionInfo> outer_info,
-    Handle<Context> context, LanguageMode language_mode, int position) {
-  InfoVectorPair result;
+InfoCellPair CompilationCache::LookupEval(Handle<String> source,
+                                          Handle<SharedFunctionInfo> outer_info,
+                                          Handle<Context> context,
+                                          LanguageMode language_mode,
+                                          int position) {
+  InfoCellPair result;
   if (!IsEnabled()) return result;
 
   if (context->IsNativeContext()) {
@@ -300,18 +305,19 @@ void CompilationCache::PutEval(Handle<String> source,
                                Handle<SharedFunctionInfo> outer_info,
                                Handle<Context> context,
                                Handle<SharedFunctionInfo> function_info,
-                               Handle<Cell> literals, int position) {
+                               Handle<FeedbackCell> feedback_cell,
+                               int position) {
   if (!IsEnabled()) return;
 
   HandleScope scope(isolate());
   if (context->IsNativeContext()) {
-    eval_global_.Put(source, outer_info, function_info, context, literals,
+    eval_global_.Put(source, outer_info, function_info, context, feedback_cell,
                      position);
   } else {
     DCHECK_NE(position, kNoSourcePosition);
     Handle<Context> native_context(context->native_context(), isolate());
     eval_contextual_.Put(source, outer_info, function_info, native_context,
-                         literals, position);
+                         feedback_cell, position);
   }
 }
 

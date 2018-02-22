@@ -795,7 +795,7 @@ PipelineCompilationJob::Status PipelineCompilationJob::PrepareJobImpl(
   if (FLAG_branch_load_poisoning) {
     compilation_info()->MarkAsPoisonLoads();
   }
-  if (compilation_info()->closure()->feedback_vector_cell()->map() ==
+  if (compilation_info()->closure()->feedback_cell()->map() ==
       isolate->heap()->one_closure_cell_map()) {
     compilation_info()->MarkAsFunctionContextSpecializing();
   }

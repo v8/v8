@@ -149,7 +149,7 @@ Handle<JSFunction> FunctionTester::Compile(Handle<JSFunction> function) {
   CHECK(function->is_compiled() ||
         Compiler::Compile(function, Compiler::CLEAR_EXCEPTION));
   CHECK(info.shared_info()->HasBytecodeArray());
-  JSFunction::EnsureLiterals(function);
+  JSFunction::EnsureFeedbackVector(function);
 
   Handle<Code> code =
       Pipeline::GenerateCodeForTesting(&info, function->GetIsolate());

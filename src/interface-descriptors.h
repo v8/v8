@@ -30,7 +30,6 @@ class PlatformInterfaceDescriptor;
   V(StoreTransition)                  \
   V(StoreGlobal)                      \
   V(StoreGlobalWithVector)            \
-  V(FastNewClosure)                   \
   V(FastNewFunctionContext)           \
   V(FastNewObject)                    \
   V(FastNewArguments)                 \
@@ -513,12 +512,6 @@ class LoadGlobalWithVectorDescriptor : public LoadGlobalDescriptor {
   static const Register VectorRegister() {
     return LoadWithVectorDescriptor::VectorRegister();
   }
-};
-
-class FastNewClosureDescriptor : public CallInterfaceDescriptor {
- public:
-  DEFINE_PARAMETERS(kSharedFunctionInfo, kVector, kSlot)
-  DECLARE_DESCRIPTOR(FastNewClosureDescriptor, CallInterfaceDescriptor)
 };
 
 class FastNewFunctionContextDescriptor : public CallInterfaceDescriptor {

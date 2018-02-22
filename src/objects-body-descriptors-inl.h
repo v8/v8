@@ -460,6 +460,8 @@ ReturnType BodyDescriptorApply(InstanceType type, T1 p1, T2 p2, T3 p3) {
       return Op::template apply<DescriptorArray::BodyDescriptor>(p1, p2, p3);
     case TRANSITION_ARRAY_TYPE:
       return Op::template apply<TransitionArray::BodyDescriptor>(p1, p2, p3);
+    case FEEDBACK_CELL_TYPE:
+      return Op::template apply<FeedbackCell::BodyDescriptor>(p1, p2, p3);
     case FEEDBACK_VECTOR_TYPE:
       return Op::template apply<FeedbackVector::BodyDescriptor>(p1, p2, p3);
     case JS_OBJECT_TYPE:

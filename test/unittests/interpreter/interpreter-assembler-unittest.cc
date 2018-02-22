@@ -543,10 +543,9 @@ TARGET_TEST_F(InterpreterAssemblerTest, LoadFeedbackVector) {
         m.IsLoad(MachineType::AnyTagged(), c::IsLoadParentFramePointer(),
                  c::IsIntPtrConstant(Register::function_closure().ToOperand()
                                      << kPointerSizeLog2));
-    Matcher<Node*> load_vector_cell_matcher =
-        m.IsLoad(MachineType::AnyTagged(), load_function_matcher,
-                 c::IsIntPtrConstant(JSFunction::kFeedbackVectorOffset -
-                                     kHeapObjectTag));
+    Matcher<Node*> load_vector_cell_matcher = m.IsLoad(
+        MachineType::AnyTagged(), load_function_matcher,
+        c::IsIntPtrConstant(JSFunction::kFeedbackCellOffset - kHeapObjectTag));
     EXPECT_THAT(
         feedback_vector,
         m.IsLoad(MachineType::AnyTagged(), load_vector_cell_matcher,

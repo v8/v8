@@ -423,9 +423,9 @@ class V8_EXPORT_PRIVATE Factory final {
 
   Handle<WeakCell> NewWeakCell(Handle<HeapObject> value);
 
-  Handle<Cell> NewNoClosuresCell(Handle<Object> value);
-  Handle<Cell> NewOneClosureCell(Handle<Object> value);
-  Handle<Cell> NewManyClosuresCell(Handle<Object> value);
+  Handle<FeedbackCell> NewNoClosuresCell(Handle<HeapObject> value);
+  Handle<FeedbackCell> NewOneClosureCell(Handle<HeapObject> value);
+  Handle<FeedbackCell> NewManyClosuresCell(Handle<HeapObject> value);
 
   Handle<TransitionArray> NewTransitionArray(int capacity);
 
@@ -642,12 +642,12 @@ class V8_EXPORT_PRIVATE Factory final {
 
   Handle<JSFunction> NewFunctionFromSharedFunctionInfo(
       Handle<Map> initial_map, Handle<SharedFunctionInfo> function_info,
-      Handle<Object> context_or_undefined, Handle<Cell> vector,
+      Handle<Object> context_or_undefined, Handle<FeedbackCell> feedback_cell,
       PretenureFlag pretenure = TENURED);
 
   Handle<JSFunction> NewFunctionFromSharedFunctionInfo(
       Handle<SharedFunctionInfo> function_info, Handle<Context> context,
-      Handle<Cell> vector, PretenureFlag pretenure = TENURED);
+      Handle<FeedbackCell> feedback_cell, PretenureFlag pretenure = TENURED);
 
   Handle<JSFunction> NewFunctionFromSharedFunctionInfo(
       Handle<Map> initial_map, Handle<SharedFunctionInfo> function_info,

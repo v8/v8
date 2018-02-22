@@ -85,6 +85,7 @@ TYPE_CHECKER(Cell, CELL_TYPE)
 TYPE_CHECKER(ConstantElementsPair, TUPLE2_TYPE)
 TYPE_CHECKER(CoverageInfo, FIXED_ARRAY_TYPE)
 TYPE_CHECKER(DescriptorArray, DESCRIPTOR_ARRAY_TYPE)
+TYPE_CHECKER(FeedbackCell, FEEDBACK_CELL_TYPE)
 TYPE_CHECKER(FeedbackVector, FEEDBACK_VECTOR_TYPE)
 TYPE_CHECKER(Foreign, FOREIGN_TYPE)
 TYPE_CHECKER(FreeSpace, FREE_SPACE_TYPE)
@@ -581,6 +582,7 @@ CAST_ACCESSOR(ConstantElementsPair)
 CAST_ACCESSOR(ContextExtension)
 CAST_ACCESSOR(DescriptorArray)
 CAST_ACCESSOR(EnumCache)
+CAST_ACCESSOR(FeedbackCell)
 CAST_ACCESSOR(Foreign)
 CAST_ACCESSOR(CallableTask)
 CAST_ACCESSOR(FunctionTemplateInfo)
@@ -1397,6 +1399,7 @@ Handle<Object> Oddball::ToNumber(Handle<Oddball> input) {
 
 
 ACCESSORS(Cell, value, Object, kValueOffset)
+ACCESSORS(FeedbackCell, value, HeapObject, kValueOffset)
 ACCESSORS(PropertyCell, dependent_code, DependentCode, kDependentCodeOffset)
 ACCESSORS(PropertyCell, name, Name, kNameOffset)
 ACCESSORS(PropertyCell, value, Object, kValueOffset)
@@ -2272,7 +2275,7 @@ ACCESSORS(JSBoundFunction, bound_this, Object, kBoundThisOffset)
 ACCESSORS(JSBoundFunction, bound_arguments, FixedArray, kBoundArgumentsOffset)
 
 ACCESSORS(JSFunction, shared, SharedFunctionInfo, kSharedFunctionInfoOffset)
-ACCESSORS(JSFunction, feedback_vector_cell, Cell, kFeedbackVectorOffset)
+ACCESSORS(JSFunction, feedback_cell, FeedbackCell, kFeedbackCellOffset)
 
 ACCESSORS(JSGlobalObject, native_context, Context, kNativeContextOffset)
 ACCESSORS(JSGlobalObject, global_proxy, JSObject, kGlobalProxyOffset)
@@ -2525,8 +2528,8 @@ BOOL_ACCESSORS(FunctionTemplateInfo, flag, accept_any_receiver,
                kAcceptAnyReceiver)
 
 FeedbackVector* JSFunction::feedback_vector() const {
-  DCHECK(feedback_vector_cell()->value()->IsFeedbackVector());
-  return FeedbackVector::cast(feedback_vector_cell()->value());
+  DCHECK(has_feedback_vector());
+  return FeedbackVector::cast(feedback_cell()->value());
 }
 
 // Code objects that are marked for deoptimization are not considered to be
@@ -2633,21 +2636,7 @@ void JSFunction::SetOptimizationMarker(OptimizationMarker marker) {
 }
 
 bool JSFunction::has_feedback_vector() const {
-  return !feedback_vector_cell()->value()->IsUndefined(GetIsolate());
-}
-
-JSFunction::FeedbackVectorState JSFunction::GetFeedbackVectorState(
-    Isolate* isolate) const {
-  Cell* cell = feedback_vector_cell();
-  if (shared()->HasAsmWasmData()) {
-    return NO_VECTOR_NEEDED;
-  } else if (cell == isolate->heap()->undefined_cell()) {
-    return TOP_LEVEL_SCRIPT_NEEDS_VECTOR;
-  } else if (cell->value() == isolate->heap()->undefined_value() ||
-             !has_feedback_vector()) {
-    return NEEDS_VECTOR;
-  }
-  return HAS_VECTOR;
+  return !feedback_cell()->value()->IsUndefined(GetIsolate());
 }
 
 Context* JSFunction::context() {

@@ -169,6 +169,7 @@
 //       - ModuleInfoEntry
 //       - PreParsedScopeData
 //     - WeakCell
+//     - FeedbackCell
 //     - FeedbackVector
 //
 // Formats of Object*:
@@ -397,6 +398,7 @@ const int kStubMinorKeyBits = kSmiValueSize - kStubMajorKeyBits - 1;
                                                                 \
   V(CELL_TYPE)                                                  \
   V(CODE_DATA_CONTAINER_TYPE)                                   \
+  V(FEEDBACK_CELL_TYPE)                                         \
   V(FEEDBACK_VECTOR_TYPE)                                       \
   V(LOAD_HANDLER_TYPE)                                          \
   V(PROPERTY_ARRAY_TYPE)                                        \
@@ -788,6 +790,7 @@ enum InstanceType : uint16_t {
   // Misc.
   CELL_TYPE,
   CODE_DATA_CONTAINER_TYPE,
+  FEEDBACK_CELL_TYPE,
   FEEDBACK_VECTOR_TYPE,
   LOAD_HANDLER_TYPE,
   PROPERTY_ARRAY_TYPE,
@@ -963,6 +966,7 @@ class RootVisitor;
 class SafepointEntry;
 class SharedFunctionInfo;
 class StringStream;
+class FeedbackCell;
 class FeedbackMetadata;
 class FeedbackVector;
 class WeakCell;
@@ -1021,6 +1025,7 @@ template <class C> inline bool Is(Object* obj);
   V(ExternalOneByteString)                \
   V(ExternalString)                       \
   V(ExternalTwoByteString)                \
+  V(FeedbackCell)                         \
   V(FeedbackMetadata)                     \
   V(FeedbackVector)                       \
   V(Filler)                               \
@@ -3648,22 +3653,14 @@ class JSFunction: public JSObject {
   // Completes inobject slack tracking on initial map if it is active.
   inline void CompleteInobjectSlackTrackingIfActive();
 
-  // [feedback_vector_cell]: The feedback vector.
-  DECL_ACCESSORS(feedback_vector_cell, Cell)
-
-  enum FeedbackVectorState {
-    TOP_LEVEL_SCRIPT_NEEDS_VECTOR,
-    NEEDS_VECTOR,
-    HAS_VECTOR,
-    NO_VECTOR_NEEDED
-  };
-
-  inline FeedbackVectorState GetFeedbackVectorState(Isolate* isolate) const;
+  // [feedback_cell]: The FeedbackCell used to hold the FeedbackVector
+  // eventually.
+  DECL_ACCESSORS(feedback_cell, FeedbackCell)
 
   // feedback_vector() can be used once the function is compiled.
   inline FeedbackVector* feedback_vector() const;
   inline bool has_feedback_vector() const;
-  static void EnsureLiterals(Handle<JSFunction> function);
+  static void EnsureFeedbackVector(Handle<JSFunction> function);
 
   // Unconditionally clear the type feedback vector.
   void ClearTypeFeedbackInfo();
@@ -3746,7 +3743,7 @@ class JSFunction: public JSObject {
   /* Pointer fields. */                                    \
   V(kSharedFunctionInfoOffset, kPointerSize)               \
   V(kContextOffset, kPointerSize)                          \
-  V(kFeedbackVectorOffset, kPointerSize)                   \
+  V(kFeedbackCellOffset, kPointerSize)                     \
   V(kEndOfStrongFieldsOffset, 0)                           \
   V(kCodeOffset, kPointerSize)                             \
   /* Size of JSFunction object without prototype field. */ \
@@ -4401,6 +4398,33 @@ class Cell: public HeapObject {
   DISALLOW_IMPLICIT_CONSTRUCTORS(Cell);
 };
 
+// This is a special cell used to maintain both the link between a
+// closure and it's feedback vector, as well as a way to count the
+// number of closures created for a certain function per native
+// context. There's at most one FeedbackCell for each function in
+// a native context.
+class FeedbackCell : public Struct {
+ public:
+  // [value]: value of the cell.
+  DECL_ACCESSORS(value, HeapObject)
+
+  DECL_CAST(FeedbackCell)
+
+  // Dispatched behavior.
+  DECL_PRINTER(FeedbackCell)
+  DECL_VERIFIER(FeedbackCell)
+
+  static const int kValueOffset = HeapObject::kHeaderSize;
+  static const int kSize = kValueOffset + kPointerSize;
+
+  typedef FixedBodyDescriptor<kValueOffset, kValueOffset + kPointerSize, kSize>
+      BodyDescriptor;
+  // No weak fields.
+  typedef BodyDescriptor BodyDescriptorWeak;
+
+ private:
+  DISALLOW_IMPLICIT_CONSTRUCTORS(FeedbackCell);
+};
 
 class PropertyCell : public HeapObject {
  public:

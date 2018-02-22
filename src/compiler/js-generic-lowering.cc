@@ -371,26 +371,19 @@ void JSGenericLowering::LowerJSCreateBoundFunction(Node* node) {
 
 void JSGenericLowering::LowerJSCreateClosure(Node* node) {
   CreateClosureParameters const& p = CreateClosureParametersOf(node->op());
-  CallDescriptor::Flags flags = FrameStateFlagForCall(node);
   Handle<SharedFunctionInfo> const shared_info = p.shared_info();
   node->InsertInput(zone(), 0, jsgraph()->HeapConstant(shared_info));
-  node->RemoveInput(3);  // control
+  node->InsertInput(zone(), 1, jsgraph()->HeapConstant(p.feedback_cell()));
+  node->RemoveInput(4);  // control
 
   // Use the FastNewClosure builtin only for functions allocated in new space.
   if (p.pretenure() == NOT_TENURED) {
     Callable callable =
         Builtins::CallableFor(isolate(), Builtins::kFastNewClosure);
-    node->InsertInput(zone(), 1,
-                      jsgraph()->HeapConstant(p.feedback().vector()));
-    node->InsertInput(zone(), 2, jsgraph()->SmiConstant(p.feedback().index()));
+    CallDescriptor::Flags flags = FrameStateFlagForCall(node);
     ReplaceWithStubCall(node, callable, flags);
   } else {
-    node->InsertInput(zone(), 1,
-                      jsgraph()->HeapConstant(p.feedback().vector()));
-    node->InsertInput(zone(), 2, jsgraph()->SmiConstant(p.feedback().index()));
-    ReplaceWithRuntimeCall(node, (p.pretenure() == TENURED)
-                                     ? Runtime::kNewClosure_Tenured
-                                     : Runtime::kNewClosure);
+    ReplaceWithRuntimeCall(node, Runtime::kNewClosure_Tenured);
   }
 }
 

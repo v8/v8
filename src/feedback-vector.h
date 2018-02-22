@@ -609,6 +609,9 @@ class FeedbackNexus final {
   typedef BitField<SpeculationMode, 0, 1> SpeculationModeField;
   typedef BitField<uint32_t, 1, 31> CallCountField;
 
+  // For CreateClosure ICs.
+  Handle<FeedbackCell> GetFeedbackCell() const;
+
   // For InstanceOf ICs.
   MaybeHandle<JSObject> GetConstructorFeedback() const;
 

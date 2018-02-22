@@ -898,25 +898,16 @@ Reduction JSCreateLowering::ReduceJSCreateClosure(Node* node) {
   DCHECK_EQ(IrOpcode::kJSCreateClosure, node->opcode());
   CreateClosureParameters const& p = CreateClosureParametersOf(node->op());
   Handle<SharedFunctionInfo> shared = p.shared_info();
+  Handle<FeedbackCell> feedback_cell = p.feedback_cell();
   Node* effect = NodeProperties::GetEffectInput(node);
   Node* control = NodeProperties::GetControlInput(node);
   Node* context = NodeProperties::GetContextInput(node);
-  Node* feedback_vector = jsgraph()->UndefinedConstant();
 
   // Use inline allocation of closures only for instantiation sites that have
   // seen more than one instantiation, this simplifies the generated code and
   // also serves as a heuristic of which allocation sites benefit from it.
-  if (p.feedback().IsValid()) {
-    FeedbackSlot slot(FeedbackVector::ToSlot(p.feedback().index()));
-    Handle<Cell> vector_cell(Cell::cast(p.feedback().vector()->Get(slot)));
-    if (vector_cell->map() != isolate()->heap()->many_closures_cell_map()) {
-      return NoChange();
-    }
-    feedback_vector = jsgraph()->HeapConstant(vector_cell);
-  } else {
-    // CreateClosure without a feedback vector is only allowed for
-    // native (builtin) functions.
-    DCHECK(shared->native());
+  if (feedback_cell->map() != isolate()->heap()->many_closures_cell_map()) {
+    return NoChange();
   }
 
   Handle<Map> function_map(
@@ -950,7 +941,7 @@ Reduction JSCreateLowering::ReduceJSCreateClosure(Node* node) {
           jsgraph()->EmptyFixedArrayConstant());
   a.Store(AccessBuilder::ForJSFunctionSharedFunctionInfo(), shared);
   a.Store(AccessBuilder::ForJSFunctionContext(), context);
-  a.Store(AccessBuilder::ForJSFunctionFeedbackVector(), feedback_vector);
+  a.Store(AccessBuilder::ForJSFunctionFeedbackCell(), feedback_cell);
   a.Store(AccessBuilder::ForJSFunctionCode(), lazy_compile_builtin);
   STATIC_ASSERT(JSFunction::kSizeWithoutPrototype == 7 * kPointerSize);
   if (function_map->has_prototype_slot()) {

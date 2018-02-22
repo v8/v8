@@ -854,6 +854,8 @@ bool V8HeapExplorer::ExtractReferencesPass1(int entry, HeapObject* obj) {
     ExtractCodeReferences(entry, Code::cast(obj));
   } else if (obj->IsCell()) {
     ExtractCellReferences(entry, Cell::cast(obj));
+  } else if (obj->IsFeedbackCell()) {
+    ExtractFeedbackCellReferences(entry, FeedbackCell::cast(obj));
   } else if (obj->IsWeakCell()) {
     ExtractWeakCellReferences(entry, WeakCell::cast(obj));
   } else if (obj->IsPropertyCell()) {
@@ -926,11 +928,10 @@ void V8HeapExplorer::ExtractJSObjectReferences(
       }
     }
     SharedFunctionInfo* shared_info = js_fun->shared();
-    TagObject(js_fun->feedback_vector_cell(),
-              "(function feedback vector cell)");
-    SetInternalReference(js_fun, entry, "feedback_vector_cell",
-                         js_fun->feedback_vector_cell(),
-                         JSFunction::kFeedbackVectorOffset);
+    TagObject(js_fun->feedback_cell(), "(function feedback cell)");
+    SetInternalReference(js_fun, entry, "feedback_cell",
+                         js_fun->feedback_cell(),
+                         JSFunction::kFeedbackCellOffset);
     TagObject(shared_info, "(shared function info)");
     SetInternalReference(js_fun, entry,
                          "shared", shared_info,
@@ -1243,6 +1244,13 @@ void V8HeapExplorer::ExtractCodeReferences(int entry, Code* code) {
 
 void V8HeapExplorer::ExtractCellReferences(int entry, Cell* cell) {
   SetInternalReference(cell, entry, "value", cell->value(), Cell::kValueOffset);
+}
+
+void V8HeapExplorer::ExtractFeedbackCellReferences(
+    int entry, FeedbackCell* feedback_cell) {
+  TagObject(feedback_cell, "(feedback cell)");
+  SetInternalReference(feedback_cell, entry, "value", feedback_cell->value(),
+                       FeedbackCell::kValueOffset);
 }
 
 void V8HeapExplorer::ExtractWeakCellReferences(int entry, WeakCell* weak_cell) {

@@ -70,7 +70,7 @@ namespace internal {
   ASM(JSConstructStubGenericUnrestrictedReturn)                                \
   ASM(JSBuiltinsConstructStub)                                                 \
   TFC(FastNewObject, FastNewObject, 1)                                         \
-  TFC(FastNewClosure, FastNewClosure, 1)                                       \
+  TFS(FastNewClosure, kSharedFunctionInfo, kFeedbackCell)                      \
   TFC(FastNewFunctionContextEval, FastNewFunctionContext, 1)                   \
   TFC(FastNewFunctionContextFunction, FastNewFunctionContext, 1)               \
   TFS(CreateRegExpLiteral, kFeedbackVector, kSlot, kPattern, kFlags)           \

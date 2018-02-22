@@ -2281,14 +2281,12 @@ TEST(AllocationSitesAreVisible) {
   const v8::HeapGraphNode* fun_code = GetProperty(
       env->GetIsolate(), global, v8::HeapGraphEdge::kProperty, "fun");
   CHECK(fun_code);
-  const v8::HeapGraphNode* vector_cell =
+  const v8::HeapGraphNode* feedback_cell =
       GetProperty(env->GetIsolate(), fun_code, v8::HeapGraphEdge::kInternal,
-                  "feedback_vector_cell");
-  // TODO(mvstanton): I'm not sure if this is the best way to expose
-  // literals. Is it too much to expose the Cell?
-  CHECK(vector_cell);
+                  "feedback_cell");
+  CHECK(feedback_cell);
   const v8::HeapGraphNode* vector = GetProperty(
-      env->GetIsolate(), vector_cell, v8::HeapGraphEdge::kInternal, "value");
+      env->GetIsolate(), feedback_cell, v8::HeapGraphEdge::kInternal, "value");
   CHECK_EQ(v8::HeapGraphNode::kArray, vector->GetType());
   CHECK_EQ(3, vector->GetChildrenCount());
 

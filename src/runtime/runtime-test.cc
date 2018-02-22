@@ -252,8 +252,7 @@ RUNTIME_FUNCTION(Runtime_OptimizeFunctionOnNextCall) {
                                                             : "non-concurrent");
   }
 
-  // TODO(mvstanton): pass pretenure flag to EnsureLiterals.
-  JSFunction::EnsureLiterals(function);
+  JSFunction::EnsureFeedbackVector(function);
 
   function->MarkForOptimization(concurrency_mode);
 

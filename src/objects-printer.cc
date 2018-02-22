@@ -106,6 +106,9 @@ void HeapObject::HeapObjectPrint(std::ostream& os) {  // NOLINT
     case TRANSITION_ARRAY_TYPE:
       TransitionArray::cast(this)->TransitionArrayPrint(os);
       break;
+    case FEEDBACK_CELL_TYPE:
+      FeedbackCell::cast(this)->FeedbackCellPrint(os);
+      break;
     case FEEDBACK_VECTOR_TYPE:
       FeedbackVector::cast(this)->FeedbackVectorPrint(os);
       break;
@@ -687,6 +690,21 @@ void TransitionArray::TransitionArrayPrint(std::ostream& os) {  // NOLINT
   os << "\n";
 }
 
+void FeedbackCell::FeedbackCellPrint(std::ostream& os) {  // NOLINT
+  HeapObject::PrintHeader(os, "FeedbackCell");
+  if (map() == GetHeap()->no_closures_cell_map()) {
+    os << "\n - no closures";
+  } else if (map() == GetHeap()->one_closure_cell_map()) {
+    os << "\n - one closure";
+  } else if (map() == GetHeap()->many_closures_cell_map()) {
+    os << "\n - many closures";
+  } else {
+    os << "\n - Invalid FeedbackCell map";
+  }
+  os << " - value: " << Brief(value());
+  os << "\n";
+}
+
 void FeedbackVectorSpec::Print() {
   OFStream os(stdout);
 
@@ -1140,7 +1158,7 @@ void JSFunction::JSFunctionPrint(std::ostream& os) {  // NOLINT
   shared()->PrintSourceCode(os);
   JSObjectPrintBody(os, this);
   os << "\n - feedback vector: ";
-  if (feedback_vector_cell()->value()->IsFeedbackVector()) {
+  if (has_feedback_vector()) {
     feedback_vector()->FeedbackVectorPrint(os);
   } else {
     os << "not available\n";

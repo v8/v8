@@ -2599,6 +2599,20 @@ AllocationResult Heap::AllocateCell(Object* value) {
   return result;
 }
 
+AllocationResult Heap::AllocateFeedbackCell(Map* map, HeapObject* value) {
+  int size = FeedbackCell::kSize;
+  STATIC_ASSERT(FeedbackCell::kSize <= kMaxRegularHeapObjectSize);
+
+  HeapObject* result = nullptr;
+  {
+    AllocationResult allocation = AllocateRaw(size, OLD_SPACE);
+    if (!allocation.To(&result)) return allocation;
+  }
+  result->set_map_after_allocation(map, SKIP_WRITE_BARRIER);
+  FeedbackCell::cast(result)->set_value(value);
+  return result;
+}
+
 AllocationResult Heap::AllocatePropertyCell(Name* name) {
   DCHECK(name->IsUniqueName());
   int size = PropertyCell::kSize;

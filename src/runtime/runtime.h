@@ -218,8 +218,7 @@ namespace internal {
 #define FOR_EACH_INTRINSIC_INTERPRETER(F)          \
   FOR_EACH_INTRINSIC_INTERPRETER_TRACE(F)          \
   FOR_EACH_INTRINSIC_INTERPRETER_TRACE_FEEDBACK(F) \
-  F(InterpreterDeserializeLazy, 2, 1)              \
-  F(InterpreterNewClosure, 4, 1)
+  F(InterpreterDeserializeLazy, 2, 1)
 
 #define FOR_EACH_INTRINSIC_FUNCTION(F)     \
   F(FunctionGetName, 1, 1)                 \
@@ -504,8 +503,8 @@ namespace internal {
   F(NewRestParameter, 1, 1)               \
   F(NewSloppyArguments, 3, 1)             \
   F(NewArgumentsElements, 3, 1)           \
-  F(NewClosure, 3, 1)                     \
-  F(NewClosure_Tenured, 3, 1)             \
+  F(NewClosure, 2, 1)                     \
+  F(NewClosure_Tenured, 2, 1)             \
   F(NewScriptContext, 2, 1)               \
   F(NewFunctionContext, 2, 1)             \
   F(PushModuleContext, 3, 1)              \

@@ -1289,22 +1289,28 @@ Handle<Cell> Factory::NewCell(Handle<Object> value) {
       Cell);
 }
 
-Handle<Cell> Factory::NewNoClosuresCell(Handle<Object> value) {
-  Handle<Cell> cell = NewCell(value);
-  cell->set_map_no_write_barrier(*no_closures_cell_map());
-  return cell;
+Handle<FeedbackCell> Factory::NewNoClosuresCell(Handle<HeapObject> value) {
+  AllowDeferredHandleDereference convert_to_cell;
+  CALL_HEAP_FUNCTION(isolate(),
+                     isolate()->heap()->AllocateFeedbackCell(
+                         isolate()->heap()->no_closures_cell_map(), *value),
+                     FeedbackCell);
 }
 
-Handle<Cell> Factory::NewOneClosureCell(Handle<Object> value) {
-  Handle<Cell> cell = NewCell(value);
-  cell->set_map_no_write_barrier(*one_closure_cell_map());
-  return cell;
+Handle<FeedbackCell> Factory::NewOneClosureCell(Handle<HeapObject> value) {
+  AllowDeferredHandleDereference convert_to_cell;
+  CALL_HEAP_FUNCTION(isolate(),
+                     isolate()->heap()->AllocateFeedbackCell(
+                         isolate()->heap()->one_closure_cell_map(), *value),
+                     FeedbackCell);
 }
 
-Handle<Cell> Factory::NewManyClosuresCell(Handle<Object> value) {
-  Handle<Cell> cell = NewCell(value);
-  cell->set_map_no_write_barrier(*many_closures_cell_map());
-  return cell;
+Handle<FeedbackCell> Factory::NewManyClosuresCell(Handle<HeapObject> value) {
+  AllowDeferredHandleDereference convert_to_cell;
+  CALL_HEAP_FUNCTION(isolate(),
+                     isolate()->heap()->AllocateFeedbackCell(
+                         isolate()->heap()->many_closures_cell_map(), *value),
+                     FeedbackCell);
 }
 
 Handle<PropertyCell> Factory::NewPropertyCell(Handle<Name> name) {
@@ -1563,7 +1569,7 @@ Handle<JSFunction> Factory::NewFunction(Handle<Map> map,
   function->set_shared(*info);
   function->set_code(info->code());
   function->set_context(*context_or_undefined);
-  function->set_feedback_vector_cell(*undefined_cell());
+  function->set_feedback_cell(*many_closures_cell());
   int header_size;
   if (map->has_prototype_slot()) {
     header_size = JSFunction::kSizeWithPrototype;
@@ -1708,11 +1714,11 @@ Handle<JSFunction> Factory::NewFunctionFromSharedFunctionInfo(
 
 Handle<JSFunction> Factory::NewFunctionFromSharedFunctionInfo(
     Handle<SharedFunctionInfo> info, Handle<Context> context,
-    Handle<Cell> vector, PretenureFlag pretenure) {
+    Handle<FeedbackCell> feedback_cell, PretenureFlag pretenure) {
   Handle<Map> initial_map(
       Map::cast(context->native_context()->get(info->function_map_index())));
-  return NewFunctionFromSharedFunctionInfo(initial_map, info, context, vector,
-                                           pretenure);
+  return NewFunctionFromSharedFunctionInfo(initial_map, info, context,
+                                           feedback_cell, pretenure);
 }
 
 Handle<JSFunction> Factory::NewFunctionFromSharedFunctionInfo(
@@ -1732,29 +1738,29 @@ Handle<JSFunction> Factory::NewFunctionFromSharedFunctionInfo(
 
 Handle<JSFunction> Factory::NewFunctionFromSharedFunctionInfo(
     Handle<Map> initial_map, Handle<SharedFunctionInfo> info,
-    Handle<Object> context_or_undefined, Handle<Cell> vector,
+    Handle<Object> context_or_undefined, Handle<FeedbackCell> feedback_cell,
     PretenureFlag pretenure) {
   DCHECK_EQ(JS_FUNCTION_TYPE, initial_map->instance_type());
   Handle<JSFunction> result =
       NewFunction(initial_map, info, context_or_undefined, pretenure);
 
-  // Bump the closure count that is encoded in the vector cell's map.
-  if (vector->map() == *no_closures_cell_map()) {
-    vector->set_map(*one_closure_cell_map());
-  } else if (vector->map() == *one_closure_cell_map()) {
-    vector->set_map(*many_closures_cell_map());
+  // Bump the closure count that is encoded in the feedback cell's map.
+  if (feedback_cell->map() == *no_closures_cell_map()) {
+    feedback_cell->set_map(*one_closure_cell_map());
+  } else if (feedback_cell->map() == *one_closure_cell_map()) {
+    feedback_cell->set_map(*many_closures_cell_map());
   } else {
-    DCHECK_EQ(vector->map(), *many_closures_cell_map());
+    DCHECK_EQ(feedback_cell->map(), *many_closures_cell_map());
   }
 
-  // Check that the optimized code in the feedback vector wasn't marked for
+  // Check that the optimized code in the feedback cell wasn't marked for
   // deoptimization while not pointed to by any live JSFunction.
-  if (vector->value()->IsFeedbackVector()) {
-    FeedbackVector::cast(vector->value())
+  if (feedback_cell->value()->IsFeedbackVector()) {
+    FeedbackVector::cast(feedback_cell->value())
         ->EvictOptimizedCodeMarkedForDeoptimization(
             *info, "new function from shared function info");
   }
-  result->set_feedback_vector_cell(*vector);
+  result->set_feedback_cell(*feedback_cell);
 
   if (context_or_undefined->IsContext()) {
     // Give compiler a chance to pre-initialize.

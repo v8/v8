@@ -116,14 +116,15 @@ class CompilationCacheEval: public CompilationSubCache {
   explicit CompilationCacheEval(Isolate* isolate)
       : CompilationSubCache(isolate, 1) {}
 
-  InfoVectorPair Lookup(Handle<String> source,
-                        Handle<SharedFunctionInfo> outer_info,
-                        Handle<Context> native_context,
-                        LanguageMode language_mode, int position);
+  InfoCellPair Lookup(Handle<String> source,
+                      Handle<SharedFunctionInfo> outer_info,
+                      Handle<Context> native_context,
+                      LanguageMode language_mode, int position);
 
   void Put(Handle<String> source, Handle<SharedFunctionInfo> outer_info,
            Handle<SharedFunctionInfo> function_info,
-           Handle<Context> native_context, Handle<Cell> literals, int position);
+           Handle<Context> native_context, Handle<FeedbackCell> feedback_cell,
+           int position);
 
  private:
   DISALLOW_IMPLICIT_CONSTRUCTORS(CompilationCacheEval);
@@ -162,10 +163,10 @@ class CompilationCache {
   // Finds the shared function info for a source string for eval in a
   // given context.  Returns an empty handle if the cache doesn't
   // contain a script for the given source string.
-  InfoVectorPair LookupEval(Handle<String> source,
-                            Handle<SharedFunctionInfo> outer_info,
-                            Handle<Context> context, LanguageMode language_mode,
-                            int position);
+  InfoCellPair LookupEval(Handle<String> source,
+                          Handle<SharedFunctionInfo> outer_info,
+                          Handle<Context> context, LanguageMode language_mode,
+                          int position);
 
   // Returns the regexp data associated with the given regexp if it
   // is in cache, otherwise an empty handle.
@@ -182,8 +183,8 @@ class CompilationCache {
   // with the shared function info. This may overwrite an existing mapping.
   void PutEval(Handle<String> source, Handle<SharedFunctionInfo> outer_info,
                Handle<Context> context,
-               Handle<SharedFunctionInfo> function_info, Handle<Cell> literals,
-               int position);
+               Handle<SharedFunctionInfo> function_info,
+               Handle<FeedbackCell> feedback_cell, int position);
 
   // Associate the (source, flags) pair to the given regexp data.
   // This may overwrite an existing mapping.

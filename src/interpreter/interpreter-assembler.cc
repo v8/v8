@@ -686,9 +686,7 @@ Node* InterpreterAssembler::LoadAndUntagConstantPoolEntryAtOperandIndex(
 
 Node* InterpreterAssembler::LoadFeedbackVector() {
   Node* function = LoadRegister(Register::function_closure());
-  Node* cell = LoadObjectField(function, JSFunction::kFeedbackVectorOffset);
-  Node* vector = LoadObjectField(cell, Cell::kValueOffset);
-  return vector;
+  return CodeStubAssembler::LoadFeedbackVector(function);
 }
 
 void InterpreterAssembler::CallPrologue() {

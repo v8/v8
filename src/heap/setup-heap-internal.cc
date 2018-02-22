@@ -289,11 +289,16 @@ bool Heap::CreateInitialMaps() {
     ALLOCATE_MAP(CELL_TYPE, Cell::kSize, cell)
     ALLOCATE_MAP(PROPERTY_CELL_TYPE, PropertyCell::kSize, global_property_cell)
     ALLOCATE_MAP(WEAK_CELL_TYPE, WeakCell::kSize, weak_cell)
-    ALLOCATE_MAP(CELL_TYPE, Cell::kSize, no_closures_cell)
-    ALLOCATE_MAP(CELL_TYPE, Cell::kSize, one_closure_cell)
-    ALLOCATE_MAP(CELL_TYPE, Cell::kSize, many_closures_cell)
     ALLOCATE_MAP(FILLER_TYPE, kPointerSize, one_pointer_filler)
     ALLOCATE_MAP(FILLER_TYPE, 2 * kPointerSize, two_pointer_filler)
+
+    // The "no closures" and "one closure" FeedbackCell maps need
+    // to be marked unstable because their objects can change maps.
+    ALLOCATE_MAP(FEEDBACK_CELL_TYPE, FeedbackCell::kSize, no_closures_cell)
+    no_closures_cell_map()->mark_unstable();
+    ALLOCATE_MAP(FEEDBACK_CELL_TYPE, FeedbackCell::kSize, one_closure_cell)
+    one_closure_cell_map()->mark_unstable();
+    ALLOCATE_MAP(FEEDBACK_CELL_TYPE, FeedbackCell::kSize, many_closures_cell)
 
     ALLOCATE_VARSIZE_MAP(TRANSITION_ARRAY_TYPE, transition_array)
 
@@ -534,7 +539,10 @@ void Heap::CreateInitialObjects() {
   set_regexp_multiple_cache(*factory->NewFixedArray(
       RegExpResultsCache::kRegExpResultsCacheSize, TENURED));
 
-  set_undefined_cell(*factory->NewCell(factory->undefined_value()));
+  // Allocate FeedbackCell for builtins.
+  Handle<FeedbackCell> many_closures_cell =
+      factory->NewManyClosuresCell(factory->undefined_value());
+  set_many_closures_cell(*many_closures_cell);
 
   // Microtask queue uses the empty fixed array as a sentinel for "empty".
   // Number of queued microtasks stored in Isolate::pending_microtask_count().

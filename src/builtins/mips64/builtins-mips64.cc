@@ -894,7 +894,7 @@ void Builtins::Generate_InterpreterEntryTrampoline(MacroAssembler* masm) {
 
   // Load the feedback vector from the closure.
   __ Ld(feedback_vector,
-        FieldMemOperand(closure, JSFunction::kFeedbackVectorOffset));
+        FieldMemOperand(closure, JSFunction::kFeedbackCellOffset));
   __ Ld(feedback_vector, FieldMemOperand(feedback_vector, Cell::kValueOffset));
   // Read off the optimized code slot in the feedback vector, and if there
   // is optimized code or an optimization marker, call that instead.
@@ -1277,7 +1277,7 @@ void Builtins::Generate_CheckOptimizationMarker(MacroAssembler* masm) {
   // Get the feedback vector.
   Register feedback_vector = a2;
   __ Ld(feedback_vector,
-        FieldMemOperand(closure, JSFunction::kFeedbackVectorOffset));
+        FieldMemOperand(closure, JSFunction::kFeedbackCellOffset));
   __ Ld(feedback_vector, FieldMemOperand(feedback_vector, Cell::kValueOffset));
 
   // The feedback vector must be defined.
@@ -1324,7 +1324,7 @@ void Builtins::Generate_CompileLazy(MacroAssembler* masm) {
 
   // Do we have a valid feedback vector?
   __ Ld(feedback_vector,
-        FieldMemOperand(closure, JSFunction::kFeedbackVectorOffset));
+        FieldMemOperand(closure, JSFunction::kFeedbackCellOffset));
   __ Ld(feedback_vector, FieldMemOperand(feedback_vector, Cell::kValueOffset));
   __ JumpIfRoot(feedback_vector, Heap::kUndefinedValueRootIndex,
                 &gotta_call_runtime);

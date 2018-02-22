@@ -2455,30 +2455,43 @@ IGNITION_HANDLER(CreateClosure, InterpreterAssembler) {
   Node* shared = LoadConstantPoolEntryAtOperandIndex(0);
   Node* flags = BytecodeOperandFlag(2);
   Node* context = GetContext();
-
-  Label call_runtime(this, Label::kDeferred);
-  GotoIfNot(IsSetWord32<CreateClosureFlags::FastNewClosureBit>(flags),
-            &call_runtime);
-  ConstructorBuiltinsAssembler constructor_assembler(state());
-  Node* vector_index = BytecodeOperandIdx(1);
-  vector_index = SmiTag(vector_index);
+  Node* slot = BytecodeOperandIdx(1);
   Node* feedback_vector = LoadFeedbackVector();
-  SetAccumulator(constructor_assembler.EmitFastNewClosure(
-      shared, feedback_vector, vector_index, context));
-  Dispatch();
+  Node* feedback_cell = LoadFeedbackVectorSlot(feedback_vector, slot);
 
-  BIND(&call_runtime);
+  Label if_fast(this), if_slow(this, Label::kDeferred);
+  Branch(IsSetWord32<CreateClosureFlags::FastNewClosureBit>(flags), &if_fast,
+         &if_slow);
+
+  BIND(&if_fast);
   {
-    Node* tenured_raw =
-        DecodeWordFromWord32<CreateClosureFlags::PretenuredBit>(flags);
-    Node* tenured = SmiTag(tenured_raw);
-    feedback_vector = LoadFeedbackVector();
-    vector_index = BytecodeOperandIdx(1);
-    vector_index = SmiTag(vector_index);
-    Node* result = CallRuntime(Runtime::kInterpreterNewClosure, context, shared,
-                               feedback_vector, vector_index, tenured);
+    Node* result =
+        CallBuiltin(Builtins::kFastNewClosure, context, shared, feedback_cell);
     SetAccumulator(result);
     Dispatch();
+  }
+
+  BIND(&if_slow);
+  {
+    Label if_newspace(this), if_oldspace(this);
+    Branch(IsSetWord32<CreateClosureFlags::PretenuredBit>(flags), &if_oldspace,
+           &if_newspace);
+
+    BIND(&if_newspace);
+    {
+      Node* result =
+          CallRuntime(Runtime::kNewClosure, context, shared, feedback_cell);
+      SetAccumulator(result);
+      Dispatch();
+    }
+
+    BIND(&if_oldspace);
+    {
+      Node* result = CallRuntime(Runtime::kNewClosure_Tenured, context, shared,
+                                 feedback_cell);
+      SetAccumulator(result);
+      Dispatch();
+    }
   }
 }
 

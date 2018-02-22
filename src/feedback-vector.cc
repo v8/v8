@@ -250,7 +250,7 @@ Handle<FeedbackVector> FeedbackVector::New(Isolate* isolate,
         vector->set(index, Smi::kZero, SKIP_WRITE_BARRIER);
         break;
       case FeedbackSlotKind::kCreateClosure: {
-        Handle<Cell> cell = factory->NewNoClosuresCell(undefined_value);
+        Handle<FeedbackCell> cell = factory->NewNoClosuresCell(undefined_value);
         vector->set(index, *cell);
         break;
       }
@@ -980,6 +980,11 @@ ForInHint FeedbackNexus::GetForInFeedback() const {
   DCHECK_EQ(kind(), FeedbackSlotKind::kForIn);
   int feedback = Smi::ToInt(GetFeedback());
   return ForInHintFromFeedback(feedback);
+}
+
+Handle<FeedbackCell> FeedbackNexus::GetFeedbackCell() const {
+  DCHECK_EQ(FeedbackSlotKind::kCreateClosure, kind());
+  return handle(FeedbackCell::cast(GetFeedback()));
 }
 
 MaybeHandle<JSObject> FeedbackNexus::GetConstructorFeedback() const {

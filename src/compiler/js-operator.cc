@@ -448,7 +448,7 @@ const CreateBoundFunctionParameters& CreateBoundFunctionParametersOf(
 bool operator==(CreateClosureParameters const& lhs,
                 CreateClosureParameters const& rhs) {
   return lhs.pretenure() == rhs.pretenure() &&
-         lhs.feedback() == rhs.feedback() &&
+         lhs.feedback_cell().location() == rhs.feedback_cell().location() &&
          lhs.shared_info().location() == rhs.shared_info().location();
 }
 
@@ -461,12 +461,13 @@ bool operator!=(CreateClosureParameters const& lhs,
 
 size_t hash_value(CreateClosureParameters const& p) {
   return base::hash_combine(p.pretenure(), p.shared_info().location(),
-                            p.feedback());
+                            p.feedback_cell().location());
 }
 
 
 std::ostream& operator<<(std::ostream& os, CreateClosureParameters const& p) {
-  return os << p.pretenure() << ", " << Brief(*p.shared_info());
+  return os << p.pretenure() << ", " << Brief(*p.shared_info()) << ", "
+            << Brief(*p.feedback_cell());
 }
 
 
@@ -1055,9 +1056,9 @@ const Operator* JSOperatorBuilder::CreateBoundFunction(size_t arity,
 }
 
 const Operator* JSOperatorBuilder::CreateClosure(
-    Handle<SharedFunctionInfo> shared_info, VectorSlotPair const& feedback,
+    Handle<SharedFunctionInfo> shared_info, Handle<FeedbackCell> feedback_cell,
     PretenureFlag pretenure) {
-  CreateClosureParameters parameters(shared_info, feedback, pretenure);
+  CreateClosureParameters parameters(shared_info, feedback_cell, pretenure);
   return new (zone()) Operator1<CreateClosureParameters>(   // --
       IrOpcode::kJSCreateClosure, Operator::kEliminatable,  // opcode
       "JSCreateClosure",                                    // name

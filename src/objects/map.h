@@ -26,6 +26,7 @@ namespace internal {
   V(CodeDataContainer)     \
   V(ConsString)            \
   V(DataObject)            \
+  V(FeedbackCell)          \
   V(FeedbackVector)        \
   V(FixedArray)            \
   V(FixedDoubleArray)      \

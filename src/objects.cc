@@ -3113,6 +3113,9 @@ VisitorId Map::GetVisitorId(Map* map) {
     case PROPERTY_ARRAY_TYPE:
       return kVisitPropertyArray;
 
+    case FEEDBACK_CELL_TYPE:
+      return kVisitFeedbackCell;
+
     case FEEDBACK_VECTOR_TYPE:
       return kVisitFeedbackVector;
 
@@ -3402,6 +3405,20 @@ void HeapObject::HeapObjectShortPrint(std::ostream& os) {  // NOLINT
     case PROPERTY_ARRAY_TYPE:
       os << "<PropertyArray[" << PropertyArray::cast(this)->length() << "]>";
       break;
+    case FEEDBACK_CELL_TYPE: {
+      os << "<FeedbackCell[";
+      if (map() == heap->no_closures_cell_map()) {
+        os << "no closures";
+      } else if (map() == heap->one_closure_cell_map()) {
+        os << "one closure";
+      } else if (map() == heap->many_closures_cell_map()) {
+        os << "many closures";
+      } else {
+        os << "!!!INVALID MAP!!!";
+      }
+      os << "]>";
+      break;
+    }
     case FEEDBACK_VECTOR_TYPE:
       os << "<FeedbackVector[" << FeedbackVector::cast(this)->length() << "]>";
       break;
@@ -12351,31 +12368,21 @@ void JSFunction::MarkForOptimization(ConcurrencyMode mode) {
 }
 
 // static
-void JSFunction::EnsureLiterals(Handle<JSFunction> function) {
-  Handle<SharedFunctionInfo> shared(function->shared());
-  Isolate* isolate = shared->GetIsolate();
-
-  FeedbackVectorState state = function->GetFeedbackVectorState(isolate);
-  switch (state) {
-    case TOP_LEVEL_SCRIPT_NEEDS_VECTOR: {
-      // A top level script didn't get it's literals installed.
+void JSFunction::EnsureFeedbackVector(Handle<JSFunction> function) {
+  Isolate* const isolate = function->GetIsolate();
+  if (function->feedback_cell()->value()->IsUndefined(isolate)) {
+    Handle<SharedFunctionInfo> shared(function->shared(), isolate);
+    if (!shared->HasAsmWasmData()) {
       Handle<FeedbackVector> feedback_vector =
           FeedbackVector::New(isolate, shared);
-      Handle<Cell> new_cell =
-          isolate->factory()->NewOneClosureCell(feedback_vector);
-      function->set_feedback_vector_cell(*new_cell);
-      break;
+      if (function->feedback_cell() == isolate->heap()->many_closures_cell()) {
+        Handle<FeedbackCell> feedback_cell =
+            isolate->factory()->NewOneClosureCell(feedback_vector);
+        function->set_feedback_cell(*feedback_cell);
+      } else {
+        function->feedback_cell()->set_value(*feedback_vector);
+      }
     }
-    case NEEDS_VECTOR: {
-      Handle<FeedbackVector> feedback_vector =
-          FeedbackVector::New(isolate, shared);
-      function->feedback_vector_cell()->set_value(*feedback_vector);
-      break;
-    }
-    case HAS_VECTOR:
-    case NO_VECTOR_NEEDED:
-      // Nothing to do.
-      break;
   }
 }
 
@@ -14220,7 +14227,7 @@ int AbstractCode::SourceStatementPosition(int offset) {
 }
 
 void JSFunction::ClearTypeFeedbackInfo() {
-  if (feedback_vector_cell()->value()->IsFeedbackVector()) {
+  if (feedback_cell()->value()->IsFeedbackVector()) {
     FeedbackVector* vector = feedback_vector();
     Isolate* isolate = GetIsolate();
     if (vector->ClearSlots(isolate)) {
@@ -17445,8 +17452,9 @@ int SearchLiteralsMapEntry(CompilationCacheTable* cache, int cache_entry,
   return -1;
 }
 
-void AddToLiteralsMap(Handle<CompilationCacheTable> cache, int cache_entry,
-                      Handle<Context> native_context, Handle<Cell> literals) {
+void AddToFeedbackCellsMap(Handle<CompilationCacheTable> cache, int cache_entry,
+                           Handle<Context> native_context,
+                           Handle<FeedbackCell> feedback_cell) {
   Isolate* isolate = native_context->GetIsolate();
   DCHECK(native_context->IsNativeContext());
   STATIC_ASSERT(kLiteralEntryLength == 2);
@@ -17465,7 +17473,7 @@ void AddToLiteralsMap(Handle<CompilationCacheTable> cache, int cache_entry,
     if (entry >= 0) {
       // Just set the code of the entry.
       Handle<WeakCell> literals_cell =
-          isolate->factory()->NewWeakCell(literals);
+          isolate->factory()->NewWeakCell(feedback_cell);
       old_literals_map->set(entry + kLiteralLiteralsOffset, *literals_cell);
       return;
     }
@@ -17490,7 +17498,8 @@ void AddToLiteralsMap(Handle<CompilationCacheTable> cache, int cache_entry,
     }
   }
 
-  Handle<WeakCell> literals_cell = isolate->factory()->NewWeakCell(literals);
+  Handle<WeakCell> literals_cell =
+      isolate->factory()->NewWeakCell(feedback_cell);
   WeakCell* context_cell = native_context->self_weak_cell();
 
   new_literals_map->set(entry + kLiteralContextOffset, context_cell);
@@ -17502,7 +17511,7 @@ void AddToLiteralsMap(Handle<CompilationCacheTable> cache, int cache_entry,
         WeakCell::cast(new_literals_map->get(i + kLiteralContextOffset));
     DCHECK(cell->cleared() || cell->value()->IsNativeContext());
     cell = WeakCell::cast(new_literals_map->get(i + kLiteralLiteralsOffset));
-    DCHECK(cell->cleared() || (cell->value()->IsCell()));
+    DCHECK(cell->cleared() || (cell->value()->IsFeedbackCell()));
   }
 #endif
 
@@ -17512,9 +17521,9 @@ void AddToLiteralsMap(Handle<CompilationCacheTable> cache, int cache_entry,
   }
 }
 
-Cell* SearchLiteralsMap(CompilationCacheTable* cache, int cache_entry,
-                        Context* native_context) {
-  Cell* result = nullptr;
+FeedbackCell* SearchLiteralsMap(CompilationCacheTable* cache, int cache_entry,
+                                Context* native_context) {
+  FeedbackCell* result = nullptr;
   int entry = SearchLiteralsMapEntry(cache, cache_entry, native_context);
   if (entry >= 0) {
     FixedArray* literals_map = FixedArray::cast(cache->get(cache_entry));
@@ -17522,9 +17531,9 @@ Cell* SearchLiteralsMap(CompilationCacheTable* cache, int cache_entry,
     WeakCell* cell =
         WeakCell::cast(literals_map->get(entry + kLiteralLiteralsOffset));
 
-    result = cell->cleared() ? nullptr : Cell::cast(cell->value());
+    result = cell->cleared() ? nullptr : FeedbackCell::cast(cell->value());
   }
-  DCHECK(result == nullptr || result->IsCell());
+  DCHECK(result == nullptr || result->IsFeedbackCell());
   return result;
 }
 
@@ -17545,10 +17554,10 @@ MaybeHandle<SharedFunctionInfo> CompilationCacheTable::LookupScript(
   return MaybeHandle<SharedFunctionInfo>();
 }
 
-InfoVectorPair CompilationCacheTable::LookupEval(
+InfoCellPair CompilationCacheTable::LookupEval(
     Handle<String> src, Handle<SharedFunctionInfo> outer_info,
     Handle<Context> native_context, LanguageMode language_mode, int position) {
-  InfoVectorPair empty_result;
+  InfoCellPair empty_result;
   StringSharedKey key(src, outer_info, language_mode, position);
   int entry = FindEntry(&key);
   if (entry == kNotFound) return empty_result;
@@ -17556,9 +17565,9 @@ InfoVectorPair CompilationCacheTable::LookupEval(
   if (!get(index)->IsFixedArray()) return empty_result;
   Object* obj = get(EntryToIndex(entry) + 1);
   if (obj->IsSharedFunctionInfo()) {
-    Cell* literals =
+    FeedbackCell* feedback_cell =
         SearchLiteralsMap(this, EntryToIndex(entry) + 2, *native_context);
-    return InfoVectorPair(SharedFunctionInfo::cast(obj), literals);
+    return InfoCellPair(SharedFunctionInfo::cast(obj), feedback_cell);
   }
   return empty_result;
 }
@@ -17609,7 +17618,8 @@ Handle<CompilationCacheTable> CompilationCacheTable::PutScript(
 Handle<CompilationCacheTable> CompilationCacheTable::PutEval(
     Handle<CompilationCacheTable> cache, Handle<String> src,
     Handle<SharedFunctionInfo> outer_info, Handle<SharedFunctionInfo> value,
-    Handle<Context> native_context, Handle<Cell> literals, int position) {
+    Handle<Context> native_context, Handle<FeedbackCell> feedback_cell,
+    int position) {
   Isolate* isolate = cache->GetIsolate();
   StringSharedKey key(src, outer_info, value->language_mode(), position);
   {
@@ -17618,11 +17628,11 @@ Handle<CompilationCacheTable> CompilationCacheTable::PutEval(
     if (entry != kNotFound) {
       cache->set(EntryToIndex(entry), *k);
       cache->set(EntryToIndex(entry) + 1, *value);
-      // AddToLiteralsMap may allocate a new sub-array to live in the entry,
-      // but it won't change the cache array. Therefore EntryToIndex and
-      // entry remains correct.
-      AddToLiteralsMap(cache, EntryToIndex(entry) + 2, native_context,
-                       literals);
+      // AddToFeedbackCellsMap may allocate a new sub-array to live in the
+      // entry, but it won't change the cache array. Therefore EntryToIndex
+      // and entry remains correct.
+      AddToFeedbackCellsMap(cache, EntryToIndex(entry) + 2, native_context,
+                            feedback_cell);
       return cache;
     }
   }

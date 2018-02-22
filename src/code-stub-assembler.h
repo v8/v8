@@ -1107,6 +1107,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
   TNode<BoolT> IsFastJSArrayWithNoCustomIteration(
       TNode<Object> object, TNode<Context> context,
       TNode<Context> native_context);
+  Node* IsFeedbackCell(Node* object);
   Node* IsFeedbackVector(Node* object);
   Node* IsFixedArray(Node* object);
   Node* IsFixedArraySubclass(Node* object);

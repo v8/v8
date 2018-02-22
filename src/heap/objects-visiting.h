@@ -31,6 +31,7 @@ class JSWeakCollection;
   V(Code)                        \
   V(CodeDataContainer)           \
   V(ConsString)                  \
+  V(FeedbackCell)                \
   V(FeedbackVector)              \
   V(FixedArray)                  \
   V(FixedDoubleArray)            \

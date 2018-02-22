@@ -156,10 +156,10 @@ RUNTIME_FUNCTION(Runtime_SetCode) {
   Handle<Context> context(source->context());
   target->set_context(*context);
 
-  // Make sure we get a fresh copy of the literal vector to avoid cross
-  // context contamination, and that the literal vector makes it's way into
+  // Make sure we get a fresh copy of the feedback vector to avoid cross
+  // context contamination, and that the feedback vector makes it's way into
   // the target_shared optimized code map.
-  JSFunction::EnsureLiterals(target);
+  JSFunction::EnsureFeedbackVector(target);
 
   if (isolate->logger()->is_logging_code_events() || isolate->is_profiling()) {
     isolate->logger()->LogExistingFunction(
