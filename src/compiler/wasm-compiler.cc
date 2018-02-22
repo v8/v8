@@ -5374,7 +5374,7 @@ WasmCodeWrapper WasmCompilationUnit::FinishTurbofanCompilation(
         desc, tf_.job_->compilation_info()->wasm_code_desc()->frame_slot_count,
         func_index_,
         tf_.job_->compilation_info()->wasm_code_desc()->safepoint_table_offset,
-        std::move(protected_instructions_));
+        std::move(protected_instructions_), false);
     if (!code) {
       return WasmCodeWrapper(code);
     }

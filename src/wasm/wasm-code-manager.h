@@ -144,7 +144,7 @@ class V8_EXPORT_PRIVATE WasmCode final {
            size_t constant_pool_offset, uint32_t stack_slots,
            size_t safepoint_table_offset,
            std::shared_ptr<ProtectedInstructions> protected_instructions,
-           bool is_liftoff = false)
+           bool is_liftoff)
       : instructions_(instructions),
         reloc_info_(std::move(reloc_info)),
         reloc_size_(reloc_size),
@@ -193,8 +193,7 @@ class V8_EXPORT_PRIVATE NativeModule final {
 
   WasmCode* AddCode(const CodeDesc& desc, uint32_t frame_count, uint32_t index,
                     size_t safepoint_table_offset,
-                    std::unique_ptr<ProtectedInstructions>,
-                    bool is_liftoff = false);
+                    std::unique_ptr<ProtectedInstructions>, bool is_liftoff);
 
   // A way to copy over JS-allocated code. This is because we compile
   // certain wrappers using a different pipeline.
@@ -286,7 +285,7 @@ class V8_EXPORT_PRIVATE NativeModule final {
                          WasmCode::Kind kind, size_t constant_pool_offset,
                          uint32_t stack_slots, size_t safepoint_table_offset,
                          std::shared_ptr<ProtectedInstructions>,
-                         bool is_liftoff = false);
+                         bool is_liftoff);
   void SetCodeTable(uint32_t, wasm::WasmCode*);
   WasmCode* CloneCode(const WasmCode*);
   bool CloneTrampolinesAndStubs(const NativeModule* other);

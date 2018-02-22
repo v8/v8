@@ -402,7 +402,7 @@ WasmCode* NativeModule::AddAnonymousCode(Handle<Code> code,
       Nothing<uint32_t>(), kind, code->constant_pool_offset(),
       (code->has_safepoint_info() ? code->stack_slots() : 0),
       (code->has_safepoint_info() ? code->safepoint_table_offset() : 0),
-      protected_instructions);
+      protected_instructions, false);
   if (ret == nullptr) return nullptr;
   intptr_t delta = ret->instructions().start() - code->instruction_start();
   int mask = RelocInfo::kApplyMask | RelocInfo::kCodeTargetMask |
@@ -493,7 +493,7 @@ Address NativeModule::CreateTrampolineTo(Handle<Code> code) {
   masm.GetCode(nullptr, &code_desc);
   WasmCode* wasm_code = AddOwnedCode(
       {code_desc.buffer, static_cast<size_t>(code_desc.instr_size)}, nullptr, 0,
-      Nothing<uint32_t>(), WasmCode::kTrampoline, 0, 0, 0, {});
+      Nothing<uint32_t>(), WasmCode::kTrampoline, 0, 0, 0, {}, false);
   if (wasm_code == nullptr) return nullptr;
   Address ret = wasm_code->instructions().start();
   trampolines_.emplace(std::make_pair(dest, ret));
@@ -696,7 +696,7 @@ WasmCode* NativeModule::CloneCode(const WasmCode* original_code) {
       original_code->reloc_info().size(), original_code->index_,
       original_code->kind(), original_code->constant_pool_offset_,
       original_code->stack_slots(), original_code->safepoint_table_offset_,
-      original_code->protected_instructions_);
+      original_code->protected_instructions_, original_code->is_liftoff());
   if (ret == nullptr) return nullptr;
   if (!ret->IsAnonymous()) {
     SetCodeTable(ret->index(), ret);
