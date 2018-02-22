@@ -669,9 +669,8 @@ void LiftoffAssembler::emit_i32_set_cond(Condition cond, Register dst,
 }
 
 void LiftoffAssembler::StackCheck(Label* ool_code) {
-  Register limit = GetUnusedRegister(kGpReg).gp();
-  mov(limit, Immediate(ExternalReference::address_of_stack_limit(isolate())));
-  cmp(esp, Operand(limit, 0));
+  cmp(esp,
+      Operand(Immediate(ExternalReference::address_of_stack_limit(isolate()))));
   j(below_equal, ool_code);
 }
 

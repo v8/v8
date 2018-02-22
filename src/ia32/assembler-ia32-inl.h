@@ -315,12 +315,6 @@ void Operand::set_disp8(int8_t disp) {
   *reinterpret_cast<int8_t*>(&buf_[len_++]) = disp;
 }
 
-
-Operand::Operand(Immediate imm) {
-  // [disp/r]
-  set_modrm(0, ebp);
-  set_dispr(imm.immediate(), imm.rmode_);
-}
 }  // namespace internal
 }  // namespace v8
 

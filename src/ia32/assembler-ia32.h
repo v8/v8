@@ -341,7 +341,10 @@ class Operand BASE_EMBEDDED {
   }
 
   // [disp/r]
-  INLINE(explicit Operand(Immediate imm));
+  INLINE(explicit Operand(Immediate imm)) {
+    set_modrm(0, ebp);
+    set_dispr(imm.immediate(), imm.rmode_);
+  }
 
   // [base + disp/r]
   explicit Operand(Register base, int32_t disp,
