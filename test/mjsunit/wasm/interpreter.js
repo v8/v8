@@ -493,3 +493,30 @@ function checkStack(stack, expected_lines) {
   tab.set(0, instance1.exports.exp);
   instance2.exports.call2();
 })();
+
+(function testTableCall3() {
+  // See crbug.com/814562.
+  print(arguments.callee.name);
+  const builder0 = new WasmModuleBuilder();
+  const sig_index = builder0.addType(kSig_i_v);
+  builder0.addFunction('main', kSig_i_i)
+      .addBody([
+        kExprGetLocal, 0,  // --
+        kExprCallIndirect, sig_index, kTableZero
+      ])  // --
+      .exportAs('main');
+  builder0.setFunctionTableBounds(3, 3);
+  builder0.addExportOfKind('table', kExternalTable);
+  const module0 = new WebAssembly.Module(builder0.toBuffer());
+  const instance0 = new WebAssembly.Instance(module0);
+
+  const builder1 = new WasmModuleBuilder();
+  builder1.addFunction('main', kSig_i_v).addBody([kExprUnreachable]);
+  builder1.addImportedTable('z', 'table');
+  builder1.addFunctionTableInit(0, false, [0], true);
+  const module1 = new WebAssembly.Module(builder1.toBuffer());
+  const instance1 =
+      new WebAssembly.Instance(module1, {z: {table: instance0.exports.table}});
+  assertThrows(
+      () => instance0.exports.main(0), WebAssembly.RuntimeError, 'unreachable');
+})();

@@ -848,12 +848,7 @@ Handle<JSFunction> WasmDebugInfo::GetCWasmEntry(
       debug_info->set_c_wasm_entries(*entries);
     }
     DCHECK(entries->get(index)->IsUndefined(isolate));
-    Address context_address = reinterpret_cast<Address>(
-        debug_info->wasm_instance()->has_memory_object()
-            ? debug_info->wasm_instance()->wasm_context()
-            : nullptr);
-    Handle<Code> new_entry_code =
-        compiler::CompileCWasmEntry(isolate, sig, context_address);
+    Handle<Code> new_entry_code = compiler::CompileCWasmEntry(isolate, sig);
     Handle<String> name = isolate->factory()->InternalizeOneByteString(
         STATIC_CHAR_VECTOR("c-wasm-entry"));
     Handle<SharedFunctionInfo> shared =

@@ -3400,16 +3400,11 @@ void WasmGraphBuilder::BuildWasmInterpreterEntry(uint32_t func_index) {
   if (HasInt64ParamOrReturn(sig_)) LowerInt64();
 }
 
-void WasmGraphBuilder::BuildCWasmEntry(Address wasm_context_address) {
+void WasmGraphBuilder::BuildCWasmEntry() {
   // Build the start and the JS parameter nodes.
   Node* start = Start(CWasmEntryParameters::kNumParameters + 5);
   *control_ = start;
   *effect_ = start;
-
-  // Create the wasm_context node to pass as parameter.
-  DCHECK_NULL(wasm_context_);
-  wasm_context_ = jsgraph()->IntPtrConstant(
-      reinterpret_cast<uintptr_t>(wasm_context_address));
 
   // Create parameter nodes (offset by 1 for the receiver parameter).
   Node* code_obj = nullptr;
@@ -3423,6 +3418,7 @@ void WasmGraphBuilder::BuildCWasmEntry(Address wasm_context_address) {
   } else {
     code_obj = Param(CWasmEntryParameters::kCodeObject + 1);
   }
+  Node* wasm_context = Param(CWasmEntryParameters::kWasmContext + 1);
   Node* arg_buffer = Param(CWasmEntryParameters::kArgumentsBuffer + 1);
 
   int wasm_arg_count = static_cast<int>(sig_->parameter_count());
@@ -3431,7 +3427,7 @@ void WasmGraphBuilder::BuildCWasmEntry(Address wasm_context_address) {
 
   int pos = 0;
   args[pos++] = code_obj;
-  args[pos++] = wasm_context_.get();
+  args[pos++] = wasm_context;
 
   int offset = 0;
   for (wasm::ValueType type : sig_->parameters()) {
@@ -5030,8 +5026,7 @@ Handle<Code> CompileWasmInterpreterEntry(Isolate* isolate, uint32_t func_index,
   return code;
 }
 
-Handle<Code> CompileCWasmEntry(Isolate* isolate, wasm::FunctionSig* sig,
-                               Address wasm_context_address) {
+Handle<Code> CompileCWasmEntry(Isolate* isolate, wasm::FunctionSig* sig) {
   Zone zone(isolate->allocator(), ZONE_NAME);
   Graph graph(&zone);
   CommonOperatorBuilder common(&zone);
@@ -5048,7 +5043,7 @@ Handle<Code> CompileCWasmEntry(Isolate* isolate, wasm::FunctionSig* sig,
                            CEntryStub(isolate, 1).GetCode(), sig);
   builder.set_control_ptr(&control);
   builder.set_effect_ptr(&effect);
-  builder.BuildCWasmEntry(wasm_context_address);
+  builder.BuildCWasmEntry();
 
   if (FLAG_trace_turbo_graph) {  // Simple textual RPO.
     OFStream os(stdout);

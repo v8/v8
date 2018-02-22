@@ -7,7 +7,7 @@
 #include "src/objects-inl.h"
 #include "src/objects/code.h"
 #include "src/wasm/wasm-code-manager.h"
-#include "src/wasm/wasm-objects.h"
+#include "src/wasm/wasm-objects-inl.h"
 
 namespace v8 {
 namespace internal {
@@ -57,6 +57,19 @@ Vector<uint8_t> WasmCodeWrapper::instructions() const {
   Handle<Code> code = GetCode();
   return {code->instruction_start(),
           static_cast<size_t>(code->instruction_size())};
+}
+
+WasmInstanceObject* WasmCodeWrapper::wasm_instance() const {
+  if (IsCodeObject()) {
+    WeakCell* weak_instance =
+        WeakCell::cast(GetCode()->deoptimization_data()->get(0));
+    return WasmInstanceObject::cast(weak_instance->value());
+  }
+  return GetWasmCode()->owner()->compiled_module()->owning_instance();
+}
+
+WasmContext* WasmCodeWrapper::wasm_context() const {
+  return wasm_instance()->wasm_context()->get();
 }
 
 }  // namespace internal

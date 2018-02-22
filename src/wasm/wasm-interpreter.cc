@@ -2476,18 +2476,24 @@ class ThreadImpl {
       arg_buffer.resize(return_size);
     }
 
-    // Wrap the arg_buffer data pointer in a handle. As this is an aligned
-    // pointer, to the GC it will look like a Smi.
+    // Wrap the arg_buffer data pointer and the WasmContext* in a handle. As
+    // this is an aligned pointer, to the GC it will look like a Smi.
     Handle<Object> arg_buffer_obj(reinterpret_cast<Object*>(arg_buffer.data()),
                                   isolate);
     DCHECK(!arg_buffer_obj->IsHeapObject());
 
+    static_assert(compiler::CWasmEntryParameters::kNumParameters == 3,
+                  "code below needs adaption");
     Handle<Object> args[compiler::CWasmEntryParameters::kNumParameters];
+    WasmContext* context = code.wasm_context();
+    Handle<Object> context_obj(reinterpret_cast<Object*>(context), isolate);
+    DCHECK(!context_obj->IsHeapObject());
     args[compiler::CWasmEntryParameters::kCodeObject] =
         code.IsCodeObject()
             ? Handle<Object>::cast(code.GetCode())
             : Handle<Object>::cast(isolate->factory()->NewForeign(
                   code.GetWasmCode()->instructions().start(), TENURED));
+    args[compiler::CWasmEntryParameters::kWasmContext] = context_obj;
     args[compiler::CWasmEntryParameters::kArgumentsBuffer] = arg_buffer_obj;
 
     Handle<Object> receiver = isolate->factory()->undefined_value();
@@ -2556,14 +2562,19 @@ class ThreadImpl {
     DCHECK(AllowHeapAllocation::IsAllowed());
 
     if (code->kind() == wasm::WasmCode::kFunction) {
-      DCHECK_EQ(code->owner()->compiled_module()->owning_instance(),
-                codemap()->instance());
+      if (code->owner()->compiled_module()->owning_instance() !=
+          codemap()->instance()) {
+        return CallExternalWasmFunction(isolate, WasmCodeWrapper(code),
+                                        signature);
+      }
       return {ExternalCallResult::INTERNAL, codemap()->GetCode(code->index())};
     }
+
     if (code->kind() == wasm::WasmCode::kWasmToJsWrapper) {
       return CallExternalJSFunction(isolate, WasmCodeWrapper(code), signature);
-    } else if (code->kind() == wasm::WasmCode::kWasmToWasmWrapper ||
-               code->kind() == wasm::WasmCode::kInterpreterStub) {
+    }
+    if (code->kind() == wasm::WasmCode::kWasmToWasmWrapper ||
+        code->kind() == wasm::WasmCode::kInterpreterStub) {
       return CallExternalWasmFunction(isolate, WasmCodeWrapper(code),
                                       signature);
     }

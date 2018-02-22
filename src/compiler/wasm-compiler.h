@@ -227,6 +227,7 @@ Handle<Code> CompileWasmInterpreterEntry(Isolate* isolate, uint32_t func_index,
 
 enum CWasmEntryParameters {
   kCodeObject,
+  kWasmContext,
   kArgumentsBuffer,
   // marker:
   kNumParameters
@@ -235,8 +236,7 @@ enum CWasmEntryParameters {
 // Compiles a stub with JS linkage, taking parameters as described by
 // {CWasmEntryParameters}. It loads the wasm parameters from the argument
 // buffer and calls the wasm function given as first parameter.
-Handle<Code> CompileCWasmEntry(Isolate* isolate, wasm::FunctionSig* sig,
-                               Address wasm_context_address);
+Handle<Code> CompileCWasmEntry(Isolate* isolate, wasm::FunctionSig* sig);
 
 // Values from the {WasmContext} are cached between WASM-level function calls.
 // This struct allows the SSA environment handling this cache to be defined
@@ -367,7 +367,7 @@ class WasmGraphBuilder {
   void BuildWasmToWasmWrapper(WasmCodeWrapper wasm_code_start,
                               Address new_wasm_context_address);
   void BuildWasmInterpreterEntry(uint32_t func_index);
-  void BuildCWasmEntry(Address wasm_context_address);
+  void BuildCWasmEntry();
 
   Node* ToJS(Node* node, wasm::ValueType type);
   Node* FromJS(Node* node, Node* js_context, wasm::ValueType type);
