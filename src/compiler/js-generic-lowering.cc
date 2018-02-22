@@ -376,6 +376,9 @@ void JSGenericLowering::LowerJSCreateClosure(Node* node) {
   node->InsertInput(zone(), 1, jsgraph()->HeapConstant(p.feedback_cell()));
   node->RemoveInput(4);  // control
 
+  // We cannot deal with closures for builtins here.
+  DCHECK_EQ(CreateClosureMode::kRegular, p.mode());
+
   // Use the FastNewClosure builtin only for functions allocated in new space.
   if (p.pretenure() == NOT_TENURED) {
     Callable callable =

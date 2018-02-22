@@ -4656,7 +4656,8 @@ Reduction JSCallReducer::ReducePromiseConstructor(Node* node) {
       isolate());
   Node* resolve = effect =
       graph()->NewNode(javascript()->CreateClosure(
-                           resolve_shared, factory()->many_closures_cell()),
+                           resolve_shared, factory()->many_closures_cell(),
+                           CreateClosureMode::kBuiltin),
                        promise_context, effect, control);
 
   // Allocate the closure for the reject case.
@@ -4665,7 +4666,8 @@ Reduction JSCallReducer::ReducePromiseConstructor(Node* node) {
       isolate());
   Node* reject = effect =
       graph()->NewNode(javascript()->CreateClosure(
-                           reject_shared, factory()->many_closures_cell()),
+                           reject_shared, factory()->many_closures_cell(),
+                           CreateClosureMode::kBuiltin),
                        promise_context, effect, control);
 
   // Re-use the params from above, but actually set the promise parameter now.
@@ -4959,7 +4961,8 @@ Reduction JSCallReducer::ReducePromisePrototypeFinally(Node* node) {
         native_context()->promise_catch_finally_shared_fun(), isolate());
     catch_true = etrue =
         graph()->NewNode(javascript()->CreateClosure(
-                             catch_finally, factory()->many_closures_cell()),
+                             catch_finally, factory()->many_closures_cell(),
+                             CreateClosureMode::kBuiltin),
                          context, etrue, if_true);
 
     // Allocate the closure for the fulfill case.
@@ -4967,7 +4970,8 @@ Reduction JSCallReducer::ReducePromisePrototypeFinally(Node* node) {
         native_context()->promise_then_finally_shared_fun(), isolate());
     then_true = etrue =
         graph()->NewNode(javascript()->CreateClosure(
-                             then_finally, factory()->many_closures_cell()),
+                             then_finally, factory()->many_closures_cell(),
+                             CreateClosureMode::kBuiltin),
                          context, etrue, if_true);
   }
 

@@ -901,6 +901,7 @@ Reduction JSCreateLowering::ReduceJSCreateClosure(Node* node) {
   CreateClosureParameters const& p = CreateClosureParametersOf(node->op());
   Handle<SharedFunctionInfo> shared = p.shared_info();
   Handle<FeedbackCell> feedback_cell = p.feedback_cell();
+  CreateClosureMode const mode = p.mode();
   Node* effect = NodeProperties::GetEffectInput(node);
   Node* control = NodeProperties::GetControlInput(node);
   Node* context = NodeProperties::GetContextInput(node);
@@ -914,10 +915,11 @@ Reduction JSCreateLowering::ReduceJSCreateClosure(Node* node) {
 
   Handle<Map> function_map(
       Map::cast(native_context()->get(shared->function_map_index())));
-  Node* lazy_compile_builtin = jsgraph()->HeapConstant(handle(
-      shared->native() ? shared->code()
-                       : isolate()->builtins()->builtin(Builtins::kCompileLazy),
-      isolate()));
+  Node* lazy_compile_builtin = jsgraph()->HeapConstant(
+      handle(mode == CreateClosureMode::kBuiltin
+                 ? shared->code()
+                 : isolate()->builtins()->builtin(Builtins::kCompileLazy),
+             isolate()));
   DCHECK(!function_map->IsInobjectSlackTrackingInProgress());
   DCHECK(!function_map->is_dictionary_map());
 

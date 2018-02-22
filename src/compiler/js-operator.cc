@@ -445,6 +445,18 @@ const CreateBoundFunctionParameters& CreateBoundFunctionParametersOf(
   return OpParameter<CreateBoundFunctionParameters>(op);
 }
 
+size_t hash_value(CreateClosureMode mode) { return static_cast<uint8_t>(mode); }
+
+std::ostream& operator<<(std::ostream& os, CreateClosureMode mode) {
+  switch (mode) {
+    case CreateClosureMode::kBuiltin:
+      return os << "Builtin";
+    case CreateClosureMode::kRegular:
+      return os << "Regular";
+  }
+  UNREACHABLE();
+}
+
 bool operator==(CreateClosureParameters const& lhs,
                 CreateClosureParameters const& rhs) {
   return lhs.pretenure() == rhs.pretenure() &&
@@ -1062,8 +1074,9 @@ const Operator* JSOperatorBuilder::CreateBoundFunction(size_t arity,
 
 const Operator* JSOperatorBuilder::CreateClosure(
     Handle<SharedFunctionInfo> shared_info, Handle<FeedbackCell> feedback_cell,
-    PretenureFlag pretenure) {
-  CreateClosureParameters parameters(shared_info, feedback_cell, pretenure);
+    CreateClosureMode mode, PretenureFlag pretenure) {
+  CreateClosureParameters parameters(shared_info, feedback_cell, mode,
+                                     pretenure);
   return new (zone()) Operator1<CreateClosureParameters>(   // --
       IrOpcode::kJSCreateClosure, Operator::kEliminatable,  // opcode
       "JSCreateClosure",                                    // name
