@@ -273,6 +273,7 @@ bool IntrinsicHasNoSideEffect(Runtime::FunctionId id) {
   V(ToString)                            \
   V(ToLength)                            \
   V(ToNumber)                            \
+  V(ToBigInt)                            \
   V(NumberToStringSkipCache)             \
   /* Type checks */                      \
   V(IsJSReceiver)                        \
@@ -296,6 +297,8 @@ bool IntrinsicHasNoSideEffect(Runtime::FunctionId id) {
   V(TrySliceSimpleNonFastElements)       \
   V(HasComplexElements)                  \
   V(EstimateNumberOfElements)            \
+  V(NewArray)                            \
+  V(TypedArrayGetBuffer)                 \
   /* Errors */                           \
   V(ReThrow)                             \
   V(ThrowReferenceError)                 \
@@ -303,6 +306,7 @@ bool IntrinsicHasNoSideEffect(Runtime::FunctionId id) {
   V(ThrowIteratorResultNotAnObject)      \
   V(NewTypeError)                        \
   V(ThrowInvalidStringLength)            \
+  V(ThrowCalledNonCallable)              \
   /* Strings */                          \
   V(StringIndexOf)                       \
   V(StringIncludes)                      \
@@ -350,6 +354,7 @@ bool IntrinsicHasNoSideEffect(Runtime::FunctionId id) {
   V(ThrowRangeError)                     \
   V(ToName)                              \
   V(GetOwnPropertyDescriptor)            \
+  V(HasProperty)                         \
   V(StackGuard)                          \
   /* Misc. */                            \
   V(Call)                                \
@@ -382,6 +387,42 @@ bool IntrinsicHasNoSideEffect(Runtime::FunctionId id) {
 #undef CASE
 #undef INTRINSIC_WHITELIST
 }
+
+#ifdef DEBUG
+bool BuiltinToIntrinsicHasNoSideEffect(Builtins::Name builtin_id,
+                                       Runtime::FunctionId intrinsic_id) {
+  // First check the intrinsic whitelist.
+  if (IntrinsicHasNoSideEffect(intrinsic_id)) return true;
+
+// Whitelist intrinsics called from specific builtins.
+#define BUILTIN_INTRINSIC_WHITELIST(V, W)                                 \
+  /* Arrays */                                                            \
+  V(Builtins::kArrayFilter, W(CreateDataProperty))                        \
+  V(Builtins::kArrayMap, W(CreateDataProperty))                           \
+  V(Builtins::kArrayPrototypeSlice, W(CreateDataProperty) W(SetProperty)) \
+  /* TypedArrays */                                                       \
+  V(Builtins::kTypedArrayPrototypeFilter, W(TypedArrayCopyElements))      \
+  V(Builtins::kTypedArrayPrototypeMap, W(SetProperty))
+
+#define CASE(Builtin, ...) \
+  case Builtin:            \
+    return (__VA_ARGS__ false);
+
+#define MATCH(Intrinsic)                   \
+  intrinsic_id == Runtime::k##Intrinsic || \
+      intrinsic_id == Runtime::kInline##Intrinsic ||
+
+  switch (builtin_id) {
+    BUILTIN_INTRINSIC_WHITELIST(CASE, MATCH)
+    default:
+      return false;
+  }
+
+#undef MATCH
+#undef CASE
+#undef BUILTIN_INTRINSIC_WHITELIST
+}
+#endif  // DEBUG
 
 bool BytecodeHasNoSideEffect(interpreter::Bytecode bytecode) {
   typedef interpreter::Bytecode Bytecode;
@@ -512,6 +553,7 @@ bool BuiltinHasNoSideEffect(Builtins::Name id) {
     case Builtins::kObjectPrototypePropertyIsEnumerable:
     case Builtins::kObjectPrototypeToString:
     // Array builtins.
+    case Builtins::kArrayIsArray:
     case Builtins::kArrayConstructor:
     case Builtins::kArrayIndexOf:
     case Builtins::kArrayPrototypeValues:
@@ -520,11 +562,58 @@ bool BuiltinHasNoSideEffect(Builtins::Name id) {
     case Builtins::kArrayPrototypeFind:
     case Builtins::kArrayPrototypeFindIndex:
     case Builtins::kArrayPrototypeKeys:
+    case Builtins::kArrayPrototypeSlice:
     case Builtins::kArrayForEach:
     case Builtins::kArrayEvery:
     case Builtins::kArraySome:
+    case Builtins::kArrayConcat:
+    case Builtins::kArraySlice:
+    case Builtins::kArrayFilter:
+    case Builtins::kArrayMap:
     case Builtins::kArrayReduce:
     case Builtins::kArrayReduceRight:
+    // TypedArray builtins.
+    case Builtins::kTypedArrayConstructor:
+    case Builtins::kTypedArrayPrototypeBuffer:
+    case Builtins::kTypedArrayPrototypeByteLength:
+    case Builtins::kTypedArrayPrototypeByteOffset:
+    case Builtins::kTypedArrayPrototypeLength:
+    case Builtins::kTypedArrayPrototypeEntries:
+    case Builtins::kTypedArrayPrototypeKeys:
+    case Builtins::kTypedArrayPrototypeValues:
+    case Builtins::kTypedArrayPrototypeFind:
+    case Builtins::kTypedArrayPrototypeFindIndex:
+    case Builtins::kTypedArrayPrototypeIncludes:
+    case Builtins::kTypedArrayPrototypeIndexOf:
+    case Builtins::kTypedArrayPrototypeLastIndexOf:
+    case Builtins::kTypedArrayPrototypeSlice:
+    case Builtins::kTypedArrayPrototypeSubArray:
+    case Builtins::kTypedArrayPrototypeEvery:
+    case Builtins::kTypedArrayPrototypeSome:
+    case Builtins::kTypedArrayPrototypeFilter:
+    case Builtins::kTypedArrayPrototypeMap:
+    case Builtins::kTypedArrayPrototypeReduce:
+    case Builtins::kTypedArrayPrototypeReduceRight:
+    case Builtins::kTypedArrayPrototypeForEach:
+    // ArrayBuffer builtins.
+    case Builtins::kArrayBufferConstructor:
+    case Builtins::kArrayBufferPrototypeGetByteLength:
+    case Builtins::kArrayBufferIsView:
+    case Builtins::kArrayBufferPrototypeSlice:
+    case Builtins::kReturnReceiver:
+    // DataView builtins.
+    case Builtins::kDataViewConstructor:
+    case Builtins::kDataViewPrototypeGetBuffer:
+    case Builtins::kDataViewPrototypeGetByteLength:
+    case Builtins::kDataViewPrototypeGetByteOffset:
+    case Builtins::kDataViewPrototypeGetInt8:
+    case Builtins::kDataViewPrototypeGetUint8:
+    case Builtins::kDataViewPrototypeGetInt16:
+    case Builtins::kDataViewPrototypeGetUint16:
+    case Builtins::kDataViewPrototypeGetInt32:
+    case Builtins::kDataViewPrototypeGetUint32:
+    case Builtins::kDataViewPrototypeGetFloat32:
+    case Builtins::kDataViewPrototypeGetFloat64:
     // Boolean bulitins.
     case Builtins::kBooleanConstructor:
     case Builtins::kBooleanPrototypeToString:
@@ -562,11 +651,17 @@ bool BuiltinHasNoSideEffect(Builtins::Name id) {
     case Builtins::kDatePrototypeValueOf:
     // Map builtins.
     case Builtins::kMapConstructor:
+    case Builtins::kMapPrototypeForEach:
     case Builtins::kMapPrototypeGet:
+    case Builtins::kMapPrototypeHas:
     case Builtins::kMapPrototypeEntries:
     case Builtins::kMapPrototypeGetSize:
     case Builtins::kMapPrototypeKeys:
     case Builtins::kMapPrototypeValues:
+    // WeakMap builtins.
+    case Builtins::kWeakMapConstructor:
+    case Builtins::kWeakMapGet:
+    case Builtins::kWeakMapHas:
     // Math builtins.
     case Builtins::kMathAbs:
     case Builtins::kMathAcos:
@@ -619,8 +714,13 @@ bool BuiltinHasNoSideEffect(Builtins::Name id) {
     // Set builtins.
     case Builtins::kSetConstructor:
     case Builtins::kSetPrototypeEntries:
+    case Builtins::kSetPrototypeForEach:
     case Builtins::kSetPrototypeGetSize:
+    case Builtins::kSetPrototypeHas:
     case Builtins::kSetPrototypeValues:
+    // WeakSet builtins.
+    case Builtins::kWeakSetConstructor:
+    case Builtins::kWeakSetHas:
     // String builtins. Strings are immutable.
     case Builtins::kStringFromCharCode:
     case Builtins::kStringFromCodePoint:
@@ -770,7 +870,9 @@ bool DebugEvaluate::FunctionHasNoSideEffect(Handle<SharedFunctionInfo> info) {
         Address address = rinfo->target_external_reference();
         const Runtime::Function* function = Runtime::FunctionForEntry(address);
         if (function == nullptr) continue;
-        if (!IntrinsicHasNoSideEffect(function->function_id)) {
+        if (!BuiltinToIntrinsicHasNoSideEffect(
+                static_cast<Builtins::Name>(builtin_index),
+                function->function_id)) {
           PrintF("Whitelisted builtin %s calls non-whitelisted intrinsic %s\n",
                  Builtins::name(builtin_index), function->name);
           failed = true;
