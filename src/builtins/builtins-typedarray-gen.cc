@@ -393,7 +393,7 @@ void TypedArrayBuiltinsAssembler::ConstructByArrayBuffer(
 
   BIND(&length_defined);
   {
-    Node* new_length = ToSmiIndex(length, context, &invalid_length);
+    TNode<Smi> new_length = ToSmiIndex(length, context, &invalid_length);
     GotoIf(IsDetachedBuffer(buffer), &detached_error);
     new_byte_length.Bind(SmiMul(new_length, element_size));
     // Reading the byte length must come after the ToIndex operation, which
@@ -411,10 +411,10 @@ void TypedArrayBuiltinsAssembler::ConstructByArrayBuffer(
 
   BIND(&call_init);
   {
-    Node* new_length = CallBuiltin(Builtins::kDivide, context,
-                                   new_byte_length.value(), element_size);
+    TNode<Object> raw_length = CAST(CallBuiltin(
+        Builtins::kDivide, context, new_byte_length.value(), element_size));
     // Force the result into a Smi, or throw a range error if it doesn't fit.
-    new_length = ToSmiIndex(new_length, context, &invalid_length);
+    TNode<Smi> new_length = ToSmiIndex(raw_length, context, &invalid_length);
 
     CallBuiltin(Builtins::kTypedArrayInitializeWithBuffer, context, holder,
                 new_length, buffer, element_size, offset.value());

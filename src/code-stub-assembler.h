@@ -1295,7 +1295,8 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
   };
 
   // ES6 7.1.17 ToIndex, but jumps to range_error if the result is not a Smi.
-  Node* ToSmiIndex(Node* const input, Node* const context, Label* range_error);
+  TNode<Smi> ToSmiIndex(TNode<Object> input, TNode<Context> context,
+                        Label* range_error);
 
   // ES6 7.1.15 ToLength, but jumps to range_error if the result is not a Smi.
   TNode<Smi> ToSmiLength(TNode<Object> input, TNode<Context> context,

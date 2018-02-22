@@ -6111,32 +6111,35 @@ TNode<JSReceiver> CodeStubAssembler::ToObject(SloppyTNode<Context> context,
   return CAST(CallBuiltin(Builtins::kToObject, context, input));
 }
 
-Node* CodeStubAssembler::ToSmiIndex(Node* const input, Node* const context,
-                                    Label* range_error) {
-  VARIABLE(result, MachineRepresentation::kTagged, input);
+TNode<Smi> CodeStubAssembler::ToSmiIndex(TNode<Object> input,
+                                         TNode<Context> context,
+                                         Label* range_error) {
+  TVARIABLE(Smi, result);
   Label check_undefined(this), return_zero(this), defined(this),
       negative_check(this), done(this);
-  Branch(TaggedIsSmi(result.value()), &negative_check, &check_undefined);
+
+  GotoIfNot(TaggedIsSmi(input), &check_undefined);
+  result = CAST(input);
+  Goto(&negative_check);
 
   BIND(&check_undefined);
-  Branch(IsUndefined(result.value()), &return_zero, &defined);
+  Branch(IsUndefined(input), &return_zero, &defined);
 
   BIND(&defined);
-  result.Bind(ToInteger_Inline(CAST(context), CAST(result.value()),
-                               CodeStubAssembler::kTruncateMinusZero));
-  GotoIfNot(TaggedIsSmi(result.value()), range_error);
-  CSA_ASSERT(this, TaggedIsSmi(result.value()));
+  TNode<Object> integer_input =
+      ToInteger_Inline(context, input, CodeStubAssembler::kTruncateMinusZero);
+  GotoIfNot(TaggedIsSmi(integer_input), range_error);
+  result = CAST(integer_input);
   Goto(&negative_check);
 
   BIND(&negative_check);
   Branch(SmiLessThan(result.value(), SmiConstant(0)), range_error, &done);
 
   BIND(&return_zero);
-  result.Bind(SmiConstant(0));
+  result = SmiConstant(0);
   Goto(&done);
 
   BIND(&done);
-  CSA_SLOW_ASSERT(this, TaggedIsSmi(result.value()));
   return result.value();
 }
 
@@ -6144,9 +6147,12 @@ TNode<Smi> CodeStubAssembler::ToSmiLength(TNode<Object> input,
                                           TNode<Context> context,
                                           Label* range_error) {
   TVARIABLE(Smi, result);
-  Label to_integer(this), if_issmi(this), negative_check(this),
+  Label to_integer(this), negative_check(this),
       heap_number_negative_check(this), return_zero(this), done(this);
-  Branch(TaggedIsSmi(input), &if_issmi, &to_integer);
+
+  GotoIfNot(TaggedIsSmi(input), &to_integer);
+  result = CAST(input);
+  Goto(&negative_check);
 
   BIND(&to_integer);
   {
@@ -6163,10 +6169,6 @@ TNode<Smi> CodeStubAssembler::ToSmiLength(TNode<Object> input,
                               SmiConstant(0))),
            &return_zero, range_error);
   }
-
-  BIND(&if_issmi);
-  result = CAST(input);
-  Goto(&negative_check);
 
   BIND(&negative_check);
   Branch(SmiLessThan(result.value(), SmiConstant(0)), &return_zero, &done);
