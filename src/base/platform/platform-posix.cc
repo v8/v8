@@ -18,7 +18,6 @@
 #include <unistd.h>
 
 #include <sys/mman.h>
-#include <sys/resource.h>
 #include <sys/stat.h>
 #include <sys/time.h>
 #include <sys/types.h>
@@ -53,6 +52,12 @@
 
 #if V8_OS_LINUX
 #include <sys/prctl.h>  // NOLINT, for prctl
+#endif
+
+#if defined(V8_OS_FUCHSIA)
+#include <zircon/process.h>
+#else
+#include <sys/resource.h>
 #endif
 
 #if !defined(_AIX) && !defined(V8_OS_FUCHSIA)
@@ -478,7 +483,7 @@ int OS::GetCurrentThreadId() {
 #elif V8_OS_AIX
   return static_cast<int>(thread_self());
 #elif V8_OS_FUCHSIA
-  return static_cast<int>(pthread_self());
+  return static_cast<int>(zx_thread_self());
 #elif V8_OS_SOLARIS
   return static_cast<int>(pthread_self());
 #else
@@ -491,6 +496,7 @@ int OS::GetCurrentThreadId() {
 // POSIX date/time support.
 //
 
+#if !defined(V8_OS_FUCHSIA)
 int OS::GetUserTime(uint32_t* secs, uint32_t* usecs) {
   struct rusage usage;
 
@@ -499,7 +505,7 @@ int OS::GetUserTime(uint32_t* secs, uint32_t* usecs) {
   *usecs = static_cast<uint32_t>(usage.ru_utime.tv_usec);
   return 0;
 }
-
+#endif
 
 double OS::TimeCurrentMillis() {
   return Time::Now().ToJsTime();
