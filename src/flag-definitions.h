@@ -214,15 +214,15 @@ DEFINE_IMPLICATION(harmony_class_fields, harmony_private_fields)
   V(harmony_do_expressions, "harmony do-expressions")                 \
   V(harmony_class_fields, "harmony fields in class literals")         \
   V(harmony_static_fields, "harmony static fields in class literals") \
-  V(harmony_bigint, "harmony arbitrary precision integers")           \
-  V(harmony_private_fields, "harmony private fields in class literals")
+  V(harmony_bigint, "harmony arbitrary precision integers")
 
 // Features that are complete (but still behind --harmony/es-staging flag).
 #define HARMONY_STAGED(V)                                               \
   V(harmony_restrict_constructor_return,                                \
     "harmony disallow non undefined primitive return value from class " \
     "constructor")                                                      \
-  V(harmony_public_fields, "harmony public fields in class literals")
+  V(harmony_public_fields, "harmony public fields in class literals")   \
+  V(harmony_private_fields, "harmony private fields in class literals")
 
 // Features that are shipping (turned on by default, but internal flag remains).
 #define HARMONY_SHIPPING_BASE(V)                                              \
