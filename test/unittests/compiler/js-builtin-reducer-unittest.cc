@@ -328,46 +328,6 @@ TEST_F(JSBuiltinReducerTest, NumberParseIntWithIntegral32AndUndefined) {
   }
 }
 
-// -----------------------------------------------------------------------------
-// String.fromCharCode
-
-TEST_F(JSBuiltinReducerTest, StringFromCharCodeWithNumber) {
-  Node* function = StringFunction("fromCharCode");
-
-  Node* effect = graph()->start();
-  Node* control = graph()->start();
-  Node* context = UndefinedConstant();
-  Node* frame_state = graph()->start();
-  TRACED_FOREACH(Type*, t0, kNumberTypes) {
-    Node* p0 = Parameter(t0, 0);
-    Node* call =
-        graph()->NewNode(javascript()->Call(3), function, UndefinedConstant(),
-                         p0, context, frame_state, effect, control);
-    Reduction r = Reduce(call);
-
-    ASSERT_TRUE(r.Changed());
-    EXPECT_THAT(r.replacement(), IsStringFromCharCode(p0));
-  }
-}
-
-TEST_F(JSBuiltinReducerTest, StringFromCharCodeWithPlainPrimitive) {
-  Node* function = StringFunction("fromCharCode");
-
-  Node* effect = graph()->start();
-  Node* control = graph()->start();
-  Node* context = UndefinedConstant();
-  Node* frame_state = graph()->start();
-  Node* p0 = Parameter(Type::PlainPrimitive(), 0);
-  Node* call =
-      graph()->NewNode(javascript()->Call(3), function, UndefinedConstant(), p0,
-                       context, frame_state, effect, control);
-  Reduction r = Reduce(call);
-
-  ASSERT_TRUE(r.Changed());
-  EXPECT_THAT(r.replacement(),
-              IsStringFromCharCode(IsPlainPrimitiveToNumber(p0)));
-}
-
 }  // namespace compiler
 }  // namespace internal
 }  // namespace v8

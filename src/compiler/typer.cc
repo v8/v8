@@ -1225,6 +1225,10 @@ Type* Typer::Visitor::TypeJSCreateIterResultObject(Node* node) {
   return Type::OtherObject();
 }
 
+Type* Typer::Visitor::TypeJSCreateStringIterator(Node* node) {
+  return Type::OtherObject();
+}
+
 Type* Typer::Visitor::TypeJSCreateKeyValueArray(Node* node) {
   return Type::OtherObject();
 }
@@ -1958,9 +1962,13 @@ Type* Typer::Visitor::StringFromCodePointTyper(Type* type, Typer* t) {
 
 Type* Typer::Visitor::TypeStringCharAt(Node* node) { return Type::String(); }
 
-Type* Typer::Visitor::TypeStringToLowerCaseIntl(Node* node) { UNREACHABLE(); }
+Type* Typer::Visitor::TypeStringToLowerCaseIntl(Node* node) {
+  return Type::String();
+}
 
-Type* Typer::Visitor::TypeStringToUpperCaseIntl(Node* node) { UNREACHABLE(); }
+Type* Typer::Visitor::TypeStringToUpperCaseIntl(Node* node) {
+  return Type::String();
+}
 
 Type* Typer::Visitor::TypeStringCharCodeAt(Node* node) {
   return typer_->cache_.kUint16;
