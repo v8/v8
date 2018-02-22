@@ -152,14 +152,6 @@ for (var constructor of typedArrayConstructors) {
                TypeError);
 
   source = [1, 2, 3];
-  source[Symbol.iterator] = undefined;
-  assertArrayLikeEquals(constructor.from(source), source, constructor);
-
-  source = [{ valueOf: function(){ return 42; }}];
-  source[Symbol.iterator] = undefined;
-  assertArrayLikeEquals(constructor.from(source), [42], constructor);
-
-  source = [1, 2, 3];
   var proxy = new Proxy(source, {});
   assertArrayLikeEquals(constructor.from(proxy), source, constructor);
 
@@ -171,6 +163,26 @@ for (var constructor of typedArrayConstructors) {
     }
   });
   assertArrayLikeEquals(constructor.from(proxy), [2, 3, 4], constructor);
+}
+
+// Tests that modify global state in a way that affects fast paths e.g. by
+// invalidating protectors or changing prototypes.
+for (var constructor of typedArrayConstructors) {
+  source = [1, 2, 3];
+  source[Symbol.iterator] = undefined;
+  assertArrayLikeEquals(constructor.from(source), source, constructor);
+
+  source = [{ valueOf: function(){ return 42; }}];
+  source[Symbol.iterator] = undefined;
+  assertArrayLikeEquals(constructor.from(source), [42], constructor);
+
+  Number.prototype[Symbol.iterator] = function* () {
+    yield 1;
+    yield 2;
+    yield 3;
+  }
+  assertArrayLikeEquals(constructor.from(1), [1, 2, 3], constructor);
+  assertArrayLikeEquals(constructor.from(1.1), [1, 2, 3], constructor);
 
   var nullIterator = {};
   nullIterator[Symbol.iterator] = null;

@@ -1247,9 +1247,13 @@ RUNTIME_FUNCTION(Runtime_CreateDataProperty) {
 RUNTIME_FUNCTION(Runtime_IterableToListCanBeElided) {
   HandleScope scope(isolate);
   DCHECK_EQ(1, args.length());
-  CONVERT_ARG_HANDLE_CHECKED(HeapObject, obj, 0);
+  CONVERT_ARG_HANDLE_CHECKED(Object, obj, 0);
 
-  if (!obj->IsJSObject()) return isolate->heap()->ToBoolean(false);
+  // If an iterator symbol is added to the Number prototype, we could see a Smi.
+  if (obj->IsSmi()) return isolate->heap()->ToBoolean(false);
+  if (!HeapObject::cast(*obj)->IsJSObject()) {
+    return isolate->heap()->ToBoolean(false);
+  }
 
   // While iteration alone may not have observable side-effects, calling
   // toNumber on an object will. Make sure the arg is not an array of objects.
