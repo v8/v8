@@ -115,7 +115,7 @@ Reduction JSCallReducer::ReduceMathClz32(Node* node) {
     return NoChange();
   }
   if (node->op()->ValueInputCount() < 3) {
-    Node* value = jsgraph()->Int32Constant(32);
+    Node* value = jsgraph()->Constant(32);
     ReplaceWithValue(node, value);
     return Replace(value);
   }

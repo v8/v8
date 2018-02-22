@@ -251,8 +251,24 @@ TEST_F(JSCallReducerTest, MathClz32WithUnsigned32) {
   Reduction r = Reduce(call);
 
   ASSERT_TRUE(r.Changed());
-  EXPECT_THAT(std::string(IrOpcode::Mnemonic(r.replacement()->opcode())),
-              op_name_for("clz32"));
+  EXPECT_THAT(r.replacement(),
+              IsNumberClz32(IsNumberToUint32(IsSpeculativeToNumber(p0))));
+}
+
+TEST_F(JSCallReducerTest, MathClz32WithUnsigned32NoArg) {
+  Node* jsfunction = MathFunction("clz32");
+  Node* effect = graph()->start();
+  Node* control = graph()->start();
+  Node* context = UndefinedConstant();
+  Node* frame_state = graph()->start();
+
+  Node* call =
+      graph()->NewNode(javascript()->Call(2), jsfunction, UndefinedConstant(),
+                       context, frame_state, effect, control);
+  Reduction r = Reduce(call);
+
+  ASSERT_TRUE(r.Changed());
+  EXPECT_THAT(r.replacement(), IsNumberConstant(32));
 }
 
 // -----------------------------------------------------------------------------
