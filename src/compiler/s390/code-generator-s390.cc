@@ -984,6 +984,16 @@ void AdjustStackPointerForTailCall(
   }
 }
 
+void EmitWordLoadPoisoningIfNeeded(CodeGenerator* codegen, Instruction* instr,
+                                   S390OperandConverter& i) {
+  const MemoryAccessMode access_mode =
+      static_cast<MemoryAccessMode>(MiscField::decode(instr->opcode()));
+  if (access_mode == kMemoryAccessPoisoned) {
+    Register value = i.OutputRegister();
+    codegen->tasm()->AndP(value, kSpeculationPoisonRegister);
+  }
+}
+
 }  // namespace
 
 void CodeGenerator::AssembleTailCallBeforeGap(Instruction* instr,
@@ -2142,6 +2152,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     case kS390_LoadWordS8:
       ASSEMBLE_LOAD_INTEGER(LoadB);
+      EmitWordLoadPoisoningIfNeeded(this, instr, i);
       break;
     case kS390_BitcastFloat32ToInt32:
       ASSEMBLE_UNARY_OP(R_DInstr(MovFloatToInt), R_MInstr(LoadlW), nullInstr);
@@ -2159,27 +2170,35 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
 #endif
     case kS390_LoadWordU8:
       ASSEMBLE_LOAD_INTEGER(LoadlB);
+      EmitWordLoadPoisoningIfNeeded(this, instr, i);
       break;
     case kS390_LoadWordU16:
       ASSEMBLE_LOAD_INTEGER(LoadLogicalHalfWordP);
+      EmitWordLoadPoisoningIfNeeded(this, instr, i);
       break;
     case kS390_LoadWordS16:
       ASSEMBLE_LOAD_INTEGER(LoadHalfWordP);
+      EmitWordLoadPoisoningIfNeeded(this, instr, i);
       break;
     case kS390_LoadWordU32:
       ASSEMBLE_LOAD_INTEGER(LoadlW);
+      EmitWordLoadPoisoningIfNeeded(this, instr, i);
       break;
     case kS390_LoadWordS32:
       ASSEMBLE_LOAD_INTEGER(LoadW);
+      EmitWordLoadPoisoningIfNeeded(this, instr, i);
       break;
     case kS390_LoadReverse16:
       ASSEMBLE_LOAD_INTEGER(lrvh);
+      EmitWordLoadPoisoningIfNeeded(this, instr, i);
       break;
     case kS390_LoadReverse32:
       ASSEMBLE_LOAD_INTEGER(lrv);
+      EmitWordLoadPoisoningIfNeeded(this, instr, i);
       break;
     case kS390_LoadReverse64:
       ASSEMBLE_LOAD_INTEGER(lrvg);
+      EmitWordLoadPoisoningIfNeeded(this, instr, i);
       break;
     case kS390_LoadReverse16RR:
       __ lrvr(i.OutputRegister(), i.InputRegister(0));
@@ -2193,6 +2212,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     case kS390_LoadWord64:
       ASSEMBLE_LOAD_INTEGER(lg);
+      EmitWordLoadPoisoningIfNeeded(this, instr, i);
       break;
     case kS390_LoadAndTestWord32: {
       ASSEMBLE_LOADANDTEST32(ltr, lt_z);
@@ -2427,7 +2447,15 @@ void CodeGenerator::AssembleArchBranch(Instruction* instr, BranchInfo* branch) {
 
 void CodeGenerator::AssembleBranchPoisoning(FlagsCondition condition,
                                             Instruction* instr) {
-  UNREACHABLE();
+  // TODO(John) Handle float comparisons (kUnordered[Not]Equal).
+  if (condition == kUnorderedEqual || condition == kUnorderedNotEqual) {
+    return;
+  }
+
+  condition = NegateFlagsCondition(condition);
+  __ XorP(r0, r0);
+  __ LoadOnConditionP(FlagsConditionToCondition(condition, kArchNop),
+                      kSpeculationPoisonRegister, r0);
 }
 
 void CodeGenerator::AssembleArchDeoptBranch(Instruction* instr,
@@ -2633,6 +2661,7 @@ void CodeGenerator::AssembleConstructFrame() {
     if (FLAG_code_comments) __ RecordComment("-- OSR entrypoint --");
     osr_pc_offset_ = __ pc_offset();
     shrink_slots -= osr_helper()->UnoptimizedFrameSlots();
+    InitializePoisonForLoadsIfNeeded();
   }
 
   const RegList double_saves = call_descriptor->CalleeSavedFPRegisters();

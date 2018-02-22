@@ -272,6 +272,16 @@ Condition FlagsConditionToCondition(FlagsCondition condition, ArchOpcode op) {
   UNREACHABLE();
 }
 
+void EmitWordLoadPoisoningIfNeeded(CodeGenerator* codegen, Instruction* instr,
+                                   PPCOperandConverter& i) {
+  const MemoryAccessMode access_mode =
+      static_cast<MemoryAccessMode>(MiscField::decode(instr->opcode()));
+  if (access_mode == kMemoryAccessPoisoned) {
+    Register value = i.OutputRegister();
+    codegen->tasm()->and_(value, value, kSpeculationPoisonRegister);
+  }
+}
+
 }  // namespace
 
 #define ASSEMBLE_FLOAT_UNOP_RC(asm_instr, round)                     \
@@ -1840,26 +1850,33 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
 #endif
     case kPPC_LoadWordU8:
       ASSEMBLE_LOAD_INTEGER(lbz, lbzx);
+      EmitWordLoadPoisoningIfNeeded(this, instr, i);
       break;
     case kPPC_LoadWordS8:
       ASSEMBLE_LOAD_INTEGER(lbz, lbzx);
       __ extsb(i.OutputRegister(), i.OutputRegister());
+      EmitWordLoadPoisoningIfNeeded(this, instr, i);
       break;
     case kPPC_LoadWordU16:
       ASSEMBLE_LOAD_INTEGER(lhz, lhzx);
+      EmitWordLoadPoisoningIfNeeded(this, instr, i);
       break;
     case kPPC_LoadWordS16:
       ASSEMBLE_LOAD_INTEGER(lha, lhax);
+      EmitWordLoadPoisoningIfNeeded(this, instr, i);
       break;
     case kPPC_LoadWordU32:
       ASSEMBLE_LOAD_INTEGER(lwz, lwzx);
+      EmitWordLoadPoisoningIfNeeded(this, instr, i);
       break;
     case kPPC_LoadWordS32:
       ASSEMBLE_LOAD_INTEGER(lwa, lwax);
+      EmitWordLoadPoisoningIfNeeded(this, instr, i);
       break;
 #if V8_TARGET_ARCH_PPC64
     case kPPC_LoadWord64:
       ASSEMBLE_LOAD_INTEGER(ld, ldx);
+      EmitWordLoadPoisoningIfNeeded(this, instr, i);
       break;
 #endif
     case kPPC_LoadFloat32:
@@ -1965,7 +1982,16 @@ void CodeGenerator::AssembleArchBranch(Instruction* instr, BranchInfo* branch) {
 
 void CodeGenerator::AssembleBranchPoisoning(FlagsCondition condition,
                                             Instruction* instr) {
-  UNREACHABLE();
+  // TODO(John) Handle float comparisons (kUnordered[Not]Equal).
+  if (condition == kUnorderedEqual || condition == kUnorderedNotEqual) {
+    return;
+  }
+
+  ArchOpcode op = instr->arch_opcode();
+  condition = NegateFlagsCondition(condition);
+  __ li(kScratchReg, Operand::Zero());
+  __ isel(FlagsConditionToCondition(condition, op), kSpeculationPoisonRegister,
+          kScratchReg, kSpeculationPoisonRegister, cr0);
 }
 
 void CodeGenerator::AssembleArchDeoptBranch(Instruction* instr,
@@ -2212,6 +2238,7 @@ void CodeGenerator::AssembleConstructFrame() {
     if (FLAG_code_comments) __ RecordComment("-- OSR entrypoint --");
     osr_pc_offset_ = __ pc_offset();
     shrink_slots -= osr_helper()->UnoptimizedFrameSlots();
+    InitializePoisonForLoadsIfNeeded();
   }
 
   const RegList double_saves = call_descriptor->CalleeSavedFPRegisters();
