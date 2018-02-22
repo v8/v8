@@ -3093,14 +3093,6 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
                           Builtins::kDataViewPrototypeGetFloat64, 1, false);
     SimpleInstallFunction(prototype, "setFloat64",
                           Builtins::kDataViewPrototypeSetFloat64, 2, false);
-    SimpleInstallFunction(prototype, "getBigInt64",
-                          Builtins::kDataViewPrototypeGetBigInt64, 1, false);
-    SimpleInstallFunction(prototype, "setBigInt64",
-                          Builtins::kDataViewPrototypeSetBigInt64, 2, false);
-    SimpleInstallFunction(prototype, "getBigUint64",
-                          Builtins::kDataViewPrototypeGetBigUint64, 1, false);
-    SimpleInstallFunction(prototype, "setBigUint64",
-                          Builtins::kDataViewPrototypeSetBigUint64, 2, false);
   }
 
   {  // -- M a p
