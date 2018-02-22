@@ -14,7 +14,6 @@ var string2 = { toString() { print("x"); return "x"; } };
 var array = [4, 5];
 var error = new Error();
 
-function simple_return(x) { return x; }
 function set_a() { a = 2; }
 function get_a() { return a; }
 var bound = get_a.bind(0);
@@ -62,15 +61,6 @@ function listener(event, exec_state, event_data, data) {
     success("set_a", "set_a.name");
     success(0, "bound.length");
     success("bound get_a", "bound.name");
-    // Non-evaluated call.
-    success("abc", "['abc'].join('foo')");
-    // Constructed literals.
-    success([1], "[1]");
-    success({x: 1}, "({x: 1})");
-    fail("[a]");
-    fail("({x: a})");
-    // Test that template literal evaluation fails.
-    fail("simple_return`1`");
     // Test that non-read-only code fails.
     fail("exception = 1");
     // Test that calling a non-read-only function fails.

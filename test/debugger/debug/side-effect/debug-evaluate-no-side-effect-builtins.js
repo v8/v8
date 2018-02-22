@@ -8,9 +8,6 @@ var exception = null;
 var object_with_symbol_key = {[Symbol("a")]: 1};
 var object_with_callbacks = { toString: () => "string", valueOf: () => 3};
 var symbol_for_a = Symbol.for("a");
-var typed_array = new Uint8Array([1, 2, 3]);
-var array_buffer = new ArrayBuffer(3);
-var data_view = new DataView(new ArrayBuffer(8), 0, 8);
 
 function listener(event, exec_state, event_data, data) {
   if (event != Debug.DebugEvent.Break) return;
@@ -60,18 +57,14 @@ function listener(event, exec_state, event_data, data) {
     success(3, `(object_with_callbacks).valueOf()`);
 
     // Test Array functions.
-    success(true, `Array.isArray([1, 2, 3])`);
     success([], `new Array()`);
-    success([undefined, undefined], `new Array(2)`);
-    success([1, 2], `new Array(1, 2)`);
-    fail(`Array.from([1, 2, 3])`);
-    fail(`Array.of(1, 2, 3)`);
     var function_param = [
       "forEach", "every", "some", "reduce", "reduceRight", "find", "filter",
       "map", "findIndex"
     ];
-    var fails = ["toString", "join", "toLocaleString", "pop", "push", "reverse",
-      "shift", "unshift", "splice", "sort", "copyWithin", "fill"];
+    var fails = ["toString", "join", "toLocaleString", "pop", "push",
+      "reverse", "shift", "unshift", "slice", "splice", "sort", "filter",
+      "map", "copyWithin", "fill", "concat"];
     for (f of Object.getOwnPropertyNames(Array.prototype)) {
       if (typeof Array.prototype[f] === "function") {
         if (fails.includes(f)) {
@@ -84,52 +77,6 @@ function listener(event, exec_state, event_data, data) {
           exec_state.frame(0).evaluate(`[1, 2, 3].${f}(()=>{});`, true);
         } else {
           exec_state.frame(0).evaluate(`[1, 2, 3].${f}();`, true);
-        }
-      }
-    }
-
-    // Test ArrayBuffer functions.
-    success(3, `array_buffer.byteLength`);
-    success(2, `array_buffer.slice(1, 3).byteLength`);
-    success(true, `ArrayBuffer.isView(typed_array)`);
-
-    // Test DataView functions.
-    success(undefined, `new DataView(array_buffer, 1, 2)`);
-    success(undefined, `data_view.buffer`);
-    success(undefined, `data_view.byteLength`);
-    success(undefined, `data_view.byteOffset`);
-    for (f of Object.getOwnPropertyNames(DataView.prototype)) {
-      if (typeof data_view[f] === 'function' && f.startsWith('get'))
-        success(0, `data_view.${f}()`);
-    }
-
-    // Test TypedArray functions.
-    success({}, `new Uint8Array()`);
-    success({0: 0, 1: 0}, `new Uint8Array(2)`);
-    success({0: 1, 1: 2, 2: 3}, `new Uint8Array(typed_array)`);
-    success(true, `!!typed_array.buffer`);
-    success(0, `typed_array.byteOffset`);
-    success(3, `typed_array.byteLength`);
-    fail(`Uint8Array.of(1, 2)`);
-    function_param = [
-      "forEach", "every", "some", "reduce", "reduceRight", "find", "filter",
-      "map", "findIndex"
-    ];
-    fails = ["toString", "join", "toLocaleString", "reverse", "sort",
-      "copyWithin", "fill", "set"];
-    var typed_proto_proto = Object.getPrototypeOf(Object.getPrototypeOf(new Uint8Array()));
-    for (f of Object.getOwnPropertyNames(typed_proto_proto)) {
-      if (typeof typed_array[f] === "function" && f !== "constructor") {
-        if (fails.includes(f)) {
-          if (function_param.includes(f)) {
-            fail(`typed_array.${f}(()=>{});`);
-          } else {
-            fail(`typed_array.${f}();`);
-          }
-        } else if (function_param.includes(f)) {
-          exec_state.frame(0).evaluate(`typed_array.${f}(()=>{});`, true);
-        } else {
-          exec_state.frame(0).evaluate(`typed_array.${f}();`, true);
         }
       }
     }
@@ -192,12 +139,6 @@ function listener(event, exec_state, event_data, data) {
     fail("'abcd'.replace(/a/)");
     fail("'abcd'.search(/a/)");
     fail("'abcd'.split(/a/)");
-
-    // Test RegExp functions.
-    fail(`/a/.compile()`);
-    fail(`/a/.exec('abc')`);
-    fail(`/a/.test('abc')`);
-    fail(`/a/.toString()`);
 
     // Test JSON functions.
     success('{"abc":[1,2]}', "JSON.stringify(JSON.parse('{\"abc\":[1,2]}'))");

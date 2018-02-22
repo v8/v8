@@ -19,8 +19,6 @@ async function async() {
 
 var g = generator();
 
-var p = new Promise(() => {});
-
 function listener(event, exec_state, event_data, data) {
   if (event != Debug.DebugEvent.Break) return;
   try {
@@ -32,15 +30,6 @@ function listener(event, exec_state, event_data, data) {
     fail("generator()");
     fail("g.next()");
     fail("async()");
-    fail("Promise.resolve()");
-    fail("Promise.reject()");
-    fail("p.then(() => {})");
-    fail("p.catch(() => {})");
-    fail("p.finally(() => {})");
-    fail("Promise.all([p, p])");
-    fail("Promise.race([p, p])");
-    fail("(async function() {})()");
-    fail("(async function() { await 1; })()");
   } catch (e) {
     exception = e;
     print(e, e.stack);
