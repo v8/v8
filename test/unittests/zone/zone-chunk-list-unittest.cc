@@ -227,5 +227,45 @@ TEST(ZoneChunkList, ConstForwardIterationTest) {
   TestForwardIterationOfConstList(zone_chunk_list);
 }
 
+TEST(ZoneChunkList, RewindAndIterate) {
+  // Regression test for https://bugs.chromium.org/p/v8/issues/detail?id=7478
+  AccountingAllocator allocator;
+  Zone zone(&allocator, ZONE_NAME);
+
+  ZoneChunkList<int> zone_chunk_list(&zone);
+
+  // Fill the list enough so that it will contain 2 chunks.
+  int chunk_size = static_cast<int>(ZoneChunkList<int>::StartMode::kSmall);
+  for (int i = 0; i < chunk_size + 1; ++i) {
+    zone_chunk_list.push_back(i);
+  }
+
+  // Rewind and fill the first chunk again.
+  zone_chunk_list.Rewind();
+  for (int i = 0; i < chunk_size; ++i) {
+    zone_chunk_list.push_back(i);
+  }
+
+  std::vector<int> expected;
+  for (int i = 0; i < chunk_size; ++i) {
+    expected.push_back(i);
+  }
+  std::vector<int> got;
+
+  // Iterate. This used to not yield the expected result, since the end iterator
+  // was in a weird state, and the running iterator didn't reach it after the
+  // first chunk.
+  auto it = zone_chunk_list.begin();
+  while (it != zone_chunk_list.end()) {
+    int value = *it;
+    got.push_back(value);
+    ++it;
+  }
+  CHECK_EQ(expected.size(), got.size());
+  for (size_t i = 0; i < expected.size(); ++i) {
+    CHECK_EQ(expected[i], got[i]);
+  }
+}
+
 }  // namespace internal
 }  // namespace v8

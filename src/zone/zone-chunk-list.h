@@ -211,7 +211,7 @@ class ZoneChunkListIterator {
 
     DCHECK_LE(list->back_->position_, list->back_->capacity_);
     if (list->back_->position_ == list->back_->capacity_) {
-      return ZoneChunkListIterator(nullptr, 0);
+      return ZoneChunkListIterator(list->back_->next_, 0);
     }
 
     return ZoneChunkListIterator(list->back_, list->back_->position_);
