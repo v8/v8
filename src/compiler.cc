@@ -1779,7 +1779,8 @@ Compiler::GetSharedFunctionInfoForStreamedScript(
                                 &streaming_data->inner_function_jobs);
     } else {
       // Compilation failed on background thread - throw an exception.
-      if (!isolate->has_pending_exception()) isolate->StackOverflow();
+      FailWithPendingException(isolate, parse_info,
+                               Compiler::ClearExceptionFlag::KEEP_EXCEPTION);
     }
   } else {
     // Compilation on main thread.

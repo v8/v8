@@ -10346,6 +10346,7 @@ TEST(PrivateNamesSyntaxError) {
 
   // TODO(gsathya): The preparser does not track unresolved
   // variables in top level function which fails this test.
+  // https://bugs.chromium.org/p/v8/issues/detail?id=7468
   const char* parser_data[] = {
       "function t() {"
       "  return this.#foo;"
