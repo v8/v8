@@ -165,9 +165,11 @@ void ProfilerEventsProcessor::Run() {
 
     if (nextSampleTime > now) {
 #if V8_OS_WIN
-      // Do not use Sleep on Windows as it is very imprecise.
-      // Could be up to 16ms jitter, which is unacceptable for the purpose.
-      while (base::TimeTicks::HighResolutionNow() < nextSampleTime) {
+      if (nextSampleTime - now < base::TimeDelta::FromMilliseconds(100)) {
+        // Do not use Sleep on Windows as it is very imprecise, with up to 16ms
+        // jitter, which is unacceptable for short profile intervals.
+        while (base::TimeTicks::HighResolutionNow() < nextSampleTime) {
+        }
       }
 #else
       base::OS::Sleep(nextSampleTime - now);
