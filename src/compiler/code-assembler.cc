@@ -270,8 +270,9 @@ TNode<HeapObject> CodeAssembler::UntypedHeapConstant(
 }
 
 TNode<String> CodeAssembler::StringConstant(const char* str) {
-  return UncheckedCast<String>(
-      HeapConstant(factory()->NewStringFromAsciiChecked(str, TENURED)));
+  Handle<String> internalized_string =
+      factory()->InternalizeOneByteString(OneByteVector(str));
+  return UncheckedCast<String>(HeapConstant(internalized_string));
 }
 
 TNode<Oddball> CodeAssembler::BooleanConstant(bool value) {
