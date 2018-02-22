@@ -1401,15 +1401,6 @@ void MemoryChunk::ReleaseYoungGenerationBitmap() {
 // -----------------------------------------------------------------------------
 // PagedSpace implementation
 
-STATIC_ASSERT(static_cast<ObjectSpace>(1 << AllocationSpace::NEW_SPACE) ==
-              ObjectSpace::kObjectSpaceNewSpace);
-STATIC_ASSERT(static_cast<ObjectSpace>(1 << AllocationSpace::OLD_SPACE) ==
-              ObjectSpace::kObjectSpaceOldSpace);
-STATIC_ASSERT(static_cast<ObjectSpace>(1 << AllocationSpace::CODE_SPACE) ==
-              ObjectSpace::kObjectSpaceCodeSpace);
-STATIC_ASSERT(static_cast<ObjectSpace>(1 << AllocationSpace::MAP_SPACE) ==
-              ObjectSpace::kObjectSpaceMapSpace);
-
 void Space::AddAllocationObserver(AllocationObserver* observer) {
   allocation_observers_.push_back(observer);
   StartNextInlineAllocationStep();

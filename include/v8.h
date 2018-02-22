@@ -6232,24 +6232,6 @@ typedef void* (*CreateHistogramCallback)(const char* name,
 
 typedef void (*AddHistogramSampleCallback)(void* histogram, int sample);
 
-// --- Memory Allocation Callback ---
-enum ObjectSpace {
-  kObjectSpaceNewSpace = 1 << 0,
-  kObjectSpaceOldSpace = 1 << 1,
-  kObjectSpaceCodeSpace = 1 << 2,
-  kObjectSpaceMapSpace = 1 << 3,
-  kObjectSpaceLoSpace = 1 << 4,
-  kObjectSpaceAll = kObjectSpaceNewSpace | kObjectSpaceOldSpace |
-                    kObjectSpaceCodeSpace | kObjectSpaceMapSpace |
-                    kObjectSpaceLoSpace
-};
-
-  enum AllocationAction {
-    kAllocationActionAllocate = 1 << 0,
-    kAllocationActionFree = 1 << 1,
-    kAllocationActionAll = kAllocationActionAllocate | kAllocationActionFree
-  };
-
 // --- Enter/Leave Script Callback ---
 typedef void (*BeforeCallEnteredCallback)(Isolate*);
 typedef void (*CallCompletedCallback)(Isolate*);
