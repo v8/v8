@@ -756,8 +756,6 @@ const Operator* JSOperatorBuilder::Call(size_t arity, CallFrequency frequency,
                                         VectorSlotPair const& feedback,
                                         ConvertReceiverMode convert_mode,
                                         SpeculationMode speculation_mode) {
-  DCHECK_IMPLIES(speculation_mode == SpeculationMode::kAllowSpeculation,
-                 feedback.IsValid());
   CallParameters parameters(arity, frequency, feedback, convert_mode,
                             speculation_mode);
   return new (zone()) Operator1<CallParameters>(   // --
@@ -778,8 +776,6 @@ const Operator* JSOperatorBuilder::CallWithArrayLike(CallFrequency frequency) {
 const Operator* JSOperatorBuilder::CallWithSpread(
     uint32_t arity, CallFrequency frequency, VectorSlotPair const& feedback,
     SpeculationMode speculation_mode) {
-  DCHECK_IMPLIES(speculation_mode == SpeculationMode::kAllowSpeculation,
-                 feedback.IsValid());
   CallParameters parameters(arity, frequency, feedback,
                             ConvertReceiverMode::kAny, speculation_mode);
   return new (zone()) Operator1<CallParameters>(             // --

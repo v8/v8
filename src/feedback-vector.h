@@ -206,8 +206,8 @@ class FeedbackVector : public HeapObject {
 
   FeedbackSlot GetTypeProfileSlot() const;
 
-  V8_EXPORT_PRIVATE static Handle<FeedbackVector> New(
-      Isolate* isolate, Handle<SharedFunctionInfo> shared);
+  static Handle<FeedbackVector> New(Isolate* isolate,
+                                    Handle<SharedFunctionInfo> shared);
 
   static Handle<FeedbackVector> Copy(Isolate* isolate,
                                      Handle<FeedbackVector> vector);
@@ -431,8 +431,8 @@ class FeedbackMetadata : public FixedArray {
   FeedbackSlotKind GetKind(FeedbackSlot slot) const;
 
   // If {spec} is null, then it is considered empty.
-  V8_EXPORT_PRIVATE static Handle<FeedbackMetadata> New(
-      Isolate* isolate, const FeedbackVectorSpec* spec = nullptr);
+  static Handle<FeedbackMetadata> New(Isolate* isolate,
+                                      const FeedbackVectorSpec* spec = nullptr);
 
 #ifdef OBJECT_PRINT
   // For gdb debugging.

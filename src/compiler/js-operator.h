@@ -677,12 +677,12 @@ class V8_EXPORT_PRIVATE JSOperatorBuilder final
       size_t arity, CallFrequency frequency = CallFrequency(),
       VectorSlotPair const& feedback = VectorSlotPair(),
       ConvertReceiverMode convert_mode = ConvertReceiverMode::kAny,
-      SpeculationMode speculation_mode = SpeculationMode::kDisallowSpeculation);
+      SpeculationMode speculation_mode = SpeculationMode::kAllowSpeculation);
   const Operator* CallWithArrayLike(CallFrequency frequency);
   const Operator* CallWithSpread(
       uint32_t arity, CallFrequency frequency = CallFrequency(),
       VectorSlotPair const& feedback = VectorSlotPair(),
-      SpeculationMode speculation_mode = SpeculationMode::kDisallowSpeculation);
+      SpeculationMode speculation_mode = SpeculationMode::kAllowSpeculation);
   const Operator* CallRuntime(Runtime::FunctionId id);
   const Operator* CallRuntime(Runtime::FunctionId id, size_t arity);
   const Operator* CallRuntime(const Runtime::Function* function, size_t arity);
