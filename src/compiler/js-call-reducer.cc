@@ -3468,6 +3468,9 @@ Reduction JSCallReducer::ReduceJSConstruct(Node* node) {
     if (m.Value()->IsJSFunction()) {
       Handle<JSFunction> function = Handle<JSFunction>::cast(m.Value());
 
+      // Do not reduce constructors with break points.
+      if (function->shared()->HasBreakInfo()) return NoChange();
+
       // Don't inline cross native context.
       if (function->native_context() != *native_context()) return NoChange();
 

@@ -1197,15 +1197,16 @@ TEST(BreakPointReturn) {
 TEST(BreakPointBuiltin) {
   i::FLAG_allow_natives_syntax = true;
   i::FLAG_block_concurrent_recompilation = true;
-  break_point_hit_count = 0;
+  i::FLAG_experimental_inline_promise_constructor = true;
   DebugLocalContext env;
   v8::HandleScope scope(env->GetIsolate());
 
   SetDebugEventListener(env->GetIsolate(), DebugEventBreakPointHitCount);
-  v8::Local<v8::Function> builtin =
-      CompileRun("String.prototype.repeat").As<v8::Function>();
 
   // === Test simple builtin ===
+  break_point_hit_count = 0;
+  v8::Local<v8::Function> builtin =
+      CompileRun("String.prototype.repeat").As<v8::Function>();
   CompileRun("'a'.repeat(10)");
   CHECK_EQ(0, break_point_hit_count);
 
@@ -1217,6 +1218,41 @@ TEST(BreakPointBuiltin) {
   // Run without breakpoints.
   ClearBreakPoint(bp);
   CompileRun("'b'.repeat(10)");
+  CHECK_EQ(1, break_point_hit_count);
+
+  // === Test bound function from a builtin ===
+  break_point_hit_count = 0;
+  builtin = CompileRun(
+                "var boundrepeat = String.prototype.repeat.bind('a');"
+                "String.prototype.repeat")
+                .As<v8::Function>();
+  CompileRun("boundrepeat(10)");
+  CHECK_EQ(0, break_point_hit_count);
+
+  // Run with breakpoint.
+  bp = SetBreakPoint(builtin, 0);
+  CompileRun("boundrepeat(10)");
+  CHECK_EQ(1, break_point_hit_count);
+
+  // Run without breakpoints.
+  ClearBreakPoint(bp);
+  CompileRun("boundrepeat(10)");
+  CHECK_EQ(1, break_point_hit_count);
+
+  // === Test constructor builtin (for ones with normal construct stubs) ===
+  break_point_hit_count = 0;
+  builtin = CompileRun("Promise").As<v8::Function>();
+  CompileRun("new Promise(()=>{})");
+  CHECK_EQ(0, break_point_hit_count);
+
+  // Run with breakpoint.
+  bp = SetBreakPoint(builtin, 0);
+  CompileRun("new Promise(()=>{})");
+  CHECK_EQ(1, break_point_hit_count);
+
+  // Run without breakpoints.
+  ClearBreakPoint(bp);
+  CompileRun("new Promise(()=>{})");
   CHECK_EQ(1, break_point_hit_count);
 
   // === Test inlined builtin ===
@@ -1243,6 +1279,58 @@ TEST(BreakPointBuiltin) {
   // Run without breakpoints.
   ClearBreakPoint(bp);
   CompileRun("test(0.3);");
+  CHECK_EQ(3, break_point_hit_count);
+
+  // === Test inlined bound builtin ===
+  break_point_hit_count = 0;
+  builtin = CompileRun("String.prototype.repeat").As<v8::Function>();
+  CompileRun("function test(x) { return 'a' + boundrepeat(x) }");
+  CompileRun(
+      "test(4); test(5);"
+      "%OptimizeFunctionOnNextCall(test); test(6);");
+  CHECK_EQ(0, break_point_hit_count);
+
+  // Run with breakpoint.
+  bp = SetBreakPoint(builtin, 0);
+  CompileRun("'a'.repeat(2);");
+  CHECK_EQ(1, break_point_hit_count);
+  CompileRun("test(7);");
+  CHECK_EQ(2, break_point_hit_count);
+
+  // Re-optimize.
+  CompileRun("%OptimizeFunctionOnNextCall(test);");
+  CompileRun("test(8);");
+  CHECK_EQ(3, break_point_hit_count);
+
+  // Run without breakpoints.
+  ClearBreakPoint(bp);
+  CompileRun("test(9);");
+  CHECK_EQ(3, break_point_hit_count);
+
+  // === Test inlined constructor builtin (regular construct builtin) ===
+  break_point_hit_count = 0;
+  builtin = CompileRun("Promise").As<v8::Function>();
+  CompileRun("function test(x) { return new Promise(()=>x); }");
+  CompileRun(
+      "test(4); test(5);"
+      "%OptimizeFunctionOnNextCall(test); test(6);");
+  CHECK_EQ(0, break_point_hit_count);
+
+  // Run with breakpoint.
+  bp = SetBreakPoint(builtin, 0);
+  CompileRun("new Promise();");
+  CHECK_EQ(1, break_point_hit_count);
+  CompileRun("test(7);");
+  CHECK_EQ(2, break_point_hit_count);
+
+  // Re-optimize.
+  CompileRun("%OptimizeFunctionOnNextCall(test);");
+  CompileRun("test(8);");
+  CHECK_EQ(3, break_point_hit_count);
+
+  // Run without breakpoints.
+  ClearBreakPoint(bp);
+  CompileRun("test(9);");
   CHECK_EQ(3, break_point_hit_count);
 
   // === Test concurrent optimization ===
