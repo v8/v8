@@ -443,15 +443,15 @@ Handle<JSArrayBuffer> GrowMemoryBuffer(Isolate* isolate,
   if (old_pages > maximum_pages || pages > maximum_pages - old_pages) {
     return Handle<JSArrayBuffer>::null();
   }
-  const bool enable_guard_regions =
-      old_buffer.is_null() ? use_trap_handler : old_buffer->has_guard_region();
   size_t new_size =
       static_cast<size_t>(old_pages + pages) * wasm::kWasmPageSize;
   if (new_size > FLAG_wasm_max_mem_pages * wasm::kWasmPageSize ||
       new_size > kMaxInt) {
     return Handle<JSArrayBuffer>::null();
   }
-  if ((enable_guard_regions || old_size == new_size) && old_size != 0) {
+  if (((use_trap_handler && new_size < old_buffer->allocation_length()) ||
+       old_size == new_size) &&
+      old_size != 0) {
     DCHECK_NOT_NULL(old_buffer->backing_store());
     if (old_size != new_size) {
       CHECK(i::SetPermissions(old_mem_start, new_size,
@@ -478,13 +478,11 @@ Handle<JSArrayBuffer> GrowMemoryBuffer(Isolate* isolate,
     if (pages != 0) {
       // Allocate a new buffer and memcpy the old contents.
       free_memory = true;
-      new_buffer =
-          wasm::NewArrayBuffer(isolate, new_size, enable_guard_regions);
+      new_buffer = wasm::NewArrayBuffer(isolate, new_size, use_trap_handler);
       if (new_buffer.is_null() || old_size == 0) return new_buffer;
       Address new_mem_start = static_cast<Address>(new_buffer->backing_store());
       memcpy(new_mem_start, old_mem_start, old_size);
       DCHECK(old_buffer.is_null() || !old_buffer->is_shared());
-      DCHECK(old_buffer.is_null() || !old_buffer->has_guard_region());
     } else {
       // Reuse the prior backing store, but allocate a new array buffer.
       new_buffer = wasm::SetupArrayBuffer(
