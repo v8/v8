@@ -562,7 +562,7 @@ void TypedArrayBuiltinsAssembler::ConstructByArrayLike(
   Label invalid_length(this), fill(this), fast_copy(this), done(this);
 
   // The caller has looked up length on array_like, which is observable.
-  Node* length = ToSmiLength(initial_length, context, &invalid_length);
+  TNode<Smi> length = ToSmiLength(initial_length, context, &invalid_length);
 
   CallBuiltin(Builtins::kTypedArrayInitialize, context, holder, length,
               element_size, initialize);
@@ -1746,9 +1746,9 @@ TF_BUILTIN(TypedArrayFrom, TypedArrayBuiltinsAssembler) {
     final_source = CAST(source);
 
     // 10. Let len be ? ToLength(? Get(arrayLike, "length")).
-    Node* raw_length =
-        GetProperty(context, final_source.value(), LengthStringConstant());
-    final_length = CAST(ToSmiLength(raw_length, context, &if_length_not_smi));
+    TNode<Object> raw_length = CAST(
+        GetProperty(context, final_source.value(), LengthStringConstant()));
+    final_length = ToSmiLength(raw_length, context, &if_length_not_smi);
     Goto(&create_typed_array);
 
     BIND(&if_length_not_smi);

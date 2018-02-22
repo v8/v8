@@ -6143,30 +6143,42 @@ Node* CodeStubAssembler::ToSmiIndex(Node* const input, Node* const context,
   return result.value();
 }
 
-Node* CodeStubAssembler::ToSmiLength(Node* input, Node* const context,
-                                     Label* range_error) {
-  VARIABLE(result, MachineRepresentation::kTagged, input);
-  Label to_integer(this), negative_check(this), return_zero(this), done(this);
-  Branch(TaggedIsSmi(result.value()), &negative_check, &to_integer);
+TNode<Smi> CodeStubAssembler::ToSmiLength(TNode<Object> input,
+                                          TNode<Context> context,
+                                          Label* range_error) {
+  TVARIABLE(Smi, result);
+  Label to_integer(this), if_issmi(this), negative_check(this),
+      heap_number_negative_check(this), return_zero(this), done(this);
+  Branch(TaggedIsSmi(input), &if_issmi, &to_integer);
 
   BIND(&to_integer);
-  result.Bind(ToInteger_Inline(CAST(context), CAST(result.value()),
-                               CodeStubAssembler::kTruncateMinusZero));
-  GotoIf(TaggedIsSmi(result.value()), &negative_check);
-  // result.value() can still be a negative HeapNumber here.
-  Branch(IsTrue(CallBuiltin(Builtins::kLessThan, context, result.value(),
-                            SmiConstant(0))),
-         &return_zero, range_error);
+  {
+    TNode<Number> integer_input =
+        ToInteger_Inline(context, input, CodeStubAssembler::kTruncateMinusZero);
+    GotoIfNot(TaggedIsSmi(integer_input), &heap_number_negative_check);
+    result = CAST(integer_input);
+    Goto(&negative_check);
+
+    // integer_input can still be a negative HeapNumber here.
+    BIND(&heap_number_negative_check);
+    TNode<HeapNumber> heap_number_input = CAST(integer_input);
+    Branch(IsTrue(CallBuiltin(Builtins::kLessThan, context, heap_number_input,
+                              SmiConstant(0))),
+           &return_zero, range_error);
+  }
+
+  BIND(&if_issmi);
+  result = CAST(input);
+  Goto(&negative_check);
 
   BIND(&negative_check);
   Branch(SmiLessThan(result.value(), SmiConstant(0)), &return_zero, &done);
 
   BIND(&return_zero);
-  result.Bind(SmiConstant(0));
+  result = SmiConstant(0);
   Goto(&done);
 
   BIND(&done);
-  CSA_SLOW_ASSERT(this, TaggedIsSmi(result.value()));
   return result.value();
 }
 

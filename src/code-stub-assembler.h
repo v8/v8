@@ -1293,7 +1293,8 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
   Node* ToSmiIndex(Node* const input, Node* const context, Label* range_error);
 
   // ES6 7.1.15 ToLength, but jumps to range_error if the result is not a Smi.
-  Node* ToSmiLength(Node* input, Node* const context, Label* range_error);
+  TNode<Smi> ToSmiLength(TNode<Object> input, TNode<Context> context,
+                         Label* range_error);
 
   // ES6 7.1.15 ToLength, but with inlined fast path.
   Node* ToLength_Inline(Node* const context, Node* const input);
