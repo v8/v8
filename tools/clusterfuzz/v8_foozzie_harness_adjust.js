@@ -44,5 +44,18 @@ try {
       // Fall through to original version for all other types.
       return origPrettyPrinted(value);
     }
+
+    // We're not interested in stack traces.
+    this.MjsUnitAssertionError = function MjsUnitAssertionError(message) {}
+    MjsUnitAssertionError.prototype.toString = function () { return ""; };
+
+    // Do more printing in assertions for more correctness coverage.
+    this.failWithMessage = function failWithMessage(message) {
+      print(prettyPrinted(message))
+    }
+
+    this.fail = function fail(expectedText, found, name_opt) {
+      print(prettyPrinted(found));
+    }
   })();
 } catch(e) { }
