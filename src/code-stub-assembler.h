@@ -356,15 +356,11 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
   template <class A, class F, class G>
   TNode<A> Select(SloppyTNode<BoolT> condition, const F& true_body,
                   const G& false_body, MachineRepresentation rep) {
-    return UncheckedCast<A>(
-        Select(condition,
-               [&]() -> Node* {
-                 return base::implicit_cast<SloppyTNode<A>>(true_body());
-               },
-               [&]() -> Node* {
-                 return base::implicit_cast<SloppyTNode<A>>(false_body());
-               },
-               rep));
+    return UncheckedCast<A>(Select(
+        condition,
+        [&]() -> Node* { return base::implicit_cast<TNode<A>>(true_body()); },
+        [&]() -> Node* { return base::implicit_cast<TNode<A>>(false_body()); },
+        rep));
   }
 
   Node* SelectConstant(Node* condition, Node* true_value, Node* false_value,
