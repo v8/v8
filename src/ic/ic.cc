@@ -2367,11 +2367,6 @@ RUNTIME_FUNCTION(Runtime_ElementsTransitionAndStoreIC_Miss) {
 }
 
 
-RUNTIME_FUNCTION(Runtime_Unreachable) {
-  UNREACHABLE();
-}
-
-
 RUNTIME_FUNCTION(Runtime_StoreCallbackProperty) {
   Handle<JSObject> receiver = args.at<JSObject>(0);
   Handle<JSObject> holder = args.at<JSObject>(1);

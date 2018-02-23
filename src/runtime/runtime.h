@@ -680,8 +680,7 @@ namespace internal {
   F(StoreGlobalIC_Miss, 4, 1)                \
   F(StoreGlobalIC_Slow, 5, 1)                \
   F(StoreIC_Miss, 5, 1)                      \
-  F(StorePropertyWithInterceptor, 5, 1)      \
-  F(Unreachable, 0, 1)
+  F(StorePropertyWithInterceptor, 5, 1)
 
 #define FOR_EACH_INTRINSIC_RETURN_OBJECT(F) \
   FOR_EACH_INTRINSIC_IC(F)                  \
