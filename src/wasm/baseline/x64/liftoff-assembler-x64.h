@@ -604,6 +604,29 @@ void LiftoffAssembler::emit_i32_set_cond(Condition cond, Register dst,
   movzxbl(dst, dst);
 }
 
+void LiftoffAssembler::emit_f32_set_cond(Condition cond, Register dst,
+                                         DoubleRegister lhs,
+                                         DoubleRegister rhs) {
+  Label cont;
+  Label not_nan;
+
+  Ucomiss(lhs, rhs);
+  // IF PF is one, one of the operands was Nan. This needs special handling.
+  j(parity_odd, &not_nan, Label::kNear);
+  // Return 1 for f32.ne, 0 for all other cases.
+  if (cond == not_equal) {
+    movl(dst, Immediate(1));
+  } else {
+    xorl(dst, dst);
+  }
+  jmp(&cont, Label::kNear);
+  bind(&not_nan);
+
+  setcc(cond, dst);
+  movzxbl(dst, dst);
+  bind(&cont);
+}
+
 void LiftoffAssembler::StackCheck(Label* ool_code) {
   Register limit = GetUnusedRegister(kGpReg).gp();
   LoadAddress(limit, ExternalReference::address_of_stack_limit(isolate()));

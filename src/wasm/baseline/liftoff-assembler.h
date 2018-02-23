@@ -392,6 +392,8 @@ class LiftoffAssembler : public TurboAssembler {
   // Set {dst} to 1 if condition holds, 0 otherwise.
   inline void emit_i32_set_cond(Condition, Register dst, Register lhs,
                                 Register rhs = no_reg);
+  inline void emit_f32_set_cond(Condition, Register dst, DoubleRegister lhs,
+                                DoubleRegister rhs);
 
   inline void StackCheck(Label* ool_code);
 

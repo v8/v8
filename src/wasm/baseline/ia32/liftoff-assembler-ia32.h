@@ -649,6 +649,22 @@ void LiftoffAssembler::emit_cond_jump(Condition cond, Label* label,
   j(cond, label);
 }
 
+namespace liftoff {
+inline void setcc_32(LiftoffAssembler* assm, Condition cond, Register dst) {
+  Register tmp_byte_reg = dst;
+  // Only the lower 4 registers can be addressed as 8-bit registers.
+  if (!dst.is_byte_register()) {
+    LiftoffRegList pinned = LiftoffRegList::ForRegs(dst);
+    // {GetUnusedRegister()} may insert move instructions to spill registers to
+    // the stack. This is OK because {mov} does not change the status flags.
+    tmp_byte_reg = assm->GetUnusedRegister(liftoff::kByteRegs, pinned).gp();
+  }
+
+  assm->setcc(cond, tmp_byte_reg);
+  assm->movzx_b(dst, tmp_byte_reg);
+}
+}  // namespace liftoff
+
 void LiftoffAssembler::emit_i32_set_cond(Condition cond, Register dst,
                                          Register lhs, Register rhs) {
   if (rhs != no_reg) {
@@ -656,18 +672,29 @@ void LiftoffAssembler::emit_i32_set_cond(Condition cond, Register dst,
   } else {
     test(lhs, lhs);
   }
+  liftoff::setcc_32(this, cond, dst);
+}
 
-  Register tmp_byte_reg = dst;
-  // Only the lower 4 registers can be addressed as 8-bit registers.
-  if (!dst.is_byte_register()) {
-    LiftoffRegList pinned = LiftoffRegList::ForRegs(dst);
-    // {mov} does not change the status flags, so calling {GetUnusedRegister}
-    // should be fine here.
-    tmp_byte_reg = GetUnusedRegister(liftoff::kByteRegs, pinned).gp();
+void LiftoffAssembler::emit_f32_set_cond(Condition cond, Register dst,
+                                         DoubleRegister lhs,
+                                         DoubleRegister rhs) {
+  Label cont;
+  Label not_nan;
+
+  ucomiss(lhs, rhs);
+  // IF PF is one, one of the operands was Nan. This needs special handling.
+  j(parity_odd, &not_nan, Label::kNear);
+  // Return 1 for f32.ne, 0 for all other cases.
+  if (cond == not_equal) {
+    mov(dst, Immediate(1));
+  } else {
+    xor_(dst, dst);
   }
+  jmp(&cont, Label::kNear);
+  bind(&not_nan);
 
-  setcc(cond, tmp_byte_reg);
-  movzx_b(dst, tmp_byte_reg);
+  liftoff::setcc_32(this, cond, dst);
+  bind(&cont);
 }
 
 void LiftoffAssembler::StackCheck(Label* ool_code) {
