@@ -1952,9 +1952,6 @@ class ScavengingTask final : public ItemParallelJob::Task {
       TimedScope scope(&scavenging_time);
       PageScavengingItem* item = nullptr;
       while ((item = GetItem<PageScavengingItem>()) != nullptr) {
-        TRACE_BACKGROUND_GC(
-            heap_->tracer(),
-            GCTracer::BackgroundScope::SCAVENGER_BACKGROUND_SCAVENGE_PARALLEL);
         item->Process(scavenger_);
         item->MarkFinished();
       }

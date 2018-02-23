@@ -1835,9 +1835,6 @@ class YoungGenerationMarkingTask : public ItemParallelJob::Task {
       TimedScope scope(&marking_time);
       MarkingItem* item = nullptr;
       while ((item = GetItem<MarkingItem>()) != nullptr) {
-        TRACE_BACKGROUND_GC(
-            collector_->heap()->tracer(),
-            GCTracer::BackgroundScope::MINOR_MC_BACKGROUND_MARKING);
         item->Process(this);
         item->MarkFinished();
         EmptyLocalMarkingWorklist();
@@ -1903,6 +1900,8 @@ class BatchedRootMarkingItem : public MarkingItem {
   virtual ~BatchedRootMarkingItem() {}
 
   void Process(YoungGenerationMarkingTask* task) override {
+    TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.gc"),
+                 "BatchedRootMarkingItem::Process");
     for (Object* object : objects_) {
       task->MarkObject(object);
     }
@@ -1920,6 +1919,8 @@ class PageMarkingItem : public MarkingItem {
   virtual ~PageMarkingItem() { global_slots_->Increment(slots_); }
 
   void Process(YoungGenerationMarkingTask* task) override {
+    TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.gc"),
+                 "PageMarkingItem::Process");
     base::LockGuard<base::Mutex> guard(chunk_->mutex());
     MarkUntypedPointers(task);
     MarkTypedPointers(task);
@@ -1976,6 +1977,8 @@ class GlobalHandlesMarkingItem : public MarkingItem {
   virtual ~GlobalHandlesMarkingItem() {}
 
   void Process(YoungGenerationMarkingTask* task) override {
+    TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.gc"),
+                 "GlobalHandlesMarkingItem::Process");
     GlobalHandlesRootMarkingVisitor visitor(task);
     global_handles_
         ->IterateNewSpaceStrongAndDependentRootsAndIdentifyUnmodified(
@@ -3236,7 +3239,6 @@ class PageEvacuationTask : public ItemParallelJob::Task {
     TRACE_BACKGROUND_GC(tracer_, evacuator_->GetBackgroundTracingScope());
     PageEvacuationItem* item = nullptr;
     while ((item = GetItem<PageEvacuationItem>()) != nullptr) {
-      TRACE_BACKGROUND_GC(tracer_, evacuator_->GetBackgroundTracingScope());
       evacuator_->EvacuatePage(item->page());
       item->MarkFinished();
     }
@@ -3560,7 +3562,6 @@ class PointersUpdatingTask : public ItemParallelJob::Task {
     TRACE_BACKGROUND_GC(tracer_, scope_);
     UpdatingItem* item = nullptr;
     while ((item = GetItem<UpdatingItem>()) != nullptr) {
-      TRACE_BACKGROUND_GC(tracer_, scope_);
       item->Process();
       item->MarkFinished();
     }
@@ -3594,6 +3595,8 @@ class ToSpaceUpdatingItem : public UpdatingItem {
 
  private:
   void ProcessVisitAll() {
+    TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.gc"),
+                 "ToSpaceUpdatingItem::ProcessVisitAll");
     PointersUpdatingVisitor visitor;
     for (Address cur = start_; cur < end_;) {
       HeapObject* object = HeapObject::FromAddress(cur);
@@ -3605,6 +3608,8 @@ class ToSpaceUpdatingItem : public UpdatingItem {
   }
 
   void ProcessVisitLive() {
+    TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.gc"),
+                 "ToSpaceUpdatingItem::ProcessVisitLive");
     // For young generation evacuations we want to visit grey objects, for
     // full MC, we need to visit black objects.
     PointersUpdatingVisitor visitor;
@@ -3633,6 +3638,8 @@ class RememberedSetUpdatingItem : public UpdatingItem {
   virtual ~RememberedSetUpdatingItem() {}
 
   void Process() override {
+    TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.gc"),
+                 "RememberedSetUpdatingItem::Process");
     base::LockGuard<base::Mutex> guard(chunk_->mutex());
     UpdateUntypedPointers();
     UpdateTypedPointers();
@@ -3780,6 +3787,8 @@ class GlobalHandlesUpdatingItem : public UpdatingItem {
   virtual ~GlobalHandlesUpdatingItem() {}
 
   void Process() override {
+    TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.gc"),
+                 "GlobalHandlesUpdatingItem::Process");
     PointersUpdatingVisitor updating_visitor;
     global_handles_->IterateNewSpaceRoots(&updating_visitor, start_, end_);
   }
@@ -3804,6 +3813,9 @@ class ArrayBufferTrackerUpdatingItem : public UpdatingItem {
   virtual ~ArrayBufferTrackerUpdatingItem() {}
 
   void Process() override {
+    TRACE_EVENT1(TRACE_DISABLED_BY_DEFAULT("v8.gc"),
+                 "ArrayBufferTrackerUpdatingItem::Process", "EvacuationState",
+                 state_);
     switch (state_) {
       case EvacuationState::kRegular:
         ArrayBufferTracker::ProcessBuffers(
