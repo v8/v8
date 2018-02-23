@@ -7314,10 +7314,14 @@ Maybe<bool> Promise::Resolver::Resolve(Local<Context> context,
   ENTER_V8(isolate, context, Promise_Resolver, Resolve, Nothing<bool>(),
            i::HandleScope);
   auto self = Utils::OpenHandle(this);
+  auto promise = i::Handle<i::JSPromise>::cast(self);
+
+  if (promise->status() != Promise::kPending) {
+    return Just(true);
+  }
+
   has_pending_exception =
-      i::JSPromise::Resolve(i::Handle<i::JSPromise>::cast(self),
-                            Utils::OpenHandle(*value))
-          .is_null();
+      i::JSPromise::Resolve(promise, Utils::OpenHandle(*value)).is_null();
   RETURN_ON_FAILED_EXECUTION_PRIMITIVE(bool);
   return Just(true);
 }
@@ -7335,10 +7339,14 @@ Maybe<bool> Promise::Resolver::Reject(Local<Context> context,
   ENTER_V8(isolate, context, Promise_Resolver, Reject, Nothing<bool>(),
            i::HandleScope);
   auto self = Utils::OpenHandle(this);
+  auto promise = i::Handle<i::JSPromise>::cast(self);
+
+  if (promise->status() != Promise::kPending) {
+    return Just(true);
+  }
+
   has_pending_exception =
-      i::JSPromise::Reject(i::Handle<i::JSPromise>::cast(self),
-                           Utils::OpenHandle(*value))
-          .is_null();
+      i::JSPromise::Reject(promise, Utils::OpenHandle(*value)).is_null();
   RETURN_ON_FAILED_EXECUTION_PRIMITIVE(bool);
   return Just(true);
 }

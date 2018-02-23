@@ -15907,6 +15907,7 @@ Handle<Object> JSPromise::Fulfill(Handle<JSPromise> promise,
 Handle<Object> JSPromise::Reject(Handle<JSPromise> promise,
                                  Handle<Object> reason, bool debug_event) {
   Isolate* const isolate = promise->GetIsolate();
+
   if (debug_event) isolate->debug()->OnPromiseReject(promise, reason);
   isolate->RunPromiseHook(PromiseHookType::kResolve, promise,
                           isolate->factory()->undefined_value());
@@ -15940,6 +15941,7 @@ Handle<Object> JSPromise::Reject(Handle<JSPromise> promise,
 MaybeHandle<Object> JSPromise::Resolve(Handle<JSPromise> promise,
                                        Handle<Object> resolution) {
   Isolate* const isolate = promise->GetIsolate();
+
   isolate->RunPromiseHook(PromiseHookType::kResolve, promise,
                           isolate->factory()->undefined_value());
 

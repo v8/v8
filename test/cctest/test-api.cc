@@ -24139,6 +24139,60 @@ TEST(PromiseStateAndValue) {
   CHECK(v8_str("rejected")->SameValue(promise->Result()));
 }
 
+TEST(ResolvedPromiseReFulfill) {
+  LocalContext context;
+  v8::Isolate* isolate = context->GetIsolate();
+  v8::HandleScope scope(isolate);
+  v8::Local<v8::String> value1 = v8::String::NewFromUtf8(isolate, "foo");
+  v8::Local<v8::String> value2 = v8::String::NewFromUtf8(isolate, "bar");
+
+  v8::Local<v8::Promise::Resolver> resolver =
+      v8::Promise::Resolver::New(context.local()).ToLocalChecked();
+  v8::Local<v8::Promise> promise = resolver->GetPromise();
+  CHECK_EQ(promise->State(), v8::Promise::PromiseState::kPending);
+
+  resolver->Resolve(context.local(), value1).ToChecked();
+  CHECK_EQ(promise->State(), v8::Promise::PromiseState::kFulfilled);
+  CHECK_EQ(promise->Result(), value1);
+
+  // This should be a no-op.
+  resolver->Resolve(context.local(), value2).ToChecked();
+  CHECK_EQ(promise->State(), v8::Promise::PromiseState::kFulfilled);
+  CHECK_EQ(promise->Result(), value1);
+
+  // This should be a no-op.
+  resolver->Reject(context.local(), value2).ToChecked();
+  CHECK_EQ(promise->State(), v8::Promise::PromiseState::kFulfilled);
+  CHECK_EQ(promise->Result(), value1);
+}
+
+TEST(RejectedPromiseReFulfill) {
+  LocalContext context;
+  v8::Isolate* isolate = context->GetIsolate();
+  v8::HandleScope scope(isolate);
+  v8::Local<v8::String> value1 = v8::String::NewFromUtf8(isolate, "foo");
+  v8::Local<v8::String> value2 = v8::String::NewFromUtf8(isolate, "bar");
+
+  v8::Local<v8::Promise::Resolver> resolver =
+      v8::Promise::Resolver::New(context.local()).ToLocalChecked();
+  v8::Local<v8::Promise> promise = resolver->GetPromise();
+  CHECK_EQ(promise->State(), v8::Promise::PromiseState::kPending);
+
+  resolver->Reject(context.local(), value1).ToChecked();
+  CHECK_EQ(promise->State(), v8::Promise::PromiseState::kRejected);
+  CHECK_EQ(promise->Result(), value1);
+
+  // This should be a no-op.
+  resolver->Reject(context.local(), value2).ToChecked();
+  CHECK_EQ(promise->State(), v8::Promise::PromiseState::kRejected);
+  CHECK_EQ(promise->Result(), value1);
+
+  // This should be a no-op.
+  resolver->Resolve(context.local(), value2).ToChecked();
+  CHECK_EQ(promise->State(), v8::Promise::PromiseState::kRejected);
+  CHECK_EQ(promise->Result(), value1);
+}
+
 TEST(DisallowJavascriptExecutionScope) {
   LocalContext context;
   v8::Isolate* isolate = context->GetIsolate();
