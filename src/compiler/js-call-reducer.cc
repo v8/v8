@@ -4488,6 +4488,31 @@ Reduction JSCallReducer::ReducePromiseCapabilityDefaultResolve(Node* node) {
   return Replace(value);
 }
 
+Node* JSCallReducer::CreateArtificialFrameState(
+    Node* node, Node* outer_frame_state, int parameter_count,
+    BailoutId bailout_id, FrameStateType frame_state_type,
+    Handle<SharedFunctionInfo> shared) {
+  const FrameStateFunctionInfo* state_info =
+      common()->CreateFrameStateFunctionInfo(frame_state_type,
+                                             parameter_count + 1, 0, shared);
+
+  const Operator* op = common()->FrameState(
+      bailout_id, OutputFrameStateCombine::Ignore(), state_info);
+  const Operator* op0 = common()->StateValues(0, SparseInputMask::Dense());
+  Node* node0 = graph()->NewNode(op0);
+  std::vector<Node*> params;
+  for (int parameter = 0; parameter < parameter_count + 1; ++parameter) {
+    params.push_back(node->InputAt(1 + parameter));
+  }
+  const Operator* op_param = common()->StateValues(
+      static_cast<int>(params.size()), SparseInputMask::Dense());
+  Node* params_node = graph()->NewNode(
+      op_param, static_cast<int>(params.size()), &params.front());
+  return graph()->NewNode(op, params_node, node0, node0,
+                          jsgraph()->UndefinedConstant(), node->InputAt(0),
+                          outer_frame_state);
+}
+
 Reduction JSCallReducer::ReducePromiseConstructor(Node* node) {
   DCHECK_EQ(IrOpcode::kJSConstruct, node->opcode());
   ConstructParameters const& p = ConstructParametersOf(node->op());
@@ -4511,11 +4536,36 @@ Reduction JSCallReducer::ReducePromiseConstructor(Node* node) {
   // Add a code dependency on the promise hook protector.
   dependencies()->AssumePropertyCell(factory()->promise_hook_protector());
 
+  Handle<SharedFunctionInfo> promise_shared(
+      handle(native_context()->promise_function()->shared()));
+
+  // Insert a construct stub frame into the chain of frame states. This will
+  // reconstruct the proper frame when deoptimizing within the constructor.
+  // For the frame state, we only provide the executor parameter, even if more
+  // arugments were passed. This is not observable from JS.
+  DCHECK_EQ(1, promise_shared->internal_formal_parameter_count());
+  Node* constructor_frame_state = CreateArtificialFrameState(
+      node, outer_frame_state, 1, BailoutId::ConstructStubInvoke(),
+      FrameStateType::kConstructStub, promise_shared);
+
+  // This frame state doesn't ever call the deopt continuation, it's only
+  // necessary to specifiy a continuation in order to handle the exceptional
+  // case.
+  Node* checkpoint_params[] = {jsgraph()->UndefinedConstant(),
+                               jsgraph()->UndefinedConstant()};
+  const int stack_parameters = arraysize(checkpoint_params);
+
+  Node* frame_state = CreateJavaScriptBuiltinContinuationFrameState(
+      jsgraph(), promise_shared,
+      Builtins::kPromiseConstructorLazyDeoptContinuation, target, context,
+      &checkpoint_params[0], stack_parameters, constructor_frame_state,
+      ContinuationFrameStateMode::LAZY);
+
   // Check if executor is callable
   Node* check_fail = nullptr;
   Node* check_throw = nullptr;
   // TODO(petermarshall): The frame state is wrong here.
-  WireInCallbackIsCallableCheck(executor, context, outer_frame_state, effect,
+  WireInCallbackIsCallableCheck(executor, context, frame_state, effect,
                                 &control, &check_fail, &check_throw);
 
   // Create the resulting JSPromise.
@@ -4555,22 +4605,17 @@ Reduction JSCallReducer::ReducePromiseConstructor(Node* node) {
                            reject_shared, factory()->many_closures_cell()),
                        promise_context, effect, control);
 
-  Handle<SharedFunctionInfo> promise_function_info =
-      handle(native_context()->promise_function()->shared());
-
-  // The first param is undefined for the receiver.
-  std::vector<Node*> checkpoint_params(
-      {jsgraph()->UndefinedConstant(), promise});
-  const int stack_parameters = static_cast<int>(checkpoint_params.size());
+  // Re-use the params from above, but actually set the promise parameter now.
+  checkpoint_params[1] = promise;
 
   // This simple continuation just returns the created promise.
   // TODO(petermarshall): If the executor function causes lazy deopt, and it
   // also throws an exception, we should catch the exception and call the reject
   // function.
-  Node* frame_state = CreateJavaScriptBuiltinContinuationFrameState(
-      jsgraph(), promise_function_info,
+  frame_state = CreateJavaScriptBuiltinContinuationFrameState(
+      jsgraph(), promise_shared,
       Builtins::kPromiseConstructorLazyDeoptContinuation, target, context,
-      &checkpoint_params[0], stack_parameters, outer_frame_state,
+      &checkpoint_params[0], stack_parameters, constructor_frame_state,
       ContinuationFrameStateMode::LAZY);
 
   // 9. Call executor with both resolving functions
@@ -4591,8 +4636,8 @@ Reduction JSCallReducer::ReducePromiseConstructor(Node* node) {
         javascript()->Call(3, p.frequency(), VectorSlotPair(),
                            ConvertReceiverMode::kNullOrUndefined,
                            SpeculationMode::kDisallowSpeculation),
-        reject, jsgraph()->UndefinedConstant(), reason, context,
-        outer_frame_state, exception_effect, exception_control);
+        reject, jsgraph()->UndefinedConstant(), reason, context, frame_state,
+        exception_effect, exception_control);
 
     // Rewire potential exception edges.
     Node* on_exception = nullptr;

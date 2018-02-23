@@ -6,6 +6,7 @@
 #define V8_COMPILER_JS_CALL_REDUCER_H_
 
 #include "src/base/flags.h"
+#include "src/compiler/frame-states.h"
 #include "src/compiler/graph-reducer.h"
 #include "src/deoptimize-reason.h"
 
@@ -164,6 +165,11 @@ class V8_EXPORT_PRIVATE JSCallReducer final : public AdvancedReducer {
   Node* SafeLoadElement(ElementsKind kind, Node* receiver, Node* control,
                         Node** effect, Node** k,
                         const VectorSlotPair& feedback);
+
+  Node* CreateArtificialFrameState(Node* node, Node* outer_frame_state,
+                                   int parameter_count, BailoutId bailout_id,
+                                   FrameStateType frame_state_type,
+                                   Handle<SharedFunctionInfo> shared);
 
   Graph* graph() const;
   JSGraph* jsgraph() const { return jsgraph_; }

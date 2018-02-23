@@ -68,8 +68,7 @@ failWithMessage = (msg) => %AbortJS(msg);
     foo();
   } catch (e) {
     threw = true;
-    // TODO(petermarshall): This fails but should not.
-    // assertContains('new Promise', e.stack);
+    assertContains('new Promise', e.stack);
   } finally {
     assertTrue(threw);
   }
@@ -186,9 +185,7 @@ failWithMessage = (msg) => %AbortJS(msg);
   function bar(a, b) {
     resolve = a; reject = b;
     let stack = new Error().stack;
-    // TODO(petermarshall): This check should see 'new Promise', not just
-    // Promise
-    assertContains("Promise", stack);
+    assertContains("new Promise", stack);
     throw new Error();
   }
   function foo() {
