@@ -236,10 +236,6 @@ bool CodeAssembler::IsIntPtrAbsWithOverflowSupported() const {
 }
 
 #ifdef V8_EMBEDDED_BUILTINS
-TNode<Code> CodeAssembler::LookupConstantCodeTarget(Handle<Code> code) {
-  return CAST(LookupConstant(code));
-}
-
 TNode<HeapObject> CodeAssembler::LookupConstant(Handle<HeapObject> object) {
   DCHECK(isolate()->serializer_enabled());
 
@@ -1054,37 +1050,6 @@ TNode<Object> CodeAssembler::CallRuntimeImpl(Runtime::FunctionId function,
 REPEAT_1_TO_7(INSTANTIATE, SloppyTNode<Object>)
 #undef INSTANTIATE
 
-#ifdef V8_EMBEDDED_BUILTINS
-template <class... TArgs>
-TNode<Object> CodeAssembler::CallRuntimeImpl(Runtime::FunctionId function,
-                                             TNode<Code> target,
-                                             SloppyTNode<Object> context,
-                                             TArgs... args) {
-  int argc = static_cast<int>(sizeof...(args));
-  auto call_descriptor = Linkage::GetRuntimeCallDescriptor(
-      zone(), function, argc, Operator::kNoProperties,
-      CallDescriptor::kNoFlags);
-
-  Node* ref = ExternalConstant(ExternalReference(function, isolate()));
-  Node* arity = Int32Constant(argc);
-
-  Node* nodes[] = {target, args..., ref, arity, context};
-
-  CallPrologue();
-  Node* return_value =
-      raw_assembler()->CallN(call_descriptor, arraysize(nodes), nodes);
-  CallEpilogue();
-  return UncheckedCast<Object>(return_value);
-}
-
-// Instantiate CallRuntime() for argument counts used by CSA-generated code
-#define INSTANTIATE(...)                                                   \
-  template V8_EXPORT_PRIVATE TNode<Object> CodeAssembler::CallRuntimeImpl( \
-      Runtime::FunctionId, TNode<Code>, __VA_ARGS__);
-REPEAT_1_TO_7(INSTANTIATE, SloppyTNode<Object>)
-#undef INSTANTIATE
-#endif  // V8_EMBEDDED_BUILTINS
-
 template <class... TArgs>
 TNode<Object> CodeAssembler::TailCallRuntimeImpl(Runtime::FunctionId function,
                                                  SloppyTNode<Object> context,
@@ -1112,34 +1077,6 @@ TNode<Object> CodeAssembler::TailCallRuntimeImpl(Runtime::FunctionId function,
       Runtime::FunctionId, __VA_ARGS__);
 REPEAT_1_TO_7(INSTANTIATE, SloppyTNode<Object>)
 #undef INSTANTIATE
-
-#ifdef V8_EMBEDDED_BUILTINS
-template <class... TArgs>
-TNode<Object> CodeAssembler::TailCallRuntimeImpl(Runtime::FunctionId function,
-                                                 TNode<Code> target,
-                                                 SloppyTNode<Object> context,
-                                                 TArgs... args) {
-  int argc = static_cast<int>(sizeof...(args));
-  auto call_descriptor = Linkage::GetRuntimeCallDescriptor(
-      zone(), function, argc, Operator::kNoProperties,
-      CallDescriptor::kNoFlags);
-
-  Node* ref = ExternalConstant(ExternalReference(function, isolate()));
-  Node* arity = Int32Constant(argc);
-
-  Node* nodes[] = {target, args..., ref, arity, context};
-
-  return UncheckedCast<Object>(
-      raw_assembler()->TailCallN(call_descriptor, arraysize(nodes), nodes));
-}
-
-// Instantiate TailCallRuntime() for argument counts used by CSA-generated code
-#define INSTANTIATE(...)                                                       \
-  template V8_EXPORT_PRIVATE TNode<Object> CodeAssembler::TailCallRuntimeImpl( \
-      Runtime::FunctionId, TNode<Code>, __VA_ARGS__);
-REPEAT_1_TO_7(INSTANTIATE, SloppyTNode<Object>)
-#undef INSTANTIATE
-#endif  // V8_EMBEDDED_BUILTINS
 
 template <class... TArgs>
 Node* CodeAssembler::CallStubR(const CallInterfaceDescriptor& descriptor,

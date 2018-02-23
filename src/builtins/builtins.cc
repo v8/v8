@@ -276,13 +276,20 @@ bool Builtins::IsLazy(int index) {
 // static
 bool Builtins::IsIsolateIndependent(int index) {
   DCHECK(IsBuiltinId(index));
-  // TODO(jgruber): Extend this list.
   switch (index) {
+#ifdef DEBUG
     case kContinueToCodeStubBuiltin:
     case kContinueToCodeStubBuiltinWithResult:
     case kContinueToJavaScriptBuiltin:
     case kContinueToJavaScriptBuiltinWithResult:
-#ifndef DEBUG
+    case kKeyedLoadICTrampoline:
+    case kKeyedStoreICTrampoline:
+    case kLoadGlobalICInsideTypeofTrampoline:
+    case kLoadGlobalICTrampoline:
+    case kLoadICTrampoline:
+    case kStoreGlobalICTrampoline:
+    case kStoreICTrampoline:
+#else
     case kAsyncFunctionAwaitFulfill:
     case kAsyncFunctionAwaitReject:
     case kAsyncGeneratorAwaitFulfill:
@@ -292,6 +299,10 @@ bool Builtins::IsIsolateIndependent(int index) {
     case kAsyncGeneratorReturnFulfill:
     case kAsyncGeneratorYieldFulfill:
     case kConstructFunction:
+    case kContinueToCodeStubBuiltin:
+    case kContinueToCodeStubBuiltinWithResult:
+    case kContinueToJavaScriptBuiltin:
+    case kContinueToJavaScriptBuiltinWithResult:
     case kKeyedLoadICTrampoline:
     case kKeyedStoreICTrampoline:
     case kLoadGlobalICInsideTypeofTrampoline:
