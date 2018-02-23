@@ -6119,8 +6119,8 @@ TNode<Smi> CodeStubAssembler::ToSmiIndex(TNode<Object> input,
   Branch(IsUndefined(input), &return_zero, &defined);
 
   BIND(&defined);
-  TNode<Object> integer_input =
-      ToInteger_Inline(context, input, CodeStubAssembler::kTruncateMinusZero);
+  TNode<Number> integer_input =
+      CAST(CallBuiltin(Builtins::kToInteger_TruncateMinusZero, context, input));
   GotoIfNot(TaggedIsSmi(integer_input), range_error);
   result = CAST(integer_input);
   Goto(&negative_check);
@@ -6149,8 +6149,8 @@ TNode<Smi> CodeStubAssembler::ToSmiLength(TNode<Object> input,
 
   BIND(&to_integer);
   {
-    TNode<Number> integer_input =
-        ToInteger_Inline(context, input, CodeStubAssembler::kTruncateMinusZero);
+    TNode<Number> integer_input = CAST(
+        CallBuiltin(Builtins::kToInteger_TruncateMinusZero, context, input));
     GotoIfNot(TaggedIsSmi(integer_input), &heap_number_negative_check);
     result = CAST(integer_input);
     Goto(&negative_check);
