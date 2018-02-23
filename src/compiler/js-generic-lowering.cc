@@ -418,6 +418,10 @@ void JSGenericLowering::LowerJSCreateIterResultObject(Node* node) {
   UNREACHABLE();  // Eliminated in typed lowering.
 }
 
+void JSGenericLowering::LowerJSCreateStringIterator(Node* node) {
+  UNREACHABLE();  // Eliminated in typed lowering.
+}
+
 void JSGenericLowering::LowerJSCreateKeyValueArray(Node* node) {
   UNREACHABLE();  // Eliminated in typed lowering.
 }

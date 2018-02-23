@@ -100,6 +100,16 @@ class V8_EXPORT_PRIVATE JSCallReducer final : public AdvancedReducer {
   Reduction ReduceStringPrototypeIndexOf(Node* node);
   Reduction ReduceStringPrototypeStringAt(
       const Operator* string_access_operator, Node* node);
+
+#ifdef V8_INTL_SUPPORT
+  Reduction ReduceStringPrototypeToLowerCaseIntl(Node* node);
+  Reduction ReduceStringPrototypeToUpperCaseIntl(Node* node);
+#endif  // V8_INTL_SUPPORT
+
+  Reduction ReduceStringFromCharCode(Node* node);
+  Reduction ReduceStringPrototypeIterator(Node* node);
+  Reduction ReduceStringIteratorPrototypeNext(Node* node);
+
   Reduction ReduceAsyncFunctionPromiseCreate(Node* node);
   Reduction ReduceAsyncFunctionPromiseRelease(Node* node);
   Reduction ReducePromiseCapabilityDefaultReject(Node* node);
