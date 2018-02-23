@@ -54,10 +54,19 @@ void BuiltinsConstantsTableBuilder::Finalize() {
   Handle<FixedArray> table =
       isolate_->factory()->NewFixedArray(map_.size(), TENURED);
 
+  Builtins* builtins = isolate_->builtins();
   ConstantsMap::IteratableScope it_scope(&map_);
   for (auto it = it_scope.begin(); it != it_scope.end(); ++it) {
     uint32_t index = *it.entry();
-    table->set(index, it.key());
+    Object* value = it.key();
+    if (value->IsCode() && Code::cast(value)->kind() == Code::BUILTIN) {
+      // Replace placeholder code objects with the real builtin.
+      // See also: SetupIsolateDelegate::PopulateWithPlaceholders.
+      // TODO(jgruber): Deduplicate placeholders and their corresponding
+      // builtin.
+      value = builtins->builtin(Code::cast(value)->builtin_index());
+    }
+    table->set(index, value);
   }
 
 #ifdef DEBUG
