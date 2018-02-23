@@ -304,7 +304,7 @@ class ScopeInfo : public FixedArray {
   class HasSimpleParametersField
       : public BitField<bool, AsmModuleField::kNext, 1> {};
   class FunctionKindField
-      : public BitField<FunctionKind, HasSimpleParametersField::kNext, 11> {};
+      : public BitField<FunctionKind, HasSimpleParametersField::kNext, 5> {};
   class HasOuterScopeInfoField
       : public BitField<bool, FunctionKindField::kNext, 1> {};
   class IsDebugEvaluateScopeField
