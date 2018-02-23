@@ -8,7 +8,11 @@
 #include <memory>
 #include <vector>
 
-#include "src/isolate.h"
+#include "include/v8-profiler.h"
+#include "src/base/platform/mutex.h"
+#include "src/debug/debug-interface.h"
+#include "src/globals.h"
+#include "src/heap/heap.h"
 
 namespace v8 {
 namespace internal {

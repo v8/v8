@@ -5,6 +5,7 @@
 #include "src/snapshot/startup-serializer.h"
 
 #include "src/api.h"
+#include "src/global-handles.h"
 #include "src/objects-inl.h"
 #include "src/v8threads.h"
 

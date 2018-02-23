@@ -10,22 +10,23 @@
 #include <queue>
 #include <vector>
 
+#include "include/v8.h"
 #include "src/allocation.h"
 #include "src/base/atomicops.h"
+#include "src/base/macros.h"
 #include "src/builtins/builtins.h"
 #include "src/contexts.h"
 #include "src/date.h"
 #include "src/debug/debug-interface.h"
 #include "src/execution.h"
 #include "src/futex-emulation.h"
-#include "src/global-handles.h"
+#include "src/globals.h"
 #include "src/handles.h"
 #include "src/heap/heap.h"
 #include "src/messages.h"
 #include "src/objects/code.h"
-#include "src/regexp/regexp-stack.h"
 #include "src/runtime/runtime.h"
-#include "src/zone/zone.h"
+#include "src/unicode.h"
 
 namespace v8 {
 
@@ -67,6 +68,7 @@ class Debug;
 class DeoptimizerData;
 class DescriptorLookupCache;
 class EmptyStatement;
+class EternalHandles;
 class ExternalCallbackScope;
 class ExternalReferenceTable;
 class Factory;

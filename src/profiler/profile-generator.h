@@ -8,6 +8,7 @@
 #include <map>
 #include <vector>
 
+#include "include/v8-profiler.h"
 #include "src/allocation.h"
 #include "src/base/hashmap.h"
 #include "src/log.h"
