@@ -72,14 +72,6 @@ IGNORE_SOURCES = {
 # label.
 # Regular expressions are assumed to be compiled. We use regexp.search.
 IGNORE_TEST_CASES = {
-  'slow_path': {
-    'crbug.com/800651':
-        re.compile(r'async', re.S),
-  },
-  'slow_path_opt': {
-    'crbug.com/800651':
-        re.compile(r'async', re.S),
-  },
 }
 
 # Ignore by output pattern. Map from config->bug->regexp. See IGNORE_TEST_CASES
