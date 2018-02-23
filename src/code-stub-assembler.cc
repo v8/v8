@@ -10346,50 +10346,51 @@ Node* CodeStubAssembler::InstanceOf(Node* object, Node* callable,
   return var_result.value();
 }
 
-Node* CodeStubAssembler::NumberInc(Node* value) {
-  VARIABLE(var_result, MachineRepresentation::kTagged);
-  VARIABLE(var_finc_value, MachineRepresentation::kFloat64);
+TNode<Number> CodeStubAssembler::NumberInc(SloppyTNode<Number> value) {
+  TVARIABLE(Number, var_result);
+  TVARIABLE(Float64T, var_finc_value);
   Label if_issmi(this), if_isnotsmi(this), do_finc(this), end(this);
   Branch(TaggedIsSmi(value), &if_issmi, &if_isnotsmi);
 
   BIND(&if_issmi);
   {
     // Try fast Smi addition first.
-    Node* one = SmiConstant(1);
-    Node* pair = IntPtrAddWithOverflow(BitcastTaggedToWord(value),
-                                       BitcastTaggedToWord(one));
-    Node* overflow = Projection(1, pair);
+    TNode<Smi> one = SmiConstant(1);
+    TNode<PairT<IntPtrT, BoolT>> pair = IntPtrAddWithOverflow(
+        BitcastTaggedToWord(value), BitcastTaggedToWord(one));
+    TNode<BoolT> overflow = Projection<1>(pair);
 
     // Check if the Smi addition overflowed.
     Label if_overflow(this), if_notoverflow(this);
     Branch(overflow, &if_overflow, &if_notoverflow);
 
     BIND(&if_notoverflow);
-    var_result.Bind(BitcastWordToTaggedSigned(Projection(0, pair)));
+    var_result = BitcastWordToTaggedSigned(Projection<0>(pair));
     Goto(&end);
 
     BIND(&if_overflow);
     {
-      var_finc_value.Bind(SmiToFloat64(value));
+      TNode<Smi> smi_value = CAST(value);
+      var_finc_value = SmiToFloat64(smi_value);
       Goto(&do_finc);
     }
   }
 
   BIND(&if_isnotsmi);
   {
-    CSA_ASSERT(this, IsHeapNumber(value));
+    TNode<HeapNumber> heap_number_value = CAST(value);
 
     // Load the HeapNumber value.
-    var_finc_value.Bind(LoadHeapNumberValue(value));
+    var_finc_value = LoadHeapNumberValue(heap_number_value);
     Goto(&do_finc);
   }
 
   BIND(&do_finc);
   {
-    Node* finc_value = var_finc_value.value();
-    Node* one = Float64Constant(1.0);
-    Node* finc_result = Float64Add(finc_value, one);
-    var_result.Bind(AllocateHeapNumberWithValue(finc_result));
+    TNode<Float64T> finc_value = var_finc_value.value();
+    TNode<Float64T> one = Float64Constant(1.0);
+    TNode<Float64T> finc_result = Float64Add(finc_value, one);
+    var_result = AllocateHeapNumberWithValue(finc_result);
     Goto(&end);
   }
 
@@ -10397,50 +10398,51 @@ Node* CodeStubAssembler::NumberInc(Node* value) {
   return var_result.value();
 }
 
-Node* CodeStubAssembler::NumberDec(Node* value) {
-  VARIABLE(var_result, MachineRepresentation::kTagged);
-  VARIABLE(var_fdec_value, MachineRepresentation::kFloat64);
+TNode<Number> CodeStubAssembler::NumberDec(SloppyTNode<Number> value) {
+  TVARIABLE(Number, var_result);
+  TVARIABLE(Float64T, var_fdec_value);
   Label if_issmi(this), if_isnotsmi(this), do_fdec(this), end(this);
   Branch(TaggedIsSmi(value), &if_issmi, &if_isnotsmi);
 
   BIND(&if_issmi);
   {
-    // Try fast Smi addition first.
-    Node* one = SmiConstant(1);
-    Node* pair = IntPtrSubWithOverflow(BitcastTaggedToWord(value),
-                                       BitcastTaggedToWord(one));
-    Node* overflow = Projection(1, pair);
+    // Try fast Smi subtraction first.
+    TNode<Smi> one = SmiConstant(1);
+    TNode<PairT<IntPtrT, BoolT>> pair = IntPtrSubWithOverflow(
+        BitcastTaggedToWord(value), BitcastTaggedToWord(one));
+    TNode<BoolT> overflow = Projection<1>(pair);
 
-    // Check if the Smi addition overflowed.
+    // Check if the Smi subtraction overflowed.
     Label if_overflow(this), if_notoverflow(this);
     Branch(overflow, &if_overflow, &if_notoverflow);
 
     BIND(&if_notoverflow);
-    var_result.Bind(BitcastWordToTaggedSigned(Projection(0, pair)));
+    var_result = BitcastWordToTaggedSigned(Projection<0>(pair));
     Goto(&end);
 
     BIND(&if_overflow);
     {
-      var_fdec_value.Bind(SmiToFloat64(value));
+      TNode<Smi> smi_value = CAST(value);
+      var_fdec_value = SmiToFloat64(smi_value);
       Goto(&do_fdec);
     }
   }
 
   BIND(&if_isnotsmi);
   {
-    CSA_ASSERT(this, IsHeapNumber(value));
+    TNode<HeapNumber> heap_number_value = CAST(value);
 
     // Load the HeapNumber value.
-    var_fdec_value.Bind(LoadHeapNumberValue(value));
+    var_fdec_value = LoadHeapNumberValue(heap_number_value);
     Goto(&do_fdec);
   }
 
   BIND(&do_fdec);
   {
-    Node* fdec_value = var_fdec_value.value();
-    Node* minus_one = Float64Constant(-1.0);
-    Node* fdec_result = Float64Add(fdec_value, minus_one);
-    var_result.Bind(AllocateHeapNumberWithValue(fdec_result));
+    TNode<Float64T> fdec_value = var_fdec_value.value();
+    TNode<Float64T> minus_one = Float64Constant(-1.0);
+    TNode<Float64T> fdec_result = Float64Add(fdec_value, minus_one);
+    var_result = AllocateHeapNumberWithValue(fdec_result);
     Goto(&end);
   }
 
@@ -10448,29 +10450,29 @@ Node* CodeStubAssembler::NumberDec(Node* value) {
   return var_result.value();
 }
 
-Node* CodeStubAssembler::NumberAdd(Node* a, Node* b) {
-  VARIABLE(var_result, MachineRepresentation::kTagged);
-  VARIABLE(var_fadd_value, MachineRepresentation::kFloat64);
+TNode<Number> CodeStubAssembler::NumberAdd(SloppyTNode<Number> a,
+                                           SloppyTNode<Number> b) {
+  TVARIABLE(Number, var_result);
   Label float_add(this, Label::kDeferred), end(this);
   GotoIf(TaggedIsNotSmi(a), &float_add);
   GotoIf(TaggedIsNotSmi(b), &float_add);
 
   // Try fast Smi addition first.
-  Node* pair =
+  TNode<PairT<IntPtrT, BoolT>> pair =
       IntPtrAddWithOverflow(BitcastTaggedToWord(a), BitcastTaggedToWord(b));
-  Node* overflow = Projection(1, pair);
+  TNode<BoolT> overflow = Projection<1>(pair);
 
   // Check if the Smi addition overflowed.
   Label if_overflow(this), if_notoverflow(this);
   GotoIf(overflow, &float_add);
 
-  var_result.Bind(BitcastWordToTaggedSigned(Projection(0, pair)));
+  var_result = BitcastWordToTaggedSigned(Projection<0>(pair));
   Goto(&end);
 
   BIND(&float_add);
   {
-    var_result.Bind(ChangeFloat64ToTagged(
-        Float64Add(ChangeNumberToFloat64(a), ChangeNumberToFloat64(b))));
+    var_result = ChangeFloat64ToTagged(
+        Float64Add(ChangeNumberToFloat64(a), ChangeNumberToFloat64(b)));
     Goto(&end);
   }
 
@@ -10478,29 +10480,29 @@ Node* CodeStubAssembler::NumberAdd(Node* a, Node* b) {
   return var_result.value();
 }
 
-Node* CodeStubAssembler::NumberSub(Node* a, Node* b) {
-  VARIABLE(var_result, MachineRepresentation::kTagged);
-  VARIABLE(var_fsub_value, MachineRepresentation::kFloat64);
+TNode<Number> CodeStubAssembler::NumberSub(SloppyTNode<Number> a,
+                                           SloppyTNode<Number> b) {
+  TVARIABLE(Number, var_result);
   Label float_sub(this, Label::kDeferred), end(this);
   GotoIf(TaggedIsNotSmi(a), &float_sub);
   GotoIf(TaggedIsNotSmi(b), &float_sub);
 
   // Try fast Smi subtraction first.
-  Node* pair =
+  TNode<PairT<IntPtrT, BoolT>> pair =
       IntPtrSubWithOverflow(BitcastTaggedToWord(a), BitcastTaggedToWord(b));
-  Node* overflow = Projection(1, pair);
+  TNode<BoolT> overflow = Projection<1>(pair);
 
   // Check if the Smi subtraction overflowed.
   Label if_overflow(this), if_notoverflow(this);
   GotoIf(overflow, &float_sub);
 
-  var_result.Bind(BitcastWordToTaggedSigned(Projection(0, pair)));
+  var_result = BitcastWordToTaggedSigned(Projection<0>(pair));
   Goto(&end);
 
   BIND(&float_sub);
   {
-    var_result.Bind(ChangeFloat64ToTagged(
-        Float64Sub(ChangeNumberToFloat64(a), ChangeNumberToFloat64(b))));
+    var_result = ChangeFloat64ToTagged(
+        Float64Sub(ChangeNumberToFloat64(a), ChangeNumberToFloat64(b)));
     Goto(&end);
   }
 

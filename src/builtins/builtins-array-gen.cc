@@ -2085,7 +2085,7 @@ TF_BUILTIN(ArrayFrom, ArrayPopulatorAssembler) {
                       index.value(), value.value());
       GotoIfException(define_status, &on_exception, &var_exception);
 
-      index = CAST(NumberInc(index.value()));
+      index = NumberInc(index.value());
 
       // The spec requires that we throw an exception if index reaches 2^53-1,
       // but an empty loop would take >100 days to do this many iterations. To
@@ -2158,7 +2158,7 @@ TF_BUILTIN(ArrayFrom, ArrayPopulatorAssembler) {
       // Store the result in the output object.
       CallRuntime(Runtime::kCreateDataProperty, context, array.value(),
                   index.value(), value.value());
-      index = CAST(NumberInc(index.value()));
+      index = NumberInc(index.value());
       BranchIfNumberRelationalComparison(Operation::kLessThan, index.value(),
                                          length.value(), &loop, &finished);
     }

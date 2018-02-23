@@ -1398,7 +1398,7 @@ TF_BUILTIN(TypedArrayPrototypeSubArray, TypedArrayBuiltinsAssembler) {
 
   // 15. Let beginByteOffset be srcByteOffset + beginIndex × elementSize.
   TNode<Number> offset = SmiMul(var_begin.value(), SmiFromWord(element_size));
-  TNode<Number> begin_byte_offset = CAST(NumberAdd(source_byte_offset, offset));
+  TNode<Number> begin_byte_offset = NumberAdd(source_byte_offset, offset);
 
   // 16. Let argumentsList be « buffer, beginByteOffset, newLength ».
   // 17. Return ? TypedArraySpeciesCreate(O, argumentsList).

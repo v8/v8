@@ -300,10 +300,10 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
   Node* TrySmiDiv(Node* dividend, Node* divisor, Label* bailout);
 
   // Smi | HeapNumber operations.
-  Node* NumberInc(Node* value);
-  Node* NumberDec(Node* value);
-  Node* NumberAdd(Node* a, Node* b);
-  Node* NumberSub(Node* a, Node* b);
+  TNode<Number> NumberInc(SloppyTNode<Number> value);
+  TNode<Number> NumberDec(SloppyTNode<Number> value);
+  TNode<Number> NumberAdd(SloppyTNode<Number> a, SloppyTNode<Number> b);
+  TNode<Number> NumberSub(SloppyTNode<Number> a, SloppyTNode<Number> b);
   void GotoIfNotNumber(Node* value, Label* is_not_number);
   void GotoIfNumber(Node* value, Label* is_number);
 
