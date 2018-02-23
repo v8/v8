@@ -3034,6 +3034,7 @@ class Evacuator : public Malloced {
 };
 
 void Evacuator::EvacuatePage(Page* page) {
+  TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.gc"), "Evacuator::EvacuatePage");
   DCHECK(page->SweepingDone());
   intptr_t saved_live_bytes = 0;
   double evacuation_time = 0.0;
@@ -3091,11 +3092,15 @@ class FullEvacuator : public Evacuator {
 };
 
 void FullEvacuator::RawEvacuatePage(Page* page, intptr_t* live_bytes) {
+  const EvacuationMode evacuation_mode = ComputeEvacuationMode(page);
+  TRACE_EVENT1(TRACE_DISABLED_BY_DEFAULT("v8.gc"),
+               "FullEvacuator::RawEvacuatePage", "evacuation_mode",
+               evacuation_mode);
   MarkCompactCollector::NonAtomicMarkingState* marking_state =
       collector_->non_atomic_marking_state();
   *live_bytes = marking_state->live_bytes(page);
   HeapObject* failed_object = nullptr;
-  switch (ComputeEvacuationMode(page)) {
+  switch (evacuation_mode) {
     case kObjectsNewToOld:
       LiveObjectVisitor::VisitBlackObjectsNoFail(
           page, marking_state, &new_space_visitor_,
@@ -3152,6 +3157,8 @@ class YoungGenerationEvacuator : public Evacuator {
 
 void YoungGenerationEvacuator::RawEvacuatePage(Page* page,
                                                intptr_t* live_bytes) {
+  TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.gc"),
+               "YoungGenerationEvacuator::RawEvacuatePage");
   MinorMarkCompactCollector::NonAtomicMarkingState* marking_state =
       collector_->non_atomic_marking_state();
   *live_bytes = marking_state->live_bytes(page);
@@ -3392,6 +3399,8 @@ bool LiveObjectVisitor::VisitBlackObjects(MemoryChunk* chunk,
                                           Visitor* visitor,
                                           IterationMode iteration_mode,
                                           HeapObject** failed_object) {
+  TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.gc"),
+               "LiveObjectVisitor::VisitBlackObjects");
   for (auto object_and_size :
        LiveObjectRange<kBlackObjects>(chunk, marking_state->bitmap(chunk))) {
     HeapObject* const object = object_and_size.first;
@@ -3416,6 +3425,8 @@ void LiveObjectVisitor::VisitBlackObjectsNoFail(MemoryChunk* chunk,
                                                 MarkingState* marking_state,
                                                 Visitor* visitor,
                                                 IterationMode iteration_mode) {
+  TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.gc"),
+               "LiveObjectVisitor::VisitBlackObjectsNoFail");
   for (auto object_and_size :
        LiveObjectRange<kBlackObjects>(chunk, marking_state->bitmap(chunk))) {
     HeapObject* const object = object_and_size.first;
@@ -3434,6 +3445,8 @@ void LiveObjectVisitor::VisitGreyObjectsNoFail(MemoryChunk* chunk,
                                                MarkingState* marking_state,
                                                Visitor* visitor,
                                                IterationMode iteration_mode) {
+  TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.gc"),
+               "LiveObjectVisitor::VisitGreyObjectsNoFail");
   for (auto object_and_size :
        LiveObjectRange<kGreyObjects>(chunk, marking_state->bitmap(chunk))) {
     HeapObject* const object = object_and_size.first;
