@@ -1145,7 +1145,7 @@ compiler::Node* StringBuiltinsAssembler::GetSubstitution(
 
     Node* const matched =
         CallBuiltin(Builtins::kStringSubstring, context, subject_string,
-                    match_start_index, match_end_index);
+                    SmiUntag(match_start_index), SmiUntag(match_end_index));
     Node* const replacement_string =
         CallRuntime(Runtime::kGetSubstitution, context, matched, subject_string,
                     match_start_index, replace_string, dollar_index);
@@ -1383,7 +1383,7 @@ TF_BUILTIN(StringPrototypeReplace, StringBuiltinsAssembler) {
     GotoIf(SmiEqual(match_start_index, smi_zero), &next);
     Node* const prefix =
         CallBuiltin(Builtins::kStringSubstring, context, subject_string,
-                    smi_zero, match_start_index);
+                    IntPtrConstant(0), SmiUntag(match_start_index));
     var_result.Bind(prefix);
 
     Goto(&next);
@@ -1424,7 +1424,7 @@ TF_BUILTIN(StringPrototypeReplace, StringBuiltinsAssembler) {
   {
     Node* const suffix =
         CallBuiltin(Builtins::kStringSubstring, context, subject_string,
-                    match_end_index, subject_length);
+                    SmiUntag(match_end_index), SmiUntag(subject_length));
     Node* const result =
         CallStub(stringadd_callable, context, var_result.value(), suffix);
     Return(result);
@@ -1605,7 +1605,7 @@ class StringPadAssembler : public StringBuiltinsAssembler {
         {
           Node* const remainder_string = CallBuiltin(
               Builtins::kStringSubstring, context, var_fill_string.value(),
-              SmiConstant(0), SmiFromInt32(remaining_word32));
+              IntPtrConstant(0), ChangeInt32ToIntPtr(remaining_word32));
           var_pad.Bind(CallStub(stringadd_callable, context, var_pad.value(),
                                 remainder_string));
           Goto(&return_result);
@@ -1649,8 +1649,8 @@ TF_BUILTIN(StringPrototypeSearch, StringMatchSearchAssembler) {
 // ES6 section 21.1.3.18 String.prototype.slice ( start, end )
 TF_BUILTIN(StringPrototypeSlice, StringBuiltinsAssembler) {
   Label out(this);
-  TVARIABLE(Smi, var_start);
-  TVARIABLE(Smi, var_end);
+  TVARIABLE(IntPtrT, var_start);
+  TVARIABLE(IntPtrT, var_end);
 
   const int kStart = 0;
   const int kEnd = 1;
@@ -1670,7 +1670,7 @@ TF_BUILTIN(StringPrototypeSlice, StringBuiltinsAssembler) {
       CAST(CallBuiltin(Builtins::kToString, context, receiver));
 
   // 3. Let len be the number of elements in S.
-  TNode<Smi> const length = LoadStringLengthAsSmi(subject_string);
+  TNode<IntPtrT> const length = LoadStringLengthAsWord(subject_string);
 
   // Convert {start} to a relative index.
   var_start = ConvertToRelativeIndex(context, start, length);
@@ -1686,7 +1686,7 @@ TF_BUILTIN(StringPrototypeSlice, StringBuiltinsAssembler) {
   Label return_emptystring(this);
   BIND(&out);
   {
-    GotoIf(SmiLessThanOrEqual(var_end.value(), var_start.value()),
+    GotoIf(IntPtrLessThanOrEqual(var_end.value(), var_start.value()),
            &return_emptystring);
     TNode<String> const result =
         SubString(subject_string, var_start.value(), var_end.value());
@@ -1813,16 +1813,16 @@ TF_BUILTIN(StringPrototypeSubstr, StringBuiltinsAssembler) {
 
   Label out(this);
 
-  TVARIABLE(Smi, var_start);
+  TVARIABLE(IntPtrT, var_start);
   TVARIABLE(Number, var_length);
 
-  TNode<Smi> const zero = SmiConstant(0);
+  TNode<IntPtrT> const zero = IntPtrConstant(0);
 
   // Check that {receiver} is coercible to Object and convert it to a String.
   TNode<String> const string =
       ToThisString(context, receiver, "String.prototype.substr");
 
-  TNode<Smi> const string_length = LoadStringLengthAsSmi(string);
+  TNode<IntPtrT> const string_length = LoadStringLengthAsWord(string);
 
   // Convert {start} to a relative index.
   var_start = ConvertToRelativeIndex(context, start, string_length);
@@ -1836,7 +1836,7 @@ TF_BUILTIN(StringPrototypeSubstr, StringBuiltinsAssembler) {
     Branch(IsUndefined(length), &if_isundefined, &if_isnotundefined);
 
     BIND(&if_isundefined);
-    var_length = string_length;
+    var_length = SmiTag(string_length);
     Goto(&if_issmi);
 
     BIND(&if_isnotundefined);
@@ -1844,18 +1844,20 @@ TF_BUILTIN(StringPrototypeSubstr, StringBuiltinsAssembler) {
                                   CodeStubAssembler::kTruncateMinusZero);
   }
 
-  TVARIABLE(Smi, var_result_length);
+  TVARIABLE(IntPtrT, var_result_length);
 
   Branch(TaggedIsSmi(var_length.value()), &if_issmi, &if_isheapnumber);
 
   // Set {length} to min(max({length}, 0), {string_length} - {start}
   BIND(&if_issmi);
   {
-    TNode<Smi> const positive_length = SmiMax(CAST(var_length.value()), zero);
-    TNode<Smi> const minimal_length = SmiSub(string_length, var_start.value());
-    var_result_length = SmiMin(positive_length, minimal_length);
+    TNode<IntPtrT> const positive_length =
+        IntPtrMax(SmiUntag(CAST(var_length.value())), zero);
+    TNode<IntPtrT> const minimal_length =
+        IntPtrSub(string_length, var_start.value());
+    var_result_length = IntPtrMin(positive_length, minimal_length);
 
-    GotoIfNot(SmiLessThanOrEqual(var_result_length.value(), zero), &out);
+    GotoIfNot(IntPtrLessThanOrEqual(var_result_length.value(), zero), &out);
     args.PopAndReturn(EmptyStringConstant());
   }
 
@@ -1879,15 +1881,16 @@ TF_BUILTIN(StringPrototypeSubstr, StringBuiltinsAssembler) {
 
     BIND(&if_ispositive);
     {
-      var_result_length = SmiSub(string_length, var_start.value());
-      GotoIfNot(SmiLessThanOrEqual(var_result_length.value(), zero), &out);
+      var_result_length = IntPtrSub(string_length, var_start.value());
+      GotoIfNot(IntPtrLessThanOrEqual(var_result_length.value(), zero), &out);
       args.PopAndReturn(EmptyStringConstant());
     }
   }
 
   BIND(&out);
   {
-    TNode<Smi> const end = SmiAdd(var_start.value(), var_result_length.value());
+    TNode<IntPtrT> const end =
+        IntPtrAdd(var_start.value(), var_result_length.value());
     args.PopAndReturn(SubString(string, var_start.value(), end));
   }
 }
@@ -1898,7 +1901,7 @@ TNode<Smi> StringBuiltinsAssembler::ToSmiBetweenZeroAnd(
   Label out(this);
   TVARIABLE(Smi, var_result);
 
-  TNode<Object> const value_int =
+  TNode<Number> const value_int =
       ToInteger_Inline(context, value, CodeStubAssembler::kTruncateMinusZero);
 
   Label if_issmi(this), if_isnotsmi(this, Label::kDeferred);
@@ -1906,8 +1909,9 @@ TNode<Smi> StringBuiltinsAssembler::ToSmiBetweenZeroAnd(
 
   BIND(&if_issmi);
   {
+    TNode<Smi> value_smi = CAST(value_int);
     Label if_isinbounds(this), if_isoutofbounds(this, Label::kDeferred);
-    Branch(SmiAbove(value_int, limit), &if_isoutofbounds, &if_isinbounds);
+    Branch(SmiAbove(value_smi, limit), &if_isoutofbounds, &if_isinbounds);
 
     BIND(&if_isinbounds);
     {
@@ -1919,7 +1923,7 @@ TNode<Smi> StringBuiltinsAssembler::ToSmiBetweenZeroAnd(
     {
       TNode<Smi> const zero = SmiConstant(0);
       var_result =
-          SelectTaggedConstant(SmiLessThan(value_int, zero), zero, limit);
+          SelectTaggedConstant(SmiLessThan(value_smi, zero), zero, limit);
       Goto(&out);
     }
   }
@@ -1943,8 +1947,8 @@ TNode<Smi> StringBuiltinsAssembler::ToSmiBetweenZeroAnd(
 
 TF_BUILTIN(StringSubstring, CodeStubAssembler) {
   TNode<String> string = CAST(Parameter(Descriptor::kString));
-  Node* from = Parameter(Descriptor::kFrom);
-  Node* to = Parameter(Descriptor::kTo);
+  TNode<IntPtrT> from = UncheckedCast<IntPtrT>(Parameter(Descriptor::kFrom));
+  TNode<IntPtrT> to = UncheckedCast<IntPtrT>(Parameter(Descriptor::kTo));
 
   Return(SubString(string, from, to));
 }
@@ -1998,7 +2002,10 @@ TF_BUILTIN(StringPrototypeSubstring, StringBuiltinsAssembler) {
   }
 
   BIND(&out);
-  { args.PopAndReturn(SubString(string, var_start.value(), var_end.value())); }
+  {
+    args.PopAndReturn(SubString(string, SmiUntag(var_start.value()),
+                                SmiUntag(var_end.value())));
+  }
 }
 
 // ES6 #sec-string.prototype.trim
@@ -2051,8 +2058,8 @@ void StringTrimAssembler::Generate(String::TrimMode mode,
   }
 
   arguments.PopAndReturn(
-      SubString(string, SmiTag(var_start.value()),
-                SmiAdd(SmiTag(var_end.value()), SmiConstant(1))));
+      SubString(string, var_start.value(),
+                IntPtrAdd(var_end.value(), IntPtrConstant(1))));
 
   BIND(&if_runtime);
   arguments.PopAndReturn(

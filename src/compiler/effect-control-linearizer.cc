@@ -3196,8 +3196,8 @@ Node* EffectControlLinearizer::LowerStringComparison(Callable const& callable,
 
 Node* EffectControlLinearizer::LowerStringSubstring(Node* node) {
   Node* receiver = node->InputAt(0);
-  Node* start = node->InputAt(1);
-  Node* end = node->InputAt(2);
+  Node* start = ChangeInt32ToIntPtr(node->InputAt(1));
+  Node* end = ChangeInt32ToIntPtr(node->InputAt(2));
 
   Callable callable =
       Builtins::CallableFor(isolate(), Builtins::kStringSubstring);

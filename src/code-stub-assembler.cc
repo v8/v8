@@ -616,14 +616,13 @@ TNode<Object> CodeStubAssembler::NumberMin(SloppyTNode<Object> a,
   return TNode<Object>::UncheckedCast(result.value());
 }
 
-TNode<Smi> CodeStubAssembler::ConvertToRelativeIndex(TNode<Context> context,
-                                                     TNode<Object> index,
-                                                     TNode<Smi> length) {
-  TVARIABLE(Smi, result);
+TNode<IntPtrT> CodeStubAssembler::ConvertToRelativeIndex(
+    TNode<Context> context, TNode<Object> index, TNode<IntPtrT> length) {
+  TVARIABLE(IntPtrT, result);
 
   TNode<Number> const index_int =
       ToInteger_Inline(context, index, CodeStubAssembler::kTruncateMinusZero);
-  TNode<Smi> const zero = SmiConstant(0);
+  TNode<IntPtrT> zero = IntPtrConstant(0);
 
   Label done(this);
   Label if_issmi(this), if_isheapnumber(this, Label::kDeferred);
@@ -632,11 +631,11 @@ TNode<Smi> CodeStubAssembler::ConvertToRelativeIndex(TNode<Context> context,
   BIND(&if_issmi);
   {
     TNode<Smi> const index_smi = CAST(index_int);
-    result =
-        Select<Smi>(SmiLessThan(index_smi, zero),
-                    [&] { return SmiMax(SmiAdd(length, index_smi), zero); },
-                    [&] { return SmiMin(index_smi, length); },
-                    MachineRepresentation::kTagged);
+    result = Select<IntPtrT>(
+        IntPtrLessThan(SmiUntag(index_smi), zero),
+        [&] { return IntPtrMax(IntPtrAdd(length, SmiUntag(index_smi)), zero); },
+        [&] { return IntPtrMin(SmiUntag(index_smi), length); },
+        MachineType::PointerRepresentation());
     Goto(&done);
   }
 
@@ -648,12 +647,11 @@ TNode<Smi> CodeStubAssembler::ConvertToRelativeIndex(TNode<Context> context,
     TNode<HeapNumber> const index_hn = CAST(index_int);
     TNode<Float64T> const float_zero = Float64Constant(0.);
     TNode<Float64T> const index_float = LoadHeapNumberValue(index_hn);
-    result = SelectTaggedConstant<Smi>(Float64LessThan(index_float, float_zero),
-                                       zero, length);
+    result = SelectConstant(Float64LessThan(index_float, float_zero), zero,
+                            length, MachineType::PointerRepresentation());
     Goto(&done);
   }
   BIND(&done);
-  CSA_ASSERT(this, TaggedIsPositiveSmi(result.value()));
   return result.value();
 }
 
@@ -2586,12 +2584,10 @@ TNode<String> CodeStubAssembler::AllocateSeqTwoByteString(
 }
 
 TNode<String> CodeStubAssembler::AllocateSlicedString(
-    Heap::RootListIndex map_root_index, TNode<Smi> length, Node* parent,
-    Node* offset) {
+    Heap::RootListIndex map_root_index, TNode<Smi> length, TNode<String> parent,
+    TNode<Smi> offset) {
   DCHECK(map_root_index == Heap::kSlicedOneByteStringMapRootIndex ||
          map_root_index == Heap::kSlicedStringMapRootIndex);
-  CSA_ASSERT(this, IsString(parent));
-  CSA_ASSERT(this, TaggedIsSmi(offset));
   Node* result = Allocate(SlicedString::kSize);
   DCHECK(Heap::RootIsImmortalImmovable(map_root_index));
   StoreMapNoWriteBarrier(result, map_root_index);
@@ -2607,16 +2603,14 @@ TNode<String> CodeStubAssembler::AllocateSlicedString(
   return CAST(result);
 }
 
-TNode<String> CodeStubAssembler::AllocateSlicedOneByteString(TNode<Smi> length,
-                                                             Node* parent,
-                                                             Node* offset) {
+TNode<String> CodeStubAssembler::AllocateSlicedOneByteString(
+    TNode<Smi> length, TNode<String> parent, TNode<Smi> offset) {
   return AllocateSlicedString(Heap::kSlicedOneByteStringMapRootIndex, length,
                               parent, offset);
 }
 
-TNode<String> CodeStubAssembler::AllocateSlicedTwoByteString(TNode<Smi> length,
-                                                             Node* parent,
-                                                             Node* offset) {
+TNode<String> CodeStubAssembler::AllocateSlicedTwoByteString(
+    TNode<Smi> length, TNode<String> parent, TNode<Smi> offset) {
   return AllocateSlicedString(Heap::kSlicedStringMapRootIndex, length, parent,
                               offset);
 }
@@ -4996,37 +4990,33 @@ TNode<String> CodeStubAssembler::AllocAndCopyStringCharacters(
 }
 
 TNode<String> CodeStubAssembler::SubString(TNode<String> string,
-                                           SloppyTNode<Smi> from,
-                                           SloppyTNode<Smi> to) {
+                                           TNode<IntPtrT> from,
+                                           TNode<IntPtrT> to) {
   TVARIABLE(String, var_result);
   ToDirectStringAssembler to_direct(state(), string);
   Label end(this), runtime(this);
 
-  // Make sure that both from and to are non-negative smis.
-  CSA_ASSERT(this, TaggedIsPositiveSmi(from));
-  CSA_ASSERT(this, TaggedIsPositiveSmi(to));
-
-  TNode<Smi> const substr_length = SmiSub(to, from);
-  TNode<Smi> const string_length = LoadStringLengthAsSmi(string);
+  TNode<IntPtrT> const substr_length = IntPtrSub(to, from);
+  TNode<IntPtrT> const string_length = LoadStringLengthAsWord(string);
 
   // Begin dispatching based on substring length.
 
   Label original_string_or_invalid_length(this);
-  GotoIf(SmiAboveOrEqual(substr_length, string_length),
+  GotoIf(UintPtrGreaterThanOrEqual(substr_length, string_length),
          &original_string_or_invalid_length);
 
   // A real substring (substr_length < string_length).
 
   Label single_char(this);
-  GotoIf(SmiEqual(substr_length, SmiConstant(1)), &single_char);
+  GotoIf(IntPtrEqual(substr_length, IntPtrConstant(1)), &single_char);
 
   // TODO(jgruber): Add an additional case for substring of length == 0?
 
   // Deal with different string types: update the index if necessary
   // and extract the underlying string.
 
-  Node* const direct_string = to_direct.TryToDirect(&runtime);
-  Node* const offset = SmiAdd(from, SmiTag(to_direct.offset()));
+  TNode<String> direct_string = to_direct.TryToDirect(&runtime);
+  TNode<IntPtrT> offset = IntPtrAdd(from, to_direct.offset());
   Node* const instance_type = to_direct.instance_type();
 
   // The subject string can only be external or sequential string of either
@@ -5037,7 +5027,8 @@ TNode<String> CodeStubAssembler::SubString(TNode<String> string,
       Label next(this);
 
       // Short slice.  Copy instead of slicing.
-      GotoIf(SmiLessThan(substr_length, SmiConstant(SlicedString::kMinLength)),
+      GotoIf(IntPtrLessThan(substr_length,
+                            IntPtrConstant(SlicedString::kMinLength)),
              &next);
 
       // Allocate new sliced string.
@@ -5051,15 +5042,15 @@ TNode<String> CodeStubAssembler::SubString(TNode<String> string,
 
       BIND(&one_byte_slice);
       {
-        var_result =
-            AllocateSlicedOneByteString(substr_length, direct_string, offset);
+        var_result = AllocateSlicedOneByteString(SmiTag(substr_length),
+                                                 direct_string, SmiTag(offset));
         Goto(&end);
       }
 
       BIND(&two_byte_slice);
       {
-        var_result =
-            AllocateSlicedTwoByteString(substr_length, direct_string, offset);
+        var_result = AllocateSlicedTwoByteString(SmiTag(substr_length),
+                                                 direct_string, SmiTag(offset));
         Goto(&end);
       }
 
@@ -5071,7 +5062,7 @@ TNode<String> CodeStubAssembler::SubString(TNode<String> string,
     GotoIf(to_direct.is_external(), &external_string);
 
     var_result = AllocAndCopyStringCharacters(direct_string, instance_type,
-                                              SmiUntag(offset), substr_length);
+                                              offset, SmiTag(substr_length));
 
     Counters* counters = isolate()->counters();
     IncrementCounter(counters->sub_string_native(), 1);
@@ -5085,7 +5076,7 @@ TNode<String> CodeStubAssembler::SubString(TNode<String> string,
     Node* const fake_sequential_string = to_direct.PointerToString(&runtime);
 
     var_result = AllocAndCopyStringCharacters(
-        fake_sequential_string, instance_type, SmiUntag(offset), substr_length);
+        fake_sequential_string, instance_type, offset, SmiTag(substr_length));
 
     Counters* counters = isolate()->counters();
     IncrementCounter(counters->sub_string_native(), 1);
@@ -5096,17 +5087,17 @@ TNode<String> CodeStubAssembler::SubString(TNode<String> string,
   // Substrings of length 1 are generated through CharCodeAt and FromCharCode.
   BIND(&single_char);
   {
-    TNode<Int32T> char_code = StringCharCodeAt(string, SmiUntag(from));
+    TNode<Int32T> char_code = StringCharCodeAt(string, from);
     var_result = StringFromCharCode(char_code);
     Goto(&end);
   }
 
   BIND(&original_string_or_invalid_length);
   {
-    CSA_ASSERT(this, SmiEqual(substr_length, string_length));
+    CSA_ASSERT(this, IntPtrEqual(substr_length, string_length));
 
     // Equal length - check if {from, to} == {0, str.length}.
-    GotoIf(SmiAbove(from, SmiConstant(0)), &runtime);
+    GotoIf(UintPtrGreaterThan(from, IntPtrConstant(0)), &runtime);
 
     // Return the original string (substr_length == string_length).
 
@@ -5120,8 +5111,9 @@ TNode<String> CodeStubAssembler::SubString(TNode<String> string,
   // Fall back to a runtime call.
   BIND(&runtime);
   {
-    var_result = CAST(CallRuntime(Runtime::kStringSubstring,
-                                  NoContextConstant(), string, from, to));
+    var_result =
+        CAST(CallRuntime(Runtime::kStringSubstring, NoContextConstant(), string,
+                         SmiTag(from), SmiTag(to)));
     Goto(&end);
   }
 
@@ -5146,7 +5138,7 @@ ToDirectStringAssembler::ToDirectStringAssembler(
   var_is_external_.Bind(Int32Constant(0));
 }
 
-Node* ToDirectStringAssembler::TryToDirect(Label* if_bailout) {
+TNode<String> ToDirectStringAssembler::TryToDirect(Label* if_bailout) {
   VariableList vars({&var_string_, &var_offset_, &var_instance_type_}, zone());
   Label dispatch(this, vars);
   Label if_iscons(this);
@@ -5229,7 +5221,7 @@ Node* ToDirectStringAssembler::TryToDirect(Label* if_bailout) {
   Goto(&out);
 
   BIND(&out);
-  return var_string_.value();
+  return CAST(var_string_.value());
 }
 
 Node* ToDirectStringAssembler::TryToSequential(StringPointerKind ptr_kind,

@@ -101,7 +101,7 @@ namespace internal {
   TFC(StringLessThan, Compare, 1)                                              \
   TFC(StringLessThanOrEqual, Compare, 1)                                       \
   TFS(StringRepeat, kString, kCount)                                           \
-  TFS(StringSubstring, kString, kFrom, kTo)                                    \
+  TFC(StringSubstring, StringSubstring, 1)                                     \
                                                                                \
   /* OrderedHashTable helpers */                                               \
   TFS(OrderedHashTableHealIndex, kTable, kIndex)                               \

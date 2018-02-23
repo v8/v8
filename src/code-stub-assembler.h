@@ -220,8 +220,9 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
 
   // After converting an index to an integer, calculate a relative index: if
   // index < 0, max(length + index, 0); else min(index, length)
-  TNode<Smi> ConvertToRelativeIndex(TNode<Context> context, TNode<Object> index,
-                                    TNode<Smi> length);
+  TNode<IntPtrT> ConvertToRelativeIndex(TNode<Context> context,
+                                        TNode<Object> index,
+                                        TNode<IntPtrT> length);
 
   // Tag an IntPtr as a Smi value.
   TNode<Smi> SmiTag(SloppyTNode<IntPtrT> value);
@@ -773,12 +774,15 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
 
   // Allocate a SlicedOneByteString with the given length, parent and offset.
   // |length| and |offset| are expected to be tagged.
-  TNode<String> AllocateSlicedOneByteString(TNode<Smi> length, Node* parent,
-                                            Node* offset);
+
+  TNode<String> AllocateSlicedOneByteString(TNode<Smi> length,
+                                            TNode<String> parent,
+                                            TNode<Smi> offset);
   // Allocate a SlicedTwoByteString with the given length, parent and offset.
   // |length| and |offset| are expected to be tagged.
-  TNode<String> AllocateSlicedTwoByteString(TNode<Smi> length, Node* parent,
-                                            Node* offset);
+  TNode<String> AllocateSlicedTwoByteString(TNode<Smi> length,
+                                            TNode<String> parent,
+                                            TNode<Smi> offset);
 
   // Allocate a one-byte ConsString with the given length, first and second
   // parts. |length| is expected to be tagged, and |first| and |second| are
@@ -1219,8 +1223,8 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
 
   // Return a new string object which holds a substring containing the range
   // [from,to[ of string.  |from| and |to| are expected to be tagged.
-  TNode<String> SubString(TNode<String> string, SloppyTNode<Smi> from,
-                          SloppyTNode<Smi> to);
+  TNode<String> SubString(TNode<String> string, TNode<IntPtrT> from,
+                          TNode<IntPtrT> to);
 
   // Return a new string object produced by concatenating |first| with |second|.
   TNode<String> StringAdd(Node* context, TNode<String> first,
@@ -2026,8 +2030,8 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
                                  Label* bailout);
 
   TNode<String> AllocateSlicedString(Heap::RootListIndex map_root_index,
-                                     TNode<Smi> length, Node* parent,
-                                     Node* offset);
+                                     TNode<Smi> length, TNode<String> parent,
+                                     TNode<Smi> offset);
 
   TNode<String> AllocateConsString(Heap::RootListIndex map_root_index,
                                    TNode<Smi> length, TNode<String> first,
@@ -2161,7 +2165,7 @@ class ToDirectStringAssembler : public CodeStubAssembler {
   // string. The result can be either a sequential or external string.
   // Jumps to if_bailout if the string if the string is indirect and cannot
   // be unpacked.
-  Node* TryToDirect(Label* if_bailout);
+  TNode<String> TryToDirect(Label* if_bailout);
 
   // Returns a pointer to the beginning of the string data.
   // Jumps to if_bailout if the external string cannot be unpacked.
@@ -2177,7 +2181,9 @@ class ToDirectStringAssembler : public CodeStubAssembler {
 
   Node* string() { return var_string_.value(); }
   Node* instance_type() { return var_instance_type_.value(); }
-  Node* offset() { return var_offset_.value(); }
+  TNode<IntPtrT> offset() {
+    return UncheckedCast<IntPtrT>(var_offset_.value());
+  }
   Node* is_external() { return var_is_external_.value(); }
 
  private:

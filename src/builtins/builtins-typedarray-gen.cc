@@ -147,10 +147,12 @@ TF_BUILTIN(TypedArrayInitialize, TypedArrayBuiltinsAssembler) {
 
   TNode<Map> fixed_typed_map = LoadMapForType(holder);
   GotoIf(TaggedIsNotSmi(byte_length), &allocate_off_heap);
-  GotoIf(
-      SmiGreaterThan(byte_length, SmiConstant(V8_TYPED_ARRAY_MAX_SIZE_IN_HEAP)),
-      &allocate_off_heap);
-  TNode<IntPtrT> word_byte_length = SmiToIntPtr(CAST(byte_length));
+  // The goto above ensures that byte_length is a Smi.
+  TNode<Smi> smi_byte_length = CAST(byte_length);
+  GotoIf(SmiGreaterThan(smi_byte_length,
+                        SmiConstant(V8_TYPED_ARRAY_MAX_SIZE_IN_HEAP)),
+         &allocate_off_heap);
+  TNode<IntPtrT> word_byte_length = SmiToIntPtr(smi_byte_length);
   Goto(&allocate_on_heap);
 
   BIND(&allocate_on_heap);
@@ -305,7 +307,9 @@ void TypedArrayBuiltinsAssembler::ConstructByLength(TNode<Context> context,
   // Note: this is not per spec, but rather a constraint of our current
   // representation (which uses Smis).
   GotoIf(TaggedIsNotSmi(converted_length), &invalid_length);
-  GotoIf(SmiLessThan(converted_length, SmiConstant(0)), &invalid_length);
+  // The goto above ensures that byte_length is a Smi.
+  TNode<Smi> smi_converted_length = CAST(converted_length);
+  GotoIf(SmiLessThan(smi_converted_length, SmiConstant(0)), &invalid_length);
 
   Node* initialize = TrueConstant();
   CallBuiltin(Builtins::kTypedArrayInitialize, context, holder,
@@ -1245,16 +1249,19 @@ TF_BUILTIN(TypedArrayPrototypeSlice, TypedArrayBuiltinsAssembler) {
   // Convert start offset argument to integer, and calculate relative offset.
   TNode<Object> start = args.GetOptionalArgumentValue(0, SmiConstant(0));
   TNode<Smi> start_index =
-      ConvertToRelativeIndex(context, start, source_length);
+      SmiTag(ConvertToRelativeIndex(context, start, SmiUntag(source_length)));
 
   // Convert end offset argument to integer, and calculate relative offset.
   // If end offset is not given or undefined is given, set source_length to
   // "end_index".
   TNode<Object> end = args.GetOptionalArgumentValue(1, UndefinedConstant());
-  TNode<Smi> end_index = Select<Smi>(
-      IsUndefined(end), [=] { return source_length; },
-      [=] { return ConvertToRelativeIndex(context, end, source_length); },
-      MachineRepresentation::kTagged);
+  TNode<Smi> end_index =
+      Select<Smi>(IsUndefined(end), [=] { return source_length; },
+                  [=] {
+                    return SmiTag(ConvertToRelativeIndex(
+                        context, end, SmiUntag(source_length)));
+                  },
+                  MachineRepresentation::kTagged);
 
   // Create a result array by invoking TypedArraySpeciesCreate.
   TNode<Smi> count = SmiMax(SmiSub(end_index, start_index), SmiConstant(0));
@@ -1367,7 +1374,8 @@ TF_BUILTIN(TypedArrayPrototypeSubArray, TypedArrayBuiltinsAssembler) {
   // 8. If relativeBegin < 0, let beginIndex be max((srcLength + relativeBegin),
   // 0); else let beginIndex be min(relativeBegin, srcLength).
   TNode<Object> begin = args.GetOptionalArgumentValue(0, SmiConstant(0));
-  var_begin = ConvertToRelativeIndex(context, begin, source_length);
+  var_begin =
+      SmiTag(ConvertToRelativeIndex(context, begin, SmiUntag(source_length)));
 
   TNode<Object> end = args.GetOptionalArgumentValue(1, UndefinedConstant());
   // 9. If end is undefined, let relativeEnd be srcLength;
@@ -1377,7 +1385,8 @@ TF_BUILTIN(TypedArrayPrototypeSubArray, TypedArrayBuiltinsAssembler) {
   // else, let relativeEnd be ? ToInteger(end).
   // 10. If relativeEnd < 0, let endIndex be max((srcLength + relativeEnd), 0);
   // else let endIndex be min(relativeEnd, srcLength).
-  var_end = ConvertToRelativeIndex(context, end, source_length);
+  var_end =
+      SmiTag(ConvertToRelativeIndex(context, end, SmiUntag(source_length)));
   Goto(&offset_done);
 
   BIND(&offset_done);

@@ -2410,8 +2410,8 @@ class RepresentationSelector {
       }
       case IrOpcode::kStringSubstring: {
         ProcessInput(node, 0, UseInfo::AnyTagged());
-        ProcessInput(node, 1, UseInfo::TaggedSigned());
-        ProcessInput(node, 2, UseInfo::TaggedSigned());
+        ProcessInput(node, 1, UseInfo::TruncatingWord32());
+        ProcessInput(node, 2, UseInfo::TruncatingWord32());
         SetOutput(node, MachineRepresentation::kTaggedPointer);
         return;
       }

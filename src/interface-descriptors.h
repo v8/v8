@@ -62,6 +62,7 @@ class PlatformInterfaceDescriptor;
   V(BinaryOp)                         \
   V(StringAdd)                        \
   V(StringAt)                         \
+  V(StringSubstring)                  \
   V(ForInPrepare)                     \
   V(GetProperty)                      \
   V(ArgumentAdaptor)                  \
@@ -761,6 +762,13 @@ class StringAtDescriptor final : public CallInterfaceDescriptor {
  public:
   DEFINE_PARAMETERS(kReceiver, kPosition)
   DECLARE_DESCRIPTOR_WITH_CUSTOM_FUNCTION_TYPE(StringAtDescriptor,
+                                               CallInterfaceDescriptor)
+};
+
+class StringSubstringDescriptor final : public CallInterfaceDescriptor {
+ public:
+  DEFINE_PARAMETERS(kString, kFrom, kTo)
+  DECLARE_DESCRIPTOR_WITH_CUSTOM_FUNCTION_TYPE(StringSubstringDescriptor,
                                                CallInterfaceDescriptor)
 };
 
