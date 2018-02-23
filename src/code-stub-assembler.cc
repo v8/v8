@@ -1712,212 +1712,182 @@ TNode<RawPtrT> CodeStubAssembler::LoadFixedTypedArrayBackingStore(
       IntPtrAdd(external_pointer, BitcastTaggedToWord(base_pointer)));
 }
 
-Node* CodeStubAssembler::LoadFixedTypedArrayElement(
-    Node* data_pointer, Node* index_node, ElementsKind elements_kind,
-    ParameterMode parameter_mode) {
-  Node* offset =
-      ElementOffsetFromIndex(index_node, elements_kind, parameter_mode, 0);
-  MachineType type;
-  switch (elements_kind) {
-    case UINT8_ELEMENTS: /* fall through */
-    case UINT8_CLAMPED_ELEMENTS:
-      type = MachineType::Uint8();
-      break;
-    case INT8_ELEMENTS:
-      type = MachineType::Int8();
-      break;
-    case UINT16_ELEMENTS:
-      type = MachineType::Uint16();
-      break;
-    case INT16_ELEMENTS:
-      type = MachineType::Int16();
-      break;
-    case UINT32_ELEMENTS:
-      type = MachineType::Uint32();
-      break;
-    case INT32_ELEMENTS:
-      type = MachineType::Int32();
-      break;
-    case FLOAT32_ELEMENTS:
-      type = MachineType::Float32();
-      break;
-    case FLOAT64_ELEMENTS:
-      type = MachineType::Float64();
-      break;
-    default:
-      UNREACHABLE();
+Node* CodeStubAssembler::LoadFixedBigInt64ArrayElementAsTagged(
+    Node* data_pointer, Node* offset) {
+  TVARIABLE(BigInt, var_result);
+  Label done(this), if_zero(this);
+  if (Is64()) {
+    TNode<IntPtrT> value = UncheckedCast<IntPtrT>(
+        Load(MachineType::IntPtr(), data_pointer, offset));
+    Label if_positive(this), if_negative(this);
+    GotoIf(IntPtrEqual(value, IntPtrConstant(0)), &if_zero);
+    var_result = AllocateRawBigInt(IntPtrConstant(1));
+    Branch(IntPtrGreaterThan(value, IntPtrConstant(0)), &if_positive,
+           &if_negative);
+
+    BIND(&if_positive);
+    {
+      StoreBigIntBitfield(var_result.value(),
+                          IntPtrConstant(BigInt::SignBits::encode(false) |
+                                         BigInt::LengthBits::encode(1)));
+      StoreBigIntDigit(var_result.value(), 0, Unsigned(value));
+      Goto(&done);
+    }
+
+    BIND(&if_negative);
+    {
+      StoreBigIntBitfield(var_result.value(),
+                          IntPtrConstant(BigInt::SignBits::encode(true) |
+                                         BigInt::LengthBits::encode(1)));
+      StoreBigIntDigit(var_result.value(), 0,
+                       Unsigned(IntPtrSub(IntPtrConstant(0), value)));
+      Goto(&done);
+    }
+  } else {
+    DCHECK(!Is64());
+    TVARIABLE(WordT, var_sign, IntPtrConstant(BigInt::SignBits::encode(false)));
+    TVARIABLE(IntPtrT, var_low);
+    TVARIABLE(IntPtrT, var_high);
+    var_low = UncheckedCast<IntPtrT>(
+        Load(MachineType::UintPtr(), data_pointer, offset));
+    var_high = UncheckedCast<IntPtrT>(
+        Load(MachineType::UintPtr(), data_pointer,
+             Int32Add(offset, Int32Constant(kPointerSize))));
+
+    Label high_zero(this), negative(this), allocate_one_digit(this),
+        allocate_two_digits(this);
+
+    GotoIf(WordEqual(var_high.value(), IntPtrConstant(0)), &high_zero);
+    Branch(IntPtrLessThan(var_high.value(), IntPtrConstant(0)), &negative,
+           &allocate_two_digits);
+
+    BIND(&high_zero);
+    Branch(WordEqual(var_low.value(), IntPtrConstant(0)), &if_zero,
+           &allocate_one_digit);
+
+    BIND(&negative);
+    {
+      var_sign = IntPtrConstant(BigInt::SignBits::encode(true));
+      // We must negate the value by computing "0 - (high|low)", performing
+      // both parts of the subtraction separately and manually taking care
+      // of the carry bit (which is 1 iff low != 0).
+      var_high = IntPtrSub(IntPtrConstant(0), var_high.value());
+      Label carry(this), no_carry(this);
+      Branch(WordEqual(var_low.value(), IntPtrConstant(0)), &no_carry, &carry);
+      BIND(&carry);
+      var_high = IntPtrSub(var_high.value(), IntPtrConstant(1));
+      Goto(&no_carry);
+      BIND(&no_carry);
+      var_low = IntPtrSub(IntPtrConstant(0), var_low.value());
+      // var_high was non-zero going into this block, but subtracting the
+      // carry bit from it could bring us back onto the "one digit" path.
+      Branch(WordEqual(var_high.value(), IntPtrConstant(0)),
+             &allocate_one_digit, &allocate_two_digits);
+    }
+
+    BIND(&allocate_one_digit);
+    {
+      var_result = AllocateRawBigInt(IntPtrConstant(1));
+      StoreBigIntBitfield(
+          var_result.value(),
+          WordOr(var_sign.value(),
+                 IntPtrConstant(BigInt::LengthBits::encode(1))));
+      StoreBigIntDigit(var_result.value(), 0, Unsigned(var_low.value()));
+      Goto(&done);
+    }
+
+    BIND(&allocate_two_digits);
+    {
+      var_result = AllocateRawBigInt(IntPtrConstant(2));
+      StoreBigIntBitfield(
+          var_result.value(),
+          WordOr(var_sign.value(),
+                 IntPtrConstant(BigInt::LengthBits::encode(2))));
+      StoreBigIntDigit(var_result.value(), 0, Unsigned(var_low.value()));
+      StoreBigIntDigit(var_result.value(), 1, Unsigned(var_high.value()));
+      Goto(&done);
+    }
   }
-  return Load(type, data_pointer, offset);
+  BIND(&if_zero);
+  var_result = AllocateBigInt(IntPtrConstant(0));
+  Goto(&done);
+
+  BIND(&done);
+  return var_result.value();
+}
+
+Node* CodeStubAssembler::LoadFixedBigUint64ArrayElementAsTagged(
+    Node* data_pointer, Node* offset) {
+  TVARIABLE(BigInt, var_result);
+  Label if_zero(this), done(this);
+  if (Is64()) {
+    TNode<UintPtrT> value = UncheckedCast<UintPtrT>(
+        Load(MachineType::UintPtr(), data_pointer, offset));
+    GotoIf(IntPtrEqual(value, IntPtrConstant(0)), &if_zero);
+    var_result = AllocateBigInt(IntPtrConstant(1));
+    StoreBigIntDigit(var_result.value(), 0, value);
+    Goto(&done);
+  } else {
+    DCHECK(!Is64());
+    Label high_zero(this);
+
+    TNode<UintPtrT> low = UncheckedCast<UintPtrT>(
+        Load(MachineType::UintPtr(), data_pointer, offset));
+    TNode<UintPtrT> high = UncheckedCast<UintPtrT>(
+        Load(MachineType::UintPtr(), data_pointer,
+             Int32Add(offset, Int32Constant(kPointerSize))));
+
+    GotoIf(WordEqual(high, IntPtrConstant(0)), &high_zero);
+    var_result = AllocateBigInt(IntPtrConstant(2));
+    StoreBigIntDigit(var_result.value(), 0, low);
+    StoreBigIntDigit(var_result.value(), 1, high);
+    Goto(&done);
+
+    BIND(&high_zero);
+    GotoIf(WordEqual(low, IntPtrConstant(0)), &if_zero);
+    var_result = AllocateBigInt(IntPtrConstant(1));
+    StoreBigIntDigit(var_result.value(), 0, low);
+    Goto(&done);
+  }
+  BIND(&if_zero);
+  var_result = AllocateBigInt(IntPtrConstant(0));
+  Goto(&done);
+
+  BIND(&done);
+  return var_result.value();
 }
 
 Node* CodeStubAssembler::LoadFixedTypedArrayElementAsTagged(
     Node* data_pointer, Node* index_node, ElementsKind elements_kind,
     ParameterMode parameter_mode) {
-  if (elements_kind == BIGINT64_ELEMENTS) {
-    Node* offset =
-        ElementOffsetFromIndex(index_node, elements_kind, parameter_mode, 0);
-    TVARIABLE(BigInt, var_result);
-    Label done(this), if_zero(this);
-    if (Is64()) {
-      TNode<IntPtrT> value = UncheckedCast<IntPtrT>(
-          Load(MachineType::IntPtr(), data_pointer, offset));
-      Label if_positive(this), if_negative(this);
-      GotoIf(IntPtrEqual(value, IntPtrConstant(0)), &if_zero);
-      var_result = AllocateRawBigInt(IntPtrConstant(1));
-      Branch(IntPtrGreaterThan(value, IntPtrConstant(0)), &if_positive,
-             &if_negative);
-
-      BIND(&if_positive);
-      {
-        StoreBigIntBitfield(var_result.value(),
-                            IntPtrConstant(BigInt::SignBits::encode(false) |
-                                           BigInt::LengthBits::encode(1)));
-        StoreBigIntDigit(var_result.value(), 0, Unsigned(value));
-        Goto(&done);
-      }
-
-      BIND(&if_negative);
-      {
-        StoreBigIntBitfield(var_result.value(),
-                            IntPtrConstant(BigInt::SignBits::encode(true) |
-                                           BigInt::LengthBits::encode(1)));
-        StoreBigIntDigit(var_result.value(), 0,
-                         Unsigned(IntPtrSub(IntPtrConstant(0), value)));
-        Goto(&done);
-      }
-    } else {
-      DCHECK(!Is64());
-      TVARIABLE(WordT, var_sign,
-                IntPtrConstant(BigInt::SignBits::encode(false)));
-      TVARIABLE(IntPtrT, var_low);
-      TVARIABLE(IntPtrT, var_high);
-      var_low = UncheckedCast<IntPtrT>(
-          Load(MachineType::UintPtr(), data_pointer, offset));
-      var_high = UncheckedCast<IntPtrT>(
-          Load(MachineType::UintPtr(), data_pointer,
-               Int32Add(offset, Int32Constant(kPointerSize))));
-
-      Label high_zero(this), negative(this), allocate_one_digit(this),
-          allocate_two_digits(this);
-
-      GotoIf(WordEqual(var_high.value(), IntPtrConstant(0)), &high_zero);
-      Branch(IntPtrLessThan(var_high.value(), IntPtrConstant(0)), &negative,
-             &allocate_two_digits);
-
-      BIND(&high_zero);
-      Branch(WordEqual(var_low.value(), IntPtrConstant(0)), &if_zero,
-             &allocate_one_digit);
-
-      BIND(&negative);
-      {
-        var_sign = IntPtrConstant(BigInt::SignBits::encode(true));
-        // We must negate the value by computing "0 - (high|low)", performing
-        // both parts of the subtraction separately and manually taking care
-        // of the carry bit (which is 1 iff low != 0).
-        var_high = IntPtrSub(IntPtrConstant(0), var_high.value());
-        Label carry(this), no_carry(this);
-        Branch(WordEqual(var_low.value(), IntPtrConstant(0)), &no_carry,
-               &carry);
-        BIND(&carry);
-        var_high = IntPtrSub(var_high.value(), IntPtrConstant(1));
-        Goto(&no_carry);
-        BIND(&no_carry);
-        var_low = IntPtrSub(IntPtrConstant(0), var_low.value());
-        // var_high was non-zero going into this block, but subtracting the
-        // carry bit from it could bring us back onto the "one digit" path.
-        Branch(WordEqual(var_high.value(), IntPtrConstant(0)),
-               &allocate_one_digit, &allocate_two_digits);
-      }
-
-      BIND(&allocate_one_digit);
-      {
-        var_result = AllocateRawBigInt(IntPtrConstant(1));
-        StoreBigIntBitfield(
-            var_result.value(),
-            WordOr(var_sign.value(),
-                   IntPtrConstant(BigInt::LengthBits::encode(1))));
-        StoreBigIntDigit(var_result.value(), 0, Unsigned(var_low.value()));
-        Goto(&done);
-      }
-
-      BIND(&allocate_two_digits);
-      {
-        var_result = AllocateRawBigInt(IntPtrConstant(2));
-        StoreBigIntBitfield(
-            var_result.value(),
-            WordOr(var_sign.value(),
-                   IntPtrConstant(BigInt::LengthBits::encode(2))));
-        StoreBigIntDigit(var_result.value(), 0, Unsigned(var_low.value()));
-        StoreBigIntDigit(var_result.value(), 1, Unsigned(var_high.value()));
-        Goto(&done);
-      }
-    }
-    BIND(&if_zero);
-    var_result = AllocateBigInt(IntPtrConstant(0));
-    Goto(&done);
-
-    BIND(&done);
-    return var_result.value();
-  } else if (elements_kind == BIGUINT64_ELEMENTS) {
-    Node* offset =
-        ElementOffsetFromIndex(index_node, elements_kind, parameter_mode, 0);
-    TVARIABLE(BigInt, var_result);
-    Label if_zero(this), done(this);
-    if (Is64()) {
-      TNode<UintPtrT> value = UncheckedCast<UintPtrT>(
-          Load(MachineType::UintPtr(), data_pointer, offset));
-      GotoIf(IntPtrEqual(value, IntPtrConstant(0)), &if_zero);
-      var_result = AllocateBigInt(IntPtrConstant(1));
-      StoreBigIntDigit(var_result.value(), 0, value);
-      Goto(&done);
-    } else {
-      DCHECK(!Is64());
-      Label high_zero(this);
-
-      TNode<UintPtrT> low = UncheckedCast<UintPtrT>(
-          Load(MachineType::UintPtr(), data_pointer, offset));
-      TNode<UintPtrT> high = UncheckedCast<UintPtrT>(
-          Load(MachineType::UintPtr(), data_pointer,
-               Int32Add(offset, Int32Constant(kPointerSize))));
-
-      GotoIf(WordEqual(high, IntPtrConstant(0)), &high_zero);
-      var_result = AllocateBigInt(IntPtrConstant(2));
-      StoreBigIntDigit(var_result.value(), 0, low);
-      StoreBigIntDigit(var_result.value(), 1, high);
-      Goto(&done);
-
-      BIND(&high_zero);
-      GotoIf(WordEqual(low, IntPtrConstant(0)), &if_zero);
-      var_result = AllocateBigInt(IntPtrConstant(1));
-      StoreBigIntDigit(var_result.value(), 0, low);
-      Goto(&done);
-    }
-    BIND(&if_zero);
-    var_result = AllocateBigInt(IntPtrConstant(0));
-    Goto(&done);
-
-    BIND(&done);
-    return var_result.value();
-  }
-
-  // TODO(jkummerow): Inline this call, and unify a bit more with the above.
-  Node* value = LoadFixedTypedArrayElement(data_pointer, index_node,
-                                           elements_kind, parameter_mode);
+  Node* offset =
+      ElementOffsetFromIndex(index_node, elements_kind, parameter_mode, 0);
   switch (elements_kind) {
-    case ElementsKind::INT8_ELEMENTS:
-    case ElementsKind::UINT8_CLAMPED_ELEMENTS:
-    case ElementsKind::UINT8_ELEMENTS:
-    case ElementsKind::INT16_ELEMENTS:
-    case ElementsKind::UINT16_ELEMENTS:
-      return SmiFromWord32(value);
-    case ElementsKind::INT32_ELEMENTS:
-      return ChangeInt32ToTagged(value);
-    case ElementsKind::UINT32_ELEMENTS:
-      return ChangeUint32ToTagged(value);
-    case ElementsKind::FLOAT32_ELEMENTS:
-      return AllocateHeapNumberWithValue(ChangeFloat32ToFloat64(value));
-    case ElementsKind::FLOAT64_ELEMENTS:
-      return AllocateHeapNumberWithValue(value);
+    case UINT8_ELEMENTS: /* fall through */
+    case UINT8_CLAMPED_ELEMENTS:
+      return SmiFromWord32(Load(MachineType::Uint8(), data_pointer, offset));
+    case INT8_ELEMENTS:
+      return SmiFromWord32(Load(MachineType::Int8(), data_pointer, offset));
+    case UINT16_ELEMENTS:
+      return SmiFromWord32(Load(MachineType::Uint16(), data_pointer, offset));
+    case INT16_ELEMENTS:
+      return SmiFromWord32(Load(MachineType::Int16(), data_pointer, offset));
+    case UINT32_ELEMENTS:
+      return ChangeUint32ToTagged(
+          Load(MachineType::Uint32(), data_pointer, offset));
+    case INT32_ELEMENTS:
+      return ChangeInt32ToTagged(
+          Load(MachineType::Int32(), data_pointer, offset));
+    case FLOAT32_ELEMENTS:
+      return AllocateHeapNumberWithValue(ChangeFloat32ToFloat64(
+          Load(MachineType::Float32(), data_pointer, offset)));
+    case FLOAT64_ELEMENTS:
+      return AllocateHeapNumberWithValue(
+          Load(MachineType::Float64(), data_pointer, offset));
+    case BIGINT64_ELEMENTS:
+      return LoadFixedBigInt64ArrayElementAsTagged(data_pointer, offset);
+    case BIGUINT64_ELEMENTS:
+      return LoadFixedBigUint64ArrayElementAsTagged(data_pointer, offset);
     default:
       UNREACHABLE();
   }

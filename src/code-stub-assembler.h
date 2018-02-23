@@ -634,12 +634,13 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
       MachineType machine_type = MachineType::Float64());
   TNode<RawPtrT> LoadFixedTypedArrayBackingStore(
       TNode<FixedTypedArrayBase> typed_array);
-  Node* LoadFixedTypedArrayElement(
-      Node* data_pointer, Node* index_node, ElementsKind elements_kind,
-      ParameterMode parameter_mode = INTPTR_PARAMETERS);
   Node* LoadFixedTypedArrayElementAsTagged(
       Node* data_pointer, Node* index_node, ElementsKind elements_kind,
       ParameterMode parameter_mode = INTPTR_PARAMETERS);
+  // Parts of the above, factored out for readability:
+  Node* LoadFixedBigInt64ArrayElementAsTagged(Node* data_pointer, Node* offset);
+  Node* LoadFixedBigUint64ArrayElementAsTagged(Node* data_pointer,
+                                               Node* offset);
 
   // Context manipulation
   TNode<Object> LoadContextElement(SloppyTNode<Context> context,

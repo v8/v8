@@ -3707,59 +3707,50 @@ TF_BUILTIN(ArrayIteratorPrototypeNext, CodeStubAssembler) {
 
       BIND(&uint8_values);
       {
-        Node* value_uint8 = LoadFixedTypedArrayElement(
-            data_ptr, index, UINT8_ELEMENTS, SMI_PARAMETERS);
-        var_value.Bind(SmiFromWord32(value_uint8));
+        var_value.Bind(LoadFixedTypedArrayElementAsTagged(
+            data_ptr, index, UINT8_ELEMENTS, SMI_PARAMETERS));
         Goto(&allocate_entry_if_needed);
       }
       BIND(&int8_values);
       {
-        Node* value_int8 = LoadFixedTypedArrayElement(
-            data_ptr, index, INT8_ELEMENTS, SMI_PARAMETERS);
-        var_value.Bind(SmiFromWord32(value_int8));
+        var_value.Bind(LoadFixedTypedArrayElementAsTagged(
+            data_ptr, index, INT8_ELEMENTS, SMI_PARAMETERS));
         Goto(&allocate_entry_if_needed);
       }
       BIND(&uint16_values);
       {
-        Node* value_uint16 = LoadFixedTypedArrayElement(
-            data_ptr, index, UINT16_ELEMENTS, SMI_PARAMETERS);
-        var_value.Bind(SmiFromWord32(value_uint16));
+        var_value.Bind(LoadFixedTypedArrayElementAsTagged(
+            data_ptr, index, UINT16_ELEMENTS, SMI_PARAMETERS));
         Goto(&allocate_entry_if_needed);
       }
       BIND(&int16_values);
       {
-        Node* value_int16 = LoadFixedTypedArrayElement(
-            data_ptr, index, INT16_ELEMENTS, SMI_PARAMETERS);
-        var_value.Bind(SmiFromWord32(value_int16));
+        var_value.Bind(LoadFixedTypedArrayElementAsTagged(
+            data_ptr, index, INT16_ELEMENTS, SMI_PARAMETERS));
         Goto(&allocate_entry_if_needed);
       }
       BIND(&uint32_values);
       {
-        Node* value_uint32 = LoadFixedTypedArrayElement(
-            data_ptr, index, UINT32_ELEMENTS, SMI_PARAMETERS);
-        var_value.Bind(ChangeUint32ToTagged(value_uint32));
+        var_value.Bind(LoadFixedTypedArrayElementAsTagged(
+            data_ptr, index, UINT32_ELEMENTS, SMI_PARAMETERS));
         Goto(&allocate_entry_if_needed);
       }
       BIND(&int32_values);
       {
-        Node* value_int32 = LoadFixedTypedArrayElement(
-            data_ptr, index, INT32_ELEMENTS, SMI_PARAMETERS);
-        var_value.Bind(ChangeInt32ToTagged(value_int32));
+        var_value.Bind(LoadFixedTypedArrayElementAsTagged(
+            data_ptr, index, INT32_ELEMENTS, SMI_PARAMETERS));
         Goto(&allocate_entry_if_needed);
       }
       BIND(&float32_values);
       {
-        Node* value_float32 = LoadFixedTypedArrayElement(
-            data_ptr, index, FLOAT32_ELEMENTS, SMI_PARAMETERS);
-        var_value.Bind(
-            AllocateHeapNumberWithValue(ChangeFloat32ToFloat64(value_float32)));
+        var_value.Bind(LoadFixedTypedArrayElementAsTagged(
+            data_ptr, index, FLOAT32_ELEMENTS, SMI_PARAMETERS));
         Goto(&allocate_entry_if_needed);
       }
       BIND(&float64_values);
       {
-        Node* value_float64 = LoadFixedTypedArrayElement(
-            data_ptr, index, FLOAT64_ELEMENTS, SMI_PARAMETERS);
-        var_value.Bind(AllocateHeapNumberWithValue(value_float64));
+        var_value.Bind(LoadFixedTypedArrayElementAsTagged(
+            data_ptr, index, FLOAT64_ELEMENTS, SMI_PARAMETERS));
         Goto(&allocate_entry_if_needed);
       }
       BIND(&biguint64_values);
