@@ -2430,11 +2430,11 @@ TNode<UintPtrT> CodeStubAssembler::LoadBigIntDigit(TNode<BigInt> bigint,
       MachineType::UintPtr()));
 }
 
-Node* CodeStubAssembler::AllocateSeqOneByteString(int length,
-                                                  AllocationFlags flags) {
+TNode<String> CodeStubAssembler::AllocateSeqOneByteString(
+    int length, AllocationFlags flags) {
   Comment("AllocateSeqOneByteString");
   if (length == 0) {
-    return LoadRoot(Heap::kempty_stringRootIndex);
+    return CAST(LoadRoot(Heap::kempty_stringRootIndex));
   }
   Node* result = Allocate(SeqOneByteString::SizeFor(length), flags);
   DCHECK(Heap::RootIsImmortalImmovable(Heap::kOneByteStringMapRootIndex));
@@ -2445,7 +2445,7 @@ Node* CodeStubAssembler::AllocateSeqOneByteString(int length,
   StoreObjectFieldNoWriteBarrier(result, SeqOneByteString::kHashFieldSlot,
                                  IntPtrConstant(String::kEmptyHashField),
                                  MachineType::PointerRepresentation());
-  return result;
+  return CAST(result);
 }
 
 Node* CodeStubAssembler::IsZeroOrFixedArray(Node* object) {
@@ -2462,9 +2462,8 @@ Node* CodeStubAssembler::IsZeroOrFixedArray(Node* object) {
   return var_result.value();
 }
 
-Node* CodeStubAssembler::AllocateSeqOneByteString(Node* context,
-                                                  TNode<Smi> length,
-                                                  AllocationFlags flags) {
+TNode<String> CodeStubAssembler::AllocateSeqOneByteString(
+    Node* context, TNode<Smi> length, AllocationFlags flags) {
   Comment("AllocateSeqOneByteString");
   CSA_SLOW_ASSERT(this, IsZeroOrFixedArray(context));
   VARIABLE(var_result, MachineRepresentation::kTagged);
@@ -2512,14 +2511,14 @@ Node* CodeStubAssembler::AllocateSeqOneByteString(Node* context,
   }
 
   BIND(&if_join);
-  return var_result.value();
+  return CAST(var_result.value());
 }
 
-Node* CodeStubAssembler::AllocateSeqTwoByteString(int length,
-                                                  AllocationFlags flags) {
+TNode<String> CodeStubAssembler::AllocateSeqTwoByteString(
+    int length, AllocationFlags flags) {
   Comment("AllocateSeqTwoByteString");
   if (length == 0) {
-    return LoadRoot(Heap::kempty_stringRootIndex);
+    return CAST(LoadRoot(Heap::kempty_stringRootIndex));
   }
   Node* result = Allocate(SeqTwoByteString::SizeFor(length), flags);
   DCHECK(Heap::RootIsImmortalImmovable(Heap::kStringMapRootIndex));
@@ -2530,12 +2529,11 @@ Node* CodeStubAssembler::AllocateSeqTwoByteString(int length,
   StoreObjectFieldNoWriteBarrier(result, SeqTwoByteString::kHashFieldSlot,
                                  IntPtrConstant(String::kEmptyHashField),
                                  MachineType::PointerRepresentation());
-  return result;
+  return CAST(result);
 }
 
-Node* CodeStubAssembler::AllocateSeqTwoByteString(Node* context,
-                                                  TNode<Smi> length,
-                                                  AllocationFlags flags) {
+TNode<String> CodeStubAssembler::AllocateSeqTwoByteString(
+    Node* context, TNode<Smi> length, AllocationFlags flags) {
   CSA_SLOW_ASSERT(this, IsZeroOrFixedArray(context));
   Comment("AllocateSeqTwoByteString");
   VARIABLE(var_result, MachineRepresentation::kTagged);
@@ -2583,12 +2581,14 @@ Node* CodeStubAssembler::AllocateSeqTwoByteString(Node* context,
   }
 
   BIND(&if_join);
-  return var_result.value();
+  return CAST(var_result.value());
 }
 
-Node* CodeStubAssembler::AllocateSlicedString(
+TNode<String> CodeStubAssembler::AllocateSlicedString(
     Heap::RootListIndex map_root_index, TNode<Smi> length, Node* parent,
     Node* offset) {
+  DCHECK(map_root_index == Heap::kSlicedOneByteStringMapRootIndex ||
+         map_root_index == Heap::kSlicedStringMapRootIndex);
   CSA_ASSERT(this, IsString(parent));
   CSA_ASSERT(this, TaggedIsSmi(offset));
   Node* result = Allocate(SlicedString::kSize);
@@ -2603,29 +2603,28 @@ Node* CodeStubAssembler::AllocateSlicedString(
                                  MachineRepresentation::kTagged);
   StoreObjectFieldNoWriteBarrier(result, SlicedString::kOffsetOffset, offset,
                                  MachineRepresentation::kTagged);
-  return result;
+  return CAST(result);
 }
 
-Node* CodeStubAssembler::AllocateSlicedOneByteString(TNode<Smi> length,
-                                                     Node* parent,
-                                                     Node* offset) {
+TNode<String> CodeStubAssembler::AllocateSlicedOneByteString(TNode<Smi> length,
+                                                             Node* parent,
+                                                             Node* offset) {
   return AllocateSlicedString(Heap::kSlicedOneByteStringMapRootIndex, length,
                               parent, offset);
 }
 
-Node* CodeStubAssembler::AllocateSlicedTwoByteString(TNode<Smi> length,
-                                                     Node* parent,
-                                                     Node* offset) {
+TNode<String> CodeStubAssembler::AllocateSlicedTwoByteString(TNode<Smi> length,
+                                                             Node* parent,
+                                                             Node* offset) {
   return AllocateSlicedString(Heap::kSlicedStringMapRootIndex, length, parent,
                               offset);
 }
 
-Node* CodeStubAssembler::AllocateConsString(Heap::RootListIndex map_root_index,
-                                            TNode<Smi> length, Node* first,
-                                            Node* second,
-                                            AllocationFlags flags) {
-  CSA_ASSERT(this, IsString(first));
-  CSA_ASSERT(this, IsString(second));
+TNode<String> CodeStubAssembler::AllocateConsString(
+    Heap::RootListIndex map_root_index, TNode<Smi> length, TNode<String> first,
+    TNode<String> second, AllocationFlags flags) {
+  DCHECK(map_root_index == Heap::kConsOneByteStringMapRootIndex ||
+         map_root_index == Heap::kConsStringMapRootIndex);
   Node* result = Allocate(ConsString::kSize, flags);
   DCHECK(Heap::RootIsImmortalImmovable(map_root_index));
   StoreMapNoWriteBarrier(result, map_root_index);
@@ -2644,29 +2643,28 @@ Node* CodeStubAssembler::AllocateConsString(Heap::RootListIndex map_root_index,
     StoreObjectField(result, ConsString::kFirstOffset, first);
     StoreObjectField(result, ConsString::kSecondOffset, second);
   }
-  return result;
+  return CAST(result);
 }
 
-Node* CodeStubAssembler::AllocateOneByteConsString(TNode<Smi> length,
-                                                   Node* first, Node* second,
-                                                   AllocationFlags flags) {
+TNode<String> CodeStubAssembler::AllocateOneByteConsString(
+    TNode<Smi> length, TNode<String> first, TNode<String> second,
+    AllocationFlags flags) {
   return AllocateConsString(Heap::kConsOneByteStringMapRootIndex, length, first,
                             second, flags);
 }
 
-Node* CodeStubAssembler::AllocateTwoByteConsString(TNode<Smi> length,
-                                                   Node* first, Node* second,
-                                                   AllocationFlags flags) {
+TNode<String> CodeStubAssembler::AllocateTwoByteConsString(
+    TNode<Smi> length, TNode<String> first, TNode<String> second,
+    AllocationFlags flags) {
   return AllocateConsString(Heap::kConsStringMapRootIndex, length, first,
                             second, flags);
 }
 
-Node* CodeStubAssembler::NewConsString(Node* context, TNode<Smi> length,
-                                       Node* left, Node* right,
-                                       AllocationFlags flags) {
+TNode<String> CodeStubAssembler::NewConsString(Node* context, TNode<Smi> length,
+                                               TNode<String> left,
+                                               TNode<String> right,
+                                               AllocationFlags flags) {
   CSA_ASSERT(this, IsFixedArray(context));
-  CSA_ASSERT(this, IsString(left));
-  CSA_ASSERT(this, IsString(right));
   // Added string can be a cons string.
   Comment("Allocating ConsString");
   Node* left_instance_type = LoadInstanceType(left);
@@ -2691,7 +2689,7 @@ Node* CodeStubAssembler::NewConsString(Node* context, TNode<Smi> length,
   STATIC_ASSERT(kOneByteDataHintTag != 0);
   Label one_byte_map(this);
   Label two_byte_map(this);
-  VARIABLE(result, MachineRepresentation::kTagged);
+  TVARIABLE(String, result);
   Label done(this, &result);
   GotoIf(IsSetWord32(anded_instance_types,
                      kStringEncodingMask | kOneByteDataHintTag),
@@ -2704,12 +2702,12 @@ Node* CodeStubAssembler::NewConsString(Node* context, TNode<Smi> length,
 
   BIND(&one_byte_map);
   Comment("One-byte ConsString");
-  result.Bind(AllocateOneByteConsString(length, left, right, flags));
+  result = AllocateOneByteConsString(length, left, right, flags);
   Goto(&done);
 
   BIND(&two_byte_map);
   Comment("Two-byte ConsString");
-  result.Bind(AllocateTwoByteConsString(length, left, right, flags));
+  result = AllocateTwoByteConsString(length, left, right, flags);
   Goto(&done);
 
   BIND(&done);
@@ -4959,11 +4957,11 @@ TNode<String> CodeStubAssembler::StringFromCharCode(TNode<Int32T> code) {
 // given character range using CopyStringCharacters.
 // |from_string| must be a sequential string.
 // 0 <= |from_index| <= |from_index| + |character_count| < from_string.length.
-Node* CodeStubAssembler::AllocAndCopyStringCharacters(
+TNode<String> CodeStubAssembler::AllocAndCopyStringCharacters(
     Node* from, Node* from_instance_type, TNode<IntPtrT> from_index,
     TNode<Smi> character_count) {
   Label end(this), one_byte_sequential(this), two_byte_sequential(this);
-  Variable var_result(this, MachineRepresentation::kTagged);
+  TVARIABLE(String, var_result);
 
   Branch(IsOneByteStringInstanceType(from_instance_type), &one_byte_sequential,
          &two_byte_sequential);
@@ -4971,26 +4969,24 @@ Node* CodeStubAssembler::AllocAndCopyStringCharacters(
   // The subject string is a sequential one-byte string.
   BIND(&one_byte_sequential);
   {
-    Node* result =
+    TNode<String> result =
         AllocateSeqOneByteString(NoContextConstant(), character_count);
     CopyStringCharacters(from, result, from_index, IntPtrConstant(0),
                          SmiUntag(character_count), String::ONE_BYTE_ENCODING,
                          String::ONE_BYTE_ENCODING);
-    var_result.Bind(result);
-
+    var_result = result;
     Goto(&end);
   }
 
   // The subject string is a sequential two-byte string.
   BIND(&two_byte_sequential);
   {
-    Node* result =
+    TNode<String> result =
         AllocateSeqTwoByteString(NoContextConstant(), character_count);
     CopyStringCharacters(from, result, from_index, IntPtrConstant(0),
                          SmiUntag(character_count), String::TWO_BYTE_ENCODING,
                          String::TWO_BYTE_ENCODING);
-    var_result.Bind(result);
-
+    var_result = result;
     Goto(&end);
   }
 
@@ -4998,14 +4994,12 @@ Node* CodeStubAssembler::AllocAndCopyStringCharacters(
   return var_result.value();
 }
 
-Node* CodeStubAssembler::SubString(Node* string, Node* from, Node* to) {
-  VARIABLE(var_result, MachineRepresentation::kTagged);
+TNode<String> CodeStubAssembler::SubString(TNode<String> string,
+                                           SloppyTNode<Smi> from,
+                                           SloppyTNode<Smi> to) {
+  TVARIABLE(String, var_result);
   ToDirectStringAssembler to_direct(state(), string);
   Label end(this), runtime(this);
-
-  // Make sure first argument is a string.
-  CSA_ASSERT(this, TaggedIsNotSmi(string));
-  CSA_ASSERT(this, IsString(string));
 
   // Make sure that both from and to are non-negative smis.
   CSA_ASSERT(this, TaggedIsPositiveSmi(from));
@@ -5056,15 +5050,15 @@ Node* CodeStubAssembler::SubString(Node* string, Node* from, Node* to) {
 
       BIND(&one_byte_slice);
       {
-        var_result.Bind(
-            AllocateSlicedOneByteString(substr_length, direct_string, offset));
+        var_result =
+            AllocateSlicedOneByteString(substr_length, direct_string, offset);
         Goto(&end);
       }
 
       BIND(&two_byte_slice);
       {
-        var_result.Bind(
-            AllocateSlicedTwoByteString(substr_length, direct_string, offset));
+        var_result =
+            AllocateSlicedTwoByteString(substr_length, direct_string, offset);
         Goto(&end);
       }
 
@@ -5075,8 +5069,8 @@ Node* CodeStubAssembler::SubString(Node* string, Node* from, Node* to) {
     // encoding at this point.
     GotoIf(to_direct.is_external(), &external_string);
 
-    var_result.Bind(AllocAndCopyStringCharacters(
-        direct_string, instance_type, SmiUntag(offset), substr_length));
+    var_result = AllocAndCopyStringCharacters(direct_string, instance_type,
+                                              SmiUntag(offset), substr_length);
 
     Counters* counters = isolate()->counters();
     IncrementCounter(counters->sub_string_native(), 1);
@@ -5089,9 +5083,8 @@ Node* CodeStubAssembler::SubString(Node* string, Node* from, Node* to) {
   {
     Node* const fake_sequential_string = to_direct.PointerToString(&runtime);
 
-    var_result.Bind(
-        AllocAndCopyStringCharacters(fake_sequential_string, instance_type,
-                                     SmiUntag(offset), substr_length));
+    var_result = AllocAndCopyStringCharacters(
+        fake_sequential_string, instance_type, SmiUntag(offset), substr_length);
 
     Counters* counters = isolate()->counters();
     IncrementCounter(counters->sub_string_native(), 1);
@@ -5103,7 +5096,7 @@ Node* CodeStubAssembler::SubString(Node* string, Node* from, Node* to) {
   BIND(&single_char);
   {
     TNode<Int32T> char_code = StringCharCodeAt(string, SmiUntag(from));
-    var_result.Bind(StringFromCharCode(char_code));
+    var_result = StringFromCharCode(char_code);
     Goto(&end);
   }
 
@@ -5119,20 +5112,19 @@ Node* CodeStubAssembler::SubString(Node* string, Node* from, Node* to) {
     Counters* counters = isolate()->counters();
     IncrementCounter(counters->sub_string_native(), 1);
 
-    var_result.Bind(string);
+    var_result = string;
     Goto(&end);
   }
 
   // Fall back to a runtime call.
   BIND(&runtime);
   {
-    var_result.Bind(CallRuntime(Runtime::kSubString, NoContextConstant(),
-                                string, from, to));
+    var_result = CAST(CallRuntime(Runtime::kSubString, NoContextConstant(),
+                                  string, from, to));
     Goto(&end);
   }
 
   BIND(&end);
-  CSA_ASSERT(this, IsString(var_result.value()));
   return var_result.value();
 }
 
@@ -5354,22 +5346,23 @@ void CodeStubAssembler::MaybeDerefIndirectStrings(Variable* var_left,
   // Fall through if neither string was an indirect string.
 }
 
-Node* CodeStubAssembler::StringAdd(Node* context, Node* left, Node* right,
-                                   AllocationFlags flags) {
-  VARIABLE(result, MachineRepresentation::kTagged);
+TNode<String> CodeStubAssembler::StringAdd(Node* context, TNode<String> left,
+                                           TNode<String> right,
+                                           AllocationFlags flags) {
+  TVARIABLE(String, result);
   Label check_right(this), runtime(this, Label::kDeferred), cons(this),
       done(this, &result), done_native(this, &result);
   Counters* counters = isolate()->counters();
 
   TNode<Smi> left_length = LoadStringLengthAsSmi(left);
   GotoIf(SmiNotEqual(SmiConstant(0), left_length), &check_right);
-  result.Bind(right);
+  result = right;
   Goto(&done_native);
 
   BIND(&check_right);
   TNode<Smi> right_length = LoadStringLengthAsSmi(right);
   GotoIf(SmiNotEqual(SmiConstant(0), right_length), &cons);
-  result.Bind(left);
+  result = left;
   Goto(&done_native);
 
   BIND(&cons);
@@ -5382,16 +5375,16 @@ Node* CodeStubAssembler::StringAdd(Node* context, Node* left, Node* right,
     GotoIf(SmiGreaterThan(new_length, SmiConstant(String::kMaxLength)),
            &runtime);
 
-    VARIABLE(var_left, MachineRepresentation::kTagged, left);
-    VARIABLE(var_right, MachineRepresentation::kTagged, right);
+    TVARIABLE(String, var_left, left);
+    TVARIABLE(String, var_right, right);
     Variable* input_vars[2] = {&var_left, &var_right};
     Label non_cons(this, 2, input_vars);
     Label slow(this, Label::kDeferred);
     GotoIf(SmiLessThan(new_length, SmiConstant(ConsString::kMinLength)),
            &non_cons);
 
-    result.Bind(NewConsString(context, new_length, var_left.value(),
-                              var_right.value(), flags));
+    result = NewConsString(context, new_length, var_left.value(),
+                           var_right.value(), flags);
     Goto(&done_native);
 
     BIND(&non_cons);
@@ -5419,29 +5412,27 @@ Node* CodeStubAssembler::StringAdd(Node* context, Node* left, Node* right,
                        Int32Constant(kTwoByteStringTag)),
            &two_byte);
     // One-byte sequential string case
-    Node* new_string = AllocateSeqOneByteString(context, new_length);
-    CopyStringCharacters(var_left.value(), new_string, IntPtrConstant(0),
+    result = AllocateSeqOneByteString(context, new_length);
+    CopyStringCharacters(var_left.value(), result.value(), IntPtrConstant(0),
                          IntPtrConstant(0), word_left_length,
                          String::ONE_BYTE_ENCODING, String::ONE_BYTE_ENCODING);
-    CopyStringCharacters(var_right.value(), new_string, IntPtrConstant(0),
+    CopyStringCharacters(var_right.value(), result.value(), IntPtrConstant(0),
                          word_left_length, word_right_length,
                          String::ONE_BYTE_ENCODING, String::ONE_BYTE_ENCODING);
-    result.Bind(new_string);
     Goto(&done_native);
 
     BIND(&two_byte);
     {
       // Two-byte sequential string case
-      new_string = AllocateSeqTwoByteString(context, new_length);
-      CopyStringCharacters(var_left.value(), new_string, IntPtrConstant(0),
+      result = AllocateSeqTwoByteString(context, new_length);
+      CopyStringCharacters(var_left.value(), result.value(), IntPtrConstant(0),
                            IntPtrConstant(0), word_left_length,
                            String::TWO_BYTE_ENCODING,
                            String::TWO_BYTE_ENCODING);
-      CopyStringCharacters(var_right.value(), new_string, IntPtrConstant(0),
+      CopyStringCharacters(var_right.value(), result.value(), IntPtrConstant(0),
                            word_left_length, word_right_length,
                            String::TWO_BYTE_ENCODING,
                            String::TWO_BYTE_ENCODING);
-      result.Bind(new_string);
       Goto(&done_native);
     }
 
@@ -5455,7 +5446,7 @@ Node* CodeStubAssembler::StringAdd(Node* context, Node* left, Node* right,
   }
   BIND(&runtime);
   {
-    result.Bind(CallRuntime(Runtime::kStringAdd, context, left, right));
+    result = CAST(CallRuntime(Runtime::kStringAdd, context, left, right));
     Goto(&done);
   }
 

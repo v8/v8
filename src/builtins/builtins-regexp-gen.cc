@@ -136,10 +136,9 @@ void RegExpBuiltinsAssembler::StoreLastIndex(Node* context, Node* regexp,
 
 Node* RegExpBuiltinsAssembler::ConstructNewResultFromMatchInfo(
     Node* const context, Node* const regexp, Node* const match_info,
-    Node* const string) {
+    TNode<String> const string) {
   CSA_ASSERT(this, IsFixedArrayMap(LoadMap(match_info)));
   CSA_ASSERT(this, IsJSRegExp(regexp));
-  CSA_ASSERT(this, IsString(string));
 
   Label named_captures(this), out(this);
 
@@ -153,7 +152,7 @@ Node* RegExpBuiltinsAssembler::ConstructNewResultFromMatchInfo(
 
   // Calculate the substring of the first match before creating the result array
   // to avoid an unnecessary write barrier storing the first result.
-  Node* const first = SubString(string, start, end);
+  TNode<String> const first = SubString(string, start, end);
 
   Node* const result =
       AllocateRegExpResult(context, num_results, start, string);
@@ -189,7 +188,7 @@ Node* RegExpBuiltinsAssembler::ConstructNewResultFromMatchInfo(
     Node* const from_cursor_plus1 = IntPtrAdd(from_cursor, IntPtrConstant(1));
     Node* const end = LoadFixedArrayElement(match_info, from_cursor_plus1);
 
-    Node* const capture = SubString(string, start, end);
+    TNode<String> const capture = SubString(string, start, end);
     StoreFixedArrayElement(result_elements, to_cursor, capture);
     Goto(&next_iter);
 
@@ -760,10 +759,9 @@ Node* RegExpBuiltinsAssembler::RegExpPrototypeExecBodyWithoutResult(
 
 // ES#sec-regexp.prototype.exec
 // RegExp.prototype.exec ( string )
-Node* RegExpBuiltinsAssembler::RegExpPrototypeExecBody(Node* const context,
-                                                       Node* const regexp,
-                                                       Node* const string,
-                                                       const bool is_fastpath) {
+Node* RegExpBuiltinsAssembler::RegExpPrototypeExecBody(
+    Node* const context, Node* const regexp, TNode<String> const string,
+    const bool is_fastpath) {
   VARIABLE(var_result, MachineRepresentation::kTagged);
 
   Label if_didnotmatch(this), out(this);
@@ -938,7 +936,7 @@ void RegExpBuiltinsAssembler::BranchIfFastRegExpResult(Node* const context,
 // Slow path stub for RegExpPrototypeExec to decrease code size.
 TF_BUILTIN(RegExpPrototypeExecSlow, RegExpBuiltinsAssembler) {
   Node* const regexp = Parameter(Descriptor::kReceiver);
-  Node* const string = Parameter(Descriptor::kString);
+  TNode<String> const string = CAST(Parameter(Descriptor::kString));
   Node* const context = Parameter(Descriptor::kContext);
 
   Return(RegExpPrototypeExecBody(context, regexp, string, false));
@@ -1024,7 +1022,7 @@ TF_BUILTIN(RegExpPrototypeExec, RegExpBuiltinsAssembler) {
   Node* const receiver = maybe_receiver;
 
   // Convert {maybe_string} to a String.
-  Node* const string = ToString_Inline(context, maybe_string);
+  TNode<String> const string = ToString_Inline(context, maybe_string);
 
   Label if_isfastpath(this), if_isslowpath(this);
   Branch(IsFastRegExpNoPrototype(context, receiver), &if_isfastpath,
@@ -1687,7 +1685,7 @@ TF_BUILTIN(RegExpPrototypeTest, RegExpBuiltinsAssembler) {
   Node* const receiver = maybe_receiver;
 
   // Convert {maybe_string} to a String.
-  Node* const string = ToString_Inline(context, maybe_string);
+  TNode<String> const string = ToString_Inline(context, maybe_string);
 
   Label fast_path(this), slow_path(this);
   BranchIfFastRegExp(context, receiver, &fast_path, &slow_path);
@@ -1777,14 +1775,12 @@ Node* RegExpBuiltinsAssembler::AdvanceStringIndex(Node* const string,
 
 void RegExpBuiltinsAssembler::RegExpPrototypeMatchBody(Node* const context,
                                                        Node* const regexp,
-                                                       Node* const string,
+                                                       TNode<String> string,
                                                        const bool is_fastpath) {
-  CSA_ASSERT(this, IsString(string));
   if (is_fastpath) CSA_ASSERT(this, IsFastRegExp(context, regexp));
 
   Node* const int_zero = IntPtrConstant(0);
   Node* const smi_zero = SmiConstant(0);
-
   Node* const is_global =
       FlagGetter(context, regexp, JSRegExp::kGlobal, is_fastpath);
 
@@ -1834,9 +1830,7 @@ void RegExpBuiltinsAssembler::RegExpPrototypeMatchBody(Node* const context,
         Node* const match_to = LoadFixedArrayElement(
             match_indices, RegExpMatchInfo::kFirstCaptureIndex + 1);
 
-        Node* match = SubString(string, match_from, match_to);
-        var_match.Bind(match);
-
+        var_match.Bind(SubString(string, match_from, match_to));
         Goto(&if_didmatch);
       } else {
         DCHECK(!is_fastpath);
@@ -1940,7 +1934,7 @@ TF_BUILTIN(RegExpPrototypeMatch, RegExpBuiltinsAssembler) {
   Node* const receiver = maybe_receiver;
 
   // Convert {maybe_string} to a String.
-  Node* const string = ToString_Inline(context, maybe_string);
+  TNode<String> const string = ToString_Inline(context, maybe_string);
 
   Label fast_path(this), slow_path(this);
   BranchIfFastRegExp(context, receiver, &fast_path, &slow_path);
@@ -1959,7 +1953,7 @@ TF_BUILTIN(RegExpPrototypeMatch, RegExpBuiltinsAssembler) {
 // 2) pattern is a string
 TF_BUILTIN(RegExpMatchFast, RegExpBuiltinsAssembler) {
   Node* const receiver = Parameter(Descriptor::kReceiver);
-  Node* const string = Parameter(Descriptor::kPattern);
+  TNode<String> const string = CAST(Parameter(Descriptor::kPattern));
   Node* const context = Parameter(Descriptor::kContext);
 
   RegExpPrototypeMatchBody(context, receiver, string, true);
@@ -2081,7 +2075,7 @@ TF_BUILTIN(RegExpPrototypeSearch, RegExpBuiltinsAssembler) {
   Node* const receiver = maybe_receiver;
 
   // Convert {maybe_string} to a String.
-  Node* const string = ToString_Inline(context, maybe_string);
+  TNode<String> const string = ToString_Inline(context, maybe_string);
 
   Label fast_path(this), slow_path(this);
   BranchIfFastRegExp(context, receiver, &fast_path, &slow_path);
@@ -2110,12 +2104,11 @@ TF_BUILTIN(RegExpSearchFast, RegExpBuiltinsAssembler) {
 // JSRegExp, {string} is a String, and {limit} is a Smi.
 void RegExpBuiltinsAssembler::RegExpPrototypeSplitBody(Node* const context,
                                                        Node* const regexp,
-                                                       Node* const string,
+                                                       TNode<String> string,
                                                        Node* const limit) {
   CSA_ASSERT(this, IsFastRegExp(context, regexp));
   CSA_ASSERT(this, Word32BinaryNot(FastFlagGetter(regexp, JSRegExp::kSticky)));
   CSA_ASSERT(this, TaggedIsSmi(limit));
-  CSA_ASSERT(this, IsString(string));
 
   TNode<Smi> const smi_zero = SmiConstant(0);
   TNode<IntPtrT> const int_zero = IntPtrConstant(0);
@@ -2255,10 +2248,7 @@ void RegExpBuiltinsAssembler::RegExpPrototypeSplitBody(Node* const context,
     {
       Node* const from = last_matched_until;
       Node* const to = match_from;
-
-      TNode<String> const substr = CAST(SubString(string, from, to));
-      array.Push(substr);
-
+      array.Push(SubString(string, from, to));
       GotoIf(WordEqual(array.length(), int_limit), &out);
     }
 
@@ -2295,15 +2285,13 @@ void RegExpBuiltinsAssembler::RegExpPrototypeSplitBody(Node* const context,
 
         BIND(&select_capture);
         {
-          Node* const substr = SubString(string, from, to);
-          var_value.Bind(substr);
+          var_value.Bind(SubString(string, from, to));
           Goto(&store_value);
         }
 
         BIND(&select_undefined);
         {
-          Node* const undefined = UndefinedConstant();
-          var_value.Bind(undefined);
+          var_value.Bind(UndefinedConstant());
           Goto(&store_value);
         }
 
@@ -2332,10 +2320,7 @@ void RegExpBuiltinsAssembler::RegExpPrototypeSplitBody(Node* const context,
   {
     Node* const from = var_last_matched_until.value();
     Node* const to = string_length;
-
-    TNode<String> const substr = CAST(SubString(string, from, to));
-    array.Push(substr);
-
+    array.Push(SubString(string, from, to));
     Goto(&out);
   }
 
@@ -2358,12 +2343,11 @@ void RegExpBuiltinsAssembler::RegExpPrototypeSplitBody(Node* const context,
 // Helper that skips a few initial checks.
 TF_BUILTIN(RegExpSplit, RegExpBuiltinsAssembler) {
   Node* const regexp = Parameter(Descriptor::kRegExp);
-  Node* const string = Parameter(Descriptor::kString);
+  TNode<String> const string = CAST(Parameter(Descriptor::kString));
   Node* const maybe_limit = Parameter(Descriptor::kLimit);
   Node* const context = Parameter(Descriptor::kContext);
 
   CSA_ASSERT(this, IsFastRegExp(context, regexp));
-  CSA_ASSERT(this, IsString(string));
 
   // TODO(jgruber): Even if map checks send us to the fast path, we still need
   // to verify the constructor property and jump to the slow path if it has
@@ -2433,7 +2417,7 @@ TF_BUILTIN(RegExpPrototypeSplit, RegExpBuiltinsAssembler) {
   Node* const receiver = maybe_receiver;
 
   // Convert {maybe_string} to a String.
-  Node* const string = ToString_Inline(context, maybe_string);
+  TNode<String> const string = ToString_Inline(context, maybe_string);
 
   Label stub(this), runtime(this, Label::kDeferred);
   BranchIfFastRegExp(context, receiver, &stub, &runtime);
@@ -2579,7 +2563,8 @@ Node* RegExpBuiltinsAssembler::ReplaceGlobalCallableFastPath(
             CallJS(call_callable, context, replace_callable, undefined, elem,
                    match_start, string);
 
-        Node* const replacement_str = ToString_Inline(context, replacement_obj);
+        TNode<String> const replacement_str =
+            ToString_Inline(context, replacement_obj);
         StoreFixedArrayElement(res_elems, var_i.value(), replacement_str);
 
         TNode<Smi> const elem_length = LoadStringLengthAsSmi(elem);
@@ -2629,7 +2614,7 @@ Node* RegExpBuiltinsAssembler::ReplaceGlobalCallableFastPath(
                     // Overwrite the i'th element in the results with the string
                     // we got back from the callback function.
 
-                    Node* const replacement_str =
+                    TNode<String> const replacement_str =
                         ToString_Inline(context, replacement_obj);
                     StoreFixedArrayElement(res_elems, index, replacement_str);
 
@@ -2655,20 +2640,19 @@ Node* RegExpBuiltinsAssembler::ReplaceGlobalCallableFastPath(
 }
 
 Node* RegExpBuiltinsAssembler::ReplaceSimpleStringFastPath(
-    Node* context, Node* regexp, Node* string, Node* replace_string) {
+    Node* context, Node* regexp, TNode<String> string,
+    TNode<String> replace_string) {
   // The fast path is reached only if {receiver} is an unmodified
   // JSRegExp instance, {replace_value} is non-callable, and
   // ToString({replace_value}) does not contain '$', i.e. we're doing a simple
   // string replacement.
 
+  CSA_ASSERT(this, IsFastRegExp(context, regexp));
+
   Node* const smi_zero = SmiConstant(0);
   const bool kIsFastPath = true;
 
-  CSA_ASSERT(this, IsFastRegExp(context, regexp));
-  CSA_ASSERT(this, IsString(replace_string));
-  CSA_ASSERT(this, IsString(string));
-
-  VARIABLE(var_result, MachineRepresentation::kTagged, EmptyStringConstant());
+  TVARIABLE(String, var_result, EmptyStringConstant());
   VARIABLE(var_match_indices, MachineRepresentation::kTagged);
   VARIABLE(var_last_match_end, MachineRepresentation::kTagged, smi_zero);
   VARIABLE(var_is_unicode, MachineRepresentation::kWord32, Int32Constant(0));
@@ -2705,22 +2689,19 @@ Node* RegExpBuiltinsAssembler::ReplaceSimpleStringFastPath(
       {
         // TODO(jgruber): We could skip many of the checks that using SubString
         // here entails.
-        Node* const first_part =
+        TNode<String> const first_part =
             SubString(string, var_last_match_end.value(), match_start);
-
-        Node* const result = StringAdd(context, var_result.value(), first_part);
-        var_result.Bind(result);
+        var_result = StringAdd(context, var_result.value(), first_part);
         Goto(&loop_end);
       }
 
       BIND(&if_replaceisnotempty);
       {
-        Node* const first_part =
+        TNode<String> const first_part =
             SubString(string, var_last_match_end.value(), match_start);
-
-        Node* result = StringAdd(context, var_result.value(), first_part);
-        result = StringAdd(context, result, replace_string);
-        var_result.Bind(result);
+        TNode<String> result =
+            StringAdd(context, var_result.value(), first_part);
+        var_result = StringAdd(context, result, replace_string);
         Goto(&loop_end);
       }
 
@@ -2744,10 +2725,9 @@ Node* RegExpBuiltinsAssembler::ReplaceSimpleStringFastPath(
   BIND(&if_nofurthermatches);
   {
     TNode<Smi> const string_length = LoadStringLengthAsSmi(string);
-    Node* const last_part =
+    TNode<String> const last_part =
         SubString(string, var_last_match_end.value(), string_length);
-    Node* const result = StringAdd(context, var_result.value(), last_part);
-    var_result.Bind(result);
+    var_result = StringAdd(context, var_result.value(), last_part);
     Goto(&out);
   }
 
@@ -2758,12 +2738,11 @@ Node* RegExpBuiltinsAssembler::ReplaceSimpleStringFastPath(
 // Helper that skips a few initial checks.
 TF_BUILTIN(RegExpReplace, RegExpBuiltinsAssembler) {
   Node* const regexp = Parameter(Descriptor::kRegExp);
-  Node* const string = Parameter(Descriptor::kString);
+  TNode<String> const string = CAST(Parameter(Descriptor::kString));
   Node* const replace_value = Parameter(Descriptor::kReplaceValue);
   Node* const context = Parameter(Descriptor::kContext);
 
   CSA_ASSERT(this, IsFastRegExp(context, regexp));
-  CSA_ASSERT(this, IsString(string));
 
   Label checkreplacestring(this), if_iscallable(this),
       runtime(this, Label::kDeferred);
@@ -2776,7 +2755,8 @@ TF_BUILTIN(RegExpReplace, RegExpBuiltinsAssembler) {
   // 3. Does ToString({replace_value}) contain '$'?
   BIND(&checkreplacestring);
   {
-    Node* const replace_string = ToString_Inline(context, replace_value);
+    TNode<String> const replace_string =
+        ToString_Inline(context, replace_value);
 
     // ToString(replaceValue) could potentially change the shape of the RegExp
     // object. Recheck that we are still on the fast path and bail to runtime
@@ -2862,7 +2842,7 @@ TF_BUILTIN(RegExpPrototypeReplace, RegExpBuiltinsAssembler) {
   Node* const receiver = maybe_receiver;
 
   // Convert {maybe_string} to a String.
-  Node* const string = ToString_Inline(context, maybe_string);
+  TNode<String> const string = ToString_Inline(context, maybe_string);
 
   // Fast-path checks: 1. Is the {receiver} an unmodified JSRegExp instance?
   Label stub(this), runtime(this, Label::kDeferred);
@@ -2880,27 +2860,19 @@ TF_BUILTIN(RegExpPrototypeReplace, RegExpBuiltinsAssembler) {
 // Simple string matching functionality for internal use which does not modify
 // the last match info.
 TF_BUILTIN(RegExpInternalMatch, RegExpBuiltinsAssembler) {
-  Node* const regexp = Parameter(Descriptor::kRegExp);
-  Node* const string = Parameter(Descriptor::kString);
+  TNode<JSRegExp> const regexp = CAST(Parameter(Descriptor::kRegExp));
+  TNode<String> const string = CAST(Parameter(Descriptor::kString));
   Node* const context = Parameter(Descriptor::kContext);
 
   Node* const smi_zero = SmiConstant(0);
-
-  CSA_ASSERT(this, IsJSRegExp(regexp));
-  CSA_ASSERT(this, IsString(string));
-
   Node* const native_context = LoadNativeContext(context);
   Node* const internal_match_info = LoadContextElement(
       native_context, Context::REGEXP_INTERNAL_MATCH_INFO_INDEX);
-
   Node* const match_indices = RegExpExecInternal(context, regexp, string,
                                                  smi_zero, internal_match_info);
-
   Node* const null = NullConstant();
-  Label if_matched(this), if_didnotmatch(this);
-  Branch(WordEqual(match_indices, null), &if_didnotmatch, &if_matched);
-
-  BIND(&if_didnotmatch);
+  Label if_matched(this);
+  GotoIfNot(WordEqual(match_indices, null), &if_matched);
   Return(null);
 
   BIND(&if_matched);

@@ -289,7 +289,7 @@ TF_STUB(StringAddStub, CodeStubAssembler) {
     CodeStubAssembler::AllocationFlag allocation_flags =
         (pretenure_flag == TENURED) ? CodeStubAssembler::kPretenured
                                     : CodeStubAssembler::kNone;
-    Return(StringAdd(context, left, right, allocation_flags));
+    Return(StringAdd(context, CAST(left), CAST(right), allocation_flags));
   } else {
     Callable callable = CodeFactory::StringAdd(isolate(), STRING_ADD_CHECK_NONE,
                                                pretenure_flag);

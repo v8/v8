@@ -765,38 +765,45 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
   TNode<WordT> LoadBigIntBitfield(TNode<BigInt> bigint);
   TNode<UintPtrT> LoadBigIntDigit(TNode<BigInt> bigint, int digit_index);
   // Allocate a SeqOneByteString with the given length.
-  Node* AllocateSeqOneByteString(int length, AllocationFlags flags = kNone);
-  Node* AllocateSeqOneByteString(Node* context, TNode<Smi> length,
-                                 AllocationFlags flags = kNone);
+  TNode<String> AllocateSeqOneByteString(int length,
+                                         AllocationFlags flags = kNone);
+  TNode<String> AllocateSeqOneByteString(Node* context, TNode<Smi> length,
+                                         AllocationFlags flags = kNone);
   // Allocate a SeqTwoByteString with the given length.
-  Node* AllocateSeqTwoByteString(int length, AllocationFlags flags = kNone);
-  Node* AllocateSeqTwoByteString(Node* context, TNode<Smi> length,
-                                 AllocationFlags flags = kNone);
+  TNode<String> AllocateSeqTwoByteString(int length,
+                                         AllocationFlags flags = kNone);
+  TNode<String> AllocateSeqTwoByteString(Node* context, TNode<Smi> length,
+                                         AllocationFlags flags = kNone);
 
   // Allocate a SlicedOneByteString with the given length, parent and offset.
   // |length| and |offset| are expected to be tagged.
-  Node* AllocateSlicedOneByteString(TNode<Smi> length, Node* parent,
-                                    Node* offset);
+  TNode<String> AllocateSlicedOneByteString(TNode<Smi> length, Node* parent,
+                                            Node* offset);
   // Allocate a SlicedTwoByteString with the given length, parent and offset.
   // |length| and |offset| are expected to be tagged.
-  Node* AllocateSlicedTwoByteString(TNode<Smi> length, Node* parent,
-                                    Node* offset);
+  TNode<String> AllocateSlicedTwoByteString(TNode<Smi> length, Node* parent,
+                                            Node* offset);
 
   // Allocate a one-byte ConsString with the given length, first and second
   // parts. |length| is expected to be tagged, and |first| and |second| are
   // expected to be one-byte strings.
-  Node* AllocateOneByteConsString(TNode<Smi> length, Node* first, Node* second,
-                                  AllocationFlags flags = kNone);
+  TNode<String> AllocateOneByteConsString(TNode<Smi> length,
+                                          TNode<String> first,
+                                          TNode<String> second,
+                                          AllocationFlags flags = kNone);
   // Allocate a two-byte ConsString with the given length, first and second
   // parts. |length| is expected to be tagged, and |first| and |second| are
   // expected to be two-byte strings.
-  Node* AllocateTwoByteConsString(TNode<Smi> length, Node* first, Node* second,
-                                  AllocationFlags flags = kNone);
+  TNode<String> AllocateTwoByteConsString(TNode<Smi> length,
+                                          TNode<String> first,
+                                          TNode<String> second,
+                                          AllocationFlags flags = kNone);
 
   // Allocate an appropriate one- or two-byte ConsString with the first and
   // second parts specified by |left| and |right|.
-  Node* NewConsString(Node* context, TNode<Smi> length, Node* left, Node* right,
-                      AllocationFlags flags = kNone);
+  TNode<String> NewConsString(Node* context, TNode<Smi> length,
+                              TNode<String> left, TNode<String> right,
+                              AllocationFlags flags = kNone);
 
   Node* AllocateNameDictionary(int at_least_space_for);
   Node* AllocateNameDictionary(Node* at_least_space_for);
@@ -1216,11 +1223,12 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
 
   // Return a new string object which holds a substring containing the range
   // [from,to[ of string.  |from| and |to| are expected to be tagged.
-  Node* SubString(Node* string, Node* from, Node* to);
+  TNode<String> SubString(TNode<String> string, SloppyTNode<Smi> from,
+                          SloppyTNode<Smi> to);
 
   // Return a new string object produced by concatenating |first| with |second|.
-  Node* StringAdd(Node* context, Node* first, Node* second,
-                  AllocationFlags flags = kNone);
+  TNode<String> StringAdd(Node* context, TNode<String> first,
+                          TNode<String> second, AllocationFlags flags = kNone);
 
   // Check if |string| is an indirect (thin or flat cons) string type that can
   // be dereferenced by DerefIndirectString.
@@ -2096,12 +2104,13 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
   Node* EmitKeyedSloppyArguments(Node* receiver, Node* key, Node* value,
                                  Label* bailout);
 
-  Node* AllocateSlicedString(Heap::RootListIndex map_root_index,
-                             TNode<Smi> length, Node* parent, Node* offset);
+  TNode<String> AllocateSlicedString(Heap::RootListIndex map_root_index,
+                                     TNode<Smi> length, Node* parent,
+                                     Node* offset);
 
-  Node* AllocateConsString(Heap::RootListIndex map_root_index,
-                           TNode<Smi> length, Node* first, Node* second,
-                           AllocationFlags flags);
+  TNode<String> AllocateConsString(Heap::RootListIndex map_root_index,
+                                   TNode<Smi> length, TNode<String> first,
+                                   TNode<String> second, AllocationFlags flags);
 
   // Implements DescriptorArray::number_of_entries.
   // Returns an untagged int32.
@@ -2114,9 +2123,10 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
   Node* CollectFeedbackForString(Node* instance_type);
   void GenerateEqual_Same(Node* value, Label* if_equal, Label* if_notequal,
                           Variable* var_type_feedback = nullptr);
-  Node* AllocAndCopyStringCharacters(Node* from, Node* from_instance_type,
-                                     TNode<IntPtrT> from_index,
-                                     TNode<Smi> character_count);
+  TNode<String> AllocAndCopyStringCharacters(Node* from,
+                                             Node* from_instance_type,
+                                             TNode<IntPtrT> from_index,
+                                             TNode<Smi> character_count);
 
   static const int kElementLoopUnrollThreshold = 8;
 

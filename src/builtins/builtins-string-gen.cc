@@ -1666,8 +1666,8 @@ TF_BUILTIN(StringPrototypeSlice, StringBuiltinsAssembler) {
   RequireObjectCoercible(context, receiver, "String.prototype.slice");
 
   // 2. Let S be ? ToString(O).
-  Node* const subject_string =
-      CallBuiltin(Builtins::kToString, context, receiver);
+  TNode<String> const subject_string =
+      CAST(CallBuiltin(Builtins::kToString, context, receiver));
 
   // 3. Let len be the number of elements in S.
   TNode<Smi> const length = LoadStringLengthAsSmi(subject_string);
@@ -1688,7 +1688,7 @@ TF_BUILTIN(StringPrototypeSlice, StringBuiltinsAssembler) {
   {
     GotoIf(SmiLessThanOrEqual(var_end.value(), var_start.value()),
            &return_emptystring);
-    Node* const result =
+    TNode<String> const result =
         SubString(subject_string, var_start.value(), var_end.value());
     args.PopAndReturn(result);
   }
@@ -1819,7 +1819,7 @@ TF_BUILTIN(StringPrototypeSubstr, StringBuiltinsAssembler) {
   TNode<Smi> const zero = SmiConstant(0);
 
   // Check that {receiver} is coercible to Object and convert it to a String.
-  Node* const string =
+  TNode<String> const string =
       ToThisString(context, receiver, "String.prototype.substr");
 
   TNode<Smi> const string_length = LoadStringLengthAsSmi(string);
@@ -1888,8 +1888,7 @@ TF_BUILTIN(StringPrototypeSubstr, StringBuiltinsAssembler) {
   BIND(&out);
   {
     TNode<Smi> const end = SmiAdd(var_start.value(), var_result_length.value());
-    Node* const result = SubString(string, var_start.value(), end);
-    args.PopAndReturn(result);
+    args.PopAndReturn(SubString(string, var_start.value(), end));
   }
 }
 
@@ -1943,7 +1942,7 @@ TNode<Smi> StringBuiltinsAssembler::ToSmiBetweenZeroAnd(
 }
 
 TF_BUILTIN(SubString, CodeStubAssembler) {
-  Node* string = Parameter(Descriptor::kString);
+  TNode<String> string = CAST(Parameter(Descriptor::kString));
   Node* from = Parameter(Descriptor::kFrom);
   Node* to = Parameter(Descriptor::kTo);
 
@@ -1970,7 +1969,7 @@ TF_BUILTIN(StringPrototypeSubstring, StringBuiltinsAssembler) {
   VARIABLE(var_end, MachineRepresentation::kTagged);
 
   // Check that {receiver} is coercible to Object and convert it to a String.
-  Node* const string =
+  TNode<String> const string =
       ToThisString(context, receiver, "String.prototype.substring");
 
   Node* const length = LoadStringLengthAsSmi(string);
@@ -1999,10 +1998,7 @@ TF_BUILTIN(StringPrototypeSubstring, StringBuiltinsAssembler) {
   }
 
   BIND(&out);
-  {
-    Node* result = SubString(string, var_start.value(), var_end.value());
-    args.PopAndReturn(result);
-  }
+  { args.PopAndReturn(SubString(string, var_start.value(), var_end.value())); }
 }
 
 // ES6 #sec-string.prototype.trim
@@ -2030,7 +2026,7 @@ void StringTrimAssembler::Generate(String::TrimMode mode,
   Node* const receiver = arguments.GetReceiver();
 
   // Check that {receiver} is coercible to Object and convert it to a String.
-  Node* const string = ToThisString(context, receiver, method_name);
+  TNode<String> const string = ToThisString(context, receiver, method_name);
   TNode<IntPtrT> const string_length = LoadStringLengthAsWord(string);
 
   ToDirectStringAssembler to_direct(state(), string);
