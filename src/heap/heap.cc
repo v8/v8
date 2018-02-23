@@ -45,6 +45,7 @@
 #include "src/heap/stress-marking-observer.h"
 #include "src/heap/stress-scavenge-observer.h"
 #include "src/heap/sweeper.h"
+#include "src/instruction-stream.h"
 #include "src/interpreter/interpreter.h"
 #include "src/objects/data-handler.h"
 #include "src/objects/shared-function-info.h"
@@ -6720,12 +6721,24 @@ Code* GcSafeCastToCode(Heap* heap, HeapObject* object, Address inner_pointer) {
 bool Heap::GcSafeCodeContains(HeapObject* code, Address addr) {
   Map* map = GcSafeMapOfCodeSpaceObject(code);
   DCHECK(map == code->GetHeap()->code_map());
+#ifdef V8_EMBEDDED_BUILTINS
+  if (FLAG_stress_off_heap_code) {
+    if (InstructionStream::TryLookupCode(isolate(), addr) == code) return true;
+  }
+#endif
   Address start = code->address();
   Address end = code->address() + code->SizeFromMap(map);
   return start <= addr && addr < end;
 }
 
 Code* Heap::GcSafeFindCodeForInnerPointer(Address inner_pointer) {
+#ifdef V8_EMBEDDED_BUILTINS
+  if (FLAG_stress_off_heap_code) {
+    Code* code = InstructionStream::TryLookupCode(isolate(), inner_pointer);
+    if (code != nullptr) return code;
+  }
+#endif
+
   // Check if the inner pointer points into a large object chunk.
   LargePage* large_page = lo_space()->FindPage(inner_pointer);
   if (large_page != nullptr) {

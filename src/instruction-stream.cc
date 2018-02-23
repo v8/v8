@@ -12,8 +12,10 @@
 namespace v8 {
 namespace internal {
 
-InstructionStream::InstructionStream(Code* code) {
-  DCHECK(Builtins::IsIsolateIndependent(code->builtin_index()));
+InstructionStream::InstructionStream(Code* code)
+    : builtin_index_(code->builtin_index()) {
+  DCHECK(Builtins::IsBuiltinId(builtin_index_));
+  DCHECK(Builtins::IsOffHeapSafe(builtin_index_));
   const size_t page_size = AllocatePageSize();
   byte_length_ =
       RoundUp(static_cast<size_t>(code->instruction_size()), page_size);
@@ -28,6 +30,37 @@ InstructionStream::InstructionStream(Code* code) {
 
 InstructionStream::~InstructionStream() {
   CHECK(FreePages(bytes_, byte_length_));
+}
+
+// static
+Code* InstructionStream::TryLookupCode(Isolate* isolate, Address address) {
+  DCHECK(FLAG_stress_off_heap_code);
+  // TODO(jgruber,v8:6666): Replace with binary search through range checks
+  // once off-heap code is mapped into a contiguous memory space.
+  for (const InstructionStream* stream : isolate->off_heap_code_) {
+    if (stream->Contains(address)) {
+      return isolate->builtins()->builtin(stream->builtin_index());
+    }
+  }
+  return nullptr;
+}
+
+// static
+InstructionStream* InstructionStream::TryLookupInstructionStream(
+    Isolate* isolate, Code* code) {
+  DCHECK(FLAG_stress_off_heap_code);
+  // TODO(jgruber,v8:6666): Replace with binary search through range checks
+  // once off-heap code is mapped into a contiguous memory space.
+  const int builtin_index = code->builtin_index();
+  DCHECK(Builtins::IsBuiltinId(builtin_index));
+  for (InstructionStream* stream : isolate->off_heap_code_) {
+    if (stream->builtin_index() == builtin_index) return stream;
+  }
+  return nullptr;
+}
+
+bool InstructionStream::Contains(Address address) const {
+  return bytes_ <= address && address < bytes_ + byte_length_;
 }
 
 }  // namespace internal

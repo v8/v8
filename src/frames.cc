@@ -11,6 +11,7 @@
 #include "src/deoptimizer.h"
 #include "src/frames-inl.h"
 #include "src/ic/ic-stats.h"
+#include "src/instruction-stream.h"
 #include "src/register-configuration.h"
 #include "src/safepoint-table.h"
 #include "src/string-stream.h"
@@ -394,8 +395,20 @@ Code* GetContainingCode(Isolate* isolate, Address pc) {
 
 Code* StackFrame::LookupCode() const {
   Code* result = GetContainingCode(isolate(), pc());
-  DCHECK_GE(pc(), result->instruction_start());
-  DCHECK_LT(pc(), result->instruction_end());
+#ifdef DEBUG
+  Address start = result->instruction_start();
+  Address end = result->instruction_end();
+  if (FLAG_stress_off_heap_code) {
+    InstructionStream* stream =
+        InstructionStream::TryLookupInstructionStream(isolate(), result);
+    if (stream != nullptr) {
+      start = stream->bytes();
+      end = start + stream->byte_length();
+    }
+  }
+  DCHECK_GE(pc(), start);
+  DCHECK_LT(pc(), end);
+#endif
   return result;
 }
 

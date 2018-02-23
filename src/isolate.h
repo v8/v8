@@ -1621,7 +1621,7 @@ class Isolate {
   // Stores off-heap instruction streams. Only used if --stress-off-heap-code
   // is enabled.
   // TODO(jgruber,v8:6666): Remove once isolate-independent builtins are
-  // implemented.
+  // implemented. Also remove friend class below.
   std::vector<InstructionStream*> off_heap_code_;
 
 #ifdef V8_EMBEDDED_BUILTINS
@@ -1658,17 +1658,18 @@ class Isolate {
   friend class ExecutionAccess;
   friend class HandleScopeImplementer;
   friend class heap::HeapTester;
+  friend class InstructionStream;
   friend class OptimizingCompileDispatcher;
-  friend class SweeperThread;
-  friend class ThreadManager;
   friend class Simulator;
   friend class StackGuard;
+  friend class SweeperThread;
   friend class TestIsolate;
   friend class ThreadId;
+  friend class ThreadManager;
   friend class v8::Isolate;
   friend class v8::Locker;
-  friend class v8::Unlocker;
   friend class v8::SnapshotCreator;
+  friend class v8::Unlocker;
   friend v8::StartupData v8::V8::CreateSnapshotDataBlob(const char*);
   friend v8::StartupData v8::V8::WarmUpSnapshotDataBlob(v8::StartupData,
                                                         const char*);
