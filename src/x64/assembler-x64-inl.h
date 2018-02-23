@@ -92,13 +92,11 @@ void Assembler::emit_rex_64(Register reg, XMMRegister rm_reg) {
   emit(0x48 | (reg.code() & 0x8) >> 1 | rm_reg.code() >> 3);
 }
 
-
-void Assembler::emit_rex_64(Register reg, const Operand& op) {
+void Assembler::emit_rex_64(Register reg, Operand op) {
   emit(0x48 | reg.high_bit() << 2 | op.rex_);
 }
 
-
-void Assembler::emit_rex_64(XMMRegister reg, const Operand& op) {
+void Assembler::emit_rex_64(XMMRegister reg, Operand op) {
   emit(0x48 | (reg.code() & 0x8) >> 1 | op.rex_);
 }
 
@@ -108,18 +106,13 @@ void Assembler::emit_rex_64(Register rm_reg) {
   emit(0x48 | rm_reg.high_bit());
 }
 
-
-void Assembler::emit_rex_64(const Operand& op) {
-  emit(0x48 | op.rex_);
-}
-
+void Assembler::emit_rex_64(Operand op) { emit(0x48 | op.rex_); }
 
 void Assembler::emit_rex_32(Register reg, Register rm_reg) {
   emit(0x40 | reg.high_bit() << 2 | rm_reg.high_bit());
 }
 
-
-void Assembler::emit_rex_32(Register reg, const Operand& op) {
+void Assembler::emit_rex_32(Register reg, Operand op) {
   emit(0x40 | reg.high_bit() << 2  | op.rex_);
 }
 
@@ -128,25 +121,19 @@ void Assembler::emit_rex_32(Register rm_reg) {
   emit(0x40 | rm_reg.high_bit());
 }
 
-
-void Assembler::emit_rex_32(const Operand& op) {
-  emit(0x40 | op.rex_);
-}
-
+void Assembler::emit_rex_32(Operand op) { emit(0x40 | op.rex_); }
 
 void Assembler::emit_optional_rex_32(Register reg, Register rm_reg) {
   byte rex_bits = reg.high_bit() << 2 | rm_reg.high_bit();
   if (rex_bits != 0) emit(0x40 | rex_bits);
 }
 
-
-void Assembler::emit_optional_rex_32(Register reg, const Operand& op) {
+void Assembler::emit_optional_rex_32(Register reg, Operand op) {
   byte rex_bits =  reg.high_bit() << 2 | op.rex_;
   if (rex_bits != 0) emit(0x40 | rex_bits);
 }
 
-
-void Assembler::emit_optional_rex_32(XMMRegister reg, const Operand& op) {
+void Assembler::emit_optional_rex_32(XMMRegister reg, Operand op) {
   byte rex_bits =  (reg.code() & 0x8) >> 1 | op.rex_;
   if (rex_bits != 0) emit(0x40 | rex_bits);
 }
@@ -178,7 +165,7 @@ void Assembler::emit_optional_rex_32(XMMRegister rm_reg) {
   if (rm_reg.high_bit()) emit(0x41);
 }
 
-void Assembler::emit_optional_rex_32(const Operand& op) {
+void Assembler::emit_optional_rex_32(Operand op) {
   if (op.rex_ != 0) emit(0x40 | op.rex_);
 }
 
@@ -192,8 +179,7 @@ void Assembler::emit_vex3_byte1(XMMRegister reg, XMMRegister rm,
 
 
 // byte 1 of 3-byte VEX
-void Assembler::emit_vex3_byte1(XMMRegister reg, const Operand& rm,
-                                LeadingOpcode m) {
+void Assembler::emit_vex3_byte1(XMMRegister reg, Operand rm, LeadingOpcode m) {
   byte rxb = ~((reg.high_bit() << 2) | rm.rex_) << 5;
   emit(rxb | m);
 }
@@ -237,10 +223,9 @@ void Assembler::emit_vex_prefix(Register reg, Register vreg, Register rm,
   emit_vex_prefix(ireg, ivreg, irm, l, pp, mm, w);
 }
 
-
-void Assembler::emit_vex_prefix(XMMRegister reg, XMMRegister vreg,
-                                const Operand& rm, VectorLength l,
-                                SIMDPrefix pp, LeadingOpcode mm, VexW w) {
+void Assembler::emit_vex_prefix(XMMRegister reg, XMMRegister vreg, Operand rm,
+                                VectorLength l, SIMDPrefix pp, LeadingOpcode mm,
+                                VexW w) {
   if (rm.rex_ || mm != k0F || w != kW0) {
     emit_vex3_byte0();
     emit_vex3_byte1(reg, rm, mm);
@@ -251,8 +236,7 @@ void Assembler::emit_vex_prefix(XMMRegister reg, XMMRegister vreg,
   }
 }
 
-
-void Assembler::emit_vex_prefix(Register reg, Register vreg, const Operand& rm,
+void Assembler::emit_vex_prefix(Register reg, Register vreg, Operand rm,
                                 VectorLength l, SIMDPrefix pp, LeadingOpcode mm,
                                 VexW w) {
   XMMRegister ireg = XMMRegister::from_code(reg.code());
