@@ -957,6 +957,8 @@ void Deoptimizer::DoComputeInterpretedFrame(TranslatedFrame* translated_frame,
       (!is_topmost || (bailout_type_ == LAZY)) && !goto_catch_handler
           ? builtins->builtin(Builtins::kInterpreterEnterBytecodeAdvance)
           : builtins->builtin(Builtins::kInterpreterEnterBytecodeDispatch);
+  // TODO(jgruber,v8:6666): Update logic once builtin is off-heap-safe.
+  DCHECK(!Builtins::IsOffHeapSafe(dispatch_builtin->builtin_index()));
   output_frame->SetPc(reinterpret_cast<intptr_t>(dispatch_builtin->entry()));
 
   // Update constant pool.
@@ -1135,6 +1137,11 @@ void Deoptimizer::DoComputeConstructStubFrame(TranslatedFrame* translated_frame,
   CHECK(!is_topmost || bailout_type_ == LAZY);
   int input_index = 0;
 
+  // TODO(jgruber,v8:6666): Update logic once builtin is off-heap-safe.
+  DCHECK(!Builtins::IsOffHeapSafe(
+      Builtins::kJSConstructStubGenericRestrictedReturn));
+  DCHECK(!Builtins::IsOffHeapSafe(
+      Builtins::kJSConstructStubGenericUnrestrictedReturn));
   Builtins* builtins = isolate_->builtins();
   Code* construct_stub = builtins->builtin(
       FLAG_harmony_restrict_constructor_return
@@ -1688,6 +1695,8 @@ void Deoptimizer::DoComputeBuiltinContinuation(
                        Builtins::kContinueToCodeStubBuiltinWithResult)
                  : isolate()->builtins()->builtin(
                        Builtins::kContinueToCodeStubBuiltin));
+  // TODO(jgruber,v8:6666): Update logic once builtin is off-heap-safe.
+  DCHECK(!Builtins::IsOffHeapSafe(continue_to_builtin->builtin_index()));
   output_frame->SetPc(
       reinterpret_cast<intptr_t>(continue_to_builtin->instruction_start()));
 

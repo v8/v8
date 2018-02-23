@@ -82,6 +82,70 @@ TEST(VerifyBuiltinsIsolateIndependence) {
 
   CHECK(!found_mismatch);
 }
+
+TEST(VerifyBuiltinsOffHeapSafety) {
+  Isolate* isolate = CcTest::i_isolate();
+  HandleScope handle_scope(isolate);
+
+  Snapshot::EnsureAllBuiltinsAreDeserialized(isolate);
+
+  constexpr int all_real_modes_mask =
+      (1 << (RelocInfo::LAST_REAL_RELOC_MODE + 1)) - 1;
+  constexpr int mode_mask =
+      all_real_modes_mask & ~RelocInfo::ModeMask(RelocInfo::COMMENT) &
+      ~RelocInfo::ModeMask(RelocInfo::INTERNAL_REFERENCE) &
+      ~RelocInfo::ModeMask(RelocInfo::INTERNAL_REFERENCE_ENCODED) &
+      ~RelocInfo::ModeMask(RelocInfo::CONST_POOL) &
+      ~RelocInfo::ModeMask(RelocInfo::VENEER_POOL) &
+      ~RelocInfo::ModeMask(RelocInfo::EXTERNAL_REFERENCE);
+  STATIC_ASSERT(RelocInfo::LAST_REAL_RELOC_MODE == RelocInfo::VENEER_POOL);
+  STATIC_ASSERT(RelocInfo::ModeMask(RelocInfo::COMMENT) ==
+                (1 << RelocInfo::COMMENT));
+  STATIC_ASSERT(
+      mode_mask ==
+      (RelocInfo::ModeMask(RelocInfo::CODE_TARGET) |
+       RelocInfo::ModeMask(RelocInfo::EMBEDDED_OBJECT) |
+       RelocInfo::ModeMask(RelocInfo::WASM_CONTEXT_REFERENCE) |
+       RelocInfo::ModeMask(RelocInfo::WASM_FUNCTION_TABLE_SIZE_REFERENCE) |
+       RelocInfo::ModeMask(RelocInfo::WASM_GLOBAL_HANDLE) |
+       RelocInfo::ModeMask(RelocInfo::WASM_CALL) |
+       RelocInfo::ModeMask(RelocInfo::JS_TO_WASM_CALL) |
+       RelocInfo::ModeMask(RelocInfo::RUNTIME_ENTRY)));
+
+  constexpr bool kVerbose = false;
+  bool found_mismatch = false;
+  for (int i = 0; i < Builtins::builtin_count; i++) {
+    Code* code = isolate->builtins()->builtin(i);
+
+    if (kVerbose) {
+      printf("%s %s\n", Builtins::KindNameOf(i), isolate->builtins()->name(i));
+    }
+
+    bool is_off_heap_safe = true;
+    for (RelocIterator it(code, mode_mask); !it.done(); it.next()) {
+      is_off_heap_safe = false;
+#ifdef ENABLE_DISASSEMBLER
+      if (kVerbose) {
+        RelocInfo::Mode mode = it.rinfo()->rmode();
+        printf("  %s\n", RelocInfo::RelocModeName(mode));
+      }
+#endif
+    }
+
+    // TODO(jgruber): Remove once we properly set up the on-heap code
+    // trampoline.
+    if (Builtins::IsTooShortForOffHeapTrampoline(i)) is_off_heap_safe = false;
+
+    const bool expected_result = Builtins::IsOffHeapSafe(i);
+    if (is_off_heap_safe != expected_result) {
+      found_mismatch = true;
+      printf("%s %s expected: %d, is: %d\n", Builtins::KindNameOf(i),
+             isolate->builtins()->name(i), expected_result, is_off_heap_safe);
+    }
+  }
+
+  CHECK(!found_mismatch);
+}
 #endif  // V8_EMBEDDED_BUILTINS
 
 // V8_CC_MSVC is true for both MSVC and clang on windows. clang can handle

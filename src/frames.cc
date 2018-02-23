@@ -170,6 +170,10 @@ bool StackTraceFrameIterator::IsValidFrame(StackFrame* frame) const {
 namespace {
 
 bool IsInterpreterFramePc(Isolate* isolate, Address pc) {
+  // TODO(jgruber,v8:6666): Update logic once builtin is off-heap-safe.
+  DCHECK(!Builtins::IsOffHeapSafe(Builtins::kInterpreterEntryTrampoline));
+  DCHECK(!Builtins::IsOffHeapSafe(Builtins::kInterpreterEnterBytecodeAdvance));
+  DCHECK(!Builtins::IsOffHeapSafe(Builtins::kInterpreterEnterBytecodeDispatch));
   Code* interpreter_entry_trampoline =
       isolate->builtins()->builtin(Builtins::kInterpreterEntryTrampoline);
   Code* interpreter_bytecode_advance =

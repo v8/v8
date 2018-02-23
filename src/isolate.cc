@@ -2862,7 +2862,7 @@ bool BuiltinAliasesOffHeapTrampolineRegister(Isolate* isolate,
 
 void ChangeToOffHeapTrampoline(Isolate* isolate, Handle<Code> code,
                                InstructionStream* stream) {
-  DCHECK(Builtins::IsIsolateIndependent(code->builtin_index()));
+  DCHECK(Builtins::IsOffHeapSafe(code->builtin_index()));
   HandleScope scope(isolate);
 
   constexpr size_t buffer_size = 256;  // Enough to fit the single jmp.
@@ -2888,6 +2888,9 @@ void ChangeToOffHeapTrampoline(Isolate* isolate, Handle<Code> code,
   code->set_relocation_info(*reloc_info);
 
   // Overwrites the original code.
+  CHECK_LE(desc.instr_size, code->instruction_size());
+  CHECK_IMPLIES(code->has_safepoint_info(),
+                desc.instr_size <= code->safepoint_table_offset());
   code->CopyFrom(desc);
 
   // TODO(jgruber): CopyFrom isn't intended to overwrite existing code, and
@@ -2924,7 +2927,7 @@ void MoveBuiltinsOffHeap(Isolate* isolate) {
 
   CodeSpaceMemoryModificationScope code_allocation(isolate->heap());
   for (int i = 0; i < Builtins::builtin_count; i++) {
-    if (!Builtins::IsIsolateIndependent(i)) continue;
+    if (!Builtins::IsOffHeapSafe(i)) continue;
     Handle<Code> code(builtins->builtin(i));
     InstructionStream* stream = new InstructionStream(*code);
     LogInstructionStream(isolate, *code, stream);
