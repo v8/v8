@@ -382,8 +382,7 @@ TNode<Object> BaseCollectionsAssembler::GetAddFunction(
   Handle<String> add_func_name = (variant == kMap || variant == kWeakMap)
                                      ? isolate()->factory()->set_string()
                                      : isolate()->factory()->add_string();
-  TNode<Object> add_func =
-      CAST(GetProperty(context, collection, add_func_name));
+  TNode<Object> add_func = GetProperty(context, collection, add_func_name);
 
   Label exit(this), if_notcallable(this, Label::kDeferred);
   GotoIf(TaggedIsSmi(add_func), &if_notcallable);
@@ -1186,9 +1185,9 @@ std::tuple<Node*, Node*> CollectionsBuiltinsAssembler::Transition(
       GotoIf(TaggedIsSmi(next_table), &done_loop);
 
       var_table.Bind(next_table);
-      var_index.Bind(
-          SmiUntag(CallBuiltin(Builtins::kOrderedHashTableHealIndex,
-                               NoContextConstant(), table, SmiTag(index))));
+      var_index.Bind(SmiUntag(
+          CAST(CallBuiltin(Builtins::kOrderedHashTableHealIndex,
+                           NoContextConstant(), table, SmiTag(index)))));
       Goto(&loop);
     }
     BIND(&done_loop);

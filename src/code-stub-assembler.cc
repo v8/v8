@@ -5809,12 +5809,13 @@ TNode<Number> CodeStubAssembler::ToNumber_Inline(SloppyTNode<Context> context,
 
   BIND(&not_smi);
   {
-    var_result = Select<Number>(
-        IsHeapNumber(input), [=] { return CAST(input); },
-        [=] {
-          return CallBuiltin(Builtins::kNonNumberToNumber, context, input);
-        },
-        MachineRepresentation::kTagged);
+    var_result =
+        Select<Number>(IsHeapNumber(input), [=] { return CAST(input); },
+                       [=] {
+                         return CAST(CallBuiltin(Builtins::kNonNumberToNumber,
+                                                 context, input));
+                       },
+                       MachineRepresentation::kTagged);
     Goto(&end);
   }
 

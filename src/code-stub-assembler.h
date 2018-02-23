@@ -1680,30 +1680,37 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
   }
 #endif  // V8_EMBEDDED_BUILTINS
 
-  Node* GetProperty(Node* context, Node* receiver, Handle<Name> name) {
+  TNode<Object> GetProperty(SloppyTNode<Context> context,
+                            SloppyTNode<Object> receiver, Handle<Name> name) {
     return GetProperty(context, receiver, HeapConstant(name));
   }
 
-  Node* GetProperty(Node* context, Node* receiver, Node* const name) {
-    return CallStub(CodeFactory::GetProperty(isolate()), context, receiver,
-                    name);
+  TNode<Object> GetProperty(SloppyTNode<Context> context,
+                            SloppyTNode<Object> receiver,
+                            SloppyTNode<Object> name) {
+    return UncheckedCast<Object>(
+        CallStub(CodeFactory::GetProperty(isolate()), context, receiver, name));
   }
 
   Node* GetMethod(Node* context, Node* object, Handle<Name> name,
                   Label* if_null_or_undefined);
 
   template <class... TArgs>
-  Node* CallBuiltin(Builtins::Name id, Node* context, TArgs... args) {
+  TNode<Object> CallBuiltin(Builtins::Name id, SloppyTNode<Context> context,
+                            TArgs... args) {
     DCHECK_IMPLIES(Builtins::KindOf(id) == Builtins::TFJ,
                    !Builtins::IsLazy(id));
-    return CallStub(Builtins::CallableFor(isolate(), id), context, args...);
+    return UncheckedCast<Object>(
+        CallStub(Builtins::CallableFor(isolate(), id), context, args...));
   }
 
   template <class... TArgs>
-  Node* TailCallBuiltin(Builtins::Name id, Node* context, TArgs... args) {
+  TNode<Object> TailCallBuiltin(Builtins::Name id, SloppyTNode<Context> context,
+                                TArgs... args) {
     DCHECK_IMPLIES(Builtins::KindOf(id) == Builtins::TFJ,
                    !Builtins::IsLazy(id));
-    return TailCallStub(Builtins::CallableFor(isolate(), id), context, args...);
+    return UncheckedCast<Object>(
+        TailCallStub(Builtins::CallableFor(isolate(), id), context, args...));
   }
 
   void LoadPropertyFromFastObject(Node* object, Node* map, Node* descriptors,

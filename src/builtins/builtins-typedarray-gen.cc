@@ -506,8 +506,8 @@ void TypedArrayBuiltinsAssembler::ConstructByTypedArray(
   {
     ConstructByArrayLike(context, holder, typed_array, source_length.value(),
                          element_size);
-    Node* proto = GetProperty(context, buffer_constructor.value(),
-                              PrototypeStringConstant());
+    TNode<Object> proto = GetProperty(context, buffer_constructor.value(),
+                                      PrototypeStringConstant());
     // TODO(petermarshall): Correct for realm as per 9.1.14 step 4.
     TNode<JSArrayBuffer> buffer = LoadObjectField<JSArrayBuffer>(
         holder, JSArrayBufferView::kBufferOffset);
@@ -693,7 +693,7 @@ TF_BUILTIN(TypedArrayConstructor_ConstructStub, TypedArrayBuiltinsAssembler) {
     {
       TNode<HeapObject> array_like = CAST(arg1);
       TNode<Object> initial_length =
-          CAST(GetProperty(context, arg1, LengthStringConstant()));
+          GetProperty(context, arg1, LengthStringConstant());
 
       ConstructByArrayLike(context, holder, array_like, initial_length,
                            element_size);
@@ -1734,8 +1734,8 @@ TF_BUILTIN(TypedArrayFrom, TypedArrayBuiltinsAssembler) {
     final_source = CAST(source);
 
     // 10. Let len be ? ToLength(? Get(arrayLike, "length")).
-    TNode<Object> raw_length = CAST(
-        GetProperty(context, final_source.value(), LengthStringConstant()));
+    TNode<Object> raw_length =
+        GetProperty(context, final_source.value(), LengthStringConstant());
     final_length = ToSmiLength(raw_length, context, &if_length_not_smi);
     Goto(&create_typed_array);
 
@@ -1777,7 +1777,7 @@ TF_BUILTIN(TypedArrayFrom, TypedArrayBuiltinsAssembler) {
       SmiConstant(0), final_length.value(),
       [&](Node* index) {
         TNode<Object> const k_value =
-            CAST(GetProperty(context, final_source.value(), index));
+            GetProperty(context, final_source.value(), index);
 
         TNode<Object> const mapped_value =
             CAST(CallJS(CodeFactory::Call(isolate()), context, map_fn, this_arg,

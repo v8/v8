@@ -394,7 +394,7 @@ TF_BUILTIN(ObjectPrototypeToLocaleString, CodeStubAssembler) {
   GotoIf(IsNullOrUndefined(receiver), &if_null_or_undefined);
 
   TNode<Object> method =
-      CAST(GetProperty(context, receiver, factory()->toString_string()));
+      GetProperty(context, receiver, factory()->toString_string());
   Return(CallJS(CodeFactory::Call(isolate()), context, method, receiver));
 
   BIND(&if_null_or_undefined);

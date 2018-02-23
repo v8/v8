@@ -2140,7 +2140,7 @@ TF_BUILTIN(ArrayFrom, ArrayPopulatorAssembler) {
       BIND(&loop);
       TVARIABLE(Object, value);
 
-      value = CAST(GetProperty(context, array_like, index.value()));
+      value = GetProperty(context, array_like, index.value());
 
       // If a map_function is supplied then call it (using this_arg as
       // receiver), on the value retrieved from the array.
