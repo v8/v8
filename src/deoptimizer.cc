@@ -13,6 +13,7 @@
 #include "src/disasm.h"
 #include "src/frames-inl.h"
 #include "src/global-handles.h"
+#include "src/instruction-stream.h"
 #include "src/interpreter/interpreter.h"
 #include "src/macro-assembler.h"
 #include "src/objects/debug-objects-inl.h"
@@ -1116,8 +1117,17 @@ void Deoptimizer::DoComputeArgumentsAdaptorFrame(
   Builtins* builtins = isolate_->builtins();
   Code* adaptor_trampoline =
       builtins->builtin(Builtins::kArgumentsAdaptorTrampoline);
+  Address adaptor_trampoline_entry = adaptor_trampoline->instruction_start();
+#ifdef V8_EMBEDDED_BUILTINS
+  if (FLAG_stress_off_heap_code) {
+    DCHECK(Builtins::IsOffHeapSafe(Builtins::kArgumentsAdaptorTrampoline));
+    InstructionStream* stream = InstructionStream::TryLookupInstructionStream(
+        isolate(), adaptor_trampoline);
+    adaptor_trampoline_entry = stream->bytes();
+  }
+#endif  // V8_EMBEDDED_BUILTINS
   intptr_t pc_value = reinterpret_cast<intptr_t>(
-      adaptor_trampoline->instruction_start() +
+      adaptor_trampoline_entry +
       isolate_->heap()->arguments_adaptor_deopt_pc_offset()->value());
   output_frame->SetPc(pc_value);
   if (FLAG_enable_embedded_constant_pool) {
