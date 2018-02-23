@@ -117,6 +117,7 @@ void SimdScalarLowering::LowerGraph() {
   V(F32x4Abs)                       \
   V(F32x4Neg)                       \
   V(F32x4Add)                       \
+  V(F32x4AddHoriz)                  \
   V(F32x4Sub)                       \
   V(F32x4Mul)                       \
   V(F32x4Min)                       \
@@ -139,6 +140,7 @@ void SimdScalarLowering::LowerGraph() {
   V(I16x8ShrS)                    \
   V(I16x8Add)                     \
   V(I16x8AddSaturateS)            \
+  V(I16x8AddHoriz)                \
   V(I16x8Sub)                     \
   V(I16x8SubSaturateS)            \
   V(I16x8Mul)                     \
@@ -355,7 +357,6 @@ void SimdScalarLowering::LowerStoreOp(MachineRepresentation rep, Node* node,
     int num_lanes = NumLanes(rep_type);
     Node** indices = zone()->NewArray<Node*>(num_lanes);
     GetIndexNodes(index, indices, rep_type);
-    DCHECK_LT(2, node->InputCount());
     Node* value = node->InputAt(2);
     DCHECK(HasReplacement(1, value));
     Node** rep_nodes = zone()->NewArray<Node*>(num_lanes);
@@ -453,7 +454,8 @@ Node* SimdScalarLowering::FixUpperBits(Node* input, int32_t shift) {
 
 void SimdScalarLowering::LowerBinaryOpForSmallInt(Node* node,
                                                   SimdType input_rep_type,
-                                                  const Operator* op) {
+                                                  const Operator* op,
+                                                  bool not_horizontal) {
   DCHECK_EQ(2, node->InputCount());
   DCHECK(input_rep_type == SimdType::kInt16x8 ||
          input_rep_type == SimdType::kInt8x16);
@@ -463,9 +465,29 @@ void SimdScalarLowering::LowerBinaryOpForSmallInt(Node* node,
   Node** rep_node = zone()->NewArray<Node*>(num_lanes);
   int32_t shift_val =
       (input_rep_type == SimdType::kInt16x8) ? kShift16 : kShift8;
-  for (int i = 0; i < num_lanes; ++i) {
-    rep_node[i] = FixUpperBits(graph()->NewNode(op, rep_left[i], rep_right[i]),
-                               shift_val);
+  if (not_horizontal) {
+    for (int i = 0; i < num_lanes; ++i) {
+      rep_node[i] = FixUpperBits(
+          graph()->NewNode(op, rep_left[i], rep_right[i]), shift_val);
+    }
+  } else {
+    for (int i = 0; i < num_lanes / 2; ++i) {
+#if defined(V8_TARGET_BIG_ENDIAN)
+      rep_node[i] = FixUpperBits(
+          graph()->NewNode(op, rep_right[i * 2], rep_right[i * 2 + 1]),
+          shift_val);
+      rep_node[i + num_lanes / 2] = FixUpperBits(
+          graph()->NewNode(op, rep_left[i * 2], rep_left[i * 2 + 1]),
+          shift_val);
+#else
+      rep_node[i] = FixUpperBits(
+          graph()->NewNode(op, rep_left[i * 2], rep_left[i * 2 + 1]),
+          shift_val);
+      rep_node[i + num_lanes / 2] = FixUpperBits(
+          graph()->NewNode(op, rep_right[i * 2], rep_right[i * 2 + 1]),
+          shift_val);
+#endif
+    }
   }
   ReplaceNode(node, rep_node, num_lanes);
 }
@@ -769,22 +791,35 @@ void SimdScalarLowering::LowerNode(Node* node) {
       break;
     }
     case IrOpcode::kStore: {
+      // For store operation, use replacement type of its input instead of the
+      // one of its effected node.
+      DCHECK_LT(2, node->InputCount());
+      SimdType input_rep_type = ReplacementType(node->InputAt(2));
+      if (input_rep_type != rep_type)
+        replacements_[node->id()].type = input_rep_type;
       MachineRepresentation rep =
           StoreRepresentationOf(node->op()).representation();
       WriteBarrierKind write_barrier_kind =
           StoreRepresentationOf(node->op()).write_barrier_kind();
       const Operator* store_op;
-      store_op = machine()->Store(StoreRepresentation(
-          MachineTypeFrom(rep_type).representation(), write_barrier_kind));
-      LowerStoreOp(rep, node, store_op, rep_type);
+      store_op = machine()->Store(
+          StoreRepresentation(MachineTypeFrom(input_rep_type).representation(),
+                              write_barrier_kind));
+      LowerStoreOp(rep, node, store_op, input_rep_type);
       break;
     }
     case IrOpcode::kUnalignedStore: {
+      // For store operation, use replacement type of its input instead of the
+      // one of its effected node.
+      DCHECK_LT(2, node->InputCount());
+      SimdType input_rep_type = ReplacementType(node->InputAt(2));
+      if (input_rep_type != rep_type)
+        replacements_[node->id()].type = input_rep_type;
       MachineRepresentation rep = UnalignedStoreRepresentationOf(node->op());
       const Operator* store_op;
-      store_op =
-          machine()->UnalignedStore(MachineTypeFrom(rep_type).representation());
-      LowerStoreOp(rep, node, store_op, rep_type);
+      store_op = machine()->UnalignedStore(
+          MachineTypeFrom(input_rep_type).representation());
+      LowerStoreOp(rep, node, store_op, input_rep_type);
       break;
     }
     case IrOpcode::kReturn: {
@@ -851,6 +886,10 @@ void SimdScalarLowering::LowerNode(Node* node) {
 #undef I32X4_BINOP_CASE
     case IrOpcode::kI32x4AddHoriz: {
       LowerBinaryOp(node, rep_type, machine()->Int32Add(), false);
+      break;
+    }
+    case IrOpcode::kI16x8AddHoriz: {
+      LowerBinaryOpForSmallInt(node, rep_type, machine()->Int32Add(), false);
       break;
     }
     case IrOpcode::kI16x8Add:
@@ -960,6 +999,10 @@ void SimdScalarLowering::LowerNode(Node* node) {
     case IrOpcode::kI16x8ShrU:
     case IrOpcode::kI8x16ShrU: {
       LowerShiftOp(node, rep_type);
+      break;
+    }
+    case IrOpcode::kF32x4AddHoriz: {
+      LowerBinaryOp(node, rep_type, machine()->Float32Add(), false);
       break;
     }
 #define F32X4_BINOP_CASE(name)                                 \
