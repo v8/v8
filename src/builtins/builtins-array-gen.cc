@@ -383,8 +383,8 @@ Node* ArrayBuiltinsAssembler::FindProcessor(Node* k_value, Node* k) {
   }
 
   void ArrayBuiltinsAssembler::InitIteratingArrayBuiltinBody(
-      Node* context, Node* receiver, Node* callbackfn, Node* this_arg,
-      Node* new_target, Node* argc) {
+      TNode<Context> context, TNode<Object> receiver, Node* callbackfn,
+      Node* this_arg, Node* new_target, TNode<IntPtrT> argc) {
     context_ = context;
     receiver_ = receiver;
     new_target_ = new_target;
@@ -465,12 +465,11 @@ Node* ArrayBuiltinsAssembler::FindProcessor(Node* k_value, Node* k) {
   }
 
   void ArrayBuiltinsAssembler::InitIteratingArrayBuiltinLoopContinuation(
-      Node* context, Node* receiver, Node* callbackfn, Node* this_arg, Node* a,
-      Node* o, Node* initial_k, Node* len, Node* to) {
+      TNode<Context> context, TNode<Object> receiver, Node* callbackfn,
+      Node* this_arg, Node* a, Node* o, Node* initial_k, Node* len, Node* to) {
     context_ = context;
     this_arg_ = this_arg;
     callbackfn_ = callbackfn;
-    argc_ = nullptr;
     a_.Bind(a);
     k_.Bind(initial_k);
     o_ = o;
@@ -891,12 +890,13 @@ Node* ArrayBuiltinsAssembler::FindProcessor(Node* k_value, Node* k) {
   }
 
 TF_BUILTIN(ArrayPrototypePop, CodeStubAssembler) {
-  Node* argc = Parameter(BuiltinDescriptor::kArgumentsCount);
-  Node* context = Parameter(BuiltinDescriptor::kContext);
+  TNode<Int32T> argc =
+      UncheckedCast<Int32T>(Parameter(BuiltinDescriptor::kArgumentsCount));
+  TNode<Context> context = CAST(Parameter(BuiltinDescriptor::kContext));
   CSA_ASSERT(this, IsUndefined(Parameter(BuiltinDescriptor::kNewTarget)));
 
   CodeStubArguments args(this, ChangeInt32ToIntPtr(argc));
-  Node* receiver = args.GetReceiver();
+  TNode<Object> receiver = args.GetReceiver();
 
   Label runtime(this, Label::kDeferred);
   Label fast(this);
@@ -912,16 +912,18 @@ TF_BUILTIN(ArrayPrototypePop, CodeStubAssembler) {
 
   BIND(&fast);
   {
-    CSA_ASSERT(this, TaggedIsPositiveSmi(LoadJSArrayLength(receiver)));
-    Node* length = LoadAndUntagObjectField(receiver, JSArray::kLengthOffset);
+    TNode<JSArray> array_receiver = CAST(receiver);
+    CSA_ASSERT(this, TaggedIsPositiveSmi(LoadJSArrayLength(array_receiver)));
+    Node* length =
+        LoadAndUntagObjectField(array_receiver, JSArray::kLengthOffset);
     Label return_undefined(this), fast_elements(this);
     GotoIf(IntPtrEqual(length, IntPtrConstant(0)), &return_undefined);
 
     // 2) Ensure that the length is writable.
-    EnsureArrayLengthWritable(LoadMap(receiver), &runtime);
+    EnsureArrayLengthWritable(LoadMap(array_receiver), &runtime);
 
     // 3) Check that the elements backing store isn't copy-on-write.
-    Node* elements = LoadElements(receiver);
+    Node* elements = LoadElements(array_receiver);
     GotoIf(WordEqual(LoadMap(elements),
                      LoadRoot(Heap::kFixedCOWArrayMapRootIndex)),
            &runtime);
@@ -937,10 +939,10 @@ TF_BUILTIN(ArrayPrototypePop, CodeStubAssembler) {
                capacity),
            &runtime);
 
-    StoreObjectFieldNoWriteBarrier(receiver, JSArray::kLengthOffset,
+    StoreObjectFieldNoWriteBarrier(array_receiver, JSArray::kLengthOffset,
                                    SmiTag(new_length));
 
-    Node* elements_kind = LoadMapElementsKind(LoadMap(receiver));
+    Node* elements_kind = LoadMapElementsKind(LoadMap(array_receiver));
     GotoIf(Int32LessThanOrEqual(elements_kind,
                                 Int32Constant(TERMINAL_FAST_ELEMENTS_KIND)),
            &fast_elements);
@@ -1000,12 +1002,14 @@ TF_BUILTIN(ArrayPrototypePush, CodeStubAssembler) {
 
   // TODO(ishell): use constants from Descriptor once the JSFunction linkage
   // arguments are reordered.
-  Node* argc = Parameter(BuiltinDescriptor::kArgumentsCount);
-  Node* context = Parameter(BuiltinDescriptor::kContext);
+  TNode<Int32T> argc =
+      UncheckedCast<Int32T>(Parameter(BuiltinDescriptor::kArgumentsCount));
+  TNode<Context> context = CAST(Parameter(BuiltinDescriptor::kContext));
   CSA_ASSERT(this, IsUndefined(Parameter(BuiltinDescriptor::kNewTarget)));
 
   CodeStubArguments args(this, ChangeInt32ToIntPtr(argc));
-  Node* receiver = args.GetReceiver();
+  TNode<Object> receiver = args.GetReceiver();
+  TNode<JSArray> array_receiver;
   Node* kind = nullptr;
 
   Label fast(this);
@@ -1013,13 +1017,14 @@ TF_BUILTIN(ArrayPrototypePush, CodeStubAssembler) {
 
   BIND(&fast);
   {
+    array_receiver = CAST(receiver);
     arg_index = IntPtrConstant(0);
-    kind = EnsureArrayPushable(receiver, &runtime);
+    kind = EnsureArrayPushable(array_receiver, &runtime);
     GotoIf(IsElementsKindGreaterThan(kind, HOLEY_SMI_ELEMENTS),
            &object_push_pre);
 
-    Node* new_length = BuildAppendJSArray(PACKED_SMI_ELEMENTS, receiver, &args,
-                                          &arg_index, &smi_transition);
+    Node* new_length = BuildAppendJSArray(PACKED_SMI_ELEMENTS, array_receiver,
+                                          &args, &arg_index, &smi_transition);
     args.PopAndReturn(new_length);
   }
 
@@ -1031,15 +1036,15 @@ TF_BUILTIN(ArrayPrototypePush, CodeStubAssembler) {
   {
     Node* arg = args.AtIndex(arg_index.value());
     GotoIf(TaggedIsSmi(arg), &default_label);
-    Node* length = LoadJSArrayLength(receiver);
+    Node* length = LoadJSArrayLength(array_receiver);
     // TODO(danno): Use the KeyedStoreGeneric stub here when possible,
     // calling into the runtime to do the elements transition is overkill.
-    CallRuntime(Runtime::kSetProperty, context, receiver, length, arg,
+    CallRuntime(Runtime::kSetProperty, context, array_receiver, length, arg,
                 SmiConstant(LanguageMode::kStrict));
     Increment(&arg_index);
     // The runtime SetProperty call could have converted the array to dictionary
     // mode, which must be detected to abort the fast-path.
-    Node* map = LoadMap(receiver);
+    Node* map = LoadMap(array_receiver);
     Node* bit_field2 = LoadMapBitField2(map);
     Node* kind = DecodeWord32<Map::ElementsKindBits>(bit_field2);
     GotoIf(Word32Equal(kind, Int32Constant(DICTIONARY_ELEMENTS)),
@@ -1057,16 +1062,16 @@ TF_BUILTIN(ArrayPrototypePush, CodeStubAssembler) {
 
   BIND(&object_push);
   {
-    Node* new_length = BuildAppendJSArray(PACKED_ELEMENTS, receiver, &args,
-                                          &arg_index, &default_label);
+    Node* new_length = BuildAppendJSArray(PACKED_ELEMENTS, array_receiver,
+                                          &args, &arg_index, &default_label);
     args.PopAndReturn(new_length);
   }
 
   BIND(&double_push);
   {
     Node* new_length =
-        BuildAppendJSArray(PACKED_DOUBLE_ELEMENTS, receiver, &args, &arg_index,
-                           &double_transition);
+        BuildAppendJSArray(PACKED_DOUBLE_ELEMENTS, array_receiver, &args,
+                           &arg_index, &double_transition);
     args.PopAndReturn(new_length);
   }
 
@@ -1078,15 +1083,15 @@ TF_BUILTIN(ArrayPrototypePush, CodeStubAssembler) {
   {
     Node* arg = args.AtIndex(arg_index.value());
     GotoIfNumber(arg, &default_label);
-    Node* length = LoadJSArrayLength(receiver);
+    Node* length = LoadJSArrayLength(array_receiver);
     // TODO(danno): Use the KeyedStoreGeneric stub here when possible,
     // calling into the runtime to do the elements transition is overkill.
-    CallRuntime(Runtime::kSetProperty, context, receiver, length, arg,
+    CallRuntime(Runtime::kSetProperty, context, array_receiver, length, arg,
                 SmiConstant(LanguageMode::kStrict));
     Increment(&arg_index);
     // The runtime SetProperty call could have converted the array to dictionary
     // mode, which must be detected to abort the fast-path.
-    Node* map = LoadMap(receiver);
+    Node* map = LoadMap(array_receiver);
     Node* bit_field2 = LoadMapBitField2(map);
     Node* kind = DecodeWord32<Map::ElementsKindBits>(bit_field2);
     GotoIf(Word32Equal(kind, Int32Constant(DICTIONARY_ELEMENTS)),
@@ -1099,13 +1104,13 @@ TF_BUILTIN(ArrayPrototypePush, CodeStubAssembler) {
   BIND(&default_label);
   {
     args.ForEach(
-        [this, receiver, context](Node* arg) {
-          Node* length = LoadJSArrayLength(receiver);
-          CallRuntime(Runtime::kSetProperty, context, receiver, length, arg,
-                      SmiConstant(LanguageMode::kStrict));
+        [this, array_receiver, context](Node* arg) {
+          Node* length = LoadJSArrayLength(array_receiver);
+          CallRuntime(Runtime::kSetProperty, context, array_receiver, length,
+                      arg, SmiConstant(LanguageMode::kStrict));
         },
         arg_index.value());
-    args.PopAndReturn(LoadJSArrayLength(receiver));
+    args.PopAndReturn(LoadJSArrayLength(array_receiver));
   }
 
   BIND(&runtime);
@@ -1123,8 +1128,8 @@ class ArrayPrototypeSliceCodeStubAssembler : public CodeStubAssembler {
       compiler::CodeAssemblerState* state)
       : CodeStubAssembler(state) {}
 
-  Node* HandleFastSlice(Node* context, Node* array, Node* from, Node* count,
-                        Label* slow) {
+  Node* HandleFastSlice(TNode<Context> context, Node* array, Node* from,
+                        Node* count, Label* slow) {
     VARIABLE(result, MachineRepresentation::kTagged);
     Label done(this);
 
@@ -1254,7 +1259,8 @@ class ArrayPrototypeSliceCodeStubAssembler : public CodeStubAssembler {
     return result.value();
   }
 
-  void CopyOneElement(Node* context, Node* o, Node* a, Node* p_k, Variable& n) {
+  void CopyOneElement(TNode<Context> context, Node* o, Node* a, Node* p_k,
+                      Variable& n) {
     // b. Let kPresent be HasProperty(O, Pk).
     // c. ReturnIfAbrupt(kPresent).
     TNode<Oddball> k_present = HasProperty(o, p_k, context, kHasProperty);
@@ -1283,9 +1289,9 @@ TF_BUILTIN(ArrayPrototypeSlice, ArrayPrototypeSliceCodeStubAssembler) {
   Label slow(this, Label::kDeferred), fast_elements_kind(this);
 
   CodeStubArguments args(this, argc);
-  Node* receiver = args.GetReceiver();
+  TNode<Object> receiver = args.GetReceiver();
 
-  VARIABLE(o, MachineRepresentation::kTagged);
+  TVARIABLE(JSReceiver, o);
   VARIABLE(len, MachineRepresentation::kTagged);
   Label length_done(this), generic_length(this), check_arguments_length(this),
       load_arguments_length(this);
@@ -1293,8 +1299,9 @@ TF_BUILTIN(ArrayPrototypeSlice, ArrayPrototypeSliceCodeStubAssembler) {
   GotoIf(TaggedIsSmi(receiver), &generic_length);
   GotoIfNot(IsJSArray(receiver), &check_arguments_length);
 
-  o.Bind(receiver);
-  len.Bind(LoadJSArrayLength(receiver));
+  TNode<JSArray> array_receiver = CAST(receiver);
+  o = array_receiver;
+  len.Bind(LoadJSArrayLength(array_receiver));
 
   // Check for the array clone case. There can be no arguments to slice, the
   // array prototype chain must be intact and have no elements, the array has to
@@ -1310,7 +1317,7 @@ TF_BUILTIN(ArrayPrototypeSlice, ArrayPrototypeSliceCodeStubAssembler) {
 
   BIND(&check_arguments_length);
 
-  Node* map = LoadMap(receiver);
+  Node* map = LoadMap(array_receiver);
   Node* native_context = LoadNativeContext(context);
   GotoIfContextElementEqual(map, native_context,
                             Context::FAST_ALIASED_ARGUMENTS_MAP_INDEX,
@@ -1329,16 +1336,16 @@ TF_BUILTIN(ArrayPrototypeSlice, ArrayPrototypeSliceCodeStubAssembler) {
 
   BIND(&load_arguments_length);
   Node* arguments_length =
-      LoadObjectField(receiver, JSArgumentsObject::kLengthOffset);
+      LoadObjectField(array_receiver, JSArgumentsObject::kLengthOffset);
   GotoIf(TaggedIsNotSmi(arguments_length), &generic_length);
-  o.Bind(receiver);
+  o = CAST(receiver);
   len.Bind(arguments_length);
   Goto(&length_done);
 
   BIND(&generic_length);
   // 1. Let O be ToObject(this value).
   // 2. ReturnIfAbrupt(O).
-  o.Bind(ToObject(context, receiver));
+  o = ToObject(context, receiver);
 
   // 3. Let len be ToLength(Get(O, "length")).
   // 4. ReturnIfAbrupt(len).
@@ -1452,12 +1459,13 @@ TF_BUILTIN(ArrayPrototypeSlice, ArrayPrototypeSliceCodeStubAssembler) {
 }
 
 TF_BUILTIN(ArrayPrototypeShift, CodeStubAssembler) {
-  Node* argc = Parameter(BuiltinDescriptor::kArgumentsCount);
-  Node* context = Parameter(BuiltinDescriptor::kContext);
+  TNode<Int32T> argc =
+      UncheckedCast<Int32T>(Parameter(BuiltinDescriptor::kArgumentsCount));
+  TNode<Context> context = CAST(Parameter(BuiltinDescriptor::kContext));
   CSA_ASSERT(this, IsUndefined(Parameter(BuiltinDescriptor::kNewTarget)));
 
   CodeStubArguments args(this, ChangeInt32ToIntPtr(argc));
-  Node* receiver = args.GetReceiver();
+  TNode<Object> receiver = args.GetReceiver();
 
   Label runtime(this, Label::kDeferred);
   Label fast(this);
@@ -1474,17 +1482,19 @@ TF_BUILTIN(ArrayPrototypeShift, CodeStubAssembler) {
 
   BIND(&fast);
   {
-    CSA_ASSERT(this, TaggedIsPositiveSmi(LoadJSArrayLength(receiver)));
-    Node* length = LoadAndUntagObjectField(receiver, JSArray::kLengthOffset);
+    TNode<JSArray> array_receiver = CAST(receiver);
+    CSA_ASSERT(this, TaggedIsPositiveSmi(LoadJSArrayLength(array_receiver)));
+    Node* length =
+        LoadAndUntagObjectField(array_receiver, JSArray::kLengthOffset);
     Label return_undefined(this), fast_elements_tagged(this),
         fast_elements_smi(this);
     GotoIf(IntPtrEqual(length, IntPtrConstant(0)), &return_undefined);
 
     // 2) Ensure that the length is writable.
-    EnsureArrayLengthWritable(LoadMap(receiver), &runtime);
+    EnsureArrayLengthWritable(LoadMap(array_receiver), &runtime);
 
     // 3) Check that the elements backing store isn't copy-on-write.
-    Node* elements = LoadElements(receiver);
+    Node* elements = LoadElements(array_receiver);
     GotoIf(WordEqual(LoadMap(elements),
                      LoadRoot(Heap::kFixedCOWArrayMapRootIndex)),
            &runtime);
@@ -1506,10 +1516,10 @@ TF_BUILTIN(ArrayPrototypeShift, CodeStubAssembler) {
                              IntPtrConstant(JSArray::kMaxCopyElements)),
            &runtime);
 
-    StoreObjectFieldNoWriteBarrier(receiver, JSArray::kLengthOffset,
+    StoreObjectFieldNoWriteBarrier(array_receiver, JSArray::kLengthOffset,
                                    SmiTag(new_length));
 
-    Node* elements_kind = LoadMapElementsKind(LoadMap(receiver));
+    Node* elements_kind = LoadMapElementsKind(LoadMap(array_receiver));
     GotoIf(
         Int32LessThanOrEqual(elements_kind, Int32Constant(HOLEY_SMI_ELEMENTS)),
         &fast_elements_smi);
@@ -1610,7 +1620,7 @@ TF_BUILTIN(ArrayPrototypeShift, CodeStubAssembler) {
 
 TF_BUILTIN(ExtractFastJSArray, ArrayBuiltinsAssembler) {
   ParameterMode mode = OptimalParameterMode();
-  Node* context = Parameter(Descriptor::kContext);
+  TNode<Context> context = CAST(Parameter(Descriptor::kContext));
   Node* array = Parameter(Descriptor::kSource);
   Node* begin = TaggedToParameter(Parameter(Descriptor::kBegin), mode);
   Node* count = TaggedToParameter(Parameter(Descriptor::kCount), mode);
@@ -1622,7 +1632,7 @@ TF_BUILTIN(ExtractFastJSArray, ArrayBuiltinsAssembler) {
 }
 
 TF_BUILTIN(CloneFastJSArray, ArrayBuiltinsAssembler) {
-  Node* context = Parameter(Descriptor::kContext);
+  TNode<Context> context = CAST(Parameter(Descriptor::kContext));
   Node* array = Parameter(Descriptor::kSource);
 
   CSA_ASSERT(this, IsJSArray(array));
@@ -1633,8 +1643,8 @@ TF_BUILTIN(CloneFastJSArray, ArrayBuiltinsAssembler) {
 }
 
 TF_BUILTIN(ArrayFindLoopContinuation, ArrayBuiltinsAssembler) {
-  Node* context = Parameter(Descriptor::kContext);
-  Node* receiver = Parameter(Descriptor::kReceiver);
+  TNode<Context> context = CAST(Parameter(Descriptor::kContext));
+  TNode<Object> receiver = CAST(Parameter(Descriptor::kReceiver));
   Node* callbackfn = Parameter(Descriptor::kCallbackFn);
   Node* this_arg = Parameter(Descriptor::kThisArg);
   Node* array = Parameter(Descriptor::kArray);
@@ -1656,8 +1666,8 @@ TF_BUILTIN(ArrayFindLoopContinuation, ArrayBuiltinsAssembler) {
 // Continuation that is called after an eager deoptimization from TF (ex. the
 // array changes during iteration).
 TF_BUILTIN(ArrayFindLoopEagerDeoptContinuation, ArrayBuiltinsAssembler) {
-  Node* context = Parameter(Descriptor::kContext);
-  Node* receiver = Parameter(Descriptor::kReceiver);
+  TNode<Context> context = CAST(Parameter(Descriptor::kContext));
+  TNode<Object> receiver = CAST(Parameter(Descriptor::kReceiver));
   Node* callbackfn = Parameter(Descriptor::kCallbackFn);
   Node* this_arg = Parameter(Descriptor::kThisArg);
   Node* initial_k = Parameter(Descriptor::kInitialK);
@@ -1671,8 +1681,8 @@ TF_BUILTIN(ArrayFindLoopEagerDeoptContinuation, ArrayBuiltinsAssembler) {
 // Continuation that is called after a lazy deoptimization from TF (ex. the
 // callback function is no longer callable).
 TF_BUILTIN(ArrayFindLoopLazyDeoptContinuation, ArrayBuiltinsAssembler) {
-  Node* context = Parameter(Descriptor::kContext);
-  Node* receiver = Parameter(Descriptor::kReceiver);
+  TNode<Context> context = CAST(Parameter(Descriptor::kContext));
+  TNode<Object> receiver = CAST(Parameter(Descriptor::kReceiver));
   Node* callbackfn = Parameter(Descriptor::kCallbackFn);
   Node* this_arg = Parameter(Descriptor::kThisArg);
   Node* initial_k = Parameter(Descriptor::kInitialK);
@@ -1688,8 +1698,8 @@ TF_BUILTIN(ArrayFindLoopLazyDeoptContinuation, ArrayBuiltinsAssembler) {
 // iteration continues.
 TF_BUILTIN(ArrayFindLoopAfterCallbackLazyDeoptContinuation,
            ArrayBuiltinsAssembler) {
-  Node* context = Parameter(Descriptor::kContext);
-  Node* receiver = Parameter(Descriptor::kReceiver);
+  TNode<Context> context = CAST(Parameter(Descriptor::kContext));
+  TNode<Object> receiver = CAST(Parameter(Descriptor::kReceiver));
   Node* callbackfn = Parameter(Descriptor::kCallbackFn);
   Node* this_arg = Parameter(Descriptor::kThisArg);
   Node* initial_k = Parameter(Descriptor::kInitialK);
@@ -1713,12 +1723,12 @@ TF_BUILTIN(ArrayFindLoopAfterCallbackLazyDeoptContinuation,
 
 // ES #sec-get-%typedarray%.prototype.find
 TF_BUILTIN(ArrayPrototypeFind, ArrayBuiltinsAssembler) {
-  Node* argc =
+  TNode<IntPtrT> argc =
       ChangeInt32ToIntPtr(Parameter(BuiltinDescriptor::kArgumentsCount));
   CodeStubArguments args(this, argc);
-  Node* context = Parameter(BuiltinDescriptor::kContext);
+  TNode<Context> context = CAST(Parameter(BuiltinDescriptor::kContext));
   Node* new_target = Parameter(BuiltinDescriptor::kNewTarget);
-  Node* receiver = args.GetReceiver();
+  TNode<Object> receiver = args.GetReceiver();
   Node* callbackfn = args.GetOptionalArgumentValue(0);
   Node* this_arg = args.GetOptionalArgumentValue(1);
 
@@ -1734,8 +1744,8 @@ TF_BUILTIN(ArrayPrototypeFind, ArrayBuiltinsAssembler) {
 }
 
 TF_BUILTIN(ArrayFindIndexLoopContinuation, ArrayBuiltinsAssembler) {
-  Node* context = Parameter(Descriptor::kContext);
-  Node* receiver = Parameter(Descriptor::kReceiver);
+  TNode<Context> context = CAST(Parameter(Descriptor::kContext));
+  TNode<Object> receiver = CAST(Parameter(Descriptor::kReceiver));
   Node* callbackfn = Parameter(Descriptor::kCallbackFn);
   Node* this_arg = Parameter(Descriptor::kThisArg);
   Node* array = Parameter(Descriptor::kArray);
@@ -1755,8 +1765,8 @@ TF_BUILTIN(ArrayFindIndexLoopContinuation, ArrayBuiltinsAssembler) {
 }
 
 TF_BUILTIN(ArrayFindIndexLoopEagerDeoptContinuation, ArrayBuiltinsAssembler) {
-  Node* context = Parameter(Descriptor::kContext);
-  Node* receiver = Parameter(Descriptor::kReceiver);
+  TNode<Context> context = CAST(Parameter(Descriptor::kContext));
+  TNode<Object> receiver = CAST(Parameter(Descriptor::kReceiver));
   Node* callbackfn = Parameter(Descriptor::kCallbackFn);
   Node* this_arg = Parameter(Descriptor::kThisArg);
   Node* initial_k = Parameter(Descriptor::kInitialK);
@@ -1768,8 +1778,8 @@ TF_BUILTIN(ArrayFindIndexLoopEagerDeoptContinuation, ArrayBuiltinsAssembler) {
 }
 
 TF_BUILTIN(ArrayFindIndexLoopLazyDeoptContinuation, ArrayBuiltinsAssembler) {
-  Node* context = Parameter(Descriptor::kContext);
-  Node* receiver = Parameter(Descriptor::kReceiver);
+  TNode<Context> context = CAST(Parameter(Descriptor::kContext));
+  TNode<Object> receiver = CAST(Parameter(Descriptor::kReceiver));
   Node* callbackfn = Parameter(Descriptor::kCallbackFn);
   Node* this_arg = Parameter(Descriptor::kThisArg);
   Node* initial_k = Parameter(Descriptor::kInitialK);
@@ -1782,8 +1792,8 @@ TF_BUILTIN(ArrayFindIndexLoopLazyDeoptContinuation, ArrayBuiltinsAssembler) {
 
 TF_BUILTIN(ArrayFindIndexLoopAfterCallbackLazyDeoptContinuation,
            ArrayBuiltinsAssembler) {
-  Node* context = Parameter(Descriptor::kContext);
-  Node* receiver = Parameter(Descriptor::kReceiver);
+  TNode<Context> context = CAST(Parameter(Descriptor::kContext));
+  TNode<Object> receiver = CAST(Parameter(Descriptor::kReceiver));
   Node* callbackfn = Parameter(Descriptor::kCallbackFn);
   Node* this_arg = Parameter(Descriptor::kThisArg);
   Node* initial_k = Parameter(Descriptor::kInitialK);
@@ -1807,12 +1817,12 @@ TF_BUILTIN(ArrayFindIndexLoopAfterCallbackLazyDeoptContinuation,
 
 // ES #sec-get-%typedarray%.prototype.findIndex
 TF_BUILTIN(ArrayPrototypeFindIndex, ArrayBuiltinsAssembler) {
-  Node* argc =
+  TNode<IntPtrT> argc =
       ChangeInt32ToIntPtr(Parameter(BuiltinDescriptor::kArgumentsCount));
   CodeStubArguments args(this, argc);
-  Node* context = Parameter(BuiltinDescriptor::kContext);
+  TNode<Context> context = CAST(Parameter(BuiltinDescriptor::kContext));
   Node* new_target = Parameter(BuiltinDescriptor::kNewTarget);
-  Node* receiver = args.GetReceiver();
+  TNode<Object> receiver = args.GetReceiver();
   Node* callbackfn = args.GetOptionalArgumentValue(0);
   Node* this_arg = args.GetOptionalArgumentValue(1);
 
@@ -2199,12 +2209,12 @@ TF_BUILTIN(ArrayOf, ArrayPopulatorAssembler) {
 
 // ES #sec-get-%typedarray%.prototype.find
 TF_BUILTIN(TypedArrayPrototypeFind, ArrayBuiltinsAssembler) {
-  Node* argc =
+  TNode<IntPtrT> argc =
       ChangeInt32ToIntPtr(Parameter(BuiltinDescriptor::kArgumentsCount));
   CodeStubArguments args(this, argc);
-  Node* context = Parameter(BuiltinDescriptor::kContext);
+  TNode<Context> context = CAST(Parameter(BuiltinDescriptor::kContext));
   Node* new_target = Parameter(BuiltinDescriptor::kNewTarget);
-  Node* receiver = args.GetReceiver();
+  TNode<Object> receiver = args.GetReceiver();
   Node* callbackfn = args.GetOptionalArgumentValue(0);
   Node* this_arg = args.GetOptionalArgumentValue(1);
 
@@ -2220,12 +2230,12 @@ TF_BUILTIN(TypedArrayPrototypeFind, ArrayBuiltinsAssembler) {
 
 // ES #sec-get-%typedarray%.prototype.findIndex
 TF_BUILTIN(TypedArrayPrototypeFindIndex, ArrayBuiltinsAssembler) {
-  Node* argc =
+  TNode<IntPtrT> argc =
       ChangeInt32ToIntPtr(Parameter(BuiltinDescriptor::kArgumentsCount));
   CodeStubArguments args(this, argc);
-  Node* context = Parameter(BuiltinDescriptor::kContext);
+  TNode<Context> context = CAST(Parameter(BuiltinDescriptor::kContext));
   Node* new_target = Parameter(BuiltinDescriptor::kNewTarget);
-  Node* receiver = args.GetReceiver();
+  TNode<Object> receiver = args.GetReceiver();
   Node* callbackfn = args.GetOptionalArgumentValue(0);
   Node* this_arg = args.GetOptionalArgumentValue(1);
 
@@ -2240,8 +2250,8 @@ TF_BUILTIN(TypedArrayPrototypeFindIndex, ArrayBuiltinsAssembler) {
 }
 
 TF_BUILTIN(ArrayForEachLoopContinuation, ArrayBuiltinsAssembler) {
-  Node* context = Parameter(Descriptor::kContext);
-  Node* receiver = Parameter(Descriptor::kReceiver);
+  TNode<Context> context = CAST(Parameter(Descriptor::kContext));
+  TNode<Object> receiver = CAST(Parameter(Descriptor::kReceiver));
   Node* callbackfn = Parameter(Descriptor::kCallbackFn);
   Node* this_arg = Parameter(Descriptor::kThisArg);
   Node* array = Parameter(Descriptor::kArray);
@@ -2260,8 +2270,8 @@ TF_BUILTIN(ArrayForEachLoopContinuation, ArrayBuiltinsAssembler) {
 }
 
 TF_BUILTIN(ArrayForEachLoopEagerDeoptContinuation, ArrayBuiltinsAssembler) {
-  Node* context = Parameter(Descriptor::kContext);
-  Node* receiver = Parameter(Descriptor::kReceiver);
+  TNode<Context> context = CAST(Parameter(Descriptor::kContext));
+  TNode<Object> receiver = CAST(Parameter(Descriptor::kReceiver));
   Node* callbackfn = Parameter(Descriptor::kCallbackFn);
   Node* this_arg = Parameter(Descriptor::kThisArg);
   Node* initial_k = Parameter(Descriptor::kInitialK);
@@ -2273,8 +2283,8 @@ TF_BUILTIN(ArrayForEachLoopEagerDeoptContinuation, ArrayBuiltinsAssembler) {
 }
 
 TF_BUILTIN(ArrayForEachLoopLazyDeoptContinuation, ArrayBuiltinsAssembler) {
-  Node* context = Parameter(Descriptor::kContext);
-  Node* receiver = Parameter(Descriptor::kReceiver);
+  TNode<Context> context = CAST(Parameter(Descriptor::kContext));
+  TNode<Object> receiver = CAST(Parameter(Descriptor::kReceiver));
   Node* callbackfn = Parameter(Descriptor::kCallbackFn);
   Node* this_arg = Parameter(Descriptor::kThisArg);
   Node* initial_k = Parameter(Descriptor::kInitialK);
@@ -2286,12 +2296,12 @@ TF_BUILTIN(ArrayForEachLoopLazyDeoptContinuation, ArrayBuiltinsAssembler) {
 }
 
 TF_BUILTIN(ArrayForEach, ArrayBuiltinsAssembler) {
-  Node* argc =
+  TNode<IntPtrT> argc =
       ChangeInt32ToIntPtr(Parameter(BuiltinDescriptor::kArgumentsCount));
   CodeStubArguments args(this, argc);
-  Node* context = Parameter(BuiltinDescriptor::kContext);
+  TNode<Context> context = CAST(Parameter(BuiltinDescriptor::kContext));
   Node* new_target = Parameter(BuiltinDescriptor::kNewTarget);
-  Node* receiver = args.GetReceiver();
+  TNode<Object> receiver = args.GetReceiver();
   Node* callbackfn = args.GetOptionalArgumentValue(0);
   Node* this_arg = args.GetOptionalArgumentValue(1);
 
@@ -2308,12 +2318,12 @@ TF_BUILTIN(ArrayForEach, ArrayBuiltinsAssembler) {
 }
 
 TF_BUILTIN(TypedArrayPrototypeForEach, ArrayBuiltinsAssembler) {
-  Node* argc =
+  TNode<IntPtrT> argc =
       ChangeInt32ToIntPtr(Parameter(BuiltinDescriptor::kArgumentsCount));
   CodeStubArguments args(this, argc);
-  Node* context = Parameter(BuiltinDescriptor::kContext);
+  TNode<Context> context = CAST(Parameter(BuiltinDescriptor::kContext));
   Node* new_target = Parameter(BuiltinDescriptor::kNewTarget);
-  Node* receiver = args.GetReceiver();
+  TNode<Object> receiver = args.GetReceiver();
   Node* callbackfn = args.GetOptionalArgumentValue(0);
   Node* this_arg = args.GetOptionalArgumentValue(1);
 
@@ -2328,8 +2338,8 @@ TF_BUILTIN(TypedArrayPrototypeForEach, ArrayBuiltinsAssembler) {
 }
 
 TF_BUILTIN(ArraySomeLoopLazyDeoptContinuation, ArrayBuiltinsAssembler) {
-  Node* context = Parameter(Descriptor::kContext);
-  Node* receiver = Parameter(Descriptor::kReceiver);
+  TNode<Context> context = CAST(Parameter(Descriptor::kContext));
+  TNode<Object> receiver = CAST(Parameter(Descriptor::kReceiver));
   Node* callbackfn = Parameter(Descriptor::kCallbackFn);
   Node* this_arg = Parameter(Descriptor::kThisArg);
   Node* initial_k = Parameter(Descriptor::kInitialK);
@@ -2357,8 +2367,8 @@ TF_BUILTIN(ArraySomeLoopLazyDeoptContinuation, ArrayBuiltinsAssembler) {
 }
 
 TF_BUILTIN(ArraySomeLoopEagerDeoptContinuation, ArrayBuiltinsAssembler) {
-  Node* context = Parameter(Descriptor::kContext);
-  Node* receiver = Parameter(Descriptor::kReceiver);
+  TNode<Context> context = CAST(Parameter(Descriptor::kContext));
+  TNode<Object> receiver = CAST(Parameter(Descriptor::kReceiver));
   Node* callbackfn = Parameter(Descriptor::kCallbackFn);
   Node* this_arg = Parameter(Descriptor::kThisArg);
   Node* initial_k = Parameter(Descriptor::kInitialK);
@@ -2370,8 +2380,8 @@ TF_BUILTIN(ArraySomeLoopEagerDeoptContinuation, ArrayBuiltinsAssembler) {
 }
 
 TF_BUILTIN(ArraySomeLoopContinuation, ArrayBuiltinsAssembler) {
-  Node* context = Parameter(Descriptor::kContext);
-  Node* receiver = Parameter(Descriptor::kReceiver);
+  TNode<Context> context = CAST(Parameter(Descriptor::kContext));
+  TNode<Object> receiver = CAST(Parameter(Descriptor::kReceiver));
   Node* callbackfn = Parameter(Descriptor::kCallbackFn);
   Node* this_arg = Parameter(Descriptor::kThisArg);
   Node* array = Parameter(Descriptor::kArray);
@@ -2390,12 +2400,12 @@ TF_BUILTIN(ArraySomeLoopContinuation, ArrayBuiltinsAssembler) {
 }
 
 TF_BUILTIN(ArraySome, ArrayBuiltinsAssembler) {
-  Node* argc =
+  TNode<IntPtrT> argc =
       ChangeInt32ToIntPtr(Parameter(BuiltinDescriptor::kArgumentsCount));
   CodeStubArguments args(this, argc);
-  Node* context = Parameter(BuiltinDescriptor::kContext);
+  TNode<Context> context = CAST(Parameter(BuiltinDescriptor::kContext));
   Node* new_target = Parameter(BuiltinDescriptor::kNewTarget);
-  Node* receiver = args.GetReceiver();
+  TNode<Object> receiver = args.GetReceiver();
   Node* callbackfn = args.GetOptionalArgumentValue(0);
   Node* this_arg = args.GetOptionalArgumentValue(1);
 
@@ -2411,12 +2421,12 @@ TF_BUILTIN(ArraySome, ArrayBuiltinsAssembler) {
 }
 
 TF_BUILTIN(TypedArrayPrototypeSome, ArrayBuiltinsAssembler) {
-  Node* argc =
+  TNode<IntPtrT> argc =
       ChangeInt32ToIntPtr(Parameter(BuiltinDescriptor::kArgumentsCount));
   CodeStubArguments args(this, argc);
-  Node* context = Parameter(BuiltinDescriptor::kContext);
+  TNode<Context> context = CAST(Parameter(BuiltinDescriptor::kContext));
   Node* new_target = Parameter(BuiltinDescriptor::kNewTarget);
-  Node* receiver = args.GetReceiver();
+  TNode<Object> receiver = args.GetReceiver();
   Node* callbackfn = args.GetOptionalArgumentValue(0);
   Node* this_arg = args.GetOptionalArgumentValue(1);
 
@@ -2431,8 +2441,8 @@ TF_BUILTIN(TypedArrayPrototypeSome, ArrayBuiltinsAssembler) {
 }
 
 TF_BUILTIN(ArrayEveryLoopLazyDeoptContinuation, ArrayBuiltinsAssembler) {
-  Node* context = Parameter(Descriptor::kContext);
-  Node* receiver = Parameter(Descriptor::kReceiver);
+  TNode<Context> context = CAST(Parameter(Descriptor::kContext));
+  TNode<Object> receiver = CAST(Parameter(Descriptor::kReceiver));
   Node* callbackfn = Parameter(Descriptor::kCallbackFn);
   Node* this_arg = Parameter(Descriptor::kThisArg);
   Node* initial_k = Parameter(Descriptor::kInitialK);
@@ -2460,8 +2470,8 @@ TF_BUILTIN(ArrayEveryLoopLazyDeoptContinuation, ArrayBuiltinsAssembler) {
 }
 
 TF_BUILTIN(ArrayEveryLoopEagerDeoptContinuation, ArrayBuiltinsAssembler) {
-  Node* context = Parameter(Descriptor::kContext);
-  Node* receiver = Parameter(Descriptor::kReceiver);
+  TNode<Context> context = CAST(Parameter(Descriptor::kContext));
+  TNode<Object> receiver = CAST(Parameter(Descriptor::kReceiver));
   Node* callbackfn = Parameter(Descriptor::kCallbackFn);
   Node* this_arg = Parameter(Descriptor::kThisArg);
   Node* initial_k = Parameter(Descriptor::kInitialK);
@@ -2473,8 +2483,8 @@ TF_BUILTIN(ArrayEveryLoopEagerDeoptContinuation, ArrayBuiltinsAssembler) {
 }
 
 TF_BUILTIN(ArrayEveryLoopContinuation, ArrayBuiltinsAssembler) {
-  Node* context = Parameter(Descriptor::kContext);
-  Node* receiver = Parameter(Descriptor::kReceiver);
+  TNode<Context> context = CAST(Parameter(Descriptor::kContext));
+  TNode<Object> receiver = CAST(Parameter(Descriptor::kReceiver));
   Node* callbackfn = Parameter(Descriptor::kCallbackFn);
   Node* this_arg = Parameter(Descriptor::kThisArg);
   Node* array = Parameter(Descriptor::kArray);
@@ -2493,12 +2503,12 @@ TF_BUILTIN(ArrayEveryLoopContinuation, ArrayBuiltinsAssembler) {
 }
 
 TF_BUILTIN(ArrayEvery, ArrayBuiltinsAssembler) {
-  Node* argc =
+  TNode<IntPtrT> argc =
       ChangeInt32ToIntPtr(Parameter(BuiltinDescriptor::kArgumentsCount));
   CodeStubArguments args(this, argc);
-  Node* context = Parameter(BuiltinDescriptor::kContext);
+  TNode<Context> context = CAST(Parameter(BuiltinDescriptor::kContext));
   Node* new_target = Parameter(BuiltinDescriptor::kNewTarget);
-  Node* receiver = args.GetReceiver();
+  TNode<Object> receiver = args.GetReceiver();
   Node* callbackfn = args.GetOptionalArgumentValue(0);
   Node* this_arg = args.GetOptionalArgumentValue(1);
 
@@ -2514,12 +2524,12 @@ TF_BUILTIN(ArrayEvery, ArrayBuiltinsAssembler) {
 }
 
 TF_BUILTIN(TypedArrayPrototypeEvery, ArrayBuiltinsAssembler) {
-  Node* argc =
+  TNode<IntPtrT> argc =
       ChangeInt32ToIntPtr(Parameter(BuiltinDescriptor::kArgumentsCount));
   CodeStubArguments args(this, argc);
-  Node* context = Parameter(BuiltinDescriptor::kContext);
+  TNode<Context> context = CAST(Parameter(BuiltinDescriptor::kContext));
   Node* new_target = Parameter(BuiltinDescriptor::kNewTarget);
-  Node* receiver = args.GetReceiver();
+  TNode<Object> receiver = args.GetReceiver();
   Node* callbackfn = args.GetOptionalArgumentValue(0);
   Node* this_arg = args.GetOptionalArgumentValue(1);
 
@@ -2534,8 +2544,8 @@ TF_BUILTIN(TypedArrayPrototypeEvery, ArrayBuiltinsAssembler) {
 }
 
 TF_BUILTIN(ArrayReduceLoopContinuation, ArrayBuiltinsAssembler) {
-  Node* context = Parameter(Descriptor::kContext);
-  Node* receiver = Parameter(Descriptor::kReceiver);
+  TNode<Context> context = CAST(Parameter(Descriptor::kContext));
+  TNode<Object> receiver = CAST(Parameter(Descriptor::kReceiver));
   Node* callbackfn = Parameter(Descriptor::kCallbackFn);
   Node* this_arg = Parameter(Descriptor::kThisArg);
   Node* accumulator = Parameter(Descriptor::kAccumulator);
@@ -2555,8 +2565,8 @@ TF_BUILTIN(ArrayReduceLoopContinuation, ArrayBuiltinsAssembler) {
 }
 
 TF_BUILTIN(ArrayReducePreLoopEagerDeoptContinuation, ArrayBuiltinsAssembler) {
-  Node* context = Parameter(Descriptor::kContext);
-  Node* receiver = Parameter(Descriptor::kReceiver);
+  TNode<Context> context = CAST(Parameter(Descriptor::kContext));
+  TNode<Object> receiver = CAST(Parameter(Descriptor::kReceiver));
   Node* callbackfn = Parameter(Descriptor::kCallbackFn);
   Node* len = Parameter(Descriptor::kLength);
 
@@ -2571,8 +2581,8 @@ TF_BUILTIN(ArrayReducePreLoopEagerDeoptContinuation, ArrayBuiltinsAssembler) {
 }
 
 TF_BUILTIN(ArrayReduceLoopEagerDeoptContinuation, ArrayBuiltinsAssembler) {
-  Node* context = Parameter(Descriptor::kContext);
-  Node* receiver = Parameter(Descriptor::kReceiver);
+  TNode<Context> context = CAST(Parameter(Descriptor::kContext));
+  TNode<Object> receiver = CAST(Parameter(Descriptor::kReceiver));
   Node* callbackfn = Parameter(Descriptor::kCallbackFn);
   Node* accumulator = Parameter(Descriptor::kAccumulator);
   Node* initial_k = Parameter(Descriptor::kInitialK);
@@ -2585,8 +2595,8 @@ TF_BUILTIN(ArrayReduceLoopEagerDeoptContinuation, ArrayBuiltinsAssembler) {
 }
 
 TF_BUILTIN(ArrayReduceLoopLazyDeoptContinuation, ArrayBuiltinsAssembler) {
-  Node* context = Parameter(Descriptor::kContext);
-  Node* receiver = Parameter(Descriptor::kReceiver);
+  TNode<Context> context = CAST(Parameter(Descriptor::kContext));
+  TNode<Object> receiver = CAST(Parameter(Descriptor::kReceiver));
   Node* callbackfn = Parameter(Descriptor::kCallbackFn);
   Node* initial_k = Parameter(Descriptor::kInitialK);
   Node* len = Parameter(Descriptor::kLength);
@@ -2599,12 +2609,12 @@ TF_BUILTIN(ArrayReduceLoopLazyDeoptContinuation, ArrayBuiltinsAssembler) {
 }
 
 TF_BUILTIN(ArrayReduce, ArrayBuiltinsAssembler) {
-  Node* argc =
+  TNode<IntPtrT> argc =
       ChangeInt32ToIntPtr(Parameter(BuiltinDescriptor::kArgumentsCount));
   CodeStubArguments args(this, argc);
-  Node* context = Parameter(BuiltinDescriptor::kContext);
+  TNode<Context> context = CAST(Parameter(BuiltinDescriptor::kContext));
   Node* new_target = Parameter(BuiltinDescriptor::kNewTarget);
-  Node* receiver = args.GetReceiver();
+  TNode<Object> receiver = args.GetReceiver();
   Node* callbackfn = args.GetOptionalArgumentValue(0);
   Node* initial_value = args.GetOptionalArgumentValue(1, TheHoleConstant());
 
@@ -2620,12 +2630,12 @@ TF_BUILTIN(ArrayReduce, ArrayBuiltinsAssembler) {
 }
 
 TF_BUILTIN(TypedArrayPrototypeReduce, ArrayBuiltinsAssembler) {
-  Node* argc =
+  TNode<IntPtrT> argc =
       ChangeInt32ToIntPtr(Parameter(BuiltinDescriptor::kArgumentsCount));
   CodeStubArguments args(this, argc);
-  Node* context = Parameter(BuiltinDescriptor::kContext);
+  TNode<Context> context = CAST(Parameter(BuiltinDescriptor::kContext));
   Node* new_target = Parameter(BuiltinDescriptor::kNewTarget);
-  Node* receiver = args.GetReceiver();
+  TNode<Object> receiver = args.GetReceiver();
   Node* callbackfn = args.GetOptionalArgumentValue(0);
   Node* initial_value = args.GetOptionalArgumentValue(1, TheHoleConstant());
 
@@ -2640,8 +2650,8 @@ TF_BUILTIN(TypedArrayPrototypeReduce, ArrayBuiltinsAssembler) {
 }
 
 TF_BUILTIN(ArrayReduceRightLoopContinuation, ArrayBuiltinsAssembler) {
-  Node* context = Parameter(Descriptor::kContext);
-  Node* receiver = Parameter(Descriptor::kReceiver);
+  TNode<Context> context = CAST(Parameter(Descriptor::kContext));
+  TNode<Object> receiver = CAST(Parameter(Descriptor::kReceiver));
   Node* callbackfn = Parameter(Descriptor::kCallbackFn);
   Node* this_arg = Parameter(Descriptor::kThisArg);
   Node* accumulator = Parameter(Descriptor::kAccumulator);
@@ -2662,8 +2672,8 @@ TF_BUILTIN(ArrayReduceRightLoopContinuation, ArrayBuiltinsAssembler) {
 
 TF_BUILTIN(ArrayReduceRightPreLoopEagerDeoptContinuation,
            ArrayBuiltinsAssembler) {
-  Node* context = Parameter(Descriptor::kContext);
-  Node* receiver = Parameter(Descriptor::kReceiver);
+  TNode<Context> context = CAST(Parameter(Descriptor::kContext));
+  TNode<Object> receiver = CAST(Parameter(Descriptor::kReceiver));
   Node* callbackfn = Parameter(Descriptor::kCallbackFn);
   Node* len = Parameter(Descriptor::kLength);
 
@@ -2678,8 +2688,8 @@ TF_BUILTIN(ArrayReduceRightPreLoopEagerDeoptContinuation,
 }
 
 TF_BUILTIN(ArrayReduceRightLoopEagerDeoptContinuation, ArrayBuiltinsAssembler) {
-  Node* context = Parameter(Descriptor::kContext);
-  Node* receiver = Parameter(Descriptor::kReceiver);
+  TNode<Context> context = CAST(Parameter(Descriptor::kContext));
+  TNode<Object> receiver = CAST(Parameter(Descriptor::kReceiver));
   Node* callbackfn = Parameter(Descriptor::kCallbackFn);
   Node* accumulator = Parameter(Descriptor::kAccumulator);
   Node* initial_k = Parameter(Descriptor::kInitialK);
@@ -2692,8 +2702,8 @@ TF_BUILTIN(ArrayReduceRightLoopEagerDeoptContinuation, ArrayBuiltinsAssembler) {
 }
 
 TF_BUILTIN(ArrayReduceRightLoopLazyDeoptContinuation, ArrayBuiltinsAssembler) {
-  Node* context = Parameter(Descriptor::kContext);
-  Node* receiver = Parameter(Descriptor::kReceiver);
+  TNode<Context> context = CAST(Parameter(Descriptor::kContext));
+  TNode<Object> receiver = CAST(Parameter(Descriptor::kReceiver));
   Node* callbackfn = Parameter(Descriptor::kCallbackFn);
   Node* initial_k = Parameter(Descriptor::kInitialK);
   Node* len = Parameter(Descriptor::kLength);
@@ -2706,12 +2716,12 @@ TF_BUILTIN(ArrayReduceRightLoopLazyDeoptContinuation, ArrayBuiltinsAssembler) {
 }
 
 TF_BUILTIN(ArrayReduceRight, ArrayBuiltinsAssembler) {
-  Node* argc =
+  TNode<IntPtrT> argc =
       ChangeInt32ToIntPtr(Parameter(BuiltinDescriptor::kArgumentsCount));
   CodeStubArguments args(this, argc);
-  Node* context = Parameter(BuiltinDescriptor::kContext);
+  TNode<Context> context = CAST(Parameter(BuiltinDescriptor::kContext));
   Node* new_target = Parameter(BuiltinDescriptor::kNewTarget);
-  Node* receiver = args.GetReceiver();
+  TNode<Object> receiver = args.GetReceiver();
   Node* callbackfn = args.GetOptionalArgumentValue(0);
   Node* initial_value = args.GetOptionalArgumentValue(1, TheHoleConstant());
 
@@ -2729,12 +2739,12 @@ TF_BUILTIN(ArrayReduceRight, ArrayBuiltinsAssembler) {
 }
 
 TF_BUILTIN(TypedArrayPrototypeReduceRight, ArrayBuiltinsAssembler) {
-  Node* argc =
+  TNode<IntPtrT> argc =
       ChangeInt32ToIntPtr(Parameter(BuiltinDescriptor::kArgumentsCount));
   CodeStubArguments args(this, argc);
-  Node* context = Parameter(BuiltinDescriptor::kContext);
+  TNode<Context> context = CAST(Parameter(BuiltinDescriptor::kContext));
   Node* new_target = Parameter(BuiltinDescriptor::kNewTarget);
-  Node* receiver = args.GetReceiver();
+  TNode<Object> receiver = args.GetReceiver();
   Node* callbackfn = args.GetOptionalArgumentValue(0);
   Node* initial_value = args.GetOptionalArgumentValue(1, TheHoleConstant());
 
@@ -2750,8 +2760,8 @@ TF_BUILTIN(TypedArrayPrototypeReduceRight, ArrayBuiltinsAssembler) {
 }
 
 TF_BUILTIN(ArrayFilterLoopContinuation, ArrayBuiltinsAssembler) {
-  Node* context = Parameter(Descriptor::kContext);
-  Node* receiver = Parameter(Descriptor::kReceiver);
+  TNode<Context> context = CAST(Parameter(Descriptor::kContext));
+  TNode<Object> receiver = CAST(Parameter(Descriptor::kReceiver));
   Node* callbackfn = Parameter(Descriptor::kCallbackFn);
   Node* this_arg = Parameter(Descriptor::kThisArg);
   Node* array = Parameter(Descriptor::kArray);
@@ -2770,8 +2780,8 @@ TF_BUILTIN(ArrayFilterLoopContinuation, ArrayBuiltinsAssembler) {
 }
 
 TF_BUILTIN(ArrayFilterLoopEagerDeoptContinuation, ArrayBuiltinsAssembler) {
-  Node* context = Parameter(Descriptor::kContext);
-  Node* receiver = Parameter(Descriptor::kReceiver);
+  TNode<Context> context = CAST(Parameter(Descriptor::kContext));
+  TNode<Object> receiver = CAST(Parameter(Descriptor::kReceiver));
   Node* callbackfn = Parameter(Descriptor::kCallbackFn);
   Node* this_arg = Parameter(Descriptor::kThisArg);
   Node* array = Parameter(Descriptor::kArray);
@@ -2785,8 +2795,8 @@ TF_BUILTIN(ArrayFilterLoopEagerDeoptContinuation, ArrayBuiltinsAssembler) {
 }
 
 TF_BUILTIN(ArrayFilterLoopLazyDeoptContinuation, ArrayBuiltinsAssembler) {
-  Node* context = Parameter(Descriptor::kContext);
-  Node* receiver = Parameter(Descriptor::kReceiver);
+  TNode<Context> context = CAST(Parameter(Descriptor::kContext));
+  TNode<Object> receiver = CAST(Parameter(Descriptor::kReceiver));
   Node* callbackfn = Parameter(Descriptor::kCallbackFn);
   Node* this_arg = Parameter(Descriptor::kThisArg);
   Node* array = Parameter(Descriptor::kArray);
@@ -2826,12 +2836,12 @@ TF_BUILTIN(ArrayFilterLoopLazyDeoptContinuation, ArrayBuiltinsAssembler) {
 }
 
 TF_BUILTIN(ArrayFilter, ArrayBuiltinsAssembler) {
-  Node* argc =
+  TNode<IntPtrT> argc =
       ChangeInt32ToIntPtr(Parameter(BuiltinDescriptor::kArgumentsCount));
   CodeStubArguments args(this, argc);
-  Node* context = Parameter(BuiltinDescriptor::kContext);
+  TNode<Context> context = CAST(Parameter(BuiltinDescriptor::kContext));
   Node* new_target = Parameter(BuiltinDescriptor::kNewTarget);
-  Node* receiver = args.GetReceiver();
+  TNode<Object> receiver = args.GetReceiver();
   Node* callbackfn = args.GetOptionalArgumentValue(0);
   Node* this_arg = args.GetOptionalArgumentValue(1);
 
@@ -2847,8 +2857,8 @@ TF_BUILTIN(ArrayFilter, ArrayBuiltinsAssembler) {
 }
 
 TF_BUILTIN(ArrayMapLoopContinuation, ArrayBuiltinsAssembler) {
-  Node* context = Parameter(Descriptor::kContext);
-  Node* receiver = Parameter(Descriptor::kReceiver);
+  TNode<Context> context = CAST(Parameter(Descriptor::kContext));
+  TNode<Object> receiver = CAST(Parameter(Descriptor::kReceiver));
   Node* callbackfn = Parameter(Descriptor::kCallbackFn);
   Node* this_arg = Parameter(Descriptor::kThisArg);
   Node* array = Parameter(Descriptor::kArray);
@@ -2867,8 +2877,8 @@ TF_BUILTIN(ArrayMapLoopContinuation, ArrayBuiltinsAssembler) {
 }
 
 TF_BUILTIN(ArrayMapLoopEagerDeoptContinuation, ArrayBuiltinsAssembler) {
-  Node* context = Parameter(Descriptor::kContext);
-  Node* receiver = Parameter(Descriptor::kReceiver);
+  TNode<Context> context = CAST(Parameter(Descriptor::kContext));
+  TNode<Object> receiver = CAST(Parameter(Descriptor::kReceiver));
   Node* callbackfn = Parameter(Descriptor::kCallbackFn);
   Node* this_arg = Parameter(Descriptor::kThisArg);
   Node* array = Parameter(Descriptor::kArray);
@@ -2881,8 +2891,8 @@ TF_BUILTIN(ArrayMapLoopEagerDeoptContinuation, ArrayBuiltinsAssembler) {
 }
 
 TF_BUILTIN(ArrayMapLoopLazyDeoptContinuation, ArrayBuiltinsAssembler) {
-  Node* context = Parameter(Descriptor::kContext);
-  Node* receiver = Parameter(Descriptor::kReceiver);
+  TNode<Context> context = CAST(Parameter(Descriptor::kContext));
+  TNode<Object> receiver = CAST(Parameter(Descriptor::kReceiver));
   Node* callbackfn = Parameter(Descriptor::kCallbackFn);
   Node* this_arg = Parameter(Descriptor::kThisArg);
   Node* array = Parameter(Descriptor::kArray);
@@ -2906,12 +2916,12 @@ TF_BUILTIN(ArrayMapLoopLazyDeoptContinuation, ArrayBuiltinsAssembler) {
 }
 
 TF_BUILTIN(ArrayMap, ArrayBuiltinsAssembler) {
-  Node* argc =
+  TNode<IntPtrT> argc =
       ChangeInt32ToIntPtr(Parameter(BuiltinDescriptor::kArgumentsCount));
   CodeStubArguments args(this, argc);
-  Node* context = Parameter(BuiltinDescriptor::kContext);
+  TNode<Context> context = CAST(Parameter(BuiltinDescriptor::kContext));
   Node* new_target = Parameter(BuiltinDescriptor::kNewTarget);
-  Node* receiver = args.GetReceiver();
+  TNode<Object> receiver = args.GetReceiver();
   Node* callbackfn = args.GetOptionalArgumentValue(0);
   Node* this_arg = args.GetOptionalArgumentValue(1);
 
@@ -2927,12 +2937,12 @@ TF_BUILTIN(ArrayMap, ArrayBuiltinsAssembler) {
 }
 
 TF_BUILTIN(TypedArrayPrototypeMap, ArrayBuiltinsAssembler) {
-  Node* argc =
+  TNode<IntPtrT> argc =
       ChangeInt32ToIntPtr(Parameter(BuiltinDescriptor::kArgumentsCount));
   CodeStubArguments args(this, argc);
-  Node* context = Parameter(BuiltinDescriptor::kContext);
+  TNode<Context> context = CAST(Parameter(BuiltinDescriptor::kContext));
   Node* new_target = Parameter(BuiltinDescriptor::kNewTarget);
-  Node* receiver = args.GetReceiver();
+  TNode<Object> receiver = args.GetReceiver();
   Node* callbackfn = args.GetOptionalArgumentValue(0);
   Node* this_arg = args.GetOptionalArgumentValue(1);
 
@@ -2992,7 +3002,7 @@ void ArrayIncludesIndexofAssembler::Generate(SearchVariant variant) {
   TNode<Object> receiver = args.GetReceiver();
   TNode<Object> search_element =
       args.GetOptionalArgumentValue(kSearchElementArg);
-  Node* context = Parameter(BuiltinDescriptor::kContext);
+  TNode<Context> context = CAST(Parameter(BuiltinDescriptor::kContext));
 
   Node* intptr_zero = IntPtrConstant(0);
 
@@ -3371,7 +3381,8 @@ class ArrayPrototypeIterationAssembler : public CodeStubAssembler {
       : CodeStubAssembler(state) {}
 
  protected:
-  void Generate_ArrayPrototypeIterationMethod(Node* context, Node* receiver,
+  void Generate_ArrayPrototypeIterationMethod(TNode<Context> context,
+                                              TNode<Object> receiver,
                                               IterationKind iteration_kind) {
     VARIABLE(var_array, MachineRepresentation::kTagged);
     VARIABLE(var_map, MachineRepresentation::kTagged);
@@ -3381,15 +3392,17 @@ class ArrayPrototypeIterationAssembler : public CodeStubAssembler {
     Label create_array_iterator(this);
 
     GotoIf(TaggedIsSmi(receiver), &if_isnotobject);
-    var_array.Bind(receiver);
-    var_map.Bind(LoadMap(receiver));
+
+    TNode<HeapObject> object_receiver = CAST(receiver);
+    var_array.Bind(object_receiver);
+    var_map.Bind(LoadMap(object_receiver));
     var_type.Bind(LoadMapInstanceType(var_map.value()));
     Branch(IsJSReceiverInstanceType(var_type.value()), &create_array_iterator,
            &if_isnotobject);
 
     BIND(&if_isnotobject);
     {
-      Node* result = ToObject(context, receiver);
+      TNode<JSReceiver> result = ToObject(context, receiver);
       var_array.Bind(result);
       var_map.Bind(LoadMap(result));
       var_type.Bind(LoadMapInstanceType(var_map.value()));
@@ -3403,22 +3416,22 @@ class ArrayPrototypeIterationAssembler : public CodeStubAssembler {
 };
 
 TF_BUILTIN(ArrayPrototypeValues, ArrayPrototypeIterationAssembler) {
-  Node* context = Parameter(Descriptor::kContext);
-  Node* receiver = Parameter(Descriptor::kReceiver);
+  TNode<Context> context = CAST(Parameter(Descriptor::kContext));
+  TNode<Object> receiver = CAST(Parameter(Descriptor::kReceiver));
   Generate_ArrayPrototypeIterationMethod(context, receiver,
                                          IterationKind::kValues);
 }
 
 TF_BUILTIN(ArrayPrototypeEntries, ArrayPrototypeIterationAssembler) {
-  Node* context = Parameter(Descriptor::kContext);
-  Node* receiver = Parameter(Descriptor::kReceiver);
+  TNode<Context> context = CAST(Parameter(Descriptor::kContext));
+  TNode<Object> receiver = CAST(Parameter(Descriptor::kReceiver));
   Generate_ArrayPrototypeIterationMethod(context, receiver,
                                          IterationKind::kEntries);
 }
 
 TF_BUILTIN(ArrayPrototypeKeys, ArrayPrototypeIterationAssembler) {
-  Node* context = Parameter(Descriptor::kContext);
-  Node* receiver = Parameter(Descriptor::kReceiver);
+  TNode<Context> context = CAST(Parameter(Descriptor::kContext));
+  TNode<Object> receiver = CAST(Parameter(Descriptor::kReceiver));
   Generate_ArrayPrototypeIterationMethod(context, receiver,
                                          IterationKind::kKeys);
 }
@@ -3426,7 +3439,7 @@ TF_BUILTIN(ArrayPrototypeKeys, ArrayPrototypeIterationAssembler) {
 TF_BUILTIN(ArrayIteratorPrototypeNext, CodeStubAssembler) {
   const char* method_name = "Array Iterator.prototype.next";
 
-  Node* context = Parameter(Descriptor::kContext);
+  TNode<Context> context = CAST(Parameter(Descriptor::kContext));
   Node* iterator = Parameter(Descriptor::kReceiver);
 
   VARIABLE(var_value, MachineRepresentation::kTagged);

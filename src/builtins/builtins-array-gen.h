@@ -69,10 +69,10 @@ class ArrayBuiltinsAssembler : public CodeStubAssembler {
   void NullPostLoopAction();
 
  protected:
-  Node* context() { return context_; }
-  Node* receiver() { return receiver_; }
+  TNode<Context> context() { return context_; }
+  TNode<Object> receiver() { return receiver_; }
   Node* new_target() { return new_target_; }
-  Node* argc() { return argc_; }
+  TNode<IntPtrT> argc() { return argc_; }
   Node* o() { return o_; }
   Node* len() { return len_; }
   Node* callbackfn() { return callbackfn_; }
@@ -82,9 +82,10 @@ class ArrayBuiltinsAssembler : public CodeStubAssembler {
 
   void ReturnFromBuiltin(Node* value);
 
-  void InitIteratingArrayBuiltinBody(Node* context, Node* receiver,
-                                     Node* callbackfn, Node* this_arg,
-                                     Node* new_target, Node* argc);
+  void InitIteratingArrayBuiltinBody(TNode<Context> context,
+                                     TNode<Object> receiver, Node* callbackfn,
+                                     Node* this_arg, Node* new_target,
+                                     TNode<IntPtrT> argc);
 
   void GenerateIteratingArrayBuiltinBody(
       const char* name, const BuiltinResultGenerator& generator,
@@ -92,11 +93,9 @@ class ArrayBuiltinsAssembler : public CodeStubAssembler {
       const Callable& slow_case_continuation,
       MissingPropertyMode missing_property_mode,
       ForEachDirection direction = ForEachDirection::kForward);
-  void InitIteratingArrayBuiltinLoopContinuation(Node* context, Node* receiver,
-                                                 Node* callbackfn,
-                                                 Node* this_arg, Node* a,
-                                                 Node* o, Node* initial_k,
-                                                 Node* len, Node* to);
+  void InitIteratingArrayBuiltinLoopContinuation(
+      TNode<Context> context, TNode<Object> receiver, Node* callbackfn,
+      Node* this_arg, Node* a, Node* o, Node* initial_k, Node* len, Node* to);
 
   void GenerateIteratingTypedArrayBuiltinBody(
       const char* name, const BuiltinResultGenerator& generator,
@@ -138,10 +137,10 @@ class ArrayBuiltinsAssembler : public CodeStubAssembler {
   Node* o_ = nullptr;
   Node* this_arg_ = nullptr;
   Node* len_ = nullptr;
-  Node* context_ = nullptr;
-  Node* receiver_ = nullptr;
+  TNode<Context> context_;
+  TNode<Object> receiver_;
   Node* new_target_ = nullptr;
-  Node* argc_ = nullptr;
+  TNode<IntPtrT> argc_;
   Node* fast_typed_array_target_ = nullptr;
   const char* name_ = nullptr;
   Variable k_;
