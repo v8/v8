@@ -73,8 +73,8 @@ TF_BUILTIN(GrowFastSmiOrObjectElements, CodeStubAssembler) {
 
 TF_BUILTIN(NewArgumentsElements, CodeStubAssembler) {
   Node* frame = Parameter(Descriptor::kFrame);
-  Node* length = SmiToWord(Parameter(Descriptor::kLength));
-  Node* mapped_count = SmiToWord(Parameter(Descriptor::kMappedCount));
+  Node* length = SmiToIntPtr(Parameter(Descriptor::kLength));
+  Node* mapped_count = SmiToIntPtr(Parameter(Descriptor::kMappedCount));
 
   // Check if we can allocate in new space.
   ElementsKind kind = PACKED_ELEMENTS;
@@ -164,8 +164,8 @@ TF_BUILTIN(NewArgumentsElements, CodeStubAssembler) {
   {
     // Allocate in old space (or large object space).
     TailCallRuntime(Runtime::kNewArgumentsElements, NoContextConstant(),
-                    BitcastWordToTagged(frame), SmiFromWord(length),
-                    SmiFromWord(mapped_count));
+                    BitcastWordToTagged(frame), SmiFromIntPtr(length),
+                    SmiFromIntPtr(mapped_count));
   }
 }
 
@@ -202,7 +202,7 @@ class RecordWriteCodeStubAssembler : public CodeStubAssembler {
     Node* mask;
 
     GetMarkBit(object, &cell, &mask);
-    mask = TruncateWordToWord32(mask);
+    mask = TruncateIntPtrToInt32(mask);
 
     Node* bits = Load(MachineType::Int32(), cell);
     Node* bit_0 = Word32And(bits, mask);
@@ -239,7 +239,7 @@ class RecordWriteCodeStubAssembler : public CodeStubAssembler {
     Node* cell;
     Node* mask;
     GetMarkBit(object, &cell, &mask);
-    mask = TruncateWordToWord32(mask);
+    mask = TruncateIntPtrToInt32(mask);
     // Non-white has 1 for the first bit, so we only need to check for the first
     // bit.
     return Word32Equal(Word32And(Load(MachineType::Int32(), cell), mask),

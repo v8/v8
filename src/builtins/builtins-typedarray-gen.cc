@@ -150,7 +150,7 @@ TF_BUILTIN(TypedArrayInitialize, TypedArrayBuiltinsAssembler) {
   GotoIf(
       SmiGreaterThan(byte_length, SmiConstant(V8_TYPED_ARRAY_MAX_SIZE_IN_HEAP)),
       &allocate_off_heap);
-  TNode<IntPtrT> word_byte_length = SmiToWord(CAST(byte_length));
+  TNode<IntPtrT> word_byte_length = SmiToIntPtr(CAST(byte_length));
   Goto(&allocate_on_heap);
 
   BIND(&allocate_on_heap);
@@ -1297,11 +1297,11 @@ TF_BUILTIN(TypedArrayPrototypeSlice, TypedArrayBuiltinsAssembler) {
 
     TNode<IntPtrT> source_el_size = GetTypedArrayElementSize(source_el_kind);
     TNode<IntPtrT> source_start_bytes =
-        IntPtrMul(SmiToWord(start_index), source_el_size);
+        IntPtrMul(SmiToIntPtr(start_index), source_el_size);
     TNode<IntPtrT> source_start =
         IntPtrAdd(source_data_ptr, source_start_bytes);
 
-    TNode<IntPtrT> count_bytes = IntPtrMul(SmiToWord(count), source_el_size);
+    TNode<IntPtrT> count_bytes = IntPtrMul(SmiToIntPtr(count), source_el_size);
 
 #ifdef DEBUG
     TNode<IntPtrT> target_byte_length =
@@ -1326,7 +1326,7 @@ TF_BUILTIN(TypedArrayPrototypeSlice, TypedArrayBuiltinsAssembler) {
            &if_bigint_mixed_types);
 
     CallCCopyTypedArrayElementsSlice(
-        source, result_array, SmiToWord(start_index), SmiToWord(end_index));
+        source, result_array, SmiToIntPtr(start_index), SmiToIntPtr(end_index));
     args.PopAndReturn(result_array);
   }
 
@@ -1397,7 +1397,7 @@ TF_BUILTIN(TypedArrayPrototypeSubArray, TypedArrayBuiltinsAssembler) {
       LoadObjectField<Number>(source, JSTypedArray::kByteOffsetOffset);
 
   // 15. Let beginByteOffset be srcByteOffset + beginIndex × elementSize.
-  TNode<Number> offset = SmiMul(var_begin.value(), SmiFromWord(element_size));
+  TNode<Number> offset = SmiMul(var_begin.value(), SmiFromIntPtr(element_size));
   TNode<Number> begin_byte_offset = NumberAdd(source_byte_offset, offset);
 
   // 16. Let argumentsList be « buffer, beginByteOffset, newLength ».

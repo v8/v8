@@ -2185,7 +2185,7 @@ TF_BUILTIN(ArrayFrom, ArrayPopulatorAssembler) {
 TF_BUILTIN(ArrayOf, ArrayPopulatorAssembler) {
   TNode<Int32T> argc =
       UncheckedCast<Int32T>(Parameter(BuiltinDescriptor::kArgumentsCount));
-  TNode<Smi> length = SmiFromWord32(argc);
+  TNode<Smi> length = SmiFromInt32(argc);
 
   TNode<Context> context = CAST(Parameter(BuiltinDescriptor::kContext));
 

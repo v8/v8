@@ -212,7 +212,7 @@ TEST(LoadHeapNumberValue) {
   CodeAssemblerTester asm_tester(isolate);
   CodeStubAssembler m(asm_tester.state());
   Handle<HeapNumber> number = isolate->factory()->NewHeapNumber(1234);
-  m.Return(m.SmiFromWord32(m.Signed(
+  m.Return(m.SmiFromInt32(m.Signed(
       m.ChangeFloat64ToUint32(m.LoadHeapNumberValue(m.HeapConstant(number))))));
   FunctionTester ft(asm_tester.GenerateCode());
   MaybeHandle<Object> result = ft.Call();
@@ -224,7 +224,7 @@ TEST(LoadInstanceType) {
   CodeAssemblerTester asm_tester(isolate);
   CodeStubAssembler m(asm_tester.state());
   Handle<HeapObject> undefined = isolate->factory()->undefined_value();
-  m.Return(m.SmiFromWord32(m.LoadInstanceType(m.HeapConstant(undefined))));
+  m.Return(m.SmiFromInt32(m.LoadInstanceType(m.HeapConstant(undefined))));
   FunctionTester ft(asm_tester.GenerateCode());
   MaybeHandle<Object> result = ft.Call();
   CHECK_EQ(InstanceType::ODDBALL_TYPE,
@@ -252,8 +252,8 @@ TEST(JSFunction) {
   Isolate* isolate(CcTest::InitIsolateOnce());
   CodeAssemblerTester asm_tester(isolate, kNumParams);
   CodeStubAssembler m(asm_tester.state());
-  m.Return(m.SmiFromWord32(m.Int32Add(m.SmiToWord32(m.Parameter(1)),
-                                      m.SmiToWord32(m.Parameter(2)))));
+  m.Return(m.SmiFromInt32(
+      m.Int32Add(m.SmiToInt32(m.Parameter(1)), m.SmiToInt32(m.Parameter(2)))));
 
   FunctionTester ft(asm_tester.GenerateCode(), kNumParams);
 
@@ -268,8 +268,8 @@ TEST(ComputeIntegerHash) {
   const int kNumParams = 2;
   CodeAssemblerTester asm_tester(isolate, kNumParams);
   CodeStubAssembler m(asm_tester.state());
-  m.Return(m.SmiFromWord32(m.ComputeIntegerHash(
-      m.SmiUntag(m.Parameter(0)), m.SmiToWord32(m.Parameter(1)))));
+  m.Return(m.SmiFromInt32(m.ComputeIntegerHash(m.SmiUntag(m.Parameter(0)),
+                                               m.SmiToInt32(m.Parameter(1)))));
 
   FunctionTester ft(asm_tester.GenerateCode(), kNumParams);
 
@@ -2611,7 +2611,7 @@ TEST(LoadJSArrayElementsMap) {
     CodeStubAssembler m(asm_tester.state());
     Node* context = m.Parameter(kNumParams + 2);
     Node* native_context = m.LoadNativeContext(context);
-    Node* kind = m.SmiToWord32(m.Parameter(0));
+    Node* kind = m.SmiToInt32(m.Parameter(0));
     m.Return(m.LoadJSArrayElementsMap(kind, native_context));
   }
 
@@ -2670,7 +2670,7 @@ TEST(GotoIfNotWhiteSpaceOrLineTerminator) {
   {  // Returns true if whitespace, false otherwise.
     Label if_not_whitespace(&m);
 
-    m.GotoIfNotWhiteSpaceOrLineTerminator(m.SmiToWord32(m.Parameter(0)),
+    m.GotoIfNotWhiteSpaceOrLineTerminator(m.SmiToInt32(m.Parameter(0)),
                                           &if_not_whitespace);
     m.Return(m.TrueConstant());
 
@@ -2726,7 +2726,7 @@ TEST(IsNumberArrayIndex) {
   CodeAssemblerTester asm_tester(isolate, kNumParams);
   {
     CodeStubAssembler m(asm_tester.state());
-    m.Return(m.SmiFromWord32(m.IsNumberArrayIndex(m.Parameter(0))));
+    m.Return(m.SmiFromInt32(m.IsNumberArrayIndex(m.Parameter(0))));
   }
 
   FunctionTester ft(asm_tester.GenerateCode(), kNumParams);

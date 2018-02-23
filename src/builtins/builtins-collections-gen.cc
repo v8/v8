@@ -2157,7 +2157,7 @@ void WeakCollectionsBuiltinsAssembler::AddEntry(
 
   // See HashTableBase::ElementAdded().
   StoreFixedArrayElement(table, ObjectHashTable::kNumberOfElementsIndex,
-                         SmiFromWord(number_of_elements), SKIP_WRITE_BARRIER);
+                         SmiFromIntPtr(number_of_elements), SKIP_WRITE_BARRIER);
 }
 
 TNode<Object> WeakCollectionsBuiltinsAssembler::AllocateTable(
@@ -2181,7 +2181,7 @@ TNode<Object> WeakCollectionsBuiltinsAssembler::AllocateTable(
   StoreFixedArrayElement(table, ObjectHashTable::kNumberOfDeletedElementsIndex,
                          SmiConstant(0), SKIP_WRITE_BARRIER);
   StoreFixedArrayElement(table, ObjectHashTable::kCapacityIndex,
-                         SmiFromWord(capacity), SKIP_WRITE_BARRIER);
+                         SmiFromIntPtr(capacity), SKIP_WRITE_BARRIER);
 
   TNode<IntPtrT> start = KeyIndexFromEntry(IntPtrConstant(0));
   FillFixedArrayWithValue(HOLEY_ELEMENTS, table, start, length,
@@ -2323,9 +2323,9 @@ void WeakCollectionsBuiltinsAssembler::RemoveEntry(
   // See HashTableBase::ElementRemoved().
   TNode<IntPtrT> number_of_deleted = LoadNumberOfDeleted(table, 1);
   StoreFixedArrayElement(table, ObjectHashTable::kNumberOfElementsIndex,
-                         SmiFromWord(number_of_elements), SKIP_WRITE_BARRIER);
+                         SmiFromIntPtr(number_of_elements), SKIP_WRITE_BARRIER);
   StoreFixedArrayElement(table, ObjectHashTable::kNumberOfDeletedElementsIndex,
-                         SmiFromWord(number_of_deleted), SKIP_WRITE_BARRIER);
+                         SmiFromIntPtr(number_of_deleted), SKIP_WRITE_BARRIER);
 }
 
 TNode<BoolT> WeakCollectionsBuiltinsAssembler::ShouldRehash(

@@ -236,7 +236,7 @@ Node* PromiseBuiltinsAssembler::IsPromiseStatus(
 Node* PromiseBuiltinsAssembler::PromiseStatus(Node* promise) {
   STATIC_ASSERT(JSPromise::kStatusShift == 0);
   Node* const flags = LoadObjectField(promise, JSPromise::kFlagsOffset);
-  return Word32And(SmiToWord32(flags), Int32Constant(JSPromise::kStatusMask));
+  return Word32And(SmiToInt32(flags), Int32Constant(JSPromise::kStatusMask));
 }
 
 void PromiseBuiltinsAssembler::PromiseSetStatus(

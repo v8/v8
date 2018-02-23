@@ -168,7 +168,7 @@ void CallOrConstructBuiltinsAssembler::CallOrConstructWithArrayLike(
     Node* elements_length = LoadFixedArrayBaseLength(elements);
     GotoIfNot(WordEqual(length, elements_length), &if_runtime);
     var_elements.Bind(elements);
-    var_length.Bind(SmiToWord32(length));
+    var_length.Bind(SmiToInt32(length));
     Goto(&if_done);
   }
 

@@ -125,7 +125,7 @@ Handle<Code> BuildSetupFunction(Isolate* isolate,
             tester.raw_assembler_for_testing()->machine()->I32x4Splat(),
             __ Int32Constant(0));
         for (int lane = 0; lane < 4; lane++) {
-          Node* lane_value = __ SmiToWord32(
+          Node* lane_value = __ SmiToInt32(
               __ LoadFixedArrayElement(element, __ IntPtrConstant(lane)));
           vector = tester.raw_assembler_for_testing()->AddNode(
               tester.raw_assembler_for_testing()->machine()->I32x4ReplaceLane(
@@ -216,7 +216,7 @@ Handle<Code> BuildTeardownFunction(Isolate* isolate,
         Node* vector = __ LoadFixedArrayElement(result_array, i);
         for (int lane = 0; lane < 4; lane++) {
           Node* lane_value =
-              __ SmiFromWord32(tester.raw_assembler_for_testing()->AddNode(
+              __ SmiFromInt32(tester.raw_assembler_for_testing()->AddNode(
                   tester.raw_assembler_for_testing()
                       ->machine()
                       ->I32x4ExtractLane(lane),

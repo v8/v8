@@ -552,7 +552,7 @@ static inline Matcher<Node*> IsChangeUint32ToWord(
   return kPointerSize == 8 ? IsChangeUint32ToUint64(matcher) : matcher;
 }
 
-static inline Matcher<Node*> IsTruncateWordToWord32(
+static inline Matcher<Node*> IsTruncateIntPtrToInt32(
     const Matcher<Node*>& matcher) {
   return kPointerSize == 8 ? IsTruncateInt64ToInt32(matcher) : matcher;
 }

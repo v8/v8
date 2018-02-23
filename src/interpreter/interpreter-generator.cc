@@ -618,7 +618,7 @@ IGNITION_HANDLER(StaDataPropertyInLiteral, InterpreterAssembler) {
   Node* object = LoadRegisterAtOperandIndex(0);
   Node* name = LoadRegisterAtOperandIndex(1);
   Node* value = GetAccumulator();
-  Node* flags = SmiFromWord32(BytecodeOperandFlag(2));
+  Node* flags = SmiFromInt32(BytecodeOperandFlag(2));
   Node* vector_index = SmiTag(BytecodeOperandIdx(3));
 
   Node* feedback_vector = LoadFeedbackVector();
@@ -942,7 +942,7 @@ class InterpreterBitwiseBinaryOpAssembler : public InterpreterAssembler {
                                        &var_left_bigint, &var_left_feedback);
     BIND(&do_smi_op);
     Node* result =
-        BitwiseOp(var_left_word32.value(), SmiToWord32(right), bitwise_op);
+        BitwiseOp(var_left_word32.value(), SmiToInt32(right), bitwise_op);
     Node* result_type = SelectSmiConstant(TaggedIsSmi(result),
                                           BinaryOperationFeedback::kSignedSmall,
                                           BinaryOperationFeedback::kNumber);
@@ -2300,7 +2300,7 @@ IGNITION_HANDLER(CreateRegExpLiteral, InterpreterAssembler) {
   Node* pattern = LoadConstantPoolEntryAtOperandIndex(0);
   Node* feedback_vector = LoadFeedbackVector();
   Node* slot_id = BytecodeOperandIdx(1);
-  Node* flags = SmiFromWord32(BytecodeOperandFlag(2));
+  Node* flags = SmiFromInt32(BytecodeOperandFlag(2));
   Node* context = GetContext();
   ConstructorBuiltinsAssembler constructor_assembler(state());
   Node* result = constructor_assembler.EmitCreateRegExpLiteral(

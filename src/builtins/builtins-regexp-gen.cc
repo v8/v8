@@ -468,7 +468,7 @@ Node* RegExpBuiltinsAssembler::RegExpExecInternal(Node* const context,
 
     // Argument 1: Previous index.
     MachineType arg1_type = type_int32;
-    Node* const arg1 = TruncateWordToWord32(int_last_index);
+    Node* const arg1 = TruncateIntPtrToInt32(int_last_index);
 
     // Argument 2: Start of string data.
     MachineType arg2_type = type_ptr;
@@ -575,7 +575,7 @@ Node* RegExpBuiltinsAssembler::RegExpExecInternal(Node* const context,
           [=, &var_to_offset](Node* offset) {
             Node* const value = Load(MachineType::Int32(),
                                      static_offsets_vector_address, offset);
-            Node* const smi_value = SmiFromWord32(value);
+            Node* const smi_value = SmiFromInt32(value);
             StoreNoWriteBarrier(MachineRepresentation::kTagged, match_info,
                                 var_to_offset.value(), smi_value);
             Increment(&var_to_offset, kPointerSize);
@@ -1452,7 +1452,7 @@ Node* RegExpBuiltinsAssembler::FastFlagGetter(Node* const regexp,
                                               JSRegExp::Flag flag) {
   Node* const flags = LoadObjectField(regexp, JSRegExp::kFlagsOffset);
   Node* const mask = SmiConstant(flag);
-  return SmiToWord32(SmiAnd(flags, mask));
+  return SmiToInt32(SmiAnd(flags, mask));
 }
 
 // Load through the GetProperty stub.

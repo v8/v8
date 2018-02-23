@@ -409,7 +409,7 @@ Node* ConstructorBuiltinsAssembler::EmitCreateEmptyArrayLiteral(
 
   BIND(&create_empty_array);
   CSA_ASSERT(this, IsAllocationSite(allocation_site.value()));
-  Node* kind = SmiToWord32(CAST(
+  Node* kind = SmiToInt32(CAST(
       LoadObjectField(allocation_site.value(),
                       AllocationSite::kTransitionInfoOrBoilerplateOffset)));
   CSA_ASSERT(this, IsFastElementsKind(kind));

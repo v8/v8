@@ -1350,7 +1350,7 @@ void AccessorAssembler::ExtendPropertiesBackingStore(Node* object,
 
   BIND(&if_smi_hash);
   {
-    Node* hash = SmiToWord32(properties);
+    Node* hash = SmiToInt32(properties);
     Node* encoded_hash =
         Word32Shl(hash, Int32Constant(PropertyArray::HashField::kShift));
     var_encoded_hash.Bind(encoded_hash);
@@ -1368,7 +1368,7 @@ void AccessorAssembler::ExtendPropertiesBackingStore(Node* object,
     Node* length_intptr = ChangeInt32ToIntPtr(
         Word32And(length_and_hash_int32,
                   Int32Constant(PropertyArray::LengthField::kMask)));
-    Node* length = WordToParameter(length_intptr, mode);
+    Node* length = IntPtrToParameter(length_intptr, mode);
     var_length.Bind(length);
     Goto(&extend_store);
   }
@@ -1412,11 +1412,11 @@ void AccessorAssembler::ExtendPropertiesBackingStore(Node* object,
     // TODO(gsathya): Clean up the type conversions by creating smarter
     // helpers that do the correct op based on the mode.
     Node* new_capacity_int32 =
-        TruncateWordToWord32(ParameterToWord(new_capacity, mode));
+        TruncateIntPtrToInt32(ParameterToIntPtr(new_capacity, mode));
     Node* new_length_and_hash_int32 =
         Word32Or(var_encoded_hash.value(), new_capacity_int32);
     StoreObjectField(new_properties, PropertyArray::kLengthAndHashOffset,
-                     SmiFromWord32(new_length_and_hash_int32));
+                     SmiFromInt32(new_length_and_hash_int32));
     StoreObjectField(object, JSObject::kPropertiesOrHashOffset, new_properties);
     Comment("] Extend storage");
     Goto(&done);
@@ -1641,27 +1641,27 @@ void AccessorAssembler::EmitElementLoad(
     {
       Comment("UINT8_ELEMENTS");  // Handles UINT8_CLAMPED_ELEMENTS too.
       Node* element = Load(MachineType::Uint8(), backing_store, intptr_index);
-      exit_point->Return(SmiFromWord32(element));
+      exit_point->Return(SmiFromInt32(element));
     }
     BIND(&int8_elements);
     {
       Comment("INT8_ELEMENTS");
       Node* element = Load(MachineType::Int8(), backing_store, intptr_index);
-      exit_point->Return(SmiFromWord32(element));
+      exit_point->Return(SmiFromInt32(element));
     }
     BIND(&uint16_elements);
     {
       Comment("UINT16_ELEMENTS");
       Node* index = WordShl(intptr_index, IntPtrConstant(1));
       Node* element = Load(MachineType::Uint16(), backing_store, index);
-      exit_point->Return(SmiFromWord32(element));
+      exit_point->Return(SmiFromInt32(element));
     }
     BIND(&int16_elements);
     {
       Comment("INT16_ELEMENTS");
       Node* index = WordShl(intptr_index, IntPtrConstant(1));
       Node* element = Load(MachineType::Int16(), backing_store, index);
-      exit_point->Return(SmiFromWord32(element));
+      exit_point->Return(SmiFromInt32(element));
     }
     BIND(&uint32_elements);
     {
@@ -1726,13 +1726,13 @@ void AccessorAssembler::BranchIfStrictMode(Node* vector, Node* slot,
       LoadObjectField(vector, FeedbackVector::kSharedFunctionInfoOffset);
   Node* metadata =
       LoadObjectField(sfi, SharedFunctionInfo::kFeedbackMetadataOffset);
-  Node* slot_int = SmiToWord32(slot);
+  Node* slot_int = SmiToInt32(slot);
 
   // See VectorICComputer::index().
   const int kItemsPerWord = FeedbackMetadata::VectorICComputer::kItemsPerWord;
   Node* word_index = Int32Div(slot_int, Int32Constant(kItemsPerWord));
   Node* word_offset = Int32Mod(slot_int, Int32Constant(kItemsPerWord));
-  Node* data = SmiToWord32(LoadFixedArrayElement(
+  Node* data = SmiToInt32(LoadFixedArrayElement(
       metadata, ChangeInt32ToIntPtr(word_index),
       FeedbackMetadata::kReservedIndexCount * kPointerSize, INTPTR_PARAMETERS));
   // See VectorICComputer::decode().
@@ -2017,7 +2017,7 @@ Node* AccessorAssembler::StubCachePrimaryOffset(Node* name, Node* map) {
   // Using only the low bits in 64-bit mode is unlikely to increase the
   // risk of collision even if the heap is spread over an area larger than
   // 4Gb (and not at all if it isn't).
-  Node* map32 = TruncateWordToWord32(BitcastTaggedToWord(map));
+  Node* map32 = TruncateIntPtrToInt32(BitcastTaggedToWord(map));
   // Base the offset on a simple combination of name and map.
   Node* hash = Int32Add(hash_field, map32);
   uint32_t mask = (StubCache::kPrimaryTableSize - 1)
@@ -2029,8 +2029,8 @@ Node* AccessorAssembler::StubCacheSecondaryOffset(Node* name, Node* seed) {
   // See v8::internal::StubCache::SecondaryOffset().
 
   // Use the seed from the primary cache in the secondary cache.
-  Node* name32 = TruncateWordToWord32(BitcastTaggedToWord(name));
-  Node* hash = Int32Sub(TruncateWordToWord32(seed), name32);
+  Node* name32 = TruncateIntPtrToInt32(BitcastTaggedToWord(name));
+  Node* hash = Int32Sub(TruncateIntPtrToInt32(seed), name32);
   hash = Int32Add(hash, Int32Constant(StubCache::kSecondaryMagic));
   int32_t mask = (StubCache::kSecondaryTableSize - 1)
                  << StubCache::kCacheIndexShift;

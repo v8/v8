@@ -581,7 +581,7 @@ Node* InterpreterAssembler::BytecodeOperandUImmWord(int operand_index) {
 }
 
 Node* InterpreterAssembler::BytecodeOperandUImmSmi(int operand_index) {
-  return SmiFromWord32(BytecodeOperandUImm(operand_index));
+  return SmiFromInt32(BytecodeOperandUImm(operand_index));
 }
 
 Node* InterpreterAssembler::BytecodeOperandImm(int operand_index) {
@@ -597,7 +597,7 @@ Node* InterpreterAssembler::BytecodeOperandImmIntPtr(int operand_index) {
 }
 
 Node* InterpreterAssembler::BytecodeOperandImmSmi(int operand_index) {
-  return SmiFromWord32(BytecodeOperandImm(operand_index));
+  return SmiFromInt32(BytecodeOperandImm(operand_index));
 }
 
 Node* InterpreterAssembler::BytecodeOperandIdxInt32(int operand_index) {
@@ -1321,7 +1321,7 @@ Node* InterpreterAssembler::Advance(Node* delta, bool backward) {
 Node* InterpreterAssembler::Jump(Node* delta, bool backward) {
   DCHECK(!Bytecodes::IsStarLookahead(bytecode_, operand_scale_));
 
-  UpdateInterruptBudget(TruncateWordToWord32(delta), backward);
+  UpdateInterruptBudget(TruncateIntPtrToInt32(delta), backward);
   Node* new_bytecode_offset = Advance(delta, backward);
   Node* target_bytecode = LoadBytecode(new_bytecode_offset);
   return DispatchToBytecode(target_bytecode, new_bytecode_offset);
@@ -1500,7 +1500,7 @@ void InterpreterAssembler::UpdateInterruptBudgetOnReturn() {
   // of the first bytecode.
 
   const int kFirstBytecodeOffset = BytecodeArray::kHeaderSize - kHeapObjectTag;
-  Node* profiling_weight = Int32Sub(TruncateWordToWord32(BytecodeOffset()),
+  Node* profiling_weight = Int32Sub(TruncateIntPtrToInt32(BytecodeOffset()),
                                     Int32Constant(kFirstBytecodeOffset));
   UpdateInterruptBudget(profiling_weight, true);
 }

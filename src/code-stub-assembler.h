@@ -126,18 +126,18 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
     return ParameterRepresentation(OptimalParameterMode());
   }
 
-  Node* ParameterToWord(Node* value, ParameterMode mode) {
+  Node* ParameterToIntPtr(Node* value, ParameterMode mode) {
     if (mode == SMI_PARAMETERS) value = SmiUntag(value);
     return value;
   }
 
-  Node* WordToParameter(SloppyTNode<IntPtrT> value, ParameterMode mode) {
+  Node* IntPtrToParameter(SloppyTNode<IntPtrT> value, ParameterMode mode) {
     if (mode == SMI_PARAMETERS) return SmiTag(value);
     return value;
   }
 
-  Node* Word32ToParameter(SloppyTNode<Int32T> value, ParameterMode mode) {
-    return WordToParameter(ChangeInt32ToIntPtr(value), mode);
+  Node* Int32ToParameter(SloppyTNode<Int32T> value, ParameterMode mode) {
+    return IntPtrToParameter(ChangeInt32ToIntPtr(value), mode);
   }
 
   TNode<Smi> ParameterToTagged(Node* value, ParameterMode mode) {
@@ -223,17 +223,17 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
   TNode<Smi> ConvertToRelativeIndex(TNode<Context> context, TNode<Object> index,
                                     TNode<Smi> length);
 
-  // Tag a Word as a Smi value.
+  // Tag an IntPtr as a Smi value.
   TNode<Smi> SmiTag(SloppyTNode<IntPtrT> value);
-  // Untag a Smi value as a Word.
+  // Untag a Smi value as an IntPtr.
   TNode<IntPtrT> SmiUntag(SloppyTNode<Smi> value);
 
   // Smi conversions.
   TNode<Float64T> SmiToFloat64(SloppyTNode<Smi> value);
-  TNode<Smi> SmiFromWord(SloppyTNode<IntPtrT> value) { return SmiTag(value); }
-  TNode<Smi> SmiFromWord32(SloppyTNode<Int32T> value);
-  TNode<IntPtrT> SmiToWord(SloppyTNode<Smi> value) { return SmiUntag(value); }
-  TNode<Int32T> SmiToWord32(SloppyTNode<Smi> value);
+  TNode<Smi> SmiFromIntPtr(SloppyTNode<IntPtrT> value) { return SmiTag(value); }
+  TNode<Smi> SmiFromInt32(SloppyTNode<Int32T> value);
+  TNode<IntPtrT> SmiToIntPtr(SloppyTNode<Smi> value) { return SmiUntag(value); }
+  TNode<Int32T> SmiToInt32(SloppyTNode<Smi> value);
 
   // Smi operations.
 #define SMI_ARITHMETIC_BINOP(SmiOpName, IntPtrOpName)                  \
@@ -396,7 +396,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
                              Smi::FromInt(false_value));
   }
 
-  TNode<Int32T> TruncateWordToWord32(SloppyTNode<IntPtrT> value);
+  TNode<Int32T> TruncateIntPtrToInt32(SloppyTNode<IntPtrT> value);
 
   // Check a value for smi-ness
   TNode<BoolT> TaggedIsSmi(SloppyTNode<Object> a);
@@ -1342,7 +1342,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
   template <typename BitField>
   TNode<Uint32T> DecodeWord32FromWord(SloppyTNode<WordT> word) {
     return UncheckedCast<Uint32T>(
-        TruncateWordToWord32(Signed(DecodeWord<BitField>(word))));
+        TruncateIntPtrToInt32(Signed(DecodeWord<BitField>(word))));
   }
 
   // Decodes an unsigned (!) value from |word32| to an uint32 node.
@@ -2242,15 +2242,15 @@ class ToDirectStringAssembler : public CodeStubAssembler {
                 EXPAND(CSA_ASSERT_GET_FIRST_STR(__VA_ARGS__)), __FILE__, \
                 __LINE__, CSA_ASSERT_STRINGIFY_EXTRA_VALUES(__VA_ARGS__))
 
-#define CSA_ASSERT_JS_ARGC_OP(csa, Op, op, expected)                      \
-  (csa)->Assert(                                                          \
-      [&]() -> compiler::Node* {                                          \
-        compiler::Node* const argc =                                      \
-            (csa)->Parameter(Descriptor::kActualArgumentsCount);          \
-        return (csa)->Op(argc, (csa)->Int32Constant(expected));           \
-      },                                                                  \
-      "argc " #op " " #expected, __FILE__, __LINE__,                      \
-      SmiFromWord32((csa)->Parameter(Descriptor::kActualArgumentsCount)), \
+#define CSA_ASSERT_JS_ARGC_OP(csa, Op, op, expected)                     \
+  (csa)->Assert(                                                         \
+      [&]() -> compiler::Node* {                                         \
+        compiler::Node* const argc =                                     \
+            (csa)->Parameter(Descriptor::kActualArgumentsCount);         \
+        return (csa)->Op(argc, (csa)->Int32Constant(expected));          \
+      },                                                                 \
+      "argc " #op " " #expected, __FILE__, __LINE__,                     \
+      SmiFromInt32((csa)->Parameter(Descriptor::kActualArgumentsCount)), \
       "argc")
 
 #define CSA_ASSERT_JS_ARGC_EQ(csa, expected) \

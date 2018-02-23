@@ -906,8 +906,8 @@ TF_BUILTIN(Divide, NumberBuiltinsAssembler) {
     }
     BIND(&dividend_is_not_zero);
 
-    Node* untagged_divisor = SmiToWord32(divisor);
-    Node* untagged_dividend = SmiToWord32(dividend);
+    Node* untagged_divisor = SmiToInt32(divisor);
+    Node* untagged_dividend = SmiToInt32(dividend);
 
     // Do floating point division if {dividend} is kMinInt (or kMinInt - 1
     // if the Smi size is 31) and {divisor} is -1.
@@ -931,7 +931,7 @@ TF_BUILTIN(Divide, NumberBuiltinsAssembler) {
     Node* truncated = Int32Mul(untagged_result, untagged_divisor);
     // Do floating point division if the remainder is not 0.
     GotoIf(Word32NotEqual(untagged_dividend, truncated), &bailout);
-    Return(SmiFromWord32(untagged_result));
+    Return(SmiFromInt32(untagged_result));
 
     // Bailout: convert {dividend} and {divisor} to double and do double
     // division.

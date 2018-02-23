@@ -539,7 +539,7 @@ TF_BUILTIN(StringCodePointAtUTF16, StringBuiltinsAssembler) {
       LoadSurrogatePairAt(receiver, length, position, UnicodeEncoding::UTF16);
   // And return it as TaggedSigned value.
   // TODO(turbofan): Allow builtins to return values untagged.
-  TNode<Smi> result = SmiFromWord32(code);
+  TNode<Smi> result = SmiFromInt32(code);
   Return(result);
 }
 
@@ -554,7 +554,7 @@ TF_BUILTIN(StringCodePointAtUTF32, StringBuiltinsAssembler) {
       LoadSurrogatePairAt(receiver, length, position, UnicodeEncoding::UTF32);
   // And return it as TaggedSigned value.
   // TODO(turbofan): Allow builtins to return values untagged.
-  TNode<Smi> result = SmiFromWord32(code);
+  TNode<Smi> result = SmiFromInt32(code);
   Return(result);
 }
 
@@ -697,7 +697,7 @@ TF_BUILTIN(StringPrototypeCharCodeAt, StringBuiltinsAssembler) {
                    [this](TNode<String> receiver, TNode<IntPtrT> length,
                           TNode<IntPtrT> index) {
                      Node* value = StringCharCodeAt(receiver, index);
-                     return SmiFromWord32(value);
+                     return SmiFromInt32(value);
                    });
 }
 
@@ -715,7 +715,7 @@ TF_BUILTIN(StringPrototypeCodePointAt, StringBuiltinsAssembler) {
                      // so we need to produce UTF32.
                      Node* value = LoadSurrogatePairAt(receiver, length, index,
                                                        UnicodeEncoding::UTF32);
-                     return SmiFromWord32(value);
+                     return SmiFromInt32(value);
                    });
 }
 
@@ -1258,7 +1258,7 @@ TF_BUILTIN(StringRepeat, StringBuiltinsAssembler) {
   {
     {
       Label next(this);
-      GotoIfNot(SmiToWord32(SmiAnd(var_count.value(), SmiConstant(1))), &next);
+      GotoIfNot(SmiToInt32(SmiAnd(var_count.value(), SmiConstant(1))), &next);
       var_result.Bind(CallStub(stringadd_callable, context, var_result.value(),
                                var_temp.value()));
       Goto(&next);
@@ -1590,8 +1590,8 @@ class StringPadAssembler : public StringBuiltinsAssembler {
       BIND(&multi_char_fill);
       {
         TNode<Int32T> const fill_length_word32 =
-            TruncateWordToWord32(var_fill_length.value());
-        TNode<Int32T> const pad_length_word32 = SmiToWord32(pad_length);
+            TruncateIntPtrToInt32(var_fill_length.value());
+        TNode<Int32T> const pad_length_word32 = SmiToInt32(pad_length);
         TNode<Int32T> const repetitions_word32 =
             Int32Div(pad_length_word32, fill_length_word32);
         TNode<Int32T> const remaining_word32 =
@@ -1599,13 +1599,13 @@ class StringPadAssembler : public StringBuiltinsAssembler {
 
         var_pad.Bind(CallBuiltin(Builtins::kStringRepeat, context,
                                  var_fill_string.value(),
-                                 SmiFromWord32(repetitions_word32)));
+                                 SmiFromInt32(repetitions_word32)));
 
         GotoIfNot(remaining_word32, &return_result);
         {
           Node* const remainder_string = CallBuiltin(
               Builtins::kSubString, context, var_fill_string.value(),
-              SmiConstant(0), SmiFromWord32(remaining_word32));
+              SmiConstant(0), SmiFromInt32(remaining_word32));
           var_pad.Bind(CallStub(stringadd_callable, context, var_pad.value(),
                                 remainder_string));
           Goto(&return_result);

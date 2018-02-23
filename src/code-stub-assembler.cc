@@ -538,7 +538,7 @@ Node* CodeStubAssembler::SmiShiftBitsConstant() {
   return IntPtrConstant(kSmiShiftSize + kSmiTagSize);
 }
 
-TNode<Smi> CodeStubAssembler::SmiFromWord32(SloppyTNode<Int32T> value) {
+TNode<Smi> CodeStubAssembler::SmiFromInt32(SloppyTNode<Int32T> value) {
   TNode<IntPtrT> value_intptr = ChangeInt32ToIntPtr(value);
   return BitcastWordToTaggedSigned(
       WordShl(value_intptr, SmiShiftBitsConstant()));
@@ -561,13 +561,13 @@ TNode<IntPtrT> CodeStubAssembler::SmiUntag(SloppyTNode<Smi> value) {
       WordSar(BitcastTaggedToWord(value), SmiShiftBitsConstant()));
 }
 
-TNode<Int32T> CodeStubAssembler::SmiToWord32(SloppyTNode<Smi> value) {
+TNode<Int32T> CodeStubAssembler::SmiToInt32(SloppyTNode<Smi> value) {
   TNode<IntPtrT> result = SmiUntag(value);
-  return TruncateWordToWord32(result);
+  return TruncateIntPtrToInt32(result);
 }
 
 TNode<Float64T> CodeStubAssembler::SmiToFloat64(SloppyTNode<Smi> value) {
-  return ChangeInt32ToFloat64(SmiToWord32(value));
+  return ChangeInt32ToFloat64(SmiToInt32(value));
 }
 
 TNode<Smi> CodeStubAssembler::SmiMax(SloppyTNode<Smi> a, SloppyTNode<Smi> b) {
@@ -664,8 +664,8 @@ Node* CodeStubAssembler::SmiMod(Node* a, Node* b) {
       return_nan(this, Label::kDeferred);
 
   // Untag {a} and {b}.
-  a = SmiToWord32(a);
-  b = SmiToWord32(b);
+  a = SmiToInt32(a);
+  b = SmiToInt32(b);
 
   // Return NaN if {b} is zero.
   GotoIf(Word32Equal(b, Int32Constant(0)), &return_nan);
@@ -679,7 +679,7 @@ Node* CodeStubAssembler::SmiMod(Node* a, Node* b) {
   {
     // Fast case, don't need to check any other edge cases.
     Node* r = Int32Mod(a, b);
-    var_result.Bind(SmiFromWord32(r));
+    var_result.Bind(SmiFromInt32(r));
     Goto(&return_result);
   }
 
@@ -703,7 +703,7 @@ Node* CodeStubAssembler::SmiMod(Node* a, Node* b) {
     GotoIf(Word32Equal(r, Int32Constant(0)), &return_minuszero);
 
     // The remainder {r} can be outside the valid Smi range on 32bit
-    // architectures, so we cannot just say SmiFromWord32(r) here.
+    // architectures, so we cannot just say SmiFromInt32(r) here.
     var_result.Bind(ChangeInt32ToTagged(r));
     Goto(&return_result);
   }
@@ -728,8 +728,8 @@ TNode<Number> CodeStubAssembler::SmiMul(SloppyTNode<Smi> a,
   Label return_result(this, &var_result);
 
   // Both {a} and {b} are Smis. Convert them to integers and multiply.
-  Node* lhs32 = SmiToWord32(a);
-  Node* rhs32 = SmiToWord32(b);
+  Node* lhs32 = SmiToInt32(a);
+  Node* rhs32 = SmiToInt32(b);
   Node* pair = Int32MulWithOverflow(lhs32, rhs32);
 
   Node* overflow = Projection(1, pair);
@@ -800,8 +800,8 @@ Node* CodeStubAssembler::TrySmiDiv(Node* dividend, Node* divisor,
   }
   BIND(&dividend_is_not_zero);
 
-  Node* untagged_divisor = SmiToWord32(divisor);
-  Node* untagged_dividend = SmiToWord32(dividend);
+  Node* untagged_divisor = SmiToInt32(divisor);
+  Node* untagged_dividend = SmiToInt32(dividend);
 
   // Do floating point division if {dividend} is kMinInt (or kMinInt - 1
   // if the Smi size is 31) and {divisor} is -1.
@@ -825,10 +825,10 @@ Node* CodeStubAssembler::TrySmiDiv(Node* dividend, Node* divisor,
   // Do floating point division if the remainder is not 0.
   GotoIf(Word32NotEqual(untagged_dividend, truncated), bailout);
 
-  return SmiFromWord32(untagged_result);
+  return SmiFromInt32(untagged_result);
 }
 
-TNode<Int32T> CodeStubAssembler::TruncateWordToWord32(
+TNode<Int32T> CodeStubAssembler::TruncateIntPtrToInt32(
     SloppyTNode<IntPtrT> value) {
   if (Is64()) {
     return TruncateInt64ToInt32(ReinterpretCast<Int64T>(value));
@@ -1284,7 +1284,8 @@ TNode<IntPtrT> CodeStubAssembler::LoadAndUntagObjectField(
     return ChangeInt32ToIntPtr(
         LoadObjectField(object, offset, MachineType::Int32()));
   } else {
-    return SmiToWord(LoadObjectField(object, offset, MachineType::AnyTagged()));
+    return SmiToIntPtr(
+        LoadObjectField(object, offset, MachineType::AnyTagged()));
   }
 }
 
@@ -1297,7 +1298,7 @@ TNode<Int32T> CodeStubAssembler::LoadAndUntagToWord32ObjectField(Node* object,
     return UncheckedCast<Int32T>(
         LoadObjectField(object, offset, MachineType::Int32()));
   } else {
-    return SmiToWord32(
+    return SmiToInt32(
         LoadObjectField(object, offset, MachineType::AnyTagged()));
   }
 }
@@ -1310,7 +1311,7 @@ TNode<IntPtrT> CodeStubAssembler::LoadAndUntagSmi(Node* base, int index) {
     return ChangeInt32ToIntPtr(
         Load(MachineType::Int32(), base, IntPtrConstant(index)));
   } else {
-    return SmiToWord(
+    return SmiToIntPtr(
         Load(MachineType::AnyTagged(), base, IntPtrConstant(index)));
   }
 }
@@ -1326,8 +1327,8 @@ Node* CodeStubAssembler::LoadAndUntagToWord32Root(
 #endif
     return Load(MachineType::Int32(), roots_array_start, IntPtrConstant(index));
   } else {
-    return SmiToWord32(Load(MachineType::AnyTagged(), roots_array_start,
-                            IntPtrConstant(index)));
+    return SmiToInt32(Load(MachineType::AnyTagged(), roots_array_start,
+                           IntPtrConstant(index)));
   }
 }
 
@@ -1690,7 +1691,7 @@ Node* CodeStubAssembler::LoadFixedArrayElement(Node* object, Node* index_node,
                                                int additional_offset,
                                                ParameterMode parameter_mode) {
   CSA_SLOW_ASSERT(this, IntPtrGreaterThanOrEqual(
-                            ParameterToWord(index_node, parameter_mode),
+                            ParameterToIntPtr(index_node, parameter_mode),
                             IntPtrConstant(0)));
   int32_t header_size =
       FixedArray::kHeaderSize + additional_offset - kHeapObjectTag;
@@ -1864,13 +1865,13 @@ Node* CodeStubAssembler::LoadFixedTypedArrayElementAsTagged(
   switch (elements_kind) {
     case UINT8_ELEMENTS: /* fall through */
     case UINT8_CLAMPED_ELEMENTS:
-      return SmiFromWord32(Load(MachineType::Uint8(), data_pointer, offset));
+      return SmiFromInt32(Load(MachineType::Uint8(), data_pointer, offset));
     case INT8_ELEMENTS:
-      return SmiFromWord32(Load(MachineType::Int8(), data_pointer, offset));
+      return SmiFromInt32(Load(MachineType::Int8(), data_pointer, offset));
     case UINT16_ELEMENTS:
-      return SmiFromWord32(Load(MachineType::Uint16(), data_pointer, offset));
+      return SmiFromInt32(Load(MachineType::Uint16(), data_pointer, offset));
     case INT16_ELEMENTS:
-      return SmiFromWord32(Load(MachineType::Int16(), data_pointer, offset));
+      return SmiFromInt32(Load(MachineType::Int16(), data_pointer, offset));
     case UINT32_ELEMENTS:
       return ChangeUint32ToTagged(
           Load(MachineType::Uint32(), data_pointer, offset));
@@ -1921,7 +1922,7 @@ Node* CodeStubAssembler::LoadAndUntagToWord32FixedArrayElement(
   if (Is64()) {
     return Load(MachineType::Int32(), object, offset);
   } else {
-    return SmiToWord32(Load(MachineType::AnyTagged(), object, offset));
+    return SmiToInt32(Load(MachineType::AnyTagged(), object, offset));
   }
 }
 
@@ -2261,7 +2262,7 @@ TNode<Smi> CodeStubAssembler::BuildAppendJSArray(ElementsKind kind,
 
   // Resize the capacity of the fixed array if it doesn't fit.
   TNode<IntPtrT> first = arg_index->value();
-  Node* growth = WordToParameter(
+  Node* growth = IntPtrToParameter(
       IntPtrSub(UncheckedCast<IntPtrT>(args->GetLength(INTPTR_PARAMETERS)),
                 first),
       mode);
@@ -2740,7 +2741,7 @@ Node* CodeStubAssembler::AllocateNameDictionaryWithCapacity(Node* capacity) {
   DCHECK(Heap::RootIsImmortalImmovable(Heap::kNameDictionaryMapRootIndex));
   StoreMapNoWriteBarrier(result, Heap::kNameDictionaryMapRootIndex);
   StoreObjectFieldNoWriteBarrier(result, FixedArray::kLengthOffset,
-                                 SmiFromWord(length));
+                                 SmiFromIntPtr(length));
   // Initialized HashTable fields.
   Node* zero = SmiConstant(0);
   StoreFixedArrayElement(result, NameDictionary::kNumberOfElementsIndex, zero,
@@ -3875,7 +3876,7 @@ void CodeStubAssembler::TaggedToWord32OrBigIntImpl(
     GotoIf(TaggedIsNotSmi(value), &not_smi);
 
     // {value} is a Smi.
-    var_word32->Bind(SmiToWord32(value));
+    var_word32->Bind(SmiToInt32(value));
     CombineFeedback(var_feedback, BinaryOperationFeedback::kSignedSmall);
     Goto(if_number);
 
@@ -4129,7 +4130,7 @@ TNode<UintPtrT> CodeStubAssembler::ChangeNonnegativeNumberToUintPtr(
   BIND(&smi);
   TNode<Smi> value_smi = CAST(value);
   CSA_SLOW_ASSERT(this, SmiLessThan(SmiConstant(-1), value_smi));
-  result = UncheckedCast<UintPtrT>(SmiToWord(value_smi));
+  result = UncheckedCast<UintPtrT>(SmiToIntPtr(value_smi));
   Goto(&done);
 
   BIND(&done);
@@ -4694,7 +4695,7 @@ Node* CodeStubAssembler::IsPrivateSymbol(Node* object) {
       [=] {
         TNode<Symbol> symbol = CAST(object);
         TNode<Int32T> flags =
-            SmiToWord32(LoadObjectField<Smi>(symbol, Symbol::kFlagsOffset));
+            SmiToInt32(LoadObjectField<Smi>(symbol, Symbol::kFlagsOffset));
         return IsSetWord32(flags, 1 << Symbol::kPrivateBit);
       },
       [=] { return Int32Constant(0); }, MachineRepresentation::kWord32);
@@ -4887,7 +4888,7 @@ TNode<Int32T> CodeStubAssembler::StringCharCodeAt(SloppyTNode<String> string,
   {
     Node* result = CallRuntime(Runtime::kStringCharCodeAt, NoContextConstant(),
                                string, SmiTag(index));
-    var_result = SmiToWord32(result);
+    var_result = SmiToInt32(result);
     Goto(&return_result);
   }
 
@@ -5950,7 +5951,7 @@ TNode<Number> CodeStubAssembler::ToUint32(SloppyTNode<Context> context,
 
   BIND(&if_isnegativesmi);
   {
-    Node* const uint32_value = SmiToWord32(number);
+    Node* const uint32_value = SmiToInt32(number);
     Node* float64_value = ChangeUint32ToFloat64(uint32_value);
     var_result.Bind(AllocateHeapNumberWithValue(float64_value));
     Goto(&out);
@@ -6553,7 +6554,7 @@ Node* CodeStubAssembler::ComputeIntegerHash(Node* key) {
 
 Node* CodeStubAssembler::ComputeIntegerHash(Node* key, Node* seed) {
   // See v8::internal::ComputeIntegerHash()
-  Node* hash = TruncateWordToWord32(key);
+  Node* hash = TruncateIntPtrToInt32(key);
   hash = Word32Xor(hash, seed);
   hash = Int32Add(Word32Xor(hash, Int32Constant(0xFFFFFFFF)),
                   Word32Shl(hash, Int32Constant(15)));
@@ -8114,7 +8115,7 @@ Node* CodeStubAssembler::PrepareValueForWriteToTypedArray(
 
   BIND(&if_smi);
   {
-    Node* value = SmiToWord32(var_input.value());
+    Node* value = SmiToInt32(var_input.value());
     if (rep == MachineRepresentation::kFloat32) {
       value = RoundInt32ToFloat32(value);
     } else if (rep == MachineRepresentation::kFloat64) {
@@ -8327,7 +8328,7 @@ Node* CodeStubAssembler::CheckForCapacityGrow(
     {
       Node* tagged_key = mode == SMI_PARAMETERS
                              ? key
-                             : ChangeInt32ToTagged(TruncateWordToWord32(key));
+                             : ChangeInt32ToTagged(TruncateIntPtrToInt32(key));
       Node* maybe_elements = CallRuntime(
           Runtime::kGrowArrayElements, NoContextConstant(), object, tagged_key);
       GotoIf(TaggedIsSmi(maybe_elements), bailout);
@@ -10915,7 +10916,7 @@ void CodeStubArguments::PopAndReturn(Node* value) {
     pop_count = argc_;
   }
 
-  assembler_->PopAndReturn(assembler_->ParameterToWord(pop_count, argc_mode_),
+  assembler_->PopAndReturn(assembler_->ParameterToIntPtr(pop_count, argc_mode_),
                            value);
 }
 

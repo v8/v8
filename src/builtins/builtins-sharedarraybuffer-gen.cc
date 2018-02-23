@@ -96,7 +96,7 @@ Node* SharedArrayBufferBuiltinsAssembler::ConvertTaggedAtomicIndexToWord32(
   // don't currently have a TF implementation and forward to runtime functions
   // instead; they expect the value has already been coerced to an integer.
   *number_index = ToSmiIndex(CAST(tagged), CAST(context), &range_error);
-  var_result.Bind(SmiToWord32(*number_index));
+  var_result.Bind(SmiToInt32(*number_index));
   Goto(&done);
 
   BIND(&range_error);
@@ -164,20 +164,20 @@ TF_BUILTIN(AtomicsLoad, SharedArrayBufferBuiltinsAssembler) {
          arraysize(case_labels));
 
   BIND(&i8);
-  Return(SmiFromWord32(
-      AtomicLoad(MachineType::Int8(), backing_store, index_word)));
+  Return(
+      SmiFromInt32(AtomicLoad(MachineType::Int8(), backing_store, index_word)));
 
   BIND(&u8);
-  Return(SmiFromWord32(
+  Return(SmiFromInt32(
       AtomicLoad(MachineType::Uint8(), backing_store, index_word)));
 
   BIND(&i16);
-  Return(SmiFromWord32(
+  Return(SmiFromInt32(
       AtomicLoad(MachineType::Int16(), backing_store, WordShl(index_word, 1))));
 
   BIND(&u16);
-  Return(SmiFromWord32(AtomicLoad(MachineType::Uint16(), backing_store,
-                                  WordShl(index_word, 1))));
+  Return(SmiFromInt32(AtomicLoad(MachineType::Uint16(), backing_store,
+                                 WordShl(index_word, 1))));
 
   BIND(&i32);
   Return(ChangeInt32ToTagged(
@@ -288,20 +288,20 @@ TF_BUILTIN(AtomicsExchange, SharedArrayBufferBuiltinsAssembler) {
          arraysize(case_labels));
 
   BIND(&i8);
-  Return(SmiFromWord32(AtomicExchange(MachineType::Int8(), backing_store,
-                                      index_word, value_word32)));
+  Return(SmiFromInt32(AtomicExchange(MachineType::Int8(), backing_store,
+                                     index_word, value_word32)));
 
   BIND(&u8);
-  Return(SmiFromWord32(AtomicExchange(MachineType::Uint8(), backing_store,
-                                      index_word, value_word32)));
+  Return(SmiFromInt32(AtomicExchange(MachineType::Uint8(), backing_store,
+                                     index_word, value_word32)));
 
   BIND(&i16);
-  Return(SmiFromWord32(AtomicExchange(MachineType::Int16(), backing_store,
-                                      WordShl(index_word, 1), value_word32)));
+  Return(SmiFromInt32(AtomicExchange(MachineType::Int16(), backing_store,
+                                     WordShl(index_word, 1), value_word32)));
 
   BIND(&u16);
-  Return(SmiFromWord32(AtomicExchange(MachineType::Uint16(), backing_store,
-                                      WordShl(index_word, 1), value_word32)));
+  Return(SmiFromInt32(AtomicExchange(MachineType::Uint16(), backing_store,
+                                     WordShl(index_word, 1), value_word32)));
 
   BIND(&i32);
   Return(ChangeInt32ToTagged(AtomicExchange(MachineType::Int32(), backing_store,
@@ -366,22 +366,22 @@ TF_BUILTIN(AtomicsCompareExchange, SharedArrayBufferBuiltinsAssembler) {
          arraysize(case_labels));
 
   BIND(&i8);
-  Return(SmiFromWord32(AtomicCompareExchange(MachineType::Int8(), backing_store,
-                                             index_word, old_value_word32,
-                                             new_value_word32)));
+  Return(SmiFromInt32(AtomicCompareExchange(MachineType::Int8(), backing_store,
+                                            index_word, old_value_word32,
+                                            new_value_word32)));
 
   BIND(&u8);
-  Return(SmiFromWord32(
-      AtomicCompareExchange(MachineType::Uint8(), backing_store, index_word,
-                            old_value_word32, new_value_word32)));
+  Return(SmiFromInt32(AtomicCompareExchange(MachineType::Uint8(), backing_store,
+                                            index_word, old_value_word32,
+                                            new_value_word32)));
 
   BIND(&i16);
-  Return(SmiFromWord32(AtomicCompareExchange(
+  Return(SmiFromInt32(AtomicCompareExchange(
       MachineType::Int16(), backing_store, WordShl(index_word, 1),
       old_value_word32, new_value_word32)));
 
   BIND(&u16);
-  Return(SmiFromWord32(AtomicCompareExchange(
+  Return(SmiFromInt32(AtomicCompareExchange(
       MachineType::Uint16(), backing_store, WordShl(index_word, 1),
       old_value_word32, new_value_word32)));
 
@@ -463,22 +463,20 @@ void SharedArrayBufferBuiltinsAssembler::AtomicBinopBuiltinCommon(
          arraysize(case_labels));
 
   BIND(&i8);
-  Return(SmiFromWord32((this->*function)(MachineType::Int8(), backing_store,
-                                         index_word, value_word32)));
+  Return(SmiFromInt32((this->*function)(MachineType::Int8(), backing_store,
+                                        index_word, value_word32)));
 
   BIND(&u8);
-  Return(SmiFromWord32((this->*function)(MachineType::Uint8(), backing_store,
-                                         index_word, value_word32)));
+  Return(SmiFromInt32((this->*function)(MachineType::Uint8(), backing_store,
+                                        index_word, value_word32)));
 
   BIND(&i16);
-  Return(
-      SmiFromWord32((this->*function)(MachineType::Int16(), backing_store,
-                                      WordShl(index_word, 1), value_word32)));
+  Return(SmiFromInt32((this->*function)(MachineType::Int16(), backing_store,
+                                        WordShl(index_word, 1), value_word32)));
 
   BIND(&u16);
-  Return(
-      SmiFromWord32((this->*function)(MachineType::Uint16(), backing_store,
-                                      WordShl(index_word, 1), value_word32)));
+  Return(SmiFromInt32((this->*function)(MachineType::Uint16(), backing_store,
+                                        WordShl(index_word, 1), value_word32)));
 
   BIND(&i32);
   Return(ChangeInt32ToTagged(
