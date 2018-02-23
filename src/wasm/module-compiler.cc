@@ -2080,14 +2080,10 @@ MaybeHandle<WasmInstanceObject> InstanceBuilder::Build() {
   //--------------------------------------------------------------------------
   // Reuse the compiled module (if no owner), otherwise clone.
   //--------------------------------------------------------------------------
-  // TODO(mtrofin): remove code_table and old_code_table
+  // TODO(mtrofin): remove code_table
   // when FLAG_wasm_jit_to_native is not needed
   Handle<FixedArray> code_table;
   Handle<FixedArray> wrapper_table;
-  // We keep around a copy of the old code table, because we'll be replacing
-  // imports for the new instance, and then we need the old imports to be
-  // able to relocate.
-  Handle<FixedArray> old_code_table;
   MaybeHandle<WasmInstanceObject> owner;
   // native_module is the one we're building now, old_module
   // is the one we clone from. They point to the same place if
@@ -2126,7 +2122,6 @@ MaybeHandle<WasmInstanceObject> InstanceBuilder::Build() {
         wrapper_table = handle(compiled_module_->export_wrappers(), isolate_);
       } else {
         TRACE("Cloning from %d\n", original->instance_id());
-        old_code_table = handle(original->code_table(), isolate_);
         compiled_module_ = WasmCompiledModule::Clone(isolate_, original);
         code_table = handle(compiled_module_->code_table(), isolate_);
         wrapper_table = handle(compiled_module_->export_wrappers(), isolate_);
@@ -2187,7 +2182,6 @@ MaybeHandle<WasmInstanceObject> InstanceBuilder::Build() {
               compiled_module_->GetNativeModule()->instance_id);
       } else {
         code_table = handle(compiled_module_->code_table(), isolate_);
-        old_code_table = factory->CopyFixedArray(code_table);
         TRACE("Reusing existing instance %d\n",
               compiled_module_->instance_id());
       }
