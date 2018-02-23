@@ -29,3 +29,29 @@
   f("abc", {}, 1);
   assertOptimized(f);
 })();
+
+(()=> {
+  function f(a, b, c) {
+    return a.substring(b, c);
+  }
+  f("abcde", 1, 4);
+  f("abcde", 1, 4);
+  %OptimizeFunctionOnNextCall(f);
+  f("abcde", 1, {});
+  %OptimizeFunctionOnNextCall(f);
+  f("abcde", 1, {});
+  assertOptimized(f);
+})();
+
+(()=> {
+  function f(a, b, c) {
+    return a.substring(b, c);
+  }
+  f("abcde", 1, 4);
+  f("abcde", 1, 4);
+  %OptimizeFunctionOnNextCall(f);
+  f("abcde", {}, 4);
+  %OptimizeFunctionOnNextCall(f);
+  f("abcde", {}, 4);
+  assertOptimized(f);
+})();

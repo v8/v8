@@ -3325,6 +3325,8 @@ Reduction JSCallReducer::ReduceJSCall(Node* node,
     case Builtins::kStringPrototypeCodePointAt:
       return ReduceStringPrototypeStringAt(
           simplified()->StringCodePointAt(UnicodeEncoding::UTF32), node);
+    case Builtins::kStringPrototypeSubstring:
+      return ReduceStringPrototypeSubstring(node);
 #ifdef V8_INTL_SUPPORT
     case Builtins::kStringPrototypeToLowerCaseIntl:
       return ReduceStringPrototypeToLowerCaseIntl(node);
@@ -3608,6 +3610,109 @@ Reduction JSCallReducer::ReduceJSConstruct(Node* node) {
   }
 
   return NoChange();
+}
+
+// ES6 String.prototype.indexOf(searchString [, position])
+// #sec-string.prototype.indexof
+Reduction JSCallReducer::ReduceStringPrototypeIndexOf(Node* node) {
+  DCHECK_EQ(IrOpcode::kJSCall, node->opcode());
+  CallParameters const& p = CallParametersOf(node->op());
+  if (p.speculation_mode() == SpeculationMode::kDisallowSpeculation) {
+    return NoChange();
+  }
+
+  Node* effect = NodeProperties::GetEffectInput(node);
+  Node* control = NodeProperties::GetControlInput(node);
+  if (node->op()->ValueInputCount() >= 3) {
+    Node* receiver = NodeProperties::GetValueInput(node, 1);
+    Node* new_receiver = effect = graph()->NewNode(
+        simplified()->CheckString(p.feedback()), receiver, effect, control);
+
+    Node* search_string = NodeProperties::GetValueInput(node, 2);
+    Node* new_search_string = effect =
+        graph()->NewNode(simplified()->CheckString(p.feedback()), search_string,
+                         effect, control);
+
+    Node* new_position = jsgraph()->ZeroConstant();
+    if (node->op()->ValueInputCount() >= 4) {
+      Node* position = NodeProperties::GetValueInput(node, 3);
+      new_position = effect = graph()->NewNode(
+          simplified()->CheckSmi(p.feedback()), position, effect, control);
+    }
+
+    NodeProperties::ReplaceEffectInput(node, effect);
+    RelaxEffectsAndControls(node);
+    node->ReplaceInput(0, new_receiver);
+    node->ReplaceInput(1, new_search_string);
+    node->ReplaceInput(2, new_position);
+    node->TrimInputCount(3);
+    NodeProperties::ChangeOp(node, simplified()->StringIndexOf());
+    return Changed(node);
+  }
+  return NoChange();
+}
+
+// #sec-string.prototype.substring
+Reduction JSCallReducer::ReduceStringPrototypeSubstring(Node* node) {
+  if (node->op()->ValueInputCount() < 3) return NoChange();
+  CallParameters const& p = CallParametersOf(node->op());
+  if (p.speculation_mode() == SpeculationMode::kDisallowSpeculation) {
+    return NoChange();
+  }
+
+  Node* effect = NodeProperties::GetEffectInput(node);
+  Node* control = NodeProperties::GetControlInput(node);
+  Node* receiver = NodeProperties::GetValueInput(node, 1);
+  Node* start = NodeProperties::GetValueInput(node, 2);
+  Node* end = node->op()->ValueInputCount() > 3
+                  ? NodeProperties::GetValueInput(node, 3)
+                  : jsgraph()->UndefinedConstant();
+
+  receiver = effect = graph()->NewNode(simplified()->CheckString(p.feedback()),
+                                       receiver, effect, control);
+
+  start = effect = graph()->NewNode(simplified()->CheckSmi(p.feedback()), start,
+                                    effect, control);
+
+  Node* length = graph()->NewNode(simplified()->StringLength(), receiver);
+
+  Node* check = graph()->NewNode(simplified()->ReferenceEqual(), end,
+                                 jsgraph()->UndefinedConstant());
+  Node* branch =
+      graph()->NewNode(common()->Branch(BranchHint::kFalse), check, control);
+
+  Node* if_true = graph()->NewNode(common()->IfTrue(), branch);
+  Node* etrue = effect;
+  Node* vtrue = length;
+
+  Node* if_false = graph()->NewNode(common()->IfFalse(), branch);
+  Node* efalse = effect;
+  Node* vfalse = efalse = graph()->NewNode(simplified()->CheckSmi(p.feedback()),
+                                           end, efalse, if_false);
+
+  control = graph()->NewNode(common()->Merge(2), if_true, if_false);
+  effect = graph()->NewNode(common()->EffectPhi(2), etrue, efalse, control);
+  end = graph()->NewNode(common()->Phi(MachineRepresentation::kTagged, 2),
+                         vtrue, vfalse, control);
+  Node* finalStart =
+      graph()->NewNode(simplified()->NumberMin(),
+                       graph()->NewNode(simplified()->NumberMax(), start,
+                                        jsgraph()->ZeroConstant()),
+                       length);
+  Node* finalEnd =
+      graph()->NewNode(simplified()->NumberMin(),
+                       graph()->NewNode(simplified()->NumberMax(), end,
+                                        jsgraph()->ZeroConstant()),
+                       length);
+
+  Node* from =
+      graph()->NewNode(simplified()->NumberMin(), finalStart, finalEnd);
+  Node* to = graph()->NewNode(simplified()->NumberMax(), finalStart, finalEnd);
+
+  Node* value =
+      graph()->NewNode(simplified()->StringSubstring(), receiver, from, to);
+  ReplaceWithValue(node, value, effect, control);
+  return Replace(node);
 }
 
 Reduction JSCallReducer::ReduceJSConstructWithArrayLike(Node* node) {
@@ -4100,50 +4205,8 @@ Reduction JSCallReducer::ReduceArrayPrototypeShift(Node* node) {
     return Replace(value);
 }
 
-// ES6 String.prototype.indexOf(searchString [, position])
-// #sec-string.prototype.indexof
-Reduction JSCallReducer::ReduceStringPrototypeIndexOf(Node* node) {
-  DCHECK_EQ(IrOpcode::kJSCall, node->opcode());
-  CallParameters const& p = CallParametersOf(node->op());
-  if (p.speculation_mode() == SpeculationMode::kDisallowSpeculation) {
-    return NoChange();
-  }
-
-  Node* effect = NodeProperties::GetEffectInput(node);
-  Node* control = NodeProperties::GetControlInput(node);
-  if (node->op()->ValueInputCount() >= 3) {
-    Node* receiver = NodeProperties::GetValueInput(node, 1);
-    Node* new_receiver = effect = graph()->NewNode(
-        simplified()->CheckString(p.feedback()), receiver, effect, control);
-
-    Node* search_string = NodeProperties::GetValueInput(node, 2);
-    Node* new_search_string = effect =
-        graph()->NewNode(simplified()->CheckString(p.feedback()), search_string,
-                         effect, control);
-
-    Node* new_position = jsgraph()->ZeroConstant();
-    if (node->op()->ValueInputCount() >= 4) {
-      Node* position = NodeProperties::GetValueInput(node, 3);
-      new_position = effect = graph()->NewNode(
-          simplified()->CheckSmi(p.feedback()), position, effect, control);
-    }
-
-    NodeProperties::ReplaceEffectInput(node, effect);
-    RelaxEffectsAndControls(node);
-    node->ReplaceInput(0, new_receiver);
-    node->ReplaceInput(1, new_search_string);
-    node->ReplaceInput(2, new_position);
-    node->TrimInputCount(3);
-    NodeProperties::ChangeOp(node, simplified()->StringIndexOf());
-    return Changed(node);
-  }
-  return NoChange();
-}
-
 // ES6 section 21.1.3.1 String.prototype.charAt ( pos )
-// and
 // ES6 section 21.1.3.2 String.prototype.charCodeAt ( pos )
-// and
 // ES6 section 21.1.3.3 String.prototype.codePointAt ( pos )
 Reduction JSCallReducer::ReduceStringPrototypeStringAt(
     const Operator* string_access_operator, Node* node) {

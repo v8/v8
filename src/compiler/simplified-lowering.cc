@@ -2408,6 +2408,13 @@ class RepresentationSelector {
                   MachineRepresentation::kTaggedSigned);
         return;
       }
+      case IrOpcode::kStringSubstring: {
+        ProcessInput(node, 0, UseInfo::AnyTagged());
+        ProcessInput(node, 1, UseInfo::TaggedSigned());
+        ProcessInput(node, 2, UseInfo::TaggedSigned());
+        SetOutput(node, MachineRepresentation::kTaggedPointer);
+        return;
+      }
       case IrOpcode::kStringToLowerCaseIntl:
       case IrOpcode::kStringToUpperCaseIntl: {
         VisitUnop(node, UseInfo::AnyTagged(),

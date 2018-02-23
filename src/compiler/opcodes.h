@@ -350,6 +350,7 @@
   V(StringLength)                       \
   V(StringToLowerCaseIntl)              \
   V(StringToUpperCaseIntl)              \
+  V(StringSubstring)                    \
   V(CheckBounds)                        \
   V(CheckIf)                            \
   V(CheckMaps)                          \

@@ -863,6 +863,9 @@ bool EffectControlLinearizer::TryWireInStateEffect(Node* node,
     case IrOpcode::kStringToUpperCaseIntl:
       result = LowerStringToUpperCaseIntl(node);
       break;
+    case IrOpcode::kStringSubstring:
+      result = LowerStringSubstring(node);
+      break;
     case IrOpcode::kStringEqual:
       result = LowerStringEqual(node);
       break;
@@ -3189,6 +3192,21 @@ Node* EffectControlLinearizer::LowerStringComparison(Callable const& callable,
       isolate(), graph()->zone(), callable.descriptor(), 0, flags, properties);
   return __ Call(call_descriptor, __ HeapConstant(callable.code()), lhs, rhs,
                  __ NoContextConstant());
+}
+
+Node* EffectControlLinearizer::LowerStringSubstring(Node* node) {
+  Node* receiver = node->InputAt(0);
+  Node* start = node->InputAt(1);
+  Node* end = node->InputAt(2);
+
+  Callable callable =
+      Builtins::CallableFor(isolate(), Builtins::kStringSubstring);
+  Operator::Properties properties = Operator::kEliminatable;
+  CallDescriptor::Flags flags = CallDescriptor::kNoFlags;
+  auto call_descriptor = Linkage::GetStubCallDescriptor(
+      isolate(), graph()->zone(), callable.descriptor(), 0, flags, properties);
+  return __ Call(call_descriptor, __ HeapConstant(callable.code()), receiver,
+                 start, end, __ NoContextConstant());
 }
 
 Node* EffectControlLinearizer::LowerStringEqual(Node* node) {

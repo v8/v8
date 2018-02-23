@@ -676,6 +676,7 @@ bool operator==(CheckMinusZeroParameters const& lhs,
   V(StringLength, Operator::kNoProperties, 1, 0)                 \
   V(StringToLowerCaseIntl, Operator::kNoProperties, 1, 0)        \
   V(StringToUpperCaseIntl, Operator::kNoProperties, 1, 0)        \
+  V(StringSubstring, Operator::kNoProperties, 3, 0)              \
   V(TypeOf, Operator::kNoProperties, 1, 1)                       \
   V(PlainPrimitiveToNumber, Operator::kNoProperties, 1, 0)       \
   V(PlainPrimitiveToWord32, Operator::kNoProperties, 1, 0)       \

@@ -99,6 +99,7 @@ class V8_EXPORT_PRIVATE JSCallReducer final : public AdvancedReducer {
   Reduction ReduceJSCallWithSpread(Node* node);
   Reduction ReduceReturnReceiver(Node* node);
   Reduction ReduceStringPrototypeIndexOf(Node* node);
+  Reduction ReduceStringPrototypeSubstring(Node* node);
   Reduction ReduceStringPrototypeStringAt(
       const Operator* string_access_operator, Node* node);
 

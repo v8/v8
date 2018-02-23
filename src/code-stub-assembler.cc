@@ -5120,8 +5120,8 @@ TNode<String> CodeStubAssembler::SubString(TNode<String> string,
   // Fall back to a runtime call.
   BIND(&runtime);
   {
-    var_result = CAST(CallRuntime(Runtime::kSubString, NoContextConstant(),
-                                  string, from, to));
+    var_result = CAST(CallRuntime(Runtime::kStringSubstring,
+                                  NoContextConstant(), string, from, to));
     Goto(&end);
   }
 

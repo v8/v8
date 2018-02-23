@@ -313,7 +313,7 @@ bool IntrinsicHasNoSideEffect(Runtime::FunctionId id) {
   V(StringReplaceOneCharWithString)      \
   V(StringToNumber)                      \
   V(StringTrim)                          \
-  V(SubString)                           \
+  V(StringSubstring)                     \
   V(RegExpInternalReplace)               \
   /* BigInts */                          \
   V(BigIntEqualToBigInt)                 \
@@ -765,7 +765,7 @@ bool BuiltinHasNoSideEffect(Builtins::Name id) {
     case Builtins::kStringPrototypeTrimStart:
     case Builtins::kStringPrototypeValueOf:
     case Builtins::kStringToNumber:
-    case Builtins::kSubString:
+    case Builtins::kStringSubstring:
     // Symbol builtins.
     case Builtins::kSymbolConstructor:
     case Builtins::kSymbolKeyFor:

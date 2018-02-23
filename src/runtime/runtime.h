@@ -526,7 +526,7 @@ namespace internal {
   F(StringIndexOf, 3, 1)                  \
   F(StringIndexOfUnchecked, 3, 1)         \
   F(StringLastIndexOf, 2, 1)              \
-  F(SubString, 3, 1)                      \
+  F(StringSubstring, 3, 1)                \
   F(StringAdd, 2, 1)                      \
   F(InternalizeString, 1, 1)              \
   F(StringCharCodeAt, 2, 1)               \

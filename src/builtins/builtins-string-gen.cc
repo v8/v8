@@ -1144,7 +1144,7 @@ compiler::Node* StringBuiltinsAssembler::GetSubstitution(
     CSA_ASSERT(this, TaggedIsPositiveSmi(dollar_index));
 
     Node* const matched =
-        CallBuiltin(Builtins::kSubString, context, subject_string,
+        CallBuiltin(Builtins::kStringSubstring, context, subject_string,
                     match_start_index, match_end_index);
     Node* const replacement_string =
         CallRuntime(Runtime::kGetSubstitution, context, matched, subject_string,
@@ -1382,8 +1382,8 @@ TF_BUILTIN(StringPrototypeReplace, StringBuiltinsAssembler) {
 
     GotoIf(SmiEqual(match_start_index, smi_zero), &next);
     Node* const prefix =
-        CallBuiltin(Builtins::kSubString, context, subject_string, smi_zero,
-                    match_start_index);
+        CallBuiltin(Builtins::kStringSubstring, context, subject_string,
+                    smi_zero, match_start_index);
     var_result.Bind(prefix);
 
     Goto(&next);
@@ -1423,7 +1423,7 @@ TF_BUILTIN(StringPrototypeReplace, StringBuiltinsAssembler) {
   BIND(&out);
   {
     Node* const suffix =
-        CallBuiltin(Builtins::kSubString, context, subject_string,
+        CallBuiltin(Builtins::kStringSubstring, context, subject_string,
                     match_end_index, subject_length);
     Node* const result =
         CallStub(stringadd_callable, context, var_result.value(), suffix);
@@ -1604,7 +1604,7 @@ class StringPadAssembler : public StringBuiltinsAssembler {
         GotoIfNot(remaining_word32, &return_result);
         {
           Node* const remainder_string = CallBuiltin(
-              Builtins::kSubString, context, var_fill_string.value(),
+              Builtins::kStringSubstring, context, var_fill_string.value(),
               SmiConstant(0), SmiFromInt32(remaining_word32));
           var_pad.Bind(CallStub(stringadd_callable, context, var_pad.value(),
                                 remainder_string));
@@ -1941,7 +1941,7 @@ TNode<Smi> StringBuiltinsAssembler::ToSmiBetweenZeroAnd(
   return var_result.value();
 }
 
-TF_BUILTIN(SubString, CodeStubAssembler) {
+TF_BUILTIN(StringSubstring, CodeStubAssembler) {
   TNode<String> string = CAST(Parameter(Descriptor::kString));
   Node* from = Parameter(Descriptor::kFrom);
   Node* to = Parameter(Descriptor::kTo);
