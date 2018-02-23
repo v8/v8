@@ -267,5 +267,18 @@ TEST(ZoneChunkList, RewindAndIterate) {
   }
 }
 
+TEST(ZoneChunkList, PushBackPopBackSize) {
+  // Regression test for https://bugs.chromium.org/p/v8/issues/detail?id=7489
+  AccountingAllocator allocator;
+  Zone zone(&allocator, ZONE_NAME);
+
+  ZoneChunkList<int> zone_chunk_list(&zone);
+  CHECK_EQ(size_t(0), zone_chunk_list.size());
+  zone_chunk_list.push_back(1);
+  CHECK_EQ(size_t(1), zone_chunk_list.size());
+  zone_chunk_list.pop_back();
+  CHECK_EQ(size_t(0), zone_chunk_list.size());
+}
+
 }  // namespace internal
 }  // namespace v8

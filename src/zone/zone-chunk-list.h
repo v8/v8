@@ -289,6 +289,7 @@ void ZoneChunkList<T>::pop_back() {
     back_ = back_->previous_;
   }
   --back_->position_;
+  --size_;
 }
 
 template <typename T>
