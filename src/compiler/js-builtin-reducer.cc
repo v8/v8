@@ -872,6 +872,30 @@ Reduction JSBuiltinReducer::ReduceArrayIsArray(Node* node) {
   return Replace(value);
 }
 
+namespace {
+
+bool HasInstanceTypeWitness(Node* receiver, Node* effect,
+                            InstanceType instance_type) {
+  ZoneHandleSet<Map> receiver_maps;
+  NodeProperties::InferReceiverMapsResult result =
+      NodeProperties::InferReceiverMaps(receiver, effect, &receiver_maps);
+  switch (result) {
+    case NodeProperties::kUnreliableReceiverMaps:
+    case NodeProperties::kReliableReceiverMaps:
+      DCHECK_NE(0, receiver_maps.size());
+      for (size_t i = 0; i < receiver_maps.size(); ++i) {
+        if (receiver_maps[i]->instance_type() != instance_type) return false;
+      }
+      return true;
+
+    case NodeProperties::kNoReceiverMaps:
+      return false;
+  }
+  UNREACHABLE();
+}
+
+}  // namespace
+
 Reduction JSBuiltinReducer::ReduceCollectionIterator(
     Node* node, InstanceType collection_instance_type,
     int collection_iterator_map_index) {
@@ -879,8 +903,7 @@ Reduction JSBuiltinReducer::ReduceCollectionIterator(
   Node* receiver = NodeProperties::GetValueInput(node, 1);
   Node* effect = NodeProperties::GetEffectInput(node);
   Node* control = NodeProperties::GetControlInput(node);
-  if (NodeProperties::HasInstanceTypeWitness(receiver, effect,
-                                             collection_instance_type)) {
+  if (HasInstanceTypeWitness(receiver, effect, collection_instance_type)) {
     // Figure out the proper collection iterator map.
     Handle<Map> collection_iterator_map(
         Map::cast(native_context()->get(collection_iterator_map_index)),
@@ -915,8 +938,7 @@ Reduction JSBuiltinReducer::ReduceCollectionSize(
   Node* receiver = NodeProperties::GetValueInput(node, 1);
   Node* effect = NodeProperties::GetEffectInput(node);
   Node* control = NodeProperties::GetControlInput(node);
-  if (NodeProperties::HasInstanceTypeWitness(receiver, effect,
-                                             collection_instance_type)) {
+  if (HasInstanceTypeWitness(receiver, effect, collection_instance_type)) {
     Node* table = effect = graph()->NewNode(
         simplified()->LoadField(AccessBuilder::ForJSCollectionTable()),
         receiver, effect, control);
@@ -1222,7 +1244,7 @@ Reduction JSBuiltinReducer::ReduceDateGetTime(Node* node) {
   Node* receiver = NodeProperties::GetValueInput(node, 1);
   Node* effect = NodeProperties::GetEffectInput(node);
   Node* control = NodeProperties::GetControlInput(node);
-  if (NodeProperties::HasInstanceTypeWitness(receiver, effect, JS_DATE_TYPE)) {
+  if (HasInstanceTypeWitness(receiver, effect, JS_DATE_TYPE)) {
     Node* value = effect = graph()->NewNode(
         simplified()->LoadField(AccessBuilder::ForJSDateValue()), receiver,
         effect, control);
@@ -1268,8 +1290,7 @@ Reduction JSBuiltinReducer::ReduceMapGet(Node* node) {
   Node* control = NodeProperties::GetControlInput(node);
   Node* key = NodeProperties::GetValueInput(node, 2);
 
-  if (!NodeProperties::HasInstanceTypeWitness(receiver, effect, JS_MAP_TYPE))
-    return NoChange();
+  if (!HasInstanceTypeWitness(receiver, effect, JS_MAP_TYPE)) return NoChange();
 
   Node* table = effect = graph()->NewNode(
       simplified()->LoadField(AccessBuilder::ForJSCollectionTable()), receiver,
@@ -1312,8 +1333,7 @@ Reduction JSBuiltinReducer::ReduceMapHas(Node* node) {
   Node* control = NodeProperties::GetControlInput(node);
   Node* key = NodeProperties::GetValueInput(node, 2);
 
-  if (!NodeProperties::HasInstanceTypeWitness(receiver, effect, JS_MAP_TYPE))
-    return NoChange();
+  if (!HasInstanceTypeWitness(receiver, effect, JS_MAP_TYPE)) return NoChange();
 
   Node* table = effect = graph()->NewNode(
       simplified()->LoadField(AccessBuilder::ForJSCollectionTable()), receiver,
@@ -1483,6 +1503,18 @@ Reduction JSBuiltinReducer::ReduceObjectCreate(Node* node) {
   return Replace(value);
 }
 
+// ES6 section 21.1.2.1 String.fromCharCode ( ...codeUnits )
+Reduction JSBuiltinReducer::ReduceStringFromCharCode(Node* node) {
+  JSCallReduction r(node);
+  if (r.InputsMatchOne(Type::PlainPrimitive())) {
+    // String.fromCharCode(a:plain-primitive) -> StringFromCharCode(a)
+    Node* input = ToNumber(r.GetJSCallInput(0));
+    Node* value = graph()->NewNode(simplified()->StringFromCharCode(), input);
+    return Replace(value);
+  }
+  return NoChange();
+}
+
 namespace {
 
 Node* GetStringWitness(Node* node) {
@@ -1538,6 +1570,101 @@ Reduction JSBuiltinReducer::ReduceStringConcat(Node* node) {
     }
   }
 
+  return NoChange();
+}
+
+Reduction JSBuiltinReducer::ReduceStringIterator(Node* node) {
+  if (Node* receiver = GetStringWitness(node)) {
+    Node* effect = NodeProperties::GetEffectInput(node);
+    Node* control = NodeProperties::GetControlInput(node);
+
+    Node* map = jsgraph()->HeapConstant(
+        handle(native_context()->string_iterator_map(), isolate()));
+
+    // Allocate new iterator and attach the iterator to this string.
+    AllocationBuilder a(jsgraph(), effect, control);
+    a.Allocate(JSStringIterator::kSize, NOT_TENURED, Type::OtherObject());
+    a.Store(AccessBuilder::ForMap(), map);
+    a.Store(AccessBuilder::ForJSObjectPropertiesOrHash(),
+            jsgraph()->EmptyFixedArrayConstant());
+    a.Store(AccessBuilder::ForJSObjectElements(),
+            jsgraph()->EmptyFixedArrayConstant());
+    a.Store(AccessBuilder::ForJSStringIteratorString(), receiver);
+    a.Store(AccessBuilder::ForJSStringIteratorIndex(),
+            jsgraph()->SmiConstant(0));
+    Node* value = effect = a.Finish();
+
+    // Replace it.
+    ReplaceWithValue(node, value, effect, control);
+    return Replace(value);
+  }
+  return NoChange();
+}
+
+Reduction JSBuiltinReducer::ReduceStringIteratorNext(Node* node) {
+  Node* receiver = NodeProperties::GetValueInput(node, 1);
+  Node* effect = NodeProperties::GetEffectInput(node);
+  Node* control = NodeProperties::GetControlInput(node);
+  Node* context = NodeProperties::GetContextInput(node);
+  if (HasInstanceTypeWitness(receiver, effect, JS_STRING_ITERATOR_TYPE)) {
+    Node* string = effect = graph()->NewNode(
+        simplified()->LoadField(AccessBuilder::ForJSStringIteratorString()),
+        receiver, effect, control);
+    Node* index = effect = graph()->NewNode(
+        simplified()->LoadField(AccessBuilder::ForJSStringIteratorIndex()),
+        receiver, effect, control);
+    Node* length = graph()->NewNode(simplified()->StringLength(), string);
+
+    // branch0: if (index < length)
+    Node* check0 =
+        graph()->NewNode(simplified()->NumberLessThan(), index, length);
+    Node* branch0 =
+        graph()->NewNode(common()->Branch(BranchHint::kTrue), check0, control);
+
+    Node* etrue0 = effect;
+    Node* if_true0 = graph()->NewNode(common()->IfTrue(), branch0);
+    Node* done_true;
+    Node* vtrue0;
+    {
+      done_true = jsgraph()->FalseConstant();
+      Node* codepoint = etrue0 = graph()->NewNode(
+          simplified()->StringCodePointAt(UnicodeEncoding::UTF16), string,
+          index, etrue0, if_true0);
+      vtrue0 = graph()->NewNode(
+          simplified()->StringFromCodePoint(UnicodeEncoding::UTF16), codepoint);
+
+      // Update iterator.[[NextIndex]]
+      Node* char_length =
+          graph()->NewNode(simplified()->StringLength(), vtrue0);
+      index = graph()->NewNode(simplified()->NumberAdd(), index, char_length);
+      etrue0 = graph()->NewNode(
+          simplified()->StoreField(AccessBuilder::ForJSStringIteratorIndex()),
+          receiver, index, etrue0, if_true0);
+    }
+
+    Node* if_false0 = graph()->NewNode(common()->IfFalse(), branch0);
+    Node* done_false;
+    Node* vfalse0;
+    {
+      vfalse0 = jsgraph()->UndefinedConstant();
+      done_false = jsgraph()->TrueConstant();
+    }
+
+    control = graph()->NewNode(common()->Merge(2), if_true0, if_false0);
+    effect = graph()->NewNode(common()->EffectPhi(2), etrue0, effect, control);
+    Node* value =
+        graph()->NewNode(common()->Phi(MachineRepresentation::kTagged, 2),
+                         vtrue0, vfalse0, control);
+    Node* done =
+        graph()->NewNode(common()->Phi(MachineRepresentation::kTagged, 2),
+                         done_true, done_false, control);
+
+    value = effect = graph()->NewNode(javascript()->CreateIterResultObject(),
+                                      value, done, context, effect);
+
+    ReplaceWithValue(node, value, effect, control);
+    return Replace(value);
+  }
   return NoChange();
 }
 
@@ -1597,6 +1724,30 @@ Reduction JSBuiltinReducer::ReduceStringSlice(Node* node) {
   return NoChange();
 }
 
+Reduction JSBuiltinReducer::ReduceStringToLowerCaseIntl(Node* node) {
+  if (Node* receiver = GetStringWitness(node)) {
+    RelaxEffectsAndControls(node);
+    node->ReplaceInput(0, receiver);
+    node->TrimInputCount(1);
+    NodeProperties::ChangeOp(node, simplified()->StringToLowerCaseIntl());
+    NodeProperties::SetType(node, Type::String());
+    return Changed(node);
+  }
+  return NoChange();
+}
+
+Reduction JSBuiltinReducer::ReduceStringToUpperCaseIntl(Node* node) {
+  if (Node* receiver = GetStringWitness(node)) {
+    RelaxEffectsAndControls(node);
+    node->ReplaceInput(0, receiver);
+    node->TrimInputCount(1);
+    NodeProperties::ChangeOp(node, simplified()->StringToUpperCaseIntl());
+    NodeProperties::SetType(node, Type::String());
+    return Changed(node);
+  }
+  return NoChange();
+}
+
 Reduction JSBuiltinReducer::ReduceArrayBufferIsView(Node* node) {
   Node* value = node->op()->ValueInputCount() >= 3
                     ? NodeProperties::GetValueInput(node, 2)
@@ -1613,7 +1764,7 @@ Reduction JSBuiltinReducer::ReduceArrayBufferViewAccessor(
   Node* receiver = NodeProperties::GetValueInput(node, 1);
   Node* effect = NodeProperties::GetEffectInput(node);
   Node* control = NodeProperties::GetControlInput(node);
-  if (NodeProperties::HasInstanceTypeWitness(receiver, effect, instance_type)) {
+  if (HasInstanceTypeWitness(receiver, effect, instance_type)) {
     // Load the {receiver}s field.
     Node* value = effect = graph()->NewNode(simplified()->LoadField(access),
                                             receiver, effect, control);
@@ -1724,10 +1875,21 @@ Reduction JSBuiltinReducer::Reduce(Node* node) {
       return ReduceCollectionIteratorNext(
           node, OrderedHashSet::kEntrySize, factory()->empty_ordered_hash_set(),
           FIRST_SET_ITERATOR_TYPE, LAST_SET_ITERATOR_TYPE);
+    case kStringFromCharCode:
+      reduction = ReduceStringFromCharCode(node);
+      break;
     case kStringConcat:
       return ReduceStringConcat(node);
+    case kStringIterator:
+      return ReduceStringIterator(node);
+    case kStringIteratorNext:
+      return ReduceStringIteratorNext(node);
     case kStringSlice:
       return ReduceStringSlice(node);
+    case kStringToLowerCaseIntl:
+      return ReduceStringToLowerCaseIntl(node);
+    case kStringToUpperCaseIntl:
+      return ReduceStringToUpperCaseIntl(node);
     case kArrayBufferIsView:
       return ReduceArrayBufferIsView(node);
     case kDataViewByteLength:

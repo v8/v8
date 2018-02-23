@@ -140,7 +140,6 @@
   V(JSCreateClosure)            \
   V(JSCreateGeneratorObject)    \
   V(JSCreateIterResultObject)   \
-  V(JSCreateStringIterator)     \
   V(JSCreateKeyValueArray)      \
   V(JSCreatePromise)            \
   V(JSCreateLiteralArray)       \

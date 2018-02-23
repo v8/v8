@@ -569,7 +569,6 @@ CompareOperationHint CompareOperationHintOf(const Operator* op) {
   V(ToString, Operator::kNoProperties, 1, 1)                           \
   V(Create, Operator::kNoProperties, 2, 1)                             \
   V(CreateIterResultObject, Operator::kEliminatable, 2, 1)             \
-  V(CreateStringIterator, Operator::kEliminatable, 1, 1)               \
   V(CreateKeyValueArray, Operator::kEliminatable, 2, 1)                \
   V(CreatePromise, Operator::kEliminatable, 0, 1)                      \
   V(HasProperty, Operator::kNoProperties, 2, 1)                        \
