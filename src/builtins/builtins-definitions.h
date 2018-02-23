@@ -456,6 +456,10 @@ namespace internal {
   CPP(DataViewPrototypeSetFloat32)                                             \
   CPP(DataViewPrototypeGetFloat64)                                             \
   CPP(DataViewPrototypeSetFloat64)                                             \
+  CPP(DataViewPrototypeGetBigInt64)                                            \
+  CPP(DataViewPrototypeSetBigInt64)                                            \
+  CPP(DataViewPrototypeGetBigUint64)                                           \
+  CPP(DataViewPrototypeSetBigUint64)                                           \
                                                                                \
   /* Date */                                                                   \
   CPP(DateConstructor)                                                         \

@@ -4404,6 +4404,20 @@ void Genesis::InitializeGlobal_harmony_bigint() {
   JSObject::AddProperty(prototype, factory->to_string_tag_symbol(),
                         factory->BigInt_string(),
                         static_cast<PropertyAttributes>(DONT_ENUM | READ_ONLY));
+
+  // Install 64-bit DataView accessors.
+  // TODO(jkummerow): Move these to the "DataView" section when dropping the
+  // FLAG_harmony_bigint.
+  Handle<JSObject> dataview_prototype(
+      JSObject::cast(native_context()->data_view_fun()->instance_prototype()));
+  SimpleInstallFunction(dataview_prototype, "getBigInt64",
+                        Builtins::kDataViewPrototypeGetBigInt64, 1, false);
+  SimpleInstallFunction(dataview_prototype, "setBigInt64",
+                        Builtins::kDataViewPrototypeSetBigInt64, 2, false);
+  SimpleInstallFunction(dataview_prototype, "getBigUint64",
+                        Builtins::kDataViewPrototypeGetBigUint64, 1, false);
+  SimpleInstallFunction(dataview_prototype, "setBigUint64",
+                        Builtins::kDataViewPrototypeSetBigUint64, 2, false);
 }
 
 #ifdef V8_INTL_SUPPORT

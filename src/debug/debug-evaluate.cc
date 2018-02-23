@@ -614,6 +614,8 @@ bool BuiltinHasNoSideEffect(Builtins::Name id) {
     case Builtins::kDataViewPrototypeGetUint32:
     case Builtins::kDataViewPrototypeGetFloat32:
     case Builtins::kDataViewPrototypeGetFloat64:
+    case Builtins::kDataViewPrototypeGetBigInt64:
+    case Builtins::kDataViewPrototypeGetBigUint64:
     // Boolean bulitins.
     case Builtins::kBooleanConstructor:
     case Builtins::kBooleanPrototypeToString:
