@@ -591,7 +591,7 @@ bool NativeModuleDeserializer::ReadCode() {
       WasmCode::kFunction, constant_pool_offset, stack_slot_count,
       safepoint_table_offset, protected_instructions, is_liftoff);
   if (ret == nullptr) return false;
-  native_module_->SetCodeTable(index_, ret);
+  native_module_->code_table_[index_] = ret;
 
   // now relocate the code
   int mask = RelocInfo::ModeMask(RelocInfo::EMBEDDED_OBJECT) |

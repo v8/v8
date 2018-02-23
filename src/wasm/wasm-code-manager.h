@@ -286,7 +286,6 @@ class V8_EXPORT_PRIVATE NativeModule final {
                          uint32_t stack_slots, size_t safepoint_table_offset,
                          std::shared_ptr<ProtectedInstructions>,
                          bool is_liftoff);
-  void SetCodeTable(uint32_t, wasm::WasmCode*);
   WasmCode* CloneCode(const WasmCode*);
   bool CloneTrampolinesAndStubs(const NativeModule* other);
   WasmCode* Lookup(Address);

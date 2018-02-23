@@ -353,7 +353,7 @@ WasmCode* NativeModule::AddOwnedCode(
 WasmCode* NativeModule::AddCodeCopy(Handle<Code> code, WasmCode::Kind kind,
                                     uint32_t index) {
   WasmCode* ret = AddAnonymousCode(code, kind);
-  SetCodeTable(index, ret);
+  code_table_[index] = ret;
   ret->index_ = Just(index);
   compiled_module()->source_positions()->set(static_cast<int>(index),
                                              code->source_position_table());
@@ -372,7 +372,7 @@ WasmCode* NativeModule::AddInterpreterWrapper(Handle<Code> code,
 void NativeModule::SetLazyBuiltin(Handle<Code> code) {
   WasmCode* lazy_builtin = AddAnonymousCode(code, WasmCode::kLazyStub);
   for (uint32_t i = num_imported_functions(), e = FunctionCount(); i < e; ++i) {
-    SetCodeTable(i, lazy_builtin);
+    code_table_[i] = lazy_builtin;
   }
 }
 
@@ -448,7 +448,7 @@ WasmCode* NativeModule::AddCode(
       is_liftoff);
   if (ret == nullptr) return nullptr;
 
-  SetCodeTable(index, ret);
+  code_table_[index] = ret;
   // TODO(mtrofin): this is a copy and paste from Code::CopyFrom.
   int mode_mask = RelocInfo::kCodeTargetMask |
                   RelocInfo::ModeMask(RelocInfo::EMBEDDED_OBJECT) |
@@ -662,7 +662,7 @@ WasmCode* NativeModule::CloneLazyBuiltinInto(const WasmCode* code,
                                              uint32_t index) {
   DCHECK_EQ(wasm::WasmCode::kLazyStub, code->kind());
   WasmCode* ret = CloneCode(code);
-  SetCodeTable(index, ret);
+  code_table_[index] = ret;
   ret->index_ = Just(index);
   return ret;
 }
@@ -699,7 +699,7 @@ WasmCode* NativeModule::CloneCode(const WasmCode* original_code) {
       original_code->protected_instructions_, original_code->is_liftoff());
   if (ret == nullptr) return nullptr;
   if (!ret->IsAnonymous()) {
-    SetCodeTable(ret->index(), ret);
+    code_table_[ret->index()] = ret;
   }
   intptr_t delta =
       ret->instructions().start() - original_code->instructions().start();
@@ -709,10 +709,6 @@ WasmCode* NativeModule::CloneCode(const WasmCode* original_code) {
     it.rinfo()->apply(delta);
   }
   return ret;
-}
-
-void NativeModule::SetCodeTable(uint32_t index, wasm::WasmCode* code) {
-  code_table_[index] = code;
 }
 
 NativeModule::~NativeModule() {
@@ -939,7 +935,7 @@ std::unique_ptr<NativeModule> NativeModule::Clone() {
           PatchTrampolineAndStubCalls(original_code, new_code, reverse_lookup);
           anonymous_lazy_builtin = new_code;
         }
-        ret->SetCodeTable(i, anonymous_lazy_builtin);
+        ret->code_table_[i] = anonymous_lazy_builtin;
       } break;
       case WasmCode::kFunction: {
         WasmCode* new_code = ret->CloneCode(original_code);
