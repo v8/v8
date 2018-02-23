@@ -5,8 +5,6 @@
 #ifndef V8_FRAMES_H_
 #define V8_FRAMES_H_
 
-#include "src/allocation.h"
-#include "src/flags.h"
 #include "src/handles.h"
 #include "src/objects.h"
 #include "src/objects/code.h"
@@ -18,21 +16,20 @@ namespace wasm {
 class WasmCode;
 }
 
+// Forward declarations.
 class AbstractCode;
 class Debug;
-class ObjectVisitor;
-class StringStream;
-
-// Forward declarations.
 class ExternalCallbackScope;
 class Isolate;
+class ObjectVisitor;
 class RootVisitor;
 class StackFrameIteratorBase;
+class StringStream;
 class ThreadLocalTop;
+class WasmCompiledModule;
+class WasmDebugInfo;
 class WasmInstanceObject;
 class WasmSharedModuleData;
-class WasmDebugInfo;
-class WasmCompiledModule;
 
 class InnerPointerToCodeCache {
  public:

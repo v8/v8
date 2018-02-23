@@ -5,6 +5,8 @@
 #ifndef V8_API_NATIVES_H_
 #define V8_API_NATIVES_H_
 
+#include "include/v8.h"
+#include "src/base/macros.h"
 #include "src/handles.h"
 #include "src/property-details.h"
 
