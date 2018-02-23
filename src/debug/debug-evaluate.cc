@@ -323,8 +323,6 @@ bool IntrinsicHasNoSideEffect(Runtime::FunctionId id) {
   V(CreateArrayLiteral)                  \
   V(CreateObjectLiteral)                 \
   V(CreateRegExpLiteral)                 \
-  /* Collections */                      \
-  V(GenericHash)                         \
   /* Called from builtins */             \
   V(ClassOf)                             \
   V(StringAdd)                           \

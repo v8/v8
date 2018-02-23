@@ -288,17 +288,6 @@ Object* DoFunctionBind(Isolate* isolate, BuiltinArguments args) {
 // ES6 section 19.2.3.2 Function.prototype.bind ( thisArg, ...args )
 BUILTIN(FunctionPrototypeBind) { return DoFunctionBind(isolate, args); }
 
-// TODO(verwaest): This is a temporary helper until the FastFunctionBind stub
-// can tailcall to the builtin directly.
-RUNTIME_FUNCTION(Runtime_FunctionBind) {
-  DCHECK_EQ(2, args.length());
-  Arguments* incoming = reinterpret_cast<Arguments*>(args[0]);
-  // Rewrap the arguments as builtins arguments.
-  int argc = incoming->length() + BuiltinArguments::kNumExtraArgsWithReceiver;
-  BuiltinArguments caller_args(argc, incoming->arguments() + 1);
-  return DoFunctionBind(isolate, caller_args);
-}
-
 // ES6 section 19.2.3.5 Function.prototype.toString ( )
 BUILTIN(FunctionPrototypeToString) {
   HandleScope scope(isolate);

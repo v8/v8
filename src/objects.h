@@ -1355,34 +1355,10 @@ class Object {
   // ES6 section 12.5.6 The typeof Operator
   static Handle<String> TypeOf(Isolate* isolate, Handle<Object> object);
 
-  // ES6 section 12.6 Multiplicative Operators
-  MUST_USE_RESULT static MaybeHandle<Object> Multiply(Isolate* isolate,
-                                                      Handle<Object> lhs,
-                                                      Handle<Object> rhs);
-  MUST_USE_RESULT static MaybeHandle<Object> Divide(Isolate* isolate,
-                                                    Handle<Object> lhs,
-                                                    Handle<Object> rhs);
-  MUST_USE_RESULT static MaybeHandle<Object> Modulus(Isolate* isolate,
-                                                     Handle<Object> lhs,
-                                                     Handle<Object> rhs);
-
   // ES6 section 12.7 Additive Operators
   MUST_USE_RESULT static MaybeHandle<Object> Add(Isolate* isolate,
                                                  Handle<Object> lhs,
                                                  Handle<Object> rhs);
-  MUST_USE_RESULT static MaybeHandle<Object> Subtract(Isolate* isolate,
-                                                      Handle<Object> lhs,
-                                                      Handle<Object> rhs);
-
-  // ES6 section 12.8 Bitwise Shift Operators
-  MUST_USE_RESULT static MaybeHandle<Object> ShiftLeft(Isolate* isolate,
-                                                       Handle<Object> lhs,
-                                                       Handle<Object> rhs);
-  MUST_USE_RESULT static MaybeHandle<Object> ShiftRight(Isolate* isolate,
-                                                        Handle<Object> lhs,
-                                                        Handle<Object> rhs);
-  MUST_USE_RESULT static MaybeHandle<Object> ShiftRightLogical(
-      Isolate* isolate, Handle<Object> lhs, Handle<Object> rhs);
 
   // ES6 section 12.9 Relational Operators
   MUST_USE_RESULT static inline Maybe<bool> GreaterThan(Handle<Object> x,
@@ -1393,17 +1369,6 @@ class Object {
                                                      Handle<Object> y);
   MUST_USE_RESULT static inline Maybe<bool> LessThanOrEqual(Handle<Object> x,
                                                             Handle<Object> y);
-
-  // ES6 section 12.11 Binary Bitwise Operators
-  MUST_USE_RESULT static MaybeHandle<Object> BitwiseAnd(Isolate* isolate,
-                                                        Handle<Object> lhs,
-                                                        Handle<Object> rhs);
-  MUST_USE_RESULT static MaybeHandle<Object> BitwiseOr(Isolate* isolate,
-                                                       Handle<Object> lhs,
-                                                       Handle<Object> rhs);
-  MUST_USE_RESULT static MaybeHandle<Object> BitwiseXor(Isolate* isolate,
-                                                        Handle<Object> lhs,
-                                                        Handle<Object> rhs);
 
   // ES6 section 7.3.19 OrdinaryHasInstance (C, O).
   MUST_USE_RESULT static MaybeHandle<Object> OrdinaryHasInstance(

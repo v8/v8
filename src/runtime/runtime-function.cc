@@ -88,17 +88,6 @@ RUNTIME_FUNCTION(Runtime_FunctionGetContextData) {
   return fun->native_context()->debug_context_id();
 }
 
-RUNTIME_FUNCTION(Runtime_FunctionSetLength) {
-  SealHandleScope shs(isolate);
-  DCHECK_EQ(2, args.length());
-
-  CONVERT_ARG_CHECKED(JSFunction, fun, 0);
-  CONVERT_SMI_ARG_CHECKED(length, 1);
-  fun->shared()->set_length(length);
-  return isolate->heap()->undefined_value();
-}
-
-
 RUNTIME_FUNCTION(Runtime_FunctionIsAPIFunction) {
   SealHandleScope shs(isolate);
   DCHECK_EQ(1, args.length());

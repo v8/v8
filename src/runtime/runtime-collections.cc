@@ -29,20 +29,6 @@ RUNTIME_FUNCTION(Runtime_TheHole) {
   return isolate->heap()->the_hole_value();
 }
 
-RUNTIME_FUNCTION(Runtime_GetExistingHash) {
-  SealHandleScope shs(isolate);
-  DCHECK_EQ(1, args.length());
-  CONVERT_ARG_HANDLE_CHECKED(Object, object, 0);
-  return object->GetHash();
-}
-
-RUNTIME_FUNCTION(Runtime_GenericHash) {
-  HandleScope scope(isolate);
-  DCHECK_EQ(1, args.length());
-  CONVERT_ARG_HANDLE_CHECKED(Object, object, 0);
-  return object->GetOrCreateHash(isolate);
-}
-
 RUNTIME_FUNCTION(Runtime_SetGrow) {
   HandleScope scope(isolate);
   DCHECK_EQ(1, args.length());
@@ -112,15 +98,6 @@ RUNTIME_FUNCTION(Runtime_GetWeakMapEntries) {
   CHECK_GE(max_entries, 0);
   return *JSWeakCollection::GetEntries(holder, max_entries);
 }
-
-RUNTIME_FUNCTION(Runtime_WeakCollectionInitialize) {
-  HandleScope scope(isolate);
-  DCHECK_EQ(1, args.length());
-  CONVERT_ARG_HANDLE_CHECKED(JSWeakCollection, weak_collection, 0);
-  JSWeakCollection::Initialize(weak_collection, isolate);
-  return *weak_collection;
-}
-
 
 RUNTIME_FUNCTION(Runtime_WeakCollectionDelete) {
   HandleScope scope(isolate);

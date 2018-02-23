@@ -1041,26 +1041,6 @@ RUNTIME_FUNCTION(Runtime_SetScopeVariableValue) {
   return isolate->heap()->ToBoolean(res);
 }
 
-
-RUNTIME_FUNCTION(Runtime_DebugPrintScopes) {
-  HandleScope scope(isolate);
-  DCHECK_EQ(0, args.length());
-
-#ifdef DEBUG
-  // Print the scopes for the top frame.
-  JavaScriptFrameIterator it(isolate);
-  if (!it.done()) {
-    JavaScriptFrame* frame = it.frame();
-    FrameInspector frame_inspector(frame, 0, isolate);
-    for (ScopeIterator si(isolate, &frame_inspector); !si.Done(); si.Next()) {
-      si.DebugPrint();
-    }
-  }
-#endif
-  return isolate->heap()->undefined_value();
-}
-
-
 // Sets the disable break state
 // args[0]: disable break state
 RUNTIME_FUNCTION(Runtime_SetBreakPointsActive) {
@@ -1578,46 +1558,6 @@ int ScriptLinePosition(Handle<Script> script, int line) {
 
 }  // namespace
 
-// TODO(5530): Remove once uses in debug.js are gone.
-RUNTIME_FUNCTION(Runtime_ScriptLineStartPosition) {
-  HandleScope scope(isolate);
-  DCHECK_EQ(2, args.length());
-  CONVERT_ARG_CHECKED(JSValue, script, 0);
-  CONVERT_NUMBER_CHECKED(int32_t, line, Int32, args[1]);
-
-  CHECK(script->value()->IsScript());
-  Handle<Script> script_handle = Handle<Script>(Script::cast(script->value()));
-
-  return Smi::FromInt(ScriptLinePosition(script_handle, line));
-}
-
-// TODO(5530): Remove once uses in debug.js are gone.
-RUNTIME_FUNCTION(Runtime_ScriptLineEndPosition) {
-  HandleScope scope(isolate);
-  DCHECK_EQ(2, args.length());
-  CONVERT_ARG_CHECKED(JSValue, script, 0);
-  CONVERT_NUMBER_CHECKED(int32_t, line, Int32, args[1]);
-
-  CHECK(script->value()->IsScript());
-  Handle<Script> script_handle = Handle<Script>(Script::cast(script->value()));
-
-  if (script_handle->type() == Script::TYPE_WASM) {
-    // Return zero for now; this function will disappear soon anyway.
-    return Smi::FromInt(0);
-  }
-
-  Script::InitLineEnds(script_handle);
-
-  FixedArray* line_ends_array = FixedArray::cast(script_handle->line_ends());
-  const int line_count = line_ends_array->length();
-
-  if (line < 0 || line >= line_count) {
-    return Smi::FromInt(-1);
-  } else {
-    return Smi::cast(line_ends_array->get(line));
-  }
-}
-
 static Handle<Object> GetJSPositionInfo(Handle<Script> script, int position,
                                         Script::OffsetFlag offset_flag,
                                         Isolate* isolate) {
@@ -1881,24 +1821,9 @@ RUNTIME_FUNCTION(Runtime_DebugAsyncFunctionPromiseCreated) {
   return isolate->heap()->undefined_value();
 }
 
-RUNTIME_FUNCTION(Runtime_DebugPromiseReject) {
-  HandleScope scope(isolate);
-  DCHECK_EQ(2, args.length());
-  CONVERT_ARG_HANDLE_CHECKED(JSPromise, rejected_promise, 0);
-  CONVERT_ARG_HANDLE_CHECKED(Object, value, 1);
-
-  isolate->debug()->OnPromiseReject(rejected_promise, value);
-  return isolate->heap()->undefined_value();
-}
-
 RUNTIME_FUNCTION(Runtime_DebugIsActive) {
   SealHandleScope shs(isolate);
   return Smi::FromInt(isolate->debug()->is_active());
-}
-
-RUNTIME_FUNCTION(Runtime_DebugBreakInOptimizedCode) {
-  UNIMPLEMENTED();
-  return nullptr;
 }
 
 namespace {

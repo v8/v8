@@ -758,26 +758,6 @@ RUNTIME_FUNCTION(Runtime_CompleteInobjectSlackTrackingForMap) {
 }
 
 
-RUNTIME_FUNCTION(Runtime_LoadMutableDouble) {
-  HandleScope scope(isolate);
-  DCHECK_EQ(2, args.length());
-  CONVERT_ARG_HANDLE_CHECKED(JSObject, object, 0);
-  CONVERT_ARG_HANDLE_CHECKED(Smi, index, 1);
-  CHECK_EQ(index->value() & 1, 1);
-  FieldIndex field_index =
-      FieldIndex::ForLoadByFieldIndex(object->map(), index->value());
-  if (field_index.is_inobject()) {
-    CHECK(field_index.property_index() <
-          object->map()->GetInObjectProperties());
-  } else {
-    CHECK(field_index.outobject_array_index() <
-          object->property_dictionary()->length());
-  }
-  return *JSObject::FastPropertyAt(object, Representation::Double(),
-                                   field_index);
-}
-
-
 RUNTIME_FUNCTION(Runtime_TryMigrateInstance) {
   HandleScope scope(isolate);
   DCHECK_EQ(1, args.length());
@@ -794,13 +774,6 @@ RUNTIME_FUNCTION(Runtime_TryMigrateInstance) {
   return *object;
 }
 
-
-RUNTIME_FUNCTION(Runtime_IsJSGlobalProxy) {
-  SealHandleScope shs(isolate);
-  DCHECK_EQ(1, args.length());
-  CONVERT_ARG_CHECKED(Object, obj, 0);
-  return isolate->heap()->ToBoolean(obj->IsJSGlobalProxy());
-}
 
 static bool IsValidAccessor(Isolate* isolate, Handle<Object> obj) {
   return obj->IsNullOrUndefined(isolate) || obj->IsCallable();
@@ -909,25 +882,6 @@ RUNTIME_FUNCTION(Runtime_CollectTypeProfile) {
   nexus.Collect(type, position->value());
 
   return isolate->heap()->undefined_value();
-}
-
-// Return property without being observable by accessors or interceptors.
-RUNTIME_FUNCTION(Runtime_GetDataProperty) {
-  HandleScope scope(isolate);
-  DCHECK_EQ(2, args.length());
-  CONVERT_ARG_HANDLE_CHECKED(JSReceiver, object, 0);
-  CONVERT_ARG_HANDLE_CHECKED(Name, name, 1);
-  return *JSReceiver::GetDataProperty(object, name);
-}
-
-RUNTIME_FUNCTION(Runtime_GetConstructorName) {
-  HandleScope scope(isolate);
-  DCHECK_EQ(1, args.length());
-  CONVERT_ARG_HANDLE_CHECKED(Object, object, 0);
-
-  CHECK(!object->IsNullOrUndefined(isolate));
-  Handle<JSReceiver> recv = Object::ToObject(isolate, object).ToHandleChecked();
-  return *JSReceiver::GetConstructorName(recv);
 }
 
 RUNTIME_FUNCTION(Runtime_HasFastPackedElements) {

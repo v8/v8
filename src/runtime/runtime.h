@@ -44,7 +44,6 @@ namespace internal {
   F(GetArrayKeys, 2, 1)                  \
   F(TrySliceSimpleNonFastElements, 3, 1) \
   F(NewArray, -1 /* >= 3 */, 1)          \
-  F(FunctionBind, -1, 1)                 \
   F(NormalizeElements, 1, 1)             \
   F(GrowArrayElements, 2, 1)             \
   F(HasComplexElements, 1, 1)            \
@@ -97,8 +96,6 @@ namespace internal {
 
 #define FOR_EACH_INTRINSIC_COLLECTIONS(F) \
   F(TheHole, 0, 1)                        \
-  F(GenericHash, 1, 1)                    \
-  F(GetExistingHash, 1, 1)                \
   F(SetGrow, 1, 1)                        \
   F(SetShrink, 1, 1)                      \
   F(SetIteratorClone, 1, 1)               \
@@ -106,7 +103,6 @@ namespace internal {
   F(MapGrow, 1, 1)                        \
   F(MapIteratorClone, 1, 1)               \
   F(GetWeakMapEntries, 2, 1)              \
-  F(WeakCollectionInitialize, 1, 1)       \
   F(WeakCollectionDelete, 3, 1)           \
   F(WeakCollectionSet, 4, 1)              \
   F(GetWeakSetValues, 2, 1)               \
@@ -150,7 +146,6 @@ namespace internal {
   F(GetGeneratorScopeCount, 1, 1)               \
   F(GetGeneratorScopeDetails, 2, 1)             \
   F(SetScopeVariableValue, 6, 1)                \
-  F(DebugPrintScopes, 0, 1)                     \
   F(SetBreakPointsActive, 1, 1)                 \
   F(GetBreakLocations, 1, 1)                    \
   F(SetFunctionBreakPoint, 3, 1)                \
@@ -174,8 +169,6 @@ namespace internal {
   F(GetHeapUsage, 0, 1)                         \
   F(GetScript, 1, 1)                            \
   F(ScriptLineCount, 1, 1)                      \
-  F(ScriptLineStartPosition, 2, 1)              \
-  F(ScriptLineEndPosition, 2, 1)                \
   F(ScriptLocationFromLine, 4, 1)               \
   F(ScriptLocationFromLine2, 4, 1)              \
   F(ScriptPositionInfo, 3, 1)                   \
@@ -185,10 +178,8 @@ namespace internal {
   F(DebugPrepareStepInSuspendedGenerator, 0, 1) \
   F(DebugPushPromise, 1, 1)                     \
   F(DebugPopPromise, 0, 1)                      \
-  F(DebugPromiseReject, 2, 1)                   \
   F(DebugAsyncFunctionPromiseCreated, 1, 1)     \
   F(DebugIsActive, 0, 1)                        \
-  F(DebugBreakInOptimizedCode, 0, 1)            \
   F(DebugCollectCoverage, 0, 1)                 \
   F(DebugTogglePreciseCoverage, 1, 1)           \
   F(DebugToggleBlockCoverage, 1, 1)             \
@@ -227,7 +218,6 @@ namespace internal {
   F(FunctionGetSourceCode, 1, 1)           \
   F(FunctionGetScriptSourcePosition, 1, 1) \
   F(FunctionGetContextData, 1, 1)          \
-  F(FunctionSetLength, 2, 1)               \
   F(FunctionIsAPIFunction, 1, 1)           \
   F(SetCode, 2, 1)                         \
   F(SetNativeFlag, 1, 1)                   \
@@ -357,9 +347,7 @@ namespace internal {
 #define FOR_EACH_INTRINSIC_MODULE(F) \
   F(DynamicImportCall, 2, 1)         \
   F(GetImportMetaObject, 0, 1)       \
-  F(GetModuleNamespace, 1, 1)        \
-  F(LoadModuleVariable, 1, 1)        \
-  F(StoreModuleVariable, 2, 1)
+  F(GetModuleNamespace, 1, 1)
 
 #define FOR_EACH_INTRINSIC_NUMBERS(F)  \
   F(IsValidSmi, 1, 1)                  \
@@ -401,14 +389,10 @@ namespace internal {
   F(AllocateHeapNumber, 0, 1)                                   \
   F(NewObject, 2, 1)                                            \
   F(CompleteInobjectSlackTrackingForMap, 1, 1)                  \
-  F(LoadMutableDouble, 2, 1)                                    \
   F(TryMigrateInstance, 1, 1)                                   \
-  F(IsJSGlobalProxy, 1, 1)                                      \
   F(DefineAccessorPropertyUnchecked, 5, 1)                      \
   F(DefineDataPropertyInLiteral, 6, 1)                          \
   F(CollectTypeProfile, 3, 1)                                   \
-  F(GetDataProperty, 2, 1)                                      \
-  F(GetConstructorName, 1, 1)                                   \
   F(HasFastPackedElements, 1, 1)                                \
   F(ValueOf, 1, 1)                                              \
   F(IsJSReceiver, 1, 1)                                         \
@@ -437,17 +421,7 @@ namespace internal {
   F(GetOwnPropertyDescriptor, 2, 1)
 
 #define FOR_EACH_INTRINSIC_OPERATORS(F) \
-  F(Multiply, 2, 1)                     \
-  F(Divide, 2, 1)                       \
-  F(Modulus, 2, 1)                      \
   F(Add, 2, 1)                          \
-  F(Subtract, 2, 1)                     \
-  F(ShiftLeft, 2, 1)                    \
-  F(ShiftRight, 2, 1)                   \
-  F(ShiftRightLogical, 2, 1)            \
-  F(BitwiseAnd, 2, 1)                   \
-  F(BitwiseOr, 2, 1)                    \
-  F(BitwiseXor, 2, 1)                   \
   F(Equal, 2, 1)                        \
   F(NotEqual, 2, 1)                     \
   F(StrictEqual, 2, 1)                  \
@@ -455,8 +429,7 @@ namespace internal {
   F(LessThan, 2, 1)                     \
   F(GreaterThan, 2, 1)                  \
   F(LessThanOrEqual, 2, 1)              \
-  F(GreaterThanOrEqual, 2, 1)           \
-  F(InstanceOf, 2, 1)
+  F(GreaterThanOrEqual, 2, 1)
 
 #define FOR_EACH_INTRINSIC_PROMISE(F)  \
   F(EnqueueMicrotask, 1, 1)            \
@@ -484,7 +457,6 @@ namespace internal {
   F(IsRegExp, 1, 1)                                 \
   F(RegExpExec, 4, 1)                               \
   F(RegExpExecMultiple, 4, 1)                       \
-  F(RegExpExecReThrow, 0, 1)                        \
   F(RegExpInitializeAndCompile, 3, 1)               \
   F(RegExpInternalReplace, 3, 1)                    \
   F(RegExpReplace, 3, 1)                            \
@@ -545,7 +517,6 @@ namespace internal {
   F(StringMaxLength, 0, 1)
 
 #define FOR_EACH_INTRINSIC_SYMBOL(F)       \
-  F(CreateSymbol, 1, 1)                    \
   F(CreatePrivateSymbol, -1 /* <= 1 */, 1) \
   F(CreatePrivateFieldSymbol, 0, 1)        \
   F(SymbolDescription, 1, 1)               \
@@ -571,7 +542,6 @@ namespace internal {
   F(FreezeWasmLazyCompilation, 1, 1)          \
   F(GetCallable, 0, 1)                        \
   F(GetDeoptCount, 1, 1)                      \
-  F(GetExceptionDetails, 1, 1)                \
   F(GetOptimizationStatus, -1, 1)             \
   F(GetUndetectable, 0, 1)                    \
   F(GetWasmRecoveredTrapCount, 0, 1)          \
@@ -587,7 +557,6 @@ namespace internal {
   F(HasFixedInt16Elements, 1, 1)              \
   F(HasFixedInt32Elements, 1, 1)              \
   F(HasFixedInt8Elements, 1, 1)               \
-  F(HasFixedTypedArrayElements, 1, 1)         \
   F(HasFixedUint16Elements, 1, 1)             \
   F(HasFixedUint32Elements, 1, 1)             \
   F(HasFixedUint8ClampedElements, 1, 1)       \
@@ -628,7 +597,6 @@ namespace internal {
   F(SystemBreak, 0, 1)                        \
   F(TraceEnter, 0, 1)                         \
   F(TraceExit, 1, 1)                          \
-  F(TypeProfile, 1, 1)                        \
   F(UnblockConcurrentRecompilation, 0, 1)     \
   F(ValidateWasmInstancesChain, 2, 1)         \
   F(ValidateWasmModuleState, 1, 1)            \
