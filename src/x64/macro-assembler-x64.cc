@@ -2737,10 +2737,10 @@ void TurboAssembler::CheckPageFlag(Register object, Register scratch, int mask,
 
 void TurboAssembler::ComputeCodeStartAddress(Register dst) {
   Label current;
-  // Load effective address to get the address of the current instruction.
-  leaq(dst, Operand(&current));
   bind(&current);
   int pc = pc_offset();
+  // Load effective address to get the address of the current instruction.
+  leaq(dst, Operand(&current));
   if (pc != 0) {
     subq(dst, Immediate(pc));
   }
