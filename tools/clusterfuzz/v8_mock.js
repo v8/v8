@@ -69,6 +69,9 @@ var prettyPrinted = function prettyPrinted(msg) { return msg; };
       if (property == "now") {
         return mockDateNow;
       }
+      if (property == "prototype") {
+        return origDate.prototype
+      }
     },
   }
 
