@@ -57,5 +57,29 @@ try {
     this.fail = function fail(expectedText, found, name_opt) {
       print(prettyPrinted(found));
     }
+
+    this.assertSame = function assertSame(expected, found, name_opt) {
+      print(prettyPrinted(found));
+    }
+
+    this.assertNotSame = function assertNotSame(expected, found, name_opt) {
+      print(prettyPrinted(found));
+    }
+
+    this.assertEquals = function assertEquals(expected, found, name_opt) {
+      print(prettyPrinted(found));
+    }
+
+    this.assertNotEquals = function assertNotEquals(expected, found, name_opt) {
+      print(prettyPrinted(found));
+    }
+
+    this.assertNull = function assertNull(value, name_opt) {
+      print(prettyPrinted(value));
+    }
+
+    this.assertNotNull = function assertNotNull(value, name_opt) {
+      print(prettyPrinted(value));
+    }
   })();
 } catch(e) { }
