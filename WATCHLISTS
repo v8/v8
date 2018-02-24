@@ -106,9 +106,6 @@
       'v8-mips-ports@googlegroups.com',
       'v8-ppc-ports@googlegroups.com',
     ],
-    'ia32': [
-      'v8-x87-ports@googlegroups.com',
-    ],
     'merges': [
       # Only enabled on branches created with tools/release/create_release.py
       # 'v8-merges@googlegroups.com',
