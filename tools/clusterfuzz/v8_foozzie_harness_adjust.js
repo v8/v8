@@ -81,5 +81,20 @@ try {
     this.assertNotNull = function assertNotNull(value, name_opt) {
       print(prettyPrinted(value));
     }
+
+    // Suppress optimization status as it leads to false positives.
+    this.assertUnoptimized = function assertUnoptimized() {}
+
+    this.assertOptimized = function assertOptimized() {}
+
+    this.isNeverOptimize = function isNeverOptimize() {}
+
+    this.isAlwaysOptimize = function isAlwaysOptimize() {}
+
+    this.isInterpreted = function isInterpreted() {}
+
+    this.isOptimized = function isOptimized() {}
+
+    this.isTurboFanned = function isTurboFanned() {}
   })();
 } catch(e) { }
