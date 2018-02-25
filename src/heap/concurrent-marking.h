@@ -53,10 +53,7 @@ class ConcurrentMarking {
     COMPLETE_TASKS_FOR_TESTING,
   };
 
-  // TODO(gab): The only thing that prevents this being above 7 is
-  // Worklist::kMaxNumTasks being maxed at 8 (concurrent marking doesn't use
-  // task 0, reserved for the main thread).
-  static constexpr int kMaxTasks = 7;
+  static constexpr int kMaxTasks = 4;
   using MarkingWorklist = Worklist<HeapObject*, 64 /* segment size */>;
 
   ConcurrentMarking(Heap* heap, MarkingWorklist* shared,
