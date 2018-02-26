@@ -103,7 +103,7 @@ class TurboAssembler : public Assembler {
   // Move if the registers are not identical.
   void Move(Register target, Register source);
 
-  void Move(const Operand& dst, const Immediate& x);
+  void Move(Operand dst, const Immediate& x);
 
   // Move an immediate into an XMM register.
   void Move(XMMRegister dst, uint32_t src);
@@ -188,13 +188,13 @@ class TurboAssembler : public Assembler {
   void Prologue();
 
   void Lzcnt(Register dst, Register src) { Lzcnt(dst, Operand(src)); }
-  void Lzcnt(Register dst, const Operand& src);
+  void Lzcnt(Register dst, Operand src);
 
   void Tzcnt(Register dst, Register src) { Tzcnt(dst, Operand(src)); }
-  void Tzcnt(Register dst, const Operand& src);
+  void Tzcnt(Register dst, Operand src);
 
   void Popcnt(Register dst, Register src) { Popcnt(dst, Operand(src)); }
-  void Popcnt(Register dst, const Operand& src);
+  void Popcnt(Register dst, Operand src);
 
   void Ret();
 
@@ -205,11 +205,11 @@ class TurboAssembler : public Assembler {
   void Pshuflw(XMMRegister dst, XMMRegister src, uint8_t shuffle) {
     Pshuflw(dst, Operand(src), shuffle);
   }
-  void Pshuflw(XMMRegister dst, const Operand& src, uint8_t shuffle);
+  void Pshuflw(XMMRegister dst, Operand src, uint8_t shuffle);
   void Pshufd(XMMRegister dst, XMMRegister src, uint8_t shuffle) {
     Pshufd(dst, Operand(src), shuffle);
   }
-  void Pshufd(XMMRegister dst, const Operand& src, uint8_t shuffle);
+  void Pshufd(XMMRegister dst, Operand src, uint8_t shuffle);
 
 // SSE/SSE2 instructions with AVX version.
 #define AVX_OP2_WITH_TYPE(macro_name, name, dst_type, src_type) \
@@ -222,12 +222,12 @@ class TurboAssembler : public Assembler {
     }                                                           \
   }
 
-  AVX_OP2_WITH_TYPE(Movdqu, movdqu, XMMRegister, const Operand&)
-  AVX_OP2_WITH_TYPE(Movdqu, movdqu, const Operand&, XMMRegister)
+  AVX_OP2_WITH_TYPE(Movdqu, movdqu, XMMRegister, Operand)
+  AVX_OP2_WITH_TYPE(Movdqu, movdqu, Operand, XMMRegister)
   AVX_OP2_WITH_TYPE(Movd, movd, XMMRegister, Register)
-  AVX_OP2_WITH_TYPE(Movd, movd, XMMRegister, const Operand&)
+  AVX_OP2_WITH_TYPE(Movd, movd, XMMRegister, Operand)
   AVX_OP2_WITH_TYPE(Movd, movd, Register, XMMRegister)
-  AVX_OP2_WITH_TYPE(Movd, movd, const Operand&, XMMRegister)
+  AVX_OP2_WITH_TYPE(Movd, movd, Operand, XMMRegister)
 
 #undef AVX_OP2_WITH_TYPE
 
@@ -244,7 +244,7 @@ class TurboAssembler : public Assembler {
   }
 #define AVX_OP3_XO(macro_name, name)                            \
   AVX_OP3_WITH_TYPE(macro_name, name, XMMRegister, XMMRegister) \
-  AVX_OP3_WITH_TYPE(macro_name, name, XMMRegister, const Operand&)
+  AVX_OP3_WITH_TYPE(macro_name, name, XMMRegister, Operand)
 
   AVX_OP3_XO(Pcmpeqd, pcmpeqd)
   AVX_OP3_XO(Psubb, psubb)
@@ -257,14 +257,14 @@ class TurboAssembler : public Assembler {
 
   // Non-SSE2 instructions.
   void Pshufb(XMMRegister dst, XMMRegister src) { Pshufb(dst, Operand(src)); }
-  void Pshufb(XMMRegister dst, const Operand& src);
+  void Pshufb(XMMRegister dst, Operand src);
 
   void Psignb(XMMRegister dst, XMMRegister src) { Psignb(dst, Operand(src)); }
-  void Psignb(XMMRegister dst, const Operand& src);
+  void Psignb(XMMRegister dst, Operand src);
   void Psignw(XMMRegister dst, XMMRegister src) { Psignw(dst, Operand(src)); }
-  void Psignw(XMMRegister dst, const Operand& src);
+  void Psignw(XMMRegister dst, Operand src);
   void Psignd(XMMRegister dst, XMMRegister src) { Psignd(dst, Operand(src)); }
-  void Psignd(XMMRegister dst, const Operand& src);
+  void Psignd(XMMRegister dst, Operand src);
 
   void Pextrb(Register dst, XMMRegister src, int8_t imm8);
   void Pextrw(Register dst, XMMRegister src, int8_t imm8);
@@ -273,27 +273,27 @@ class TurboAssembler : public Assembler {
               bool is_64_bits = false) {
     Pinsrd(dst, Operand(src), imm8, is_64_bits);
   }
-  void Pinsrd(XMMRegister dst, const Operand& src, int8_t imm8,
+  void Pinsrd(XMMRegister dst, Operand src, int8_t imm8,
               bool is_64_bits = false);
 
   void LoadUint32(XMMRegister dst, Register src) {
     LoadUint32(dst, Operand(src));
   }
-  void LoadUint32(XMMRegister dst, const Operand& src);
+  void LoadUint32(XMMRegister dst, Operand src);
 
   // Expression support
   // cvtsi2sd instruction only writes to the low 64-bit of dst register, which
   // hinders register renaming and makes dependence chains longer. So we use
   // xorps to clear the dst register before cvtsi2sd to solve this issue.
   void Cvtsi2sd(XMMRegister dst, Register src) { Cvtsi2sd(dst, Operand(src)); }
-  void Cvtsi2sd(XMMRegister dst, const Operand& src);
+  void Cvtsi2sd(XMMRegister dst, Operand src);
 
   void Cvtui2ss(XMMRegister dst, Register src, Register tmp);
 
   void SlowTruncateToIDelayed(Zone* zone, Register result_reg);
 
   void Push(Register src) { push(src); }
-  void Push(const Operand& src) { push(src); }
+  void Push(Operand src) { push(src); }
   void Push(Immediate value) { push(value); }
   void Push(Handle<HeapObject> handle) { push(Immediate(handle)); }
   void Push(Smi* smi) { Push(Immediate(smi)); }
@@ -355,7 +355,7 @@ class MacroAssembler : public TurboAssembler {
       mov(dst, Immediate(x));
     }
   }
-  void Set(const Operand& dst, int32_t x) { mov(dst, Immediate(x)); }
+  void Set(Operand dst, int32_t x) { mov(dst, Immediate(x)); }
 
   // Operations on roots in the root-array.
   void LoadRoot(Register destination, Heap::RootListIndex index);
@@ -363,7 +363,7 @@ class MacroAssembler : public TurboAssembler {
   // These methods can only be used with constant roots (i.e. non-writable
   // and not in new space).
   void CompareRoot(Register with, Heap::RootListIndex index);
-  void CompareRoot(const Operand& with, Heap::RootListIndex index);
+  void CompareRoot(Operand with, Heap::RootListIndex index);
   void PushRoot(Heap::RootListIndex index);
 
   // Compare the object in a register to a value and jump if they are equal.
@@ -372,8 +372,7 @@ class MacroAssembler : public TurboAssembler {
     CompareRoot(with, index);
     j(equal, if_equal, if_equal_distance);
   }
-  void JumpIfRoot(const Operand& with, Heap::RootListIndex index,
-                  Label* if_equal,
+  void JumpIfRoot(Operand with, Heap::RootListIndex index, Label* if_equal,
                   Label::Distance if_equal_distance = Label::kFar) {
     CompareRoot(with, index);
     j(equal, if_equal, if_equal_distance);
@@ -386,7 +385,7 @@ class MacroAssembler : public TurboAssembler {
     CompareRoot(with, index);
     j(not_equal, if_not_equal, if_not_equal_distance);
   }
-  void JumpIfNotRoot(const Operand& with, Heap::RootListIndex index,
+  void JumpIfNotRoot(Operand with, Heap::RootListIndex index,
                      Label* if_not_equal,
                      Label::Distance if_not_equal_distance = Label::kFar) {
     CompareRoot(with, index);
@@ -597,7 +596,7 @@ class MacroAssembler : public TurboAssembler {
 
   void Jump(Handle<Code> target, RelocInfo::Mode rmode) { jmp(target, rmode); }
   void Pop(Register dst) { pop(dst); }
-  void Pop(const Operand& dst) { pop(dst); }
+  void Pop(Operand dst) { pop(dst); }
   void PushReturnAddressFrom(Register src) { push(src); }
   void PopReturnAddressTo(Register dst) { pop(dst); }
 

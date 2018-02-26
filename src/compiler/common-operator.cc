@@ -220,7 +220,7 @@ bool operator!=(RelocatablePtrConstantInfo const& lhs,
 }
 
 size_t hash_value(RelocatablePtrConstantInfo const& p) {
-  return base::hash_combine(p.value(), p.rmode(), p.type());
+  return base::hash_combine(p.value(), int8_t{p.rmode()}, p.type());
 }
 
 std::ostream& operator<<(std::ostream& os,

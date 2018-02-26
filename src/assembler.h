@@ -358,7 +358,7 @@ class RelocInfo {
   // The maximum pc delta that will use the short encoding.
   static const int kMaxSmallPCDelta;
 
-  enum Mode {
+  enum Mode : int8_t {
     // Please note the order is important (see IsCodeTarget, IsGCRelocMode).
     CODE_TARGET,
     EMBEDDED_OBJECT,
