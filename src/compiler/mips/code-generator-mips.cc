@@ -634,12 +634,12 @@ void CodeGenerator::AssembleCodeStartRegisterCheck() {
 //    3. if it is not zero then it jumps to the builtin.
 void CodeGenerator::BailoutIfDeoptimized() {
   int offset = Code::kCodeDataContainerOffset - Code::kHeaderSize;
-  __ lw(a2, MemOperand(kJavaScriptCallCodeStartRegister, offset));
-  __ lw(a2, FieldMemOperand(a2, CodeDataContainer::kKindSpecificFlagsOffset));
-  __ And(a2, a2, Operand(1 << Code::kMarkedForDeoptimizationBit));
+  __ lw(at, MemOperand(kJavaScriptCallCodeStartRegister, offset));
+  __ lw(at, FieldMemOperand(at, CodeDataContainer::kKindSpecificFlagsOffset));
+  __ And(at, at, Operand(1 << Code::kMarkedForDeoptimizationBit));
   Handle<Code> code = isolate()->builtins()->builtin_handle(
       Builtins::kCompileLazyDeoptimizedCode);
-  __ Jump(code, RelocInfo::CODE_TARGET, ne, a2, Operand(zero_reg));
+  __ Jump(code, RelocInfo::CODE_TARGET, ne, at, Operand(zero_reg));
 }
 
 void CodeGenerator::GenerateSpeculationPoison() {
@@ -659,6 +659,12 @@ void CodeGenerator::GenerateSpeculationPoison() {
          kBitsPerPointer - 1);
   __ nor(kSpeculationPoisonRegister, kSpeculationPoisonRegister,
          kSpeculationPoisonRegister);
+}
+
+void CodeGenerator::AssembleRegisterArgumentPoisoning() {
+  __ And(kJSFunctionRegister, kJSFunctionRegister, kSpeculationPoisonRegister);
+  __ And(kContextRegister, kContextRegister, kSpeculationPoisonRegister);
+  __ And(sp, sp, kSpeculationPoisonRegister);
 }
 
 // Assembles an instruction after register allocation, producing machine code.

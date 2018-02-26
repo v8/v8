@@ -576,6 +576,17 @@ void CodeGenerator::GenerateSpeculationPoison() {
   __ Csdb();
 }
 
+void CodeGenerator::AssembleRegisterArgumentPoisoning() {
+  UseScratchRegisterScope temps(tasm());
+  Register scratch = temps.AcquireX();
+
+  __ Mov(scratch, sp);
+  __ And(kJSFunctionRegister, kJSFunctionRegister, kSpeculationPoisonRegister);
+  __ And(kContextRegister, kContextRegister, kSpeculationPoisonRegister);
+  __ And(scratch, scratch, kSpeculationPoisonRegister);
+  __ Mov(sp, scratch);
+}
+
 // Assembles an instruction after register allocation, producing machine code.
 CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     Instruction* instr) {

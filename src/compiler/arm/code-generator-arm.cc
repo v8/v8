@@ -633,6 +633,12 @@ void CodeGenerator::GenerateSpeculationPoison() {
   __ csdb();
 }
 
+void CodeGenerator::AssembleRegisterArgumentPoisoning() {
+  __ and_(kJSFunctionRegister, kJSFunctionRegister, kSpeculationPoisonRegister);
+  __ and_(kContextRegister, kContextRegister, kSpeculationPoisonRegister);
+  __ and_(sp, sp, kSpeculationPoisonRegister);
+}
+
 // Assembles an instruction after register allocation, producing machine code.
 CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     Instruction* instr) {

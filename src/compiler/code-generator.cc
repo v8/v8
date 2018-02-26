@@ -153,22 +153,31 @@ void CodeGenerator::AssembleCode() {
   // Check that {kJavaScriptCallCodeStartRegister} has been set correctly.
   if (FLAG_debug_code & (info->code_kind() == Code::OPTIMIZED_FUNCTION ||
                          info->code_kind() == Code::BYTECODE_HANDLER)) {
+    tasm()->RecordComment("-- Prologue: check code start register --");
     AssembleCodeStartRegisterCheck();
   }
 
-  if (info->is_speculation_poison_enabled()) {
-    GenerateSpeculationPoison();
-  } else {
-    InitializePoisonForLoadsIfNeeded();
-  }
-
-  // TODO(jupvfranco): This should be the first thing in the code after
-  // generating speculation poison, or otherwise MaybeCallEntryHookDelayed may
-  // happen twice (for optimized and deoptimized code). We want to bailout only
-  // from JS functions, which are the only ones that are optimized.
+  // TODO(jupvfranco): This should be the first thing in the code, otherwise
+  // MaybeCallEntryHookDelayed may happen twice (for optimized and deoptimized
+  // code). We want to bailout only from JS functions, which are the only ones
+  // that are optimized.
   if (info->IsOptimizing()) {
     DCHECK(linkage()->GetIncomingDescriptor()->IsJSFunctionCall());
+    tasm()->RecordComment("-- Prologue: check for deoptimization --");
     BailoutIfDeoptimized();
+  }
+
+  // Initialize {kSpeculationPoisonRegister} either by comparing the expected
+  // with the actual call target, or by unconditionally using {-1} initially.
+  // Masking register arguments with it only makes sense in the first case.
+  if (info->is_generating_speculation_poison_on_entry()) {
+    tasm()->RecordComment("-- Prologue: generate speculation poison --");
+    GenerateSpeculationPoison();
+    if (info->is_poisoning_register_arguments()) {
+      AssembleRegisterArgumentPoisoning();
+    }
+  } else {
+    InitializePoisonForLoadsIfNeeded();
   }
 
   // Define deoptimization literals for all inlined functions.

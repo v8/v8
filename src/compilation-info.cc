@@ -45,6 +45,7 @@ CompilationInfo::CompilationInfo(Zone* zone, Isolate* isolate,
   if (FLAG_function_context_specialization) MarkAsFunctionContextSpecializing();
   if (FLAG_turbo_splitting) MarkAsSplittingEnabled();
   if (!FLAG_turbo_disable_switch_jump_table) SetFlag(kSwitchJumpTableEnabled);
+  if (FLAG_untrusted_code_mitigations) MarkAsPoisoningRegisterArguments();
 
   // Collect source positions for optimized code when profiling or if debugger
   // is active, to be able to get more precise source positions at the price of
@@ -59,7 +60,7 @@ CompilationInfo::CompilationInfo(Vector<const char> debug_name, Zone* zone,
     : CompilationInfo(debug_name, static_cast<AbstractCode::Kind>(code_kind),
                       zone) {
   if (code_kind == Code::BYTECODE_HANDLER && has_untrusted_code_mitigations()) {
-    SetFlag(CompilationInfo::kGenerateSpeculationPoison);
+    SetFlag(CompilationInfo::kGenerateSpeculationPoisonOnEntry);
   }
 }
 

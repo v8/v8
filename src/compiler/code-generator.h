@@ -210,6 +210,10 @@ class CodeGenerator final : public GapResolver::Assembler {
   // the code is executing speculatively.
   void GenerateSpeculationPoison();
 
+  // Generates code to poison the stack pointer and implicit register arguments
+  // like the context register and the function register.
+  void AssembleRegisterArgumentPoisoning();
+
   // Generates an architecture-specific, descriptor-specific prologue
   // to set up a stack frame.
   void AssembleConstructFrame();

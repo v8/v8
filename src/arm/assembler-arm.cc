@@ -1505,6 +1505,10 @@ void Assembler::and_(Register dst, Register src1, const Operand& src2,
   AddrMode1(cond | AND | s, dst, src1, src2);
 }
 
+void Assembler::and_(Register dst, Register src1, Register src2, SBit s,
+                     Condition cond) {
+  and_(dst, src1, Operand(src2), s, cond);
+}
 
 void Assembler::eor(Register dst, Register src1, const Operand& src2,
                     SBit s, Condition cond) {

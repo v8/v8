@@ -616,6 +616,12 @@ void CodeGenerator::GenerateSpeculationPoison() {
   __ cmovq(equal, kSpeculationPoisonRegister, rbx);
 }
 
+void CodeGenerator::AssembleRegisterArgumentPoisoning() {
+  __ andq(kJSFunctionRegister, kSpeculationPoisonRegister);
+  __ andq(kContextRegister, kSpeculationPoisonRegister);
+  __ andq(rsp, kSpeculationPoisonRegister);
+}
+
 // Assembles an instruction after register allocation, producing machine code.
 CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     Instruction* instr) {
