@@ -85,14 +85,110 @@ void LiftoffAssembler::Load(LiftoffRegister dst, Register src_addr,
                             Register offset_reg, uint32_t offset_imm,
                             LoadType type, LiftoffRegList pinned,
                             uint32_t* protected_load_pc) {
-  BAILOUT("Load");
+  // TODO(ksreten): Add check if unaligned memory access
+  Register src = no_reg;
+  if (offset_reg != no_reg) {
+    src = GetUnusedRegister(kGpReg, pinned).gp();
+    emit_ptrsize_add(src, src_addr, offset_reg);
+  }
+  MemOperand src_op = (offset_reg != no_reg) ? MemOperand(src, offset_imm)
+                                             : MemOperand(src_addr, offset_imm);
+
+  if (protected_load_pc) *protected_load_pc = pc_offset();
+  switch (type.value()) {
+    case LoadType::kI32Load8U:
+      lbu(dst.gp(), src_op);
+      break;
+    case LoadType::kI32Load8S:
+      lb(dst.gp(), src_op);
+      break;
+    case LoadType::kI32Load16U:
+      TurboAssembler::Ulhu(dst.gp(), src_op);
+      break;
+    case LoadType::kI32Load16S:
+      TurboAssembler::Ulh(dst.gp(), src_op);
+      break;
+    case LoadType::kI32Load:
+      TurboAssembler::Ulw(dst.gp(), src_op);
+      break;
+    case LoadType::kI64Load32U:
+      lw(dst.low_gp(), src_op);
+      xor_(dst.high_gp(), dst.high_gp(), dst.high_gp());
+      break;
+    case LoadType::kI64Load32S:
+      lw(dst.low_gp(), src_op);
+      TurboAssembler::Move(dst.high_gp(), dst.low_gp());
+      sra(dst.high_gp(), dst.high_gp(), 31);
+      break;
+    case LoadType::kI64Load: {
+      MemOperand src_op_upper = (offset_reg != no_reg)
+                                    ? MemOperand(src, offset_imm + 4)
+                                    : MemOperand(src_addr, offset_imm + 4);
+      lw(dst.high_gp(), src_op_upper);
+      lw(dst.low_gp(), src_op);
+      break;
+    }
+    case LoadType::kF32Load:
+      TurboAssembler::Ulwc1(dst.fp(), src_op, t8);
+      break;
+    case LoadType::kF64Load:
+      TurboAssembler::Uldc1(dst.fp(), src_op, t8);
+      break;
+    default:
+      UNREACHABLE();
+  }
 }
 
 void LiftoffAssembler::Store(Register dst_addr, Register offset_reg,
                              uint32_t offset_imm, LiftoffRegister src,
                              StoreType type, LiftoffRegList pinned,
                              uint32_t* protected_store_pc) {
-  BAILOUT("Store");
+  // TODO(ksreten): Add check if unaligned memory access
+  Register dst = no_reg;
+  if (offset_reg != no_reg) {
+    dst = GetUnusedRegister(kGpReg, pinned).gp();
+    emit_ptrsize_add(dst, dst_addr, offset_reg);
+  }
+  MemOperand dst_op = (offset_reg != no_reg) ? MemOperand(dst, offset_imm)
+                                             : MemOperand(dst_addr, offset_imm);
+
+  if (protected_store_pc) *protected_store_pc = pc_offset();
+  switch (type.value()) {
+    case StoreType::kI64Store8:
+      src = src.low();
+      V8_FALLTHROUGH;
+    case StoreType::kI32Store8:
+      sb(src.gp(), dst_op);
+      break;
+    case StoreType::kI64Store16:
+      src = src.low();
+      V8_FALLTHROUGH;
+    case StoreType::kI32Store16:
+      TurboAssembler::Ush(src.gp(), dst_op, t8);
+      break;
+    case StoreType::kI64Store32:
+      src = src.low();
+      V8_FALLTHROUGH;
+    case StoreType::kI32Store:
+      TurboAssembler::Usw(src.gp(), dst_op);
+      break;
+    case StoreType::kI64Store: {
+      MemOperand dst_op_upper = (offset_reg != no_reg)
+                                    ? MemOperand(dst, offset_imm + 4)
+                                    : MemOperand(dst_addr, offset_imm + 4);
+      sw(src.high_gp(), dst_op_upper);
+      sw(src.low_gp(), dst_op);
+      break;
+    }
+    case StoreType::kF32Store:
+      TurboAssembler::Uswc1(src.fp(), dst_op, t8);
+      break;
+    case StoreType::kF64Store:
+      TurboAssembler::Usdc1(src.fp(), dst_op, t8);
+      break;
+    default:
+      UNREACHABLE();
+  }
 }
 
 void LiftoffAssembler::LoadCallerFrameSlot(LiftoffRegister dst,
@@ -252,7 +348,9 @@ void LiftoffAssembler::emit_f32_set_cond(Condition cond, Register dst,
 void LiftoffAssembler::StackCheck(Label* ool_code) { BAILOUT("StackCheck"); }
 
 void LiftoffAssembler::CallTrapCallbackForTesting() {
-  BAILOUT("CallTrapCallbackForTesting");
+  PrepareCallCFunction(0, GetUnusedRegister(kGpReg).gp());
+  CallCFunction(
+      ExternalReference::wasm_call_trap_callback_for_testing(isolate()), 0);
 }
 
 void LiftoffAssembler::AssertUnreachable(AbortReason reason) {
