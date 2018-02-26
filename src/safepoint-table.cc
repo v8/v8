@@ -55,8 +55,7 @@ SafepointTable::SafepointTable(Code* code)
     : SafepointTable(code->instruction_start(), code->safepoint_table_offset(),
                      code->stack_slots(), true) {
 #ifdef V8_EMBEDDED_BUILTINS
-  if (FLAG_stress_off_heap_code &&
-      Builtins::IsBuiltinId(code->builtin_index()) &&
+  if (FLAG_stress_off_heap_code && Builtins::IsBuiltin(code) &&
       Builtins::IsOffHeapSafe(code->builtin_index())) {
     InstructionStream* stream =
         InstructionStream::TryLookupInstructionStream(code->GetIsolate(), code);

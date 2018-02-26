@@ -109,6 +109,10 @@ class Builtins {
   static bool IsCpp(int index);
   static bool HasCppImplementation(int index);
 
+  // True, iff the given code object is a builtin. Note that this does not
+  // necessarily mean that its kind is Code::BUILTIN.
+  static bool IsBuiltin(Code* code);
+
   // Returns true iff the given builtin can be lazy-loaded from the snapshot.
   // This is true in general for most builtins with the exception of a few
   // special cases such as CompileLazy and DeserializeLazy.

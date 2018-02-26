@@ -679,7 +679,7 @@ void RelocInfo::Print(Isolate* isolate, std::ostream& os) {  // NOLINT
       Code* code = Code::GetCodeFromTargetAddress(code_target);
       DCHECK(code->IsCode());
       os << " (" << Code::Kind2String(code->kind());
-      if (Builtins::IsBuiltinId(code->builtin_index())) {
+      if (Builtins::IsBuiltin(code)) {
         os << " " << Builtins::name(code->builtin_index());
       } else if (code->kind() == Code::STUB) {
         os << " " << CodeStub::MajorName(CodeStub::GetMajorKey(code));

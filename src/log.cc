@@ -1728,7 +1728,7 @@ void Logger::LogCodeObject(Object* object) {
 }
 
 void Logger::LogInstructionStream(Code* code, const InstructionStream* stream) {
-  DCHECK(Builtins::IsBuiltinId(code->builtin_index()));
+  DCHECK(Builtins::IsBuiltin(code));
   const char* description = isolate_->builtins()->name(code->builtin_index());
   CodeEventListener::LogEventsAndTags tag = CodeEventListener::BUILTIN_TAG;
   PROFILE(isolate_, InstructionStreamCreateEvent(tag, stream, description));

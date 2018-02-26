@@ -195,6 +195,11 @@ Address Builtins::CppEntryOf(int index) {
 }
 
 // static
+bool Builtins::IsBuiltin(Code* code) {
+  return Builtins::IsBuiltinId(code->builtin_index());
+}
+
+// static
 bool Builtins::IsLazy(int index) {
   DCHECK(IsBuiltinId(index));
   // There are a couple of reasons that builtins can require eager-loading,
