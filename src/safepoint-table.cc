@@ -8,6 +8,7 @@
 #include "src/deoptimizer.h"
 #include "src/disasm.h"
 #include "src/frames-inl.h"
+#include "src/instruction-stream.h"
 #include "src/macro-assembler.h"
 #include "src/ostreams.h"
 
@@ -52,7 +53,18 @@ SafepointTable::SafepointTable(Address instruction_start,
 
 SafepointTable::SafepointTable(Code* code)
     : SafepointTable(code->instruction_start(), code->safepoint_table_offset(),
-                     code->stack_slots(), true) {}
+                     code->stack_slots(), true) {
+#ifdef V8_EMBEDDED_BUILTINS
+  if (FLAG_stress_off_heap_code &&
+      Builtins::IsBuiltinId(code->builtin_index()) &&
+      Builtins::IsOffHeapSafe(code->builtin_index())) {
+    InstructionStream* stream =
+        InstructionStream::TryLookupInstructionStream(code->GetIsolate(), code);
+    DCHECK_NOT_NULL(stream);
+    instruction_start_ = static_cast<Address>(stream->bytes());
+  }
+#endif
+}
 
 unsigned SafepointTable::find_return_pc(unsigned pc_offset) {
   for (unsigned i = 0; i < length(); i++) {

@@ -2902,7 +2902,13 @@ void ChangeToOffHeapTrampoline(Isolate* isolate, Handle<Code> code,
   DCHECK_LE(desc.instr_size, code->instruction_size());
   byte* trailing_instruction_start =
       code->instruction_start() + desc.instr_size;
-  size_t trailing_instruction_size = code->instruction_size() - desc.instr_size;
+  int instruction_size = code->instruction_size();
+  if (code->has_safepoint_info()) {
+    CHECK_LE(code->safepoint_table_offset(), code->instruction_size());
+    instruction_size = code->safepoint_table_offset();
+    CHECK_LE(desc.instr_size, instruction_size);
+  }
+  size_t trailing_instruction_size = instruction_size - desc.instr_size;
   std::memset(trailing_instruction_start, 0, trailing_instruction_size);
 }
 
