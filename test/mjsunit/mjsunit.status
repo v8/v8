@@ -160,7 +160,6 @@
   'regress/regress-605470': [PASS, SLOW],
   'regress/regress-655573': [PASS, SLOW],
   'regress/regress-1200351': [PASS, SLOW],
-  'regress/regress-crbug-474297': [PASS, ['gc_stress == False', SKIP]],
   'wasm/embenchen/*': [PASS, SLOW],
   'wasm/unreachable-validation': [PASS, SLOW],
 
