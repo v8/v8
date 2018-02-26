@@ -848,8 +848,7 @@ TF_BUILTIN(RunMicrotasks, InternalBuiltinsAssembler) {
     CSA_ASSERT(this, IntPtrGreaterThan(num_tasks, IntPtrConstant(0)));
 
     SetPendingMicrotaskCount(IntPtrConstant(0));
-    SetMicrotaskQueue(
-        TNode<FixedArray>::UncheckedCast(EmptyFixedArrayConstant()));
+    SetMicrotaskQueue(EmptyFixedArrayConstant());
 
     Goto(&loop);
     BIND(&loop);
@@ -886,16 +885,16 @@ TF_BUILTIN(RunMicrotasks, InternalBuiltinsAssembler) {
       BIND(&is_callable);
       {
         // Enter the context of the {microtask}.
-        TNode<Context> microtask_context = TNode<Context>::UncheckedCast(
-            LoadObjectField(microtask, CallableTask::kContextOffset));
+        TNode<Context> microtask_context =
+            LoadObjectField<Context>(microtask, CallableTask::kContextOffset);
         TNode<Context> native_context =
             TNode<Context>::UncheckedCast(LoadNativeContext(microtask_context));
         CSA_ASSERT(this, IsNativeContext(native_context));
         EnterMicrotaskContext(microtask_context);
         SetCurrentContext(native_context);
 
-        TNode<JSReceiver> callable = TNode<JSReceiver>::UncheckedCast(
-            LoadObjectField(microtask, CallableTask::kCallableOffset));
+        TNode<JSReceiver> callable = LoadObjectField<JSReceiver>(
+            microtask, CallableTask::kCallableOffset);
         Node* const result = CallJS(
             CodeFactory::Call(isolate(), ConvertReceiverMode::kNullOrUndefined),
             microtask_context, callable, UndefinedConstant());
@@ -930,9 +929,8 @@ TF_BUILTIN(RunMicrotasks, InternalBuiltinsAssembler) {
       BIND(&is_promise_resolve_thenable_job);
       {
         // Enter the context of the {microtask}.
-        TNode<Context> microtask_context =
-            TNode<Context>::UncheckedCast(LoadObjectField(
-                microtask, PromiseResolveThenableJobTask::kContextOffset));
+        TNode<Context> microtask_context = LoadObjectField<Context>(
+            microtask, PromiseResolveThenableJobTask::kContextOffset);
         TNode<Context> native_context =
             TNode<Context>::UncheckedCast(LoadNativeContext(microtask_context));
         CSA_ASSERT(this, IsNativeContext(native_context));
@@ -958,8 +956,8 @@ TF_BUILTIN(RunMicrotasks, InternalBuiltinsAssembler) {
       BIND(&is_promise_fulfill_reaction_job);
       {
         // Enter the context of the {microtask}.
-        TNode<Context> microtask_context = TNode<Context>::UncheckedCast(
-            LoadObjectField(microtask, PromiseReactionJobTask::kContextOffset));
+        TNode<Context> microtask_context = LoadObjectField<Context>(
+            microtask, PromiseReactionJobTask::kContextOffset);
         TNode<Context> native_context =
             TNode<Context>::UncheckedCast(LoadNativeContext(microtask_context));
         CSA_ASSERT(this, IsNativeContext(native_context));
@@ -992,8 +990,8 @@ TF_BUILTIN(RunMicrotasks, InternalBuiltinsAssembler) {
       BIND(&is_promise_reject_reaction_job);
       {
         // Enter the context of the {microtask}.
-        TNode<Context> microtask_context = TNode<Context>::UncheckedCast(
-            LoadObjectField(microtask, PromiseReactionJobTask::kContextOffset));
+        TNode<Context> microtask_context = LoadObjectField<Context>(
+            microtask, PromiseReactionJobTask::kContextOffset);
         TNode<Context> native_context =
             TNode<Context>::UncheckedCast(LoadNativeContext(microtask_context));
         CSA_ASSERT(this, IsNativeContext(native_context));
