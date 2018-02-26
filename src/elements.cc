@@ -1039,13 +1039,13 @@ class ElementsAccessorBase : public InternalElementsAccessor {
     UNREACHABLE();
   }
 
-  Object* CopyElements(Handle<JSReceiver> source, Handle<JSObject> destination,
+  Object* CopyElements(Handle<Object> source, Handle<JSObject> destination,
                        size_t length, uint32_t offset) final {
     return Subclass::CopyElementsHandleImpl(source, destination, length,
                                             offset);
   }
 
-  static Object* CopyElementsHandleImpl(Handle<JSReceiver> source,
+  static Object* CopyElementsHandleImpl(Handle<Object> source,
                                         Handle<JSObject> destination,
                                         size_t length, uint32_t offset) {
     UNREACHABLE();
@@ -3433,14 +3433,14 @@ class TypedElementsAccessor
     return false;
   }
 
-  static Object* CopyElementsHandleSlow(Handle<JSReceiver> source,
+  static Object* CopyElementsHandleSlow(Handle<Object> source,
                                         Handle<JSTypedArray> destination,
                                         size_t length, uint32_t offset) {
-    Isolate* isolate = source->GetIsolate();
+    Isolate* isolate = destination->GetIsolate();
     Handle<BackingStore> destination_elements(
         BackingStore::cast(destination->elements()));
     for (uint32_t i = 0; i < length; i++) {
-      LookupIterator it(isolate, source, i, source);
+      LookupIterator it(isolate, source, i);
       Handle<Object> elem;
       ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, elem,
                                          Object::GetProperty(&it));
@@ -3471,7 +3471,7 @@ class TypedElementsAccessor
   // This doesn't guarantee that the destination array will be completely
   // filled. The caller must do this by passing a source with equal length, if
   // that is required.
-  static Object* CopyElementsHandleImpl(Handle<JSReceiver> source,
+  static Object* CopyElementsHandleImpl(Handle<Object> source,
                                         Handle<JSObject> destination,
                                         size_t length, uint32_t offset) {
     Isolate* isolate = destination->GetIsolate();

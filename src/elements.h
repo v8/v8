@@ -184,7 +184,7 @@ class ElementsAccessor {
                             ElementsKind source_kind,
                             Handle<FixedArrayBase> destination, int size) = 0;
 
-  virtual Object* CopyElements(Handle<JSReceiver> source,
+  virtual Object* CopyElements(Handle<Object> source,
                                Handle<JSObject> destination, size_t length,
                                uint32_t offset = 0) = 0;
 
