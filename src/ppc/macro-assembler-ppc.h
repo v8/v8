@@ -175,9 +175,8 @@ class TurboAssembler : public Assembler {
   void PushCommonFrame(Register marker_reg = no_reg);
 
   // Generates function and stub prologue code.
-  void StubPrologue(StackFrame::Type type, Register base = no_reg,
-                    int prologue_offset = 0);
-  void Prologue(Register base, int prologue_offset = 0);
+  void StubPrologue(StackFrame::Type type);
+  void Prologue();
 
   // Push a standard frame, consisting of lr, fp, constant pool,
   // context and JS function
@@ -642,7 +641,6 @@ class TurboAssembler : public Assembler {
   void CallStubDelayed(CodeStub* stub);
 
   void LoadConstantPoolPointerRegister();
-  void LoadConstantPoolPointerRegister(Register base, int code_entry_delta = 0);
   void AbortConstantPoolBuilding() {
 #ifdef DEBUG
     // Avoid DCHECK(!is_linked()) failure in ~Label()
