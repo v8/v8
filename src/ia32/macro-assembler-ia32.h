@@ -251,6 +251,8 @@ class TurboAssembler : public Assembler {
   AVX_OP3_XO(Psubw, psubw)
   AVX_OP3_XO(Psubd, psubd)
   AVX_OP3_XO(Pxor, pxor)
+  AVX_OP3_XO(Xorps, xorps)
+  AVX_OP3_XO(Xorpd, xorpd)
 
 #undef AVX_OP3_XO
 #undef AVX_OP3_WITH_TYPE

@@ -2262,8 +2262,7 @@ void Assembler::divsd(XMMRegister dst, Operand src) {
   emit_sse_operand(dst, src);
 }
 
-
-void Assembler::xorpd(XMMRegister dst, XMMRegister src) {
+void Assembler::xorpd(XMMRegister dst, Operand src) {
   EnsureSpace ensure_space(this);
   EMIT(0x66);
   EMIT(0x0F);

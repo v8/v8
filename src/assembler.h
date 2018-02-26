@@ -247,6 +247,8 @@ class CpuFeatureScope BASE_EMBEDDED {
 #else
   CpuFeatureScope(AssemblerBase* assembler, CpuFeature f,
                   CheckPolicy check = kCheckSupported) {}
+  // Define a destructor to avoid unused variable warnings.
+  ~CpuFeatureScope() {}
 #endif
 };
 

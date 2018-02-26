@@ -136,50 +136,83 @@ class TurboAssembler : public Assembler {
     return code_object_;
   }
 
-#define AVX_OP2_WITH_TYPE(macro_name, name, src_type) \
-  void macro_name(XMMRegister dst, src_type src) {    \
-    if (CpuFeatures::IsSupported(AVX)) {              \
-      CpuFeatureScope scope(this, AVX);               \
-      v##name(dst, dst, src);                         \
-    } else {                                          \
-      name(dst, src);                                 \
-    }                                                 \
+  template <typename Dst, typename... Args>
+  struct AvxHelper {
+    Assembler* assm;
+    // Call an method where the AVX version expects the dst argument to be
+    // duplicated.
+    template <void (Assembler::*avx)(Dst, Dst, Args...),
+              void (Assembler::*no_avx)(Dst, Args...)>
+    void emit(Dst dst, Args... args) {
+      if (CpuFeatures::IsSupported(AVX)) {
+        CpuFeatureScope scope(assm, AVX);
+        (assm->*avx)(dst, dst, args...);
+      } else {
+        (assm->*no_avx)(dst, args...);
+      }
+    }
+
+    // Call an method where the AVX version expects no duplicated dst argument.
+    template <void (Assembler::*avx)(Dst, Args...),
+              void (Assembler::*no_avx)(Dst, Args...)>
+    void emit(Dst dst, Args... args) {
+      if (CpuFeatures::IsSupported(AVX)) {
+        CpuFeatureScope scope(assm, AVX);
+        (assm->*avx)(dst, args...);
+      } else {
+        (assm->*no_avx)(dst, args...);
+      }
+    }
+  };
+
+#define AVX_OP(macro_name, name)                                             \
+  template <typename Dst, typename... Args>                                  \
+  void macro_name(Dst dst, Args... args) {                                   \
+    AvxHelper<Dst, Args...>{this}                                            \
+        .template emit<&Assembler::v##name, &Assembler::name>(dst, args...); \
   }
-#define AVX_OP2_X(macro_name, name) \
-  AVX_OP2_WITH_TYPE(macro_name, name, XMMRegister)
-#define AVX_OP2_O(macro_name, name) AVX_OP2_WITH_TYPE(macro_name, name, Operand)
-#define AVX_OP2_XO(macro_name, name) \
-  AVX_OP2_X(macro_name, name)        \
-  AVX_OP2_O(macro_name, name)
 
-  AVX_OP2_XO(Subsd, subsd)
-  AVX_OP2_XO(Divss, divss)
-  AVX_OP2_XO(Divsd, divsd)
-  AVX_OP2_XO(Xorpd, xorpd)
-  AVX_OP2_X(Pcmpeqd, pcmpeqd)
-  AVX_OP2_WITH_TYPE(Psllq, psllq, byte)
-  AVX_OP2_WITH_TYPE(Psrlq, psrlq, byte)
+  AVX_OP(Subsd, subsd)
+  AVX_OP(Divss, divss)
+  AVX_OP(Divsd, divsd)
+  AVX_OP(Xorps, xorps)
+  AVX_OP(Xorpd, xorpd)
+  AVX_OP(Movd, movd)
+  AVX_OP(Movq, movq)
+  AVX_OP(Movaps, movaps)
+  AVX_OP(Movapd, movapd)
+  AVX_OP(Movups, movups)
+  AVX_OP(Movmskps, movmskps)
+  AVX_OP(Movmskpd, movmskpd)
+  AVX_OP(Movss, movss)
+  AVX_OP(Movsd, movsd)
+  AVX_OP(Pcmpeqd, pcmpeqd)
+  AVX_OP(Psllq, psllq)
+  AVX_OP(Psrlq, psrlq)
+  AVX_OP(Addsd, addsd)
+  AVX_OP(Mulsd, mulsd)
+  AVX_OP(Andps, andps)
+  AVX_OP(Andpd, andpd)
+  AVX_OP(Orpd, orpd)
+  AVX_OP(Cmpeqps, cmpeqps)
+  AVX_OP(Cmpltps, cmpltps)
+  AVX_OP(Cmpleps, cmpleps)
+  AVX_OP(Cmpneqps, cmpneqps)
+  AVX_OP(Cmpnltps, cmpnltps)
+  AVX_OP(Cmpnleps, cmpnleps)
+  AVX_OP(Cmpeqpd, cmpeqpd)
+  AVX_OP(Cmpltpd, cmpltpd)
+  AVX_OP(Cmplepd, cmplepd)
+  AVX_OP(Cmpneqpd, cmpneqpd)
+  AVX_OP(Cmpnltpd, cmpnltpd)
+  AVX_OP(Cmpnlepd, cmpnlepd)
+  AVX_OP(Roundss, roundss)
+  AVX_OP(Roundsd, roundsd)
+  AVX_OP(Sqrtsd, sqrtsd)
+  AVX_OP(Ucomiss, ucomiss)
+  AVX_OP(Ucomisd, ucomisd)
 
-#undef AVX_OP2_O
-#undef AVX_OP2_X
-#undef AVX_OP2_XO
-#undef AVX_OP2_WITH_TYPE
-
-  void Xorps(XMMRegister dst, XMMRegister src);
-  void Xorps(XMMRegister dst, Operand src);
-
-  void Movd(XMMRegister dst, Register src);
-  void Movd(XMMRegister dst, Operand src);
-  void Movd(Register dst, XMMRegister src);
-  void Movq(XMMRegister dst, Register src);
-  void Movq(Register dst, XMMRegister src);
-
-  void Movsd(XMMRegister dst, XMMRegister src);
-  void Movsd(XMMRegister dst, Operand src);
-  void Movsd(Operand dst, XMMRegister src);
-  void Movss(XMMRegister dst, XMMRegister src);
-  void Movss(XMMRegister dst, Operand src);
-  void Movss(Operand dst, XMMRegister src);
+#undef AVX_OP
 
   void PushReturnAddressFrom(Register src) { pushq(src); }
   void PopReturnAddressTo(Register dst) { popq(dst); }
@@ -200,14 +233,6 @@ class TurboAssembler : public Assembler {
     LoadRoot(kScratchRegister, index);
     movp(destination, kScratchRegister);
   }
-
-  void Movups(XMMRegister dst, XMMRegister src);
-  void Movups(XMMRegister dst, Operand src);
-  void Movups(Operand dst, XMMRegister src);
-  void Movapd(XMMRegister dst, XMMRegister src);
-  void Movaps(XMMRegister dst, XMMRegister src);
-  void Movmskpd(Register dst, XMMRegister src);
-  void Movmskps(Register dst, XMMRegister src);
 
   void Push(Register src);
   void Push(Operand src);
@@ -266,17 +291,6 @@ class TurboAssembler : public Assembler {
   // xorpd to clear the dst register before cvtsi2sd to solve this issue.
   void Cvtlsi2sd(XMMRegister dst, Register src);
   void Cvtlsi2sd(XMMRegister dst, Operand src);
-
-  void Roundss(XMMRegister dst, XMMRegister src, RoundingMode mode);
-  void Roundsd(XMMRegister dst, XMMRegister src, RoundingMode mode);
-
-  void Sqrtsd(XMMRegister dst, XMMRegister src);
-  void Sqrtsd(XMMRegister dst, Operand src);
-
-  void Ucomiss(XMMRegister src1, XMMRegister src2);
-  void Ucomiss(XMMRegister src1, Operand src2);
-  void Ucomisd(XMMRegister src1, XMMRegister src2);
-  void Ucomisd(XMMRegister src1, Operand src2);
 
   void Lzcntq(Register dst, Register src);
   void Lzcntq(Register dst, Operand src);
@@ -737,45 +751,6 @@ class MacroAssembler : public TurboAssembler {
   void Pop(Register dst);
   void Pop(Operand dst);
   void PopQuad(Operand dst);
-
-#define AVX_OP2_WITH_TYPE(macro_name, name, src_type) \
-  void macro_name(XMMRegister dst, src_type src) {    \
-    if (CpuFeatures::IsSupported(AVX)) {              \
-      CpuFeatureScope scope(this, AVX);               \
-      v##name(dst, dst, src);                         \
-    } else {                                          \
-      name(dst, src);                                 \
-    }                                                 \
-  }
-#define AVX_OP2_X(macro_name, name) \
-  AVX_OP2_WITH_TYPE(macro_name, name, XMMRegister)
-#define AVX_OP2_O(macro_name, name) AVX_OP2_WITH_TYPE(macro_name, name, Operand)
-#define AVX_OP2_XO(macro_name, name) \
-  AVX_OP2_X(macro_name, name)        \
-  AVX_OP2_O(macro_name, name)
-
-  AVX_OP2_XO(Addsd, addsd)
-  AVX_OP2_XO(Mulsd, mulsd)
-  AVX_OP2_XO(Andps, andps)
-  AVX_OP2_XO(Andpd, andpd)
-  AVX_OP2_XO(Orpd, orpd)
-  AVX_OP2_XO(Cmpeqps, cmpeqps)
-  AVX_OP2_XO(Cmpltps, cmpltps)
-  AVX_OP2_XO(Cmpleps, cmpleps)
-  AVX_OP2_XO(Cmpneqps, cmpneqps)
-  AVX_OP2_XO(Cmpnltps, cmpnltps)
-  AVX_OP2_XO(Cmpnleps, cmpnleps)
-  AVX_OP2_XO(Cmpeqpd, cmpeqpd)
-  AVX_OP2_XO(Cmpltpd, cmpltpd)
-  AVX_OP2_XO(Cmplepd, cmplepd)
-  AVX_OP2_XO(Cmpneqpd, cmpneqpd)
-  AVX_OP2_XO(Cmpnltpd, cmpnltpd)
-  AVX_OP2_XO(Cmpnlepd, cmpnlepd)
-
-#undef AVX_OP2_O
-#undef AVX_OP2_X
-#undef AVX_OP2_XO
-#undef AVX_OP2_WITH_TYPE
 
   // ---------------------------------------------------------------------------
   // SIMD macros.
