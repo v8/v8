@@ -40,6 +40,7 @@
 #include "src/objects/hash-table.h"
 #include "src/objects/js-array-inl.h"
 #include "src/objects/js-collection-inl.h"
+#include "src/objects/js-promise-inl.h"
 #include "src/objects/js-regexp-inl.h"
 #include "src/objects/literal-objects.h"
 #include "src/objects/module-inl.h"
@@ -101,7 +102,6 @@ TYPE_CHECKER(JSError, JS_ERROR_TYPE)
 TYPE_CHECKER(JSFunction, JS_FUNCTION_TYPE)
 TYPE_CHECKER(JSGlobalObject, JS_GLOBAL_OBJECT_TYPE)
 TYPE_CHECKER(JSMessageObject, JS_MESSAGE_OBJECT_TYPE)
-TYPE_CHECKER(JSPromise, JS_PROMISE_TYPE)
 TYPE_CHECKER(JSStringIterator, JS_STRING_ITERATOR_TYPE)
 TYPE_CHECKER(JSValue, JS_VALUE_TYPE)
 TYPE_CHECKER(MutableHeapNumber, MUTABLE_HEAP_NUMBER_TYPE)
@@ -600,7 +600,6 @@ CAST_ACCESSOR(JSGlobalObject)
 CAST_ACCESSOR(JSGlobalProxy)
 CAST_ACCESSOR(JSMessageObject)
 CAST_ACCESSOR(JSObject)
-CAST_ACCESSOR(JSPromise)
 CAST_ACCESSOR(JSProxy)
 CAST_ACCESSOR(JSReceiver)
 CAST_ACCESSOR(JSStringIterator)
@@ -617,12 +616,6 @@ CAST_ACCESSOR(ObjectTemplateInfo)
 CAST_ACCESSOR(Oddball)
 CAST_ACCESSOR(OrderedHashMap)
 CAST_ACCESSOR(OrderedHashSet)
-CAST_ACCESSOR(PromiseCapability)
-CAST_ACCESSOR(PromiseReaction)
-CAST_ACCESSOR(PromiseReactionJobTask)
-CAST_ACCESSOR(PromiseFulfillReactionJobTask)
-CAST_ACCESSOR(PromiseRejectReactionJobTask)
-CAST_ACCESSOR(PromiseResolveThenableJobTask)
 CAST_ACCESSOR(PropertyArray)
 CAST_ACCESSOR(PropertyCell)
 CAST_ACCESSOR(PrototypeInfo)
@@ -2301,11 +2294,6 @@ bool AccessorInfo::has_getter() {
   return result;
 }
 
-ACCESSORS(PromiseReaction, next, Object, kNextOffset)
-ACCESSORS(PromiseReaction, reject_handler, HeapObject, kRejectHandlerOffset)
-ACCESSORS(PromiseReaction, fulfill_handler, HeapObject, kFulfillHandlerOffset)
-ACCESSORS(PromiseReaction, payload, HeapObject, kPayloadOffset)
-
 ACCESSORS(AsyncGeneratorRequest, next, Object, kNextOffset)
 SMI_ACCESSORS(AsyncGeneratorRequest, resume_mode, kResumeModeOffset)
 ACCESSORS(AsyncGeneratorRequest, value, Object, kValueOffset)
@@ -2812,36 +2800,6 @@ ACCESSORS(CallableTask, context, Context, kContextOffset)
 
 ACCESSORS(CallbackTask, callback, Foreign, kCallbackOffset)
 ACCESSORS(CallbackTask, data, Foreign, kDataOffset)
-
-ACCESSORS(PromiseResolveThenableJobTask, context, Context, kContextOffset)
-ACCESSORS(PromiseResolveThenableJobTask, promise_to_resolve, JSPromise,
-          kPromiseToResolveOffset)
-ACCESSORS(PromiseResolveThenableJobTask, then, JSReceiver, kThenOffset)
-ACCESSORS(PromiseResolveThenableJobTask, thenable, JSReceiver, kThenableOffset)
-
-ACCESSORS(PromiseReactionJobTask, context, Context, kContextOffset)
-ACCESSORS(PromiseReactionJobTask, argument, Object, kArgumentOffset);
-ACCESSORS(PromiseReactionJobTask, handler, HeapObject, kHandlerOffset);
-ACCESSORS(PromiseReactionJobTask, payload, HeapObject, kPayloadOffset);
-
-ACCESSORS(PromiseCapability, promise, HeapObject, kPromiseOffset)
-ACCESSORS(PromiseCapability, resolve, Object, kResolveOffset)
-ACCESSORS(PromiseCapability, reject, Object, kRejectOffset)
-
-ACCESSORS(JSPromise, reactions_or_result, Object, kReactionsOrResultOffset)
-SMI_ACCESSORS(JSPromise, flags, kFlagsOffset)
-BOOL_ACCESSORS(JSPromise, flags, has_handler, kHasHandlerBit)
-BOOL_ACCESSORS(JSPromise, flags, handled_hint, kHandledHintBit)
-
-Object* JSPromise::result() const {
-  DCHECK_NE(Promise::kPending, status());
-  return reactions_or_result();
-}
-
-Object* JSPromise::reactions() const {
-  DCHECK_EQ(Promise::kPending, status());
-  return reactions_or_result();
-}
 
 ElementsKind JSObject::GetElementsKind() {
   ElementsKind kind = map()->elements_kind();

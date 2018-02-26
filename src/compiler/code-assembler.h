@@ -31,6 +31,11 @@ class JSCollection;
 class JSWeakCollection;
 class JSWeakMap;
 class JSWeakSet;
+class PromiseCapability;
+class PromiseFulfillReactionJobTask;
+class PromiseReaction;
+class PromiseReactionJobTask;
+class PromiseRejectReactionJobTask;
 class Factory;
 class Zone;
 

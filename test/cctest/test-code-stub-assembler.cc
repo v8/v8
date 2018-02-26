@@ -15,6 +15,7 @@
 #include "src/debug/debug.h"
 #include "src/isolate.h"
 #include "src/objects-inl.h"
+#include "src/objects/promise-inl.h"
 #include "test/cctest/compiler/code-assembler-tester.h"
 #include "test/cctest/compiler/function-tester.h"
 

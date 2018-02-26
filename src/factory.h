@@ -40,6 +40,7 @@ class JSWeakMap;
 class NewFunctionArgs;
 struct SourceRange;
 class PreParsedScopeData;
+class PromiseResolveThenableJobTask;
 class TemplateObjectDescription;
 
 enum FunctionMode {

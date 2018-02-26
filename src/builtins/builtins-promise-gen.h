@@ -7,6 +7,7 @@
 
 #include "src/code-stub-assembler.h"
 #include "src/contexts.h"
+#include "src/objects/promise.h"
 
 namespace v8 {
 namespace internal {

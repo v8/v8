@@ -18,6 +18,7 @@
 #include "src/objects/debug-objects-inl.h"
 #include "src/objects/frame-array-inl.h"
 #include "src/objects/module.h"
+#include "src/objects/promise-inl.h"
 #include "src/objects/scope-info.h"
 #include "src/unicode-cache.h"
 #include "src/unicode-decoder.h"
