@@ -512,45 +512,52 @@ class LiftoffCompiler {
     }
   }
 
-  void I32UnOp(bool (LiftoffAssembler::*emit_fn)(Register, Register),
-               ExternalReference (*fallback_fn)(Isolate*)) {
+  template <ValueType type, class EmitFn>
+  void EmitUnOp(EmitFn fn) {
+    static RegClass rc = reg_class_for(type);
     LiftoffRegList pinned;
-    LiftoffRegister dst_reg = pinned.set(__ GetUnaryOpTargetRegister(kGpReg));
-    LiftoffRegister src_reg = pinned.set(__ PopToRegister(kGpReg, pinned));
-    if (!emit_fn || !(asm_->*emit_fn)(dst_reg.gp(), src_reg.gp())) {
-      ExternalReference ext_ref = fallback_fn(asm_->isolate());
-      Register args[] = {src_reg.gp()};
-      GenerateCCall(dst_reg.gp(), arraysize(args), args, ext_ref);
-    }
-    __ PushRegister(kWasmI32, dst_reg);
+    LiftoffRegister dst = pinned.set(__ GetUnaryOpTargetRegister(rc));
+    LiftoffRegister src = __ PopToRegister(rc, pinned);
+    fn(dst, src);
+    __ PushRegister(type, dst);
   }
 
-  void I32Eqz() {
-    LiftoffRegList pinned;
-    LiftoffRegister dst = pinned.set(__ GetUnaryOpTargetRegister(kGpReg));
-    LiftoffRegister src = pinned.set(__ PopToRegister(kGpReg, pinned));
-    asm_->emit_i32_set_cond(kEqual, dst.gp(), src.gp());
-    __ PushRegister(kWasmI32, dst);
+  void EmitI32UnOpWithCFallback(bool (LiftoffAssembler::*emit_fn)(Register,
+                                                                  Register),
+                                ExternalReference (*fallback_fn)(Isolate*)) {
+    auto emit_with_c_fallback = [=](LiftoffRegister dst, LiftoffRegister src) {
+      if (emit_fn && (asm_->*emit_fn)(dst.gp(), src.gp())) return;
+      ExternalReference ext_ref = fallback_fn(asm_->isolate());
+      Register args[] = {src.gp()};
+      GenerateCCall(dst.gp(), arraysize(args), args, ext_ref);
+    };
+    EmitUnOp<kWasmI32>(emit_with_c_fallback);
   }
 
   void UnOp(Decoder* decoder, WasmOpcode opcode, FunctionSig*,
             const Value& value, Value* result) {
-#define CASE_UNOP(opcode, type, fn, ext_ref_fn)           \
-  case WasmOpcode::kExpr##opcode:                         \
-    type##UnOp(&LiftoffAssembler::emit_##fn, ext_ref_fn); \
+#define CASE_I32_UNOP(opcode, fn)                                      \
+  case WasmOpcode::kExpr##opcode:                                      \
+    EmitUnOp<kWasmI32>([=](LiftoffRegister dst, LiftoffRegister src) { \
+      __ emit_##fn(dst.gp(), src.gp());                                \
+    });                                                                \
     break;
     switch (opcode) {
-      CASE_UNOP(I32Clz, I32, i32_clz, nullptr)
-      CASE_UNOP(I32Ctz, I32, i32_ctz, nullptr)
-      CASE_UNOP(I32Popcnt, I32, i32_popcnt,
-                &ExternalReference::wasm_word32_popcnt)
-      case WasmOpcode::kExprI32Eqz:
-        I32Eqz();
+      CASE_I32_UNOP(I32Clz, i32_clz)
+      CASE_I32_UNOP(I32Ctz, i32_ctz)
+      case kExprI32Popcnt:
+        EmitI32UnOpWithCFallback(&LiftoffAssembler::emit_i32_popcnt,
+                                 &ExternalReference::wasm_word32_popcnt);
+        break;
+      case kExprI32Eqz:
+        EmitUnOp<kWasmI32>([=](LiftoffRegister dst, LiftoffRegister src) {
+          __ emit_i32_set_cond(kEqual, dst.gp(), src.gp());
+        });
         break;
       default:
         return unsupported(decoder, WasmOpcodes::OpcodeName(opcode));
     }
-#undef CASE_UNOP
+#undef CASE_I32_UNOP
   }
 
   template <ValueType type, typename EmitFn>
