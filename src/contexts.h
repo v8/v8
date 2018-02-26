@@ -61,14 +61,12 @@ enum ContextLookupFlags {
   V(SPREAD_ITERABLE_INDEX, JSFunction, spread_iterable)                 \
   V(MATH_FLOOR_INDEX, JSFunction, math_floor)                           \
   V(MATH_POW_INDEX, JSFunction, math_pow)                               \
-  V(NEW_PROMISE_CAPABILITY_INDEX, JSFunction, new_promise_capability)   \
   V(PROMISE_INTERNAL_CONSTRUCTOR_INDEX, JSFunction,                     \
     promise_internal_constructor)                                       \
   V(IS_PROMISE_INDEX, JSFunction, is_promise)                           \
   V(PROMISE_THEN_INDEX, JSFunction, promise_then)
 
 #define NATIVE_CONTEXT_IMPORTED_FIELDS(V)                                 \
-  V(ARRAY_CONCAT_INDEX, JSFunction, array_concat)                         \
   V(ARRAY_POP_INDEX, JSFunction, array_pop)                               \
   V(ARRAY_PUSH_INDEX, JSFunction, array_push)                             \
   V(ARRAY_SHIFT_INDEX, JSFunction, array_shift)                           \
@@ -79,7 +77,6 @@ enum ContextLookupFlags {
   V(ARRAY_FOR_EACH_ITERATOR_INDEX, JSFunction, array_for_each_iterator)   \
   V(ARRAY_KEYS_ITERATOR_INDEX, JSFunction, array_keys_iterator)           \
   V(ARRAY_VALUES_ITERATOR_INDEX, JSFunction, array_values_iterator)       \
-  V(DERIVED_GET_TRAP_INDEX, JSFunction, derived_get_trap)                 \
   V(ERROR_FUNCTION_INDEX, JSFunction, error_function)                     \
   V(ERROR_TO_STRING, JSFunction, error_to_string)                         \
   V(EVAL_ERROR_FUNCTION_INDEX, JSFunction, eval_error_function)           \
@@ -194,7 +191,6 @@ enum ContextLookupFlags {
   V(ACCESSOR_PROPERTY_DESCRIPTOR_MAP_INDEX, Map,                               \
     accessor_property_descriptor_map)                                          \
   V(ALLOW_CODE_GEN_FROM_STRINGS_INDEX, Object, allow_code_gen_from_strings)    \
-  V(ALLOW_WASM_EVAL_INDEX, Object, allow_wasm_eval)                            \
   V(ARRAY_BUFFER_FUN_INDEX, JSFunction, array_buffer_fun)                      \
   V(ARRAY_BUFFER_MAP_INDEX, Map, array_buffer_map)                             \
   V(ARRAY_BUFFER_NOINIT_FUN_INDEX, JSFunction, array_buffer_noinit_fun)        \
