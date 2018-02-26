@@ -3284,9 +3284,9 @@ class TypedElementsAccessor
         BackingStore::cast(destination->elements());
 
     DCHECK_LE(offset, destination->length_value());
-    DCHECK_LE(source->length_value(), destination->length_value() - offset);
+    DCHECK_LE(length, destination->length_value() - offset);
     DCHECK(source->length()->IsSmi());
-    DCHECK_EQ(length, source->length_value());
+    DCHECK_LE(length, source->length_value());
 
     InstanceType source_type = source_elements->map()->instance_type();
     InstanceType destination_type =
