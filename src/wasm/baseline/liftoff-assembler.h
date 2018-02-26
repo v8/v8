@@ -373,18 +373,26 @@ class LiftoffAssembler : public TurboAssembler {
 
   inline void emit_ptrsize_add(Register dst, Register lhs, Register rhs);
 
+  // f32 binops.
   inline void emit_f32_add(DoubleRegister dst, DoubleRegister lhs,
                            DoubleRegister rhs);
   inline void emit_f32_sub(DoubleRegister dst, DoubleRegister lhs,
                            DoubleRegister rhs);
   inline void emit_f32_mul(DoubleRegister dst, DoubleRegister lhs,
                            DoubleRegister rhs);
+  // f32 unops.
+  inline void emit_f32_neg(DoubleRegister dst, DoubleRegister src);
+
+  // f64 binops.
   inline void emit_f64_add(DoubleRegister dst, DoubleRegister lhs,
                            DoubleRegister rhs);
   inline void emit_f64_sub(DoubleRegister dst, DoubleRegister lhs,
                            DoubleRegister rhs);
   inline void emit_f64_mul(DoubleRegister dst, DoubleRegister lhs,
                            DoubleRegister rhs);
+
+  // f64 unops.
+  inline void emit_f64_neg(DoubleRegister dst, DoubleRegister src);
 
   inline void emit_jump(Label*);
   inline void emit_cond_jump(Condition, Label*, ValueType value, Register lhs,

@@ -276,15 +276,22 @@ I32_SHIFTOP(shr, srlv)
                                      DoubleRegister rhs) {                   \
     instruction(dst, lhs, rhs);                                              \
   }
+#define UNIMPLEMENTED_FP_UNOP(name)                                            \
+  void LiftoffAssembler::emit_##name(DoubleRegister dst, DoubleRegister src) { \
+    BAILOUT("fp unop");                                                        \
+  }
 
 FP_BINOP(f32_add, add_s)
 FP_BINOP(f32_sub, sub_s)
 FP_BINOP(f32_mul, mul_s)
+UNIMPLEMENTED_FP_UNOP(f32_neg)
 FP_BINOP(f64_add, add_d)
 FP_BINOP(f64_sub, sub_d)
 FP_BINOP(f64_mul, mul_d)
+UNIMPLEMENTED_FP_UNOP(f64_neg)
 
 #undef FP_BINOP
+#undef UNIMPLEMENTED_FP_BINOP
 
 void LiftoffAssembler::emit_jump(Label* label) {
   TurboAssembler::Branch(label);
@@ -354,7 +361,7 @@ void LiftoffAssembler::PopRegisters(LiftoffRegList regs) {
 }
 
 void LiftoffAssembler::DropStackSlotsAndRet(uint32_t num_stack_slots) {
-  DCHECK_LT(num_stack_slots, (1 << 16) / kPointerSize);
+  DCHECK_LT(num_stack_slots, (1 << 16) / kPointerSize);  // 16 bit immediate
   TurboAssembler::DropAndRet(static_cast<int>(num_stack_slots * kPointerSize));
 }
 

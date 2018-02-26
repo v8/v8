@@ -113,6 +113,10 @@ void LiftoffAssembler::FillI64Half(Register, uint32_t half_index) {
                                      DoubleRegister rhs) {                   \
     BAILOUT("fp binop");                                                     \
   }
+#define UNIMPLEMENTED_FP_UNOP(name)                                            \
+  void LiftoffAssembler::emit_##name(DoubleRegister dst, DoubleRegister src) { \
+    BAILOUT("fp unop");                                                        \
+  }
 #define UNIMPLEMENTED_SHIFTOP(name)                                            \
   void LiftoffAssembler::emit_##name(Register dst, Register lhs, Register rhs, \
                                      LiftoffRegList pinned) {                  \
@@ -135,13 +139,16 @@ UNIMPLEMENTED_GP_BINOP(ptrsize_add)
 UNIMPLEMENTED_FP_BINOP(f32_add)
 UNIMPLEMENTED_FP_BINOP(f32_sub)
 UNIMPLEMENTED_FP_BINOP(f32_mul)
+UNIMPLEMENTED_FP_UNOP(f32_neg)
 UNIMPLEMENTED_FP_BINOP(f64_add)
 UNIMPLEMENTED_FP_BINOP(f64_sub)
 UNIMPLEMENTED_FP_BINOP(f64_mul)
+UNIMPLEMENTED_FP_UNOP(f64_neg)
 
 #undef UNIMPLEMENTED_GP_BINOP
 #undef UNIMPLEMENTED_GP_UNOP
 #undef UNIMPLEMENTED_FP_BINOP
+#undef UNIMPLEMENTED_FP_UNOP
 #undef UNIMPLEMENTED_SHIFTOP
 
 void LiftoffAssembler::emit_jump(Label* label) { BAILOUT("emit_jump"); }
