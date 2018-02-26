@@ -504,6 +504,13 @@ Reduction JSTypedLowering::ReduceJSAdd(Node* node) {
     r.ConvertInputsToNumber();
     return r.ChangeToPureOperator(simplified()->NumberAdd(), Type::Number());
   }
+  if (BinaryOperationHintOf(node->op()) == BinaryOperationHint::kString) {
+    // Always bake in String feedback into the graph.
+    // TODO(bmeurer): Consider adding a SpeculativeStringAdd operator,
+    // and use that in JSTypeHintLowering instead of looking at the
+    // binary operation feedback here.
+    r.CheckInputsToString();
+  }
   if (r.OneInputIs(Type::String())) {
     // We know that (at least) one input is already a String,
     // so try to strength-reduce the non-String input.
@@ -539,7 +546,7 @@ Reduction JSTypedLowering::ReduceJSAdd(Node* node) {
       return ReduceCreateConsString(node);
     }
     // Eliminate useless concatenation of empty string.
-    if (BinaryOperationHintOf(node->op()) == BinaryOperationHint::kString) {
+    if (r.BothInputsAre(Type::String())) {
       Node* effect = NodeProperties::GetEffectInput(node);
       Node* control = NodeProperties::GetControlInput(node);
       if (r.LeftInputIs(empty_string_type_)) {
@@ -582,6 +589,8 @@ Reduction JSTypedLowering::ReduceJSAdd(Node* node) {
     NodeProperties::ChangeOp(node, common()->Call(call_descriptor));
     return Changed(node);
   }
+  // We never get here when we had String feedback.
+  DCHECK_NE(BinaryOperationHint::kString, BinaryOperationHintOf(node->op()));
   return NoChange();
 }
 
