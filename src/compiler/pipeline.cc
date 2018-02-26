@@ -83,6 +83,11 @@ struct ProtectedInstructionData;
 
 namespace compiler {
 
+// Turbofan can only handle 2^16 control inputs. Since each control flow split
+// requires at least two bytes (jump and offset), we limit the bytecode size
+// to 128K bytes.
+const int kMaxBytecodeSizeForTurbofan = 128 * 1024;
+
 class PipelineData {
  public:
   // For main entry point.
@@ -780,6 +785,11 @@ class PipelineCompilationJob final : public CompilationJob {
 
 PipelineCompilationJob::Status PipelineCompilationJob::PrepareJobImpl(
     Isolate* isolate) {
+  if (compilation_info()->shared_info()->bytecode_array()->length() >
+      kMaxBytecodeSizeForTurbofan) {
+    return AbortOptimization(BailoutReason::kFunctionTooBig);
+  }
+
   if (!FLAG_always_opt) {
     compilation_info()->MarkAsBailoutOnUninitialized();
   }

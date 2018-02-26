@@ -100,6 +100,7 @@ namespace internal {
     "Cyclic object state detected by escape analysis")                      \
   V(kFunctionBeingDebugged, "Function is being debugged")                   \
   V(kGraphBuildingFailed, "Optimized graph construction failed")            \
+  V(kFunctionTooBig, "Function is too big to be optimized")                 \
   V(kLiveEdit, "LiveEdit")                                                  \
   V(kNativeFunctionLiteral, "Native function literal")                      \
   V(kNotEnoughVirtualRegistersRegalloc,                                     \
