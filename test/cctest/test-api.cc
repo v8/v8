@@ -11391,7 +11391,6 @@ THREADED_TEST(CallAsFunction) {
     try_catch.Reset();
 
     // Call an object without call-as-function handler through the API
-    value = CompileRun("obj2(28)");
     v8::Local<Value> args[] = {v8_num(28)};
     CHECK(
         instance->CallAsFunction(context.local(), instance, 1, args).IsEmpty());
