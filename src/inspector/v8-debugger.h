@@ -169,7 +169,6 @@ class V8Debugger : public v8::debug::DebugDelegate {
                       bool has_compile_error) override;
   void BreakProgramRequested(
       v8::Local<v8::Context> paused_context, v8::Local<v8::Object>,
-      v8::Local<v8::Value>,
       const std::vector<v8::debug::BreakpointId>& break_points_hit) override;
   void ExceptionThrown(v8::Local<v8::Context> paused_context,
                        v8::Local<v8::Object>, v8::Local<v8::Value> exception,

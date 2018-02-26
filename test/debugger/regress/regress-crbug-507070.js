@@ -7,7 +7,7 @@
 try { } catch(e) { }
 try { try { } catch (e) { } } catch(e) { }
 try {
-  var Debug = %GetDebugContext().Debug;
+  var Debug = debug.Debug;
   Debug.setListener(function(){});
 } catch(e) { }
 (function() {

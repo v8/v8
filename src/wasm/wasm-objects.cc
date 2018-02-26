@@ -1049,7 +1049,7 @@ int FindBreakpointInfoInsertPos(Isolate* isolate,
 
 void WasmSharedModuleData::AddBreakpoint(Handle<WasmSharedModuleData> shared,
                                          int position,
-                                         Handle<Object> break_point_object) {
+                                         Handle<BreakPoint> break_point) {
   Isolate* isolate = shared->GetIsolate();
   Handle<FixedArray> breakpoint_infos;
   if (shared->has_breakpoint_infos()) {
@@ -1069,7 +1069,7 @@ void WasmSharedModuleData::AddBreakpoint(Handle<WasmSharedModuleData> shared,
           position) {
     Handle<BreakPointInfo> old_info(
         BreakPointInfo::cast(breakpoint_infos->get(insert_pos)), isolate);
-    BreakPointInfo::SetBreakPoint(old_info, break_point_object);
+    BreakPointInfo::SetBreakPoint(old_info, break_point);
     return;
   }
 
@@ -1096,7 +1096,7 @@ void WasmSharedModuleData::AddBreakpoint(Handle<WasmSharedModuleData> shared,
   // Generate new BreakpointInfo.
   Handle<BreakPointInfo> breakpoint_info =
       isolate->factory()->NewBreakPointInfo(position);
-  BreakPointInfo::SetBreakPoint(breakpoint_info, break_point_object);
+  BreakPointInfo::SetBreakPoint(breakpoint_info, break_point);
 
   // Now insert new position at insert_pos.
   new_breakpoint_infos->set(insert_pos, *breakpoint_info);
@@ -1368,9 +1368,8 @@ MaybeHandle<FixedArray> WasmSharedModuleData::CheckBreakPoints(
       Handle<BreakPointInfo>::cast(maybe_breakpoint_info);
   if (breakpoint_info->source_position() != position) return {};
 
-  Handle<Object> breakpoint_objects(breakpoint_info->break_point_objects(),
-                                    isolate);
-  return isolate->debug()->GetHitBreakPointObjects(breakpoint_objects);
+  Handle<Object> break_points(breakpoint_info->break_points(), isolate);
+  return isolate->debug()->GetHitBreakPoints(break_points);
 }
 
 Handle<WasmCompiledModule> WasmCompiledModule::New(
@@ -1809,10 +1808,9 @@ bool WasmSharedModuleData::GetPositionInfo(uint32_t position,
   return true;
 }
 
-
 bool WasmCompiledModule::SetBreakPoint(
     Handle<WasmCompiledModule> compiled_module, int* position,
-    Handle<Object> break_point_object) {
+    Handle<BreakPoint> break_point) {
   Isolate* isolate = compiled_module->GetIsolate();
   Handle<WasmSharedModuleData> shared(compiled_module->shared(), isolate);
 
@@ -1827,7 +1825,7 @@ bool WasmCompiledModule::SetBreakPoint(
   DCHECK(IsBreakablePosition(*shared, func_index, offset_in_func));
 
   // Insert new break point into break_positions of shared module data.
-  WasmSharedModuleData::AddBreakpoint(shared, *position, break_point_object);
+  WasmSharedModuleData::AddBreakpoint(shared, *position, break_point);
 
   // Iterate over all instances of this module and tell them to set this new
   // breakpoint.

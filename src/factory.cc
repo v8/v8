@@ -2717,7 +2717,7 @@ Handle<BreakPointInfo> Factory::NewBreakPointInfo(int source_position) {
   Handle<BreakPointInfo> new_break_point_info =
       Handle<BreakPointInfo>::cast(NewStruct(TUPLE2_TYPE, TENURED));
   new_break_point_info->set_source_position(source_position);
-  new_break_point_info->set_break_point_objects(*undefined_value());
+  new_break_point_info->set_break_points(*undefined_value());
   return new_break_point_info;
 }
 

@@ -85,27 +85,6 @@ RUNTIME_FUNCTION(Runtime_HandleDebuggerStatement) {
 }
 
 
-// Adds a JavaScript function as a debug event listener.
-// args[0]: debug event listener function to set or null or undefined for
-//          clearing the event listener function
-// args[1]: object supplied during callback
-RUNTIME_FUNCTION(Runtime_SetDebugEventListener) {
-  SealHandleScope shs(isolate);
-  DCHECK_EQ(2, args.length());
-  CHECK(args[0]->IsJSFunction() || args[0]->IsNullOrUndefined(isolate));
-  CONVERT_ARG_HANDLE_CHECKED(Object, callback, 0);
-  CONVERT_ARG_HANDLE_CHECKED(Object, data, 1);
-  if (callback->IsJSFunction()) {
-    JavaScriptDebugDelegate* delegate = new JavaScriptDebugDelegate(
-        isolate, Handle<JSFunction>::cast(callback), data);
-    isolate->debug()->SetDebugDelegate(delegate, true);
-  } else {
-    isolate->debug()->SetDebugDelegate(nullptr, false);
-  }
-  return isolate->heap()->undefined_value();
-}
-
-
 RUNTIME_FUNCTION(Runtime_ScheduleBreak) {
   SealHandleScope shs(isolate);
   DCHECK_EQ(0, args.length());
@@ -1041,16 +1020,6 @@ RUNTIME_FUNCTION(Runtime_SetScopeVariableValue) {
   return isolate->heap()->ToBoolean(res);
 }
 
-// Sets the disable break state
-// args[0]: disable break state
-RUNTIME_FUNCTION(Runtime_SetBreakPointsActive) {
-  HandleScope scope(isolate);
-  DCHECK_EQ(1, args.length());
-  CONVERT_BOOLEAN_ARG_CHECKED(active, 0);
-  isolate->debug()->set_break_points_active(active);
-  return isolate->heap()->undefined_value();
-}
-
 
 RUNTIME_FUNCTION(Runtime_GetBreakLocations) {
   HandleScope scope(isolate);
@@ -1067,71 +1036,6 @@ RUNTIME_FUNCTION(Runtime_GetBreakLocations) {
   // Return array as JS array
   return *isolate->factory()->NewJSArrayWithElements(
       Handle<FixedArray>::cast(break_locations));
-}
-
-
-// Set a break point in a function.
-// args[0]: function
-// args[1]: number: break source position (within the function source)
-// args[2]: number: break point object
-RUNTIME_FUNCTION(Runtime_SetFunctionBreakPoint) {
-  HandleScope scope(isolate);
-  DCHECK_EQ(3, args.length());
-  CHECK(isolate->debug()->is_active());
-  CONVERT_ARG_HANDLE_CHECKED(JSFunction, function, 0);
-  CONVERT_NUMBER_CHECKED(int32_t, source_position, Int32, args[1]);
-  CHECK(source_position >= function->shared()->start_position() &&
-        source_position <= function->shared()->end_position());
-  CONVERT_ARG_HANDLE_CHECKED(Object, break_point_object_arg, 2);
-
-  // Set break point.
-  CHECK(isolate->debug()->SetBreakPoint(function, break_point_object_arg,
-                                        &source_position));
-
-  return Smi::FromInt(source_position);
-}
-
-// Changes the state of a break point in a script and returns source position
-// where break point was set. NOTE: Regarding performance see the NOTE for
-// GetScriptFromScriptData.
-// args[0]: script to set break point in
-// args[1]: number: break source position (within the script source)
-// args[2]: number: break point object
-RUNTIME_FUNCTION(Runtime_SetScriptBreakPoint) {
-  HandleScope scope(isolate);
-  DCHECK_EQ(3, args.length());
-  CHECK(isolate->debug()->is_active());
-  CONVERT_ARG_HANDLE_CHECKED(JSValue, wrapper, 0);
-  CONVERT_NUMBER_CHECKED(int32_t, source_position, Int32, args[1]);
-  CHECK_GE(source_position, 0);
-  CONVERT_ARG_HANDLE_CHECKED(Object, break_point_object_arg, 2);
-
-  // Get the script from the script wrapper.
-  CHECK(wrapper->value()->IsScript());
-  Handle<Script> script(Script::cast(wrapper->value()));
-
-  // Set break point.
-  if (!isolate->debug()->SetBreakPointForScript(script, break_point_object_arg,
-                                                &source_position)) {
-    return isolate->heap()->undefined_value();
-  }
-
-  return Smi::FromInt(source_position);
-}
-
-
-// Clear a break point
-// args[0]: number: break point object
-RUNTIME_FUNCTION(Runtime_ClearBreakPoint) {
-  HandleScope scope(isolate);
-  DCHECK_EQ(1, args.length());
-  CHECK(isolate->debug()->is_active());
-  CONVERT_ARG_HANDLE_CHECKED(Object, break_point_object_arg, 0);
-
-  // Clear break point.
-  isolate->debug()->ClearBreakPoint(break_point_object_arg);
-
-  return isolate->heap()->undefined_value();
 }
 
 
@@ -1718,44 +1622,6 @@ RUNTIME_FUNCTION(Runtime_ScriptPositionInfo2) {
   const Script::OffsetFlag offset_flag =
       with_offset ? Script::WITH_OFFSET : Script::NO_OFFSET;
   return *GetJSPositionInfo(script, position, offset_flag, isolate);
-}
-
-// Returns the given line as a string, or null if line is out of bounds.
-// The parameter line is expected to include the script's line offset.
-// TODO(5530): Remove once uses in debug.js are gone.
-RUNTIME_FUNCTION(Runtime_ScriptSourceLine) {
-  HandleScope scope(isolate);
-  DCHECK_EQ(2, args.length());
-  CONVERT_ARG_CHECKED(JSValue, script, 0);
-  CONVERT_NUMBER_CHECKED(int32_t, line, Int32, args[1]);
-
-  CHECK(script->value()->IsScript());
-  Handle<Script> script_handle = Handle<Script>(Script::cast(script->value()));
-
-  if (script_handle->type() == Script::TYPE_WASM) {
-    // Return null for now; this function will disappear soon anyway.
-    return isolate->heap()->null_value();
-  }
-
-  Script::InitLineEnds(script_handle);
-
-  FixedArray* line_ends_array = FixedArray::cast(script_handle->line_ends());
-  const int line_count = line_ends_array->length();
-
-  line -= script_handle->line_offset();
-  if (line < 0 || line_count <= line) {
-    return isolate->heap()->null_value();
-  }
-
-  const int start =
-      (line == 0) ? 0 : Smi::ToInt(line_ends_array->get(line - 1)) + 1;
-  const int end = Smi::ToInt(line_ends_array->get(line));
-
-  Handle<String> source =
-      handle(String::cast(script_handle->source()), isolate);
-  Handle<String> str = isolate->factory()->NewSubString(source, start, end);
-
-  return *str;
 }
 
 // On function call, depending on circumstances, prepare for stepping in,

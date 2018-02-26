@@ -510,9 +510,9 @@ MaybeHandle<FixedArray> Debug::CheckBreakPoints(Handle<DebugInfo> debug_info,
   if (has_break_points) *has_break_points = has_break_points_to_check;
   if (!has_break_points_to_check) return {};
 
-  Handle<Object> break_point_objects =
-      debug_info->GetBreakPointObjects(location->position());
-  return Debug::GetHitBreakPointObjects(break_point_objects);
+  Handle<Object> break_points =
+      debug_info->GetBreakPoints(location->position());
+  return Debug::GetHitBreakPoints(break_points);
 }
 
 
@@ -567,52 +567,27 @@ MaybeHandle<Object> Debug::CallFunction(const char* name, int argc,
 
 
 // Check whether a single break point object is triggered.
-bool Debug::CheckBreakPoint(Handle<Object> break_point_object) {
-  Factory* factory = isolate_->factory();
+bool Debug::CheckBreakPoint(Handle<BreakPoint> break_point) {
   HandleScope scope(isolate_);
 
-  // TODO(kozyatinskiy): replace this if by DCHEK once the JS debug API has been
-  // removed.
-  if (break_point_object->IsBreakPoint()) {
-    Handle<BreakPoint> break_point =
-        Handle<BreakPoint>::cast(break_point_object);
-    if (!break_point->condition()->length()) return true;
-    Handle<String> condition(break_point->condition());
-    Handle<Object> result;
-    // Since we call CheckBreakpoint only for deoptimized frame on top of stack,
-    // we can use 0 as index of inlined frame.
-    if (!DebugEvaluate::Local(isolate_, break_frame_id(),
-                              /* inlined_jsframe_index */ 0, condition, false)
-             .ToHandle(&result)) {
-      if (isolate_->has_pending_exception()) {
-        isolate_->clear_pending_exception();
-      }
-      return false;
-    }
-    return result->BooleanValue();
-  }
-
-  // Ignore check if break point object is not a JSObject.
-  if (!break_point_object->IsJSObject()) return true;
-
-  // Get the break id as an object.
-  Handle<Object> break_id = factory->NewNumberFromInt(Debug::break_id());
-
-  // Call IsBreakPointTriggered.
-  Handle<Object> argv[] = { break_id, break_point_object };
+  if (!break_point->condition()->length()) return true;
+  Handle<String> condition(break_point->condition());
   Handle<Object> result;
-  if (!CallFunction("IsBreakPointTriggered", arraysize(argv), argv)
+  // Since we call CheckBreakpoint only for deoptimized frame on top of stack,
+  // we can use 0 as index of inlined frame.
+  if (!DebugEvaluate::Local(isolate_, break_frame_id(),
+                            /* inlined_jsframe_index */ 0, condition, false)
            .ToHandle(&result)) {
+    if (isolate_->has_pending_exception()) {
+      isolate_->clear_pending_exception();
+    }
     return false;
   }
-
-  // Return whether the break point is triggered.
-  return result->IsTrue(isolate_);
+  return result->BooleanValue();
 }
 
-
 bool Debug::SetBreakPoint(Handle<JSFunction> function,
-                          Handle<Object> break_point_object,
+                          Handle<BreakPoint> break_point,
                           int* source_position) {
   HandleScope scope(isolate_);
 
@@ -626,7 +601,7 @@ bool Debug::SetBreakPoint(Handle<JSFunction> function,
 
   // Find the break point and change it.
   *source_position = FindBreakablePosition(debug_info, *source_position);
-  DebugInfo::SetBreakPoint(debug_info, *source_position, break_point_object);
+  DebugInfo::SetBreakPoint(debug_info, *source_position, break_point);
   // At least one active break point now.
   DCHECK_LT(0, debug_info->GetBreakPointCount());
 
@@ -638,13 +613,13 @@ bool Debug::SetBreakPoint(Handle<JSFunction> function,
 }
 
 bool Debug::SetBreakPointForScript(Handle<Script> script,
-                                   Handle<Object> break_point_object,
+                                   Handle<BreakPoint> break_point,
                                    int* source_position) {
   if (script->type() == Script::TYPE_WASM) {
     Handle<WasmCompiledModule> compiled_module(
         WasmCompiledModule::cast(script->wasm_compiled_module()), isolate_);
     return WasmCompiledModule::SetBreakPoint(compiled_module, source_position,
-                                             break_point_object);
+                                             break_point);
   }
 
   HandleScope scope(isolate_);
@@ -674,7 +649,7 @@ bool Debug::SetBreakPointForScript(Handle<Script> script,
   if (breakable_position < *source_position) return false;
   *source_position = breakable_position;
 
-  DebugInfo::SetBreakPoint(debug_info, *source_position, break_point_object);
+  DebugInfo::SetBreakPoint(debug_info, *source_position, break_point);
   // At least one active break point now.
   DCHECK_LT(0, debug_info->GetBreakPointCount());
 
@@ -731,16 +706,16 @@ void Debug::ClearBreakPoints(Handle<DebugInfo> debug_info) {
   }
 }
 
-void Debug::ClearBreakPoint(Handle<Object> break_point_object) {
+void Debug::ClearBreakPoint(Handle<BreakPoint> break_point) {
   HandleScope scope(isolate_);
 
   for (DebugInfoListNode* node = debug_info_list_; node != nullptr;
        node = node->next()) {
     Handle<Object> result =
-        DebugInfo::FindBreakPointInfo(node->debug_info(), break_point_object);
+        DebugInfo::FindBreakPointInfo(node->debug_info(), break_point);
     if (result->IsUndefined(isolate_)) continue;
     Handle<DebugInfo> debug_info = node->debug_info();
-    if (DebugInfo::ClearBreakPoint(debug_info, break_point_object)) {
+    if (DebugInfo::ClearBreakPoint(debug_info, break_point)) {
       ClearBreakPoints(debug_info);
       if (debug_info->GetBreakPointCount() == 0) {
         RemoveBreakInfoAndMaybeFree(debug_info);
@@ -806,25 +781,24 @@ bool Debug::IsBreakOnException(ExceptionBreakType type) {
   }
 }
 
-MaybeHandle<FixedArray> Debug::GetHitBreakPointObjects(
-    Handle<Object> break_point_objects) {
-  DCHECK(!break_point_objects->IsUndefined(isolate_));
-  if (!break_point_objects->IsFixedArray()) {
-    if (!CheckBreakPoint(break_point_objects)) return {};
+MaybeHandle<FixedArray> Debug::GetHitBreakPoints(Handle<Object> break_points) {
+  DCHECK(!break_points->IsUndefined(isolate_));
+  if (!break_points->IsFixedArray()) {
+    if (!CheckBreakPoint(Handle<BreakPoint>::cast(break_points))) return {};
     Handle<FixedArray> break_points_hit = isolate_->factory()->NewFixedArray(1);
-    break_points_hit->set(0, *break_point_objects);
+    break_points_hit->set(0, *break_points);
     return break_points_hit;
   }
 
-  Handle<FixedArray> array(FixedArray::cast(*break_point_objects));
+  Handle<FixedArray> array(FixedArray::cast(*break_points));
   int num_objects = array->length();
   Handle<FixedArray> break_points_hit =
       isolate_->factory()->NewFixedArray(num_objects);
   int break_points_hit_count = 0;
   for (int i = 0; i < num_objects; ++i) {
-    Handle<Object> break_point_object(array->get(i), isolate_);
-    if (CheckBreakPoint(break_point_object)) {
-      break_points_hit->set(break_points_hit_count++, *break_point_object);
+    Handle<Object> break_point(array->get(i), isolate_);
+    if (CheckBreakPoint(Handle<BreakPoint>::cast(break_point))) {
+      break_points_hit->set(break_points_hit_count++, *break_point);
     }
   }
   if (break_points_hit_count == 0) return {};
@@ -1567,14 +1541,6 @@ MaybeHandle<Object> Debug::MakeExecutionState() {
 }
 
 
-MaybeHandle<Object> Debug::MakeBreakEvent(Handle<Object> break_points_hit) {
-  // Create the new break event object.
-  Handle<Object> argv[] = { isolate_->factory()->NewNumberFromInt(break_id()),
-                            break_points_hit };
-  return CallFunction("MakeBreakEvent", arraysize(argv), argv);
-}
-
-
 MaybeHandle<Object> Debug::MakeExceptionEvent(Handle<Object> exception,
                                               bool uncaught,
                                               Handle<Object> promise) {
@@ -1750,29 +1716,15 @@ void Debug::OnDebugBreak(Handle<FixedArray> break_points_hit) {
   int inspector_break_points_count = 0;
   // This array contains breakpoints installed using JS debug API.
   for (int i = 0; i < break_points_hit->length(); ++i) {
-    Object* break_point = break_points_hit->get(i);
-    if (break_point->IsBreakPoint()) {
-      inspector_break_points_hit.push_back(BreakPoint::cast(break_point)->id());
-      ++inspector_break_points_count;
-    } else {
-      break_points_hit->set(i - inspector_break_points_count, break_point);
-    }
-  }
-  int break_points_length =
-      break_points_hit->length() - inspector_break_points_count;
-  Handle<Object> break_points;
-  if (break_points_length) {
-    break_points_hit->Shrink(break_points_length);
-    break_points = isolate_->factory()->NewJSArrayWithElements(
-        break_points_hit, PACKED_ELEMENTS, break_points_length);
-  } else {
-    break_points = isolate_->factory()->undefined_value();
+    BreakPoint* break_point = BreakPoint::cast(break_points_hit->get(i));
+    inspector_break_points_hit.push_back(break_point->id());
+    ++inspector_break_points_count;
   }
 
   debug_delegate_->BreakProgramRequested(
       GetDebugEventContext(isolate_),
       v8::Utils::ToLocal(Handle<JSObject>::cast(exec_state)),
-      v8::Utils::ToLocal(break_points), inspector_break_points_hit);
+      inspector_break_points_hit);
 }
 
 
@@ -2278,16 +2230,9 @@ void LegacyDebugDelegate::ScriptCompiled(v8::Local<v8::debug::Script> script,
 
 void LegacyDebugDelegate::BreakProgramRequested(
     v8::Local<v8::Context> paused_context, v8::Local<v8::Object> exec_state,
-    v8::Local<v8::Value> break_points_hit,
     const std::vector<debug::BreakpointId>&) {
-  Handle<Object> event_data;
-  if (isolate_->debug()
-          ->MakeBreakEvent(v8::Utils::OpenHandle(*break_points_hit))
-          .ToHandle(&event_data)) {
-    ProcessDebugEvent(
-        v8::Break, Handle<JSObject>::cast(event_data),
-        Handle<JSObject>::cast(v8::Utils::OpenHandle(*exec_state)));
-  }
+  ProcessDebugEvent(v8::Break, isolate_->factory()->NewJSObjectWithNullProto(),
+                    Handle<JSObject>::cast(v8::Utils::OpenHandle(*exec_state)));
 }
 
 void LegacyDebugDelegate::ExceptionThrown(v8::Local<v8::Context> paused_context,
@@ -2312,32 +2257,6 @@ void LegacyDebugDelegate::ProcessDebugEvent(v8::DebugEvent event,
   if (isolate_->debug()->MakeExecutionState().ToHandle(&exec_state)) {
     ProcessDebugEvent(event, event_data, Handle<JSObject>::cast(exec_state));
   }
-}
-
-JavaScriptDebugDelegate::JavaScriptDebugDelegate(Isolate* isolate,
-                                                 Handle<JSFunction> listener,
-                                                 Handle<Object> data)
-    : LegacyDebugDelegate(isolate) {
-  GlobalHandles* global_handles = isolate->global_handles();
-  listener_ = global_handles->Create(*listener);
-  data_ = global_handles->Create(*data);
-}
-
-JavaScriptDebugDelegate::~JavaScriptDebugDelegate() {
-  GlobalHandles::Destroy(Handle<Object>::cast(listener_).location());
-  GlobalHandles::Destroy(data_.location());
-}
-
-void JavaScriptDebugDelegate::ProcessDebugEvent(v8::DebugEvent event,
-                                                Handle<JSObject> event_data,
-                                                Handle<JSObject> exec_state) {
-  AllowJavascriptExecutionDebugOnly allow_script(isolate_);
-  Handle<Object> argv[] = {Handle<Object>(Smi::FromInt(event), isolate_),
-                           exec_state, event_data, data_};
-  Handle<JSReceiver> global = isolate_->global_proxy();
-  // Listener must not throw.
-  Execution::Call(isolate_, listener_, global, arraysize(argv), argv)
-      .ToHandleChecked();
 }
 
 NativeDebugDelegate::NativeDebugDelegate(Isolate* isolate,

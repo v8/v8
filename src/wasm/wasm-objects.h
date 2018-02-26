@@ -337,7 +337,7 @@ class WasmSharedModuleData : public FixedArray {
                                                Handle<WasmSharedModuleData>);
 
   static void AddBreakpoint(Handle<WasmSharedModuleData>, int position,
-                            Handle<Object> break_point_object);
+                            Handle<BreakPoint> break_point);
 
   static void SetBreakpointsOnNewInstance(Handle<WasmSharedModuleData>,
                                           Handle<WasmInstanceObject>);
@@ -569,7 +569,7 @@ class WasmCompiledModule : public FixedArray {
   // If it points outside a function, or behind the last breakable location,
   // this function returns false and does not set any breakpoint.
   static bool SetBreakPoint(Handle<WasmCompiledModule>, int* position,
-                            Handle<Object> break_point_object);
+                            Handle<BreakPoint> break_point);
 
   inline void ReplaceCodeTableForTesting(
       std::vector<wasm::WasmCode*>&& testing_table);

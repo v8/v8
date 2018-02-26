@@ -128,7 +128,6 @@ namespace internal {
 
 #define FOR_EACH_INTRINSIC_DEBUG(F)             \
   F(HandleDebuggerStatement, 0, 1)              \
-  F(SetDebugEventListener, 2, 1)                \
   F(ScheduleBreak, 0, 1)                        \
   F(DebugGetInternalProperties, 1, 1)           \
   F(DebugGetPropertyDetails, 2, 1)              \
@@ -146,11 +145,7 @@ namespace internal {
   F(GetGeneratorScopeCount, 1, 1)               \
   F(GetGeneratorScopeDetails, 2, 1)             \
   F(SetScopeVariableValue, 6, 1)                \
-  F(SetBreakPointsActive, 1, 1)                 \
   F(GetBreakLocations, 1, 1)                    \
-  F(SetFunctionBreakPoint, 3, 1)                \
-  F(SetScriptBreakPoint, 3, 1)                  \
-  F(ClearBreakPoint, 1, 1)                      \
   F(ChangeBreakOnException, 2, 1)               \
   F(IsBreakOnException, 1, 1)                   \
   F(PrepareStep, 2, 1)                          \
@@ -173,7 +168,6 @@ namespace internal {
   F(ScriptLocationFromLine2, 4, 1)              \
   F(ScriptPositionInfo, 3, 1)                   \
   F(ScriptPositionInfo2, 3, 1)                  \
-  F(ScriptSourceLine, 2, 1)                     \
   F(DebugOnFunctionCall, 1, 1)                  \
   F(DebugPrepareStepInSuspendedGenerator, 0, 1) \
   F(DebugPushPromise, 1, 1)                     \

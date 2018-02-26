@@ -5,7 +5,7 @@
 // Flags: --allow-natives-syntax --cache=code
 // Test that script ids are unique and we found the correct ones.
 
-var Debug = %GetDebugContext().Debug;
+var Debug = debug.Debug;
 Debug.setListener(function(){});
 
 var scripts = %DebugGetLoadedScripts();
