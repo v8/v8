@@ -204,12 +204,33 @@ void Code::set_next_code_link(Object* value) {
   code_data_container()->set_next_code_link(value);
 }
 
+int Code::InstructionSize() {
+#ifdef V8_EMBEDDED_BUILTINS
+  if (Builtins::IsOffHeapBuiltin(this)) return OffHeapInstructionSize();
+#endif
+  return instruction_size();
+}
+
 byte* Code::instruction_start() const {
   return const_cast<byte*>(FIELD_ADDR_CONST(this, kHeaderSize));
 }
 
+Address Code::InstructionStart() {
+#ifdef V8_EMBEDDED_BUILTINS
+  if (Builtins::IsOffHeapBuiltin(this)) return OffHeapInstructionStart();
+#endif
+  return instruction_start();
+}
+
 byte* Code::instruction_end() const {
   return instruction_start() + instruction_size();
+}
+
+Address Code::InstructionEnd() {
+#ifdef V8_EMBEDDED_BUILTINS
+  if (Builtins::IsOffHeapBuiltin(this)) return OffHeapInstructionEnd();
+#endif
+  return instruction_end();
 }
 
 int Code::GetUnwindingInfoSizeOffset() const {

@@ -14029,6 +14029,26 @@ SafepointEntry Code::GetSafepointEntry(Address pc) {
   return table.FindEntry(pc);
 }
 
+int Code::OffHeapInstructionSize() {
+  DCHECK(Builtins::IsOffHeapBuiltin(this));
+  InstructionStream* stream =
+      InstructionStream::TryLookupInstructionStream(GetIsolate(), this);
+  return static_cast<int>(stream->byte_length());
+}
+
+Address Code::OffHeapInstructionStart() {
+  DCHECK(Builtins::IsOffHeapBuiltin(this));
+  InstructionStream* stream =
+      InstructionStream::TryLookupInstructionStream(GetIsolate(), this);
+  return stream->bytes();
+}
+
+Address Code::OffHeapInstructionEnd() {
+  DCHECK(Builtins::IsOffHeapBuiltin(this));
+  InstructionStream* stream =
+      InstructionStream::TryLookupInstructionStream(GetIsolate(), this);
+  return stream->bytes() + stream->byte_length();
+}
 
 namespace {
 template <typename Code>

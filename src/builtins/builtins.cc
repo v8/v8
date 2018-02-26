@@ -200,6 +200,17 @@ bool Builtins::IsBuiltin(Code* code) {
 }
 
 // static
+bool Builtins::IsOffHeapBuiltin(Code* code) {
+#ifdef V8_EMBEDDED_BUILTINS
+  return FLAG_stress_off_heap_code &&
+         Builtins::IsBuiltinId(code->builtin_index()) &&
+         Builtins::IsOffHeapSafe(code->builtin_index());
+#else
+  return false;
+#endif
+}
+
+// static
 bool Builtins::IsLazy(int index) {
   DCHECK(IsBuiltinId(index));
   // There are a couple of reasons that builtins can require eager-loading,

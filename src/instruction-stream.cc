@@ -14,8 +14,7 @@ namespace internal {
 
 InstructionStream::InstructionStream(Code* code)
     : builtin_index_(code->builtin_index()) {
-  DCHECK(Builtins::IsBuiltinId(builtin_index_));
-  DCHECK(Builtins::IsOffHeapSafe(builtin_index_));
+  DCHECK(Builtins::IsOffHeapBuiltin(code));
   const size_t page_size = AllocatePageSize();
   byte_length_ =
       RoundUp(static_cast<size_t>(code->instruction_size()), page_size);

@@ -1267,7 +1267,7 @@ Object* Isolate::UnwindAndFindHandler() {
         // Gather information from the handler.
         Code* code = frame->LookupCode();
         return FoundHandler(
-            nullptr, code->instruction_start(),
+            nullptr, code->InstructionStart(),
             Smi::ToInt(code->handler_table()->get(0)), code->constant_pool(),
             handler->address() + StackHandlerConstants::kSize, 0);
       }
@@ -1336,7 +1336,7 @@ Object* Isolate::UnwindAndFindHandler() {
           set_deoptimizer_lazy_throw(true);
         }
 
-        return FoundHandler(nullptr, code->instruction_start(), offset,
+        return FoundHandler(nullptr, code->InstructionStart(), offset,
                             code->constant_pool(), return_sp, frame->fp());
       }
 
@@ -1360,7 +1360,7 @@ Object* Isolate::UnwindAndFindHandler() {
                             StandardFrameConstants::kFixedFrameSizeAboveFp -
                             stack_slots * kPointerSize;
 
-        return FoundHandler(nullptr, code->instruction_start(), offset,
+        return FoundHandler(nullptr, code->InstructionStart(), offset,
                             code->constant_pool(), return_sp, frame->fp());
       }
 
@@ -1393,7 +1393,7 @@ Object* Isolate::UnwindAndFindHandler() {
 
         Code* code =
             builtins()->builtin(Builtins::kInterpreterEnterBytecodeDispatch);
-        return FoundHandler(context, code->instruction_start(), 0,
+        return FoundHandler(context, code->InstructionStart(), 0,
                             code->constant_pool(), return_sp, frame->fp());
       }
 
@@ -2924,8 +2924,6 @@ void MoveBuiltinsOffHeap(Isolate* isolate) {
   DCHECK(FLAG_stress_off_heap_code);
   HandleScope scope(isolate);
   Builtins* builtins = isolate->builtins();
-
-  // TODO(jgruber): Support stack iteration with off-heap on-stack builtins.
 
   // Lazy deserialization would defeat our off-heap stress test (we'd
   // deserialize later without moving off-heap), so force eager

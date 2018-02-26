@@ -138,9 +138,18 @@ class Code : public HeapObject {
                    void* current_pc = nullptr);  // NOLINT
 #endif
 
-  // [instruction_size]: Size of the native instructions
+  // [instruction_size]: Size of the native instructions, including embedded
+  // data such as the safepoints table.
   inline int instruction_size() const;
   inline void set_instruction_size(int value);
+
+  // Returns the size of the native instructions, including embedded
+  // data such as the safepoints table. For off-heap code objects
+  // this may from instruction_size in that this will return the size of the
+  // off-heap instruction stream rather than the on-heap trampoline located
+  // at instruction_start.
+  inline int InstructionSize();
+  int OffHeapInstructionSize();
 
   // [relocation_info]: Code relocation information
   DECL_ACCESSORS(relocation_info, ByteArray)
@@ -297,8 +306,20 @@ class Code : public HeapObject {
   // Returns the address of the first instruction.
   inline byte* instruction_start() const;
 
+  // Returns the address of the first instruction. For off-heap code objects
+  // this differs from instruction_start (which would point to the off-heap
+  // trampoline instead).
+  inline Address InstructionStart();
+  Address OffHeapInstructionStart();
+
   // Returns the address right after the last instruction.
   inline byte* instruction_end() const;
+
+  // Returns the address right after the last instruction. For off-heap code
+  // objects this differs from instruction_end (which would point to the
+  // off-heap trampoline instead).
+  inline Address InstructionEnd();
+  Address OffHeapInstructionEnd();
 
   // Returns the size of the instructions, padding, relocation and unwinding
   // information.

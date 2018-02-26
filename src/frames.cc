@@ -11,7 +11,6 @@
 #include "src/deoptimizer.h"
 #include "src/frames-inl.h"
 #include "src/ic/ic-stats.h"
-#include "src/instruction-stream.h"
 #include "src/register-configuration.h"
 #include "src/safepoint-table.h"
 #include "src/string-stream.h"
@@ -171,10 +170,6 @@ bool StackTraceFrameIterator::IsValidFrame(StackFrame* frame) const {
 namespace {
 
 bool IsInterpreterFramePc(Isolate* isolate, Address pc) {
-  // TODO(jgruber,v8:6666): Update logic once builtin is off-heap-safe.
-  DCHECK(!Builtins::IsOffHeapSafe(Builtins::kInterpreterEntryTrampoline));
-  DCHECK(!Builtins::IsOffHeapSafe(Builtins::kInterpreterEnterBytecodeAdvance));
-  DCHECK(!Builtins::IsOffHeapSafe(Builtins::kInterpreterEnterBytecodeDispatch));
   Code* interpreter_entry_trampoline =
       isolate->builtins()->builtin(Builtins::kInterpreterEntryTrampoline);
   Code* interpreter_bytecode_advance =
@@ -182,12 +177,12 @@ bool IsInterpreterFramePc(Isolate* isolate, Address pc) {
   Code* interpreter_bytecode_dispatch =
       isolate->builtins()->builtin(Builtins::kInterpreterEnterBytecodeDispatch);
 
-  return (pc >= interpreter_entry_trampoline->instruction_start() &&
-          pc < interpreter_entry_trampoline->instruction_end()) ||
-         (pc >= interpreter_bytecode_advance->instruction_start() &&
-          pc < interpreter_bytecode_advance->instruction_end()) ||
-         (pc >= interpreter_bytecode_dispatch->instruction_start() &&
-          pc < interpreter_bytecode_dispatch->instruction_end());
+  return (pc >= interpreter_entry_trampoline->InstructionStart() &&
+          pc < interpreter_entry_trampoline->InstructionEnd()) ||
+         (pc >= interpreter_bytecode_advance->InstructionStart() &&
+          pc < interpreter_bytecode_advance->InstructionEnd()) ||
+         (pc >= interpreter_bytecode_dispatch->InstructionStart() &&
+          pc < interpreter_bytecode_dispatch->InstructionEnd());
 }
 
 DISABLE_ASAN Address ReadMemoryAt(Address address) {
@@ -395,20 +390,8 @@ Code* GetContainingCode(Isolate* isolate, Address pc) {
 
 Code* StackFrame::LookupCode() const {
   Code* result = GetContainingCode(isolate(), pc());
-#ifdef DEBUG
-  Address start = result->instruction_start();
-  Address end = result->instruction_end();
-  if (FLAG_stress_off_heap_code) {
-    InstructionStream* stream =
-        InstructionStream::TryLookupInstructionStream(isolate(), result);
-    if (stream != nullptr) {
-      start = stream->bytes();
-      end = start + stream->byte_length();
-    }
-  }
-  DCHECK_GE(pc(), start);
-  DCHECK_LT(pc(), end);
-#endif
+  DCHECK_GE(pc(), result->InstructionStart());
+  DCHECK_LT(pc(), result->InstructionEnd());
   return result;
 }
 
@@ -416,12 +399,12 @@ void StackFrame::IteratePc(RootVisitor* v, Address* pc_address,
                            Address* constant_pool_address, Code* holder) {
   Address pc = *pc_address;
   DCHECK(holder->GetHeap()->GcSafeCodeContains(holder, pc));
-  unsigned pc_offset = static_cast<unsigned>(pc - holder->instruction_start());
+  unsigned pc_offset = static_cast<unsigned>(pc - holder->InstructionStart());
   Object* code = holder;
   v->VisitRootPointer(Root::kTop, nullptr, &code);
   if (code == holder) return;
   holder = reinterpret_cast<Code*>(code);
-  pc = holder->instruction_start() + pc_offset;
+  pc = holder->InstructionStart() + pc_offset;
   *pc_address = pc;
   if (FLAG_enable_embedded_constant_pool && constant_pool_address) {
     *constant_pool_address = holder->constant_pool();
@@ -1000,7 +983,7 @@ int StubFrame::LookupExceptionHandlerInTable(int* stack_slots) {
   DCHECK(code->is_turbofanned());
   DCHECK_EQ(code->kind(), Code::BUILTIN);
   HandlerTable* table = HandlerTable::cast(code->handler_table());
-  int pc_offset = static_cast<int>(pc() - code->entry());
+  int pc_offset = static_cast<int>(pc() - code->InstructionStart());
   *stack_slots = code->stack_slots();
   return table->LookupReturn(pc_offset);
 }
@@ -1065,7 +1048,7 @@ void JavaScriptFrame::GetFunctions(
 void JavaScriptFrame::Summarize(std::vector<FrameSummary>* functions) const {
   DCHECK(functions->empty());
   Code* code = LookupCode();
-  int offset = static_cast<int>(pc() - code->instruction_start());
+  int offset = static_cast<int>(pc() - code->InstructionStart());
   AbstractCode* abstract_code = AbstractCode::cast(code);
   FrameSummary::JavaScriptFrameSummary summary(isolate(), receiver(),
                                                function(), abstract_code,
@@ -1151,7 +1134,7 @@ void JavaScriptFrame::PrintTop(Isolate* isolate, FILE* file, bool print_args,
         code_offset = iframe->GetBytecodeOffset();
       } else {
         Code* code = frame->unchecked_code();
-        code_offset = static_cast<int>(frame->pc() - code->instruction_start());
+        code_offset = static_cast<int>(frame->pc() - code->InstructionStart());
       }
       PrintFunctionAndOffset(function, function->abstract_code(), code_offset,
                              file, print_line_number);
@@ -1209,7 +1192,7 @@ void JavaScriptFrame::CollectTopFrameForICStats(Isolate* isolate) {
         code_offset = iframe->GetBytecodeOffset();
       } else {
         Code* code = frame->unchecked_code();
-        code_offset = static_cast<int>(frame->pc() - code->instruction_start());
+        code_offset = static_cast<int>(frame->pc() - code->InstructionStart());
       }
       CollectFunctionAndOffsetForICStats(function, function->abstract_code(),
                                          code_offset);
@@ -1522,7 +1505,7 @@ int OptimizedFrame::LookupExceptionHandlerInTable(
   DCHECK_NULL(prediction);
   Code* code = LookupCode();
   HandlerTable* table = HandlerTable::cast(code->handler_table());
-  int pc_offset = static_cast<int>(pc() - code->entry());
+  int pc_offset = static_cast<int>(pc() - code->InstructionStart());
   if (stack_slots) *stack_slots = code->stack_slots();
 
   // When the return pc has been replaced by a trampoline there won't be
