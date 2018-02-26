@@ -1640,6 +1640,7 @@ void Builtins::Generate_FunctionPrototypeApply(MacroAssembler* masm) {
   Register scratch = a4;
 
   __ LoadRoot(undefined_value, Heap::kUndefinedValueRootIndex);
+
   // 1. Load receiver into a1, argArray into a2 (if present), remove all
   // arguments from the stack (including the receiver), and push thisArg (if
   // present) instead.
@@ -1748,6 +1749,7 @@ void Builtins::Generate_ReflectApply(MacroAssembler* masm) {
   Register scratch = a4;
 
   __ LoadRoot(undefined_value, Heap::kUndefinedValueRootIndex);
+
   // 1. Load target into a1 (if present), argumentsList into a2 (if present),
   // remove all arguments from the stack (including the receiver), and push
   // thisArgument (if present) instead.
@@ -1801,6 +1803,8 @@ void Builtins::Generate_ReflectConstruct(MacroAssembler* masm) {
   Register new_target = a3;
   Register undefined_value = a4;
   Register scratch = a5;
+
+  __ LoadRoot(undefined_value, Heap::kUndefinedValueRootIndex);
 
   // 1. Load target into a1 (if present), argumentsList into a2 (if present),
   // new.target into a3 (if present, otherwise use target), remove all
