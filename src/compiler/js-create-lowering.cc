@@ -901,7 +901,7 @@ Reduction JSCreateLowering::ReduceJSCreateClosure(Node* node) {
   CreateClosureParameters const& p = CreateClosureParametersOf(node->op());
   Handle<SharedFunctionInfo> shared = p.shared_info();
   Handle<FeedbackCell> feedback_cell = p.feedback_cell();
-  CreateClosureMode const mode = p.mode();
+  Handle<Code> code = p.code();
   Node* effect = NodeProperties::GetEffectInput(node);
   Node* control = NodeProperties::GetControlInput(node);
   Node* context = NodeProperties::GetContextInput(node);
@@ -910,16 +910,13 @@ Reduction JSCreateLowering::ReduceJSCreateClosure(Node* node) {
   // seen more than one instantiation, this simplifies the generated code and
   // also serves as a heuristic of which allocation sites benefit from it.
   if (feedback_cell->map() != isolate()->heap()->many_closures_cell_map()) {
+    // The generic path can only create closures for user functions.
+    DCHECK_EQ(isolate()->builtins()->builtin(Builtins::kCompileLazy), *code);
     return NoChange();
   }
 
   Handle<Map> function_map(
       Map::cast(native_context()->get(shared->function_map_index())));
-  Node* lazy_compile_builtin = jsgraph()->HeapConstant(
-      handle(mode == CreateClosureMode::kBuiltin
-                 ? shared->code()
-                 : isolate()->builtins()->builtin(Builtins::kCompileLazy),
-             isolate()));
   DCHECK(!function_map->IsInobjectSlackTrackingInProgress());
   DCHECK(!function_map->is_dictionary_map());
 
@@ -946,7 +943,7 @@ Reduction JSCreateLowering::ReduceJSCreateClosure(Node* node) {
   a.Store(AccessBuilder::ForJSFunctionSharedFunctionInfo(), shared);
   a.Store(AccessBuilder::ForJSFunctionContext(), context);
   a.Store(AccessBuilder::ForJSFunctionFeedbackCell(), feedback_cell);
-  a.Store(AccessBuilder::ForJSFunctionCode(), lazy_compile_builtin);
+  a.Store(AccessBuilder::ForJSFunctionCode(), code);
   STATIC_ASSERT(JSFunction::kSizeWithoutPrototype == 7 * kPointerSize);
   if (function_map->has_prototype_slot()) {
     a.Store(AccessBuilder::ForJSFunctionPrototypeOrInitialMap(),

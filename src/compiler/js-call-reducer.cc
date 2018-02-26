@@ -4657,7 +4657,7 @@ Reduction JSCallReducer::ReducePromiseConstructor(Node* node) {
   Node* resolve = effect =
       graph()->NewNode(javascript()->CreateClosure(
                            resolve_shared, factory()->many_closures_cell(),
-                           CreateClosureMode::kBuiltin),
+                           handle(resolve_shared->code(), isolate())),
                        promise_context, effect, control);
 
   // Allocate the closure for the reject case.
@@ -4667,7 +4667,7 @@ Reduction JSCallReducer::ReducePromiseConstructor(Node* node) {
   Node* reject = effect =
       graph()->NewNode(javascript()->CreateClosure(
                            reject_shared, factory()->many_closures_cell(),
-                           CreateClosureMode::kBuiltin),
+                           handle(reject_shared->code(), isolate())),
                        promise_context, effect, control);
 
   // Re-use the params from above, but actually set the promise parameter now.
@@ -4962,7 +4962,7 @@ Reduction JSCallReducer::ReducePromisePrototypeFinally(Node* node) {
     catch_true = etrue =
         graph()->NewNode(javascript()->CreateClosure(
                              catch_finally, factory()->many_closures_cell(),
-                             CreateClosureMode::kBuiltin),
+                             handle(catch_finally->code(), isolate())),
                          context, etrue, if_true);
 
     // Allocate the closure for the fulfill case.
@@ -4971,7 +4971,7 @@ Reduction JSCallReducer::ReducePromisePrototypeFinally(Node* node) {
     then_true = etrue =
         graph()->NewNode(javascript()->CreateClosure(
                              then_finally, factory()->many_closures_cell(),
-                             CreateClosureMode::kBuiltin),
+                             handle(then_finally->code(), isolate())),
                          context, etrue, if_true);
   }
 

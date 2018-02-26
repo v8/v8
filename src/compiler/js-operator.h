@@ -529,37 +529,27 @@ std::ostream& operator<<(std::ostream&, CreateBoundFunctionParameters const&);
 const CreateBoundFunctionParameters& CreateBoundFunctionParametersOf(
     const Operator* op);
 
-// The mode identifies the kind of closure to create.
-enum class CreateClosureMode : uint8_t {
-  kBuiltin,  // Closure for a builtin, use SharedFunctionInfo::code().
-  kRegular   // Regular closure, use CompileLazy for code.
-};
-
-size_t hash_value(CreateClosureMode);
-
-std::ostream& operator<<(std::ostream&, CreateClosureMode);
-
 // Defines shared information for the closure that should be created. This is
 // used as a parameter by JSCreateClosure operators.
 class CreateClosureParameters final {
  public:
   CreateClosureParameters(Handle<SharedFunctionInfo> shared_info,
-                          Handle<FeedbackCell> feedback_cell,
-                          CreateClosureMode mode, PretenureFlag pretenure)
+                          Handle<FeedbackCell> feedback_cell, Handle<Code> code,
+                          PretenureFlag pretenure)
       : shared_info_(shared_info),
         feedback_cell_(feedback_cell),
-        mode_(mode),
+        code_(code),
         pretenure_(pretenure) {}
 
   Handle<SharedFunctionInfo> shared_info() const { return shared_info_; }
   Handle<FeedbackCell> feedback_cell() const { return feedback_cell_; }
-  CreateClosureMode mode() const { return mode_; }
+  Handle<Code> code() const { return code_; }
   PretenureFlag pretenure() const { return pretenure_; }
 
  private:
   Handle<SharedFunctionInfo> const shared_info_;
   Handle<FeedbackCell> const feedback_cell_;
-  CreateClosureMode const mode_;
+  Handle<Code> const code_;
   PretenureFlag const pretenure_;
 };
 
@@ -669,7 +659,7 @@ class V8_EXPORT_PRIVATE JSOperatorBuilder final
   const Operator* CreateBoundFunction(size_t arity, Handle<Map> map);
   const Operator* CreateClosure(Handle<SharedFunctionInfo> shared_info,
                                 Handle<FeedbackCell> feedback_cell,
-                                CreateClosureMode mode,
+                                Handle<Code> code,
                                 PretenureFlag pretenure = NOT_TENURED);
   const Operator* CreateIterResultObject();
   const Operator* CreateStringIterator();

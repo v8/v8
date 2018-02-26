@@ -1444,9 +1444,10 @@ void BytecodeGraphBuilder::VisitCreateClosure() {
           bytecode_iterator().GetFlagOperand(2))
           ? TENURED
           : NOT_TENURED;
-  const Operator* op =
-      javascript()->CreateClosure(shared_info, nexus.GetFeedbackCell(),
-                                  CreateClosureMode::kRegular, tenured);
+  const Operator* op = javascript()->CreateClosure(
+      shared_info, nexus.GetFeedbackCell(),
+      handle(jsgraph()->isolate()->builtins()->builtin(Builtins::kCompileLazy)),
+      tenured);
   Node* closure = NewNode(op);
   environment()->BindAccumulator(closure);
 }
