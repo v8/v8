@@ -1952,6 +1952,9 @@ void EmitBranchOrDeoptimize(InstructionSelector* selector,
 // against {value}, depending on the condition.
 bool TryEmitCbzOrTbz(InstructionSelector* selector, Node* node, uint32_t value,
                      Node* user, FlagsCondition cond, FlagsContinuation* cont) {
+  // Branch poisoning requires flags to be set, so when it's enabled for
+  // a particular branch, we shouldn't be applying the cbz/tbz optimization.
+  DCHECK(!cont->IsPoisoned());
   // Only handle branches and deoptimisations.
   if (!cont->IsBranch() && !cont->IsDeoptimize()) return false;
 
@@ -2024,16 +2027,18 @@ void VisitWord32Compare(InstructionSelector* selector, Node* node,
                         FlagsContinuation* cont) {
   Int32BinopMatcher m(node);
   FlagsCondition cond = cont->condition();
-  if (m.right().HasValue()) {
-    if (TryEmitCbzOrTbz(selector, m.left().node(), m.right().Value(), node,
-                        cond, cont)) {
-      return;
-    }
-  } else if (m.left().HasValue()) {
-    FlagsCondition commuted_cond = CommuteFlagsCondition(cond);
-    if (TryEmitCbzOrTbz(selector, m.right().node(), m.left().Value(), node,
-                        commuted_cond, cont)) {
-      return;
+  if (!cont->IsPoisoned()) {
+    if (m.right().HasValue()) {
+      if (TryEmitCbzOrTbz(selector, m.left().node(), m.right().Value(), node,
+                          cond, cont)) {
+        return;
+      }
+    } else if (m.left().HasValue()) {
+      FlagsCondition commuted_cond = CommuteFlagsCondition(cond);
+      if (TryEmitCbzOrTbz(selector, m.right().node(), m.left().Value(), node,
+                          commuted_cond, cont)) {
+        return;
+      }
     }
   }
   ArchOpcode opcode = kArm64Cmp32;
@@ -2106,7 +2111,7 @@ bool TryEmitTestAndBranch(InstructionSelector* selector, Node* node,
                           FlagsContinuation* cont) {
   Arm64OperandGenerator g(selector);
   Matcher m(node);
-  if (cont->IsBranch() && m.right().HasValue() &&
+  if (cont->IsBranch() && !cont->IsPoisoned() && m.right().HasValue() &&
       base::bits::IsPowerOfTwo(m.right().Value())) {
     // If the mask has only one bit set, we can use tbz/tbnz.
     DCHECK((cont->condition() == kEqual) || (cont->condition() == kNotEqual));
@@ -2204,7 +2209,8 @@ void InstructionSelector::VisitWordCompareZero(Node* user, Node* value,
                                     kLogical64Imm);
           }
           // Merge the Word64Equal(x, 0) comparison into a cbz instruction.
-          if (cont->IsBranch() || cont->IsDeoptimize()) {
+          if ((cont->IsBranch() || cont->IsDeoptimize()) &&
+              !cont->IsPoisoned()) {
             EmitBranchOrDeoptimize(this, cont->Encode(kArm64CompareAndBranch),
                                    g.UseRegister(left), cont);
             return;
@@ -2315,9 +2321,16 @@ void InstructionSelector::VisitWordCompareZero(Node* user, Node* value,
 
   // Branch could not be combined with a compare, compare against 0 and branch.
   if (cont->IsBranch()) {
-    Emit(cont->Encode(kArm64CompareAndBranch32), g.NoOutput(),
-         g.UseRegister(value), g.Label(cont->true_block()),
-         g.Label(cont->false_block()));
+    if (cont->IsPoisoned()) {
+      // We need an instruction that sets flags for poisoning to work.
+      Emit(cont->Encode(kArm64Tst32), g.NoOutput(), g.UseRegister(value),
+           g.UseRegister(value), g.Label(cont->true_block()),
+           g.Label(cont->false_block()));
+    } else {
+      Emit(cont->Encode(kArm64CompareAndBranch32), g.NoOutput(),
+           g.UseRegister(value), g.Label(cont->true_block()),
+           g.Label(cont->false_block()));
+    }
   } else if (cont->IsDeoptimize()) {
     EmitDeoptimize(cont->Encode(kArm64Tst32), g.NoOutput(),
                    g.UseRegister(value), g.UseRegister(value), cont->kind(),
@@ -3160,7 +3173,7 @@ InstructionSelector::AlignmentRequirements() {
 }
 
 // static
-bool InstructionSelector::SupportsSpeculationPoisoning() { return false; }
+bool InstructionSelector::SupportsSpeculationPoisoning() { return true; }
 
 }  // namespace compiler
 }  // namespace internal
