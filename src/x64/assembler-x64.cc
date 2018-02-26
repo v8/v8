@@ -157,189 +157,132 @@ Address RelocInfo::js_to_wasm_address() const {
 // -----------------------------------------------------------------------------
 // Implementation of Operand
 
-namespace {
-class OperandBuilder {
- public:
-  OperandBuilder(Register base, int32_t disp) {
-    if (base == rsp || base == r12) {
-      // SIB byte is needed to encode (rsp + offset) or (r12 + offset).
-      set_sib(times_1, rsp, base);
-    }
-
-    if (disp == 0 && base != rbp && base != r13) {
-      set_modrm(0, base);
-    } else if (is_int8(disp)) {
-      set_modrm(1, base);
-      set_disp8(disp);
-    } else {
-      set_modrm(2, base);
-      set_disp32(disp);
-    }
+Operand::Operand(Register base, int32_t disp) : rex_(0) {
+  len_ = 1;
+  if (base == rsp || base == r12) {
+    // SIB byte is needed to encode (rsp + offset) or (r12 + offset).
+    set_sib(times_1, rsp, base);
   }
 
-  OperandBuilder(Register base, Register index, ScaleFactor scale,
-                 int32_t disp) {
-    DCHECK(index != rsp);
-    set_sib(scale, index, base);
-    if (disp == 0 && base != rbp && base != r13) {
-      // This call to set_modrm doesn't overwrite the REX.B (or REX.X) bits
-      // possibly set by set_sib.
-      set_modrm(0, rsp);
-    } else if (is_int8(disp)) {
-      set_modrm(1, rsp);
-      set_disp8(disp);
-    } else {
-      set_modrm(2, rsp);
-      set_disp32(disp);
-    }
-  }
-
-  OperandBuilder(Register index, ScaleFactor scale, int32_t disp) {
-    DCHECK(index != rsp);
-    set_modrm(0, rsp);
-    set_sib(scale, index, rbp);
+  if (disp == 0 && base != rbp && base != r13) {
+    set_modrm(0, base);
+  } else if (is_int8(disp)) {
+    set_modrm(1, base);
+    set_disp8(disp);
+  } else {
+    set_modrm(2, base);
     set_disp32(disp);
   }
+}
 
-  OperandBuilder(Label* label, int addend) {
-    data_.addend = addend;
-    DCHECK_NOT_NULL(label);
-    DCHECK(addend == 0 || (is_int8(addend) && label->is_bound()));
-    set_modrm(0, rbp);
-    set_disp64(reinterpret_cast<intptr_t>(label));
+
+Operand::Operand(Register base,
+                 Register index,
+                 ScaleFactor scale,
+                 int32_t disp) : rex_(0) {
+  DCHECK(index != rsp);
+  len_ = 1;
+  set_sib(scale, index, base);
+  if (disp == 0 && base != rbp && base != r13) {
+    // This call to set_modrm doesn't overwrite the REX.B (or REX.X) bits
+    // possibly set by set_sib.
+    set_modrm(0, rsp);
+  } else if (is_int8(disp)) {
+    set_modrm(1, rsp);
+    set_disp8(disp);
+  } else {
+    set_modrm(2, rsp);
+    set_disp32(disp);
+  }
+}
+
+
+Operand::Operand(Register index,
+                 ScaleFactor scale,
+                 int32_t disp) : rex_(0) {
+  DCHECK(index != rsp);
+  len_ = 1;
+  set_modrm(0, rsp);
+  set_sib(scale, index, rbp);
+  set_disp32(disp);
+}
+
+Operand::Operand(Label* label, int addend) : rex_(0), len_(1), addend_(addend) {
+  DCHECK_NOT_NULL(label);
+  DCHECK(addend == 0 || (is_int8(addend) && label->is_bound()));
+  set_modrm(0, rbp);
+  set_disp64(reinterpret_cast<intptr_t>(label));
+}
+
+Operand::Operand(Operand operand, int32_t offset) {
+  DCHECK_GE(operand.len_, 1);
+  // Operand encodes REX ModR/M [SIB] [Disp].
+  byte modrm = operand.buf_[0];
+  DCHECK_LT(modrm, 0xC0);  // Disallow mode 3 (register target).
+  bool has_sib = ((modrm & 0x07) == 0x04);
+  byte mode = modrm & 0xC0;
+  int disp_offset = has_sib ? 2 : 1;
+  int base_reg = (has_sib ? operand.buf_[1] : modrm) & 0x07;
+  // Mode 0 with rbp/r13 as ModR/M or SIB base register always has a 32-bit
+  // displacement.
+  bool is_baseless = (mode == 0) && (base_reg == 0x05);  // No base or RIP base.
+  int32_t disp_value = 0;
+  if (mode == 0x80 || is_baseless) {
+    // Mode 2 or mode 0 with rbp/r13 as base: Word displacement.
+    disp_value = *bit_cast<const int32_t*>(&operand.buf_[disp_offset]);
+  } else if (mode == 0x40) {
+    // Mode 1: Byte displacement.
+    disp_value = static_cast<signed char>(operand.buf_[disp_offset]);
   }
 
-  OperandBuilder(Operand operand, int32_t offset) {
-    DCHECK_GE(operand.data().len, 1);
-    // Operand encodes REX ModR/M [SIB] [Disp].
-    byte modrm = operand.data().buf[0];
-    DCHECK_LT(modrm, 0xC0);  // Disallow mode 3 (register target).
-    bool has_sib = ((modrm & 0x07) == 0x04);
-    byte mode = modrm & 0xC0;
-    int disp_offset = has_sib ? 2 : 1;
-    int base_reg = (has_sib ? operand.data().buf[1] : modrm) & 0x07;
-    // Mode 0 with rbp/r13 as ModR/M or SIB base register always has a 32-bit
-    // displacement.
-    bool is_baseless =
-        (mode == 0) && (base_reg == 0x05);  // No base or RIP base.
-    int32_t disp_value = 0;
-    if (mode == 0x80 || is_baseless) {
-      // Mode 2 or mode 0 with rbp/r13 as base: Word displacement.
-      disp_value = *bit_cast<const int32_t*>(&operand.data().buf[disp_offset]);
-    } else if (mode == 0x40) {
-      // Mode 1: Byte displacement.
-      disp_value = static_cast<signed char>(operand.data().buf[disp_offset]);
-    }
-
-    // Write new operand with same registers, but with modified displacement.
-    DCHECK(offset >= 0 ? disp_value + offset > disp_value
-                       : disp_value + offset < disp_value);  // No overflow.
-    disp_value += offset;
-    data_.rex = operand.data().rex;
-    if (!is_int8(disp_value) || is_baseless) {
-      // Need 32 bits of displacement, mode 2 or mode 1 with register rbp/r13.
-      data_.buf[0] = (modrm & 0x3F) | (is_baseless ? 0x00 : 0x80);
-      data_.len = disp_offset + 4;
-      Memory::int32_at(&data_.buf[disp_offset]) = disp_value;
-    } else if (disp_value != 0 || (base_reg == 0x05)) {
-      // Need 8 bits of displacement.
-      data_.buf[0] = (modrm & 0x3F) | 0x40;  // Mode 1.
-      data_.len = disp_offset + 1;
-      data_.buf[disp_offset] = static_cast<byte>(disp_value);
-    } else {
-      // Need no displacement.
-      data_.buf[0] = (modrm & 0x3F);  // Mode 0.
-      data_.len = disp_offset;
-    }
-    if (has_sib) {
-      data_.buf[1] = operand.data().buf[1];
-    }
+  // Write new operand with same registers, but with modified displacement.
+  DCHECK(offset >= 0 ? disp_value + offset > disp_value
+                     : disp_value + offset < disp_value);  // No overflow.
+  disp_value += offset;
+  rex_ = operand.rex_;
+  if (!is_int8(disp_value) || is_baseless) {
+    // Need 32 bits of displacement, mode 2 or mode 1 with register rbp/r13.
+    buf_[0] = (modrm & 0x3F) | (is_baseless ? 0x00 : 0x80);
+    len_ = disp_offset + 4;
+    Memory::int32_at(&buf_[disp_offset]) = disp_value;
+  } else if (disp_value != 0 || (base_reg == 0x05)) {
+    // Need 8 bits of displacement.
+    buf_[0] = (modrm & 0x3F) | 0x40;  // Mode 1.
+    len_ = disp_offset + 1;
+    buf_[disp_offset] = static_cast<byte>(disp_value);
+  } else {
+    // Need no displacement.
+    buf_[0] = (modrm & 0x3F);  // Mode 0.
+    len_ = disp_offset;
   }
-
-  void set_modrm(int mod, Register rm_reg) {
-    DCHECK(is_uint2(mod));
-    data_.buf[0] = mod << 6 | rm_reg.low_bits();
-    // Set REX.B to the high bit of rm.code().
-    data_.rex |= rm_reg.high_bit();
+  if (has_sib) {
+    buf_[1] = operand.buf_[1];
   }
+}
 
-  void set_sib(ScaleFactor scale, Register index, Register base) {
-    DCHECK_EQ(data_.len, 1);
-    DCHECK(is_uint2(scale));
-    // Use SIB with no index register only for base rsp or r12. Otherwise we
-    // would skip the SIB byte entirely.
-    DCHECK(index != rsp || base == rsp || base == r12);
-    data_.buf[1] = (scale << 6) | (index.low_bits() << 3) | base.low_bits();
-    data_.rex |= index.high_bit() << 1 | base.high_bit();
-    data_.len = 2;
-  }
-
-  void set_disp8(int disp) {
-    DCHECK(is_int8(disp));
-    DCHECK(data_.len == 1 || data_.len == 2);
-    int8_t* p = reinterpret_cast<int8_t*>(&data_.buf[data_.len]);
-    *p = disp;
-    data_.len += sizeof(int8_t);
-  }
-
-  void set_disp32(int disp) {
-    DCHECK(data_.len == 1 || data_.len == 2);
-    int32_t* p = reinterpret_cast<int32_t*>(&data_.buf[data_.len]);
-    *p = disp;
-    data_.len += sizeof(int32_t);
-  }
-
-  void set_disp64(int64_t disp) {
-    DCHECK_EQ(1, data_.len);
-    int64_t* p = reinterpret_cast<int64_t*>(&data_.buf[data_.len]);
-    *p = disp;
-    data_.len += sizeof(disp);
-  }
-
-  const Operand::Data& data() const { return data_; }
-
- private:
-  Operand::Data data_;
-};
-}  // namespace
-
-Operand::Operand(Register base, int32_t disp)
-    : data_(OperandBuilder(base, disp).data()) {}
-
-Operand::Operand(Register base, Register index, ScaleFactor scale, int32_t disp)
-    : data_(OperandBuilder(base, index, scale, disp).data()) {}
-
-Operand::Operand(Register index, ScaleFactor scale, int32_t disp)
-    : data_(OperandBuilder(index, scale, disp).data()) {}
-
-Operand::Operand(Label* label, int addend)
-    : data_(OperandBuilder(label, addend).data()) {}
-
-Operand::Operand(Operand operand, int32_t offset)
-    : data_(OperandBuilder(operand, offset).data()) {}
 
 bool Operand::AddressUsesRegister(Register reg) const {
   int code = reg.code();
-  DCHECK_NE(data_.buf[0] & 0xC0, 0xC0);  // Always a memory operand.
-  // Start with only low three bits of base register. Initial decoding
-  // doesn't distinguish on the REX.B bit.
-  int base_code = data_.buf[0] & 0x07;
+  DCHECK_NE(buf_[0] & 0xC0, 0xC0);  // Always a memory operand.
+  // Start with only low three bits of base register. Initial decoding doesn't
+  // distinguish on the REX.B bit.
+  int base_code = buf_[0] & 0x07;
   if (base_code == rsp.code()) {
     // SIB byte present in buf_[1].
     // Check the index register from the SIB byte + REX.X prefix.
-    int index_code = ((data_.buf[1] >> 3) & 0x07) | ((data_.rex & 0x02) << 2);
+    int index_code = ((buf_[1] >> 3) & 0x07) | ((rex_ & 0x02) << 2);
     // Index code (including REX.X) of 0x04 (rsp) means no index register.
     if (index_code != rsp.code() && index_code == code) return true;
     // Add REX.B to get the full base register code.
-    base_code = (data_.buf[1] & 0x07) | ((data_.rex & 0x01) << 3);
+    base_code = (buf_[1] & 0x07) | ((rex_ & 0x01) << 3);
     // A base register of 0x05 (rbp) with mod = 0 means no base register.
-    if (base_code == rbp.code() && ((data_.buf[0] & 0xC0) == 0)) return false;
+    if (base_code == rbp.code() && ((buf_[0] & 0xC0) == 0)) return false;
     return code == base_code;
   } else {
     // A base register with low bits of 0x05 (rbp or r13) and mod = 0 means
     // no base register.
-    if (base_code == rbp.code() && ((data_.buf[0] & 0xC0) == 0)) return false;
-    base_code |= ((data_.rex & 0x01) << 3);
+    if (base_code == rbp.code() && ((buf_[0] & 0xC0) == 0)) return false;
+    base_code |= ((rex_ & 0x01) << 3);
     return code == base_code;
   }
 }
@@ -585,20 +528,19 @@ void Assembler::GrowBuffer() {
 
 void Assembler::emit_operand(int code, Operand adr) {
   DCHECK(is_uint3(code));
-  const unsigned length = adr.data().len;
+  const unsigned length = adr.len_;
   DCHECK_GT(length, 0);
 
   // Emit updated ModR/M byte containing the given register.
-  DCHECK_EQ(adr.data().buf[0] & 0x38, 0);
-  *pc_++ = adr.data().buf[0] | code << 3;
+  DCHECK_EQ(adr.buf_[0] & 0x38, 0);
+  *pc_++ = adr.buf_[0] | code << 3;
 
   // Recognize RIP relative addressing.
-  if (adr.data().buf[0] == 5) {
+  if (adr.buf_[0] == 5) {
     DCHECK_EQ(9u, length);
-    Label* label = *bit_cast<Label* const*>(&adr.data().buf[1]);
+    Label* label = *bit_cast<Label* const*>(&adr.buf_[1]);
     if (label->is_bound()) {
-      int offset =
-          label->pos() - pc_offset() - sizeof(int32_t) + adr.data().addend;
+      int offset = label->pos() - pc_offset() - sizeof(int32_t) + adr.addend_;
       DCHECK_GE(0, offset);
       emitl(offset);
     } else if (label->is_linked()) {
@@ -612,7 +554,7 @@ void Assembler::emit_operand(int code, Operand adr) {
     }
   } else {
     // Emit the rest of the encoded operand.
-    for (unsigned i = 1; i < length; i++) *pc_++ = adr.data().buf[i];
+    for (unsigned i = 1; i < length; i++) *pc_++ = adr.buf_[i];
   }
 }
 

@@ -333,13 +333,6 @@ enum ScaleFactor : int8_t {
 
 class Operand {
  public:
-  struct Data {
-    byte rex = 0;
-    byte buf[9];
-    byte len = 1;   // number of bytes of buf_ in use.
-    int8_t addend;  // for rip + offset + addend.
-  };
-
   // [base + disp/r]
   Operand(Register base, int32_t disp);
 
@@ -362,23 +355,41 @@ class Operand {
   // [rip + disp/r]
   explicit Operand(Label* label, int addend = 0);
 
-  Operand(const Operand&) = default;
-
   // Checks whether either base or index register is the given register.
   // Does not check the "reg" part of the Operand.
   bool AddressUsesRegister(Register reg) const;
 
   // Queries related to the size of the generated instruction.
   // Whether the generated instruction will have a REX prefix.
-  bool requires_rex() const { return data_.rex != 0; }
+  bool requires_rex() const { return rex_ != 0; }
   // Size of the ModR/M, SIB and displacement parts of the generated
   // instruction.
-  int operand_size() const { return data_.len; }
-
-  const Data& data() const { return data_; }
+  int operand_size() const { return len_; }
 
  private:
-  const Data data_;
+  byte rex_;
+  byte buf_[9];
+  // The number of bytes of buf_ in use.
+  byte len_;
+
+  int8_t addend_;  // for rip + offset + addend
+
+  // Set the ModR/M byte without an encoded 'reg' register. The
+  // register is encoded later as part of the emit_operand operation.
+  // set_modrm can be called before or after set_sib and set_disp*.
+  inline void set_modrm(int mod, Register rm);
+
+  // Set the SIB byte if one is needed. Sets the length to 2 rather than 1.
+  inline void set_sib(ScaleFactor scale, Register index, Register base);
+
+  // Adds operand displacement fields (offsets added to the memory address).
+  // Needs to be called after set_sib, not before it.
+  inline void set_disp8(int disp);
+  inline void set_disp32(int disp);
+  inline void set_disp64(int64_t disp);  // for labels.
+
+  // TODO(clemensh): Get rid of this friendship, or make Operand immutable.
+  friend class Assembler;
 };
 static_assert(sizeof(Operand) <= 2 * kPointerSize,
               "Operand must be small enough to pass it by value");

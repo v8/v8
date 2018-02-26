@@ -39,21 +39,6 @@ inline Operand GetContextOperand() { return Operand(rbp, -16); }
 // stack for a call to C.
 static constexpr Register kCCallLastArgAddrReg = rax;
 
-inline Operand GetMemOp(LiftoffAssembler* assm, Register addr, Register offset,
-                        uint32_t offset_imm, LiftoffRegList pinned) {
-  if (offset_imm > kMaxInt) {
-    // The immediate can not be encoded in the operand. Load it to a register
-    // first.
-    Register total_offset = assm->GetUnusedRegister(kGpReg, pinned).gp();
-    assm->movl(total_offset, Immediate(offset_imm));
-    if (offset != no_reg) {
-      assm->emit_ptrsize_add(total_offset, addr, offset);
-    }
-    return Operand(addr, total_offset, times_1, 0);
-  }
-  if (offset == no_reg) return Operand(addr, offset_imm);
-  return Operand(addr, offset, times_1, offset_imm);
-}
 }  // namespace liftoff
 
 uint32_t LiftoffAssembler::PrepareStackFrame() {
@@ -125,8 +110,19 @@ void LiftoffAssembler::Load(LiftoffRegister dst, Register src_addr,
                             Register offset_reg, uint32_t offset_imm,
                             LoadType type, LiftoffRegList pinned,
                             uint32_t* protected_load_pc) {
-  Operand src_op =
-      liftoff::GetMemOp(this, src_addr, offset_reg, offset_imm, pinned);
+  Operand src_op = offset_reg == no_reg
+                       ? Operand(src_addr, offset_imm)
+                       : Operand(src_addr, offset_reg, times_1, offset_imm);
+  if (offset_imm > kMaxInt) {
+    // The immediate can not be encoded in the operand. Load it to a register
+    // first.
+    Register src = GetUnusedRegister(kGpReg, pinned).gp();
+    movl(src, Immediate(offset_imm));
+    if (offset_reg != no_reg) {
+      emit_ptrsize_add(src, src, offset_reg);
+    }
+    src_op = Operand(src_addr, src, times_1, 0);
+  }
   if (protected_load_pc) *protected_load_pc = pc_offset();
   switch (type.value()) {
     case LoadType::kI32Load8U:
@@ -174,8 +170,19 @@ void LiftoffAssembler::Store(Register dst_addr, Register offset_reg,
                              uint32_t offset_imm, LiftoffRegister src,
                              StoreType type, LiftoffRegList pinned,
                              uint32_t* protected_store_pc) {
-  Operand dst_op =
-      liftoff::GetMemOp(this, dst_addr, offset_reg, offset_imm, pinned);
+  Operand dst_op = offset_reg == no_reg
+                       ? Operand(dst_addr, offset_imm)
+                       : Operand(dst_addr, offset_reg, times_1, offset_imm);
+  if (offset_imm > kMaxInt) {
+    // The immediate can not be encoded in the operand. Load it to a register
+    // first.
+    Register dst = GetUnusedRegister(kGpReg, pinned).gp();
+    movl(dst, Immediate(offset_imm));
+    if (offset_reg != no_reg) {
+      emit_ptrsize_add(dst, dst, offset_reg);
+    }
+    dst_op = Operand(dst_addr, dst, times_1, 0);
+  }
   if (protected_store_pc) *protected_store_pc = pc_offset();
   switch (type.value()) {
     case StoreType::kI32Store8:

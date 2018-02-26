@@ -3382,9 +3382,11 @@ void CodeGenerator::AssembleSwap(InstructionOperand* source,
         frame_access_state()->IncreaseSPDelta(1);
         unwinding_info_writer_.MaybeIncreaseBaseOffsetAt(__ pc_offset(),
                                                          kPointerSize);
-        __ movq(src, g.ToOperand(destination));
+        Operand dst = g.ToOperand(destination);
+        __ movq(src, dst);
         frame_access_state()->IncreaseSPDelta(-1);
-        __ popq(g.ToOperand(destination));
+        dst = g.ToOperand(destination);
+        __ popq(dst);
         unwinding_info_writer_.MaybeIncreaseBaseOffsetAt(__ pc_offset(),
                                                          -kPointerSize);
       } else {
