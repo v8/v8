@@ -634,6 +634,8 @@ class TerminatorSleeperThread : public v8::base::Thread {
 };
 
 TEST(TerminateRegExp) {
+// regexp interpreter does not support preemption.
+#ifndef V8_INTERPRETED_REGEXP
   i::FLAG_allow_natives_syntax = true;
   v8::Isolate* isolate = CcTest::isolate();
   ConsoleImpl console;
@@ -653,4 +655,5 @@ TEST(TerminateRegExp) {
             .IsEmpty());
   CHECK(try_catch.HasCaught());
   CHECK(!isolate->IsExecutionTerminating());
+#endif  // V8_INTERPRETED_REGEXP
 }
