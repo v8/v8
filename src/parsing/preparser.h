@@ -1590,10 +1590,6 @@ class PreParser : public ParserBase<PreParser> {
     return PreParserExpression::NewTargetExpression();
   }
 
-  V8_INLINE PreParserExpression FunctionSentExpression(int pos) {
-    return PreParserExpression::Default();
-  }
-
   V8_INLINE PreParserExpression ImportMetaExpression(int pos) {
     return PreParserExpression::Default();
   }

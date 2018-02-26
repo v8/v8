@@ -318,16 +318,6 @@ Expression* Parser::NewTargetExpression(int pos) {
   return proxy;
 }
 
-Expression* Parser::FunctionSentExpression(int pos) {
-  // We desugar function.sent into %_GeneratorGetInputOrDebugPos(generator).
-  ZoneList<Expression*>* args = new (zone()) ZoneList<Expression*>(1, zone());
-  VariableProxy* generator = factory()->NewVariableProxy(
-      function_state_->scope()->generator_object_var());
-  args->Add(generator, zone());
-  return factory()->NewCallRuntime(Runtime::kInlineGeneratorGetInputOrDebugPos,
-                                   args, pos);
-}
-
 Expression* Parser::ImportMetaExpression(int pos) {
   return factory()->NewCallRuntime(
       Runtime::kInlineGetImportMetaObject,
@@ -453,7 +443,6 @@ Parser::Parser(ParseInfo* info)
                 info->extension() == nullptr && can_compile_lazily;
   set_allow_natives(FLAG_allow_natives_syntax || info->is_native());
   set_allow_harmony_do_expressions(FLAG_harmony_do_expressions);
-  set_allow_harmony_function_sent(FLAG_harmony_function_sent);
   set_allow_harmony_public_fields(FLAG_harmony_public_fields);
   set_allow_harmony_static_fields(FLAG_harmony_static_fields);
   set_allow_harmony_dynamic_import(FLAG_harmony_dynamic_import);

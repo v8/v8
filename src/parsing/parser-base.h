@@ -278,7 +278,6 @@ class ParserBase {
         script_id_(script_id),
         allow_natives_(false),
         allow_harmony_do_expressions_(false),
-        allow_harmony_function_sent_(false),
         allow_harmony_public_fields_(false),
         allow_harmony_static_fields_(false),
         allow_harmony_dynamic_import_(false),
@@ -293,7 +292,6 @@ class ParserBase {
 
   ALLOW_ACCESSORS(natives);
   ALLOW_ACCESSORS(harmony_do_expressions);
-  ALLOW_ACCESSORS(harmony_function_sent);
   ALLOW_ACCESSORS(harmony_public_fields);
   ALLOW_ACCESSORS(harmony_static_fields);
   ALLOW_ACCESSORS(harmony_dynamic_import);
@@ -1553,7 +1551,6 @@ class ParserBase {
 
   bool allow_natives_;
   bool allow_harmony_do_expressions_;
-  bool allow_harmony_function_sent_;
   bool allow_harmony_public_fields_;
   bool allow_harmony_static_fields_;
   bool allow_harmony_dynamic_import_;
@@ -3560,22 +3557,6 @@ typename ParserBase<Impl>::ExpressionT ParserBase<Impl>::ParseMemberExpression(
 
     Consume(Token::FUNCTION);
     int function_token_position = position();
-
-    if (allow_harmony_function_sent() && peek() == Token::PERIOD) {
-      // function.sent
-      int pos = position();
-      ExpectMetaProperty(Token::SENT, "function.sent", pos, CHECK_OK);
-
-      if (!is_generator()) {
-        // TODO(neis): allow escaping into closures?
-        impl()->ReportMessageAt(scanner()->location(),
-                                MessageTemplate::kUnexpectedFunctionSent);
-        *ok = false;
-        return impl()->NullExpression();
-      }
-
-      return impl()->FunctionSentExpression(pos);
-    }
 
     FunctionKind function_kind = Check(Token::MUL)
                                      ? FunctionKind::kGeneratorFunction

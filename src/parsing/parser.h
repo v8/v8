@@ -242,7 +242,6 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
 #define SET_ALLOW(name) reusable_preparser_->set_allow_##name(allow_##name());
       SET_ALLOW(natives);
       SET_ALLOW(harmony_do_expressions);
-      SET_ALLOW(harmony_function_sent);
       SET_ALLOW(harmony_public_fields);
       SET_ALLOW(harmony_static_fields);
       SET_ALLOW(harmony_dynamic_import);
@@ -829,7 +828,6 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
   Expression* NewSuperPropertyReference(int pos);
   Expression* NewSuperCallReference(int pos);
   Expression* NewTargetExpression(int pos);
-  Expression* FunctionSentExpression(int pos);
   Expression* ImportMetaExpression(int pos);
 
   Literal* ExpressionFromLiteral(Token::Value token, int pos);

@@ -1115,7 +1115,6 @@ const char* ReadString(unsigned* start) {
 enum ParserFlag {
   kAllowLazy,
   kAllowNatives,
-  kAllowHarmonyFunctionSent,
   kAllowHarmonyPublicFields,
   kAllowHarmonyPrivateFields,
   kAllowHarmonyStaticFields,
@@ -1133,7 +1132,6 @@ enum ParserSyncTestResult {
 
 void SetGlobalFlags(i::EnumSet<ParserFlag> flags) {
   i::FLAG_allow_natives_syntax = flags.Contains(kAllowNatives);
-  i::FLAG_harmony_function_sent = flags.Contains(kAllowHarmonyFunctionSent);
   i::FLAG_harmony_public_fields = flags.Contains(kAllowHarmonyPublicFields);
   i::FLAG_harmony_private_fields = flags.Contains(kAllowHarmonyPrivateFields);
   i::FLAG_harmony_static_fields = flags.Contains(kAllowHarmonyStaticFields);
@@ -1146,8 +1144,6 @@ void SetGlobalFlags(i::EnumSet<ParserFlag> flags) {
 
 void SetParserFlags(i::PreParser* parser, i::EnumSet<ParserFlag> flags) {
   parser->set_allow_natives(flags.Contains(kAllowNatives));
-  parser->set_allow_harmony_function_sent(
-      flags.Contains(kAllowHarmonyFunctionSent));
   parser->set_allow_harmony_public_fields(
       flags.Contains(kAllowHarmonyPublicFields));
   parser->set_allow_harmony_private_fields(
@@ -8441,26 +8437,6 @@ TEST(EscapeSequenceErrors) {
   // clang-format on
 
   RunParserSyncTest(context_data, error_data, kError);
-}
-
-
-TEST(FunctionSentErrors) {
-  // clang-format off
-  const char* context_data[][2] = {
-    { "'use strict'", "" },
-    { "", "" },
-    { nullptr, nullptr }
-  };
-  const char* error_data[] = {
-    "var x = function.sent",
-    "function* g() { yield function.s\\u0065nt; }",
-    nullptr
-  };
-  // clang-format on
-
-  static const ParserFlag always_flags[] = {kAllowHarmonyFunctionSent};
-  RunParserSyncTest(context_data, error_data, kError, always_flags,
-                    arraysize(always_flags));
 }
 
 TEST(NewTargetErrors) {

@@ -56,7 +56,6 @@
       "path": ["Generators"],
       "main": "run.js",
       "resources": ["generators.js"],
-      "flags": ["--harmony-function-sent"],
       "results_regexp": "^Generators\\-Generators\\(Score\\): (.+)$"
     },
     {

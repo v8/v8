@@ -1508,7 +1508,6 @@ uc32 Scanner::ScanUnicodeEscape() {
   KEYWORD_GROUP('r')                                        \
   KEYWORD("return", Token::RETURN)                          \
   KEYWORD_GROUP('s')                                        \
-  KEYWORD("sent", Token::SENT)                              \
   KEYWORD("set", Token::SET)                                \
   KEYWORD("static", Token::STATIC)                          \
   KEYWORD("super", Token::SUPER)                            \
