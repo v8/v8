@@ -793,7 +793,15 @@ void CodeGenerator::AssembleTailCallAfterGap(Instruction* instr,
 
 // Check that {kJavaScriptCallCodeStartRegister} is correct.
 void CodeGenerator::AssembleCodeStartRegisterCheck() {
-  // TODO(mstarzinger): Implement me.
+  Register scratch = kScratchReg;
+
+  Label current_pc;
+  __ mov_label_addr(scratch, &current_pc);
+
+  __ bind(&current_pc);
+  __ subi(scratch, scratch, Operand(__ pc_offset()));
+  __ cmp(scratch, kJavaScriptCallCodeStartRegister);
+  __ Assert(eq, AbortReason::kWrongFunctionCodeStart);
 }
 
 // Check if the code object is marked for deoptimization. If it is, then it
