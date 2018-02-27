@@ -949,19 +949,33 @@ class LiftoffCompiler {
     return out_of_line_code_.back().label.get();
   }
 
-  void BoundsCheckMem(uint32_t access_size, uint32_t offset, Register index,
-                      wasm::WasmCodePosition position, LiftoffRegList pinned) {
-    DCHECK(!env_->use_trap_handler);
-    if (FLAG_wasm_no_bounds_checks) return;
+  // Returns true if the memory access is statically known to be out of bounds
+  // (a jump to the trap was generated then); return false otherwise.
+  bool BoundsCheckMem(Decoder* decoder, uint32_t access_size, uint32_t offset,
+                      Register index, LiftoffRegList pinned) {
+    const bool statically_oob =
+        access_size > max_size_ || offset > max_size_ - access_size;
 
-    Label* trap_label =
-        AddOutOfLineTrap(position, Builtins::kThrowWasmTrapMemOutOfBounds);
-
-    if (access_size > max_size_ || offset > max_size_ - access_size) {
-      // The access will be out of bounds, even for the largest memory.
-      __ emit_jump(trap_label);
-      return;
+    if (!statically_oob &&
+        (FLAG_wasm_no_bounds_checks || env_->use_trap_handler)) {
+      return false;
     }
+
+    Label* trap_label = AddOutOfLineTrap(
+        decoder->position(), Builtins::kThrowWasmTrapMemOutOfBounds);
+
+    if (statically_oob) {
+      __ emit_jump(trap_label);
+      Control* current_block = decoder->control_at(0);
+      if (current_block->reachable()) {
+        current_block->reachability = kSpecOnlyReachable;
+      }
+      return true;
+    }
+
+    DCHECK(!env_->use_trap_handler);
+    DCHECK(!FLAG_wasm_no_bounds_checks);
+
     uint32_t end_offset = offset + access_size - 1;
 
     // If the end offset is larger than the smallest memory, dynamically check
@@ -984,6 +998,7 @@ class LiftoffCompiler {
 
     __ emit_cond_jump(kUnsignedGreaterEqual, trap_label, kWasmI32, index,
                       effective_size_reg.gp());
+    return false;
   }
 
   void TraceMemoryOperation(bool is_store, MachineRepresentation rep,
@@ -1057,10 +1072,8 @@ class LiftoffCompiler {
     if (!CheckSupportedType(decoder, kTypes_ilfd, value_type, "load")) return;
     LiftoffRegList pinned;
     Register index = pinned.set(__ PopToRegister(kGpReg)).gp();
-    if (!env_->use_trap_handler) {
-      // Emit an explicit bounds check.
-      BoundsCheckMem(type.size(), operand.offset, index, decoder->position(),
-                     pinned);
+    if (BoundsCheckMem(decoder, type.size(), operand.offset, index, pinned)) {
+      return;
     }
     Register addr = pinned.set(__ GetUnusedRegister(kGpReg, pinned)).gp();
     __ LoadFromContext(addr, offsetof(WasmContext, mem_start), kPointerSize);
@@ -1091,10 +1104,8 @@ class LiftoffCompiler {
     LiftoffRegList pinned;
     LiftoffRegister value = pinned.set(__ PopToRegister(rc));
     Register index = pinned.set(__ PopToRegister(kGpReg, pinned)).gp();
-    if (!env_->use_trap_handler) {
-      // Emit an explicit bounds check.
-      BoundsCheckMem(type.size(), operand.offset, index, decoder->position(),
-                     pinned);
+    if (BoundsCheckMem(decoder, type.size(), operand.offset, index, pinned)) {
+      return;
     }
     Register addr = pinned.set(__ GetUnusedRegister(kGpReg, pinned)).gp();
     __ LoadFromContext(addr, offsetof(WasmContext, mem_start), kPointerSize);

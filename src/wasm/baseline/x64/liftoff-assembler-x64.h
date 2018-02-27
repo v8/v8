@@ -41,19 +41,14 @@ static constexpr Register kCCallLastArgAddrReg = rax;
 
 inline Operand GetMemOp(LiftoffAssembler* assm, Register addr, Register offset,
                         uint32_t offset_imm, LiftoffRegList pinned) {
-  if (offset_imm > kMaxInt) {
-    // The immediate can not be encoded in the operand. Load it to a register
-    // first.
-    Register total_offset = assm->GetUnusedRegister(kGpReg, pinned).gp();
-    assm->movl(total_offset, Immediate(offset_imm));
-    if (offset != no_reg) {
-      assm->emit_ptrsize_add(total_offset, addr, offset);
-    }
-    return Operand(addr, total_offset, times_1, 0);
-  }
+  // Wasm memory is limited to a size <2GB, so all offsets can be encoded as
+  // immediate value (in 31 bits, interpreted as signed value).
+  // If the offset is bigger, we always trap and this code is not reached.
+  DCHECK(is_uint31(offset_imm));
   if (offset == no_reg) return Operand(addr, offset_imm);
   return Operand(addr, offset, times_1, offset_imm);
 }
+
 }  // namespace liftoff
 
 uint32_t LiftoffAssembler::PrepareStackFrame() {
