@@ -118,9 +118,10 @@ void LiftoffAssembler::Load(LiftoffRegister dst, Register src_addr,
   Operand src_op = offset_reg == no_reg
                        ? Operand(src_addr, offset_imm)
                        : Operand(src_addr, offset_reg, times_1, offset_imm);
+  // max_offset can overflow, but then is_uint31(offset_imm) is false and
+  // max_offset will not be used.
   uint32_t max_offset = offset_imm + 4 * (type.value() == LoadType::kI64Load);
-  DCHECK_LE(offset_imm, max_offset);  // no overflow
-  if (max_offset > static_cast<uint32_t>(std::numeric_limits<int32_t>::max())) {
+  if (is_uint31(offset_imm) && is_uint31(max_offset)) {
     // The immediate(s) can not be encoded in the operand. Load the offset to a
     // register first.
     src = GetUnusedRegister(kGpReg, pinned).gp();
@@ -182,7 +183,7 @@ void LiftoffAssembler::Load(LiftoffRegister dst, Register src_addr,
               ? Operand(src_addr, offset_imm + 4)
               : Operand(src_addr, offset_reg, times_1, offset_imm + 4);
       if (src != no_reg) {
-        src_op = Operand(src_addr, src, times_1, 4);
+        upper_src_op = Operand(src_addr, src, times_1, 4);
       }
       // The high word has to be mov'ed first, such that this is the protected
       // instruction. The mov of the low word cannot segfault.
@@ -210,9 +211,10 @@ void LiftoffAssembler::Store(Register dst_addr, Register offset_reg,
   Operand dst_op = offset_reg == no_reg
                        ? Operand(dst_addr, offset_imm)
                        : Operand(dst_addr, offset_reg, times_1, offset_imm);
+  // max_offset can overflow, but then is_uint31(offset_imm) is false and
+  // max_offset will not be used.
   uint32_t max_offset = offset_imm + 4 * (type.value() == StoreType::kI64Store);
-  DCHECK_LE(offset_imm, max_offset);  // no overflow
-  if (max_offset > static_cast<uint32_t>(std::numeric_limits<int32_t>::max())) {
+  if (is_uint31(offset_imm) && is_uint31(max_offset)) {
     // The immediate(s) can not be encoded in the operand. Load the offset to a
     // register first.
     dst = pinned.set(GetUnusedRegister(kGpReg, pinned).gp());
@@ -257,7 +259,7 @@ void LiftoffAssembler::Store(Register dst_addr, Register offset_reg,
               ? Operand(dst_addr, offset_imm + 4)
               : Operand(dst_addr, offset_reg, times_1, offset_imm + 4);
       if (dst != no_reg) {
-        dst_op = Operand(dst_addr, dst, times_1, 4);
+        upper_dst_op = Operand(dst_addr, dst, times_1, 4);
       }
       // The high word has to be mov'ed first, such that this is the protected
       // instruction. The mov of the low word cannot segfault.
