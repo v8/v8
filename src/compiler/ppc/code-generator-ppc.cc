@@ -2213,7 +2213,7 @@ void CodeGenerator::AssembleConstructFrame() {
         __ mr(fp, sp);
       }
     } else if (call_descriptor->IsJSFunctionCall()) {
-      __ Prologue();
+      __ Prologue(ip);
       if (call_descriptor->PushArgumentCount()) {
         __ Push(kJavaScriptCallArgCountRegister);
       }

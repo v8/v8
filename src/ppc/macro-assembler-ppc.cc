@@ -833,28 +833,40 @@ void MacroAssembler::LoadConstantPoolPointerRegisterFromCodeTargetAddress(
   add(kConstantPoolRegister, kConstantPoolRegister, code_target_address);
 }
 
+void TurboAssembler::LoadConstantPoolPointerRegister(Register base,
+                                                     int code_start_delta) {
+  add_label_offset(kConstantPoolRegister, base, ConstantPoolPosition(),
+                   code_start_delta);
+}
+
 void TurboAssembler::LoadConstantPoolPointerRegister() {
   mov_label_addr(kConstantPoolRegister, ConstantPoolPosition());
 }
 
-void TurboAssembler::StubPrologue(StackFrame::Type type) {
+void TurboAssembler::StubPrologue(StackFrame::Type type, Register base,
+                                  int prologue_offset) {
   {
     ConstantPoolUnavailableScope constant_pool_unavailable(this);
     mov(r11, Operand(StackFrame::TypeToMarker(type)));
     PushCommonFrame(r11);
   }
   if (FLAG_enable_embedded_constant_pool) {
-    LoadConstantPoolPointerRegister();
+    if (base != no_reg) {
+      // base contains prologue address
+      LoadConstantPoolPointerRegister(base, -prologue_offset);
+    } else {
+      LoadConstantPoolPointerRegister();
+    }
     set_constant_pool_available(true);
   }
 }
 
-void TurboAssembler::Prologue() {
+void TurboAssembler::Prologue(Register base, int prologue_offset) {
   DCHECK(base != no_reg);
   PushStandardFrame(r4);
   if (FLAG_enable_embedded_constant_pool) {
     // base contains prologue address
-    LoadConstantPoolPointerRegister();
+    LoadConstantPoolPointerRegister(base, -prologue_offset);
     set_constant_pool_available(true);
   }
 }
@@ -1261,7 +1273,7 @@ void MacroAssembler::InvokeFunctionCode(Register function, Register new_target,
     // We call indirectly through the code field in the function to
     // allow recompilation to take effect without changing any of the
     // call sites.
-    Register code = kJavaScriptCallCodeStartRegister;
+    Register code = ip;
     LoadP(code, FieldMemOperand(function, JSFunction::kCodeOffset));
     addi(code, code, Operand(Code::kHeaderSize - kHeapObjectTag));
     if (flag == CALL_FUNCTION) {
