@@ -17,6 +17,11 @@ namespace internal {
   F(Query, query, Object, v8::Integer) \
   F(Deleter, deleter, Object, v8::Boolean)
 
+#define DCHECK_NAME_COMPATIBLE(interceptor, name) \
+  DCHECK(interceptor->is_named());                \
+  DCHECK(!name->IsPrivate());                     \
+  DCHECK_IMPLIES(name->IsSymbol(), interceptor->can_intercept_symbols());
+
 #define PREPARE_CALLBACK_INFO(ISOLATE, F, RETURN_VALUE, API_RETURN_TYPE) \
   if (ISOLATE->needs_side_effect_check() &&                              \
       !PerformSideEffectCheck(ISOLATE, FUNCTION_ADDR(F))) {              \
@@ -29,13 +34,10 @@ namespace internal {
 #define CREATE_NAMED_CALLBACK(Function, type, ReturnType, ApiReturnType)      \
   Handle<ReturnType> PropertyCallbackArguments::CallNamed##Function(          \
       Handle<InterceptorInfo> interceptor, Handle<Name> name) {               \
-    DCHECK(interceptor->is_named());                                          \
-    DCHECK(!name->IsPrivate());                                               \
-    DCHECK_IMPLIES(name->IsSymbol(), interceptor->can_intercept_symbols());   \
+    DCHECK_NAME_COMPATIBLE(interceptor, name);                                \
     Isolate* isolate = this->isolate();                                       \
     RuntimeCallTimerScope timer(                                              \
         isolate, RuntimeCallCounterId::kNamed##Function##Callback);           \
-    DCHECK(!name->IsPrivate());                                               \
     GenericNamedProperty##Function##Callback f =                              \
         ToCData<GenericNamedProperty##Function##Callback>(                    \
             interceptor->type());                                             \
@@ -72,9 +74,7 @@ FOR_EACH_CALLBACK(CREATE_INDEXED_CALLBACK)
 
 Handle<Object> PropertyCallbackArguments::CallNamedGetter(
     Handle<InterceptorInfo> interceptor, Handle<Name> name) {
-  DCHECK(interceptor->is_named());
-  DCHECK_IMPLIES(name->IsSymbol(), interceptor->can_intercept_symbols());
-  DCHECK(!name->IsPrivate());
+  DCHECK_NAME_COMPATIBLE(interceptor, name);
   Isolate* isolate = this->isolate();
   RuntimeCallTimerScope timer(isolate,
                               RuntimeCallCounterId::kNamedGetterCallback);
@@ -87,8 +87,7 @@ Handle<Object> PropertyCallbackArguments::CallNamedGetter(
 
 Handle<Object> PropertyCallbackArguments::CallNamedDescriptor(
     Handle<InterceptorInfo> interceptor, Handle<Name> name) {
-  DCHECK(interceptor->is_named());
-  DCHECK_IMPLIES(name->IsSymbol(), interceptor->can_intercept_symbols());
+  DCHECK_NAME_COMPATIBLE(interceptor, name);
   Isolate* isolate = this->isolate();
   RuntimeCallTimerScope timer(isolate,
                               RuntimeCallCounterId::kNamedDescriptorCallback);
@@ -112,16 +111,9 @@ Handle<Object> PropertyCallbackArguments::BasicCallNamedGetterCallback(
 Handle<Object> PropertyCallbackArguments::CallNamedSetter(
     Handle<InterceptorInfo> interceptor, Handle<Name> name,
     Handle<Object> value) {
-  DCHECK_IMPLIES(name->IsSymbol(), interceptor->can_intercept_symbols());
+  DCHECK_NAME_COMPATIBLE(interceptor, name);
   GenericNamedPropertySetterCallback f =
       ToCData<GenericNamedPropertySetterCallback>(interceptor->setter());
-  return CallNamedSetterCallback(f, name, value);
-}
-
-Handle<Object> PropertyCallbackArguments::CallNamedSetterCallback(
-    GenericNamedPropertySetterCallback f, Handle<Name> name,
-    Handle<Object> value) {
-  DCHECK(!name->IsPrivate());
   Isolate* isolate = this->isolate();
   RuntimeCallTimerScope timer(isolate,
                               RuntimeCallCounterId::kNamedSetterCallback);
@@ -135,9 +127,7 @@ Handle<Object> PropertyCallbackArguments::CallNamedSetterCallback(
 Handle<Object> PropertyCallbackArguments::CallNamedDefiner(
     Handle<InterceptorInfo> interceptor, Handle<Name> name,
     const v8::PropertyDescriptor& desc) {
-  DCHECK(interceptor->is_named());
-  DCHECK(!name->IsPrivate());
-  DCHECK_IMPLIES(name->IsSymbol(), interceptor->can_intercept_symbols());
+  DCHECK_NAME_COMPATIBLE(interceptor, name);
   Isolate* isolate = this->isolate();
   RuntimeCallTimerScope timer(isolate,
                               RuntimeCallCounterId::kNamedDefinerCallback);
@@ -241,7 +231,7 @@ Handle<Object> PropertyCallbackArguments::CallAccessorGetter(
   return BasicCallNamedGetterCallback(f, name);
 }
 
-void PropertyCallbackArguments::CallAccessorSetter(
+Handle<Object> PropertyCallbackArguments::CallAccessorSetter(
     Handle<AccessorInfo> accessor_info, Handle<Name> name,
     Handle<Object> value) {
   Isolate* isolate = this->isolate();
@@ -249,9 +239,10 @@ void PropertyCallbackArguments::CallAccessorSetter(
                               RuntimeCallCounterId::kAccessorSetterCallback);
   AccessorNameSetterCallback f =
       ToCData<AccessorNameSetterCallback>(accessor_info->setter());
-  PREPARE_CALLBACK_INFO(isolate, f, void, void);
+  PREPARE_CALLBACK_INFO(isolate, f, Handle<Object>, void);
   LOG(isolate, ApiNamedPropertyAccess("accessor-setter", holder(), *name));
   f(v8::Utils::ToLocal(name), v8::Utils::ToLocal(value), callback_info);
+  return GetReturnValue<Object>(isolate);
 }
 
 #undef PREPARE_CALLBACK_INFO

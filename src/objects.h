@@ -4436,6 +4436,7 @@ class AccessorInfo: public Struct {
   DECL_ACCESSORS(getter, Object)
   inline bool has_getter();
   DECL_ACCESSORS(setter, Object)
+  inline bool has_setter();
   // This either points at the same as above, or a trampoline in case we are
   // running with the simulator. Use these entries from generated code.
   DECL_ACCESSORS(js_getter, Object)

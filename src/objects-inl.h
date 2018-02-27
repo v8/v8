@@ -2296,6 +2296,13 @@ bool AccessorInfo::has_getter() {
   return result;
 }
 
+bool AccessorInfo::has_setter() {
+  bool result = setter() != Smi::kZero;
+  DCHECK_EQ(result, setter() != Smi::kZero &&
+                        Foreign::cast(setter())->foreign_address() != nullptr);
+  return result;
+}
+
 ACCESSORS(AsyncGeneratorRequest, next, Object, kNextOffset)
 SMI_ACCESSORS(AsyncGeneratorRequest, resume_mode, kResumeModeOffset)
 ACCESSORS(AsyncGeneratorRequest, value, Object, kValueOffset)

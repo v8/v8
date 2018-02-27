@@ -103,8 +103,9 @@ class PropertyCallbackArguments
   // -------------------------------------------------------------------------
   // Accessor Callbacks
   // Also used for AccessorSetterCallback.
-  inline void CallAccessorSetter(Handle<AccessorInfo> info, Handle<Name> name,
-                                 Handle<Object> value);
+  inline Handle<Object> CallAccessorSetter(Handle<AccessorInfo> info,
+                                           Handle<Name> name,
+                                           Handle<Object> value);
   // Also used for AccessorGetterCallback, AccessorNameGetterCallback.
   inline Handle<Object> CallAccessorGetter(Handle<AccessorInfo> info,
                                            Handle<Name> name);
@@ -118,9 +119,6 @@ class PropertyCallbackArguments
   inline Handle<Object> CallNamedSetter(Handle<InterceptorInfo> interceptor,
                                         Handle<Name> name,
                                         Handle<Object> value);
-  inline Handle<Object> CallNamedSetterCallback(
-      GenericNamedPropertySetterCallback callback, Handle<Name> name,
-      Handle<Object> value);
   inline Handle<Object> CallNamedDefiner(Handle<InterceptorInfo> interceptor,
                                          Handle<Name> name,
                                          const v8::PropertyDescriptor& desc);

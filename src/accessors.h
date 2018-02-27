@@ -33,6 +33,7 @@ class JavaScriptFrame;
   V(function_name, FunctionName)                                    \
   V(function_length, FunctionLength)                                \
   V(function_prototype, FunctionPrototype)                          \
+  V(reconfigure_to_data_property, ReconfigureToDataProperty)        \
   V(script_column_offset, ScriptColumnOffset)                       \
   V(script_compilation_type, ScriptCompilationType)                 \
   V(script_context_data, ScriptContextData)                         \

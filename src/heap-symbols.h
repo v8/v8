@@ -161,6 +161,7 @@
   V(query_colon_string, "(?:)")                                    \
   V(RangeError_string, "RangeError")                               \
   V(raw_string, "raw")                                             \
+  V(ReconfigureToDataProperty_string, "ReconfigureToDataProperty") \
   V(ReferenceError_string, "ReferenceError")                       \
   V(RegExp_string, "RegExp")                                       \
   V(regexp_to_string, "[object RegExp]")                           \
