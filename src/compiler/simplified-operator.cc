@@ -676,7 +676,6 @@ bool operator==(CheckMinusZeroParameters const& lhs,
   V(StringLength, Operator::kNoProperties, 1, 0)                 \
   V(StringToLowerCaseIntl, Operator::kNoProperties, 1, 0)        \
   V(StringToUpperCaseIntl, Operator::kNoProperties, 1, 0)        \
-  V(StringSubstring, Operator::kNoProperties, 3, 0)              \
   V(TypeOf, Operator::kNoProperties, 1, 1)                       \
   V(PlainPrimitiveToNumber, Operator::kNoProperties, 1, 0)       \
   V(PlainPrimitiveToWord32, Operator::kNoProperties, 1, 0)       \
@@ -721,10 +720,11 @@ bool operator==(CheckMinusZeroParameters const& lhs,
   V(NewConsString, Operator::kNoProperties, 3, 0)                \
   V(MaskIndexWithBound, Operator::kNoProperties, 2, 0)
 
-#define EFFECT_DEPENDENT_OP_LIST(V)                  \
-  V(StringCharAt, Operator::kNoProperties, 2, 1)     \
-  V(StringCharCodeAt, Operator::kNoProperties, 2, 1) \
-  V(SeqStringCharCodeAt, Operator::kNoProperties, 2, 1)
+#define EFFECT_DEPENDENT_OP_LIST(V)                     \
+  V(StringCharAt, Operator::kNoProperties, 2, 1)        \
+  V(StringCharCodeAt, Operator::kNoProperties, 2, 1)    \
+  V(SeqStringCharCodeAt, Operator::kNoProperties, 2, 1) \
+  V(StringSubstring, Operator::kNoProperties, 3, 1)
 
 #define SPECULATIVE_NUMBER_BINOP_LIST(V)      \
   SIMPLIFIED_SPECULATIVE_NUMBER_BINOP_LIST(V) \

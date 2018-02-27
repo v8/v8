@@ -3709,10 +3709,10 @@ Reduction JSCallReducer::ReduceStringPrototypeSubstring(Node* node) {
       graph()->NewNode(simplified()->NumberMin(), finalStart, finalEnd);
   Node* to = graph()->NewNode(simplified()->NumberMax(), finalStart, finalEnd);
 
-  Node* value =
-      graph()->NewNode(simplified()->StringSubstring(), receiver, from, to);
+  Node* value = effect = graph()->NewNode(simplified()->StringSubstring(),
+                                          receiver, from, to, effect, control);
   ReplaceWithValue(node, value, effect, control);
-  return Replace(node);
+  return Replace(value);
 }
 
 Reduction JSCallReducer::ReduceJSConstructWithArrayLike(Node* node) {
