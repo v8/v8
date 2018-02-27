@@ -99,24 +99,42 @@ void LiftoffAssembler::Load(LiftoffRegister dst, Register src_addr,
     case LoadType::kI32Load8U:
       lbu(dst.gp(), src_op);
       break;
+    case LoadType::kI64Load8U:
+      lbu(dst.low_gp(), src_op);
+      xor_(dst.high_gp(), dst.high_gp(), dst.high_gp());
+      break;
     case LoadType::kI32Load8S:
       lb(dst.gp(), src_op);
+      break;
+    case LoadType::kI64Load8S:
+      lb(dst.low_gp(), src_op);
+      TurboAssembler::Move(dst.high_gp(), dst.low_gp());
+      sra(dst.high_gp(), dst.high_gp(), 31);
       break;
     case LoadType::kI32Load16U:
       TurboAssembler::Ulhu(dst.gp(), src_op);
       break;
+    case LoadType::kI64Load16U:
+      TurboAssembler::Ulhu(dst.low_gp(), src_op);
+      xor_(dst.high_gp(), dst.high_gp(), dst.high_gp());
+      break;
     case LoadType::kI32Load16S:
       TurboAssembler::Ulh(dst.gp(), src_op);
+      break;
+    case LoadType::kI64Load16S:
+      TurboAssembler::Ulh(dst.low_gp(), src_op);
+      TurboAssembler::Move(dst.high_gp(), dst.low_gp());
+      sra(dst.high_gp(), dst.high_gp(), 31);
       break;
     case LoadType::kI32Load:
       TurboAssembler::Ulw(dst.gp(), src_op);
       break;
     case LoadType::kI64Load32U:
-      lw(dst.low_gp(), src_op);
+      TurboAssembler::Ulw(dst.low_gp(), src_op);
       xor_(dst.high_gp(), dst.high_gp(), dst.high_gp());
       break;
     case LoadType::kI64Load32S:
-      lw(dst.low_gp(), src_op);
+      TurboAssembler::Ulw(dst.low_gp(), src_op);
       TurboAssembler::Move(dst.high_gp(), dst.low_gp());
       sra(dst.high_gp(), dst.high_gp(), 31);
       break;
@@ -124,8 +142,8 @@ void LiftoffAssembler::Load(LiftoffRegister dst, Register src_addr,
       MemOperand src_op_upper = (offset_reg != no_reg)
                                     ? MemOperand(src, offset_imm + 4)
                                     : MemOperand(src_addr, offset_imm + 4);
-      lw(dst.high_gp(), src_op_upper);
-      lw(dst.low_gp(), src_op);
+      TurboAssembler::Ulw(dst.high_gp(), src_op_upper);
+      TurboAssembler::Ulw(dst.low_gp(), src_op);
       break;
     }
     case LoadType::kF32Load:
@@ -176,8 +194,8 @@ void LiftoffAssembler::Store(Register dst_addr, Register offset_reg,
       MemOperand dst_op_upper = (offset_reg != no_reg)
                                     ? MemOperand(dst, offset_imm + 4)
                                     : MemOperand(dst_addr, offset_imm + 4);
-      sw(src.high_gp(), dst_op_upper);
-      sw(src.low_gp(), dst_op);
+      TurboAssembler::Usw(src.high_gp(), dst_op_upper);
+      TurboAssembler::Usw(src.low_gp(), dst_op);
       break;
     }
     case StoreType::kF32Store:
