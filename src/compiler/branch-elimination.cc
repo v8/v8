@@ -62,7 +62,9 @@ Reduction BranchElimination::ReduceBranch(Node* node) {
   // If we know the condition we can discard the branch.
   if (from_input.LookupCondition(condition, &branch, &condition_value)) {
     // Mark the branch as a safety check.
-    if (IsSafetyCheckOf(node->op()) == IsSafetyCheck::kSafetyCheck) {
+    // Check if {branch} is dead because we might have a stale side-table entry.
+    if (IsSafetyCheckOf(node->op()) == IsSafetyCheck::kSafetyCheck &&
+        !branch->IsDead()) {
       NodeProperties::ChangeOp(branch,
                                common()->MarkAsSafetyCheck(branch->op()));
     }
