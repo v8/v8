@@ -18,6 +18,18 @@ namespace liftoff {
 // sp-8 holds the stack marker, sp-16 is the wasm context, first stack slot
 // is located at sp-24.
 constexpr int32_t kConstantStackSpace = 16;
+constexpr int32_t kFirstStackSlotOffset =
+    kConstantStackSpace + LiftoffAssembler::kStackSlotSize;
+
+inline MemOperand GetStackSlot(uint32_t index) {
+  int32_t offset = index * LiftoffAssembler::kStackSlotSize;
+  return MemOperand(sp, -kFirstStackSlotOffset - offset);
+}
+
+inline MemOperand GetHalfStackSlot(uint32_t half_index) {
+  int32_t offset = half_index * (LiftoffAssembler::kStackSlotSize / 2);
+  return MemOperand(sp, -kFirstStackSlotOffset - offset);
+}
 
 inline MemOperand GetContextOperand() { return MemOperand(sp, -16); }
 
@@ -217,7 +229,10 @@ void LiftoffAssembler::LoadCallerFrameSlot(LiftoffRegister dst,
 
 void LiftoffAssembler::MoveStackValue(uint32_t dst_index, uint32_t src_index,
                                       ValueType type) {
-  BAILOUT("MoveStackValue");
+  DCHECK_NE(dst_index, src_index);
+  LiftoffRegister reg = GetUnusedRegister(reg_class_for(type));
+  Fill(reg, src_index, type);
+  Spill(dst_index, reg, type);
 }
 
 void LiftoffAssembler::MoveToReturnRegister(LiftoffRegister reg,
@@ -244,20 +259,81 @@ void LiftoffAssembler::Move(DoubleRegister dst, DoubleRegister src,
 
 void LiftoffAssembler::Spill(uint32_t index, LiftoffRegister reg,
                              ValueType type) {
-  BAILOUT("Spill register");
+  RecordUsedSpillSlot(index);
+  MemOperand dst = liftoff::GetStackSlot(index);
+  switch (type) {
+    case kWasmI32:
+      sw(reg.gp(), dst);
+      break;
+    case kWasmI64:
+      sw(reg.low_gp(), dst);
+      sw(reg.high_gp(), liftoff::GetHalfStackSlot(2 * index + 1));
+      break;
+    case kWasmF32:
+      swc1(reg.fp(), dst);
+      break;
+    case kWasmF64:
+      TurboAssembler::Sdc1(reg.fp(), dst);
+      break;
+    default:
+      UNREACHABLE();
+  }
 }
 
 void LiftoffAssembler::Spill(uint32_t index, WasmValue value) {
-  BAILOUT("Spill value");
+  RecordUsedSpillSlot(index);
+  MemOperand dst = liftoff::GetStackSlot(index);
+  switch (value.type()) {
+    case kWasmI32: {
+      LiftoffRegister tmp = GetUnusedRegister(kGpReg);
+      TurboAssembler::li(tmp.gp(), Operand(value.to_i32()));
+      sw(tmp.gp(), dst);
+      break;
+    }
+    case kWasmI64: {
+      LiftoffRegister low = GetUnusedRegister(kGpReg);
+      LiftoffRegister high = GetUnusedRegister(kGpReg);
+
+      int32_t low_word = value.to_i64();
+      int32_t high_word = value.to_i64() >> 32;
+      TurboAssembler::li(low.gp(), Operand(low_word));
+      TurboAssembler::li(high.gp(), Operand(high_word));
+
+      sw(low.gp(), dst);
+      sw(high.gp(), liftoff::GetHalfStackSlot(2 * index + 1));
+      break;
+    }
+    default:
+      // kWasmF32 and kWasmF64 are unreachable, since those
+      // constants are not tracked.
+      UNREACHABLE();
+  }
 }
 
 void LiftoffAssembler::Fill(LiftoffRegister reg, uint32_t index,
                             ValueType type) {
-  BAILOUT("Fill");
+  MemOperand src = liftoff::GetStackSlot(index);
+  switch (type) {
+    case kWasmI32:
+      lw(reg.gp(), src);
+      break;
+    case kWasmI64:
+      lw(reg.low_gp(), src);
+      lw(reg.high_gp(), liftoff::GetHalfStackSlot(2 * index + 1));
+      break;
+    case kWasmF32:
+      lwc1(reg.fp(), src);
+      break;
+    case kWasmF64:
+      TurboAssembler::Ldc1(reg.fp(), src);
+      break;
+    default:
+      UNREACHABLE();
+  }
 }
 
-void LiftoffAssembler::FillI64Half(Register, uint32_t half_index) {
-  BAILOUT("FillI64Half");
+void LiftoffAssembler::FillI64Half(Register reg, uint32_t half_index) {
+  lw(reg, liftoff::GetHalfStackSlot(half_index));
 }
 
 void LiftoffAssembler::emit_i32_mul(Register dst, Register lhs, Register rhs) {
@@ -351,7 +427,9 @@ void LiftoffAssembler::emit_cond_jump(Condition cond, Label* label,
 void LiftoffAssembler::emit_i32_set_cond(Condition cond, Register dst,
                                          Register lhs, Register rhs) {
   Label true_label;
-  ori(dst, zero_reg, 0x1);
+  if (dst != lhs) {
+    ori(dst, zero_reg, 0x1);
+  }
 
   if (rhs != no_reg) {
     TurboAssembler::Branch(&true_label, cond, lhs, Operand(rhs));
@@ -361,7 +439,16 @@ void LiftoffAssembler::emit_i32_set_cond(Condition cond, Register dst,
   // If not true, set on 0.
   TurboAssembler::mov(dst, zero_reg);
 
-  bind(&true_label);
+  if (dst != lhs) {
+    bind(&true_label);
+  } else {
+    Label end_label;
+    TurboAssembler::Branch(&end_label);
+    bind(&true_label);
+
+    ori(dst, zero_reg, 0x1);
+    bind(&end_label);
+  }
 }
 
 void LiftoffAssembler::emit_f32_set_cond(Condition cond, Register dst,
