@@ -251,7 +251,8 @@ HeapObject* Deserializer<AllocatorT>::PostProcessNewObject(HeapObject* obj,
     bytecode_array->set_osr_loop_nesting_level(0);
   }
   // Check alignment.
-  DCHECK_EQ(0, Heap::GetFillToAlign(obj->address(), obj->RequiredAlignment()));
+  DCHECK_EQ(0, Heap::GetFillToAlign(obj->address(),
+                                    HeapObject::RequiredAlignment(obj->map())));
   return obj;
 }
 

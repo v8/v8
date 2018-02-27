@@ -1735,13 +1735,14 @@ WriteBarrierMode HeapObject::GetWriteBarrierMode(
   return UPDATE_WRITE_BARRIER;
 }
 
-AllocationAlignment HeapObject::RequiredAlignment() const {
+AllocationAlignment HeapObject::RequiredAlignment(Map* map) {
 #ifdef V8_HOST_ARCH_32_BIT
-  if ((IsFixedFloat64Array() || IsFixedDoubleArray()) &&
-      FixedArrayBase::cast(this)->length() != 0) {
+  int instance_type = map->instance_type();
+  if (instance_type == FIXED_FLOAT64_ARRAY_TYPE ||
+      instance_type == FIXED_DOUBLE_ARRAY_TYPE) {
     return kDoubleAligned;
   }
-  if (IsHeapNumber()) return kDoubleUnaligned;
+  if (instance_type == HEAP_NUMBER_TYPE) return kDoubleUnaligned;
 #endif  // V8_HOST_ARCH_32_BIT
   return kWordAligned;
 }

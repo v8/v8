@@ -71,7 +71,7 @@ bool Scavenger::MigrateObject(Map* map, HeapObject* source, HeapObject* target,
 bool Scavenger::SemiSpaceCopyObject(Map* map, HeapObject** slot,
                                     HeapObject* object, int object_size) {
   DCHECK(heap()->AllowedToBeMigrated(object, NEW_SPACE));
-  AllocationAlignment alignment = object->RequiredAlignment();
+  AllocationAlignment alignment = HeapObject::RequiredAlignment(map);
   AllocationResult allocation =
       allocator_.Allocate(NEW_SPACE, object_size, alignment);
 
@@ -97,7 +97,7 @@ bool Scavenger::SemiSpaceCopyObject(Map* map, HeapObject** slot,
 
 bool Scavenger::PromoteObject(Map* map, HeapObject** slot, HeapObject* object,
                               int object_size) {
-  AllocationAlignment alignment = object->RequiredAlignment();
+  AllocationAlignment alignment = HeapObject::RequiredAlignment(map);
   AllocationResult allocation =
       allocator_.Allocate(OLD_SPACE, object_size, alignment);
 

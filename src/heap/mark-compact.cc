@@ -1406,7 +1406,8 @@ class EvacuateVisitorBase : public HeapObjectVisitor {
 #ifdef VERIFY_HEAP
     if (AbortCompactionForTesting(object)) return false;
 #endif  // VERIFY_HEAP
-    AllocationAlignment alignment = object->RequiredAlignment();
+    AllocationAlignment alignment =
+        HeapObject::RequiredAlignment(object->map());
     AllocationResult allocation =
         local_allocator_->Allocate(target_space, size, alignment);
     if (allocation.To(target_object)) {
@@ -1511,7 +1512,8 @@ class EvacuateNewSpaceVisitor final : public EvacuateVisitorBase {
 
   inline AllocationSpace AllocateTargetObject(HeapObject* old_object, int size,
                                               HeapObject** target_object) {
-    AllocationAlignment alignment = old_object->RequiredAlignment();
+    AllocationAlignment alignment =
+        HeapObject::RequiredAlignment(old_object->map());
     AllocationSpace space_allocated_in = NEW_SPACE;
     AllocationResult allocation =
         local_allocator_->Allocate(NEW_SPACE, size, alignment);

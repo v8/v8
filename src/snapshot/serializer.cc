@@ -284,7 +284,7 @@ void Serializer<AllocatorT>::PutAttachedReference(SerializerReference reference,
 
 template <class AllocatorT>
 int Serializer<AllocatorT>::PutAlignmentPrefix(HeapObject* object) {
-  AllocationAlignment alignment = object->RequiredAlignment();
+  AllocationAlignment alignment = HeapObject::RequiredAlignment(object->map());
   if (alignment != kWordAligned) {
     DCHECK(1 <= alignment && alignment <= 3);
     byte prefix = (kAlignmentPrefix - 1) + alignment;

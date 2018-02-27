@@ -1816,7 +1816,7 @@ class HeapObject: public Object {
   static void VerifyHeapPointer(Object* p);
 #endif
 
-  inline AllocationAlignment RequiredAlignment() const;
+  static inline AllocationAlignment RequiredAlignment(Map* map);
 
   // Whether the object needs rehashing. That is the case if the object's
   // content depends on FLAG_hash_seed. When the object is deserialized into
