@@ -3471,15 +3471,15 @@ ACCESSORS(JSAsyncFromSyncIterator, next, Object, kNextOffset)
 ACCESSORS(JSStringIterator, string, String, kStringOffset)
 SMI_ACCESSORS(JSStringIterator, index, kNextIndexOffset)
 
-bool ScopeInfo::IsAsmModule() { return AsmModuleField::decode(Flags()); }
+bool ScopeInfo::IsAsmModule() const { return AsmModuleField::decode(Flags()); }
 
-bool ScopeInfo::HasSimpleParameters() {
+bool ScopeInfo::HasSimpleParameters() const {
   return HasSimpleParametersField::decode(Flags());
 }
 
 #define FIELD_ACCESSORS(name)                                                 \
   void ScopeInfo::Set##name(int value) { set(k##name, Smi::FromInt(value)); } \
-  int ScopeInfo::name() {                                                     \
+  int ScopeInfo::name() const {                                               \
     if (length() > 0) {                                                       \
       return Smi::ToInt(get(k##name));                                        \
     } else {                                                                  \

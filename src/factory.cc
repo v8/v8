@@ -2498,25 +2498,15 @@ void Factory::ReinitializeJSGlobalProxy(Handle<JSGlobalProxy> object,
   heap->InitializeJSObjectFromMap(*object, *raw_properties_or_hash, *map);
 }
 
-Handle<SharedFunctionInfo> Factory::NewSharedFunctionInfo(
-    MaybeHandle<String> name, FunctionKind kind, Handle<Code> code,
-    Handle<ScopeInfo> scope_info) {
-  Handle<SharedFunctionInfo> shared =
-      NewSharedFunctionInfo(name, code, IsConstructable(kind), kind);
-  shared->set_scope_info(*scope_info);
-  shared->set_outer_scope_info(*the_hole_value());
-  return shared;
-}
-
 Handle<SharedFunctionInfo> Factory::NewSharedFunctionInfoForLiteral(
     FunctionLiteral* literal, Handle<Script> script) {
   Handle<Code> code = BUILTIN_CODE(isolate(), CompileLazy);
-  Handle<ScopeInfo> scope_info(ScopeInfo::Empty(isolate()));
-  Handle<SharedFunctionInfo> result =
-      NewSharedFunctionInfo(literal->name(), literal->kind(), code, scope_info);
-  SharedFunctionInfo::InitFromFunctionLiteral(result, literal);
-  SharedFunctionInfo::SetScript(result, script, false);
-  return result;
+  FunctionKind kind = literal->kind();
+  Handle<SharedFunctionInfo> shared =
+      NewSharedFunctionInfo(literal->name(), code, IsConstructable(kind), kind);
+  SharedFunctionInfo::InitFromFunctionLiteral(shared, literal);
+  SharedFunctionInfo::SetScript(shared, script, false);
+  return shared;
 }
 
 Handle<JSMessageObject> Factory::NewJSMessageObject(

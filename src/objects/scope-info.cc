@@ -112,16 +112,20 @@ Handle<ScopeInfo> ScopeInfo::Create(Isolate* isolate, Zone* zone, Scope* scope,
 
   // Determine use and location of the function variable if it is present.
   VariableAllocationInfo function_name_info;
-  if (scope->is_function_scope() &&
-      scope->AsDeclarationScope()->function_var() != nullptr) {
-    Variable* var = scope->AsDeclarationScope()->function_var();
-    if (!var->is_used()) {
-      function_name_info = UNUSED;
-    } else if (var->IsContextSlot()) {
-      function_name_info = CONTEXT;
+  if (scope->is_function_scope()) {
+    if (scope->AsDeclarationScope()->function_var() != nullptr) {
+      Variable* var = scope->AsDeclarationScope()->function_var();
+      if (!var->is_used()) {
+        function_name_info = UNUSED;
+      } else if (var->IsContextSlot()) {
+        function_name_info = CONTEXT;
+      } else {
+        DCHECK(var->IsStackLocal());
+        function_name_info = STACK;
+      }
     } else {
-      DCHECK(var->IsStackLocal());
-      function_name_info = STACK;
+      // Always reserve space for the debug name in the scope info.
+      function_name_info = UNUSED;
     }
   } else {
     function_name_info = NONE;
@@ -255,9 +259,15 @@ Handle<ScopeInfo> ScopeInfo::Create(Isolate* isolate, Zone* zone, Scope* scope,
   // If present, add the function variable name and its index.
   DCHECK_EQ(index, scope_info->FunctionNameInfoIndex());
   if (has_function_name) {
-    int var_index = scope->AsDeclarationScope()->function_var()->index();
-    scope_info->set(index++,
-                    *scope->AsDeclarationScope()->function_var()->name());
+    DisallowHeapAllocation no_gc;
+    Variable* var = scope->AsDeclarationScope()->function_var();
+    int var_index = -1;
+    Object* name = Smi::kZero;
+    if (var != nullptr) {
+      var_index = var->index();
+      name = *var->name();
+    }
+    scope_info->set(index++, name);
     scope_info->set(index++, Smi::FromInt(var_index));
     DCHECK(function_name_info != CONTEXT ||
            var_index == scope_info->ContextLength() - 1);
@@ -400,12 +410,12 @@ ScopeInfo* ScopeInfo::Empty(Isolate* isolate) {
   return isolate->heap()->empty_scope_info();
 }
 
-ScopeType ScopeInfo::scope_type() {
+ScopeType ScopeInfo::scope_type() const {
   DCHECK_LT(0, length());
   return ScopeTypeField::decode(Flags());
 }
 
-bool ScopeInfo::CallsSloppyEval() {
+bool ScopeInfo::CallsSloppyEval() const {
   bool calls_sloppy_eval =
       length() > 0 && CallsSloppyEvalField::decode(Flags());
   DCHECK_IMPLIES(calls_sloppy_eval, is_sloppy(language_mode()));
@@ -413,18 +423,20 @@ bool ScopeInfo::CallsSloppyEval() {
   return calls_sloppy_eval;
 }
 
-LanguageMode ScopeInfo::language_mode() {
+LanguageMode ScopeInfo::language_mode() const {
   return length() > 0 ? LanguageModeField::decode(Flags())
                       : LanguageMode::kSloppy;
 }
 
-bool ScopeInfo::is_declaration_scope() {
+bool ScopeInfo::is_declaration_scope() const {
   return DeclarationScopeField::decode(Flags());
 }
 
-int ScopeInfo::LocalCount() { return StackLocalCount() + ContextLocalCount(); }
+int ScopeInfo::LocalCount() const {
+  return StackLocalCount() + ContextLocalCount();
+}
 
-int ScopeInfo::StackSlotCount() {
+int ScopeInfo::StackSlotCount() const {
   if (length() > 0) {
     bool function_name_stack_slot =
         FunctionVariableField::decode(Flags()) == STACK;
@@ -433,7 +445,7 @@ int ScopeInfo::StackSlotCount() {
   return 0;
 }
 
-int ScopeInfo::ContextLength() {
+int ScopeInfo::ContextLength() const {
   if (length() > 0) {
     int context_locals = ContextLocalCount();
     bool function_name_context_slot =
@@ -454,7 +466,7 @@ int ScopeInfo::ContextLength() {
   return 0;
 }
 
-bool ScopeInfo::HasReceiver() {
+bool ScopeInfo::HasReceiver() const {
   if (length() > 0) {
     return NONE != ReceiverVariableField::decode(Flags());
   } else {
@@ -462,7 +474,7 @@ bool ScopeInfo::HasReceiver() {
   }
 }
 
-bool ScopeInfo::HasAllocatedReceiver() {
+bool ScopeInfo::HasAllocatedReceiver() const {
   if (length() > 0) {
     VariableAllocationInfo allocation = ReceiverVariableField::decode(Flags());
     return allocation == STACK || allocation == CONTEXT;
@@ -471,9 +483,11 @@ bool ScopeInfo::HasAllocatedReceiver() {
   }
 }
 
-bool ScopeInfo::HasNewTarget() { return HasNewTargetField::decode(Flags()); }
+bool ScopeInfo::HasNewTarget() const {
+  return HasNewTargetField::decode(Flags());
+}
 
-bool ScopeInfo::HasFunctionName() {
+bool ScopeInfo::HasFunctionName() const {
   if (length() > 0) {
     return NONE != FunctionVariableField::decode(Flags());
   } else {
@@ -481,7 +495,16 @@ bool ScopeInfo::HasFunctionName() {
   }
 }
 
-bool ScopeInfo::HasOuterScopeInfo() {
+bool ScopeInfo::HasPendingFunctionName() const {
+  return HasFunctionName() && get(FunctionNameInfoIndex()) == Smi::kZero;
+}
+
+void ScopeInfo::SetPendingFunctionName(String* name) {
+  DCHECK(HasPendingFunctionName());
+  set(FunctionNameInfoIndex(), name);
+}
+
+bool ScopeInfo::HasOuterScopeInfo() const {
   if (length() > 0) {
     return HasOuterScopeInfoField::decode(Flags());
   } else {
@@ -489,7 +512,7 @@ bool ScopeInfo::HasOuterScopeInfo() {
   }
 }
 
-bool ScopeInfo::IsDebugEvaluateScope() {
+bool ScopeInfo::IsDebugEvaluateScope() const {
   if (length() > 0) {
     return IsDebugEvaluateScopeField::decode(Flags());
   } else {
@@ -506,31 +529,31 @@ void ScopeInfo::SetIsDebugEvaluateScope() {
   }
 }
 
-bool ScopeInfo::HasContext() { return ContextLength() > 0; }
+bool ScopeInfo::HasContext() const { return ContextLength() > 0; }
 
-String* ScopeInfo::FunctionName() {
+String* ScopeInfo::FunctionName() const {
   DCHECK(HasFunctionName());
   return String::cast(get(FunctionNameInfoIndex()));
 }
 
-ScopeInfo* ScopeInfo::OuterScopeInfo() {
+ScopeInfo* ScopeInfo::OuterScopeInfo() const {
   DCHECK(HasOuterScopeInfo());
   return ScopeInfo::cast(get(OuterScopeInfoIndex()));
 }
 
-ModuleInfo* ScopeInfo::ModuleDescriptorInfo() {
+ModuleInfo* ScopeInfo::ModuleDescriptorInfo() const {
   DCHECK(scope_type() == MODULE_SCOPE);
   return ModuleInfo::cast(get(ModuleInfoIndex()));
 }
 
-String* ScopeInfo::ParameterName(int var) {
+String* ScopeInfo::ParameterName(int var) const {
   DCHECK_LE(0, var);
   DCHECK_LT(var, ParameterCount());
   int info_index = ParameterNamesIndex() + var;
   return String::cast(get(info_index));
 }
 
-String* ScopeInfo::LocalName(int var) {
+String* ScopeInfo::LocalName(int var) const {
   DCHECK_LE(0, var);
   DCHECK_LT(var, LocalCount());
   DCHECK(StackLocalNamesIndex() + StackLocalCount() ==
@@ -539,28 +562,28 @@ String* ScopeInfo::LocalName(int var) {
   return String::cast(get(info_index));
 }
 
-String* ScopeInfo::StackLocalName(int var) {
+String* ScopeInfo::StackLocalName(int var) const {
   DCHECK_LE(0, var);
   DCHECK_LT(var, StackLocalCount());
   int info_index = StackLocalNamesIndex() + var;
   return String::cast(get(info_index));
 }
 
-int ScopeInfo::StackLocalIndex(int var) {
+int ScopeInfo::StackLocalIndex(int var) const {
   DCHECK_LE(0, var);
   DCHECK_LT(var, StackLocalCount());
   int first_slot_index = Smi::ToInt(get(StackLocalFirstSlotIndex()));
   return first_slot_index + var;
 }
 
-String* ScopeInfo::ContextLocalName(int var) {
+String* ScopeInfo::ContextLocalName(int var) const {
   DCHECK_LE(0, var);
   DCHECK_LT(var, ContextLocalCount());
   int info_index = ContextLocalNamesIndex() + var;
   return String::cast(get(info_index));
 }
 
-VariableMode ScopeInfo::ContextLocalMode(int var) {
+VariableMode ScopeInfo::ContextLocalMode(int var) const {
   DCHECK_LE(0, var);
   DCHECK_LT(var, ContextLocalCount());
   int info_index = ContextLocalInfosIndex() + var;
@@ -568,7 +591,7 @@ VariableMode ScopeInfo::ContextLocalMode(int var) {
   return VariableModeField::decode(value);
 }
 
-InitializationFlag ScopeInfo::ContextLocalInitFlag(int var) {
+InitializationFlag ScopeInfo::ContextLocalInitFlag(int var) const {
   DCHECK_LE(0, var);
   DCHECK_LT(var, ContextLocalCount());
   int info_index = ContextLocalInfosIndex() + var;
@@ -576,7 +599,7 @@ InitializationFlag ScopeInfo::ContextLocalInitFlag(int var) {
   return InitFlagField::decode(value);
 }
 
-MaybeAssignedFlag ScopeInfo::ContextLocalMaybeAssignedFlag(int var) {
+MaybeAssignedFlag ScopeInfo::ContextLocalMaybeAssignedFlag(int var) const {
   DCHECK_LE(0, var);
   DCHECK_LT(var, ContextLocalCount());
   int info_index = ContextLocalInfosIndex() + var;
@@ -584,6 +607,7 @@ MaybeAssignedFlag ScopeInfo::ContextLocalMaybeAssignedFlag(int var) {
   return MaybeAssignedFlagField::decode(value);
 }
 
+// static
 bool ScopeInfo::VariableIsSynthetic(String* name) {
   // There's currently no flag stored on the ScopeInfo to indicate that a
   // variable is a compiler-introduced temporary. However, to avoid conflict
@@ -593,7 +617,7 @@ bool ScopeInfo::VariableIsSynthetic(String* name) {
          name->Equals(name->GetHeap()->this_string());
 }
 
-int ScopeInfo::StackSlotIndex(String* name) {
+int ScopeInfo::StackSlotIndex(String* name) const {
   DCHECK(name->IsInternalizedString());
   if (length() > 0) {
     int first_slot_index = Smi::ToInt(get(StackLocalFirstSlotIndex()));
@@ -631,6 +655,7 @@ int ScopeInfo::ModuleIndex(Handle<String> name, VariableMode* mode,
   return 0;
 }
 
+// static
 int ScopeInfo::ContextSlotIndex(Handle<ScopeInfo> scope_info,
                                 Handle<String> name, VariableMode* mode,
                                 InitializationFlag* init_flag,
@@ -674,7 +699,7 @@ int ScopeInfo::ContextSlotIndex(Handle<ScopeInfo> scope_info,
   return -1;
 }
 
-int ScopeInfo::ParameterIndex(String* name) {
+int ScopeInfo::ParameterIndex(String* name) const {
   DCHECK(name->IsInternalizedString());
   if (length() > 0) {
     // We must read parameters from the end since for
@@ -693,13 +718,14 @@ int ScopeInfo::ParameterIndex(String* name) {
   return -1;
 }
 
-int ScopeInfo::ReceiverContextSlotIndex() {
-  if (length() > 0 && ReceiverVariableField::decode(Flags()) == CONTEXT)
+int ScopeInfo::ReceiverContextSlotIndex() const {
+  if (length() > 0 && ReceiverVariableField::decode(Flags()) == CONTEXT) {
     return Smi::ToInt(get(ReceiverInfoIndex()));
+  }
   return -1;
 }
 
-int ScopeInfo::FunctionContextSlotIndex(String* name) {
+int ScopeInfo::FunctionContextSlotIndex(String* name) const {
   DCHECK(name->IsInternalizedString());
   if (length() > 0) {
     if (FunctionVariableField::decode(Flags()) == CONTEXT &&
@@ -710,48 +736,54 @@ int ScopeInfo::FunctionContextSlotIndex(String* name) {
   return -1;
 }
 
-FunctionKind ScopeInfo::function_kind() {
+FunctionKind ScopeInfo::function_kind() const {
   return FunctionKindField::decode(Flags());
 }
 
-int ScopeInfo::ParameterNamesIndex() {
+int ScopeInfo::ParameterNamesIndex() const {
   DCHECK_LT(0, length());
   return kVariablePartIndex;
 }
 
-int ScopeInfo::StackLocalFirstSlotIndex() {
+int ScopeInfo::StackLocalFirstSlotIndex() const {
   return ParameterNamesIndex() + ParameterCount();
 }
 
-int ScopeInfo::StackLocalNamesIndex() { return StackLocalFirstSlotIndex() + 1; }
+int ScopeInfo::StackLocalNamesIndex() const {
+  return StackLocalFirstSlotIndex() + 1;
+}
 
-int ScopeInfo::ContextLocalNamesIndex() {
+int ScopeInfo::ContextLocalNamesIndex() const {
   return StackLocalNamesIndex() + StackLocalCount();
 }
 
-int ScopeInfo::ContextLocalInfosIndex() {
+int ScopeInfo::ContextLocalInfosIndex() const {
   return ContextLocalNamesIndex() + ContextLocalCount();
 }
 
-int ScopeInfo::ReceiverInfoIndex() {
+int ScopeInfo::ReceiverInfoIndex() const {
   return ContextLocalInfosIndex() + ContextLocalCount();
 }
 
-int ScopeInfo::FunctionNameInfoIndex() {
+int ScopeInfo::FunctionNameInfoIndex() const {
   return ReceiverInfoIndex() + (HasAllocatedReceiver() ? 1 : 0);
 }
 
-int ScopeInfo::OuterScopeInfoIndex() {
+int ScopeInfo::OuterScopeInfoIndex() const {
   return FunctionNameInfoIndex() + (HasFunctionName() ? 2 : 0);
 }
 
-int ScopeInfo::ModuleInfoIndex() {
+int ScopeInfo::ModuleInfoIndex() const {
   return OuterScopeInfoIndex() + (HasOuterScopeInfo() ? 1 : 0);
 }
 
-int ScopeInfo::ModuleVariableCountIndex() { return ModuleInfoIndex() + 1; }
+int ScopeInfo::ModuleVariableCountIndex() const {
+  return ModuleInfoIndex() + 1;
+}
 
-int ScopeInfo::ModuleVariablesIndex() { return ModuleVariableCountIndex() + 1; }
+int ScopeInfo::ModuleVariablesIndex() const {
+  return ModuleVariableCountIndex() + 1;
+}
 
 void ScopeInfo::ModuleVariable(int i, String** name, int* index,
                                VariableMode* mode,

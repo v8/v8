@@ -296,8 +296,15 @@ void InstallUnoptimizedCode(CompilationInfo* compilation_info,
   Handle<ScopeInfo> scope_info = compilation_info->scope()->scope_info();
   shared->set_scope_info(*scope_info);
   Scope* outer_scope = compilation_info->scope()->GetOuterScopeWithContext();
-  if (outer_scope) {
-    shared->set_outer_scope_info(*outer_scope->scope_info());
+  if (outer_scope) shared->set_outer_scope_info(*outer_scope->scope_info());
+  if (scope_info->HasFunctionName()) {
+    if (scope_info->HasPendingFunctionName()) {
+      scope_info->SetPendingFunctionName(shared->name());
+    } else {
+      DCHECK_EQ(shared->name(), scope_info->FunctionName());
+    }
+  } else {
+    DCHECK_EQ(shared->name(), isolate->heap()->empty_string());
   }
 
   DCHECK(!compilation_info->code().is_null());
