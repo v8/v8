@@ -626,7 +626,10 @@ MemoryChunk* MemoryChunk::Initialize(Heap* heap, Address base, size_t size,
   chunk->set_next_chunk(nullptr);
   chunk->set_prev_chunk(nullptr);
   chunk->local_tracker_ = nullptr;
-  chunk->InitializeFreeListCategories();
+
+  for (int i = kFirstCategory; i < kNumberOfCategories; i++) {
+    chunk->categories_[i] = nullptr;
+  }
 
   heap->incremental_marking()->non_atomic_marking_state()->ClearLiveness(chunk);
 
@@ -649,6 +652,7 @@ MemoryChunk* MemoryChunk::Initialize(Heap* heap, Address base, size_t size,
   if (reservation != nullptr) {
     chunk->reservation_.TakeControl(reservation);
   }
+
   return chunk;
 }
 
@@ -658,6 +662,8 @@ Page* PagedSpace::InitializePage(MemoryChunk* chunk, Executability executable) {
   // Make sure that categories are initialized before freeing the area.
   page->ResetAllocatedBytes();
   heap()->incremental_marking()->SetOldSpacePageFlags(page);
+  page->AllocateFreeListCategories();
+  page->InitializeFreeListCategories();
   page->InitializationMemoryFence();
   return page;
 }
@@ -705,6 +711,28 @@ LargePage* LargePage::Initialize(Heap* heap, MemoryChunk* chunk,
   return page;
 }
 
+void Page::AllocateFreeListCategories() {
+  for (int i = kFirstCategory; i < kNumberOfCategories; i++) {
+    categories_[i] = new FreeListCategory(
+        reinterpret_cast<PagedSpace*>(owner())->free_list(), this);
+  }
+}
+
+void Page::InitializeFreeListCategories() {
+  for (int i = kFirstCategory; i < kNumberOfCategories; i++) {
+    categories_[i]->Initialize(static_cast<FreeListCategoryType>(i));
+  }
+}
+
+void Page::ReleaseFreeListCategories() {
+  for (int i = kFirstCategory; i < kNumberOfCategories; i++) {
+    if (categories_[i] != nullptr) {
+      delete categories_[i];
+      categories_[i] = nullptr;
+    }
+  }
+}
+
 Page* Page::ConvertNewToOld(Page* old_page) {
   DCHECK(!old_page->is_anchor());
   DCHECK(old_page->InNewSpace());
@@ -720,6 +748,10 @@ size_t MemoryChunk::CommittedPhysicalMemory() {
   if (!base::OS::HasLazyCommits() || owner()->identity() == LO_SPACE)
     return size();
   return high_water_mark_.Value();
+}
+
+bool MemoryChunk::IsPagedSpace() const {
+  return owner()->identity() != LO_SPACE;
 }
 
 void MemoryChunk::InsertAfter(MemoryChunk* other) {
@@ -875,7 +907,6 @@ MemoryChunk* MemoryAllocator::AllocateChunk(size_t reserve_area_size,
                               executable, owner, &reservation);
 
   if (chunk->executable()) RegisterExecutableMemoryChunk(chunk);
-
   return chunk;
 }
 
@@ -1249,6 +1280,11 @@ void MemoryChunk::ReleaseAllocatedMemory() {
   ReleaseInvalidatedSlots();
   if (local_tracker_ != nullptr) ReleaseLocalTracker();
   if (young_generation_bitmap_ != nullptr) ReleaseYoungGenerationBitmap();
+
+  if (IsPagedSpace()) {
+    Page* page = static_cast<Page*>(this);
+    page->ReleaseFreeListCategories();
+  }
 }
 
 static SlotSet* AllocateAndInitializeSlotSet(size_t size, Address page_start) {
@@ -2680,7 +2716,6 @@ void FreeListCategory::Reset() {
 
 FreeSpace* FreeListCategory::PickNodeFromList(size_t* node_size) {
   DCHECK(page()->CanAllocate());
-
   FreeSpace* node = top();
   if (node == nullptr) return nullptr;
   set_top(node->next());
@@ -2692,7 +2727,6 @@ FreeSpace* FreeListCategory::PickNodeFromList(size_t* node_size) {
 FreeSpace* FreeListCategory::TryPickNodeFromList(size_t minimum_size,
                                                  size_t* node_size) {
   DCHECK(page()->CanAllocate());
-
   FreeSpace* node = PickNodeFromList(node_size);
   if ((node != nullptr) && (*node_size < minimum_size)) {
     Free(node->address(), *node_size, kLinkCategory);
@@ -2705,7 +2739,6 @@ FreeSpace* FreeListCategory::TryPickNodeFromList(size_t minimum_size,
 FreeSpace* FreeListCategory::SearchForNodeInList(size_t minimum_size,
                                                  size_t* node_size) {
   DCHECK(page()->CanAllocate());
-
   FreeSpace* prev_non_evac_node = nullptr;
   for (FreeSpace* cur_node = top(); cur_node != nullptr;
        cur_node = cur_node->next()) {
@@ -2730,7 +2763,7 @@ FreeSpace* FreeListCategory::SearchForNodeInList(size_t minimum_size,
 
 void FreeListCategory::Free(Address start, size_t size_in_bytes,
                             FreeMode mode) {
-  CHECK(page()->CanAllocate());
+  DCHECK(page()->CanAllocate());
   FreeSpace* free_space = FreeSpace::cast(HeapObject::FromAddress(start));
   free_space->set_next(top());
   set_top(free_space);

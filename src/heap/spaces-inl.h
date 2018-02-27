@@ -138,12 +138,6 @@ bool NewSpace::FromSpaceContainsSlow(Address a) {
 bool NewSpace::ToSpaceContains(Object* o) { return to_space_.Contains(o); }
 bool NewSpace::FromSpaceContains(Object* o) { return from_space_.Contains(o); }
 
-void MemoryChunk::InitializeFreeListCategories() {
-  for (int i = kFirstCategory; i < kNumberOfCategories; i++) {
-    categories_[i].Initialize(static_cast<FreeListCategoryType>(i));
-  }
-}
-
 bool PagedSpace::Contains(Address addr) {
   if (heap_->lo_space()->FindPage(addr)) return false;
   return MemoryChunk::FromAnyPointerAddress(heap(), addr)->owner() == this;
@@ -158,6 +152,7 @@ void PagedSpace::UnlinkFreeListCategories(Page* page) {
   DCHECK_EQ(this, page->owner());
   page->ForAllFreeListCategories([this](FreeListCategory* category) {
     DCHECK_EQ(free_list(), category->owner());
+    category->set_free_list(nullptr);
     free_list()->RemoveCategory(category);
   });
 }
@@ -165,7 +160,8 @@ void PagedSpace::UnlinkFreeListCategories(Page* page) {
 size_t PagedSpace::RelinkFreeListCategories(Page* page) {
   DCHECK_EQ(this, page->owner());
   size_t added = 0;
-  page->ForAllFreeListCategories([&added](FreeListCategory* category) {
+  page->ForAllFreeListCategories([this, &added](FreeListCategory* category) {
+    category->set_free_list(&free_list_);
     added += category->available();
     category->Relink();
   });
@@ -257,23 +253,14 @@ MemoryChunk* MemoryChunkIterator::next() {
   UNREACHABLE();
 }
 
-Page* FreeListCategory::page() const {
-  return Page::FromAddress(
-      reinterpret_cast<Address>(const_cast<FreeListCategory*>(this)));
-}
-
 Page* FreeList::GetPageForCategoryType(FreeListCategoryType type) {
   return top(type) ? top(type)->page() : nullptr;
 }
 
-FreeList* FreeListCategory::owner() {
-  return reinterpret_cast<PagedSpace*>(
-             Page::FromAddress(reinterpret_cast<Address>(this))->owner())
-      ->free_list();
-}
+FreeList* FreeListCategory::owner() { return free_list_; }
 
 bool FreeListCategory::is_linked() {
-  return prev_ != nullptr || next_ != nullptr || owner()->top(type_) == this;
+  return prev_ != nullptr || next_ != nullptr;
 }
 
 AllocationResult LocalAllocationBuffer::AllocateRawAligned(
