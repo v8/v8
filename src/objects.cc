@@ -19159,6 +19159,10 @@ Handle<JSArrayBuffer> JSTypedArray::MaterializeArrayBuffer(
 
   Handle<JSArrayBuffer> buffer(JSArrayBuffer::cast(typed_array->buffer()),
                                isolate);
+  // This code does not know how to materialize from a buffer with guard
+  // regions.
+  DCHECK(!buffer->has_guard_region());
+
   void* backing_store =
       isolate->array_buffer_allocator()->AllocateUninitialized(
           fixed_typed_array->DataSize());
@@ -19193,7 +19197,8 @@ Handle<JSArrayBuffer> JSTypedArray::GetBuffer() {
   Handle<JSArrayBuffer> array_buffer(JSArrayBuffer::cast(buffer()),
                                      GetIsolate());
   if (array_buffer->was_neutered() ||
-      array_buffer->backing_store() != nullptr) {
+      array_buffer->backing_store() != nullptr ||
+      array_buffer->has_guard_region()) {
     return array_buffer;
   }
   Handle<JSTypedArray> self(this);
