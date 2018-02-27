@@ -568,6 +568,13 @@ static inline void MakeAssemblerBufferExecutable(uint8_t* buffer,
   CHECK(result);
 }
 
+static inline void MakeAssemblerBufferWritable(uint8_t* buffer,
+                                               size_t allocated) {
+  bool result = v8::internal::SetPermissions(buffer, allocated,
+                                             v8::PageAllocator::kReadWrite);
+  CHECK(result);
+}
+
 static v8::debug::DebugDelegate dummy_delegate;
 
 static inline void EnableDebugger(v8::Isolate* isolate) {
