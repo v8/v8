@@ -1143,7 +1143,8 @@ RUNTIME_FUNCTION(Runtime_DebugEvaluateGlobal) {
 
   CONVERT_ARG_HANDLE_CHECKED(String, source, 1);
 
-  RETURN_RESULT_OR_FAILURE(isolate, DebugEvaluate::Global(isolate, source));
+  RETURN_RESULT_OR_FAILURE(isolate,
+                           DebugEvaluate::Global(isolate, source, false));
 }
 
 

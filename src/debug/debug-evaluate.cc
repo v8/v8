@@ -22,7 +22,8 @@ namespace v8 {
 namespace internal {
 
 MaybeHandle<Object> DebugEvaluate::Global(Isolate* isolate,
-                                          Handle<String> source) {
+                                          Handle<String> source,
+                                          bool throw_on_side_effect) {
   Handle<Context> context = isolate->native_context();
   ScriptOriginOptions origin_options(false, true);
   MaybeHandle<SharedFunctionInfo> maybe_function_info =
@@ -37,6 +38,7 @@ MaybeHandle<Object> DebugEvaluate::Global(Isolate* isolate,
   Handle<JSFunction> fun =
       isolate->factory()->NewFunctionFromSharedFunctionInfo(shared_info,
                                                             context);
+  NoSideEffectScope no_side_effect(isolate, throw_on_side_effect);
   return Execution::Call(isolate, fun,
                          Handle<JSObject>(context->global_proxy()), 0, nullptr);
 }

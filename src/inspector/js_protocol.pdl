@@ -1188,6 +1188,8 @@ domain Runtime
       # Whether execution should `await` for resulting value and return once awaited promise is
       # resolved.
       optional boolean awaitPromise
+      # Whether to throw an exception if side effect cannot be ruled out during evaluation.
+      experimental optional boolean throwOnSideEffect
     returns
       # Evaluation result.
       RemoteObject result

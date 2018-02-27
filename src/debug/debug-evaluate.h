@@ -18,7 +18,8 @@ class FrameInspector;
 
 class DebugEvaluate : public AllStatic {
  public:
-  static MaybeHandle<Object> Global(Isolate* isolate, Handle<String> source);
+  static MaybeHandle<Object> Global(Isolate* isolate, Handle<String> source,
+                                    bool throw_on_side_effect);
 
   // Evaluate a piece of JavaScript in the context of a stack frame for
   // debugging.  Things that need special attention are:

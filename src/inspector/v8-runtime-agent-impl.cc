@@ -227,7 +227,8 @@ void V8RuntimeAgentImpl::evaluate(
     Maybe<bool> includeCommandLineAPI, Maybe<bool> silent,
     Maybe<int> executionContextId, Maybe<bool> returnByValue,
     Maybe<bool> generatePreview, Maybe<bool> userGesture,
-    Maybe<bool> awaitPromise, std::unique_ptr<EvaluateCallback> callback) {
+    Maybe<bool> awaitPromise, Maybe<bool> throwOnSideEffect,
+    std::unique_ptr<EvaluateCallback> callback) {
   TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("devtools.timeline"),
                "EvaluateScript");
   int contextId = 0;
@@ -259,7 +260,8 @@ void V8RuntimeAgentImpl::evaluate(
     v8::MicrotasksScope microtasksScope(m_inspector->isolate(),
                                         v8::MicrotasksScope::kRunMicrotasks);
     maybeResultValue = v8::debug::EvaluateGlobal(
-        m_inspector->isolate(), toV8String(m_inspector->isolate(), expression));
+        m_inspector->isolate(), toV8String(m_inspector->isolate(), expression),
+        throwOnSideEffect.fromMaybe(false));
   }  // Run microtasks before returning result.
 
   if (evalIsDisabled) scope.context()->AllowCodeGenerationFromStrings(false);

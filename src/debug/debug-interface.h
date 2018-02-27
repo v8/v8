@@ -498,7 +498,8 @@ int GetNativeAccessorDescriptor(v8::Local<v8::Context> context,
 int64_t GetNextRandomInt64(v8::Isolate* isolate);
 
 v8::MaybeLocal<v8::Value> EvaluateGlobal(v8::Isolate* isolate,
-                                         v8::Local<v8::String> source);
+                                         v8::Local<v8::String> source,
+                                         bool throw_on_side_effect);
 
 }  // namespace debug
 }  // namespace v8
