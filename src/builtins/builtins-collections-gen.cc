@@ -394,7 +394,7 @@ TNode<Object> BaseCollectionsAssembler::GetAddFunction(
                  HeapConstant(add_func_name), collection);
 
   BIND(&exit);
-  return CAST(add_func);
+  return add_func;
 }
 
 TNode<JSFunction> BaseCollectionsAssembler::GetConstructor(

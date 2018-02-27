@@ -208,7 +208,7 @@ Node* ArrayBuiltinsAssembler::FindProcessor(Node* k_value, Node* k) {
 
     TypedArrayBuiltinsAssembler typedarray_asm(state());
     TNode<JSTypedArray> a = typedarray_asm.SpeciesCreateByLength(
-        CAST(context()), original_array, length, method_name);
+        context(), original_array, length, method_name);
     // In the Spec and our current implementation, the length check is already
     // performed in TypedArraySpeciesCreate.
     CSA_ASSERT(this,
@@ -817,9 +817,9 @@ Node* ArrayBuiltinsAssembler::FindProcessor(Node* k_value, Node* k) {
     // Respect the ElementsKind of the input array.
     TNode<Int32T> elements_kind = LoadMapElementsKind(original_map);
     GotoIfNot(IsFastElementsKind(elements_kind), &runtime);
-    TNode<Context> native_context = CAST(LoadNativeContext(context()));
+    TNode<Context> native_context = LoadNativeContext(context());
     TNode<Map> array_map =
-        CAST(LoadJSArrayElementsMap(elements_kind, native_context));
+        LoadJSArrayElementsMap(elements_kind, native_context);
     TNode<JSArray> array =
         CAST(AllocateJSArray(GetInitialFastElementsKind(), array_map, len, len,
                              nullptr, CodeStubAssembler::SMI_PARAMETERS));
@@ -868,9 +868,9 @@ Node* ArrayBuiltinsAssembler::FindProcessor(Node* k_value, Node* k) {
     // element in the input array (maybe the callback deletes an element).
     const ElementsKind elements_kind =
         GetHoleyElementsKind(GetInitialFastElementsKind());
-    TNode<Context> native_context = CAST(LoadNativeContext(context()));
+    TNode<Context> native_context = LoadNativeContext(context());
     TNode<Map> array_map =
-        CAST(LoadJSArrayElementsMap(elements_kind, native_context));
+        LoadJSArrayElementsMap(elements_kind, native_context);
     a_.Bind(AllocateJSArray(PACKED_SMI_ELEMENTS, array_map, len, len, nullptr,
                             CodeStubAssembler::SMI_PARAMETERS));
 
@@ -1358,7 +1358,7 @@ TF_BUILTIN(ArrayPrototypeSlice, ArrayPrototypeSliceCodeStubAssembler) {
 
   // 5. Let relativeStart be ToInteger(start).
   // 6. ReturnIfAbrupt(relativeStart).
-  TNode<Object> arg0 = CAST(args.GetOptionalArgumentValue(0, SmiConstant(0)));
+  TNode<Object> arg0 = args.GetOptionalArgumentValue(0, SmiConstant(0));
   Node* relative_start = ToInteger_Inline(context, arg0);
 
   // 7. If relativeStart < 0, let k be max((len + relativeStart),0);
@@ -1377,8 +1377,7 @@ TF_BUILTIN(ArrayPrototypeSlice, ArrayPrototypeSliceCodeStubAssembler) {
   // 8. If end is undefined, let relativeEnd be len;
   //    else let relativeEnd be ToInteger(end).
   // 9. ReturnIfAbrupt(relativeEnd).
-  TNode<Object> end =
-      CAST(args.GetOptionalArgumentValue(1, UndefinedConstant()));
+  TNode<Object> end = args.GetOptionalArgumentValue(1, UndefinedConstant());
   Label end_undefined(this), end_done(this);
   VARIABLE(relative_end, MachineRepresentation::kTagged);
   GotoIf(WordEqual(end, UndefinedConstant()), &end_undefined);

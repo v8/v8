@@ -415,8 +415,8 @@ void TypedArrayBuiltinsAssembler::ConstructByArrayBuffer(
 
   BIND(&call_init);
   {
-    TNode<Object> raw_length = CAST(CallBuiltin(
-        Builtins::kDivide, context, new_byte_length.value(), element_size));
+    TNode<Object> raw_length = CallBuiltin(
+        Builtins::kDivide, context, new_byte_length.value(), element_size);
     // Force the result into a Smi, or throw a range error if it doesn't fit.
     TNode<Smi> new_length = ToSmiIndex(raw_length, context, &invalid_length);
 
@@ -651,9 +651,9 @@ TF_BUILTIN(TypedArrayConstructor_ConstructStub, TypedArrayBuiltinsAssembler) {
   Node* argc =
       ChangeInt32ToIntPtr(Parameter(BuiltinDescriptor::kArgumentsCount));
   CodeStubArguments args(this, argc);
-  TNode<Object> arg1 = CAST(args.GetOptionalArgumentValue(0));
-  TNode<Object> arg2 = CAST(args.GetOptionalArgumentValue(1));
-  TNode<Object> arg3 = CAST(args.GetOptionalArgumentValue(2));
+  TNode<Object> arg1 = args.GetOptionalArgumentValue(0);
+  TNode<Object> arg2 = args.GetOptionalArgumentValue(1);
+  TNode<Object> arg3 = args.GetOptionalArgumentValue(2);
   TNode<Context> context = CAST(Parameter(BuiltinDescriptor::kContext));
 
   Node* target = LoadFromFrame(StandardFrameConstants::kFunctionOffset,
@@ -1740,7 +1740,7 @@ TF_BUILTIN(TypedArrayFrom, TypedArrayBuiltinsAssembler) {
   BIND(&from_array_like);
   {
     Label if_length_not_smi(this, Label::kDeferred);
-    final_source = CAST(source);
+    final_source = source;
 
     // 10. Let len be ? ToLength(? Get(arrayLike, "length")).
     TNode<Object> raw_length =

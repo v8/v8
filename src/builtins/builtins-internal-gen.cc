@@ -887,8 +887,8 @@ TF_BUILTIN(RunMicrotasks, InternalBuiltinsAssembler) {
         // Enter the context of the {microtask}.
         TNode<Context> microtask_context =
             LoadObjectField<Context>(microtask, CallableTask::kContextOffset);
-        TNode<Context> native_context =
-            TNode<Context>::UncheckedCast(LoadNativeContext(microtask_context));
+        TNode<Context> native_context = LoadNativeContext(microtask_context);
+
         CSA_ASSERT(this, IsNativeContext(native_context));
         EnterMicrotaskContext(microtask_context);
         SetCurrentContext(native_context);
@@ -931,8 +931,7 @@ TF_BUILTIN(RunMicrotasks, InternalBuiltinsAssembler) {
         // Enter the context of the {microtask}.
         TNode<Context> microtask_context = LoadObjectField<Context>(
             microtask, PromiseResolveThenableJobTask::kContextOffset);
-        TNode<Context> native_context =
-            TNode<Context>::UncheckedCast(LoadNativeContext(microtask_context));
+        TNode<Context> native_context = LoadNativeContext(microtask_context);
         CSA_ASSERT(this, IsNativeContext(native_context));
         EnterMicrotaskContext(microtask_context);
         SetCurrentContext(native_context);
@@ -958,8 +957,7 @@ TF_BUILTIN(RunMicrotasks, InternalBuiltinsAssembler) {
         // Enter the context of the {microtask}.
         TNode<Context> microtask_context = LoadObjectField<Context>(
             microtask, PromiseReactionJobTask::kContextOffset);
-        TNode<Context> native_context =
-            TNode<Context>::UncheckedCast(LoadNativeContext(microtask_context));
+        TNode<Context> native_context = LoadNativeContext(microtask_context);
         CSA_ASSERT(this, IsNativeContext(native_context));
         EnterMicrotaskContext(microtask_context);
         SetCurrentContext(native_context);
@@ -992,8 +990,7 @@ TF_BUILTIN(RunMicrotasks, InternalBuiltinsAssembler) {
         // Enter the context of the {microtask}.
         TNode<Context> microtask_context = LoadObjectField<Context>(
             microtask, PromiseReactionJobTask::kContextOffset);
-        TNode<Context> native_context =
-            TNode<Context>::UncheckedCast(LoadNativeContext(microtask_context));
+        TNode<Context> native_context = LoadNativeContext(microtask_context);
         CSA_ASSERT(this, IsNativeContext(native_context));
         EnterMicrotaskContext(microtask_context);
         SetCurrentContext(native_context);

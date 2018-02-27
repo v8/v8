@@ -1659,7 +1659,7 @@ TF_BUILTIN(StringPrototypeSlice, StringBuiltinsAssembler) {
   CodeStubArguments args(this, argc);
   Node* const receiver = args.GetReceiver();
   TNode<Object> start = args.GetOptionalArgumentValue(kStart);
-  TNode<Object> end = CAST(args.GetOptionalArgumentValue(kEnd));
+  TNode<Object> end = args.GetOptionalArgumentValue(kEnd);
   TNode<Context> context = CAST(Parameter(BuiltinDescriptor::kContext));
 
   // 1. Let O be ? RequireObjectCoercible(this value).
@@ -1808,7 +1808,7 @@ TF_BUILTIN(StringPrototypeSubstr, StringBuiltinsAssembler) {
 
   Node* const receiver = args.GetReceiver();
   TNode<Object> start = args.GetOptionalArgumentValue(kStartArg);
-  TNode<Object> length = CAST(args.GetOptionalArgumentValue(kLengthArg));
+  TNode<Object> length = args.GetOptionalArgumentValue(kLengthArg);
   TNode<Context> context = CAST(Parameter(BuiltinDescriptor::kContext));
 
   Label out(this);

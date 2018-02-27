@@ -1436,7 +1436,7 @@ TNode<FixedArrayBase> CodeStubAssembler::LoadElements(
 
 TNode<Object> CodeStubAssembler::LoadJSArrayLength(SloppyTNode<JSArray> array) {
   CSA_ASSERT(this, IsJSArray(array));
-  return CAST(LoadObjectField(array, JSArray::kLengthOffset));
+  return LoadObjectField(array, JSArray::kLengthOffset);
 }
 
 TNode<Smi> CodeStubAssembler::LoadFastJSArrayLength(
@@ -1495,7 +1495,7 @@ TNode<DescriptorArray> CodeStubAssembler::LoadMapDescriptors(
 
 TNode<Object> CodeStubAssembler::LoadMapPrototype(SloppyTNode<Map> map) {
   CSA_SLOW_ASSERT(this, IsMap(map));
-  return CAST(LoadObjectField(map, Map::kPrototypeOffset));
+  return LoadObjectField(map, Map::kPrototypeOffset);
 }
 
 TNode<PrototypeInfo> CodeStubAssembler::LoadMapPrototypeInfo(

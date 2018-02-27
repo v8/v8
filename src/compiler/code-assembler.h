@@ -554,7 +554,7 @@ class V8_EXPORT_PRIVATE CodeAssembler {
   // Base Assembler
   // ===========================================================================
 
-  template <class PreviousType>
+  template <class PreviousType, bool FromTyped>
   class CheckedNode {
    public:
 #ifdef DEBUG
@@ -572,6 +572,10 @@ class V8_EXPORT_PRIVATE CodeAssembler {
       static_assert(std::is_convertible<TNode<A>, TNode<Object>>::value,
                     "Coercion to untagged values cannot be "
                     "checked.");
+      static_assert(
+          !FromTyped ||
+              !std::is_convertible<TNode<PreviousType>, TNode<A>>::value,
+          "Unnecessary CAST: types are convertible.");
 #ifdef DEBUG
       if (FLAG_debug_code) {
         Node* function = code_assembler_->ExternalConstant(
@@ -621,13 +625,13 @@ class V8_EXPORT_PRIVATE CodeAssembler {
     return TNode<T>::UncheckedCast(value);
   }
 
-  CheckedNode<Object> Cast(Node* value, const char* location) {
-    return CheckedNode<Object>(value, this, location);
+  CheckedNode<Object, false> Cast(Node* value, const char* location) {
+    return {value, this, location};
   }
 
   template <class T>
-  CheckedNode<T> Cast(TNode<T> value, const char* location) {
-    return CheckedNode<T>(value, this, location);
+  CheckedNode<T, true> Cast(TNode<T> value, const char* location) {
+    return {value, this, location};
   }
 
 #ifdef DEBUG
