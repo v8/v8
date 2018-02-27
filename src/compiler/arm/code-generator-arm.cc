@@ -2725,6 +2725,7 @@ void CodeGenerator::AssembleBranchPoisoning(FlagsCondition condition,
   __ eor(kSpeculationPoisonRegister, kSpeculationPoisonRegister,
          Operand(kSpeculationPoisonRegister), SBit::LeaveCC,
          FlagsConditionToCondition(condition));
+  __ csdb();
 }
 
 void CodeGenerator::AssembleArchDeoptBranch(Instruction* instr,

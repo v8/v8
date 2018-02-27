@@ -372,6 +372,19 @@ Condition FlagsConditionToCondition(FlagsCondition condition) {
   UNREACHABLE();
 }
 
+void EmitWordLoadPoisoningIfNeeded(CodeGenerator* codegen,
+                                   InstructionCode opcode, Instruction* instr,
+                                   Arm64OperandConverter& i) {
+  const MemoryAccessMode access_mode =
+      static_cast<MemoryAccessMode>(MiscField::decode(opcode));
+  if (access_mode == kMemoryAccessPoisoned) {
+    Register value = i.OutputRegister();
+    Register poison = value.Is64Bits() ? kSpeculationPoisonRegister
+                                       : kSpeculationPoisonRegister.W();
+    codegen->tasm()->And(value, value, Operand(poison));
+  }
+}
+
 }  // namespace
 
 #define ASSEMBLE_SHIFT(asm_instr, width)                                    \
@@ -1216,7 +1229,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     case kArm64CompareAndBranch32:
     case kArm64CompareAndBranch:
-      // Pseudo instruction turned into cbz/cbnz in AssembleArchBranch.
+      // Pseudo instruction handled in AssembleArchBranch.
       break;
     case kArm64Claim: {
       int count = i.InputInt32(0);
@@ -1519,33 +1532,40 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     case kArm64Ldrb:
       __ Ldrb(i.OutputRegister(), i.MemoryOperand());
+      EmitWordLoadPoisoningIfNeeded(this, opcode, instr, i);
       break;
     case kArm64Ldrsb:
       __ Ldrsb(i.OutputRegister(), i.MemoryOperand());
+      EmitWordLoadPoisoningIfNeeded(this, opcode, instr, i);
       break;
     case kArm64Strb:
       __ Strb(i.InputOrZeroRegister64(0), i.MemoryOperand(1));
       break;
     case kArm64Ldrh:
       __ Ldrh(i.OutputRegister(), i.MemoryOperand());
+      EmitWordLoadPoisoningIfNeeded(this, opcode, instr, i);
       break;
     case kArm64Ldrsh:
       __ Ldrsh(i.OutputRegister(), i.MemoryOperand());
+      EmitWordLoadPoisoningIfNeeded(this, opcode, instr, i);
       break;
     case kArm64Strh:
       __ Strh(i.InputOrZeroRegister64(0), i.MemoryOperand(1));
       break;
     case kArm64Ldrsw:
       __ Ldrsw(i.OutputRegister(), i.MemoryOperand());
+      EmitWordLoadPoisoningIfNeeded(this, opcode, instr, i);
       break;
     case kArm64LdrW:
       __ Ldr(i.OutputRegister32(), i.MemoryOperand());
+      EmitWordLoadPoisoningIfNeeded(this, opcode, instr, i);
       break;
     case kArm64StrW:
       __ Str(i.InputOrZeroRegister32(0), i.MemoryOperand(1));
       break;
     case kArm64Ldr:
       __ Ldr(i.OutputRegister(), i.MemoryOperand());
+      EmitWordLoadPoisoningIfNeeded(this, opcode, instr, i);
       break;
     case kArm64Str:
       __ Str(i.InputOrZeroRegister64(0), i.MemoryOperand(1));
@@ -2127,6 +2147,7 @@ void CodeGenerator::AssembleArchBranch(Instruction* instr, BranchInfo* branch) {
   ArchOpcode opcode = instr->arch_opcode();
 
   if (opcode == kArm64CompareAndBranch32) {
+    DCHECK(FlagsModeField::decode(instr->opcode()) != kFlags_branch_and_poison);
     switch (condition) {
       case kEqual:
         __ Cbz(i.InputRegister32(0), tlabel);
@@ -2138,6 +2159,7 @@ void CodeGenerator::AssembleArchBranch(Instruction* instr, BranchInfo* branch) {
         UNREACHABLE();
     }
   } else if (opcode == kArm64CompareAndBranch) {
+    DCHECK(FlagsModeField::decode(instr->opcode()) != kFlags_branch_and_poison);
     switch (condition) {
       case kEqual:
         __ Cbz(i.InputRegister64(0), tlabel);
@@ -2149,6 +2171,7 @@ void CodeGenerator::AssembleArchBranch(Instruction* instr, BranchInfo* branch) {
         UNREACHABLE();
     }
   } else if (opcode == kArm64TestAndBranch32) {
+    DCHECK(FlagsModeField::decode(instr->opcode()) != kFlags_branch_and_poison);
     switch (condition) {
       case kEqual:
         __ Tbz(i.InputRegister32(0), i.InputInt5(1), tlabel);
@@ -2160,6 +2183,7 @@ void CodeGenerator::AssembleArchBranch(Instruction* instr, BranchInfo* branch) {
         UNREACHABLE();
     }
   } else if (opcode == kArm64TestAndBranch) {
+    DCHECK(FlagsModeField::decode(instr->opcode()) != kFlags_branch_and_poison);
     switch (condition) {
       case kEqual:
         __ Tbz(i.InputRegister64(0), i.InputInt6(1), tlabel);
@@ -2179,7 +2203,15 @@ void CodeGenerator::AssembleArchBranch(Instruction* instr, BranchInfo* branch) {
 
 void CodeGenerator::AssembleBranchPoisoning(FlagsCondition condition,
                                             Instruction* instr) {
-  UNREACHABLE();
+  // TODO(jarin) Handle float comparisons (kUnordered[Not]Equal).
+  if (condition == kUnorderedEqual || condition == kUnorderedNotEqual) {
+    return;
+  }
+
+  condition = NegateFlagsCondition(condition);
+  __ CmovX(kSpeculationPoisonRegister, xzr,
+           FlagsConditionToCondition(condition));
+  __ Csdb();
 }
 
 void CodeGenerator::AssembleArchDeoptBranch(Instruction* instr,
@@ -2363,6 +2395,7 @@ void CodeGenerator::AssembleConstructFrame() {
       if (FLAG_code_comments) __ RecordComment("-- OSR entrypoint --");
       osr_pc_offset_ = __ pc_offset();
       shrink_slots -= osr_helper()->UnoptimizedFrameSlots();
+      InitializePoisonForLoadsIfNeeded();
     }
 
     if (info()->IsWasm() && shrink_slots > 128) {

@@ -1012,6 +1012,7 @@ class TurboAssembler : public Assembler {
   void CanonicalizeNaN(const VRegister& dst, const VRegister& src);
   void CanonicalizeNaN(const VRegister& reg) { CanonicalizeNaN(reg, reg); }
 
+  inline void CmovX(const Register& rd, const Register& rn, Condition cond);
   inline void Cset(const Register& rd, Condition cond);
   inline void Csetm(const Register& rd, Condition cond);
   inline void Fccmp(const VRegister& fn, const VRegister& fm, StatusFlags nzcv,
@@ -1314,7 +1315,6 @@ class MacroAssembler : public TurboAssembler {
   inline void Cinc(const Register& rd, const Register& rn, Condition cond);
   inline void Cinv(const Register& rd, const Register& rn, Condition cond);
   inline void CzeroX(const Register& rd, Condition cond);
-  inline void CmovX(const Register& rd, const Register& rn, Condition cond);
   inline void Csinv(const Register& rd, const Register& rn, const Register& rm,
                     Condition cond);
   inline void Csneg(const Register& rd, const Register& rn, const Register& rm,

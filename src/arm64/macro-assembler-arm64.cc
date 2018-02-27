@@ -3266,7 +3266,9 @@ void TurboAssembler::ComputeCodeStartAddress(const Register& rd) {
   adr(rd, -pc_offset());
 }
 
-void TurboAssembler::ResetSpeculationPoisonRegister() { UNREACHABLE(); }
+void TurboAssembler::ResetSpeculationPoisonRegister() {
+  Mov(kSpeculationPoisonRegister, -1);
+}
 
 #undef __
 

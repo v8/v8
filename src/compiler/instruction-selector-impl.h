@@ -411,6 +411,10 @@ class FlagsContinuation final {
   bool IsDeoptimize() const {
     return mode_ == kFlags_deoptimize || mode_ == kFlags_deoptimize_and_poison;
   }
+  bool IsPoisoned() const {
+    return mode_ == kFlags_branch_and_poison ||
+           mode_ == kFlags_deoptimize_and_poison;
+  }
   bool IsSet() const { return mode_ == kFlags_set; }
   bool IsTrap() const { return mode_ == kFlags_trap; }
   FlagsCondition condition() const {
