@@ -1467,6 +1467,10 @@ Handle<WasmCompiledModule> WasmCompiledModule::Clone(
     return ret;
   }
 
+  Handle<FixedArray> export_copy = isolate->factory()->CopyFixedArray(
+      handle(module->export_wrappers(), isolate));
+  ret->set_export_wrappers(*export_copy);
+
   std::unique_ptr<wasm::NativeModule> native_module =
       module->GetNativeModule()->Clone();
   // construct the wrapper in 2 steps, because its construction may trigger GC,
