@@ -831,9 +831,8 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
       int start_offset = JSObject::kHeaderSize);
 
   // Allocate a JSArray without elements and initialize the header fields.
-  Node* AllocateUninitializedJSArrayWithoutElements(Node* array_map,
-                                                    Node* length,
-                                                    Node* allocation_site);
+  Node* AllocateUninitializedJSArrayWithoutElements(
+      Node* array_map, Node* length, Node* allocation_site = nullptr);
   // Allocate and return a JSArray with initialized header fields and its
   // uninitialized elements.
   // The ParameterMode argument is only used for the capacity parameter.

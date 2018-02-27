@@ -3127,6 +3127,7 @@ Node* CodeStubAssembler::AllocateFixedArray(ElementsKind kind,
                                             ParameterMode mode,
                                             AllocationFlags flags,
                                             Node* fixed_array_map) {
+  Comment("AllocateFixedArray");
   CSA_SLOW_ASSERT(this, MatchesParameterMode(capacity_node, mode));
   CSA_ASSERT(this, IntPtrOrSmiGreaterThan(capacity_node,
                                           IntPtrOrSmiConstant(0, mode), mode));
