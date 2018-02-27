@@ -1046,18 +1046,21 @@ void CodeGenerator::AssembleCodeStartRegisterCheck() {
 // Check if the code object is marked for deoptimization. If it is, then it
 // jumps to the CompileLazyDeoptimizedCode builtin. In order to do this we need
 // to:
-//    1. load the address of the current instruction;
-//    2. read from memory the word that contains that bit, which can be found in
+//    1. read from memory the word that contains that bit, which can be found in
 //       the flags in the referenced {CodeDataContainer} object;
-//    3. test kMarkedForDeoptimizationBit in those flags; and
-//    4. if it is not zero then it jumps to the builtin.
+//    2. test kMarkedForDeoptimizationBit in those flags; and
+//    3. if it is not zero then it jumps to the builtin.
 void CodeGenerator::BailoutIfDeoptimized() {
-  Label current;
-  __ larl(r1, &current);
-  int pc_offset = __ pc_offset();
-  __ bind(&current);
-  int offset = Code::kCodeDataContainerOffset - (Code::kHeaderSize + pc_offset);
-  __ LoadP(ip, MemOperand(r1, offset));
+  if (FLAG_debug_code) {
+    // Check that {kJavaScriptCallCodeStartRegister} is correct.
+    int pc_offset = __ pc_offset();
+    __ larl(ip, Operand(-pc_offset/2));
+    __ CmpP(ip, kJavaScriptCallCodeStartRegister);
+    __ Assert(eq, AbortReason::kWrongFunctionCodeStart);
+  }
+
+  int offset = Code::kCodeDataContainerOffset - Code::kHeaderSize;
+  __ LoadP(ip, MemOperand(kJavaScriptCallCodeStartRegister, offset));
   __ LoadW(ip,
            FieldMemOperand(ip, CodeDataContainer::kKindSpecificFlagsOffset));
   __ TestBit(ip, Code::kMarkedForDeoptimizationBit);
@@ -1195,9 +1198,10 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
         __ CmpP(cp, kScratchReg);
         __ Assert(eq, AbortReason::kWrongFunctionContext);
       }
-      __ LoadP(ip, FieldMemOperand(func, JSFunction::kCodeOffset));
-      __ AddP(ip, ip, Operand(Code::kHeaderSize - kHeapObjectTag));
-      __ Call(ip);
+      static_assert(kJavaScriptCallCodeStartRegister == r4, "ABI mismatch");
+      __ LoadP(r4, FieldMemOperand(func, JSFunction::kCodeOffset));
+      __ AddP(r4, r4, Operand(Code::kHeaderSize - kHeapObjectTag));
+      __ Call(r4);
       RecordCallPosition(instr);
       frame_access_state()->ClearSPDelta();
       break;
