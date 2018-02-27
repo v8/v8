@@ -242,6 +242,10 @@
   'unicode-test': [SKIP],
   'whitespaces': [SKIP],
 
+  # Unsuitable for GC stress because coverage information is lost on GC.
+  'code-coverage-ad-hoc': [SKIP],
+  'code-coverage-precise': [SKIP],
+
   # TODO(mstarzinger): Takes too long with TF.
   'array-sort': [PASS, NO_VARIANTS],
   'regress/regress-91008': [PASS, NO_VARIANTS],
