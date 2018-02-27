@@ -1690,14 +1690,14 @@ MaybeHandle<SharedFunctionInfo> Compiler::GetSharedFunctionInfoForScript(
         compilation_cache->PutScript(source, isolate->native_context(),
                                      language_mode, inner_result);
         Handle<Script> script(Script::cast(inner_result->script()), isolate);
+        isolate->debug()->OnAfterCompile(script);
         if (isolate->NeedsSourcePositionsForProfiling()) {
           Script::InitLineEnds(script);
         }
-        maybe_result = inner_result;
-      } else {
-        // Deserializer failed. Fall through to compile.
-        compile_timer.set_consuming_code_cache_failed();
+        return inner_result;
       }
+      // Deserializer failed. Fall through to compile.
+      compile_timer.set_consuming_code_cache_failed();
     }
   }
 
@@ -1721,18 +1721,16 @@ MaybeHandle<SharedFunctionInfo> Compiler::GetSharedFunctionInfoForScript(
       DCHECK(result->is_compiled());
       compilation_cache->PutScript(source, isolate->native_context(),
                                    language_mode, result);
-    } else if (maybe_result.is_null() && natives != EXTENSION_CODE &&
-               natives != NATIVES_CODE) {
-      isolate->ReportPendingMessages();
+    }
+
+    if (maybe_result.is_null()) {
+      if (natives != EXTENSION_CODE && natives != NATIVES_CODE) {
+        isolate->ReportPendingMessages();
+      }
+    } else {
+      isolate->debug()->OnAfterCompile(script);
     }
   }
-
-  // On success, report script compilation to debugger.
-  Handle<SharedFunctionInfo> result;
-  if (maybe_result.ToHandle(&result)) {
-    isolate->debug()->OnAfterCompile(handle(Script::cast(result->script())));
-  }
-
   return maybe_result;
 }
 
@@ -1757,67 +1755,43 @@ Compiler::GetSharedFunctionInfoForStreamedScript(
   ParseInfo* parse_info = streaming_data->info.get();
   parse_info->UpdateBackgroundParseStatisticsOnMainThread(isolate);
 
-  // Check if compile cache already holds the SFI, if so no need to finalize
-  // the code compiled on the background thread.
-  CompilationCache* compilation_cache = isolate->compilation_cache();
-  MaybeHandle<SharedFunctionInfo> maybe_result =
-      compilation_cache->LookupScript(
-          source, script_details.name_obj, script_details.line_offset,
-          script_details.column_offset, origin_options,
-          isolate->native_context(), parse_info->language_mode());
-  if (!maybe_result.is_null()) {
-    compile_timer.set_hit_isolate_cache();
+  Handle<Script> script = NewScript(isolate, source, script_details,
+                                    origin_options, NOT_NATIVES_CODE);
+  parse_info->set_script(script);
+  streaming_data->parser->UpdateStatistics(isolate, script);
+  streaming_data->parser->HandleSourceURLComments(isolate, script);
+
+  if (parse_info->literal() == nullptr) {
+    // Parsing has failed - report error messages.
+    parse_info->pending_error_handler()->ReportErrors(
+        isolate, script, parse_info->ast_value_factory());
+    streaming_data->Release();
+    return MaybeHandle<SharedFunctionInfo>();
   }
 
-  if (maybe_result.is_null()) {
-    // No cache entry found, finalize compilation of the script and add it to
-    // the isolate cache.
-    Handle<Script> script = NewScript(isolate, source, script_details,
-                                      origin_options, NOT_NATIVES_CODE);
-    parse_info->set_script(script);
-    streaming_data->parser->UpdateStatistics(isolate, script);
-    streaming_data->parser->HandleSourceURLComments(isolate, script);
-
-    if (parse_info->literal() == nullptr) {
-      // Parsing has failed - report error messages.
-      parse_info->pending_error_handler()->ReportErrors(
-          isolate, script, parse_info->ast_value_factory());
+  // Parsing has succeeded - finalize compilation.
+  MaybeHandle<SharedFunctionInfo> result;
+  if (i::FLAG_background_compile) {
+    // Finalize background compilation.
+    if (streaming_data->outer_function_job) {
+      result = FinalizeTopLevel(parse_info, isolate,
+                                streaming_data->outer_function_job.get(),
+                                &streaming_data->inner_function_jobs);
     } else {
-      // Parsing has succeeded - finalize compilation.
-      if (i::FLAG_background_compile) {
-        // Finalize background compilation.
-        if (streaming_data->outer_function_job) {
-          maybe_result = FinalizeTopLevel(
-              parse_info, isolate, streaming_data->outer_function_job.get(),
-              &streaming_data->inner_function_jobs);
-        } else {
-          // Compilation failed on background thread - throw an exception.
-          FailWithPendingException(
-              isolate, parse_info,
-              Compiler::ClearExceptionFlag::KEEP_EXCEPTION);
-        }
-      } else {
-        // Compilation on main thread.
-        maybe_result = CompileToplevel(parse_info, isolate);
-      }
+      // Compilation failed on background thread - throw an exception.
+      FailWithPendingException(isolate, parse_info,
+                               Compiler::ClearExceptionFlag::KEEP_EXCEPTION);
     }
-
-    // Add compiled code to the isolate cache.
-    Handle<SharedFunctionInfo> result;
-    if (maybe_result.ToHandle(&result)) {
-      compilation_cache->PutScript(source, isolate->native_context(),
-                                   parse_info->language_mode(), result);
-    }
+  } else {
+    // Compilation on main thread.
+    result = CompileToplevel(parse_info, isolate);
   }
 
-  // On success, report script compilation to debugger.
-  Handle<SharedFunctionInfo> result;
-  if (maybe_result.ToHandle(&result)) {
-    isolate->debug()->OnAfterCompile(handle(Script::cast(result->script())));
+  if (!result.is_null()) {
+    isolate->debug()->OnAfterCompile(script);
   }
-
   streaming_data->Release();
-  return maybe_result;
+  return result;
 }
 
 Handle<SharedFunctionInfo> Compiler::GetSharedFunctionInfo(
