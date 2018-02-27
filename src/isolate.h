@@ -80,6 +80,7 @@ class InnerPointerToCodeCache;
 class InstructionStream;
 class Logger;
 class MaterializedObjectStore;
+class Microtask;
 class OptimizingCompileDispatcher;
 class PromiseOnStack;
 class Redirection;

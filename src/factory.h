@@ -27,6 +27,8 @@ class AliasedArgumentsEntry;
 class BreakPointInfo;
 class BreakPoint;
 class BoilerplateDescription;
+class CallableTask;
+class CallbackTask;
 class ConstantElementsPair;
 class CoverageInfo;
 class DebugInfo;

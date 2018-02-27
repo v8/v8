@@ -60,6 +60,7 @@
 #include "src/objects/frame-array-inl.h"
 #include "src/objects/hash-table.h"
 #include "src/objects/map.h"
+#include "src/objects/microtask-inl.h"
 #include "src/objects/promise-inl.h"
 #include "src/parsing/preparsed-scope-data.h"
 #include "src/property-descriptor.h"

@@ -1872,6 +1872,8 @@ v8_source_set("v8_base") {
     "src/objects/literal-objects.h",
     "src/objects/map-inl.h",
     "src/objects/map.h",
+    "src/objects/microtask-inl.h",
+    "src/objects/microtask.h",
     "src/objects/module-inl.h",
     "src/objects/module.cc",
     "src/objects/module.h",

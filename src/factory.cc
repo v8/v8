@@ -17,6 +17,7 @@
 #include "src/objects/bigint.h"
 #include "src/objects/debug-objects-inl.h"
 #include "src/objects/frame-array-inl.h"
+#include "src/objects/microtask-inl.h"
 #include "src/objects/module.h"
 #include "src/objects/promise-inl.h"
 #include "src/objects/scope-info.h"
