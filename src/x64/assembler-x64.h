@@ -301,26 +301,23 @@ enum RoundingMode {
 // -----------------------------------------------------------------------------
 // Machine instruction Immediates
 
-class Immediate {
+class Immediate BASE_EMBEDDED {
  public:
-  explicit constexpr Immediate(int32_t value) : value_(value) {}
-  explicit constexpr Immediate(int32_t value, RelocInfo::Mode rmode)
+  explicit Immediate(int32_t value) : value_(value) {}
+  explicit Immediate(int32_t value, RelocInfo::Mode rmode)
       : value_(value), rmode_(rmode) {}
-  explicit Immediate(Smi* value)
-      : value_(static_cast<int32_t>(reinterpret_cast<intptr_t>(value))) {
+  explicit Immediate(Smi* value) {
     DCHECK(SmiValuesAre31Bits());  // Only available for 31-bit SMI.
+    value_ = static_cast<int32_t>(reinterpret_cast<intptr_t>(value));
   }
 
  private:
-  const int32_t value_;
-  const RelocInfo::Mode rmode_ = RelocInfo::NONE;
+  int32_t value_;
+  RelocInfo::Mode rmode_ = RelocInfo::NONE;
 
   friend class Assembler;
 };
-static_assert(sizeof(Immediate) <= kPointerSize,
-              "Immediate must be small enough to pass it by value");
-static_assert(IS_TRIVIALLY_COPYABLE(Immediate),
-              "Immediate must be trivially copyable to pass it by value");
+
 
 // -----------------------------------------------------------------------------
 // Machine instruction Operands
