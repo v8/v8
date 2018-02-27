@@ -844,18 +844,11 @@ void CodeGenerator::GenerateSpeculationPoison() {
 
   // Calculate a mask which has all bits set in the normal case, but has all
   // bits cleared if we are speculatively executing the wrong PC.
-  //    difference = (current - expected) | (expected - current)
-  //    poison = ~(difference >> (kBitsPerPointer - 1))
-  __ mr(kSpeculationPoisonRegister, scratch);
-  __ sub(kSpeculationPoisonRegister, kSpeculationPoisonRegister,
-         kJavaScriptCallCodeStartRegister);
-  __ sub(kJavaScriptCallCodeStartRegister, kJavaScriptCallCodeStartRegister,
-         scratch);
-  __ orx(kSpeculationPoisonRegister, kSpeculationPoisonRegister,
-         kJavaScriptCallCodeStartRegister);
-  __ ShiftRightArithImm(kSpeculationPoisonRegister, kSpeculationPoisonRegister,
-                        kBitsPerPointer - 1);
-  __ notx(kSpeculationPoisonRegister, kSpeculationPoisonRegister);
+  __ cmp(kJavaScriptCallCodeStartRegister, scratch);
+  __ li(scratch, Operand::Zero());
+  __ notx(kSpeculationPoisonRegister, scratch);
+  __ isel(eq, kSpeculationPoisonRegister,
+          kSpeculationPoisonRegister, scratch);
 }
 
 void CodeGenerator::AssembleRegisterArgumentPoisoning() {
