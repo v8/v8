@@ -252,7 +252,7 @@ Reduction JSCallReducer::ReduceObjectConstructor(Node* node) {
     }
   } else {
     ReplaceWithValue(node, value);
-    return Replace(node);
+    return Replace(value);
   }
   return NoChange();
 }
