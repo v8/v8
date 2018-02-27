@@ -546,10 +546,8 @@ int LookupCatchHandler(TranslatedFrame* translated_frame, int* data_out) {
   switch (translated_frame->kind()) {
     case TranslatedFrame::kInterpretedFunction: {
       int bytecode_offset = translated_frame->node_id().ToInt();
-      BytecodeArray* bytecode =
-          translated_frame->raw_shared_info()->bytecode_array();
-      HandlerTable* table = HandlerTable::cast(bytecode->handler_table());
-      return table->LookupRange(bytecode_offset, data_out, nullptr);
+      HandlerTable table(translated_frame->raw_shared_info()->bytecode_array());
+      return table.LookupRange(bytecode_offset, data_out, nullptr);
     }
     default:
       break;
@@ -1840,8 +1838,7 @@ void Deoptimizer::EnsureCodeForDeoptimizationEntry(Isolate* isolate,
   // directly and there is no support for relocating them.
   Handle<Code> code = isolate->factory()->NewCode(
       desc, Code::STUB, Handle<Object>(), Builtins::kNoBuiltinId,
-      MaybeHandle<HandlerTable>(), MaybeHandle<ByteArray>(),
-      MaybeHandle<DeoptimizationData>(), kImmovable);
+      MaybeHandle<ByteArray>(), MaybeHandle<DeoptimizationData>(), kImmovable);
   CHECK(Heap::IsImmovable(*code));
 
   CHECK_NULL(data->deopt_entry_code_[type]);

@@ -236,9 +236,9 @@ void UpdateOutLiveness(Bytecode bytecode, BytecodeLivenessState& out_liveness,
   if (!interpreter::Bytecodes::IsWithoutExternalSideEffects(bytecode)) {
     int handler_context;
     // TODO(leszeks): We should look up this range only once per entry.
-    HandlerTable* table = HandlerTable::cast(bytecode_array->handler_table());
+    HandlerTable table(*bytecode_array);
     int handler_offset =
-        table->LookupRange(current_offset, &handler_context, nullptr);
+        table.LookupRange(current_offset, &handler_context, nullptr);
 
     if (handler_offset != -1) {
       bool was_accumulator_live = out_liveness.AccumulatorIsLive();

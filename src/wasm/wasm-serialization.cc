@@ -133,7 +133,6 @@ class V8_EXPORT_PRIVATE NativeModuleSerializer {
   static size_t GetCodeHeaderSize();
   size_t MeasureCode(const WasmCode*) const;
   size_t MeasureCopiedStubs() const;
-  FixedArray* GetHandlerTable(const WasmCode*) const;
   ByteArray* GetSourcePositions(const WasmCode*) const;
 
   void BufferHeader();
@@ -225,24 +224,19 @@ size_t NativeModuleSerializer::GetCodeHeaderSize() {
   return sizeof(size_t) +    // size of this section
          sizeof(size_t) +    // offset of constant pool
          sizeof(size_t) +    // offset of safepoint table
+         sizeof(size_t) +    // offset of handler table
          sizeof(uint32_t) +  // stack slots
          sizeof(size_t) +    // code size
          sizeof(size_t) +    // reloc size
-         sizeof(uint32_t) +  // handler size
          sizeof(uint32_t) +  // source positions size
          sizeof(size_t) +    // protected instructions size
          sizeof(bool);       // is_liftoff
 }
 
 size_t NativeModuleSerializer::MeasureCode(const WasmCode* code) const {
-  FixedArray* handler_table = GetHandlerTable(code);
   ByteArray* source_positions = GetSourcePositions(code);
   return GetCodeHeaderSize() + code->instructions().size() +  // code
          code->reloc_info().size() +                          // reloc info
-         (handler_table == nullptr
-              ? 0
-              : static_cast<uint32_t>(
-                    handler_table->length())) +  // handler table
          (source_positions == nullptr
               ? 0
               : static_cast<uint32_t>(
@@ -312,21 +306,6 @@ void NativeModuleSerializer::BufferCopiedStubs() {
   }
 }
 
-FixedArray* NativeModuleSerializer::GetHandlerTable(
-    const WasmCode* code) const {
-  if (code->kind() != WasmCode::kFunction) return nullptr;
-  uint32_t index = code->index();
-  // We write the address, the size, and then copy the code as-is, followed
-  // by reloc info, followed by handler table and source positions.
-  Object* handler_table_entry =
-      native_module_->compiled_module()->handler_table()->get(
-          static_cast<int>(index));
-  if (handler_table_entry->IsFixedArray()) {
-    return FixedArray::cast(handler_table_entry);
-  }
-  return nullptr;
-}
-
 ByteArray* NativeModuleSerializer::GetSourcePositions(
     const WasmCode* code) const {
   if (code->kind() != WasmCode::kFunction) return nullptr;
@@ -351,15 +330,7 @@ void NativeModuleSerializer::BufferCurrentWasmCode() {
 void NativeModuleSerializer::BufferCodeInAllocatedScratch(
     const WasmCode* code) {
   // We write the address, the size, and then copy the code as-is, followed
-  // by reloc info, followed by handler table and source positions.
-  FixedArray* handler_table_entry = GetHandlerTable(code);
-  uint32_t handler_table_size = 0;
-  Address handler_table = nullptr;
-  if (handler_table_entry != nullptr) {
-    handler_table_size = static_cast<uint32_t>(handler_table_entry->length());
-    handler_table = reinterpret_cast<Address>(
-        handler_table_entry->GetFirstElementAddress());
-  }
+  // by reloc info, followed by source positions.
   ByteArray* source_positions_entry = GetSourcePositions(code);
   Address source_positions = nullptr;
   uint32_t source_positions_size = 0;
@@ -373,10 +344,10 @@ void NativeModuleSerializer::BufferCodeInAllocatedScratch(
   writer.Write(MeasureCode(code));
   writer.Write(code->constant_pool_offset());
   writer.Write(code->safepoint_table_offset());
+  writer.Write(code->handler_table_offset());
   writer.Write(code->stack_slots());
   writer.Write(code->instructions().size());
   writer.Write(code->reloc_info().size());
-  writer.Write(handler_table_size);
   writer.Write(source_positions_size);
   writer.Write(code->protected_instructions().size());
   writer.Write(code->is_liftoff());
@@ -385,7 +356,6 @@ void NativeModuleSerializer::BufferCodeInAllocatedScratch(
   // write the code and everything else
   writer.WriteVector(code->instructions());
   writer.WriteVector(code->reloc_info());
-  writer.WriteVector({handler_table, handler_table_size});
   writer.WriteVector({source_positions, source_positions_size});
   writer.WriteVector(
       {reinterpret_cast<const byte*>(code->protected_instructions().data()),
@@ -569,10 +539,10 @@ bool NativeModuleDeserializer::ReadCode() {
   USE(code_section_size);
   size_t constant_pool_offset = reader.Read<size_t>();
   size_t safepoint_table_offset = reader.Read<size_t>();
+  size_t handler_table_offset = reader.Read<size_t>();
   uint32_t stack_slot_count = reader.Read<uint32_t>();
   size_t code_size = reader.Read<size_t>();
   size_t reloc_size = reader.Read<size_t>();
-  uint32_t handler_size = reader.Read<uint32_t>();
   uint32_t source_position_size = reader.Read<uint32_t>();
   size_t protected_instructions_size = reader.Read<size_t>();
   bool is_liftoff = reader.Read<bool>();
@@ -589,7 +559,8 @@ bool NativeModuleDeserializer::ReadCode() {
   WasmCode* ret = native_module_->AddOwnedCode(
       code_buffer, std::move(reloc_info), reloc_size, Just(index_),
       WasmCode::kFunction, constant_pool_offset, stack_slot_count,
-      safepoint_table_offset, protected_instructions, is_liftoff);
+      safepoint_table_offset, handler_table_offset, protected_instructions,
+      is_liftoff);
   if (ret == nullptr) return false;
   native_module_->code_table_[index_] = ret;
 
@@ -627,15 +598,6 @@ bool NativeModuleDeserializer::ReadCode() {
       default:
         break;
     }
-  }
-  if (handler_size > 0) {
-    Handle<FixedArray> handler_table = isolate_->factory()->NewFixedArray(
-        static_cast<int>(handler_size), TENURED);
-    reader.ReadIntoVector(
-        {reinterpret_cast<Address>(handler_table->GetFirstElementAddress()),
-         handler_size});
-    native_module_->compiled_module()->handler_table()->set(
-        static_cast<int>(index_), *handler_table);
   }
   if (source_position_size > 0) {
     Handle<ByteArray> source_positions = isolate_->factory()->NewByteArray(

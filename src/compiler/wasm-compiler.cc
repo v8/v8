@@ -5369,6 +5369,7 @@ WasmCodeWrapper WasmCompilationUnit::FinishTurbofanCompilation(
         desc, tf_.job_->compilation_info()->wasm_code_desc()->frame_slot_count,
         func_index_,
         tf_.job_->compilation_info()->wasm_code_desc()->safepoint_table_offset,
+        tf_.job_->compilation_info()->wasm_code_desc()->handler_table_offset,
         std::move(protected_instructions_), false);
     if (!code) {
       return WasmCodeWrapper(code);
@@ -5385,15 +5386,9 @@ WasmCodeWrapper WasmCompilationUnit::FinishTurbofanCompilation(
 
     Handle<ByteArray> source_positions =
         tf_.job_->compilation_info()->wasm_code_desc()->source_positions_table;
-    MaybeHandle<HandlerTable> handler_table =
-        tf_.job_->compilation_info()->wasm_code_desc()->handler_table;
 
     native_module_->compiled_module()->source_positions()->set(
         func_index_, *source_positions);
-    if (!handler_table.is_null()) {
-      native_module_->compiled_module()->handler_table()->set(
-          func_index_, *handler_table.ToHandleChecked());
-    }
 
 #ifdef ENABLE_DISASSEMBLER
     // Note: only do this after setting source positions, as this will be
@@ -5448,8 +5443,7 @@ WasmCodeWrapper WasmCompilationUnit::FinishLiftoffCompilation(
     Handle<Code> code;
     code = isolate_->factory()->NewCode(
         desc, Code::WASM_FUNCTION, code, Builtins::kNoBuiltinId,
-        MaybeHandle<HandlerTable>(), source_positions,
-        MaybeHandle<DeoptimizationData>(), kMovable,
+        source_positions, MaybeHandle<DeoptimizationData>(), kMovable,
         0,                                       // stub_key
         false,                                   // is_turbofanned
         liftoff_.asm_.GetTotalFrameSlotCount(),  // stack_slots
@@ -5469,7 +5463,7 @@ WasmCodeWrapper WasmCompilationUnit::FinishLiftoffCompilation(
     wasm::WasmCode* code =
         native_module_->AddCode(desc, liftoff_.asm_.GetTotalFrameSlotCount(),
                                 func_index_, liftoff_.safepoint_table_offset_,
-                                std::move(protected_instructions_), true);
+                                0, std::move(protected_instructions_), true);
     PROFILE(isolate_,
             CodeCreateEvent(CodeEventListener::FUNCTION_TAG, code, func_name_));
     ret = WasmCodeWrapper(code);

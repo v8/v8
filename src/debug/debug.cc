@@ -875,11 +875,10 @@ void Debug::PrepareStepOnThrow() {
         if (summaries.size() > 1) {
           Handle<AbstractCode> code = summary.AsJavaScript().abstract_code();
           CHECK_EQ(AbstractCode::INTERPRETED_FUNCTION, code->kind());
-          BytecodeArray* bytecode = code->GetBytecodeArray();
-          HandlerTable* table = HandlerTable::cast(bytecode->handler_table());
+          HandlerTable table(code->GetBytecodeArray());
           int code_offset = summary.code_offset();
           HandlerTable::CatchPrediction prediction;
-          int index = table->LookupRange(code_offset, nullptr, &prediction);
+          int index = table.LookupRange(code_offset, nullptr, &prediction);
           if (index > 0) found_handler = true;
         } else {
           found_handler = true;

@@ -1266,10 +1266,11 @@ Object* Isolate::UnwindAndFindHandler() {
 
         // Gather information from the handler.
         Code* code = frame->LookupCode();
-        return FoundHandler(
-            nullptr, code->InstructionStart(),
-            Smi::ToInt(code->handler_table()->get(0)), code->constant_pool(),
-            handler->address() + StackHandlerConstants::kSize, 0);
+        HandlerTable table(code);
+        return FoundHandler(nullptr, code->InstructionStart(),
+                            table.LookupReturn(0), code->constant_pool(),
+                            handler->address() + StackHandlerConstants::kSize,
+                            0);
       }
 
       case StackFrame::WASM_COMPILED: {
@@ -1346,7 +1347,7 @@ Object* Isolate::UnwindAndFindHandler() {
         StubFrame* stub_frame = static_cast<StubFrame*>(frame);
         Code* code = stub_frame->LookupCode();
         if (!code->IsCode() || code->kind() != Code::BUILTIN ||
-            !code->handler_table()->length() || !code->is_turbofanned()) {
+            !code->handler_table_offset() || !code->is_turbofanned()) {
           break;
         }
 
@@ -1456,9 +1457,8 @@ HandlerTable::CatchPrediction PredictException(JavaScriptFrame* frame) {
         // Must have been constructed from a bytecode array.
         CHECK_EQ(AbstractCode::INTERPRETED_FUNCTION, code->kind());
         int code_offset = summary.code_offset();
-        BytecodeArray* bytecode = code->GetBytecodeArray();
-        HandlerTable* table = HandlerTable::cast(bytecode->handler_table());
-        int index = table->LookupRange(code_offset, nullptr, &prediction);
+        HandlerTable table(code->GetBytecodeArray());
+        int index = table.LookupRange(code_offset, nullptr, &prediction);
         if (index <= 0) continue;
         if (prediction == HandlerTable::UNCAUGHT) continue;
         return prediction;
@@ -1522,7 +1522,7 @@ Isolate::CatchType Isolate::PredictExceptionCatcher() {
       case StackFrame::STUB: {
         Handle<Code> code(frame->LookupCode());
         if (!code->IsCode() || code->kind() != Code::BUILTIN ||
-            !code->handler_table()->length() || !code->is_turbofanned()) {
+            !code->handler_table_offset() || !code->is_turbofanned()) {
           break;
         }
 
@@ -2102,7 +2102,7 @@ Handle<Object> Isolate::GetPromiseOnStackOnThrow() {
     } else if (frame->type() == StackFrame::STUB) {
       Code* code = frame->LookupCode();
       if (!code->IsCode() || code->kind() != Code::BUILTIN ||
-          !code->handler_table()->length() || !code->is_turbofanned()) {
+          !code->handler_table_offset() || !code->is_turbofanned()) {
         continue;
       }
       catch_prediction = code->GetBuiltinCatchPrediction();

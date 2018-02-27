@@ -64,9 +64,9 @@ class V8_EXPORT_PRIVATE CompilationInfo final {
   struct WasmCodeDesc {
     CodeDesc code_desc;
     size_t safepoint_table_offset = 0;
+    size_t handler_table_offset = 0;
     uint32_t frame_slot_count = 0;
     Handle<ByteArray> source_positions_table;
-    MaybeHandle<HandlerTable> handler_table;
   };
 
   // Construct a compilation info for unoptimized compilation.

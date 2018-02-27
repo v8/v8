@@ -1436,9 +1436,6 @@ Handle<WasmCompiledModule> WasmCompiledModule::New(
     compiled_module->set_code_table(*code_table);
 
     int function_count = static_cast<int>(module->functions.size());
-    Handle<FixedArray> handler_table =
-        isolate->factory()->NewFixedArray(function_count, TENURED);
-    compiled_module->set_handler_table(*handler_table);
     Handle<FixedArray> source_positions =
         isolate->factory()->NewFixedArray(function_count, TENURED);
     compiled_module->set_source_positions(*source_positions);

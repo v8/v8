@@ -310,9 +310,6 @@ class BytecodeGraphBuilder {
   const Handle<BytecodeArray>& bytecode_array() const {
     return bytecode_array_;
   }
-  const Handle<HandlerTable>& exception_handler_table() const {
-    return exception_handler_table_;
-  }
   const Handle<FeedbackVector>& feedback_vector() const {
     return feedback_vector_;
   }
@@ -373,7 +370,6 @@ class BytecodeGraphBuilder {
   JSGraph* jsgraph_;
   CallFrequency const invocation_frequency_;
   Handle<BytecodeArray> bytecode_array_;
-  Handle<HandlerTable> exception_handler_table_;
   Handle<FeedbackVector> feedback_vector_;
   const JSTypeHintLowering type_hint_lowering_;
   const FrameStateFunctionInfo* frame_state_function_info_;

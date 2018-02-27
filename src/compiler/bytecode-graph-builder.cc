@@ -521,8 +521,6 @@ BytecodeGraphBuilder::BytecodeGraphBuilder(
       jsgraph_(jsgraph),
       invocation_frequency_(invocation_frequency),
       bytecode_array_(handle(shared_info->bytecode_array())),
-      exception_handler_table_(
-          handle(HandlerTable::cast(bytecode_array()->handler_table()))),
       feedback_vector_(feedback_vector),
       type_hint_lowering_(jsgraph, feedback_vector, flags),
       frame_state_function_info_(common()->CreateFrameStateFunctionInfo(
@@ -3273,8 +3271,7 @@ Node** BytecodeGraphBuilder::EnsureInputBufferSize(int size) {
 }
 
 void BytecodeGraphBuilder::ExitThenEnterExceptionHandlers(int current_offset) {
-  Handle<HandlerTable> table = exception_handler_table();
-  int num_entries = table->NumberOfRangeEntries();
+  HandlerTable table(*bytecode_array());
 
   // Potentially exit exception handlers.
   while (!exception_handlers_.empty()) {
@@ -3284,12 +3281,13 @@ void BytecodeGraphBuilder::ExitThenEnterExceptionHandlers(int current_offset) {
   }
 
   // Potentially enter exception handlers.
+  int num_entries = table.NumberOfRangeEntries();
   while (current_exception_handler_ < num_entries) {
-    int next_start = table->GetRangeStart(current_exception_handler_);
+    int next_start = table.GetRangeStart(current_exception_handler_);
     if (current_offset < next_start) break;  // Not yet covered by range.
-    int next_end = table->GetRangeEnd(current_exception_handler_);
-    int next_handler = table->GetRangeHandler(current_exception_handler_);
-    int context_register = table->GetRangeData(current_exception_handler_);
+    int next_end = table.GetRangeEnd(current_exception_handler_);
+    int next_handler = table.GetRangeHandler(current_exception_handler_);
+    int context_register = table.GetRangeData(current_exception_handler_);
     exception_handlers_.push(
         {next_start, next_end, next_handler, context_register});
     current_exception_handler_++;

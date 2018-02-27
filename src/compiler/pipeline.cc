@@ -992,11 +992,12 @@ PipelineWasmCompilationJob::Status PipelineWasmCompilationJob::FinalizeJobImpl(
     code_generator->tasm()->GetCode(isolate, &wasm_code_desc->code_desc);
     wasm_code_desc->safepoint_table_offset =
         code_generator->GetSafepointTableOffset();
+    wasm_code_desc->handler_table_offset =
+        code_generator->GetHandlerTableOffset();
     wasm_code_desc->frame_slot_count =
         code_generator->frame()->GetTotalFrameSlotCount();
     wasm_code_desc->source_positions_table =
         code_generator->GetSourcePositionTable();
-    wasm_code_desc->handler_table = code_generator->GetHandlerTable();
   }
   return SUCCEEDED;
 }

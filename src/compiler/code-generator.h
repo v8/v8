@@ -96,7 +96,6 @@ class CodeGenerator final : public GapResolver::Assembler {
   Handle<Code> FinalizeCode();
 
   Handle<ByteArray> GetSourcePositionTable();
-  MaybeHandle<HandlerTable> GetHandlerTable() const;
 
   InstructionSequence* code() const { return code_; }
   FrameAccessState* frame_access_state() const { return frame_access_state_; }
@@ -123,6 +122,7 @@ class CodeGenerator final : public GapResolver::Assembler {
   Zone* zone() const { return zone_; }
   TurboAssembler* tasm() { return &tasm_; }
   size_t GetSafepointTableOffset() const { return safepoints_.GetCodeOffset(); }
+  size_t GetHandlerTableOffset() const { return handler_table_offset_; }
 
  private:
   GapResolver* resolver() { return &resolver_; }
@@ -395,6 +395,7 @@ class CodeGenerator final : public GapResolver::Assembler {
   ZoneDeque<DeoptimizationLiteral> deoptimization_literals_;
   size_t inlined_function_count_;
   TranslationBuffer translations_;
+  int handler_table_offset_;
   int last_lazy_deopt_pc_;
 
   // kArchCallCFunction could be reached either:

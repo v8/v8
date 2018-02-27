@@ -685,15 +685,14 @@ class V8_EXPORT_PRIVATE Factory final {
   Handle<Code> NewCode(const CodeDesc& desc, Code::Kind kind,
                        Handle<Object> self_reference,
                        int32_t builtin_index = Builtins::kNoBuiltinId,
-                       MaybeHandle<HandlerTable> maybe_handler_table =
-                           MaybeHandle<HandlerTable>(),
                        MaybeHandle<ByteArray> maybe_source_position_table =
                            MaybeHandle<ByteArray>(),
                        MaybeHandle<DeoptimizationData> maybe_deopt_data =
                            MaybeHandle<DeoptimizationData>(),
                        Movability movability = kMovable, uint32_t stub_key = 0,
                        bool is_turbofanned = false, int stack_slots = 0,
-                       int safepoint_table_offset = 0);
+                       int safepoint_table_offset = 0,
+                       int handler_table_offset = 0);
 
   // Allocates a new, empty code object for use by builtin deserialization. The
   // given {size} argument specifies the size of the entire code object.

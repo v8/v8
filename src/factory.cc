@@ -1810,17 +1810,13 @@ Handle<CodeDataContainer> Factory::NewCodeDataContainer(int flags) {
 
 Handle<Code> Factory::NewCode(
     const CodeDesc& desc, Code::Kind kind, Handle<Object> self_ref,
-    int32_t builtin_index, MaybeHandle<HandlerTable> maybe_handler_table,
-    MaybeHandle<ByteArray> maybe_source_position_table,
+    int32_t builtin_index, MaybeHandle<ByteArray> maybe_source_position_table,
     MaybeHandle<DeoptimizationData> maybe_deopt_data, Movability movability,
     uint32_t stub_key, bool is_turbofanned, int stack_slots,
-    int safepoint_table_offset) {
+    int safepoint_table_offset, int handler_table_offset) {
   Handle<ByteArray> reloc_info = NewByteArray(desc.reloc_size, TENURED);
   Handle<CodeDataContainer> data_container = NewCodeDataContainer(0);
 
-  Handle<HandlerTable> handler_table =
-      maybe_handler_table.is_null() ? HandlerTable::Empty(isolate())
-                                    : maybe_handler_table.ToHandleChecked();
   Handle<ByteArray> source_position_table =
       maybe_source_position_table.is_null()
           ? empty_byte_array()
@@ -1829,13 +1825,13 @@ Handle<Code> Factory::NewCode(
       maybe_deopt_data.is_null() ? DeoptimizationData::Empty(isolate())
                                  : maybe_deopt_data.ToHandleChecked();
 
-  CALL_HEAP_FUNCTION(
-      isolate(),
-      isolate()->heap()->AllocateCode(
-          desc, kind, self_ref, builtin_index, *reloc_info, *data_container,
-          *handler_table, *source_position_table, *deopt_data, movability,
-          stub_key, is_turbofanned, stack_slots, safepoint_table_offset),
-      Code);
+  CALL_HEAP_FUNCTION(isolate(),
+                     isolate()->heap()->AllocateCode(
+                         desc, kind, self_ref, builtin_index, *reloc_info,
+                         *data_container, *source_position_table, *deopt_data,
+                         movability, stub_key, is_turbofanned, stack_slots,
+                         safepoint_table_offset, handler_table_offset),
+                     Code);
 }
 
 Handle<Code> Factory::NewCodeForDeserialization(uint32_t size) {

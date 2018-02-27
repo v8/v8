@@ -982,10 +982,10 @@ int StubFrame::LookupExceptionHandlerInTable(int* stack_slots) {
   Code* code = LookupCode();
   DCHECK(code->is_turbofanned());
   DCHECK_EQ(code->kind(), Code::BUILTIN);
-  HandlerTable* table = HandlerTable::cast(code->handler_table());
+  HandlerTable table(code);
   int pc_offset = static_cast<int>(pc() - code->InstructionStart());
   *stack_slots = code->stack_slots();
-  return table->LookupReturn(pc_offset);
+  return table.LookupReturn(pc_offset);
 }
 
 void OptimizedFrame::Iterate(RootVisitor* v) const { IterateCompiledFrame(v); }
@@ -1084,7 +1084,7 @@ Script* JavaScriptFrame::script() const {
 
 int JavaScriptFrame::LookupExceptionHandlerInTable(
     int* stack_depth, HandlerTable::CatchPrediction* prediction) {
-  DCHECK_EQ(0, LookupCode()->handler_table()->length());
+  DCHECK_EQ(0, LookupCode()->handler_table_offset());
   DCHECK(!LookupCode()->is_optimized_code());
   return -1;
 }
@@ -1504,7 +1504,7 @@ int OptimizedFrame::LookupExceptionHandlerInTable(
   // code to perform prediction there.
   DCHECK_NULL(prediction);
   Code* code = LookupCode();
-  HandlerTable* table = HandlerTable::cast(code->handler_table());
+  HandlerTable table(code);
   int pc_offset = static_cast<int>(pc() - code->InstructionStart());
   if (stack_slots) *stack_slots = code->stack_slots();
 
@@ -1516,7 +1516,7 @@ int OptimizedFrame::LookupExceptionHandlerInTable(
     SafepointTable safepoints(code);
     pc_offset = safepoints.find_return_pc(pc_offset);
   }
-  return table->LookupReturn(pc_offset);
+  return table.LookupReturn(pc_offset);
 }
 
 DeoptimizationData* OptimizedFrame::GetDeoptimizationData(
@@ -1625,9 +1625,8 @@ int InterpretedFrame::position() const {
 
 int InterpretedFrame::LookupExceptionHandlerInTable(
     int* context_register, HandlerTable::CatchPrediction* prediction) {
-  BytecodeArray* bytecode = function()->shared()->bytecode_array();
-  HandlerTable* table = HandlerTable::cast(bytecode->handler_table());
-  return table->LookupRange(GetBytecodeOffset(), context_register, prediction);
+  HandlerTable table(function()->shared()->bytecode_array());
+  return table.LookupRange(GetBytecodeOffset(), context_register, prediction);
 }
 
 int InterpretedFrame::GetBytecodeOffset() const {
@@ -1843,22 +1842,19 @@ int WasmCompiledFrame::LookupExceptionHandlerInTable(int* stack_slots) {
   DCHECK_NOT_NULL(stack_slots);
   if (!FLAG_wasm_jit_to_native) {
     Code* code = LookupCode();
-    HandlerTable* table = HandlerTable::cast(code->handler_table());
+    HandlerTable table(code);
     int pc_offset = static_cast<int>(pc() - code->entry());
     *stack_slots = code->stack_slots();
-    return table->LookupReturn(pc_offset);
+    return table.LookupReturn(pc_offset);
   }
   wasm::WasmCode* code =
       isolate()->wasm_engine()->code_manager()->LookupCode(pc());
-  if (!code->IsAnonymous()) {
-    Object* table_entry =
-        code->owner()->compiled_module()->handler_table()->get(code->index());
-    if (table_entry->IsHandlerTable()) {
-      HandlerTable* table = HandlerTable::cast(table_entry);
-      int pc_offset = static_cast<int>(pc() - code->instructions().start());
-      *stack_slots = static_cast<int>(code->stack_slots());
-      return table->LookupReturn(pc_offset);
-    }
+  if (!code->IsAnonymous() && code->handler_table_offset() > 0) {
+    HandlerTable table(code->instructions().start(),
+                       code->handler_table_offset());
+    int pc_offset = static_cast<int>(pc() - code->instructions().start());
+    *stack_slots = static_cast<int>(code->stack_slots());
+    return table.LookupReturn(pc_offset);
   }
   return -1;
 }

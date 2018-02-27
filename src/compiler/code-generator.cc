@@ -64,6 +64,7 @@ CodeGenerator::CodeGenerator(
       deoptimization_literals_(zone()),
       inlined_function_count_(0),
       translations_(zone()),
+      handler_table_offset_(0),
       last_lazy_deopt_pc_(0),
       caller_registers_saved_(false),
       jump_tables_(nullptr),
@@ -312,6 +313,17 @@ void CodeGenerator::AssembleCode() {
   unwinding_info_writer_.Finish(tasm()->pc_offset());
 
   safepoints()->Emit(tasm(), frame()->GetTotalFrameSlotCount());
+
+  // Emit the exception handler table.
+  if (!handlers_.empty()) {
+    handler_table_offset_ = HandlerTable::EmitReturnTableStart(
+        tasm(), static_cast<int>(handlers_.size()));
+    for (size_t i = 0; i < handlers_.size(); ++i) {
+      HandlerTable::EmitReturnEntry(tasm(), handlers_[i].pc_offset,
+                                    handlers_[i].handler->pos());
+    }
+  }
+
   result_ = kSuccess;
 }
 
@@ -351,37 +363,10 @@ Handle<ByteArray> CodeGenerator::GetSourcePositionTable() {
   return source_position_table_builder_.ToSourcePositionTable(isolate());
 }
 
-MaybeHandle<HandlerTable> CodeGenerator::GetHandlerTable() const {
-  if (!handlers_.empty()) {
-    Handle<HandlerTable> table =
-        Handle<HandlerTable>::cast(isolate()->factory()->NewFixedArray(
-            HandlerTable::LengthForReturn(static_cast<int>(handlers_.size())),
-            TENURED));
-    for (size_t i = 0; i < handlers_.size(); ++i) {
-      table->SetReturnOffset(static_cast<int>(i), handlers_[i].pc_offset);
-      table->SetReturnHandler(static_cast<int>(i), handlers_[i].handler->pos());
-    }
-    return table;
-  }
-  return {};
-}
-
 Handle<Code> CodeGenerator::FinalizeCode() {
   if (result_ != kSuccess) {
     tasm()->AbortedCodeGeneration();
     return Handle<Code>();
-  }
-
-  // Allocate exception handler table.
-  Handle<HandlerTable> table = HandlerTable::Empty(isolate());
-  if (!handlers_.empty()) {
-    table = Handle<HandlerTable>::cast(isolate()->factory()->NewFixedArray(
-        HandlerTable::LengthForReturn(static_cast<int>(handlers_.size())),
-        TENURED));
-    for (size_t i = 0; i < handlers_.size(); ++i) {
-      table->SetReturnOffset(static_cast<int>(i), handlers_[i].pc_offset);
-      table->SetReturnHandler(static_cast<int>(i), handlers_[i].handler->pos());
-    }
   }
 
   // Allocate the source position table.
@@ -400,8 +385,9 @@ Handle<Code> CodeGenerator::FinalizeCode() {
 
   Handle<Code> result = isolate()->factory()->NewCode(
       desc, info()->code_kind(), Handle<Object>(), info()->builtin_index(),
-      table, source_positions, deopt_data, kMovable, info()->stub_key(), true,
-      frame()->GetTotalFrameSlotCount(), safepoints()->GetCodeOffset());
+      source_positions, deopt_data, kMovable, info()->stub_key(), true,
+      frame()->GetTotalFrameSlotCount(), safepoints()->GetCodeOffset(),
+      handler_table_offset_);
   isolate()->counters()->total_compiled_code_size()->Increment(
       result->instruction_size());
 

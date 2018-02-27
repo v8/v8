@@ -111,6 +111,7 @@ class V8_EXPORT_PRIVATE WasmCode final {
   Address constant_pool() const;
   size_t constant_pool_offset() const { return constant_pool_offset_; }
   size_t safepoint_table_offset() const { return safepoint_table_offset_; }
+  size_t handler_table_offset() const { return handler_table_offset_; }
   uint32_t stack_slots() const { return stack_slots_; }
   bool is_liftoff() const { return is_liftoff_; }
 
@@ -142,7 +143,7 @@ class V8_EXPORT_PRIVATE WasmCode final {
            std::unique_ptr<const byte[]>&& reloc_info, size_t reloc_size,
            NativeModule* owner, Maybe<uint32_t> index, Kind kind,
            size_t constant_pool_offset, uint32_t stack_slots,
-           size_t safepoint_table_offset,
+           size_t safepoint_table_offset, size_t handler_table_offset,
            std::shared_ptr<ProtectedInstructions> protected_instructions,
            bool is_liftoff)
       : instructions_(instructions),
@@ -154,6 +155,7 @@ class V8_EXPORT_PRIVATE WasmCode final {
         constant_pool_offset_(constant_pool_offset),
         stack_slots_(stack_slots),
         safepoint_table_offset_(safepoint_table_offset),
+        handler_table_offset_(handler_table_offset),
         protected_instructions_(std::move(protected_instructions)),
         is_liftoff_(is_liftoff) {}
 
@@ -172,6 +174,7 @@ class V8_EXPORT_PRIVATE WasmCode final {
   // since there may be stack/register tagged values for large number
   // conversions.
   size_t safepoint_table_offset_ = 0;
+  size_t handler_table_offset_ = 0;
   intptr_t trap_handler_index_ = -1;
   std::shared_ptr<ProtectedInstructions> protected_instructions_;
   bool is_liftoff_;
@@ -192,7 +195,7 @@ class V8_EXPORT_PRIVATE NativeModule final {
   std::unique_ptr<NativeModule> Clone();
 
   WasmCode* AddCode(const CodeDesc& desc, uint32_t frame_count, uint32_t index,
-                    size_t safepoint_table_offset,
+                    size_t safepoint_table_offset, size_t handler_table_offset,
                     std::unique_ptr<ProtectedInstructions>, bool is_liftoff);
 
   // A way to copy over JS-allocated code. This is because we compile
@@ -239,8 +242,8 @@ class V8_EXPORT_PRIVATE NativeModule final {
   void LinkAll();
   void Link(uint32_t index);
 
-  // TODO(mtrofin): needed until we sort out exception handlers and
-  // source positions, which are still on the  GC-heap.
+  // TODO(mstarzinger): needed until we sort out source positions, which are
+  // still on the  GC-heap.
   WasmCompiledModule* compiled_module() const;
   void SetCompiledModule(Handle<WasmCompiledModule>);
 
@@ -284,6 +287,7 @@ class V8_EXPORT_PRIVATE NativeModule final {
                          size_t reloc_size, Maybe<uint32_t> index,
                          WasmCode::Kind kind, size_t constant_pool_offset,
                          uint32_t stack_slots, size_t safepoint_table_offset,
+                         size_t handler_table_offset,
                          std::shared_ptr<ProtectedInstructions>,
                          bool is_liftoff);
   WasmCode* CloneCode(const WasmCode*);

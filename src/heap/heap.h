@@ -2312,13 +2312,13 @@ class Heap {
 
   // Allocates a new code object (fully initialized). All header fields of the
   // returned object are immutable and the code object is write protected.
-  MUST_USE_RESULT AllocationResult
-  AllocateCode(const CodeDesc& desc, Code::Kind kind, Handle<Object> self_ref,
-               int32_t builtin_index, ByteArray* reloc_info,
-               CodeDataContainer* data_container, HandlerTable* handler_table,
-               ByteArray* source_position_table, DeoptimizationData* deopt_data,
-               Movability movability, uint32_t stub_key, bool is_turbofanned,
-               int stack_slots, int safepoint_table_offset);
+  MUST_USE_RESULT AllocationResult AllocateCode(
+      const CodeDesc& desc, Code::Kind kind, Handle<Object> self_ref,
+      int32_t builtin_index, ByteArray* reloc_info,
+      CodeDataContainer* data_container, ByteArray* source_position_table,
+      DeoptimizationData* deopt_data, Movability movability, uint32_t stub_key,
+      bool is_turbofanned, int stack_slots, int safepoint_table_offset,
+      int handler_table_offset);
 
   MUST_USE_RESULT AllocationResult AllocateJSPromise(
       JSFunction* constructor, PretenureFlag pretenure = NOT_TENURED);

@@ -10478,54 +10478,6 @@ SharedFunctionInfo* DeoptimizationData::GetInlinedFunction(int index) {
   }
 }
 
-int HandlerTable::LookupRange(int pc_offset, int* data_out,
-                              CatchPrediction* prediction_out) {
-  int innermost_handler = -1;
-#ifdef DEBUG
-  // Assuming that ranges are well nested, we don't need to track the innermost
-  // offsets. This is just to verify that the table is actually well nested.
-  int innermost_start = std::numeric_limits<int>::min();
-  int innermost_end = std::numeric_limits<int>::max();
-#endif
-  for (int i = 0; i < length(); i += kRangeEntrySize) {
-    int start_offset = Smi::ToInt(get(i + kRangeStartIndex));
-    int end_offset = Smi::ToInt(get(i + kRangeEndIndex));
-    int handler_field = Smi::ToInt(get(i + kRangeHandlerIndex));
-    int handler_offset = HandlerOffsetField::decode(handler_field);
-    CatchPrediction prediction = HandlerPredictionField::decode(handler_field);
-    int handler_data = Smi::ToInt(get(i + kRangeDataIndex));
-    if (pc_offset >= start_offset && pc_offset < end_offset) {
-      DCHECK_GE(start_offset, innermost_start);
-      DCHECK_LT(end_offset, innermost_end);
-      innermost_handler = handler_offset;
-#ifdef DEBUG
-      innermost_start = start_offset;
-      innermost_end = end_offset;
-#endif
-      if (data_out) *data_out = handler_data;
-      if (prediction_out) *prediction_out = prediction;
-    }
-  }
-  return innermost_handler;
-}
-
-
-// TODO(turbofan): Make sure table is sorted and use binary search.
-int HandlerTable::LookupReturn(int pc_offset) {
-  for (int i = 0; i < length(); i += kReturnEntrySize) {
-    int return_offset = Smi::ToInt(get(i + kReturnOffsetIndex));
-    int handler_field = Smi::ToInt(get(i + kReturnHandlerIndex));
-    if (pc_offset == return_offset) {
-      return HandlerOffsetField::decode(handler_field);
-    }
-  }
-  return -1;
-}
-
-Handle<HandlerTable> HandlerTable::Empty(Isolate* isolate) {
-  return Handle<HandlerTable>::cast(isolate->factory()->empty_fixed_array());
-}
-
 #ifdef DEBUG
 bool DescriptorArray::IsEqualTo(DescriptorArray* other) {
   if (length() != other->length()) return false;
@@ -14481,34 +14433,6 @@ void DeoptimizationData::DeoptimizationDataPrint(std::ostream& os) {  // NOLINT
 }
 
 
-void HandlerTable::HandlerTableRangePrint(std::ostream& os) {
-  os << "   from   to       hdlr\n";
-  for (int i = 0; i < length(); i += kRangeEntrySize) {
-    int pc_start = Smi::ToInt(get(i + kRangeStartIndex));
-    int pc_end = Smi::ToInt(get(i + kRangeEndIndex));
-    int handler_field = Smi::ToInt(get(i + kRangeHandlerIndex));
-    int handler_offset = HandlerOffsetField::decode(handler_field);
-    CatchPrediction prediction = HandlerPredictionField::decode(handler_field);
-    int data = Smi::ToInt(get(i + kRangeDataIndex));
-    os << "  (" << std::setw(4) << pc_start << "," << std::setw(4) << pc_end
-       << ")  ->  " << std::setw(4) << handler_offset
-       << " (prediction=" << prediction << ", data=" << data << ")\n";
-  }
-}
-
-
-void HandlerTable::HandlerTableReturnPrint(std::ostream& os) {
-  os << "   off      hdlr (c)\n";
-  for (int i = 0; i < length(); i += kReturnEntrySize) {
-    int pc_offset = Smi::ToInt(get(i + kReturnOffsetIndex));
-    int handler_field = Smi::ToInt(get(i + kReturnHandlerIndex));
-    int handler_offset = HandlerOffsetField::decode(handler_field);
-    CatchPrediction prediction = HandlerPredictionField::decode(handler_field);
-    os << "  " << std::setw(4) << pc_offset << "  ->  " << std::setw(4)
-       << handler_offset << " (prediction=" << prediction << ")\n";
-  }
-}
-
 void Code::Disassemble(const char* name, std::ostream& os, void* current_pc) {
   os << "kind = " << Kind2String(kind()) << "\n";
   if (is_stub()) {
@@ -14612,10 +14536,11 @@ void Code::Disassemble(const char* name, std::ostream& os, void* current_pc) {
     os << "\n";
   }
 
-  if (handler_table()->length() > 0) {
-    os << "Handler Table (size = " << handler_table()->Size() << ")\n";
+  if (handler_table_offset() > 0) {
+    HandlerTable table(this);
+    os << "Handler Table (size = " << table.NumberOfReturnEntries() << ")\n";
     if (kind() == OPTIMIZED_FUNCTION) {
-      HandlerTable::cast(handler_table())->HandlerTableReturnPrint(os);
+      table.HandlerTableReturnPrint(os);
     }
     os << "\n";
   }
@@ -14688,10 +14613,11 @@ void BytecodeArray::Disassemble(std::ostream& os) {
   }
 #endif
 
-  os << "Handler Table (size = " << handler_table()->Size() << ")\n";
+  os << "Handler Table (size = " << handler_table()->length() << ")\n";
 #ifdef ENABLE_DISASSEMBLER
   if (handler_table()->length() > 0) {
-    HandlerTable::cast(handler_table())->HandlerTableRangePrint(os);
+    HandlerTable table(this);
+    table.HandlerTableRangePrint(os);
   }
 #endif
 }

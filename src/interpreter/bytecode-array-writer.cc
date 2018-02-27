@@ -38,7 +38,7 @@ BytecodeArrayWriter::BytecodeArrayWriter(
 
 Handle<BytecodeArray> BytecodeArrayWriter::ToBytecodeArray(
     Isolate* isolate, int register_count, int parameter_count,
-    Handle<FixedArray> handler_table) {
+    Handle<ByteArray> handler_table) {
   DCHECK_EQ(0, unbound_jumps_);
 
   int bytecode_size = static_cast<int>(bytecodes()->size());

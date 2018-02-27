@@ -2923,7 +2923,7 @@ AllocationResult Heap::AllocateBytecodeArray(int length,
   instance->set_osr_loop_nesting_level(0);
   instance->set_bytecode_age(BytecodeArray::kNoAgeBytecodeAge);
   instance->set_constant_pool(constant_pool);
-  instance->set_handler_table(empty_fixed_array());
+  instance->set_handler_table(empty_byte_array());
   instance->set_source_position_table(empty_byte_array());
   CopyBytes(instance->GetFirstBytecodeAddress(), raw_bytecodes, length);
   instance->clear_padding();
@@ -3215,10 +3215,10 @@ AllocationResult Heap::AllocateCode(int object_size, Movability movability) {
 AllocationResult Heap::AllocateCode(
     const CodeDesc& desc, Code::Kind kind, Handle<Object> self_ref,
     int32_t builtin_index, ByteArray* reloc_info,
-    CodeDataContainer* data_container, HandlerTable* handler_table,
-    ByteArray* source_position_table, DeoptimizationData* deopt_data,
-    Movability movability, uint32_t stub_key, bool is_turbofanned,
-    int stack_slots, int safepoint_table_offset) {
+    CodeDataContainer* data_container, ByteArray* source_position_table,
+    DeoptimizationData* deopt_data, Movability movability, uint32_t stub_key,
+    bool is_turbofanned, int stack_slots, int safepoint_table_offset,
+    int handler_table_offset) {
   bool has_unwinding_info = desc.unwinding_info != nullptr;
   DCHECK((has_unwinding_info && desc.unwinding_info_size > 0) ||
          (!has_unwinding_info && desc.unwinding_info_size == 0));
@@ -3244,11 +3244,11 @@ AllocationResult Heap::AllocateCode(
   code->set_relocation_info(reloc_info);
   code->initialize_flags(kind, has_unwinding_info, is_turbofanned, stack_slots);
   code->set_safepoint_table_offset(safepoint_table_offset);
+  code->set_handler_table_offset(handler_table_offset);
   code->set_code_data_container(data_container);
   code->set_has_tagged_params(true);
   code->set_deoptimization_data(deopt_data);
   code->set_stub_key(stub_key);
-  code->set_handler_table(handler_table);
   code->set_source_position_table(source_position_table);
   code->set_protected_instructions(empty_fixed_array(), SKIP_WRITE_BARRIER);
   code->set_constant_pool_offset(desc.instr_size - desc.constant_pool_size);

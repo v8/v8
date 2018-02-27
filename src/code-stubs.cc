@@ -121,17 +121,17 @@ Handle<Code> PlatformCodeStub::GenerateCode() {
     Generate(&masm);
   }
 
-  // Allocate the handler table.
-  Handle<HandlerTable> table = GenerateHandlerTable();
+  // Generate the handler table.
+  int handler_table_offset = GenerateHandlerTable(&masm);
 
   // Create the code object.
   CodeDesc desc;
   masm.GetCode(isolate(), &desc);
   // Copy the generated code into a heap object.
   Handle<Code> new_object = factory->NewCode(
-      desc, Code::STUB, masm.CodeObject(), Builtins::kNoBuiltinId, table,
+      desc, Code::STUB, masm.CodeObject(), Builtins::kNoBuiltinId,
       MaybeHandle<ByteArray>(), DeoptimizationData::Empty(isolate()),
-      NeedsImmovableCode(), GetKey());
+      NeedsImmovableCode(), GetKey(), false, 0, 0, handler_table_offset);
   return new_object;
 }
 
@@ -225,9 +225,7 @@ void CodeStub::Dispatch(Isolate* isolate, uint32_t key, void** value_out,
   }
 }
 
-Handle<HandlerTable> PlatformCodeStub::GenerateHandlerTable() {
-  return HandlerTable::Empty(isolate());
-}
+int PlatformCodeStub::GenerateHandlerTable(MacroAssembler* masm) { return 0; }
 
 static void InitializeDescriptorDispatchedCall(CodeStub* stub,
                                                void** value_out) {
@@ -434,11 +432,10 @@ TF_STUB(LoadIndexedInterceptorStub, CodeStubAssembler) {
                   vector);
 }
 
-Handle<HandlerTable> JSEntryStub::GenerateHandlerTable() {
-  Handle<FixedArray> handler_table =
-      isolate()->factory()->NewFixedArray(1, TENURED);
-  handler_table->set(0, Smi::FromInt(handler_offset_));
-  return Handle<HandlerTable>::cast(handler_table);
+int JSEntryStub::GenerateHandlerTable(MacroAssembler* masm) {
+  int handler_table_offset = HandlerTable::EmitReturnTableStart(masm, 1);
+  HandlerTable::EmitReturnEntry(masm, 0, handler_offset_);
+  return handler_table_offset;
 }
 
 

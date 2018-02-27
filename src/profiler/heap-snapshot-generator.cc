@@ -1230,9 +1230,6 @@ void V8HeapExplorer::ExtractCodeReferences(int entry, Code* code) {
   SetInternalReference(code, entry,
                        "relocation_info", code->relocation_info(),
                        Code::kRelocationInfoOffset);
-  SetInternalReference(code, entry,
-                       "handler_table", code->handler_table(),
-                       Code::kHandlerTableOffset);
   TagObject(code->deoptimization_data(), "(code deopt data)");
   SetInternalReference(code, entry,
                        "deoptimization_data", code->deoptimization_data(),

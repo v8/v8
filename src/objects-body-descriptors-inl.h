@@ -349,8 +349,7 @@ class ExternalTwoByteString::BodyDescriptor final : public BodyDescriptorBase {
 
 class Code::BodyDescriptor final : public BodyDescriptorBase {
  public:
-  STATIC_ASSERT(kRelocationInfoOffset + kPointerSize == kHandlerTableOffset);
-  STATIC_ASSERT(kHandlerTableOffset + kPointerSize ==
+  STATIC_ASSERT(kRelocationInfoOffset + kPointerSize ==
                 kDeoptimizationDataOffset);
   STATIC_ASSERT(kDeoptimizationDataOffset + kPointerSize ==
                 kSourcePositionTableOffset);

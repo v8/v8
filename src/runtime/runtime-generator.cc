@@ -153,12 +153,11 @@ RUNTIME_FUNCTION(Runtime_AsyncGeneratorHasCatchHandlerForPC) {
 
   SharedFunctionInfo* shared = generator->function()->shared();
   DCHECK(shared->HasBytecodeArray());
-  HandlerTable* handler_table =
-      HandlerTable::cast(shared->bytecode_array()->handler_table());
+  HandlerTable handler_table(shared->bytecode_array());
 
   int pc = Smi::cast(generator->input_or_debug_pos())->value();
   HandlerTable::CatchPrediction catch_prediction = HandlerTable::ASYNC_AWAIT;
-  handler_table->LookupRange(pc, nullptr, &catch_prediction);
+  handler_table.LookupRange(pc, nullptr, &catch_prediction);
   return isolate->heap()->ToBoolean(catch_prediction == HandlerTable::CAUGHT);
 }
 

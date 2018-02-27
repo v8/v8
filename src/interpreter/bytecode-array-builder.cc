@@ -92,7 +92,7 @@ Handle<BytecodeArray> BytecodeArrayBuilder::ToBytecodeArray(Isolate* isolate) {
     register_count = register_optimizer_->maxiumum_register_index() + 1;
   }
 
-  Handle<FixedArray> handler_table =
+  Handle<ByteArray> handler_table =
       handler_table_builder()->ToHandlerTable(isolate);
   return bytecode_array_writer_.ToBytecodeArray(
       isolate, register_count, parameter_count(), handler_table);

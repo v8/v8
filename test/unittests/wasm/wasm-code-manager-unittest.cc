@@ -187,7 +187,7 @@ class WasmCodeManagerTest : public TestWithIsolate {
     std::unique_ptr<byte[]> exec_buff(new byte[size]);
     desc.buffer = exec_buff.get();
     desc.instr_size = static_cast<int>(size);
-    return native_module->AddCode(desc, 0, index, 0, {}, false);
+    return native_module->AddCode(desc, 0, index, 0, 0, {}, false);
   }
 
   size_t page() const { return AllocatePageSize(); }

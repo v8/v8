@@ -499,7 +499,6 @@ class WasmCompiledModule : public FixedArray {
   MACRO(WASM_OBJECT, WasmCompiledModule, prev_instance) \
   MACRO(WEAK_LINK, WasmInstanceObject, owning_instance) \
   MACRO(WEAK_LINK, WasmModuleObject, wasm_module)       \
-  MACRO(OBJECT, FixedArray, handler_table)              \
   MACRO(OBJECT, FixedArray, source_positions)           \
   MACRO(OBJECT, Foreign, native_module)                 \
   MACRO(OBJECT, FixedArray, lazy_compile_data)          \
