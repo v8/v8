@@ -34,10 +34,10 @@
 namespace {
 size_t gNextCodeObject = 0;
 
-#if defined(DEBUG)
-const bool kEnableDebug = true;
+#ifdef DEBUG
+constexpr bool kEnableDebug = true;
 #else
-const bool kEnableDebug = false;
+constexpr bool kEnableDebug = false;
 #endif
 }
 
@@ -54,7 +54,7 @@ constexpr size_t HandlerDataSize(size_t num_protected_instructions) {
 }
 
 namespace {
-template <typename = std::enable_if<kEnableDebug>>
+#ifdef DEBUG
 bool IsDisjoint(const CodeProtectionInfo* a, const CodeProtectionInfo* b) {
   if (a == nullptr || b == nullptr) {
     return true;
@@ -65,6 +65,7 @@ bool IsDisjoint(const CodeProtectionInfo* a, const CodeProtectionInfo* b) {
 
   return a_base >= b_base + b->size || b_base >= a_base + a->size;
 }
+#endif
 
 // Verify that the code range does not overlap any that have already been
 // registered.
