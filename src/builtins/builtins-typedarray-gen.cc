@@ -1512,18 +1512,6 @@ TF_BUILTIN(TypedArrayPrototypeKeys, TypedArrayBuiltinsAssembler) {
       context, receiver, "%TypedArray%.prototype.keys()", IterationKind::kKeys);
 }
 
-void TypedArrayBuiltinsAssembler::DebugSanityCheckTypedArrayIndex(
-    TNode<JSTypedArray> array, TNode<IntPtrT> index) {
-#ifdef DEBUG
-  TNode<JSArrayBuffer> buffer =
-      LoadObjectField<JSArrayBuffer>(array, JSArrayBufferView::kBufferOffset);
-  CSA_ASSERT(this, Word32BinaryNot(IsDetachedBuffer(buffer)));
-  TNode<IntPtrT> array_length =
-      LoadAndUntagObjectField(array, JSTypedArray::kLengthOffset);
-  CSA_ASSERT(this, IntPtrLessThan(index, array_length));
-#endif
-}
-
 // ES6 #sec-%typedarray%.of
 TF_BUILTIN(TypedArrayOf, TypedArrayBuiltinsAssembler) {
   TNode<Context> context = CAST(Parameter(BuiltinDescriptor::kContext));
@@ -1535,7 +1523,8 @@ TF_BUILTIN(TypedArrayOf, TypedArrayBuiltinsAssembler) {
   CodeStubArguments args(this, length, nullptr, INTPTR_PARAMETERS,
                          CodeStubArguments::ReceiverMode::kHasReceiver);
 
-  Label if_not_constructor(this, Label::kDeferred);
+  Label if_not_constructor(this, Label::kDeferred),
+      if_neutered(this, Label::kDeferred);
 
   // 3. Let C be the this value.
   // 4. If IsConstructor(C) is false, throw a TypeError exception.
@@ -1566,12 +1555,18 @@ TF_BUILTIN(TypedArrayOf, TypedArrayBuiltinsAssembler) {
               TNode<Object> item = args.AtIndex(index, INTPTR_PARAMETERS);
               TNode<IntPtrT> intptr_index = UncheckedCast<IntPtrT>(index);
               if (kind == BIGINT64_ELEMENTS || kind == BIGUINT64_ELEMENTS) {
-                EmitBigTypedArrayElementStore(
-                    new_typed_array, elements, intptr_index, item, context,
-                    nullptr /* no need to check for neutered buffer */);
+                EmitBigTypedArrayElementStore(new_typed_array, elements,
+                                              intptr_index, item, context,
+                                              &if_neutered);
               } else {
                 Node* value =
                     PrepareValueForWriteToTypedArray(item, kind, context);
+
+                // ToNumber may execute JavaScript code, which could neuter
+                // the array's buffer.
+                Node* buffer = LoadObjectField(new_typed_array,
+                                               JSTypedArray::kBufferOffset);
+                GotoIf(IsDetachedBuffer(buffer), &if_neutered);
 
                 // GC may move backing store in ToNumber, thus load backing
                 // store everytime in this loop.
@@ -1580,9 +1575,6 @@ TF_BUILTIN(TypedArrayOf, TypedArrayBuiltinsAssembler) {
                 StoreElement(backing_store, kind, index, value,
                              INTPTR_PARAMETERS);
               }
-              // ToNumber/ToBigInt may execute JavaScript code, but they cannot
-              // access arguments array and new typed array.
-              DebugSanityCheckTypedArrayIndex(new_typed_array, intptr_index);
             },
             1, ParameterMode::INTPTR_PARAMETERS, IndexAdvanceMode::kPost);
       });
@@ -1592,6 +1584,10 @@ TF_BUILTIN(TypedArrayOf, TypedArrayBuiltinsAssembler) {
 
   BIND(&if_not_constructor);
   ThrowTypeError(context, MessageTemplate::kNotConstructor, receiver);
+
+  BIND(&if_neutered);
+  ThrowTypeError(context, MessageTemplate::kDetachedOperation,
+                 "%TypedArray%.of");
 }
 
 TF_BUILTIN(IterableToList, TypedArrayBuiltinsAssembler) {
@@ -1666,7 +1662,8 @@ TF_BUILTIN(TypedArrayFrom, TypedArrayBuiltinsAssembler) {
       slow_path(this), create_typed_array(this),
       if_not_constructor(this, Label::kDeferred),
       if_map_fn_not_callable(this, Label::kDeferred),
-      if_iterator_fn_not_callable(this, Label::kDeferred);
+      if_iterator_fn_not_callable(this, Label::kDeferred),
+      if_neutered(this, Label::kDeferred);
 
   CodeStubArguments args(
       this, ChangeInt32ToIntPtr(Parameter(BuiltinDescriptor::kArgumentsCount)));
@@ -1797,13 +1794,18 @@ TF_BUILTIN(TypedArrayFrom, TypedArrayBuiltinsAssembler) {
             elements_kind,
             [&](ElementsKind kind, int size, int typed_array_fun_index) {
               if (kind == BIGINT64_ELEMENTS || kind == BIGUINT64_ELEMENTS) {
-                EmitBigTypedArrayElementStore(
-                    target_obj.value(), elements, intptr_index, mapped_value,
-                    context,
-                    nullptr /* no need to check for neutered buffer */);
+                EmitBigTypedArrayElementStore(target_obj.value(), elements,
+                                              intptr_index, mapped_value,
+                                              context, &if_neutered);
               } else {
                 Node* const final_value = PrepareValueForWriteToTypedArray(
                     mapped_value, kind, context);
+
+                // ToNumber may execute JavaScript code, which could neuter
+                // the array's buffer.
+                Node* buffer = LoadObjectField(target_obj.value(),
+                                               JSTypedArray::kBufferOffset);
+                GotoIf(IsDetachedBuffer(buffer), &if_neutered);
 
                 // GC may move backing store in map_fn, thus load backing
                 // store in each iteration of this loop.
@@ -1813,9 +1815,6 @@ TF_BUILTIN(TypedArrayFrom, TypedArrayBuiltinsAssembler) {
                              SMI_PARAMETERS);
               }
             });
-        // map_fn or ToNumber or ToBigint could have executed JavaScript code,
-        // but they could not have accessed the new typed array.
-        DebugSanityCheckTypedArrayIndex(target_obj.value(), intptr_index);
       },
       1, ParameterMode::SMI_PARAMETERS, IndexAdvanceMode::kPost);
 
@@ -1829,6 +1828,10 @@ TF_BUILTIN(TypedArrayFrom, TypedArrayBuiltinsAssembler) {
 
   BIND(&if_iterator_fn_not_callable);
   ThrowTypeError(context, MessageTemplate::kIteratorSymbolNonCallable);
+
+  BIND(&if_neutered);
+  ThrowTypeError(context, MessageTemplate::kDetachedOperation,
+                 "%TypedArray%.from");
 }
 
 // ES %TypedArray%.prototype.filter
