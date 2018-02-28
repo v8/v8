@@ -475,8 +475,6 @@ TEST(DisasmX64) {
     __ maxsd(xmm1, xmm0);
     __ maxsd(xmm1, Operand(rbx, rcx, times_4, 10000));
     __ ucomisd(xmm0, xmm1);
-    __ haddps(xmm1, xmm0);
-    __ haddps(xmm1, Operand(rbx, rcx, times_4, 10000));
 
     __ andpd(xmm0, xmm1);
     __ andpd(xmm0, Operand(rbx, rcx, times_4, 10000));
@@ -530,6 +528,8 @@ TEST(DisasmX64) {
   {
     if (CpuFeatures::IsSupported(SSE3)) {
       CpuFeatureScope scope(&assm, SSE3);
+      __ haddps(xmm1, xmm0);
+      __ haddps(xmm1, Operand(rbx, rcx, times_4, 10000));
       __ lddqu(xmm1, Operand(rdx, 4));
     }
   }
@@ -696,6 +696,8 @@ TEST(DisasmX64) {
       __ vandps(xmm9, xmm1, Operand(rbx, rcx, times_4, 10000));
       __ vxorps(xmm0, xmm1, xmm9);
       __ vxorps(xmm0, xmm1, Operand(rbx, rcx, times_4, 10000));
+      __ vhaddps(xmm0, xmm1, xmm9);
+      __ vhaddps(xmm0, xmm1, Operand(rbx, rcx, times_4, 10000));
 
       __ vandpd(xmm0, xmm9, xmm2);
       __ vandpd(xmm9, xmm1, Operand(rbx, rcx, times_4, 10000));

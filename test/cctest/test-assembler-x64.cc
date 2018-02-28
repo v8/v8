@@ -908,7 +908,6 @@ TEST(AssemblerX64SSE) {
     __ subps(xmm2, xmm0);
     __ divps(xmm2, xmm1);
     __ cvttss2si(rax, xmm2);
-    __ haddps(xmm1, xmm0);
     __ ret(0);
   }
 
@@ -925,6 +924,36 @@ TEST(AssemblerX64SSE) {
   CHECK_EQ(2, f(1.0, 2.0));
 }
 
+TEST(AssemblerX64SSE3) {
+  CcTest::InitializeVM();
+  if (!CpuFeatures::IsSupported(SSE3)) return;
+
+  Isolate* isolate = reinterpret_cast<Isolate*>(CcTest::isolate());
+  HandleScope scope(isolate);
+  v8::internal::byte buffer[256];
+  MacroAssembler masm(isolate, buffer, sizeof(buffer),
+                      v8::internal::CodeObjectRequired::kYes);
+  {
+    CpuFeatureScope fscope(&masm, SSE3);
+    __ shufps(xmm0, xmm0, 0x0);  // brocast first argument
+    __ shufps(xmm1, xmm1, 0x0);  // brocast second argument
+    __ haddps(xmm1, xmm0);
+    __ cvttss2si(rax, xmm1);
+    __ ret(0);
+  }
+
+  CodeDesc desc;
+  masm.GetCode(isolate, &desc);
+  Handle<Code> code =
+      isolate->factory()->NewCode(desc, Code::STUB, Handle<Code>());
+#ifdef OBJECT_PRINT
+  OFStream os(stdout);
+  code->Print(os);
+#endif
+
+  F6 f = FUNCTION_CAST<F6>(code->entry());
+  CHECK_EQ(4, f(1.0, 2.0));
+}
 
 typedef int (*F7)(double x, double y, double z);
 TEST(AssemblerX64FMA_sd) {

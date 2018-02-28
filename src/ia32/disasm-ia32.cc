@@ -904,6 +904,11 @@ int DisassemblerIA32::AVXInstruction(byte* data) {
         AppendToBuffer(",%d", *reinterpret_cast<int8_t*>(current));
         current++;
         break;
+      case 0x7C:
+        AppendToBuffer("vhaddps %s,%s,", NameOfXMMRegister(regop),
+                       NameOfXMMRegister(vvvv));
+        current += PrintRightXMMOperand(current);
+        break;
       default:
         UnimplementedInstruction();
     }

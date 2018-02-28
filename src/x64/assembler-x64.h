@@ -1460,6 +1460,7 @@ class Assembler : public AssemblerBase {
   AVX_P_3(vor, 0x56);
   AVX_P_3(vxor, 0x57);
   AVX_3(vcvtsd2ss, 0x5a, vsd);
+  AVX_3(vhaddps, 0x7c, vsd);
 
 #undef AVX_3
 #undef AVX_S_3

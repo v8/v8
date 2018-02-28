@@ -1156,6 +1156,11 @@ int DisassemblerX64::AVXInstruction(byte* data) {
         AppendToBuffer("vlddqu %s,", NameOfXMMRegister(regop));
         current += PrintRightXMMOperand(current);
         break;
+      case 0x7C:
+        AppendToBuffer("vhaddps %s,%s,", NameOfXMMRegister(regop),
+                       NameOfXMMRegister(vvvv));
+        current += PrintRightXMMOperand(current);
+        break;
       default:
         UnimplementedInstruction();
     }
@@ -1980,7 +1985,7 @@ int DisassemblerX64::TwoByteOpcodeInstruction(byte* data) {
       int mod, regop, rm;
       get_modrm(*current, &mod, &regop, &rm);
       AppendToBuffer("haddps %s,", NameOfXMMRegister(regop));
-      current += PrintRightOperand(current);
+      current += PrintRightXMMOperand(current);
     } else {
       UnimplementedInstruction();
     }

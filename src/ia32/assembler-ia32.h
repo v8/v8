@@ -1396,6 +1396,12 @@ class Assembler : public AssemblerBase {
   void vrsqrtps(XMMRegister dst, Operand src) {
     vinstr(0x52, dst, xmm0, src, kNone, k0F, kWIG);
   }
+  void vhaddps(XMMRegister dst, XMMRegister src1, XMMRegister src2) {
+    vhaddps(dst, src1, Operand(src2));
+  }
+  void vhaddps(XMMRegister dst, XMMRegister src1, Operand src2) {
+    vinstr(0x7C, dst, src1, src2, kF2, k0F, kWIG);
+  }
   void vmovaps(XMMRegister dst, XMMRegister src) {
     vps(0x28, dst, xmm0, Operand(src));
   }

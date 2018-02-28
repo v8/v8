@@ -2364,6 +2364,7 @@ void Assembler::sqrtsd(XMMRegister dst, Operand src) {
 }
 
 void Assembler::haddps(XMMRegister dst, Operand src) {
+  DCHECK(IsEnabled(SSE3));
   EnsureSpace ensure_space(this);
   EMIT(0xF2);
   EMIT(0x0F);

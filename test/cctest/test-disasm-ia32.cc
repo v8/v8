@@ -500,8 +500,6 @@ TEST(DisasmIa320) {
     __ maxsd(xmm1, Operand(ebx, ecx, times_4, 10000));
     __ ucomisd(xmm0, xmm1);
     __ cmpltsd(xmm0, xmm1);
-    __ haddps(xmm1, xmm0);
-    __ haddps(xmm1, Operand(ebx, ecx, times_4, 10000));
 
     __ andpd(xmm0, xmm1);
 
@@ -549,6 +547,14 @@ TEST(DisasmIa320) {
     __ cmov(greater_equal, eax, Operand(edx, 1));
     __ cmov(less_equal, eax, Operand(edx, 2));
     __ cmov(greater, eax, Operand(edx, 3));
+  }
+
+  {
+    if (CpuFeatures::IsSupported(SSE3)) {
+      CpuFeatureScope scope(&assm, SSE3);
+      __ haddps(xmm1, xmm0);
+      __ haddps(xmm1, Operand(ebx, ecx, times_4, 10000));
+    }
   }
 
 #define EMIT_SSE34_INSTR(instruction, notUsed1, notUsed2, notUsed3, notUsed4) \
@@ -637,6 +643,8 @@ TEST(DisasmIa320) {
       __ vmovaps(xmm0, xmm1);
       __ vshufps(xmm0, xmm1, xmm2, 3);
       __ vshufps(xmm0, xmm1, Operand(edx, 4), 3);
+      __ vhaddps(xmm0, xmm1, xmm2);
+      __ vhaddps(xmm0, xmm1, Operand(ebx, ecx, times_4, 10000));
 
       __ vcmpeqps(xmm5, xmm4, xmm1);
       __ vcmpeqps(xmm5, xmm4, Operand(ebx, ecx, times_4, 10000));
