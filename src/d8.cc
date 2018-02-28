@@ -2502,8 +2502,7 @@ void SourceGroup::ExecuteInThread() {
       Shell::HostImportModuleDynamically);
   isolate->SetHostInitializeImportMetaObjectCallback(
       Shell::HostInitializeImportMetaObject);
-
-  Shell::EnsureEventLoopInitialized(isolate);
+  Shell::SetWaitUntilDone(isolate, false);
   D8Console console(isolate);
   debug::SetConsoleDelegate(isolate, &console);
   for (int i = 0; i < Shell::options.stress_runs; ++i) {
@@ -2925,7 +2924,7 @@ int Shell::RunMain(Isolate* isolate, int argc, char* argv[], bool last_run) {
     options.isolate_sources[i].StartExecuteInThread();
   }
   {
-    EnsureEventLoopInitialized(isolate);
+    SetWaitUntilDone(isolate, false);
     if (options.lcov_file) {
       debug::Coverage::SelectMode(isolate, debug::Coverage::kBlockCount);
     }
@@ -2974,11 +2973,6 @@ void Shell::CollectGarbage(Isolate* isolate) {
     // unreachable persistent handles.
     isolate->LowMemoryNotification();
   }
-}
-
-void Shell::EnsureEventLoopInitialized(Isolate* isolate) {
-  v8::platform::EnsureEventLoopInitialized(GetDefaultPlatform(), isolate);
-  SetWaitUntilDone(isolate, false);
 }
 
 void Shell::SetWaitUntilDone(Isolate* isolate, bool value) {
