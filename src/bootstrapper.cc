@@ -4463,8 +4463,7 @@ Handle<JSFunction> Genesis::CreateArrayBuffer(
       CreateFunction(isolate(), name, JS_ARRAY_BUFFER_TYPE,
                      JSArrayBuffer::kSizeWithEmbedderFields, 0, prototype,
                      Builtins::kArrayBufferConstructor);
-  Handle<Code> code =
-      BUILTIN_CODE(isolate(), ArrayBufferConstructor_ConstructStub);
+  Handle<Code> code = BUILTIN_CODE(isolate(), JSBuiltinsConstructStub);
   array_buffer_fun->shared()->SetConstructStub(*code);
   array_buffer_fun->shared()->DontAdaptArguments();
   array_buffer_fun->shared()->set_length(1);

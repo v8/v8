@@ -357,8 +357,8 @@ namespace internal {
   TFJ(ArrayIteratorPrototypeNext, 0)                                           \
                                                                                \
   /* ArrayBuffer */                                                            \
+  /* ES #sec-arraybuffer-constructor */                                        \
   CPP(ArrayBufferConstructor)                                                  \
-  CPP(ArrayBufferConstructor_ConstructStub)                                    \
   CPP(ArrayBufferConstructor_DoNotInitialize)                                  \
   CPP(ArrayBufferPrototypeGetByteLength)                                       \
   CPP(ArrayBufferIsView)                                                       \
