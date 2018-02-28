@@ -191,25 +191,82 @@
     {
       "name": "Strings",
       "path": ["Strings"],
-      "main": "run.js",
-      "resources": ["harmony-string.js", "string-indexof.js"],
-      "results_regexp": "^%s\\-Strings\\(Score\\): (.+)$",
       "run_count": 1,
       "timeout": 240,
       "timeout_arm": 420,
+      "units": "score",
       "tests": [
-        {"name": "StringFunctions"},
-        {"name": "StringIndexOfConstant"},
-        {"name": "StringIndexOfNonConstant"},
-        {"name": "StringCharCodeAtConstant"},
-        {"name": "StringCharCodeAtNonConstant"},
-        {"name": "StringCharCodeAtConstantInbounds"},
-        {"name": "StringCharCodeAtNonConstantInbounds"},
-        {"name": "StringCodePointAtConstant"},
-        {"name": "StringCodePointAtNonConstant"},
-        {"name": "StringCodePointAtConstantInbounds"},
-        {"name": "StringCodePointAtNonConstantInbounds"}
-
+        {
+          "name": "StringFunctions",
+          "main": "run.js",
+          "resources": [ "harmony-string.js" ],
+          "test_flags": [ "harmony-string" ],
+          "results_regexp": "^%s\\-Strings\\(Score\\): (.+)$",
+          "run_count": 1,
+          "tests": [
+            {"name": "StringRepeat"},
+            {"name": "StringStartsWith"},
+            {"name": "StringEndsWith"},
+            {"name": "StringIncludes"},
+            {"name": "StringFromCodePoint"},
+            {"name": "StringCodePointAt"}
+          ]
+        },
+        {
+          "name": "StringIndexOf",
+          "main": "run.js",
+          "resources": [ "string-indexof.js" ],
+          "test_flags": [ "string-indexof" ],
+          "results_regexp": "^%s\\-Strings\\(Score\\): (.+)$",
+          "run_count": 1,
+          "tests": [
+            {"name": "StringIndexOfConstant"},
+            {"name": "StringIndexOfNonConstant"}
+          ]
+        },
+        {
+          "name": "StringAt",
+          "main": "run.js",
+          "resources": [ "string-stringat.js" ],
+          "test_flags": [ "string-stringat" ],
+          "results_regexp": "^%s\\-Strings\\(Score\\): (.+)$",
+          "run_count": 1,
+          "tests": [
+            {"name": "StringCharCodeAtConstant"},
+            {"name": "StringCharCodeAtNonConstant"},
+            {"name": "StringCharCodeAtConstantInbounds"},
+            {"name": "StringCharCodeAtNonConstantInbounds"},
+            {"name": "StringCodePointAtConstant"},
+            {"name": "StringCodePointAtNonConstant"},
+            {"name": "StringCodePointAtConstantInbounds"},
+            {"name": "StringCodePointAtNonConstantInbounds"}
+          ]
+        },
+        {
+          "name": "StringSubstring",
+          "main": "run.js",
+          "resources": [ "string-substring.js" ],
+          "test_flags": [ "string-substring" ],
+          "results_regexp": "^%s\\-Strings\\(Score\\): (.+)$",
+          "run_count": 1,
+          "tests": [
+            {"name": "StringDropFirstSlice"},
+            {"name": "StringDropFirstSubstr"},
+            {"name": "StringDropFirstSubstring"},
+            {"name": "StringTakeFirstSlice"},
+            {"name": "StringTakeFirstSubstr"},
+            {"name": "StringTakeFirstSubstring"},
+            {"name": "StringDropLastSlice"},
+            {"name": "StringDropLastSubstr"},
+            {"name": "StringDropLastSubstring"},
+            {"name": "StringTakeLastSlice"},
+            {"name": "StringTakeLastSubstr"},
+            {"name": "StringTakeLastSubstring"},
+            {"name": "StringDropFirstSlice"},
+            {"name": "StringDropFirstSubstr"},
+            {"name": "StringDropFirstSubstring"}
+          ]
+        }
       ]
     },
     {
