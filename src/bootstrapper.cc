@@ -4369,7 +4369,7 @@ void Genesis::InitializeGlobal_harmony_bigint() {
   bigint_fun->shared()->set_builtin_function_id(kBigIntConstructor);
   bigint_fun->shared()->DontAdaptArguments();
   bigint_fun->shared()->SetConstructStub(
-      *BUILTIN_CODE(isolate(), BigIntConstructor_ConstructStub));
+      *BUILTIN_CODE(isolate(), JSBuiltinsConstructStub));
   bigint_fun->shared()->set_length(1);
   InstallWithIntrinsicDefaultProto(isolate(), bigint_fun,
                                    Context::BIGINT_FUNCTION_INDEX);

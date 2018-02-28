@@ -374,7 +374,6 @@ namespace internal {
                                                                                \
   /* BigInt */                                                                 \
   CPP(BigIntConstructor)                                                       \
-  CPP(BigIntConstructor_ConstructStub)                                         \
   CPP(BigIntAsUintN)                                                           \
   CPP(BigIntAsIntN)                                                            \
   CPP(BigIntPrototypeToLocaleString)                                           \
