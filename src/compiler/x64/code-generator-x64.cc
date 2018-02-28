@@ -610,7 +610,7 @@ void CodeGenerator::GenerateSpeculationPoison() {
   // Set a mask which has all bits set in the normal case, but has all
   // bits cleared if we are speculatively executing the wrong PC.
   __ ComputeCodeStartAddress(rbx);
-  __ movp(kSpeculationPoisonRegister, Immediate(0));
+  __ xorq(kSpeculationPoisonRegister, kSpeculationPoisonRegister);
   __ cmpp(kJavaScriptCallCodeStartRegister, rbx);
   __ movp(rbx, Immediate(-1));
   __ cmovq(equal, kSpeculationPoisonRegister, rbx);
