@@ -3491,33 +3491,50 @@ Expression* Parser::CloseTemplateLiteral(TemplateLiteralState* state, int start,
   DCHECK_EQ(cooked_strings->length(), expressions->length() + 1);
 
   if (!tag) {
-    Expression* first_string =
-        factory()->NewStringLiteral(cooked_strings->at(0), kNoSourcePosition);
-    if (expressions->length() == 0) return first_string;
+    const AstRawString* first_string = cooked_strings->at(0);
+    if (expressions->length() == 0) {
+      return factory()->NewStringLiteral(first_string, kNoSourcePosition);
+    }
+
+    size_t num_empty =
+        std::count_if(cooked_strings->begin(), cooked_strings->end(),
+                      [=](const AstRawString* lit) { return lit->IsEmpty(); });
+
+    const bool kFirstIsEmpty = first_string->IsEmpty();
+    Expression* first = kFirstIsEmpty ? ToString(expressions->at(0))
+                                      : factory()->NewStringLiteral(
+                                            first_string, kNoSourcePosition);
 
     // Build N-ary addition op to simplify code-generation.
     // TODO(leszeks): Could we just store this expression in the
     // TemplateLiteralState and build it as we go?
     NaryOperation* expr = factory()->NewNaryOperation(
-        Token::ADD, first_string, 2 * expressions->length());
+        Token::ADD, first, 2 * expressions->length() - num_empty);
 
     int i = 0;
+    if (kFirstIsEmpty) {
+      // If the first string is empty, possibly add the next template span
+      // outside of the loop, to keep the loop logic simple.
+      i = 1;
+      const AstRawString* str = cooked_strings->at(1);
+      if (!str->IsEmpty()) {
+        expr->AddSubsequent(factory()->NewStringLiteral(str, kNoSourcePosition),
+                            first->position());
+      }
+    }
+
     while (i < expressions->length()) {
       Expression* sub = expressions->at(i++);
       const AstRawString* cooked_str = cooked_strings->at(i);
       DCHECK_NOT_NULL(cooked_str);
 
       // Let middle be ToString(sub).
-      ZoneList<Expression*>* args =
-          new (zone()) ZoneList<Expression*>(1, zone());
-      args->Add(sub, zone());
-      Expression* sub_to_string = factory()->NewCallRuntime(
-          Runtime::kInlineToString, args, sub->position());
-
-      expr->AddSubsequent(sub_to_string, sub->position());
-      expr->AddSubsequent(
-          factory()->NewStringLiteral(cooked_str, kNoSourcePosition),
-          sub->position());
+      expr->AddSubsequent(ToString(sub), sub->position());
+      if (!cooked_str->IsEmpty()) {
+        expr->AddSubsequent(
+            factory()->NewStringLiteral(cooked_str, kNoSourcePosition),
+            sub->position());
+      }
     }
     return expr;
   } else {
