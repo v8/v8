@@ -629,6 +629,11 @@
   V(Word32AtomicAnd)             \
   V(Word32AtomicOr)              \
   V(Word32AtomicXor)             \
+  V(Word64AtomicAdd)             \
+  V(Word64AtomicSub)             \
+  V(Word64AtomicAnd)             \
+  V(Word64AtomicOr)              \
+  V(Word64AtomicXor)             \
   V(SpeculationFence)            \
   V(SignExtendWord8ToInt32)      \
   V(SignExtendWord16ToInt32)     \

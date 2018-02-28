@@ -627,6 +627,16 @@ class V8_EXPORT_PRIVATE MachineOperatorBuilder final
   const Operator* Word32AtomicOr(MachineType rep);
   // atomic-xor [base + index], value
   const Operator* Word32AtomicXor(MachineType rep);
+  // atomic-load [base + index]
+  const Operator* Word64AtomicAdd(MachineType rep);
+  // atomic-sub [base + index], value
+  const Operator* Word64AtomicSub(MachineType rep);
+  // atomic-and [base + index], value
+  const Operator* Word64AtomicAnd(MachineType rep);
+  // atomic-or [base + index], value
+  const Operator* Word64AtomicOr(MachineType rep);
+  // atomic-xor [base + index], value
+  const Operator* Word64AtomicXor(MachineType rep);
 
   const OptionalOperator SpeculationFence();
 

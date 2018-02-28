@@ -442,6 +442,10 @@ class V8_EXPORT_PRIVATE InstructionSelector final {
   void VisitAtomicBinaryOperation(Node* node, ArchOpcode int8_op,
                                   ArchOpcode uint8_op, ArchOpcode int16_op,
                                   ArchOpcode uint16_op, ArchOpcode word32_op);
+  void VisitWord64AtomicBinaryOperation(Node* node, ArchOpcode uint8_op,
+                                        ArchOpcode uint16_op,
+                                        ArchOpcode uint32_op,
+                                        ArchOpcode uint64_op);
 
   // ===========================================================================
 

@@ -61,18 +61,38 @@ struct WasmException;
   V(I32AtomicAdd, Uint32)              \
   V(I32AtomicAdd8U, Uint8)             \
   V(I32AtomicAdd16U, Uint16)           \
+  V(I64AtomicAdd, Uint64)              \
+  V(I64AtomicAdd8U, Uint8)             \
+  V(I64AtomicAdd16U, Uint16)           \
+  V(I64AtomicAdd32U, Uint32)           \
   V(I32AtomicSub, Uint32)              \
+  V(I64AtomicSub, Uint64)              \
   V(I32AtomicSub8U, Uint8)             \
   V(I32AtomicSub16U, Uint16)           \
+  V(I64AtomicSub8U, Uint8)             \
+  V(I64AtomicSub16U, Uint16)           \
+  V(I64AtomicSub32U, Uint32)           \
   V(I32AtomicAnd, Uint32)              \
+  V(I64AtomicAnd, Uint64)              \
   V(I32AtomicAnd8U, Uint8)             \
   V(I32AtomicAnd16U, Uint16)           \
+  V(I64AtomicAnd8U, Uint8)             \
+  V(I64AtomicAnd16U, Uint16)           \
+  V(I64AtomicAnd32U, Uint32)           \
   V(I32AtomicOr, Uint32)               \
+  V(I64AtomicOr, Uint64)               \
   V(I32AtomicOr8U, Uint8)              \
   V(I32AtomicOr16U, Uint16)            \
+  V(I64AtomicOr8U, Uint8)              \
+  V(I64AtomicOr16U, Uint16)            \
+  V(I64AtomicOr32U, Uint32)            \
   V(I32AtomicXor, Uint32)              \
+  V(I64AtomicXor, Uint64)              \
   V(I32AtomicXor8U, Uint8)             \
   V(I32AtomicXor16U, Uint16)           \
+  V(I64AtomicXor8U, Uint8)             \
+  V(I64AtomicXor16U, Uint16)           \
+  V(I64AtomicXor32U, Uint32)           \
   V(I32AtomicExchange, Uint32)         \
   V(I32AtomicExchange8U, Uint8)        \
   V(I32AtomicExchange16U, Uint16)      \

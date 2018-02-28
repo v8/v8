@@ -482,6 +482,18 @@ void EmitWordLoadPoisoningIfNeeded(CodeGenerator* codegen,
     __ j(not_equal, &binop);                                    \
   } while (false)
 
+#define ASSEMBLE_ATOMIC64_BINOP(bin_inst, mov_inst, cmpxchg_inst) \
+  do {                                                            \
+    Label binop;                                                  \
+    __ bind(&binop);                                              \
+    __ mov_inst(rax, i.MemoryOperand(1));                         \
+    __ movq(i.TempRegister(0), rax);                              \
+    __ bin_inst(i.TempRegister(0), i.InputRegister(0));           \
+    __ lock();                                                    \
+    __ cmpxchg_inst(i.MemoryOperand(1), i.TempRegister(0));       \
+    __ j(not_equal, &binop);                                      \
+  } while (false)
+
 void CodeGenerator::AssembleDeconstructFrame() {
   unwinding_info_writer_.MarkFrameDeconstructed(__ pc_offset());
   __ movq(rsp, rbp);
@@ -2724,6 +2736,27 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       ATOMIC_BINOP_CASE(Or, orl)
       ATOMIC_BINOP_CASE(Xor, xorl)
 #undef ATOMIC_BINOP_CASE
+#define ATOMIC64_BINOP_CASE(op, inst)              \
+  case kX64Word64Atomic##op##Uint8:                \
+    ASSEMBLE_ATOMIC64_BINOP(inst, movb, cmpxchgb); \
+    __ movzxbq(rax, rax);                          \
+    break;                                         \
+  case kX64Word64Atomic##op##Uint16:               \
+    ASSEMBLE_ATOMIC64_BINOP(inst, movw, cmpxchgw); \
+    __ movzxwq(rax, rax);                          \
+    break;                                         \
+  case kX64Word64Atomic##op##Uint32:               \
+    ASSEMBLE_ATOMIC64_BINOP(inst, movl, cmpxchgl); \
+    break;                                         \
+  case kX64Word64Atomic##op##Uint64:               \
+    ASSEMBLE_ATOMIC64_BINOP(inst, movq, cmpxchgq); \
+    break;
+      ATOMIC64_BINOP_CASE(Add, addq)
+      ATOMIC64_BINOP_CASE(Sub, subq)
+      ATOMIC64_BINOP_CASE(And, andq)
+      ATOMIC64_BINOP_CASE(Or, orq)
+      ATOMIC64_BINOP_CASE(Xor, xorq)
+#undef ATOMIC64_BINOP_CASE
     case kWord32AtomicLoadInt8:
     case kWord32AtomicLoadUint8:
     case kWord32AtomicLoadInt16:
@@ -2736,7 +2769,21 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
   }
   return kSuccess;
-}  // NOLINT(readability/fn_size)
+}  // NOLadability/fn_size)
+
+#undef ASSEMBLE_UNOP
+#undef ASSEMBLE_BINOP
+#undef ASSEMBLE_COMPARE
+#undef ASSEMBLE_MULT
+#undef ASSEMBLE_SHIFT
+#undef ASSEMBLE_MOVX
+#undef ASSEMBLE_SSE_BINOP
+#undef ASSEMBLE_SSE_UNOP
+#undef ASSEMBLE_AVX_BINOP
+#undef ASSEMBLE_IEEE754_BINOP
+#undef ASSEMBLE_IEEE754_UNOP
+#undef ASSEMBLE_ATOMIC_BINOP
+#undef ASSEMBLE_ATOMIC64_BINOP
 
 namespace {
 
@@ -2773,19 +2820,6 @@ Condition FlagsConditionToCondition(FlagsCondition condition) {
   }
   UNREACHABLE();
 }
-
-#undef ASSEMBLE_UNOP
-#undef ASSEMBLE_BINOP
-#undef ASSEMBLE_COMPARE
-#undef ASSEMBLE_MULT
-#undef ASSEMBLE_SHIFT
-#undef ASSEMBLE_MOVX
-#undef ASSEMBLE_SSE_BINOP
-#undef ASSEMBLE_SSE_UNOP
-#undef ASSEMBLE_AVX_BINOP
-#undef ASSEMBLE_IEEE754_BINOP
-#undef ASSEMBLE_IEEE754_UNOP
-#undef ASSEMBLE_ATOMIC_BINOP
 
 }  // namespace
 

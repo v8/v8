@@ -1546,19 +1546,24 @@ void InstructionSelector::VisitNode(Node* node) {
     }
     case IrOpcode::kWord32AtomicStore:
       return VisitWord32AtomicStore(node);
-#define ATOMIC_CASE(name)                                    \
-  case IrOpcode::kWord32Atomic##name: {                      \
+#define ATOMIC_CASE(name, rep)                               \
+  case IrOpcode::k##rep##Atomic##name: {                     \
     MachineType type = AtomicOpRepresentationOf(node->op()); \
     MarkAsRepresentation(type.representation(), node);       \
-    return VisitWord32Atomic##name(node);                    \
+    return Visit##rep##Atomic##name(node);                   \
   }
-      ATOMIC_CASE(Exchange)
-      ATOMIC_CASE(CompareExchange)
-      ATOMIC_CASE(Add)
-      ATOMIC_CASE(Sub)
-      ATOMIC_CASE(And)
-      ATOMIC_CASE(Or)
-      ATOMIC_CASE(Xor)
+      ATOMIC_CASE(Add, Word32)
+      ATOMIC_CASE(Add, Word64)
+      ATOMIC_CASE(Sub, Word32)
+      ATOMIC_CASE(Sub, Word64)
+      ATOMIC_CASE(And, Word32)
+      ATOMIC_CASE(And, Word64)
+      ATOMIC_CASE(Or, Word32)
+      ATOMIC_CASE(Or, Word64)
+      ATOMIC_CASE(Xor, Word32)
+      ATOMIC_CASE(Xor, Word64)
+      ATOMIC_CASE(Exchange, Word32)
+      ATOMIC_CASE(CompareExchange, Word32)
 #undef ATOMIC_CASE
     case IrOpcode::kSpeculationFence:
       return VisitSpeculationFence(node);
@@ -2165,6 +2170,18 @@ void InstructionSelector::VisitF32x4UConvertI32x4(Node* node) {
 }
 #endif  // !V8_TARGET_ARCH_ARM && !V8_TARGET_ARCH_ARM64 && !V8_TARGET_ARCH_MIPS
         // && !V8_TARGET_ARCH_MIPS64
+
+#if !V8_TARGET_ARCH_X64
+void InstructionSelector::VisitWord64AtomicAdd(Node* node) { UNIMPLEMENTED(); }
+
+void InstructionSelector::VisitWord64AtomicSub(Node* node) { UNIMPLEMENTED(); }
+
+void InstructionSelector::VisitWord64AtomicAnd(Node* node) { UNIMPLEMENTED(); }
+
+void InstructionSelector::VisitWord64AtomicOr(Node* node) { UNIMPLEMENTED(); }
+
+void InstructionSelector::VisitWord64AtomicXor(Node* node) { UNIMPLEMENTED(); }
+#endif  // !V8_TARGET_ARCH_X64
 
 #if !V8_TARGET_ARCH_ARM && !V8_TARGET_ARCH_ARM64 && !V8_TARGET_ARCH_MIPS && \
     !V8_TARGET_ARCH_MIPS64 && !V8_TARGET_ARCH_X64
