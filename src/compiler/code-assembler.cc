@@ -260,6 +260,39 @@ TNode<HeapObject> CodeAssembler::LookupConstant(Handle<HeapObject> object) {
   return UncheckedCast<HeapObject>(
       Load(MachineType::AnyTagged(), builtins_constants_table, offset));
 }
+
+// External references are stored on the builtins constants list, wrapped in
+// Foreign objects.
+// TODO(jgruber,v8:6666): A more efficient solution.
+TNode<ExternalReference> CodeAssembler::LookupExternalReference(
+    ExternalReference reference) {
+  DCHECK(isolate()->serializer_enabled());
+
+  // Ensure the given object is in the builtins constants table and fetch its
+  // index.
+  BuiltinsConstantsTableBuilder* builder =
+      isolate()->builtins_constants_table_builder();
+  uint32_t index = builder->AddExternalReference(reference);
+
+  // The builtins constants table is loaded through the root register on all
+  // supported platforms. This is checked by the
+  // VerifyBuiltinsIsolateIndependence cctest, which disallows embedded objects
+  // in isolate-independent builtins.
+  DCHECK(isolate()->heap()->RootCanBeTreatedAsConstant(
+      Heap::kBuiltinsConstantsTableRootIndex));
+  TNode<FixedArray> builtins_constants_table = UncheckedCast<FixedArray>(
+      LoadRoot(Heap::kBuiltinsConstantsTableRootIndex));
+
+  // Generate the lookup.
+  const int32_t header_size = FixedArray::kHeaderSize - kHeapObjectTag;
+  TNode<IntPtrT> offset = IntPtrConstant(header_size + kPointerSize * index);
+  TNode<Object> foreign = UncheckedCast<HeapObject>(
+      Load(MachineType::AnyTagged(), builtins_constants_table, offset));
+
+  return UncheckedCast<ExternalReference>(
+      Load(MachineType::Pointer(), foreign,
+           IntPtrConstant(Foreign::kForeignAddressOffset - kHeapObjectTag)));
+}
 #endif  // V8_EMBEDDED_BUILTINS
 
 TNode<Int32T> CodeAssembler::Int32Constant(int32_t value) {
@@ -319,6 +352,11 @@ TNode<Oddball> CodeAssembler::BooleanConstant(bool value) {
 
 TNode<ExternalReference> CodeAssembler::ExternalConstant(
     ExternalReference address) {
+#ifdef V8_EMBEDDED_BUILTINS
+  if (ShouldLoadConstantsFromRootList()) {
+    return LookupExternalReference(address);
+  }
+#endif  // V8_EMBEDDED_BUILTINS
   return UncheckedCast<ExternalReference>(
       raw_assembler()->ExternalConstant(address));
 }

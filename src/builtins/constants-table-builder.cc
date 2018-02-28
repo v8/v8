@@ -44,6 +44,25 @@ uint32_t BuiltinsConstantsTableBuilder::AddObject(Handle<Object> object) {
   }
 }
 
+uint32_t BuiltinsConstantsTableBuilder::AddExternalReference(
+    ExternalReference reference) {
+  // Not yet finalized.
+  DCHECK_EQ(isolate_->heap()->empty_fixed_array(),
+            isolate_->heap()->builtins_constants_table());
+
+  auto maybe_entry = external_reference_map_.find(reference.address());
+  if (maybe_entry == external_reference_map_.end()) {
+    HandleScope handle_scope(isolate_);
+    Handle<Foreign> object =
+        isolate_->factory()->NewForeign(reference.address(), TENURED);
+    uint32_t index = AddObject(object);
+    external_reference_map_.emplace(reference.address(), index);
+    return index;
+  } else {
+    return maybe_entry->second;
+  }
+}
+
 void BuiltinsConstantsTableBuilder::Finalize() {
   HandleScope handle_scope(isolate_);
 
