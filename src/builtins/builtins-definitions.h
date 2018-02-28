@@ -382,8 +382,8 @@ namespace internal {
   CPP(BigIntPrototypeValueOf)                                                  \
                                                                                \
   /* Boolean */                                                                \
+  /* ES #sec-boolean-constructor */                                            \
   CPP(BooleanConstructor)                                                      \
-  CPP(BooleanConstructor_ConstructStub)                                        \
   /* ES6 #sec-boolean.prototype.tostring */                                    \
   TFJ(BooleanPrototypeToString, 0)                                             \
   /* ES6 #sec-boolean.prototype.valueof */                                     \
