@@ -853,8 +853,11 @@ Handle<WasmExportedFunction> WasmExportedFunction::New(
   shared->set_length(arity);
   shared->set_internal_formal_parameter_count(arity);
   NewFunctionArgs args = NewFunctionArgs::ForWasm(
-      name, export_wrapper, isolate->sloppy_function_map());
+      name, export_wrapper, isolate->sloppy_function_without_prototype_map());
   Handle<JSFunction> js_function = isolate->factory()->NewFunction(args);
+  // According to the spec, exported functions should not have a [[Construct]]
+  // method.
+  DCHECK(!js_function->IsConstructor());
 
   js_function->set_shared(*shared);
   Handle<Symbol> instance_symbol(isolate->factory()->wasm_instance_symbol());
