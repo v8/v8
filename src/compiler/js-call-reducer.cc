@@ -3329,6 +3329,8 @@ Reduction JSCallReducer::ReduceJSCall(Node* node,
       return ReduceStringPrototypeSubstring(node);
     case Builtins::kStringPrototypeSlice:
       return ReduceStringPrototypeSlice(node);
+    case Builtins::kStringPrototypeSubstr:
+      return ReduceStringPrototypeSubstr(node);
 #ifdef V8_INTL_SUPPORT
     case Builtins::kStringPrototypeToLowerCaseIntl:
       return ReduceStringPrototypeToLowerCaseIntl(node);
@@ -3802,6 +3804,109 @@ Reduction JSCallReducer::ReduceStringPrototypeSlice(Node* node) {
     Node* etrue = effect;
     Node* vtrue = etrue = graph()->NewNode(simplified()->StringSubstring(),
                                            receiver, from, to, etrue, if_true);
+
+    Node* if_false = graph()->NewNode(common()->IfFalse(), branch);
+    Node* efalse = effect;
+    Node* vfalse = jsgraph()->EmptyStringConstant();
+
+    control = graph()->NewNode(common()->Merge(2), if_true, if_false);
+    effect = graph()->NewNode(common()->EffectPhi(2), etrue, efalse, control);
+    result_string =
+        graph()->NewNode(common()->Phi(MachineRepresentation::kTagged, 2),
+                         vtrue, vfalse, control);
+  }
+
+  ReplaceWithValue(node, result_string, effect, control);
+  return Replace(result_string);
+}
+
+// ES #sec-string.prototype.slice
+Reduction JSCallReducer::ReduceStringPrototypeSubstr(Node* node) {
+  if (node->op()->ValueInputCount() < 3) return NoChange();
+  CallParameters const& p = CallParametersOf(node->op());
+  if (p.speculation_mode() == SpeculationMode::kDisallowSpeculation) {
+    return NoChange();
+  }
+
+  Node* effect = NodeProperties::GetEffectInput(node);
+  Node* control = NodeProperties::GetControlInput(node);
+  Node* receiver = NodeProperties::GetValueInput(node, 1);
+  Node* start = NodeProperties::GetValueInput(node, 2);
+  Node* end = node->op()->ValueInputCount() > 3
+                  ? NodeProperties::GetValueInput(node, 3)
+                  : jsgraph()->UndefinedConstant();
+
+  receiver = effect = graph()->NewNode(simplified()->CheckString(p.feedback()),
+                                       receiver, effect, control);
+
+  start = effect = graph()->NewNode(simplified()->CheckSmi(p.feedback()), start,
+                                    effect, control);
+
+  Node* length = graph()->NewNode(simplified()->StringLength(), receiver);
+
+  // Replace {end} argument with {length} if it is undefined.
+  {
+    Node* check = graph()->NewNode(simplified()->ReferenceEqual(), end,
+                                   jsgraph()->UndefinedConstant());
+    Node* branch =
+        graph()->NewNode(common()->Branch(BranchHint::kFalse), check, control);
+
+    Node* if_true = graph()->NewNode(common()->IfTrue(), branch);
+    Node* etrue = effect;
+    Node* vtrue = length;
+
+    Node* if_false = graph()->NewNode(common()->IfFalse(), branch);
+    Node* efalse = effect;
+    Node* vfalse = efalse = graph()->NewNode(
+        simplified()->CheckSmi(p.feedback()), end, efalse, if_false);
+
+    control = graph()->NewNode(common()->Merge(2), if_true, if_false);
+    effect = graph()->NewNode(common()->EffectPhi(2), etrue, efalse, control);
+    end = graph()->NewNode(common()->Phi(MachineRepresentation::kTagged, 2),
+                           vtrue, vfalse, control);
+  }
+
+  Node* initStart = graph()->NewNode(
+      common()->Select(MachineRepresentation::kTagged, BranchHint::kFalse),
+      graph()->NewNode(simplified()->NumberLessThan(), start,
+                       jsgraph()->ZeroConstant()),
+      graph()->NewNode(
+          simplified()->NumberMax(),
+          graph()->NewNode(simplified()->NumberAdd(), length, start),
+          jsgraph()->ZeroConstant()),
+      start);
+  // The select above guarantees that initStart is non-negative, but
+  // our typer can't figure that out yet.
+  initStart = effect = graph()->NewNode(
+      common()->TypeGuard(Type::UnsignedSmall()), initStart, effect, control);
+
+  Node* resultLength = graph()->NewNode(
+      simplified()->NumberMin(),
+      graph()->NewNode(simplified()->NumberMax(), end,
+                       jsgraph()->ZeroConstant()),
+      graph()->NewNode(simplified()->NumberSubtract(), length, initStart));
+
+  // The the select below uses {resultLength} only if {resultLength > 0},
+  // but our typer can't figure that out yet.
+  Node* to = effect = graph()->NewNode(
+      common()->TypeGuard(Type::UnsignedSmall()),
+      graph()->NewNode(simplified()->NumberAdd(), initStart, resultLength),
+      effect, control);
+
+  Node* result_string = nullptr;
+  // Return empty string if {from} is smaller than {to}.
+  {
+    Node* check = graph()->NewNode(simplified()->NumberLessThan(),
+                                   jsgraph()->ZeroConstant(), resultLength);
+
+    Node* branch =
+        graph()->NewNode(common()->Branch(BranchHint::kTrue), check, control);
+
+    Node* if_true = graph()->NewNode(common()->IfTrue(), branch);
+    Node* etrue = effect;
+    Node* vtrue = etrue =
+        graph()->NewNode(simplified()->StringSubstring(), receiver, initStart,
+                         to, etrue, if_true);
 
     Node* if_false = graph()->NewNode(common()->IfFalse(), branch);
     Node* efalse = effect;
