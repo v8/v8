@@ -1061,8 +1061,8 @@ namespace internal {
   TFJ(StringIteratorPrototypeNext, 0)                                          \
                                                                                \
   /* Symbol */                                                                 \
+  /* ES #sec-symbol-constructor */                                             \
   CPP(SymbolConstructor)                                                       \
-  CPP(SymbolConstructor_ConstructStub)                                         \
   /* ES6 #sec-symbol.for */                                                    \
   CPP(SymbolFor)                                                               \
   /* ES6 #sec-symbol.keyfor */                                                 \

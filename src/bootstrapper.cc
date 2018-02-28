@@ -2119,7 +2119,7 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
         factory->the_hole_value(), Builtins::kSymbolConstructor);
     symbol_fun->shared()->set_builtin_function_id(kSymbolConstructor);
     symbol_fun->shared()->SetConstructStub(
-        *BUILTIN_CODE(isolate, SymbolConstructor_ConstructStub));
+        *BUILTIN_CODE(isolate, JSBuiltinsConstructStub));
     symbol_fun->shared()->set_length(0);
     symbol_fun->shared()->DontAdaptArguments();
     native_context()->set_symbol_function(*symbol_fun);
