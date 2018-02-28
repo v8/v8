@@ -5370,7 +5370,7 @@ WasmCodeWrapper WasmCompilationUnit::FinishTurbofanCompilation(
         func_index_,
         tf_.job_->compilation_info()->wasm_code_desc()->safepoint_table_offset,
         tf_.job_->compilation_info()->wasm_code_desc()->handler_table_offset,
-        std::move(protected_instructions_), false);
+        std::move(protected_instructions_), wasm::WasmCode::kTurbofan);
     if (!code) {
       return WasmCodeWrapper(code);
     }
@@ -5460,10 +5460,10 @@ WasmCodeWrapper WasmCompilationUnit::FinishLiftoffCompilation(
     // TODO(herhut) Consider lifting it to FinishCompilation.
     native_module_->compiled_module()->source_positions()->set(
         func_index_, *source_positions);
-    wasm::WasmCode* code =
-        native_module_->AddCode(desc, liftoff_.asm_.GetTotalFrameSlotCount(),
-                                func_index_, liftoff_.safepoint_table_offset_,
-                                0, std::move(protected_instructions_), true);
+    wasm::WasmCode* code = native_module_->AddCode(
+        desc, liftoff_.asm_.GetTotalFrameSlotCount(), func_index_,
+        liftoff_.safepoint_table_offset_, 0, std::move(protected_instructions_),
+        wasm::WasmCode::kLiftoff);
     PROFILE(isolate_,
             CodeCreateEvent(CodeEventListener::FUNCTION_TAG, code, func_name_));
     ret = WasmCodeWrapper(code);

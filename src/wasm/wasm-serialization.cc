@@ -221,16 +221,16 @@ void NativeModuleSerializer::BufferHeader() {
 }
 
 size_t NativeModuleSerializer::GetCodeHeaderSize() {
-  return sizeof(size_t) +    // size of this section
-         sizeof(size_t) +    // offset of constant pool
-         sizeof(size_t) +    // offset of safepoint table
-         sizeof(size_t) +    // offset of handler table
-         sizeof(uint32_t) +  // stack slots
-         sizeof(size_t) +    // code size
-         sizeof(size_t) +    // reloc size
-         sizeof(uint32_t) +  // source positions size
-         sizeof(size_t) +    // protected instructions size
-         sizeof(bool);       // is_liftoff
+  return sizeof(size_t) +         // size of this section
+         sizeof(size_t) +         // offset of constant pool
+         sizeof(size_t) +         // offset of safepoint table
+         sizeof(size_t) +         // offset of handler table
+         sizeof(uint32_t) +       // stack slots
+         sizeof(size_t) +         // code size
+         sizeof(size_t) +         // reloc size
+         sizeof(uint32_t) +       // source positions size
+         sizeof(size_t) +         // protected instructions size
+         sizeof(WasmCode::Tier);  // tier
 }
 
 size_t NativeModuleSerializer::MeasureCode(const WasmCode* code) const {
@@ -350,7 +350,7 @@ void NativeModuleSerializer::BufferCodeInAllocatedScratch(
   writer.Write(code->reloc_info().size());
   writer.Write(source_positions_size);
   writer.Write(code->protected_instructions().size());
-  writer.Write(code->is_liftoff());
+  writer.Write(code->tier());
   // next is the code, which we have to reloc.
   Address serialized_code_start = writer.current_buffer().start();
   // write the code and everything else
@@ -545,7 +545,8 @@ bool NativeModuleDeserializer::ReadCode() {
   size_t reloc_size = reader.Read<size_t>();
   uint32_t source_position_size = reader.Read<uint32_t>();
   size_t protected_instructions_size = reader.Read<size_t>();
-  bool is_liftoff = reader.Read<bool>();
+  WasmCode::Tier tier = reader.Read<WasmCode::Tier>();
+
   std::shared_ptr<ProtectedInstructions> protected_instructions(
       new ProtectedInstructions(protected_instructions_size));
   DCHECK_EQ(protected_instructions_size, protected_instructions->size());
@@ -560,7 +561,7 @@ bool NativeModuleDeserializer::ReadCode() {
       code_buffer, std::move(reloc_info), reloc_size, Just(index_),
       WasmCode::kFunction, constant_pool_offset, stack_slot_count,
       safepoint_table_offset, handler_table_offset, protected_instructions,
-      is_liftoff);
+      tier);
   if (ret == nullptr) return false;
   native_module_->code_table_[index_] = ret;
 

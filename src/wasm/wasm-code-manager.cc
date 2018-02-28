@@ -320,7 +320,7 @@ WasmCode* NativeModule::AddOwnedCode(
     uint32_t stack_slots, size_t safepoint_table_offset,
     size_t handler_table_offset,
     std::shared_ptr<ProtectedInstructions> protected_instructions,
-    bool is_liftoff) {
+    WasmCode::Tier tier) {
   // both allocation and insertion in owned_code_ happen in the same critical
   // section, thus ensuring owned_code_'s elements are rarely if ever moved.
   base::LockGuard<base::Mutex> lock(&allocation_mutex_);
@@ -332,7 +332,7 @@ WasmCode* NativeModule::AddOwnedCode(
       {executable_buffer, orig_instructions.size()}, std::move(reloc_info),
       reloc_size, this, index, kind, constant_pool_offset, stack_slots,
       safepoint_table_offset, handler_table_offset,
-      std::move(protected_instructions), is_liftoff));
+      std::move(protected_instructions), tier));
   WasmCode* ret = code.get();
 
   // TODO(mtrofin): We allocate in increasing address order, and
@@ -397,7 +397,7 @@ WasmCode* NativeModule::AddAnonymousCode(Handle<Code> code,
       Nothing<uint32_t>(), kind, code->constant_pool_offset(),
       (code->has_safepoint_info() ? code->stack_slots() : 0),
       (code->has_safepoint_info() ? code->safepoint_table_offset() : 0),
-      code->handler_table_offset(), protected_instructions, false);
+      code->handler_table_offset(), protected_instructions, WasmCode::kOther);
   if (ret == nullptr) return nullptr;
   intptr_t delta = ret->instructions().start() - code->instruction_start();
   int mask = RelocInfo::kApplyMask | RelocInfo::kCodeTargetMask |
@@ -427,7 +427,7 @@ WasmCode* NativeModule::AddCode(
     const CodeDesc& desc, uint32_t frame_slots, uint32_t index,
     size_t safepoint_table_offset, size_t handler_table_offset,
     std::unique_ptr<ProtectedInstructions> protected_instructions,
-    bool is_liftoff) {
+    WasmCode::Tier tier) {
   std::unique_ptr<byte[]> reloc_info;
   if (desc.reloc_size) {
     reloc_info.reset(new byte[desc.reloc_size]);
@@ -440,7 +440,7 @@ WasmCode* NativeModule::AddCode(
       std::move(reloc_info), static_cast<size_t>(desc.reloc_size), Just(index),
       WasmCode::kFunction, desc.instr_size - desc.constant_pool_size,
       frame_slots, safepoint_table_offset, handler_table_offset,
-      std::move(protected_instructions), is_liftoff);
+      std::move(protected_instructions), tier);
   if (ret == nullptr) return nullptr;
 
   code_table_[index] = ret;
@@ -488,7 +488,8 @@ Address NativeModule::CreateTrampolineTo(Handle<Code> code) {
   masm.GetCode(nullptr, &code_desc);
   WasmCode* wasm_code = AddOwnedCode(
       {code_desc.buffer, static_cast<size_t>(code_desc.instr_size)}, nullptr, 0,
-      Nothing<uint32_t>(), WasmCode::kTrampoline, 0, 0, 0, 0, {}, false);
+      Nothing<uint32_t>(), WasmCode::kTrampoline, 0, 0, 0, 0, {},
+      WasmCode::kOther);
   if (wasm_code == nullptr) return nullptr;
   Address ret = wasm_code->instructions().start();
   trampolines_.emplace(std::make_pair(dest, ret));
@@ -692,7 +693,7 @@ WasmCode* NativeModule::CloneCode(const WasmCode* original_code) {
       original_code->kind(), original_code->constant_pool_offset_,
       original_code->stack_slots(), original_code->safepoint_table_offset_,
       original_code->handler_table_offset_,
-      original_code->protected_instructions_, original_code->is_liftoff());
+      original_code->protected_instructions_, original_code->tier());
   if (ret == nullptr) return nullptr;
   if (!ret->IsAnonymous()) {
     code_table_[ret->index()] = ret;

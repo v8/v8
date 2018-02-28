@@ -97,6 +97,11 @@ class V8_EXPORT_PRIVATE WasmCode final {
     kTrampoline
   };
 
+  // kOther is used if we have WasmCode that is neither
+  // liftoff- nor turbofan-compiled, i.e. if Kind is
+  // not a kFunction.
+  enum Tier : int8_t { kLiftoff, kTurbofan, kOther };
+
   Vector<byte> instructions() const { return instructions_; }
   Vector<const byte> reloc_info() const {
     return {reloc_info_.get(), reloc_size_};
@@ -108,12 +113,13 @@ class V8_EXPORT_PRIVATE WasmCode final {
   bool IsAnonymous() const { return index_.IsNothing(); }
   Kind kind() const { return kind_; }
   NativeModule* owner() const { return owner_; }
+  Tier tier() const { return tier_; }
   Address constant_pool() const;
   size_t constant_pool_offset() const { return constant_pool_offset_; }
   size_t safepoint_table_offset() const { return safepoint_table_offset_; }
   size_t handler_table_offset() const { return handler_table_offset_; }
   uint32_t stack_slots() const { return stack_slots_; }
-  bool is_liftoff() const { return is_liftoff_; }
+  bool is_liftoff() const { return tier_ == kLiftoff; }
 
   size_t trap_handler_index() const;
   void set_trap_handler_index(size_t);
@@ -145,7 +151,7 @@ class V8_EXPORT_PRIVATE WasmCode final {
            size_t constant_pool_offset, uint32_t stack_slots,
            size_t safepoint_table_offset, size_t handler_table_offset,
            std::shared_ptr<ProtectedInstructions> protected_instructions,
-           bool is_liftoff)
+           Tier tier)
       : instructions_(instructions),
         reloc_info_(std::move(reloc_info)),
         reloc_size_(reloc_size),
@@ -157,7 +163,7 @@ class V8_EXPORT_PRIVATE WasmCode final {
         safepoint_table_offset_(safepoint_table_offset),
         handler_table_offset_(handler_table_offset),
         protected_instructions_(std::move(protected_instructions)),
-        is_liftoff_(is_liftoff) {}
+        tier_(tier) {}
 
   WasmCode(const WasmCode&) = delete;
   WasmCode& operator=(const WasmCode&) = delete;
@@ -177,7 +183,7 @@ class V8_EXPORT_PRIVATE WasmCode final {
   size_t handler_table_offset_ = 0;
   intptr_t trap_handler_index_ = -1;
   std::shared_ptr<ProtectedInstructions> protected_instructions_;
-  bool is_liftoff_;
+  Tier tier_;
 };
 
 // Return a textual description of the kind.
@@ -196,7 +202,8 @@ class V8_EXPORT_PRIVATE NativeModule final {
 
   WasmCode* AddCode(const CodeDesc& desc, uint32_t frame_count, uint32_t index,
                     size_t safepoint_table_offset, size_t handler_table_offset,
-                    std::unique_ptr<ProtectedInstructions>, bool is_liftoff);
+                    std::unique_ptr<ProtectedInstructions>,
+                    WasmCode::Tier tier);
 
   // A way to copy over JS-allocated code. This is because we compile
   // certain wrappers using a different pipeline.
@@ -289,7 +296,7 @@ class V8_EXPORT_PRIVATE NativeModule final {
                          uint32_t stack_slots, size_t safepoint_table_offset,
                          size_t handler_table_offset,
                          std::shared_ptr<ProtectedInstructions>,
-                         bool is_liftoff);
+                         WasmCode::Tier tier);
   WasmCode* CloneCode(const WasmCode*);
   bool CloneTrampolinesAndStubs(const NativeModule* other);
   WasmCode* Lookup(Address);
