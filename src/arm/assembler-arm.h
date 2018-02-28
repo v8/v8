@@ -162,8 +162,8 @@ class Register : public RegisterBase<Register, kRegAfterLast> {
   explicit constexpr Register(int code) : RegisterBase(code) {}
 };
 
-static_assert(IS_TRIVIALLY_COPYABLE(Register) &&
-                  sizeof(Register) == sizeof(int),
+ASSERT_TRIVIALLY_COPYABLE(Register);
+static_assert(sizeof(Register) == sizeof(int),
               "Register can efficiently be passed by value");
 
 // r7: context register
@@ -218,8 +218,8 @@ class SwVfpRegister : public RegisterBase<SwVfpRegister, kSwVfpAfterLast> {
   explicit constexpr SwVfpRegister(int code) : RegisterBase(code) {}
 };
 
-static_assert(IS_TRIVIALLY_COPYABLE(SwVfpRegister) &&
-                  sizeof(SwVfpRegister) == sizeof(int),
+ASSERT_TRIVIALLY_COPYABLE(SwVfpRegister);
+static_assert(sizeof(SwVfpRegister) == sizeof(int),
               "SwVfpRegister can efficiently be passed by value");
 
 typedef SwVfpRegister FloatRegister;
@@ -256,8 +256,8 @@ class DwVfpRegister : public RegisterBase<DwVfpRegister, kDoubleAfterLast> {
   explicit constexpr DwVfpRegister(int code) : RegisterBase(code) {}
 };
 
-static_assert(IS_TRIVIALLY_COPYABLE(DwVfpRegister) &&
-                  sizeof(DwVfpRegister) == sizeof(int),
+ASSERT_TRIVIALLY_COPYABLE(DwVfpRegister);
+static_assert(sizeof(DwVfpRegister) == sizeof(int),
               "DwVfpRegister can efficiently be passed by value");
 
 typedef DwVfpRegister DoubleRegister;

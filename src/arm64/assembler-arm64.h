@@ -237,8 +237,7 @@ class CPURegister : public RegisterBase<CPURegister, kRegAfterLast> {
   }
 };
 
-static_assert(IS_TRIVIALLY_COPYABLE(CPURegister),
-              "CPURegister can efficiently be passed by value");
+ASSERT_TRIVIALLY_COPYABLE(CPURegister);
 
 class Register : public CPURegister {
  public:
@@ -292,8 +291,7 @@ class Register : public CPURegister {
   constexpr explicit Register(const CPURegister& r) : CPURegister(r) {}
 };
 
-static_assert(IS_TRIVIALLY_COPYABLE(Register),
-              "Register can efficiently be passed by value");
+ASSERT_TRIVIALLY_COPYABLE(Register);
 
 constexpr bool kPadArguments = true;
 constexpr bool kSimpleFPAliasing = true;
@@ -430,8 +428,7 @@ class VRegister : public CPURegister {
   }
 };
 
-static_assert(IS_TRIVIALLY_COPYABLE(VRegister),
-              "VRegister can efficiently be passed by value");
+ASSERT_TRIVIALLY_COPYABLE(VRegister);
 
 // No*Reg is used to indicate an unused argument, or an error case. Note that
 // these all compare equal (using the Is() method). The Register and VRegister

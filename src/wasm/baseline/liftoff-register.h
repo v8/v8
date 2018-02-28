@@ -171,8 +171,7 @@ class LiftoffRegister {
 
   explicit constexpr LiftoffRegister(storage_t code) : code_(code) {}
 };
-static_assert(IS_TRIVIALLY_COPYABLE(LiftoffRegister),
-              "LiftoffRegister can efficiently be passed by value");
+ASSERT_TRIVIALLY_COPYABLE(LiftoffRegister);
 
 inline std::ostream& operator<<(std::ostream& os, LiftoffRegister reg) {
   if (reg.is_pair()) {
@@ -298,8 +297,7 @@ class LiftoffRegList {
   // Unchecked constructor. Only use for valid bits.
   explicit constexpr LiftoffRegList(storage_t bits) : regs_(bits) {}
 };
-static_assert(IS_TRIVIALLY_COPYABLE(LiftoffRegList),
-              "LiftoffRegList can be passed by value");
+ASSERT_TRIVIALLY_COPYABLE(LiftoffRegList);
 
 static constexpr LiftoffRegList kGpCacheRegList =
     LiftoffRegList::FromBits<LiftoffRegList::kGpMask>();

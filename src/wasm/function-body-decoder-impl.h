@@ -1139,8 +1139,7 @@ class WasmFullDecoder : public WasmDecoder<validate> {
 
   // All Value types should be trivially copyable for performance. We push, pop,
   // and store them in local variables.
-  static_assert(IS_TRIVIALLY_COPYABLE(Value),
-                "all Value<...> types should be trivially copyable");
+  ASSERT_TRIVIALLY_COPYABLE(Value);
 
  public:
   template <typename... InterfaceArgs>

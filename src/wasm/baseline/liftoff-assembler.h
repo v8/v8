@@ -104,8 +104,7 @@ class LiftoffAssembler : public TurboAssembler {
     };
   };
 
-  static_assert(IS_TRIVIALLY_COPYABLE(VarState),
-                "VarState should be trivially copyable");
+  ASSERT_TRIVIALLY_COPYABLE(VarState);
 
   struct CacheState {
     // Allow default construction, move construction, and move assignment.

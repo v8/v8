@@ -103,8 +103,8 @@ class Register : public RegisterBase<Register, kRegAfterLast> {
   explicit constexpr Register(int code) : RegisterBase(code) {}
 };
 
-static_assert(IS_TRIVIALLY_COPYABLE(Register) &&
-                  sizeof(Register) == sizeof(int),
+ASSERT_TRIVIALLY_COPYABLE(Register);
+static_assert(sizeof(Register) == sizeof(int),
               "Register can efficiently be passed by value");
 
 #define DECLARE_REGISTER(R) \
@@ -204,8 +204,8 @@ class XMMRegister : public RegisterBase<XMMRegister, kDoubleAfterLast> {
   explicit constexpr XMMRegister(int code) : RegisterBase(code) {}
 };
 
-static_assert(IS_TRIVIALLY_COPYABLE(XMMRegister) &&
-                  sizeof(XMMRegister) == sizeof(int),
+ASSERT_TRIVIALLY_COPYABLE(XMMRegister);
+static_assert(sizeof(XMMRegister) == sizeof(int),
               "XMMRegister can efficiently be passed by value");
 
 typedef XMMRegister FloatRegister;
@@ -380,19 +380,9 @@ class Operand {
  private:
   const Data data_;
 };
+ASSERT_TRIVIALLY_COPYABLE(Operand);
 static_assert(sizeof(Operand) <= 2 * kPointerSize,
               "Operand must be small enough to pass it by value");
-// Unfortunately, MSVC 2015 is broken in that both is_trivially_destructible and
-// is_trivially_copy_constructible are true, but is_trivially_copyable is false.
-// (status at 2018-02-26, observed on the msvc waterfall bot).
-#if V8_CC_MSVC
-static_assert(std::is_trivially_copy_constructible<Operand>::value &&
-                  std::is_trivially_destructible<Operand>::value,
-              "Operand must be trivially copyable to pass it by value");
-#else
-static_assert(IS_TRIVIALLY_COPYABLE(Operand),
-              "Operand must be trivially copyable to pass it by value");
-#endif
 
 #define ASSEMBLER_INSTRUCTION_LIST(V) \
   V(add)                              \

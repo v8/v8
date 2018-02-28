@@ -43,8 +43,8 @@ T* NewArray(size_t size) {
   return result;
 }
 
-template <typename T,
-          typename = typename std::enable_if<IS_TRIVIALLY_COPYABLE(T)>::type>
+template <typename T, typename = typename std::enable_if<
+                          base::is_trivially_copyable<T>::value>::type>
 T* NewArray(size_t size, T default_val) {
   T* result = reinterpret_cast<T*>(NewArray<uint8_t>(sizeof(T) * size));
   for (size_t i = 0; i < size; ++i) result[i] = default_val;

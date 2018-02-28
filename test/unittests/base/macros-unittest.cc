@@ -21,5 +21,43 @@ TEST(AlignedAddressTest, AlignedAddress) {
             AlignedAddress(reinterpret_cast<void*>(0xFFFFF), 0x100000));
 }
 
+struct TriviallyCopyable {
+  const int i;
+};
+ASSERT_TRIVIALLY_COPYABLE(TriviallyCopyable);
+
+struct NonTrivialDestructor {
+  ~NonTrivialDestructor() {}
+};
+ASSERT_NOT_TRIVIALLY_COPYABLE(NonTrivialDestructor);
+
+struct NonCopyable {
+  NonCopyable(const NonCopyable&&) = delete;
+  NonCopyable(const NonCopyable&) = delete;
+  NonCopyable& operator=(const NonCopyable&) = delete;
+  NonCopyable& operator=(const NonCopyable&&) = delete;
+};
+ASSERT_NOT_TRIVIALLY_COPYABLE(NonCopyable);
+
+struct NonTrivialCopyConstructor {
+  NonTrivialCopyConstructor(const NonTrivialCopyConstructor&) {}
+};
+ASSERT_NOT_TRIVIALLY_COPYABLE(NonTrivialCopyConstructor);
+
+struct NonTrivialMoveConstructor {
+  NonTrivialMoveConstructor(const NonTrivialMoveConstructor&) {}
+};
+ASSERT_NOT_TRIVIALLY_COPYABLE(NonTrivialMoveConstructor);
+
+struct NonTrivialCopyAssignment {
+  NonTrivialCopyAssignment(const NonTrivialCopyAssignment&) {}
+};
+ASSERT_NOT_TRIVIALLY_COPYABLE(NonTrivialCopyAssignment);
+
+struct NonTrivialMoveAssignment {
+  NonTrivialMoveAssignment(const NonTrivialMoveAssignment&) {}
+};
+ASSERT_NOT_TRIVIALLY_COPYABLE(NonTrivialMoveAssignment);
+
 }  // namespace base
 }  // namespace v8
