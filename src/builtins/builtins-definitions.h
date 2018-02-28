@@ -461,8 +461,8 @@ namespace internal {
   CPP(DataViewPrototypeSetBigUint64)                                           \
                                                                                \
   /* Date */                                                                   \
+  /* ES #sec-date-constructor */                                               \
   CPP(DateConstructor)                                                         \
-  CPP(DateConstructor_ConstructStub)                                           \
   /* ES6 #sec-date.prototype.getdate */                                        \
   TFJ(DatePrototypeGetDate, 0)                                                 \
   /* ES6 #sec-date.prototype.getday */                                         \

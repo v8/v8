@@ -2187,7 +2187,7 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
     InstallWithIntrinsicDefaultProto(isolate, date_fun,
                                      Context::DATE_FUNCTION_INDEX);
     date_fun->shared()->SetConstructStub(
-        *BUILTIN_CODE(isolate, DateConstructor_ConstructStub));
+        *BUILTIN_CODE(isolate, JSBuiltinsConstructStub));
     date_fun->shared()->set_length(7);
     date_fun->shared()->DontAdaptArguments();
 
