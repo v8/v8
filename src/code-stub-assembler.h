@@ -508,7 +508,8 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
   // Load the instance type of an HeapObject.
   TNode<Int32T> LoadInstanceType(SloppyTNode<HeapObject> object);
   // Compare the instance the type of the object against the provided one.
-  Node* HasInstanceType(Node* object, InstanceType type);
+  TNode<BoolT> HasInstanceType(SloppyTNode<HeapObject> object,
+                               InstanceType type);
   // Determines whether Array Iterator's prototype has changed.
   TNode<BoolT> HasInitialArrayIteratorPrototypeMap(
       TNode<Context> native_context);
@@ -518,8 +519,10 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
   // Determines whether an array's elements map has changed.
   TNode<BoolT> HasInitialFastElementsKindMap(TNode<Context> native_context,
                                              TNode<JSArray> jsarray);
-  Node* DoesntHaveInstanceType(Node* object, InstanceType type);
-  Node* TaggedDoesntHaveInstanceType(Node* any_tagged, InstanceType type);
+  TNode<BoolT> DoesntHaveInstanceType(SloppyTNode<HeapObject> object,
+                                      InstanceType type);
+  TNode<BoolT> TaggedDoesntHaveInstanceType(SloppyTNode<HeapObject> any_tagged,
+                                            InstanceType type);
   // Load the properties backing store of a JSObject.
   TNode<HeapObject> LoadSlowProperties(SloppyTNode<JSObject> object);
   TNode<HeapObject> LoadFastProperties(SloppyTNode<JSObject> object);
@@ -1091,7 +1094,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
   // Type checks.
   // Check whether the map is for an object with special properties, such as a
   // JSProxy or an object with interceptors.
-  Node* InstanceTypeEqual(Node* instance_type, int type);
+  TNode<BoolT> InstanceTypeEqual(SloppyTNode<Int32T> instance_type, int type);
   Node* IsAccessorInfo(Node* object);
   Node* IsAccessorPair(Node* object);
   Node* IsAllocationSite(Node* object);

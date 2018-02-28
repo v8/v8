@@ -489,7 +489,7 @@ Node* ArrayBuiltinsAssembler::FindProcessor(Node* k_value, Node* k) {
         throw_detached(this, Label::kDeferred);
 
     GotoIf(TaggedIsSmi(receiver_), &throw_not_typed_array);
-    GotoIfNot(HasInstanceType(receiver_, JS_TYPED_ARRAY_TYPE),
+    GotoIfNot(HasInstanceType(CAST(receiver_), JS_TYPED_ARRAY_TYPE),
               &throw_not_typed_array);
 
     o_ = receiver_;
@@ -2962,7 +2962,7 @@ TF_BUILTIN(ArrayIsArray, CodeStubAssembler) {
   Label call_runtime(this), return_true(this), return_false(this);
 
   GotoIf(TaggedIsSmi(object), &return_false);
-  TNode<Word32T> instance_type = LoadInstanceType(CAST(object));
+  TNode<Int32T> instance_type = LoadInstanceType(CAST(object));
 
   GotoIf(InstanceTypeEqual(instance_type, JS_ARRAY_TYPE), &return_true);
 

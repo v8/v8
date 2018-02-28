@@ -1363,8 +1363,8 @@ TNode<Int32T> CodeStubAssembler::LoadInstanceType(
   return LoadMapInstanceType(LoadMap(object));
 }
 
-Node* CodeStubAssembler::HasInstanceType(Node* object,
-                                         InstanceType instance_type) {
+TNode<BoolT> CodeStubAssembler::HasInstanceType(SloppyTNode<HeapObject> object,
+                                                InstanceType instance_type) {
   return InstanceTypeEqual(LoadInstanceType(object), instance_type);
 }
 
@@ -1399,18 +1399,19 @@ TNode<BoolT> CodeStubAssembler::HasInitialFastElementsKindMap(
   return WordEqual(initial_jsarray_element_map, map);
 }
 
-Node* CodeStubAssembler::DoesntHaveInstanceType(Node* object,
-                                                InstanceType instance_type) {
+TNode<BoolT> CodeStubAssembler::DoesntHaveInstanceType(
+    SloppyTNode<HeapObject> object, InstanceType instance_type) {
   return Word32NotEqual(LoadInstanceType(object), Int32Constant(instance_type));
 }
 
-Node* CodeStubAssembler::TaggedDoesntHaveInstanceType(Node* any_tagged,
-                                                      InstanceType type) {
+TNode<BoolT> CodeStubAssembler::TaggedDoesntHaveInstanceType(
+    SloppyTNode<HeapObject> any_tagged, InstanceType type) {
   /* return Phi <TaggedIsSmi(val), DoesntHaveInstanceType(val, type)> */
-  Node* tagged_is_smi = TaggedIsSmi(any_tagged);
-  return Select(tagged_is_smi, [=]() { return tagged_is_smi; },
-                [=]() { return DoesntHaveInstanceType(any_tagged, type); },
-                MachineRepresentation::kBit);
+  TNode<BoolT> tagged_is_smi = TaggedIsSmi(any_tagged);
+  return Select<BoolT>(
+      tagged_is_smi, [=]() { return tagged_is_smi; },
+      [=]() { return DoesntHaveInstanceType(any_tagged, type); },
+      MachineRepresentation::kBit);
 }
 
 TNode<HeapObject> CodeStubAssembler::LoadFastProperties(
@@ -4310,7 +4311,8 @@ void CodeStubAssembler::ThrowTypeError(Node* context,
   Unreachable();
 }
 
-Node* CodeStubAssembler::InstanceTypeEqual(Node* instance_type, int type) {
+TNode<BoolT> CodeStubAssembler::InstanceTypeEqual(
+    SloppyTNode<Int32T> instance_type, int type) {
   return Word32Equal(instance_type, Int32Constant(type));
 }
 
