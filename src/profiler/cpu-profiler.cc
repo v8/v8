@@ -170,10 +170,11 @@ void ProfilerEventsProcessor::Run() {
         // jitter, which is unacceptable for short profile intervals.
         while (base::TimeTicks::HighResolutionNow() < nextSampleTime) {
         }
-      }
-#else
-      base::OS::Sleep(nextSampleTime - now);
+      } else  // NOLINT
 #endif
+      {
+        base::OS::Sleep(nextSampleTime - now);
+      }
     }
 
     // Schedule next sample. sampler_ is nullptr in tests.
