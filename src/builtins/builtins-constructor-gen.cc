@@ -636,49 +636,58 @@ Node* ConstructorBuiltinsAssembler::EmitCreateEmptyObjectLiteral(
   return result;
 }
 
+// ES #sec-object-constructor
 TF_BUILTIN(ObjectConstructor, ConstructorBuiltinsAssembler) {
   int const kValueArg = 0;
   Node* argc =
       ChangeInt32ToIntPtr(Parameter(BuiltinDescriptor::kArgumentsCount));
   CodeStubArguments args(this, argc);
-  Node* value = args.GetOptionalArgumentValue(kValueArg);
   Node* context = Parameter(BuiltinDescriptor::kContext);
+  Node* new_target = Parameter(BuiltinDescriptor::kNewTarget);
 
-  CSA_ASSERT(this, IsUndefined(Parameter(BuiltinDescriptor::kNewTarget)));
-
-  Label return_to_object(this);
-
-  GotoIf(Word32And(IsNotUndefined(value), IsNotNull(value)), &return_to_object);
-
-  args.PopAndReturn(EmitCreateEmptyObjectLiteral(context));
-
-  BIND(&return_to_object);
-  args.PopAndReturn(ToObject(context, value));
-}
-
-TF_BUILTIN(ObjectConstructor_ConstructStub, ConstructorBuiltinsAssembler) {
-  int const kValueArg = 0;
-  Node* argc =
-      ChangeInt32ToIntPtr(Parameter(BuiltinDescriptor::kArgumentsCount));
-  CodeStubArguments args(this, argc);
-  Node* value = args.GetOptionalArgumentValue(kValueArg);
-
+  VARIABLE(var_result, MachineRepresentation::kTagged);
+  Label if_subclass(this, Label::kDeferred), if_notsubclass(this),
+      return_result(this);
+  GotoIf(IsUndefined(new_target), &if_notsubclass);
   Node* target = LoadFromFrame(StandardFrameConstants::kFunctionOffset,
                                MachineType::TaggedPointer());
-  Node* new_target = Parameter(BuiltinDescriptor::kNewTarget);
-  Node* context = Parameter(BuiltinDescriptor::kContext);
+  Branch(WordEqual(new_target, target), &if_notsubclass, &if_subclass);
 
-  CSA_ASSERT(this, IsNotUndefined(new_target));
+  BIND(&if_subclass);
+  {
+    Node* result =
+        CallBuiltin(Builtins::kFastNewObject, context, target, new_target);
+    var_result.Bind(result);
+    Goto(&return_result);
+  }
 
-  Label return_to_object(this);
+  BIND(&if_notsubclass);
+  {
+    Label if_newobject(this, Label::kDeferred), if_toobject(this);
 
-  GotoIf(Word32And(WordEqual(target, new_target),
-                   Word32And(IsNotUndefined(value), IsNotNull(value))),
-         &return_to_object);
-  args.PopAndReturn(EmitFastNewObject(context, target, new_target));
+    Node* value_index = IntPtrConstant(kValueArg);
+    GotoIf(UintPtrGreaterThanOrEqual(value_index, argc), &if_newobject);
+    Node* value = args.AtIndex(value_index);
+    GotoIf(IsNull(value), &if_newobject);
+    Branch(IsUndefined(value), &if_newobject, &if_toobject);
 
-  BIND(&return_to_object);
-  args.PopAndReturn(ToObject(context, value));
+    BIND(&if_newobject);
+    {
+      Node* result = EmitCreateEmptyObjectLiteral(context);
+      var_result.Bind(result);
+      Goto(&return_result);
+    }
+
+    BIND(&if_toobject);
+    {
+      Node* result = CallBuiltin(Builtins::kToObject, context, value);
+      var_result.Bind(result);
+      Goto(&return_result);
+    }
+  }
+
+  BIND(&return_result);
+  args.PopAndReturn(var_result.value());
 }
 
 TF_BUILTIN(NumberConstructor, ConstructorBuiltinsAssembler) {

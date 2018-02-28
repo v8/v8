@@ -748,9 +748,8 @@ namespace internal {
   TFS(Negate, kValue)                                                          \
                                                                                \
   /* Object */                                                                 \
+  /* ES #sec-object-constructor */                                             \
   TFJ(ObjectConstructor, SharedFunctionInfo::kDontAdaptArgumentsSentinel)      \
-  TFJ(ObjectConstructor_ConstructStub,                                         \
-      SharedFunctionInfo::kDontAdaptArgumentsSentinel)                         \
   CPP(ObjectAssign)                                                            \
   /* ES #sec-object.create */                                                  \
   TFJ(ObjectCreate, SharedFunctionInfo::kDontAdaptArgumentsSentinel)           \

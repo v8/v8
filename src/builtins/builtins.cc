@@ -262,7 +262,6 @@ bool Builtins::IsLazy(int index) {
     case kInterpreterEnterBytecodeAdvance:
     case kInterpreterEnterBytecodeDispatch:
     case kInterpreterEntryTrampoline:
-    case kObjectConstructor_ConstructStub:    // https://crbug.com/v8/6787.
     case kPromiseConstructorLazyDeoptContinuation:  // crbug/v8/6786.
     case kProxyConstructor_ConstructStub:     // https://crbug.com/v8/6787.
     case kNumberConstructor_ConstructStub:    // https://crbug.com/v8/6787.
@@ -659,7 +658,6 @@ bool Builtins::IsIsolateIndependent(int index) {
     case kNumberPrototypeValueOf:
     case kNumberToString:
     case kObjectConstructor:
-    case kObjectConstructor_ConstructStub:
     case kObjectCreate:
     case kObjectIs:
     case kObjectKeys:

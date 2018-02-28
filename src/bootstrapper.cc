@@ -762,7 +762,7 @@ void Genesis::CreateObjectFunction(Handle<JSFunction> empty_function) {
   object_fun->shared()->set_length(1);
   object_fun->shared()->DontAdaptArguments();
   object_fun->shared()->SetConstructStub(
-      *BUILTIN_CODE(isolate_, ObjectConstructor_ConstructStub));
+      *BUILTIN_CODE(isolate_, JSBuiltinsConstructStub));
   native_context()->set_object_function(*object_fun);
 
   {
