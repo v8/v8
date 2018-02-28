@@ -458,11 +458,6 @@
   'language/expressions/call/eval-spread-empty-leading': [FAIL],
   'language/expressions/call/eval-spread-empty-trailing': [FAIL],
 
-  # https://bugs.chromium.org/p/v8/issues/detail?id=7470
-  'language/module-code/namespace/internals/enumerate-binding-uninit': [FAIL],
-  'language/module-code/namespace/internals/object-keys-binding-uninit': [FAIL],
-  'language/module-code/namespace/internals/object-propertyIsEnumerable-binding-uninit': [FAIL],
-
   # https://bugs.chromium.org/p/v8/issues/detail?id=7471
   'intl402/DateTimeFormat/prototype/format/time-clip-near-time-boundaries': [FAIL],
   'intl402/DateTimeFormat/prototype/format/time-clip-to-integer': [FAIL],

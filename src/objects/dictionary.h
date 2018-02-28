@@ -165,6 +165,8 @@ class BaseNameDictionary : public Dictionary<Derived, Shape> {
   static Handle<FixedArray> IterationIndices(Handle<Derived> dictionary);
 
   // Copies enumerable keys to preallocated fixed array.
+  // Does not throw for uninitialized exports in module namespace objects, so
+  // this has to be checked separately.
   static void CopyEnumKeysTo(Handle<Derived> dictionary,
                              Handle<FixedArray> storage, KeyCollectionMode mode,
                              KeyAccumulator* accumulator);

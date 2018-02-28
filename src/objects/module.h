@@ -215,6 +215,12 @@ class JSModuleNamespace : public JSObject {
   // schedule an exception and return Nothing.
   MUST_USE_RESULT MaybeHandle<Object> GetExport(Handle<String> name);
 
+  // Return the (constant) property attributes for the referenced property,
+  // which is assumed to correspond to an export. If the export is
+  // uninitialized, schedule an exception and return Nothing.
+  static MUST_USE_RESULT Maybe<PropertyAttributes> GetPropertyAttributes(
+      LookupIterator* it);
+
   // In-object fields.
   enum {
     kToStringTagFieldIndex,
