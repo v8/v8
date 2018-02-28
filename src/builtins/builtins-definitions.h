@@ -434,8 +434,8 @@ namespace internal {
   CPP(ConsoleContext)                                                          \
                                                                                \
   /* DataView */                                                               \
+  /* ES #sec-dataview-constructor */                                           \
   CPP(DataViewConstructor)                                                     \
-  CPP(DataViewConstructor_ConstructStub)                                       \
   CPP(DataViewPrototypeGetBuffer)                                              \
   CPP(DataViewPrototypeGetByteLength)                                          \
   CPP(DataViewPrototypeGetByteOffset)                                          \
