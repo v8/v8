@@ -3478,6 +3478,7 @@ bool Value::IsNumber() const {
   return Utils::OpenHandle(this)->IsNumber();
 }
 
+bool Value::IsBigInt() const { return Utils::OpenHandle(this)->IsBigInt(); }
 
 bool Value::IsProxy() const { return Utils::OpenHandle(this)->IsJSProxy(); }
 
@@ -3496,6 +3497,7 @@ bool Value::IsWebAssemblyCompiledModule() const {
   }
 
 VALUE_IS_SPECIFIC_TYPE(ArgumentsObject, JSArgumentsObject)
+VALUE_IS_SPECIFIC_TYPE(BigIntObject, BigIntWrapper)
 VALUE_IS_SPECIFIC_TYPE(BooleanObject, BooleanWrapper)
 VALUE_IS_SPECIFIC_TYPE(NumberObject, NumberWrapper)
 VALUE_IS_SPECIFIC_TYPE(StringObject, StringWrapper)
@@ -3628,6 +3630,16 @@ Local<v8::Object> Value::ToObject(Isolate* isolate) const {
   RETURN_TO_LOCAL_UNCHECKED(ToObject(isolate->GetCurrentContext()), Object);
 }
 
+MaybeLocal<BigInt> Value::ToBigInt(Local<Context> context) const {
+  i::Handle<i::Object> obj = Utils::OpenHandle(this);
+  if (obj->IsBigInt()) return ToApiHandle<BigInt>(obj);
+  PREPARE_FOR_EXECUTION(context, Object, ToBigInt, BigInt);
+  Local<BigInt> result;
+  has_pending_exception =
+      !ToLocal<BigInt>(i::BigInt::FromObject(isolate, obj), &result);
+  RETURN_ON_FAILED_EXECUTION(BigInt);
+  RETURN_ESCAPED(result);
+}
 
 MaybeLocal<Boolean> Value::ToBoolean(Local<Context> context) const {
   auto obj = Utils::OpenHandle(this);
@@ -3795,6 +3807,10 @@ void v8::Uint32::CheckCast(v8::Value* that) {
                   "Could not convert to 32-bit unsigned integer");
 }
 
+void v8::BigInt::CheckCast(v8::Value* that) {
+  Utils::ApiCheck(that->IsBigInt(), "v8::BigInt::Cast",
+                  "Could not convert to BigInt");
+}
 
 void v8::Array::CheckCast(Value* that) {
   i::Handle<i::Object> obj = Utils::OpenHandle(that);
@@ -3921,6 +3937,11 @@ void v8::NumberObject::CheckCast(v8::Value* that) {
                   "Could not convert to NumberObject");
 }
 
+void v8::BigIntObject::CheckCast(v8::Value* that) {
+  i::Handle<i::Object> obj = Utils::OpenHandle(that);
+  Utils::ApiCheck(obj->IsBigIntWrapper(), "v8::BigIntObject::Cast()",
+                  "Could not convert to BigIntObject");
+}
 
 void v8::BooleanObject::CheckCast(v8::Value* that) {
   i::Handle<i::Object> obj = Utils::OpenHandle(that);
@@ -6875,6 +6896,25 @@ double v8::NumberObject::ValueOf() const {
   return jsvalue->value()->Number();
 }
 
+Local<v8::Value> v8::BigIntObject::New(Isolate* isolate, int64_t value) {
+  CHECK(i::FLAG_harmony_bigint);
+  i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
+  LOG_API(i_isolate, BigIntObject, New);
+  ENTER_V8_NO_SCRIPT_NO_EXCEPTION(i_isolate);
+  i::Handle<i::Object> bigint = i::BigInt::FromInt64(i_isolate, value);
+  i::Handle<i::Object> obj =
+      i::Object::ToObject(i_isolate, bigint).ToHandleChecked();
+  return Utils::ToLocal(obj);
+}
+
+Local<v8::BigInt> v8::BigIntObject::ValueOf() const {
+  i::Handle<i::Object> obj = Utils::OpenHandle(this);
+  i::Handle<i::JSValue> jsvalue = i::Handle<i::JSValue>::cast(obj);
+  i::Isolate* isolate = jsvalue->GetIsolate();
+  LOG_API(isolate, BigIntObject, BigIntValue);
+  return Utils::ToLocal(
+      i::Handle<i::BigInt>(i::BigInt::cast(jsvalue->value())));
+}
 
 Local<v8::Value> v8::BooleanObject::New(Isolate* isolate, bool value) {
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
@@ -8049,6 +8089,13 @@ Local<Integer> v8::Integer::NewFromUnsigned(Isolate* isolate, uint32_t value) {
   return Utils::IntegerToLocal(result);
 }
 
+Local<BigInt> v8::BigInt::New(Isolate* isolate, int64_t value) {
+  CHECK(i::FLAG_harmony_bigint);
+  i::Isolate* internal_isolate = reinterpret_cast<i::Isolate*>(isolate);
+  ENTER_V8_NO_SCRIPT_NO_EXCEPTION(internal_isolate);
+  i::Handle<i::BigInt> result = i::BigInt::FromInt64(internal_isolate, value);
+  return Utils::ToLocal(result);
+}
 
 void Isolate::ReportExternalAllocationLimitReached() {
   i::Heap* heap = reinterpret_cast<i::Isolate*>(this)->heap();

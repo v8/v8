@@ -202,6 +202,8 @@ class Utils {
       v8::internal::Handle<v8::internal::Object> obj);
   static inline Local<Uint32> Uint32ToLocal(
       v8::internal::Handle<v8::internal::Object> obj);
+  static inline Local<BigInt> ToLocal(
+      v8::internal::Handle<v8::internal::BigInt> obj);
   static inline Local<FunctionTemplate> ToLocal(
       v8::internal::Handle<v8::internal::FunctionTemplateInfo> obj);
   static inline Local<ObjectTemplate> ToLocal(
@@ -333,6 +335,7 @@ MAKE_TO_LOCAL(StackFrameToLocal, StackFrameInfo, StackFrame)
 MAKE_TO_LOCAL(NumberToLocal, Object, Number)
 MAKE_TO_LOCAL(IntegerToLocal, Object, Integer)
 MAKE_TO_LOCAL(Uint32ToLocal, Object, Uint32)
+MAKE_TO_LOCAL(ToLocal, BigInt, BigInt);
 MAKE_TO_LOCAL(ExternalToLocal, JSObject, External)
 MAKE_TO_LOCAL(CallableToLocal, JSReceiver, Function)
 MAKE_TO_LOCAL(ToLocalPrimitive, Object, Primitive)

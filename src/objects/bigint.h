@@ -15,6 +15,8 @@
 namespace v8 {
 namespace internal {
 
+class BigInt;
+
 // BigIntBase is just the raw data object underlying a BigInt. Use with care!
 // Most code should be using BigInts instead.
 class BigIntBase : public HeapObject {
@@ -38,7 +40,7 @@ class BigIntBase : public HeapObject {
   static const int kHeaderSize = kDigitsOffset;
 
  private:
-  friend class BigInt;
+  friend class ::v8::internal::BigInt;  // MSVC wants full namespace.
   friend class MutableBigInt;
 
   typedef uintptr_t digit_t;

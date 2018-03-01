@@ -66,6 +66,8 @@ namespace v8 {
 class AccessorSignature;
 class Array;
 class ArrayBuffer;
+class BigInt;
+class BigIntObject;
 class Boolean;
 class BooleanObject;
 class Context;
@@ -2152,6 +2154,11 @@ class V8_EXPORT Value : public Data {
   bool IsObject() const;
 
   /**
+   * Returns true if this value is a bigint.
+   */
+  bool IsBigInt() const;
+
+  /**
    * Returns true if this value is boolean.
    */
   bool IsBoolean() const;
@@ -2185,6 +2192,11 @@ class V8_EXPORT Value : public Data {
    * Returns true if this value is an Arguments object.
    */
   bool IsArgumentsObject() const;
+
+  /**
+   * Returns true if this value is a BigInt object.
+   */
+  bool IsBigIntObject() const;
 
   /**
    * Returns true if this value is a Boolean object.
@@ -2354,6 +2366,8 @@ class V8_EXPORT Value : public Data {
 
   bool IsWebAssemblyCompiledModule() const;
 
+  V8_WARN_UNUSED_RESULT MaybeLocal<BigInt> ToBigInt(
+      Local<Context> context) const;
   V8_WARN_UNUSED_RESULT MaybeLocal<Boolean> ToBoolean(
       Local<Context> context) const;
   V8_WARN_UNUSED_RESULT MaybeLocal<Number> ToNumber(
@@ -3002,6 +3016,19 @@ class V8_EXPORT Uint32 : public Integer {
 
  private:
   Uint32();
+  static void CheckCast(v8::Value* obj);
+};
+
+/**
+ * A JavaScript BigInt value (https://tc39.github.io/proposal-bigint)
+ */
+class V8_EXPORT BigInt : public Primitive {
+ public:
+  static Local<BigInt> New(Isolate* isolate, int64_t value);
+  V8_INLINE static BigInt* Cast(v8::Value* obj);
+
+ private:
+  BigInt();
   static void CheckCast(v8::Value* obj);
 };
 
@@ -4874,6 +4901,20 @@ class V8_EXPORT NumberObject : public Object {
   static void CheckCast(Value* obj);
 };
 
+/**
+ * A BigInt object (https://tc39.github.io/proposal-bigint)
+ */
+class V8_EXPORT BigIntObject : public Object {
+ public:
+  static Local<Value> New(Isolate* isolate, int64_t value);
+
+  Local<BigInt> ValueOf() const;
+
+  V8_INLINE static BigIntObject* Cast(Value* obj);
+
+ private:
+  static void CheckCast(Value* obj);
+};
 
 /**
  * A Boolean object (ECMA-262, 4.3.15).
@@ -9848,6 +9889,12 @@ Uint32* Uint32::Cast(v8::Value* value) {
   return static_cast<Uint32*>(value);
 }
 
+BigInt* BigInt::Cast(v8::Value* value) {
+#ifdef V8_ENABLE_CHECKS
+  CheckCast(value);
+#endif
+  return static_cast<BigInt*>(value);
+}
 
 Date* Date::Cast(v8::Value* value) {
 #ifdef V8_ENABLE_CHECKS
@@ -9880,6 +9927,12 @@ NumberObject* NumberObject::Cast(v8::Value* value) {
   return static_cast<NumberObject*>(value);
 }
 
+BigIntObject* BigIntObject::Cast(v8::Value* value) {
+#ifdef V8_ENABLE_CHECKS
+  CheckCast(value);
+#endif
+  return static_cast<BigIntObject*>(value);
+}
 
 BooleanObject* BooleanObject::Cast(v8::Value* value) {
 #ifdef V8_ENABLE_CHECKS

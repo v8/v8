@@ -429,6 +429,10 @@ bool HeapObject::IsNumberWrapper() const {
   return IsJSValue() && JSValue::cast(this)->value()->IsNumber();
 }
 
+bool HeapObject::IsBigIntWrapper() const {
+  return IsJSValue() && JSValue::cast(this)->value()->IsBigInt();
+}
+
 bool HeapObject::IsSymbolWrapper() const {
   return IsJSValue() && JSValue::cast(this)->value()->IsSymbol();
 }

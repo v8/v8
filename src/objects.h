@@ -997,6 +997,7 @@ template <class C> inline bool Is(Object* obj);
   V(AccessCheckNeeded)                    \
   V(ArrayList)                            \
   V(BigInt)                               \
+  V(BigIntWrapper)                        \
   V(BoilerplateDescription)               \
   V(Boolean)                              \
   V(BooleanWrapper)                       \

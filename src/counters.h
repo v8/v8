@@ -694,6 +694,8 @@ class RuntimeCallTimer final {
   V(Array_New)                                             \
   V(BigInt64Array_New)                                     \
   V(BigUint64Array_New)                                    \
+  V(BigIntObject_New)                                      \
+  V(BigIntObject_BigIntValue)                              \
   V(BooleanObject_BooleanValue)                            \
   V(BooleanObject_New)                                     \
   V(Context_New)                                           \
@@ -767,6 +769,7 @@ class RuntimeCallTimer final {
   V(ObjectTemplate_New)                                    \
   V(ObjectTemplate_NewInstance)                            \
   V(Object_ToArrayIndex)                                   \
+  V(Object_ToBigInt)                                       \
   V(Object_ToDetailString)                                 \
   V(Object_ToInt32)                                        \
   V(Object_ToInteger)                                      \

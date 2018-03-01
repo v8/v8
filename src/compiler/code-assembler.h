@@ -201,6 +201,7 @@ enum class ObjectType {
 #undef ENUM_STRUCT_ELEMENT
 
 class AccessCheckNeeded;
+class BigIntWrapper;
 class ClassBoilerplate;
 class BooleanWrapper;
 class CompilationCacheTable;

@@ -1769,6 +1769,36 @@ THREADED_TEST(NumberObject) {
   CHECK_EQ(43.0, the_number);
 }
 
+THREADED_TEST(BigIntObject) {
+  v8::internal::FLAG_harmony_bigint = true;
+  LocalContext env;
+  v8::Isolate* isolate = env->GetIsolate();
+  v8::HandleScope scope(isolate);
+  v8::Local<v8::Context> context(env.local());
+  v8::Local<Value> boxed_bigint = CompileRun("new Object(42n)");
+  CHECK(!boxed_bigint->IsBigInt());
+  CHECK(boxed_bigint->IsBigIntObject());
+  v8::Local<Value> unboxed_bigint = CompileRun("42n");
+  CHECK(unboxed_bigint->IsBigInt());
+  CHECK(!unboxed_bigint->IsBigIntObject());
+  v8::Local<v8::BigIntObject> as_boxed = boxed_bigint.As<v8::BigIntObject>();
+  CHECK(!as_boxed.IsEmpty());
+  v8::Local<v8::BigInt> unpacked = as_boxed->ValueOf();
+  CHECK(!unpacked.IsEmpty());
+  v8::Local<v8::Value> new_boxed_bigint = v8::BigIntObject::New(isolate, 43);
+  CHECK(new_boxed_bigint->IsBigIntObject());
+  v8::Local<v8::Value> new_unboxed_bigint = v8::BigInt::New(isolate, 44);
+  CHECK(new_unboxed_bigint->IsBigInt());
+
+  // Test functionality inherited from v8::Value.
+  CHECK(unboxed_bigint->BooleanValue(context).ToChecked());
+  v8::Local<v8::String> string =
+      unboxed_bigint->ToString(context).ToLocalChecked();
+  CHECK_EQ(0, strcmp("42", *v8::String::Utf8Value(isolate, string)));
+
+  // IntegerValue throws.
+  CHECK(unboxed_bigint->IntegerValue(context).IsNothing());
+}
 
 THREADED_TEST(BooleanObject) {
   LocalContext env;
