@@ -1223,209 +1223,73 @@ Handle<String> Scanner::SourceMappingUrl(Isolate* isolate) const {
   return tmp;
 }
 
-bool Scanner::ScanDigitsWithNumericSeparators(bool (*predicate)(uc32 ch),
-                                              int start_pos,
-                                              bool is_check_first_digit) {
-  // we must have at least one digit after 'x'/'b'/'o'
-  if (is_check_first_digit && !predicate(c0_)) return false;
-
-  bool separator_seen = false;
-  while (predicate(c0_) || c0_ == '_') {
-    if (c0_ == '_') {
-      Advance<false, false>();
-      if (c0_ == '_') {
-        ReportScannerError(Location(start_pos, source_pos()),
-                           MessageTemplate::kContinuousNumericSeparator);
-        return false;
-      }
-      separator_seen = true;
-      continue;
-    }
-    separator_seen = false;
+void Scanner::ScanDecimalDigits() {
+  while (IsDecimalDigit(c0_))
     AddLiteralCharAdvance();
-  }
-
-  if (separator_seen) {
-    ReportScannerError(Location(start_pos, source_pos()),
-                       MessageTemplate::kTrailingNumericSeparator);
-    return false;
-  }
-
-  return true;
 }
 
-bool Scanner::ScanDecimalDigits(int start_pos) {
-  if (allow_harmony_numeric_separator()) {
-    return ScanDigitsWithNumericSeparators(&IsDecimalDigit, start_pos, false);
-  }
-  while (IsDecimalDigit(c0_)) {
-    AddLiteralCharAdvance();
-  }
-  return true;
-}
-
-bool Scanner::ScanDecimalAsSmiWithNumericSeparators(int start_pos,
-                                                    uint64_t* value) {
-  bool separator_seen = false;
-  while (IsDecimalDigit(c0_) || c0_ == '_') {
-    if (c0_ == '_') {
-      Advance<false, false>();
-      if (c0_ == '_') {
-        ReportScannerError(Location(start_pos, source_pos()),
-                           MessageTemplate::kContinuousNumericSeparator);
-        return false;
-      }
-      separator_seen = true;
-      continue;
-    }
-    separator_seen = false;
-    *value = 10 * *value + (c0_ - '0');
-    uc32 first_char = c0_;
-    Advance<false, false>();
-    AddLiteralChar(first_char);
-  }
-
-  if (separator_seen) {
-    ReportScannerError(Location(start_pos, source_pos()),
-                       MessageTemplate::kTrailingNumericSeparator);
-    return false;
-  }
-
-  return true;
-}
-
-bool Scanner::ScanDecimalAsSmi(int start_pos, uint64_t* value) {
-  if (allow_harmony_numeric_separator()) {
-    return ScanDecimalAsSmiWithNumericSeparators(start_pos, value);
-  }
-
-  while (IsDecimalDigit(c0_)) {
-    *value = 10 * *value + (c0_ - '0');
-    uc32 first_char = c0_;
-    Advance<false, false>();
-    AddLiteralChar(first_char);
-  }
-  return true;
-}
-
-bool Scanner::ScanBinaryDigits(int start_pos) {
-  if (allow_harmony_numeric_separator()) {
-    return ScanDigitsWithNumericSeparators(&IsBinaryDigit, start_pos, true);
-  }
-
+bool Scanner::ScanBinaryDigits() {
   // we must have at least one binary digit after 'b'/'B'
-  if (!IsBinaryDigit(c0_)) {
-    return false;
-  }
-
+  if (!IsBinaryDigit(c0_)) return false;
   while (IsBinaryDigit(c0_)) {
     AddLiteralCharAdvance();
   }
   return true;
 }
 
-bool Scanner::ScanOctalDigits(int start_pos) {
-  if (allow_harmony_numeric_separator()) {
-    return ScanDigitsWithNumericSeparators(&IsOctalDigit, start_pos, true);
-  }
-
+bool Scanner::ScanOctalDigits() {
   // we must have at least one octal digit after 'o'/'O'
-  if (!IsOctalDigit(c0_)) {
-    return false;
+  if (!IsOctalDigit(c0_)) return false;
+  while (IsOctalDigit(c0_)) {
+    AddLiteralCharAdvance();
   }
 
-  while (IsOctalDigit(c0_)) {
+  return true;
+}
+
+bool Scanner::ScanImplicitOctalDigits(int start_pos) {
+  // (possible) octal number
+  while (true) {
+    if (c0_ == '8' || c0_ == '9') return false;
+    if (c0_ < '0' || '7' < c0_) {
+      // Octal literal finished.
+      octal_pos_ = Location(start_pos, source_pos());
+      octal_message_ = MessageTemplate::kStrictOctalLiteral;
+      break;
+    }
     AddLiteralCharAdvance();
   }
   return true;
 }
 
-bool Scanner::ScanImplicitOctalDigitsWithNumericSeparators(
-    int start_pos, Scanner::NumberKind* kind) {
-  bool separator_seen = false;
-  while (true) {
-    if (c0_ == '_') {
-      Advance<false, false>();
-      if (c0_ == '_') {
-        ReportScannerError(Location(start_pos, source_pos()),
-                           MessageTemplate::kContinuousNumericSeparator);
-        return false;
-      }
-      separator_seen = true;
-      continue;
-    }
-
-    if (c0_ == '8' || c0_ == '9') {
-      *kind = DECIMAL_WITH_LEADING_ZERO;
-      return true;
-    }
-    if (c0_ < '0' || '7' < c0_) {
-      // Octal literal finished.
-      octal_pos_ = Location(start_pos, source_pos());
-      octal_message_ = MessageTemplate::kStrictOctalLiteral;
-      if (separator_seen) {
-        ReportScannerError(Location(start_pos, source_pos()),
-                           MessageTemplate::kTrailingNumericSeparator);
-        return false;
-      }
-      return true;
-    }
-    separator_seen = false;
-    AddLiteralCharAdvance();
-  }
-}
-
-bool Scanner::ScanImplicitOctalDigits(int start_pos,
-                                      Scanner::NumberKind* kind) {
-  *kind = IMPLICIT_OCTAL;
-
-  if (allow_harmony_numeric_separator()) {
-    return ScanImplicitOctalDigitsWithNumericSeparators(start_pos, kind);
-  }
-
-  while (true) {
-    // (possible) octal number
-    if (c0_ == '8' || c0_ == '9') {
-      *kind = DECIMAL_WITH_LEADING_ZERO;
-      return true;
-    }
-    if (c0_ < '0' || '7' < c0_) {
-      // Octal literal finished.
-      octal_pos_ = Location(start_pos, source_pos());
-      octal_message_ = MessageTemplate::kStrictOctalLiteral;
-      return true;
-    }
-    AddLiteralCharAdvance();
-  }
-}
-
-bool Scanner::ScanHexDigits(int start_pos) {
-  if (allow_harmony_numeric_separator()) {
-    return ScanDigitsWithNumericSeparators(&IsHexDigit, start_pos, true);
-  }
-
+bool Scanner::ScanHexDigits() {
   // we must have at least one hex digit after 'x'/'X'
-  if (!IsHexDigit(c0_)) {
-    return false;
-  }
-
+  if (!IsHexDigit(c0_)) return false;
   while (IsHexDigit(c0_)) {
     AddLiteralCharAdvance();
   }
   return true;
 }
 
-bool Scanner::ScanSignedInteger(int start_pos) {
+bool Scanner::ScanSignedInteger() {
   if (c0_ == '+' || c0_ == '-') AddLiteralCharAdvance();
   // we must have at least one decimal digit after 'e'/'E'
   if (!IsDecimalDigit(c0_)) return false;
-  return ScanDecimalDigits(start_pos);
+  ScanDecimalDigits();
+  return true;
 }
 
 Token::Value Scanner::ScanNumber(bool seen_period) {
   DCHECK(IsDecimalDigit(c0_));  // the first digit of the number or the fraction
 
-  NumberKind kind = DECIMAL;
+  enum {
+    DECIMAL,
+    DECIMAL_WITH_LEADING_ZERO,
+    HEX,
+    OCTAL,
+    IMPLICIT_OCTAL,
+    BINARY
+  } kind = DECIMAL;
 
   LiteralScope literal(this);
   bool at_start = !seen_period;
@@ -1433,11 +1297,8 @@ Token::Value Scanner::ScanNumber(bool seen_period) {
   if (seen_period) {
     // we have already seen a decimal point of the float
     AddLiteralChar('.');
-    if (allow_harmony_numeric_separator() && c0_ == '_') {
-      return Token::ILLEGAL;
-    }
-    // we know we have at least one digit
-    if (!ScanDecimalDigits(start_pos)) return Token::ILLEGAL;
+    ScanDecimalDigits();  // we know we have at least one digit
+
   } else {
     // if the first character is '0' we must check for octals and hex
     if (c0_ == '0') {
@@ -1448,21 +1309,19 @@ Token::Value Scanner::ScanNumber(bool seen_period) {
       if (c0_ == 'x' || c0_ == 'X') {
         AddLiteralCharAdvance();
         kind = HEX;
-        if (!ScanHexDigits(start_pos)) return Token::ILLEGAL;
+        if (!ScanHexDigits()) return Token::ILLEGAL;
       } else if (c0_ == 'o' || c0_ == 'O') {
         AddLiteralCharAdvance();
         kind = OCTAL;
-        if (!ScanOctalDigits(start_pos)) return Token::ILLEGAL;
+        if (!ScanOctalDigits()) return Token::ILLEGAL;
       } else if (c0_ == 'b' || c0_ == 'B') {
         AddLiteralCharAdvance();
         kind = BINARY;
-        if (!ScanBinaryDigits(start_pos)) return Token::ILLEGAL;
+        if (!ScanBinaryDigits()) return Token::ILLEGAL;
       } else if ('0' <= c0_ && c0_ <= '7') {
         kind = IMPLICIT_OCTAL;
-        if (!ScanImplicitOctalDigits(start_pos, &kind)) {
-          return Token::ILLEGAL;
-        }
-        if (kind == DECIMAL_WITH_LEADING_ZERO) {
+        if (!ScanImplicitOctalDigits(start_pos)) {
+          kind = DECIMAL_WITH_LEADING_ZERO;
           at_start = false;
         }
       } else if (c0_ == '8' || c0_ == '9') {
@@ -1475,9 +1334,12 @@ Token::Value Scanner::ScanNumber(bool seen_period) {
       // This is an optimization for parsing Decimal numbers as Smi's.
       if (at_start) {
         uint64_t value = 0;
-        // scan subsequent decimal digits
-        if (!ScanDecimalAsSmi(start_pos, &value)) {
-          return Token::ILLEGAL;
+        while (IsDecimalDigit(c0_)) {
+          value = 10 * value + (c0_ - '0');
+
+          uc32 first_char = c0_;
+          Advance<false, false>();
+          AddLiteralChar(first_char);
         }
 
         if (next_.literal_chars->one_byte_literal().length() <= 10 &&
@@ -1496,14 +1358,11 @@ Token::Value Scanner::ScanNumber(bool seen_period) {
         HandleLeadSurrogate();
       }
 
-      if (!ScanDecimalDigits(start_pos)) return Token::ILLEGAL;
+      ScanDecimalDigits();  // optional
       if (c0_ == '.') {
         seen_period = true;
         AddLiteralCharAdvance();
-        if (allow_harmony_numeric_separator() && c0_ == '_') {
-          return Token::ILLEGAL;
-        }
-        if (!ScanDecimalDigits(start_pos)) return Token::ILLEGAL;
+        ScanDecimalDigits();  // optional
       }
     }
   }
@@ -1534,7 +1393,7 @@ Token::Value Scanner::ScanNumber(bool seen_period) {
     // scan exponent
     AddLiteralCharAdvance();
 
-    if (!ScanSignedInteger(start_pos)) return Token::ILLEGAL;
+    if (!ScanSignedInteger()) return Token::ILLEGAL;
   }
 
   // The source character immediately following a numeric literal must
