@@ -55,10 +55,10 @@ class V8_PLATFORM_EXPORT DefaultPlatform : public NON_EXPORTED_BASE(Platform) {
   void SetTimeFunctionForTesting(TimeFunction time_function);
 
   // v8::Platform implementation.
-  size_t NumberOfAvailableBackgroundThreads() override;
+  int NumberOfWorkerThreads() override;
   std::shared_ptr<TaskRunner> GetForegroundTaskRunner(
       v8::Isolate* isolate) override;
-  std::shared_ptr<TaskRunner> GetBackgroundTaskRunner(
+  std::shared_ptr<TaskRunner> GetWorkerThreadsTaskRunner(
       v8::Isolate* isolate) override;
   void CallOnWorkerThread(Task* task) override;
   void CallOnForegroundThread(v8::Isolate* isolate, Task* task) override;

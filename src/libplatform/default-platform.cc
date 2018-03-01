@@ -196,14 +196,14 @@ std::shared_ptr<TaskRunner> DefaultPlatform::GetForegroundTaskRunner(
   return foreground_task_runner_map_[isolate];
 }
 
-std::shared_ptr<TaskRunner> DefaultPlatform::GetBackgroundTaskRunner(
+std::shared_ptr<TaskRunner> DefaultPlatform::GetWorkerThreadsTaskRunner(
     v8::Isolate*) {
   EnsureBackgroundTaskRunnerInitialized();
   return background_task_runner_;
 }
 
 void DefaultPlatform::CallOnWorkerThread(Task* task) {
-  GetBackgroundTaskRunner(nullptr)->PostTask(std::unique_ptr<Task>(task));
+  GetWorkerThreadsTaskRunner(nullptr)->PostTask(std::unique_ptr<Task>(task));
 }
 
 void DefaultPlatform::CallOnForegroundThread(v8::Isolate* isolate, Task* task) {
@@ -247,9 +247,7 @@ void DefaultPlatform::SetTracingController(
   tracing_controller_ = std::move(tracing_controller);
 }
 
-size_t DefaultPlatform::NumberOfAvailableBackgroundThreads() {
-  return static_cast<size_t>(thread_pool_size_);
-}
+int DefaultPlatform::NumberOfWorkerThreads() { return thread_pool_size_; }
 
 Platform::StackTracePrinter DefaultPlatform::GetStackTracePrinter() {
   return PrintStackTrace;

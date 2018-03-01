@@ -507,9 +507,7 @@ void ConcurrentMarking::ScheduleTasks() {
   DCHECK_EQ(0, pending_task_count_);
   if (task_count_ == 0) {
     task_count_ = Max(
-        1, Min(kMaxTasks,
-               static_cast<int>(V8::GetCurrentPlatform()
-                                    ->NumberOfAvailableBackgroundThreads())));
+        1, Min(kMaxTasks, V8::GetCurrentPlatform()->NumberOfWorkerThreads()));
   }
   // Task id 0 is for the main thread.
   for (int i = 1; i <= task_count_; i++) {

@@ -97,7 +97,7 @@ class MockPlatform : public v8::Platform {
     EXPECT_TRUE(idle_task_ == nullptr);
   }
 
-  size_t NumberOfAvailableBackgroundThreads() override { return 1; }
+  int NumberOfWorkerThreads() override { return 1; }
 
   std::shared_ptr<TaskRunner> GetForegroundTaskRunner(
       v8::Isolate* isolate) override {
@@ -105,7 +105,7 @@ class MockPlatform : public v8::Platform {
     return std::make_shared<MockTaskRunner>(this, is_foreground_task_runner);
   }
 
-  std::shared_ptr<TaskRunner> GetBackgroundTaskRunner(
+  std::shared_ptr<TaskRunner> GetWorkerThreadsTaskRunner(
       v8::Isolate* isolate) override {
     constexpr bool is_foreground_task_runner = false;
     return std::make_shared<MockTaskRunner>(this, is_foreground_task_runner);

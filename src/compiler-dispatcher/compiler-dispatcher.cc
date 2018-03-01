@@ -520,8 +520,7 @@ void CompilerDispatcher::ScheduleMoreBackgroundTasksIfNeeded() {
   {
     base::LockGuard<base::Mutex> lock(&mutex_);
     if (pending_background_jobs_.empty()) return;
-    if (platform_->NumberOfAvailableBackgroundThreads() <=
-        num_background_tasks_) {
+    if (platform_->NumberOfWorkerThreads() <= num_background_tasks_) {
       return;
     }
     ++num_background_tasks_;

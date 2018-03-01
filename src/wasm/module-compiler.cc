@@ -221,11 +221,11 @@ class ModuleCompiler {
   base::Mutex compilation_units_mutex_;
   CodeGenerationSchedule executed_units_;
   base::Mutex result_mutex_;
-  const size_t num_background_tasks_;
+  const int num_background_tasks_;
   // This flag should only be set while holding result_mutex_.
   bool finisher_is_running_ = false;
   CancelableTaskManager background_task_manager_;
-  size_t stopped_compilation_tasks_ = 0;
+  int stopped_compilation_tasks_ = 0;
   base::Mutex tasks_mutex_;
   Handle<Code> centry_stub_;
   wasm::NativeModule* native_module_;
@@ -1303,8 +1303,8 @@ ModuleCompiler::ModuleCompiler(Isolate* isolate, WasmModule* module,
                : isolate->heap()->code_space()->Capacity()) /
               2),
       num_background_tasks_(
-          Min(static_cast<size_t>(FLAG_wasm_num_compilation_tasks),
-              V8::GetCurrentPlatform()->NumberOfAvailableBackgroundThreads())),
+          Min(FLAG_wasm_num_compilation_tasks,
+              V8::GetCurrentPlatform()->NumberOfWorkerThreads())),
       stopped_compilation_tasks_(num_background_tasks_),
       centry_stub_(centry_stub),
       native_module_(native_module) {}
@@ -1371,7 +1371,7 @@ size_t ModuleCompiler::InitializeCompilationUnits(
 void ModuleCompiler::RestartCompilationTasks() {
   v8::Isolate* v8_isolate = reinterpret_cast<v8::Isolate*>(isolate_);
   std::shared_ptr<v8::TaskRunner> task_runner =
-      V8::GetCurrentPlatform()->GetBackgroundTaskRunner(v8_isolate);
+      V8::GetCurrentPlatform()->GetWorkerThreadsTaskRunner(v8_isolate);
 
   base::LockGuard<base::Mutex> guard(&tasks_mutex_);
   for (; stopped_compilation_tasks_ > 0; --stopped_compilation_tasks_) {
@@ -1981,7 +1981,7 @@ MaybeHandle<WasmModuleObject> ModuleCompiler::CompileToModuleObjectInternal(
     bool compile_parallel =
         !FLAG_trace_wasm_decoder && FLAG_wasm_num_compilation_tasks > 0 &&
         funcs_to_compile > 1 &&
-        V8::GetCurrentPlatform()->NumberOfAvailableBackgroundThreads() > 0;
+        V8::GetCurrentPlatform()->NumberOfWorkerThreads() > 0;
     // Avoid a race condition by collecting results into a second vector.
     std::vector<Handle<Code>> results(
         FLAG_wasm_jit_to_native ? 0 : env->module->functions.size());
@@ -3417,7 +3417,7 @@ AsyncCompileJob::AsyncCompileJob(Isolate* isolate,
   v8::Isolate* v8_isolate = reinterpret_cast<v8::Isolate*>(isolate);
   v8::Platform* platform = V8::GetCurrentPlatform();
   foreground_task_runner_ = platform->GetForegroundTaskRunner(v8_isolate);
-  background_task_runner_ = platform->GetBackgroundTaskRunner(v8_isolate);
+  background_task_runner_ = platform->GetWorkerThreadsTaskRunner(v8_isolate);
   // The handles for the context and promise must be deferred.
   DeferredHandleScope deferred(isolate);
   context_ = Handle<Context>(*context);
@@ -3515,7 +3515,7 @@ void AsyncCompileJob::AsyncCompileSucceeded(Handle<Object> result) {
 // task) and schedule the next step(s), if any.
 class AsyncCompileJob::CompileStep {
  public:
-  explicit CompileStep(size_t num_background_tasks = 0)
+  explicit CompileStep(int num_background_tasks = 0)
       : num_background_tasks_(num_background_tasks) {}
 
   virtual ~CompileStep() {}
@@ -3536,10 +3536,10 @@ class AsyncCompileJob::CompileStep {
   virtual void RunInForeground() { UNREACHABLE(); }
   virtual void RunInBackground() { UNREACHABLE(); }
 
-  size_t NumberOfBackgroundTasks() { return num_background_tasks_; }
+  int NumberOfBackgroundTasks() { return num_background_tasks_; }
 
   AsyncCompileJob* job_ = nullptr;
-  const size_t num_background_tasks_;
+  const int num_background_tasks_;
 };
 
 class AsyncCompileJob::CompileTask : public CancelableTask {
@@ -3580,10 +3580,10 @@ void AsyncCompileJob::StartBackgroundTask() {
 }
 
 void AsyncCompileJob::RestartBackgroundTasks() {
-  size_t num_restarts = stopped_tasks_.Value();
+  int num_restarts = stopped_tasks_.Value();
   stopped_tasks_.Decrement(num_restarts);
 
-  for (size_t i = 0; i < num_restarts; ++i) {
+  for (int i = 0; i < num_restarts; ++i) {
     StartBackgroundTask();
   }
 }
@@ -3591,8 +3591,8 @@ void AsyncCompileJob::RestartBackgroundTasks() {
 template <typename Step, typename... Args>
 void AsyncCompileJob::DoAsync(Args&&... args) {
   NextStep<Step>(std::forward<Args>(args)...);
-  size_t end = step_->NumberOfBackgroundTasks();
-  for (size_t i = 0; i < end; ++i) {
+  int end = step_->NumberOfBackgroundTasks();
+  for (int i = 0; i < end; ++i) {
     StartBackgroundTask();
   }
 }
@@ -3741,12 +3741,10 @@ class AsyncCompileJob::PrepareAndStartCompile : public CompileStep {
     }
 
     // Start asynchronous compilation tasks.
-    size_t num_background_tasks =
-        Max(static_cast<size_t>(1),
-            Min(num_functions,
-                Min(static_cast<size_t>(FLAG_wasm_num_compilation_tasks),
-                    V8::GetCurrentPlatform()
-                        ->NumberOfAvailableBackgroundThreads())));
+    int num_background_tasks =
+        Max(1, Min(static_cast<int>(num_functions),
+                   Min(FLAG_wasm_num_compilation_tasks,
+                       V8::GetCurrentPlatform()->NumberOfWorkerThreads())));
     if (start_compilation_) {
       // TODO(ahaas): Try to remove the {start_compilation_} check when
       // streaming decoding is done in the background. If
@@ -3768,7 +3766,7 @@ class AsyncCompileJob::PrepareAndStartCompile : public CompileStep {
 //==========================================================================
 class AsyncCompileJob::ExecuteAndFinishCompilationUnits : public CompileStep {
  public:
-  explicit ExecuteAndFinishCompilationUnits(size_t num_compile_tasks)
+  explicit ExecuteAndFinishCompilationUnits(int num_compile_tasks)
       : CompileStep(num_compile_tasks) {}
 
   void RunInBackground() override {

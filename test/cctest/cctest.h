@@ -678,9 +678,9 @@ class TestPlatform : public v8::Platform {
     return old_platform_->GetForegroundTaskRunner(isolate);
   }
 
-  std::shared_ptr<v8::TaskRunner> GetBackgroundTaskRunner(
+  std::shared_ptr<v8::TaskRunner> GetWorkerThreadsTaskRunner(
       v8::Isolate* isolate) override {
-    return old_platform_->GetBackgroundTaskRunner(isolate);
+    return old_platform_->GetWorkerThreadsTaskRunner(isolate);
   }
 
   void CallOnWorkerThread(v8::Task* task) override {

@@ -288,13 +288,27 @@ class Platform {
   virtual bool OnCriticalMemoryPressure(size_t length) { return false; }
 
   /**
-   * Gets the number of threads that are used to execute background tasks. Is
-   * used to estimate the number of tasks a work package should be split into.
-   * A return value of 0 means that there are no background threads available.
-   * Note that a value of 0 won't prohibit V8 from posting tasks using
-   * |CallOnWorkerThread|.
+   * Gets the number of worker threads used by GetWorkerThreadsTaskRunner() and
+   * CallOnWorkerThread(). This can be used to estimate the number of tasks a
+   * work package should be split into. A return value of 0 means that there are
+   * no worker threads available. Note that a value of 0 won't prohibit V8 from
+   * posting tasks using |CallOnWorkerThread|.
    */
-  virtual size_t NumberOfAvailableBackgroundThreads() { return 0; }
+  virtual int NumberOfWorkerThreads() {
+    return static_cast<int>(NumberOfAvailableBackgroundThreads());
+  }
+
+  /**
+   * Deprecated. Use NumberOfWorkerThreads() instead.
+   * TODO(gab): Remove this when all embedders override
+   * NumberOfWorkerThreads() instead.
+   */
+  V8_DEPRECATE_SOON(
+      "NumberOfAvailableBackgroundThreads() is deprecated, use "
+      "NumberOfAvailableBackgroundThreads() instead.",
+      virtual size_t NumberOfAvailableBackgroundThreads()) {
+    return 0;
+  }
 
   /**
    * Returns a TaskRunner which can be used to post a task on the foreground.
@@ -311,11 +325,34 @@ class Platform {
    * Returns a TaskRunner which can be used to post a task on a background.
    * This function should only be called from a foreground thread.
    */
-  virtual std::shared_ptr<v8::TaskRunner> GetBackgroundTaskRunner(
+  V8_DEPRECATE_SOON(
+      "GetBackgroundTaskRunner() is deprecated, use "
+      "GetWorkerThreadsTaskRunner() "
+      "instead.",
+      virtual std::shared_ptr<v8::TaskRunner> GetBackgroundTaskRunner(
+          Isolate* isolate)) {
+    // TODO(gab): Remove this method when all embedders have moved to
+    // GetWorkerThreadsTaskRunner().
+
+    // An implementation needs to be provided here because this is called by the
+    // default GetWorkerThreadsTaskRunner() implementation below. In practice
+    // however, all code either:
+    //  - Overrides GetWorkerThreadsTaskRunner() (thus not making this call) --
+    //    i.e. all v8 code.
+    //  - Overrides this method (thus not making this call) -- i.e. all
+    //    unadapted embedders.
+    abort();
+  }
+
+  /**
+   * Returns a TaskRunner which can be used to post async tasks on a worker.
+   * This function should only be called from a foreground thread.
+   */
+  virtual std::shared_ptr<v8::TaskRunner> GetWorkerThreadsTaskRunner(
       Isolate* isolate) {
-    // TODO(ahaas): Make this function abstract after it got implemented on all
+    // TODO(gab): Make this function abstract after it got implemented on all
     // platforms.
-    return {};
+    return GetBackgroundTaskRunner(isolate);
   }
 
   /**

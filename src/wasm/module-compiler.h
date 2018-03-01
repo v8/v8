@@ -187,7 +187,7 @@ class AsyncCompileJob {
   std::shared_ptr<v8::TaskRunner> foreground_task_runner_;
   std::shared_ptr<v8::TaskRunner> background_task_runner_;
   // The number of background tasks which stopped executing within a step.
-  base::AtomicNumber<size_t> stopped_tasks_{0};
+  base::AtomicNumber<int32_t> stopped_tasks_{0};
 
   // For async compilation the AsyncCompileJob is the only finisher. For
   // streaming compilation also the AsyncStreamingProcessor has to finish before
