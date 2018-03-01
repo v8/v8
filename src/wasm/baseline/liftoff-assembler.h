@@ -187,6 +187,11 @@ class LiftoffAssembler : public TurboAssembler {
     }
 
     uint32_t get_use_count(LiftoffRegister reg) const {
+      if (reg.is_pair()) {
+        DCHECK_EQ(register_use_count[reg.low().liftoff_code()],
+                  register_use_count[reg.high().liftoff_code()]);
+        reg = reg.low();
+      }
       DCHECK_GT(arraysize(register_use_count), reg.liftoff_code());
       return register_use_count[reg.liftoff_code()];
     }
