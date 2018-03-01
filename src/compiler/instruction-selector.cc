@@ -1023,33 +1023,24 @@ void InstructionSelector::VisitControl(BasicBlock* block) {
     }
     case BasicBlock::kSwitch: {
       DCHECK_EQ(IrOpcode::kSwitch, input->opcode());
-      SwitchInfo sw;
-      // Last successor must be Default.
-      sw.default_branch = block->successors().back();
-      DCHECK_EQ(IrOpcode::kIfDefault, sw.default_branch->front()->opcode());
-      // All other successors must be cases.
-      sw.case_count = block->SuccessorCount() - 1;
-      sw.case_branches = &block->successors().front();
-      // Determine case values and their min/max.
-      sw.case_values = zone()->NewArray<int32_t>(sw.case_count);
-      sw.min_value = std::numeric_limits<int32_t>::max();
-      sw.max_value = std::numeric_limits<int32_t>::min();
-      for (size_t index = 0; index < sw.case_count; ++index) {
-        BasicBlock* branch = sw.case_branches[index];
-        int32_t value = OpParameter<int32_t>(branch->front()->op());
-        sw.case_values[index] = value;
-        if (sw.min_value > value) sw.min_value = value;
-        if (sw.max_value < value) sw.max_value = value;
+      // Last successor must be {IfDefault}.
+      BasicBlock* default_branch = block->successors().back();
+      DCHECK_EQ(IrOpcode::kIfDefault, default_branch->front()->opcode());
+      // All other successors must be {IfValue}s.
+      int32_t min_value = std::numeric_limits<int32_t>::max();
+      int32_t max_value = std::numeric_limits<int32_t>::min();
+      size_t case_count = block->SuccessorCount() - 1;
+      ZoneVector<CaseInfo> cases(case_count, zone());
+      for (size_t i = 0; i < case_count; ++i) {
+        BasicBlock* branch = block->SuccessorAt(i);
+        const IfValueParameters& p = IfValueParametersOf(branch->front()->op());
+        cases[i] = CaseInfo{p.value(), p.comparison_order(), branch};
+        if (min_value > p.value()) min_value = p.value();
+        if (max_value < p.value()) max_value = p.value();
       }
-      if (sw.case_count != 0) {
-        DCHECK_LE(sw.min_value, sw.max_value);
-        // Note that {value_range} can be 0 if {min_value} is -2^31 and
-        // {max_value} is 2^31-1, so don't assume that it's non-zero below.
-        sw.value_range = 1u + bit_cast<uint32_t>(sw.max_value) -
-                         bit_cast<uint32_t>(sw.min_value);
-      } else {
-        sw.value_range = 0;
-      }
+      // Ensure that comparison order of if-cascades is preserved.
+      std::stable_sort(cases.begin(), cases.end());
+      SwitchInfo sw(cases, min_value, max_value, default_branch);
       return VisitSwitch(input, sw);
     }
     case BasicBlock::kReturn: {
@@ -1934,18 +1925,18 @@ void InstructionSelector::VisitFloat64Tanh(Node* node) {
 void InstructionSelector::EmitTableSwitch(const SwitchInfo& sw,
                                           InstructionOperand& index_operand) {
   OperandGenerator g(this);
-  size_t input_count = 2 + sw.value_range;
-  DCHECK_LE(sw.value_range, std::numeric_limits<size_t>::max() - 2);
+  size_t input_count = 2 + sw.value_range();
+  DCHECK_LE(sw.value_range(), std::numeric_limits<size_t>::max() - 2);
   auto* inputs = zone()->NewArray<InstructionOperand>(input_count);
   inputs[0] = index_operand;
-  InstructionOperand default_operand = g.Label(sw.default_branch);
+  InstructionOperand default_operand = g.Label(sw.default_branch());
   std::fill(&inputs[1], &inputs[input_count], default_operand);
-  for (size_t index = 0; index < sw.case_count; ++index) {
-    size_t value = sw.case_values[index] - sw.min_value;
-    BasicBlock* branch = sw.case_branches[index];
+  for (size_t index = 0; index < sw.case_count(); ++index) {
+    const CaseInfo& c = sw.GetCase(index);
+    size_t value = c.value - sw.min_value();
     DCHECK_LE(0u, value);
     DCHECK_LT(value + 2, input_count);
-    inputs[value + 2] = g.Label(branch);
+    inputs[value + 2] = g.Label(c.branch);
   }
   Emit(kArchTableSwitch, 0, nullptr, input_count, inputs, 0, nullptr);
 }
@@ -1954,16 +1945,15 @@ void InstructionSelector::EmitTableSwitch(const SwitchInfo& sw,
 void InstructionSelector::EmitLookupSwitch(const SwitchInfo& sw,
                                            InstructionOperand& value_operand) {
   OperandGenerator g(this);
-  size_t input_count = 2 + sw.case_count * 2;
-  DCHECK_LE(sw.case_count, (std::numeric_limits<size_t>::max() - 2) / 2);
+  size_t input_count = 2 + sw.case_count() * 2;
+  DCHECK_LE(sw.case_count(), (std::numeric_limits<size_t>::max() - 2) / 2);
   auto* inputs = zone()->NewArray<InstructionOperand>(input_count);
   inputs[0] = value_operand;
-  inputs[1] = g.Label(sw.default_branch);
-  for (size_t index = 0; index < sw.case_count; ++index) {
-    int32_t value = sw.case_values[index];
-    BasicBlock* branch = sw.case_branches[index];
-    inputs[index * 2 + 2 + 0] = g.TempImmediate(value);
-    inputs[index * 2 + 2 + 1] = g.Label(branch);
+  inputs[1] = g.Label(sw.default_branch());
+  for (size_t index = 0; index < sw.case_count(); ++index) {
+    const CaseInfo& c = sw.GetCase(index);
+    inputs[index * 2 + 2 + 0] = g.TempImmediate(c.value);
+    inputs[index * 2 + 2 + 1] = g.Label(c.branch);
   }
   Emit(kArchLookupSwitch, 0, nullptr, input_count, inputs, 0, nullptr);
 }
