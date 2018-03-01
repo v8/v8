@@ -1937,7 +1937,7 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
         isolate->initial_object_prototype(), Builtins::kStringConstructor);
     string_fun->shared()->set_builtin_function_id(kStringConstructor);
     string_fun->shared()->SetConstructStub(
-        *BUILTIN_CODE(isolate, StringConstructor_ConstructStub));
+        *BUILTIN_CODE(isolate, JSBuiltinsConstructStub));
     string_fun->shared()->DontAdaptArguments();
     string_fun->shared()->set_length(1);
     InstallWithIntrinsicDefaultProto(isolate, string_fun,

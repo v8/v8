@@ -968,9 +968,9 @@ namespace internal {
   CPP(AtomicsWake)                                                             \
                                                                                \
   /* String */                                                                 \
+  /* ES #sec-string-constructor */                                             \
   TFJ(StringConstructor, SharedFunctionInfo::kDontAdaptArgumentsSentinel)      \
-  TFJ(StringConstructor_ConstructStub,                                         \
-      SharedFunctionInfo::kDontAdaptArgumentsSentinel)                         \
+  /* ES #sec-string.fromcodepoint */                                           \
   CPP(StringFromCodePoint)                                                     \
   /* ES6 #sec-string.fromcharcode */                                           \
   TFJ(StringFromCharCode, SharedFunctionInfo::kDontAdaptArgumentsSentinel)     \

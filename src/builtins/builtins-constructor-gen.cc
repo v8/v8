@@ -732,79 +732,62 @@ TF_BUILTIN(NumberConstructor_ConstructStub, ConstructorBuiltinsAssembler) {
   args.PopAndReturn(result);
 }
 
-Node* ConstructorBuiltinsAssembler::EmitConstructString(Node* argc,
-                                                        CodeStubArguments& args,
-                                                        Node* context,
-                                                        bool convert_symbol) {
-  VARIABLE(var_result, MachineRepresentation::kTagged);
-
-  Label return_empty_string(this), to_string(this),
-      check_symbol(this, Label::kDeferred), done(this);
-
-  GotoIf(IntPtrEqual(IntPtrConstant(0), argc), &return_empty_string);
-
-  Node* argument = args.AtIndex(0);
-
-  GotoIf(TaggedIsSmi(argument), &to_string);
-
-  Node* instance_type = LoadInstanceType(argument);
-
-  Label* non_string = convert_symbol ? &check_symbol : &to_string;
-  GotoIfNot(IsStringInstanceType(instance_type), non_string);
-  {
-    var_result.Bind(argument);
-    Goto(&done);
-  }
-
-  if (convert_symbol) {
-    BIND(&check_symbol);
-    GotoIfNot(IsSymbolInstanceType(instance_type), &to_string);
-    {
-      var_result.Bind(
-          CallRuntime(Runtime::kSymbolDescriptiveString, context, argument));
-      Goto(&done);
-    }
-  }
-
-  BIND(&to_string);
-  {
-    var_result.Bind(ToString(context, argument));
-    Goto(&done);
-  }
-
-  BIND(&return_empty_string);
-  {
-    var_result.Bind(EmptyStringConstant());
-    Goto(&done);
-  }
-
-  BIND(&done);
-  return var_result.value();
-}
-
+// https://tc39.github.io/ecma262/#sec-string-constructor
 TF_BUILTIN(StringConstructor, ConstructorBuiltinsAssembler) {
   Node* context = Parameter(BuiltinDescriptor::kContext);
   Node* argc =
       ChangeInt32ToIntPtr(Parameter(BuiltinDescriptor::kArgumentsCount));
   CodeStubArguments args(this, argc);
 
-  args.PopAndReturn(EmitConstructString(argc, args, context, true));
-}
-
-TF_BUILTIN(StringConstructor_ConstructStub, ConstructorBuiltinsAssembler) {
+  Node* new_target = Parameter(BuiltinDescriptor::kNewTarget);
   Node* target = LoadFromFrame(StandardFrameConstants::kFunctionOffset,
                                MachineType::TaggedPointer());
-  Node* new_target = Parameter(BuiltinDescriptor::kNewTarget);
-  Node* context = Parameter(BuiltinDescriptor::kContext);
 
-  Node* argc =
-      ChangeInt32ToIntPtr(Parameter(BuiltinDescriptor::kArgumentsCount));
-  CodeStubArguments args(this, argc);
+  // 1. If no arguments were passed to this function invocation, let s be "".
+  VARIABLE(var_s, MachineRepresentation::kTagged, EmptyStringConstant());
+  Label if_sloaded(this, &var_s);
+  GotoIf(WordEqual(argc, IntPtrConstant(0)), &if_sloaded);
 
-  Node* string = EmitConstructString(argc, args, context, false);
-  Node* result = EmitFastNewObject(context, target, new_target);
-  StoreObjectField(result, JSValue::kValueOffset, string);
-  args.PopAndReturn(result);
+  // 2. Else,
+  //    a. If NewTarget is undefined [...]
+  Node* value = args.AtIndex(0);
+  Label if_tostring(this, &var_s);
+  GotoIfNot(IsUndefined(new_target), &if_tostring);
+
+  // 2a. [...] and Type(value) is Symbol, return SymbolDescriptiveString(value).
+  GotoIf(TaggedIsSmi(value), &if_tostring);
+  GotoIfNot(IsSymbol(value), &if_tostring);
+  {
+    Node* result =
+        CallRuntime(Runtime::kSymbolDescriptiveString, context, value);
+    args.PopAndReturn(result);
+  }
+
+  // 2b. Let s be ? ToString(value).
+  BIND(&if_tostring);
+  {
+    var_s.Bind(CallBuiltin(Builtins::kToString, context, value));
+    Goto(&if_sloaded);
+  }
+
+  // 3. If NewTarget is undefined, return s.
+  BIND(&if_sloaded);
+  {
+    Node* s_value = var_s.value();
+    Label return_s(this), constructstring(this, Label::kDeferred);
+    Branch(IsUndefined(new_target), &return_s, &constructstring);
+
+    BIND(&return_s);
+    { args.PopAndReturn(s_value); }
+
+    BIND(&constructstring);
+    {
+      Node* result =
+          CallBuiltin(Builtins::kFastNewObject, context, target, new_target);
+      StoreObjectField(result, JSValue::kValueOffset, s_value);
+      args.PopAndReturn(result);
+    }
+  }
 }
 
 }  // namespace internal
