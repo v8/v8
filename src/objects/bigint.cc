@@ -977,7 +977,8 @@ MutableBigInt::Rounding MutableBigInt::DecideRounding(Handle<BigIntBase> x,
   // If any other remaining bit is set, round up.
   bitmask -= 1;
   if ((current_digit & bitmask) != 0) return kRoundUp;
-  for (; digit_index >= 0; digit_index--) {
+  while (digit_index > 0) {
+    digit_index--;
     if (x->digit(digit_index) != 0) return kRoundUp;
   }
   return kTie;
