@@ -72,6 +72,18 @@
       ]
     },
     {
+      "name": "SpreadCallsGeneral",
+      "path": ["SpreadCallsGeneral"],
+      "main": "run.js",
+      "resources": [],
+      "results_regexp": "^%s\\-SpreadCallsGeneral\\(Score\\): (.+)$",
+      "tests": [
+        {"name": "ApplySpreadLiteral"},
+        {"name": "SpreadCall"},
+        {"name": "SpreadCallSpreadLiteral"}
+      ]
+    },
+    {
       "name": "RestParameters",
       "path": ["RestParameters"],
       "main": "run.js",
