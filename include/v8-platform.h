@@ -347,6 +347,15 @@ class Platform {
   }
 
   /**
+   * Schedules a task that blocks the main thread to be invoked with
+   * high-priority on a worker thread.
+   */
+  virtual void CallBlockingTaskOnWorkerThread(Task* task) {
+    // TODO(gab): Make pure-virtual when all embedders override this.
+    CallOnWorkerThread(task);
+  }
+
+  /**
    * Schedules a task to be invoked on a foreground thread wrt a specific
    * |isolate|. Tasks posted for the same isolate should be execute in order of
    * scheduling. The definition of "foreground" is opaque to V8.
