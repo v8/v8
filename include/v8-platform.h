@@ -10,6 +10,8 @@
 #include <memory>
 #include <string>
 
+#include "v8config.h"  // NOLINT(build/include)
+
 namespace v8 {
 
 class Isolate;
@@ -323,11 +325,11 @@ class Platform {
    * of tasks wrt order of scheduling, nor is there a guarantee about the
    * thread the task will be run on.
    */
-  virtual void CallOnBackgroundThread(Task* task,
-                                      ExpectedRuntime expected_runtime) {
-    // TODO(gab): Remove this when embedders override CallOnWorkerThread()
-    // instead.
-
+  V8_DEPRECATE_SOON(
+      "ExpectedRuntime is deprecated, use CallOnWorkerThread(Task*) "
+      "instead.",
+      virtual void CallOnBackgroundThread(Task* task,
+                                          ExpectedRuntime expected_runtime)) {
     // An implementation needs to be provided here because this is called by the
     // default implementation below. In practice however, all code either:
     //  - Overrides the new method (thus not making this call) -- i.e. all v8
