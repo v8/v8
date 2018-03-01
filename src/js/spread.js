@@ -12,22 +12,6 @@ var InternalArray = utils.InternalArray;
 
 // -------------------------------------------------------------------
 
-function SpreadArguments() {
-  var count = arguments.length;
-  var args = new InternalArray();
-
-  for (var i = 0; i < count; ++i) {
-    var array = arguments[i];
-    var length = array.length;
-    for (var j = 0; j < length; ++j) {
-      args.push(array[j]);
-    }
-  }
-
-  return args;
-}
-
-
 function SpreadIterable(collection) {
   if (IS_NULL_OR_UNDEFINED(collection)) {
     throw %make_type_error(kNotIterable, collection);
@@ -44,7 +28,6 @@ function SpreadIterable(collection) {
 // Exports
 
 %InstallToContext([
-  "spread_arguments", SpreadArguments,
   "spread_iterable", SpreadIterable,
 ]);
 

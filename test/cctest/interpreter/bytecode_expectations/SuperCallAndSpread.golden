@@ -91,9 +91,9 @@ snippet: "
     test = new B(1, 2, 3).constructor;
   })();
 "
-frame size: 8
+frame size: 13
 parameter count: 1
-bytecode array length: 60
+bytecode array length: 121
 bytecodes: [
                 B(CreateRestParameter),
                 B(Star), R(2),
@@ -103,13 +103,32 @@ bytecodes: [
   /*  140 S> */ B(CallRuntime), U16(Runtime::k_GetSuperConstructor), R(closure), U8(1),
                 B(Star), R(4),
                 B(CreateArrayLiteral), U8(0), U8(0), U8(37),
-                B(Star), R(5),
-  /*  152 E> */ B(CallJSRuntime), U8(%spread_iterable), R(2), U8(1),
-                B(Star), R(6),
-                B(CreateArrayLiteral), U8(1), U8(1), U8(37),
-                B(Star), R(7),
-                B(CallJSRuntime), U8(%spread_arguments), R(5), U8(3),
-                B(Star), R(5),
+  /*  152 S> */ B(Star), R(6),
+                B(LdaNamedProperty), R(2), U8(1), U8(1),
+                B(Star), R(12),
+                B(CallProperty0), R(12), R(2), U8(3),
+                B(Mov), R(2), R(11),
+                B(Mov), R(6), R(7),
+                B(JumpIfJSReceiver), U8(7),
+                B(CallRuntime), U16(Runtime::kThrowSymbolIteratorInvalid), R(0), U8(0),
+                B(Star), R(10),
+                B(LdaNamedProperty), R(10), U8(2), U8(5),
+                B(Star), R(9),
+                B(CallProperty0), R(9), R(10), U8(7),
+                B(Star), R(8),
+                B(JumpIfJSReceiver), U8(7),
+                B(CallRuntime), U16(Runtime::kThrowIteratorResultNotAnObject), R(8), U8(1),
+                B(LdaNamedProperty), R(8), U8(3), U8(9),
+                B(JumpIfToBooleanTrue), U8(16),
+                B(LdaNamedProperty), R(8), U8(4), U8(11),
+                B(Star), R(8),
+                B(CallRuntime), U16(Runtime::kAppendElement), R(7), U8(2),
+                B(JumpLoop), U8(30), I8(0),
+                B(LdaSmi), I8(1),
+                B(Star), R(8),
+                B(Mov), R(6), R(7),
+                B(CallRuntime), U16(Runtime::kAppendElement), R(7), U8(2),
+                B(Mov), R(7), R(5),
                 B(Mov), R(0), R(6),
   /*  140 E> */ B(CallJSRuntime), U8(%reflect_construct), R(4), U8(3),
                 B(Star), R(4),
@@ -122,7 +141,10 @@ bytecodes: [
 ]
 constant pool: [
   TUPLE2_TYPE,
-  TUPLE2_TYPE,
+  SYMBOL_TYPE,
+  ONE_BYTE_INTERNALIZED_STRING_TYPE ["next"],
+  ONE_BYTE_INTERNALIZED_STRING_TYPE ["done"],
+  ONE_BYTE_INTERNALIZED_STRING_TYPE ["value"],
 ]
 handlers: [
 ]
