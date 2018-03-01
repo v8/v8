@@ -32,6 +32,11 @@ new BenchmarkSuite('StringCodePointAt', [1000], [
     CodePointAt, CodePointAtSetup, CodePointAtTearDown),
 ]);
 
+new BenchmarkSuite('StringCodePointAtSum', [100000], [
+  new Benchmark('StringCodePointAtSum', false, true, 3,
+    CodePointAtSum, CodePointAtSumSetup),
+]);
+
 
 var result;
 
@@ -124,4 +129,17 @@ function CodePointAt() {
 
 function CodePointAtTearDown() {
   return result === (MAX_CODE_POINT / K) * ((MAX_CODE_POINT / K) + 1) / 2;
+}
+
+var payload;
+
+function CodePointAtSumSetup() {
+  payload = "abcdefghijklmnopqrstuvwxyz";
+  for(var j = 0; j < 16; ++j) payload += payload;
+}
+
+function CodePointAtSum() {
+  var c = 0;
+  for(j=payload.length-1; j >=0; --j) c+=payload.charCodeAt(j);
+  return c;
 }

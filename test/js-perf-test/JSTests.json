@@ -221,7 +221,8 @@
             {"name": "StringEndsWith"},
             {"name": "StringIncludes"},
             {"name": "StringFromCodePoint"},
-            {"name": "StringCodePointAt"}
+            {"name": "StringCodePointAt"},
+            {"name": "StringCodePointAtSum"}
           ]
         },
         {
