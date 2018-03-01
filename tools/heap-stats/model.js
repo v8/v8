@@ -16,10 +16,15 @@ class Isolate {
     this.samples = {zone: {}};
     this.data_sets = new Set();
     this.peakMemory = 0;
+    // Maps instance_types to their max memory consumption over all gcs.
+    this.instanceTypePeakMemory = Object.create(null);
+    // Peak memory consumed by any single instance type.
+    this.singleInstanceTypePeakMemory = 0;
   }
 
   finalize() {
     Object.values(this.gcs).forEach(gc => this.finalizeGC(gc));
+    this.sortInstanceTypePeakMemory();
   }
 
   getLabel() {
@@ -31,8 +36,13 @@ class Isolate {
 
   finalizeGC(gc_data) {
     this.data_sets.forEach(key => this.finalizeDataSet(gc_data[key]));
-    if ('live' in gc_data) {
-      this.peakMemory = Math.max(this.peakMemory, gc_data['live'].overall);
+    if (!('live' in gc_data)) return;
+    let liveData = gc_data.live;
+    this.peakMemory = Math.max(this.peakMemory, liveData.overall);
+    let data = liveData.instance_type_data;
+    for (let name in data) {
+      let prev = this.instanceTypePeakMemory[name] || 0;
+      this.instanceTypePeakMemory[name] = Math.max(prev, data[name].overall);
     }
   }
 
@@ -73,5 +83,22 @@ class Isolate {
       console.error(
           `${type}: sum('${histogram}') > overall (${sum} > ${overall})`);
     }
+  }
+
+  sortInstanceTypePeakMemory() {
+    let entries = Object.entries(this.instanceTypePeakMemory);
+    entries.sort((a, b) => {return b[1] - a[1]});
+    this.instanceTypePeakMemory = Object.create(null);
+    let max = 0;
+    for (let [key, value] of entries) {
+      this.instanceTypePeakMemory[key] = value;
+      max = Math.max(max, value);
+    }
+    this.singleInstanceTypePeakMemory = max;
+  }
+
+  getInstanceTypePeakMemory(type) {
+    if (!(type in this.instanceTypePeakMemory)) return 0;
+    return this.instanceTypePeakMemory[type];
   }
 }

@@ -42,8 +42,43 @@ found in the LICENSE file. -->
 }
 
 .boxDiv {
-  padding: 3px;
+  padding: 0px 5px 2px 0px;
   float: left;
+  margin: 3px;
+}
+
+.percent100 {
+  background: linear-gradient(70deg, #9cf 100%, #e0edfe 100%)
+}
+.percent90 {
+  background: linear-gradient(70deg, #9cf 90%, #e0edfe 90%)
+}
+.percent80 {
+  background: linear-gradient(70deg, #9cf 80%, #e0edfe 80%)
+}
+.percent70 {
+  background: linear-gradient(70deg, #9cf 70%, #e0edfe 70%)
+}
+.percent60 {
+  background: linear-gradient(70deg, #9cf 60%, #e0edfe 60%)
+}
+.percent50 {
+  background: linear-gradient(70deg, #9cf 50%, #e0edfe 50%)
+}
+.percent40 {
+  background: linear-gradient(70deg, #9cf 40%, #e0edfe 40%)
+}
+.percent30 {
+  background: linear-gradient(70deg, #9cf 30%, #e0edfe 30%)
+}
+.percent20 {
+  background: linear-gradient(70deg, #9cf 20%, #e0edfe 20%)
+}
+.percent10 {
+  background: linear-gradient(70deg, #9cf 10%, #e0edfe 10%)
+}
+.percent0 {
+  background: linear-gradient(70deg, #9cf 0%, #e0edfe 0%)
 }
 
 .boxDiv > label {
@@ -95,7 +130,12 @@ found in the LICENSE file. -->
     </li>
     <li>
       <input id="category-filter" type="text" value="0" disabled="disabled" />KB
-      <button id="category-filter-btn" disabled="disabled">Filter categories with less memory</button>
+      <button id="category-filter-btn" disabled="disabled">
+        Filter categories with less memory
+      </button>
+      <button id="category-auto-filter-btn" disabled="disabled">
+        Show top 20 categories only
+      </button>
     </li>
     <li>
       <button id="csv-export-btn" disabled="disabled">Export selection as CSV</button>
