@@ -683,9 +683,8 @@ class TestPlatform : public v8::Platform {
     return old_platform_->GetBackgroundTaskRunner(isolate);
   }
 
-  void CallOnBackgroundThread(v8::Task* task,
-                              ExpectedRuntime expected_runtime) override {
-    old_platform_->CallOnBackgroundThread(task, expected_runtime);
+  void CallOnWorkerThread(v8::Task* task) override {
+    old_platform_->CallOnWorkerThread(task);
   }
 
   void CallOnForegroundThread(v8::Isolate* isolate, v8::Task* task) override {

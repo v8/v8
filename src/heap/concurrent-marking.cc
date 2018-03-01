@@ -523,8 +523,7 @@ void ConcurrentMarking::ScheduleTasks() {
       ++pending_task_count_;
       Task* task = new Task(heap_->isolate(), this, &task_state_[i], i);
       cancelable_id_[i] = task->id();
-      V8::GetCurrentPlatform()->CallOnBackgroundThread(
-          task, v8::Platform::kShortRunningTask);
+      V8::GetCurrentPlatform()->CallOnWorkerThread(task);
     }
   }
   DCHECK_EQ(task_count_, pending_task_count_);

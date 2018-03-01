@@ -95,8 +95,7 @@ void StoreBuffer::FlipStoreBuffers() {
   if (!task_running_ && FLAG_concurrent_store_buffer) {
     task_running_ = true;
     Task* task = new Task(heap_->isolate(), this);
-    V8::GetCurrentPlatform()->CallOnBackgroundThread(
-        task, v8::Platform::kShortRunningTask);
+    V8::GetCurrentPlatform()->CallOnWorkerThread(task);
   }
 }
 

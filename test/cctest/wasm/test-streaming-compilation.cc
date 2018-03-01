@@ -44,8 +44,7 @@ class MockPlatform final : public TestPlatform {
     task_runner_->PostTask(std::unique_ptr<Task>(task));
   }
 
-  void CallOnBackgroundThread(v8::Task* task,
-                              ExpectedRuntime expected_runtime) override {
+  void CallOnWorkerThread(v8::Task* task) override {
     task_runner_->PostTask(std::unique_ptr<Task>(task));
   }
 

@@ -60,8 +60,7 @@ class V8_PLATFORM_EXPORT DefaultPlatform : public NON_EXPORTED_BASE(Platform) {
       v8::Isolate* isolate) override;
   std::shared_ptr<TaskRunner> GetBackgroundTaskRunner(
       v8::Isolate* isolate) override;
-  void CallOnBackgroundThread(Task* task,
-                              ExpectedRuntime expected_runtime) override;
+  void CallOnWorkerThread(Task* task) override;
   void CallOnForegroundThread(v8::Isolate* isolate, Task* task) override;
   void CallDelayedOnForegroundThread(Isolate* isolate, Task* task,
                                      double delay_in_seconds) override;

@@ -224,15 +224,15 @@ void OptimizingCompileDispatcher::QueueForOptimization(CompilationJob* job) {
   if (FLAG_block_concurrent_recompilation) {
     blocked_jobs_++;
   } else {
-    V8::GetCurrentPlatform()->CallOnBackgroundThread(
-        new CompileTask(isolate_, this), v8::Platform::kShortRunningTask);
+    V8::GetCurrentPlatform()->CallOnWorkerThread(
+        new CompileTask(isolate_, this));
   }
 }
 
 void OptimizingCompileDispatcher::Unblock() {
   while (blocked_jobs_ > 0) {
-    V8::GetCurrentPlatform()->CallOnBackgroundThread(
-        new CompileTask(isolate_, this), v8::Platform::kShortRunningTask);
+    V8::GetCurrentPlatform()->CallOnWorkerThread(
+        new CompileTask(isolate_, this));
     blocked_jobs_--;
   }
 }

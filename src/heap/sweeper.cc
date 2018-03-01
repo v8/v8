@@ -157,8 +157,7 @@ void Sweeper::StartSweeperTasks() {
                                           &num_sweeping_tasks_, space);
       DCHECK_LT(num_tasks_, kMaxSweeperTasks);
       task_ids_[num_tasks_++] = task->id();
-      V8::GetCurrentPlatform()->CallOnBackgroundThread(
-          task, v8::Platform::kShortRunningTask);
+      V8::GetCurrentPlatform()->CallOnWorkerThread(task);
     });
     ScheduleIncrementalSweepingTask();
   }
@@ -554,8 +553,7 @@ void Sweeper::StartIterabilityTasks() {
                                                 &iterability_task_semaphore_);
     iterability_task_id_ = task->id();
     iterability_task_started_ = true;
-    V8::GetCurrentPlatform()->CallOnBackgroundThread(
-        task, v8::Platform::kShortRunningTask);
+    V8::GetCurrentPlatform()->CallOnWorkerThread(task);
   }
 }
 

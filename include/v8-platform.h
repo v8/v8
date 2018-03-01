@@ -290,7 +290,7 @@ class Platform {
    * used to estimate the number of tasks a work package should be split into.
    * A return value of 0 means that there are no background threads available.
    * Note that a value of 0 won't prohibit V8 from posting tasks using
-   * |CallOnBackgroundThread|.
+   * |CallOnWorkerThread|.
    */
   virtual size_t NumberOfAvailableBackgroundThreads() { return 0; }
 
@@ -324,7 +324,27 @@ class Platform {
    * thread the task will be run on.
    */
   virtual void CallOnBackgroundThread(Task* task,
-                                      ExpectedRuntime expected_runtime) = 0;
+                                      ExpectedRuntime expected_runtime) {
+    // TODO(gab): Remove this when embedders override CallOnWorkerThread()
+    // instead.
+
+    // An implementation needs to be provided here because this is called by the
+    // default implementation below. In practice however, all code either:
+    //  - Overrides the new method (thus not making this call) -- i.e. all v8
+    //    code.
+    //  - Overrides this method (thus not making this call) -- i.e. all
+    //    unadapted embedders.
+    abort();
+  }
+
+  /**
+   * Schedules a task to be invoked on a worker thread.
+   * TODO(gab): Make pure virtual when all embedders override this instead of
+   * CallOnBackgroundThread().
+   */
+  virtual void CallOnWorkerThread(Task* task) {
+    CallOnBackgroundThread(task, kShortRunningTask);
+  }
 
   /**
    * Schedules a task to be invoked on a foreground thread wrt a specific

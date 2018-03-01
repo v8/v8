@@ -526,9 +526,8 @@ void CompilerDispatcher::ScheduleMoreBackgroundTasksIfNeeded() {
     }
     ++num_background_tasks_;
   }
-  platform_->CallOnBackgroundThread(
-      new BackgroundTask(isolate_, task_manager_.get(), this),
-      v8::Platform::kShortRunningTask);
+  platform_->CallOnWorkerThread(
+      new BackgroundTask(isolate_, task_manager_.get(), this));
 }
 
 void CompilerDispatcher::DoBackgroundWork() {

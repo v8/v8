@@ -60,9 +60,8 @@ TEST_F(IsolateTest, MemoryPressureNotificationBackground) {
 
   base::Semaphore semaphore(0);
 
-  internal::V8::GetCurrentPlatform()->CallOnBackgroundThread(
-      new MemoryPressureTask(isolate(), &semaphore),
-      v8::Platform::kShortRunningTask);
+  internal::V8::GetCurrentPlatform()->CallOnWorkerThread(
+      new MemoryPressureTask(isolate(), &semaphore));
 
   semaphore.Wait();
 

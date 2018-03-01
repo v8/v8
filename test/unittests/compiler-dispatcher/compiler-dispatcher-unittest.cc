@@ -111,8 +111,7 @@ class MockPlatform : public v8::Platform {
     return std::make_shared<MockTaskRunner>(this, is_foreground_task_runner);
   }
 
-  void CallOnBackgroundThread(Task* task,
-                              ExpectedRuntime expected_runtime) override {
+  void CallOnWorkerThread(Task* task) override {
     base::LockGuard<base::Mutex> lock(&mutex_);
     background_tasks_.push_back(task);
   }
@@ -183,8 +182,7 @@ class MockPlatform : public v8::Platform {
       base::LockGuard<base::Mutex> lock(&mutex_);
       tasks.swap(background_tasks_);
     }
-    platform->CallOnBackgroundThread(new TaskWrapper(this, tasks, true),
-                                     kShortRunningTask);
+    platform->CallOnWorkerThread(new TaskWrapper(this, tasks, true));
     sem_.Wait();
   }
 
@@ -194,8 +192,7 @@ class MockPlatform : public v8::Platform {
       base::LockGuard<base::Mutex> lock(&mutex_);
       tasks.swap(background_tasks_);
     }
-    platform->CallOnBackgroundThread(new TaskWrapper(this, tasks, false),
-                                     kShortRunningTask);
+    platform->CallOnWorkerThread(new TaskWrapper(this, tasks, false));
   }
 
   void RunForegroundTasks() {
@@ -868,9 +865,8 @@ TEST_F(CompilerDispatcherTest, MemoryPressureFromBackground) {
 
   ASSERT_TRUE(dispatcher.Enqueue(shared));
   base::Semaphore sem(0);
-  V8::GetCurrentPlatform()->CallOnBackgroundThread(
-      new PressureNotificationTask(i_isolate(), &dispatcher, &sem),
-      v8::Platform::kShortRunningTask);
+  V8::GetCurrentPlatform()->CallOnWorkerThread(
+      new PressureNotificationTask(i_isolate(), &dispatcher, &sem));
 
   sem.Wait();
 

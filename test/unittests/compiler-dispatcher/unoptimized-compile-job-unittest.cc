@@ -228,8 +228,7 @@ TEST_F(UnoptimizedCompileJobTest, CompileOnBackgroundThread) {
   base::Semaphore semaphore(0);
   CompileTask* background_task = new CompileTask(job.get(), &semaphore);
   ASSERT_JOB_STATUS(CompilerDispatcherJob::Status::kPrepared, job);
-  V8::GetCurrentPlatform()->CallOnBackgroundThread(background_task,
-                                                   Platform::kShortRunningTask);
+  V8::GetCurrentPlatform()->CallOnWorkerThread(background_task);
   semaphore.Wait();
   job->FinalizeOnMainThread(isolate());
   ASSERT_FALSE(job->IsFailed());

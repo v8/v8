@@ -202,8 +202,7 @@ std::shared_ptr<TaskRunner> DefaultPlatform::GetBackgroundTaskRunner(
   return background_task_runner_;
 }
 
-void DefaultPlatform::CallOnBackgroundThread(Task* task,
-                                             ExpectedRuntime expected_runtime) {
+void DefaultPlatform::CallOnWorkerThread(Task* task) {
   GetBackgroundTaskRunner(nullptr)->PostTask(std::unique_ptr<Task>(task));
 }
 

@@ -359,8 +359,7 @@ void MemoryAllocator::Unmapper::FreeQueuedChunks() {
     DCHECK_GE(active_unmapping_tasks_.Value(), 0);
     active_unmapping_tasks_.Increment(1);
     task_ids_[pending_unmapping_tasks_++] = task->id();
-    V8::GetCurrentPlatform()->CallOnBackgroundThread(
-        task, v8::Platform::kShortRunningTask);
+    V8::GetCurrentPlatform()->CallOnWorkerThread(task);
   } else {
     PerformFreeMemoryOnQueuedChunks<FreeMode::kUncommitPooled>();
   }

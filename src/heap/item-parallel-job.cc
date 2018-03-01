@@ -105,8 +105,7 @@ void ItemParallelJob::Run(std::shared_ptr<Counters> async_counters) {
                               : base::Optional<AsyncTimedHistogram>());
     task_ids[i] = task->id();
     if (i > 0) {
-      V8::GetCurrentPlatform()->CallOnBackgroundThread(
-          task, v8::Platform::kShortRunningTask);
+      V8::GetCurrentPlatform()->CallOnWorkerThread(task);
     } else {
       main_task = task;
     }

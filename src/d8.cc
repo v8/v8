@@ -204,8 +204,7 @@ class PredictablePlatform : public Platform {
     return platform_->GetForegroundTaskRunner(isolate);
   }
 
-  void CallOnBackgroundThread(Task* task,
-                              ExpectedRuntime expected_runtime) override {
+  void CallOnWorkerThread(Task* task) override {
     // It's not defined when background tasks are being executed, so we can just
     // execute them right away.
     task->Run();
