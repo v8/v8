@@ -14,6 +14,7 @@ namespace internal {
 // Has to be the last include (doesn't have include guards)
 #include "src/objects/object-macros.h"
 
+CAST_ACCESSOR(WasmDebugInfo)
 CAST_ACCESSOR(WasmInstanceObject)
 CAST_ACCESSOR(WasmMemoryObject)
 CAST_ACCESSOR(WasmModuleObject)
@@ -69,10 +70,14 @@ OPTIONAL_ACCESSORS(WasmSharedModuleData, asm_js_offset_table, ByteArray,
                    kAsmJsOffsetTableOffset)
 OPTIONAL_ACCESSORS(WasmSharedModuleData, breakpoint_infos, FixedArray,
                    kBreakPointInfosOffset)
-
 OPTIONAL_ACCESSORS(WasmSharedModuleData, lazy_compilation_orchestrator, Foreign,
                    kLazyCompilationOrchestratorOffset)
 
+// WasmDebugInfo
+ACCESSORS(WasmDebugInfo, wasm_instance, WasmInstanceObject, kInstanceOffset)
+ACCESSORS(WasmDebugInfo, interpreter_handle, Object, kInterpreterHandleOffset)
+ACCESSORS(WasmDebugInfo, interpreted_functions, Object,
+          kInterpretedFunctionsOffset)
 OPTIONAL_ACCESSORS(WasmDebugInfo, locals_names, FixedArray, kLocalsNamesOffset)
 OPTIONAL_ACCESSORS(WasmDebugInfo, c_wasm_entries, FixedArray,
                    kCWasmEntriesOffset)

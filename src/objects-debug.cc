@@ -23,6 +23,7 @@
 #include "src/ostreams.h"
 #include "src/regexp/jsregexp.h"
 #include "src/transitions.h"
+#include "src/wasm/wasm-objects-inl.h"
 
 namespace v8 {
 namespace internal {
@@ -1421,6 +1422,19 @@ void Tuple3::Tuple3Verify() {
   VerifyObjectField(kValue1Offset);
   VerifyObjectField(kValue2Offset);
   VerifyObjectField(kValue3Offset);
+}
+
+void WasmDebugInfo::WasmDebugInfoVerify() {
+  CHECK(IsWasmDebugInfo());
+  VerifyObjectField(kInstanceOffset);
+  CHECK(wasm_instance()->IsWasmInstanceObject());
+  VerifyObjectField(kInterpreterHandleOffset);
+  CHECK(interpreter_handle()->IsUndefined(GetIsolate()) ||
+        interpreter_handle()->IsForeign());
+  VerifyObjectField(kInterpretedFunctionsOffset);
+  VerifyObjectField(kLocalsNamesOffset);
+  VerifyObjectField(kCWasmEntriesOffset);
+  VerifyObjectField(kCWasmEntryMapOffset);
 }
 
 void DataHandler::DataHandlerVerify() {

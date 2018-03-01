@@ -444,10 +444,6 @@ class WasmSharedModuleData : public FixedArray {
 // we embed them as objects, and they may move.
 class WasmCompiledModule : public FixedArray {
  public:
-  enum {  // --
-    kFieldCount
-  };
-
   static WasmCompiledModule* cast(Object* fixed_array) {
     SLOW_DCHECK(IsWasmCompiledModule(fixed_array));
     return reinterpret_cast<WasmCompiledModule*>(fixed_array);
@@ -589,33 +585,33 @@ class WasmCompiledModule : public FixedArray {
   DISALLOW_IMPLICIT_CONSTRUCTORS(WasmCompiledModule);
 };
 
-class WasmDebugInfo : public FixedArray {
+class WasmDebugInfo : public Struct {
  public:
-  DECL_OOL_QUERY(WasmDebugInfo)
-  DECL_OOL_CAST(WasmDebugInfo)
-
-  DECL_GETTER(wasm_instance, WasmInstanceObject)
+  DECL_ACCESSORS(wasm_instance, WasmInstanceObject)
+  DECL_ACCESSORS(interpreter_handle, Object);
+  DECL_ACCESSORS(interpreted_functions, Object);
   DECL_OPTIONAL_ACCESSORS(locals_names, FixedArray)
   DECL_OPTIONAL_ACCESSORS(c_wasm_entries, FixedArray)
   DECL_OPTIONAL_ACCESSORS(c_wasm_entry_map, Managed<wasm::SignatureMap>)
 
-  enum {
-    kInstanceIndex,              // instance object.
-    kInterpreterHandleIndex,     // managed object containing the interpreter.
-    kInterpretedFunctionsIndex,  // array of interpreter entry code objects.
-    kLocalsNamesIndex,           // array of array of local names.
-    kCWasmEntriesIndex,          // array of C_WASM_ENTRY stubs.
-    kCWasmEntryMapIndex,         // maps signature to index into CWasmEntries.
-    kFieldCount
-  };
+  DECL_CAST(WasmDebugInfo)
 
-  DEF_SIZE(FixedArray)
-  DEF_OFFSET(Instance)
-  DEF_OFFSET(InterpreterHandle)
-  DEF_OFFSET(InterpretedFunctions)
-  DEF_OFFSET(LocalsNames)
-  DEF_OFFSET(CWasmEntries)
-  DEF_OFFSET(CWasmEntryMap)
+  // Dispatched behavior.
+  DECL_PRINTER(WasmDebugInfo)
+  DECL_VERIFIER(WasmDebugInfo)
+
+// Layout description.
+#define WASM_DEBUG_INFO_FIELDS(V)              \
+  V(kInstanceOffset, kPointerSize)             \
+  V(kInterpreterHandleOffset, kPointerSize)    \
+  V(kInterpretedFunctionsOffset, kPointerSize) \
+  V(kLocalsNamesOffset, kPointerSize)          \
+  V(kCWasmEntriesOffset, kPointerSize)         \
+  V(kCWasmEntryMapOffset, kPointerSize)        \
+  V(kSize, 0)
+
+  DEFINE_FIELD_OFFSET_CONSTANTS(HeapObject::kHeaderSize, WASM_DEBUG_INFO_FIELDS)
+#undef WASM_DEBUG_INFO_FIELDS
 
   static Handle<WasmDebugInfo> New(Handle<WasmInstanceObject>);
 

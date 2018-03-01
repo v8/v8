@@ -311,6 +311,7 @@ Type::bitset BitsetType::Lub(i::Map* map) {
     case PROTOTYPE_INFO_TYPE:
     case TUPLE2_TYPE:
     case TUPLE3_TYPE:
+    case WASM_DEBUG_INFO_TYPE:
     case LOAD_HANDLER_TYPE:
     case STORE_HANDLER_TYPE:
     case CONTEXT_EXTENSION_TYPE:

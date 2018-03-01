@@ -27,6 +27,7 @@
 #include "src/objects/shared-function-info.h"
 #include "src/objects/string.h"
 #include "src/regexp/jsregexp.h"
+#include "src/wasm/wasm-objects.h"
 
 namespace v8 {
 namespace internal {

@@ -383,6 +383,7 @@ const int kStubMinorKeyBits = kSmiValueSize - kStubMajorKeyBits - 1;
   V(STACK_FRAME_INFO_TYPE)                                      \
   V(TUPLE2_TYPE)                                                \
   V(TUPLE3_TYPE)                                                \
+  V(WASM_DEBUG_INFO_TYPE)                                       \
                                                                 \
   V(CALLABLE_TASK_TYPE)                                         \
   V(CALLBACK_TASK_TYPE)                                         \
@@ -583,6 +584,7 @@ const int kStubMinorKeyBits = kSmiValueSize - kStubMajorKeyBits - 1;
   V(STACK_FRAME_INFO, StackFrameInfo, stack_frame_info)                      \
   V(TUPLE2, Tuple2, tuple2)                                                  \
   V(TUPLE3, Tuple3, tuple3)                                                  \
+  V(WASM_DEBUG_INFO, WasmDebugInfo, wasm_debug_info)                         \
   V(CALLABLE_TASK, CallableTask, callable_task)                              \
   V(CALLBACK_TASK, CallbackTask, callback_task)                              \
   V(PROMISE_FULFILL_REACTION_JOB_TASK, PromiseFulfillReactionJobTask,        \
@@ -773,6 +775,7 @@ enum InstanceType : uint16_t {
   STACK_FRAME_INFO_TYPE,
   TUPLE2_TYPE,
   TUPLE3_TYPE,
+  WASM_DEBUG_INFO_TYPE,
 
   CALLABLE_TASK_TYPE,  // FIRST_MICROTASK_TYPE
   CALLBACK_TASK_TYPE,
