@@ -179,14 +179,10 @@ class FreeListCategory {
 
   void Free(Address address, size_t size_in_bytes, FreeMode mode);
 
-  // Picks a node from the list and stores its size in |node_size|. Returns
-  // nullptr if the category is empty.
-  FreeSpace* PickNodeFromList(size_t* node_size);
-
   // Performs a single try to pick a node of at least |minimum_size| from the
   // category. Stores the actual size in |node_size|. Returns nullptr if no
   // node is found.
-  FreeSpace* TryPickNodeFromList(size_t minimum_size, size_t* node_size);
+  FreeSpace* PickNodeFromList(size_t minimum_size, size_t* node_size);
 
   // Picks a node of at least |minimum_size| from the category. Stores the
   // actual size in |node_size|. Returns nullptr if no node is found.
@@ -1879,12 +1875,14 @@ class V8_EXPORT_PRIVATE FreeList {
 
   // Walks all available categories for a given |type| and tries to retrieve
   // a node. Returns nullptr if the category is empty.
-  FreeSpace* FindNodeIn(FreeListCategoryType type, size_t* node_size);
+  FreeSpace* FindNodeIn(FreeListCategoryType type, size_t minimum_size,
+                        size_t* node_size);
 
   // Tries to retrieve a node from the first category in a given |type|.
-  // Returns nullptr if the category is empty.
-  FreeSpace* TryFindNodeIn(FreeListCategoryType type, size_t* node_size,
-                           size_t minimum_size);
+  // Returns nullptr if the category is empty or the top entry is smaller
+  // than minimum_size.
+  FreeSpace* TryFindNodeIn(FreeListCategoryType type, size_t minimum_size,
+                           size_t* node_size);
 
   // Searches a given |type| for a node of at least |minimum_size|.
   FreeSpace* SearchForNodeInList(FreeListCategoryType type, size_t* node_size,

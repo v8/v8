@@ -2713,25 +2713,17 @@ void FreeListCategory::Reset() {
   available_ = 0;
 }
 
-FreeSpace* FreeListCategory::PickNodeFromList(size_t* node_size) {
+FreeSpace* FreeListCategory::PickNodeFromList(size_t minimum_size,
+                                              size_t* node_size) {
   DCHECK(page()->CanAllocate());
   FreeSpace* node = top();
-  if (node == nullptr) return nullptr;
-  set_top(node->next());
-  *node_size = node->Size();
-  available_ -= *node_size;
-  return node;
-}
-
-FreeSpace* FreeListCategory::TryPickNodeFromList(size_t minimum_size,
-                                                 size_t* node_size) {
-  DCHECK(page()->CanAllocate());
-  FreeSpace* node = PickNodeFromList(node_size);
-  if ((node != nullptr) && (*node_size < minimum_size)) {
-    Free(node->address(), *node_size, kLinkCategory);
+  if (node == nullptr || static_cast<size_t>(node->Size()) < minimum_size) {
     *node_size = 0;
     return nullptr;
   }
+  set_top(node->next());
+  *node_size = node->Size();
+  available_ -= *node_size;
   return node;
 }
 
@@ -2828,12 +2820,13 @@ size_t FreeList::Free(Address start, size_t size_in_bytes, FreeMode mode) {
   return 0;
 }
 
-FreeSpace* FreeList::FindNodeIn(FreeListCategoryType type, size_t* node_size) {
+FreeSpace* FreeList::FindNodeIn(FreeListCategoryType type, size_t minimum_size,
+                                size_t* node_size) {
   FreeListCategoryIterator it(this, type);
   FreeSpace* node = nullptr;
   while (it.HasNext()) {
     FreeListCategory* current = it.Next();
-    node = current->PickNodeFromList(node_size);
+    node = current->PickNodeFromList(minimum_size, node_size);
     if (node != nullptr) {
       DCHECK(IsVeryLong() || Available() == SumFreeLists());
       return node;
@@ -2843,11 +2836,11 @@ FreeSpace* FreeList::FindNodeIn(FreeListCategoryType type, size_t* node_size) {
   return node;
 }
 
-FreeSpace* FreeList::TryFindNodeIn(FreeListCategoryType type, size_t* node_size,
-                                   size_t minimum_size) {
+FreeSpace* FreeList::TryFindNodeIn(FreeListCategoryType type,
+                                   size_t minimum_size, size_t* node_size) {
   if (categories_[type] == nullptr) return nullptr;
   FreeSpace* node =
-      categories_[type]->TryPickNodeFromList(minimum_size, node_size);
+      categories_[type]->PickNodeFromList(minimum_size, node_size);
   if (node != nullptr) {
     DCHECK(IsVeryLong() || Available() == SumFreeLists());
   }
@@ -2881,7 +2874,8 @@ FreeSpace* FreeList::Allocate(size_t size_in_bytes, size_t* node_size) {
   FreeListCategoryType type =
       SelectFastAllocationFreeListCategoryType(size_in_bytes);
   for (int i = type; i < kHuge && node == nullptr; i++) {
-    node = FindNodeIn(static_cast<FreeListCategoryType>(i), node_size);
+    node = FindNodeIn(static_cast<FreeListCategoryType>(i), size_in_bytes,
+                      node_size);
   }
 
   if (node == nullptr) {
@@ -2894,7 +2888,7 @@ FreeSpace* FreeList::Allocate(size_t size_in_bytes, size_t* node_size) {
     // We didn't find anything in the huge list. Now search the best fitting
     // free list for a node that has at least the requested size.
     type = SelectFreeListCategoryType(size_in_bytes);
-    node = TryFindNodeIn(type, node_size, size_in_bytes);
+    node = TryFindNodeIn(type, size_in_bytes, node_size);
   }
 
   if (node != nullptr) {
