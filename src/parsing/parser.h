@@ -502,7 +502,7 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
   Expression* CloseTemplateLiteral(TemplateLiteralState* state, int start,
                                    Expression* tag);
 
-  ArrayLiteral* ArrayLiteralFromListWithSpread(ZoneList<Expression*>* list);
+  ZoneList<Expression*>* PrepareSpreadArguments(ZoneList<Expression*>* list);
   Expression* SpreadCall(Expression* function, ZoneList<Expression*>* args,
                          int pos, Call::PossiblyEval is_possibly_eval);
   Expression* SpreadCallNew(Expression* function, ZoneList<Expression*>* args,
