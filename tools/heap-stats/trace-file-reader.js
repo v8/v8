@@ -63,15 +63,17 @@ class TraceFileReader extends HTMLElement {
           const textResult = pako.inflate(e.target.result, {to: 'string'});
           this.processRawText(file, textResult);
           this.section.className = 'success';
+          this.$('#fileReader').classList.add('done');
         } catch (err) {
           console.error(err);
           this.section.className = 'failure';
         }
       };
-      reader.readAsArrayBuffer(file);
+      // Delay the loading a bit to allow for CSS animations to happen.
+      setTimeout(() => reader.readAsArrayBuffer(file), 10);
     } else {
       reader.onload = (e) => this.processRawText(file, e.target.result);
-      reader.readAsText(file);
+      setTimeout(() => reader.readAsText(file), 10);
     }
   }
 
@@ -96,10 +98,12 @@ class TraceFileReader extends HTMLElement {
       data_object.gcs[entry.id] = {non_empty_instance_types: new Set()};
     }
     if ('time' in entry) {
-      if (data_object.end === null || data_object.end < entry.time)
+      if (data_object.end === null || data_object.end < entry.time) {
         data_object.end = entry.time;
-      if (data_object.start === null || data_object.start > entry.time)
+      }
+      if (data_object.start === null || data_object.start > entry.time) {
         data_object.start = entry.time;
+      }
     }
   }
 

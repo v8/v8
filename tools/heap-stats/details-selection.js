@@ -146,8 +146,8 @@ class DetailsSelection extends HTMLElement {
     this.populateSelect(
         '#gc-select',
         Object.keys(this.selectedIsolate.gcs)
-            .map(v => [v, this.selectedIsolate.gcs[v].time]),
-        time => time + 'ms');
+            .map(id => [id, this.selectedIsolate.gcs[id].time]),
+        (key, time, index) => index + ': ' + (time * kMillis2Seconds) + 's');
     this.populateCategories();
     this.notifySelectionChanged();
   }
@@ -249,8 +249,10 @@ class DetailsSelection extends HTMLElement {
 
   populateSelect(id, iterable, labelFn = null, autoselect = null) {
     if (labelFn == null) labelFn = e => e;
+    let index = 0;
     for (let [key, value] of iterable) {
-      const label = labelFn(key, value);
+      index++;
+      const label = labelFn(key, value, index);
       const option = this.createOption(key, label);
       if (autoselect === key) {
         option.selected = 'selected';

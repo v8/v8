@@ -4,6 +4,10 @@
 
 'use strict';
 
+const KB = 1024;
+const MB = KB * KB;
+const kMillis2Seconds = 1 / 1000;
+
 class Isolate {
   constructor(address) {
     this.address = address;
@@ -30,7 +34,7 @@ class Isolate {
   getLabel() {
     let label = `${this.address}: gc=#${Object.keys(this.gcs).length}`;
     const peakSizeMB = Math.round(this.peakMemory / 1024 / 1024 * 100) / 100;
-    label += ` max=${peakSizeMB}MB`
+    label += ` peak=${peakSizeMB}MB`
     return label;
   }
 
