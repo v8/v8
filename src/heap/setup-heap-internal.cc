@@ -325,6 +325,8 @@ bool Heap::CreateInitialMaps() {
     ALLOCATE_VARSIZE_MAP(FIXED_ARRAY_TYPE, script_context)
     ALLOCATE_VARSIZE_MAP(FIXED_ARRAY_TYPE, script_context_table)
 
+    ALLOCATE_VARSIZE_MAP(BOILERPLATE_DESCRIPTION_TYPE, boilerplate_description)
+
     ALLOCATE_VARSIZE_MAP(FIXED_ARRAY_TYPE, native_context)
     native_context_map()->set_visitor_id(kVisitNativeContext);
 
@@ -346,8 +348,14 @@ bool Heap::CreateInitialMaps() {
     AllocationResult allocation = AllocateEmptyScopeInfo();
     if (!allocation.To(&obj)) return false;
   }
-
   set_empty_scope_info(ScopeInfo::cast(obj));
+
+  {
+    AllocationResult allocation = AllocateEmptyBoilerplateDescription();
+    if (!allocation.To(&obj)) return false;
+  }
+  set_empty_boilerplate_description(BoilerplateDescription::cast(obj));
+
   {
     AllocationResult allocation = Allocate(boolean_map(), OLD_SPACE);
     if (!allocation.To(&obj)) return false;

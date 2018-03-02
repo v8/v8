@@ -3375,6 +3375,7 @@ void TranslatedState::InitializeCapturedObjectAt(
       return;
 
     case FIXED_ARRAY_TYPE:
+    case BOILERPLATE_DESCRIPTION_TYPE:
     case HASH_TABLE_TYPE:
     case PROPERTY_ARRAY_TYPE:
     case CONTEXT_EXTENSION_TYPE:

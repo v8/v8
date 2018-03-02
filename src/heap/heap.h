@@ -38,6 +38,7 @@ class HeapTester;
 class TestMemoryAllocatorScope;
 }  // namespace heap
 
+class BoilerplateDescription;
 class BytecodeArray;
 class CodeDataContainer;
 class DeoptimizationData;
@@ -87,7 +88,7 @@ using v8::MemoryPressureLevel;
   /* Entries beyond the first 32                                            */ \
   /* The roots above this line should be boring from a GC point of view.    */ \
   /* This means they are never in new space and never on a page that is     */ \
-  /* being compacted.                                                       */ \
+  /* being compacted.*/                                                        \
   /* Oddballs */                                                               \
   V(Oddball, arguments_marker, ArgumentsMarker)                                \
   V(Oddball, exception, Exception)                                             \
@@ -105,31 +106,32 @@ using v8::MemoryPressureLevel;
   V(Map, debug_evaluate_context_map, DebugEvaluateContextMap)                  \
   V(Map, script_context_table_map, ScriptContextTableMap)                      \
   /* Maps */                                                                   \
-  V(Map, descriptor_array_map, DescriptorArrayMap)                             \
   V(Map, array_list_map, ArrayListMap)                                         \
+  V(Map, bigint_map, BigIntMap)                                                \
+  V(Map, boilerplate_description_map, BoilerplateDescriptionMap)               \
+  V(Map, bytecode_array_map, BytecodeArrayMap)                                 \
+  V(Map, code_data_container_map, CodeDataContainerMap)                        \
+  V(Map, descriptor_array_map, DescriptorArrayMap)                             \
+  V(Map, external_map, ExternalMap)                                            \
   V(Map, fixed_double_array_map, FixedDoubleArrayMap)                          \
+  V(Map, global_dictionary_map, GlobalDictionaryMap)                           \
+  V(Map, many_closures_cell_map, ManyClosuresCellMap)                          \
+  V(Map, message_object_map, JSMessageObjectMap)                               \
+  V(Map, module_info_map, ModuleInfoMap)                                       \
   V(Map, mutable_heap_number_map, MutableHeapNumberMap)                        \
+  V(Map, name_dictionary_map, NameDictionaryMap)                               \
+  V(Map, no_closures_cell_map, NoClosuresCellMap)                              \
+  V(Map, number_dictionary_map, NumberDictionaryMap)                           \
+  V(Map, one_closure_cell_map, OneClosureCellMap)                              \
   V(Map, ordered_hash_map_map, OrderedHashMapMap)                              \
   V(Map, ordered_hash_set_map, OrderedHashSetMap)                              \
-  V(Map, name_dictionary_map, NameDictionaryMap)                               \
-  V(Map, global_dictionary_map, GlobalDictionaryMap)                           \
-  V(Map, number_dictionary_map, NumberDictionaryMap)                           \
+  V(Map, property_array_map, PropertyArrayMap)                                 \
   V(Map, simple_number_dictionary_map, SimpleNumberDictionaryMap)              \
-  V(Map, string_table_map, StringTableMap)                                     \
-  V(Map, weak_hash_table_map, WeakHashTableMap)                                \
   V(Map, sloppy_arguments_elements_map, SloppyArgumentsElementsMap)            \
   V(Map, small_ordered_hash_map_map, SmallOrderedHashMapMap)                   \
   V(Map, small_ordered_hash_set_map, SmallOrderedHashSetMap)                   \
-  V(Map, code_data_container_map, CodeDataContainerMap)                        \
-  V(Map, message_object_map, JSMessageObjectMap)                               \
-  V(Map, external_map, ExternalMap)                                            \
-  V(Map, bytecode_array_map, BytecodeArrayMap)                                 \
-  V(Map, module_info_map, ModuleInfoMap)                                       \
-  V(Map, no_closures_cell_map, NoClosuresCellMap)                              \
-  V(Map, one_closure_cell_map, OneClosureCellMap)                              \
-  V(Map, many_closures_cell_map, ManyClosuresCellMap)                          \
-  V(Map, property_array_map, PropertyArrayMap)                                 \
-  V(Map, bigint_map, BigIntMap)                                                \
+  V(Map, string_table_map, StringTableMap)                                     \
+  V(Map, weak_hash_table_map, WeakHashTableMap)                                \
   /* String maps */                                                            \
   V(Map, native_source_string_map, NativeSourceStringMap)                      \
   V(Map, string_map, StringMap)                                                \
@@ -186,6 +188,8 @@ using v8::MemoryPressureLevel;
   V(EnumCache, empty_enum_cache, EmptyEnumCache)                               \
   V(PropertyArray, empty_property_array, EmptyPropertyArray)                   \
   V(ByteArray, empty_byte_array, EmptyByteArray)                               \
+  V(BoilerplateDescription, empty_boilerplate_description,                     \
+    EmptyBoilerplateDescription)                                               \
   V(FixedTypedArrayBase, empty_fixed_uint8_array, EmptyFixedUint8Array)        \
   V(FixedTypedArrayBase, empty_fixed_int8_array, EmptyFixedInt8Array)          \
   V(FixedTypedArrayBase, empty_fixed_uint16_array, EmptyFixedUint16Array)      \
@@ -301,6 +305,7 @@ using v8::MemoryPressureLevel;
   V(ArrayIteratorProtector)             \
   V(BigIntMap)                          \
   V(BlockContextMap)                    \
+  V(BoilerplateDescriptionMap)          \
   V(BooleanMap)                         \
   V(ByteArrayMap)                       \
   V(BytecodeArrayMap)                   \
@@ -2275,11 +2280,10 @@ class Heap {
   MUST_USE_RESULT AllocationResult AllocateUninitializedFixedDoubleArray(
       int length, PretenureFlag pretenure = NOT_TENURED);
 
-  // Allocate empty fixed array.
+  // Allocate empty fixed array like objects.
   MUST_USE_RESULT AllocationResult AllocateEmptyFixedArray();
-
-  // Allocate empty scope info.
   MUST_USE_RESULT AllocationResult AllocateEmptyScopeInfo();
+  MUST_USE_RESULT AllocationResult AllocateEmptyBoilerplateDescription();
 
   // Allocate empty fixed typed array of given type.
   MUST_USE_RESULT AllocationResult

@@ -2095,7 +2095,7 @@ void BytecodeGenerator::VisitObjectLiteral(ObjectLiteral* expr) {
   // If constant properties is an empty fixed array, use a cached empty fixed
   // array to ensure it's only added to the constant pool once.
   if (expr->properties_count() == 0) {
-    entry = builder()->EmptyFixedArrayConstantPoolEntry();
+    entry = builder()->EmptyBoilerplateDescriptionConstantPoolEntry();
   } else {
     entry = builder()->AllocateDeferredConstantPoolEntry();
     object_literals_.push_back(std::make_pair(expr, entry));

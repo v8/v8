@@ -393,6 +393,7 @@ const int kStubMinorKeyBits = kSmiValueSize - kStubMajorKeyBits - 1;
   V(PROMISE_RESOLVE_THENABLE_JOB_TASK_TYPE)                     \
                                                                 \
   V(FIXED_ARRAY_TYPE)                                           \
+  V(BOILERPLATE_DESCRIPTION_TYPE)                               \
   V(DESCRIPTOR_ARRAY_TYPE)                                      \
   V(HASH_TABLE_TYPE)                                            \
   V(SCOPE_INFO_TYPE)                                            \
@@ -788,6 +789,7 @@ enum InstanceType : uint16_t {
 
   // FixedArrays.
   FIXED_ARRAY_TYPE,  // FIRST_FIXED_ARRAY_TYPE
+  BOILERPLATE_DESCRIPTION_TYPE,
   DESCRIPTOR_ARRAY_TYPE,
   HASH_TABLE_TYPE,
   SCOPE_INFO_TYPE,

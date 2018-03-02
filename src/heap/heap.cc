@@ -3740,6 +3740,20 @@ AllocationResult Heap::AllocateEmptyScopeInfo() {
   return result;
 }
 
+AllocationResult Heap::AllocateEmptyBoilerplateDescription() {
+  int size = FixedArray::SizeFor(0);
+  HeapObject* result = nullptr;
+  {
+    AllocationResult allocation = AllocateRaw(size, OLD_SPACE);
+    if (!allocation.To(&result)) return allocation;
+  }
+  // Initialize the object.
+  result->set_map_after_allocation(boilerplate_description_map(),
+                                   SKIP_WRITE_BARRIER);
+  FixedArray::cast(result)->set_length(0);
+  return result;
+}
+
 AllocationResult Heap::CopyAndTenureFixedCOWArray(FixedArray* src) {
   if (!InNewSpace(src)) {
     return src;

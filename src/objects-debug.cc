@@ -111,6 +111,7 @@ void HeapObject::HeapObjectVerify() {
       BigInt::cast(this)->BigIntVerify();
       break;
     case HASH_TABLE_TYPE:
+    case BOILERPLATE_DESCRIPTION_TYPE:
     case FIXED_ARRAY_TYPE:
     case SCOPE_INFO_TYPE:
       FixedArray::cast(this)->FixedArrayVerify();

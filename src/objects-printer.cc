@@ -93,6 +93,9 @@ void HeapObject::HeapObjectPrint(std::ostream& os) {  // NOLINT
     case FIXED_ARRAY_TYPE:
       FixedArray::cast(this)->FixedArrayPrint(os);
       break;
+    case BOILERPLATE_DESCRIPTION_TYPE:
+      BoilerplateDescription::cast(this)->BoilerplateDescriptionPrint(os);
+      break;
     case PROPERTY_ARRAY_TYPE:
       PropertyArray::cast(this)->PropertyArrayPrint(os);
       break;
@@ -658,12 +661,23 @@ void AliasedArgumentsEntry::AliasedArgumentsEntryPrint(
   os << "\n - aliased_context_slot: " << aliased_context_slot();
 }
 
+namespace {
+void PrintFixedArrayWithHeader(std::ostream& os, FixedArray* array,
+                               const char* type) {
+  array->PrintHeader(os, type);
+  os << "\n - length: " << array->length();
+  PrintFixedArrayElements(os, array);
+  os << "\n";
+}
+}  // namespace
 
 void FixedArray::FixedArrayPrint(std::ostream& os) {  // NOLINT
-  HeapObject::PrintHeader(os, IsHashTable() ? "HashTable" : "FixedArray");
-  os << "\n - length: " << length();
-  PrintFixedArrayElements(os, this);
-  os << "\n";
+  PrintFixedArrayWithHeader(os, this,
+                            IsHashTable() ? "HashTable" : "FixedArray");
+}
+
+void BoilerplateDescription::BoilerplateDescriptionPrint(std::ostream& os) {
+  PrintFixedArrayWithHeader(os, this, "BoilerplateDescription");
 }
 
 void PropertyArray::PropertyArrayPrint(std::ostream& os) {  // NOLINT
@@ -1669,7 +1683,7 @@ void PrintScopeInfoList(ScopeInfo* scope_info, std::ostream& os,
 void ScopeInfo::ScopeInfoPrint(std::ostream& os) {  // NOLINT
   HeapObject::PrintHeader(os, "ScopeInfo");
   if (length() == 0) {
-    os << "\n - length = 0";
+    os << "\n - length = 0\n";
     return;
   }
 

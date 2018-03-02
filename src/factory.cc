@@ -266,13 +266,22 @@ Handle<BoilerplateDescription> Factory::NewBoilerplateDescription(
     size++;
   }
 
+  if (size == 0) {
+    return isolate()->factory()->empty_boilerplate_description();
+  }
+
+  /* Handle<FixedArray> array = NewFixedArray(size, TENURED); */
+  /* array->set_map_no_write_barrier(*boilerplate_description_map()); */
   Handle<BoilerplateDescription> description =
-      Handle<BoilerplateDescription>::cast(NewFixedArray(size, TENURED));
+      Handle<BoilerplateDescription>::cast(NewFixedArrayWithMap(
+          Heap::kBoilerplateDescriptionMapRootIndex, size, TENURED));
 
   if (has_different_size_backing_store) {
-    DCHECK((boilerplate != (all_properties - index_keys)) || has_seen_proto);
+    DCHECK_IMPLIES((boilerplate == (all_properties - index_keys)),
+                   has_seen_proto);
     description->set_backing_store_size(isolate(), backing_store_size);
   }
+
   return description;
 }
 
