@@ -391,26 +391,6 @@ ZoneVector<MachineType> const* MachineTypesOf(Operator const* op) {
   return OpParameter<TypedObjectStateInfo>(op).machine_types();
 }
 
-V8_EXPORT_PRIVATE bool operator==(IfValueParameters const& l,
-                                  IfValueParameters const& r) {
-  return l.value() == r.value() && r.comparison_order() == r.comparison_order();
-}
-
-size_t hash_value(IfValueParameters const& p) {
-  return base::hash_combine(p.value(), p.comparison_order());
-}
-
-V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream& out,
-                                           IfValueParameters const& p) {
-  out << p.value() << " (order " << p.comparison_order() << ")";
-  return out;
-}
-
-IfValueParameters const& IfValueParametersOf(const Operator* op) {
-  DCHECK(op->opcode() == IrOpcode::kIfValue);
-  return OpParameter<IfValueParameters>(op);
-}
-
 #define COMMON_CACHED_OP_LIST(V)                                              \
   V(Dead, Operator::kFoldable, 0, 0, 0, 1, 1, 1)                              \
   V(Unreachable, Operator::kFoldable, 0, 1, 1, 1, 1, 0)                       \
@@ -1014,13 +994,13 @@ const Operator* CommonOperatorBuilder::Switch(size_t control_output_count) {
       1, 0, 1, 0, 0, control_output_count);   // counts
 }
 
-const Operator* CommonOperatorBuilder::IfValue(int32_t index,
-                                               int32_t comparison_order) {
-  return new (zone()) Operator1<IfValueParameters>(  // --
-      IrOpcode::kIfValue, Operator::kKontrol,        // opcode
-      "IfValue",                                     // name
-      0, 0, 1, 0, 0, 1,                              // counts
-      IfValueParameters(index, comparison_order));   // parameter
+
+const Operator* CommonOperatorBuilder::IfValue(int32_t index) {
+  return new (zone()) Operator1<int32_t>(      // --
+      IrOpcode::kIfValue, Operator::kKontrol,  // opcode
+      "IfValue",                               // name
+      0, 0, 1, 0, 0, 1,                        // counts
+      index);                                  // parameter
 }
 
 

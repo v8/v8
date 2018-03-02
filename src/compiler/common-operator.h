@@ -376,30 +376,6 @@ uint32_t ObjectIdOf(Operator const*);
 
 MachineRepresentation DeadValueRepresentationOf(Operator const*);
 
-class IfValueParameters final {
- public:
-  IfValueParameters(int32_t value, int32_t comparison_order)
-      : value_(value), comparison_order_(comparison_order) {}
-
-  int32_t value() const { return value_; }
-  int32_t comparison_order() const { return comparison_order_; }
-
- private:
-  int32_t value_;
-  int32_t comparison_order_;
-};
-
-V8_EXPORT_PRIVATE bool operator==(IfValueParameters const&,
-                                  IfValueParameters const&);
-
-size_t hash_value(IfValueParameters const&);
-
-V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream&,
-                                           IfValueParameters const&);
-
-IfValueParameters const& IfValueParametersOf(const Operator* op)
-    WARN_UNUSED_RESULT;
-
 // Interface for building common operators that can be used at any level of IR,
 // including JavaScript, mid-level, and low-level.
 class V8_EXPORT_PRIVATE CommonOperatorBuilder final
@@ -419,7 +395,7 @@ class V8_EXPORT_PRIVATE CommonOperatorBuilder final
   const Operator* IfSuccess();
   const Operator* IfException();
   const Operator* Switch(size_t control_output_count);
-  const Operator* IfValue(int32_t value, int32_t order = 0);
+  const Operator* IfValue(int32_t value);
   const Operator* IfDefault();
   const Operator* Throw();
   const Operator* Deoptimize(DeoptimizeKind kind, DeoptimizeReason reason,

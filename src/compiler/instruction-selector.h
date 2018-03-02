@@ -26,7 +26,7 @@ struct CallBuffer;  // TODO(bmeurer): Remove this.
 class FlagsContinuation;
 class Linkage;
 class OperandGenerator;
-class SwitchInfo;
+struct SwitchInfo;
 class StateObjectDeduplicator;
 
 // This struct connects nodes of parameters which are going to be pushed on the
