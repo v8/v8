@@ -17,6 +17,7 @@ class TraceFileReader extends HTMLElement {
     this.addEventListener('dragover', e => this.handleDragOver(e));
     this.addEventListener('drop', e => this.handleChange(e));
     this.$('#file').addEventListener('change', e => this.handleChange(e));
+    this.$('#fileReader').addEventListener('keydown', e => this.handleKeyEvent(e));
   }
 
   $(id) {
@@ -29,6 +30,10 @@ class TraceFileReader extends HTMLElement {
 
   updateLabel(text) {
     this.$('#label').innerText = text;
+  }
+
+  handleKeyEvent(event) {
+    if (event.key == "Enter") this.handleClick(event);
   }
 
   handleClick(event) {
@@ -46,13 +51,16 @@ class TraceFileReader extends HTMLElement {
     event.preventDefault();
   }
 
-  connectedCallback() {}
+  connectedCallback() {
+    this.$('#fileReader').focus();
+  }
 
   readFile(file) {
     if (!file) {
       this.updateLabel('Failed to load file.');
       return;
     }
+    this.$('#fileReader').blur();
 
     this.section.className = 'loading';
     const reader = new FileReader();
