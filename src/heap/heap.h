@@ -299,7 +299,6 @@ using v8::MemoryPressureLevel;
   V(ArgumentsMarkerMap)                 \
   V(ArrayBufferNeuteringProtector)      \
   V(ArrayIteratorProtector)             \
-  V(NoElementsProtector)                \
   V(BigIntMap)                          \
   V(BlockContextMap)                    \
   V(BooleanMap)                         \
@@ -308,6 +307,7 @@ using v8::MemoryPressureLevel;
   V(CatchContextMap)                    \
   V(CellMap)                            \
   V(CodeMap)                            \
+  V(DebugEvaluateContextMap)            \
   V(DescriptorArrayMap)                 \
   V(EmptyByteArray)                     \
   V(EmptyDescriptorArray)               \
@@ -328,7 +328,6 @@ using v8::MemoryPressureLevel;
   V(EmptyScript)                        \
   V(EmptySloppyArgumentsElements)       \
   V(EmptySlowElementDictionary)         \
-  V(empty_string)                       \
   V(EmptyWeakCell)                      \
   V(EvalContextMap)                     \
   V(Exception)                          \
@@ -347,9 +346,9 @@ using v8::MemoryPressureLevel;
   V(HoleNanValue)                       \
   V(InfinityValue)                      \
   V(IsConcatSpreadableProtector)        \
+  V(JSMessageObjectMap)                 \
   V(JsConstructEntryCode)               \
   V(JsEntryCode)                        \
-  V(JSMessageObjectMap)                 \
   V(ManyClosuresCell)                   \
   V(ManyClosuresCellMap)                \
   V(MetaMap)                            \
@@ -362,6 +361,7 @@ using v8::MemoryPressureLevel;
   V(NanValue)                           \
   V(NativeContextMap)                   \
   V(NoClosuresCellMap)                  \
+  V(NoElementsProtector)                \
   V(NullMap)                            \
   V(NullValue)                          \
   V(NumberDictionaryMap)                \
@@ -373,6 +373,7 @@ using v8::MemoryPressureLevel;
   V(PropertyArrayMap)                   \
   V(ScopeInfoMap)                       \
   V(ScriptContextMap)                   \
+  V(ScriptContextTableMap)              \
   V(SharedFunctionInfoMap)              \
   V(SimpleNumberDictionaryMap)          \
   V(SloppyArgumentsElementsMap)         \
@@ -396,6 +397,7 @@ using v8::MemoryPressureLevel;
   V(WeakCellMap)                        \
   V(WeakHashTableMap)                   \
   V(WithContextMap)                     \
+  V(empty_string)                       \
   PRIVATE_SYMBOL_LIST(V)
 
 #define FIXED_ARRAY_ELEMENTS_WRITE_BARRIER(heap, array, start, length) \

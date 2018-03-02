@@ -177,16 +177,22 @@ Handle<PropertyArray> Factory::NewPropertyArray(int length,
       PropertyArray);
 }
 
-Handle<FixedArray> Factory::NewFixedArrayWithMap(
-    Heap::RootListIndex map_root_index, int length, PretenureFlag pretenure) {
+template <typename T>
+Handle<T> Factory::NewFixedArrayWithMap(Heap::RootListIndex map_root_index,
+                                        int length, PretenureFlag pretenure) {
+  static_assert(std::is_base_of<FixedArray, T>::value,
+                "T must be a descendant of FixedArray");
   // Zero-length case must be handled outside, where the knowledge about
   // the map is.
   DCHECK_LT(0, length);
   CALL_HEAP_FUNCTION(isolate(),
                      isolate()->heap()->AllocateFixedArrayWithMap(
                          map_root_index, length, pretenure),
-                     FixedArray);
+                     T);
 }
+
+template Handle<FixedArray> Factory::NewFixedArrayWithMap<FixedArray>(
+    Heap::RootListIndex, int, PretenureFlag);
 
 Handle<FixedArray> Factory::NewFixedArray(int length, PretenureFlag pretenure) {
   DCHECK_LE(0, length);
@@ -1002,10 +1008,8 @@ Handle<Symbol> Factory::NewPrivateFieldSymbol() {
 }
 
 Handle<Context> Factory::NewNativeContext() {
-  Handle<FixedArray> array =
-      NewFixedArray(Context::NATIVE_CONTEXT_SLOTS, TENURED);
-  array->set_map_no_write_barrier(*native_context_map());
-  Handle<Context> context = Handle<Context>::cast(array);
+  Handle<Context> context = NewFixedArrayWithMap<Context>(
+      Heap::kNativeContextMapRootIndex, Context::NATIVE_CONTEXT_SLOTS, TENURED);
   context->set_native_context(*context);
   context->set_errors_thrown(Smi::kZero);
   context->set_math_random_index(Smi::kZero);
@@ -1020,10 +1024,8 @@ Handle<Context> Factory::NewNativeContext() {
 Handle<Context> Factory::NewScriptContext(Handle<JSFunction> function,
                                           Handle<ScopeInfo> scope_info) {
   DCHECK_EQ(scope_info->scope_type(), SCRIPT_SCOPE);
-  Handle<FixedArray> array =
-      NewFixedArray(scope_info->ContextLength(), TENURED);
-  array->set_map_no_write_barrier(*script_context_map());
-  Handle<Context> context = Handle<Context>::cast(array);
+  Handle<Context> context = NewFixedArrayWithMap<Context>(
+      Heap::kScriptContextMapRootIndex, scope_info->ContextLength(), TENURED);
   context->set_closure(*function);
   context->set_previous(function->context());
   context->set_extension(*scope_info);
@@ -1034,10 +1036,10 @@ Handle<Context> Factory::NewScriptContext(Handle<JSFunction> function,
 
 
 Handle<ScriptContextTable> Factory::NewScriptContextTable() {
-  Handle<FixedArray> array = NewFixedArray(1);
-  array->set_map_no_write_barrier(*script_context_table_map());
   Handle<ScriptContextTable> context_table =
-      Handle<ScriptContextTable>::cast(array);
+      NewFixedArrayWithMap<ScriptContextTable>(
+          Heap::kScriptContextTableMapRootIndex,
+          ScriptContextTable::kMinLength);
   context_table->set_used(0);
   return context_table;
 }
@@ -1046,10 +1048,8 @@ Handle<Context> Factory::NewModuleContext(Handle<Module> module,
                                           Handle<JSFunction> function,
                                           Handle<ScopeInfo> scope_info) {
   DCHECK_EQ(scope_info->scope_type(), MODULE_SCOPE);
-  Handle<FixedArray> array =
-      NewFixedArray(scope_info->ContextLength(), TENURED);
-  array->set_map_no_write_barrier(*module_context_map());
-  Handle<Context> context = Handle<Context>::cast(array);
+  Handle<Context> context = NewFixedArrayWithMap<Context>(
+      Heap::kModuleContextMapRootIndex, scope_info->ContextLength(), TENURED);
   context->set_closure(*function);
   context->set_previous(function->context());
   context->set_extension(*module);
@@ -1063,20 +1063,18 @@ Handle<Context> Factory::NewFunctionContext(int length,
                                             ScopeType scope_type) {
   DCHECK(function->shared()->scope_info()->scope_type() == scope_type);
   DCHECK(length >= Context::MIN_CONTEXT_SLOTS);
-  Handle<FixedArray> array = NewFixedArray(length);
-  Handle<Map> map;
+  Heap::RootListIndex mapRootIndex;
   switch (scope_type) {
     case EVAL_SCOPE:
-      map = eval_context_map();
+      mapRootIndex = Heap::kEvalContextMapRootIndex;
       break;
     case FUNCTION_SCOPE:
-      map = function_context_map();
+      mapRootIndex = Heap::kFunctionContextMapRootIndex;
       break;
     default:
       UNREACHABLE();
   }
-  array->set_map_no_write_barrier(*map);
-  Handle<Context> context = Handle<Context>::cast(array);
+  Handle<Context> context = NewFixedArrayWithMap<Context>(mapRootIndex, length);
   context->set_closure(*function);
   context->set_previous(function->context());
   context->set_extension(*the_hole_value());
@@ -1091,9 +1089,8 @@ Handle<Context> Factory::NewCatchContext(Handle<JSFunction> function,
                                          Handle<Object> thrown_object) {
   STATIC_ASSERT(Context::MIN_CONTEXT_SLOTS == Context::THROWN_OBJECT_INDEX);
   Handle<ContextExtension> extension = NewContextExtension(scope_info, name);
-  Handle<FixedArray> array = NewFixedArray(Context::MIN_CONTEXT_SLOTS + 1);
-  array->set_map_no_write_barrier(*catch_context_map());
-  Handle<Context> context = Handle<Context>::cast(array);
+  Handle<Context> context = NewFixedArrayWithMap<Context>(
+      Heap::kCatchContextMapRootIndex, Context::MIN_CONTEXT_SLOTS + 1);
   context->set_closure(*function);
   context->set_previous(*previous);
   context->set_extension(*extension);
@@ -1112,9 +1109,8 @@ Handle<Context> Factory::NewDebugEvaluateContext(Handle<Context> previous,
   Handle<ContextExtension> context_extension = NewContextExtension(
       scope_info, extension.is_null() ? Handle<Object>::cast(undefined_value())
                                       : Handle<Object>::cast(extension));
-  Handle<FixedArray> array = NewFixedArray(Context::MIN_CONTEXT_SLOTS + 2);
-  array->set_map_no_write_barrier(*debug_evaluate_context_map());
-  Handle<Context> c = Handle<Context>::cast(array);
+  Handle<Context> c = NewFixedArrayWithMap<Context>(
+      Heap::kDebugEvaluateContextMapRootIndex, Context::MIN_CONTEXT_SLOTS + 2);
   c->set_closure(wrapped.is_null() ? previous->closure() : wrapped->closure());
   c->set_previous(*previous);
   c->set_native_context(previous->native_context());
@@ -1130,9 +1126,8 @@ Handle<Context> Factory::NewWithContext(Handle<JSFunction> function,
                                         Handle<JSReceiver> extension) {
   Handle<ContextExtension> context_extension =
       NewContextExtension(scope_info, extension);
-  Handle<FixedArray> array = NewFixedArray(Context::MIN_CONTEXT_SLOTS);
-  array->set_map_no_write_barrier(*with_context_map());
-  Handle<Context> context = Handle<Context>::cast(array);
+  Handle<Context> context = NewFixedArrayWithMap<Context>(
+      Heap::kWithContextMapRootIndex, Context::MIN_CONTEXT_SLOTS);
   context->set_closure(*function);
   context->set_previous(*previous);
   context->set_extension(*context_extension);
@@ -1145,9 +1140,8 @@ Handle<Context> Factory::NewBlockContext(Handle<JSFunction> function,
                                          Handle<Context> previous,
                                          Handle<ScopeInfo> scope_info) {
   DCHECK_EQ(scope_info->scope_type(), BLOCK_SCOPE);
-  Handle<FixedArray> array = NewFixedArray(scope_info->ContextLength());
-  array->set_map_no_write_barrier(*block_context_map());
-  Handle<Context> context = Handle<Context>::cast(array);
+  Handle<Context> context = NewFixedArrayWithMap<Context>(
+      Heap::kBlockContextMapRootIndex, scope_info->ContextLength());
   context->set_closure(*function);
   context->set_previous(*previous);
   context->set_extension(*scope_info);
@@ -1772,16 +1766,13 @@ Handle<JSFunction> Factory::NewFunctionFromSharedFunctionInfo(
 }
 
 Handle<ScopeInfo> Factory::NewScopeInfo(int length) {
-  Handle<FixedArray> array = NewFixedArray(length, TENURED);
-  array->set_map_no_write_barrier(*scope_info_map());
-  Handle<ScopeInfo> scope_info = Handle<ScopeInfo>::cast(array);
-  return scope_info;
+  return NewFixedArrayWithMap<ScopeInfo>(Heap::kScopeInfoMapRootIndex, length,
+                                         TENURED);
 }
 
 Handle<ModuleInfo> Factory::NewModuleInfo() {
-  Handle<FixedArray> array = NewFixedArray(ModuleInfo::kLength, TENURED);
-  array->set_map_no_write_barrier(*module_info_map());
-  return Handle<ModuleInfo>::cast(array);
+  return NewFixedArrayWithMap<ModuleInfo>(Heap::kModuleInfoMapRootIndex,
+                                          ModuleInfo::kLength, TENURED);
 }
 
 Handle<PreParsedScopeData> Factory::NewPreParsedScopeData() {

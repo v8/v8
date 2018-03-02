@@ -436,6 +436,7 @@ class ScriptContextTable : public FixedArray {
 
   static const int kUsedSlotIndex = 0;
   static const int kFirstContextSlotIndex = 1;
+  static const int kMinLength = kFirstContextSlotIndex;
 
   DISALLOW_IMPLICIT_CONSTRUCTORS(ScriptContextTable);
 };

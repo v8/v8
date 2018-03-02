@@ -82,8 +82,9 @@ class V8_EXPORT_PRIVATE Factory final {
 
   // Allocates a fixed array-like object with given map and initialized with
   // undefined values.
-  Handle<FixedArray> NewFixedArrayWithMap(Heap::RootListIndex map_root_index,
-                                          int length, PretenureFlag pretenure);
+  template <typename T = FixedArray>
+  Handle<T> NewFixedArrayWithMap(Heap::RootListIndex map_root_index, int length,
+                                 PretenureFlag pretenure = NOT_TENURED);
 
   // Allocates a fixed array initialized with undefined values.
   Handle<FixedArray> NewFixedArray(int length,
