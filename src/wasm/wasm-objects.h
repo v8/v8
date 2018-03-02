@@ -40,11 +40,6 @@ class WasmInstanceObject;
 
 #define WASM_CONTEXT_TABLES FLAG_wasm_jit_to_native
 
-#define DECL_OOL_QUERY(type) static bool Is##type(Object* object);
-#define DECL_OOL_CAST(type) static type* cast(Object* object);
-
-#define DECL_GETTER(name, type) type* name();
-
 #define DECL_OPTIONAL_ACCESSORS(name, type) \
   INLINE(bool has_##name());                \
   DECL_ACCESSORS(name, type)
@@ -301,34 +296,35 @@ class WasmExportedFunction : public JSFunction {
 };
 
 // Information shared by all WasmCompiledModule objects for the same module.
-class WasmSharedModuleData : public FixedArray {
+class WasmSharedModuleData : public Struct {
  public:
-  DECL_OOL_QUERY(WasmSharedModuleData)
-  DECL_OOL_CAST(WasmSharedModuleData)
-
-  DECL_GETTER(module, wasm::WasmModule)
+  DECL_ACCESSORS(module_wrapper, Object)
+  wasm::WasmModule* module() const;
   DECL_OPTIONAL_ACCESSORS(module_bytes, SeqOneByteString)
   DECL_ACCESSORS(script, Script)
   DECL_OPTIONAL_ACCESSORS(asm_js_offset_table, ByteArray)
   DECL_OPTIONAL_ACCESSORS(breakpoint_infos, FixedArray)
+  inline void reset_breakpoint_infos();
 
-  enum {  // --
-    kModuleWrapperIndex,
-    kModuleBytesIndex,
-    kScriptIndex,
-    kAsmJsOffsetTableIndex,
-    kBreakPointInfosIndex,
-    kLazyCompilationOrchestratorIndex,
-    kFieldCount
-  };
+  DECL_CAST(WasmSharedModuleData)
 
-  DEF_SIZE(FixedArray)
-  DEF_OFFSET(ModuleWrapper)
-  DEF_OFFSET(ModuleBytes)
-  DEF_OFFSET(Script)
-  DEF_OFFSET(AsmJsOffsetTable)
-  DEF_OFFSET(BreakPointInfos)
-  DEF_OFFSET(LazyCompilationOrchestrator)
+  // Dispatched behavior.
+  DECL_PRINTER(WasmSharedModuleData)
+  DECL_VERIFIER(WasmSharedModuleData)
+
+// Layout description.
+#define WASM_SHARED_MODULE_DATA_FIELDS(V)             \
+  V(kModuleWrapperOffset, kPointerSize)               \
+  V(kModuleBytesOffset, kPointerSize)                 \
+  V(kScriptOffset, kPointerSize)                      \
+  V(kAsmJsOffsetTableOffset, kPointerSize)            \
+  V(kBreakPointInfosOffset, kPointerSize)             \
+  V(kLazyCompilationOrchestratorOffset, kPointerSize) \
+  V(kSize, 0)
+
+  DEFINE_FIELD_OFFSET_CONSTANTS(HeapObject::kHeaderSize,
+                                WASM_SHARED_MODULE_DATA_FIELDS)
+#undef WASM_SHARED_MODULE_DATA_FIELDS
 
   // Check whether this module was generated from asm.js source.
   bool is_asm_js();
@@ -487,7 +483,7 @@ class WasmCompiledModule : public FixedArray {
 // By default, instance values go to WasmInstanceObject, however, if
 // we embed the generated code with a value, then we track that value here.
 #define CORE_WCM_PROPERTY_TABLE(MACRO)                  \
-  MACRO(WASM_OBJECT, WasmSharedModuleData, shared)      \
+  MACRO(CONST_OBJECT, WasmSharedModuleData, shared)     \
   MACRO(WEAK_LINK, Context, native_context)             \
   MACRO(CONST_OBJECT, FixedArray, export_wrappers)      \
   MACRO(OBJECT, FixedArray, weak_exported_functions)    \
@@ -700,9 +696,6 @@ struct WasmFunctionInfo {
 };
 WasmFunctionInfo GetWasmFunctionInfo(Isolate*, Handle<Code>);
 
-#undef DECL_OOL_QUERY
-#undef DECL_OOL_CAST
-#undef DECL_GETTER
 #undef DECL_OPTIONAL_ACCESSORS
 #undef WCM_CONST_OBJECT
 #undef WCM_LARGE_NUMBER

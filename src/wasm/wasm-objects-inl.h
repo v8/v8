@@ -18,6 +18,7 @@ CAST_ACCESSOR(WasmDebugInfo)
 CAST_ACCESSOR(WasmInstanceObject)
 CAST_ACCESSOR(WasmMemoryObject)
 CAST_ACCESSOR(WasmModuleObject)
+CAST_ACCESSOR(WasmSharedModuleData)
 CAST_ACCESSOR(WasmTableObject)
 
 #define OPTIONAL_ACCESSORS(holder, name, type, offset)           \
@@ -63,6 +64,7 @@ ACCESSORS(WasmInstanceObject, js_imports_table, FixedArray,
           kJsImportsTableOffset)
 
 // WasmSharedModuleData
+ACCESSORS(WasmSharedModuleData, module_wrapper, Object, kModuleWrapperOffset)
 ACCESSORS(WasmSharedModuleData, module_bytes, SeqOneByteString,
           kModuleBytesOffset)
 ACCESSORS(WasmSharedModuleData, script, Script, kScriptOffset)
@@ -72,6 +74,10 @@ OPTIONAL_ACCESSORS(WasmSharedModuleData, breakpoint_infos, FixedArray,
                    kBreakPointInfosOffset)
 OPTIONAL_ACCESSORS(WasmSharedModuleData, lazy_compilation_orchestrator, Foreign,
                    kLazyCompilationOrchestratorOffset)
+void WasmSharedModuleData::reset_breakpoint_infos() {
+  DCHECK(IsWasmSharedModuleData());
+  WRITE_FIELD(this, kBreakPointInfosOffset, GetHeap()->undefined_value());
+}
 
 // WasmDebugInfo
 ACCESSORS(WasmDebugInfo, wasm_instance, WasmInstanceObject, kInstanceOffset)

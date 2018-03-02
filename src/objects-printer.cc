@@ -1470,6 +1470,13 @@ void WasmDebugInfo::WasmDebugInfoPrint(std::ostream& os) {  // NOLINT
   os << "\n";
 }
 
+void WasmSharedModuleData::WasmSharedModuleDataPrint(
+    std::ostream& os) {  // NOLINT
+  HeapObject::PrintHeader(os, "WasmSharedModuleData");
+  os << "\n - module: " << module();
+  os << "\n";
+}
+
 void LoadHandler::LoadHandlerPrint(std::ostream& os) {  // NOLINT
   HeapObject::PrintHeader(os, "LoadHandler");
   // TODO(ishell): implement printing based on handler kind

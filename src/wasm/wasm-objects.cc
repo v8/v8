@@ -915,59 +915,33 @@ WasmCodeWrapper WasmExportedFunction::GetWasmCode() {
   UNREACHABLE();
 }
 
-bool WasmSharedModuleData::IsWasmSharedModuleData(Object* object) {
-  if (!object->IsFixedArray()) return false;
-  FixedArray* arr = FixedArray::cast(object);
-  if (arr->length() != kFieldCount) return false;
-  Isolate* isolate = arr->GetIsolate();
-  if (!arr->get(kModuleWrapperIndex)->IsForeign()) return false;
-  if (!arr->get(kModuleBytesIndex)->IsUndefined(isolate) &&
-      !arr->get(kModuleBytesIndex)->IsSeqOneByteString())
-    return false;
-  if (!arr->get(kScriptIndex)->IsScript()) return false;
-  if (!arr->get(kAsmJsOffsetTableIndex)->IsUndefined(isolate) &&
-      !arr->get(kAsmJsOffsetTableIndex)->IsByteArray())
-    return false;
-  if (!arr->get(kBreakPointInfosIndex)->IsUndefined(isolate) &&
-      !arr->get(kBreakPointInfosIndex)->IsFixedArray())
-    return false;
-  return true;
-}
-
-WasmSharedModuleData* WasmSharedModuleData::cast(Object* object) {
-  DCHECK(IsWasmSharedModuleData(object));
-  return reinterpret_cast<WasmSharedModuleData*>(object);
-}
-
-WasmModule* WasmSharedModuleData::module() {
+WasmModule* WasmSharedModuleData::module() const {
   // We populate the kModuleWrapper field with a Foreign holding the
   // address to the address of a WasmModule. This is because we can
   // handle both cases when the WasmModule's lifetime is managed through
   // a Managed<WasmModule> object, as well as cases when it's managed
   // by the embedder. CcTests fall into the latter case.
   return *(reinterpret_cast<WasmModule**>(
-      Foreign::cast(get(kModuleWrapperIndex))->foreign_address()));
+      Foreign::cast(module_wrapper())->foreign_address()));
 }
 
 Handle<WasmSharedModuleData> WasmSharedModuleData::New(
     Isolate* isolate, Handle<Foreign> module_wrapper,
     Handle<SeqOneByteString> module_bytes, Handle<Script> script,
     Handle<ByteArray> asm_js_offset_table) {
-  Handle<FixedArray> arr =
-      isolate->factory()->NewFixedArray(kFieldCount, TENURED);
-  arr->set(kModuleWrapperIndex, *module_wrapper);
+  Handle<WasmSharedModuleData> data = Handle<WasmSharedModuleData>::cast(
+      isolate->factory()->NewStruct(WASM_SHARED_MODULE_DATA_TYPE, TENURED));
+  data->set_module_wrapper(*module_wrapper);
   if (!module_bytes.is_null()) {
-    arr->set(kModuleBytesIndex, *module_bytes);
+    data->set_module_bytes(*module_bytes);
   }
   if (!script.is_null()) {
-    arr->set(kScriptIndex, *script);
+    data->set_script(*script);
   }
   if (!asm_js_offset_table.is_null()) {
-    arr->set(kAsmJsOffsetTableIndex, *asm_js_offset_table);
+    data->set_asm_js_offset_table(*asm_js_offset_table);
   }
-
-  DCHECK(WasmSharedModuleData::IsWasmSharedModuleData(*arr));
-  return Handle<WasmSharedModuleData>::cast(arr);
+  return data;
 }
 
 bool WasmSharedModuleData::is_asm_js() {
@@ -979,7 +953,7 @@ bool WasmSharedModuleData::is_asm_js() {
 
 void WasmSharedModuleData::ReinitializeAfterDeserialization(
     Isolate* isolate, Handle<WasmSharedModuleData> shared) {
-  DCHECK(shared->get(kModuleWrapperIndex)->IsUndefined(isolate));
+  DCHECK(shared->module_wrapper()->IsUndefined(isolate));
 #ifdef DEBUG
   // No BreakpointInfo objects should survive deserialization.
   if (shared->has_breakpoint_infos()) {
@@ -989,7 +963,7 @@ void WasmSharedModuleData::ReinitializeAfterDeserialization(
   }
 #endif
 
-  shared->set(kBreakPointInfosIndex, isolate->heap()->undefined_value());
+  shared->reset_breakpoint_infos();
 
   WasmModule* module = nullptr;
   {
@@ -1014,8 +988,7 @@ void WasmSharedModuleData::ReinitializeAfterDeserialization(
   Handle<wasm::WasmModuleWrapper> module_wrapper =
       wasm::WasmModuleWrapper::From(isolate, module);
 
-  shared->set(kModuleWrapperIndex, *module_wrapper);
-  DCHECK(WasmSharedModuleData::IsWasmSharedModuleData(*shared));
+  shared->set_module_wrapper(*module_wrapper);
 }
 
 namespace {
@@ -1059,7 +1032,7 @@ void WasmSharedModuleData::AddBreakpoint(Handle<WasmSharedModuleData> shared,
     breakpoint_infos = handle(shared->breakpoint_infos(), isolate);
   } else {
     breakpoint_infos = isolate->factory()->NewFixedArray(4, TENURED);
-    shared->set(kBreakPointInfosIndex, *breakpoint_infos);
+    shared->set_breakpoint_infos(*breakpoint_infos);
   }
 
   int insert_pos =
@@ -1083,7 +1056,7 @@ void WasmSharedModuleData::AddBreakpoint(Handle<WasmSharedModuleData> shared,
   if (need_realloc) {
     new_breakpoint_infos = isolate->factory()->NewFixedArray(
         2 * breakpoint_infos->length(), TENURED);
-    shared->set(kBreakPointInfosIndex, *new_breakpoint_infos);
+    shared->set_breakpoint_infos(*new_breakpoint_infos);
     // Copy over the entries [0, insert_pos).
     for (int i = 0; i < insert_pos; ++i)
       new_breakpoint_infos->set(i, breakpoint_infos->get(i));
@@ -1699,7 +1672,6 @@ void WasmCompiledModule::ReinitializeAfterDeserialization(
       static_cast<WasmSharedModuleData*>(compiled_module->get(kID_shared)),
       isolate);
   if (!FLAG_wasm_jit_to_native) {
-    DCHECK(!WasmSharedModuleData::IsWasmSharedModuleData(*shared));
     WasmSharedModuleData::ReinitializeAfterDeserialization(isolate, shared);
   }
   size_t function_table_count =
@@ -1728,7 +1700,6 @@ void WasmCompiledModule::ReinitializeAfterDeserialization(
   // Reset, but don't delete any global handles, because their owning instance
   // may still be active.
   WasmCompiledModule::Reset(isolate, *compiled_module);
-  DCHECK(WasmSharedModuleData::IsWasmSharedModuleData(*shared));
 }
 
 MaybeHandle<String> WasmSharedModuleData::GetModuleNameOrNull(

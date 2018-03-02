@@ -1437,6 +1437,17 @@ void WasmDebugInfo::WasmDebugInfoVerify() {
   VerifyObjectField(kCWasmEntryMapOffset);
 }
 
+void WasmSharedModuleData::WasmSharedModuleDataVerify() {
+  CHECK(IsWasmSharedModuleData());
+  VerifyObjectField(kModuleWrapperOffset);
+  CHECK(module_wrapper()->IsForeign());
+  VerifyObjectField(kModuleBytesOffset);
+  VerifyObjectField(kScriptOffset);
+  VerifyObjectField(kAsmJsOffsetTableOffset);
+  VerifyObjectField(kBreakPointInfosOffset);
+  VerifyObjectField(kLazyCompilationOrchestratorOffset);
+}
+
 void DataHandler::DataHandlerVerify() {
   CHECK(IsDataHandler());
   CHECK_IMPLIES(!smi_handler()->IsSmi(),
