@@ -1791,7 +1791,7 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
     number_fun->shared()->set_builtin_function_id(kNumberConstructor);
     number_fun->shared()->DontAdaptArguments();
     number_fun->shared()->SetConstructStub(
-        *BUILTIN_CODE(isolate, NumberConstructor_ConstructStub));
+        *BUILTIN_CODE(isolate, JSBuiltinsConstructStub));
     number_fun->shared()->set_length(1);
     InstallWithIntrinsicDefaultProto(isolate, number_fun,
                                      Context::NUMBER_FUNCTION_INDEX);

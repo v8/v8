@@ -690,46 +690,51 @@ TF_BUILTIN(ObjectConstructor, ConstructorBuiltinsAssembler) {
   args.PopAndReturn(var_result.value());
 }
 
+// ES #sec-number-constructor
 TF_BUILTIN(NumberConstructor, ConstructorBuiltinsAssembler) {
+  Node* context = Parameter(BuiltinDescriptor::kContext);
   Node* argc =
       ChangeInt32ToIntPtr(Parameter(BuiltinDescriptor::kArgumentsCount));
   CodeStubArguments args(this, argc);
 
-  Label return_zero(this);
+  // 1. If no arguments were passed to this function invocation, let n be +0.
+  VARIABLE(var_n, MachineRepresentation::kTagged, SmiConstant(0));
+  Label if_nloaded(this, &var_n);
+  GotoIf(WordEqual(argc, IntPtrConstant(0)), &if_nloaded);
 
-  GotoIf(IntPtrEqual(IntPtrConstant(0), argc), &return_zero);
+  // 2. Else,
+  //    a. Let prim be ? ToNumeric(value).
+  //    b. If Type(prim) is BigInt, let n be the Number value for prim.
+  //    c. Otherwise, let n be prim.
+  Node* value = args.AtIndex(0);
+  var_n.Bind(ToNumber(context, value, BigIntHandling::kConvertToNumber));
+  Goto(&if_nloaded);
 
-  Node* context = Parameter(BuiltinDescriptor::kContext);
-  args.PopAndReturn(
-      ToNumber(context, args.AtIndex(0), BigIntHandling::kConvertToNumber));
+  BIND(&if_nloaded);
+  {
+    // 3. If NewTarget is undefined, return n.
+    Node* n_value = var_n.value();
+    Node* new_target = Parameter(BuiltinDescriptor::kNewTarget);
+    Label return_n(this), constructnumber(this, Label::kDeferred);
+    Branch(IsUndefined(new_target), &return_n, &constructnumber);
 
-  BIND(&return_zero);
-  args.PopAndReturn(SmiConstant(0));
-}
+    BIND(&return_n);
+    { args.PopAndReturn(n_value); }
 
-TF_BUILTIN(NumberConstructor_ConstructStub, ConstructorBuiltinsAssembler) {
-  Node* target = LoadFromFrame(StandardFrameConstants::kFunctionOffset,
-                               MachineType::TaggedPointer());
-  Node* new_target = Parameter(BuiltinDescriptor::kNewTarget);
-  Node* context = Parameter(BuiltinDescriptor::kContext);
-
-  Node* argc =
-      ChangeInt32ToIntPtr(Parameter(BuiltinDescriptor::kArgumentsCount));
-  CodeStubArguments args(this, argc);
-
-  Label wrap(this);
-
-  VARIABLE(var_result, MachineRepresentation::kTagged, SmiConstant(0));
-
-  GotoIf(IntPtrEqual(IntPtrConstant(0), argc), &wrap);
-  var_result.Bind(
-      ToNumber(context, args.AtIndex(0), BigIntHandling::kConvertToNumber));
-  Goto(&wrap);
-
-  BIND(&wrap);
-  Node* result = EmitFastNewObject(context, target, new_target);
-  StoreObjectField(result, JSValue::kValueOffset, var_result.value());
-  args.PopAndReturn(result);
+    BIND(&constructnumber);
+    {
+      // 4. Let O be ? OrdinaryCreateFromConstructor(NewTarget,
+      //    "%NumberPrototype%", « [[NumberData]] »).
+      // 5. Set O.[[NumberData]] to n.
+      // 6. Return O.
+      Node* target = LoadFromFrame(StandardFrameConstants::kFunctionOffset,
+                                   MachineType::TaggedPointer());
+      Node* result =
+          CallBuiltin(Builtins::kFastNewObject, context, target, new_target);
+      StoreObjectField(result, JSValue::kValueOffset, n_value);
+      args.PopAndReturn(result);
+    }
+  }
 }
 
 // https://tc39.github.io/ecma262/#sec-string-constructor
