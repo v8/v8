@@ -44,14 +44,6 @@ class WasmInstanceObject;
   INLINE(bool has_##name());                \
   DECL_ACCESSORS(name, type)
 
-#define DEF_SIZE(parent)                                                     \
-  static const int kSize = parent::kHeaderSize + kFieldCount * kPointerSize; \
-  static const int kParentSize = parent::kHeaderSize;                        \
-  static const int kHeaderSize = kSize;
-#define DEF_OFFSET(name)             \
-  static const int k##name##Offset = \
-      kSize + (k##name##Index - kFieldCount) * kPointerSize;
-
 // An entry in an indirect dispatch table.
 struct IndirectFunctionTableEntry {
   int32_t sig_id = 0;
@@ -104,13 +96,14 @@ class WasmModuleObject : public JSObject {
   // Shared compiled code between multiple WebAssembly.Module objects.
   DECL_ACCESSORS(compiled_module, WasmCompiledModule)
 
-  enum {  // --
-    kCompiledModuleIndex,
-    kFieldCount
-  };
+// Layout description.
+#define WASM_MODULE_OBJECT_FIELDS(V)     \
+  V(kCompiledModuleOffset, kPointerSize) \
+  V(kSize, 0)
 
-  DEF_SIZE(JSObject)
-  DEF_OFFSET(CompiledModule)
+  DEFINE_FIELD_OFFSET_CONSTANTS(JSObject::kHeaderSize,
+                                WASM_MODULE_OBJECT_FIELDS)
+#undef WASM_MODULE_OBJECT_FIELDS
 
   static Handle<WasmModuleObject> New(
       Isolate* isolate, Handle<WasmCompiledModule> compiled_module);
@@ -129,17 +122,15 @@ class WasmTableObject : public JSObject {
   DECL_ACCESSORS(maximum_length, Object)
   DECL_ACCESSORS(dispatch_tables, FixedArray)
 
-  enum {  // --
-    kFunctionsIndex,
-    kMaximumLengthIndex,
-    kDispatchTablesIndex,
-    kFieldCount
-  };
+// Layout description.
+#define WASM_TABLE_OBJECT_FIELDS(V)      \
+  V(kFunctionsOffset, kPointerSize)      \
+  V(kMaximumLengthOffset, kPointerSize)  \
+  V(kDispatchTablesOffset, kPointerSize) \
+  V(kSize, 0)
 
-  DEF_SIZE(JSObject)
-  DEF_OFFSET(Functions)
-  DEF_OFFSET(MaximumLength)
-  DEF_OFFSET(DispatchTables)
+  DEFINE_FIELD_OFFSET_CONSTANTS(JSObject::kHeaderSize, WASM_TABLE_OBJECT_FIELDS)
+#undef WASM_TABLE_OBJECT_FIELDS
 
   inline uint32_t current_length();
   inline bool has_maximum_length();
@@ -175,19 +166,17 @@ class WasmMemoryObject : public JSObject {
   DECL_OPTIONAL_ACCESSORS(instances, WeakFixedArray)
   DECL_ACCESSORS(wasm_context, Managed<WasmContext>)
 
-  enum {  // --
-    kArrayBufferIndex,
-    kMaximumPagesIndex,
-    kInstancesIndex,
-    kWasmContextIndex,
-    kFieldCount
-  };
+// Layout description.
+#define WASM_MEMORY_OBJECT_FIELDS(V)   \
+  V(kArrayBufferOffset, kPointerSize)  \
+  V(kMaximumPagesOffset, kPointerSize) \
+  V(kInstancesOffset, kPointerSize)    \
+  V(kWasmContextOffset, kPointerSize)  \
+  V(kSize, 0)
 
-  DEF_SIZE(JSObject)
-  DEF_OFFSET(ArrayBuffer)
-  DEF_OFFSET(MaximumPages)
-  DEF_OFFSET(Instances)
-  DEF_OFFSET(WasmContext)
+  DEFINE_FIELD_OFFSET_CONSTANTS(JSObject::kHeaderSize,
+                                WASM_MEMORY_OBJECT_FIELDS)
+#undef WASM_MEMORY_OBJECT_FIELDS
 
   // Add an instance to the internal (weak) list. amortized O(n).
   static void AddInstance(Isolate* isolate, Handle<WasmMemoryObject> memory,
@@ -222,31 +211,23 @@ class WasmInstanceObject : public JSObject {
   DECL_OPTIONAL_ACCESSORS(directly_called_instances, FixedArray)
   DECL_ACCESSORS(js_imports_table, FixedArray)
 
-  enum {  // --
-    kWasmContextIndex,
-    kCompiledModuleIndex,
-    kExportsObjectIndex,
-    kMemoryObjectIndex,
-    kGlobalsBufferIndex,
-    kDebugInfoIndex,
-    kTableObjectIndex,
-    kFunctionTablesIndex,
-    kDirectlyCalledInstancesIndex,
-    kJsImportsTableIndex,
-    kFieldCount
-  };
+// Layout description.
+#define WASM_INSTANCE_OBJECT_FIELDS(V)            \
+  V(kWasmContextOffset, kPointerSize)             \
+  V(kCompiledModuleOffset, kPointerSize)          \
+  V(kExportsObjectOffset, kPointerSize)           \
+  V(kMemoryObjectOffset, kPointerSize)            \
+  V(kGlobalsBufferOffset, kPointerSize)           \
+  V(kDebugInfoOffset, kPointerSize)               \
+  V(kTableObjectOffset, kPointerSize)             \
+  V(kFunctionTablesOffset, kPointerSize)          \
+  V(kDirectlyCalledInstancesOffset, kPointerSize) \
+  V(kJsImportsTableOffset, kPointerSize)          \
+  V(kSize, 0)
 
-  DEF_SIZE(JSObject)
-  DEF_OFFSET(WasmContext)
-  DEF_OFFSET(CompiledModule)
-  DEF_OFFSET(ExportsObject)
-  DEF_OFFSET(MemoryObject)
-  DEF_OFFSET(GlobalsBuffer)
-  DEF_OFFSET(DebugInfo)
-  DEF_OFFSET(TableObject)
-  DEF_OFFSET(FunctionTables)
-  DEF_OFFSET(DirectlyCalledInstances)
-  DEF_OFFSET(JsImportsTable)
+  DEFINE_FIELD_OFFSET_CONSTANTS(JSObject::kHeaderSize,
+                                WASM_INSTANCE_OBJECT_FIELDS)
+#undef WASM_INSTANCE_OBJECT_FIELDS
 
   WasmModuleObject* module_object();
   V8_EXPORT_PRIVATE wasm::WasmModule* module();

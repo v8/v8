@@ -981,9 +981,8 @@ void WasmJs::Install(Isolate* isolate, bool exposed_on_global_object) {
   JSFunction::EnsureHasInitialMap(module_constructor);
   Handle<JSObject> module_proto(
       JSObject::cast(module_constructor->instance_prototype()));
-  i::Handle<i::Map> module_map = isolate->factory()->NewMap(
-      i::WASM_MODULE_TYPE, i::JSObject::kHeaderSize +
-                               WasmModuleObject::kFieldCount * i::kPointerSize);
+  i::Handle<i::Map> module_map =
+      isolate->factory()->NewMap(i::WASM_MODULE_TYPE, WasmModuleObject::kSize);
   JSFunction::SetInitialMap(module_constructor, module_map, module_proto);
   InstallFunc(isolate, module_constructor, "imports", WebAssemblyModuleImports,
               1);
