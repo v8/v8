@@ -726,6 +726,12 @@ class Runtime : public AllStatic {
 
   static const int kNotFound = -1;
 
+  // Checks whether the runtime function with the given {id} never returns
+  // to it's caller normally, i.e. whether it'll always raise an exception.
+  // More specifically: The C++ implementation returns the Heap::exception
+  // sentinel, always.
+  static bool IsNonReturning(FunctionId id);
+
   // Get the intrinsic function with the given name.
   static const Function* FunctionForName(const unsigned char* name, int length);
 

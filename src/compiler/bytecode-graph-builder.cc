@@ -1862,14 +1862,20 @@ Node* BytecodeGraphBuilder::ProcessCallRuntimeArguments(
 
 void BytecodeGraphBuilder::VisitCallRuntime() {
   PrepareEagerCheckpoint();
-  Runtime::FunctionId functionId = bytecode_iterator().GetRuntimeIdOperand(0);
+  Runtime::FunctionId function_id = bytecode_iterator().GetRuntimeIdOperand(0);
   interpreter::Register receiver = bytecode_iterator().GetRegisterOperand(1);
   size_t reg_count = bytecode_iterator().GetRegisterCountOperand(2);
 
   // Create node to perform the runtime call.
-  const Operator* call = javascript()->CallRuntime(functionId, reg_count);
+  const Operator* call = javascript()->CallRuntime(function_id, reg_count);
   Node* value = ProcessCallRuntimeArguments(call, receiver, reg_count);
   environment()->BindAccumulator(value, Environment::kAttachFrameState);
+
+  // Connect to the end if {function_id} is non-returning.
+  if (Runtime::IsNonReturning(function_id)) {
+    Node* control = NewNode(common()->Throw());
+    MergeControlToLeaveFunction(control);
+  }
 }
 
 void BytecodeGraphBuilder::VisitCallRuntimeForPair() {
