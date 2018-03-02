@@ -3289,7 +3289,8 @@ void InstanceBuilder::LoadTableSegments(Handle<FixedArray> code_table,
             // needed otherwise).
             if (code->builtin_index() != Builtins::kWasmCompileLazy) {
               DCHECK(code->kind() == Code::WASM_FUNCTION ||
-                     code->kind() == Code::WASM_TO_JS_FUNCTION);
+                     code->kind() == Code::WASM_TO_JS_FUNCTION ||
+                     code->kind() == Code::WASM_TO_WASM_FUNCTION);
               continue;
             }
           } else {
@@ -3298,7 +3299,8 @@ void InstanceBuilder::LoadTableSegments(Handle<FixedArray> code_table,
             // needed otherwise).
             if (code->kind() != wasm::WasmCode::kLazyStub) {
               DCHECK(code->kind() == wasm::WasmCode::kFunction ||
-                     code->kind() == wasm::WasmCode::kWasmToJsWrapper);
+                     code->kind() == wasm::WasmCode::kWasmToJsWrapper ||
+                     code->kind() == wasm::WasmCode::kWasmToWasmWrapper);
               continue;
             }
           }
