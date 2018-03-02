@@ -7,6 +7,7 @@
 #include <stack>
 #include <unordered_map>
 
+#include "include/v8config.h"
 #include "src/heap/gc-tracer.h"
 #include "src/heap/heap-inl.h"
 #include "src/heap/heap.h"
@@ -506,8 +507,19 @@ void ConcurrentMarking::ScheduleTasks() {
   base::LockGuard<base::Mutex> guard(&pending_lock_);
   DCHECK_EQ(0, pending_task_count_);
   if (task_count_ == 0) {
-    task_count_ = Max(
-        1, Min(kMaxTasks, V8::GetCurrentPlatform()->NumberOfWorkerThreads()));
+    static const int num_cores =
+        V8::GetCurrentPlatform()->NumberOfWorkerThreads() + 1;
+#if defined(V8_OS_MACOSX)
+    // Mac OSX 10.11 and prior seems to have trouble when doing concurrent
+    // marking on competing hyper-threads (regresses Octane/Splay). As such,
+    // only use num_cores/2, leaving one of those for the main thread.
+    // TODO(ulan): Use all cores on Mac 10.12+.
+    task_count_ = Max(1, Min(kMaxTasks, (num_cores / 2) - 1));
+#else   // defined(OS_MACOSX)
+    // On other platforms use all logical cores, leaving one for the main
+    // thread.
+    task_count_ = Max(1, Min(kMaxTasks, num_cores - 1));
+#endif  // defined(OS_MACOSX)
   }
   // Task id 0 is for the main thread.
   for (int i = 1; i <= task_count_; i++) {
