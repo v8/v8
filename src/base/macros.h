@@ -199,6 +199,10 @@ V8_INLINE Dest bit_cast(Source const& source) {
 namespace v8 {
 namespace base {
 
+// Note that some implementations of std::is_trivially_copyable mandate that at
+// least one of the copy constructor, move constructor, copy assignment or move
+// assignment is non-deleted, while others do not. Be aware that also
+// base::is_trivially_copyable will differ for these cases.
 template <typename T>
 struct is_trivially_copyable {
 #if V8_CC_MSVC
@@ -222,11 +226,8 @@ struct is_trivially_copyable {
       // Move assignment operator is trivial or deleted.
       (std::is_trivially_move_assignable<T>::value ||
        !std::is_move_assignable<T>::value) &&
-      // One of the above is non-deleted.
-      (std::is_trivially_copy_constructible<T>::value ||
-       std::is_trivially_copy_assignable<T>::value ||
-       std::is_trivially_move_constructible<T>::value ||
-       std::is_trivially_move_assignable<T>::value) &&
+      // (Some implementations mandate that one of the above is non-deleted, but
+      // the standard does not, so let's skip this check.)
       // Trivial non-deleted destructor.
       std::is_trivially_destructible<T>::value;
 
@@ -253,10 +254,10 @@ struct is_trivially_copyable {
 #else
 #define ASSERT_TRIVIALLY_COPYABLE(T)                         \
   static_assert(::v8::base::is_trivially_copyable<T>::value, \
-                #T "should be trivially copyable")
+                #T " should be trivially copyable")
 #define ASSERT_NOT_TRIVIALLY_COPYABLE(T)                      \
   static_assert(!::v8::base::is_trivially_copyable<T>::value, \
-                #T "should not be trivially copyable")
+                #T " should not be trivially copyable")
 #endif
 
 // The USE(x, ...) template is used to silence C++ compiler warnings

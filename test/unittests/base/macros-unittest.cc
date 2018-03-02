@@ -26,18 +26,16 @@ struct TriviallyCopyable {
 };
 ASSERT_TRIVIALLY_COPYABLE(TriviallyCopyable);
 
+struct StillTriviallyCopyable {
+  const int i;
+  StillTriviallyCopyable(const StillTriviallyCopyable&) = delete;
+};
+ASSERT_TRIVIALLY_COPYABLE(StillTriviallyCopyable);
+
 struct NonTrivialDestructor {
   ~NonTrivialDestructor() {}
 };
 ASSERT_NOT_TRIVIALLY_COPYABLE(NonTrivialDestructor);
-
-struct NonCopyable {
-  NonCopyable(const NonCopyable&&) = delete;
-  NonCopyable(const NonCopyable&) = delete;
-  NonCopyable& operator=(const NonCopyable&) = delete;
-  NonCopyable& operator=(const NonCopyable&&) = delete;
-};
-ASSERT_NOT_TRIVIALLY_COPYABLE(NonCopyable);
 
 struct NonTrivialCopyConstructor {
   NonTrivialCopyConstructor(const NonTrivialCopyConstructor&) {}
