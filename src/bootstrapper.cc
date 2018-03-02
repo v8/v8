@@ -3348,7 +3348,7 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
                               factory->null_value());
 
     proxy_function->shared()->SetConstructStub(
-        *BUILTIN_CODE(isolate, ProxyConstructor_ConstructStub));
+        *BUILTIN_CODE(isolate, JSBuiltinsConstructStub));
     proxy_function->shared()->set_internal_formal_parameter_count(2);
     proxy_function->shared()->set_length(2);
 
