@@ -122,9 +122,6 @@ TEST(InitialObjects) {
   CHECK_EQ(
       context->initial_array_iterator_prototype(),
       *v8::Utils::OpenHandle(*CompileRun("[][Symbol.iterator]().__proto__")));
-  // Initial ArrayIterator prototype map.
-  CHECK_EQ(context->initial_array_iterator_prototype_map(),
-           context->initial_array_iterator_prototype()->map());
   // Initial Array prototype.
   CHECK_EQ(context->initial_array_prototype(),
            *v8::Utils::OpenHandle(*CompileRun("Array.prototype")));

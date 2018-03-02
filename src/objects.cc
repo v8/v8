@@ -2467,12 +2467,6 @@ bool Object::IterationHasObservableEffects() {
   // affect iteration.
   if (!isolate->IsArrayIteratorLookupChainIntact()) return true;
 
-  // Check that the map of the initial array iterator hasn't changed.
-  Map* iterator_map = isolate->initial_array_iterator_prototype()->map();
-  if (!isolate->is_initial_array_iterator_prototype_map(iterator_map)) {
-    return true;
-  }
-
   // For FastPacked kinds, iteration will have the same effect as simply
   // accessing each property in order.
   ElementsKind array_kind = array->GetElementsKind();

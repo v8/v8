@@ -2798,7 +2798,7 @@ Reduction JSCallReducer::ReduceCallOrConstructWithArrayLikeOrSpread(
   // ensure that it's safe to avoid the actual iteration.
   if ((node->opcode() == IrOpcode::kJSCallWithSpread ||
        node->opcode() == IrOpcode::kJSConstructWithSpread) &&
-      !isolate()->initial_array_iterator_prototype_map()->is_stable()) {
+      !isolate()->IsArrayIteratorLookupChainIntact()) {
     return NoChange();
   }
 
@@ -2889,24 +2889,14 @@ Reduction JSCallReducer::ReduceCallOrConstructWithArrayLikeOrSpread(
     }
   } else if (type == CreateArgumentsType::kRestParameter) {
     start_index = formal_parameter_count;
-
-    // For spread calls/constructs with rest parameters we need to ensure that
-    // the array iterator protector is intact, which guards that the rest
-    // parameter iteration is not observable.
-    if (node->opcode() == IrOpcode::kJSCallWithSpread ||
-        node->opcode() == IrOpcode::kJSConstructWithSpread) {
-      if (!isolate()->IsArrayIteratorLookupChainIntact()) return NoChange();
-      dependencies()->AssumePropertyCell(factory()->array_iterator_protector());
-    }
   }
 
   // For call/construct with spread, we need to also install a code
-  // dependency on the initial %ArrayIteratorPrototype% map here to
-  // ensure that no one messes with the next method.
+  // dependency on the array iterator lookup protector cell to ensure
+  // that no one messed with the %ArrayIteratorPrototype%.next method.
   if (node->opcode() == IrOpcode::kJSCallWithSpread ||
       node->opcode() == IrOpcode::kJSConstructWithSpread) {
-    dependencies()->AssumeMapStable(
-        isolate()->initial_array_iterator_prototype_map());
+    dependencies()->AssumePropertyCell(factory()->array_iterator_protector());
   }
 
   // Remove the {arguments_list} input from the {node}.

@@ -510,9 +510,6 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
   // Compare the instance the type of the object against the provided one.
   TNode<BoolT> HasInstanceType(SloppyTNode<HeapObject> object,
                                InstanceType type);
-  // Determines whether Array Iterator's prototype has changed.
-  TNode<BoolT> HasInitialArrayIteratorPrototypeMap(
-      TNode<Context> native_context);
   // Determines whether Array's prototype has changed.
   TNode<BoolT> InitialArrayPrototypeHasInitialArrayPrototypeMap(
       TNode<Context> native_context);

@@ -950,20 +950,19 @@ TNode<BoolT> CodeStubAssembler::IsFastJSArrayWithNoCustomIteration(
     TNode<Object> object, TNode<Context> context,
     TNode<Context> native_context) {
   Label if_false(this, Label::kDeferred), if_fast(this), exit(this);
+  TVARIABLE(BoolT, var_result);
   GotoIfForceSlowPath(&if_false);
-  TVARIABLE(BoolT, var_result, Int32TrueConstant());
   BranchIfFastJSArray(object, context, &if_fast, &if_false);
   BIND(&if_fast);
   {
-    // Check if the Array.prototype[@@iterator] may have changed.
-    GotoIfNot(InitialArrayPrototypeHasInitialArrayPrototypeMap(native_context),
-              &if_false);
-    // Check if array[@@iterator] may have changed.
-    GotoIfNot(HasInitialFastElementsKindMap(native_context, CAST(object)),
-              &if_false);
-    // Check if the array iterator has changed.
-    Branch(HasInitialArrayIteratorPrototypeMap(native_context), &exit,
-           &if_false);
+    // Check that the Array.prototype hasn't been modified in a way that would
+    // affect iteration.
+    Node* protector_cell = LoadRoot(Heap::kArrayIteratorProtectorRootIndex);
+    DCHECK(isolate()->heap()->array_iterator_protector()->IsPropertyCell());
+    var_result =
+        WordEqual(LoadObjectField(protector_cell, PropertyCell::kValueOffset),
+                  SmiConstant(Isolate::kProtectorValid));
+    Goto(&exit);
   }
   BIND(&if_false);
   {
@@ -1366,16 +1365,6 @@ TNode<Int32T> CodeStubAssembler::LoadInstanceType(
 TNode<BoolT> CodeStubAssembler::HasInstanceType(SloppyTNode<HeapObject> object,
                                                 InstanceType instance_type) {
   return InstanceTypeEqual(LoadInstanceType(object), instance_type);
-}
-
-TNode<BoolT> CodeStubAssembler::HasInitialArrayIteratorPrototypeMap(
-    TNode<Context> native_context) {
-  CSA_ASSERT(this, IsNativeContext(native_context));
-  TNode<Map> arr_it_proto_map = LoadMap(CAST(LoadContextElement(
-      native_context, Context::INITIAL_ARRAY_ITERATOR_PROTOTYPE_INDEX)));
-  TNode<Map> initial_map = CAST(LoadContextElement(
-      native_context, Context::INITIAL_ARRAY_ITERATOR_PROTOTYPE_MAP_INDEX));
-  return WordEqual(arr_it_proto_map, initial_map);
 }
 
 TNode<BoolT>
@@ -7822,6 +7811,7 @@ void CodeStubAssembler::CheckForAssociatedProtector(Node* name,
          if_protector);
   GotoIf(WordEqual(name, LoadRoot(Heap::kiterator_symbolRootIndex)),
          if_protector);
+  GotoIf(WordEqual(name, LoadRoot(Heap::knext_stringRootIndex)), if_protector);
   GotoIf(WordEqual(name, LoadRoot(Heap::kspecies_symbolRootIndex)),
          if_protector);
   GotoIf(WordEqual(name, LoadRoot(Heap::kis_concat_spreadable_symbolRootIndex)),

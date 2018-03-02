@@ -1725,8 +1725,6 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
 
     native_context()->set_initial_array_iterator_prototype(
         *array_iterator_prototype);
-    native_context()->set_initial_array_iterator_prototype_map(
-        array_iterator_prototype->map());
 
     Handle<Map> initial_map(array_iterator_function->initial_map(), isolate);
 

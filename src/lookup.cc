@@ -286,6 +286,14 @@ void LookupIterator::InternalUpdateProtector() {
         isolate_->InvalidateSpeciesProtector();
       }
     }
+  } else if (*name_ == heap()->next_string()) {
+    if (!isolate_->IsArrayIteratorLookupChainIntact()) return;
+    // Setting the next property of %ArrayIteratorPrototype% also needs to
+    // invalidate the array iterator protector.
+    if (isolate_->IsInAnyContext(
+            *holder_, Context::INITIAL_ARRAY_ITERATOR_PROTOTYPE_INDEX)) {
+      isolate_->InvalidateArrayIteratorProtector();
+    }
   } else if (*name_ == heap()->species_symbol()) {
     if (!isolate_->IsSpeciesLookupChainIntact()) return;
     // Setting the Symbol.species property of any Array, Promise or TypedArray

@@ -276,21 +276,16 @@ void CallOrConstructBuiltinsAssembler::CallOrConstructWithSpread(
   Node* spread_map = LoadMap(spread);
   GotoIfNot(IsJSArrayMap(spread_map), &if_runtime);
 
-  // Check that we have the original ArrayPrototype.
+  // Check that we have the original Array.prototype.
   GotoIfNot(IsPrototypeInitialArrayPrototype(context, spread_map), &if_runtime);
 
-  // Check that the ArrayPrototype hasn't been modified in a way that would
+  // Check that the Array.prototype hasn't been modified in a way that would
   // affect iteration.
   Node* protector_cell = LoadRoot(Heap::kArrayIteratorProtectorRootIndex);
   DCHECK(isolate()->heap()->array_iterator_protector()->IsPropertyCell());
-  GotoIfNot(
-      WordEqual(LoadObjectField(protector_cell, PropertyCell::kValueOffset),
-                SmiConstant(Isolate::kProtectorValid)),
-      &if_runtime);
-
-  // Check that the map of the initial array iterator hasn't changed.
-  TNode<Context> native_context = LoadNativeContext(context);
-  GotoIfNot(HasInitialArrayIteratorPrototypeMap(native_context), &if_runtime);
+  GotoIf(WordEqual(LoadObjectField(protector_cell, PropertyCell::kValueOffset),
+                   SmiConstant(Isolate::kProtectorInvalid)),
+         &if_runtime);
 
   Node* kind = LoadMapElementsKind(spread_map);
 
