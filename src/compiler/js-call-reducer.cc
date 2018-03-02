@@ -3351,6 +3351,8 @@ Reduction JSCallReducer::ReduceJSCall(Node* node,
       return ReduceStringPrototypeIterator(node);
     case Builtins::kStringIteratorPrototypeNext:
       return ReduceStringIteratorPrototypeNext(node);
+    case Builtins::kStringPrototypeConcat:
+      return ReduceStringPrototypeConcat(node, shared);
     case Builtins::kTypedArrayPrototypeEntries:
       return ReduceTypedArrayIterator(node, IterationKind::kEntries);
     case Builtins::kTypedArrayPrototypeKeys:
@@ -5200,6 +5202,50 @@ Reduction JSCallReducer::ReduceStringIteratorPrototypeNext(Node* node) {
     return Replace(value);
   }
   return NoChange();
+}
+
+// ES #sec-string.prototype.concat
+Reduction JSCallReducer::ReduceStringPrototypeConcat(
+    Node* node, Handle<SharedFunctionInfo> shared) {
+  if (node->op()->ValueInputCount() < 2) return NoChange();
+  CallParameters const& p = CallParametersOf(node->op());
+  if (p.speculation_mode() == SpeculationMode::kDisallowSpeculation) {
+    return NoChange();
+  }
+  Node* effect = NodeProperties::GetEffectInput(node);
+  Node* control = NodeProperties::GetControlInput(node);
+  Node* context = NodeProperties::GetContextInput(node);
+  Node* receiver = effect =
+      graph()->NewNode(simplified()->CheckString(p.feedback()),
+                       NodeProperties::GetValueInput(node, 1), effect, control);
+
+  if (node->op()->ValueInputCount() < 3) {
+    ReplaceWithValue(node, receiver, effect, control);
+    return Replace(receiver);
+  }
+  Node* argument = effect =
+      graph()->NewNode(simplified()->CheckString(p.feedback()),
+                       NodeProperties::GetValueInput(node, 2), effect, control);
+
+  Callable const callable =
+      CodeFactory::StringAdd(isolate(), STRING_ADD_CHECK_NONE, NOT_TENURED);
+  auto call_descriptor = Linkage::GetStubCallDescriptor(
+      isolate(), graph()->zone(), callable.descriptor(), 0,
+      CallDescriptor::kNeedsFrameState,
+      Operator::kNoDeopt | Operator::kNoWrite);
+
+  // TODO(turbofan): Massage the FrameState of the {node} here once we
+  // have an artificial builtin frame type, so that it looks like the
+  // exception from StringAdd overflow came from String.prototype.concat
+  // builtin instead of the calling function.
+  Node* outer_frame_state = NodeProperties::GetFrameStateInput(node);
+
+  Node* value = effect = control = graph()->NewNode(
+      common()->Call(call_descriptor), jsgraph()->HeapConstant(callable.code()),
+      receiver, argument, context, outer_frame_state, effect, control);
+
+  ReplaceWithValue(node, value, effect, control);
+  return Replace(value);
 }
 
 Reduction JSCallReducer::ReduceAsyncFunctionPromiseCreate(Node* node) {

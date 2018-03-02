@@ -64,7 +64,6 @@ class V8_EXPORT_PRIVATE JSBuiltinReducer final
   Reduction ReduceNumberParseInt(Node* node);
   Reduction ReduceObjectCreate(Node* node);
   Reduction ReduceStringSlice(Node* node);
-  Reduction ReduceStringConcat(Node* node);
   Reduction ReduceArrayBufferIsView(Node* node);
   Reduction ReduceArrayBufferViewAccessor(Node* node,
                                           InstanceType instance_type,

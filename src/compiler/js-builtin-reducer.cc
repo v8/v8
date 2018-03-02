@@ -934,37 +934,6 @@ Node* GetStringWitness(Node* node) {
 
 }  // namespace
 
-// ES6 String.prototype.concat(...args)
-// #sec-string.prototype.concat
-Reduction JSBuiltinReducer::ReduceStringConcat(Node* node) {
-  if (Node* receiver = GetStringWitness(node)) {
-    JSCallReduction r(node);
-    if (r.InputsMatchOne(Type::PlainPrimitive())) {
-      // String.prototype.concat(lhs:string, rhs:plain-primitive)
-      //   -> Call[StringAddStub](lhs, rhs)
-      StringAddFlags flags = r.InputsMatchOne(Type::String())
-                                 ? STRING_ADD_CHECK_NONE
-                                 : STRING_ADD_CONVERT_RIGHT;
-      // TODO(turbofan): Massage the FrameState of the {node} here once we
-      // have an artificial builtin frame type, so that it looks like the
-      // exception from StringAdd overflow came from String.prototype.concat
-      // builtin instead of the calling function.
-      Callable const callable =
-          CodeFactory::StringAdd(isolate(), flags, NOT_TENURED);
-      auto call_descriptor = Linkage::GetStubCallDescriptor(
-          isolate(), graph()->zone(), callable.descriptor(), 0,
-          CallDescriptor::kNeedsFrameState,
-          Operator::kNoDeopt | Operator::kNoWrite);
-      node->ReplaceInput(0, jsgraph()->HeapConstant(callable.code()));
-      node->ReplaceInput(1, receiver);
-      NodeProperties::ChangeOp(node, common()->Call(call_descriptor));
-      return Changed(node);
-    }
-  }
-
-  return NoChange();
-}
-
 // ES section #sec-string.prototype.slice
 Reduction JSBuiltinReducer::ReduceStringSlice(Node* node) {
   if (Node* receiver = GetStringWitness(node)) {
@@ -1140,8 +1109,6 @@ Reduction JSBuiltinReducer::Reduce(Node* node) {
       return ReduceCollectionIteratorNext(
           node, OrderedHashSet::kEntrySize, factory()->empty_ordered_hash_set(),
           FIRST_SET_ITERATOR_TYPE, LAST_SET_ITERATOR_TYPE);
-    case kStringConcat:
-      return ReduceStringConcat(node);
     case kStringSlice:
       return ReduceStringSlice(node);
     case kArrayBufferIsView:
