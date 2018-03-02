@@ -3826,7 +3826,7 @@ Reduction JSCallReducer::ReduceStringPrototypeSlice(Node* node) {
   return Replace(result_string);
 }
 
-// ES #sec-string.prototype.slice
+// ES #sec-string.prototype.substr
 Reduction JSCallReducer::ReduceStringPrototypeSubstr(Node* node) {
   if (node->op()->ValueInputCount() < 3) return NoChange();
   CallParameters const& p = CallParametersOf(node->op());
