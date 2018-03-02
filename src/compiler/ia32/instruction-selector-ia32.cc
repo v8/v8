@@ -1406,20 +1406,20 @@ void InstructionSelector::VisitSwitch(Node* node, const SwitchInfo& sw) {
   // Emit either ArchTableSwitch or ArchLookupSwitch.
   if (enable_switch_jump_table_ == kEnableSwitchJumpTable) {
     static const size_t kMaxTableSwitchValueRange = 2 << 16;
-    size_t table_space_cost = 4 + sw.value_range;
+    size_t table_space_cost = 4 + sw.value_range();
     size_t table_time_cost = 3;
-    size_t lookup_space_cost = 3 + 2 * sw.case_count;
-    size_t lookup_time_cost = sw.case_count;
-    if (sw.case_count > 4 &&
+    size_t lookup_space_cost = 3 + 2 * sw.case_count();
+    size_t lookup_time_cost = sw.case_count();
+    if (sw.case_count() > 4 &&
         table_space_cost + 3 * table_time_cost <=
             lookup_space_cost + 3 * lookup_time_cost &&
-        sw.min_value > std::numeric_limits<int32_t>::min() &&
-        sw.value_range <= kMaxTableSwitchValueRange) {
+        sw.min_value() > std::numeric_limits<int32_t>::min() &&
+        sw.value_range() <= kMaxTableSwitchValueRange) {
       InstructionOperand index_operand = value_operand;
-      if (sw.min_value) {
+      if (sw.min_value()) {
         index_operand = g.TempRegister();
         Emit(kIA32Lea | AddressingModeField::encode(kMode_MRI), index_operand,
-             value_operand, g.TempImmediate(-sw.min_value));
+             value_operand, g.TempImmediate(-sw.min_value()));
       }
       // Generate a table lookup.
       return EmitTableSwitch(sw, index_operand);

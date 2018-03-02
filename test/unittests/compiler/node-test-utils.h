@@ -5,6 +5,7 @@
 #ifndef V8_UNITTESTS_COMPILER_NODE_TEST_UTILS_H_
 #define V8_UNITTESTS_COMPILER_NODE_TEST_UTILS_H_
 
+#include "src/compiler/common-operator.h"
 #include "src/compiler/machine-operator.h"
 #include "src/compiler/simplified-operator.h"
 #include "src/machine-type.h"
@@ -68,7 +69,7 @@ Matcher<Node*> IsIfFalse(const Matcher<Node*>& control_matcher);
 Matcher<Node*> IsIfSuccess(const Matcher<Node*>& control_matcher);
 Matcher<Node*> IsSwitch(const Matcher<Node*>& value_matcher,
                         const Matcher<Node*>& control_matcher);
-Matcher<Node*> IsIfValue(const Matcher<int32_t>& value_matcher,
+Matcher<Node*> IsIfValue(const Matcher<IfValueParameters>& value_matcher,
                          const Matcher<Node*>& control_matcher);
 Matcher<Node*> IsIfDefault(const Matcher<Node*>& control_matcher);
 Matcher<Node*> IsBeginRegion(const Matcher<Node*>& effect_matcher);

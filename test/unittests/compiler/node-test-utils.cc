@@ -135,7 +135,7 @@ class IsSwitchMatcher final : public TestNodeMatcher {
 
 class IsIfValueMatcher final : public TestNodeMatcher {
  public:
-  IsIfValueMatcher(const Matcher<int32_t>& value_matcher,
+  IsIfValueMatcher(const Matcher<IfValueParameters>& value_matcher,
                    const Matcher<Node*>& control_matcher)
       : TestNodeMatcher(IrOpcode::kIfValue),
         value_matcher_(value_matcher),
@@ -152,14 +152,14 @@ class IsIfValueMatcher final : public TestNodeMatcher {
 
   bool MatchAndExplain(Node* node, MatchResultListener* listener) const final {
     return (TestNodeMatcher::MatchAndExplain(node, listener) &&
-            PrintMatchAndExplain(OpParameter<int32_t>(node->op()), "value",
+            PrintMatchAndExplain(IfValueParametersOf(node->op()), "value",
                                  value_matcher_, listener) &&
             PrintMatchAndExplain(NodeProperties::GetControlInput(node),
                                  "control", control_matcher_, listener));
   }
 
  private:
-  const Matcher<int32_t> value_matcher_;
+  const Matcher<IfValueParameters> value_matcher_;
   const Matcher<Node*> control_matcher_;
 };
 
@@ -1526,8 +1526,7 @@ Matcher<Node*> IsSwitch(const Matcher<Node*>& value_matcher,
   return MakeMatcher(new IsSwitchMatcher(value_matcher, control_matcher));
 }
 
-
-Matcher<Node*> IsIfValue(const Matcher<int32_t>& value_matcher,
+Matcher<Node*> IsIfValue(const Matcher<IfValueParameters>& value_matcher,
                          const Matcher<Node*>& control_matcher) {
   return MakeMatcher(new IsIfValueMatcher(value_matcher, control_matcher));
 }

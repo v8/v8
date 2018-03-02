@@ -15,15 +15,52 @@ namespace v8 {
 namespace internal {
 namespace compiler {
 
+struct CaseInfo {
+  int32_t value;  // The case value.
+  int32_t order;  // The order for lowering to comparisons (less means earlier).
+  BasicBlock* branch;  // The basic blocks corresponding to the case value.
+};
+
+inline bool operator<(const CaseInfo& l, const CaseInfo& r) {
+  return l.order < r.order;
+}
+
 // Helper struct containing data about a table or lookup switch.
-struct SwitchInfo {
-  int32_t min_value;           // minimum value of {case_values}
-  int32_t max_value;           // maximum value of {case_values}
-  size_t value_range;          // |max_value - min_value| + 1
-  size_t case_count;           // number of cases
-  int32_t* case_values;        // actual case values, unsorted
-  BasicBlock** case_branches;  // basic blocks corresponding to case values
-  BasicBlock* default_branch;  // default branch target
+class SwitchInfo {
+ public:
+  SwitchInfo(ZoneVector<CaseInfo>& cases, int32_t min_value, int32_t max_value,
+             BasicBlock* default_branch)
+      : cases_(cases),
+        min_value_(min_value),
+        max_value_(min_value),
+        default_branch_(default_branch) {
+    if (cases.size() != 0) {
+      DCHECK_LE(min_value, max_value);
+      // Note that {value_range} can be 0 if {min_value} is -2^31 and
+      // {max_value} is 2^31-1, so don't assume that it's non-zero below.
+      value_range_ =
+          1u + bit_cast<uint32_t>(max_value) - bit_cast<uint32_t>(min_value);
+    } else {
+      value_range_ = 0;
+    }
+  }
+
+  int32_t min_value() const { return min_value_; }
+  int32_t max_value() const { return max_value_; }
+  size_t value_range() const { return value_range_; }
+  size_t case_count() const { return cases_.size(); }
+  const CaseInfo& GetCase(size_t i) const {
+    DCHECK_LT(i, cases_.size());
+    return cases_[i];
+  }
+  BasicBlock* default_branch() const { return default_branch_; }
+
+ private:
+  const ZoneVector<CaseInfo>& cases_;
+  int32_t min_value_;   // minimum value of {cases_}
+  int32_t max_value_;   // maximum value of {cases_}
+  size_t value_range_;  // |max_value - min_value| + 1
+  BasicBlock* default_branch_;
 };
 
 // A helper class for the instruction selector that simplifies construction of
