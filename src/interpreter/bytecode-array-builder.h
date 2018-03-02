@@ -160,6 +160,10 @@ class V8_EXPORT_PRIVATE BytecodeArrayBuilder final {
   BytecodeArrayBuilder& StoreKeyedProperty(Register object, Register key,
                                            int feedback_slot,
                                            LanguageMode language_mode);
+  // Store an own element in an array literal. The value to be stored should be
+  // in the accumulator.
+  BytecodeArrayBuilder& StoreInArrayLiteral(Register array, Register index,
+                                            int feedback_slot);
   // Store the home object property. The value to be stored should be in the
   // accumulator.
   BytecodeArrayBuilder& StoreHomeObjectProperty(Register object,

@@ -739,8 +739,10 @@ void Verifier::Visitor::Check(Node* node, const AllNodes& all) {
       CHECK(StoreNamedOwnParametersOf(node->op()).feedback().IsValid());
       break;
     case IrOpcode::kJSStoreDataPropertyInLiteral:
+    case IrOpcode::kJSStoreInArrayLiteral:
       // Type is empty.
       CheckNotTyped(node);
+      CHECK(FeedbackParameterOf(node->op()).feedback().IsValid());
       break;
     case IrOpcode::kJSDeleteProperty:
     case IrOpcode::kJSHasProperty:

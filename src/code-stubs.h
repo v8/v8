@@ -37,8 +37,9 @@ class Node;
   V(JSEntry)                                \
   V(MathPow)                                \
   V(ProfileEntryHook)                       \
-  V(StoreSlowElement)                       \
   /* --- TurboFanCodeStubs --- */           \
+  V(StoreSlowElement)                       \
+  V(StoreInArrayLiteralSlow)                \
   V(ArrayNoArgumentConstructor)             \
   V(ArraySingleArgumentConstructor)         \
   V(ArrayNArgumentsConstructor)             \
@@ -927,6 +928,18 @@ class StoreSlowElementStub : public TurboFanCodeStub {
  private:
   DEFINE_CALL_INTERFACE_DESCRIPTOR(StoreWithVector);
   DEFINE_TURBOFAN_CODE_STUB(StoreSlowElement, TurboFanCodeStub);
+};
+
+class StoreInArrayLiteralSlowStub : public TurboFanCodeStub {
+ public:
+  StoreInArrayLiteralSlowStub(Isolate* isolate, KeyedAccessStoreMode mode)
+      : TurboFanCodeStub(isolate) {
+    minor_key_ = CommonStoreModeBits::encode(mode);
+  }
+
+ private:
+  DEFINE_CALL_INTERFACE_DESCRIPTOR(StoreWithVector);
+  DEFINE_TURBOFAN_CODE_STUB(StoreInArrayLiteralSlow, TurboFanCodeStub);
 };
 
 class ElementsTransitionAndStoreStub : public TurboFanCodeStub {

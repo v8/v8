@@ -97,6 +97,8 @@ namespace interpreter {
     OperandType::kIdx, OperandType::kIdx)                                      \
   V(StaKeyedProperty, AccumulatorUse::kReadWrite, OperandType::kReg,           \
     OperandType::kReg, OperandType::kIdx)                                      \
+  V(StaInArrayLiteral, AccumulatorUse::kReadWrite, OperandType::kReg,          \
+    OperandType::kReg, OperandType::kIdx)                                      \
   V(StaDataPropertyInLiteral, AccumulatorUse::kRead, OperandType::kReg,        \
     OperandType::kReg, OperandType::kFlag8, OperandType::kIdx)                 \
   V(CollectTypeProfile, AccumulatorUse::kRead, OperandType::kImm)              \

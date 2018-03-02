@@ -104,6 +104,8 @@ TEST_F(BytecodeArrayBuilderTest, AllBytecodesGenerated) {
   FeedbackSlot strict_keyed_store_slot =
       feedback_spec.AddKeyedStoreICSlot(LanguageMode::kStrict);
   FeedbackSlot store_own_slot = feedback_spec.AddStoreOwnICSlot();
+  FeedbackSlot store_array_element_slot =
+      feedback_spec.AddStoreInArrayLiteralICSlot();
 
   // Emit global load / store operations.
   const AstRawString* name = ast_factory.GetOneByteString("var_name");
@@ -141,7 +143,8 @@ TEST_F(BytecodeArrayBuilderTest, AllBytecodesGenerated) {
                           LanguageMode::kStrict)
       .StoreKeyedProperty(reg, reg, strict_keyed_store_slot.ToInt(),
                           LanguageMode::kStrict)
-      .StoreNamedOwnProperty(reg, name, store_own_slot.ToInt());
+      .StoreNamedOwnProperty(reg, name, store_own_slot.ToInt())
+      .StoreInArrayLiteral(reg, reg, store_array_element_slot.ToInt());
 
   // Emit load / store lookup slots.
   builder.LoadLookupSlot(name, TypeofMode::NOT_INSIDE_TYPEOF)

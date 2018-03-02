@@ -279,6 +279,16 @@ void JSGenericLowering::LowerJSStoreDataPropertyInLiteral(Node* node) {
   ReplaceWithRuntimeCall(node, Runtime::kDefineDataPropertyInLiteral);
 }
 
+void JSGenericLowering::LowerJSStoreInArrayLiteral(Node* node) {
+  Callable callable =
+      Builtins::CallableFor(isolate(), Builtins::kStoreInArrayLiteralIC);
+  CallDescriptor::Flags flags = FrameStateFlagForCall(node);
+  FeedbackParameter const& p = FeedbackParameterOf(node->op());
+  node->InsertInput(zone(), 3, jsgraph()->SmiConstant(p.feedback().index()));
+  node->InsertInput(zone(), 4, jsgraph()->HeapConstant(p.feedback().vector()));
+  ReplaceWithStubCall(node, callable, flags);
+}
+
 void JSGenericLowering::LowerJSDeleteProperty(Node* node) {
   CallDescriptor::Flags flags = FrameStateFlagForCall(node);
   Callable callable =

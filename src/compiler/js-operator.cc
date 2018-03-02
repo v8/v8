@@ -258,7 +258,8 @@ std::ostream& operator<<(std::ostream& os, FeedbackParameter const& p) {
 FeedbackParameter const& FeedbackParameterOf(const Operator* op) {
   DCHECK(op->opcode() == IrOpcode::kJSCreateEmptyLiteralArray ||
          op->opcode() == IrOpcode::kJSInstanceOf ||
-         op->opcode() == IrOpcode::kJSStoreDataPropertyInLiteral);
+         op->opcode() == IrOpcode::kJSStoreDataPropertyInLiteral ||
+         op->opcode() == IrOpcode::kJSStoreInArrayLiteral);
   return OpParameter<FeedbackParameter>(op);
 }
 
@@ -743,6 +744,17 @@ const Operator* JSOperatorBuilder::StoreDataPropertyInLiteral(
       "JSStoreDataPropertyInLiteral",  // name
       4, 1, 1, 0, 1, 0,                // counts
       parameters);                     // parameter
+}
+
+const Operator* JSOperatorBuilder::StoreInArrayLiteral(
+    const VectorSlotPair& feedback) {
+  FeedbackParameter parameters(feedback);
+  return new (zone()) Operator1<FeedbackParameter>(  // --
+      IrOpcode::kJSStoreInArrayLiteral,
+      Operator::kNoThrow,       // opcode
+      "JSStoreInArrayLiteral",  // name
+      3, 1, 1, 0, 1, 0,         // counts
+      parameters);              // parameter
 }
 
 const Operator* JSOperatorBuilder::CallForwardVarargs(size_t arity,

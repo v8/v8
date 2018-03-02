@@ -1007,6 +1007,32 @@ void BytecodeGraphBuilder::VisitStaGlobal() {
   environment()->RecordAfterState(node, Environment::kAttachFrameState);
 }
 
+void BytecodeGraphBuilder::VisitStaInArrayLiteral() {
+  PrepareEagerCheckpoint();
+  Node* value = environment()->LookupAccumulator();
+  Node* array =
+      environment()->LookupRegister(bytecode_iterator().GetRegisterOperand(0));
+  Node* index =
+      environment()->LookupRegister(bytecode_iterator().GetRegisterOperand(1));
+  VectorSlotPair feedback =
+      CreateVectorSlotPair(bytecode_iterator().GetIndexOperand(2));
+  const Operator* op = javascript()->StoreInArrayLiteral(feedback);
+
+  JSTypeHintLowering::LoweringResult lowering =
+      TryBuildSimplifiedStoreKeyed(op, array, index, value, feedback.slot());
+  if (lowering.IsExit()) return;
+
+  Node* node = nullptr;
+  if (lowering.IsSideEffectFree()) {
+    node = lowering.value();
+  } else {
+    DCHECK(!lowering.Changed());
+    node = NewNode(op, array, index, value);
+  }
+
+  environment()->RecordAfterState(node, Environment::kAttachFrameState);
+}
+
 void BytecodeGraphBuilder::VisitStaDataPropertyInLiteral() {
   PrepareEagerCheckpoint();
 

@@ -2840,6 +2840,86 @@ void AccessorAssembler::KeyedStoreIC(const StoreICParameters* p) {
   }
 }
 
+void AccessorAssembler::StoreInArrayLiteralIC(const StoreICParameters* p) {
+  Label miss(this, Label::kDeferred);
+  {
+    VARIABLE(var_handler, MachineRepresentation::kTagged);
+
+    Label if_handler(this, &var_handler),
+        try_polymorphic(this, Label::kDeferred),
+        try_megamorphic(this, Label::kDeferred);
+
+    Node* array_map = LoadReceiverMap(p->receiver);
+    GotoIf(IsDeprecatedMap(array_map), &miss);
+    Node* feedback =
+        TryMonomorphicCase(p->slot, p->vector, array_map, &if_handler,
+                           &var_handler, &try_polymorphic);
+
+    BIND(&if_handler);
+    {
+      Comment("StoreInArrayLiteralIC_if_handler");
+      // This is a stripped-down version of HandleStoreICHandlerCase.
+
+      Node* handler = var_handler.value();
+      Label if_transitioning_element_store(this);
+      GotoIfNot(IsCode(handler), &if_transitioning_element_store);
+      StoreWithVectorDescriptor descriptor(isolate());
+      TailCallStub(descriptor, handler, p->context, p->receiver, p->name,
+                   p->value, p->slot, p->vector);
+
+      BIND(&if_transitioning_element_store);
+      {
+        Node* transition_map_cell = LoadHandlerDataField(handler, 1);
+        Node* transition_map = LoadWeakCellValue(transition_map_cell, &miss);
+        CSA_ASSERT(this, IsMap(transition_map));
+        GotoIf(IsDeprecatedMap(transition_map), &miss);
+        Node* code = LoadObjectField(handler, StoreHandler::kSmiHandlerOffset);
+        CSA_ASSERT(this, IsCode(code));
+        StoreTransitionDescriptor descriptor(isolate());
+        TailCallStub(descriptor, code, p->context, p->receiver, p->name,
+                     transition_map, p->value, p->slot, p->vector);
+      }
+    }
+
+    BIND(&try_polymorphic);
+    {
+      Comment("StoreInArrayLiteralIC_try_polymorphic");
+      GotoIfNot(
+          WordEqual(LoadMap(feedback), LoadRoot(Heap::kFixedArrayMapRootIndex)),
+          &try_megamorphic);
+      HandlePolymorphicCase(array_map, feedback, &if_handler, &var_handler,
+                            &miss, 2);
+    }
+
+    BIND(&try_megamorphic);
+    {
+      Comment("StoreInArrayLiteralIC_try_megamorphic");
+      CSA_ASSERT(
+          this,
+          Word32Or(
+              Word32Or(
+                  IsWeakCellMap(LoadMap(feedback)),
+                  WordEqual(feedback,
+                            LoadRoot(Heap::kuninitialized_symbolRootIndex))),
+              WordEqual(feedback,
+                        LoadRoot(Heap::kmegamorphic_symbolRootIndex))));
+      GotoIfNot(
+          WordEqual(feedback, LoadRoot(Heap::kmegamorphic_symbolRootIndex)),
+          &miss);
+      TailCallRuntime(Runtime::kStoreInArrayLiteralIC_Slow, p->context,
+                      p->value, p->receiver, p->name);
+    }
+  }
+
+  BIND(&miss);
+  {
+    Comment("StoreInArrayLiteralIC_miss");
+    // TODO(neis): Introduce Runtime::kStoreInArrayLiteralIC_Miss.
+    TailCallRuntime(Runtime::kKeyedStoreIC_Miss, p->context, p->value, p->slot,
+                    p->vector, p->receiver, p->name);
+  }
+}
+
 //////////////////// Public methods.
 
 void AccessorAssembler::GenerateLoadIC() {
@@ -3094,6 +3174,20 @@ void AccessorAssembler::GenerateKeyedStoreICTrampoline() {
 
   Callable callable = Builtins::CallableFor(isolate(), Builtins::kKeyedStoreIC);
   TailCallStub(callable, context, receiver, name, value, slot, vector);
+}
+
+void AccessorAssembler::GenerateStoreInArrayLiteralIC() {
+  typedef StoreWithVectorDescriptor Descriptor;
+
+  Node* array = Parameter(Descriptor::kReceiver);
+  Node* index = Parameter(Descriptor::kName);
+  Node* value = Parameter(Descriptor::kValue);
+  Node* slot = Parameter(Descriptor::kSlot);
+  Node* vector = Parameter(Descriptor::kVector);
+  Node* context = Parameter(Descriptor::kContext);
+
+  StoreICParameters p(context, array, index, value, slot, vector);
+  StoreInArrayLiteralIC(&p);
 }
 
 }  // namespace internal

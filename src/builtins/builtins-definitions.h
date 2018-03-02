@@ -214,6 +214,7 @@ namespace internal {
   TFH(LoadIC_Uninitialized, LoadWithVector)                                    \
   TFH(StoreGlobalIC_Slow, StoreWithVector)                                     \
   TFH(StoreIC_Uninitialized, StoreWithVector)                                  \
+  TFH(StoreInArrayLiteralIC_Slow, StoreWithVector)                             \
                                                                                \
   /* Microtask helpers */                                                      \
   TFS(EnqueueMicrotask, kMicrotask)                                            \
@@ -598,6 +599,7 @@ namespace internal {
   TFH(StoreICTrampoline, Store)                                                \
   TFH(KeyedStoreIC, StoreWithVector)                                           \
   TFH(KeyedStoreICTrampoline, Store)                                           \
+  TFH(StoreInArrayLiteralIC, StoreWithVector)                                  \
   TFH(LoadGlobalIC, LoadGlobalWithVector)                                      \
   TFH(LoadGlobalICInsideTypeof, LoadGlobalWithVector)                          \
   TFH(LoadGlobalICTrampoline, LoadGlobal)                                      \

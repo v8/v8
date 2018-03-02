@@ -163,6 +163,8 @@ const char* FeedbackMetadata::Kind2String(FeedbackSlotKind kind) {
       return "StoreKeyedSloppy";
     case FeedbackSlotKind::kStoreKeyedStrict:
       return "StoreKeyedStrict";
+    case FeedbackSlotKind::kStoreInArrayLiteral:
+      return "StoreInArrayLiteral";
     case FeedbackSlotKind::kBinaryOp:
       return "BinaryOp";
     case FeedbackSlotKind::kCompareOp:
@@ -268,6 +270,7 @@ Handle<FeedbackVector> FeedbackVector::New(Isolate* isolate,
       case FeedbackSlotKind::kStoreOwnNamed:
       case FeedbackSlotKind::kStoreKeyedSloppy:
       case FeedbackSlotKind::kStoreKeyedStrict:
+      case FeedbackSlotKind::kStoreInArrayLiteral:
       case FeedbackSlotKind::kStoreDataPropertyInLiteral:
       case FeedbackSlotKind::kTypeProfile:
       case FeedbackSlotKind::kInstanceOf:
@@ -469,6 +472,7 @@ bool FeedbackNexus::Clear() {
     case FeedbackSlotKind::kStoreNamedStrict:
     case FeedbackSlotKind::kStoreKeyedSloppy:
     case FeedbackSlotKind::kStoreKeyedStrict:
+    case FeedbackSlotKind::kStoreInArrayLiteral:
     case FeedbackSlotKind::kStoreOwnNamed:
     case FeedbackSlotKind::kLoadProperty:
     case FeedbackSlotKind::kLoadKeyed:
@@ -548,10 +552,12 @@ InlineCacheState FeedbackNexus::StateFromFeedback() const {
       }
       return UNINITIALIZED;
     }
+
     case FeedbackSlotKind::kStoreNamedSloppy:
     case FeedbackSlotKind::kStoreNamedStrict:
     case FeedbackSlotKind::kStoreKeyedSloppy:
     case FeedbackSlotKind::kStoreKeyedStrict:
+    case FeedbackSlotKind::kStoreInArrayLiteral:
     case FeedbackSlotKind::kStoreOwnNamed:
     case FeedbackSlotKind::kLoadProperty:
     case FeedbackSlotKind::kLoadKeyed: {
@@ -773,7 +779,8 @@ void FeedbackNexus::ConfigurePolymorphic(Handle<Name> name,
 int FeedbackNexus::ExtractMaps(MapHandles* maps) const {
   DCHECK(IsLoadICKind(kind()) || IsStoreICKind(kind()) ||
          IsKeyedLoadICKind(kind()) || IsKeyedStoreICKind(kind()) ||
-         IsStoreOwnICKind(kind()) || IsStoreDataPropertyInLiteralKind(kind()));
+         IsStoreOwnICKind(kind()) || IsStoreDataPropertyInLiteralKind(kind()) ||
+         IsStoreInArrayLiteralICKind(kind()));
 
   Isolate* isolate = GetIsolate();
   Object* feedback = GetFeedback();
@@ -851,7 +858,8 @@ MaybeHandle<Object> FeedbackNexus::FindHandlerForMap(Handle<Map> map) const {
 bool FeedbackNexus::FindHandlers(ObjectHandles* code_list, int length) const {
   DCHECK(IsLoadICKind(kind()) || IsStoreICKind(kind()) ||
          IsKeyedLoadICKind(kind()) || IsKeyedStoreICKind(kind()) ||
-         IsStoreOwnICKind(kind()) || IsStoreDataPropertyInLiteralKind(kind()));
+         IsStoreOwnICKind(kind()) || IsStoreDataPropertyInLiteralKind(kind()) ||
+         IsStoreInArrayLiteralICKind(kind()));
 
   Object* feedback = GetFeedback();
   Isolate* isolate = GetIsolate();
@@ -914,7 +922,7 @@ KeyedAccessLoadMode FeedbackNexus::GetKeyedAccessLoadMode() const {
 }
 
 KeyedAccessStoreMode FeedbackNexus::GetKeyedAccessStoreMode() const {
-  DCHECK(IsKeyedStoreICKind(kind()));
+  DCHECK(IsKeyedStoreICKind(kind()) || IsStoreInArrayLiteralICKind(kind()));
   KeyedAccessStoreMode mode = STANDARD_STORE;
   MapHandles maps;
   ObjectHandles handlers;
@@ -956,7 +964,8 @@ KeyedAccessStoreMode FeedbackNexus::GetKeyedAccessStoreMode() const {
 }
 
 IcCheckType FeedbackNexus::GetKeyType() const {
-  DCHECK(IsKeyedStoreICKind(kind()) || IsKeyedLoadICKind(kind()));
+  DCHECK(IsKeyedStoreICKind(kind()) || IsKeyedLoadICKind(kind()) ||
+         IsStoreInArrayLiteralICKind(kind()));
   Object* feedback = GetFeedback();
   if (feedback == *FeedbackVector::MegamorphicSentinel(GetIsolate())) {
     return static_cast<IcCheckType>(Smi::ToInt(GetFeedbackExtra()));

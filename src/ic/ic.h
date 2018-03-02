@@ -58,7 +58,7 @@ class IC {
   }
   bool IsAnyStore() const {
     return IsStoreIC() || IsStoreOwnIC() || IsStoreGlobalIC() ||
-           IsKeyedStoreIC();
+           IsKeyedStoreIC() || IsStoreInArrayLiteralICKind(kind());
   }
 
   static inline bool IsHandler(Object* object);
@@ -131,7 +131,10 @@ class IC {
   bool IsStoreIC() const { return IsStoreICKind(kind_); }
   bool IsStoreOwnIC() const { return IsStoreOwnICKind(kind_); }
   bool IsKeyedStoreIC() const { return IsKeyedStoreICKind(kind_); }
-  bool is_keyed() const { return IsKeyedLoadIC() || IsKeyedStoreIC(); }
+  bool is_keyed() const {
+    return IsKeyedLoadIC() || IsKeyedStoreIC() ||
+           IsStoreInArrayLiteralICKind(kind_);
+  }
   bool ShouldRecomputeHandler(Handle<String> name);
 
   Handle<Map> receiver_map() { return receiver_map_; }
@@ -368,6 +371,10 @@ class KeyedStoreIC : public StoreIC {
   void UpdateStoreElement(Handle<Map> receiver_map,
                           KeyedAccessStoreMode store_mode);
 
+  Handle<Code> slow_stub() const override {
+    return BUILTIN_CODE(isolate(), KeyedStoreIC_Slow);
+  }
+
  private:
   Handle<Map> ComputeTransitionedMap(Handle<Map> map,
                                      KeyedAccessStoreMode store_mode);
@@ -380,6 +387,22 @@ class KeyedStoreIC : public StoreIC {
                                        KeyedAccessStoreMode store_mode);
 
   friend class IC;
+};
+
+class StoreInArrayLiteralIC : public KeyedStoreIC {
+ public:
+  StoreInArrayLiteralIC(Isolate* isolate, Handle<FeedbackVector> vector,
+                        FeedbackSlot slot)
+      : KeyedStoreIC(isolate, vector, slot) {
+    DCHECK(IsStoreInArrayLiteralICKind(kind()));
+  }
+
+  void Store(Handle<JSArray> array, Handle<Object> index, Handle<Object> value);
+
+ private:
+  Handle<Code> slow_stub() const override {
+    return BUILTIN_CODE(isolate(), StoreInArrayLiteralIC_Slow);
+  }
 };
 
 }  // namespace internal

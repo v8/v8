@@ -859,7 +859,8 @@ void FeedbackNexus::Print(std::ostream& os) {  // NOLINT
     case FeedbackSlotKind::kStoreKeyedSloppy:
     case FeedbackSlotKind::kInstanceOf:
     case FeedbackSlotKind::kStoreDataPropertyInLiteral:
-    case FeedbackSlotKind::kStoreKeyedStrict: {
+    case FeedbackSlotKind::kStoreKeyedStrict:
+    case FeedbackSlotKind::kStoreInArrayLiteral: {
       os << ICState2String(StateFromFeedback());
       break;
     }

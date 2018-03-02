@@ -714,6 +714,7 @@ class V8_EXPORT_PRIVATE JSOperatorBuilder final
   const Operator* StoreNamedOwn(Handle<Name> name,
                                 VectorSlotPair const& feedback);
   const Operator* StoreDataPropertyInLiteral(const VectorSlotPair& feedback);
+  const Operator* StoreInArrayLiteral(const VectorSlotPair& feedback);
 
   const Operator* DeleteProperty();
 

@@ -98,6 +98,8 @@ Reduction JSNativeContextSpecialization::Reduce(Node* node) {
       return ReduceJSStoreNamedOwn(node);
     case IrOpcode::kJSStoreDataPropertyInLiteral:
       return ReduceJSStoreDataPropertyInLiteral(node);
+    case IrOpcode::kJSStoreInArrayLiteral:
+      return ReduceJSStoreInArrayLiteral(node);
     default:
       break;
   }
@@ -1126,7 +1128,8 @@ Reduction JSNativeContextSpecialization::ReduceElementAccess(
     AccessMode access_mode, KeyedAccessLoadMode load_mode,
     KeyedAccessStoreMode store_mode) {
   DCHECK(node->opcode() == IrOpcode::kJSLoadProperty ||
-         node->opcode() == IrOpcode::kJSStoreProperty);
+         node->opcode() == IrOpcode::kJSStoreProperty ||
+         node->opcode() == IrOpcode::kJSStoreInArrayLiteral);
   Node* receiver = NodeProperties::GetValueInput(node, 0);
   Node* effect = NodeProperties::GetEffectInput(node);
   Node* control = NodeProperties::GetControlInput(node);
@@ -2091,6 +2094,45 @@ Reduction JSNativeContextSpecialization::ReduceJSStoreDataPropertyInLiteral(
   return Replace(value);
 }
 
+Reduction JSNativeContextSpecialization::ReduceJSStoreInArrayLiteral(
+    Node* node) {
+  DCHECK_EQ(IrOpcode::kJSStoreInArrayLiteral, node->opcode());
+  FeedbackParameter const& p = FeedbackParameterOf(node->op());
+  Node* const receiver = NodeProperties::GetValueInput(node, 0);
+  Node* const index = NodeProperties::GetValueInput(node, 1);
+  Node* const value = NodeProperties::GetValueInput(node, 2);
+  Node* const effect = NodeProperties::GetEffectInput(node);
+
+  // Extract receiver maps from the keyed store IC using the FeedbackNexus.
+  if (!p.feedback().IsValid()) return NoChange();
+  FeedbackNexus nexus(p.feedback().vector(), p.feedback().slot());
+
+  // Extract the keyed access store mode from the keyed store IC.
+  KeyedAccessStoreMode store_mode = nexus.GetKeyedAccessStoreMode();
+
+  // Extract receiver maps from the {nexus}.
+  MapHandles receiver_maps;
+  if (!ExtractReceiverMaps(receiver, effect, nexus, &receiver_maps)) {
+    return NoChange();
+  } else if (receiver_maps.empty()) {
+    if (flags() & kBailoutOnUninitialized) {
+      return ReduceSoftDeoptimize(
+          node,
+          DeoptimizeReason::kInsufficientTypeFeedbackForGenericKeyedAccess);
+    }
+    return NoChange();
+  }
+  DCHECK(!nexus.IsUninitialized());
+  DCHECK_EQ(ELEMENT, nexus.GetKeyType());
+
+  if (nexus.ic_state() == MEGAMORPHIC) return NoChange();
+
+  // Try to lower the element access based on the {receiver_maps}.
+  return ReduceElementAccess(node, index, value, receiver_maps,
+                             AccessMode::kStoreInLiteral, STANDARD_LOAD,
+                             store_mode);
+}
+
 namespace {
 
 ExternalArrayType GetArrayTypeFromElementsKind(ElementsKind kind) {
@@ -2113,7 +2155,6 @@ JSNativeContextSpecialization::BuildElementAccess(
     Node* receiver, Node* index, Node* value, Node* effect, Node* control,
     ElementAccessInfo const& access_info, AccessMode access_mode,
     KeyedAccessLoadMode load_mode, KeyedAccessStoreMode store_mode) {
-  DCHECK_NE(AccessMode::kStoreInLiteral, access_mode);
 
   // TODO(bmeurer): We currently specialize based on elements kind. We should
   // also be able to properly support strings and other JSObjects here.
@@ -2346,7 +2387,8 @@ JSNativeContextSpecialization::BuildElementAccess(
     // Check if we might need to grow the {elements} backing store.
     if (IsGrowStoreMode(store_mode)) {
       // For growing stores we validate the {index} below.
-      DCHECK_EQ(AccessMode::kStore, access_mode);
+      DCHECK(access_mode == AccessMode::kStore ||
+             access_mode == AccessMode::kStoreInLiteral);
     } else if (load_mode == LOAD_IGNORE_OUT_OF_BOUNDS &&
                CanTreatHoleAsUndefined(receiver_maps)) {
       // Check that the {index} is a valid array index, we do the actual
@@ -2478,7 +2520,8 @@ JSNativeContextSpecialization::BuildElementAccess(
         }
       }
     } else {
-      DCHECK_EQ(AccessMode::kStore, access_mode);
+      DCHECK(access_mode == AccessMode::kStore ||
+             access_mode == AccessMode::kStoreInLiteral);
       if (IsSmiElementsKind(elements_kind)) {
         value = effect = graph()->NewNode(
             simplified()->CheckSmi(VectorSlotPair()), value, effect, control);

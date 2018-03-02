@@ -506,6 +506,15 @@ TF_STUB(StoreSlowElementStub, CodeStubAssembler) {
                   receiver, name);
 }
 
+TF_STUB(StoreInArrayLiteralSlowStub, CodeStubAssembler) {
+  Node* array = Parameter(Descriptor::kReceiver);
+  Node* index = Parameter(Descriptor::kName);
+  Node* value = Parameter(Descriptor::kValue);
+  Node* context = Parameter(Descriptor::kContext);
+  TailCallRuntime(Runtime::kStoreInArrayLiteralIC_Slow, context, value, array,
+                  index);
+}
+
 TF_STUB(StoreFastElementStub, CodeStubAssembler) {
   Comment("StoreFastElementStub: js_array=%d, elements_kind=%s, store_mode=%d",
           stub->is_js_array(), ElementsKindToString(stub->elements_kind()),

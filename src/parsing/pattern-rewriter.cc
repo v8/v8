@@ -577,6 +577,8 @@ void PatternRewriter::VisitArrayLiteral(ArrayLiteral* node,
     // A spread can only occur as the last component.  It is not handled by
     // RecurseIntoSubpattern above.
 
+    // TODO(neis): Use IC instead of %AppendElement.
+
     // let array = [];
     // while (!done) {
     //   done = true;  // If .next, .done or .value throws, don't close.

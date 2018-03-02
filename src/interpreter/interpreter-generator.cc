@@ -555,7 +555,9 @@ class InterpreterStoreNamedPropertyAssembler : public InterpreterAssembler {
     Node* context = GetContext();
     Node* result = CallStub(ic.descriptor(), code_target, context, object, name,
                             value, smi_slot, feedback_vector);
-    // It doesn't really matter what we write to the accumulator here, since we
+    // To avoid special logic in the deoptimizer to re-materialize the value in
+    // the accumulator, we overwrite the accumulator after the IC call. It
+    // doesn't really matter what we write to the accumulator here, since we
     // restore to the correct value on the outside. Storing the result means we
     // don't need to keep unnecessary state alive across the callstub.
     SetAccumulator(result);
@@ -599,7 +601,35 @@ IGNITION_HANDLER(StaKeyedProperty, InterpreterAssembler) {
   Node* context = GetContext();
   Node* result = CallStub(ic.descriptor(), code_target, context, object, name,
                           value, smi_slot, feedback_vector);
-  // It doesn't really matter what we write to the accumulator here, since we
+  // To avoid special logic in the deoptimizer to re-materialize the value in
+  // the accumulator, we overwrite the accumulator after the IC call. It
+  // doesn't really matter what we write to the accumulator here, since we
+  // restore to the correct value on the outside. Storing the result means we
+  // don't need to keep unnecessary state alive across the callstub.
+  SetAccumulator(result);
+  Dispatch();
+}
+
+// StaInArrayLiteral <array> <index> <slot>
+//
+// Calls the StoreInArrayLiteralIC at FeedbackVector slot <slot> for <array> and
+// the key <index> with the value in the accumulator.
+IGNITION_HANDLER(StaInArrayLiteral, InterpreterAssembler) {
+  Callable ic =
+      Builtins::CallableFor(isolate(), Builtins::kStoreInArrayLiteralIC);
+  Node* code_target = HeapConstant(ic.code());
+  Node* array = LoadRegisterAtOperandIndex(0);
+  Node* index = LoadRegisterAtOperandIndex(1);
+  Node* value = GetAccumulator();
+  Node* raw_slot = BytecodeOperandIdx(2);
+  Node* smi_slot = SmiTag(raw_slot);
+  Node* feedback_vector = LoadFeedbackVector();
+  Node* context = GetContext();
+  Node* result = CallStub(ic.descriptor(), code_target, context, array, index,
+                          value, smi_slot, feedback_vector);
+  // To avoid special logic in the deoptimizer to re-materialize the value in
+  // the accumulator, we overwrite the accumulator after the IC call. It
+  // doesn't really matter what we write to the accumulator here, since we
   // restore to the correct value on the outside. Storing the result means we
   // don't need to keep unnecessary state alive across the callstub.
   SetAccumulator(result);

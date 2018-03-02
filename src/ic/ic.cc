@@ -95,14 +95,16 @@ void IC::TraceIC(const char* type, Handle<Object> name, State old_state,
   if (IsKeyedLoadIC()) {
     KeyedAccessLoadMode mode = nexus()->GetKeyedAccessLoadMode();
     modifier = GetModifier(mode);
-  } else if (IsKeyedStoreIC()) {
+  } else if (IsKeyedStoreIC() || IsStoreInArrayLiteralICKind(kind())) {
     KeyedAccessStoreMode mode = nexus()->GetKeyedAccessStoreMode();
     modifier = GetModifier(mode);
   }
 
+  bool keyed_prefix = is_keyed() && !IsStoreInArrayLiteralICKind(kind());
+
   if (!(FLAG_ic_stats &
         v8::tracing::TracingCategoryObserver::ENABLED_BY_TRACING)) {
-    LOG(isolate(), ICEvent(type, is_keyed(), map, *name,
+    LOG(isolate(), ICEvent(type, keyed_prefix, map, *name,
                            TransitionMarkFromState(old_state),
                            TransitionMarkFromState(new_state), modifier,
                            slow_stub_reason_));
@@ -111,7 +113,7 @@ void IC::TraceIC(const char* type, Handle<Object> name, State old_state,
 
   ICStats::instance()->Begin();
   ICInfo& ic_info = ICStats::instance()->Current();
-  ic_info.type = is_keyed() ? "Keyed" : "";
+  ic_info.type = keyed_prefix ? "Keyed" : "";
   ic_info.type += type;
 
   Object* maybe_function =
@@ -1690,6 +1692,7 @@ void KeyedStoreIC::UpdateStoreElement(Handle<Map> receiver_map,
 
   for (Handle<Map> map : target_receiver_maps) {
     if (!map.is_null() && map->instance_type() == JS_VALUE_TYPE) {
+      DCHECK(!IsStoreInArrayLiteralICKind(kind()));
       set_slow_stub_reason("JSValue");
       return;
     }
@@ -1776,11 +1779,13 @@ void KeyedStoreIC::UpdateStoreElement(Handle<Map> receiver_map,
     size_t external_arrays = 0;
     for (Handle<Map> map : target_receiver_maps) {
       if (map->has_fixed_typed_array_elements()) {
+        DCHECK(!IsStoreInArrayLiteralICKind(kind()));
         external_arrays++;
       }
     }
     if (external_arrays != 0 &&
         external_arrays != target_receiver_maps.size()) {
+      DCHECK(!IsStoreInArrayLiteralICKind(kind()));
       set_slow_stub_reason(
           "unsupported combination of external and normal arrays");
       return;
@@ -1834,7 +1839,8 @@ Handle<Object> KeyedStoreIC::StoreElementHandler(
          store_mode == STORE_AND_GROW_NO_TRANSITION_HANDLE_COW ||
          store_mode == STORE_NO_TRANSITION_IGNORE_OUT_OF_BOUNDS ||
          store_mode == STORE_NO_TRANSITION_HANDLE_COW);
-  DCHECK(!receiver_map->DictionaryElementsInPrototypeChainOnly());
+  DCHECK_IMPLIES(receiver_map->DictionaryElementsInPrototypeChainOnly(),
+                 IsStoreInArrayLiteralICKind(kind()));
 
   if (receiver_map->IsJSProxyMap()) {
     return StoreHandler::StoreProxy(isolate());
@@ -1854,11 +1860,17 @@ Handle<Object> KeyedStoreIC::StoreElementHandler(
         StoreFastElementStub(isolate(), is_jsarray, elements_kind, store_mode)
             .GetCode();
     if (receiver_map->has_fixed_typed_array_elements()) return stub;
+  } else if (IsStoreInArrayLiteralICKind(kind())) {
+    TRACE_HANDLER_STATS(isolate(), StoreInArrayLiteralIC_SlowStub);
+    stub = StoreInArrayLiteralSlowStub(isolate(), store_mode).GetCode();
   } else {
     TRACE_HANDLER_STATS(isolate(), KeyedStoreIC_StoreElementStub);
     DCHECK_EQ(DICTIONARY_ELEMENTS, elements_kind);
     stub = StoreSlowElementStub(isolate(), store_mode).GetCode();
   }
+
+  if (IsStoreInArrayLiteralICKind(kind())) return stub;
+
   Handle<Object> validity_cell =
       Map::GetOrCreatePrototypeChainValidityCell(receiver_map, isolate());
   if (validity_cell.is_null()) return stub;
@@ -1892,7 +1904,7 @@ void KeyedStoreIC::StoreElementPolymorphicHandlers(
       // TODO(mvstanton): Consider embedding store_mode in the state of the slow
       // keyed store ic for uniformity.
       TRACE_HANDLER_STATS(isolate(), KeyedStoreIC_SlowStub);
-      handler = BUILTIN_CODE(isolate(), KeyedStoreIC_Slow);
+      handler = slow_stub();
 
     } else {
       {
@@ -2092,7 +2104,56 @@ MaybeHandle<Object> KeyedStoreIC::Store(Handle<Object> object,
   return store_handle;
 }
 
+namespace {
+void StoreOwnElement(Handle<JSArray> array, Handle<Object> index,
+                     Handle<Object> value) {
+  DCHECK(index->IsNumber());
+  bool success = false;
+  LookupIterator it = LookupIterator::PropertyOrElement(
+      array->GetIsolate(), array, index, &success, LookupIterator::OWN);
+  DCHECK(success);
 
+  CHECK(JSObject::DefineOwnPropertyIgnoreAttributes(&it, value, NONE,
+                                                    kThrowOnError)
+            .FromJust());
+}
+}  // namespace
+
+void StoreInArrayLiteralIC::Store(Handle<JSArray> array, Handle<Object> index,
+                                  Handle<Object> value) {
+  DCHECK(!array->map()->IsMapInArrayPrototypeChain());
+  DCHECK(index->IsNumber());
+
+  if (!FLAG_use_ic || MigrateDeprecated(array)) {
+    StoreOwnElement(array, index, value);
+    TraceIC("StoreInArrayLiteralIC", index);
+    return;
+  }
+
+  // TODO(neis): Convert HeapNumber to Smi if possible?
+
+  KeyedAccessStoreMode store_mode = STANDARD_STORE;
+  if (index->IsSmi()) {
+    DCHECK_GE(Smi::ToInt(*index), 0);
+    uint32_t index32 = static_cast<uint32_t>(Smi::ToInt(*index));
+    store_mode = GetStoreMode(array, index32, value);
+  }
+
+  Handle<Map> old_array_map(array->map(), isolate());
+  StoreOwnElement(array, index, value);
+
+  if (index->IsSmi()) {
+    DCHECK(!old_array_map->is_abandoned_prototype_map());
+    UpdateStoreElement(old_array_map, store_mode);
+  } else {
+    set_slow_stub_reason("index out of Smi range");
+  }
+
+  if (vector_needs_update()) {
+    ConfigureVectorState(MEGAMORPHIC, index);
+  }
+  TraceIC("StoreInArrayLiteralIC", index);
+}
 
 // ----------------------------------------------------------------------------
 // Static IC stub generators.
@@ -2312,11 +2373,24 @@ RUNTIME_FUNCTION(Runtime_KeyedStoreIC_Miss) {
   Handle<Object> receiver = args.at(3);
   Handle<Object> key = args.at(4);
   FeedbackSlot vector_slot = FeedbackVector::ToSlot(slot->value());
-  KeyedStoreIC ic(isolate, vector, vector_slot);
-  ic.UpdateState(receiver, key);
-  RETURN_RESULT_OR_FAILURE(isolate, ic.Store(receiver, key, value));
-}
+  FeedbackSlotKind kind = vector->GetKind(vector_slot);
 
+  // The elements store stubs miss into this function, but they are shared by
+  // different ICs.
+  if (IsKeyedStoreICKind(kind)) {
+    KeyedStoreIC ic(isolate, vector, vector_slot);
+    ic.UpdateState(receiver, key);
+    RETURN_RESULT_OR_FAILURE(isolate, ic.Store(receiver, key, value));
+  } else {
+    DCHECK(IsStoreInArrayLiteralICKind(kind));
+    DCHECK(receiver->IsJSArray());
+    DCHECK(key->IsNumber());
+    StoreInArrayLiteralIC ic(isolate, vector, vector_slot);
+    ic.UpdateState(receiver, key);
+    ic.Store(Handle<JSArray>::cast(receiver), key, value);
+    return *value;
+  }
+}
 
 RUNTIME_FUNCTION(Runtime_KeyedStoreIC_Slow) {
   HandleScope scope(isolate);
@@ -2328,12 +2402,24 @@ RUNTIME_FUNCTION(Runtime_KeyedStoreIC_Slow) {
   Handle<Object> object = args.at(3);
   Handle<Object> key = args.at(4);
   FeedbackSlot vector_slot = FeedbackVector::ToSlot(slot->value());
-  LanguageMode language_mode = vector->GetLanguageMode(vector_slot);
+  FeedbackSlotKind kind = vector->GetKind(vector_slot);
+  DCHECK(IsStoreICKind(kind) || IsKeyedStoreICKind(kind));
+  LanguageMode language_mode = GetLanguageModeFromSlotKind(kind);
   RETURN_RESULT_OR_FAILURE(
       isolate,
       Runtime::SetObjectProperty(isolate, object, key, value, language_mode));
 }
 
+RUNTIME_FUNCTION(Runtime_StoreInArrayLiteralIC_Slow) {
+  HandleScope scope(isolate);
+  DCHECK_EQ(3, args.length());
+  // Runtime functions don't follow the IC's calling convention.
+  Handle<Object> value = args.at(0);
+  Handle<Object> array = args.at(1);
+  Handle<Object> index = args.at(2);
+  StoreOwnElement(Handle<JSArray>::cast(array), index, value);
+  return *value;
+}
 
 RUNTIME_FUNCTION(Runtime_ElementsTransitionAndStoreIC_Miss) {
   HandleScope scope(isolate);
@@ -2346,14 +2432,23 @@ RUNTIME_FUNCTION(Runtime_ElementsTransitionAndStoreIC_Miss) {
   Handle<Smi> slot = args.at<Smi>(4);
   Handle<FeedbackVector> vector = args.at<FeedbackVector>(5);
   FeedbackSlot vector_slot = FeedbackVector::ToSlot(slot->value());
-  LanguageMode language_mode = vector->GetLanguageMode(vector_slot);
+  FeedbackSlotKind kind = vector->GetKind(vector_slot);
+
   if (object->IsJSObject()) {
     JSObject::TransitionElementsKind(Handle<JSObject>::cast(object),
                                      map->elements_kind());
   }
-  RETURN_RESULT_OR_FAILURE(
-      isolate,
-      Runtime::SetObjectProperty(isolate, object, key, value, language_mode));
+
+  if (IsStoreInArrayLiteralICKind(kind)) {
+    StoreOwnElement(Handle<JSArray>::cast(object), key, value);
+    return *value;
+  } else {
+    DCHECK(IsKeyedStoreICKind(kind) || IsStoreICKind(kind));
+    LanguageMode language_mode = GetLanguageModeFromSlotKind(kind);
+    RETURN_RESULT_OR_FAILURE(
+        isolate,
+        Runtime::SetObjectProperty(isolate, object, key, value, language_mode));
+  }
 }
 
 

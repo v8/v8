@@ -42,6 +42,7 @@ enum class FeedbackSlotKind {
   kStoreNamedStrict,
   kStoreOwnNamed,
   kStoreKeyedStrict,
+  kStoreInArrayLiteral,
   kBinaryOp,
   kCompareOp,
   kStoreDataPropertyInLiteral,
@@ -92,6 +93,10 @@ inline bool IsStoreDataPropertyInLiteralKind(FeedbackSlotKind kind) {
 inline bool IsKeyedStoreICKind(FeedbackSlotKind kind) {
   return kind == FeedbackSlotKind::kStoreKeyedSloppy ||
          kind == FeedbackSlotKind::kStoreKeyedStrict;
+}
+
+inline bool IsStoreInArrayLiteralICKind(FeedbackSlotKind kind) {
+  return kind == FeedbackSlotKind::kStoreInArrayLiteral;
 }
 
 inline bool IsGlobalICKind(FeedbackSlotKind kind) {
@@ -362,6 +367,10 @@ class V8_EXPORT_PRIVATE FeedbackVectorSpec {
     return AddSlot(is_strict(language_mode)
                        ? FeedbackSlotKind::kStoreKeyedStrict
                        : FeedbackSlotKind::kStoreKeyedSloppy);
+  }
+
+  FeedbackSlot AddStoreInArrayLiteralICSlot() {
+    return AddSlot(FeedbackSlotKind::kStoreInArrayLiteral);
   }
 
   FeedbackSlot AddBinaryOpICSlot() {

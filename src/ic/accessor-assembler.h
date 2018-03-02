@@ -43,6 +43,8 @@ class AccessorAssembler : public CodeStubAssembler {
   void GenerateKeyedStoreIC();
   void GenerateKeyedStoreICTrampoline();
 
+  void GenerateStoreInArrayLiteralIC();
+
   void TryProbeStubCache(StubCache* stub_cache, Node* receiver, Node* name,
                          Label* if_handler, Variable* var_handler,
                          Label* if_miss);
@@ -127,6 +129,7 @@ class AccessorAssembler : public CodeStubAssembler {
   void StoreGlobalIC_PropertyCellCase(Node* property_cell, Node* value,
                                       ExitPoint* exit_point, Label* miss);
   void KeyedStoreIC(const StoreICParameters* p);
+  void StoreInArrayLiteralIC(const StoreICParameters* p);
 
   // IC dispatcher behavior.
 

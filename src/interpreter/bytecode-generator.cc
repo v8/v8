@@ -2300,17 +2300,18 @@ void BytecodeGenerator::VisitArrayLiteral(ArrayLiteral* expr) {
   builder()->CreateArrayLiteral(entry, literal_index, flags);
   array_literals_.push_back(std::make_pair(expr, entry));
 
-  Register index = register_allocator()->NewRegister();
   Register literal = register_allocator()->NewRegister();
   builder()->StoreAccumulatorInRegister(literal);
 
   // We'll reuse the same literal slot for all of the non-constant
   // subexpressions that use a keyed store IC.
 
+  Register index = register_allocator()->NewRegister();
+  int array_index = 0;
+
   // Evaluate all the non-constant subexpressions and store them into the
   // newly cloned array.
   FeedbackSlot slot;
-  int array_index = 0;
   ZoneList<Expression*>::iterator iter = expr->BeginValue();
   for (; iter != expr->FirstSpreadOrEndValue(); ++iter, array_index++) {
     Expression* subexpr = *iter;
@@ -2326,32 +2327,37 @@ void BytecodeGenerator::VisitArrayLiteral(ArrayLiteral* expr) {
     builder()->StoreKeyedProperty(literal, index, feedback_index(slot),
                                   language_mode());
   }
+  if (iter != expr->EndValue()) {
+    builder()->LoadLiteral(array_index).StoreAccumulatorInRegister(index);
+  }
 
-  // Handle spread elements and elements following.
+  // Handle the first spread element and everything that follows.
+  FeedbackSlot element_slot = feedback_spec()->AddStoreInArrayLiteralICSlot();
+  FeedbackSlot index_slot = feedback_spec()->AddBinaryOpICSlot();
+  FeedbackSlot length_slot =
+      feedback_spec()->AddStoreICSlot(LanguageMode::kStrict);
   for (; iter != expr->EndValue(); ++iter) {
     Expression* subexpr = *iter;
     if (subexpr->IsSpread()) {
-      BuildArrayLiteralSpread(subexpr->AsSpread(), literal);
+      BuildArrayLiteralSpread(subexpr->AsSpread(), literal, index, index_slot,
+                              element_slot);
     } else if (!subexpr->IsTheHoleLiteral()) {
-      // Perform %AppendElement(array, <subexpr>)
-      RegisterAllocationScope register_scope(this);
-      RegisterList args = register_allocator()->NewRegisterList(2);
-      builder()->MoveRegister(literal, args[0]);
-      VisitForRegisterValue(subexpr, args[1]);
-      builder()->CallRuntime(Runtime::kAppendElement, args);
+      // literal[index++] = subexpr
+      VisitForAccumulatorValue(subexpr);
+      builder()
+          ->StoreInArrayLiteral(literal, index, feedback_index(element_slot))
+          .LoadAccumulatorWithRegister(index)
+          .UnaryOperation(Token::INC, feedback_index(index_slot))
+          .StoreAccumulatorInRegister(index);
     } else {
-      // Peform ++<array>.length;
-      // TODO(caitp): Why can't we just %AppendElement(array, <The Hole>?)
+      // literal.length = ++index
       auto length = ast_string_constants()->length_string();
-      builder()->LoadNamedProperty(
-          literal, length, feedback_index(feedback_spec()->AddLoadICSlot()));
-      builder()->UnaryOperation(
-          Token::INC, feedback_index(feedback_spec()->AddBinaryOpICSlot()));
-      builder()->StoreNamedProperty(
-          literal, length,
-          feedback_index(
-              feedback_spec()->AddStoreICSlot(LanguageMode::kStrict)),
-          LanguageMode::kStrict);
+      builder()
+          ->LoadAccumulatorWithRegister(index)
+          .UnaryOperation(Token::INC, feedback_index(index_slot))
+          .StoreAccumulatorInRegister(index)
+          .StoreNamedProperty(literal, length, feedback_index(length_slot),
+                              LanguageMode::kStrict);
     }
   }
 
@@ -2359,34 +2365,41 @@ void BytecodeGenerator::VisitArrayLiteral(ArrayLiteral* expr) {
   builder()->LoadAccumulatorWithRegister(literal);
 }
 
-void BytecodeGenerator::BuildArrayLiteralSpread(Spread* spread,
-                                                Register array) {
+void BytecodeGenerator::BuildArrayLiteralSpread(Spread* spread, Register array,
+                                                Register index,
+                                                FeedbackSlot index_slot,
+                                                FeedbackSlot element_slot) {
   RegisterAllocationScope register_scope(this);
-  RegisterList args = register_allocator()->NewRegisterList(2);
-  builder()->MoveRegister(array, args[0]);
-  Register next_result = args[1];
+  Register value = register_allocator()->NewRegister();
 
   builder()->SetExpressionAsStatementPosition(spread->expression());
   IteratorRecord iterator =
       BuildGetIteratorRecord(spread->expression(), IteratorType::kNormal);
+
   LoopBuilder loop_builder(builder(), nullptr, nullptr);
   loop_builder.LoopHeader();
 
   // Call the iterator's .next() method. Break from the loop if the `done`
   // property is truthy, otherwise load the value from the iterator result and
   // append the argument.
-  BuildIteratorNext(iterator, next_result);
+  BuildIteratorNext(iterator, value);
   builder()->LoadNamedProperty(
-      next_result, ast_string_constants()->done_string(),
+      value, ast_string_constants()->done_string(),
       feedback_index(feedback_spec()->AddLoadICSlot()));
   loop_builder.BreakIfTrue(ToBooleanMode::kConvertToBoolean);
 
   loop_builder.LoopBody();
   builder()
-      ->LoadNamedProperty(next_result, ast_string_constants()->value_string(),
+      // value = value.value
+      ->LoadNamedProperty(value, ast_string_constants()->value_string(),
                           feedback_index(feedback_spec()->AddLoadICSlot()))
-      .StoreAccumulatorInRegister(args[1])
-      .CallRuntime(Runtime::kAppendElement, args);
+      .StoreAccumulatorInRegister(value)
+      // array[index] = value
+      .StoreInArrayLiteral(array, index, feedback_index(element_slot))
+      // index++
+      .LoadAccumulatorWithRegister(index)
+      .UnaryOperation(Token::INC, feedback_index(index_slot))
+      .StoreAccumulatorInRegister(index);
   loop_builder.BindContinueTarget();
   loop_builder.JumpToHeader(loop_depth_);
 }

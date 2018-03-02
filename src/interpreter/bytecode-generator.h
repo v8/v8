@@ -173,7 +173,9 @@ class BytecodeGenerator final : public AstVisitor<BytecodeGenerator> {
                                BytecodeLabel* if_called,
                                BytecodeLabels* if_notcalled);
 
-  void BuildArrayLiteralSpread(Spread* spread, Register array);
+  void BuildArrayLiteralSpread(Spread* spread, Register array, Register index,
+                               FeedbackSlot index_slot,
+                               FeedbackSlot element_slot);
 
   void AllocateTopLevelRegisters();
   void VisitArgumentsObject(Variable* variable);

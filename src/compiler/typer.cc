@@ -1374,6 +1374,8 @@ Type* Typer::Visitor::TypeJSStoreDataPropertyInLiteral(Node* node) {
   UNREACHABLE();
 }
 
+Type* Typer::Visitor::TypeJSStoreInArrayLiteral(Node* node) { UNREACHABLE(); }
+
 Type* Typer::Visitor::TypeJSDeleteProperty(Node* node) {
   return Type::Boolean();
 }

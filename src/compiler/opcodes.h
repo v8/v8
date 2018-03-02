@@ -159,6 +159,7 @@
   V(JSStoreNamedOwn)              \
   V(JSStoreGlobal)                \
   V(JSStoreDataPropertyInLiteral) \
+  V(JSStoreInArrayLiteral)        \
   V(JSDeleteProperty)             \
   V(JSHasProperty)                \
   V(JSGetSuperConstructor)

@@ -933,6 +933,7 @@ class RuntimeCallTimer final {
   V(KeyedStoreIC_SlowStub)                        \
   V(KeyedStoreIC_StoreFastElementStub)            \
   V(KeyedStoreIC_StoreElementStub)                \
+  V(StoreInArrayLiteralIC_SlowStub)               \
   V(LoadGlobalIC_LoadScriptContextField)          \
   V(LoadGlobalIC_SlowStub)                        \
   V(LoadIC_FunctionPrototypeStub)                 \
