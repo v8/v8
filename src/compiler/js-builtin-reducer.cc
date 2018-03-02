@@ -907,89 +907,6 @@ Reduction JSBuiltinReducer::ReduceObjectCreate(Node* node) {
   return Replace(value);
 }
 
-namespace {
-
-Node* GetStringWitness(Node* node) {
-  Node* receiver = NodeProperties::GetValueInput(node, 1);
-  Type* receiver_type = NodeProperties::GetType(receiver);
-  Node* effect = NodeProperties::GetEffectInput(node);
-  if (receiver_type->Is(Type::String())) return receiver;
-  // Check if the {node} is dominated by a CheckString renaming for
-  // it's {receiver}, and if so use that renaming as {receiver} for
-  // the lowering below.
-  for (Node* dominator = effect;;) {
-    if ((dominator->opcode() == IrOpcode::kCheckString ||
-         dominator->opcode() == IrOpcode::kCheckInternalizedString ||
-         dominator->opcode() == IrOpcode::kCheckSeqString) &&
-        NodeProperties::IsSame(dominator->InputAt(0), receiver)) {
-      return dominator;
-    }
-    if (dominator->op()->EffectInputCount() != 1) {
-      // Didn't find any appropriate CheckString node.
-      return nullptr;
-    }
-    dominator = NodeProperties::GetEffectInput(dominator);
-  }
-}
-
-}  // namespace
-
-// ES section #sec-string.prototype.slice
-Reduction JSBuiltinReducer::ReduceStringSlice(Node* node) {
-  if (Node* receiver = GetStringWitness(node)) {
-    Node* start = node->op()->ValueInputCount() >= 3
-                      ? NodeProperties::GetValueInput(node, 2)
-                      : jsgraph()->UndefinedConstant();
-    Type* start_type = NodeProperties::GetType(start);
-    Node* end = node->op()->ValueInputCount() >= 4
-                    ? NodeProperties::GetValueInput(node, 3)
-                    : jsgraph()->UndefinedConstant();
-    Type* end_type = NodeProperties::GetType(end);
-    Node* effect = NodeProperties::GetEffectInput(node);
-    Node* control = NodeProperties::GetControlInput(node);
-
-    if (start_type->Is(type_cache_.kSingletonMinusOne) &&
-        end_type->Is(Type::Undefined())) {
-      Node* receiver_length =
-          graph()->NewNode(simplified()->StringLength(), receiver);
-
-      Node* check =
-          graph()->NewNode(simplified()->NumberEqual(), receiver_length,
-                           jsgraph()->ZeroConstant());
-      Node* branch = graph()->NewNode(common()->Branch(BranchHint::kFalse),
-                                      check, control);
-
-      Node* if_true = graph()->NewNode(common()->IfTrue(), branch);
-      Node* vtrue = jsgraph()->EmptyStringConstant();
-
-      Node* if_false = graph()->NewNode(common()->IfFalse(), branch);
-      Node* vfalse;
-      Node* efalse;
-      {
-        // We need to convince TurboFan that {receiver_length}-1 is a valid
-        // Unsigned32 value, so we just apply NumberToUint32 to the result
-        // of the subtraction, which is a no-op and merely acts as a marker.
-        Node* index =
-            graph()->NewNode(simplified()->NumberSubtract(), receiver_length,
-                             jsgraph()->OneConstant());
-        index = graph()->NewNode(simplified()->NumberToUint32(), index);
-        vfalse = efalse = graph()->NewNode(simplified()->StringCharAt(),
-                                           receiver, index, effect, if_false);
-      }
-
-      control = graph()->NewNode(common()->Merge(2), if_true, if_false);
-      Node* value =
-          graph()->NewNode(common()->Phi(MachineRepresentation::kTagged, 2),
-                           vtrue, vfalse, control);
-      effect =
-          graph()->NewNode(common()->EffectPhi(2), effect, efalse, control);
-      ReplaceWithValue(node, value, effect, control);
-      return Replace(value);
-    }
-  }
-  return NoChange();
-}
-
 Reduction JSBuiltinReducer::ReduceArrayBufferIsView(Node* node) {
   Node* value = node->op()->ValueInputCount() >= 3
                     ? NodeProperties::GetValueInput(node, 2)
@@ -1109,8 +1026,6 @@ Reduction JSBuiltinReducer::Reduce(Node* node) {
       return ReduceCollectionIteratorNext(
           node, OrderedHashSet::kEntrySize, factory()->empty_ordered_hash_set(),
           FIRST_SET_ITERATOR_TYPE, LAST_SET_ITERATOR_TYPE);
-    case kStringSlice:
-      return ReduceStringSlice(node);
     case kArrayBufferIsView:
       return ReduceArrayBufferIsView(node);
     case kDataViewByteLength:
