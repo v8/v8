@@ -502,6 +502,30 @@ std::ostream& operator<<(std::ostream&, CreateArrayParameters const&);
 
 const CreateArrayParameters& CreateArrayParametersOf(const Operator* op);
 
+// Defines shared information for the array iterator that should be created.
+// This is used as parameter by JSCreateArrayIterator operators.
+class CreateArrayIteratorParameters final {
+ public:
+  explicit CreateArrayIteratorParameters(IterationKind kind) : kind_(kind) {}
+
+  IterationKind kind() const { return kind_; }
+
+ private:
+  IterationKind const kind_;
+};
+
+bool operator==(CreateArrayIteratorParameters const&,
+                CreateArrayIteratorParameters const&);
+bool operator!=(CreateArrayIteratorParameters const&,
+                CreateArrayIteratorParameters const&);
+
+size_t hash_value(CreateArrayIteratorParameters const&);
+
+std::ostream& operator<<(std::ostream&, CreateArrayIteratorParameters const&);
+
+const CreateArrayIteratorParameters& CreateArrayIteratorParametersOf(
+    const Operator* op);
+
 // Defines shared information for the bound function that should be created.
 // This is used as parameter by JSCreateBoundFunction operators.
 class CreateBoundFunctionParameters final {
@@ -656,6 +680,7 @@ class V8_EXPORT_PRIVATE JSOperatorBuilder final
   const Operator* Create();
   const Operator* CreateArguments(CreateArgumentsType type);
   const Operator* CreateArray(size_t arity, Handle<AllocationSite> site);
+  const Operator* CreateArrayIterator(IterationKind);
   const Operator* CreateBoundFunction(size_t arity, Handle<Map> map);
   const Operator* CreateClosure(Handle<SharedFunctionInfo> shared_info,
                                 Handle<FeedbackCell> feedback_cell,

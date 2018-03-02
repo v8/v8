@@ -1717,71 +1717,16 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
                           Builtins::kArrayIteratorPrototypeNext, 0, true,
                           kArrayIteratorNext);
 
-    Handle<JSFunction> array_iterator_function = CreateFunction(
-        isolate, factory->ArrayIterator_string(),
-        JS_FAST_ARRAY_VALUE_ITERATOR_TYPE, JSArrayIterator::kSize, 0,
-        array_iterator_prototype, Builtins::kIllegal);
+    Handle<JSFunction> array_iterator_function =
+        CreateFunction(isolate, factory->ArrayIterator_string(),
+                       JS_ARRAY_ITERATOR_TYPE, JSArrayIterator::kSize, 0,
+                       array_iterator_prototype, Builtins::kIllegal);
     array_iterator_function->shared()->set_native(false);
 
+    native_context()->set_initial_array_iterator_map(
+        array_iterator_function->initial_map());
     native_context()->set_initial_array_iterator_prototype(
         *array_iterator_prototype);
-
-    Handle<Map> initial_map(array_iterator_function->initial_map(), isolate);
-
-#define ARRAY_ITERATOR_LIST(V)                                              \
-  V(TYPED_ARRAY, KEY, typed_array, key)                                     \
-  V(FAST_ARRAY, KEY, fast_array, key)                                       \
-  V(GENERIC_ARRAY, KEY, array, key)                                         \
-  V(UINT8_ARRAY, KEY_VALUE, uint8_array, key_value)                         \
-  V(INT8_ARRAY, KEY_VALUE, int8_array, key_value)                           \
-  V(UINT16_ARRAY, KEY_VALUE, uint16_array, key_value)                       \
-  V(INT16_ARRAY, KEY_VALUE, int16_array, key_value)                         \
-  V(UINT32_ARRAY, KEY_VALUE, uint32_array, key_value)                       \
-  V(INT32_ARRAY, KEY_VALUE, int32_array, key_value)                         \
-  V(FLOAT32_ARRAY, KEY_VALUE, float32_array, key_value)                     \
-  V(FLOAT64_ARRAY, KEY_VALUE, float64_array, key_value)                     \
-  V(UINT8_CLAMPED_ARRAY, KEY_VALUE, uint8_clamped_array, key_value)         \
-  V(BIGUINT64_ARRAY, KEY_VALUE, biguint64_array, key_value)                 \
-  V(BIGINT64_ARRAY, KEY_VALUE, bigint64_array, key_value)                   \
-  V(FAST_SMI_ARRAY, KEY_VALUE, fast_smi_array, key_value)                   \
-  V(FAST_HOLEY_SMI_ARRAY, KEY_VALUE, fast_holey_smi_array, key_value)       \
-  V(FAST_ARRAY, KEY_VALUE, fast_array, key_value)                           \
-  V(FAST_HOLEY_ARRAY, KEY_VALUE, fast_holey_array, key_value)               \
-  V(FAST_DOUBLE_ARRAY, KEY_VALUE, fast_double_array, key_value)             \
-  V(FAST_HOLEY_DOUBLE_ARRAY, KEY_VALUE, fast_holey_double_array, key_value) \
-  V(GENERIC_ARRAY, KEY_VALUE, array, key_value)                             \
-  V(UINT8_ARRAY, VALUE, uint8_array, value)                                 \
-  V(INT8_ARRAY, VALUE, int8_array, value)                                   \
-  V(UINT16_ARRAY, VALUE, uint16_array, value)                               \
-  V(INT16_ARRAY, VALUE, int16_array, value)                                 \
-  V(UINT32_ARRAY, VALUE, uint32_array, value)                               \
-  V(INT32_ARRAY, VALUE, int32_array, value)                                 \
-  V(FLOAT32_ARRAY, VALUE, float32_array, value)                             \
-  V(FLOAT64_ARRAY, VALUE, float64_array, value)                             \
-  V(UINT8_CLAMPED_ARRAY, VALUE, uint8_clamped_array, value)                 \
-  V(BIGUINT64_ARRAY, VALUE, biguint64_array, value)                         \
-  V(BIGINT64_ARRAY, VALUE, bigint64_array, value)                           \
-  V(FAST_SMI_ARRAY, VALUE, fast_smi_array, value)                           \
-  V(FAST_HOLEY_SMI_ARRAY, VALUE, fast_holey_smi_array, value)               \
-  V(FAST_ARRAY, VALUE, fast_array, value)                                   \
-  V(FAST_HOLEY_ARRAY, VALUE, fast_holey_array, value)                       \
-  V(FAST_DOUBLE_ARRAY, VALUE, fast_double_array, value)                     \
-  V(FAST_HOLEY_DOUBLE_ARRAY, VALUE, fast_holey_double_array, value)         \
-  V(GENERIC_ARRAY, VALUE, array, value)
-
-#define CREATE_ARRAY_ITERATOR_MAP(PREFIX, SUFFIX, prefix, suffix)           \
-  do {                                                                      \
-    const InstanceType type = JS_##PREFIX##_##SUFFIX##_ITERATOR_TYPE;       \
-    Handle<Map> map =                                                       \
-        Map::Copy(initial_map, "JS_" #PREFIX "_" #SUFFIX "_ITERATOR_TYPE"); \
-    map->set_instance_type(type);                                           \
-    native_context()->set_##prefix##_##suffix##_iterator_map(*map);         \
-  } while (0);
-
-    ARRAY_ITERATOR_LIST(CREATE_ARRAY_ITERATOR_MAP)
-
-#undef CREATE_ARRAY_ITERATOR_MAP
-#undef ARRAY_ITERATOR_LIST
   }
 
   {  // --- N u m b e r ---
@@ -4212,6 +4157,8 @@ EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE(harmony_import_meta)
 EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE(harmony_restrict_constructor_return)
 EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE(harmony_optional_catch_binding)
 EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE(harmony_subsume_json)
+
+#undef EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE
 
 void InstallPublicSymbol(Factory* factory, Handle<Context> native_context,
                          const char* name, Handle<Symbol> value) {

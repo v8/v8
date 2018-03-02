@@ -219,7 +219,6 @@ using v8::MemoryPressureLevel;
   V(Cell, is_concat_spreadable_protector, IsConcatSpreadableProtector)         \
   V(PropertyCell, species_protector, SpeciesProtector)                         \
   V(Cell, string_length_protector, StringLengthProtector)                      \
-  V(Cell, fast_array_iteration_protector, FastArrayIterationProtector)         \
   V(PropertyCell, array_iterator_protector, ArrayIteratorProtector)            \
   V(PropertyCell, array_buffer_neutering_protector,                            \
     ArrayBufferNeuteringProtector)                                             \
@@ -337,7 +336,6 @@ using v8::MemoryPressureLevel;
   V(EvalContextMap)                     \
   V(Exception)                          \
   V(FalseValue)                         \
-  V(FastArrayIterationProtector)        \
   V(FixedArrayMap)                      \
   V(FixedCOWArrayMap)                   \
   V(FixedDoubleArrayMap)                \

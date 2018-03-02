@@ -154,11 +154,6 @@ bool Isolate::IsStringLengthOverflowIntact() {
   return string_length_cell->value() == Smi::FromInt(kProtectorValid);
 }
 
-bool Isolate::IsFastArrayIterationIntact() {
-  Cell* fast_iteration_cell = heap()->fast_array_iteration_protector();
-  return fast_iteration_cell->value() == Smi::FromInt(kProtectorValid);
-}
-
 bool Isolate::IsArrayBufferNeuteringIntact() {
   PropertyCell* buffer_neutering = heap()->array_buffer_neutering_protector();
   return buffer_neutering->value() == Smi::FromInt(kProtectorValid);

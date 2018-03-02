@@ -226,13 +226,9 @@ void HeapObject::HeapObjectVerify() {
     case JS_MAP_VALUE_ITERATOR_TYPE:
       JSMapIterator::cast(this)->JSMapIteratorVerify();
       break;
-
-#define ARRAY_ITERATOR_CASE(type) case type:
-      ARRAY_ITERATOR_TYPE_LIST(ARRAY_ITERATOR_CASE)
-#undef ARRAY_ITERATOR_CASE
+    case JS_ARRAY_ITERATOR_TYPE:
       JSArrayIterator::cast(this)->JSArrayIteratorVerify();
       break;
-
     case JS_STRING_ITERATOR_TYPE:
       JSStringIterator::cast(this)->JSStringIteratorVerify();
       break;
@@ -1051,11 +1047,20 @@ void JSWeakMap::JSWeakMapVerify() {
 void JSArrayIterator::JSArrayIteratorVerify() {
   CHECK(IsJSArrayIterator());
   JSObjectVerify();
-  CHECK(object()->IsJSReceiver() || object()->IsUndefined(GetIsolate()));
+  CHECK(iterated_object()->IsJSReceiver() ||
+        iterated_object()->IsUndefined(GetIsolate()));
 
-  CHECK_GE(index()->Number(), 0);
-  CHECK_LE(index()->Number(), kMaxSafeInteger);
-  CHECK(object_map()->IsMap() || object_map()->IsUndefined(GetIsolate()));
+  CHECK_GE(next_index()->Number(), 0);
+  CHECK_LE(next_index()->Number(), kMaxSafeInteger);
+
+  if (iterated_object()->IsJSTypedArray()) {
+    // JSTypedArray::length is limited to Smi range.
+    CHECK(next_index()->IsSmi());
+    CHECK_LE(next_index()->Number(), Smi::kMaxValue);
+  } else if (iterated_object()->IsJSArray()) {
+    // JSArray::length is limited to Uint32 range.
+    CHECK_LE(next_index()->Number(), kMaxUInt32);
+  }
 }
 
 void JSStringIterator::JSStringIteratorVerify() {

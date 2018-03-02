@@ -100,6 +100,8 @@ class JSArray : public JSObject {
 Handle<Object> CacheInitialJSArrayMaps(Handle<Context> native_context,
                                        Handle<Map> initial_map);
 
+// The JSArrayIterator describes JavaScript Array Iterators Objects, as
+// defined in ES section #sec-array-iterator-objects.
 class JSArrayIterator : public JSObject {
  public:
   DECL_PRINTER(JSArrayIterator)
@@ -107,24 +109,20 @@ class JSArrayIterator : public JSObject {
 
   DECL_CAST(JSArrayIterator)
 
-  // [object]: the [[IteratedObject]] inobject property.
-  DECL_ACCESSORS(object, Object)
+  // [iterated_object]: the [[IteratedObject]] inobject property.
+  DECL_ACCESSORS(iterated_object, Object)
 
-  // [index]: The [[ArrayIteratorNextIndex]] inobject property.
-  DECL_ACCESSORS(index, Object)
+  // [next_index]: The [[ArrayIteratorNextIndex]] inobject property.
+  DECL_ACCESSORS(next_index, Object)
 
-  // [map]: The Map of the [[IteratedObject]] field at the time the iterator is
-  // allocated.
-  DECL_ACCESSORS(object_map, Object)
-
-  // Return the ElementsKind that a JSArrayIterator's [[IteratedObject]] is
-  // expected to have, based on its instance type.
-  static ElementsKind ElementsKindForInstanceType(InstanceType instance_type);
+  // [kind]: the [[ArrayIterationKind]] inobject property.
+  inline IterationKind kind() const;
+  inline void set_kind(IterationKind kind);
 
   static const int kIteratedObjectOffset = JSObject::kHeaderSize;
   static const int kNextIndexOffset = kIteratedObjectOffset + kPointerSize;
-  static const int kIteratedObjectMapOffset = kNextIndexOffset + kPointerSize;
-  static const int kSize = kIteratedObjectMapOffset + kPointerSize;
+  static const int kKindOffset = kNextIndexOffset + kPointerSize;
+  static const int kSize = kKindOffset + kPointerSize;
 
  private:
   DISALLOW_IMPLICIT_CONSTRUCTORS(JSArrayIterator);

@@ -137,6 +137,8 @@ Reduction JSCreateLowering::Reduce(Node* node) {
       return ReduceJSCreateArguments(node);
     case IrOpcode::kJSCreateArray:
       return ReduceJSCreateArray(node);
+    case IrOpcode::kJSCreateArrayIterator:
+      return ReduceJSCreateArrayIterator(node);
     case IrOpcode::kJSCreateBoundFunction:
       return ReduceJSCreateBoundFunction(node);
     case IrOpcode::kJSCreateClosure:
@@ -854,6 +856,33 @@ Reduction JSCreateLowering::ReduceJSCreateArray(Node* node) {
   if (target != new_target) return NoChange();
 
   return ReduceNewArrayToStubCall(node, site);
+}
+
+Reduction JSCreateLowering::ReduceJSCreateArrayIterator(Node* node) {
+  DCHECK_EQ(IrOpcode::kJSCreateArrayIterator, node->opcode());
+  CreateArrayIteratorParameters const& p =
+      CreateArrayIteratorParametersOf(node->op());
+  Node* iterated_object = NodeProperties::GetValueInput(node, 0);
+  Node* effect = NodeProperties::GetEffectInput(node);
+  Node* control = NodeProperties::GetControlInput(node);
+
+  // Create the JSArrayIterator result.
+  AllocationBuilder a(jsgraph(), effect, control);
+  a.Allocate(JSArrayIterator::kSize, NOT_TENURED, Type::OtherObject());
+  a.Store(AccessBuilder::ForMap(),
+          handle(native_context()->initial_array_iterator_map(), isolate()));
+  a.Store(AccessBuilder::ForJSObjectPropertiesOrHash(),
+          jsgraph()->EmptyFixedArrayConstant());
+  a.Store(AccessBuilder::ForJSObjectElements(),
+          jsgraph()->EmptyFixedArrayConstant());
+  a.Store(AccessBuilder::ForJSArrayIteratorIteratedObject(), iterated_object);
+  a.Store(AccessBuilder::ForJSArrayIteratorNextIndex(),
+          jsgraph()->ZeroConstant());
+  a.Store(AccessBuilder::ForJSArrayIteratorKind(),
+          jsgraph()->Constant(static_cast<int>(p.kind())));
+  RelaxControls(node);
+  a.FinishAndChange(node);
+  return Changed(node);
 }
 
 Reduction JSCreateLowering::ReduceJSCreateBoundFunction(Node* node) {

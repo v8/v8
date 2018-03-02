@@ -375,6 +375,10 @@ void JSGenericLowering::LowerJSCreateArray(Node* node) {
   NodeProperties::ChangeOp(node, common()->Call(call_descriptor));
 }
 
+void JSGenericLowering::LowerJSCreateArrayIterator(Node* node) {
+  UNREACHABLE();  // Eliminated in typed lowering.
+}
+
 void JSGenericLowering::LowerJSCreateBoundFunction(Node* node) {
   UNREACHABLE();  // Eliminated in typed lowering.
 }

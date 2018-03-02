@@ -4458,12 +4458,6 @@ Node* CodeStubAssembler::IsJSReceiverInstanceType(Node* instance_type) {
                                  Int32Constant(FIRST_JS_RECEIVER_TYPE));
 }
 
-Node* CodeStubAssembler::IsArrayIteratorInstanceType(Node* instance_type) {
-  return Uint32LessThan(
-      Int32Constant(LAST_ARRAY_ITERATOR_TYPE - FIRST_ARRAY_ITERATOR_TYPE),
-      Int32Sub(instance_type, Int32Constant(FIRST_ARRAY_ITERATOR_TYPE)));
-}
-
 Node* CodeStubAssembler::IsJSReceiverMap(Node* map) {
   return IsJSReceiverInstanceType(LoadMapInstanceType(map));
 }
@@ -4540,6 +4534,10 @@ Node* CodeStubAssembler::IsJSArray(Node* object) {
 
 Node* CodeStubAssembler::IsJSArrayMap(Node* map) {
   return IsJSArrayInstanceType(LoadMapInstanceType(map));
+}
+
+Node* CodeStubAssembler::IsJSArrayIterator(Node* object) {
+  return HasInstanceType(object, JS_ARRAY_ITERATOR_TYPE);
 }
 
 Node* CodeStubAssembler::IsJSAsyncGeneratorObject(Node* object) {
@@ -10538,201 +10536,25 @@ Node* CodeStubAssembler::BitwiseOp(Node* left32, Node* right32,
   UNREACHABLE();
 }
 
-Node* CodeStubAssembler::CreateArrayIterator(Node* array, Node* array_map,
-                                             Node* array_type, Node* context,
-                                             IterationKind mode) {
-  int kBaseMapIndex = 0;
-  switch (mode) {
-    case IterationKind::kKeys:
-      kBaseMapIndex = Context::TYPED_ARRAY_KEY_ITERATOR_MAP_INDEX;
-      break;
-    case IterationKind::kValues:
-      kBaseMapIndex = Context::UINT8_ARRAY_VALUE_ITERATOR_MAP_INDEX;
-      break;
-    case IterationKind::kEntries:
-      kBaseMapIndex = Context::UINT8_ARRAY_KEY_VALUE_ITERATOR_MAP_INDEX;
-      break;
-  }
-
-  // Fast Array iterator map index:
-  // (kBaseIndex + kFastIteratorOffset) + ElementsKind (for JSArrays)
-  // kBaseIndex + (ElementsKind - UINT8_ELEMENTS) (for JSTypedArrays)
-  const int kFastIteratorOffset =
-      Context::FAST_SMI_ARRAY_VALUE_ITERATOR_MAP_INDEX -
-      Context::UINT8_ARRAY_VALUE_ITERATOR_MAP_INDEX;
-  STATIC_ASSERT(kFastIteratorOffset ==
-                (Context::FAST_SMI_ARRAY_KEY_VALUE_ITERATOR_MAP_INDEX -
-                 Context::UINT8_ARRAY_KEY_VALUE_ITERATOR_MAP_INDEX));
-
-  // Slow Array iterator map index: (kBaseIndex + kSlowIteratorOffset)
-  const int kSlowIteratorOffset =
-      Context::GENERIC_ARRAY_VALUE_ITERATOR_MAP_INDEX -
-      Context::UINT8_ARRAY_VALUE_ITERATOR_MAP_INDEX;
-  STATIC_ASSERT(kSlowIteratorOffset ==
-                (Context::GENERIC_ARRAY_KEY_VALUE_ITERATOR_MAP_INDEX -
-                 Context::UINT8_ARRAY_KEY_VALUE_ITERATOR_MAP_INDEX));
-
-  // Assert: Type(array) is Object
-  CSA_ASSERT(this, IsJSReceiverInstanceType(array_type));
-
-  VARIABLE(var_result, MachineRepresentation::kTagged);
-  VARIABLE(var_map_index, MachineType::PointerRepresentation());
-  VARIABLE(var_array_map, MachineRepresentation::kTagged);
-
-  Label return_result(this);
-  Label allocate_iterator(this);
-
-  if (mode == IterationKind::kKeys) {
-    // There are only two key iterator maps, branch depending on whether or not
-    // the receiver is a TypedArray or not.
-
-    Label if_istypedarray(this), if_isgeneric(this);
-
-    Branch(InstanceTypeEqual(array_type, JS_TYPED_ARRAY_TYPE), &if_istypedarray,
-           &if_isgeneric);
-
-    BIND(&if_isgeneric);
-    {
-      Label if_isfast(this), if_isslow(this);
-      BranchIfFastJSArray(array, context, &if_isfast, &if_isslow);
-
-      BIND(&if_isfast);
-      {
-        var_map_index.Bind(
-            IntPtrConstant(Context::FAST_ARRAY_KEY_ITERATOR_MAP_INDEX));
-        var_array_map.Bind(array_map);
-        Goto(&allocate_iterator);
-      }
-
-      BIND(&if_isslow);
-      {
-        var_map_index.Bind(
-            IntPtrConstant(Context::GENERIC_ARRAY_KEY_ITERATOR_MAP_INDEX));
-        var_array_map.Bind(UndefinedConstant());
-        Goto(&allocate_iterator);
-      }
-    }
-
-    BIND(&if_istypedarray);
-    {
-      var_map_index.Bind(
-          IntPtrConstant(Context::TYPED_ARRAY_KEY_ITERATOR_MAP_INDEX));
-      var_array_map.Bind(UndefinedConstant());
-      Goto(&allocate_iterator);
-    }
-  } else {
-    Label if_istypedarray(this), if_isgeneric(this);
-    Branch(InstanceTypeEqual(array_type, JS_TYPED_ARRAY_TYPE), &if_istypedarray,
-           &if_isgeneric);
-
-    BIND(&if_isgeneric);
-    {
-      Label if_isfast(this), if_isslow(this);
-      BranchIfFastJSArray(array, context, &if_isfast, &if_isslow);
-
-      BIND(&if_isfast);
-      {
-        Label if_ispacked(this), if_isholey(this);
-        Node* elements_kind = LoadMapElementsKind(array_map);
-        Branch(IsHoleyFastElementsKind(elements_kind), &if_isholey,
-               &if_ispacked);
-
-        BIND(&if_isholey);
-        {
-          // Fast holey JSArrays can treat the hole as undefined if the
-          // protector cell is valid, and the prototype chain is unchanged from
-          // its initial state (because the protector cell is only tracked for
-          // initial the Array and Object prototypes). Check these conditions
-          // here, and take the slow path if any fail.
-          GotoIf(IsNoElementsProtectorCellInvalid(), &if_isslow);
-
-          Node* native_context = LoadNativeContext(context);
-
-          Node* prototype = LoadMapPrototype(array_map);
-          Node* array_prototype = LoadContextElement(
-              native_context, Context::INITIAL_ARRAY_PROTOTYPE_INDEX);
-          GotoIfNot(WordEqual(prototype, array_prototype), &if_isslow);
-
-          Node* map = LoadMap(prototype);
-          prototype = LoadMapPrototype(map);
-          Node* object_prototype = LoadContextElement(
-              native_context, Context::INITIAL_OBJECT_PROTOTYPE_INDEX);
-          GotoIfNot(WordEqual(prototype, object_prototype), &if_isslow);
-
-          map = LoadMap(prototype);
-          prototype = LoadMapPrototype(map);
-          Branch(IsNull(prototype), &if_ispacked, &if_isslow);
-        }
-        BIND(&if_ispacked);
-        {
-          Node* map_index =
-              IntPtrAdd(IntPtrConstant(kBaseMapIndex + kFastIteratorOffset),
-                        ChangeUint32ToWord(LoadMapElementsKind(array_map)));
-          CSA_ASSERT(this, IntPtrGreaterThanOrEqual(
-                               map_index, IntPtrConstant(kBaseMapIndex +
-                                                         kFastIteratorOffset)));
-          CSA_ASSERT(this, IntPtrLessThan(map_index,
-                                          IntPtrConstant(kBaseMapIndex +
-                                                         kSlowIteratorOffset)));
-
-          var_map_index.Bind(map_index);
-          var_array_map.Bind(array_map);
-          Goto(&allocate_iterator);
-        }
-      }
-
-      BIND(&if_isslow);
-      {
-        Node* map_index = IntPtrAdd(IntPtrConstant(kBaseMapIndex),
-                                    IntPtrConstant(kSlowIteratorOffset));
-        var_map_index.Bind(map_index);
-        var_array_map.Bind(UndefinedConstant());
-        Goto(&allocate_iterator);
-      }
-    }
-
-    BIND(&if_istypedarray);
-    {
-      Node* map_index =
-          IntPtrAdd(IntPtrConstant(kBaseMapIndex - UINT8_ELEMENTS),
-                    ChangeUint32ToWord(LoadMapElementsKind(array_map)));
-      CSA_ASSERT(
-          this, IntPtrLessThan(map_index, IntPtrConstant(kBaseMapIndex +
-                                                         kFastIteratorOffset)));
-      CSA_ASSERT(this, IntPtrGreaterThanOrEqual(map_index,
-                                                IntPtrConstant(kBaseMapIndex)));
-      var_map_index.Bind(map_index);
-      var_array_map.Bind(UndefinedConstant());
-      Goto(&allocate_iterator);
-    }
-  }
-
-  BIND(&allocate_iterator);
-  {
-    Node* map = LoadFixedArrayElement(LoadNativeContext(context),
-                                      var_map_index.value());
-    var_result.Bind(AllocateJSArrayIterator(array, var_array_map.value(), map));
-    Goto(&return_result);
-  }
-
-  BIND(&return_result);
-  return var_result.value();
-}
-
-Node* CodeStubAssembler::AllocateJSArrayIterator(Node* array, Node* array_map,
-                                                 Node* map) {
+// ES #sec-createarrayiterator
+Node* CodeStubAssembler::CreateArrayIterator(Node* context, Node* object,
+                                             IterationKind kind) {
+  Node* native_context = LoadNativeContext(context);
+  Node* iterator_map = LoadContextElement(
+      native_context, Context::INITIAL_ARRAY_ITERATOR_MAP_INDEX);
   Node* iterator = Allocate(JSArrayIterator::kSize);
-  StoreMapNoWriteBarrier(iterator, map);
+  StoreMapNoWriteBarrier(iterator, iterator_map);
   StoreObjectFieldRoot(iterator, JSArrayIterator::kPropertiesOrHashOffset,
                        Heap::kEmptyFixedArrayRootIndex);
   StoreObjectFieldRoot(iterator, JSArrayIterator::kElementsOffset,
                        Heap::kEmptyFixedArrayRootIndex);
-  StoreObjectFieldNoWriteBarrier(iterator,
-                                 JSArrayIterator::kIteratedObjectOffset, array);
+  StoreObjectFieldNoWriteBarrier(
+      iterator, JSArrayIterator::kIteratedObjectOffset, object);
   StoreObjectFieldNoWriteBarrier(iterator, JSArrayIterator::kNextIndexOffset,
                                  SmiConstant(0));
   StoreObjectFieldNoWriteBarrier(
-      iterator, JSArrayIterator::kIteratedObjectMapOffset, array_map);
+      iterator, JSArrayIterator::kKindOffset,
+      SmiConstant(Smi::FromInt(static_cast<int>(kind))));
   return iterator;
 }
 

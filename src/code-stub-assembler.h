@@ -862,11 +862,10 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
   Node* AllocatePropertyArray(Node* capacity,
                               ParameterMode mode = INTPTR_PARAMETERS,
                               AllocationFlags flags = kNone);
-  // Perform CreateArrayIterator (ES6 #sec-createarrayiterator).
-  Node* CreateArrayIterator(Node* array, Node* array_map, Node* array_type,
-                            Node* context, IterationKind mode);
 
-  Node* AllocateJSArrayIterator(Node* array, Node* array_map, Node* map);
+  // Perform CreateArrayIterator (ES #sec-createarrayiterator).
+  Node* CreateArrayIterator(Node* context, Node* object, IterationKind mode);
+
   Node* AllocateJSIteratorResult(Node* context, Node* value, Node* done);
   Node* AllocateJSIteratorResultForEntry(Node* context, Node* key, Node* value);
 
@@ -1096,7 +1095,6 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
   Node* IsAccessorPair(Node* object);
   Node* IsAllocationSite(Node* object);
   Node* IsAnyHeapNumber(Node* object);
-  Node* IsArrayIteratorInstanceType(Node* instance_type);
   Node* IsNoElementsProtectorCellInvalid();
   Node* IsBigIntInstanceType(Node* instance_type);
   Node* IsBigInt(Node* object);
@@ -1133,6 +1131,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
   Node* IsJSArrayInstanceType(Node* instance_type);
   Node* IsJSArrayMap(Node* object);
   Node* IsJSArray(Node* object);
+  Node* IsJSArrayIterator(Node* object);
   Node* IsJSAsyncGeneratorObject(Node* object);
   Node* IsJSFunctionInstanceType(Node* instance_type);
   Node* IsJSFunctionMap(Node* object);

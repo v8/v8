@@ -1081,9 +1081,6 @@ class Isolate {
   inline bool IsStringLengthOverflowIntact();
   inline bool IsArrayIteratorLookupChainIntact();
 
-  // Avoid deopt loops if fast Array Iterators migrate to slow Array Iterators.
-  inline bool IsFastArrayIterationIntact();
-
   // Make sure we do check for neutered array buffers.
   inline bool IsArrayBufferNeuteringIntact();
 

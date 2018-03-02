@@ -1352,6 +1352,8 @@ int JSObject::GetHeaderSize(InstanceType type,
       return JSArray::kSize;
     case JS_ARRAY_BUFFER_TYPE:
       return JSArrayBuffer::kSize;
+    case JS_ARRAY_ITERATOR_TYPE:
+      return JSArrayIterator::kSize;
     case JS_TYPED_ARRAY_TYPE:
       return JSTypedArray::kSize;
     case JS_DATA_VIEW_TYPE:
@@ -1396,10 +1398,6 @@ int JSObject::GetHeaderSize(InstanceType type,
     case WASM_TABLE_TYPE:
       return WasmTableObject::kSize;
     default:
-      if (type >= FIRST_ARRAY_ITERATOR_TYPE &&
-          type <= LAST_ARRAY_ITERATOR_TYPE) {
-        return JSArrayIterator::kSize;
-      }
       UNREACHABLE();
   }
 }
@@ -3056,6 +3054,7 @@ VisitorId Map::GetVisitorId(Map* map) {
     case JS_MODULE_NAMESPACE_TYPE:
     case JS_VALUE_TYPE:
     case JS_DATE_TYPE:
+    case JS_ARRAY_ITERATOR_TYPE:
     case JS_ARRAY_TYPE:
     case JS_GLOBAL_PROXY_TYPE:
     case JS_GLOBAL_OBJECT_TYPE:
@@ -3070,11 +3069,6 @@ VisitorId Map::GetVisitorId(Map* map) {
     case JS_MAP_KEY_VALUE_ITERATOR_TYPE:
     case JS_MAP_VALUE_ITERATOR_TYPE:
     case JS_STRING_ITERATOR_TYPE:
-
-#define ARRAY_ITERATOR_CASE(type) case type:
-      ARRAY_ITERATOR_TYPE_LIST(ARRAY_ITERATOR_CASE)
-#undef ARRAY_ITERATOR_CASE
-
     case JS_PROMISE_TYPE:
     case WASM_INSTANCE_TYPE:
     case WASM_MEMORY_TYPE:
@@ -19418,46 +19412,11 @@ MaybeHandle<Name> FunctionTemplateInfo::TryGetCachedPropertyName(
   return MaybeHandle<Name>();
 }
 
-// static
-ElementsKind JSArrayIterator::ElementsKindForInstanceType(InstanceType type) {
-  DCHECK_GE(type, FIRST_ARRAY_ITERATOR_TYPE);
-  DCHECK_LE(type, LAST_ARRAY_ITERATOR_TYPE);
+#undef FIELD_ADDR
+#undef FIELD_ADDR_CONST
+#undef READ_INT32_FIELD
+#undef READ_INT64_FIELD
+#undef READ_BYTE_FIELD
 
-  if (type <= LAST_ARRAY_KEY_ITERATOR_TYPE) {
-    // Should be ignored for key iterators.
-    return PACKED_ELEMENTS;
-  } else {
-    ElementsKind kind;
-    if (type < FIRST_ARRAY_VALUE_ITERATOR_TYPE) {
-      // Convert `type` to a value iterator from an entries iterator
-      type = static_cast<InstanceType>(type +
-                                       (FIRST_ARRAY_VALUE_ITERATOR_TYPE -
-                                        FIRST_ARRAY_KEY_VALUE_ITERATOR_TYPE));
-      DCHECK_GE(type, FIRST_ARRAY_VALUE_ITERATOR_TYPE);
-      DCHECK_LE(type, LAST_ARRAY_ITERATOR_TYPE);
-    }
-
-    if (type <= JS_BIGINT64_ARRAY_VALUE_ITERATOR_TYPE) {
-      kind =
-          static_cast<ElementsKind>(FIRST_FIXED_TYPED_ARRAY_ELEMENTS_KIND +
-                                    (type - FIRST_ARRAY_VALUE_ITERATOR_TYPE));
-      DCHECK_LE(kind, LAST_FIXED_TYPED_ARRAY_ELEMENTS_KIND);
-    } else if (type < JS_GENERIC_ARRAY_VALUE_ITERATOR_TYPE) {
-      kind = static_cast<ElementsKind>(
-          FIRST_FAST_ELEMENTS_KIND +
-          (type - JS_FAST_SMI_ARRAY_VALUE_ITERATOR_TYPE));
-      DCHECK_LE(kind, LAST_FAST_ELEMENTS_KIND);
-    } else {
-      // For any slow element cases, the actual elements kind is not known.
-      // Simply
-      // return a slow elements kind in this case. Users of this function must
-      // not
-      // depend on this.
-      return DICTIONARY_ELEMENTS;
-    }
-    DCHECK_LE(kind, LAST_ELEMENTS_KIND);
-    return kind;
-  }
-}
 }  // namespace internal
 }  // namespace v8

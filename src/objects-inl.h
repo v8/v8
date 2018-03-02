@@ -93,6 +93,7 @@ TYPE_CHECKER(Foreign, FOREIGN_TYPE)
 TYPE_CHECKER(FreeSpace, FREE_SPACE_TYPE)
 TYPE_CHECKER(HashTable, HASH_TABLE_TYPE)
 TYPE_CHECKER(HeapNumber, HEAP_NUMBER_TYPE)
+TYPE_CHECKER(JSArrayIterator, JS_ARRAY_ITERATOR_TYPE)
 TYPE_CHECKER(JSAsyncFromSyncIterator, JS_ASYNC_FROM_SYNC_ITERATOR_TYPE)
 TYPE_CHECKER(JSAsyncGeneratorObject, JS_ASYNC_GENERATOR_OBJECT_TYPE)
 TYPE_CHECKER(JSBoundFunction, JS_BOUND_FUNCTION_TYPE)
@@ -306,12 +307,6 @@ bool HeapObject::IsJSSetIterator() const {
   InstanceType instance_type = map()->instance_type();
   return (instance_type == JS_SET_VALUE_ITERATOR_TYPE ||
           instance_type == JS_SET_KEY_VALUE_ITERATOR_TYPE);
-}
-
-bool HeapObject::IsJSArrayIterator() const {
-  InstanceType instance_type = map()->instance_type();
-  return (instance_type >= FIRST_ARRAY_ITERATOR_TYPE &&
-          instance_type <= LAST_ARRAY_ITERATOR_TYPE);
 }
 
 bool HeapObject::IsJSWeakCollection() const {

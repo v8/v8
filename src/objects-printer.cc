@@ -129,12 +129,6 @@ void HeapObject::HeapObjectPrint(std::ostream& os) {  // NOLINT
     TYPED_ARRAYS(PRINT_FIXED_TYPED_ARRAY)
 #undef PRINT_FIXED_TYPED_ARRAY
 
-#define ARRAY_ITERATOR_CASE(type) case type:
-    ARRAY_ITERATOR_TYPE_LIST(ARRAY_ITERATOR_CASE)
-#undef ARRAY_ITERATOR_CASE
-    JSArrayIterator::cast(this)->JSArrayIteratorPrint(os);
-    break;
-
     case FILLER_TYPE:
       os << "filler";
       break;
@@ -235,6 +229,9 @@ void HeapObject::HeapObjectPrint(std::ostream& os) {  // NOLINT
       break;
     case JS_ARRAY_BUFFER_TYPE:
       JSArrayBuffer::cast(this)->JSArrayBufferPrint(os);
+      break;
+    case JS_ARRAY_ITERATOR_TYPE:
+      JSArrayIterator::cast(this)->JSArrayIteratorPrint(os);
       break;
     case JS_TYPED_ARRAY_TYPE:
       JSTypedArray::cast(this)->JSTypedArrayPrint(os);
@@ -1057,20 +1054,9 @@ void JSTypedArray::JSTypedArrayPrint(std::ostream& os) {  // NOLINT
 
 void JSArrayIterator::JSArrayIteratorPrint(std::ostream& os) {  // NOLING
   JSObjectPrintHeader(os, this, "JSArrayIterator");
-
-  InstanceType instance_type = map()->instance_type();
-  os << "\n - type: ";
-  if (instance_type <= LAST_ARRAY_KEY_ITERATOR_TYPE) {
-    os << "keys";
-  } else if (instance_type <= LAST_ARRAY_KEY_VALUE_ITERATOR_TYPE) {
-    os << "entries";
-  } else {
-    os << "values";
-  }
-
-  os << "\n - object: " << Brief(object());
-  os << "\n - index: " << Brief(index());
-
+  os << "\n - iterated_object: " << Brief(iterated_object());
+  os << "\n - next_index: " << Brief(next_index());
+  os << "\n - kind: " << kind();
   JSObjectPrintBody(os, this);
 }
 
