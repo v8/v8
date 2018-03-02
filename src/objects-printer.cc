@@ -591,7 +591,12 @@ void Symbol::SymbolPrint(std::ostream& os) {  // NOLINT
 void Map::MapPrint(std::ostream& os) {  // NOLINT
   HeapObject::PrintHeader(os, "Map");
   os << "\n - type: " << instance_type();
-  os << "\n - instance size: " << instance_size();
+  os << "\n - instance size: ";
+  if (instance_size() == kVariableSizeSentinel) {
+    os << "variable";
+  } else {
+    os << instance_size();
+  }
   if (IsJSObjectMap()) {
     os << "\n - inobject properties: " << GetInObjectProperties();
   }

@@ -3246,10 +3246,16 @@ void HeapObject::HeapObjectShortPrint(std::ostream& os) {  // NOLINT
     return;
   }
   switch (map()->instance_type()) {
-    case MAP_TYPE:
-      os << "<Map(" << ElementsKindToString(Map::cast(this)->elements_kind())
-         << ")>";
-      break;
+    case MAP_TYPE: {
+      os << "<Map";
+      Map* mapInstance = Map::cast(this);
+      if (mapInstance->IsJSObjectMap()) {
+        os << "(" << ElementsKindToString(mapInstance->elements_kind()) << ")";
+      } else if (mapInstance->instance_size() != kVariableSizeSentinel) {
+        os << "[" << mapInstance->instance_size() << "]";
+      }
+      os << ">";
+    } break;
     case HASH_TABLE_TYPE:
       os << "<HashTable[" << FixedArray::cast(this)->length() << "]>";
       break;
