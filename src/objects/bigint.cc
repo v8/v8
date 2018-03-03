@@ -341,8 +341,10 @@ MaybeHandle<BigInt> BigInt::Exponentiate(Handle<BigInt> base,
   if (base->length() == 1 && base->digit(0) == 2) {
     // Fast path for 2^n.
     int needed_digits = 1 + (n / kDigitBits);
-    Handle<MutableBigInt> result =
-        MutableBigInt::New(isolate, needed_digits).ToHandleChecked();
+    Handle<MutableBigInt> result;
+    if (!MutableBigInt::New(isolate, needed_digits).ToHandle(&result)) {
+      return MaybeHandle<BigInt>();
+    }
     result->InitializeDigits(needed_digits);
     // All bits are zero. Now set the n-th bit.
     digit_t msd = static_cast<digit_t>(1) << (n % kDigitBits);
@@ -357,18 +359,14 @@ MaybeHandle<BigInt> BigInt::Exponentiate(Handle<BigInt> base,
   if (n & 1) result = base;
   n >>= 1;
   for (; n != 0; n >>= 1) {
-    if (!Multiply(running_square, running_square).ToHandle(&running_square)) {
-      THROW_NEW_ERROR(isolate, NewRangeError(MessageTemplate::kBigIntTooBig),
-                      BigInt);
-    }
+    MaybeHandle<BigInt> maybe_result = Multiply(running_square, running_square);
+    if (!maybe_result.ToHandle(&running_square)) return maybe_result;
     if (n & 1) {
       if (result.is_null()) {
         result = running_square;
       } else {
-        if (!Multiply(result, running_square).ToHandle(&result)) {
-          THROW_NEW_ERROR(
-              isolate, NewRangeError(MessageTemplate::kBigIntTooBig), BigInt);
-        }
+        maybe_result = Multiply(result, running_square);
+        if (!maybe_result.ToHandle(&result)) return maybe_result;
       }
     }
   }
