@@ -1015,7 +1015,7 @@ bool Scanner::ScanEscape() {
     case '5':  // fall through
     case '6':  // fall through
     case '7':
-      c = ScanOctalEscape<capture_raw>(c, 2);
+      c = ScanOctalEscape<capture_raw>(c, 2, in_template_literal);
       break;
   }
 
@@ -1024,9 +1024,8 @@ bool Scanner::ScanEscape() {
   return true;
 }
 
-
 template <bool capture_raw>
-uc32 Scanner::ScanOctalEscape(uc32 c, int length) {
+uc32 Scanner::ScanOctalEscape(uc32 c, int length, bool in_template_literal) {
   uc32 x = c - '0';
   int i = 0;
   for (; i < length; i++) {
@@ -1044,7 +1043,9 @@ uc32 Scanner::ScanOctalEscape(uc32 c, int length) {
   // occur before the "use strict" directive.
   if (c != '0' || i > 0 || c0_ == '8' || c0_ == '9') {
     octal_pos_ = Location(source_pos() - i - 1, source_pos() - 1);
-    octal_message_ = MessageTemplate::kStrictOctalEscape;
+    octal_message_ = in_template_literal
+                         ? MessageTemplate::kTemplateOctalLiteral
+                         : MessageTemplate::kStrictOctalEscape;
   }
   return x;
 }

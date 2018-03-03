@@ -510,7 +510,7 @@ class Scanner {
 
   // Scans octal escape sequence. Also accepts "\0" decimal escape sequence.
   template <bool capture_raw>
-  uc32 ScanOctalEscape(uc32 c, int length);
+  uc32 ScanOctalEscape(uc32 c, int length, bool in_template_literal);
 
   // Call this after setting source_ to the input.
   void Init() {
