@@ -8,6 +8,7 @@
 namespace v8 {
 namespace internal {
 namespace wasm {
+namespace test_run_wasm_atomics {
 
 void RunU32BinOp(WasmExecutionMode execution_mode, WasmOpcode wasm_op,
                  Uint32BinOp expected_op) {
@@ -294,6 +295,7 @@ WASM_EXEC_TEST(I32AtomicStoreLoad8U) {
   }
 }
 
+}  // namespace test_run_wasm_atomics
 }  // namespace wasm
 }  // namespace internal
 }  // namespace v8

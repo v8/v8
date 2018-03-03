@@ -8,7 +8,7 @@
 namespace v8 {
 namespace internal {
 namespace wasm {
-namespace atomics_64 {
+namespace test_run_wasm_atomics_64 {
 
 void RunU64BinOp(WasmExecutionMode execution_mode, WasmOpcode wasm_op,
                  Uint64BinOp expected_op) {
@@ -158,7 +158,7 @@ WASM_COMPILED_EXEC_TEST(I64AtomicXor8U) {
   RunU8BinOp(execution_mode, kExprI64AtomicXor8U, Xor);
 }
 
-}  // namespace atomics_64
+}  // namespace test_run_wasm_atomics_64
 }  // namespace wasm
 }  // namespace internal
 }  // namespace v8
