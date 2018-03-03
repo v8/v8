@@ -2279,7 +2279,9 @@ class FunctionLiteral final : public Expression {
   void set_suspend_count(int suspend_count) { suspend_count_ = suspend_count; }
 
   int return_position() {
-    return std::max(start_position(), end_position() - (has_braces_ ? 1 : 0));
+    return std::max(
+        start_position(),
+        end_position() - (HasBracesField::decode(bit_field_) ? 1 : 0));
   }
 
   int function_literal_id() const { return function_literal_id_; }
@@ -2315,19 +2317,19 @@ class FunctionLiteral final : public Expression {
         function_length_(function_length),
         function_token_position_(kNoSourcePosition),
         suspend_count_(0),
-        has_braces_(has_braces),
+        function_literal_id_(function_literal_id),
         raw_name_(name ? ast_value_factory->NewConsString(name) : nullptr),
         scope_(scope),
         body_(body),
         raw_inferred_name_(ast_value_factory->empty_cons_string()),
-        function_literal_id_(function_literal_id),
         produced_preparsed_scope_data_(produced_preparsed_scope_data) {
     bit_field_ |= FunctionTypeBits::encode(function_type) |
                   Pretenure::encode(false) |
                   HasDuplicateParameters::encode(has_duplicate_parameters ==
                                                  kHasDuplicateParameters) |
                   DontOptimizeReasonField::encode(BailoutReason::kNoReason) |
-                  RequiresInstanceFieldsInitializer::encode(false);
+                  RequiresInstanceFieldsInitializer::encode(false) |
+                  HasBracesField::encode(has_braces);
     if (eager_compile_hint == kShouldEagerCompile) SetShouldEagerCompile();
     DCHECK_EQ(body == nullptr, expected_property_count < 0);
   }
@@ -2340,20 +2342,21 @@ class FunctionLiteral final : public Expression {
       : public BitField<BailoutReason, HasDuplicateParameters::kNext, 8> {};
   class RequiresInstanceFieldsInitializer
       : public BitField<bool, DontOptimizeReasonField::kNext, 1> {};
+  class HasBracesField
+      : public BitField<bool, RequiresInstanceFieldsInitializer::kNext, 1> {};
 
   int expected_property_count_;
   int parameter_count_;
   int function_length_;
   int function_token_position_;
   int suspend_count_;
-  bool has_braces_;
+  int function_literal_id_;
 
   const AstConsString* raw_name_;
   DeclarationScope* scope_;
   ZoneList<Statement*>* body_;
   const AstConsString* raw_inferred_name_;
   Handle<String> inferred_name_;
-  int function_literal_id_;
   ProducedPreParsedScopeData* produced_preparsed_scope_data_;
 };
 
