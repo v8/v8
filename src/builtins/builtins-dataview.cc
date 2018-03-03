@@ -173,7 +173,7 @@ MaybeHandle<Object> AllocateResult(Isolate* isolate, uint64_t value) {
 template <typename T>
 MaybeHandle<Object> GetViewValue(Isolate* isolate, Handle<JSDataView> data_view,
                                  Handle<Object> request_index,
-                                 bool is_little_endian) {
+                                 bool is_little_endian, const char* method) {
   ASSIGN_RETURN_ON_EXCEPTION(
       isolate, request_index,
       Object::ToIndex(isolate, request_index,
@@ -187,6 +187,13 @@ MaybeHandle<Object> GetViewValue(Isolate* isolate, Handle<JSDataView> data_view,
   }
   Handle<JSArrayBuffer> buffer(JSArrayBuffer::cast(data_view->buffer()),
                                isolate);
+  if (buffer->was_neutered()) {
+    Handle<String> operation =
+        isolate->factory()->NewStringFromAsciiChecked(method);
+    THROW_NEW_ERROR(
+        isolate, NewTypeError(MessageTemplate::kDetachedOperation, operation),
+        Object);
+  }
   size_t const data_view_byte_offset = NumberToSize(data_view->byte_offset());
   size_t const data_view_byte_length = NumberToSize(data_view->byte_length());
   if (get_index + sizeof(T) > data_view_byte_length ||
@@ -287,7 +294,8 @@ uint64_t DataViewConvertValue<uint64_t>(Handle<Object> value) {
 template <typename T>
 MaybeHandle<Object> SetViewValue(Isolate* isolate, Handle<JSDataView> data_view,
                                  Handle<Object> request_index,
-                                 bool is_little_endian, Handle<Object> value) {
+                                 bool is_little_endian, Handle<Object> value,
+                                 const char* method) {
   ASSIGN_RETURN_ON_EXCEPTION(
       isolate, request_index,
       Object::ToIndex(isolate, request_index,
@@ -303,6 +311,13 @@ MaybeHandle<Object> SetViewValue(Isolate* isolate, Handle<JSDataView> data_view,
   }
   Handle<JSArrayBuffer> buffer(JSArrayBuffer::cast(data_view->buffer()),
                                isolate);
+  if (buffer->was_neutered()) {
+    Handle<String> operation =
+        isolate->factory()->NewStringFromAsciiChecked(method);
+    THROW_NEW_ERROR(
+        isolate, NewTypeError(MessageTemplate::kDetachedOperation, operation),
+        Object);
+  }
   size_t const data_view_byte_offset = NumberToSize(data_view->byte_offset());
   size_t const data_view_byte_length = NumberToSize(data_view->byte_length());
   if (get_index + sizeof(T) > data_view_byte_length ||
@@ -340,7 +355,8 @@ MaybeHandle<Object> SetViewValue(Isolate* isolate, Handle<JSDataView> data_view,
     ASSIGN_RETURN_FAILURE_ON_EXCEPTION(                                    \
         isolate, result,                                                   \
         GetViewValue<type>(isolate, data_view, byte_offset,                \
-                           is_little_endian->BooleanValue()));             \
+                           is_little_endian->BooleanValue(),               \
+                           "DataView.prototype.get" #Type));               \
     return *result;                                                        \
   }
 DATA_VIEW_PROTOTYPE_GET(Int8, int8_t)
@@ -366,7 +382,8 @@ DATA_VIEW_PROTOTYPE_GET(BigUint64, uint64_t)
     ASSIGN_RETURN_FAILURE_ON_EXCEPTION(                                    \
         isolate, result,                                                   \
         SetViewValue<type>(isolate, data_view, byte_offset,                \
-                           is_little_endian->BooleanValue(), value));      \
+                           is_little_endian->BooleanValue(), value,        \
+                           "DataView.prototype.get" #Type));               \
     return *result;                                                        \
   }
 DATA_VIEW_PROTOTYPE_SET(Int8, int8_t)
