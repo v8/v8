@@ -287,8 +287,8 @@ void InstructionSelector::VisitLoad(Node* node) {
   AddressingMode mode =
       g.GetEffectiveAddressMemoryOperand(node, inputs, &input_count);
   InstructionCode code = opcode | AddressingModeField::encode(mode);
-  if (node->opcode() == IrOpcode::kPoisonedLoad &&
-      load_poisoning_ == LoadPoisoning::kDoPoison) {
+  if (node->opcode() == IrOpcode::kPoisonedLoad) {
+    CHECK_EQ(load_poisoning_, LoadPoisoning::kDoPoison);
     code |= MiscField::encode(kMemoryAccessPoisoned);
   }
   Emit(code, 1, outputs, input_count, inputs);

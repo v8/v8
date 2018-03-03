@@ -296,8 +296,8 @@ void InstructionSelector::VisitLoad(Node* node) {
       UNREACHABLE();
       return;
   }
-  if (node->opcode() == IrOpcode::kPoisonedLoad &&
-      load_poisoning_ == LoadPoisoning::kDoPoison) {
+  if (node->opcode() == IrOpcode::kPoisonedLoad) {
+    CHECK_EQ(load_poisoning_, LoadPoisoning::kDoPoison);
     opcode |= MiscField::encode(kMemoryAccessPoisoned);
   }
 

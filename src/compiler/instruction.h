@@ -1664,8 +1664,6 @@ struct PrintableInstructionSequence {
 V8_EXPORT_PRIVATE std::ostream& operator<<(
     std::ostream& os, const PrintableInstructionSequence& code);
 
-enum class LoadPoisoning { kDoPoison, kDontPoison };
-
 }  // namespace compiler
 }  // namespace internal
 }  // namespace v8

@@ -511,6 +511,10 @@ class V8_EXPORT_PRIVATE CommonOperatorBuilder final
   DISALLOW_COPY_AND_ASSIGN(CommonOperatorBuilder);
 };
 
+// This should go into some common compiler header, but we do not have such a
+// thing at the moment.
+enum class LoadPoisoning { kDoPoison, kDontPoison };
+
 }  // namespace compiler
 }  // namespace internal
 }  // namespace v8

@@ -308,8 +308,8 @@ void InstructionSelector::VisitLoad(Node* node) {
   InstructionCode code = opcode | AddressingModeField::encode(mode);
   if (node->opcode() == IrOpcode::kProtectedLoad) {
     code |= MiscField::encode(kMemoryAccessProtected);
-  } else if (node->opcode() == IrOpcode::kPoisonedLoad &&
-             load_poisoning_ == LoadPoisoning::kDoPoison) {
+  } else if (node->opcode() == IrOpcode::kPoisonedLoad) {
+    CHECK_EQ(load_poisoning_, LoadPoisoning::kDoPoison);
     code |= MiscField::encode(kMemoryAccessPoisoned);
   }
   Emit(code, 1, outputs, input_count, inputs);
