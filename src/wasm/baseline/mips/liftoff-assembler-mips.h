@@ -402,10 +402,12 @@ FP_BINOP(f32_add, add_s)
 FP_BINOP(f32_sub, sub_s)
 FP_BINOP(f32_mul, mul_s)
 UNIMPLEMENTED_FP_UNOP(f32_neg)
+UNIMPLEMENTED_FP_UNOP(f32_sqrt)
 FP_BINOP(f64_add, add_d)
 FP_BINOP(f64_sub, sub_d)
 FP_BINOP(f64_mul, mul_d)
 UNIMPLEMENTED_FP_UNOP(f64_neg)
+UNIMPLEMENTED_FP_UNOP(f64_sqrt)
 
 #undef FP_BINOP
 #undef UNIMPLEMENTED_FP_BINOP

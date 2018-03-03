@@ -208,6 +208,7 @@ class TurboAssembler : public Assembler {
   AVX_OP(Cmpnlepd, cmpnlepd)
   AVX_OP(Roundss, roundss)
   AVX_OP(Roundsd, roundsd)
+  AVX_OP(Sqrtss, sqrtss)
   AVX_OP(Sqrtsd, sqrtsd)
   AVX_OP(Ucomiss, ucomiss)
   AVX_OP(Ucomisd, ucomisd)

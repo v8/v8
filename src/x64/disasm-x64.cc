@@ -1040,6 +1040,11 @@ int DisassemblerX64::AVXInstruction(byte* data) {
                        NameOfCPURegister(regop));
         current += PrintRightXMMOperand(current);
         break;
+      case 0x51:
+        AppendToBuffer("vsqrtss %s,%s,", NameOfXMMRegister(regop),
+                       NameOfXMMRegister(vvvv));
+        current += PrintRightXMMOperand(current);
+        break;
       case 0x58:
         AppendToBuffer("vaddss %s,%s,", NameOfXMMRegister(regop),
                        NameOfXMMRegister(vvvv));

@@ -1345,6 +1345,12 @@ class Assembler : public AssemblerBase {
   void vminsd(XMMRegister dst, XMMRegister src1, Operand src2) {
     vsd(0x5d, dst, src1, src2);
   }
+  void vsqrtsd(XMMRegister dst, XMMRegister src1, XMMRegister src2) {
+    vsqrtsd(dst, src1, Operand(src2));
+  }
+  void vsqrtsd(XMMRegister dst, XMMRegister src1, Operand src2) {
+    vsd(0x51, dst, src1, src2);
+  }
   void vsd(byte op, XMMRegister dst, XMMRegister src1, Operand src2);
 
   void vaddss(XMMRegister dst, XMMRegister src1, XMMRegister src2) {
@@ -1382,6 +1388,12 @@ class Assembler : public AssemblerBase {
   }
   void vminss(XMMRegister dst, XMMRegister src1, Operand src2) {
     vss(0x5d, dst, src1, src2);
+  }
+  void vsqrtss(XMMRegister dst, XMMRegister src1, XMMRegister src2) {
+    vsqrtss(dst, src1, Operand(src2));
+  }
+  void vsqrtss(XMMRegister dst, XMMRegister src1, Operand src2) {
+    vss(0x51, dst, src1, src2);
   }
   void vss(byte op, XMMRegister dst, XMMRegister src1, Operand src2);
 

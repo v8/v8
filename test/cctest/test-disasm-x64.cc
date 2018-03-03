@@ -433,6 +433,8 @@ TEST(DisasmX64) {
     __ maxss(xmm1, Operand(rbx, rcx, times_4, 10000));
     __ minss(xmm1, xmm0);
     __ minss(xmm1, Operand(rbx, rcx, times_4, 10000));
+    __ sqrtss(xmm1, xmm0);
+    __ sqrtss(xmm1, Operand(rbx, rcx, times_4, 10000));
     __ addps(xmm1, xmm0);
     __ addps(xmm1, Operand(rbx, rcx, times_4, 10000));
     __ subps(xmm1, xmm0);
@@ -474,6 +476,8 @@ TEST(DisasmX64) {
     __ minsd(xmm1, Operand(rbx, rcx, times_4, 10000));
     __ maxsd(xmm1, xmm0);
     __ maxsd(xmm1, Operand(rbx, rcx, times_4, 10000));
+    __ sqrtsd(xmm1, xmm0);
+    __ sqrtsd(xmm1, Operand(rbx, rcx, times_4, 10000));
     __ ucomisd(xmm0, xmm1);
 
     __ andpd(xmm0, xmm1);
@@ -635,6 +639,8 @@ TEST(DisasmX64) {
       __ vminss(xmm9, xmm1, Operand(rbx, rcx, times_8, 10000));
       __ vmaxss(xmm8, xmm1, xmm2);
       __ vmaxss(xmm9, xmm1, Operand(rbx, rcx, times_1, 10000));
+      __ vsqrtss(xmm8, xmm1, xmm2);
+      __ vsqrtss(xmm9, xmm1, Operand(rbx, rcx, times_1, 10000));
       __ vmovss(xmm9, Operand(r11, rcx, times_8, -10000));
       __ vmovss(Operand(rbx, r9, times_4, 10000), xmm1);
       __ vucomiss(xmm9, xmm1);

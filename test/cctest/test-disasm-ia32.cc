@@ -498,6 +498,8 @@ TEST(DisasmIa320) {
     __ minsd(xmm1, Operand(ebx, ecx, times_4, 10000));
     __ maxsd(xmm1, xmm0);
     __ maxsd(xmm1, Operand(ebx, ecx, times_4, 10000));
+    __ sqrtsd(xmm1, xmm0);
+    __ sqrtsd(xmm1, Operand(ebx, ecx, times_4, 10000));
     __ ucomisd(xmm0, xmm1);
     __ cmpltsd(xmm0, xmm1);
 
@@ -606,6 +608,8 @@ TEST(DisasmIa320) {
       __ vminsd(xmm0, xmm1, Operand(ebx, ecx, times_4, 10000));
       __ vmaxsd(xmm0, xmm1, xmm2);
       __ vmaxsd(xmm0, xmm1, Operand(ebx, ecx, times_4, 10000));
+      __ vsqrtsd(xmm0, xmm1, xmm2);
+      __ vsqrtsd(xmm0, xmm1, Operand(ebx, ecx, times_4, 10000));
 
       __ vaddss(xmm0, xmm1, xmm2);
       __ vaddss(xmm0, xmm1, Operand(ebx, ecx, times_4, 10000));
@@ -619,6 +623,8 @@ TEST(DisasmIa320) {
       __ vminss(xmm0, xmm1, Operand(ebx, ecx, times_4, 10000));
       __ vmaxss(xmm0, xmm1, xmm2);
       __ vmaxss(xmm0, xmm1, Operand(ebx, ecx, times_4, 10000));
+      __ vsqrtss(xmm0, xmm1, xmm2);
+      __ vsqrtss(xmm0, xmm1, Operand(ebx, ecx, times_4, 10000));
 
       __ vandps(xmm0, xmm1, xmm2);
       __ vandps(xmm0, xmm1, Operand(ebx, ecx, times_4, 10000));

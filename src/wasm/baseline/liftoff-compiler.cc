@@ -561,7 +561,9 @@ class LiftoffCompiler {
         });
         break;
         CASE_FLOAT_UNOP(F32Neg, F32, f32_neg)
+        CASE_FLOAT_UNOP(F32Sqrt, F32, f32_sqrt)
         CASE_FLOAT_UNOP(F64Neg, F64, f64_neg)
+        CASE_FLOAT_UNOP(F64Sqrt, F64, f64_sqrt)
       default:
         return unsupported(decoder, WasmOpcodes::OpcodeName(opcode));
     }

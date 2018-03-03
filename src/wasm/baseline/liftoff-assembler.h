@@ -386,6 +386,7 @@ class LiftoffAssembler : public TurboAssembler {
                            DoubleRegister rhs);
   // f32 unops.
   inline void emit_f32_neg(DoubleRegister dst, DoubleRegister src);
+  inline void emit_f32_sqrt(DoubleRegister dst, DoubleRegister src);
 
   // f64 binops.
   inline void emit_f64_add(DoubleRegister dst, DoubleRegister lhs,
@@ -397,6 +398,7 @@ class LiftoffAssembler : public TurboAssembler {
 
   // f64 unops.
   inline void emit_f64_neg(DoubleRegister dst, DoubleRegister src);
+  inline void emit_f64_sqrt(DoubleRegister dst, DoubleRegister src);
 
   inline void emit_jump(Label*);
   inline void emit_cond_jump(Condition, Label*, ValueType value, Register lhs,

@@ -576,6 +576,10 @@ void LiftoffAssembler::emit_f32_neg(DoubleRegister dst, DoubleRegister src) {
   }
 }
 
+void LiftoffAssembler::emit_f32_sqrt(DoubleRegister dst, DoubleRegister src) {
+  Sqrtss(dst, src);
+}
+
 void LiftoffAssembler::emit_f64_add(DoubleRegister dst, DoubleRegister lhs,
                                     DoubleRegister rhs) {
   if (CpuFeatures::IsSupported(AVX)) {
@@ -626,6 +630,10 @@ void LiftoffAssembler::emit_f64_neg(DoubleRegister dst, DoubleRegister src) {
     TurboAssembler::Move(dst, kSignBit);
     Xorpd(dst, src);
   }
+}
+
+void LiftoffAssembler::emit_f64_sqrt(DoubleRegister dst, DoubleRegister src) {
+  Sqrtsd(dst, src);
 }
 
 void LiftoffAssembler::emit_jump(Label* label) { jmp(label); }
