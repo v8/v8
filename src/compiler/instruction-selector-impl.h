@@ -296,7 +296,7 @@ class OperandGenerator {
       case IrOpcode::kComment:
         return Constant(OpParameter<ExternalReference>(node->op()));
       case IrOpcode::kHeapConstant:
-        return Constant(OpParameter<Handle<HeapObject>>(node->op()));
+        return Constant(HeapConstantOf(node->op()));
       case IrOpcode::kDeadValue: {
         switch (DeadValueRepresentationOf(node->op())) {
           case MachineRepresentation::kBit:

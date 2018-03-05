@@ -181,7 +181,7 @@ class JSTypedLoweringTester : public HandleAndZoneScope {
 
   void CheckHandle(Handle<HeapObject> expected, Node* result) {
     CHECK_EQ(IrOpcode::kHeapConstant, result->opcode());
-    Handle<HeapObject> value = OpParameter<Handle<HeapObject>>(result->op());
+    Handle<HeapObject> value = HeapConstantOf(result->op());
     CHECK_EQ(*expected, *value);
   }
 };

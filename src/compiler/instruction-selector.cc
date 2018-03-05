@@ -448,8 +448,7 @@ InstructionOperand OperandForDeopt(Isolate* isolate, OperandGenerator* g,
         return InstructionOperand();
       }
 
-      Handle<HeapObject> constant =
-          OpParameter<Handle<HeapObject>>(input->op());
+      Handle<HeapObject> constant = HeapConstantOf(input->op());
       Heap::RootListIndex root_index;
       if (isolate->heap()->IsRootHandle(constant, &root_index) &&
           root_index == Heap::kOptimizedOutRootIndex) {

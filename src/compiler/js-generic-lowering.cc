@@ -522,7 +522,7 @@ void JSGenericLowering::LowerJSCreateWithContext(Node* node) {
 }
 
 void JSGenericLowering::LowerJSCreateBlockContext(Node* node) {
-  Handle<ScopeInfo> scope_info = OpParameter<Handle<ScopeInfo>>(node->op());
+  Handle<ScopeInfo> scope_info = ScopeInfoOf(node->op());
   node->InsertInput(zone(), 0, jsgraph()->HeapConstant(scope_info));
   ReplaceWithRuntimeCall(node, Runtime::kPushBlockContext);
 }

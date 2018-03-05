@@ -43,7 +43,7 @@ class JSConstantCacheTester : public HandleAndZoneScope,
 
   Handle<HeapObject> handle(Node* node) {
     CHECK_EQ(IrOpcode::kHeapConstant, node->opcode());
-    return OpParameter<Handle<HeapObject>>(node->op());
+    return HeapConstantOf(node->op());
   }
 
   Factory* factory() { return main_isolate()->factory(); }

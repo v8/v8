@@ -739,7 +739,7 @@ Type* Typer::Visitor::TypeNumberConstant(Node* node) {
 }
 
 Type* Typer::Visitor::TypeHeapConstant(Node* node) {
-  return TypeConstant(OpParameter<Handle<HeapObject>>(node->op()));
+  return TypeConstant(HeapConstantOf(node->op()));
 }
 
 Type* Typer::Visitor::TypeExternalConstant(Node* node) {

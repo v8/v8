@@ -51,7 +51,7 @@ class ValueHelper {
 
   void CheckHeapConstant(HeapObject* expected, Node* node) {
     CHECK_EQ(IrOpcode::kHeapConstant, node->opcode());
-    CHECK_EQ(expected, *OpParameter<Handle<HeapObject>>(node->op()));
+    CHECK_EQ(expected, *HeapConstantOf(node->op()));
   }
 
   void CheckTrue(Node* node) {

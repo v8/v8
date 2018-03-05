@@ -1168,6 +1168,11 @@ const Operator* CommonOperatorBuilder::HeapConstant(
       value);                                         // parameter
 }
 
+Handle<HeapObject> HeapConstantOf(const Operator* op) {
+  DCHECK_EQ(IrOpcode::kHeapConstant, op->opcode());
+  return OpParameter<Handle<HeapObject>>(op);
+}
+
 const Operator* CommonOperatorBuilder::RelocatableInt32Constant(
     int32_t value, RelocInfo::Mode rmode) {
   return new (zone()) Operator1<RelocatablePtrConstantInfo>(  // --

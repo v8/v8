@@ -1225,6 +1225,12 @@ const Operator* JSOperatorBuilder::CreateBlockContext(
       scope_info);                                               // parameter
 }
 
+Handle<ScopeInfo> ScopeInfoOf(const Operator* op) {
+  DCHECK(IrOpcode::kJSCreateBlockContext == op->opcode() ||
+         IrOpcode::kJSCreateWithContext == op->opcode());
+  return OpParameter<Handle<ScopeInfo>>(op);
+}
+
 #undef BINARY_OP_LIST
 #undef CACHED_OP_LIST
 #undef COMPARE_OP_LIST
