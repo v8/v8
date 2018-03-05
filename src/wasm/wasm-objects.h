@@ -428,25 +428,23 @@ class WasmCompiledModule : public Struct {
   DECL_VERIFIER(WasmCompiledModule)
 
 // Layout description.
-// TODO(mstarzinger): Rename the below constants to follow the usual naming
-// scheme once the WCM_PROPERTY_TABLE has been deprecated.
-#define WASM_COMPILED_MODULE_FIELDS(V)            \
-  V(ksharedOffset, kPointerSize)                  \
-  V(knative_contextOffset, kPointerSize)          \
-  V(kexport_wrappersOffset, kPointerSize)         \
-  V(kweak_exported_functionsOffset, kPointerSize) \
-  V(knext_instanceOffset, kPointerSize)           \
-  V(kprev_instanceOffset, kPointerSize)           \
-  V(kowning_instanceOffset, kPointerSize)         \
-  V(kwasm_moduleOffset, kPointerSize)             \
-  V(ksource_positionsOffset, kPointerSize)        \
-  V(knative_moduleOffset, kPointerSize)           \
-  V(klazy_compile_dataOffset, kPointerSize)       \
-  V(kuse_trap_handlerOffset, kPointerSize)        \
-  V(kcode_tableOffset, kPointerSize)              \
-  V(kfunction_tablesOffset, kPointerSize)         \
-  V(kempty_function_tablesOffset, kPointerSize)   \
-  V(kinstance_idOffset, kPointerSize)             \
+#define WASM_COMPILED_MODULE_FIELDS(V)          \
+  V(kSharedOffset, kPointerSize)                \
+  V(kNativeContextOffset, kPointerSize)         \
+  V(kExportWrappersOffset, kPointerSize)        \
+  V(kWeakExportedFunctionsOffset, kPointerSize) \
+  V(kNextInstanceOffset, kPointerSize)          \
+  V(kPrevInstanceOffset, kPointerSize)          \
+  V(kOwningInstanceOffset, kPointerSize)        \
+  V(kWasmModuleOffset, kPointerSize)            \
+  V(kSourcePositionsOffset, kPointerSize)       \
+  V(kNativeModuleOffset, kPointerSize)          \
+  V(kLazyCompileDataOffset, kPointerSize)       \
+  V(kUseTrapHandlerOffset, kPointerSize)        \
+  V(kCodeTableOffset, kPointerSize)             \
+  V(kFunctionTablesOffset, kPointerSize)        \
+  V(kEmptyFunctionTablesOffset, kPointerSize)   \
+  V(kInstanceIdOffset, kPointerSize)            \
   V(kSize, 0)
 
   DEFINE_FIELD_OFFSET_CONSTANTS(HeapObject::kHeaderSize,
@@ -697,6 +695,9 @@ WasmFunctionInfo GetWasmFunctionInfo(Isolate*, Handle<Code>);
 #undef WCM_OBJECT_OR_WEAK
 #undef WCM_SMALL_CONST_NUMBER
 #undef WCM_WEAK_LINK
+#undef WCM_PROPERTY_TABLE
+#undef CORE_WCM_PROPERTY_TABLE
+#undef DEBUG_WCM_PROPERTY_TABLE
 
 #include "src/objects/object-macros-undef.h"
 

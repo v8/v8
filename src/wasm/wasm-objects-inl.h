@@ -93,57 +93,68 @@ OPTIONAL_ACCESSORS(WasmDebugInfo, c_wasm_entry_map, Managed<wasm::SignatureMap>,
 
 #undef OPTIONAL_ACCESSORS
 
-#define WCM_OBJECT_OR_WEAK(TYPE, NAME, OFFSET, TYPE_CHECK, SETTER_MODIFIER) \
-  TYPE* WasmCompiledModule::maybe_##NAME() const {                          \
-    Object* value = READ_FIELD(this, OFFSET);                               \
-    if (!(TYPE_CHECK)) return nullptr;                                      \
-    return TYPE::cast(value);                                               \
-  }                                                                         \
-                                                                            \
-  bool WasmCompiledModule::has_##NAME() const {                             \
-    Object* value = READ_FIELD(this, OFFSET);                               \
-    return TYPE_CHECK;                                                      \
-  }                                                                         \
-                                                                            \
-  void WasmCompiledModule::reset_##NAME() {                                 \
-    WRITE_FIELD(this, OFFSET, GetHeap()->undefined_value());                \
-  }                                                                         \
-                                                                            \
+#define WCM_OBJECT_OR_WEAK(TYPE, NAME, OFFSET, TYPE_CHECK)   \
+  TYPE* WasmCompiledModule::maybe_##NAME() const {           \
+    Object* value = READ_FIELD(this, OFFSET);                \
+    if (!(TYPE_CHECK)) return nullptr;                       \
+    return TYPE::cast(value);                                \
+  }                                                          \
+                                                             \
+  bool WasmCompiledModule::has_##NAME() const {              \
+    Object* value = READ_FIELD(this, OFFSET);                \
+    return TYPE_CHECK;                                       \
+  }                                                          \
+                                                             \
+  void WasmCompiledModule::reset_##NAME() {                  \
+    WRITE_FIELD(this, OFFSET, GetHeap()->undefined_value()); \
+  }                                                          \
+                                                             \
   ACCESSORS_CHECKED2(WasmCompiledModule, NAME, TYPE, OFFSET, TYPE_CHECK, true)
 
-#define WCM_OBJECT(TYPE, NAME) \
-  WCM_OBJECT_OR_WEAK(TYPE, NAME, k##NAME##Offset, value->Is##TYPE(), public)
+#define WCM_OBJECT(TYPE, NAME, OFFSET) \
+  WCM_OBJECT_OR_WEAK(TYPE, NAME, OFFSET, value->Is##TYPE())
 
-#define WCM_CONST_OBJECT(TYPE, NAME) \
-  WCM_OBJECT_OR_WEAK(TYPE, NAME, k##NAME##Offset, value->Is##TYPE(), private)
-
-#define WCM_SMALL_CONST_NUMBER(TYPE, NAME)                                   \
-  TYPE WasmCompiledModule::NAME() const {                                    \
-    return static_cast<TYPE>(Smi::ToInt(READ_FIELD(this, k##NAME##Offset))); \
-  }                                                                          \
-                                                                             \
-  void WasmCompiledModule::set_##NAME(TYPE value) {                          \
-    WRITE_FIELD(this, k##NAME##Offset, Smi::FromInt(value));                 \
+#define WCM_SMALL_CONST_NUMBER(TYPE, NAME, OFFSET)                  \
+  TYPE WasmCompiledModule::NAME() const {                           \
+    return static_cast<TYPE>(Smi::ToInt(READ_FIELD(this, OFFSET))); \
+  }                                                                 \
+                                                                    \
+  void WasmCompiledModule::set_##NAME(TYPE value) {                 \
+    WRITE_FIELD(this, OFFSET, Smi::FromInt(value));                 \
   }
 
-#define WCM_WEAK_LINK(TYPE, NAME)                            \
-  WCM_OBJECT_OR_WEAK(WeakCell, weak_##NAME, k##NAME##Offset, \
-                     value->IsWeakCell(), public)            \
-                                                             \
-  TYPE* WasmCompiledModule::NAME() const {                   \
-    DCHECK(!weak_##NAME()->cleared());                       \
-    return TYPE::cast(weak_##NAME()->value());               \
+#define WCM_WEAK_LINK(TYPE, NAME, OFFSET)                                \
+  WCM_OBJECT_OR_WEAK(WeakCell, weak_##NAME, OFFSET, value->IsWeakCell()) \
+                                                                         \
+  TYPE* WasmCompiledModule::NAME() const {                               \
+    DCHECK(!weak_##NAME()->cleared());                                   \
+    return TYPE::cast(weak_##NAME()->value());                           \
   }
 
-#define DEFINITION(KIND, TYPE, NAME) WCM_##KIND(TYPE, NAME)
-WCM_PROPERTY_TABLE(DEFINITION)
-#undef DECLARATION
-ACCESSORS(WasmCompiledModule, raw_next_instance, Object, knext_instanceOffset);
-ACCESSORS(WasmCompiledModule, raw_prev_instance, Object, kprev_instanceOffset);
+// WasmCompiledModule
+WCM_OBJECT(WasmSharedModuleData, shared, kSharedOffset)
+WCM_WEAK_LINK(Context, native_context, kNativeContextOffset)
+WCM_OBJECT(FixedArray, export_wrappers, kExportWrappersOffset)
+WCM_OBJECT(FixedArray, weak_exported_functions, kWeakExportedFunctionsOffset)
+WCM_OBJECT(WasmCompiledModule, next_instance, kNextInstanceOffset)
+WCM_OBJECT(WasmCompiledModule, prev_instance, kPrevInstanceOffset)
+WCM_WEAK_LINK(WasmInstanceObject, owning_instance, kOwningInstanceOffset)
+WCM_WEAK_LINK(WasmModuleObject, wasm_module, kWasmModuleOffset)
+WCM_OBJECT(FixedArray, source_positions, kSourcePositionsOffset)
+WCM_OBJECT(Foreign, native_module, kNativeModuleOffset)
+WCM_OBJECT(FixedArray, lazy_compile_data, kLazyCompileDataOffset)
+WCM_SMALL_CONST_NUMBER(bool, use_trap_handler, kUseTrapHandlerOffset)
+WCM_OBJECT(FixedArray, code_table, kCodeTableOffset)
+WCM_OBJECT(FixedArray, function_tables, kFunctionTablesOffset)
+WCM_OBJECT(FixedArray, empty_function_tables, kEmptyFunctionTablesOffset)
+ACCESSORS(WasmCompiledModule, raw_next_instance, Object, kNextInstanceOffset);
+ACCESSORS(WasmCompiledModule, raw_prev_instance, Object, kPrevInstanceOffset);
+#ifdef DEBUG
+WCM_SMALL_CONST_NUMBER(uint32_t, instance_id, kInstanceIdOffset);
+#endif
 
-#undef WCM_CONST_OBJECT
-#undef WCM_LARGE_NUMBER
 #undef WCM_OBJECT_OR_WEAK
+#undef WCM_OBJECT
 #undef WCM_SMALL_CONST_NUMBER
 #undef WCM_WEAK_LINK
 

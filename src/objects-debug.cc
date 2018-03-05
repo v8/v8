@@ -1448,22 +1448,22 @@ void Tuple3::Tuple3Verify() {
 
 void WasmCompiledModule::WasmCompiledModuleVerify() {
   CHECK(IsWasmCompiledModule());
-  VerifyObjectField(ksharedOffset);
-  VerifyObjectField(knative_contextOffset);
-  VerifyObjectField(kexport_wrappersOffset);
-  VerifyObjectField(kweak_exported_functionsOffset);
-  VerifyObjectField(knext_instanceOffset);
-  VerifyObjectField(kprev_instanceOffset);
-  VerifyObjectField(kowning_instanceOffset);
-  VerifyObjectField(kwasm_moduleOffset);
-  VerifyObjectField(ksource_positionsOffset);
-  VerifyObjectField(knative_moduleOffset);
-  VerifyObjectField(klazy_compile_dataOffset);
-  VerifyObjectField(kuse_trap_handlerOffset);
-  VerifyObjectField(kcode_tableOffset);
-  VerifyObjectField(kfunction_tablesOffset);
-  VerifyObjectField(kempty_function_tablesOffset);
-  VerifyObjectField(kinstance_idOffset);
+  VerifyObjectField(kSharedOffset);
+  VerifyObjectField(kNativeContextOffset);
+  VerifyObjectField(kExportWrappersOffset);
+  VerifyObjectField(kWeakExportedFunctionsOffset);
+  VerifyObjectField(kNextInstanceOffset);
+  VerifyObjectField(kPrevInstanceOffset);
+  VerifyObjectField(kOwningInstanceOffset);
+  VerifyObjectField(kWasmModuleOffset);
+  VerifyObjectField(kSourcePositionsOffset);
+  VerifyObjectField(kNativeModuleOffset);
+  VerifyObjectField(kLazyCompileDataOffset);
+  VerifyObjectField(kUseTrapHandlerOffset);
+  VerifyObjectField(kCodeTableOffset);
+  VerifyObjectField(kFunctionTablesOffset);
+  VerifyObjectField(kEmptyFunctionTablesOffset);
+  VerifyObjectField(kInstanceIdOffset);
 }
 
 void WasmDebugInfo::WasmDebugInfoVerify() {
