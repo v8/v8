@@ -1430,6 +1430,11 @@ const Operator* SimplifiedOperatorBuilder::NewArgumentsElements(
       mapped_count);                    // parameter
 }
 
+int NewArgumentsElementsMappedCountOf(const Operator* op) {
+  DCHECK_EQ(IrOpcode::kNewArgumentsElements, op->opcode());
+  return OpParameter<int>(op);
+}
+
 const Operator* SimplifiedOperatorBuilder::Allocate(Type* type,
                                                     PretenureFlag pretenure) {
   return new (zone()) Operator1<AllocateParameters>(

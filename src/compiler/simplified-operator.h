@@ -407,6 +407,8 @@ AbortReason AbortReasonOf(const Operator* op) WARN_UNUSED_RESULT;
 
 DeoptimizeReason DeoptimizeReasonOf(const Operator* op) WARN_UNUSED_RESULT;
 
+int NewArgumentsElementsMappedCountOf(const Operator* op) WARN_UNUSED_RESULT;
+
 // Interface for building simplified operators, which represent the
 // medium-level operations of V8, including adding numbers, allocating objects,
 // indexing into objects and arrays, etc.

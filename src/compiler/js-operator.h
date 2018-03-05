@@ -636,6 +636,9 @@ BinaryOperationHint BinaryOperationHintOf(const Operator* op);
 
 CompareOperationHint CompareOperationHintOf(const Operator* op);
 
+int GeneratorStoreRegisterCountOf(const Operator* op) WARN_UNUSED_RESULT;
+int RestoreRegisterIndexOf(const Operator* op) WARN_UNUSED_RESULT;
+
 // Interface for building JavaScript-level operators, e.g. directly from the
 // AST. Most operators have no parameters, thus can be globally shared for all
 // graphs.

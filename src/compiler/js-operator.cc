@@ -947,12 +947,22 @@ const Operator* JSOperatorBuilder::GeneratorStore(int register_count) {
       register_count);                                  // parameter
 }
 
+int GeneratorStoreRegisterCountOf(const Operator* op) {
+  DCHECK_EQ(IrOpcode::kJSGeneratorStore, op->opcode());
+  return OpParameter<int>(op);
+}
+
 const Operator* JSOperatorBuilder::GeneratorRestoreRegister(int index) {
   return new (zone()) Operator1<int>(                             // --
       IrOpcode::kJSGeneratorRestoreRegister, Operator::kNoThrow,  // opcode
       "JSGeneratorRestoreRegister",                               // name
       1, 1, 1, 1, 1, 0,                                           // counts
       index);                                                     // parameter
+}
+
+int RestoreRegisterIndexOf(const Operator* op) {
+  DCHECK_EQ(IrOpcode::kJSGeneratorRestoreRegister, op->opcode());
+  return OpParameter<int>(op);
 }
 
 const Operator* JSOperatorBuilder::StoreNamed(LanguageMode language_mode,
