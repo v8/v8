@@ -2682,7 +2682,7 @@ TF_BUILTIN(ArrayReduceRightPreLoopEagerDeoptContinuation,
   // the hole. The continuation stub will search for the initial non-hole
   // element, rightly throwing an exception if not found.
   Return(CallStub(stub, context, receiver, callbackfn, UndefinedConstant(),
-                  TheHoleConstant(), receiver, SmiConstant(0), len,
+                  TheHoleConstant(), receiver, SmiSub(len, SmiConstant(1)), len,
                   UndefinedConstant()));
 }
 
