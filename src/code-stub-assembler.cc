@@ -1426,9 +1426,9 @@ TNode<FixedArrayBase> CodeStubAssembler::LoadElements(
   return CAST(LoadObjectField(object, JSObject::kElementsOffset));
 }
 
-TNode<Object> CodeStubAssembler::LoadJSArrayLength(SloppyTNode<JSArray> array) {
+TNode<Number> CodeStubAssembler::LoadJSArrayLength(SloppyTNode<JSArray> array) {
   CSA_ASSERT(this, IsJSArray(array));
-  return LoadObjectField(array, JSArray::kLengthOffset);
+  return CAST(LoadObjectField(array, JSArray::kLengthOffset));
 }
 
 TNode<Smi> CodeStubAssembler::LoadFastJSArrayLength(
@@ -6158,12 +6158,12 @@ TNode<Smi> CodeStubAssembler::ToSmiLength(TNode<Object> input,
   return result.value();
 }
 
-Node* CodeStubAssembler::ToLength_Inline(Node* const context,
-                                         Node* const input) {
-  Node* const smi_zero = SmiConstant(0);
-  return Select(
-      TaggedIsSmi(input), [=] { return SmiMax(input, smi_zero); },
-      [=] { return CallBuiltin(Builtins::kToLength, context, input); },
+TNode<Number> CodeStubAssembler::ToLength_Inline(SloppyTNode<Context> context,
+                                                 SloppyTNode<Object> input) {
+  TNode<Smi> smi_zero = SmiConstant(0);
+  return Select<Number>(
+      TaggedIsSmi(input), [=] { return SmiMax(CAST(input), smi_zero); },
+      [=] { return CAST(CallBuiltin(Builtins::kToLength, context, input)); },
       MachineRepresentation::kTagged);
 }
 

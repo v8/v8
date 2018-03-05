@@ -526,7 +526,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
   // Load the elements backing store of a JSObject.
   TNode<FixedArrayBase> LoadElements(SloppyTNode<JSObject> object);
   // Load the length of a JSArray instance.
-  TNode<Object> LoadJSArrayLength(SloppyTNode<JSArray> array);
+  TNode<Number> LoadJSArrayLength(SloppyTNode<JSArray> array);
   // Load the length of a fast JSArray instance. Returns a positive Smi.
   TNode<Smi> LoadFastJSArrayLength(SloppyTNode<JSArray> array);
   // Load the length of a fixed array base instance.
@@ -1309,7 +1309,8 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
                          Label* range_error);
 
   // ES6 7.1.15 ToLength, but with inlined fast path.
-  Node* ToLength_Inline(Node* const context, Node* const input);
+  TNode<Number> ToLength_Inline(SloppyTNode<Context> context,
+                                SloppyTNode<Object> input);
 
   // ES6 7.1.4 ToInteger ( argument )
   TNode<Number> ToInteger_Inline(TNode<Context> context, TNode<Object> input,

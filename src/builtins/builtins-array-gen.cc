@@ -214,8 +214,9 @@ Node* ArrayBuiltinsAssembler::FindProcessor(Node* k_value, Node* k) {
     CSA_ASSERT(this,
                SmiLessThanOrEqual(
                    len_, LoadObjectField(a, JSTypedArray::kLengthOffset)));
-    fast_typed_array_target_ = Word32Equal(LoadInstanceType(LoadElements(o_)),
-                                           LoadInstanceType(LoadElements(a)));
+    fast_typed_array_target_ =
+        Word32Equal(LoadInstanceType(LoadElements(original_array)),
+                    LoadInstanceType(LoadElements(a)));
     a_.Bind(a);
   }
 
@@ -413,15 +414,15 @@ Node* ArrayBuiltinsAssembler::FindProcessor(Node* k_value, Node* k) {
 
     // 3. Let len be ToLength(Get(O, "length")).
     // 4. ReturnIfAbrupt(len).
-    VARIABLE(merged_length, MachineRepresentation::kTagged);
+    TVARIABLE(Number, merged_length);
     Label has_length(this, &merged_length), not_js_array(this);
     GotoIf(DoesntHaveInstanceType(o(), JS_ARRAY_TYPE), &not_js_array);
-    merged_length.Bind(LoadJSArrayLength(o()));
+    merged_length = LoadJSArrayLength(CAST(o()));
     Goto(&has_length);
     BIND(&not_js_array);
     Node* len_property =
         GetProperty(context(), o(), isolate()->factory()->length_string());
-    merged_length.Bind(ToLength_Inline(context(), len_property));
+    merged_length = ToLength_Inline(context(), len_property);
     Goto(&has_length);
     BIND(&has_length);
     len_ = merged_length.value();
@@ -466,7 +467,8 @@ Node* ArrayBuiltinsAssembler::FindProcessor(Node* k_value, Node* k) {
 
   void ArrayBuiltinsAssembler::InitIteratingArrayBuiltinLoopContinuation(
       TNode<Context> context, TNode<Object> receiver, Node* callbackfn,
-      Node* this_arg, Node* a, Node* o, Node* initial_k, Node* len, Node* to) {
+      Node* this_arg, Node* a, TNode<JSReceiver> o, Node* initial_k,
+      TNode<Number> len, Node* to) {
     context_ = context;
     this_arg_ = this_arg;
     callbackfn_ = callbackfn;
@@ -492,11 +494,14 @@ Node* ArrayBuiltinsAssembler::FindProcessor(Node* k_value, Node* k) {
     GotoIfNot(HasInstanceType(CAST(receiver_), JS_TYPED_ARRAY_TYPE),
               &throw_not_typed_array);
 
-    o_ = receiver_;
-    Node* array_buffer = LoadObjectField(o_, JSTypedArray::kBufferOffset);
+    TNode<JSTypedArray> typed_array = CAST(receiver_);
+    o_ = typed_array;
+
+    Node* array_buffer =
+        LoadObjectField(typed_array, JSTypedArray::kBufferOffset);
     GotoIf(IsDetachedBuffer(array_buffer), &throw_detached);
 
-    len_ = LoadObjectField(o_, JSTypedArray::kLengthOffset);
+    len_ = LoadObjectField<Smi>(typed_array, JSTypedArray::kLengthOffset);
 
     Label throw_not_callable(this, Label::kDeferred);
     Label distinguish_types(this);
@@ -540,7 +545,7 @@ Node* ArrayBuiltinsAssembler::FindProcessor(Node* k_value, Node* k) {
     } else {
       k_.Bind(NumberDec(len()));
     }
-    Node* instance_type = LoadInstanceType(LoadElements(o_));
+    Node* instance_type = LoadInstanceType(LoadElements(typed_array));
     Switch(instance_type, &unexpected_instance_type, instance_types.data(),
            label_ptrs.data(), labels.size());
 
@@ -552,7 +557,8 @@ Node* ArrayBuiltinsAssembler::FindProcessor(Node* k_value, Node* k) {
       // TODO(tebbi): Silently cancelling the loop on buffer detachment is a
       // spec violation. Should go to &throw_detached and throw a TypeError
       // instead.
-      VisitAllTypedArrayElements(array_buffer, processor, &done, direction);
+      VisitAllTypedArrayElements(array_buffer, processor, &done, direction,
+                                 typed_array);
       Goto(&done);
       // No exception, return success
       BIND(&done);
@@ -638,12 +644,12 @@ Node* ArrayBuiltinsAssembler::FindProcessor(Node* k_value, Node* k) {
 
   void ArrayBuiltinsAssembler::VisitAllTypedArrayElements(
       Node* array_buffer, const CallResultProcessor& processor, Label* detached,
-      ForEachDirection direction) {
+      ForEachDirection direction, TNode<JSTypedArray> typed_array) {
     VariableList list({&a_, &k_, &to_}, zone());
 
     FastLoopBody body = [&](Node* index) {
       GotoIf(IsDetachedBuffer(array_buffer), detached);
-      Node* elements = LoadElements(o_);
+      Node* elements = LoadElements(typed_array);
       Node* base_ptr =
           LoadObjectField(elements, FixedTypedArrayBase::kBasePointerOffset);
       Node* external_ptr =
@@ -671,13 +677,13 @@ Node* ArrayBuiltinsAssembler::FindProcessor(Node* k_value, Node* k) {
   void ArrayBuiltinsAssembler::VisitAllFastElementsOneKind(
       ElementsKind kind, const CallResultProcessor& processor,
       Label* array_changed, ParameterMode mode, ForEachDirection direction,
-      MissingPropertyMode missing_property_mode) {
+      MissingPropertyMode missing_property_mode, TNode<Smi> length) {
     Comment("begin VisitAllFastElementsOneKind");
     VARIABLE(original_map, MachineRepresentation::kTagged);
     original_map.Bind(LoadMap(o()));
     VariableList list({&original_map, &a_, &k_, &to_}, zone());
     Node* start = IntPtrOrSmiConstant(0, mode);
-    Node* end = TaggedToParameter(len(), mode);
+    Node* end = TaggedToParameter(length, mode);
     IndexAdvanceMode advance_mode = direction == ForEachDirection::kReverse
                                         ? IndexAdvanceMode::kPre
                                         : IndexAdvanceMode::kPost;
@@ -695,13 +701,14 @@ Node* ArrayBuiltinsAssembler::FindProcessor(Node* k_value, Node* k) {
           Node* o_map = LoadMap(o());
           GotoIf(WordNotEqual(o_map, original_map.value()), array_changed);
 
+          TNode<JSArray> o_array = CAST(o());
           // Check if o's length has changed during the callback and if the
           // index is now out of range of the new length.
-          GotoIf(SmiGreaterThanOrEqual(k_.value(), LoadJSArrayLength(o())),
+          GotoIf(SmiGreaterThanOrEqual(k_.value(), LoadJSArrayLength(o_array)),
                  array_changed);
 
           // Re-load the elements array. If may have been resized.
-          Node* elements = LoadElements(o());
+          Node* elements = LoadElements(o_array);
 
           // Fast case: load the element directly from the elements FixedArray
           // and call the callback if the element is not the hole.
@@ -757,6 +764,7 @@ Node* ArrayBuiltinsAssembler::FindProcessor(Node* k_value, Node* k) {
                         &switch_on_elements_kind, slow);
 
     BIND(&switch_on_elements_kind);
+    TNode<Smi> smi_len = CAST(len());
     // Select by ElementsKind
     Node* o_map = LoadMap(o());
     Node* bit_field2 = LoadMapBitField2(o_map);
@@ -768,7 +776,7 @@ Node* ArrayBuiltinsAssembler::FindProcessor(Node* k_value, Node* k) {
     BIND(&fast_elements);
     {
       VisitAllFastElementsOneKind(PACKED_ELEMENTS, processor, slow, mode,
-                                  direction, missing_property_mode);
+                                  direction, missing_property_mode, smi_len);
 
       action(this);
 
@@ -783,7 +791,7 @@ Node* ArrayBuiltinsAssembler::FindProcessor(Node* k_value, Node* k) {
     BIND(&fast_double_elements);
     {
       VisitAllFastElementsOneKind(PACKED_DOUBLE_ELEMENTS, processor, slow, mode,
-                                  direction, missing_property_mode);
+                                  direction, missing_property_mode, smi_len);
 
       action(this);
 
@@ -841,8 +849,7 @@ Node* ArrayBuiltinsAssembler::FindProcessor(Node* k_value, Node* k) {
   }
 
   // Perform ArraySpeciesCreate (ES6 #sec-arrayspeciescreate).
-  void ArrayBuiltinsAssembler::GenerateArraySpeciesCreate(
-      SloppyTNode<Smi> len) {
+  void ArrayBuiltinsAssembler::GenerateArraySpeciesCreate(TNode<Number> len) {
     Label runtime(this, Label::kDeferred), done(this);
 
     Node* const original_map = LoadMap(o());
@@ -1647,9 +1654,9 @@ TF_BUILTIN(ArrayFindLoopContinuation, ArrayBuiltinsAssembler) {
   Node* callbackfn = Parameter(Descriptor::kCallbackFn);
   Node* this_arg = Parameter(Descriptor::kThisArg);
   Node* array = Parameter(Descriptor::kArray);
-  Node* object = Parameter(Descriptor::kObject);
+  TNode<JSReceiver> object = CAST(Parameter(Descriptor::kObject));
   Node* initial_k = Parameter(Descriptor::kInitialK);
-  Node* len = Parameter(Descriptor::kLength);
+  TNode<Number> len = CAST(Parameter(Descriptor::kLength));
   Node* to = Parameter(Descriptor::kTo);
 
   InitIteratingArrayBuiltinLoopContinuation(context, receiver, callbackfn,
@@ -1670,7 +1677,7 @@ TF_BUILTIN(ArrayFindLoopEagerDeoptContinuation, ArrayBuiltinsAssembler) {
   Node* callbackfn = Parameter(Descriptor::kCallbackFn);
   Node* this_arg = Parameter(Descriptor::kThisArg);
   Node* initial_k = Parameter(Descriptor::kInitialK);
-  Node* len = Parameter(Descriptor::kLength);
+  TNode<Number> len = CAST(Parameter(Descriptor::kLength));
 
   Return(CallBuiltin(Builtins::kArrayFindLoopContinuation, context, receiver,
                      callbackfn, this_arg, UndefinedConstant(), receiver,
@@ -1685,7 +1692,7 @@ TF_BUILTIN(ArrayFindLoopLazyDeoptContinuation, ArrayBuiltinsAssembler) {
   Node* callbackfn = Parameter(Descriptor::kCallbackFn);
   Node* this_arg = Parameter(Descriptor::kThisArg);
   Node* initial_k = Parameter(Descriptor::kInitialK);
-  Node* len = Parameter(Descriptor::kLength);
+  TNode<Number> len = CAST(Parameter(Descriptor::kLength));
 
   Return(CallBuiltin(Builtins::kArrayFindLoopContinuation, context, receiver,
                      callbackfn, this_arg, UndefinedConstant(), receiver,
@@ -1702,7 +1709,7 @@ TF_BUILTIN(ArrayFindLoopAfterCallbackLazyDeoptContinuation,
   Node* callbackfn = Parameter(Descriptor::kCallbackFn);
   Node* this_arg = Parameter(Descriptor::kThisArg);
   Node* initial_k = Parameter(Descriptor::kInitialK);
-  Node* len = Parameter(Descriptor::kLength);
+  TNode<Number> len = CAST(Parameter(Descriptor::kLength));
   Node* found_value = Parameter(Descriptor::kFoundValue);
   Node* is_found = Parameter(Descriptor::kIsFound);
 
@@ -1748,9 +1755,9 @@ TF_BUILTIN(ArrayFindIndexLoopContinuation, ArrayBuiltinsAssembler) {
   Node* callbackfn = Parameter(Descriptor::kCallbackFn);
   Node* this_arg = Parameter(Descriptor::kThisArg);
   Node* array = Parameter(Descriptor::kArray);
-  Node* object = Parameter(Descriptor::kObject);
+  TNode<JSReceiver> object = CAST(Parameter(Descriptor::kObject));
   Node* initial_k = Parameter(Descriptor::kInitialK);
-  Node* len = Parameter(Descriptor::kLength);
+  TNode<Number> len = CAST(Parameter(Descriptor::kLength));
   Node* to = Parameter(Descriptor::kTo);
 
   InitIteratingArrayBuiltinLoopContinuation(context, receiver, callbackfn,
@@ -1769,7 +1776,7 @@ TF_BUILTIN(ArrayFindIndexLoopEagerDeoptContinuation, ArrayBuiltinsAssembler) {
   Node* callbackfn = Parameter(Descriptor::kCallbackFn);
   Node* this_arg = Parameter(Descriptor::kThisArg);
   Node* initial_k = Parameter(Descriptor::kInitialK);
-  Node* len = Parameter(Descriptor::kLength);
+  TNode<Number> len = CAST(Parameter(Descriptor::kLength));
 
   Return(CallBuiltin(Builtins::kArrayFindIndexLoopContinuation, context,
                      receiver, callbackfn, this_arg, SmiConstant(-1), receiver,
@@ -1782,7 +1789,7 @@ TF_BUILTIN(ArrayFindIndexLoopLazyDeoptContinuation, ArrayBuiltinsAssembler) {
   Node* callbackfn = Parameter(Descriptor::kCallbackFn);
   Node* this_arg = Parameter(Descriptor::kThisArg);
   Node* initial_k = Parameter(Descriptor::kInitialK);
-  Node* len = Parameter(Descriptor::kLength);
+  TNode<Number> len = CAST(Parameter(Descriptor::kLength));
 
   Return(CallBuiltin(Builtins::kArrayFindIndexLoopContinuation, context,
                      receiver, callbackfn, this_arg, SmiConstant(-1), receiver,
@@ -1796,7 +1803,7 @@ TF_BUILTIN(ArrayFindIndexLoopAfterCallbackLazyDeoptContinuation,
   Node* callbackfn = Parameter(Descriptor::kCallbackFn);
   Node* this_arg = Parameter(Descriptor::kThisArg);
   Node* initial_k = Parameter(Descriptor::kInitialK);
-  Node* len = Parameter(Descriptor::kLength);
+  TNode<Number> len = CAST(Parameter(Descriptor::kLength));
   Node* found_value = Parameter(Descriptor::kFoundValue);
   Node* is_found = Parameter(Descriptor::kIsFound);
 
@@ -2131,8 +2138,8 @@ TF_BUILTIN(ArrayFrom, ArrayPopulatorAssembler) {
     CSA_ASSERT(this, Word32BinaryNot(IsFastJSArray(array_like, context)));
 
     // Treat array_like as an array and try to get its length.
-    length = CAST(ToLength_Inline(
-        context, GetProperty(context, array_like, factory()->length_string())));
+    length = ToLength_Inline(
+        context, GetProperty(context, array_like, factory()->length_string()));
 
     // Construct an array using the receiver as constructor with the same length
     // as the input array.
@@ -2254,9 +2261,9 @@ TF_BUILTIN(ArrayForEachLoopContinuation, ArrayBuiltinsAssembler) {
   Node* callbackfn = Parameter(Descriptor::kCallbackFn);
   Node* this_arg = Parameter(Descriptor::kThisArg);
   Node* array = Parameter(Descriptor::kArray);
-  Node* object = Parameter(Descriptor::kObject);
+  TNode<JSReceiver> object = CAST(Parameter(Descriptor::kObject));
   Node* initial_k = Parameter(Descriptor::kInitialK);
-  Node* len = Parameter(Descriptor::kLength);
+  TNode<Number> len = CAST(Parameter(Descriptor::kLength));
   Node* to = Parameter(Descriptor::kTo);
 
   InitIteratingArrayBuiltinLoopContinuation(context, receiver, callbackfn,
@@ -2274,7 +2281,7 @@ TF_BUILTIN(ArrayForEachLoopEagerDeoptContinuation, ArrayBuiltinsAssembler) {
   Node* callbackfn = Parameter(Descriptor::kCallbackFn);
   Node* this_arg = Parameter(Descriptor::kThisArg);
   Node* initial_k = Parameter(Descriptor::kInitialK);
-  Node* len = Parameter(Descriptor::kLength);
+  TNode<Number> len = CAST(Parameter(Descriptor::kLength));
 
   Return(CallBuiltin(Builtins::kArrayForEachLoopContinuation, context, receiver,
                      callbackfn, this_arg, UndefinedConstant(), receiver,
@@ -2287,7 +2294,7 @@ TF_BUILTIN(ArrayForEachLoopLazyDeoptContinuation, ArrayBuiltinsAssembler) {
   Node* callbackfn = Parameter(Descriptor::kCallbackFn);
   Node* this_arg = Parameter(Descriptor::kThisArg);
   Node* initial_k = Parameter(Descriptor::kInitialK);
-  Node* len = Parameter(Descriptor::kLength);
+  TNode<Number> len = CAST(Parameter(Descriptor::kLength));
 
   Return(CallBuiltin(Builtins::kArrayForEachLoopContinuation, context, receiver,
                      callbackfn, this_arg, UndefinedConstant(), receiver,
@@ -2342,7 +2349,7 @@ TF_BUILTIN(ArraySomeLoopLazyDeoptContinuation, ArrayBuiltinsAssembler) {
   Node* callbackfn = Parameter(Descriptor::kCallbackFn);
   Node* this_arg = Parameter(Descriptor::kThisArg);
   Node* initial_k = Parameter(Descriptor::kInitialK);
-  Node* len = Parameter(Descriptor::kLength);
+  TNode<Number> len = CAST(Parameter(Descriptor::kLength));
   Node* result = Parameter(Descriptor::kResult);
 
   // This custom lazy deopt point is right after the callback. every() needs
@@ -2371,7 +2378,7 @@ TF_BUILTIN(ArraySomeLoopEagerDeoptContinuation, ArrayBuiltinsAssembler) {
   Node* callbackfn = Parameter(Descriptor::kCallbackFn);
   Node* this_arg = Parameter(Descriptor::kThisArg);
   Node* initial_k = Parameter(Descriptor::kInitialK);
-  Node* len = Parameter(Descriptor::kLength);
+  TNode<Number> len = CAST(Parameter(Descriptor::kLength));
 
   Return(CallBuiltin(Builtins::kArraySomeLoopContinuation, context, receiver,
                      callbackfn, this_arg, FalseConstant(), receiver, initial_k,
@@ -2384,9 +2391,9 @@ TF_BUILTIN(ArraySomeLoopContinuation, ArrayBuiltinsAssembler) {
   Node* callbackfn = Parameter(Descriptor::kCallbackFn);
   Node* this_arg = Parameter(Descriptor::kThisArg);
   Node* array = Parameter(Descriptor::kArray);
-  Node* object = Parameter(Descriptor::kObject);
+  TNode<JSReceiver> object = CAST(Parameter(Descriptor::kObject));
   Node* initial_k = Parameter(Descriptor::kInitialK);
-  Node* len = Parameter(Descriptor::kLength);
+  TNode<Number> len = CAST(Parameter(Descriptor::kLength));
   Node* to = Parameter(Descriptor::kTo);
 
   InitIteratingArrayBuiltinLoopContinuation(context, receiver, callbackfn,
@@ -2445,7 +2452,7 @@ TF_BUILTIN(ArrayEveryLoopLazyDeoptContinuation, ArrayBuiltinsAssembler) {
   Node* callbackfn = Parameter(Descriptor::kCallbackFn);
   Node* this_arg = Parameter(Descriptor::kThisArg);
   Node* initial_k = Parameter(Descriptor::kInitialK);
-  Node* len = Parameter(Descriptor::kLength);
+  TNode<Number> len = CAST(Parameter(Descriptor::kLength));
   Node* result = Parameter(Descriptor::kResult);
 
   // This custom lazy deopt point is right after the callback. every() needs
@@ -2474,7 +2481,7 @@ TF_BUILTIN(ArrayEveryLoopEagerDeoptContinuation, ArrayBuiltinsAssembler) {
   Node* callbackfn = Parameter(Descriptor::kCallbackFn);
   Node* this_arg = Parameter(Descriptor::kThisArg);
   Node* initial_k = Parameter(Descriptor::kInitialK);
-  Node* len = Parameter(Descriptor::kLength);
+  TNode<Number> len = CAST(Parameter(Descriptor::kLength));
 
   Return(CallBuiltin(Builtins::kArrayEveryLoopContinuation, context, receiver,
                      callbackfn, this_arg, TrueConstant(), receiver, initial_k,
@@ -2487,9 +2494,9 @@ TF_BUILTIN(ArrayEveryLoopContinuation, ArrayBuiltinsAssembler) {
   Node* callbackfn = Parameter(Descriptor::kCallbackFn);
   Node* this_arg = Parameter(Descriptor::kThisArg);
   Node* array = Parameter(Descriptor::kArray);
-  Node* object = Parameter(Descriptor::kObject);
+  TNode<JSReceiver> object = CAST(Parameter(Descriptor::kObject));
   Node* initial_k = Parameter(Descriptor::kInitialK);
-  Node* len = Parameter(Descriptor::kLength);
+  TNode<Number> len = CAST(Parameter(Descriptor::kLength));
   Node* to = Parameter(Descriptor::kTo);
 
   InitIteratingArrayBuiltinLoopContinuation(context, receiver, callbackfn,
@@ -2548,9 +2555,9 @@ TF_BUILTIN(ArrayReduceLoopContinuation, ArrayBuiltinsAssembler) {
   Node* callbackfn = Parameter(Descriptor::kCallbackFn);
   Node* this_arg = Parameter(Descriptor::kThisArg);
   Node* accumulator = Parameter(Descriptor::kAccumulator);
-  Node* object = Parameter(Descriptor::kObject);
+  TNode<JSReceiver> object = CAST(Parameter(Descriptor::kObject));
   Node* initial_k = Parameter(Descriptor::kInitialK);
-  Node* len = Parameter(Descriptor::kLength);
+  TNode<Number> len = CAST(Parameter(Descriptor::kLength));
   Node* to = Parameter(Descriptor::kTo);
 
   InitIteratingArrayBuiltinLoopContinuation(context, receiver, callbackfn,
@@ -2567,7 +2574,7 @@ TF_BUILTIN(ArrayReducePreLoopEagerDeoptContinuation, ArrayBuiltinsAssembler) {
   TNode<Context> context = CAST(Parameter(Descriptor::kContext));
   TNode<Object> receiver = CAST(Parameter(Descriptor::kReceiver));
   Node* callbackfn = Parameter(Descriptor::kCallbackFn);
-  Node* len = Parameter(Descriptor::kLength);
+  TNode<Number> len = CAST(Parameter(Descriptor::kLength));
 
   // Simulate starting the loop at 0, but ensuring that the accumulator is
   // the hole. The continuation stub will search for the initial non-hole
@@ -2583,7 +2590,7 @@ TF_BUILTIN(ArrayReduceLoopEagerDeoptContinuation, ArrayBuiltinsAssembler) {
   Node* callbackfn = Parameter(Descriptor::kCallbackFn);
   Node* accumulator = Parameter(Descriptor::kAccumulator);
   Node* initial_k = Parameter(Descriptor::kInitialK);
-  Node* len = Parameter(Descriptor::kLength);
+  TNode<Number> len = CAST(Parameter(Descriptor::kLength));
 
   Return(CallBuiltin(Builtins::kArrayReduceLoopContinuation, context, receiver,
                      callbackfn, UndefinedConstant(), accumulator, receiver,
@@ -2595,7 +2602,7 @@ TF_BUILTIN(ArrayReduceLoopLazyDeoptContinuation, ArrayBuiltinsAssembler) {
   TNode<Object> receiver = CAST(Parameter(Descriptor::kReceiver));
   Node* callbackfn = Parameter(Descriptor::kCallbackFn);
   Node* initial_k = Parameter(Descriptor::kInitialK);
-  Node* len = Parameter(Descriptor::kLength);
+  TNode<Number> len = CAST(Parameter(Descriptor::kLength));
   Node* result = Parameter(Descriptor::kResult);
 
   Return(CallBuiltin(Builtins::kArrayReduceLoopContinuation, context, receiver,
@@ -2650,9 +2657,9 @@ TF_BUILTIN(ArrayReduceRightLoopContinuation, ArrayBuiltinsAssembler) {
   Node* callbackfn = Parameter(Descriptor::kCallbackFn);
   Node* this_arg = Parameter(Descriptor::kThisArg);
   Node* accumulator = Parameter(Descriptor::kAccumulator);
-  Node* object = Parameter(Descriptor::kObject);
+  TNode<JSReceiver> object = CAST(Parameter(Descriptor::kObject));
   Node* initial_k = Parameter(Descriptor::kInitialK);
-  Node* len = Parameter(Descriptor::kLength);
+  TNode<Number> len = CAST(Parameter(Descriptor::kLength));
   Node* to = Parameter(Descriptor::kTo);
 
   InitIteratingArrayBuiltinLoopContinuation(context, receiver, callbackfn,
@@ -2670,7 +2677,7 @@ TF_BUILTIN(ArrayReduceRightPreLoopEagerDeoptContinuation,
   TNode<Context> context = CAST(Parameter(Descriptor::kContext));
   TNode<Object> receiver = CAST(Parameter(Descriptor::kReceiver));
   Node* callbackfn = Parameter(Descriptor::kCallbackFn);
-  Node* len = Parameter(Descriptor::kLength);
+  TNode<Smi> len = CAST(Parameter(Descriptor::kLength));
 
   // Simulate starting the loop at 0, but ensuring that the accumulator is
   // the hole. The continuation stub will search for the initial non-hole
@@ -2687,7 +2694,7 @@ TF_BUILTIN(ArrayReduceRightLoopEagerDeoptContinuation, ArrayBuiltinsAssembler) {
   Node* callbackfn = Parameter(Descriptor::kCallbackFn);
   Node* accumulator = Parameter(Descriptor::kAccumulator);
   Node* initial_k = Parameter(Descriptor::kInitialK);
-  Node* len = Parameter(Descriptor::kLength);
+  TNode<Number> len = CAST(Parameter(Descriptor::kLength));
 
   Return(CallBuiltin(Builtins::kArrayReduceRightLoopContinuation, context,
                      receiver, callbackfn, UndefinedConstant(), accumulator,
@@ -2699,7 +2706,7 @@ TF_BUILTIN(ArrayReduceRightLoopLazyDeoptContinuation, ArrayBuiltinsAssembler) {
   TNode<Object> receiver = CAST(Parameter(Descriptor::kReceiver));
   Node* callbackfn = Parameter(Descriptor::kCallbackFn);
   Node* initial_k = Parameter(Descriptor::kInitialK);
-  Node* len = Parameter(Descriptor::kLength);
+  TNode<Number> len = CAST(Parameter(Descriptor::kLength));
   Node* result = Parameter(Descriptor::kResult);
 
   Return(CallBuiltin(Builtins::kArrayReduceRightLoopContinuation, context,
@@ -2757,9 +2764,9 @@ TF_BUILTIN(ArrayFilterLoopContinuation, ArrayBuiltinsAssembler) {
   Node* callbackfn = Parameter(Descriptor::kCallbackFn);
   Node* this_arg = Parameter(Descriptor::kThisArg);
   Node* array = Parameter(Descriptor::kArray);
-  Node* object = Parameter(Descriptor::kObject);
+  TNode<JSReceiver> object = CAST(Parameter(Descriptor::kObject));
   Node* initial_k = Parameter(Descriptor::kInitialK);
-  Node* len = Parameter(Descriptor::kLength);
+  TNode<Number> len = CAST(Parameter(Descriptor::kLength));
   Node* to = Parameter(Descriptor::kTo);
 
   InitIteratingArrayBuiltinLoopContinuation(context, receiver, callbackfn,
@@ -2778,7 +2785,7 @@ TF_BUILTIN(ArrayFilterLoopEagerDeoptContinuation, ArrayBuiltinsAssembler) {
   Node* this_arg = Parameter(Descriptor::kThisArg);
   Node* array = Parameter(Descriptor::kArray);
   Node* initial_k = Parameter(Descriptor::kInitialK);
-  Node* len = Parameter(Descriptor::kLength);
+  TNode<Number> len = CAST(Parameter(Descriptor::kLength));
   Node* to = Parameter(Descriptor::kTo);
 
   Return(CallBuiltin(Builtins::kArrayFilterLoopContinuation, context, receiver,
@@ -2793,7 +2800,7 @@ TF_BUILTIN(ArrayFilterLoopLazyDeoptContinuation, ArrayBuiltinsAssembler) {
   Node* this_arg = Parameter(Descriptor::kThisArg);
   Node* array = Parameter(Descriptor::kArray);
   Node* initial_k = Parameter(Descriptor::kInitialK);
-  Node* len = Parameter(Descriptor::kLength);
+  TNode<Number> len = CAST(Parameter(Descriptor::kLength));
   Node* value_k = Parameter(Descriptor::kValueK);
   Node* result = Parameter(Descriptor::kResult);
 
@@ -2854,9 +2861,9 @@ TF_BUILTIN(ArrayMapLoopContinuation, ArrayBuiltinsAssembler) {
   Node* callbackfn = Parameter(Descriptor::kCallbackFn);
   Node* this_arg = Parameter(Descriptor::kThisArg);
   Node* array = Parameter(Descriptor::kArray);
-  Node* object = Parameter(Descriptor::kObject);
+  TNode<JSReceiver> object = CAST(Parameter(Descriptor::kObject));
   Node* initial_k = Parameter(Descriptor::kInitialK);
-  Node* len = Parameter(Descriptor::kLength);
+  TNode<Number> len = CAST(Parameter(Descriptor::kLength));
   Node* to = Parameter(Descriptor::kTo);
 
   InitIteratingArrayBuiltinLoopContinuation(context, receiver, callbackfn,
@@ -2875,7 +2882,7 @@ TF_BUILTIN(ArrayMapLoopEagerDeoptContinuation, ArrayBuiltinsAssembler) {
   Node* this_arg = Parameter(Descriptor::kThisArg);
   Node* array = Parameter(Descriptor::kArray);
   Node* initial_k = Parameter(Descriptor::kInitialK);
-  Node* len = Parameter(Descriptor::kLength);
+  TNode<Number> len = CAST(Parameter(Descriptor::kLength));
 
   Return(CallBuiltin(Builtins::kArrayMapLoopContinuation, context, receiver,
                      callbackfn, this_arg, array, receiver, initial_k, len,
@@ -2889,7 +2896,7 @@ TF_BUILTIN(ArrayMapLoopLazyDeoptContinuation, ArrayBuiltinsAssembler) {
   Node* this_arg = Parameter(Descriptor::kThisArg);
   Node* array = Parameter(Descriptor::kArray);
   Node* initial_k = Parameter(Descriptor::kInitialK);
-  Node* len = Parameter(Descriptor::kLength);
+  TNode<Number> len = CAST(Parameter(Descriptor::kLength));
   Node* result = Parameter(Descriptor::kResult);
 
   // This custom lazy deopt point is right after the callback. map() needs
