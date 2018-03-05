@@ -877,8 +877,10 @@ class V8_EXPORT HeapProfiler {
   void DeleteAllHeapSnapshots();
 
   /** Binds a callback to embedder's class ID. */
-  void SetWrapperClassInfoProvider(uint16_t class_id,
-                                   WrapperInfoCallback callback);
+  V8_DEPRECATED(
+      "Use SetBuildEmbedderGraphCallback to provide info about embedder nodes",
+      void SetWrapperClassInfoProvider(uint16_t class_id,
+                                       WrapperInfoCallback callback));
 
   V8_DEPRECATED(
       "Use SetBuildEmbedderGraphCallback to provide info about embedder nodes",

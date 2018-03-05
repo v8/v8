@@ -1515,68 +1515,74 @@ TEST(TakeHeapSnapshotReportFinishOnce) {
 
 namespace {
 
-class TestRetainedObjectInfo : public v8::RetainedObjectInfo {
+class EmbedderGraphBuilder : public v8::PersistentHandleVisitor {
  public:
-  TestRetainedObjectInfo(int hash,
-                         const char* group_label,
-                         const char* label,
-                         intptr_t element_count = -1,
-                         intptr_t size = -1)
-      : disposed_(false),
-        hash_(hash),
-        group_label_(group_label),
-        label_(label),
-        element_count_(element_count),
-        size_(size) {
-    instances.push_back(this);
-  }
-  virtual ~TestRetainedObjectInfo() {}
-  virtual void Dispose() {
-    CHECK(!disposed_);
-    disposed_ = true;
-  }
-  virtual bool IsEquivalent(RetainedObjectInfo* other) {
-    return GetHash() == other->GetHash();
-  }
-  virtual intptr_t GetHash() { return hash_; }
-  virtual const char* GetGroupLabel() { return group_label_; }
-  virtual const char* GetLabel() { return label_; }
-  virtual intptr_t GetElementCount() { return element_count_; }
-  virtual intptr_t GetSizeInBytes() { return size_; }
-  bool disposed() { return disposed_; }
+  class Node : public v8::EmbedderGraph::Node {
+   public:
+    Node(const char* name, size_t size) : name_(name), size_(size) {}
+    // v8::EmbedderGraph::Node
+    const char* Name() override { return name_; }
+    size_t SizeInBytes() override { return size_; }
 
-  static v8::RetainedObjectInfo* WrapperInfoCallback(
-      uint16_t class_id, v8::Local<v8::Value> wrapper) {
+   private:
+    const char* name_;
+    size_t size_;
+  };
+
+  class Group : public Node {
+   public:
+    explicit Group(const char* name) : Node(name, 0) {}
+    // v8::EmbedderGraph::EmbedderNode
+    bool IsRootNode() { return true; }
+  };
+
+  EmbedderGraphBuilder(v8::Isolate* isolate, v8::EmbedderGraph* graph)
+      : isolate_(isolate), graph_(graph) {
+    classid_to_group_[0] = nullptr;
+    classid_to_group_[1] =
+        graph->AddNode(std::unique_ptr<Group>(new Group("aaa-group")));
+    classid_to_group_[2] =
+        graph->AddNode(std::unique_ptr<Group>(new Group("ccc-group")));
+  }
+
+  static void BuildEmbedderGraph(v8::Isolate* isolate,
+                                 v8::EmbedderGraph* graph) {
+    EmbedderGraphBuilder builder(isolate, graph);
+    isolate->VisitHandlesWithClassIds(&builder);
+  }
+
+  void VisitPersistentHandle(v8::Persistent<v8::Value>* value,
+                             uint16_t class_id) override {
+    v8::Local<v8::Value> wrapper = v8::Local<v8::Value>::New(
+        isolate_, v8::Persistent<v8::Value>::Cast(*value));
     if (class_id == 1) {
       if (wrapper->IsString()) {
         v8::String::Utf8Value utf8(CcTest::isolate(), wrapper);
-        if (strcmp(*utf8, "AAA") == 0)
-          return new TestRetainedObjectInfo(1, "aaa-group", "aaa", 100);
-        else if (strcmp(*utf8, "BBB") == 0)
-          return new TestRetainedObjectInfo(1, "aaa-group", "aaa", 100);
+        DCHECK(!strcmp(*utf8, "AAA") || !strcmp(*utf8, "BBB"));
+        v8::EmbedderGraph::Node* node = graph_->V8Node(wrapper);
+        v8::EmbedderGraph::Node* group = classid_to_group_[1];
+        graph_->AddEdge(node, group);
+        graph_->AddEdge(group, node);
       }
     } else if (class_id == 2) {
       if (wrapper->IsString()) {
         v8::String::Utf8Value utf8(CcTest::isolate(), wrapper);
-        if (strcmp(*utf8, "CCC") == 0)
-          return new TestRetainedObjectInfo(2, "ccc-group", "ccc");
+        DCHECK(!strcmp(*utf8, "CCC"));
+        v8::EmbedderGraph::Node* node = graph_->V8Node(wrapper);
+        v8::EmbedderGraph::Node* group = classid_to_group_[2];
+        graph_->AddEdge(node, group);
+        graph_->AddEdge(group, node);
       }
+    } else {
+      UNREACHABLE();
     }
-    UNREACHABLE();
   }
 
-  static std::vector<TestRetainedObjectInfo*> instances;
-
  private:
-  bool disposed_;
-  int hash_;
-  const char* group_label_;
-  const char* label_;
-  intptr_t element_count_;
-  intptr_t size_;
+  v8::Isolate* isolate_;
+  v8::EmbedderGraph* graph_;
+  v8::EmbedderGraph::Node* classid_to_group_[3];
 };
-
-std::vector<TestRetainedObjectInfo*> TestRetainedObjectInfo::instances;
 
 }  // namespace
 
@@ -1602,58 +1608,37 @@ TEST(HeapSnapshotRetainedObjectInfo) {
   v8::HandleScope scope(isolate);
   v8::HeapProfiler* heap_profiler = isolate->GetHeapProfiler();
 
-  heap_profiler->SetWrapperClassInfoProvider(
-      1, TestRetainedObjectInfo::WrapperInfoCallback);
-  heap_profiler->SetWrapperClassInfoProvider(
-      2, TestRetainedObjectInfo::WrapperInfoCallback);
+  heap_profiler->SetBuildEmbedderGraphCallback(
+      EmbedderGraphBuilder::BuildEmbedderGraph);
   v8::Persistent<v8::String> p_AAA(isolate, v8_str("AAA"));
   p_AAA.SetWrapperClassId(1);
   v8::Persistent<v8::String> p_BBB(isolate, v8_str("BBB"));
   p_BBB.SetWrapperClassId(1);
   v8::Persistent<v8::String> p_CCC(isolate, v8_str("CCC"));
   p_CCC.SetWrapperClassId(2);
-  CHECK(TestRetainedObjectInfo::instances.empty());
   const v8::HeapSnapshot* snapshot = heap_profiler->TakeHeapSnapshot();
   CHECK(ValidateSnapshot(snapshot));
 
-  CHECK_EQ(3, TestRetainedObjectInfo::instances.size());
-  for (TestRetainedObjectInfo* instance : TestRetainedObjectInfo::instances) {
-    CHECK(instance->disposed());
-    delete instance;
-  }
-
-  const v8::HeapGraphNode* native_group_aaa = GetNode(
-      snapshot->GetRoot(), v8::HeapGraphNode::kSynthetic, "aaa-group");
+  const v8::HeapGraphNode* native_group_aaa =
+      GetNode(snapshot->GetRoot(), v8::HeapGraphNode::kNative, "aaa-group");
   CHECK(native_group_aaa);
-  CHECK_EQ(1, native_group_aaa->GetChildrenCount());
-  const v8::HeapGraphNode* aaa = GetNode(
-      native_group_aaa, v8::HeapGraphNode::kNative, "aaa / 100 entries");
-  CHECK(aaa);
-  CHECK_EQ(2, aaa->GetChildrenCount());
+  const v8::HeapGraphNode* native_group_ccc =
+      GetNode(snapshot->GetRoot(), v8::HeapGraphNode::kNative, "ccc-group");
+  CHECK(native_group_ccc);
 
-  const v8::HeapGraphNode* native_group_ccc = GetNode(
-      snapshot->GetRoot(), v8::HeapGraphNode::kSynthetic, "ccc-group");
-  const v8::HeapGraphNode* ccc = GetNode(
-      native_group_ccc, v8::HeapGraphNode::kNative, "ccc");
-  CHECK(ccc);
-
-  const v8::HeapGraphNode* n_AAA = GetNode(
-      aaa, v8::HeapGraphNode::kString, "AAA");
+  const v8::HeapGraphNode* n_AAA =
+      GetNode(native_group_aaa, v8::HeapGraphNode::kString, "AAA");
   CHECK(n_AAA);
-  const v8::HeapGraphNode* n_BBB = GetNode(
-      aaa, v8::HeapGraphNode::kString, "BBB");
+  const v8::HeapGraphNode* n_BBB =
+      GetNode(native_group_aaa, v8::HeapGraphNode::kString, "BBB");
   CHECK(n_BBB);
-  CHECK_EQ(1, ccc->GetChildrenCount());
-  const v8::HeapGraphNode* n_CCC = GetNode(
-      ccc, v8::HeapGraphNode::kString, "CCC");
+  const v8::HeapGraphNode* n_CCC =
+      GetNode(native_group_ccc, v8::HeapGraphNode::kString, "CCC");
   CHECK(n_CCC);
 
-  CHECK_EQ(aaa, GetProperty(env->GetIsolate(), n_AAA,
-                            v8::HeapGraphEdge::kInternal, "native"));
-  CHECK_EQ(aaa, GetProperty(env->GetIsolate(), n_BBB,
-                            v8::HeapGraphEdge::kInternal, "native"));
-  CHECK_EQ(ccc, GetProperty(env->GetIsolate(), n_CCC,
-                            v8::HeapGraphEdge::kInternal, "native"));
+  CHECK_EQ(native_group_aaa, GetChildByName(n_AAA, "aaa-group"));
+  CHECK_EQ(native_group_aaa, GetChildByName(n_BBB, "aaa-group"));
+  CHECK_EQ(native_group_ccc, GetChildByName(n_CCC, "ccc-group"));
 }
 
 TEST(DeleteAllHeapSnapshots) {
