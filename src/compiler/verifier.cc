@@ -298,8 +298,8 @@ void Verifier::Visitor::Check(Node* node, const AllNodes& all) {
           case IrOpcode::kIfValue: {
             for (const Node* user : node->uses()) {
               if (user != use && user->opcode() == IrOpcode::kIfValue) {
-                CHECK_NE(OpParameter<int32_t>(use->op()),
-                         OpParameter<int32_t>(user->op()));
+                CHECK_NE(IfValueParametersOf(use->op()).value(),
+                         IfValueParametersOf(user->op()).value());
               }
             }
             ++count_case;
