@@ -1430,6 +1430,27 @@ void Tuple3::Tuple3Verify() {
   VerifyObjectField(kValue3Offset);
 }
 
+void WasmCompiledModule::WasmCompiledModuleVerify() {
+  CHECK(IsWasmCompiledModule());
+  VerifyObjectField(ksharedOffset);
+  VerifyObjectField(knative_contextOffset);
+  VerifyObjectField(kexport_wrappersOffset);
+  VerifyObjectField(kweak_exported_functionsOffset);
+  VerifyObjectField(knext_instanceOffset);
+  VerifyObjectField(kprev_instanceOffset);
+  VerifyObjectField(kowning_instanceOffset);
+  VerifyObjectField(kwasm_moduleOffset);
+  VerifyObjectField(ksource_positionsOffset);
+  VerifyObjectField(knative_moduleOffset);
+  VerifyObjectField(klazy_compile_dataOffset);
+  VerifyObjectField(kuse_trap_handlerOffset);
+  VerifyObjectField(knum_imported_functionsOffset);
+  VerifyObjectField(kcode_tableOffset);
+  VerifyObjectField(kfunction_tablesOffset);
+  VerifyObjectField(kempty_function_tablesOffset);
+  VerifyObjectField(kinstance_idOffset);
+}
+
 void WasmDebugInfo::WasmDebugInfoVerify() {
   CHECK(IsWasmDebugInfo());
   VerifyObjectField(kInstanceOffset);

@@ -308,6 +308,7 @@ Type::bitset BitsetType::Lub(i::Map* map) {
     case PROTOTYPE_INFO_TYPE:
     case TUPLE2_TYPE:
     case TUPLE3_TYPE:
+    case WASM_COMPILED_MODULE_TYPE:
     case WASM_DEBUG_INFO_TYPE:
     case WASM_SHARED_MODULE_DATA_TYPE:
     case LOAD_HANDLER_TYPE:

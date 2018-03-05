@@ -633,7 +633,7 @@ MaybeHandle<WasmCompiledModule> DeserializeNativeModule(
     Isolate* isolate, Vector<const byte> data, Vector<const byte> wire_bytes) {
   if (!FLAG_wasm_jit_to_native) {
     ScriptData script_data(data.start(), data.length());
-    Handle<FixedArray> compiled_module;
+    Handle<Struct> compiled_module;
     if (!WasmCompiledModuleSerializer::DeserializeWasmModule(
              isolate, &script_data, wire_bytes)
              .ToHandle(&compiled_module)) {

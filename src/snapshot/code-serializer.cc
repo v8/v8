@@ -262,7 +262,7 @@ WasmCompiledModuleSerializer::WasmCompiledModuleSerializer(
 }
 
 std::unique_ptr<ScriptData> WasmCompiledModuleSerializer::SerializeWasmModule(
-    Isolate* isolate, Handle<FixedArray> input) {
+    Isolate* isolate, Handle<Struct> input) {
   Handle<WasmCompiledModule> compiled_module =
       Handle<WasmCompiledModule>::cast(input);
   WasmCompiledModuleSerializer wasm_cs(
@@ -272,9 +272,9 @@ std::unique_ptr<ScriptData> WasmCompiledModuleSerializer::SerializeWasmModule(
   return std::unique_ptr<ScriptData>(data);
 }
 
-MaybeHandle<FixedArray> WasmCompiledModuleSerializer::DeserializeWasmModule(
+MaybeHandle<Struct> WasmCompiledModuleSerializer::DeserializeWasmModule(
     Isolate* isolate, ScriptData* data, Vector<const byte> wire_bytes) {
-  MaybeHandle<FixedArray> nothing;
+  MaybeHandle<Struct> nothing;
   if (!wasm::IsWasmCodegenAllowed(isolate, isolate->native_context())) {
     return nothing;
   }
@@ -298,7 +298,7 @@ MaybeHandle<FixedArray> WasmCompiledModuleSerializer::DeserializeWasmModule(
   if (!maybe_result.ToHandle(&result)) return nothing;
 
   WasmCompiledModule::ReinitializeAfterDeserialization(isolate, result);
-  DCHECK(WasmCompiledModule::IsWasmCompiledModule(*result));
+  DCHECK(result->IsWasmCompiledModule());
   return result;
 }
 

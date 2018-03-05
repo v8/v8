@@ -1353,11 +1353,8 @@ Handle<WasmCompiledModule> WasmCompiledModule::New(
     Handle<FixedArray> export_wrappers,
     const std::vector<GlobalHandleAddress>& function_tables,
     bool use_trap_handler) {
-  Handle<FixedArray> ret =
-      isolate->factory()->NewFixedArray(PropertyIndices::Count, TENURED);
-  // WasmCompiledModule::cast would fail since fields are not set yet.
-  Handle<WasmCompiledModule> compiled_module(
-      reinterpret_cast<WasmCompiledModule*>(*ret), isolate);
+  Handle<WasmCompiledModule> compiled_module = Handle<WasmCompiledModule>::cast(
+      isolate->factory()->NewStruct(WASM_COMPILED_MODULE_TYPE, TENURED));
   Handle<WeakCell> weak_native_context =
       isolate->factory()->NewWeakCell(isolate->native_context());
   compiled_module->set_weak_native_context(*weak_native_context);
@@ -1429,11 +1426,29 @@ Handle<WasmCompiledModule> WasmCompiledModule::Clone(
         handle(module->code_table(), isolate));
   }
   Handle<WasmCompiledModule> ret = Handle<WasmCompiledModule>::cast(
-      isolate->factory()->CopyFixedArray(module));
-  ret->reset_weak_owning_instance();
-  ret->reset_next_instance();
-  ret->reset_prev_instance();
-  ret->reset_weak_exported_functions();
+      isolate->factory()->NewStruct(WASM_COMPILED_MODULE_TYPE, TENURED));
+  ret->set_shared(module->shared());
+  ret->set_weak_native_context(module->weak_native_context());
+  ret->set_export_wrappers(module->export_wrappers());
+  ret->set_weak_wasm_module(module->weak_wasm_module());
+  if (FLAG_wasm_jit_to_native) {
+    ret->set_source_positions(module->source_positions());
+    ret->set_native_module(module->native_module());
+  }
+  if (module->has_lazy_compile_data()) {
+    ret->set_lazy_compile_data(module->lazy_compile_data());
+  }
+  ret->set_use_trap_handler(module->use_trap_handler());
+  if (!FLAG_wasm_jit_to_native) {
+    ret->set_num_imported_functions(module->num_imported_functions());
+  }
+  ret->set_code_table(module->code_table());
+  if (module->has_function_tables()) {
+    ret->set_function_tables(module->function_tables());
+  }
+  if (module->has_empty_function_tables()) {
+    ret->set_empty_function_tables(module->empty_function_tables());
+  }
   if (!FLAG_wasm_jit_to_native) {
     ret->InitId();
     ret->set_code_table(*code_copy);
@@ -1496,7 +1511,7 @@ wasm::NativeModule* WasmCompiledModule::GetNativeModule() const {
 void WasmCompiledModule::InitId() {
 #if DEBUG
   static uint32_t instance_id_counter = 0;
-  set(kID_instance_id, Smi::FromInt(instance_id_counter++));
+  set_instance_id(instance_id_counter++);
   TRACE("New compiled module id: %d\n", instance_id());
 #endif
 }
@@ -1580,45 +1595,6 @@ MaybeHandle<String> WasmSharedModuleData::ExtractUtf8StringFromModuleBytes(
       static_cast<int>(ref.length()));
 }
 
-bool WasmCompiledModule::IsWasmCompiledModule(Object* obj) {
-  if (!obj->IsFixedArray()) return false;
-  FixedArray* arr = FixedArray::cast(obj);
-  if (arr->length() != PropertyIndices::Count) return false;
-#define WCM_CHECK_TYPE(NAME, TYPE_CHECK) \
-  do {                                   \
-    Object* obj = arr->get(kID_##NAME);  \
-    if (!(TYPE_CHECK)) return false;     \
-  } while (false);
-// We're OK with undefined, generally, because maybe we don't
-// have a value for that item. For example, we may not have a
-// memory, or globals.
-// We're not OK with the const numbers being undefined. They are
-// expected to be initialized at construction.
-#define WCM_CHECK_OBJECT(TYPE, NAME) \
-  WCM_CHECK_TYPE(NAME, obj->IsUndefined(isolate) || obj->Is##TYPE())
-#define WCM_CHECK_CONST_OBJECT(TYPE, NAME) \
-  WCM_CHECK_TYPE(NAME, obj->IsUndefined(isolate) || obj->Is##TYPE())
-#define WCM_CHECK_WASM_OBJECT(TYPE, NAME) \
-  WCM_CHECK_TYPE(NAME, obj->IsFixedArray() || obj->IsUndefined(isolate))
-#define WCM_CHECK_WEAK_LINK(TYPE, NAME) WCM_CHECK_OBJECT(WeakCell, NAME)
-#define WCM_CHECK_SMALL_NUMBER(TYPE, NAME) \
-  WCM_CHECK_TYPE(NAME, obj->IsUndefined(isolate) || obj->IsSmi())
-#define WCM_CHECK(KIND, TYPE, NAME) WCM_CHECK_##KIND(TYPE, NAME)
-#define WCM_CHECK_SMALL_CONST_NUMBER(TYPE, NAME) \
-  WCM_CHECK_TYPE(NAME, obj->IsSmi())
-#undef WCM_CHECK_TYPE
-#undef WCM_CHECK_OBJECT
-#undef WCM_CHECK_CONST_OBJECT
-#undef WCM_CHECK_WASM_OBJECT
-#undef WCM_CHECK_WEAK_LINK
-#undef WCM_CHECK_SMALL_NUMBER
-#undef WCM_CHECK
-#undef WCM_CHECK_SMALL_CONST_NUMBER
-
-  // All checks passed.
-  return true;
-}
-
 void WasmCompiledModule::PrintInstancesChain() {
 #if DEBUG
   if (!FLAG_trace_wasm_instances) return;
@@ -1647,14 +1623,14 @@ void WasmCompiledModule::RemoveFromChain() {
   DisallowHeapAllocation no_gc;
   Isolate* isolate = GetIsolate();
 
-  Object* next = get(kID_next_instance);
-  Object* prev = get(kID_prev_instance);
+  Object* next = raw_next_instance();
+  Object* prev = raw_prev_instance();
 
   if (!prev->IsUndefined(isolate)) {
-    WasmCompiledModule::cast(prev)->set(kID_next_instance, next);
+    WasmCompiledModule::cast(prev)->set_raw_next_instance(next);
   }
   if (!next->IsUndefined(isolate)) {
-    WasmCompiledModule::cast(next)->set(kID_prev_instance, prev);
+    WasmCompiledModule::cast(next)->set_raw_prev_instance(prev);
   }
 }
 
@@ -1668,9 +1644,7 @@ void WasmCompiledModule::ReinitializeAfterDeserialization(
   // This method must only be called immediately after deserialization.
   // At this point, no module wrapper exists, so the shared module data is
   // incomplete.
-  Handle<WasmSharedModuleData> shared(
-      static_cast<WasmSharedModuleData*>(compiled_module->get(kID_shared)),
-      isolate);
+  Handle<WasmSharedModuleData> shared(compiled_module->shared(), isolate);
   if (!FLAG_wasm_jit_to_native) {
     WasmSharedModuleData::ReinitializeAfterDeserialization(isolate, shared);
   }

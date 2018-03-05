@@ -259,7 +259,7 @@ Handle<WasmInstanceObject> TestingModuleBuilder::InitInstanceObject() {
 
   Handle<FixedArray> weak_exported = isolate_->factory()->NewFixedArray(0);
   compiled_module->set_weak_exported_functions(*weak_exported);
-  DCHECK(WasmCompiledModule::IsWasmCompiledModule(*compiled_module));
+  DCHECK(compiled_module->IsWasmCompiledModule());
   script->set_wasm_compiled_module(*compiled_module);
   auto instance = WasmInstanceObject::New(isolate_, compiled_module);
   instance->wasm_context()->get()->globals_start = globals_data_;

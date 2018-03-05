@@ -419,31 +419,55 @@ class WasmSharedModuleData : public Struct {
 // the tables (signature and functions).
 // For tables, we need to hold a reference to the JS Heap object, because
 // we embed them as objects, and they may move.
-class WasmCompiledModule : public FixedArray {
+class WasmCompiledModule : public Struct {
  public:
-  static WasmCompiledModule* cast(Object* fixed_array) {
-    SLOW_DCHECK(IsWasmCompiledModule(fixed_array));
-    return reinterpret_cast<WasmCompiledModule*>(fixed_array);
-  }
+  DECL_CAST(WasmCompiledModule)
 
-#define WCM_OBJECT_OR_WEAK(TYPE, NAME, ID, TYPE_CHECK, SETTER_MODIFIER) \
- public:                                                                \
-  inline TYPE* maybe_##NAME() const;                                    \
-  inline TYPE* NAME() const;                                            \
-  inline bool has_##NAME() const;                                       \
-  inline void reset_##NAME();                                           \
-                                                                        \
-  SETTER_MODIFIER:                                                      \
-  inline void set_##NAME(TYPE* value);
+  // Dispatched behavior.
+  DECL_PRINTER(WasmCompiledModule)
+  DECL_VERIFIER(WasmCompiledModule)
 
-#define WCM_OBJECT(TYPE, NAME) \
-  WCM_OBJECT_OR_WEAK(TYPE, NAME, kID_##NAME, obj->Is##TYPE(), public)
+// Layout description.
+// TODO(mstarzinger): Rename the below constants to follow the usual naming
+// scheme once the WCM_PROPERTY_TABLE has been deprecated.
+#define WASM_COMPILED_MODULE_FIELDS(V)            \
+  V(ksharedOffset, kPointerSize)                  \
+  V(knative_contextOffset, kPointerSize)          \
+  V(kexport_wrappersOffset, kPointerSize)         \
+  V(kweak_exported_functionsOffset, kPointerSize) \
+  V(knext_instanceOffset, kPointerSize)           \
+  V(kprev_instanceOffset, kPointerSize)           \
+  V(kowning_instanceOffset, kPointerSize)         \
+  V(kwasm_moduleOffset, kPointerSize)             \
+  V(ksource_positionsOffset, kPointerSize)        \
+  V(knative_moduleOffset, kPointerSize)           \
+  V(klazy_compile_dataOffset, kPointerSize)       \
+  V(kuse_trap_handlerOffset, kPointerSize)        \
+  V(knum_imported_functionsOffset, kPointerSize)  \
+  V(kcode_tableOffset, kPointerSize)              \
+  V(kfunction_tablesOffset, kPointerSize)         \
+  V(kempty_function_tablesOffset, kPointerSize)   \
+  V(kinstance_idOffset, kPointerSize)             \
+  V(kSize, 0)
 
-#define WCM_CONST_OBJECT(TYPE, NAME) \
-  WCM_OBJECT_OR_WEAK(TYPE, NAME, kID_##NAME, obj->Is##TYPE(), private)
+  DEFINE_FIELD_OFFSET_CONSTANTS(HeapObject::kHeaderSize,
+                                WASM_COMPILED_MODULE_FIELDS)
+#undef WASM_COMPILED_MODULE_FIELDS
 
-#define WCM_WASM_OBJECT(TYPE, NAME) \
-  WCM_OBJECT_OR_WEAK(TYPE, NAME, kID_##NAME, TYPE::Is##TYPE(obj), private)
+#define WCM_OBJECT_OR_WEAK(TYPE, NAME, SETTER_MODIFIER) \
+ public:                                                \
+  inline TYPE* maybe_##NAME() const;                    \
+  inline TYPE* NAME() const;                            \
+  inline bool has_##NAME() const;                       \
+  inline void reset_##NAME();                           \
+                                                        \
+  SETTER_MODIFIER:                                      \
+  inline void set_##NAME(TYPE* value,                   \
+                         WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
+
+#define WCM_OBJECT(TYPE, NAME) WCM_OBJECT_OR_WEAK(TYPE, NAME, public)
+
+#define WCM_CONST_OBJECT(TYPE, NAME) WCM_OBJECT_OR_WEAK(TYPE, NAME, private)
 
 #define WCM_SMALL_CONST_NUMBER(TYPE, NAME) \
  public:                                   \
@@ -452,32 +476,30 @@ class WasmCompiledModule : public FixedArray {
  private:                                  \
   inline void set_##NAME(TYPE value);
 
-#define WCM_WEAK_LINK(TYPE, NAME)                                          \
-  WCM_OBJECT_OR_WEAK(WeakCell, weak_##NAME, kID_##NAME, obj->IsWeakCell(), \
-                     public)                                               \
-                                                                           \
- public:                                                                   \
+#define WCM_WEAK_LINK(TYPE, NAME)                   \
+  WCM_OBJECT_OR_WEAK(WeakCell, weak_##NAME, public) \
+                                                    \
+ public:                                            \
   inline TYPE* NAME() const;
 
 // Add values here if they are required for creating new instances or
 // for deserialization, and if they are serializable.
 // By default, instance values go to WasmInstanceObject, however, if
 // we embed the generated code with a value, then we track that value here.
-#define CORE_WCM_PROPERTY_TABLE(MACRO)                  \
-  MACRO(CONST_OBJECT, WasmSharedModuleData, shared)     \
-  MACRO(WEAK_LINK, Context, native_context)             \
-  MACRO(CONST_OBJECT, FixedArray, export_wrappers)      \
-  MACRO(OBJECT, FixedArray, weak_exported_functions)    \
-  MACRO(WASM_OBJECT, WasmCompiledModule, next_instance) \
-  MACRO(WASM_OBJECT, WasmCompiledModule, prev_instance) \
-  MACRO(WEAK_LINK, WasmInstanceObject, owning_instance) \
-  MACRO(WEAK_LINK, WasmModuleObject, wasm_module)       \
-  MACRO(OBJECT, FixedArray, source_positions)           \
-  MACRO(OBJECT, Foreign, native_module)                 \
-  MACRO(OBJECT, FixedArray, lazy_compile_data)          \
-  MACRO(SMALL_CONST_NUMBER, bool, use_trap_handler)
-
-#define GC_WCM_PROPERTY_TABLE(MACRO)                          \
+#define CORE_WCM_PROPERTY_TABLE(MACRO)                        \
+  MACRO(CONST_OBJECT, WasmSharedModuleData, shared)           \
+  MACRO(WEAK_LINK, Context, native_context)                   \
+  MACRO(CONST_OBJECT, FixedArray, export_wrappers)            \
+  MACRO(OBJECT, FixedArray, weak_exported_functions)          \
+  MACRO(CONST_OBJECT, WasmCompiledModule, next_instance)      \
+  MACRO(CONST_OBJECT, WasmCompiledModule, prev_instance)      \
+  MACRO(WEAK_LINK, WasmInstanceObject, owning_instance)       \
+  MACRO(WEAK_LINK, WasmModuleObject, wasm_module)             \
+  MACRO(OBJECT, FixedArray, source_positions)                 \
+  MACRO(OBJECT, Foreign, native_module)                       \
+  MACRO(OBJECT, FixedArray, lazy_compile_data)                \
+  /* TODO(mstarzinger): Make {use_trap_handler} smaller. */   \
+  MACRO(SMALL_CONST_NUMBER, bool, use_trap_handler)           \
   MACRO(SMALL_CONST_NUMBER, uint32_t, num_imported_functions) \
   MACRO(CONST_OBJECT, FixedArray, code_table)                 \
   MACRO(OBJECT, FixedArray, function_tables)                  \
@@ -486,9 +508,10 @@ class WasmCompiledModule : public FixedArray {
 // TODO(mtrofin): this is unnecessary when we stop needing
 // FLAG_wasm_jit_to_native, because we have instance_id on NativeModule.
 #if DEBUG
-#define DEBUG_ONLY_TABLE(MACRO) MACRO(SMALL_CONST_NUMBER, uint32_t, instance_id)
+#define DEBUG_WCM_PROPERTY_TABLE(MACRO) \
+  MACRO(SMALL_CONST_NUMBER, uint32_t, instance_id)
 #else
-#define DEBUG_ONLY_TABLE(IGNORE)
+#define DEBUG_WCM_PROPERTY_TABLE(IGNORE)
 
  public:
   uint32_t instance_id() const { return static_cast<uint32_t>(-1); }
@@ -496,15 +519,7 @@ class WasmCompiledModule : public FixedArray {
 
 #define WCM_PROPERTY_TABLE(MACRO) \
   CORE_WCM_PROPERTY_TABLE(MACRO)  \
-  GC_WCM_PROPERTY_TABLE(MACRO)    \
-  DEBUG_ONLY_TABLE(MACRO)
-
- private:
-  enum PropertyIndices {
-#define INDICES(IGNORE1, IGNORE2, NAME) kID_##NAME,
-    WCM_PROPERTY_TABLE(INDICES) Count
-#undef INDICES
-  };
+  DEBUG_WCM_PROPERTY_TABLE(MACRO)
 
  public:
   static Handle<WasmCompiledModule> New(
@@ -525,10 +540,10 @@ class WasmCompiledModule : public FixedArray {
 #define DECLARATION(KIND, TYPE, NAME) WCM_##KIND(TYPE, NAME)
   WCM_PROPERTY_TABLE(DECLARATION)
 #undef DECLARATION
+  DECL_ACCESSORS(raw_next_instance, Object);
+  DECL_ACCESSORS(raw_prev_instance, Object);
 
  public:
-  static bool IsWasmCompiledModule(Object* obj);
-
   void PrintInstancesChain();
 
   static void ReinitializeAfterDeserialization(Isolate*,
@@ -680,6 +695,7 @@ WasmFunctionInfo GetWasmFunctionInfo(Isolate*, Handle<Code>);
 #undef DECL_OPTIONAL_ACCESSORS
 #undef WCM_CONST_OBJECT
 #undef WCM_LARGE_NUMBER
+#undef WCM_OBJECT
 #undef WCM_OBJECT_OR_WEAK
 #undef WCM_SMALL_CONST_NUMBER
 #undef WCM_WEAK_LINK

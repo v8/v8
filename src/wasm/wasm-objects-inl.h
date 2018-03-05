@@ -14,6 +14,7 @@ namespace internal {
 // Has to be the last include (doesn't have include guards)
 #include "src/objects/object-macros.h"
 
+CAST_ACCESSOR(WasmCompiledModule)
 CAST_ACCESSOR(WasmDebugInfo)
 CAST_ACCESSOR(WasmInstanceObject)
 CAST_ACCESSOR(WasmMemoryObject)
@@ -92,58 +93,53 @@ OPTIONAL_ACCESSORS(WasmDebugInfo, c_wasm_entry_map, Managed<wasm::SignatureMap>,
 
 #undef OPTIONAL_ACCESSORS
 
-#define WCM_OBJECT_OR_WEAK(TYPE, NAME, ID, TYPE_CHECK, SETTER_MODIFIER) \
-  TYPE* WasmCompiledModule::maybe_##NAME() const {                      \
-    Object* obj = get(ID);                                              \
-    if (!(TYPE_CHECK)) return nullptr;                                  \
-    return TYPE::cast(obj);                                             \
-  }                                                                     \
-                                                                        \
-  TYPE* WasmCompiledModule::NAME() const {                              \
-    Object* obj = get(ID);                                              \
-    DCHECK(TYPE_CHECK);                                                 \
-    return TYPE::cast(obj);                                             \
-  }                                                                     \
-                                                                        \
-  bool WasmCompiledModule::has_##NAME() const {                         \
-    Object* obj = get(ID);                                              \
-    return TYPE_CHECK;                                                  \
-  }                                                                     \
-                                                                        \
-  void WasmCompiledModule::reset_##NAME() { set_undefined(ID); }        \
-                                                                        \
-  void WasmCompiledModule::set_##NAME(TYPE* value) { set(ID, value); }
+#define WCM_OBJECT_OR_WEAK(TYPE, NAME, OFFSET, TYPE_CHECK, SETTER_MODIFIER) \
+  TYPE* WasmCompiledModule::maybe_##NAME() const {                          \
+    Object* value = READ_FIELD(this, OFFSET);                               \
+    if (!(TYPE_CHECK)) return nullptr;                                      \
+    return TYPE::cast(value);                                               \
+  }                                                                         \
+                                                                            \
+  bool WasmCompiledModule::has_##NAME() const {                             \
+    Object* value = READ_FIELD(this, OFFSET);                               \
+    return TYPE_CHECK;                                                      \
+  }                                                                         \
+                                                                            \
+  void WasmCompiledModule::reset_##NAME() {                                 \
+    WRITE_FIELD(this, OFFSET, GetHeap()->undefined_value());                \
+  }                                                                         \
+                                                                            \
+  ACCESSORS_CHECKED2(WasmCompiledModule, NAME, TYPE, OFFSET, TYPE_CHECK, true)
 
 #define WCM_OBJECT(TYPE, NAME) \
-  WCM_OBJECT_OR_WEAK(TYPE, NAME, kID_##NAME, obj->Is##TYPE(), public)
+  WCM_OBJECT_OR_WEAK(TYPE, NAME, k##NAME##Offset, value->Is##TYPE(), public)
 
 #define WCM_CONST_OBJECT(TYPE, NAME) \
-  WCM_OBJECT_OR_WEAK(TYPE, NAME, kID_##NAME, obj->Is##TYPE(), private)
+  WCM_OBJECT_OR_WEAK(TYPE, NAME, k##NAME##Offset, value->Is##TYPE(), private)
 
-#define WCM_WASM_OBJECT(TYPE, NAME) \
-  WCM_OBJECT_OR_WEAK(TYPE, NAME, kID_##NAME, TYPE::Is##TYPE(obj), private)
-
-#define WCM_SMALL_CONST_NUMBER(TYPE, NAME)                 \
-  TYPE WasmCompiledModule::NAME() const {                  \
-    return static_cast<TYPE>(Smi::ToInt(get(kID_##NAME))); \
-  }                                                        \
-                                                           \
-  void WasmCompiledModule::set_##NAME(TYPE value) {        \
-    set(kID_##NAME, Smi::FromInt(value));                  \
+#define WCM_SMALL_CONST_NUMBER(TYPE, NAME)                                   \
+  TYPE WasmCompiledModule::NAME() const {                                    \
+    return static_cast<TYPE>(Smi::ToInt(READ_FIELD(this, k##NAME##Offset))); \
+  }                                                                          \
+                                                                             \
+  void WasmCompiledModule::set_##NAME(TYPE value) {                          \
+    WRITE_FIELD(this, k##NAME##Offset, Smi::FromInt(value));                 \
   }
 
-#define WCM_WEAK_LINK(TYPE, NAME)                                          \
-  WCM_OBJECT_OR_WEAK(WeakCell, weak_##NAME, kID_##NAME, obj->IsWeakCell(), \
-                     public)                                               \
-                                                                           \
-  TYPE* WasmCompiledModule::NAME() const {                                 \
-    DCHECK(!weak_##NAME()->cleared());                                     \
-    return TYPE::cast(weak_##NAME()->value());                             \
+#define WCM_WEAK_LINK(TYPE, NAME)                            \
+  WCM_OBJECT_OR_WEAK(WeakCell, weak_##NAME, k##NAME##Offset, \
+                     value->IsWeakCell(), public)            \
+                                                             \
+  TYPE* WasmCompiledModule::NAME() const {                   \
+    DCHECK(!weak_##NAME()->cleared());                       \
+    return TYPE::cast(weak_##NAME()->value());               \
   }
 
 #define DEFINITION(KIND, TYPE, NAME) WCM_##KIND(TYPE, NAME)
 WCM_PROPERTY_TABLE(DEFINITION)
 #undef DECLARATION
+ACCESSORS(WasmCompiledModule, raw_next_instance, Object, knext_instanceOffset);
+ACCESSORS(WasmCompiledModule, raw_prev_instance, Object, kprev_instanceOffset);
 
 #undef WCM_CONST_OBJECT
 #undef WCM_LARGE_NUMBER

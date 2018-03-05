@@ -59,7 +59,7 @@ ObjectDeserializer::DeserializeWasmCompiledModule(
   if (!d.Deserialize(isolate).ToHandle(&result))
     return MaybeHandle<WasmCompiledModule>();
 
-  if (!result->IsFixedArray()) return MaybeHandle<WasmCompiledModule>();
+  if (!result->IsWasmCompiledModule()) return MaybeHandle<WasmCompiledModule>();
 
   // Cast without type checks, as the module wrapper is not there yet.
   return handle(static_cast<WasmCompiledModule*>(*result), isolate);
