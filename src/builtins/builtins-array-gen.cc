@@ -2569,14 +2569,12 @@ TF_BUILTIN(ArrayReducePreLoopEagerDeoptContinuation, ArrayBuiltinsAssembler) {
   Node* callbackfn = Parameter(Descriptor::kCallbackFn);
   Node* len = Parameter(Descriptor::kLength);
 
-  Callable stub(
-      Builtins::CallableFor(isolate(), Builtins::kArrayReduceLoopContinuation));
   // Simulate starting the loop at 0, but ensuring that the accumulator is
   // the hole. The continuation stub will search for the initial non-hole
   // element, rightly throwing an exception if not found.
-  Return(CallStub(stub, context, receiver, callbackfn, UndefinedConstant(),
-                  TheHoleConstant(), receiver, SmiConstant(0), len,
-                  UndefinedConstant()));
+  Return(CallBuiltin(Builtins::kArrayReduceLoopContinuation, context, receiver,
+                     callbackfn, UndefinedConstant(), TheHoleConstant(),
+                     receiver, SmiConstant(0), len, UndefinedConstant()));
 }
 
 TF_BUILTIN(ArrayReduceLoopEagerDeoptContinuation, ArrayBuiltinsAssembler) {
@@ -2587,10 +2585,9 @@ TF_BUILTIN(ArrayReduceLoopEagerDeoptContinuation, ArrayBuiltinsAssembler) {
   Node* initial_k = Parameter(Descriptor::kInitialK);
   Node* len = Parameter(Descriptor::kLength);
 
-  Callable stub(
-      Builtins::CallableFor(isolate(), Builtins::kArrayReduceLoopContinuation));
-  Return(CallStub(stub, context, receiver, callbackfn, UndefinedConstant(),
-                  accumulator, receiver, initial_k, len, UndefinedConstant()));
+  Return(CallBuiltin(Builtins::kArrayReduceLoopContinuation, context, receiver,
+                     callbackfn, UndefinedConstant(), accumulator, receiver,
+                     initial_k, len, UndefinedConstant()));
 }
 
 TF_BUILTIN(ArrayReduceLoopLazyDeoptContinuation, ArrayBuiltinsAssembler) {
@@ -2601,10 +2598,9 @@ TF_BUILTIN(ArrayReduceLoopLazyDeoptContinuation, ArrayBuiltinsAssembler) {
   Node* len = Parameter(Descriptor::kLength);
   Node* result = Parameter(Descriptor::kResult);
 
-  Callable stub(
-      Builtins::CallableFor(isolate(), Builtins::kArrayReduceLoopContinuation));
-  Return(CallStub(stub, context, receiver, callbackfn, UndefinedConstant(),
-                  result, receiver, initial_k, len, UndefinedConstant()));
+  Return(CallBuiltin(Builtins::kArrayReduceLoopContinuation, context, receiver,
+                     callbackfn, UndefinedConstant(), result, receiver,
+                     initial_k, len, UndefinedConstant()));
 }
 
 TF_BUILTIN(ArrayReduce, ArrayBuiltinsAssembler) {
@@ -2676,14 +2672,13 @@ TF_BUILTIN(ArrayReduceRightPreLoopEagerDeoptContinuation,
   Node* callbackfn = Parameter(Descriptor::kCallbackFn);
   Node* len = Parameter(Descriptor::kLength);
 
-  Callable stub(Builtins::CallableFor(
-      isolate(), Builtins::kArrayReduceRightLoopContinuation));
   // Simulate starting the loop at 0, but ensuring that the accumulator is
   // the hole. The continuation stub will search for the initial non-hole
   // element, rightly throwing an exception if not found.
-  Return(CallStub(stub, context, receiver, callbackfn, UndefinedConstant(),
-                  TheHoleConstant(), receiver, SmiSub(len, SmiConstant(1)), len,
-                  UndefinedConstant()));
+  Return(CallBuiltin(Builtins::kArrayReduceRightLoopContinuation, context,
+                     receiver, callbackfn, UndefinedConstant(),
+                     TheHoleConstant(), receiver, SmiSub(len, SmiConstant(1)),
+                     len, UndefinedConstant()));
 }
 
 TF_BUILTIN(ArrayReduceRightLoopEagerDeoptContinuation, ArrayBuiltinsAssembler) {
@@ -2694,10 +2689,9 @@ TF_BUILTIN(ArrayReduceRightLoopEagerDeoptContinuation, ArrayBuiltinsAssembler) {
   Node* initial_k = Parameter(Descriptor::kInitialK);
   Node* len = Parameter(Descriptor::kLength);
 
-  Callable stub(Builtins::CallableFor(
-      isolate(), Builtins::kArrayReduceRightLoopContinuation));
-  Return(CallStub(stub, context, receiver, callbackfn, UndefinedConstant(),
-                  accumulator, receiver, initial_k, len, UndefinedConstant()));
+  Return(CallBuiltin(Builtins::kArrayReduceRightLoopContinuation, context,
+                     receiver, callbackfn, UndefinedConstant(), accumulator,
+                     receiver, initial_k, len, UndefinedConstant()));
 }
 
 TF_BUILTIN(ArrayReduceRightLoopLazyDeoptContinuation, ArrayBuiltinsAssembler) {
@@ -2708,10 +2702,9 @@ TF_BUILTIN(ArrayReduceRightLoopLazyDeoptContinuation, ArrayBuiltinsAssembler) {
   Node* len = Parameter(Descriptor::kLength);
   Node* result = Parameter(Descriptor::kResult);
 
-  Callable stub(Builtins::CallableFor(
-      isolate(), Builtins::kArrayReduceRightLoopContinuation));
-  Return(CallStub(stub, context, receiver, callbackfn, UndefinedConstant(),
-                  result, receiver, initial_k, len, UndefinedConstant()));
+  Return(CallBuiltin(Builtins::kArrayReduceRightLoopContinuation, context,
+                     receiver, callbackfn, UndefinedConstant(), result,
+                     receiver, initial_k, len, UndefinedConstant()));
 }
 
 TF_BUILTIN(ArrayReduceRight, ArrayBuiltinsAssembler) {

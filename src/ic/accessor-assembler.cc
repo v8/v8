@@ -2433,9 +2433,8 @@ void AccessorAssembler::KeyedLoadIC(const LoadICParameters* p) {
     GotoIfNot(WordEqual(feedback, LoadRoot(Heap::kmegamorphic_symbolRootIndex)),
               &try_polymorphic_name);
     // TODO(jkummerow): Inline this? Or some of it?
-    TailCallStub(
-        Builtins::CallableFor(isolate(), Builtins::kKeyedLoadIC_Megamorphic),
-        p->context, p->receiver, p->name, p->slot, p->vector);
+    TailCallBuiltin(Builtins::kKeyedLoadIC_Megamorphic, p->context, p->receiver,
+                    p->name, p->slot, p->vector);
   }
   BIND(&try_polymorphic_name);
   {
@@ -2641,10 +2640,8 @@ void AccessorAssembler::StoreIC(const StoreICParameters* p) {
     GotoIfNot(
         WordEqual(feedback, LoadRoot(Heap::kuninitialized_symbolRootIndex)),
         &miss);
-    Callable stub =
-        Builtins::CallableFor(isolate(), Builtins::kStoreIC_Uninitialized);
-    TailCallStub(stub, p->context, p->receiver, p->name, p->value, p->slot,
-                 p->vector);
+    TailCallBuiltin(Builtins::kStoreIC_Uninitialized, p->context, p->receiver,
+                    p->name, p->value, p->slot, p->vector);
   }
   BIND(&miss);
   {
@@ -2814,9 +2811,8 @@ void AccessorAssembler::KeyedStoreIC(const StoreICParameters* p) {
       GotoIfNot(
           WordEqual(feedback, LoadRoot(Heap::kmegamorphic_symbolRootIndex)),
           &try_polymorphic_name);
-      TailCallStub(
-          Builtins::CallableFor(isolate(), Builtins::kKeyedStoreIC_Megamorphic),
-          p->context, p->receiver, p->name, p->value, p->slot, p->vector);
+      TailCallBuiltin(Builtins::kKeyedStoreIC_Megamorphic, p->context,
+                      p->receiver, p->name, p->value, p->slot, p->vector);
     }
 
     BIND(&try_polymorphic_name);
@@ -3115,9 +3111,7 @@ void AccessorAssembler::GenerateStoreGlobalICTrampoline() {
   Node* context = Parameter(Descriptor::kContext);
   Node* vector = LoadFeedbackVectorForStub();
 
-  Callable callable =
-      Builtins::CallableFor(isolate(), Builtins::kStoreGlobalIC);
-  TailCallStub(callable, context, name, value, slot, vector);
+  TailCallBuiltin(Builtins::kStoreGlobalIC, context, name, value, slot, vector);
 }
 
 void AccessorAssembler::GenerateStoreIC() {
@@ -3144,8 +3138,8 @@ void AccessorAssembler::GenerateStoreICTrampoline() {
   Node* context = Parameter(Descriptor::kContext);
   Node* vector = LoadFeedbackVectorForStub();
 
-  Callable callable = Builtins::CallableFor(isolate(), Builtins::kStoreIC);
-  TailCallStub(callable, context, receiver, name, value, slot, vector);
+  TailCallBuiltin(Builtins::kStoreIC, context, receiver, name, value, slot,
+                  vector);
 }
 
 void AccessorAssembler::GenerateKeyedStoreIC() {
@@ -3172,8 +3166,8 @@ void AccessorAssembler::GenerateKeyedStoreICTrampoline() {
   Node* context = Parameter(Descriptor::kContext);
   Node* vector = LoadFeedbackVectorForStub();
 
-  Callable callable = Builtins::CallableFor(isolate(), Builtins::kKeyedStoreIC);
-  TailCallStub(callable, context, receiver, name, value, slot, vector);
+  TailCallBuiltin(Builtins::kKeyedStoreIC, context, receiver, name, value, slot,
+                  vector);
 }
 
 void AccessorAssembler::GenerateStoreInArrayLiteralIC() {

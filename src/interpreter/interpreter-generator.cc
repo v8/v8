@@ -213,8 +213,8 @@ IGNITION_HANDLER(StaGlobal, InterpreterAssembler) {
   Node* raw_slot = BytecodeOperandIdx(1);
   Node* smi_slot = SmiTag(raw_slot);
   Node* feedback_vector = LoadFeedbackVector();
-  Callable ic = Builtins::CallableFor(isolate(), Builtins::kStoreGlobalIC);
-  CallStub(ic, context, name, value, smi_slot, feedback_vector);
+  CallBuiltin(Builtins::kStoreGlobalIC, context, name, value, smi_slot,
+              feedback_vector);
   Dispatch();
 }
 
@@ -523,16 +523,14 @@ IGNITION_HANDLER(LdaNamedProperty, InterpreterAssembler) {
 // Calls the KeyedLoadIC at FeedBackVector slot <slot> for <object> and the key
 // in the accumulator.
 IGNITION_HANDLER(LdaKeyedProperty, InterpreterAssembler) {
-  Callable ic = Builtins::CallableFor(isolate(), Builtins::kKeyedLoadIC);
-  Node* code_target = HeapConstant(ic.code());
   Node* object = LoadRegisterAtOperandIndex(0);
   Node* name = GetAccumulator();
   Node* raw_slot = BytecodeOperandIdx(1);
   Node* smi_slot = SmiTag(raw_slot);
   Node* feedback_vector = LoadFeedbackVector();
   Node* context = GetContext();
-  Node* result = CallStub(ic.descriptor(), code_target, context, object, name,
-                          smi_slot, feedback_vector);
+  Node* result = CallBuiltin(Builtins::kKeyedLoadIC, context, object, name,
+                             smi_slot, feedback_vector);
   SetAccumulator(result);
   Dispatch();
 }
@@ -590,8 +588,6 @@ IGNITION_HANDLER(StaNamedOwnProperty, InterpreterStoreNamedPropertyAssembler) {
 // Calls the KeyedStoreIC at FeedbackVector slot <slot> for <object> and
 // the key <key> with the value in the accumulator.
 IGNITION_HANDLER(StaKeyedProperty, InterpreterAssembler) {
-  Callable ic = Builtins::CallableFor(isolate(), Builtins::kKeyedStoreIC);
-  Node* code_target = HeapConstant(ic.code());
   Node* object = LoadRegisterAtOperandIndex(0);
   Node* name = LoadRegisterAtOperandIndex(1);
   Node* value = GetAccumulator();
@@ -599,8 +595,8 @@ IGNITION_HANDLER(StaKeyedProperty, InterpreterAssembler) {
   Node* smi_slot = SmiTag(raw_slot);
   Node* feedback_vector = LoadFeedbackVector();
   Node* context = GetContext();
-  Node* result = CallStub(ic.descriptor(), code_target, context, object, name,
-                          value, smi_slot, feedback_vector);
+  Node* result = CallBuiltin(Builtins::kKeyedStoreIC, context, object, name,
+                             value, smi_slot, feedback_vector);
   // To avoid special logic in the deoptimizer to re-materialize the value in
   // the accumulator, we overwrite the accumulator after the IC call. It
   // doesn't really matter what we write to the accumulator here, since we
@@ -615,9 +611,6 @@ IGNITION_HANDLER(StaKeyedProperty, InterpreterAssembler) {
 // Calls the StoreInArrayLiteralIC at FeedbackVector slot <slot> for <array> and
 // the key <index> with the value in the accumulator.
 IGNITION_HANDLER(StaInArrayLiteral, InterpreterAssembler) {
-  Callable ic =
-      Builtins::CallableFor(isolate(), Builtins::kStoreInArrayLiteralIC);
-  Node* code_target = HeapConstant(ic.code());
   Node* array = LoadRegisterAtOperandIndex(0);
   Node* index = LoadRegisterAtOperandIndex(1);
   Node* value = GetAccumulator();
@@ -625,8 +618,8 @@ IGNITION_HANDLER(StaInArrayLiteral, InterpreterAssembler) {
   Node* smi_slot = SmiTag(raw_slot);
   Node* feedback_vector = LoadFeedbackVector();
   Node* context = GetContext();
-  Node* result = CallStub(ic.descriptor(), code_target, context, array, index,
-                          value, smi_slot, feedback_vector);
+  Node* result = CallBuiltin(Builtins::kStoreInArrayLiteralIC, context, array,
+                             index, value, smi_slot, feedback_vector);
   // To avoid special logic in the deoptimizer to re-materialize the value in
   // the accumulator, we overwrite the accumulator after the IC call. It
   // doesn't really matter what we write to the accumulator here, since we
@@ -1304,11 +1297,9 @@ IGNITION_HANDLER(ToNumeric, InterpreterAssembler) {
 //
 // Convert the object referenced by the accumulator to a JSReceiver.
 IGNITION_HANDLER(ToObject, InterpreterAssembler) {
-  Callable callable = Builtins::CallableFor(isolate(), Builtins::kToObject);
-  Node* target = HeapConstant(callable.code());
   Node* accumulator = GetAccumulator();
   Node* context = GetContext();
-  Node* result = CallStub(callable.descriptor(), target, context, accumulator);
+  Node* result = CallBuiltin(Builtins::kToObject, context, accumulator);
   StoreRegisterAtOperandIndex(result, 0);
   Dispatch();
 }
