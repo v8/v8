@@ -3050,7 +3050,10 @@ bool Isolate::Init(StartupDeserializer* des) {
     // Terminate the partial snapshot cache so we can iterate.
     partial_snapshot_cache_.push_back(heap_.undefined_value());
 #ifdef V8_EMBEDDED_BUILTINS
-    builtins_constants_table_builder_ = new BuiltinsConstantsTableBuilder(this);
+    if (serializer_enabled()) {
+      builtins_constants_table_builder_ =
+          new BuiltinsConstantsTableBuilder(this);
+    }
 #endif
   }
 
@@ -3085,7 +3088,7 @@ bool Isolate::Init(StartupDeserializer* des) {
     setup_delegate_->SetupInterpreter(interpreter_);
 
 #ifdef V8_EMBEDDED_BUILTINS
-    if (create_heap_objects) {
+    if (create_heap_objects && serializer_enabled()) {
       builtins_constants_table_builder_->Finalize();
       delete builtins_constants_table_builder_;
       builtins_constants_table_builder_ = nullptr;
