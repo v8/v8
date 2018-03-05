@@ -121,9 +121,15 @@ Handle<Object> LoadHandler::LoadFromPrototype(Isolate* isolate,
   int checks_count = GetPrototypeCheckCount<LoadHandler>(
       isolate, &smi_handler, receiver_map, holder, data1, maybe_data2);
 
-  Handle<Cell> validity_cell =
+  Handle<Object> validity_cell =
       Map::GetOrCreatePrototypeChainValidityCell(receiver_map, isolate);
-  DCHECK(!validity_cell.is_null());
+  if (validity_cell.is_null()) {
+    // Although in case of kApiGetter we load from receiver we still have to
+    // use the "prototype" shape of a handler in order to provide additional
+    // data to the dispatcher.
+    DCHECK_EQ(kApiGetter, GetHandlerKind(*smi_handler));
+    validity_cell = handle(Smi::kZero, isolate);
+  }
 
   int data_count = 1 + checks_count;
   Handle<LoadHandler> handler = isolate->factory()->NewLoadHandler(data_count);

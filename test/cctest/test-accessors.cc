@@ -84,36 +84,65 @@ THREADED_TEST(PropertyHandler) {
   Local<Script> setter;
   // check function instance accessors
   getter = v8_compile("var obj = new Fun(); obj.instance_foo;");
-  CHECK_EQ(900, getter->Run(env.local())
-                    .ToLocalChecked()
-                    ->Int32Value(env.local())
-                    .FromJust());
+  for (int i = 0; i < 4; i++) {
+    CHECK_EQ(900, getter->Run(env.local())
+                      .ToLocalChecked()
+                      ->Int32Value(env.local())
+                      .FromJust());
+  }
   setter = v8_compile("obj.instance_foo = 901;");
-  CHECK_EQ(901, setter->Run(env.local())
-                    .ToLocalChecked()
-                    ->Int32Value(env.local())
-                    .FromJust());
+  for (int i = 0; i < 4; i++) {
+    CHECK_EQ(901, setter->Run(env.local())
+                      .ToLocalChecked()
+                      ->Int32Value(env.local())
+                      .FromJust());
+  }
   getter = v8_compile("obj.bar;");
-  CHECK_EQ(907, getter->Run(env.local())
-                    .ToLocalChecked()
-                    ->Int32Value(env.local())
-                    .FromJust());
+  for (int i = 0; i < 4; i++) {
+    CHECK_EQ(907, getter->Run(env.local())
+                      .ToLocalChecked()
+                      ->Int32Value(env.local())
+                      .FromJust());
+  }
   setter = v8_compile("obj.bar = 908;");
-  CHECK_EQ(908, setter->Run(env.local())
-                    .ToLocalChecked()
-                    ->Int32Value(env.local())
-                    .FromJust());
+  for (int i = 0; i < 4; i++) {
+    CHECK_EQ(908, setter->Run(env.local())
+                      .ToLocalChecked()
+                      ->Int32Value(env.local())
+                      .FromJust());
+  }
   // check function static accessors
   getter = v8_compile("Fun.object_foo;");
-  CHECK_EQ(902, getter->Run(env.local())
-                    .ToLocalChecked()
-                    ->Int32Value(env.local())
-                    .FromJust());
+  for (int i = 0; i < 4; i++) {
+    CHECK_EQ(902, getter->Run(env.local())
+                      .ToLocalChecked()
+                      ->Int32Value(env.local())
+                      .FromJust());
+  }
   setter = v8_compile("Fun.object_foo = 903;");
-  CHECK_EQ(903, setter->Run(env.local())
-                    .ToLocalChecked()
-                    ->Int32Value(env.local())
-                    .FromJust());
+  for (int i = 0; i < 4; i++) {
+    CHECK_EQ(903, setter->Run(env.local())
+                      .ToLocalChecked()
+                      ->Int32Value(env.local())
+                      .FromJust());
+  }
+
+  // And now with null prototype.
+  CompileRun(env.local(), "obj.__proto__ = null;");
+  getter = v8_compile("obj.bar;");
+  for (int i = 0; i < 4; i++) {
+    CHECK_EQ(907, getter->Run(env.local())
+                      .ToLocalChecked()
+                      ->Int32Value(env.local())
+                      .FromJust());
+  }
+  setter = v8_compile("obj.bar = 908;");
+  for (int i = 0; i < 4; i++) {
+    CHECK_EQ(908, setter->Run(env.local())
+                      .ToLocalChecked()
+                      ->Int32Value(env.local())
+                      .FromJust());
+  }
 }
 
 
