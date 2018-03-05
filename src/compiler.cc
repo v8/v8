@@ -960,7 +960,7 @@ void BackgroundCompileTask::Run() {
   source_->parser->set_stack_limit(stack_limit);
 
   source_->parser->ParseOnBackground(source_->info.get());
-  if (FLAG_background_compile && source_->info->literal() != nullptr) {
+  if (source_->info->literal() != nullptr) {
     // Parsing has succeeded, compile.
     source_->outer_function_job = CompileTopLevelOnBackgroundThread(
         source_->info.get(), allocator_, &source_->inner_function_jobs);
@@ -1780,21 +1780,14 @@ Compiler::GetSharedFunctionInfoForStreamedScript(
           isolate, script, parse_info->ast_value_factory());
     } else {
       // Parsing has succeeded - finalize compilation.
-      if (i::FLAG_background_compile) {
-        // Finalize background compilation.
-        if (streaming_data->outer_function_job) {
-          maybe_result = FinalizeTopLevel(
-              parse_info, isolate, streaming_data->outer_function_job.get(),
-              &streaming_data->inner_function_jobs);
-        } else {
-          // Compilation failed on background thread - throw an exception.
-          FailWithPendingException(
-              isolate, parse_info,
-              Compiler::ClearExceptionFlag::KEEP_EXCEPTION);
-        }
+      if (streaming_data->outer_function_job) {
+        maybe_result = FinalizeTopLevel(
+            parse_info, isolate, streaming_data->outer_function_job.get(),
+            &streaming_data->inner_function_jobs);
       } else {
-        // Compilation on main thread.
-        maybe_result = CompileToplevel(parse_info, isolate);
+        // Compilation failed on background thread - throw an exception.
+        FailWithPendingException(isolate, parse_info,
+                                 Compiler::ClearExceptionFlag::KEEP_EXCEPTION);
       }
     }
 

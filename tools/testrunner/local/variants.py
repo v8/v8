@@ -17,7 +17,7 @@ ALL_VARIANT_FLAGS = {
   "nooptimization": [["--noopt"]],
   "slow_path": [["--force-slow-path"]],
   "stress": [["--stress-opt", "--always-opt"]],
-  "stress_background_compile": [["--background-compile", "--stress-background-compile"]],
+  "stress_background_compile": [["--stress-background-compile"]],
   "stress_incremental_marking":  [["--stress-incremental-marking"]],
   "stress_off_heap_code":  [["--stress-off-heap-code"]],
   # Trigger stress sampling allocation profiler with sample interval = 2^14
