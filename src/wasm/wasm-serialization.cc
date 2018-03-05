@@ -11,6 +11,7 @@
 #include "src/objects.h"
 #include "src/snapshot/code-serializer.h"
 #include "src/snapshot/serializer-common.h"
+#include "src/utils.h"
 #include "src/version.h"
 #include "src/wasm/module-compiler.h"
 #include "src/wasm/module-decoder.h"
@@ -35,7 +36,7 @@ class Writer {
       os << "wrote: " << (size_t)value << " sized: " << sizeof(T) << std::endl;
     }
     DCHECK_GE(buffer_.size(), sizeof(T));
-    memcpy(buffer_.start(), reinterpret_cast<const byte*>(&value), sizeof(T));
+    WriteUnalignedValue(buffer_.start(), value);
     buffer_ = buffer_ + sizeof(T);
   }
 
@@ -63,8 +64,7 @@ class Reader {
   template <typename T>
   T Read() {
     DCHECK_GE(buffer_.size(), sizeof(T));
-    T ret;
-    memcpy(reinterpret_cast<byte*>(&ret), buffer_.start(), sizeof(T));
+    T ret = ReadUnalignedValue<T>(buffer_.start());
     buffer_ = buffer_ + sizeof(T);
     if (FLAG_wasm_trace_serialization) {
       OFStream os(stdout);

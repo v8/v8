@@ -1579,6 +1579,7 @@ inline uintptr_t GetCurrentStackPosition() {
 
 template <typename V>
 static inline V ReadUnalignedValue(const void* p) {
+  ASSERT_TRIVIALLY_COPYABLE(V);
 #if !(V8_TARGET_ARCH_MIPS || V8_TARGET_ARCH_MIPS64 || V8_TARGET_ARCH_ARM)
   return *reinterpret_cast<const V*>(p);
 #else   // V8_TARGET_ARCH_MIPS || V8_TARGET_ARCH_MIPS64 || V8_TARGET_ARCH_ARM
@@ -1590,6 +1591,7 @@ static inline V ReadUnalignedValue(const void* p) {
 
 template <typename V>
 static inline void WriteUnalignedValue(void* p, V value) {
+  ASSERT_TRIVIALLY_COPYABLE(V);
 #if !(V8_TARGET_ARCH_MIPS || V8_TARGET_ARCH_MIPS64 || V8_TARGET_ARCH_ARM)
   *(reinterpret_cast<V*>(p)) = value;
 #else   // V8_TARGET_ARCH_MIPS || V8_TARGET_ARCH_MIPS64 || V8_TARGET_ARCH_ARM
