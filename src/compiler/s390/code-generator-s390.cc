@@ -2459,7 +2459,7 @@ void CodeGenerator::AssembleBranchPoisoning(FlagsCondition condition,
   }
 
   condition = NegateFlagsCondition(condition);
-  __ XorP(r0, r0);
+  __ LoadImmP(r0, Operand::Zero());
   __ LoadOnConditionP(FlagsConditionToCondition(condition, kArchNop),
                       kSpeculationPoisonRegister, r0);
 }
