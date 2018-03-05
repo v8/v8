@@ -565,6 +565,21 @@ void LiftoffAssembler::emit_f32_mul(DoubleRegister dst, DoubleRegister lhs,
   }
 }
 
+void LiftoffAssembler::emit_f32_div(DoubleRegister dst, DoubleRegister lhs,
+                                    DoubleRegister rhs) {
+  if (CpuFeatures::IsSupported(AVX)) {
+    CpuFeatureScope scope(this, AVX);
+    vdivss(dst, lhs, rhs);
+  } else if (dst == rhs) {
+    movss(kScratchDoubleReg, rhs);
+    movss(dst, lhs);
+    divss(dst, kScratchDoubleReg);
+  } else {
+    if (dst != lhs) movss(dst, lhs);
+    divss(dst, rhs);
+  }
+}
+
 void LiftoffAssembler::emit_f32_neg(DoubleRegister dst, DoubleRegister src) {
   static constexpr uint32_t kSignBit = uint32_t{1} << 31;
   if (dst == src) {
@@ -618,6 +633,21 @@ void LiftoffAssembler::emit_f64_mul(DoubleRegister dst, DoubleRegister lhs,
   } else {
     if (dst != lhs) movsd(dst, lhs);
     mulsd(dst, rhs);
+  }
+}
+
+void LiftoffAssembler::emit_f64_div(DoubleRegister dst, DoubleRegister lhs,
+                                    DoubleRegister rhs) {
+  if (CpuFeatures::IsSupported(AVX)) {
+    CpuFeatureScope scope(this, AVX);
+    vdivsd(dst, lhs, rhs);
+  } else if (dst == rhs) {
+    movsd(kScratchDoubleReg, rhs);
+    movsd(dst, lhs);
+    divsd(dst, kScratchDoubleReg);
+  } else {
+    if (dst != lhs) movsd(dst, lhs);
+    divsd(dst, rhs);
   }
 }
 

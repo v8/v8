@@ -663,9 +663,11 @@ class LiftoffCompiler {
       CASE_FLOAT_BINOP(F32Add, F32, f32_add)
       CASE_FLOAT_BINOP(F32Sub, F32, f32_sub)
       CASE_FLOAT_BINOP(F32Mul, F32, f32_mul)
+      CASE_FLOAT_BINOP(F32Div, F32, f32_div)
       CASE_FLOAT_BINOP(F64Add, F64, f64_add)
       CASE_FLOAT_BINOP(F64Sub, F64, f64_sub)
       CASE_FLOAT_BINOP(F64Mul, F64, f64_mul)
+      CASE_FLOAT_BINOP(F64Div, F64, f64_div)
       default:
         return unsupported(decoder, WasmOpcodes::OpcodeName(opcode));
     }
