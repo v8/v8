@@ -187,46 +187,9 @@ void MarkingVisitor<fixed_array_mode, retaining_path_mode,
 template <FixedArrayVisitationMode fixed_array_mode,
           TraceRetainingPathMode retaining_path_mode, typename MarkingState>
 void MarkingVisitor<fixed_array_mode, retaining_path_mode,
-                    MarkingState>::VisitPointer(HeapObject* host,
-                                                MaybeObject** p) {
-  HeapObject* target_object;
-  if ((*p)->ToStrongHeapObject(&target_object)) {
-    collector_->RecordSlot(host, reinterpret_cast<HeapObjectReference**>(p),
-                           target_object);
-    MarkObject(host, target_object);
-  } else if ((*p)->ToWeakHeapObject(&target_object)) {
-    if (marking_state()->IsBlackOrGrey(target_object)) {
-      // Weak references with live values are directly processed here to reduce
-      // the processing time of weak cells during the main GC pause.
-      collector_->RecordSlot(host, reinterpret_cast<HeapObjectReference**>(p),
-                             target_object);
-    } else {
-      // If we do not know about liveness of values of weak cells, we have to
-      // process them when we know the liveness of the whole transitive
-      // closure.
-      collector_->AddWeakReference(host,
-                                   reinterpret_cast<HeapObjectReference**>(p));
-    }
-  }
-}
-
-template <FixedArrayVisitationMode fixed_array_mode,
-          TraceRetainingPathMode retaining_path_mode, typename MarkingState>
-void MarkingVisitor<fixed_array_mode, retaining_path_mode,
                     MarkingState>::VisitPointers(HeapObject* host,
                                                  Object** start, Object** end) {
   for (Object** p = start; p < end; p++) {
-    VisitPointer(host, p);
-  }
-}
-
-template <FixedArrayVisitationMode fixed_array_mode,
-          TraceRetainingPathMode retaining_path_mode, typename MarkingState>
-void MarkingVisitor<fixed_array_mode, retaining_path_mode,
-                    MarkingState>::VisitPointers(HeapObject* host,
-                                                 MaybeObject** start,
-                                                 MaybeObject** end) {
-  for (MaybeObject** p = start; p < end; p++) {
     VisitPointer(host, p);
   }
 }
@@ -389,12 +352,6 @@ void MarkCompactCollector::MarkExternallyReferencedObject(HeapObject* obj) {
 }
 
 void MarkCompactCollector::RecordSlot(HeapObject* object, Object** slot,
-                                      Object* target) {
-  RecordSlot(object, reinterpret_cast<HeapObjectReference**>(slot), target);
-}
-
-void MarkCompactCollector::RecordSlot(HeapObject* object,
-                                      HeapObjectReference** slot,
                                       Object* target) {
   Page* target_page = Page::FromAddress(reinterpret_cast<Address>(target));
   Page* source_page = Page::FromAddress(reinterpret_cast<Address>(object));

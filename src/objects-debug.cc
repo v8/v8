@@ -17,7 +17,6 @@
 #include "src/objects/data-handler-inl.h"
 #include "src/objects/debug-objects-inl.h"
 #include "src/objects/literal-objects.h"
-#include "src/objects/maybe-object.h"
 #include "src/objects/microtask-inl.h"
 #include "src/objects/module.h"
 #include "src/objects/promise-inl.h"
@@ -68,15 +67,6 @@ void Object::VerifyPointer(Object* p) {
     HeapObject::VerifyHeapPointer(p);
   } else {
     CHECK(p->IsSmi());
-  }
-}
-
-void MaybeObject::VerifyMaybeObjectPointer(MaybeObject* p) {
-  HeapObject* heap_object;
-  if (p->ToStrongOrWeakHeapObject(&heap_object)) {
-    HeapObject::VerifyHeapPointer(heap_object);
-  } else {
-    CHECK(p->IsSmi() || p->IsClearedWeakHeapObject());
   }
 }
 
@@ -360,13 +350,7 @@ void FeedbackCell::FeedbackCellVerify() {
   CHECK(value()->IsUndefined(isolate) || value()->IsFeedbackVector());
 }
 
-void FeedbackVector::FeedbackVectorVerify() {
-  CHECK(IsFeedbackVector());
-  MaybeObject* code = optimized_code_weak_or_smi();
-  MaybeObject::VerifyMaybeObjectPointer(code);
-  CHECK(code->IsSmi() || code->IsClearedWeakHeapObject() ||
-        code->IsWeakHeapObject());
-}
+void FeedbackVector::FeedbackVectorVerify() { CHECK(IsFeedbackVector()); }
 
 template <class Traits>
 void FixedTypedArray<Traits>::FixedTypedArrayVerify() {

@@ -1798,7 +1798,6 @@ class HeapObject: public Object {
   // Does not invoke write barrier, so should only be assigned to
   // during marking GC.
   static inline Object** RawField(HeapObject* obj, int offset);
-  static inline MaybeObject** RawMaybeWeakField(HeapObject* obj, int offset);
 
   DECL_CAST(HeapObject)
 

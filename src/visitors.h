@@ -11,7 +11,6 @@ namespace v8 {
 namespace internal {
 
 class CodeDataContainer;
-class MaybeObject;
 class Object;
 
 #define ROOT_ID_LIST(V)                                \
@@ -88,14 +87,9 @@ class ObjectVisitor BASE_EMBEDDED {
   // [start, end). Any or all of the values may be modified on return.
   virtual void VisitPointers(HeapObject* host, Object** start,
                              Object** end) = 0;
-  virtual void VisitPointers(HeapObject* host, MaybeObject** start,
-                             MaybeObject** end) = 0;
 
   // Handy shorthand for visiting a single pointer.
   virtual void VisitPointer(HeapObject* host, Object** p) {
-    VisitPointers(host, p, p + 1);
-  }
-  virtual void VisitPointer(HeapObject* host, MaybeObject** p) {
     VisitPointers(host, p, p + 1);
   }
 

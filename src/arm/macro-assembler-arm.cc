@@ -1736,14 +1736,6 @@ void MacroAssembler::JumpToInstructionStream(const InstructionStream* stream) {
   Jump(kOffHeapTrampolineRegister);
 }
 
-void MacroAssembler::LoadWeakValue(Register out, Register in,
-                                   Label* target_if_cleared) {
-  cmp(in, Operand(kClearedWeakHeapObject));
-  b(eq, target_if_cleared);
-
-  and_(out, in, Operand(~kWeakHeapObjectMask));
-}
-
 void MacroAssembler::IncrementCounter(StatsCounter* counter, int value,
                                       Register scratch1, Register scratch2) {
   DCHECK_GT(value, 0);

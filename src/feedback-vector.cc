@@ -219,11 +219,10 @@ Handle<FeedbackVector> FeedbackVector::New(Isolate* isolate,
   DCHECK_EQ(vector->length(), slot_count);
 
   DCHECK_EQ(vector->shared_function_info(), *shared);
-  DCHECK_EQ(
-      vector->optimized_code_weak_or_smi(),
-      MaybeObject::FromSmi(Smi::FromEnum(
-          FLAG_log_function_events ? OptimizationMarker::kLogFirstExecution
-                                   : OptimizationMarker::kNone)));
+  DCHECK_EQ(vector->optimized_code_cell(),
+            Smi::FromEnum(FLAG_log_function_events
+                              ? OptimizationMarker::kLogFirstExecution
+                              : OptimizationMarker::kNone));
   DCHECK_EQ(vector->invocation_count(), 0);
   DCHECK_EQ(vector->profiler_ticks(), 0);
   DCHECK_EQ(vector->deopt_count(), 0);
@@ -326,7 +325,9 @@ void FeedbackVector::AddToVectorsForProfilingTools(
 void FeedbackVector::SetOptimizedCode(Handle<FeedbackVector> vector,
                                       Handle<Code> code) {
   DCHECK_EQ(code->kind(), Code::OPTIMIZED_FUNCTION);
-  vector->set_optimized_code_weak_or_smi(HeapObjectReference::Weak(*code));
+  Factory* factory = vector->GetIsolate()->factory();
+  Handle<WeakCell> cell = factory->NewWeakCell(code);
+  vector->set_optimized_code_cell(*cell);
 }
 
 void FeedbackVector::ClearOptimizedCode() {
@@ -340,22 +341,21 @@ void FeedbackVector::ClearOptimizationMarker() {
 }
 
 void FeedbackVector::SetOptimizationMarker(OptimizationMarker marker) {
-  set_optimized_code_weak_or_smi(MaybeObject::FromSmi(Smi::FromEnum(marker)));
+  set_optimized_code_cell(Smi::FromEnum(marker));
 }
 
 void FeedbackVector::EvictOptimizedCodeMarkedForDeoptimization(
     SharedFunctionInfo* shared, const char* reason) {
-  MaybeObject* slot = optimized_code_weak_or_smi();
-  if (slot->IsSmi()) {
-    return;
-  }
+  Object* slot = optimized_code_cell();
+  if (slot->IsSmi()) return;
 
-  if (slot->IsClearedWeakHeapObject()) {
+  WeakCell* cell = WeakCell::cast(slot);
+  if (cell->cleared()) {
     ClearOptimizationMarker();
     return;
   }
 
-  Code* code = Code::cast(slot->GetHeapObject());
+  Code* code = Code::cast(cell->value());
   if (code->marked_for_deoptimization()) {
     if (FLAG_trace_deopt) {
       PrintF("[evicting optimizing code marked for deoptimization (%s) for ",

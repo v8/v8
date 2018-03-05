@@ -603,10 +603,6 @@ class MacroAssembler : public TurboAssembler {
   void PopReturnAddressTo(Register dst) { pop(dst); }
 
   // ---------------------------------------------------------------------------
-  // In-place weak references.
-  void LoadWeakValue(Register in_out, Label* target_if_cleared);
-
-  // ---------------------------------------------------------------------------
   // StatsCounter support
 
   void IncrementCounter(StatsCounter* counter, int value);

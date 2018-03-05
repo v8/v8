@@ -885,9 +885,6 @@ class MacroAssembler : public TurboAssembler {
   void IncrementCounter(StatsCounter* counter, int value);
   void DecrementCounter(StatsCounter* counter, int value);
 
-  // ---------------------------------------------------------------------------
-  // In-place weak references.
-  void LoadWeakValue(Register in_out, Label* target_if_cleared);
 
   // ---------------------------------------------------------------------------
   // Debugging

@@ -1263,14 +1263,12 @@ Node* CodeStubAssembler::LoadBufferObject(Node* buffer, int offset,
 
 Node* CodeStubAssembler::LoadObjectField(SloppyTNode<HeapObject> object,
                                          int offset, MachineType rep) {
-  AssertIsStrongHeapObject(object);
   return Load(rep, object, IntPtrConstant(offset - kHeapObjectTag));
 }
 
 Node* CodeStubAssembler::LoadObjectField(SloppyTNode<HeapObject> object,
                                          SloppyTNode<IntPtrT> offset,
                                          MachineType rep) {
-  AssertIsStrongHeapObject(object);
   return Load(rep, object, IntPtrSub(offset, IntPtrConstant(kHeapObjectTag)));
 }
 
@@ -11122,13 +11120,6 @@ void CodeStubAssembler::InitializeFunctionContext(Node* native_context,
                                     TheHoleConstant());
   StoreContextElementNoWriteBarrier(context, Context::NATIVE_CONTEXT_INDEX,
                                     native_context);
-}
-
-void CodeStubAssembler::AssertIsStrongHeapObject(
-    SloppyTNode<HeapObject> object) {
-  CSA_SLOW_ASSERT(this, WordEqual(WordAnd(BitcastTaggedToWord(object),
-                                          IntPtrConstant(kHeapObjectTagMask)),
-                                  IntPtrConstant(kHeapObjectTag)));
 }
 
 }  // namespace internal

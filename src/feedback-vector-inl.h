@@ -10,7 +10,6 @@
 #include "src/globals.h"
 #include "src/heap/heap-inl.h"
 #include "src/heap/heap.h"
-#include "src/objects/maybe-object-inl.h"
 #include "src/objects/shared-function-info.h"
 
 // Has to be the last include (doesn't have include guards):
@@ -79,7 +78,7 @@ int FeedbackMetadata::GetSlotSize(FeedbackSlotKind kind) {
 
 ACCESSORS(FeedbackVector, shared_function_info, SharedFunctionInfo,
           kSharedFunctionInfoOffset)
-WEAK_ACCESSORS(FeedbackVector, optimized_code_weak_or_smi, kOptimizedCodeOffset)
+ACCESSORS(FeedbackVector, optimized_code_cell, Object, kOptimizedCodeOffset)
 INT32_ACCESSORS(FeedbackVector, length, kLengthOffset)
 INT32_ACCESSORS(FeedbackVector, invocation_count, kInvocationCountOffset)
 INT32_ACCESSORS(FeedbackVector, profiler_ticks, kProfilerTicksOffset)
@@ -101,18 +100,16 @@ void FeedbackVector::increment_deopt_count() {
 }
 
 Code* FeedbackVector::optimized_code() const {
-  MaybeObject* slot = optimized_code_weak_or_smi();
-  DCHECK(slot->IsSmi() || slot->IsClearedWeakHeapObject() ||
-         slot->IsWeakHeapObject());
-  HeapObject* heap_object;
-  return slot->ToStrongOrWeakHeapObject(&heap_object) ? Code::cast(heap_object)
-                                                      : nullptr;
+  Object* slot = optimized_code_cell();
+  if (slot->IsSmi()) return nullptr;
+  WeakCell* cell = WeakCell::cast(slot);
+  return cell->cleared() ? nullptr : Code::cast(cell->value());
 }
 
 OptimizationMarker FeedbackVector::optimization_marker() const {
-  MaybeObject* slot = optimized_code_weak_or_smi();
-  Smi* value;
-  if (!slot->IsSmi(&value)) return OptimizationMarker::kNone;
+  Object* slot = optimized_code_cell();
+  if (!slot->IsSmi()) return OptimizationMarker::kNone;
+  Smi* value = Smi::cast(slot);
   return static_cast<OptimizationMarker>(value->value());
 }
 

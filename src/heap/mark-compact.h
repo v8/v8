@@ -495,9 +495,6 @@ class MajorNonAtomicMarkingState final
 struct WeakObjects {
   Worklist<WeakCell*, 64> weak_cells;
   Worklist<TransitionArray*, 64> transition_arrays;
-  // TODO(marja): For old space, we only need the slot, not the host
-  // object. Optimize this by adding a different storage for old space.
-  Worklist<std::pair<HeapObject*, HeapObjectReference**>, 64> weak_references;
 };
 
 // Collector for young and old generation.
@@ -661,12 +658,7 @@ class MarkCompactCollector final : public MarkCompactCollectorBase {
 
   void AbortCompaction();
 
-  static inline bool IsOnEvacuationCandidate(Object* obj) {
-    return Page::FromAddress(reinterpret_cast<Address>(obj))
-        ->IsEvacuationCandidate();
-  }
-
-  static inline bool IsOnEvacuationCandidate(MaybeObject* obj) {
+  static inline bool IsOnEvacuationCandidate(HeapObject* obj) {
     return Page::FromAddress(reinterpret_cast<Address>(obj))
         ->IsEvacuationCandidate();
   }
@@ -674,8 +666,6 @@ class MarkCompactCollector final : public MarkCompactCollectorBase {
   void RecordRelocSlot(Code* host, RelocInfo* rinfo, Object* target);
   V8_INLINE static void RecordSlot(HeapObject* object, Object** slot,
                                    Object* target);
-  V8_INLINE static void RecordSlot(HeapObject* object,
-                                   HeapObjectReference** slot, Object* target);
   void RecordLiveSlotsOnPage(Page* page);
 
   void UpdateSlots(SlotsBuffer* buffer);
@@ -707,10 +697,6 @@ class MarkCompactCollector final : public MarkCompactCollectorBase {
 
   void AddTransitionArray(TransitionArray* array) {
     weak_objects_.transition_arrays.Push(kMainThread, array);
-  }
-
-  void AddWeakReference(HeapObject* host, HeapObjectReference** slot) {
-    weak_objects_.weak_references.Push(kMainThread, std::make_pair(host, slot));
   }
 
   Sweeper* sweeper() { return sweeper_; }
@@ -823,7 +809,6 @@ class MarkCompactCollector final : public MarkCompactCollectorBase {
   // transition.
   void ClearWeakCellsAndSimpleMapTransitions(
       DependentCode** dependent_code_list);
-  void ClearWeakReferences();
   void AbortWeakObjects();
 
   // Starts sweeping of spaces by contributing on the main thread and setting
@@ -932,11 +917,8 @@ class MarkingVisitor final
 
   // ObjectVisitor implementation.
   V8_INLINE void VisitPointer(HeapObject* host, Object** p) final;
-  V8_INLINE void VisitPointer(HeapObject* host, MaybeObject** p) final;
   V8_INLINE void VisitPointers(HeapObject* host, Object** start,
                                Object** end) final;
-  V8_INLINE void VisitPointers(HeapObject* host, MaybeObject** start,
-                               MaybeObject** end) final;
   V8_INLINE void VisitEmbeddedPointer(Code* host, RelocInfo* rinfo) final;
   V8_INLINE void VisitCodeTarget(Code* host, RelocInfo* rinfo) final;
 

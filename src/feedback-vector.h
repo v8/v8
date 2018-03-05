@@ -156,9 +156,9 @@ class FeedbackVector : public HeapObject {
   // feedback vector.
   DECL_ACCESSORS(shared_function_info, SharedFunctionInfo)
 
-  // [optimized_code_weak_or_smi]: weak reference to optimized code or a Smi
-  // marker defining optimization behaviour.
-  DECL_ACCESSORS(optimized_code_weak_or_smi, MaybeObject)
+  // [optimized_code_cell]: WeakCell containing optimized code or a Smi marker
+  // defining optimization behaviour.
+  DECL_ACCESSORS(optimized_code_cell, Object)
 
   // [length]: The length of the feedback vector (not including the header, i.e.
   // the number of feedback slots).

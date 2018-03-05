@@ -392,8 +392,6 @@ class V8HeapExplorer : public HeapEntriesAllocator {
   void ExtractJSArrayBufferReferences(int entry, JSArrayBuffer* buffer);
   void ExtractJSPromiseReferences(int entry, JSPromise* promise);
   void ExtractFixedArrayReferences(int entry, FixedArray* array);
-  void ExtractFeedbackVectorReferences(int entry,
-                                       FeedbackVector* feedback_vector);
   void ExtractPropertyReferences(JSObject* js_obj, int entry);
   void ExtractAccessorPairProperty(JSObject* js_obj, int entry, Name* key,
                                    Object* callback_obj, int field_offset = -1);

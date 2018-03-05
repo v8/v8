@@ -673,7 +673,7 @@ static void MaybeTailCallOptimizedCodeSlot(MacroAssembler* masm,
   // -----------------------------------
   DCHECK(!AreAliased(feedback_vector, eax, edx, edi, scratch));
 
-  Label optimized_code_slot_is_weak_ref, fallthrough;
+  Label optimized_code_slot_is_cell, fallthrough;
 
   Register closure = edi;
   Register optimized_code_entry = scratch;
@@ -682,9 +682,9 @@ static void MaybeTailCallOptimizedCodeSlot(MacroAssembler* masm,
          FieldOperand(feedback_vector, FeedbackVector::kOptimizedCodeOffset));
 
   // Check if the code entry is a Smi. If yes, we interpret it as an
-  // optimisation marker. Otherwise, interpret it as a weak reference to a code
+  // optimisation marker. Otherwise, interpret is as a weak cell to a code
   // object.
-  __ JumpIfNotSmi(optimized_code_entry, &optimized_code_slot_is_weak_ref);
+  __ JumpIfNotSmi(optimized_code_entry, &optimized_code_slot_is_cell);
 
   {
     // Optimized code slot is an optimization marker.
@@ -719,11 +719,12 @@ static void MaybeTailCallOptimizedCodeSlot(MacroAssembler* masm,
   }
 
   {
-    // Optimized code slot is a weak reference.
-    __ bind(&optimized_code_slot_is_weak_ref);
+    // Optimized code slot is a WeakCell.
+    __ bind(&optimized_code_slot_is_cell);
 
-    __ LoadWeakValue(optimized_code_entry, &fallthrough);
-
+    __ mov(optimized_code_entry,
+           FieldOperand(optimized_code_entry, WeakCell::kValueOffset));
+    __ JumpIfSmi(optimized_code_entry, &fallthrough);
     __ push(eax);
     __ push(edx);
 

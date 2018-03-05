@@ -1420,12 +1420,6 @@ void TurboAssembler::Popcnt(Register dst, Operand src) {
   UNREACHABLE();
 }
 
-void MacroAssembler::LoadWeakValue(Register in_out, Label* target_if_cleared) {
-  cmp(in_out, Immediate(kClearedWeakHeapObject));
-  j(equal, target_if_cleared);
-
-  and_(in_out, Immediate(~kWeakHeapObjectMask));
-}
 
 void MacroAssembler::IncrementCounter(StatsCounter* counter, int value) {
   DCHECK_GT(value, 0);

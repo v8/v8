@@ -113,7 +113,6 @@ v8_source_set("cctest_sources") {
     "heap/test-mark-compact.cc",
     "heap/test-page-promotion.cc",
     "heap/test-spaces.cc",
-    "heap/test-weak-references.cc",
     "interpreter/bytecode-expectations-printer.cc",
     "interpreter/bytecode-expectations-printer.h",
     "interpreter/interpreter-tester.cc",

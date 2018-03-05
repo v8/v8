@@ -1885,13 +1885,6 @@ void MacroAssembler::AssertUndefinedOrAllocationSite(Register object) {
   }
 }
 
-void MacroAssembler::LoadWeakValue(Register in_out, Label* target_if_cleared) {
-  cmpp(in_out, Immediate(kClearedWeakHeapObject));
-  j(equal, target_if_cleared);
-
-  andp(in_out, Immediate(~kWeakHeapObjectMask));
-}
-
 void MacroAssembler::IncrementCounter(StatsCounter* counter, int value) {
   DCHECK_GT(value, 0);
   if (FLAG_native_code_counters && counter->Enabled()) {

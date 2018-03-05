@@ -62,18 +62,12 @@ class MarkingVerifier : public ObjectVisitor, public RootVisitor {
   virtual Bitmap* bitmap(const MemoryChunk* chunk) = 0;
 
   virtual void VerifyPointers(Object** start, Object** end) = 0;
-  virtual void VerifyPointers(MaybeObject** start, MaybeObject** end) = 0;
 
   virtual bool IsMarked(HeapObject* object) = 0;
 
   virtual bool IsBlackOrGrey(HeapObject* object) = 0;
 
   void VisitPointers(HeapObject* host, Object** start, Object** end) override {
-    VerifyPointers(start, end);
-  }
-
-  void VisitPointers(HeapObject* host, MaybeObject** start,
-                     MaybeObject** end) override {
     VerifyPointers(start, end);
   }
 
@@ -188,15 +182,6 @@ class FullMarkingVerifier : public MarkingVerifier {
     }
   }
 
-  void VerifyPointers(MaybeObject** start, MaybeObject** end) override {
-    for (MaybeObject** current = start; current < end; current++) {
-      HeapObject* object;
-      if ((*current)->ToStrongHeapObject(&object)) {
-        CHECK(marking_state_->IsBlackOrGrey(object));
-      }
-    }
-  }
-
   void VisitEmbeddedPointer(Code* host, RelocInfo* rinfo) override {
     DCHECK(rinfo->rmode() == RelocInfo::EMBEDDED_OBJECT);
     if (!host->IsWeakObject(rinfo->target_object())) {
@@ -235,23 +220,9 @@ class YoungGenerationMarkingVerifier : public MarkingVerifier {
 
   void VerifyPointers(Object** start, Object** end) override {
     for (Object** current = start; current < end; current++) {
-      DCHECK(!Internals::HasWeakHeapObjectTag(*current));
       if ((*current)->IsHeapObject()) {
         HeapObject* object = HeapObject::cast(*current);
         if (!heap_->InNewSpace(object)) return;
-        CHECK(IsMarked(object));
-      }
-    }
-  }
-
-  void VerifyPointers(MaybeObject** start, MaybeObject** end) override {
-    for (MaybeObject** current = start; current < end; current++) {
-      HeapObject* object;
-      // Minor MC treats weak references as strong.
-      if ((*current)->ToStrongOrWeakHeapObject(&object)) {
-        if (!heap_->InNewSpace(object)) {
-          continue;
-        }
         CHECK(IsMarked(object));
       }
     }
@@ -269,11 +240,6 @@ class EvacuationVerifier : public ObjectVisitor, public RootVisitor {
     VerifyPointers(start, end);
   }
 
-  void VisitPointers(HeapObject* host, MaybeObject** start,
-                     MaybeObject** end) override {
-    VerifyPointers(start, end);
-  }
-
   void VisitRootPointers(Root root, const char* description, Object** start,
                          Object** end) override {
     VerifyPointers(start, end);
@@ -285,7 +251,6 @@ class EvacuationVerifier : public ObjectVisitor, public RootVisitor {
   inline Heap* heap() { return heap_; }
 
   virtual void VerifyPointers(Object** start, Object** end) = 0;
-  virtual void VerifyPointers(MaybeObject** start, MaybeObject** end) = 0;
 
   void VerifyRoots(VisitMode mode);
   void VerifyEvacuationOnPage(Address start, Address end);
@@ -355,17 +320,6 @@ class FullEvacuationVerifier : public EvacuationVerifier {
       }
     }
   }
-  void VerifyPointers(MaybeObject** start, MaybeObject** end) override {
-    for (MaybeObject** current = start; current < end; current++) {
-      HeapObject* object;
-      if ((*current)->ToStrongHeapObject(&object)) {
-        if (heap()->InNewSpace(object)) {
-          CHECK(heap()->InToSpace(object));
-        }
-        CHECK(!MarkCompactCollector::IsOnEvacuationCandidate(object));
-      }
-    }
-  }
 };
 
 class YoungGenerationEvacuationVerifier : public EvacuationVerifier {
@@ -386,14 +340,6 @@ class YoungGenerationEvacuationVerifier : public EvacuationVerifier {
     for (Object** current = start; current < end; current++) {
       if ((*current)->IsHeapObject()) {
         HeapObject* object = HeapObject::cast(*current);
-        CHECK_IMPLIES(heap()->InNewSpace(object), heap()->InToSpace(object));
-      }
-    }
-  }
-  void VerifyPointers(MaybeObject** start, MaybeObject** end) override {
-    for (MaybeObject** current = start; current < end; current++) {
-      HeapObject* object;
-      if ((*current)->ToStrongOrWeakHeapObject(&object)) {
         CHECK_IMPLIES(heap()->InNewSpace(object), heap()->InToSpace(object));
       }
     }
@@ -1064,16 +1010,7 @@ class MarkCompactCollector::CustomRootBodyMarkingVisitor final
   }
 
   void VisitPointers(HeapObject* host, Object** start, Object** end) final {
-    for (Object** p = start; p < end; p++) {
-      DCHECK(!Internals::HasWeakHeapObjectTag(*p));
-      MarkObject(host, *p);
-    }
-  }
-
-  void VisitPointers(HeapObject* host, MaybeObject** start,
-                     MaybeObject** end) final {
-    // At the moment, custom roots cannot contain weak pointers.
-    UNREACHABLE();
+    for (Object** p = start; p < end; p++) MarkObject(host, *p);
   }
 
   // VisitEmbedderPointer is defined by ObjectVisitor to call VisitPointers.
@@ -1112,11 +1049,6 @@ class InternalizedStringTableCleaner : public ObjectVisitor {
         }
       }
     }
-  }
-
-  void VisitPointers(HeapObject* host, MaybeObject** start,
-                     MaybeObject** end) final {
-    UNREACHABLE();
   }
 
   int PointersRemoved() {
@@ -1259,27 +1191,13 @@ class RecordMigratedSlotVisitor : public ObjectVisitor {
       : collector_(collector) {}
 
   inline void VisitPointer(HeapObject* host, Object** p) final {
-    DCHECK(!Internals::HasWeakHeapObjectTag(*p));
-    RecordMigratedSlot(host, reinterpret_cast<MaybeObject*>(*p),
-                       reinterpret_cast<Address>(p));
-  }
-
-  inline void VisitPointer(HeapObject* host, MaybeObject** p) final {
     RecordMigratedSlot(host, *p, reinterpret_cast<Address>(p));
   }
 
   inline void VisitPointers(HeapObject* host, Object** start,
                             Object** end) final {
     while (start < end) {
-      VisitPointer(host, start);
-      ++start;
-    }
-  }
-
-  inline void VisitPointers(HeapObject* host, MaybeObject** start,
-                            MaybeObject** end) final {
-    while (start < end) {
-      VisitPointer(host, start);
+      RecordMigratedSlot(host, *start, reinterpret_cast<Address>(start));
       ++start;
     }
   }
@@ -1309,9 +1227,9 @@ class RecordMigratedSlotVisitor : public ObjectVisitor {
   inline void VisitInternalReference(Code* host, RelocInfo* rinfo) final {}
 
  protected:
-  inline virtual void RecordMigratedSlot(HeapObject* host, MaybeObject* value,
+  inline virtual void RecordMigratedSlot(HeapObject* host, Object* value,
                                          Address slot) {
-    if (value->IsStrongOrWeakHeapObject()) {
+    if (value->IsHeapObject()) {
       Page* p = Page::FromAddress(reinterpret_cast<Address>(value));
       if (p->InNewSpace()) {
         DCHECK_IMPLIES(p->InToSpace(),
@@ -1396,9 +1314,9 @@ class YoungGenerationRecordMigratedSlotVisitor final
     return collector_->non_atomic_marking_state()->IsBlack(object);
   }
 
-  inline void RecordMigratedSlot(HeapObject* host, MaybeObject* value,
+  inline void RecordMigratedSlot(HeapObject* host, Object* value,
                                  Address slot) final {
-    if (value->IsStrongOrWeakHeapObject()) {
+    if (value->IsHeapObject()) {
       Page* p = Page::FromAddress(reinterpret_cast<Address>(value));
       if (p->InNewSpace()) {
         DCHECK_IMPLIES(p->InToSpace(),
@@ -1824,31 +1742,11 @@ class YoungGenerationMarkingVisitor final
     }
   }
 
-  V8_INLINE void VisitPointers(HeapObject* host, MaybeObject** start,
-                               MaybeObject** end) final {
-    for (MaybeObject** p = start; p < end; p++) {
-      VisitPointer(host, p);
-    }
-  }
-
   V8_INLINE void VisitPointer(HeapObject* host, Object** slot) final {
     Object* target = *slot;
-    DCHECK(!Internals::HasWeakHeapObjectTag(target));
     if (heap_->InNewSpace(target)) {
       HeapObject* target_object = HeapObject::cast(target);
       MarkObjectViaMarkingWorklist(target_object);
-    }
-  }
-
-  V8_INLINE void VisitPointer(HeapObject* host, MaybeObject** slot) final {
-    MaybeObject* target = *slot;
-    if (heap_->InNewSpace(target)) {
-      HeapObject* target_object;
-      // Treat weak references as strong. TODO(marja): Proper weakness handling
-      // for minor-mcs.
-      if (target->ToStrongOrWeakHeapObject(&target_object)) {
-        MarkObjectViaMarkingWorklist(target_object);
-      }
     }
   }
 
@@ -2040,7 +1938,7 @@ class PageMarkingItem : public MarkingItem {
         chunk_, [this, isolate, task](SlotType slot_type, Address host_addr,
                                       Address slot) {
           return UpdateTypedSlotHelper::UpdateTypedSlot(
-              isolate, slot_type, slot, [this, task](MaybeObject** slot) {
+              isolate, slot_type, slot, [this, task](Object** slot) {
                 return CheckAndMarkObject(task,
                                           reinterpret_cast<Address>(slot));
               });
@@ -2049,15 +1947,12 @@ class PageMarkingItem : public MarkingItem {
 
   SlotCallbackResult CheckAndMarkObject(YoungGenerationMarkingTask* task,
                                         Address slot_address) {
-    MaybeObject* object = *reinterpret_cast<MaybeObject**>(slot_address);
+    Object* object = *reinterpret_cast<Object**>(slot_address);
     if (heap()->InNewSpace(object)) {
       // Marking happens before flipping the young generation, so the object
       // has to be in ToSpace.
       DCHECK(heap()->InToSpace(object));
-      HeapObject* heap_object;
-      bool success = object->ToStrongOrWeakHeapObject(&heap_object);
-      USE(success);
-      DCHECK(success);
+      HeapObject* heap_object = reinterpret_cast<HeapObject*>(object);
       task->MarkObject(heap_object);
       slots_++;
       return KEEP_SLOT;
@@ -2564,14 +2459,12 @@ void MarkCompactCollector::ClearNonLiveReferences() {
   }
   DependentCode* dependent_code_list;
   ClearWeakCellsAndSimpleMapTransitions(&dependent_code_list);
-  ClearWeakReferences();
   MarkDependentCodeForDeoptimization(dependent_code_list);
 
   ClearWeakCollections();
 
   DCHECK(weak_objects_.weak_cells.IsGlobalEmpty());
   DCHECK(weak_objects_.transition_arrays.IsGlobalEmpty());
-  DCHECK(weak_objects_.weak_references.IsGlobalEmpty());
 }
 
 
@@ -2910,25 +2803,6 @@ void MarkCompactCollector::ClearWeakCellsAndSimpleMapTransitions(
   *dependent_code_list = dependent_code_head;
 }
 
-void MarkCompactCollector::ClearWeakReferences() {
-  TRACE_GC(heap()->tracer(), GCTracer::Scope::MC_CLEAR_WEAK_REFERENCES);
-  std::pair<HeapObject*, HeapObjectReference**> slot;
-  while (weak_objects_.weak_references.Pop(kMainThread, &slot)) {
-    HeapObject* value;
-    HeapObjectReference** location = slot.second;
-    if ((*location)->ToWeakHeapObject(&value)) {
-      DCHECK(!value->IsCell());
-      DCHECK(!value->IsMap());
-      if (non_atomic_marking_state()->IsBlackOrGrey(value)) {
-        // The value of the weak reference is alive.
-        RecordSlot(slot.first, location, value);
-      } else {
-        *location = HeapObjectReference::ClearedValue();
-      }
-    }
-  }
-}
-
 void MarkCompactCollector::AbortWeakObjects() {
   weak_objects_.weak_cells.Clear();
   weak_objects_.transition_arrays.Clear();
@@ -2959,54 +2833,27 @@ void MarkCompactCollector::RecordRelocSlot(Code* host, RelocInfo* rinfo,
 }
 
 template <AccessMode access_mode>
-static inline SlotCallbackResult UpdateSlot(
-    MaybeObject** slot, MaybeObject* old, HeapObject* heap_obj,
-    HeapObjectReference::ReferenceType reference_type) {
-  MapWord map_word = heap_obj->map_word();
-  if (map_word.IsForwardingAddress()) {
-    DCHECK(heap_obj->GetHeap()->InFromSpace(heap_obj) ||
-           MarkCompactCollector::IsOnEvacuationCandidate(heap_obj) ||
-           Page::FromAddress(heap_obj->address())
-               ->IsFlagSet(Page::COMPACTION_WAS_ABORTED));
-    MaybeObject* target =
-        reference_type == HeapObjectReference::WEAK
-            ? HeapObjectReference::Weak(map_word.ToForwardingAddress())
-            : HeapObjectReference::Strong(map_word.ToForwardingAddress());
-    if (access_mode == AccessMode::NON_ATOMIC) {
-      *slot = target;
-    } else {
-      base::AsAtomicPointer::Release_CompareAndSwap(slot, old, target);
-    }
-    DCHECK(!heap_obj->GetHeap()->InFromSpace(target));
-    DCHECK(!MarkCompactCollector::IsOnEvacuationCandidate(target));
-  }
-  // OLD_TO_OLD slots are always removed after updating.
-  return REMOVE_SLOT;
-}
-
-template <AccessMode access_mode>
-static inline SlotCallbackResult UpdateSlot(MaybeObject** slot) {
-  MaybeObject* obj = base::AsAtomicPointer::Relaxed_Load(slot);
-  HeapObject* heap_obj;
-  if (obj->ToWeakHeapObject(&heap_obj)) {
-    UpdateSlot<access_mode>(slot, obj, heap_obj, HeapObjectReference::WEAK);
-  } else if (obj->ToStrongHeapObject(&heap_obj)) {
-    return UpdateSlot<access_mode>(slot, obj, heap_obj,
-                                   HeapObjectReference::STRONG);
-  }
-  return REMOVE_SLOT;
-}
-
-template <AccessMode access_mode>
-static inline SlotCallbackResult UpdateStrongSlot(MaybeObject** maybe_slot) {
-  DCHECK((*maybe_slot)->IsSmi() || (*maybe_slot)->IsStrongHeapObject());
-  Object** slot = reinterpret_cast<Object**>(maybe_slot);
-  Object* obj = base::AsAtomicPointer::Relaxed_Load(slot);
+static inline SlotCallbackResult UpdateSlot(Object** slot) {
+  Object* obj = *slot;
   if (obj->IsHeapObject()) {
     HeapObject* heap_obj = HeapObject::cast(obj);
-    return UpdateSlot<access_mode>(maybe_slot, MaybeObject::FromObject(obj),
-                                   heap_obj, HeapObjectReference::STRONG);
+    MapWord map_word = heap_obj->map_word();
+    if (map_word.IsForwardingAddress()) {
+      DCHECK(heap_obj->GetHeap()->InFromSpace(heap_obj) ||
+             MarkCompactCollector::IsOnEvacuationCandidate(heap_obj) ||
+             Page::FromAddress(heap_obj->address())
+                 ->IsFlagSet(Page::COMPACTION_WAS_ABORTED));
+      HeapObject* target = map_word.ToForwardingAddress();
+      if (access_mode == AccessMode::NON_ATOMIC) {
+        *slot = target;
+      } else {
+        base::AsAtomicPointer::Release_CompareAndSwap(slot, obj, target);
+      }
+      DCHECK(!heap_obj->GetHeap()->InFromSpace(target));
+      DCHECK(!MarkCompactCollector::IsOnEvacuationCandidate(target));
+    }
   }
+  // OLD_TO_OLD slots are always removed after updating.
   return REMOVE_SLOT;
 }
 
@@ -3017,59 +2864,33 @@ static inline SlotCallbackResult UpdateStrongSlot(MaybeObject** maybe_slot) {
 class PointersUpdatingVisitor : public ObjectVisitor, public RootVisitor {
  public:
   void VisitPointer(HeapObject* host, Object** p) override {
-    UpdateStrongSlotInternal(p);
-  }
-
-  void VisitPointer(HeapObject* host, MaybeObject** p) override {
     UpdateSlotInternal(p);
   }
 
   void VisitPointers(HeapObject* host, Object** start, Object** end) override {
-    for (Object** p = start; p < end; p++) {
-      UpdateStrongSlotInternal(p);
-    }
-  }
-
-  void VisitPointers(HeapObject* host, MaybeObject** start,
-                     MaybeObject** end) final {
-    UNREACHABLE();
+    for (Object** p = start; p < end; p++) UpdateSlotInternal(p);
   }
 
   void VisitRootPointer(Root root, const char* description,
                         Object** p) override {
-    UpdateStrongSlotInternal(p);
+    UpdateSlotInternal(p);
   }
 
   void VisitRootPointers(Root root, const char* description, Object** start,
                          Object** end) override {
-    for (Object** p = start; p < end; p++) UpdateStrongSlotInternal(p);
+    for (Object** p = start; p < end; p++) UpdateSlotInternal(p);
   }
 
   void VisitEmbeddedPointer(Code* host, RelocInfo* rinfo) override {
-    UpdateTypedSlotHelper::UpdateEmbeddedPointer(
-        rinfo, UpdateStrongMaybeObjectSlotInternal);
+    UpdateTypedSlotHelper::UpdateEmbeddedPointer(rinfo, UpdateSlotInternal);
   }
 
   void VisitCodeTarget(Code* host, RelocInfo* rinfo) override {
-    UpdateTypedSlotHelper::UpdateCodeTarget(
-        rinfo, UpdateStrongMaybeObjectSlotInternal);
+    UpdateTypedSlotHelper::UpdateCodeTarget(rinfo, UpdateSlotInternal);
   }
 
  private:
-  static inline SlotCallbackResult UpdateStrongMaybeObjectSlotInternal(
-      MaybeObject** slot) {
-    DCHECK(!(*slot)->IsWeakHeapObject());
-    DCHECK(!(*slot)->IsClearedWeakHeapObject());
-    return UpdateStrongSlotInternal(reinterpret_cast<Object**>(slot));
-  }
-
-  static inline SlotCallbackResult UpdateStrongSlotInternal(Object** slot) {
-    DCHECK(!Internals::HasWeakHeapObjectTag(*slot));
-    return UpdateStrongSlot<AccessMode::NON_ATOMIC>(
-        reinterpret_cast<MaybeObject**>(slot));
-  }
-
-  static inline SlotCallbackResult UpdateSlotInternal(MaybeObject** slot) {
+  static inline SlotCallbackResult UpdateSlotInternal(Object** slot) {
     return UpdateSlot<AccessMode::NON_ATOMIC>(slot);
   }
 };
@@ -3821,34 +3642,28 @@ class RememberedSetUpdatingItem : public UpdatingItem {
 
  private:
   inline SlotCallbackResult CheckAndUpdateOldToNewSlot(Address slot_address) {
-    MaybeObject** slot = reinterpret_cast<MaybeObject**>(slot_address);
-    HeapObject* heap_object;
-    if (!(*slot)->ToStrongOrWeakHeapObject(&heap_object)) {
-      return REMOVE_SLOT;
-    }
-    if (heap_->InFromSpace(heap_object)) {
+    Object** slot = reinterpret_cast<Object**>(slot_address);
+    if (heap_->InFromSpace(*slot)) {
+      HeapObject* heap_object = reinterpret_cast<HeapObject*>(*slot);
+      DCHECK(heap_object->IsHeapObject());
       MapWord map_word = heap_object->map_word();
       if (map_word.IsForwardingAddress()) {
-        HeapObjectReference::Update(
-            reinterpret_cast<HeapObjectReference**>(slot),
-            map_word.ToForwardingAddress());
+        *slot = map_word.ToForwardingAddress();
       }
-      bool success = (*slot)->ToStrongOrWeakHeapObject(&heap_object);
-      USE(success);
-      DCHECK(success);
       // If the object was in from space before and is after executing the
       // callback in to space, the object is still live.
       // Unfortunately, we do not know about the slot. It could be in a
       // just freed free space object.
-      if (heap_->InToSpace(heap_object)) {
+      if (heap_->InToSpace(*slot)) {
         return KEEP_SLOT;
       }
-    } else if (heap_->InToSpace(heap_object)) {
+    } else if (heap_->InToSpace(*slot)) {
       // Slots can point to "to" space if the page has been moved, or if the
       // slot has been recorded multiple times in the remembered set, or
       // if the slot was already updated during old->old updating.
       // In case the page has been moved, check markbits to determine liveness
       // of the slot. In the other case, the slot can just be kept.
+      HeapObject* heap_object = reinterpret_cast<HeapObject*>(*slot);
       if (Page::FromAddress(heap_object->address())
               ->IsFlagSet(Page::PAGE_NEW_NEW_PROMOTION)) {
         // IsBlackOrGrey is required because objects are marked as grey for
@@ -3862,7 +3677,7 @@ class RememberedSetUpdatingItem : public UpdatingItem {
       }
       return KEEP_SLOT;
     } else {
-      DCHECK(!heap_->InNewSpace(heap_object));
+      DCHECK(!heap_->InNewSpace(*slot));
     }
     return REMOVE_SLOT;
   }
@@ -3882,7 +3697,7 @@ class RememberedSetUpdatingItem : public UpdatingItem {
           [&filter](Address slot) {
             if (!filter.IsValid(slot)) return REMOVE_SLOT;
             return UpdateSlot<AccessMode::NON_ATOMIC>(
-                reinterpret_cast<MaybeObject**>(slot));
+                reinterpret_cast<Object**>(slot));
           },
           SlotSet::PREFREE_EMPTY_BUCKETS);
     }
@@ -3910,7 +3725,7 @@ class RememberedSetUpdatingItem : public UpdatingItem {
           chunk_,
           [isolate, this](SlotType slot_type, Address host_addr, Address slot) {
             return UpdateTypedSlotHelper::UpdateTypedSlot(
-                isolate, slot_type, slot, [this](MaybeObject** slot) {
+                isolate, slot_type, slot, [this](Object** slot) {
                   return CheckAndUpdateOldToNewSlot(
                       reinterpret_cast<Address>(slot));
                 });
@@ -3923,11 +3738,8 @@ class RememberedSetUpdatingItem : public UpdatingItem {
       RememberedSet<OLD_TO_OLD>::IterateTyped(
           chunk_,
           [isolate](SlotType slot_type, Address host_addr, Address slot) {
-            // Using UpdateStrongSlot is OK here, because there are no weak
-            // typed slots.
             return UpdateTypedSlotHelper::UpdateTypedSlot(
-                isolate, slot_type, slot,
-                UpdateStrongSlot<AccessMode::NON_ATOMIC>);
+                isolate, slot_type, slot, UpdateSlot<AccessMode::NON_ATOMIC>);
           });
     }
   }

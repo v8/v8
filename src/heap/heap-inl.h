@@ -411,42 +411,26 @@ void Heap::FinalizeExternalString(String* string) {
 Address Heap::NewSpaceTop() { return new_space_->top(); }
 
 bool Heap::InNewSpace(Object* object) {
-  DCHECK(!Internals::HasWeakHeapObjectTag(object));
-  return InNewSpace(MaybeObject::FromObject(object));
-}
-
-bool Heap::InFromSpace(Object* object) {
-  DCHECK(!Internals::HasWeakHeapObjectTag(object));
-  return InFromSpace(MaybeObject::FromObject(object));
-}
-
-bool Heap::InToSpace(Object* object) {
-  DCHECK(!Internals::HasWeakHeapObjectTag(object));
-  return InToSpace(MaybeObject::FromObject(object));
-}
-
-bool Heap::InNewSpace(MaybeObject* object) {
   // Inlined check from NewSpace::Contains.
-  HeapObject* heap_object;
-  bool result = object->ToStrongOrWeakHeapObject(&heap_object) &&
-                Page::FromAddress(heap_object->address())->InNewSpace();
+  bool result =
+      object->IsHeapObject() &&
+      Page::FromAddress(HeapObject::cast(object)->address())->InNewSpace();
   DCHECK(!result ||                 // Either not in new space
          gc_state_ != NOT_IN_GC ||  // ... or in the middle of GC
          InToSpace(object));        // ... or in to-space (where we allocate).
   return result;
 }
 
-bool Heap::InFromSpace(MaybeObject* object) {
-  HeapObject* heap_object;
-  return object->ToStrongOrWeakHeapObject(&heap_object) &&
-         MemoryChunk::FromAddress(heap_object->address())
+bool Heap::InFromSpace(Object* object) {
+  return object->IsHeapObject() &&
+         MemoryChunk::FromAddress(HeapObject::cast(object)->address())
              ->IsFlagSet(Page::IN_FROM_SPACE);
 }
 
-bool Heap::InToSpace(MaybeObject* object) {
-  HeapObject* heap_object;
-  return object->ToStrongOrWeakHeapObject(&heap_object) &&
-         MemoryChunk::FromAddress(heap_object->address())
+
+bool Heap::InToSpace(Object* object) {
+  return object->IsHeapObject() &&
+         MemoryChunk::FromAddress(HeapObject::cast(object)->address())
              ->IsFlagSet(Page::IN_TO_SPACE);
 }
 
@@ -468,13 +452,6 @@ bool Heap::ShouldBePromoted(Address old_address) {
 }
 
 void Heap::RecordWrite(Object* object, Object** slot, Object* value) {
-  DCHECK(!Internals::HasWeakHeapObjectTag(*slot));
-  DCHECK(!Internals::HasWeakHeapObjectTag(value));
-  RecordWrite(object, reinterpret_cast<MaybeObject**>(slot),
-              reinterpret_cast<MaybeObject*>(value));
-}
-
-void Heap::RecordWrite(Object* object, MaybeObject** slot, MaybeObject* value) {
   if (!InNewSpace(value) || !object->IsHeapObject() || InNewSpace(object)) {
     return;
   }

@@ -301,8 +301,6 @@ class Serializer<AllocatorT>::ObjectSerializer : public ObjectVisitor {
   void SerializeObject();
   void SerializeDeferred();
   void VisitPointers(HeapObject* host, Object** start, Object** end) override;
-  void VisitPointers(HeapObject* host, MaybeObject** start,
-                     MaybeObject** end) override;
   void VisitEmbeddedPointer(Code* host, RelocInfo* target) override;
   void VisitExternalReference(Foreign* host, Address* p) override;
   void VisitExternalReference(Code* host, RelocInfo* rinfo) override;
