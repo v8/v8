@@ -2329,35 +2329,36 @@ void BytecodeGenerator::VisitArrayLiteral(ArrayLiteral* expr) {
   }
   if (iter != expr->EndValue()) {
     builder()->LoadLiteral(array_index).StoreAccumulatorInRegister(index);
-  }
 
-  // Handle the first spread element and everything that follows.
-  FeedbackSlot element_slot = feedback_spec()->AddStoreInArrayLiteralICSlot();
-  FeedbackSlot index_slot = feedback_spec()->AddBinaryOpICSlot();
-  FeedbackSlot length_slot =
-      feedback_spec()->AddStoreICSlot(LanguageMode::kStrict);
-  for (; iter != expr->EndValue(); ++iter) {
-    Expression* subexpr = *iter;
-    if (subexpr->IsSpread()) {
-      BuildArrayLiteralSpread(subexpr->AsSpread(), literal, index, index_slot,
-                              element_slot);
-    } else if (!subexpr->IsTheHoleLiteral()) {
-      // literal[index++] = subexpr
-      VisitForAccumulatorValue(subexpr);
-      builder()
-          ->StoreInArrayLiteral(literal, index, feedback_index(element_slot))
-          .LoadAccumulatorWithRegister(index)
-          .UnaryOperation(Token::INC, feedback_index(index_slot))
-          .StoreAccumulatorInRegister(index);
-    } else {
-      // literal.length = ++index
-      auto length = ast_string_constants()->length_string();
-      builder()
-          ->LoadAccumulatorWithRegister(index)
-          .UnaryOperation(Token::INC, feedback_index(index_slot))
-          .StoreAccumulatorInRegister(index)
-          .StoreNamedProperty(literal, length, feedback_index(length_slot),
-                              LanguageMode::kStrict);
+    // Handle the first spread element and everything that follows.
+    FeedbackSlot element_slot = feedback_spec()->AddStoreInArrayLiteralICSlot();
+    FeedbackSlot index_slot = feedback_spec()->AddBinaryOpICSlot();
+    // TODO(neis): Only create length_slot when there are holes.
+    FeedbackSlot length_slot =
+        feedback_spec()->AddStoreICSlot(LanguageMode::kStrict);
+    for (; iter != expr->EndValue(); ++iter) {
+      Expression* subexpr = *iter;
+      if (subexpr->IsSpread()) {
+        BuildArrayLiteralSpread(subexpr->AsSpread(), literal, index, index_slot,
+                                element_slot);
+      } else if (!subexpr->IsTheHoleLiteral()) {
+        // literal[index++] = subexpr
+        VisitForAccumulatorValue(subexpr);
+        builder()
+            ->StoreInArrayLiteral(literal, index, feedback_index(element_slot))
+            .LoadAccumulatorWithRegister(index)
+            .UnaryOperation(Token::INC, feedback_index(index_slot))
+            .StoreAccumulatorInRegister(index);
+      } else {
+        // literal.length = ++index
+        auto length = ast_string_constants()->length_string();
+        builder()
+            ->LoadAccumulatorWithRegister(index)
+            .UnaryOperation(Token::INC, feedback_index(index_slot))
+            .StoreAccumulatorInRegister(index)
+            .StoreNamedProperty(literal, length, feedback_index(length_slot),
+                                LanguageMode::kStrict);
+      }
     }
   }
 
