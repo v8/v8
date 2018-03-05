@@ -87,10 +87,9 @@ class CodeSerializer : public Serializer<> {
 
 class WasmCompiledModuleSerializer : public CodeSerializer {
  public:
-  // TODO(mstarzinger): Make these typed to {WasmCompiledModule} instead.
   static std::unique_ptr<ScriptData> SerializeWasmModule(
-      Isolate* isolate, Handle<Struct> compiled_module);
-  static MaybeHandle<Struct> DeserializeWasmModule(
+      Isolate* isolate, Handle<WasmCompiledModule> compiled_module);
+  static MaybeHandle<WasmCompiledModule> DeserializeWasmModule(
       Isolate* isolate, ScriptData* data, Vector<const byte> wire_bytes);
 
  protected:

@@ -262,9 +262,7 @@ WasmCompiledModuleSerializer::WasmCompiledModuleSerializer(
 }
 
 std::unique_ptr<ScriptData> WasmCompiledModuleSerializer::SerializeWasmModule(
-    Isolate* isolate, Handle<Struct> input) {
-  Handle<WasmCompiledModule> compiled_module =
-      Handle<WasmCompiledModule>::cast(input);
+    Isolate* isolate, Handle<WasmCompiledModule> compiled_module) {
   WasmCompiledModuleSerializer wasm_cs(
       isolate, 0, isolate->native_context(),
       handle(compiled_module->shared()->module_bytes()));
@@ -272,11 +270,11 @@ std::unique_ptr<ScriptData> WasmCompiledModuleSerializer::SerializeWasmModule(
   return std::unique_ptr<ScriptData>(data);
 }
 
-MaybeHandle<Struct> WasmCompiledModuleSerializer::DeserializeWasmModule(
+MaybeHandle<WasmCompiledModule>
+WasmCompiledModuleSerializer::DeserializeWasmModule(
     Isolate* isolate, ScriptData* data, Vector<const byte> wire_bytes) {
-  MaybeHandle<Struct> nothing;
   if (!wasm::IsWasmCodegenAllowed(isolate, isolate->native_context())) {
-    return nothing;
+    return MaybeHandle<WasmCompiledModule>();
   }
   SerializedCodeData::SanityCheckResult sanity_check_result =
       SerializedCodeData::CHECK_SUCCESS;
@@ -285,7 +283,7 @@ MaybeHandle<Struct> WasmCompiledModuleSerializer::DeserializeWasmModule(
       isolate, data, 0, &sanity_check_result);
 
   if (sanity_check_result != SerializedCodeData::CHECK_SUCCESS) {
-    return nothing;
+    return MaybeHandle<WasmCompiledModule>();
   }
 
   // TODO(6792): No longer needed once WebAssembly code is off heap.
@@ -295,7 +293,7 @@ MaybeHandle<Struct> WasmCompiledModuleSerializer::DeserializeWasmModule(
                                                         wire_bytes);
 
   Handle<WasmCompiledModule> result;
-  if (!maybe_result.ToHandle(&result)) return nothing;
+  if (!maybe_result.ToHandle(&result)) return MaybeHandle<WasmCompiledModule>();
 
   WasmCompiledModule::ReinitializeAfterDeserialization(isolate, result);
   DCHECK(result->IsWasmCompiledModule());
