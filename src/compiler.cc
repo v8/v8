@@ -898,7 +898,6 @@ class BackgroundCompileTask : public ScriptCompiler::ScriptStreamingTask {
  private:
   ScriptStreamingData* source_;  // Not owned.
   int stack_size_;
-  ScriptData* script_data_;
   AccountingAllocator* allocator_;
   TimedHistogram* timer_;
 
@@ -909,7 +908,6 @@ BackgroundCompileTask::BackgroundCompileTask(ScriptStreamingData* source,
                                              Isolate* isolate)
     : source_(source),
       stack_size_(i::FLAG_stack_size),
-      script_data_(nullptr),
       timer_(isolate->counters()->compile_script_on_background()) {
   VMState<PARSER> state(isolate);
 
@@ -966,15 +964,6 @@ void BackgroundCompileTask::Run() {
     // Parsing has succeeded, compile.
     source_->outer_function_job = CompileTopLevelOnBackgroundThread(
         source_->info.get(), allocator_, &source_->inner_function_jobs);
-  }
-
-  if (script_data_ != nullptr) {
-    source_->cached_data.reset(new ScriptCompiler::CachedData(
-        script_data_->data(), script_data_->length(),
-        ScriptCompiler::CachedData::BufferOwned));
-    script_data_->ReleaseDataOwnership();
-    delete script_data_;
-    script_data_ = nullptr;
   }
 
   source_->info->EmitBackgroundParseStatisticsOnBackgroundThread();
