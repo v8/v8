@@ -48,6 +48,7 @@
 #include "src/instruction-stream.h"
 #include "src/interpreter/interpreter.h"
 #include "src/objects/data-handler.h"
+#include "src/objects/maybe-object.h"
 #include "src/objects/shared-function-info.h"
 #include "src/regexp/jsregexp.h"
 #include "src/runtime-profiler.h"
@@ -1445,6 +1446,7 @@ class StringTableVerifier : public ObjectVisitor {
   void VisitPointers(HeapObject* host, Object** start, Object** end) override {
     // Visit all HeapObject pointers in [start, end).
     for (Object** p = start; p < end; p++) {
+      DCHECK(!Internals::HasWeakHeapObjectTag(*p));
       if ((*p)->IsHeapObject()) {
         HeapObject* object = HeapObject::cast(*p);
         Isolate* isolate = object->GetIsolate();
@@ -1453,6 +1455,10 @@ class StringTableVerifier : public ObjectVisitor {
               object->IsInternalizedString());
       }
     }
+  }
+  void VisitPointers(HeapObject* host, MaybeObject** start,
+                     MaybeObject** end) override {
+    UNREACHABLE();
   }
 };
 
@@ -3931,7 +3937,7 @@ AllocationResult Heap::CopyFeedbackVector(FeedbackVector* src) {
 
   // Slow case: Just copy the content one-by-one.
   result->set_shared_function_info(src->shared_function_info());
-  result->set_optimized_code_cell(src->optimized_code_cell());
+  result->set_optimized_code_weak_or_smi(src->optimized_code_weak_or_smi());
   result->set_invocation_count(src->invocation_count());
   result->set_profiler_ticks(src->profiler_ticks());
   result->set_deopt_count(src->deopt_count());
@@ -4076,9 +4082,9 @@ AllocationResult Heap::AllocateFeedbackVector(SharedFunctionInfo* shared,
   result->set_map_after_allocation(feedback_vector_map(), SKIP_WRITE_BARRIER);
   FeedbackVector* vector = FeedbackVector::cast(result);
   vector->set_shared_function_info(shared);
-  vector->set_optimized_code_cell(Smi::FromEnum(
+  vector->set_optimized_code_weak_or_smi(MaybeObject::FromSmi(Smi::FromEnum(
       FLAG_log_function_events ? OptimizationMarker::kLogFirstExecution
-                               : OptimizationMarker::kNone));
+                               : OptimizationMarker::kNone)));
   vector->set_length(length);
   vector->set_invocation_count(0);
   vector->set_profiler_ticks(0);
@@ -4342,17 +4348,22 @@ void Heap::NotifyObjectLayoutChange(HeapObject* object, int size,
 class SlotCollectingVisitor final : public ObjectVisitor {
  public:
   void VisitPointers(HeapObject* host, Object** start, Object** end) override {
-    for (Object** p = start; p < end; p++) {
+    VisitPointers(host, reinterpret_cast<MaybeObject**>(start),
+                  reinterpret_cast<MaybeObject**>(end));
+  }
+  void VisitPointers(HeapObject* host, MaybeObject** start,
+                     MaybeObject** end) final {
+    for (MaybeObject** p = start; p < end; p++) {
       slots_.push_back(p);
     }
   }
 
   int number_of_slots() { return static_cast<int>(slots_.size()); }
 
-  Object** slot(int i) { return slots_[i]; }
+  MaybeObject** slot(int i) { return slots_[i]; }
 
  private:
-  std::vector<Object**> slots_;
+  std::vector<MaybeObject**> slots_;
 };
 
 void Heap::VerifyObjectLayoutChange(HeapObject* object, Map* new_map) {
@@ -4829,10 +4840,22 @@ class SlotVerifyingVisitor : public ObjectVisitor {
                        std::set<std::pair<SlotType, Address> >* typed)
       : untyped_(untyped), typed_(typed) {}
 
-  virtual bool ShouldHaveBeenRecorded(HeapObject* host, Object* target) = 0;
+  virtual bool ShouldHaveBeenRecorded(HeapObject* host,
+                                      MaybeObject* target) = 0;
 
   void VisitPointers(HeapObject* host, Object** start, Object** end) override {
+#ifdef DEBUG
     for (Object** slot = start; slot < end; slot++) {
+      DCHECK(!Internals::HasWeakHeapObjectTag(*slot));
+    }
+#endif  // DEBUG
+    VisitPointers(host, reinterpret_cast<MaybeObject**>(start),
+                  reinterpret_cast<MaybeObject**>(end));
+  }
+
+  void VisitPointers(HeapObject* host, MaybeObject** start,
+                     MaybeObject** end) final {
+    for (MaybeObject** slot = start; slot < end; slot++) {
       if (ShouldHaveBeenRecorded(host, *slot)) {
         CHECK_GT(untyped_->count(reinterpret_cast<Address>(slot)), 0);
       }
@@ -4841,7 +4864,7 @@ class SlotVerifyingVisitor : public ObjectVisitor {
 
   void VisitCodeTarget(Code* host, RelocInfo* rinfo) override {
     Object* target = Code::GetCodeFromTargetAddress(rinfo->target_address());
-    if (ShouldHaveBeenRecorded(host, target)) {
+    if (ShouldHaveBeenRecorded(host, MaybeObject::FromObject(target))) {
       CHECK(
           InTypedSet(CODE_TARGET_SLOT, rinfo->pc()) ||
           (rinfo->IsInConstantPool() &&
@@ -4851,7 +4874,7 @@ class SlotVerifyingVisitor : public ObjectVisitor {
 
   void VisitEmbeddedPointer(Code* host, RelocInfo* rinfo) override {
     Object* target = rinfo->target_object();
-    if (ShouldHaveBeenRecorded(host, target)) {
+    if (ShouldHaveBeenRecorded(host, MaybeObject::FromObject(target))) {
       CHECK(InTypedSet(EMBEDDED_OBJECT_SLOT, rinfo->pc()) ||
             (rinfo->IsInConstantPool() &&
              InTypedSet(OBJECT_SLOT, rinfo->constant_pool_entry_address())));
@@ -4872,10 +4895,11 @@ class OldToNewSlotVerifyingVisitor : public SlotVerifyingVisitor {
                                std::set<std::pair<SlotType, Address> >* typed)
       : SlotVerifyingVisitor(untyped, typed), heap_(heap) {}
 
-  bool ShouldHaveBeenRecorded(HeapObject* host, Object* target) override {
-    DCHECK_IMPLIES(target->IsHeapObject() && heap_->InNewSpace(target),
-                   heap_->InToSpace(target));
-    return target->IsHeapObject() && heap_->InNewSpace(target) &&
+  bool ShouldHaveBeenRecorded(HeapObject* host, MaybeObject* target) override {
+    DCHECK_IMPLIES(
+        target->IsStrongOrWeakHeapObject() && heap_->InNewSpace(target),
+        heap_->InToSpace(target));
+    return target->IsStrongOrWeakHeapObject() && heap_->InNewSpace(target) &&
            !heap_->InNewSpace(host);
   }
 
@@ -5636,7 +5660,8 @@ bool Heap::SetUp() {
 
   mark_compact_collector_ = new MarkCompactCollector(this);
   incremental_marking_ =
-      new IncrementalMarking(this, mark_compact_collector_->marking_worklist());
+      new IncrementalMarking(this, mark_compact_collector_->marking_worklist(),
+                             mark_compact_collector_->weak_objects());
 
   if (FLAG_concurrent_marking) {
     MarkCompactCollector::MarkingWorklist* marking_worklist =
@@ -6298,12 +6323,19 @@ class UnreachableObjectsFilter : public HeapObjectsFilter {
 
     void VisitPointers(HeapObject* host, Object** start,
                        Object** end) override {
+      MarkPointers(reinterpret_cast<MaybeObject**>(start),
+                   reinterpret_cast<MaybeObject**>(end));
+    }
+
+    void VisitPointers(HeapObject* host, MaybeObject** start,
+                       MaybeObject** end) final {
       MarkPointers(start, end);
     }
 
     void VisitRootPointers(Root root, const char* description, Object** start,
                            Object** end) override {
-      MarkPointers(start, end);
+      MarkPointers(reinterpret_cast<MaybeObject**>(start),
+                   reinterpret_cast<MaybeObject**>(end));
     }
 
     void TransitiveClosure() {
@@ -6315,12 +6347,14 @@ class UnreachableObjectsFilter : public HeapObjectsFilter {
     }
 
    private:
-    void MarkPointers(Object** start, Object** end) {
-      for (Object** p = start; p < end; p++) {
-        if (!(*p)->IsHeapObject()) continue;
-        HeapObject* obj = HeapObject::cast(*p);
-        if (filter_->MarkAsReachable(obj)) {
-          marking_stack_.push_back(obj);
+    void MarkPointers(MaybeObject** start, MaybeObject** end) {
+      // Treat weak references as strong.
+      for (MaybeObject** p = start; p < end; p++) {
+        HeapObject* heap_object;
+        if ((*p)->ToStrongOrWeakHeapObject(&heap_object)) {
+          if (filter_->MarkAsReachable(heap_object)) {
+            marking_stack_.push_back(heap_object);
+          }
         }
       }
     }
@@ -6627,23 +6661,31 @@ const char* AllocationSpaceName(AllocationSpace space) {
 
 void VerifyPointersVisitor::VisitPointers(HeapObject* host, Object** start,
                                           Object** end) {
+  VerifyPointers(reinterpret_cast<MaybeObject**>(start),
+                 reinterpret_cast<MaybeObject**>(end));
+}
+
+void VerifyPointersVisitor::VisitPointers(HeapObject* host, MaybeObject** start,
+                                          MaybeObject** end) {
   VerifyPointers(start, end);
 }
 
 void VerifyPointersVisitor::VisitRootPointers(Root root,
                                               const char* description,
                                               Object** start, Object** end) {
-  VerifyPointers(start, end);
+  VerifyPointers(reinterpret_cast<MaybeObject**>(start),
+                 reinterpret_cast<MaybeObject**>(end));
 }
 
-void VerifyPointersVisitor::VerifyPointers(Object** start, Object** end) {
-  for (Object** current = start; current < end; current++) {
-    if ((*current)->IsHeapObject()) {
-      HeapObject* object = HeapObject::cast(*current);
+void VerifyPointersVisitor::VerifyPointers(MaybeObject** start,
+                                           MaybeObject** end) {
+  for (MaybeObject** current = start; current < end; current++) {
+    HeapObject* object;
+    if ((*current)->ToStrongOrWeakHeapObject(&object)) {
       CHECK(object->GetIsolate()->heap()->Contains(object));
       CHECK(object->map()->IsMap());
     } else {
-      CHECK((*current)->IsSmi());
+      CHECK((*current)->IsSmi() || (*current)->IsClearedWeakHeapObject());
     }
   }
 }

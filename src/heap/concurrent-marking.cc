@@ -91,12 +91,52 @@ class ConcurrentMarkingVisitor final
     return marking_state_.GreyToBlack(object);
   }
 
+  void ProcessStrongHeapObject(HeapObject* host, Object** slot,
+                               HeapObject* heap_object) {
+    MarkObject(heap_object);
+    MarkCompactCollector::RecordSlot(host, slot, heap_object);
+  }
+
+  void ProcessWeakHeapObject(HeapObject* host, HeapObjectReference** slot,
+                             HeapObject* heap_object) {
+    if (marking_state_.IsBlackOrGrey(heap_object)) {
+      // Weak references with live values are directly processed here to
+      // reduce the processing time of weak cells during the main GC
+      // pause.
+      MarkCompactCollector::RecordSlot(host, slot, heap_object);
+    } else {
+      // If we do not know about liveness of the value, we have to process
+      // the reference when we know the liveness of the whole transitive
+      // closure.
+      weak_objects_->weak_references.Push(task_id_, std::make_pair(host, slot));
+    }
+  }
+
   void VisitPointers(HeapObject* host, Object** start, Object** end) override {
     for (Object** slot = start; slot < end; slot++) {
       Object* object = base::AsAtomicPointer::Relaxed_Load(slot);
-      if (!object->IsHeapObject()) continue;
-      MarkObject(HeapObject::cast(object));
-      MarkCompactCollector::RecordSlot(host, slot, object);
+      DCHECK(!Internals::HasWeakHeapObjectTag(object));
+      if (object->IsHeapObject()) {
+        ProcessStrongHeapObject(host, slot, HeapObject::cast(object));
+      }
+    }
+  }
+
+  void VisitPointers(HeapObject* host, MaybeObject** start,
+                     MaybeObject** end) override {
+    for (MaybeObject** slot = start; slot < end; slot++) {
+      MaybeObject* object = base::AsAtomicPointer::Relaxed_Load(slot);
+      HeapObject* heap_object;
+      if (object->ToStrongHeapObject(&heap_object)) {
+        // If the reference changes concurrently from strong to weak, the write
+        // barrier will treat the weak reference as strong, so we won't miss the
+        // weak reference.
+        ProcessStrongHeapObject(host, reinterpret_cast<Object**>(slot),
+                                heap_object);
+      } else if (object->ToWeakHeapObject(&heap_object)) {
+        ProcessWeakHeapObject(
+            host, reinterpret_cast<HeapObjectReference**>(slot), heap_object);
+      }
     }
   }
 
@@ -335,8 +375,16 @@ class ConcurrentMarkingVisitor final
       for (Object** p = start; p < end; p++) {
         Object* object = reinterpret_cast<Object*>(
             base::Relaxed_Load(reinterpret_cast<const base::AtomicWord*>(p)));
+        DCHECK(!Internals::HasWeakHeapObjectTag(object));
         slot_snapshot_->add(p, object);
       }
+    }
+
+    void VisitPointers(HeapObject* host, MaybeObject** start,
+                       MaybeObject** end) override {
+      // This should never happen, because we don't use snapshotting for objects
+      // which contain weak references.
+      UNREACHABLE();
     }
 
    private:
@@ -485,6 +533,7 @@ void ConcurrentMarking::Run(int task_id, TaskState* task_state) {
 
     weak_objects_->weak_cells.FlushToGlobal(task_id);
     weak_objects_->transition_arrays.FlushToGlobal(task_id);
+    weak_objects_->weak_references.FlushToGlobal(task_id);
     base::AsAtomicWord::Relaxed_Store<size_t>(&task_state->marked_bytes, 0);
     total_marked_bytes_.Increment(marked_bytes);
     {

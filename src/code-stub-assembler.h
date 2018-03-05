@@ -2004,6 +2004,8 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
   void InitializeFunctionContext(Node* native_context, Node* context,
                                  int slots);
 
+  void AssertIsStrongHeapObject(SloppyTNode<HeapObject> object);
+
  private:
   friend class CodeStubArguments;
 

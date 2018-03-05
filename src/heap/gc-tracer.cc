@@ -662,6 +662,7 @@ void GCTracer::PrintNVP() const {
           "clear.weak_cells=%.1f "
           "clear.weak_collections=%.1f "
           "clear.weak_lists=%.1f "
+          "clear.weak_references=%.1f "
           "epilogue=%.1f "
           "evacuate=%.1f "
           "evacuate.candidates=%.1f "
@@ -756,6 +757,7 @@ void GCTracer::PrintNVP() const {
           current_.scopes[Scope::MC_CLEAR_WEAK_CELLS],
           current_.scopes[Scope::MC_CLEAR_WEAK_COLLECTIONS],
           current_.scopes[Scope::MC_CLEAR_WEAK_LISTS],
+          current_.scopes[Scope::MC_CLEAR_WEAK_REFERENCES],
           current_.scopes[Scope::MC_EPILOGUE],
           current_.scopes[Scope::MC_EVACUATE],
           current_.scopes[Scope::MC_EVACUATE_CANDIDATES],

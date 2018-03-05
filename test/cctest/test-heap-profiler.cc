@@ -35,6 +35,7 @@
 
 #include "include/v8-profiler.h"
 #include "src/api.h"
+#include "src/assembler-inl.h"
 #include "src/base/hashmap.h"
 #include "src/collector.h"
 #include "src/debug/debug.h"
@@ -3474,4 +3475,42 @@ TEST(SamplingHeapProfilerSampleDuringDeopt) {
       heap_profiler->GetAllocationProfile());
   CHECK(profile);
   heap_profiler->StopSamplingHeapProfiler();
+}
+
+TEST(WeakReference) {
+  v8::Isolate* isolate = CcTest::isolate();
+  i::Isolate* i_isolate = CcTest::i_isolate();
+  i::Factory* factory = i_isolate->factory();
+  i::HandleScope scope(i_isolate);
+  LocalContext env;
+
+  // Create a FeedbackVector.
+  v8::Local<v8::Script> script =
+      v8::Script::Compile(isolate->GetCurrentContext(),
+                          v8::String::NewFromUtf8(isolate, "function foo() {}",
+                                                  v8::NewStringType::kNormal)
+                              .ToLocalChecked())
+          .ToLocalChecked();
+  v8::MaybeLocal<v8::Value> value = script->Run(isolate->GetCurrentContext());
+  CHECK(!value.IsEmpty());
+
+  i::Handle<i::Object> obj = v8::Utils::OpenHandle(*script);
+  i::Handle<i::SharedFunctionInfo> shared_function =
+      i::Handle<i::SharedFunctionInfo>(i::JSFunction::cast(*obj)->shared());
+  i::Handle<i::FeedbackVector> fv = factory->NewFeedbackVector(shared_function);
+
+  // Create a Code.
+  i::Assembler assm(i_isolate, nullptr, 0);
+  assm.nop();  // supported on all architectures
+  i::CodeDesc desc;
+  assm.GetCode(i_isolate, &desc);
+  i::Handle<i::Code> code =
+      factory->NewCode(desc, i::Code::STUB, i::Handle<i::Code>());
+  CHECK(code->IsCode());
+
+  fv->set_optimized_code_weak_or_smi(i::HeapObjectReference::Weak(*code));
+
+  v8::HeapProfiler* heap_profiler = isolate->GetHeapProfiler();
+  const v8::HeapSnapshot* snapshot = heap_profiler->TakeHeapSnapshot();
+  CHECK(ValidateSnapshot(snapshot));
 }

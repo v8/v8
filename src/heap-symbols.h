@@ -310,6 +310,7 @@
   F(MC_CLEAR_WEAK_CELLS)                             \
   F(MC_CLEAR_WEAK_COLLECTIONS)                       \
   F(MC_CLEAR_WEAK_LISTS)                             \
+  F(MC_CLEAR_WEAK_REFERENCES)                        \
   F(MC_EPILOGUE)                                     \
   F(MC_EVACUATE)                                     \
   F(MC_EVACUATE_CANDIDATES)                          \
