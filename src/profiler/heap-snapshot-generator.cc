@@ -793,17 +793,30 @@ class IndexedReferencesExtractor : public ObjectVisitor {
         parent_(parent),
         next_index_(0) {}
   void VisitPointers(HeapObject* host, Object** start, Object** end) override {
-    for (Object** p = start; p < end; p++) {
-      int index = static_cast<int>(p - HeapObject::RawField(parent_obj_, 0));
+    VisitPointers(host, reinterpret_cast<MaybeObject**>(start),
+                  reinterpret_cast<MaybeObject**>(end));
+  }
+  void VisitPointers(HeapObject* host, MaybeObject** start,
+                     MaybeObject** end) override {
+    for (MaybeObject** p = start; p < end; p++) {
+      int index = static_cast<int>(reinterpret_cast<Object**>(p) -
+                                   HeapObject::RawField(parent_obj_, 0));
       ++next_index_;
       // |p| could be outside of the object, e.g., while visiting RelocInfo of
       // code objects.
-      if (p >= parent_start_ && p < parent_end_ && generator_->marks_[index]) {
+      if (reinterpret_cast<Object**>(p) >= parent_start_ &&
+          reinterpret_cast<Object**>(p) < parent_end_ &&
+          generator_->marks_[index]) {
         generator_->marks_[index] = false;
         continue;
       }
-      generator_->SetHiddenReference(parent_obj_, parent_, next_index_, *p,
-                                     index * kPointerSize);
+      HeapObject* heap_object;
+      // Weak references have been handled explicitly.
+      DCHECK(!(*p)->ToWeakHeapObject(&heap_object));
+      if ((*p)->ToStrongHeapObject(&heap_object)) {
+        generator_->SetHiddenReference(parent_obj_, parent_, next_index_,
+                                       heap_object, index * kPointerSize);
+      }
     }
   }
 
@@ -863,6 +876,8 @@ bool V8HeapExplorer::ExtractReferencesPass1(int entry, HeapObject* obj) {
     ExtractPropertyCellReferences(entry, PropertyCell::cast(obj));
   } else if (obj->IsAllocationSite()) {
     ExtractAllocationSiteReferences(entry, AllocationSite::cast(obj));
+  } else if (obj->IsFeedbackVector()) {
+    ExtractFeedbackVectorReferences(entry, FeedbackVector::cast(obj));
   }
   return true;
 }
@@ -1359,6 +1374,16 @@ void V8HeapExplorer::ExtractFixedArrayReferences(int entry, FixedArray* array) {
                              array->OffsetOfElementAt(i));
       }
       break;
+  }
+}
+
+void V8HeapExplorer::ExtractFeedbackVectorReferences(
+    int entry, FeedbackVector* feedback_vector) {
+  MaybeObject* code = feedback_vector->optimized_code_weak_or_smi();
+  HeapObject* code_heap_object;
+  if (code->ToWeakHeapObject(&code_heap_object)) {
+    SetWeakReference(feedback_vector, entry, "optimized code", code_heap_object,
+                     FeedbackVector::kOptimizedCodeOffset);
   }
 }
 

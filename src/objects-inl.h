@@ -920,6 +920,10 @@ Object** HeapObject::RawField(HeapObject* obj, int byte_offset) {
   return reinterpret_cast<Object**>(FIELD_ADDR(obj, byte_offset));
 }
 
+MaybeObject** HeapObject::RawMaybeWeakField(HeapObject* obj, int byte_offset) {
+  return reinterpret_cast<MaybeObject**>(FIELD_ADDR(obj, byte_offset));
+}
+
 int Smi::ToInt(const Object* object) { return Smi::cast(object)->value(); }
 
 MapWord MapWord::FromMap(const Map* map) {

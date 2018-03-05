@@ -1196,6 +1196,8 @@ class Heap {
   // ===========================================================================
 
   // Write barrier support for object[offset] = o;
+  inline void RecordWrite(Object* object, MaybeObject** slot,
+                          MaybeObject* value);
   inline void RecordWrite(Object* object, Object** slot, Object* value);
   inline void RecordWriteIntoCode(Code* host, RelocInfo* rinfo, Object* target);
   void RecordWriteIntoCodeSlow(Code* host, RelocInfo* rinfo, Object* target);
@@ -1316,6 +1318,9 @@ class Heap {
   inline bool InNewSpace(Object* object);
   inline bool InFromSpace(Object* object);
   inline bool InToSpace(Object* object);
+  inline bool InNewSpace(MaybeObject* object);
+  inline bool InFromSpace(MaybeObject* object);
+  inline bool InToSpace(MaybeObject* object);
 
   // Returns whether the object resides in old space.
   inline bool InOldSpace(Object* object);
@@ -2727,11 +2732,13 @@ class CodePageMemoryModificationScope {
 class VerifyPointersVisitor : public ObjectVisitor, public RootVisitor {
  public:
   void VisitPointers(HeapObject* host, Object** start, Object** end) override;
+  void VisitPointers(HeapObject* host, MaybeObject** start,
+                     MaybeObject** end) override;
   void VisitRootPointers(Root root, const char* description, Object** start,
                          Object** end) override;
 
  private:
-  void VerifyPointers(Object** start, Object** end);
+  void VerifyPointers(MaybeObject** start, MaybeObject** end);
 };
 
 

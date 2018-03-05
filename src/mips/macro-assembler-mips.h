@@ -1101,6 +1101,10 @@ const Operand& rt = Operand(zero_reg), BranchDelaySlot bd = PROTECT
   // Generates a trampoline to jump to the off-heap instruction stream.
   void JumpToInstructionStream(const InstructionStream* stream);
 
+  // ---------------------------------------------------------------------------
+  // In-place weak references.
+  void LoadWeakValue(Register out, Register in, Label* target_if_cleared);
+
   // -------------------------------------------------------------------------
   // StatsCounter support.
 

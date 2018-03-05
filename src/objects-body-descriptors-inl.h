@@ -69,6 +69,12 @@ void BodyDescriptorBase::IteratePointer(HeapObject* obj, int offset,
   v->VisitPointer(obj, HeapObject::RawField(obj, offset));
 }
 
+template <typename ObjectVisitor>
+void BodyDescriptorBase::IterateMaybeWeakPointer(HeapObject* obj, int offset,
+                                                 ObjectVisitor* v) {
+  v->VisitPointer(obj, HeapObject::RawMaybeWeakField(obj, offset));
+}
+
 class JSObject::BodyDescriptor final : public BodyDescriptorBase {
  public:
   static const int kStartOffset = JSReceiver::kPropertiesOrHashOffset;
@@ -273,7 +279,7 @@ class FeedbackVector::BodyDescriptor final : public BodyDescriptorBase {
   static inline void IterateBody(HeapObject* obj, int object_size,
                                  ObjectVisitor* v) {
     IteratePointer(obj, kSharedFunctionInfoOffset, v);
-    IteratePointer(obj, kOptimizedCodeOffset, v);
+    IterateMaybeWeakPointer(obj, kOptimizedCodeOffset, v);
     IteratePointers(obj, kFeedbackSlotsOffset, object_size, v);
   }
 

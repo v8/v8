@@ -802,6 +802,10 @@ class MacroAssembler : public TurboAssembler {
   void JumpToInstructionStream(const InstructionStream* stream);
 
   // ---------------------------------------------------------------------------
+  // In-place weak references.
+  void LoadWeakValue(Register out, Register in, Label* target_if_cleared);
+
+  // ---------------------------------------------------------------------------
   // StatsCounter support
 
   void IncrementCounter(StatsCounter* counter, int value,

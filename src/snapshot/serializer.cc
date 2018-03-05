@@ -685,23 +685,40 @@ template <class AllocatorT>
 void Serializer<AllocatorT>::ObjectSerializer::VisitPointers(HeapObject* host,
                                                              Object** start,
                                                              Object** end) {
-  Object** current = start;
-  while (current < end) {
-    while (current < end && (*current)->IsSmi()) current++;
-    if (current < end) OutputRawData(reinterpret_cast<Address>(current));
+  VisitPointers(host, reinterpret_cast<MaybeObject**>(start),
+                reinterpret_cast<MaybeObject**>(end));
+}
 
-    while (current < end && !(*current)->IsSmi()) {
-      HeapObject* current_contents = HeapObject::cast(*current);
+template <class AllocatorT>
+void Serializer<AllocatorT>::ObjectSerializer::VisitPointers(
+    HeapObject* host, MaybeObject** start, MaybeObject** end) {
+  MaybeObject** current = start;
+  while (current < end) {
+    while (current < end &&
+           ((*current)->IsSmi() || (*current)->IsClearedWeakHeapObject())) {
+      current++;
+    }
+    if (current < end) {
+      OutputRawData(reinterpret_cast<Address>(current));
+
+      // At the moment, there are no weak references reachable by the
+      // serializer. TODO(marja): Implement this, once the relevant objects can
+      // contain weak references.
+      CHECK(!(*current)->IsWeakHeapObject());
+      CHECK(!(*current)->IsClearedWeakHeapObject());
+    }
+    HeapObject* current_contents;
+    while (current < end && (*current)->ToStrongHeapObject(&current_contents)) {
       int root_index = serializer_->root_index_map()->Lookup(current_contents);
       // Repeats are not subject to the write barrier so we can only use
       // immortal immovable root members. They are never in new space.
       if (current != start && root_index != RootIndexMap::kInvalidRootIndex &&
           Heap::RootIsImmortalImmovable(root_index) &&
-          current_contents == current[-1]) {
+          *current == current[-1]) {
         DCHECK(!serializer_->isolate()->heap()->InNewSpace(current_contents));
         int repeat_count = 1;
         while (&current[repeat_count] < end - 1 &&
-               current[repeat_count] == current_contents) {
+               current[repeat_count] == *current) {
           repeat_count++;
         }
         current += repeat_count;
@@ -717,6 +734,12 @@ void Serializer<AllocatorT>::ObjectSerializer::VisitPointers(HeapObject* host,
                                      0);
         bytes_processed_so_far_ += kPointerSize;
         current++;
+      }
+
+      // TODO(marja): ditto.
+      if (current < end) {
+        CHECK(!(*current)->IsWeakHeapObject());
+        CHECK(!(*current)->IsClearedWeakHeapObject());
       }
     }
   }
