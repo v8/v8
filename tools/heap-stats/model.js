@@ -4,10 +4,6 @@
 
 'use strict';
 
-const KB = 1024;
-const MB = KB * KB;
-const kMillis2Seconds = 1 / 1000;
-
 class Isolate {
   constructor(address) {
     this.address = address;
@@ -33,8 +29,7 @@ class Isolate {
 
   getLabel() {
     let label = `${this.address}: gc=#${Object.keys(this.gcs).length}`;
-    const peakSizeMB = Math.round(this.peakMemory / 1024 / 1024 * 100) / 100;
-    label += ` peak=${peakSizeMB}MB`
+    label += ` peak=${formatBytes(this.peakMemory)}`
     return label;
   }
 
@@ -53,18 +48,20 @@ class Isolate {
   finalizeDataSet(data_set) {
     // Create a ranked instance type array that sorts instance types by
     // memory size (overall).
-    data_set.ranked_instance_types =
-        [...data_set.non_empty_instance_types].sort(function(a, b) {
-          if (data_set.instance_type_data[a].overall >
-              data_set.instance_type_data[b].overall) {
-            return 1;
-          } else if (
-              data_set.instance_type_data[a].overall <
-              data_set.instance_type_data[b].overall) {
-            return -1;
-          }
-          return 0;
+    let data = data_set.instance_type_data;
+    let ranked_instance_types =
+        [...data_set.non_empty_instance_types].sort((a, b) => {
+          return data[a].overall - data[b].overall;
         });
+    // Reassemble the instance_type list sorted by size.
+    let sorted_data = Object.create(null);
+    let max = 0;
+    ranked_instance_types.forEach((name) => {
+      let entry = sorted_data[name] = data[name];
+      max = Math.max(max, entry.overall);
+    });
+    data_set.instance_type_data = data;
+    data_set.singleInstancePeakMemory = max;
 
     Object.entries(data_set.instance_type_data).forEach(([name, entry]) => {
       this.checkHistogram(

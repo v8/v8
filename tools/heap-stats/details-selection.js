@@ -24,7 +24,7 @@ class DetailsSelection extends HTMLElement {
     this.$('#merge-categories')
         .addEventListener('change', e => this.notifySelectionChanged(e));
     this.$('#category-filter-btn')
-        .addEventListener('click', e => this.filterCurrentSeclection(e));
+        .addEventListener('click', e => this.filterCurrentSelection(e));
     this.$('#category-auto-filter-btn')
         .addEventListener('click', e => this.filterTop20Categories(e));
   }
@@ -52,6 +52,26 @@ class DetailsSelection extends HTMLElement {
     console.assert(this.data, 'invalid data');
     console.assert(this.selection, 'invalid selection');
     return this.selectedIsolate.gcs[this.selection.gc][this.selection.data_set];
+  }
+
+  $(id) {
+    return this.shadowRoot.querySelector(id);
+  }
+
+  querySelectorAll(query) {
+    return this.shadowRoot.querySelectorAll(query);
+  }
+
+  get datasetSelect() {
+    return this.$('#dataset-select');
+  }
+
+  get isolateSelect() {
+    return this.$('#isolate-select');
+  }
+
+  get gcSelect() {
+    return this.$('#gc-select');
   }
 
   buildCategory(name) {
@@ -82,23 +102,11 @@ class DetailsSelection extends HTMLElement {
     const innerDiv = document.createElement('div');
     div.appendChild(innerDiv);
     innerDiv.id = name + 'Content';
+    const percentDiv = document.createElement('div');
+    div.appendChild(percentDiv);
+    percentDiv.className = 'percentBackground';
+    percentDiv.id = name + 'PercentBackground';
     return div;
-  }
-
-  $(id) {
-    return this.shadowRoot.querySelector(id);
-  }
-
-  get datasetSelect() {
-    return this.$('#dataset-select');
-  }
-
-  get isolateSelect() {
-    return this.$('#isolate-select');
-  }
-
-  get gcSelect() {
-    return this.$('#gc-select');
   }
 
   dataChanged() {
@@ -147,7 +155,12 @@ class DetailsSelection extends HTMLElement {
         '#gc-select',
         Object.keys(this.selectedIsolate.gcs)
             .map(id => [id, this.selectedIsolate.gcs[id].time]),
-        (key, time, index) => index + ': ' + (time * kMillis2Seconds) + 's');
+        (key, time, index) => {
+          return (index + ': ').padStart(4, '0') +
+              formatSeconds(time).padStart(6, '0') + ' ' +
+              formatBytes(this.selectedIsolate.gcs[key].live.overall)
+                  .padStart(9, '0');
+        });
     this.populateCategories();
     this.notifySelectionChanged();
   }
@@ -166,11 +179,12 @@ class DetailsSelection extends HTMLElement {
     this.selection.gc = this.gcSelect.value;
     this.setButtonState(false);
     this.updatePercentagesInCategory();
+    this.updatePercentagesInInstanceTypes();
     this.dispatchEvent(new CustomEvent(
         'change', {bubbles: true, composed: true, detail: this.selection}));
   }
 
-  filterCurrentSeclection(e) {
+  filterCurrentSelection(e) {
     const minSize = this.$('#category-filter').value * KB;
     this.filterCurrentSelectionWithThresold(minSize);
   }
@@ -192,11 +206,15 @@ class DetailsSelection extends HTMLElement {
     if (minSize === 0) return;
 
     this.selection.category_names.forEach((_, category) => {
-      for (let checkbox of this.shadowRoot.querySelectorAll(
+      for (let checkbox of this.querySelectorAll(
                'input[name=' + category + 'Checkbox]')) {
         checkbox.checked =
             this.selectedData.instance_type_data[checkbox.instance_type]
                 .overall > minSize;
+        console.log(
+            checkbox.instance_type, checkbox.checked,
+            this.selectedData.instance_type_data[checkbox.instance_type]
+                .overall);
       }
     });
     this.notifySelectionChanged();
@@ -207,7 +225,7 @@ class DetailsSelection extends HTMLElement {
     let overall = 0;
     // Reset all categories.
     this.selection.category_names.forEach((_, category) => {
-      this.$(`#${category}PercentContent`).innerHTML = '0%';
+      overalls[category] = 0;
     });
     // Only update categories that have selections.
     Object.entries(this.selection.categories).forEach(([category, value]) => {
@@ -220,16 +238,30 @@ class DetailsSelection extends HTMLElement {
       overall += overalls[category];
     });
     Object.entries(overalls).forEach(([category, category_overall]) => {
+      let percents = category_overall / overall * 100;
       this.$(`#${category}PercentContent`).innerHTML =
-          `${(category_overall / overall * 100).toFixed(1)}%`;
+          `${percents.toFixed(1)}%`;
+      this.$('#' + category + 'PercentBackground').style.left = percents + '%';
+    });
+  }
+
+  updatePercentagesInInstanceTypes() {
+    const instanceTypeData = this.selectedData.instance_type_data;
+    const maxInstanceType = this.selectedData.singleInstancePeakMemory;
+    this.querySelectorAll('.instanceTypeSelectBox  input').forEach(checkbox => {
+      let instanceType = checkbox.value;
+      let instanceTypeSize = instanceTypeData[instanceType].overall;
+      let percents = instanceTypeSize / maxInstanceType;
+      let percentDiv = checkbox.parentNode.querySelector('.percentBackground');
+      percentDiv.style.left = (percents * 100) + '%';
+
     });
   }
 
   selectedInCategory(category) {
-    const selected = this.shadowRoot.querySelectorAll(
-        'input[name=' + category + 'Checkbox]:checked');
-    var tmp = [];
-    for (var val of selected.values()) tmp.push(val.value);
+    let tmp = [];
+    this.querySelectorAll('input[name=' + category + 'Checkbox]:checked')
+        .forEach(checkbox => tmp.push(checkbox.value));
     return tmp;
   }
 
@@ -291,29 +323,20 @@ class DetailsSelection extends HTMLElement {
   }
 
   unselectCategory(category) {
-    for (let checkbox of this.shadowRoot.querySelectorAll(
-             'input[name=' + category + 'Checkbox]')) {
-      checkbox.checked = false;
-    }
+    this.querySelectorAll('input[name=' + category + 'Checkbox]')
+        .forEach(checkbox => checkbox.checked = false);
     this.notifySelectionChanged();
   }
 
   selectCategory(category) {
-    for (let checkbox of this.shadowRoot.querySelectorAll(
-             'input[name=' + category + 'Checkbox]')) {
-      checkbox.checked = true;
-    }
+    this.querySelectorAll('input[name=' + category + 'Checkbox]')
+        .forEach(checkbox => checkbox.checked = true);
     this.notifySelectionChanged();
   }
 
   createCheckBox(instance_type, category) {
     const div = document.createElement('div');
-    div.classList.add('boxDiv');
-    let peakMemory =
-        this.selectedIsolate.getInstanceTypePeakMemory(instance_type);
-    let maxInstanceType = this.selectedIsolate.singleInstanceTypePeakMemory;
-    let percentRounded = Math.round(peakMemory / maxInstanceType * 10) * 10;
-    div.classList.add('percent' + percentRounded);
+    div.classList.add('instanceTypeSelectBox');
     const input = document.createElement('input');
     div.appendChild(input);
     input.type = 'checkbox';
@@ -327,6 +350,9 @@ class DetailsSelection extends HTMLElement {
     div.appendChild(label);
     label.innerText = instance_type;
     label.htmlFor = instance_type + 'Checkbox';
+    const percentDiv = document.createElement('div');
+    percentDiv.className = 'percentBackground';
+    div.appendChild(percentDiv);
     return div;
   }
 
