@@ -55,7 +55,7 @@ Reduction JSCallReducer::ReduceMathBinary(Node* node, const Operator* op) {
   if (p.speculation_mode() == SpeculationMode::kDisallowSpeculation) {
     return NoChange();
   }
-  if (node->op()->ValueInputCount() < 4) {
+  if (node->op()->ValueInputCount() < 3) {
     Node* value = jsgraph()->NaNConstant();
     ReplaceWithValue(node, value);
     return Replace(value);
@@ -64,7 +64,9 @@ Reduction JSCallReducer::ReduceMathBinary(Node* node, const Operator* op) {
   Node* control = NodeProperties::GetControlInput(node);
 
   Node* left = NodeProperties::GetValueInput(node, 2);
-  Node* right = NodeProperties::GetValueInput(node, 3);
+  Node* right = node->op()->ValueInputCount() > 3
+                    ? NodeProperties::GetValueInput(node, 3)
+                    : jsgraph()->NaNConstant();
   left = effect =
       graph()->NewNode(simplified()->SpeculativeToNumber(
                            NumberOperationHint::kNumberOrOddball, p.feedback()),
@@ -84,13 +86,15 @@ Reduction JSCallReducer::ReduceMathImul(Node* node) {
   if (p.speculation_mode() == SpeculationMode::kDisallowSpeculation) {
     return NoChange();
   }
-  if (node->op()->ValueInputCount() < 4) {
+  if (node->op()->ValueInputCount() < 3) {
     Node* value = jsgraph()->ZeroConstant();
     ReplaceWithValue(node, value);
     return Replace(value);
   }
   Node* left = NodeProperties::GetValueInput(node, 2);
-  Node* right = NodeProperties::GetValueInput(node, 3);
+  Node* right = node->op()->ValueInputCount() > 3
+                    ? NodeProperties::GetValueInput(node, 3)
+                    : jsgraph()->ZeroConstant();
   Node* effect = NodeProperties::GetEffectInput(node);
   Node* control = NodeProperties::GetControlInput(node);
 
