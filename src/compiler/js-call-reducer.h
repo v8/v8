@@ -83,6 +83,9 @@ class V8_EXPORT_PRIVATE JSCallReducer final : public AdvancedReducer {
   Reduction ReduceArrayFind(Node* node, ArrayFindVariant variant,
                             Handle<SharedFunctionInfo> shared);
   Reduction ReduceArrayEvery(Node* node, Handle<SharedFunctionInfo> shared);
+  enum class SearchVariant { kIncludes, kIndexOf };
+  Reduction ReduceArrayIndexOfIncludes(SearchVariant search_variant,
+                                       Node* node);
   Reduction ReduceArraySome(Node* node, Handle<SharedFunctionInfo> shared);
   Reduction ReduceArrayPrototypePush(Node* node);
   Reduction ReduceArrayPrototypePop(Node* node);

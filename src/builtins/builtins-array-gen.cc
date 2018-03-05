@@ -2988,6 +2988,15 @@ class ArrayIncludesIndexofAssembler : public CodeStubAssembler {
   enum SearchVariant { kIncludes, kIndexOf };
 
   void Generate(SearchVariant variant);
+  void GenerateSmiOrObject(SearchVariant variant, Node* context, Node* elements,
+                           Node* search_element, Node* array_length,
+                           Node* from_index);
+  void GeneratePackedDoubles(SearchVariant variant, Node* elements,
+                             Node* search_element, Node* array_length,
+                             Node* from_index);
+  void GenerateHoleyDoubles(SearchVariant variant, Node* elements,
+                            Node* search_element, Node* array_length,
+                            Node* from_index);
 };
 
 void ArrayIncludesIndexofAssembler::Generate(SearchVariant variant) {
@@ -3005,8 +3014,7 @@ void ArrayIncludesIndexofAssembler::Generate(SearchVariant variant) {
 
   Node* intptr_zero = IntPtrConstant(0);
 
-  Label init_index(this), return_found(this), return_not_found(this),
-      call_runtime(this);
+  Label init_index(this), return_not_found(this), call_runtime(this);
 
   // Take slow path if not a JSArray, if retrieving elements requires
   // traversing prototype, or if access checks are required.
@@ -3018,7 +3026,8 @@ void ArrayIncludesIndexofAssembler::Generate(SearchVariant variant) {
 
   // JSArray length is always a positive Smi for fast arrays.
   CSA_ASSERT(this, TaggedIsPositiveSmi(LoadJSArrayLength(array)));
-  Node* array_length = SmiUntag(LoadFastJSArrayLength(array));
+  Node* array_length = LoadFastJSArrayLength(array);
+  Node* array_length_untagged = SmiUntag(array_length);
 
   {
     // Initialize fromIndex.
@@ -3046,7 +3055,7 @@ void ArrayIncludesIndexofAssembler::Generate(SearchVariant variant) {
 
       GotoIf(IntPtrGreaterThanOrEqual(index_var.value(), intptr_zero), &done);
       // The fromIndex is negative: add it to the array's length.
-      index_var.Bind(IntPtrAdd(array_length, index_var.value()));
+      index_var.Bind(IntPtrAdd(array_length_untagged, index_var.value()));
       // Clamp negative results at zero.
       GotoIf(IntPtrGreaterThanOrEqual(index_var.value(), intptr_zero), &done);
       index_var.Bind(intptr_zero);
@@ -3056,7 +3065,7 @@ void ArrayIncludesIndexofAssembler::Generate(SearchVariant variant) {
   }
 
   // Fail early if startIndex >= array.length.
-  GotoIf(IntPtrGreaterThanOrEqual(index_var.value(), array_length),
+  GotoIf(IntPtrGreaterThanOrEqual(index_var.value(), array_length_untagged),
          &return_not_found);
 
   Label if_smiorobjects(this), if_packed_doubles(this), if_holey_doubles(this);
@@ -3077,277 +3086,41 @@ void ArrayIncludesIndexofAssembler::Generate(SearchVariant variant) {
 
   BIND(&if_smiorobjects);
   {
-    VARIABLE(search_num, MachineRepresentation::kFloat64);
-    Label ident_loop(this, &index_var), heap_num_loop(this, &search_num),
-        string_loop(this), bigint_loop(this, &index_var),
-        undef_loop(this, &index_var), not_smi(this), not_heap_num(this);
-
-    GotoIfNot(TaggedIsSmi(search_element), &not_smi);
-    search_num.Bind(SmiToFloat64(CAST(search_element)));
-    Goto(&heap_num_loop);
-
-    BIND(&not_smi);
-    if (variant == kIncludes) {
-      GotoIf(IsUndefined(search_element), &undef_loop);
-    }
-    Node* map = LoadMap(CAST(search_element));
-    GotoIfNot(IsHeapNumberMap(map), &not_heap_num);
-    search_num.Bind(LoadHeapNumberValue(CAST(search_element)));
-    Goto(&heap_num_loop);
-
-    BIND(&not_heap_num);
-    Node* search_type = LoadMapInstanceType(map);
-    GotoIf(IsStringInstanceType(search_type), &string_loop);
-    GotoIf(IsBigIntInstanceType(search_type), &bigint_loop);
-    Goto(&ident_loop);
-
-    BIND(&ident_loop);
-    {
-      GotoIfNot(UintPtrLessThan(index_var.value(), array_length),
-                &return_not_found);
-      Node* element_k = LoadFixedArrayElement(elements, index_var.value());
-      GotoIf(WordEqual(element_k, search_element), &return_found);
-
-      Increment(&index_var);
-      Goto(&ident_loop);
-    }
-
-    if (variant == kIncludes) {
-      BIND(&undef_loop);
-
-      GotoIfNot(UintPtrLessThan(index_var.value(), array_length),
-                &return_not_found);
-      Node* element_k = LoadFixedArrayElement(elements, index_var.value());
-      GotoIf(IsUndefined(element_k), &return_found);
-      GotoIf(IsTheHole(element_k), &return_found);
-
-      Increment(&index_var);
-      Goto(&undef_loop);
-    }
-
-    BIND(&heap_num_loop);
-    {
-      Label nan_loop(this, &index_var), not_nan_loop(this, &index_var);
-      Label* nan_handling =
-          variant == kIncludes ? &nan_loop : &return_not_found;
-      BranchIfFloat64IsNaN(search_num.value(), nan_handling, &not_nan_loop);
-
-      BIND(&not_nan_loop);
-      {
-        Label continue_loop(this), not_smi(this);
-        GotoIfNot(UintPtrLessThan(index_var.value(), array_length),
-                  &return_not_found);
-        Node* element_k = LoadFixedArrayElement(elements, index_var.value());
-        GotoIfNot(TaggedIsSmi(element_k), &not_smi);
-        Branch(Float64Equal(search_num.value(), SmiToFloat64(element_k)),
-               &return_found, &continue_loop);
-
-        BIND(&not_smi);
-        GotoIfNot(IsHeapNumber(element_k), &continue_loop);
-        Branch(Float64Equal(search_num.value(), LoadHeapNumberValue(element_k)),
-               &return_found, &continue_loop);
-
-        BIND(&continue_loop);
-        Increment(&index_var);
-        Goto(&not_nan_loop);
-      }
-
-      // Array.p.includes uses SameValueZero comparisons, where NaN == NaN.
-      if (variant == kIncludes) {
-        BIND(&nan_loop);
-        Label continue_loop(this);
-        GotoIfNot(UintPtrLessThan(index_var.value(), array_length),
-                  &return_not_found);
-        Node* element_k = LoadFixedArrayElement(elements, index_var.value());
-        GotoIf(TaggedIsSmi(element_k), &continue_loop);
-        GotoIfNot(IsHeapNumber(element_k), &continue_loop);
-        BranchIfFloat64IsNaN(LoadHeapNumberValue(element_k), &return_found,
-                             &continue_loop);
-
-        BIND(&continue_loop);
-        Increment(&index_var);
-        Goto(&nan_loop);
-      }
-    }
-
-    BIND(&string_loop);
-    {
-      TNode<String> search_element_string = CAST(search_element);
-      Label continue_loop(this), next_iteration(this, &index_var),
-          slow_compare(this), runtime(this, Label::kDeferred);
-      TNode<IntPtrT> search_length =
-          LoadStringLengthAsWord(search_element_string);
-      Goto(&next_iteration);
-      BIND(&next_iteration);
-      GotoIfNot(UintPtrLessThan(index_var.value(), array_length),
-                &return_not_found);
-      Node* element_k = LoadFixedArrayElement(elements, index_var.value());
-      GotoIf(TaggedIsSmi(element_k), &continue_loop);
-      GotoIf(WordEqual(search_element_string, element_k), &return_found);
-      Node* element_k_type = LoadInstanceType(element_k);
-      GotoIfNot(IsStringInstanceType(element_k_type), &continue_loop);
-      Branch(WordEqual(search_length, LoadStringLengthAsWord(element_k)),
-             &slow_compare, &continue_loop);
-
-      BIND(&slow_compare);
-      StringBuiltinsAssembler string_asm(state());
-      string_asm.StringEqual_Core(context, search_element_string, search_type,
-                                  element_k, element_k_type, search_length,
-                                  &return_found, &continue_loop, &runtime);
-      BIND(&runtime);
-      TNode<Object> result = CallRuntime(Runtime::kStringEqual, context,
-                                         search_element_string, element_k);
-      Branch(WordEqual(result, TrueConstant()), &return_found, &continue_loop);
-
-      BIND(&continue_loop);
-      Increment(&index_var);
-      Goto(&next_iteration);
-    }
-
-    BIND(&bigint_loop);
-    {
-      GotoIfNot(UintPtrLessThan(index_var.value(), array_length),
-                &return_not_found);
-
-      Node* element_k = LoadFixedArrayElement(elements, index_var.value());
-      Label continue_loop(this);
-      GotoIf(TaggedIsSmi(element_k), &continue_loop);
-      GotoIfNot(IsBigInt(element_k), &continue_loop);
-      TNode<Object> result = CallRuntime(Runtime::kBigIntEqualToBigInt, context,
-                                         search_element, element_k);
-      Branch(WordEqual(result, TrueConstant()), &return_found, &continue_loop);
-
-      BIND(&continue_loop);
-      Increment(&index_var);
-      Goto(&bigint_loop);
-    }
+    Callable callable =
+        (variant == kIncludes)
+            ? Builtins::CallableFor(isolate(),
+                                    Builtins::kArrayIncludesSmiOrObject)
+            : Builtins::CallableFor(isolate(),
+                                    Builtins::kArrayIndexOfSmiOrObject);
+    Node* result = CallStub(callable, context, elements, search_element,
+                            array_length, SmiTag(index_var.value()));
+    args.PopAndReturn(result);
   }
 
   BIND(&if_packed_doubles);
   {
-    Label nan_loop(this, &index_var), not_nan_loop(this, &index_var),
-        hole_loop(this, &index_var), search_notnan(this);
-    VARIABLE(search_num, MachineRepresentation::kFloat64);
-
-    GotoIfNot(TaggedIsSmi(search_element), &search_notnan);
-    search_num.Bind(SmiToFloat64(CAST(search_element)));
-    Goto(&not_nan_loop);
-
-    BIND(&search_notnan);
-    GotoIfNot(IsHeapNumber(search_element), &return_not_found);
-
-    search_num.Bind(LoadHeapNumberValue(CAST(search_element)));
-
-    Label* nan_handling = variant == kIncludes ? &nan_loop : &return_not_found;
-    BranchIfFloat64IsNaN(search_num.value(), nan_handling, &not_nan_loop);
-
-    BIND(&not_nan_loop);
-    {
-      Label continue_loop(this);
-      GotoIfNot(UintPtrLessThan(index_var.value(), array_length),
-                &return_not_found);
-      Node* element_k = LoadFixedDoubleArrayElement(elements, index_var.value(),
-                                                    MachineType::Float64());
-      Branch(Float64Equal(element_k, search_num.value()), &return_found,
-             &continue_loop);
-      BIND(&continue_loop);
-      Increment(&index_var);
-      Goto(&not_nan_loop);
-    }
-
-    // Array.p.includes uses SameValueZero comparisons, where NaN == NaN.
-    if (variant == kIncludes) {
-      BIND(&nan_loop);
-      Label continue_loop(this);
-      GotoIfNot(UintPtrLessThan(index_var.value(), array_length),
-                &return_not_found);
-      Node* element_k = LoadFixedDoubleArrayElement(elements, index_var.value(),
-                                                    MachineType::Float64());
-      BranchIfFloat64IsNaN(element_k, &return_found, &continue_loop);
-      BIND(&continue_loop);
-      Increment(&index_var);
-      Goto(&nan_loop);
-    }
+    Callable callable =
+        (variant == kIncludes)
+            ? Builtins::CallableFor(isolate(),
+                                    Builtins::kArrayIncludesPackedDoubles)
+            : Builtins::CallableFor(isolate(),
+                                    Builtins::kArrayIndexOfPackedDoubles);
+    Node* result = CallStub(callable, context, elements, search_element,
+                            array_length, SmiTag(index_var.value()));
+    args.PopAndReturn(result);
   }
 
   BIND(&if_holey_doubles);
   {
-    Label nan_loop(this, &index_var), not_nan_loop(this, &index_var),
-        hole_loop(this, &index_var), search_notnan(this);
-    VARIABLE(search_num, MachineRepresentation::kFloat64);
-
-    GotoIfNot(TaggedIsSmi(search_element), &search_notnan);
-    search_num.Bind(SmiToFloat64(CAST(search_element)));
-    Goto(&not_nan_loop);
-
-    BIND(&search_notnan);
-    if (variant == kIncludes) {
-      GotoIf(IsUndefined(search_element), &hole_loop);
-    }
-    GotoIfNot(IsHeapNumber(search_element), &return_not_found);
-
-    search_num.Bind(LoadHeapNumberValue(CAST(search_element)));
-
-    Label* nan_handling = variant == kIncludes ? &nan_loop : &return_not_found;
-    BranchIfFloat64IsNaN(search_num.value(), nan_handling, &not_nan_loop);
-
-    BIND(&not_nan_loop);
-    {
-      Label continue_loop(this);
-      GotoIfNot(UintPtrLessThan(index_var.value(), array_length),
-                &return_not_found);
-
-      // No need for hole checking here; the following Float64Equal will
-      // return 'not equal' for holes anyway.
-      Node* element_k = LoadFixedDoubleArrayElement(elements, index_var.value(),
-                                                    MachineType::Float64());
-
-      Branch(Float64Equal(element_k, search_num.value()), &return_found,
-             &continue_loop);
-      BIND(&continue_loop);
-      Increment(&index_var);
-      Goto(&not_nan_loop);
-    }
-
-    // Array.p.includes uses SameValueZero comparisons, where NaN == NaN.
-    if (variant == kIncludes) {
-      BIND(&nan_loop);
-      Label continue_loop(this);
-      GotoIfNot(UintPtrLessThan(index_var.value(), array_length),
-                &return_not_found);
-
-      // Load double value or continue if it's the hole NaN.
-      Node* element_k = LoadFixedDoubleArrayElement(
-          elements, index_var.value(), MachineType::Float64(), 0,
-          INTPTR_PARAMETERS, &continue_loop);
-
-      BranchIfFloat64IsNaN(element_k, &return_found, &continue_loop);
-      BIND(&continue_loop);
-      Increment(&index_var);
-      Goto(&nan_loop);
-    }
-
-    // Array.p.includes treats the hole as undefined.
-    if (variant == kIncludes) {
-      BIND(&hole_loop);
-      GotoIfNot(UintPtrLessThan(index_var.value(), array_length),
-                &return_not_found);
-
-      // Check if the element is a double hole, but don't load it.
-      LoadFixedDoubleArrayElement(elements, index_var.value(),
-                                  MachineType::None(), 0, INTPTR_PARAMETERS,
-                                  &return_found);
-
-      Increment(&index_var);
-      Goto(&hole_loop);
-    }
-  }
-
-  BIND(&return_found);
-  if (variant == kIncludes) {
-    args.PopAndReturn(TrueConstant());
-  } else {
-    args.PopAndReturn(SmiTag(index_var.value()));
+    Callable callable =
+        (variant == kIncludes)
+            ? Builtins::CallableFor(isolate(),
+                                    Builtins::kArrayIncludesHoleyDoubles)
+            : Builtins::CallableFor(isolate(),
+                                    Builtins::kArrayIndexOfHoleyDoubles);
+    Node* result = CallStub(callable, context, elements, search_element,
+                            array_length, SmiTag(index_var.value()));
+    args.PopAndReturn(result);
   }
 
   BIND(&return_not_found);
@@ -3359,7 +3132,8 @@ void ArrayIncludesIndexofAssembler::Generate(SearchVariant variant) {
 
   BIND(&call_runtime);
   {
-    Node* start_from = args.GetOptionalArgumentValue(kFromIndexArg);
+    Node* start_from =
+        args.GetOptionalArgumentValue(kFromIndexArg, UndefinedConstant());
     Runtime::FunctionId function = variant == kIncludes
                                        ? Runtime::kArrayIncludes_Slow
                                        : Runtime::kArrayIndexOf;
@@ -3368,11 +3142,405 @@ void ArrayIncludesIndexofAssembler::Generate(SearchVariant variant) {
   }
 }
 
+void ArrayIncludesIndexofAssembler::GenerateSmiOrObject(
+    SearchVariant variant, Node* context, Node* elements, Node* search_element,
+    Node* array_length, Node* from_index) {
+  VARIABLE(index_var, MachineType::PointerRepresentation(),
+           SmiUntag(from_index));
+  VARIABLE(search_num, MachineRepresentation::kFloat64);
+  Node* array_length_untagged = SmiUntag(array_length);
+
+  Label ident_loop(this, &index_var), heap_num_loop(this, &search_num),
+      string_loop(this), bigint_loop(this, &index_var),
+      undef_loop(this, &index_var), not_smi(this), not_heap_num(this),
+      return_found(this), return_not_found(this);
+
+  GotoIfNot(TaggedIsSmi(search_element), &not_smi);
+  search_num.Bind(SmiToFloat64(search_element));
+  Goto(&heap_num_loop);
+
+  BIND(&not_smi);
+  if (variant == kIncludes) {
+    GotoIf(IsUndefined(search_element), &undef_loop);
+  }
+  Node* map = LoadMap(search_element);
+  GotoIfNot(IsHeapNumberMap(map), &not_heap_num);
+  search_num.Bind(LoadHeapNumberValue(search_element));
+  Goto(&heap_num_loop);
+
+  BIND(&not_heap_num);
+  Node* search_type = LoadMapInstanceType(map);
+  GotoIf(IsStringInstanceType(search_type), &string_loop);
+  GotoIf(IsBigIntInstanceType(search_type), &bigint_loop);
+  Goto(&ident_loop);
+
+  BIND(&ident_loop);
+  {
+    GotoIfNot(UintPtrLessThan(index_var.value(), array_length_untagged),
+              &return_not_found);
+    Node* element_k = LoadFixedArrayElement(elements, index_var.value());
+    GotoIf(WordEqual(element_k, search_element), &return_found);
+
+    Increment(&index_var);
+    Goto(&ident_loop);
+  }
+
+  if (variant == kIncludes) {
+    BIND(&undef_loop);
+
+    GotoIfNot(UintPtrLessThan(index_var.value(), array_length_untagged),
+              &return_not_found);
+    Node* element_k = LoadFixedArrayElement(elements, index_var.value());
+    GotoIf(IsUndefined(element_k), &return_found);
+    GotoIf(IsTheHole(element_k), &return_found);
+
+    Increment(&index_var);
+    Goto(&undef_loop);
+  }
+
+  BIND(&heap_num_loop);
+  {
+    Label nan_loop(this, &index_var), not_nan_loop(this, &index_var);
+    Label* nan_handling = variant == kIncludes ? &nan_loop : &return_not_found;
+    BranchIfFloat64IsNaN(search_num.value(), nan_handling, &not_nan_loop);
+
+    BIND(&not_nan_loop);
+    {
+      Label continue_loop(this), not_smi(this);
+      GotoIfNot(UintPtrLessThan(index_var.value(), array_length_untagged),
+                &return_not_found);
+      Node* element_k = LoadFixedArrayElement(elements, index_var.value());
+      GotoIfNot(TaggedIsSmi(element_k), &not_smi);
+      Branch(Float64Equal(search_num.value(), SmiToFloat64(element_k)),
+             &return_found, &continue_loop);
+
+      BIND(&not_smi);
+      GotoIfNot(IsHeapNumber(element_k), &continue_loop);
+      Branch(Float64Equal(search_num.value(), LoadHeapNumberValue(element_k)),
+             &return_found, &continue_loop);
+
+      BIND(&continue_loop);
+      Increment(&index_var);
+      Goto(&not_nan_loop);
+    }
+
+    // Array.p.includes uses SameValueZero comparisons, where NaN == NaN.
+    if (variant == kIncludes) {
+      BIND(&nan_loop);
+      Label continue_loop(this);
+      GotoIfNot(UintPtrLessThan(index_var.value(), array_length_untagged),
+                &return_not_found);
+      Node* element_k = LoadFixedArrayElement(elements, index_var.value());
+      GotoIf(TaggedIsSmi(element_k), &continue_loop);
+      GotoIfNot(IsHeapNumber(element_k), &continue_loop);
+      BranchIfFloat64IsNaN(LoadHeapNumberValue(element_k), &return_found,
+                           &continue_loop);
+
+      BIND(&continue_loop);
+      Increment(&index_var);
+      Goto(&nan_loop);
+    }
+  }
+
+  BIND(&string_loop);
+  {
+    TNode<String> search_element_string = CAST(search_element);
+    Label continue_loop(this), next_iteration(this, &index_var),
+        slow_compare(this), runtime(this, Label::kDeferred);
+    TNode<IntPtrT> search_length =
+        LoadStringLengthAsWord(search_element_string);
+    Goto(&next_iteration);
+    BIND(&next_iteration);
+    GotoIfNot(UintPtrLessThan(index_var.value(), array_length_untagged),
+              &return_not_found);
+    Node* element_k = LoadFixedArrayElement(elements, index_var.value());
+    GotoIf(TaggedIsSmi(element_k), &continue_loop);
+    GotoIf(WordEqual(search_element_string, element_k), &return_found);
+    Node* element_k_type = LoadInstanceType(element_k);
+    GotoIfNot(IsStringInstanceType(element_k_type), &continue_loop);
+    Branch(WordEqual(search_length, LoadStringLengthAsWord(element_k)),
+           &slow_compare, &continue_loop);
+
+    BIND(&slow_compare);
+    StringBuiltinsAssembler string_asm(state());
+    string_asm.StringEqual_Core(context, search_element_string, search_type,
+                                element_k, element_k_type, search_length,
+                                &return_found, &continue_loop, &runtime);
+    BIND(&runtime);
+    TNode<Object> result = CallRuntime(Runtime::kStringEqual, context,
+                                       search_element_string, element_k);
+    Branch(WordEqual(result, TrueConstant()), &return_found, &continue_loop);
+
+    BIND(&continue_loop);
+    Increment(&index_var);
+    Goto(&next_iteration);
+  }
+
+  BIND(&bigint_loop);
+  {
+    GotoIfNot(UintPtrLessThan(index_var.value(), array_length_untagged),
+              &return_not_found);
+
+    Node* element_k = LoadFixedArrayElement(elements, index_var.value());
+    Label continue_loop(this);
+    GotoIf(TaggedIsSmi(element_k), &continue_loop);
+    GotoIfNot(IsBigInt(element_k), &continue_loop);
+    TNode<Object> result = CallRuntime(Runtime::kBigIntEqualToBigInt, context,
+                                       search_element, element_k);
+    Branch(WordEqual(result, TrueConstant()), &return_found, &continue_loop);
+
+    BIND(&continue_loop);
+    Increment(&index_var);
+    Goto(&bigint_loop);
+  }
+  BIND(&return_found);
+  if (variant == kIncludes) {
+    Return(TrueConstant());
+  } else {
+    Return(SmiTag(index_var.value()));
+  }
+
+  BIND(&return_not_found);
+  if (variant == kIncludes) {
+    Return(FalseConstant());
+  } else {
+    Return(NumberConstant(-1));
+  }
+}
+
+void ArrayIncludesIndexofAssembler::GeneratePackedDoubles(SearchVariant variant,
+                                                          Node* elements,
+                                                          Node* search_element,
+                                                          Node* array_length,
+                                                          Node* from_index) {
+  VARIABLE(index_var, MachineType::PointerRepresentation(),
+           SmiUntag(from_index));
+  Node* array_length_untagged = SmiUntag(array_length);
+
+  Label nan_loop(this, &index_var), not_nan_loop(this, &index_var),
+      hole_loop(this, &index_var), search_notnan(this), return_found(this),
+      return_not_found(this);
+  VARIABLE(search_num, MachineRepresentation::kFloat64);
+  search_num.Bind(Float64Constant(0));
+
+  GotoIfNot(TaggedIsSmi(search_element), &search_notnan);
+  search_num.Bind(SmiToFloat64(search_element));
+  Goto(&not_nan_loop);
+
+  BIND(&search_notnan);
+  GotoIfNot(IsHeapNumber(search_element), &return_not_found);
+
+  search_num.Bind(LoadHeapNumberValue(search_element));
+
+  Label* nan_handling = variant == kIncludes ? &nan_loop : &return_not_found;
+  BranchIfFloat64IsNaN(search_num.value(), nan_handling, &not_nan_loop);
+
+  BIND(&not_nan_loop);
+  {
+    Label continue_loop(this);
+    GotoIfNot(UintPtrLessThan(index_var.value(), array_length_untagged),
+              &return_not_found);
+    Node* element_k = LoadFixedDoubleArrayElement(elements, index_var.value(),
+                                                  MachineType::Float64());
+    Branch(Float64Equal(element_k, search_num.value()), &return_found,
+           &continue_loop);
+    BIND(&continue_loop);
+    Increment(&index_var);
+    Goto(&not_nan_loop);
+  }
+
+  // Array.p.includes uses SameValueZero comparisons, where NaN == NaN.
+  if (variant == kIncludes) {
+    BIND(&nan_loop);
+    Label continue_loop(this);
+    GotoIfNot(UintPtrLessThan(index_var.value(), array_length_untagged),
+              &return_not_found);
+    Node* element_k = LoadFixedDoubleArrayElement(elements, index_var.value(),
+                                                  MachineType::Float64());
+    BranchIfFloat64IsNaN(element_k, &return_found, &continue_loop);
+    BIND(&continue_loop);
+    Increment(&index_var);
+    Goto(&nan_loop);
+  }
+
+  BIND(&return_found);
+  if (variant == kIncludes) {
+    Return(TrueConstant());
+  } else {
+    Return(SmiTag(index_var.value()));
+  }
+
+  BIND(&return_not_found);
+  if (variant == kIncludes) {
+    Return(FalseConstant());
+  } else {
+    Return(NumberConstant(-1));
+  }
+}
+
+void ArrayIncludesIndexofAssembler::GenerateHoleyDoubles(SearchVariant variant,
+                                                         Node* elements,
+                                                         Node* search_element,
+                                                         Node* array_length,
+                                                         Node* from_index) {
+  VARIABLE(index_var, MachineType::PointerRepresentation(),
+           SmiUntag(from_index));
+  Node* array_length_untagged = SmiUntag(array_length);
+
+  Label nan_loop(this, &index_var), not_nan_loop(this, &index_var),
+      hole_loop(this, &index_var), search_notnan(this), return_found(this),
+      return_not_found(this);
+  VARIABLE(search_num, MachineRepresentation::kFloat64);
+  search_num.Bind(Float64Constant(0));
+
+  GotoIfNot(TaggedIsSmi(search_element), &search_notnan);
+  search_num.Bind(SmiToFloat64(search_element));
+  Goto(&not_nan_loop);
+
+  BIND(&search_notnan);
+  if (variant == kIncludes) {
+    GotoIf(IsUndefined(search_element), &hole_loop);
+  }
+  GotoIfNot(IsHeapNumber(search_element), &return_not_found);
+
+  search_num.Bind(LoadHeapNumberValue(search_element));
+
+  Label* nan_handling = variant == kIncludes ? &nan_loop : &return_not_found;
+  BranchIfFloat64IsNaN(search_num.value(), nan_handling, &not_nan_loop);
+
+  BIND(&not_nan_loop);
+  {
+    Label continue_loop(this);
+    GotoIfNot(UintPtrLessThan(index_var.value(), array_length_untagged),
+              &return_not_found);
+
+    // No need for hole checking here; the following Float64Equal will
+    // return 'not equal' for holes anyway.
+    Node* element_k = LoadFixedDoubleArrayElement(elements, index_var.value(),
+                                                  MachineType::Float64());
+
+    Branch(Float64Equal(element_k, search_num.value()), &return_found,
+           &continue_loop);
+    BIND(&continue_loop);
+    Increment(&index_var);
+    Goto(&not_nan_loop);
+  }
+
+  // Array.p.includes uses SameValueZero comparisons, where NaN == NaN.
+  if (variant == kIncludes) {
+    BIND(&nan_loop);
+    Label continue_loop(this);
+    GotoIfNot(UintPtrLessThan(index_var.value(), array_length_untagged),
+              &return_not_found);
+
+    // Load double value or continue if it's the hole NaN.
+    Node* element_k = LoadFixedDoubleArrayElement(
+        elements, index_var.value(), MachineType::Float64(), 0,
+        INTPTR_PARAMETERS, &continue_loop);
+
+    BranchIfFloat64IsNaN(element_k, &return_found, &continue_loop);
+    BIND(&continue_loop);
+    Increment(&index_var);
+    Goto(&nan_loop);
+  }
+
+  // Array.p.includes treats the hole as undefined.
+  if (variant == kIncludes) {
+    BIND(&hole_loop);
+    GotoIfNot(UintPtrLessThan(index_var.value(), array_length_untagged),
+              &return_not_found);
+
+    // Check if the element is a double hole, but don't load it.
+    LoadFixedDoubleArrayElement(elements, index_var.value(),
+                                MachineType::None(), 0, INTPTR_PARAMETERS,
+                                &return_found);
+
+    Increment(&index_var);
+    Goto(&hole_loop);
+  }
+
+  BIND(&return_found);
+  if (variant == kIncludes) {
+    Return(TrueConstant());
+  } else {
+    Return(SmiTag(index_var.value()));
+  }
+
+  BIND(&return_not_found);
+  if (variant == kIncludes) {
+    Return(FalseConstant());
+  } else {
+    Return(NumberConstant(-1));
+  }
+}
+
 TF_BUILTIN(ArrayIncludes, ArrayIncludesIndexofAssembler) {
   Generate(kIncludes);
 }
 
+TF_BUILTIN(ArrayIncludesSmiOrObject, ArrayIncludesIndexofAssembler) {
+  Node* context = Parameter(Descriptor::kContext);
+  Node* elements = Parameter(Descriptor::kElements);
+  Node* search_element = Parameter(Descriptor::kSearchElement);
+  Node* array_length = Parameter(Descriptor::kLength);
+  Node* from_index = Parameter(Descriptor::kFromIndex);
+
+  GenerateSmiOrObject(kIncludes, context, elements, search_element,
+                      array_length, from_index);
+}
+
+TF_BUILTIN(ArrayIncludesPackedDoubles, ArrayIncludesIndexofAssembler) {
+  Node* elements = Parameter(Descriptor::kElements);
+  Node* search_element = Parameter(Descriptor::kSearchElement);
+  Node* array_length = Parameter(Descriptor::kLength);
+  Node* from_index = Parameter(Descriptor::kFromIndex);
+
+  GeneratePackedDoubles(kIncludes, elements, search_element, array_length,
+                        from_index);
+}
+
+TF_BUILTIN(ArrayIncludesHoleyDoubles, ArrayIncludesIndexofAssembler) {
+  Node* elements = Parameter(Descriptor::kElements);
+  Node* search_element = Parameter(Descriptor::kSearchElement);
+  Node* array_length = Parameter(Descriptor::kLength);
+  Node* from_index = Parameter(Descriptor::kFromIndex);
+
+  GenerateHoleyDoubles(kIncludes, elements, search_element, array_length,
+                       from_index);
+}
+
 TF_BUILTIN(ArrayIndexOf, ArrayIncludesIndexofAssembler) { Generate(kIndexOf); }
+
+TF_BUILTIN(ArrayIndexOfSmiOrObject, ArrayIncludesIndexofAssembler) {
+  Node* context = Parameter(Descriptor::kContext);
+  Node* elements = Parameter(Descriptor::kElements);
+  Node* search_element = Parameter(Descriptor::kSearchElement);
+  Node* array_length = Parameter(Descriptor::kLength);
+  Node* from_index = Parameter(Descriptor::kFromIndex);
+
+  GenerateSmiOrObject(kIndexOf, context, elements, search_element, array_length,
+                      from_index);
+}
+
+TF_BUILTIN(ArrayIndexOfPackedDoubles, ArrayIncludesIndexofAssembler) {
+  Node* elements = Parameter(Descriptor::kElements);
+  Node* search_element = Parameter(Descriptor::kSearchElement);
+  Node* array_length = Parameter(Descriptor::kLength);
+  Node* from_index = Parameter(Descriptor::kFromIndex);
+
+  GeneratePackedDoubles(kIndexOf, elements, search_element, array_length,
+                        from_index);
+}
+
+TF_BUILTIN(ArrayIndexOfHoleyDoubles, ArrayIncludesIndexofAssembler) {
+  Node* elements = Parameter(Descriptor::kElements);
+  Node* search_element = Parameter(Descriptor::kSearchElement);
+  Node* array_length = Parameter(Descriptor::kLength);
+  Node* from_index = Parameter(Descriptor::kFromIndex);
+
+  GenerateHoleyDoubles(kIndexOf, elements, search_element, array_length,
+                       from_index);
+}
 
 // ES #sec-array.prototype.values
 TF_BUILTIN(ArrayPrototypeValues, CodeStubAssembler) {

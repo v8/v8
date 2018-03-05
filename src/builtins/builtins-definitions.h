@@ -247,8 +247,19 @@ namespace internal {
   /* ES6 #sec-array.of */                                                      \
   TFJ(ArrayOf, SharedFunctionInfo::kDontAdaptArgumentsSentinel)                \
   /* ES7 #sec-array.prototype.includes */                                      \
+  TFS(ArrayIncludesSmiOrObject, kElements, kSearchElement, kLength,            \
+      kFromIndex)                                                              \
+  TFS(ArrayIncludesPackedDoubles, kElements, kSearchElement, kLength,          \
+      kFromIndex)                                                              \
+  TFS(ArrayIncludesHoleyDoubles, kElements, kSearchElement, kLength,           \
+      kFromIndex)                                                              \
   TFJ(ArrayIncludes, SharedFunctionInfo::kDontAdaptArgumentsSentinel)          \
   /* ES6 #sec-array.prototype.indexof */                                       \
+  TFS(ArrayIndexOfSmiOrObject, kElements, kSearchElement, kLength, kFromIndex) \
+  TFS(ArrayIndexOfPackedDoubles, kElements, kSearchElement, kLength,           \
+      kFromIndex)                                                              \
+  TFS(ArrayIndexOfHoleyDoubles, kElements, kSearchElement, kLength,            \
+      kFromIndex)                                                              \
   TFJ(ArrayIndexOf, SharedFunctionInfo::kDontAdaptArgumentsSentinel)           \
   /* ES6 #sec-array.prototype.pop */                                           \
   CPP(ArrayPop)                                                                \

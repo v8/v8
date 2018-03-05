@@ -2439,6 +2439,109 @@ Reduction JSCallReducer::ReduceArrayEvery(Node* node,
   return Replace(return_value);
 }
 
+namespace {
+
+// Returns the correct Callable for Array's indexOf based on the receiver's
+// |elements_kind| and |isolate|. Assumes that |elements_kind| is a fast one.
+Callable GetCallableForArrayIndexOf(ElementsKind elements_kind,
+                                    Isolate* isolate) {
+  switch (elements_kind) {
+    case PACKED_SMI_ELEMENTS:
+    case HOLEY_SMI_ELEMENTS:
+    case PACKED_ELEMENTS:
+    case HOLEY_ELEMENTS:
+      return Builtins::CallableFor(isolate, Builtins::kArrayIndexOfSmiOrObject);
+    case PACKED_DOUBLE_ELEMENTS:
+      return Builtins::CallableFor(isolate,
+                                   Builtins::kArrayIndexOfPackedDoubles);
+    default:
+      DCHECK_EQ(HOLEY_DOUBLE_ELEMENTS, elements_kind);
+      return Builtins::CallableFor(isolate,
+                                   Builtins::kArrayIndexOfHoleyDoubles);
+  }
+}
+
+// Returns the correct Callable for Array's includes based on the receiver's
+// |elements_kind| and |isolate|. Assumes that |elements_kind| is a fast one.
+Callable GetCallableForArrayIncludes(ElementsKind elements_kind,
+                                     Isolate* isolate) {
+  switch (elements_kind) {
+    case PACKED_SMI_ELEMENTS:
+    case HOLEY_SMI_ELEMENTS:
+    case PACKED_ELEMENTS:
+    case HOLEY_ELEMENTS:
+      return Builtins::CallableFor(isolate,
+                                   Builtins::kArrayIncludesSmiOrObject);
+    case PACKED_DOUBLE_ELEMENTS:
+      return Builtins::CallableFor(isolate,
+                                   Builtins::kArrayIncludesPackedDoubles);
+    default:
+      DCHECK_EQ(HOLEY_DOUBLE_ELEMENTS, elements_kind);
+      return Builtins::CallableFor(isolate,
+                                   Builtins::kArrayIncludesHoleyDoubles);
+  }
+}
+
+}  // namespace
+
+// For search_variant == kIndexOf:
+// ES6 Array.prototype.indexOf(searchElement[, fromIndex])
+// #sec-array.prototype.indexof
+// For search_variant == kIncludes:
+// ES7 Array.prototype.inludes(searchElement[, fromIndex])
+// #sec-array.prototype.includes
+Reduction JSCallReducer::ReduceArrayIndexOfIncludes(
+    SearchVariant search_variant, Node* node) {
+  CallParameters const& p = CallParametersOf(node->op());
+  if (p.speculation_mode() == SpeculationMode::kDisallowSpeculation) {
+    return NoChange();
+  }
+
+  Handle<Map> receiver_map;
+  if (!NodeProperties::GetMapWitness(node).ToHandle(&receiver_map))
+    return NoChange();
+
+  if (!IsFastElementsKind(receiver_map->elements_kind())) return NoChange();
+
+  Callable const callable =
+      search_variant == SearchVariant::kIndexOf
+          ? GetCallableForArrayIndexOf(receiver_map->elements_kind(), isolate())
+          : GetCallableForArrayIncludes(receiver_map->elements_kind(),
+                                        isolate());
+  CallDescriptor const* const desc = Linkage::GetStubCallDescriptor(
+      isolate(), graph()->zone(), callable.descriptor(), 0,
+      CallDescriptor::kNoFlags, Operator::kEliminatable);
+  // The stub expects the following arguments: the receiver array, its elements,
+  // the search_element, the array length, and the index to start searching
+  // from.
+  Node* receiver = NodeProperties::GetValueInput(node, 1);
+  Node* effect = NodeProperties::GetEffectInput(node);
+  Node* control = NodeProperties::GetControlInput(node);
+  Node* elements = effect = graph()->NewNode(
+      simplified()->LoadField(AccessBuilder::ForJSObjectElements()), receiver,
+      effect, control);
+  Node* search_element = (node->op()->ValueInputCount() >= 3)
+                             ? NodeProperties::GetValueInput(node, 2)
+                             : jsgraph()->UndefinedConstant();
+  Node* length = effect = graph()->NewNode(
+      simplified()->LoadField(
+          AccessBuilder::ForJSArrayLength(receiver_map->elements_kind())),
+      receiver, effect, control);
+  Node* new_from_index = jsgraph()->ZeroConstant();
+  if (node->op()->ValueInputCount() >= 4) {
+    Node* from_index = NodeProperties::GetValueInput(node, 3);
+    new_from_index = effect = graph()->NewNode(
+        simplified()->CheckSmi(p.feedback()), from_index, effect, control);
+  }
+
+  Node* context = NodeProperties::GetContextInput(node);
+  Node* replacement_node = effect = graph()->NewNode(
+      common()->Call(desc), jsgraph()->HeapConstant(callable.code()), elements,
+      search_element, length, new_from_index, context, effect);
+  ReplaceWithValue(node, replacement_node, effect);
+  return Replace(replacement_node);
+}
+
 Reduction JSCallReducer::ReduceArraySome(Node* node,
                                          Handle<SharedFunctionInfo> shared) {
   if (!FLAG_turbo_inline_array_builtins) return NoChange();
@@ -3228,6 +3331,10 @@ Reduction JSCallReducer::ReduceJSCall(Node* node,
       return ReduceArrayFind(node, ArrayFindVariant::kFindIndex, shared);
     case Builtins::kArrayEvery:
       return ReduceArrayEvery(node, shared);
+    case Builtins::kArrayIndexOf:
+      return ReduceArrayIndexOfIncludes(SearchVariant::kIndexOf, node);
+    case Builtins::kArrayIncludes:
+      return ReduceArrayIndexOfIncludes(SearchVariant::kIncludes, node);
     case Builtins::kArraySome:
       return ReduceArraySome(node, shared);
     case Builtins::kArrayPrototypePush:
