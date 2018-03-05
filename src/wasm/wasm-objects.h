@@ -453,7 +453,6 @@ class WasmCompiledModule : public Struct {
 
 #define WCM_OBJECT_OR_WEAK(TYPE, NAME, SETTER_MODIFIER) \
  public:                                                \
-  inline TYPE* maybe_##NAME() const;                    \
   inline TYPE* NAME() const;                            \
   inline bool has_##NAME() const;                       \
   inline void reset_##NAME();                           \

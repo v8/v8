@@ -94,12 +94,6 @@ OPTIONAL_ACCESSORS(WasmDebugInfo, c_wasm_entry_map, Managed<wasm::SignatureMap>,
 #undef OPTIONAL_ACCESSORS
 
 #define WCM_OBJECT_OR_WEAK(TYPE, NAME, OFFSET, TYPE_CHECK)   \
-  TYPE* WasmCompiledModule::maybe_##NAME() const {           \
-    Object* value = READ_FIELD(this, OFFSET);                \
-    if (!(TYPE_CHECK)) return nullptr;                       \
-    return TYPE::cast(value);                                \
-  }                                                          \
-                                                             \
   bool WasmCompiledModule::has_##NAME() const {              \
     Object* value = READ_FIELD(this, OFFSET);                \
     return TYPE_CHECK;                                       \
