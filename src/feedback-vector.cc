@@ -952,6 +952,7 @@ KeyedAccessStoreMode FeedbackNexus::GetKeyedAccessStoreMode() const {
     CHECK(major_key == CodeStub::KeyedStoreSloppyArguments ||
           major_key == CodeStub::StoreFastElement ||
           major_key == CodeStub::StoreSlowElement ||
+          major_key == CodeStub::StoreInArrayLiteralSlow ||
           major_key == CodeStub::ElementsTransitionAndStore ||
           major_key == CodeStub::NoCache);
     if (major_key != CodeStub::NoCache) {
