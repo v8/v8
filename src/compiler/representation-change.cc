@@ -483,7 +483,7 @@ Node* RepresentationChanger::GetFloat32RepresentationFor(
   switch (node->opcode()) {
     case IrOpcode::kNumberConstant:
       return jsgraph()->Float32Constant(
-          DoubleToFloat32(OpParameter<double>(node)));
+          DoubleToFloat32(OpParameter<double>(node->op())));
     case IrOpcode::kInt32Constant:
     case IrOpcode::kFloat64Constant:
     case IrOpcode::kFloat32Constant:
@@ -543,7 +543,7 @@ Node* RepresentationChanger::GetFloat64RepresentationFor(
     // TODO(jarin) Handle checked constant conversions.
     switch (node->opcode()) {
       case IrOpcode::kNumberConstant:
-        return jsgraph()->Float64Constant(OpParameter<double>(node));
+        return jsgraph()->Float64Constant(OpParameter<double>(node->op()));
       case IrOpcode::kInt32Constant:
       case IrOpcode::kFloat64Constant:
       case IrOpcode::kFloat32Constant:
@@ -619,7 +619,7 @@ Node* RepresentationChanger::GetWord32RepresentationFor(
       UNREACHABLE();
       break;
     case IrOpcode::kNumberConstant: {
-      double const fv = OpParameter<double>(node);
+      double const fv = OpParameter<double>(node->op());
       if (use_info.type_check() == TypeCheckKind::kNone ||
           ((use_info.type_check() == TypeCheckKind::kSignedSmall ||
             use_info.type_check() == TypeCheckKind::kSigned32) &&

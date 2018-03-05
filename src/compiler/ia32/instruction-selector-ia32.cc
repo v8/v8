@@ -74,7 +74,7 @@ class IA32OperandGenerator final : public OperandGenerator {
 #if 0
         // Constants in new space cannot be used as immediates in V8 because
         // the GC does not scan code objects when collecting the new generation.
-        Handle<HeapObject> value = OpParameter<Handle<HeapObject>>(node);
+        Handle<HeapObject> value = OpParameter<Handle<HeapObject>>(node->op());
         Isolate* isolate = value->GetIsolate();
         return !isolate->heap()->InNewSpace(*value);
 #else
@@ -94,13 +94,13 @@ class IA32OperandGenerator final : public OperandGenerator {
     AddressingMode mode = kMode_MRI;
     int32_t displacement = (displacement_node == nullptr)
                                ? 0
-                               : OpParameter<int32_t>(displacement_node);
+                               : OpParameter<int32_t>(displacement_node->op());
     if (displacement_mode == kNegativeDisplacement) {
       displacement = -displacement;
     }
     if (base != nullptr) {
       if (base->opcode() == IrOpcode::kInt32Constant) {
-        displacement += OpParameter<int32_t>(base);
+        displacement += OpParameter<int32_t>(base->op());
         base = nullptr;
       }
     }
@@ -214,7 +214,8 @@ void VisitRRISimd(InstructionSelector* selector, Node* node,
                   ArchOpcode avx_opcode, ArchOpcode sse_opcode) {
   IA32OperandGenerator g(selector);
   InstructionOperand operand0 = g.UseRegister(node->InputAt(0));
-  InstructionOperand operand1 = g.UseImmediate(OpParameter<int32_t>(node));
+  InstructionOperand operand1 =
+      g.UseImmediate(OpParameter<int32_t>(node->op()));
   InstructionOperand temps[] = {g.TempSimd128Register()};
   if (selector->IsSupported(AVX)) {
     selector->Emit(avx_opcode, g.DefineAsRegister(node), operand0, operand1,
@@ -1145,8 +1146,8 @@ MachineType MachineTypeForNarrow(Node* node, Node* hint_node) {
     if (node->opcode() == IrOpcode::kInt32Constant ||
         node->opcode() == IrOpcode::kInt64Constant) {
       int64_t constant = node->opcode() == IrOpcode::kInt32Constant
-                             ? OpParameter<int32_t>(node)
-                             : OpParameter<int64_t>(node);
+                             ? OpParameter<int32_t>(node->op())
+                             : OpParameter<int64_t>(node->op());
       if (hint == MachineType::Int8()) {
         if (constant >= std::numeric_limits<int8_t>::min() &&
             constant <= std::numeric_limits<int8_t>::max()) {
@@ -1868,7 +1869,8 @@ void InstructionSelector::VisitF32x4Splat(Node* node) {
 void InstructionSelector::VisitF32x4ExtractLane(Node* node) {
   IA32OperandGenerator g(this);
   InstructionOperand operand0 = g.UseRegister(node->InputAt(0));
-  InstructionOperand operand1 = g.UseImmediate(OpParameter<int32_t>(node));
+  InstructionOperand operand1 =
+      g.UseImmediate(OpParameter<int32_t>(node->op()));
   if (IsSupported(AVX)) {
     Emit(kAVXF32x4ExtractLane, g.DefineAsRegister(node), operand0, operand1);
   } else {
@@ -1933,42 +1935,44 @@ SIMD_INT_TYPES(VISIT_SIMD_SPLAT)
 #define VISIT_SIMD_EXTRACT_LANE(Type)                              \
   void InstructionSelector::Visit##Type##ExtractLane(Node* node) { \
     IA32OperandGenerator g(this);                                  \
-    int32_t lane = OpParameter<int32_t>(node);                     \
+    int32_t lane = OpParameter<int32_t>(node->op());               \
     Emit(kIA32##Type##ExtractLane, g.DefineAsRegister(node),       \
          g.UseRegister(node->InputAt(0)), g.UseImmediate(lane));   \
   }
 SIMD_INT_TYPES(VISIT_SIMD_EXTRACT_LANE)
 #undef VISIT_SIMD_EXTRACT_LANE
 
-#define VISIT_SIMD_REPLACE_LANE(Type)                                         \
-  void InstructionSelector::Visit##Type##ReplaceLane(Node* node) {            \
-    IA32OperandGenerator g(this);                                             \
-    InstructionOperand operand0 = g.UseRegister(node->InputAt(0));            \
-    InstructionOperand operand1 = g.UseImmediate(OpParameter<int32_t>(node)); \
-    InstructionOperand operand2 = g.Use(node->InputAt(1));                    \
-    if (IsSupported(AVX)) {                                                   \
-      Emit(kAVX##Type##ReplaceLane, g.DefineAsRegister(node), operand0,       \
-           operand1, operand2);                                               \
-    } else {                                                                  \
-      Emit(kSSE##Type##ReplaceLane, g.DefineSameAsFirst(node), operand0,      \
-           operand1, operand2);                                               \
-    }                                                                         \
+#define VISIT_SIMD_REPLACE_LANE(Type)                                    \
+  void InstructionSelector::Visit##Type##ReplaceLane(Node* node) {       \
+    IA32OperandGenerator g(this);                                        \
+    InstructionOperand operand0 = g.UseRegister(node->InputAt(0));       \
+    InstructionOperand operand1 =                                        \
+        g.UseImmediate(OpParameter<int32_t>(node->op()));                \
+    InstructionOperand operand2 = g.Use(node->InputAt(1));               \
+    if (IsSupported(AVX)) {                                              \
+      Emit(kAVX##Type##ReplaceLane, g.DefineAsRegister(node), operand0,  \
+           operand1, operand2);                                          \
+    } else {                                                             \
+      Emit(kSSE##Type##ReplaceLane, g.DefineSameAsFirst(node), operand0, \
+           operand1, operand2);                                          \
+    }                                                                    \
   }
 SIMD_INT_TYPES(VISIT_SIMD_REPLACE_LANE)
 VISIT_SIMD_REPLACE_LANE(F32x4)
 #undef VISIT_SIMD_REPLACE_LANE
 #undef SIMD_INT_TYPES
 
-#define VISIT_SIMD_SHIFT(Opcode)                                              \
-  void InstructionSelector::Visit##Opcode(Node* node) {                       \
-    IA32OperandGenerator g(this);                                             \
-    InstructionOperand operand0 = g.UseRegister(node->InputAt(0));            \
-    InstructionOperand operand1 = g.UseImmediate(OpParameter<int32_t>(node)); \
-    if (IsSupported(AVX)) {                                                   \
-      Emit(kAVX##Opcode, g.DefineAsRegister(node), operand0, operand1);       \
-    } else {                                                                  \
-      Emit(kSSE##Opcode, g.DefineSameAsFirst(node), operand0, operand1);      \
-    }                                                                         \
+#define VISIT_SIMD_SHIFT(Opcode)                                         \
+  void InstructionSelector::Visit##Opcode(Node* node) {                  \
+    IA32OperandGenerator g(this);                                        \
+    InstructionOperand operand0 = g.UseRegister(node->InputAt(0));       \
+    InstructionOperand operand1 =                                        \
+        g.UseImmediate(OpParameter<int32_t>(node->op()));                \
+    if (IsSupported(AVX)) {                                              \
+      Emit(kAVX##Opcode, g.DefineAsRegister(node), operand0, operand1);  \
+    } else {                                                             \
+      Emit(kSSE##Opcode, g.DefineSameAsFirst(node), operand0, operand1); \
+    }                                                                    \
   }
 SIMD_SHIFT_OPCODES(VISIT_SIMD_SHIFT)
 #undef VISIT_SIMD_SHIFT

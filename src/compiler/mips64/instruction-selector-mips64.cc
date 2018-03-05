@@ -49,10 +49,10 @@ class Mips64OperandGenerator final : public OperandGenerator {
 
   int64_t GetIntegerConstantValue(Node* node) {
     if (node->opcode() == IrOpcode::kInt32Constant) {
-      return OpParameter<int32_t>(node);
+      return OpParameter<int32_t>(node->op());
     }
     DCHECK_EQ(IrOpcode::kInt64Constant, node->opcode());
-    return OpParameter<int64_t>(node);
+    return OpParameter<int64_t>(node->op());
   }
 
   bool IsFloatConstant(Node* node) {
@@ -62,10 +62,10 @@ class Mips64OperandGenerator final : public OperandGenerator {
 
   double GetFloatConstantValue(Node* node) {
     if (node->opcode() == IrOpcode::kFloat32Constant) {
-      return OpParameter<float>(node);
+      return OpParameter<float>(node->op());
     }
     DCHECK_EQ(IrOpcode::kFloat64Constant, node->opcode());
-    return OpParameter<double>(node);
+    return OpParameter<double>(node->op());
   }
 
   bool CanBeImmediate(Node* node, InstructionCode mode) {
@@ -130,7 +130,7 @@ static void VisitRR(InstructionSelector* selector, ArchOpcode opcode,
 static void VisitRRI(InstructionSelector* selector, ArchOpcode opcode,
                      Node* node) {
   Mips64OperandGenerator g(selector);
-  int32_t imm = OpParameter<int32_t>(node);
+  int32_t imm = OpParameter<int32_t>(node->op());
   selector->Emit(opcode, g.DefineAsRegister(node),
                  g.UseRegister(node->InputAt(0)), g.UseImmediate(imm));
 }
@@ -138,7 +138,7 @@ static void VisitRRI(InstructionSelector* selector, ArchOpcode opcode,
 static void VisitRRIR(InstructionSelector* selector, ArchOpcode opcode,
                       Node* node) {
   Mips64OperandGenerator g(selector);
-  int32_t imm = OpParameter<int32_t>(node);
+  int32_t imm = OpParameter<int32_t>(node->op());
   selector->Emit(opcode, g.DefineAsRegister(node),
                  g.UseRegister(node->InputAt(0)), g.UseImmediate(imm),
                  g.UseRegister(node->InputAt(1)));
@@ -2869,7 +2869,7 @@ bool TryMatchArchShuffle(const uint8_t* shuffle, const ShuffleEntry* table,
 }  // namespace
 
 void InstructionSelector::VisitS8x16Shuffle(Node* node) {
-  const uint8_t* shuffle = OpParameter<uint8_t*>(node);
+  const uint8_t* shuffle = OpParameter<uint8_t*>(node->op());
   uint8_t mask = CanonicalizeShuffle(node);
   uint8_t shuffle32x4[4];
   ArchOpcode opcode;

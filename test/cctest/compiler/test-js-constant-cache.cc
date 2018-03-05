@@ -43,7 +43,7 @@ class JSConstantCacheTester : public HandleAndZoneScope,
 
   Handle<HeapObject> handle(Node* node) {
     CHECK_EQ(IrOpcode::kHeapConstant, node->opcode());
-    return OpParameter<Handle<HeapObject>>(node);
+    return OpParameter<Handle<HeapObject>>(node->op());
   }
 
   Factory* factory() { return main_isolate()->factory(); }
@@ -75,8 +75,8 @@ TEST(MinusZeroConstant) {
   CHECK_EQ(minus_zero, T.Constant(-0.0));
   CHECK_NE(zero, minus_zero);
 
-  double zero_value = OpParameter<double>(zero);
-  double minus_zero_value = OpParameter<double>(minus_zero);
+  double zero_value = OpParameter<double>(zero->op());
+  double minus_zero_value = OpParameter<double>(minus_zero->op());
 
   CHECK(bit_cast<uint64_t>(0.0) == bit_cast<uint64_t>(zero_value));
   CHECK(bit_cast<uint64_t>(-0.0) != bit_cast<uint64_t>(zero_value));

@@ -114,14 +114,14 @@ void VisitRRRShuffle(InstructionSelector* selector, ArchOpcode opcode,
 
 void VisitRRI(InstructionSelector* selector, ArchOpcode opcode, Node* node) {
   ArmOperandGenerator g(selector);
-  int32_t imm = OpParameter<int32_t>(node);
+  int32_t imm = OpParameter<int32_t>(node->op());
   selector->Emit(opcode, g.DefineAsRegister(node),
                  g.UseRegister(node->InputAt(0)), g.UseImmediate(imm));
 }
 
 void VisitRRIR(InstructionSelector* selector, ArchOpcode opcode, Node* node) {
   ArmOperandGenerator g(selector);
-  int32_t imm = OpParameter<int32_t>(node);
+  int32_t imm = OpParameter<int32_t>(node->op());
   selector->Emit(opcode, g.DefineAsRegister(node),
                  g.UseRegister(node->InputAt(0)), g.UseImmediate(imm),
                  g.UseRegister(node->InputAt(1)));
@@ -2560,7 +2560,7 @@ void ArrangeShuffleTable(ArmOperandGenerator* g, Node* input0, Node* input1,
 }  // namespace
 
 void InstructionSelector::VisitS8x16Shuffle(Node* node) {
-  const uint8_t* shuffle = OpParameter<uint8_t*>(node);
+  const uint8_t* shuffle = OpParameter<uint8_t*>(node->op());
   uint8_t mask = CanonicalizeShuffle(node);
   uint8_t shuffle32x4[4];
   ArmOperandGenerator g(this);

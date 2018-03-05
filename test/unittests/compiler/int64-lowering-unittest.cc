@@ -356,7 +356,7 @@ TEST_F(Int64LoweringTest, CallI64Return) {
 
   CompareCallDescriptors(
       OpParameter<const CallDescriptor*>(
-          graph()->end()->InputAt(1)->InputAt(1)->InputAt(0)),
+          graph()->end()->InputAt(1)->InputAt(1)->InputAt(0)->op()),
       compiler::GetI32WasmCallDescriptor(zone(), call_descriptor));
 }
 
@@ -392,7 +392,7 @@ TEST_F(Int64LoweringTest, CallI64Parameter) {
 
   CompareCallDescriptors(
       OpParameter<const CallDescriptor*>(
-          graph()->end()->InputAt(1)->InputAt(1)),
+          graph()->end()->InputAt(1)->InputAt(1)->op()),
       compiler::GetI32WasmCallDescriptor(zone(), call_descriptor));
 }
 

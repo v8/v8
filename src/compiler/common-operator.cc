@@ -1506,6 +1506,11 @@ const Operator* CommonOperatorBuilder::DeadValue(MachineRepresentation rep) {
       rep);                                              // parameter
 }
 
+const FrameStateInfo& FrameStateInfoOf(const Operator* op) {
+  DCHECK_EQ(IrOpcode::kFrameState, op->opcode());
+  return OpParameter<FrameStateInfo>(op);
+}
+
 #undef COMMON_CACHED_OP_LIST
 #undef CACHED_BRANCH_LIST
 #undef CACHED_RETURN_LIST

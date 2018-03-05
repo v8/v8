@@ -1506,7 +1506,7 @@ class RepresentationSelector {
       case IrOpcode::kExternalConstant:
         return VisitLeaf(node, MachineType::PointerRepresentation());
       case IrOpcode::kNumberConstant: {
-        double const value = OpParameter<double>(node);
+        double const value = OpParameter<double>(node->op());
         int value_as_int;
         if (DoubleToSmiInteger(value, &value_as_int)) {
           VisitLeaf(node, MachineRepresentation::kTaggedSigned);
@@ -1524,7 +1524,7 @@ class RepresentationSelector {
       case IrOpcode::kPointerConstant: {
         VisitLeaf(node, MachineType::PointerRepresentation());
         if (lower()) {
-          intptr_t const value = OpParameter<intptr_t>(node);
+          intptr_t const value = OpParameter<intptr_t>(node->op());
           DeferReplacement(node, lowering->jsgraph()->IntPtrConstant(value));
         }
         return;

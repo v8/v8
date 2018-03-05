@@ -149,7 +149,7 @@ void Int64Lowering::GetIndexNodes(Node* index, Node*& index_low,
 void Int64Lowering::LowerNode(Node* node) {
   switch (node->opcode()) {
     case IrOpcode::kInt64Constant: {
-      int64_t value = OpParameter<int64_t>(node);
+      int64_t value = OpParameter<int64_t>(node->op());
       Node* low_node = graph()->NewNode(
           common()->Int32Constant(static_cast<int32_t>(value & 0xFFFFFFFF)));
       Node* high_node = graph()->NewNode(

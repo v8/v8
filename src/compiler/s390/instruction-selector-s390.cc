@@ -101,9 +101,9 @@ class S390OperandGenerator final : public OperandGenerator {
 
   int64_t GetImmediate(Node* node) {
     if (node->opcode() == IrOpcode::kInt32Constant)
-      return OpParameter<int32_t>(node);
+      return OpParameter<int32_t>(node->op());
     else if (node->opcode() == IrOpcode::kInt64Constant)
-      return OpParameter<int64_t>(node);
+      return OpParameter<int64_t>(node->op());
     else
       UNIMPLEMENTED();
     return 0L;
@@ -112,9 +112,9 @@ class S390OperandGenerator final : public OperandGenerator {
   bool CanBeImmediate(Node* node, OperandModes mode) {
     int64_t value;
     if (node->opcode() == IrOpcode::kInt32Constant)
-      value = OpParameter<int32_t>(node);
+      value = OpParameter<int32_t>(node->op());
     else if (node->opcode() == IrOpcode::kInt64Constant)
-      value = OpParameter<int64_t>(node);
+      value = OpParameter<int64_t>(node->op());
     else
       return false;
     return CanBeImmediate(value, mode);

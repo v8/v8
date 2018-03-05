@@ -281,22 +281,22 @@ class OperandGenerator {
   static Constant ToConstant(const Node* node) {
     switch (node->opcode()) {
       case IrOpcode::kInt32Constant:
-        return Constant(OpParameter<int32_t>(node));
+        return Constant(OpParameter<int32_t>(node->op()));
       case IrOpcode::kInt64Constant:
-        return Constant(OpParameter<int64_t>(node));
+        return Constant(OpParameter<int64_t>(node->op()));
       case IrOpcode::kFloat32Constant:
-        return Constant(OpParameter<float>(node));
+        return Constant(OpParameter<float>(node->op()));
       case IrOpcode::kRelocatableInt32Constant:
       case IrOpcode::kRelocatableInt64Constant:
-        return Constant(OpParameter<RelocatablePtrConstantInfo>(node));
+        return Constant(OpParameter<RelocatablePtrConstantInfo>(node->op()));
       case IrOpcode::kFloat64Constant:
       case IrOpcode::kNumberConstant:
-        return Constant(OpParameter<double>(node));
+        return Constant(OpParameter<double>(node->op()));
       case IrOpcode::kExternalConstant:
       case IrOpcode::kComment:
-        return Constant(OpParameter<ExternalReference>(node));
+        return Constant(OpParameter<ExternalReference>(node->op()));
       case IrOpcode::kHeapConstant:
-        return Constant(OpParameter<Handle<HeapObject>>(node));
+        return Constant(OpParameter<Handle<HeapObject>>(node->op()));
       case IrOpcode::kDeadValue: {
         switch (DeadValueRepresentationOf(node->op())) {
           case MachineRepresentation::kBit:
@@ -323,9 +323,9 @@ class OperandGenerator {
   static Constant ToNegatedConstant(const Node* node) {
     switch (node->opcode()) {
       case IrOpcode::kInt32Constant:
-        return Constant(-OpParameter<int32_t>(node));
+        return Constant(-OpParameter<int32_t>(node->op()));
       case IrOpcode::kInt64Constant:
-        return Constant(-OpParameter<int64_t>(node));
+        return Constant(-OpParameter<int64_t>(node->op()));
       default:
         break;
     }

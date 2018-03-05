@@ -661,7 +661,7 @@ void SimdScalarLowering::LowerConvertFromFloat(Node* node, bool is_signed) {
 
 void SimdScalarLowering::LowerShiftOp(Node* node, SimdType type) {
   DCHECK_EQ(1, node->InputCount());
-  int32_t shift_amount = OpParameter<int32_t>(node);
+  int32_t shift_amount = OpParameter<int32_t>(node->op());
   Node* shift_node = graph()->NewNode(common()->Int32Constant(shift_amount));
   Node** rep = GetReplacementsWithType(node->InputAt(0), type);
   int num_lanes = NumLanes(type);
@@ -1051,7 +1051,7 @@ void SimdScalarLowering::LowerNode(Node* node) {
     case IrOpcode::kF32x4ExtractLane:
     case IrOpcode::kI16x8ExtractLane:
     case IrOpcode::kI8x16ExtractLane: {
-      int32_t lane = OpParameter<int32_t>(node);
+      int32_t lane = OpParameter<int32_t>(node->op());
       Node** rep_node = zone()->NewArray<Node*>(num_lanes);
       rep_node[0] = GetReplacementsWithType(node->InputAt(0), rep_type)[lane];
       for (int i = 1; i < num_lanes; ++i) {
@@ -1066,7 +1066,7 @@ void SimdScalarLowering::LowerNode(Node* node) {
     case IrOpcode::kI8x16ReplaceLane: {
       DCHECK_EQ(2, node->InputCount());
       Node* repNode = node->InputAt(1);
-      int32_t lane = OpParameter<int32_t>(node);
+      int32_t lane = OpParameter<int32_t>(node->op());
       Node** old_rep_node = GetReplacementsWithType(node->InputAt(0), rep_type);
       Node** rep_node = zone()->NewArray<Node*>(num_lanes);
       for (int i = 0; i < num_lanes; ++i) {

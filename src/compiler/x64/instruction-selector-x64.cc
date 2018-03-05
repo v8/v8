@@ -25,12 +25,12 @@ class X64OperandGenerator final : public OperandGenerator {
       case IrOpcode::kRelocatableInt32Constant:
         return true;
       case IrOpcode::kInt64Constant: {
-        const int64_t value = OpParameter<int64_t>(node);
+        const int64_t value = OpParameter<int64_t>(node->op());
         return std::numeric_limits<int32_t>::min() < value &&
                value <= std::numeric_limits<int32_t>::max();
       }
       case IrOpcode::kNumberConstant: {
-        const double value = OpParameter<double>(node);
+        const double value = OpParameter<double>(node->op());
         return bit_cast<int64_t>(value) == 0;
       }
       default:
@@ -41,10 +41,10 @@ class X64OperandGenerator final : public OperandGenerator {
   int32_t GetImmediateIntegerValue(Node* node) {
     DCHECK(CanBeImmediate(node));
     if (node->opcode() == IrOpcode::kInt32Constant) {
-      return OpParameter<int32_t>(node);
+      return OpParameter<int32_t>(node->op());
     }
     DCHECK_EQ(IrOpcode::kInt64Constant, node->opcode());
-    return static_cast<int32_t>(OpParameter<int64_t>(node));
+    return static_cast<int32_t>(OpParameter<int64_t>(node->op()));
   }
 
   bool CanBeMemoryOperand(InstructionCode opcode, Node* node, Node* input,
@@ -96,10 +96,10 @@ class X64OperandGenerator final : public OperandGenerator {
     AddressingMode mode = kMode_MRI;
     if (base != nullptr && (index != nullptr || displacement != nullptr)) {
       if (base->opcode() == IrOpcode::kInt32Constant &&
-          OpParameter<int32_t>(base) == 0) {
+          OpParameter<int32_t>(base->op()) == 0) {
         base = nullptr;
       } else if (base->opcode() == IrOpcode::kInt64Constant &&
-                 OpParameter<int64_t>(base) == 0) {
+                 OpParameter<int64_t>(base->op()) == 0) {
         base = nullptr;
       }
     }
@@ -1589,8 +1589,8 @@ MachineType MachineTypeForNarrow(Node* node, Node* hint_node) {
     if (node->opcode() == IrOpcode::kInt32Constant ||
         node->opcode() == IrOpcode::kInt64Constant) {
       int64_t constant = node->opcode() == IrOpcode::kInt32Constant
-                             ? OpParameter<int32_t>(node)
-                             : OpParameter<int64_t>(node);
+                             ? OpParameter<int32_t>(node->op())
+                             : OpParameter<int64_t>(node->op());
       if (hint == MachineType::Int8()) {
         if (constant >= std::numeric_limits<int8_t>::min() &&
             constant <= std::numeric_limits<int8_t>::max()) {
@@ -2498,7 +2498,7 @@ SIMD_TYPES(VISIT_SIMD_SPLAT)
 #define VISIT_SIMD_EXTRACT_LANE(Type)                              \
   void InstructionSelector::Visit##Type##ExtractLane(Node* node) { \
     X64OperandGenerator g(this);                                   \
-    int32_t lane = OpParameter<int32_t>(node);                     \
+    int32_t lane = OpParameter<int32_t>(node->op());               \
     Emit(kX64##Type##ExtractLane, g.DefineAsRegister(node),        \
          g.UseRegister(node->InputAt(0)), g.UseImmediate(lane));   \
   }
@@ -2508,7 +2508,7 @@ SIMD_TYPES(VISIT_SIMD_EXTRACT_LANE)
 #define VISIT_SIMD_REPLACE_LANE(Type)                              \
   void InstructionSelector::Visit##Type##ReplaceLane(Node* node) { \
     X64OperandGenerator g(this);                                   \
-    int32_t lane = OpParameter<int32_t>(node);                     \
+    int32_t lane = OpParameter<int32_t>(node->op());               \
     Emit(kX64##Type##ReplaceLane, g.DefineSameAsFirst(node),       \
          g.UseRegister(node->InputAt(0)), g.UseImmediate(lane),    \
          g.Use(node->InputAt(1)));                                 \
@@ -2519,7 +2519,7 @@ SIMD_TYPES(VISIT_SIMD_REPLACE_LANE)
 #define VISIT_SIMD_SHIFT(Opcode)                                  \
   void InstructionSelector::Visit##Opcode(Node* node) {           \
     X64OperandGenerator g(this);                                  \
-    int32_t value = OpParameter<int32_t>(node);                   \
+    int32_t value = OpParameter<int32_t>(node->op());             \
     Emit(kX64##Opcode, g.DefineSameAsFirst(node),                 \
          g.UseRegister(node->InputAt(0)), g.UseImmediate(value)); \
   }

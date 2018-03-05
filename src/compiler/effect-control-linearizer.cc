@@ -2566,7 +2566,7 @@ Node* EffectControlLinearizer::LowerNewSmiOrObjectElements(Node* node) {
 Node* EffectControlLinearizer::LowerNewArgumentsElements(Node* node) {
   Node* frame = NodeProperties::GetValueInput(node, 0);
   Node* length = NodeProperties::GetValueInput(node, 1);
-  int mapped_count = OpParameter<int>(node);
+  int mapped_count = OpParameter<int>(node->op());
 
   Callable const callable =
       Builtins::CallableFor(isolate(), Builtins::kNewArgumentsElements);

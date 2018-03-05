@@ -1370,7 +1370,7 @@ Node* JSTypedLowering::BuildGetModuleCell(Node* node) {
   Node* effect = NodeProperties::GetEffectInput(node);
   Node* control = NodeProperties::GetControlInput(node);
 
-  int32_t cell_index = OpParameter<int32_t>(node);
+  int32_t cell_index = OpParameter<int32_t>(node->op());
   Node* module = NodeProperties::GetValueInput(node, 0);
   Type* module_type = NodeProperties::GetType(module);
 
@@ -1420,8 +1420,9 @@ Reduction JSTypedLowering::ReduceJSStoreModule(Node* node) {
   Node* effect = NodeProperties::GetEffectInput(node);
   Node* control = NodeProperties::GetControlInput(node);
   Node* value = NodeProperties::GetValueInput(node, 1);
-  DCHECK_EQ(ModuleDescriptor::GetCellIndexKind(OpParameter<int32_t>(node)),
-            ModuleDescriptor::kExport);
+  DCHECK_EQ(
+      ModuleDescriptor::GetCellIndexKind(OpParameter<int32_t>(node->op())),
+      ModuleDescriptor::kExport);
 
   Node* cell = BuildGetModuleCell(node);
   if (cell->op()->EffectOutputCount() > 0) effect = cell;
@@ -2038,7 +2039,7 @@ Reduction JSTypedLowering::ReduceJSGeneratorStore(Node* node) {
   Node* context = NodeProperties::GetContextInput(node);
   Node* effect = NodeProperties::GetEffectInput(node);
   Node* control = NodeProperties::GetControlInput(node);
-  int register_count = OpParameter<int>(node);
+  int register_count = OpParameter<int>(node->op());
 
   FieldAccess array_field = AccessBuilder::ForJSGeneratorObjectRegisterFile();
   FieldAccess context_field = AccessBuilder::ForJSGeneratorObjectContext();
@@ -2109,7 +2110,7 @@ Reduction JSTypedLowering::ReduceJSGeneratorRestoreRegister(Node* node) {
   Node* generator = NodeProperties::GetValueInput(node, 0);
   Node* effect = NodeProperties::GetEffectInput(node);
   Node* control = NodeProperties::GetControlInput(node);
-  int index = OpParameter<int>(node);
+  int index = OpParameter<int>(node->op());
 
   FieldAccess array_field = AccessBuilder::ForJSGeneratorObjectRegisterFile();
   FieldAccess element_field = AccessBuilder::ForFixedArraySlot(index);

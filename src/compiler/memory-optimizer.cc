@@ -181,7 +181,7 @@ void MemoryOptimizer::VisitAllocateRaw(Node* node,
 
       // Update the reservation check to the actual maximum upper bound.
       AllocationGroup* const group = state->group();
-      if (OpParameter<int32_t>(group->size()) < state_size) {
+      if (OpParameter<int32_t>(group->size()->op()) < state_size) {
         NodeProperties::ChangeOp(group->size(),
                                  common()->Int32Constant(state_size));
       }

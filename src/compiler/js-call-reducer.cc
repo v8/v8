@@ -2870,7 +2870,7 @@ Reduction JSCallReducer::ReduceCallOrConstructWithArrayLikeOrSpread(
   // some other function (and same for the {arguments_list}).
   CreateArgumentsType const type = CreateArgumentsTypeOf(arguments_list->op());
   Node* frame_state = NodeProperties::GetFrameStateInput(arguments_list);
-  FrameStateInfo state_info = OpParameter<FrameStateInfo>(frame_state);
+  FrameStateInfo state_info = FrameStateInfoOf(frame_state->op());
   int start_index = 0;
   // Determine the formal parameter count;
   Handle<SharedFunctionInfo> shared;
@@ -2916,7 +2916,7 @@ Reduction JSCallReducer::ReduceCallOrConstructWithArrayLikeOrSpread(
   // Get to the actual frame state from which to extract the arguments;
   // we can only optimize this in case the {node} was already inlined into
   // some other function (and same for the {arg_array}).
-  FrameStateInfo outer_info = OpParameter<FrameStateInfo>(outer_state);
+  FrameStateInfo outer_info = FrameStateInfoOf(outer_state->op());
   if (outer_info.type() == FrameStateType::kArgumentsAdaptor) {
     // Need to take the parameters from the arguments adaptor.
     frame_state = outer_state;

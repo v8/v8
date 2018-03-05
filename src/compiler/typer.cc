@@ -734,12 +734,12 @@ Type* Typer::Visitor::TypeFloat64Constant(Node* node) {
 }
 
 Type* Typer::Visitor::TypeNumberConstant(Node* node) {
-  double number = OpParameter<double>(node);
+  double number = OpParameter<double>(node->op());
   return Type::NewConstant(number, zone());
 }
 
 Type* Typer::Visitor::TypeHeapConstant(Node* node) {
-  return TypeConstant(OpParameter<Handle<HeapObject>>(node));
+  return TypeConstant(OpParameter<Handle<HeapObject>>(node->op()));
 }
 
 Type* Typer::Visitor::TypeExternalConstant(Node* node) {

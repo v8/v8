@@ -65,10 +65,10 @@ class Arm64OperandGenerator final : public OperandGenerator {
 
   int64_t GetIntegerConstantValue(Node* node) {
     if (node->opcode() == IrOpcode::kInt32Constant) {
-      return OpParameter<int32_t>(node);
+      return OpParameter<int32_t>(node->op());
     }
     DCHECK_EQ(IrOpcode::kInt64Constant, node->opcode());
-    return OpParameter<int64_t>(node);
+    return OpParameter<int64_t>(node->op());
   }
 
   bool IsFloatConstant(Node* node) {
@@ -78,10 +78,10 @@ class Arm64OperandGenerator final : public OperandGenerator {
 
   double GetFloatConstantValue(Node* node) {
     if (node->opcode() == IrOpcode::kFloat32Constant) {
-      return OpParameter<float>(node);
+      return OpParameter<float>(node->op());
     }
     DCHECK_EQ(IrOpcode::kFloat64Constant, node->opcode());
-    return OpParameter<double>(node);
+    return OpParameter<double>(node->op());
   }
 
   bool CanBeImmediate(Node* node, ImmediateMode mode) {
@@ -155,7 +155,7 @@ void VisitRRR(InstructionSelector* selector, ArchOpcode opcode, Node* node) {
 
 void VisitRRI(InstructionSelector* selector, ArchOpcode opcode, Node* node) {
   Arm64OperandGenerator g(selector);
-  int32_t imm = OpParameter<int32_t>(node);
+  int32_t imm = OpParameter<int32_t>(node->op());
   selector->Emit(opcode, g.DefineAsRegister(node),
                  g.UseRegister(node->InputAt(0)), g.UseImmediate(imm));
 }
@@ -170,7 +170,7 @@ void VisitRRO(InstructionSelector* selector, ArchOpcode opcode, Node* node,
 
 void VisitRRIR(InstructionSelector* selector, ArchOpcode opcode, Node* node) {
   Arm64OperandGenerator g(selector);
-  int32_t imm = OpParameter<int32_t>(node);
+  int32_t imm = OpParameter<int32_t>(node->op());
   selector->Emit(opcode, g.DefineAsRegister(node),
                  g.UseRegister(node->InputAt(0)), g.UseImmediate(imm),
                  g.UseRegister(node->InputAt(1)));
@@ -3069,7 +3069,7 @@ void ArrangeShuffleTable(Arm64OperandGenerator* g, Node* input0, Node* input1,
 }  // namespace
 
 void InstructionSelector::VisitS8x16Shuffle(Node* node) {
-  const uint8_t* shuffle = OpParameter<uint8_t*>(node);
+  const uint8_t* shuffle = OpParameter<uint8_t*>(node->op());
   uint8_t mask = CanonicalizeShuffle(node);
   uint8_t shuffle32x4[4];
   Arm64OperandGenerator g(this);

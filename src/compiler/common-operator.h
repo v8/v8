@@ -400,6 +400,8 @@ V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream&,
 V8_EXPORT_PRIVATE IfValueParameters const& IfValueParametersOf(
     const Operator* op) WARN_UNUSED_RESULT;
 
+const FrameStateInfo& FrameStateInfoOf(const Operator* op);
+
 // Interface for building common operators that can be used at any level of IR,
 // including JavaScript, mid-level, and low-level.
 class V8_EXPORT_PRIVATE CommonOperatorBuilder final

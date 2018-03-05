@@ -29,7 +29,7 @@ namespace {
 // Retrieves the frame state holding actual argument values.
 Node* GetArgumentsFrameState(Node* frame_state) {
   Node* const outer_state = NodeProperties::GetFrameStateInput(frame_state);
-  FrameStateInfo outer_state_info = OpParameter<FrameStateInfo>(outer_state);
+  FrameStateInfo outer_state_info = FrameStateInfoOf(outer_state->op());
   return outer_state_info.type() == FrameStateType::kArgumentsAdaptor
              ? outer_state
              : frame_state;
@@ -232,7 +232,7 @@ Reduction JSCreateLowering::ReduceJSCreateArguments(Node* node) {
   Node* const frame_state = NodeProperties::GetFrameStateInput(node);
   Node* const outer_state = frame_state->InputAt(kFrameStateOuterStateInput);
   Node* const control = graph()->start();
-  FrameStateInfo state_info = OpParameter<FrameStateInfo>(frame_state);
+  FrameStateInfo state_info = FrameStateInfoOf(frame_state->op());
   Handle<SharedFunctionInfo> shared =
       state_info.shared_info().ToHandleChecked();
 
@@ -350,7 +350,7 @@ Reduction JSCreateLowering::ReduceJSCreateArguments(Node* node) {
       // whether there conceptually is an arguments adaptor frame in the call
       // chain.
       Node* const args_state = GetArgumentsFrameState(frame_state);
-      FrameStateInfo args_state_info = OpParameter<FrameStateInfo>(args_state);
+      FrameStateInfo args_state_info = FrameStateInfoOf(args_state->op());
       // Prepare element backing store to be used by arguments object.
       bool has_aliased_arguments = false;
       Node* const elements = AllocateAliasedArguments(
@@ -383,7 +383,7 @@ Reduction JSCreateLowering::ReduceJSCreateArguments(Node* node) {
       // whether there conceptually is an arguments adaptor frame in the call
       // chain.
       Node* const args_state = GetArgumentsFrameState(frame_state);
-      FrameStateInfo args_state_info = OpParameter<FrameStateInfo>(args_state);
+      FrameStateInfo args_state_info = FrameStateInfoOf(args_state->op());
       // Prepare element backing store to be used by arguments object.
       Node* const elements = AllocateArguments(effect, control, args_state);
       effect = elements->op()->EffectOutputCount() > 0 ? elements : effect;
@@ -412,7 +412,7 @@ Reduction JSCreateLowering::ReduceJSCreateArguments(Node* node) {
       // whether there conceptually is an arguments adaptor frame in the call
       // chain.
       Node* const args_state = GetArgumentsFrameState(frame_state);
-      FrameStateInfo args_state_info = OpParameter<FrameStateInfo>(args_state);
+      FrameStateInfo args_state_info = FrameStateInfoOf(args_state->op());
       // Prepare element backing store to be used by the rest array.
       Node* const elements =
           AllocateRestArguments(effect, control, args_state, start_index);
@@ -1205,7 +1205,7 @@ Reduction JSCreateLowering::ReduceJSCreateFunctionContext(Node* node) {
 
 Reduction JSCreateLowering::ReduceJSCreateWithContext(Node* node) {
   DCHECK_EQ(IrOpcode::kJSCreateWithContext, node->opcode());
-  Handle<ScopeInfo> scope_info = OpParameter<Handle<ScopeInfo>>(node);
+  Handle<ScopeInfo> scope_info = OpParameter<Handle<ScopeInfo>>(node->op());
   Node* object = NodeProperties::GetValueInput(node, 0);
   Node* closure = NodeProperties::GetValueInput(node, 1);
   Node* effect = NodeProperties::GetEffectInput(node);
@@ -1269,7 +1269,7 @@ Reduction JSCreateLowering::ReduceJSCreateCatchContext(Node* node) {
 
 Reduction JSCreateLowering::ReduceJSCreateBlockContext(Node* node) {
   DCHECK_EQ(IrOpcode::kJSCreateBlockContext, node->opcode());
-  Handle<ScopeInfo> scope_info = OpParameter<Handle<ScopeInfo>>(node);
+  Handle<ScopeInfo> scope_info = OpParameter<Handle<ScopeInfo>>(node->op());
   int const context_length = scope_info->ContextLength();
   Node* const closure = NodeProperties::GetValueInput(node, 0);
 
@@ -1304,7 +1304,7 @@ Reduction JSCreateLowering::ReduceJSCreateBlockContext(Node* node) {
 // given {frame_state}. Serves as backing store for JSCreateArguments nodes.
 Node* JSCreateLowering::AllocateArguments(Node* effect, Node* control,
                                           Node* frame_state) {
-  FrameStateInfo state_info = OpParameter<FrameStateInfo>(frame_state);
+  FrameStateInfo state_info = FrameStateInfoOf(frame_state->op());
   int argument_count = state_info.parameter_count() - 1;  // Minus receiver.
   if (argument_count == 0) return jsgraph()->EmptyFixedArrayConstant();
 
@@ -1328,7 +1328,7 @@ Node* JSCreateLowering::AllocateArguments(Node* effect, Node* control,
 Node* JSCreateLowering::AllocateRestArguments(Node* effect, Node* control,
                                               Node* frame_state,
                                               int start_index) {
-  FrameStateInfo state_info = OpParameter<FrameStateInfo>(frame_state);
+  FrameStateInfo state_info = FrameStateInfoOf(frame_state->op());
   int argument_count = state_info.parameter_count() - 1;  // Minus receiver.
   int num_elements = std::max(0, argument_count - start_index);
   if (num_elements == 0) return jsgraph()->EmptyFixedArrayConstant();
@@ -1359,7 +1359,7 @@ Node* JSCreateLowering::AllocateRestArguments(Node* effect, Node* control,
 Node* JSCreateLowering::AllocateAliasedArguments(
     Node* effect, Node* control, Node* frame_state, Node* context,
     Handle<SharedFunctionInfo> shared, bool* has_aliased_arguments) {
-  FrameStateInfo state_info = OpParameter<FrameStateInfo>(frame_state);
+  FrameStateInfo state_info = FrameStateInfoOf(frame_state->op());
   int argument_count = state_info.parameter_count() - 1;  // Minus receiver.
   if (argument_count == 0) return jsgraph()->EmptyFixedArrayConstant();
 

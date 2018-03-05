@@ -39,9 +39,9 @@ class PPCOperandGenerator final : public OperandGenerator {
   bool CanBeImmediate(Node* node, ImmediateMode mode) {
     int64_t value;
     if (node->opcode() == IrOpcode::kInt32Constant)
-      value = OpParameter<int32_t>(node);
+      value = OpParameter<int32_t>(node->op());
     else if (node->opcode() == IrOpcode::kInt64Constant)
-      value = OpParameter<int64_t>(node);
+      value = OpParameter<int64_t>(node->op());
     else
       return false;
     return CanBeImmediate(value, mode);

@@ -107,7 +107,7 @@ Reduction JSInliningHeuristic::Reduce(Node* node) {
   bool can_inline = false, small_inline = true;
   candidate.total_size = 0;
   Node* frame_state = NodeProperties::GetFrameStateInput(node);
-  FrameStateInfo const& frame_info = OpParameter<FrameStateInfo>(frame_state);
+  FrameStateInfo const& frame_info = FrameStateInfoOf(frame_state->op());
   Handle<SharedFunctionInfo> frame_shared_info;
   for (int i = 0; i < candidate.num_functions; ++i) {
     Handle<SharedFunctionInfo> shared =

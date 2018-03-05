@@ -448,7 +448,8 @@ InstructionOperand OperandForDeopt(Isolate* isolate, OperandGenerator* g,
         return InstructionOperand();
       }
 
-      Handle<HeapObject> constant = OpParameter<Handle<HeapObject>>(input);
+      Handle<HeapObject> constant =
+          OpParameter<Handle<HeapObject>>(input->op());
       Heap::RootListIndex root_index;
       if (isolate->heap()->IsRootHandle(constant, &root_index) &&
           root_index == Heap::kOptimizedOutRootIndex) {
@@ -1129,7 +1130,7 @@ void InstructionSelector::VisitNode(Node* node) {
     case IrOpcode::kHeapConstant:
       return MarkAsReference(node), VisitConstant(node);
     case IrOpcode::kNumberConstant: {
-      double value = OpParameter<double>(node);
+      double value = OpParameter<double>(node->op());
       if (!IsSmiDouble(value)) MarkAsReference(node);
       return VisitConstant(node);
     }
@@ -2724,7 +2725,7 @@ FrameStateDescriptor* InstructionSelector::GetFrameStateDescriptor(
     Node* state) {
   DCHECK_EQ(IrOpcode::kFrameState, state->opcode());
   DCHECK_EQ(kFrameStateInputCount, state->InputCount());
-  FrameStateInfo state_info = OpParameter<FrameStateInfo>(state);
+  FrameStateInfo state_info = FrameStateInfoOf(state->op());
 
   int parameters = static_cast<int>(
       StateValuesAccess(state->InputAt(kFrameStateParametersInput)).size());
@@ -2783,7 +2784,7 @@ uint8_t InstructionSelector::CanonicalizeShuffle(Node* node) {
   static const int kMaxLaneIndex = 15;
   static const int kMaxShuffleIndex = 31;
 
-  const uint8_t* shuffle = OpParameter<uint8_t*>(node);
+  const uint8_t* shuffle = OpParameter<uint8_t*>(node->op());
   uint8_t mask = kMaxShuffleIndex;
   // If shuffle is unary, set 'mask' to ignore the high bit of the indices.
   // Replace any unused source with the other.
