@@ -1363,12 +1363,6 @@ Handle<WasmCompiledModule> WasmCompiledModule::New(
     compiled_module->InitId();
     compiled_module->set_code_table(*code_table);
     compiled_module->set_export_wrappers(*export_wrappers);
-    // TODO(mtrofin): we copy these because the order of finalization isn't
-    // reliable, and we need these at Reset (which is called at
-    // finalization). If the order were reliable, and top-down, we could instead
-    // just get them from shared().
-    compiled_module->set_num_imported_functions(module->num_imported_functions);
-
     int num_function_tables = static_cast<int>(function_tables.size());
     if (num_function_tables > 0) {
       Handle<FixedArray> ft =
@@ -1439,9 +1433,6 @@ Handle<WasmCompiledModule> WasmCompiledModule::Clone(
     ret->set_lazy_compile_data(module->lazy_compile_data());
   }
   ret->set_use_trap_handler(module->use_trap_handler());
-  if (!FLAG_wasm_jit_to_native) {
-    ret->set_num_imported_functions(module->num_imported_functions());
-  }
   ret->set_code_table(module->code_table());
   if (module->has_function_tables()) {
     ret->set_function_tables(module->function_tables());

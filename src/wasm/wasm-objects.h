@@ -443,7 +443,6 @@ class WasmCompiledModule : public Struct {
   V(knative_moduleOffset, kPointerSize)           \
   V(klazy_compile_dataOffset, kPointerSize)       \
   V(kuse_trap_handlerOffset, kPointerSize)        \
-  V(knum_imported_functionsOffset, kPointerSize)  \
   V(kcode_tableOffset, kPointerSize)              \
   V(kfunction_tablesOffset, kPointerSize)         \
   V(kempty_function_tablesOffset, kPointerSize)   \
@@ -500,7 +499,6 @@ class WasmCompiledModule : public Struct {
   MACRO(OBJECT, FixedArray, lazy_compile_data)                \
   /* TODO(mstarzinger): Make {use_trap_handler} smaller. */   \
   MACRO(SMALL_CONST_NUMBER, bool, use_trap_handler)           \
-  MACRO(SMALL_CONST_NUMBER, uint32_t, num_imported_functions) \
   MACRO(CONST_OBJECT, FixedArray, code_table)                 \
   MACRO(OBJECT, FixedArray, function_tables)                  \
   MACRO(CONST_OBJECT, FixedArray, empty_function_tables)

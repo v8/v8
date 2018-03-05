@@ -1460,7 +1460,6 @@ void WasmCompiledModule::WasmCompiledModuleVerify() {
   VerifyObjectField(knative_moduleOffset);
   VerifyObjectField(klazy_compile_dataOffset);
   VerifyObjectField(kuse_trap_handlerOffset);
-  VerifyObjectField(knum_imported_functionsOffset);
   VerifyObjectField(kcode_tableOffset);
   VerifyObjectField(kfunction_tablesOffset);
   VerifyObjectField(kempty_function_tablesOffset);
