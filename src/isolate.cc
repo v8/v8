@@ -2671,7 +2671,6 @@ void Isolate::Deinit() {
   ClearSerializerData();
 
   for (InstructionStream* stream : off_heap_code_) {
-    CHECK(FLAG_stress_off_heap_code);
     delete stream;
   }
   off_heap_code_.clear();

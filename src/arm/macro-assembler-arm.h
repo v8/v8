@@ -28,7 +28,7 @@ constexpr Register kInterpreterDispatchTableRegister = r8;
 constexpr Register kJavaScriptCallArgCountRegister = r0;
 constexpr Register kJavaScriptCallCodeStartRegister = r2;
 constexpr Register kJavaScriptCallNewTargetRegister = r3;
-constexpr Register kOffHeapTrampolineRegister = r4;
+constexpr Register kOffHeapTrampolineRegister = r6;
 constexpr Register kRuntimeCallFunctionRegister = r1;
 constexpr Register kRuntimeCallArgCountRegister = r0;
 

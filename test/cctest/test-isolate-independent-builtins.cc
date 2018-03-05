@@ -20,131 +20,174 @@ namespace internal {
 namespace test_isolate_independent_builtins {
 
 #ifdef V8_EMBEDDED_BUILTINS
-TEST(VerifyBuiltinsIsolateIndependence) {
-  Isolate* isolate = CcTest::i_isolate();
-  HandleScope handle_scope(isolate);
+UNINITIALIZED_TEST(VerifyBuiltinsIsolateIndependence) {
+  FLAG_stress_off_heap_code = false;  // Disable off-heap trampolines.
 
-  Snapshot::EnsureAllBuiltinsAreDeserialized(isolate);
+  v8::Isolate::CreateParams create_params;
+  create_params.array_buffer_allocator = CcTest::array_buffer_allocator();
+  v8::Isolate* v8_isolate = v8::Isolate::New(create_params);
 
-  // Build a white-list of all isolate-independent RelocInfo entry kinds.
-  constexpr int all_real_modes_mask =
-      (1 << (RelocInfo::LAST_REAL_RELOC_MODE + 1)) - 1;
-  constexpr int mode_mask =
-      all_real_modes_mask & ~RelocInfo::ModeMask(RelocInfo::COMMENT) &
-      ~RelocInfo::ModeMask(RelocInfo::INTERNAL_REFERENCE) &
-      ~RelocInfo::ModeMask(RelocInfo::INTERNAL_REFERENCE_ENCODED) &
-      ~RelocInfo::ModeMask(RelocInfo::CONST_POOL) &
-      ~RelocInfo::ModeMask(RelocInfo::VENEER_POOL);
-  STATIC_ASSERT(RelocInfo::LAST_REAL_RELOC_MODE == RelocInfo::VENEER_POOL);
-  STATIC_ASSERT(RelocInfo::ModeMask(RelocInfo::COMMENT) ==
-                (1 << RelocInfo::COMMENT));
-  STATIC_ASSERT(
-      mode_mask ==
-      (RelocInfo::ModeMask(RelocInfo::CODE_TARGET) |
-       RelocInfo::ModeMask(RelocInfo::EMBEDDED_OBJECT) |
-       RelocInfo::ModeMask(RelocInfo::WASM_CONTEXT_REFERENCE) |
-       RelocInfo::ModeMask(RelocInfo::WASM_FUNCTION_TABLE_SIZE_REFERENCE) |
-       RelocInfo::ModeMask(RelocInfo::WASM_GLOBAL_HANDLE) |
-       RelocInfo::ModeMask(RelocInfo::WASM_CALL) |
-       RelocInfo::ModeMask(RelocInfo::JS_TO_WASM_CALL) |
-       RelocInfo::ModeMask(RelocInfo::RUNTIME_ENTRY) |
-       RelocInfo::ModeMask(RelocInfo::EXTERNAL_REFERENCE)));
+  {
+    v8::Isolate::Scope isolate_scope(v8_isolate);
+    v8::internal::Isolate* isolate =
+        reinterpret_cast<v8::internal::Isolate*>(v8_isolate);
+    HandleScope handle_scope(isolate);
 
-  constexpr bool kVerbose = false;
-  bool found_mismatch = false;
-  for (int i = 0; i < Builtins::builtin_count; i++) {
-    Code* code = isolate->builtins()->builtin(i);
+    Snapshot::EnsureAllBuiltinsAreDeserialized(isolate);
 
-    if (kVerbose) {
-      printf("%s %s\n", Builtins::KindNameOf(i), isolate->builtins()->name(i));
-    }
+    // TODO(jgruber,v8:6666): Investigate CONST_POOL and VENEER_POOL kinds.
+    // CONST_POOL is currently relevant on {arm,arm64,mips,mips64,ppc,s390}.
+    //            Rumors are it will also become relevant on x64. My
+    //            understanding is that we should be fine if we ensure it
+    //            doesn't contain heap constants and we use pc-relative
+    //            addressing.
+    // VENEER_POOL is arm64-only. From what I've seen, jumps are pc-relative
+    //             and stay within the same code object and thus should be
+    //             isolate-independent.
 
-    bool is_isolate_independent = true;
-    for (RelocIterator it(code, mode_mask); !it.done(); it.next()) {
-      is_isolate_independent = false;
+    // Build a white-list of all isolate-independent RelocInfo entry kinds.
+    constexpr int all_real_modes_mask =
+        (1 << (RelocInfo::LAST_REAL_RELOC_MODE + 1)) - 1;
+    constexpr int mode_mask =
+        all_real_modes_mask & ~RelocInfo::ModeMask(RelocInfo::COMMENT) &
+        ~RelocInfo::ModeMask(RelocInfo::INTERNAL_REFERENCE) &
+        ~RelocInfo::ModeMask(RelocInfo::INTERNAL_REFERENCE_ENCODED) &
+        ~RelocInfo::ModeMask(RelocInfo::CONST_POOL) &
+        ~RelocInfo::ModeMask(RelocInfo::VENEER_POOL);
+    STATIC_ASSERT(RelocInfo::LAST_REAL_RELOC_MODE == RelocInfo::VENEER_POOL);
+    STATIC_ASSERT(RelocInfo::ModeMask(RelocInfo::COMMENT) ==
+                  (1 << RelocInfo::COMMENT));
+    STATIC_ASSERT(
+        mode_mask ==
+        (RelocInfo::ModeMask(RelocInfo::CODE_TARGET) |
+         RelocInfo::ModeMask(RelocInfo::EMBEDDED_OBJECT) |
+         RelocInfo::ModeMask(RelocInfo::WASM_CONTEXT_REFERENCE) |
+         RelocInfo::ModeMask(RelocInfo::WASM_FUNCTION_TABLE_SIZE_REFERENCE) |
+         RelocInfo::ModeMask(RelocInfo::WASM_GLOBAL_HANDLE) |
+         RelocInfo::ModeMask(RelocInfo::WASM_CALL) |
+         RelocInfo::ModeMask(RelocInfo::JS_TO_WASM_CALL) |
+         RelocInfo::ModeMask(RelocInfo::RUNTIME_ENTRY) |
+         RelocInfo::ModeMask(RelocInfo::EXTERNAL_REFERENCE)));
+
+    constexpr bool kVerbose = false;
+    bool found_mismatch = false;
+    for (int i = 0; i < Builtins::builtin_count; i++) {
+      Code* code = isolate->builtins()->builtin(i);
+
+      if (kVerbose) {
+        printf("%s %s\n", Builtins::KindNameOf(i),
+               isolate->builtins()->name(i));
+      }
+
+      bool is_isolate_independent = true;
+      for (RelocIterator it(code, mode_mask); !it.done(); it.next()) {
+        is_isolate_independent = false;
 
 #ifdef ENABLE_DISASSEMBLER
-      if (kVerbose) {
-        RelocInfo::Mode mode = it.rinfo()->rmode();
-        printf("  %s\n", RelocInfo::RelocModeName(mode));
-      }
+        if (kVerbose) {
+          RelocInfo::Mode mode = it.rinfo()->rmode();
+          printf("  %s\n", RelocInfo::RelocModeName(mode));
+        }
 #endif
+      }
+
+      // Relaxed condition only checks whether the isolate-independent list is
+      // valid, not whether it is complete. This is to avoid constant work
+      // updating the list.
+      bool should_be_isolate_independent = Builtins::IsIsolateIndependent(i);
+      if (should_be_isolate_independent && !is_isolate_independent) {
+        found_mismatch = true;
+        printf("%s %s expected: %d, is: %d\n", Builtins::KindNameOf(i),
+               isolate->builtins()->name(i), should_be_isolate_independent,
+               is_isolate_independent);
+      }
     }
 
-    const bool expected_result = Builtins::IsIsolateIndependent(i);
-    if (is_isolate_independent != expected_result) {
-      found_mismatch = true;
-      printf("%s %s expected: %d, is: %d\n", Builtins::KindNameOf(i),
-             isolate->builtins()->name(i), expected_result,
-             is_isolate_independent);
-    }
+    CHECK(!found_mismatch);
   }
 
-  CHECK(!found_mismatch);
+  v8_isolate->Dispose();
 }
 
-TEST(VerifyBuiltinsOffHeapSafety) {
-  Isolate* isolate = CcTest::i_isolate();
-  HandleScope handle_scope(isolate);
+UNINITIALIZED_TEST(VerifyBuiltinsOffHeapSafety) {
+  FLAG_stress_off_heap_code = false;  // Disable off-heap trampolines.
 
-  Snapshot::EnsureAllBuiltinsAreDeserialized(isolate);
+  v8::Isolate::CreateParams create_params;
+  create_params.array_buffer_allocator = CcTest::array_buffer_allocator();
+  v8::Isolate* v8_isolate = v8::Isolate::New(create_params);
 
-  constexpr int all_real_modes_mask =
-      (1 << (RelocInfo::LAST_REAL_RELOC_MODE + 1)) - 1;
-  constexpr int mode_mask =
-      all_real_modes_mask & ~RelocInfo::ModeMask(RelocInfo::COMMENT) &
-      ~RelocInfo::ModeMask(RelocInfo::INTERNAL_REFERENCE) &
-      ~RelocInfo::ModeMask(RelocInfo::INTERNAL_REFERENCE_ENCODED) &
-      ~RelocInfo::ModeMask(RelocInfo::CONST_POOL) &
-      ~RelocInfo::ModeMask(RelocInfo::VENEER_POOL) &
-      ~RelocInfo::ModeMask(RelocInfo::EXTERNAL_REFERENCE);
-  STATIC_ASSERT(RelocInfo::LAST_REAL_RELOC_MODE == RelocInfo::VENEER_POOL);
-  STATIC_ASSERT(RelocInfo::ModeMask(RelocInfo::COMMENT) ==
-                (1 << RelocInfo::COMMENT));
-  STATIC_ASSERT(
-      mode_mask ==
-      (RelocInfo::ModeMask(RelocInfo::CODE_TARGET) |
-       RelocInfo::ModeMask(RelocInfo::EMBEDDED_OBJECT) |
-       RelocInfo::ModeMask(RelocInfo::WASM_CONTEXT_REFERENCE) |
-       RelocInfo::ModeMask(RelocInfo::WASM_FUNCTION_TABLE_SIZE_REFERENCE) |
-       RelocInfo::ModeMask(RelocInfo::WASM_GLOBAL_HANDLE) |
-       RelocInfo::ModeMask(RelocInfo::WASM_CALL) |
-       RelocInfo::ModeMask(RelocInfo::JS_TO_WASM_CALL) |
-       RelocInfo::ModeMask(RelocInfo::RUNTIME_ENTRY)));
+  {
+    v8::Isolate::Scope isolate_scope(v8_isolate);
+    v8::internal::Isolate* isolate =
+        reinterpret_cast<v8::internal::Isolate*>(v8_isolate);
+    HandleScope handle_scope(isolate);
 
-  constexpr bool kVerbose = false;
-  bool found_mismatch = false;
-  for (int i = 0; i < Builtins::builtin_count; i++) {
-    Code* code = isolate->builtins()->builtin(i);
+    Snapshot::EnsureAllBuiltinsAreDeserialized(isolate);
 
-    if (kVerbose) {
-      printf("%s %s\n", Builtins::KindNameOf(i), isolate->builtins()->name(i));
-    }
+    constexpr int all_real_modes_mask =
+        (1 << (RelocInfo::LAST_REAL_RELOC_MODE + 1)) - 1;
+    constexpr int mode_mask =
+        all_real_modes_mask & ~RelocInfo::ModeMask(RelocInfo::COMMENT) &
+        ~RelocInfo::ModeMask(RelocInfo::INTERNAL_REFERENCE) &
+        ~RelocInfo::ModeMask(RelocInfo::INTERNAL_REFERENCE_ENCODED) &
+        ~RelocInfo::ModeMask(RelocInfo::CONST_POOL) &
+        ~RelocInfo::ModeMask(RelocInfo::VENEER_POOL) &
+        ~RelocInfo::ModeMask(RelocInfo::EXTERNAL_REFERENCE);
+    STATIC_ASSERT(RelocInfo::LAST_REAL_RELOC_MODE == RelocInfo::VENEER_POOL);
+    STATIC_ASSERT(RelocInfo::ModeMask(RelocInfo::COMMENT) ==
+                  (1 << RelocInfo::COMMENT));
+    STATIC_ASSERT(
+        mode_mask ==
+        (RelocInfo::ModeMask(RelocInfo::CODE_TARGET) |
+         RelocInfo::ModeMask(RelocInfo::EMBEDDED_OBJECT) |
+         RelocInfo::ModeMask(RelocInfo::WASM_CONTEXT_REFERENCE) |
+         RelocInfo::ModeMask(RelocInfo::WASM_FUNCTION_TABLE_SIZE_REFERENCE) |
+         RelocInfo::ModeMask(RelocInfo::WASM_GLOBAL_HANDLE) |
+         RelocInfo::ModeMask(RelocInfo::WASM_CALL) |
+         RelocInfo::ModeMask(RelocInfo::JS_TO_WASM_CALL) |
+         RelocInfo::ModeMask(RelocInfo::RUNTIME_ENTRY)));
 
-    bool is_off_heap_safe = true;
-    for (RelocIterator it(code, mode_mask); !it.done(); it.next()) {
-      is_off_heap_safe = false;
-#ifdef ENABLE_DISASSEMBLER
+    constexpr bool kVerbose = false;
+    bool found_mismatch = false;
+    for (int i = 0; i < Builtins::builtin_count; i++) {
+      Code* code = isolate->builtins()->builtin(i);
+
       if (kVerbose) {
-        RelocInfo::Mode mode = it.rinfo()->rmode();
-        printf("  %s\n", RelocInfo::RelocModeName(mode));
+        printf("%s %s\n", Builtins::KindNameOf(i),
+               isolate->builtins()->name(i));
       }
+
+      bool is_off_heap_safe = true;
+      for (RelocIterator it(code, mode_mask); !it.done(); it.next()) {
+        is_off_heap_safe = false;
+#ifdef ENABLE_DISASSEMBLER
+        if (kVerbose) {
+          RelocInfo::Mode mode = it.rinfo()->rmode();
+          printf("  %s\n", RelocInfo::RelocModeName(mode));
+        }
 #endif
+      }
+
+      // TODO(jgruber): Remove once we properly set up the on-heap code
+      // trampoline.
+      if (Builtins::IsTooShortForOffHeapTrampoline(i)) is_off_heap_safe = false;
+
+      // Relaxed condition only checks whether the off-heap-safe list is
+      // valid, not whether it is complete. This is to avoid constant work
+      // updating the list.
+      bool should_be_off_heap_safe = Builtins::IsOffHeapSafe(i);
+      if (should_be_off_heap_safe && !is_off_heap_safe) {
+        found_mismatch = true;
+        printf("%s %s expected: %d, is: %d\n", Builtins::KindNameOf(i),
+               isolate->builtins()->name(i), should_be_off_heap_safe,
+               is_off_heap_safe);
+      }
     }
 
-    // TODO(jgruber): Remove once we properly set up the on-heap code
-    // trampoline.
-    if (Builtins::IsTooShortForOffHeapTrampoline(i)) is_off_heap_safe = false;
-
-    const bool expected_result = Builtins::IsOffHeapSafe(i);
-    if (is_off_heap_safe != expected_result) {
-      found_mismatch = true;
-      printf("%s %s expected: %d, is: %d\n", Builtins::KindNameOf(i),
-             isolate->builtins()->name(i), expected_result, is_off_heap_safe);
-    }
+    CHECK(!found_mismatch);
   }
 
-  CHECK(!found_mismatch);
+  v8_isolate->Dispose();
 }
 #endif  // V8_EMBEDDED_BUILTINS
 
