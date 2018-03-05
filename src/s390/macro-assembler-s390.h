@@ -1109,6 +1109,10 @@ class MacroAssembler : public TurboAssembler {
                              Register scratch, DoubleRegister double_scratch);
 
   // ---------------------------------------------------------------------------
+  // In-place weak references.
+  void LoadWeakValue(Register out, Register in, Label* target_if_cleared);
+
+  // ---------------------------------------------------------------------------
   // StatsCounter support
 
   void IncrementCounter(StatsCounter* counter, int value, Register scratch1,
