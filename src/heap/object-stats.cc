@@ -277,7 +277,7 @@ ObjectStatsCollectorImpl::ObjectStatsCollectorImpl(Heap* heap,
 
 bool ObjectStatsCollectorImpl::ShouldRecordObject(HeapObject* obj,
                                                   CowMode check_cow_array) {
-  if (obj->IsFixedArray()) {
+  if (obj->IsFixedArrayExact()) {
     FixedArray* fixed_array = FixedArray::cast(obj);
     bool cow_check = check_cow_array == kIgnoreCow || !IsCowArray(fixed_array);
     return CanRecordFixedArray(fixed_array) && cow_check;
@@ -480,7 +480,7 @@ void ObjectStatsCollectorImpl::RecordVirtualFeedbackVectorDetails(
         Object* raw_object = vector->get(slot.ToInt() + i);
         if (!raw_object->IsHeapObject()) continue;
         HeapObject* object = HeapObject::cast(raw_object);
-        if (object->IsCell() || object->IsFixedArray()) {
+        if (object->IsCell() || object->IsFixedArrayExact()) {
           RecordSimpleVirtualObjectStats(
               vector, object, ObjectStats::FEEDBACK_VECTOR_ENTRY_TYPE);
         }
@@ -531,7 +531,7 @@ void ObjectStatsCollectorImpl::CollectStatistics(HeapObject* obj, Phase phase) {
         RecordVirtualContext(Context::cast(obj));
       } else if (obj->IsScript()) {
         RecordVirtualScriptDetails(Script::cast(obj));
-      } else if (obj->IsFixedArray()) {
+      } else if (obj->IsFixedArrayExact()) {
         // Has to go last as it triggers too eagerly.
         RecordVirtualFixedArrayDetails(FixedArray::cast(obj));
       }
@@ -702,7 +702,7 @@ namespace {
 bool MatchesConstantElementsPair(Object* object) {
   if (!object->IsTuple2()) return false;
   Tuple2* tuple = Tuple2::cast(object);
-  return tuple->value1()->IsSmi() && tuple->value2()->IsFixedArray();
+  return tuple->value1()->IsSmi() && tuple->value2()->IsFixedArrayExact();
 }
 
 }  // namespace
@@ -711,20 +711,19 @@ void ObjectStatsCollectorImpl::
     RecordVirtualObjectsForConstantPoolOrEmbeddedObjects(
         HeapObject* parent, HeapObject* object,
         ObjectStats::VirtualInstanceType type) {
-  if (RecordSimpleVirtualObjectStats(parent, object, type)) {
-    if (object->IsFixedArray()) {
-      FixedArray* array = FixedArray::cast(object);
-      for (int i = 0; i < array->length(); i++) {
-        Object* entry = array->get(i);
-        if (!entry->IsHeapObject()) continue;
-        RecordVirtualObjectsForConstantPoolOrEmbeddedObjects(
-            array, HeapObject::cast(entry), type);
-      }
-    } else if (MatchesConstantElementsPair(object)) {
-      Tuple2* tuple = Tuple2::cast(object);
+  if (!RecordSimpleVirtualObjectStats(parent, object, type)) return;
+  if (object->IsFixedArrayExact()) {
+    FixedArray* array = FixedArray::cast(object);
+    for (int i = 0; i < array->length(); i++) {
+      Object* entry = array->get(i);
+      if (!entry->IsHeapObject()) continue;
       RecordVirtualObjectsForConstantPoolOrEmbeddedObjects(
-          tuple, HeapObject::cast(tuple->value2()), type);
+          array, HeapObject::cast(entry), type);
     }
+  } else if (MatchesConstantElementsPair(object)) {
+    Tuple2* tuple = Tuple2::cast(object);
+    RecordVirtualObjectsForConstantPoolOrEmbeddedObjects(
+        tuple, HeapObject::cast(tuple->value2()), type);
   }
 }
 
@@ -738,7 +737,7 @@ void ObjectStatsCollectorImpl::RecordVirtualBytecodeArrayDetails(
   FixedArray* constant_pool = FixedArray::cast(bytecode->constant_pool());
   for (int i = 0; i < constant_pool->length(); i++) {
     Object* entry = constant_pool->get(i);
-    if (entry->IsFixedArray() || MatchesConstantElementsPair(entry)) {
+    if (entry->IsFixedArrayExact() || MatchesConstantElementsPair(entry)) {
       RecordVirtualObjectsForConstantPoolOrEmbeddedObjects(
           constant_pool, HeapObject::cast(entry),
           ObjectStats::EMBEDDED_OBJECT_TYPE);
@@ -786,7 +785,7 @@ void ObjectStatsCollectorImpl::RecordVirtualCodeDetails(Code* code) {
     RelocInfo::Mode mode = it.rinfo()->rmode();
     if (mode == RelocInfo::EMBEDDED_OBJECT) {
       Object* target = it.rinfo()->target_object();
-      if (target->IsFixedArray() || MatchesConstantElementsPair(target)) {
+      if (target->IsFixedArrayExact() || MatchesConstantElementsPair(target)) {
         RecordVirtualObjectsForConstantPoolOrEmbeddedObjects(
             code, HeapObject::cast(target), ObjectStats::EMBEDDED_OBJECT_TYPE);
       }
