@@ -556,7 +556,8 @@ MaybeHandle<MutableBigInt> MutableBigInt::BitwiseAnd(Handle<BigInt> x,
     if (!AbsoluteSubOne(x, result_length).ToHandle(&result)) {
       return MaybeHandle<MutableBigInt>();
     }
-    result = AbsoluteOr(result, AbsoluteSubOne(y), *result);
+    Handle<MutableBigInt> y_1 = AbsoluteSubOne(y);
+    result = AbsoluteOr(result, y_1, *result);
     return AbsoluteAddOne(result, true, *result);
   } else {
     DCHECK(x->sign() != y->sign());
@@ -580,7 +581,8 @@ MaybeHandle<MutableBigInt> MutableBigInt::BitwiseXor(Handle<BigInt> x,
     // (-x) ^ (-y) == ~(x-1) ^ ~(y-1) == (x-1) ^ (y-1)
     Handle<MutableBigInt> result =
         AbsoluteSubOne(x, result_length).ToHandleChecked();
-    return AbsoluteXor(result, AbsoluteSubOne(y), *result);
+    Handle<MutableBigInt> y_1 = AbsoluteSubOne(y);
+    return AbsoluteXor(result, y_1, *result);
   } else {
     DCHECK(x->sign() != y->sign());
     int result_length = Max(x->length(), y->length()) + 1;
@@ -610,7 +612,8 @@ MaybeHandle<MutableBigInt> MutableBigInt::BitwiseOr(Handle<BigInt> x,
     // == -(((x-1) & (y-1)) + 1)
     Handle<MutableBigInt> result =
         AbsoluteSubOne(x, result_length).ToHandleChecked();
-    result = AbsoluteAnd(result, AbsoluteSubOne(y), *result);
+    Handle<MutableBigInt> y_1 = AbsoluteSubOne(y);
+    result = AbsoluteAnd(result, y_1, *result);
     return AbsoluteAddOne(result, true, *result);
   } else {
     DCHECK(x->sign() != y->sign());
