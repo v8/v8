@@ -346,22 +346,23 @@ LiftoffAssembler::~LiftoffAssembler() {
   }
 }
 
-LiftoffRegister LiftoffAssembler::PopToRegister(RegClass rc,
-                                                LiftoffRegList pinned) {
+LiftoffRegister LiftoffAssembler::PopToRegister(LiftoffRegList pinned) {
   DCHECK(!cache_state_.stack_state.empty());
   VarState slot = cache_state_.stack_state.back();
   cache_state_.stack_state.pop_back();
   switch (slot.loc()) {
     case VarState::kStack: {
-      LiftoffRegister reg = GetUnusedRegister(rc, pinned);
+      LiftoffRegister reg =
+          GetUnusedRegister(reg_class_for(slot.type()), pinned);
       Fill(reg, cache_state_.stack_height(), slot.type());
       return reg;
     }
     case VarState::kRegister:
-      DCHECK_EQ(rc, slot.reg_class());
       cache_state_.dec_used(slot.reg());
       return slot.reg();
     case VarState::KIntConst: {
+      RegClass rc =
+          kNeedI64RegPair && slot.type() == kWasmI64 ? kGpRegPair : kGpReg;
       LiftoffRegister reg = GetUnusedRegister(rc, pinned);
       LoadConstant(reg, slot.constant());
       return reg;

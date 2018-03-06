@@ -432,7 +432,7 @@ class LiftoffCompiler {
     if_block->else_state = base::make_unique<ElseState>();
 
     // Test the condition, jump to else if zero.
-    Register value = __ PopToRegister(kGpReg).gp();
+    Register value = __ PopToRegister().gp();
     __ emit_cond_jump(kEqual, if_block->else_state->label.get(), kWasmI32,
                       value);
 
@@ -523,7 +523,7 @@ class LiftoffCompiler {
   void EmitUnOp(EmitFn fn) {
     static RegClass rc = reg_class_for(type);
     LiftoffRegList pinned;
-    LiftoffRegister src = pinned.set(__ PopToRegister(rc, pinned));
+    LiftoffRegister src = pinned.set(__ PopToRegister(pinned));
     LiftoffRegister dst = __ GetUnusedRegister(rc, {src}, pinned);
     fn(dst, src);
     __ PushRegister(type, dst);
@@ -582,18 +582,18 @@ class LiftoffCompiler {
   void EmitMonomorphicBinOp(EmitFn fn) {
     static constexpr RegClass rc = reg_class_for(type);
     LiftoffRegList pinned;
-    LiftoffRegister rhs = pinned.set(__ PopToRegister(rc, pinned));
-    LiftoffRegister lhs = pinned.set(__ PopToRegister(rc, pinned));
+    LiftoffRegister rhs = pinned.set(__ PopToRegister(pinned));
+    LiftoffRegister lhs = pinned.set(__ PopToRegister(pinned));
     LiftoffRegister dst = __ GetUnusedRegister(rc, {lhs, rhs}, pinned);
     fn(dst, lhs, rhs);
     __ PushRegister(type, dst);
   }
 
-  template <ValueType result_type, RegClass src_rc, typename EmitFn>
+  template <ValueType result_type, typename EmitFn>
   void EmitBinOpWithDifferentResultType(EmitFn fn) {
     LiftoffRegList pinned;
-    LiftoffRegister rhs = pinned.set(__ PopToRegister(src_rc, pinned));
-    LiftoffRegister lhs = pinned.set(__ PopToRegister(src_rc, pinned));
+    LiftoffRegister rhs = pinned.set(__ PopToRegister(pinned));
+    LiftoffRegister lhs = pinned.set(__ PopToRegister(pinned));
     LiftoffRegister dst = __ GetUnusedRegister(reg_class_for(result_type));
     fn(dst, lhs, rhs);
     __ PushRegister(result_type, dst);
@@ -621,7 +621,7 @@ class LiftoffCompiler {
         });
 #define CASE_F32_CMPOP(opcode, cond)                                         \
   case WasmOpcode::kExpr##opcode:                                            \
-    return EmitBinOpWithDifferentResultType<kWasmI32, kFpReg>(               \
+    return EmitBinOpWithDifferentResultType<kWasmI32>(                       \
         [=](LiftoffRegister dst, LiftoffRegister lhs, LiftoffRegister rhs) { \
           __ emit_f32_set_cond(cond, dst.gp(), lhs.fp(), rhs.fp());          \
         });
@@ -731,8 +731,7 @@ class LiftoffCompiler {
     }
     if (!values.is_empty()) {
       if (values.size() > 1) return unsupported(decoder, "multi-return");
-      RegClass rc = reg_class_for(values[0].type);
-      LiftoffRegister reg = __ PopToRegister(rc);
+      LiftoffRegister reg = __ PopToRegister();
       __ MoveToReturnRegister(reg, values[0].type);
     }
     __ LeaveFrame(StackFrame::WASM_COMPILED);
@@ -840,8 +839,7 @@ class LiftoffCompiler {
     Register addr = pinned.set(__ GetUnusedRegister(kGpReg)).gp();
     __ LoadFromContext(addr, offsetof(WasmContext, globals_start),
                        kPointerSize);
-    LiftoffRegister reg =
-        pinned.set(__ PopToRegister(reg_class_for(global->type), pinned));
+    LiftoffRegister reg = pinned.set(__ PopToRegister(pinned));
     StoreType type =
         global->type == kWasmI32 ? StoreType::kI32Store : StoreType::kI64Store;
     __ Store(addr, no_reg, global->offset, reg, type, pinned);
@@ -869,7 +867,7 @@ class LiftoffCompiler {
 
   void BrIf(Decoder* decoder, const Value& cond, Control* target) {
     Label cont_false;
-    Register value = __ PopToRegister(kGpReg).gp();
+    Register value = __ PopToRegister().gp();
     __ emit_cond_jump(kEqual, &cont_false, kWasmI32, value);
 
     Br(target);
@@ -920,7 +918,7 @@ class LiftoffCompiler {
   void BrTable(Decoder* decoder, const BranchTableOperand<validate>& operand,
                const Value& key) {
     LiftoffRegList pinned;
-    LiftoffRegister value = pinned.set(__ PopToRegister(kGpReg));
+    LiftoffRegister value = pinned.set(__ PopToRegister());
     BranchTableIterator<validate> table_iterator(decoder, operand);
     std::map<uint32_t, MovableLabel> br_targets;
 
@@ -1082,7 +1080,7 @@ class LiftoffCompiler {
     ValueType value_type = type.value_type();
     if (!CheckSupportedType(decoder, kTypes_ilfd, value_type, "load")) return;
     LiftoffRegList pinned;
-    Register index = pinned.set(__ PopToRegister(kGpReg)).gp();
+    Register index = pinned.set(__ PopToRegister()).gp();
     if (BoundsCheckMem(decoder, type.size(), operand.offset, index, pinned)) {
       return;
     }
@@ -1111,10 +1109,9 @@ class LiftoffCompiler {
                 const Value& index_val, const Value& value_val) {
     ValueType value_type = type.value_type();
     if (!CheckSupportedType(decoder, kTypes_ilfd, value_type, "store")) return;
-    RegClass rc = reg_class_for(value_type);
     LiftoffRegList pinned;
-    LiftoffRegister value = pinned.set(__ PopToRegister(rc));
-    Register index = pinned.set(__ PopToRegister(kGpReg, pinned)).gp();
+    LiftoffRegister value = pinned.set(__ PopToRegister());
+    Register index = pinned.set(__ PopToRegister(pinned)).gp();
     if (BoundsCheckMem(decoder, type.size(), operand.offset, index, pinned)) {
       return;
     }
@@ -1194,7 +1191,7 @@ class LiftoffCompiler {
     uint32_t table_index = 0;
 
     // Pop the index.
-    LiftoffRegister index = __ PopToRegister(kGpReg);
+    LiftoffRegister index = __ PopToRegister();
     // If that register is still being used after popping, we move it to another
     // register, because we want to modify that register.
     if (__ cache_state()->is_used(index)) {

@@ -246,7 +246,7 @@ class LiftoffAssembler : public TurboAssembler {
   explicit LiftoffAssembler(Isolate* isolate);
   ~LiftoffAssembler();
 
-  LiftoffRegister PopToRegister(RegClass, LiftoffRegList pinned = {});
+  LiftoffRegister PopToRegister(LiftoffRegList pinned = {});
 
   void PushRegister(ValueType type, LiftoffRegister reg) {
     DCHECK_EQ(reg_class_for(type), reg.reg_class());
