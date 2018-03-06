@@ -4545,50 +4545,58 @@ Node* WasmGraphBuilder::Simd8x16ShuffleOp(const uint8_t shuffle[16],
                           inputs[0], inputs[1]);
 }
 
-#define ATOMIC_BINOP_LIST(V)                      \
-  V(I32AtomicAdd, Add, Uint32, Word32)            \
-  V(I64AtomicAdd, Add, Uint64, Word64)            \
-  V(I32AtomicAdd8U, Add, Uint8, Word32)           \
-  V(I32AtomicAdd16U, Add, Uint16, Word32)         \
-  V(I64AtomicAdd8U, Add, Uint8, Word64)           \
-  V(I64AtomicAdd16U, Add, Uint16, Word64)         \
-  V(I64AtomicAdd32U, Add, Uint32, Word64)         \
-  V(I32AtomicSub, Sub, Uint32, Word32)            \
-  V(I64AtomicSub, Sub, Uint64, Word64)            \
-  V(I32AtomicSub8U, Sub, Uint8, Word32)           \
-  V(I32AtomicSub16U, Sub, Uint16, Word32)         \
-  V(I64AtomicSub8U, Sub, Uint8, Word64)           \
-  V(I64AtomicSub16U, Sub, Uint16, Word64)         \
-  V(I64AtomicSub32U, Sub, Uint32, Word64)         \
-  V(I32AtomicAnd, And, Uint32, Word32)            \
-  V(I64AtomicAnd, And, Uint64, Word64)            \
-  V(I32AtomicAnd8U, And, Uint8, Word32)           \
-  V(I64AtomicAnd16U, And, Uint16, Word64)         \
-  V(I32AtomicAnd16U, And, Uint16, Word32)         \
-  V(I64AtomicAnd8U, And, Uint8, Word64)           \
-  V(I64AtomicAnd32U, And, Uint32, Word64)         \
-  V(I32AtomicOr, Or, Uint32, Word32)              \
-  V(I64AtomicOr, Or, Uint64, Word64)              \
-  V(I32AtomicOr8U, Or, Uint8, Word32)             \
-  V(I32AtomicOr16U, Or, Uint16, Word32)           \
-  V(I64AtomicOr8U, Or, Uint8, Word64)             \
-  V(I64AtomicOr16U, Or, Uint16, Word64)           \
-  V(I64AtomicOr32U, Or, Uint32, Word64)           \
-  V(I32AtomicXor, Xor, Uint32, Word32)            \
-  V(I64AtomicXor, Xor, Uint64, Word64)            \
-  V(I32AtomicXor8U, Xor, Uint8, Word32)           \
-  V(I32AtomicXor16U, Xor, Uint16, Word32)         \
-  V(I64AtomicXor8U, Xor, Uint8, Word64)           \
-  V(I64AtomicXor16U, Xor, Uint16, Word64)         \
-  V(I64AtomicXor32U, Xor, Uint32, Word64)         \
-  V(I32AtomicExchange, Exchange, Uint32, Word32)  \
-  V(I32AtomicExchange8U, Exchange, Uint8, Word32) \
-  V(I32AtomicExchange16U, Exchange, Uint16, Word32)
+#define ATOMIC_BINOP_LIST(V)                        \
+  V(I32AtomicAdd, Add, Uint32, Word32)              \
+  V(I64AtomicAdd, Add, Uint64, Word64)              \
+  V(I32AtomicAdd8U, Add, Uint8, Word32)             \
+  V(I32AtomicAdd16U, Add, Uint16, Word32)           \
+  V(I64AtomicAdd8U, Add, Uint8, Word64)             \
+  V(I64AtomicAdd16U, Add, Uint16, Word64)           \
+  V(I64AtomicAdd32U, Add, Uint32, Word64)           \
+  V(I32AtomicSub, Sub, Uint32, Word32)              \
+  V(I64AtomicSub, Sub, Uint64, Word64)              \
+  V(I32AtomicSub8U, Sub, Uint8, Word32)             \
+  V(I32AtomicSub16U, Sub, Uint16, Word32)           \
+  V(I64AtomicSub8U, Sub, Uint8, Word64)             \
+  V(I64AtomicSub16U, Sub, Uint16, Word64)           \
+  V(I64AtomicSub32U, Sub, Uint32, Word64)           \
+  V(I32AtomicAnd, And, Uint32, Word32)              \
+  V(I64AtomicAnd, And, Uint64, Word64)              \
+  V(I32AtomicAnd8U, And, Uint8, Word32)             \
+  V(I64AtomicAnd16U, And, Uint16, Word64)           \
+  V(I32AtomicAnd16U, And, Uint16, Word32)           \
+  V(I64AtomicAnd8U, And, Uint8, Word64)             \
+  V(I64AtomicAnd32U, And, Uint32, Word64)           \
+  V(I32AtomicOr, Or, Uint32, Word32)                \
+  V(I64AtomicOr, Or, Uint64, Word64)                \
+  V(I32AtomicOr8U, Or, Uint8, Word32)               \
+  V(I32AtomicOr16U, Or, Uint16, Word32)             \
+  V(I64AtomicOr8U, Or, Uint8, Word64)               \
+  V(I64AtomicOr16U, Or, Uint16, Word64)             \
+  V(I64AtomicOr32U, Or, Uint32, Word64)             \
+  V(I32AtomicXor, Xor, Uint32, Word32)              \
+  V(I64AtomicXor, Xor, Uint64, Word64)              \
+  V(I32AtomicXor8U, Xor, Uint8, Word32)             \
+  V(I32AtomicXor16U, Xor, Uint16, Word32)           \
+  V(I64AtomicXor8U, Xor, Uint8, Word64)             \
+  V(I64AtomicXor16U, Xor, Uint16, Word64)           \
+  V(I64AtomicXor32U, Xor, Uint32, Word64)           \
+  V(I32AtomicExchange, Exchange, Uint32, Word32)    \
+  V(I64AtomicExchange, Exchange, Uint64, Word64)    \
+  V(I32AtomicExchange8U, Exchange, Uint8, Word32)   \
+  V(I32AtomicExchange16U, Exchange, Uint16, Word32) \
+  V(I64AtomicExchange8U, Exchange, Uint8, Word64)   \
+  V(I64AtomicExchange16U, Exchange, Uint16, Word64) \
+  V(I64AtomicExchange32U, Exchange, Uint32, Word64)
 
-#define ATOMIC_TERNARY_LIST(V)                          \
-  V(I32AtomicCompareExchange, CompareExchange, Uint32)  \
-  V(I32AtomicCompareExchange8U, CompareExchange, Uint8) \
-  V(I32AtomicCompareExchange16U, CompareExchange, Uint16)
+#define ATOMIC_TERNARY_LIST(V)                                    \
+  V(I32AtomicCompareExchange, CompareExchange, Uint32, Word32)    \
+  V(I64AtomicCompareExchange, CompareExchange, Uint64, Word64)    \
+  V(I32AtomicCompareExchange8U, CompareExchange, Uint8, Word32)   \
+  V(I32AtomicCompareExchange16U, CompareExchange, Uint16, Word32) \
+  V(I64AtomicCompareExchange8U, CompareExchange, Uint8, Word64)   \
+  V(I64AtomicCompareExchange16U, CompareExchange, Uint16, Word64) \
+  V(I64AtomicCompareExchange32U, CompareExchange, Uint32, Word64)
 
 #define ATOMIC_LOAD_LIST(V) \
   V(I32AtomicLoad, Uint32)  \
@@ -4619,13 +4627,13 @@ Node* WasmGraphBuilder::AtomicOp(wasm::WasmOpcode opcode, Node* const* inputs,
     ATOMIC_BINOP_LIST(BUILD_ATOMIC_BINOP)
 #undef BUILD_ATOMIC_BINOP
 
-#define BUILD_ATOMIC_TERNARY_OP(Name, Operation, Type)                        \
+#define BUILD_ATOMIC_TERNARY_OP(Name, Operation, Type, Prefix)                \
   case wasm::kExpr##Name: {                                                   \
     Node* index =                                                             \
         BoundsCheckMem(wasm::WasmOpcodes::MemSize(MachineType::Type()),       \
                        inputs[0], offset, position, kNeedsBoundsCheck);       \
     node = graph()->NewNode(                                                  \
-        jsgraph()->machine()->Word32Atomic##Operation(MachineType::Type()),   \
+        jsgraph()->machine()->Prefix##Atomic##Operation(MachineType::Type()), \
         MemBuffer(offset), index, inputs[1], inputs[2], *effect_, *control_); \
     break;                                                                    \
   }

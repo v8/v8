@@ -615,8 +615,12 @@ class V8_EXPORT_PRIVATE MachineOperatorBuilder final
   const Operator* Word32AtomicStore(MachineRepresentation rep);
   // atomic-exchange [base + index], value
   const Operator* Word32AtomicExchange(MachineType rep);
+  // atomic-exchange [base + index], value
+  const Operator* Word64AtomicExchange(MachineType rep);
   // atomic-compare-exchange [base + index], old_value, new_value
   const Operator* Word32AtomicCompareExchange(MachineType rep);
+  // atomic-compare-exchange [base + index], old_value, new_value
+  const Operator* Word64AtomicCompareExchange(MachineType rep);
   // atomic-add [base + index], value
   const Operator* Word32AtomicAdd(MachineType rep);
   // atomic-sub [base + index], value

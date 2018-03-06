@@ -2239,6 +2239,44 @@ void InstructionSelector::VisitWord32AtomicExchange(Node* node) {
   Emit(code, 1, outputs, input_count, inputs);
 }
 
+void InstructionSelector::VisitWord64AtomicExchange(Node* node) {
+  X64OperandGenerator g(this);
+  Node* base = node->InputAt(0);
+  Node* index = node->InputAt(1);
+  Node* value = node->InputAt(2);
+
+  MachineType type = AtomicOpRepresentationOf(node->op());
+  ArchOpcode opcode = kArchNop;
+  if (type == MachineType::Uint8()) {
+    opcode = kX64Word64AtomicExchangeUint8;
+  } else if (type == MachineType::Uint16()) {
+    opcode = kX64Word64AtomicExchangeUint16;
+  } else if (type == MachineType::Uint32()) {
+    opcode = kX64Word64AtomicExchangeUint32;
+  } else if (type == MachineType::Uint64()) {
+    opcode = kX64Word64AtomicExchangeUint64;
+  } else {
+    UNREACHABLE();
+    return;
+  }
+  InstructionOperand outputs[1];
+  AddressingMode addressing_mode;
+  InstructionOperand inputs[3];
+  size_t input_count = 0;
+  inputs[input_count++] = g.UseUniqueRegister(value);
+  inputs[input_count++] = g.UseUniqueRegister(base);
+  if (g.CanBeImmediate(index)) {
+    inputs[input_count++] = g.UseImmediate(index);
+    addressing_mode = kMode_MRI;
+  } else {
+    inputs[input_count++] = g.UseUniqueRegister(index);
+    addressing_mode = kMode_MR1;
+  }
+  outputs[0] = g.DefineSameAsFirst(node);
+  InstructionCode code = opcode | AddressingModeField::encode(addressing_mode);
+  Emit(code, 1, outputs, input_count, inputs);
+}
+
 void InstructionSelector::VisitWord32AtomicCompareExchange(Node* node) {
   X64OperandGenerator g(this);
   Node* base = node->InputAt(0);
@@ -2258,6 +2296,46 @@ void InstructionSelector::VisitWord32AtomicCompareExchange(Node* node) {
     opcode = kWord32AtomicCompareExchangeUint16;
   } else if (type == MachineType::Int32() || type == MachineType::Uint32()) {
     opcode = kWord32AtomicCompareExchangeWord32;
+  } else {
+    UNREACHABLE();
+    return;
+  }
+  InstructionOperand outputs[1];
+  AddressingMode addressing_mode;
+  InstructionOperand inputs[4];
+  size_t input_count = 0;
+  inputs[input_count++] = g.UseFixed(old_value, rax);
+  inputs[input_count++] = g.UseUniqueRegister(new_value);
+  inputs[input_count++] = g.UseUniqueRegister(base);
+  if (g.CanBeImmediate(index)) {
+    inputs[input_count++] = g.UseImmediate(index);
+    addressing_mode = kMode_MRI;
+  } else {
+    inputs[input_count++] = g.UseUniqueRegister(index);
+    addressing_mode = kMode_MR1;
+  }
+  outputs[0] = g.DefineAsFixed(node, rax);
+  InstructionCode code = opcode | AddressingModeField::encode(addressing_mode);
+  Emit(code, 1, outputs, input_count, inputs);
+}
+
+void InstructionSelector::VisitWord64AtomicCompareExchange(Node* node) {
+  X64OperandGenerator g(this);
+  Node* base = node->InputAt(0);
+  Node* index = node->InputAt(1);
+  Node* old_value = node->InputAt(2);
+  Node* new_value = node->InputAt(3);
+
+  MachineType type = AtomicOpRepresentationOf(node->op());
+  ArchOpcode opcode = kArchNop;
+  if (type == MachineType::Uint8()) {
+    opcode = kX64Word64AtomicCompareExchangeUint8;
+  } else if (type == MachineType::Uint16()) {
+    opcode = kX64Word64AtomicCompareExchangeUint16;
+  } else if (type == MachineType::Uint32()) {
+    opcode = kX64Word64AtomicCompareExchangeUint32;
+  } else if (type == MachineType::Uint64()) {
+    opcode = kX64Word64AtomicCompareExchangeUint64;
   } else {
     UNREACHABLE();
     return;

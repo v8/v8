@@ -603,13 +603,13 @@ struct MachineOperatorGlobalCache {
                                  3, 1, 1, 1, 1, 0, MachineType::type()) {}     \
   };                                                                           \
   op##type##Operator k##op##type;
-#define ATOMIC_OP_LIST(type)            \
-  ATOMIC_OP(Word32AtomicExchange, type) \
-  ATOMIC_OP(Word32AtomicAdd, type)      \
-  ATOMIC_OP(Word32AtomicSub, type)      \
-  ATOMIC_OP(Word32AtomicAnd, type)      \
-  ATOMIC_OP(Word32AtomicOr, type)       \
-  ATOMIC_OP(Word32AtomicXor, type)
+#define ATOMIC_OP_LIST(type)       \
+  ATOMIC_OP(Word32AtomicAdd, type) \
+  ATOMIC_OP(Word32AtomicSub, type) \
+  ATOMIC_OP(Word32AtomicAnd, type) \
+  ATOMIC_OP(Word32AtomicOr, type)  \
+  ATOMIC_OP(Word32AtomicXor, type) \
+  ATOMIC_OP(Word32AtomicExchange, type)
   ATOMIC_TYPE_LIST(ATOMIC_OP_LIST)
 #undef ATOMIC_OP_LIST
 #define ATOMIC64_OP_LIST(type)     \
@@ -617,7 +617,8 @@ struct MachineOperatorGlobalCache {
   ATOMIC_OP(Word64AtomicSub, type) \
   ATOMIC_OP(Word64AtomicAnd, type) \
   ATOMIC_OP(Word64AtomicOr, type)  \
-  ATOMIC_OP(Word64AtomicXor, type)
+  ATOMIC_OP(Word64AtomicXor, type) \
+  ATOMIC_OP(Word64AtomicExchange, type)
   ATOMIC64_TYPE_LIST(ATOMIC64_OP_LIST)
 #undef ATOMIC64_OP_LIST
 #undef ATOMIC_OP
@@ -634,6 +635,20 @@ struct MachineOperatorGlobalCache {
   Word32AtomicCompareExchange##Type##Operator                                  \
       kWord32AtomicCompareExchange##Type;
   ATOMIC_TYPE_LIST(ATOMIC_COMPARE_EXCHANGE)
+#undef ATOMIC_COMPARE_EXCHANGE
+
+#define ATOMIC_COMPARE_EXCHANGE(Type)                                          \
+  struct Word64AtomicCompareExchange##Type##Operator                           \
+      : public Operator1<MachineType> {                                        \
+    Word64AtomicCompareExchange##Type##Operator()                              \
+        : Operator1<MachineType>(IrOpcode::kWord64AtomicCompareExchange,       \
+                                 Operator::kNoDeopt | Operator::kNoThrow,      \
+                                 "Word64AtomicCompareExchange", 4, 1, 1, 1, 1, \
+                                 0, MachineType::Type()) {}                    \
+  };                                                                           \
+  Word64AtomicCompareExchange##Type##Operator                                  \
+      kWord64AtomicCompareExchange##Type;
+  ATOMIC64_TYPE_LIST(ATOMIC_COMPARE_EXCHANGE)
 #undef ATOMIC_COMPARE_EXCHANGE
 
   // The {BitcastWordToTagged} operator must not be marked as pure (especially
@@ -1005,6 +1020,27 @@ const Operator* MachineOperatorBuilder::Word64AtomicXor(MachineType rep) {
   }
   ATOMIC64_TYPE_LIST(XOR)
 #undef XOR
+  UNREACHABLE();
+}
+
+const Operator* MachineOperatorBuilder::Word64AtomicExchange(MachineType rep) {
+#define EXCHANGE(kRep)                          \
+  if (rep == MachineType::kRep()) {             \
+    return &cache_.kWord64AtomicExchange##kRep; \
+  }
+  ATOMIC64_TYPE_LIST(EXCHANGE)
+#undef EXCHANGE
+  UNREACHABLE();
+}
+
+const Operator* MachineOperatorBuilder::Word64AtomicCompareExchange(
+    MachineType rep) {
+#define COMPARE_EXCHANGE(kRep)                         \
+  if (rep == MachineType::kRep()) {                    \
+    return &cache_.kWord64AtomicCompareExchange##kRep; \
+  }
+  ATOMIC64_TYPE_LIST(COMPARE_EXCHANGE)
+#undef COMPARE_EXCHANGE
   UNREACHABLE();
 }
 

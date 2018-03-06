@@ -260,8 +260,8 @@ const char* WasmOpcodes::OpcodeName(WasmOpcode opcode) {
     CASE_UNSIGNED_ALL_OP(AtomicAnd, "atomic_and")
     CASE_UNSIGNED_ALL_OP(AtomicOr, "atomic_or")
     CASE_UNSIGNED_ALL_OP(AtomicXor, "atomic_xor")
-    CASE_U32_OP(AtomicExchange, "atomic_xchng")
-    CASE_U32_OP(AtomicCompareExchange, "atomic_cmpxchng")
+    CASE_UNSIGNED_ALL_OP(AtomicExchange, "atomic_xchng")
+    CASE_UNSIGNED_ALL_OP(AtomicCompareExchange, "atomic_cmpxchng")
 
     default : return "unknown";
     // clang-format on

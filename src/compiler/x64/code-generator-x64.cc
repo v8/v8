@@ -2736,6 +2736,46 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       ATOMIC_BINOP_CASE(Or, orl)
       ATOMIC_BINOP_CASE(Xor, xorl)
 #undef ATOMIC_BINOP_CASE
+    case kX64Word64AtomicExchangeUint8: {
+      __ xchgb(i.InputRegister(0), i.MemoryOperand(1));
+      __ movzxbq(i.InputRegister(0), i.InputRegister(0));
+      break;
+    }
+    case kX64Word64AtomicExchangeUint16: {
+      __ xchgw(i.InputRegister(0), i.MemoryOperand(1));
+      __ movzxwq(i.InputRegister(0), i.InputRegister(0));
+      break;
+    }
+    case kX64Word64AtomicExchangeUint32: {
+      __ xchgl(i.InputRegister(0), i.MemoryOperand(1));
+      break;
+    }
+    case kX64Word64AtomicExchangeUint64: {
+      __ xchgq(i.InputRegister(0), i.MemoryOperand(1));
+      break;
+    }
+    case kX64Word64AtomicCompareExchangeUint8: {
+      __ lock();
+      __ cmpxchgb(i.MemoryOperand(2), i.InputRegister(1));
+      __ movzxbq(rax, rax);
+      break;
+    }
+    case kX64Word64AtomicCompareExchangeUint16: {
+      __ lock();
+      __ cmpxchgw(i.MemoryOperand(2), i.InputRegister(1));
+      __ movzxwq(rax, rax);
+      break;
+    }
+    case kX64Word64AtomicCompareExchangeUint32: {
+      __ lock();
+      __ cmpxchgl(i.MemoryOperand(2), i.InputRegister(1));
+      break;
+    }
+    case kX64Word64AtomicCompareExchangeUint64: {
+      __ lock();
+      __ cmpxchgq(i.MemoryOperand(2), i.InputRegister(1));
+      break;
+    }
 #define ATOMIC64_BINOP_CASE(op, inst)              \
   case kX64Word64Atomic##op##Uint8:                \
     ASSEMBLE_ATOMIC64_BINOP(inst, movb, cmpxchgb); \

@@ -1554,7 +1554,9 @@ void InstructionSelector::VisitNode(Node* node) {
       ATOMIC_CASE(Xor, Word32)
       ATOMIC_CASE(Xor, Word64)
       ATOMIC_CASE(Exchange, Word32)
+      ATOMIC_CASE(Exchange, Word64)
       ATOMIC_CASE(CompareExchange, Word32)
+      ATOMIC_CASE(CompareExchange, Word64)
 #undef ATOMIC_CASE
     case IrOpcode::kSpeculationFence:
       return VisitSpeculationFence(node);
@@ -2171,6 +2173,14 @@ void InstructionSelector::VisitWord64AtomicAnd(Node* node) { UNIMPLEMENTED(); }
 void InstructionSelector::VisitWord64AtomicOr(Node* node) { UNIMPLEMENTED(); }
 
 void InstructionSelector::VisitWord64AtomicXor(Node* node) { UNIMPLEMENTED(); }
+
+void InstructionSelector::VisitWord64AtomicExchange(Node* node) {
+  UNIMPLEMENTED();
+}
+
+void InstructionSelector::VisitWord64AtomicCompareExchange(Node* node) {
+  UNIMPLEMENTED();
+}
 #endif  // !V8_TARGET_ARCH_X64
 
 #if !V8_TARGET_ARCH_ARM && !V8_TARGET_ARCH_ARM64 && !V8_TARGET_ARCH_MIPS && \

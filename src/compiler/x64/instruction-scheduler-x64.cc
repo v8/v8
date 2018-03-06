@@ -287,6 +287,14 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kX64Word64AtomicXorUint16:
     case kX64Word64AtomicXorUint32:
     case kX64Word64AtomicXorUint64:
+    case kX64Word64AtomicExchangeUint8:
+    case kX64Word64AtomicExchangeUint16:
+    case kX64Word64AtomicExchangeUint32:
+    case kX64Word64AtomicExchangeUint64:
+    case kX64Word64AtomicCompareExchangeUint8:
+    case kX64Word64AtomicCompareExchangeUint16:
+    case kX64Word64AtomicCompareExchangeUint32:
+    case kX64Word64AtomicCompareExchangeUint64:
       return kHasSideEffect;
 
 #define CASE(Name) case k##Name:
