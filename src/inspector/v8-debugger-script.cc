@@ -13,16 +13,7 @@ namespace v8_inspector {
 
 namespace {
 
-const char hexDigits[17] = "0123456789ABCDEF";
 const char kGlobalDebuggerScriptHandleLabel[] = "DevTools debugger";
-
-void appendUnsignedAsHex(uint64_t number, String16Builder& destination) {
-  for (size_t i = 0; i < 8; ++i) {
-    UChar c = hexDigits[number & 0xF];
-    destination.append(c);
-    number >>= 4;
-  }
-}
 
 // Hash algorithm for substrings is described in "Über die Komplexität der
 // Multiplikation in
@@ -82,8 +73,8 @@ String16 calculateHash(const String16& str) {
     hashes[i] = (hashes[i] + zi[i] * (prime[i] - 1)) % prime[i];
 
   String16Builder hash;
-  // TODO(herhut): Use String16Builder.appendUnsignedAsHex.
-  for (size_t i = 0; i < hashesSize; ++i) appendUnsignedAsHex(hashes[i], hash);
+  for (size_t i = 0; i < hashesSize; ++i)
+    hash.appendUnsignedAsHex((uint32_t)hashes[i]);
   return hash.toString();
 }
 
