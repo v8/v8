@@ -300,7 +300,14 @@ AllocationResult Heap::AllocateRaw(int size_in_bytes, AllocationSpace space,
     // NEW_SPACE is not allowed here.
     UNREACHABLE();
   }
+
   if (allocation.To(&object)) {
+    if (space == CODE_SPACE) {
+      // Unprotect the memory chunk of the object if it was not unprotected
+      // already.
+      UnprotectAndRegisterMemoryChunk(object);
+      ZapCodeObject(object->address(), size_in_bytes);
+    }
     OnAllocationEvent(object, size_in_bytes);
   }
 
@@ -644,6 +651,7 @@ AlwaysAllocateScope::~AlwaysAllocateScope() {
 
 CodeSpaceMemoryModificationScope::CodeSpaceMemoryModificationScope(Heap* heap)
     : heap_(heap) {
+  DCHECK(!heap_->unprotected_memory_chunks_registry_enabled());
   if (heap_->write_protect_code_memory()) {
     heap_->increment_code_space_memory_modification_scope_depth();
     heap_->code_space()->SetReadAndWritable();
@@ -659,6 +667,7 @@ CodeSpaceMemoryModificationScope::CodeSpaceMemoryModificationScope(Heap* heap)
 }
 
 CodeSpaceMemoryModificationScope::~CodeSpaceMemoryModificationScope() {
+  DCHECK(!heap_->unprotected_memory_chunks_registry_enabled());
   if (heap_->write_protect_code_memory()) {
     heap_->decrement_code_space_memory_modification_scope_depth();
     heap_->code_space()->SetReadAndExecutable();
@@ -670,6 +679,24 @@ CodeSpaceMemoryModificationScope::~CodeSpaceMemoryModificationScope() {
       }
       page = page->next_page();
     }
+  }
+}
+
+CodePageCollectionMemoryModificationScope::
+    CodePageCollectionMemoryModificationScope(Heap* heap)
+    : heap_(heap) {
+  if (heap_->write_protect_code_memory() &&
+      !heap_->code_space_memory_modification_scope_depth()) {
+    heap_->EnableUnprotectedMemoryChunksRegistry();
+  }
+}
+
+CodePageCollectionMemoryModificationScope::
+    ~CodePageCollectionMemoryModificationScope() {
+  if (heap_->write_protect_code_memory() &&
+      !heap_->code_space_memory_modification_scope_depth()) {
+    heap_->ProtectUnprotectedMemoryChunks();
+    heap_->DisableUnprotectedMemoryChunksRegistry();
   }
 }
 

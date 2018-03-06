@@ -8,6 +8,7 @@
 #include <cmath>
 #include <map>
 #include <unordered_map>
+#include <unordered_set>
 #include <vector>
 
 // Clients of this interface shouldn't depend on lots of heap internals.
@@ -816,6 +817,23 @@ class Heap {
 
   void decrement_code_space_memory_modification_scope_depth() {
     code_space_memory_modification_scope_depth_--;
+  }
+
+  void UnprotectAndRegisterMemoryChunk(MemoryChunk* chunk);
+  void UnprotectAndRegisterMemoryChunk(HeapObject* object);
+
+  void ProtectUnprotectedMemoryChunks();
+
+  void EnableUnprotectedMemoryChunksRegistry() {
+    unprotected_memory_chunks_registry_enabled_ = true;
+  }
+
+  void DisableUnprotectedMemoryChunksRegistry() {
+    unprotected_memory_chunks_registry_enabled_ = false;
+  }
+
+  bool unprotected_memory_chunks_registry_enabled() {
+    return unprotected_memory_chunks_registry_enabled_;
   }
 
   inline HeapState gc_state() { return gc_state_; }
@@ -1861,6 +1879,9 @@ class Heap {
   // Fill in bogus values in from space
   void ZapFromSpace();
 
+  // Zaps the memory of a code object.
+  void ZapCodeObject(Address start_address, int size_in_bytes);
+
   // Deopts all code that contains allocation instruction which are tenured or
   // not tenured. Moreover it clears the pretenuring allocation site statistics.
   void ResetAllAllocationSitesDependentCode(PretenureFlag flag);
@@ -2601,6 +2622,9 @@ class Heap {
 
   HeapObject* pending_layout_change_object_;
 
+  std::unordered_set<MemoryChunk*> unprotected_memory_chunks_;
+  bool unprotected_memory_chunks_registry_enabled_;
+
 #ifdef V8_ENABLE_ALLOCATION_TIMEOUT
   // If the --gc-interval flag is set to a positive value, this
   // variable holds the value indicating the number of allocations
@@ -2702,6 +2726,18 @@ class CodeSpaceMemoryModificationScope {
  public:
   explicit inline CodeSpaceMemoryModificationScope(Heap* heap);
   inline ~CodeSpaceMemoryModificationScope();
+
+ private:
+  Heap* heap_;
+};
+
+// The CodePageCollectionMemoryModificationScope can only be used by the main
+// thread. It will not be enabled if a CodeSpaceMemoryModificationScope is
+// already active.
+class CodePageCollectionMemoryModificationScope {
+ public:
+  explicit inline CodePageCollectionMemoryModificationScope(Heap* heap);
+  inline ~CodePageCollectionMemoryModificationScope();
 
  private:
   Heap* heap_;

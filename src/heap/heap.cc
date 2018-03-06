@@ -233,7 +233,8 @@ Heap::Heap()
       use_tasks_(true),
       force_oom_(false),
       delay_sweeper_tasks_for_testing_(false),
-      pending_layout_change_object_(nullptr)
+      pending_layout_change_object_(nullptr),
+      unprotected_memory_chunks_registry_enabled_(false)
 #ifdef V8_ENABLE_ALLOCATION_TIMEOUT
       ,
       allocation_timeout_(0)
@@ -2162,6 +2163,27 @@ void Heap::ComputeFastPromotionMode(double survival_rate) {
   }
 }
 
+void Heap::UnprotectAndRegisterMemoryChunk(MemoryChunk* chunk) {
+  if (unprotected_memory_chunks_registry_enabled_ &&
+      unprotected_memory_chunks_.insert(chunk).second) {
+    chunk->SetReadAndWritable();
+  }
+}
+
+void Heap::UnprotectAndRegisterMemoryChunk(HeapObject* object) {
+  UnprotectAndRegisterMemoryChunk(MemoryChunk::FromAddress(object->address()));
+}
+
+void Heap::ProtectUnprotectedMemoryChunks() {
+  DCHECK(unprotected_memory_chunks_registry_enabled_);
+  for (auto chunk = unprotected_memory_chunks_.begin();
+       chunk != unprotected_memory_chunks_.end(); chunk++) {
+    CHECK(memory_allocator()->IsMemoryChunkExecutable(*chunk));
+    (*chunk)->SetReadAndExecutable();
+  }
+  unprotected_memory_chunks_.clear();
+}
+
 String* Heap::UpdateNewSpaceReferenceInExternalStringTableEntry(Heap* heap,
                                                                 Object** p) {
   MapWord first_word = HeapObject::cast(*p)->map_word();
@@ -3187,6 +3209,7 @@ AllocationResult Heap::AllocateCode(int object_size, Movability movability) {
 
   HeapObject* result = nullptr;
   if (!allocation.To(&result)) return allocation;
+
   if (movability == kImmovable) {
     Address address = result->address();
     MemoryChunk* chunk = MemoryChunk::FromAddress(address);
@@ -3205,6 +3228,9 @@ AllocationResult Heap::AllocateCode(int object_size, Movability movability) {
         allocation = lo_space_->AllocateRaw(object_size, EXECUTABLE);
         if (!allocation.To(&result)) return allocation;
         OnAllocationEvent(result, object_size);
+        // The old allocation was discarded. We have to unprotect the new
+        // allocation target.
+        UnprotectAndRegisterMemoryChunk(result);
       }
     }
   }
@@ -3239,7 +3265,8 @@ AllocationResult Heap::AllocateCode(
   int object_size = Code::SizeFor(RoundUp(body_size, kObjectAlignment));
 
   Code* code = nullptr;
-  CodeSpaceMemoryModificationScope code_allocation(this);
+  CodePageCollectionMemoryModificationScope code_allocation(this);
+
   AllocationResult allocation = AllocateCode(object_size, movability);
   if (!allocation.To(&code)) return allocation;
 
@@ -4974,6 +5001,14 @@ void Heap::ZapFromSpace() {
           reinterpret_cast<Address>(kFromSpaceZapValue);
     }
   }
+}
+
+void Heap::ZapCodeObject(Address start_address, int size_in_bytes) {
+#ifdef DEBUG
+  for (int i = 0; i < size_in_bytes / kPointerSize; i++) {
+    reinterpret_cast<Object**>(start_address)[i] = Smi::FromInt(kCodeZapValue);
+  }
+#endif
 }
 
 void Heap::IterateRoots(RootVisitor* v, VisitMode mode) {
