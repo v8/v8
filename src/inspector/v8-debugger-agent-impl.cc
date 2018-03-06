@@ -156,8 +156,9 @@ String16 breakpointHint(const V8DebuggerScript& script, int lineNumber,
   return hint;
 }
 
-void adjustBreakpointLocation(V8DebuggerScript& script, const String16& hint,
-                              int* lineNumber, int* columnNumber) {
+void adjustBreakpointLocation(const V8DebuggerScript& script,
+                              const String16& hint, int* lineNumber,
+                              int* columnNumber) {
   if (*lineNumber < script.startLine() || *lineNumber > script.endLine())
     return;
   if (hint.isEmpty()) return;
@@ -466,7 +467,7 @@ Response V8DebuggerAgentImpl::setSkipAllPauses(bool skip) {
   return Response::OK();
 }
 
-static bool matches(V8InspectorImpl* inspector, V8DebuggerScript& script,
+static bool matches(V8InspectorImpl* inspector, const V8DebuggerScript& script,
                     BreakpointType type, const String16& selector) {
   switch (type) {
     case BreakpointType::kByUrl:

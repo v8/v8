@@ -60,7 +60,7 @@ class V8DebuggerScript {
   const String16& sourceURL() const;
   virtual const String16& sourceMappingURL() const = 0;
   virtual const String16& source() const = 0;
-  virtual const String16& hash() = 0;
+  virtual const String16& hash() const = 0;
   virtual int startLine() const = 0;
   virtual int startColumn() const = 0;
   virtual int endLine() const = 0;
