@@ -303,6 +303,13 @@
 }],  # 'arch == mips'
 
 ##############################################################################
+['arch == mips or arch == mips64', {
+   # TODO(mips-team): Implement LiftOff on big-endian
+   'test-run-wasm/RunWasmLiftoff*': [SKIP],
+   'test-run-wasm-64/RunWasmLiftoff*': [SKIP],
+}],  # 'arch == mips or arch == mips64'
+
+##############################################################################
 ['arch == mips64el or arch == mips64', {
   # BUG(v8:3154).
   'test-heap/ReleaseOverReservedPages': [PASS, FAIL],
