@@ -2485,9 +2485,15 @@ bool HeapSnapshotGenerator::ProgressReport(bool force) {
 void HeapSnapshotGenerator::SetProgressTotal(int iterations_count) {
   if (control_ == nullptr) return;
   HeapIterator iterator(heap_, HeapIterator::kFilterUnreachable);
-  progress_total_ = iterations_count * (
-      v8_heap_explorer_.EstimateObjectsCount(&iterator) +
-      dom_explorer_.EstimateObjectsCount());
+  // The +1 ensures that intermediate ProgressReport calls will never signal
+  // that the work is finished (i.e. progress_counter_ == progress_total_).
+  // Only the forced ProgressReport() at the end of GenerateSnapshot()
+  // should signal that the work is finished because signalling finished twice
+  // breaks the DevTools frontend.
+  progress_total_ =
+      iterations_count * (v8_heap_explorer_.EstimateObjectsCount(&iterator) +
+                          dom_explorer_.EstimateObjectsCount()) +
+      1;
   progress_counter_ = 0;
 }
 

@@ -1430,10 +1430,18 @@ namespace {
 class TestActivityControl : public v8::ActivityControl {
  public:
   explicit TestActivityControl(int abort_count)
-      : done_(0), total_(0), abort_count_(abort_count) {}
+      : done_(0),
+        total_(0),
+        abort_count_(abort_count),
+        reported_finish_(false) {}
   ControlOption ReportProgressValue(int done, int total) {
     done_ = done;
     total_ = total;
+    CHECK_LE(done_, total_);
+    if (done_ == total_) {
+      CHECK(!reported_finish_);
+      reported_finish_ = true;
+    }
     return --abort_count_ != 0 ? kContinue : kAbort;
   }
   int done() { return done_; }
@@ -1443,6 +1451,7 @@ class TestActivityControl : public v8::ActivityControl {
   int done_;
   int total_;
   int abort_count_;
+  bool reported_finish_;
 };
 
 }  // namespace
@@ -1471,6 +1480,16 @@ TEST(TakeHeapSnapshotAborting) {
   CHECK_GT(control.total(), 0);
 }
 
+TEST(TakeHeapSnapshotReportFinishOnce) {
+  LocalContext env;
+  v8::HandleScope scope(env->GetIsolate());
+  v8::HeapProfiler* heap_profiler = env->GetIsolate()->GetHeapProfiler();
+  TestActivityControl control(-1);
+  const v8::HeapSnapshot* snapshot = heap_profiler->TakeHeapSnapshot(&control);
+  CHECK(ValidateSnapshot(snapshot));
+  CHECK_EQ(control.total(), control.done());
+  CHECK_GT(control.total(), 0);
+}
 
 namespace {
 
