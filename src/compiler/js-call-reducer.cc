@@ -4711,13 +4711,6 @@ Reduction JSCallReducer::ReduceArrayIteratorPrototypeNext(Node* node) {
             Type::Range(0.0, length_access.type->Max() - 1.0, graph()->zone())),
         index, etrue, if_true);
 
-    // Increment the [[NextIndex]] field in the {iterator}. The TypeGuards
-    // above guarantee that the {next_index} is in the UnsignedSmall range.
-    Node* next_index = graph()->NewNode(simplified()->NumberAdd(), index,
-                                        jsgraph()->OneConstant());
-    etrue = graph()->NewNode(simplified()->StoreField(index_access), iterator,
-                             next_index, etrue, if_true);
-
     done_true = jsgraph()->FalseConstant();
     if (iteration_kind == IterationKind::kKeys) {
       // Just return the {index}.
@@ -4788,6 +4781,13 @@ Reduction JSCallReducer::ReduceArrayIteratorPrototypeNext(Node* node) {
         DCHECK_EQ(IterationKind::kValues, iteration_kind);
       }
     }
+
+    // Increment the [[NextIndex]] field in the {iterator}. The TypeGuards
+    // above guarantee that the {next_index} is in the UnsignedSmall range.
+    Node* next_index = graph()->NewNode(simplified()->NumberAdd(), index,
+                                        jsgraph()->OneConstant());
+    etrue = graph()->NewNode(simplified()->StoreField(index_access), iterator,
+                             next_index, etrue, if_true);
   }
 
   Node* done_false;
