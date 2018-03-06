@@ -519,7 +519,6 @@ bool Builtins::IsIsolateIndependent(int index) {
     case kProxyGetProperty:
     case kProxyHasProperty:
     case kProxySetProperty:
-    case kRecordWrite:
     case kReflectHas:
     case kRegExpConstructor:
     case kRegExpPrototypeCompile:
