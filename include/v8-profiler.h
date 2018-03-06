@@ -335,7 +335,8 @@ class V8_EXPORT CpuProfiler {
   /**
    * Tells the profiler whether the embedder is idle.
    */
-  void SetIdle(bool is_idle);
+  V8_DEPRECATED("Use Isolate::SetIdle(bool) instead.",
+                void SetIdle(bool is_idle));
 
  private:
   CpuProfiler();

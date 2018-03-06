@@ -4038,6 +4038,18 @@ void Isolate::PrintWithTimestamp(const char* format, ...) {
   va_end(arguments);
 }
 
+void Isolate::SetIdle(bool is_idle) {
+  if (!is_profiling()) return;
+  StateTag state = current_vm_state();
+  DCHECK(state == EXTERNAL || state == IDLE);
+  if (js_entry_sp() != nullptr) return;
+  if (is_idle) {
+    set_current_vm_state(IDLE);
+  } else if (state == IDLE) {
+    set_current_vm_state(EXTERNAL);
+  }
+}
+
 bool StackLimitCheck::JsHasOverflowed(uintptr_t gap) const {
   StackGuard* stack_guard = isolate_->stack_guard();
 #ifdef USE_SIMULATOR

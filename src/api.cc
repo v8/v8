@@ -8110,6 +8110,10 @@ CpuProfiler* Isolate::GetCpuProfiler() {
   return reinterpret_cast<CpuProfiler*>(cpu_profiler);
 }
 
+void Isolate::SetIdle(bool is_idle) {
+  i::Isolate* isolate = reinterpret_cast<i::Isolate*>(this);
+  isolate->SetIdle(is_idle);
+}
 
 bool Isolate::InContext() {
   i::Isolate* isolate = reinterpret_cast<i::Isolate*>(this);
@@ -10126,15 +10130,7 @@ CpuProfile* CpuProfiler::StopProfiling(Local<String> title) {
 void CpuProfiler::SetIdle(bool is_idle) {
   i::CpuProfiler* profiler = reinterpret_cast<i::CpuProfiler*>(this);
   i::Isolate* isolate = profiler->isolate();
-  if (!isolate->is_profiling()) return;
-  v8::StateTag state = isolate->current_vm_state();
-  DCHECK(state == v8::EXTERNAL || state == v8::IDLE);
-  if (isolate->js_entry_sp() != nullptr) return;
-  if (is_idle) {
-    isolate->set_current_vm_state(v8::IDLE);
-  } else if (state == v8::IDLE) {
-    isolate->set_current_vm_state(v8::EXTERNAL);
-  }
+  isolate->SetIdle(is_idle);
 }
 
 

@@ -234,21 +234,9 @@ void V8InspectorImpl::resetContextGroup(int contextGroupId) {
   m_debugger->wasmTranslation()->Clear();
 }
 
-void V8InspectorImpl::idleStarted() {
-  for (auto& it : m_sessions) {
-    for (auto& it2 : it.second) {
-      if (it2.second->profilerAgent()->idleStarted()) return;
-    }
-  }
-}
+void V8InspectorImpl::idleStarted() { m_isolate->SetIdle(true); }
 
-void V8InspectorImpl::idleFinished() {
-  for (auto& it : m_sessions) {
-    for (auto& it2 : it.second) {
-      if (it2.second->profilerAgent()->idleFinished()) return;
-    }
-  }
-}
+void V8InspectorImpl::idleFinished() { m_isolate->SetIdle(false); }
 
 unsigned V8InspectorImpl::exceptionThrown(
     v8::Local<v8::Context> context, const StringView& message,

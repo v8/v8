@@ -1354,6 +1354,8 @@ class Isolate {
     top_backup_incumbent_scope_ = top_backup_incumbent_scope;
   }
 
+  void SetIdle(bool is_idle);
+
  protected:
   explicit Isolate(bool enable_serializer);
   bool IsArrayOrObjectOrStringPrototype(Object* object);

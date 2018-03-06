@@ -1651,11 +1651,11 @@ TEST(IdleTime) {
       reinterpret_cast<i::CpuProfiler*>(cpu_profiler)->processor();
 
   processor->AddCurrentStack(isolate, true);
-  cpu_profiler->SetIdle(true);
+  isolate->SetIdle(true);
   for (int i = 0; i < 3; i++) {
     processor->AddCurrentStack(isolate, true);
   }
-  cpu_profiler->SetIdle(false);
+  isolate->SetIdle(false);
   processor->AddCurrentStack(isolate, true);
 
   v8::CpuProfile* profile = cpu_profiler->StopProfiling(profile_name);

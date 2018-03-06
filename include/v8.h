@@ -7283,6 +7283,11 @@ class V8_EXPORT Isolate {
   V8_DEPRECATED("CpuProfiler should be created with CpuProfiler::New call.",
                 CpuProfiler* GetCpuProfiler());
 
+  /**
+   * Tells the CPU profiler whether the embedder is idle.
+   */
+  void SetIdle(bool is_idle);
+
   /** Returns true if this isolate has a current context. */
   bool InContext();
 
