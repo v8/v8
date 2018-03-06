@@ -912,8 +912,11 @@ void TurboAssembler::ByteSwapSigned(Register dest, Register src,
     wsbh(dest, src);
     rotr(dest, dest, 16);
   } else if (IsMipsArchVariant(kMips32r1) || IsMipsArchVariant(kLoongson)) {
-    Register tmp = t0;
-    Register tmp2 = t1;
+    Register tmp = at;
+    Register tmp2 = t8;
+    DCHECK(dest != src);
+    DCHECK(dest != tmp && dest != tmp2);
+    DCHECK(src != tmp && src != tmp2);
 
     andi(tmp2, src, 0xFF);
     sll(tmp2, tmp2, 24);
@@ -953,7 +956,7 @@ void TurboAssembler::ByteSwapUnsigned(Register dest, Register src,
     if (operand_size == 1) {
       sll(src, src, 24);
     } else {
-      Register tmp = t0;
+      Register tmp = at;
 
       andi(tmp, src, 0xFF00);
       sll(src, src, 24);

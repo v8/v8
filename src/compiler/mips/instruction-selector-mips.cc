@@ -674,7 +674,7 @@ void InstructionSelector::VisitWord64ReverseBytes(Node* node) { UNREACHABLE(); }
 void InstructionSelector::VisitWord32ReverseBytes(Node* node) {
   MipsOperandGenerator g(this);
   Emit(kMipsByteSwap32, g.DefineAsRegister(node),
-       g.UseRegister(node->InputAt(0)));
+       g.UseUniqueRegister(node->InputAt(0)));
 }
 
 void InstructionSelector::VisitWord32Ctz(Node* node) {
