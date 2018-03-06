@@ -562,6 +562,8 @@ void NativeModule::Link(uint32_t index) {
     it.rinfo()->set_wasm_call_address(target_addr,
                                       ICacheFlushMode::SKIP_ICACHE_FLUSH);
   }
+  Assembler::FlushICache(code->instructions().start(),
+                         code->instructions().size());
 }
 
 Address NativeModule::AllocateForCode(size_t size) {
