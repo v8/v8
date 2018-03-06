@@ -823,7 +823,6 @@ static void MaybeTailCallOptimizedCodeSlot(MacroAssembler* masm,
     static_assert(kJavaScriptCallCodeStartRegister == r5, "ABI mismatch");
     __ addi(r5, optimized_code_entry,
             Operand(Code::kHeaderSize - kHeapObjectTag));
-    __ mr(ip, r5);
     __ Jump(r5);
 
     // Optimized code slot contains deoptimized code, evict it and re-enter the

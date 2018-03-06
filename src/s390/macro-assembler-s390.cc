@@ -161,7 +161,7 @@ void TurboAssembler::Call(Register target) {
 }
 
 void MacroAssembler::CallJSEntry(Register target) {
-  DCHECK(target == ip);
+  DCHECK(target == r4);
   Call(target);
 }
 
