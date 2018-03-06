@@ -223,7 +223,8 @@ static constexpr Allocator parameter_registers(kGPParamRegisters,
 }  // namespace
 
 // General code uses the above configuration data.
-CallDescriptor* GetWasmCallDescriptor(Zone* zone, wasm::FunctionSig* fsig) {
+CallDescriptor* GetWasmCallDescriptor(Zone* zone, wasm::FunctionSig* fsig,
+                                      bool use_retpoline) {
   // The '+ 1' here is to accomodate the wasm_context as first parameter.
   LocationSignature::Builder locations(zone, fsig->return_count(),
                                        fsig->parameter_count() + 1);
@@ -264,16 +265,17 @@ CallDescriptor* GetWasmCallDescriptor(Zone* zone, wasm::FunctionSig* fsig) {
                                   ? CallDescriptor::kCallWasmFunction
                                   : CallDescriptor::kCallCodeObject;
 
-  return new (zone) CallDescriptor(              // --
-      kind,                                      // kind
-      target_type,                               // target MachineType
-      target_loc,                                // target location
-      locations.Build(),                         // location_sig
-      params.stack_offset,                       // stack_parameter_count
-      compiler::Operator::kNoProperties,         // properties
-      kCalleeSaveRegisters,                      // callee-saved registers
-      kCalleeSaveFPRegisters,                    // callee-saved fp regs
-      CallDescriptor::kNoFlags,                  // flags
+  return new (zone) CallDescriptor(       // --
+      kind,                               // kind
+      target_type,                        // target MachineType
+      target_loc,                         // target location
+      locations.Build(),                  // location_sig
+      params.stack_offset,                // stack_parameter_count
+      compiler::Operator::kNoProperties,  // properties
+      kCalleeSaveRegisters,               // callee-saved registers
+      kCalleeSaveFPRegisters,             // callee-saved fp regs
+      use_retpoline ? CallDescriptor::kRetpoline
+                    : CallDescriptor::kNoFlags,  // flags
       "wasm-call",                               // debug name
       0,                                         // allocatable registers
       rets.stack_offset - params.stack_offset);  // stack_return_count

@@ -2530,7 +2530,7 @@ Node* WasmGraphBuilder::BuildCCall(MachineSignature* sig, Node* function,
 Node* WasmGraphBuilder::BuildWasmCall(wasm::FunctionSig* sig, Node** args,
                                       Node*** rets,
                                       wasm::WasmCodePosition position,
-                                      Node* wasm_context) {
+                                      Node* wasm_context, bool use_retpoline) {
   if (wasm_context == nullptr) {
     DCHECK_NOT_NULL(wasm_context_);
     wasm_context = wasm_context_.get();
@@ -2551,7 +2551,8 @@ Node* WasmGraphBuilder::BuildWasmCall(wasm::FunctionSig* sig, Node** args,
   args[params + 2] = *effect_;
   args[params + 3] = *control_;
 
-  auto call_descriptor = GetWasmCallDescriptor(jsgraph()->zone(), sig);
+  auto call_descriptor =
+      GetWasmCallDescriptor(jsgraph()->zone(), sig, use_retpoline);
   const Operator* op = jsgraph()->common()->Call(call_descriptor);
   Node* call = graph()->NewNode(op, static_cast<int>(count), args);
   SetSourcePosition(call, position);
@@ -2697,8 +2698,10 @@ Node* WasmGraphBuilder::CallIndirect(uint32_t sig_index, Node** args,
       graph()->NewNode(machine->Int32Add(), key_offset,
                        Uint32Constant(fixed_offset + kPointerSize)),
       *effect_, *control_);
-    args[0] = entry;
-  return BuildWasmCall(sig, args, rets, position);
+  args[0] = entry;
+  constexpr Node* wasm_context = nullptr;
+  const bool use_retpoline = FLAG_untrusted_code_mitigations;
+  return BuildWasmCall(sig, args, rets, position, wasm_context, use_retpoline);
 }
 
 Node* WasmGraphBuilder::BuildI32Rol(Node* left, Node* right) {
