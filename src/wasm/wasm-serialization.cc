@@ -588,10 +588,9 @@ bool NativeModuleDeserializer::ReadCode() {
         break;
       }
       case RelocInfo::RUNTIME_ENTRY: {
-        uint32_t orig_target = static_cast<uint32_t>(
-            reinterpret_cast<intptr_t>(iter.rinfo()->target_address()));
+        uint32_t tag = GetWasmCalleeTag(iter.rinfo());
         Address address =
-            ExternalReferenceTable::instance(isolate_)->address(orig_target);
+            ExternalReferenceTable::instance(isolate_)->address(tag);
         iter.rinfo()->set_target_runtime_entry(address, SKIP_WRITE_BARRIER,
                                                SKIP_ICACHE_FLUSH);
         break;
