@@ -346,31 +346,6 @@ LiftoffAssembler::~LiftoffAssembler() {
   }
 }
 
-LiftoffRegister LiftoffAssembler::GetBinaryOpTargetRegister(
-    RegClass rc, LiftoffRegList pinned) {
-  auto& slot_lhs = *(cache_state_.stack_state.end() - 2);
-  if (slot_lhs.is_reg() && GetNumUses(slot_lhs.reg()) == 1) {
-    DCHECK_EQ(rc, slot_lhs.reg().reg_class());
-    return slot_lhs.reg();
-  }
-  auto& slot_rhs = *(cache_state_.stack_state.end() - 1);
-  if (slot_rhs.is_reg() && GetNumUses(slot_rhs.reg()) == 1) {
-    DCHECK_EQ(rc, slot_rhs.reg().reg_class());
-    return slot_rhs.reg();
-  }
-  return GetUnusedRegister(rc, pinned);
-}
-
-LiftoffRegister LiftoffAssembler::GetUnaryOpTargetRegister(
-    RegClass rc, LiftoffRegList pinned) {
-  auto& slot_src = cache_state_.stack_state.back();
-  if (slot_src.is_reg() && GetNumUses(slot_src.reg()) == 1) {
-    DCHECK_EQ(rc, slot_src.reg().reg_class());
-    return slot_src.reg();
-  }
-  return GetUnusedRegister(rc, pinned);
-}
-
 LiftoffRegister LiftoffAssembler::PopToRegister(RegClass rc,
                                                 LiftoffRegList pinned) {
   DCHECK(!cache_state_.stack_state.empty());

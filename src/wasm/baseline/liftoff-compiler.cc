@@ -516,8 +516,8 @@ class LiftoffCompiler {
   void EmitUnOp(EmitFn fn) {
     static RegClass rc = reg_class_for(type);
     LiftoffRegList pinned;
-    LiftoffRegister dst = pinned.set(__ GetUnaryOpTargetRegister(rc));
-    LiftoffRegister src = __ PopToRegister(rc, pinned);
+    LiftoffRegister src = pinned.set(__ PopToRegister(rc, pinned));
+    LiftoffRegister dst = __ GetUnusedRegister(rc, {src}, pinned);
     fn(dst, src);
     __ PushRegister(type, dst);
   }
@@ -575,9 +575,9 @@ class LiftoffCompiler {
   void EmitMonomorphicBinOp(EmitFn fn) {
     static constexpr RegClass rc = reg_class_for(type);
     LiftoffRegList pinned;
-    LiftoffRegister dst = pinned.set(__ GetBinaryOpTargetRegister(rc));
     LiftoffRegister rhs = pinned.set(__ PopToRegister(rc, pinned));
-    LiftoffRegister lhs = __ PopToRegister(rc, pinned);
+    LiftoffRegister lhs = pinned.set(__ PopToRegister(rc, pinned));
+    LiftoffRegister dst = __ GetUnusedRegister(rc, {lhs, rhs}, pinned);
     fn(dst, lhs, rhs);
     __ PushRegister(type, dst);
   }

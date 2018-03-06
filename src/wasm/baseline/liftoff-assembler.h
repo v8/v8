@@ -246,11 +246,6 @@ class LiftoffAssembler : public TurboAssembler {
   explicit LiftoffAssembler(Isolate* isolate);
   ~LiftoffAssembler();
 
-  LiftoffRegister GetBinaryOpTargetRegister(RegClass,
-                                            LiftoffRegList pinned = {});
-  LiftoffRegister GetUnaryOpTargetRegister(RegClass,
-                                           LiftoffRegList pinned = {});
-
   LiftoffRegister PopToRegister(RegClass, LiftoffRegList pinned = {});
 
   void PushRegister(ValueType type, LiftoffRegister reg) {
@@ -263,6 +258,18 @@ class LiftoffAssembler : public TurboAssembler {
 
   uint32_t GetNumUses(LiftoffRegister reg) {
     return cache_state_.get_use_count(reg);
+  }
+
+  // Get an unused register for class {rc}, reusing one of {try_first} if
+  // possible.
+  LiftoffRegister GetUnusedRegister(
+      RegClass rc, std::initializer_list<LiftoffRegister> try_first,
+      LiftoffRegList pinned = {}) {
+    for (LiftoffRegister reg : try_first) {
+      DCHECK_EQ(reg.reg_class(), rc);
+      if (cache_state_.is_free(reg)) return reg;
+    }
+    return GetUnusedRegister(rc, pinned);
   }
 
   // Get an unused register for class {rc}, potentially spilling to free one.
