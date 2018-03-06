@@ -290,55 +290,6 @@ bool Builtins::IsIsolateIndependent(int index) {
   DCHECK(IsBuiltinId(index));
   switch (index) {
 #ifdef DEBUG
-    case kContinueToCodeStubBuiltin:
-    case kContinueToCodeStubBuiltinWithResult:
-    case kContinueToJavaScriptBuiltin:
-    case kContinueToJavaScriptBuiltinWithResult:
-#else
-    case kAsyncFunctionAwaitFulfill:
-    case kAsyncFunctionAwaitReject:
-    case kAsyncGeneratorAwaitFulfill:
-    case kAsyncGeneratorAwaitReject:
-    case kAsyncGeneratorReturnClosedFulfill:
-    case kAsyncGeneratorReturnClosedReject:
-    case kAsyncGeneratorReturnFulfill:
-    case kAsyncGeneratorYieldFulfill:
-    case kConstructFunction:
-    case kContinueToCodeStubBuiltin:
-    case kContinueToCodeStubBuiltinWithResult:
-    case kContinueToJavaScriptBuiltin:
-    case kContinueToJavaScriptBuiltinWithResult:
-    case kKeyedLoadICTrampoline:
-    case kKeyedStoreICTrampoline:
-    case kLoadGlobalICInsideTypeofTrampoline:
-    case kLoadGlobalICTrampoline:
-    case kLoadIC_StringLength:
-    case kLoadIC_StringWrapperLength:
-    case kLoadICTrampoline:
-    case kOrderedHashTableHealIndex:
-    case kPromiseFulfillReactionJob:
-    case kStoreGlobalICTrampoline:
-    case kStoreICTrampoline:
-    case kStringRepeat:
-    case kTypeof:
-    case kWeakMapLookupHashIndex:
-#endif
-      return true;
-    default:
-      return false;
-  }
-  UNREACHABLE();
-}
-
-// static
-bool Builtins::IsOffHeapSafe(int index) {
-#ifndef V8_EMBEDDED_BUILTINS
-  return false;
-#else
-  DCHECK(IsBuiltinId(index));
-  if (IsTooShortForOffHeapTrampoline(index)) return false;
-  switch (index) {
-#ifdef DEBUG
     case kAbortJS:
     case kContinueToCodeStubBuiltin:
     case kContinueToCodeStubBuiltinWithResult:
@@ -349,15 +300,15 @@ bool Builtins::IsOffHeapSafe(int index) {
     case kLoadGlobalIC_Slow:
     case kLoadIC_Slow:
     case kStoreGlobalIC_Slow:
+    case kWasmStackGuard:
+    case kThrowWasmTrapUnreachable:
+    case kThrowWasmTrapMemOutOfBounds:
     case kThrowWasmTrapDivByZero:
     case kThrowWasmTrapDivUnrepresentable:
+    case kThrowWasmTrapRemByZero:
     case kThrowWasmTrapFloatUnrepresentable:
     case kThrowWasmTrapFuncInvalid:
     case kThrowWasmTrapFuncSigMismatch:
-    case kThrowWasmTrapMemOutOfBounds:
-    case kThrowWasmTrapRemByZero:
-    case kThrowWasmTrapUnreachable:
-    case kWasmStackGuard:
 #else
     case kAbortJS:
     case kAdd:
@@ -496,6 +447,8 @@ bool Builtins::IsOffHeapSafe(int index) {
     case kLoadIC_FunctionPrototype:
     case kLoadIC_Noninlined:
     case kLoadIC_Slow:
+    case kLoadIC_StringLength:
+    case kLoadIC_StringWrapperLength:
     case kLoadICTrampoline:
     case kLoadIC_Uninitialized:
     case kMapPrototypeEntries:
@@ -505,34 +458,14 @@ bool Builtins::IsOffHeapSafe(int index) {
     case kMapPrototypeHas:
     case kMapPrototypeKeys:
     case kMapPrototypeValues:
-    case kMathAcos:
-    case kMathAcosh:
-    case kMathAsin:
-    case kMathAsinh:
-    case kMathAtan:
-    case kMathAtan2:
-    case kMathAtanh:
-    case kMathCbrt:
     case kMathCeil:
-    case kMathCos:
-    case kMathCosh:
-    case kMathExp:
-    case kMathExpm1:
     case kMathFloor:
     case kMathFround:
-    case kMathLog:
-    case kMathLog10:
-    case kMathLog1p:
-    case kMathLog2:
     case kMathMax:
     case kMathMin:
     case kMathRound:
     case kMathSign:
-    case kMathSin:
-    case kMathSinh:
     case kMathSqrt:
-    case kMathTan:
-    case kMathTanh:
     case kMathTrunc:
     case kModulus:
     case kMultiply:
@@ -711,6 +644,16 @@ bool Builtins::IsOffHeapSafe(int index) {
       return false;
   }
   UNREACHABLE();
+}
+
+// static
+bool Builtins::IsOffHeapSafe(int index) {
+#ifndef V8_EMBEDDED_BUILTINS
+  return false;
+#else
+  DCHECK(IsBuiltinId(index));
+  if (IsTooShortForOffHeapTrampoline(index)) return false;
+  return IsIsolateIndependent(index);
 #endif  // V8_EMBEDDED_BUILTINS
 }
 

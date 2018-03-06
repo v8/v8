@@ -79,6 +79,60 @@ class BuiltinSnapshotData final : public SnapshotData {
   // ... list of builtins offsets
 };
 
+#ifdef V8_EMBEDDED_BUILTINS
+class EmbeddedData final {
+ public:
+  static EmbeddedData FromIsolate(Isolate* isolate);
+  static EmbeddedData FromBlob(const uint8_t* data, uint32_t size);
+
+  const uint8_t* data() const { return data_; }
+  uint32_t size() const { return size_; }
+
+  const uint8_t* InstructionStartOfBuiltin(int i) const;
+  uint32_t InstructionSizeOfBuiltin(int i) const;
+
+  bool ContainsBuiltin(int i) const { return InstructionSizeOfBuiltin(i) > 0; }
+
+  // Padded with kCodeAlignment.
+  uint32_t PaddedInstructionSizeOfBuiltin(int i) const {
+    return RoundUp<kCodeAlignment>(InstructionSizeOfBuiltin(i));
+  }
+
+  // The layout of the blob is as follows:
+  //
+  // [0] offset of instruction stream 0
+  // ... offsets
+  // [N] length of instruction stream 0
+  // ... lengths
+  // ... instruction streams
+
+  static constexpr uint32_t kTableSize = Builtins::builtin_count;
+  static constexpr uint32_t OffsetsOffset() { return 0; }
+  static constexpr uint32_t OffsetsSize() { return kUInt32Size * kTableSize; }
+  static constexpr uint32_t LengthsOffset() {
+    return OffsetsOffset() + OffsetsSize();
+  }
+  static constexpr uint32_t LengthsSize() { return kUInt32Size * kTableSize; }
+  static constexpr uint32_t RawDataOffset() {
+    return RoundUp<kCodeAlignment>(LengthsOffset() + LengthsSize());
+  }
+
+ private:
+  EmbeddedData(const uint8_t* data, uint32_t size) : data_(data), size_(size) {}
+
+  const uint32_t* Offsets() const {
+    return reinterpret_cast<const uint32_t*>(data_ + OffsetsOffset());
+  }
+  const uint32_t* Lengths() const {
+    return reinterpret_cast<const uint32_t*>(data_ + LengthsOffset());
+  }
+  const uint8_t* RawData() const { return data_ + RawDataOffset(); }
+
+  const uint8_t* data_;
+  uint32_t size_;
+};
+#endif
+
 class Snapshot : public AllStatic {
  public:
   // ---------------- Deserialization ----------------
@@ -120,6 +174,10 @@ class Snapshot : public AllStatic {
       const BuiltinSnapshotData* builtin_snapshot,
       const std::vector<SnapshotData*>& context_snapshots,
       bool can_be_rehashed);
+
+#ifdef V8_EMBEDDED_BUILTINS
+  static EmbeddedData CreateEmbeddedBlob(Isolate* isolate);
+#endif
 
 #ifdef DEBUG
   static bool SnapshotIsValid(const v8::StartupData* snapshot_blob);
