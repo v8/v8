@@ -69,6 +69,7 @@
 #include "src/snapshot/natives.h"
 #include "src/snapshot/snapshot.h"
 #include "src/startup-data-util.h"
+#include "src/string-hasher.h"
 #include "src/tracing/trace-event.h"
 #include "src/trap-handler/trap-handler.h"
 #include "src/unicode-cache-inl.h"
@@ -9465,6 +9466,25 @@ std::pair<int, int> debug::WasmScript::GetFunctionRange(
   DCHECK_GE(i::kMaxInt, func.code.end_offset());
   return std::make_pair(static_cast<int>(func.code.offset()),
                         static_cast<int>(func.code.end_offset()));
+}
+
+uint32_t debug::WasmScript::GetFunctionHash(int function_index) {
+  i::DisallowHeapAllocation no_gc;
+  i::Handle<i::Script> script = Utils::OpenHandle(this);
+  DCHECK_EQ(i::Script::TYPE_WASM, script->type());
+  i::WasmCompiledModule* compiled_module =
+      i::WasmCompiledModule::cast(script->wasm_compiled_module());
+  i::wasm::WasmModule* module = compiled_module->shared()->module();
+  DCHECK_LE(0, function_index);
+  DCHECK_GT(module->functions.size(), function_index);
+  i::wasm::WasmFunction& func = module->functions[function_index];
+  i::SeqOneByteString* module_bytes = compiled_module->shared()->module_bytes();
+  i::wasm::ModuleWireBytes wire_bytes(
+      module_bytes->GetFlatContent().ToOneByteVector());
+  i::Vector<const i::byte> function_bytes = wire_bytes.GetFunctionBytes(&func);
+  // TODO(herhut): Maybe also take module, name and signature into account.
+  return i::StringHasher::HashSequentialString(function_bytes.start(),
+                                               function_bytes.length(), 0);
 }
 
 debug::WasmDisassembly debug::WasmScript::DisassembleFunction(

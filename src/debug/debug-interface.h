@@ -166,6 +166,7 @@ class WasmScript : public Script {
   std::pair<int, int> GetFunctionRange(int function_index) const;
 
   debug::WasmDisassembly DisassembleFunction(int function_index) const;
+  uint32_t GetFunctionHash(int function_index);
 };
 
 void GetLoadedScripts(Isolate* isolate, PersistentValueVector<Script>& scripts);

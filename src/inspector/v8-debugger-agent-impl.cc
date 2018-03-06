@@ -156,9 +156,8 @@ String16 breakpointHint(const V8DebuggerScript& script, int lineNumber,
   return hint;
 }
 
-void adjustBreakpointLocation(const V8DebuggerScript& script,
-                              const String16& hint, int* lineNumber,
-                              int* columnNumber) {
+void adjustBreakpointLocation(V8DebuggerScript& script, const String16& hint,
+                              int* lineNumber, int* columnNumber) {
   if (*lineNumber < script.startLine() || *lineNumber > script.endLine())
     return;
   if (hint.isEmpty()) return;
@@ -467,7 +466,7 @@ Response V8DebuggerAgentImpl::setSkipAllPauses(bool skip) {
   return Response::OK();
 }
 
-static bool matches(V8InspectorImpl* inspector, const V8DebuggerScript& script,
+static bool matches(V8InspectorImpl* inspector, V8DebuggerScript& script,
                     BreakpointType type, const String16& selector) {
   switch (type) {
     case BreakpointType::kByUrl:
@@ -1357,10 +1356,12 @@ bool V8DebuggerAgentImpl::isPaused() const {
 void V8DebuggerAgentImpl::didParseSource(
     std::unique_ptr<V8DebuggerScript> script, bool success) {
   v8::HandleScope handles(m_isolate);
-  String16 scriptSource = script->source();
-  if (!success) script->setSourceURL(findSourceURL(scriptSource, false));
-  if (!success)
+  if (!success) {
+    DCHECK(!script->isSourceLoadedLazily());
+    String16 scriptSource = script->source();
+    script->setSourceURL(findSourceURL(scriptSource, false));
     script->setSourceMappingURL(findSourceMapURL(scriptSource, false));
+  }
 
   int contextId = script->executionContextId();
   int contextGroupId = m_inspector->contextGroupId(contextId);
@@ -1402,13 +1403,23 @@ void V8DebuggerAgentImpl::didParseSource(
       stack && !stack->isEmpty() ? stack->buildInspectorObjectImpl(m_debugger)
                                  : nullptr;
   if (success) {
-    m_frontend.scriptParsed(
-        scriptId, scriptURL, scriptRef->startLine(), scriptRef->startColumn(),
-        scriptRef->endLine(), scriptRef->endColumn(), contextId,
-        scriptRef->hash(), std::move(executionContextAuxDataParam),
-        isLiveEditParam, std::move(sourceMapURLParam), hasSourceURLParam,
-        isModuleParam, static_cast<int>(scriptRef->source().length()),
-        std::move(stackTrace));
+    // TODO(herhut, dgozman): Report correct length for WASM if needed for
+    // coverage. Or do not send the length at all and change coverage instead.
+    if (scriptRef->isSourceLoadedLazily()) {
+      m_frontend.scriptParsed(
+          scriptId, scriptURL, 0, 0, 0, 0, contextId, scriptRef->hash(),
+          std::move(executionContextAuxDataParam), isLiveEditParam,
+          std::move(sourceMapURLParam), hasSourceURLParam, isModuleParam, 0,
+          std::move(stackTrace));
+    } else {
+      m_frontend.scriptParsed(
+          scriptId, scriptURL, scriptRef->startLine(), scriptRef->startColumn(),
+          scriptRef->endLine(), scriptRef->endColumn(), contextId,
+          scriptRef->hash(), std::move(executionContextAuxDataParam),
+          isLiveEditParam, std::move(sourceMapURLParam), hasSourceURLParam,
+          isModuleParam, static_cast<int>(scriptRef->source().length()),
+          std::move(stackTrace));
+    }
   } else {
     m_frontend.scriptFailedToParse(
         scriptId, scriptURL, scriptRef->startLine(), scriptRef->startColumn(),
