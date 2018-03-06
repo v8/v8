@@ -2750,6 +2750,41 @@ TEST(StringConcat) {
                      LoadGolden("StringConcat.golden")));
 }
 
+TEST(TemplateLiterals) {
+  InitializedIgnitionHandleScope scope;
+  BytecodeExpectationsPrinter printer(CcTest::isolate());
+
+  const char* snippets[] = {
+      "var a = 1;\n"
+      "var b = 2;\n"
+      "return `${a}${b}string`;\n",
+
+      "var a = 1;\n"
+      "var b = 2;\n"
+      "return `string${a}${b}`;\n",
+
+      "var a = 1;\n"
+      "var b = 2;\n"
+      "return `${a}string${b}`;\n",
+
+      "var a = 1;\n"
+      "var b = 2;\n"
+      "return `foo${a}bar${b}baz${1}`;\n",
+
+      "var a = 1;\n"
+      "var b = 2;\n"
+      "return `${a}string` + `string${b}`;\n",
+
+      "var a = 1;\n"
+      "var b = 2;\n"
+      "function foo(a, b) { };\n"
+      "return `string${foo(a, b)}${a}${b}`;\n",
+  };
+
+  CHECK(CompareTexts(BuildActual(printer, snippets),
+                     LoadGolden("TemplateLiterals.golden")));
+}
+
 #undef XSTR
 #undef STR
 #undef UNIQUE_VAR
