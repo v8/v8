@@ -1241,10 +1241,6 @@ class Isolate {
     return &partial_snapshot_cache_;
   }
 
-  void PushOffHeapCode(InstructionStream* stream) {
-    off_heap_code_.emplace_back(stream);
-  }
-
 #ifdef V8_EMBEDDED_BUILTINS
   BuiltinsConstantsTableBuilder* builtins_constants_table_builder() const {
     return builtins_constants_table_builder_;
@@ -1623,12 +1619,6 @@ class Isolate {
 
   std::vector<Object*> partial_snapshot_cache_;
 
-  // Stores off-heap instruction streams. Only used if --stress-off-heap-code
-  // is enabled.
-  // TODO(jgruber,v8:6666): Remove once isolate-independent builtins are
-  // implemented. Also remove friend class below.
-  std::vector<InstructionStream*> off_heap_code_;
-
 #ifdef V8_EMBEDDED_BUILTINS
   // Used during builtins compilation to build the builtins constants table,
   // which is stored on the root list prior to serialization.
@@ -1663,7 +1653,6 @@ class Isolate {
   friend class ExecutionAccess;
   friend class HandleScopeImplementer;
   friend class heap::HeapTester;
-  friend class InstructionStream;
   friend class OptimizingCompileDispatcher;
   friend class Simulator;
   friend class StackGuard;

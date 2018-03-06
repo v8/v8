@@ -21,7 +21,6 @@
 #include "src/basic-block-profiler.h"
 #include "src/bootstrapper.h"
 #include "src/builtins/constants-table-builder.h"
-#include "src/callable.h"
 #include "src/cancelable-task.h"
 #include "src/code-stubs.h"
 #include "src/compilation-cache.h"
@@ -35,7 +34,6 @@
 #include "src/frames-inl.h"
 #include "src/ic/stub-cache.h"
 #include "src/instruction-stream.h"
-#include "src/interface-descriptors.h"
 #include "src/interpreter/interpreter.h"
 #include "src/isolate-inl.h"
 #include "src/libsampler/sampler.h"
@@ -2680,11 +2678,6 @@ void Isolate::Deinit() {
   root_index_map_ = nullptr;
 
   ClearSerializerData();
-
-  for (InstructionStream* stream : off_heap_code_) {
-    delete stream;
-  }
-  off_heap_code_.clear();
 }
 
 
@@ -2894,8 +2887,11 @@ void LogInstructionStream(Isolate* isolate, Code* code,
   }
 }
 
-void MoveBuiltinsOffHeap(Isolate* isolate) {
+void CreateOnHeapTrampolines(Isolate* isolate) {
   DCHECK(FLAG_stress_off_heap_code);
+  DCHECK(!isolate->serializer_enabled());
+  DCHECK_NOT_NULL(isolate->embedded_blob());
+
   HandleScope scope(isolate);
   Builtins* builtins = isolate->builtins();
 
@@ -2904,14 +2900,26 @@ void MoveBuiltinsOffHeap(Isolate* isolate) {
   // deserialization.
   Snapshot::EnsureAllBuiltinsAreDeserialized(isolate);
 
+  EmbeddedData d = EmbeddedData::FromBlob(isolate->embedded_blob(),
+                                          isolate->embedded_blob_size());
+
   CodeSpaceMemoryModificationScope code_allocation(isolate->heap());
   for (int i = 0; i < Builtins::builtin_count; i++) {
     if (!Builtins::IsOffHeapSafe(i)) continue;
+
+    const uint8_t* instruction_start = d.InstructionStartOfBuiltin(i);
+    size_t instruction_size = d.InstructionSizeOfBuiltin(i);
+
+    InstructionStream stream(const_cast<uint8_t*>(instruction_start),
+                             instruction_size, i);
+
     Handle<Code> code(builtins->builtin(i));
-    InstructionStream* stream = new InstructionStream(*code);
-    LogInstructionStream(isolate, *code, stream);
-    ChangeToOffHeapTrampoline(isolate, code, stream);
-    isolate->PushOffHeapCode(stream);
+    LogInstructionStream(isolate, *code, &stream);
+
+    // TODO(jgruber,v8:6666): Create fresh trampolines instead of rewriting
+    // existing ones. This could happen prior to serialization or
+    // post-deserialization.
+    ChangeToOffHeapTrampoline(isolate, code, &stream);
   }
 }
 #endif  // V8_EMBEDDED_BUILTINS
@@ -3078,11 +3086,10 @@ bool Isolate::Init(StartupDeserializer* des) {
   if (FLAG_print_builtin_size) PrintBuiltinSizes(this);
 
 #ifdef V8_EMBEDDED_BUILTINS
-  if (FLAG_stress_off_heap_code && !serializer_enabled()) {
-    // Artificially move code off-heap to help find & verify related code
-    // paths. Lazy deserialization should be off to avoid confusion around
-    // replacing just the kDeserializeLazy code object.
-    MoveBuiltinsOffHeap(this);
+  if (FLAG_stress_off_heap_code && !serializer_enabled() &&
+      embedded_blob() != nullptr) {
+    // Create the on-heap trampolines that jump into embedded code.
+    CreateOnHeapTrampolines(this);
   }
 #endif
 
