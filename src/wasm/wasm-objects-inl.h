@@ -154,10 +154,6 @@ WCM_SMALL_CONST_NUMBER(uint32_t, instance_id, kInstanceIdOffset);
 
 uint32_t WasmTableObject::current_length() { return functions()->length(); }
 
-bool WasmTableObject::has_maximum_length() {
-  return maximum_length()->Number() >= 0;
-}
-
 bool WasmMemoryObject::has_maximum_pages() { return maximum_pages() >= 0; }
 
 void WasmCompiledModule::ReplaceCodeTableForTesting(

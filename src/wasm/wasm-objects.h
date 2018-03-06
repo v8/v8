@@ -133,7 +133,6 @@ class WasmTableObject : public JSObject {
 #undef WASM_TABLE_OBJECT_FIELDS
 
   inline uint32_t current_length();
-  inline bool has_maximum_length();
   void Grow(Isolate* isolate, uint32_t count);
 
   static Handle<WasmTableObject> New(Isolate* isolate, uint32_t initial,
@@ -208,7 +207,7 @@ class WasmInstanceObject : public JSObject {
   DECL_OPTIONAL_ACCESSORS(function_tables, FixedArray)
 
   // FixedArray of all instances whose code was imported
-  DECL_OPTIONAL_ACCESSORS(directly_called_instances, FixedArray)
+  DECL_ACCESSORS(directly_called_instances, FixedArray)
   DECL_ACCESSORS(js_imports_table, FixedArray)
 
 // Layout description.
@@ -281,7 +280,7 @@ class WasmSharedModuleData : public Struct {
  public:
   DECL_ACCESSORS(module_wrapper, Object)
   wasm::WasmModule* module() const;
-  DECL_OPTIONAL_ACCESSORS(module_bytes, SeqOneByteString)
+  DECL_ACCESSORS(module_bytes, SeqOneByteString)
   DECL_ACCESSORS(script, Script)
   DECL_OPTIONAL_ACCESSORS(asm_js_offset_table, ByteArray)
   DECL_OPTIONAL_ACCESSORS(breakpoint_infos, FixedArray)
@@ -478,43 +477,35 @@ class WasmCompiledModule : public Struct {
  public:                                            \
   inline TYPE* NAME() const;
 
-// Add values here if they are required for creating new instances or
-// for deserialization, and if they are serializable.
-// By default, instance values go to WasmInstanceObject, however, if
-// we embed the generated code with a value, then we track that value here.
-#define CORE_WCM_PROPERTY_TABLE(MACRO)                        \
-  MACRO(CONST_OBJECT, WasmSharedModuleData, shared)           \
-  MACRO(WEAK_LINK, Context, native_context)                   \
-  MACRO(CONST_OBJECT, FixedArray, export_wrappers)            \
-  MACRO(OBJECT, FixedArray, weak_exported_functions)          \
-  MACRO(CONST_OBJECT, WasmCompiledModule, next_instance)      \
-  MACRO(CONST_OBJECT, WasmCompiledModule, prev_instance)      \
-  MACRO(WEAK_LINK, WasmInstanceObject, owning_instance)       \
-  MACRO(WEAK_LINK, WasmModuleObject, wasm_module)             \
-  MACRO(OBJECT, FixedArray, source_positions)                 \
-  MACRO(OBJECT, Foreign, native_module)                       \
-  MACRO(OBJECT, FixedArray, lazy_compile_data)                \
-  /* TODO(mstarzinger): Make {use_trap_handler} smaller. */   \
-  MACRO(SMALL_CONST_NUMBER, bool, use_trap_handler)           \
-  MACRO(CONST_OBJECT, FixedArray, code_table)                 \
-  MACRO(OBJECT, FixedArray, function_tables)                  \
-  MACRO(CONST_OBJECT, FixedArray, empty_function_tables)
+  // Add values here if they are required for creating new instances or
+  // for deserialization, and if they are serializable.
+  // By default, instance values go to WasmInstanceObject, however, if
+  // we embed the generated code with a value, then we track that value here.
+  WCM_CONST_OBJECT(WasmSharedModuleData, shared)
+  WCM_WEAK_LINK(Context, native_context)
+  WCM_CONST_OBJECT(FixedArray, export_wrappers)
+  WCM_OBJECT(FixedArray, weak_exported_functions)
+  WCM_CONST_OBJECT(WasmCompiledModule, next_instance)
+  WCM_CONST_OBJECT(WasmCompiledModule, prev_instance)
+  WCM_WEAK_LINK(WasmInstanceObject, owning_instance)
+  WCM_WEAK_LINK(WasmModuleObject, wasm_module)
+  WCM_OBJECT(FixedArray, source_positions)
+  WCM_OBJECT(Foreign, native_module)
+  WCM_OBJECT(FixedArray, lazy_compile_data)
+  // TODO(mstarzinger): Make {use_trap_handler} smaller.
+  WCM_SMALL_CONST_NUMBER(bool, use_trap_handler)
+  WCM_CONST_OBJECT(FixedArray, code_table)
+  WCM_OBJECT(FixedArray, function_tables)
+  WCM_CONST_OBJECT(FixedArray, empty_function_tables)
 
+ public:
 // TODO(mtrofin): this is unnecessary when we stop needing
 // FLAG_wasm_jit_to_native, because we have instance_id on NativeModule.
 #if DEBUG
-#define DEBUG_WCM_PROPERTY_TABLE(MACRO) \
-  MACRO(SMALL_CONST_NUMBER, uint32_t, instance_id)
+  WCM_SMALL_CONST_NUMBER(uint32_t, instance_id)
 #else
-#define DEBUG_WCM_PROPERTY_TABLE(IGNORE)
-
- public:
   uint32_t instance_id() const { return static_cast<uint32_t>(-1); }
 #endif
-
-#define WCM_PROPERTY_TABLE(MACRO) \
-  CORE_WCM_PROPERTY_TABLE(MACRO)  \
-  DEBUG_WCM_PROPERTY_TABLE(MACRO)
 
  public:
   static Handle<WasmCompiledModule> New(
@@ -532,13 +523,9 @@ class WasmCompiledModule : public Struct {
   void RemoveFromChain();
   void OnWasmModuleDecodingComplete(Handle<WasmSharedModuleData>);
 
-#define DECLARATION(KIND, TYPE, NAME) WCM_##KIND(TYPE, NAME)
-  WCM_PROPERTY_TABLE(DECLARATION)
-#undef DECLARATION
   DECL_ACCESSORS(raw_next_instance, Object);
   DECL_ACCESSORS(raw_prev_instance, Object);
 
- public:
   void PrintInstancesChain();
 
   static void ReinitializeAfterDeserialization(Isolate*,
@@ -694,9 +681,6 @@ WasmFunctionInfo GetWasmFunctionInfo(Isolate*, Handle<Code>);
 #undef WCM_OBJECT_OR_WEAK
 #undef WCM_SMALL_CONST_NUMBER
 #undef WCM_WEAK_LINK
-#undef WCM_PROPERTY_TABLE
-#undef CORE_WCM_PROPERTY_TABLE
-#undef DEBUG_WCM_PROPERTY_TABLE
 
 #include "src/objects/object-macros-undef.h"
 
