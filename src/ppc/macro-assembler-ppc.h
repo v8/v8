@@ -216,6 +216,7 @@ class TurboAssembler : public Assembler {
                   Register scratch = no_reg);
   void LoadSingleU(DoubleRegister dst, const MemOperand& mem,
                    Register scratch = no_reg);
+  void LoadPC(Register dst);
 
   void StoreDouble(DoubleRegister src, const MemOperand& mem,
                    Register scratch = no_reg);
@@ -641,6 +642,10 @@ class TurboAssembler : public Assembler {
   void CallStubDelayed(CodeStub* stub);
 
   void LoadConstantPoolPointerRegister();
+
+  // Loads the constant pool pointer (kConstantPoolRegister).
+  void LoadConstantPoolPointerRegisterFromCodeTargetAddress(
+      Register code_target_address);
   void AbortConstantPoolBuilding() {
 #ifdef DEBUG
     // Avoid DCHECK(!is_linked()) failure in ~Label()
@@ -734,10 +739,6 @@ class MacroAssembler : public TurboAssembler {
   // RegList constant kSafepointSavedRegisters.
   void PushSafepointRegisters();
   void PopSafepointRegisters();
-
-  // Loads the constant pool pointer (kConstantPoolRegister).
-  void LoadConstantPoolPointerRegisterFromCodeTargetAddress(
-      Register code_target_address);
 
   // Flush the I-cache from asm code. You should use CpuFeatures::FlushICache
   // from C.

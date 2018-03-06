@@ -168,7 +168,7 @@ void TurboAssembler::Call(Register target) {
 }
 
 void MacroAssembler::CallJSEntry(Register target) {
-  DCHECK(target == ip);
+  CHECK(target == r5);
   Call(target);
 }
 
@@ -825,7 +825,7 @@ void TurboAssembler::ShiftRightAlgPair(Register dst_low, Register dst_high,
 }
 #endif
 
-void MacroAssembler::LoadConstantPoolPointerRegisterFromCodeTargetAddress(
+void TurboAssembler::LoadConstantPoolPointerRegisterFromCodeTargetAddress(
     Register code_target_address) {
   lwz(kConstantPoolRegister,
       MemOperand(code_target_address,
@@ -833,8 +833,15 @@ void MacroAssembler::LoadConstantPoolPointerRegisterFromCodeTargetAddress(
   add(kConstantPoolRegister, kConstantPoolRegister, code_target_address);
 }
 
+void TurboAssembler::LoadPC(Register dst) {
+  b(4, SetLK);
+  mflr(dst);
+}
+
 void TurboAssembler::LoadConstantPoolPointerRegister() {
-  mov_label_addr(kConstantPoolRegister, ConstantPoolPosition());
+  LoadPC(kConstantPoolRegister);
+  add_label_offset(kConstantPoolRegister, kConstantPoolRegister,
+                   ConstantPoolPosition(), -pc_offset() + 4);
 }
 
 void TurboAssembler::StubPrologue(StackFrame::Type type) {
@@ -850,7 +857,6 @@ void TurboAssembler::StubPrologue(StackFrame::Type type) {
 }
 
 void TurboAssembler::Prologue() {
-  DCHECK(base != no_reg);
   PushStandardFrame(r4);
   if (FLAG_enable_embedded_constant_pool) {
     // base contains prologue address
