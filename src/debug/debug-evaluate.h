@@ -32,7 +32,7 @@ class DebugEvaluate : public AllStatic {
                                    bool throw_on_side_effect);
 
   static bool FunctionHasNoSideEffect(Handle<SharedFunctionInfo> info);
-  static bool CallbackHasNoSideEffect(Address function_addr);
+  static bool CallbackHasNoSideEffect(Object* callback_info);
 
  private:
   // This class builds a context chain for evaluation of expressions

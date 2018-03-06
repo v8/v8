@@ -28,6 +28,7 @@ Handle<AccessorInfo> Accessors::MakeAccessor(
   info->set_is_special_data_property(true);
   info->set_is_sloppy(false);
   info->set_replace_on_access(false);
+  info->set_has_no_side_effect(false);
   name = factory->InternalizeName(name);
   info->set_name(*name);
   Handle<Object> get = v8::FromCData(isolate, getter);

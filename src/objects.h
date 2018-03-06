@@ -4399,6 +4399,7 @@ class AccessorInfo: public Struct {
   DECL_BOOLEAN_ACCESSORS(is_special_data_property)
   DECL_BOOLEAN_ACCESSORS(replace_on_access)
   DECL_BOOLEAN_ACCESSORS(is_sloppy)
+  DECL_BOOLEAN_ACCESSORS(has_no_side_effect)
 
   // The property attributes used when an API object template is instantiated
   // for the first time. Changing of this value afterwards does not affect
@@ -4447,6 +4448,7 @@ class AccessorInfo: public Struct {
   V(IsSpecialDataPropertyBit, bool, 1, _)    \
   V(IsSloppyBit, bool, 1, _)                 \
   V(ReplaceOnAccessBit, bool, 1, _)          \
+  V(HasNoSideEffectBit, bool, 1, _)          \
   V(InitialAttributesBits, PropertyAttributes, 3, _)
 
   DEFINE_BIT_FIELDS(ACCESSOR_INFO_FLAGS_BIT_FIELDS)

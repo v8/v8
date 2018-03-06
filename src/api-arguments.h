@@ -160,13 +160,14 @@ class PropertyCallbackArguments
   inline Handle<Object> BasicCallIndexedGetterCallback(
       IndexedPropertyGetterCallback f, uint32_t index);
   inline Handle<Object> BasicCallNamedGetterCallback(
-      GenericNamedPropertyGetterCallback f, Handle<Name> name);
+      GenericNamedPropertyGetterCallback f, Handle<Name> name,
+      Handle<Object> info);
 
   inline JSObject* holder() {
     return JSObject::cast(this->begin()[T::kHolderIndex]);
   }
 
-  bool PerformSideEffectCheck(Isolate* isolate, Address function);
+  bool PerformSideEffectCheck(Isolate* isolate, Handle<Object> callback_info);
 
   // Don't copy PropertyCallbackArguments, because they would both have the
   // same prev_ pointer.

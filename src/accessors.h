@@ -49,6 +49,14 @@ class JavaScriptFrame;
   V(script_source_mapping_url, ScriptSourceMappingUrl)              \
   V(string_length, StringLength)
 
+#define SIDE_EFFECT_FREE_ACCESSOR_INFO_LIST(V) \
+  V(ArrayLength)                               \
+  V(BoundFunctionLength)                       \
+  V(BoundFunctionName)                         \
+  V(FunctionName)                              \
+  V(FunctionLength)                            \
+  V(StringLength)
+
 #define ACCESSOR_SETTER_LIST(V) \
   V(ArrayLengthSetter)          \
   V(ErrorStackSetter)           \

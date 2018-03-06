@@ -3156,6 +3156,8 @@ BIT_FIELD_ACCESSORS(AccessorInfo, flags, is_special_data_property,
 BIT_FIELD_ACCESSORS(AccessorInfo, flags, replace_on_access,
                     AccessorInfo::ReplaceOnAccessBit)
 BIT_FIELD_ACCESSORS(AccessorInfo, flags, is_sloppy, AccessorInfo::IsSloppyBit)
+BIT_FIELD_ACCESSORS(AccessorInfo, flags, has_no_side_effect,
+                    AccessorInfo::HasNoSideEffectBit)
 BIT_FIELD_ACCESSORS(AccessorInfo, flags, initial_property_attributes,
                     AccessorInfo::InitialAttributesBits)
 

@@ -695,6 +695,12 @@ void Heap::CreateInternalAccessorInfoObjects() {
   roots_[k##AccessorName##AccessorRootIndex] = *acessor_info;
   ACCESSOR_INFO_LIST(INIT_ACCESSOR_INFO)
 #undef INIT_ACCESSOR_INFO
+
+#define INIT_SIDE_EFFECT_FLAG(AccessorName)                      \
+  AccessorInfo::cast(roots_[k##AccessorName##AccessorRootIndex]) \
+      ->set_has_no_side_effect(true);
+  SIDE_EFFECT_FREE_ACCESSOR_INFO_LIST(INIT_SIDE_EFFECT_FLAG)
+#undef INIT_SIDE_EFFECT_FLAG
 }
 
 }  // namespace internal

@@ -82,6 +82,11 @@ function listener(event, exec_state, event_data, data) {
     fail("try { set_a() } catch (e) {}");
     // Test that call to set accessor fails.
     fail("array.length = 4");
+    fail("'x'.length = 1");
+    fail("set_a.name = 'set_b'");
+    fail("set_a.length = 1");
+    fail("bound.name = 'bound'");
+    fail("bound.length = 1");
     // Test that call to non-whitelisted get accessor fails.
     fail("error.stack");
     // Eval is not allowed.

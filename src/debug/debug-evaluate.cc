@@ -800,16 +800,6 @@ bool BuiltinHasNoSideEffect(Builtins::Name id) {
   }
 }
 
-static const Address accessors_with_no_side_effect[] = {
-    // Whitelist for accessors.
-    FUNCTION_ADDR(Accessors::StringLengthGetter),
-    FUNCTION_ADDR(Accessors::ArrayLengthGetter),
-    FUNCTION_ADDR(Accessors::FunctionLengthGetter),
-    FUNCTION_ADDR(Accessors::FunctionNameGetter),
-    FUNCTION_ADDR(Accessors::BoundFunctionLengthGetter),
-    FUNCTION_ADDR(Accessors::BoundFunctionNameGetter),
-};
-
 }  // anonymous namespace
 
 // static
@@ -890,14 +880,17 @@ bool DebugEvaluate::FunctionHasNoSideEffect(Handle<SharedFunctionInfo> info) {
 }
 
 // static
-bool DebugEvaluate::CallbackHasNoSideEffect(Address function_addr) {
-  for (size_t i = 0; i < arraysize(accessors_with_no_side_effect); i++) {
-    if (function_addr == accessors_with_no_side_effect[i]) return true;
-  }
-
-  if (FLAG_trace_side_effect_free_debug_evaluate) {
-    PrintF("[debug-evaluate] API Callback at %p may cause side effect.\n",
-           reinterpret_cast<void*>(function_addr));
+bool DebugEvaluate::CallbackHasNoSideEffect(Object* callback_info) {
+  DisallowHeapAllocation no_gc;
+  if (callback_info->IsAccessorInfo()) {
+    // List of whitelisted internal accessors can be found in accessors.h.
+    AccessorInfo* info = AccessorInfo::cast(callback_info);
+    if (info->has_no_side_effect()) return true;
+    if (FLAG_trace_side_effect_free_debug_evaluate) {
+      PrintF("[debug-evaluate] API Callback '");
+      info->name()->ShortPrint();
+      PrintF("' may cause side effect.\n");
+    }
   }
   return false;
 }

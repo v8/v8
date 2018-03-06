@@ -2194,9 +2194,9 @@ bool Debug::PerformSideEffectCheck(Handle<JSFunction> function) {
   return true;
 }
 
-bool Debug::PerformSideEffectCheckForCallback(Address function) {
+bool Debug::PerformSideEffectCheckForCallback(Object* callback_info) {
   DCHECK(isolate_->needs_side_effect_check());
-  if (DebugEvaluate::CallbackHasNoSideEffect(function)) return true;
+  if (DebugEvaluate::CallbackHasNoSideEffect(callback_info)) return true;
   side_effect_check_failed_ = true;
   // Throw an uncatchable termination exception.
   isolate_->TerminateExecution();

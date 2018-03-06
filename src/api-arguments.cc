@@ -20,7 +20,7 @@ Handle<Object> FunctionCallbackArguments::Call(CallHandlerInfo* handler) {
   v8::FunctionCallback f =
       v8::ToCData<v8::FunctionCallback>(handler->callback());
   if (isolate->needs_side_effect_check() &&
-      !isolate->debug()->PerformSideEffectCheckForCallback(FUNCTION_ADDR(f))) {
+      !isolate->debug()->PerformSideEffectCheckForCallback(handler)) {
     return Handle<Object>();
   }
   VMState<EXTERNAL> state(isolate);
@@ -48,9 +48,9 @@ Handle<JSObject> PropertyCallbackArguments::CallIndexedEnumerator(
   return CallPropertyEnumerator(interceptor);
 }
 
-bool PropertyCallbackArguments::PerformSideEffectCheck(Isolate* isolate,
-                                                       Address function) {
-  return isolate->debug()->PerformSideEffectCheckForCallback(function);
+bool PropertyCallbackArguments::PerformSideEffectCheck(
+    Isolate* isolate, Handle<Object> callback_info) {
+  return isolate->debug()->PerformSideEffectCheckForCallback(*callback_info);
 }
 
 }  // namespace internal
