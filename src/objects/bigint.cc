@@ -323,10 +323,18 @@ MaybeHandle<BigInt> BigInt::Exponentiate(Handle<BigInt> base,
   // 3. Return a BigInt representing the mathematical value of base raised
   //    to the power exponent.
   if (base->is_zero()) return base;
+  if (base->length() == 1 && base->digit(0) == 1) {
+    // (-1) ** even_number == 1.
+    if (base->sign() && (exponent->digit(0) & 1) == 0) {
+      return UnaryMinus(base);
+    }
+    // (-1) ** odd_number == -1; 1 ** anything == 1.
+    return base;
+  }
   // For all bases >= 2, very large exponents would lead to unrepresentable
   // results.
   STATIC_ASSERT(kMaxLengthBits < std::numeric_limits<digit_t>::max());
-  if (!(base->length() == 1 && base->digit(0) == 1) && exponent->length() > 1) {
+  if (exponent->length() > 1) {
     THROW_NEW_ERROR(isolate, NewRangeError(MessageTemplate::kBigIntTooBig),
                     BigInt);
   }
