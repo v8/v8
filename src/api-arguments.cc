@@ -50,6 +50,8 @@ Handle<JSObject> PropertyCallbackArguments::CallIndexedEnumerator(
 
 bool PropertyCallbackArguments::PerformSideEffectCheck(
     Isolate* isolate, Handle<Object> callback_info) {
+  // TODO(7515): always pass a valid callback info object.
+  if (callback_info.is_null()) return false;
   return isolate->debug()->PerformSideEffectCheckForCallback(*callback_info);
 }
 
