@@ -901,40 +901,38 @@ void TurboAssembler::ByteSwapSigned(Register dest, Register src,
                                     int operand_size) {
   DCHECK(operand_size == 1 || operand_size == 2 || operand_size == 4);
 
+  Register input = src;
   if (operand_size == 2) {
-    Seh(src, src);
+    input = dest;
+    Seh(dest, src);
   } else if (operand_size == 1) {
-    Seb(src, src);
+    input = dest;
+    Seb(dest, src);
   }
   // No need to do any preparation if operand_size is 4
 
   if (IsMipsArchVariant(kMips32r2) || IsMipsArchVariant(kMips32r6)) {
-    wsbh(dest, src);
+    wsbh(dest, input);
     rotr(dest, dest, 16);
   } else if (IsMipsArchVariant(kMips32r1) || IsMipsArchVariant(kLoongson)) {
     Register tmp = at;
     Register tmp2 = t8;
-    DCHECK(dest != src);
     DCHECK(dest != tmp && dest != tmp2);
     DCHECK(src != tmp && src != tmp2);
 
-    andi(tmp2, src, 0xFF);
-    sll(tmp2, tmp2, 24);
-    or_(tmp, zero_reg, tmp2);
+    andi(tmp2, input, 0xFF);
+    sll(tmp, tmp2, 24);
 
-    andi(tmp2, src, 0xFF00);
+    andi(tmp2, input, 0xFF00);
     sll(tmp2, tmp2, 8);
     or_(tmp, tmp, tmp2);
 
-    srl(src, src, 8);
-    andi(tmp2, src, 0xFF00);
+    srl(tmp2, input, 8);
+    andi(tmp2, tmp2, 0xFF00);
     or_(tmp, tmp, tmp2);
 
-    srl(src, src, 16);
-    andi(tmp2, src, 0xFF);
-    or_(tmp, tmp, tmp2);
-
-    or_(dest, tmp, zero_reg);
+    srl(tmp2, input, 24);
+    or_(dest, tmp, tmp2);
   }
 }
 
@@ -943,25 +941,28 @@ void TurboAssembler::ByteSwapUnsigned(Register dest, Register src,
   DCHECK(operand_size == 1 || operand_size == 2);
 
   if (IsMipsArchVariant(kMips32r2) || IsMipsArchVariant(kMips32r6)) {
+    Register input = src;
     if (operand_size == 1) {
-      andi(src, src, 0xFF);
+      input = dest;
+      andi(dest, src, 0xFF);
     } else {
-      andi(src, src, 0xFFFF);
+      input = dest;
+      andi(dest, src, 0xFFFF);
     }
     // No need to do any preparation if operand_size is 4
 
-    wsbh(dest, src);
+    wsbh(dest, input);
     rotr(dest, dest, 16);
   } else if (IsMipsArchVariant(kMips32r1) || IsMipsArchVariant(kLoongson)) {
     if (operand_size == 1) {
-      sll(src, src, 24);
+      sll(dest, src, 24);
     } else {
       Register tmp = at;
 
       andi(tmp, src, 0xFF00);
-      sll(src, src, 24);
+      sll(dest, src, 24);
       sll(tmp, tmp, 8);
-      or_(dest, tmp, src);
+      or_(dest, tmp, dest);
     }
   }
 }

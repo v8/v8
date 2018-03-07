@@ -58,6 +58,16 @@ TEST(BYTESWAP) {
     int32_t r3;
     int32_t r4;
     int32_t r5;
+    int32_t t1;
+    int32_t t2;
+    int32_t t3;
+    int32_t t4;
+    int32_t t5;
+    int32_t p1;
+    int32_t p2;
+    int32_t p3;
+    int32_t p4;
+    int32_t p5;
   };
   T t;
 
@@ -66,27 +76,37 @@ TEST(BYTESWAP) {
   MacroAssembler* masm = &assembler;
 
   __ lw(a2, MemOperand(a0, offsetof(T, r1)));
-  __ nop();
+  __ ByteSwapSigned(a1, a2, 4);
+  __ sw(a2, MemOperand(a0, offsetof(T, p1)));
+  __ sw(a1, MemOperand(a0, offsetof(T, t1)));
   __ ByteSwapSigned(a2, a2, 4);
   __ sw(a2, MemOperand(a0, offsetof(T, r1)));
 
   __ lw(a2, MemOperand(a0, offsetof(T, r2)));
-  __ nop();
+  __ ByteSwapSigned(a1, a2, 2);
+  __ sw(a2, MemOperand(a0, offsetof(T, p2)));
+  __ sw(a1, MemOperand(a0, offsetof(T, t2)));
   __ ByteSwapSigned(a2, a2, 2);
   __ sw(a2, MemOperand(a0, offsetof(T, r2)));
 
   __ lw(a2, MemOperand(a0, offsetof(T, r3)));
-  __ nop();
+  __ ByteSwapSigned(a1, a2, 1);
+  __ sw(a2, MemOperand(a0, offsetof(T, p3)));
+  __ sw(a1, MemOperand(a0, offsetof(T, t3)));
   __ ByteSwapSigned(a2, a2, 1);
   __ sw(a2, MemOperand(a0, offsetof(T, r3)));
 
   __ lw(a2, MemOperand(a0, offsetof(T, r4)));
-  __ nop();
+  __ ByteSwapUnsigned(a1, a2, 1);
+  __ sw(a2, MemOperand(a0, offsetof(T, p4)));
+  __ sw(a1, MemOperand(a0, offsetof(T, t4)));
   __ ByteSwapUnsigned(a2, a2, 1);
   __ sw(a2, MemOperand(a0, offsetof(T, r4)));
 
   __ lw(a2, MemOperand(a0, offsetof(T, r5)));
-  __ nop();
+  __ ByteSwapUnsigned(a1, a2, 2);
+  __ sw(a2, MemOperand(a0, offsetof(T, p5)));
+  __ sw(a1, MemOperand(a0, offsetof(T, t5)));
   __ ByteSwapUnsigned(a2, a2, 2);
   __ sw(a2, MemOperand(a0, offsetof(T, r5)));
 
@@ -110,6 +130,18 @@ TEST(BYTESWAP) {
   CHECK_EQ(static_cast<int32_t>(0x9FFFFFFF), t.r3);
   CHECK_EQ(static_cast<int32_t>(0x9F000000), t.r4);
   CHECK_EQ(static_cast<int32_t>(0xDE2C0000), t.r5);
+
+  CHECK_EQ(t.t1, t.r1);
+  CHECK_EQ(t.t2, t.r2);
+  CHECK_EQ(t.t3, t.r3);
+  CHECK_EQ(t.t4, t.r4);
+  CHECK_EQ(t.t5, t.r5);
+
+  CHECK_EQ(static_cast<int32_t>(0x781A15C3), t.p1);
+  CHECK_EQ(static_cast<int32_t>(0x2CDE), t.p2);
+  CHECK_EQ(static_cast<int32_t>(0x9F), t.p3);
+  CHECK_EQ(static_cast<int32_t>(0x9F), t.p4);
+  CHECK_EQ(static_cast<int32_t>(0x2CDE), t.p5);
 }
 
 static void TestNaN(const char *code) {
