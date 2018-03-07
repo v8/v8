@@ -1665,7 +1665,9 @@ void TurboAssembler::ComputeCodeStartAddress(Register dst) {
   }
 }
 
-void TurboAssembler::ResetSpeculationPoisonRegister() { UNREACHABLE(); }
+void TurboAssembler::ResetSpeculationPoisonRegister() {
+  mov(kSpeculationPoisonRegister, Immediate(-1));
+}
 
 }  // namespace internal
 }  // namespace v8

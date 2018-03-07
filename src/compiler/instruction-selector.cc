@@ -809,10 +809,17 @@ void InstructionSelector::InitializeCallBuffer(Node* call, CallBuffer* buffer,
   }
   DCHECK_EQ(1u, buffer->instruction_args.size());
 
+  // Argument 1 is used for poison-alias index (encoded in a word-sized
+  // immediate. This an index of the operand that aliases with poison register
+  // or -1 if there is no aliasing.
+  buffer->instruction_args.push_back(g.TempImmediate(-1));
+  const size_t poison_alias_index = 1;
+  DCHECK_EQ(buffer->instruction_args.size() - 1, poison_alias_index);
+
   // If the call needs a frame state, we insert the state information as
   // follows (n is the number of value inputs to the frame state):
-  // arg 1               : deoptimization id.
-  // arg 2 - arg (n + 1) : value inputs to the frame state.
+  // arg 2               : deoptimization id.
+  // arg 3 - arg (n + 2) : value inputs to the frame state.
   size_t frame_state_entries = 0;
   USE(frame_state_entries);  // frame_state_entries is only used for debug.
   if (buffer->frame_state_descriptor != nullptr) {
@@ -848,7 +855,7 @@ void InstructionSelector::InitializeCallBuffer(Node* call, CallBuffer* buffer,
                 &buffer->instruction_args, FrameStateInputKind::kStackSlot,
                 instruction_zone());
 
-    DCHECK_EQ(1 + frame_state_entries, buffer->instruction_args.size());
+    DCHECK_EQ(2 + frame_state_entries, buffer->instruction_args.size());
   }
 
   size_t input_count = static_cast<size_t>(buffer->input_count());
@@ -871,8 +878,9 @@ void InstructionSelector::InitializeCallBuffer(Node* call, CallBuffer* buffer,
           location, stack_param_delta);
     }
     InstructionOperand op = g.UseLocation(*iter, location);
-    if (UnallocatedOperand::cast(op).HasFixedSlotPolicy() && !call_tail) {
-      int stack_index = -UnallocatedOperand::cast(op).fixed_slot_index() - 1;
+    UnallocatedOperand unallocated = UnallocatedOperand::cast(op);
+    if (unallocated.HasFixedSlotPolicy() && !call_tail) {
+      int stack_index = -unallocated.fixed_slot_index() - 1;
       if (static_cast<size_t>(stack_index) >= buffer->pushed_nodes.size()) {
         buffer->pushed_nodes.resize(stack_index + 1);
       }
@@ -880,11 +888,23 @@ void InstructionSelector::InitializeCallBuffer(Node* call, CallBuffer* buffer,
       buffer->pushed_nodes[stack_index] = param;
       pushed_count++;
     } else {
+      // If we do load poisoning and the linkage uses the poisoning register,
+      // then we request the input in memory location, and during code
+      // generation, we move the input to the register.
+      if (load_poisoning_ == LoadPoisoning::kDoPoison &&
+          unallocated.HasFixedRegisterPolicy()) {
+        int reg = unallocated.fixed_register_index();
+        if (reg == kSpeculationPoisonRegister.code()) {
+          buffer->instruction_args[poison_alias_index] = g.TempImmediate(
+              static_cast<int32_t>(buffer->instruction_args.size()));
+          op = g.Use(*iter);
+        }
+      }
       buffer->instruction_args.push_back(op);
     }
   }
   DCHECK_EQ(input_count, buffer->instruction_args.size() + pushed_count -
-                             frame_state_entries);
+                             frame_state_entries - 1);
   if (V8_TARGET_ARCH_STORES_RETURN_ADDRESS_ON_STACK && call_tail &&
       stack_param_delta != 0) {
     // For tail calls that change the size of their parameter list and keep

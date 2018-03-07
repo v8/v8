@@ -841,9 +841,9 @@ void CodeGenerator::RecordCallPosition(Instruction* instr) {
 
   if (needs_frame_state) {
     MarkLazyDeoptSite();
-    // If the frame state is present, it starts at argument 1 (just after the
-    // code address).
-    size_t frame_state_offset = 1;
+    // If the frame state is present, it starts at argument 2 - after
+    // the code address and the poison-alias index.
+    size_t frame_state_offset = 2;
     FrameStateDescriptor* descriptor =
         GetDeoptimizationEntry(instr, frame_state_offset).descriptor();
     int pc_offset = tasm()->pc_offset();

@@ -2044,7 +2044,7 @@ InstructionSelector::AlignmentRequirements() {
 }
 
 // static
-bool InstructionSelector::SupportsSpeculationPoisoning() { return false; }
+bool InstructionSelector::SupportsSpeculationPoisoning() { return true; }
 
 }  // namespace compiler
 }  // namespace internal

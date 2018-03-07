@@ -970,10 +970,15 @@ class CodeGeneratorTester {
   Instruction* CreateTailCall(int stack_slot_delta) {
     int optional_padding_slot = stack_slot_delta;
     InstructionOperand callee[] = {
+        AllocatedOperand(LocationOperand::REGISTER,
+                         MachineRepresentation::kTagged,
+                         kReturnRegister0.code()),
+        ImmediateOperand(ImmediateOperand::INLINE, -1),  // poison index.
         ImmediateOperand(ImmediateOperand::INLINE, optional_padding_slot),
         ImmediateOperand(ImmediateOperand::INLINE, stack_slot_delta)};
-    Instruction* tail_call = Instruction::New(zone_, kArchTailCallCodeObject, 0,
-                                              nullptr, 2, callee, 0, nullptr);
+    Instruction* tail_call =
+        Instruction::New(zone_, kArchTailCallCodeObject, 0, nullptr,
+                         arraysize(callee), callee, 0, nullptr);
     return tail_call;
   }
 
@@ -1046,10 +1051,12 @@ class CodeGeneratorTester {
         AllocatedOperand(LocationOperand::REGISTER,
                          MachineRepresentation::kTagged,
                          kReturnRegister0.code()),
+        ImmediateOperand(ImmediateOperand::INLINE, -1),  // poison index.
         ImmediateOperand(ImmediateOperand::INLINE, optional_padding_slot),
         ImmediateOperand(ImmediateOperand::INLINE, first_unused_stack_slot)};
-    Instruction* tail_call = Instruction::New(zone_, kArchTailCallCodeObject, 0,
-                                              nullptr, 3, callee, 0, nullptr);
+    Instruction* tail_call =
+        Instruction::New(zone_, kArchTailCallCodeObject, 0, nullptr,
+                         arraysize(callee), callee, 0, nullptr);
     sequence->AddInstruction(tail_call);
     sequence->EndBlock(RpoNumber::FromInt(0));
 

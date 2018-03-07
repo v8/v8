@@ -423,6 +423,12 @@ void CEntryStub::Generate(MacroAssembler* masm) {
   __ mov(Operand(ebp, StandardFrameConstants::kContextOffset), esi);
   __ bind(&skip);
 
+  // Reset the masking register. This is done independent of the underlying
+  // feature flag {FLAG_branch_load_poisoning} to make the snapshot work with
+  // both configurations. It is safe to always do this, because the underlying
+  // register is caller-saved and can be arbitrarily clobbered.
+  __ ResetSpeculationPoisonRegister();
+
   // Compute the handler entry address and jump to it.
   __ mov(edi, Operand::StaticVariable(pending_handler_entrypoint_address));
   __ jmp(edi);
