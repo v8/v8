@@ -376,7 +376,7 @@ void LiftoffAssembler::emit_cond_jump(Condition cond, Label* label,
 void LiftoffAssembler::emit_i32_set_cond(Condition cond, Register dst,
                                          Register lhs, Register rhs) {
   Label true_label;
-  if (dst != lhs) {
+  if (dst != lhs && dst != rhs) {
     ori(dst, zero_reg, 0x1);
   }
 
@@ -388,7 +388,7 @@ void LiftoffAssembler::emit_i32_set_cond(Condition cond, Register dst,
   // If not true, set on 0.
   TurboAssembler::mov(dst, zero_reg);
 
-  if (dst != lhs) {
+  if (dst != lhs && dst != rhs) {
     bind(&true_label);
   } else {
     Label end_label;
