@@ -593,6 +593,11 @@ class BytecodeGenerator::ExpressionResultScope {
     type_hint_ = TypeHint::kBoolean;
   }
 
+  void SetResultIsString() {
+    DCHECK_EQ(type_hint_, TypeHint::kAny);
+    type_hint_ = TypeHint::kString;
+  }
+
   TypeHint type_hint() const { return type_hint_; }
 
  private:
@@ -2057,6 +2062,7 @@ void BytecodeGenerator::VisitLiteral(Literal* expr) {
       break;
     case Literal::kString:
       builder()->LoadLiteral(expr->AsRawString());
+      execution_result()->SetResultIsString();
       break;
     case Literal::kSymbol:
       builder()->LoadLiteral(expr->AsSymbol());
@@ -3982,13 +3988,23 @@ void BytecodeGenerator::VisitArithmeticExpression(BinaryOperation* expr) {
   Expression* subexpr;
   Smi* literal;
   if (expr->IsSmiLiteralOperation(&subexpr, &literal)) {
-    VisitForAccumulatorValue(subexpr);
+    TypeHint type_hint = VisitForAccumulatorValue(subexpr);
     builder()->SetExpressionPosition(expr);
     builder()->BinaryOperationSmiLiteral(expr->op(), literal,
                                          feedback_index(slot));
+    if (expr->op() == Token::ADD && type_hint == TypeHint::kString) {
+      execution_result()->SetResultIsString();
+    }
   } else {
-    Register lhs = VisitForRegisterValue(expr->left());
-    VisitForAccumulatorValue(expr->right());
+    TypeHint lhs_type = VisitForAccumulatorValue(expr->left());
+    Register lhs = register_allocator()->NewRegister();
+    builder()->StoreAccumulatorInRegister(lhs);
+    TypeHint rhs_type = VisitForAccumulatorValue(expr->right());
+    if (expr->op() == Token::ADD &&
+        (lhs_type == TypeHint::kString || rhs_type == TypeHint::kString)) {
+      execution_result()->SetResultIsString();
+    }
+
     builder()->SetExpressionPosition(expr);
     builder()->BinaryOperation(expr->op(), lhs, feedback_index(slot));
   }
@@ -3996,7 +4012,7 @@ void BytecodeGenerator::VisitArithmeticExpression(BinaryOperation* expr) {
 
 void BytecodeGenerator::VisitNaryArithmeticExpression(NaryOperation* expr) {
   // TODO(leszeks): Add support for lhs smi in commutative ops.
-  VisitForAccumulatorValue(expr->first());
+  TypeHint type_hint = VisitForAccumulatorValue(expr->first());
 
   for (size_t i = 0; i < expr->subsequent_length(); ++i) {
     RegisterAllocationScope register_scope(this);
@@ -4008,12 +4024,18 @@ void BytecodeGenerator::VisitNaryArithmeticExpression(NaryOperation* expr) {
     } else {
       Register lhs = register_allocator()->NewRegister();
       builder()->StoreAccumulatorInRegister(lhs);
-      VisitForAccumulatorValue(expr->subsequent(i));
+      TypeHint rhs_hint = VisitForAccumulatorValue(expr->subsequent(i));
+      if (rhs_hint == TypeHint::kString) type_hint = TypeHint::kString;
       builder()->SetExpressionPosition(expr->subsequent_op_position(i));
       builder()->BinaryOperation(
           expr->op(), lhs,
           feedback_index(feedback_spec()->AddBinaryOpICSlot()));
     }
+  }
+
+  if (type_hint == TypeHint::kString && expr->op() == Token::ADD) {
+    // If any operand of an ADD is a String, a String is produced.
+    execution_result()->SetResultIsString();
   }
 }
 
@@ -4193,6 +4215,53 @@ void BytecodeGenerator::VisitGetTemplateObject(GetTemplateObject* expr) {
   template_objects_.push_back(std::make_pair(expr, entry));
   FeedbackSlot literal_slot = feedback_spec()->AddLiteralSlot();
   builder()->GetTemplateObject(entry, feedback_index(literal_slot));
+}
+
+void BytecodeGenerator::VisitTemplateLiteral(TemplateLiteral* expr) {
+  const TemplateLiteral::StringList& parts = *expr->string_parts();
+  const TemplateLiteral::ExpressionList& substitutions = *expr->substitutions();
+  // Template strings with no substitutions are turned into StringLiterals.
+  DCHECK_GT(substitutions.length(), 0);
+  DCHECK_EQ(parts.length(), substitutions.length() + 1);
+
+  // Generate string concatenation
+  // TODO(caitp): Don't generate feedback slot if it's not used --- introduce
+  // a simple, concise, reusable mechanism to lazily create reusable slots.
+  FeedbackSlot slot = feedback_spec()->AddBinaryOpICSlot();
+  Register last_part = register_allocator()->NewRegister();
+  bool last_part_valid = false;
+
+  builder()->SetExpressionPosition(expr);
+  for (int i = 0; i < substitutions.length(); ++i) {
+    if (i != 0) {
+      builder()->StoreAccumulatorInRegister(last_part);
+      last_part_valid = true;
+    }
+
+    if (!parts[i]->IsEmpty()) {
+      builder()->LoadLiteral(parts[i]);
+      if (last_part_valid) {
+        builder()->BinaryOperation(Token::ADD, last_part, feedback_index(slot));
+      }
+      builder()->StoreAccumulatorInRegister(last_part);
+      last_part_valid = true;
+    }
+
+    TypeHint type_hint = VisitForAccumulatorValue(substitutions[i]);
+    if (type_hint != TypeHint::kString) {
+      builder()->ToString();
+    }
+    if (last_part_valid) {
+      builder()->BinaryOperation(Token::ADD, last_part, feedback_index(slot));
+    }
+    last_part_valid = false;
+  }
+
+  if (!parts.last()->IsEmpty()) {
+    builder()->StoreAccumulatorInRegister(last_part);
+    builder()->LoadLiteral(parts.last());
+    builder()->BinaryOperation(Token::ADD, last_part, feedback_index(slot));
+  }
 }
 
 void BytecodeGenerator::VisitThisFunction(ThisFunction* expr) {

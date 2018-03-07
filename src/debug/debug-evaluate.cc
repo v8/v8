@@ -507,6 +507,7 @@ bool BytecodeHasNoSideEffect(interpreter::Bytecode bytecode) {
     case Bytecode::kToObject:
     case Bytecode::kToNumber:
     case Bytecode::kToName:
+    case Bytecode::kToString:
     // Misc.
     case Bytecode::kForInEnumerate:
     case Bytecode::kForInPrepare:

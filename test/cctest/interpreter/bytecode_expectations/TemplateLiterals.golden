@@ -13,20 +13,22 @@ snippet: "
 "
 frame size: 3
 parameter count: 1
-bytecode array length: 30
+bytecode array length: 28
 bytecodes: [
   /*   30 E> */ B(StackCheck),
   /*   42 S> */ B(LdaSmi), I8(1),
                 B(Star), R(0),
   /*   53 S> */ B(LdaSmi), I8(2),
                 B(Star), R(1),
-  /*   56 S> */ B(InvokeIntrinsic), U8(Runtime::k_ToString), R(0), U8(1),
+  /*   56 S> */ B(Ldar), R(0),
+                B(ToString),
                 B(Star), R(2),
-  /*   70 E> */ B(InvokeIntrinsic), U8(Runtime::k_ToString), R(1), U8(1),
-  /*   70 E> */ B(Add), R(2), U8(0),
+                B(Ldar), R(1),
+  /*   70 E> */ B(ToString),
+                B(Add), R(2), U8(0),
                 B(Star), R(2),
                 B(LdaConstant), U8(0),
-  /*   70 E> */ B(Add), R(2), U8(1),
+                B(Add), R(2), U8(0),
   /*   80 S> */ B(Return),
 ]
 constant pool: [
@@ -43,7 +45,7 @@ snippet: "
 "
 frame size: 3
 parameter count: 1
-bytecode array length: 30
+bytecode array length: 28
 bytecodes: [
   /*   30 E> */ B(StackCheck),
   /*   42 S> */ B(LdaSmi), I8(1),
@@ -52,11 +54,13 @@ bytecodes: [
                 B(Star), R(1),
   /*   56 S> */ B(LdaConstant), U8(0),
                 B(Star), R(2),
-  /*   72 E> */ B(InvokeIntrinsic), U8(Runtime::k_ToString), R(0), U8(1),
-  /*   72 E> */ B(Add), R(2), U8(0),
+                B(Ldar), R(0),
+  /*   72 E> */ B(ToString),
+                B(Add), R(2), U8(0),
                 B(Star), R(2),
-  /*   76 E> */ B(InvokeIntrinsic), U8(Runtime::k_ToString), R(1), U8(1),
-  /*   76 E> */ B(Add), R(2), U8(1),
+                B(Ldar), R(1),
+  /*   76 E> */ B(ToString),
+                B(Add), R(2), U8(0),
   /*   80 S> */ B(Return),
 ]
 constant pool: [
@@ -73,20 +77,22 @@ snippet: "
 "
 frame size: 3
 parameter count: 1
-bytecode array length: 30
+bytecode array length: 28
 bytecodes: [
   /*   30 E> */ B(StackCheck),
   /*   42 S> */ B(LdaSmi), I8(1),
                 B(Star), R(0),
   /*   53 S> */ B(LdaSmi), I8(2),
                 B(Star), R(1),
-  /*   56 S> */ B(InvokeIntrinsic), U8(Runtime::k_ToString), R(0), U8(1),
+  /*   56 S> */ B(Ldar), R(0),
+                B(ToString),
                 B(Star), R(2),
                 B(LdaConstant), U8(0),
-  /*   66 E> */ B(Add), R(2), U8(0),
+                B(Add), R(2), U8(0),
                 B(Star), R(2),
-  /*   76 E> */ B(InvokeIntrinsic), U8(Runtime::k_ToString), R(1), U8(1),
-  /*   76 E> */ B(Add), R(2), U8(1),
+                B(Ldar), R(1),
+  /*   76 E> */ B(ToString),
+                B(Add), R(2), U8(0),
   /*   80 S> */ B(Return),
 ]
 constant pool: [
@@ -101,9 +107,9 @@ snippet: "
   var b = 2;
   return `foo${a}bar${b}baz${1}`;
 "
-frame size: 4
+frame size: 3
 parameter count: 1
-bytecode array length: 57
+bytecode array length: 50
 bytecodes: [
   /*   30 E> */ B(StackCheck),
   /*   42 S> */ B(LdaSmi), I8(1),
@@ -112,22 +118,23 @@ bytecodes: [
                 B(Star), R(1),
   /*   56 S> */ B(LdaConstant), U8(0),
                 B(Star), R(2),
-  /*   69 E> */ B(InvokeIntrinsic), U8(Runtime::k_ToString), R(0), U8(1),
-  /*   69 E> */ B(Add), R(2), U8(0),
+                B(Ldar), R(0),
+  /*   69 E> */ B(ToString),
+                B(Add), R(2), U8(0),
                 B(Star), R(2),
                 B(LdaConstant), U8(1),
-  /*   69 E> */ B(Add), R(2), U8(1),
+                B(Add), R(2), U8(0),
                 B(Star), R(2),
-  /*   76 E> */ B(InvokeIntrinsic), U8(Runtime::k_ToString), R(1), U8(1),
-  /*   76 E> */ B(Add), R(2), U8(2),
+                B(Ldar), R(1),
+  /*   76 E> */ B(ToString),
+                B(Add), R(2), U8(0),
                 B(Star), R(2),
                 B(LdaConstant), U8(2),
-  /*   76 E> */ B(Add), R(2), U8(3),
+                B(Add), R(2), U8(0),
                 B(Star), R(2),
                 B(LdaSmi), I8(1),
-                B(Star), R(3),
-                B(InvokeIntrinsic), U8(Runtime::k_ToString), R(3), U8(1),
-  /*   83 E> */ B(Add), R(2), U8(4),
+                B(ToString),
+                B(Add), R(2), U8(0),
   /*   87 S> */ B(Return),
 ]
 constant pool: [
@@ -146,23 +153,25 @@ snippet: "
 "
 frame size: 4
 parameter count: 1
-bytecode array length: 37
+bytecode array length: 35
 bytecodes: [
   /*   30 E> */ B(StackCheck),
   /*   42 S> */ B(LdaSmi), I8(1),
                 B(Star), R(0),
   /*   53 S> */ B(LdaSmi), I8(2),
                 B(Star), R(1),
-  /*   56 S> */ B(InvokeIntrinsic), U8(Runtime::k_ToString), R(0), U8(1),
+  /*   56 S> */ B(Ldar), R(0),
+                B(ToString),
                 B(Star), R(2),
                 B(LdaConstant), U8(0),
-  /*   66 E> */ B(Add), R(2), U8(0),
+                B(Add), R(2), U8(1),
                 B(Star), R(2),
                 B(LdaConstant), U8(0),
                 B(Star), R(3),
-  /*   87 E> */ B(InvokeIntrinsic), U8(Runtime::k_ToString), R(1), U8(1),
-  /*   87 E> */ B(Add), R(3), U8(1),
-  /*   76 E> */ B(Add), R(2), U8(2),
+                B(Ldar), R(1),
+  /*   87 E> */ B(ToString),
+                B(Add), R(3), U8(2),
+  /*   76 E> */ B(Add), R(2), U8(0),
   /*   91 S> */ B(Return),
 ]
 constant pool: [
@@ -178,9 +187,9 @@ snippet: "
   function foo(a, b) { };
   return `string${foo(a, b)}${a}${b}`;
 "
-frame size: 5
+frame size: 4
 parameter count: 1
-bytecode array length: 52
+bytecode array length: 45
 bytecodes: [
                 B(CreateClosure), U8(0), U8(0), U8(2),
                 B(Star), R(2),
@@ -191,16 +200,17 @@ bytecodes: [
                 B(Star), R(1),
   /*   80 S> */ B(LdaConstant), U8(1),
                 B(Star), R(3),
-  /*   96 E> */ B(CallUndefinedReceiver2), R(2), R(0), R(1), U8(1),
-                B(Star), R(4),
-                B(InvokeIntrinsic), U8(Runtime::k_ToString), R(4), U8(1),
-  /*   96 E> */ B(Add), R(3), U8(3),
+  /*   96 E> */ B(CallUndefinedReceiver2), R(2), R(0), R(1), U8(2),
+                B(ToString),
+                B(Add), R(3), U8(1),
                 B(Star), R(3),
-  /*  108 E> */ B(InvokeIntrinsic), U8(Runtime::k_ToString), R(0), U8(1),
-  /*  108 E> */ B(Add), R(3), U8(4),
+                B(Ldar), R(0),
+  /*  108 E> */ B(ToString),
+                B(Add), R(3), U8(1),
                 B(Star), R(3),
-  /*  112 E> */ B(InvokeIntrinsic), U8(Runtime::k_ToString), R(1), U8(1),
-  /*  112 E> */ B(Add), R(3), U8(5),
+                B(Ldar), R(1),
+  /*  112 E> */ B(ToString),
+                B(Add), R(3), U8(1),
   /*  116 S> */ B(Return),
 ]
 constant pool: [

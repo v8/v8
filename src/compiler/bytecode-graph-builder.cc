@@ -2528,6 +2528,12 @@ void BytecodeGraphBuilder::VisitToObject() {
   BuildCastOperator(javascript()->ToObject());
 }
 
+void BytecodeGraphBuilder::VisitToString() {
+  Node* value =
+      NewNode(javascript()->ToString(), environment()->LookupAccumulator());
+  environment()->BindAccumulator(value, Environment::kAttachFrameState);
+}
+
 void BytecodeGraphBuilder::VisitToNumber() {
   PrepareEagerCheckpoint();
   Node* object = environment()->LookupAccumulator();

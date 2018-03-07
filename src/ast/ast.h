@@ -99,6 +99,7 @@ namespace internal {
   V(Spread)                     \
   V(SuperCallReference)         \
   V(SuperPropertyReference)     \
+  V(TemplateLiteral)            \
   V(ThisFunction)               \
   V(Throw)                      \
   V(UnaryOperation)             \
@@ -2653,6 +2654,26 @@ class GetTemplateObject final : public Expression {
   const ZoneList<const AstRawString*>* raw_strings_;
 };
 
+class TemplateLiteral final : public Expression {
+ public:
+  using StringList = ZoneList<const AstRawString*>;
+  using ExpressionList = ZoneList<Expression*>;
+
+  const StringList* string_parts() const { return string_parts_; }
+  const ExpressionList* substitutions() const { return substitutions_; }
+
+ private:
+  friend class AstNodeFactory;
+  TemplateLiteral(const StringList* parts, const ExpressionList* substitutions,
+                  int pos)
+      : Expression(pos, kTemplateLiteral),
+        string_parts_(parts),
+        substitutions_(substitutions) {}
+
+  const StringList* string_parts_;
+  const ExpressionList* substitutions_;
+};
+
 // ----------------------------------------------------------------------------
 // Basic visitor
 // Sub-class should parametrize AstVisitor with itself, e.g.:
@@ -3227,6 +3248,12 @@ class AstNodeFactory final BASE_EMBEDDED {
       const ZoneList<const AstRawString*>* cooked_strings,
       const ZoneList<const AstRawString*>* raw_strings, int pos) {
     return new (zone_) GetTemplateObject(cooked_strings, raw_strings, pos);
+  }
+
+  TemplateLiteral* NewTemplateLiteral(
+      const ZoneList<const AstRawString*>* string_parts,
+      const ZoneList<Expression*>* substitutions, int pos) {
+    return new (zone_) TemplateLiteral(string_parts, substitutions, pos);
   }
 
   ImportCallExpression* NewImportCallExpression(Expression* args, int pos) {
