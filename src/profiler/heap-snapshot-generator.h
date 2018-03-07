@@ -355,7 +355,7 @@ class V8HeapExplorer : public HeapEntriesAllocator {
   typedef bool (V8HeapExplorer::*ExtractReferencesMethod)(int entry,
                                                           HeapObject* object);
 
-  void MarkVisitedField(HeapObject* obj, int offset);
+  void MarkVisitedField(int offset);
 
   HeapEntry* AddEntry(HeapObject* object);
   HeapEntry* AddEntry(HeapObject* object,
@@ -471,7 +471,7 @@ class V8HeapExplorer : public HeapEntriesAllocator {
   std::unordered_map<const FixedArray*, FixedArraySubInstanceType> array_types_;
   v8::HeapProfiler::ObjectNameResolver* global_object_name_resolver_;
 
-  std::vector<bool> marks_;
+  std::vector<bool> visited_fields_;
 
   friend class IndexedReferencesExtractor;
   friend class RootsReferencesExtractor;
