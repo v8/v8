@@ -473,8 +473,13 @@ Reduction JSCreateLowering::ReduceJSCreateGeneratorObject(Node* node) {
     // Allocate a register file.
     DCHECK(js_function->shared()->HasBytecodeArray());
     int size = js_function->shared()->bytecode_array()->register_count();
-    Node* register_file = effect =
-        AllocateElements(effect, control, HOLEY_ELEMENTS, size, NOT_TENURED);
+    AllocationBuilder ab(jsgraph(), effect, control);
+    ab.AllocateArray(size, factory()->fixed_array_map());
+    for (int i = 0; i < size; ++i) {
+      ab.Store(AccessBuilder::ForFixedArraySlot(i),
+               jsgraph()->UndefinedConstant());
+    }
+    Node* register_file = effect = ab.Finish();
 
     // Emit code to allocate the JS[Async]GeneratorObject instance.
     AllocationBuilder a(jsgraph(), effect, control);
