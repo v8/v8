@@ -9,6 +9,7 @@
 
 #include "src/handles-inl.h"
 #include "src/objects-inl.h"
+#include "src/string-hasher.h"
 
 namespace v8 {
 namespace internal {

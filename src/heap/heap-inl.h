@@ -23,6 +23,7 @@
 #include "src/log.h"
 #include "src/msan.h"
 #include "src/objects-inl.h"
+#include "src/objects/descriptor-array.h"
 #include "src/objects/literal-objects.h"
 #include "src/objects/scope-info.h"
 #include "src/objects/script-inl.h"

@@ -21,6 +21,7 @@
 namespace v8 {
 namespace internal {
 
+class FeedbackVectorSpec;
 class Isolate;
 
 namespace interpreter {

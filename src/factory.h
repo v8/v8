@@ -5,45 +5,52 @@
 #ifndef V8_FACTORY_H_
 #define V8_FACTORY_H_
 
-#include "src/feedback-vector.h"
+#include "src/builtins/builtins.h"
 #include "src/globals.h"
-#include "src/ic/handler-configuration.h"
-#include "src/isolate.h"
+#include "src/handles.h"
+#include "src/heap/heap.h"
 #include "src/messages.h"
-#include "src/objects/data-handler.h"
-#include "src/objects/descriptor-array.h"
+#include "src/objects/code.h"
 #include "src/objects/dictionary.h"
+#include "src/objects/hash-table.h"
 #include "src/objects/js-array.h"
 #include "src/objects/js-regexp.h"
-#include "src/objects/scope-info.h"
 #include "src/objects/string.h"
-#include "src/string-hasher.h"
 
 namespace v8 {
 namespace internal {
 
 // Forward declarations.
 class AliasedArgumentsEntry;
-class BreakPointInfo;
-class BreakPoint;
 class BoilerplateDescription;
+class BreakPoint;
+class BreakPointInfo;
 class CallableTask;
 class CallbackTask;
 class ConstantElementsPair;
 class CoverageInfo;
 class DebugInfo;
+class EnumCache;
 class FreshlyAllocatedBigInt;
+class Isolate;
 class JSMap;
 class JSMapIterator;
 class JSModuleNamespace;
 class JSSet;
 class JSSetIterator;
 class JSWeakMap;
+class LoadHandler;
+class ModuleInfo;
 class NewFunctionArgs;
-struct SourceRange;
 class PreParsedScopeData;
 class PromiseResolveThenableJobTask;
+class RegExpMatchInfo;
+class ScriptContextTable;
+class StoreHandler;
 class TemplateObjectDescription;
+struct SourceRange;
+template <typename T>
+class ZoneVector;
 
 enum FunctionMode {
   kWithNameBit = 1 << 0,

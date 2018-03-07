@@ -5,6 +5,7 @@
 #ifndef V8_TEST_FEEDBACK_VECTOR_H_
 #define V8_TEST_FEEDBACK_VECTOR_H_
 
+#include "src/feedback-vector.h"
 #include "src/objects.h"
 #include "src/objects/shared-function-info.h"
 
