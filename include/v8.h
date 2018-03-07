@@ -3520,7 +3520,7 @@ class V8_EXPORT Object : public Value {
   /**
    * Return the isolate to which the Object belongs to.
    */
-  V8_DEPRECATE_SOON("Keep track of isolate correctly", Isolate* GetIsolate());
+  Isolate* GetIsolate();
 
   static Local<Object> New(Isolate* isolate);
 
