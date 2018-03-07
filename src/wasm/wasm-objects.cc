@@ -454,8 +454,12 @@ Handle<JSArrayBuffer> GrowMemoryBuffer(Isolate* isolate,
       old_size != 0) {
     DCHECK_NOT_NULL(old_buffer->backing_store());
     if (old_size != new_size) {
-      CHECK(i::SetPermissions(old_mem_start, new_size,
-                              PageAllocator::kReadWrite));
+      // If adjusting permissions fails, propagate error back to return
+      // failure to grow.
+      if (!i::SetPermissions(old_mem_start, new_size,
+                             PageAllocator::kReadWrite)) {
+        return Handle<JSArrayBuffer>::null();
+      }
       reinterpret_cast<v8::Isolate*>(isolate)
           ->AdjustAmountOfExternalAllocatedMemory(pages * wasm::kWasmPageSize);
     }
