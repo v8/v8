@@ -192,8 +192,6 @@
 ['tsan == True', {
   # BUG(v8:6133).
   'test-cpu-profiler/TickEvents': [SKIP],
-  # BUG(v8:7444).
-  'test-heap-profiler/SamplingHeapProfiler': [SKIP],
   # BUG(v8:6924). The test allocates a lot of memory.
   'test-api/NewStringRangeError': [PASS, NO_VARIANTS],
 }],  # 'tsan == True'

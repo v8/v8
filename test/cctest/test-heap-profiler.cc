@@ -3158,6 +3158,16 @@ static void CheckNoZeroCountNodes(v8::AllocationProfile::Node* node) {
   }
 }
 
+static const char* simple_sampling_heap_profiler_script =
+    "var A = [];\n"
+    "function bar(size) { return new Array(size); }\n"
+    "var foo = function() {\n"
+    "  for (var i = 0; i < 1024; ++i) {\n"
+    "    A[i] = bar(1024);\n"
+    "  }\n"
+    "}\n"
+    "foo();";
+
 TEST(SamplingHeapProfiler) {
   v8::HandleScope scope(v8::Isolate::GetCurrent());
   LocalContext env;
@@ -3170,26 +3180,15 @@ TEST(SamplingHeapProfiler) {
   // Suppress randomness to avoid flakiness in tests.
   v8::internal::FLAG_sampling_heap_profiler_suppress_randomness = true;
 
-  const char* script_source =
-      "var A = [];\n"
-      "function bar(size) { return new Array(size); }\n"
-      "var foo = function() {\n"
-      "  for (var i = 0; i < 1024; ++i) {\n"
-      "    A[i] = bar(1024);\n"
-      "  }\n"
-      "}\n"
-      "foo();";
-
   // Sample should be empty if requested before sampling has started.
   {
     v8::AllocationProfile* profile = heap_profiler->GetAllocationProfile();
     CHECK_NULL(profile);
   }
 
-  int count_1024 = 0;
   {
     heap_profiler->StartSamplingHeapProfiler(1024);
-    CompileRun(script_source);
+    CompileRun(simple_sampling_heap_profiler_script);
 
     std::unique_ptr<v8::AllocationProfile> profile(
         heap_profiler->GetAllocationProfile());
@@ -3201,6 +3200,7 @@ TEST(SamplingHeapProfiler) {
     CHECK(node_bar);
 
     // Count the number of allocations we sampled from bar.
+    int count_1024 = 0;
     for (auto allocation : node_bar->allocations) {
       count_1024 += allocation.count;
     }
@@ -3212,40 +3212,6 @@ TEST(SamplingHeapProfiler) {
   {
     v8::AllocationProfile* profile = heap_profiler->GetAllocationProfile();
     CHECK_NULL(profile);
-  }
-
-  // Sampling at a higher rate should give us similar numbers of objects.
-  {
-    heap_profiler->StartSamplingHeapProfiler(128);
-    CompileRun(script_source);
-
-    std::unique_ptr<v8::AllocationProfile> profile(
-        heap_profiler->GetAllocationProfile());
-    CHECK(profile);
-
-    const char* names[] = {"", "foo", "bar"};
-    auto node_bar = FindAllocationProfileNode(env->GetIsolate(), *profile,
-                                              ArrayVector(names));
-    CHECK(node_bar);
-
-    // Count the number of allocations we sampled from bar.
-    int count_128 = 0;
-    for (auto allocation : node_bar->allocations) {
-      count_128 += allocation.count;
-    }
-
-    // We should have similar unsampled counts of allocations. Though
-    // we will sample different numbers of objects at different rates,
-    // the unsampling process should produce similar final estimates
-    // at the true number of allocations. However, the process to
-    // determine these unsampled counts is probabilisitic so we need to
-    // account for error.
-    double max_count = std::max(count_128, count_1024);
-    double min_count = std::min(count_128, count_1024);
-    double percent_difference = (max_count - min_count) / min_count;
-    CHECK_LT(percent_difference, 0.15);
-
-    heap_profiler->StopSamplingHeapProfiler();
   }
 
   // A more complicated test cases with deeper call graph and dynamically
@@ -3291,6 +3257,77 @@ TEST(SamplingHeapProfiler) {
   }
 }
 
+TEST(SamplingHeapProfilerRateAgnosticEstimates) {
+  v8::HandleScope scope(v8::Isolate::GetCurrent());
+  LocalContext env;
+  v8::HeapProfiler* heap_profiler = env->GetIsolate()->GetHeapProfiler();
+
+  // Turn off always_opt. Inlining can cause stack traces to be shorter than
+  // what we expect in this test.
+  v8::internal::FLAG_always_opt = false;
+
+  // Suppress randomness to avoid flakiness in tests.
+  v8::internal::FLAG_sampling_heap_profiler_suppress_randomness = true;
+
+  // stress_incremental_marking adds randomness to the test.
+  v8::internal::FLAG_stress_incremental_marking = false;
+
+  int count_1024 = 0;
+  {
+    heap_profiler->StartSamplingHeapProfiler(1024);
+    CompileRun(simple_sampling_heap_profiler_script);
+
+    std::unique_ptr<v8::AllocationProfile> profile(
+        heap_profiler->GetAllocationProfile());
+    CHECK(profile);
+
+    const char* names[] = {"", "foo", "bar"};
+    auto node_bar = FindAllocationProfileNode(env->GetIsolate(), *profile,
+                                              ArrayVector(names));
+    CHECK(node_bar);
+
+    // Count the number of allocations we sampled from bar.
+    for (auto allocation : node_bar->allocations) {
+      count_1024 += allocation.count;
+    }
+
+    heap_profiler->StopSamplingHeapProfiler();
+  }
+
+  // Sampling at a higher rate should give us similar numbers of objects.
+  {
+    heap_profiler->StartSamplingHeapProfiler(128);
+    CompileRun(simple_sampling_heap_profiler_script);
+
+    std::unique_ptr<v8::AllocationProfile> profile(
+        heap_profiler->GetAllocationProfile());
+    CHECK(profile);
+
+    const char* names[] = {"", "foo", "bar"};
+    auto node_bar = FindAllocationProfileNode(env->GetIsolate(), *profile,
+                                              ArrayVector(names));
+    CHECK(node_bar);
+
+    // Count the number of allocations we sampled from bar.
+    int count_128 = 0;
+    for (auto allocation : node_bar->allocations) {
+      count_128 += allocation.count;
+    }
+
+    // We should have similar unsampled counts of allocations. Though
+    // we will sample different numbers of objects at different rates,
+    // the unsampling process should produce similar final estimates
+    // at the true number of allocations. However, the process to
+    // determine these unsampled counts is probabilisitic so we need to
+    // account for error.
+    double max_count = std::max(count_128, count_1024);
+    double min_count = std::min(count_128, count_1024);
+    double percent_difference = (max_count - min_count) / min_count;
+    CHECK_LT(percent_difference, 0.15);
+
+    heap_profiler->StopSamplingHeapProfiler();
+  }
+}
 
 TEST(SamplingHeapProfilerApiAllocation) {
   v8::HandleScope scope(v8::Isolate::GetCurrent());
