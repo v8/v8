@@ -332,8 +332,7 @@ inline bool Code::checks_optimization_marker() const {
   Builtins* builtins = GetIsolate()->builtins();
   bool checks_marker =
       (this == builtins->builtin(Builtins::kCompileLazy) ||
-       this == builtins->builtin(Builtins::kInterpreterEntryTrampoline) ||
-       this == builtins->builtin(Builtins::kCheckOptimizationMarker));
+       this == builtins->builtin(Builtins::kInterpreterEntryTrampoline));
   DCHECK_IMPLIES(checks_marker, !Builtins::IsLazy(builtin_index()));
   return checks_marker ||
          (kind() == OPTIMIZED_FUNCTION && marked_for_deoptimization());

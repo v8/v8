@@ -2550,8 +2550,12 @@ void JSFunction::ClearOptimizationMarker() {
   feedback_vector()->ClearOptimizationMarker();
 }
 
+// Optimized code marked for deoptimization will tier back down to running
+// interpreted on its next activation, and already doesn't count as IsOptimized.
 bool JSFunction::IsInterpreted() {
-  return code()->is_interpreter_trampoline_builtin();
+  return code()->is_interpreter_trampoline_builtin() ||
+         (code()->kind() == Code::OPTIMIZED_FUNCTION &&
+          code()->marked_for_deoptimization());
 }
 
 bool JSFunction::ChecksOptimizationMarker() {

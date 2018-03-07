@@ -211,11 +211,6 @@ RUNTIME_FUNCTION(Runtime_OptimizeFunctionOnNextCall) {
 
   // If the function has optimized code, ensure that we check for it and return.
   if (function->HasOptimizedCode()) {
-    if (!function->IsInterpreted()) {
-      // For non I+TF path, install a shim which checks the optimization marker.
-      function->set_code(
-          isolate->builtins()->builtin(Builtins::kCheckOptimizationMarker));
-    }
     DCHECK(function->ChecksOptimizationMarker());
     return isolate->heap()->undefined_value();
   }
@@ -236,8 +231,14 @@ RUNTIME_FUNCTION(Runtime_OptimizeFunctionOnNextCall) {
                                                             : "non-concurrent");
   }
 
-  JSFunction::EnsureFeedbackVector(function);
+  // This function may not have been lazily compiled yet, even though its shared
+  // function has.
+  if (!function->is_compiled()) {
+    DCHECK(function->shared()->IsInterpreted());
+    function->set_code(function->shared()->code());
+  }
 
+  JSFunction::EnsureFeedbackVector(function);
   function->MarkForOptimization(concurrency_mode);
 
   return isolate->heap()->undefined_value();
