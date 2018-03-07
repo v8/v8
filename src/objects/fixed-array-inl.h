@@ -16,7 +16,7 @@ namespace internal {
 TYPE_CHECKER(ByteArray, BYTE_ARRAY_TYPE)
 TYPE_CHECKER(FixedArrayExact, FIXED_ARRAY_TYPE)
 TYPE_CHECKER(FixedDoubleArray, FIXED_DOUBLE_ARRAY_TYPE)
-TYPE_CHECKER(WeakFixedArray, FIXED_ARRAY_TYPE)
+TYPE_CHECKER(FixedArrayOfWeakCells, FIXED_ARRAY_TYPE)
 
 CAST_ACCESSOR(ArrayList)
 CAST_ACCESSOR(ByteArray)
@@ -25,7 +25,7 @@ CAST_ACCESSOR(FixedArrayBase)
 CAST_ACCESSOR(FixedDoubleArray)
 CAST_ACCESSOR(FixedTypedArrayBase)
 CAST_ACCESSOR(TemplateList)
-CAST_ACCESSOR(WeakFixedArray)
+CAST_ACCESSOR(FixedArrayOfWeakCells)
 
 SMI_ACCESSORS(FixedArrayBase, length, kLengthOffset)
 SYNCHRONIZED_SMI_ACCESSORS(FixedArrayBase, length, kLengthOffset)
@@ -215,36 +215,36 @@ void FixedDoubleArray::FillWithHoles(int from, int to) {
   }
 }
 
-Object* WeakFixedArray::Get(int index) const {
+Object* FixedArrayOfWeakCells::Get(int index) const {
   Object* raw = FixedArray::cast(this)->get(index + kFirstIndex);
   if (raw->IsSmi()) return raw;
   DCHECK(raw->IsWeakCell());
   return WeakCell::cast(raw)->value();
 }
 
-bool WeakFixedArray::IsEmptySlot(int index) const {
+bool FixedArrayOfWeakCells::IsEmptySlot(int index) const {
   DCHECK(index < Length());
   return Get(index)->IsSmi();
 }
 
-void WeakFixedArray::Clear(int index) {
+void FixedArrayOfWeakCells::Clear(int index) {
   FixedArray::cast(this)->set(index + kFirstIndex, Smi::kZero);
 }
 
-int WeakFixedArray::Length() const {
+int FixedArrayOfWeakCells::Length() const {
   return FixedArray::cast(this)->length() - kFirstIndex;
 }
 
-int WeakFixedArray::last_used_index() const {
+int FixedArrayOfWeakCells::last_used_index() const {
   return Smi::ToInt(FixedArray::cast(this)->get(kLastUsedIndexIndex));
 }
 
-void WeakFixedArray::set_last_used_index(int index) {
+void FixedArrayOfWeakCells::set_last_used_index(int index) {
   FixedArray::cast(this)->set(kLastUsedIndexIndex, Smi::FromInt(index));
 }
 
 template <class T>
-T* WeakFixedArray::Iterator::Next() {
+T* FixedArrayOfWeakCells::Iterator::Next() {
   if (list_ != nullptr) {
     // Assert that list did not change during iteration.
     DCHECK_EQ(last_used_index_, list_->last_used_index());

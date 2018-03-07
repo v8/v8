@@ -705,7 +705,7 @@ StartupData SnapshotCreator::CreateBlob(
   // context even after we have disposed of the context.
   isolate->heap()->CollectAllAvailableGarbage(
       i::GarbageCollectionReason::kSnapshotCreator);
-  isolate->heap()->CompactWeakFixedArrays();
+  isolate->heap()->CompactFixedArraysOfWeakCells();
 
   i::DisallowHeapAllocation no_gc_from_here_on;
 

@@ -100,7 +100,7 @@
 //         - ScopeInfo
 //         - ModuleInfo
 //         - ScriptContextTable
-//         - WeakFixedArray
+//         - FixedArrayOfWeakCells
 //         - WasmSharedModuleData
 //         - WasmCompiledModule
 //       - FixedDoubleArray
@@ -1095,7 +1095,7 @@ template <class C> inline bool Is(Object* obj);
   V(WasmModuleObject)                     \
   V(WasmTableObject)                      \
   V(WeakCell)                             \
-  V(WeakFixedArray)                       \
+  V(FixedArrayOfWeakCells)                \
   V(WeakHashTable)
 
 #define HEAP_OBJECT_TEMPLATE_TYPE_LIST(V) \
@@ -2355,7 +2355,7 @@ class JSObject: public JSReceiver {
   // Utility used by many Array builtins and runtime functions
   static inline bool PrototypeHasNoElements(Isolate* isolate, JSObject* object);
 
-  // Alternative implementation of WeakFixedArray::NullCallback.
+  // Alternative implementation of FixedArrayOfWeakCells::NullCallback.
   class PrototypeRegistryCompactionCallback {
    public:
     static void Callback(Object* value, int old_index, int new_index);
@@ -2872,8 +2872,8 @@ class PrototypeInfo : public Struct {
   // [weak_cell]: A WeakCell containing this prototype. ICs cache the cell here.
   DECL_ACCESSORS(weak_cell, Object)
 
-  // [prototype_users]: WeakFixedArray containing maps using this prototype,
-  // or Smi(0) if uninitialized.
+  // [prototype_users]: FixedArrayOfWeakCells containing maps using this
+  // prototype, or Smi(0) if uninitialized.
   DECL_ACCESSORS(prototype_users, Object)
 
   // [object_create_map]: A field caching the map for Object.create(prototype).

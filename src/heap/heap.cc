@@ -443,7 +443,7 @@ void Heap::AddRetainingPathTarget(Handle<HeapObject> object,
     PrintF("Retaining path tracking requires --trace-retaining-path\n");
   } else {
     int index = 0;
-    Handle<WeakFixedArray> array = WeakFixedArray::Add(
+    Handle<FixedArrayOfWeakCells> array = FixedArrayOfWeakCells::Add(
         handle(retaining_path_targets(), isolate()), object, &index);
     set_retaining_path_targets(*array);
     retaining_path_target_option_[index] = option;
@@ -452,8 +452,9 @@ void Heap::AddRetainingPathTarget(Handle<HeapObject> object,
 
 bool Heap::IsRetainingPathTarget(HeapObject* object,
                                  RetainingPathOption* option) {
-  if (!retaining_path_targets()->IsWeakFixedArray()) return false;
-  WeakFixedArray* targets = WeakFixedArray::cast(retaining_path_targets());
+  if (!retaining_path_targets()->IsFixedArrayOfWeakCells()) return false;
+  FixedArrayOfWeakCells* targets =
+      FixedArrayOfWeakCells::cast(retaining_path_targets());
   int length = targets->Length();
   for (int i = 0; i < length; i++) {
     if (targets->Get(i) == object) {
@@ -967,7 +968,7 @@ void Heap::GarbageCollectionEpilogue() {
 
 
 void Heap::PreprocessStackTraces() {
-  WeakFixedArray::Iterator iterator(weak_stack_trace_list());
+  FixedArrayOfWeakCells::Iterator iterator(weak_stack_trace_list());
   FixedArray* elements;
   while ((elements = iterator.Next<FixedArray>()) != nullptr) {
     for (int j = 1; j < elements->length(); j += 4) {
@@ -6111,29 +6112,30 @@ DependentCode* Heap::LookupWeakObjectToCodeDependency(Handle<HeapObject> obj) {
 }
 
 namespace {
-void CompactWeakFixedArray(Object* object) {
-  if (object->IsWeakFixedArray()) {
-    WeakFixedArray* array = WeakFixedArray::cast(object);
-    array->Compact<WeakFixedArray::NullCallback>();
+void CompactFixedArrayOfWeakCells(Object* object) {
+  if (object->IsFixedArrayOfWeakCells()) {
+    FixedArrayOfWeakCells* array = FixedArrayOfWeakCells::cast(object);
+    array->Compact<FixedArrayOfWeakCells::NullCallback>();
   }
 }
 }  // anonymous namespace
 
-void Heap::CompactWeakFixedArrays() {
-  // Find known WeakFixedArrays and compact them.
+void Heap::CompactFixedArraysOfWeakCells() {
+  // Find known FixedArrayOfWeakCells and compact them.
   HeapIterator iterator(this);
   for (HeapObject* o = iterator.next(); o != nullptr; o = iterator.next()) {
     if (o->IsPrototypeInfo()) {
       Object* prototype_users = PrototypeInfo::cast(o)->prototype_users();
-      if (prototype_users->IsWeakFixedArray()) {
-        WeakFixedArray* array = WeakFixedArray::cast(prototype_users);
+      if (prototype_users->IsFixedArrayOfWeakCells()) {
+        FixedArrayOfWeakCells* array =
+            FixedArrayOfWeakCells::cast(prototype_users);
         array->Compact<JSObject::PrototypeRegistryCompactionCallback>();
       }
     }
   }
-  CompactWeakFixedArray(noscript_shared_function_infos());
-  CompactWeakFixedArray(script_list());
-  CompactWeakFixedArray(weak_stack_trace_list());
+  CompactFixedArrayOfWeakCells(noscript_shared_function_infos());
+  CompactFixedArrayOfWeakCells(script_list());
+  CompactFixedArrayOfWeakCells(weak_stack_trace_list());
 }
 
 void Heap::AddRetainedMap(Handle<Map> map) {

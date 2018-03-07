@@ -243,14 +243,14 @@ class FixedDoubleArray : public FixedArrayBase {
   DISALLOW_IMPLICIT_CONSTRUCTORS(FixedDoubleArray);
 };
 
-class WeakFixedArray : public FixedArray {
+class FixedArrayOfWeakCells : public FixedArray {
  public:
-  // If |maybe_array| is not a WeakFixedArray, a fresh one will be allocated.
-  // This function does not check if the value exists already, callers must
-  // ensure this themselves if necessary.
-  static Handle<WeakFixedArray> Add(Handle<Object> maybe_array,
-                                    Handle<HeapObject> value,
-                                    int* assigned_index = nullptr);
+  // If |maybe_array| is not a FixedArrayOfWeakCells, a fresh one will be
+  // allocated. This function does not check if the value exists already,
+  // callers must ensure this themselves if necessary.
+  static Handle<FixedArrayOfWeakCells> Add(Handle<Object> maybe_array,
+                                           Handle<HeapObject> value,
+                                           int* assigned_index = nullptr);
 
   // Returns true if an entry was found and removed.
   bool Remove(Handle<HeapObject> value);
@@ -282,7 +282,7 @@ class WeakFixedArray : public FixedArray {
 
    private:
     int index_;
-    WeakFixedArray* list_;
+    FixedArrayOfWeakCells* list_;
 #ifdef DEBUG
     int last_used_index_;
     DisallowHeapAllocation no_gc_;
@@ -290,16 +290,17 @@ class WeakFixedArray : public FixedArray {
     DISALLOW_COPY_AND_ASSIGN(Iterator);
   };
 
-  DECL_CAST(WeakFixedArray)
+  DECL_CAST(FixedArrayOfWeakCells)
 
  private:
   static const int kLastUsedIndexIndex = 0;
   static const int kFirstIndex = 1;
 
-  static Handle<WeakFixedArray> Allocate(
-      Isolate* isolate, int size, Handle<WeakFixedArray> initialize_from);
+  static Handle<FixedArrayOfWeakCells> Allocate(
+      Isolate* isolate, int size,
+      Handle<FixedArrayOfWeakCells> initialize_from);
 
-  static void Set(Handle<WeakFixedArray> array, int index,
+  static void Set(Handle<FixedArrayOfWeakCells> array, int index,
                   Handle<HeapObject> value);
   inline void clear(int index);
 
@@ -310,7 +311,7 @@ class WeakFixedArray : public FixedArray {
   void set(int index, Smi* value);
   void set(int index, Object* value);
   void set(int index, Object* value, WriteBarrierMode mode);
-  DISALLOW_IMPLICIT_CONSTRUCTORS(WeakFixedArray);
+  DISALLOW_IMPLICIT_CONSTRUCTORS(FixedArrayOfWeakCells);
 };
 
 // Generic array grows dynamically with O(1) amortized insertion.

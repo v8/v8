@@ -185,7 +185,7 @@ class Script : public Struct {
     Script* Next();
 
    private:
-    WeakFixedArray::Iterator iterator_;
+    FixedArrayOfWeakCells::Iterator iterator_;
     DISALLOW_COPY_AND_ASSIGN(Iterator);
   };
 

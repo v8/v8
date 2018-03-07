@@ -162,7 +162,7 @@ class WasmMemoryObject : public JSObject {
 
   DECL_ACCESSORS(array_buffer, JSArrayBuffer)
   DECL_INT_ACCESSORS(maximum_pages)
-  DECL_OPTIONAL_ACCESSORS(instances, WeakFixedArray)
+  DECL_OPTIONAL_ACCESSORS(instances, FixedArrayOfWeakCells)
   DECL_ACCESSORS(wasm_context, Managed<WasmContext>)
 
 // Layout description.

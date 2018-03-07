@@ -883,7 +883,7 @@ void LiveEdit::FixupScript(Handle<Script> script, int max_function_literal_id) {
     // as we severed the link from the Script to the SharedFunctionInfo above.
     Handle<SharedFunctionInfo> info(shared, isolate);
     info->set_script(isolate->heap()->undefined_value());
-    Handle<Object> new_noscript_list = WeakFixedArray::Add(
+    Handle<Object> new_noscript_list = FixedArrayOfWeakCells::Add(
         isolate->factory()->noscript_shared_function_infos(), info);
     isolate->heap()->SetRootNoScriptSharedFunctionInfos(*new_noscript_list);
 

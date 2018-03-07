@@ -1514,11 +1514,11 @@ Handle<FixedArray> Debug::GetLoadedScripts() {
   isolate_->heap()->CollectAllGarbage(Heap::kFinalizeIncrementalMarkingMask,
                                       GarbageCollectionReason::kDebugger);
   Factory* factory = isolate_->factory();
-  if (!factory->script_list()->IsWeakFixedArray()) {
+  if (!factory->script_list()->IsFixedArrayOfWeakCells()) {
     return factory->empty_fixed_array();
   }
-  Handle<WeakFixedArray> array =
-      Handle<WeakFixedArray>::cast(factory->script_list());
+  Handle<FixedArrayOfWeakCells> array =
+      Handle<FixedArrayOfWeakCells>::cast(factory->script_list());
   Handle<FixedArray> results = factory->NewFixedArray(array->Length());
   int length = 0;
   {

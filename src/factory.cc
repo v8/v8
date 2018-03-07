@@ -100,7 +100,7 @@ Handle<HeapObject> Factory::NewFillerObject(int size,
 Handle<PrototypeInfo> Factory::NewPrototypeInfo() {
   Handle<PrototypeInfo> result =
       Handle<PrototypeInfo>::cast(NewStruct(PROTOTYPE_INFO_TYPE, TENURED));
-  result->set_prototype_users(WeakFixedArray::Empty());
+  result->set_prototype_users(FixedArrayOfWeakCells::Empty());
   result->set_registry_slot(PrototypeInfo::UNREGISTERED);
   result->set_bit_field(0);
   return result;
@@ -1201,7 +1201,7 @@ Handle<Script> Factory::NewScript(Handle<String> source) {
   script->set_shared_function_infos(*empty_fixed_array(), SKIP_WRITE_BARRIER);
   script->set_flags(0);
   script->set_host_defined_options(*empty_fixed_array());
-  heap->set_script_list(*WeakFixedArray::Add(script_list(), script));
+  heap->set_script_list(*FixedArrayOfWeakCells::Add(script_list(), script));
   return script;
 }
 
@@ -2589,7 +2589,7 @@ Handle<SharedFunctionInfo> Factory::NewSharedFunctionInfo(
 
   // Link into the list.
   Handle<Object> new_noscript_list =
-      WeakFixedArray::Add(noscript_shared_function_infos(), share);
+      FixedArrayOfWeakCells::Add(noscript_shared_function_infos(), share);
   isolate()->heap()->set_noscript_shared_function_infos(*new_noscript_list);
 
 #ifdef VERIFY_HEAP

@@ -956,7 +956,6 @@ DEFINE_BOOL(native_code_counters, false,
 
 // objects.cc
 DEFINE_BOOL(thin_strings, true, "Enable ThinString support")
-DEFINE_BOOL(trace_weak_arrays, false, "Trace WeakFixedArray usage")
 DEFINE_BOOL(trace_prototype_users, false,
             "Trace updates to prototype user tracking")
 DEFINE_BOOL(use_verbose_printer, true, "allows verbose printing")

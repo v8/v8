@@ -555,12 +555,12 @@ uint32_t WasmMemoryObject::current_pages() {
 void WasmMemoryObject::AddInstance(Isolate* isolate,
                                    Handle<WasmMemoryObject> memory,
                                    Handle<WasmInstanceObject> instance) {
-  Handle<WeakFixedArray> old_instances =
+  Handle<FixedArrayOfWeakCells> old_instances =
       memory->has_instances()
-          ? Handle<WeakFixedArray>(memory->instances(), isolate)
-          : Handle<WeakFixedArray>::null();
-  Handle<WeakFixedArray> new_instances =
-      WeakFixedArray::Add(old_instances, instance);
+          ? Handle<FixedArrayOfWeakCells>(memory->instances(), isolate)
+          : Handle<FixedArrayOfWeakCells>::null();
+  Handle<FixedArrayOfWeakCells> new_instances =
+      FixedArrayOfWeakCells::Add(old_instances, instance);
   memory->set_instances(*new_instances);
   Handle<JSArrayBuffer> buffer(memory->array_buffer(), isolate);
   SetInstanceMemory(isolate, instance, buffer);
@@ -597,7 +597,8 @@ int32_t WasmMemoryObject::Grow(Isolate* isolate,
   if (new_buffer.is_null()) return -1;
 
   if (memory_object->has_instances()) {
-    Handle<WeakFixedArray> instances(memory_object->instances(), isolate);
+    Handle<FixedArrayOfWeakCells> instances(memory_object->instances(),
+                                            isolate);
     for (int i = 0; i < instances->Length(); i++) {
       Object* elem = instances->Get(i);
       if (!elem->IsWasmInstanceObject()) continue;

@@ -914,7 +914,7 @@ class Heap {
 
   DependentCode* LookupWeakObjectToCodeDependency(Handle<HeapObject> obj);
 
-  void CompactWeakFixedArrays();
+  void CompactFixedArraysOfWeakCells();
 
   void AddRetainedMap(Handle<Map> map);
 

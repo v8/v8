@@ -4772,15 +4772,16 @@ TEST(WritableVsImmortalRoots) {
   }
 }
 
-TEST(WeakFixedArray) {
+TEST(FixedArrayOfWeakCells) {
   CcTest::InitializeVM();
   v8::HandleScope scope(CcTest::isolate());
 
   Handle<HeapNumber> number = CcTest::i_isolate()->factory()->NewHeapNumber(1);
-  Handle<WeakFixedArray> array = WeakFixedArray::Add(Handle<Object>(), number);
+  Handle<FixedArrayOfWeakCells> array =
+      FixedArrayOfWeakCells::Add(Handle<Object>(), number);
   array->Remove(number);
-  array->Compact<WeakFixedArray::NullCallback>();
-  WeakFixedArray::Add(array, number);
+  array->Compact<FixedArrayOfWeakCells::NullCallback>();
+  FixedArrayOfWeakCells::Add(array, number);
 }
 
 

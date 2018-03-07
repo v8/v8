@@ -10062,28 +10062,25 @@ bool FixedArray::IsEqualTo(FixedArray* other) {
 
 
 // static
-void WeakFixedArray::Set(Handle<WeakFixedArray> array, int index,
-                         Handle<HeapObject> value) {
+void FixedArrayOfWeakCells::Set(Handle<FixedArrayOfWeakCells> array, int index,
+                                Handle<HeapObject> value) {
   DCHECK(array->IsEmptySlot(index));  // Don't overwrite anything.
   Handle<WeakCell> cell =
       value->IsMap() ? Map::WeakCellForMap(Handle<Map>::cast(value))
                      : array->GetIsolate()->factory()->NewWeakCell(value);
   Handle<FixedArray>::cast(array)->set(index + kFirstIndex, *cell);
-  if (FLAG_trace_weak_arrays) {
-    PrintF("[WeakFixedArray: storing at index %d ]\n", index);
-  }
   array->set_last_used_index(index);
 }
 
 
 // static
-Handle<WeakFixedArray> WeakFixedArray::Add(Handle<Object> maybe_array,
-                                           Handle<HeapObject> value,
-                                           int* assigned_index) {
-  Handle<WeakFixedArray> array =
-      (maybe_array.is_null() || !maybe_array->IsWeakFixedArray())
-          ? Allocate(value->GetIsolate(), 1, Handle<WeakFixedArray>::null())
-          : Handle<WeakFixedArray>::cast(maybe_array);
+Handle<FixedArrayOfWeakCells> FixedArrayOfWeakCells::Add(
+    Handle<Object> maybe_array, Handle<HeapObject> value, int* assigned_index) {
+  Handle<FixedArrayOfWeakCells> array =
+      (maybe_array.is_null() || !maybe_array->IsFixedArrayOfWeakCells())
+          ? Allocate(value->GetIsolate(), 1,
+                     Handle<FixedArrayOfWeakCells>::null())
+          : Handle<FixedArrayOfWeakCells>::cast(maybe_array);
   // Try to store the new entry if there's room. Optimize for consecutive
   // accesses.
   int first_index = array->last_used_index();
@@ -10091,12 +10088,9 @@ Handle<WeakFixedArray> WeakFixedArray::Add(Handle<Object> maybe_array,
   if (length > 0) {
     for (int i = first_index;;) {
       if (array->IsEmptySlot((i))) {
-        WeakFixedArray::Set(array, i, value);
+        FixedArrayOfWeakCells::Set(array, i, value);
         if (assigned_index != nullptr) *assigned_index = i;
         return array;
-      }
-      if (FLAG_trace_weak_arrays) {
-        PrintF("[WeakFixedArray: searching for free slot]\n");
       }
       i = (i + 1) % length;
       if (i == first_index) break;
@@ -10105,19 +10099,15 @@ Handle<WeakFixedArray> WeakFixedArray::Add(Handle<Object> maybe_array,
 
   // No usable slot found, grow the array.
   int new_length = length == 0 ? 1 : length + (length >> 1) + 4;
-  Handle<WeakFixedArray> new_array =
+  Handle<FixedArrayOfWeakCells> new_array =
       Allocate(array->GetIsolate(), new_length, array);
-  if (FLAG_trace_weak_arrays) {
-    PrintF("[WeakFixedArray: growing to size %d ]\n", new_length);
-  }
-  WeakFixedArray::Set(new_array, length, value);
+  FixedArrayOfWeakCells::Set(new_array, length, value);
   if (assigned_index != nullptr) *assigned_index = length;
   return new_array;
 }
 
-
 template <class CompactionCallback>
-void WeakFixedArray::Compact() {
+void FixedArrayOfWeakCells::Compact() {
   FixedArray* array = FixedArray::cast(this);
   int new_length = kFirstIndex;
   for (int i = kFirstIndex; i < array->length(); i++) {
@@ -10133,10 +10123,9 @@ void WeakFixedArray::Compact() {
   set_last_used_index(0);
 }
 
-
-void WeakFixedArray::Iterator::Reset(Object* maybe_array) {
-  if (maybe_array->IsWeakFixedArray()) {
-    list_ = WeakFixedArray::cast(maybe_array);
+void FixedArrayOfWeakCells::Iterator::Reset(Object* maybe_array) {
+  if (maybe_array->IsFixedArrayOfWeakCells()) {
+    list_ = FixedArrayOfWeakCells::cast(maybe_array);
     index_ = 0;
 #ifdef DEBUG
     last_used_index_ = list_->last_used_index();
@@ -10156,20 +10145,20 @@ void JSObject::PrototypeRegistryCompactionCallback::Callback(Object* value,
   proto_info->set_registry_slot(new_index);
 }
 
-
-template void WeakFixedArray::Compact<WeakFixedArray::NullCallback>();
 template void
-WeakFixedArray::Compact<JSObject::PrototypeRegistryCompactionCallback>();
+FixedArrayOfWeakCells::Compact<FixedArrayOfWeakCells::NullCallback>();
+template void
+FixedArrayOfWeakCells::Compact<JSObject::PrototypeRegistryCompactionCallback>();
 
-
-bool WeakFixedArray::Remove(Handle<HeapObject> value) {
+bool FixedArrayOfWeakCells::Remove(Handle<HeapObject> value) {
   if (Length() == 0) return false;
   // Optimize for the most recently added element to be removed again.
   int first_index = last_used_index();
   for (int i = first_index;;) {
     if (Get(i) == *value) {
       Clear(i);
-      // Users of WeakFixedArray should make sure that there are no duplicates.
+      // Users of FixedArrayOfWeakCells should make sure that there are no
+      // duplicates.
       return true;
     }
     i = (i + 1) % Length();
@@ -10180,8 +10169,8 @@ bool WeakFixedArray::Remove(Handle<HeapObject> value) {
 
 
 // static
-Handle<WeakFixedArray> WeakFixedArray::Allocate(
-    Isolate* isolate, int size, Handle<WeakFixedArray> initialize_from) {
+Handle<FixedArrayOfWeakCells> FixedArrayOfWeakCells::Allocate(
+    Isolate* isolate, int size, Handle<FixedArrayOfWeakCells> initialize_from) {
   DCHECK_LE(0, size);
   Handle<FixedArray> result =
       isolate->factory()->NewUninitializedFixedArray(size + kFirstIndex);
@@ -10200,7 +10189,7 @@ Handle<WeakFixedArray> WeakFixedArray::Allocate(
     result->set(index, Smi::kZero);
     index++;
   }
-  return Handle<WeakFixedArray>::cast(result);
+  return Handle<FixedArrayOfWeakCells>::cast(result);
 }
 
 // static
@@ -12363,8 +12352,8 @@ void JSObject::LazyRegisterPrototypeUser(Handle<Map> user, Isolate* isolate) {
         Map::GetOrCreatePrototypeInfo(proto, isolate);
     Handle<Object> maybe_registry(proto_info->prototype_users(), isolate);
     int slot = 0;
-    Handle<WeakFixedArray> new_array =
-        WeakFixedArray::Add(maybe_registry, current_user, &slot);
+    Handle<FixedArrayOfWeakCells> new_array =
+        FixedArrayOfWeakCells::Add(maybe_registry, current_user, &slot);
     current_user_info->set_registry_slot(slot);
     if (!maybe_registry.is_identical_to(new_array)) {
       proto_info->set_prototype_users(*new_array);
@@ -12394,7 +12383,7 @@ bool JSObject::UnregisterPrototypeUser(Handle<Map> user, Isolate* isolate) {
   if (!user->prototype()->IsJSObject()) {
     Object* users =
         PrototypeInfo::cast(user->prototype_info())->prototype_users();
-    return users->IsWeakFixedArray();
+    return users->IsFixedArrayOfWeakCells();
   }
   Handle<JSObject> prototype(JSObject::cast(user->prototype()), isolate);
   Handle<PrototypeInfo> user_info =
@@ -12408,9 +12397,9 @@ bool JSObject::UnregisterPrototypeUser(Handle<Map> user, Isolate* isolate) {
   Handle<PrototypeInfo> proto_info(PrototypeInfo::cast(maybe_proto_info),
                                    isolate);
   Object* maybe_registry = proto_info->prototype_users();
-  DCHECK(maybe_registry->IsWeakFixedArray());
-  DCHECK(WeakFixedArray::cast(maybe_registry)->Get(slot) == *user);
-  WeakFixedArray::cast(maybe_registry)->Clear(slot);
+  DCHECK(maybe_registry->IsFixedArrayOfWeakCells());
+  DCHECK(FixedArrayOfWeakCells::cast(maybe_registry)->Get(slot) == *user);
+  FixedArrayOfWeakCells::cast(maybe_registry)->Clear(slot);
   if (FLAG_trace_prototype_users) {
     PrintF("Unregistering %p as a user of prototype %p.\n",
            reinterpret_cast<void*>(*user), reinterpret_cast<void*>(*prototype));
@@ -12443,7 +12432,7 @@ void InvalidatePrototypeChainsInternal(Map* map) {
   Object* maybe_proto_info = map->prototype_info();
   if (!maybe_proto_info->IsPrototypeInfo()) return;
   PrototypeInfo* proto_info = PrototypeInfo::cast(maybe_proto_info);
-  WeakFixedArray::Iterator iterator(proto_info->prototype_users());
+  FixedArrayOfWeakCells::Iterator iterator(proto_info->prototype_users());
   // For now, only maps register themselves as users.
   Map* user;
   while ((user = iterator.Next<Map>()) != nullptr) {
@@ -13485,7 +13474,7 @@ void SharedFunctionInfo::SetScript(Handle<SharedFunctionInfo> shared,
 
 #ifdef DEBUG
     if (FLAG_enable_slow_asserts) {
-      WeakFixedArray::Iterator iterator(*list);
+      FixedArrayOfWeakCells::Iterator iterator(*list);
       SharedFunctionInfo* next;
       while ((next = iterator.Next<SharedFunctionInfo>()) != nullptr) {
         DCHECK_NE(next, *shared);
@@ -13493,7 +13482,7 @@ void SharedFunctionInfo::SetScript(Handle<SharedFunctionInfo> shared,
     }
 #endif  // DEBUG
 
-    list = WeakFixedArray::Add(list, shared);
+    list = FixedArrayOfWeakCells::Add(list, shared);
 
     isolate->heap()->SetRootNoScriptSharedFunctionInfos(*list);
   }
@@ -13516,7 +13505,7 @@ void SharedFunctionInfo::SetScript(Handle<SharedFunctionInfo> shared,
   } else {
     // Remove shared function info from root array.
     Object* list = isolate->heap()->noscript_shared_function_infos();
-    CHECK(WeakFixedArray::cast(list)->Remove(shared));
+    CHECK(FixedArrayOfWeakCells::cast(list)->Remove(shared));
   }
 
   // Finally set new script.

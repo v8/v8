@@ -569,13 +569,14 @@ void ObjectStatsCollectorImpl::CollectGlobalStatistics() {
   RecordSimpleVirtualObjectStats(nullptr, heap_->retained_maps(),
                                  ObjectStats::RETAINED_MAPS_TYPE);
 
-  // WeakFixedArray.
+  // FixedArrayOfWeakCells.
   RecordSimpleVirtualObjectStats(
-      nullptr, WeakFixedArray::cast(heap_->noscript_shared_function_infos()),
+      nullptr,
+      FixedArrayOfWeakCells::cast(heap_->noscript_shared_function_infos()),
       ObjectStats::NOSCRIPT_SHARED_FUNCTION_INFOS_TYPE);
-  RecordSimpleVirtualObjectStats(nullptr,
-                                 WeakFixedArray::cast(heap_->script_list()),
-                                 ObjectStats::SCRIPT_LIST_TYPE);
+  RecordSimpleVirtualObjectStats(
+      nullptr, FixedArrayOfWeakCells::cast(heap_->script_list()),
+      ObjectStats::SCRIPT_LIST_TYPE);
 
   // HashTable.
   RecordHashTableVirtualObjectStats(nullptr, heap_->string_table(),
@@ -630,8 +631,8 @@ void ObjectStatsCollectorImpl::RecordVirtualMapDetails(Map* map) {
     if (map->prototype_info()->IsPrototypeInfo()) {
       PrototypeInfo* info = PrototypeInfo::cast(map->prototype_info());
       Object* users = info->prototype_users();
-      if (users->IsWeakFixedArray()) {
-        RecordSimpleVirtualObjectStats(map, WeakFixedArray::cast(users),
+      if (users->IsFixedArrayOfWeakCells()) {
+        RecordSimpleVirtualObjectStats(map, FixedArrayOfWeakCells::cast(users),
                                        ObjectStats::PROTOTYPE_USERS_TYPE);
       }
     }
