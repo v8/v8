@@ -324,7 +324,7 @@ Condition FlagsConditionToCondition(FlagsCondition condition) {
 }
 
 void EmitWordLoadPoisoningIfNeeded(CodeGenerator* codegen,
-                                   InstructionCode opcode, Instruction* instr,
+                                   InstructionCode opcode,
                                    ArmOperandConverter& i) {
   const MemoryAccessMode access_mode =
       static_cast<MemoryAccessMode>(MiscField::decode(opcode));
@@ -332,6 +332,25 @@ void EmitWordLoadPoisoningIfNeeded(CodeGenerator* codegen,
     Register value = i.OutputRegister();
     codegen->tasm()->and_(value, value, Operand(kSpeculationPoisonRegister));
   }
+}
+
+void ComputePoisonedAddressForLoad(CodeGenerator* codegen,
+                                   InstructionCode opcode,
+                                   ArmOperandConverter& i, Register address) {
+  DCHECK_EQ(kMemoryAccessPoisoned,
+            static_cast<MemoryAccessMode>(MiscField::decode(opcode)));
+  switch (AddressingModeField::decode(opcode)) {
+    case kMode_Offset_RI:
+      codegen->tasm()->mov(address, i.InputImmediate(1));
+      codegen->tasm()->add(address, address, i.InputRegister(0));
+      break;
+    case kMode_Offset_RR:
+      codegen->tasm()->add(address, i.InputRegister(0), i.InputRegister(1));
+      break;
+    default:
+      UNREACHABLE();
+  }
+  codegen->tasm()->and_(address, address, Operand(kSpeculationPoisonRegister));
 }
 
 }  // namespace
@@ -1514,12 +1533,12 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kArmLdrb:
       __ ldrb(i.OutputRegister(), i.InputOffset());
       DCHECK_EQ(LeaveCC, i.OutputSBit());
-      EmitWordLoadPoisoningIfNeeded(this, opcode, instr, i);
+      EmitWordLoadPoisoningIfNeeded(this, opcode, i);
       break;
     case kArmLdrsb:
       __ ldrsb(i.OutputRegister(), i.InputOffset());
       DCHECK_EQ(LeaveCC, i.OutputSBit());
-      EmitWordLoadPoisoningIfNeeded(this, opcode, instr, i);
+      EmitWordLoadPoisoningIfNeeded(this, opcode, i);
       break;
     case kArmStrb:
       __ strb(i.InputRegister(0), i.InputOffset(1));
@@ -1527,11 +1546,11 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     case kArmLdrh:
       __ ldrh(i.OutputRegister(), i.InputOffset());
-      EmitWordLoadPoisoningIfNeeded(this, opcode, instr, i);
+      EmitWordLoadPoisoningIfNeeded(this, opcode, i);
       break;
     case kArmLdrsh:
       __ ldrsh(i.OutputRegister(), i.InputOffset());
-      EmitWordLoadPoisoningIfNeeded(this, opcode, instr, i);
+      EmitWordLoadPoisoningIfNeeded(this, opcode, i);
       break;
     case kArmStrh:
       __ strh(i.InputRegister(0), i.InputOffset(1));
@@ -1539,14 +1558,23 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     case kArmLdr:
       __ ldr(i.OutputRegister(), i.InputOffset());
-      EmitWordLoadPoisoningIfNeeded(this, opcode, instr, i);
+      EmitWordLoadPoisoningIfNeeded(this, opcode, i);
       break;
     case kArmStr:
       __ str(i.InputRegister(0), i.InputOffset(1));
       DCHECK_EQ(LeaveCC, i.OutputSBit());
       break;
     case kArmVldrF32: {
-      __ vldr(i.OutputFloatRegister(), i.InputOffset());
+      const MemoryAccessMode access_mode =
+          static_cast<MemoryAccessMode>(MiscField::decode(opcode));
+      if (access_mode == kMemoryAccessPoisoned) {
+        UseScratchRegisterScope temps(tasm());
+        Register address = temps.Acquire();
+        ComputePoisonedAddressForLoad(this, opcode, i, address);
+        __ vldr(i.OutputFloatRegister(), address, 0);
+      } else {
+        __ vldr(i.OutputFloatRegister(), i.InputOffset());
+      }
       DCHECK_EQ(LeaveCC, i.OutputSBit());
       break;
     }
@@ -1574,10 +1602,20 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
               i.NeonInputOperand(1));
       break;
     }
-    case kArmVldrF64:
-      __ vldr(i.OutputDoubleRegister(), i.InputOffset());
+    case kArmVldrF64: {
+      const MemoryAccessMode access_mode =
+          static_cast<MemoryAccessMode>(MiscField::decode(opcode));
+      if (access_mode == kMemoryAccessPoisoned) {
+        UseScratchRegisterScope temps(tasm());
+        Register address = temps.Acquire();
+        ComputePoisonedAddressForLoad(this, opcode, i, address);
+        __ vldr(i.OutputDoubleRegister(), address, 0);
+      } else {
+        __ vldr(i.OutputDoubleRegister(), i.InputOffset());
+      }
       DCHECK_EQ(LeaveCC, i.OutputSBit());
       break;
+    }
     case kArmVstrF64:
       __ vstr(i.InputDoubleRegister(0), i.InputOffset(1));
       DCHECK_EQ(LeaveCC, i.OutputSBit());
