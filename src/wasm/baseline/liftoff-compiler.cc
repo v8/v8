@@ -41,6 +41,8 @@ class MovableLabel {
   Label* get() { return label_.get(); }
   MovableLabel() : MovableLabel(new Label()) {}
 
+  operator bool() const { return label_ != nullptr; }
+
   static MovableLabel None() { return MovableLabel(nullptr); }
 
  private:
@@ -52,6 +54,8 @@ class MovableLabel {
 class MovableLabel {
  public:
   Label* get() { return &label_; }
+
+  operator bool() const { return true; }
 
   static MovableLabel None() { return MovableLabel(); }
 
@@ -148,6 +152,8 @@ class LiftoffCompiler {
         codegen_zone_(codegen_zone),
         safepoint_table_builder_(compilation_zone_) {}
 
+  ~LiftoffCompiler() { BindUnboundLabels(nullptr); }
+
   bool ok() const { return ok_; }
 
   void unsupported(Decoder* decoder, const char* reason) {
@@ -185,7 +191,8 @@ class LiftoffCompiler {
 #ifdef DEBUG
     // Bind all labels now, otherwise their destructor will fire a DCHECK error
     // if they where referenced before.
-    for (uint32_t i = 0, e = decoder->control_depth(); i < e; ++i) {
+    uint32_t control_depth = decoder ? decoder->control_depth() : 0;
+    for (uint32_t i = 0; i < control_depth; ++i) {
       Control* c = decoder->control_at(i);
       Label* label = c->label.get();
       if (!label->is_bound()) __ bind(label);
@@ -258,7 +265,7 @@ class LiftoffCompiler {
         OutOfLineCode::StackCheck(position, __ cache_state()->used_registers));
     OutOfLineCode& ool = out_of_line_code_.back();
     __ StackCheck(ool.label.get());
-    __ bind(ool.continuation.get());
+    if (ool.continuation) __ bind(ool.continuation.get());
   }
 
   void StartFunctionBody(Decoder* decoder, Control* block) {
