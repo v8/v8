@@ -352,6 +352,13 @@ Reduction JSCreateLowering::ReduceJSCreateArguments(Node* node) {
       // whether there conceptually is an arguments adaptor frame in the call
       // chain.
       Node* const args_state = GetArgumentsFrameState(frame_state);
+      if (args_state->InputAt(kFrameStateParametersInput)->opcode() ==
+          IrOpcode::kDeadValue) {
+        // This protects against an incompletely propagated DeadValue node.
+        // If the FrameState has a DeadValue input, then this node will be
+        // pruned anyway.
+        return NoChange();
+      }
       FrameStateInfo args_state_info = FrameStateInfoOf(args_state->op());
       // Prepare element backing store to be used by arguments object.
       bool has_aliased_arguments = false;
@@ -385,6 +392,13 @@ Reduction JSCreateLowering::ReduceJSCreateArguments(Node* node) {
       // whether there conceptually is an arguments adaptor frame in the call
       // chain.
       Node* const args_state = GetArgumentsFrameState(frame_state);
+      if (args_state->InputAt(kFrameStateParametersInput)->opcode() ==
+          IrOpcode::kDeadValue) {
+        // This protects against an incompletely propagated DeadValue node.
+        // If the FrameState has a DeadValue input, then this node will be
+        // pruned anyway.
+        return NoChange();
+      }
       FrameStateInfo args_state_info = FrameStateInfoOf(args_state->op());
       // Prepare element backing store to be used by arguments object.
       Node* const elements = AllocateArguments(effect, control, args_state);
@@ -414,6 +428,13 @@ Reduction JSCreateLowering::ReduceJSCreateArguments(Node* node) {
       // whether there conceptually is an arguments adaptor frame in the call
       // chain.
       Node* const args_state = GetArgumentsFrameState(frame_state);
+      if (args_state->InputAt(kFrameStateParametersInput)->opcode() ==
+          IrOpcode::kDeadValue) {
+        // This protects against an incompletely propagated DeadValue node.
+        // If the FrameState has a DeadValue input, then this node will be
+        // pruned anyway.
+        return NoChange();
+      }
       FrameStateInfo args_state_info = FrameStateInfoOf(args_state->op());
       // Prepare element backing store to be used by the rest array.
       Node* const elements =
