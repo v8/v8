@@ -1171,7 +1171,7 @@ TF_BUILTIN(PromiseResolve, PromiseBuiltinsAssembler) {
   // intact, as that guards the lookup path for "constructor" on
   // JSPromise instances which have the (initial) Promise.prototype.
   Node* const promise_prototype =
-      LoadContextElement(native_context, Context::PROMISE_FUNCTION_INDEX);
+      LoadContextElement(native_context, Context::PROMISE_PROTOTYPE_INDEX);
   GotoIfNot(WordEqual(LoadMapPrototype(value_map), promise_prototype),
             &if_slow_constructor);
   GotoIf(IsSpeciesProtectorCellInvalid(), &if_slow_constructor);
