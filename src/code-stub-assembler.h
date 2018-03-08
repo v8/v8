@@ -1185,6 +1185,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
     return IsSharedFunctionInfoMap(LoadMap(object));
   }
 
+  Node* IsPromiseResolveProtectorCellInvalid();
   Node* IsPromiseThenProtectorCellInvalid();
   Node* IsSpeciesProtectorCellInvalid();
 

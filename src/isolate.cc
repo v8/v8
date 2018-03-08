@@ -3482,6 +3482,13 @@ bool Isolate::IsPromiseHookProtectorIntact() {
   return is_promise_hook_protector_intact;
 }
 
+bool Isolate::IsPromiseResolveLookupChainIntact() {
+  Cell* promise_resolve_cell = heap()->promise_resolve_protector();
+  bool is_promise_resolve_protector_intact =
+      Smi::ToInt(promise_resolve_cell->value()) == kProtectorValid;
+  return is_promise_resolve_protector_intact;
+}
+
 bool Isolate::IsPromiseThenLookupChainIntact() {
   PropertyCell* promise_then_cell = heap()->promise_then_protector();
   bool is_promise_then_protector_intact =
@@ -3565,6 +3572,14 @@ void Isolate::InvalidatePromiseHookProtector() {
       factory()->promise_hook_protector(),
       handle(Smi::FromInt(kProtectorInvalid), this));
   DCHECK(!IsPromiseHookProtectorIntact());
+}
+
+void Isolate::InvalidatePromiseResolveProtector() {
+  DCHECK(factory()->promise_resolve_protector()->value()->IsSmi());
+  DCHECK(IsPromiseResolveLookupChainIntact());
+  factory()->promise_resolve_protector()->set_value(
+      Smi::FromInt(kProtectorInvalid));
+  DCHECK(!IsPromiseResolveLookupChainIntact());
 }
 
 void Isolate::InvalidatePromiseThenProtector() {

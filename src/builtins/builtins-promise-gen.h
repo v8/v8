@@ -126,6 +126,14 @@ class PromiseBuiltinsAssembler : public CodeStubAssembler {
   Node* TriggerPromiseReactions(Node* context, Node* promise, Node* result,
                                 PromiseReaction::Type type);
 
+  // We can skip the "resolve" lookup on {constructor} if it's the (initial)
+  // Promise constructor and the Promise.resolve() protector is intact, as
+  // that guards the lookup path for the "resolve" property on the %Promise%
+  // intrinsic object.
+  void BranchIfPromiseResolveLookupChainIntact(Node* native_context,
+                                               Node* constructor,
+                                               Label* if_fast, Label* if_slow);
+
   // We can shortcut the SpeciesConstructor on {promise_map} if it's
   // [[Prototype]] is the (initial)  Promise.prototype and the @@species
   // protector is intact, as that guards the lookup path for the "constructor"
@@ -142,6 +150,8 @@ class PromiseBuiltinsAssembler : public CodeStubAssembler {
                                             Node* receiver_map, Label* if_fast,
                                             Label* if_slow);
 
+  Node* InvokeResolve(Node* native_context, Node* constructor, Node* value,
+                      Label* if_exception, Variable* var_exception);
   template <typename... TArgs>
   Node* InvokeThen(Node* native_context, Node* receiver, TArgs... args);
 

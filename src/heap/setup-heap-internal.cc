@@ -664,6 +664,10 @@ void Heap::CreateInitialObjects() {
   cell->set_value(Smi::FromInt(Isolate::kProtectorValid));
   set_promise_hook_protector(*cell);
 
+  Handle<Cell> promise_resolve_cell = factory->NewCell(
+      handle(Smi::FromInt(Isolate::kProtectorValid), isolate()));
+  set_promise_resolve_protector(*promise_resolve_cell);
+
   cell = factory->NewPropertyCell(factory->empty_string());
   cell->set_value(Smi::FromInt(Isolate::kProtectorValid));
   set_promise_then_protector(*cell);

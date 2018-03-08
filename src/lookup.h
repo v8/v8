@@ -280,7 +280,7 @@ class V8_EXPORT_PRIVATE LookupIterator final BASE_EMBEDDED {
         *name_ == heap()->constructor_string() ||
         *name_ == heap()->next_string() || *name_ == heap()->species_symbol() ||
         *name_ == heap()->iterator_symbol() ||
-        *name_ == heap()->then_string()) {
+        *name_ == heap()->resolve_string() || *name_ == heap()->then_string()) {
       InternalUpdateProtector();
     }
   }

@@ -313,6 +313,13 @@ void LookupIterator::InternalUpdateProtector() {
     if (holder_->IsJSArray()) {
       isolate_->InvalidateArrayIteratorProtector();
     }
+  } else if (*name_ == heap()->resolve_string()) {
+    if (!isolate_->IsPromiseResolveLookupChainIntact()) return;
+    // Setting the "resolve" property on any %Promise% intrinsic object
+    // invalidates the Promise.resolve protector.
+    if (isolate_->IsInAnyContext(*holder_, Context::PROMISE_FUNCTION_INDEX)) {
+      isolate_->InvalidatePromiseResolveProtector();
+    }
   } else if (*name_ == heap()->then_string()) {
     if (!isolate_->IsPromiseThenLookupChainIntact()) return;
     // Setting the "then" property on any JSPromise instance or on the

@@ -526,6 +526,61 @@ Node* PromiseBuiltinsAssembler::InvokeThen(Node* native_context, Node* receiver,
   return var_result.value();
 }
 
+Node* PromiseBuiltinsAssembler::InvokeResolve(Node* native_context,
+                                              Node* constructor, Node* value,
+                                              Label* if_exception,
+                                              Variable* var_exception) {
+  CSA_ASSERT(this, IsNativeContext(native_context));
+
+  VARIABLE(var_result, MachineRepresentation::kTagged);
+  Label if_fast(this), if_slow(this, Label::kDeferred), done(this, &var_result);
+  // We can skip the "resolve" lookup on {constructor} if it's the
+  // Promise constructor and the Promise.resolve protector is intact,
+  // as that guards the lookup path for the "resolve" property on the
+  // Promise constructor.
+  BranchIfPromiseResolveLookupChainIntact(native_context, constructor, &if_fast,
+                                          &if_slow);
+
+  BIND(&if_fast);
+  {
+    Node* const result = CallBuiltin(Builtins::kPromiseResolve, native_context,
+                                     constructor, value);
+    GotoIfException(result, if_exception, var_exception);
+
+    var_result.Bind(result);
+    Goto(&done);
+  }
+
+  BIND(&if_slow);
+  {
+    Node* const resolve =
+        GetProperty(native_context, constructor, factory()->resolve_string());
+    GotoIfException(resolve, if_exception, var_exception);
+
+    Node* const result = CallJS(
+        CodeFactory::Call(isolate(), ConvertReceiverMode::kNotNullOrUndefined),
+        native_context, resolve, constructor, value);
+    GotoIfException(result, if_exception, var_exception);
+
+    var_result.Bind(result);
+    Goto(&done);
+  }
+
+  BIND(&done);
+  return var_result.value();
+}
+
+void PromiseBuiltinsAssembler::BranchIfPromiseResolveLookupChainIntact(
+    Node* native_context, Node* constructor, Label* if_fast, Label* if_slow) {
+  CSA_ASSERT(this, IsNativeContext(native_context));
+
+  GotoIfForceSlowPath(if_slow);
+  Node* const promise_fun =
+      LoadContextElement(native_context, Context::PROMISE_FUNCTION_INDEX);
+  GotoIfNot(WordEqual(promise_fun, constructor), if_slow);
+  Branch(IsPromiseResolveProtectorCellInvalid(), if_slow, if_fast);
+}
+
 void PromiseBuiltinsAssembler::BranchIfPromiseSpeciesLookupChainIntact(
     Node* native_context, Node* promise_map, Label* if_fast, Label* if_slow) {
   CSA_ASSERT(this, IsNativeContext(native_context));
@@ -1717,14 +1772,9 @@ Node* PromiseBuiltinsAssembler::PerformPromiseAll(
         context, next, fast_iterator_result_map, if_exception, var_exception);
 
     // Let nextPromise be ? Invoke(constructor, "resolve", « nextValue »).
-    Node* const promise_resolve =
-        GetProperty(context, constructor, factory()->resolve_string());
-    GotoIfException(promise_resolve, &close_iterator, var_exception);
-
-    Node* const next_promise = CallJS(
-        CodeFactory::Call(isolate(), ConvertReceiverMode::kNotNullOrUndefined),
-        context, promise_resolve, constructor, next_value);
-    GotoIfException(next_promise, &close_iterator, var_exception);
+    Node* const next_promise =
+        InvokeResolve(native_context, constructor, next_value, &close_iterator,
+                      var_exception);
 
     // Let resolveElement be a new built-in function object as defined in
     // Promise.all Resolve Element Functions.
@@ -2043,15 +2093,9 @@ TF_BUILTIN(PromiseRace, PromiseBuiltinsAssembler) {
                                        &reject_promise, &var_exception);
 
       // Let nextPromise be ? Invoke(constructor, "resolve", « nextValue »).
-      Node* const promise_resolve =
-          GetProperty(context, receiver, factory()->resolve_string());
-      GotoIfException(promise_resolve, &close_iterator, &var_exception);
-
       Node* const next_promise =
-          CallJS(CodeFactory::Call(isolate(),
-                                   ConvertReceiverMode::kNotNullOrUndefined),
-                 context, promise_resolve, receiver, next_value);
-      GotoIfException(next_promise, &close_iterator, &var_exception);
+          InvokeResolve(native_context, receiver, next_value, &close_iterator,
+                        &var_exception);
 
       // Perform ? Invoke(nextPromise, "then", « resolveElement,
       //                  resultCapability.[[Reject]] »).

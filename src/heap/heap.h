@@ -225,6 +225,7 @@ using v8::MemoryPressureLevel;
   V(PropertyCell, array_buffer_neutering_protector,                            \
     ArrayBufferNeuteringProtector)                                             \
   V(PropertyCell, promise_hook_protector, PromiseHookProtector)                \
+  V(Cell, promise_resolve_protector, PromiseResolveProtector)                  \
   V(PropertyCell, promise_then_protector, PromiseThenProtector)                \
   /* Special numbers */                                                        \
   V(HeapNumber, nan_value, NanValue)                                           \

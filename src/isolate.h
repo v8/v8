@@ -1088,6 +1088,10 @@ class Isolate {
   // active.
   bool IsPromiseHookProtectorIntact();
 
+  // Make sure a lookup of "resolve" on the %Promise% intrinsic object
+  // yeidls the initial Promise.resolve method.
+  bool IsPromiseResolveLookupChainIntact();
+
   // Make sure a lookup of "then" on any JSPromise whose [[Prototype]] is the
   // initial %PromisePrototype% yields the initial method.
   bool IsPromiseThenLookupChainIntact();
@@ -1114,6 +1118,7 @@ class Isolate {
   void InvalidateArrayIteratorProtector();
   void InvalidateArrayBufferNeuteringProtector();
   V8_EXPORT_PRIVATE void InvalidatePromiseHookProtector();
+  void InvalidatePromiseResolveProtector();
   void InvalidatePromiseThenProtector();
 
   // Returns true if array is the initial array prototype in any native context.
