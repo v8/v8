@@ -387,6 +387,72 @@ TEST_F(ValueSerializerTest, DecodeNumber) {
   // TODO(jbroman): Equivalent test for big-endian machines.
 }
 
+TEST_F(ValueSerializerTest, RoundTripBigInt) {
+  Local<Value> value = RoundTripTest(BigInt::New(isolate(), -42));
+  ASSERT_TRUE(value->IsBigInt());
+  ExpectScriptTrue("result === -42n");
+
+  value = RoundTripTest(BigInt::New(isolate(), 42));
+  ExpectScriptTrue("result === 42n");
+
+  value = RoundTripTest(BigInt::New(isolate(), 0));
+  ExpectScriptTrue("result === 0n");
+
+  value = RoundTripTest("0x1234567890abcdef777888999n");
+  ExpectScriptTrue("result === 0x1234567890abcdef777888999n");
+
+  value = RoundTripTest("-0x1234567890abcdef777888999123n");
+  ExpectScriptTrue("result === -0x1234567890abcdef777888999123n");
+
+  Context::Scope scope(serialization_context());
+  value = RoundTripTest(BigIntObject::New(isolate(), 23));
+  ASSERT_TRUE(value->IsBigIntObject());
+  ExpectScriptTrue("result == 23n");
+}
+
+TEST_F(ValueSerializerTest, DecodeBigInt) {
+  Local<Value> value = DecodeTest({
+      0xFF, 0x0D,              // Version 13
+      0x5A,                    // BigInt
+      0x08,                    // Bitfield: sign = false, bytelength = 4
+      0x2A, 0x00, 0x00, 0x00,  // Digit: 42
+  });
+  ASSERT_TRUE(value->IsBigInt());
+  ExpectScriptTrue("result === 42n");
+
+  value = DecodeTest({
+      0xFF, 0x0D,  // Version 13
+      0x7A,        // BigIntObject
+      0x11,        // Bitfield: sign = true, bytelength = 8
+      0x2A, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00  // Digit: 42
+  });
+  ASSERT_TRUE(value->IsBigIntObject());
+  ExpectScriptTrue("result == -42n");
+
+  value = DecodeTest({
+      0xFF, 0x0D,  // Version 13
+      0x5A,        // BigInt
+      0x10,        // Bitfield: sign = false, bytelength = 8
+      0xEF, 0xCD, 0xAB, 0x90, 0x78, 0x56, 0x34, 0x12  // Digit(s).
+  });
+  ExpectScriptTrue("result === 0x1234567890abcdefn");
+
+  value = DecodeTest({0xFF, 0x0D,  // Version 13
+                      0x5A,        // BigInt
+                      0x17,        // Bitfield: sign = true, bytelength = 11
+                      0xEF, 0xCD, 0xAB, 0x90,  // Digits.
+                      0x78, 0x56, 0x34, 0x12, 0x33, 0x44, 0x55});
+  ExpectScriptTrue("result === -0x5544331234567890abcdefn");
+
+  value = DecodeTest({
+      0xFF, 0x0D,  // Version 13
+      0x5A,        // BigInt
+      0x02,        // Bitfield: sign = false, bytelength = 1
+      0x2A,        // Digit: 42
+  });
+  ExpectScriptTrue("result === 42n");
+}
+
 // String constants (in UTF-8) used for string encoding tests.
 static const char kHelloString[] = "Hello";
 static const char kQuebecString[] = "\x51\x75\xC3\xA9\x62\x65\x63";

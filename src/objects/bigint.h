@@ -16,6 +16,8 @@ namespace v8 {
 namespace internal {
 
 class BigInt;
+class ValueDeserializer;
+class ValueSerializer;
 
 // BigIntBase is just the raw data object underlying a BigInt. Use with care!
 // Most code should be using BigInts instead.
@@ -32,8 +34,9 @@ class BigIntBase : public HeapObject {
 
   static const int kLengthFieldBits = 30;
   STATIC_ASSERT(kMaxLength <= ((1 << kLengthFieldBits) - 1));
-  class LengthBits : public BitField<int, 0, kLengthFieldBits> {};
-  class SignBits : public BitField<bool, LengthBits::kNext, 1> {};
+  class SignBits : public BitField<bool, 0, 1> {};
+  class LengthBits : public BitField<int, SignBits::kNext, kLengthFieldBits> {};
+  STATIC_ASSERT(LengthBits::kNext <= 32);
 
   static const int kBitfieldOffset = HeapObject::kHeaderSize;
   static const int kDigitsOffset = kBitfieldOffset + kPointerSize;
@@ -170,6 +173,8 @@ class V8_EXPORT_PRIVATE BigInt : public BigIntBase {
 
  private:
   friend class StringToBigIntHelper;
+  friend class ValueDeserializer;
+  friend class ValueSerializer;
 
   // Special functions for StringToBigIntHelper:
   static Handle<BigInt> Zero(Isolate* isolate);
@@ -179,6 +184,16 @@ class V8_EXPORT_PRIVATE BigInt : public BigIntBase {
   static void InplaceMultiplyAdd(Handle<FreshlyAllocatedBigInt> x,
                                  uintptr_t factor, uintptr_t summand);
   static Handle<BigInt> Finalize(Handle<FreshlyAllocatedBigInt> x, bool sign);
+
+  // Special functions for ValueSerializer/ValueDeserializer:
+  uint32_t GetBitfieldForSerialization() const;
+  static int DigitsByteLengthForBitfield(uint32_t bitfield);
+  // Expects {storage} to have a length of at least
+  // {DigitsByteLengthForBitfield(GetBitfieldForSerialization())}.
+  void SerializeDigits(uint8_t* storage);
+  MUST_USE_RESULT static MaybeHandle<BigInt> FromSerializedDigits(
+      Isolate* isolate, uint32_t bitfield, Vector<const uint8_t> digits_storage,
+      PretenureFlag pretenure);
 
   DISALLOW_IMPLICIT_CONSTRUCTORS(BigInt);
 };
