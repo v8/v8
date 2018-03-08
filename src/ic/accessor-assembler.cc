@@ -609,15 +609,9 @@ Node* AccessorAssembler::HandleProtoHandler(
   // Check prototype validity cell.
   //
   {
-    Label done(this);
-    Node* validity_cell =
+    Node* maybe_validity_cell =
         LoadObjectField(handler, ICHandler::kValidityCellOffset);
-    GotoIf(WordEqual(validity_cell, SmiConstant(0)), &done);
-    Node* cell_value = LoadObjectField(validity_cell, Cell::kValueOffset);
-    GotoIf(WordNotEqual(cell_value, SmiConstant(Map::kPrototypeChainValid)),
-           miss);
-    Goto(&done);
-    BIND(&done);
+    CheckPrototypeValidityCell(maybe_validity_cell, miss);
   }
 
   //
@@ -889,6 +883,20 @@ void AccessorAssembler::HandleStoreICHandlerCase(
     ExitPoint direct_exit(this);
     StoreGlobalIC_PropertyCellCase(cell, p->value, &direct_exit, miss);
   }
+}
+
+void AccessorAssembler::CheckPrototypeValidityCell(Node* maybe_validity_cell,
+                                                   Label* miss) {
+  Label done(this);
+  GotoIf(WordEqual(maybe_validity_cell, SmiConstant(Map::kPrototypeChainValid)),
+         &done);
+  CSA_ASSERT(this, TaggedIsNotSmi(maybe_validity_cell));
+
+  Node* cell_value = LoadObjectField(maybe_validity_cell, Cell::kValueOffset);
+  Branch(WordEqual(cell_value, SmiConstant(Map::kPrototypeChainValid)), &done,
+         miss);
+
+  BIND(&done);
 }
 
 void AccessorAssembler::HandleStoreAccessor(const StoreICParameters* p,

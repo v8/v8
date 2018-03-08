@@ -12510,13 +12510,8 @@ Handle<Cell> Map::GetOrCreatePrototypeChainValidityCell(Handle<Map> map,
   } else {
     maybe_prototype =
         handle(map->GetPrototypeChainRootMap(isolate)->prototype(), isolate);
-    if (!maybe_prototype->IsJSReceiver()) return Handle<Cell>::null();
   }
-  if (maybe_prototype->IsJSProxy()) {
-    Handle<Cell> cell = isolate->factory()->NewCell(
-        handle(Smi::FromInt(Map::kPrototypeChainValid), isolate));
-    return cell;
-  }
+  if (!maybe_prototype->IsJSObject()) return Handle<Cell>::null();
   Handle<JSObject> prototype = Handle<JSObject>::cast(maybe_prototype);
   // Ensure the prototype is registered with its own prototypes so its cell
   // will be invalidated when necessary.

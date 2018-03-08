@@ -197,6 +197,7 @@ class AccessorAssembler : public CodeStubAssembler {
                                  Representation representation, Node* value,
                                  Node* transition, Label* miss);
 
+  void CheckPrototypeValidityCell(Node* maybe_validity_cell, Label* miss);
   void HandleStoreICNativeDataProperty(const StoreICParameters* p, Node* holder,
                                        Node* handler_word);
 

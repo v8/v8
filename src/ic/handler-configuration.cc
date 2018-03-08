@@ -124,11 +124,7 @@ Handle<Object> LoadHandler::LoadFromPrototype(Isolate* isolate,
   Handle<Object> validity_cell =
       Map::GetOrCreatePrototypeChainValidityCell(receiver_map, isolate);
   if (validity_cell.is_null()) {
-    // Although in case of kApiGetter we load from receiver we still have to
-    // use the "prototype" shape of a handler in order to provide additional
-    // data to the dispatcher.
-    DCHECK_EQ(kApiGetter, GetHandlerKind(*smi_handler));
-    validity_cell = handle(Smi::kZero, isolate);
+    validity_cell = handle(Smi::FromInt(Map::kPrototypeChainValid), isolate);
   }
 
   int data_count = 1 + checks_count;
@@ -157,7 +153,7 @@ Handle<Object> LoadHandler::LoadFullChain(Isolate* isolate,
     DCHECK_EQ(0, checks_count);
     // Lookup on receiver isn't supported in case of a simple smi handler.
     if (!LookupOnReceiverBits::decode(smi_handler->value())) return smi_handler;
-    validity_cell = handle(Smi::kZero, isolate);
+    validity_cell = handle(Smi::FromInt(Map::kPrototypeChainValid), isolate);
   }
 
   int data_count = 1 + checks_count;
@@ -196,7 +192,7 @@ Handle<Object> StoreHandler::StoreElementTransition(
   Handle<Object> validity_cell =
       Map::GetOrCreatePrototypeChainValidityCell(receiver_map, isolate);
   if (validity_cell.is_null()) {
-    validity_cell = handle(Smi::kZero, isolate);
+    validity_cell = handle(Smi::FromInt(Map::kPrototypeChainValid), isolate);
   }
   Handle<WeakCell> cell = Map::WeakCellForMap(transition);
   Handle<StoreHandler> handler = isolate->factory()->NewStoreHandler(1);
@@ -247,7 +243,7 @@ Handle<Object> StoreHandler::StoreThroughPrototype(
       Map::GetOrCreatePrototypeChainValidityCell(receiver_map, isolate);
   if (validity_cell.is_null()) {
     DCHECK_EQ(0, checks_count);
-    validity_cell = handle(Smi::kZero, isolate);
+    validity_cell = handle(Smi::FromInt(Map::kPrototypeChainValid), isolate);
   }
 
   int data_count = 1 + checks_count;

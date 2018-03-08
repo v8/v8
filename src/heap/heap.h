@@ -213,6 +213,7 @@ using v8::MemoryPressureLevel;
   V(FixedArray, empty_ordered_hash_set, EmptyOrderedHashSet)                   \
   V(PropertyCell, empty_property_cell, EmptyPropertyCell)                      \
   V(WeakCell, empty_weak_cell, EmptyWeakCell)                                  \
+  V(Cell, invalid_prototype_validity_cell, InvalidPrototypeValidityCell)       \
   V(InterceptorInfo, noop_interceptor_info, NoOpInterceptorInfo)               \
   /* Protectors */                                                             \
   V(Cell, array_constructor_protector, ArrayConstructorProtector)              \

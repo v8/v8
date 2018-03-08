@@ -287,7 +287,15 @@ bool Heap::CreateInitialMaps() {
 
     ALLOCATE_VARSIZE_MAP(CODE_TYPE, code)
 
-    ALLOCATE_MAP(CELL_TYPE, Cell::kSize, cell)
+    ALLOCATE_MAP(CELL_TYPE, Cell::kSize, cell);
+    {
+      // The invalid_prototype_validity_cell is needed for JSObject maps.
+      Smi* value = Smi::FromInt(Map::kPrototypeChainInvalid);
+      Cell* cell;
+      if (!AllocateCell(value).To(&cell)) return false;
+      set_invalid_prototype_validity_cell(cell);
+    }
+
     ALLOCATE_MAP(PROPERTY_CELL_TYPE, PropertyCell::kSize, global_property_cell)
     ALLOCATE_MAP(WEAK_CELL_TYPE, WeakCell::kSize, weak_cell)
     ALLOCATE_MAP(FILLER_TYPE, kPointerSize, one_pointer_filler)
