@@ -14,17 +14,21 @@ namespace internal {
 class Code;
 class Isolate;
 
-// Wraps an off-heap instruction stream.
-// TODO(jgruber,v8:6666): Remove this class.
+// Wraps an mmap'ed off-heap instruction stream. This class will likely become
+// unneeded once --stress-off-heap-code is removed.
 class InstructionStream final {
  public:
-  InstructionStream(uint8_t* bytes, size_t byte_length, int builtin_index);
-
-  // Returns true, iff the given pc points into an off-heap instruction stream.
-  static bool PcIsOffHeap(Isolate* isolate, Address pc);
+  explicit InstructionStream(Code* code);
+  ~InstructionStream();
 
   // Returns the corresponding Code object if it exists, and nullptr otherwise.
   static Code* TryLookupCode(Isolate* isolate, Address address);
+
+  // Returns the corresponding stream if it exists, and nullptr otherwise.
+  static InstructionStream* TryLookupInstructionStream(Isolate* isolate,
+                                                       Code* code);
+
+  bool Contains(Address address) const;
 
   int builtin_index() const { return builtin_index_; }
   size_t byte_length() const { return byte_length_; }

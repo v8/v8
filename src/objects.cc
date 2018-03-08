@@ -68,7 +68,6 @@
 #include "src/regexp/jsregexp.h"
 #include "src/safepoint-table.h"
 #include "src/snapshot/code-serializer.h"
-#include "src/snapshot/snapshot.h"
 #include "src/source-position-table.h"
 #include "src/string-builder.h"
 #include "src/string-search.h"
@@ -13969,29 +13968,23 @@ SafepointEntry Code::GetSafepointEntry(Address pc) {
 #ifdef V8_EMBEDDED_BUILTINS
 int Code::OffHeapInstructionSize() {
   DCHECK(Builtins::IsOffHeapBuiltin(this));
-  Isolate* isolate = GetIsolate();
-  EmbeddedData d = EmbeddedData::FromBlob(isolate->embedded_blob(),
-                                          isolate->embedded_blob_size());
-  return d.InstructionSizeOfBuiltin(builtin_index());
+  InstructionStream* stream =
+      InstructionStream::TryLookupInstructionStream(GetIsolate(), this);
+  return static_cast<int>(stream->byte_length());
 }
 
 Address Code::OffHeapInstructionStart() {
   DCHECK(Builtins::IsOffHeapBuiltin(this));
-  Isolate* isolate = GetIsolate();
-  EmbeddedData d = EmbeddedData::FromBlob(isolate->embedded_blob(),
-                                          isolate->embedded_blob_size());
-  return reinterpret_cast<Address>(
-      const_cast<uint8_t*>(d.InstructionStartOfBuiltin(builtin_index())));
+  InstructionStream* stream =
+      InstructionStream::TryLookupInstructionStream(GetIsolate(), this);
+  return stream->bytes();
 }
 
 Address Code::OffHeapInstructionEnd() {
   DCHECK(Builtins::IsOffHeapBuiltin(this));
-  Isolate* isolate = GetIsolate();
-  EmbeddedData d = EmbeddedData::FromBlob(isolate->embedded_blob(),
-                                          isolate->embedded_blob_size());
-  return reinterpret_cast<Address>(
-      const_cast<uint8_t*>(d.InstructionStartOfBuiltin(builtin_index()) +
-                           d.InstructionSizeOfBuiltin(builtin_index())));
+  InstructionStream* stream =
+      InstructionStream::TryLookupInstructionStream(GetIsolate(), this);
+  return stream->bytes() + stream->byte_length();
 }
 #endif
 
