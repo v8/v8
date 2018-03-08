@@ -1753,51 +1753,6 @@ Handle<BigInt> BigInt::Finalize(Handle<FreshlyAllocatedBigInt> x, bool sign) {
   return MutableBigInt::MakeImmutable(bigint);
 }
 
-// The serialization format MUST NOT CHANGE without updating the format
-// version in value-serializer.cc!
-uint32_t BigInt::GetBitfieldForSerialization() const {
-  // In order to make the serialization format the same on 32/64 bit builds,
-  // we convert the length-in-digits to length-in-bytes for serialization.
-  // Being able to do this depends on having enough LengthBits:
-  STATIC_ASSERT(kMaxLength * kDigitSize <= LengthBits::kMax);
-  int bytelength = length() * kDigitSize;
-  return SignBits::encode(sign()) | LengthBits::encode(bytelength);
-}
-
-int BigInt::DigitsByteLengthForBitfield(uint32_t bitfield) {
-  return LengthBits::decode(bitfield);
-}
-
-// The serialization format MUST NOT CHANGE without updating the format
-// version in value-serializer.cc!
-void BigInt::SerializeDigits(uint8_t* storage) {
-  int bytelength = length() * kDigitSize;
-  void* digits = reinterpret_cast<void*>(reinterpret_cast<Address>(this) +
-                                         kDigitsOffset - kHeapObjectTag);
-  memcpy(storage, digits, bytelength);
-}
-
-// The serialization format MUST NOT CHANGE without updating the format
-// version in value-serializer.cc!
-MaybeHandle<BigInt> BigInt::FromSerializedDigits(
-    Isolate* isolate, uint32_t bitfield, Vector<const uint8_t> digits_storage,
-    PretenureFlag pretenure) {
-  int bytelength = LengthBits::decode(bitfield);
-  DCHECK(digits_storage.length() == bytelength);
-  bool sign = SignBits::decode(bitfield);
-  int length = (bytelength + kDigitSize - 1) / kDigitSize;  // Round up.
-  Handle<MutableBigInt> result =
-      MutableBigInt::Cast(isolate->factory()->NewBigInt(length, pretenure));
-  result->initialize_bitfield(sign, length);
-  void* digits = reinterpret_cast<void*>(reinterpret_cast<Address>(*result) +
-                                         kDigitsOffset - kHeapObjectTag);
-  memcpy(digits, digits_storage.start(), bytelength);
-  void* padding_start =
-      reinterpret_cast<void*>(reinterpret_cast<Address>(digits) + bytelength);
-  memset(padding_start, 0, length * kDigitSize - bytelength);
-  return MutableBigInt::MakeImmutable(result);
-}
-
 static const char kConversionChars[] = "0123456789abcdefghijklmnopqrstuvwxyz";
 
 MaybeHandle<String> MutableBigInt::ToStringBasePowerOfTwo(Handle<BigIntBase> x,

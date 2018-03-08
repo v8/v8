@@ -19,7 +19,6 @@
 namespace v8 {
 namespace internal {
 
-class BigInt;
 class HeapNumber;
 class Isolate;
 class JSArrayBuffer;
@@ -108,14 +107,12 @@ class ValueSerializer {
   void WriteZigZag(T value);
   void WriteOneByteString(Vector<const uint8_t> chars);
   void WriteTwoByteString(Vector<const uc16> chars);
-  void WriteBigIntContents(BigInt* bigint);
   Maybe<uint8_t*> ReserveRawBytes(size_t bytes);
 
   // Writing V8 objects of various kinds.
   void WriteOddball(Oddball* oddball);
   void WriteSmi(Smi* smi);
   void WriteHeapNumber(HeapNumber* number);
-  void WriteBigInt(BigInt* bigint);
   void WriteString(Handle<String> string);
   Maybe<bool> WriteJSReceiver(Handle<JSReceiver> receiver) WARN_UNUSED_RESULT;
   Maybe<bool> WriteJSObject(Handle<JSObject> object) WARN_UNUSED_RESULT;
@@ -258,7 +255,6 @@ class ValueDeserializer {
 
   // Reading V8 objects of specific kinds.
   // The tag is assumed to have already been read.
-  MaybeHandle<BigInt> ReadBigInt() WARN_UNUSED_RESULT;
   MaybeHandle<String> ReadUtf8String() WARN_UNUSED_RESULT;
   MaybeHandle<String> ReadOneByteString() WARN_UNUSED_RESULT;
   MaybeHandle<String> ReadTwoByteString() WARN_UNUSED_RESULT;

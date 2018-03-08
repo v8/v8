@@ -2379,7 +2379,8 @@ TNode<HeapNumber> CodeStubAssembler::AllocateHeapNumberWithValue(
 
 TNode<BigInt> CodeStubAssembler::AllocateBigInt(TNode<IntPtrT> length) {
   TNode<BigInt> result = AllocateRawBigInt(length);
-  StoreBigIntBitfield(result, WordShl(length, BigInt::LengthBits::kShift));
+  STATIC_ASSERT(BigInt::LengthBits::kShift == 0);
+  StoreBigIntBitfield(result, length);
   return result;
 }
 
