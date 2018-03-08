@@ -1907,16 +1907,28 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
         __ movss(operand, i.InputDoubleRegister(index));
       }
       break;
-    case kX64Movsd:
+    case kX64Movsd: {
       EmitOOLTrapIfNeeded(zone(), this, opcode, instr, i, __ pc_offset());
       if (instr->HasOutput()) {
-        __ Movsd(i.OutputDoubleRegister(), i.MemoryOperand());
+        const MemoryAccessMode access_mode =
+            static_cast<MemoryAccessMode>(MiscField::decode(opcode));
+        if (access_mode == kMemoryAccessPoisoned) {
+          // If we have to poison the loaded value, we load into a general
+          // purpose register first, mask it with the poison, and move the
+          // value from the general purpose register into the double register.
+          __ movq(kScratchRegister, i.MemoryOperand());
+          __ andq(kScratchRegister, kSpeculationPoisonRegister);
+          __ Movq(i.OutputDoubleRegister(), kScratchRegister);
+        } else {
+          __ Movsd(i.OutputDoubleRegister(), i.MemoryOperand());
+        }
       } else {
         size_t index = 0;
         Operand operand = i.MemoryOperand(&index);
         __ Movsd(operand, i.InputDoubleRegister(index));
       }
       break;
+    }
     case kX64Movdqu: {
       CpuFeatureScope sse_scope(tasm(), SSSE3);
       EmitOOLTrapIfNeeded(zone(), this, opcode, instr, i, __ pc_offset());
