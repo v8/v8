@@ -269,6 +269,7 @@ class Debug {
 
   void DeoptimizeFunction(Handle<SharedFunctionInfo> shared);
   void PrepareFunctionForBreakPoints(Handle<SharedFunctionInfo> shared);
+  void InstallDebugBreakTrampoline();
   bool GetPossibleBreakpoints(Handle<Script> script, int start_position,
                               int end_position, bool restrict_to_function,
                               std::vector<BreakLocation>* locations);
@@ -759,6 +760,9 @@ class DebugCodegen : public AllStatic {
   // Builtin to atomically (wrt deopts) handle debugger statement and
   // drop frames to restart function if necessary.
   static void GenerateHandleDebuggerStatement(MacroAssembler* masm);
+
+  // Builtin to trigger a debug break before entering the function.
+  static void GenerateDebugBreakTrampoline(MacroAssembler* masm);
 };
 
 

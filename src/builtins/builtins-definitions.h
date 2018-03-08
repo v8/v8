@@ -170,6 +170,7 @@ namespace internal {
   TFC(NewArgumentsElements, NewArgumentsElements, 1)                           \
                                                                                \
   /* Debugger */                                                               \
+  TFJ(DebugBreakTrampoline, SharedFunctionInfo::kDontAdaptArgumentsSentinel)   \
   ASM(FrameDropperTrampoline)                                                  \
   ASM(HandleDebuggerStatement)                                                 \
                                                                                \

@@ -167,6 +167,7 @@ namespace internal {
   F(ScriptLocationFromLine2, 4, 1)              \
   F(ScriptPositionInfo, 3, 1)                   \
   F(ScriptPositionInfo2, 3, 1)                  \
+  F(DebugBreakAtEntry, 1, 1)                    \
   F(DebugOnFunctionCall, 1, 1)                  \
   F(DebugPrepareStepInSuspendedGenerator, 0, 1) \
   F(DebugPushPromise, 1, 1)                     \

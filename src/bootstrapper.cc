@@ -5430,6 +5430,11 @@ Genesis::Genesis(
 
   ConfigureUtilsObject(context_type);
 
+  // We created new functions, which may require debug instrumentation.
+  if (isolate->debug()->is_active()) {
+    isolate->debug()->InstallDebugBreakTrampoline();
+  }
+
   native_context()->ResetErrorsThrown();
   result_ = native_context();
 }

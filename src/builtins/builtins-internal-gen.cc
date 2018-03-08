@@ -8,6 +8,7 @@
 #include "src/code-stub-assembler.h"
 #include "src/heap/heap-inl.h"
 #include "src/macro-assembler.h"
+#include "src/objects/debug-objects.h"
 #include "src/objects/shared-function-info.h"
 #include "src/runtime/runtime.h"
 
@@ -171,6 +172,43 @@ TF_BUILTIN(NewArgumentsElements, CodeStubAssembler) {
 
 TF_BUILTIN(ReturnReceiver, CodeStubAssembler) {
   Return(Parameter(Descriptor::kReceiver));
+}
+
+TF_BUILTIN(DebugBreakTrampoline, CodeStubAssembler) {
+  Label tailcall_to_shared(this);
+  TNode<Context> context = CAST(Parameter(BuiltinDescriptor::kContext));
+  TNode<Object> new_target = CAST(Parameter(BuiltinDescriptor::kNewTarget));
+  TNode<Int32T> arg_count =
+      UncheckedCast<Int32T>(Parameter(BuiltinDescriptor::kArgumentsCount));
+  TNode<JSFunction> function = CAST(LoadFromFrame(
+      StandardFrameConstants::kFunctionOffset, MachineType::TaggedPointer()));
+
+  // Check break-at-entry flag on the debug info.
+  TNode<SharedFunctionInfo> shared =
+      CAST(LoadObjectField(function, JSFunction::kSharedFunctionInfoOffset));
+  TNode<Object> maybe_debug_info =
+      LoadObjectField(shared, SharedFunctionInfo::kDebugInfoOffset);
+  GotoIf(TaggedIsSmi(maybe_debug_info), &tailcall_to_shared);
+
+  {
+    TNode<DebugInfo> debug_info = CAST(maybe_debug_info);
+    TNode<Smi> flags =
+        CAST(LoadObjectField(debug_info, DebugInfo::kFlagsOffset));
+    GotoIfNot(SmiToInt32(SmiAnd(flags, SmiConstant(DebugInfo::kBreakAtEntry))),
+              &tailcall_to_shared);
+
+    CallRuntime(Runtime::kDebugBreakAtEntry, context, function);
+    Goto(&tailcall_to_shared);
+  }
+
+  BIND(&tailcall_to_shared);
+  // Tail call into code object on the SharedFunctionInfo.
+  TNode<Code> code =
+      CAST(LoadObjectField(shared, SharedFunctionInfo::kCodeOffset));
+  // Use the ConstructTrampolineDescriptor because it passes new.target too in
+  // case this is called during construct.
+  ConstructTrampolineDescriptor descriptor(isolate());
+  TailCallStub(descriptor, code, context, function, new_target, arg_count);
 }
 
 class RecordWriteCodeStubAssembler : public CodeStubAssembler {
