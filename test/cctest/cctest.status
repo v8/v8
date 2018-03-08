@@ -234,6 +234,9 @@
 ##############################################################################
 ['system == windows', {
 
+  # BUG(178). Currently crashes on Windows.
+  'test-debug/BreakPointBuiltin': [SKIP],
+
   # BUG(3331). Fails on windows.
   'test-heap/NoWeakHashTableLeakWithIncrementalMarking': [SKIP],
 
