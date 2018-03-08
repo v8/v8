@@ -1048,11 +1048,7 @@ TEST(BreakPointReturn) {
   CheckDebuggerUnloaded();
 }
 
-// Test that a break point can be set at a return store location.
 TEST(BreakPointBuiltin) {
-  i::FLAG_allow_natives_syntax = true;
-  i::FLAG_block_concurrent_recompilation = true;
-  i::FLAG_experimental_inline_promise_constructor = true;
   DebugLocalContext env;
   v8::HandleScope scope(env->GetIsolate());
 
@@ -1078,6 +1074,19 @@ TEST(BreakPointBuiltin) {
   ExpectString("'b'.repeat(10)", "bbbbbbbbbb");
   CHECK_EQ(2, break_point_hit_count);
 
+  SetDebugEventListener(env->GetIsolate(), nullptr);
+  CheckDebuggerUnloaded();
+}
+
+TEST(BreakPointJSBuiltin) {
+  DebugLocalContext env;
+  v8::HandleScope scope(env->GetIsolate());
+
+  SetDebugEventListener(env->GetIsolate(), DebugEventBreakPointHitCount);
+
+  v8::Local<v8::Function> builtin;
+  i::Handle<i::BreakPoint> bp;
+
   // === Test JS builtin ===
   break_point_hit_count = 0;
   builtin = CompileRun("Array.prototype.sort").As<v8::Function>();
@@ -1094,6 +1103,19 @@ TEST(BreakPointBuiltin) {
   ClearBreakPoint(bp);
   CompileRun("[1,2,3].sort()");
   CHECK_EQ(2, break_point_hit_count);
+
+  SetDebugEventListener(env->GetIsolate(), nullptr);
+  CheckDebuggerUnloaded();
+}
+
+TEST(BreakPointBoundBuiltin) {
+  DebugLocalContext env;
+  v8::HandleScope scope(env->GetIsolate());
+
+  SetDebugEventListener(env->GetIsolate(), DebugEventBreakPointHitCount);
+
+  v8::Local<v8::Function> builtin;
+  i::Handle<i::BreakPoint> bp;
 
   // === Test bound function from a builtin ===
   break_point_hit_count = 0;
@@ -1114,6 +1136,19 @@ TEST(BreakPointBuiltin) {
   ExpectString("boundrepeat(10)", "aaaaaaaaaa");
   CHECK_EQ(1, break_point_hit_count);
 
+  SetDebugEventListener(env->GetIsolate(), nullptr);
+  CheckDebuggerUnloaded();
+}
+
+TEST(BreakPointConstructorBuiltin) {
+  DebugLocalContext env;
+  v8::HandleScope scope(env->GetIsolate());
+
+  SetDebugEventListener(env->GetIsolate(), DebugEventBreakPointHitCount);
+
+  v8::Local<v8::Function> builtin;
+  i::Handle<i::BreakPoint> bp;
+
   // === Test constructor builtin (for ones with normal construct stubs) ===
   break_point_hit_count = 0;
   builtin = CompileRun("Promise").As<v8::Function>();
@@ -1129,6 +1164,20 @@ TEST(BreakPointBuiltin) {
   ClearBreakPoint(bp);
   ExpectString("(new Promise(()=>{})).toString()", "[object Promise]");
   CHECK_EQ(1, break_point_hit_count);
+
+  SetDebugEventListener(env->GetIsolate(), nullptr);
+  CheckDebuggerUnloaded();
+}
+
+TEST(BreakPointInlinedBuiltin) {
+  i::FLAG_allow_natives_syntax = true;
+  DebugLocalContext env;
+  v8::HandleScope scope(env->GetIsolate());
+
+  SetDebugEventListener(env->GetIsolate(), DebugEventBreakPointHitCount);
+
+  v8::Local<v8::Function> builtin;
+  i::Handle<i::BreakPoint> bp;
 
   // === Test inlined builtin ===
   break_point_hit_count = 0;
@@ -1156,9 +1205,27 @@ TEST(BreakPointBuiltin) {
   CompileRun("test(0.3);");
   CHECK_EQ(3, break_point_hit_count);
 
+  SetDebugEventListener(env->GetIsolate(), nullptr);
+  CheckDebuggerUnloaded();
+}
+
+TEST(BreakPointInlineBoundBuiltin) {
+  i::FLAG_allow_natives_syntax = true;
+  DebugLocalContext env;
+  v8::HandleScope scope(env->GetIsolate());
+
+  SetDebugEventListener(env->GetIsolate(), DebugEventBreakPointHitCount);
+
+  v8::Local<v8::Function> builtin;
+  i::Handle<i::BreakPoint> bp;
+
   // === Test inlined bound builtin ===
   break_point_hit_count = 0;
-  builtin = CompileRun("String.prototype.repeat").As<v8::Function>();
+
+  builtin = CompileRun(
+                "var boundrepeat = String.prototype.repeat.bind('a');"
+                "String.prototype.repeat")
+                .As<v8::Function>();
   CompileRun("function test(x) { return 'a' + boundrepeat(x) }");
   CompileRun(
       "test(4); test(5);"
@@ -1181,6 +1248,21 @@ TEST(BreakPointBuiltin) {
   ClearBreakPoint(bp);
   CompileRun("test(9);");
   CHECK_EQ(3, break_point_hit_count);
+
+  SetDebugEventListener(env->GetIsolate(), nullptr);
+  CheckDebuggerUnloaded();
+}
+
+TEST(BreakPointInlinedConstructorBuiltin) {
+  i::FLAG_allow_natives_syntax = true;
+  i::FLAG_experimental_inline_promise_constructor = true;
+  DebugLocalContext env;
+  v8::HandleScope scope(env->GetIsolate());
+
+  SetDebugEventListener(env->GetIsolate(), DebugEventBreakPointHitCount);
+
+  v8::Local<v8::Function> builtin;
+  i::Handle<i::BreakPoint> bp;
 
   // === Test inlined constructor builtin (regular construct builtin) ===
   break_point_hit_count = 0;
@@ -1208,6 +1290,21 @@ TEST(BreakPointBuiltin) {
   CompileRun("test(9);");
   CHECK_EQ(3, break_point_hit_count);
 
+  SetDebugEventListener(env->GetIsolate(), nullptr);
+  CheckDebuggerUnloaded();
+}
+
+TEST(BreakPointBuiltinConcurrentOpt) {
+  i::FLAG_allow_natives_syntax = true;
+  i::FLAG_block_concurrent_recompilation = true;
+  DebugLocalContext env;
+  v8::HandleScope scope(env->GetIsolate());
+
+  SetDebugEventListener(env->GetIsolate(), DebugEventBreakPointHitCount);
+
+  v8::Local<v8::Function> builtin;
+  i::Handle<i::BreakPoint> bp;
+
   // === Test concurrent optimization ===
   break_point_hit_count = 0;
   builtin = CompileRun("Math.sin").As<v8::Function>();
@@ -1231,6 +1328,20 @@ TEST(BreakPointBuiltin) {
   ClearBreakPoint(bp);
   CompileRun("test(0.3);");
   CHECK_EQ(1, break_point_hit_count);
+
+  SetDebugEventListener(env->GetIsolate(), nullptr);
+  CheckDebuggerUnloaded();
+}
+
+TEST(BreakPointBuiltinTFOperator) {
+  i::FLAG_allow_natives_syntax = true;
+  DebugLocalContext env;
+  v8::HandleScope scope(env->GetIsolate());
+
+  SetDebugEventListener(env->GetIsolate(), DebugEventBreakPointHitCount);
+
+  v8::Local<v8::Function> builtin;
+  i::Handle<i::BreakPoint> bp;
 
   // === Test builtin represented as operator ===
   break_point_hit_count = 0;
@@ -1257,6 +1368,19 @@ TEST(BreakPointBuiltin) {
   ClearBreakPoint(bp);
   CompileRun("test('f');");
   CHECK_EQ(3, break_point_hit_count);
+
+  SetDebugEventListener(env->GetIsolate(), nullptr);
+  CheckDebuggerUnloaded();
+}
+
+TEST(BreakPointBuiltinNewContext) {
+  DebugLocalContext env;
+  v8::HandleScope scope(env->GetIsolate());
+
+  SetDebugEventListener(env->GetIsolate(), DebugEventBreakPointHitCount);
+
+  v8::Local<v8::Function> builtin;
+  i::Handle<i::BreakPoint> bp;
 
 // === Test builtin from a new context ===
 // This does not work with no-snapshot build.
