@@ -1179,7 +1179,7 @@ void Debug::InstallDebugBreakTrampoline() {
         if (!shared->HasDebugInfo()) continue;
         if (!shared->GetDebugInfo()->CanBreakAtEntry()) continue;
         if (!fun->is_compiled()) {
-          needs_compile.push_back(handle(fun));
+          needs_compile.emplace_back(fun, isolate_);
         } else {
           fun->set_code(*trampoline);
         }
@@ -1189,7 +1189,7 @@ void Debug::InstallDebugBreakTrampoline() {
   }
   // By overwriting the function code with DebugBreakTrampoline, which tailcalls
   // to shared code, we bypass CompileLazy. Perform CompileLazy here instead.
-  for (Handle<JSFunction> fun : needs_compile) {
+  for (const auto& fun : needs_compile) {
     Compiler::Compile(fun, Compiler::CLEAR_EXCEPTION);
     fun->set_code(*trampoline);
   }
