@@ -866,6 +866,26 @@ enum ScopeType : uint8_t {
   WITH_SCOPE       // The scope introduced by with.
 };
 
+inline std::ostream& operator<<(std::ostream& os, ScopeType type) {
+  switch (type) {
+    case ScopeType::EVAL_SCOPE:
+      return os << "EVAL_SCOPE";
+    case ScopeType::FUNCTION_SCOPE:
+      return os << "FUNCTION_SCOPE";
+    case ScopeType::MODULE_SCOPE:
+      return os << "MODULE_SCOPE";
+    case ScopeType::SCRIPT_SCOPE:
+      return os << "SCRIPT_SCOPE";
+    case ScopeType::CATCH_SCOPE:
+      return os << "CATCH_SCOPE";
+    case ScopeType::BLOCK_SCOPE:
+      return os << "BLOCK_SCOPE";
+    case ScopeType::WITH_SCOPE:
+      return os << "WITH_SCOPE";
+  }
+  UNREACHABLE();
+}
+
 // AllocationSiteMode controls whether allocations are tracked by an allocation
 // site.
 enum AllocationSiteMode {

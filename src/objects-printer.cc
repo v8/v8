@@ -1169,7 +1169,7 @@ void SharedFunctionInfo::SharedFunctionInfoPrint(std::ostream& os) {  // NOLINT
   os << "\n - formal_parameter_count: " << internal_formal_parameter_count();
   os << "\n - expected_nof_properties: " << expected_nof_properties();
   os << "\n - language_mode: " << language_mode();
-  os << " - code: " << Brief(code());
+  os << "\n - code: " << Brief(code());
   if (HasBytecodeArray()) {
     os << "\n - bytecode_array: " << bytecode_array();
   }

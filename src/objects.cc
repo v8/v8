@@ -3342,9 +3342,13 @@ void HeapObject::HeapObjectShortPrint(std::ostream& os) {  // NOLINT
     break;
       STRUCT_LIST(MAKE_STRUCT_CASE)
 #undef MAKE_STRUCT_CASE
-    case SCOPE_INFO_TYPE:
-      os << "<ScopeInfo[" << ScopeInfo::cast(this)->length() << "]>";
+    case SCOPE_INFO_TYPE: {
+      ScopeInfo* scope = ScopeInfo::cast(this);
+      os << "<ScopeInfo";
+      if (scope->length()) os << " " << scope->scope_type() << " ";
+      os << "[" << scope->length() << "]>";
       break;
+    }
     case CODE_TYPE: {
       Code* code = Code::cast(this);
       os << "<Code " << Code::Kind2String(code->kind());
