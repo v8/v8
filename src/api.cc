@@ -1222,13 +1222,18 @@ static i::Handle<i::FixedArray> EmbedderDataFor(Context* context,
   if (!Utils::ApiCheck(can_grow, location, "Index too large")) {
     return i::Handle<i::FixedArray>();
   }
-  int new_size = i::Max(index, data->length() << 1) + 1;
+  int new_size = index + 1;
   int grow_by = new_size - data->length();
   data = isolate->factory()->CopyFixedArrayAndGrow(data, grow_by);
   env->set_embedder_data(*data);
   return data;
 }
 
+uint32_t Context::GetNumberOfEmbedderDataFields() {
+  i::Handle<i::Context> context = Utils::OpenHandle(this);
+  CHECK(context->IsNativeContext());
+  return static_cast<uint32_t>(context->embedder_data()->length());
+}
 
 v8::Local<v8::Value> Context::SlowGetEmbedderData(int index) {
   const char* location = "v8::Context::GetEmbedderData()";

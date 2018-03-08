@@ -4746,8 +4746,8 @@ TEST(ContextData) {
   SetDebugEventListener(isolate, ContextCheckEventListener);
 
   // Default data value is undefined.
-  CHECK(context_1->GetEmbedderData(0)->IsUndefined());
-  CHECK(context_2->GetEmbedderData(0)->IsUndefined());
+  CHECK_EQ(0, context_1->GetNumberOfEmbedderDataFields());
+  CHECK_EQ(0, context_2->GetNumberOfEmbedderDataFields());
 
   // Set and check different data values.
   v8::Local<v8::String> data_1 = v8_str(isolate, "1");
@@ -4916,8 +4916,8 @@ TEST(EvalContextData) {
 
   SetDebugEventListener(CcTest::isolate(), ContextCheckEventListener);
 
-  // Default data value is undefined.
-  CHECK(context_1->GetEmbedderData(0)->IsUndefined());
+  // Contexts initially do not have embedder data fields.
+  CHECK_EQ(0, context_1->GetNumberOfEmbedderDataFields());
 
   // Set and check a data value.
   v8::Local<v8::String> data_1 = v8_str(CcTest::isolate(), "1");

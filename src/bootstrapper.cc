@@ -2592,8 +2592,7 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
   }
 
   // Initialize the embedder data slot.
-  Handle<FixedArray> embedder_data = factory->NewFixedArray(3);
-  native_context()->set_embedder_data(*embedder_data);
+  native_context()->set_embedder_data(*factory->empty_fixed_array());
 
   {  // -- J S O N
     Handle<String> name = factory->InternalizeUtf8String("JSON");
