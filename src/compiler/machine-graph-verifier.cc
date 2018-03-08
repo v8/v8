@@ -125,7 +125,7 @@ class MachineRepresentationInferrer {
             break;
           case IrOpcode::kUnalignedLoad:
             representation_vector_[node->id()] = PromoteRepresentation(
-                UnalignedLoadRepresentationOf(node->op()).representation());
+                LoadRepresentationOf(node->op()).representation());
             break;
           case IrOpcode::kPhi:
             representation_vector_[node->id()] =

@@ -569,7 +569,7 @@ void InstructionSelector::VisitProtectedStore(Node* node) {
 
 void InstructionSelector::VisitUnalignedLoad(Node* node) {
   MachineRepresentation load_rep =
-      UnalignedLoadRepresentationOf(node->op()).representation();
+      LoadRepresentationOf(node->op()).representation();
   ArmOperandGenerator g(this);
   Node* base = node->InputAt(0);
   Node* index = node->InputAt(1);

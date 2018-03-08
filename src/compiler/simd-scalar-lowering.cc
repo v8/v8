@@ -784,7 +784,7 @@ void SimdScalarLowering::LowerNode(Node* node) {
     }
     case IrOpcode::kUnalignedLoad: {
       MachineRepresentation rep =
-          UnalignedLoadRepresentationOf(node->op()).representation();
+          LoadRepresentationOf(node->op()).representation();
       const Operator* load_op;
       load_op = machine()->UnalignedLoad(MachineTypeFrom(rep_type));
       LowerLoadOp(rep, node, load_op, rep_type);

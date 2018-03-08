@@ -73,10 +73,6 @@ V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream&, StoreRepresentation);
 
 StoreRepresentation const& StoreRepresentationOf(Operator const*);
 
-typedef MachineType UnalignedLoadRepresentation;
-
-UnalignedLoadRepresentation UnalignedLoadRepresentationOf(Operator const*);
-
 // An UnalignedStore needs a MachineType.
 typedef MachineRepresentation UnalignedStoreRepresentation;
 
@@ -592,7 +588,7 @@ class V8_EXPORT_PRIVATE MachineOperatorBuilder final
   const Operator* ProtectedStore(MachineRepresentation rep);
 
   // unaligned load [base + index]
-  const Operator* UnalignedLoad(UnalignedLoadRepresentation rep);
+  const Operator* UnalignedLoad(LoadRepresentation rep);
 
   // unaligned store [base + index], value
   const Operator* UnalignedStore(UnalignedStoreRepresentation rep);

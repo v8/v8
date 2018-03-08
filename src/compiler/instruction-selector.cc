@@ -1519,8 +1519,7 @@ void InstructionSelector::VisitNode(Node* node) {
     case IrOpcode::kLoadParentFramePointer:
       return VisitLoadParentFramePointer(node);
     case IrOpcode::kUnalignedLoad: {
-      UnalignedLoadRepresentation type =
-          UnalignedLoadRepresentationOf(node->op());
+      LoadRepresentation type = LoadRepresentationOf(node->op());
       MarkAsRepresentation(type.representation(), node);
       return VisitUnalignedLoad(node);
     }

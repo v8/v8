@@ -164,7 +164,7 @@ void Int64Lowering::LowerNode(Node* node) {
         rep = LoadRepresentationOf(node->op()).representation();
       } else {
         DCHECK_EQ(IrOpcode::kUnalignedLoad, node->opcode());
-        rep = UnalignedLoadRepresentationOf(node->op()).representation();
+        rep = LoadRepresentationOf(node->op()).representation();
       }
 
       if (rep == MachineRepresentation::kWord64) {

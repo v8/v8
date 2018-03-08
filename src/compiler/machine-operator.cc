@@ -38,7 +38,8 @@ LoadRepresentation LoadRepresentationOf(Operator const* op) {
   DCHECK(IrOpcode::kLoad == op->opcode() ||
          IrOpcode::kProtectedLoad == op->opcode() ||
          IrOpcode::kWord32AtomicLoad == op->opcode() ||
-         IrOpcode::kPoisonedLoad == op->opcode());
+         IrOpcode::kPoisonedLoad == op->opcode() ||
+         IrOpcode::kUnalignedLoad == op->opcode());
   return OpParameter<LoadRepresentation>(op);
 }
 
@@ -47,11 +48,6 @@ StoreRepresentation const& StoreRepresentationOf(Operator const* op) {
   DCHECK(IrOpcode::kStore == op->opcode() ||
          IrOpcode::kProtectedStore == op->opcode());
   return OpParameter<StoreRepresentation>(op);
-}
-
-UnalignedLoadRepresentation UnalignedLoadRepresentationOf(Operator const* op) {
-  DCHECK_EQ(IrOpcode::kUnalignedLoad, op->opcode());
-  return OpParameter<UnalignedLoadRepresentation>(op);
 }
 
 UnalignedStoreRepresentation const& UnalignedStoreRepresentationOf(
@@ -476,9 +472,9 @@ struct MachineOperatorGlobalCache {
               "PoisonedLoad", 2, 1, 1, 1, 1, 0, MachineType::Type()) {}       \
   };                                                                          \
   struct UnalignedLoad##Type##Operator final                                  \
-      : public Operator1<UnalignedLoadRepresentation> {                       \
+      : public Operator1<LoadRepresentation> {                                \
     UnalignedLoad##Type##Operator()                                           \
-        : Operator1<UnalignedLoadRepresentation>(                             \
+        : Operator1<LoadRepresentation>(                                      \
               IrOpcode::kUnalignedLoad,                                       \
               Operator::kNoDeopt | Operator::kNoThrow | Operator::kNoWrite,   \
               "UnalignedLoad", 2, 1, 1, 1, 1, 0, MachineType::Type()) {}      \
@@ -722,8 +718,7 @@ MachineOperatorBuilder::MachineOperatorBuilder(
          word == MachineRepresentation::kWord64);
 }
 
-const Operator* MachineOperatorBuilder::UnalignedLoad(
-    UnalignedLoadRepresentation rep) {
+const Operator* MachineOperatorBuilder::UnalignedLoad(LoadRepresentation rep) {
 #define LOAD(Type)                       \
   if (rep == MachineType::Type()) {      \
     return &cache_.kUnalignedLoad##Type; \

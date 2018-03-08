@@ -1059,7 +1059,7 @@ class IsStoreElementMatcher final : public TestNodeMatcher {
 #define LOAD_MATCHER(kLoad)                                                    \
   class Is##kLoad##Matcher final : public TestNodeMatcher {                    \
    public:                                                                     \
-    Is##kLoad##Matcher(const Matcher<kLoad##Representation>& rep_matcher,      \
+    Is##kLoad##Matcher(const Matcher<LoadRepresentation>& rep_matcher,         \
                        const Matcher<Node*>& base_matcher,                     \
                        const Matcher<Node*>& index_matcher,                    \
                        const Matcher<Node*>& effect_matcher,                   \
@@ -1098,7 +1098,7 @@ class IsStoreElementMatcher final : public TestNodeMatcher {
       }                                                                        \
       return (                                                                 \
           TestNodeMatcher::MatchAndExplain(node, listener) &&                  \
-          PrintMatchAndExplain(OpParameter<kLoad##Representation>(node->op()), \
+          PrintMatchAndExplain(OpParameter<LoadRepresentation>(node->op()),    \
                                "rep", rep_matcher_, listener) &&               \
           PrintMatchAndExplain(NodeProperties::GetValueInput(node, 0), "base", \
                                base_matcher_, listener) &&                     \
@@ -1111,7 +1111,7 @@ class IsStoreElementMatcher final : public TestNodeMatcher {
     }                                                                          \
                                                                                \
    private:                                                                    \
-    const Matcher<kLoad##Representation> rep_matcher_;                         \
+    const Matcher<LoadRepresentation> rep_matcher_;                            \
     const Matcher<Node*> base_matcher_;                                        \
     const Matcher<Node*> index_matcher_;                                       \
     const Matcher<Node*> effect_matcher_;                                      \
@@ -1972,11 +1972,11 @@ Matcher<Node*> IsLoad(const Matcher<LoadRepresentation>& rep_matcher,
                                        effect_matcher, control_matcher));
 }
 
-Matcher<Node*> IsUnalignedLoad(
-    const Matcher<UnalignedLoadRepresentation>& rep_matcher,
-    const Matcher<Node*>& base_matcher, const Matcher<Node*>& index_matcher,
-    const Matcher<Node*>& effect_matcher,
-    const Matcher<Node*>& control_matcher) {
+Matcher<Node*> IsUnalignedLoad(const Matcher<LoadRepresentation>& rep_matcher,
+                               const Matcher<Node*>& base_matcher,
+                               const Matcher<Node*>& index_matcher,
+                               const Matcher<Node*>& effect_matcher,
+                               const Matcher<Node*>& control_matcher) {
   return MakeMatcher(new IsUnalignedLoadMatcher(rep_matcher, base_matcher,
                                                 index_matcher, effect_matcher,
                                                 control_matcher));

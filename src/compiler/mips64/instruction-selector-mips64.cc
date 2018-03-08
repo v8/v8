@@ -1725,8 +1725,7 @@ bool InstructionSelector::IsTailCallAddressImmediate() { return false; }
 int InstructionSelector::GetTempsCountForTailCallFromJSFunction() { return 3; }
 
 void InstructionSelector::VisitUnalignedLoad(Node* node) {
-  UnalignedLoadRepresentation load_rep =
-      UnalignedLoadRepresentationOf(node->op());
+  LoadRepresentation load_rep = LoadRepresentationOf(node->op());
   Mips64OperandGenerator g(this);
   Node* base = node->InputAt(0);
   Node* index = node->InputAt(1);
@@ -1963,8 +1962,7 @@ bool IsNodeUnsigned(Node* n) {
     LoadRepresentation load_rep = LoadRepresentationOf(n->op());
     return load_rep.IsUnsigned();
   } else if (m.IsUnalignedLoad()) {
-    UnalignedLoadRepresentation load_rep =
-        UnalignedLoadRepresentationOf(n->op());
+    LoadRepresentation load_rep = LoadRepresentationOf(n->op());
     return load_rep.IsUnsigned();
   } else {
     return m.IsUint32Div() || m.IsUint32LessThan() ||
