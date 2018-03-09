@@ -2117,10 +2117,11 @@ Node* JSCallReducer::DoFilterPostCallbackWork(ElementsKind kind, Node** control,
         simplified()->LoadField(AccessBuilder::ForJSObjectElements()), a, etrue,
         if_true);
 
-    // We know that {to} is in Unsigned31 range here, being smaller than
-    // {original_length} at all times.
+    DCHECK(TypeCache::Get().kFixedDoubleArrayLengthType->Is(
+        TypeCache::Get().kFixedArrayLengthType));
     Node* checked_to = etrue = graph()->NewNode(
-        common()->TypeGuard(Type::Unsigned31()), to, etrue, if_true);
+        common()->TypeGuard(TypeCache::Get().kFixedArrayLengthType), to, etrue,
+        if_true);
     Node* elements_length = etrue = graph()->NewNode(
         simplified()->LoadField(AccessBuilder::ForFixedArrayLength()), elements,
         etrue, if_true);

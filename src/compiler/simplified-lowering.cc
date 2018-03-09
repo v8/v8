@@ -126,6 +126,7 @@ UseInfo CheckedUseInfoAsFloat64FromHint(NumberOperationHint hint,
 UseInfo TruncatingUseInfoFromRepresentation(MachineRepresentation rep) {
   switch (rep) {
     case MachineRepresentation::kTaggedSigned:
+      return UseInfo::TaggedSigned();
     case MachineRepresentation::kTaggedPointer:
     case MachineRepresentation::kTagged:
       return UseInfo::AnyTagged();
@@ -2551,6 +2552,11 @@ class RepresentationSelector {
         MachineRepresentation field_representation =
             access.machine_type.representation();
 
+        // Convert to Smi if possible, such that we can avoid a write barrier.
+        if (field_representation == MachineRepresentation::kTagged &&
+            TypeOf(value_node)->Is(Type::SignedSmall())) {
+          field_representation = MachineRepresentation::kTaggedSigned;
+        }
         WriteBarrierKind write_barrier_kind = WriteBarrierKindFor(
             access.base_is_tagged, field_representation, access.offset,
             access.type, input_info->representation(), value_node);
@@ -2584,6 +2590,11 @@ class RepresentationSelector {
         MachineRepresentation element_representation =
             access.machine_type.representation();
 
+        // Convert to Smi if possible, such that we can avoid a write barrier.
+        if (element_representation == MachineRepresentation::kTagged &&
+            TypeOf(value_node)->Is(Type::SignedSmall())) {
+          element_representation = MachineRepresentation::kTaggedSigned;
+        }
         WriteBarrierKind write_barrier_kind = WriteBarrierKindFor(
             access.base_is_tagged, element_representation, access.type,
             input_info->representation(), value_node);

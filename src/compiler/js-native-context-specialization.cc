@@ -2728,6 +2728,10 @@ Node* JSNativeContextSpecialization::BuildExtendPropertiesBackingStore(
   }
   Node* new_length_and_hash = graph()->NewNode(
       simplified()->NumberBitwiseOr(), jsgraph()->Constant(new_length), hash);
+  // TDOO(jarin): Fix the typer to infer tighter bound for NumberBitwiseOr.
+  new_length_and_hash = effect =
+      graph()->NewNode(common()->TypeGuard(Type::SignedSmall()),
+                       new_length_and_hash, effect, control);
 
   // Allocate and initialize the new properties.
   AllocationBuilder a(jsgraph(), effect, control);
