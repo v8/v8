@@ -2948,49 +2948,76 @@ Node* EffectControlLinearizer::LowerSeqStringCodePointAt(
 
 Node* EffectControlLinearizer::LowerStringFromCharCode(Node* node) {
   Node* value = node->InputAt(0);
+  Node* code = __ Word32And(value, __ Uint32Constant(0xFFFF));
 
-  auto runtime_call = __ MakeDeferredLabel();
-  auto if_undefined = __ MakeDeferredLabel();
+  auto if_not_one_byte = __ MakeDeferredLabel();
+  auto cache_miss = __ MakeDeferredLabel();
   auto done = __ MakeLabel(MachineRepresentation::kTagged);
 
-  // Compute the character code.
-  Node* code = __ Word32And(value, __ Int32Constant(String::kMaxUtf16CodeUnit));
-
-  // Check if the {code} is a one-byte char code.
-  Node* check0 = __ Int32LessThanOrEqual(
-      code, __ Int32Constant(String::kMaxOneByteCharCode));
-  __ GotoIfNot(check0, &runtime_call);
-
-  // Load the isolate wide single character string cache.
-  Node* cache = __ HeapConstant(factory()->single_character_string_cache());
-
-  // Compute the {cache} index for {code}.
-  Node* index = machine()->Is32() ? code : __ ChangeUint32ToUint64(code);
-
-  // Check if we have an entry for the {code} in the single character string
-  // cache already.
-  Node* entry =
-      __ LoadElement(AccessBuilder::ForFixedArrayElement(), cache, index);
-
-  Node* check1 = __ WordEqual(entry, __ UndefinedConstant());
-  __ GotoIf(check1, &runtime_call);
-  __ Goto(&done, entry);
-
-  // Let %StringFromCharCode handle this case.
-  // TODO(turbofan): At some point we may consider adding a stub for this
-  // deferred case, so that we don't need to call to C++ here.
-  __ Bind(&runtime_call);
+  // Check if the {code} is a one byte character
+  Node* check1 = __ Uint32LessThanOrEqual(
+      code, __ Uint32Constant(String::kMaxOneByteCharCode));
+  __ GotoIfNot(check1, &if_not_one_byte);
   {
-    Operator::Properties properties = Operator::kNoDeopt | Operator::kNoThrow;
-    Runtime::FunctionId id = Runtime::kStringCharFromCode;
-    auto call_descriptor = Linkage::GetRuntimeCallDescriptor(
-        graph()->zone(), id, 1, properties, CallDescriptor::kNoFlags);
-    Node* vtrue1 = __ Call(
-        call_descriptor, __ CEntryStubConstant(1), ChangeInt32ToSmi(code),
-        __ ExternalConstant(ExternalReference(id, isolate())),
-        __ Int32Constant(1), __ NoContextConstant());
-    __ Goto(&done, vtrue1);
+    // Load the isolate wide single character string cache.
+    Node* cache = __ HeapConstant(factory()->single_character_string_cache());
+
+    // Compute the {cache} index for {code}.
+    Node* index = machine()->Is32() ? code : __ ChangeUint32ToUint64(code);
+
+    // Check if we have an entry for the {code} in the single character string
+    // cache already.
+    Node* entry =
+        __ LoadElement(AccessBuilder::ForFixedArrayElement(), cache, index);
+
+    Node* check2 = __ WordEqual(entry, __ UndefinedConstant());
+    __ GotoIf(check2, &cache_miss);
+
+    // Use the {entry} from the {cache}.
+    __ Goto(&done, entry);
+
+    __ Bind(&cache_miss);
+    {
+      // Allocate a new SeqOneByteString for {code}.
+      Node* vtrue2 = __ Allocate(
+          NOT_TENURED, __ Int32Constant(SeqOneByteString::SizeFor(1)));
+      __ StoreField(AccessBuilder::ForMap(), vtrue2,
+                    __ HeapConstant(factory()->one_byte_string_map()));
+      __ StoreField(AccessBuilder::ForNameHashField(), vtrue2,
+                    __ IntPtrConstant(Name::kEmptyHashField));
+      __ StoreField(AccessBuilder::ForStringLength(), vtrue2,
+                    __ SmiConstant(1));
+      __ Store(
+          StoreRepresentation(MachineRepresentation::kWord8, kNoWriteBarrier),
+          vtrue2,
+          __ IntPtrConstant(SeqOneByteString::kHeaderSize - kHeapObjectTag),
+          code);
+
+      // Remember it in the {cache}.
+      __ StoreElement(AccessBuilder::ForFixedArrayElement(), cache, index,
+                      vtrue2);
+      __ Goto(&done, vtrue2);
+    }
   }
+
+  __ Bind(&if_not_one_byte);
+  {
+    // Allocate a new SeqTwoByteString for {code}.
+    Node* vfalse1 = __ Allocate(NOT_TENURED,
+                                __ Int32Constant(SeqTwoByteString::SizeFor(1)));
+    __ StoreField(AccessBuilder::ForMap(), vfalse1,
+                  __ HeapConstant(factory()->string_map()));
+    __ StoreField(AccessBuilder::ForNameHashField(), vfalse1,
+                  __ IntPtrConstant(Name::kEmptyHashField));
+    __ StoreField(AccessBuilder::ForStringLength(), vfalse1, __ SmiConstant(1));
+    __ Store(
+        StoreRepresentation(MachineRepresentation::kWord16, kNoWriteBarrier),
+        vfalse1,
+        __ IntPtrConstant(SeqTwoByteString::kHeaderSize - kHeapObjectTag),
+        code);
+    __ Goto(&done, vfalse1);
+  }
+
   __ Bind(&done);
   return done.PhiAt(0);
 }
