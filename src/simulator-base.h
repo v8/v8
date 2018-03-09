@@ -45,6 +45,26 @@ class SimulatorBase {
     return ConvertReturn<Return>(ret);
   }
 
+  // Convert back integral return types. This is always a narrowing conversion.
+  template <typename T>
+  static typename std::enable_if<std::is_integral<T>::value, T>::type
+  ConvertReturn(intptr_t ret) {
+    static_assert(sizeof(T) <= sizeof(intptr_t), "type bigger than ptrsize");
+    return static_cast<T>(ret);
+  }
+
+  // Convert back pointer-typed return types.
+  template <typename T>
+  static typename std::enable_if<std::is_pointer<T>::value, T>::type
+  ConvertReturn(intptr_t ret) {
+    return reinterpret_cast<T>(ret);
+  }
+
+  // Convert back void return type (i.e. no return).
+  template <typename T>
+  static typename std::enable_if<std::is_void<T>::value, T>::type ConvertReturn(
+      intptr_t ret) {}
+
  private:
   // Runtime call support.
   static void* RedirectExternalReference(void* external_function,
@@ -82,26 +102,6 @@ class SimulatorBase {
   ConvertArg(T arg) {
     return reinterpret_cast<intptr_t>(arg);
   }
-
-  // Convert back integral return types. This is always a narrowing conversion.
-  template <typename T>
-  static typename std::enable_if<std::is_integral<T>::value, T>::type
-  ConvertReturn(intptr_t ret) {
-    static_assert(sizeof(T) <= sizeof(intptr_t), "type bigger than ptrsize");
-    return static_cast<T>(ret);
-  }
-
-  // Convert back pointer-typed return types.
-  template <typename T>
-  static typename std::enable_if<std::is_pointer<T>::value, T>::type
-  ConvertReturn(intptr_t ret) {
-    return reinterpret_cast<T>(ret);
-  }
-
-  // Convert back void return type (i.e. no return).
-  template <typename T>
-  static typename std::enable_if<std::is_void<T>::value, T>::type ConvertReturn(
-      intptr_t ret) {}
 };
 
 // When the generated code calls an external reference we need to catch that in
