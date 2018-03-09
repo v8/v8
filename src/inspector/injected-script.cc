@@ -50,6 +50,9 @@ namespace v8_inspector {
 namespace {
 static const char privateKeyName[] = "v8-inspector#injectedScript";
 static const char kGlobalHandleLabel[] = "DevTools console";
+static bool isResolvableNumberLike(String16 query) {
+  return query == "Infinity" || query == "-Infinity" || query == "NaN";
+}
 }  // namespace
 
 using protocol::Array;
@@ -530,10 +533,17 @@ Response InjectedScript::resolveCallArgument(
     return findObject(*remoteObjectId, result);
   }
   if (callArgument->hasValue() || callArgument->hasUnserializableValue()) {
-    String16 value =
-        callArgument->hasValue()
-            ? "(" + callArgument->getValue(nullptr)->serialize() + ")"
-            : "Number(\"" + callArgument->getUnserializableValue("") + "\")";
+    String16 value;
+    if (callArgument->hasValue()) {
+      value = "(" + callArgument->getValue(nullptr)->serialize() + ")";
+    } else {
+      String16 unserializableValue = callArgument->getUnserializableValue("");
+      // Protect against potential identifier resolution for NaN and Infinity.
+      if (isResolvableNumberLike(unserializableValue))
+        value = "Number(\"" + unserializableValue + "\")";
+      else
+        value = unserializableValue;
+    }
     if (!m_context->inspector()
              ->compileAndRunInternalScript(
                  m_context->context(), toV8String(m_context->isolate(), value))

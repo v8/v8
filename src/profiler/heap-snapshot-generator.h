@@ -99,7 +99,8 @@ class HeapEntry BASE_EMBEDDED {
     kSynthetic = v8::HeapGraphNode::kSynthetic,
     kConsString = v8::HeapGraphNode::kConsString,
     kSlicedString = v8::HeapGraphNode::kSlicedString,
-    kSymbol = v8::HeapGraphNode::kSymbol
+    kSymbol = v8::HeapGraphNode::kSymbol,
+    kBigInt = v8::HeapGraphNode::kBigInt
   };
   static const int kNoEntry;
 

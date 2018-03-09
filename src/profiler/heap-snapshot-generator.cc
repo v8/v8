@@ -161,6 +161,8 @@ const char* HeapEntry::TypeAsString() {
     case kConsString: return "/concatenated string/";
     case kSlicedString: return "/sliced string/";
     case kSymbol: return "/symbol/";
+    case kBigInt:
+      return "/bigint/";
     default: return "???";
   }
 }
@@ -639,6 +641,8 @@ HeapEntry* V8HeapExplorer::AddEntry(HeapObject* object) {
       return AddEntry(object, HeapEntry::kHidden, "private symbol");
     else
       return AddEntry(object, HeapEntry::kSymbol, "symbol");
+  } else if (object->IsBigInt()) {
+    return AddEntry(object, HeapEntry::kBigInt, "bigint");
   } else if (object->IsCode()) {
     return AddEntry(object, HeapEntry::kCode, "");
   } else if (object->IsSharedFunctionInfo()) {
@@ -2813,7 +2817,8 @@ void HeapSnapshotJSONSerializer::SerializeSnapshot() {
             JSON_S("synthetic") ","
             JSON_S("concatenated string") ","
             JSON_S("sliced string") ","
-            JSON_S("symbol")) ","
+            JSON_S("symbol") ","
+            JSON_S("bigint")) ","
         JSON_S("string") ","
         JSON_S("number") ","
         JSON_S("number") ","

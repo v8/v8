@@ -402,7 +402,8 @@ class V8_EXPORT HeapGraphNode {
                          // snapshot items together.
     kConsString = 10,    // Concatenated string. A pair of pointers to strings.
     kSlicedString = 11,  // Sliced string. A fragment of another string.
-    kSymbol = 12         // A Symbol (ES6).
+    kSymbol = 12,        // A Symbol (ES6).
+    kBigInt = 13         // BigInt.
   };
 
   /** Returns node type (see HeapGraphNode::Type). */

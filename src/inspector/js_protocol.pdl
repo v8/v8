@@ -823,13 +823,9 @@ domain Runtime
   # Unique object identifier.
   type RemoteObjectId extends string
 
-  # Primitive value which cannot be JSON-stringified.
+  # Primitive value which cannot be JSON-stringified. Includes values `-0`, `NaN`, `Infinity`,
+  # `-Infinity`, and bigint literals.
   type UnserializableValue extends string
-    enum
-      Infinity
-      NaN
-      -Infinity
-      -0
 
   # Mirror object referencing original JavaScript object.
   type RemoteObject extends object
@@ -843,6 +839,7 @@ domain Runtime
         number
         boolean
         symbol
+        bigint
       # Object subtype hint. Specified for `object` type values only.
       optional enum subtype
         array
@@ -895,6 +892,7 @@ domain Runtime
         number
         boolean
         symbol
+        bigint
       # Object subtype hint. Specified for `object` type values only.
       optional enum subtype
         array
@@ -932,6 +930,7 @@ domain Runtime
         boolean
         symbol
         accessor
+        bigint
       # User-friendly property value string.
       optional string value
       # Nested value preview.

@@ -431,6 +431,28 @@ TEST(HeapSnapshotHeapNumbers) {
   CHECK_EQ(v8::HeapGraphNode::kHeapNumber, b->GetType());
 }
 
+TEST(HeapSnapshotHeapBigInts) {
+  // TODO(luoe): remove flag when it is on by default.
+  v8::internal::FLAG_harmony_bigint = true;
+
+  LocalContext env;
+  v8::HandleScope scope(env->GetIsolate());
+  v8::HeapProfiler* heap_profiler = env->GetIsolate()->GetHeapProfiler();
+  CompileRun(
+      "a = 1n;"
+      "b = Object(BigInt(2))");
+  const v8::HeapSnapshot* snapshot = heap_profiler->TakeHeapSnapshot();
+  CHECK(ValidateSnapshot(snapshot));
+  const v8::HeapGraphNode* global = GetGlobalObject(snapshot);
+  const v8::HeapGraphNode* a =
+      GetProperty(env->GetIsolate(), global, v8::HeapGraphEdge::kProperty, "a");
+  CHECK(a);
+  CHECK_EQ(v8::HeapGraphNode::kBigInt, a->GetType());
+  const v8::HeapGraphNode* b =
+      GetProperty(env->GetIsolate(), global, v8::HeapGraphEdge::kProperty, "b");
+  CHECK(b);
+  CHECK_EQ(v8::HeapGraphNode::kObject, b->GetType());
+}
 
 TEST(HeapSnapshotSlicedString) {
   if (!i::FLAG_string_slices) return;
