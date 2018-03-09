@@ -155,6 +155,13 @@ UNIMPLEMENTED_FP_UNOP(f64_sqrt)
 #undef UNIMPLEMENTED_FP_UNOP
 #undef UNIMPLEMENTED_SHIFTOP
 
+bool LiftoffAssembler::emit_type_conversion(WasmOpcode opcode,
+                                            LiftoffRegister dst,
+                                            LiftoffRegister src) {
+  BAILOUT("emit_type_conversion");
+  return true;
+}
+
 void LiftoffAssembler::emit_jump(Label* label) { BAILOUT("emit_jump"); }
 
 void LiftoffAssembler::emit_cond_jump(Condition cond, Label* label,
@@ -207,24 +214,33 @@ void LiftoffAssembler::DropStackSlotsAndRet(uint32_t num_stack_slots) {
   BAILOUT("DropStackSlotsAndRet");
 }
 
-void LiftoffAssembler::PrepareCCall(uint32_t num_params, const Register* args) {
+void LiftoffAssembler::PrepareCCall(wasm::FunctionSig* sig,
+                                    const LiftoffRegister* args,
+                                    ValueType out_argument_type) {
   BAILOUT("PrepareCCall");
 }
 
-void LiftoffAssembler::SetCCallRegParamAddr(Register dst, uint32_t param_idx,
-                                            uint32_t num_params) {
+void LiftoffAssembler::SetCCallRegParamAddr(Register dst, uint32_t param_offset,
+                                            ValueType type) {
   BAILOUT("SetCCallRegParamAddr");
 }
 
 void LiftoffAssembler::SetCCallStackParamAddr(uint32_t stack_param_idx,
-                                              uint32_t param_idx,
-                                              uint32_t num_params) {
+                                              uint32_t param_offset,
+                                              ValueType type) {
   BAILOUT("SetCCallStackParamAddr");
+}
+
+void LiftoffAssembler::LoadCCallOutArgument(LiftoffRegister dst, ValueType type,
+                                            uint32_t num_lowered_args) {
+  BAILOUT("LoadCCallOutArgument");
 }
 
 void LiftoffAssembler::CallC(ExternalReference ext_ref, uint32_t num_params) {
   BAILOUT("CallC");
 }
+
+void LiftoffAssembler::FinishCCall() { BAILOUT("FinishCCall"); }
 
 void LiftoffAssembler::CallNativeWasmCode(Address addr) {
   BAILOUT("CallNativeWasmCode");

@@ -411,6 +411,10 @@ class LiftoffAssembler : public TurboAssembler {
   inline void emit_f64_neg(DoubleRegister dst, DoubleRegister src);
   inline void emit_f64_sqrt(DoubleRegister dst, DoubleRegister src);
 
+  // type conversions.
+  inline bool emit_type_conversion(WasmOpcode opcode, LiftoffRegister dst,
+                                   LiftoffRegister src);
+
   inline void emit_jump(Label*);
   inline void emit_cond_jump(Condition, Label*, ValueType value, Register lhs,
                              Register rhs = no_reg);
@@ -435,15 +439,25 @@ class LiftoffAssembler : public TurboAssembler {
 
   inline void DropStackSlotsAndRet(uint32_t num_stack_slots);
 
-  // Push arguments on the stack (in the caller frame), then align the stack.
-  // The address of the last argument will be stored to {arg_addr_dst}. Previous
-  // arguments will be located at pointer sized buckets above that address.
-  inline void PrepareCCall(uint32_t num_params, const Register* args);
-  inline void SetCCallRegParamAddr(Register dst, uint32_t param_idx,
-                                   uint32_t num_params);
+  // {PrepareCCall} pushes the arguments on the stack (in the caller frame),
+  // then aligns the stack to do a c call. Pointers to the pushed arguments are
+  // later loaded to registers or stack slots via {SetCCall*ParamAddr}. After
+  // the c call, the output parameter (if it exists) can be loaded via
+  // {LoadCCallOutArgument}. {FinishCCall} resets the stack pointer to the state
+  // before {PrepareCCall}.
+  // The {FunctionSig} passed to {PrepareCCall} describes the types of
+  // parameters which are then passed ot the C function via pointers, excluding
+  // the out argument.
+  inline void PrepareCCall(wasm::FunctionSig* sig, const LiftoffRegister* args,
+                           ValueType out_argument_type);
+  inline void SetCCallRegParamAddr(Register dst, uint32_t param_offset,
+                                   ValueType type);
   inline void SetCCallStackParamAddr(uint32_t stack_param_idx,
-                                     uint32_t param_idx, uint32_t num_params);
+                                     uint32_t param_offset, ValueType type);
+  inline void LoadCCallOutArgument(LiftoffRegister dst, ValueType type,
+                                   uint32_t num_lowered_args);
   inline void CallC(ExternalReference ext_ref, uint32_t num_params);
+  inline void FinishCCall();
 
   inline void CallNativeWasmCode(Address addr);
   inline void CallRuntime(Zone* zone, Runtime::FunctionId fid);

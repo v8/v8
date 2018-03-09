@@ -42,8 +42,48 @@ static_assert((kByteRegs & kGpCacheRegList) == kByteRegs,
               "kByteRegs only contains gp cache registers");
 
 // Use this register to store the address of the last argument pushed on the
-// stack for a call to C.
-static constexpr Register kCCallLastArgAddrReg = eax;
+// stack for a call to C. This register must be callee saved according to the c
+// calling convention.
+static constexpr Register kCCallLastArgAddrReg = ebx;
+
+inline void Load(LiftoffAssembler* assm, LiftoffRegister dst, Operand src,
+                 ValueType type) {
+  switch (type) {
+    case kWasmI32:
+      assm->mov(dst.gp(), src);
+      break;
+    case kWasmF32:
+      assm->movss(dst.fp(), src);
+      break;
+    case kWasmF64:
+      assm->movsd(dst.fp(), src);
+      break;
+    default:
+      UNREACHABLE();
+  }
+}
+
+inline void push(LiftoffAssembler* assm, LiftoffRegister reg, ValueType type) {
+  switch (type) {
+    case kWasmI32:
+      assm->push(reg.gp());
+      break;
+    case kWasmI64:
+      assm->push(reg.high_gp());
+      assm->push(reg.low_gp());
+      break;
+    case kWasmF32:
+      assm->sub(esp, Immediate(sizeof(float)));
+      assm->movss(Operand(esp, 0), reg.fp());
+      break;
+    case kWasmF64:
+      assm->sub(esp, Immediate(sizeof(double)));
+      assm->movsd(Operand(esp, 0), reg.fp());
+      break;
+    default:
+      UNREACHABLE();
+  }
+}
 
 }  // namespace liftoff
 
@@ -258,19 +298,7 @@ void LiftoffAssembler::LoadCallerFrameSlot(LiftoffRegister dst,
                                            uint32_t caller_slot_idx,
                                            ValueType type) {
   Operand src(ebp, kPointerSize * (caller_slot_idx + 1));
-  switch (type) {
-    case kWasmI32:
-      mov(dst.gp(), src);
-      break;
-    case kWasmF32:
-      movss(dst.fp(), src);
-      break;
-    case kWasmF64:
-      movsd(dst.fp(), src);
-      break;
-    default:
-      UNREACHABLE();
-  }
+  liftoff::Load(this, dst, src, type);
 }
 
 void LiftoffAssembler::MoveStackValue(uint32_t dst_index, uint32_t src_index,
@@ -666,6 +694,24 @@ void LiftoffAssembler::emit_f64_sqrt(DoubleRegister dst, DoubleRegister src) {
   Sqrtsd(dst, src);
 }
 
+bool LiftoffAssembler::emit_type_conversion(WasmOpcode opcode,
+                                            LiftoffRegister dst,
+                                            LiftoffRegister src) {
+  switch (opcode) {
+    case kExprF32SConvertI32:
+      cvtsi2ss(dst.fp(), src.gp());
+      return true;
+    case kExprF32UConvertI32: {
+      LiftoffRegList pinned = LiftoffRegList::ForRegs(dst, src);
+      Register scratch = GetUnusedRegister(kGpReg, pinned).gp();
+      Cvtui2ss(dst.fp(), src.gp(), scratch);
+      return true;
+    }
+    default:
+      return false;
+  }
+}
+
 void LiftoffAssembler::emit_jump(Label* label) { jmp(label); }
 
 void LiftoffAssembler::emit_cond_jump(Condition cond, Label* label,
@@ -781,22 +827,7 @@ void LiftoffAssembler::PushCallerFrameSlot(const VarState& src,
 
 void LiftoffAssembler::PushCallerFrameSlot(LiftoffRegister reg,
                                            ValueType type) {
-  switch (type) {
-    case kWasmI32:
-      push(reg.gp());
-      break;
-    case kWasmF32:
-      sub(esp, Immediate(sizeof(float)));
-      movss(Operand(esp, 0), reg.fp());
-      break;
-    case kWasmF64:
-      sub(esp, Immediate(sizeof(double)));
-      movsd(Operand(esp, 0), reg.fp());
-      break;
-    default:
-      // Also kWasmI64 is unreachable, as it will always be pushed as two halfs.
-      UNREACHABLE();
-  }
+  liftoff::push(this, reg, type);
 }
 
 void LiftoffAssembler::PushRegisters(LiftoffRegList regs) {
@@ -844,34 +875,55 @@ void LiftoffAssembler::DropStackSlotsAndRet(uint32_t num_stack_slots) {
   ret(static_cast<int>(num_stack_slots * kPointerSize));
 }
 
-void LiftoffAssembler::PrepareCCall(uint32_t num_params, const Register* args) {
-  for (size_t param = 0; param < num_params; ++param) {
-    push(args[param]);
-  }
+void LiftoffAssembler::PrepareCCall(wasm::FunctionSig* sig,
+                                    const LiftoffRegister* args,
+                                    ValueType out_argument_type) {
+  // Save current sp, such that we compute pointers to the values pushed above.
   mov(liftoff::kCCallLastArgAddrReg, esp);
-  constexpr Register kScratch = ebx;
+  for (ValueType param_type : sig->parameters()) {
+    liftoff::push(this, *args++, param_type);
+  }
+  if (out_argument_type != kWasmStmt) {
+    int size = WasmOpcodes::MemSize(out_argument_type);
+    sub(esp, Immediate(std::max(kPointerSize, size)));
+  }
+  constexpr Register kScratch = ecx;
   static_assert(kScratch != liftoff::kCCallLastArgAddrReg, "collision");
-  PrepareCallCFunction(num_params, kScratch);
+  PrepareCallCFunction(static_cast<uint32_t>(sig->parameter_count()), kScratch);
 }
 
-void LiftoffAssembler::SetCCallRegParamAddr(Register dst, uint32_t param_idx,
-                                            uint32_t num_params) {
-  int offset = kPointerSize * static_cast<int>(num_params - 1 - param_idx);
-  lea(dst, Operand(liftoff::kCCallLastArgAddrReg, offset));
+void LiftoffAssembler::SetCCallRegParamAddr(Register dst, uint32_t param_offset,
+                                            ValueType type) {
+  // Check that we don't accidentally override kCCallLastArgAddrReg.
+  DCHECK_NE(liftoff::kCCallLastArgAddrReg, dst);
+  int offset =
+      kPointerSize * static_cast<int>(param_offset + 1 + needs_reg_pair(type));
+  lea(dst, Operand(liftoff::kCCallLastArgAddrReg, -offset));
 }
 
 void LiftoffAssembler::SetCCallStackParamAddr(uint32_t stack_param_idx,
-                                              uint32_t param_idx,
-                                              uint32_t num_params) {
-  constexpr Register kScratch = ebx;
-  static_assert(kScratch != liftoff::kCCallLastArgAddrReg, "collision");
-  int offset = kPointerSize * static_cast<int>(num_params - 1 - param_idx);
-  lea(kScratch, Operand(liftoff::kCCallLastArgAddrReg, offset));
-  mov(Operand(esp, param_idx * kPointerSize), kScratch);
+                                              uint32_t param_offset,
+                                              ValueType type) {
+  static constexpr Register kScratch = ecx;
+  SetCCallRegParamAddr(kScratch, param_offset, type);
+  mov(Operand(esp, param_offset * kPointerSize), kScratch);
+}
+
+void LiftoffAssembler::LoadCCallOutArgument(LiftoffRegister dst, ValueType type,
+                                            uint32_t num_lowered_args) {
+  // Check that we don't accidentally override kCCallLastArgAddrReg.
+  DCHECK_NE(LiftoffRegister(liftoff::kCCallLastArgAddrReg), dst);
+  int offset = kPointerSize * num_lowered_args;
+  Operand src(liftoff::kCCallLastArgAddrReg, -offset);
+  liftoff::Load(this, dst, src, type);
 }
 
 void LiftoffAssembler::CallC(ExternalReference ext_ref, uint32_t num_params) {
   CallCFunction(ext_ref, static_cast<int>(num_params));
+}
+
+void LiftoffAssembler::FinishCCall() {
+  mov(esp, liftoff::kCCallLastArgAddrReg);
 }
 
 void LiftoffAssembler::CallNativeWasmCode(Address addr) {

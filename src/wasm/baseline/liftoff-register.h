@@ -28,9 +28,13 @@ enum RegClass : uint8_t {
 
 enum RegPairHalf : uint8_t { kLowWord, kHighWord };
 
+static inline constexpr bool needs_reg_pair(ValueType type) {
+  return kNeedI64RegPair && type == kWasmI64;
+}
+
 // TODO(clemensh): Use a switch once we require C++14 support.
 static inline constexpr RegClass reg_class_for(ValueType type) {
-  return kNeedI64RegPair && type == kWasmI64  // i64 on 32 bit
+  return needs_reg_pair(type)  // i64 on 32 bit
              ? kGpRegPair
              : type == kWasmI32 || type == kWasmI64  // int types
                    ? kGpReg

@@ -217,7 +217,7 @@ class LiftoffCompiler {
 
   // Returns the number of inputs processed (1 or 2).
   uint32_t ProcessParameter(ValueType type, uint32_t input_idx) {
-    const int num_lowered_params = 1 + (kNeedI64RegPair && type == kWasmI64);
+    const int num_lowered_params = 1 + needs_reg_pair(type);
     // Initialize to anything, will be set in the loop and used afterwards.
     LiftoffRegister reg = LiftoffRegister::from_code(kGpReg, 0);
     RegClass rc = num_lowered_params == 1 ? reg_class_for(type) : kGpReg;
@@ -465,58 +465,92 @@ class LiftoffCompiler {
 
   void EndControl(Decoder* decoder, Control* c) {}
 
-  void GenerateCCall(Register res_reg, uint32_t num_args,
-                     const Register* arg_regs, ExternalReference ext_ref) {
-    static constexpr int kNumReturns = 1;
+  enum CCallReturn : bool { kHasReturn = true, kNoReturn = false };
+
+  void GenerateCCall(const LiftoffRegister* result_regs, FunctionSig* sig,
+                     ValueType out_argument_type,
+                     const LiftoffRegister* arg_regs,
+                     ExternalReference ext_ref) {
+    static constexpr int kMaxReturns = 1;
     static constexpr int kMaxArgs = 2;
     static constexpr MachineType kReps[]{
         MachineType::Uint32(), MachineType::Pointer(), MachineType::Pointer()};
-    static_assert(arraysize(kReps) == kNumReturns + kMaxArgs, "mismatch");
-    DCHECK_LE(num_args, kMaxArgs);
+    static_assert(arraysize(kReps) == kMaxReturns + kMaxArgs, "mismatch");
 
-    MachineSignature sig(kNumReturns, num_args, kReps);
-    auto call_descriptor =
-        compiler::Linkage::GetSimplifiedCDescriptor(compilation_zone_, &sig);
+    const bool has_out_argument = out_argument_type != kWasmStmt;
+    const uint32_t num_returns = static_cast<uint32_t>(sig->return_count());
+    // {total_num_args} is {num_args + 1} if the return value is stored in an
+    // out parameter, or {num_args} otherwise.
+    const uint32_t num_args = static_cast<uint32_t>(sig->parameter_count());
+    const uint32_t total_num_args = num_args + has_out_argument;
+    DCHECK_LE(num_args, kMaxArgs);
+    DCHECK_LE(num_returns, kMaxReturns);
+
+    MachineSignature machine_sig(num_returns, total_num_args,
+                                 kReps + (kMaxReturns - num_returns));
+    auto* call_descriptor = compiler::Linkage::GetSimplifiedCDescriptor(
+        compilation_zone_, &machine_sig);
 
     // Before making a call, spill all cache registers.
     __ SpillAllRegisters();
 
     // Store arguments on our stack, then align the stack for calling to C.
-    uint32_t num_params =
-        static_cast<uint32_t>(call_descriptor->ParameterCount());
-    __ PrepareCCall(num_params, arg_regs);
+    __ PrepareCCall(sig, arg_regs, out_argument_type);
 
-    // Set parameters (in sp[0], sp[8], ...).
+    // The arguments to the c function are pointers to the stack slots we just
+    // pushed.
     uint32_t num_stack_params = 0;
-    for (uint32_t param = 0; param < num_params; ++param) {
-      constexpr size_t kInputShift = 1;  // Input 0 is the call target.
-
+    uint32_t input_idx = 1;  // Input 0 is the call target.
+    uint32_t num_lowered_args = 0;
+    auto add_argument = [&](ValueType arg_type) {
       compiler::LinkageLocation loc =
-          call_descriptor->GetInputLocation(param + kInputShift);
+          call_descriptor->GetInputLocation(input_idx);
       if (loc.IsRegister()) {
         Register reg = Register::from_code(loc.AsRegister());
         // Load address of that parameter to the register.
-        __ SetCCallRegParamAddr(reg, param, num_params);
+        __ SetCCallRegParamAddr(reg, num_lowered_args, arg_type);
       } else {
         DCHECK(loc.IsCallerFrameSlot());
-        __ SetCCallStackParamAddr(num_stack_params, param, num_params);
+        __ SetCCallStackParamAddr(num_stack_params, num_lowered_args, arg_type);
         ++num_stack_params;
       }
+      num_lowered_args += 1 + needs_reg_pair(arg_type);
+      ++input_idx;
+    };
+    for (ValueType arg_type : sig->parameters()) {
+      add_argument(arg_type);
     }
+    if (has_out_argument) {
+      add_argument(out_argument_type);
+    }
+    DCHECK_EQ(input_idx, call_descriptor->InputCount());
 
     // Now execute the call.
-    __ CallC(ext_ref, num_params);
+    __ CallC(ext_ref, num_lowered_args);
 
     // Load return value.
-    compiler::LinkageLocation return_loc =
-        call_descriptor->GetReturnLocation(0);
-    DCHECK(return_loc.IsRegister());
-    Register return_reg = Register::from_code(return_loc.AsRegister());
-    if (return_reg != res_reg) {
-      DCHECK_EQ(MachineRepresentation::kWord32,
-                sig.GetReturn(0).representation());
-      __ Move(LiftoffRegister(res_reg), LiftoffRegister(return_reg), kWasmI32);
+    const LiftoffRegister* next_result_reg = result_regs;
+    if (sig->return_count() > 0) {
+      DCHECK_EQ(1, sig->return_count());
+      compiler::LinkageLocation return_loc =
+          call_descriptor->GetReturnLocation(0);
+      DCHECK(return_loc.IsRegister());
+      Register return_reg = Register::from_code(return_loc.AsRegister());
+      if (return_reg != next_result_reg->gp()) {
+        __ Move(*next_result_reg, LiftoffRegister(return_reg),
+                sig->GetReturn(0));
+      }
+      ++next_result_reg;
     }
+
+    // Load potential return value from output argument.
+    if (has_out_argument) {
+      __ LoadCCallOutArgument(*next_result_reg, out_argument_type,
+                              num_lowered_args);
+    }
+
+    // Reset the stack pointer.
+    __ FinishCCall();
   }
 
   template <ValueType type, class EmitFn>
@@ -535,10 +569,31 @@ class LiftoffCompiler {
     auto emit_with_c_fallback = [=](LiftoffRegister dst, LiftoffRegister src) {
       if (emit_fn && (asm_->*emit_fn)(dst.gp(), src.gp())) return;
       ExternalReference ext_ref = fallback_fn(asm_->isolate());
-      Register args[] = {src.gp()};
-      GenerateCCall(dst.gp(), arraysize(args), args, ext_ref);
+      ValueType sig_i_i_reps[] = {kWasmI32, kWasmI32};
+      FunctionSig sig_i_i(1, 1, sig_i_i_reps);
+      GenerateCCall(&dst, &sig_i_i, kWasmStmt, &src, ext_ref);
     };
     EmitUnOp<kWasmI32>(emit_with_c_fallback);
+  }
+
+  void EmitTypeConversion(WasmOpcode opcode, ValueType dst_type,
+                          ValueType src_type,
+                          ExternalReference (*fallback_fn)(Isolate*)) {
+    RegClass src_rc = reg_class_for(src_type);
+    RegClass dst_rc = reg_class_for(dst_type);
+    LiftoffRegList pinned;
+    LiftoffRegister src = pinned.set(__ PopToRegister());
+    LiftoffRegister dst = src_rc == dst_rc
+                              ? __ GetUnusedRegister(dst_rc, {src}, pinned)
+                              : __ GetUnusedRegister(dst_rc, pinned);
+    if (!__ emit_type_conversion(opcode, dst, src)) {
+      DCHECK_NOT_NULL(fallback_fn);
+      ExternalReference ext_ref = fallback_fn(asm_->isolate());
+      ValueType sig_reps[] = {src_type};
+      FunctionSig sig(0, 1, sig_reps);
+      GenerateCCall(&dst, &sig, dst_type, &src, ext_ref);
+    }
+    __ PushRegister(dst_type, dst);
   }
 
   void UnOp(Decoder* decoder, WasmOpcode opcode, FunctionSig*,
@@ -554,6 +609,11 @@ class LiftoffCompiler {
     EmitUnOp<kWasm##type>([=](LiftoffRegister dst, LiftoffRegister src) { \
       __ emit_##fn(dst.fp(), src.fp());                                   \
     });                                                                   \
+    break;
+#define CASE_TYPE_CONVERSION(opcode, dst_type, src_type, ext_ref)       \
+  case WasmOpcode::kExpr##opcode:                                       \
+    EmitTypeConversion(kExpr##opcode, kWasm##dst_type, kWasm##src_type, \
+                       ext_ref);                                        \
     break;
     switch (opcode) {
       CASE_I32_UNOP(I32Clz, i32_clz)
@@ -571,11 +631,18 @@ class LiftoffCompiler {
         CASE_FLOAT_UNOP(F32Sqrt, F32, f32_sqrt)
         CASE_FLOAT_UNOP(F64Neg, F64, f64_neg)
         CASE_FLOAT_UNOP(F64Sqrt, F64, f64_sqrt)
+        CASE_TYPE_CONVERSION(F32SConvertI32, F32, I32, nullptr)
+        CASE_TYPE_CONVERSION(F32UConvertI32, F32, I32, nullptr)
+        CASE_TYPE_CONVERSION(F32SConvertI64, F32, I64,
+                             &ExternalReference::wasm_int64_to_float32)
+        CASE_TYPE_CONVERSION(F32UConvertI64, F32, I64,
+                             &ExternalReference::wasm_uint64_to_float32)
       default:
         return unsupported(decoder, WasmOpcodes::OpcodeName(opcode));
     }
 #undef CASE_I32_UNOP
 #undef CASE_FLOAT_UNOP
+#undef CASE_TYPE_CONVERSION
   }
 
   template <ValueType type, typename EmitFn>
@@ -635,9 +702,11 @@ class LiftoffCompiler {
   case WasmOpcode::kExpr##opcode:                                            \
     return EmitMonomorphicBinOp<kWasmI32>(                                   \
         [=](LiftoffRegister dst, LiftoffRegister lhs, LiftoffRegister rhs) { \
-          Register args[] = {lhs.gp(), rhs.gp()};                            \
+          LiftoffRegister args[] = {lhs, rhs};                               \
           auto ext_ref = ExternalReference::ext_ref_fn(__ isolate());        \
-          GenerateCCall(dst.gp(), arraysize(args), args, ext_ref);           \
+          ValueType sig_i_ii_reps[] = {kWasmI32, kWasmI32, kWasmI32};        \
+          FunctionSig sig_i_ii(1, 2, sig_i_ii_reps);                         \
+          GenerateCCall(&dst, &sig_i_ii, kWasmStmt, args, ext_ref);          \
         });
     switch (opcode) {
       CASE_I32_BINOP(I32Add, i32_add)
