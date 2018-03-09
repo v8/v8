@@ -1759,9 +1759,8 @@ void MacroAssembler::JumpToExternalReference(const ExternalReference& builtin,
   Jump(stub.GetCode(), RelocInfo::CODE_TARGET);
 }
 
-void MacroAssembler::JumpToInstructionStream(const InstructionStream* stream) {
-  uint64_t bytes_address = reinterpret_cast<uint64_t>(stream->bytes());
-  Mov(kOffHeapTrampolineRegister, bytes_address);
+void MacroAssembler::JumpToInstructionStream(Address entry) {
+  Mov(kOffHeapTrampolineRegister, reinterpret_cast<uint64_t>(entry));
   Br(kOffHeapTrampolineRegister);
 }
 

@@ -188,9 +188,6 @@ class Logger : public CodeEventListener {
   void CodeMovingGCEvent();
   // Emits a code create event for a RegExp.
   void RegExpCodeCreateEvent(AbstractCode* code, String* source);
-  void InstructionStreamCreateEvent(LogEventsAndTags tag,
-                                    const InstructionStream* stream,
-                                    const char* description);
   // Emits a code move event.
   void CodeMoveEvent(AbstractCode* from, Address to);
   // Emits a code line info record event.
@@ -267,9 +264,6 @@ class Logger : public CodeEventListener {
 
   // Used for logging stubs found in the snapshot.
   void LogCodeObject(Object* code_object);
-
-  // Used for logging off-heap instruction streams.
-  void LogInstructionStream(Code* code, const InstructionStream* stream);
 
  private:
   explicit Logger(Isolate* isolate);
@@ -397,9 +391,6 @@ class CodeEventLogger : public CodeEventListener {
                        wasm::WasmName name) override;
 
   void RegExpCodeCreateEvent(AbstractCode* code, String* source) override;
-  void InstructionStreamCreateEvent(LogEventsAndTags tag,
-                                    const InstructionStream* stream,
-                                    const char* description) override;
   void CallbackEvent(Name* name, Address entry_point) override {}
   void GetterCallbackEvent(Name* name, Address entry_point) override {}
   void SetterCallbackEvent(Name* name, Address entry_point) override {}
@@ -412,8 +403,6 @@ class CodeEventLogger : public CodeEventListener {
   class NameBuffer;
 
   virtual void LogRecordedBuffer(AbstractCode* code, SharedFunctionInfo* shared,
-                                 const char* name, int length) = 0;
-  virtual void LogRecordedBuffer(const InstructionStream* stream,
                                  const char* name, int length) = 0;
   virtual void LogRecordedBuffer(wasm::WasmCode* code, const char* name,
                                  int length) = 0;

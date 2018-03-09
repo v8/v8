@@ -1366,9 +1366,8 @@ void MacroAssembler::Jump(Handle<Code> code_object, RelocInfo::Mode rmode) {
   jmp(code_object, rmode);
 }
 
-void MacroAssembler::JumpToInstructionStream(const InstructionStream* stream) {
-  Address bytes_address = reinterpret_cast<Address>(stream->bytes());
-  Move(kOffHeapTrampolineRegister, bytes_address, RelocInfo::NONE);
+void MacroAssembler::JumpToInstructionStream(Address entry) {
+  Move(kOffHeapTrampolineRegister, entry, RelocInfo::NONE);
   jmp(kOffHeapTrampolineRegister);
 }
 

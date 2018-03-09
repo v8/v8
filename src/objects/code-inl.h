@@ -36,6 +36,14 @@ int AbstractCode::instruction_size() {
   }
 }
 
+int AbstractCode::InstructionSize() {
+  if (IsCode()) {
+    return GetCode()->InstructionSize();
+  } else {
+    return GetBytecodeArray()->length();
+  }
+}
+
 ByteArray* AbstractCode::source_position_table() {
   if (IsCode()) {
     return GetCode()->SourcePositionTable();
@@ -81,9 +89,26 @@ Address AbstractCode::instruction_start() {
   }
 }
 
+Address AbstractCode::InstructionStart() {
+  if (IsCode()) {
+    return GetCode()->InstructionStart();
+  } else {
+    return GetBytecodeArray()->GetFirstBytecodeAddress();
+  }
+}
+
 Address AbstractCode::instruction_end() {
   if (IsCode()) {
     return GetCode()->instruction_end();
+  } else {
+    return GetBytecodeArray()->GetFirstBytecodeAddress() +
+           GetBytecodeArray()->length();
+  }
+}
+
+Address AbstractCode::InstructionEnd() {
+  if (IsCode()) {
+    return GetCode()->InstructionEnd();
   } else {
     return GetBytecodeArray()->GetFirstBytecodeAddress() +
            GetBytecodeArray()->length();

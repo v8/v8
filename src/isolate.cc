@@ -2831,7 +2831,7 @@ void PrintBuiltinSizes(Isolate* isolate) {
 
 #ifdef V8_EMBEDDED_BUILTINS
 void ChangeToOffHeapTrampoline(Isolate* isolate, Handle<Code> code,
-                               InstructionStream* stream) {
+                               const uint8_t* entry) {
   DCHECK(Builtins::IsOffHeapSafe(code->builtin_index()));
   HandleScope scope(isolate);
 
@@ -2843,7 +2843,8 @@ void ChangeToOffHeapTrampoline(Isolate* isolate, Handle<Code> code,
   DCHECK(!masm.has_frame());
   {
     FrameScope scope(&masm, StackFrame::NONE);
-    masm.JumpToInstructionStream(stream);
+    masm.JumpToInstructionStream(
+        reinterpret_cast<Address>(const_cast<uint8_t*>(entry)));
   }
 
   CodeDesc desc;
@@ -2867,24 +2868,17 @@ void ChangeToOffHeapTrampoline(Isolate* isolate, Handle<Code> code,
   // (but are never executed). That's fine for our current purposes, just
   // manually zero the trailing part.
 
-  DCHECK_LE(desc.instr_size, code->instruction_size());
+  int code_instruction_size = code->instruction_size();
+  DCHECK_LE(desc.instr_size, code_instruction_size);
   byte* trailing_instruction_start =
       code->instruction_start() + desc.instr_size;
-  int instruction_size = code->instruction_size();
   if (code->has_safepoint_info()) {
     CHECK_LE(code->safepoint_table_offset(), code->instruction_size());
-    instruction_size = code->safepoint_table_offset();
-    CHECK_LE(desc.instr_size, instruction_size);
+    code_instruction_size = code->safepoint_table_offset();
+    CHECK_LE(desc.instr_size, code_instruction_size);
   }
-  size_t trailing_instruction_size = instruction_size - desc.instr_size;
+  size_t trailing_instruction_size = code_instruction_size - desc.instr_size;
   std::memset(trailing_instruction_start, 0, trailing_instruction_size);
-}
-
-void LogInstructionStream(Isolate* isolate, Code* code,
-                          const InstructionStream* stream) {
-  if (isolate->logger()->is_logging_code_events() || isolate->is_profiling()) {
-    isolate->logger()->LogInstructionStream(code, stream);
-  }
 }
 
 void CreateOnHeapTrampolines(Isolate* isolate) {
@@ -2908,18 +2902,17 @@ void CreateOnHeapTrampolines(Isolate* isolate) {
     if (!Builtins::IsOffHeapSafe(i)) continue;
 
     const uint8_t* instruction_start = d.InstructionStartOfBuiltin(i);
-    size_t instruction_size = d.InstructionSizeOfBuiltin(i);
-
-    InstructionStream stream(const_cast<uint8_t*>(instruction_start),
-                             instruction_size, i);
-
-    Handle<Code> code(builtins->builtin(i));
-    LogInstructionStream(isolate, *code, &stream);
 
     // TODO(jgruber,v8:6666): Create fresh trampolines instead of rewriting
     // existing ones. This could happen prior to serialization or
     // post-deserialization.
-    ChangeToOffHeapTrampoline(isolate, code, &stream);
+    Handle<Code> code(builtins->builtin(i));
+    ChangeToOffHeapTrampoline(isolate, code, instruction_start);
+
+    if (isolate->logger()->is_logging_code_events() ||
+        isolate->is_profiling()) {
+      isolate->logger()->LogCodeObject(*code);
+    }
   }
 }
 #endif  // V8_EMBEDDED_BUILTINS

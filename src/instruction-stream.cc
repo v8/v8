@@ -5,20 +5,11 @@
 #include "src/instruction-stream.h"
 
 #include "src/builtins/builtins.h"
-#include "src/heap/heap.h"
 #include "src/objects-inl.h"
-#include "src/objects/code-inl.h"
 #include "src/snapshot/snapshot.h"
 
 namespace v8 {
 namespace internal {
-
-InstructionStream::InstructionStream(uint8_t* bytes, size_t byte_length,
-                                     int builtin_index)
-    : byte_length_(byte_length), bytes_(bytes), builtin_index_(builtin_index) {
-  DCHECK(Builtins::IsBuiltinId(builtin_index_));
-  DCHECK_NOT_NULL(bytes_);
-}
 
 // static
 bool InstructionStream::PcIsOffHeap(Isolate* isolate, Address pc) {

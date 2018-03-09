@@ -767,7 +767,7 @@ class MacroAssembler : public TurboAssembler {
   void Jump(Handle<Code> code_object, RelocInfo::Mode rmode);
 
   // Generates a trampoline to jump to the off-heap instruction stream.
-  void JumpToInstructionStream(const InstructionStream* stream);
+  void JumpToInstructionStream(Address entry);
 
   // Non-x64 instructions.
   // Push/pop all general purpose registers.

@@ -517,11 +517,28 @@ class AbstractCode : public HeapObject {
   // Returns the address of the first instruction.
   inline Address instruction_start();
 
+  // Returns the address of the first instruction. For off-heap code objects
+  // this differs from instruction_start (which would point to the off-heap
+  // trampoline instead).
+  inline Address InstructionStart();
+
   // Returns the address right after the last instruction.
   inline Address instruction_end();
 
+  // Returns the address right after the last instruction. For off-heap code
+  // objects this differs from instruction_end (which would point to the
+  // off-heap trampoline instead).
+  inline Address InstructionEnd();
+
   // Returns the size of the code instructions.
   inline int instruction_size();
+
+  // Returns the size of the native instructions, including embedded
+  // data such as the safepoints table. For off-heap code objects
+  // this may from instruction_size in that this will return the size of the
+  // off-heap instruction stream rather than the on-heap trampoline located
+  // at instruction_start.
+  inline int InstructionSize();
 
   // Return the source position table.
   inline ByteArray* source_position_table();

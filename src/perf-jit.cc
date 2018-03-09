@@ -270,42 +270,6 @@ void PerfJitLogger::WriteJitCodeLoadEntry(const uint8_t* code_pointer,
   LogWriteBytes(reinterpret_cast<const char*>(code_pointer), code_size);
 }
 
-void PerfJitLogger::LogRecordedBuffer(const InstructionStream* stream,
-                                      const char* name, int length) {
-  if (FLAG_perf_basic_prof_only_functions) return;
-
-  base::LockGuard<base::RecursiveMutex> guard_file(file_mutex_.Pointer());
-
-  if (perf_output_handle_ == nullptr) return;
-
-  const char* code_name = name;
-  uint8_t* code_pointer = stream->bytes();
-  uint32_t code_size = static_cast<uint32_t>(stream->byte_length());
-
-  // TODO(jgruber): Do we need unwinding info?
-
-  static const char string_terminator[] = "\0";
-
-  PerfJitCodeLoad code_load;
-  code_load.event_ = PerfJitCodeLoad::kLoad;
-  code_load.size_ = sizeof(code_load) + length + 1 + code_size;
-  code_load.time_stamp_ = GetTimestamp();
-  code_load.process_id_ =
-      static_cast<uint32_t>(base::OS::GetCurrentProcessId());
-  code_load.thread_id_ = static_cast<uint32_t>(base::OS::GetCurrentThreadId());
-  code_load.vma_ = 0x0;  //  Our addresses are absolute.
-  code_load.code_address_ = reinterpret_cast<uint64_t>(code_pointer);
-  code_load.code_size_ = code_size;
-  code_load.code_id_ = code_index_;
-
-  code_index_++;
-
-  LogWriteBytes(reinterpret_cast<const char*>(&code_load), sizeof(code_load));
-  LogWriteBytes(code_name, length);
-  LogWriteBytes(string_terminator, 1);
-  LogWriteBytes(reinterpret_cast<const char*>(code_pointer), code_size);
-}
-
 namespace {
 
 std::unique_ptr<char[]> GetScriptName(Handle<Script> script) {

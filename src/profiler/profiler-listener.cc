@@ -184,20 +184,6 @@ void ProfilerListener::RegExpCodeCreateEvent(AbstractCode* code,
   DispatchCodeEvent(evt_rec);
 }
 
-void ProfilerListener::InstructionStreamCreateEvent(
-    CodeEventListener::LogEventsAndTags tag, const InstructionStream* stream,
-    const char* description) {
-  CodeEventsContainer evt_rec(CodeEventRecord::CODE_CREATION);
-  CodeCreateEventRecord* rec = &evt_rec.CodeCreateEventRecord_;
-  rec->start = stream->bytes();
-  rec->entry = NewCodeEntry(
-      tag, description, CodeEntry::kEmptyNamePrefix,
-      CodeEntry::kEmptyResourceName, CpuProfileNode::kNoLineNumberInfo,
-      CpuProfileNode::kNoColumnNumberInfo, nullptr, stream->bytes());
-  rec->size = static_cast<unsigned>(stream->byte_length());
-  DispatchCodeEvent(evt_rec);
-}
-
 void ProfilerListener::SetterCallbackEvent(Name* name, Address entry_point) {
   CodeEventsContainer evt_rec(CodeEventRecord::CODE_CREATION);
   CodeCreateEventRecord* rec = &evt_rec.CodeCreateEventRecord_;

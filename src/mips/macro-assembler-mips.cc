@@ -4541,9 +4541,9 @@ void MacroAssembler::JumpToExternalReference(const ExternalReference& builtin,
        bd);
 }
 
-void MacroAssembler::JumpToInstructionStream(const InstructionStream* stream) {
-  int32_t bytes_address = reinterpret_cast<int32_t>(stream->bytes());
-  li(kOffHeapTrampolineRegister, Operand(bytes_address, RelocInfo::NONE));
+void MacroAssembler::JumpToInstructionStream(Address entry) {
+  li(kOffHeapTrampolineRegister,
+     Operand(reinterpret_cast<int32_t>(entry), RelocInfo::NONE));
   Jump(kOffHeapTrampolineRegister);
 }
 

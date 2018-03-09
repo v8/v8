@@ -846,9 +846,8 @@ void MacroAssembler::JumpToExternalReference(const ExternalReference& ext,
   jmp(ces.GetCode(), RelocInfo::CODE_TARGET);
 }
 
-void MacroAssembler::JumpToInstructionStream(const InstructionStream* stream) {
-  Address bytes_address = reinterpret_cast<Address>(stream->bytes());
-  mov(kOffHeapTrampolineRegister, Immediate(bytes_address, RelocInfo::NONE));
+void MacroAssembler::JumpToInstructionStream(Address entry) {
+  mov(kOffHeapTrampolineRegister, Immediate(entry, RelocInfo::NONE));
   jmp(kOffHeapTrampolineRegister);
 }
 

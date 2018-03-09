@@ -1099,7 +1099,7 @@ const Operand& rt = Operand(zero_reg), BranchDelaySlot bd = PROTECT
                                bool builtin_exit_frame = false);
 
   // Generates a trampoline to jump to the off-heap instruction stream.
-  void JumpToInstructionStream(const InstructionStream* stream);
+  void JumpToInstructionStream(Address entry);
 
   // ---------------------------------------------------------------------------
   // In-place weak references.
