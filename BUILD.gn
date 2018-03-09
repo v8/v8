@@ -65,8 +65,11 @@ declare_args() {
   v8_enable_fast_mksnapshot = false
 
   # Enable embedded builtins.
-  # TODO(jgruber,v8:6666): Support ia32 and maybe MSVC.
-  v8_enable_embedded_builtins = v8_current_cpu != "x86" && (!is_win || is_clang)
+  # TODO(jgruber,v8:6666): Support mips, mips64, ia32 and maybe MSVC.
+  v8_enable_embedded_builtins =
+      v8_current_cpu != "x86" && v8_current_cpu != "mips" &&
+      v8_current_cpu != "mipsel" && v8_current_cpu != "mips64" &&
+      v8_current_cpu != "mips64el" && (!is_win || is_clang)
 
   # Enable code-generation-time checking of types in the CodeStubAssembler.
   v8_enable_verify_csa = false

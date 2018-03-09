@@ -109,7 +109,6 @@ UNINITIALIZED_TEST(VerifyBuiltinsIsolateIndependence) {
 
   v8_isolate->Dispose();
 }
-#endif  // V8_EMBEDDED_BUILTINS
 
 // V8_CC_MSVC is true for both MSVC and clang on windows. clang can handle
 // __asm__-style inline assembly but MSVC cannot, and thus we need a more
@@ -280,6 +279,7 @@ TEST(ByteInText) {
 }
 #endif  // #ifndef V8_COMPILER_IS_MSVC
 #undef V8_COMPILER_IS_MSVC
+#endif  // V8_EMBEDDED_BUILTINS
 
 #undef FUNCTION_BYTES
 #undef GENERATE_TEST_FUNCTION_DATA
