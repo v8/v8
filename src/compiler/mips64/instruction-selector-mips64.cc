@@ -268,9 +268,9 @@ static void VisitBinop(InstructionSelector* selector, Node* node,
                        FlagsContinuation* cont) {
   Mips64OperandGenerator g(selector);
   Int32BinopMatcher m(node);
-  InstructionOperand inputs[4];
+  InstructionOperand inputs[2];
   size_t input_count = 0;
-  InstructionOperand outputs[2];
+  InstructionOperand outputs[1];
   size_t output_count = 0;
 
   if (TryMatchImmediate(selector, &opcode, m.right().node(), &input_count,
@@ -288,13 +288,6 @@ static void VisitBinop(InstructionSelector* selector, Node* node,
     inputs[input_count++] = g.UseOperand(m.right().node(), opcode);
   }
 
-  if (cont->IsBranch()) {
-    inputs[input_count++] = g.Label(cont->true_block());
-    inputs[input_count++] = g.Label(cont->false_block());
-  } else if (cont->IsTrap()) {
-    inputs[input_count++] = g.TempImmediate(cont->trap_id());
-  }
-
   if (cont->IsDeoptimize()) {
     // If we can deoptimize as a result of the binop, we need to make sure that
     // the deopt inputs are not overwritten by the binop result. One way
@@ -303,23 +296,14 @@ static void VisitBinop(InstructionSelector* selector, Node* node,
   } else {
     outputs[output_count++] = g.DefineAsRegister(node);
   }
-  if (cont->IsSet()) {
-    outputs[output_count++] = g.DefineAsRegister(cont->result());
-  }
 
   DCHECK_NE(0u, input_count);
-  DCHECK_NE(0u, output_count);
+  DCHECK_EQ(1u, output_count);
   DCHECK_GE(arraysize(inputs), input_count);
   DCHECK_GE(arraysize(outputs), output_count);
 
-  opcode = cont->Encode(opcode);
-  if (cont->IsDeoptimize()) {
-    selector->EmitDeoptimize(opcode, output_count, outputs, input_count, inputs,
-                             cont->kind(), cont->reason(), cont->feedback(),
-                             cont->frame_state());
-  } else {
-    selector->Emit(opcode, output_count, outputs, input_count, inputs);
-  }
+  selector->EmitWithContinuation(opcode, output_count, outputs, input_count,
+                                 inputs, cont);
 }
 
 static void VisitBinop(InstructionSelector* selector, Node* node,
@@ -1834,22 +1818,7 @@ namespace {
 static void VisitCompare(InstructionSelector* selector, InstructionCode opcode,
                          InstructionOperand left, InstructionOperand right,
                          FlagsContinuation* cont) {
-  Mips64OperandGenerator g(selector);
-  opcode = cont->Encode(opcode);
-  if (cont->IsBranch()) {
-    selector->Emit(opcode, g.NoOutput(), left, right,
-                   g.Label(cont->true_block()), g.Label(cont->false_block()));
-  } else if (cont->IsDeoptimize()) {
-    selector->EmitDeoptimize(opcode, g.NoOutput(), left, right, cont->kind(),
-                             cont->reason(), cont->feedback(),
-                             cont->frame_state());
-  } else if (cont->IsSet()) {
-    selector->Emit(opcode, g.DefineAsRegister(cont->result()), left, right);
-  } else {
-    DCHECK(cont->IsTrap());
-    selector->Emit(opcode, g.NoOutput(), left, right,
-                   g.TempImmediate(cont->trap_id()));
-  }
+  selector->EmitWithContinuation(opcode, left, right, cont);
 }
 
 
@@ -2051,22 +2020,8 @@ void VisitWord64Compare(InstructionSelector* selector, Node* node,
 void EmitWordCompareZero(InstructionSelector* selector, Node* value,
                          FlagsContinuation* cont) {
   Mips64OperandGenerator g(selector);
-  InstructionCode opcode = cont->Encode(kMips64Cmp);
-  InstructionOperand const value_operand = g.UseRegister(value);
-  if (cont->IsBranch()) {
-    selector->Emit(opcode, g.NoOutput(), value_operand, g.TempImmediate(0),
-                   g.Label(cont->true_block()), g.Label(cont->false_block()));
-  } else if (cont->IsDeoptimize()) {
-    selector->EmitDeoptimize(opcode, g.NoOutput(), value_operand,
-                             g.TempImmediate(0), cont->kind(), cont->reason(),
-                             cont->feedback(), cont->frame_state());
-  } else if (cont->IsTrap()) {
-    selector->Emit(opcode, g.NoOutput(), value_operand, g.TempImmediate(0),
-                   g.TempImmediate(cont->trap_id()));
-  } else {
-    selector->Emit(opcode, g.DefineAsRegister(cont->result()), value_operand,
-                   g.TempImmediate(0));
-  }
+  selector->EmitWithContinuation(kMips64Cmp, g.UseRegister(value),
+                                 g.TempImmediate(0), cont);
 }
 
 }  // namespace

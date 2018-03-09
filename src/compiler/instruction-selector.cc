@@ -38,6 +38,8 @@ InstructionSelector::InstructionSelector(
       schedule_(schedule),
       current_block_(nullptr),
       instructions_(zone),
+      continuation_inputs_(sequence->zone()),
+      continuation_outputs_(sequence->zone()),
       defined_(node_count, false, zone),
       used_(node_count, false, zone),
       effect_level_(node_count, 0, zone),
@@ -53,6 +55,8 @@ InstructionSelector::InstructionSelector(
       frame_(frame),
       instruction_selection_failed_(false) {
   instructions_.reserve(node_count);
+  continuation_inputs_.reserve(5);
+  continuation_outputs_.reserve(2);
 }
 
 bool InstructionSelector::SelectInstructions() {
@@ -651,6 +655,105 @@ size_t InstructionSelector::AddInputsToFrameStateDescriptor(
   return entries;
 }
 
+Instruction* InstructionSelector::EmitWithContinuation(
+    InstructionCode opcode, FlagsContinuation* cont) {
+  return EmitWithContinuation(opcode, 0, nullptr, 0, nullptr, cont);
+}
+
+Instruction* InstructionSelector::EmitWithContinuation(
+    InstructionCode opcode, InstructionOperand a, FlagsContinuation* cont) {
+  return EmitWithContinuation(opcode, 0, nullptr, 1, &a, cont);
+}
+
+Instruction* InstructionSelector::EmitWithContinuation(
+    InstructionCode opcode, InstructionOperand a, InstructionOperand b,
+    FlagsContinuation* cont) {
+  InstructionOperand inputs[] = {a, b};
+  return EmitWithContinuation(opcode, 0, nullptr, arraysize(inputs), inputs,
+                              cont);
+}
+
+Instruction* InstructionSelector::EmitWithContinuation(
+    InstructionCode opcode, InstructionOperand a, InstructionOperand b,
+    InstructionOperand c, FlagsContinuation* cont) {
+  InstructionOperand inputs[] = {a, b, c};
+  return EmitWithContinuation(opcode, 0, nullptr, arraysize(inputs), inputs,
+                              cont);
+}
+
+Instruction* InstructionSelector::EmitWithContinuation(
+    InstructionCode opcode, size_t output_count, InstructionOperand* outputs,
+    size_t input_count, InstructionOperand* inputs, FlagsContinuation* cont) {
+  OperandGenerator g(this);
+
+  opcode = cont->Encode(opcode);
+
+  continuation_inputs_.resize(0);
+  for (size_t i = 0; i < input_count; i++) {
+    continuation_inputs_.push_back(inputs[i]);
+  }
+
+  continuation_outputs_.resize(0);
+  for (size_t i = 0; i < output_count; i++) {
+    continuation_outputs_.push_back(outputs[i]);
+  }
+
+  if (cont->IsBranch()) {
+    continuation_inputs_.push_back(g.Label(cont->true_block()));
+    continuation_inputs_.push_back(g.Label(cont->false_block()));
+  } else if (cont->IsDeoptimize()) {
+    opcode |= MiscField::encode(static_cast<int>(input_count));
+    AppendDeoptimizeArguments(&continuation_inputs_, cont->kind(),
+                              cont->reason(), cont->feedback(),
+                              cont->frame_state());
+  } else if (cont->IsSet()) {
+    continuation_outputs_.push_back(g.DefineAsRegister(cont->result()));
+  } else if (cont->IsTrap()) {
+    continuation_inputs_.push_back(g.UseImmediate(cont->trap_id()));
+  } else {
+    DCHECK(cont->IsNone());
+  }
+
+  size_t const emit_inputs_size = continuation_inputs_.size();
+  auto* emit_inputs =
+      emit_inputs_size ? &continuation_inputs_.front() : nullptr;
+  size_t const emit_outputs_size = continuation_outputs_.size();
+  auto* emit_outputs =
+      emit_outputs_size ? &continuation_outputs_.front() : nullptr;
+  return Emit(opcode, emit_outputs_size, emit_outputs, emit_inputs_size,
+              emit_inputs, 0, nullptr);
+}
+
+void InstructionSelector::AppendDeoptimizeArguments(
+    InstructionOperandVector* args, DeoptimizeKind kind,
+    DeoptimizeReason reason, VectorSlotPair const& feedback,
+    Node* frame_state) {
+  OperandGenerator g(this);
+  FrameStateDescriptor* const descriptor = GetFrameStateDescriptor(frame_state);
+  DCHECK_NE(DeoptimizeKind::kLazy, kind);
+  int const state_id =
+      sequence()->AddDeoptimizationEntry(descriptor, kind, reason, feedback);
+  args->push_back(g.TempImmediate(state_id));
+  StateObjectDeduplicator deduplicator(instruction_zone());
+  AddInputsToFrameStateDescriptor(descriptor, frame_state, &g, &deduplicator,
+                                  args, FrameStateInputKind::kAny,
+                                  instruction_zone());
+}
+
+Instruction* InstructionSelector::EmitDeoptimize(
+    InstructionCode opcode, size_t output_count, InstructionOperand* outputs,
+    size_t input_count, InstructionOperand* inputs, DeoptimizeKind kind,
+    DeoptimizeReason reason, VectorSlotPair const& feedback,
+    Node* frame_state) {
+  InstructionOperandVector args(instruction_zone());
+  for (size_t i = 0; i < input_count; ++i) {
+    args.push_back(inputs[i]);
+  }
+  opcode |= MiscField::encode(static_cast<int>(input_count));
+  AppendDeoptimizeArguments(&args, kind, reason, feedback, frame_state);
+  return Emit(opcode, output_count, outputs, args.size(), &args.front(), 0,
+              nullptr);
+}
 
 // An internal helper class for generating the operands to calls.
 // TODO(bmeurer): Get rid of the CallBuffer business and make
@@ -2636,53 +2739,6 @@ void InstructionSelector::VisitTrapUnless(Node* node,
   FlagsContinuation cont =
       FlagsContinuation::ForTrap(kEqual, func_id, node->InputAt(1));
   VisitWordCompareZero(node, node->InputAt(0), &cont);
-}
-
-Instruction* InstructionSelector::EmitDeoptimize(
-    InstructionCode opcode, InstructionOperand output, InstructionOperand a,
-    DeoptimizeKind kind, DeoptimizeReason reason,
-    VectorSlotPair const& feedback, Node* frame_state) {
-  size_t output_count = output.IsInvalid() ? 0 : 1;
-  InstructionOperand inputs[] = {a};
-  size_t input_count = arraysize(inputs);
-  return EmitDeoptimize(opcode, output_count, &output, input_count, inputs,
-                        kind, reason, feedback, frame_state);
-}
-
-Instruction* InstructionSelector::EmitDeoptimize(
-    InstructionCode opcode, InstructionOperand output, InstructionOperand a,
-    InstructionOperand b, DeoptimizeKind kind, DeoptimizeReason reason,
-    VectorSlotPair const& feedback, Node* frame_state) {
-  size_t output_count = output.IsInvalid() ? 0 : 1;
-  InstructionOperand inputs[] = {a, b};
-  size_t input_count = arraysize(inputs);
-  return EmitDeoptimize(opcode, output_count, &output, input_count, inputs,
-                        kind, reason, feedback, frame_state);
-}
-
-Instruction* InstructionSelector::EmitDeoptimize(
-    InstructionCode opcode, size_t output_count, InstructionOperand* outputs,
-    size_t input_count, InstructionOperand* inputs, DeoptimizeKind kind,
-    DeoptimizeReason reason, VectorSlotPair const& feedback,
-    Node* frame_state) {
-  OperandGenerator g(this);
-  FrameStateDescriptor* const descriptor = GetFrameStateDescriptor(frame_state);
-  InstructionOperandVector args(instruction_zone());
-  args.reserve(input_count + 1 + descriptor->GetTotalSize());
-  for (size_t i = 0; i < input_count; ++i) {
-    args.push_back(inputs[i]);
-  }
-  opcode |= MiscField::encode(static_cast<int>(input_count));
-  DCHECK_NE(DeoptimizeKind::kLazy, kind);
-  int const state_id =
-      sequence()->AddDeoptimizationEntry(descriptor, kind, reason, feedback);
-  args.push_back(g.TempImmediate(state_id));
-  StateObjectDeduplicator deduplicator(instruction_zone());
-  AddInputsToFrameStateDescriptor(descriptor, frame_state, &g, &deduplicator,
-                                  &args, FrameStateInputKind::kAny,
-                                  instruction_zone());
-  return Emit(opcode, output_count, outputs, args.size(), &args.front(), 0,
-              nullptr);
 }
 
 void InstructionSelector::EmitIdentity(Node* node) {

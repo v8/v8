@@ -422,7 +422,7 @@ void VisitBinop(InstructionSelector* selector, Node* node,
   Node* right = m.right().node();
   InstructionOperand inputs[6];
   size_t input_count = 0;
-  InstructionOperand outputs[2];
+  InstructionOperand outputs[1];
   size_t output_count = 0;
 
   // TODO(turbofan): match complex addressing modes.
@@ -463,29 +463,15 @@ void VisitBinop(InstructionSelector* selector, Node* node,
     }
   }
 
-  if (cont->IsBranch()) {
-    inputs[input_count++] = g.Label(cont->true_block());
-    inputs[input_count++] = g.Label(cont->false_block());
-  }
-
   outputs[output_count++] = g.DefineSameAsFirst(node);
-  if (cont->IsSet()) {
-    outputs[output_count++] = g.DefineAsByteRegister(cont->result());
-  }
 
   DCHECK_NE(0u, input_count);
-  DCHECK_NE(0u, output_count);
+  DCHECK_EQ(1u, output_count);
   DCHECK_GE(arraysize(inputs), input_count);
   DCHECK_GE(arraysize(outputs), output_count);
 
-  opcode = cont->Encode(opcode);
-  if (cont->IsDeoptimize()) {
-    selector->EmitDeoptimize(opcode, output_count, outputs, input_count, inputs,
-                             cont->kind(), cont->reason(), cont->feedback(),
-                             cont->frame_state());
-  } else {
-    selector->Emit(opcode, output_count, outputs, input_count, inputs);
-  }
+  selector->EmitWithContinuation(opcode, output_count, outputs, input_count,
+                                 inputs, cont);
 }
 
 
@@ -1081,51 +1067,20 @@ void VisitCompareWithMemoryOperand(InstructionSelector* selector,
   DCHECK_EQ(IrOpcode::kLoad, left->opcode());
   IA32OperandGenerator g(selector);
   size_t input_count = 0;
-  InstructionOperand inputs[6];
+  InstructionOperand inputs[4];
   AddressingMode addressing_mode =
       g.GetEffectiveAddressMemoryOperand(left, inputs, &input_count);
   opcode |= AddressingModeField::encode(addressing_mode);
-  opcode = cont->Encode(opcode);
   inputs[input_count++] = right;
 
-  if (cont->IsBranch()) {
-    inputs[input_count++] = g.Label(cont->true_block());
-    inputs[input_count++] = g.Label(cont->false_block());
-    selector->Emit(opcode, 0, nullptr, input_count, inputs);
-  } else if (cont->IsDeoptimize()) {
-    selector->EmitDeoptimize(opcode, 0, nullptr, input_count, inputs,
-                             cont->kind(), cont->reason(), cont->feedback(),
-                             cont->frame_state());
-  } else if (cont->IsSet()) {
-    InstructionOperand output = g.DefineAsRegister(cont->result());
-    selector->Emit(opcode, 1, &output, input_count, inputs);
-  } else {
-    DCHECK(cont->IsTrap());
-    inputs[input_count++] = g.UseImmediate(cont->trap_id());
-    selector->Emit(opcode, 0, nullptr, input_count, inputs);
-  }
+  selector->EmitWithContinuation(opcode, 0, nullptr, input_count, inputs, cont);
 }
 
 // Shared routine for multiple compare operations.
 void VisitCompare(InstructionSelector* selector, InstructionCode opcode,
                   InstructionOperand left, InstructionOperand right,
                   FlagsContinuation* cont) {
-  IA32OperandGenerator g(selector);
-  opcode = cont->Encode(opcode);
-  if (cont->IsBranch()) {
-    selector->Emit(opcode, g.NoOutput(), left, right,
-                   g.Label(cont->true_block()), g.Label(cont->false_block()));
-  } else if (cont->IsDeoptimize()) {
-    selector->EmitDeoptimize(opcode, g.NoOutput(), left, right, cont->kind(),
-                             cont->reason(), cont->feedback(),
-                             cont->frame_state());
-  } else if (cont->IsSet()) {
-    selector->Emit(opcode, g.DefineAsByteRegister(cont->result()), left, right);
-  } else {
-    DCHECK(cont->IsTrap());
-    selector->Emit(opcode, g.NoOutput(), left, right,
-                   g.UseImmediate(cont->trap_id()));
-  }
+  selector->EmitWithContinuation(opcode, left, right, cont);
 }
 
 
@@ -1300,8 +1255,7 @@ void VisitWordCompare(InstructionSelector* selector, Node* node,
       if (!node->op()->HasProperty(Operator::kCommutative)) cont->Commute();
       InstructionCode opcode = cont->Encode(kIA32StackCheck);
       CHECK(cont->IsBranch());
-      selector->Emit(opcode, g.NoOutput(), g.Label(cont->true_block()),
-                     g.Label(cont->false_block()));
+      selector->EmitWithContinuation(opcode, cont);
       return;
     }
   }
