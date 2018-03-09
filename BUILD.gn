@@ -820,6 +820,10 @@ if (v8_use_snapshot) {
       "$target_gen_dir/snapshot.cc",
     ]
 
+    if (v8_enable_embedded_builtins) {
+      outputs += [ "$target_gen_dir/embedded.cc" ]
+    }
+
     args = [
       "./" + rebase_path(get_label_info(":mksnapshot($v8_snapshot_toolchain)",
                                         "root_out_dir") + "/mksnapshot",
@@ -828,6 +832,13 @@ if (v8_use_snapshot) {
       "--startup_src",
       rebase_path("$target_gen_dir/snapshot.cc", root_build_dir),
     ]
+
+    if (v8_enable_embedded_builtins) {
+      args += [
+        "--embedded_src",
+        rebase_path("$target_gen_dir/embedded.cc", root_build_dir),
+      ]
+    }
 
     if (v8_random_seed != "0") {
       args += [
@@ -940,6 +951,7 @@ v8_source_set("v8_nosnapshot") {
     "$target_gen_dir/experimental-extras-libraries.cc",
     "$target_gen_dir/extras-libraries.cc",
     "$target_gen_dir/libraries.cc",
+    "src/snapshot/embedded-empty.cc",
     "src/snapshot/snapshot-empty.cc",
   ]
 
@@ -984,6 +996,10 @@ if (v8_use_snapshot) {
       "src/setup-isolate-deserialize.cc",
     ]
 
+    if (v8_enable_embedded_builtins) {
+      sources += [ "$target_gen_dir/embedded.cc" ]
+    }
+
     if (use_jumbo_build == true) {
       jumbo_excluded_sources = [
         # TODO(mostynb@opera.com): don't exclude these http://crbug.com/752428
@@ -1017,6 +1033,10 @@ if (v8_use_external_startup_data) {
       "src/snapshot/natives-external.cc",
       "src/snapshot/snapshot-external.cc",
     ]
+
+    if (v8_enable_embedded_builtins) {
+      sources += [ "$target_gen_dir/embedded.cc" ]
+    }
 
     configs = [ ":internal_config" ]
   }
@@ -2053,6 +2073,7 @@ v8_source_set("v8_base") {
     "src/snapshot/default-serializer-allocator.h",
     "src/snapshot/deserializer.cc",
     "src/snapshot/deserializer.h",
+    "src/snapshot/macros.h",
     "src/snapshot/natives-common.cc",
     "src/snapshot/natives.h",
     "src/snapshot/object-deserializer.cc",

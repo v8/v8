@@ -8,6 +8,8 @@
 
 #include "src/api.h"
 #include "src/base/platform/platform.h"
+#include "src/callable.h"
+#include "src/interface-descriptors.h"
 #include "src/objects-inl.h"
 #include "src/snapshot/builtin-deserializer.h"
 #include "src/snapshot/builtin-serializer.h"
@@ -289,6 +291,138 @@ v8::StartupData Snapshot::CreateSnapshotBlob(
   DCHECK_EQ(total_length, payload_offset);
   return result;
 }
+
+#ifdef V8_EMBEDDED_BUILTINS
+#ifdef DEBUG
+namespace {
+bool BuiltinAliasesOffHeapTrampolineRegister(Isolate* isolate, Code* code) {
+  DCHECK(Builtins::IsOffHeapSafe(code->builtin_index()));
+  switch (Builtins::KindOf(code->builtin_index())) {
+    case Builtins::CPP:
+    case Builtins::TFC:
+    case Builtins::TFH:
+    case Builtins::TFJ:
+    case Builtins::TFS:
+      break;
+    case Builtins::API:
+    case Builtins::ASM:
+      // TODO(jgruber): Extend checks to remaining kinds.
+      return false;
+  }
+
+  Callable callable = Builtins::CallableFor(
+      isolate, static_cast<Builtins::Name>(code->builtin_index()));
+  CallInterfaceDescriptor descriptor = callable.descriptor();
+
+  if (descriptor.ContextRegister() == kOffHeapTrampolineRegister) {
+    return true;
+  }
+
+  for (int i = 0; i < descriptor.GetRegisterParameterCount(); i++) {
+    Register reg = descriptor.GetRegisterParameter(i);
+    if (reg == kOffHeapTrampolineRegister) return true;
+  }
+
+  return false;
+}
+}  // namespace
+#endif  // DEBUG
+
+// static
+EmbeddedData EmbeddedData::FromIsolate(Isolate* isolate) {
+  Builtins* builtins = isolate->builtins();
+
+  // Builtins must be deserialized to be copied off-heap.
+  Snapshot::EnsureAllBuiltinsAreDeserialized(isolate);
+
+  // Store instruction stream lengths and offsets.
+  std::vector<uint32_t> lengths(kTableSize);
+  std::vector<uint32_t> offsets(kTableSize);
+
+  bool saw_unsafe_builtin = false;
+  uint32_t raw_data_size = 0;
+  for (int i = 0; i < Builtins::builtin_count; i++) {
+    Code* code = builtins->builtin(i);
+
+    if (Builtins::IsOffHeapSafe(i)) {
+#ifdef DEBUG
+      // Sanity-check that the given builtin is process-independent and does not
+      // use the trampoline register in its calling convention.
+      if (!code->IsProcessIndependent()) {
+        saw_unsafe_builtin = true;
+        fprintf(stderr, "%s is not process-independent.\n", Builtins::name(i));
+      }
+      if (BuiltinAliasesOffHeapTrampolineRegister(isolate, code)) {
+        saw_unsafe_builtin = true;
+        fprintf(stderr, "%s aliases the off-heap trampoline register.\n",
+                Builtins::name(i));
+      }
+#endif
+
+      uint32_t length = static_cast<uint32_t>(code->instruction_size());
+
+      DCHECK_EQ(0, raw_data_size % kCodeAlignment);
+      offsets[i] = raw_data_size;
+      lengths[i] = length;
+
+      // Align the start of each instruction stream.
+      raw_data_size += RoundUp<kCodeAlignment>(length);
+    } else {
+      offsets[i] = raw_data_size;
+      lengths[i] = 0;
+    }
+  }
+  CHECK(!saw_unsafe_builtin);
+
+  const uint32_t blob_size = RawDataOffset() + raw_data_size;
+  uint8_t* blob = new uint8_t[blob_size];
+  std::memset(blob, 0, blob_size);
+
+  // Write the offsets and length tables.
+  DCHECK_EQ(OffsetsSize(), sizeof(offsets[0]) * offsets.size());
+  std::memcpy(blob + OffsetsOffset(), offsets.data(), OffsetsSize());
+
+  DCHECK_EQ(LengthsSize(), sizeof(lengths[0]) * lengths.size());
+  std::memcpy(blob + LengthsOffset(), lengths.data(), LengthsSize());
+
+  // Write the raw data section.
+  for (int i = 0; i < Builtins::builtin_count; i++) {
+    if (!Builtins::IsOffHeapSafe(i)) continue;
+    Code* code = builtins->builtin(i);
+    uint32_t offset = offsets[i];
+    uint8_t* dst = blob + RawDataOffset() + offset;
+    DCHECK_LE(RawDataOffset() + offset + code->instruction_size(), blob_size);
+    std::memcpy(dst, code->instruction_start(), code->instruction_size());
+  }
+
+  return {blob, blob_size};
+}
+
+EmbeddedData EmbeddedData::FromBlob(const uint8_t* data, uint32_t size) {
+  return {data, size};
+}
+
+const uint8_t* EmbeddedData::InstructionStartOfBuiltin(int i) const {
+  DCHECK(Builtins::IsBuiltinId(i));
+
+  const uint32_t* offsets = Offsets();
+  const uint8_t* result = RawData() + offsets[i];
+  DCHECK_LT(result, data_ + size_);
+  return result;
+}
+
+uint32_t EmbeddedData::InstructionSizeOfBuiltin(int i) const {
+  DCHECK(Builtins::IsBuiltinId(i));
+  const uint32_t* lengths = Lengths();
+  return lengths[i];
+}
+
+// static
+EmbeddedData Snapshot::CreateEmbeddedBlob(Isolate* isolate) {
+  DisallowHeapAllocation no_gc;
+  return EmbeddedData::FromIsolate(isolate);
+}
+#endif
 
 uint32_t Snapshot::ExtractNumContexts(const v8::StartupData* data) {
   CHECK_LT(kNumberOfContextsOffset, data->raw_size);
