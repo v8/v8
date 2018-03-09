@@ -13966,6 +13966,7 @@ SafepointEntry Code::GetSafepointEntry(Address pc) {
   return table.FindEntry(pc);
 }
 
+#ifdef V8_EMBEDDED_BUILTINS
 int Code::OffHeapInstructionSize() {
   DCHECK(Builtins::IsOffHeapBuiltin(this));
   Isolate* isolate = GetIsolate();
@@ -13992,6 +13993,7 @@ Address Code::OffHeapInstructionEnd() {
       const_cast<uint8_t*>(d.InstructionStartOfBuiltin(builtin_index()) +
                            d.InstructionSizeOfBuiltin(builtin_index())));
 }
+#endif
 
 namespace {
 template <typename Code>
