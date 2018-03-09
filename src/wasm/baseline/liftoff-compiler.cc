@@ -514,7 +514,8 @@ class LiftoffCompiler {
         __ SetCCallStackParamAddr(num_stack_params, num_lowered_args, arg_type);
         ++num_stack_params;
       }
-      num_lowered_args += 1 + needs_reg_pair(arg_type);
+      num_lowered_args +=
+          RoundUp<kPointerSize>(WasmOpcodes::MemSize(arg_type)) / kPointerSize;
       ++input_idx;
     };
     for (ValueType arg_type : sig->parameters()) {
@@ -637,6 +638,12 @@ class LiftoffCompiler {
                              &ExternalReference::wasm_int64_to_float32)
         CASE_TYPE_CONVERSION(F32UConvertI64, F32, I64,
                              &ExternalReference::wasm_uint64_to_float32)
+        CASE_TYPE_CONVERSION(F64SConvertI32, F64, I32, nullptr)
+        CASE_TYPE_CONVERSION(F64UConvertI32, F64, I32, nullptr)
+        CASE_TYPE_CONVERSION(F64SConvertI64, F64, I64,
+                             &ExternalReference::wasm_int64_to_float64)
+        CASE_TYPE_CONVERSION(F64UConvertI64, F64, I64,
+                             &ExternalReference::wasm_uint64_to_float64)
       default:
         return unsupported(decoder, WasmOpcodes::OpcodeName(opcode));
     }
