@@ -1980,6 +1980,10 @@ TF_BUILTIN(PromiseAllResolveElementClosure, PromiseBuiltinsAssembler) {
   {
     VARIABLE(var_elements, MachineRepresentation::kTagged,
              LoadElements(values_array));
+    // Check that the {values_array} is still in fast mode.
+    Node* const elements_kind = LoadMapElementsKind(LoadMap(values_array));
+    GotoIf(Word32Equal(elements_kind, Int32Constant(DICTIONARY_ELEMENTS)),
+           &runtime_set_element);
     PossiblyGrowElementsCapacity(SMI_PARAMETERS, PACKED_ELEMENTS, values_array,
                                  index, &var_elements, SmiConstant(1),
                                  &runtime_set_element);
