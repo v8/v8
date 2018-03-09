@@ -401,6 +401,9 @@ bool BuiltinToIntrinsicHasNoSideEffect(Builtins::Name builtin_id,
   V(Builtins::kArrayMap, W(CreateDataProperty))                           \
   V(Builtins::kArrayPrototypeSlice, W(CreateDataProperty) W(SetProperty)) \
   /* TypedArrays */                                                       \
+  V(Builtins::kTypedArrayConstructor,                                     \
+    W(TypedArrayCopyElements) W(InternalSetPrototype)                     \
+        W(ThrowInvalidTypedArrayAlignment))                               \
   V(Builtins::kTypedArrayPrototypeFilter, W(TypedArrayCopyElements))      \
   V(Builtins::kTypedArrayPrototypeMap, W(SetProperty))
 

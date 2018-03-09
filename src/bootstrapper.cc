@@ -3520,7 +3520,7 @@ Handle<JSFunction> Genesis::InstallTypedArray(const char* name,
   result->shared()->DontAdaptArguments();
   result->shared()->set_length(3);
   result->shared()->SetConstructStub(
-      *BUILTIN_CODE(isolate_, TypedArrayConstructor_ConstructStub));
+      *BUILTIN_CODE(isolate_, JSBuiltinsConstructStub));
 
   CHECK(JSObject::SetPrototype(result, typed_array_function, false, kDontThrow)
             .FromJust());

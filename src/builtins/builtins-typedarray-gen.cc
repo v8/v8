@@ -634,87 +634,104 @@ TF_BUILTIN(TypedArrayConstructor, TypedArrayBuiltinsAssembler) {
   TNode<Context> context = CAST(Parameter(BuiltinDescriptor::kContext));
 
   // If NewTarget is undefined, throw a TypeError exception.
+  // All the TypedArray constructors have this as the first step:
+  // https://tc39.github.io/ecma262/#sec-typedarray-constructors
   Node* target = LoadFromFrame(StandardFrameConstants::kFunctionOffset,
                                MachineType::TaggedPointer());
-  Node* shared = LoadObjectField(target, JSFunction::kSharedFunctionInfoOffset);
-  Node* name = LoadObjectField(shared, SharedFunctionInfo::kNameOffset);
-  ThrowTypeError(context, MessageTemplate::kConstructorNotFunction, name);
-}
+  Node* new_target = Parameter(BuiltinDescriptor::kNewTarget);
+  Label throwtypeerror(this, Label::kDeferred), createtypedarray(this);
+  Branch(IsUndefined(new_target), &throwtypeerror, &createtypedarray);
 
-TF_BUILTIN(TypedArrayConstructor_ConstructStub, TypedArrayBuiltinsAssembler) {
-  Label if_arg1isbuffer(this), if_arg1istypedarray(this),
-      if_arg1isreceiver(this), if_arg1isnumber(this), done(this);
-
-  TNode<Object> new_target = CAST(Parameter(BuiltinDescriptor::kNewTarget));
-  CSA_ASSERT(this, IsNotUndefined(new_target));
-
-  Node* argc =
-      ChangeInt32ToIntPtr(Parameter(BuiltinDescriptor::kArgumentsCount));
-  CodeStubArguments args(this, argc);
-  TNode<Object> arg1 = args.GetOptionalArgumentValue(0);
-  TNode<Object> arg2 = args.GetOptionalArgumentValue(1);
-  TNode<Object> arg3 = args.GetOptionalArgumentValue(2);
-  TNode<Context> context = CAST(Parameter(BuiltinDescriptor::kContext));
-
-  Node* target = LoadFromFrame(StandardFrameConstants::kFunctionOffset,
-                               MachineType::TaggedPointer());
-  ConstructorBuiltinsAssembler constructor_assembler(this->state());
-  TNode<JSTypedArray> holder = CAST(
-      constructor_assembler.EmitFastNewObject(context, target, new_target));
-
-  TNode<Smi> element_size =
-      SmiTag(GetTypedArrayElementSize(LoadElementsKind(holder)));
-
-  GotoIf(TaggedIsSmi(arg1), &if_arg1isnumber);
-  GotoIf(IsJSArrayBuffer(arg1), &if_arg1isbuffer);
-  GotoIf(IsJSTypedArray(arg1), &if_arg1istypedarray);
-  GotoIf(IsJSReceiver(arg1), &if_arg1isreceiver);
-  Goto(&if_arg1isnumber);
-
-  BIND(&if_arg1isbuffer);
-  ConstructByArrayBuffer(context, holder, CAST(arg1), arg2, arg3, element_size);
-  Goto(&done);
-
-  BIND(&if_arg1istypedarray);
-  TNode<JSTypedArray> typed_array = CAST(arg1);
-  ConstructByTypedArray(context, holder, typed_array, element_size);
-  Goto(&done);
-
-  BIND(&if_arg1isreceiver);
+  BIND(&throwtypeerror);
   {
-    Label if_iteratorundefined(this), if_iteratornotcallable(this);
-    // Get iterator symbol
-    TNode<Object> iteratorFn =
-        CAST(GetMethod(context, arg1, isolate()->factory()->iterator_symbol(),
-                       &if_iteratorundefined));
-    GotoIf(TaggedIsSmi(iteratorFn), &if_iteratornotcallable);
-    GotoIfNot(IsCallable(iteratorFn), &if_iteratornotcallable);
+    Node* shared =
+        LoadObjectField(target, JSFunction::kSharedFunctionInfoOffset);
+    Node* name = LoadObjectField(shared, SharedFunctionInfo::kNameOffset);
+    ThrowTypeError(context, MessageTemplate::kConstructorNotFunction, name);
+  }
 
-    ConstructByIterable(context, holder, CAST(arg1), iteratorFn, element_size);
-    Goto(&done);
+  BIND(&createtypedarray);
+  {
+    Label if_arg1isbuffer(this), if_arg1istypedarray(this),
+        if_arg1isreceiver(this), if_arg1isnumber(this), done(this);
 
-    BIND(&if_iteratorundefined);
+    Node* argc =
+        ChangeInt32ToIntPtr(Parameter(BuiltinDescriptor::kArgumentsCount));
+    CodeStubArguments args(this, argc);
+    TNode<Object> arg1 = args.GetOptionalArgumentValue(0);
+    TNode<Object> arg2 = args.GetOptionalArgumentValue(1);
+    TNode<Object> arg3 = args.GetOptionalArgumentValue(2);
+
+    ConstructorBuiltinsAssembler constructor_assembler(this->state());
+    TNode<JSTypedArray> holder = CAST(
+        constructor_assembler.EmitFastNewObject(context, target, new_target));
+
+    TNode<Smi> element_size =
+        SmiTag(GetTypedArrayElementSize(LoadElementsKind(holder)));
+
+    GotoIf(TaggedIsSmi(arg1), &if_arg1isnumber);
+    GotoIf(IsJSArrayBuffer(arg1), &if_arg1isbuffer);
+    GotoIf(IsJSTypedArray(arg1), &if_arg1istypedarray);
+    GotoIf(IsJSReceiver(arg1), &if_arg1isreceiver);
+    Goto(&if_arg1isnumber);
+
+    // https://tc39.github.io/ecma262/#sec-typedarray-buffer-byteoffset-length
+    BIND(&if_arg1isbuffer);
     {
-      TNode<HeapObject> array_like = CAST(arg1);
-      TNode<Object> initial_length =
-          GetProperty(context, arg1, LengthStringConstant());
-
-      ConstructByArrayLike(context, holder, array_like, initial_length,
-                           element_size);
+      ConstructByArrayBuffer(context, holder, CAST(arg1), arg2, arg3,
+                             element_size);
       Goto(&done);
     }
 
-    BIND(&if_iteratornotcallable);
-    { ThrowTypeError(context, MessageTemplate::kIteratorSymbolNonCallable); }
+    // https://tc39.github.io/ecma262/#sec-typedarray-typedarray
+    BIND(&if_arg1istypedarray);
+    {
+      TNode<JSTypedArray> typed_array = CAST(arg1);
+      ConstructByTypedArray(context, holder, typed_array, element_size);
+      Goto(&done);
+    }
+
+    // https://tc39.github.io/ecma262/#sec-typedarray-object
+    BIND(&if_arg1isreceiver);
+    {
+      Label if_iteratorundefined(this), if_iteratornotcallable(this);
+      // Get iterator symbol
+      TNode<Object> iteratorFn =
+          CAST(GetMethod(context, arg1, isolate()->factory()->iterator_symbol(),
+                         &if_iteratorundefined));
+      GotoIf(TaggedIsSmi(iteratorFn), &if_iteratornotcallable);
+      GotoIfNot(IsCallable(iteratorFn), &if_iteratornotcallable);
+
+      ConstructByIterable(context, holder, CAST(arg1), iteratorFn,
+                          element_size);
+      Goto(&done);
+
+      BIND(&if_iteratorundefined);
+      {
+        TNode<HeapObject> array_like = CAST(arg1);
+        TNode<Object> initial_length =
+            GetProperty(context, arg1, LengthStringConstant());
+
+        ConstructByArrayLike(context, holder, array_like, initial_length,
+                             element_size);
+        Goto(&done);
+      }
+
+      BIND(&if_iteratornotcallable);
+      { ThrowTypeError(context, MessageTemplate::kIteratorSymbolNonCallable); }
+    }
+
+    // The first argument was a number or fell through and is treated as
+    // a number. https://tc39.github.io/ecma262/#sec-typedarray-length
+    BIND(&if_arg1isnumber);
+    {
+      ConstructByLength(context, holder, arg1, element_size);
+      Goto(&done);
+    }
+
+    BIND(&done);
+    { args.PopAndReturn(holder); }
   }
-
-  // First arg was a number or fell through and will be treated as a number.
-  BIND(&if_arg1isnumber);
-  ConstructByLength(context, holder, arg1, element_size);
-  Goto(&done);
-
-  BIND(&done);
-  args.PopAndReturn(holder);
 }
 
 void TypedArrayBuiltinsAssembler::GenerateTypedArrayPrototypeGetter(

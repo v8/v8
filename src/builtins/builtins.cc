@@ -264,7 +264,6 @@ bool Builtins::IsLazy(int index) {
     case kInterpreterEnterBytecodeDispatch:
     case kInterpreterEntryTrampoline:
     case kPromiseConstructorLazyDeoptContinuation:  // https://crbug/v8/6786.
-    case kTypedArrayConstructor_ConstructStub:  // https://crbug.com/v8/6787.
     case kProxyConstructor:                   // https://crbug.com/v8/6787.
     case kRecordWrite:  // https://crbug.com/chromium/765301.
     case kThrowWasmTrapDivByZero:             // Required by wasm.
@@ -609,7 +608,6 @@ bool Builtins::IsIsolateIndependent(int index) {
     case kToNumeric:
     case kToString:
     case kTypedArrayConstructor:
-    case kTypedArrayConstructor_ConstructStub:
     case kTypedArrayPrototypeByteLength:
     case kTypedArrayPrototypeByteOffset:
     case kTypedArrayPrototypeEntries:

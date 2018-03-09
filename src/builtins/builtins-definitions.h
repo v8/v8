@@ -1089,8 +1089,6 @@ namespace internal {
   TFS(TypedArrayInitializeWithBuffer, kHolder, kLength, kBuffer, kElementSize, \
       kByteOffset)                                                             \
   TFJ(TypedArrayConstructor, SharedFunctionInfo::kDontAdaptArgumentsSentinel)  \
-  TFJ(TypedArrayConstructor_ConstructStub,                                     \
-      SharedFunctionInfo::kDontAdaptArgumentsSentinel)                         \
   CPP(TypedArrayPrototypeBuffer)                                               \
   /* ES6 #sec-get-%typedarray%.prototype.bytelength */                         \
   TFJ(TypedArrayPrototypeByteLength, 0)                                        \
