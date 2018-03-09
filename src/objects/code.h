@@ -64,7 +64,9 @@ class Code : public HeapObject {
   // off-heap instruction stream rather than the on-heap trampoline located
   // at instruction_start.
   inline int InstructionSize();
+#ifdef V8_EMBEDDED_BUILTINS
   int OffHeapInstructionSize();
+#endif
 
   // [relocation_info]: Code relocation information
   DECL_ACCESSORS(relocation_info, ByteArray)
@@ -227,7 +229,9 @@ class Code : public HeapObject {
   // this differs from instruction_start (which would point to the off-heap
   // trampoline instead).
   inline Address InstructionStart();
+#ifdef V8_EMBEDDED_BUILTINS
   Address OffHeapInstructionStart();
+#endif
 
   // Returns the address right after the last instruction.
   inline byte* instruction_end() const;
@@ -236,7 +240,9 @@ class Code : public HeapObject {
   // objects this differs from instruction_end (which would point to the
   // off-heap trampoline instead).
   inline Address InstructionEnd();
+#ifdef V8_EMBEDDED_BUILTINS
   Address OffHeapInstructionEnd();
+#endif
 
   // Returns the size of the instructions, padding, relocation and unwinding
   // information.
