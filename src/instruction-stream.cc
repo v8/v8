@@ -8,58 +8,57 @@
 #include "src/heap/heap.h"
 #include "src/objects-inl.h"
 #include "src/objects/code-inl.h"
+#include "src/snapshot/snapshot.h"
 
 namespace v8 {
 namespace internal {
 
-InstructionStream::InstructionStream(Code* code)
-    : builtin_index_(code->builtin_index()) {
-  DCHECK(Builtins::IsOffHeapBuiltin(code));
-  const size_t page_size = AllocatePageSize();
-  byte_length_ =
-      RoundUp(static_cast<size_t>(code->instruction_size()), page_size);
-
-  bytes_ = static_cast<uint8_t*>(AllocatePages(
-      GetRandomMmapAddr(), byte_length_, page_size, PageAllocator::kReadWrite));
-  CHECK_NOT_NULL(bytes_);
-
-  std::memcpy(bytes_, code->instruction_start(), code->instruction_size());
-  CHECK(SetPermissions(bytes_, byte_length_, PageAllocator::kReadExecute));
+InstructionStream::InstructionStream(uint8_t* bytes, size_t byte_length,
+                                     int builtin_index)
+    : byte_length_(byte_length), bytes_(bytes), builtin_index_(builtin_index) {
+  DCHECK(Builtins::IsBuiltinId(builtin_index_));
+  DCHECK_NOT_NULL(bytes_);
 }
 
-InstructionStream::~InstructionStream() {
-  CHECK(FreePages(bytes_, byte_length_));
+// static
+bool InstructionStream::PcIsOffHeap(Isolate* isolate, Address pc) {
+#ifdef V8_EMBEDDED_BUILTINS
+  const uint8_t* start = isolate->embedded_blob();
+  return start <= pc && pc < start + isolate->embedded_blob_size();
+#else
+  return false;
+#endif
 }
 
 // static
 Code* InstructionStream::TryLookupCode(Isolate* isolate, Address address) {
+#ifdef V8_EMBEDDED_BUILTINS
   DCHECK(FLAG_stress_off_heap_code);
-  // TODO(jgruber,v8:6666): Replace with binary search through range checks
-  // once off-heap code is mapped into a contiguous memory space.
-  for (const InstructionStream* stream : isolate->off_heap_code_) {
-    if (stream->Contains(address)) {
-      return isolate->builtins()->builtin(stream->builtin_index());
+
+  if (!PcIsOffHeap(isolate, address)) return nullptr;
+
+  EmbeddedData d = EmbeddedData::FromBlob(isolate->embedded_blob(),
+                                          isolate->embedded_blob_size());
+
+  int l = 0, r = Builtins::builtin_count;
+  while (l < r) {
+    const int mid = (l + r) / 2;
+    const uint8_t* start = d.InstructionStartOfBuiltin(mid);
+    const uint8_t* end = start + d.InstructionSizeOfBuiltin(mid);
+
+    if (address < start) {
+      r = mid;
+    } else if (address >= end) {
+      l = mid + 1;
+    } else {
+      return isolate->builtins()->builtin(mid);
     }
   }
-  return nullptr;
-}
 
-// static
-InstructionStream* InstructionStream::TryLookupInstructionStream(
-    Isolate* isolate, Code* code) {
-  DCHECK(FLAG_stress_off_heap_code);
-  // TODO(jgruber,v8:6666): Replace with binary search through range checks
-  // once off-heap code is mapped into a contiguous memory space.
-  const int builtin_index = code->builtin_index();
-  DCHECK(Builtins::IsBuiltinId(builtin_index));
-  for (InstructionStream* stream : isolate->off_heap_code_) {
-    if (stream->builtin_index() == builtin_index) return stream;
-  }
+  UNREACHABLE();
+#else
   return nullptr;
-}
-
-bool InstructionStream::Contains(Address address) const {
-  return bytes_ <= address && address < bytes_ + byte_length_;
+#endif
 }
 
 }  // namespace internal

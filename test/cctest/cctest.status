@@ -124,6 +124,16 @@
   'test-serialize/CustomSnapshotDataBlobImmortalImmovableRoots': [PASS, ['mode == debug', SKIP]],
   'test-parsing/ObjectRestNegativeTestSlow': [PASS, ['mode == debug', SKIP]],
 
+  # Temporary for https://crrev.com/c/947969 until https://crrev.com/c/950775
+  # lands. Tests build a new snapshot, in which the constants list doesn't
+  # match what's expected by embedded builtins. This will become irrelevant
+  # once the serialization process changes to pack trampolines into the
+  # snapshot iff explicitly requested.
+  'test-serialize/StartupSerializerOnce': [SKIP],
+  'test-serialize/StartupSerializerTwice': [SKIP],
+  'test-serialize/StartupSerializerOnceRunScript': [SKIP],
+  'test-serialize/StartupSerializerTwiceRunScript': [SKIP],
+
 }],  # ALWAYS
 
 ##############################################################################
