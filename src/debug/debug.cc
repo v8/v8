@@ -1927,7 +1927,7 @@ bool Debug::AllFramesOnStackAreBlackboxed() {
 
 bool Debug::CanBreakAtEntry(Handle<SharedFunctionInfo> shared) {
   // Allow break at entry for builtin functions.
-  if (shared->native()) {
+  if (shared->native() || shared->IsApiFunction()) {
     // Functions that are subject to debugging can have regular breakpoints.
     DCHECK(!shared->IsSubjectToDebugging());
     return true;

@@ -1416,6 +1416,88 @@ TEST(BreakPointBuiltinNewContext) {
   CheckDebuggerUnloaded();
 }
 
+void NoOpFunctionCallback(const v8::FunctionCallbackInfo<v8::Value>& args) {
+  args.GetReturnValue().Set(v8_num(2));
+}
+
+TEST(BreakPointApiFunction) {
+  DebugLocalContext env;
+  v8::HandleScope scope(env->GetIsolate());
+
+  SetDebugEventListener(env->GetIsolate(), DebugEventBreakPointHitCount);
+
+  i::Handle<i::BreakPoint> bp;
+
+  v8::Local<v8::FunctionTemplate> function_template =
+      v8::FunctionTemplate::New(env->GetIsolate(), NoOpFunctionCallback);
+
+  v8::Local<v8::Function> function =
+      function_template->GetFunction(env.context()).ToLocalChecked();
+
+  env->Global()->Set(env.context(), v8_str("f"), function).ToChecked();
+
+  // === Test simple builtin ===
+  break_point_hit_count = 0;
+
+  // Run with breakpoint.
+  bp = SetBreakPoint(function, 0);
+  ExpectInt32("f()", 2);
+  CHECK_EQ(1, break_point_hit_count);
+
+  ExpectInt32("f()", 2);
+  CHECK_EQ(2, break_point_hit_count);
+
+  // Run without breakpoints.
+  ClearBreakPoint(bp);
+  ExpectInt32("f()", 2);
+  CHECK_EQ(2, break_point_hit_count);
+
+  SetDebugEventListener(env->GetIsolate(), nullptr);
+  CheckDebuggerUnloaded();
+}
+
+TEST(BreakPointInlineApiFunction) {
+  i::FLAG_allow_natives_syntax = true;
+  DebugLocalContext env;
+  v8::HandleScope scope(env->GetIsolate());
+
+  SetDebugEventListener(env->GetIsolate(), DebugEventBreakPointHitCount);
+
+  i::Handle<i::BreakPoint> bp;
+
+  v8::Local<v8::FunctionTemplate> function_template =
+      v8::FunctionTemplate::New(env->GetIsolate(), NoOpFunctionCallback);
+
+  v8::Local<v8::Function> function =
+      function_template->GetFunction(env.context()).ToLocalChecked();
+
+  env->Global()->Set(env.context(), v8_str("f"), function).ToChecked();
+  CompileRun("function g() { return 1 +  f(); }");
+
+  // === Test simple builtin ===
+  break_point_hit_count = 0;
+
+  // Run with breakpoint.
+  bp = SetBreakPoint(function, 0);
+  ExpectInt32("g()", 3);
+  CHECK_EQ(1, break_point_hit_count);
+
+  ExpectInt32("g()", 3);
+  CHECK_EQ(2, break_point_hit_count);
+
+  CompileRun("%OptimizeFunctionOnNextCall(g)");
+  ExpectInt32("g()", 3);
+  CHECK_EQ(3, break_point_hit_count);
+
+  // Run without breakpoints.
+  ClearBreakPoint(bp);
+  ExpectInt32("g()", 3);
+  CHECK_EQ(3, break_point_hit_count);
+
+  SetDebugEventListener(env->GetIsolate(), nullptr);
+  CheckDebuggerUnloaded();
+}
+
 // Test that a break point can be set at a return store location.
 TEST(BreakPointConditionBuiltin) {
   i::FLAG_allow_natives_syntax = true;
