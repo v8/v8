@@ -57,7 +57,6 @@ enum ContextLookupFlags {
   V(REFLECT_CONSTRUCT_INDEX, JSFunction, reflect_construct)             \
   V(REFLECT_DEFINE_PROPERTY_INDEX, JSFunction, reflect_define_property) \
   V(REFLECT_DELETE_PROPERTY_INDEX, JSFunction, reflect_delete_property) \
-  V(SPREAD_ITERABLE_INDEX, JSFunction, spread_iterable)                 \
   V(MATH_FLOOR_INDEX, JSFunction, math_floor)                           \
   V(MATH_POW_INDEX, JSFunction, math_pow)                               \
   V(PROMISE_INTERNAL_CONSTRUCTOR_INDEX, JSFunction,                     \

@@ -193,7 +193,7 @@ TEST_F(BytecodeArrayBuilderTest, AllBytecodesGenerated) {
       .CallUndefinedReceiver(reg, pair, 1)
       .CallRuntime(Runtime::kIsArray, reg)
       .CallRuntimeForPair(Runtime::kLoadLookupSlotForCall, reg_list, pair)
-      .CallJSRuntime(Context::SPREAD_ITERABLE_INDEX, reg_list)
+      .CallJSRuntime(Context::OBJECT_IS_FROZEN, reg_list)
       .CallWithSpread(reg, reg_list, 1);
 
   // Emit binary operator invocations.

@@ -601,9 +601,6 @@ TEST(CallRuntime) {
 
       "function f() { return %Add(1, 2) }\n"
       "f();\n",
-
-      "function f() { return %spread_iterable([1]) }\n"
-      "f();\n",
   };
 
   CHECK(CompareTexts(BuildActual(printer, snippets),
