@@ -9,7 +9,6 @@
 #include "src/isolate.h"
 #include "src/macro-assembler-inl.h"
 #include "src/simulator.h"
-#include "src/snapshot/macros.h"
 #include "src/snapshot/snapshot.h"
 
 // To generate the binary files for the test function, enable this section and
@@ -101,6 +100,87 @@ UNINITIALIZED_TEST(VerifyBuiltinsIsolateIndependence) {
         printf("%s %s expected: %d, is: %d\n", Builtins::KindNameOf(i),
                isolate->builtins()->name(i), should_be_isolate_independent,
                is_isolate_independent);
+      }
+    }
+
+    CHECK(!found_mismatch);
+  }
+
+  v8_isolate->Dispose();
+}
+
+UNINITIALIZED_TEST(VerifyBuiltinsOffHeapSafety) {
+  FLAG_stress_off_heap_code = false;  // Disable off-heap trampolines.
+
+  v8::Isolate::CreateParams create_params;
+  create_params.array_buffer_allocator = CcTest::array_buffer_allocator();
+  v8::Isolate* v8_isolate = v8::Isolate::New(create_params);
+
+  {
+    v8::Isolate::Scope isolate_scope(v8_isolate);
+    v8::internal::Isolate* isolate =
+        reinterpret_cast<v8::internal::Isolate*>(v8_isolate);
+    HandleScope handle_scope(isolate);
+
+    Snapshot::EnsureAllBuiltinsAreDeserialized(isolate);
+
+    constexpr int all_real_modes_mask =
+        (1 << (RelocInfo::LAST_REAL_RELOC_MODE + 1)) - 1;
+    constexpr int mode_mask =
+        all_real_modes_mask & ~RelocInfo::ModeMask(RelocInfo::COMMENT) &
+        ~RelocInfo::ModeMask(RelocInfo::INTERNAL_REFERENCE) &
+        ~RelocInfo::ModeMask(RelocInfo::INTERNAL_REFERENCE_ENCODED) &
+        ~RelocInfo::ModeMask(RelocInfo::CONST_POOL) &
+        ~RelocInfo::ModeMask(RelocInfo::VENEER_POOL) &
+        ~RelocInfo::ModeMask(RelocInfo::EXTERNAL_REFERENCE);
+    STATIC_ASSERT(RelocInfo::LAST_REAL_RELOC_MODE == RelocInfo::VENEER_POOL);
+    STATIC_ASSERT(RelocInfo::ModeMask(RelocInfo::COMMENT) ==
+                  (1 << RelocInfo::COMMENT));
+    STATIC_ASSERT(
+        mode_mask ==
+        (RelocInfo::ModeMask(RelocInfo::CODE_TARGET) |
+         RelocInfo::ModeMask(RelocInfo::EMBEDDED_OBJECT) |
+         RelocInfo::ModeMask(RelocInfo::WASM_CONTEXT_REFERENCE) |
+         RelocInfo::ModeMask(RelocInfo::WASM_FUNCTION_TABLE_SIZE_REFERENCE) |
+         RelocInfo::ModeMask(RelocInfo::WASM_GLOBAL_HANDLE) |
+         RelocInfo::ModeMask(RelocInfo::WASM_CALL) |
+         RelocInfo::ModeMask(RelocInfo::JS_TO_WASM_CALL) |
+         RelocInfo::ModeMask(RelocInfo::RUNTIME_ENTRY)));
+
+    constexpr bool kVerbose = false;
+    bool found_mismatch = false;
+    for (int i = 0; i < Builtins::builtin_count; i++) {
+      Code* code = isolate->builtins()->builtin(i);
+
+      if (kVerbose) {
+        printf("%s %s\n", Builtins::KindNameOf(i),
+               isolate->builtins()->name(i));
+      }
+
+      bool is_off_heap_safe = true;
+      for (RelocIterator it(code, mode_mask); !it.done(); it.next()) {
+        is_off_heap_safe = false;
+#ifdef ENABLE_DISASSEMBLER
+        if (kVerbose) {
+          RelocInfo::Mode mode = it.rinfo()->rmode();
+          printf("  %s\n", RelocInfo::RelocModeName(mode));
+        }
+#endif
+      }
+
+      // TODO(jgruber): Remove once we properly set up the on-heap code
+      // trampoline.
+      if (Builtins::IsTooShortForOffHeapTrampoline(i)) is_off_heap_safe = false;
+
+      // Relaxed condition only checks whether the off-heap-safe list is
+      // valid, not whether it is complete. This is to avoid constant work
+      // updating the list.
+      bool should_be_off_heap_safe = Builtins::IsOffHeapSafe(i);
+      if (should_be_off_heap_safe && !is_off_heap_safe) {
+        found_mismatch = true;
+        printf("%s %s expected: %d, is: %d\n", Builtins::KindNameOf(i),
+               isolate->builtins()->name(i), should_be_off_heap_safe,
+               is_off_heap_safe);
       }
     }
 
@@ -221,7 +301,6 @@ TEST(GenerateTestFunctionData) {
   std::ofstream of(TEST_FUNCTION_FILE, std::ios::out | std::ios::binary);
   of.write(reinterpret_cast<char*>(desc.buffer), desc.instr_size);
 }
-#undef __
 #endif  // GENERATE_TEST_FUNCTION_DATA
 
 #if V8_TARGET_ARCH_IA32
@@ -252,12 +331,48 @@ TEST(GenerateTestFunctionData) {
 #error "Unknown architecture."
 #endif
 
-V8_EMBEDDED_RODATA_HEADER(test_string0_bytes)
+// .byte macros to handle small differences across operating systems.
+
+#if defined(V8_OS_MACOSX)
+#define ASM_RODATA_SECTION ".const_data\n"
+#define ASM_TEXT_SECTION ".text\n"
+#define ASM_MANGLE_LABEL "_"
+#define ASM_GLOBAL(NAME) ".globl " ASM_MANGLE_LABEL NAME "\n"
+#elif defined(V8_OS_WIN)
+#define ASM_RODATA_SECTION ".section .rodata\n"
+#define ASM_TEXT_SECTION ".section .text\n"
+#if defined(V8_TARGET_ARCH_X64)
+#define ASM_MANGLE_LABEL ""
+#else
+#define ASM_MANGLE_LABEL "_"
+#endif
+#define ASM_GLOBAL(NAME) ".global " ASM_MANGLE_LABEL NAME "\n"
+#else
+#define ASM_RODATA_SECTION ".section .rodata\n"
+#define ASM_TEXT_SECTION ".section .text\n"
+#define ASM_MANGLE_LABEL ""
+#define ASM_GLOBAL(NAME) ".global " ASM_MANGLE_LABEL NAME "\n"
+#endif
+
+// clang-format off
+#define EMBED_IN_RODATA_HEADER(LABEL)    \
+  __asm__(ASM_RODATA_SECTION             \
+          ASM_GLOBAL(#LABEL)             \
+          ".balign 16\n"                 \
+          ASM_MANGLE_LABEL #LABEL ":\n");
+
+#define EMBED_IN_TEXT_HEADER(LABEL)        \
+    __asm__(ASM_TEXT_SECTION               \
+            ASM_GLOBAL(#LABEL)             \
+            ".balign 16\n"                 \
+            ASM_MANGLE_LABEL #LABEL ":\n");
+
+EMBED_IN_RODATA_HEADER(test_string0_bytes)
 __asm__(".byte 0x30, 0x31, 0x32, 0x33, 0x34, 0x35, 0x36, 0x37\n"
         ".byte 0x38, 0x39, 0x0a, 0x00\n");
 extern "C" V8_ALIGNED(16) const char test_string0_bytes[];
 
-V8_EMBEDDED_TEXT_HEADER(test_function0_bytes)
+EMBED_IN_TEXT_HEADER(test_function0_bytes)
 __asm__(FUNCTION_BYTES);
 extern "C" V8_ALIGNED(16) const char test_function0_bytes[];
 // clang-format on
@@ -281,6 +396,13 @@ TEST(ByteInText) {
 #endif  // #ifndef V8_COMPILER_IS_MSVC
 #undef V8_COMPILER_IS_MSVC
 
+#undef __
+#undef ASM_GLOBAL
+#undef ASM_MANGLE_LABEL
+#undef ASM_RODATA_SECTION
+#undef ASM_TEXT_SECTION
+#undef EMBED_IN_RODATA_HEADER
+#undef EMBED_IN_TEXT_HEADER
 #undef FUNCTION_BYTES
 #undef GENERATE_TEST_FUNCTION_DATA
 #undef TEST_FUNCTION_FILE

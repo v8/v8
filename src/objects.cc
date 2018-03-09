@@ -13966,7 +13966,6 @@ SafepointEntry Code::GetSafepointEntry(Address pc) {
   return table.FindEntry(pc);
 }
 
-#ifdef V8_EMBEDDED_BUILTINS
 int Code::OffHeapInstructionSize() {
   DCHECK(Builtins::IsOffHeapBuiltin(this));
   Isolate* isolate = GetIsolate();
@@ -13993,7 +13992,6 @@ Address Code::OffHeapInstructionEnd() {
       const_cast<uint8_t*>(d.InstructionStartOfBuiltin(builtin_index()) +
                            d.InstructionSizeOfBuiltin(builtin_index())));
 }
-#endif
 
 namespace {
 template <typename Code>
@@ -14129,36 +14127,6 @@ const char* AbstractCode::Kind2String(Kind kind) {
   if (kind == AbstractCode::INTERPRETED_FUNCTION) return "INTERPRETED_FUNCTION";
   UNREACHABLE();
 }
-
-#ifdef V8_EMBEDDED_BUILTINS
-bool Code::IsProcessIndependent() {
-  constexpr int all_real_modes_mask =
-      (1 << (RelocInfo::LAST_REAL_RELOC_MODE + 1)) - 1;
-  constexpr int mode_mask =
-      all_real_modes_mask & ~RelocInfo::ModeMask(RelocInfo::COMMENT) &
-      ~RelocInfo::ModeMask(RelocInfo::INTERNAL_REFERENCE) &
-      ~RelocInfo::ModeMask(RelocInfo::INTERNAL_REFERENCE_ENCODED) &
-      ~RelocInfo::ModeMask(RelocInfo::CONST_POOL) &
-      ~RelocInfo::ModeMask(RelocInfo::VENEER_POOL);
-  STATIC_ASSERT(RelocInfo::LAST_REAL_RELOC_MODE == RelocInfo::VENEER_POOL);
-  STATIC_ASSERT(RelocInfo::ModeMask(RelocInfo::COMMENT) ==
-                (1 << RelocInfo::COMMENT));
-  STATIC_ASSERT(
-      mode_mask ==
-      (RelocInfo::ModeMask(RelocInfo::CODE_TARGET) |
-       RelocInfo::ModeMask(RelocInfo::EMBEDDED_OBJECT) |
-       RelocInfo::ModeMask(RelocInfo::WASM_CONTEXT_REFERENCE) |
-       RelocInfo::ModeMask(RelocInfo::WASM_FUNCTION_TABLE_SIZE_REFERENCE) |
-       RelocInfo::ModeMask(RelocInfo::WASM_GLOBAL_HANDLE) |
-       RelocInfo::ModeMask(RelocInfo::WASM_CALL) |
-       RelocInfo::ModeMask(RelocInfo::JS_TO_WASM_CALL) |
-       RelocInfo::ModeMask(RelocInfo::RUNTIME_ENTRY) |
-       RelocInfo::ModeMask(RelocInfo::EXTERNAL_REFERENCE)));
-
-  RelocIterator it(this, mode_mask);
-  return it.done();
-}
-#endif
 
 Handle<WeakCell> Code::WeakCellFor(Handle<Code> code) {
   DCHECK(code->kind() == OPTIMIZED_FUNCTION);

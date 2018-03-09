@@ -66,17 +66,6 @@ namespace internal {
 
 base::Atomic32 ThreadId::highest_thread_id_ = 0;
 
-#ifdef V8_EMBEDDED_BUILTINS
-extern const uint8_t* DefaultEmbeddedBlob();
-extern uint32_t DefaultEmbeddedBlobSize();
-
-const uint8_t* Isolate::embedded_blob() const { return DefaultEmbeddedBlob(); }
-
-uint32_t Isolate::embedded_blob_size() const {
-  return DefaultEmbeddedBlobSize();
-}
-#endif
-
 int ThreadId::AllocateThreadId() {
   int new_id = base::Relaxed_AtomicIncrement(&highest_thread_id_, 1);
   return new_id;
@@ -2825,11 +2814,45 @@ void PrintBuiltinSizes(Isolate* isolate) {
     const char* name = builtins->name(i);
     const char* kind = Builtins::KindNameOf(i);
     Code* code = builtins->builtin(i);
-    PrintF(stdout, "%s Builtin, %s, %d\n", kind, name, code->InstructionSize());
+    PrintF(stdout, "%s Builtin, %s, %d\n", kind, name,
+           code->instruction_size());
   }
 }
 
 #ifdef V8_EMBEDDED_BUILTINS
+#ifdef DEBUG
+bool BuiltinAliasesOffHeapTrampolineRegister(Isolate* isolate,
+                                             int builtin_index) {
+  switch (Builtins::KindOf(builtin_index)) {
+    case Builtins::CPP:
+    case Builtins::TFC:
+    case Builtins::TFH:
+    case Builtins::TFJ:
+    case Builtins::TFS:
+      break;
+    case Builtins::API:
+    case Builtins::ASM:
+      // TODO(jgruber): Extend checks to remaining kinds.
+      return false;
+  }
+
+  Callable callable = Builtins::CallableFor(
+      isolate, static_cast<Builtins::Name>(builtin_index));
+  CallInterfaceDescriptor descriptor = callable.descriptor();
+
+  if (descriptor.ContextRegister() == kOffHeapTrampolineRegister) {
+    return true;
+  }
+
+  for (int i = 0; i < descriptor.GetRegisterParameterCount(); i++) {
+    Register reg = descriptor.GetRegisterParameter(i);
+    if (reg == kOffHeapTrampolineRegister) return true;
+  }
+
+  return false;
+}
+#endif
+
 void ChangeToOffHeapTrampoline(Isolate* isolate, Handle<Code> code,
                                InstructionStream* stream) {
   DCHECK(Builtins::IsOffHeapSafe(code->builtin_index()));
@@ -2840,6 +2863,8 @@ void ChangeToOffHeapTrampoline(Isolate* isolate, Handle<Code> code,
 
   // Generate replacement code that simply tail-calls the off-heap code.
   MacroAssembler masm(isolate, buffer, buffer_size, CodeObjectRequired::kYes);
+  DCHECK(
+      !BuiltinAliasesOffHeapTrampolineRegister(isolate, code->builtin_index()));
   DCHECK(!masm.has_frame());
   {
     FrameScope scope(&masm, StackFrame::NONE);

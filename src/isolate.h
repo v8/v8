@@ -1250,9 +1250,6 @@ class Isolate {
   BuiltinsConstantsTableBuilder* builtins_constants_table_builder() const {
     return builtins_constants_table_builder_;
   }
-
-  const uint8_t* embedded_blob() const;
-  uint32_t embedded_blob_size() const;
 #endif
 
   void set_array_buffer_allocator(v8::ArrayBuffer::Allocator* allocator) {
