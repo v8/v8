@@ -638,12 +638,14 @@ class LiftoffCompiler {
                              &ExternalReference::wasm_int64_to_float32)
         CASE_TYPE_CONVERSION(F32UConvertI64, F32, I64,
                              &ExternalReference::wasm_uint64_to_float32)
+        CASE_TYPE_CONVERSION(F32ConvertF64, F32, F64, nullptr)
         CASE_TYPE_CONVERSION(F64SConvertI32, F64, I32, nullptr)
         CASE_TYPE_CONVERSION(F64UConvertI32, F64, I32, nullptr)
         CASE_TYPE_CONVERSION(F64SConvertI64, F64, I64,
                              &ExternalReference::wasm_int64_to_float64)
         CASE_TYPE_CONVERSION(F64UConvertI64, F64, I64,
                              &ExternalReference::wasm_uint64_to_float64)
+        CASE_TYPE_CONVERSION(F64ConvertF32, F64, F32, nullptr)
       default:
         return unsupported(decoder, WasmOpcodes::OpcodeName(opcode));
     }

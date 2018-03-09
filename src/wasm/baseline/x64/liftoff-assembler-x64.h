@@ -658,6 +658,9 @@ bool LiftoffAssembler::emit_type_conversion(WasmOpcode opcode,
     case kExprF32UConvertI64:
       Cvtqui2ss(dst.fp(), src.gp(), kScratchRegister);
       return true;
+    case kExprF32ConvertF64:
+      Cvtsd2ss(dst.fp(), src.fp());
+      return true;
     case kExprF64SConvertI32:
       Cvtlsi2sd(dst.fp(), src.gp());
       return true;
@@ -670,6 +673,9 @@ bool LiftoffAssembler::emit_type_conversion(WasmOpcode opcode,
       return true;
     case kExprF64UConvertI64:
       Cvtqui2sd(dst.fp(), src.gp(), kScratchRegister);
+      return true;
+    case kExprF64ConvertF32:
+      Cvtss2sd(dst.fp(), src.fp());
       return true;
     default:
       UNREACHABLE();

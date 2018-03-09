@@ -707,11 +707,17 @@ bool LiftoffAssembler::emit_type_conversion(WasmOpcode opcode,
       Cvtui2ss(dst.fp(), src.gp(), scratch);
       return true;
     }
+    case kExprF32ConvertF64:
+      cvtsd2ss(dst.fp(), src.fp());
+      return true;
     case kExprF64SConvertI32:
       Cvtsi2sd(dst.fp(), src.gp());
       return true;
     case kExprF64UConvertI32:
       LoadUint32(dst.fp(), src.gp());
+      return true;
+    case kExprF64ConvertF32:
+      cvtss2sd(dst.fp(), src.fp());
       return true;
     default:
       return false;
