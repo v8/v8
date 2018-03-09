@@ -270,6 +270,7 @@ bool Heap::CreateInitialMaps() {
 
     ALLOCATE_VARSIZE_MAP(FIXED_DOUBLE_ARRAY_TYPE, fixed_double_array)
     fixed_double_array_map()->set_elements_kind(HOLEY_DOUBLE_ELEMENTS);
+    ALLOCATE_VARSIZE_MAP(FEEDBACK_METADATA_TYPE, feedback_metadata)
     ALLOCATE_VARSIZE_MAP(BYTE_ARRAY_TYPE, byte_array)
     ALLOCATE_VARSIZE_MAP(BYTECODE_ARRAY_TYPE, bytecode_array)
     ALLOCATE_VARSIZE_MAP(FREE_SPACE_TYPE, free_space)
@@ -622,6 +623,11 @@ void Heap::CreateInitialObjects() {
     empty_ordered_hash_set->set(i, Smi::kZero);
   }
   set_empty_ordered_hash_set(*empty_ordered_hash_set);
+
+  // Allocate the empty FeedbackMetadata.
+  Handle<FeedbackMetadata> empty_feedback_metadata =
+      factory->NewFeedbackMetadata(0);
+  set_empty_feedback_metadata(*empty_feedback_metadata);
 
   // Allocate the empty script.
   Handle<Script> script = factory->NewScript(factory->empty_string());

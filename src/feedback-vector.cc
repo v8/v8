@@ -53,16 +53,16 @@ std::ostream& operator<<(std::ostream& os, FeedbackSlotKind kind) {
 }
 
 FeedbackSlotKind FeedbackMetadata::GetKind(FeedbackSlot slot) const {
-  int index = VectorICComputer::index(kReservedIndexCount, slot.ToInt());
-  int data = Smi::ToInt(get(index));
+  int index = VectorICComputer::index(0, slot.ToInt());
+  int data = get(index);
   return VectorICComputer::decode(data, slot.ToInt());
 }
 
 void FeedbackMetadata::SetKind(FeedbackSlot slot, FeedbackSlotKind kind) {
-  int index = VectorICComputer::index(kReservedIndexCount, slot.ToInt());
-  int data = Smi::ToInt(get(index));
+  int index = VectorICComputer::index(0, slot.ToInt());
+  int data = get(index);
   int new_data = VectorICComputer::encode(data, slot.ToInt(), kind);
-  set(index, Smi::FromInt(new_data));
+  set(index, new_data);
 }
 
 // static
@@ -71,10 +71,8 @@ Handle<FeedbackMetadata> FeedbackMetadata::New(Isolate* isolate,
   Factory* factory = isolate->factory();
 
   const int slot_count = spec == nullptr ? 0 : spec->slots();
-  const int slot_kinds_length = VectorICComputer::word_count(slot_count);
-  const int length = slot_kinds_length + kReservedIndexCount;
-  if (length == kReservedIndexCount) {
-    return Handle<FeedbackMetadata>::cast(factory->empty_fixed_array());
+  if (slot_count == 0) {
+    return factory->empty_feedback_metadata();
   }
 #ifdef DEBUG
   for (int i = 0; i < slot_count;) {
@@ -89,28 +87,16 @@ Handle<FeedbackMetadata> FeedbackMetadata::New(Isolate* isolate,
   }
 #endif
 
-  Handle<FixedArray> array = factory->NewFixedArray(length, TENURED);
-  array->set(kSlotsCountIndex, Smi::FromInt(slot_count));
-  // Fill the bit-vector part with zeros.
-  for (int i = 0; i < slot_kinds_length; i++) {
-    array->set(kReservedIndexCount + i, Smi::kZero);
-  }
+  Handle<FeedbackMetadata> metadata = factory->NewFeedbackMetadata(slot_count);
 
-  Handle<FeedbackMetadata> metadata = Handle<FeedbackMetadata>::cast(array);
-
+  // Initialize the slots. The raw data section has already been pre-zeroed in
+  // NewFeedbackMetadata.
   for (int i = 0; i < slot_count; i++) {
     DCHECK(spec);
     FeedbackSlot slot(i);
     FeedbackSlotKind kind = spec->GetKind(slot);
     metadata->SetKind(slot, kind);
   }
-
-  // It's important that the FeedbackMetadata have a COW map, since it's
-  // pointed to by both a SharedFunctionInfo and indirectly by closures through
-  // the FeedbackVector. The serializer uses the COW map type to decide
-  // this object belongs in the startup snapshot and not the partial
-  // snapshot(s).
-  metadata->set_map(isolate->heap()->fixed_cow_array_map());
 
   return metadata;
 }
@@ -190,7 +176,7 @@ const char* FeedbackMetadata::Kind2String(FeedbackSlotKind kind) {
 bool FeedbackMetadata::HasTypeProfileSlot() const {
   FeedbackSlot slot =
       FeedbackVector::ToSlot(FeedbackVectorSpec::kTypeProfileSlotIndex);
-  return slot.ToInt() < this->length() &&
+  return slot.ToInt() < slot_count() &&
          GetKind(slot) == FeedbackSlotKind::kTypeProfile;
 }
 

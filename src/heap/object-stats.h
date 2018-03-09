@@ -29,7 +29,6 @@
   V(EMBEDDED_OBJECT_TYPE)                   \
   V(ENUM_CACHE_TYPE)                        \
   V(ENUM_INDICES_CACHE_TYPE)                \
-  V(FEEDBACK_METADATA_TYPE)                 \
   V(FEEDBACK_VECTOR_ENTRY_TYPE)             \
   V(FEEDBACK_VECTOR_HEADER_TYPE)            \
   V(FEEDBACK_VECTOR_SLOT_CALL_TYPE)         \

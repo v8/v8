@@ -360,6 +360,7 @@ const int kStubMinorKeyBits = kSmiValueSize - kStubMajorKeyBits - 1;
   V(FIXED_BIGUINT64_ARRAY_TYPE)                                 \
                                                                 \
   V(FIXED_DOUBLE_ARRAY_TYPE)                                    \
+  V(FEEDBACK_METADATA_TYPE)                                     \
   V(FILLER_TYPE)                                                \
                                                                 \
   V(ACCESS_CHECK_INFO_TYPE)                                     \
@@ -710,6 +711,7 @@ enum InstanceType : uint16_t {
   FIXED_BIGINT64_ARRAY_TYPE,
   FIXED_BIGUINT64_ARRAY_TYPE,  // LAST_FIXED_TYPED_ARRAY_TYPE
   FIXED_DOUBLE_ARRAY_TYPE,
+  FEEDBACK_METADATA_TYPE,
   FILLER_TYPE,  // LAST_DATA_TYPE
 
   // Structs.

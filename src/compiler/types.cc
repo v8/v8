@@ -265,6 +265,7 @@ Type::bitset BitsetType::Lub(i::Map* map) {
     case FIXED_ARRAY_TYPE:
     case HASH_TABLE_TYPE:
     case FIXED_DOUBLE_ARRAY_TYPE:
+    case FEEDBACK_METADATA_TYPE:
     case BYTE_ARRAY_TYPE:
     case BYTECODE_ARRAY_TYPE:
     case BOILERPLATE_DESCRIPTION_TYPE:

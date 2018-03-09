@@ -306,6 +306,13 @@ Handle<FixedArrayBase> Factory::NewFixedDoubleArrayWithHoles(
   return array;
 }
 
+Handle<FeedbackMetadata> Factory::NewFeedbackMetadata(int slot_count) {
+  DCHECK_LE(0, slot_count);
+  CALL_HEAP_FUNCTION(isolate(),
+                     isolate()->heap()->AllocateFeedbackMetadata(slot_count),
+                     FeedbackMetadata);
+}
+
 Handle<FrameArray> Factory::NewFrameArray(int number_of_frames,
                                           PretenureFlag pretenure) {
   DCHECK_LE(0, number_of_frames);
@@ -2542,51 +2549,53 @@ Handle<SharedFunctionInfo> Factory::NewSharedFunctionInfo(
 
   Handle<Map> map = shared_function_info_map();
   Handle<SharedFunctionInfo> share = New<SharedFunctionInfo>(map, OLD_SPACE);
+  {
+    DisallowHeapAllocation no_allocation;
 
-  // Set pointer fields.
-  share->set_raw_name(has_shared_name
-                          ? *shared_name
-                          : SharedFunctionInfo::kNoSharedNameSentinel);
-  Handle<Code> code;
-  if (!maybe_code.ToHandle(&code)) {
-    code = BUILTIN_CODE(isolate(), Illegal);
-  }
-  Object* function_data = (Builtins::IsBuiltinId(maybe_builtin_index) &&
-                           Builtins::IsLazy(maybe_builtin_index))
-                              ? Smi::FromInt(maybe_builtin_index)
-                              : Object::cast(*undefined_value());
-  share->set_function_data(function_data, SKIP_WRITE_BARRIER);
-  share->set_code(*code);
-  share->set_scope_info(ScopeInfo::Empty(isolate()));
-  share->set_outer_scope_info(*the_hole_value());
-  DCHECK(!Builtins::IsLazy(Builtins::kConstructedNonConstructable));
-  Handle<Code> construct_stub =
-      is_constructor ? isolate()->builtins()->JSConstructStubGeneric()
-                     : BUILTIN_CODE(isolate(), ConstructedNonConstructable);
-  share->SetConstructStub(*construct_stub);
-  share->set_script(*undefined_value(), SKIP_WRITE_BARRIER);
-  share->set_debug_info(Smi::kZero, SKIP_WRITE_BARRIER);
-  share->set_function_identifier(*undefined_value(), SKIP_WRITE_BARRIER);
-  Handle<FeedbackMetadata> feedback_metadata = FeedbackMetadata::New(isolate());
-  share->set_feedback_metadata(*feedback_metadata, SKIP_WRITE_BARRIER);
-  share->set_function_literal_id(FunctionLiteral::kIdTypeInvalid);
+    // Set pointer fields.
+    share->set_raw_name(has_shared_name
+                            ? *shared_name
+                            : SharedFunctionInfo::kNoSharedNameSentinel);
+    Handle<Code> code;
+    if (!maybe_code.ToHandle(&code)) {
+      code = BUILTIN_CODE(isolate(), Illegal);
+    }
+    Object* function_data = (Builtins::IsBuiltinId(maybe_builtin_index) &&
+                             Builtins::IsLazy(maybe_builtin_index))
+                                ? Smi::FromInt(maybe_builtin_index)
+                                : Object::cast(*undefined_value());
+    share->set_function_data(function_data, SKIP_WRITE_BARRIER);
+    share->set_code(*code);
+    share->set_scope_info(ScopeInfo::Empty(isolate()));
+    share->set_outer_scope_info(*the_hole_value());
+    DCHECK(!Builtins::IsLazy(Builtins::kConstructedNonConstructable));
+    Handle<Code> construct_stub =
+        is_constructor ? isolate()->builtins()->JSConstructStubGeneric()
+                       : BUILTIN_CODE(isolate(), ConstructedNonConstructable);
+    share->SetConstructStub(*construct_stub);
+    share->set_script(*undefined_value(), SKIP_WRITE_BARRIER);
+    share->set_debug_info(Smi::kZero, SKIP_WRITE_BARRIER);
+    share->set_function_identifier(*undefined_value(), SKIP_WRITE_BARRIER);
+    share->set_feedback_metadata(isolate()->heap()->empty_feedback_metadata(),
+                                 SKIP_WRITE_BARRIER);
+    share->set_function_literal_id(FunctionLiteral::kIdTypeInvalid);
 #if V8_SFI_HAS_UNIQUE_ID
-  share->set_unique_id(isolate()->GetNextUniqueSharedFunctionInfoId());
+    share->set_unique_id(isolate()->GetNextUniqueSharedFunctionInfoId());
 #endif
 
-  // Set integer fields (smi or int, depending on the architecture).
-  share->set_length(0);
-  share->set_internal_formal_parameter_count(0);
-  share->set_expected_nof_properties(0);
-  share->set_start_position_and_type(0);
-  share->set_end_position(0);
-  share->set_function_token_position(0);
-  // All compiler hints default to false or 0.
-  share->set_compiler_hints(0);
-  share->set_kind(kind);
+    // Set integer fields (smi or int, depending on the architecture).
+    share->set_length(0);
+    share->set_internal_formal_parameter_count(0);
+    share->set_expected_nof_properties(0);
+    share->set_start_position_and_type(0);
+    share->set_end_position(0);
+    share->set_function_token_position(0);
+    // All compiler hints default to false or 0.
+    share->set_compiler_hints(0);
+    share->set_kind(kind);
 
-  share->clear_padding();
-
+    share->clear_padding();
+  }
   // Link into the list.
   Handle<Object> new_noscript_list =
       FixedArrayOfWeakCells::Add(noscript_shared_function_infos(), share);

@@ -254,8 +254,7 @@ void EnsureFeedbackMetadata(CompilationInfo* compilation_info,
   // vectors for a different configuration, hence we also recreate a new vector
   // when the function is not compiled (i.e. no code was serialized).
 
-  // TODO(mvstanton): reintroduce is_empty() predicate to feedback_metadata().
-  if (compilation_info->shared_info()->feedback_metadata()->length() == 0 ||
+  if (compilation_info->shared_info()->feedback_metadata()->is_empty() ||
       !compilation_info->shared_info()->is_compiled()) {
     Handle<FeedbackMetadata> feedback_metadata = FeedbackMetadata::New(
         isolate, compilation_info->feedback_vector_spec());

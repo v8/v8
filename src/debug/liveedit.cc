@@ -847,8 +847,9 @@ void LiveEdit::ReplaceFunctionCode(
         new_shared_info->feedback_metadata());
     shared_info->set_feedback_metadata(*new_feedback_metadata);
   } else {
-    shared_info->set_feedback_metadata(
-        FeedbackMetadata::cast(isolate->heap()->empty_fixed_array()));
+    // Use an empty FeedbackMetadata.
+    Handle<FeedbackMetadata> feedback_metadata = FeedbackMetadata::New(isolate);
+    shared_info->set_feedback_metadata(*feedback_metadata);
   }
 
   int start_position = compile_info_wrapper.GetStartPosition();

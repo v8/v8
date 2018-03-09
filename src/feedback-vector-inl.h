@@ -19,21 +19,36 @@
 namespace v8 {
 namespace internal {
 
+INT32_ACCESSORS(FeedbackMetadata, slot_count, kSlotCountOffset)
+
+int32_t FeedbackMetadata::synchronized_slot_count() const {
+  return static_cast<int32_t>(
+      base::Acquire_Load(reinterpret_cast<const base::AtomicWord*>(
+          FIELD_ADDR_CONST(this, kSlotCountOffset))));
+}
+
 // static
 FeedbackMetadata* FeedbackMetadata::cast(Object* obj) {
   DCHECK(obj->IsFeedbackMetadata());
   return reinterpret_cast<FeedbackMetadata*>(obj);
 }
 
-bool FeedbackMetadata::is_empty() const {
-  if (length() == 0) return true;
-  return false;
+int32_t FeedbackMetadata::get(int index) const {
+  DCHECK(index >= 0 && index < length());
+  int offset = kHeaderSize + index * kInt32Size;
+  return READ_INT32_FIELD(this, offset);
 }
 
-int FeedbackMetadata::slot_count() const {
-  if (length() == 0) return 0;
-  DCHECK_GT(length(), kReservedIndexCount);
-  return Smi::ToInt(get(kSlotsCountIndex));
+void FeedbackMetadata::set(int index, int32_t value) {
+  DCHECK(index >= 0 && index < length());
+  int offset = kHeaderSize + index * kInt32Size;
+  WRITE_INT32_FIELD(this, offset, value);
+}
+
+bool FeedbackMetadata::is_empty() const { return slot_count() == 0; }
+
+int FeedbackMetadata::length() const {
+  return FeedbackMetadata::length(slot_count());
 }
 
 // static

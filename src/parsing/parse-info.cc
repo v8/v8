@@ -77,7 +77,7 @@ ParseInfo::ParseInfo(Handle<SharedFunctionInfo> shared)
   // has the appropriate slots.
   set_collect_type_profile(
       isolate->is_collecting_type_profile() &&
-      (shared->feedback_metadata()->length() == 0
+      (shared->feedback_metadata()->is_empty()
            ? script->IsUserJavaScript()
            : shared->feedback_metadata()->HasTypeProfileSlot()));
   if (block_coverage_enabled() && script->IsUserJavaScript()) {

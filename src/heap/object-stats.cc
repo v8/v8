@@ -682,11 +682,6 @@ void ObjectStatsCollectorImpl::RecordVirtualSharedFunctionInfoDetails(
     RecordSimpleVirtualObjectStats(
         nullptr, info, ObjectStats::UNCOMPILED_SHARED_FUNCTION_INFO_TYPE);
   }
-  // SharedFunctonInfo::feedback_metadata() is a COW array.
-  FeedbackMetadata* fm = FeedbackMetadata::cast(info->feedback_metadata());
-  RecordVirtualObjectStats(info, fm, ObjectStats::FEEDBACK_METADATA_TYPE,
-                           fm->Size(), ObjectStats::kNoOverAllocation,
-                           kIgnoreCow);
 }
 
 void ObjectStatsCollectorImpl::RecordVirtualJSFunctionDetails(

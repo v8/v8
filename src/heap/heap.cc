@@ -4081,6 +4081,24 @@ AllocationResult Heap::AllocateRawFixedDoubleArray(int length,
   return object;
 }
 
+AllocationResult Heap::AllocateFeedbackMetadata(int slot_count) {
+  HeapObject* result = nullptr;
+  int size = FeedbackMetadata::SizeFor(slot_count);
+  AllocationSpace space = SelectSpace(TENURED);
+
+  AllocationResult allocation = AllocateRaw(size, space);
+  if (!allocation.To(&result)) return allocation;
+
+  result->set_map_after_allocation(feedback_metadata_map(), SKIP_WRITE_BARRIER);
+  FeedbackMetadata::cast(result)->set_slot_count(slot_count);
+
+  // Initialize the data section to 0.
+  int data_size = size - FeedbackMetadata::kHeaderSize;
+  byte* data_start = result->address() + FeedbackMetadata::kHeaderSize;
+  memset(data_start, 0, data_size);
+  return result;
+}
+
 AllocationResult Heap::AllocateRawFeedbackVector(int length,
                                                  PretenureFlag pretenure) {
   DCHECK_LE(0, length);

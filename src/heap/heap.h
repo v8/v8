@@ -107,6 +107,7 @@ using v8::MemoryPressureLevel;
   V(Map, debug_evaluate_context_map, DebugEvaluateContextMap)                  \
   V(Map, script_context_table_map, ScriptContextTableMap)                      \
   /* Maps */                                                                   \
+  V(Map, feedback_metadata_map, FeedbackMetadataArrayMap)                      \
   V(Map, array_list_map, ArrayListMap)                                         \
   V(Map, bigint_map, BigIntMap)                                                \
   V(Map, boilerplate_description_map, BoilerplateDescriptionMap)               \
@@ -211,6 +212,7 @@ using v8::MemoryPressureLevel;
     EmptySlowElementDictionary)                                                \
   V(FixedArray, empty_ordered_hash_map, EmptyOrderedHashMap)                   \
   V(FixedArray, empty_ordered_hash_set, EmptyOrderedHashSet)                   \
+  V(FeedbackMetadata, empty_feedback_metadata, EmptyFeedbackMetadata)          \
   V(PropertyCell, empty_property_cell, EmptyPropertyCell)                      \
   V(WeakCell, empty_weak_cell, EmptyWeakCell)                                  \
   V(Cell, invalid_prototype_validity_cell, InvalidPrototypeValidityCell)       \
@@ -2305,6 +2307,9 @@ class Heap {
   // Allocates a fixed double array with uninitialized values. Returns
   MUST_USE_RESULT AllocationResult AllocateUninitializedFixedDoubleArray(
       int length, PretenureFlag pretenure = NOT_TENURED);
+
+  // Allocates a FeedbackMedata object and zeroes the data section.
+  MUST_USE_RESULT AllocationResult AllocateFeedbackMetadata(int slot_count);
 
   // Allocate empty fixed array like objects.
   MUST_USE_RESULT AllocationResult AllocateEmptyFixedArray();

@@ -412,19 +412,21 @@ class V8_EXPORT_PRIVATE FeedbackVectorSpec {
   ZoneVector<unsigned char> slot_kinds_;
 };
 
-// The shape of the FeedbackMetadata is an array with:
-// 0: slot_count
-// 1: names table
-// 2: parameters table
-// 3..N: slot kinds packed into a bit vector
-//
-class FeedbackMetadata : public FixedArray {
+// FeedbackMetadata is an array-like object with a slot count (indicating how
+// many slots are stored). We save space by packing several slots into an array
+// of int32 data. The length is never stored - it is always calculated from
+// slot_count. All instances are created through the static New function, and
+// the number of slots is static once an instance is created.
+class FeedbackMetadata : public HeapObject {
  public:
   // Casting.
   static inline FeedbackMetadata* cast(Object* obj);
 
-  static const int kSlotsCountIndex = 0;
-  static const int kReservedIndexCount = 1;
+  // The number of slots that this metadata contains. Stored as an int32.
+  DECL_INT32_ACCESSORS(slot_count)
+
+  // Get slot_count using an acquire load.
+  inline int32_t synchronized_slot_count() const;
 
   // Returns number of feedback vector elements used by given slot kind.
   static inline int GetSlotSize(FeedbackSlotKind kind);
@@ -432,9 +434,6 @@ class FeedbackMetadata : public FixedArray {
   bool SpecDiffersFrom(const FeedbackVectorSpec* other_spec) const;
 
   inline bool is_empty() const;
-
-  // Returns number of slots in the vector.
-  inline int slot_count() const;
 
   // Returns slot kind for given slot.
   FeedbackSlotKind GetKind(FeedbackSlot slot) const;
@@ -449,12 +448,38 @@ class FeedbackMetadata : public FixedArray {
 #endif  // OBJECT_PRINT
 
   DECL_PRINTER(FeedbackMetadata)
+  DECL_VERIFIER(FeedbackMetadata)
 
   static const char* Kind2String(FeedbackSlotKind kind);
   bool HasTypeProfileSlot() const;
 
+  // Garbage collection support.
+  // This includes any necessary padding at the end of the object for pointer
+  // size alignment.
+  static int SizeFor(int slot_count) {
+    return OBJECT_POINTER_ALIGN(kHeaderSize + length(slot_count) * kInt32Size);
+  }
+
+  static const int kSlotCountOffset = HeapObject::kHeaderSize;
+  static const int kHeaderSize = kSlotCountOffset + kInt32Size;
+
+  class BodyDescriptor;
+  // No weak fields.
+  typedef BodyDescriptor BodyDescriptorWeak;
+
  private:
   friend class AccessorAssembler;
+
+  // Raw accessors to the encoded slot data.
+  inline int32_t get(int index) const;
+  inline void set(int index, int32_t value);
+
+  // The number of int32 data fields needed to store {slot_count} slots.
+  // Does not include any extra padding for pointer size alignment.
+  static int length(int slot_count) {
+    return VectorICComputer::word_count(slot_count);
+  }
+  inline int length() const;
 
   static const int kFeedbackSlotKindBits = 5;
   STATIC_ASSERT(static_cast<int>(FeedbackSlotKind::kKindsNumber) <
@@ -462,8 +487,8 @@ class FeedbackMetadata : public FixedArray {
 
   void SetKind(FeedbackSlot slot, FeedbackSlotKind kind);
 
-  typedef BitSetComputer<FeedbackSlotKind, kFeedbackSlotKindBits, kSmiValueSize,
-                         uint32_t>
+  typedef BitSetComputer<FeedbackSlotKind, kFeedbackSlotKindBits,
+                         kInt32Size * kBitsPerByte, uint32_t>
       VectorICComputer;
 
   DISALLOW_IMPLICIT_CONSTRUCTORS(FeedbackMetadata);

@@ -139,6 +139,8 @@ class V8_EXPORT_PRIVATE Factory final {
       int size,
       PretenureFlag pretenure = NOT_TENURED);
 
+  Handle<FeedbackMetadata> NewFeedbackMetadata(int slot_count);
+
   Handle<FrameArray> NewFrameArray(int number_of_frames,
                                    PretenureFlag pretenure = NOT_TENURED);
 

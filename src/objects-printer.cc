@@ -255,7 +255,9 @@ void HeapObject::HeapObjectPrint(std::ostream& os) {  // NOLINT
     case SCOPE_INFO_TYPE:
       ScopeInfo::cast(this)->ScopeInfoPrint(os);
       break;
-
+    case FEEDBACK_METADATA_TYPE:
+      FeedbackMetadata::cast(this)->FeedbackMetadataPrint(os);
+      break;
     default:
       os << "UNKNOWN TYPE " << map()->instance_type();
       UNREACHABLE();
@@ -756,13 +758,8 @@ void FeedbackMetadata::Print() {
   os << std::flush;
 }
 
-void FeedbackMetadata::FeedbackMetadataPrint(std::ostream& os) {  // NOLINT
+void FeedbackMetadata::FeedbackMetadataPrint(std::ostream& os) {
   HeapObject::PrintHeader(os, "FeedbackMetadata");
-  os << "\n - length: " << length();
-  if (length() == 0) {
-    os << " (empty)\n";
-    return;
-  }
   os << "\n - slot_count: " << slot_count();
 
   FeedbackMetadataIterator iter(this);

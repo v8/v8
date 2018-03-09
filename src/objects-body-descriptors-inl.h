@@ -268,6 +268,20 @@ class FixedTypedArrayBase::BodyDescriptor final : public BodyDescriptorBase {
   }
 };
 
+class FeedbackMetadata::BodyDescriptor final : public BodyDescriptorBase {
+ public:
+  static bool IsValidSlot(HeapObject* obj, int offset) { return false; }
+
+  template <typename ObjectVisitor>
+  static inline void IterateBody(HeapObject* obj, int object_size,
+                                 ObjectVisitor* v) {}
+
+  static inline int SizeOf(Map* map, HeapObject* obj) {
+    return FeedbackMetadata::SizeFor(
+        FeedbackMetadata::cast(obj)->synchronized_slot_count());
+  }
+};
+
 class FeedbackVector::BodyDescriptor final : public BodyDescriptorBase {
  public:
   static bool IsValidSlot(HeapObject* obj, int offset) {
@@ -460,6 +474,8 @@ ReturnType BodyDescriptorApply(InstanceType type, T1 p1, T2 p2, T3 p3) {
       return Op::template apply<FixedArray::BodyDescriptor>(p1, p2, p3);
     case FIXED_DOUBLE_ARRAY_TYPE:
       return ReturnType();
+    case FEEDBACK_METADATA_TYPE:
+      return Op::template apply<FeedbackMetadata::BodyDescriptor>(p1, p2, p3);
     case PROPERTY_ARRAY_TYPE:
       return Op::template apply<PropertyArray::BodyDescriptor>(p1, p2, p3);
     case DESCRIPTOR_ARRAY_TYPE:

@@ -129,6 +129,9 @@ void HeapObject::HeapObjectVerify() {
     case FIXED_DOUBLE_ARRAY_TYPE:
       FixedDoubleArray::cast(this)->FixedDoubleArrayVerify();
       break;
+    case FEEDBACK_METADATA_TYPE:
+      FeedbackMetadata::cast(this)->FeedbackMetadataVerify();
+      break;
     case BYTE_ARRAY_TYPE:
       ByteArray::cast(this)->ByteArrayVerify();
       break;
@@ -549,6 +552,20 @@ void FixedDoubleArray::FixedDoubleArrayVerify() {
       unexpected ^= uint64_t{0x0008000000000000};
       CHECK((value & uint64_t{0x7FF8000000000000}) != unexpected ||
             (value & uint64_t{0x0007FFFFFFFFFFFF}) == uint64_t{0});
+    }
+  }
+}
+
+void FeedbackMetadata::FeedbackMetadataVerify() {
+  if (slot_count() == 0) {
+    CHECK_EQ(GetHeap()->empty_feedback_metadata(), this);
+  } else {
+    FeedbackMetadataIterator iter(this);
+    while (iter.HasNext()) {
+      iter.Next();
+      FeedbackSlotKind kind = iter.kind();
+      CHECK_NE(FeedbackSlotKind::kInvalid, kind);
+      CHECK_GT(FeedbackSlotKind::kKindsNumber, kind);
     }
   }
 }
