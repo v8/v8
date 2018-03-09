@@ -12166,7 +12166,6 @@ void JSFunction::MarkForOptimization(ConcurrencyMode mode) {
     mode = ConcurrencyMode::kNotConcurrent;
   }
 
-  DCHECK(IsInterpreted());
   DCHECK(!IsOptimized());
   DCHECK(!HasOptimizedCode());
   DCHECK(shared()->allows_lazy_compilation() ||
@@ -12188,6 +12187,12 @@ void JSFunction::MarkForOptimization(ConcurrencyMode mode) {
     }
   }
 
+  if (!IsInterpreted()) {
+    // For non I+TF path, install a shim which checks the optimization marker.
+    // No write barrier required, since the builtin is part of the root set.
+    set_code_no_write_barrier(
+        isolate->builtins()->builtin(Builtins::kCheckOptimizationMarker));
+  }
   SetOptimizationMarker(mode == ConcurrencyMode::kConcurrent
                             ? OptimizationMarker::kCompileOptimizedConcurrent
                             : OptimizationMarker::kCompileOptimized);

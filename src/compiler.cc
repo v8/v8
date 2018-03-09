@@ -703,10 +703,11 @@ MaybeHandle<Code> GetOptimizedCode(Handle<JSFunction> function,
 
       // Set the optimization marker and return a code object which checks it.
       function->SetOptimizationMarker(OptimizationMarker::kInOptimizationQueue);
-      DCHECK(function->IsInterpreted() ||
-             (!function->is_compiled() && function->shared()->IsInterpreted()));
-      DCHECK(function->shared()->HasBytecodeArray());
-      return BUILTIN_CODE(isolate, InterpreterEntryTrampoline);
+      if (function->IsInterpreted()) {
+        return BUILTIN_CODE(isolate, InterpreterEntryTrampoline);
+      } else {
+        return BUILTIN_CODE(isolate, CheckOptimizationMarker);
+      }
     }
   } else {
     if (GetOptimizedCodeNow(job.get(), isolate))

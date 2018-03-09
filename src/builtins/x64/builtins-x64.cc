@@ -1280,6 +1280,37 @@ void Builtins::Generate_InterpreterEnterBytecodeDispatch(MacroAssembler* masm) {
   Generate_InterpreterEnterBytecode(masm);
 }
 
+void Builtins::Generate_CheckOptimizationMarker(MacroAssembler* masm) {
+  // ----------- S t a t e -------------
+  //  -- rax : argument count (preserved for callee)
+  //  -- rdx : new target (preserved for callee)
+  //  -- rdi : target function (preserved for callee)
+  // -----------------------------------
+  Register closure = rdi;
+
+  // Get the feedback vector.
+  Register feedback_vector = rbx;
+  __ movp(feedback_vector,
+          FieldOperand(closure, JSFunction::kFeedbackCellOffset));
+  __ movp(feedback_vector, FieldOperand(feedback_vector, Cell::kValueOffset));
+
+  // The feedback vector must be defined.
+  if (FLAG_debug_code) {
+    __ CompareRoot(feedback_vector, Heap::kUndefinedValueRootIndex);
+    __ Assert(not_equal, AbortReason::kExpectedFeedbackVector);
+  }
+
+  // Is there an optimization marker or optimized code in the feedback vector?
+  MaybeTailCallOptimizedCodeSlot(masm, feedback_vector, rcx, r14, r15);
+
+  // Otherwise, tail call the SFI code.
+  static_assert(kJavaScriptCallCodeStartRegister == rcx, "ABI mismatch");
+  __ movp(rcx, FieldOperand(rdi, JSFunction::kSharedFunctionInfoOffset));
+  __ movp(rcx, FieldOperand(rcx, SharedFunctionInfo::kCodeOffset));
+  __ leap(rcx, FieldOperand(rcx, Code::kHeaderSize));
+  __ jmp(rcx);
+}
+
 // TODO(jupvfranco): investigate whether there is any case where the CompileLazy
 // builtin does not set the code field in the JS function. If there isn't then
 // we do not need this builtin and can jump directly to CompileLazy.
