@@ -256,6 +256,22 @@
           ]
         },
         {
+          "name": "StringAtComparison",
+          "main": "run.js",
+          "resources": [ "string-stringat-comp.js" ],
+          "test_flags": [ "string-stringat-comp" ],
+          "results_regexp": "^%s\\-Strings\\(Score\\): (.+)$",
+          "run_count": 1,
+          "tests": [
+            {"name": "charCodeAt_const"},
+            {"name": "charCodeAt_both"},
+            {"name": "charAt_const"},
+            {"name": "charAt_never"},
+            {"name": "charAt_both"},
+            {"name": "stringIndex_const"}
+          ]
+        },
+        {
           "name": "StringSubstring",
           "main": "run.js",
           "resources": [ "string-substring.js" ],
