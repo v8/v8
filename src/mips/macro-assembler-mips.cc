@@ -1167,47 +1167,54 @@ void TurboAssembler::Usdc1(FPURegister fd, const MemOperand& rs,
 void TurboAssembler::Ldc1(FPURegister fd, const MemOperand& src) {
   // Workaround for non-8-byte alignment of HeapNumber, convert 64-bit
   // load to two 32-bit loads.
-  BlockTrampolinePoolScope block_trampoline_pool(this);
-  DCHECK(Register::kMantissaOffset <= 4 && Register::kExponentOffset <= 4);
-  MemOperand tmp = src;
-  AdjustBaseAndOffset(tmp, OffsetAccessType::TWO_ACCESSES);
-  lwc1(fd, MemOperand(tmp.rm(), tmp.offset() + Register::kMantissaOffset));
-  if (IsFp32Mode()) {  // fp32 mode.
-    FPURegister nextfpreg = FPURegister::from_code(fd.code() + 1);
-    lwc1(nextfpreg,
+  {
+    BlockTrampolinePoolScope block_trampoline_pool(this);
+    DCHECK(Register::kMantissaOffset <= 4 && Register::kExponentOffset <= 4);
+    MemOperand tmp = src;
+    AdjustBaseAndOffset(tmp, OffsetAccessType::TWO_ACCESSES);
+    lwc1(fd, MemOperand(tmp.rm(), tmp.offset() + Register::kMantissaOffset));
+    if (IsFp32Mode()) {  // fp32 mode.
+      FPURegister nextfpreg = FPURegister::from_code(fd.code() + 1);
+      lwc1(nextfpreg,
+           MemOperand(tmp.rm(), tmp.offset() + Register::kExponentOffset));
+    } else {
+      DCHECK(IsFp64Mode() || IsFpxxMode());
+      // Currently we support FPXX and FP64 on Mips32r2 and Mips32r6
+      DCHECK(IsMipsArchVariant(kMips32r2) || IsMipsArchVariant(kMips32r6));
+      UseScratchRegisterScope temps(this);
+      Register scratch = temps.Acquire();
+      DCHECK(src.rm() != scratch);
+      lw(scratch,
          MemOperand(tmp.rm(), tmp.offset() + Register::kExponentOffset));
-  } else {
-    DCHECK(IsFp64Mode() || IsFpxxMode());
-    // Currently we support FPXX and FP64 on Mips32r2 and Mips32r6
-    DCHECK(IsMipsArchVariant(kMips32r2) || IsMipsArchVariant(kMips32r6));
-    UseScratchRegisterScope temps(this);
-    Register scratch = temps.Acquire();
-    DCHECK(src.rm() != scratch);
-    lw(scratch, MemOperand(tmp.rm(), tmp.offset() + Register::kExponentOffset));
-    Mthc1(scratch, fd);
+      Mthc1(scratch, fd);
+    }
   }
+  CheckTrampolinePoolQuick(1);
 }
 
 void TurboAssembler::Sdc1(FPURegister fd, const MemOperand& src) {
   // Workaround for non-8-byte alignment of HeapNumber, convert 64-bit
   // store to two 32-bit stores.
-  BlockTrampolinePoolScope block_trampoline_pool(this);
-  DCHECK(Register::kMantissaOffset <= 4 && Register::kExponentOffset <= 4);
-  MemOperand tmp = src;
-  AdjustBaseAndOffset(tmp, OffsetAccessType::TWO_ACCESSES);
-  swc1(fd, MemOperand(tmp.rm(), tmp.offset() + Register::kMantissaOffset));
-  if (IsFp32Mode()) {  // fp32 mode.
-    FPURegister nextfpreg = FPURegister::from_code(fd.code() + 1);
-    swc1(nextfpreg,
-         MemOperand(tmp.rm(), tmp.offset() + Register::kExponentOffset));
-  } else {
-    DCHECK(IsFp64Mode() || IsFpxxMode());
-    // Currently we support FPXX and FP64 on Mips32r2 and Mips32r6
-    DCHECK(IsMipsArchVariant(kMips32r2) || IsMipsArchVariant(kMips32r6));
-    DCHECK(src.rm() != t8);
-    Mfhc1(t8, fd);
-    sw(t8, MemOperand(tmp.rm(), tmp.offset() + Register::kExponentOffset));
+  {
+    BlockTrampolinePoolScope block_trampoline_pool(this);
+    DCHECK(Register::kMantissaOffset <= 4 && Register::kExponentOffset <= 4);
+    MemOperand tmp = src;
+    AdjustBaseAndOffset(tmp, OffsetAccessType::TWO_ACCESSES);
+    swc1(fd, MemOperand(tmp.rm(), tmp.offset() + Register::kMantissaOffset));
+    if (IsFp32Mode()) {  // fp32 mode.
+      FPURegister nextfpreg = FPURegister::from_code(fd.code() + 1);
+      swc1(nextfpreg,
+           MemOperand(tmp.rm(), tmp.offset() + Register::kExponentOffset));
+    } else {
+      DCHECK(IsFp64Mode() || IsFpxxMode());
+      // Currently we support FPXX and FP64 on Mips32r2 and Mips32r6
+      DCHECK(IsMipsArchVariant(kMips32r2) || IsMipsArchVariant(kMips32r6));
+      DCHECK(src.rm() != t8);
+      Mfhc1(t8, fd);
+      sw(t8, MemOperand(tmp.rm(), tmp.offset() + Register::kExponentOffset));
+    }
   }
+  CheckTrampolinePoolQuick(1);
 }
 
 void TurboAssembler::Ll(Register rd, const MemOperand& rs) {
