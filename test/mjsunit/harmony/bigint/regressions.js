@@ -33,3 +33,9 @@ var max64 = kMaxInt - 64n - 2n;
 var max32 = kMaxInt - 32n - 2n;
 // Platform independence trick: at least one of the two operations will throw!
 assertThrows(() => { var a = 2n ** max32; var b = 2n ** max64; }, RangeError);
+
+(function() {
+  function Constructor() { }
+  Constructor.prototype = 5n;
+  assertThrows(() => ({}) instanceof Constructor, TypeError);
+})();
