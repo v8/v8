@@ -234,7 +234,6 @@ ACCESSORS(SharedFunctionInfo, outer_scope_info, HeapObject,
 
 bool SharedFunctionInfo::is_compiled() const {
   Builtins* builtins = GetIsolate()->builtins();
-  DCHECK(code() != builtins->builtin(Builtins::kCheckOptimizationMarker));
   return code() != builtins->builtin(Builtins::kCompileLazy);
 }
 

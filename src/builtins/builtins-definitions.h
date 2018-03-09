@@ -123,7 +123,6 @@ namespace internal {
   /* Code life-cycle */                                                        \
   ASM(CompileLazy)                                                             \
   ASM(CompileLazyDeoptimizedCode)                                              \
-  ASM(CheckOptimizationMarker)                                                 \
   ASM(DeserializeLazy)                                                         \
   ASM(InstantiateAsmJs)                                                        \
   ASM(NotifyDeoptimized)                                                       \
