@@ -1951,7 +1951,7 @@ void MacroAssembler::AssertUndefinedOrAllocationSite(Register object,
 
 
 void TurboAssembler::CheckFor32DRegs(Register scratch) {
-  mov(scratch, Operand(ExternalReference::cpu_features()));
+  mov(scratch, Operand(ExternalReference::cpu_features(isolate())));
   ldr(scratch, MemOperand(scratch));
   tst(scratch, Operand(1u << VFP32DREGS));
 }

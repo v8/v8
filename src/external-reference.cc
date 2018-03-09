@@ -198,6 +198,13 @@ ExternalReference ExternalReference::date_cache_stamp(Isolate* isolate) {
   return ExternalReference(isolate->date_cache()->stamp_address());
 }
 
+// static
+ExternalReference
+ExternalReference::runtime_function_table_address_for_unittests(
+    Isolate* isolate) {
+  return runtime_function_table_address(isolate);
+}
+
 void ExternalReference::set_redirector(
     Isolate* isolate, ExternalReferenceRedirector* redirector) {
   // We can't stack them.
@@ -492,47 +499,53 @@ ExternalReference ExternalReference::address_of_pending_message_obj(
   return ExternalReference(isolate->pending_message_obj_address());
 }
 
-ExternalReference ExternalReference::address_of_min_int() {
+ExternalReference ExternalReference::address_of_min_int(Isolate* isolate) {
   return ExternalReference(reinterpret_cast<void*>(&double_constants.min_int));
 }
 
-ExternalReference ExternalReference::address_of_one_half() {
+ExternalReference ExternalReference::address_of_one_half(Isolate* isolate) {
   return ExternalReference(reinterpret_cast<void*>(&double_constants.one_half));
 }
 
-ExternalReference ExternalReference::address_of_minus_one_half() {
+ExternalReference ExternalReference::address_of_minus_one_half(
+    Isolate* isolate) {
   return ExternalReference(
       reinterpret_cast<void*>(&double_constants.minus_one_half));
 }
 
-ExternalReference ExternalReference::address_of_negative_infinity() {
+ExternalReference ExternalReference::address_of_negative_infinity(
+    Isolate* isolate) {
   return ExternalReference(
       reinterpret_cast<void*>(&double_constants.negative_infinity));
 }
 
-ExternalReference ExternalReference::address_of_the_hole_nan() {
+ExternalReference ExternalReference::address_of_the_hole_nan(Isolate* isolate) {
   return ExternalReference(
       reinterpret_cast<void*>(&double_constants.the_hole_nan));
 }
 
-ExternalReference ExternalReference::address_of_uint32_bias() {
+ExternalReference ExternalReference::address_of_uint32_bias(Isolate* isolate) {
   return ExternalReference(
       reinterpret_cast<void*>(&double_constants.uint32_bias));
 }
 
-ExternalReference ExternalReference::address_of_float_abs_constant() {
+ExternalReference ExternalReference::address_of_float_abs_constant(
+    Isolate* isolate) {
   return ExternalReference(reinterpret_cast<void*>(&float_absolute_constant));
 }
 
-ExternalReference ExternalReference::address_of_float_neg_constant() {
+ExternalReference ExternalReference::address_of_float_neg_constant(
+    Isolate* isolate) {
   return ExternalReference(reinterpret_cast<void*>(&float_negate_constant));
 }
 
-ExternalReference ExternalReference::address_of_double_abs_constant() {
+ExternalReference ExternalReference::address_of_double_abs_constant(
+    Isolate* isolate) {
   return ExternalReference(reinterpret_cast<void*>(&double_absolute_constant));
 }
 
-ExternalReference ExternalReference::address_of_double_neg_constant() {
+ExternalReference ExternalReference::address_of_double_neg_constant(
+    Isolate* isolate) {
   return ExternalReference(reinterpret_cast<void*>(&double_negate_constant));
 }
 
@@ -595,7 +608,7 @@ ExternalReference ExternalReference::re_case_insensitive_compare_uc16(
       FUNCTION_ADDR(NativeRegExpMacroAssembler::CaseInsensitiveCompareUC16)));
 }
 
-ExternalReference ExternalReference::re_word_character_map() {
+ExternalReference ExternalReference::re_word_character_map(Isolate* isolate) {
   return ExternalReference(
       NativeRegExpMacroAssembler::word_character_map_address());
 }
@@ -761,6 +774,26 @@ ExternalReference ExternalReference::search_string_raw(Isolate* isolate) {
   return ExternalReference(Redirect(isolate, FUNCTION_ADDR(f)));
 }
 
+ExternalReference ExternalReference::search_string_raw_one_one(
+    Isolate* isolate) {
+  return search_string_raw<const uint8_t, const uint8_t>(isolate);
+}
+
+ExternalReference ExternalReference::search_string_raw_one_two(
+    Isolate* isolate) {
+  return search_string_raw<const uint8_t, const uc16>(isolate);
+}
+
+ExternalReference ExternalReference::search_string_raw_two_one(
+    Isolate* isolate) {
+  return search_string_raw<const uc16, const uint8_t>(isolate);
+}
+
+ExternalReference ExternalReference::search_string_raw_two_two(
+    Isolate* isolate) {
+  return search_string_raw<const uc16, const uc16>(isolate);
+}
+
 ExternalReference ExternalReference::orderedhashmap_gethash_raw(
     Isolate* isolate) {
   auto f = OrderedHashMap::GetHash;
@@ -842,7 +875,7 @@ ExternalReference ExternalReference::ForDeoptEntry(Address entry) {
   return ExternalReference(entry);
 }
 
-ExternalReference ExternalReference::cpu_features() {
+ExternalReference ExternalReference::cpu_features(Isolate* isolate) {
   DCHECK(CpuFeatures::initialized_);
   return ExternalReference(&CpuFeatures::supported_);
 }
@@ -948,7 +981,8 @@ ExternalReference ExternalReference::debug_restart_fp_address(
   return ExternalReference(isolate->debug()->restart_fp_address());
 }
 
-ExternalReference ExternalReference::fixed_typed_array_base_data_offset() {
+ExternalReference ExternalReference::fixed_typed_array_base_data_offset(
+    Isolate* isolate) {
   return ExternalReference(reinterpret_cast<void*>(
       FixedTypedArrayBase::kDataOffset - kHeapObjectTag));
 }

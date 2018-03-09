@@ -512,7 +512,8 @@ TARGET_TEST_F(InterpreterAssemblerTest, CallRuntime) {
         Node* context = m.IntPtrConstant(4);
 
         Matcher<Node*> function_table = c::IsExternalConstant(
-            ExternalReference::runtime_function_table_address(isolate()));
+            ExternalReference::runtime_function_table_address_for_unittests(
+                isolate()));
         Matcher<Node*> function = c::IsIntPtrAdd(
             function_table,
             c::IsChangeUint32ToWord(c::IsInt32Mul(

@@ -22,11 +22,180 @@ class StatsCounter;
 //------------------------------------------------------------------------------
 // External references
 
+#define EXTERNAL_REFERENCE_LIST(V)                                             \
+  V(address_of_double_abs_constant, "double_absolute_constant")                \
+  V(address_of_double_neg_constant, "double_negate_constant")                  \
+  V(address_of_float_abs_constant, "float_absolute_constant")                  \
+  V(address_of_float_neg_constant, "float_negate_constant")                    \
+  V(address_of_min_int, "LDoubleConstant::min_int")                            \
+  V(address_of_minus_one_half, "double_constants.minus_one_half")              \
+  V(address_of_negative_infinity, "LDoubleConstant::negative_infinity")        \
+  V(address_of_one_half, "LDoubleConstant::one_half")                          \
+  V(address_of_pending_message_obj, "address_of_pending_message_obj")          \
+  V(address_of_real_stack_limit, "StackGuard::address_of_real_jslimit()")      \
+  V(address_of_stack_limit, "StackGuard::address_of_jslimit()")                \
+  V(address_of_the_hole_nan, "the_hole_nan")                                   \
+  V(address_of_uint32_bias, "uint32_bias")                                     \
+  V(allocation_sites_list_address, "Heap::allocation_sites_list_address()")    \
+  V(builtins_address, "builtins")                                              \
+  V(bytecode_size_table_address, "Bytecodes::bytecode_size_table_address")     \
+  V(check_object_type, "check_object_type")                                    \
+  V(compute_output_frames_function, "Deoptimizer::ComputeOutputFrames()")      \
+  V(copy_fast_number_jsarray_elements_to_typed_array,                          \
+    "copy_fast_number_jsarray_elements_to_typed_array")                        \
+  V(copy_typed_array_elements_slice, "copy_typed_array_elements_slice")        \
+  V(copy_typed_array_elements_to_typed_array,                                  \
+    "copy_typed_array_elements_to_typed_array")                                \
+  V(cpu_features, "cpu_features")                                              \
+  V(date_cache_stamp, "date_cache_stamp")                                      \
+  V(debug_hook_on_function_call_address,                                       \
+    "Debug::hook_on_function_call_address()")                                  \
+  V(debug_is_active_address, "Debug::is_active_address()")                     \
+  V(debug_last_step_action_address, "Debug::step_in_enabled_address()")        \
+  V(debug_restart_fp_address, "Debug::restart_fp_address()")                   \
+  V(debug_suspended_generator_address,                                         \
+    "Debug::step_suspended_generator_address()")                               \
+  V(delete_handle_scope_extensions, "HandleScope::DeleteExtensions")           \
+  V(f64_acos_wrapper_function, "f64_acos_wrapper")                             \
+  V(f64_asin_wrapper_function, "f64_asin_wrapper")                             \
+  V(f64_mod_wrapper_function, "f64_mod_wrapper")                               \
+  V(fixed_typed_array_base_data_offset, "fixed_typed_array_base_data_offset")  \
+  V(force_slow_path, "Isolate::force_slow_path_address()")                     \
+  V(get_date_field_function, "JSDate::GetField")                               \
+  V(get_or_create_hash_raw, "get_or_create_hash_raw")                          \
+  V(handle_scope_implementer_address,                                          \
+    "Isolate::handle_scope_implementer_address")                               \
+  V(handle_scope_level_address, "HandleScope::level")                          \
+  V(handle_scope_limit_address, "HandleScope::limit")                          \
+  V(handle_scope_next_address, "HandleScope::next")                            \
+  V(heap_is_marking_flag_address, "heap_is_marking_flag_address")              \
+  V(ieee754_acos_function, "base::ieee754::acos")                              \
+  V(ieee754_acosh_function, "base::ieee754::acosh")                            \
+  V(ieee754_asin_function, "base::ieee754::asin")                              \
+  V(ieee754_asinh_function, "base::ieee754::asinh")                            \
+  V(ieee754_atan2_function, "base::ieee754::atan2")                            \
+  V(ieee754_atan_function, "base::ieee754::atan")                              \
+  V(ieee754_atanh_function, "base::ieee754::atanh")                            \
+  V(ieee754_cbrt_function, "base::ieee754::cbrt")                              \
+  V(ieee754_cos_function, "base::ieee754::cos")                                \
+  V(ieee754_cosh_function, "base::ieee754::cosh")                              \
+  V(ieee754_exp_function, "base::ieee754::exp")                                \
+  V(ieee754_expm1_function, "base::ieee754::expm1")                            \
+  V(ieee754_log10_function, "base::ieee754::log10")                            \
+  V(ieee754_log1p_function, "base::ieee754::log1p")                            \
+  V(ieee754_log2_function, "base::ieee754::log2")                              \
+  V(ieee754_log_function, "base::ieee754::log")                                \
+  V(ieee754_sin_function, "base::ieee754::sin")                                \
+  V(ieee754_sinh_function, "base::ieee754::sinh")                              \
+  V(ieee754_tan_function, "base::ieee754::tan")                                \
+  V(ieee754_tanh_function, "base::ieee754::tanh")                              \
+  V(incremental_marking_record_write_function,                                 \
+    "IncrementalMarking::RecordWrite")                                         \
+  V(interpreter_dispatch_counters, "Interpreter::dispatch_counters")           \
+  V(interpreter_dispatch_table_address, "Interpreter::dispatch_table_address") \
+  V(invalidate_prototype_chains_function,                                      \
+    "JSObject::InvalidatePrototypeChains()")                                   \
+  V(invoke_accessor_getter_callback, "InvokeAccessorGetterCallback")           \
+  V(invoke_function_callback, "InvokeFunctionCallback")                        \
+  V(isolate_address, "isolate")                                                \
+  V(is_profiling_address, "Isolate::is_profiling")                             \
+  V(jsreceiver_create_identity_hash, "jsreceiver_create_identity_hash")        \
+  V(libc_memchr_function, "libc_memchr")                                       \
+  V(libc_memcpy_function, "libc_memcpy")                                       \
+  V(libc_memmove_function, "libc_memmove")                                     \
+  V(libc_memset_function, "libc_memset")                                       \
+  V(log_enter_external_function, "Logger::EnterExternal")                      \
+  V(log_leave_external_function, "Logger::LeaveExternal")                      \
+  V(mod_two_doubles_operation, "mod_two_doubles")                              \
+  V(new_deoptimizer_function, "Deoptimizer::New()")                            \
+  V(new_space_allocation_limit_address,                                        \
+    "Heap::NewSpaceAllocationLimitAddress()")                                  \
+  V(new_space_allocation_top_address, "Heap::NewSpaceAllocationTopAddress()")  \
+  V(old_space_allocation_limit_address,                                        \
+    "Heap::OldSpaceAllocationLimitAddress")                                    \
+  V(old_space_allocation_top_address, "Heap::OldSpaceAllocationTopAddress")    \
+  V(orderedhashmap_gethash_raw, "orderedhashmap_gethash_raw")                  \
+  V(pending_microtask_count_address,                                           \
+    "Isolate::pending_microtask_count_address()")                              \
+  V(power_double_double_function, "power_double_double_function")              \
+  V(printf_function, "printf")                                                 \
+  V(promise_hook_or_debug_is_active_address,                                   \
+    "Isolate::promise_hook_or_debug_is_active_address()")                      \
+  V(roots_array_start, "Heap::roots_array_start()")                            \
+  V(runtime_function_table_address,                                            \
+    "Runtime::runtime_function_table_address()")                               \
+  V(scheduled_exception_address, "Isolate::scheduled_exception")               \
+  V(search_string_raw_one_one, "search_string_raw_one_one")                    \
+  V(search_string_raw_one_two, "search_string_raw_one_two")                    \
+  V(search_string_raw_two_one, "search_string_raw_two_one")                    \
+  V(search_string_raw_two_two, "search_string_raw_two_two")                    \
+  V(store_buffer_overflow_function, "StoreBuffer::StoreBufferOverflow")        \
+  V(store_buffer_top, "store_buffer_top")                                      \
+  V(stress_deopt_count, "Isolate::stress_deopt_count_address()")               \
+  V(try_internalize_string_function, "try_internalize_string_function")        \
+  V(wasm_call_trap_callback_for_testing,                                       \
+    "wasm::call_trap_callback_for_testing")                                    \
+  V(wasm_clear_thread_in_wasm_flag, "wasm::clear_thread_in_wasm_flag")         \
+  V(wasm_f32_ceil, "wasm::f32_ceil_wrapper")                                   \
+  V(wasm_f32_floor, "wasm::f32_floor_wrapper")                                 \
+  V(wasm_f32_nearest_int, "wasm::f32_nearest_int_wrapper")                     \
+  V(wasm_f32_trunc, "wasm::f32_trunc_wrapper")                                 \
+  V(wasm_f64_ceil, "wasm::f64_ceil_wrapper")                                   \
+  V(wasm_f64_floor, "wasm::f64_floor_wrapper")                                 \
+  V(wasm_f64_nearest_int, "wasm::f64_nearest_int_wrapper")                     \
+  V(wasm_f64_trunc, "wasm::f64_trunc_wrapper")                                 \
+  V(wasm_float32_to_int64, "wasm::float32_to_int64_wrapper")                   \
+  V(wasm_float32_to_uint64, "wasm::float32_to_uint64_wrapper")                 \
+  V(wasm_float64_pow, "wasm::float64_pow")                                     \
+  V(wasm_float64_to_int64, "wasm::float64_to_int64_wrapper")                   \
+  V(wasm_float64_to_uint64, "wasm::float64_to_uint64_wrapper")                 \
+  V(wasm_int64_div, "wasm::int64_div")                                         \
+  V(wasm_int64_mod, "wasm::int64_mod")                                         \
+  V(wasm_int64_to_float32, "wasm::int64_to_float32_wrapper")                   \
+  V(wasm_int64_to_float64, "wasm::int64_to_float64_wrapper")                   \
+  V(wasm_set_thread_in_wasm_flag, "wasm::set_thread_in_wasm_flag")             \
+  V(wasm_uint64_div, "wasm::uint64_div")                                       \
+  V(wasm_uint64_mod, "wasm::uint64_mod")                                       \
+  V(wasm_uint64_to_float32, "wasm::uint64_to_float32_wrapper")                 \
+  V(wasm_uint64_to_float64, "wasm::uint64_to_float64_wrapper")                 \
+  V(wasm_word32_ctz, "wasm::word32_ctz")                                       \
+  V(wasm_word32_popcnt, "wasm::word32_popcnt")                                 \
+  V(wasm_word32_rol, "wasm::word32_rol")                                       \
+  V(wasm_word32_ror, "wasm::word32_ror")                                       \
+  V(wasm_word64_ctz, "wasm::word64_ctz")                                       \
+  V(wasm_word64_popcnt, "wasm::word64_popcnt")                                 \
+  EXTERNAL_REFERENCE_LIST_NON_INTERPRETED_REGEXP(V)                            \
+  EXTERNAL_REFERENCE_LIST_INTL(V)
+
+#ifndef V8_INTERPRETED_REGEXP
+#define EXTERNAL_REFERENCE_LIST_NON_INTERPRETED_REGEXP(V)                     \
+  V(address_of_regexp_stack_limit, "RegExpStack::limit_address()")            \
+  V(address_of_regexp_stack_memory_address, "RegExpStack::memory_address()")  \
+  V(address_of_regexp_stack_memory_size, "RegExpStack::memory_size()")        \
+  V(address_of_static_offsets_vector, "OffsetsVector::static_offsets_vector") \
+  V(re_case_insensitive_compare_uc16,                                         \
+    "NativeRegExpMacroAssembler::CaseInsensitiveCompareUC16()")               \
+  V(re_check_stack_guard_state,                                               \
+    "RegExpMacroAssembler*::CheckStackGuardState()")                          \
+  V(re_grow_stack, "NativeRegExpMacroAssembler::GrowStack()")                 \
+  V(re_word_character_map, "NativeRegExpMacroAssembler::word_character_map")
+#else
+#define EXTERNAL_REFERENCE_LIST_NON_INTERPRETED_REGEXP(V)
+#endif  // V8_INTERPRETED_REGEXP
+
+#ifdef V8_INTL_SUPPORT
+#define EXTERNAL_REFERENCE_LIST_INTL(V)                               \
+  V(intl_convert_one_byte_to_lower, "intl_convert_one_byte_to_lower") \
+  V(intl_to_latin1_lower_table, "intl_to_latin1_lower_table")
+#else
+#define EXTERNAL_REFERENCE_LIST_INTL(V)
+#endif  // V8_INTL_SUPPORT
+
 // An ExternalReference represents a C++ address used in the generated
-// code. All references to C++ functions and variables must be encapsulated in
-// an ExternalReference instance. This is done in order to track the origin of
-// all external references in the code so that they can be bound to the correct
-// addresses when deserializing a heap.
+// code. All references to C++ functions and variables must be encapsulated
+// in an ExternalReference instance. This is done in order to track the
+// origin of all external references in the code so that they can be bound
+// to the correct addresses when deserializing a heap.
 class ExternalReference BASE_EMBEDDED {
  public:
   // Used in the simulator to support different native api calls.
@@ -78,262 +247,35 @@ class ExternalReference BASE_EMBEDDED {
   typedef void* ExternalReferenceRedirector(void* original, Type type);
 
   ExternalReference() : address_(nullptr) {}
-
-  ExternalReference(Address address, Isolate* isolate);
-
-  ExternalReference(ApiFunction* ptr, Type type, Isolate* isolate);
-
-  ExternalReference(Runtime::FunctionId id, Isolate* isolate);
-
-  ExternalReference(const Runtime::Function* f, Isolate* isolate);
-
-  explicit ExternalReference(StatsCounter* counter);
-
-  ExternalReference(IsolateAddressId id, Isolate* isolate);
-
   explicit ExternalReference(const SCTableReference& table_ref);
-
-  // Isolate as an external reference.
-  static ExternalReference isolate_address(Isolate* isolate);
-
-  // The builtins table as an external reference, used by lazy deserialization.
-  static ExternalReference builtins_address(Isolate* isolate);
-
-  static ExternalReference handle_scope_implementer_address(Isolate* isolate);
-  static ExternalReference pending_microtask_count_address(Isolate* isolate);
-
-  // One-of-a-kind references. These references are not part of a general
-  // pattern. This means that they have to be added to the
-  // ExternalReferenceTable in serialize.cc manually.
-
-  static ExternalReference interpreter_dispatch_table_address(Isolate* isolate);
-  static ExternalReference interpreter_dispatch_counters(Isolate* isolate);
-  static ExternalReference bytecode_size_table_address(Isolate* isolate);
-
-  static ExternalReference incremental_marking_record_write_function(
-      Isolate* isolate);
-  static ExternalReference store_buffer_overflow_function(Isolate* isolate);
-  static ExternalReference delete_handle_scope_extensions(Isolate* isolate);
-
-  static ExternalReference get_date_field_function(Isolate* isolate);
-  static ExternalReference date_cache_stamp(Isolate* isolate);
-
-  // Deoptimization support.
-  static ExternalReference new_deoptimizer_function(Isolate* isolate);
-  static ExternalReference compute_output_frames_function(Isolate* isolate);
-
-  static ExternalReference wasm_f32_trunc(Isolate* isolate);
-  static ExternalReference wasm_f32_floor(Isolate* isolate);
-  static ExternalReference wasm_f32_ceil(Isolate* isolate);
-  static ExternalReference wasm_f32_nearest_int(Isolate* isolate);
-  static ExternalReference wasm_f64_trunc(Isolate* isolate);
-  static ExternalReference wasm_f64_floor(Isolate* isolate);
-  static ExternalReference wasm_f64_ceil(Isolate* isolate);
-  static ExternalReference wasm_f64_nearest_int(Isolate* isolate);
-  static ExternalReference wasm_int64_to_float32(Isolate* isolate);
-  static ExternalReference wasm_uint64_to_float32(Isolate* isolate);
-  static ExternalReference wasm_int64_to_float64(Isolate* isolate);
-  static ExternalReference wasm_uint64_to_float64(Isolate* isolate);
-  static ExternalReference wasm_float32_to_int64(Isolate* isolate);
-  static ExternalReference wasm_float32_to_uint64(Isolate* isolate);
-  static ExternalReference wasm_float64_to_int64(Isolate* isolate);
-  static ExternalReference wasm_float64_to_uint64(Isolate* isolate);
-  static ExternalReference wasm_int64_div(Isolate* isolate);
-  static ExternalReference wasm_int64_mod(Isolate* isolate);
-  static ExternalReference wasm_uint64_div(Isolate* isolate);
-  static ExternalReference wasm_uint64_mod(Isolate* isolate);
-  static ExternalReference wasm_word32_ctz(Isolate* isolate);
-  static ExternalReference wasm_word64_ctz(Isolate* isolate);
-  static ExternalReference wasm_word32_popcnt(Isolate* isolate);
-  static ExternalReference wasm_word64_popcnt(Isolate* isolate);
-  static ExternalReference wasm_word32_rol(Isolate* isolate);
-  static ExternalReference wasm_word32_ror(Isolate* isolate);
-  static ExternalReference wasm_float64_pow(Isolate* isolate);
-  static ExternalReference wasm_set_thread_in_wasm_flag(Isolate* isolate);
-  static ExternalReference wasm_clear_thread_in_wasm_flag(Isolate* isolate);
-
-  static ExternalReference f64_acos_wrapper_function(Isolate* isolate);
-  static ExternalReference f64_asin_wrapper_function(Isolate* isolate);
-  static ExternalReference f64_mod_wrapper_function(Isolate* isolate);
-
-  // Trap callback function for cctest/wasm/wasm-run-utils.h
-  static ExternalReference wasm_call_trap_callback_for_testing(
-      Isolate* isolate);
-
-  // Log support.
-  static ExternalReference log_enter_external_function(Isolate* isolate);
-  static ExternalReference log_leave_external_function(Isolate* isolate);
-
-  // Static variable Heap::roots_array_start()
-  static ExternalReference roots_array_start(Isolate* isolate);
-
-  // Static variable Heap::allocation_sites_list_address()
-  static ExternalReference allocation_sites_list_address(Isolate* isolate);
-
-  // Static variable StackGuard::address_of_jslimit()
-  V8_EXPORT_PRIVATE static ExternalReference address_of_stack_limit(
-      Isolate* isolate);
-
-  // Static variable StackGuard::address_of_real_jslimit()
-  static ExternalReference address_of_real_stack_limit(Isolate* isolate);
-
-  // Static variable RegExpStack::limit_address()
-  static ExternalReference address_of_regexp_stack_limit(Isolate* isolate);
-
-  // Static variables for RegExp.
-  static ExternalReference address_of_static_offsets_vector(Isolate* isolate);
-  static ExternalReference address_of_regexp_stack_memory_address(
-      Isolate* isolate);
-  static ExternalReference address_of_regexp_stack_memory_size(
-      Isolate* isolate);
-
-  // Write barrier.
-  static ExternalReference store_buffer_top(Isolate* isolate);
-  static ExternalReference heap_is_marking_flag_address(Isolate* isolate);
-
-  // Used for fast allocation in generated code.
-  static ExternalReference new_space_allocation_top_address(Isolate* isolate);
-  static ExternalReference new_space_allocation_limit_address(Isolate* isolate);
-  static ExternalReference old_space_allocation_top_address(Isolate* isolate);
-  static ExternalReference old_space_allocation_limit_address(Isolate* isolate);
-
-  static ExternalReference mod_two_doubles_operation(Isolate* isolate);
-  static ExternalReference power_double_double_function(Isolate* isolate);
-
-  static ExternalReference handle_scope_next_address(Isolate* isolate);
-  static ExternalReference handle_scope_limit_address(Isolate* isolate);
-  static ExternalReference handle_scope_level_address(Isolate* isolate);
-
-  static ExternalReference scheduled_exception_address(Isolate* isolate);
-  static ExternalReference address_of_pending_message_obj(Isolate* isolate);
-
-  // Static variables containing common double constants.
-  static ExternalReference address_of_min_int();
-  static ExternalReference address_of_one_half();
-  static ExternalReference address_of_minus_one_half();
-  static ExternalReference address_of_negative_infinity();
-  static ExternalReference address_of_the_hole_nan();
-  static ExternalReference address_of_uint32_bias();
-
-  // Static variables containing simd constants.
-  static ExternalReference address_of_float_abs_constant();
-  static ExternalReference address_of_float_neg_constant();
-  static ExternalReference address_of_double_abs_constant();
-  static ExternalReference address_of_double_neg_constant();
-
-  // IEEE 754 functions.
-  static ExternalReference ieee754_acos_function(Isolate* isolate);
-  static ExternalReference ieee754_acosh_function(Isolate* isolate);
-  static ExternalReference ieee754_asin_function(Isolate* isolate);
-  static ExternalReference ieee754_asinh_function(Isolate* isolate);
-  static ExternalReference ieee754_atan_function(Isolate* isolate);
-  static ExternalReference ieee754_atanh_function(Isolate* isolate);
-  static ExternalReference ieee754_atan2_function(Isolate* isolate);
-  static ExternalReference ieee754_cbrt_function(Isolate* isolate);
-  static ExternalReference ieee754_cos_function(Isolate* isolate);
-  static ExternalReference ieee754_cosh_function(Isolate* isolate);
-  static ExternalReference ieee754_exp_function(Isolate* isolate);
-  static ExternalReference ieee754_expm1_function(Isolate* isolate);
-  static ExternalReference ieee754_log_function(Isolate* isolate);
-  static ExternalReference ieee754_log1p_function(Isolate* isolate);
-  static ExternalReference ieee754_log10_function(Isolate* isolate);
-  static ExternalReference ieee754_log2_function(Isolate* isolate);
-  static ExternalReference ieee754_sin_function(Isolate* isolate);
-  static ExternalReference ieee754_sinh_function(Isolate* isolate);
-  static ExternalReference ieee754_tan_function(Isolate* isolate);
-  static ExternalReference ieee754_tanh_function(Isolate* isolate);
-
-  static ExternalReference libc_memchr_function(Isolate* isolate);
-  static ExternalReference libc_memcpy_function(Isolate* isolate);
-  static ExternalReference libc_memmove_function(Isolate* isolate);
-  static ExternalReference libc_memset_function(Isolate* isolate);
-
-  static ExternalReference printf_function(Isolate* isolate);
-
-  static ExternalReference try_internalize_string_function(Isolate* isolate);
-
-  static ExternalReference check_object_type(Isolate* isolate);
-
-#ifdef V8_INTL_SUPPORT
-  static ExternalReference intl_convert_one_byte_to_lower(Isolate* isolate);
-  static ExternalReference intl_to_latin1_lower_table(Isolate* isolate);
-#endif  // V8_INTL_SUPPORT
+  explicit ExternalReference(StatsCounter* counter);
+  ExternalReference(Address address, Isolate* isolate);
+  ExternalReference(ApiFunction* ptr, Type type, Isolate* isolate);
+  ExternalReference(const Runtime::Function* f, Isolate* isolate);
+  ExternalReference(IsolateAddressId id, Isolate* isolate);
+  ExternalReference(Runtime::FunctionId id, Isolate* isolate);
 
   template <typename SubjectChar, typename PatternChar>
   static ExternalReference search_string_raw(Isolate* isolate);
-
-  static ExternalReference orderedhashmap_gethash_raw(Isolate* isolate);
-
-  static ExternalReference get_or_create_hash_raw(Isolate* isolate);
-  static ExternalReference jsreceiver_create_identity_hash(Isolate* isolate);
-
-  static ExternalReference copy_fast_number_jsarray_elements_to_typed_array(
-      Isolate* isolate);
-  static ExternalReference copy_typed_array_elements_to_typed_array(
-      Isolate* isolate);
-  static ExternalReference copy_typed_array_elements_slice(Isolate* isolate);
 
   static ExternalReference page_flags(Page* page);
 
   static ExternalReference ForDeoptEntry(Address entry);
 
-  static ExternalReference cpu_features();
+#define DECL_EXTERNAL_REFERENCE(name, desc) \
+  static ExternalReference name(Isolate* isolate);
+  EXTERNAL_REFERENCE_LIST(DECL_EXTERNAL_REFERENCE)
+#undef DECL_EXTERNAL_REFERENCE
 
-  static ExternalReference debug_is_active_address(Isolate* isolate);
-  static ExternalReference debug_hook_on_function_call_address(
-      Isolate* isolate);
-
-  static ExternalReference is_profiling_address(Isolate* isolate);
-  static ExternalReference invoke_function_callback(Isolate* isolate);
-  static ExternalReference invoke_accessor_getter_callback(Isolate* isolate);
-
-  static ExternalReference promise_hook_or_debug_is_active_address(
-      Isolate* isolate);
-
-  V8_EXPORT_PRIVATE static ExternalReference runtime_function_table_address(
-      Isolate* isolate);
-
-  static ExternalReference invalidate_prototype_chains_function(
-      Isolate* isolate);
+  V8_EXPORT_PRIVATE V8_NOINLINE static ExternalReference
+  runtime_function_table_address_for_unittests(Isolate* isolate);
 
   Address address() const { return reinterpret_cast<Address>(address_); }
-
-  // Used to read out the last step action of the debugger.
-  static ExternalReference debug_last_step_action_address(Isolate* isolate);
-
-  // Used to check for suspended generator, used for stepping across await call.
-  static ExternalReference debug_suspended_generator_address(Isolate* isolate);
-
-  // Used to store the frame pointer to drop to when restarting a frame.
-  static ExternalReference debug_restart_fp_address(Isolate* isolate);
-
-#ifndef V8_INTERPRETED_REGEXP
-  // C functions called from RegExp generated code.
-
-  // Function NativeRegExpMacroAssembler::CaseInsensitiveCompareUC16()
-  static ExternalReference re_case_insensitive_compare_uc16(Isolate* isolate);
-
-  // Function RegExpMacroAssembler*::CheckStackGuardState()
-  static ExternalReference re_check_stack_guard_state(Isolate* isolate);
-
-  // Function NativeRegExpMacroAssembler::GrowStack()
-  static ExternalReference re_grow_stack(Isolate* isolate);
-
-  // byte NativeRegExpMacroAssembler::word_character_bitmap
-  static ExternalReference re_word_character_map();
-
-#endif
 
   // This lets you register a function that rewrites all external references.
   // Used by the ARM simulator to catch calls to external references.
   static void set_redirector(Isolate* isolate,
                              ExternalReferenceRedirector* redirector);
-
-  static ExternalReference stress_deopt_count(Isolate* isolate);
-
-  static ExternalReference force_slow_path(Isolate* isolate);
-
-  static ExternalReference fixed_typed_array_base_data_offset();
 
  private:
   explicit ExternalReference(void* address) : address_(address) {}

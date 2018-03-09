@@ -3198,7 +3198,8 @@ AllocationResult Heap::AllocateFixedTypedArray(int length,
   FixedTypedArrayBase* elements = FixedTypedArrayBase::cast(object);
   elements->set_base_pointer(elements, SKIP_WRITE_BARRIER);
   elements->set_external_pointer(
-      ExternalReference::fixed_typed_array_base_data_offset().address(),
+      ExternalReference::fixed_typed_array_base_data_offset(isolate())
+          .address(),
       SKIP_WRITE_BARRIER);
   elements->set_length(length);
   if (initialize) memset(elements->DataPtr(), 0, elements->DataSize());

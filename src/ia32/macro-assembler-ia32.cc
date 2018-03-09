@@ -195,7 +195,8 @@ void MacroAssembler::DoubleToI(Register result_reg, XMMRegister input_reg,
 void TurboAssembler::LoadUint32(XMMRegister dst, Operand src) {
   Label done;
   cmp(src, Immediate(0));
-  ExternalReference uint32_bias = ExternalReference::address_of_uint32_bias();
+  ExternalReference uint32_bias =
+      ExternalReference::address_of_uint32_bias(isolate());
   Cvtsi2sd(dst, src);
   j(not_sign, &done, Label::kNear);
   addsd(dst, Operand::StaticVariable(uint32_bias));

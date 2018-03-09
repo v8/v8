@@ -374,7 +374,8 @@ void FixedTypedArray<Traits>::FixedTypedArrayVerify() {
             Traits::kInstanceType);
   if (base_pointer() == this) {
     CHECK(external_pointer() ==
-          ExternalReference::fixed_typed_array_base_data_offset().address());
+          ExternalReference::fixed_typed_array_base_data_offset(GetIsolate())
+              .address());
   } else {
     CHECK_NULL(base_pointer());
   }
