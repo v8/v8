@@ -1356,12 +1356,10 @@ void AstPrinter::VisitTemplateLiteral(TemplateLiteral* node) {
   IndentedScope indent(this, "TEMPLATE-LITERAL", node->position());
   const AstRawString* string = node->string_parts()->first();
   if (!string->IsEmpty()) PrintLiteralIndented("SPAN", string, true);
-  for (int i = 0; i < node->substitutions()->length();) {
+  for (int i = 0; i < node->string_parts()->length();) {
     PrintIndentedVisit("EXPR", node->substitutions()->at(i++));
-    if (i < node->string_parts()->length()) {
-      string = node->string_parts()->at(i);
-      if (!string->IsEmpty()) PrintLiteralIndented("SPAN", string, true);
-    }
+    string = node->string_parts()->at(i);
+    if (!string->IsEmpty()) PrintLiteralIndented("SPAN", string, true);
   }
 }
 
