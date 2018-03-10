@@ -1304,14 +1304,6 @@ IGNITION_HANDLER(ToObject, InterpreterAssembler) {
   Dispatch();
 }
 
-// ToString
-//
-// Convert the accumulator to a String.
-IGNITION_HANDLER(ToString, InterpreterAssembler) {
-  SetAccumulator(ToString_Inline(GetContext(), GetAccumulator()));
-  Dispatch();
-}
-
 class IncDecAssembler : public UnaryNumericOpAssembler {
  public:
   explicit IncDecAssembler(CodeAssemblerState* state, Bytecode bytecode,

@@ -223,7 +223,6 @@ namespace interpreter {
   V(ToNumber, AccumulatorUse::kReadWrite, OperandType::kIdx)                   \
   V(ToNumeric, AccumulatorUse::kReadWrite, OperandType::kIdx)                  \
   V(ToObject, AccumulatorUse::kRead, OperandType::kRegOut)                     \
-  V(ToString, AccumulatorUse::kReadWrite)                                      \
                                                                                \
   /* Literals */                                                               \
   V(CreateRegExpLiteral, AccumulatorUse::kWrite, OperandType::kIdx,            \

@@ -466,26 +466,6 @@ void CallPrinter::VisitGetIterator(GetIterator* node) {
 
 void CallPrinter::VisitGetTemplateObject(GetTemplateObject* node) {}
 
-void CallPrinter::VisitTemplateLiteral(TemplateLiteral* node) {
-  if (node->substitutions()->length() && node->position() < position_ &&
-      node->substitutions()->last()->position() <= position_) {
-    found_ = true;
-    Print("`...${");
-    for (Expression* sub : *node->substitutions()) {
-      if (sub->position() < position_) continue;
-      Find(sub, true);
-    }
-    Print("}...`");
-    done_ = true;
-  } else if (node->string_parts()->length() == 1) {
-    Print("`");
-    PrintLiteral(node->string_parts()->first(), false);
-    Print("`");
-  } else {
-    Print("`...`");
-  }
-}
-
 void CallPrinter::VisitImportCallExpression(ImportCallExpression* node) {
   Print("ImportCall(");
   Find(node->argument(), true);
@@ -1350,17 +1330,6 @@ void AstPrinter::VisitGetIterator(GetIterator* node) {
 
 void AstPrinter::VisitGetTemplateObject(GetTemplateObject* node) {
   IndentedScope indent(this, "GET-TEMPLATE-OBJECT", node->position());
-}
-
-void AstPrinter::VisitTemplateLiteral(TemplateLiteral* node) {
-  IndentedScope indent(this, "TEMPLATE-LITERAL", node->position());
-  const AstRawString* string = node->string_parts()->first();
-  if (!string->IsEmpty()) PrintLiteralIndented("SPAN", string, true);
-  for (int i = 0; i < node->string_parts()->length();) {
-    PrintIndentedVisit("EXPR", node->substitutions()->at(i++));
-    string = node->string_parts()->at(i);
-    if (!string->IsEmpty()) PrintLiteralIndented("SPAN", string, true);
-  }
 }
 
 void AstPrinter::VisitImportCallExpression(ImportCallExpression* node) {
