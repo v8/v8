@@ -230,10 +230,9 @@ Handle<WasmInstanceObject> TestingModuleBuilder::InitInstanceObject() {
   Handle<WasmSharedModuleData> shared_module_data =
       WasmSharedModuleData::New(isolate_, module_wrapper, empty_string, script,
                                 Handle<ByteArray>::null());
-  Handle<FixedArray> code_table = isolate_->factory()->NewFixedArray(0);
   Handle<FixedArray> export_wrappers = isolate_->factory()->NewFixedArray(0);
   Handle<WasmCompiledModule> compiled_module = WasmCompiledModule::New(
-      isolate_, test_module_ptr_, code_table, export_wrappers, function_tables_,
+      isolate_, test_module_ptr_, export_wrappers, function_tables_,
       trap_handler::IsTrapHandlerEnabled());
   compiled_module->OnWasmModuleDecodingComplete(shared_module_data);
   // This method is called when we initialize TestEnvironment. We don't

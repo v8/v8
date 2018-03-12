@@ -434,7 +434,6 @@ class WasmCompiledModule : public Struct {
   V(kNativeModuleOffset, kPointerSize)          \
   V(kLazyCompileDataOffset, kPointerSize)       \
   V(kUseTrapHandlerOffset, kPointerSize)        \
-  V(kCodeTableOffset, kPointerSize)             \
   V(kFunctionTablesOffset, kPointerSize)        \
   V(kEmptyFunctionTablesOffset, kPointerSize)   \
   V(kSize, 0)
@@ -487,13 +486,12 @@ class WasmCompiledModule : public Struct {
   WCM_OBJECT(FixedArray, lazy_compile_data)
   // TODO(mstarzinger): Make {use_trap_handler} smaller.
   WCM_SMALL_CONST_NUMBER(bool, use_trap_handler)
-  WCM_CONST_OBJECT(FixedArray, code_table)
   WCM_OBJECT(FixedArray, function_tables)
   WCM_CONST_OBJECT(FixedArray, empty_function_tables)
 
  public:
   static Handle<WasmCompiledModule> New(
-      Isolate* isolate, wasm::WasmModule* module, Handle<FixedArray> code_table,
+      Isolate* isolate, wasm::WasmModule* module,
       Handle<FixedArray> export_wrappers,
       const std::vector<wasm::GlobalHandleAddress>& function_tables,
       bool use_trap_hander);
@@ -524,16 +522,12 @@ class WasmCompiledModule : public Struct {
   static bool SetBreakPoint(Handle<WasmCompiledModule>, int* position,
                             Handle<BreakPoint> break_point);
 
-  inline void ReplaceCodeTableForTesting(
-      std::vector<wasm::WasmCode*>&& testing_table);
-
   // TODO(mstarzinger): following 4 unnecessary after we're done with
   // FLAG_wasm_jit_to_native
   static void SetTableValue(Isolate* isolate, Handle<FixedArray> table,
                             int index, Address value);
   static void UpdateTableValue(FixedArray* table, int index, Address value);
   static Address GetTableValue(FixedArray* table, int index);
-  inline void ReplaceCodeTableForTesting(Handle<FixedArray> testing_table);
 
   void LogWasmCodes(Isolate* isolate);
 

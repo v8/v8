@@ -1181,8 +1181,7 @@ MaybeHandle<FixedArray> WasmSharedModuleData::CheckBreakPoints(
 }
 
 Handle<WasmCompiledModule> WasmCompiledModule::New(
-    Isolate* isolate, WasmModule* module, Handle<FixedArray> code_table,
-    Handle<FixedArray> export_wrappers,
+    Isolate* isolate, WasmModule* module, Handle<FixedArray> export_wrappers,
     const std::vector<GlobalHandleAddress>& function_tables,
     bool use_trap_handler) {
   Handle<WasmCompiledModule> compiled_module = Handle<WasmCompiledModule>::cast(
@@ -1210,10 +1209,6 @@ Handle<WasmCompiledModule> WasmCompiledModule::New(
                             v8::WeakCallbackType::kFinalizer);
     compiled_module->GetNativeModule()->SetCompiledModule(weak_link);
   }
-  // This is here just because it's easier for APIs that need to work with
-  // either code_table or native_module. Otherwise we need to check if
-  // has_code_table and pass undefined.
-  compiled_module->set_code_table(*code_table);
 
   int function_count = static_cast<int>(module->functions.size());
   Handle<FixedArray> source_positions =
@@ -1239,7 +1234,6 @@ Handle<WasmCompiledModule> WasmCompiledModule::Clone(
     ret->set_lazy_compile_data(module->lazy_compile_data());
   }
   ret->set_use_trap_handler(module->use_trap_handler());
-  ret->set_code_table(module->code_table());
   if (module->has_function_tables()) {
     ret->set_function_tables(module->function_tables());
   }

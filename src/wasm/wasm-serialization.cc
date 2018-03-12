@@ -654,10 +654,10 @@ MaybeHandle<WasmCompiledModule> DeserializeNativeModule(
   Handle<FixedArray> export_wrappers = isolate->factory()->NewFixedArray(
       static_cast<int>(export_wrappers_size), TENURED);
 
-  Handle<WasmCompiledModule> compiled_module = WasmCompiledModule::New(
-      isolate, shared->module(), isolate->factory()->empty_fixed_array(),
-      export_wrappers, std::vector<wasm::GlobalHandleAddress>(),
-      trap_handler::IsTrapHandlerEnabled());
+  Handle<WasmCompiledModule> compiled_module =
+      WasmCompiledModule::New(isolate, shared->module(), export_wrappers,
+                              std::vector<wasm::GlobalHandleAddress>(),
+                              trap_handler::IsTrapHandlerEnabled());
   compiled_module->OnWasmModuleDecodingComplete(shared);
   script->set_wasm_compiled_module(*compiled_module);
   NativeModuleDeserializer deserializer(isolate,

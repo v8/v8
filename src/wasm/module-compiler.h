@@ -64,9 +64,6 @@ class LazyCompilationOrchestrator {
                                   int func_index);
 
  public:
-  Handle<Code> CompileLazyOnGCHeap(Isolate*, Handle<WasmInstanceObject>,
-                                   Handle<Code> caller, int call_offset,
-                                   int exported_func_index, bool patch_caller);
   const wasm::WasmCode* CompileFromJsToWasm(Isolate*,
                                             Handle<WasmInstanceObject>,
                                             Handle<Code> caller,
@@ -178,7 +175,6 @@ class AsyncCompileJob {
   std::vector<DeferredHandles*> deferred_handles_;
   Handle<WasmModuleObject> module_object_;
   Handle<WasmCompiledModule> compiled_module_;
-  Handle<FixedArray> code_table_;
   size_t outstanding_units_ = 0;
   std::unique_ptr<CompileStep> step_;
   CancelableTaskManager background_task_manager_;

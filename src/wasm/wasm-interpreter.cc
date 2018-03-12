@@ -1021,13 +1021,6 @@ class CodeMap {
     return native_module->GetCode(function_index);
   }
 
-  Code* GetImportedFunctionGC(uint32_t function_index) {
-    DCHECK(has_instance());
-    DCHECK_GT(module_->num_imported_functions, function_index);
-    FixedArray* code_table = instance()->compiled_module()->code_table();
-    return Code::cast(code_table->get(static_cast<int>(function_index)));
-  }
-
   InterpreterCode* GetCode(const WasmFunction* function) {
     InterpreterCode* code = GetCode(function->func_index);
     DCHECK_EQ(function, code->function);

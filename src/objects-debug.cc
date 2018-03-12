@@ -1487,7 +1487,6 @@ void WasmCompiledModule::WasmCompiledModuleVerify() {
   VerifyObjectField(kNativeModuleOffset);
   VerifyObjectField(kLazyCompileDataOffset);
   VerifyObjectField(kUseTrapHandlerOffset);
-  VerifyObjectField(kCodeTableOffset);
   VerifyObjectField(kFunctionTablesOffset);
   VerifyObjectField(kEmptyFunctionTablesOffset);
 }

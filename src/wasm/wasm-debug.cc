@@ -669,8 +669,6 @@ void WasmDebugInfo::RedirectToInterpreter(Handle<WasmDebugInfo> debug_info,
   wasm::WasmModule* module = instance->module();
   CodeRelocationMap code_to_relocate;
 
-  Handle<FixedArray> code_table(instance->compiled_module()->code_table(),
-                                isolate);
   // We may modify js wrappers, as well as wasm functions. Hence the 2
   // modification scopes.
   CodeSpaceMemoryModificationScope modification_scope(isolate->heap());
