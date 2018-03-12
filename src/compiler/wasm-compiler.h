@@ -72,7 +72,8 @@ struct ModuleEnv {
   // FixedArray.
   const std::vector<Address> function_tables;
 
-  // TODO(mtrofin): remove these 2 once we don't need FLAG_wasm_jit_to_native
+  // TODO(mstarzinger): remove these 2 once we don't need
+  // FLAG_wasm_jit_to_native
   // Contains the code objects to call for each direct call.
   // (the same length as module.functions)
   const std::vector<Handle<Code>> function_code;
@@ -138,8 +139,6 @@ class WasmCompilationUnit final {
   size_t memory_cost() const { return memory_cost_; }
 
  private:
-  void PackProtectedInstructions(Handle<Code> code) const;
-
   struct LiftoffData {
     wasm::LiftoffAssembler asm_;
     int safepoint_table_offset_;

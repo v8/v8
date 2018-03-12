@@ -16,7 +16,7 @@ class Code;
 struct WasmContext;
 class WasmInstanceObject;
 
-// TODO(mtrofin): remove once we remove FLAG_wasm_jit_to_native
+// TODO(mstarzinger): remove once we remove FLAG_wasm_jit_to_native
 class WasmCodeWrapper {
  public:
   WasmCodeWrapper() {}

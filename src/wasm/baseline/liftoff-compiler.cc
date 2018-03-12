@@ -1236,16 +1236,9 @@ class LiftoffCompiler {
     source_position_table_builder_->AddPosition(
         __ pc_offset(), SourcePosition(decoder->position()), false);
 
-    if (FLAG_wasm_jit_to_native) {
-      // Just encode the function index. This will be patched at instantiation.
-      Address addr = reinterpret_cast<Address>(operand.index);
-      __ CallNativeWasmCode(addr);
-    } else {
-      Handle<Code> target = operand.index < env_->function_code.size()
-                                ? env_->function_code[operand.index]
-                                : env_->default_function_code;
-      __ Call(target, RelocInfo::CODE_TARGET);
-    }
+    // Just encode the function index. This will be patched at instantiation.
+    Address addr = reinterpret_cast<Address>(operand.index);
+    __ CallNativeWasmCode(addr);
 
     safepoint_table_builder_.DefineSafepoint(asm_, Safepoint::kSimple, 0,
                                              Safepoint::kNoLazyDeopt);

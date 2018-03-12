@@ -650,16 +650,9 @@ void WasmStackFrame::FromFrameArray(Isolate* isolate, Handle<FrameArray> array,
   if (array->IsWasmInterpretedFrame(frame_ix)) {
     code_ = {};
   } else {
-    code_ =
-        FLAG_wasm_jit_to_native
-            ? WasmCodeWrapper(
-                  wasm_instance_->compiled_module()->GetNativeModule()->GetCode(
-                      wasm_func_index_))
-            : WasmCodeWrapper(handle(
-                  Code::cast(
-                      wasm_instance_->compiled_module()->code_table()->get(
-                          wasm_func_index_)),
-                  isolate));
+    code_ = WasmCodeWrapper(
+        wasm_instance_->compiled_module()->GetNativeModule()->GetCode(
+            wasm_func_index_));
   }
   offset_ = array->Offset(frame_ix)->value();
 }

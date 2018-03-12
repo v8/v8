@@ -143,9 +143,6 @@ WCM_OBJECT(FixedArray, function_tables, kFunctionTablesOffset)
 WCM_OBJECT(FixedArray, empty_function_tables, kEmptyFunctionTablesOffset)
 ACCESSORS(WasmCompiledModule, raw_next_instance, Object, kNextInstanceOffset);
 ACCESSORS(WasmCompiledModule, raw_prev_instance, Object, kPrevInstanceOffset);
-#ifdef DEBUG
-WCM_SMALL_CONST_NUMBER(uint32_t, instance_id, kInstanceIdOffset);
-#endif
 
 #undef WCM_OBJECT_OR_WEAK
 #undef WCM_OBJECT

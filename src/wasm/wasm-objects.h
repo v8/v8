@@ -38,7 +38,8 @@ class WasmCompiledModule;
 class WasmDebugInfo;
 class WasmInstanceObject;
 
-#define WASM_CONTEXT_TABLES FLAG_wasm_jit_to_native
+// TODO(mstarzinger): Remove this macro!
+#define WASM_CONTEXT_TABLES true
 
 #define DECL_OPTIONAL_ACCESSORS(name, type) \
   INLINE(bool has_##name());                \
@@ -244,7 +245,6 @@ class WasmInstanceObject : public JSObject {
   // instance. Intended to be called from runtime functions. Returns nullptr on
   // failing to get owning instance.
   static WasmInstanceObject* GetOwningInstance(const wasm::WasmCode* code);
-  static WasmInstanceObject* GetOwningInstanceGC(Code* code);
 
   static void ValidateInstancesChainForTesting(
       Isolate* isolate, Handle<WasmModuleObject> module_obj,
@@ -308,9 +308,6 @@ class WasmSharedModuleData : public Struct {
 
   // Check whether this module was generated from asm.js source.
   bool is_asm_js();
-
-  static void ReinitializeAfterDeserialization(Isolate*,
-                                               Handle<WasmSharedModuleData>);
 
   static void AddBreakpoint(Handle<WasmSharedModuleData>, int position,
                             Handle<BreakPoint> break_point);
@@ -443,7 +440,6 @@ class WasmCompiledModule : public Struct {
   V(kCodeTableOffset, kPointerSize)             \
   V(kFunctionTablesOffset, kPointerSize)        \
   V(kEmptyFunctionTablesOffset, kPointerSize)   \
-  V(kInstanceIdOffset, kPointerSize)            \
   V(kSize, 0)
 
   DEFINE_FIELD_OFFSET_CONSTANTS(HeapObject::kHeaderSize,
@@ -499,15 +495,6 @@ class WasmCompiledModule : public Struct {
   WCM_CONST_OBJECT(FixedArray, empty_function_tables)
 
  public:
-// TODO(mtrofin): this is unnecessary when we stop needing
-// FLAG_wasm_jit_to_native, because we have instance_id on NativeModule.
-#if DEBUG
-  WCM_SMALL_CONST_NUMBER(uint32_t, instance_id)
-#else
-  uint32_t instance_id() const { return static_cast<uint32_t>(-1); }
-#endif
-
- public:
   static Handle<WasmCompiledModule> New(
       Isolate* isolate, wasm::WasmModule* module, Handle<FixedArray> code_table,
       Handle<FixedArray> export_wrappers,
@@ -543,7 +530,7 @@ class WasmCompiledModule : public Struct {
   inline void ReplaceCodeTableForTesting(
       std::vector<wasm::WasmCode*>&& testing_table);
 
-  // TODO(mtrofin): following 4 unnecessary after we're done with
+  // TODO(mstarzinger): following 4 unnecessary after we're done with
   // FLAG_wasm_jit_to_native
   static void SetTableValue(Isolate* isolate, Handle<FixedArray> table,
                             int index, Address value);
@@ -554,8 +541,6 @@ class WasmCompiledModule : public Struct {
   void LogWasmCodes(Isolate* isolate);
 
  private:
-  void InitId();
-
   DISALLOW_IMPLICIT_CONSTRUCTORS(WasmCompiledModule);
 };
 

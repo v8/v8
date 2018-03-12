@@ -80,7 +80,7 @@ class Code : public HeapObject {
   DECL_ACCESSORS(source_position_table, Object)
   inline ByteArray* SourcePositionTable() const;
 
-  // TODO(mtrofin): remove when we don't need FLAG_wasm_jit_to_native
+  // TODO(mstarzinger): remove when we don't need FLAG_wasm_jit_to_native
   // [protected instructions]: Array containing list of protected
   // instructions and corresponding landing pad offset.
   DECL_ACCESSORS(protected_instructions, FixedArray)

@@ -51,7 +51,6 @@ V8_EXPORT_PRIVATE Handle<Script> CreateWasmScript(
 // which will be triggered when returning from the runtime function, i.e. the
 // Illegal builtin will never be called.
 Address CompileLazy(Isolate* isolate);
-Handle<Code> CompileLazyOnGCHeap(Isolate* isolate);
 
 // This class orchestrates the lazy compilation of wasm functions. It is
 // triggered by the WasmCompileLazy builtin.

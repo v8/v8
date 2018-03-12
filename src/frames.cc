@@ -192,12 +192,8 @@ DISABLE_ASAN Address ReadMemoryAt(Address address) {
 WasmInstanceObject* LookupWasmInstanceObjectFromStandardFrame(
     const StandardFrame* frame) {
   // TODO(titzer): WASM instances cannot be found from the code in the future.
-  WasmInstanceObject* ret =
-      FLAG_wasm_jit_to_native
-          ? WasmInstanceObject::GetOwningInstance(
-                frame->isolate()->wasm_engine()->code_manager()->LookupCode(
-                    frame->pc()))
-          : WasmInstanceObject::GetOwningInstanceGC(frame->LookupCode());
+  WasmInstanceObject* ret = WasmInstanceObject::GetOwningInstance(
+      frame->isolate()->wasm_engine()->code_manager()->LookupCode(frame->pc()));
   // This is a live stack frame, there must be a live wasm instance available.
   DCHECK_NOT_NULL(ret);
   return ret;
@@ -819,9 +815,7 @@ void StandardFrame::IterateCompiledFrame(RootVisitor* v) const {
   // Find the code and compute the safepoint information.
   Address inner_pointer = pc();
   const wasm::WasmCode* wasm_code =
-      FLAG_wasm_jit_to_native
-          ? isolate()->wasm_engine()->code_manager()->LookupCode(inner_pointer)
-          : nullptr;
+      isolate()->wasm_engine()->code_manager()->LookupCode(inner_pointer);
   SafepointEntry safepoint_entry;
   uint32_t stack_slots;
   Code* code = nullptr;
@@ -1738,14 +1732,12 @@ void WasmCompiledFrame::Print(StringStream* accumulator, PrintMode mode,
   accumulator->Add("WASM [");
   Script* script = this->script();
   accumulator->PrintName(script->name());
-  Address instruction_start = FLAG_wasm_jit_to_native
-                                  ? isolate()
-                                        ->wasm_engine()
-                                        ->code_manager()
-                                        ->LookupCode(pc())
-                                        ->instructions()
-                                        .start()
-                                  : LookupCode()->instruction_start();
+  Address instruction_start = isolate()
+                                  ->wasm_engine()
+                                  ->code_manager()
+                                  ->LookupCode(pc())
+                                  ->instructions()
+                                  .start();
   int pc = static_cast<int>(this->pc() - instruction_start);
   Vector<const uint8_t> raw_func_name =
       shared()->GetRawFunctionName(this->function_index());
@@ -1772,10 +1764,8 @@ Address WasmCompiledFrame::GetCallerStackPointer() const {
 }
 
 WasmCodeWrapper WasmCompiledFrame::wasm_code() const {
-  return FLAG_wasm_jit_to_native
-             ? WasmCodeWrapper(
-                   isolate()->wasm_engine()->code_manager()->LookupCode(pc()))
-             : WasmCodeWrapper(Handle<Code>(LookupCode(), isolate()));
+  return WasmCodeWrapper(
+      isolate()->wasm_engine()->code_manager()->LookupCode(pc()));
 }
 
 WasmInstanceObject* WasmCompiledFrame::wasm_instance() const {
@@ -1818,21 +1808,14 @@ bool WasmCompiledFrame::at_to_number_conversion() const {
   // ToNumber conversion call.
   Address callee_pc = reinterpret_cast<Address>(this->callee_pc());
   int pos = -1;
-  if (FLAG_wasm_jit_to_native) {
-    wasm::WasmCode* code =
-        callee_pc
-            ? isolate()->wasm_engine()->code_manager()->LookupCode(callee_pc)
-            : nullptr;
-    if (!code || code->kind() != wasm::WasmCode::kWasmToJsWrapper) return false;
-    int offset = static_cast<int>(callee_pc - code->instructions().start());
-    pos = FrameSummary::WasmCompiledFrameSummary::GetWasmSourcePosition(code,
-                                                                        offset);
-  } else {
-    Code* code = callee_pc ? isolate()->FindCodeObject(callee_pc) : nullptr;
-    if (!code || code->kind() != Code::WASM_TO_JS_FUNCTION) return false;
-    int offset = static_cast<int>(callee_pc - code->instruction_start());
-    pos = AbstractCode::cast(code)->SourcePosition(offset);
-  }
+  wasm::WasmCode* code =
+      callee_pc
+          ? isolate()->wasm_engine()->code_manager()->LookupCode(callee_pc)
+          : nullptr;
+  if (!code || code->kind() != wasm::WasmCode::kWasmToJsWrapper) return false;
+  int offset = static_cast<int>(callee_pc - code->instructions().start());
+  pos = FrameSummary::WasmCompiledFrameSummary::GetWasmSourcePosition(code,
+                                                                      offset);
   DCHECK(pos == 0 || pos == 1);
   // The imported call has position 0, ToNumber has position 1.
   return !!pos;
@@ -1840,13 +1823,6 @@ bool WasmCompiledFrame::at_to_number_conversion() const {
 
 int WasmCompiledFrame::LookupExceptionHandlerInTable(int* stack_slots) {
   DCHECK_NOT_NULL(stack_slots);
-  if (!FLAG_wasm_jit_to_native) {
-    Code* code = LookupCode();
-    HandlerTable table(code);
-    int pc_offset = static_cast<int>(pc() - code->entry());
-    *stack_slots = code->stack_slots();
-    return table.LookupReturn(pc_offset);
-  }
   wasm::WasmCode* code =
       isolate()->wasm_engine()->code_manager()->LookupCode(pc());
   if (!code->IsAnonymous() && code->handler_table_offset() > 0) {
@@ -1887,13 +1863,7 @@ void WasmInterpreterEntryFrame::Summarize(
   }
 }
 
-Code* WasmInterpreterEntryFrame::unchecked_code() const {
-  if (FLAG_wasm_jit_to_native) {
-    UNIMPLEMENTED();
-  } else {
-    return isolate()->FindCodeObject(pc());
-  }
-}
+Code* WasmInterpreterEntryFrame::unchecked_code() const { UNREACHABLE(); }
 
 // TODO(titzer): deprecate this method.
 WasmInstanceObject* WasmInterpreterEntryFrame::wasm_instance() const {
@@ -2132,9 +2102,7 @@ void JavaScriptFrame::Iterate(RootVisitor* v) const {
 
 void InternalFrame::Iterate(RootVisitor* v) const {
   wasm::WasmCode* wasm_code =
-      FLAG_wasm_jit_to_native
-          ? isolate()->wasm_engine()->code_manager()->LookupCode(pc())
-          : nullptr;
+      isolate()->wasm_engine()->code_manager()->LookupCode(pc());
   if (wasm_code != nullptr) {
     DCHECK(wasm_code->kind() == wasm::WasmCode::kLazyStub);
   } else {

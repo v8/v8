@@ -39,60 +39,6 @@ constexpr const char* WasmException::kRuntimeIdStr;
 // static
 constexpr const char* WasmException::kRuntimeValuesStr;
 
-void UnpackAndRegisterProtectedInstructionsGC(Isolate* isolate,
-                                              Handle<FixedArray> code_table) {
-  DisallowHeapAllocation no_gc;
-  std::vector<trap_handler::ProtectedInstructionData> unpacked;
-
-  for (int i = 0; i < code_table->length(); ++i) {
-    Object* maybe_code = code_table->get(i);
-    // This is sometimes undefined when we're called from cctests.
-    if (maybe_code->IsUndefined(isolate)) continue;
-    Code* code = Code::cast(maybe_code);
-
-    if (code->kind() != Code::WASM_FUNCTION) {
-      continue;
-    }
-
-    if (code->trap_handler_index()->value() != trap_handler::kInvalidIndex) {
-      // This function has already been registered.
-      continue;
-    }
-
-    byte* base = code->entry();
-
-    FixedArray* protected_instructions = code->protected_instructions();
-    DCHECK(protected_instructions != nullptr);
-    for (int i = 0; i < protected_instructions->length();
-         i += Code::kTrapDataSize) {
-      trap_handler::ProtectedInstructionData data;
-      data.instr_offset =
-          protected_instructions
-              ->GetValueChecked<Smi>(isolate, i + Code::kTrapCodeOffset)
-              ->value();
-      data.landing_offset =
-          protected_instructions
-              ->GetValueChecked<Smi>(isolate, i + Code::kTrapLandingOffset)
-              ->value();
-      unpacked.emplace_back(data);
-    }
-
-    if (unpacked.empty()) continue;
-
-    const int index = RegisterHandlerData(base, code->instruction_size(),
-                                          unpacked.size(), &unpacked[0]);
-
-    unpacked.clear();
-
-    // TODO(6792): No longer needed once WebAssembly code is off heap.
-    CodeSpaceMemoryModificationScope modification_scope(isolate->heap());
-
-    // TODO(eholk): if index is negative, fail.
-    DCHECK_LE(0, index);
-    code->set_trap_handler_index(Smi::FromInt(index));
-  }
-}
-
 void UnpackAndRegisterProtectedInstructions(
     Isolate* isolate, const wasm::NativeModule* native_module) {
   DisallowHeapAllocation no_gc;

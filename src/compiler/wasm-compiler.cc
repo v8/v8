@@ -2579,20 +2579,11 @@ Node* WasmGraphBuilder::CallDirect(uint32_t index, Node** args, Node*** rets,
                                    wasm::WasmCodePosition position) {
   DCHECK_NULL(args[0]);
   wasm::FunctionSig* sig = env_->module->functions[index].sig;
-  if (FLAG_wasm_jit_to_native) {
-    // Just encode the function index. This will be patched at instantiation.
-    Address code = reinterpret_cast<Address>(index);
-    args[0] = jsgraph()->RelocatableIntPtrConstant(
-        reinterpret_cast<intptr_t>(code), RelocInfo::WASM_CALL);
-  } else {
-    // Add code object as constant.
-    Handle<Code> code = index < env_->function_code.size()
-                            ? env_->function_code[index]
-                            : env_->default_function_code;
 
-    DCHECK(!code.is_null());
-    args[0] = HeapConstant(code);
-  }
+  // Just encode the function index. This will be patched at instantiation.
+  Address code = reinterpret_cast<Address>(index);
+  args[0] = jsgraph()->RelocatableIntPtrConstant(
+      reinterpret_cast<intptr_t>(code), RelocInfo::WASM_CALL);
 
   return BuildWasmCall(sig, args, rets, position);
 }
@@ -3411,16 +3402,12 @@ void WasmGraphBuilder::BuildCWasmEntry() {
 
   // Create parameter nodes (offset by 1 for the receiver parameter).
   Node* code_obj = nullptr;
-  if (FLAG_wasm_jit_to_native) {
-    Node* foreign_code_obj = Param(CWasmEntryParameters::kCodeObject + 1);
-    MachineOperatorBuilder* machine = jsgraph()->machine();
-    code_obj = graph()->NewNode(
-        machine->Load(MachineType::Pointer()), foreign_code_obj,
-        Int32Constant(Foreign::kForeignAddressOffset - kHeapObjectTag),
-        *effect_, *control_);
-  } else {
-    code_obj = Param(CWasmEntryParameters::kCodeObject + 1);
-  }
+  Node* foreign_code_obj = Param(CWasmEntryParameters::kCodeObject + 1);
+  MachineOperatorBuilder* machine = jsgraph()->machine();
+  code_obj = graph()->NewNode(
+      machine->Load(MachineType::Pointer()), foreign_code_obj,
+      Int32Constant(Foreign::kForeignAddressOffset - kHeapObjectTag), *effect_,
+      *control_);
   Node* wasm_context = Param(CWasmEntryParameters::kWasmContext + 1);
   Node* arg_buffer = Param(CWasmEntryParameters::kArgumentsBuffer + 1);
 
@@ -4728,8 +4715,8 @@ Handle<Code> CompileJSToWasmWrapper(Isolate* isolate, wasm::WasmModule* module,
 
   // TODO(titzer): compile JS to WASM wrappers without a {ModuleEnv}.
   ModuleEnv env(module,
-                // TODO(mtrofin): remove the Illegal builtin when we don't need
-                // FLAG_wasm_jit_to_native
+                // TODO(mstarzinger): remove the Illegal builtin when we don't
+                // need FLAG_wasm_jit_to_native
                 BUILTIN_CODE(isolate, Illegal),  // default_function_code
                 use_trap_handler);
 
@@ -5047,13 +5034,6 @@ Handle<Code> CompileWasmInterpreterEntry(Isolate* isolate, uint32_t func_index,
     }
   }
 
-  if (!FLAG_wasm_jit_to_native) {
-    Handle<FixedArray> deopt_data =
-        isolate->factory()->NewFixedArray(1, TENURED);
-    Handle<WeakCell> weak_instance = isolate->factory()->NewWeakCell(instance);
-    deopt_data->set(0, *weak_instance);
-    code->set_deoptimization_data(*deopt_data);
-  }
   return code;
 }
 
@@ -5377,88 +5357,55 @@ WasmCodeWrapper WasmCompilationUnit::FinishTurbofanCompilation(
   if (tf_.job_->FinalizeJob(isolate_) != CompilationJob::SUCCEEDED) {
     return {};
   }
-  if (!FLAG_wasm_jit_to_native) {
-    Handle<Code> code = tf_.info_->code();
-    DCHECK(!code.is_null());
 
-    if (FLAG_trace_wasm_decode_time) {
-      double codegen_ms = codegen_timer.Elapsed().InMillisecondsF();
-      PrintF("wasm-code-generation ok: %u bytes, %0.3f ms code generation\n",
-             static_cast<unsigned>(func_body_.end - func_body_.start),
-             codegen_ms);
-    }
-
-    PackProtectedInstructions(code);
+  // TODO(mtrofin): when we crystalize a design in lieu of WasmCodeDesc, that
+  // works for both wasm and non-wasm, we can simplify AddCode to just take
+  // that as a parameter.
+  const CodeDesc& desc =
+      tf_.job_->compilation_info()->wasm_code_desc()->code_desc;
+  wasm::WasmCode* code = native_module_->AddCode(
+      desc, tf_.job_->compilation_info()->wasm_code_desc()->frame_slot_count,
+      func_index_,
+      tf_.job_->compilation_info()->wasm_code_desc()->safepoint_table_offset,
+      tf_.job_->compilation_info()->wasm_code_desc()->handler_table_offset,
+      std::move(protected_instructions_), wasm::WasmCode::kTurbofan);
+  if (!code) {
     return WasmCodeWrapper(code);
-  } else {
-    // TODO(mtrofin): when we crystalize a design in lieu of WasmCodeDesc, that
-    // works for both wasm and non-wasm, we can simplify AddCode to just take
-    // that as a parameter.
-    const CodeDesc& desc =
-        tf_.job_->compilation_info()->wasm_code_desc()->code_desc;
-    wasm::WasmCode* code = native_module_->AddCode(
-        desc, tf_.job_->compilation_info()->wasm_code_desc()->frame_slot_count,
-        func_index_,
-        tf_.job_->compilation_info()->wasm_code_desc()->safepoint_table_offset,
-        tf_.job_->compilation_info()->wasm_code_desc()->handler_table_offset,
-        std::move(protected_instructions_), wasm::WasmCode::kTurbofan);
-    if (!code) {
-      return WasmCodeWrapper(code);
-    }
-    if (FLAG_trace_wasm_decode_time) {
-      double codegen_ms = codegen_timer.Elapsed().InMillisecondsF();
-      PrintF("wasm-code-generation ok: %u bytes, %0.3f ms code generation\n",
-             static_cast<unsigned>(func_body_.end - func_body_.start),
-             codegen_ms);
-    }
+  }
+  if (FLAG_trace_wasm_decode_time) {
+    double codegen_ms = codegen_timer.Elapsed().InMillisecondsF();
+    PrintF("wasm-code-generation ok: %u bytes, %0.3f ms code generation\n",
+           static_cast<unsigned>(func_body_.end - func_body_.start),
+           codegen_ms);
+  }
 
-    PROFILE(isolate_,
-            CodeCreateEvent(CodeEventListener::FUNCTION_TAG, code, func_name_));
+  PROFILE(isolate_,
+          CodeCreateEvent(CodeEventListener::FUNCTION_TAG, code, func_name_));
 
-    Handle<ByteArray> source_positions =
-        tf_.job_->compilation_info()->wasm_code_desc()->source_positions_table;
+  Handle<ByteArray> source_positions =
+      tf_.job_->compilation_info()->wasm_code_desc()->source_positions_table;
 
-    native_module_->compiled_module()->source_positions()->set(
-        func_index_, *source_positions);
+  native_module_->compiled_module()->source_positions()->set(func_index_,
+                                                             *source_positions);
 
 #ifdef ENABLE_DISASSEMBLER
-    // Note: only do this after setting source positions, as this will be
-    // accessed and printed here.
-    if (FLAG_print_code || FLAG_print_wasm_code) {
-      // TODO(wasm): Use proper log files, here and elsewhere.
-      PrintF("--- Native Wasm code ---\n");
-      code->Print(isolate_);
-      PrintF("--- End code ---\n");
-    }
+  // Note: only do this after setting source positions, as this will be
+  // accessed and printed here.
+  if (FLAG_print_code || FLAG_print_wasm_code) {
+    // TODO(wasm): Use proper log files, here and elsewhere.
+    PrintF("--- Native Wasm code ---\n");
+    code->Print(isolate_);
+    PrintF("--- End code ---\n");
+  }
 #endif
 
-    // TODO(mtrofin): this should probably move up in the common caller,
-    // once liftoff has source positions. Until then, we'd need to handle
-    // undefined values, which is complicating the code.
-    LOG_CODE_EVENT(isolate_,
-                   CodeLinePosInfoRecordEvent(code->instructions().start(),
-                                              *source_positions));
-    return WasmCodeWrapper(code);
-  }
-}
-
-// TODO(mtrofin): remove when FLAG_wasm_jit_to_native is not needed
-void WasmCompilationUnit::PackProtectedInstructions(Handle<Code> code) const {
-  if (protected_instructions_->empty()) return;
-  DCHECK_LT(protected_instructions_->size(), std::numeric_limits<int>::max());
-  const int num_instructions =
-      static_cast<int>(protected_instructions_->size());
-  Handle<FixedArray> fn_protected = isolate_->factory()->NewFixedArray(
-      num_instructions * Code::kTrapDataSize, TENURED);
-  for (int i = 0; i < num_instructions; ++i) {
-    const trap_handler::ProtectedInstructionData& instruction =
-        protected_instructions_->at(i);
-    fn_protected->set(Code::kTrapDataSize * i + Code::kTrapCodeOffset,
-                      Smi::FromInt(instruction.instr_offset));
-    fn_protected->set(Code::kTrapDataSize * i + Code::kTrapLandingOffset,
-                      Smi::FromInt(instruction.landing_offset));
-  }
-  code->set_protected_instructions(*fn_protected);
+  // TODO(mtrofin): this should probably move up in the common caller,
+  // once liftoff has source positions. Until then, we'd need to handle
+  // undefined values, which is complicating the code.
+  LOG_CODE_EVENT(isolate_,
+                 CodeLinePosInfoRecordEvent(code->instructions().start(),
+                                            *source_positions));
+  return WasmCodeWrapper(code);
 }
 
 WasmCodeWrapper WasmCompilationUnit::FinishLiftoffCompilation(
@@ -5469,36 +5416,16 @@ WasmCodeWrapper WasmCompilationUnit::FinishLiftoffCompilation(
   Handle<ByteArray> source_positions =
       liftoff_.source_position_table_builder_.ToSourcePositionTable(isolate_);
 
-  WasmCodeWrapper ret;
-  if (!FLAG_wasm_jit_to_native) {
-    Handle<Code> code;
-    code = isolate_->factory()->NewCode(
-        desc, Code::WASM_FUNCTION, code, Builtins::kNoBuiltinId,
-        source_positions, MaybeHandle<DeoptimizationData>(), kMovable,
-        0,                                       // stub_key
-        false,                                   // is_turbofanned
-        liftoff_.asm_.GetTotalFrameSlotCount(),  // stack_slots
-        liftoff_.safepoint_table_offset_);
-    if (isolate_->logger()->is_logging_code_events() ||
-        isolate_->is_profiling()) {
-      RecordFunctionCompilation(CodeEventListener::FUNCTION_TAG, isolate_, code,
-                                "wasm#%d-liftoff", func_index_);
-    }
-
-    PackProtectedInstructions(code);
-    ret = WasmCodeWrapper(code);
-  } else {
-    // TODO(herhut) Consider lifting it to FinishCompilation.
-    native_module_->compiled_module()->source_positions()->set(
-        func_index_, *source_positions);
-    wasm::WasmCode* code = native_module_->AddCode(
-        desc, liftoff_.asm_.GetTotalFrameSlotCount(), func_index_,
-        liftoff_.safepoint_table_offset_, 0, std::move(protected_instructions_),
-        wasm::WasmCode::kLiftoff);
-    PROFILE(isolate_,
-            CodeCreateEvent(CodeEventListener::FUNCTION_TAG, code, func_name_));
-    ret = WasmCodeWrapper(code);
-  }
+  // TODO(herhut) Consider lifting it to FinishCompilation.
+  native_module_->compiled_module()->source_positions()->set(func_index_,
+                                                             *source_positions);
+  wasm::WasmCode* code = native_module_->AddCode(
+      desc, liftoff_.asm_.GetTotalFrameSlotCount(), func_index_,
+      liftoff_.safepoint_table_offset_, 0, std::move(protected_instructions_),
+      wasm::WasmCode::kLiftoff);
+  PROFILE(isolate_,
+          CodeCreateEvent(CodeEventListener::FUNCTION_TAG, code, func_name_));
+  WasmCodeWrapper ret = WasmCodeWrapper(code);
 #ifdef ENABLE_DISASSEMBLER
   if (FLAG_print_code || FLAG_print_wasm_code) {
     // TODO(wasm): Use proper log files, here and elsewhere.

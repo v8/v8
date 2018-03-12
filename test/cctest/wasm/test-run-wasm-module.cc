@@ -258,7 +258,7 @@ class WasmSerializationTest {
     uint32_t* slot = reinterpret_cast<uint32_t*>(
         const_cast<uint8_t*>(serialized_bytes_.first) +
         SerializedCodeData::kPayloadLengthOffset);
-    *slot = FLAG_wasm_jit_to_native ? 0u : 0xFEFEFEFEu;
+    *slot = 0u;
   }
 
   v8::MaybeLocal<v8::WasmCompiledModule> Deserialize() {

@@ -31,14 +31,8 @@ WasmInstanceObject* GetWasmInstanceOnStackTop(Isolate* isolate) {
   const Address entry = Isolate::c_entry_fp(isolate->thread_local_top());
   Address pc =
       Memory::Address_at(entry + StandardFrameConstants::kCallerPCOffset);
-  WasmInstanceObject* owning_instance = nullptr;
-  if (FLAG_wasm_jit_to_native) {
-    owning_instance = WasmInstanceObject::GetOwningInstance(
-        isolate->wasm_engine()->code_manager()->LookupCode(pc));
-  } else {
-    owning_instance = WasmInstanceObject::GetOwningInstanceGC(
-        isolate->inner_pointer_to_code_cache()->GetCacheEntry(pc)->code);
-  }
+  WasmInstanceObject* owning_instance = WasmInstanceObject::GetOwningInstance(
+      isolate->wasm_engine()->code_manager()->LookupCode(pc));
   CHECK_NOT_NULL(owning_instance);
   return owning_instance;
 }
@@ -296,15 +290,11 @@ RUNTIME_FUNCTION(Runtime_WasmCompileLazy) {
   DCHECK_EQ(0, args.length());
   HandleScope scope(isolate);
 
-  if (FLAG_wasm_jit_to_native) {
-    Address new_func = wasm::CompileLazy(isolate);
-    // The alternative to this is having 2 lazy compile builtins. The builtins
-    // are part of the snapshot, so the flag has no impact on the codegen there.
-    return reinterpret_cast<Object*>(new_func - Code::kHeaderSize +
-                                     kHeapObjectTag);
-  } else {
-    return *wasm::CompileLazyOnGCHeap(isolate);
-  }
+  Address new_func = wasm::CompileLazy(isolate);
+  // The alternative to this is having 2 lazy compile builtins. The builtins
+  // are part of the snapshot, so the flag has no impact on the codegen there.
+  return reinterpret_cast<Object*>(new_func - Code::kHeaderSize +
+                                   kHeapObjectTag);
 }
 
 }  // namespace internal

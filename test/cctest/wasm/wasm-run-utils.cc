@@ -72,9 +72,7 @@ uint32_t TestingModuleBuilder::AddFunction(FunctionSig* sig, const char* name) {
     test_module_.functions.reserve(kMaxFunctions);
   }
   uint32_t index = static_cast<uint32_t>(test_module_.functions.size());
-  if (FLAG_wasm_jit_to_native) {
-    native_module_->ResizeCodeTableForTest(index);
-  }
+  native_module_->ResizeCodeTableForTest(index);
   test_module_.functions.push_back(
       {sig, index, 0, {0, 0}, {0, 0}, false, false});
   if (name) {
@@ -101,21 +99,15 @@ uint32_t TestingModuleBuilder::AddJsFunction(
   Handle<Code> code = compiler::CompileWasmToJSWrapper(
       isolate_, jsfunc, sig, index, test_module_.origin(),
       trap_handler::IsTrapHandlerEnabled(), js_imports_table);
-  if (FLAG_wasm_jit_to_native) {
-    native_module_->ResizeCodeTableForTest(index);
-    native_module_->AddCodeCopy(code, wasm::WasmCode::kWasmToJsWrapper, index);
-  } else {
-    function_code_[index] = code;
-  }
+  native_module_->ResizeCodeTableForTest(index);
+  native_module_->AddCodeCopy(code, wasm::WasmCode::kWasmToJsWrapper, index);
   return index;
 }
 
 Handle<JSFunction> TestingModuleBuilder::WrapCode(uint32_t index) {
   // Wrap the code so it can be called as a JS function.
   Link();
-  WasmCodeWrapper code = FLAG_wasm_jit_to_native
-                             ? WasmCodeWrapper(native_module_->GetCode(index))
-                             : WasmCodeWrapper(function_code_[index]);
+  WasmCodeWrapper code = WasmCodeWrapper(native_module_->GetCode(index));
   byte* context_address =
       test_module_.has_memory
           ? reinterpret_cast<byte*>(instance_object_->wasm_context()->get())
@@ -444,9 +436,7 @@ void WasmFunctionCompiler::Build(const byte* start, const byte* end) {
   Handle<WasmCompiledModule> compiled_module(
       builder_->instance_object()->compiled_module(), isolate());
   NativeModule* native_module = compiled_module->GetNativeModule();
-  if (FLAG_wasm_jit_to_native) {
-    native_module->ResizeCodeTableForTest(function_->func_index);
-  }
+  native_module->ResizeCodeTableForTest(function_->func_index);
   Handle<SeqOneByteString> wire_bytes(compiled_module->shared()->module_bytes(),
                                       isolate());
 
@@ -472,47 +462,10 @@ void WasmFunctionCompiler::Build(const byte* start, const byte* end) {
       isolate()->counters(), builder_->runtime_exception_support(),
       builder_->lower_simd());
   unit.ExecuteCompilation();
-  WasmCodeWrapper code_wrapper = unit.FinishCompilation(&thrower);
+  unit.FinishCompilation(&thrower);
   CHECK(!thrower.error());
-  if (!FLAG_wasm_jit_to_native) {
-    Handle<Code> code = code_wrapper.GetCode();
-    // TODO(6792): No longer needed once WebAssembly code is off heap.
-    CodeSpaceMemoryModificationScope modification_scope(isolate()->heap());
-
-    // Manually add the deoptimization info that would otherwise be added
-    // during instantiation. Deopt data holds <WeakCell<wasm_instance>,
-    // func_index>.
-    DCHECK_EQ(0, code->deoptimization_data()->length());
-    Handle<FixedArray> deopt_data =
-        isolate()->factory()->NewFixedArray(2, TENURED);
-    Handle<Object> weak_instance =
-        isolate()->factory()->NewWeakCell(builder_->instance_object());
-    deopt_data->set(0, *weak_instance);
-    deopt_data->set(1, Smi::FromInt(static_cast<int>(function_index())));
-    code->set_deoptimization_data(*deopt_data);
-
-    // Build the TurboFan graph.
-    builder_->SetFunctionCode(function_index(), code);
-
-    // Add to code table.
-    Handle<FixedArray> code_table(compiled_module->code_table(), isolate());
-    if (static_cast<int>(function_index()) >= code_table->length()) {
-      Handle<FixedArray> new_arr = isolate()->factory()->NewFixedArray(
-          static_cast<int>(function_index()) + 1);
-      code_table->CopyTo(0, *new_arr, 0, code_table->length());
-      code_table = new_arr;
-      compiled_module->ReplaceCodeTableForTesting(code_table);
-    }
-    DCHECK(code_table->get(static_cast<int>(function_index()))
-               ->IsUndefined(isolate()));
-    code_table->set(static_cast<int>(function_index()), *code);
-    if (trap_handler::IsTrapHandlerEnabled()) {
-      UnpackAndRegisterProtectedInstructionsGC(isolate(), code_table);
-    }
-  } else {
-    if (trap_handler::IsTrapHandlerEnabled()) {
-      UnpackAndRegisterProtectedInstructions(isolate(), native_module);
-    }
+  if (trap_handler::IsTrapHandlerEnabled()) {
+    UnpackAndRegisterProtectedInstructions(isolate(), native_module);
   }
 }
 
@@ -533,18 +486,7 @@ WasmFunctionCompiler::WasmFunctionCompiler(Zone* zone, FunctionSig* sig,
   function_ = builder_->GetFunctionAt(index);
 }
 
-WasmFunctionCompiler::~WasmFunctionCompiler() {
-  if (!FLAG_wasm_jit_to_native) {
-    if (trap_handler::IsTrapHandlerEnabled() &&
-        !builder_->GetFunctionCode(function_index()).is_null()) {
-      const int handler_index = builder_->GetFunctionCode(function_index())
-                                    .GetCode()
-                                    ->trap_handler_index()
-                                    ->value();
-      trap_handler::ReleaseHandlerData(handler_index);
-    }
-  }
-}
+WasmFunctionCompiler::~WasmFunctionCompiler() {}
 
 FunctionSig* WasmRunnerBase::CreateSig(MachineType return_type,
                                        Vector<MachineType> param_types) {

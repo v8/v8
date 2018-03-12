@@ -2587,17 +2587,10 @@ class ThreadImpl {
     Isolate* isolate = codemap()->instance()->GetIsolate();
     HandleScope handle_scope(isolate);
 
-    if (FLAG_wasm_jit_to_native) {
-      const wasm::WasmCode* target =
-          codemap()->GetImportedFunction(function_index);
-      return CallWasmCode(isolate, target,
-                          codemap()->module()->functions[function_index].sig);
-    } else {
-      Handle<Code> target(codemap()->GetImportedFunctionGC(function_index),
-                          isolate);
-      return CallCodeObject(isolate, target,
-                            codemap()->module()->functions[function_index].sig);
-    }
+    const wasm::WasmCode* target =
+        codemap()->GetImportedFunction(function_index);
+    return CallWasmCode(isolate, target,
+                        codemap()->module()->functions[function_index].sig);
   }
 
   ExternalCallResult CallIndirectFunction(uint32_t table_index,
@@ -2627,7 +2620,6 @@ class ThreadImpl {
     Isolate* isolate = compiled_module->GetIsolate();
 
     const wasm::WasmCode* target = nullptr;
-    Code* target_gc = nullptr;
     {
       DisallowHeapAllocation no_gc;
       // Get function to be called directly from the live instance to see latest
@@ -2660,10 +2652,6 @@ class ThreadImpl {
         if (static_cast<uint32_t>(found_sig) != canonical_sig_index) {
           return {ExternalCallResult::SIGNATURE_MISMATCH};
         }
-
-        // Get code object.
-        target_gc = Code::cast(fun_table->get(
-            compiler::FunctionTableCodeOffset(static_cast<int>(entry_index))));
       } else {
         // The function table is stored in the wasm context.
         // TODO(wasm): the wasm interpreter currently supports only one table.
@@ -2692,11 +2680,7 @@ class ThreadImpl {
     // accumulating handles in the outer scope.
     HandleScope handle_scope(isolate);
     FunctionSig* signature = module()->signatures[sig_index];
-    if (FLAG_wasm_jit_to_native) {
-      return CallWasmCode(isolate, target, signature);
-    } else {
-      return CallCodeObject(isolate, handle(target_gc, isolate), signature);
-    }
+    return CallWasmCode(isolate, target, signature);
   }
 
   inline Activation current_activation() {

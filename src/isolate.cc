@@ -1305,17 +1305,10 @@ Object* Isolate::UnwindAndFindHandler() {
         trap_handler::SetThreadInWasm();
 
         set_wasm_caught_exception(exception);
-        if (FLAG_wasm_jit_to_native) {
-          wasm::WasmCode* wasm_code =
-              wasm_engine()->code_manager()->LookupCode(frame->pc());
-          return FoundHandler(nullptr, wasm_code->instructions().start(),
-                              offset, wasm_code->constant_pool(), return_sp,
-                              frame->fp());
-        } else {
-          Code* code = frame->LookupCode();
-          return FoundHandler(nullptr, code->instruction_start(), offset,
-                              code->constant_pool(), return_sp, frame->fp());
-        }
+        wasm::WasmCode* wasm_code =
+            wasm_engine()->code_manager()->LookupCode(frame->pc());
+        return FoundHandler(nullptr, wasm_code->instructions().start(), offset,
+                            wasm_code->constant_pool(), return_sp, frame->fp());
       }
 
       case StackFrame::OPTIMIZED: {
@@ -1696,11 +1689,9 @@ bool Isolate::ComputeLocationFromStackTrace(MessageLocation* target,
       // TODO(titzer): store a reference to the code object in FrameArray;
       // a second lookup here could lead to inconsistency.
       int byte_offset =
-          FLAG_wasm_jit_to_native
-              ? FrameSummary::WasmCompiledFrameSummary::GetWasmSourcePosition(
-                    compiled_module->GetNativeModule()->GetCode(func_index),
-                    code_offset)
-              : elements->Code(i)->SourcePosition(code_offset);
+          FrameSummary::WasmCompiledFrameSummary::GetWasmSourcePosition(
+              compiled_module->GetNativeModule()->GetCode(func_index),
+              code_offset);
 
       bool is_at_number_conversion =
           elements->IsAsmJsWasmFrame(i) &&

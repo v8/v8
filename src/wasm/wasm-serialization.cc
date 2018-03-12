@@ -460,14 +460,6 @@ size_t NativeModuleSerializer::Write(Vector<byte> dest) {
 // static
 std::pair<std::unique_ptr<const byte[]>, size_t> SerializeNativeModule(
     Isolate* isolate, Handle<WasmCompiledModule> compiled_module) {
-  if (!FLAG_wasm_jit_to_native) {
-    std::unique_ptr<ScriptData> script_data =
-        WasmCompiledModuleSerializer::SerializeWasmModule(isolate,
-                                                          compiled_module);
-    script_data->ReleaseDataOwnership();
-    size_t size = static_cast<size_t>(script_data->length());
-    return {std::unique_ptr<const byte[]>(script_data->data()), size};
-  }
   NativeModule* native_module = compiled_module->GetNativeModule();
   NativeModuleSerializer serializer(isolate, native_module);
   size_t version_size = kVersionSize;
@@ -630,11 +622,6 @@ Address NativeModuleDeserializer::GetTrampolineOrStubFromTag(uint32_t tag) {
 
 MaybeHandle<WasmCompiledModule> DeserializeNativeModule(
     Isolate* isolate, Vector<const byte> data, Vector<const byte> wire_bytes) {
-  if (!FLAG_wasm_jit_to_native) {
-    ScriptData script_data(data.start(), data.length());
-    return WasmCompiledModuleSerializer::DeserializeWasmModule(
-        isolate, &script_data, wire_bytes);
-  }
   if (!IsWasmCodegenAllowed(isolate, isolate->native_context())) {
     return {};
   }

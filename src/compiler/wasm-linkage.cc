@@ -257,13 +257,10 @@ CallDescriptor* GetWasmCallDescriptor(Zone* zone, wasm::FunctionSig* fsig,
   const RegList kCalleeSaveFPRegisters = 0;
 
   // The target for wasm calls is always a code object.
-  MachineType target_type = FLAG_wasm_jit_to_native ? MachineType::Pointer()
-                                                    : MachineType::AnyTagged();
+  MachineType target_type = MachineType::Pointer();
   LinkageLocation target_loc = LinkageLocation::ForAnyRegister(target_type);
 
-  CallDescriptor::Kind kind = FLAG_wasm_jit_to_native
-                                  ? CallDescriptor::kCallWasmFunction
-                                  : CallDescriptor::kCallCodeObject;
+  CallDescriptor::Kind kind = CallDescriptor::kCallWasmFunction;
 
   return new (zone) CallDescriptor(       // --
       kind,                               // kind

@@ -15,12 +15,11 @@ namespace internal {
 // When constructing, we check the flag. After that, we just
 // check using the member.
 WasmCodeWrapper::WasmCodeWrapper(Handle<Code> code) {
-  DCHECK(!FLAG_wasm_jit_to_native);
   code_ptr_.code_handle_ = code.location();
+  UNREACHABLE();  // TODO(mstarzinger): This whole class will be deprecated!
 }
 
 WasmCodeWrapper::WasmCodeWrapper(const wasm::WasmCode* code) {
-  DCHECK(FLAG_wasm_jit_to_native);
   code_ptr_.wasm_code_ = code;
 }
 
@@ -34,7 +33,7 @@ const wasm::WasmCode* WasmCodeWrapper::GetWasmCode() const {
   return code_ptr_.wasm_code_;
 }
 
-bool WasmCodeWrapper::IsCodeObject() const { return !FLAG_wasm_jit_to_native; }
+bool WasmCodeWrapper::IsCodeObject() const { return false; }
 
 #ifdef ENABLE_DISASSEMBLER
 void WasmCodeWrapper::Disassemble(const char* name, Isolate* isolate,

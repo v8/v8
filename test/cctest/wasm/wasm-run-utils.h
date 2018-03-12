@@ -91,13 +91,7 @@ class TestingModuleBuilder {
 
   byte* AddMemory(uint32_t size);
 
-  size_t CodeTableLength() const {
-    if (FLAG_wasm_jit_to_native) {
-      return native_module_->FunctionCount();
-    } else {
-      return function_code_.size();
-    }
-  }
+  size_t CodeTableLength() const { return native_module_->FunctionCount(); }
 
   template <typename T>
   T* AddMemoryElems(uint32_t count) {
@@ -208,18 +202,13 @@ class TestingModuleBuilder {
   Isolate* isolate() { return isolate_; }
   Handle<WasmInstanceObject> instance_object() { return instance_object_; }
   WasmCodeWrapper GetFunctionCode(uint32_t index) {
-    if (FLAG_wasm_jit_to_native) {
-      return WasmCodeWrapper(native_module_->GetCode(index));
-    } else {
-      return WasmCodeWrapper(function_code_[index]);
-    }
+    return WasmCodeWrapper(native_module_->GetCode(index));
   }
   void SetFunctionCode(int index, Handle<Code> code) {
     function_code_[index] = code;
   }
   Address globals_start() { return reinterpret_cast<Address>(globals_data_); }
   void Link() {
-    if (!FLAG_wasm_jit_to_native) return;
     if (!linked_) {
       native_module_->LinkAll();
       linked_ = true;
@@ -281,20 +270,14 @@ class WasmFunctionWrapper : private compiler::GraphAndBuilders {
   }
 
   void SetInnerCode(WasmCodeWrapper code) {
-    if (FLAG_wasm_jit_to_native) {
-      intptr_t address = reinterpret_cast<intptr_t>(
-          code.GetWasmCode()->instructions().start());
-      compiler::NodeProperties::ChangeOp(
-          inner_code_node_,
-          kPointerSize == 8
-              ? common()->RelocatableInt64Constant(address,
-                                                   RelocInfo::WASM_CALL)
-              : common()->RelocatableInt32Constant(static_cast<int>(address),
-                                                   RelocInfo::WASM_CALL));
-    } else {
-      compiler::NodeProperties::ChangeOp(
-          inner_code_node_, common()->HeapConstant(code.GetCode()));
-    }
+    intptr_t address =
+        reinterpret_cast<intptr_t>(code.GetWasmCode()->instructions().start());
+    compiler::NodeProperties::ChangeOp(
+        inner_code_node_,
+        kPointerSize == 8
+            ? common()->RelocatableInt64Constant(address, RelocInfo::WASM_CALL)
+            : common()->RelocatableInt32Constant(static_cast<int>(address),
+                                                 RelocInfo::WASM_CALL));
   }
 
   const compiler::Operator* IntPtrConstant(intptr_t value) {
