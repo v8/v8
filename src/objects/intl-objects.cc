@@ -14,6 +14,7 @@
 #include "src/factory.h"
 #include "src/global-handles.h"
 #include "src/isolate.h"
+#include "src/managed.h"
 #include "src/objects-inl.h"
 #include "src/property-descriptor.h"
 #include "unicode/brkiter.h"
@@ -901,10 +902,11 @@ void NumberFormat::DeleteNumberFormat(const v8::WeakCallbackInfo<void>& data) {
   GlobalHandles::Destroy(reinterpret_cast<Object**>(data.GetParameter()));
 }
 
-icu::Collator* Collator::InitializeCollator(Isolate* isolate,
-                                            Handle<String> locale,
-                                            Handle<JSObject> options,
-                                            Handle<JSObject> resolved) {
+bool Collator::InitializeCollator(Isolate* isolate,
+                                  Handle<JSObject> collator_holder,
+                                  Handle<String> locale,
+                                  Handle<JSObject> options,
+                                  Handle<JSObject> resolved) {
   v8::Isolate* v8_isolate = reinterpret_cast<v8::Isolate*>(isolate);
   // Convert BCP47 into ICU locale format.
   UErrorCode status = U_ZERO_ERROR;
@@ -916,7 +918,7 @@ icu::Collator* Collator::InitializeCollator(Isolate* isolate,
     uloc_forLanguageTag(*bcp47_locale, icu_result, ULOC_FULLNAME_CAPACITY,
                         &icu_length, &status);
     if (U_FAILURE(status) || icu_length == 0) {
-      return nullptr;
+      return false;
     }
     icu_locale = icu::Locale(icu_result);
   }
@@ -938,17 +940,16 @@ icu::Collator* Collator::InitializeCollator(Isolate* isolate,
     SetResolvedCollatorSettings(isolate, icu_locale, collator, resolved);
   }
 
-  return collator;
+  Handle<Managed<icu::Collator>> managed =
+      Managed<icu::Collator>::From(isolate, collator);
+  collator_holder->SetEmbedderField(0, *managed);
+
+  return true;
 }
 
 icu::Collator* Collator::UnpackCollator(Isolate* isolate,
                                         Handle<JSObject> obj) {
-  return reinterpret_cast<icu::Collator*>(obj->GetEmbedderField(0));
-}
-
-void Collator::DeleteCollator(const v8::WeakCallbackInfo<void>& data) {
-  delete reinterpret_cast<icu::Collator*>(data.GetInternalField(0));
-  GlobalHandles::Destroy(reinterpret_cast<Object**>(data.GetParameter()));
+  return Managed<icu::Collator>::cast(obj->GetEmbedderField(0))->get();
 }
 
 bool PluralRules::InitializePluralRules(Isolate* isolate, Handle<String> locale,
