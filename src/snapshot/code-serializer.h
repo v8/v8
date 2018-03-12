@@ -85,25 +85,6 @@ class CodeSerializer : public Serializer<> {
   DISALLOW_COPY_AND_ASSIGN(CodeSerializer);
 };
 
-class WasmCompiledModuleSerializer : public CodeSerializer {
- public:
-  static std::unique_ptr<ScriptData> SerializeWasmModule(
-      Isolate* isolate, Handle<WasmCompiledModule> compiled_module);
-  static MaybeHandle<WasmCompiledModule> DeserializeWasmModule(
-      Isolate* isolate, ScriptData* data, Vector<const byte> wire_bytes);
-
- protected:
-  void SerializeCodeObject(Code* code_object, HowToCode how_to_code,
-                           WhereToPoint where_to_point) override;
-  bool ElideObject(Object* obj) override;
-
- private:
-  WasmCompiledModuleSerializer(Isolate* isolate, uint32_t source_hash,
-                               Handle<Context> native_context,
-                               Handle<SeqOneByteString> module_bytes);
-  DISALLOW_COPY_AND_ASSIGN(WasmCompiledModuleSerializer);
-};
-
 // Wrapper around ScriptData to provide code-serializer-specific functionality.
 class SerializedCodeData : public SerializedData {
  public:

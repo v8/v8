@@ -13,11 +13,8 @@
 #include "src/objects-inl.h"
 #include "src/snapshot/object-deserializer.h"
 #include "src/snapshot/snapshot.h"
-#include "src/trap-handler/trap-handler.h"
 #include "src/version.h"
 #include "src/visitors.h"
-#include "src/wasm/wasm-module.h"
-#include "src/wasm/wasm-objects-inl.h"
 
 namespace v8 {
 namespace internal {
@@ -251,92 +248,6 @@ MaybeHandle<SharedFunctionInfo> CodeSerializer::Deserialize(
                                      result->abstract_code(), *result, name));
   }
   return scope.CloseAndEscape(result);
-}
-
-WasmCompiledModuleSerializer::WasmCompiledModuleSerializer(
-    Isolate* isolate, uint32_t source_hash, Handle<Context> native_context,
-    Handle<SeqOneByteString> module_bytes)
-    : CodeSerializer(isolate, source_hash) {
-  reference_map()->AddAttachedReference(*isolate->native_context());
-  reference_map()->AddAttachedReference(*module_bytes);
-}
-
-std::unique_ptr<ScriptData> WasmCompiledModuleSerializer::SerializeWasmModule(
-    Isolate* isolate, Handle<WasmCompiledModule> compiled_module) {
-  WasmCompiledModuleSerializer wasm_cs(
-      isolate, 0, isolate->native_context(),
-      handle(compiled_module->shared()->module_bytes()));
-  ScriptData* data = wasm_cs.Serialize(compiled_module);
-  return std::unique_ptr<ScriptData>(data);
-}
-
-MaybeHandle<WasmCompiledModule>
-WasmCompiledModuleSerializer::DeserializeWasmModule(
-    Isolate* isolate, ScriptData* data, Vector<const byte> wire_bytes) {
-  if (!wasm::IsWasmCodegenAllowed(isolate, isolate->native_context())) {
-    return MaybeHandle<WasmCompiledModule>();
-  }
-  SerializedCodeData::SanityCheckResult sanity_check_result =
-      SerializedCodeData::CHECK_SUCCESS;
-
-  const SerializedCodeData scd = SerializedCodeData::FromCachedData(
-      isolate, data, 0, &sanity_check_result);
-
-  if (sanity_check_result != SerializedCodeData::CHECK_SUCCESS) {
-    return MaybeHandle<WasmCompiledModule>();
-  }
-
-  // TODO(6792): No longer needed once WebAssembly code is off heap.
-  CodeSpaceMemoryModificationScope modification_scope(isolate->heap());
-  MaybeHandle<WasmCompiledModule> maybe_result =
-      ObjectDeserializer::DeserializeWasmCompiledModule(isolate, &scd,
-                                                        wire_bytes);
-
-  Handle<WasmCompiledModule> result;
-  if (!maybe_result.ToHandle(&result)) return MaybeHandle<WasmCompiledModule>();
-
-  WasmCompiledModule::ReinitializeAfterDeserialization(isolate, result);
-  DCHECK(result->IsWasmCompiledModule());
-  return result;
-}
-
-void WasmCompiledModuleSerializer::SerializeCodeObject(
-    Code* code_object, HowToCode how_to_code, WhereToPoint where_to_point) {
-  Code::Kind kind = code_object->kind();
-  switch (kind) {
-    case Code::WASM_FUNCTION:
-    case Code::JS_TO_WASM_FUNCTION: {
-      // TODO(6792): No longer needed once WebAssembly code is off heap.
-      CodeSpaceMemoryModificationScope modification_scope(isolate()->heap());
-      // Because the trap handler index is not meaningful across copies and
-      // serializations, we need to serialize it as kInvalidIndex. We do this by
-      // saving the old value, setting the index to kInvalidIndex and then
-      // restoring the old value.
-      const int old_trap_handler_index =
-          code_object->trap_handler_index()->value();
-      code_object->set_trap_handler_index(
-          Smi::FromInt(trap_handler::kInvalidIndex));
-
-      // Just serialize the code_object.
-      SerializeGeneric(code_object, how_to_code, where_to_point);
-      code_object->set_trap_handler_index(Smi::FromInt(old_trap_handler_index));
-      break;
-    }
-    case Code::WASM_INTERPRETER_ENTRY:
-    case Code::WASM_TO_JS_FUNCTION:
-    case Code::WASM_TO_WASM_FUNCTION:
-      // Serialize the illegal builtin instead. On instantiation of a
-      // deserialized module, these will be replaced again.
-      SerializeBuiltinReference(*BUILTIN_CODE(isolate(), Illegal), how_to_code,
-                                where_to_point, 0);
-      break;
-    default:
-      UNREACHABLE();
-  }
-}
-
-bool WasmCompiledModuleSerializer::ElideObject(Object* obj) {
-  return obj->IsWeakCell() || obj->IsForeign() || obj->IsBreakPointInfo();
 }
 
 class Checksum {
