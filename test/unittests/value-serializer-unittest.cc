@@ -81,7 +81,6 @@ class ValueSerializerTest : public TestWithIsolate {
   // Overridden in more specific fixtures.
   virtual ValueSerializer::Delegate* GetSerializerDelegate() { return nullptr; }
   virtual void BeforeEncode(ValueSerializer*) {}
-  virtual void AfterEncode() {}
   virtual ValueDeserializer::Delegate* GetDeserializerDelegate() {
     return nullptr;
   }
@@ -118,7 +117,6 @@ class ValueSerializerTest : public TestWithIsolate {
     if (!serializer.WriteValue(context, value).FromMaybe(false)) {
       return Nothing<std::vector<uint8_t>>();
     }
-    AfterEncode();
     std::pair<uint8_t*, size_t> buffer = serializer.Release();
     std::vector<uint8_t> result(buffer.first, buffer.first + buffer.second);
     free(buffer.first);
@@ -1651,8 +1649,6 @@ class ValueSerializerTestWithArrayBufferTransfer : public ValueSerializerTest {
   void BeforeEncode(ValueSerializer* serializer) override {
     serializer->TransferArrayBuffer(0, input_buffer_);
   }
-
-  void AfterEncode() override { input_buffer_->Neuter(); }
 
   void BeforeDecode(ValueDeserializer* deserializer) override {
     deserializer->TransferArrayBuffer(0, output_buffer_);

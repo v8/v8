@@ -19050,6 +19050,7 @@ Handle<String> JSMessageObject::GetSourceLine() const {
 
 void JSArrayBuffer::Neuter() {
   CHECK(is_neuterable());
+  CHECK(!was_neutered());
   CHECK(is_external());
   set_backing_store(nullptr);
   set_byte_length(Smi::kZero);
