@@ -512,9 +512,7 @@ MaybeHandle<FixedArray> Debug::CheckBreakPoints(Handle<DebugInfo> debug_info,
   if (has_break_points) *has_break_points = has_break_points_to_check;
   if (!has_break_points_to_check) return {};
 
-  Handle<Object> break_points =
-      debug_info->GetBreakPoints(location->position());
-  return Debug::GetHitBreakPoints(break_points);
+  return Debug::GetHitBreakPoints(debug_info, location->position());
 }
 
 
@@ -569,17 +567,28 @@ MaybeHandle<Object> Debug::CallFunction(const char* name, int argc,
 
 
 // Check whether a single break point object is triggered.
-bool Debug::CheckBreakPoint(Handle<BreakPoint> break_point) {
+bool Debug::CheckBreakPoint(Handle<BreakPoint> break_point,
+                            bool is_break_at_entry) {
   HandleScope scope(isolate_);
 
   if (!break_point->condition()->length()) return true;
   Handle<String> condition(break_point->condition());
+  MaybeHandle<Object> maybe_result;
   Handle<Object> result;
-  // Since we call CheckBreakpoint only for deoptimized frame on top of stack,
-  // we can use 0 as index of inlined frame.
-  if (!DebugEvaluate::Local(isolate_, break_frame_id(),
-                            /* inlined_jsframe_index */ 0, condition, false)
-           .ToHandle(&result)) {
+
+  if (is_break_at_entry) {
+    maybe_result = DebugEvaluate::WithTopmostArguments(isolate_, condition);
+  } else {
+    // Since we call CheckBreakpoint only for deoptimized frame on top of stack,
+    // we can use 0 as index of inlined frame.
+    const int inlined_jsframe_index = 0;
+    const bool throw_on_side_effect = false;
+    maybe_result =
+        DebugEvaluate::Local(isolate_, break_frame_id(), inlined_jsframe_index,
+                             condition, throw_on_side_effect);
+  }
+
+  if (!maybe_result.ToHandle(&result)) {
     if (isolate_->has_pending_exception()) {
       isolate_->clear_pending_exception();
     }
@@ -783,10 +792,16 @@ bool Debug::IsBreakOnException(ExceptionBreakType type) {
   }
 }
 
-MaybeHandle<FixedArray> Debug::GetHitBreakPoints(Handle<Object> break_points) {
+MaybeHandle<FixedArray> Debug::GetHitBreakPoints(Handle<DebugInfo> debug_info,
+                                                 int position) {
+  Handle<Object> break_points = debug_info->GetBreakPoints(position);
+  bool is_break_at_entry = debug_info->BreakAtEntry();
   DCHECK(!break_points->IsUndefined(isolate_));
   if (!break_points->IsFixedArray()) {
-    if (!CheckBreakPoint(Handle<BreakPoint>::cast(break_points))) return {};
+    if (!CheckBreakPoint(Handle<BreakPoint>::cast(break_points),
+                         is_break_at_entry)) {
+      return {};
+    }
     Handle<FixedArray> break_points_hit = isolate_->factory()->NewFixedArray(1);
     break_points_hit->set(0, *break_points);
     return break_points_hit;
@@ -799,7 +814,8 @@ MaybeHandle<FixedArray> Debug::GetHitBreakPoints(Handle<Object> break_points) {
   int break_points_hit_count = 0;
   for (int i = 0; i < num_objects; ++i) {
     Handle<Object> break_point(array->get(i), isolate_);
-    if (CheckBreakPoint(Handle<BreakPoint>::cast(break_point))) {
+    if (CheckBreakPoint(Handle<BreakPoint>::cast(break_point),
+                        is_break_at_entry)) {
       break_points_hit->set(break_points_hit_count++, *break_point);
     }
   }

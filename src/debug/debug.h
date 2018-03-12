@@ -253,11 +253,11 @@ class Debug {
                      int* offset, int* id);
   void RemoveBreakpoint(int id);
 
-  // The parameter is either a BreakPoint object, or a FixedArray of
-  // BreakPoint objects.
-  // Returns an empty handle if no breakpoint is hit, or a FixedArray with all
+  // Find breakpoints from the debug info and the break location and check
+  // whether they are hit. Return an empty handle if not, or a FixedArray with
   // hit BreakPoint objects.
-  MaybeHandle<FixedArray> GetHitBreakPoints(Handle<Object> break_points);
+  MaybeHandle<FixedArray> GetHitBreakPoints(Handle<DebugInfo> debug_info,
+                                            int position);
 
   // Stepping handling.
   void PrepareStep(StepAction step_action);
@@ -469,7 +469,9 @@ class Debug {
                                            BreakLocation* location,
                                            bool* has_break_points = nullptr);
   bool IsMutedAtCurrentLocation(JavaScriptFrame* frame);
-  bool CheckBreakPoint(Handle<BreakPoint> break_point);
+  // Check whether a BreakPoint object is hit. Evaluate condition depending
+  // on whether this is a regular break location or a break at function entry.
+  bool CheckBreakPoint(Handle<BreakPoint> break_point, bool is_break_at_entry);
   MaybeHandle<Object> CallFunction(const char* name, int argc,
                                    Handle<Object> args[],
                                    bool catch_exceptions = true);

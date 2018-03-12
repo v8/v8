@@ -1530,44 +1530,63 @@ TEST(BreakPointConditionBuiltin) {
   CompileRun("'b'.repeat(10)");
   CHECK_EQ(1, break_point_hit_count);
 
-  // === Test parameter ===
+  // === Test arguments ===
   break_point_hit_count = 0;
   builtin = CompileRun("String.prototype.repeat").As<v8::Function>();
-  CompileRun("function f(x) { x.repeat(10); }");
+  CompileRun("function f(x) { return 'a'.repeat(x * 2); }");
   CHECK_EQ(0, break_point_hit_count);
 
   // Run with breakpoint.
-  bp = SetBreakPoint(builtin, 0, "x == 'b'");
-  CompileRun("f('a')");
+  bp = SetBreakPoint(builtin, 0, "arguments[0] == 20");
+  ExpectString("f(5)", "aaaaaaaaaa");
   CHECK_EQ(0, break_point_hit_count);
 
-  CompileRun("f('b')");
+  ExpectString("f(10)", "aaaaaaaaaaaaaaaaaaaa");
   CHECK_EQ(1, break_point_hit_count);
 
   // Run without breakpoints.
   ClearBreakPoint(bp);
-  CompileRun("f('b')");
+  ExpectString("f(10)", "aaaaaaaaaaaaaaaaaaaa");
   CHECK_EQ(1, break_point_hit_count);
 
-  // === Test arguments ===
-  // TODO(178): implement this.
-  //  break_point_hit_count = 0;
-  //  builtin = CompileRun("String.prototype.repeat").As<v8::Function>();
-  //  CompileRun("function f(x) { 'a'.repeat(x * 2, 3); }");
-  //  CHECK_EQ(0, break_point_hit_count);
-  //
-  //  // Run with breakpoint.
-  //  bp = SetBreakPoint(builtin, 0, "arguments[0] == 20");
-  //  CompileRun("f(5)");
-  //  CHECK_EQ(0, break_point_hit_count);
-  //
-  //  CompileRun("f(10)");
-  //  CHECK_EQ(1, break_point_hit_count);
-  //
-  //  // Run without breakpoints.
-  //  ClearBreakPoint(bp);
-  //  CompileRun("f(10)");
-  //  CHECK_EQ(1, break_point_hit_count);
+  // === Test adapted arguments ===
+  break_point_hit_count = 0;
+  builtin = CompileRun("String.prototype.repeat").As<v8::Function>();
+  CompileRun("function f(x) { return 'a'.repeat(x * 2, x); }");
+  CHECK_EQ(0, break_point_hit_count);
+
+  // Run with breakpoint.
+  bp = SetBreakPoint(builtin, 0,
+                     "arguments[1] == 10 && arguments[2] == undefined");
+  ExpectString("f(5)", "aaaaaaaaaa");
+  CHECK_EQ(0, break_point_hit_count);
+
+  ExpectString("f(10)", "aaaaaaaaaaaaaaaaaaaa");
+  CHECK_EQ(1, break_point_hit_count);
+
+  // Run without breakpoints.
+  ClearBreakPoint(bp);
+  ExpectString("f(10)", "aaaaaaaaaaaaaaaaaaaa");
+  CHECK_EQ(1, break_point_hit_count);
+
+  // === Test receiver ===
+  break_point_hit_count = 0;
+  builtin = CompileRun("String.prototype.repeat").As<v8::Function>();
+  CompileRun("function f(x) { return x.repeat(10); }");
+  CHECK_EQ(0, break_point_hit_count);
+
+  // Run with breakpoint.
+  bp = SetBreakPoint(builtin, 0, "this == 'a'");
+  ExpectString("f('b')", "bbbbbbbbbb");
+  CHECK_EQ(0, break_point_hit_count);
+
+  ExpectString("f('a')", "aaaaaaaaaa");
+  CHECK_EQ(1, break_point_hit_count);
+
+  // Run without breakpoints.
+  ClearBreakPoint(bp);
+  ExpectString("f('a')", "aaaaaaaaaa");
+  CHECK_EQ(1, break_point_hit_count);
 
   SetDebugEventListener(env->GetIsolate(), nullptr);
   CheckDebuggerUnloaded();

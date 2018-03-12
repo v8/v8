@@ -1349,8 +1349,15 @@ MaybeHandle<FixedArray> WasmSharedModuleData::CheckBreakPoints(
       Handle<BreakPointInfo>::cast(maybe_breakpoint_info);
   if (breakpoint_info->source_position() != position) return {};
 
+  // There is no support for conditional break points. Just assume that every
+  // break point always hits.
   Handle<Object> break_points(breakpoint_info->break_points(), isolate);
-  return isolate->debug()->GetHitBreakPoints(break_points);
+  if (break_points->IsFixedArray()) {
+    return Handle<FixedArray>::cast(break_points);
+  }
+  Handle<FixedArray> break_points_hit = isolate->factory()->NewFixedArray(1);
+  break_points_hit->set(0, *break_points);
+  return break_points_hit;
 }
 
 Handle<WasmCompiledModule> WasmCompiledModule::New(

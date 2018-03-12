@@ -74,6 +74,48 @@ MaybeHandle<Object> DebugEvaluate::Local(Isolate* isolate,
   return maybe_result;
 }
 
+MaybeHandle<Object> DebugEvaluate::WithTopmostArguments(Isolate* isolate,
+                                                        Handle<String> source) {
+  // Handle the processing of break.
+  DisableBreak disable_break_scope(isolate->debug());
+  Factory* factory = isolate->factory();
+  JavaScriptFrameIterator it(isolate);
+
+  // Get context and receiver.
+  Handle<Context> native_context(
+      Context::cast(it.frame()->context())->native_context(), isolate);
+
+  // Materialize arguments as property on an extension object.
+  Handle<JSObject> materialized = factory->NewJSObjectWithNullProto();
+  Handle<String> arguments_str = factory->arguments_string();
+  JSObject::SetOwnPropertyIgnoreAttributes(
+      materialized, arguments_str,
+      Accessors::FunctionGetArguments(it.frame(), 0), NONE)
+      .Check();
+
+  // Materialize receiver.
+  Handle<String> this_str = factory->this_string();
+  JSObject::SetOwnPropertyIgnoreAttributes(
+      materialized, this_str, Handle<Object>(it.frame()->receiver(), isolate),
+      NONE)
+      .Check();
+
+  // Use extension object in a debug-evaluate scope.
+  Handle<ScopeInfo> scope_info =
+      ScopeInfo::CreateForWithScope(isolate, Handle<ScopeInfo>::null());
+  scope_info->SetIsDebugEvaluateScope();
+  Handle<Context> evaluation_context =
+      factory->NewDebugEvaluateContext(native_context, scope_info, materialized,
+                                       Handle<Context>(), Handle<StringSet>());
+  Handle<SharedFunctionInfo> outer_info(native_context->closure()->shared(),
+                                        isolate);
+  Handle<JSObject> receiver(native_context->global_proxy());
+  const bool throw_on_side_effect = false;
+  MaybeHandle<Object> maybe_result =
+      Evaluate(isolate, outer_info, evaluation_context, receiver, source,
+               throw_on_side_effect);
+  return maybe_result;
+}
 
 // Compile and evaluate source for the given context.
 MaybeHandle<Object> DebugEvaluate::Evaluate(

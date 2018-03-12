@@ -31,6 +31,12 @@ class DebugEvaluate : public AllStatic {
                                    Handle<String> source,
                                    bool throw_on_side_effect);
 
+  // This is used for break-at-entry for builtins and API functions.
+  // Evaluate a piece of JavaScript in the native context, but with the
+  // materialized arguments object and receiver of the current call.
+  static MaybeHandle<Object> WithTopmostArguments(Isolate* isolate,
+                                                  Handle<String> source);
+
   static bool FunctionHasNoSideEffect(Handle<SharedFunctionInfo> info);
   static bool CallbackHasNoSideEffect(Object* callback_info);
 
