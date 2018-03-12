@@ -1807,15 +1807,14 @@ bool WasmCompiledFrame::at_to_number_conversion() const {
   // Check whether our callee is a WASM_TO_JS frame, and this frame is at the
   // ToNumber conversion call.
   Address callee_pc = reinterpret_cast<Address>(this->callee_pc());
-  int pos = -1;
   wasm::WasmCode* code =
       callee_pc
           ? isolate()->wasm_engine()->code_manager()->LookupCode(callee_pc)
           : nullptr;
   if (!code || code->kind() != wasm::WasmCode::kWasmToJsWrapper) return false;
   int offset = static_cast<int>(callee_pc - code->instructions().start());
-  pos = FrameSummary::WasmCompiledFrameSummary::GetWasmSourcePosition(code,
-                                                                      offset);
+  int pos = FrameSummary::WasmCompiledFrameSummary::GetWasmSourcePosition(
+      code, offset);
   DCHECK(pos == 0 || pos == 1);
   // The imported call has position 0, ToNumber has position 1.
   return !!pos;

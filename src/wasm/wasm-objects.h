@@ -38,9 +38,6 @@ class WasmCompiledModule;
 class WasmDebugInfo;
 class WasmInstanceObject;
 
-// TODO(mstarzinger): Remove this macro!
-#define WASM_CONTEXT_TABLES true
-
 #define DECL_OPTIONAL_ACCESSORS(name, type) \
   INLINE(bool has_##name());                \
   DECL_ACCESSORS(name, type)

@@ -2630,50 +2630,25 @@ class ThreadImpl {
       DCHECK_EQ(canonical_sig_index,
                 module()->signature_map.Find(module()->signatures[sig_index]));
 
-      if (!WASM_CONTEXT_TABLES) {
-        // Check signature.
-        FixedArray* fun_tables = compiled_module->function_tables();
-        if (table_index >= static_cast<uint32_t>(fun_tables->length())) {
-          return {ExternalCallResult::INVALID_FUNC};
-        }
-        // Reconstitute the global handle to the function table, from the
-        // address stored in the respective table of tables.
-        int table_index_as_int = static_cast<int>(table_index);
-        FixedArray* fun_table = *reinterpret_cast<FixedArray**>(
-            WasmCompiledModule::GetTableValue(fun_tables, table_index_as_int));
-        // Function tables store <smi, code> pairs.
-        int num_funcs_in_table =
-            fun_table->length() / compiler::kFunctionTableEntrySize;
-        if (entry_index >= static_cast<uint32_t>(num_funcs_in_table)) {
-          return {ExternalCallResult::INVALID_FUNC};
-        }
-        int found_sig = Smi::ToInt(fun_table->get(
-            compiler::FunctionTableSigOffset(static_cast<int>(entry_index))));
-        if (static_cast<uint32_t>(found_sig) != canonical_sig_index) {
-          return {ExternalCallResult::SIGNATURE_MISMATCH};
-        }
-      } else {
-        // The function table is stored in the wasm context.
-        // TODO(wasm): the wasm interpreter currently supports only one table.
-        CHECK_EQ(0, table_index);
-        // Bounds check against table size.
-        if (entry_index >= wasm_context_->table_size) {
-          return {ExternalCallResult::INVALID_FUNC};
-        }
-        // Signature check.
-        int32_t entry_sig = wasm_context_->table[entry_index].sig_id;
-        if (entry_sig != static_cast<int32_t>(canonical_sig_index)) {
-          return {ExternalCallResult::SIGNATURE_MISMATCH};
-        }
-        // Load the target address (first instruction of code).
-        Address first_instr = wasm_context_->table[entry_index].target;
-        // TODO(titzer): load the wasm context instead of relying on the
-        // target code being specialized to the target instance.
-        // Get code object.
-        target =
-            isolate->wasm_engine()->code_manager()->GetCodeFromStartAddress(
-                first_instr);
+      // The function table is stored in the wasm context.
+      // TODO(wasm): the wasm interpreter currently supports only one table.
+      CHECK_EQ(0, table_index);
+      // Bounds check against table size.
+      if (entry_index >= wasm_context_->table_size) {
+        return {ExternalCallResult::INVALID_FUNC};
       }
+      // Signature check.
+      int32_t entry_sig = wasm_context_->table[entry_index].sig_id;
+      if (entry_sig != static_cast<int32_t>(canonical_sig_index)) {
+        return {ExternalCallResult::SIGNATURE_MISMATCH};
+      }
+      // Load the target address (first instruction of code).
+      Address first_instr = wasm_context_->table[entry_index].target;
+      // TODO(titzer): load the wasm context instead of relying on the
+      // target code being specialized to the target instance.
+      // Get code object.
+      target = isolate->wasm_engine()->code_manager()->GetCodeFromStartAddress(
+          first_instr);
     }
 
     // Call the code object. Use a new HandleScope to avoid leaking /

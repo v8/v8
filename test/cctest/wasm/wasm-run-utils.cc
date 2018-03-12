@@ -152,14 +152,12 @@ void TestingModuleBuilder::AddIndirectFunctionTable(
   function_tables_.push_back(
       isolate_->global_handles()->Create(func_table).address());
 
-  if (WASM_CONTEXT_TABLES) {
-    WasmContext* wasm_context = instance_object()->wasm_context()->get();
-    wasm_context->table = reinterpret_cast<IndirectFunctionTableEntry*>(
-        calloc(table_size, sizeof(IndirectFunctionTableEntry)));
-    wasm_context->table_size = table_size;
-    for (uint32_t i = 0; i < table_size; i++) {
-      wasm_context->table[i].sig_id = -1;
-    }
+  WasmContext* wasm_context = instance_object()->wasm_context()->get();
+  wasm_context->table = reinterpret_cast<IndirectFunctionTableEntry*>(
+      calloc(table_size, sizeof(IndirectFunctionTableEntry)));
+  wasm_context->table_size = table_size;
+  for (uint32_t i = 0; i < table_size; i++) {
+    wasm_context->table[i].sig_id = -1;
   }
 }
 
@@ -177,17 +175,11 @@ void TestingModuleBuilder::PopulateIndirectFunctionTable() {
       int sig_id = test_module_.signature_map.Find(function.sig);
       function_table->set(compiler::FunctionTableSigOffset(j),
                           Smi::FromInt(sig_id));
-      if (WASM_CONTEXT_TABLES) {
-        auto start = native_module_->GetCode(function.func_index)
-                         ->instructions()
-                         .start();
-        wasm_context->table[j].context = wasm_context;
-        wasm_context->table[j].sig_id = sig_id;
-        wasm_context->table[j].target = start;
-      } else {
-        function_table->set(compiler::FunctionTableCodeOffset(j),
-                            *function_code_[function.func_index]);
-      }
+      auto start =
+          native_module_->GetCode(function.func_index)->instructions().start();
+      wasm_context->table[j].context = wasm_context;
+      wasm_context->table[j].sig_id = sig_id;
+      wasm_context->table[j].target = start;
     }
   }
 }

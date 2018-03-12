@@ -2630,69 +2630,41 @@ Node* WasmGraphBuilder::CallIndirect(uint32_t sig_index, Node** args,
   static_assert(compiler::kFunctionTableCodeOffset == 1, "consistency");
 
   int32_t canonical_sig_num = env_->module->signature_ids[sig_index];
-  if (WASM_CONTEXT_TABLES) {
-    // The table entries are {IndirectFunctionTableEntry} structs.
-    Node* scaled_key =
-        graph()->NewNode(machine->Int32Mul(), key,
-                         Int32Constant(sizeof(IndirectFunctionTableEntry)));
-    const Operator* add = nullptr;
-    if (machine->Is64()) {
-      scaled_key = graph()->NewNode(machine->ChangeInt32ToInt64(), scaled_key);
-      add = machine->Int64Add();
-    } else {
-      add = machine->Int32Add();
-    }
-    Node* entry_address = graph()->NewNode(add, table, scaled_key);
-    Node* loaded_sig = graph()->NewNode(
-        machine->Load(MachineType::Int32()), entry_address,
-        Int32Constant(offsetof(IndirectFunctionTableEntry, sig_id)), *effect_,
-        *control_);
-    Node* sig_match = graph()->NewNode(machine->WordEqual(), loaded_sig,
-                                       Int32Constant(canonical_sig_num));
 
-    TrapIfFalse(wasm::kTrapFuncSigMismatch, sig_match, position);
-
-    Node* target = graph()->NewNode(
-        machine->Load(MachineType::Pointer()), entry_address,
-        Int32Constant(offsetof(IndirectFunctionTableEntry, target)), *effect_,
-        *control_);
-
-    Node* loaded_context = graph()->NewNode(
-        machine->Load(MachineType::Pointer()), entry_address,
-        Int32Constant(offsetof(IndirectFunctionTableEntry, context)), *effect_,
-        *control_);
-
-    args[0] = target;
-
-    return BuildWasmCall(sig, args, rets, position, loaded_context);
+  // The table entries are {IndirectFunctionTableEntry} structs.
+  Node* scaled_key =
+      graph()->NewNode(machine->Int32Mul(), key,
+                       Int32Constant(sizeof(IndirectFunctionTableEntry)));
+  const Operator* add = nullptr;
+  if (machine->Is64()) {
+    scaled_key = graph()->NewNode(machine->ChangeInt32ToInt64(), scaled_key);
+    add = machine->Int64Add();
+  } else {
+    add = machine->Int32Add();
   }
-
-  // The table entries are elements of a fixed array.
-  ElementAccess access = AccessBuilder::ForFixedArrayElement();
-  const int fixed_offset = access.header_size - access.tag();
-  Node* key_offset = graph()->NewNode(machine->Word32Shl(), key,
-                                      Int32Constant(kPointerSizeLog2 + 1));
-  Node* loaded_sig =
-      graph()->NewNode(machine->Load(MachineType::AnyTagged()), table,
-                       graph()->NewNode(machine->Int32Add(), key_offset,
-                                        Int32Constant(fixed_offset)),
-                       *effect_, *control_);
-  CHECK_GE(canonical_sig_num, 0);
+  Node* entry_address = graph()->NewNode(add, table, scaled_key);
+  Node* loaded_sig = graph()->NewNode(
+      machine->Load(MachineType::Int32()), entry_address,
+      Int32Constant(offsetof(IndirectFunctionTableEntry, sig_id)), *effect_,
+      *control_);
   Node* sig_match = graph()->NewNode(machine->WordEqual(), loaded_sig,
-                                     jsgraph()->SmiConstant(canonical_sig_num));
+                                     Int32Constant(canonical_sig_num));
 
   TrapIfFalse(wasm::kTrapFuncSigMismatch, sig_match, position);
 
-  // Load code object from the table. It is held by a Foreign.
-  Node* entry = graph()->NewNode(
-      machine->Load(MachineType::AnyTagged()), table,
-      graph()->NewNode(machine->Int32Add(), key_offset,
-                       Uint32Constant(fixed_offset + kPointerSize)),
-      *effect_, *control_);
-  args[0] = entry;
-  constexpr Node* wasm_context = nullptr;
-  const bool use_retpoline = FLAG_untrusted_code_mitigations;
-  return BuildWasmCall(sig, args, rets, position, wasm_context, use_retpoline);
+  Node* target = graph()->NewNode(
+      machine->Load(MachineType::Pointer()), entry_address,
+      Int32Constant(offsetof(IndirectFunctionTableEntry, target)), *effect_,
+      *control_);
+
+  Node* loaded_context = graph()->NewNode(
+      machine->Load(MachineType::Pointer()), entry_address,
+      Int32Constant(offsetof(IndirectFunctionTableEntry, context)), *effect_,
+      *control_);
+
+  args[0] = target;
+
+  return BuildWasmCall(sig, args, rets, position, loaded_context);
 }
 
 Node* WasmGraphBuilder::BuildI32Rol(Node* left, Node* right) {
@@ -3401,10 +3373,9 @@ void WasmGraphBuilder::BuildCWasmEntry() {
   *effect_ = start;
 
   // Create parameter nodes (offset by 1 for the receiver parameter).
-  Node* code_obj = nullptr;
   Node* foreign_code_obj = Param(CWasmEntryParameters::kCodeObject + 1);
   MachineOperatorBuilder* machine = jsgraph()->machine();
-  code_obj = graph()->NewNode(
+  Node* code_obj = graph()->NewNode(
       machine->Load(MachineType::Pointer()), foreign_code_obj,
       Int32Constant(Foreign::kForeignAddressOffset - kHeapObjectTag), *effect_,
       *control_);
@@ -3637,43 +3608,19 @@ Node* WasmGraphBuilder::CurrentMemoryPages() {
 
 void WasmGraphBuilder::GetFunctionTableNodes(uint32_t table_index, Node** table,
                                              Node** table_size) {
-  if (WASM_CONTEXT_TABLES) {
-    // The table address and size are stored in the WasmContext.
-    // Don't bother caching them, since they are only used in indirect calls,
-    // which would cause them to be spilled on the stack anyway.
-    *table = graph()->NewNode(
-        jsgraph()->machine()->Load(MachineType::UintPtr()), wasm_context_.get(),
-        jsgraph()->Int32Constant(
-            static_cast<int32_t>(offsetof(WasmContext, table))),
-        *effect_, *control_);
-    *table_size = graph()->NewNode(
-        jsgraph()->machine()->Load(MachineType::Uint32()), wasm_context_.get(),
-        jsgraph()->Int32Constant(
-            static_cast<int32_t>(offsetof(WasmContext, table_size))),
-        *effect_, *control_);
-  } else {
-    // The function table nodes are relocatable constants.
-    if (function_tables_.size() == 0) {
-      size_t tables_size = env_->function_tables.size();
-      for (size_t i = 0; i < tables_size; ++i) {
-        wasm::GlobalHandleAddress function_handle_address =
-            env_->function_tables[i];
-        Node* table_addr = jsgraph()->RelocatableIntPtrConstant(
-            reinterpret_cast<intptr_t>(function_handle_address),
-            RelocInfo::WASM_GLOBAL_HANDLE);
-        uint32_t table_size = env_->module->function_tables[i].initial_size;
-        Node* size = jsgraph()->RelocatableInt32Constant(
-            static_cast<uint32_t>(table_size),
-            RelocInfo::WASM_FUNCTION_TABLE_SIZE_REFERENCE);
-        function_tables_.push_back({table_addr, size});
-      }
-    }
-    *table_size = function_tables_[table_index].size;
-    *table =
-        graph()->NewNode(jsgraph()->machine()->Load(MachineType::AnyTagged()),
-                         function_tables_[table_index].table_addr,
-                         jsgraph()->IntPtrConstant(0), *effect_, *control_);
-  }
+  // The table address and size are stored in the WasmContext.
+  // Don't bother caching them, since they are only used in indirect calls,
+  // which would cause them to be spilled on the stack anyway.
+  *table = graph()->NewNode(
+      jsgraph()->machine()->Load(MachineType::UintPtr()), wasm_context_.get(),
+      jsgraph()->Int32Constant(
+          static_cast<int32_t>(offsetof(WasmContext, table))),
+      *effect_, *control_);
+  *table_size = graph()->NewNode(
+      jsgraph()->machine()->Load(MachineType::Uint32()), wasm_context_.get(),
+      jsgraph()->Int32Constant(
+          static_cast<int32_t>(offsetof(WasmContext, table_size))),
+      *effect_, *control_);
 }
 
 Node* WasmGraphBuilder::BuildModifyThreadInWasmFlag(bool new_value) {

@@ -557,7 +557,6 @@ Address CompileLazy(Isolate* isolate) {
 
   int func_index = static_cast<int>(result->index());
   if (!exp_deopt_data_entry.is_null() && exp_deopt_data_entry->IsFixedArray()) {
-    int patched = 0;
     Handle<FixedArray> exp_deopt_data =
         Handle<FixedArray>::cast(exp_deopt_data_entry);
 
@@ -568,35 +567,19 @@ Address CompileLazy(Isolate* isolate) {
     // of <export_table, index> followed by undefined values. Use this
     // information here to patch all export tables.
     Address target = result->instructions().start();
-    Handle<Foreign> foreign_holder =
-        isolate->factory()->NewForeign(target, TENURED);
     for (int idx = 0, end = exp_deopt_data->length(); idx < end; idx += 2) {
       if (exp_deopt_data->get(idx)->IsUndefined(isolate)) break;
       DisallowHeapAllocation no_gc;
       int exp_index = Smi::ToInt(exp_deopt_data->get(idx + 1));
-      FixedArray* exp_table = FixedArray::cast(exp_deopt_data->get(idx));
 
-      if (WASM_CONTEXT_TABLES) {
-        // TODO(titzer): patching of function tables for lazy compilation
-        // only works for a single instance.
-        instance->wasm_context()->get()->table[exp_index].target = target;
-      } else {
-        int table_index = compiler::FunctionTableCodeOffset(exp_index);
-        DCHECK_EQ(Foreign::cast(exp_table->get(table_index))->foreign_address(),
-                  lazy_stub_or_copy->instructions().start());
-
-        exp_table->set(table_index, *foreign_holder);
-        ++patched;
-      }
+      // TODO(titzer): patching of function tables for lazy compilation
+      // only works for a single instance.
+      instance->wasm_context()->get()->table[exp_index].target = target;
     }
     // After processing, remove the list of exported entries, such that we don't
     // do the patching redundantly.
     compiled_module->lazy_compile_data()->set(
         func_index, isolate->heap()->undefined_value());
-    if (!WASM_CONTEXT_TABLES) {
-      DCHECK_LT(0, patched);
-      USE(patched);
-    }
   }
 
   return result->instructions().start();
@@ -1756,7 +1739,7 @@ MaybeHandle<WasmModuleObject> ModuleCompiler::CompileToModuleObjectInternal(
         funcs_to_compile > 1 &&
         V8::GetCurrentPlatform()->NumberOfWorkerThreads() > 0;
     // Avoid a race condition by collecting results into a second vector.
-    std::vector<Handle<Code>> results(0);
+    std::vector<Handle<Code>> results;
 
     if (compile_parallel) {
       CompileInParallel(wire_bytes, env.get(), results, thrower);
@@ -2432,11 +2415,8 @@ int InstanceBuilder::ProcessImports(Handle<FixedArray> code_table,
              i += kFunctionTableEntrySize) {
           table_instance.function_table->set(i, Smi::FromInt(kInvalidSigIndex));
         }
-        WasmContext* wasm_context = nullptr;
-        if (WASM_CONTEXT_TABLES) {
-          wasm_context = instance->wasm_context()->get();
-          EnsureWasmContextTable(wasm_context, imported_cur_size);
-        }
+        WasmContext* wasm_context = instance->wasm_context()->get();
+        EnsureWasmContextTable(wasm_context, imported_cur_size);
         // Initialize the dispatch table with the (foreign) JS functions
         // that are already in the table.
         for (int i = 0; i < imported_cur_size; ++i) {
@@ -2454,30 +2434,17 @@ int InstanceBuilder::ProcessImports(Handle<FixedArray> code_table,
           // id, then the signature does not appear at all in this module,
           // so putting {-1} in the table will cause checks to always fail.
           auto target = Handle<WasmExportedFunction>::cast(val);
-          if (!WASM_CONTEXT_TABLES) {
-            FunctionSig* sig = nullptr;
-            Handle<Code> code =
-                MakeWasmToWasmWrapper(isolate_, target, nullptr, &sig,
-                                      &imported_wasm_instances, instance, 0)
-                    .GetCode();
-            int sig_index = module_->signature_map.Find(sig);
-            table_instance.function_table->set(
-                compiler::FunctionTableSigOffset(i), Smi::FromInt(sig_index));
-            table_instance.function_table->set(
-                compiler::FunctionTableCodeOffset(i), *code);
-          } else {
-            Handle<WasmInstanceObject> imported_instance =
-                handle(target->instance());
-            const wasm::WasmCode* exported_code =
-                target->GetWasmCode().GetWasmCode();
-            FunctionSig* sig = imported_instance->module()
-                                   ->functions[exported_code->index()]
-                                   .sig;
-            auto& entry = wasm_context->table[i];
-            entry.context = imported_instance->wasm_context()->get();
-            entry.sig_id = module_->signature_map.Find(sig);
-            entry.target = exported_code->instructions().start();
-          }
+          Handle<WasmInstanceObject> imported_instance =
+              handle(target->instance());
+          const wasm::WasmCode* exported_code =
+              target->GetWasmCode().GetWasmCode();
+          FunctionSig* sig = imported_instance->module()
+                                 ->functions[exported_code->index()]
+                                 .sig;
+          auto& entry = wasm_context->table[i];
+          entry.context = imported_instance->wasm_context()->get();
+          entry.sig_id = module_->signature_map.Find(sig);
+          entry.target = exported_code->instructions().start();
         }
 
         num_imported_tables++;
@@ -2859,10 +2826,8 @@ void InstanceBuilder::InitializeTables(
     int num_table_entries = static_cast<int>(table.initial_size);
     int table_size = compiler::kFunctionTableEntrySize * num_table_entries;
 
-    if (WASM_CONTEXT_TABLES) {
-      WasmContext* wasm_context = instance->wasm_context()->get();
-      EnsureWasmContextTable(wasm_context, num_table_entries);
-    }
+    WasmContext* wasm_context = instance->wasm_context()->get();
+    EnsureWasmContextTable(wasm_context, num_table_entries);
 
     if (table_instance.function_table.is_null()) {
       // Create a new dispatch table if necessary.
@@ -2965,13 +2930,11 @@ void InstanceBuilder::LoadTableSegments(Handle<FixedArray> code_table,
             compiler::FunctionTableCodeOffset(table_index),
             *value_to_update_with);
 
-        if (WASM_CONTEXT_TABLES) {
-          WasmContext* wasm_context = instance->wasm_context()->get();
-          auto& entry = wasm_context->table[table_index];
-          entry.sig_id = sig_id;
-          entry.context = wasm_context;
-          entry.target = wasm_code.instructions().start();
-        }
+        WasmContext* wasm_context = instance->wasm_context()->get();
+        auto& entry = wasm_context->table[table_index];
+        entry.sig_id = sig_id;
+        entry.context = wasm_context;
+        entry.target = wasm_code.instructions().start();
 
         if (!table_instance.table_object.is_null()) {
           // Update the table object's other dispatch tables.
