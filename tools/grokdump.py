@@ -2163,6 +2163,7 @@ class InspectionPadawan(object):
     return None
 
   def TryExtractErrorMessage(self, slot, start, end, print_message):
+    ptr_size = self.reader.PointerSize()
     end_marker = ERROR_MESSAGE_MARKER + 1;
     header_size = 1
     end_search = start + 1024 + (header_size * ptr_size);
