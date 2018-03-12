@@ -2649,8 +2649,10 @@ Node* JSNativeContextSpecialization::BuildIndexedStringLoad(
 
     Node* if_true = graph()->NewNode(common()->IfTrue(), branch);
     Node* etrue;
-    Node* vtrue = etrue = graph()->NewNode(
-        simplified()->StringCharAt(), receiver, masked_index, *effect, if_true);
+    Node* vtrue = etrue =
+        graph()->NewNode(simplified()->StringCharCodeAt(), receiver,
+                         masked_index, *effect, if_true);
+    vtrue = graph()->NewNode(simplified()->StringFromCharCode(), vtrue);
 
     Node* if_false = graph()->NewNode(common()->IfFalse(), branch);
     Node* vfalse = jsgraph()->UndefinedConstant();
@@ -2671,8 +2673,9 @@ Node* JSNativeContextSpecialization::BuildIndexedStringLoad(
 
     // Return the character from the {receiver} as single character string.
     Node* value = *effect =
-        graph()->NewNode(simplified()->StringCharAt(), receiver, masked_index,
-                         *effect, *control);
+        graph()->NewNode(simplified()->StringCharCodeAt(), receiver,
+                         masked_index, *effect, *control);
+    value = graph()->NewNode(simplified()->StringFromCharCode(), value);
     return value;
   }
 }

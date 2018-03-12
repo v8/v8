@@ -721,7 +721,6 @@ bool operator==(CheckMinusZeroParameters const& lhs,
   V(MaskIndexWithBound, Operator::kNoProperties, 2, 0)
 
 #define EFFECT_DEPENDENT_OP_LIST(V)                     \
-  V(StringCharAt, Operator::kNoProperties, 2, 1)        \
   V(StringCharCodeAt, Operator::kNoProperties, 2, 1)    \
   V(SeqStringCharCodeAt, Operator::kNoProperties, 2, 1) \
   V(StringSubstring, Operator::kNoProperties, 3, 1)

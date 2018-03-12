@@ -1966,8 +1966,6 @@ Type* Typer::Visitor::StringFromCodePointTyper(Type* type, Typer* t) {
   return Type::String();
 }
 
-Type* Typer::Visitor::TypeStringCharAt(Node* node) { return Type::String(); }
-
 Type* Typer::Visitor::TypeStringToLowerCaseIntl(Node* node) {
   return Type::String();
 }

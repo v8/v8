@@ -3429,7 +3429,7 @@ Reduction JSCallReducer::ReduceJSCall(Node* node,
     case Builtins::kStringPrototypeIndexOf:
       return ReduceStringPrototypeIndexOf(node);
     case Builtins::kStringPrototypeCharAt:
-      return ReduceStringPrototypeStringAt(simplified()->StringCharAt(), node);
+      return ReduceStringPrototypeCharAt(node);
     case Builtins::kStringPrototypeCharCodeAt:
       return ReduceStringPrototypeStringAt(simplified()->StringCharCodeAt(),
                                            node);
@@ -4821,13 +4821,11 @@ Reduction JSCallReducer::ReduceArrayIteratorPrototypeNext(Node* node) {
   return Replace(value);
 }
 
-// ES6 section 21.1.3.1 String.prototype.charAt ( pos )
 // ES6 section 21.1.3.2 String.prototype.charCodeAt ( pos )
 // ES6 section 21.1.3.3 String.prototype.codePointAt ( pos )
 Reduction JSCallReducer::ReduceStringPrototypeStringAt(
     const Operator* string_access_operator, Node* node) {
-  DCHECK(string_access_operator->opcode() == IrOpcode::kStringCharAt ||
-         string_access_operator->opcode() == IrOpcode::kStringCharCodeAt ||
+  DCHECK(string_access_operator->opcode() == IrOpcode::kStringCharCodeAt ||
          string_access_operator->opcode() == IrOpcode::kStringCodePointAt);
   DCHECK_EQ(IrOpcode::kJSCall, node->opcode());
   CallParameters const& p = CallParametersOf(node->op());
@@ -4859,6 +4857,45 @@ Reduction JSCallReducer::ReduceStringPrototypeStringAt(
                                         index, receiver_length);
   Node* value = effect = graph()->NewNode(string_access_operator, receiver,
                                           masked_index, effect, control);
+
+  ReplaceWithValue(node, value, effect, control);
+  return Replace(value);
+}
+
+// ES section 21.1.3.1 String.prototype.charAt ( pos )
+Reduction JSCallReducer::ReduceStringPrototypeCharAt(Node* node) {
+  DCHECK_EQ(IrOpcode::kJSCall, node->opcode());
+  CallParameters const& p = CallParametersOf(node->op());
+  if (p.speculation_mode() == SpeculationMode::kDisallowSpeculation) {
+    return NoChange();
+  }
+
+  Node* receiver = NodeProperties::GetValueInput(node, 1);
+  Node* index = node->op()->ValueInputCount() >= 3
+                    ? NodeProperties::GetValueInput(node, 2)
+                    : jsgraph()->ZeroConstant();
+  Node* effect = NodeProperties::GetEffectInput(node);
+  Node* control = NodeProperties::GetControlInput(node);
+
+  // Ensure that the {receiver} is actually a String.
+  receiver = effect = graph()->NewNode(simplified()->CheckString(p.feedback()),
+                                       receiver, effect, control);
+
+  // Determine the {receiver} length.
+  Node* receiver_length =
+      graph()->NewNode(simplified()->StringLength(), receiver);
+
+  // Check that the {index} is within range.
+  index = effect = graph()->NewNode(simplified()->CheckBounds(p.feedback()),
+                                    index, receiver_length, effect, control);
+
+  // Return the character from the {receiver} as single character string.
+  Node* masked_index = graph()->NewNode(simplified()->MaskIndexWithBound(),
+                                        index, receiver_length);
+  Node* value = effect =
+      graph()->NewNode(simplified()->StringCharCodeAt(), receiver, masked_index,
+                       effect, control);
+  value = graph()->NewNode(simplified()->StringFromCharCode(), value);
 
   ReplaceWithValue(node, value, effect, control);
   return Replace(value);
