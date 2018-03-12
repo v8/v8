@@ -247,6 +247,8 @@
 
   # BUG(178). Fails on windows.
   'test-debug/BreakPointJSBuiltin': [SKIP],
+  'test-debug/BreakPointConditionBuiltin': [SKIP],
+
   # BUG(3331). Fails on windows.
   'test-heap/NoWeakHashTableLeakWithIncrementalMarking': [SKIP],
 
