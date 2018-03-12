@@ -5175,7 +5175,8 @@ void Assembler::ConstantPoolAddEntry(int position, RelocInfo::Mode rmode,
   }
   ConstantPoolEntry entry(position, value,
                           sharing_ok || (rmode == RelocInfo::CODE_TARGET &&
-                                         IsCodeTargetSharingAllowed()));
+                                         IsCodeTargetSharingAllowed()),
+                          rmode);
 
   bool shared = false;
   if (sharing_ok) {
@@ -5183,7 +5184,8 @@ void Assembler::ConstantPoolAddEntry(int position, RelocInfo::Mode rmode,
     for (size_t i = 0; i < pending_32_bit_constants_.size(); i++) {
       ConstantPoolEntry& current_entry = pending_32_bit_constants_[i];
       if (!current_entry.sharing_ok()) continue;
-      if (entry.value() == current_entry.value()) {
+      if (entry.value() == current_entry.value() &&
+          entry.rmode() == current_entry.rmode()) {
         entry.set_merged_index(i);
         shared = true;
         break;

@@ -746,14 +746,18 @@ double power_double_double(double x, double y);
 class ConstantPoolEntry {
  public:
   ConstantPoolEntry() {}
-  ConstantPoolEntry(int position, intptr_t value, bool sharing_ok)
+  ConstantPoolEntry(int position, intptr_t value, bool sharing_ok,
+                    RelocInfo::Mode rmode = RelocInfo::NONE)
       : position_(position),
         merged_index_(sharing_ok ? SHARING_ALLOWED : SHARING_PROHIBITED),
-        value_(value) {}
-  ConstantPoolEntry(int position, Double value)
+        value_(value),
+        rmode_(rmode) {}
+  ConstantPoolEntry(int position, Double value,
+                    RelocInfo::Mode rmode = RelocInfo::NONE)
       : position_(position),
         merged_index_(SHARING_ALLOWED),
-        value64_(value.AsUint64()) {}
+        value64_(value.AsUint64()),
+        rmode_(rmode) {}
 
   int position() const { return position_; }
   bool sharing_ok() const { return merged_index_ != SHARING_PROHIBITED; }
@@ -777,6 +781,7 @@ class ConstantPoolEntry {
   }
   intptr_t value() const { return value_; }
   uint64_t value64() const { return value64_; }
+  RelocInfo::Mode rmode() const { return rmode_; }
 
   enum Type { INTPTR, DOUBLE, NUMBER_OF_TYPES };
 
@@ -793,6 +798,9 @@ class ConstantPoolEntry {
     intptr_t value_;
     uint64_t value64_;
   };
+  // TODO(leszeks): The way we use this, it could probably be packed into
+  // merged_index_ if size is a concern.
+  RelocInfo::Mode rmode_;
   enum { SHARING_PROHIBITED = -2, SHARING_ALLOWED = -1 };
 };
 

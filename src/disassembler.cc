@@ -135,6 +135,8 @@ static void PrintRelocInfo(StringBuilder* out, Isolate* isolate,
       out->AddFormatted(" %s, %s, ", Code::Kind2String(kind),
                         CodeStub::MajorName(major_key));
       out->AddFormatted("minor: %d", minor_key);
+    } else if (code->is_builtin()) {
+      out->AddFormatted(" Builtin::%s", Builtins::name(code->builtin_index()));
     } else {
       out->AddFormatted(" %s", Code::Kind2String(kind));
     }
