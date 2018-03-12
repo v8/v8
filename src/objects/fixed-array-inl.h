@@ -17,6 +17,7 @@ TYPE_CHECKER(ByteArray, BYTE_ARRAY_TYPE)
 TYPE_CHECKER(FixedArrayExact, FIXED_ARRAY_TYPE)
 TYPE_CHECKER(FixedDoubleArray, FIXED_DOUBLE_ARRAY_TYPE)
 TYPE_CHECKER(FixedArrayOfWeakCells, FIXED_ARRAY_TYPE)
+TYPE_CHECKER(WeakFixedArray, WEAK_FIXED_ARRAY_TYPE)
 
 CAST_ACCESSOR(ArrayList)
 CAST_ACCESSOR(ByteArray)
@@ -26,9 +27,12 @@ CAST_ACCESSOR(FixedDoubleArray)
 CAST_ACCESSOR(FixedTypedArrayBase)
 CAST_ACCESSOR(TemplateList)
 CAST_ACCESSOR(FixedArrayOfWeakCells)
+CAST_ACCESSOR(WeakFixedArray)
 
 SMI_ACCESSORS(FixedArrayBase, length, kLengthOffset)
 SYNCHRONIZED_SMI_ACCESSORS(FixedArrayBase, length, kLengthOffset)
+SMI_ACCESSORS(WeakFixedArray, length, kLengthOffset)
+SYNCHRONIZED_SMI_ACCESSORS(WeakFixedArray, length, kLengthOffset)
 
 Object* FixedArrayBase::unchecked_synchronized_length() const {
   return ACQUIRE_READ_FIELD(this, kLengthOffset);
@@ -142,7 +146,7 @@ void FixedArray::FillWithHoles(int from, int to) {
 }
 
 Object** FixedArray::data_start() {
-  return HeapObject::RawField(this, kHeaderSize);
+  return HeapObject::RawField(this, OffsetOfElementAt(0));
 }
 
 Object** FixedArray::RawFieldOfElementAt(int index) {
@@ -213,6 +217,23 @@ void FixedDoubleArray::FillWithHoles(int from, int to) {
   for (int i = from; i < to; i++) {
     set_the_hole(i);
   }
+}
+
+MaybeObject* WeakFixedArray::Get(int index) const {
+  SLOW_DCHECK(index >= 0 && index < this->length());
+  return RELAXED_READ_WEAK_FIELD(this, OffsetOfElementAt(index));
+}
+
+void WeakFixedArray::Set(int index, MaybeObject* value) {
+  DCHECK_GE(index, 0);
+  DCHECK_LT(index, length());
+  int offset = OffsetOfElementAt(index);
+  RELAXED_WRITE_FIELD(this, offset, value);
+  WEAK_WRITE_BARRIER(GetHeap(), this, offset, value);
+}
+
+MaybeObject** WeakFixedArray::data_start() {
+  return HeapObject::RawMaybeWeakField(this, kHeaderSize);
 }
 
 Object* FixedArrayOfWeakCells::Get(int index) const {

@@ -55,7 +55,8 @@ class JSWeakCollection;
   V(Symbol)                      \
   V(ThinString)                  \
   V(TransitionArray)             \
-  V(WeakCell)
+  V(WeakCell)                    \
+  V(WeakFixedArray)
 
 // The base class for visitors that need to dispatch on object type. The default
 // behavior of all visit functions is to iterate body of the given object using

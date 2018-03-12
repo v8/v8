@@ -126,6 +126,9 @@ void HeapObject::HeapObjectVerify() {
     case SCOPE_INFO_TYPE:
       FixedArray::cast(this)->FixedArrayVerify();
       break;
+    case WEAK_FIXED_ARRAY_TYPE:
+      WeakFixedArray::cast(this)->WeakFixedArrayVerify();
+      break;
     case FIXED_DOUBLE_ARRAY_TYPE:
       FixedDoubleArray::cast(this)->FixedDoubleArrayVerify();
       break;
@@ -526,6 +529,12 @@ void FixedArray::FixedArrayVerify() {
   for (int i = 0; i < length(); i++) {
     Object* e = get(i);
     VerifyPointer(e);
+  }
+}
+
+void WeakFixedArray::WeakFixedArrayVerify() {
+  for (int i = 0; i < length(); i++) {
+    MaybeObject::VerifyMaybeObjectPointer(Get(i));
   }
 }
 

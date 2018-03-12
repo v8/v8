@@ -2984,6 +2984,9 @@ VisitorId Map::GetVisitorId(Map* map) {
     case SCOPE_INFO_TYPE:
       return kVisitFixedArray;
 
+    case WEAK_FIXED_ARRAY_TYPE:
+      return kVisitWeakFixedArray;
+
     case FIXED_DOUBLE_ARRAY_TYPE:
       return kVisitFixedDoubleArray;
 

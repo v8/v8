@@ -133,6 +133,7 @@ using v8::MemoryPressureLevel;
   V(Map, small_ordered_hash_map_map, SmallOrderedHashMapMap)                   \
   V(Map, small_ordered_hash_set_map, SmallOrderedHashSetMap)                   \
   V(Map, string_table_map, StringTableMap)                                     \
+  V(Map, weak_fixed_array_map, WeakFixedArrayMap)                              \
   V(Map, weak_hash_table_map, WeakHashTableMap)                                \
   /* String maps */                                                            \
   V(Map, native_source_string_map, NativeSourceStringMap)                      \
@@ -217,6 +218,7 @@ using v8::MemoryPressureLevel;
   V(WeakCell, empty_weak_cell, EmptyWeakCell)                                  \
   V(Cell, invalid_prototype_validity_cell, InvalidPrototypeValidityCell)       \
   V(InterceptorInfo, noop_interceptor_info, NoOpInterceptorInfo)               \
+  V(WeakFixedArray, empty_weak_fixed_array, EmptyWeakFixedArray)               \
   /* Protectors */                                                             \
   V(Cell, array_constructor_protector, ArrayConstructorProtector)              \
   V(PropertyCell, no_elements_protector, NoElementsProtector)                  \
@@ -403,6 +405,7 @@ using v8::MemoryPressureLevel;
   V(UninitializedMap)                   \
   V(UninitializedValue)                 \
   V(WeakCellMap)                        \
+  V(WeakFixedArrayMap)                  \
   V(WeakHashTableMap)                   \
   V(WithContextMap)                     \
   V(empty_string)                       \
@@ -2159,6 +2162,19 @@ class Heap {
   MUST_USE_RESULT inline AllocationResult AllocateFixedArray(
       int length, PretenureFlag pretenure = NOT_TENURED);
 
+  // Allocates an array allowing in-place weak references, initialized with
+  // undefined values
+  MUST_USE_RESULT inline AllocationResult AllocateWeakFixedArray(
+      int length, PretenureFlag pretenure = NOT_TENURED);
+
+  // Allocate memory for an uninitialized FixedArray.
+  MUST_USE_RESULT inline AllocationResult AllocateRawFixedArray(
+      int length, PretenureFlag pretenure);
+
+  // Allocate memory for an uninitialized WeakFixedArray.
+  MUST_USE_RESULT inline AllocationResult AllocateRawWeakFixedArray(
+      int length, PretenureFlag pretenure);
+
   // Allocates a property array initialized with undefined values
   MUST_USE_RESULT AllocationResult
   AllocatePropertyArray(int length, PretenureFlag pretenure = NOT_TENURED);
@@ -2199,9 +2215,9 @@ class Heap {
   MUST_USE_RESULT AllocationResult
       AllocateFillerObject(int size, bool double_align, AllocationSpace space);
 
-  // Allocate an uninitialized fixed array.
-  MUST_USE_RESULT AllocationResult
-      AllocateRawFixedArray(int length, PretenureFlag pretenure);
+  // Allocate memory for an uninitialized array (e.g., a FixedArray or similar).
+  MUST_USE_RESULT AllocationResult AllocateRawArray(int size,
+                                                    PretenureFlag pretenure);
 
   // Allocate an uninitialized fixed double array.
   MUST_USE_RESULT AllocationResult
@@ -2313,6 +2329,9 @@ class Heap {
 
   // Allocate empty fixed array like objects.
   MUST_USE_RESULT AllocationResult AllocateEmptyFixedArray();
+
+  MUST_USE_RESULT AllocationResult AllocateEmptyWeakFixedArray();
+
   MUST_USE_RESULT AllocationResult AllocateEmptyScopeInfo();
   MUST_USE_RESULT AllocationResult AllocateEmptyBoilerplateDescription();
 

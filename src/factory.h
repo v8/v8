@@ -96,6 +96,12 @@ class V8_EXPORT_PRIVATE Factory final {
   // Allocates a fixed array initialized with undefined values.
   Handle<FixedArray> NewFixedArray(int length,
                                    PretenureFlag pretenure = NOT_TENURED);
+
+  // Allocates a fixed array which may contain in-place weak references. The
+  // array is initialized with undefined values
+  Handle<WeakFixedArray> NewWeakFixedArray(
+      int length, PretenureFlag pretenure = NOT_TENURED);
+
   Handle<PropertyArray> NewPropertyArray(int length,
                                          PretenureFlag pretenure = NOT_TENURED);
   // Tries allocating a fixed array initialized with undefined values.

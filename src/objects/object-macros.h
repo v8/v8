@@ -165,6 +165,10 @@
   reinterpret_cast<Object*>(base::Relaxed_Load( \
       reinterpret_cast<const base::AtomicWord*>(FIELD_ADDR_CONST(p, offset))))
 
+#define RELAXED_READ_WEAK_FIELD(p, offset)           \
+  reinterpret_cast<MaybeObject*>(base::Relaxed_Load( \
+      reinterpret_cast<const base::AtomicWord*>(FIELD_ADDR_CONST(p, offset))))
+
 #ifdef V8_CONCURRENT_MARKING
 #define WRITE_FIELD(p, offset, value)                             \
   base::Relaxed_Store(                                            \
@@ -195,6 +199,12 @@
   heap->incremental_marking()->RecordWrite(                 \
       object, HeapObject::RawField(object, offset), value); \
   heap->RecordWrite(object, HeapObject::RawField(object, offset), value);
+
+#define WEAK_WRITE_BARRIER(heap, object, offset, value)                    \
+  heap->incremental_marking()->RecordMaybeWeakWrite(                       \
+      object, HeapObject::RawMaybeWeakField(object, offset), value);       \
+  heap->RecordWrite(object, HeapObject::RawMaybeWeakField(object, offset), \
+                    value);
 
 #define CONDITIONAL_WRITE_BARRIER(heap, object, offset, value, mode)        \
   if (mode != SKIP_WRITE_BARRIER) {                                         \

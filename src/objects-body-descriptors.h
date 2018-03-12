@@ -37,6 +37,10 @@ class BodyDescriptorBase BASE_EMBEDDED {
                                     ObjectVisitor* v);
 
   template <typename ObjectVisitor>
+  static inline void IterateMaybeWeakPointers(HeapObject* obj, int start_offset,
+                                              int end_offset, ObjectVisitor* v);
+
+  template <typename ObjectVisitor>
   static inline void IterateMaybeWeakPointer(HeapObject* obj, int offset,
                                              ObjectVisitor* v);
 

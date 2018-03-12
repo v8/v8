@@ -70,6 +70,13 @@ void BodyDescriptorBase::IteratePointer(HeapObject* obj, int offset,
 }
 
 template <typename ObjectVisitor>
+DISABLE_CFI_PERF void BodyDescriptorBase::IterateMaybeWeakPointers(
+    HeapObject* obj, int start_offset, int end_offset, ObjectVisitor* v) {
+  v->VisitPointers(obj, HeapObject::RawMaybeWeakField(obj, start_offset),
+                   HeapObject::RawMaybeWeakField(obj, end_offset));
+}
+
+template <typename ObjectVisitor>
 void BodyDescriptorBase::IterateMaybeWeakPointer(HeapObject* obj, int offset,
                                                  ObjectVisitor* v) {
   v->VisitPointer(obj, HeapObject::RawMaybeWeakField(obj, offset));
@@ -265,6 +272,23 @@ class FixedTypedArrayBase::BodyDescriptor final : public BodyDescriptorBase {
 
   static inline int SizeOf(Map* map, HeapObject* object) {
     return FixedTypedArrayBase::cast(object)->size();
+  }
+};
+
+class WeakFixedArray::BodyDescriptor final : public BodyDescriptorBase {
+ public:
+  static bool IsValidSlot(HeapObject* obj, int offset) {
+    return offset >= kHeaderSize;
+  }
+
+  template <typename ObjectVisitor>
+  static inline void IterateBody(HeapObject* obj, int object_size,
+                                 ObjectVisitor* v) {
+    IterateMaybeWeakPointers(obj, kHeaderSize, object_size, v);
+  }
+
+  static inline int SizeOf(Map* map, HeapObject* object) {
+    return object->SizeFromMap(map);
   }
 };
 
@@ -472,6 +496,8 @@ ReturnType BodyDescriptorApply(InstanceType type, T1 p1, T2 p2, T3 p3) {
     case HASH_TABLE_TYPE:
     case SCOPE_INFO_TYPE:
       return Op::template apply<FixedArray::BodyDescriptor>(p1, p2, p3);
+    case WEAK_FIXED_ARRAY_TYPE:
+      return Op::template apply<WeakFixedArray::BodyDescriptor>(p1, p2, p3);
     case FIXED_DOUBLE_ARRAY_TYPE:
       return ReturnType();
     case FEEDBACK_METADATA_TYPE:

@@ -56,7 +56,8 @@ namespace internal {
   V(Symbol)                \
   V(ThinString)            \
   V(TransitionArray)       \
-  V(WeakCell)
+  V(WeakCell)              \
+  V(WeakFixedArray)
 
 // For data objects, JS objects and structs along with generic visitor which
 // can visit object of any size we provide visitors specialized by

@@ -3033,7 +3033,9 @@ class PointersUpdatingVisitor : public ObjectVisitor, public RootVisitor {
 
   void VisitPointers(HeapObject* host, MaybeObject** start,
                      MaybeObject** end) final {
-    UNREACHABLE();
+    for (MaybeObject** p = start; p < end; p++) {
+      UpdateSlotInternal(p);
+    }
   }
 
   void VisitRootPointer(Root root, const char* description,

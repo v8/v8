@@ -243,6 +243,54 @@ class FixedDoubleArray : public FixedArrayBase {
   DISALLOW_IMPLICIT_CONSTRUCTORS(FixedDoubleArray);
 };
 
+// WeakFixedArray describes fixed-sized arrays with element type
+// MaybeObject*.
+class WeakFixedArray : public HeapObject {
+ public:
+  DECL_CAST(WeakFixedArray)
+
+  inline MaybeObject* Get(int index) const;
+
+  // Setter that uses write barrier.
+  inline void Set(int index, MaybeObject* value);
+
+  static constexpr int SizeFor(int length) {
+    return kHeaderSize + length * kPointerSize;
+  }
+
+  DECL_INT_ACCESSORS(length)
+
+  // Get and set the length using acquire loads and release stores.
+  inline int synchronized_length() const;
+  inline void synchronized_set_length(int value);
+
+  // Gives access to raw memory which stores the array's data.
+  inline MaybeObject** data_start();
+
+  DECL_VERIFIER(WeakFixedArray)
+
+  class BodyDescriptor;
+  typedef BodyDescriptor BodyDescriptorWeak;
+
+  static const int kLengthOffset = HeapObject::kHeaderSize;
+  static const int kHeaderSize = kLengthOffset + kPointerSize;
+
+  static const int kMaxLength =
+      (FixedArray::kMaxSize - kHeaderSize) / kPointerSize;
+
+ private:
+  static int OffsetOfElementAt(int index) {
+    return kHeaderSize + index * kPointerSize;
+  }
+
+  friend class Heap;
+
+  static const int kFirstIndex = 1;
+
+  DISALLOW_IMPLICIT_CONSTRUCTORS(WeakFixedArray);
+};
+
+// Deprecated. Use WeakFixedArray instead.
 class FixedArrayOfWeakCells : public FixedArray {
  public:
   // If |maybe_array| is not a FixedArrayOfWeakCells, a fresh one will be

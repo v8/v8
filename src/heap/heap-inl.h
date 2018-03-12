@@ -247,6 +247,42 @@ AllocationResult Heap::AllocateFixedArray(int length, PretenureFlag pretenure) {
                                       pretenure, undefined_value());
 }
 
+AllocationResult Heap::AllocateWeakFixedArray(int length,
+                                              PretenureFlag pretenure) {
+  // Zero-length case must be handled outside, where the knowledge about
+  // the map is.
+  DCHECK_LT(0, length);
+  HeapObject* result = nullptr;
+  {
+    AllocationResult allocation = AllocateRawWeakFixedArray(length, pretenure);
+    if (!allocation.To(&result)) return allocation;
+  }
+  DCHECK(RootIsImmortalImmovable(Heap::kWeakFixedArrayMapRootIndex));
+  Map* map = Map::cast(root(Heap::kWeakFixedArrayMapRootIndex));
+  result->set_map_after_allocation(map, SKIP_WRITE_BARRIER);
+  WeakFixedArray* array = WeakFixedArray::cast(result);
+  array->set_length(length);
+  MemsetPointer(array->data_start(),
+                HeapObjectReference::Strong(undefined_value()), length);
+  return array;
+}
+
+AllocationResult Heap::AllocateRawFixedArray(int length,
+                                             PretenureFlag pretenure) {
+  if (length < 0 || length > FixedArray::kMaxLength) {
+    v8::internal::Heap::FatalProcessOutOfMemory("invalid array length", true);
+  }
+  return AllocateRawArray(FixedArray::SizeFor(length), pretenure);
+}
+
+AllocationResult Heap::AllocateRawWeakFixedArray(int length,
+                                                 PretenureFlag pretenure) {
+  if (length < 0 || length > WeakFixedArray::kMaxLength) {
+    v8::internal::Heap::FatalProcessOutOfMemory("invalid array length", true);
+  }
+  return AllocateRawArray(WeakFixedArray::SizeFor(length), pretenure);
+}
+
 AllocationResult Heap::AllocateRaw(int size_in_bytes, AllocationSpace space,
                                    AllocationAlignment alignment) {
   DCHECK(AllowHandleAllocation::IsAllowed());

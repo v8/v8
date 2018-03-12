@@ -203,6 +203,16 @@ Handle<FixedArray> Factory::NewFixedArray(int length, PretenureFlag pretenure) {
                      FixedArray);
 }
 
+Handle<WeakFixedArray> Factory::NewWeakFixedArray(int length,
+                                                  PretenureFlag pretenure) {
+  DCHECK_LE(0, length);
+  if (length == 0) return empty_weak_fixed_array();
+
+  CALL_HEAP_FUNCTION(
+      isolate(), isolate()->heap()->AllocateWeakFixedArray(length, pretenure),
+      WeakFixedArray);
+}
+
 MaybeHandle<FixedArray> Factory::TryNewFixedArray(int length,
                                                   PretenureFlag pretenure) {
   DCHECK_LE(0, length);

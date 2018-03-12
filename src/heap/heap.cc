@@ -3763,6 +3763,18 @@ AllocationResult Heap::AllocateEmptyFixedArray() {
   return result;
 }
 
+AllocationResult Heap::AllocateEmptyWeakFixedArray() {
+  int size = WeakFixedArray::SizeFor(0);
+  HeapObject* result = nullptr;
+  {
+    AllocationResult allocation = AllocateRaw(size, OLD_SPACE);
+    if (!allocation.To(&result)) return allocation;
+  }
+  result->set_map_after_allocation(weak_fixed_array_map(), SKIP_WRITE_BARRIER);
+  WeakFixedArray::cast(result)->set_length(0);
+  return result;
+}
+
 AllocationResult Heap::AllocateEmptyScopeInfo() {
   int size = FixedArray::SizeFor(0);
   HeapObject* result = nullptr;
@@ -3975,12 +3987,7 @@ AllocationResult Heap::CopyFeedbackVector(FeedbackVector* src) {
   return result;
 }
 
-AllocationResult Heap::AllocateRawFixedArray(int length,
-                                             PretenureFlag pretenure) {
-  if (length < 0 || length > FixedArray::kMaxLength) {
-    v8::internal::Heap::FatalProcessOutOfMemory("invalid array length", true);
-  }
-  int size = FixedArray::SizeFor(length);
+AllocationResult Heap::AllocateRawArray(int size, PretenureFlag pretenure) {
   AllocationSpace space = SelectSpace(pretenure);
 
   AllocationResult result = AllocateRaw(size, space);

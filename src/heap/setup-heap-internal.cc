@@ -113,6 +113,8 @@ bool Heap::CreateInitialMaps() {
     }
 
     ALLOCATE_PARTIAL_MAP(FIXED_ARRAY_TYPE, kVariableSizeSentinel, fixed_array);
+    ALLOCATE_PARTIAL_MAP(WEAK_FIXED_ARRAY_TYPE, kVariableSizeSentinel,
+                         weak_fixed_array);
     ALLOCATE_PARTIAL_MAP(FIXED_ARRAY_TYPE, kVariableSizeSentinel,
                          fixed_cow_array)
     DCHECK_NE(fixed_array_map(), fixed_cow_array_map());
@@ -133,6 +135,12 @@ bool Heap::CreateInitialMaps() {
     if (!allocation.To(&obj)) return false;
   }
   set_empty_fixed_array(FixedArray::cast(obj));
+
+  {
+    AllocationResult allocation = AllocateEmptyWeakFixedArray();
+    if (!allocation.To(&obj)) return false;
+  }
+  set_empty_weak_fixed_array(WeakFixedArray::cast(obj));
 
   {
     AllocationResult allocation = Allocate(null_map(), OLD_SPACE);
@@ -192,6 +200,7 @@ bool Heap::CreateInitialMaps() {
   // Fix the instance_descriptors for the existing maps.
   FinalizePartialMap(this, meta_map());
   FinalizePartialMap(this, fixed_array_map());
+  FinalizePartialMap(this, weak_fixed_array_map());
   FinalizePartialMap(this, fixed_cow_array_map());
   FinalizePartialMap(this, descriptor_array_map());
   FinalizePartialMap(this, undefined_map());

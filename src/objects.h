@@ -413,6 +413,7 @@ const int kStubMinorKeyBits = kSmiValueSize - kStubMajorKeyBits - 1;
   V(SMALL_ORDERED_HASH_SET_TYPE)                                \
   V(STORE_HANDLER_TYPE)                                         \
   V(WEAK_CELL_TYPE)                                             \
+  V(WEAK_FIXED_ARRAY_TYPE)                                      \
                                                                 \
   V(JS_PROXY_TYPE)                                              \
   V(JS_GLOBAL_OBJECT_TYPE)                                      \
@@ -767,6 +768,7 @@ enum InstanceType : uint16_t {
   SMALL_ORDERED_HASH_SET_TYPE,
   STORE_HANDLER_TYPE,
   WEAK_CELL_TYPE,
+  WEAK_FIXED_ARRAY_TYPE,
 
   // All the following types are subtypes of JSReceiver, which corresponds to
   // objects in the JS sense. The first and the last type in this range are
@@ -985,6 +987,7 @@ template <class C> inline bool Is(Object* obj);
   V(FixedArray)                           \
   V(FixedArrayBase)                       \
   V(FixedArrayExact)                      \
+  V(FixedArrayOfWeakCells)                \
   V(FixedBigInt64Array)                   \
   V(FixedBigUint64Array)                  \
   V(FixedDoubleArray)                     \
@@ -1097,7 +1100,7 @@ template <class C> inline bool Is(Object* obj);
   V(WasmModuleObject)                     \
   V(WasmTableObject)                      \
   V(WeakCell)                             \
-  V(FixedArrayOfWeakCells)                \
+  V(WeakFixedArray)                       \
   V(WeakHashTable)
 
 #define HEAP_OBJECT_TEMPLATE_TYPE_LIST(V) \
