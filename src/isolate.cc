@@ -2617,8 +2617,6 @@ void Isolate::ClearSerializerData() {
 void Isolate::Deinit() {
   TRACE_ISOLATE(deinit);
 
-  // Make sure that the GC does not post any new tasks.
-  heap_.stop_using_tasks();
   debug()->Unload();
 
   if (concurrent_recompilation_enabled()) {
