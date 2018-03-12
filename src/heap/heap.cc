@@ -440,7 +440,7 @@ void Heap::ReportStatisticsAfterGC() {
 void Heap::AddRetainingPathTarget(Handle<HeapObject> object,
                                   RetainingPathOption option) {
   if (!FLAG_track_retaining_path) {
-    PrintF("Retaining path tracking requires --trace-retaining-path\n");
+    PrintF("Retaining path tracking requires --track-retaining-path\n");
   } else {
     int index = 0;
     Handle<FixedArrayOfWeakCells> array = FixedArrayOfWeakCells::Add(
