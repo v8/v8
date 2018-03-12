@@ -440,11 +440,6 @@ ExternalReference ExternalReference::address_of_real_stack_limit(
   return ExternalReference(isolate->stack_guard()->address_of_real_jslimit());
 }
 
-ExternalReference ExternalReference::address_of_regexp_stack_limit(
-    Isolate* isolate) {
-  return ExternalReference(isolate->regexp_stack()->limit_address());
-}
-
 ExternalReference ExternalReference::store_buffer_top(Isolate* isolate) {
   return ExternalReference(isolate->heap()->store_buffer_top_address());
 }
@@ -617,6 +612,11 @@ ExternalReference ExternalReference::address_of_static_offsets_vector(
     Isolate* isolate) {
   return ExternalReference(
       reinterpret_cast<Address>(isolate->jsregexp_static_offsets_vector()));
+}
+
+ExternalReference ExternalReference::address_of_regexp_stack_limit(
+    Isolate* isolate) {
+  return ExternalReference(isolate->regexp_stack()->limit_address());
 }
 
 ExternalReference ExternalReference::address_of_regexp_stack_memory_address(
