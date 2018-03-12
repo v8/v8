@@ -46,7 +46,7 @@ struct SsaEnv {
     locals = nullptr;
     control = nullptr;
     effect = nullptr;
-    context_cache = {0};
+    context_cache = {};
   }
   void SetNotMerged() {
     if (state == kMerged) state = kReached;
@@ -750,7 +750,7 @@ class WasmGraphBuildingInterface {
     } else {
       result->state = SsaEnv::kUnreachable;
       result->locals = nullptr;
-      result->context_cache = {0};
+      result->context_cache = {};
     }
 
     return result;
@@ -778,7 +778,7 @@ class WasmGraphBuildingInterface {
     result->control = nullptr;
     result->effect = nullptr;
     result->locals = nullptr;
-    result->context_cache = {0};
+    result->context_cache = {};
     return result;
   }
 
