@@ -2694,6 +2694,11 @@ class JSObject: public JSReceiver {
   static const int kMaxInObjectProperties =
       (kMaxInstanceSize - kHeaderSize) >> kPointerSizeLog2;
   STATIC_ASSERT(kMaxInObjectProperties <= kMaxNumberOfDescriptors);
+  // TODO(cbruni): Revisit calculation of the max supported embedder fields.
+  static const int kMaxEmbedderFields =
+      ((1 << kFirstInobjectPropertyOffsetBitCount) - 1 - kHeaderSize) >>
+      kPointerSizeLog2;
+  STATIC_ASSERT(kMaxEmbedderFields <= kMaxInObjectProperties);
 
   class BodyDescriptor;
   // No weak fields.
