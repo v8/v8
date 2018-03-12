@@ -1387,15 +1387,21 @@ struct EffectControlLinearizationPhase {
       if (FLAG_turbo_verify) ScheduleVerifier::Run(schedule);
       TraceSchedule(data->info(), data->isolate(), schedule);
 
+      // We only insert the array masking code if
+      //   - untrusted code mitigations are on,
+      //   - general load poisoning is off.
+      // TODO(jarin) Remove the array index masking code entirely once we have
+      // restricted load poisoning.
+      EffectControlLinearizer::MaskArrayIndexEnable mask_array_index =
+          (data->info()->has_untrusted_code_mitigations() &&
+           !data->info()->is_poison_loads())
+              ? EffectControlLinearizer::kMaskArrayIndex
+              : EffectControlLinearizer::kDoNotMaskArrayIndex;
       // Post-pass for wiring the control/effects
       // - connect allocating representation changes into the control&effect
       //   chains and lower them,
       // - get rid of the region markers,
       // - introduce effect phis and rewire effects to get SSA again.
-      EffectControlLinearizer::MaskArrayIndexEnable mask_array_index =
-          data->info()->has_untrusted_code_mitigations()
-              ? EffectControlLinearizer::kMaskArrayIndex
-              : EffectControlLinearizer::kDoNotMaskArrayIndex;
       EffectControlLinearizer linearizer(data->jsgraph(), schedule, temp_zone,
                                          data->source_positions(),
                                          mask_array_index);
