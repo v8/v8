@@ -3305,12 +3305,32 @@ void CodeGenerator::AssembleSwap(InstructionOperand* source,
         __ vstr(temp_1, dst);
       } else if (source->IsDoubleStackSlot()) {
         UseScratchRegisterScope temps(tasm());
-        DwVfpRegister temp_0 = temps.AcquireD();
-        DwVfpRegister temp_1 = temps.AcquireD();
-        __ vldr(temp_0, dst);
-        __ vldr(temp_1, src);
-        __ vstr(temp_0, src);
-        __ vstr(temp_1, dst);
+        LowDwVfpRegister temp = temps.AcquireLowD();
+        if (temps.CanAcquireD()) {
+          DwVfpRegister temp_0 = temp;
+          DwVfpRegister temp_1 = temps.AcquireD();
+          __ vldr(temp_0, dst);
+          __ vldr(temp_1, src);
+          __ vstr(temp_0, src);
+          __ vstr(temp_1, dst);
+        } else {
+          // We only have a single D register available. However, we can split
+          // it into 2 S registers and swap the slots 32 bits at a time.
+          MemOperand src0 = src;
+          MemOperand dst0 = dst;
+          MemOperand src1(src.rn(), src.offset() + kFloatSize);
+          MemOperand dst1(dst.rn(), dst.offset() + kFloatSize);
+          SwVfpRegister temp_0 = temp.low();
+          SwVfpRegister temp_1 = temp.high();
+          __ vldr(temp_0, dst0);
+          __ vldr(temp_1, src0);
+          __ vstr(temp_0, src0);
+          __ vstr(temp_1, dst0);
+          __ vldr(temp_0, dst1);
+          __ vldr(temp_1, src1);
+          __ vstr(temp_0, src1);
+          __ vstr(temp_1, dst1);
+        }
       } else {
         DCHECK(source->IsSimd128StackSlot());
         MemOperand src0 = src;

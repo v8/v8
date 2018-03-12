@@ -1820,15 +1820,14 @@ class UseScratchRegisterScope {
     return reg;
   }
 
+  // Check if we have registers available to acquire.
+  bool CanAcquire() const { return *assembler_->GetScratchRegisterList() != 0; }
+  bool CanAcquireD() const { return CanAcquireVfp<DwVfpRegister>(); }
+
  private:
   friend class Assembler;
   friend class TurboAssembler;
 
-  // Check if we have registers available to acquire.
-  // These methods are kept private intentionally to restrict their usage to the
-  // assemblers. Choosing to emit a difference instruction sequence depending on
-  // the availability of scratch registers is generally their job.
-  bool CanAcquire() const { return *assembler_->GetScratchRegisterList() != 0; }
   template <typename T>
   bool CanAcquireVfp() const;
 
