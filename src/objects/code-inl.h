@@ -182,7 +182,6 @@ INT_ACCESSORS(Code, constant_pool_offset, kConstantPoolOffset)
 CODE_ACCESSORS(relocation_info, ByteArray, kRelocationInfoOffset)
 CODE_ACCESSORS(deoptimization_data, FixedArray, kDeoptimizationDataOffset)
 CODE_ACCESSORS(source_position_table, Object, kSourcePositionTableOffset)
-CODE_ACCESSORS(protected_instructions, FixedArray, kProtectedInstructionsOffset)
 CODE_ACCESSORS(code_data_container, CodeDataContainer, kCodeDataContainerOffset)
 CODE_ACCESSORS(trap_handler_index, Smi, kTrapHandlerIndex)
 #undef CODE_ACCESSORS
@@ -191,7 +190,6 @@ void Code::WipeOutHeader() {
   WRITE_FIELD(this, kRelocationInfoOffset, nullptr);
   WRITE_FIELD(this, kDeoptimizationDataOffset, nullptr);
   WRITE_FIELD(this, kSourcePositionTableOffset, nullptr);
-  WRITE_FIELD(this, kProtectedInstructionsOffset, nullptr);
   WRITE_FIELD(this, kCodeDataContainerOffset, nullptr);
 }
 
@@ -297,7 +295,6 @@ int Code::SizeIncludingMetadata() const {
   int size = CodeSize();
   size += relocation_info()->Size();
   size += deoptimization_data()->Size();
-  size += protected_instructions()->Size();
   return size;
 }
 

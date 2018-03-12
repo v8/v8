@@ -80,11 +80,6 @@ class Code : public HeapObject {
   DECL_ACCESSORS(source_position_table, Object)
   inline ByteArray* SourcePositionTable() const;
 
-  // TODO(mstarzinger): remove when we don't need FLAG_wasm_jit_to_native
-  // [protected instructions]: Array containing list of protected
-  // instructions and corresponding landing pad offset.
-  DECL_ACCESSORS(protected_instructions, FixedArray)
-
   // [code_data_container]: A container indirection for all mutable fields.
   DECL_ACCESSORS(code_data_container, CodeDataContainer)
 
@@ -381,10 +376,8 @@ class Code : public HeapObject {
       kRelocationInfoOffset + kPointerSize;
   static const int kSourcePositionTableOffset =
       kDeoptimizationDataOffset + kPointerSize;
-  static const int kProtectedInstructionsOffset =
-      kSourcePositionTableOffset + kPointerSize;
   static const int kCodeDataContainerOffset =
-      kProtectedInstructionsOffset + kPointerSize;
+      kSourcePositionTableOffset + kPointerSize;
   static const int kInstructionSizeOffset =
       kCodeDataContainerOffset + kPointerSize;
   static const int kFlagsOffset = kInstructionSizeOffset + kIntSize;

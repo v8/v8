@@ -3286,7 +3286,6 @@ AllocationResult Heap::AllocateCode(
   code->set_deoptimization_data(deopt_data);
   code->set_stub_key(stub_key);
   code->set_source_position_table(source_position_table);
-  code->set_protected_instructions(empty_fixed_array(), SKIP_WRITE_BARRIER);
   code->set_constant_pool_offset(desc.instr_size - desc.constant_pool_size);
   code->set_builtin_index(builtin_index);
   code->set_trap_handler_index(Smi::FromInt(-1));
