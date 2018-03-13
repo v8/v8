@@ -50,12 +50,16 @@ class V8_EXPORT_PRIVATE TypedOptimization final
   Reduction ReduceNumberToUint8Clamped(Node* node);
   Reduction ReducePhi(Node* node);
   Reduction ReduceReferenceEqual(Node* node);
+  Reduction ReduceStringEqual(Node* node);
   Reduction ReduceSameValue(Node* node);
   Reduction ReduceSelect(Node* node);
   Reduction ReduceSpeculativeToNumber(Node* node);
   Reduction ReduceCheckNotTaggedHole(Node* node);
   Reduction ReduceTypeOf(Node* node);
   Reduction ReduceToBoolean(Node* node);
+
+  Reduction TryReduceStringEqualOfCharAtAndConstant(Node* equal, Node* char_at,
+                                                    Node* constant);
 
   CompilationDependencies* dependencies() const { return dependencies_; }
   Factory* factory() const;

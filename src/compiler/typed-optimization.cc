@@ -6,6 +6,7 @@
 
 #include "src/compilation-dependencies.h"
 #include "src/compiler/js-graph.h"
+#include "src/compiler/node-matchers.h"
 #include "src/compiler/node-properties.h"
 #include "src/compiler/simplified-operator.h"
 #include "src/compiler/type-cache.h"
@@ -105,6 +106,8 @@ Reduction TypedOptimization::Reduce(Node* node) {
       return ReducePhi(node);
     case IrOpcode::kReferenceEqual:
       return ReduceReferenceEqual(node);
+    case IrOpcode::kStringEqual:
+      return ReduceStringEqual(node);
     case IrOpcode::kSameValue:
       return ReduceSameValue(node);
     case IrOpcode::kSelect:
@@ -355,6 +358,60 @@ Reduction TypedOptimization::ReduceReferenceEqual(Node* node) {
             ->Is(NodeProperties::GetType(node))) {
       return Replace(jsgraph()->FalseConstant());
     }
+  }
+  return NoChange();
+}
+
+Reduction TypedOptimization::TryReduceStringEqualOfCharAtAndConstant(
+    Node* equal, Node* char_at, Node* constant) {
+  DCHECK_EQ(IrOpcode::kStringFromCharCode, char_at->opcode());
+  HeapObjectMatcher m(constant);
+  if (!m.HasValue() || !m.Value()->IsString()) return NoChange();
+  Handle<String> string = Handle<String>::cast(m.Value());
+  if (string->length() != 1) {
+    // StringEqual can never be true. Out-of-bounds
+    // accesses will be handled by the deopt through CheckBounds.
+    return Replace(jsgraph()->BooleanConstant(false));
+  }
+  Node* number_equal = graph()->NewNode(
+      simplified()->NumberEqual(), NodeProperties::GetValueInput(char_at, 0),
+      jsgraph()->Constant(string->Get(0)));
+  ReplaceWithValue(equal, number_equal);
+  return Replace(number_equal);
+}
+
+Reduction TypedOptimization::ReduceStringEqual(Node* node) {
+  DCHECK_EQ(IrOpcode::kStringEqual, node->opcode());
+  Node* const lhs = NodeProperties::GetValueInput(node, 0);
+  Node* const rhs = NodeProperties::GetValueInput(node, 1);
+  if (lhs->opcode() == IrOpcode::kStringFromCharCode) {
+    if (rhs->opcode() == IrOpcode::kStringFromCharCode) {
+      Node* left = NodeProperties::GetValueInput(lhs, 0);
+      Node* right = NodeProperties::GetValueInput(rhs, 0);
+      Type* left_type = NodeProperties::GetType(left);
+      Type* right_type = NodeProperties::GetType(right);
+      if (!left_type->Is(type_cache_.kUint16)) {
+        // Convert to signed int32 to satisfy type of {NumberBitwiseAnd}.
+        left = graph()->NewNode(simplified()->NumberToInt32(), left);
+        left = graph()->NewNode(
+            simplified()->NumberBitwiseAnd(), left,
+            jsgraph()->Constant(std::numeric_limits<uint16_t>::max()));
+      }
+      if (!right_type->Is(type_cache_.kUint16)) {
+        // Convert to signed int32 to satisfy type of {NumberBitwiseAnd}.
+        right = graph()->NewNode(simplified()->NumberToInt32(), right);
+        right = graph()->NewNode(
+            simplified()->NumberBitwiseAnd(), right,
+            jsgraph()->Constant(std::numeric_limits<uint16_t>::max()));
+      }
+      Node* equal = graph()->NewNode(simplified()->NumberEqual(), left, right);
+      ReplaceWithValue(node, equal);
+      return Replace(equal);
+    } else {
+      return TryReduceStringEqualOfCharAtAndConstant(node, lhs, rhs);
+    }
+  } else if (rhs->opcode() == IrOpcode::kStringFromCharCode) {
+    return TryReduceStringEqualOfCharAtAndConstant(node, rhs, lhs);
   }
   return NoChange();
 }
