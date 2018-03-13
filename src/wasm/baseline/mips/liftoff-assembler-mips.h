@@ -15,29 +15,34 @@ namespace wasm {
 
 namespace liftoff {
 
-// sp-8 holds the stack marker, sp-16 is the wasm context, first stack slot
-// is located at sp-24.
+// fp-8 holds the stack marker, fp-16 is the wasm context, first stack slot
+// is located at fp-24.
 constexpr int32_t kConstantStackSpace = 16;
 constexpr int32_t kFirstStackSlotOffset =
     kConstantStackSpace + LiftoffAssembler::kStackSlotSize;
 
 inline MemOperand GetStackSlot(uint32_t index) {
   int32_t offset = index * LiftoffAssembler::kStackSlotSize;
-  return MemOperand(sp, -kFirstStackSlotOffset - offset);
+  return MemOperand(fp, -kFirstStackSlotOffset - offset);
 }
 
 inline MemOperand GetHalfStackSlot(uint32_t half_index) {
   int32_t offset = half_index * (LiftoffAssembler::kStackSlotSize / 2);
-  return MemOperand(sp, -kFirstStackSlotOffset - offset);
+  return MemOperand(fp, -kFirstStackSlotOffset - offset);
 }
 
-inline MemOperand GetContextOperand() { return MemOperand(sp, -16); }
+inline MemOperand GetContextOperand() { return MemOperand(fp, -16); }
 
 }  // namespace liftoff
 
 uint32_t LiftoffAssembler::PrepareStackFrame() {
   uint32_t offset = static_cast<uint32_t>(pc_offset());
+  // When constant that represents size of stack frame can't be represented
+  // as 16bit we need three instructions to add it to sp, so we reserve space
+  // for this case.
   addiu(sp, sp, 0);
+  nop();
+  nop();
   return offset;
 }
 
@@ -47,9 +52,13 @@ void LiftoffAssembler::PatchPrepareStackFrame(uint32_t offset,
   DCHECK_LE(bytes, kMaxInt);
   // We can't run out of space, just pass anything big enough to not cause the
   // assembler to try to grow the buffer.
-  constexpr int kAvailableSpace = 64;
-  Assembler patching_assembler(isolate(), buffer_ + offset, kAvailableSpace);
-  patching_assembler.addiu(sp, sp, -bytes);
+  constexpr int kAvailableSpace = 256;
+  TurboAssembler patching_assembler(isolate(), buffer_ + offset,
+                                    kAvailableSpace, CodeObjectRequired::kNo);
+  // If bytes can be represented as 16bit, addiu will be generated and two
+  // nops will stay untouched. Otherwise, lui-ori sequence will load it to
+  // register and, as third instruction, addu will be generated.
+  patching_assembler.Addu(sp, sp, Operand(-bytes));
 }
 
 void LiftoffAssembler::LoadConstant(LiftoffRegister reg, WasmValue value,
@@ -468,7 +477,13 @@ void LiftoffAssembler::emit_f32_set_cond(Condition cond, Register dst,
   BAILOUT("emit_f32_set_cond");
 }
 
-void LiftoffAssembler::StackCheck(Label* ool_code) { BAILOUT("StackCheck"); }
+void LiftoffAssembler::StackCheck(Label* ool_code) {
+  LiftoffRegister tmp = GetUnusedRegister(kGpReg);
+  TurboAssembler::li(
+      tmp.gp(), Operand(ExternalReference::address_of_stack_limit(isolate())));
+  TurboAssembler::Ulw(tmp.gp(), MemOperand(tmp.gp()));
+  TurboAssembler::Branch(ool_code, ule, sp, Operand(tmp.gp()));
+}
 
 void LiftoffAssembler::CallTrapCallbackForTesting() {
   PrepareCallCFunction(0, GetUnusedRegister(kGpReg).gp());
@@ -477,7 +492,7 @@ void LiftoffAssembler::CallTrapCallbackForTesting() {
 }
 
 void LiftoffAssembler::AssertUnreachable(AbortReason reason) {
-  BAILOUT("AssertUnreachable");
+  if (emit_debug_code()) Abort(reason);
 }
 
 void LiftoffAssembler::PushCallerFrameSlot(const VarState& src,
@@ -492,11 +507,53 @@ void LiftoffAssembler::PushCallerFrameSlot(LiftoffRegister reg,
 }
 
 void LiftoffAssembler::PushRegisters(LiftoffRegList regs) {
-  BAILOUT("PushRegisters");
+  LiftoffRegList gp_regs = regs & kGpCacheRegList;
+  unsigned num_gp_regs = gp_regs.GetNumRegsSet();
+  if (num_gp_regs) {
+    unsigned offset = num_gp_regs * kPointerSize;
+    addiu(sp, sp, -offset);
+    while (!gp_regs.is_empty()) {
+      LiftoffRegister reg = gp_regs.GetFirstRegSet();
+      offset -= kPointerSize;
+      sw(reg.gp(), MemOperand(sp, offset));
+      gp_regs.clear(reg);
+    }
+    DCHECK_EQ(offset, 0);
+  }
+  LiftoffRegList fp_regs = regs & kFpCacheRegList;
+  unsigned num_fp_regs = fp_regs.GetNumRegsSet();
+  if (num_fp_regs) {
+    addiu(sp, sp, -(num_fp_regs * kStackSlotSize));
+    unsigned offset = 0;
+    while (!fp_regs.is_empty()) {
+      LiftoffRegister reg = fp_regs.GetFirstRegSet();
+      TurboAssembler::Sdc1(reg.fp(), MemOperand(sp, offset));
+      fp_regs.clear(reg);
+      offset += sizeof(double);
+    }
+    DCHECK_EQ(offset, num_fp_regs * sizeof(double));
+  }
 }
 
 void LiftoffAssembler::PopRegisters(LiftoffRegList regs) {
-  BAILOUT("PopRegisters");
+  LiftoffRegList fp_regs = regs & kFpCacheRegList;
+  unsigned fp_offset = 0;
+  while (!fp_regs.is_empty()) {
+    LiftoffRegister reg = fp_regs.GetFirstRegSet();
+    TurboAssembler::Ldc1(reg.fp(), MemOperand(sp, fp_offset));
+    fp_regs.clear(reg);
+    fp_offset += sizeof(double);
+  }
+  if (fp_offset) addiu(sp, sp, fp_offset);
+  LiftoffRegList gp_regs = regs & kGpCacheRegList;
+  unsigned gp_offset = 0;
+  while (!gp_regs.is_empty()) {
+    LiftoffRegister reg = gp_regs.GetLastRegSet();
+    lw(reg.gp(), MemOperand(sp, gp_offset));
+    gp_regs.clear(reg);
+    gp_offset += kPointerSize;
+  }
+  addiu(sp, sp, gp_offset);
 }
 
 void LiftoffAssembler::DropStackSlotsAndRet(uint32_t num_stack_slots) {
@@ -533,7 +590,7 @@ void LiftoffAssembler::CallC(ExternalReference ext_ref, uint32_t num_params) {
 void LiftoffAssembler::FinishCCall() { BAILOUT("FinishCCall"); }
 
 void LiftoffAssembler::CallNativeWasmCode(Address addr) {
-  BAILOUT("CallNativeWasmCode");
+  Call(addr, RelocInfo::WASM_CALL);
 }
 
 void LiftoffAssembler::CallRuntime(Zone* zone, Runtime::FunctionId fid) {
