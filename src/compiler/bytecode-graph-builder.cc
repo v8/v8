@@ -1899,6 +1899,7 @@ void BytecodeGraphBuilder::VisitCallRuntime() {
 
   // Connect to the end if {function_id} is non-returning.
   if (Runtime::IsNonReturning(function_id)) {
+    // TODO(7099): Investigate if we need LoopExit node here.
     Node* control = NewNode(common()->Throw());
     MergeControlToLeaveFunction(control);
   }
@@ -2053,6 +2054,8 @@ void BytecodeGraphBuilder::BuildHoleCheckAndThrow(
     SubEnvironment sub_environment(this);
 
     NewIfTrue();
+    BuildLoopExitsForFunctionExit(bytecode_analysis()->GetInLivenessFor(
+        bytecode_iterator().current_offset()));
     Node* node;
     const Operator* op = javascript()->CallRuntime(runtime_id);
     if (runtime_id == Runtime::kThrowReferenceError) {
@@ -2859,6 +2862,7 @@ void BytecodeGraphBuilder::BuildSwitchOnGeneratorState(
     // the default to represent one of the cases above/fallthrough below?
     NewIfDefault();
     NewNode(simplified()->RuntimeAbort(AbortReason::kInvalidJumpTableIndex));
+    // TODO(7099): Investigate if we need LoopExit here.
     Node* control = NewNode(common()->Throw());
     MergeControlToLeaveFunction(control);
   }
