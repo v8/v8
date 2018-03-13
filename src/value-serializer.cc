@@ -1255,6 +1255,7 @@ MaybeHandle<String> ValueDeserializer::ReadString() {
 }
 
 MaybeHandle<BigInt> ValueDeserializer::ReadBigInt() {
+  if (!FLAG_harmony_bigint) return MaybeHandle<BigInt>();
   uint32_t bitfield;
   if (!ReadVarint<uint32_t>().To(&bitfield)) return MaybeHandle<BigInt>();
   int bytelength = BigInt::DigitsByteLengthForBitfield(bitfield);
