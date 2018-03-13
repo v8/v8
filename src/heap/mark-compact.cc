@@ -2962,7 +2962,7 @@ void MarkCompactCollector::RecordRelocSlot(Code* host, RelocInfo* rinfo,
 template <AccessMode access_mode>
 static inline SlotCallbackResult UpdateSlot(
     MaybeObject** slot, MaybeObject* old, HeapObject* heap_obj,
-    HeapObjectReference::ReferenceType reference_type) {
+    HeapObjectReferenceType reference_type) {
   MapWord map_word = heap_obj->map_word();
   if (map_word.IsForwardingAddress()) {
     DCHECK(heap_obj->GetHeap()->InFromSpace(heap_obj) ||
@@ -2970,7 +2970,7 @@ static inline SlotCallbackResult UpdateSlot(
            Page::FromAddress(heap_obj->address())
                ->IsFlagSet(Page::COMPACTION_WAS_ABORTED));
     MaybeObject* target =
-        reference_type == HeapObjectReference::WEAK
+        reference_type == HeapObjectReferenceType::WEAK
             ? HeapObjectReference::Weak(map_word.ToForwardingAddress())
             : HeapObjectReference::Strong(map_word.ToForwardingAddress());
     if (access_mode == AccessMode::NON_ATOMIC) {
@@ -2990,10 +2990,10 @@ static inline SlotCallbackResult UpdateSlot(MaybeObject** slot) {
   MaybeObject* obj = base::AsAtomicPointer::Relaxed_Load(slot);
   HeapObject* heap_obj;
   if (obj->ToWeakHeapObject(&heap_obj)) {
-    UpdateSlot<access_mode>(slot, obj, heap_obj, HeapObjectReference::WEAK);
+    UpdateSlot<access_mode>(slot, obj, heap_obj, HeapObjectReferenceType::WEAK);
   } else if (obj->ToStrongHeapObject(&heap_obj)) {
     return UpdateSlot<access_mode>(slot, obj, heap_obj,
-                                   HeapObjectReference::STRONG);
+                                   HeapObjectReferenceType::STRONG);
   }
   return REMOVE_SLOT;
 }
@@ -3006,7 +3006,7 @@ static inline SlotCallbackResult UpdateStrongSlot(MaybeObject** maybe_slot) {
   if (obj->IsHeapObject()) {
     HeapObject* heap_obj = HeapObject::cast(obj);
     return UpdateSlot<access_mode>(maybe_slot, MaybeObject::FromObject(obj),
-                                   heap_obj, HeapObjectReference::STRONG);
+                                   heap_obj, HeapObjectReferenceType::STRONG);
   }
   return REMOVE_SLOT;
 }

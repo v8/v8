@@ -13391,11 +13391,14 @@ MaybeHandle<SharedFunctionInfo> Script::FindSharedFunctionInfo(
   // AstTraversalVisitor doesn't recurse properly in the construct which
   // triggers the mismatch.
   CHECK_LT(fun->function_literal_id(), shared_function_infos()->length());
-  Object* shared = shared_function_infos()->get(fun->function_literal_id());
-  if (shared->IsUndefined(isolate) || WeakCell::cast(shared)->cleared()) {
+  MaybeObject* shared =
+      shared_function_infos()->Get(fun->function_literal_id());
+  HeapObject* heap_object;
+  if (!shared->ToStrongOrWeakHeapObject(&heap_object) ||
+      heap_object->IsUndefined(isolate)) {
     return MaybeHandle<SharedFunctionInfo>();
   }
-  return handle(SharedFunctionInfo::cast(WeakCell::cast(shared)->value()));
+  return handle(SharedFunctionInfo::cast(heap_object));
 }
 
 Script::Iterator::Iterator(Isolate* isolate)
@@ -13410,16 +13413,20 @@ SharedFunctionInfo::ScriptIterator::ScriptIterator(Handle<Script> script)
                      handle(script->shared_function_infos())) {}
 
 SharedFunctionInfo::ScriptIterator::ScriptIterator(
-    Isolate* isolate, Handle<FixedArray> shared_function_infos)
+    Isolate* isolate, Handle<WeakFixedArray> shared_function_infos)
     : isolate_(isolate),
       shared_function_infos_(shared_function_infos),
       index_(0) {}
 
 SharedFunctionInfo* SharedFunctionInfo::ScriptIterator::Next() {
   while (index_ < shared_function_infos_->length()) {
-    Object* raw = shared_function_infos_->get(index_++);
-    if (raw->IsUndefined(isolate_) || WeakCell::cast(raw)->cleared()) continue;
-    return SharedFunctionInfo::cast(WeakCell::cast(raw)->value());
+    MaybeObject* raw = shared_function_infos_->Get(index_++);
+    HeapObject* heap_object;
+    if (!raw->ToStrongOrWeakHeapObject(&heap_object) ||
+        heap_object->IsUndefined(isolate_)) {
+      continue;
+    }
+    return SharedFunctionInfo::cast(heap_object);
   }
   return nullptr;
 }
@@ -13463,18 +13470,18 @@ void SharedFunctionInfo::SetScript(Handle<SharedFunctionInfo> shared,
   // duplicates.
   if (script_object->IsScript()) {
     Handle<Script> script = Handle<Script>::cast(script_object);
-    Handle<FixedArray> list = handle(script->shared_function_infos(), isolate);
+    Handle<WeakFixedArray> list =
+        handle(script->shared_function_infos(), isolate);
 #ifdef DEBUG
     DCHECK_LT(shared->function_literal_id(), list->length());
-    if (list->get(shared->function_literal_id())->IsWeakCell() &&
-        !WeakCell::cast(list->get(shared->function_literal_id()))->cleared()) {
-      DCHECK(
-          WeakCell::cast(list->get(shared->function_literal_id()))->value() ==
-          *shared);
+    MaybeObject* maybe_object = list->Get(shared->function_literal_id());
+    HeapObject* heap_object;
+    if (maybe_object->ToWeakHeapObject(&heap_object)) {
+      DCHECK_EQ(heap_object, *shared);
     }
 #endif
-    Handle<WeakCell> cell = isolate->factory()->NewWeakCell(shared);
-    list->set(shared->function_literal_id(), *cell);
+    list->Set(shared->function_literal_id(),
+              HeapObjectReference::Weak(*shared));
   } else {
     Handle<Object> list = isolate->factory()->noscript_shared_function_infos();
 
@@ -13499,13 +13506,15 @@ void SharedFunctionInfo::SetScript(Handle<SharedFunctionInfo> shared,
 
     // Due to liveedit, it might happen that the old_script doesn't know
     // about the SharedFunctionInfo, so we have to guard against that.
-    Handle<FixedArray> infos(old_script->shared_function_infos(), isolate);
+    Handle<WeakFixedArray> infos(old_script->shared_function_infos(), isolate);
     if (shared->function_literal_id() < infos->length()) {
-      Object* raw = old_script->shared_function_infos()->get(
+      MaybeObject* raw = old_script->shared_function_infos()->Get(
           shared->function_literal_id());
-      if (!raw->IsWeakCell() || WeakCell::cast(raw)->value() == *shared) {
-        old_script->shared_function_infos()->set(
-            shared->function_literal_id(), isolate->heap()->undefined_value());
+      HeapObject* heap_object;
+      if (raw->ToWeakHeapObject(&heap_object) && heap_object == *shared) {
+        old_script->shared_function_infos()->Set(
+            shared->function_literal_id(),
+            HeapObjectReference::Strong(isolate->heap()->undefined_value()));
       }
     }
   } else {

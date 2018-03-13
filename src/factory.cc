@@ -1215,7 +1215,8 @@ Handle<Script> Factory::NewScript(Handle<String> source) {
   script->set_line_ends(heap->undefined_value());
   script->set_eval_from_shared_or_wrapped_arguments(heap->undefined_value());
   script->set_eval_from_position(0);
-  script->set_shared_function_infos(*empty_fixed_array(), SKIP_WRITE_BARRIER);
+  script->set_shared_function_infos(*empty_weak_fixed_array(),
+                                    SKIP_WRITE_BARRIER);
   script->set_flags(0);
   script->set_host_defined_options(*empty_fixed_array());
   heap->set_script_list(*FixedArrayOfWeakCells::Add(script_list(), script));

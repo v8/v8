@@ -333,7 +333,7 @@ void EnsureSharedFunctionInfosArrayOnScript(ParseInfo* parse_info,
               parse_info->max_function_literal_id() + 1);
     return;
   }
-  Handle<FixedArray> infos(isolate->factory()->NewFixedArray(
+  Handle<WeakFixedArray> infos(isolate->factory()->NewWeakFixedArray(
       parse_info->max_function_literal_id() + 1));
   parse_info->script()->set_shared_function_infos(*infos);
 }
@@ -1145,9 +1145,9 @@ MaybeHandle<JSArray> Compiler::CompileForLiveEdit(Handle<Script> script) {
   // In order to ensure that live edit function info collection finds the newly
   // generated shared function infos, clear the script's list temporarily
   // and restore it at the end of this method.
-  Handle<FixedArray> old_function_infos(script->shared_function_infos(),
-                                        isolate);
-  script->set_shared_function_infos(isolate->heap()->empty_fixed_array());
+  Handle<WeakFixedArray> old_function_infos(script->shared_function_infos(),
+                                            isolate);
+  script->set_shared_function_infos(isolate->heap()->empty_weak_fixed_array());
 
   // Start a compilation.
   ParseInfo parse_info(script);

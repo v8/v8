@@ -1636,6 +1636,14 @@ void Script::ScriptVerify() {
   VerifyPointer(name());
   VerifyPointer(wrapper());
   VerifyPointer(line_ends());
+  for (int i = 0; i < shared_function_infos()->length(); ++i) {
+    MaybeObject* maybe_object = shared_function_infos()->Get(i);
+    HeapObject* heap_object;
+    CHECK(maybe_object->IsWeakHeapObject() ||
+          maybe_object->IsClearedWeakHeapObject() ||
+          (maybe_object->ToStrongHeapObject(&heap_object) &&
+           heap_object->IsUndefined(GetIsolate())));
+  }
 }
 
 

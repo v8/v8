@@ -3345,5 +3345,101 @@ TEST(BuiltinsHaveBuiltinIdForLazyDeserialization) {
              ->HasLazyDeserializationBuiltinId());
 }
 
+void CheckSFIsAreWeak(WeakFixedArray* sfis, Isolate* isolate) {
+  CHECK_GT(sfis->length(), 0);
+  int no_of_weak = 0;
+  for (int i = 0; i < sfis->length(); ++i) {
+    MaybeObject* maybe_object = sfis->Get(i);
+    HeapObject* heap_object;
+    CHECK(maybe_object->IsWeakHeapObject() ||
+          maybe_object->IsClearedWeakHeapObject() ||
+          (maybe_object->ToStrongHeapObject(&heap_object) &&
+           heap_object->IsUndefined(isolate)));
+    if (maybe_object->IsWeakHeapObject()) {
+      ++no_of_weak;
+    }
+  }
+  CHECK_GT(no_of_weak, 0);
+}
+
+TEST(WeakArraySerializizationInSnapshot) {
+  const char* code = "var my_func = function() { }";
+
+  DisableAlwaysOpt();
+  i::FLAG_allow_natives_syntax = true;
+  v8::StartupData blob;
+  {
+    v8::SnapshotCreator creator;
+    v8::Isolate* isolate = creator.GetIsolate();
+    {
+      v8::HandleScope handle_scope(isolate);
+      v8::Local<v8::Context> context = v8::Context::New(isolate);
+      v8::Context::Scope context_scope(context);
+
+      CompileRun(code);
+      creator.SetDefaultContext(
+          context, v8::SerializeInternalFieldsCallback(
+                       SerializeInternalFields, reinterpret_cast<void*>(2016)));
+    }
+    blob =
+        creator.CreateBlob(v8::SnapshotCreator::FunctionCodeHandling::kClear);
+  }
+
+  v8::Isolate::CreateParams create_params;
+  create_params.snapshot_blob = &blob;
+  create_params.array_buffer_allocator = CcTest::array_buffer_allocator();
+  v8::Isolate* isolate = TestIsolate::New(create_params);
+  {
+    v8::Isolate::Scope i_scope(isolate);
+    v8::HandleScope h_scope(isolate);
+    v8::Local<v8::Context> context = v8::Context::New(
+        isolate, nullptr, v8::MaybeLocal<v8::ObjectTemplate>(),
+        v8::MaybeLocal<v8::Value>(),
+        v8::DeserializeInternalFieldsCallback(DeserializeInternalFields,
+                                              reinterpret_cast<void*>(2017)));
+    v8::Context::Scope c_scope(context);
+
+    v8::Local<v8::Value> x = CompileRun("my_func");
+    CHECK(x->IsFunction());
+    Handle<JSFunction> function =
+        Handle<JSFunction>::cast(v8::Utils::OpenHandle(*x));
+
+    // Verify that the pointers in shared_function_infos are weak.
+    WeakFixedArray* sfis =
+        Script::cast(function->shared()->script())->shared_function_infos();
+    CheckSFIsAreWeak(sfis, CcTest::i_isolate());
+  }
+  isolate->Dispose();
+  delete[] blob.data;
+}
+
+TEST(WeakArraySerializationInCodeCache) {
+  LocalContext context;
+  Isolate* isolate = CcTest::i_isolate();
+  isolate->compilation_cache()->Disable();
+
+  v8::HandleScope scope(CcTest::isolate());
+
+  const char* source = "function foo() { }";
+
+  Handle<String> src = isolate->factory()
+                           ->NewStringFromUtf8(CStrVector(source))
+                           .ToHandleChecked();
+  ScriptData* cache = nullptr;
+
+  CompileScriptAndProduceCache(isolate, src, src, &cache,
+                               v8::ScriptCompiler::kNoCompileOptions);
+
+  DisallowCompilation no_compile_expected(isolate);
+  Handle<SharedFunctionInfo> copy = CompileScript(
+      isolate, src, src, &cache, v8::ScriptCompiler::kConsumeCodeCache);
+
+  // Verify that the pointers in shared_function_infos are weak.
+  WeakFixedArray* sfis = Script::cast(copy->script())->shared_function_infos();
+  CheckSFIsAreWeak(sfis, isolate);
+
+  delete cache;
+}
+
 }  // namespace internal
 }  // namespace v8

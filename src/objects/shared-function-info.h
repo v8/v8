@@ -378,7 +378,8 @@ class SharedFunctionInfo : public HeapObject {
   class ScriptIterator {
    public:
     explicit ScriptIterator(Handle<Script> script);
-    ScriptIterator(Isolate* isolate, Handle<FixedArray> shared_function_infos);
+    ScriptIterator(Isolate* isolate,
+                   Handle<WeakFixedArray> shared_function_infos);
     SharedFunctionInfo* Next();
 
     // Reset the iterator to run on |script|.
@@ -386,7 +387,7 @@ class SharedFunctionInfo : public HeapObject {
 
    private:
     Isolate* isolate_;
-    Handle<FixedArray> shared_function_infos_;
+    Handle<WeakFixedArray> shared_function_infos_;
     int index_;
     DISALLOW_COPY_AND_ASSIGN(ScriptIterator);
   };

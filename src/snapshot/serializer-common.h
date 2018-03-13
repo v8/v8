@@ -133,7 +133,6 @@ class SerializerDeserializer : public RootVisitor {
   V(0x7d)                               \
   V(0x7e)                               \
   V(0x7f)                               \
-  V(0xf0)                               \
   V(0xf1)                               \
   V(0xf2)                               \
   V(0xf3)                               \
@@ -270,6 +269,9 @@ class SerializerDeserializer : public RootVisitor {
   // 0xe0..0xef
   static const int kFixedRepeat = 0xe0;
   static const int kFixedRepeatStart = kFixedRepeat - 1;
+
+  // In-place weak references
+  static const int kWeakPrefix = 0xf0;
 
   // ---------- special values ----------
   static const int kAnyOldSpace = -1;
