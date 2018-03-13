@@ -282,6 +282,7 @@ class V8_EXPORT_PRIVATE InstructionSelector final {
   void StartBlock(RpoNumber rpo);
   void EndBlock(RpoNumber rpo);
   void AddInstruction(Instruction* instr);
+  void AddTerminator(Instruction* instr);
 
   // ===========================================================================
   // ============= Architecture-independent code emission methods. =============

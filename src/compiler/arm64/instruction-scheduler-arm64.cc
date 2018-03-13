@@ -277,13 +277,11 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kArm64S1x8AllTrue:
     case kArm64S1x16AnyTrue:
     case kArm64S1x16AllTrue:
-      return kNoOpcodeFlags;
-
     case kArm64TestAndBranch32:
     case kArm64TestAndBranch:
     case kArm64CompareAndBranch32:
     case kArm64CompareAndBranch:
-      return kIsBlockTerminator;
+      return kNoOpcodeFlags;
 
     case kArm64LdrS:
     case kArm64LdrD:

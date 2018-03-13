@@ -58,6 +58,7 @@ v8_source_set("cctest_sources") {
     "compiler/test-code-generator.cc",
     "compiler/test-gap-resolver.cc",
     "compiler/test-graph-visualizer.cc",
+    "compiler/test-instruction-scheduler.cc",
     "compiler/test-instruction.cc",
     "compiler/test-js-constant-cache.cc",
     "compiler/test-js-context-specialization.cc",
