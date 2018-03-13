@@ -50,11 +50,11 @@ FEATURE_FLAGS = {
   'class-fields-public': '--harmony-public-fields',
   'optional-catch-binding': '--harmony-optional-catch-binding',
   'class-fields-private': '--harmony-private-fields',
+  'numeric-separator-literal': '--harmony-numeric-separator',
 }
 
 SKIPPED_FEATURES = set(['Array.prototype.flatten',
-                        'Array.prototype.flatMap',
-                        'numeric-separator-literal'])
+                        'Array.prototype.flatMap'])
 
 DATA = os.path.join(os.path.dirname(os.path.abspath(__file__)), "data")
 ARCHIVE = DATA + ".tar"
