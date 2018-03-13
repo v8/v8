@@ -820,24 +820,17 @@ if (v8_use_snapshot) {
 
     sources = []
 
-    outputs = [
-      "$target_gen_dir/snapshot.cc",
-    ]
-
-    if (v8_enable_embedded_builtins) {
-      outputs += [ "$target_gen_dir/embedded.cc" ]
-    }
+    outputs = []
 
     args = [
       "./" + rebase_path(get_label_info(":mksnapshot($v8_snapshot_toolchain)",
                                         "root_out_dir") + "/mksnapshot",
                          root_build_dir),
       "--turbo_instruction_scheduling",
-      "--startup_src",
-      rebase_path("$target_gen_dir/snapshot.cc", root_build_dir),
     ]
 
     if (v8_enable_embedded_builtins) {
+      outputs += [ "$target_gen_dir/embedded.cc" ]
       args += [
         "--embedded_src",
         rebase_path("$target_gen_dir/embedded.cc", root_build_dir),
@@ -867,6 +860,12 @@ if (v8_use_snapshot) {
       args += [
         "--startup_blob",
         rebase_path("$root_out_dir/snapshot_blob.bin", root_build_dir),
+      ]
+    } else {
+      outputs += [ "$target_gen_dir/snapshot.cc" ]
+      args += [
+        "--startup_src",
+        rebase_path("$target_gen_dir/snapshot.cc", root_build_dir),
       ]
     }
 
@@ -971,7 +970,7 @@ v8_source_set("v8_nosnapshot") {
   configs = [ ":internal_config" ]
 }
 
-if (v8_use_snapshot) {
+if (v8_use_snapshot && !v8_use_external_startup_data) {
   v8_source_set("v8_snapshot") {
     # Only targets in this file and the top-level visibility target can
     # depend on this.
@@ -1017,7 +1016,7 @@ if (v8_use_snapshot) {
   }
 }
 
-if (v8_use_external_startup_data) {
+if (v8_use_snapshot && v8_use_external_startup_data) {
   v8_source_set("v8_external_snapshot") {
     visibility = [ ":*" ]  # Only targets in this file can depend on this.
 
