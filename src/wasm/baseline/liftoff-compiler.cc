@@ -489,24 +489,25 @@ class LiftoffCompiler {
 
     // The arguments to the c function are pointers to the stack slots we just
     // pushed.
-    uint32_t num_stack_params = 0;
-    uint32_t input_idx = 1;  // Input 0 is the call target.
-    uint32_t num_lowered_args = 0;
+    int num_stack_params = 0;   // Number of stack parameters.
+    int input_idx = 1;          // Input 0 is the call target.
+    int param_byte_offset = 0;  // Byte offset into the pushed arguments.
     auto add_argument = [&](ValueType arg_type) {
       compiler::LinkageLocation loc =
           call_descriptor->GetInputLocation(input_idx);
+      param_byte_offset +=
+          RoundUp<kPointerSize>(WasmOpcodes::MemSize(arg_type));
+      ++input_idx;
       if (loc.IsRegister()) {
         Register reg = Register::from_code(loc.AsRegister());
         // Load address of that parameter to the register.
-        __ SetCCallRegParamAddr(reg, num_lowered_args, arg_type);
+        __ SetCCallRegParamAddr(reg, param_byte_offset, arg_type);
       } else {
         DCHECK(loc.IsCallerFrameSlot());
-        __ SetCCallStackParamAddr(num_stack_params, num_lowered_args, arg_type);
+        __ SetCCallStackParamAddr(num_stack_params, param_byte_offset,
+                                  arg_type);
         ++num_stack_params;
       }
-      num_lowered_args +=
-          RoundUp<kPointerSize>(WasmOpcodes::MemSize(arg_type)) / kPointerSize;
-      ++input_idx;
     };
     for (ValueType arg_type : sig->parameters()) {
       add_argument(arg_type);
@@ -517,7 +518,12 @@ class LiftoffCompiler {
     DCHECK_EQ(input_idx, call_descriptor->InputCount());
 
     // Now execute the call.
-    __ CallC(ext_ref, num_lowered_args);
+    uint32_t c_call_arg_count =
+        static_cast<uint32_t>(sig->parameter_count()) + has_out_argument;
+    __ CallC(ext_ref, c_call_arg_count);
+
+    // Reset the stack pointer.
+    __ FinishCCall();
 
     // Load return value.
     const LiftoffRegister* next_result_reg = result_regs;
@@ -537,11 +543,8 @@ class LiftoffCompiler {
     // Load potential return value from output argument.
     if (has_out_argument) {
       __ LoadCCallOutArgument(*next_result_reg, out_argument_type,
-                              num_lowered_args);
+                              param_byte_offset);
     }
-
-    // Reset the stack pointer.
-    __ FinishCCall();
   }
 
   template <ValueType type, class EmitFn>

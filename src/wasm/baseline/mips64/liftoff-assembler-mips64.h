@@ -512,19 +512,19 @@ void LiftoffAssembler::PrepareCCall(wasm::FunctionSig* sig,
   BAILOUT("PrepareCCall");
 }
 
-void LiftoffAssembler::SetCCallRegParamAddr(Register dst, uint32_t param_offset,
+void LiftoffAssembler::SetCCallRegParamAddr(Register dst, int param_byte_offset,
                                             ValueType type) {
   BAILOUT("SetCCallRegParamAddr");
 }
 
-void LiftoffAssembler::SetCCallStackParamAddr(uint32_t stack_param_idx,
-                                              uint32_t param_offset,
+void LiftoffAssembler::SetCCallStackParamAddr(int stack_param_idx,
+                                              int param_byte_offset,
                                               ValueType type) {
   BAILOUT("SetCCallStackParamAddr");
 }
 
 void LiftoffAssembler::LoadCCallOutArgument(LiftoffRegister dst, ValueType type,
-                                            uint32_t num_lowered_args) {
+                                            int param_byte_offset) {
   BAILOUT("LoadCCallOutArgument");
 }
 

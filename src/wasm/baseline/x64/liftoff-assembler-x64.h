@@ -824,39 +824,41 @@ void LiftoffAssembler::DropStackSlotsAndRet(uint32_t num_stack_slots) {
 void LiftoffAssembler::PrepareCCall(wasm::FunctionSig* sig,
                                     const LiftoffRegister* args,
                                     ValueType out_argument_type) {
-  // Save current sp, such that we compute pointers to the values pushed above.
-  movq(liftoff::kCCallLastArgAddrReg, rsp);
   for (ValueType param_type : sig->parameters()) {
     liftoff::push(this, *args++, param_type);
   }
   if (out_argument_type != kWasmStmt) {
-    int size = WasmOpcodes::MemSize(out_argument_type);
-    subq(rsp, Immediate(std::max(kPointerSize, size)));
+    subq(rsp, Immediate(kPointerSize));
   }
-  PrepareCallCFunction(static_cast<uint32_t>(sig->parameter_count()));
+  // Save the original sp (before the first push), such that we can later
+  // compute pointers to the pushed values. Do this only *after* pushing the
+  // values, because {kCCallLastArgAddrReg} might collide with an arg register.
+  int num_c_call_arguments = static_cast<int>(sig->parameter_count()) +
+                             (out_argument_type != kWasmStmt);
+  int pushed_bytes = kPointerSize * num_c_call_arguments;
+  leaq(liftoff::kCCallLastArgAddrReg, Operand(rsp, pushed_bytes));
+  PrepareCallCFunction(num_c_call_arguments);
 }
 
-void LiftoffAssembler::SetCCallRegParamAddr(Register dst, uint32_t param_offset,
+void LiftoffAssembler::SetCCallRegParamAddr(Register dst, int param_byte_offset,
                                             ValueType type) {
   // Check that we don't accidentally override kCCallLastArgAddrReg.
   DCHECK_NE(liftoff::kCCallLastArgAddrReg, dst);
-  int offset = kPointerSize * static_cast<int>(param_offset + 1);
-  leaq(dst, Operand(liftoff::kCCallLastArgAddrReg, -offset));
+  leaq(dst, Operand(liftoff::kCCallLastArgAddrReg, -param_byte_offset));
 }
 
-void LiftoffAssembler::SetCCallStackParamAddr(uint32_t stack_param_idx,
-                                              uint32_t param_offset,
+void LiftoffAssembler::SetCCallStackParamAddr(int stack_param_idx,
+                                              int param_byte_offset,
                                               ValueType type) {
   // On x64, all C call arguments fit in registers.
   UNREACHABLE();
 }
 
 void LiftoffAssembler::LoadCCallOutArgument(LiftoffRegister dst, ValueType type,
-                                            uint32_t num_lowered_args) {
+                                            int param_byte_offset) {
   // Check that we don't accidentally override kCCallLastArgAddrReg.
   DCHECK_NE(LiftoffRegister(liftoff::kCCallLastArgAddrReg), dst);
-  int offset = kPointerSize * num_lowered_args;
-  Operand src(liftoff::kCCallLastArgAddrReg, -offset);
+  Operand src(liftoff::kCCallLastArgAddrReg, -param_byte_offset);
   liftoff::Load(this, dst, src, type);
 }
 

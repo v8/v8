@@ -450,12 +450,12 @@ class LiftoffAssembler : public TurboAssembler {
   // the out argument.
   inline void PrepareCCall(wasm::FunctionSig* sig, const LiftoffRegister* args,
                            ValueType out_argument_type);
-  inline void SetCCallRegParamAddr(Register dst, uint32_t param_offset,
+  inline void SetCCallRegParamAddr(Register dst, int param_byte_offset,
                                    ValueType type);
-  inline void SetCCallStackParamAddr(uint32_t stack_param_idx,
-                                     uint32_t param_offset, ValueType type);
+  inline void SetCCallStackParamAddr(int stack_param_idx, int param_byte_offset,
+                                     ValueType type);
   inline void LoadCCallOutArgument(LiftoffRegister dst, ValueType type,
-                                   uint32_t num_lowered_args);
+                                   int param_byte_offset);
   inline void CallC(ExternalReference ext_ref, uint32_t num_params);
   inline void FinishCCall();
 
