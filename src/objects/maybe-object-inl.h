@@ -34,18 +34,6 @@ bool MaybeObject::ToStrongOrWeakHeapObject(HeapObject** result) {
   return true;
 }
 
-bool MaybeObject::ToStrongOrWeakHeapObject(
-    HeapObject** result, HeapObjectReferenceType* reference_type) {
-  if (IsSmi() || IsClearedWeakHeapObject()) {
-    return false;
-  }
-  *reference_type = Internals::HasWeakHeapObjectTag(this)
-                        ? HeapObjectReferenceType::WEAK
-                        : HeapObjectReferenceType::STRONG;
-  *result = GetHeapObject();
-  return true;
-}
-
 bool MaybeObject::IsStrongHeapObject() {
   return !Internals::HasWeakHeapObjectTag(this) && !IsSmi();
 }

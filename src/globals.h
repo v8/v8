@@ -1469,11 +1469,6 @@ enum IsolateAddressId {
       kIsolateAddressCount
 };
 
-enum class HeapObjectReferenceType {
-  WEAK,
-  STRONG,
-};
-
 }  // namespace internal
 }  // namespace v8
 

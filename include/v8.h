@@ -9023,12 +9023,6 @@ class Internals {
         reinterpret_cast<intptr_t>(value) | kWeakHeapObjectMask);
   }
 
-  V8_INLINE static internal::MaybeObject* AddWeakHeapObjectMask(
-      internal::MaybeObject* value) {
-    return reinterpret_cast<MaybeObject*>(reinterpret_cast<intptr_t>(value) |
-                                          kWeakHeapObjectMask);
-  }
-
   V8_INLINE static int SmiValue(const internal::Object* value) {
     return PlatformSmiTagging::SmiToInt(value);
   }

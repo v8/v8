@@ -101,9 +101,7 @@ class Deserializer : public SerializerDeserializer {
 
   void Synchronize(VisitorSynchronization::SyncTag tag) override;
 
-  template <typename T>
-  void UnalignedCopy(T** dest, T** src) {
-    DCHECK(!allocator()->next_reference_is_weak());
+  void UnalignedCopy(Object** dest, Object** src) {
     memcpy(dest, src, sizeof(*src));
   }
 
@@ -112,18 +110,17 @@ class Deserializer : public SerializerDeserializer {
   // of the object we are writing into, or nullptr if we are not writing into an
   // object, i.e. if we are writing a series of tagged values that are not on
   // the heap. Return false if the object content has been deferred.
-  bool ReadData(MaybeObject** start, MaybeObject** end, int space,
+  bool ReadData(Object** start, Object** end, int space,
                 Address object_address);
 
   // A helper function for ReadData, templatized on the bytecode for efficiency.
   // Returns the new value of {current}.
   template <int where, int how, int within, int space_number_if_any>
-  inline MaybeObject** ReadDataCase(Isolate* isolate, MaybeObject** current,
-                                    Address current_object_address, byte data,
-                                    bool write_barrier_needed);
+  inline Object** ReadDataCase(Isolate* isolate, Object** current,
+                               Address current_object_address, byte data,
+                               bool write_barrier_needed);
 
-  void ReadObject(int space_number, MaybeObject** write_back,
-                  HeapObjectReferenceType reference_type);
+  void ReadObject(int space_number, Object** write_back);
 
   // Special handling for serialized code like hooking up internalized strings.
   HeapObject* PostProcessNewObject(HeapObject* obj, int space);

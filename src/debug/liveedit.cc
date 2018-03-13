@@ -874,9 +874,9 @@ void LiveEdit::FunctionSourceUpdated(Handle<JSArray> shared_info_array,
 
 void LiveEdit::FixupScript(Handle<Script> script, int max_function_literal_id) {
   Isolate* isolate = script->GetIsolate();
-  Handle<WeakFixedArray> old_infos(script->shared_function_infos(), isolate);
-  Handle<WeakFixedArray> new_infos(
-      isolate->factory()->NewWeakFixedArray(max_function_literal_id + 1));
+  Handle<FixedArray> old_infos(script->shared_function_infos(), isolate);
+  Handle<FixedArray> new_infos(
+      isolate->factory()->NewFixedArray(max_function_literal_id + 1));
   script->set_shared_function_infos(*new_infos);
   SharedFunctionInfo::ScriptIterator iterator(isolate, old_infos);
   while (SharedFunctionInfo* shared = iterator.Next()) {
@@ -1015,7 +1015,7 @@ static Handle<Script> CreateScriptCopy(Handle<Script> original) {
       original->eval_from_shared_or_wrapped_arguments());
   copy->set_eval_from_position(original->eval_from_position());
 
-  Handle<WeakFixedArray> infos(isolate->factory()->NewWeakFixedArray(
+  Handle<FixedArray> infos(isolate->factory()->NewFixedArray(
       original->shared_function_infos()->length()));
   copy->set_shared_function_infos(*infos);
 
