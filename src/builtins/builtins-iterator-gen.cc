@@ -40,7 +40,11 @@ IteratorRecord IteratorBuiltinsAssembler::GetIterator(Node* context,
   Branch(IsJSReceiver(iterator), &get_next, &if_notobject);
 
   BIND(&if_notobject);
-  { ThrowTypeError(context, MessageTemplate::kNotAnIterator, iterator); }
+  {
+    Node* ret = CallRuntime(Runtime::kThrowSymbolIteratorInvalid, context);
+    GotoIfException(ret, if_exception, exception);
+    Unreachable();
+  }
 
   BIND(&get_next);
   Node* const next = GetProperty(context, iterator, factory()->next_string());
