@@ -273,6 +273,7 @@ void CallOrConstructBuiltinsAssembler::CallOrConstructWithSpread(
 
   VARIABLE(var_length, MachineRepresentation::kWord32);
   VARIABLE(var_elements, MachineRepresentation::kTagged);
+  VARIABLE(var_elements_kind, MachineRepresentation::kWord32);
 
   GotoIf(TaggedIsSmi(spread), &if_generic);
   Node* spread_map = LoadMap(spread);
@@ -293,12 +294,13 @@ void CallOrConstructBuiltinsAssembler::CallOrConstructWithSpread(
          &if_generic);
 
   // The fast-path accesses the {spread} elements directly.
+  Node* spread_kind = LoadMapElementsKind(spread_map);
+  var_elements_kind.Bind(spread_kind);
   var_length.Bind(
       LoadAndUntagToWord32ObjectField(spread, JSArray::kLengthOffset));
   var_elements.Bind(LoadObjectField(spread, JSArray::kElementsOffset));
 
   // Check elements kind of {spread}.
-  Node* spread_kind = LoadMapElementsKind(spread_map);
   GotoIf(Int32LessThan(spread_kind, Int32Constant(PACKED_DOUBLE_ELEMENTS)),
          &if_smiorobject);
   Branch(Int32GreaterThan(spread_kind, Int32Constant(LAST_FAST_ELEMENTS_KIND)),
@@ -313,12 +315,13 @@ void CallOrConstructBuiltinsAssembler::CallOrConstructWithSpread(
     Node* list =
         CallBuiltin(Builtins::kIterableToList, context, spread, iterator_fn);
     CSA_ASSERT(this, IsJSArray(list));
-    CSA_ASSERT(this, Word32Equal(LoadMapElementsKind(LoadMap(list)),
-                                 Int32Constant(PACKED_ELEMENTS)));
+    Node* list_kind = LoadMapElementsKind(LoadMap(list));
     var_length.Bind(
         LoadAndUntagToWord32ObjectField(list, JSArray::kLengthOffset));
     var_elements.Bind(LoadObjectField(list, JSArray::kElementsOffset));
-    Goto(&if_smiorobject);
+    var_elements_kind.Bind(list_kind);
+    Branch(Int32LessThan(list_kind, Int32Constant(PACKED_DOUBLE_ELEMENTS)),
+           &if_smiorobject, &if_double);
 
     BIND(&if_iterator_fn_not_callable);
     ThrowTypeError(context, MessageTemplate::kIteratorSymbolNonCallable);
@@ -341,11 +344,12 @@ void CallOrConstructBuiltinsAssembler::CallOrConstructWithSpread(
 
   BIND(&if_double);
   {
+    Node* const elements_kind = var_elements_kind.value();
     Node* const elements = var_elements.value();
     Node* const length = var_length.value();
 
     CallOrConstructDoubleVarargs(target, new_target, elements, length,
-                                 args_count, context, spread_kind);
+                                 args_count, context, elements_kind);
   }
 }
 
