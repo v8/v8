@@ -4661,11 +4661,7 @@ Handle<Code> CompileJSToWasmWrapper(Isolate* isolate, wasm::WasmModule* module,
   Node* effect = nullptr;
 
   // TODO(titzer): compile JS to WASM wrappers without a {ModuleEnv}.
-  ModuleEnv env(module,
-                // TODO(mstarzinger): remove the Illegal builtin when we don't
-                // need FLAG_wasm_jit_to_native
-                BUILTIN_CODE(isolate, Illegal),  // default_function_code
-                use_trap_handler);
+  ModuleEnv env(module, use_trap_handler);
 
   WasmGraphBuilder builder(&env, &zone, &jsgraph,
                            CEntryStub(isolate, 1).GetCode(), func->sig);
@@ -4778,7 +4774,7 @@ Handle<Code> CompileWasmToJSWrapper(
       origin == wasm::kAsmJsOrigin ? new (&zone) SourcePositionTable(&graph)
                                    : nullptr;
 
-  ModuleEnv env(nullptr, Handle<Code>::null(), use_trap_handler);
+  ModuleEnv env(nullptr, use_trap_handler);
   WasmGraphBuilder builder(&env, &zone, &jsgraph,
                            CEntryStub(isolate, 1).GetCode(), sig,
                            source_position_table);
@@ -4865,9 +4861,8 @@ Handle<Code> CompileWasmToWasmWrapper(Isolate* isolate, WasmCodeWrapper target,
   Node* control = nullptr;
   Node* effect = nullptr;
 
-  ModuleEnv env(
-      nullptr, Handle<Code>::null(),
-      !target.IsCodeObject() && target.GetWasmCode()->HasTrapHandlerIndex());
+  ModuleEnv env(nullptr, !target.IsCodeObject() &&
+                             target.GetWasmCode()->HasTrapHandlerIndex());
   WasmGraphBuilder builder(&env, &zone, &jsgraph, Handle<Code>(), sig);
   builder.set_control_ptr(&control);
   builder.set_effect_ptr(&effect);

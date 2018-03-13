@@ -181,10 +181,6 @@ class TestingModuleBuilder {
 
   Handle<JSFunction> WrapCode(uint32_t index);
 
-  void SetFunctionCode(uint32_t index, Handle<Code> code) {
-    function_code_[index] = code;
-  }
-
   void AddIndirectFunctionTable(const uint16_t* function_indexes,
                                 uint32_t table_size);
 
@@ -203,9 +199,6 @@ class TestingModuleBuilder {
   Handle<WasmInstanceObject> instance_object() { return instance_object_; }
   WasmCodeWrapper GetFunctionCode(uint32_t index) {
     return WasmCodeWrapper(native_module_->GetCode(index));
-  }
-  void SetFunctionCode(int index, Handle<Code> code) {
-    function_code_[index] = code;
   }
   Address globals_start() { return reinterpret_cast<Address>(globals_data_); }
   void Link() {
@@ -231,7 +224,6 @@ class TestingModuleBuilder {
   uint32_t global_offset;
   byte* mem_start_;
   uint32_t mem_size_;
-  std::vector<Handle<Code>> function_code_;
   std::vector<GlobalHandleAddress> function_tables_;
   V8_ALIGNED(16) byte globals_data_[kMaxGlobalsSize];
   WasmInterpreter* interpreter_;

@@ -588,8 +588,6 @@ compiler::ModuleEnv CreateModuleEnvFromCompiledModule(
   DisallowHeapAllocation no_gc;
   WasmModule* module = compiled_module->shared()->module();
   compiler::ModuleEnv result(module, std::vector<Address>{},
-                             std::vector<Handle<Code>>{},
-                             BUILTIN_CODE(isolate, WasmCompileLazy),
                              compiled_module->use_trap_handler());
   return result;
 }
@@ -1409,7 +1407,7 @@ void FunctionTableFinalizer(const v8::WeakCallbackInfo<void>& data) {
 }
 
 std::unique_ptr<compiler::ModuleEnv> CreateDefaultModuleEnv(
-    Isolate* isolate, WasmModule* module, Handle<Code> illegal_builtin) {
+    Isolate* isolate, WasmModule* module) {
   std::vector<GlobalHandleAddress> function_tables;
 
   for (size_t i = module->function_tables.size(); i > 0; --i) {
@@ -1423,9 +1421,8 @@ std::unique_ptr<compiler::ModuleEnv> CreateDefaultModuleEnv(
 
   // TODO(kschimpf): Add module-specific policy handling here (see v8:7143)?
   bool use_trap_handler = trap_handler::IsTrapHandlerEnabled();
-  return base::make_unique<compiler::ModuleEnv>(
-      module, function_tables, std::vector<Handle<Code>>{}, illegal_builtin,
-      use_trap_handler);
+  return base::make_unique<compiler::ModuleEnv>(module, function_tables,
+                                                use_trap_handler);
 }
 
 Handle<WasmCompiledModule> NewCompiledModule(Isolate* isolate,
@@ -1436,14 +1433,6 @@ Handle<WasmCompiledModule> NewCompiledModule(Isolate* isolate,
       WasmCompiledModule::New(isolate, module, export_wrappers,
                               env->function_tables, env->use_trap_handler);
   return compiled_module;
-}
-
-template <typename T>
-void ReopenHandles(Isolate* isolate, const std::vector<Handle<T>>& vec) {
-  auto& mut = const_cast<std::vector<Handle<T>>&>(vec);
-  for (size_t i = 0; i < mut.size(); i++) {
-    mut[i] = Handle<T>(*mut[i], isolate);
-  }
 }
 
 }  // namespace
@@ -1515,7 +1504,7 @@ MaybeHandle<WasmModuleObject> ModuleCompiler::CompileToModuleObjectInternal(
   for (int i = 0, e = export_wrappers->length(); i < e; ++i) {
     export_wrappers->set(i, *init_builtin);
   }
-  auto env = CreateDefaultModuleEnv(isolate_, module_, init_builtin);
+  auto env = CreateDefaultModuleEnv(isolate_, module_);
 
   // Create the compiled module object and populate with compiled functions
   // and information needed at instantiation time. This object needs to be
@@ -3049,9 +3038,7 @@ class AsyncCompileJob::PrepareAndStartCompile : public CompileStep {
     TRACE_COMPILE("(2) Prepare and start compile...\n");
     Isolate* isolate = job_->isolate_;
 
-    Handle<Code> illegal_builtin = BUILTIN_CODE(isolate, Illegal);
-    job_->module_env_ =
-        CreateDefaultModuleEnv(isolate, module_, illegal_builtin);
+    job_->module_env_ = CreateDefaultModuleEnv(isolate, module_);
 
     // Transfer ownership of the {WasmModule} to the {ModuleCompiler}, but
     // keep a pointer.
@@ -3062,11 +3049,6 @@ class AsyncCompileJob::PrepareAndStartCompile : public CompileStep {
       DeferredHandleScope deferred(isolate);
 
       centry_stub = Handle<Code>(*centry_stub, isolate);
-      compiler::ModuleEnv* env = job_->module_env_.get();
-      ReopenHandles(isolate, env->function_code);
-      Handle<Code>* mut =
-          const_cast<Handle<Code>*>(&env->default_function_code);
-      *mut = Handle<Code>(**mut, isolate);
 
       job_->deferred_handles_.push_back(deferred.Detach());
     }

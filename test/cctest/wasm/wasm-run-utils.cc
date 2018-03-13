@@ -80,7 +80,6 @@ uint32_t TestingModuleBuilder::AddFunction(FunctionSig* sig, const char* name) {
     test_module_.functions.back().name = {
         AddBytes(name_vec), static_cast<uint32_t>(name_vec.length())};
   }
-  function_code_.push_back(Handle<Code>::null());
   if (interpreter_) {
     interpreter_->AddFunctionForTesting(&test_module_.functions.back());
   }
@@ -202,7 +201,7 @@ uint32_t TestingModuleBuilder::AddBytes(Vector<const byte> bytes) {
 }
 
 compiler::ModuleEnv TestingModuleBuilder::CreateModuleEnv() {
-  return {&test_module_, function_tables_, function_code_, Handle<Code>::null(),
+  return {&test_module_, function_tables_,
           trap_handler::IsTrapHandlerEnabled()};
 }
 

@@ -72,31 +72,17 @@ struct ModuleEnv {
   // FixedArray.
   const std::vector<Address> function_tables;
 
-  // TODO(mstarzinger): remove these 2 once we don't need
-  // FLAG_wasm_jit_to_native
-  // Contains the code objects to call for each direct call.
-  // (the same length as module.functions)
-  const std::vector<Handle<Code>> function_code;
-  // If the default code is not a null handle, always use it for direct calls.
-  const Handle<Code> default_function_code;
   // True if trap handling should be used in compiled code, rather than
   // compiling in bounds checks for each memory access.
   const bool use_trap_handler;
 
-  ModuleEnv(const wasm::WasmModule* module, Handle<Code> default_function_code,
-            bool use_trap_handler)
-      : module(module),
-        default_function_code(default_function_code),
-        use_trap_handler(use_trap_handler) {}
+  ModuleEnv(const wasm::WasmModule* module, bool use_trap_handler)
+      : module(module), use_trap_handler(use_trap_handler) {}
 
   ModuleEnv(const wasm::WasmModule* module,
-            std::vector<Address> function_tables,
-            std::vector<Handle<Code>> function_code,
-            Handle<Code> default_function_code, bool use_trap_handler)
+            std::vector<Address> function_tables, bool use_trap_handler)
       : module(module),
         function_tables(std::move(function_tables)),
-        function_code(std::move(function_code)),
-        default_function_code(default_function_code),
         use_trap_handler(use_trap_handler) {}
 };
 
