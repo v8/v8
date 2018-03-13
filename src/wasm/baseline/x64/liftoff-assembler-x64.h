@@ -328,10 +328,8 @@ void LiftoffAssembler::Spill(uint32_t index, WasmValue value) {
       movl(liftoff::GetHalfStackSlot(2 * index + 1), Immediate(high_word));
       break;
     }
-    case kWasmF32:
-      movl(dst, Immediate(value.to_f32_boxed().get_bits()));
-      break;
     default:
+      // We do not track f32 and f64 constants, hence they are unreachable.
       UNREACHABLE();
   }
 }
