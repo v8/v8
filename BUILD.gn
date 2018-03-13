@@ -530,6 +530,8 @@ config("toolchain") {
 
   if (is_clang) {
     cflags += [
+      "-Wmissing-field-initializers",
+
       # TODO(hans): Remove once http://crbug.com/428099 is resolved.
       "-Winconsistent-missing-override",
     ]

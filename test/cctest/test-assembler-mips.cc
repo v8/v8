@@ -10335,7 +10335,8 @@ TEST(MSA_fexdo) {
        -inf_float, 0, 0, 0, 0},
       {-0.f, 0.f, 123.567f, -765.321f, -6e-8f, 5.9e-8f, 1e-7f, -1e-20f, 0, 0, 0,
        0},
-      {1e-36f, 1e20f, -1e20f, 2e-20f, 6e-8f, -2.9e-8f, -66505.f, -65504.f}};
+      {1e-36f, 1e20f, -1e20f, 2e-20f, 6e-8f, -2.9e-8f, -66505.f, -65504.f, 0, 0,
+       0, 0}};
 
   const struct TestCaseMsa3RF_D tc_d[] = {
       // ws_lo, ws_hi, wt_lo, wt_hi, wd_lo, wd_hi
