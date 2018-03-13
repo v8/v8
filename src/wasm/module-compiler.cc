@@ -3150,11 +3150,6 @@ class AsyncCompileJob::ExecuteAndFinishCompilationUnits : public CompileStep {
   }
 
   void RunInForeground() override {
-    // TODO(6792): No longer needed once WebAssembly code is off heap.
-    // Use base::Optional to be able to close the scope before we resolve or
-    // reject the promise.
-    base::Optional<CodeSpaceMemoryModificationScope> modification_scope(
-        base::in_place_t(), job_->isolate_->heap());
     TRACE_COMPILE("(4a) Finishing compilation units...\n");
     if (failed_) {
       // The job failed already, no need to do more work.
@@ -3206,9 +3201,6 @@ class AsyncCompileJob::ExecuteAndFinishCompilationUnits : public CompileStep {
       // Make sure all compilation tasks stopped running.
       job_->background_task_manager_.CancelAndWait();
 
-      // Close the CodeSpaceMemoryModificationScope before we reject the promise
-      // in AsyncCompileFailed. Promise::Reject calls directly into JavaScript.
-      modification_scope.reset();
       return job_->AsyncCompileFailed(thrower);
     }
     if (job_->outstanding_units_ == 0) {
