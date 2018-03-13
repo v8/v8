@@ -1523,30 +1523,16 @@ TEST(NumericSeparatorErrors) {
   RunParserSyncTest(context_data, statement_data, kError);
 }
 
-TEST(NumericSeparatorImplicitOctals) {
-  v8::HandleScope handles(CcTest::isolate());
-  v8::Local<v8::Context> context = v8::Context::New(CcTest::isolate());
-  v8::Context::Scope context_scope(context);
-
-  const char* context_data[][2] = {
-      {"", ""}, {nullptr, nullptr}, {nullptr, nullptr}};
-  const char* statement_data[] = {"07_7_7", "0_7_7_7", "0_777", nullptr};
-
-  static const ParserFlag flags[] = {kAllowHarmonyNumericSeparator};
-  RunParserSyncTest(context_data, statement_data, kSuccess, nullptr, 0, flags,
-                    1);
-
-  RunParserSyncTest(context_data, statement_data, kError);
-}
-
 TEST(NumericSeparatorImplicitOctalsErrors) {
   v8::HandleScope handles(CcTest::isolate());
   v8::Local<v8::Context> context = v8::Context::New(CcTest::isolate());
   v8::Context::Scope context_scope(context);
 
   const char* context_data[][2] = {
-      {"", ""}, {nullptr, nullptr}, {nullptr, nullptr}};
-  const char* statement_data[] = {"07_7_7_", "07__77", "0__777", nullptr};
+      {"", ""}, {"\"use strict\";", ""}, {nullptr, nullptr}};
+  const char* statement_data[] = {"00_122",  "0_012",  "07_7_7",
+                                  "0_7_7_7", "0_777",  "07_7_7_",
+                                  "07__77",  "0__777", nullptr};
 
   static const ParserFlag flags[] = {kAllowHarmonyNumericSeparator};
   RunParserSyncTest(context_data, statement_data, kError, nullptr, 0, flags, 1,

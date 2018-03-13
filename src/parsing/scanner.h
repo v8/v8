@@ -747,8 +747,6 @@ class Scanner {
   bool ScanSignedInteger(int start_pos);
   bool ScanOctalDigits(int start_pos);
   bool ScanImplicitOctalDigits(int start_pos, NumberKind* kind);
-  bool ScanImplicitOctalDigitsWithNumericSeparators(int start_pos,
-                                                    NumberKind* kind);
 
   Token::Value ScanNumber(bool seen_period);
   Token::Value ScanIdentifierOrKeyword();

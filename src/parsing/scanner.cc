@@ -1342,48 +1342,9 @@ bool Scanner::ScanOctalDigits(int start_pos) {
   return true;
 }
 
-bool Scanner::ScanImplicitOctalDigitsWithNumericSeparators(
-    int start_pos, Scanner::NumberKind* kind) {
-  bool separator_seen = false;
-  while (true) {
-    if (c0_ == '_') {
-      Advance<false, false>();
-      if (c0_ == '_') {
-        ReportScannerError(Location(start_pos, source_pos()),
-                           MessageTemplate::kContinuousNumericSeparator);
-        return false;
-      }
-      separator_seen = true;
-      continue;
-    }
-
-    if (c0_ == '8' || c0_ == '9') {
-      *kind = DECIMAL_WITH_LEADING_ZERO;
-      return true;
-    }
-    if (c0_ < '0' || '7' < c0_) {
-      // Octal literal finished.
-      octal_pos_ = Location(start_pos, source_pos());
-      octal_message_ = MessageTemplate::kStrictOctalLiteral;
-      if (separator_seen) {
-        ReportScannerError(Location(start_pos, source_pos()),
-                           MessageTemplate::kTrailingNumericSeparator);
-        return false;
-      }
-      return true;
-    }
-    separator_seen = false;
-    AddLiteralCharAdvance();
-  }
-}
-
 bool Scanner::ScanImplicitOctalDigits(int start_pos,
                                       Scanner::NumberKind* kind) {
   *kind = IMPLICIT_OCTAL;
-
-  if (allow_harmony_numeric_separator()) {
-    return ScanImplicitOctalDigitsWithNumericSeparators(start_pos, kind);
-  }
 
   while (true) {
     // (possible) octal number
@@ -1469,6 +1430,10 @@ Token::Value Scanner::ScanNumber(bool seen_period) {
         }
       } else if (c0_ == '8' || c0_ == '9') {
         kind = DECIMAL_WITH_LEADING_ZERO;
+      } else if (allow_harmony_numeric_separator() && c0_ == '_') {
+        ReportScannerError(Location(source_pos(), source_pos() + 1),
+                           MessageTemplate::kZeroDigitNumericSeparator);
+        return Token::ILLEGAL;
       }
     }
 

@@ -25,11 +25,6 @@
   assertEquals(octal, 0o777);
 }
 {
-  const implicitOctal = 07_7_7;
-  assertEquals(implicitOctal, 0o777);
-}
-
-{
   let exception = false;
   try {
     const code = `"use strict" const implicitOctal = 07_7_7`;
@@ -66,3 +61,4 @@ assertThrows('0o_777', SyntaxError);
 assertThrows('0o7__77', SyntaxError);
 assertThrows('0777_', SyntaxError);
 assertThrows('07__77', SyntaxError);
+assertThrows('07_7_7', SyntaxError);
