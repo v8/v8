@@ -553,7 +553,7 @@ bool NativeModuleDeserializer::ReadCode() {
       code_buffer, std::move(reloc_info), reloc_size, Just(index_),
       WasmCode::kFunction, constant_pool_offset, stack_slot_count,
       safepoint_table_offset, handler_table_offset, protected_instructions,
-      tier);
+      tier, false /* flush_icache */);
   if (ret == nullptr) return false;
   native_module_->code_table_[index_] = ret;
 
@@ -569,7 +569,7 @@ bool NativeModuleDeserializer::ReadCode() {
       case RelocInfo::EMBEDDED_OBJECT: {
         // We only expect {undefined}. We check for that when we add code.
         iter.rinfo()->set_target_object(isolate_->heap()->undefined_value(),
-                                        SKIP_WRITE_BARRIER);
+                                        SKIP_WRITE_BARRIER, SKIP_ICACHE_FLUSH);
         break;
       }
       case RelocInfo::CODE_TARGET: {
@@ -591,6 +591,11 @@ bool NativeModuleDeserializer::ReadCode() {
         break;
     }
   }
+  // Flush the i-cache here instead of in AddOwnedCode, to include the changes
+  // made while iterating over the RelocInfo above.
+  Assembler::FlushICache(ret->instructions().start(),
+                         ret->instructions().size());
+
   if (source_position_size > 0) {
     Handle<ByteArray> source_positions = isolate_->factory()->NewByteArray(
         static_cast<int>(source_position_size), TENURED);

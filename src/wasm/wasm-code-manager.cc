@@ -70,8 +70,7 @@ void PatchTrampolineAndStubCalls(
 #else
     Address new_target = old_target;
 #endif
-    it.rinfo()->set_target_address(new_target, SKIP_WRITE_BARRIER,
-                                   SKIP_ICACHE_FLUSH);
+    it.rinfo()->set_target_address(new_target, SKIP_WRITE_BARRIER);
   }
 }
 
@@ -320,7 +319,7 @@ WasmCode* NativeModule::AddOwnedCode(
     uint32_t stack_slots, size_t safepoint_table_offset,
     size_t handler_table_offset,
     std::shared_ptr<ProtectedInstructions> protected_instructions,
-    WasmCode::Tier tier) {
+    WasmCode::Tier tier, bool flush_icache) {
   // both allocation and insertion in owned_code_ happen in the same critical
   // section, thus ensuring owned_code_'s elements are rarely if ever moved.
   base::LockGuard<base::Mutex> lock(&allocation_mutex_);
@@ -341,9 +340,10 @@ WasmCode* NativeModule::AddOwnedCode(
   auto insert_before = std::upper_bound(owned_code_.begin(), owned_code_.end(),
                                         code, owned_code_comparer_);
   owned_code_.insert(insert_before, std::move(code));
-  Assembler::FlushICache(ret->instructions().start(),
-                         ret->instructions().size());
-
+  if (flush_icache) {
+    Assembler::FlushICache(ret->instructions().start(),
+                           ret->instructions().size());
+  }
   return ret;
 }
 
@@ -397,7 +397,8 @@ WasmCode* NativeModule::AddAnonymousCode(Handle<Code> code,
       Nothing<uint32_t>(), kind, code->constant_pool_offset(),
       (code->has_safepoint_info() ? code->stack_slots() : 0),
       (code->has_safepoint_info() ? code->safepoint_table_offset() : 0),
-      code->handler_table_offset(), protected_instructions, WasmCode::kOther);
+      code->handler_table_offset(), protected_instructions, WasmCode::kOther,
+      false /* flush_icache */);
   if (ret == nullptr) return nullptr;
   intptr_t delta = ret->instructions().start() - code->instruction_start();
   int mask = RelocInfo::kApplyMask | RelocInfo::kCodeTargetMask |
@@ -420,6 +421,10 @@ WasmCode* NativeModule::AddAnonymousCode(Handle<Code> code,
       }
     }
   }
+  // Flush the i-cache here instead of in AddOwnedCode, to include the changes
+  // made while iterating over the RelocInfo above.
+  Assembler::FlushICache(ret->instructions().start(),
+                         ret->instructions().size());
   return ret;
 }
 
@@ -440,7 +445,7 @@ WasmCode* NativeModule::AddCode(
       std::move(reloc_info), static_cast<size_t>(desc.reloc_size), Just(index),
       WasmCode::kFunction, desc.instr_size - desc.constant_pool_size,
       frame_slots, safepoint_table_offset, handler_table_offset,
-      std::move(protected_instructions), tier);
+      std::move(protected_instructions), tier, SKIP_ICACHE_FLUSH);
   if (ret == nullptr) return nullptr;
 
   code_table_[index] = ret;
@@ -476,6 +481,10 @@ WasmCode* NativeModule::AddCode(
       it.rinfo()->apply(delta);
     }
   }
+  // Flush the i-cache here instead of in AddOwnedCode, to include the changes
+  // made while iterating over the RelocInfo above.
+  Assembler::FlushICache(ret->instructions().start(),
+                         ret->instructions().size());
   return ret;
 }
 
@@ -695,7 +704,8 @@ WasmCode* NativeModule::CloneCode(const WasmCode* original_code) {
       original_code->kind(), original_code->constant_pool_offset_,
       original_code->stack_slots(), original_code->safepoint_table_offset_,
       original_code->handler_table_offset_,
-      original_code->protected_instructions_, original_code->tier());
+      original_code->protected_instructions_, original_code->tier(),
+      false /* flush_icache */);
   if (ret == nullptr) return nullptr;
   if (!ret->IsAnonymous()) {
     code_table_[ret->index()] = ret;
@@ -707,6 +717,10 @@ WasmCode* NativeModule::CloneCode(const WasmCode* original_code) {
        !it.done(); it.next()) {
     it.rinfo()->apply(delta);
   }
+  // Flush the i-cache here instead of in AddOwnedCode, to include the changes
+  // made while iterating over the RelocInfo above.
+  Assembler::FlushICache(ret->instructions().start(),
+                         ret->instructions().size());
   return ret;
 }
 

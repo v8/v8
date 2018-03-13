@@ -156,7 +156,7 @@ bool CodeSpecialization::ApplyToWholeInstance(
         case RelocInfo::JS_TO_WASM_CALL: {
           const WasmCode* new_code = native_module->GetCode(exp.index);
           it.rinfo()->set_js_to_wasm_address(new_code->instructions().start(),
-                                             SKIP_ICACHE_FLUSH);
+                                             icache_flush_mode);
         } break;
         default:
           UNREACHABLE();

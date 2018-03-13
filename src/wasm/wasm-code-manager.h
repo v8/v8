@@ -296,7 +296,7 @@ class V8_EXPORT_PRIVATE NativeModule final {
                          uint32_t stack_slots, size_t safepoint_table_offset,
                          size_t handler_table_offset,
                          std::shared_ptr<ProtectedInstructions>,
-                         WasmCode::Tier tier);
+                         WasmCode::Tier tier, bool flush_icache = true);
   WasmCode* CloneCode(const WasmCode*);
   bool CloneTrampolinesAndStubs(const NativeModule* other);
   WasmCode* Lookup(Address);
