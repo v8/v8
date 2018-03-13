@@ -2405,6 +2405,19 @@ void BytecodeGenerator::BuildArrayLiteralSpread(Spread* spread, Register array,
   loop_builder.JumpToHeader(loop_depth_);
 }
 
+void BytecodeGenerator::VisitStoreInArrayLiteral(StoreInArrayLiteral* expr) {
+  builder()->SetExpressionAsStatementPosition(expr);
+  RegisterAllocationScope register_scope(this);
+  Register array = register_allocator()->NewRegister();
+  Register index = register_allocator()->NewRegister();
+  VisitForRegisterValue(expr->array(), array);
+  VisitForRegisterValue(expr->index(), index);
+  VisitForAccumulatorValue(expr->value());
+  builder()->StoreInArrayLiteral(
+      array, index,
+      feedback_index(feedback_spec()->AddStoreInArrayLiteralICSlot()));
+}
+
 void BytecodeGenerator::VisitVariableProxy(VariableProxy* proxy) {
   builder()->SetExpressionPosition(proxy);
   BuildVariableLoad(proxy->var(), proxy->hole_check_mode());
@@ -4017,6 +4030,8 @@ void BytecodeGenerator::VisitNaryArithmeticExpression(NaryOperation* expr) {
   }
 }
 
+// Note: the actual spreading is performed by the surrounding expression's
+// visitor.
 void BytecodeGenerator::VisitSpread(Spread* expr) { Visit(expr->expression()); }
 
 void BytecodeGenerator::VisitEmptyParentheses(EmptyParentheses* expr) {

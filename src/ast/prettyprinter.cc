@@ -442,6 +442,11 @@ void CallPrinter::VisitSpread(Spread* node) {
   Print(")");
 }
 
+void CallPrinter::VisitStoreInArrayLiteral(StoreInArrayLiteral* node) {
+  Find(node->array());
+  Find(node->index());
+  Find(node->value());
+}
 
 void CallPrinter::VisitEmptyParentheses(EmptyParentheses* node) {
   UNREACHABLE();
@@ -1318,6 +1323,12 @@ void AstPrinter::VisitSpread(Spread* node) {
   Visit(node->expression());
 }
 
+void AstPrinter::VisitStoreInArrayLiteral(StoreInArrayLiteral* node) {
+  IndentedScope indent(this, "STORE IN ARRAY LITERAL", node->position());
+  PrintIndentedVisit("ARRAY", node->array());
+  PrintIndentedVisit("INDEX", node->index());
+  PrintIndentedVisit("VALUE", node->value());
+}
 
 void AstPrinter::VisitEmptyParentheses(EmptyParentheses* node) {
   IndentedScope indent(this, "()", node->position());

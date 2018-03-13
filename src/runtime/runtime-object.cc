@@ -588,24 +588,6 @@ RUNTIME_FUNCTION(Runtime_AddElement) {
 }
 
 
-RUNTIME_FUNCTION(Runtime_AppendElement) {
-  HandleScope scope(isolate);
-  DCHECK_EQ(2, args.length());
-
-  CONVERT_ARG_HANDLE_CHECKED(JSArray, array, 0);
-  CONVERT_ARG_HANDLE_CHECKED(Object, value, 1);
-  CHECK(!value->IsTheHole(isolate));
-
-  uint32_t index;
-  CHECK(array->length()->ToArrayIndex(&index));
-
-  RETURN_FAILURE_ON_EXCEPTION(
-      isolate, JSObject::AddDataElement(array, index, value, NONE));
-  JSObject::ValidateElements(*array);
-  return *array;
-}
-
-
 RUNTIME_FUNCTION(Runtime_SetProperty) {
   HandleScope scope(isolate);
   DCHECK_EQ(4, args.length());
