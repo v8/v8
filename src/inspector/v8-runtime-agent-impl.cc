@@ -608,6 +608,11 @@ Response V8RuntimeAgentImpl::globalLexicalScopeNames(
   return Response::OK();
 }
 
+void V8RuntimeAgentImpl::terminateExecution(
+    std::unique_ptr<TerminateExecutionCallback> callback) {
+  m_inspector->debugger()->terminateExecution(std::move(callback));
+}
+
 void V8RuntimeAgentImpl::restore() {
   if (!m_state->booleanProperty(V8RuntimeAgentImplState::runtimeEnabled, false))
     return;

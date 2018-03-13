@@ -1280,6 +1280,10 @@ domain Runtime
     parameters
       boolean enabled
 
+  # Terminate current or next JavaScript execution.
+  # Will cancel the termination when the outer-most script execution ends.
+  experimental command terminateExecution
+
   # Issued when console API was called.
   event consoleAPICalled
     parameters
