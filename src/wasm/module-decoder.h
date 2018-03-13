@@ -107,6 +107,12 @@ V8_EXPORT_PRIVATE std::vector<CustomSectionOffset> DecodeCustomSections(
 AsmJsOffsetsResult DecodeAsmJsOffsets(const byte* module_start,
                                       const byte* module_end);
 
+// Decode the function names from the name section.
+// Returns the result as an unordered map. Only names with valid utf8 encoding
+// are stored and conflicts are resolved by choosing the last name read.
+void DecodeFunctionNames(const byte* module_start, const byte* module_end,
+                         std::unordered_map<uint32_t, WireBytesRef>* names);
+
 // Decode the local names assignment from the name section.
 // Stores the result in the given {LocalNames} structure. The result will be
 // empty if no name section is present. On encountering an error in the name

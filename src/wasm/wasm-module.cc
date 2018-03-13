@@ -70,9 +70,64 @@ void UnpackAndRegisterProtectedInstructions(
   }
 }
 
+WireBytesRef WasmModule::LookupName(const ModuleWireBytes* wire_bytes,
+                                    uint32_t function_index) const {
+  if (!names_) {
+    names_.reset(new std::unordered_map<uint32_t, WireBytesRef>());
+    wasm::DecodeFunctionNames(wire_bytes->start(), wire_bytes->end(),
+                              names_.get());
+  }
+  auto it = names_->find(function_index);
+  if (it == names_->end()) return WireBytesRef();
+  return it->second;
+}
+
+WireBytesRef WasmModule::LookupName(SeqOneByteString* wire_bytes,
+                                    uint32_t function_index) const {
+  DisallowHeapAllocation no_gc;
+  uint8_t* chars = wire_bytes->GetChars();
+  ModuleWireBytes module_wire_bytes(chars, chars + wire_bytes->length());
+  return LookupName(&module_wire_bytes, function_index);
+}
+
+void WasmModule::AddNameForTesting(int function_index, WireBytesRef name) {
+  if (!names_) {
+    names_.reset(new std::unordered_map<uint32_t, WireBytesRef>());
+  }
+  names_->insert(std::make_pair(function_index, name));
+}
+
+// Get a string stored in the module bytes representing a name.
+WasmName ModuleWireBytes::GetName(WireBytesRef ref) const {
+  if (ref.is_empty()) return {"<?>", 3};  // no name.
+  CHECK(BoundsCheck(ref.offset(), ref.length()));
+  return Vector<const char>::cast(
+      module_bytes_.SubVector(ref.offset(), ref.end_offset()));
+}
+
+// Get a string stored in the module bytes representing a function name.
+WasmName ModuleWireBytes::GetName(const WasmFunction* function,
+                                  const WasmModule* module) const {
+  return GetName(module->LookupName(this, function->func_index));
+}
+
+// Get a string stored in the module bytes representing a name.
+WasmName ModuleWireBytes::GetNameOrNull(WireBytesRef ref) const {
+  if (!ref.is_set()) return {nullptr, 0};  // no name.
+  CHECK(BoundsCheck(ref.offset(), ref.length()));
+  return Vector<const char>::cast(
+      module_bytes_.SubVector(ref.offset(), ref.end_offset()));
+}
+
+// Get a string stored in the module bytes representing a function name.
+WasmName ModuleWireBytes::GetNameOrNull(const WasmFunction* function,
+                                        const WasmModule* module) const {
+  return GetNameOrNull(module->LookupName(this, function->func_index));
+}
+
 std::ostream& operator<<(std::ostream& os, const WasmFunctionName& name) {
   os << "#" << name.function_->func_index;
-  if (name.function_->name.is_set()) {
+  if (!name.name_.is_empty()) {
     if (name.name_.start()) {
       os << ":";
       os.write(name.name_.start(), name.name_.length());

@@ -5398,7 +5398,7 @@ WasmCodeWrapper WasmCompilationUnit::CompileWasmFunction(
       wire_bytes.start() + function->code.end_offset()};
 
   WasmCompilationUnit unit(isolate, env, native_module, function_body,
-                           wire_bytes.GetNameOrNull(function),
+                           wire_bytes.GetNameOrNull(function, env->module),
                            function->func_index,
                            CEntryStub(isolate, 1).GetCode(), mode);
   unit.ExecuteCompilation();

@@ -1029,7 +1029,7 @@ size_t ModuleCompiler::InitializeCompilationUnits(
     uint32_t buffer_offset = func->code.offset();
     Vector<const uint8_t> bytes(wire_bytes.start() + func->code.offset(),
                                 func->code.end_offset() - func->code.offset());
-    WasmName name = wire_bytes.GetName(func);
+    WasmName name = wire_bytes.GetName(func, module_env->module);
     DCHECK_NOT_NULL(native_module_);
     builder.AddUnit(module_env, native_module_, func, buffer_offset, bytes,
                     name);
@@ -1162,7 +1162,7 @@ void ModuleCompiler::CompileSequentially(const ModuleWireBytes& wire_bytes,
     WasmCodeWrapper code = compiler::WasmCompilationUnit::CompileWasmFunction(
         native_module_, thrower, isolate_, wire_bytes, module_env, &func);
     if (code.is_null()) {
-      TruncatedUserString<> name(wire_bytes.GetName(&func));
+      TruncatedUserString<> name(wire_bytes.GetName(&func, module));
       thrower->CompileError("Compilation of #%d:%.*s failed.", i, name.length(),
                             name.start());
       break;
@@ -1189,7 +1189,7 @@ void ModuleCompiler::ValidateSequentially(const ModuleWireBytes& wire_bytes,
     DecodeResult result = VerifyWasmCodeWithStats(
         isolate_->allocator(), module, body, module->is_wasm(), counters());
     if (result.failed()) {
-      TruncatedUserString<> name(wire_bytes.GetName(&func));
+      TruncatedUserString<> name(wire_bytes.GetName(&func, module));
       thrower->CompileError("Compiling function #%d:%.*s failed: %s @+%u", i,
                             name.length(), name.start(),
                             result.error_msg().c_str(), result.error_offset());
@@ -2498,10 +2498,13 @@ void InstanceBuilder::ProcessExports(
           MaybeHandle<String> func_name;
           if (module_->is_asm_js()) {
             // For modules arising from asm.js, honor the names section.
+            WireBytesRef func_name_ref =
+                module_->LookupName(compiled_module_->shared()->module_bytes(),
+                                    function.func_index);
             func_name =
                 WasmSharedModuleData::ExtractUtf8StringFromModuleBytes(
                     isolate_, handle(compiled_module_->shared(), isolate_),
-                    function.name)
+                    func_name_ref)
                     .ToHandleChecked();
           }
           js_function = WasmExportedFunction::New(
@@ -2735,10 +2738,12 @@ void InstanceBuilder::LoadTableSegments(Handle<WasmInstanceObject> instance) {
             MaybeHandle<String> func_name;
             if (module_->is_asm_js()) {
               // For modules arising from asm.js, honor the names section.
+              WireBytesRef func_name_ref = module_->LookupName(
+                  compiled_module_->shared()->module_bytes(), func_index);
               func_name =
                   WasmSharedModuleData::ExtractUtf8StringFromModuleBytes(
                       isolate_, handle(compiled_module_->shared(), isolate_),
-                      function->name)
+                      func_name_ref)
                       .ToHandleChecked();
             }
             Handle<WasmExportedFunction> js_function =

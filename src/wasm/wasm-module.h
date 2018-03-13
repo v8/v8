@@ -35,13 +35,13 @@ class CallDescriptor;
 namespace wasm {
 class ErrorThrower;
 class NativeModule;
+class TestingModuleBuilder;
 
 // Static representation of a wasm function.
 struct WasmFunction {
   FunctionSig* sig;      // signature of the function.
   uint32_t func_index;   // index into the function table.
   uint32_t sig_index;    // index into the signature table.
-  WireBytesRef name;     // function name, if any.
   WireBytesRef code;     // code of this function.
   bool imported;
   bool exported;
@@ -165,9 +165,16 @@ struct V8_EXPORT_PRIVATE WasmModule {
   bool is_wasm() const { return origin_ == kWasmOrigin; }
   bool is_asm_js() const { return origin_ == kAsmJsOrigin; }
 
+  WireBytesRef LookupName(const ModuleWireBytes* wire_bytes,
+                          uint32_t function_index) const;
+  WireBytesRef LookupName(SeqOneByteString* wire_bytes,
+                          uint32_t function_index) const;
+  void AddNameForTesting(int function_index, WireBytesRef name);
+
  private:
   // TODO(kschimpf) - Encapsulate more fields.
   ModuleOrigin origin_ = kWasmOrigin;  // origin of the module
+  mutable std::unique_ptr<std::unordered_map<uint32_t, WireBytesRef>> names_;
 };
 
 typedef Managed<WasmModule> WasmModuleWrapper;
@@ -185,30 +192,18 @@ struct V8_EXPORT_PRIVATE ModuleWireBytes {
   }
 
   // Get a string stored in the module bytes representing a name.
-  WasmName GetName(WireBytesRef ref) const {
-    if (ref.is_empty()) return {"<?>", 3};  // no name.
-    CHECK(BoundsCheck(ref.offset(), ref.length()));
-    return Vector<const char>::cast(
-        module_bytes_.SubVector(ref.offset(), ref.end_offset()));
-  }
+  WasmName GetName(WireBytesRef ref) const;
 
   // Get a string stored in the module bytes representing a function name.
-  WasmName GetName(const WasmFunction* function) const {
-    return GetName(function->name);
-  }
+  WasmName GetName(const WasmFunction* function,
+                   const WasmModule* module) const;
 
   // Get a string stored in the module bytes representing a name.
-  WasmName GetNameOrNull(WireBytesRef ref) const {
-    if (!ref.is_set()) return {nullptr, 0};  // no name.
-    CHECK(BoundsCheck(ref.offset(), ref.length()));
-    return Vector<const char>::cast(
-        module_bytes_.SubVector(ref.offset(), ref.end_offset()));
-  }
+  WasmName GetNameOrNull(WireBytesRef ref) const;
 
   // Get a string stored in the module bytes representing a function name.
-  WasmName GetNameOrNull(const WasmFunction* function) const {
-    return GetNameOrNull(function->name);
-  }
+  WasmName GetNameOrNull(const WasmFunction* function,
+                         const WasmModule* module) const;
 
   // Checks the given offset range is contained within the module bytes.
   bool BoundsCheck(uint32_t offset, uint32_t length) const {

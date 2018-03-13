@@ -73,12 +73,11 @@ uint32_t TestingModuleBuilder::AddFunction(FunctionSig* sig, const char* name) {
   }
   uint32_t index = static_cast<uint32_t>(test_module_.functions.size());
   native_module_->ResizeCodeTableForTest(index);
-  test_module_.functions.push_back(
-      {sig, index, 0, {0, 0}, {0, 0}, false, false});
+  test_module_.functions.push_back({sig, index, 0, {0, 0}, false, false});
   if (name) {
     Vector<const byte> name_vec = Vector<const byte>::cast(CStrVector(name));
-    test_module_.functions.back().name = {
-        AddBytes(name_vec), static_cast<uint32_t>(name_vec.length())};
+    test_module_.AddNameForTesting(
+        index, {AddBytes(name_vec), static_cast<uint32_t>(name_vec.length())});
   }
   if (interpreter_) {
     interpreter_->AddFunctionForTesting(&test_module_.functions.back());
@@ -436,9 +435,11 @@ void WasmFunctionCompiler::Build(const byte* start, const byte* end) {
   memcpy(func_wire_bytes.start(),
          wire_bytes->GetChars() + function_->code.offset(),
          func_wire_bytes.length());
-  ScopedVector<char> func_name(function_->name.length());
-  memcpy(func_name.start(), wire_bytes->GetChars() + function_->name.offset(),
-         func_name.length());
+  WireBytesRef func_name_ref =
+      module_env.module->LookupName(*wire_bytes, function_->func_index);
+  ScopedVector<char> func_name(func_name_ref.length());
+  memcpy(func_name.start(), wire_bytes->GetChars() + func_name_ref.offset(),
+         func_name_ref.length());
 
   FunctionBody func_body{function_->sig, function_->code.offset(),
                          func_wire_bytes.start(), func_wire_bytes.end()};

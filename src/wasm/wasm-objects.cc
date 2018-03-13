@@ -1431,9 +1431,10 @@ MaybeHandle<String> WasmSharedModuleData::GetFunctionNameOrNull(
     Isolate* isolate, Handle<WasmSharedModuleData> shared,
     uint32_t func_index) {
   DCHECK_LT(func_index, shared->module()->functions.size());
-  WasmFunction& function = shared->module()->functions[func_index];
-  if (!function.name.is_set()) return {};
-  return ExtractUtf8StringFromModuleBytes(isolate, shared, function.name);
+  wasm::WireBytesRef name =
+      shared->module()->LookupName(shared->module_bytes(), func_index);
+  if (!name.is_set()) return {};
+  return ExtractUtf8StringFromModuleBytes(isolate, shared, name);
 }
 
 Handle<String> WasmSharedModuleData::GetFunctionName(
@@ -1447,12 +1448,11 @@ Handle<String> WasmSharedModuleData::GetFunctionName(
 Vector<const uint8_t> WasmSharedModuleData::GetRawFunctionName(
     uint32_t func_index) {
   DCHECK_GT(module()->functions.size(), func_index);
-  WasmFunction& function = module()->functions[func_index];
   SeqOneByteString* bytes = module_bytes();
-  DCHECK_GE(bytes->length(), function.name.end_offset());
-  return Vector<const uint8_t>(
-      bytes->GetCharsAddress() + function.name.offset(),
-      function.name.length());
+  wasm::WireBytesRef name = module()->LookupName(bytes, func_index);
+  DCHECK_GE(bytes->length(), name.end_offset());
+  return Vector<const uint8_t>(bytes->GetCharsAddress() + name.offset(),
+                               name.length());
 }
 
 int WasmSharedModuleData::GetFunctionOffset(uint32_t func_index) {
