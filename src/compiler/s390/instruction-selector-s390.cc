@@ -583,11 +583,6 @@ void VisitUnaryOp(InstructionSelector* selector, Node* node,
     inputs[input_count++] = g.TempImmediate(!canEliminateZeroExt);
   }
 
-  if (cont->IsBranch()) {
-    inputs[input_count++] = g.Label(cont->true_block());
-    inputs[input_count++] = g.Label(cont->false_block());
-  }
-
   if (!cont->IsDeoptimize()) {
     // If we can deoptimize as a result of the binop, we need to make sure
     // that the deopt inputs are not overwritten by the binop result. One way
@@ -602,27 +597,13 @@ void VisitUnaryOp(InstructionSelector* selector, Node* node,
     outputs[output_count++] = g.DefineSameAsFirst(node);
   }
 
-  if (cont->IsSet()) {
-    outputs[output_count++] = g.DefineAsRegister(cont->result());
-  }
-
   DCHECK_NE(0u, input_count);
   DCHECK_NE(0u, output_count);
   DCHECK_GE(arraysize(inputs), input_count);
   DCHECK_GE(arraysize(outputs), output_count);
 
-  opcode = cont->Encode(opcode);
-
-  if (cont->IsDeoptimize()) {
-    selector->EmitDeoptimize(opcode, output_count, outputs, input_count, inputs,
-                             cont->kind(), cont->reason(), cont->feedback(),
-                             cont->frame_state());
-  } else if (cont->IsTrap()) {
-    inputs[input_count++] = g.UseImmediate(cont->trap_id());
-    selector->Emit(opcode, output_count, outputs, input_count, inputs);
-  } else {
-    selector->Emit(opcode, output_count, outputs, input_count, inputs);
-  }
+  selector->EmitWithContinuation(opcode, output_count, outputs, input_count,
+                                 inputs, cont);
 }
 
 template <class CanCombineWithLoad>
@@ -658,11 +639,6 @@ void VisitBinOp(InstructionSelector* selector, Node* node,
     inputs[input_count++] = g.TempImmediate(!canEliminateZeroExt);
   }
 
-  if (cont->IsBranch()) {
-    inputs[input_count++] = g.Label(cont->true_block());
-    inputs[input_count++] = g.Label(cont->false_block());
-  }
-
   if ((operand_mode & OperandMode::kAllowDistinctOps) &&
       // If we can deoptimize as a result of the binop, we need to make sure
       // that the deopt inputs are not overwritten by the binop result. One way
@@ -678,27 +654,13 @@ void VisitBinOp(InstructionSelector* selector, Node* node,
     outputs[output_count++] = g.DefineSameAsFirst(node);
   }
 
-  if (cont->IsSet()) {
-    outputs[output_count++] = g.DefineAsRegister(cont->result());
-  }
-
   DCHECK_NE(0u, input_count);
   DCHECK_NE(0u, output_count);
   DCHECK_GE(arraysize(inputs), input_count);
   DCHECK_GE(arraysize(outputs), output_count);
 
-  opcode = cont->Encode(opcode);
-
-  if (cont->IsDeoptimize()) {
-    selector->EmitDeoptimize(opcode, output_count, outputs, input_count, inputs,
-                             cont->kind(), cont->reason(), cont->feedback(),
-                             cont->frame_state());
-  } else if (cont->IsTrap()) {
-    inputs[input_count++] = g.UseImmediate(cont->trap_id());
-    selector->Emit(opcode, output_count, outputs, input_count, inputs);
-  } else {
-    selector->Emit(opcode, output_count, outputs, input_count, inputs);
-  }
+  selector->EmitWithContinuation(opcode, output_count, outputs, input_count,
+                                 inputs, cont);
 }
 
 }  // namespace
@@ -1651,22 +1613,7 @@ namespace {
 void VisitCompare(InstructionSelector* selector, InstructionCode opcode,
                   InstructionOperand left, InstructionOperand right,
                   FlagsContinuation* cont) {
-  S390OperandGenerator g(selector);
-  opcode = cont->Encode(opcode);
-  if (cont->IsBranch()) {
-    selector->Emit(opcode, g.NoOutput(), left, right,
-                   g.Label(cont->true_block()), g.Label(cont->false_block()));
-  } else if (cont->IsDeoptimize()) {
-    selector->EmitDeoptimize(opcode, g.NoOutput(), left, right, cont->kind(),
-                             cont->reason(), cont->feedback(),
-                             cont->frame_state());
-  } else if (cont->IsSet()) {
-    selector->Emit(opcode, g.DefineAsRegister(cont->result()), left, right);
-  } else {
-    DCHECK(cont->IsTrap());
-    selector->Emit(opcode, g.NoOutput(), left, right,
-                   g.UseImmediate(cont->trap_id()));
-  }
+  selector->EmitWithContinuation(opcode, left, right, cont);
 }
 
 void VisitLoadAndTest(InstructionSelector* selector, InstructionCode opcode,
@@ -1727,27 +1674,9 @@ void VisitWordCompare(InstructionSelector* selector, Node* node,
     inputs[input_count++] = g.UseAnyExceptImmediate(right);
   }
 
-  opcode = cont->Encode(opcode);
-  if (cont->IsBranch()) {
-    inputs[input_count++] = g.Label(cont->true_block());
-    inputs[input_count++] = g.Label(cont->false_block());
-  } else if (cont->IsSet()) {
-    outputs[output_count++] = g.DefineAsRegister(cont->result());
-  } else if (cont->IsTrap()) {
-    inputs[input_count++] = g.UseImmediate(cont->trap_id());
-  } else {
-    DCHECK(cont->IsDeoptimize());
-    // nothing to do
-  }
-
   DCHECK(input_count <= 8 && output_count <= 1);
-  if (cont->IsDeoptimize()) {
-    selector->EmitDeoptimize(opcode, 0, nullptr, input_count, inputs,
-                             cont->kind(), cont->reason(), cont->feedback(),
-                             cont->frame_state());
-  } else {
-    selector->Emit(opcode, output_count, outputs, input_count, inputs);
-  }
+  selector->EmitWithContinuation(opcode, output_count, outputs, input_count,
+                                 inputs, cont);
 }
 
 void VisitWord32Compare(InstructionSelector* selector, Node* node,
@@ -1832,28 +1761,9 @@ void VisitLoadAndTest(InstructionSelector* selector, InstructionCode opcode,
     outputs[output_count++] = g.DefineAsRegister(value);
   }
 
-  opcode = cont->Encode(opcode);
-  if (cont->IsBranch()) {
-    inputs[input_count++] = g.Label(cont->true_block());
-    inputs[input_count++] = g.Label(cont->false_block());
-  } else if (cont->IsSet()) {
-    outputs[output_count++] = g.DefineAsRegister(cont->result());
-  } else if (cont->IsTrap()) {
-    inputs[input_count++] = g.UseImmediate(cont->trap_id());
-  } else {
-    DCHECK(cont->IsDeoptimize());
-    // nothing to do
-  }
-
   DCHECK(input_count <= 8 && output_count <= 2);
-  opcode = cont->Encode(opcode);
-  if (cont->IsDeoptimize()) {
-    selector->EmitDeoptimize(opcode, output_count, outputs, input_count, inputs,
-                             cont->kind(), cont->reason(), cont->feedback(),
-                             cont->frame_state());
-  } else {
-    selector->Emit(opcode, output_count, outputs, input_count, inputs);
-  }
+  selector->EmitWithContinuation(opcode, output_count, outputs, input_count,
+                                 inputs, cont);
 }
 
 }  // namespace
