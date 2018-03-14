@@ -1229,6 +1229,8 @@ domain Runtime
     parameters
       # Identifier of the prototype to return objects for.
       RemoteObjectId prototypeObjectId
+      # Symbolic group name that can be used to release the results.
+      optional string objectGroup
     returns
       # Array with objects.
       RemoteObject objects

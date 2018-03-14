@@ -2677,6 +2677,12 @@
                             "name": "prototypeObjectId",
                             "description": "Identifier of the prototype to return objects for.",
                             "$ref": "RemoteObjectId"
+                        },
+                        {
+                            "name": "objectGroup",
+                            "description": "Symbolic group name that can be used to release the results.",
+                            "optional": true,
+                            "type": "string"
                         }
                     ],
                     "returns": [

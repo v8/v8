@@ -573,7 +573,7 @@ void V8RuntimeAgentImpl::runScript(
 }
 
 Response V8RuntimeAgentImpl::queryObjects(
-    const String16& prototypeObjectId,
+    const String16& prototypeObjectId, Maybe<String16> objectGroup,
     std::unique_ptr<protocol::Runtime::RemoteObject>* objects) {
   InjectedScript::ObjectScope scope(m_session, prototypeObjectId);
   Response response = scope.initialize();
@@ -584,7 +584,8 @@ Response V8RuntimeAgentImpl::queryObjects(
   v8::Local<v8::Array> resultArray = m_inspector->debugger()->queryObjects(
       scope.context(), v8::Local<v8::Object>::Cast(scope.object()));
   return scope.injectedScript()->wrapObject(
-      resultArray, scope.objectGroupName(), false, false, objects);
+      resultArray, objectGroup.fromMaybe(scope.objectGroupName()), false, false,
+      objects);
 }
 
 Response V8RuntimeAgentImpl::globalLexicalScopeNames(
