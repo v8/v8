@@ -28,6 +28,20 @@ CAST_ACCESSOR(WasmTableObject)
   }                                                              \
   ACCESSORS(holder, name, type, offset)
 
+#define READ_PRIMITIVE_FIELD(p, type, offset) \
+  (*reinterpret_cast<type const*>(FIELD_ADDR_CONST(p, offset)))
+
+#define WRITE_PRIMITIVE_FIELD(p, type, offset, value) \
+  (*reinterpret_cast<type*>(FIELD_ADDR(p, offset)) = value)
+
+#define PRIMITIVE_ACCESSORS(holder, name, type, offset) \
+  type holder::name() const {                           \
+    return READ_PRIMITIVE_FIELD(this, type, offset);    \
+  }                                                     \
+  void holder::set_##name(type value) {                 \
+    WRITE_PRIMITIVE_FIELD(this, type, offset, value);   \
+  }
+
 // WasmModuleObject
 ACCESSORS(WasmModuleObject, compiled_module, WasmCompiledModule,
           kCompiledModuleOffset)
@@ -46,6 +60,18 @@ OPTIONAL_ACCESSORS(WasmMemoryObject, instances, FixedArrayOfWeakCells,
 // WasmInstanceObject
 ACCESSORS(WasmInstanceObject, wasm_context, Managed<WasmContext>,
           kWasmContextOffset)
+PRIMITIVE_ACCESSORS(WasmInstanceObject, memory_start, byte*, kMemoryStartOffset)
+PRIMITIVE_ACCESSORS(WasmInstanceObject, memory_size, uintptr_t,
+                    kMemorySizeOffset)
+PRIMITIVE_ACCESSORS(WasmInstanceObject, memory_mask, uintptr_t,
+                    kMemoryMaskOffset)
+PRIMITIVE_ACCESSORS(WasmInstanceObject, globals_start, byte*,
+                    kGlobalsStartOffset)
+PRIMITIVE_ACCESSORS(WasmInstanceObject, indirect_function_table,
+                    IndirectFunctionTableEntry*, kIndirectFunctionTableOffset)
+PRIMITIVE_ACCESSORS(WasmInstanceObject, indirect_function_table_size, uintptr_t,
+                    kIndirectFunctionTableSizeOffset)
+
 ACCESSORS(WasmInstanceObject, compiled_module, WasmCompiledModule,
           kCompiledModuleOffset)
 ACCESSORS(WasmInstanceObject, exports_object, JSObject, kExportsObjectOffset)
@@ -145,6 +171,9 @@ ACCESSORS(WasmCompiledModule, raw_prev_instance, Object, kPrevInstanceOffset);
 #undef WCM_OBJECT
 #undef WCM_SMALL_CONST_NUMBER
 #undef WCM_WEAK_LINK
+#undef READ_PRIMITIVE_FIELD
+#undef WRITE_PRIMITIVE_FIELD
+#undef PRIMITIVE_ACCESSORS
 
 uint32_t WasmTableObject::current_length() { return functions()->length(); }
 

@@ -203,23 +203,36 @@ class WasmInstanceObject : public JSObject {
   DECL_OPTIONAL_ACCESSORS(debug_info, WasmDebugInfo)
   DECL_OPTIONAL_ACCESSORS(table_object, WasmTableObject)
   DECL_OPTIONAL_ACCESSORS(function_tables, FixedArray)
+  DECL_PRIMITIVE_ACCESSORS(memory_start, byte*)
+  DECL_PRIMITIVE_ACCESSORS(memory_size, uintptr_t)
+  DECL_PRIMITIVE_ACCESSORS(memory_mask, uintptr_t)
+  DECL_PRIMITIVE_ACCESSORS(globals_start, byte*)
+  DECL_PRIMITIVE_ACCESSORS(indirect_function_table, IndirectFunctionTableEntry*)
+  DECL_PRIMITIVE_ACCESSORS(indirect_function_table_size, uintptr_t)
 
   // FixedArray of all instances whose code was imported
   DECL_ACCESSORS(directly_called_instances, FixedArray)
   DECL_ACCESSORS(js_imports_table, FixedArray)
 
 // Layout description.
-#define WASM_INSTANCE_OBJECT_FIELDS(V)            \
-  V(kWasmContextOffset, kPointerSize)             \
-  V(kCompiledModuleOffset, kPointerSize)          \
-  V(kExportsObjectOffset, kPointerSize)           \
-  V(kMemoryObjectOffset, kPointerSize)            \
-  V(kGlobalsBufferOffset, kPointerSize)           \
-  V(kDebugInfoOffset, kPointerSize)               \
-  V(kTableObjectOffset, kPointerSize)             \
-  V(kFunctionTablesOffset, kPointerSize)          \
-  V(kDirectlyCalledInstancesOffset, kPointerSize) \
-  V(kJsImportsTableOffset, kPointerSize)          \
+#define WASM_INSTANCE_OBJECT_FIELDS(V)                             \
+  V(kWasmContextOffset, kPointerSize)                              \
+  V(kCompiledModuleOffset, kPointerSize)                           \
+  V(kExportsObjectOffset, kPointerSize)                            \
+  V(kMemoryObjectOffset, kPointerSize)                             \
+  V(kGlobalsBufferOffset, kPointerSize)                            \
+  V(kDebugInfoOffset, kPointerSize)                                \
+  V(kTableObjectOffset, kPointerSize)                              \
+  V(kFunctionTablesOffset, kPointerSize)                           \
+  V(kDirectlyCalledInstancesOffset, kPointerSize)                  \
+  V(kJsImportsTableOffset, kPointerSize)                           \
+  V(kFirstUntaggedOffset, 0)                        /* marker */   \
+  V(kMemoryStartOffset, kPointerSize)               /* untagged */ \
+  V(kMemorySizeOffset, kPointerSize)                /* untagged */ \
+  V(kMemoryMaskOffset, kPointerSize)                /* untagged */ \
+  V(kGlobalsStartOffset, kPointerSize)              /* untagged */ \
+  V(kIndirectFunctionTableOffset, kPointerSize)     /* untagged */ \
+  V(kIndirectFunctionTableSizeOffset, kPointerSize) /* untagged */ \
   V(kSize, 0)
 
   DEFINE_FIELD_OFFSET_CONSTANTS(JSObject::kHeaderSize,
@@ -228,6 +241,12 @@ class WasmInstanceObject : public JSObject {
 
   WasmModuleObject* module_object();
   V8_EXPORT_PRIVATE wasm::WasmModule* module();
+
+  bool EnsureIndirectFunctionTableWithMinimumSize(size_t minimum_size);
+
+  IndirectFunctionTableEntry* indirect_function_table_entry_at(int index);
+
+  void SetRawMemory(byte* mem_start, size_t mem_size);
 
   // Get the debug info associated with the given wasm object.
   // If no debug info exists yet, it is created automatically.
@@ -252,6 +271,11 @@ class WasmInstanceObject : public JSObject {
 
   static void InstallFinalizer(Isolate* isolate,
                                Handle<WasmInstanceObject> instance);
+
+  // Iterates all fields in the object except the untagged fields.
+  class BodyDescriptor;
+  // No weak fields.
+  typedef BodyDescriptor BodyDescriptorWeak;
 };
 
 // A WASM function that is wrapped and exported to JavaScript.

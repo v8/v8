@@ -56,6 +56,7 @@ namespace internal {
   V(Symbol)                \
   V(ThinString)            \
   V(TransitionArray)       \
+  V(WasmInstanceObject)    \
   V(WeakCell)              \
   V(WeakFixedArray)
 

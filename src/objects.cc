@@ -3047,6 +3047,9 @@ VisitorId Map::GetVisitorId(Map* map) {
     case CODE_DATA_CONTAINER_TYPE:
       return kVisitCodeDataContainer;
 
+    case WASM_INSTANCE_TYPE:
+      return kVisitWasmInstanceObject;
+
     case JS_OBJECT_TYPE:
     case JS_ERROR_TYPE:
     case JS_ARGUMENTS_TYPE:
@@ -3073,7 +3076,6 @@ VisitorId Map::GetVisitorId(Map* map) {
     case JS_MAP_VALUE_ITERATOR_TYPE:
     case JS_STRING_ITERATOR_TYPE:
     case JS_PROMISE_TYPE:
-    case WASM_INSTANCE_TYPE:
     case WASM_MEMORY_TYPE:
     case WASM_MODULE_TYPE:
     case WASM_TABLE_TYPE:

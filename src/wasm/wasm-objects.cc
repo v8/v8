@@ -535,6 +535,53 @@ int32_t WasmMemoryObject::Grow(Isolate* isolate,
   return old_size / wasm::kWasmPageSize;
 }
 
+bool WasmInstanceObject::EnsureIndirectFunctionTableWithMinimumSize(
+    size_t minimum_size) {
+  constexpr int kInvalidSigIndex = -1;
+  uintptr_t old_size = indirect_function_table_size();
+  if (old_size >= minimum_size) return false;  // Nothing to do.
+
+  size_t new_size = minimum_size;
+  IndirectFunctionTableEntry* new_storage;
+  if (indirect_function_table()) {
+    // Reallocate the old storage.
+    new_storage = reinterpret_cast<IndirectFunctionTableEntry*>(
+        realloc(indirect_function_table(),
+                new_size * sizeof(IndirectFunctionTableEntry)));
+  } else {
+    // Allocate new storage.
+    new_storage = reinterpret_cast<IndirectFunctionTableEntry*>(
+        calloc(new_size, sizeof(IndirectFunctionTableEntry)));
+  }
+  // Initialize new entries.
+  for (size_t j = old_size; j < new_size; j++) {
+    auto entry = indirect_function_table_entry_at(static_cast<int>(j));
+    entry->sig_id = kInvalidSigIndex;
+    entry->context = nullptr;
+    entry->target = nullptr;
+  }
+  set_indirect_function_table_size(new_size);
+  set_indirect_function_table(new_storage);
+  return true;
+}
+
+IndirectFunctionTableEntry*
+WasmInstanceObject::indirect_function_table_entry_at(int i) {
+  DCHECK_GE(i, 0);
+  DCHECK_LT(i, indirect_function_table_size());
+  return &indirect_function_table()[i];
+}
+
+void WasmInstanceObject::SetRawMemory(byte* mem_start, size_t mem_size) {
+  DCHECK_LE(mem_size, wasm::kV8MaxWasmMemoryPages * wasm::kWasmPageSize);
+  uint64_t mem_size64 = mem_size;
+  uint64_t mem_mask64 = base::bits::RoundUpToPowerOfTwo64(mem_size) - 1;
+  DCHECK_LE(mem_size, mem_mask64 + 1);
+  set_memory_start(mem_start);
+  set_memory_size(static_cast<uintptr_t>(mem_size64));
+  set_memory_mask(static_cast<uintptr_t>(mem_mask64));
+}
+
 WasmModuleObject* WasmInstanceObject::module_object() {
   return compiled_module()->wasm_module();
 }
@@ -567,6 +614,18 @@ Handle<WasmInstanceObject> WasmInstanceObject::New(
   instance->set_wasm_context(*wasm_context);
 
   instance->set_compiled_module(*compiled_module);
+
+  // TODO(titzer): ensure that untagged fields are not visited by the GC.
+  // (if they are, the GC will crash).
+  uintptr_t invalid = static_cast<uintptr_t>(kHeapObjectTag);
+  instance->set_memory_start(reinterpret_cast<byte*>(invalid));
+  instance->set_memory_size(invalid);
+  instance->set_memory_mask(invalid);
+  instance->set_globals_start(reinterpret_cast<byte*>(invalid));
+  instance->set_indirect_function_table(
+      reinterpret_cast<IndirectFunctionTableEntry*>(invalid));
+  instance->set_indirect_function_table_size(invalid);
+
   return instance;
 }
 
@@ -672,6 +731,15 @@ void InstanceFinalizer(const v8::WeakCallbackInfo<void>& data) {
             ->set_compiled_module(compiled_module->next_instance());
       }
     }
+  }
+
+  void* invalid =
+      reinterpret_cast<void*>(static_cast<uintptr_t>(kHeapObjectTag));
+  if (owner->indirect_function_table() &&
+      owner->indirect_function_table() != invalid) {
+    // The indirect function table is C++ memory and needs to be explicitly
+    // freed.
+    free(owner->indirect_function_table());
   }
 
   compiled_module->RemoveFromChain();

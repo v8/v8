@@ -10,6 +10,7 @@
 #include "src/objects-body-descriptors.h"
 #include "src/objects/hash-table.h"
 #include "src/transitions.h"
+#include "src/wasm/wasm-objects-inl.h"
 
 namespace v8 {
 namespace internal {
@@ -463,6 +464,26 @@ class SeqTwoByteString::BodyDescriptor final : public BodyDescriptorBase {
   }
 };
 
+class WasmInstanceObject::BodyDescriptor final : public BodyDescriptorBase {
+ public:
+  static bool IsValidSlot(HeapObject* obj, int offset) {
+    if (offset < kMemoryStartOffset) return true;
+    if (offset < kCompiledModuleOffset) return false;
+    return IsValidSlotImpl(obj, offset);
+  }
+
+  template <typename ObjectVisitor>
+  static inline void IterateBody(HeapObject* obj, int object_size,
+                                 ObjectVisitor* v) {
+    IteratePointers(obj, kPropertiesOrHashOffset, kFirstUntaggedOffset, v);
+    IterateBodyImpl(obj, kSize, object_size, v);
+  }
+
+  static inline int SizeOf(Map* map, HeapObject* object) {
+    return map->instance_size();
+  }
+};
+
 template <typename Op, typename ReturnType, typename T1, typename T2,
           typename T3>
 ReturnType BodyDescriptorApply(InstanceType type, T1 p1, T2 p2, T3 p3) {
@@ -540,11 +561,12 @@ ReturnType BodyDescriptorApply(InstanceType type, T1 p1, T2 p2, T3 p3) {
     case JS_SPECIAL_API_OBJECT_TYPE:
     case JS_MESSAGE_OBJECT_TYPE:
     case JS_BOUND_FUNCTION_TYPE:
-    case WASM_INSTANCE_TYPE:
     case WASM_MEMORY_TYPE:
     case WASM_MODULE_TYPE:
     case WASM_TABLE_TYPE:
       return Op::template apply<JSObject::BodyDescriptor>(p1, p2, p3);
+    case WASM_INSTANCE_TYPE:
+      return Op::template apply<WasmInstanceObject::BodyDescriptor>(p1, p2, p3);
     case JS_WEAK_MAP_TYPE:
     case JS_WEAK_SET_TYPE:
       return Op::template apply<JSWeakCollection::BodyDescriptor>(p1, p2, p3);
