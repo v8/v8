@@ -643,8 +643,18 @@ bool LiftoffAssembler::emit_type_conversion(WasmOpcode opcode,
                                             LiftoffRegister dst,
                                             LiftoffRegister src) {
   switch (opcode) {
+    case kExprI32ConvertI64:
+      movl(dst.gp(), src.gp());
+      return true;
     case kExprI32ReinterpretF32:
       Movd(dst.gp(), src.fp());
+      return true;
+    case kExprI64SConvertI32:
+      movsxlq(dst.gp(), src.gp());
+      return true;
+    case kExprI64UConvertI32:
+      if (dst.gp() != src.gp()) movl(dst.gp(), src.gp());
+      // TODO(clemensh): Add assertion that the upper 32 bit are zero.
       return true;
     case kExprI64ReinterpretF64:
       Movq(dst.gp(), src.fp());

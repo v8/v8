@@ -696,8 +696,20 @@ bool LiftoffAssembler::emit_type_conversion(WasmOpcode opcode,
                                             LiftoffRegister dst,
                                             LiftoffRegister src) {
   switch (opcode) {
+    case kExprI32ConvertI64:
+      if (dst.gp() != src.low_gp()) mov(dst.gp(), src.low_gp());
+      return true;
     case kExprI32ReinterpretF32:
       Movd(dst.gp(), src.fp());
+      return true;
+    case kExprI64SConvertI32:
+      if (dst.low_gp() != src.gp()) mov(dst.low_gp(), src.gp());
+      mov(dst.high_gp(), src.gp());
+      sar(dst.high_gp(), 31);
+      return true;
+    case kExprI64UConvertI32:
+      if (dst.low_gp() != src.gp()) mov(dst.low_gp(), src.gp());
+      xor_(dst.high_gp(), dst.high_gp());
       return true;
     case kExprI64ReinterpretF64:
       // Push src to the stack.
