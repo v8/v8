@@ -1234,12 +1234,6 @@ Handle<WasmCompiledModule> WasmCompiledModule::Clone(
     ret->set_lazy_compile_data(module->lazy_compile_data());
   }
   ret->set_use_trap_handler(module->use_trap_handler());
-  if (module->has_function_tables()) {
-    ret->set_function_tables(module->function_tables());
-  }
-  if (module->has_empty_function_tables()) {
-    ret->set_empty_function_tables(module->empty_function_tables());
-  }
 
   Handle<FixedArray> export_copy = isolate->factory()->CopyFixedArray(
       handle(module->export_wrappers(), isolate));
@@ -1266,27 +1260,6 @@ Handle<WasmCompiledModule> WasmCompiledModule::Clone(
     ret->set_lazy_compile_data(*lazy_comp_data);
   }
   return ret;
-}
-
-void WasmCompiledModule::SetTableValue(Isolate* isolate,
-                                       Handle<FixedArray> table, int index,
-                                       Address value) {
-  Handle<HeapNumber> number = isolate->factory()->NewHeapNumber(
-      static_cast<double>(reinterpret_cast<size_t>(value)), MUTABLE, TENURED);
-  table->set(index, *number);
-}
-
-void WasmCompiledModule::UpdateTableValue(FixedArray* table, int index,
-                                          Address value) {
-  DisallowHeapAllocation no_gc;
-  HeapNumber::cast(table->get(index))
-      ->set_value(static_cast<double>(reinterpret_cast<size_t>(value)));
-}
-
-Address WasmCompiledModule::GetTableValue(FixedArray* table, int index) {
-  DisallowHeapAllocation no_gc;
-  double value = HeapNumber::cast(table->get(index))->value();
-  return reinterpret_cast<Address>(static_cast<size_t>(value));
 }
 
 wasm::NativeModule* WasmCompiledModule::GetNativeModule() const {

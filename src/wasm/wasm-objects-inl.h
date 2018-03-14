@@ -138,8 +138,6 @@ WCM_OBJECT(FixedArray, source_positions, kSourcePositionsOffset)
 WCM_OBJECT(Foreign, native_module, kNativeModuleOffset)
 WCM_OBJECT(FixedArray, lazy_compile_data, kLazyCompileDataOffset)
 WCM_SMALL_CONST_NUMBER(bool, use_trap_handler, kUseTrapHandlerOffset)
-WCM_OBJECT(FixedArray, function_tables, kFunctionTablesOffset)
-WCM_OBJECT(FixedArray, empty_function_tables, kEmptyFunctionTablesOffset)
 ACCESSORS(WasmCompiledModule, raw_next_instance, Object, kNextInstanceOffset);
 ACCESSORS(WasmCompiledModule, raw_prev_instance, Object, kPrevInstanceOffset);
 

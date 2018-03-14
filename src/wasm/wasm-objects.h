@@ -434,8 +434,6 @@ class WasmCompiledModule : public Struct {
   V(kNativeModuleOffset, kPointerSize)          \
   V(kLazyCompileDataOffset, kPointerSize)       \
   V(kUseTrapHandlerOffset, kPointerSize)        \
-  V(kFunctionTablesOffset, kPointerSize)        \
-  V(kEmptyFunctionTablesOffset, kPointerSize)   \
   V(kSize, 0)
 
   DEFINE_FIELD_OFFSET_CONSTANTS(HeapObject::kHeaderSize,
@@ -486,8 +484,6 @@ class WasmCompiledModule : public Struct {
   WCM_OBJECT(FixedArray, lazy_compile_data)
   // TODO(mstarzinger): Make {use_trap_handler} smaller.
   WCM_SMALL_CONST_NUMBER(bool, use_trap_handler)
-  WCM_OBJECT(FixedArray, function_tables)
-  WCM_CONST_OBJECT(FixedArray, empty_function_tables)
 
  public:
   static Handle<WasmCompiledModule> New(
@@ -521,13 +517,6 @@ class WasmCompiledModule : public Struct {
   // this function returns false and does not set any breakpoint.
   static bool SetBreakPoint(Handle<WasmCompiledModule>, int* position,
                             Handle<BreakPoint> break_point);
-
-  // TODO(mstarzinger): following 4 unnecessary after we're done with
-  // FLAG_wasm_jit_to_native
-  static void SetTableValue(Isolate* isolate, Handle<FixedArray> table,
-                            int index, Address value);
-  static void UpdateTableValue(FixedArray* table, int index, Address value);
-  static Address GetTableValue(FixedArray* table, int index);
 
   void LogWasmCodes(Isolate* isolate);
 
