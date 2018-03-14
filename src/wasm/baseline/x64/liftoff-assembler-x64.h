@@ -160,6 +160,9 @@ void LiftoffAssembler::Load(LiftoffRegister dst, Register src_addr,
                             Register offset_reg, uint32_t offset_imm,
                             LoadType type, LiftoffRegList pinned,
                             uint32_t* protected_load_pc) {
+  if (emit_debug_code() && offset_reg != no_reg) {
+    AssertZeroExtended(offset_reg);
+  }
   Operand src_op =
       liftoff::GetMemOp(this, src_addr, offset_reg, offset_imm, pinned);
   if (protected_load_pc) *protected_load_pc = pc_offset();
@@ -209,6 +212,9 @@ void LiftoffAssembler::Store(Register dst_addr, Register offset_reg,
                              uint32_t offset_imm, LiftoffRegister src,
                              StoreType type, LiftoffRegList pinned,
                              uint32_t* protected_store_pc) {
+  if (emit_debug_code() && offset_reg != no_reg) {
+    AssertZeroExtended(offset_reg);
+  }
   Operand dst_op =
       liftoff::GetMemOp(this, dst_addr, offset_reg, offset_imm, pinned);
   if (protected_store_pc) *protected_store_pc = pc_offset();
@@ -653,8 +659,8 @@ bool LiftoffAssembler::emit_type_conversion(WasmOpcode opcode,
       movsxlq(dst.gp(), src.gp());
       return true;
     case kExprI64UConvertI32:
+      AssertZeroExtended(src.gp());
       if (dst.gp() != src.gp()) movl(dst.gp(), src.gp());
-      // TODO(clemensh): Add assertion that the upper 32 bit are zero.
       return true;
     case kExprI64ReinterpretF64:
       Movq(dst.gp(), src.fp());
