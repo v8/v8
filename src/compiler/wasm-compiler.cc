@@ -2994,7 +2994,7 @@ Node* WasmGraphBuilder::BuildHeapNumberValueIndexConstant() {
   return jsgraph()->IntPtrConstant(HeapNumber::kValueOffset - kHeapObjectTag);
 }
 
-void WasmGraphBuilder::BuildJSToWasmWrapper(WasmCodeWrapper wasm_code,
+void WasmGraphBuilder::BuildJSToWasmWrapper(wasm::WasmCode* wasm_code,
                                             Address wasm_context_address) {
   const int wasm_count = static_cast<int>(sig_->parameter_count());
   const int count =
@@ -3020,16 +3020,10 @@ void WasmGraphBuilder::BuildJSToWasmWrapper(WasmCodeWrapper wasm_code,
       reinterpret_cast<uintptr_t>(wasm_context_address),
       RelocInfo::WASM_CONTEXT_REFERENCE);
 
-  Node* wasm_code_node = nullptr;
-  if (!wasm_code.IsCodeObject()) {
-    const wasm::WasmCode* code = wasm_code.GetWasmCode();
-    Address instr_start =
-        code == nullptr ? nullptr : code->instructions().start();
-    wasm_code_node = jsgraph()->RelocatableIntPtrConstant(
-        reinterpret_cast<intptr_t>(instr_start), RelocInfo::JS_TO_WASM_CALL);
-  } else {
-    wasm_code_node = HeapConstant(wasm_code.GetCode());
-  }
+  Address instr_start =
+      wasm_code == nullptr ? nullptr : wasm_code->instructions().start();
+  Node* wasm_code_node = jsgraph()->RelocatableIntPtrConstant(
+      reinterpret_cast<intptr_t>(instr_start), RelocInfo::JS_TO_WASM_CALL);
   if (!wasm::IsJSCompatibleSignature(sig_)) {
     // Throw a TypeError. Use the js_context of the calling javascript function
     // (passed as a parameter), such that the generated code is js_context
@@ -3259,7 +3253,7 @@ bool HasInt64ParamOrReturn(wasm::FunctionSig* sig) {
 }
 }  // namespace
 
-void WasmGraphBuilder::BuildWasmToWasmWrapper(WasmCodeWrapper wasm_code,
+void WasmGraphBuilder::BuildWasmToWasmWrapper(wasm::WasmCode* wasm_code,
                                               Address new_context_address) {
   int wasm_count = static_cast<int>(sig_->parameter_count());
   int count = wasm_count + 4;  // wasm_code, wasm_context, effect, and control.
@@ -3272,15 +3266,10 @@ void WasmGraphBuilder::BuildWasmToWasmWrapper(WasmCodeWrapper wasm_code,
 
   int pos = 0;
   // Add the wasm code target.
-  if (!wasm_code.IsCodeObject()) {
-    const wasm::WasmCode* code = wasm_code.GetWasmCode();
-    Address instr_start =
-        code == nullptr ? nullptr : code->instructions().start();
-    args[pos++] = jsgraph()->RelocatableIntPtrConstant(
-        reinterpret_cast<intptr_t>(instr_start), RelocInfo::JS_TO_WASM_CALL);
-  } else {
-    args[pos++] = jsgraph()->HeapConstant(wasm_code.GetCode());
-  }
+  Address instr_start =
+      wasm_code == nullptr ? nullptr : wasm_code->instructions().start();
+  args[pos++] = jsgraph()->RelocatableIntPtrConstant(
+      reinterpret_cast<intptr_t>(instr_start), RelocInfo::JS_TO_WASM_CALL);
   // Add the wasm_context of the other instance.
   args[pos++] = jsgraph()->IntPtrConstant(
       reinterpret_cast<uintptr_t>(new_context_address));
@@ -4640,7 +4629,7 @@ void RecordFunctionCompilation(CodeEventListener::LogEventsAndTags tag,
 }  // namespace
 
 Handle<Code> CompileJSToWasmWrapper(Isolate* isolate, wasm::WasmModule* module,
-                                    WasmCodeWrapper wasm_code, uint32_t index,
+                                    wasm::WasmCode* wasm_code, uint32_t index,
                                     Address wasm_context_address,
                                     bool use_trap_handler) {
   const wasm::WasmFunction* func = &module->functions[index];
@@ -4843,7 +4832,7 @@ Handle<Code> CompileWasmToJSWrapper(
   return code;
 }
 
-Handle<Code> CompileWasmToWasmWrapper(Isolate* isolate, WasmCodeWrapper target,
+Handle<Code> CompileWasmToWasmWrapper(Isolate* isolate, wasm::WasmCode* target,
                                       wasm::FunctionSig* sig,
                                       Address new_wasm_context_address) {
   //----------------------------------------------------------------------------
@@ -4861,8 +4850,7 @@ Handle<Code> CompileWasmToWasmWrapper(Isolate* isolate, WasmCodeWrapper target,
   Node* control = nullptr;
   Node* effect = nullptr;
 
-  ModuleEnv env(nullptr, !target.IsCodeObject() &&
-                             target.GetWasmCode()->HasTrapHandlerIndex());
+  ModuleEnv env(nullptr, target->HasTrapHandlerIndex());
   WasmGraphBuilder builder(&env, &zone, &jsgraph, Handle<Code>(), sig);
   builder.set_control_ptr(&control);
   builder.set_effect_ptr(&effect);
@@ -5254,9 +5242,9 @@ void WasmCompilationUnit::ExecuteTurbofanCompilation() {
 // WasmCompilationUnit::ExecuteLiftoffCompilation() is defined in
 // liftoff-compiler.cc.
 
-WasmCodeWrapper WasmCompilationUnit::FinishCompilation(
+wasm::WasmCode* WasmCompilationUnit::FinishCompilation(
     wasm::ErrorThrower* thrower) {
-  WasmCodeWrapper ret;
+  wasm::WasmCode* ret;
   switch (mode_) {
     case WasmCompilationUnit::CompilationMode::kLiftoff:
       ret = FinishLiftoffCompilation(thrower);
@@ -5267,13 +5255,13 @@ WasmCodeWrapper WasmCompilationUnit::FinishCompilation(
     default:
       UNREACHABLE();
   }
-  if (!ret.IsCodeObject() && ret.is_null()) {
+  if (ret == nullptr) {
     thrower->RuntimeError("Error finalizing code.");
   }
   return ret;
 }
 
-WasmCodeWrapper WasmCompilationUnit::FinishTurbofanCompilation(
+wasm::WasmCode* WasmCompilationUnit::FinishTurbofanCompilation(
     wasm::ErrorThrower* thrower) {
   if (!ok_) {
     if (tf_.graph_construction_result_.failed()) {
@@ -5289,7 +5277,7 @@ WasmCodeWrapper WasmCompilationUnit::FinishTurbofanCompilation(
       thrower->CompileFailed(message.start(), tf_.graph_construction_result_);
     }
 
-    return {};
+    return nullptr;
   }
   base::ElapsedTimer codegen_timer;
   if (FLAG_trace_wasm_decode_time) {
@@ -5297,7 +5285,7 @@ WasmCodeWrapper WasmCompilationUnit::FinishTurbofanCompilation(
   }
 
   if (tf_.job_->FinalizeJob(isolate_) != CompilationJob::SUCCEEDED) {
-    return {};
+    return nullptr;
   }
 
   // TODO(mtrofin): when we crystalize a design in lieu of WasmCodeDesc, that
@@ -5311,9 +5299,7 @@ WasmCodeWrapper WasmCompilationUnit::FinishTurbofanCompilation(
       tf_.job_->compilation_info()->wasm_code_desc()->safepoint_table_offset,
       tf_.job_->compilation_info()->wasm_code_desc()->handler_table_offset,
       std::move(protected_instructions_), wasm::WasmCode::kTurbofan);
-  if (!code) {
-    return WasmCodeWrapper(code);
-  }
+  if (!code) return code;
   if (FLAG_trace_wasm_decode_time) {
     double codegen_ms = codegen_timer.Elapsed().InMillisecondsF();
     PrintF("wasm-code-generation ok: %u bytes, %0.3f ms code generation\n",
@@ -5347,10 +5333,10 @@ WasmCodeWrapper WasmCompilationUnit::FinishTurbofanCompilation(
   LOG_CODE_EVENT(isolate_,
                  CodeLinePosInfoRecordEvent(code->instructions().start(),
                                             *source_positions));
-  return WasmCodeWrapper(code);
+  return code;
 }
 
-WasmCodeWrapper WasmCompilationUnit::FinishLiftoffCompilation(
+wasm::WasmCode* WasmCompilationUnit::FinishLiftoffCompilation(
     wasm::ErrorThrower* thrower) {
   CodeDesc desc;
   liftoff_.asm_.GetCode(isolate_, &desc);
@@ -5367,7 +5353,6 @@ WasmCodeWrapper WasmCompilationUnit::FinishLiftoffCompilation(
       wasm::WasmCode::kLiftoff);
   PROFILE(isolate_,
           CodeCreateEvent(CodeEventListener::FUNCTION_TAG, code, func_name_));
-  WasmCodeWrapper ret = WasmCodeWrapper(code);
 #ifdef ENABLE_DISASSEMBLER
   if (FLAG_print_code || FLAG_print_wasm_code) {
     // TODO(wasm): Use proper log files, here and elsewhere.
@@ -5380,15 +5365,15 @@ WasmCodeWrapper WasmCompilationUnit::FinishLiftoffCompilation(
     } else {
       SNPrintF(func_name, "wasm#%d", func_index());
     }
-    ret.Disassemble(func_name.start(), isolate_, os);
+    code->Disassemble(func_name.start(), isolate_, os);
     os << "--- End code ---\n";
   }
 #endif
-  return ret;
+  return code;
 }
 
 // static
-WasmCodeWrapper WasmCompilationUnit::CompileWasmFunction(
+wasm::WasmCode* WasmCompilationUnit::CompileWasmFunction(
     wasm::NativeModule* native_module, wasm::ErrorThrower* thrower,
     Isolate* isolate, const wasm::ModuleWireBytes& wire_bytes, ModuleEnv* env,
     const wasm::WasmFunction* function, CompilationMode mode) {

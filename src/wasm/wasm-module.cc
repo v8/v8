@@ -157,38 +157,29 @@ WasmFunction* GetWasmFunctionForExport(Isolate* isolate,
 
 Handle<Object> GetOrCreateIndirectCallWrapper(
     Isolate* isolate, Handle<WasmInstanceObject> owning_instance,
-    WasmCodeWrapper wasm_code, uint32_t func_index, FunctionSig* sig) {
+    wasm::WasmCode* wasm_code, uint32_t func_index, FunctionSig* sig) {
   Address new_context_address =
       reinterpret_cast<Address>(owning_instance->wasm_context()->get());
-  if (!wasm_code.IsCodeObject()) {
-    DCHECK_NE(wasm_code.GetWasmCode()->kind(),
-              wasm::WasmCode::kWasmToWasmWrapper);
-    wasm::NativeModule* native_module = wasm_code.GetWasmCode()->owner();
-    // The only reason we pass owning_instance is for the GC case. Check
-    // that the values match.
-    DCHECK_EQ(owning_instance->compiled_module()->GetNativeModule(),
-              native_module);
-    // We create the wrapper on the module exporting the function. This
-    // wrapper will only be called as indirect call.
-    wasm::WasmCode* exported_wrapper =
-        native_module->GetExportedWrapper(wasm_code.GetWasmCode()->index());
-    if (exported_wrapper == nullptr) {
-      wasm::NativeModuleModificationScope native_modification_scope(
-          native_module);
-      Handle<Code> new_wrapper = compiler::CompileWasmToWasmWrapper(
-          isolate, wasm_code, sig, new_context_address);
-      exported_wrapper = native_module->AddExportedWrapper(
-          new_wrapper, wasm_code.GetWasmCode()->index());
-    }
-    Address target = exported_wrapper->instructions().start();
-    return isolate->factory()->NewForeign(target, TENURED);
+  DCHECK_NE(wasm_code->kind(), wasm::WasmCode::kWasmToWasmWrapper);
+  wasm::NativeModule* native_module = wasm_code->owner();
+  // The only reason we pass owning_instance is for the GC case. Check
+  // that the values match.
+  DCHECK_EQ(owning_instance->compiled_module()->GetNativeModule(),
+            native_module);
+  // We create the wrapper on the module exporting the function. This
+  // wrapper will only be called as indirect call.
+  wasm::WasmCode* exported_wrapper =
+      native_module->GetExportedWrapper(wasm_code->index());
+  if (exported_wrapper == nullptr) {
+    wasm::NativeModuleModificationScope native_modification_scope(
+        native_module);
+    Handle<Code> new_wrapper = compiler::CompileWasmToWasmWrapper(
+        isolate, wasm_code, sig, new_context_address);
+    exported_wrapper =
+        native_module->AddExportedWrapper(new_wrapper, wasm_code->index());
   }
-  CodeSpaceMemoryModificationScope gc_modification_scope(isolate->heap());
-  Handle<Code> code = compiler::CompileWasmToWasmWrapper(
-      isolate, wasm_code, sig, new_context_address);
-  AttachWasmFunctionInfo(isolate, code, owning_instance,
-                         static_cast<int>(func_index));
-  return code;
+  Address target = exported_wrapper->instructions().start();
+  return isolate->factory()->NewForeign(target, TENURED);
 }
 
 bool IsWasmCodegenAllowed(Isolate* isolate, Handle<Context> context) {

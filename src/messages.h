@@ -13,7 +13,6 @@
 #include <memory>
 
 #include "src/handles.h"
-#include "src/wasm/wasm-code-wrapper.h"
 
 namespace v8 {
 namespace internal {
@@ -153,7 +152,7 @@ class WasmStackFrame : public StackFrameBase {
   bool IsToplevel() override { return false; }
   bool IsConstructor() override { return false; }
   bool IsStrict() const override { return false; }
-  bool IsInterpreted() const { return code_.is_null(); }
+  bool IsInterpreted() const { return code_ == nullptr; }
 
   MaybeHandle<String> ToString() override;
 
@@ -165,7 +164,7 @@ class WasmStackFrame : public StackFrameBase {
 
   Handle<WasmInstanceObject> wasm_instance_;
   uint32_t wasm_func_index_;
-  WasmCodeWrapper code_;  // null for interpreted frames.
+  wasm::WasmCode* code_;  // null for interpreted frames.
   int offset_;
 
  private:

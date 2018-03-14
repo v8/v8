@@ -295,7 +295,7 @@ void WasmTableObject::Set(Isolate* isolate, Handle<WasmTableObject> table,
   auto* wasm_function = wasm::GetWasmFunctionForExport(isolate, function);
   DCHECK_NOT_NULL(wasm_function);
   DCHECK_NOT_NULL(wasm_function->sig);
-  WasmCodeWrapper wasm_code = exported_function->GetWasmCode();
+  wasm::WasmCode* wasm_code = exported_function->GetWasmCode();
   UpdateDispatchTables(isolate, table, table_index, wasm_function->sig,
                        handle(exported_function->instance()), wasm_code,
                        exported_function->function_index());
@@ -305,7 +305,7 @@ void WasmTableObject::Set(Isolate* isolate, Handle<WasmTableObject> table,
 void WasmTableObject::UpdateDispatchTables(
     Isolate* isolate, Handle<WasmTableObject> table, int table_index,
     wasm::FunctionSig* sig, Handle<WasmInstanceObject> from_instance,
-    WasmCodeWrapper wasm_code, int func_index) {
+    wasm::WasmCode* wasm_code, int func_index) {
   // We simply need to update the WASM contexts for each instance
   // that imports this table.
   DisallowHeapAllocation no_gc;
@@ -322,7 +322,7 @@ void WasmTableObject::UpdateDispatchTables(
     auto& entry = to_instance->wasm_context()->get()->table[table_index];
     entry.sig_id = sig_id;
     entry.context = from_instance->wasm_context()->get();
-    entry.target = wasm_code.instructions().start();
+    entry.target = wasm_code->instructions().start();
   }
 }
 
@@ -762,16 +762,16 @@ Handle<WasmExportedFunction> WasmExportedFunction::New(
   return Handle<WasmExportedFunction>::cast(js_function);
 }
 
-WasmCodeWrapper WasmExportedFunction::GetWasmCode() {
+wasm::WasmCode* WasmExportedFunction::GetWasmCode() {
   DisallowHeapAllocation no_gc;
   Handle<Code> export_wrapper_code = handle(this->code());
   DCHECK_EQ(export_wrapper_code->kind(), Code::JS_TO_WASM_FUNCTION);
   int mask = RelocInfo::ModeMask(RelocInfo::JS_TO_WASM_CALL);
   RelocIterator it(*export_wrapper_code, mask);
   DCHECK(!it.done());
-  WasmCodeWrapper target =
-      WasmCodeWrapper(GetIsolate()->wasm_engine()->code_manager()->LookupCode(
-          it.rinfo()->js_to_wasm_address()));
+  wasm::WasmCode* target =
+      GetIsolate()->wasm_engine()->code_manager()->LookupCode(
+          it.rinfo()->js_to_wasm_address());
 #ifdef DEBUG
   // There should only be this one call to wasm code.
   it.next();
@@ -1338,8 +1338,7 @@ void WasmCompiledModule::Reset(Isolate* isolate,
     wasm::WasmCode* code = native_module->GetCode(i);
     // Skip lazy compile stubs.
     if (code == nullptr || code->kind() != wasm::WasmCode::kFunction) continue;
-    bool changed = code_specialization.ApplyToWasmCode(WasmCodeWrapper(code),
-                                                       SKIP_ICACHE_FLUSH);
+    bool changed = code_specialization.ApplyToWasmCode(code, SKIP_ICACHE_FLUSH);
     // TODO(wasm): Check if this is faster than passing FLUSH_ICACHE_IF_NEEDED
     // above.
     if (changed) {

@@ -197,8 +197,8 @@ class TestingModuleBuilder {
   LowerSimd lower_simd() { return lower_simd_; }
   Isolate* isolate() { return isolate_; }
   Handle<WasmInstanceObject> instance_object() { return instance_object_; }
-  WasmCodeWrapper GetFunctionCode(uint32_t index) {
-    return WasmCodeWrapper(native_module_->GetCode(index));
+  wasm::WasmCode* GetFunctionCode(uint32_t index) {
+    return native_module_->GetCode(index);
   }
   Address globals_start() { return reinterpret_cast<Address>(globals_data_); }
   void Link() {
@@ -261,9 +261,8 @@ class WasmFunctionWrapper : private compiler::GraphAndBuilders {
     Init(call_descriptor, MachineTypeForC<ReturnType>(), param_vec);
   }
 
-  void SetInnerCode(WasmCodeWrapper code) {
-    intptr_t address =
-        reinterpret_cast<intptr_t>(code.GetWasmCode()->instructions().start());
+  void SetInnerCode(wasm::WasmCode* code) {
+    intptr_t address = reinterpret_cast<intptr_t>(code->instructions().start());
     compiler::NodeProperties::ChangeOp(
         inner_code_node_,
         kPointerSize == 8

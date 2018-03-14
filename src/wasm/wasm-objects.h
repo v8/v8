@@ -148,7 +148,7 @@ class WasmTableObject : public JSObject {
                                    Handle<WasmTableObject> table,
                                    int table_index, wasm::FunctionSig* sig,
                                    Handle<WasmInstanceObject> from_instance,
-                                   WasmCodeWrapper wasm_code, int func_index);
+                                   wasm::WasmCode* wasm_code, int func_index);
 
   static void ClearDispatchTables(Handle<WasmTableObject> table, int index);
 };
@@ -269,7 +269,7 @@ class WasmExportedFunction : public JSFunction {
                                           int func_index, int arity,
                                           Handle<Code> export_wrapper);
 
-  WasmCodeWrapper GetWasmCode();
+  wasm::WasmCode* GetWasmCode();
 };
 
 // Information shared by all WasmCompiledModule objects for the same module.

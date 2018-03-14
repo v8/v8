@@ -1300,7 +1300,7 @@ Handle<Context> FrameSummary::WasmFrameSummary::native_context() const {
 }
 
 FrameSummary::WasmCompiledFrameSummary::WasmCompiledFrameSummary(
-    Isolate* isolate, Handle<WasmInstanceObject> instance, WasmCodeWrapper code,
+    Isolate* isolate, Handle<WasmInstanceObject> instance, wasm::WasmCode* code,
     int code_offset, bool at_to_number_conversion)
     : WasmFrameSummary(isolate, WASM_COMPILED, instance,
                        at_to_number_conversion),
@@ -1308,15 +1308,7 @@ FrameSummary::WasmCompiledFrameSummary::WasmCompiledFrameSummary(
       code_offset_(code_offset) {}
 
 uint32_t FrameSummary::WasmCompiledFrameSummary::function_index() const {
-  if (code().IsCodeObject()) {
-    FixedArray* deopt_data = code().GetCode()->deoptimization_data();
-    DCHECK_EQ(2, deopt_data->length());
-    DCHECK(deopt_data->get(1)->IsSmi());
-    int val = Smi::ToInt(deopt_data->get(1));
-    DCHECK_LE(0, val);
-    return static_cast<uint32_t>(val);
-  }
-  return code().GetWasmCode()->index();
+  return code()->index();
 }
 
 int FrameSummary::WasmCompiledFrameSummary::GetWasmSourcePosition(
@@ -1336,10 +1328,7 @@ int FrameSummary::WasmCompiledFrameSummary::GetWasmSourcePosition(
 }
 
 int FrameSummary::WasmCompiledFrameSummary::byte_offset() const {
-  if (code().IsCodeObject()) {
-    return AbstractCode::cast(*code().GetCode())->SourcePosition(code_offset());
-  }
-  return GetWasmSourcePosition(code_.GetWasmCode(), code_offset());
+  return GetWasmSourcePosition(code_, code_offset());
 }
 
 FrameSummary::WasmInterpretedFrameSummary::WasmInterpretedFrameSummary(
@@ -1763,9 +1752,8 @@ Address WasmCompiledFrame::GetCallerStackPointer() const {
   return fp() + ExitFrameConstants::kCallerSPOffset;
 }
 
-WasmCodeWrapper WasmCompiledFrame::wasm_code() const {
-  return WasmCodeWrapper(
-      isolate()->wasm_engine()->code_manager()->LookupCode(pc()));
+wasm::WasmCode* WasmCompiledFrame::wasm_code() const {
+  return isolate()->wasm_engine()->code_manager()->LookupCode(pc());
 }
 
 WasmInstanceObject* WasmCompiledFrame::wasm_instance() const {
@@ -1794,8 +1782,8 @@ int WasmCompiledFrame::position() const {
 
 void WasmCompiledFrame::Summarize(std::vector<FrameSummary>* functions) const {
   DCHECK(functions->empty());
-  WasmCodeWrapper code = wasm_code();
-  int offset = static_cast<int>(pc() - code.instructions().start());
+  wasm::WasmCode* code = wasm_code();
+  int offset = static_cast<int>(pc() - code->instructions().start());
   Handle<WasmInstanceObject> instance(
       LookupWasmInstanceObjectFromStandardFrame(this), isolate());
   FrameSummary::WasmCompiledFrameSummary summary(

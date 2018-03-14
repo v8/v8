@@ -105,7 +105,7 @@ uint32_t TestingModuleBuilder::AddJsFunction(
 Handle<JSFunction> TestingModuleBuilder::WrapCode(uint32_t index) {
   // Wrap the code so it can be called as a JS function.
   Link();
-  WasmCodeWrapper code = WasmCodeWrapper(native_module_->GetCode(index));
+  wasm::WasmCode* code = native_module_->GetCode(index);
   byte* context_address =
       test_module_.has_memory
           ? reinterpret_cast<byte*>(instance_object_->wasm_context()->get())

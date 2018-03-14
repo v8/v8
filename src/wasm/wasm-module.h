@@ -270,7 +270,7 @@ WasmFunction* GetWasmFunctionForExport(Isolate* isolate, Handle<Object> target);
 
 Handle<Object> GetOrCreateIndirectCallWrapper(
     Isolate* isolate, Handle<WasmInstanceObject> owning_instance,
-    WasmCodeWrapper wasm_code, uint32_t func_index, FunctionSig* sig);
+    wasm::WasmCode* wasm_code, uint32_t func_index, FunctionSig* sig);
 
 void UnpackAndRegisterProtectedInstructions(
     Isolate* isolate, const wasm::NativeModule* native_module);

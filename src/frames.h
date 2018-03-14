@@ -549,16 +549,16 @@ class FrameSummary BASE_EMBEDDED {
   class WasmCompiledFrameSummary : public WasmFrameSummary {
    public:
     WasmCompiledFrameSummary(Isolate*, Handle<WasmInstanceObject>,
-                             WasmCodeWrapper, int code_offset,
+                             wasm::WasmCode*, int code_offset,
                              bool at_to_number_conversion);
     uint32_t function_index() const;
-    WasmCodeWrapper code() const { return code_; }
+    wasm::WasmCode* code() const { return code_; }
     int code_offset() const { return code_offset_; }
     int byte_offset() const;
     static int GetWasmSourcePosition(const wasm::WasmCode* code, int offset);
 
    private:
-    WasmCodeWrapper const code_;
+    wasm::WasmCode* const code_;
     int code_offset_;
   };
 
@@ -973,7 +973,7 @@ class WasmCompiledFrame final : public StandardFrame {
 
   // Accessors.
   WasmInstanceObject* wasm_instance() const;  // TODO(titzer): deprecate.
-  WasmCodeWrapper wasm_code() const;
+  wasm::WasmCode* wasm_code() const;
   uint32_t function_index() const;
   Script* script() const override;
   int position() const override;

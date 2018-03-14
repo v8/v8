@@ -987,7 +987,7 @@ RUNTIME_FUNCTION(Runtime_WasmTraceMemory) {
   // TODO(titzer): eliminate dependency on WasmModule definition here.
   int func_start =
       frame->wasm_instance()->module()->functions[func_index].code.offset();
-  wasm::ExecutionEngine eng = frame->wasm_code().is_liftoff()
+  wasm::ExecutionEngine eng = frame->wasm_code()->is_liftoff()
                                   ? wasm::ExecutionEngine::kLiftoff
                                   : wasm::ExecutionEngine::kTurbofan;
   wasm::TraceMemoryOperation(eng, info, func_index, pos - func_start,
@@ -1000,15 +1000,9 @@ RUNTIME_FUNCTION(Runtime_IsLiftoffFunction) {
   DCHECK_EQ(1, args.length());
   CONVERT_ARG_HANDLE_CHECKED(JSFunction, function, 0);
   CHECK(WasmExportedFunction::IsWasmExportedFunction(*function));
-  WasmCodeWrapper wrapper =
+  wasm::WasmCode* wasm_code =
       WasmExportedFunction::cast(*function)->GetWasmCode();
-  if (!wrapper.IsCodeObject()) {
-    const wasm::WasmCode* wasm_code = wrapper.GetWasmCode();
-    return isolate->heap()->ToBoolean(wasm_code->is_liftoff());
-  } else {
-    Handle<Code> wasm_code = wrapper.GetCode();
-    return isolate->heap()->ToBoolean(!wasm_code->is_turbofanned());
-  }
+  return isolate->heap()->ToBoolean(wasm_code->is_liftoff());
 }
 
 RUNTIME_FUNCTION(Runtime_CompleteInobjectSlackTracking) {

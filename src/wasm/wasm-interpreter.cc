@@ -637,29 +637,15 @@ const char* OpcodeName(uint32_t val) {
 // Unwrap a wasm to js wrapper, return the callable heap object.
 // If the wrapper would throw a TypeError, return a null handle.
 Handle<HeapObject> UnwrapWasmToJSWrapper(Isolate* isolate,
-                                         WasmCodeWrapper wrapper) {
+                                         const wasm::WasmCode* wasm_code) {
   Handle<FixedArray> js_imports_table;
   int index = 0;
-  if (wrapper.IsCodeObject()) {
-    Handle<Code> js_wrapper = wrapper.GetCode();
-    DCHECK(Code::WASM_TO_JS_FUNCTION == js_wrapper->kind());
-    Handle<FixedArray> deopt_data(js_wrapper->deoptimization_data(), isolate);
-    DCHECK_EQ(2, deopt_data->length());
-    intptr_t js_imports_table_loc = static_cast<intptr_t>(
-        HeapNumber::cast(deopt_data->get(0))->value_as_bits());
-    js_imports_table = Handle<FixedArray>(
-        reinterpret_cast<FixedArray**>(js_imports_table_loc));
-    CHECK(deopt_data->get(1)->ToInt32(&index));
-    DCHECK_GT(js_imports_table->length(), index);
-  } else {
-    const wasm::WasmCode* wasm_code = wrapper.GetWasmCode();
-    DCHECK_EQ(wasm::WasmCode::kWasmToJsWrapper, wasm_code->kind());
-    js_imports_table = Handle<FixedArray>(wasm_code->owner()
-                                              ->compiled_module()
-                                              ->owning_instance()
-                                              ->js_imports_table());
-    index = 1 + 3 * static_cast<int>(wasm_code->index());
-  }
+  DCHECK_EQ(wasm::WasmCode::kWasmToJsWrapper, wasm_code->kind());
+  js_imports_table = Handle<FixedArray>(wasm_code->owner()
+                                            ->compiled_module()
+                                            ->owning_instance()
+                                            ->js_imports_table());
+  index = 1 + 3 * static_cast<int>(wasm_code->index());
   Handle<Object> obj(js_imports_table->get(index), isolate);
   if (obj->IsCallable()) {
     return Handle<HeapObject>::cast(obj);
@@ -2360,7 +2346,7 @@ class ThreadImpl {
   }
 
   ExternalCallResult CallExternalJSFunction(Isolate* isolate,
-                                            WasmCodeWrapper code,
+                                            const wasm::WasmCode* code,
                                             FunctionSig* signature) {
     Handle<HeapObject> target = UnwrapWasmToJSWrapper(isolate, code);
 
@@ -2415,7 +2401,7 @@ class ThreadImpl {
   }
 
   ExternalCallResult CallExternalWasmFunction(Isolate* isolate,
-                                              WasmCodeWrapper code,
+                                              const wasm::WasmCode* code,
                                               FunctionSig* sig) {
     Handle<WasmDebugInfo> debug_info(codemap()->instance()->debug_info(),
                                      isolate);
@@ -2478,14 +2464,15 @@ class ThreadImpl {
     static_assert(compiler::CWasmEntryParameters::kNumParameters == 3,
                   "code below needs adaption");
     Handle<Object> args[compiler::CWasmEntryParameters::kNumParameters];
-    WasmContext* context = code.wasm_context();
+    WasmContext* context = code->owner()
+                               ->compiled_module()
+                               ->owning_instance()
+                               ->wasm_context()
+                               ->get();
     Handle<Object> context_obj(reinterpret_cast<Object*>(context), isolate);
     DCHECK(!context_obj->IsHeapObject());
-    args[compiler::CWasmEntryParameters::kCodeObject] =
-        code.IsCodeObject()
-            ? Handle<Object>::cast(code.GetCode())
-            : Handle<Object>::cast(isolate->factory()->NewForeign(
-                  code.GetWasmCode()->instructions().start(), TENURED));
+    args[compiler::CWasmEntryParameters::kCodeObject] = Handle<Object>::cast(
+        isolate->factory()->NewForeign(code->instructions().start(), TENURED));
     args[compiler::CWasmEntryParameters::kWasmContext] = context_obj;
     args[compiler::CWasmEntryParameters::kArgumentsBuffer] = arg_buffer_obj;
 
@@ -2529,26 +2516,6 @@ class ThreadImpl {
     return {ExternalCallResult::EXTERNAL_RETURNED};
   }
 
-  ExternalCallResult CallCodeObject(Isolate* isolate, Handle<Code> code,
-                                    FunctionSig* signature) {
-    DCHECK(AllowHandleAllocation::IsAllowed());
-    DCHECK(AllowHeapAllocation::IsAllowed());
-
-    if (code->kind() == Code::WASM_FUNCTION ||
-        code->kind() == Code::WASM_TO_WASM_FUNCTION) {
-      auto func_info = GetWasmFunctionInfo(isolate, code);
-      if (*func_info.instance.ToHandleChecked() != codemap()->instance()) {
-        return CallExternalWasmFunction(isolate, WasmCodeWrapper(code),
-                                        signature);
-      }
-      DCHECK_LE(0, func_info.func_index);
-      return {ExternalCallResult::INTERNAL,
-              codemap()->GetCode(func_info.func_index)};
-    }
-
-    return CallExternalJSFunction(isolate, WasmCodeWrapper(code), signature);
-  }
-
   ExternalCallResult CallWasmCode(Isolate* isolate, const wasm::WasmCode* code,
                                   FunctionSig* signature) {
     DCHECK(AllowHandleAllocation::IsAllowed());
@@ -2557,19 +2524,17 @@ class ThreadImpl {
     if (code->kind() == wasm::WasmCode::kFunction) {
       if (code->owner()->compiled_module()->owning_instance() !=
           codemap()->instance()) {
-        return CallExternalWasmFunction(isolate, WasmCodeWrapper(code),
-                                        signature);
+        return CallExternalWasmFunction(isolate, code, signature);
       }
       return {ExternalCallResult::INTERNAL, codemap()->GetCode(code->index())};
     }
 
     if (code->kind() == wasm::WasmCode::kWasmToJsWrapper) {
-      return CallExternalJSFunction(isolate, WasmCodeWrapper(code), signature);
+      return CallExternalJSFunction(isolate, code, signature);
     }
     if (code->kind() == wasm::WasmCode::kWasmToWasmWrapper ||
         code->kind() == wasm::WasmCode::kInterpreterStub) {
-      return CallExternalWasmFunction(isolate, WasmCodeWrapper(code),
-                                      signature);
+      return CallExternalWasmFunction(isolate, code, signature);
     }
     return {ExternalCallResult::INVALID_FUNC};
   }

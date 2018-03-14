@@ -114,9 +114,9 @@ class WasmCompilationUnit final {
   int func_index() const { return func_index_; }
 
   void ExecuteCompilation();
-  WasmCodeWrapper FinishCompilation(wasm::ErrorThrower* thrower);
+  wasm::WasmCode* FinishCompilation(wasm::ErrorThrower* thrower);
 
-  static WasmCodeWrapper CompileWasmFunction(
+  static wasm::WasmCode* CompileWasmFunction(
       wasm::NativeModule* native_module, wasm::ErrorThrower* thrower,
       Isolate* isolate, const wasm::ModuleWireBytes& wire_bytes, ModuleEnv* env,
       const wasm::WasmFunction* function,
@@ -150,11 +150,11 @@ class WasmCompilationUnit final {
   // Turbofan.
   SourcePositionTable* BuildGraphForWasmFunction(double* decode_ms);
   void ExecuteTurbofanCompilation();
-  WasmCodeWrapper FinishTurbofanCompilation(wasm::ErrorThrower*);
+  wasm::WasmCode* FinishTurbofanCompilation(wasm::ErrorThrower*);
 
   // Liftoff.
   bool ExecuteLiftoffCompilation();
-  WasmCodeWrapper FinishLiftoffCompilation(wasm::ErrorThrower*);
+  wasm::WasmCode* FinishLiftoffCompilation(wasm::ErrorThrower*);
 
   Isolate* isolate_;
   ModuleEnv* env_;
@@ -195,12 +195,12 @@ Handle<Code> CompileWasmToJSWrapper(Isolate* isolate, Handle<JSReceiver> target,
 
 // Wraps a given wasm code object, producing a code object.
 V8_EXPORT_PRIVATE Handle<Code> CompileJSToWasmWrapper(
-    Isolate* isolate, wasm::WasmModule* module, WasmCodeWrapper wasm_code,
+    Isolate* isolate, wasm::WasmModule* module, wasm::WasmCode* wasm_code,
     uint32_t index, Address wasm_context_address, bool use_trap_handler);
 
 // Wraps a wasm function, producing a code object that can be called from other
 // wasm instances (the WasmContext address must be changed).
-Handle<Code> CompileWasmToWasmWrapper(Isolate* isolate, WasmCodeWrapper target,
+Handle<Code> CompileWasmToWasmWrapper(Isolate* isolate, wasm::WasmCode* target,
                                       wasm::FunctionSig* sig,
                                       Address new_wasm_context_address);
 
@@ -336,7 +336,7 @@ class WasmGraphBuilder {
   Node* CallIndirect(uint32_t index, Node** args, Node*** rets,
                      wasm::WasmCodePosition position);
 
-  void BuildJSToWasmWrapper(WasmCodeWrapper wasm_code_start,
+  void BuildJSToWasmWrapper(wasm::WasmCode* wasm_code_start,
                             Address wasm_context_address);
   enum ImportDataType {
     kFunction = 1,
@@ -349,7 +349,7 @@ class WasmGraphBuilder {
   bool BuildWasmToJSWrapper(Handle<JSReceiver> target,
                             Handle<FixedArray> global_js_imports_table,
                             int index);
-  void BuildWasmToWasmWrapper(WasmCodeWrapper wasm_code_start,
+  void BuildWasmToWasmWrapper(wasm::WasmCode* wasm_code_start,
                               Address new_wasm_context_address);
   void BuildWasmInterpreterEntry(uint32_t func_index);
   void BuildCWasmEntry();

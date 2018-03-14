@@ -43,7 +43,7 @@ class CodeSpecialization {
   bool ApplyToWholeInstance(WasmInstanceObject*,
                             ICacheFlushMode = FLUSH_ICACHE_IF_NEEDED);
   // Apply all relocations and patching to one wasm code object.
-  bool ApplyToWasmCode(WasmCodeWrapper,
+  bool ApplyToWasmCode(wasm::WasmCode*,
                        ICacheFlushMode = FLUSH_ICACHE_IF_NEEDED);
 
  private:
