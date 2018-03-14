@@ -2246,13 +2246,11 @@ JSNativeContextSpecialization::BuildElementAccess(
 
     if (load_mode == LOAD_IGNORE_OUT_OF_BOUNDS ||
         store_mode == STORE_NO_TRANSITION_IGNORE_OUT_OF_BOUNDS) {
-      // Only check that the {index} is in Signed32 range. We do the actual
+      // Only check that the {index} is in SignedSmall range. We do the actual
       // bounds check below and just skip the property access if it's out of
       // bounds for the {receiver}.
       index = effect = graph()->NewNode(
-          simplified()->SpeculativeToNumber(NumberOperationHint::kSigned32,
-                                            VectorSlotPair()),
-          index, effect, control);
+          simplified()->CheckSmi(VectorSlotPair()), index, effect, control);
 
       // Cast the {index} to Unsigned32 range, so that the bounds checks
       // below are performed on unsigned values, which means that all the

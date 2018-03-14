@@ -504,30 +504,10 @@ Reduction TypedOptimization::ReduceSpeculativeToNumber(Node* node) {
   DCHECK_EQ(IrOpcode::kSpeculativeToNumber, node->opcode());
   Node* const input = NodeProperties::GetValueInput(node, 0);
   Type* const input_type = NodeProperties::GetType(input);
-  switch (NumberOperationParametersOf(node->op()).hint()) {
-    case NumberOperationHint::kSigned32:
-      if (input_type->Is(Type::Signed32())) {
-        // SpeculativeToNumber(x:signed32) => x
-        ReplaceWithValue(node, input);
-        return Replace(input);
-      }
-      break;
-    case NumberOperationHint::kSignedSmall:
-    case NumberOperationHint::kSignedSmallInputs:
-      if (input_type->Is(Type::SignedSmall())) {
-        // SpeculativeToNumber(x:signed-small) => x
-        ReplaceWithValue(node, input);
-        return Replace(input);
-      }
-      break;
-    case NumberOperationHint::kNumber:
-    case NumberOperationHint::kNumberOrOddball:
-      if (input_type->Is(Type::Number())) {
-        // SpeculativeToNumber(x:number) => x
-        ReplaceWithValue(node, input);
-        return Replace(input);
-      }
-      break;
+  if (input_type->Is(Type::Number())) {
+    // SpeculativeToNumber(x:number) => x
+    ReplaceWithValue(node, input);
+    return Replace(input);
   }
   return NoChange();
 }
