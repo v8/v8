@@ -3291,9 +3291,7 @@ void CodeGenerator::AssembleMove(InstructionOperand* source,
           __ movq(dst, src.ToInt64(), src.rmode());
         } else {
           int32_t value = src.ToInt32();
-          if (RelocInfo::IsWasmSizeReference(src.rmode())) {
-            __ movl(dst, Immediate(value, src.rmode()));
-          } else if (value == 0) {
+          if (value == 0) {
             __ xorl(dst, dst);
           } else {
             __ movl(dst, Immediate(value));
@@ -3305,7 +3303,6 @@ void CodeGenerator::AssembleMove(InstructionOperand* source,
         if (RelocInfo::IsWasmPtrReference(src.rmode())) {
           __ movq(dst, src.ToInt64(), src.rmode());
         } else {
-          DCHECK(!RelocInfo::IsWasmSizeReference(src.rmode()));
           __ Set(dst, src.ToInt64());
         }
         break;

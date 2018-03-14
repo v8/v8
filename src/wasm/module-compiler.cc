@@ -2589,15 +2589,6 @@ void InstanceBuilder::InitializeTables(
         // uninitialized entries will always fail the signature check.
         table_instance.function_table->set(i, Smi::FromInt(kInvalidSigIndex));
       }
-    } else {
-      // Table is imported, patch table bounds check
-      int existing_table_size = table_instance.function_table->length();
-      DCHECK_EQ(0, existing_table_size % compiler::kFunctionTableEntrySize);
-      int existing_num_table_entries =
-          existing_table_size / compiler::kFunctionTableEntrySize;
-      DCHECK_LE(num_table_entries, existing_num_table_entries);
-      code_specialization->PatchTableSize(num_table_entries,
-                                          existing_num_table_entries);
     }
     int int_index = static_cast<int>(index);
 

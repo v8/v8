@@ -230,20 +230,9 @@ Address RelocInfo::global_handle() const {
   return embedded_address();
 }
 
-uint32_t RelocInfo::wasm_function_table_size_reference() const {
-  DCHECK(IsWasmFunctionTableSizeReference(rmode_));
-  return embedded_size();
-}
-
 Address RelocInfo::wasm_context_reference() const {
   DCHECK(IsWasmContextReference(rmode_));
   return embedded_address();
-}
-
-void RelocInfo::update_wasm_function_table_size_reference(
-    uint32_t old_size, uint32_t new_size, ICacheFlushMode icache_flush_mode) {
-  DCHECK(IsWasmFunctionTableSizeReference(rmode_));
-  set_embedded_size(new_size, icache_flush_mode);
 }
 
 void RelocInfo::set_target_address(Address target,
@@ -545,8 +534,6 @@ const char* RelocInfo::RelocModeName(RelocInfo::Mode rmode) {
       return "veneer pool";
     case WASM_CONTEXT_REFERENCE:
       return "wasm context reference";
-    case WASM_FUNCTION_TABLE_SIZE_REFERENCE:
-      return "wasm function table size reference";
     case WASM_GLOBAL_HANDLE:
       return "global handle";
     case WASM_CALL:
@@ -644,7 +631,6 @@ void RelocInfo::Verify(Isolate* isolate) {
     case CONST_POOL:
     case VENEER_POOL:
     case WASM_CONTEXT_REFERENCE:
-    case WASM_FUNCTION_TABLE_SIZE_REFERENCE:
     case WASM_GLOBAL_HANDLE:
     case WASM_CALL:
     case JS_TO_WASM_CALL:

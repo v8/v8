@@ -167,21 +167,6 @@ TEST(AssemblerX64CmpbOperation) {
   CHECK_EQ(0, result);
 }
 
-TEST(Regression684407) {
-  CcTest::InitializeVM();
-  size_t allocated;
-  byte* buffer = AllocateAssemblerBuffer(&allocated);
-  Assembler masm(CcTest::i_isolate(), buffer, static_cast<int>(allocated));
-
-  Address before = masm.pc();
-  __ cmpl(Operand(arg1, 0),
-          Immediate(0, RelocInfo::WASM_FUNCTION_TABLE_SIZE_REFERENCE));
-  Address after = masm.pc();
-  size_t instruction_size = static_cast<size_t>(after - before);
-  // Check that the immediate is not encoded as uint8.
-  CHECK_LT(sizeof(uint32_t), instruction_size);
-}
-
 TEST(AssemblerX64ImulOperation) {
   CcTest::InitializeVM();
   size_t allocated;

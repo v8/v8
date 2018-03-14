@@ -30,9 +30,6 @@ class CodeSpecialization {
 
   // Update WasmContext references.
   void RelocateWasmContextReferences(Address new_context);
-  // Update function table size.
-  // TODO(wasm): Prepare this for more than one indirect function table.
-  void PatchTableSize(uint32_t old_size, uint32_t new_size);
   // Update all direct call sites based on the code table in the given instance.
   void RelocateDirectCalls(Handle<WasmInstanceObject> instance);
   // Relocate an arbitrary object (e.g. function table).
@@ -48,9 +45,6 @@ class CodeSpecialization {
 
  private:
   Address new_wasm_context_address_ = 0;
-
-  uint32_t old_function_table_size_ = 0;
-  uint32_t new_function_table_size_ = 0;
 
   Handle<WasmInstanceObject> relocate_direct_calls_instance_;
 

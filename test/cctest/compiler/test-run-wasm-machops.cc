@@ -20,27 +20,6 @@ namespace v8 {
 namespace internal {
 namespace compiler {
 
-static void UpdateFunctionTableSizeReferences(Handle<Code> code,
-                                              uint32_t old_size,
-                                              uint32_t new_size) {
-  Isolate* isolate = CcTest::i_isolate();
-  // TODO(6792): No longer needed once WebAssembly code is off heap.
-  CodeSpaceMemoryModificationScope modification_scope(isolate->heap());
-  bool modified = false;
-  int mode_mask =
-      RelocInfo::ModeMask(RelocInfo::WASM_FUNCTION_TABLE_SIZE_REFERENCE);
-  for (RelocIterator it(*code, mode_mask); !it.done(); it.next()) {
-    RelocInfo::Mode mode = it.rinfo()->rmode();
-    if (RelocInfo::IsWasmFunctionTableSizeReference(mode)) {
-      it.rinfo()->update_wasm_function_table_size_reference(old_size, new_size);
-      modified = true;
-    }
-  }
-  if (modified) {
-    Assembler::FlushICache(code->instruction_start(), code->instruction_size());
-  }
-}
-
 template <typename CType>
 static void RunLoadStoreRelocation(MachineType rep) {
   const int kNumElems = 2;
@@ -170,28 +149,6 @@ TEST(Uint32LessThanMemoryRelocation) {
   wasm_context.SetRawMemory(wasm_context.mem_start, 0x400);
   // Check that after limit is increased, index is within bounds.
   CHECK_EQ(0xACEDu, m.Call());
-}
-
-TEST(Uint32LessThanFunctionTableRelocation) {
-  RawMachineAssemblerTester<uint32_t> m;
-  RawMachineLabel within_bounds, out_of_bounds;
-  Node* index = m.Int32Constant(0x200);
-  Node* limit = m.RelocatableInt32Constant(
-      0x200, RelocInfo::WASM_FUNCTION_TABLE_SIZE_REFERENCE);
-  Node* cond = m.AddNode(m.machine()->Uint32LessThan(), index, limit);
-  m.Branch(cond, &within_bounds, &out_of_bounds);
-  m.Bind(&within_bounds);
-  m.Return(m.Int32Constant(0xACED));
-  m.Bind(&out_of_bounds);
-  m.Return(m.Int32Constant(0xDEADBEEF));
-  // Check that index is out of bounds with current size
-  CHECK_EQ(0xDEADBEEF, m.Call());
-  m.GenerateCode();
-
-  Handle<Code> code = m.GetCode();
-  UpdateFunctionTableSizeReferences(code, 0x200, 0x400);
-  // Check that after limit is increased, index is within bounds.
-  CHECK_EQ(0xACED, m.Call());
 }
 
 }  // namespace compiler
