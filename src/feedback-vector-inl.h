@@ -22,9 +22,8 @@ namespace internal {
 INT32_ACCESSORS(FeedbackMetadata, slot_count, kSlotCountOffset)
 
 int32_t FeedbackMetadata::synchronized_slot_count() const {
-  return static_cast<int32_t>(
-      base::Acquire_Load(reinterpret_cast<const base::AtomicWord*>(
-          FIELD_ADDR_CONST(this, kSlotCountOffset))));
+  return base::Acquire_Load(reinterpret_cast<const base::Atomic32*>(
+          FIELD_ADDR_CONST(this, kSlotCountOffset)));
 }
 
 // static
