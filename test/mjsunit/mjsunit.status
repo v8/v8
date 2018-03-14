@@ -541,6 +541,7 @@
   # Requires too much memory on MIPS.
   'regress/regress-752764': [SKIP],
   'regress/regress-779407': [SKIP],
+  'harmony/bigint/regressions': [SKIP],
 }],  # 'arch == mipsel or arch == mips'
 
 ##############################################################################
