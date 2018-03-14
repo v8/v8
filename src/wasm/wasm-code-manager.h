@@ -247,7 +247,6 @@ class V8_EXPORT_PRIVATE NativeModule final {
   // on the fly, and bypass the instance builder pipeline.
   void ResizeCodeTableForTest(size_t);
   void LinkAll();
-  void Link(uint32_t index);
 
   // TODO(mstarzinger): needed until we sort out source positions, which are
   // still on the  GC-heap.

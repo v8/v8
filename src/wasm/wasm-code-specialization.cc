@@ -43,23 +43,23 @@ int AdvanceSourcePositionTableIterator(SourcePositionTableIterator& iterator,
 
 class PatchDirectCallsHelper {
  public:
-  PatchDirectCallsHelper(WasmInstanceObject* instance, const WasmCode* code)
+  PatchDirectCallsHelper(NativeModule* native_module, const WasmCode* code)
       : source_pos_it(ByteArray::cast(
-            instance->compiled_module()->source_positions()->get(
+            native_module->compiled_module()->source_positions()->get(
                 static_cast<int>(code->index())))),
         decoder(nullptr, nullptr) {
     uint32_t func_index = code->index();
-    WasmCompiledModule* comp_mod = instance->compiled_module();
+    WasmCompiledModule* comp_mod = native_module->compiled_module();
     func_bytes =
         comp_mod->shared()->module_bytes()->GetChars() +
         comp_mod->shared()->module()->functions[func_index].code.offset();
   }
 
-  PatchDirectCallsHelper(WasmInstanceObject* instance, Code* code)
+  PatchDirectCallsHelper(NativeModule* native_module, Code* code)
       : source_pos_it(code->SourcePositionTable()), decoder(nullptr, nullptr) {
     FixedArray* deopt_data = code->deoptimization_data();
     DCHECK_EQ(2, deopt_data->length());
-    WasmSharedModuleData* shared = instance->compiled_module()->shared();
+    WasmSharedModuleData* shared = native_module->compiled_module()->shared();
     int func_index = Smi::ToInt(deopt_data->get(1));
     func_bytes = shared->module_bytes()->GetChars() +
                  shared->module()->functions[func_index].code.offset();
@@ -82,11 +82,10 @@ void CodeSpecialization::RelocateWasmContextReferences(Address new_context) {
   new_wasm_context_address_ = new_context;
 }
 
-void CodeSpecialization::RelocateDirectCalls(
-    Handle<WasmInstanceObject> instance) {
-  DCHECK(relocate_direct_calls_instance_.is_null());
-  DCHECK(!instance.is_null());
-  relocate_direct_calls_instance_ = instance;
+void CodeSpecialization::RelocateDirectCalls(NativeModule* native_module) {
+  DCHECK_NULL(relocate_direct_calls_module_);
+  DCHECK_NOT_NULL(native_module);
+  relocate_direct_calls_module_ = native_module;
 }
 
 void CodeSpecialization::RelocatePointer(Address old_ptr, Address new_ptr) {
@@ -95,11 +94,10 @@ void CodeSpecialization::RelocatePointer(Address old_ptr, Address new_ptr) {
   pointers_to_relocate_.insert(std::make_pair(old_ptr, new_ptr));
 }
 
-bool CodeSpecialization::ApplyToWholeInstance(
-    WasmInstanceObject* instance, ICacheFlushMode icache_flush_mode) {
+bool CodeSpecialization::ApplyToWholeModule(NativeModule* native_module,
+                                            ICacheFlushMode icache_flush_mode) {
   DisallowHeapAllocation no_gc;
-  WasmCompiledModule* compiled_module = instance->compiled_module();
-  NativeModule* native_module = compiled_module->GetNativeModule();
+  WasmCompiledModule* compiled_module = native_module->compiled_module();
   WasmSharedModuleData* shared = compiled_module->shared();
   WasmModule* module = shared->module();
   std::vector<WasmFunction>* wasm_functions = &shared->module()->functions;
@@ -113,7 +111,9 @@ bool CodeSpecialization::ApplyToWholeInstance(
   for (int num_wasm_functions = static_cast<int>(wasm_functions->size());
        func_index < num_wasm_functions; ++func_index) {
     WasmCode* wasm_function = native_module->GetCode(func_index);
-    if (wasm_function->kind() != WasmCode::kFunction) {
+    // TODO(clemensh): Get rid of this nullptr check
+    if (wasm_function == nullptr ||
+        wasm_function->kind() != WasmCode::kFunction) {
       continue;
     }
     changed |= ApplyToWasmCode(wasm_function, icache_flush_mode);
@@ -126,10 +126,10 @@ bool CodeSpecialization::ApplyToWholeInstance(
     reloc_mode |= RelocInfo::ModeMask(RelocInfo::WASM_CONTEXT_REFERENCE);
   }
   // Patch CODE_TARGET if we shall relocate direct calls. If we patch direct
-  // calls, the instance registered for that (relocate_direct_calls_instance_)
+  // calls, the instance registered for that (relocate_direct_calls_module_)
   // should match the instance we currently patch (instance).
-  if (!relocate_direct_calls_instance_.is_null()) {
-    DCHECK_EQ(instance, *relocate_direct_calls_instance_);
+  if (relocate_direct_calls_module_ != nullptr) {
+    DCHECK_EQ(native_module, relocate_direct_calls_module_);
     reloc_mode |= RelocInfo::ModeMask(RelocInfo::JS_TO_WASM_CALL);
   }
   if (!reloc_mode) return changed;
@@ -137,8 +137,8 @@ bool CodeSpecialization::ApplyToWholeInstance(
   for (auto exp : module->export_table) {
     if (exp.kind != kExternalFunction) continue;
     Code* export_wrapper =
-        Code::cast(compiled_module->export_wrappers()->get(wrapper_index));
-    DCHECK_EQ(Code::JS_TO_WASM_FUNCTION, export_wrapper->kind());
+        Code::cast(compiled_module->export_wrappers()->get(wrapper_index++));
+    if (export_wrapper->kind() != Code::JS_TO_WASM_FUNCTION) continue;
     for (RelocIterator it(export_wrapper, reloc_mode); !it.done(); it.next()) {
       RelocInfo::Mode mode = it.rinfo()->rmode();
       switch (mode) {
@@ -156,7 +156,6 @@ bool CodeSpecialization::ApplyToWholeInstance(
       }
     }
     changed = true;
-    ++wrapper_index;
   }
   DCHECK_EQ(module->functions.size(), func_index);
   DCHECK_EQ(compiled_module->export_wrappers()->length(), wrapper_index);
@@ -168,7 +167,7 @@ bool CodeSpecialization::ApplyToWasmCode(wasm::WasmCode* code,
   DisallowHeapAllocation no_gc;
   DCHECK_EQ(wasm::WasmCode::kFunction, code->kind());
 
-  bool reloc_direct_calls = !relocate_direct_calls_instance_.is_null();
+  bool reloc_direct_calls = relocate_direct_calls_module_ != nullptr;
   bool reloc_pointers = pointers_to_relocate_.size() > 0;
 
   int reloc_mode = 0;
@@ -197,7 +196,7 @@ bool CodeSpecialization::ApplyToWasmCode(wasm::WasmCode* code,
         // bytes to find the new compiled function.
         size_t offset = it.rinfo()->pc() - code->instructions().start();
         if (!patch_direct_calls_helper) {
-          patch_direct_calls_helper.emplace(*relocate_direct_calls_instance_,
+          patch_direct_calls_helper.emplace(relocate_direct_calls_module_,
                                             code);
         }
         int byte_pos = AdvanceSourcePositionTableIterator(

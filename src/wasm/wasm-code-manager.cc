@@ -16,6 +16,7 @@
 #include "src/globals.h"
 #include "src/macro-assembler.h"
 #include "src/objects-inl.h"
+#include "src/wasm/wasm-code-specialization.h"
 #include "src/wasm/wasm-module.h"
 #include "src/wasm/wasm-objects-inl.h"
 #include "src/wasm/wasm-objects.h"
@@ -550,29 +551,11 @@ WasmCode* NativeModule::AddExportedWrapper(Handle<Code> code, uint32_t index) {
 }
 
 void NativeModule::LinkAll() {
-  for (uint32_t index = 0; index < code_table_.size(); ++index) {
-    Link(index);
-  }
-}
-
-void NativeModule::Link(uint32_t index) {
-  WasmCode* code = code_table_[index];
-  // skip imports
-  if (!code) return;
-  int mode_mask = RelocInfo::ModeMask(RelocInfo::WASM_CALL);
-  for (RelocIterator it(code->instructions(), code->reloc_info(),
-                        code->constant_pool(), mode_mask);
-       !it.done(); it.next()) {
-    uint32_t index = GetWasmCalleeTag(it.rinfo());
-    const WasmCode* target = GetCode(index);
-    if (target == nullptr) continue;
-    Address target_addr = target->instructions().start();
-    DCHECK_NOT_NULL(target);
-    it.rinfo()->set_wasm_call_address(target_addr,
-                                      ICacheFlushMode::SKIP_ICACHE_FLUSH);
-  }
-  Assembler::FlushICache(code->instructions().start(),
-                         code->instructions().size());
+  Isolate* isolate = compiled_module()->GetIsolate();
+  Zone specialization_zone(isolate->allocator(), ZONE_NAME);
+  CodeSpecialization code_specialization(isolate, &specialization_zone);
+  code_specialization.RelocateDirectCalls(this);
+  code_specialization.ApplyToWholeModule(this);
 }
 
 Address NativeModule::AllocateForCode(size_t size) {

@@ -31,14 +31,14 @@ class CodeSpecialization {
   // Update WasmContext references.
   void RelocateWasmContextReferences(Address new_context);
   // Update all direct call sites based on the code table in the given instance.
-  void RelocateDirectCalls(Handle<WasmInstanceObject> instance);
+  void RelocateDirectCalls(NativeModule* module);
   // Relocate an arbitrary object (e.g. function table).
   void RelocatePointer(Address old_obj, Address new_obj);
 
   // Apply all relocations and patching to all code in the instance (wasm code
   // and exported functions).
-  bool ApplyToWholeInstance(WasmInstanceObject*,
-                            ICacheFlushMode = FLUSH_ICACHE_IF_NEEDED);
+  bool ApplyToWholeModule(NativeModule*,
+                          ICacheFlushMode = FLUSH_ICACHE_IF_NEEDED);
   // Apply all relocations and patching to one wasm code object.
   bool ApplyToWasmCode(wasm::WasmCode*,
                        ICacheFlushMode = FLUSH_ICACHE_IF_NEEDED);
@@ -46,7 +46,7 @@ class CodeSpecialization {
  private:
   Address new_wasm_context_address_ = 0;
 
-  Handle<WasmInstanceObject> relocate_direct_calls_instance_;
+  NativeModule* relocate_direct_calls_module_ = nullptr;
 
   std::unordered_map<Address, Address> pointers_to_relocate_;
 };

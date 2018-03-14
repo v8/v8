@@ -631,7 +631,7 @@ const wasm::WasmCode* LazyCompilationOrchestrator::CompileFunction(
   // Now specialize the generated code for this instance.
   Zone specialization_zone(isolate->allocator(), ZONE_NAME);
   CodeSpecialization code_specialization(isolate, &specialization_zone);
-  code_specialization.RelocateDirectCalls(instance);
+  code_specialization.RelocateDirectCalls(compiled_module->GetNativeModule());
   code_specialization.ApplyToWasmCode(wasm_code, SKIP_ICACHE_FLUSH);
   int64_t func_size =
       static_cast<int64_t>(func->code.end_offset() - func->code.offset());
@@ -1794,8 +1794,8 @@ MaybeHandle<WasmInstanceObject> InstanceBuilder::Build() {
   }
 
   // Patch all code with the relocations registered in code_specialization.
-  code_specialization.RelocateDirectCalls(instance);
-  code_specialization.ApplyToWholeInstance(*instance, SKIP_ICACHE_FLUSH);
+  code_specialization.RelocateDirectCalls(native_module);
+  code_specialization.ApplyToWholeModule(native_module, SKIP_ICACHE_FLUSH);
 
   FlushICache(native_module);
   FlushICache(wrapper_table);

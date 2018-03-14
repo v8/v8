@@ -492,7 +492,6 @@ bool NativeModuleDeserializer::Read(Vector<const byte> data) {
   for (; index_ < native_module_->FunctionCount(); ++index_) {
     if (!ReadCode()) return false;
   }
-  native_module_->LinkAll();
   return data.size() - unread_.size();
 }
 
