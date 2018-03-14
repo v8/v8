@@ -535,21 +535,6 @@ Address NativeModule::GetLocalAddressFor(Handle<Code> code) {
   }
 }
 
-WasmCode* NativeModule::GetExportedWrapper(uint32_t index) {
-  auto found = exported_wasm_to_wasm_wrappers_.find(index);
-  if (found != exported_wasm_to_wasm_wrappers_.end()) {
-    return found->second;
-  }
-  return nullptr;
-}
-
-WasmCode* NativeModule::AddExportedWrapper(Handle<Code> code, uint32_t index) {
-  WasmCode* ret = AddAnonymousCode(code, WasmCode::kWasmToWasmWrapper);
-  ret->index_ = Just(index);
-  exported_wasm_to_wasm_wrappers_.insert(std::make_pair(index, ret));
-  return ret;
-}
-
 void NativeModule::LinkAll() {
   Isolate* isolate = compiled_module()->GetIsolate();
   Zone specialization_zone(isolate->allocator(), ZONE_NAME);

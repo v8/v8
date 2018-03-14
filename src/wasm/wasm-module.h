@@ -268,10 +268,6 @@ Handle<FixedArray> DecodeLocalNames(Isolate*, Handle<WasmSharedModuleData>);
 // TODO(titzer): move this to WasmExportedFunction.
 WasmFunction* GetWasmFunctionForExport(Isolate* isolate, Handle<Object> target);
 
-Handle<Object> GetOrCreateIndirectCallWrapper(
-    Isolate* isolate, Handle<WasmInstanceObject> owning_instance,
-    wasm::WasmCode* wasm_code, uint32_t func_index, FunctionSig* sig);
-
 void UnpackAndRegisterProtectedInstructions(
     Isolate* isolate, const wasm::NativeModule* native_module);
 

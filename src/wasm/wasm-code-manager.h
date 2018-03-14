@@ -9,7 +9,6 @@
 #include <list>
 #include <map>
 #include <unordered_map>
-#include <unordered_set>
 
 #include "src/base/macros.h"
 #include "src/handles.h"
@@ -222,11 +221,6 @@ class V8_EXPORT_PRIVATE NativeModule final {
   // by the runtime.
   void SetLazyBuiltin(Handle<Code> code);
 
-  // ExportedWrappers are WasmToWasmWrappers for functions placed on import
-  // tables. We construct them as-needed.
-  WasmCode* GetExportedWrapper(uint32_t index);
-  WasmCode* AddExportedWrapper(Handle<Code> code, uint32_t index);
-
   // FunctionCount is WasmModule::functions.size().
   uint32_t FunctionCount() const;
   WasmCode* GetCode(uint32_t index) const;
@@ -303,7 +297,6 @@ class V8_EXPORT_PRIVATE NativeModule final {
   Address CreateTrampolineTo(Handle<Code>);
 
   std::vector<std::unique_ptr<WasmCode>> owned_code_;
-  std::unordered_map<uint32_t, WasmCode*> exported_wasm_to_wasm_wrappers_;
 
   WasmCodeUniquePtrComparer owned_code_comparer_;
 
