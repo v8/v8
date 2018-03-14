@@ -183,7 +183,6 @@ CODE_ACCESSORS(relocation_info, ByteArray, kRelocationInfoOffset)
 CODE_ACCESSORS(deoptimization_data, FixedArray, kDeoptimizationDataOffset)
 CODE_ACCESSORS(source_position_table, Object, kSourcePositionTableOffset)
 CODE_ACCESSORS(code_data_container, CodeDataContainer, kCodeDataContainerOffset)
-CODE_ACCESSORS(trap_handler_index, Smi, kTrapHandlerIndex)
 #undef CODE_ACCESSORS
 
 void Code::WipeOutHeader() {

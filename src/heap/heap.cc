@@ -56,7 +56,6 @@
 #include "src/snapshot/serializer-common.h"
 #include "src/snapshot/snapshot.h"
 #include "src/tracing/trace-event.h"
-#include "src/trap-handler/trap-handler.h"
 #include "src/unicode-decoder.h"
 #include "src/unicode-inl.h"
 #include "src/utils-inl.h"
@@ -3288,7 +3287,6 @@ AllocationResult Heap::AllocateCode(
   code->set_source_position_table(source_position_table);
   code->set_constant_pool_offset(desc.instr_size - desc.constant_pool_size);
   code->set_builtin_index(builtin_index);
-  code->set_trap_handler_index(Smi::FromInt(-1));
 
   switch (code->kind()) {
     case Code::OPTIMIZED_FUNCTION:
@@ -3343,11 +3341,6 @@ AllocationResult Heap::CopyCode(Code* code, CodeDataContainer* data_container) {
 
   // Set the {CodeDataContainer}, it cannot be shared.
   new_code->set_code_data_container(data_container);
-
-  // Clear the trap handler index since they can't be shared between code. We
-  // have to do this before calling Relocate because relocate would adjust the
-  // base pointer for the old code.
-  new_code->set_trap_handler_index(Smi::FromInt(trap_handler::kInvalidIndex));
 
   // Relocate the copy.
   new_code->Relocate(new_addr - old_addr);

@@ -83,10 +83,6 @@ class Code : public HeapObject {
   // [code_data_container]: A container indirection for all mutable fields.
   DECL_ACCESSORS(code_data_container, CodeDataContainer)
 
-  // [trap_handler_index]: An index into the trap handler's master list of code
-  // objects.
-  DECL_ACCESSORS(trap_handler_index, Smi)
-
   // [stub_key]: The major/minor key of a code stub.
   inline uint32_t stub_key() const;
   inline void set_stub_key(uint32_t key);
@@ -388,8 +384,7 @@ class Code : public HeapObject {
   static const int kConstantPoolOffset = kStubKeyOffset + kIntSize;
   static const int kBuiltinIndexOffset =
       kConstantPoolOffset + kConstantPoolSize;
-  static const int kTrapHandlerIndex = kBuiltinIndexOffset + kIntSize;
-  static const int kHeaderPaddingStart = kTrapHandlerIndex + kPointerSize;
+  static const int kHeaderPaddingStart = kBuiltinIndexOffset + kIntSize;
 
   // Add padding to align the instruction start following right after
   // the Code object header.
@@ -400,8 +395,6 @@ class Code : public HeapObject {
   // The serializer needs to copy bytes starting from here verbatim.
   // Objects embedded into code is visited via reloc info.
   static const int kDataStart = kInstructionSizeOffset;
-
-  enum TrapFields { kTrapCodeOffset, kTrapLandingOffset, kTrapDataSize };
 
   inline int GetUnwindingInfoSizeOffset() const;
 
