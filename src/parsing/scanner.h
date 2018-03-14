@@ -736,16 +736,15 @@ class Scanner {
   Token::Value ScanHtmlComment();
 
   bool ScanDigitsWithNumericSeparators(bool (*predicate)(uc32 ch),
-                                       int start_pos,
                                        bool is_check_first_digit);
-  bool ScanDecimalDigits(int start_pos);
+  bool ScanDecimalDigits();
   // Optimized function to scan decimal number as Smi.
-  bool ScanDecimalAsSmi(int start_pos, uint64_t* value);
-  bool ScanDecimalAsSmiWithNumericSeparators(int start_pos, uint64_t* value);
-  bool ScanHexDigits(int start_pos);
-  bool ScanBinaryDigits(int start_pos);
-  bool ScanSignedInteger(int start_pos);
-  bool ScanOctalDigits(int start_pos);
+  bool ScanDecimalAsSmi(uint64_t* value);
+  bool ScanDecimalAsSmiWithNumericSeparators(uint64_t* value);
+  bool ScanHexDigits();
+  bool ScanBinaryDigits();
+  bool ScanSignedInteger();
+  bool ScanOctalDigits();
   bool ScanImplicitOctalDigits(int start_pos, NumberKind* kind);
 
   Token::Value ScanNumber(bool seen_period);
