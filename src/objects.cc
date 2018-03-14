@@ -19046,6 +19046,7 @@ void JSArrayBuffer::Neuter() {
   set_allocation_base(nullptr);
   set_allocation_length(0);
   set_was_neutered(true);
+  set_is_neuterable(false);
   // Invalidate the neutering protector.
   Isolate* const isolate = GetIsolate();
   if (isolate->IsArrayBufferNeuteringIntact()) {
