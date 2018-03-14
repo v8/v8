@@ -625,6 +625,8 @@ class LiftoffCompiler {
         CASE_FLOAT_UNOP(F32Sqrt, F32, f32_sqrt)
         CASE_FLOAT_UNOP(F64Neg, F64, f64_neg)
         CASE_FLOAT_UNOP(F64Sqrt, F64, f64_sqrt)
+        CASE_TYPE_CONVERSION(I32ReinterpretF32, I32, F32, nullptr)
+        CASE_TYPE_CONVERSION(I64ReinterpretF64, I64, F64, nullptr)
         CASE_TYPE_CONVERSION(F32SConvertI32, F32, I32, nullptr)
         CASE_TYPE_CONVERSION(F32UConvertI32, F32, I32, nullptr)
         CASE_TYPE_CONVERSION(F32SConvertI64, F32, I64,
@@ -632,6 +634,7 @@ class LiftoffCompiler {
         CASE_TYPE_CONVERSION(F32UConvertI64, F32, I64,
                              &ExternalReference::wasm_uint64_to_float32)
         CASE_TYPE_CONVERSION(F32ConvertF64, F32, F64, nullptr)
+        CASE_TYPE_CONVERSION(F32ReinterpretI32, F32, I32, nullptr)
         CASE_TYPE_CONVERSION(F64SConvertI32, F64, I32, nullptr)
         CASE_TYPE_CONVERSION(F64UConvertI32, F64, I32, nullptr)
         CASE_TYPE_CONVERSION(F64SConvertI64, F64, I64,
@@ -639,6 +642,7 @@ class LiftoffCompiler {
         CASE_TYPE_CONVERSION(F64UConvertI64, F64, I64,
                              &ExternalReference::wasm_uint64_to_float64)
         CASE_TYPE_CONVERSION(F64ConvertF32, F64, F32, nullptr)
+        CASE_TYPE_CONVERSION(F64ReinterpretI64, F64, I64, nullptr)
       default:
         return unsupported(decoder, WasmOpcodes::OpcodeName(opcode));
     }

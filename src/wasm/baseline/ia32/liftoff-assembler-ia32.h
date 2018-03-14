@@ -696,6 +696,17 @@ bool LiftoffAssembler::emit_type_conversion(WasmOpcode opcode,
                                             LiftoffRegister dst,
                                             LiftoffRegister src) {
   switch (opcode) {
+    case kExprI32ReinterpretF32:
+      Movd(dst.gp(), src.fp());
+      return true;
+    case kExprI64ReinterpretF64:
+      // Push src to the stack.
+      sub(esp, Immediate(8));
+      movsd(Operand(esp, 0), src.fp());
+      // Pop to dst.
+      pop(dst.low_gp());
+      pop(dst.high_gp());
+      return true;
     case kExprF32SConvertI32:
       cvtsi2ss(dst.fp(), src.gp());
       return true;
@@ -708,6 +719,9 @@ bool LiftoffAssembler::emit_type_conversion(WasmOpcode opcode,
     case kExprF32ConvertF64:
       cvtsd2ss(dst.fp(), src.fp());
       return true;
+    case kExprF32ReinterpretI32:
+      Movd(dst.fp(), src.gp());
+      return true;
     case kExprF64SConvertI32:
       Cvtsi2sd(dst.fp(), src.gp());
       return true;
@@ -716,6 +730,14 @@ bool LiftoffAssembler::emit_type_conversion(WasmOpcode opcode,
       return true;
     case kExprF64ConvertF32:
       cvtss2sd(dst.fp(), src.fp());
+      return true;
+    case kExprF64ReinterpretI64:
+      // Push src to the stack.
+      push(src.high_gp());
+      push(src.low_gp());
+      // Pop to dst.
+      movsd(dst.fp(), Operand(esp, 0));
+      add(esp, Immediate(8));
       return true;
     default:
       return false;
