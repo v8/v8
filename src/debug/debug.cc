@@ -376,6 +376,9 @@ bool Debug::Load() {
   if (context.is_null()) return false;
 
   debug_context_ = isolate_->global_handles()->Create(*context);
+  GlobalHandles::AnnotateStrongRetainer(
+      Handle<Object>::cast(debug_context_).location(),
+      "v8::internal::Debug::debug_context_");
 
   feature_tracker()->Track(DebugFeatureTracker::kActive);
 
