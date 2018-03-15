@@ -293,7 +293,6 @@ v8::StartupData Snapshot::CreateSnapshotBlob(
 }
 
 #ifdef V8_EMBEDDED_BUILTINS
-#ifdef DEBUG
 namespace {
 bool BuiltinAliasesOffHeapTrampolineRegister(Isolate* isolate, Code* code) {
   DCHECK(Builtins::IsOffHeapSafe(code->builtin_index()));
@@ -326,7 +325,6 @@ bool BuiltinAliasesOffHeapTrampolineRegister(Isolate* isolate, Code* code) {
   return false;
 }
 }  // namespace
-#endif  // DEBUG
 
 // static
 EmbeddedData EmbeddedData::FromIsolate(Isolate* isolate) {
@@ -345,7 +343,6 @@ EmbeddedData EmbeddedData::FromIsolate(Isolate* isolate) {
     Code* code = builtins->builtin(i);
 
     if (Builtins::IsOffHeapSafe(i)) {
-#ifdef DEBUG
       // Sanity-check that the given builtin is process-independent and does not
       // use the trampoline register in its calling convention.
       if (!code->IsProcessIndependent()) {
@@ -357,7 +354,6 @@ EmbeddedData EmbeddedData::FromIsolate(Isolate* isolate) {
         fprintf(stderr, "%s aliases the off-heap trampoline register.\n",
                 Builtins::name(i));
       }
-#endif
 
       uint32_t length = static_cast<uint32_t>(code->instruction_size());
 
