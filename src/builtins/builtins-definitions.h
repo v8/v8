@@ -1095,6 +1095,9 @@ namespace internal {
   TFS(TypedArrayInitialize, kHolder, kLength, kElementSize, kInitialize)       \
   TFS(TypedArrayInitializeWithBuffer, kHolder, kLength, kBuffer, kElementSize, \
       kByteOffset)                                                             \
+  /* ES #sec-typedarray-constructors */                                        \
+  TFS(CreateTypedArray, kTarget, kNewTarget, kArg1, kArg2, kArg3)              \
+  TFJ(TypedArrayConstructorLazyDeoptContinuation, 1, kResult)                  \
   TFJ(TypedArrayConstructor, SharedFunctionInfo::kDontAdaptArgumentsSentinel)  \
   CPP(TypedArrayPrototypeBuffer)                                               \
   /* ES6 #sec-get-%typedarray%.prototype.bytelength */                         \

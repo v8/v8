@@ -446,6 +446,13 @@ void JSGenericLowering::LowerJSCreatePromise(Node* node) {
   UNREACHABLE();  // Eliminated in typed lowering.
 }
 
+void JSGenericLowering::LowerJSCreateTypedArray(Node* node) {
+  CallDescriptor::Flags flags = FrameStateFlagForCall(node);
+  Callable callable =
+      Builtins::CallableFor(isolate(), Builtins::kCreateTypedArray);
+  ReplaceWithStubCall(node, callable, flags);
+}
+
 void JSGenericLowering::LowerJSCreateLiteralArray(Node* node) {
   CreateLiteralParameters const& p = CreateLiteralParametersOf(node->op());
   CallDescriptor::Flags flags = FrameStateFlagForCall(node);

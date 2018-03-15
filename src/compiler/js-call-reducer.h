@@ -92,12 +92,9 @@ class V8_EXPORT_PRIVATE JSCallReducer final : public AdvancedReducer {
   Reduction ReduceArrayPrototypeShift(Node* node);
   enum class ArrayIteratorKind { kArray, kTypedArray };
   Reduction ReduceArrayIterator(Node* node, IterationKind kind);
-  Reduction ReduceTypedArrayIterator(Node* node, IterationKind kind);
   Reduction ReduceArrayIteratorPrototypeNext(Node* node);
   Reduction ReduceFastArrayIteratorNext(InstanceType type, Node* node,
                                         IterationKind kind);
-  Reduction ReduceTypedArrayIteratorNext(InstanceType type, Node* node,
-                                         IterationKind kind);
 
   Reduction ReduceCallOrConstructWithArrayLikeOrSpread(
       Node* node, int arity, CallFrequency const& frequency,
@@ -141,6 +138,9 @@ class V8_EXPORT_PRIVATE JSCallReducer final : public AdvancedReducer {
   Reduction ReducePromisePrototypeFinally(Node* node);
   Reduction ReducePromisePrototypeThen(Node* node);
   Reduction ReducePromiseResolveTrampoline(Node* node);
+
+  Reduction ReduceTypedArrayConstructor(Node* node,
+                                        Handle<SharedFunctionInfo> shared);
 
   Reduction ReduceSoftDeoptimize(Node* node, DeoptimizeReason reason);
 
