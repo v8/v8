@@ -6832,9 +6832,7 @@ bool Heap::GcSafeCodeContains(HeapObject* code, Address addr) {
   Map* map = GcSafeMapOfCodeSpaceObject(code);
   DCHECK(map == code->GetHeap()->code_map());
 #ifdef V8_EMBEDDED_BUILTINS
-  if (FLAG_stress_off_heap_code) {
-    if (InstructionStream::TryLookupCode(isolate(), addr) == code) return true;
-  }
+  if (InstructionStream::TryLookupCode(isolate(), addr) == code) return true;
 #endif
   Address start = code->address();
   Address end = code->address() + code->SizeFromMap(map);
@@ -6843,10 +6841,8 @@ bool Heap::GcSafeCodeContains(HeapObject* code, Address addr) {
 
 Code* Heap::GcSafeFindCodeForInnerPointer(Address inner_pointer) {
 #ifdef V8_EMBEDDED_BUILTINS
-  if (FLAG_stress_off_heap_code) {
-    Code* code = InstructionStream::TryLookupCode(isolate(), inner_pointer);
-    if (code != nullptr) return code;
-  }
+  Code* code = InstructionStream::TryLookupCode(isolate(), inner_pointer);
+  if (code != nullptr) return code;
 #endif
 
   // Check if the inner pointer points into a large object chunk.

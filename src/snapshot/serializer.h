@@ -305,6 +305,7 @@ class Serializer<AllocatorT>::ObjectSerializer : public ObjectVisitor {
   void VisitInternalReference(Code* host, RelocInfo* rinfo) override;
   void VisitCodeTarget(Code* host, RelocInfo* target) override;
   void VisitRuntimeEntry(Code* host, RelocInfo* reloc) override;
+  void VisitOffHeapTarget(Code* host, RelocInfo* target) override;
 
  private:
   void SerializePrologue(AllocationSpace space, int size, Map* map);

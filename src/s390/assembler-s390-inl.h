@@ -98,7 +98,8 @@ Address RelocInfo::target_address() {
 
 Address RelocInfo::target_address_address() {
   DCHECK(IsCodeTarget(rmode_) || IsRuntimeEntry(rmode_) || IsWasmCall(rmode_) ||
-         rmode_ == EMBEDDED_OBJECT || rmode_ == EXTERNAL_REFERENCE);
+         IsEmbeddedObject(rmode_) || IsExternalReference(rmode_) ||
+         IsOffHeapTarget(rmode_));
 
   // Read the address of the word containing the target_address in an
   // instruction stream.
@@ -179,6 +180,11 @@ Address RelocInfo::target_runtime_entry(Assembler* origin) {
   return target_address();
 }
 
+Address RelocInfo::target_off_heap_target() {
+  DCHECK(IsOffHeapTarget(rmode_));
+  return Assembler::target_address_at(pc_, constant_pool_);
+}
+
 void RelocInfo::set_target_runtime_entry(Address target,
                                          WriteBarrierMode write_barrier_mode,
                                          ICacheFlushMode icache_flush_mode) {
@@ -217,6 +223,8 @@ void RelocInfo::Visit(ObjectVisitor* visitor) {
     visitor->VisitInternalReference(host(), this);
   } else if (IsRuntimeEntry(mode)) {
     visitor->VisitRuntimeEntry(host(), this);
+  } else if (RelocInfo::IsOffHeapTarget(mode)) {
+    visitor->VisitOffHeapTarget(host(), this);
   }
 }
 

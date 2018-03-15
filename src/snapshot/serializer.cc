@@ -10,6 +10,7 @@
 #include "src/objects/map.h"
 #include "src/snapshot/builtin-serializer-allocator.h"
 #include "src/snapshot/natives.h"
+#include "src/snapshot/snapshot.h"
 
 namespace v8 {
 namespace internal {
@@ -828,6 +829,29 @@ void Serializer<AllocatorT>::ObjectSerializer::VisitRuntimeEntry(
   sink_->PutInt(skip, "SkipB4ExternalRef");
   sink_->PutInt(encoded_reference.index(), "reference index");
   bytes_processed_so_far_ += rinfo->target_address_size();
+}
+
+template <class AllocatorT>
+void Serializer<AllocatorT>::ObjectSerializer::VisitOffHeapTarget(
+    Code* host, RelocInfo* rinfo) {
+#ifdef V8_EMBEDDED_BUILTINS
+  {
+    STATIC_ASSERT(EmbeddedData::kTableSize == Builtins::builtin_count);
+    CHECK(Builtins::IsOffHeapBuiltin(host));
+    Address addr = rinfo->target_off_heap_target();
+    CHECK_NOT_NULL(addr);
+    CHECK_NOT_NULL(
+        InstructionStream::TryLookupCode(serializer_->isolate(), addr));
+  }
+
+  int skip = SkipTo(rinfo->target_address_address());
+  sink_->Put(kOffHeapTarget, "OffHeapTarget");
+  sink_->PutInt(skip, "SkipB4OffHeapTarget");
+  sink_->PutInt(host->builtin_index(), "builtin index");
+  bytes_processed_so_far_ += kPointerSize;
+#else
+  UNREACHABLE();
+#endif
 }
 
 template <class AllocatorT>

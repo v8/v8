@@ -202,8 +202,7 @@ bool Builtins::IsBuiltin(Code* code) {
 // static
 bool Builtins::IsOffHeapBuiltin(Code* code) {
 #ifdef V8_EMBEDDED_BUILTINS
-  return FLAG_stress_off_heap_code &&
-         Builtins::IsBuiltinId(code->builtin_index()) &&
+  return Builtins::IsBuiltinId(code->builtin_index()) &&
          Builtins::IsOffHeapSafe(code->builtin_index());
 #else
   return false;
@@ -213,6 +212,12 @@ bool Builtins::IsOffHeapBuiltin(Code* code) {
 // static
 bool Builtins::IsLazy(int index) {
   DCHECK(IsBuiltinId(index));
+
+#ifdef V8_EMBEDDED_BUILTINS
+  // We don't want to lazy-deserialize off-heap builtins.
+  if (Builtins::IsOffHeapSafe(index)) return false;
+#endif
+
   // There are a couple of reasons that builtins can require eager-loading,
   // i.e. deserialization at isolate creation instead of on-demand. For
   // instance:
@@ -644,7 +649,7 @@ bool Builtins::IsIsolateIndependent(int index) {
 
 // static
 bool Builtins::IsOffHeapSafe(int index) {
-#ifndef V8_EMBEDDED_BUILTINS
+#if !defined(V8_EMBEDDED_BUILTINS) || !defined(V8_USE_SNAPSHOT)
   return false;
 #else
   DCHECK(IsBuiltinId(index));
@@ -663,6 +668,32 @@ bool Builtins::IsTooShortForOffHeapTrampoline(int index) {
       return false;
   }
 }
+
+#ifdef V8_EMBEDDED_BUILTINS
+// static
+Handle<Code> Builtins::GenerateOffHeapTrampolineFor(Isolate* isolate,
+                                                    Address off_heap_entry) {
+  DCHECK(isolate->serializer_enabled());
+  DCHECK_NOT_NULL(isolate->embedded_blob());
+  DCHECK_NE(0, isolate->embedded_blob_size());
+
+  constexpr size_t buffer_size = 256;  // Enough to fit the single jmp.
+  byte buffer[buffer_size];            // NOLINT(runtime/arrays)
+
+  // Generate replacement code that simply tail-calls the off-heap code.
+  MacroAssembler masm(isolate, buffer, buffer_size, CodeObjectRequired::kYes);
+  DCHECK(!masm.has_frame());
+  {
+    FrameScope scope(&masm, StackFrame::NONE);
+    masm.JumpToInstructionStream(off_heap_entry);
+  }
+
+  CodeDesc desc;
+  masm.GetCode(isolate, &desc);
+
+  return isolate->factory()->NewCode(desc, Code::BUILTIN, masm.CodeObject());
+}
+#endif  // V8_EMBEDDED_BUILTINS
 
 // static
 Builtins::Kind Builtins::KindOf(int index) {

@@ -1717,7 +1717,7 @@ void MacroAssembler::JumpToExternalReference(const ExternalReference& builtin,
 
 void MacroAssembler::JumpToInstructionStream(Address entry) {
   mov(kOffHeapTrampolineRegister,
-      Operand(reinterpret_cast<int32_t>(entry), RelocInfo::NONE));
+      Operand(reinterpret_cast<int32_t>(entry), RelocInfo::OFF_HEAP_TARGET));
   Jump(kOffHeapTrampolineRegister);
 }
 

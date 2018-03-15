@@ -72,7 +72,8 @@ Address RelocInfo::target_address() {
 
 Address RelocInfo::target_address_address() {
   DCHECK(IsCodeTarget(rmode_) || IsRuntimeEntry(rmode_) || IsWasmCall(rmode_) ||
-         rmode_ == EMBEDDED_OBJECT || rmode_ == EXTERNAL_REFERENCE);
+         IsEmbeddedObject(rmode_) || IsExternalReference(rmode_) ||
+         IsOffHeapTarget(rmode_));
   return reinterpret_cast<Address>(pc_);
 }
 
@@ -144,6 +145,11 @@ void RelocInfo::set_target_runtime_entry(Address target,
   }
 }
 
+Address RelocInfo::target_off_heap_target() {
+  DCHECK(IsOffHeapTarget(rmode_));
+  return Memory::Address_at(pc_);
+}
+
 void RelocInfo::WipeOut() {
   if (IsEmbeddedObject(rmode_) || IsExternalReference(rmode_) ||
       IsInternalReference(rmode_)) {
@@ -171,6 +177,8 @@ void RelocInfo::Visit(ObjectVisitor* visitor) {
     visitor->VisitInternalReference(host(), this);
   } else if (IsRuntimeEntry(mode)) {
     visitor->VisitRuntimeEntry(host(), this);
+  } else if (RelocInfo::IsOffHeapTarget(mode)) {
+    visitor->VisitOffHeapTarget(host(), this);
   }
 }
 
