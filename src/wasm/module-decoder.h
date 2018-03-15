@@ -146,6 +146,16 @@ class ModuleDecoder {
 
   bool ok();
 
+  // Translates the unknown section that decoder is pointing to to an extended
+  // SectionCode if the unknown section is known to decoder. Currently this only
+  // handles the name section.
+  // The decoder is expected to point after the section lenght and just before
+  // the identifier string of the unknown section.
+  // If a SectionCode other than kUnknownSectionCode is returned, the decoder
+  // will point right after the identifier string. Otherwise, the position is
+  // undefined.
+  static SectionCode IdentifyUnknownSection(Decoder& decoder, const byte* end);
+
  private:
   std::unique_ptr<ModuleDecoderImpl> impl_;
 };

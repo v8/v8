@@ -218,25 +218,11 @@ class WasmSectionIterator {
 
     if (section_code == kUnknownSectionCode) {
       // Check for the known "name" section.
-      WireBytesRef string =
-          wasm::consume_string(decoder_, true, "section name");
-      if (decoder_.failed() || decoder_.pc() > section_end_) {
-        section_code_ = kUnknownSectionCode;
-        return;
-      }
-      const byte* section_name_start =
-          decoder_.start() + decoder_.GetBufferRelativeOffset(string.offset());
+      section_code =
+          ModuleDecoder::IdentifyUnknownSection(decoder_, section_end_);
+      // As a side effect, the above function will forward the decoder to after
+      // the identifier string.
       payload_start_ = decoder_.pc();
-
-      TRACE("  +%d  section name        : \"%.*s\"\n",
-            static_cast<int>(section_name_start - decoder_.start()),
-            string.length() < 20 ? string.length() : 20, section_name_start);
-
-      if (string.length() == num_chars(kNameString) &&
-          strncmp(reinterpret_cast<const char*>(section_name_start),
-                  kNameString, num_chars(kNameString)) == 0) {
-        section_code = kNameSectionCode;
-      }
     } else if (!IsValidSectionCode(section_code)) {
       decoder_.errorf(decoder_.pc(), "unknown section code #0x%02x",
                       section_code);
@@ -1390,6 +1376,27 @@ bool ModuleDecoder::CheckFunctionsCount(uint32_t functions_count,
 
 ModuleResult ModuleDecoder::FinishDecoding(bool verify_functions) {
   return impl_->FinishDecoding(verify_functions);
+}
+
+SectionCode ModuleDecoder::IdentifyUnknownSection(Decoder& decoder,
+                                                  const byte* end) {
+  WireBytesRef string = wasm::consume_string(decoder, true, "section name");
+  if (decoder.failed() || decoder.pc() > end) {
+    return kUnknownSectionCode;
+  }
+  const byte* section_name_start =
+      decoder.start() + decoder.GetBufferRelativeOffset(string.offset());
+
+  TRACE("  +%d  section name        : \"%.*s\"\n",
+        static_cast<int>(section_name_start - decoder.start()),
+        string.length() < 20 ? string.length() : 20, section_name_start);
+
+  if (string.length() == num_chars(kNameString) &&
+      strncmp(reinterpret_cast<const char*>(section_name_start), kNameString,
+              num_chars(kNameString)) == 0) {
+    return kNameSectionCode;
+  }
+  return kUnknownSectionCode;
 }
 
 bool ModuleDecoder::ok() { return impl_->ok(); }

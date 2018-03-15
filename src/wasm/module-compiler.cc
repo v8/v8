@@ -3262,17 +3262,22 @@ bool AsyncStreamingProcessor::ProcessSection(SectionCode section_code,
                                              uint32_t offset) {
   TRACE_STREAMING("Process section %d ...\n", section_code);
   if (compilation_unit_builder_) {
-    // We reached a section after the code section, we do not need the the
+    // We reached a section after the code section, we do not need the
     // compilation_unit_builder_ anymore.
     CommitCompilationUnits();
     compilation_unit_builder_.reset();
   }
   if (section_code == SectionCode::kUnknownSectionCode) {
-    // No need to decode unknown sections, even the names section. If decoding
-    // of the unknown section fails, compilation should succeed anyways, and
-    // even decoding the names section is unnecessary because the result comes
-    // too late for streaming compilation.
-    return true;
+    Decoder decoder(bytes, offset);
+    section_code = ModuleDecoder::IdentifyUnknownSection(
+        decoder, bytes.start() + bytes.length());
+    if (section_code == SectionCode::kUnknownSectionCode) {
+      // Skip unknown sections that we do not know how to handle.
+      return true;
+    }
+    // Remove the unknown section tag from the payload bytes.
+    offset += decoder.position();
+    bytes = bytes.SubVector(decoder.position(), bytes.size());
   }
   constexpr bool verify_functions = false;
   decoder_.DecodeSection(section_code, bytes, offset, verify_functions);
