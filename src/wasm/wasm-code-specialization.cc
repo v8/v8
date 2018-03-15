@@ -55,16 +55,6 @@ class PatchDirectCallsHelper {
         comp_mod->shared()->module()->functions[func_index].code.offset();
   }
 
-  PatchDirectCallsHelper(NativeModule* native_module, Code* code)
-      : source_pos_it(code->SourcePositionTable()), decoder(nullptr, nullptr) {
-    FixedArray* deopt_data = code->deoptimization_data();
-    DCHECK_EQ(2, deopt_data->length());
-    WasmSharedModuleData* shared = native_module->compiled_module()->shared();
-    int func_index = Smi::ToInt(deopt_data->get(1));
-    func_bytes = shared->module_bytes()->GetChars() +
-                 shared->module()->functions[func_index].code.offset();
-  }
-
   SourcePositionTableIterator source_pos_it;
   Decoder decoder;
   const byte* func_bytes;
@@ -86,12 +76,6 @@ void CodeSpecialization::RelocateDirectCalls(NativeModule* native_module) {
   DCHECK_NULL(relocate_direct_calls_module_);
   DCHECK_NOT_NULL(native_module);
   relocate_direct_calls_module_ = native_module;
-}
-
-void CodeSpecialization::RelocatePointer(Address old_ptr, Address new_ptr) {
-  DCHECK_EQ(0, pointers_to_relocate_.count(old_ptr));
-  DCHECK_EQ(0, pointers_to_relocate_.count(new_ptr));
-  pointers_to_relocate_.insert(std::make_pair(old_ptr, new_ptr));
 }
 
 bool CodeSpecialization::ApplyToWholeModule(NativeModule* native_module,
@@ -168,14 +152,12 @@ bool CodeSpecialization::ApplyToWasmCode(wasm::WasmCode* code,
   DCHECK_EQ(wasm::WasmCode::kFunction, code->kind());
 
   bool reloc_direct_calls = relocate_direct_calls_module_ != nullptr;
-  bool reloc_pointers = pointers_to_relocate_.size() > 0;
 
   int reloc_mode = 0;
   auto add_mode = [&reloc_mode](bool cond, RelocInfo::Mode mode) {
     if (cond) reloc_mode |= RelocInfo::ModeMask(mode);
   };
   add_mode(reloc_direct_calls, RelocInfo::WASM_CALL);
-  add_mode(reloc_pointers, RelocInfo::WASM_GLOBAL_HANDLE);
 
   base::Optional<PatchDirectCallsHelper> patch_direct_calls_helper;
   bool changed = false;
@@ -208,16 +190,6 @@ bool CodeSpecialization::ApplyToWasmCode(wasm::WasmCode* code,
         it.rinfo()->set_wasm_call_address(new_code->instructions().start(),
                                           icache_flush_mode);
         changed = true;
-      } break;
-      case RelocInfo::WASM_GLOBAL_HANDLE: {
-        DCHECK(reloc_pointers);
-        Address old_ptr = it.rinfo()->global_handle();
-        auto entry = pointers_to_relocate_.find(old_ptr);
-        if (entry != pointers_to_relocate_.end()) {
-          Address new_ptr = entry->second;
-          it.rinfo()->set_global_handle(new_ptr, icache_flush_mode);
-          changed = true;
-        }
       } break;
       default:
         UNREACHABLE();
