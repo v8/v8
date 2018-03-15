@@ -641,6 +641,12 @@ class DebugWrapper {
         }
         break;
       }
+      case "bigint": {
+        assertEquals("n", obj.unserializableValue.charAt(
+            obj.unserializableValue.length - 1));
+        value = eval(obj.unserializableValue);
+        break;
+      }
       case "string":
       case "boolean": {
         break;
