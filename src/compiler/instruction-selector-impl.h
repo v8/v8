@@ -128,15 +128,21 @@ class OperandGenerator {
   }
 
   InstructionOperand UseAnyAtEnd(Node* node) {
-    return Use(node, UnallocatedOperand(UnallocatedOperand::ANY,
+    return Use(node, UnallocatedOperand(UnallocatedOperand::REGISTER_OR_SLOT,
                                         UnallocatedOperand::USED_AT_END,
                                         GetVReg(node)));
   }
 
   InstructionOperand UseAny(Node* node) {
-    return Use(node, UnallocatedOperand(UnallocatedOperand::ANY,
+    return Use(node, UnallocatedOperand(UnallocatedOperand::REGISTER_OR_SLOT,
                                         UnallocatedOperand::USED_AT_START,
                                         GetVReg(node)));
+  }
+
+  InstructionOperand UseRegisterOrSlotOrConstant(Node* node) {
+    return Use(node, UnallocatedOperand(
+                         UnallocatedOperand::REGISTER_OR_SLOT_OR_CONSTANT,
+                         UnallocatedOperand::USED_AT_START, GetVReg(node)));
   }
 
   InstructionOperand UseRegister(Node* node) {

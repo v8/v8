@@ -294,9 +294,9 @@ void MoveOperandIfAliasedWithPoisonRegister(Instruction* call_instruction,
     return;
   }
 
-  if (HasImmediateInput(call_instruction, poison_index)) {
-    gen->tasm()->mov(kSpeculationPoisonRegister,
-                     i.InputImmediate(poison_index));
+  InstructionOperand* op = call_instruction->InputAt(poison_index);
+  if (op->IsImmediate() || op->IsConstant()) {
+    gen->tasm()->mov(kSpeculationPoisonRegister, i.ToImmediate(op));
   } else {
     gen->tasm()->mov(kSpeculationPoisonRegister, i.InputOperand(poison_index));
   }

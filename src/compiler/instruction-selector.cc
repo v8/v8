@@ -1000,7 +1000,7 @@ void InstructionSelector::InitializeCallBuffer(Node* call, CallBuffer* buffer,
         if (reg == kSpeculationPoisonRegister.code()) {
           buffer->instruction_args[poison_alias_index] = g.TempImmediate(
               static_cast<int32_t>(buffer->instruction_args.size()));
-          op = g.Use(*iter);
+          op = g.UseRegisterOrSlotOrConstant(*iter);
         }
       }
       buffer->instruction_args.push_back(op);
