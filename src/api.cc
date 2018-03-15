@@ -5205,7 +5205,7 @@ int Function::GetScriptLineNumber() const {
   auto func = i::Handle<i::JSFunction>::cast(self);
   if (func->shared()->script()->IsScript()) {
     i::Handle<i::Script> script(i::Script::cast(func->shared()->script()));
-    return i::Script::GetLineNumber(script, func->shared()->start_position());
+    return i::Script::GetLineNumber(script, func->shared()->StartPosition());
   }
   return kLineOffsetNotFound;
 }
@@ -5219,7 +5219,7 @@ int Function::GetScriptColumnNumber() const {
   auto func = i::Handle<i::JSFunction>::cast(self);
   if (func->shared()->script()->IsScript()) {
     i::Handle<i::Script> script(i::Script::cast(func->shared()->script()));
-    return i::Script::GetColumnNumber(script, func->shared()->start_position());
+    return i::Script::GetColumnNumber(script, func->shared()->StartPosition());
   }
   return kLineOffsetNotFound;
 }

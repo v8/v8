@@ -350,7 +350,7 @@ MaybeHandle<Object> AsmJs::InstantiateAsmWasm(Isolate* isolate,
   Handle<Script> script(Script::cast(shared->script()));
   // TODO(mstarzinger): The position currently points to the module definition
   // but should instead point to the instantiation site (more intuitive).
-  int position = shared->start_position();
+  int position = shared->StartPosition();
 
   // Check that all used stdlib members are valid.
   bool stdlib_use_of_typed_array_present = false;

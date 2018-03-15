@@ -1181,7 +1181,7 @@ void Logger::CodeCreateEvent(CodeEventListener::LogEventsAndTags tag,
   //      S<shared-function-info-address>
   msg << "code-source-info" << kNext
       << static_cast<void*>(code->instruction_start()) << kNext << script_id
-      << kNext << shared->start_position() << kNext << shared->end_position()
+      << kNext << shared->StartPosition() << kNext << shared->EndPosition()
       << kNext;
 
   SourcePositionTableIterator iterator(code->source_position_table());
@@ -1697,9 +1697,9 @@ void Logger::LogExistingFunction(Handle<SharedFunctionInfo> shared,
                                  Handle<AbstractCode> code) {
   if (shared->script()->IsScript()) {
     Handle<Script> script(Script::cast(shared->script()));
-    int line_num = Script::GetLineNumber(script, shared->start_position()) + 1;
+    int line_num = Script::GetLineNumber(script, shared->StartPosition()) + 1;
     int column_num =
-        Script::GetColumnNumber(script, shared->start_position()) + 1;
+        Script::GetColumnNumber(script, shared->StartPosition()) + 1;
     if (script->name()->IsString()) {
       Handle<String> script_name(String::cast(script->name()));
       if (line_num > 0) {

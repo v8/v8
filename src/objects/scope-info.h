@@ -84,6 +84,9 @@ class ScopeInfo : public FixedArray {
   bool HasPendingFunctionName() const;
   void SetPendingFunctionName(String* name);
 
+  // Does this scope belong to a function?
+  bool HasPositionInfo() const;
+
   // Return if contexts are allocated for this scope.
   bool HasContext() const;
 
@@ -94,6 +97,11 @@ class ScopeInfo : public FixedArray {
 
   // Return the function_name if present.
   String* FunctionName() const;
+
+  // Position information accessors.
+  Smi* StartPosition() const;
+  Smi* EndPosition() const;
+  void SetPositionInfo(int start, int end);
 
   ModuleInfo* ModuleDescriptorInfo() const;
 
@@ -252,9 +260,12 @@ class ScopeInfo : public FixedArray {
   //    information about the function variable. It always occupies two array
   //    slots:  a. The name of the function variable.
   //            b. The context or stack slot index for the variable.
-  // 8. OuterScopeInfoIndex:
+  // 8. SourcePosition:
+  //    Contains two slots with a) the startPosition and b) the endPosition if
+  //    the scope belongs to a function or script.
+  // 9. OuterScopeInfoIndex:
   //    The outer scope's ScopeInfo or the hole if there's none.
-  // 9. ModuleInfo, ModuleVariableCount, and ModuleVariables:
+  // 10. ModuleInfo, ModuleVariableCount, and ModuleVariables:
   //    For a module scope, this part contains the ModuleInfo, the number of
   //    MODULE-allocated variables, and the metadata of those variables.  For
   //    non-module scopes it is empty.
@@ -265,10 +276,13 @@ class ScopeInfo : public FixedArray {
   int ContextLocalInfosIndex() const;
   int ReceiverInfoIndex() const;
   int FunctionNameInfoIndex() const;
+  int PositionInfoIndex() const;
   int OuterScopeInfoIndex() const;
   int ModuleInfoIndex() const;
   int ModuleVariableCountIndex() const;
   int ModuleVariablesIndex() const;
+
+  static bool NeedsPositionInfo(ScopeType type);
 
   int Lookup(Handle<String> name, int start, int end, VariableMode* mode,
              VariableLocation* location, InitializationFlag* init_flag,
@@ -285,6 +299,9 @@ class ScopeInfo : public FixedArray {
   // Used for the function name variable for named function expressions, and for
   // the receiver.
   enum VariableAllocationInfo { NONE, STACK, CONTEXT, UNUSED };
+
+  static const int kFunctionNameEntries = 2;
+  static const int kPositionInfoEntries = 2;
 
   // Properties of scopes.
   class ScopeTypeField : public BitField<ScopeType, 0, 4> {};

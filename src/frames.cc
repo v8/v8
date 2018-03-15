@@ -1939,7 +1939,7 @@ void JavaScriptFrame::Print(StringStream* accumulator,
       int line = script->GetLineNumber(source_pos) + 1;
       accumulator->Add(":%d] [bytecode=%p offset=%d]", line, bytecodes, offset);
     } else {
-      int function_start_pos = shared->start_position();
+      int function_start_pos = shared->StartPosition();
       int line = script->GetLineNumber(function_start_pos) + 1;
       accumulator->Add(":~%d] [pc=%p]", line, pc);
     }

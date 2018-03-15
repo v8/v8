@@ -49,14 +49,14 @@ class SharedToCounterMap
 namespace {
 int StartPosition(SharedFunctionInfo* info) {
   int start = info->function_token_position();
-  if (start == kNoSourcePosition) start = info->start_position();
+  if (start == kNoSourcePosition) start = info->StartPosition();
   return start;
 }
 
 bool CompareSharedFunctionInfo(SharedFunctionInfo* a, SharedFunctionInfo* b) {
   int a_start = StartPosition(a);
   int b_start = StartPosition(b);
-  if (a_start == b_start) return a->end_position() > b->end_position();
+  if (a_start == b_start) return a->EndPosition() > b->EndPosition();
   return a_start < b_start;
 }
 
@@ -480,7 +480,7 @@ std::unique_ptr<Coverage> Coverage::Collect(
     // Use sorted list to reconstruct function nesting.
     for (SharedFunctionInfo* info : sorted) {
       int start = StartPosition(info);
-      int end = info->end_position();
+      int end = info->EndPosition();
       uint32_t count = counter_map.Get(info);
       // Find the correct outer function based on start position.
       while (!nesting.empty() && functions->at(nesting.back()).end <= start) {

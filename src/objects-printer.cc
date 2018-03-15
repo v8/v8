@@ -1145,8 +1145,8 @@ void SharedFunctionInfo::PrintSourceCode(std::ostream& os) {
   if (HasSourceCode()) {
     os << "\n - source code: ";
     String* source = String::cast(Script::cast(script())->source());
-    int start = start_position();
-    int length = end_position() - start;
+    int start = StartPosition();
+    int length = EndPosition() - start;
     std::unique_ptr<char[]> source_string = source->ToCString(
         DISALLOW_NULLS, FAST_STRING_TRAVERSAL, start, length, nullptr);
     os << source_string.get();
@@ -1188,8 +1188,8 @@ void SharedFunctionInfo::SharedFunctionInfoPrint(std::ostream& os) {  // NOLINT
     os << "\n - declaration";
   }
   os << "\n - function token position: " << function_token_position();
-  os << "\n - start position: " << start_position();
-  os << "\n - end position: " << end_position();
+  os << "\n - start position: " << StartPosition();
+  os << "\n - end position: " << EndPosition();
   if (HasDebugInfo()) {
     os << "\n - debug info: " << Brief(debug_info());
   } else {
@@ -1694,6 +1694,10 @@ void ScopeInfo::ScopeInfoPrint(std::ostream& os) {  // NOLINT
   if (HasFunctionName()) {
     os << "\n - function name: ";
     FunctionName()->ShortPrint(os);
+  }
+  if (HasPositionInfo()) {
+    os << "\n - start position: " << Brief(StartPosition());
+    os << "\n - end position: " << Brief(EndPosition());
   }
   os << "\n - length: " << length();
   if (length() > 0) {

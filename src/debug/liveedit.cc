@@ -825,8 +825,8 @@ void LiveEdit::ReplaceFunctionCode(
 
   if (shared_info->is_compiled()) {
     // Take whatever code we can get from the new shared function info. We
-    // expect activations of neither the old bytecode nor old FCG code, since
-    // the lowest activation is going to be restarted.
+    // expect activations of neither the old bytecode, since the lowest
+    // activation is going to be restarted.
     Handle<Code> old_code(shared_info->code());
     Handle<Code> new_code(new_shared_info->code());
     // Clear old bytecode. This will trigger self-healing if we do not install
@@ -854,8 +854,12 @@ void LiveEdit::ReplaceFunctionCode(
 
   int start_position = compile_info_wrapper.GetStartPosition();
   int end_position = compile_info_wrapper.GetEndPosition();
-  shared_info->set_start_position(start_position);
-  shared_info->set_end_position(end_position);
+  // TODO(cbruni): only store position information on the SFI.
+  shared_info->set_raw_start_position(start_position);
+  shared_info->set_raw_end_position(end_position);
+  if (shared_info->scope_info()->HasPositionInfo()) {
+    shared_info->scope_info()->SetPositionInfo(start_position, end_position);
+  }
 
   FeedbackVectorFixer::PatchFeedbackVector(&compile_info_wrapper, shared_info,
                                            isolate);
@@ -976,16 +980,21 @@ void LiveEdit::PatchFunctionPositions(Handle<JSArray> shared_info_array,
   SharedInfoWrapper shared_info_wrapper(shared_info_array);
   Handle<SharedFunctionInfo> info = shared_info_wrapper.GetInfo();
 
-  int old_function_start = info->start_position();
+  int old_function_start = info->StartPosition();
   int new_function_start = TranslatePosition(old_function_start,
                                              position_change_array);
-  int new_function_end = TranslatePosition(info->end_position(),
-                                           position_change_array);
+  int new_function_end =
+      TranslatePosition(info->EndPosition(), position_change_array);
   int new_function_token_pos =
       TranslatePosition(info->function_token_position(), position_change_array);
 
-  info->set_start_position(new_function_start);
-  info->set_end_position(new_function_end);
+  info->set_raw_start_position(new_function_start);
+  info->set_raw_end_position(new_function_end);
+  // TODO(cbruni): Allocate helper ScopeInfo once the position fields are gone
+  // on the SFI.
+  if (info->scope_info()->HasPositionInfo()) {
+    info->scope_info()->SetPositionInfo(new_function_start, new_function_end);
+  }
   info->set_function_token_position(new_function_token_pos);
 
   if (info->HasBytecodeArray()) {

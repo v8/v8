@@ -499,11 +499,11 @@ int PrintFunctionSource(CompilationInfo* info, Isolate* isolate,
       }
       os << shared->DebugName()->ToCString().get() << ") id{";
       os << info->optimization_id() << "," << source_id << "} start{";
-      os << shared->start_position() << "} ---\n";
+      os << shared->StartPosition() << "} ---\n";
       {
         DisallowHeapAllocation no_allocation;
-        int start = shared->start_position();
-        int len = shared->end_position() - start;
+        int start = shared->StartPosition();
+        int len = shared->EndPosition() - start;
         String::SubStringRange source(String::cast(script->source()), start,
                                       len);
         for (const auto& c : source) {
@@ -585,10 +585,10 @@ void PrintCode(Handle<Code> code, CompilationInfo* info) {
         os << "--- Raw source ---\n";
         StringCharacterStream stream(
             String::cast(Script::cast(shared->script())->source()),
-            shared->start_position());
+            shared->StartPosition());
         // fun->end_position() points to the last character in the stream. We
         // need to compensate by adding one to calculate the length.
-        int source_len = shared->end_position() - shared->start_position() + 1;
+        int source_len = shared->EndPosition() - shared->StartPosition() + 1;
         for (int i = 0; i < source_len; i++) {
           if (stream.HasMore()) {
             os << AsReversiblyEscapedUC16(stream.GetNext());
@@ -605,7 +605,7 @@ void PrintCode(Handle<Code> code, CompilationInfo* info) {
     }
     if (print_source) {
       Handle<SharedFunctionInfo> shared = info->shared_info();
-      os << "source_position = " << shared->start_position() << "\n";
+      os << "source_position = " << shared->StartPosition() << "\n";
     }
     code->Disassemble(debug_name.get(), os);
     os << "--- End code ---\n";
@@ -722,13 +722,13 @@ PipelineStatistics* CreatePipelineStatistics(Handle<Script> script,
   if (FLAG_trace_turbo) {
     TurboJsonFile json_of(info, std::ios_base::trunc);
     std::unique_ptr<char[]> function_name = info->GetDebugName();
-    int pos = info->IsStub() ? 0 : info->shared_info()->start_position();
+    int pos = info->IsStub() ? 0 : info->shared_info()->StartPosition();
     json_of << "{\"function\":\"" << function_name.get()
             << "\", \"sourcePosition\":" << pos << ", \"source\":\"";
     if (!script.is_null() && !script->source()->IsUndefined(isolate)) {
       DisallowHeapAllocation no_allocation;
-      int start = info->shared_info()->start_position();
-      int len = info->shared_info()->end_position() - start;
+      int start = info->shared_info()->StartPosition();
+      int len = info->shared_info()->EndPosition() - start;
       String::SubStringRange source(String::cast(script->source()), start, len);
       for (const auto& c : source) {
         json_of << AsEscapedUC16ForJSON(c);
@@ -811,7 +811,7 @@ PipelineCompilationJob::Status PipelineCompilationJob::PrepareJobImpl(
   }
 
   data_.set_start_source_position(
-      compilation_info()->shared_info()->start_position());
+      compilation_info()->shared_info()->StartPosition());
 
   linkage_ = new (compilation_info()->zone()) Linkage(
       Linkage::ComputeIncoming(compilation_info()->zone(), compilation_info()));

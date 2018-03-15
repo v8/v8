@@ -857,8 +857,11 @@ void SharedFunctionInfo::SharedFunctionInfoVerify() {
   CHECK_EQ(expected_map_index, function_map_index());
 
   if (scope_info()->length() > 0) {
-    CHECK(kind() == scope_info()->function_kind());
-    CHECK_EQ(kind() == kModule, scope_info()->scope_type() == MODULE_SCOPE);
+    ScopeInfo* info = scope_info();
+    CHECK(kind() == info->function_kind());
+    CHECK_EQ(kind() == kModule, info->scope_type() == MODULE_SCOPE);
+    CHECK_EQ(raw_start_position(), info->StartPosition()->value());
+    CHECK_EQ(raw_end_position(), info->EndPosition()->value());
   }
 }
 

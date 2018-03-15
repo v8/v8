@@ -173,7 +173,7 @@ static i::Handle<i::BreakPoint> SetBreakPoint(v8::Local<v8::Function> fun,
                                               const char* condition = nullptr) {
   i::Handle<i::JSFunction> function =
       i::Handle<i::JSFunction>::cast(v8::Utils::OpenHandle(*fun));
-  position += function->shared()->start_position();
+  position += function->shared()->StartPosition();
   static int break_point_index = 0;
   i::Isolate* isolate = function->GetIsolate();
   i::Handle<i::String> condition_string =

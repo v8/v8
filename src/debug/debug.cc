@@ -154,7 +154,7 @@ BreakIterator::BreakIterator(Handle<DebugInfo> debug_info)
       break_index_(-1),
       source_position_iterator_(
           debug_info->DebugBytecodeArray()->SourcePositionTable()) {
-  position_ = debug_info->shared()->start_position();
+  position_ = debug_info->shared()->StartPosition();
   statement_position_ = position_;
   // There is at least one break location.
   DCHECK(!Done());
@@ -650,8 +650,8 @@ bool Debug::SetBreakPointForScript(Handle<Script> script,
 
   // Find position within function. The script position might be before the
   // source position of the first function.
-  if (shared->start_position() > *source_position) {
-    *source_position = shared->start_position();
+  if (shared->StartPosition() > *source_position) {
+    *source_position = shared->StartPosition();
   }
 
   Handle<DebugInfo> debug_info(shared->GetDebugInfo());
@@ -1259,8 +1259,8 @@ bool Debug::GetPossibleBreakpoints(Handle<Script> script, int start_position,
     SharedFunctionInfo::ScriptIterator iterator(script);
     for (SharedFunctionInfo* info = iterator.Next(); info != nullptr;
          info = iterator.Next()) {
-      if (info->end_position() < start_position ||
-          info->start_position() >= end_position) {
+      if (info->EndPosition() < start_position ||
+          info->StartPosition() >= end_position) {
         continue;
       }
       if (!info->IsSubjectToDebugging()) continue;
@@ -1306,15 +1306,15 @@ class SharedFunctionInfoFinder {
     if (!shared->IsSubjectToDebugging()) return;
     int start_position = shared->function_token_position();
     if (start_position == kNoSourcePosition) {
-      start_position = shared->start_position();
+      start_position = shared->StartPosition();
     }
 
     if (start_position > target_position_) return;
-    if (target_position_ > shared->end_position()) return;
+    if (target_position_ > shared->EndPosition()) return;
 
     if (current_candidate_ != nullptr) {
       if (current_start_position_ == start_position &&
-          shared->end_position() == current_candidate_->end_position()) {
+          shared->EndPosition() == current_candidate_->EndPosition()) {
         // If we already have a matching closure, do not throw it away.
         if (current_candidate_closure_ != nullptr && closure == nullptr) return;
         // If a top-level function contains only one function
@@ -1322,7 +1322,7 @@ class SharedFunctionInfoFinder {
         // is the same. In that case prefer the non top-level function.
         if (!current_candidate_->is_toplevel() && shared->is_toplevel()) return;
       } else if (start_position < current_start_position_ ||
-                 current_candidate_->end_position() < shared->end_position()) {
+                 current_candidate_->EndPosition() < shared->EndPosition()) {
         return;
       }
     }
@@ -1924,9 +1924,8 @@ bool Debug::IsBlackboxed(Handle<SharedFunctionInfo> shared) {
       DCHECK(shared->script()->IsScript());
       Handle<Script> script(Script::cast(shared->script()));
       DCHECK(script->IsUserJavaScript());
-      debug::Location start =
-          GetDebugLocation(script, shared->start_position());
-      debug::Location end = GetDebugLocation(script, shared->end_position());
+      debug::Location start = GetDebugLocation(script, shared->StartPosition());
+      debug::Location end = GetDebugLocation(script, shared->EndPosition());
       is_blackboxed = debug_delegate_->IsFunctionBlackboxed(
           ToApiHandle<debug::Script>(script), start, end);
     }

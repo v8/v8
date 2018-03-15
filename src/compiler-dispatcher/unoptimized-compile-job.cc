@@ -127,7 +127,7 @@ void UnoptimizedCompileJob::PrepareOnMainThread(Isolate* isolate) {
   parse_info_->InitFromIsolate(isolate);
   if (source->IsExternalTwoByteString() || source->IsExternalOneByteString()) {
     std::unique_ptr<Utf16CharacterStream> stream(ScannerStream::For(
-        source, shared_->start_position(), shared_->end_position()));
+        source, shared_->StartPosition(), shared_->EndPosition()));
     parse_info_->set_character_stream(std::move(stream));
   } else {
     source = String::Flatten(source);
@@ -151,8 +151,8 @@ void UnoptimizedCompileJob::PrepareOnMainThread(Isolate* isolate) {
     } else {
       // Otherwise, create a copy of the part of the string we'll parse in the
       // zone.
-      length = (shared_->end_position() - shared_->start_position());
-      offset = shared_->start_position();
+      length = (shared_->EndPosition() - shared_->StartPosition());
+      offset = shared_->StartPosition();
 
       int byte_len = length * (source->IsOneByteRepresentation() ? 1 : 2);
       data = parse_info_->zone()->New(byte_len);
@@ -162,12 +162,11 @@ void UnoptimizedCompileJob::PrepareOnMainThread(Isolate* isolate) {
       DCHECK(content.IsFlat());
       if (content.IsOneByte()) {
         MemCopy(const_cast<void*>(data),
-                &content.ToOneByteVector().at(shared_->start_position()),
+                &content.ToOneByteVector().at(shared_->StartPosition()),
                 byte_len);
       } else {
         MemCopy(const_cast<void*>(data),
-                &content.ToUC16Vector().at(shared_->start_position()),
-                byte_len);
+                &content.ToUC16Vector().at(shared_->StartPosition()), byte_len);
       }
     }
     Handle<String> wrapper;
@@ -188,15 +187,15 @@ void UnoptimizedCompileJob::PrepareOnMainThread(Isolate* isolate) {
     }
     wrapper_ = isolate->global_handles()->Create(*wrapper);
     std::unique_ptr<Utf16CharacterStream> stream(
-        ScannerStream::For(wrapper_, shared_->start_position() - offset,
-                           shared_->end_position() - offset));
+        ScannerStream::For(wrapper_, shared_->StartPosition() - offset,
+                           shared_->EndPosition() - offset));
     parse_info_->set_character_stream(std::move(stream));
   }
   parse_info_->set_hash_seed(isolate->heap()->HashSeed());
   parse_info_->set_is_named_expression(shared_->is_named_expression());
   parse_info_->set_compiler_hints(shared_->compiler_hints());
-  parse_info_->set_start_position(shared_->start_position());
-  parse_info_->set_end_position(shared_->end_position());
+  parse_info_->set_start_position(shared_->StartPosition());
+  parse_info_->set_end_position(shared_->EndPosition());
   parse_info_->set_unicode_cache(unicode_cache_.get());
   parse_info_->set_language_mode(shared_->language_mode());
   parse_info_->set_function_literal_id(shared_->function_literal_id());

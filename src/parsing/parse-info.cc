@@ -53,8 +53,8 @@ ParseInfo::ParseInfo(Handle<SharedFunctionInfo> shared)
   set_allow_lazy_parsing(FLAG_lazy_inner_functions);
   set_is_named_expression(shared->is_named_expression());
   set_compiler_hints(shared->compiler_hints());
-  set_start_position(shared->start_position());
-  set_end_position(shared->end_position());
+  set_start_position(shared->StartPosition());
+  set_end_position(shared->EndPosition());
   function_literal_id_ = shared->function_literal_id();
   set_language_mode(shared->language_mode());
   set_asm_wasm_broken(shared->is_asm_wasm_broken());
@@ -118,8 +118,8 @@ ParseInfo* ParseInfo::AllocateWithoutScript(Handle<SharedFunctionInfo> shared) {
   p->set_allow_lazy_parsing(FLAG_lazy_inner_functions);
   p->set_is_named_expression(shared->is_named_expression());
   p->set_compiler_hints(shared->compiler_hints());
-  p->set_start_position(shared->start_position());
-  p->set_end_position(shared->end_position());
+  p->set_start_position(shared->StartPosition());
+  p->set_end_position(shared->EndPosition());
   p->function_literal_id_ = shared->function_literal_id();
   p->set_language_mode(shared->language_mode());
 

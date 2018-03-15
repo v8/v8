@@ -76,7 +76,7 @@ RUNTIME_FUNCTION(Runtime_FunctionGetScriptSourcePosition) {
   DCHECK_EQ(1, args.length());
 
   CONVERT_ARG_CHECKED(JSFunction, fun, 0);
-  int pos = fun->shared()->start_position();
+  int pos = fun->shared()->StartPosition();
   return Smi::FromInt(pos);
 }
 
@@ -118,19 +118,20 @@ RUNTIME_FUNCTION(Runtime_SetCode) {
   if (source_shared->HasBytecodeArray()) {
     target_shared->set_bytecode_array(source_shared->bytecode_array());
   }
-  target_shared->set_scope_info(source_shared->scope_info());
-  target_shared->set_outer_scope_info(source_shared->outer_scope_info());
   target_shared->set_length(source_shared->GetLength());
   target_shared->set_feedback_metadata(source_shared->feedback_metadata());
   target_shared->set_internal_formal_parameter_count(
       source_shared->internal_formal_parameter_count());
-  target_shared->set_start_position_and_type(
-      source_shared->start_position_and_type());
-  target_shared->set_end_position(source_shared->end_position());
+  target_shared->set_raw_start_position_and_type(
+      source_shared->raw_start_position_and_type());
+  target_shared->set_raw_end_position(source_shared->raw_end_position());
   bool was_native = target_shared->native();
   target_shared->set_compiler_hints(source_shared->compiler_hints());
   target_shared->set_native(was_native);
   target_shared->set_function_literal_id(source_shared->function_literal_id());
+
+  target_shared->set_scope_info(source_shared->scope_info());
+  target_shared->set_outer_scope_info(source_shared->outer_scope_info());
 
   Handle<Object> source_script(source_shared->script(), isolate);
   if (source_script->IsScript()) {

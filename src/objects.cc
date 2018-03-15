@@ -13614,8 +13614,8 @@ Handle<Object> SharedFunctionInfo::GetSourceCode(
   Isolate* isolate = shared->GetIsolate();
   if (!shared->HasSourceCode()) return isolate->factory()->undefined_value();
   Handle<String> source(String::cast(Script::cast(shared->script())->source()));
-  return isolate->factory()->NewSubString(source, shared->start_position(),
-                                          shared->end_position());
+  return isolate->factory()->NewSubString(source, shared->StartPosition(),
+                                          shared->EndPosition());
 }
 
 // static
@@ -13626,9 +13626,9 @@ Handle<Object> SharedFunctionInfo::GetSourceCodeHarmony(
   Handle<String> script_source(
       String::cast(Script::cast(shared->script())->source()));
   int start_pos = shared->function_token_position();
-  if (start_pos == kNoSourcePosition) start_pos = shared->start_position();
+  if (start_pos == kNoSourcePosition) start_pos = shared->StartPosition();
   Handle<String> source = isolate->factory()->NewSubString(
-      script_source, start_pos, shared->end_position());
+      script_source, start_pos, shared->EndPosition());
   if (!shared->is_wrapped()) return source;
 
   DCHECK(!shared->name_should_print_as_anonymous());
@@ -13659,9 +13659,7 @@ bool SharedFunctionInfo::IsInlineable() {
   return !optimization_disabled();
 }
 
-int SharedFunctionInfo::SourceSize() {
-  return end_position() - start_position();
-}
+int SharedFunctionInfo::SourceSize() { return EndPosition() - StartPosition(); }
 
 void JSFunction::CalculateInstanceSizeHelper(InstanceType instance_type,
                                              bool has_prototype_slot,
@@ -13751,13 +13749,13 @@ std::ostream& operator<<(std::ostream& os, const SourceCodeOf& v) {
     }
   }
 
-  int len = s->end_position() - s->start_position();
+  int len = s->EndPosition() - s->StartPosition();
   if (len <= v.max_length || v.max_length < 0) {
-    script_source->PrintUC16(os, s->start_position(), s->end_position());
+    script_source->PrintUC16(os, s->StartPosition(), s->EndPosition());
     return os;
   } else {
-    script_source->PrintUC16(os, s->start_position(),
-                             s->start_position() + v.max_length);
+    script_source->PrintUC16(os, s->StartPosition(),
+                             s->StartPosition() + v.max_length);
     return os << "...\n";
   }
 }
@@ -13785,8 +13783,12 @@ void SharedFunctionInfo::InitFromFunctionLiteral(
   // updated accordingly.
   shared_info->set_internal_formal_parameter_count(lit->parameter_count());
   shared_info->set_function_token_position(lit->function_token_position());
-  shared_info->set_start_position(lit->start_position());
-  shared_info->set_end_position(lit->end_position());
+  shared_info->set_raw_start_position(lit->start_position());
+  shared_info->set_raw_end_position(lit->end_position());
+  if (shared_info->scope_info()->HasPositionInfo()) {
+    shared_info->scope_info()->SetPositionInfo(lit->start_position(),
+                                               lit->end_position());
+  }
   shared_info->set_is_declaration(lit->is_declaration());
   shared_info->set_is_named_expression(lit->is_named_expression());
   shared_info->set_is_anonymous_expression(lit->is_anonymous_expression());
