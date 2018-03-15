@@ -215,7 +215,7 @@ void WasmCode::Disassemble(const char* name, Isolate* isolate,
   // Anonymous functions don't have source positions.
   if (!IsAnonymous()) {
     Object* source_positions_or_undef =
-        owner_->compiled_module()->source_positions()->get(index());
+        native_module_->compiled_module()->source_positions()->get(index());
     if (!source_positions_or_undef->IsUndefined(isolate)) {
       os << "Source positions:\n pc offset  position\n";
       for (SourcePositionTableIterator it(

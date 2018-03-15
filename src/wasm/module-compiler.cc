@@ -462,9 +462,10 @@ Address CompileLazy(Isolate* isolate) {
   DCHECK_EQ(wasm::WasmCode::kLazyStub, lazy_stub_or_copy->kind());
   if (!lazy_stub_or_copy->IsAnonymous()) {
     // Then it's an indirect call or via JS->wasm wrapper.
-    instance =
-        handle(lazy_stub_or_copy->owner()->compiled_module()->owning_instance(),
-               isolate);
+    instance = handle(lazy_stub_or_copy->native_module()
+                          ->compiled_module()
+                          ->owning_instance(),
+                      isolate);
     func_index_to_compile = Just(lazy_stub_or_copy->index());
     exp_deopt_data_entry =
         handle(instance->compiled_module()->lazy_compile_data()->get(
@@ -491,9 +492,10 @@ Address CompileLazy(Isolate* isolate) {
       // Then this is a direct call (otherwise we would have attached the
       // instance via deopt data to the lazy compile stub). Just use the
       // instance of the caller.
-      instance = handle(
-          wasm_caller_code->owner()->compiled_module()->owning_instance(),
-          isolate);
+      instance = handle(wasm_caller_code->native_module()
+                            ->compiled_module()
+                            ->owning_instance(),
+                        isolate);
     }
   }
 
@@ -686,7 +688,7 @@ const WasmCode* WasmExtractWasmToWasmCallee(const WasmCodeManager* code_manager,
   do {                                                                         \
     TRACE_LAZY("Patching wasm-to-wasm wrapper.\n");                            \
     DCHECK_EQ(WasmCode::kWasmToWasmWrapper, wasm_to_wasm->kind());             \
-    NativeModuleModificationScope scope(wasm_to_wasm->owner());                \
+    NativeModuleModificationScope scope(wasm_to_wasm->native_module());        \
     RelocIterator it(wasm_to_wasm->instructions(), wasm_to_wasm->reloc_info(), \
                      wasm_to_wasm->constant_pool(),                            \
                      RelocInfo::ModeMask(RelocInfo::JS_TO_WASM_CALL));         \
@@ -779,7 +781,7 @@ const wasm::WasmCode* LazyCompilationOrchestrator::CompileDirectCall(
   {
     DisallowHeapAllocation no_gc;
     Handle<WasmCompiledModule> caller_module(
-        wasm_caller->owner()->compiled_module(), isolate);
+        wasm_caller->native_module()->compiled_module(), isolate);
     SeqOneByteString* module_bytes = caller_module->shared()->module_bytes();
     uint32_t caller_func_index = wasm_caller->index();
     SourcePositionTableIterator source_pos_iterator(
@@ -1468,7 +1470,7 @@ MaybeHandle<WasmModuleObject> ModuleCompiler::CompileToModuleObjectInternal(
   Handle<WasmCompiledModule> compiled_module =
       NewCompiledModule(isolate_, shared->module(), export_wrappers, env.get());
   native_module_ = compiled_module->GetNativeModule();
-  compiled_module->OnWasmModuleDecodingComplete(shared);
+  compiled_module->set_shared(*shared);
   if (lazy_compile) {
     Handle<FixedArray> lazy_compile_data = isolate_->factory()->NewFixedArray(
         static_cast<int>(module_->functions.size()), TENURED);
@@ -1564,37 +1566,21 @@ MaybeHandle<WasmInstanceObject> InstanceBuilder::Build() {
   // Reuse the compiled module (if no owner), otherwise clone.
   //--------------------------------------------------------------------------
   Handle<FixedArray> wrapper_table;
-  MaybeHandle<WasmInstanceObject> owner;
-  // native_module is the one we're building now, old_module
-  // is the one we clone from. They point to the same place if
-  // we don't need to clone.
   wasm::NativeModule* native_module = nullptr;
-  wasm::NativeModule* old_module = nullptr;
+  // Root the old instance, if any, in case later allocation causes GC,
+  // to prevent the finalizer running for the old instance.
+  MaybeHandle<WasmInstanceObject> old_instance;
 
   TRACE("Starting new module instantiation\n");
   {
-    // Root the owner, if any, before doing any allocations, which
-    // may trigger GC.
-    // Both owner and original template need to be in sync. Even
-    // after we lose the original template handle, the code
-    // objects we copied from it have data relative to the
-    // instance - such as globals addresses.
-    Handle<WasmCompiledModule> original;
-    {
-      DisallowHeapAllocation no_gc;
-      original = handle(module_object_->compiled_module());
-      if (original->has_weak_owning_instance()) {
-        owner = handle(WasmInstanceObject::cast(
-            original->weak_owning_instance()->value()));
-      }
-    }
-    DCHECK(!original.is_null());
+    Handle<WasmCompiledModule> original =
+        handle(module_object_->compiled_module());
     if (original->has_weak_owning_instance()) {
+      old_instance = handle(original->owning_instance());
       // Clone, but don't insert yet the clone in the instances chain.
-      // We do that last. Since we are holding on to the owner instance,
+      // We do that last. Since we are holding on to the old instance,
       // the owner + original state used for cloning and patching
       // won't be mutated by possible finalizer runs.
-      DCHECK(!owner.is_null());
       TRACE("Cloning from %zu\n", original->GetNativeModule()->instance_id);
       compiled_module_ = WasmCompiledModule::Clone(isolate_, original);
       native_module = compiled_module_->GetNativeModule();
@@ -1608,11 +1594,10 @@ MaybeHandle<WasmInstanceObject> InstanceBuilder::Build() {
       RecordStats(native_module, counters());
       RecordStats(wrapper_table, counters());
     } else {
-      // There was no owner, so we can reuse the original.
+      // No instance owned the original compiled module.
       compiled_module_ = original;
       wrapper_table = handle(compiled_module_->export_wrappers(), isolate_);
-      old_module = compiled_module_->GetNativeModule();
-      native_module = old_module;
+      native_module = compiled_module_->GetNativeModule();
       TRACE("Reusing existing instance %zu\n",
             compiled_module_->GetNativeModule()->instance_id);
     }
@@ -1801,7 +1786,7 @@ MaybeHandle<WasmInstanceObject> InstanceBuilder::Build() {
   //--------------------------------------------------------------------------
   {
     Handle<WeakCell> link_to_owning_instance = factory->NewWeakCell(instance);
-    if (!owner.is_null()) {
+    if (!old_instance.is_null()) {
       // Publish the new instance to the instances chain.
       DisallowHeapAllocation no_gc;
       compiled_module_->InsertInChain(*module_object_);
@@ -3175,7 +3160,7 @@ class AsyncCompileJob::FinishCompile : public CompileStep {
         WasmSharedModuleData::New(job_->isolate_, module_wrapper,
                                   Handle<SeqOneByteString>::cast(module_bytes),
                                   script, asm_js_offset_table);
-    job_->compiled_module_->OnWasmModuleDecodingComplete(shared);
+    job_->compiled_module_->set_shared(*shared);
     script->set_wasm_compiled_module(*job_->compiled_module_);
 
     // Finish the wasm script now and make it public to the debugger.

@@ -643,7 +643,7 @@ WasmInstanceObject* WasmInstanceObject::GetOwningInstance(
   Object* weak_link = nullptr;
   DCHECK(code->kind() == wasm::WasmCode::kFunction ||
          code->kind() == wasm::WasmCode::kInterpreterStub);
-  weak_link = code->owner()->compiled_module()->weak_owning_instance();
+  weak_link = code->native_module()->compiled_module()->weak_owning_instance();
   DCHECK(weak_link->IsWeakCell());
   WeakCell* cell = WeakCell::cast(weak_link);
   if (cell->cleared()) return nullptr;
@@ -688,11 +688,11 @@ namespace {
 void InstanceFinalizer(const v8::WeakCallbackInfo<void>& data) {
   DisallowHeapAllocation no_gc;
   JSObject** p = reinterpret_cast<JSObject**>(data.GetParameter());
-  WasmInstanceObject* owner = reinterpret_cast<WasmInstanceObject*>(*p);
+  WasmInstanceObject* instance = reinterpret_cast<WasmInstanceObject*>(*p);
   Isolate* isolate = reinterpret_cast<Isolate*>(data.GetIsolate());
   // If a link to shared memory instances exists, update the list of memory
   // instances before the instance is destroyed.
-  WasmCompiledModule* compiled_module = owner->compiled_module();
+  WasmCompiledModule* compiled_module = instance->compiled_module();
   wasm::NativeModule* native_module = compiled_module->GetNativeModule();
   if (native_module) {
     TRACE("Finalizing %zu {\n", native_module->instance_id);
@@ -707,10 +707,9 @@ void InstanceFinalizer(const v8::WeakCallbackInfo<void>& data) {
   // Weak references to this instance won't be cleared until
   // the next GC cycle, so we need to manually break some links (such as
   // the weak references from {WasmMemoryObject::instances}.
-  if (owner->has_memory_object()) {
-    Handle<WasmMemoryObject> memory(owner->memory_object(), isolate);
-    Handle<WasmInstanceObject> instance(owner, isolate);
-    WasmMemoryObject::RemoveInstance(isolate, memory, instance);
+  if (instance->has_memory_object()) {
+    WasmMemoryObject::RemoveInstance(isolate, handle(instance->memory_object()),
+                                     handle(instance));
   }
 
   // weak_wasm_module may have been cleared, meaning the module object
@@ -735,11 +734,11 @@ void InstanceFinalizer(const v8::WeakCallbackInfo<void>& data) {
 
   void* invalid =
       reinterpret_cast<void*>(static_cast<uintptr_t>(kHeapObjectTag));
-  if (owner->indirect_function_table() &&
-      owner->indirect_function_table() != invalid) {
+  if (instance->indirect_function_table() &&
+      instance->indirect_function_table() != invalid) {
     // The indirect function table is C++ memory and needs to be explicitly
     // freed.
-    free(owner->indirect_function_table());
+    free(instance->indirect_function_table());
   }
 
   compiled_module->RemoveFromChain();
@@ -1446,11 +1445,6 @@ void WasmCompiledModule::RemoveFromChain() {
   if (!next->IsUndefined(isolate)) {
     WasmCompiledModule::cast(next)->set_raw_prev_instance(prev);
   }
-}
-
-void WasmCompiledModule::OnWasmModuleDecodingComplete(
-    Handle<WasmSharedModuleData> shared) {
-  set_shared(*shared);
 }
 
 void WasmCompiledModule::ReinitializeAfterDeserialization(

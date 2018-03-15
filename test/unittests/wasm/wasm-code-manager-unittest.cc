@@ -308,11 +308,11 @@ TEST_F(WasmCodeManagerTest, Lookup) {
     NativeModulePtr nm1 = AllocModule(&manager, 1 * page(), style);
     NativeModulePtr nm2 = AllocModule(&manager, 1 * page(), style);
     WasmCode* code1_0 = AddCode(nm1.get(), 0, kCodeAlignment);
-    CHECK_EQ(nm1.get(), code1_0->owner());
+    CHECK_EQ(nm1.get(), code1_0->native_module());
     WasmCode* code1_1 = AddCode(nm1.get(), 1, kCodeAlignment);
     WasmCode* code2_0 = AddCode(nm2.get(), 0, kCodeAlignment);
     WasmCode* code2_1 = AddCode(nm2.get(), 1, kCodeAlignment);
-    CHECK_EQ(nm2.get(), code2_1->owner());
+    CHECK_EQ(nm2.get(), code2_1->native_module());
 
     CHECK_EQ(0, code1_0->index());
     CHECK_EQ(1, code1_1->index());
@@ -352,11 +352,11 @@ TEST_F(WasmCodeManagerTest, MultiManagerLookup) {
     NativeModulePtr nm2 = AllocModule(&manager2, 1 * page(), style);
 
     WasmCode* code1_0 = AddCode(nm1.get(), 0, kCodeAlignment);
-    CHECK_EQ(nm1.get(), code1_0->owner());
+    CHECK_EQ(nm1.get(), code1_0->native_module());
     WasmCode* code1_1 = AddCode(nm1.get(), 1, kCodeAlignment);
     WasmCode* code2_0 = AddCode(nm2.get(), 0, kCodeAlignment);
     WasmCode* code2_1 = AddCode(nm2.get(), 1, kCodeAlignment);
-    CHECK_EQ(nm2.get(), code2_1->owner());
+    CHECK_EQ(nm2.get(), code2_1->native_module());
 
     CHECK_EQ(0, code1_0->index());
     CHECK_EQ(1, code1_1->index());

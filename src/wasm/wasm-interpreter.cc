@@ -641,7 +641,7 @@ Handle<HeapObject> UnwrapWasmToJSWrapper(Isolate* isolate,
   Handle<FixedArray> js_imports_table;
   int index = 0;
   DCHECK_EQ(wasm::WasmCode::kWasmToJsWrapper, wasm_code->kind());
-  js_imports_table = Handle<FixedArray>(wasm_code->owner()
+  js_imports_table = Handle<FixedArray>(wasm_code->native_module()
                                             ->compiled_module()
                                             ->owning_instance()
                                             ->js_imports_table());
@@ -2464,7 +2464,7 @@ class ThreadImpl {
     static_assert(compiler::CWasmEntryParameters::kNumParameters == 3,
                   "code below needs adaption");
     Handle<Object> args[compiler::CWasmEntryParameters::kNumParameters];
-    WasmContext* context = code->owner()
+    WasmContext* context = code->native_module()
                                ->compiled_module()
                                ->owning_instance()
                                ->wasm_context()
@@ -2522,7 +2522,7 @@ class ThreadImpl {
     DCHECK(AllowHeapAllocation::IsAllowed());
 
     if (code->kind() == wasm::WasmCode::kFunction) {
-      if (code->owner()->compiled_module()->owning_instance() !=
+      if (code->native_module()->compiled_module()->owning_instance() !=
           codemap()->instance()) {
         return CallExternalWasmFunction(isolate, code, signature);
       }

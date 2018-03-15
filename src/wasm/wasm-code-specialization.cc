@@ -180,7 +180,7 @@ bool CodeSpecialization::ApplyToWasmCode(wasm::WasmCode* code,
   base::Optional<PatchDirectCallsHelper> patch_direct_calls_helper;
   bool changed = false;
 
-  NativeModule* native_module = code->owner();
+  NativeModule* native_module = code->native_module();
 
   RelocIterator it(code->instructions(), code->reloc_info(),
                    code->constant_pool(), reloc_mode);

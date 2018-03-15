@@ -111,7 +111,7 @@ class V8_EXPORT_PRIVATE WasmCode final {
   // trampolines.
   bool IsAnonymous() const { return index_.IsNothing(); }
   Kind kind() const { return kind_; }
-  NativeModule* owner() const { return owner_; }
+  NativeModule* native_module() const { return native_module_; }
   Tier tier() const { return tier_; }
   Address constant_pool() const;
   size_t constant_pool_offset() const { return constant_pool_offset_; }
@@ -146,7 +146,7 @@ class V8_EXPORT_PRIVATE WasmCode final {
 
   WasmCode(Vector<byte> instructions,
            std::unique_ptr<const byte[]>&& reloc_info, size_t reloc_size,
-           NativeModule* owner, Maybe<uint32_t> index, Kind kind,
+           NativeModule* native_module, Maybe<uint32_t> index, Kind kind,
            size_t constant_pool_offset, uint32_t stack_slots,
            size_t safepoint_table_offset, size_t handler_table_offset,
            std::shared_ptr<ProtectedInstructions> protected_instructions,
@@ -154,7 +154,7 @@ class V8_EXPORT_PRIVATE WasmCode final {
       : instructions_(instructions),
         reloc_info_(std::move(reloc_info)),
         reloc_size_(reloc_size),
-        owner_(owner),
+        native_module_(native_module),
         index_(index),
         kind_(kind),
         constant_pool_offset_(constant_pool_offset),
@@ -170,7 +170,7 @@ class V8_EXPORT_PRIVATE WasmCode final {
   Vector<byte> instructions_;
   std::unique_ptr<const byte[]> reloc_info_;
   size_t reloc_size_ = 0;
-  NativeModule* owner_ = nullptr;
+  NativeModule* native_module_ = nullptr;
   Maybe<uint32_t> index_;
   Kind kind_;
   size_t constant_pool_offset_ = 0;

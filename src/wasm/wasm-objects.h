@@ -495,7 +495,7 @@ class WasmCompiledModule : public Struct {
   // for deserialization, and if they are serializable.
   // By default, instance values go to WasmInstanceObject, however, if
   // we embed the generated code with a value, then we track that value here.
-  WCM_CONST_OBJECT(WasmSharedModuleData, shared)
+  WCM_OBJECT(WasmSharedModuleData, shared)
   WCM_WEAK_LINK(Context, native_context)
   WCM_CONST_OBJECT(FixedArray, export_wrappers)
   WCM_OBJECT(FixedArray, weak_exported_functions)
@@ -523,7 +523,6 @@ class WasmCompiledModule : public Struct {
   wasm::NativeModule* GetNativeModule() const;
   void InsertInChain(WasmModuleObject*);
   void RemoveFromChain();
-  void OnWasmModuleDecodingComplete(Handle<WasmSharedModuleData>);
 
   DECL_ACCESSORS(raw_next_instance, Object);
   DECL_ACCESSORS(raw_prev_instance, Object);

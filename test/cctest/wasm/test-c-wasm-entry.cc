@@ -62,7 +62,7 @@ class CWasmEntryArgTester {
     Handle<Object> buffer_obj(reinterpret_cast<Object*>(arg_buffer.data()),
                               isolate_);
     CHECK(!buffer_obj->IsHeapObject());
-    WasmContext* wasm_context = wasm_code_->owner()
+    WasmContext* wasm_context = wasm_code_->native_module()
                                     ->compiled_module()
                                     ->owning_instance()
                                     ->wasm_context()
@@ -74,7 +74,7 @@ class CWasmEntryArgTester {
     static_assert(
         arraysize(call_args) == compiler::CWasmEntryParameters::kNumParameters,
         "adapt this test");
-    wasm_code_->owner()->SetExecutable(true);
+    wasm_code_->native_module()->SetExecutable(true);
     MaybeHandle<Object> return_obj = Execution::Call(
         isolate_, c_wasm_entry_fn_, receiver, arraysize(call_args), call_args);
     CHECK(!return_obj.is_null());

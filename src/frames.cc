@@ -1316,8 +1316,8 @@ int FrameSummary::WasmCompiledFrameSummary::GetWasmSourcePosition(
   int position = 0;
   // Subtract one because the current PC is one instruction after the call site.
   offset--;
-  Handle<ByteArray> source_position_table(
-      ByteArray::cast(code->owner()->compiled_module()->source_positions()->get(
+  Handle<ByteArray> source_position_table(ByteArray::cast(
+      code->native_module()->compiled_module()->source_positions()->get(
           code->index())));
   for (SourcePositionTableIterator iterator(source_position_table);
        !iterator.done() && iterator.code_offset() <= offset;
