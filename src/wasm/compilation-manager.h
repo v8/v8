@@ -41,6 +41,9 @@ class CompilationManager {
   // AsyncCompileJob finish their execution.
   void AbortAllJobs();
 
+  // Returns true if at lease one AsyncCompileJob is currently running.
+  bool HasRunningCompileJob() const { return !jobs_.empty(); }
+
  private:
   AsyncCompileJob* CreateAsyncCompileJob(Isolate* isolate,
                                          std::unique_ptr<byte[]> bytes_copy,

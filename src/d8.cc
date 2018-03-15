@@ -40,6 +40,7 @@
 #include "src/trap-handler/trap-handler.h"
 #include "src/utils.h"
 #include "src/v8.h"
+#include "src/wasm/wasm-engine.h"
 
 #if !defined(_WIN32) && !defined(_WIN64)
 #include <unistd.h>  // NOLINT
@@ -3011,13 +3012,18 @@ bool ProcessMessages(Isolate* isolate,
 }  // anonymous namespace
 
 void Shell::CompleteMessageLoop(Isolate* isolate) {
-  ProcessMessages(isolate, [isolate]() {
+  auto get_waiting_behaviour = [isolate]() {
     base::LockGuard<base::Mutex> guard(isolate_status_lock_.Pointer());
     DCHECK_GT(isolate_status_.count(isolate), 0);
-    return isolate_status_[isolate]
-               ? platform::MessageLoopBehavior::kWaitForWork
-               : platform::MessageLoopBehavior::kDoNotWait;
-  });
+    i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
+    i::wasm::CompilationManager* wasm_compilation_manager =
+        i_isolate->wasm_engine()->compilation_manager();
+    bool should_wait = wasm_compilation_manager->HasRunningCompileJob() ||
+                       isolate_status_[isolate];
+    return should_wait ? platform::MessageLoopBehavior::kWaitForWork
+                       : platform::MessageLoopBehavior::kDoNotWait;
+  };
+  ProcessMessages(isolate, get_waiting_behaviour);
 }
 
 bool Shell::EmptyMessageQueues(Isolate* isolate) {
