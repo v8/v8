@@ -229,7 +229,6 @@ Heap::Heap()
       heap_iterator_depth_(0),
       local_embedder_heap_tracer_(nullptr),
       fast_promotion_mode_(false),
-      use_tasks_(true),
       force_oom_(false),
       delay_sweeper_tasks_for_testing_(false),
       pending_layout_change_object_(nullptr),
@@ -5918,7 +5917,6 @@ void Heap::RegisterExternallyReferencedObject(Object** object) {
 
 void Heap::TearDown() {
   SetGCState(TEAR_DOWN);
-  DCHECK(!use_tasks_);
 #ifdef VERIFY_HEAP
   if (FLAG_verify_heap) {
     Verify();

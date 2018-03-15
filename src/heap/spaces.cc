@@ -338,7 +338,7 @@ class MemoryAllocator::Unmapper::UnmapFreeMemoryTask : public CancelableTask {
 };
 
 void MemoryAllocator::Unmapper::FreeQueuedChunks() {
-  if (heap_->use_tasks() && FLAG_concurrent_sweeping) {
+  if (!heap_->IsTearingDown() && FLAG_concurrent_sweeping) {
     if (!MakeRoomForNewTasks()) {
       // kMaxUnmapperTasks are already running. Avoid creating any more.
       if (FLAG_trace_unmapper) {

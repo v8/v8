@@ -47,7 +47,7 @@ class ArrayBufferCollector::FreeingTask final : public CancelableTask {
 
 void ArrayBufferCollector::FreeAllocationsOnBackgroundThread() {
   heap_->account_external_memory_concurrently_freed();
-  if (heap_->use_tasks() && FLAG_concurrent_array_buffer_freeing) {
+  if (!heap_->IsTearingDown() && FLAG_concurrent_array_buffer_freeing) {
     FreeingTask* task = new FreeingTask(heap_);
     V8::GetCurrentPlatform()->CallOnWorkerThread(task);
   } else {
