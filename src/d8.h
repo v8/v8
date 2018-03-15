@@ -356,9 +356,20 @@ class ShellOptions {
 
 class Shell : public i::AllStatic {
  public:
+  enum PrintResult : bool { kPrintResult = true, kNoPrintResult = false };
+  enum ReportExceptions : bool {
+    kReportExceptions = true,
+    kNoReportExceptions = false
+  };
+  enum ProcessMessageQueue : bool {
+    kProcessMessageQueue = true,
+    kNoProcessMessageQueue = false
+  };
+
   static bool ExecuteString(Isolate* isolate, Local<String> source,
-                            Local<Value> name, bool print_result,
-                            bool report_exceptions);
+                            Local<Value> name, PrintResult print_result,
+                            ReportExceptions report_exceptions,
+                            ProcessMessageQueue process_message_queue);
   static bool ExecuteModule(Isolate* isolate, const char* file_name);
   static void ReportException(Isolate* isolate, TryCatch* try_catch);
   static Local<String> ReadFile(Isolate* isolate, const char* name);

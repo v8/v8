@@ -572,8 +572,9 @@ void Shell::StoreInCodeCache(Isolate* isolate, Local<Value> source,
 
 // Executes a string within the current v8 context.
 bool Shell::ExecuteString(Isolate* isolate, Local<String> source,
-                          Local<Value> name, bool print_result,
-                          bool report_exceptions) {
+                          Local<Value> name, PrintResult print_result,
+                          ReportExceptions report_exceptions,
+                          ProcessMessageQueue process_message_queue) {
   HandleScope handle_scope(isolate);
   TryCatch try_catch(isolate);
   try_catch.SetVerbose(true);
@@ -651,7 +652,7 @@ bool Shell::ExecuteString(Isolate* isolate, Local<String> source,
       StoreInCodeCache(isolate, source, cached_data);
       delete cached_data;
     }
-    if (!EmptyMessageQueues(isolate)) success = false;
+    if (process_message_queue && !EmptyMessageQueues(isolate)) success = false;
     data->realm_current_ = data->realm_switch_;
   }
   Local<Value> result;
@@ -1373,11 +1374,14 @@ void Shell::Load(const v8::FunctionCallbackInfo<v8::Value>& args) {
       Throw(args.GetIsolate(), "Error loading file");
       return;
     }
-    if (!ExecuteString(args.GetIsolate(), source,
-                       String::NewFromUtf8(args.GetIsolate(), *file,
-                                           NewStringType::kNormal)
-                           .ToLocalChecked(),
-                       false, !options.quiet_load)) {
+    if (!ExecuteString(
+            args.GetIsolate(), source,
+            String::NewFromUtf8(args.GetIsolate(), *file,
+                                NewStringType::kNormal)
+                .ToLocalChecked(),
+            kNoPrintResult,
+            options.quiet_load ? kNoReportExceptions : kReportExceptions,
+            kNoProcessMessageQueue)) {
       Throw(args.GetIsolate(), "Error executing file");
       return;
     }
@@ -2269,7 +2273,8 @@ void Shell::RunShell(Isolate* isolate) {
     printf("d8> ");
     Local<String> input = Shell::ReadFromStdin(isolate);
     if (input.IsEmpty()) break;
-    ExecuteString(isolate, input, name, true, true);
+    ExecuteString(isolate, input, name, kPrintResult, kReportExceptions,
+                  kProcessMessageQueue);
   }
   printf("\n");
   // We need to explicitly clean up the module embedder data for
@@ -2431,7 +2436,9 @@ void SourceGroup::Execute(Isolate* isolate) {
           String::NewFromUtf8(isolate, argv_[i + 1], NewStringType::kNormal)
               .ToLocalChecked();
       Shell::options.script_executed = true;
-      if (!Shell::ExecuteString(isolate, source, file_name, false, true)) {
+      if (!Shell::ExecuteString(isolate, source, file_name,
+                                Shell::kNoPrintResult, Shell::kReportExceptions,
+                                Shell::kNoProcessMessageQueue)) {
         exception_was_thrown = true;
         break;
       }
@@ -2462,7 +2469,9 @@ void SourceGroup::Execute(Isolate* isolate) {
       Shell::Exit(1);
     }
     Shell::options.script_executed = true;
-    if (!Shell::ExecuteString(isolate, source, file_name, false, true)) {
+    if (!Shell::ExecuteString(isolate, source, file_name, Shell::kNoPrintResult,
+                              Shell::kReportExceptions,
+                              Shell::kProcessMessageQueue)) {
       exception_was_thrown = true;
       break;
     }
@@ -2670,7 +2679,9 @@ void Worker::ExecuteInThread() {
         Local<String> source =
             String::NewFromUtf8(isolate, script_, NewStringType::kNormal)
                 .ToLocalChecked();
-        if (Shell::ExecuteString(isolate, source, file_name, false, true)) {
+        if (Shell::ExecuteString(
+                isolate, source, file_name, Shell::kNoPrintResult,
+                Shell::kReportExceptions, Shell::kProcessMessageQueue)) {
           // Get the message handler
           Local<Value> onmessage =
               global->Get(context, String::NewFromUtf8(isolate, "onmessage",
