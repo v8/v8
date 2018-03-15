@@ -6158,6 +6158,10 @@ HeapObjectStatistics::HeapObjectStatistics()
 HeapCodeStatistics::HeapCodeStatistics()
     : code_and_metadata_size_(0), bytecode_and_metadata_size_(0) {}
 
+bool v8::V8::InitializeICU(const char* icu_data_file) {
+  return i::InitializeICU(icu_data_file);
+}
+
 bool v8::V8::InitializeICUDefaultLocation(const char* exec_path,
                                           const char* icu_data_file) {
   return i::InitializeICUDefaultLocation(exec_path, icu_data_file);
