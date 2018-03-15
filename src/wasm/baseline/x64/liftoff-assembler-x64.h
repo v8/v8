@@ -27,11 +27,6 @@ inline Operand GetStackSlot(uint32_t index) {
   return Operand(rbp, -kFirstStackSlotOffset - offset);
 }
 
-inline Operand GetHalfStackSlot(uint32_t half_index) {
-  int32_t offset = half_index * (LiftoffAssembler::kStackSlotSize / 2);
-  return Operand(rbp, -kFirstStackSlotOffset - offset);
-}
-
 // TODO(clemensh): Make this a constexpr variable once Operand is constexpr.
 inline Operand GetContextOperand() { return Operand(rbp, -16); }
 
@@ -325,13 +320,17 @@ void LiftoffAssembler::Spill(uint32_t index, WasmValue value) {
       movl(dst, Immediate(value.to_i32()));
       break;
     case kWasmI64: {
-      // We could use movq, but this would require a temporary register. For
-      // simplicity (and to avoid potentially having to spill another register),
-      // we use two movl instructions.
-      int32_t low_word = static_cast<int32_t>(value.to_i64());
-      int32_t high_word = static_cast<int32_t>(value.to_i64() >> 32);
-      movl(dst, Immediate(low_word));
-      movl(liftoff::GetHalfStackSlot(2 * index + 1), Immediate(high_word));
+      if (is_int32(value.to_i64())) {
+        // Sign extend low word.
+        movq(dst, Immediate(static_cast<int32_t>(value.to_i64())));
+      } else if (is_uint32(value.to_i64())) {
+        // Zero extend low word.
+        movl(kScratchRegister, Immediate(static_cast<int32_t>(value.to_i64())));
+        movq(dst, kScratchRegister);
+      } else {
+        movq(kScratchRegister, value.to_i64());
+        movq(dst, kScratchRegister);
+      }
       break;
     }
     default:
