@@ -64,6 +64,14 @@ void EmptyInterceptorGetter(Local<Name> name,
 void EmptyInterceptorSetter(Local<Name> name, Local<Value> value,
                             const v8::PropertyCallbackInfo<v8::Value>& info) {}
 
+void EmptyInterceptorQuery(Local<Name> name,
+                           const v8::PropertyCallbackInfo<v8::Integer>& info) {}
+
+void EmptyInterceptorDeleter(
+    Local<Name> name, const v8::PropertyCallbackInfo<v8::Boolean>& info) {}
+
+void EmptyInterceptorEnumerator(
+    const v8::PropertyCallbackInfo<v8::Array>& info) {}
 
 void SimpleAccessorGetter(Local<String> name,
                           const v8::PropertyCallbackInfo<v8::Value>& info) {
@@ -2587,6 +2595,47 @@ static void InterceptorForHiddenProperties(
   interceptor_for_hidden_properties_called = true;
 }
 
+THREADED_TEST(NoSideEffectPropertyHandler) {
+  v8::Isolate* isolate = CcTest::isolate();
+  v8::HandleScope scope(isolate);
+  Local<ObjectTemplate> templ = ObjectTemplate::New(isolate);
+  templ->SetHandler(v8::NamedPropertyHandlerConfiguration(
+      EmptyInterceptorGetter, EmptyInterceptorSetter, EmptyInterceptorQuery,
+      EmptyInterceptorDeleter, EmptyInterceptorEnumerator));
+
+  LocalContext context;
+  v8::Local<v8::Object> object =
+      templ->NewInstance(context.local()).ToLocalChecked();
+  context->Global()->Set(context.local(), v8_str("obj"), object).FromJust();
+
+  CHECK(v8::debug::EvaluateGlobal(isolate, v8_str("obj.x"), true).IsEmpty());
+  CHECK(
+      v8::debug::EvaluateGlobal(isolate, v8_str("obj.x = 1"), true).IsEmpty());
+  CHECK(
+      v8::debug::EvaluateGlobal(isolate, v8_str("'x' in obj"), true).IsEmpty());
+  CHECK(v8::debug::EvaluateGlobal(isolate, v8_str("delete obj.x"), true)
+            .IsEmpty());
+  // Wrap the variable declaration since declaring globals is a side effect.
+  CHECK(v8::debug::EvaluateGlobal(
+            isolate, v8_str("(function() { for (var p in obj) ; })()"), true)
+            .IsEmpty());
+
+  // TODO(luoe): turn on has_no_side_effect flag from API once it is exposed.
+  i::Handle<i::JSObject> internal_object =
+      i::Handle<i::JSObject>::cast(v8::Utils::OpenHandle(*object));
+  internal_object->GetNamedInterceptor()->set_has_no_side_effect(true);
+
+  v8::debug::EvaluateGlobal(isolate, v8_str("obj.x"), true).ToLocalChecked();
+  CHECK(
+      v8::debug::EvaluateGlobal(isolate, v8_str("obj.x = 1"), true).IsEmpty());
+  v8::debug::EvaluateGlobal(isolate, v8_str("'x' in obj"), true)
+      .ToLocalChecked();
+  CHECK(v8::debug::EvaluateGlobal(isolate, v8_str("delete obj.x"), true)
+            .IsEmpty());
+  v8::debug::EvaluateGlobal(
+      isolate, v8_str("(function() { for (var p in obj) ; })()"), true)
+      .ToLocalChecked();
+}
 
 THREADED_TEST(HiddenPropertiesWithInterceptors) {
   LocalContext context;

@@ -158,7 +158,7 @@ class PropertyCallbackArguments
       Handle<InterceptorInfo> interceptor);
 
   inline Handle<Object> BasicCallIndexedGetterCallback(
-      IndexedPropertyGetterCallback f, uint32_t index);
+      IndexedPropertyGetterCallback f, uint32_t index, Handle<Object> info);
   inline Handle<Object> BasicCallNamedGetterCallback(
       GenericNamedPropertyGetterCallback f, Handle<Name> name,
       Handle<Object> info);

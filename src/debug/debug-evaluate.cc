@@ -937,6 +937,12 @@ bool DebugEvaluate::CallbackHasNoSideEffect(Object* callback_info) {
       info->name()->ShortPrint();
       PrintF("' may cause side effect.\n");
     }
+  } else if (callback_info->IsInterceptorInfo()) {
+    InterceptorInfo* info = InterceptorInfo::cast(callback_info);
+    if (info->has_no_side_effect()) return true;
+    if (FLAG_trace_side_effect_free_debug_evaluate) {
+      PrintF("[debug-evaluate] API Interceptor may cause side effect.\n");
+    }
   }
   return false;
 }

@@ -2401,6 +2401,7 @@ BOOL_ACCESSORS(InterceptorInfo, flags, can_intercept_symbols,
 BOOL_ACCESSORS(InterceptorInfo, flags, all_can_read, kAllCanReadBit)
 BOOL_ACCESSORS(InterceptorInfo, flags, non_masking, kNonMasking)
 BOOL_ACCESSORS(InterceptorInfo, flags, is_named, kNamed)
+BOOL_ACCESSORS(InterceptorInfo, flags, has_no_side_effect, kHasNoSideEffect)
 
 ACCESSORS(CallHandlerInfo, callback, Object, kCallbackOffset)
 ACCESSORS(CallHandlerInfo, js_callback, Object, kJsCallbackOffset)
