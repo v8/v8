@@ -505,11 +505,11 @@ WASM_SIMD_TEST(F32x4Neg) {
     V8_TARGET_ARCH_MIPS64 || V8_TARGET_ARCH_X64
 static const float kApproxError = 0.01f;
 
-WASM_SIMD_COMPILED_TEST(F32x4RecipApprox) {
+WASM_SIMD_TEST(F32x4RecipApprox) {
   RunF32x4UnOpTest(lower_simd, kExprF32x4RecipApprox, Recip, kApproxError);
 }
 
-WASM_SIMD_COMPILED_TEST(F32x4RecipSqrtApprox) {
+WASM_SIMD_TEST(F32x4RecipSqrtApprox) {
   RunF32x4UnOpTest(lower_simd, kExprF32x4RecipSqrtApprox, RecipSqrt,
                    kApproxError);
 }

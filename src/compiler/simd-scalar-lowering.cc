@@ -116,6 +116,8 @@ void SimdScalarLowering::LowerGraph() {
   V(F32x4UConvertI32x4)             \
   V(F32x4Abs)                       \
   V(F32x4Neg)                       \
+  V(F32x4RecipApprox)               \
+  V(F32x4RecipSqrtApprox)           \
   V(F32x4Add)                       \
   V(F32x4AddHoriz)                  \
   V(F32x4Sub)                       \
@@ -1024,6 +1026,22 @@ void SimdScalarLowering::LowerNode(Node* node) {
       F32X4_UNOP_CASE(Abs)
       F32X4_UNOP_CASE(Neg)
 #undef F32x4_UNOP_CASE
+    case IrOpcode::kF32x4RecipApprox:
+    case IrOpcode::kF32x4RecipSqrtApprox: {
+      DCHECK_EQ(1, node->InputCount());
+      Node** rep = GetReplacementsWithType(node->InputAt(0), rep_type);
+      Node** rep_node = zone()->NewArray<Node*>(num_lanes);
+      Node* float_one = graph()->NewNode(common()->Float32Constant(1.0));
+      for (int i = 0; i < num_lanes; ++i) {
+        Node* tmp = rep[i];
+        if (node->opcode() == IrOpcode::kF32x4RecipSqrtApprox) {
+          tmp = graph()->NewNode(machine()->Float32Sqrt(), rep[i]);
+        }
+        rep_node[i] = graph()->NewNode(machine()->Float32Div(), float_one, tmp);
+      }
+      ReplaceNode(node, rep_node, num_lanes);
+      break;
+    }
     case IrOpcode::kF32x4SConvertI32x4: {
       LowerUnaryOp(node, SimdType::kInt32x4, machine()->RoundInt32ToFloat32());
       break;
