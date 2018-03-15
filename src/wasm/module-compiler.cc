@@ -184,8 +184,7 @@ class ModuleCompiler {
 
   void RestartCompilationTasks();
 
-  size_t FinishCompilationUnits(std::vector<Handle<Code>>& results,
-                                ErrorThrower* thrower);
+  size_t FinishCompilationUnits(ErrorThrower* thrower);
 
   bool IsFinisherRunning() const { return finisher_is_running_; }
 
@@ -195,12 +194,10 @@ class ModuleCompiler {
 
   void CompileInParallel(const ModuleWireBytes& wire_bytes,
                          compiler::ModuleEnv* module_env,
-                         std::vector<Handle<Code>>& results,
                          ErrorThrower* thrower);
 
   void CompileSequentially(const ModuleWireBytes& wire_bytes,
                            compiler::ModuleEnv* module_env,
-                           std::vector<Handle<Code>>& results,
                            ErrorThrower* thrower);
 
   void ValidateSequentially(const ModuleWireBytes& wire_bytes,
@@ -1028,9 +1025,7 @@ void ModuleCompiler::RestartCompilationTasks() {
   }
 }
 
-// TODO(mstarzinger): Remove the {results} parameter.
-size_t ModuleCompiler::FinishCompilationUnits(
-    std::vector<Handle<Code>>& results, ErrorThrower* thrower) {
+size_t ModuleCompiler::FinishCompilationUnits(ErrorThrower* thrower) {
   size_t finished = 0;
   while (true) {
     int func_index = -1;
@@ -1068,7 +1063,6 @@ wasm::WasmCode* ModuleCompiler::FinishCompilationUnit(ErrorThrower* thrower,
 
 void ModuleCompiler::CompileInParallel(const ModuleWireBytes& wire_bytes,
                                        compiler::ModuleEnv* module_env,
-                                       std::vector<Handle<Code>>& results,
                                        ErrorThrower* thrower) {
   const WasmModule* module = module_env->module;
   // Data structures for the parallel compilation.
@@ -1113,20 +1107,18 @@ void ModuleCompiler::CompileInParallel(const ModuleWireBytes& wire_bytes,
     //      dequeues it and finishes the compilation unit. Compilation units
     //      are finished concurrently to the background threads to save
     //      memory.
-    FinishCompilationUnits(results, thrower);
+    FinishCompilationUnits(thrower);
   }
   // 4) After the parallel phase of all compilation units has started, the
   //    main thread waits for all {CompilationTask} instances to finish - which
   //    happens once they all realize there's no next work item to process.
   background_task_manager_.CancelAndWait();
   // Finish all compilation units which have been executed while we waited.
-  FinishCompilationUnits(results, thrower);
+  FinishCompilationUnits(thrower);
 }
 
-// TODO(mstarzinger): Remove the {results} parameter.
 void ModuleCompiler::CompileSequentially(const ModuleWireBytes& wire_bytes,
                                          compiler::ModuleEnv* module_env,
-                                         std::vector<Handle<Code>>& results,
                                          ErrorThrower* thrower) {
   DCHECK(!thrower->error());
 
@@ -1490,13 +1482,10 @@ MaybeHandle<WasmModuleObject> ModuleCompiler::CompileToModuleObjectInternal(
         !FLAG_trace_wasm_decoder && FLAG_wasm_num_compilation_tasks > 0 &&
         funcs_to_compile > 1 &&
         V8::GetCurrentPlatform()->NumberOfWorkerThreads() > 0;
-    // Avoid a race condition by collecting results into a second vector.
-    std::vector<Handle<Code>> results;
-
     if (compile_parallel) {
-      CompileInParallel(wire_bytes, env.get(), results, thrower);
+      CompileInParallel(wire_bytes, env.get(), thrower);
     } else {
-      CompileSequentially(wire_bytes, env.get(), results, thrower);
+      CompileSequentially(wire_bytes, env.get(), thrower);
     }
     if (thrower->error()) return {};
 
