@@ -33,6 +33,44 @@ inline MemOperand GetHalfStackSlot(uint32_t half_index) {
 
 inline MemOperand GetContextOperand() { return MemOperand(fp, -16); }
 
+inline void Load(LiftoffAssembler* assm, LiftoffRegister dst, MemOperand src,
+                 ValueType type) {
+  switch (type) {
+    case kWasmI32:
+      assm->lw(dst.gp(), src);
+      break;
+    case kWasmF32:
+      assm->lwc1(dst.fp(), src);
+      break;
+    case kWasmF64:
+      assm->Ldc1(dst.fp(), src);
+      break;
+    default:
+      UNREACHABLE();
+  }
+}
+
+inline void push(LiftoffAssembler* assm, LiftoffRegister reg, ValueType type) {
+  switch (type) {
+    case kWasmI32:
+      assm->push(reg.gp());
+      break;
+    case kWasmI64:
+      assm->Push(reg.high_gp(), reg.low_gp());
+      break;
+    case kWasmF32:
+      assm->addiu(sp, sp, -sizeof(float));
+      assm->swc1(reg.fp(), MemOperand(sp, 0));
+      break;
+    case kWasmF64:
+      assm->addiu(sp, sp, -sizeof(double));
+      assm->Sdc1(reg.fp(), MemOperand(sp, 0));
+      break;
+    default:
+      UNREACHABLE();
+  }
+}
+
 }  // namespace liftoff
 
 uint32_t LiftoffAssembler::PrepareStackFrame() {
@@ -233,7 +271,8 @@ void LiftoffAssembler::Store(Register dst_addr, Register offset_reg,
 void LiftoffAssembler::LoadCallerFrameSlot(LiftoffRegister dst,
                                            uint32_t caller_slot_idx,
                                            ValueType type) {
-  BAILOUT("LoadCallerFrameSlot");
+  MemOperand src(fp, kPointerSize * (caller_slot_idx + 1));
+  liftoff::Load(this, dst, src, type);
 }
 
 void LiftoffAssembler::MoveStackValue(uint32_t dst_index, uint32_t src_index,
@@ -498,12 +537,39 @@ void LiftoffAssembler::AssertUnreachable(AbortReason reason) {
 void LiftoffAssembler::PushCallerFrameSlot(const VarState& src,
                                            uint32_t src_index,
                                            RegPairHalf half) {
-  BAILOUT("PushCallerFrameSlot");
+  switch (src.loc()) {
+    case VarState::kStack: {
+      if (src.type() == kWasmF64) {
+        DCHECK_EQ(kLowWord, half);
+        lw(at, liftoff::GetHalfStackSlot(2 * src_index - 1));
+        push(at);
+      }
+      lw(at,
+         liftoff::GetHalfStackSlot(2 * src_index + (half == kLowWord ? 0 : 1)));
+      push(at);
+      break;
+    }
+    case VarState::kRegister:
+      if (src.type() == kWasmI64) {
+        PushCallerFrameSlot(
+            half == kLowWord ? src.reg().low() : src.reg().high(), kWasmI32);
+      } else {
+        PushCallerFrameSlot(src.reg(), src.type());
+      }
+      break;
+    case VarState::KIntConst: {
+      // The high word is the sign extension of the low word.
+      li(at,
+         Operand(half == kLowWord ? src.i32_const() : src.i32_const() >> 31));
+      push(at);
+      break;
+    }
+  }
 }
 
 void LiftoffAssembler::PushCallerFrameSlot(LiftoffRegister reg,
                                            ValueType type) {
-  BAILOUT("PushCallerFrameSlot reg");
+  liftoff::push(this, reg, type);
 }
 
 void LiftoffAssembler::PushRegisters(LiftoffRegList regs) {
@@ -558,7 +624,7 @@ void LiftoffAssembler::PopRegisters(LiftoffRegList regs) {
 
 void LiftoffAssembler::DropStackSlotsAndRet(uint32_t num_stack_slots) {
   DCHECK_LT(num_stack_slots, (1 << 16) / kPointerSize);  // 16 bit immediate
-  TurboAssembler::DropAndRet(static_cast<int>(num_stack_slots * kPointerSize));
+  TurboAssembler::DropAndRet(static_cast<int>(num_stack_slots));
 }
 
 void LiftoffAssembler::PrepareCCall(wasm::FunctionSig* sig,

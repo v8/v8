@@ -28,6 +28,45 @@ inline MemOperand GetStackSlot(uint32_t index) {
 
 inline MemOperand GetContextOperand() { return MemOperand(fp, -16); }
 
+inline void Load(LiftoffAssembler* assm, LiftoffRegister dst, MemOperand src,
+                 ValueType type) {
+  switch (type) {
+    case kWasmI32:
+      assm->lw(dst.gp(), src);
+      break;
+    case kWasmI64:
+      assm->ld(dst.gp(), src);
+      break;
+    case kWasmF32:
+      assm->lwc1(dst.fp(), src);
+      break;
+    case kWasmF64:
+      assm->Ldc1(dst.fp(), src);
+      break;
+    default:
+      UNREACHABLE();
+  }
+}
+
+inline void push(LiftoffAssembler* assm, LiftoffRegister reg, ValueType type) {
+  switch (type) {
+    case kWasmI32:
+    case kWasmI64:
+      assm->push(reg.gp());
+      break;
+    case kWasmF32:
+      assm->daddiu(sp, sp, -kPointerSize);
+      assm->swc1(reg.fp(), MemOperand(sp, 0));
+      break;
+    case kWasmF64:
+      assm->daddiu(sp, sp, -kPointerSize);
+      assm->Sdc1(reg.fp(), MemOperand(sp, 0));
+      break;
+    default:
+      UNREACHABLE();
+  }
+}
+
 }  // namespace liftoff
 
 uint32_t LiftoffAssembler::PrepareStackFrame() {
@@ -191,7 +230,8 @@ void LiftoffAssembler::Store(Register dst_addr, Register offset_reg,
 void LiftoffAssembler::LoadCallerFrameSlot(LiftoffRegister dst,
                                            uint32_t caller_slot_idx,
                                            ValueType type) {
-  BAILOUT("LoadCallerFrameSlot");
+  MemOperand src(fp, kPointerSize * (caller_slot_idx + 1));
+  liftoff::Load(this, dst, src, type);
 }
 
 void LiftoffAssembler::MoveStackValue(uint32_t dst_index, uint32_t src_index,
@@ -443,12 +483,25 @@ void LiftoffAssembler::AssertUnreachable(AbortReason reason) {
 void LiftoffAssembler::PushCallerFrameSlot(const VarState& src,
                                            uint32_t src_index,
                                            RegPairHalf half) {
-  BAILOUT("PushCallerFrameSlot");
+  switch (src.loc()) {
+    case VarState::kStack:
+      ld(at, liftoff::GetStackSlot(src_index));
+      push(at);
+      break;
+    case VarState::kRegister:
+      PushCallerFrameSlot(src.reg(), src.type());
+      break;
+    case VarState::KIntConst: {
+      li(at, Operand(src.i32_const()));
+      push(at);
+      break;
+    }
+  }
 }
 
 void LiftoffAssembler::PushCallerFrameSlot(LiftoffRegister reg,
                                            ValueType type) {
-  BAILOUT("PushCallerFrameSlot reg");
+  liftoff::push(this, reg, type);
 }
 
 void LiftoffAssembler::PushRegisters(LiftoffRegList regs) {
@@ -498,12 +551,12 @@ void LiftoffAssembler::PopRegisters(LiftoffRegList regs) {
     gp_regs.clear(reg);
     gp_offset += kPointerSize;
   }
-  addiu(sp, sp, gp_offset);
+  daddiu(sp, sp, gp_offset);
 }
 
 void LiftoffAssembler::DropStackSlotsAndRet(uint32_t num_stack_slots) {
   DCHECK_LT(num_stack_slots, (1 << 16) / kPointerSize);  // 16 bit immediate
-  TurboAssembler::DropAndRet(static_cast<int>(num_stack_slots * kPointerSize));
+  TurboAssembler::DropAndRet(static_cast<int>(num_stack_slots));
 }
 
 void LiftoffAssembler::PrepareCCall(wasm::FunctionSig* sig,
