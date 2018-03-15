@@ -2891,6 +2891,37 @@ TEST(JSPromise) {
   }
 }
 
+TEST(HeapSnapshotScriptContext) {
+  LocalContext env;
+  v8::HandleScope scope(env->GetIsolate());
+  v8::HeapProfiler* heap_profiler = env->GetIsolate()->GetHeapProfiler();
+
+  CompileRun("class Foo{}; const foo = new Foo();");
+  const v8::HeapSnapshot* snapshot = heap_profiler->TakeHeapSnapshot();
+  CHECK(ValidateSnapshot(snapshot));
+  const v8::HeapGraphNode* global = GetGlobalObject(snapshot);
+  const v8::HeapGraphNode* native_context =
+      GetProperty(env->GetIsolate(), global, v8::HeapGraphEdge::kInternal,
+                  "native_context");
+  CHECK(native_context);
+  const v8::HeapGraphNode* script_context_table =
+      GetProperty(env->GetIsolate(), native_context,
+                  v8::HeapGraphEdge::kInternal, "script_context_table");
+  CHECK(script_context_table);
+  bool found_foo = false;
+  for (int i = 0, count = script_context_table->GetChildrenCount(); i < count;
+       ++i) {
+    const v8::HeapGraphNode* context =
+        script_context_table->GetChild(i)->GetToNode();
+    const v8::HeapGraphNode* foo = GetProperty(
+        env->GetIsolate(), context, v8::HeapGraphEdge::kContextVariable, "foo");
+    if (foo) {
+      found_foo = true;
+    }
+  }
+  CHECK(found_foo);
+}
+
 class EmbedderNode : public v8::EmbedderGraph::Node {
  public:
   EmbedderNode(const char* name, size_t size,
