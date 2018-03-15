@@ -6174,7 +6174,8 @@ TNode<Number> CodeStubAssembler::ToLength_Inline(SloppyTNode<Context> context,
 }
 
 TNode<Number> CodeStubAssembler::ToInteger_Inline(
-    TNode<Context> context, TNode<Object> input, ToIntegerTruncationMode mode) {
+    SloppyTNode<Context> context, SloppyTNode<Object> input,
+    ToIntegerTruncationMode mode) {
   Builtins::Name builtin = (mode == kNoTruncation)
                                ? Builtins::kToInteger
                                : Builtins::kToInteger_TruncateMinusZero;
@@ -10022,7 +10023,7 @@ void CodeStubAssembler::BranchIfSameValue(Node* lhs, Node* rhs, Label* if_true,
 }
 
 TNode<Oddball> CodeStubAssembler::HasProperty(SloppyTNode<HeapObject> object,
-                                              SloppyTNode<Name> key,
+                                              SloppyTNode<Object> key,
                                               SloppyTNode<Context> context,
                                               HasPropertyLookupMode mode) {
   Label call_runtime(this, Label::kDeferred), return_true(this),

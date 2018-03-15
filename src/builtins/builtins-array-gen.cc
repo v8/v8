@@ -3845,5 +3845,260 @@ TF_BUILTIN(ArrayIteratorPrototypeNext, CodeStubAssembler) {
   }
 }
 
+namespace {
+
+class ArrayFlattenAssembler : public CodeStubAssembler {
+ public:
+  explicit ArrayFlattenAssembler(compiler::CodeAssemblerState* state)
+      : CodeStubAssembler(state) {}
+
+  // https://tc39.github.io/proposal-flatMap/#sec-FlattenIntoArray
+  Node* FlattenIntoArray(Node* context, Node* target, Node* source,
+                         Node* source_length, Node* start, Node* depth,
+                         Node* mapper_function = nullptr,
+                         Node* this_arg = nullptr) {
+    CSA_ASSERT(this, IsJSReceiver(target));
+    CSA_ASSERT(this, IsJSReceiver(source));
+    CSA_ASSERT(this, IsNumberPositive(source_length));
+    CSA_ASSERT(this, IsNumberPositive(start));
+    CSA_ASSERT(this, IsNumber(depth));
+
+    // 1. Let targetIndex be start.
+    VARIABLE(var_target_index, MachineRepresentation::kTagged, start);
+
+    // 2. Let sourceIndex be 0.
+    VARIABLE(var_source_index, MachineRepresentation::kTagged, SmiConstant(0));
+
+    // 3. Repeat...
+    Label loop(this, {&var_target_index, &var_source_index}), done_loop(this);
+    Goto(&loop);
+    BIND(&loop);
+    {
+      Node* const source_index = var_source_index.value();
+      Node* const target_index = var_target_index.value();
+
+      // ...while sourceIndex < sourceLen
+      GotoIfNumberGreaterThanOrEqual(source_index, source_length, &done_loop);
+
+      // a. Let P be ! ToString(sourceIndex).
+      // b. Let exists be ? HasProperty(source, P).
+      CSA_ASSERT(this, SmiGreaterThanOrEqual(source_index, SmiConstant(0)));
+      Node* const exists =
+          HasProperty(source, source_index, context, kHasProperty);
+
+      // c. If exists is true, then
+      Label next(this);
+      GotoIfNot(IsTrue(exists), &next);
+      {
+        // i. Let element be ? Get(source, P).
+        Node* element = GetProperty(context, source, source_index);
+
+        // ii. If mapperFunction is present, then
+        if (mapper_function != nullptr) {
+          CSA_ASSERT(this, Word32Or(IsUndefined(mapper_function),
+                                    IsCallable(mapper_function)));
+          DCHECK_NOT_NULL(this_arg);
+
+          // 1. Set element to ? Call(mapperFunction, thisArg , « element,
+          //                          sourceIndex, source »).
+          element =
+              CallJS(CodeFactory::Call(isolate()), context, mapper_function,
+                     this_arg, element, source_index, source);
+        }
+
+        // iii. Let shouldFlatten be false.
+        Label if_flatten_array(this), if_flatten_proxy(this, Label::kDeferred),
+            if_noflatten(this);
+        // iv. If depth > 0, then
+        GotoIfNumberGreaterThanOrEqual(SmiConstant(0), depth, &if_noflatten);
+        // 1. Set shouldFlatten to ? IsArray(element).
+        GotoIf(TaggedIsSmi(element), &if_noflatten);
+        GotoIf(IsJSArray(element), &if_flatten_array);
+        GotoIfNot(IsJSProxy(element), &if_noflatten);
+        Branch(IsTrue(CallRuntime(Runtime::kArrayIsArray, context, element)),
+               &if_flatten_proxy, &if_noflatten);
+
+        BIND(&if_flatten_array);
+        {
+          CSA_ASSERT(this, IsJSArray(element));
+
+          // 1. Let elementLen be ? ToLength(? Get(element, "length")).
+          Node* const element_length =
+              LoadObjectField(element, JSArray::kLengthOffset);
+
+          // 2. Set targetIndex to ? FlattenIntoArray(target, element,
+          //                                          elementLen, targetIndex,
+          //                                          depth - 1).
+          var_target_index.Bind(
+              CallBuiltin(Builtins::kFlattenIntoArray, context, target, element,
+                          element_length, target_index, NumberDec(depth)));
+          Goto(&next);
+        }
+
+        BIND(&if_flatten_proxy);
+        {
+          CSA_ASSERT(this, IsJSProxy(element));
+
+          // 1. Let elementLen be ? ToLength(? Get(element, "length")).
+          Node* const element_length = ToLength_Inline(
+              context, GetProperty(context, element, LengthStringConstant()));
+
+          // 2. Set targetIndex to ? FlattenIntoArray(target, element,
+          //                                          elementLen, targetIndex,
+          //                                          depth - 1).
+          var_target_index.Bind(
+              CallBuiltin(Builtins::kFlattenIntoArray, context, target, element,
+                          element_length, target_index, NumberDec(depth)));
+          Goto(&next);
+        }
+
+        BIND(&if_noflatten);
+        {
+          // 1. If targetIndex >= 2^53-1, throw a TypeError exception.
+          Label throw_error(this, Label::kDeferred);
+          GotoIfNumberGreaterThanOrEqual(
+              target_index, NumberConstant(kMaxSafeInteger), &throw_error);
+
+          // 2. Perform ? CreateDataPropertyOrThrow(target,
+          //                                        ! ToString(targetIndex),
+          //                                        element).
+          CallRuntime(Runtime::kCreateDataProperty, context, target,
+                      target_index, element);
+
+          // 3. Increase targetIndex by 1.
+          var_target_index.Bind(NumberInc(target_index));
+          Goto(&next);
+
+          BIND(&throw_error);
+          ThrowTypeError(context, MessageTemplate::kFlattenPastSafeLength,
+                         source_length, target_index);
+        }
+      }
+      BIND(&next);
+
+      // d. Increase sourceIndex by 1.
+      var_source_index.Bind(NumberInc(source_index));
+      Goto(&loop);
+    }
+
+    BIND(&done_loop);
+    return var_target_index.value();
+  }
+};
+
+}  // namespace
+
+// https://tc39.github.io/proposal-flatMap/#sec-FlattenIntoArray
+TF_BUILTIN(FlattenIntoArray, ArrayFlattenAssembler) {
+  Node* const context = Parameter(Descriptor::kContext);
+  Node* const target = Parameter(Descriptor::kTarget);
+  Node* const source = Parameter(Descriptor::kSource);
+  Node* const source_length = Parameter(Descriptor::kSourceLength);
+  Node* const start = Parameter(Descriptor::kStart);
+  Node* const depth = Parameter(Descriptor::kDepth);
+
+  Return(
+      FlattenIntoArray(context, target, source, source_length, start, depth));
+}
+
+// https://tc39.github.io/proposal-flatMap/#sec-FlattenIntoArray
+TF_BUILTIN(FlatMapIntoArray, ArrayFlattenAssembler) {
+  Node* const context = Parameter(Descriptor::kContext);
+  Node* const target = Parameter(Descriptor::kTarget);
+  Node* const source = Parameter(Descriptor::kSource);
+  Node* const source_length = Parameter(Descriptor::kSourceLength);
+  Node* const start = Parameter(Descriptor::kStart);
+  Node* const depth = Parameter(Descriptor::kDepth);
+  Node* const mapper_function = Parameter(Descriptor::kMapperFunction);
+  Node* const this_arg = Parameter(Descriptor::kThisArg);
+
+  Return(FlattenIntoArray(context, target, source, source_length, start, depth,
+                          mapper_function, this_arg));
+}
+
+// https://tc39.github.io/proposal-flatMap/#sec-Array.prototype.flatten
+TF_BUILTIN(ArrayPrototypeFlatten, CodeStubAssembler) {
+  Node* const argc =
+      ChangeInt32ToIntPtr(Parameter(BuiltinDescriptor::kArgumentsCount));
+  CodeStubArguments args(this, argc);
+  Node* const context = Parameter(BuiltinDescriptor::kContext);
+  Node* const receiver = args.GetReceiver();
+  Node* const depth = args.GetOptionalArgumentValue(0);
+
+  // 1. Let O be ? ToObject(this value).
+  Node* const o = ToObject(context, receiver);
+
+  // 2. Let sourceLen be ? ToLength(? Get(O, "length")).
+  Node* const source_length =
+      ToLength_Inline(context, GetProperty(context, o, LengthStringConstant()));
+
+  // 3. Let depthNum be 1.
+  VARIABLE(var_depth_num, MachineRepresentation::kTagged, SmiConstant(1));
+
+  // 4. If depth is not undefined, then
+  Label done(this);
+  GotoIf(IsUndefined(depth), &done);
+  {
+    // a. Set depthNum to ? ToInteger(depth).
+    var_depth_num.Bind(ToInteger_Inline(context, depth));
+    Goto(&done);
+  }
+  BIND(&done);
+
+  // 5. Let A be ? ArraySpeciesCreate(O, 0).
+  Node* const constructor =
+      CallRuntime(Runtime::kArraySpeciesConstructor, context, o);
+  Node* const a = ConstructJS(CodeFactory::Construct(isolate()), context,
+                              constructor, SmiConstant(0));
+
+  // 6. Perform ? FlattenIntoArray(A, O, sourceLen, 0, depthNum).
+  CallBuiltin(Builtins::kFlattenIntoArray, context, a, o, source_length,
+              SmiConstant(0), var_depth_num.value());
+
+  // 7. Return A.
+  args.PopAndReturn(a);
+}
+
+// https://tc39.github.io/proposal-flatMap/#sec-Array.prototype.flatMap
+TF_BUILTIN(ArrayPrototypeFlatMap, CodeStubAssembler) {
+  Node* const argc =
+      ChangeInt32ToIntPtr(Parameter(BuiltinDescriptor::kArgumentsCount));
+  CodeStubArguments args(this, argc);
+  Node* const context = Parameter(BuiltinDescriptor::kContext);
+  Node* const receiver = args.GetReceiver();
+  Node* const mapper_function = args.GetOptionalArgumentValue(0);
+
+  // 1. Let O be ? ToObject(this value).
+  Node* const o = ToObject(context, receiver);
+
+  // 2. Let sourceLen be ? ToLength(? Get(O, "length")).
+  Node* const source_length =
+      ToLength_Inline(context, GetProperty(context, o, LengthStringConstant()));
+
+  // 3. If IsCallable(mapperFunction) is false, throw a TypeError exception.
+  Label if_not_callable(this, Label::kDeferred);
+  GotoIf(TaggedIsSmi(mapper_function), &if_not_callable);
+  GotoIfNot(IsCallable(mapper_function), &if_not_callable);
+
+  // 4. If thisArg is present, let T be thisArg; else let T be undefined.
+  Node* const t = args.GetOptionalArgumentValue(1);
+
+  // 5. Let A be ? ArraySpeciesCreate(O, 0).
+  Node* const constructor =
+      CallRuntime(Runtime::kArraySpeciesConstructor, context, o);
+  Node* const a = ConstructJS(CodeFactory::Construct(isolate()), context,
+                              constructor, SmiConstant(0));
+
+  // 6. Perform ? FlattenIntoArray(A, O, sourceLen, 0, 1, mapperFunction, T).
+  CallBuiltin(Builtins::kFlatMapIntoArray, context, a, o, source_length,
+              SmiConstant(0), SmiConstant(1), mapper_function, t);
+
+  // 7. Return A.
+  args.PopAndReturn(a);
+
+  BIND(&if_not_callable);
+  { ThrowTypeError(context, MessageTemplate::kMapperFunctionNonCallable); }
+}
+
 }  // namespace internal
 }  // namespace v8

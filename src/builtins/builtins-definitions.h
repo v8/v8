@@ -367,6 +367,14 @@ namespace internal {
   TFJ(ArrayPrototypeValues, 0)                                                 \
   /* ES6 #sec-%arrayiteratorprototype%.next */                                 \
   TFJ(ArrayIteratorPrototypeNext, 0)                                           \
+  /* https://tc39.github.io/proposal-flatMap/#sec-FlattenIntoArray */          \
+  TFS(FlattenIntoArray, kTarget, kSource, kSourceLength, kStart, kDepth)       \
+  TFS(FlatMapIntoArray, kTarget, kSource, kSourceLength, kStart, kDepth,       \
+      kMapperFunction, kThisArg)                                               \
+  /* https://tc39.github.io/proposal-flatMap/#sec-Array.prototype.flatten */   \
+  TFJ(ArrayPrototypeFlatten, SharedFunctionInfo::kDontAdaptArgumentsSentinel)  \
+  /* https://tc39.github.io/proposal-flatMap/#sec-Array.prototype.flatMap */   \
+  TFJ(ArrayPrototypeFlatMap, SharedFunctionInfo::kDontAdaptArgumentsSentinel)  \
                                                                                \
   /* ArrayBuffer */                                                            \
   /* ES #sec-arraybuffer-constructor */                                        \

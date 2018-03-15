@@ -1315,7 +1315,8 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
                                 SloppyTNode<Object> input);
 
   // ES6 7.1.4 ToInteger ( argument )
-  TNode<Number> ToInteger_Inline(TNode<Context> context, TNode<Object> input,
+  TNode<Number> ToInteger_Inline(SloppyTNode<Context> context,
+                                 SloppyTNode<Object> input,
                                  ToIntegerTruncationMode mode = kNoTruncation);
   TNode<Number> ToInteger(SloppyTNode<Context> context,
                           SloppyTNode<Object> input,
@@ -1910,7 +1911,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
   enum HasPropertyLookupMode { kHasProperty, kForInHasProperty };
 
   TNode<Oddball> HasProperty(SloppyTNode<HeapObject> object,
-                             SloppyTNode<Name> key,
+                             SloppyTNode<Object> key,
                              SloppyTNode<Context> context,
                              HasPropertyLookupMode mode);
 

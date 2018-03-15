@@ -212,7 +212,8 @@ DEFINE_IMPLICATION(harmony_class_fields, harmony_private_fields)
   V(harmony_array_prototype_values, "harmony Array.prototype.values") \
   V(harmony_do_expressions, "harmony do-expressions")                 \
   V(harmony_class_fields, "harmony fields in class literals")         \
-  V(harmony_static_fields, "harmony static fields in class literals")
+  V(harmony_static_fields, "harmony static fields in class literals") \
+  V(harmony_array_flatten, "harmony Array.prototype.flat{ten,Map}")
 
 // Features that are complete (but still behind --harmony/es-staging flag).
 #define HARMONY_STAGED(V)                                               \
