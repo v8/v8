@@ -2892,34 +2892,34 @@ int Message::ErrorLevel() const {
   return self->error_level();
 }
 
-Maybe<int> Message::GetStartColumn(Local<Context> context) const {
+int Message::GetStartColumn() const {
   auto self = Utils::OpenHandle(this);
   i::Isolate* isolate = self->GetIsolate();
   ENTER_V8_NO_SCRIPT_NO_EXCEPTION(isolate);
   EscapableHandleScope handle_scope(reinterpret_cast<Isolate*>(isolate));
   auto msg = i::Handle<i::JSMessageObject>::cast(self);
-  return Just(msg->GetColumnNumber());
+  return msg->GetColumnNumber();
 }
 
-
-int Message::GetStartColumn() const {
-  auto context = ContextFromHeapObject(Utils::OpenHandle(this));
-  const int default_value = kNoColumnInfo;
-  return GetStartColumn(context).FromMaybe(default_value);
+Maybe<int> Message::GetStartColumn(Local<Context> context) const {
+  return Just(GetStartColumn());
 }
 
-
-Maybe<int> Message::GetEndColumn(Local<Context> context) const {
+int Message::GetEndColumn() const {
   auto self = Utils::OpenHandle(this);
   i::Isolate* isolate = self->GetIsolate();
   ENTER_V8_NO_SCRIPT_NO_EXCEPTION(isolate);
   EscapableHandleScope handle_scope(reinterpret_cast<Isolate*>(isolate));
   auto msg = i::Handle<i::JSMessageObject>::cast(self);
   const int column_number = msg->GetColumnNumber();
-  if (column_number == -1) return Just(-1);
+  if (column_number == -1) return -1;
   const int start = self->start_position();
   const int end = self->end_position();
-  return Just(column_number + (end - start));
+  return column_number + (end - start);
+}
+
+Maybe<int> Message::GetEndColumn(Local<Context> context) const {
+  return Just(GetEndColumn());
 }
 
 
