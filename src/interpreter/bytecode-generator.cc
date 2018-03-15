@@ -2134,6 +2134,7 @@ void BytecodeGenerator::VisitObjectLiteral(ObjectLiteral* expr) {
         if (key->IsStringLiteral()) {
           DCHECK(key->IsPropertyName());
           if (property->emit_store()) {
+            builder()->SetExpressionPosition(property->value());
             VisitForAccumulatorValue(property->value());
             FeedbackSlot slot = feedback_spec()->AddStoreOwnICSlot();
             if (FunctionLiteral::NeedsHomeObject(property->value())) {
@@ -2148,13 +2149,16 @@ void BytecodeGenerator::VisitObjectLiteral(ObjectLiteral* expr) {
                   literal, key->AsRawPropertyName(), feedback_index(slot));
             }
           } else {
+            builder()->SetExpressionPosition(property->value());
             VisitForEffect(property->value());
           }
         } else {
           RegisterList args = register_allocator()->NewRegisterList(4);
 
           builder()->MoveRegister(literal, args[0]);
+          builder()->SetExpressionPosition(property->key());
           VisitForRegisterValue(property->key(), args[1]);
+          builder()->SetExpressionPosition(property->value());
           VisitForRegisterValue(property->value(), args[2]);
           if (property->emit_store()) {
             builder()
@@ -2174,6 +2178,7 @@ void BytecodeGenerator::VisitObjectLiteral(ObjectLiteral* expr) {
         DCHECK(!property->NeedsSetFunctionName());
         RegisterList args = register_allocator()->NewRegisterList(2);
         builder()->MoveRegister(literal, args[0]);
+        builder()->SetExpressionPosition(property->value());
         VisitForRegisterValue(property->value(), args[1]);
         builder()->CallRuntime(Runtime::kInternalSetPrototype, args);
         break;
@@ -2227,6 +2232,7 @@ void BytecodeGenerator::VisitObjectLiteral(ObjectLiteral* expr) {
       DCHECK(!property->NeedsSetFunctionName());
       RegisterList args = register_allocator()->NewRegisterList(2);
       builder()->MoveRegister(literal, args[0]);
+      builder()->SetExpressionPosition(property->value());
       VisitForRegisterValue(property->value(), args[1]);
       builder()->CallRuntime(Runtime::kInternalSetPrototype, args);
       continue;
@@ -2238,6 +2244,7 @@ void BytecodeGenerator::VisitObjectLiteral(ObjectLiteral* expr) {
       case ObjectLiteral::Property::MATERIALIZED_LITERAL: {
         Register key = register_allocator()->NewRegister();
         BuildLoadPropertyKey(property, key);
+        builder()->SetExpressionPosition(property->value());
         Register value = VisitForRegisterValue(property->value());
         VisitSetHomeObject(value, literal, property);
 
@@ -2260,6 +2267,7 @@ void BytecodeGenerator::VisitObjectLiteral(ObjectLiteral* expr) {
         RegisterList args = register_allocator()->NewRegisterList(4);
         builder()->MoveRegister(literal, args[0]);
         BuildLoadPropertyKey(property, args[1]);
+        builder()->SetExpressionPosition(property->value());
         VisitForRegisterValue(property->value(), args[2]);
         VisitSetHomeObject(args[2], literal, property);
         builder()
@@ -2275,6 +2283,7 @@ void BytecodeGenerator::VisitObjectLiteral(ObjectLiteral* expr) {
       case ObjectLiteral::Property::SPREAD: {
         RegisterList args = register_allocator()->NewRegisterList(2);
         builder()->MoveRegister(literal, args[0]);
+        builder()->SetExpressionPosition(property->value());
         VisitForRegisterValue(property->value(), args[1]);
         builder()->CallRuntime(Runtime::kCopyDataProperties, args);
         break;
