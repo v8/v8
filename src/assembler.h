@@ -379,9 +379,6 @@ class RelocInfo {
     // Encoded internal reference, used only on MIPS, MIPS64 and PPC.
     INTERNAL_REFERENCE_ENCODED,
 
-    // An off-heap instruction stream target. See http://goo.gl/Z2HUiM.
-    OFF_HEAP_TARGET,
-
     // Marks constant and veneer pools. Only used on ARM and ARM64.
     // They use a custom noncompact encoding.
     CONST_POOL,
@@ -458,9 +455,6 @@ class RelocInfo {
   static inline bool IsInternalReferenceEncoded(Mode mode) {
     return mode == INTERNAL_REFERENCE_ENCODED;
   }
-  static inline bool IsOffHeapTarget(Mode mode) {
-    return mode == OFF_HEAP_TARGET;
-  }
   static inline bool IsNone(Mode mode) { return mode == NONE; }
   static inline bool IsWasmContextReference(Mode mode) {
     return mode == WASM_CONTEXT_REFERENCE;
@@ -535,7 +529,6 @@ class RelocInfo {
       Address target,
       WriteBarrierMode write_barrier_mode = UPDATE_WRITE_BARRIER,
       ICacheFlushMode icache_flush_mode = FLUSH_ICACHE_IF_NEEDED));
-  INLINE(Address target_off_heap_target());
   INLINE(Cell* target_cell());
   INLINE(Handle<Cell> target_cell_handle());
   INLINE(void set_target_cell(

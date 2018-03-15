@@ -13970,7 +13970,6 @@ SafepointEntry Code::GetSafepointEntry(Address pc) {
 int Code::OffHeapInstructionSize() {
   DCHECK(Builtins::IsOffHeapBuiltin(this));
   Isolate* isolate = GetIsolate();
-  if (isolate->embedded_blob() == nullptr) return instruction_size();
   EmbeddedData d = EmbeddedData::FromBlob(isolate->embedded_blob(),
                                           isolate->embedded_blob_size());
   return d.InstructionSizeOfBuiltin(builtin_index());
@@ -13979,7 +13978,6 @@ int Code::OffHeapInstructionSize() {
 Address Code::OffHeapInstructionStart() {
   DCHECK(Builtins::IsOffHeapBuiltin(this));
   Isolate* isolate = GetIsolate();
-  if (isolate->embedded_blob() == nullptr) return instruction_start();
   EmbeddedData d = EmbeddedData::FromBlob(isolate->embedded_blob(),
                                           isolate->embedded_blob_size());
   return reinterpret_cast<Address>(
@@ -13989,7 +13987,6 @@ Address Code::OffHeapInstructionStart() {
 Address Code::OffHeapInstructionEnd() {
   DCHECK(Builtins::IsOffHeapBuiltin(this));
   Isolate* isolate = GetIsolate();
-  if (isolate->embedded_blob() == nullptr) return instruction_end();
   EmbeddedData d = EmbeddedData::FromBlob(isolate->embedded_blob(),
                                           isolate->embedded_blob_size());
   return reinterpret_cast<Address>(
@@ -14141,7 +14138,6 @@ bool Code::IsProcessIndependent() {
       all_real_modes_mask & ~RelocInfo::ModeMask(RelocInfo::COMMENT) &
       ~RelocInfo::ModeMask(RelocInfo::INTERNAL_REFERENCE) &
       ~RelocInfo::ModeMask(RelocInfo::INTERNAL_REFERENCE_ENCODED) &
-      ~RelocInfo::ModeMask(RelocInfo::OFF_HEAP_TARGET) &
       ~RelocInfo::ModeMask(RelocInfo::CONST_POOL) &
       ~RelocInfo::ModeMask(RelocInfo::VENEER_POOL);
   STATIC_ASSERT(RelocInfo::LAST_REAL_RELOC_MODE == RelocInfo::VENEER_POOL);

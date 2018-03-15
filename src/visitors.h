@@ -119,9 +119,6 @@ class ObjectVisitor BASE_EMBEDDED {
 
   // Visits an (encoded) internal reference.
   virtual void VisitInternalReference(Code* host, RelocInfo* rinfo) {}
-
-  // Visits an off-heap target in the instruction stream.
-  virtual void VisitOffHeapTarget(Code* host, RelocInfo* rinfo) {}
 };
 
 }  // namespace internal

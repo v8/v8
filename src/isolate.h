@@ -1247,11 +1247,6 @@ class Isolate {
   }
 
 #ifdef V8_EMBEDDED_BUILTINS
-  // Called only prior to serialization.
-  // This function copies off-heap-safe builtins off the heap, creates off-heap
-  // trampolines, and sets up this isolate's embedded blob.
-  void PrepareEmbeddedBlobForSerialization();
-
   BuiltinsConstantsTableBuilder* builtins_constants_table_builder() const {
     return builtins_constants_table_builder_;
   }
@@ -1633,9 +1628,6 @@ class Isolate {
   // Used during builtins compilation to build the builtins constants table,
   // which is stored on the root list prior to serialization.
   BuiltinsConstantsTableBuilder* builtins_constants_table_builder_ = nullptr;
-
-  const uint8_t* embedded_blob_ = nullptr;
-  uint32_t embedded_blob_size_ = 0;
 #endif
 
   v8::ArrayBuffer::Allocator* array_buffer_allocator_;

@@ -399,8 +399,6 @@ EmbeddedData EmbeddedData::FromIsolate(Isolate* isolate) {
 }
 
 EmbeddedData EmbeddedData::FromBlob(const uint8_t* data, uint32_t size) {
-  DCHECK_NOT_NULL(data);
-  DCHECK_LT(0, size);
   return {data, size};
 }
 
@@ -417,6 +415,12 @@ uint32_t EmbeddedData::InstructionSizeOfBuiltin(int i) const {
   DCHECK(Builtins::IsBuiltinId(i));
   const uint32_t* lengths = Lengths();
   return lengths[i];
+}
+
+// static
+EmbeddedData Snapshot::CreateEmbeddedBlob(Isolate* isolate) {
+  DisallowHeapAllocation no_gc;
+  return EmbeddedData::FromIsolate(isolate);
 }
 #endif
 

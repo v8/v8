@@ -177,6 +177,10 @@ class Snapshot : public AllStatic {
       const std::vector<SnapshotData*>& context_snapshots,
       bool can_be_rehashed);
 
+#ifdef V8_EMBEDDED_BUILTINS
+  static EmbeddedData CreateEmbeddedBlob(Isolate* isolate);
+#endif
+
 #ifdef DEBUG
   static bool SnapshotIsValid(const v8::StartupData* snapshot_blob);
 #endif  // DEBUG

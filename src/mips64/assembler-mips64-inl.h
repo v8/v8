@@ -80,9 +80,10 @@ Address RelocInfo::target_address() {
 }
 
 Address RelocInfo::target_address_address() {
-  DCHECK(IsCodeTarget(rmode_) || IsRuntimeEntry(rmode_) || IsWasmCall(rmode_) ||
-         IsEmbeddedObject(rmode_) || IsExternalReference(rmode_) ||
-         IsOffHeapTarget(rmode_));
+  DCHECK(IsCodeTarget(rmode_) ||
+         IsRuntimeEntry(rmode_) ||
+         rmode_ == EMBEDDED_OBJECT ||
+         rmode_ == EXTERNAL_REFERENCE);
   // Read the address of the word containing the target_address in an
   // instruction stream.
   // The only architecture-independent user of this function is the serializer.
@@ -221,11 +222,6 @@ void RelocInfo::set_target_runtime_entry(Address target,
     set_target_address(target, write_barrier_mode, icache_flush_mode);
 }
 
-Address RelocInfo::target_off_heap_target() {
-  DCHECK(IsOffHeapTarget(rmode_));
-  return Assembler::target_address_at(pc_, constant_pool_);
-}
-
 void RelocInfo::WipeOut() {
   DCHECK(IsEmbeddedObject(rmode_) || IsCodeTarget(rmode_) ||
          IsRuntimeEntry(rmode_) || IsExternalReference(rmode_) ||
@@ -253,8 +249,6 @@ void RelocInfo::Visit(ObjectVisitor* visitor) {
     visitor->VisitInternalReference(host(), this);
   } else if (RelocInfo::IsRuntimeEntry(mode)) {
     visitor->VisitRuntimeEntry(host(), this);
-  } else if (RelocInfo::IsOffHeapTarget(mode)) {
-    visitor->VisitOffHeapTarget(host(), this);
   }
 }
 
