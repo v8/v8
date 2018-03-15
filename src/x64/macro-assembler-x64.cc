@@ -100,20 +100,6 @@ int64_t TurboAssembler::RootRegisterDelta(ExternalReference other) {
   return delta;
 }
 
-
-Operand MacroAssembler::ExternalOperand(ExternalReference target,
-                                        Register scratch) {
-  if (root_array_available_ && !serializer_enabled()) {
-    int64_t delta = RootRegisterDelta(target);
-    if (delta != kInvalidRootRegisterDelta && is_int32(delta)) {
-      return Operand(kRootRegister, static_cast<int32_t>(delta));
-    }
-  }
-  Move(scratch, target);
-  return Operand(scratch, 0);
-}
-
-
 void MacroAssembler::Load(Register destination, ExternalReference source) {
   if (root_array_available_ && !serializer_enabled()) {
     int64_t delta = RootRegisterDelta(source);
@@ -160,6 +146,18 @@ void TurboAssembler::LoadAddress(Register destination,
   }
   // Safe code.
   Move(destination, source);
+}
+
+Operand TurboAssembler::ExternalOperand(ExternalReference target,
+                                        Register scratch) {
+  if (root_array_available_ && !serializer_enabled()) {
+    int64_t delta = RootRegisterDelta(target);
+    if (delta != kInvalidRootRegisterDelta && is_int32(delta)) {
+      return Operand(kRootRegister, static_cast<int32_t>(delta));
+    }
+  }
+  Move(scratch, target);
+  return Operand(scratch, 0);
 }
 
 int TurboAssembler::LoadAddressSize(ExternalReference source) {
