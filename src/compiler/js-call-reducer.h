@@ -154,6 +154,9 @@ class V8_EXPORT_PRIVATE JSCallReducer final : public AdvancedReducer {
   Reduction ReduceNumberIsInteger(Node* node);
   Reduction ReduceNumberIsNaN(Node* node);
 
+  Reduction ReduceMapPrototypeHas(Node* node);
+  Reduction ReduceMapPrototypeGet(Node* node);
+
   // Returns the updated {to} node, and updates control and effect along the
   // way.
   Node* DoFilterPostCallbackWork(ElementsKind kind, Node** control,

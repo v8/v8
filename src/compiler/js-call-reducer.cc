@@ -3430,6 +3430,10 @@ Reduction JSCallReducer::ReduceJSCall(Node* node,
       return ReduceNumberIsInteger(node);
     case Builtins::kNumberIsNaN:
       return ReduceNumberIsNaN(node);
+    case Builtins::kMapPrototypeGet:
+      return ReduceMapPrototypeGet(node);
+    case Builtins::kMapPrototypeHas:
+      return ReduceMapPrototypeHas(node);
     case Builtins::kReturnReceiver:
       return ReduceReturnReceiver(node);
     case Builtins::kStringPrototypeIndexOf:
@@ -5921,6 +5925,76 @@ Reduction JSCallReducer::ReduceNumberIsNaN(Node* node) {
   Node* input = NodeProperties::GetValueInput(node, 2);
   Node* value = graph()->NewNode(simplified()->ObjectIsNaN(), input);
   ReplaceWithValue(node, value);
+  return Replace(value);
+}
+
+Reduction JSCallReducer::ReduceMapPrototypeGet(Node* node) {
+  // We only optimize if we have target, receiver and key parameters.
+  if (node->op()->ValueInputCount() != 3) return NoChange();
+  Node* receiver = NodeProperties::GetValueInput(node, 1);
+  Node* effect = NodeProperties::GetEffectInput(node);
+  Node* control = NodeProperties::GetControlInput(node);
+  Node* key = NodeProperties::GetValueInput(node, 2);
+
+  if (!NodeProperties::HasInstanceTypeWitness(receiver, effect, JS_MAP_TYPE))
+    return NoChange();
+
+  Node* table = effect = graph()->NewNode(
+      simplified()->LoadField(AccessBuilder::ForJSCollectionTable()), receiver,
+      effect, control);
+
+  Node* entry = effect = graph()->NewNode(
+      simplified()->FindOrderedHashMapEntry(), table, key, effect, control);
+
+  Node* check = graph()->NewNode(simplified()->NumberEqual(), entry,
+                                 jsgraph()->MinusOneConstant());
+
+  Node* branch = graph()->NewNode(common()->Branch(), check, control);
+
+  // Key not found.
+  Node* if_true = graph()->NewNode(common()->IfTrue(), branch);
+  Node* etrue = effect;
+  Node* vtrue = jsgraph()->UndefinedConstant();
+
+  // Key found.
+  Node* if_false = graph()->NewNode(common()->IfFalse(), branch);
+  Node* efalse = effect;
+  Node* vfalse = efalse = graph()->NewNode(
+      simplified()->LoadElement(AccessBuilder::ForOrderedHashMapEntryValue()),
+      table, entry, efalse, if_false);
+
+  control = graph()->NewNode(common()->Merge(2), if_true, if_false);
+  Node* value = graph()->NewNode(
+      common()->Phi(MachineRepresentation::kTagged, 2), vtrue, vfalse, control);
+  effect = graph()->NewNode(common()->EffectPhi(2), etrue, efalse, control);
+
+  ReplaceWithValue(node, value, effect, control);
+  return Replace(value);
+}
+
+Reduction JSCallReducer::ReduceMapPrototypeHas(Node* node) {
+  // We only optimize if we have target, receiver and key parameters.
+  if (node->op()->ValueInputCount() != 3) return NoChange();
+  Node* receiver = NodeProperties::GetValueInput(node, 1);
+  Node* effect = NodeProperties::GetEffectInput(node);
+  Node* control = NodeProperties::GetControlInput(node);
+  Node* key = NodeProperties::GetValueInput(node, 2);
+
+  if (!NodeProperties::HasInstanceTypeWitness(receiver, effect, JS_MAP_TYPE))
+    return NoChange();
+
+  Node* table = effect = graph()->NewNode(
+      simplified()->LoadField(AccessBuilder::ForJSCollectionTable()), receiver,
+      effect, control);
+
+  Node* index = effect = graph()->NewNode(
+      simplified()->FindOrderedHashMapEntry(), table, key, effect, control);
+
+  Node* value = graph()->NewNode(simplified()->NumberEqual(), index,
+                                 jsgraph()->MinusOneConstant());
+  value = graph()->NewNode(simplified()->BooleanNot(), value);
+
+  ReplaceWithValue(node, value, effect, control);
   return Replace(value);
 }
 
