@@ -5067,7 +5067,9 @@ Reduction JSCallReducer::ReduceStringIteratorPrototypeNext(Node* node) {
 // ES #sec-string.prototype.concat
 Reduction JSCallReducer::ReduceStringPrototypeConcat(
     Node* node, Handle<SharedFunctionInfo> shared) {
-  if (node->op()->ValueInputCount() < 2) return NoChange();
+  if (node->op()->ValueInputCount() < 2 || node->op()->ValueInputCount() > 3) {
+    return NoChange();
+  }
   CallParameters const& p = CallParametersOf(node->op());
   if (p.speculation_mode() == SpeculationMode::kDisallowSpeculation) {
     return NoChange();
