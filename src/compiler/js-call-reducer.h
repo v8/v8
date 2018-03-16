@@ -150,6 +150,8 @@ class V8_EXPORT_PRIVATE JSCallReducer final : public AdvancedReducer {
   Reduction ReduceMathClz32(Node* node);
   Reduction ReduceMathMinMax(Node* node, const Operator* op, Node* empty_value);
 
+  Reduction ReduceNumberIsFinite(Node* node);
+
   // Returns the updated {to} node, and updates control and effect along the
   // way.
   Node* DoFilterPostCallbackWork(ElementsKind kind, Node** control,

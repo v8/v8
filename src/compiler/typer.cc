@@ -2176,6 +2176,12 @@ Type* Typer::Visitor::TypeNumberIsFloat64Hole(Node* node) {
   return Type::Boolean();
 }
 
+Type* Typer::Visitor::TypeNumberIsFinite(Node* node) { UNREACHABLE(); }
+
+Type* Typer::Visitor::TypeObjectIsFiniteNumber(Node* node) {
+  return Type::Boolean();
+}
+
 Type* Typer::Visitor::TypeObjectIsNaN(Node* node) {
   return TypeUnaryOp(node, ObjectIsNaN);
 }

@@ -384,6 +384,8 @@
   V(TransitionAndStoreNonNumberElement) \
   V(ToBoolean)                          \
   V(NumberIsFloat64Hole)                \
+  V(NumberIsFinite)                     \
+  V(ObjectIsFiniteNumber)               \
   V(ObjectIsArrayBufferView)            \
   V(ObjectIsBigInt)                     \
   V(ObjectIsCallable)                   \

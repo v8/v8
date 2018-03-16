@@ -866,6 +866,12 @@ bool EffectControlLinearizer::TryWireInStateEffect(Node* node,
     case IrOpcode::kNumberIsFloat64Hole:
       result = LowerNumberIsFloat64Hole(node);
       break;
+    case IrOpcode::kNumberIsFinite:
+      result = LowerNumberIsFinite(node);
+      break;
+    case IrOpcode::kObjectIsFiniteNumber:
+      result = LowerObjectIsFiniteNumber(node);
+      break;
     case IrOpcode::kCheckFloat64Hole:
       result = LowerCheckFloat64Hole(node, frame_state);
       break;
@@ -2147,6 +2153,38 @@ Node* EffectControlLinearizer::LowerNumberIsFloat64Hole(Node* node) {
   Node* check = __ Word32Equal(__ Float64ExtractHighWord32(value),
                                __ Int32Constant(kHoleNanUpper32));
   return check;
+}
+
+Node* EffectControlLinearizer::LowerNumberIsFinite(Node* node) {
+  Node* number = node->InputAt(0);
+  Node* diff = __ Float64Sub(number, number);
+  Node* check = __ Float64Equal(diff, diff);
+  return check;
+}
+
+Node* EffectControlLinearizer::LowerObjectIsFiniteNumber(Node* node) {
+  Node* object = node->InputAt(0);
+  Node* zero = __ Int32Constant(0);
+  Node* one = __ Int32Constant(1);
+
+  auto done = __ MakeLabel(MachineRepresentation::kBit);
+
+  // Check if {value} is a Smi.
+  __ GotoIf(ObjectIsSmi(object), &done, one);
+
+  // Check if {value} is a HeapNumber.
+  Node* value_map = __ LoadField(AccessBuilder::ForMap(), object);
+  __ GotoIfNot(__ WordEqual(value_map, __ HeapNumberMapConstant()), &done,
+               zero);
+
+  // Value is a HeapNumber.
+  Node* value = __ LoadField(AccessBuilder::ForHeapNumberValue(), object);
+  Node* diff = __ Float64Sub(value, value);
+  Node* check = __ Float64Equal(diff, diff);
+  __ Goto(&done, check);
+
+  __ Bind(&done);
+  return done.PhiAt(0);
 }
 
 Node* EffectControlLinearizer::LowerObjectIsMinusZero(Node* node) {

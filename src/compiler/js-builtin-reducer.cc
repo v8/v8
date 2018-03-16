@@ -754,20 +754,6 @@ Reduction JSBuiltinReducer::ReduceMapHas(Node* node) {
   return Replace(value);
 }
 
-// ES6 section 20.1.2.2 Number.isFinite ( number )
-Reduction JSBuiltinReducer::ReduceNumberIsFinite(Node* node) {
-  JSCallReduction r(node);
-  if (r.InputsMatchOne(Type::Number())) {
-    // Number.isFinite(a:number) -> NumberEqual(a', a')
-    // where a' = NumberSubtract(a, a)
-    Node* input = r.GetJSCallInput(0);
-    Node* diff = graph()->NewNode(simplified()->NumberSubtract(), input, input);
-    Node* value = graph()->NewNode(simplified()->NumberEqual(), diff, diff);
-    return Replace(value);
-  }
-  return NoChange();
-}
-
 // ES6 section 20.1.2.3 Number.isInteger ( number )
 Reduction JSBuiltinReducer::ReduceNumberIsInteger(Node* node) {
   JSCallReduction r(node);
@@ -996,9 +982,6 @@ Reduction JSBuiltinReducer::Reduce(Node* node) {
       return ReduceCollectionIteratorNext(
           node, OrderedHashMap::kEntrySize, factory()->empty_ordered_hash_map(),
           FIRST_MAP_ITERATOR_TYPE, LAST_MAP_ITERATOR_TYPE);
-    case kNumberIsFinite:
-      reduction = ReduceNumberIsFinite(node);
-      break;
     case kNumberIsInteger:
       reduction = ReduceNumberIsInteger(node);
       break;

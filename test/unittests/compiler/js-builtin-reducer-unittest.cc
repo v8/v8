@@ -195,28 +195,6 @@ TEST_F(JSBuiltinReducerTest, GlobalIsNaNWithPlainPrimitive) {
                                          IsPlainPrimitiveToNumber(p0))));
 }
 
-// -----------------------------------------------------------------------------
-// Number.isFinite
-
-TEST_F(JSBuiltinReducerTest, NumberIsFiniteWithNumber) {
-  Node* function = NumberFunction("isFinite");
-
-  Node* effect = graph()->start();
-  Node* control = graph()->start();
-  Node* context = UndefinedConstant();
-  Node* frame_state = graph()->start();
-  TRACED_FOREACH(Type*, t0, kNumberTypes) {
-    Node* p0 = Parameter(t0, 0);
-    Node* call =
-        graph()->NewNode(javascript()->Call(3), function, UndefinedConstant(),
-                         p0, context, frame_state, effect, control);
-    Reduction r = Reduce(call);
-
-    ASSERT_TRUE(r.Changed());
-    EXPECT_THAT(r.replacement(), IsNumberEqual(IsNumberSubtract(p0, p0),
-                                               IsNumberSubtract(p0, p0)));
-  }
-}
 
 // -----------------------------------------------------------------------------
 // Number.isInteger

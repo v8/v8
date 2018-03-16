@@ -622,6 +622,8 @@ class V8_EXPORT_PRIVATE SimplifiedOperatorBuilder final
   const Operator* ObjectIsUndetectable();
 
   const Operator* NumberIsFloat64Hole();
+  const Operator* NumberIsFinite();
+  const Operator* ObjectIsFiniteNumber();
 
   const Operator* ArgumentsFrame();
   const Operator* ArgumentsLength(int formal_parameter_count,
