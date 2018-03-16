@@ -33,6 +33,11 @@ inline MemOperand GetHalfStackSlot(uint32_t half_index) {
 
 inline MemOperand GetContextOperand() { return MemOperand(fp, -16); }
 
+// Use this register to store the address of the last argument pushed on the
+// stack for a call to C. This register must be callee saved according to the c
+// calling convention.
+static constexpr Register kCCallLastArgAddrReg = s1;
+
 inline void Load(LiftoffAssembler* assm, LiftoffRegister dst, MemOperand src,
                  ValueType type) {
   switch (type) {
@@ -630,30 +635,57 @@ void LiftoffAssembler::DropStackSlotsAndRet(uint32_t num_stack_slots) {
 void LiftoffAssembler::PrepareCCall(wasm::FunctionSig* sig,
                                     const LiftoffRegister* args,
                                     ValueType out_argument_type) {
-  BAILOUT("PrepareCCall");
+  int pushed_bytes = 0;
+  for (ValueType param_type : sig->parameters()) {
+    pushed_bytes += RoundUp<kPointerSize>(WasmOpcodes::MemSize(param_type));
+    liftoff::push(this, *args++, param_type);
+  }
+  if (out_argument_type != kWasmStmt) {
+    int size = RoundUp<kPointerSize>(WasmOpcodes::MemSize(out_argument_type));
+    addiu(sp, sp, -size);
+    pushed_bytes += size;
+  }
+  // Save the original sp (before the first push), such that we can later
+  // compute pointers to the pushed values. Do this only *after* pushing the
+  // values, because {kCCallLastArgAddrReg} might collide with an arg register.
+  addiu(liftoff::kCCallLastArgAddrReg, sp, pushed_bytes);
+  constexpr Register kScratch = at;
+  static_assert(kScratch != liftoff::kCCallLastArgAddrReg, "collision");
+  int num_c_call_arguments = static_cast<int>(sig->parameter_count()) +
+                             (out_argument_type != kWasmStmt);
+  PrepareCallCFunction(num_c_call_arguments, kScratch);
 }
 
 void LiftoffAssembler::SetCCallRegParamAddr(Register dst, int param_byte_offset,
                                             ValueType type) {
-  BAILOUT("SetCCallRegParamAddr");
+  // Check that we don't accidentally override kCCallLastArgAddrReg.
+  DCHECK_NE(liftoff::kCCallLastArgAddrReg, dst);
+  addiu(dst, liftoff::kCCallLastArgAddrReg, -param_byte_offset);
 }
 
 void LiftoffAssembler::SetCCallStackParamAddr(int stack_param_idx,
                                               int param_byte_offset,
                                               ValueType type) {
-  BAILOUT("SetCCallStackParamAddr");
+  static constexpr Register kScratch = at;
+  SetCCallRegParamAddr(kScratch, param_byte_offset, type);
+  sw(kScratch, MemOperand(sp, stack_param_idx * kPointerSize));
 }
 
 void LiftoffAssembler::LoadCCallOutArgument(LiftoffRegister dst, ValueType type,
                                             int param_byte_offset) {
-  BAILOUT("LoadCCallOutArgument");
+  // Check that we don't accidentally override kCCallLastArgAddrReg.
+  DCHECK_NE(LiftoffRegister(liftoff::kCCallLastArgAddrReg), dst);
+  MemOperand src(liftoff::kCCallLastArgAddrReg, -param_byte_offset);
+  liftoff::Load(this, dst, src, type);
 }
 
 void LiftoffAssembler::CallC(ExternalReference ext_ref, uint32_t num_params) {
-  BAILOUT("CallC");
+  CallCFunction(ext_ref, static_cast<int>(num_params));
 }
 
-void LiftoffAssembler::FinishCCall() { BAILOUT("FinishCCall"); }
+void LiftoffAssembler::FinishCCall() {
+  TurboAssembler::Move(sp, liftoff::kCCallLastArgAddrReg);
+}
 
 void LiftoffAssembler::CallNativeWasmCode(Address addr) {
   Call(addr, RelocInfo::WASM_CALL);
