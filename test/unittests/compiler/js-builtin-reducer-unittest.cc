@@ -196,28 +196,6 @@ TEST_F(JSBuiltinReducerTest, GlobalIsNaNWithPlainPrimitive) {
 }
 
 // -----------------------------------------------------------------------------
-// Number.isNaN
-
-TEST_F(JSBuiltinReducerTest, NumberIsNaNWithNumber) {
-  Node* function = NumberFunction("isNaN");
-
-  Node* effect = graph()->start();
-  Node* control = graph()->start();
-  Node* context = UndefinedConstant();
-  Node* frame_state = graph()->start();
-  TRACED_FOREACH(Type*, t0, kNumberTypes) {
-    Node* p0 = Parameter(t0, 0);
-    Node* call =
-        graph()->NewNode(javascript()->Call(3), function, UndefinedConstant(),
-                         p0, context, frame_state, effect, control);
-    Reduction r = Reduce(call);
-
-    ASSERT_TRUE(r.Changed());
-    EXPECT_THAT(r.replacement(), IsObjectIsNaN(p0));
-  }
-}
-
-// -----------------------------------------------------------------------------
 // Number.isSafeInteger
 
 TEST_F(JSBuiltinReducerTest, NumberIsSafeIntegerWithIntegral32) {

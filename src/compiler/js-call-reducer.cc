@@ -3428,6 +3428,8 @@ Reduction JSCallReducer::ReduceJSCall(Node* node,
       return ReduceNumberIsFinite(node);
     case Builtins::kNumberIsInteger:
       return ReduceNumberIsInteger(node);
+    case Builtins::kNumberIsNaN:
+      return ReduceNumberIsNaN(node);
     case Builtins::kReturnReceiver:
       return ReduceReturnReceiver(node);
     case Builtins::kStringPrototypeIndexOf:
@@ -5905,6 +5907,19 @@ Reduction JSCallReducer::ReduceNumberIsInteger(Node* node) {
   }
   Node* input = NodeProperties::GetValueInput(node, 2);
   Node* value = graph()->NewNode(simplified()->ObjectIsInteger(), input);
+  ReplaceWithValue(node, value);
+  return Replace(value);
+}
+
+// ES #sec-number.isnan
+Reduction JSCallReducer::ReduceNumberIsNaN(Node* node) {
+  if (node->op()->ValueInputCount() < 3) {
+    Node* value = jsgraph()->FalseConstant();
+    ReplaceWithValue(node, value);
+    return Replace(value);
+  }
+  Node* input = NodeProperties::GetValueInput(node, 2);
+  Node* value = graph()->NewNode(simplified()->ObjectIsNaN(), input);
   ReplaceWithValue(node, value);
   return Replace(value);
 }

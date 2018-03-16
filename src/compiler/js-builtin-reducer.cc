@@ -754,20 +754,6 @@ Reduction JSBuiltinReducer::ReduceMapHas(Node* node) {
   return Replace(value);
 }
 
-// ES6 section 20.1.2.4 Number.isNaN ( number )
-Reduction JSBuiltinReducer::ReduceNumberIsNaN(Node* node) {
-  JSCallReduction r(node);
-  if (r.InputsMatchZero()) {
-    // Number.isNaN() -> #false
-    Node* value = jsgraph()->FalseConstant();
-    return Replace(value);
-  }
-  // Number.isNaN(a:number) -> ObjectIsNaN(a)
-  Node* input = r.GetJSCallInput(0);
-  Node* value = graph()->NewNode(simplified()->ObjectIsNaN(), input);
-  return Replace(value);
-}
-
 // ES6 section 20.1.2.5 Number.isSafeInteger ( number )
 Reduction JSBuiltinReducer::ReduceNumberIsSafeInteger(Node* node) {
   JSCallReduction r(node);
@@ -966,9 +952,6 @@ Reduction JSBuiltinReducer::Reduce(Node* node) {
       return ReduceCollectionIteratorNext(
           node, OrderedHashMap::kEntrySize, factory()->empty_ordered_hash_map(),
           FIRST_MAP_ITERATOR_TYPE, LAST_MAP_ITERATOR_TYPE);
-      break;
-    case kNumberIsNaN:
-      reduction = ReduceNumberIsNaN(node);
       break;
     case kNumberIsSafeInteger:
       reduction = ReduceNumberIsSafeInteger(node);
