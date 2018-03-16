@@ -808,18 +808,15 @@ Handle<WasmExportedFunction> WasmExportedFunction::New(
                    Vector<uint8_t>::cast(buffer.SubVector(0, length)))
                .ToHandleChecked();
   }
-  Handle<SharedFunctionInfo> shared =
-      isolate->factory()->NewSharedFunctionInfo(name, export_wrapper, false);
-  shared->set_length(arity);
-  shared->set_internal_formal_parameter_count(arity);
   NewFunctionArgs args = NewFunctionArgs::ForWasm(
       name, export_wrapper, isolate->sloppy_function_without_prototype_map());
   Handle<JSFunction> js_function = isolate->factory()->NewFunction(args);
   // According to the spec, exported functions should not have a [[Construct]]
   // method.
   DCHECK(!js_function->IsConstructor());
+  js_function->shared()->set_length(arity);
+  js_function->shared()->set_internal_formal_parameter_count(arity);
 
-  js_function->set_shared(*shared);
   Handle<Symbol> instance_symbol(isolate->factory()->wasm_instance_symbol());
   JSObject::AddProperty(js_function, instance_symbol, instance, DONT_ENUM);
 
