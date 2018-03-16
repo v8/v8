@@ -46,6 +46,17 @@
 }
 
 {
+  const dot1 = 9_1.1_3;
+  assertEquals(dot1, 91.13);
+
+  const dot2 = 1.1_3;
+  assertEquals(dot2, 1.13);
+
+  const dot3 = 1_1.21;
+  assertEquals(dot3, 11.21);
+}
+
+{
   const basic = Number('1_2_3');
   assertEquals(NaN, basic);
   const exponent = Number('1_0e+1');
@@ -60,6 +71,12 @@
   assertEquals(NaN, binary);
   const leadingZeros = Number('09_1_3');
   assertEquals(NaN, leadingZeros);
+  const dot1 = Number('9_1.1_3');
+  assertEquals(NaN, dot1);
+  const dot2 = Number('1.1_3');
+  assertEquals(NaN, dot2);
+  const dot3 = Number('1_1.21');
+  assertEquals(NaN, dot3);
 }
 
 assertThrows('1_0_0_0_', SyntaxError);
