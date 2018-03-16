@@ -151,6 +151,7 @@ class V8_EXPORT_PRIVATE JSCallReducer final : public AdvancedReducer {
   Reduction ReduceMathMinMax(Node* node, const Operator* op, Node* empty_value);
 
   Reduction ReduceNumberIsFinite(Node* node);
+  Reduction ReduceNumberIsInteger(Node* node);
 
   // Returns the updated {to} node, and updates control and effect along the
   // way.

@@ -711,6 +711,8 @@ bool operator==(CheckMinusZeroParameters const& lhs,
   V(NumberIsFloat64Hole, Operator::kNoProperties, 1, 0)          \
   V(NumberIsFinite, Operator::kNoProperties, 1, 0)               \
   V(ObjectIsFiniteNumber, Operator::kNoProperties, 1, 0)         \
+  V(NumberIsInteger, Operator::kNoProperties, 1, 0)              \
+  V(ObjectIsInteger, Operator::kNoProperties, 1, 0)              \
   V(ConvertTaggedHoleToUndefined, Operator::kNoProperties, 1, 0) \
   V(SameValue, Operator::kCommutative, 2, 0)                     \
   V(ReferenceEqual, Operator::kCommutative, 2, 0)                \

@@ -754,22 +754,6 @@ Reduction JSBuiltinReducer::ReduceMapHas(Node* node) {
   return Replace(value);
 }
 
-// ES6 section 20.1.2.3 Number.isInteger ( number )
-Reduction JSBuiltinReducer::ReduceNumberIsInteger(Node* node) {
-  JSCallReduction r(node);
-  if (r.InputsMatchOne(Type::Number())) {
-    // Number.isInteger(x:number) -> NumberEqual(NumberSubtract(x, x'), #0)
-    // where x' = NumberTrunc(x)
-    Node* input = r.GetJSCallInput(0);
-    Node* trunc = graph()->NewNode(simplified()->NumberTrunc(), input);
-    Node* diff = graph()->NewNode(simplified()->NumberSubtract(), input, trunc);
-    Node* value = graph()->NewNode(simplified()->NumberEqual(), diff,
-                                   jsgraph()->ZeroConstant());
-    return Replace(value);
-  }
-  return NoChange();
-}
-
 // ES6 section 20.1.2.4 Number.isNaN ( number )
 Reduction JSBuiltinReducer::ReduceNumberIsNaN(Node* node) {
   JSCallReduction r(node);
@@ -982,8 +966,6 @@ Reduction JSBuiltinReducer::Reduce(Node* node) {
       return ReduceCollectionIteratorNext(
           node, OrderedHashMap::kEntrySize, factory()->empty_ordered_hash_map(),
           FIRST_MAP_ITERATOR_TYPE, LAST_MAP_ITERATOR_TYPE);
-    case kNumberIsInteger:
-      reduction = ReduceNumberIsInteger(node);
       break;
     case kNumberIsNaN:
       reduction = ReduceNumberIsNaN(node);

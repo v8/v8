@@ -872,6 +872,12 @@ bool EffectControlLinearizer::TryWireInStateEffect(Node* node,
     case IrOpcode::kObjectIsFiniteNumber:
       result = LowerObjectIsFiniteNumber(node);
       break;
+    case IrOpcode::kNumberIsInteger:
+      result = LowerNumberIsInteger(node);
+      break;
+    case IrOpcode::kObjectIsInteger:
+      result = LowerObjectIsInteger(node);
+      break;
     case IrOpcode::kCheckFloat64Hole:
       result = LowerCheckFloat64Hole(node, frame_state);
       break;
@@ -2169,18 +2175,52 @@ Node* EffectControlLinearizer::LowerObjectIsFiniteNumber(Node* node) {
 
   auto done = __ MakeLabel(MachineRepresentation::kBit);
 
-  // Check if {value} is a Smi.
+  // Check if {object} is a Smi.
   __ GotoIf(ObjectIsSmi(object), &done, one);
 
-  // Check if {value} is a HeapNumber.
+  // Check if {object} is a HeapNumber.
   Node* value_map = __ LoadField(AccessBuilder::ForMap(), object);
   __ GotoIfNot(__ WordEqual(value_map, __ HeapNumberMapConstant()), &done,
                zero);
 
-  // Value is a HeapNumber.
+  // {object} is a HeapNumber.
   Node* value = __ LoadField(AccessBuilder::ForHeapNumberValue(), object);
   Node* diff = __ Float64Sub(value, value);
   Node* check = __ Float64Equal(diff, diff);
+  __ Goto(&done, check);
+
+  __ Bind(&done);
+  return done.PhiAt(0);
+}
+
+Node* EffectControlLinearizer::LowerNumberIsInteger(Node* node) {
+  Node* number = node->InputAt(0);
+  Node* trunc = BuildFloat64RoundTruncate(number);
+  Node* diff = __ Float64Sub(number, trunc);
+  Node* check = __ Float64Equal(diff, __ Float64Constant(0));
+  return check;
+}
+
+Node* EffectControlLinearizer::LowerObjectIsInteger(Node* node) {
+  Node* object = node->InputAt(0);
+  Node* zero = __ Int32Constant(0);
+  Node* one = __ Int32Constant(1);
+
+  auto done = __ MakeLabel(MachineRepresentation::kBit);
+
+  // Check if {object} is a Smi.
+  __ GotoIf(ObjectIsSmi(object), &done, one);
+
+  // Check if {object} is a HeapNumber.
+  Node* value_map = __ LoadField(AccessBuilder::ForMap(), object);
+  __ GotoIfNot(__ WordEqual(value_map, __ HeapNumberMapConstant()), &done,
+               zero);
+
+  // {object} is a HeapNumber.
+  Node* value = __ LoadField(AccessBuilder::ForHeapNumberValue(), object);
+  Node* trunc = BuildFloat64RoundTruncate(value);
+  Node* diff = __ Float64Sub(value, trunc);
+  Node* check = __ Float64Equal(diff, __ Float64Constant(0));
   __ Goto(&done, check);
 
   __ Bind(&done);
@@ -4218,9 +4258,8 @@ Maybe<Node*> EffectControlLinearizer::LowerFloat64RoundUp(Node* node) {
 }
 
 Node* EffectControlLinearizer::BuildFloat64RoundDown(Node* value) {
-  Node* round_down = __ Float64RoundDown(value);
-  if (round_down != nullptr) {
-    return round_down;
+  if (machine()->Float64RoundDown().IsSupported()) {
+    return __ Float64RoundDown(value);
   }
 
   Node* const input = value;
@@ -4364,14 +4403,10 @@ Maybe<Node*> EffectControlLinearizer::LowerFloat64RoundTiesEven(Node* node) {
   return Just(done.PhiAt(0));
 }
 
-Maybe<Node*> EffectControlLinearizer::LowerFloat64RoundTruncate(Node* node) {
-  // Nothing to be done if a fast hardware instruction is available.
+Node* EffectControlLinearizer::BuildFloat64RoundTruncate(Node* input) {
   if (machine()->Float64RoundTruncate().IsSupported()) {
-    return Nothing<Node*>();
+    return __ Float64RoundTruncate(input);
   }
-
-  Node* const input = node->InputAt(0);
-
   // General case for trunc.
   //
   //   if 0.0 < input then
@@ -4452,7 +4487,17 @@ Maybe<Node*> EffectControlLinearizer::LowerFloat64RoundTruncate(Node* node) {
     __ Goto(&done, input);
   }
   __ Bind(&done);
-  return Just(done.PhiAt(0));
+  return done.PhiAt(0);
+}
+
+Maybe<Node*> EffectControlLinearizer::LowerFloat64RoundTruncate(Node* node) {
+  // Nothing to be done if a fast hardware instruction is available.
+  if (machine()->Float64RoundTruncate().IsSupported()) {
+    return Nothing<Node*>();
+  }
+
+  Node* const input = node->InputAt(0);
+  return Just(BuildFloat64RoundTruncate(input));
 }
 
 Node* EffectControlLinearizer::LowerFindOrderedHashMapEntry(Node* node) {

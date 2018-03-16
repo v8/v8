@@ -3426,6 +3426,8 @@ Reduction JSCallReducer::ReduceJSCall(Node* node,
                               jsgraph()->Constant(V8_INFINITY));
     case Builtins::kNumberIsFinite:
       return ReduceNumberIsFinite(node);
+    case Builtins::kNumberIsInteger:
+      return ReduceNumberIsInteger(node);
     case Builtins::kReturnReceiver:
       return ReduceReturnReceiver(node);
     case Builtins::kStringPrototypeIndexOf:
@@ -5890,6 +5892,19 @@ Reduction JSCallReducer::ReduceNumberIsFinite(Node* node) {
   }
   Node* input = NodeProperties::GetValueInput(node, 2);
   Node* value = graph()->NewNode(simplified()->ObjectIsFiniteNumber(), input);
+  ReplaceWithValue(node, value);
+  return Replace(value);
+}
+
+// ES #sec-number.isfinite
+Reduction JSCallReducer::ReduceNumberIsInteger(Node* node) {
+  if (node->op()->ValueInputCount() < 3) {
+    Node* value = jsgraph()->FalseConstant();
+    ReplaceWithValue(node, value);
+    return Replace(value);
+  }
+  Node* input = NodeProperties::GetValueInput(node, 2);
+  Node* value = graph()->NewNode(simplified()->ObjectIsInteger(), input);
   ReplaceWithValue(node, value);
   return Replace(value);
 }

@@ -2182,6 +2182,12 @@ Type* Typer::Visitor::TypeObjectIsFiniteNumber(Node* node) {
   return Type::Boolean();
 }
 
+Type* Typer::Visitor::TypeNumberIsInteger(Node* node) { UNREACHABLE(); }
+
+Type* Typer::Visitor::TypeObjectIsInteger(Node* node) {
+  return Type::Boolean();
+}
+
 Type* Typer::Visitor::TypeObjectIsNaN(Node* node) {
   return TypeUnaryOp(node, ObjectIsNaN);
 }

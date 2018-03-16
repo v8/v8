@@ -471,6 +471,26 @@ TEST_F(JSCallReducerTest, NumberIsFinite) {
   EXPECT_THAT(r.replacement(), IsObjectIsFiniteNumber(p0));
 }
 
+// -----------------------------------------------------------------------------
+// Number.isInteger
+
+TEST_F(JSCallReducerTest, NumberIsIntegerWithNumber) {
+  Node* function = NumberFunction("isInteger");
+
+  Node* effect = graph()->start();
+  Node* control = graph()->start();
+  Node* context = UndefinedConstant();
+  Node* frame_state = graph()->start();
+  Node* p0 = Parameter(Type::Any(), 0);
+  Node* call =
+      graph()->NewNode(javascript()->Call(3), function, UndefinedConstant(), p0,
+                       context, frame_state, effect, control);
+  Reduction r = Reduce(call);
+
+  ASSERT_TRUE(r.Changed());
+  EXPECT_THAT(r.replacement(), IsObjectIsInteger(p0));
+}
+
 }  // namespace compiler
 }  // namespace internal
 }  // namespace v8
