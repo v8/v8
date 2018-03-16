@@ -762,13 +762,15 @@ bool WasmExportedFunction::IsWasmExportedFunction(Object* object) {
   Handle<JSFunction> js_function(JSFunction::cast(object));
   if (Code::JS_TO_WASM_FUNCTION != js_function->code()->kind()) return false;
 
-  Handle<Symbol> symbol(
-      js_function->GetIsolate()->factory()->wasm_instance_symbol());
-  MaybeHandle<Object> maybe_result =
-      JSObject::GetPropertyOrElement(js_function, symbol);
-  Handle<Object> result;
-  if (!maybe_result.ToHandle(&result)) return false;
-  return result->IsWasmInstanceObject();
+  // Any function having code of {JS_TO_WASM_FUNCTION} kind must be an exported
+  // function and hence will have a property holding the instance object.
+  DCHECK(JSObject::GetPropertyOrElement(
+             js_function,
+             js_function->GetIsolate()->factory()->wasm_instance_symbol())
+             .ToHandleChecked()
+             ->IsWasmInstanceObject());
+
+  return true;
 }
 
 WasmExportedFunction* WasmExportedFunction::cast(Object* object) {
