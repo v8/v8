@@ -45,7 +45,7 @@ RUNTIME_FUNCTION(Runtime_LiveEditFindSharedFunctionInfosForScript) {
   for (int i = 0; i < found_size; ++i) {
     Handle<SharedFunctionInfo> shared = found[i];
     SharedInfoWrapper info_wrapper = SharedInfoWrapper::Create(isolate);
-    Handle<String> name(shared->name(), isolate);
+    Handle<String> name(shared->Name(), isolate);
     info_wrapper.SetProperties(name, shared->StartPosition(),
                                shared->EndPosition(), shared);
     result->set(i, *info_wrapper.GetJSArray());

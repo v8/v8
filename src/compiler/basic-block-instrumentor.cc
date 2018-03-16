@@ -57,7 +57,7 @@ BasicBlockProfiler::Data* BasicBlockInstrumentor::Instrument(
   // Set the function name.
   if (info->has_shared_info()) {
     std::ostringstream os;
-    info->shared_info()->name()->PrintUC16(os);
+    info->shared_info()->Name()->PrintUC16(os);
     data->SetFunctionName(&os);
   }
   // Capture the schedule string before instrumentation.

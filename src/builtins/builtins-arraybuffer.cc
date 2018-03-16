@@ -60,7 +60,7 @@ BUILTIN(ArrayBufferConstructor) {
   if (args.new_target()->IsUndefined(isolate)) {  // [[Call]]
     THROW_NEW_ERROR_RETURN_FAILURE(
         isolate, NewTypeError(MessageTemplate::kConstructorNotFunction,
-                              handle(target->shared()->name(), isolate)));
+                              handle(target->shared()->Name(), isolate)));
   } else {  // [[Construct]]
     Handle<JSReceiver> new_target = Handle<JSReceiver>::cast(args.new_target());
     Handle<Object> length = args.atOrUndefined(isolate, 1);

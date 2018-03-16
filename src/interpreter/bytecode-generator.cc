@@ -918,7 +918,7 @@ Handle<BytecodeArray> BytecodeGenerator::FinalizeBytecode(
     info()->set_coverage_info(
         isolate->factory()->NewCoverageInfo(block_coverage_builder_->slots()));
     if (FLAG_trace_block_coverage) {
-      info()->coverage_info()->Print(info()->shared_info()->name());
+      info()->coverage_info()->Print(info()->shared_info()->Name());
     }
   }
 

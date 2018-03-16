@@ -628,7 +628,7 @@ void Accessors::ScriptEvalFromFunctionNameGetter(
   if (script->has_eval_from_shared()) {
     Handle<SharedFunctionInfo> shared(script->eval_from_shared());
     // Find the name of the function calling eval.
-    result = Handle<Object>(shared->name(), isolate);
+    result = Handle<Object>(shared->Name(), isolate);
   }
   info.GetReturnValue().Set(Utils::ToLocal(result));
 }

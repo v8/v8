@@ -694,7 +694,7 @@ FunctionLiteral* Parser::ParseFunction(Isolate* isolate, ParseInfo* info,
   DCHECK_EQ(factory()->zone(), info->zone());
 
   // Initialize parser state.
-  Handle<String> name(shared_info->name());
+  Handle<String> name(shared_info->Name());
   info->set_function_name(ast_value_factory()->GetString(name));
   scanner_.Initialize(info->character_stream(), info->is_module());
 

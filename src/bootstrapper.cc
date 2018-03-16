@@ -4214,7 +4214,7 @@ void Genesis::InitializeGlobal_harmony_string_trimming() {
             .ToHandleChecked());
     JSObject::AddProperty(string_prototype, trim_start_name, trim_left_fun,
                           DONT_ENUM);
-    trim_left_fun->shared()->set_name(*trim_start_name);
+    trim_left_fun->shared()->SetName(*trim_start_name);
   }
 
   {
@@ -4226,7 +4226,7 @@ void Genesis::InitializeGlobal_harmony_string_trimming() {
             .ToHandleChecked());
     JSObject::AddProperty(string_prototype, trim_end_name, trim_right_fun,
                           DONT_ENUM);
-    trim_right_fun->shared()->set_name(*trim_end_name);
+    trim_right_fun->shared()->SetName(*trim_end_name);
   }
 }
 

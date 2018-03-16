@@ -5113,7 +5113,7 @@ void Function::SetName(v8::Local<v8::String> name) {
   auto self = Utils::OpenHandle(this);
   if (!self->IsJSFunction()) return;
   auto func = i::Handle<i::JSFunction>::cast(self);
-  func->shared()->set_name(*Utils::OpenHandle(*name));
+  func->shared()->SetName(*Utils::OpenHandle(*name));
 }
 
 
@@ -5130,7 +5130,7 @@ Local<Value> Function::GetName() const {
   }
   if (self->IsJSFunction()) {
     auto func = i::Handle<i::JSFunction>::cast(self);
-    return Utils::ToLocal(handle(func->shared()->name(), isolate));
+    return Utils::ToLocal(handle(func->shared()->Name(), isolate));
   }
   return ToApiHandle<Primitive>(isolate->factory()->undefined_value());
 }

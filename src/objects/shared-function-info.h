@@ -42,8 +42,8 @@ class SharedFunctionInfo : public HeapObject {
   static constexpr Object* const kNoSharedNameSentinel = Smi::kZero;
 
   // [name]: Returns shared name if it exists or an empty string otherwise.
-  inline String* name() const;
-  inline void set_name(String* name);
+  inline String* Name() const;
+  inline void SetName(String* name);
 
   // [code]: Function code.
   DECL_ACCESSORS(code, Code)
@@ -275,7 +275,7 @@ class SharedFunctionInfo : public HeapObject {
   DECL_INT_ACCESSORS(raw_end_position)
 
   // Returns true if the function has shared name.
-  inline bool has_shared_name() const;
+  inline bool HasSharedName() const;
 
   // Is this function a named function expression in the source code.
   DECL_BOOLEAN_ACCESSORS(is_named_expression)
@@ -430,8 +430,7 @@ class SharedFunctionInfo : public HeapObject {
 #define SHARED_FUNCTION_INFO_FIELDS(V)        \
   /* Pointer fields. */                       \
   V(kCodeOffset, kPointerSize)                \
-  V(kNameOffset, kPointerSize)                \
-  V(kScopeInfoOffset, kPointerSize)           \
+  V(kNameOrScopeInfoOffset, kPointerSize)     \
   V(kOuterScopeInfoOffset, kPointerSize)      \
   V(kConstructStubOffset, kPointerSize)       \
   V(kFunctionDataOffset, kPointerSize)        \
@@ -519,8 +518,9 @@ class SharedFunctionInfo : public HeapObject {
   inline bool needs_home_object() const;
 
  private:
-  // [raw_name]: Function name string or kNoSharedNameSentinel.
-  DECL_ACCESSORS(raw_name, Object)
+  // [name_or_scope_info]: Function name string, kNoSharedNameSentinel or
+  // ScopeInfo.
+  DECL_ACCESSORS(name_or_scope_info, Object)
 
   inline void set_kind(FunctionKind kind);
 

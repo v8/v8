@@ -2563,9 +2563,9 @@ Handle<SharedFunctionInfo> Factory::NewSharedFunctionInfo(
     DisallowHeapAllocation no_allocation;
 
     // Set pointer fields.
-    share->set_raw_name(has_shared_name
-                            ? *shared_name
-                            : SharedFunctionInfo::kNoSharedNameSentinel);
+    share->set_name_or_scope_info(
+        has_shared_name ? *shared_name
+                        : SharedFunctionInfo::kNoSharedNameSentinel);
     Handle<Code> code;
     if (!maybe_code.ToHandle(&code)) {
       code = BUILTIN_CODE(isolate(), Illegal);
@@ -2576,7 +2576,6 @@ Handle<SharedFunctionInfo> Factory::NewSharedFunctionInfo(
                                 : Object::cast(*undefined_value());
     share->set_function_data(function_data, SKIP_WRITE_BARRIER);
     share->set_code(*code);
-    share->set_scope_info(ScopeInfo::Empty(isolate()));
     share->set_outer_scope_info(*the_hole_value());
     DCHECK(!Builtins::IsLazy(Builtins::kConstructedNonConstructable));
     Handle<Code> construct_stub =

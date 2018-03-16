@@ -81,8 +81,10 @@ class ScopeInfo : public FixedArray {
   // Is this scope the scope of a named function expression?
   bool HasFunctionName() const;
 
-  bool HasPendingFunctionName() const;
-  void SetPendingFunctionName(String* name);
+  // See SharedFunctionInfo::HasSharedName.
+  bool HasSharedFunctionName() const;
+
+  void SetFunctionName(Object* name);
 
   // Does this scope belong to a function?
   bool HasPositionInfo() const;
@@ -96,11 +98,11 @@ class ScopeInfo : public FixedArray {
   inline bool HasSimpleParameters() const;
 
   // Return the function_name if present.
-  String* FunctionName() const;
+  Object* FunctionName() const;
 
   // Position information accessors.
-  Smi* StartPosition() const;
-  Smi* EndPosition() const;
+  int StartPosition() const;
+  int EndPosition() const;
   void SetPositionInfo(int start, int end);
 
   ModuleInfo* ModuleDescriptorInfo() const;

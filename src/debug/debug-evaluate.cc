@@ -368,36 +368,37 @@ bool IntrinsicHasNoSideEffect(Runtime::FunctionId id) {
   V(CreateObjectLiteral)                 \
   V(CreateRegExpLiteral)                 \
   /* Called from builtins */             \
-  V(ClassOf)                             \
-  V(StringAdd)                           \
-  V(StringParseFloat)                    \
-  V(StringParseInt)                      \
-  V(StringCharCodeAt)                    \
-  V(StringIndexOfUnchecked)              \
-  V(StringEqual)                         \
-  V(RegExpInitializeAndCompile)          \
-  V(SymbolDescriptiveString)             \
-  V(GenerateRandomNumbers)               \
-  V(GlobalPrint)                         \
   V(AllocateInNewSpace)                  \
   V(AllocateInTargetSpace)               \
   V(AllocateSeqOneByteString)            \
   V(AllocateSeqTwoByteString)            \
+  V(ArrayIncludes_Slow)                  \
+  V(ArrayIndexOf)                        \
+  V(ArrayIsArray)                        \
+  V(ClassOf)                             \
+  V(GenerateRandomNumbers)               \
+  V(GetFunctionName)                     \
+  V(GetOwnPropertyDescriptor)            \
+  V(GlobalPrint)                         \
+  V(HasProperty)                         \
   V(ObjectCreate)                        \
   V(ObjectEntries)                       \
   V(ObjectEntriesSkipFastPath)           \
   V(ObjectHasOwnProperty)                \
   V(ObjectValues)                        \
   V(ObjectValuesSkipFastPath)            \
-  V(ArrayIndexOf)                        \
-  V(ArrayIncludes_Slow)                  \
-  V(ArrayIsArray)                        \
-  V(ThrowTypeError)                      \
-  V(ThrowRangeError)                     \
-  V(ToName)                              \
-  V(GetOwnPropertyDescriptor)            \
-  V(HasProperty)                         \
+  V(RegExpInitializeAndCompile)          \
   V(StackGuard)                          \
+  V(StringAdd)                           \
+  V(StringCharCodeAt)                    \
+  V(StringEqual)                         \
+  V(StringIndexOfUnchecked)              \
+  V(StringParseFloat)                    \
+  V(StringParseInt)                      \
+  V(SymbolDescriptiveString)             \
+  V(ThrowRangeError)                     \
+  V(ThrowTypeError)                      \
+  V(ToName)                              \
   /* Misc. */                            \
   V(Call)                                \
   V(MaxSmi)                              \

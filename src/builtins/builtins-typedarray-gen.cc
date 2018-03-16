@@ -746,9 +746,7 @@ TF_BUILTIN(TypedArrayConstructor, TypedArrayBuiltinsAssembler) {
 
   BIND(&throwtypeerror);
   {
-    Node* shared =
-        LoadObjectField(target, JSFunction::kSharedFunctionInfoOffset);
-    Node* name = LoadObjectField(shared, SharedFunctionInfo::kNameOffset);
+    Node* name = CallRuntime(Runtime::kGetFunctionName, context, target);
     ThrowTypeError(context, MessageTemplate::kConstructorNotFunction, name);
   }
 }

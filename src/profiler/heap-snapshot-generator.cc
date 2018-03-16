@@ -604,7 +604,7 @@ HeapEntry* V8HeapExplorer::AddEntry(HeapObject* object) {
   if (object->IsJSFunction()) {
     JSFunction* func = JSFunction::cast(object);
     SharedFunctionInfo* shared = func->shared();
-    const char* name = names_->GetName(shared->name());
+    const char* name = names_->GetName(shared->Name());
     return AddEntry(object, HeapEntry::kClosure, name);
   } else if (object->IsJSBoundFunction()) {
     return AddEntry(object, HeapEntry::kClosure, "native_bind");
@@ -646,7 +646,7 @@ HeapEntry* V8HeapExplorer::AddEntry(HeapObject* object) {
   } else if (object->IsCode()) {
     return AddEntry(object, HeapEntry::kCode, "");
   } else if (object->IsSharedFunctionInfo()) {
-    String* name = SharedFunctionInfo::cast(object)->name();
+    String* name = SharedFunctionInfo::cast(object)->Name();
     return AddEntry(object,
                     HeapEntry::kCode,
                     names_->GetName(name));
@@ -1044,7 +1044,7 @@ void V8HeapExplorer::ExtractContextReferences(int entry, Context* context) {
                           Context::OffsetOfElementAt(idx));
     }
     if (scope_info->HasFunctionName()) {
-      String* name = scope_info->FunctionName();
+      String* name = String::cast(scope_info->FunctionName());
       int idx = scope_info->FunctionContextSlotIndex(name);
       if (idx >= 0) {
         SetContextReference(context, entry, name, context->get(idx),
@@ -1155,15 +1155,15 @@ void V8HeapExplorer::ExtractSharedFunctionInfoReferences(
         Code::Kind2String(shared->code()->kind())));
   }
 
-  SetInternalReference(obj, entry, "raw_name", shared->raw_name(),
-                       SharedFunctionInfo::kNameOffset);
   SetInternalReference(obj, entry,
                        "code", shared->code(),
                        SharedFunctionInfo::kCodeOffset);
-  TagObject(shared->scope_info(), "(function scope info)");
-  SetInternalReference(obj, entry,
-                       "scope_info", shared->scope_info(),
-                       SharedFunctionInfo::kScopeInfoOffset);
+  if (shared->name_or_scope_info()->IsScopeInfo()) {
+    TagObject(shared->name_or_scope_info(), "(function scope info)");
+  }
+  SetInternalReference(obj, entry, "name_or_scope_info",
+                       shared->name_or_scope_info(),
+                       SharedFunctionInfo::kNameOrScopeInfoOffset);
   SetInternalReference(obj, entry,
                        "script", shared->script(),
                        SharedFunctionInfo::kScriptOffset);

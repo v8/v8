@@ -201,8 +201,8 @@
   V(toJSON_string, "toJSON")                                       \
   V(toString_string, "toString")                                   \
   V(true_string, "true")                                           \
-  V(type_string, "type")                                           \
   V(TypeError_string, "TypeError")                                 \
+  V(type_string, "type")                                           \
   V(Uint16Array_string, "Uint16Array")                             \
   V(Uint32Array_string, "Uint32Array")                             \
   V(Uint8Array_string, "Uint8Array")                               \

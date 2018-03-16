@@ -266,7 +266,6 @@ extras_accessors = [
     'SeqOneByteString, chars, char, kHeaderSize',
     'SeqTwoByteString, chars, char, kHeaderSize',
     'SharedFunctionInfo, code, Code, kCodeOffset',
-    'SharedFunctionInfo, scope_info, ScopeInfo, kScopeInfoOffset',
     'SharedFunctionInfo, function_token_position, int, kFunctionTokenPositionOffset',
     'SharedFunctionInfo, start_position_and_type, int, kStartPositionAndTypeOffset',
     'SharedFunctionInfo, end_position, int, kEndPositionOffset',

@@ -837,12 +837,17 @@ void SharedFunctionInfo::SharedFunctionInfoVerify() {
   VerifyObjectField(kFeedbackMetadataOffset);
   VerifyObjectField(kFunctionDataOffset);
   VerifyObjectField(kFunctionIdentifierOffset);
-  VerifyObjectField(kNameOffset);
+  VerifyObjectField(kNameOrScopeInfoOffset);
   VerifyObjectField(kOuterScopeInfoOffset);
-  VerifyObjectField(kScopeInfoOffset);
   VerifyObjectField(kScriptOffset);
 
-  CHECK(raw_name() == kNoSharedNameSentinel || raw_name()->IsString());
+  Object* value = name_or_scope_info();
+  CHECK(value == kNoSharedNameSentinel || value->IsString() ||
+        value->IsScopeInfo());
+  if (value->IsScopeInfo()) {
+    CHECK_LT(0, ScopeInfo::cast(value)->length());
+    CHECK_NE(value, GetHeap()->empty_scope_info());
+  }
 
   Isolate* isolate = GetIsolate();
   CHECK(function_data()->IsUndefined(isolate) || IsApiFunction() ||
@@ -853,15 +858,15 @@ void SharedFunctionInfo::SharedFunctionInfoVerify() {
         HasInferredName());
 
   int expected_map_index = Context::FunctionMapIndex(
-      language_mode(), kind(), true, has_shared_name(), needs_home_object());
+      language_mode(), kind(), true, HasSharedName(), needs_home_object());
   CHECK_EQ(expected_map_index, function_map_index());
 
   if (scope_info()->length() > 0) {
     ScopeInfo* info = scope_info();
     CHECK(kind() == info->function_kind());
     CHECK_EQ(kind() == kModule, info->scope_type() == MODULE_SCOPE);
-    CHECK_EQ(raw_start_position(), info->StartPosition()->value());
-    CHECK_EQ(raw_end_position(), info->EndPosition()->value());
+    CHECK_EQ(raw_start_position(), info->StartPosition());
+    CHECK_EQ(raw_end_position(), info->EndPosition());
   }
 }
 

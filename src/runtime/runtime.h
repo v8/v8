@@ -390,6 +390,7 @@ namespace internal {
   F(ValueOf, 1, 1)                                              \
   F(IsJSReceiver, 1, 1)                                         \
   F(ClassOf, 1, 1)                                              \
+  F(GetFunctionName, 1, 1)                                      \
   F(CopyDataProperties, 2, 1)                                   \
   F(CopyDataPropertiesWithExcludedProperties, -1 /* >= 1 */, 1) \
   F(DefineGetterPropertyUnchecked, 4, 1)                        \

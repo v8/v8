@@ -212,7 +212,7 @@ void UnoptimizedCompileJob::PrepareOnMainThread(Isolate* isolate) {
   }
   parser_->DeserializeScopeChain(parse_info_.get(), outer_scope_info);
 
-  Handle<String> name(shared_->name());
+  Handle<String> name(shared_->Name());
   parse_info_->set_function_name(
       parse_info_->ast_value_factory()->GetString(name));
   set_status(Status::kPrepared);
