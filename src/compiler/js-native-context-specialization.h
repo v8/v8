@@ -183,7 +183,7 @@ class JSNativeContextSpecialization final : public AdvancedReducer {
   // Extract receiver maps from {nexus} and filter based on {receiver} if
   // possible.
   bool ExtractReceiverMaps(Node* receiver, Node* effect,
-                           FeedbackNexus const& nexus,
+                           FeedbackNexus const& nexus, AccessMode access_mode,
                            MapHandles* receiver_maps);
 
   // Try to infer maps for the given {receiver} at the current {effect}.
