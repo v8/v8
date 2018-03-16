@@ -292,6 +292,7 @@ class ShellOptions {
         send_idle_notification(false),
         invoke_weak_callbacks(false),
         omit_quit(false),
+        wait_for_wasm(true),
         stress_opt(false),
         stress_deopt(false),
         stress_runs(1),
@@ -327,6 +328,7 @@ class ShellOptions {
   bool send_idle_notification;
   bool invoke_weak_callbacks;
   bool omit_quit;
+  bool wait_for_wasm;
   bool stress_opt;
   bool stress_deopt;
   int stress_runs;

@@ -2804,6 +2804,11 @@ bool Shell::SetOptions(int argc, char* argv[]) {
     } else if (strcmp(argv[i], "--omit-quit") == 0) {
       options.omit_quit = true;
       argv[i] = nullptr;
+    } else if (strcmp(argv[i], "--no-wait-for-wasm") == 0) {
+      // TODO(herhut) Remove this flag once wasm compilation is fully
+      // isolate-independent.
+      options.wait_for_wasm = false;
+      argv[i] = nullptr;
     } else if (strcmp(argv[i], "-f") == 0) {
       // Ignore any -f flags for compatibility with other stand-alone
       // JavaScript engines.
@@ -3018,7 +3023,8 @@ void Shell::CompleteMessageLoop(Isolate* isolate) {
     i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
     i::wasm::CompilationManager* wasm_compilation_manager =
         i_isolate->wasm_engine()->compilation_manager();
-    bool should_wait = wasm_compilation_manager->HasRunningCompileJob() ||
+    bool should_wait = (options.wait_for_wasm &&
+                        wasm_compilation_manager->HasRunningCompileJob()) ||
                        isolate_status_[isolate];
     return should_wait ? platform::MessageLoopBehavior::kWaitForWork
                        : platform::MessageLoopBehavior::kDoNotWait;
