@@ -959,6 +959,32 @@ void TurboAssembler::Sltu(Register rd, Register rs, const Operand& rt) {
   }
 }
 
+void TurboAssembler::Sgt(Register rd, Register rs, const Operand& rt) {
+  if (rt.is_reg()) {
+    slt(rd, rt.rm(), rs);
+  } else {
+    // li handles the relocation.
+    UseScratchRegisterScope temps(this);
+    Register scratch = temps.hasAvailable() ? temps.Acquire() : t8;
+    DCHECK(rs != scratch);
+    li(scratch, rt);
+    slt(rd, scratch, rs);
+  }
+}
+
+void TurboAssembler::Sgtu(Register rd, Register rs, const Operand& rt) {
+  if (rt.is_reg()) {
+    sltu(rd, rt.rm(), rs);
+  } else {
+    // li handles the relocation.
+    UseScratchRegisterScope temps(this);
+    Register scratch = temps.hasAvailable() ? temps.Acquire() : t8;
+    DCHECK(rs != scratch);
+    li(scratch, rt);
+    sltu(rd, scratch, rs);
+  }
+}
+
 void TurboAssembler::Ror(Register rd, Register rs, const Operand& rt) {
   if (rt.is_reg()) {
     rotrv(rd, rs, rt.rm());
@@ -4564,231 +4590,90 @@ bool TurboAssembler::AllowThisStubCall(CodeStub* stub) {
   return has_frame() || !stub->SometimesSetsUpAFrame();
 }
 
-static inline void BranchOvfHelper(TurboAssembler* tasm, Register overflow_dst,
-                                   Label* overflow_label,
-                                   Label* no_overflow_label) {
-  DCHECK(overflow_label || no_overflow_label);
-  if (!overflow_label) {
-    DCHECK(no_overflow_label);
-    tasm->Branch(no_overflow_label, ge, overflow_dst, Operand(zero_reg));
+void TurboAssembler::DaddOverflow(Register dst, Register left,
+                                  const Operand& right, Register overflow) {
+  Register right_reg = no_reg;
+  Register scratch = t8;
+  if (!right.is_reg()) {
+    li(at, Operand(right));
+    right_reg = at;
   } else {
-    tasm->Branch(overflow_label, lt, overflow_dst, Operand(zero_reg));
-    if (no_overflow_label) tasm->Branch(no_overflow_label);
-  }
-}
-
-void TurboAssembler::DaddBranchOvf(Register dst, Register left,
-                                   const Operand& right, Label* overflow_label,
-                                   Label* no_overflow_label, Register scratch) {
-  if (right.is_reg()) {
-    DaddBranchOvf(dst, left, right.rm(), overflow_label, no_overflow_label,
-                  scratch);
-  } else {
-    Register overflow_dst = t9;
-    DCHECK(dst != scratch);
-    DCHECK(dst != overflow_dst);
-    DCHECK(scratch != overflow_dst);
-    DCHECK(left != overflow_dst);
-    li(overflow_dst, right);  // Load right.
-    if (dst == left) {
-      mov(scratch, left);              // Preserve left.
-      Daddu(dst, left, overflow_dst);  // Left is overwritten.
-      xor_(scratch, dst, scratch);     // Original left.
-      xor_(overflow_dst, dst, overflow_dst);
-      and_(overflow_dst, overflow_dst, scratch);
-    } else {
-      Daddu(dst, left, overflow_dst);
-      xor_(scratch, dst, overflow_dst);
-      xor_(overflow_dst, dst, left);
-      and_(overflow_dst, scratch, overflow_dst);
-    }
-    BranchOvfHelper(this, overflow_dst, overflow_label, no_overflow_label);
-  }
-}
-
-void TurboAssembler::DaddBranchOvf(Register dst, Register left, Register right,
-                                   Label* overflow_label,
-                                   Label* no_overflow_label, Register scratch) {
-  Register overflow_dst = t9;
-  DCHECK(dst != scratch);
-  DCHECK(dst != overflow_dst);
-  DCHECK(scratch != overflow_dst);
-  DCHECK(left != overflow_dst);
-  DCHECK(right != overflow_dst);
-  DCHECK(left != scratch);
-  DCHECK(right != scratch);
-
-  if (left == right && dst == left) {
-    mov(overflow_dst, right);
-    right = overflow_dst;
+    right_reg = right.rm();
   }
 
-  if (dst == left) {
-    mov(scratch, left);           // Preserve left.
-    daddu(dst, left, right);      // Left is overwritten.
-    xor_(scratch, dst, scratch);  // Original left.
-    xor_(overflow_dst, dst, right);
-    and_(overflow_dst, overflow_dst, scratch);
-  } else if (dst == right) {
-    mov(scratch, right);          // Preserve right.
-    daddu(dst, left, right);      // Right is overwritten.
-    xor_(scratch, dst, scratch);  // Original right.
-    xor_(overflow_dst, dst, left);
-    and_(overflow_dst, overflow_dst, scratch);
-  } else {
-    daddu(dst, left, right);
-    xor_(overflow_dst, dst, left);
-    xor_(scratch, dst, right);
-    and_(overflow_dst, scratch, overflow_dst);
-  }
-  BranchOvfHelper(this, overflow_dst, overflow_label, no_overflow_label);
-}
+  DCHECK(left != scratch && right_reg != scratch && dst != scratch &&
+         overflow != scratch);
+  DCHECK(overflow != left && overflow != right_reg);
 
-void TurboAssembler::DsubBranchOvf(Register dst, Register left,
-                                   const Operand& right, Label* overflow_label,
-                                   Label* no_overflow_label, Register scratch) {
-  DCHECK(overflow_label || no_overflow_label);
-  if (right.is_reg()) {
-    DsubBranchOvf(dst, left, right.rm(), overflow_label, no_overflow_label,
-                  scratch);
-  } else {
-    Register overflow_dst = t9;
-    DCHECK(dst != scratch);
-    DCHECK(dst != overflow_dst);
-    DCHECK(scratch != overflow_dst);
-    DCHECK(left != overflow_dst);
-    DCHECK(left != scratch);
-    li(overflow_dst, right);  // Load right.
-    if (dst == left) {
-      mov(scratch, left);                         // Preserve left.
-      Dsubu(dst, left, overflow_dst);             // Left is overwritten.
-      xor_(overflow_dst, scratch, overflow_dst);  // scratch is original left.
-      xor_(scratch, dst, scratch);                // scratch is original left.
-      and_(overflow_dst, scratch, overflow_dst);
-    } else {
-      Dsubu(dst, left, overflow_dst);
-      xor_(scratch, left, overflow_dst);
-      xor_(overflow_dst, dst, left);
-      and_(overflow_dst, scratch, overflow_dst);
-    }
-    BranchOvfHelper(this, overflow_dst, overflow_label, no_overflow_label);
-  }
-}
-
-void TurboAssembler::DsubBranchOvf(Register dst, Register left, Register right,
-                                   Label* overflow_label,
-                                   Label* no_overflow_label, Register scratch) {
-  DCHECK(overflow_label || no_overflow_label);
-  Register overflow_dst = t9;
-  DCHECK(dst != scratch);
-  DCHECK(dst != overflow_dst);
-  DCHECK(scratch != overflow_dst);
-  DCHECK(overflow_dst != left);
-  DCHECK(overflow_dst != right);
-  DCHECK(scratch != left);
-  DCHECK(scratch != right);
-
-  // This happens with some crankshaft code. Since Subu works fine if
-  // left == right, let's not make that restriction here.
-  if (left == right) {
-    mov(dst, zero_reg);
-    if (no_overflow_label) {
-      Branch(no_overflow_label);
-    }
-  }
-
-  if (dst == left) {
-    mov(scratch, left);                // Preserve left.
-    dsubu(dst, left, right);           // Left is overwritten.
-    xor_(overflow_dst, dst, scratch);  // scratch is original left.
-    xor_(scratch, scratch, right);     // scratch is original left.
-    and_(overflow_dst, scratch, overflow_dst);
-  } else if (dst == right) {
-    mov(scratch, right);      // Preserve right.
-    dsubu(dst, left, right);  // Right is overwritten.
-    xor_(overflow_dst, dst, left);
-    xor_(scratch, left, scratch);  // Original right.
-    and_(overflow_dst, scratch, overflow_dst);
-  } else {
-    dsubu(dst, left, right);
-    xor_(overflow_dst, dst, left);
-    xor_(scratch, left, right);
-    and_(overflow_dst, scratch, overflow_dst);
-  }
-  BranchOvfHelper(this, overflow_dst, overflow_label, no_overflow_label);
-}
-
-static inline void BranchOvfHelperMult(TurboAssembler* tasm,
-                                       Register overflow_dst,
-                                       Label* overflow_label,
-                                       Label* no_overflow_label) {
-  DCHECK(overflow_label || no_overflow_label);
-  if (!overflow_label) {
-    DCHECK(no_overflow_label);
-    tasm->Branch(no_overflow_label, eq, overflow_dst, Operand(zero_reg));
-  } else {
-    tasm->Branch(overflow_label, ne, overflow_dst, Operand(zero_reg));
-    if (no_overflow_label) tasm->Branch(no_overflow_label);
-  }
-}
-
-void TurboAssembler::MulBranchOvf(Register dst, Register left,
-                                  const Operand& right, Label* overflow_label,
-                                  Label* no_overflow_label, Register scratch) {
-  DCHECK(overflow_label || no_overflow_label);
-  if (right.is_reg()) {
-    MulBranchOvf(dst, left, right.rm(), overflow_label, no_overflow_label,
-                 scratch);
-  } else {
-    Register overflow_dst = t9;
-    DCHECK(dst != scratch);
-    DCHECK(dst != overflow_dst);
-    DCHECK(scratch != overflow_dst);
-    DCHECK(left != overflow_dst);
-    DCHECK(left != scratch);
-
-    if (dst == left) {
-      Mul(scratch, left, static_cast<int32_t>(right.immediate()));
-      Mulh(overflow_dst, left, static_cast<int32_t>(right.immediate()));
-      mov(dst, scratch);
-    } else {
-      Mul(dst, left, static_cast<int32_t>(right.immediate()));
-      Mulh(overflow_dst, left, static_cast<int32_t>(right.immediate()));
-    }
-
-    dsra32(scratch, dst, 0);
-    xor_(overflow_dst, overflow_dst, scratch);
-
-    BranchOvfHelperMult(this, overflow_dst, overflow_label, no_overflow_label);
-  }
-}
-
-void TurboAssembler::MulBranchOvf(Register dst, Register left, Register right,
-                                  Label* overflow_label,
-                                  Label* no_overflow_label, Register scratch) {
-  DCHECK(overflow_label || no_overflow_label);
-  Register overflow_dst = t9;
-  DCHECK(dst != scratch);
-  DCHECK(dst != overflow_dst);
-  DCHECK(scratch != overflow_dst);
-  DCHECK(overflow_dst != left);
-  DCHECK(overflow_dst != right);
-  DCHECK(scratch != left);
-  DCHECK(scratch != right);
-
-  if (dst == left || dst == right) {
-    Mul(scratch, left, right);
-    Mulh(overflow_dst, left, right);
+  if (dst == left || dst == right_reg) {
+    daddu(scratch, left, right_reg);
+    xor_(overflow, scratch, left);
+    xor_(at, scratch, right_reg);
+    and_(overflow, overflow, at);
     mov(dst, scratch);
   } else {
-    Mul(dst, left, right);
-    Mulh(overflow_dst, left, right);
+    daddu(dst, left, right_reg);
+    xor_(overflow, dst, left);
+    xor_(at, dst, right_reg);
+    and_(overflow, overflow, at);
+  }
+}
+
+void TurboAssembler::DsubOverflow(Register dst, Register left,
+                                  const Operand& right, Register overflow) {
+  Register right_reg = no_reg;
+  Register scratch = t8;
+  if (!right.is_reg()) {
+    li(at, Operand(right));
+    right_reg = at;
+  } else {
+    right_reg = right.rm();
+  }
+
+  DCHECK(left != scratch && right_reg != scratch && dst != scratch &&
+         overflow != scratch);
+  DCHECK(overflow != left && overflow != right_reg);
+
+  if (dst == left || dst == right_reg) {
+    dsubu(scratch, left, right_reg);
+    xor_(overflow, left, scratch);
+    xor_(at, left, right_reg);
+    and_(overflow, overflow, at);
+    mov(dst, scratch);
+  } else {
+    dsubu(dst, left, right_reg);
+    xor_(overflow, left, dst);
+    xor_(at, left, right_reg);
+    and_(overflow, overflow, at);
+  }
+}
+
+void TurboAssembler::MulOverflow(Register dst, Register left,
+                                 const Operand& right, Register overflow) {
+  Register right_reg = no_reg;
+  Register scratch = t8;
+  if (!right.is_reg()) {
+    li(at, Operand(right));
+    right_reg = at;
+  } else {
+    right_reg = right.rm();
+  }
+
+  DCHECK(left != scratch && right_reg != scratch && dst != scratch &&
+         overflow != scratch);
+  DCHECK(overflow != left && overflow != right_reg);
+
+  if (dst == left || dst == right_reg) {
+    Mul(scratch, left, right_reg);
+    Mulh(overflow, left, right_reg);
+    mov(dst, scratch);
+  } else {
+    Mul(dst, left, right_reg);
+    Mulh(overflow, left, right_reg);
   }
 
   dsra32(scratch, dst, 0);
-  xor_(overflow_dst, overflow_dst, scratch);
-
-  BranchOvfHelperMult(this, overflow_dst, overflow_label, no_overflow_label);
+  xor_(overflow, overflow, scratch);
 }
 
 void TurboAssembler::CallRuntimeDelayed(Zone* zone, Runtime::FunctionId fid,

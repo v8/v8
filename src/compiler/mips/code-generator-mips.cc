@@ -997,19 +997,22 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ Addu(i.OutputRegister(), i.InputRegister(0), i.InputOperand(1));
       break;
     case kMipsAddOvf:
-      // Pseudo-instruction used for overflow/branch. No opcode emitted here.
+      __ AddOverflow(i.OutputRegister(), i.InputRegister(0), i.InputOperand(1),
+                     kScratchReg);
       break;
     case kMipsSub:
       __ Subu(i.OutputRegister(), i.InputRegister(0), i.InputOperand(1));
       break;
     case kMipsSubOvf:
-      // Pseudo-instruction used for overflow/branch. No opcode emitted here.
+      __ SubOverflow(i.OutputRegister(), i.InputRegister(0), i.InputOperand(1),
+                     kScratchReg);
       break;
     case kMipsMul:
       __ Mul(i.OutputRegister(), i.InputRegister(0), i.InputOperand(1));
       break;
     case kMipsMulOvf:
-      // Pseudo-instruction used for overflow/branch. No opcode emitted here.
+      __ MulOverflow(i.OutputRegister(), i.InputRegister(0), i.InputOperand(1),
+                     kScratchReg);
       break;
     case kMipsMulHigh:
       __ Mulh(i.OutputRegister(), i.InputRegister(0), i.InputOperand(1));
@@ -2859,43 +2862,28 @@ void AssembleBranchToLabels(CodeGenerator* gen, TurboAssembler* tasm,
     cc = FlagsConditionToConditionTst(condition);
     __ And(at, i.InputRegister(0), i.InputOperand(1));
     __ Branch(tlabel, cc, at, Operand(zero_reg));
-  } else if (instr->arch_opcode() == kMipsAddOvf) {
+  } else if (instr->arch_opcode() == kMipsAddOvf ||
+             instr->arch_opcode() == kMipsSubOvf) {
+    // Overflow occurs if overflow register is negative
     switch (condition) {
       case kOverflow:
-        __ AddBranchOvf(i.OutputRegister(), i.InputRegister(0),
-                        i.InputOperand(1), tlabel, flabel);
+        __ Branch(tlabel, lt, kScratchReg, Operand(zero_reg));
         break;
       case kNotOverflow:
-        __ AddBranchOvf(i.OutputRegister(), i.InputRegister(0),
-                        i.InputOperand(1), flabel, tlabel);
+        __ Branch(tlabel, ge, kScratchReg, Operand(zero_reg));
         break;
       default:
-        UNSUPPORTED_COND(kMipsAddOvf, condition);
-        break;
-    }
-  } else if (instr->arch_opcode() == kMipsSubOvf) {
-    switch (condition) {
-      case kOverflow:
-        __ SubBranchOvf(i.OutputRegister(), i.InputRegister(0),
-                        i.InputOperand(1), tlabel, flabel);
-        break;
-      case kNotOverflow:
-        __ SubBranchOvf(i.OutputRegister(), i.InputRegister(0),
-                        i.InputOperand(1), flabel, tlabel);
-        break;
-      default:
-        UNSUPPORTED_COND(kMipsAddOvf, condition);
+        UNSUPPORTED_COND(instr->arch_opcode(), condition);
         break;
     }
   } else if (instr->arch_opcode() == kMipsMulOvf) {
+    // Overflow occurs if overflow register is not zero
     switch (condition) {
       case kOverflow:
-        __ MulBranchOvf(i.OutputRegister(), i.InputRegister(0),
-                        i.InputOperand(1), tlabel, flabel);
+        __ Branch(tlabel, ne, kScratchReg, Operand(zero_reg));
         break;
       case kNotOverflow:
-        __ MulBranchOvf(i.OutputRegister(), i.InputRegister(0),
-                        i.InputOperand(1), flabel, tlabel);
+        __ Branch(tlabel, eq, kScratchReg, Operand(zero_reg));
         break;
       default:
         UNSUPPORTED_COND(kMipsMulOvf, condition);
@@ -3061,32 +3049,12 @@ void CodeGenerator::AssembleArchBoolean(Instruction* instr,
     }
     return;
   } else if (instr->arch_opcode() == kMipsAddOvf ||
-             instr->arch_opcode() == kMipsSubOvf ||
-             instr->arch_opcode() == kMipsMulOvf) {
-    Label flabel, tlabel;
-    switch (instr->arch_opcode()) {
-      case kMipsAddOvf:
-        __ AddBranchNoOvf(i.OutputRegister(), i.InputRegister(0),
-                          i.InputOperand(1), &flabel);
-
-        break;
-      case kMipsSubOvf:
-        __ SubBranchNoOvf(i.OutputRegister(), i.InputRegister(0),
-                          i.InputOperand(1), &flabel);
-        break;
-      case kMipsMulOvf:
-        __ MulBranchNoOvf(i.OutputRegister(), i.InputRegister(0),
-                          i.InputOperand(1), &flabel);
-        break;
-      default:
-        UNREACHABLE();
-        break;
-    }
-    __ li(result, 1);
-    __ Branch(&tlabel);
-    __ bind(&flabel);
-    __ li(result, 0);
-    __ bind(&tlabel);
+             instr->arch_opcode() == kMipsSubOvf) {
+    // Overflow occurs if overflow register is negative
+    __ slt(result, kScratchReg, zero_reg);
+  } else if (instr->arch_opcode() == kMipsMulOvf) {
+    // Overflow occurs if overflow register is not zero
+    __ Sgtu(result, kScratchReg, zero_reg);
   } else if (instr->arch_opcode() == kMipsCmp) {
     cc = FlagsConditionToConditionCmp(condition);
     switch (cc) {

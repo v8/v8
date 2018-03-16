@@ -1024,7 +1024,8 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ Daddu(i.OutputRegister(), i.InputRegister(0), i.InputOperand(1));
       break;
     case kMips64DaddOvf:
-      // Pseudo-instruction used for overflow/branch. No opcode emitted here.
+      __ DaddOverflow(i.OutputRegister(), i.InputRegister(0), i.InputOperand(1),
+                      kScratchReg);
       break;
     case kMips64Sub:
       __ Subu(i.OutputRegister(), i.InputRegister(0), i.InputOperand(1));
@@ -1033,13 +1034,15 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ Dsubu(i.OutputRegister(), i.InputRegister(0), i.InputOperand(1));
       break;
     case kMips64DsubOvf:
-      // Pseudo-instruction used for overflow/branch. No opcode emitted here.
+      __ DsubOverflow(i.OutputRegister(), i.InputRegister(0), i.InputOperand(1),
+                      kScratchReg);
       break;
     case kMips64Mul:
       __ Mul(i.OutputRegister(), i.InputRegister(0), i.InputOperand(1));
       break;
     case kMips64MulOvf:
-      // Pseudo-instruction used for overflow/branch. No opcode emitted here.
+      __ MulOverflow(i.OutputRegister(), i.InputRegister(0), i.InputOperand(1),
+                     kScratchReg);
       break;
     case kMips64MulHigh:
       __ Mulh(i.OutputRegister(), i.InputRegister(0), i.InputOperand(1));
@@ -3078,46 +3081,31 @@ void AssembleBranchToLabels(CodeGenerator* gen, TurboAssembler* tasm,
     __ dsra32(kScratchReg, i.OutputRegister(), 0);
     __ sra(at, i.OutputRegister(), 31);
     __ Branch(tlabel, cc, at, Operand(kScratchReg));
-  } else if (instr->arch_opcode() == kMips64DaddOvf) {
+  } else if (instr->arch_opcode() == kMips64DaddOvf ||
+             instr->arch_opcode() == kMips64DsubOvf) {
     switch (condition) {
+      // Overflow occurs if overflow register is negative
       case kOverflow:
-        __ DaddBranchOvf(i.OutputRegister(), i.InputRegister(0),
-                         i.InputOperand(1), tlabel, flabel);
+        __ Branch(tlabel, lt, kScratchReg, Operand(zero_reg));
         break;
       case kNotOverflow:
-        __ DaddBranchOvf(i.OutputRegister(), i.InputRegister(0),
-                         i.InputOperand(1), flabel, tlabel);
+        __ Branch(tlabel, ge, kScratchReg, Operand(zero_reg));
         break;
       default:
-        UNSUPPORTED_COND(kMips64DaddOvf, condition);
-        break;
-    }
-  } else if (instr->arch_opcode() == kMips64DsubOvf) {
-    switch (condition) {
-      case kOverflow:
-        __ DsubBranchOvf(i.OutputRegister(), i.InputRegister(0),
-                         i.InputOperand(1), tlabel, flabel);
-        break;
-      case kNotOverflow:
-        __ DsubBranchOvf(i.OutputRegister(), i.InputRegister(0),
-                         i.InputOperand(1), flabel, tlabel);
-        break;
-      default:
-        UNSUPPORTED_COND(kMips64DsubOvf, condition);
+        UNSUPPORTED_COND(instr->arch_opcode(), condition);
         break;
     }
   } else if (instr->arch_opcode() == kMips64MulOvf) {
+    // Overflow occurs if overflow register is not zero
     switch (condition) {
-      case kOverflow: {
-        __ MulBranchOvf(i.OutputRegister(), i.InputRegister(0),
-                        i.InputOperand(1), tlabel, flabel, kScratchReg);
-      } break;
-      case kNotOverflow: {
-        __ MulBranchOvf(i.OutputRegister(), i.InputRegister(0),
-                        i.InputOperand(1), flabel, tlabel, kScratchReg);
-      } break;
+      case kOverflow:
+        __ Branch(tlabel, ne, kScratchReg, Operand(zero_reg));
+        break;
+      case kNotOverflow:
+        __ Branch(tlabel, eq, kScratchReg, Operand(zero_reg));
+        break;
       default:
-        UNSUPPORTED_COND(kMips64MulOvf, condition);
+        UNSUPPORTED_COND(kMipsMulOvf, condition);
         break;
     }
   } else if (instr->arch_opcode() == kMips64Cmp) {
@@ -3289,32 +3277,12 @@ void CodeGenerator::AssembleArchBoolean(Instruction* instr,
       __ xori(result, result, 1);
     return;
   } else if (instr->arch_opcode() == kMips64DaddOvf ||
-             instr->arch_opcode() == kMips64DsubOvf ||
-             instr->arch_opcode() == kMips64MulOvf) {
-    Label flabel, tlabel;
-    switch (instr->arch_opcode()) {
-      case kMips64DaddOvf:
-        __ DaddBranchNoOvf(i.OutputRegister(), i.InputRegister(0),
-                           i.InputOperand(1), &flabel);
-
-        break;
-      case kMips64DsubOvf:
-        __ DsubBranchNoOvf(i.OutputRegister(), i.InputRegister(0),
-                           i.InputOperand(1), &flabel);
-        break;
-      case kMips64MulOvf:
-        __ MulBranchNoOvf(i.OutputRegister(), i.InputRegister(0),
-                          i.InputOperand(1), &flabel, kScratchReg);
-        break;
-      default:
-        UNREACHABLE();
-        break;
-    }
-    __ li(result, 1);
-    __ Branch(&tlabel);
-    __ bind(&flabel);
-    __ li(result, 0);
-    __ bind(&tlabel);
+             instr->arch_opcode() == kMips64DsubOvf) {
+    // Overflow occurs if overflow register is negative
+    __ slt(result, kScratchReg, zero_reg);
+  } else if (instr->arch_opcode() == kMips64MulOvf) {
+    // Overflow occurs if overflow register is not zero
+    __ Sgtu(result, kScratchReg, zero_reg);
   } else if (instr->arch_opcode() == kMips64Cmp) {
     cc = FlagsConditionToConditionCmp(condition);
     switch (cc) {
