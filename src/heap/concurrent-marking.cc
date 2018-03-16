@@ -144,6 +144,7 @@ class ConcurrentMarkingVisitor final
     for (int i = 0; i < snapshot.number_of_slots(); i++) {
       Object** slot = snapshot.slot(i);
       Object* object = snapshot.value(i);
+      DCHECK(!Internals::HasWeakHeapObjectTag(object));
       if (!object->IsHeapObject()) continue;
       MarkObject(HeapObject::cast(object));
       MarkCompactCollector::RecordSlot(host, slot, object);
@@ -375,7 +376,6 @@ class ConcurrentMarkingVisitor final
       for (Object** p = start; p < end; p++) {
         Object* object = reinterpret_cast<Object*>(
             base::Relaxed_Load(reinterpret_cast<const base::AtomicWord*>(p)));
-        DCHECK(!Internals::HasWeakHeapObjectTag(object));
         slot_snapshot_->add(p, object);
       }
     }
