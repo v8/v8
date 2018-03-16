@@ -1378,7 +1378,7 @@ void MacroAssembler::Jump(Handle<Code> code_object, RelocInfo::Mode rmode) {
 }
 
 void MacroAssembler::JumpToInstructionStream(Address entry) {
-  Move(kOffHeapTrampolineRegister, entry, RelocInfo::NONE);
+  Move(kOffHeapTrampolineRegister, entry, RelocInfo::OFF_HEAP_TARGET);
   jmp(kOffHeapTrampolineRegister);
 }
 

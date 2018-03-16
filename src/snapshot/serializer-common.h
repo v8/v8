@@ -132,7 +132,6 @@ class SerializerDeserializer : public RootVisitor {
   V(0x7c)                               \
   V(0x7d)                               \
   V(0x7e)                               \
-  V(0x7f)                               \
   V(0xf0)                               \
   V(0xf1)                               \
   V(0xf2)                               \
@@ -239,6 +238,9 @@ class SerializerDeserializer : public RootVisitor {
 
   // Used to encode external referenced provided through the API.
   static const int kApiReference = 0x37;
+
+  // Encodes an off-heap instruction stream target.
+  static const int kOffHeapTarget = 0x7f;
 
   // 8 hot (recently seen or back-referenced) objects with optional skip.
   static const int kNumberOfHotObjects = 8;

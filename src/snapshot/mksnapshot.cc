@@ -16,6 +16,7 @@
 #include "src/snapshot/snapshot.h"
 #include "src/snapshot/startup-serializer.h"
 
+namespace {
 class SnapshotWriter {
  public:
   SnapshotWriter()
@@ -150,26 +151,20 @@ class SnapshotWriter {
   }
 
   static void WriteEmbeddedFileData(FILE* fp, const i::EmbeddedData* blob) {
+    // Note: On some platforms (observed on mac64), inserting labels into the
+    // .byte stream causes the compiler to reorder symbols, invalidating stored
+    // offsets.
+    // We either need to avoid doing so, or stop relying on our own offset table
+    // and directly reference symbols instead. But there is another complication
+    // there since the chrome build process on mac verifies the order of symbols
+    // present in the binary.
+    // For now, the straight-forward solution seems to be to just emit a pure
+    // .byte stream.
     fprintf(fp, "V8_EMBEDDED_TEXT_HEADER(v8_embedded_blob_)\n");
-    WriteBinaryContentsAsByteDirective(fp, blob->data(),
-                                       i::EmbeddedData::RawDataOffset());
-    WriteBuiltins(fp, blob);
+    WriteBinaryContentsAsByteDirective(fp, blob->data(), blob->size());
     fprintf(fp, "extern \"C\" const uint8_t v8_embedded_blob_[];\n");
     fprintf(fp, "static const uint32_t v8_embedded_blob_size_ = %d;\n\n",
             blob->size());
-  }
-
-  static void WriteBuiltins(FILE* fp, const i::EmbeddedData* blob) {
-    for (int i = 0; i < i::Builtins::builtin_count; i++) {
-      if (!blob->ContainsBuiltin(i)) continue;
-
-      fprintf(fp, "__asm__(V8_ASM_LABEL(\"Builtins_%s\"));\n",
-              i::Builtins::name(i));
-      WriteBinaryContentsAsByteDirective(
-          fp, blob->InstructionStartOfBuiltin(i),
-          blob->PaddedInstructionSizeOfBuiltin(i));
-    }
-    fprintf(fp, "\n");
   }
 
   static void WriteBinaryContentsAsByteDirective(FILE* fp, const uint8_t* data,
@@ -305,6 +300,56 @@ v8::StartupData CreateSnapshotDataBlob(v8::SnapshotCreator* snapshot_creator,
   return result;
 }
 
+v8::StartupData WarmUpSnapshotDataBlob(v8::SnapshotCreator* snapshot_creator,
+                                       const char* warmup_source) {
+  CHECK_NOT_NULL(warmup_source);
+  // Use following steps to create a warmed up snapshot blob from a cold one:
+  //  - Create a new isolate from the cold snapshot.
+  //  - Create a new context to run the warmup script. This will trigger
+  //    compilation of executed functions.
+  //  - Create a new context. This context will be unpolluted.
+  //  - Serialize the isolate and the second context into a new snapshot blob.
+  v8::StartupData result = {nullptr, 0};
+  v8::base::ElapsedTimer timer;
+  timer.Start();
+  {
+    v8::Isolate* isolate = snapshot_creator->GetIsolate();
+    {
+      v8::HandleScope scope(isolate);
+      v8::Local<v8::Context> context = v8::Context::New(isolate);
+      if (!RunExtraCode(isolate, context, warmup_source, "<warm-up>")) {
+        return result;
+      }
+    }
+    {
+      v8::HandleScope handle_scope(isolate);
+      isolate->ContextDisposedNotification(false);
+      v8::Local<v8::Context> context = v8::Context::New(isolate);
+      snapshot_creator->SetDefaultContext(context);
+    }
+    result = snapshot_creator->CreateBlob(
+        v8::SnapshotCreator::FunctionCodeHandling::kKeep);
+  }
+
+  if (i::FLAG_profile_deserialization) {
+    i::PrintF("Warming up snapshot took %0.3f ms\n",
+              timer.Elapsed().InMillisecondsF());
+  }
+  timer.Stop();
+  return result;
+}
+
+#ifdef V8_EMBEDDED_BUILTINS
+void WriteEmbeddedFile(v8::SnapshotCreator* creator, SnapshotWriter* writer) {
+  i::Isolate* isolate = reinterpret_cast<i::Isolate*>(creator->GetIsolate());
+  isolate->PrepareEmbeddedBlobForSerialization();
+  i::EmbeddedData embedded_blob = i::EmbeddedData::FromBlob(
+      isolate->embedded_blob(), isolate->embedded_blob_size());
+  writer->WriteEmbedded(&embedded_blob);
+}
+#endif  // V8_EMBEDDED_BUILTINS
+}  // namespace
+
 int main(int argc, char** argv) {
   // Make mksnapshot runs predictable to create reproducible snapshots.
   i::FLAG_predictable = true;
@@ -333,31 +378,33 @@ int main(int argc, char** argv) {
     if (i::FLAG_embedded_src) writer.SetEmbeddedFile(i::FLAG_embedded_src);
 #endif
 
+    std::unique_ptr<char> embed_script(
+        GetExtraCode(argc >= 2 ? argv[1] : nullptr, "embedding"));
+    std::unique_ptr<char> warmup_script(
+        GetExtraCode(argc >= 3 ? argv[2] : nullptr, "warm up"));
+
     v8::StartupData blob;
     {
-      char* embed_script =
-          GetExtraCode(argc >= 2 ? argv[1] : nullptr, "embedding");
       v8::SnapshotCreator snapshot_creator;
-      blob = CreateSnapshotDataBlob(&snapshot_creator, embed_script);
-
 #ifdef V8_EMBEDDED_BUILTINS
-      i::Isolate* isolate =
-          reinterpret_cast<i::Isolate*>(snapshot_creator.GetIsolate());
-      i::EmbeddedData embedded_blob = i::Snapshot::CreateEmbeddedBlob(isolate);
-      writer.WriteEmbedded(&embedded_blob);
-      delete[] embedded_blob.data();
+      // This process is a bit tricky since we might go on to make a second
+      // snapshot if a warmup script is passed. In that case, create the first
+      // snapshot without off-heap trampolines and only move code off-heap for
+      // the warmed-up snapshot.
+      if (!warmup_script) WriteEmbeddedFile(&snapshot_creator, &writer);
 #endif
-
-      delete[] embed_script;
+      blob = CreateSnapshotDataBlob(&snapshot_creator, embed_script.get());
     }
 
-    char* warmup_script =
-        GetExtraCode(argc >= 3 ? argv[2] : nullptr, "warm up");
     if (warmup_script) {
+      CHECK(blob.raw_size > 0 && blob.data != nullptr);
       v8::StartupData cold = blob;
-      blob = v8::V8::WarmUpSnapshotDataBlob(cold, warmup_script);
+      v8::SnapshotCreator snapshot_creator(nullptr, &cold);
+#ifdef V8_EMBEDDED_BUILTINS
+      WriteEmbeddedFile(&snapshot_creator, &writer);
+#endif
+      blob = WarmUpSnapshotDataBlob(&snapshot_creator, warmup_script.get());
       delete[] cold.data;
-      delete[] warmup_script;
     }
 
     CHECK(blob.data);

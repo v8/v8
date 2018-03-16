@@ -10,6 +10,7 @@
 #include "src/objects/string.h"
 #include "src/snapshot/builtin-deserializer-allocator.h"
 #include "src/snapshot/natives.h"
+#include "src/snapshot/snapshot.h"
 
 namespace v8 {
 namespace internal {
@@ -488,6 +489,30 @@ bool Deserializer<AllocatorT>::ReadData(Object** current, Object** limit,
             pc, target,
             data == kInternalReference ? RelocInfo::INTERNAL_REFERENCE
                                        : RelocInfo::INTERNAL_REFERENCE_ENCODED);
+        break;
+      }
+
+      case kOffHeapTarget: {
+#ifdef V8_EMBEDDED_BUILTINS
+        int skip = source_.GetInt();
+        int builtin_index = source_.GetInt();
+        DCHECK(Builtins::IsBuiltinId(builtin_index));
+
+        current = reinterpret_cast<Object**>(
+            reinterpret_cast<Address>(current) + skip);
+
+        CHECK_NOT_NULL(isolate->embedded_blob());
+        EmbeddedData d = EmbeddedData::FromBlob(isolate->embedded_blob(),
+                                                isolate->embedded_blob_size());
+        const uint8_t* address = d.InstructionStartOfBuiltin(builtin_index);
+        Object* o = reinterpret_cast<Object*>(const_cast<uint8_t*>(address));
+        UnalignedCopy(current, &o);
+        CHECK_NOT_NULL(o);
+
+        current++;
+#else
+        UNREACHABLE();
+#endif
         break;
       }
 

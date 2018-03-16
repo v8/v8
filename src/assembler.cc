@@ -38,6 +38,7 @@
 #include "src/code-stubs.h"
 #include "src/deoptimizer.h"
 #include "src/disassembler.h"
+#include "src/instruction-stream.h"
 #include "src/isolate.h"
 #include "src/ostreams.h"
 #include "src/simulator.h"  // For flushing instruction cache.
@@ -520,6 +521,8 @@ const char* RelocInfo::RelocModeName(RelocInfo::Mode rmode) {
       return "internal reference";
     case INTERNAL_REFERENCE_ENCODED:
       return "encoded internal reference";
+    case OFF_HEAP_TARGET:
+      return "off heap target";
     case DEOPT_SCRIPT_OFFSET:
       return "deopt script offset";
     case DEOPT_INLINING_ID:
@@ -619,6 +622,12 @@ void RelocInfo::Verify(Isolate* isolate) {
       Code* code = Code::cast(isolate->FindCodeObject(pc));
       CHECK(target >= code->instruction_start());
       CHECK(target <= code->instruction_end());
+      break;
+    }
+    case OFF_HEAP_TARGET: {
+      Address addr = target_off_heap_target();
+      CHECK_NOT_NULL(addr);
+      CHECK_NOT_NULL(InstructionStream::TryLookupCode(isolate, addr));
       break;
     }
     case RUNTIME_ENTRY:

@@ -24,8 +24,6 @@ bool InstructionStream::PcIsOffHeap(Isolate* isolate, Address pc) {
 // static
 Code* InstructionStream::TryLookupCode(Isolate* isolate, Address address) {
 #ifdef V8_EMBEDDED_BUILTINS
-  DCHECK(FLAG_stress_off_heap_code);
-
   if (!PcIsOffHeap(isolate, address)) return nullptr;
 
   EmbeddedData d = EmbeddedData::FromBlob(isolate->embedded_blob(),
@@ -51,6 +49,38 @@ Code* InstructionStream::TryLookupCode(Isolate* isolate, Address address) {
   return nullptr;
 #endif
 }
+
+#ifdef V8_EMBEDDED_BUILTINS
+// static
+void InstructionStream::CreateOffHeapInstructionStream(Isolate* isolate,
+                                                       uint8_t** data,
+                                                       uint32_t* size) {
+  EmbeddedData d = EmbeddedData::FromIsolate(isolate);
+
+  const uint32_t page_size = static_cast<uint32_t>(AllocatePageSize());
+  const uint32_t allocated_size = RoundUp(d.size(), page_size);
+
+  uint8_t* allocated_bytes = static_cast<uint8_t*>(
+      AllocatePages(GetRandomMmapAddr(), allocated_size, page_size,
+                    PageAllocator::kReadWrite));
+  CHECK_NOT_NULL(allocated_bytes);
+
+  std::memcpy(allocated_bytes, d.data(), d.size());
+  CHECK(SetPermissions(allocated_bytes, allocated_size,
+                       PageAllocator::kReadExecute));
+
+  *data = allocated_bytes;
+  *size = allocated_size;
+
+  d.Dispose();
+}
+
+// static
+void InstructionStream::FreeOffHeapInstructionStream(uint8_t* data,
+                                                     uint32_t size) {
+  CHECK(FreePages(data, size));
+}
+#endif  // V8_EMBEDDED_BUILTINS
 
 }  // namespace internal
 }  // namespace v8

@@ -53,6 +53,7 @@ UNINITIALIZED_TEST(VerifyBuiltinsIsolateIndependence) {
         all_real_modes_mask & ~RelocInfo::ModeMask(RelocInfo::COMMENT) &
         ~RelocInfo::ModeMask(RelocInfo::INTERNAL_REFERENCE) &
         ~RelocInfo::ModeMask(RelocInfo::INTERNAL_REFERENCE_ENCODED) &
+        ~RelocInfo::ModeMask(RelocInfo::OFF_HEAP_TARGET) &
         ~RelocInfo::ModeMask(RelocInfo::CONST_POOL) &
         ~RelocInfo::ModeMask(RelocInfo::VENEER_POOL);
     STATIC_ASSERT(RelocInfo::LAST_REAL_RELOC_MODE == RelocInfo::VENEER_POOL);

@@ -88,6 +88,8 @@ class EmbeddedData final {
   const uint8_t* data() const { return data_; }
   uint32_t size() const { return size_; }
 
+  void Dispose() { delete[] data_; }
+
   const uint8_t* InstructionStartOfBuiltin(int i) const;
   uint32_t InstructionSizeOfBuiltin(int i) const;
 
@@ -176,10 +178,6 @@ class Snapshot : public AllStatic {
       const BuiltinSnapshotData* builtin_snapshot,
       const std::vector<SnapshotData*>& context_snapshots,
       bool can_be_rehashed);
-
-#ifdef V8_EMBEDDED_BUILTINS
-  static EmbeddedData CreateEmbeddedBlob(Isolate* isolate);
-#endif
 
 #ifdef DEBUG
   static bool SnapshotIsValid(const v8::StartupData* snapshot_blob);

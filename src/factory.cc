@@ -1856,6 +1856,36 @@ Handle<Code> Factory::NewCodeForDeserialization(uint32_t size) {
                      Code);
 }
 
+#ifdef V8_EMBEDDED_BUILTINS
+Handle<Code> Factory::NewOffHeapTrampolineFor(Handle<Code> code,
+                                              Address off_heap_entry) {
+  DCHECK(isolate()->serializer_enabled());
+  DCHECK_NOT_NULL(isolate()->embedded_blob());
+  DCHECK_NE(0, isolate()->embedded_blob_size());
+  DCHECK(Builtins::IsOffHeapBuiltin(*code));
+
+  Handle<Code> result =
+      Builtins::GenerateOffHeapTrampolineFor(isolate(), off_heap_entry);
+
+  // The trampoline code object must inherit specific flags from the original
+  // builtin (e.g. the safepoint-table offset). We set them manually here.
+
+  const int stack_slots = code->has_safepoint_info() ? code->stack_slots() : 0;
+  result->initialize_flags(code->kind(), code->has_unwinding_info(),
+                           code->is_turbofanned(), stack_slots);
+  result->set_builtin_index(code->builtin_index());
+  result->set_has_tagged_params(code->has_tagged_params());
+  result->set_handler_table_offset(code->handler_table_offset());
+  result->code_data_container()->set_kind_specific_flags(
+      code->code_data_container()->kind_specific_flags());
+  if (code->has_safepoint_info()) {
+    result->set_safepoint_table_offset(code->safepoint_table_offset());
+  }
+
+  return result;
+}
+#endif
+
 Handle<Code> Factory::CopyCode(Handle<Code> code) {
   Handle<CodeDataContainer> data_container =
       NewCodeDataContainer(code->code_data_container()->kind_specific_flags());

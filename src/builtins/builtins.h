@@ -72,7 +72,7 @@ class Builtins {
   Handle<Code> NewFunctionContext(ScopeType scope_type);
   Handle<Code> JSConstructStubGeneric();
 
-  // Used by BuiltinDeserializer.
+  // Used by BuiltinDeserializer and CreateOffHeapTrampolines in isolate.cc.
   void set_builtin(int index, HeapObject* builtin);
 
   Code* builtin(int index) {
@@ -160,6 +160,14 @@ class Builtins {
  private:
   Builtins();
 
+#ifdef V8_EMBEDDED_BUILTINS
+  // Creates a trampoline code object that jumps to the given off-heap entry.
+  // The result should not be used directly, but only from the related Factory
+  // function.
+  static Handle<Code> GenerateOffHeapTrampolineFor(Isolate* isolate,
+                                                   Address off_heap_entry);
+#endif
+
   static void Generate_CallFunction(MacroAssembler* masm,
                                     ConvertReceiverMode mode);
 
@@ -198,6 +206,7 @@ class Builtins {
   Object* builtins_[builtin_count];
   bool initialized_;
 
+  friend class Factory;  // For GenerateOffHeapTrampolineFor.
   friend class Isolate;
   friend class SetupIsolateDelegate;
 
