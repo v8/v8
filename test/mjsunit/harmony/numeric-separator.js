@@ -45,6 +45,23 @@
   assertEquals(leadingZeros, 0913);
 }
 
+{
+  const basic = Number('1_2_3');
+  assertEquals(NaN, basic);
+  const exponent = Number('1_0e+1');
+  assertEquals(NaN, exponent);
+  const exponent2 = Number('1_0e+1_0');
+  assertEquals(NaN, exponent2);
+  const hex = Number('0xF_F_FF');
+  assertEquals(NaN, hex);
+  const octal = Number('0o7_7_7');
+  assertEquals(NaN, octal);
+  const binary = Number('0b0_1_0_1_0');
+  assertEquals(NaN, binary);
+  const leadingZeros = Number('09_1_3');
+  assertEquals(NaN, leadingZeros);
+}
+
 assertThrows('1_0_0_0_', SyntaxError);
 assertThrows('1e_1', SyntaxError);
 assertThrows('1e+_1', SyntaxError);
