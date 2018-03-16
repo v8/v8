@@ -254,9 +254,6 @@ class WasmInstanceObject : public JSObject {
 
   static Handle<WasmInstanceObject> New(Isolate*, Handle<WasmCompiledModule>);
 
-  static int32_t GrowMemory(Isolate*, Handle<WasmInstanceObject>,
-                            uint32_t pages);
-
   // Assumed to be called with a code object associated to a wasm module
   // instance. Intended to be called from runtime functions. Returns nullptr on
   // failing to get owning instance.

@@ -629,14 +629,6 @@ Handle<WasmInstanceObject> WasmInstanceObject::New(
   return instance;
 }
 
-int32_t WasmInstanceObject::GrowMemory(Isolate* isolate,
-                                       Handle<WasmInstanceObject> instance,
-                                       uint32_t pages) {
-  DCHECK(instance->has_memory_object());
-  return WasmMemoryObject::Grow(
-      isolate, handle(instance->memory_object(), isolate), pages);
-}
-
 WasmInstanceObject* WasmInstanceObject::GetOwningInstance(
     const wasm::WasmCode* code) {
   DisallowHeapAllocation no_gc;
@@ -762,13 +754,15 @@ bool WasmExportedFunction::IsWasmExportedFunction(Object* object) {
   Handle<JSFunction> js_function(JSFunction::cast(object));
   if (Code::JS_TO_WASM_FUNCTION != js_function->code()->kind()) return false;
 
+#ifdef DEBUG
   // Any function having code of {JS_TO_WASM_FUNCTION} kind must be an exported
   // function and hence will have a property holding the instance object.
-  DCHECK(JSObject::GetPropertyOrElement(
-             js_function,
-             js_function->GetIsolate()->factory()->wasm_instance_symbol())
-             .ToHandleChecked()
-             ->IsWasmInstanceObject());
+  Handle<Symbol> symbol(
+      js_function->GetIsolate()->factory()->wasm_instance_symbol());
+  MaybeHandle<Object> result =
+      JSObject::GetPropertyOrElement(js_function, symbol);
+  DCHECK(result.ToHandleChecked()->IsWasmInstanceObject());
+#endif
 
   return true;
 }

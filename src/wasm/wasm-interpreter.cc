@@ -994,10 +994,6 @@ class CodeMap {
     DCHECK(has_instance());
     return *instance_;
   }
-  MaybeHandle<WasmInstanceObject> maybe_instance() const {
-    return has_instance() ? handle(instance())
-                          : MaybeHandle<WasmInstanceObject>();
-  }
 
   const wasm::WasmCode* GetImportedFunction(uint32_t function_index) {
     DCHECK(has_instance());
@@ -2129,12 +2125,12 @@ class ThreadImpl {
           MemoryIndexOperand<Decoder::kNoValidate> operand(&decoder,
                                                            code->at(pc));
           uint32_t delta_pages = Pop().to<uint32_t>();
-          Handle<WasmInstanceObject> instance =
-              codemap()->maybe_instance().ToHandleChecked();
-          DCHECK_EQ(wasm_context_, instance->wasm_context()->get());
-          Isolate* isolate = instance->GetIsolate();
-          int32_t result =
-              WasmInstanceObject::GrowMemory(isolate, instance, delta_pages);
+          Handle<WasmMemoryObject> memory(
+              codemap()->instance()->memory_object());
+          DCHECK_EQ(wasm_context_,
+                    codemap()->instance()->wasm_context()->get());
+          Isolate* isolate = memory->GetIsolate();
+          int32_t result = WasmMemoryObject::Grow(isolate, memory, delta_pages);
           Push(WasmValue(result));
           len = 1 + operand.length;
           // Treat one grow_memory instruction like 1000 other instructions,

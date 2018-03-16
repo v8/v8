@@ -76,8 +76,8 @@ RUNTIME_FUNCTION(Runtime_WasmGrowMemory) {
   DCHECK_NULL(isolate->context());
   isolate->set_context(instance->compiled_module()->native_context());
 
-  return *isolate->factory()->NewNumberFromInt(
-      WasmInstanceObject::GrowMemory(isolate, instance, delta_pages));
+  return *isolate->factory()->NewNumberFromInt(WasmMemoryObject::Grow(
+      isolate, handle(instance->memory_object(), isolate), delta_pages));
 }
 
 RUNTIME_FUNCTION(Runtime_ThrowWasmError) {
