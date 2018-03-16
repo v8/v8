@@ -63,7 +63,6 @@ class V8_EXPORT_PRIVATE EffectControlLinearizer {
   Node* LowerCheckNumber(Node* node, Node* frame_state);
   Node* LowerCheckReceiver(Node* node, Node* frame_state);
   Node* LowerCheckString(Node* node, Node* frame_state);
-  Node* LowerCheckSeqString(Node* node, Node* frame_state);
   Node* LowerCheckSymbol(Node* node, Node* frame_state);
   void LowerCheckIf(Node* node, Node* frame_state);
   Node* LowerCheckedInt32Add(Node* node, Node* frame_state);
@@ -117,9 +116,7 @@ class V8_EXPORT_PRIVATE EffectControlLinearizer {
   Node* LowerDeadValue(Node* node);
   Node* LowerStringToNumber(Node* node);
   Node* LowerStringCharCodeAt(Node* node);
-  Node* LowerSeqStringCharCodeAt(Node* node);
   Node* LowerStringCodePointAt(Node* node, UnicodeEncoding encoding);
-  Node* LowerSeqStringCodePointAt(Node* node, UnicodeEncoding encoding);
   Node* LowerStringToLowerCaseIntl(Node* node);
   Node* LowerStringToUpperCaseIntl(Node* node);
   Node* LowerStringFromCharCode(Node* node);

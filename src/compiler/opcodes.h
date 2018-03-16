@@ -343,9 +343,7 @@
   V(BooleanNot)                         \
   V(StringToNumber)                     \
   V(StringCharCodeAt)                   \
-  V(SeqStringCharCodeAt)                \
   V(StringCodePointAt)                  \
-  V(SeqStringCodePointAt)               \
   V(StringFromCharCode)                 \
   V(StringFromCodePoint)                \
   V(StringIndexOf)                      \
@@ -360,7 +358,6 @@
   V(CheckInternalizedString)            \
   V(CheckReceiver)                      \
   V(CheckString)                        \
-  V(CheckSeqString)                     \
   V(CheckSymbol)                        \
   V(CheckSmi)                           \
   V(CheckHeapObject)                    \

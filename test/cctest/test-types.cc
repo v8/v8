@@ -273,11 +273,11 @@ struct Tests {
 
     // Typing of Strings
     Handle<String> s1 = fac->NewStringFromAsciiChecked("a");
-    CHECK(T.NewConstant(s1)->Is(T.InternalizedSeqString));
+    CHECK(T.NewConstant(s1)->Is(T.InternalizedString));
     const uc16 two_byte[1] = {0x2603};
     Handle<String> s2 =
         fac->NewTwoByteInternalizedString(Vector<const uc16>(two_byte, 1), 1);
-    CHECK(T.NewConstant(s2)->Is(T.InternalizedSeqString));
+    CHECK(T.NewConstant(s2)->Is(T.InternalizedString));
   }
 
   void Range() {
@@ -621,14 +621,11 @@ struct Tests {
 
     CheckSub(T.UniqueName, T.Name);
     CheckSub(T.String, T.Name);
-    CheckSub(T.InternalizedSeqString, T.InternalizedString);
-    CheckSub(T.InternalizedNonSeqString, T.InternalizedString);
     CheckSub(T.InternalizedString, T.String);
     CheckSub(T.InternalizedString, T.UniqueName);
     CheckSub(T.InternalizedString, T.Name);
-    CheckSub(T.OtherSeqString, T.OtherString);
-    CheckSub(T.OtherNonSeqString, T.OtherString);
     CheckSub(T.OtherString, T.String);
+    CheckSub(T.OtherString, T.Name);
     CheckSub(T.Symbol, T.UniqueName);
     CheckSub(T.Symbol, T.Name);
     CheckUnordered(T.String, T.UniqueName);
@@ -750,10 +747,6 @@ struct Tests {
     CheckOverlap(T.NaN, T.Number);
     CheckDisjoint(T.Signed32, T.NaN);
     CheckOverlap(T.UniqueName, T.Name);
-    CheckOverlap(T.InternalizedNonSeqString, T.InternalizedString);
-    CheckOverlap(T.InternalizedSeqString, T.InternalizedString);
-    CheckOverlap(T.OtherNonSeqString, T.OtherString);
-    CheckOverlap(T.OtherSeqString, T.OtherString);
     CheckOverlap(T.String, T.Name);
     CheckOverlap(T.InternalizedString, T.String);
     CheckOverlap(T.InternalizedString, T.UniqueName);

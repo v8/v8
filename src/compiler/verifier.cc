@@ -1094,19 +1094,7 @@ void Verifier::Visitor::Check(Node* node, const AllNodes& all) {
       CheckValueInputIs(node, 1, Type::Unsigned32());
       CheckTypeIs(node, Type::UnsignedSmall());
       break;
-    case IrOpcode::kSeqStringCharCodeAt:
-      // (SeqString, Unsigned32) -> UnsignedSmall
-      CheckValueInputIs(node, 0, Type::SeqString());
-      CheckValueInputIs(node, 1, Type::Unsigned32());
-      CheckTypeIs(node, Type::UnsignedSmall());
-      break;
     case IrOpcode::kStringCodePointAt:
-      // (String, Unsigned32) -> UnsignedSmall
-      CheckValueInputIs(node, 0, Type::String());
-      CheckValueInputIs(node, 1, Type::Unsigned32());
-      CheckTypeIs(node, Type::UnsignedSmall());
-      break;
-    case IrOpcode::kSeqStringCodePointAt:
       // (String, Unsigned32) -> UnsignedSmall
       CheckValueInputIs(node, 0, Type::String());
       CheckValueInputIs(node, 1, Type::Unsigned32());
@@ -1395,10 +1383,6 @@ void Verifier::Visitor::Check(Node* node, const AllNodes& all) {
     case IrOpcode::kCheckString:
       CheckValueInputIs(node, 0, Type::Any());
       CheckTypeIs(node, Type::String());
-      break;
-    case IrOpcode::kCheckSeqString:
-      CheckValueInputIs(node, 0, Type::Any());
-      CheckTypeIs(node, Type::SeqString());
       break;
     case IrOpcode::kCheckSymbol:
       CheckValueInputIs(node, 0, Type::Any());

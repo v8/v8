@@ -551,8 +551,7 @@ Type* AllocateTypeOf(const Operator* op) {
 
 UnicodeEncoding UnicodeEncodingOf(const Operator* op) {
   DCHECK(op->opcode() == IrOpcode::kStringFromCodePoint ||
-         op->opcode() == IrOpcode::kStringCodePointAt ||
-         op->opcode() == IrOpcode::kSeqStringCodePointAt);
+         op->opcode() == IrOpcode::kStringCodePointAt);
   return OpParameter<UnicodeEncoding>(op);
 }
 
@@ -722,7 +721,6 @@ bool operator==(CheckMinusZeroParameters const& lhs,
 
 #define EFFECT_DEPENDENT_OP_LIST(V)                     \
   V(StringCharCodeAt, Operator::kNoProperties, 2, 1)    \
-  V(SeqStringCharCodeAt, Operator::kNoProperties, 2, 1) \
   V(StringSubstring, Operator::kNoProperties, 3, 1)
 
 #define SPECULATIVE_NUMBER_BINOP_LIST(V)      \
@@ -738,7 +736,6 @@ bool operator==(CheckMinusZeroParameters const& lhs,
   V(CheckInternalizedString, 1, 1)       \
   V(CheckNotTaggedHole, 1, 1)            \
   V(CheckReceiver, 1, 1)                 \
-  V(CheckSeqString, 1, 1)                \
   V(CheckSymbol, 1, 1)                   \
   V(CheckedInt32Add, 2, 1)               \
   V(CheckedInt32Div, 2, 1)               \
@@ -831,20 +828,6 @@ struct SimplifiedOperatorGlobalCache final {
       kStringCodePointAtOperatorUTF16;
   StringCodePointAtOperator<UnicodeEncoding::UTF32>
       kStringCodePointAtOperatorUTF32;
-
-  template <UnicodeEncoding kEncoding>
-  struct SeqStringCodePointAtOperator final
-      : public Operator1<UnicodeEncoding> {
-    SeqStringCodePointAtOperator()
-        : Operator1<UnicodeEncoding>(IrOpcode::kSeqStringCodePointAt,
-                                     Operator::kFoldable | Operator::kNoThrow,
-                                     "SeqStringCodePointAt", 2, 1, 1, 1, 1, 0,
-                                     kEncoding) {}
-  };
-  SeqStringCodePointAtOperator<UnicodeEncoding::UTF16>
-      kSeqStringCodePointAtOperatorUTF16;
-  SeqStringCodePointAtOperator<UnicodeEncoding::UTF32>
-      kSeqStringCodePointAtOperatorUTF32;
 
   template <UnicodeEncoding kEncoding>
   struct StringFromCodePointOperator final : public Operator1<UnicodeEncoding> {
@@ -1457,17 +1440,6 @@ const Operator* SimplifiedOperatorBuilder::StringCodePointAt(
       return &cache_.kStringCodePointAtOperatorUTF16;
     case UnicodeEncoding::UTF32:
       return &cache_.kStringCodePointAtOperatorUTF32;
-  }
-  UNREACHABLE();
-}
-
-const Operator* SimplifiedOperatorBuilder::SeqStringCodePointAt(
-    UnicodeEncoding encoding) {
-  switch (encoding) {
-    case UnicodeEncoding::UTF16:
-      return &cache_.kSeqStringCodePointAtOperatorUTF16;
-    case UnicodeEncoding::UTF32:
-      return &cache_.kSeqStringCodePointAtOperatorUTF32;
   }
   UNREACHABLE();
 }
