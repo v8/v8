@@ -93,7 +93,9 @@ void Isolate::FireBeforeCallEnteredCallback() {
 }
 
 void Isolate::FireMicrotasksCompletedCallback() {
-  for (auto& callback : microtasks_completed_callbacks_) {
+  std::vector<MicrotasksCompletedCallback> callbacks(
+      microtasks_completed_callbacks_);
+  for (auto& callback : callbacks) {
     callback(reinterpret_cast<v8::Isolate*>(this));
   }
 }

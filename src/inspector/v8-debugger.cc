@@ -155,6 +155,12 @@ class MatchPrototypePredicate : public v8::debug::QueryObjectPredicate {
   v8::Local<v8::Value> m_prototype;
 };
 
+// TODO(kozyatinskiy): add V8Inspector* field on i::Isolate instead.
+std::unordered_map<v8::Isolate*, V8Debugger*>& IsolateToDebuggerMap() {
+  static std::unordered_map<v8::Isolate*, V8Debugger*> map;
+  return map;
+}
+
 }  // namespace
 
 V8Debugger::V8Debugger(v8::Isolate* isolate, V8InspectorImpl* inspector)
@@ -166,9 +172,19 @@ V8Debugger::V8Debugger(v8::Isolate* isolate, V8InspectorImpl* inspector)
       m_maxAsyncCallStacks(kMaxAsyncTaskStacks),
       m_maxAsyncCallStackDepth(0),
       m_pauseOnExceptionsState(v8::debug::NoBreakOnException),
-      m_wasmTranslation(isolate) {}
+      m_wasmTranslation(isolate) {
+  IsolateToDebuggerMap()[isolate] = this;
+}
 
-V8Debugger::~V8Debugger() {}
+V8Debugger::~V8Debugger() {
+  IsolateToDebuggerMap().erase(m_isolate);
+  if (m_terminateExecutionCallback) {
+    m_isolate->RemoveCallCompletedCallback(
+        &V8Debugger::terminateExecutionCompletedCallback);
+    m_isolate->RemoveMicrotasksCompletedCallback(
+        &V8Debugger::terminateExecutionCompletedCallback);
+  }
+}
 
 void V8Debugger::enable() {
   if (m_enableCount++) return;
@@ -332,6 +348,33 @@ void V8Debugger::pauseOnAsyncCall(int targetContextGroupId, uintptr_t task,
 
   m_taskWithScheduledBreak = reinterpret_cast<void*>(task);
   m_taskWithScheduledBreakDebuggerId = debuggerId;
+}
+
+void V8Debugger::terminateExecution(
+    std::unique_ptr<TerminateExecutionCallback> callback) {
+  if (m_terminateExecutionCallback) {
+    callback->sendFailure(
+        Response::Error("There is current termination request in progress"));
+    return;
+  }
+  m_terminateExecutionCallback = std::move(callback);
+  m_isolate->AddCallCompletedCallback(
+      &V8Debugger::terminateExecutionCompletedCallback);
+  m_isolate->AddMicrotasksCompletedCallback(
+      &V8Debugger::terminateExecutionCompletedCallback);
+  m_isolate->TerminateExecution();
+}
+
+void V8Debugger::terminateExecutionCompletedCallback(v8::Isolate* isolate) {
+  isolate->RemoveCallCompletedCallback(
+      &V8Debugger::terminateExecutionCompletedCallback);
+  isolate->RemoveMicrotasksCompletedCallback(
+      &V8Debugger::terminateExecutionCompletedCallback);
+  V8Debugger* debugger = IsolateToDebuggerMap()[isolate];
+  DCHECK(debugger);
+  debugger->m_isolate->CancelTerminateExecution();
+  debugger->m_terminateExecutionCallback->sendSuccess();
+  debugger->m_terminateExecutionCallback.reset();
 }
 
 Response V8Debugger::continueToLocation(
