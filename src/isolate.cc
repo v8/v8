@@ -3727,8 +3727,7 @@ void Isolate::FireCallCompletedCallback() {
   // Fire callbacks.  Increase call depth to prevent recursive callbacks.
   v8::Isolate* isolate = reinterpret_cast<v8::Isolate*>(this);
   v8::Isolate::SuppressMicrotaskExecutionScope suppress(isolate);
-  std::vector<CallCompletedCallback> callbacks(call_completed_callbacks_);
-  for (auto& callback : callbacks) {
+  for (auto& callback : call_completed_callbacks_) {
     callback(reinterpret_cast<v8::Isolate*>(this));
   }
 }

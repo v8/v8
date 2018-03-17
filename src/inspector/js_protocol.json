@@ -2794,11 +2794,6 @@
                             "type": "boolean"
                         }
                     ]
-                },
-                {
-                    "name": "terminateExecution",
-                    "description": "Terminate current or next JavaScript execution.\nWill cancel the termination when the outer-most script execution ends.",
-                    "experimental": true
                 }
             ],
             "events": [
