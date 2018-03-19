@@ -13869,7 +13869,9 @@ void SharedFunctionInfo::SetConstructStub(Code* code) {
     int builtin_id = code->builtin_index();
     DCHECK_NE(Builtins::kDeserializeLazy, builtin_id);
     DCHECK(builtin_id == Builtins::kJSBuiltinsConstructStub ||
-           this->code() == code || !Builtins::IsLazy(builtin_id));
+           !Builtins::IsLazy(builtin_id));
+    // Builtins should use JSBuiltinsConstructStub.
+    DCHECK_NE(this->code(), code);
   }
 #endif
   set_construct_stub(code);
