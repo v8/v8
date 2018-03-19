@@ -79,6 +79,24 @@
   assertEquals(NaN, dot3);
 }
 
+{
+  assertEquals(1, parseInt('1_2_3'));
+  assertEquals(0, parseInt('0_1_0_1_0'));
+  assertEquals(15, parseInt('0xF_F'));
+  assertEquals(10, parseInt('10e+1_0'));
+  assertEquals(0, parseInt('0o7_7_7'));
+  assertEquals(0, parseInt('0b1_0_1_0'));
+  assertEquals(9, parseInt('9_1.1_3'));
+  assertEquals(1, parseInt('1.1_3'));
+  assertEquals(1, parseInt('1_1.21'));
+  assertEquals(17, parseInt('017_123'));
+
+  assertEquals(1, parseInt('1_2_3', 10));
+  assertEquals(15, parseInt('0xF_F', 16));
+  assertEquals(7, parseInt('7_7_7', 8));
+  assertEquals(1, parseInt('1_0_1_0', 2));
+}
+
 assertThrows('1_0_0_0_', SyntaxError);
 assertThrows('1e_1', SyntaxError);
 assertThrows('1e+_1', SyntaxError);
