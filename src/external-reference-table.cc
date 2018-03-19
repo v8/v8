@@ -35,14 +35,18 @@ ExternalReferenceTable* ExternalReferenceTable::instance(Isolate* isolate) {
 }
 
 ExternalReferenceTable::ExternalReferenceTable(Isolate* isolate) {
+  int index = 0;
+
   // nullptr is preserved through serialization/deserialization.
-  Add(nullptr, "nullptr");
-  AddReferences(isolate);
-  AddBuiltins(isolate);
-  AddRuntimeFunctions(isolate);
-  AddIsolateAddresses(isolate);
-  AddAccessors(isolate);
-  AddStubCache(isolate);
+  Add(nullptr, "nullptr", &index);
+  AddReferences(isolate, &index);
+  AddBuiltins(isolate, &index);
+  AddRuntimeFunctions(isolate, &index);
+  AddIsolateAddresses(isolate, &index);
+  AddAccessors(isolate, &index);
+  AddStubCache(isolate, &index);
+
+  CHECK_EQ(kSize, index);
 }
 
 const char* ExternalReferenceTable::ResolveSymbol(void* address) {
@@ -58,18 +62,25 @@ const char* ExternalReferenceTable::ResolveSymbol(void* address) {
 #endif  // SYMBOLIZE_FUNCTION
 }
 
-void ExternalReferenceTable::Add(Address address, const char* name) {
-  refs_.emplace_back(address, name);
+void ExternalReferenceTable::Add(Address address, const char* name,
+                                 int* index) {
+  refs_[(*index)++] = {address, name};
 }
 
-void ExternalReferenceTable::AddReferences(Isolate* isolate) {
+void ExternalReferenceTable::AddReferences(Isolate* isolate, int* index) {
+  CHECK_EQ(kSpecialReferenceCount, *index);
+
 #define ADD_EXTERNAL_REFERENCE(name, desc) \
-  Add(ExternalReference::name(isolate).address(), desc);
+  Add(ExternalReference::name(isolate).address(), desc, index);
   EXTERNAL_REFERENCE_LIST(ADD_EXTERNAL_REFERENCE)
 #undef ADD_EXTERNAL_REFERENCE
+
+  CHECK_EQ(kSpecialReferenceCount + kExternalReferenceCount, *index);
 }
 
-void ExternalReferenceTable::AddBuiltins(Isolate* isolate) {
+void ExternalReferenceTable::AddBuiltins(Isolate* isolate, int* index) {
+  CHECK_EQ(kSpecialReferenceCount + kExternalReferenceCount, *index);
+
   struct CBuiltinEntry {
     Address address;
     const char* name;
@@ -81,11 +92,19 @@ void ExternalReferenceTable::AddBuiltins(Isolate* isolate) {
   };
   for (unsigned i = 0; i < arraysize(c_builtins); ++i) {
     Add(ExternalReference(c_builtins[i].address, isolate).address(),
-        c_builtins[i].name);
+        c_builtins[i].name, index);
   }
+
+  CHECK_EQ(kSpecialReferenceCount + kExternalReferenceCount +
+               kBuiltinsReferenceCount,
+           *index);
 }
 
-void ExternalReferenceTable::AddRuntimeFunctions(Isolate* isolate) {
+void ExternalReferenceTable::AddRuntimeFunctions(Isolate* isolate, int* index) {
+  CHECK_EQ(kSpecialReferenceCount + kExternalReferenceCount +
+               kBuiltinsReferenceCount,
+           *index);
+
   struct RuntimeEntry {
     Runtime::FunctionId id;
     const char* name;
@@ -99,11 +118,19 @@ void ExternalReferenceTable::AddRuntimeFunctions(Isolate* isolate) {
 
   for (unsigned i = 0; i < arraysize(runtime_functions); ++i) {
     ExternalReference ref(runtime_functions[i].id, isolate);
-    Add(ref.address(), runtime_functions[i].name);
+    Add(ref.address(), runtime_functions[i].name, index);
   }
+
+  CHECK_EQ(kSpecialReferenceCount + kExternalReferenceCount +
+               kBuiltinsReferenceCount + kRuntimeReferenceCount,
+           *index);
 }
 
-void ExternalReferenceTable::AddIsolateAddresses(Isolate* isolate) {
+void ExternalReferenceTable::AddIsolateAddresses(Isolate* isolate, int* index) {
+  CHECK_EQ(kSpecialReferenceCount + kExternalReferenceCount +
+               kBuiltinsReferenceCount + kRuntimeReferenceCount,
+           *index);
+
   // Top addresses
   static const char* address_names[] = {
 #define BUILD_NAME_LITERAL(Name, name) "Isolate::" #name "_address",
@@ -113,11 +140,21 @@ void ExternalReferenceTable::AddIsolateAddresses(Isolate* isolate) {
 
   for (int i = 0; i < IsolateAddressId::kIsolateAddressCount; ++i) {
     Add(isolate->get_address_from_id(static_cast<IsolateAddressId>(i)),
-        address_names[i]);
+        address_names[i], index);
   }
+
+  CHECK_EQ(kSpecialReferenceCount + kExternalReferenceCount +
+               kBuiltinsReferenceCount + kRuntimeReferenceCount +
+               kIsolateAddressReferenceCount,
+           *index);
 }
 
-void ExternalReferenceTable::AddAccessors(Isolate* isolate) {
+void ExternalReferenceTable::AddAccessors(Isolate* isolate, int* index) {
+  CHECK_EQ(kSpecialReferenceCount + kExternalReferenceCount +
+               kBuiltinsReferenceCount + kRuntimeReferenceCount +
+               kIsolateAddressReferenceCount,
+           *index);
+
   // Accessors
   struct AccessorRefTable {
     Address address;
@@ -139,46 +176,63 @@ void ExternalReferenceTable::AddAccessors(Isolate* isolate) {
   };
 
   for (unsigned i = 0; i < arraysize(getters); ++i) {
-    Add(getters[i].address, getters[i].name);
+    Add(getters[i].address, getters[i].name, index);
   }
 
   for (unsigned i = 0; i < arraysize(setters); ++i) {
-    Add(setters[i].address, setters[i].name);
+    Add(setters[i].address, setters[i].name, index);
   }
+
+  CHECK_EQ(kSpecialReferenceCount + kExternalReferenceCount +
+               kBuiltinsReferenceCount + kRuntimeReferenceCount +
+               kIsolateAddressReferenceCount + kAccessorReferenceCount,
+           *index);
 }
 
-void ExternalReferenceTable::AddStubCache(Isolate* isolate) {
+void ExternalReferenceTable::AddStubCache(Isolate* isolate, int* index) {
+  CHECK_EQ(kSpecialReferenceCount + kExternalReferenceCount +
+               kBuiltinsReferenceCount + kRuntimeReferenceCount +
+               kIsolateAddressReferenceCount + kAccessorReferenceCount,
+           *index);
+
   StubCache* load_stub_cache = isolate->load_stub_cache();
 
   // Stub cache tables
   Add(load_stub_cache->key_reference(StubCache::kPrimary).address(),
-      "Load StubCache::primary_->key");
+      "Load StubCache::primary_->key", index);
   Add(load_stub_cache->value_reference(StubCache::kPrimary).address(),
-      "Load StubCache::primary_->value");
+      "Load StubCache::primary_->value", index);
   Add(load_stub_cache->map_reference(StubCache::kPrimary).address(),
-      "Load StubCache::primary_->map");
+      "Load StubCache::primary_->map", index);
   Add(load_stub_cache->key_reference(StubCache::kSecondary).address(),
-      "Load StubCache::secondary_->key");
+      "Load StubCache::secondary_->key", index);
   Add(load_stub_cache->value_reference(StubCache::kSecondary).address(),
-      "Load StubCache::secondary_->value");
+      "Load StubCache::secondary_->value", index);
   Add(load_stub_cache->map_reference(StubCache::kSecondary).address(),
-      "Load StubCache::secondary_->map");
+      "Load StubCache::secondary_->map", index);
 
   StubCache* store_stub_cache = isolate->store_stub_cache();
 
   // Stub cache tables
   Add(store_stub_cache->key_reference(StubCache::kPrimary).address(),
-      "Store StubCache::primary_->key");
+      "Store StubCache::primary_->key", index);
   Add(store_stub_cache->value_reference(StubCache::kPrimary).address(),
-      "Store StubCache::primary_->value");
+      "Store StubCache::primary_->value", index);
   Add(store_stub_cache->map_reference(StubCache::kPrimary).address(),
-      "Store StubCache::primary_->map");
+      "Store StubCache::primary_->map", index);
   Add(store_stub_cache->key_reference(StubCache::kSecondary).address(),
-      "Store StubCache::secondary_->key");
+      "Store StubCache::secondary_->key", index);
   Add(store_stub_cache->value_reference(StubCache::kSecondary).address(),
-      "Store StubCache::secondary_->value");
+      "Store StubCache::secondary_->value", index);
   Add(store_stub_cache->map_reference(StubCache::kSecondary).address(),
-      "Store StubCache::secondary_->map");
+      "Store StubCache::secondary_->map", index);
+
+  CHECK_EQ(kSpecialReferenceCount + kExternalReferenceCount +
+               kBuiltinsReferenceCount + kRuntimeReferenceCount +
+               kIsolateAddressReferenceCount + kAccessorReferenceCount +
+               kStubCacheReferenceCount,
+           *index);
+  CHECK_EQ(kSize, *index);
 }
 
 }  // namespace internal

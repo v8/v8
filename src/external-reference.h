@@ -242,6 +242,11 @@ class ExternalReference BASE_EMBEDDED {
     PROFILING_GETTER_CALL
   };
 
+  static constexpr int kExternalReferenceCount =
+#define COUNT_EXTERNAL_REFERENCE(name, desc) +1
+      EXTERNAL_REFERENCE_LIST(COUNT_EXTERNAL_REFERENCE);
+#undef COUNT_EXTERNAL_REFERENCE
+
   static void SetUp();
 
   typedef void* ExternalReferenceRedirector(void* original, Type type);

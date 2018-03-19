@@ -82,6 +82,16 @@ class Accessors : public AllStatic {
   ACCESSOR_SETTER_LIST(ACCESSOR_SETTER_DECLARATION)
 #undef ACCESSOR_SETTER_DECLARATION
 
+  static constexpr int kAccessorInfoCount =
+#define COUNT_ACCESSOR(...) +1
+      ACCESSOR_INFO_LIST(COUNT_ACCESSOR);
+#undef COUNT_ACCESSOR
+
+  static constexpr int kAccessorSetterCount =
+#define COUNT_ACCESSOR(...) +1
+      ACCESSOR_SETTER_LIST(COUNT_ACCESSOR);
+#undef COUNT_ACCESSOR
+
   static void ModuleNamespaceEntryGetter(
       v8::Local<v8::Name> name,
       const v8::PropertyCallbackInfo<v8::Value>& info);
