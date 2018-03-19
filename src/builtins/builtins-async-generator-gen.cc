@@ -548,11 +548,42 @@ TF_BUILTIN(AsyncGeneratorYield, AsyncGeneratorBuiltinsAssembler) {
   Node* const request = LoadFirstAsyncGeneratorRequestFromQueue(generator);
   Node* const outer_promise = LoadPromiseFromAsyncGeneratorRequest(request);
 
+  // Mark the generator as "awaiting".
   SetGeneratorAwaiting(generator);
-  Await(context, generator, value, outer_promise,
-        Builtins::kAsyncGeneratorYieldFulfill,
-        Builtins::kAsyncGeneratorAwaitReject, is_caught);
-  Return(UndefinedConstant());
+
+  // We can skip the creation of a temporary promise and the whole
+  // [[Resolve]] logic if we already know that the {value} that's
+  // being yielded is a primitive, as in that case we would immediately
+  // fulfill the temporary promise anyways and schedule a fulfill
+  // reaction job. This gives a nice performance boost for async
+  // generators that yield only primitives, e.g. numbers or strings.
+  Label if_primitive(this), if_generic(this);
+  GotoIfForceSlowPath(&if_generic);
+  GotoIf(IsPromiseHookEnabledOrDebugIsActive(), &if_generic);
+  GotoIf(TaggedIsSmi(value), &if_primitive);
+  Branch(IsJSReceiver(value), &if_generic, &if_primitive);
+
+  BIND(&if_generic);
+  {
+    Await(context, generator, value, outer_promise,
+          Builtins::kAsyncGeneratorYieldFulfill,
+          Builtins::kAsyncGeneratorAwaitReject, is_caught);
+    Return(UndefinedConstant());
+  }
+
+  BIND(&if_primitive);
+  {
+    // For primitive {value}s we can skip the allocation of the temporary
+    // promise and the resolution of that, and directly allocate the fulfill
+    // reaction job.
+    Node* const microtask = AllocatePromiseReactionJobTask(
+        Heap::kPromiseFulfillReactionJobTaskMapRootIndex, context, value,
+        HeapConstant(Builtins::CallableFor(
+                         isolate(), Builtins::kAsyncGeneratorYieldFulfill)
+                         .code()),
+        generator);
+    TailCallBuiltin(Builtins::kEnqueueMicrotask, context, microtask);
+  }
 }
 
 TF_BUILTIN(AsyncGeneratorYieldFulfill, AsyncGeneratorBuiltinsAssembler) {
