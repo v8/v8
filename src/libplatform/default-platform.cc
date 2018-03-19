@@ -138,8 +138,8 @@ void DefaultPlatform::SetTimeFunctionForTesting(
 }
 
 bool DefaultPlatform::PumpMessageLoop(v8::Isolate* isolate,
-                                      MessageLoopBehavior behavior) {
-  bool failed_result = behavior == MessageLoopBehavior::kWaitForWork;
+                                      MessageLoopBehavior wait_for_work) {
+  bool failed_result = wait_for_work == MessageLoopBehavior::kWaitForWork;
   std::shared_ptr<DefaultForegroundTaskRunner> task_runner;
   {
     base::LockGuard<base::Mutex> guard(&lock_);
@@ -149,11 +149,8 @@ bool DefaultPlatform::PumpMessageLoop(v8::Isolate* isolate,
     }
     task_runner = foreground_task_runner_map_[isolate];
   }
-  if (behavior == MessageLoopBehavior::kWaitForWork) {
-    task_runner->WaitForTask();
-  }
 
-  std::unique_ptr<Task> task = task_runner->PopTaskFromQueue();
+  std::unique_ptr<Task> task = task_runner->PopTaskFromQueue(wait_for_work);
   if (!task) return failed_result;
 
   task->Run();
