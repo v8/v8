@@ -11,6 +11,7 @@
 #include <limits>
 #include <ostream>
 
+#include "include/v8.h"
 #include "src/base/build_config.h"
 #include "src/base/flags.h"
 #include "src/base/logging.h"
@@ -413,10 +414,8 @@ constexpr int kCodeAlignmentBits = 5;
 constexpr intptr_t kCodeAlignment = 1 << kCodeAlignmentBits;
 constexpr intptr_t kCodeAlignmentMask = kCodeAlignment - 1;
 
-// Weak references are tagged using the second bit in a pointer.
-constexpr int kWeakReferenceTag = 3;
-constexpr int kWeakReferenceTagSize = 2;
-constexpr intptr_t kWeakReferenceTagMask = (1 << kWeakReferenceTagSize) - 1;
+const intptr_t kWeakHeapObjectMask = 1 << 1;
+const intptr_t kClearedWeakHeapObject = 3;
 
 // Zap-value: The value used for zapping dead objects.
 // Should be a recognizable hex value tagged as a failure.
@@ -477,6 +476,7 @@ template <typename T> class MaybeHandle;
 template <typename T> class Handle;
 class Heap;
 class HeapObject;
+class HeapObjectReference;
 class IC;
 class InterceptorInfo;
 class Isolate;
@@ -489,6 +489,7 @@ class MacroAssembler;
 class Map;
 class MapSpace;
 class MarkCompactCollector;
+class MaybeObject;
 class NewSpace;
 class Object;
 class OldSpace;
@@ -1471,6 +1472,38 @@ enum IsolateAddressId {
 #undef DECLARE_ENUM
       kIsolateAddressCount
 };
+
+V8_INLINE static bool HasWeakHeapObjectTag(const internal::MaybeObject* value) {
+  return ((reinterpret_cast<intptr_t>(value) & kHeapObjectTagMask) ==
+          kWeakHeapObjectTag);
+}
+
+// Object* should never have the weak tag; this variant is for overzealous
+// checking.
+V8_INLINE static bool HasWeakHeapObjectTag(const Object* value) {
+  return ((reinterpret_cast<intptr_t>(value) & kHeapObjectTagMask) ==
+          kWeakHeapObjectTag);
+}
+
+V8_INLINE static bool IsClearedWeakHeapObject(MaybeObject* value) {
+  return reinterpret_cast<intptr_t>(value) == kClearedWeakHeapObject;
+}
+
+V8_INLINE static HeapObject* RemoveWeakHeapObjectMask(
+    HeapObjectReference* value) {
+  return reinterpret_cast<HeapObject*>(reinterpret_cast<intptr_t>(value) &
+                                       ~kWeakHeapObjectMask);
+}
+
+V8_INLINE static HeapObjectReference* AddWeakHeapObjectMask(HeapObject* value) {
+  return reinterpret_cast<HeapObjectReference*>(
+      reinterpret_cast<intptr_t>(value) | kWeakHeapObjectMask);
+}
+
+V8_INLINE static MaybeObject* AddWeakHeapObjectMask(MaybeObject* value) {
+  return reinterpret_cast<MaybeObject*>(reinterpret_cast<intptr_t>(value) |
+                                        kWeakHeapObjectMask);
+}
 
 enum class HeapObjectReferenceType {
   WEAK,

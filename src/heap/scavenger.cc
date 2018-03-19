@@ -25,7 +25,7 @@ class IterateAndScavengePromotedObjectsVisitor final : public ObjectVisitor {
                             Object** end) final {
     for (Object** slot = start; slot < end; ++slot) {
       Object* target = *slot;
-      DCHECK(!Internals::HasWeakHeapObjectTag(target));
+      DCHECK(!HasWeakHeapObjectTag(target));
       if (target->IsHeapObject()) {
         HandleSlot(host, reinterpret_cast<Address>(slot),
                    HeapObject::cast(target));
@@ -183,7 +183,7 @@ void Scavenger::Finalize() {
 
 void RootScavengeVisitor::VisitRootPointer(Root root, const char* description,
                                            Object** p) {
-  DCHECK(!Internals::HasWeakHeapObjectTag(*p));
+  DCHECK(!HasWeakHeapObjectTag(*p));
   ScavengePointer(p);
 }
 
@@ -195,7 +195,7 @@ void RootScavengeVisitor::VisitRootPointers(Root root, const char* description,
 
 void RootScavengeVisitor::ScavengePointer(Object** p) {
   Object* object = *p;
-  DCHECK(!Internals::HasWeakHeapObjectTag(object));
+  DCHECK(!HasWeakHeapObjectTag(object));
   if (!heap_->InNewSpace(object)) return;
 
   scavenger_->ScavengeObject(reinterpret_cast<HeapObjectReference**>(p),

@@ -39,7 +39,7 @@ bool MaybeObject::ToStrongOrWeakHeapObject(
   if (IsSmi() || IsClearedWeakHeapObject()) {
     return false;
   }
-  *reference_type = Internals::HasWeakHeapObjectTag(this)
+  *reference_type = HasWeakHeapObjectTag(this)
                         ? HeapObjectReferenceType::WEAK
                         : HeapObjectReferenceType::STRONG;
   *result = GetHeapObject();
@@ -47,11 +47,11 @@ bool MaybeObject::ToStrongOrWeakHeapObject(
 }
 
 bool MaybeObject::IsStrongHeapObject() {
-  return !Internals::HasWeakHeapObjectTag(this) && !IsSmi();
+  return !HasWeakHeapObjectTag(this) && !IsSmi();
 }
 
 bool MaybeObject::ToStrongHeapObject(HeapObject** result) {
-  if (!Internals::HasWeakHeapObjectTag(this) && !IsSmi()) {
+  if (!HasWeakHeapObjectTag(this) && !IsSmi()) {
     *result = reinterpret_cast<HeapObject*>(this);
     return true;
   }
@@ -59,11 +59,11 @@ bool MaybeObject::ToStrongHeapObject(HeapObject** result) {
 }
 
 bool MaybeObject::IsWeakHeapObject() {
-  return Internals::HasWeakHeapObjectTag(this) && !IsClearedWeakHeapObject();
+  return HasWeakHeapObjectTag(this) && !IsClearedWeakHeapObject();
 }
 
 bool MaybeObject::ToWeakHeapObject(HeapObject** result) {
-  if (Internals::HasWeakHeapObjectTag(this) && !IsClearedWeakHeapObject()) {
+  if (HasWeakHeapObjectTag(this) && !IsClearedWeakHeapObject()) {
     *result = GetHeapObject();
     return true;
   }
@@ -73,8 +73,7 @@ bool MaybeObject::ToWeakHeapObject(HeapObject** result) {
 HeapObject* MaybeObject::GetHeapObject() {
   DCHECK(!IsSmi());
   DCHECK(!IsClearedWeakHeapObject());
-  return Internals::RemoveWeakHeapObjectMask(
-      reinterpret_cast<HeapObjectReference*>(this));
+  return RemoveWeakHeapObjectMask(reinterpret_cast<HeapObjectReference*>(this));
 }
 
 }  // namespace internal

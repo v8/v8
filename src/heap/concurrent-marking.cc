@@ -129,7 +129,7 @@ class ConcurrentMarkingVisitor final
   void VisitPointers(HeapObject* host, Object** start, Object** end) override {
     for (Object** slot = start; slot < end; slot++) {
       Object* object = base::AsAtomicPointer::Relaxed_Load(slot);
-      DCHECK(!Internals::HasWeakHeapObjectTag(object));
+      DCHECK(!HasWeakHeapObjectTag(object));
       if (object->IsHeapObject()) {
         ProcessStrongHeapObject(host, slot, HeapObject::cast(object));
       }
@@ -158,7 +158,7 @@ class ConcurrentMarkingVisitor final
     for (int i = 0; i < snapshot.number_of_slots(); i++) {
       Object** slot = snapshot.slot(i);
       Object* object = snapshot.value(i);
-      DCHECK(!Internals::HasWeakHeapObjectTag(object));
+      DCHECK(!HasWeakHeapObjectTag(object));
       if (!object->IsHeapObject()) continue;
       MarkObject(HeapObject::cast(object));
       MarkCompactCollector::RecordSlot(host, slot, object);

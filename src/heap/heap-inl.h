@@ -461,17 +461,17 @@ void Heap::FinalizeExternalString(String* string) {
 Address Heap::NewSpaceTop() { return new_space_->top(); }
 
 bool Heap::InNewSpace(Object* object) {
-  DCHECK(!Internals::HasWeakHeapObjectTag(object));
+  DCHECK(!HasWeakHeapObjectTag(object));
   return InNewSpace(MaybeObject::FromObject(object));
 }
 
 bool Heap::InFromSpace(Object* object) {
-  DCHECK(!Internals::HasWeakHeapObjectTag(object));
+  DCHECK(!HasWeakHeapObjectTag(object));
   return InFromSpace(MaybeObject::FromObject(object));
 }
 
 bool Heap::InToSpace(Object* object) {
-  DCHECK(!Internals::HasWeakHeapObjectTag(object));
+  DCHECK(!HasWeakHeapObjectTag(object));
   return InToSpace(MaybeObject::FromObject(object));
 }
 
@@ -518,8 +518,8 @@ bool Heap::ShouldBePromoted(Address old_address) {
 }
 
 void Heap::RecordWrite(Object* object, Object** slot, Object* value) {
-  DCHECK(!Internals::HasWeakHeapObjectTag(*slot));
-  DCHECK(!Internals::HasWeakHeapObjectTag(value));
+  DCHECK(!HasWeakHeapObjectTag(*slot));
+  DCHECK(!HasWeakHeapObjectTag(value));
   RecordWrite(object, reinterpret_cast<MaybeObject**>(slot),
               reinterpret_cast<MaybeObject*>(value));
 }

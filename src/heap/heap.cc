@@ -1450,7 +1450,7 @@ class StringTableVerifier : public ObjectVisitor {
   void VisitPointers(HeapObject* host, Object** start, Object** end) override {
     // Visit all HeapObject pointers in [start, end).
     for (Object** p = start; p < end; p++) {
-      DCHECK(!Internals::HasWeakHeapObjectTag(*p));
+      DCHECK(!HasWeakHeapObjectTag(*p));
       if ((*p)->IsHeapObject()) {
         HeapObject* object = HeapObject::cast(*p);
         Isolate* isolate = object->GetIsolate();
@@ -4919,7 +4919,7 @@ class SlotVerifyingVisitor : public ObjectVisitor {
   void VisitPointers(HeapObject* host, Object** start, Object** end) override {
 #ifdef DEBUG
     for (Object** slot = start; slot < end; slot++) {
-      DCHECK(!Internals::HasWeakHeapObjectTag(*slot));
+      DCHECK(!HasWeakHeapObjectTag(*slot));
     }
 #endif  // DEBUG
     VisitPointers(host, reinterpret_cast<MaybeObject**>(start),

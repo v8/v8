@@ -235,7 +235,7 @@ class YoungGenerationMarkingVerifier : public MarkingVerifier {
 
   void VerifyPointers(Object** start, Object** end) override {
     for (Object** current = start; current < end; current++) {
-      DCHECK(!Internals::HasWeakHeapObjectTag(*current));
+      DCHECK(!HasWeakHeapObjectTag(*current));
       if ((*current)->IsHeapObject()) {
         HeapObject* object = HeapObject::cast(*current);
         if (!heap_->InNewSpace(object)) return;
@@ -1061,7 +1061,7 @@ class MarkCompactCollector::CustomRootBodyMarkingVisitor final
 
   void VisitPointers(HeapObject* host, Object** start, Object** end) final {
     for (Object** p = start; p < end; p++) {
-      DCHECK(!Internals::HasWeakHeapObjectTag(*p));
+      DCHECK(!HasWeakHeapObjectTag(*p));
       MarkObject(host, *p);
     }
   }
@@ -1255,7 +1255,7 @@ class RecordMigratedSlotVisitor : public ObjectVisitor {
       : collector_(collector) {}
 
   inline void VisitPointer(HeapObject* host, Object** p) final {
-    DCHECK(!Internals::HasWeakHeapObjectTag(*p));
+    DCHECK(!HasWeakHeapObjectTag(*p));
     RecordMigratedSlot(host, reinterpret_cast<MaybeObject*>(*p),
                        reinterpret_cast<Address>(p));
   }
@@ -1829,7 +1829,7 @@ class YoungGenerationMarkingVisitor final
 
   V8_INLINE void VisitPointer(HeapObject* host, Object** slot) final {
     Object* target = *slot;
-    DCHECK(!Internals::HasWeakHeapObjectTag(target));
+    DCHECK(!HasWeakHeapObjectTag(target));
     if (heap_->InNewSpace(target)) {
       HeapObject* target_object = HeapObject::cast(target);
       MarkObjectViaMarkingWorklist(target_object);
@@ -3005,7 +3005,7 @@ class PointersUpdatingVisitor : public ObjectVisitor, public RootVisitor {
   }
 
   static inline SlotCallbackResult UpdateStrongSlotInternal(Object** slot) {
-    DCHECK(!Internals::HasWeakHeapObjectTag(*slot));
+    DCHECK(!HasWeakHeapObjectTag(*slot));
     return UpdateStrongSlot<AccessMode::NON_ATOMIC>(
         reinterpret_cast<MaybeObject**>(slot));
   }

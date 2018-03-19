@@ -292,7 +292,7 @@ HeapObject* Deserializer<AllocatorT>::GetBackReferencedObject(int space) {
   }
 
   hot_objects_.Add(obj);
-  DCHECK(!Internals::HasWeakHeapObjectTag(obj));
+  DCHECK(!HasWeakHeapObjectTag(obj));
   return obj;
 }
 
