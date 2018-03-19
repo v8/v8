@@ -1661,27 +1661,44 @@ TF_BUILTIN(ResolvePromise, PromiseBuiltinsAssembler) {
 
   // 7. If Type(resolution) is not Object, then
   GotoIf(TaggedIsSmi(resolution), &if_fulfill);
-  Node* const result_map = LoadMap(resolution);
-  GotoIfNot(IsJSReceiverMap(result_map), &if_fulfill);
+  Node* const resolution_map = LoadMap(resolution);
+  GotoIfNot(IsJSReceiverMap(resolution_map), &if_fulfill);
 
   // We can skip the "then" lookup on {resolution} if its [[Prototype]]
   // is the (initial) Promise.prototype and the Promise#then protector
   // is intact, as that guards the lookup path for the "then" property
   // on JSPromise instances which have the (initial) %PromisePrototype%.
-  Label if_fast(this), if_slow(this, Label::kDeferred);
+  Label if_fast(this), if_generic(this), if_slow(this, Label::kDeferred);
   Node* const native_context = LoadNativeContext(context);
-  BranchIfPromiseThenLookupChainIntact(native_context, result_map, &if_fast,
-                                       &if_slow);
+  GotoIfForceSlowPath(&if_slow);
+  GotoIf(IsPromiseThenProtectorCellInvalid(), &if_slow);
+  GotoIfNot(IsJSPromiseMap(resolution_map), &if_generic);
+  Node* const promise_prototype =
+      LoadContextElement(native_context, Context::PROMISE_PROTOTYPE_INDEX);
+  Branch(WordEqual(LoadMapPrototype(resolution_map), promise_prototype),
+         &if_fast, &if_slow);
 
-  // Resolution is a native promise and if it's already resolved or
-  // rejected, shortcircuit the resolution procedure by directly
-  // reusing the value from the promise.
   BIND(&if_fast);
   {
     Node* const then =
         LoadContextElement(native_context, Context::PROMISE_THEN_INDEX);
     var_then.Bind(then);
     Goto(&do_enqueue);
+  }
+
+  BIND(&if_generic);
+  {
+    // We can skip the lookup of "then" if the {resolution} is a (newly
+    // created) IterResultObject, as the Promise#then protector also
+    // ensures that the intrinsic %ObjectPrototype% doesn't contain any
+    // "then" property. This helps to avoid negative lookups on iterator
+    // results from async generators.
+    CSA_ASSERT(this, IsJSReceiverMap(resolution_map));
+    CSA_ASSERT(this, Word32BinaryNot(IsPromiseThenProtectorCellInvalid()));
+    Node* const iterator_result_map =
+        LoadContextElement(native_context, Context::ITERATOR_RESULT_MAP_INDEX);
+    Branch(WordEqual(resolution_map, iterator_result_map), &if_fulfill,
+           &if_slow);
   }
 
   BIND(&if_slow);

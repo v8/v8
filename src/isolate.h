@@ -1095,7 +1095,10 @@ class Isolate {
   bool IsPromiseResolveLookupChainIntact();
 
   // Make sure a lookup of "then" on any JSPromise whose [[Prototype]] is the
-  // initial %PromisePrototype% yields the initial method.
+  // initial %PromisePrototype% yields the initial method. In addition this
+  // protector also guards the negative lookup of "then" on the intrinsic
+  // %ObjectPrototype%, meaning that such lookups are guaranteed to yield
+  // undefined without triggering any side-effects.
   bool IsPromiseThenLookupChainIntact();
   bool IsPromiseThenLookupChainIntact(Handle<JSReceiver> receiver);
 
