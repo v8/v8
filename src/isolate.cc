@@ -2885,6 +2885,9 @@ void Isolate::PrepareEmbeddedBlobForSerialization() {
 bool Isolate::Init(StartupDeserializer* des) {
   TRACE_ISOLATE(init);
 
+  base::ElapsedTimer timer;
+  if (des == nullptr && FLAG_profile_deserialization) timer.Start();
+
   time_millis_at_init_ = heap_.MonotonicallyIncreasingTimeInMs();
 
   stress_deopt_count_ = FLAG_deopt_every_n_times;
@@ -3099,6 +3102,11 @@ bool Isolate::Init(StartupDeserializer* des) {
         v8::HeapProfiler::SamplingFlags::kSamplingForceGC;
     heap_profiler()->StartSamplingHeapProfiler(sample_interval, stack_depth,
                                                sampling_flags);
+  }
+
+  if (des == nullptr && FLAG_profile_deserialization) {
+    double ms = timer.Elapsed().InMillisecondsF();
+    PrintF("[Initializing isolate from scratch took %0.3f ms]\n", ms);
   }
 
   return true;
