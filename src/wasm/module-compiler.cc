@@ -1173,6 +1173,7 @@ wasm::WasmCode* FinishCompilationUnit(CompilationState* compilation_state,
 void FinishCompilationUnits(CompilationState* compilation_state,
                             ErrorThrower* thrower) {
   while (true) {
+    if (compilation_state->failed()) break;
     int func_index = -1;
     wasm::WasmCode* result =
         FinishCompilationUnit(compilation_state, thrower, &func_index);
@@ -1185,8 +1186,10 @@ void FinishCompilationUnits(CompilationState* compilation_state,
     DCHECK_IMPLIES(result == nullptr, thrower->error());
     if (result == nullptr) break;
   }
-  if (compilation_state->ShouldIncreaseWorkload())
+  if (compilation_state->ShouldIncreaseWorkload() &&
+      !compilation_state->failed()) {
     compilation_state->RestartBackgroundTasks();
+  }
 }
 
 void CompileInParallel(Isolate* isolate, NativeModule* native_module,
@@ -1247,16 +1250,22 @@ void CompileInParallel(Isolate* isolate, NativeModule* native_module,
     //      are finished concurrently to the background threads to save
     //      memory.
     FinishCompilationUnits(compilation_state, thrower);
+
+    if (compilation_state->failed()) break;
   }
 
   // 3) After the parallel phase of all compilation units has started, the
   //    main thread waits for all {BackgroundCompileTasks} instances to finish -
   //    which happens once they all realize there's no next work item to
-  //    process.
-  compilation_state->CancelAndWait();
+  //    process. If compilation already failed, all background tasks have
+  //    already been canceled in {FinishCompilationUnits}, and there are
+  //    no units to finish.
+  if (!compilation_state->failed()) {
+    compilation_state->CancelAndWait();
 
-  // 4) Finish all compilation units which have been executed while we waited.
-  FinishCompilationUnits(compilation_state, thrower);
+    // 4) Finish all compilation units which have been executed while we waited.
+    FinishCompilationUnits(compilation_state, thrower);
+  }
 }
 
 void CompileSequentially(Isolate* isolate, NativeModule* native_module,
