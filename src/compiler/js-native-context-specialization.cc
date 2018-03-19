@@ -1040,8 +1040,7 @@ Reduction JSNativeContextSpecialization::ReduceNamedAccessFromNexus(
 
   // Extract receiver maps from the IC using the {nexus}.
   MapHandles receiver_maps;
-  if (!ExtractReceiverMaps(receiver, effect, nexus, access_mode,
-                           &receiver_maps)) {
+  if (!ExtractReceiverMaps(receiver, effect, nexus, &receiver_maps)) {
     return NoChange();
   } else if (receiver_maps.empty()) {
     if (flags() & kBailoutOnUninitialized) {
@@ -1441,8 +1440,7 @@ Reduction JSNativeContextSpecialization::ReduceKeyedAccess(
 
   // Extract receiver maps from the {nexus}.
   MapHandles receiver_maps;
-  if (!ExtractReceiverMaps(receiver, effect, nexus, access_mode,
-                           &receiver_maps)) {
+  if (!ExtractReceiverMaps(receiver, effect, nexus, &receiver_maps)) {
     return NoChange();
   } else if (receiver_maps.empty()) {
     if (flags() & kBailoutOnUninitialized) {
@@ -2110,7 +2108,6 @@ Reduction JSNativeContextSpecialization::ReduceJSStoreInArrayLiteral(
   Node* const index = NodeProperties::GetValueInput(node, 1);
   Node* const value = NodeProperties::GetValueInput(node, 2);
   Node* const effect = NodeProperties::GetEffectInput(node);
-  AccessMode access_mode = AccessMode::kStoreInLiteral;
 
   // Extract receiver maps from the keyed store IC using the FeedbackNexus.
   if (!p.feedback().IsValid()) return NoChange();
@@ -2121,8 +2118,7 @@ Reduction JSNativeContextSpecialization::ReduceJSStoreInArrayLiteral(
 
   // Extract receiver maps from the {nexus}.
   MapHandles receiver_maps;
-  if (!ExtractReceiverMaps(receiver, effect, nexus, access_mode,
-                           &receiver_maps)) {
+  if (!ExtractReceiverMaps(receiver, effect, nexus, &receiver_maps)) {
     return NoChange();
   } else if (receiver_maps.empty()) {
     if (flags() & kBailoutOnUninitialized) {
@@ -2138,8 +2134,9 @@ Reduction JSNativeContextSpecialization::ReduceJSStoreInArrayLiteral(
   if (nexus.ic_state() == MEGAMORPHIC) return NoChange();
 
   // Try to lower the element access based on the {receiver_maps}.
-  return ReduceElementAccess(node, index, value, receiver_maps, access_mode,
-                             STANDARD_LOAD, store_mode);
+  return ReduceElementAccess(node, index, value, receiver_maps,
+                             AccessMode::kStoreInLiteral, STANDARD_LOAD,
+                             store_mode);
 }
 
 namespace {
@@ -2803,14 +2800,11 @@ bool JSNativeContextSpecialization::CanTreatHoleAsUndefined(
 
 bool JSNativeContextSpecialization::ExtractReceiverMaps(
     Node* receiver, Node* effect, FeedbackNexus const& nexus,
-    AccessMode access_mode, MapHandles* receiver_maps) {
+    MapHandles* receiver_maps) {
   DCHECK_EQ(0, receiver_maps->size());
   if (nexus.IsUninitialized()) return true;
-  // See if we can infer a concrete type for the {receiver}. This is only safe
-  // for loads, because for stores we need to take transition targets into
-  // account.
-  if (access_mode == AccessMode::kLoad &&
-      InferReceiverMaps(receiver, effect, receiver_maps)) {
+  // See if we can infer a concrete type for the {receiver}.
+  if (InferReceiverMaps(receiver, effect, receiver_maps)) {
     // We can assume that the {receiver} still has the inferred {receiver_maps}.
     return true;
   }
