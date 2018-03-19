@@ -312,53 +312,53 @@ bool IntrinsicHasNoSideEffect(Runtime::FunctionId id) {
 // Use macro to include both inlined and non-inlined version of an intrinsic.
 #define INTRINSIC_WHITELIST(V)           \
   /* Conversions */                      \
+  V(NumberToStringSkipCache)             \
+  V(ToBigInt)                            \
   V(ToInteger)                           \
-  V(ToObject)                            \
-  V(ToString)                            \
   V(ToLength)                            \
   V(ToNumber)                            \
-  V(ToBigInt)                            \
-  V(NumberToStringSkipCache)             \
+  V(ToObject)                            \
+  V(ToString)                            \
   /* Type checks */                      \
-  V(IsJSReceiver)                        \
-  V(IsSmi)                               \
   V(IsArray)                             \
-  V(IsFunction)                          \
   V(IsDate)                              \
-  V(IsJSProxy)                           \
+  V(IsFunction)                          \
   V(IsJSMap)                             \
+  V(IsJSProxy)                           \
+  V(IsJSReceiver)                        \
   V(IsJSSet)                             \
   V(IsJSWeakMap)                         \
   V(IsJSWeakSet)                         \
   V(IsRegExp)                            \
+  V(IsSmi)                               \
   V(IsTypedArray)                        \
   /* Loads */                            \
   V(LoadLookupSlotForCall)               \
   /* Arrays */                           \
   V(ArraySpeciesConstructor)             \
-  V(NormalizeElements)                   \
-  V(GetArrayKeys)                        \
-  V(TrySliceSimpleNonFastElements)       \
-  V(HasComplexElements)                  \
   V(EstimateNumberOfElements)            \
+  V(GetArrayKeys)                        \
+  V(HasComplexElements)                  \
   V(NewArray)                            \
+  V(NormalizeElements)                   \
+  V(TrySliceSimpleNonFastElements)       \
   V(TypedArrayGetBuffer)                 \
   /* Errors */                           \
+  V(NewTypeError)                        \
   V(ReThrow)                             \
+  V(ThrowCalledNonCallable)              \
+  V(ThrowInvalidStringLength)            \
+  V(ThrowIteratorResultNotAnObject)      \
   V(ThrowReferenceError)                 \
   V(ThrowSymbolIteratorInvalid)          \
-  V(ThrowIteratorResultNotAnObject)      \
-  V(NewTypeError)                        \
-  V(ThrowInvalidStringLength)            \
-  V(ThrowCalledNonCallable)              \
   /* Strings */                          \
-  V(StringIndexOf)                       \
+  V(RegExpInternalReplace)               \
   V(StringIncludes)                      \
+  V(StringIndexOf)                       \
   V(StringReplaceOneCharWithString)      \
+  V(StringSubstring)                     \
   V(StringToNumber)                      \
   V(StringTrim)                          \
-  V(StringSubstring)                     \
-  V(RegExpInternalReplace)               \
   /* BigInts */                          \
   V(BigIntEqualToBigInt)                 \
   V(BigIntToBoolean)                     \
@@ -401,16 +401,16 @@ bool IntrinsicHasNoSideEffect(Runtime::FunctionId id) {
   V(ToName)                              \
   /* Misc. */                            \
   V(Call)                                \
-  V(MaxSmi)                              \
-  V(NewObject)                           \
   V(CompleteInobjectSlackTrackingForMap) \
   V(HasInPrototypeChain)                 \
+  V(MaxSmi)                              \
+  V(NewObject)                           \
   V(StringMaxLength)                     \
   /* Test */                             \
-  V(OptimizeOsr)                         \
+  V(GetOptimizationStatus)               \
   V(OptimizeFunctionOnNextCall)          \
-  V(UnblockConcurrentRecompilation)      \
-  V(GetOptimizationStatus)
+  V(OptimizeOsr)                         \
+  V(UnblockConcurrentRecompilation)
 
 #define CASE(Name)       \
   case Runtime::k##Name: \
