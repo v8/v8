@@ -1521,6 +1521,7 @@ class BackgroundCompileTask : public CancelableTask {
   void RunInternal() override {
     TRACE_COMPILE("(3b) Compiling...\n");
     while (compilation_state_->CanAcceptWork()) {
+      if (compilation_state_->failed()) break;
       DisallowHandleAllocation no_handle;
       DisallowHeapAllocation no_allocation;
 
