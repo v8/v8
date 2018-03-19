@@ -101,7 +101,8 @@ class Deserializer : public SerializerDeserializer {
 
   void Synchronize(VisitorSynchronization::SyncTag tag) override;
 
-  void UnalignedCopy(Object** dest, Object** src) {
+  template <typename T>
+  void UnalignedCopy(T** dest, T** src) {
     memcpy(dest, src, sizeof(*src));
   }
 
@@ -119,6 +120,12 @@ class Deserializer : public SerializerDeserializer {
   inline Object** ReadDataCase(Isolate* isolate, Object** current,
                                Address current_object_address, byte data,
                                bool write_barrier_needed);
+
+  // A helper function for ReadData for reading external references.
+  // Returns the new value of {current}.
+  inline void** ReadExternalReferenceCase(HowToCode how, Isolate* isolate,
+                                          void** current,
+                                          Address current_object_address);
 
   void ReadObject(int space_number, Object** write_back);
 

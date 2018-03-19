@@ -446,12 +446,6 @@ bool Deserializer<AllocatorT>::ReadData(Object** current, Object** limit,
       SINGLE_CASE(kPartialSnapshotCache, kPlain, kStartOfObject, 0)
       SINGLE_CASE(kPartialSnapshotCache, kFromCode, kStartOfObject, 0)
       SINGLE_CASE(kPartialSnapshotCache, kFromCode, kInnerPointer, 0)
-      // Find an external reference and write a pointer to it to the current
-      // object.
-      SINGLE_CASE(kExternalReference, kPlain, kStartOfObject, 0)
-      // Find an external reference and write a pointer to it in the current
-      // code object.
-      SINGLE_CASE(kExternalReference, kFromCode, kStartOfObject, 0)
       // Find an object in the attached references and write a pointer to it to
       // the current object.
       SINGLE_CASE(kAttachedReference, kPlain, kStartOfObject, 0)
@@ -472,6 +466,21 @@ bool Deserializer<AllocatorT>::ReadData(Object** current, Object** limit,
             reinterpret_cast<intptr_t>(current) + size);
         break;
       }
+
+      // Find an external reference and write a pointer to it to the current
+      // object.
+      case kExternalReference + kPlain + kStartOfObject:
+        current = reinterpret_cast<Object**>(ReadExternalReferenceCase(
+            kPlain, isolate, reinterpret_cast<void**>(current),
+            current_object_address));
+        break;
+      // Find an external reference and write a pointer to it in the current
+      // code object.
+      case kExternalReference + kFromCode + kStartOfObject:
+        current = reinterpret_cast<Object**>(ReadExternalReferenceCase(
+            kFromCode, isolate, reinterpret_cast<void**>(current),
+            current_object_address));
+        break;
 
       case kInternalReferenceEncoded:
       case kInternalReference: {
@@ -709,6 +718,30 @@ int FixupJSConstructStub(Isolate* isolate, int builtin_id) {
 }  // namespace
 
 template <class AllocatorT>
+void** Deserializer<AllocatorT>::ReadExternalReferenceCase(
+    HowToCode how, Isolate* isolate, void** current,
+    Address current_object_address) {
+  int skip = source_.GetInt();
+  current = reinterpret_cast<void**>(reinterpret_cast<Address>(current) + skip);
+  uint32_t reference_id = static_cast<uint32_t>(source_.GetInt());
+  Address address = external_reference_table_->address(reference_id);
+
+  if (how == kFromCode) {
+    Address location_of_branch_data = reinterpret_cast<Address>(current);
+    Assembler::deserialization_set_special_target_at(
+        location_of_branch_data,
+        Code::cast(HeapObject::FromAddress(current_object_address)), address);
+    location_of_branch_data += Assembler::kSpecialTargetSize;
+    current = reinterpret_cast<void**>(location_of_branch_data);
+  } else {
+    void* new_current = reinterpret_cast<void**>(address);
+    UnalignedCopy(current, &new_current);
+    ++current;
+  }
+  return current;
+}
+
+template <class AllocatorT>
 template <int where, int how, int within, int space_number_if_any>
 Object** Deserializer<AllocatorT>::ReadDataCase(Isolate* isolate,
                                                 Object** current,
@@ -745,13 +778,6 @@ Object** Deserializer<AllocatorT>::ReadDataCase(Isolate* isolate,
       int cache_index = source_.GetInt();
       new_object = isolate->partial_snapshot_cache()->at(cache_index);
       emit_write_barrier = isolate->heap()->InNewSpace(new_object);
-    } else if (where == kExternalReference) {
-      int skip = source_.GetInt();
-      current =
-          reinterpret_cast<Object**>(reinterpret_cast<Address>(current) + skip);
-      uint32_t reference_id = static_cast<uint32_t>(source_.GetInt());
-      Address address = external_reference_table_->address(reference_id);
-      new_object = reinterpret_cast<Object*>(address);
     } else if (where == kAttachedReference) {
       int index = source_.GetInt();
       new_object = *attached_objects_[index];
