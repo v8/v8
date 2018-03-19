@@ -58,74 +58,19 @@ namespace wasm {
 
 static constexpr int kInvalidSigIndex = -1;
 
-// A class compiling an entire module.
-class ModuleCompiler {
+enum class CompilationEvent : uint8_t {
+  kFinishedBaselineCompilation,
+  kFailedCompilation
+};
+
+enum class NotifyCompilationCallback : uint8_t { kNotify, kNoNotify };
+
+// The CompilationState keeps track of the compilation state of the
+// owning NativeModule, i.e. which functions are left to be compiled.
+// It contains a task manager to allow parallel and asynchronous background
+// compilation of functions.
+class CompilationState {
  public:
-  ModuleCompiler(Isolate* isolate, WasmModule* module, Handle<Code> centry_stub,
-                 wasm::NativeModule* native_module);
-
-  // The actual runnable task that performs compilations in the background.
-  class CompilationTask : public CancelableTask {
-   public:
-    ModuleCompiler* compiler_;
-    explicit CompilationTask(ModuleCompiler* compiler)
-        : CancelableTask(&compiler->background_task_manager_),
-          compiler_(compiler) {}
-
-    void RunInternal() override {
-      while (compiler_->executed_units_.CanAcceptWork() &&
-             compiler_->FetchAndExecuteCompilationUnit()) {
-      }
-
-      compiler_->OnBackgroundTaskStopped();
-    }
-  };
-
-  // The CompilationUnitBuilder builds compilation units and stores them in an
-  // internal buffer. The buffer is moved into the working queue of the
-  // ModuleCompiler when {Commit} is called.
-  class CompilationUnitBuilder {
-   public:
-    explicit CompilationUnitBuilder(ModuleCompiler* compiler)
-        : compiler_(compiler) {}
-
-    ~CompilationUnitBuilder() { DCHECK(units_.empty()); }
-
-    void AddUnit(compiler::ModuleEnv* module_env,
-                 wasm::NativeModule* native_module,
-                 const WasmFunction* function, uint32_t buffer_offset,
-                 Vector<const uint8_t> bytes, WasmName name) {
-      units_.emplace_back(new compiler::WasmCompilationUnit(
-          compiler_->isolate_, module_env, native_module,
-          wasm::FunctionBody{function->sig, buffer_offset, bytes.begin(),
-                             bytes.end()},
-          name, function->func_index, compiler_->centry_stub_,
-          compiler::WasmCompilationUnit::GetDefaultCompilationMode(),
-          compiler_->counters()));
-    }
-
-    bool Commit() {
-      if (units_.empty()) return false;
-
-      {
-        base::LockGuard<base::Mutex> guard(
-            &compiler_->compilation_units_mutex_);
-        compiler_->compilation_units_.insert(
-            compiler_->compilation_units_.end(),
-            std::make_move_iterator(units_.begin()),
-            std::make_move_iterator(units_.end()));
-      }
-      units_.clear();
-      return true;
-    }
-
-    void Clear() { units_.clear(); }
-
-   private:
-    ModuleCompiler* compiler_;
-    std::vector<std::unique_ptr<compiler::WasmCompilationUnit>> units_;
-  };
-
   class CodeGenerationSchedule {
    public:
     explicit CodeGenerationSchedule(
@@ -154,21 +99,36 @@ class ModuleCompiler {
     base::AtomicNumber<size_t> allocated_memory_{0};
   };
 
-  Counters* counters() const { return async_counters_.get(); }
+  CompilationState(internal::Isolate* isolate, Handle<Context> context);
+  ~CompilationState();
 
-  // Run by each compilation task and by the main thread (i.e. in both
-  // foreground and background threads). The no_finisher_callback is called
-  // within the result_mutex_ lock when no finishing task is running, i.e. when
-  // the finisher_is_running_ flag is not set.
-  bool FetchAndExecuteCompilationUnit(
-      std::function<void()> no_finisher_callback = nullptr);
+  // Needs to be set before {AddCompilationUnits} is run, which triggers
+  // {StartCompilation}.
+  void SetNumberOfFunctionsToCompile(size_t num_functions);
+  void AddCallback(
+      std::function<void(CompilationEvent, Handle<Object>)> callback);
 
+  // Inserts new functions to compile and kicks off compilation.
+  void AddCompilationUnits(
+      std::vector<std::unique_ptr<compiler::WasmCompilationUnit>>& units);
+  std::unique_ptr<compiler::WasmCompilationUnit> GetNextCompilationUnit();
+  std::unique_ptr<compiler::WasmCompilationUnit> GetNextExecutedUnit();
+  // Takes the {thrower} that contains information on whether compilation
+  // failed and a {notify} enum, which determines whether or not to notify
+  // listeners waiting on a compilation event callback.
+  void OnFinishedUnit(ErrorThrower* thrower, NotifyCompilationCallback notify);
+  void ScheduleUnitForFinishing(
+      std::unique_ptr<compiler::WasmCompilationUnit>& unit);
+
+  void CancelAndWait();
   void OnBackgroundTaskStopped();
-
-  void EnableThrottling() { executed_units_.EnableThrottling(); }
+  void RestartBackgroundTasks();
+  // Only one foreground thread (finisher) is allowed to run at a time.
+  void SetFinisherIsRunning(bool value);
+  void ScheduleFinisherTask();
 
   bool CanAcceptWork() const { return executed_units_.CanAcceptWork(); }
-
+  void EnableThrottling() { executed_units_.EnableThrottling(); }
   bool ShouldIncreaseWorkload() {
     if (executed_units_.ShouldIncreaseWorkload()) {
       // Check if it actually makes sense to increase the workload.
@@ -178,54 +138,46 @@ class ModuleCompiler {
     return false;
   }
 
-  size_t InitializeCompilationUnits(const std::vector<WasmFunction>& functions,
-                                    const ModuleWireBytes& wire_bytes,
-                                    compiler::ModuleEnv* module_env);
+  void Abort();
 
-  void RestartCompilationTasks();
-
-  size_t FinishCompilationUnits(ErrorThrower* thrower);
-
-  bool IsFinisherRunning() const { return finisher_is_running_; }
-
-  void SetFinisherIsRunning(bool value);
-
-  wasm::WasmCode* FinishCompilationUnit(ErrorThrower* thrower, int* func_index);
-
-  void CompileInParallel(const ModuleWireBytes& wire_bytes,
-                         compiler::ModuleEnv* module_env,
-                         ErrorThrower* thrower);
-
-  void CompileSequentially(const ModuleWireBytes& wire_bytes,
-                           compiler::ModuleEnv* module_env,
-                           ErrorThrower* thrower);
-
-  void ValidateSequentially(const ModuleWireBytes& wire_bytes,
-                            compiler::ModuleEnv* module_env,
-                            ErrorThrower* thrower);
-
-  MaybeHandle<WasmModuleObject> CompileToModuleObjectInternal(
-      ErrorThrower* thrower, std::unique_ptr<WasmModule> module,
-      const ModuleWireBytes& wire_bytes, Handle<Script> asm_js_script,
-      Vector<const byte> asm_js_offset_table_bytes);
+  Isolate* isolate() { return isolate_; }
+  Handle<Context> context() { return context_; }
+  bool failed() { return failed_; }
 
  private:
+  void StartCompilation(size_t num_functions);
+
+  void NotifyOnEvent(CompilationEvent event, ErrorThrower* thrower);
+
   Isolate* isolate_;
-  WasmModule* module_;
-  const std::shared_ptr<Counters> async_counters_;
+
+  Handle<Context> context_;
+
   std::vector<std::unique_ptr<compiler::WasmCompilationUnit>>
       compilation_units_;
+  std::vector<std::function<void(CompilationEvent, Handle<Object>)>> callbacks_;
   base::Mutex compilation_units_mutex_;
+
   CodeGenerationSchedule executed_units_;
-  base::Mutex result_mutex_;
-  const int num_background_tasks_;
-  // This flag should only be set while holding result_mutex_.
+  // Should only be set when result_mutex_ is taken.
   bool finisher_is_running_ = false;
+  base::Mutex result_mutex_;
+
+  // When canceling the background_task_manager_, use {CancelAndWait} on
+  // the CompilationState in order to cleanly clean up.
   CancelableTaskManager background_task_manager_;
-  int stopped_compilation_tasks_ = 0;
+  std::shared_ptr<v8::TaskRunner> background_task_runner_;
+  std::shared_ptr<v8::TaskRunner> foreground_task_runner_;
+
+  size_t num_background_tasks_ = 0;
+  size_t stopped_compilation_tasks_ = 0;
   base::Mutex tasks_mutex_;
-  Handle<Code> centry_stub_;
-  wasm::NativeModule* native_module_;
+
+  std::atomic<bool> failed_{false};
+
+  size_t outstanding_units_ = 0;
+
+  std::vector<DeferredHandles*> deferred_handles_;
 };
 
 namespace {
@@ -895,295 +847,6 @@ const wasm::WasmCode* LazyCompilationOrchestrator::CompileDirectCall(
   return ret;
 }
 
-ModuleCompiler::CodeGenerationSchedule::CodeGenerationSchedule(
-    base::RandomNumberGenerator* random_number_generator, size_t max_memory)
-    : random_number_generator_(random_number_generator),
-      max_memory_(max_memory) {
-  DCHECK_NOT_NULL(random_number_generator_);
-  DCHECK_GT(max_memory_, 0);
-}
-
-void ModuleCompiler::CodeGenerationSchedule::Schedule(
-    std::unique_ptr<compiler::WasmCompilationUnit>&& item) {
-  size_t cost = item->memory_cost();
-  schedule_.push_back(std::move(item));
-  allocated_memory_.Increment(cost);
-}
-
-bool ModuleCompiler::CodeGenerationSchedule::CanAcceptWork() const {
-  return (!throttle_ || allocated_memory_.Value() <= max_memory_);
-}
-
-bool ModuleCompiler::CodeGenerationSchedule::ShouldIncreaseWorkload() const {
-  // Half the memory is unused again, we can increase the workload again.
-  return (!throttle_ || allocated_memory_.Value() <= max_memory_ / 2);
-}
-
-std::unique_ptr<compiler::WasmCompilationUnit>
-ModuleCompiler::CodeGenerationSchedule::GetNext() {
-  DCHECK(!IsEmpty());
-  size_t index = GetRandomIndexInSchedule();
-  auto ret = std::move(schedule_[index]);
-  std::swap(schedule_[schedule_.size() - 1], schedule_[index]);
-  schedule_.pop_back();
-  allocated_memory_.Decrement(ret->memory_cost());
-  return ret;
-}
-
-size_t ModuleCompiler::CodeGenerationSchedule::GetRandomIndexInSchedule() {
-  double factor = random_number_generator_->NextDouble();
-  size_t index = (size_t)(factor * schedule_.size());
-  DCHECK_GE(index, 0);
-  DCHECK_LT(index, schedule_.size());
-  return index;
-}
-
-ModuleCompiler::ModuleCompiler(Isolate* isolate, WasmModule* module,
-                               Handle<Code> centry_stub,
-                               wasm::NativeModule* native_module)
-    : isolate_(isolate),
-      module_(module),
-      async_counters_(isolate->async_counters()),
-      executed_units_(
-          isolate->random_number_generator(),
-          (isolate->heap()->memory_allocator()->code_range()->valid()
-               ? isolate->heap()->memory_allocator()->code_range()->size()
-               : isolate->heap()->code_space()->Capacity()) /
-              2),
-      num_background_tasks_(
-          Min(FLAG_wasm_num_compilation_tasks,
-              V8::GetCurrentPlatform()->NumberOfWorkerThreads())),
-      stopped_compilation_tasks_(num_background_tasks_),
-      centry_stub_(centry_stub),
-      native_module_(native_module) {}
-
-// The actual runnable task that performs compilations in the background.
-void ModuleCompiler::OnBackgroundTaskStopped() {
-  base::LockGuard<base::Mutex> guard(&tasks_mutex_);
-  ++stopped_compilation_tasks_;
-  DCHECK_LE(stopped_compilation_tasks_, num_background_tasks_);
-}
-
-// Run by each compilation task. The no_finisher_callback is called
-// within the result_mutex_ lock when no finishing task is running,
-// i.e. when the finisher_is_running_ flag is not set.
-bool ModuleCompiler::FetchAndExecuteCompilationUnit(
-    std::function<void()> no_finisher_callback) {
-  DisallowHeapAllocation no_allocation;
-  DisallowHandleAllocation no_handles;
-  DisallowHandleDereference no_deref;
-  DisallowCodeDependencyChange no_dependency_change;
-
-  std::unique_ptr<compiler::WasmCompilationUnit> unit;
-  {
-    base::LockGuard<base::Mutex> guard(&compilation_units_mutex_);
-    if (compilation_units_.empty()) return false;
-    unit = std::move(compilation_units_.back());
-    compilation_units_.pop_back();
-  }
-  unit->ExecuteCompilation();
-  {
-    base::LockGuard<base::Mutex> guard(&result_mutex_);
-    executed_units_.Schedule(std::move(unit));
-    if (no_finisher_callback != nullptr && !finisher_is_running_) {
-      no_finisher_callback();
-      // We set the flag here so that not more than one finisher is started.
-      finisher_is_running_ = true;
-    }
-  }
-  return true;
-}
-
-size_t ModuleCompiler::InitializeCompilationUnits(
-    const std::vector<WasmFunction>& functions,
-    const ModuleWireBytes& wire_bytes, compiler::ModuleEnv* module_env) {
-  uint32_t start = module_env->module->num_imported_functions +
-                   FLAG_skip_compiling_wasm_funcs;
-  uint32_t num_funcs = static_cast<uint32_t>(functions.size());
-  uint32_t funcs_to_compile = start > num_funcs ? 0 : num_funcs - start;
-  CompilationUnitBuilder builder(this);
-  for (uint32_t i = start; i < num_funcs; ++i) {
-    const WasmFunction* func = &functions[i];
-    uint32_t buffer_offset = func->code.offset();
-    Vector<const uint8_t> bytes(wire_bytes.start() + func->code.offset(),
-                                func->code.end_offset() - func->code.offset());
-    WasmName name = wire_bytes.GetName(func, module_env->module);
-    DCHECK_NOT_NULL(native_module_);
-    builder.AddUnit(module_env, native_module_, func, buffer_offset, bytes,
-                    name);
-  }
-  builder.Commit();
-  return funcs_to_compile;
-}
-
-void ModuleCompiler::RestartCompilationTasks() {
-  v8::Isolate* v8_isolate = reinterpret_cast<v8::Isolate*>(isolate_);
-  std::shared_ptr<v8::TaskRunner> task_runner =
-      V8::GetCurrentPlatform()->GetWorkerThreadsTaskRunner(v8_isolate);
-
-  base::LockGuard<base::Mutex> guard(&tasks_mutex_);
-  for (; stopped_compilation_tasks_ > 0; --stopped_compilation_tasks_) {
-    task_runner->PostTask(base::make_unique<CompilationTask>(this));
-  }
-}
-
-size_t ModuleCompiler::FinishCompilationUnits(ErrorThrower* thrower) {
-  size_t finished = 0;
-  while (true) {
-    int func_index = -1;
-    wasm::WasmCode* result = FinishCompilationUnit(thrower, &func_index);
-    if (func_index < 0) break;
-    ++finished;
-    DCHECK_IMPLIES(result == nullptr, thrower->error());
-    if (result == nullptr) break;
-  }
-  bool do_restart;
-  {
-    base::LockGuard<base::Mutex> guard(&compilation_units_mutex_);
-    do_restart = !compilation_units_.empty();
-  }
-  if (do_restart) RestartCompilationTasks();
-  return finished;
-}
-
-void ModuleCompiler::SetFinisherIsRunning(bool value) {
-  base::LockGuard<base::Mutex> guard(&result_mutex_);
-  finisher_is_running_ = value;
-}
-
-wasm::WasmCode* ModuleCompiler::FinishCompilationUnit(ErrorThrower* thrower,
-                                                      int* func_index) {
-  std::unique_ptr<compiler::WasmCompilationUnit> unit;
-  {
-    base::LockGuard<base::Mutex> guard(&result_mutex_);
-    if (executed_units_.IsEmpty()) return {};
-    unit = executed_units_.GetNext();
-  }
-  *func_index = unit->func_index();
-  return unit->FinishCompilation(thrower);
-}
-
-void ModuleCompiler::CompileInParallel(const ModuleWireBytes& wire_bytes,
-                                       compiler::ModuleEnv* module_env,
-                                       ErrorThrower* thrower) {
-  const WasmModule* module = module_env->module;
-  // Data structures for the parallel compilation.
-
-  //-----------------------------------------------------------------------
-  // For parallel compilation:
-  // 1) The main thread allocates a compilation unit for each wasm function
-  //    and stores them in the vector {compilation_units}.
-  // 2) The main thread spawns {CompilationTask} instances which run on
-  //    the background threads.
-  // 3.a) The background threads and the main thread pick one compilation
-  //      unit at a time and execute the parallel phase of the compilation
-  //      unit. After finishing the execution of the parallel phase, the
-  //      result is enqueued in {executed_units}.
-  // 3.b) If {executed_units} contains a compilation unit, the main thread
-  //      dequeues it and finishes the compilation.
-  // 4) After the parallel phase of all compilation units has started, the
-  //    main thread waits for all {CompilationTask} instances to finish.
-  // 5) The main thread finishes the compilation.
-
-  // Turn on the {CanonicalHandleScope} so that the background threads can
-  // use the node cache.
-  CanonicalHandleScope canonical(isolate_);
-
-  // 1) The main thread allocates a compilation unit for each wasm function
-  //    and stores them in the vector {compilation_units}.
-  InitializeCompilationUnits(module->functions, wire_bytes, module_env);
-  executed_units_.EnableThrottling();
-
-  // 2) The main thread spawns {CompilationTask} instances which run on
-  //    the background threads.
-  RestartCompilationTasks();
-
-  // 3.a) The background threads and the main thread pick one compilation
-  //      unit at a time and execute the parallel phase of the compilation
-  //      unit. After finishing the execution of the parallel phase, the
-  //      result is enqueued in {executed_units}.
-  //      The foreground task bypasses waiting on memory threshold, because
-  //      its results will immediately be converted to code (below).
-  while (FetchAndExecuteCompilationUnit()) {
-    // 3.b) If {executed_units} contains a compilation unit, the main thread
-    //      dequeues it and finishes the compilation unit. Compilation units
-    //      are finished concurrently to the background threads to save
-    //      memory.
-    FinishCompilationUnits(thrower);
-  }
-  // 4) After the parallel phase of all compilation units has started, the
-  //    main thread waits for all {CompilationTask} instances to finish - which
-  //    happens once they all realize there's no next work item to process.
-  background_task_manager_.CancelAndWait();
-  // Finish all compilation units which have been executed while we waited.
-  FinishCompilationUnits(thrower);
-}
-
-void ModuleCompiler::CompileSequentially(const ModuleWireBytes& wire_bytes,
-                                         compiler::ModuleEnv* module_env,
-                                         ErrorThrower* thrower) {
-  DCHECK(!thrower->error());
-
-  const WasmModule* module = module_env->module;
-  for (uint32_t i = FLAG_skip_compiling_wasm_funcs;
-       i < module->functions.size(); ++i) {
-    const WasmFunction& func = module->functions[i];
-    if (func.imported) continue;  // Imports are compiled at instantiation time.
-
-    // Compile the function.
-    wasm::WasmCode* code = compiler::WasmCompilationUnit::CompileWasmFunction(
-        native_module_, thrower, isolate_, wire_bytes, module_env, &func);
-    if (code == nullptr) {
-      TruncatedUserString<> name(wire_bytes.GetName(&func, module));
-      thrower->CompileError("Compilation of #%d:%.*s failed.", i, name.length(),
-                            name.start());
-      break;
-    }
-  }
-}
-
-void ModuleCompiler::ValidateSequentially(const ModuleWireBytes& wire_bytes,
-                                          compiler::ModuleEnv* module_env,
-                                          ErrorThrower* thrower) {
-  DCHECK(!thrower->error());
-
-  const WasmModule* module = module_env->module;
-  for (uint32_t i = 0; i < module->functions.size(); ++i) {
-    const WasmFunction& func = module->functions[i];
-    if (func.imported) continue;
-
-    const byte* base = wire_bytes.start();
-    FunctionBody body{func.sig, func.code.offset(), base + func.code.offset(),
-                      base + func.code.end_offset()};
-    DecodeResult result = VerifyWasmCodeWithStats(
-        isolate_->allocator(), module, body, module->is_wasm(), counters());
-    if (result.failed()) {
-      TruncatedUserString<> name(wire_bytes.GetName(&func, module));
-      thrower->CompileError("Compiling function #%d:%.*s failed: %s @+%u", i,
-                            name.length(), name.start(),
-                            result.error_msg().c_str(), result.error_offset());
-      break;
-    }
-  }
-}
-
-MaybeHandle<WasmModuleObject> CompileToModuleObject(
-    Isolate* isolate, ErrorThrower* thrower, std::unique_ptr<WasmModule> module,
-    const ModuleWireBytes& wire_bytes, Handle<Script> asm_js_script,
-    Vector<const byte> asm_js_offset_table_bytes) {
-  Handle<Code> centry_stub = CEntryStub(isolate, 1).GetCode();
-  // TODO(mstarzinger): the wasm::NativeModule parameter to the ModuleCompiler
-  // constructor is null here, and initialized in CompileToModuleObjectInternal.
-  // This is a point-in-time, until we remove the FLAG_wasm_jit_to_native flag,
-  // and stop needing a FixedArray for code for the non-native case. Otherwise,
-  // we end up moving quite a bit of initialization logic here that is also
-  // needed in CompileToModuleObjectInternal, complicating the change.
-  ModuleCompiler compiler(isolate, module.get(), centry_stub, nullptr);
-  return compiler.CompileToModuleObjectInternal(thrower, std::move(module),
-                                                wire_bytes, asm_js_script,
-                                                asm_js_offset_table_bytes);
-}
-
 namespace {
 bool compile_lazy(const WasmModule* module) {
   return FLAG_wasm_lazy_compilation ||
@@ -1353,11 +1016,6 @@ wasm::WasmCode* UnwrapExportOrCompileImportWrapper(
       temp_code, wasm::WasmCode::kWasmToJsWrapper, import_index);
 }
 
-double MonotonicallyIncreasingTimeInMs() {
-  return V8::GetCurrentPlatform()->MonotonicallyIncreasingTime() *
-         base::Time::kMillisecondsPerSecond;
-}
-
 void FunctionTableFinalizer(const v8::WeakCallbackInfo<void>& data) {
   GlobalHandles::Destroy(reinterpret_cast<Object**>(
       reinterpret_cast<JSObject**>(data.GetParameter())));
@@ -1394,36 +1052,292 @@ Handle<WasmCompiledModule> NewCompiledModule(Isolate* isolate,
 
 }  // namespace
 
-MaybeHandle<WasmModuleObject> ModuleCompiler::CompileToModuleObjectInternal(
-    ErrorThrower* thrower, std::unique_ptr<WasmModule> module,
+namespace {
+
+size_t GetMaxUsableMemorySize(Isolate* isolate) {
+  return isolate->heap()->memory_allocator()->code_range()->valid()
+             ? isolate->heap()->memory_allocator()->code_range()->size()
+             : isolate->heap()->code_space()->Capacity();
+}
+
+double MonotonicallyIncreasingTimeInMs() {
+  return V8::GetCurrentPlatform()->MonotonicallyIncreasingTime() *
+         base::Time::kMillisecondsPerSecond;
+}
+
+// The CompilationUnitBuilder builds compilation units and stores them in an
+// internal buffer. The buffer is moved into the working queue of the
+// CompilationState when {Commit} is called.
+class CompilationUnitBuilder {
+ public:
+  explicit CompilationUnitBuilder(NativeModule* native_module,
+                                  compiler::ModuleEnv* module_env,
+                                  Handle<Code> centry_stub)
+      : native_module_(native_module),
+        compilation_state_(native_module->compilation_state()),
+        module_env_(module_env),
+        centry_stub_(centry_stub) {}
+
+  void AddUnit(const WasmFunction* function, uint32_t buffer_offset,
+               Vector<const uint8_t> bytes, WasmName name) {
+    units_.emplace_back(new compiler::WasmCompilationUnit(
+        compilation_state_->isolate(), module_env_, native_module_,
+        wasm::FunctionBody{function->sig, buffer_offset, bytes.begin(),
+                           bytes.end()},
+        name, function->func_index, centry_stub_,
+        compiler::WasmCompilationUnit::GetDefaultCompilationMode(),
+        compilation_state_->isolate()->async_counters().get()));
+  }
+
+  bool Commit() {
+    if (units_.empty()) return false;
+    compilation_state_->AddCompilationUnits(units_);
+    units_.clear();
+    return true;
+  }
+
+  void Clear() { units_.clear(); }
+
+ private:
+  NativeModule* native_module_;
+  CompilationState* compilation_state_;
+  compiler::ModuleEnv* module_env_;
+  Handle<Code> centry_stub_;
+  std::vector<std::unique_ptr<compiler::WasmCompilationUnit>> units_;
+};
+
+// Run by each compilation task and by the main thread (i.e. in both
+// foreground and background threads). The no_finisher_callback is called
+// within the result_mutex_ lock when no finishing task is running, i.e. when
+// the finisher_is_running_ flag is not set.
+bool FetchAndExecuteCompilationUnit(CompilationState* compilation_state) {
+  DisallowHeapAllocation no_allocation;
+  DisallowHandleAllocation no_handles;
+  DisallowHandleDereference no_deref;
+  DisallowCodeDependencyChange no_dependency_change;
+
+  std::unique_ptr<compiler::WasmCompilationUnit> unit =
+      compilation_state->GetNextCompilationUnit();
+  if (unit == nullptr) return false;
+
+  unit->ExecuteCompilation();
+  compilation_state->ScheduleUnitForFinishing(unit);
+
+  return true;
+}
+
+size_t GetNumFunctionsToCompile(const std::vector<WasmFunction>& functions,
+                                compiler::ModuleEnv* module_env) {
+  // TODO(kimanh): Remove, FLAG_skip_compiling_wasm_funcs: previously used for
+  // debugging, and now not necessarily working anymore.
+  uint32_t start = module_env->module->num_imported_functions +
+                   FLAG_skip_compiling_wasm_funcs;
+  uint32_t num_funcs = static_cast<uint32_t>(functions.size());
+  uint32_t funcs_to_compile = start > num_funcs ? 0 : num_funcs - start;
+  return funcs_to_compile;
+}
+
+void InitializeCompilationUnits(const std::vector<WasmFunction>& functions,
+                                const ModuleWireBytes& wire_bytes,
+                                compiler::ModuleEnv* module_env,
+                                Handle<Code> centry_stub,
+                                NativeModule* native_module) {
+  uint32_t start = module_env->module->num_imported_functions +
+                   FLAG_skip_compiling_wasm_funcs;
+  uint32_t num_funcs = static_cast<uint32_t>(functions.size());
+
+  CompilationUnitBuilder builder(native_module, module_env, centry_stub);
+  for (uint32_t i = start; i < num_funcs; ++i) {
+    const WasmFunction* func = &functions[i];
+    uint32_t buffer_offset = func->code.offset();
+    Vector<const uint8_t> bytes(wire_bytes.start() + func->code.offset(),
+                                func->code.end_offset() - func->code.offset());
+
+    WasmName name = wire_bytes.GetName(func, module_env->module);
+    DCHECK_NOT_NULL(native_module);
+    builder.AddUnit(func, buffer_offset, bytes, name);
+  }
+  builder.Commit();
+}
+
+wasm::WasmCode* FinishCompilationUnit(CompilationState* compilation_state,
+                                      ErrorThrower* thrower, int* func_index) {
+  std::unique_ptr<compiler::WasmCompilationUnit> unit =
+      compilation_state->GetNextExecutedUnit();
+  if (unit == nullptr) return {};
+  *func_index = unit->func_index();
+  DCHECK_LE(0, *func_index);
+  return unit->FinishCompilation(thrower);
+}
+
+void FinishCompilationUnits(CompilationState* compilation_state,
+                            ErrorThrower* thrower) {
+  while (true) {
+    int func_index = -1;
+    wasm::WasmCode* result =
+        FinishCompilationUnit(compilation_state, thrower, &func_index);
+
+    if (func_index < 0) break;
+
+    // Update the compilation state.
+    compilation_state->OnFinishedUnit(thrower,
+                                      NotifyCompilationCallback::kNoNotify);
+    DCHECK_IMPLIES(result == nullptr, thrower->error());
+    if (result == nullptr) break;
+  }
+  if (compilation_state->ShouldIncreaseWorkload())
+    compilation_state->RestartBackgroundTasks();
+}
+
+void CompileInParallel(Isolate* isolate, NativeModule* native_module,
+                       const ModuleWireBytes& wire_bytes,
+                       compiler::ModuleEnv* module_env,
+                       Handle<Code> centry_stub, ErrorThrower* thrower) {
+  const WasmModule* module = module_env->module;
+  // Data structures for the parallel compilation.
+
+  //-----------------------------------------------------------------------
+  // For parallel compilation:
+  // 1) The main thread allocates a compilation unit for each wasm function
+  //    and stores them in the vector {compilation_units} within the
+  //    {compilation_state}. By adding units to the {compilation_state}, new
+  //    {BackgroundCompileTasks} instances are spawned which run on
+  //    the background threads.
+  // 2.a) The background threads and the main thread pick one compilation
+  //      unit at a time and execute the parallel phase of the compilation
+  //      unit. After finishing the execution of the parallel phase, the
+  //      result is enqueued in {executed_units}.
+  // 2.b) If {executed_units} contains a compilation unit, the main thread
+  //      dequeues it and finishes the compilation.
+  // 3) After the parallel phase of all compilation units has started, the
+  //    main thread waits for all {BackgroundCompileTasks} instances to finish.
+  // 4) The main thread finishes the compilation.
+
+  // Turn on the {CanonicalHandleScope} so that the background threads can
+  // use the node cache.
+  CanonicalHandleScope canonical(isolate);
+
+  CompilationState* compilation_state = native_module->compilation_state();
+  compilation_state->EnableThrottling();
+  // Make sure that no foreground task is spawned for finishing
+  // the compilation units. This foreground thread will be
+  // responsible for finishing compilation.
+  compilation_state->SetFinisherIsRunning(true);
+  size_t functions_count =
+      GetNumFunctionsToCompile(module->functions, module_env);
+  compilation_state->SetNumberOfFunctionsToCompile(functions_count);
+
+  // 1) The main thread allocates a compilation unit for each wasm function
+  //    and stores them in the vector {compilation_units} within the
+  //    {compilation_state}. By adding units to the {compilation_state}, new
+  //    {BackgroundCompileTask} instances are spawned which run on
+  //    background threads.
+  InitializeCompilationUnits(module->functions, wire_bytes, module_env,
+                             centry_stub, native_module);
+
+  // 2.a) The background threads and the main thread pick one compilation
+  //      unit at a time and execute the parallel phase of the compilation
+  //      unit. After finishing the execution of the parallel phase, the
+  //      result is enqueued in {executed_units}.
+  //      The foreground task bypasses waiting on memory threshold, because
+  //      its results will immediately be converted to code (below).
+  while (FetchAndExecuteCompilationUnit(compilation_state)) {
+    // 2.b) If {executed_units} contains a compilation unit, the main thread
+    //      dequeues it and finishes the compilation unit. Compilation units
+    //      are finished concurrently to the background threads to save
+    //      memory.
+    FinishCompilationUnits(compilation_state, thrower);
+  }
+
+  // 3) After the parallel phase of all compilation units has started, the
+  //    main thread waits for all {BackgroundCompileTasks} instances to finish -
+  //    which happens once they all realize there's no next work item to
+  //    process.
+  compilation_state->CancelAndWait();
+
+  // 4) Finish all compilation units which have been executed while we waited.
+  FinishCompilationUnits(compilation_state, thrower);
+}
+
+void CompileSequentially(Isolate* isolate, NativeModule* native_module,
+                         const ModuleWireBytes& wire_bytes,
+                         compiler::ModuleEnv* module_env,
+                         ErrorThrower* thrower) {
+  DCHECK(!thrower->error());
+
+  const WasmModule* module = module_env->module;
+  for (uint32_t i = FLAG_skip_compiling_wasm_funcs;
+       i < module->functions.size(); ++i) {
+    const WasmFunction& func = module->functions[i];
+    if (func.imported) continue;  // Imports are compiled at instantiation time.
+
+    // Compile the function.
+    wasm::WasmCode* code = compiler::WasmCompilationUnit::CompileWasmFunction(
+        native_module, thrower, isolate, wire_bytes, module_env, &func);
+    if (code == nullptr) {
+      TruncatedUserString<> name(wire_bytes.GetName(&func, module));
+      thrower->CompileError("Compilation of #%d:%.*s failed.", i, name.length(),
+                            name.start());
+      break;
+    }
+  }
+}
+
+void ValidateSequentially(Isolate* isolate, const ModuleWireBytes& wire_bytes,
+                          compiler::ModuleEnv* module_env,
+                          ErrorThrower* thrower) {
+  DCHECK(!thrower->error());
+
+  const WasmModule* module = module_env->module;
+  for (uint32_t i = 0; i < module->functions.size(); ++i) {
+    const WasmFunction& func = module->functions[i];
+    if (func.imported) continue;
+
+    const byte* base = wire_bytes.start();
+    FunctionBody body{func.sig, func.code.offset(), base + func.code.offset(),
+                      base + func.code.end_offset()};
+    DecodeResult result = VerifyWasmCodeWithStats(
+        isolate->allocator(), module, body, module->is_wasm(),
+        isolate->async_counters().get());
+    if (result.failed()) {
+      TruncatedUserString<> name(wire_bytes.GetName(&func, module));
+      thrower->CompileError("Compiling function #%d:%.*s failed: %s @+%u", i,
+                            name.length(), name.start(),
+                            result.error_msg().c_str(), result.error_offset());
+      break;
+    }
+  }
+}
+
+MaybeHandle<WasmModuleObject> CompileToModuleObjectInternal(
+    Isolate* isolate, ErrorThrower* thrower, std::unique_ptr<WasmModule> module,
     const ModuleWireBytes& wire_bytes, Handle<Script> asm_js_script,
     Vector<const byte> asm_js_offset_table_bytes) {
+  WasmModule* wasm_module = module.get();
+  Handle<Code> centry_stub = CEntryStub(isolate, 1).GetCode();
   TimedHistogramScope wasm_compile_module_time_scope(
-      module_->is_wasm() ? counters()->wasm_compile_wasm_module_time()
-                         : counters()->wasm_compile_asm_module_time());
+      wasm_module->is_wasm()
+          ? isolate->async_counters()->wasm_compile_wasm_module_time()
+          : isolate->async_counters()->wasm_compile_asm_module_time());
   // TODO(6792): No longer needed once WebAssembly code is off heap. Use
   // base::Optional to be able to close the scope before notifying the debugger.
   base::Optional<CodeSpaceMemoryModificationScope> modification_scope(
-      base::in_place_t(), isolate_->heap());
-  // The {module} parameter is passed in to transfer ownership of the WasmModule
-  // to this function. The WasmModule itself existed already as an instance
-  // variable of the ModuleCompiler. We check here that the parameter and the
-  // instance variable actually point to the same object.
-  DCHECK_EQ(module.get(), module_);
-  // Check whether lazy compilation is enabled for this module.
-  bool lazy_compile = compile_lazy(module_);
+      base::in_place_t(), isolate->heap());
 
-  Factory* factory = isolate_->factory();
+  // Check whether lazy compilation is enabled for this module.
+  bool lazy_compile = compile_lazy(wasm_module);
+
+  Factory* factory = isolate->factory();
   // Create heap objects for script, module bytes and asm.js offset table to
   // be stored in the shared module data.
   Handle<Script> script;
   Handle<ByteArray> asm_js_offset_table;
   if (asm_js_script.is_null()) {
-    script = CreateWasmScript(isolate_, wire_bytes);
+    script = CreateWasmScript(isolate, wire_bytes);
   } else {
     script = asm_js_script;
     asm_js_offset_table =
-        isolate_->factory()->NewByteArray(asm_js_offset_table_bytes.length());
+        isolate->factory()->NewByteArray(asm_js_offset_table_bytes.length());
     asm_js_offset_table->copy_in(0, asm_js_offset_table_bytes.start(),
                                  asm_js_offset_table_bytes.length());
   }
@@ -1439,7 +1353,7 @@ MaybeHandle<WasmModuleObject> ModuleCompiler::CompileToModuleObjectInternal(
   // The {module_wrapper} will take ownership of the {WasmModule} object,
   // and it will be destroyed when the GC reclaims the wrapper object.
   Handle<WasmModuleWrapper> module_wrapper =
-      WasmModuleWrapper::From(isolate_, module.release());
+      WasmModuleWrapper::From(isolate, module.release());
 
   // Create the shared module data.
   // TODO(clemensh): For the same module (same bytes / same hash), we should
@@ -1447,70 +1361,76 @@ MaybeHandle<WasmModuleObject> ModuleCompiler::CompileToModuleObjectInternal(
   // breakpoints on a (potentially empty) subset of the instances.
 
   Handle<WasmSharedModuleData> shared = WasmSharedModuleData::New(
-      isolate_, module_wrapper, Handle<SeqOneByteString>::cast(module_bytes),
+      isolate, module_wrapper, Handle<SeqOneByteString>::cast(module_bytes),
       script, asm_js_offset_table);
   if (lazy_compile) WasmSharedModuleData::PrepareForLazyCompilation(shared);
 
   Handle<Code> init_builtin = lazy_compile
-                                  ? BUILTIN_CODE(isolate_, WasmCompileLazy)
-                                  : BUILTIN_CODE(isolate_, Illegal);
+                                  ? BUILTIN_CODE(isolate, WasmCompileLazy)
+                                  : BUILTIN_CODE(isolate, Illegal);
 
-  int export_wrappers_size = static_cast<int>(module_->num_exported_functions);
+  int export_wrappers_size =
+      static_cast<int>(wasm_module->num_exported_functions);
   Handle<FixedArray> export_wrappers =
       factory->NewFixedArray(static_cast<int>(export_wrappers_size), TENURED);
   for (int i = 0, e = export_wrappers->length(); i < e; ++i) {
     export_wrappers->set(i, *init_builtin);
   }
-  auto env = CreateDefaultModuleEnv(isolate_, module_);
+  auto env = CreateDefaultModuleEnv(isolate, wasm_module);
 
   // Create the compiled module object and populate with compiled functions
   // and information needed at instantiation time. This object needs to be
   // serializable. Instantiation may occur off a deserialized version of this
   // object.
   Handle<WasmCompiledModule> compiled_module =
-      NewCompiledModule(isolate_, shared->module(), export_wrappers, env.get());
-  native_module_ = compiled_module->GetNativeModule();
+      NewCompiledModule(isolate, shared->module(), export_wrappers, env.get());
+  NativeModule* native_module = compiled_module->GetNativeModule();
   compiled_module->set_shared(*shared);
   if (lazy_compile) {
-    Handle<FixedArray> lazy_compile_data = isolate_->factory()->NewFixedArray(
-        static_cast<int>(module_->functions.size()), TENURED);
+    Handle<FixedArray> lazy_compile_data = isolate->factory()->NewFixedArray(
+        static_cast<int>(wasm_module->functions.size()), TENURED);
     compiled_module->set_lazy_compile_data(*lazy_compile_data);
   }
 
   if (!lazy_compile) {
     size_t funcs_to_compile =
-        module_->functions.size() - module_->num_imported_functions;
+        wasm_module->functions.size() - wasm_module->num_imported_functions;
     bool compile_parallel =
         !FLAG_trace_wasm_decoder && FLAG_wasm_num_compilation_tasks > 0 &&
         funcs_to_compile > 1 &&
         V8::GetCurrentPlatform()->NumberOfWorkerThreads() > 0;
+
     if (compile_parallel) {
-      CompileInParallel(wire_bytes, env.get(), thrower);
+      CompileInParallel(isolate, native_module, wire_bytes, env.get(),
+                        centry_stub, thrower);
     } else {
-      CompileSequentially(wire_bytes, env.get(), thrower);
+      CompileSequentially(isolate, native_module, wire_bytes, env.get(),
+                          thrower);
     }
     if (thrower->error()) return {};
 
-    RecordStats(native_module_, counters());
+    RecordStats(native_module, isolate->async_counters().get());
   } else {
-    if (module_->is_wasm()) {
+    if (wasm_module->is_wasm()) {
       // Validate wasm modules for lazy compilation. Don't validate asm.js
       // modules, they are valid by construction (otherwise a CHECK will fail
       // during lazy compilation).
       // TODO(clemensh): According to the spec, we can actually skip validation
       // at module creation time, and return a function that always traps at
       // (lazy) compilation time.
-      ValidateSequentially(wire_bytes, env.get(), thrower);
+      ValidateSequentially(isolate, wire_bytes, env.get(), thrower);
     }
-    native_module_->SetLazyBuiltin(BUILTIN_CODE(isolate_, WasmCompileLazy));
+
+    native_module->SetLazyBuiltin(BUILTIN_CODE(isolate, WasmCompileLazy));
   }
   if (thrower->error()) return {};
 
   // Compile JS->wasm wrappers for exported functions.
-  CompileJsToWasmWrappers(isolate_, compiled_module, counters());
+  CompileJsToWasmWrappers(isolate, compiled_module,
+                          isolate->async_counters().get());
 
   Handle<WasmModuleObject> result =
-      WasmModuleObject::New(isolate_, compiled_module);
+      WasmModuleObject::New(isolate, compiled_module);
 
   // If we created a wasm script, finish it now and make it public to the
   // debugger.
@@ -1519,10 +1439,111 @@ MaybeHandle<WasmModuleObject> ModuleCompiler::CompileToModuleObjectInternal(
     // debugger.
     modification_scope.reset();
     script->set_wasm_compiled_module(*compiled_module);
-    isolate_->debug()->OnAfterCompile(script);
+    isolate->debug()->OnAfterCompile(script);
   }
 
   return result;
+}
+
+// The runnable task that finishes compilation in foreground (e.g. updating
+// the NativeModule, the code table, etc.).
+class FinishCompileTask : public CancelableTask {
+ public:
+  explicit FinishCompileTask(CompilationState* compilation_state)
+      : CancelableTask(compilation_state->isolate()->cancelable_task_manager()),
+        compilation_state_(compilation_state) {}
+
+  void RunInternal() override {
+    Isolate* isolate = compilation_state_->isolate();
+    HandleScope scope(isolate);
+    SaveContext saved_context(isolate);
+    isolate->set_context(*compilation_state_->context());
+
+    TRACE_COMPILE("(4a) Finishing compilation units...\n");
+    if (compilation_state_->failed()) {
+      compilation_state_->SetFinisherIsRunning(false);
+      return;
+    }
+
+    ErrorThrower thrower(compilation_state_->isolate(), "AsyncCompile");
+
+    // We execute for 1 ms and then reschedule the task, same as the GC.
+    double deadline = MonotonicallyIncreasingTimeInMs() + 1.0;
+    while (true) {
+      if (compilation_state_->ShouldIncreaseWorkload()) {
+        compilation_state_->RestartBackgroundTasks();
+      }
+
+      int func_index = -1;
+      wasm::WasmCode* result =
+          FinishCompilationUnit(compilation_state_, &thrower, &func_index);
+
+      // We need to read the value of the {thrower} object
+      // before calling {OnFinishedUnit}. The reason is
+      // that the {thrower} might be reset if callbacks are notified.
+      bool error_occurred = thrower.error();
+
+      if (func_index < 0 && !error_occurred) break;
+      DCHECK_IMPLIES(result == nullptr, error_occurred);
+      USE(result);
+
+      // Update the compilation state, and possibly notify
+      // threads waiting for events.
+      compilation_state_->OnFinishedUnit(&thrower,
+                                         NotifyCompilationCallback::kNotify);
+      if (error_occurred) break;
+
+      if (deadline < MonotonicallyIncreasingTimeInMs()) {
+        // We reached the deadline. We reschedule this task and return
+        // immediately. Since we rescheduled this task already, we do not set
+        // the FinisherIsRunning flag to false.
+        compilation_state_->ScheduleFinisherTask();
+        return;
+      }
+    }
+
+    // This task finishes without being rescheduled. Therefore we set the
+    // FinisherIsRunning flag to false.
+    compilation_state_->SetFinisherIsRunning(false);
+  }
+
+ private:
+  CompilationState* compilation_state_;
+};
+
+// The runnable task that performs compilations in the background.
+class BackgroundCompileTask : public CancelableTask {
+ public:
+  explicit BackgroundCompileTask(CompilationState* compilation_state,
+                                 CancelableTaskManager* task_manager)
+      : CancelableTask(task_manager), compilation_state_(compilation_state) {}
+
+  void RunInternal() override {
+    TRACE_COMPILE("(3b) Compiling...\n");
+    while (compilation_state_->CanAcceptWork()) {
+      DisallowHandleAllocation no_handle;
+      DisallowHeapAllocation no_allocation;
+
+      if (!FetchAndExecuteCompilationUnit(compilation_state_)) {
+        break;
+      }
+    }
+
+    compilation_state_->OnBackgroundTaskStopped();
+  }
+
+ private:
+  CompilationState* compilation_state_;
+};
+}  // namespace
+
+MaybeHandle<WasmModuleObject> CompileToModuleObject(
+    Isolate* isolate, ErrorThrower* thrower, std::unique_ptr<WasmModule> module,
+    const ModuleWireBytes& wire_bytes, Handle<Script> asm_js_script,
+    Vector<const byte> asm_js_offset_table_bytes) {
+  return CompileToModuleObjectInternal(isolate, thrower, std::move(module),
+                                       wire_bytes, asm_js_script,
+                                       asm_js_offset_table_bytes);
 }
 
 InstanceBuilder::InstanceBuilder(Isolate* isolate, ErrorThrower* thrower,
@@ -2728,6 +2749,9 @@ void AsyncCompileJob::Start() {
 
 void AsyncCompileJob::Abort() {
   background_task_manager_.CancelAndWait();
+  if (!compiled_module_.is_null()) {
+    compiled_module_->GetNativeModule()->compilation_state()->Abort();
+  }
   if (num_pending_foreground_tasks_ == 0) {
     // No task is pending, we can just remove the AsyncCompileJob.
     isolate_->wasm_engine()->compilation_manager()->RemoveJob(this);
@@ -2772,8 +2796,7 @@ class AsyncStreamingProcessor final : public StreamingProcessor {
 
   ModuleDecoder decoder_;
   AsyncCompileJob* job_;
-  std::unique_ptr<ModuleCompiler::CompilationUnitBuilder>
-      compilation_unit_builder_;
+  std::unique_ptr<CompilationUnitBuilder> compilation_unit_builder_;
   uint32_t next_function_ = 0;
 };
 
@@ -2789,13 +2812,13 @@ AsyncCompileJob::~AsyncCompileJob() {
   for (auto d : deferred_handles_) delete d;
 }
 
-void AsyncCompileJob::AsyncCompileFailed(ErrorThrower& thrower) {
+void AsyncCompileJob::AsyncCompileFailed(Handle<Object> error_reason) {
   if (stream_) stream_->NotifyError();
   // {job} keeps the {this} pointer alive.
   std::shared_ptr<AsyncCompileJob> job =
       isolate_->wasm_engine()->compilation_manager()->RemoveJob(this);
   MaybeHandle<Object> promise_result =
-      JSPromise::Reject(module_promise_, thrower.Reify());
+      JSPromise::Reject(module_promise_, error_reason);
   CHECK_EQ(promise_result.is_null(), isolate_->has_pending_exception());
 }
 
@@ -2943,7 +2966,7 @@ class AsyncCompileJob::DecodeFail : public CompileStep {
     ErrorThrower thrower(job_->isolate_, "AsyncCompile");
     thrower.CompileFailed("Wasm decoding failed", result_);
     // {job_} is deleted in AsyncCompileFailed, therefore the {return}.
-    return job_->AsyncCompileFailed(thrower);
+    return job_->AsyncCompileFailed(thrower.Reify());
   }
 };
 
@@ -2961,20 +2984,21 @@ class AsyncCompileJob::PrepareAndStartCompile : public CompileStep {
 
   void RunInForeground() override {
     TRACE_COMPILE("(2) Prepare and start compile...\n");
+
+    // Make sure all compilation tasks stopped running. Decoding (async step)
+    // is done.
+    job_->background_task_manager_.CancelAndWait();
+
     Isolate* isolate = job_->isolate_;
 
     job_->module_env_ = CreateDefaultModuleEnv(isolate, module_);
 
-    // Transfer ownership of the {WasmModule} to the {ModuleCompiler}, but
-    // keep a pointer.
     Handle<Code> centry_stub = CEntryStub(isolate, 1).GetCode();
     {
       // Now reopen the handles in a deferred scope in order to use
       // them in the concurrent steps.
       DeferredHandleScope deferred(isolate);
-
-      centry_stub = Handle<Code>(*centry_stub, isolate);
-
+      job_->centry_stub_ = Handle<Code>(*centry_stub, isolate);
       job_->deferred_handles_.push_back(deferred.Detach());
     }
 
@@ -2989,11 +3013,9 @@ class AsyncCompileJob::PrepareAndStartCompile : public CompileStep {
 
     job_->compiled_module_ = NewCompiledModule(
         job_->isolate_, module_, export_wrappers, job_->module_env_.get());
-
-    job_->compiler_.reset(
-        new ModuleCompiler(isolate, module_, centry_stub,
-                           job_->compiled_module_->GetNativeModule()));
-    job_->compiler_->EnableThrottling();
+    job_->compiled_module_->GetNativeModule()
+        ->compilation_state()
+        ->EnableThrottling();
 
     {
       DeferredHandleScope deferred(job_->isolate_);
@@ -3009,116 +3031,55 @@ class AsyncCompileJob::PrepareAndStartCompile : public CompileStep {
       return;
     }
 
-    // Start asynchronous compilation tasks.
-    int num_background_tasks =
-        Max(1, Min(static_cast<int>(num_functions),
-                   Min(FLAG_wasm_num_compilation_tasks,
-                       V8::GetCurrentPlatform()->NumberOfWorkerThreads())));
+    CompilationState* compilation_state =
+        job_->compiled_module_->GetNativeModule()->compilation_state();
+    compilation_state->AddCallback(
+        [&](CompilationEvent event, Handle<Object> error_reason) {
+          switch (event) {
+            case CompilationEvent::kFinishedBaselineCompilation:
+              if (job_->DecrementAndCheckFinisherCount()) {
+                job_->DoSync<FinishCompile>();
+              }
+              return;
+            case CompilationEvent::kFailedCompilation:
+              job_->DoSync<CompileFailed>(error_reason);
+              return;
+          }
+          UNREACHABLE();
+        });
+
     if (start_compilation_) {
       // TODO(ahaas): Try to remove the {start_compilation_} check when
       // streaming decoding is done in the background. If
       // InitializeCompilationUnits always returns 0 for streaming compilation,
       // then DoAsync would do the same as NextStep already.
-      job_->outstanding_units_ = job_->compiler_->InitializeCompilationUnits(
-          module_->functions, job_->wire_bytes_, job_->module_env_.get());
 
-      job_->DoAsync<ExecuteAndFinishCompilationUnits>(num_background_tasks);
-    } else {
-      job_->stopped_tasks_ = num_background_tasks;
-      job_->NextStep<ExecuteAndFinishCompilationUnits>(num_background_tasks);
+      size_t functions_count =
+          GetNumFunctionsToCompile(module_->functions, job_->module_env_.get());
+      compilation_state->SetNumberOfFunctionsToCompile(functions_count);
+      // Add compilation units and kick off compilation.
+      InitializeCompilationUnits(module_->functions, job_->wire_bytes_,
+                                 job_->module_env_.get(), job_->centry_stub_,
+                                 job_->compiled_module_->GetNativeModule());
     }
   }
 };
 
 //==========================================================================
-// Step 3 (async x K tasks): Execute compilation units.
+// Step 4b (sync): Compilation failed. Reject Promise.
 //==========================================================================
-class AsyncCompileJob::ExecuteAndFinishCompilationUnits : public CompileStep {
+class AsyncCompileJob::CompileFailed : public CompileStep {
  public:
-  explicit ExecuteAndFinishCompilationUnits(int num_compile_tasks)
-      : CompileStep(num_compile_tasks) {}
-
-  void RunInBackground() override {
-    std::function<void()> StartFinishCompilationUnit = [this]() {
-      if (!failed_) job_->StartForegroundTask();
-    };
-
-    TRACE_COMPILE("(3) Compiling...\n");
-    while (job_->compiler_->CanAcceptWork()) {
-      if (failed_) break;
-      DisallowHandleAllocation no_handle;
-      DisallowHeapAllocation no_allocation;
-      if (!job_->compiler_->FetchAndExecuteCompilationUnit(
-              StartFinishCompilationUnit)) {
-        break;
-      }
-    }
-    job_->stopped_tasks_.Increment(1);
-  }
+  explicit CompileFailed(Handle<Object> error_reason)
+      : error_reason_(error_reason) {}
 
   void RunInForeground() override {
-    TRACE_COMPILE("(4a) Finishing compilation units...\n");
-    if (failed_) {
-      // The job failed already, no need to do more work.
-      job_->compiler_->SetFinisherIsRunning(false);
-      return;
-    }
-    ErrorThrower thrower(job_->isolate_, "AsyncCompile");
-
-    // We execute for 1 ms and then reschedule the task, same as the GC.
-    double deadline = MonotonicallyIncreasingTimeInMs() + 1.0;
-
-    while (true) {
-      if (job_->compiler_->ShouldIncreaseWorkload()) {
-        job_->RestartBackgroundTasks();
-      }
-
-      int func_index = -1;
-
-      wasm::WasmCode* result =
-          job_->compiler_->FinishCompilationUnit(&thrower, &func_index);
-
-      if (thrower.error()) {
-        // An error was detected, we stop compiling and wait for the
-        // background tasks to finish.
-        failed_ = true;
-        break;
-      } else if (result == nullptr) {
-        // The working queue was empty, we break the loop. If new work units
-        // are enqueued, the background task will start this
-        // FinishCompilationUnits task again.
-        break;
-      } else {
-        DCHECK_LE(0, func_index);
-        --job_->outstanding_units_;
-      }
-
-      if (deadline < MonotonicallyIncreasingTimeInMs()) {
-        // We reached the deadline. We reschedule this task and return
-        // immediately. Since we rescheduled this task already, we do not set
-        // the FinisherIsRunning flat to false.
-        job_->StartForegroundTask();
-        return;
-      }
-    }
-    // This task finishes without being rescheduled. Therefore we set the
-    // FinisherIsRunning flag to false.
-    job_->compiler_->SetFinisherIsRunning(false);
-    if (thrower.error()) {
-      // Make sure all compilation tasks stopped running.
-      job_->background_task_manager_.CancelAndWait();
-
-      return job_->AsyncCompileFailed(thrower);
-    }
-    if (job_->outstanding_units_ == 0) {
-      // Make sure all compilation tasks stopped running.
-      job_->background_task_manager_.CancelAndWait();
-      if (job_->DecrementAndCheckFinisherCount()) job_->DoSync<FinishCompile>();
-    }
+    TRACE_COMPILE("(4b) Compilation Failed...\n");
+    return job_->AsyncCompileFailed(error_reason_);
   }
 
  private:
-  std::atomic<bool> failed_{false};
+  Handle<Object> error_reason_;
 };
 
 //==========================================================================
@@ -3222,16 +3183,15 @@ void AsyncStreamingProcessor::FinishAsyncCompileJobWithError(ResultBase error) {
   ModuleResult result(nullptr);
   result.MoveErrorFrom(error);
 
-  // Check if there is already a ModuleCompiler, in which case we have to clean
-  // it up as well.
-  if (job_->compiler_) {
-    // If {IsFinisherRunning} is true, then there is already a foreground task
-    // in the task queue to execute the DecodeFail step. We do not have to start
-    // a new task ourselves with DoSync.
-    if (job_->compiler_->IsFinisherRunning()) {
-      job_->NextStep<AsyncCompileJob::DecodeFail>(std::move(result));
-    } else {
+  // Check if there is already a CompiledModule, in which case we have to clean
+  // up the CompilationState as well.
+  if (!job_->compiled_module_.is_null()) {
+    job_->compiled_module_->GetNativeModule()->compilation_state()->Abort();
+
+    if (job_->num_pending_foreground_tasks_ == 0) {
       job_->DoSync<AsyncCompileJob::DecodeFail>(std::move(result));
+    } else {
+      job_->NextStep<AsyncCompileJob::DecodeFail>(std::move(result));
     }
 
     // Clear the {compilation_unit_builder_} if it exists. This is needed
@@ -3308,12 +3268,15 @@ bool AsyncStreamingProcessor::ProcessCodeSectionHeader(size_t functions_count,
   constexpr bool on_foreground = true;
   job_->step_->Run(on_foreground);
 
-  job_->outstanding_units_ = functions_count;
+  NativeModule* native_module = job_->compiled_module_->GetNativeModule();
+  native_module->compilation_state()->SetNumberOfFunctionsToCompile(
+      functions_count);
+
   // Set outstanding_finishers_ to 2, because both the AsyncCompileJob and the
   // AsyncStreamingProcessor have to finish.
   job_->outstanding_finishers_.SetValue(2);
-  compilation_unit_builder_.reset(
-      new ModuleCompiler::CompilationUnitBuilder(job_->compiler_.get()));
+  compilation_unit_builder_.reset(new CompilationUnitBuilder(
+      native_module, job_->module_env_.get(), job_->centry_stub_));
   return true;
 }
 
@@ -3329,9 +3292,7 @@ bool AsyncStreamingProcessor::ProcessFunctionBody(Vector<const uint8_t> bytes,
     uint32_t index = next_function_ + decoder_.module()->num_imported_functions;
     const WasmFunction* func = &decoder_.module()->functions[index];
     WasmName name = {nullptr, 0};
-    compilation_unit_builder_->AddUnit(
-        job_->module_env_.get(), job_->compiled_module_->GetNativeModule(),
-        func, offset, bytes, name);
+    compilation_unit_builder_->AddUnit(func, offset, bytes, name);
   }
   ++next_function_;
   // This method always succeeds. The return value is necessary to comply with
@@ -3341,10 +3302,7 @@ bool AsyncStreamingProcessor::ProcessFunctionBody(Vector<const uint8_t> bytes,
 
 void AsyncStreamingProcessor::CommitCompilationUnits() {
   DCHECK(compilation_unit_builder_);
-  if (compilation_unit_builder_->Commit()) {
-    // Only restart background tasks when compilation units were committed.
-    job_->RestartBackgroundTasks();
-  }
+  compilation_unit_builder_->Commit();
 }
 
 void AsyncStreamingProcessor::OnFinishedChunk() {
@@ -3363,7 +3321,7 @@ void AsyncStreamingProcessor::OnFinishedStream(std::unique_ptr<uint8_t[]> bytes,
   DCHECK(result.ok());
   job_->module_ = std::move(result.val);
   if (job_->DecrementAndCheckFinisherCount()) {
-    if (!job_->compiler_) {
+    if (job_->compiled_module_.is_null()) {
       // We are processing a WebAssembly module without code section. We need to
       // prepare compilation first before we can finish it.
       // {PrepareAndStartCompile} will call {FinishCompile} by itself if there
@@ -3385,6 +3343,242 @@ void AsyncStreamingProcessor::OnError(DecodeResult result) {
 void AsyncStreamingProcessor::OnAbort() {
   TRACE_STREAMING("Abort stream...\n");
   job_->Abort();
+}
+
+CompilationState::CodeGenerationSchedule::CodeGenerationSchedule(
+    base::RandomNumberGenerator* random_number_generator, size_t max_memory)
+    : random_number_generator_(random_number_generator),
+      max_memory_(max_memory) {
+  DCHECK_NOT_NULL(random_number_generator_);
+  DCHECK_GT(max_memory_, 0);
+}
+
+void CompilationState::CodeGenerationSchedule::Schedule(
+    std::unique_ptr<compiler::WasmCompilationUnit>&& item) {
+  size_t cost = item->memory_cost();
+  schedule_.push_back(std::move(item));
+  allocated_memory_.Increment(cost);
+}
+
+bool CompilationState::CodeGenerationSchedule::CanAcceptWork() const {
+  return !throttle_ || allocated_memory_.Value() <= max_memory_;
+}
+
+bool CompilationState::CodeGenerationSchedule::ShouldIncreaseWorkload() const {
+  // Half the memory is unused again, we can increase the workload again.
+  return !throttle_ || allocated_memory_.Value() <= max_memory_ / 2;
+}
+
+std::unique_ptr<compiler::WasmCompilationUnit>
+CompilationState::CodeGenerationSchedule::GetNext() {
+  DCHECK(!IsEmpty());
+  size_t index = GetRandomIndexInSchedule();
+  auto ret = std::move(schedule_[index]);
+  std::swap(schedule_[schedule_.size() - 1], schedule_[index]);
+  schedule_.pop_back();
+  allocated_memory_.Decrement(ret->memory_cost());
+  return ret;
+}
+
+size_t CompilationState::CodeGenerationSchedule::GetRandomIndexInSchedule() {
+  double factor = random_number_generator_->NextDouble();
+  size_t index = (size_t)(factor * schedule_.size());
+  DCHECK_GE(index, 0);
+  DCHECK_LT(index, schedule_.size());
+  return index;
+}
+
+void CompilationStateDeleter::operator()(
+    CompilationState* compilation_state) const {
+  delete compilation_state;
+}
+
+std::unique_ptr<CompilationState, CompilationStateDeleter> NewCompilationState(
+    Isolate* isolate) {
+  return std::unique_ptr<CompilationState, CompilationStateDeleter>(
+      new CompilationState(isolate, handle(isolate->context())));
+}
+
+CompilationState::CompilationState(Isolate* isolate, Handle<Context> context)
+    : isolate_(isolate),
+      executed_units_(isolate->random_number_generator(),
+                      GetMaxUsableMemorySize(isolate) / 2) {
+  v8::Isolate* v8_isolate = reinterpret_cast<v8::Isolate*>(isolate_);
+  v8::Platform* platform = V8::GetCurrentPlatform();
+  foreground_task_runner_ = platform->GetForegroundTaskRunner(v8_isolate);
+  background_task_runner_ = platform->GetWorkerThreadsTaskRunner(v8_isolate);
+
+  // Register task manager for clean shutdown in case of an isolate shutdown.
+  isolate_->wasm_engine()->Register(&background_task_manager_);
+
+  // The handle for the context must be deferred.
+  // TODO(wasm): Evaluate if switching to global handles is faster. We create
+  // several DeferredHandleScopes with just one single handle.
+  DeferredHandleScope deferred(isolate);
+  context_ = Handle<Context>(*context);
+  deferred_handles_.push_back(deferred.Detach());
+}
+
+CompilationState::~CompilationState() {
+  CancelAndWait();
+  for (auto d : deferred_handles_) delete d;
+}
+
+void CompilationState::SetNumberOfFunctionsToCompile(size_t num_functions) {
+  if (!failed_) {
+    outstanding_units_ = num_functions;
+  }
+}
+
+void CompilationState::AddCallback(
+    std::function<void(CompilationEvent, Handle<Object>)> callback) {
+  callbacks_.push_back(callback);
+}
+
+void CompilationState::AddCompilationUnits(
+    std::vector<std::unique_ptr<compiler::WasmCompilationUnit>>& units) {
+  {
+    base::LockGuard<base::Mutex> guard(&compilation_units_mutex_);
+    compilation_units_.insert(compilation_units_.end(),
+                              std::make_move_iterator(units.begin()),
+                              std::make_move_iterator(units.end()));
+  }
+  StartCompilation(units.size());
+}
+
+std::unique_ptr<compiler::WasmCompilationUnit>
+CompilationState::GetNextCompilationUnit() {
+  base::LockGuard<base::Mutex> guard(&compilation_units_mutex_);
+  if (!compilation_units_.empty()) {
+    std::unique_ptr<compiler::WasmCompilationUnit> unit =
+        std::move(compilation_units_.back());
+    compilation_units_.pop_back();
+    return unit;
+  }
+
+  return std::unique_ptr<compiler::WasmCompilationUnit>();
+}
+
+std::unique_ptr<compiler::WasmCompilationUnit>
+CompilationState::GetNextExecutedUnit() {
+  base::LockGuard<base::Mutex> guard(&result_mutex_);
+  if (!executed_units_.IsEmpty()) {
+    return executed_units_.GetNext();
+  }
+
+  return std::unique_ptr<compiler::WasmCompilationUnit>();
+}
+
+// TODO(kimanh): Fix semantics of function. Currently, if {notify} is set to
+// kNotify, the {thrower.Reify()} is called, which resets the thrower.
+// The reason is that we need to pass the error message on to the listener,
+// but at the same time we are not allowed to create ErrorThrower objects on
+// the heap. The created error however, can be passed on to a separate thread.
+void CompilationState::OnFinishedUnit(ErrorThrower* thrower,
+                                      NotifyCompilationCallback notify) {
+  if (thrower->error()) {
+    failed_ = true;
+    CancelAndWait();
+    if (notify == NotifyCompilationCallback::kNotify) {
+      NotifyOnEvent(CompilationEvent::kFailedCompilation, thrower);
+    }
+  } else {
+    DCHECK_GT(outstanding_units_, 0);
+    --outstanding_units_;
+
+    if (outstanding_units_ == 0) {
+      CancelAndWait();
+      if (notify == NotifyCompilationCallback::kNotify) {
+        NotifyOnEvent(CompilationEvent::kFinishedBaselineCompilation, thrower);
+      }
+    }
+  }
+}
+
+void CompilationState::ScheduleUnitForFinishing(
+    std::unique_ptr<compiler::WasmCompilationUnit>& unit) {
+  base::LockGuard<base::Mutex> guard(&result_mutex_);
+  executed_units_.Schedule(std::move(unit));
+
+  if (!finisher_is_running_ && !failed_) {
+    ScheduleFinisherTask();
+    // We set the flag here so that not more than one finisher is started.
+    finisher_is_running_ = true;
+  }
+}
+
+void CompilationState::CancelAndWait() {
+  background_task_manager_.CancelAndWait();
+  isolate_->wasm_engine()->Unregister(&background_task_manager_);
+}
+
+void CompilationState::OnBackgroundTaskStopped() {
+  base::LockGuard<base::Mutex> guard(&tasks_mutex_);
+  ++stopped_compilation_tasks_;
+  DCHECK_LE(stopped_compilation_tasks_, num_background_tasks_);
+}
+
+void CompilationState::RestartBackgroundTasks() {
+  base::LockGuard<base::Mutex> guard(&tasks_mutex_);
+  // TODO(wasm): Do not start more background tasks than the number of available
+  // units in {compilation_units_}.
+  for (; stopped_compilation_tasks_ > 0; --stopped_compilation_tasks_) {
+    background_task_runner_->PostTask(base::make_unique<BackgroundCompileTask>(
+        this, &background_task_manager_));
+  }
+}
+
+void CompilationState::SetFinisherIsRunning(bool value) {
+  base::LockGuard<base::Mutex> guard(&result_mutex_);
+  finisher_is_running_ = value;
+}
+
+void CompilationState::ScheduleFinisherTask() {
+  foreground_task_runner_->PostTask(base::make_unique<FinishCompileTask>(this));
+}
+
+void CompilationState::Abort() {
+  CancelAndWait();
+  failed_ = true;
+}
+
+void CompilationState::StartCompilation(size_t num_functions) {
+  if (num_background_tasks_ == 0) {
+    DCHECK_EQ(stopped_compilation_tasks_, num_background_tasks_);
+
+    // {outstanding_units_} has to be initialized before entering.
+    DCHECK_LE(num_functions, outstanding_units_);
+
+    // First set up. Initialize {num_background_tasks_} and
+    // {stopped_compilation_tasks_}
+    num_background_tasks_ =
+        Max(1, Min(static_cast<int>(outstanding_units_),
+                   Min(FLAG_wasm_num_compilation_tasks,
+                       V8::GetCurrentPlatform()->NumberOfWorkerThreads())));
+    {
+      base::LockGuard<base::Mutex> guard(&tasks_mutex_);
+      stopped_compilation_tasks_ = num_background_tasks_;
+    }
+  }
+
+  RestartBackgroundTasks();
+}
+
+void CompilationState::NotifyOnEvent(CompilationEvent event,
+                                     ErrorThrower* thrower) {
+  Handle<Object> error_reason;
+  if (thrower->error()) {
+    error_reason = thrower->Reify();
+    DeferredHandleScope deferred(isolate_);
+    error_reason = Handle<Object>(*error_reason, isolate_);
+    deferred_handles_.push_back(deferred.Detach());
+  } else {
+    error_reason = Handle<Object>::null();
+  }
+
+  for (auto& callback_function : callbacks_) {
+    callback_function(event, error_reason);
+  }
 }
 
 void CompileJsToWasmWrappers(Isolate* isolate,

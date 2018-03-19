@@ -22,6 +22,16 @@ namespace wasm {
 
 class ModuleCompiler;
 class WasmCode;
+class CompilationState;
+
+struct CompilationStateDeleter {
+  void operator()(CompilationState* compilation_state) const;
+};
+
+// Wrapper to create a CompilationState exists in order to avoid having
+// the the CompilationState in the header file.
+std::unique_ptr<CompilationState, CompilationStateDeleter> NewCompilationState(
+    Isolate* isolate);
 
 MaybeHandle<WasmModuleObject> CompileToModuleObject(
     Isolate* isolate, ErrorThrower* thrower, std::unique_ptr<WasmModule> module,
@@ -120,7 +130,7 @@ class AsyncCompileJob {
   class DecodeModule;
   class DecodeFail;
   class PrepareAndStartCompile;
-  class ExecuteAndFinishCompilationUnits;
+  class CompileFailed;
   class WaitForBackgroundTasks;
   class FinishCompilationUnits;
   class FinishCompile;
@@ -133,7 +143,7 @@ class AsyncCompileJob {
   }
   Counters* counters() const { return async_counters().get(); }
 
-  void AsyncCompileFailed(ErrorThrower& thrower);
+  void AsyncCompileFailed(Handle<Object> error_reason);
 
   void AsyncCompileSucceeded(Handle<Object> result);
 
@@ -168,16 +178,16 @@ class AsyncCompileJob {
   ModuleWireBytes wire_bytes_;
   Handle<Context> context_;
   Handle<JSPromise> module_promise_;
-  std::unique_ptr<ModuleCompiler> compiler_;
   std::unique_ptr<compiler::ModuleEnv> module_env_;
   std::unique_ptr<WasmModule> module_;
 
   std::vector<DeferredHandles*> deferred_handles_;
   Handle<WasmModuleObject> module_object_;
   Handle<WasmCompiledModule> compiled_module_;
-  size_t outstanding_units_ = 0;
+
   std::unique_ptr<CompileStep> step_;
   CancelableTaskManager background_task_manager_;
+  Handle<Code> centry_stub_;
 
   std::shared_ptr<v8::TaskRunner> foreground_task_runner_;
   std::shared_ptr<v8::TaskRunner> background_task_runner_;
@@ -205,7 +215,6 @@ class AsyncCompileJob {
   // StreamingDecoder.
   std::shared_ptr<StreamingDecoder> stream_;
 };
-
 }  // namespace wasm
 }  // namespace internal
 }  // namespace v8

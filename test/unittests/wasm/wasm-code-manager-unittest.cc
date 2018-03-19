@@ -151,7 +151,7 @@ TEST_F(DisjointAllocationPoolTest, MergingSkipLargerSrcWithGap) {
   CheckLooksLike(a, {{10, 15}, {20, 35}, {36, 40}});
 }
 
-class WasmCodeManagerTest : public TestWithIsolate {
+class WasmCodeManagerTest : public TestWithContext {
  public:
   using NativeModulePtr = std::unique_ptr<NativeModule>;
   enum ModuleStyle : int { Fixed = 0, Growable = 1 };

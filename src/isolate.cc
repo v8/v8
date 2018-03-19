@@ -2599,7 +2599,7 @@ void Isolate::Deinit() {
     optimizing_compile_dispatcher_ = nullptr;
   }
 
-  wasm_engine()->compilation_manager()->TearDown();
+  wasm_engine()->TearDown();
 
   heap_.mark_compact_collector()->EnsureSweepingCompleted();
   heap_.memory_allocator()->unmapper()->WaitUntilCompleted();

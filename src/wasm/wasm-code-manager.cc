@@ -279,6 +279,8 @@ NativeModule::NativeModule(uint32_t num_functions, uint32_t num_imports,
     : instance_id(next_id_.Increment(1)),
       code_table_(num_functions),
       num_imported_functions_(num_imports),
+      compilation_state_(NewCompilationState(
+          reinterpret_cast<Isolate*>(code_manager->isolate_))),
       free_memory_(reinterpret_cast<Address>(mem->address()),
                    reinterpret_cast<Address>(mem->end())),
       wasm_code_manager_(code_manager),

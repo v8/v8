@@ -15,6 +15,8 @@
 #include "src/trap-handler/trap-handler.h"
 #include "src/vector.h"
 
+#include "src/wasm/module-compiler.h"
+
 namespace v8 {
 class Isolate;
 namespace internal {
@@ -242,6 +244,8 @@ class V8_EXPORT_PRIVATE NativeModule final {
   void ResizeCodeTableForTest(size_t);
   void LinkAll();
 
+  CompilationState* compilation_state() { return compilation_state_.get(); }
+
   // TODO(mstarzinger): needed until we sort out source positions, which are
   // still on the  GC-heap.
   WasmCompiledModule* compiled_module() const;
@@ -305,6 +309,8 @@ class V8_EXPORT_PRIVATE NativeModule final {
 
   std::unordered_map<Address, Address, AddressHasher> trampolines_;
   std::unordered_map<uint32_t, WasmCode*> stubs_;
+
+  std::unique_ptr<CompilationState, CompilationStateDeleter> compilation_state_;
 
   DisjointAllocationPool free_memory_;
   DisjointAllocationPool allocated_memory_;
