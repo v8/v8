@@ -12,12 +12,6 @@ namespace internal {
 #ifdef V8_EMBEDDED_BUILTINS
 const uint8_t* DefaultEmbeddedBlob() { return nullptr; }
 uint32_t DefaultEmbeddedBlobSize() { return 0; }
-
-#ifdef V8_MULTI_SNAPSHOTS
-const uint8_t* DefaultEmbeddedBlobTrusted() { return nullptr; }
-uint32_t DefaultEmbeddedBlobSizeTrusted() { return 0; }
-#endif
-
 #endif
 
 }  // namespace internal

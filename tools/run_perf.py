@@ -795,12 +795,6 @@ class AndroidPlatform(Platform):  # pragma: no cover
     )
     self._PushFile(
         shell_dir,
-        "snapshot_blob_trusted.bin",
-        target_dir,
-        skip_if_missing=True,
-    )
-    self._PushFile(
-        shell_dir,
         "icudtl.dat",
         target_dir,
         skip_if_missing=True,
