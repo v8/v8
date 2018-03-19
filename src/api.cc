@@ -5578,6 +5578,7 @@ static int Utf8Length(i::String* str, i::Isolate* isolate) {
 
 int String::Utf8Length() const {
   i::Handle<i::String> str = Utils::OpenHandle(this);
+  str = i::String::Flatten(str);
   i::Isolate* isolate = str->GetIsolate();
   return v8::Utf8Length(*str, isolate);
 }
@@ -5791,9 +5792,7 @@ int String::WriteUtf8(char* buffer,
   i::Isolate* isolate = str->GetIsolate();
   LOG_API(isolate, String, WriteUtf8);
   ENTER_V8_NO_SCRIPT_NO_EXCEPTION(isolate);
-  if (options & HINT_MANY_WRITES_EXPECTED) {
-    str = i::String::Flatten(str);  // Flatten the string for efficiency.
-  }
+  str = i::String::Flatten(str);  // Flatten the string for efficiency.
   const int string_length = str->length();
   bool write_null = !(options & NO_NULL_TERMINATION);
   bool replace_invalid_utf8 = (options & REPLACE_INVALID_UTF8);
@@ -5845,11 +5844,7 @@ static inline int WriteHelper(const String* string,
   ENTER_V8_NO_SCRIPT_NO_EXCEPTION(isolate);
   DCHECK(start >= 0 && length >= -1);
   i::Handle<i::String> str = Utils::OpenHandle(string);
-  if (options & String::HINT_MANY_WRITES_EXPECTED) {
-    // Flatten the string for efficiency.  This applies whether we are
-    // using StringCharacterStream or Get(i) to access the characters.
-    str = i::String::Flatten(str);
-  }
+  str = i::String::Flatten(str);
   int end = start + length;
   if ((length == -1) || (length > str->length() - start) )
     end = str->length();
