@@ -242,7 +242,8 @@ class LiftoffCompiler {
         __ LoadCallerFrameSlot(in_reg, -param_loc.AsCallerFrameSlot(),
                                lowered_type);
       }
-      reg = pair_idx == 0 ? in_reg : LiftoffRegister::ForPair(reg, in_reg);
+      reg = pair_idx == 0 ? in_reg
+                          : LiftoffRegister::ForPair(reg.gp(), in_reg.gp());
       pinned.set(reg);
     }
     __ PushRegister(type, reg);
@@ -701,12 +702,21 @@ class LiftoffCompiler {
         [=](LiftoffRegister dst, LiftoffRegister lhs, LiftoffRegister rhs) { \
           __ emit_f32_set_cond(cond, dst.gp(), lhs.fp(), rhs.fp());          \
         });
-#define CASE_SHIFTOP(opcode, fn)                                             \
-  case WasmOpcode::kExpr##opcode:                                            \
-    return EmitMonomorphicBinOp<kWasmI32>(                                   \
-        [=](LiftoffRegister dst, LiftoffRegister lhs, LiftoffRegister rhs) { \
-          __ emit_##fn(dst.gp(), lhs.gp(), rhs.gp(), {});                    \
-        });
+#define CASE_I32_SHIFTOP(opcode, fn)                                    \
+  case WasmOpcode::kExpr##opcode:                                       \
+    return EmitMonomorphicBinOp<kWasmI32>([=](LiftoffRegister dst,      \
+                                              LiftoffRegister src,      \
+                                              LiftoffRegister amount) { \
+      __ emit_##fn(dst.gp(), src.gp(), amount.gp(), {});                \
+    });
+#define CASE_I64_SHIFTOP(opcode, fn)                                           \
+  case WasmOpcode::kExpr##opcode:                                              \
+    return EmitMonomorphicBinOp<kWasmI64>([=](LiftoffRegister dst,             \
+                                              LiftoffRegister src,             \
+                                              LiftoffRegister amount) {        \
+      __ emit_##fn(dst, src, amount.is_pair() ? amount.low_gp() : amount.gp(), \
+                   {});                                                        \
+    });
 #define CASE_CCALL_BINOP(opcode, type, ext_ref_fn)                           \
   case WasmOpcode::kExpr##opcode:                                            \
     return EmitMonomorphicBinOp<kWasmI32>(                                   \
@@ -740,9 +750,12 @@ class LiftoffCompiler {
       CASE_F32_CMPOP(F32Gt, kUnsignedGreaterThan)
       CASE_F32_CMPOP(F32Le, kUnsignedLessEqual)
       CASE_F32_CMPOP(F32Ge, kUnsignedGreaterEqual)
-      CASE_SHIFTOP(I32Shl, i32_shl)
-      CASE_SHIFTOP(I32ShrS, i32_sar)
-      CASE_SHIFTOP(I32ShrU, i32_shr)
+      CASE_I32_SHIFTOP(I32Shl, i32_shl)
+      CASE_I32_SHIFTOP(I32ShrS, i32_sar)
+      CASE_I32_SHIFTOP(I32ShrU, i32_shr)
+      CASE_I64_SHIFTOP(I64Shl, i64_shl)
+      CASE_I64_SHIFTOP(I64ShrS, i64_sar)
+      CASE_I64_SHIFTOP(I64ShrU, i64_shr)
       CASE_CCALL_BINOP(I32Rol, I32, wasm_word32_rol)
       CASE_CCALL_BINOP(I32Ror, I32, wasm_word32_ror)
       CASE_FLOAT_BINOP(F32Add, F32, f32_add)
@@ -760,7 +773,8 @@ class LiftoffCompiler {
 #undef CASE_FLOAT_BINOP
 #undef CASE_I32_CMPOP
 #undef CASE_F32_CMPOP
-#undef CASE_SHIFTOP
+#undef CASE_I32_SHIFTOP
+#undef CASE_I64_SHIFTOP
 #undef CASE_CCALL_BINOP
   }
 

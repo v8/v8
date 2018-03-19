@@ -293,9 +293,8 @@ void LiftoffAssembler::MoveToReturnRegister(LiftoffRegister reg,
   // TODO(wasm): Extract the destination register from the CallDescriptor.
   // TODO(wasm): Add multi-return support.
   LiftoffRegister dst =
-      reg.is_pair()
-          ? LiftoffRegister::ForPair(LiftoffRegister(v0), LiftoffRegister(v1))
-          : reg.is_gp() ? LiftoffRegister(v0) : LiftoffRegister(f2);
+      reg.is_pair() ? LiftoffRegister::ForPair(v0, v1)
+                    : reg.is_gp() ? LiftoffRegister(v0) : LiftoffRegister(f2);
   if (reg != dst) Move(dst, reg, type);
 }
 
@@ -429,15 +428,28 @@ bool LiftoffAssembler::emit_i32_popcnt(Register dst, Register src) {
   return true;
 }
 
-#define I32_SHIFTOP(name, instruction)                                   \
-  void LiftoffAssembler::emit_i32_##name(                                \
-      Register dst, Register lhs, Register rhs, LiftoffRegList pinned) { \
-    instruction(dst, lhs, rhs);                                          \
+#define I32_SHIFTOP(name, instruction)                                      \
+  void LiftoffAssembler::emit_i32_##name(                                   \
+      Register dst, Register src, Register amount, LiftoffRegList pinned) { \
+    instruction(dst, src, amount);                                          \
   }
 
 I32_SHIFTOP(shl, sllv)
 I32_SHIFTOP(sar, srav)
 I32_SHIFTOP(shr, srlv)
+
+#undef I32_SHIFTOP
+
+#define UNIMPLEMENTED_I64_SHIFTOP(name)                                        \
+  void LiftoffAssembler::emit_i64_##name(LiftoffRegister dst,                  \
+                                         LiftoffRegister src, Register amount, \
+                                         LiftoffRegList pinned) {              \
+    BAILOUT("i64 shiftop");                                                    \
+  }
+
+UNIMPLEMENTED_I64_SHIFTOP(shl)
+UNIMPLEMENTED_I64_SHIFTOP(sar)
+UNIMPLEMENTED_I64_SHIFTOP(shr)
 
 #undef I32_SHIFTOP
 

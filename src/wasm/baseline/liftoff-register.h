@@ -103,11 +103,10 @@ class LiftoffRegister {
     }
   }
 
-  static LiftoffRegister ForPair(LiftoffRegister low, LiftoffRegister high) {
+  static LiftoffRegister ForPair(Register low, Register high) {
     DCHECK(kNeedI64RegPair);
     DCHECK_NE(low, high);
-    storage_t combined_code = low.gp().code() |
-                              high.gp().code() << kBitsPerGpRegCode |
+    storage_t combined_code = low.code() | high.code() << kBitsPerGpRegCode |
                               1 << (2 * kBitsPerGpRegCode);
     return LiftoffRegister(combined_code);
   }

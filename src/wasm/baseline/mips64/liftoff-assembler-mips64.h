@@ -375,15 +375,28 @@ bool LiftoffAssembler::emit_i32_popcnt(Register dst, Register src) {
   return true;
 }
 
-#define I32_SHIFTOP(name, instruction)                                   \
-  void LiftoffAssembler::emit_i32_##name(                                \
-      Register dst, Register lhs, Register rhs, LiftoffRegList pinned) { \
-    instruction(dst, lhs, rhs);                                          \
+#define I32_SHIFTOP(name, instruction)                                      \
+  void LiftoffAssembler::emit_i32_##name(                                   \
+      Register dst, Register src, Register amount, LiftoffRegList pinned) { \
+    instruction(dst, src, amount);                                          \
   }
 
 I32_SHIFTOP(shl, sllv)
 I32_SHIFTOP(sar, srav)
 I32_SHIFTOP(shr, srlv)
+
+#undef I32_SHIFTOP
+
+#define UNIMPLEMENTED_I64_SHIFTOP(name)                                        \
+  void LiftoffAssembler::emit_i64_##name(LiftoffRegister dst,                  \
+                                         LiftoffRegister src, Register amount, \
+                                         LiftoffRegList pinned) {              \
+    BAILOUT("i64 shiftop");                                                    \
+  }
+
+UNIMPLEMENTED_I64_SHIFTOP(shl)
+UNIMPLEMENTED_I64_SHIFTOP(sar)
+UNIMPLEMENTED_I64_SHIFTOP(shr)
 
 #undef I32_SHIFTOP
 

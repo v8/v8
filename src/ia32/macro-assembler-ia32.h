@@ -179,7 +179,7 @@ class TurboAssembler : public Assembler {
   void ShlPair(Register high, Register low, uint8_t imm8);
   void ShlPair_cl(Register high, Register low);
   void ShrPair(Register high, Register low, uint8_t imm8);
-  void ShrPair_cl(Register high, Register src);
+  void ShrPair_cl(Register high, Register low);
   void SarPair(Register high, Register low, uint8_t imm8);
   void SarPair_cl(Register high, Register low);
 

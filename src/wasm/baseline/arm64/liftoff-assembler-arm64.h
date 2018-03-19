@@ -117,10 +117,15 @@ void LiftoffAssembler::FillI64Half(Register, uint32_t half_index) {
   void LiftoffAssembler::emit_##name(DoubleRegister dst, DoubleRegister src) { \
     BAILOUT("fp unop");                                                        \
   }
-#define UNIMPLEMENTED_SHIFTOP(name)                                            \
-  void LiftoffAssembler::emit_##name(Register dst, Register lhs, Register rhs, \
-                                     LiftoffRegList pinned) {                  \
-    BAILOUT("shiftop");                                                        \
+#define UNIMPLEMENTED_I32_SHIFTOP(name)                                        \
+  void LiftoffAssembler::emit_##name(Register dst, Register src,               \
+                                     Register amount, LiftoffRegList pinned) { \
+    BAILOUT("i32 shiftop");                                                    \
+  }
+#define UNIMPLEMENTED_I64_SHIFTOP(name)                                        \
+  void LiftoffAssembler::emit_##name(LiftoffRegister dst, LiftoffRegister src, \
+                                     Register amount, LiftoffRegList pinned) { \
+    BAILOUT("i64 shiftop");                                                    \
   }
 
 UNIMPLEMENTED_GP_BINOP(i32_add)
@@ -129,9 +134,12 @@ UNIMPLEMENTED_GP_BINOP(i32_mul)
 UNIMPLEMENTED_GP_BINOP(i32_and)
 UNIMPLEMENTED_GP_BINOP(i32_or)
 UNIMPLEMENTED_GP_BINOP(i32_xor)
-UNIMPLEMENTED_SHIFTOP(i32_shl)
-UNIMPLEMENTED_SHIFTOP(i32_sar)
-UNIMPLEMENTED_SHIFTOP(i32_shr)
+UNIMPLEMENTED_I32_SHIFTOP(i32_shl)
+UNIMPLEMENTED_I32_SHIFTOP(i32_sar)
+UNIMPLEMENTED_I32_SHIFTOP(i32_shr)
+UNIMPLEMENTED_I64_SHIFTOP(i64_shl)
+UNIMPLEMENTED_I64_SHIFTOP(i64_sar)
+UNIMPLEMENTED_I64_SHIFTOP(i64_shr)
 UNIMPLEMENTED_GP_UNOP(i32_clz)
 UNIMPLEMENTED_GP_UNOP(i32_ctz)
 UNIMPLEMENTED_GP_UNOP(i32_popcnt)
@@ -153,7 +161,8 @@ UNIMPLEMENTED_FP_UNOP(f64_sqrt)
 #undef UNIMPLEMENTED_GP_UNOP
 #undef UNIMPLEMENTED_FP_BINOP
 #undef UNIMPLEMENTED_FP_UNOP
-#undef UNIMPLEMENTED_SHIFTOP
+#undef UNIMPLEMENTED_I32_SHIFTOP
+#undef UNIMPLEMENTED_I64_SHIFTOP
 
 bool LiftoffAssembler::emit_type_conversion(WasmOpcode opcode,
                                             LiftoffRegister dst,

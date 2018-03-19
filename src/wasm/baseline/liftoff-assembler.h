@@ -140,8 +140,8 @@ class LiftoffAssembler : public TurboAssembler {
     LiftoffRegister unused_register(RegClass rc,
                                     LiftoffRegList pinned = {}) const {
       if (kNeedI64RegPair && rc == kGpRegPair) {
-        LiftoffRegister low = pinned.set(unused_register(kGpReg, pinned));
-        LiftoffRegister high = unused_register(kGpReg, pinned);
+        Register low = pinned.set(unused_register(kGpReg, pinned)).gp();
+        Register high = unused_register(kGpReg, pinned).gp();
         return LiftoffRegister::ForPair(low, high);
       }
       DCHECK(rc == kGpReg || rc == kFpReg);
@@ -276,8 +276,8 @@ class LiftoffAssembler : public TurboAssembler {
   LiftoffRegister GetUnusedRegister(RegClass rc, LiftoffRegList pinned = {}) {
     if (kNeedI64RegPair && rc == kGpRegPair) {
       LiftoffRegList candidates = kGpCacheRegList;
-      LiftoffRegister low = pinned.set(GetUnusedRegister(candidates, pinned));
-      LiftoffRegister high = GetUnusedRegister(candidates, pinned);
+      Register low = pinned.set(GetUnusedRegister(candidates, pinned)).gp();
+      Register high = GetUnusedRegister(candidates, pinned).gp();
       return LiftoffRegister::ForPair(low, high);
     }
     DCHECK(rc == kGpReg || rc == kFpReg);
@@ -370,17 +370,25 @@ class LiftoffAssembler : public TurboAssembler {
   inline void emit_i32_and(Register dst, Register lhs, Register rhs);
   inline void emit_i32_or(Register dst, Register lhs, Register rhs);
   inline void emit_i32_xor(Register dst, Register lhs, Register rhs);
-  inline void emit_i32_shl(Register dst, Register lhs, Register rhs,
+  inline void emit_i32_shl(Register dst, Register src, Register amount,
                            LiftoffRegList pinned = {});
-  inline void emit_i32_sar(Register dst, Register lhs, Register rhs,
+  inline void emit_i32_sar(Register dst, Register src, Register amount,
                            LiftoffRegList pinned = {});
-  inline void emit_i32_shr(Register dst, Register lhs, Register rhs,
+  inline void emit_i32_shr(Register dst, Register src, Register amount,
                            LiftoffRegList pinned = {});
 
   // i32 unops.
   inline bool emit_i32_clz(Register dst, Register src);
   inline bool emit_i32_ctz(Register dst, Register src);
   inline bool emit_i32_popcnt(Register dst, Register src);
+
+  // i64 binops.
+  inline void emit_i64_shl(LiftoffRegister dst, LiftoffRegister src,
+                           Register amount, LiftoffRegList pinned = {});
+  inline void emit_i64_sar(LiftoffRegister dst, LiftoffRegister src,
+                           Register amount, LiftoffRegList pinned = {});
+  inline void emit_i64_shr(LiftoffRegister dst, LiftoffRegister src,
+                           Register amount, LiftoffRegList pinned = {});
 
   inline void emit_ptrsize_add(Register dst, Register lhs, Register rhs);
 

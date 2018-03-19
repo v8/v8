@@ -555,7 +555,7 @@ void LiftoffAssembler::FinishCall(wasm::FunctionSig* sig,
       LiftoffRegister high_reg = LiftoffRegister::from_code(
           rc, call_descriptor->GetReturnLocation(1).AsRegister());
       DCHECK(GetCacheRegList(rc).has(high_reg));
-      return_reg = LiftoffRegister::ForPair(return_reg, high_reg);
+      return_reg = LiftoffRegister::ForPair(return_reg.gp(), high_reg.gp());
     }
     DCHECK(!cache_state_.is_used(return_reg));
     PushRegister(return_type, return_reg);
@@ -565,6 +565,7 @@ void LiftoffAssembler::FinishCall(wasm::FunctionSig* sig,
 void LiftoffAssembler::Move(LiftoffRegister dst, LiftoffRegister src,
                             ValueType type) {
   DCHECK_EQ(dst.reg_class(), src.reg_class());
+  DCHECK_NE(dst, src);
   if (kNeedI64RegPair && dst.is_pair()) {
     // Use the {StackTransferRecipe} to move pairs, as the registers in the
     // pairs might overlap.
