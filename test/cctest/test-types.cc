@@ -624,8 +624,6 @@ struct Tests {
     CheckSub(T.InternalizedString, T.String);
     CheckSub(T.InternalizedString, T.UniqueName);
     CheckSub(T.InternalizedString, T.Name);
-    CheckSub(T.OtherString, T.String);
-    CheckSub(T.OtherString, T.Name);
     CheckSub(T.Symbol, T.UniqueName);
     CheckSub(T.Symbol, T.Name);
     CheckUnordered(T.String, T.UniqueName);
@@ -751,7 +749,6 @@ struct Tests {
     CheckOverlap(T.InternalizedString, T.String);
     CheckOverlap(T.InternalizedString, T.UniqueName);
     CheckOverlap(T.InternalizedString, T.Name);
-    CheckOverlap(T.OtherString, T.String);
     CheckOverlap(T.Symbol, T.UniqueName);
     CheckOverlap(T.Symbol, T.Name);
     CheckOverlap(T.String, T.UniqueName);

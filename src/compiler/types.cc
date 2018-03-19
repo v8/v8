@@ -163,7 +163,7 @@ Type::bitset BitsetType::Lub(i::Map* map) {
     case SHORT_EXTERNAL_STRING_WITH_ONE_BYTE_DATA_TYPE:
     case STRING_TYPE:
     case ONE_BYTE_STRING_TYPE:
-      return kOtherString;
+      return kString;
     case EXTERNAL_INTERNALIZED_STRING_TYPE:
     case EXTERNAL_ONE_BYTE_INTERNALIZED_STRING_TYPE:
     case EXTERNAL_INTERNALIZED_STRING_WITH_ONE_BYTE_DATA_TYPE:
@@ -361,6 +361,7 @@ size_t BitsetType::BoundariesSize() {
 }
 
 Type::bitset BitsetType::ExpandInternals(Type::bitset bits) {
+  DCHECK_IMPLIES(bits & kOtherString, (bits & kString) == kString);
   DisallowHeapAllocation no_allocation;
   if (!(bits & kPlainNumber)) return bits;  // Shortcut.
   const Boundary* boundaries = Boundaries();
@@ -823,7 +824,7 @@ Type* Type::NewConstant(i::Handle<i::Object> value, Zone* zone) {
   } else if (value->IsHeapNumber()) {
     return NewConstant(value->Number(), zone);
   } else if (value->IsString() && !value->IsInternalizedString()) {
-    return Type::OtherString();
+    return Type::String();
   }
   return HeapConstant(i::Handle<i::HeapObject>::cast(value), zone);
 }

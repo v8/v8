@@ -186,9 +186,7 @@ class JSTypedLoweringTester : public HandleAndZoneScope {
   }
 };
 
-static Type* kStringTypes[] = {Type::InternalizedString(), Type::OtherString(),
-                               Type::String()};
-
+static Type* kStringTypes[] = {Type::InternalizedString(), Type::String()};
 
 static Type* kInt32Types[] = {Type::UnsignedSmall(), Type::Negative32(),
                               Type::Unsigned31(),    Type::SignedSmall(),

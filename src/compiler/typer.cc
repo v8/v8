@@ -2242,9 +2242,7 @@ Type* Typer::Visitor::TypeNewArgumentsElements(Node* node) {
   return Type::OtherInternal();
 }
 
-Type* Typer::Visitor::TypeNewConsString(Node* node) {
-  return Type::OtherString();
-}
+Type* Typer::Visitor::TypeNewConsString(Node* node) { return Type::String(); }
 
 Type* Typer::Visitor::TypeArrayBufferWasNeutered(Node* node) {
   return Type::Boolean();
