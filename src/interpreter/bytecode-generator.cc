@@ -1306,7 +1306,7 @@ void BytecodeGenerator::VisitDeclarations(Declaration::List* declarations) {
       .LoadLiteral(Smi::FromInt(encoded_flags))
       .StoreAccumulatorInRegister(args[1])
       .MoveRegister(Register::function_closure(), args[2])
-      .CallRuntime(Runtime::kDeclareGlobalsForInterpreter, args);
+      .CallRuntime(Runtime::kDeclareGlobals, args);
 
   // Push and reset globals builder.
   global_declarations_.push_back(globals_builder());

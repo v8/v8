@@ -462,7 +462,6 @@ namespace internal {
   F(DeclareEvalFunction, 2, 1)            \
   F(DeclareEvalVar, 1, 1)                 \
   F(DeclareGlobals, 3, 1)                 \
-  F(DeclareGlobalsForInterpreter, 3, 1)   \
   F(DeleteLookupSlot, 1, 1)               \
   F(LoadLookupSlot, 1, 1)                 \
   F(LoadLookupSlotInsideTypeof, 1, 1)     \
