@@ -160,6 +160,19 @@ Operand TurboAssembler::ExternalOperand(ExternalReference target,
   return Operand(scratch, 0);
 }
 
+Operand TurboAssembler::ExternalOperandReuseScratchRegister(
+    ExternalReference target, ExternalReference previous, Register scratch) {
+  if (root_array_available_ && !serializer_enabled()) {
+    int64_t delta = RootRegisterDelta(target);
+    if (delta != kInvalidRootRegisterDelta && is_int32(delta)) {
+      return Operand(kRootRegister, static_cast<int32_t>(delta));
+    }
+  }
+  int64_t delta = target.address() - previous.address();
+  DCHECK(is_int32(delta));
+  return Operand(scratch, static_cast<int32_t>(delta));
+}
+
 int TurboAssembler::LoadAddressSize(ExternalReference source) {
   if (root_array_available_ && !serializer_enabled()) {
     // This calculation depends on the internals of LoadAddress.
@@ -2236,9 +2249,12 @@ void MacroAssembler::EnterExitFramePrologue(bool save_rax,
     movp(r14, rax);  // Backup rax in callee-save register.
   }
 
-  Store(ExternalReference(IsolateAddressId::kCEntryFPAddress, isolate()), rbp);
-  Store(ExternalReference(IsolateAddressId::kContextAddress, isolate()), rsi);
-  Store(ExternalReference(IsolateAddressId::kCFunctionAddress, isolate()), rbx);
+  ExternalReference fp_address(IsolateAddressId::kCEntryFPAddress, isolate()),
+      context_address(IsolateAddressId::kContextAddress, isolate()),
+      function_address(IsolateAddressId::kCFunctionAddress, isolate());
+  movp(ExternalOperand(fp_address), rbp);
+  movp(ExternalOperandReuseScratchRegister(context_address, fp_address), rsi);
+  movp(ExternalOperandReuseScratchRegister(function_address, fp_address), rbx);
 }
 
 
@@ -2346,7 +2362,8 @@ void MacroAssembler::LeaveExitFrameEpilogue() {
   // Clear the top frame.
   ExternalReference c_entry_fp_address(IsolateAddressId::kCEntryFPAddress,
                                        isolate());
-  Operand c_entry_fp_operand = ExternalOperand(c_entry_fp_address);
+  Operand c_entry_fp_operand =
+      ExternalOperandReuseScratchRegister(c_entry_fp_address, context_address);
   movp(c_entry_fp_operand, Immediate(0));
 }
 
