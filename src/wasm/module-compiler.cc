@@ -568,8 +568,6 @@ const wasm::WasmCode* LazyCompilationOrchestrator::CompileFunction(
                                      CStrVector(func_name.c_str()), func_index,
                                      CEntryStub(isolate, 1).GetCode());
   unit.ExecuteCompilation();
-  // TODO(6792): No longer needed once WebAssembly code is off heap.
-  CodeSpaceMemoryModificationScope modification_scope(isolate->heap());
   wasm::WasmCode* wasm_code = unit.FinishCompilation(&thrower);
 
   // If there is a pending error, something really went wrong. The module was
