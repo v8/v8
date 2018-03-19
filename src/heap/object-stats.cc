@@ -640,18 +640,9 @@ void ObjectStatsCollectorImpl::RecordVirtualMapDetails(Map* map) {
 }
 
 void ObjectStatsCollectorImpl::RecordVirtualScriptDetails(Script* script) {
-  FixedArray* infos = script->shared_function_infos();
   RecordSimpleVirtualObjectStats(
       script, script->shared_function_infos(),
       ObjectStats::SCRIPT_SHARED_FUNCTION_INFOS_TYPE);
-  // Split off weak cells from the regular weak cell type.
-  for (int i = 0; i < infos->length(); i++) {
-    if (infos->get(i)->IsWeakCell()) {
-      RecordSimpleVirtualObjectStats(
-          infos, WeakCell::cast(infos->get(i)),
-          ObjectStats::SCRIPT_SHARED_FUNCTION_INFOS_TYPE);
-    }
-  }
 
   // Log the size of external source code.
   Object* source = script->source();

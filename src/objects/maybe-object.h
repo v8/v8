@@ -28,6 +28,8 @@ class MaybeObject {
 
   inline bool IsStrongOrWeakHeapObject();
   inline bool ToStrongOrWeakHeapObject(HeapObject** result);
+  inline bool ToStrongOrWeakHeapObject(HeapObject** result,
+                                       HeapObjectReferenceType* reference_type);
   inline bool IsStrongHeapObject();
   inline bool ToStrongHeapObject(HeapObject** result);
   inline bool IsWeakHeapObject();
@@ -41,7 +43,13 @@ class MaybeObject {
   }
 
   static MaybeObject* FromObject(Object* object) {
+    DCHECK(!Internals::HasWeakHeapObjectTag(object));
     return reinterpret_cast<MaybeObject*>(object);
+  }
+
+  static MaybeObject* MakeWeak(MaybeObject* object) {
+    DCHECK(object->IsStrongOrWeakHeapObject());
+    return Internals::AddWeakHeapObjectMask(object);
   }
 
 #ifdef VERIFY_HEAP
@@ -56,16 +64,13 @@ class MaybeObject {
 // reference to a HeapObject, or a cleared weak reference.
 class HeapObjectReference : public MaybeObject {
  public:
-  enum ReferenceType {
-    WEAK,
-    STRONG,
-  };
-
   static HeapObjectReference* Strong(HeapObject* object) {
+    DCHECK(!Internals::HasWeakHeapObjectTag(object));
     return reinterpret_cast<HeapObjectReference*>(object);
   }
 
   static HeapObjectReference* Weak(HeapObject* object) {
+    DCHECK(!Internals::HasWeakHeapObjectTag(object));
     return Internals::AddWeakHeapObjectMask(object);
   }
 

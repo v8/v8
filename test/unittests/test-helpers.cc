@@ -32,7 +32,7 @@ Handle<SharedFunctionInfo> CreateSharedFunctionInfo(
   HandleScope scope(isolate);
   Handle<String> source = CreateSource(isolate, maybe_resource);
   Handle<Script> script = isolate->factory()->NewScript(source);
-  Handle<FixedArray> infos = isolate->factory()->NewFixedArray(3);
+  Handle<WeakFixedArray> infos = isolate->factory()->NewWeakFixedArray(3);
   script->set_shared_function_infos(*infos);
   Handle<SharedFunctionInfo> shared = isolate->factory()->NewSharedFunctionInfo(
       isolate->factory()->NewStringFromAsciiChecked("f"),
