@@ -2916,7 +2916,7 @@ InstructionSelector::AlignmentRequirements() {
 }
 
 // static
-bool InstructionSelector::SupportsSpeculationPoisoning() { return false; }
+bool InstructionSelector::SupportsSpeculationPoisoning() { return true; }
 
 #undef SIMD_BINOP_LIST
 #undef SIMD_SHIFT_OP_LIST
