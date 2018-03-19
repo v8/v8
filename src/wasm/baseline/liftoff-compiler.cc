@@ -655,23 +655,17 @@ class LiftoffCompiler {
 #undef CASE_TYPE_CONVERSION
   }
 
-  template <ValueType type, typename EmitFn>
-  void EmitMonomorphicBinOp(EmitFn fn) {
-    static constexpr RegClass rc = reg_class_for(type);
+  template <ValueType src_type, ValueType result_type, typename EmitFn>
+  void EmitBinOp(EmitFn fn) {
+    static constexpr RegClass src_rc = reg_class_for(src_type);
+    static constexpr RegClass result_rc = reg_class_for(result_type);
     LiftoffRegList pinned;
     LiftoffRegister rhs = pinned.set(__ PopToRegister(pinned));
     LiftoffRegister lhs = pinned.set(__ PopToRegister(pinned));
-    LiftoffRegister dst = __ GetUnusedRegister(rc, {lhs, rhs}, pinned);
-    fn(dst, lhs, rhs);
-    __ PushRegister(type, dst);
-  }
-
-  template <ValueType result_type, typename EmitFn>
-  void EmitBinOpWithDifferentResultType(EmitFn fn) {
-    LiftoffRegList pinned;
-    LiftoffRegister rhs = pinned.set(__ PopToRegister(pinned));
-    LiftoffRegister lhs = pinned.set(__ PopToRegister(pinned));
-    LiftoffRegister dst = __ GetUnusedRegister(reg_class_for(result_type));
+    LiftoffRegister dst =
+        src_rc == result_rc
+            ? __ GetUnusedRegister(result_rc, {lhs, rhs}, pinned)
+            : __ GetUnusedRegister(result_rc);
     fn(dst, lhs, rhs);
     __ PushRegister(result_type, dst);
   }
@@ -680,46 +674,45 @@ class LiftoffCompiler {
              const Value& lhs, const Value& rhs, Value* result) {
 #define CASE_I32_BINOP(opcode, fn)                                           \
   case WasmOpcode::kExpr##opcode:                                            \
-    return EmitMonomorphicBinOp<kWasmI32>(                                   \
+    return EmitBinOp<kWasmI32, kWasmI32>(                                    \
         [=](LiftoffRegister dst, LiftoffRegister lhs, LiftoffRegister rhs) { \
           __ emit_##fn(dst.gp(), lhs.gp(), rhs.gp());                        \
         });
 #define CASE_FLOAT_BINOP(opcode, type, fn)                                   \
   case WasmOpcode::kExpr##opcode:                                            \
-    return EmitMonomorphicBinOp<kWasm##type>(                                \
+    return EmitBinOp<kWasm##type, kWasm##type>(                              \
         [=](LiftoffRegister dst, LiftoffRegister lhs, LiftoffRegister rhs) { \
           __ emit_##fn(dst.fp(), lhs.fp(), rhs.fp());                        \
         });
 #define CASE_I32_CMPOP(opcode, cond)                                         \
   case WasmOpcode::kExpr##opcode:                                            \
-    return EmitMonomorphicBinOp<kWasmI32>(                                   \
+    return EmitBinOp<kWasmI32, kWasmI32>(                                    \
         [=](LiftoffRegister dst, LiftoffRegister lhs, LiftoffRegister rhs) { \
           __ emit_i32_set_cond(cond, dst.gp(), lhs.gp(), rhs.gp());          \
         });
 #define CASE_F32_CMPOP(opcode, cond)                                         \
   case WasmOpcode::kExpr##opcode:                                            \
-    return EmitBinOpWithDifferentResultType<kWasmI32>(                       \
+    return EmitBinOp<kWasmF32, kWasmI32>(                                    \
         [=](LiftoffRegister dst, LiftoffRegister lhs, LiftoffRegister rhs) { \
           __ emit_f32_set_cond(cond, dst.gp(), lhs.fp(), rhs.fp());          \
         });
-#define CASE_I32_SHIFTOP(opcode, fn)                                    \
-  case WasmOpcode::kExpr##opcode:                                       \
-    return EmitMonomorphicBinOp<kWasmI32>([=](LiftoffRegister dst,      \
-                                              LiftoffRegister src,      \
-                                              LiftoffRegister amount) { \
-      __ emit_##fn(dst.gp(), src.gp(), amount.gp(), {});                \
-    });
+#define CASE_I32_SHIFTOP(opcode, fn)                                         \
+  case WasmOpcode::kExpr##opcode:                                            \
+    return EmitBinOp<kWasmI32, kWasmI32>(                                    \
+        [=](LiftoffRegister dst, LiftoffRegister lhs, LiftoffRegister rhs) { \
+          __ emit_##fn(dst.gp(), lhs.gp(), rhs.gp(), {});                    \
+        });
 #define CASE_I64_SHIFTOP(opcode, fn)                                           \
   case WasmOpcode::kExpr##opcode:                                              \
-    return EmitMonomorphicBinOp<kWasmI64>([=](LiftoffRegister dst,             \
-                                              LiftoffRegister src,             \
-                                              LiftoffRegister amount) {        \
+    return EmitBinOp<kWasmI64, kWasmI64>([=](LiftoffRegister dst,              \
+                                             LiftoffRegister src,              \
+                                             LiftoffRegister amount) {         \
       __ emit_##fn(dst, src, amount.is_pair() ? amount.low_gp() : amount.gp(), \
                    {});                                                        \
     });
 #define CASE_CCALL_BINOP(opcode, type, ext_ref_fn)                           \
   case WasmOpcode::kExpr##opcode:                                            \
-    return EmitMonomorphicBinOp<kWasmI32>(                                   \
+    return EmitBinOp<kWasmI32, kWasmI32>(                                    \
         [=](LiftoffRegister dst, LiftoffRegister lhs, LiftoffRegister rhs) { \
           LiftoffRegister args[] = {lhs, rhs};                               \
           auto ext_ref = ExternalReference::ext_ref_fn(__ isolate());        \
