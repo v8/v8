@@ -9110,6 +9110,16 @@ int debug::GetContextId(Local<Context> context) {
   return (value->IsSmi()) ? i::Smi::ToInt(value) : 0;
 }
 
+void debug::SetInspector(Isolate* isolate,
+                         v8_inspector::V8Inspector* inspector) {
+  i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
+  i_isolate->set_inspector(inspector);
+}
+
+v8_inspector::V8Inspector* debug::GetInspector(Isolate* isolate) {
+  return reinterpret_cast<i::Isolate*>(isolate)->inspector();
+}
+
 Local<Context> debug::GetDebugContext(Isolate* isolate) {
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
   ENTER_V8_NO_SCRIPT_NO_EXCEPTION(i_isolate);

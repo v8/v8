@@ -59,10 +59,12 @@ V8InspectorImpl::V8InspectorImpl(v8::Isolate* isolate,
       m_capturingStackTracesCount(0),
       m_lastExceptionId(0),
       m_lastContextId(0) {
+  v8::debug::SetInspector(m_isolate, this);
   v8::debug::SetConsoleDelegate(m_isolate, console());
 }
 
 V8InspectorImpl::~V8InspectorImpl() {
+  v8::debug::SetInspector(m_isolate, nullptr);
   v8::debug::SetConsoleDelegate(m_isolate, nullptr);
 }
 

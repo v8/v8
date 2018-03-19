@@ -104,6 +104,8 @@ class V8RuntimeAgentImpl : public protocol::Runtime::Backend {
   Response globalLexicalScopeNames(
       Maybe<int> executionContextId,
       std::unique_ptr<protocol::Array<String16>>* outNames) override;
+  void terminateExecution(
+      std::unique_ptr<TerminateExecutionCallback> callback) override;
 
   void reset();
   void reportExecutionContextCreated(InspectedContext*);

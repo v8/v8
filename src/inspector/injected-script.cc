@@ -618,6 +618,9 @@ Response InjectedScript::wrapEvaluateResult(
       m_lastEvaluationResult.AnnotateStrongRetainer(kGlobalHandleLabel);
     }
   } else {
+    if (tryCatch.HasTerminated() || !tryCatch.CanContinue()) {
+      return Response::Error("Execution was terminated");
+    }
     v8::Local<v8::Value> exception = tryCatch.Exception();
     Response response =
         wrapObject(exception, objectGroup, false,
