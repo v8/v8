@@ -1063,8 +1063,10 @@ class Assembler : public AssemblerBase {
   void sqrtsd(XMMRegister dst, XMMRegister src) { sqrtsd(dst, Operand(src)); }
   void sqrtsd(XMMRegister dst, Operand src);
 
-  void andpd(XMMRegister dst, XMMRegister src);
-  void orpd(XMMRegister dst, XMMRegister src);
+  void andpd(XMMRegister dst, XMMRegister src) { andpd(dst, Operand(src)); }
+  void andpd(XMMRegister dst, Operand src);
+  void orpd(XMMRegister dst, XMMRegister src) { orpd(dst, Operand(src)); }
+  void orpd(XMMRegister dst, Operand src);
 
   void ucomisd(XMMRegister dst, XMMRegister src) { ucomisd(dst, Operand(src)); }
   void ucomisd(XMMRegister dst, Operand src);

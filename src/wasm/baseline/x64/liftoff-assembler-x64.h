@@ -580,6 +580,17 @@ void LiftoffAssembler::emit_f32_div(DoubleRegister dst, DoubleRegister lhs,
   }
 }
 
+void LiftoffAssembler::emit_f32_abs(DoubleRegister dst, DoubleRegister src) {
+  static constexpr uint32_t kSignBit = uint32_t{1} << 31;
+  if (dst == src) {
+    TurboAssembler::Move(kScratchDoubleReg, kSignBit - 1);
+    Andps(dst, kScratchDoubleReg);
+  } else {
+    TurboAssembler::Move(dst, kSignBit - 1);
+    Andps(dst, src);
+  }
+}
+
 void LiftoffAssembler::emit_f32_neg(DoubleRegister dst, DoubleRegister src) {
   static constexpr uint32_t kSignBit = uint32_t{1} << 31;
   if (dst == src) {
@@ -648,6 +659,17 @@ void LiftoffAssembler::emit_f64_div(DoubleRegister dst, DoubleRegister lhs,
   } else {
     if (dst != lhs) movsd(dst, lhs);
     divsd(dst, rhs);
+  }
+}
+
+void LiftoffAssembler::emit_f64_abs(DoubleRegister dst, DoubleRegister src) {
+  static constexpr uint64_t kSignBit = uint64_t{1} << 63;
+  if (dst == src) {
+    TurboAssembler::Move(kScratchDoubleReg, kSignBit - 1);
+    Andpd(dst, kScratchDoubleReg);
+  } else {
+    TurboAssembler::Move(dst, kSignBit - 1);
+    Andpd(dst, src);
   }
 }
 

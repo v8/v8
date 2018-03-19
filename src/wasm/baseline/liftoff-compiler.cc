@@ -622,8 +622,10 @@ class LiftoffCompiler {
           __ emit_i32_set_cond(kEqual, dst.gp(), src.gp());
         });
         break;
+        CASE_FLOAT_UNOP(F32Abs, F32, f32_abs)
         CASE_FLOAT_UNOP(F32Neg, F32, f32_neg)
         CASE_FLOAT_UNOP(F32Sqrt, F32, f32_sqrt)
+        CASE_FLOAT_UNOP(F64Abs, F64, f64_abs)
         CASE_FLOAT_UNOP(F64Neg, F64, f64_neg)
         CASE_FLOAT_UNOP(F64Sqrt, F64, f64_sqrt)
         CASE_TYPE_CONVERSION(I32ConvertI64, I32, I64, nullptr)
