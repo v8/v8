@@ -295,7 +295,7 @@ class V8_EXPORT_PRIVATE NativeModule final {
                          std::shared_ptr<ProtectedInstructions>,
                          WasmCode::Tier tier, bool flush_icache = true);
   WasmCode* CloneCode(const WasmCode*);
-  bool CloneTrampolinesAndStubs(const NativeModule* other);
+  void CloneTrampolinesAndStubs(const NativeModule* other);
   WasmCode* Lookup(Address);
   Address GetLocalAddressFor(Handle<Code>);
   Address CreateTrampolineTo(Handle<Code>);

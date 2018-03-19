@@ -327,7 +327,10 @@ WasmCode* NativeModule::AddOwnedCode(
   // section, thus ensuring owned_code_'s elements are rarely if ever moved.
   base::LockGuard<base::Mutex> lock(&allocation_mutex_);
   Address executable_buffer = AllocateForCode(orig_instructions.size());
-  if (executable_buffer == nullptr) return nullptr;
+  if (executable_buffer == nullptr) {
+    V8::FatalProcessOutOfMemory("NativeModule::AddOwnedCode");
+    UNREACHABLE();
+  }
   memcpy(executable_buffer, orig_instructions.start(),
          orig_instructions.size());
   std::unique_ptr<WasmCode> code(new WasmCode(
@@ -502,7 +505,6 @@ Address NativeModule::CreateTrampolineTo(Handle<Code> code) {
       {code_desc.buffer, static_cast<size_t>(code_desc.instr_size)}, nullptr, 0,
       Nothing<uint32_t>(), WasmCode::kTrampoline, 0, 0, 0, 0, {},
       WasmCode::kOther);
-  if (wasm_code == nullptr) return nullptr;
   Address ret = wasm_code->instructions().start();
   trampolines_.emplace(std::make_pair(dest, ret));
   return ret;
@@ -644,21 +646,20 @@ WasmCode* NativeModule::CloneLazyBuiltinInto(const WasmCode* code,
   return ret;
 }
 
-bool NativeModule::CloneTrampolinesAndStubs(const NativeModule* other) {
+void NativeModule::CloneTrampolinesAndStubs(const NativeModule* other) {
   for (auto& pair : other->trampolines_) {
     Address key = pair.first;
     Address local =
         GetLocalAddressFor(handle(Code::GetCodeFromTargetAddress(key)));
-    if (local == nullptr) return false;
+    DCHECK_NOT_NULL(local);
     trampolines_.emplace(std::make_pair(key, local));
   }
   for (auto& pair : other->stubs_) {
     uint32_t key = pair.first;
     WasmCode* clone = CloneCode(pair.second);
-    if (!clone) return false;
+    DCHECK_NOT_NULL(clone);
     stubs_.emplace(std::make_pair(key, clone));
   }
-  return true;
 }
 
 WasmCode* NativeModule::CloneCode(const WasmCode* original_code) {
@@ -676,7 +677,6 @@ WasmCode* NativeModule::CloneCode(const WasmCode* original_code) {
       original_code->handler_table_offset_,
       original_code->protected_instructions_, original_code->tier(),
       false /* flush_icache */);
-  if (ret == nullptr) return nullptr;
   if (!ret->IsAnonymous()) {
     code_table_[ret->index()] = ret;
   }
@@ -872,7 +872,7 @@ std::unique_ptr<NativeModule> NativeModule::Clone() {
   TRACE_HEAP("%zu cloned from %zu\n", ret->instance_id, instance_id);
   if (!ret) return ret;
 
-  if (!ret->CloneTrampolinesAndStubs(this)) return nullptr;
+  ret->CloneTrampolinesAndStubs(this);
 
   std::unordered_map<Address, Address, AddressHasher> reverse_lookup;
   for (auto& pair : trampolines_) {
