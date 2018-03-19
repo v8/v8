@@ -2990,8 +2990,8 @@ void ArrangeShuffleTable(Arm64OperandGenerator* g, Node* input0, Node* input1,
     *src0 = *src1 = g->UseRegister(input0);
   } else {
     // Binary, table registers must be consecutive.
-    *src0 = g->UseFixed(input0, fp_fixed2);
-    *src1 = g->UseFixed(input1, fp_fixed3);
+    *src0 = g->UseFixed(input0, fp_fixed1);
+    *src1 = g->UseFixed(input1, fp_fixed2);
   }
 }
 
