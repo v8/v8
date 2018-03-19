@@ -2803,11 +2803,20 @@ bool JSNativeContextSpecialization::ExtractReceiverMaps(
     MapHandles* receiver_maps) {
   DCHECK_EQ(0, receiver_maps->size());
   if (nexus.IsUninitialized()) return true;
-  // See if we can infer a concrete type for the {receiver}.
-  if (InferReceiverMaps(receiver, effect, receiver_maps)) {
-    // We can assume that the {receiver} still has the inferred {receiver_maps}.
-    return true;
+
+  // See if we can infer a concrete type for the {receiver}. Solely relying on
+  // the inference is not safe for keyed stores, because we would potentially
+  // miss out on transitions that need to be performed.
+  {
+    FeedbackSlotKind kind = nexus.kind();
+    bool use_inference =
+        !IsKeyedStoreICKind(kind) && !IsStoreInArrayLiteralICKind(kind);
+    if (use_inference && InferReceiverMaps(receiver, effect, receiver_maps)) {
+      // We can assume that {receiver} still has the inferred {receiver_maps}.
+      return true;
+    }
   }
+
   // Try to extract some maps from the {nexus}.
   if (nexus.ExtractMaps(receiver_maps) != 0) {
     // Try to filter impossible candidates based on inferred root map.
@@ -2824,6 +2833,7 @@ bool JSNativeContextSpecialization::ExtractReceiverMaps(
     }
     return true;
   }
+
   return false;
 }
 
