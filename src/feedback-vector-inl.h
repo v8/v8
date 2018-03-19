@@ -126,7 +126,7 @@ Code* FeedbackVector::optimized_code() const {
 OptimizationMarker FeedbackVector::optimization_marker() const {
   MaybeObject* slot = optimized_code_weak_or_smi();
   Smi* value;
-  if (!slot->IsSmi(&value)) return OptimizationMarker::kNone;
+  if (!slot->ToSmi(&value)) return OptimizationMarker::kNone;
   return static_cast<OptimizationMarker>(value->value());
 }
 

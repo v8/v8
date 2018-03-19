@@ -11,7 +11,7 @@
 namespace v8 {
 namespace internal {
 
-bool MaybeObject::IsSmi(Smi** value) {
+bool MaybeObject::ToSmi(Smi** value) {
   if (HAS_SMI_TAG(this)) {
     *value = Smi::cast(reinterpret_cast<Object*>(this));
     return true;
