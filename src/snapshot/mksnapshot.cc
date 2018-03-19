@@ -26,6 +26,10 @@ class SnapshotWriter {
   void SetEmbeddedFile(const char* embedded_cpp_file) {
     embedded_cpp_path_ = embedded_cpp_file;
   }
+
+  void SetEmbeddedSuffix(const char* embedded_suffix) {
+    embedded_suffix_ = embedded_suffix;
+  }
 #endif
 
   void SetSnapshotFile(const char* snapshot_cpp_file) {
@@ -124,7 +128,7 @@ class SnapshotWriter {
 
     WriteEmbeddedFilePrefix(fp);
     WriteEmbeddedFileData(fp, blob);
-    WriteEmbeddedFileSuffix(fp);
+    WriteEmbeddedFileSuffix(fp, embedded_suffix_);
 
     fclose(fp);
   }
@@ -138,14 +142,16 @@ class SnapshotWriter {
     fprintf(fp, "namespace {\n\n");
   }
 
-  static void WriteEmbeddedFileSuffix(FILE* fp) {
+  static void WriteEmbeddedFileSuffix(FILE* fp, const char* symbol_suffix) {
     fprintf(fp, "}  // namespace\n\n");
-    fprintf(
-        fp,
-        "const uint8_t* DefaultEmbeddedBlob() { return v8_embedded_blob_; }\n");
     fprintf(fp,
-            "uint32_t DefaultEmbeddedBlobSize() { return "
-            "v8_embedded_blob_size_; }\n\n");
+            "const uint8_t* DefaultEmbeddedBlob%s() { return "
+            "v8_embedded_blob_; }\n",
+            symbol_suffix);
+    fprintf(fp,
+            "uint32_t DefaultEmbeddedBlobSize%s() { return "
+            "v8_embedded_blob_size_; }\n\n",
+            symbol_suffix);
     fprintf(fp, "}  // namespace internal\n");
     fprintf(fp, "}  // namespace v8\n");
   }
@@ -211,6 +217,7 @@ class SnapshotWriter {
 
 #ifdef V8_EMBEDDED_BUILTINS
   const char* embedded_cpp_path_ = nullptr;
+  const char* embedded_suffix_ = "";
 #endif
   const char* snapshot_cpp_path_;
   const char* snapshot_blob_path_;
@@ -376,6 +383,8 @@ int main(int argc, char** argv) {
     if (i::FLAG_startup_blob) writer.SetStartupBlobFile(i::FLAG_startup_blob);
 #ifdef V8_EMBEDDED_BUILTINS
     if (i::FLAG_embedded_src) writer.SetEmbeddedFile(i::FLAG_embedded_src);
+    if (i::FLAG_embedded_suffix)
+      writer.SetEmbeddedSuffix(i::FLAG_embedded_suffix);
 #endif
 
     std::unique_ptr<char> embed_script(

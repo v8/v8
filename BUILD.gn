@@ -9,6 +9,7 @@ import("//build/config/host_byteorder.gni")
 import("//build/config/jumbo.gni")
 import("//build/config/mips.gni")
 import("//build/config/sanitizers/sanitizers.gni")
+import("//build_overrides/build.gni")
 
 if (is_android) {
   import("//build/config/android/rules.gni")
@@ -325,6 +326,9 @@ config("features") {
   }
   if (v8_enable_embedded_builtins) {
     defines += [ "V8_EMBEDDED_BUILTINS" ]
+  }
+  if (v8_use_multi_snapshots) {
+    defines += [ "V8_MULTI_SNAPSHOTS" ]
   }
 }
 
@@ -718,6 +722,8 @@ action("d8_js2c") {
 if (is_android && enable_java_templates) {
   android_assets("v8_external_startup_data_assets") {
     if (v8_use_external_startup_data) {
+      # We don't support side-by-side snapshots on Android within Chromium.
+      assert(!v8_use_multi_snapshots)
       deps = [
         "//v8",
       ]
@@ -805,8 +811,24 @@ action("postmortem-metadata") {
          rebase_path(sources, root_build_dir)
 }
 
-if (v8_use_snapshot) {
-  action("run_mksnapshot") {
+# Template to generate different V8 snapshots based on different runtime flags.
+# Can be invoked with run_mksnapshot(<name>). The target will resolve to
+# run_mksnapshot_<name>. If <name> is "default", no file suffixes will be used.
+# Otherwise files are suffixed, e.g. embedded_<name>.cc and
+# snapshot_blob_<name>.bin.
+#
+# The template exposes the variables:
+#   args: additional flags for mksnapshots
+#   embedded_suffix: a camel case suffix for method names in the embedded
+#       snapshot.
+template("run_mksnapshot") {
+  name = target_name
+  if (name == "default") {
+    suffix = ""
+  } else {
+    suffix = "_$name"
+  }
+  action("run_mksnapshot_" + name) {
     visibility = [ ":*" ]  # Only targets in this file can depend on this.
 
     deps = [
@@ -826,12 +848,20 @@ if (v8_use_snapshot) {
       "--turbo_instruction_scheduling",
     ]
 
+    args += invoker.args
+
     if (v8_enable_embedded_builtins) {
-      outputs += [ "$target_gen_dir/embedded.cc" ]
+      outputs += [ "$target_gen_dir/embedded${suffix}.cc" ]
       args += [
         "--embedded_src",
-        rebase_path("$target_gen_dir/embedded.cc", root_build_dir),
+        rebase_path("$target_gen_dir/embedded${suffix}.cc", root_build_dir),
       ]
+      if (invoker.embedded_suffix != "") {
+        args += [
+          "--embedded_suffix",
+          invoker.embedded_suffix,
+        ]
+      }
     }
 
     if (v8_random_seed != "0") {
@@ -853,16 +883,16 @@ if (v8_use_snapshot) {
     }
 
     if (v8_use_external_startup_data) {
-      outputs += [ "$root_out_dir/snapshot_blob.bin" ]
+      outputs += [ "$root_out_dir/snapshot_blob${suffix}.bin" ]
       args += [
         "--startup_blob",
-        rebase_path("$root_out_dir/snapshot_blob.bin", root_build_dir),
+        rebase_path("$root_out_dir/snapshot_blob${suffix}.bin", root_build_dir),
       ]
     } else {
-      outputs += [ "$target_gen_dir/snapshot.cc" ]
+      outputs += [ "$target_gen_dir/snapshot${suffix}.cc" ]
       args += [
         "--startup_src",
-        rebase_path("$target_gen_dir/snapshot.cc", root_build_dir),
+        rebase_path("$target_gen_dir/snapshot${suffix}.cc", root_build_dir),
       ]
     }
 
@@ -876,6 +906,23 @@ if (v8_use_snapshot) {
         "--no-turbo-rewrite-far-jumps",
         "--no-turbo-verify-allocation",
       ]
+    }
+  }
+}
+
+if (v8_use_snapshot) {
+  run_mksnapshot("default") {
+    args = []
+    if (v8_enable_embedded_builtins) {
+      embedded_suffix = ""
+    }
+  }
+  if (v8_use_multi_snapshots) {
+    run_mksnapshot("trusted") {
+      args = [ "--no-untrusted-code-mitigations" ]
+      if (v8_enable_embedded_builtins) {
+        embedded_suffix = "Trusted"
+      }
     }
   }
 }
@@ -985,7 +1032,7 @@ if (v8_use_snapshot && !v8_use_external_startup_data) {
     public_deps = [
       # This should be public so downstream targets can declare the snapshot
       # output file as their inputs.
-      ":run_mksnapshot",
+      ":run_mksnapshot_default",
     ]
 
     sources = [
@@ -1025,8 +1072,12 @@ if (v8_use_snapshot && v8_use_external_startup_data) {
     ]
     public_deps = [
       ":natives_blob",
-      ":run_mksnapshot",
+      ":run_mksnapshot_default",
     ]
+
+    if (v8_use_multi_snapshots) {
+      public_deps += [ ":run_mksnapshot_trusted" ]
+    }
 
     sources = [
       "src/setup-isolate-deserialize.cc",
@@ -1036,6 +1087,9 @@ if (v8_use_snapshot && v8_use_external_startup_data) {
 
     if (v8_enable_embedded_builtins) {
       sources += [ "$target_gen_dir/embedded.cc" ]
+      if (v8_use_multi_snapshots) {
+        sources += [ "$target_gen_dir/embedded_trusted.cc" ]
+      }
     }
 
     configs = [ ":internal_config" ]

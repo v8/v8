@@ -17,6 +17,13 @@
         ],
       },
     }],
+    ['v8_use_snapshot=="true" and v8_use_external_startup_data==1 and v8_use_multi_snapshots==1', {
+      'variables': {
+        'files': [
+          '<(PRODUCT_DIR)/snapshot_blob_trusted.bin',
+        ],
+      },
+    }],
     ['tsan==1', {
       'variables': {
         'files': [
