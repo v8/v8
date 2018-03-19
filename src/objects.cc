@@ -3573,7 +3573,7 @@ bool HeapObject::CanBeRehashed() const {
       // TODO(yangguo): actually support rehashing OrderedHash{Map,Set}.
       return IsNameDictionary() || IsGlobalDictionary() ||
              IsNumberDictionary() || IsSimpleNumberDictionary() ||
-             IsStringTable() || IsWeakHashTable();
+             IsStringTable();
     case DESCRIPTOR_ARRAY_TYPE:
       return true;
     case TRANSITION_ARRAY_TYPE:
@@ -3601,8 +3601,6 @@ void HeapObject::RehashBasedOnMap() {
         GlobalDictionary::cast(this)->Rehash();
       } else if (IsStringTable()) {
         StringTable::cast(this)->Rehash();
-      } else if (IsWeakHashTable()) {
-        WeakHashTable::cast(this)->Rehash();
       } else {
         UNREACHABLE();
       }
@@ -14918,7 +14916,6 @@ bool DependentCode::MarkCodeForDeoptimization(
   DisallowHeapAllocation no_allocation_scope;
   // Mark all the code that needs to be deoptimized.
   bool marked = false;
-  bool invalidate_embedded_objects = group == kWeakCodeGroup;
   int count = this->count();
   for (int i = 0; i < count; i++) {
     Object* obj = object_at(i);
@@ -14927,10 +14924,7 @@ bool DependentCode::MarkCodeForDeoptimization(
       if (cell->cleared()) continue;
       Code* code = Code::cast(cell->value());
       if (!code->marked_for_deoptimization()) {
-        SetMarkedForDeoptimization(code, group);
-        if (invalidate_embedded_objects) {
-          code->InvalidateEmbeddedObjects();
-        }
+        code->SetMarkedForDeoptimization(DependencyGroupName(group));
         marked = true;
       }
     } else {
@@ -14960,27 +14954,24 @@ void DependentCode::DeoptimizeDependentCodeGroup(
   }
 }
 
-
-void DependentCode::SetMarkedForDeoptimization(Code* code,
-                                               DependencyGroup group) {
-  code->set_marked_for_deoptimization(true);
+void Code::SetMarkedForDeoptimization(const char* reason) {
+  set_marked_for_deoptimization(true);
   if (FLAG_trace_deopt &&
-      (code->deoptimization_data() != code->GetHeap()->empty_fixed_array())) {
+      (deoptimization_data() != GetHeap()->empty_fixed_array())) {
     DeoptimizationData* deopt_data =
-        DeoptimizationData::cast(code->deoptimization_data());
-    CodeTracer::Scope scope(code->GetHeap()->isolate()->GetCodeTracer());
-    PrintF(scope.file(), "[marking dependent code 0x%08" V8PRIxPTR
-                         " (opt #%d) for deoptimization, reason: %s]\n",
-           reinterpret_cast<intptr_t>(code),
-           deopt_data->OptimizationId()->value(), DependencyGroupName(group));
+        DeoptimizationData::cast(deoptimization_data());
+    CodeTracer::Scope scope(GetHeap()->isolate()->GetCodeTracer());
+    PrintF(scope.file(),
+           "[marking dependent code 0x%08" V8PRIxPTR
+           " (opt #%d) for deoptimization, reason: %s]\n",
+           reinterpret_cast<intptr_t>(this),
+           deopt_data->OptimizationId()->value(), reason);
   }
 }
 
 
 const char* DependentCode::DependencyGroupName(DependencyGroup group) {
   switch (group) {
-    case kWeakCodeGroup:
-      return "weak-code";
     case kTransitionGroup:
       return "transition";
     case kPrototypeCheckGroup:
@@ -16587,8 +16578,6 @@ template class HashTable<CompilationCacheTable, CompilationCacheShape>;
 
 template class HashTable<ObjectHashTable, ObjectHashTableShape>;
 
-template class HashTable<WeakHashTable, WeakHashTableShape>;
-
 template class Dictionary<NameDictionary, NameDictionaryShape>;
 
 template class Dictionary<GlobalDictionary, GlobalDictionaryShape>;
@@ -18090,48 +18079,6 @@ void ObjectHashTable::RemoveEntry(int entry) {
   set_the_hole(EntryToIndex(entry));
   set_the_hole(EntryToIndex(entry) + 1);
   ElementRemoved();
-}
-
-
-Object* WeakHashTable::Lookup(Handle<HeapObject> key) {
-  DisallowHeapAllocation no_gc;
-  Isolate* isolate = GetIsolate();
-  DCHECK(IsKey(isolate, *key));
-  int entry = FindEntry(key);
-  if (entry == kNotFound) return isolate->heap()->the_hole_value();
-  return get(EntryToValueIndex(entry));
-}
-
-
-Handle<WeakHashTable> WeakHashTable::Put(Handle<WeakHashTable> table,
-                                         Handle<HeapObject> key,
-                                         Handle<HeapObject> value) {
-  Isolate* isolate = key->GetIsolate();
-  DCHECK(table->IsKey(isolate, *key));
-  int entry = table->FindEntry(key);
-  // Key is already in table, just overwrite value.
-  if (entry != kNotFound) {
-    table->set(EntryToValueIndex(entry), *value);
-    return table;
-  }
-
-  Handle<WeakCell> key_cell = isolate->factory()->NewWeakCell(key);
-
-  // Check whether the hash table should be extended.
-  table = EnsureCapacity(table, 1, TENURED);
-
-  uint32_t hash = ShapeT::Hash(isolate, key);
-  table->AddEntry(table->FindInsertionEntry(hash), key_cell, value);
-  return table;
-}
-
-
-void WeakHashTable::AddEntry(int entry, Handle<WeakCell> key_cell,
-                             Handle<HeapObject> value) {
-  DisallowHeapAllocation no_allocation;
-  set(EntryToIndex(entry), *key_cell);
-  set(EntryToValueIndex(entry), *value);
-  ElementAdded();
 }
 
 template <class Derived, int entrysize>

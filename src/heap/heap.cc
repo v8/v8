@@ -2495,6 +2495,7 @@ AllocationResult Heap::AllocatePartialMap(InstanceType instance_type,
   map->SetInObjectUnusedPropertyFields(0);
   map->set_bit_field(0);
   map->set_bit_field2(0);
+  DCHECK(!map->is_in_retained_map_list());
   int bit_field3 = Map::EnumLengthBits::encode(kInvalidEnumCacheSentinel) |
                    Map::OwnsDescriptorsBit::encode(true) |
                    Map::ConstructionCounterBits::encode(Map::kNoSlackTracking);
@@ -2548,6 +2549,7 @@ AllocationResult Heap::AllocateMap(InstanceType instance_type,
   map->set_visitor_id(Map::GetVisitorId(map));
   map->set_bit_field(0);
   map->set_bit_field2(Map::IsExtensibleBit::kMask);
+  DCHECK(!map->is_in_retained_map_list());
   int bit_field3 = Map::EnumLengthBits::encode(kInvalidEnumCacheSentinel) |
                    Map::OwnsDescriptorsBit::encode(true) |
                    Map::ConstructionCounterBits::encode(Map::kNoSlackTracking);
@@ -2751,8 +2753,6 @@ bool Heap::RootCanBeWrittenAfterInitialization(Heap::RootListIndex root_index) {
     case kMaterializedObjectsRootIndex:
     case kMicrotaskQueueRootIndex:
     case kDetachedContextsRootIndex:
-    case kWeakObjectToCodeTableRootIndex:
-    case kWeakNewSpaceObjectToCodeListRootIndex:
     case kRetainedMapsRootIndex:
     case kRetainingPathTargetsRootIndex:
     case kFeedbackVectorsForProfilingToolsRootIndex:
@@ -4876,8 +4876,6 @@ void Heap::Verify() {
   code_space_->Verify(&no_dirty_regions_visitor);
 
   lo_space_->Verify();
-
-  mark_compact_collector()->VerifyWeakEmbeddedObjectsInCode();
 }
 
 class SlotVerifyingVisitor : public ObjectVisitor {
@@ -6098,37 +6096,6 @@ void Heap::RemoveGCEpilogueCallback(v8::Isolate::GCCallbackWithData callback,
   UNREACHABLE();
 }
 
-// TODO(ishell): Find a better place for this.
-void Heap::AddWeakNewSpaceObjectToCodeDependency(Handle<HeapObject> obj,
-                                                 Handle<WeakCell> code) {
-  DCHECK(InNewSpace(*obj));
-  DCHECK(!InNewSpace(*code));
-  Handle<ArrayList> list(weak_new_space_object_to_code_list(), isolate());
-  list = ArrayList::Add(list, isolate()->factory()->NewWeakCell(obj), code);
-  if (*list != weak_new_space_object_to_code_list()) {
-    set_weak_new_space_object_to_code_list(*list);
-  }
-}
-
-// TODO(ishell): Find a better place for this.
-void Heap::AddWeakObjectToCodeDependency(Handle<HeapObject> obj,
-                                         Handle<DependentCode> dep) {
-  DCHECK(!InNewSpace(*obj));
-  DCHECK(!InNewSpace(*dep));
-  Handle<WeakHashTable> table(weak_object_to_code_table(), isolate());
-  table = WeakHashTable::Put(table, obj, dep);
-  if (*table != weak_object_to_code_table())
-    set_weak_object_to_code_table(*table);
-  DCHECK_EQ(*dep, LookupWeakObjectToCodeDependency(obj));
-}
-
-
-DependentCode* Heap::LookupWeakObjectToCodeDependency(Handle<HeapObject> obj) {
-  Object* dep = weak_object_to_code_table()->Lookup(obj);
-  if (dep->IsDependentCode()) return DependentCode::cast(dep);
-  return DependentCode::cast(empty_fixed_array());
-}
-
 namespace {
 void CompactFixedArrayOfWeakCells(Object* object) {
   if (object->IsFixedArrayOfWeakCells()) {
@@ -6157,6 +6124,9 @@ void Heap::CompactFixedArraysOfWeakCells() {
 }
 
 void Heap::AddRetainedMap(Handle<Map> map) {
+  if (map->is_in_retained_map_list()) {
+    return;
+  }
   Handle<WeakCell> cell = Map::WeakCellForMap(map);
   Handle<ArrayList> array(retained_maps(), isolate());
   if (array->IsFull()) {
@@ -6168,6 +6138,7 @@ void Heap::AddRetainedMap(Handle<Map> map) {
   if (*array != retained_maps()) {
     set_retained_maps(*array);
   }
+  map->set_is_in_retained_map_list(true);
 }
 
 

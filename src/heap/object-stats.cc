@@ -552,9 +552,6 @@ void ObjectStatsCollectorImpl::CollectGlobalStatistics() {
   }
 
   // FixedArray.
-  RecordSimpleVirtualObjectStats(
-      nullptr, heap_->weak_new_space_object_to_code_list(),
-      ObjectStats::WEAK_NEW_SPACE_OBJECT_TO_CODE_TYPE);
   RecordSimpleVirtualObjectStats(nullptr, heap_->serialized_objects(),
                                  ObjectStats::SERIALIZED_OBJECTS_TYPE);
   RecordSimpleVirtualObjectStats(nullptr, heap_->number_string_cache(),
@@ -583,10 +580,6 @@ void ObjectStatsCollectorImpl::CollectGlobalStatistics() {
                                     ObjectStats::STRING_TABLE_TYPE);
   RecordHashTableVirtualObjectStats(nullptr, heap_->code_stubs(),
                                     ObjectStats::CODE_STUBS_TABLE_TYPE);
-
-  // WeakHashTable.
-  RecordHashTableVirtualObjectStats(nullptr, heap_->weak_object_to_code_table(),
-                                    ObjectStats::OBJECT_TO_CODE_TYPE);
 }
 
 void ObjectStatsCollectorImpl::RecordObjectStats(HeapObject* obj,

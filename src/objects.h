@@ -1099,8 +1099,7 @@ template <class C> inline bool Is(Object* obj);
   V(WasmModuleObject)                     \
   V(WasmTableObject)                      \
   V(WeakCell)                             \
-  V(WeakFixedArray)                       \
-  V(WeakHashTable)
+  V(WeakFixedArray)
 
 #define HEAP_OBJECT_TEMPLATE_TYPE_LIST(V) \
   V(Dictionary)                           \

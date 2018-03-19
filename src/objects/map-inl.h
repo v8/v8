@@ -49,6 +49,8 @@ BIT_FIELD_ACCESSORS(Map, bit_field, has_prototype_slot,
 // |bit_field2| fields.
 BIT_FIELD_ACCESSORS(Map, bit_field2, is_extensible, Map::IsExtensibleBit)
 BIT_FIELD_ACCESSORS(Map, bit_field2, is_prototype_map, Map::IsPrototypeMapBit)
+BIT_FIELD_ACCESSORS(Map, bit_field2, is_in_retained_map_list,
+                    Map::IsInRetainedMapListBit)
 
 // |bit_field3| fields.
 BIT_FIELD_ACCESSORS(Map, bit_field3, owns_descriptors, Map::OwnsDescriptorsBit)

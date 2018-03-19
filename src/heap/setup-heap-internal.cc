@@ -329,7 +329,6 @@ bool Heap::CreateInitialMaps() {
     ALLOCATE_VARSIZE_MAP(HASH_TABLE_TYPE, number_dictionary)
     ALLOCATE_VARSIZE_MAP(HASH_TABLE_TYPE, simple_number_dictionary)
     ALLOCATE_VARSIZE_MAP(HASH_TABLE_TYPE, string_table)
-    ALLOCATE_VARSIZE_MAP(HASH_TABLE_TYPE, weak_hash_table)
 
     ALLOCATE_VARSIZE_MAP(FIXED_ARRAY_TYPE, array_list)
 
@@ -592,10 +591,6 @@ void Heap::CreateInitialObjects() {
   set_detached_contexts(empty_fixed_array());
   set_retained_maps(ArrayList::cast(empty_fixed_array()));
   set_retaining_path_targets(undefined_value());
-
-  set_weak_object_to_code_table(*WeakHashTable::New(isolate(), 16, TENURED));
-
-  set_weak_new_space_object_to_code_list(*ArrayList::New(isolate(), 16));
 
   set_feedback_vectors_for_profiling_tools(undefined_value());
 

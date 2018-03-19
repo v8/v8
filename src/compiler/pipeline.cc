@@ -854,29 +854,10 @@ PipelineCompilationJob::Status PipelineCompilationJob::FinalizeJobImpl(
   return SUCCEEDED;
 }
 
-namespace {
-
-void AddWeakObjectToCodeDependency(Isolate* isolate, Handle<HeapObject> object,
-                                   Handle<Code> code) {
-  Handle<WeakCell> cell = Code::WeakCellFor(code);
-  Heap* heap = isolate->heap();
-  if (heap->InNewSpace(*object)) {
-    heap->AddWeakNewSpaceObjectToCodeDependency(object, cell);
-  } else {
-    Handle<DependentCode> dep(heap->LookupWeakObjectToCodeDependency(object));
-    dep =
-        DependentCode::InsertWeakCode(dep, DependentCode::kWeakCodeGroup, cell);
-    heap->AddWeakObjectToCodeDependency(object, dep);
-  }
-}
-
-}  // namespace
-
 void PipelineCompilationJob::RegisterWeakObjectsInOptimizedCode(
     Handle<Code> code, Isolate* isolate) {
   DCHECK(code->is_optimized_code());
   std::vector<Handle<Map>> maps;
-  std::vector<Handle<HeapObject>> objects;
   {
     DisallowHeapAllocation no_gc;
     int const mode_mask = RelocInfo::ModeMask(RelocInfo::EMBEDDED_OBJECT);
@@ -888,20 +869,12 @@ void PipelineCompilationJob::RegisterWeakObjectsInOptimizedCode(
                                   isolate);
         if (object->IsMap()) {
           maps.push_back(Handle<Map>::cast(object));
-        } else {
-          objects.push_back(object);
         }
       }
     }
   }
   for (Handle<Map> map : maps) {
-    if (map->dependent_code()->IsEmpty(DependentCode::kWeakCodeGroup)) {
-      isolate->heap()->AddRetainedMap(map);
-    }
-    Map::AddDependentCode(map, DependentCode::kWeakCodeGroup, code);
-  }
-  for (Handle<HeapObject> object : objects) {
-    AddWeakObjectToCodeDependency(isolate, object, code);
+    isolate->heap()->AddRetainedMap(map);
   }
   code->set_can_have_weak_objects(true);
 }

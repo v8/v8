@@ -662,6 +662,19 @@ void IncrementalMarking::UpdateWeakReferencesAfterScavenge() {
         }
         return true;
       });
+  weak_objects_->weak_objects_in_code.Update(
+      [](std::pair<HeapObject*, Code*> slot_in,
+         std::pair<HeapObject*, Code*>* slot_out) -> bool {
+        HeapObject* heap_obj = slot_in.first;
+        MapWord map_word = heap_obj->map_word();
+        if (map_word.IsForwardingAddress()) {
+          slot_out->first = map_word.ToForwardingAddress();
+          slot_out->second = slot_in.second;
+        } else {
+          *slot_out = slot_in;
+        }
+        return true;
+      });
 }
 
 void IncrementalMarking::UpdateMarkedBytesAfterScavenge(

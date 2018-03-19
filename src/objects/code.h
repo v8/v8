@@ -323,10 +323,9 @@ class Code : public HeapObject {
   void PrintDeoptLocation(FILE* out, const char* str, Address pc);
   bool CanDeoptAt(Address pc);
 
+  void SetMarkedForDeoptimization(const char* reason);
+
   inline HandlerTable::CatchPrediction GetBuiltinCatchPrediction();
-#ifdef VERIFY_HEAP
-  void VerifyEmbeddedObjectsDependency();
-#endif
 
 #ifdef DEBUG
   enum VerifyMode { kNoContextSpecificPointers, kNoContextRetainingPointers };
@@ -578,9 +577,6 @@ class AbstractCode : public HeapObject {
 class DependentCode : public FixedArray {
  public:
   enum DependencyGroup {
-    // Group of code that weakly embed this map and depend on being
-    // deoptimized when the map is garbage collected.
-    kWeakCodeGroup,
     // Group of code that embed a transition to this map, and depend on being
     // deoptimized when the transition is replaced by a new version.
     kTransitionGroup,
@@ -649,7 +645,6 @@ class DependentCode : public FixedArray {
   DECL_CAST(DependentCode)
 
   static const char* DependencyGroupName(DependencyGroup group);
-  static void SetMarkedForDeoptimization(Code* code, DependencyGroup group);
 
  private:
   static Handle<DependentCode> Insert(Handle<DependentCode> entries,

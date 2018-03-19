@@ -118,11 +118,12 @@ typedef std::vector<Handle<Map>> MapHandles;
 //      |          |   - is_undetectable (bit 4)                 |
 //      |          |   - is_access_check_needed (bit 5)          |
 //      |          |   - is_constructor (bit 6)                  |
-//      |          |   - unused (bit 7)                          |
+//      |          |   - has_prototype_slot (bit 7)              |
 //      +----------+---------------------------------------------+
 //      | Byte     | [bit_field2]                                |
 //      |          |   - is_extensible (bit 0)                   |
-//      |          |   - is_prototype_map (bit 2)                |
+//      |          |   - is_prototype_map (bit 1)                |
+//      |          |   - is_in_retained_map_list (bit 2)         |
 //      |          |   - elements_kind (bits 3..7)               |
 // +----+----------+---------------------------------------------+
 // | Int           | [bit_field3]                                |
@@ -241,10 +242,10 @@ class Map : public HeapObject {
   DECL_PRIMITIVE_ACCESSORS(bit_field2, byte)
 
 // Bit positions for |bit_field2|.
-#define MAP_BIT_FIELD2_FIELDS(V, _) \
-  /* One bit is still free here. */ \
-  V(IsExtensibleBit, bool, 1, _)    \
-  V(IsPrototypeMapBit, bool, 1, _)  \
+#define MAP_BIT_FIELD2_FIELDS(V, _)     \
+  V(IsExtensibleBit, bool, 1, _)        \
+  V(IsPrototypeMapBit, bool, 1, _)      \
+  V(IsInRetainedMapListBit, bool, 1, _) \
   V(ElementsKindBits, ElementsKind, 5, _)
 
   DEFINE_BIT_FIELDS(MAP_BIT_FIELD2_FIELDS)
@@ -370,6 +371,10 @@ class Map : public HeapObject {
   DECL_BOOLEAN_ACCESSORS(is_extensible)
   DECL_BOOLEAN_ACCESSORS(is_prototype_map)
   inline bool is_abandoned_prototype_map() const;
+
+  // Whether the instance has been added to the retained map list by
+  // Heap::AddRetainedMap.
+  DECL_BOOLEAN_ACCESSORS(is_in_retained_map_list)
 
   DECL_PRIMITIVE_ACCESSORS(elements_kind, ElementsKind)
 

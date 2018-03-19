@@ -437,10 +437,6 @@ bool HeapObject::IsJSArrayBufferView() const {
   return IsJSDataView() || IsJSTypedArray();
 }
 
-bool HeapObject::IsWeakHashTable() const {
-  return map() == GetHeap()->weak_hash_table_map();
-}
-
 bool HeapObject::IsDictionary() const {
   return IsHashTable() && this != GetHeap()->string_table();
 }
@@ -627,7 +623,6 @@ CAST_ACCESSOR(TemplateObjectDescription)
 CAST_ACCESSOR(Tuple2)
 CAST_ACCESSOR(Tuple3)
 CAST_ACCESSOR(WeakCell)
-CAST_ACCESSOR(WeakHashTable)
 
 bool Object::HasValidElements() {
   // Dictionary is covered under FixedArray.
@@ -3395,35 +3390,6 @@ Handle<Object> ObjectHashTableShape::AsHandle(Isolate* isolate,
 
 Handle<ObjectHashTable> ObjectHashTable::Shrink(Handle<ObjectHashTable> table) {
   return DerivedHashTable::Shrink(table);
-}
-
-bool WeakHashTableShape::IsMatch(Handle<Object> key, Object* other) {
-  if (other->IsWeakCell()) other = WeakCell::cast(other)->value();
-  return key->IsWeakCell() ? WeakCell::cast(*key)->value() == other
-                           : *key == other;
-}
-
-uint32_t WeakHashTableShape::Hash(Isolate* isolate, Handle<Object> key) {
-  intptr_t hash =
-      key->IsWeakCell()
-          ? reinterpret_cast<intptr_t>(WeakCell::cast(*key)->value())
-          : reinterpret_cast<intptr_t>(*key);
-  return (uint32_t)(hash & 0xFFFFFFFF);
-}
-
-uint32_t WeakHashTableShape::HashForObject(Isolate* isolate, Object* other) {
-  if (other->IsWeakCell()) other = WeakCell::cast(other)->value();
-  intptr_t hash = reinterpret_cast<intptr_t>(other);
-  return (uint32_t)(hash & 0xFFFFFFFF);
-}
-
-Handle<Object> WeakHashTableShape::AsHandle(Isolate* isolate,
-                                            Handle<Object> key) {
-  return key;
-}
-
-int WeakHashTableShape::GetMapRootIndex() {
-  return Heap::kWeakHashTableMapRootIndex;
 }
 
 Relocatable::Relocatable(Isolate* isolate) {

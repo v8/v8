@@ -498,6 +498,7 @@ struct WeakObjects {
   // TODO(marja): For old space, we only need the slot, not the host
   // object. Optimize this by adding a different storage for old space.
   Worklist<std::pair<HeapObject*, HeapObjectReference**>, 64> weak_references;
+  Worklist<std::pair<HeapObject*, Code*>, 64> weak_objects_in_code;
 };
 
 // Collector for young and old generation.
@@ -713,6 +714,11 @@ class MarkCompactCollector final : public MarkCompactCollectorBase {
     weak_objects_.weak_references.Push(kMainThread, std::make_pair(host, slot));
   }
 
+  void AddWeakObjectInCode(HeapObject* object, Code* code) {
+    weak_objects_.weak_objects_in_code.Push(kMainThread,
+                                            std::make_pair(object, code));
+  }
+
   Sweeper* sweeper() { return sweeper_; }
 
 #ifdef DEBUG
@@ -727,7 +733,6 @@ class MarkCompactCollector final : public MarkCompactCollectorBase {
   void VerifyMarkbitsAreClean();
   void VerifyMarkbitsAreClean(PagedSpace* space);
   void VerifyMarkbitsAreClean(NewSpace* space);
-  void VerifyWeakEmbeddedObjectsInCode();
 #endif
 
  private:
@@ -788,7 +793,7 @@ class MarkCompactCollector final : public MarkCompactCollectorBase {
   // Clear non-live references in weak cells, transition and descriptor arrays,
   // and deoptimize dependent code of non-live maps.
   void ClearNonLiveReferences() override;
-  void MarkDependentCodeForDeoptimization(DependentCode* list);
+  void MarkDependentCodeForDeoptimization();
   // Checks if the given weak cell is a simple transition from the parent map
   // of the given dead target. If so it clears the transition and trims
   // the descriptor array of the parent if needed.
@@ -821,8 +826,7 @@ class MarkCompactCollector final : public MarkCompactCollectorBase {
   // dead values. If the value is a dead map and the parent map transitions to
   // the dead map via weak cell, then this function also clears the map
   // transition.
-  void ClearWeakCellsAndSimpleMapTransitions(
-      DependentCode** dependent_code_list);
+  void ClearWeakCellsAndSimpleMapTransitions();
   void ClearWeakReferences();
   void AbortWeakObjects();
 

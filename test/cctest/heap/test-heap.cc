@@ -3803,57 +3803,6 @@ TEST(NewSpaceObjectsInOptimizedCode) {
   CHECK(code->marked_for_deoptimization());
 }
 
-TEST(NoWeakHashTableLeakWithIncrementalMarking) {
-  if (FLAG_always_opt || !FLAG_opt) return;
-  if (!FLAG_incremental_marking) return;
-  FLAG_allow_natives_syntax = true;
-  FLAG_compilation_cache = false;
-  FLAG_retain_maps_for_n_gc = 0;
-  CcTest::InitializeVM();
-  Isolate* isolate = CcTest::i_isolate();
-
-  // Do not run for no-snap builds.
-  if (!i::Snapshot::HasContextSnapshot(isolate, 0)) return;
-
-  v8::internal::Heap* heap = CcTest::heap();
-
-  // Get a clean slate regarding optimized functions on the heap.
-  i::Deoptimizer::DeoptimizeAll(isolate);
-  CcTest::CollectAllGarbage();
-
-  if (!isolate->use_optimizer()) return;
-  HandleScope outer_scope(heap->isolate());
-  for (int i = 0; i < 3; i++) {
-    heap::SimulateIncrementalMarking(heap);
-    {
-      LocalContext context;
-      HandleScope scope(heap->isolate());
-      EmbeddedVector<char, 256> source;
-      SNPrintF(source,
-               "function bar%d() {"
-               "  return foo%d(1);"
-               "};"
-               "function foo%d(x) { with (x) { return 1 + x; } };"
-               "bar%d();"
-               "bar%d();"
-               "bar%d();"
-               "%%OptimizeFunctionOnNextCall(bar%d);"
-               "bar%d();",
-               i, i, i, i, i, i, i, i);
-      CompileRun(source.start());
-    }
-    // We have to abort incremental marking here to abandon black pages.
-    CcTest::CollectAllGarbage(Heap::kAbortIncrementalMarkingMask);
-  }
-  int elements = 0;
-  if (heap->weak_object_to_code_table()->IsHashTable()) {
-    WeakHashTable* t = WeakHashTable::cast(heap->weak_object_to_code_table());
-    elements = t->NumberOfElements();
-  }
-  CHECK_EQ(0, elements);
-}
-
-
 static Handle<JSFunction> OptimizeDummyFunction(v8::Isolate* isolate,
                                                 const char* name) {
   EmbeddedVector<char, 256> source;

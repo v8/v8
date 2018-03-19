@@ -241,6 +241,8 @@ void MarkingVisitor<fixed_array_mode, retaining_path_mode,
   collector_->RecordRelocSlot(host, rinfo, object);
   if (!host->IsWeakObject(object)) {
     MarkObject(host, object);
+  } else if (!marking_state()->IsBlackOrGrey(object)) {
+    collector_->AddWeakObjectInCode(object, host);
   }
 }
 
