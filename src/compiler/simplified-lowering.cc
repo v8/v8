@@ -2746,7 +2746,7 @@ class RepresentationSelector {
       }
       case IrOpcode::kObjectIsFiniteNumber: {
         Type* const input_type = GetUpperBound(node->InputAt(0));
-        if (input_type->Is(type_cache_.kInteger)) {
+        if (input_type->Is(type_cache_.kSafeInteger)) {
           VisitUnop(node, UseInfo::None(), MachineRepresentation::kBit);
           if (lower()) {
             DeferReplacement(node, lowering->jsgraph()->Int32Constant(1));
@@ -2773,8 +2773,7 @@ class RepresentationSelector {
       }
       case IrOpcode::kObjectIsInteger: {
         Type* const input_type = GetUpperBound(node->InputAt(0));
-        // Ranges are always integers.
-        if (input_type->IsRange()) {
+        if (input_type->Is(type_cache_.kSafeInteger)) {
           VisitUnop(node, UseInfo::None(), MachineRepresentation::kBit);
           if (lower()) {
             DeferReplacement(node, lowering->jsgraph()->Int32Constant(1));
