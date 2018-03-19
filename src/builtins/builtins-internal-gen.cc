@@ -959,8 +959,10 @@ TF_BUILTIN(RunMicrotasks, InternalBuiltinsAssembler) {
         // But from our current measurements it doesn't seem to be a
         // serious performance problem, even if the microtask is full
         // of CallHandlerTasks (which is not a realistic use case anyways).
-        CallRuntime(Runtime::kRunMicrotaskCallback, current_context,
-                    microtask_callback, microtask_data);
+        Node* const result =
+            CallRuntime(Runtime::kRunMicrotaskCallback, current_context,
+                        microtask_callback, microtask_data);
+        GotoIfException(result, &if_exception, &var_exception);
         Goto(&loop_next);
       }
 

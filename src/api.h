@@ -633,7 +633,6 @@ void HandleScopeImplementer::EnterMicrotaskContext(Handle<Context> context) {
 }
 
 void HandleScopeImplementer::LeaveMicrotaskContext() {
-  DCHECK(microtask_context_);
   microtask_context_ = nullptr;
   entered_context_count_during_microtasks_ = 0;
 }

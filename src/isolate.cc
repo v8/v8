@@ -2764,6 +2764,12 @@ void Isolate::InitializeThreadLocal() {
   thread_local_top_.Initialize();
 }
 
+void Isolate::SetTerminationOnExternalTryCatch() {
+  if (try_catch_handler() == nullptr) return;
+  try_catch_handler()->can_continue_ = false;
+  try_catch_handler()->has_terminated_ = true;
+  try_catch_handler()->exception_ = heap()->null_value();
+}
 
 bool Isolate::PropagatePendingExceptionToExternalTryCatch() {
   Object* exception = pending_exception();
@@ -2780,9 +2786,7 @@ bool Isolate::PropagatePendingExceptionToExternalTryCatch() {
 
   thread_local_top_.external_caught_exception_ = true;
   if (!is_catchable_by_javascript(exception)) {
-    try_catch_handler()->can_continue_ = false;
-    try_catch_handler()->has_terminated_ = true;
-    try_catch_handler()->exception_ = heap()->null_value();
+    SetTerminationOnExternalTryCatch();
   } else {
     v8::TryCatch* handler = try_catch_handler();
     DCHECK(thread_local_top_.pending_message_obj_->IsJSMessageObject() ||
@@ -3858,10 +3862,13 @@ void Isolate::RunMicrotasks() {
     MaybeHandle<Object> maybe_exception;
     MaybeHandle<Object> maybe_result = Execution::RunMicrotasks(
         this, Execution::MessageHandling::kReport, &maybe_exception);
-    // If execution is terminating, just bail out.
+    // If execution is terminating, bail out, clean up, and propagate to
+    // TryCatch scope.
     if (maybe_result.is_null() && maybe_exception.is_null()) {
       heap()->set_microtask_queue(heap()->empty_fixed_array());
       set_pending_microtask_count(0);
+      handle_scope_implementer()->LeaveMicrotaskContext();
+      SetTerminationOnExternalTryCatch();
     }
     CHECK_EQ(0, pending_microtask_count());
     CHECK_EQ(0, heap()->microtask_queue()->length());
