@@ -606,6 +606,13 @@ void MarkCompactCollector::CollectGarbage() {
 }
 
 #ifdef VERIFY_HEAP
+void MarkCompactCollector::VerifyMarkbitsAreDirty(PagedSpace* space) {
+  HeapObjectIterator iterator(space);
+  while (HeapObject* object = iterator.Next()) {
+    CHECK(non_atomic_marking_state()->IsBlack(object));
+  }
+}
+
 void MarkCompactCollector::VerifyMarkbitsAreClean(PagedSpace* space) {
   for (Page* p : *space) {
     CHECK(non_atomic_marking_state()->bitmap(p)->IsClean());
@@ -627,6 +634,9 @@ void MarkCompactCollector::VerifyMarkbitsAreClean() {
   VerifyMarkbitsAreClean(heap_->code_space());
   VerifyMarkbitsAreClean(heap_->map_space());
   VerifyMarkbitsAreClean(heap_->new_space());
+  // Read-only space should always be black since we never collect any objects
+  // in it or linked from it.
+  VerifyMarkbitsAreDirty(heap_->read_only_space());
 
   LargeObjectIterator it(heap_->lo_space());
   for (HeapObject* obj = it.Next(); obj != nullptr; obj = it.Next()) {

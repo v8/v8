@@ -46,7 +46,8 @@ HeapObjectIterator::HeapObjectIterator(Page* page)
   Space* owner = page->owner();
   DCHECK(owner == page->heap()->old_space() ||
          owner == page->heap()->map_space() ||
-         owner == page->heap()->code_space());
+         owner == page->heap()->code_space() ||
+         owner == page->heap()->read_only_space());
 #endif  // DEBUG
 }
 
@@ -630,7 +631,15 @@ MemoryChunk* MemoryChunk::Initialize(Heap* heap, Address base, size_t size,
     chunk->categories_[i] = nullptr;
   }
 
-  heap->incremental_marking()->non_atomic_marking_state()->ClearLiveness(chunk);
+  if (owner->identity() == RO_SPACE) {
+    heap->incremental_marking()
+        ->non_atomic_marking_state()
+        ->bitmap(chunk)
+        ->MarkAllBits();
+  } else {
+    heap->incremental_marking()->non_atomic_marking_state()->ClearLiveness(
+        chunk);
+  }
 
   DCHECK_EQ(kFlagsOffset, OFFSET_OF(MemoryChunk, flags_));
 
@@ -1474,7 +1483,7 @@ void PagedSpace::RefillFreeList() {
   // Any PagedSpace might invoke RefillFreeList. We filter all but our old
   // generation spaces out.
   if (identity() != OLD_SPACE && identity() != CODE_SPACE &&
-      identity() != MAP_SPACE) {
+      identity() != MAP_SPACE && identity() != RO_SPACE) {
     return;
   }
   MarkCompactCollector* collector = heap()->mark_compact_collector();

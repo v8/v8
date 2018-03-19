@@ -2878,6 +2878,14 @@ class MapSpace : public PagedSpace {
 #endif
 };
 
+// -----------------------------------------------------------------------------
+// Read Only space for all Immortal Immovable and Immutable objects
+
+class ReadOnlySpace : public PagedSpace {
+ public:
+  ReadOnlySpace(Heap* heap, AllocationSpace id, Executability executable)
+      : PagedSpace(heap, id, executable) {}
+};
 
 // -----------------------------------------------------------------------------
 // Large objects ( > kMaxRegularHeapObjectSize ) are allocated and

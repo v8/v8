@@ -493,6 +493,7 @@ class NewSpace;
 class Object;
 class OldSpace;
 class ParameterCount;
+class ReadOnlySpace;
 class Foreign;
 class Scope;
 class DeclarationScope;
@@ -526,13 +527,15 @@ enum AllocationSpace {
   CODE_SPACE,  // No pointers to new space, marked executable.
   MAP_SPACE,   // Only and all map objects.
   LO_SPACE,    // Promoted large objects.
+  // TODO(v8:7464): Actually map this space's memory as read-only.
+  RO_SPACE,  // Immortal, immovable and immutable objects.
 
   FIRST_SPACE = NEW_SPACE,
-  LAST_SPACE = LO_SPACE,
+  LAST_SPACE = RO_SPACE,
   FIRST_PAGED_SPACE = OLD_SPACE,
   LAST_PAGED_SPACE = MAP_SPACE
 };
-constexpr int kSpaceTagSize = 3;
+constexpr int kSpaceTagSize = 4;
 
 enum AllocationAlignment { kWordAligned, kDoubleAligned, kDoubleUnaligned };
 

@@ -106,6 +106,9 @@ DefaultSerializerAllocator::EncodeReservations() const {
   out.emplace_back(large_objects_total_size_);
   out.back().mark_as_last();
 
+  STATIC_ASSERT(RO_SPACE == LO_SPACE + 1);
+  out.emplace_back(0);
+  out.back().mark_as_last();
   return out;
 }
 
@@ -131,7 +134,10 @@ void DefaultSerializerAllocator::OutputStatistics() {
   PrintF("%16d", num_maps_ * Map::kSize);
 
   STATIC_ASSERT(LO_SPACE == MAP_SPACE + 1);
-  PrintF("%16d\n", large_objects_total_size_);
+  PrintF("%16d", large_objects_total_size_);
+
+  STATIC_ASSERT(RO_SPACE == LO_SPACE + 1);
+  PrintF("%16d\n", 0);
 }
 
 // static

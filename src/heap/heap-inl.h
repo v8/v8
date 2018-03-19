@@ -333,6 +333,12 @@ AllocationResult Heap::AllocateRaw(int size_in_bytes, AllocationSpace space,
     allocation = lo_space_->AllocateRaw(size_in_bytes, NOT_EXECUTABLE);
   } else if (MAP_SPACE == space) {
     allocation = map_space_->AllocateRawUnaligned(size_in_bytes);
+  } else if (RO_SPACE == space) {
+#ifdef V8_USE_SNAPSHOT
+    DCHECK(isolate_->serializer_enabled());
+#endif
+    DCHECK(!large_object);
+    allocation = read_only_space_->AllocateRaw(size_in_bytes, alignment);
   } else {
     // NEW_SPACE is not allowed here.
     UNREACHABLE();
