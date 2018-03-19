@@ -109,6 +109,7 @@ UNINITIALIZED_TEST(VerifyBuiltinsIsolateIndependence) {
 
   v8_isolate->Dispose();
 }
+#endif  // V8_EMBEDDED_BUILTINS
 
 // V8_CC_MSVC is true for both MSVC and clang on windows. clang can handle
 // __asm__-style inline assembly but MSVC cannot, and thus we need a more
@@ -236,14 +237,16 @@ TEST(GenerateTestFunctionData) {
 #define FUNCTION_BYTES ".byte 0x01, 0x00, 0x80, 0xe0, 0x0e, 0xf0, 0xa0, 0xe1\n"
 #elif V8_TARGET_ARCH_PPC
 #define FUNCTION_BYTES ".byte 0x14, 0x22, 0x63, 0x7c, 0x20, 0x00, 0x80, 0x4e\n"
-#elif V8_TARGET_ARCH_MIPS
+#elif defined(V8_TARGET_ARCH_MIPS) || defined(V8_TARGET_ARCH_MIPS64)
+#if defined(V8_TARGET_BIG_ENDIAN)
+#define FUNCTION_BYTES                               \
+  ".byte 0x00, 0x85, 0x10, 0x21, 0x03, 0xe0, 0x00, " \
+  "0x08, 0x00, 0x00, 0x00, 0x00\n"
+#else
 #define FUNCTION_BYTES                               \
   ".byte 0x21, 0x10, 0x85, 0x00, 0x08, 0x00, 0xe0, " \
   "0x03, 0x00, 0x00, 0x00, 0x00\n"
-#elif V8_TARGET_ARCH_MIPS64
-#define FUNCTION_BYTES                               \
-  ".byte 0x21, 0x10, 0x85, 0x00, 0x08, 0x00, 0xe0, " \
-  "0x03, 0x00, 0x00, 0x00, 0x00\n"
+#endif
 #elif V8_TARGET_ARCH_S390
 #define FUNCTION_BYTES                               \
   ".byte 0xb9, 0x08, 0x00, 0x23, 0x07, 0xfe\n"
@@ -279,7 +282,6 @@ TEST(ByteInText) {
 }
 #endif  // #ifndef V8_COMPILER_IS_MSVC
 #undef V8_COMPILER_IS_MSVC
-#endif  // V8_EMBEDDED_BUILTINS
 
 #undef FUNCTION_BYTES
 #undef GENERATE_TEST_FUNCTION_DATA

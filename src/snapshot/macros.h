@@ -13,7 +13,7 @@
 #define V8_ASM_MANGLE_LABEL "_"
 #define V8_ASM_RODATA_SECTION ".const_data\n"
 #define V8_ASM_TEXT_SECTION ".text\n"
-#define V8_ASM_LOCAL(NAME) ".private_extern " V8_ASM_MANGLE_LABEL NAME "\n"
+#define V8_ASM_DECLARE(NAME) ".private_extern " V8_ASM_MANGLE_LABEL NAME "\n"
 #elif defined(V8_OS_WIN)  // WIN
 #if defined(V8_TARGET_ARCH_X64)
 #define V8_ASM_MANGLE_LABEL ""
@@ -22,12 +22,16 @@
 #endif
 #define V8_ASM_RODATA_SECTION ".section .rodata\n"
 #define V8_ASM_TEXT_SECTION ".section .text\n"
-#define V8_ASM_LOCAL(NAME)
+#define V8_ASM_DECLARE(NAME)
 #else  // !MACOSX && !WIN
 #define V8_ASM_MANGLE_LABEL ""
 #define V8_ASM_RODATA_SECTION ".section .rodata\n"
 #define V8_ASM_TEXT_SECTION ".section .text\n"
-#define V8_ASM_LOCAL(NAME) ".local " V8_ASM_MANGLE_LABEL NAME "\n"
+#if defined(V8_TARGET_ARCH_MIPS) || defined(V8_TARGET_ARCH_MIPS64)
+#define V8_ASM_DECLARE(NAME) ".global " V8_ASM_MANGLE_LABEL NAME "\n"
+#else
+#define V8_ASM_DECLARE(NAME) ".local " V8_ASM_MANGLE_LABEL NAME "\n"
+#endif
 #endif
 
 // Align to kCodeAlignment.
@@ -37,13 +41,13 @@
 // clang-format off
 #define V8_EMBEDDED_TEXT_HEADER(LABEL) \
   __asm__(V8_ASM_TEXT_SECTION          \
-          V8_ASM_LOCAL(#LABEL)         \
+          V8_ASM_DECLARE(#LABEL)       \
           V8_ASM_BALIGN32              \
           V8_ASM_LABEL(#LABEL));
 
 #define V8_EMBEDDED_RODATA_HEADER(LABEL) \
   __asm__(V8_ASM_RODATA_SECTION          \
-          V8_ASM_LOCAL(#LABEL)           \
+          V8_ASM_DECLARE(#LABEL)         \
           V8_ASM_BALIGN32                \
           V8_ASM_LABEL(#LABEL));
 // clang-format off
