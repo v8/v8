@@ -419,9 +419,10 @@ Handle<Object> JsonParser<seq_one_byte>::ParseJsonObject() {
         key = ParseJsonString();
         if (key.is_null()) return ReportUnexpectedCharacter();
 
-        target = TransitionsAccessor(map).FindTransitionToField(key);
         // If a transition was found, follow it and continue.
-        transitioning = !target.is_null();
+        transitioning =
+            TransitionsAccessor(map).FindTransitionToField(key).ToHandle(
+                &target);
       }
       if (c0_ != ':') return ReportUnexpectedCharacter();
 

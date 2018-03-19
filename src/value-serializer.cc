@@ -1913,9 +1913,9 @@ Maybe<uint32_t> ValueDeserializer::ReadJSObjectProperties(
           key =
               isolate_->factory()->InternalizeString(Handle<String>::cast(key));
           // Don't reuse |transitions| because it could be stale.
-          target = TransitionsAccessor(map).FindTransitionToField(
-              Handle<String>::cast(key));
-          transitioning = !target.is_null();
+          transitioning = TransitionsAccessor(map)
+                              .FindTransitionToField(Handle<String>::cast(key))
+                              .ToHandle(&target);
         } else {
           transitioning = false;
         }

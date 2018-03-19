@@ -67,7 +67,13 @@ class TransitionsAccessor {
   // or frozen/sealed transitions.
   static bool IsSpecialTransition(Name* name);
 
-  Handle<Map> FindTransitionToField(Handle<Name> name);
+  enum RequestedLocation { kAnyLocation, kFieldOnly };
+  MaybeHandle<Map> FindTransitionToDataProperty(
+      Handle<Name> name, RequestedLocation requested_location = kAnyLocation);
+
+  MaybeHandle<Map> FindTransitionToField(Handle<Name> name) {
+    return FindTransitionToDataProperty(name, kFieldOnly);
+  }
 
   Handle<String> ExpectedTransitionKey();
   Handle<Map> ExpectedTransitionTarget();

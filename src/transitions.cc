@@ -303,15 +303,19 @@ bool TransitionsAccessor::IsSpecialTransition(Name* name) {
          name == heap->strict_function_transition_symbol();
 }
 
-Handle<Map> TransitionsAccessor::FindTransitionToField(Handle<Name> name) {
+MaybeHandle<Map> TransitionsAccessor::FindTransitionToDataProperty(
+    Handle<Name> name, RequestedLocation requested_location) {
   DCHECK(name->IsUniqueName());
   DisallowHeapAllocation no_gc;
-  Map* target = SearchTransition(*name, kData, NONE);
-  if (target == nullptr) return Handle<Map>::null();
+  PropertyAttributes attributes = name->IsPrivate() ? DONT_ENUM : NONE;
+  Map* target = SearchTransition(*name, kData, attributes);
+  if (target == nullptr) return MaybeHandle<Map>();
   PropertyDetails details = target->GetLastDescriptorDetails();
-  DCHECK_EQ(NONE, details.attributes());
-  if (details.location() != kField) return Handle<Map>::null();
+  DCHECK_EQ(attributes, details.attributes());
   DCHECK_EQ(kData, details.kind());
+  if (requested_location == kFieldOnly && details.location() != kField) {
+    return MaybeHandle<Map>();
+  }
   return Handle<Map>(target);
 }
 
