@@ -45,8 +45,8 @@ namespace v8 {
 namespace internal {
 namespace trap_handler {
 
-const size_t kInitialCodeObjectSize = 1024;
-const size_t kCodeObjectGrowthFactor = 2;
+constexpr size_t kInitialCodeObjectSize = 1024;
+constexpr size_t kCodeObjectGrowthFactor = 2;
 
 constexpr size_t HandlerDataSize(size_t num_protected_instructions) {
   return offsetof(CodeProtectionInfo, instructions) +
@@ -273,6 +273,20 @@ bool RegisterDefaultSignalHandler() {
 
 size_t GetRecoveredTrapCount() {
   return gRecoveredTrapCount.load(std::memory_order_relaxed);
+}
+
+bool g_is_trap_handler_enabled;
+
+bool EnableTrapHandler(bool use_v8_signal_handler) {
+  if (!V8_TRAP_HANDLER_SUPPORTED) {
+    return false;
+  }
+  if (use_v8_signal_handler) {
+    g_is_trap_handler_enabled = RegisterDefaultSignalHandler();
+    return g_is_trap_handler_enabled;
+  }
+  g_is_trap_handler_enabled = true;
+  return true;
 }
 
 }  // namespace trap_handler

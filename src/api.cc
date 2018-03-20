@@ -6105,6 +6105,10 @@ bool V8::RegisterDefaultSignalHandler() {
   return v8::internal::trap_handler::RegisterDefaultSignalHandler();
 }
 
+bool V8::EnableWebAssemblyTrapHandler(bool use_v8_signal_handler) {
+  return v8::internal::trap_handler::EnableTrapHandler(use_v8_signal_handler);
+}
+
 void v8::V8::SetEntropySource(EntropySource entropy_source) {
   base::RandomNumberGenerator::SetEntropySource(entropy_source);
 }

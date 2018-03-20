@@ -3354,8 +3354,9 @@ int Shell::Main(int argc, char* argv[]) {
     create_params.add_histogram_sample_callback = AddHistogramSample;
   }
 
-  if (i::trap_handler::IsTrapHandlerEnabled()) {
-    if (!v8::V8::RegisterDefaultSignalHandler()) {
+  if (V8_TRAP_HANDLER_SUPPORTED && i::FLAG_wasm_trap_handler) {
+    constexpr bool use_default_signal_handler = true;
+    if (!v8::V8::EnableWebAssemblyTrapHandler(use_default_signal_handler)) {
       fprintf(stderr, "Could not register signal handler");
       exit(1);
     }
