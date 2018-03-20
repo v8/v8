@@ -224,6 +224,7 @@
       'v8_win64_asan_rel_ng': 'release_x64_asan_no_lsan',
       'v8_win64_msvc_compile_rel': 'release_x64_msvc',
       'v8_win64_dbg': 'debug_x64_minimal_symbols',
+      'v8_win64_msvc_rel_ng': 'release_x64_msvc',
       'v8_win64_rel_ng': 'release_x64_trybot',
       'v8_mac64_gc_stress_dbg': 'debug_x64_trybot',
       'v8_mac64_rel_ng': 'release_x64_trybot',
