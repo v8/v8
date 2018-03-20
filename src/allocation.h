@@ -20,7 +20,8 @@ namespace internal {
 
 // Called when allocation routines fail to allocate, even with a possible retry.
 // This function should not return, but should terminate the current processing.
-V8_EXPORT_PRIVATE void FatalProcessOutOfMemory(const char* message);
+[[noreturn]] V8_EXPORT_PRIVATE void FatalProcessOutOfMemory(
+    const char* message);
 
 // Superclass for classes managed with new & delete.
 class V8_EXPORT_PRIVATE Malloced {

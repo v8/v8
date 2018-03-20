@@ -330,7 +330,7 @@ void i::V8::FatalProcessOutOfMemory(const char* location, bool is_heap_oom) {
     // Note that the embedder's oom handler won't be called in this case. We
     // just crash.
     FATAL("API fatal error handler returned after process out of memory");
-    return;
+    UNREACHABLE();
   }
 
   memset(last_few_messages, 0, Heap::kTraceRingBufferSize + 1);

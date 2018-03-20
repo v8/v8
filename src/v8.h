@@ -23,8 +23,8 @@ class V8 : public AllStatic {
 
   // Report process out of memory. Implementation found in api.cc.
   // This function will not return, but will terminate the execution.
-  static void FatalProcessOutOfMemory(const char* location,
-                                      bool is_heap_oom = false);
+  [[noreturn]] static void FatalProcessOutOfMemory(const char* location,
+                                                   bool is_heap_oom = false);
 
   static void InitializePlatform(v8::Platform* platform);
   static void ShutdownPlatform();
