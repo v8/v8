@@ -4475,9 +4475,8 @@ Handle<JSFunction> Genesis::InstallInternalArray(Handle<JSObject> target,
       InstallFunction(target, name, JS_ARRAY_TYPE, JSArray::kSize, 0, prototype,
                       Builtins::kInternalArrayConstructor);
 
-  InternalArrayConstructorStub internal_array_constructor_stub(isolate());
-  Handle<Code> code = internal_array_constructor_stub.GetCode();
-  array_function->shared()->SetConstructStub(*code);
+  array_function->shared()->SetConstructStub(
+      *BUILTIN_CODE(isolate_, JSBuiltinsConstructStub));
   array_function->shared()->DontAdaptArguments();
 
   Handle<Map> original_map(array_function->initial_map());
