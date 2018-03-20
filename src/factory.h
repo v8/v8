@@ -796,10 +796,18 @@ class V8_EXPORT_PRIVATE Factory final {
 #undef ACCESSOR_INFO_ACCESSOR
 
   // Allocates a new SharedFunctionInfo object.
-  Handle<SharedFunctionInfo> NewSharedFunctionInfo(
-      MaybeHandle<String> name, MaybeHandle<Code> code, bool is_constructor,
-      FunctionKind kind = kNormalFunction,
-      int maybe_builtin_index = Builtins::kNoBuiltinId);
+  Handle<SharedFunctionInfo> NewSharedFunctionInfoForCode(
+      MaybeHandle<String> name, Handle<Code> code, bool is_constructor,
+      FunctionKind kind = kNormalFunction);
+
+  Handle<SharedFunctionInfo> NewSharedFunctionInfoForApiFunction(
+      MaybeHandle<String> maybe_name,
+      Handle<FunctionTemplateInfo> function_template_info, bool is_constructor,
+      FunctionKind kind);
+
+  Handle<SharedFunctionInfo> NewSharedFunctionInfoForBuiltin(
+      MaybeHandle<String> name, int builtin_index, bool is_constructor,
+      FunctionKind kind = kNormalFunction);
 
   Handle<SharedFunctionInfo> NewSharedFunctionInfoForLiteral(
       FunctionLiteral* literal, Handle<Script> script);
@@ -909,6 +917,11 @@ class V8_EXPORT_PRIVATE Factory final {
 
   Handle<JSPromise> NewJSPromiseWithoutHook(
       PretenureFlag pretenure = NOT_TENURED);
+
+  Handle<SharedFunctionInfo> NewSharedFunctionInfo(
+      MaybeHandle<String> name, MaybeHandle<HeapObject> maybe_function_data,
+      int maybe_builtin_index, bool is_constructor,
+      FunctionKind kind = kNormalFunction);
 };
 
 // Utility class to simplify argument handling around JSFunction creation.
@@ -916,17 +929,16 @@ class NewFunctionArgs final {
  public:
   static NewFunctionArgs ForWasm(Handle<String> name, Handle<Code> code,
                                  Handle<Map> map);
-  static NewFunctionArgs ForBuiltin(Handle<String> name, Handle<Code> code,
-                                    Handle<Map> map, int builtin_id);
+  static NewFunctionArgs ForBuiltin(Handle<String> name, Handle<Map> map,
+                                    int builtin_id);
   static NewFunctionArgs ForFunctionWithoutCode(Handle<String> name,
                                                 Handle<Map> map,
                                                 LanguageMode language_mode);
   static NewFunctionArgs ForBuiltinWithPrototype(
-      Handle<String> name, Handle<Code> code, Handle<Object> prototype,
-      InstanceType type, int instance_size, int inobject_properties,
-      int builtin_id, MutableMode prototype_mutability);
+      Handle<String> name, Handle<Object> prototype, InstanceType type,
+      int instance_size, int inobject_properties, int builtin_id,
+      MutableMode prototype_mutability);
   static NewFunctionArgs ForBuiltinWithoutPrototype(Handle<String> name,
-                                                    Handle<Code> code,
                                                     int builtin_id,
                                                     LanguageMode language_mode);
 

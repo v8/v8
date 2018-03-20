@@ -4622,7 +4622,7 @@ void RecordFunctionCompilation(CodeEventListener::LogEventsAndTags tag,
   Handle<String> script_str =
       isolate->factory()->NewStringFromAsciiChecked("(wasm)");
   Handle<SharedFunctionInfo> shared =
-      isolate->factory()->NewSharedFunctionInfo(name_str, code, false);
+      isolate->factory()->NewSharedFunctionInfoForCode(name_str, code, false);
   PROFILE(isolate, CodeCreateEvent(tag, AbstractCode::cast(*code), *shared,
                                    *script_str, 0, 0));
 }

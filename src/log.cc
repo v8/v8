@@ -1540,19 +1540,9 @@ static int EnumerateCompiledFunctions(Heap* heap,
       if (sfi->is_compiled() &&
           (!sfi->script()->IsScript() ||
            Script::cast(sfi->script())->HasValidSource())) {
-        // In some cases, an SFI might have (and have executing!) both bytecode
-        // and baseline code, so check for both and add them both if needed.
-        if (sfi->HasBytecodeArray()) {
-          AddFunctionAndCode(sfi, AbstractCode::cast(sfi->bytecode_array()),
-                             sfis, code_objects, compiled_funcs_count);
-          ++compiled_funcs_count;
-        }
-
-        if (!sfi->IsInterpreted()) {
-          AddFunctionAndCode(sfi, AbstractCode::cast(sfi->code()), sfis,
-                             code_objects, compiled_funcs_count);
-          ++compiled_funcs_count;
-        }
+        AddFunctionAndCode(sfi, AbstractCode::cast(sfi->abstract_code()), sfis,
+                           code_objects, compiled_funcs_count);
+        ++compiled_funcs_count;
       }
     } else if (obj->IsJSFunction()) {
       // Given that we no longer iterate over all optimized JSFunctions, we need

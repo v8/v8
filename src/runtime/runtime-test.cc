@@ -235,7 +235,7 @@ RUNTIME_FUNCTION(Runtime_OptimizeFunctionOnNextCall) {
   // function has.
   if (!function->is_compiled()) {
     DCHECK(function->shared()->IsInterpreted());
-    function->set_code(function->shared()->code());
+    function->set_code(*BUILTIN_CODE(isolate, InterpreterEntryTrampoline));
   }
 
   JSFunction::EnsureFeedbackVector(function);
@@ -754,8 +754,8 @@ RUNTIME_FUNCTION(Runtime_IsAsmWasmCode) {
     // Doesn't have wasm data.
     return isolate->heap()->false_value();
   }
-  if (function->shared()->code() !=
-      isolate->builtins()->builtin(Builtins::kInstantiateAsmJs)) {
+  if (function->shared()->HasBuiltinId() &&
+      function->shared()->builtin_id() == Builtins::kInstantiateAsmJs) {
     // Hasn't been compiled yet.
     return isolate->heap()->false_value();
   }

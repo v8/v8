@@ -35,7 +35,7 @@ void StackGuard::reset_limits(const ExecutionAccess& lock) {
 
 
 static void PrintDeserializedCodeInfo(Handle<JSFunction> function) {
-  if (function->code() == function->shared()->code() &&
+  if (function->code() == function->shared()->GetCode() &&
       function->shared()->deserialized()) {
     PrintF("[Running deserialized script");
     Object* script = function->shared()->script();

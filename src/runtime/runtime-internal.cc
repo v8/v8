@@ -460,7 +460,7 @@ RUNTIME_FUNCTION(Runtime_DeserializeLazy) {
   Handle<SharedFunctionInfo> shared(function->shared(), isolate);
 
 #ifdef DEBUG
-  int builtin_id = shared->lazy_deserialization_builtin_id();
+  int builtin_id = shared->builtin_id();
   // At this point, the builtins table should definitely have DeserializeLazy
   // set at the position of the target builtin.
   CHECK_EQ(Builtins::kDeserializeLazy,
@@ -471,10 +471,10 @@ RUNTIME_FUNCTION(Runtime_DeserializeLazy) {
   CHECK_EQ(Builtins::TFJ, Builtins::KindOf(builtin_id));
 #endif  // DEBUG
 
-  Snapshot::EnsureBuiltinIsDeserialized(isolate, shared);
+  Code* code = Snapshot::EnsureBuiltinIsDeserialized(isolate, shared);
 
-  function->set_code(shared->code());
-  return shared->code();
+  function->set_code(code);
+  return code;
 }
 
 RUNTIME_FUNCTION(Runtime_IncrementUseCounter) {
