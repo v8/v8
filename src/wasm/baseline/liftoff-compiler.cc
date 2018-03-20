@@ -548,14 +548,17 @@ class LiftoffCompiler {
     }
   }
 
-  template <ValueType type, class EmitFn>
+  template <ValueType src_type, ValueType result_type, class EmitFn>
   void EmitUnOp(EmitFn fn) {
-    static RegClass rc = reg_class_for(type);
+    static RegClass src_rc = reg_class_for(src_type);
+    static RegClass result_rc = reg_class_for(result_type);
     LiftoffRegList pinned;
     LiftoffRegister src = pinned.set(__ PopToRegister(pinned));
-    LiftoffRegister dst = __ GetUnusedRegister(rc, {src}, pinned);
+    LiftoffRegister dst = src_rc == result_rc
+                              ? __ GetUnusedRegister(result_rc, {src}, pinned)
+                              : __ GetUnusedRegister(result_rc, pinned);
     fn(dst, src);
-    __ PushRegister(type, dst);
+    __ PushRegister(result_type, dst);
   }
 
   void EmitI32UnOpWithCFallback(bool (LiftoffAssembler::*emit_fn)(Register,
@@ -568,7 +571,7 @@ class LiftoffCompiler {
       FunctionSig sig_i_i(1, 1, sig_i_i_reps);
       GenerateCCall(&dst, &sig_i_i, kWasmStmt, &src, ext_ref);
     };
-    EmitUnOp<kWasmI32>(emit_with_c_fallback);
+    EmitUnOp<kWasmI32, kWasmI32>(emit_with_c_fallback);
   }
 
   void EmitTypeConversion(WasmOpcode opcode, ValueType dst_type,
@@ -593,17 +596,19 @@ class LiftoffCompiler {
 
   void UnOp(Decoder* decoder, WasmOpcode opcode, FunctionSig*,
             const Value& value, Value* result) {
-#define CASE_I32_UNOP(opcode, fn)                                      \
-  case WasmOpcode::kExpr##opcode:                                      \
-    EmitUnOp<kWasmI32>([=](LiftoffRegister dst, LiftoffRegister src) { \
-      __ emit_##fn(dst.gp(), src.gp());                                \
-    });                                                                \
+#define CASE_I32_UNOP(opcode, fn)                       \
+  case WasmOpcode::kExpr##opcode:                       \
+    EmitUnOp<kWasmI32, kWasmI32>(                       \
+        [=](LiftoffRegister dst, LiftoffRegister src) { \
+          __ emit_##fn(dst.gp(), src.gp());             \
+        });                                             \
     break;
-#define CASE_FLOAT_UNOP(opcode, type, fn)                                 \
-  case WasmOpcode::kExpr##opcode:                                         \
-    EmitUnOp<kWasm##type>([=](LiftoffRegister dst, LiftoffRegister src) { \
-      __ emit_##fn(dst.fp(), src.fp());                                   \
-    });                                                                   \
+#define CASE_FLOAT_UNOP(opcode, type, fn)               \
+  case WasmOpcode::kExpr##opcode:                       \
+    EmitUnOp<kWasm##type, kWasm##type>(                 \
+        [=](LiftoffRegister dst, LiftoffRegister src) { \
+          __ emit_##fn(dst.fp(), src.fp());             \
+        });                                             \
     break;
 #define CASE_TYPE_CONVERSION(opcode, dst_type, src_type, ext_ref)       \
   case WasmOpcode::kExpr##opcode:                                       \
@@ -611,44 +616,46 @@ class LiftoffCompiler {
                        ext_ref);                                        \
     break;
     switch (opcode) {
+      CASE_I32_UNOP(I32Eqz, i32_eqz)
       CASE_I32_UNOP(I32Clz, i32_clz)
       CASE_I32_UNOP(I32Ctz, i32_ctz)
+      CASE_FLOAT_UNOP(F32Abs, F32, f32_abs)
+      CASE_FLOAT_UNOP(F32Neg, F32, f32_neg)
+      CASE_FLOAT_UNOP(F32Sqrt, F32, f32_sqrt)
+      CASE_FLOAT_UNOP(F64Abs, F64, f64_abs)
+      CASE_FLOAT_UNOP(F64Neg, F64, f64_neg)
+      CASE_FLOAT_UNOP(F64Sqrt, F64, f64_sqrt)
+      CASE_TYPE_CONVERSION(I32ConvertI64, I32, I64, nullptr)
+      CASE_TYPE_CONVERSION(I32ReinterpretF32, I32, F32, nullptr)
+      CASE_TYPE_CONVERSION(I64SConvertI32, I64, I32, nullptr)
+      CASE_TYPE_CONVERSION(I64UConvertI32, I64, I32, nullptr)
+      CASE_TYPE_CONVERSION(I64ReinterpretF64, I64, F64, nullptr)
+      CASE_TYPE_CONVERSION(F32SConvertI32, F32, I32, nullptr)
+      CASE_TYPE_CONVERSION(F32UConvertI32, F32, I32, nullptr)
+      CASE_TYPE_CONVERSION(F32SConvertI64, F32, I64,
+                           &ExternalReference::wasm_int64_to_float32)
+      CASE_TYPE_CONVERSION(F32UConvertI64, F32, I64,
+                           &ExternalReference::wasm_uint64_to_float32)
+      CASE_TYPE_CONVERSION(F32ConvertF64, F32, F64, nullptr)
+      CASE_TYPE_CONVERSION(F32ReinterpretI32, F32, I32, nullptr)
+      CASE_TYPE_CONVERSION(F64SConvertI32, F64, I32, nullptr)
+      CASE_TYPE_CONVERSION(F64UConvertI32, F64, I32, nullptr)
+      CASE_TYPE_CONVERSION(F64SConvertI64, F64, I64,
+                           &ExternalReference::wasm_int64_to_float64)
+      CASE_TYPE_CONVERSION(F64UConvertI64, F64, I64,
+                           &ExternalReference::wasm_uint64_to_float64)
+      CASE_TYPE_CONVERSION(F64ConvertF32, F64, F32, nullptr)
+      CASE_TYPE_CONVERSION(F64ReinterpretI64, F64, I64, nullptr)
       case kExprI32Popcnt:
         EmitI32UnOpWithCFallback(&LiftoffAssembler::emit_i32_popcnt,
                                  &ExternalReference::wasm_word32_popcnt);
         break;
-      case kExprI32Eqz:
-        EmitUnOp<kWasmI32>([=](LiftoffRegister dst, LiftoffRegister src) {
-          __ emit_i32_set_cond(kEqual, dst.gp(), src.gp());
-        });
+      case WasmOpcode::kExprI64Eqz:
+        EmitUnOp<kWasmI64, kWasmI32>(
+            [=](LiftoffRegister dst, LiftoffRegister src) {
+              __ emit_i64_eqz(dst.gp(), src);
+            });
         break;
-        CASE_FLOAT_UNOP(F32Abs, F32, f32_abs)
-        CASE_FLOAT_UNOP(F32Neg, F32, f32_neg)
-        CASE_FLOAT_UNOP(F32Sqrt, F32, f32_sqrt)
-        CASE_FLOAT_UNOP(F64Abs, F64, f64_abs)
-        CASE_FLOAT_UNOP(F64Neg, F64, f64_neg)
-        CASE_FLOAT_UNOP(F64Sqrt, F64, f64_sqrt)
-        CASE_TYPE_CONVERSION(I32ConvertI64, I32, I64, nullptr)
-        CASE_TYPE_CONVERSION(I32ReinterpretF32, I32, F32, nullptr)
-        CASE_TYPE_CONVERSION(I64SConvertI32, I64, I32, nullptr)
-        CASE_TYPE_CONVERSION(I64UConvertI32, I64, I32, nullptr)
-        CASE_TYPE_CONVERSION(I64ReinterpretF64, I64, F64, nullptr)
-        CASE_TYPE_CONVERSION(F32SConvertI32, F32, I32, nullptr)
-        CASE_TYPE_CONVERSION(F32UConvertI32, F32, I32, nullptr)
-        CASE_TYPE_CONVERSION(F32SConvertI64, F32, I64,
-                             &ExternalReference::wasm_int64_to_float32)
-        CASE_TYPE_CONVERSION(F32UConvertI64, F32, I64,
-                             &ExternalReference::wasm_uint64_to_float32)
-        CASE_TYPE_CONVERSION(F32ConvertF64, F32, F64, nullptr)
-        CASE_TYPE_CONVERSION(F32ReinterpretI32, F32, I32, nullptr)
-        CASE_TYPE_CONVERSION(F64SConvertI32, F64, I32, nullptr)
-        CASE_TYPE_CONVERSION(F64UConvertI32, F64, I32, nullptr)
-        CASE_TYPE_CONVERSION(F64SConvertI64, F64, I64,
-                             &ExternalReference::wasm_int64_to_float64)
-        CASE_TYPE_CONVERSION(F64UConvertI64, F64, I64,
-                             &ExternalReference::wasm_uint64_to_float64)
-        CASE_TYPE_CONVERSION(F64ConvertF32, F64, F32, nullptr)
-        CASE_TYPE_CONVERSION(F64ReinterpretI64, F64, I64, nullptr)
       default:
         return unsupported(decoder, WasmOpcodes::OpcodeName(opcode));
     }
@@ -691,6 +698,12 @@ class LiftoffCompiler {
     return EmitBinOp<kWasmI32, kWasmI32>(                                    \
         [=](LiftoffRegister dst, LiftoffRegister lhs, LiftoffRegister rhs) { \
           __ emit_i32_set_cond(cond, dst.gp(), lhs.gp(), rhs.gp());          \
+        });
+#define CASE_I64_CMPOP(opcode, cond)                                         \
+  case WasmOpcode::kExpr##opcode:                                            \
+    return EmitBinOp<kWasmI64, kWasmI32>(                                    \
+        [=](LiftoffRegister dst, LiftoffRegister lhs, LiftoffRegister rhs) { \
+          __ emit_i64_set_cond(cond, dst.gp(), lhs, rhs);                    \
         });
 #define CASE_F32_CMPOP(opcode, cond)                                         \
   case WasmOpcode::kExpr##opcode:                                            \
@@ -739,6 +752,16 @@ class LiftoffCompiler {
       CASE_I32_CMPOP(I32LeU, kUnsignedLessEqual)
       CASE_I32_CMPOP(I32GeS, kSignedGreaterEqual)
       CASE_I32_CMPOP(I32GeU, kUnsignedGreaterEqual)
+      CASE_I64_CMPOP(I64Eq, kEqual)
+      CASE_I64_CMPOP(I64Ne, kUnequal)
+      CASE_I64_CMPOP(I64LtS, kSignedLessThan)
+      CASE_I64_CMPOP(I64LtU, kUnsignedLessThan)
+      CASE_I64_CMPOP(I64GtS, kSignedGreaterThan)
+      CASE_I64_CMPOP(I64GtU, kUnsignedGreaterThan)
+      CASE_I64_CMPOP(I64LeS, kSignedLessEqual)
+      CASE_I64_CMPOP(I64LeU, kUnsignedLessEqual)
+      CASE_I64_CMPOP(I64GeS, kSignedGreaterEqual)
+      CASE_I64_CMPOP(I64GeU, kUnsignedGreaterEqual)
       CASE_F32_CMPOP(F32Eq, kEqual)
       CASE_F32_CMPOP(F32Ne, kUnequal)
       CASE_F32_CMPOP(F32Lt, kUnsignedLessThan)
@@ -767,6 +790,7 @@ class LiftoffCompiler {
 #undef CASE_I32_BINOP
 #undef CASE_FLOAT_BINOP
 #undef CASE_I32_CMPOP
+#undef CASE_I64_CMPOP
 #undef CASE_F32_CMPOP
 #undef CASE_I32_SHIFTOP
 #undef CASE_I64_SHIFTOP

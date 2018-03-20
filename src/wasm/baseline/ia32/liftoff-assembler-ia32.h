@@ -888,14 +888,69 @@ inline void setcc_32(LiftoffAssembler* assm, Condition cond, Register dst) {
 }
 }  // namespace liftoff
 
+void LiftoffAssembler::emit_i32_eqz(Register dst, Register src) {
+  test(src, src);
+  liftoff::setcc_32(this, equal, dst);
+}
+
 void LiftoffAssembler::emit_i32_set_cond(Condition cond, Register dst,
                                          Register lhs, Register rhs) {
-  if (rhs != no_reg) {
-    cmp(lhs, rhs);
-  } else {
-    test(lhs, lhs);
-  }
+  cmp(lhs, rhs);
   liftoff::setcc_32(this, cond, dst);
+}
+
+void LiftoffAssembler::emit_i64_eqz(Register dst, LiftoffRegister src) {
+  // Compute the OR of both registers in the src pair, using dst as scratch
+  // register. Then check whether the result is equal to zero.
+  if (src.low_gp() == dst) {
+    or_(dst, src.high_gp());
+  } else {
+    if (src.high_gp() != dst) mov(dst, src.high_gp());
+    or_(dst, src.low_gp());
+  }
+  liftoff::setcc_32(this, equal, dst);
+}
+
+namespace liftoff {
+inline Condition cond_make_unsigned(Condition cond) {
+  switch (cond) {
+    case kSignedLessThan:
+      return kUnsignedLessThan;
+    case kSignedLessEqual:
+      return kUnsignedLessEqual;
+    case kSignedGreaterThan:
+      return kUnsignedGreaterThan;
+    case kSignedGreaterEqual:
+      return kUnsignedGreaterEqual;
+    default:
+      return cond;
+  }
+}
+}  // namespace liftoff
+
+void LiftoffAssembler::emit_i64_set_cond(Condition cond, Register dst,
+                                         LiftoffRegister lhs,
+                                         LiftoffRegister rhs) {
+  // For signed i64 comparisons, we still need to use unsigned comparison for
+  // the low word (the only bit carrying signedness information is the MSB in
+  // the high word).
+  Condition unsigned_cond = liftoff::cond_make_unsigned(cond);
+  Label setcc;
+  Label cont;
+  // Compare high word first. If it differs, use if for the setcc. If it's
+  // equal, compare the low word and use that for setcc.
+  cmp(lhs.high_gp(), rhs.high_gp());
+  j(not_equal, &setcc, Label::kNear);
+  cmp(lhs.low_gp(), rhs.low_gp());
+  if (unsigned_cond != cond) {
+    // If the condition predicate for the low differs from that for the high
+    // word, emit a separete setcc sequence for the low word.
+    liftoff::setcc_32(this, unsigned_cond, dst);
+    jmp(&cont);
+  }
+  bind(&setcc);
+  liftoff::setcc_32(this, cond, dst);
+  bind(&cont);
 }
 
 void LiftoffAssembler::emit_f32_set_cond(Condition cond, Register dst,

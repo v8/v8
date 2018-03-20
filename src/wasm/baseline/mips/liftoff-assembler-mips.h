@@ -502,6 +502,28 @@ void LiftoffAssembler::emit_cond_jump(Condition cond, Label* label,
   }
 }
 
+void LiftoffAssembler::emit_i32_eqz(Register dst, Register src) {
+  Label true_label;
+  if (dst != src) {
+    ori(dst, zero_reg, 0x1);
+  }
+
+  TurboAssembler::Branch(&true_label, eq, src, Operand(zero_reg));
+  // If not true, set on 0.
+  TurboAssembler::mov(dst, zero_reg);
+
+  if (dst != src) {
+    bind(&true_label);
+  } else {
+    Label end_label;
+    TurboAssembler::Branch(&end_label);
+    bind(&true_label);
+
+    ori(dst, zero_reg, 0x1);
+    bind(&end_label);
+  }
+}
+
 void LiftoffAssembler::emit_i32_set_cond(Condition cond, Register dst,
                                          Register lhs, Register rhs) {
   Label true_label;
@@ -509,11 +531,7 @@ void LiftoffAssembler::emit_i32_set_cond(Condition cond, Register dst,
     ori(dst, zero_reg, 0x1);
   }
 
-  if (rhs != no_reg) {
-    TurboAssembler::Branch(&true_label, cond, lhs, Operand(rhs));
-  } else {
-    TurboAssembler::Branch(&true_label, cond, lhs, Operand(zero_reg));
-  }
+  TurboAssembler::Branch(&true_label, cond, lhs, Operand(rhs));
   // If not true, set on 0.
   TurboAssembler::mov(dst, zero_reg);
 
@@ -527,6 +545,16 @@ void LiftoffAssembler::emit_i32_set_cond(Condition cond, Register dst,
     ori(dst, zero_reg, 0x1);
     bind(&end_label);
   }
+}
+
+void LiftoffAssembler::emit_i64_eqz(Register dst, LiftoffRegister src) {
+  BAILOUT("emit_i64_eqz");
+}
+
+void LiftoffAssembler::emit_i64_set_cond(Condition cond, Register dst,
+                                         LiftoffRegister lhs,
+                                         LiftoffRegister rhs) {
+  BAILOUT("emit_i64_set_cond");
 }
 
 void LiftoffAssembler::emit_f32_set_cond(Condition cond, Register dst,

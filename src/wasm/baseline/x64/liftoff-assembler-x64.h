@@ -775,14 +775,29 @@ void LiftoffAssembler::emit_cond_jump(Condition cond, Label* label,
   j(cond, label);
 }
 
+void LiftoffAssembler::emit_i32_eqz(Register dst, Register src) {
+  testl(src, src);
+  setcc(equal, dst);
+  movzxbl(dst, dst);
+}
+
 void LiftoffAssembler::emit_i32_set_cond(Condition cond, Register dst,
                                          Register lhs, Register rhs) {
-  if (rhs != no_reg) {
-    cmpl(lhs, rhs);
-  } else {
-    testl(lhs, lhs);
-  }
+  cmpl(lhs, rhs);
+  setcc(cond, dst);
+  movzxbl(dst, dst);
+}
 
+void LiftoffAssembler::emit_i64_eqz(Register dst, LiftoffRegister src) {
+  testq(src.gp(), src.gp());
+  setcc(equal, dst);
+  movzxbl(dst, dst);
+}
+
+void LiftoffAssembler::emit_i64_set_cond(Condition cond, Register dst,
+                                         LiftoffRegister lhs,
+                                         LiftoffRegister rhs) {
+  cmpq(lhs.gp(), rhs.gp());
   setcc(cond, dst);
   movzxbl(dst, dst);
 }

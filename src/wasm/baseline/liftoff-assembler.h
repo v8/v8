@@ -429,10 +429,14 @@ class LiftoffAssembler : public TurboAssembler {
   inline void emit_cond_jump(Condition, Label*, ValueType value, Register lhs,
                              Register rhs = no_reg);
   // Set {dst} to 1 if condition holds, 0 otherwise.
+  inline void emit_i32_eqz(Register dst, Register src);
   inline void emit_i32_set_cond(Condition, Register dst, Register lhs,
-                                Register rhs = no_reg);
-  inline void emit_f32_set_cond(Condition, Register dst, DoubleRegister lhs,
-                                DoubleRegister rhs);
+                                Register rhs);
+  inline void emit_i64_eqz(Register dst, LiftoffRegister src);
+  inline void emit_i64_set_cond(Condition condition, Register dst,
+                                LiftoffRegister lhs, LiftoffRegister rhs);
+  inline void emit_f32_set_cond(Condition condition, Register dst,
+                                DoubleRegister lhs, DoubleRegister rhs);
 
   inline void StackCheck(Label* ool_code);
 

@@ -101,31 +101,31 @@ void LiftoffAssembler::FillI64Half(Register, uint32_t half_index) {
 #define UNIMPLEMENTED_GP_BINOP(name)                             \
   void LiftoffAssembler::emit_##name(Register dst, Register lhs, \
                                      Register rhs) {             \
-    BAILOUT("gp binop");                                         \
+    BAILOUT("gp binop: " #name);                                 \
   }
 #define UNIMPLEMENTED_GP_UNOP(name)                                \
   bool LiftoffAssembler::emit_##name(Register dst, Register src) { \
-    BAILOUT("gp unop");                                            \
+    BAILOUT("gp unop: " #name);                                    \
     return true;                                                   \
   }
 #define UNIMPLEMENTED_FP_BINOP(name)                                         \
   void LiftoffAssembler::emit_##name(DoubleRegister dst, DoubleRegister lhs, \
                                      DoubleRegister rhs) {                   \
-    BAILOUT("fp binop");                                                     \
+    BAILOUT("fp binop: " #name);                                             \
   }
 #define UNIMPLEMENTED_FP_UNOP(name)                                            \
   void LiftoffAssembler::emit_##name(DoubleRegister dst, DoubleRegister src) { \
-    BAILOUT("fp unop");                                                        \
+    BAILOUT("fp unop: " #name);                                                \
   }
 #define UNIMPLEMENTED_I32_SHIFTOP(name)                                        \
   void LiftoffAssembler::emit_##name(Register dst, Register src,               \
                                      Register amount, LiftoffRegList pinned) { \
-    BAILOUT("i32 shiftop");                                                    \
+    BAILOUT("i32 shiftop: " #name);                                            \
   }
 #define UNIMPLEMENTED_I64_SHIFTOP(name)                                        \
   void LiftoffAssembler::emit_##name(LiftoffRegister dst, LiftoffRegister src, \
                                      Register amount, LiftoffRegList pinned) { \
-    BAILOUT("i64 shiftop");                                                    \
+    BAILOUT("i64 shiftop: " #name);                                            \
   }
 
 UNIMPLEMENTED_GP_BINOP(i32_add)
@@ -181,9 +181,23 @@ void LiftoffAssembler::emit_cond_jump(Condition cond, Label* label,
   BAILOUT("emit_cond_jump");
 }
 
+void LiftoffAssembler::emit_i32_eqz(Register dst, Register src) {
+  BAILOUT("emit_i32_eqz");
+}
+
 void LiftoffAssembler::emit_i32_set_cond(Condition cond, Register dst,
                                          Register lhs, Register rhs) {
   BAILOUT("emit_i32_set_cond");
+}
+
+void LiftoffAssembler::emit_i64_eqz(Register dst, LiftoffRegister src) {
+  BAILOUT("emit_i64_eqz");
+}
+
+void LiftoffAssembler::emit_i64_set_cond(Condition cond, Register dst,
+                                         LiftoffRegister lhs,
+                                         LiftoffRegister rhs) {
+  BAILOUT("emit_i64_set_cond");
 }
 
 void LiftoffAssembler::emit_f32_set_cond(Condition cond, Register dst,
