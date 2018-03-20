@@ -3041,21 +3041,27 @@ class AsyncCompileJob::PrepareAndStartCompile : public CompileStep {
 
     CompilationState* compilation_state =
         job_->compiled_module_->GetNativeModule()->compilation_state();
-    compilation_state->AddCallback(
-        [&](CompilationEvent event, Handle<Object> error_reason) {
-          switch (event) {
-            case CompilationEvent::kFinishedBaselineCompilation:
-              if (job_->DecrementAndCheckFinisherCount()) {
-                job_->DoSync<FinishCompile>();
-              }
-              return;
-            case CompilationEvent::kFailedCompilation:
-              job_->DoSync<CompileFailed>(error_reason);
-              return;
-          }
-          UNREACHABLE();
-        });
-
+    {
+      // Instance field {job_} cannot be captured by copy, therefore
+      // we need to add a local helper variable {job}. We want to
+      // capture the {job} pointer by copy, as it otherwise is dependent
+      // on the current step we are in.
+      AsyncCompileJob* job = job_;
+      compilation_state->AddCallback(
+          [job](CompilationEvent event, Handle<Object> error_reason) {
+            switch (event) {
+              case CompilationEvent::kFinishedBaselineCompilation:
+                if (job->DecrementAndCheckFinisherCount()) {
+                  job->DoSync<FinishCompile>();
+                }
+                return;
+              case CompilationEvent::kFailedCompilation:
+                job->DoSync<CompileFailed>(error_reason);
+                return;
+            }
+            UNREACHABLE();
+          });
+    }
     if (start_compilation_) {
       // TODO(ahaas): Try to remove the {start_compilation_} check when
       // streaming decoding is done in the background. If
