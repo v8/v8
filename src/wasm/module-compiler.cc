@@ -913,7 +913,7 @@ wasm::WasmCode* EnsureExportedLazyDeoptData(Isolate* isolate,
     return code;
   }
   // Clone the lazy builtin into the native module.
-  return native_module->CloneLazyBuiltinInto(code, func_index);
+  return native_module->CloneLazyBuiltinInto(code, func_index, kFlushICache);
 }
 
 // Ensure that the code object in <code_table> at offset <func_index> has

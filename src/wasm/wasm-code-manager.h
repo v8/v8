@@ -86,6 +86,8 @@ class V8_EXPORT_PRIVATE DisjointAllocationPool final {
 using ProtectedInstructions =
     std::vector<trap_handler::ProtectedInstructionData>;
 
+enum FlushICache : bool { kFlushICache = true, kNoFlushICache = false };
+
 class V8_EXPORT_PRIVATE WasmCode final {
  public:
   enum Kind {
@@ -239,7 +241,8 @@ class V8_EXPORT_PRIVATE NativeModule final {
   // builtin. The logic for seeking though frames would change, though.
   // TODO(mtrofin): perhaps we can do exactly that - either before or after
   // this change.
-  WasmCode* CloneLazyBuiltinInto(const WasmCode* code, uint32_t);
+  WasmCode* CloneLazyBuiltinInto(const WasmCode* code, uint32_t index,
+                                 FlushICache);
 
   bool SetExecutable(bool executable);
 
@@ -296,10 +299,10 @@ class V8_EXPORT_PRIVATE NativeModule final {
                          WasmCode::Kind kind, size_t constant_pool_offset,
                          uint32_t stack_slots, size_t safepoint_table_offset,
                          size_t handler_table_offset,
-                         std::shared_ptr<ProtectedInstructions>,
-                         WasmCode::Tier tier, bool flush_icache = true);
-  WasmCode* CloneCode(const WasmCode*);
-  void CloneTrampolinesAndStubs(const NativeModule* other);
+                         std::shared_ptr<ProtectedInstructions>, WasmCode::Tier,
+                         FlushICache);
+  WasmCode* CloneCode(const WasmCode*, FlushICache);
+  void CloneTrampolinesAndStubs(const NativeModule* other, FlushICache);
   WasmCode* Lookup(Address);
   Address GetLocalAddressFor(Handle<Code>);
   Address CreateTrampolineTo(Handle<Code>);
@@ -311,7 +314,11 @@ class V8_EXPORT_PRIVATE NativeModule final {
   std::vector<WasmCode*> code_table_;
   uint32_t num_imported_functions_;
 
+  // Maps from instruction start of an immovable code object to instruction
+  // start of the trampoline.
   std::unordered_map<Address, Address, AddressHasher> trampolines_;
+
+  // Maps from stub key to wasm code (containing a copy of that stub).
   std::unordered_map<uint32_t, WasmCode*> stubs_;
 
   std::unique_ptr<CompilationState, CompilationStateDeleter> compilation_state_;
