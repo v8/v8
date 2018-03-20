@@ -497,6 +497,10 @@ Node* CodeAssembler::LoadParentFramePointer() {
   return raw_assembler()->LoadParentFramePointer();
 }
 
+TNode<IntPtrT> CodeAssembler::LoadRootsPointer() {
+  return UncheckedCast<IntPtrT>(raw_assembler()->LoadRootsPointer());
+}
+
 Node* CodeAssembler::LoadStackPointer() {
   return raw_assembler()->LoadStackPointer();
 }

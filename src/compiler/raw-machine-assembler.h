@@ -723,6 +723,9 @@ class V8_EXPORT_PRIVATE RawMachineAssembler {
     return AddNode(machine()->LoadParentFramePointer());
   }
 
+  // Root pointer operations.
+  Node* LoadRootsPointer() { return AddNode(machine()->LoadRootsPointer()); }
+
   // Parameters.
   Node* Parameter(size_t index);
 

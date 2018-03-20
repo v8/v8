@@ -839,6 +839,9 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
         __ mov(i.OutputRegister(), fp);
       }
       break;
+    case kArchRootsPointer:
+      __ mov(i.OutputRegister(), root);
+      break;
     case kArchTruncateDoubleToI:
       __ TruncateDoubleToIDelayed(zone(), i.OutputRegister(),
                                   i.InputDoubleRegister(0));

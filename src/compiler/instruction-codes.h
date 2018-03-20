@@ -66,6 +66,7 @@ enum class RecordWriteMode { kValueIsMap, kValueIsPointer, kValueIsAny };
   V(ArchStackPointer)                     \
   V(ArchFramePointer)                     \
   V(ArchParentFramePointer)               \
+  V(ArchRootsPointer)                     \
   V(ArchTruncateDoubleToI)                \
   V(ArchStoreWithWriteBarrier)            \
   V(ArchStackSlot)                        \

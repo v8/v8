@@ -605,6 +605,9 @@ class V8_EXPORT_PRIVATE MachineOperatorBuilder final
   const Operator* LoadFramePointer();
   const Operator* LoadParentFramePointer();
 
+  // Access to the root register.
+  const Operator* LoadRootsPointer();
+
   // atomic-load [base + index]
   const Operator* Word32AtomicLoad(LoadRepresentation rep);
   // atomic-store [base + index], value

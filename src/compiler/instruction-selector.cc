@@ -1629,6 +1629,8 @@ void InstructionSelector::VisitNode(Node* node) {
       return VisitLoadFramePointer(node);
     case IrOpcode::kLoadParentFramePointer:
       return VisitLoadParentFramePointer(node);
+    case IrOpcode::kLoadRootsPointer:
+      return VisitLoadRootsPointer(node);
     case IrOpcode::kUnalignedLoad: {
       LoadRepresentation type = LoadRepresentationOf(node->op());
       MarkAsRepresentation(type.representation(), node);
@@ -1968,6 +1970,11 @@ void InstructionSelector::VisitLoadFramePointer(Node* node) {
 void InstructionSelector::VisitLoadParentFramePointer(Node* node) {
   OperandGenerator g(this);
   Emit(kArchParentFramePointer, g.DefineAsRegister(node));
+}
+
+void InstructionSelector::VisitLoadRootsPointer(Node* node) {
+  OperandGenerator g(this);
+  Emit(kArchRootsPointer, g.DefineAsRegister(node));
 }
 
 void InstructionSelector::VisitFloat64Acos(Node* node) {

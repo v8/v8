@@ -1325,6 +1325,9 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
         __ LoadRR(i.OutputRegister(), fp);
       }
       break;
+    case kArchFramePointer:
+      __ LoadRR(i.OutputRegister(), kRootRegister);
+      break;
     case kArchTruncateDoubleToI:
       // TODO(mbrandy): move slow call to stub out of line.
       __ TruncateDoubleToIDelayed(zone(), i.OutputRegister(),
