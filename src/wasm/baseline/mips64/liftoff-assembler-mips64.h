@@ -405,28 +405,28 @@ UNIMPLEMENTED_I64_SHIFTOP(shr)
                                      DoubleRegister rhs) {                   \
     instruction(dst, lhs, rhs);                                              \
   }
-#define UNIMPLEMENTED_FP_UNOP(name)                                            \
+#define FP_UNOP(name, instruction)                                             \
   void LiftoffAssembler::emit_##name(DoubleRegister dst, DoubleRegister src) { \
-    BAILOUT("fp unop");                                                        \
+    instruction(dst, src);                                                     \
   }
 
 FP_BINOP(f32_add, add_s)
 FP_BINOP(f32_sub, sub_s)
 FP_BINOP(f32_mul, mul_s)
 FP_BINOP(f32_div, div_s)
-UNIMPLEMENTED_FP_UNOP(f32_abs)
-UNIMPLEMENTED_FP_UNOP(f32_neg)
-UNIMPLEMENTED_FP_UNOP(f32_sqrt)
+FP_UNOP(f32_abs, abs_s)
+FP_UNOP(f32_neg, neg_s)
+FP_UNOP(f32_sqrt, sqrt_s)
 FP_BINOP(f64_add, add_d)
 FP_BINOP(f64_sub, sub_d)
 FP_BINOP(f64_mul, mul_d)
 FP_BINOP(f64_div, div_d)
-UNIMPLEMENTED_FP_UNOP(f64_abs)
-UNIMPLEMENTED_FP_UNOP(f64_neg)
-UNIMPLEMENTED_FP_UNOP(f64_sqrt)
+FP_UNOP(f64_abs, abs_d)
+FP_UNOP(f64_neg, neg_d)
+FP_UNOP(f64_sqrt, sqrt_d)
 
 #undef FP_BINOP
-#undef UNIMPLEMENTED_FP_BINOP
+#undef FP_UNOP
 
 bool LiftoffAssembler::emit_type_conversion(WasmOpcode opcode,
                                             LiftoffRegister dst,
