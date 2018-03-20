@@ -1325,7 +1325,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
         __ LoadRR(i.OutputRegister(), fp);
       }
       break;
-    case kArchFramePointer:
+    case kArchRootsPointer:
       __ LoadRR(i.OutputRegister(), kRootRegister);
       break;
     case kArchTruncateDoubleToI:
