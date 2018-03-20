@@ -902,18 +902,15 @@ class LiftoffCompiler {
   void GetGlobal(Decoder* decoder, Value* result,
                  const GlobalIndexOperand<validate>& operand) {
     const auto* global = &env_->module->globals[operand.index];
-    if (global->type != kWasmI32 && global->type != kWasmI64)
-      return unsupported(decoder, "non-int global");
+    if (!CheckSupportedType(decoder, kTypes_ilfd, global->type, "global"))
+      return;
     LiftoffRegList pinned;
     Register addr = pinned.set(__ GetUnusedRegister(kGpReg)).gp();
     __ LoadFromContext(addr, offsetof(WasmContext, globals_start),
                        kPointerSize);
     LiftoffRegister value =
         pinned.set(__ GetUnusedRegister(reg_class_for(global->type), pinned));
-    LoadType type =
-        global->type == kWasmI32 ? LoadType::kI32Load : LoadType::kI64Load;
-    if (type.size() > kPointerSize)
-      return unsupported(decoder, "global > kPointerSize");
+    LoadType type = LoadType::ForValueType(global->type);
     __ Load(value, addr, no_reg, global->offset, type, pinned);
     __ PushRegister(global->type, value);
   }
@@ -921,14 +918,14 @@ class LiftoffCompiler {
   void SetGlobal(Decoder* decoder, const Value& value,
                  const GlobalIndexOperand<validate>& operand) {
     auto* global = &env_->module->globals[operand.index];
-    if (global->type != kWasmI32) return unsupported(decoder, "non-i32 global");
+    if (!CheckSupportedType(decoder, kTypes_ilfd, global->type, "global"))
+      return;
     LiftoffRegList pinned;
     Register addr = pinned.set(__ GetUnusedRegister(kGpReg)).gp();
     __ LoadFromContext(addr, offsetof(WasmContext, globals_start),
                        kPointerSize);
     LiftoffRegister reg = pinned.set(__ PopToRegister(pinned));
-    StoreType type =
-        global->type == kWasmI32 ? StoreType::kI32Store : StoreType::kI64Store;
+    StoreType type = StoreType::ForValueType(global->type);
     __ Store(addr, no_reg, global->offset, reg, type, pinned);
   }
 

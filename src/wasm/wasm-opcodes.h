@@ -611,6 +611,21 @@ class LoadType {
   constexpr ValueType value_type() const { return kValueType[val_]; }
   constexpr MachineType mem_type() const { return kMemType[val_]; }
 
+  static LoadType ForValueType(ValueType type) {
+    switch (type) {
+      case kWasmI32:
+        return kI32Load;
+      case kWasmI64:
+        return kI64Load;
+      case kWasmF32:
+        return kF32Load;
+      case kWasmF64:
+        return kF64Load;
+      default:
+        UNREACHABLE();
+    }
+  }
+
  private:
   const LoadTypeValue val_;
 
@@ -662,6 +677,21 @@ class StoreType {
   constexpr unsigned size() const { return 1 << size_log_2(); }
   constexpr ValueType value_type() const { return kValueType[val_]; }
   constexpr ValueType mem_rep() const { return kMemRep[val_]; }
+
+  static StoreType ForValueType(ValueType type) {
+    switch (type) {
+      case kWasmI32:
+        return kI32Store;
+      case kWasmI64:
+        return kI64Store;
+      case kWasmF32:
+        return kF32Store;
+      case kWasmF64:
+        return kF64Store;
+      default:
+        UNREACHABLE();
+    }
+  }
 
  private:
   const StoreTypeValue val_;
