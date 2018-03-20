@@ -1758,7 +1758,7 @@ class Heap {
     void* data;
   };
 
-  static const int kInitialStringTableSize = 2048;
+  static const int kInitialStringTableSize = StringTable::kMinCapacity;
   static const int kInitialEvalCacheSize = 64;
   static const int kInitialNumberStringCacheSize = 256;
 

@@ -16528,19 +16528,21 @@ bool HashTable<Derived, Shape>::HasSufficientCapacityToAdd(
 }
 
 template <typename Derived, typename Shape>
-Handle<Derived> HashTable<Derived, Shape>::Shrink(Handle<Derived> table) {
+Handle<Derived> HashTable<Derived, Shape>::Shrink(Handle<Derived> table,
+                                                  int additionalCapacity) {
   int capacity = table->Capacity();
   int nof = table->NumberOfElements();
 
   // Shrink to fit the number of elements if only a quarter of the
   // capacity is filled with elements.
   if (nof > (capacity >> 2)) return table;
-  // Allocate a new dictionary with room for at least the current
-  // number of elements. The allocation method will make sure that
-  // there is extra room in the dictionary for additions. Don't go
-  // lower than room for 16 elements.
-  int at_least_room_for = nof;
-  if (at_least_room_for < 16) return table;
+  // Allocate a new dictionary with room for at least the current number of
+  // elements + {additionalCapacity}. The allocation method will make sure that
+  // there is extra room in the dictionary for additions. Don't go lower than
+  // room for {kMinShrinkCapacity} elements.
+  int at_least_room_for = nof + additionalCapacity;
+  DCHECK_LE(at_least_room_for, capacity);
+  if (at_least_room_for < Derived::kMinShrinkCapacity) return table;
 
   Isolate* isolate = table->GetIsolate();
   const int kMinCapacityForPretenure = 256;
@@ -16641,8 +16643,9 @@ HashTable<ObjectHashSet, ObjectHashSetShape>::New(Isolate*, int n,
                                                   PretenureFlag,
                                                   MinimumCapacity);
 
-template Handle<NameDictionary> HashTable<
-    NameDictionary, NameDictionaryShape>::Shrink(Handle<NameDictionary>);
+template Handle<NameDictionary>
+HashTable<NameDictionary, NameDictionaryShape>::Shrink(Handle<NameDictionary>,
+                                                       int additionalCapacity);
 
 template Handle<NameDictionary>
 BaseNameDictionary<NameDictionary, NameDictionaryShape>::Add(
@@ -17048,6 +17051,7 @@ Handle<String> StringTable::LookupKey(Isolate* isolate, StringTableKey* key) {
     return handle(String::cast(table->KeyAt(entry)), isolate);
   }
 
+  table = StringTable::CautiousShrink(table);
   // Adding new string. Grow table if needed.
   table = StringTable::EnsureCapacity(table, 1);
 
@@ -17065,6 +17069,18 @@ Handle<String> StringTable::LookupKey(Isolate* isolate, StringTableKey* key) {
 
   isolate->heap()->SetRootStringTable(*table);
   return Handle<String>::cast(string);
+}
+
+Handle<StringTable> StringTable::CautiousShrink(Handle<StringTable> table) {
+  // Only shrink if the table is very empty to avoid performance penalty.
+  int capacity = table->Capacity();
+  int nof = table->NumberOfElements();
+  if (capacity <= StringTable::kMinCapacity) return table;
+  if (nof > (capacity / kMaxEmptyFactor)) return table;
+  // Make sure that after shrinking the table is half empty (aka. has capacity
+  // for another {nof} elements).
+  DCHECK_LE(nof * 2, capacity);
+  return Shrink(table, nof);
 }
 
 namespace {

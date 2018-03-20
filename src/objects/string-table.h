@@ -64,6 +64,10 @@ class StringTable : public HashTable<StringTable, StringTableShape> {
   static String* ForwardStringIfExists(Isolate* isolate, StringTableKey* key,
                                        String* string);
 
+  // Shink the StringTable if it's very empty (kMaxEmptyFactor) to avoid the
+  // performance overhead of re-allocating the StringTable over and over again.
+  static Handle<StringTable> CautiousShrink(Handle<StringTable> table);
+
   // Looks up a string that is equal to the given string and returns
   // string handle if it is found, or an empty handle otherwise.
   MUST_USE_RESULT static MaybeHandle<String> LookupTwoCharsStringIfExists(
@@ -73,6 +77,10 @@ class StringTable : public HashTable<StringTable, StringTableShape> {
   static void EnsureCapacityForDeserialization(Isolate* isolate, int expected);
 
   DECL_CAST(StringTable)
+
+  static const int kMaxEmptyFactor = 16;
+  static const int kMinCapacity = 2048;
+  static const int kMinShrinkCapacity = kMinCapacity;
 
  private:
   template <bool seq_one_byte>

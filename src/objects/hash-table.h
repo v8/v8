@@ -181,6 +181,9 @@ class HashTable : public HashTableBase {
   static const int kMaxCapacity =
       (FixedArray::kMaxLength - kElementsStartIndex) / kEntrySize;
 
+  // Don't shrink a HashTable below this capacity.
+  static const int kMinShrinkCapacity = 16;
+
   // Maximum length to create a regular HashTable (aka. non large object).
   static const int kMaxRegularCapacity = 16384;
 
@@ -208,7 +211,8 @@ class HashTable : public HashTableBase {
   uint32_t FindInsertionEntry(uint32_t hash);
 
   // Attempt to shrink hash table after removal of key.
-  MUST_USE_RESULT static Handle<Derived> Shrink(Handle<Derived> table);
+  MUST_USE_RESULT static Handle<Derived> Shrink(Handle<Derived> table,
+                                                int additionalCapacity = 0);
 
  private:
   // Ensure that kMaxRegularCapacity yields a non-large object dictionary.
