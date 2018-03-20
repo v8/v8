@@ -451,6 +451,7 @@ void Serializer<AllocatorT>::ObjectSerializer::SerializeJSArrayBuffer() {
     buffer->set_backing_store(Smi::FromInt(ref));
   }
   SerializeObject();
+  buffer->set_backing_store(backing_store);
 }
 
 template <class AllocatorT>
