@@ -93,12 +93,26 @@ class ConcurrentMarkingVisitor final
 
   void ProcessStrongHeapObject(HeapObject* host, Object** slot,
                                HeapObject* heap_object) {
+#ifdef THREAD_SANITIZER
+    // Perform a dummy acquire load to tell TSAN that there is no data race
+    // in mark-bit initialization. See MemoryChunk::Initialize for the
+    // corresponding release store.
+    MemoryChunk* chunk = MemoryChunk::FromAddress(heap_object->address());
+    CHECK_NOT_NULL(chunk->synchronized_heap());
+#endif
     MarkObject(heap_object);
     MarkCompactCollector::RecordSlot(host, slot, heap_object);
   }
 
   void ProcessWeakHeapObject(HeapObject* host, HeapObjectReference** slot,
                              HeapObject* heap_object) {
+#ifdef THREAD_SANITIZER
+    // Perform a dummy acquire load to tell TSAN that there is no data race
+    // in mark-bit initialization. See MemoryChunk::Initialize for the
+    // corresponding release store.
+    MemoryChunk* chunk = MemoryChunk::FromAddress(heap_object->address());
+    CHECK_NOT_NULL(chunk->synchronized_heap());
+#endif
     if (marking_state_.IsBlackOrGrey(heap_object)) {
       // Weak references with live values are directly processed here to
       // reduce the processing time of weak cells during the main GC
@@ -350,13 +364,6 @@ class ConcurrentMarkingVisitor final
   }
 
   void MarkObject(HeapObject* object) {
-#ifdef THREAD_SANITIZER
-    // Perform a dummy acquire load to tell TSAN that there is no data race
-    // in mark-bit initialization. See MemoryChunk::Initialize for the
-    // corresponding release store.
-    MemoryChunk* chunk = MemoryChunk::FromAddress(object->address());
-    CHECK_NOT_NULL(chunk->synchronized_heap());
-#endif
     if (marking_state_.WhiteToGrey(object)) {
       shared_.Push(object);
     }
