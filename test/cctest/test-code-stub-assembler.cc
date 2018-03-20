@@ -3089,6 +3089,32 @@ TEST(ExtractFixedArraySimpleIntPtrParameters) {
   CHECK_EQ(double_result->get_scalar(1), 12);
 }
 
+TEST(SingleInputPhiElimination) {
+  Isolate* isolate(CcTest::InitIsolateOnce());
+  const int kNumParams = 2;
+  CodeAssemblerTester asm_tester(isolate, kNumParams);
+  {
+    CodeStubAssembler m(asm_tester.state());
+    Variable temp1(&m, MachineRepresentation::kTagged);
+    Variable temp2(&m, MachineRepresentation::kTagged);
+    Label temp_label(&m, {&temp1, &temp2});
+    Label end_label(&m, {&temp1, &temp2});
+    temp1.Bind(m.Parameter(1));
+    temp2.Bind(m.Parameter(1));
+    m.Branch(m.WordEqual(m.Parameter(0), m.Parameter(1)), &end_label,
+             &temp_label);
+    temp1.Bind(m.Parameter(2));
+    temp2.Bind(m.Parameter(2));
+    m.BIND(&temp_label);
+    m.Goto(&end_label);
+    m.BIND(&end_label);
+    m.Return(temp1.value());
+  }
+  FunctionTester ft(asm_tester.GenerateCode(), kNumParams);
+  // Generating code without an assert is enough to make sure that the
+  // single-input phi is properly eliminated.
+}
+
 }  // namespace compiler
 }  // namespace internal
 }  // namespace v8
