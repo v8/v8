@@ -7684,17 +7684,23 @@ v8::ArrayBuffer::Contents v8::ArrayBuffer::Externalize() {
   Utils::ApiCheck(!self->is_external(), "v8_ArrayBuffer_Externalize",
                   "ArrayBuffer already externalized");
   self->set_is_external(true);
-  if (self->has_guard_region()) {
+
+  // We need to capture the contents before releasing the allocation from the
+  // Wasm tracker, because otherwise we will not correctly capture the
+  // allocation data.
+  const v8::ArrayBuffer::Contents contents = GetContents();
+  if (self->is_wasm_memory()) {
     // Since this is being externalized, the Wasm Allocation Tracker can no
     // longer track it.
     //
     // TODO(eholk): Find a way to track this across externalization
-    isolate->wasm_engine()->allocation_tracker()->ReleaseAddressSpace(
-        self->allocation_length());
+    isolate->wasm_engine()->memory_tracker()->ReleaseAllocation(
+        self->backing_store());
   }
   isolate->heap()->UnregisterArrayBuffer(*self);
 
-  return GetContents();
+  // A regular copy is good enough. No move semantics needed.
+  return contents;
 }
 
 
@@ -7704,7 +7710,7 @@ v8::ArrayBuffer::Contents v8::ArrayBuffer::GetContents() {
   Contents contents;
   contents.allocation_base_ = self->allocation_base();
   contents.allocation_length_ = self->allocation_length();
-  contents.allocation_mode_ = self->has_guard_region()
+  contents.allocation_mode_ = self->is_wasm_memory()
                                   ? Allocator::AllocationMode::kReservation
                                   : Allocator::AllocationMode::kNormal;
   contents.data_ = self->backing_store();
@@ -7907,16 +7913,23 @@ v8::SharedArrayBuffer::Contents v8::SharedArrayBuffer::Externalize() {
   Utils::ApiCheck(!self->is_external(), "v8_SharedArrayBuffer_Externalize",
                   "SharedArrayBuffer already externalized");
   self->set_is_external(true);
-  if (self->has_guard_region()) {
+
+  // We need to capture the contents before releasing the allocation from the
+  // Wasm tracker, because otherwise we will not correctly capture the
+  // allocation data.
+  const v8::SharedArrayBuffer::Contents contents = GetContents();
+  if (self->is_wasm_memory()) {
     // Since this is being externalized, the Wasm Allocation Tracker can no
     // longer track it.
     //
     // TODO(eholk): Find a way to track this across externalization
-    isolate->wasm_engine()->allocation_tracker()->ReleaseAddressSpace(
-        self->allocation_length());
+    isolate->wasm_engine()->memory_tracker()->ReleaseAllocation(
+        self->backing_store());
   }
   isolate->heap()->UnregisterArrayBuffer(*self);
-  return GetContents();
+
+  // A regular copy is good enough. No move semantics needed.
+  return contents;
 }
 
 
@@ -7927,7 +7940,7 @@ v8::SharedArrayBuffer::Contents v8::SharedArrayBuffer::GetContents() {
   contents.allocation_base_ = self->allocation_base();
   contents.allocation_length_ = self->allocation_length();
   contents.allocation_mode_ =
-      self->has_guard_region()
+      self->is_wasm_memory()
           ? ArrayBufferAllocator::Allocator::AllocationMode::kReservation
           : ArrayBufferAllocator::Allocator::AllocationMode::kNormal;
   contents.data_ = self->backing_store();

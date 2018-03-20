@@ -369,7 +369,8 @@ Handle<JSArrayBuffer> GrowMemoryBuffer(Isolate* isolate,
       new_size > kMaxInt) {
     return Handle<JSArrayBuffer>::null();
   }
-  if (((use_trap_handler && new_size < old_buffer->allocation_length()) ||
+  if (((use_trap_handler && !old_buffer->is_external() &&
+        new_size < old_buffer->allocation_length()) ||
        old_size == new_size) &&
       old_size != 0) {
     DCHECK_NOT_NULL(old_buffer->backing_store());
@@ -385,35 +386,21 @@ Handle<JSArrayBuffer> GrowMemoryBuffer(Isolate* isolate,
     }
     // NOTE: We must allocate a new array buffer here because the spec
     // assumes that ArrayBuffers do not change size.
-    void* allocation_base = old_buffer->allocation_base();
-    size_t allocation_length = old_buffer->allocation_length();
     void* backing_store = old_buffer->backing_store();
-    bool has_guard_region = old_buffer->has_guard_region();
     bool is_external = old_buffer->is_external();
     // Disconnect buffer early so GC won't free it.
     i::wasm::DetachMemoryBuffer(isolate, old_buffer, false);
-    Handle<JSArrayBuffer> new_buffer = wasm::SetupArrayBuffer(
-        isolate, allocation_base, allocation_length, backing_store, new_size,
-        is_external, has_guard_region);
+    Handle<JSArrayBuffer> new_buffer =
+        wasm::SetupArrayBuffer(isolate, backing_store, new_size, is_external);
     return new_buffer;
   } else {
-    bool free_memory = false;
     Handle<JSArrayBuffer> new_buffer;
-    if (pages != 0) {
-      // Allocate a new buffer and memcpy the old contents.
-      free_memory = true;
-      new_buffer = wasm::NewArrayBuffer(isolate, new_size, use_trap_handler);
-      if (new_buffer.is_null() || old_size == 0) return new_buffer;
-      Address new_mem_start = static_cast<Address>(new_buffer->backing_store());
-      memcpy(new_mem_start, old_mem_start, old_size);
-      DCHECK(old_buffer.is_null() || !old_buffer->is_shared());
-    } else {
-      // Reuse the prior backing store, but allocate a new array buffer.
-      new_buffer = wasm::SetupArrayBuffer(
-          isolate, old_buffer->allocation_base(),
-          old_buffer->allocation_length(), old_buffer->backing_store(),
-          new_size, old_buffer->is_external(), old_buffer->has_guard_region());
-    }
+    new_buffer = wasm::NewArrayBuffer(isolate, new_size, use_trap_handler);
+    if (new_buffer.is_null() || old_size == 0) return new_buffer;
+    Address new_mem_start = static_cast<Address>(new_buffer->backing_store());
+    memcpy(new_mem_start, old_mem_start, old_size);
+    DCHECK(old_buffer.is_null() || !old_buffer->is_shared());
+    constexpr bool free_memory = true;
     i::wasm::DetachMemoryBuffer(isolate, old_buffer, free_memory);
     return new_buffer;
   }
@@ -453,11 +440,7 @@ Handle<WasmMemoryObject> WasmMemoryObject::New(
   Handle<JSArrayBuffer> buffer;
   if (maybe_buffer.is_null()) {
     // If no buffer was provided, create a 0-length one.
-
-    // TODO(kschimpf): Modify to use argument defining style of
-    // memory.  (see above).
-    buffer = wasm::SetupArrayBuffer(isolate, nullptr, 0, nullptr, 0, false,
-                                    trap_handler::IsTrapHandlerEnabled());
+    buffer = wasm::SetupArrayBuffer(isolate, nullptr, 0, false);
   } else {
     buffer = maybe_buffer.ToHandleChecked();
     // Paranoid check that the buffer size makes sense.

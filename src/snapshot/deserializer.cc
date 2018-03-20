@@ -235,7 +235,6 @@ HeapObject* Deserializer<AllocatorT>::PostProcessNewObject(HeapObject* obj,
       void* backing_store = off_heap_backing_stores_[store_index->value()];
 
       buffer->set_backing_store(backing_store);
-      buffer->set_allocation_base(backing_store);
       isolate_->heap()->RegisterNewArrayBuffer(buffer);
     }
   } else if (obj->IsFixedTypedArrayBase()) {

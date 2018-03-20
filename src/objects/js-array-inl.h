@@ -6,6 +6,7 @@
 #define V8_OBJECTS_JS_ARRAY_INL_H_
 
 #include "src/objects/js-array.h"
+#include "src/wasm/wasm-engine.h"
 
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"
@@ -76,30 +77,48 @@ void JSArrayBuffer::set_backing_store(void* value, WriteBarrierMode mode) {
 
 ACCESSORS(JSArrayBuffer, byte_length, Object, kByteLengthOffset)
 
-void* JSArrayBuffer::allocation_base() const {
-  intptr_t ptr = READ_INTPTR_FIELD(this, kAllocationBaseOffset);
-  return reinterpret_cast<void*>(ptr);
-}
-
-void JSArrayBuffer::set_allocation_base(void* value, WriteBarrierMode mode) {
-  intptr_t ptr = reinterpret_cast<intptr_t>(value);
-  WRITE_INTPTR_FIELD(this, kAllocationBaseOffset, ptr);
-}
-
 size_t JSArrayBuffer::allocation_length() const {
-  return *reinterpret_cast<const size_t*>(
-      FIELD_ADDR_CONST(this, kAllocationLengthOffset));
+  if (backing_store() == nullptr) {
+    return 0;
+  }
+  // If this buffer is managed by the WasmMemoryTracker
+  if (is_wasm_memory()) {
+    const auto* data =
+        GetIsolate()->wasm_engine()->memory_tracker()->FindAllocationData(
+            backing_store());
+    DCHECK_NOT_NULL(data);
+    return data->allocation_length;
+  }
+  return byte_length()->Number();
 }
 
-void JSArrayBuffer::set_allocation_length(size_t value) {
-  (*reinterpret_cast<size_t*>(FIELD_ADDR(this, kAllocationLengthOffset))) =
-      value;
+void* JSArrayBuffer::allocation_base() const {
+  if (backing_store() == nullptr) {
+    return nullptr;
+  }
+  // If this buffer is managed by the WasmMemoryTracker
+  if (is_wasm_memory()) {
+    const auto* data =
+        GetIsolate()->wasm_engine()->memory_tracker()->FindAllocationData(
+            backing_store());
+    DCHECK_NOT_NULL(data);
+    return data->allocation_base;
+  }
+  return backing_store();
 }
 
 ArrayBuffer::Allocator::AllocationMode JSArrayBuffer::allocation_mode() const {
   using AllocationMode = ArrayBuffer::Allocator::AllocationMode;
-  return has_guard_region() ? AllocationMode::kReservation
-                            : AllocationMode::kNormal;
+  return is_wasm_memory() ? AllocationMode::kReservation
+                          : AllocationMode::kNormal;
+}
+
+bool JSArrayBuffer::is_wasm_memory() const {
+  bool const is_wasm_memory = IsWasmMemory::decode(bit_field());
+  DCHECK(backing_store() == nullptr ||
+         GetIsolate()->wasm_engine()->memory_tracker()->IsWasmMemory(
+             backing_store()) == is_wasm_memory);
+  return is_wasm_memory;
 }
 
 void JSArrayBuffer::set_bit_field(uint32_t bits) {
@@ -141,14 +160,6 @@ bool JSArrayBuffer::is_shared() { return IsShared::decode(bit_field()); }
 
 void JSArrayBuffer::set_is_shared(bool value) {
   set_bit_field(IsShared::update(bit_field(), value));
-}
-
-bool JSArrayBuffer::has_guard_region() const {
-  return HasGuardRegion::decode(bit_field());
-}
-
-void JSArrayBuffer::set_has_guard_region(bool value) {
-  set_bit_field(HasGuardRegion::update(bit_field(), value));
 }
 
 bool JSArrayBuffer::is_growable() { return IsGrowable::decode(bit_field()); }

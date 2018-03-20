@@ -19021,8 +19021,6 @@ void JSArrayBuffer::Neuter() {
   CHECK(is_external());
   set_backing_store(nullptr);
   set_byte_length(Smi::kZero);
-  set_allocation_base(nullptr);
-  set_allocation_length(0);
   set_was_neutered(true);
   set_is_neuterable(false);
   // Invalidate the neutering protector.
@@ -19036,28 +19034,21 @@ void JSArrayBuffer::FreeBackingStore() {
   if (allocation_base() == nullptr) {
     return;
   }
-  using AllocationMode = ArrayBuffer::Allocator::AllocationMode;
-  const size_t length = allocation_length();
-  const AllocationMode mode = allocation_mode();
-  FreeBackingStore(GetIsolate(), {allocation_base(), length, mode});
-
+  FreeBackingStore(GetIsolate(), {allocation_base(), allocation_length(),
+                                  backing_store(), allocation_mode()});
   // Zero out the backing store and allocation base to avoid dangling
   // pointers.
   set_backing_store(nullptr);
-  // TODO(eholk): set_byte_length(0) once we aren't using Smis for the
-  // byte_length. We can't do it now because the GC needs to call
-  // FreeBackingStore while it is collecting.
-  set_allocation_base(nullptr);
-  set_allocation_length(0);
 }
 
 // static
 void JSArrayBuffer::FreeBackingStore(Isolate* isolate, Allocation allocation) {
   if (allocation.mode == ArrayBuffer::Allocator::AllocationMode::kReservation) {
-    // TODO(eholk): check with WasmAllocationTracker to make sure this is
-    // actually a buffer we are tracking.
-    isolate->wasm_engine()->allocation_tracker()->ReleaseAddressSpace(
-        allocation.length);
+    wasm::WasmMemoryTracker* memory_tracker =
+        isolate->wasm_engine()->memory_tracker();
+    if (memory_tracker->IsWasmMemory(allocation.backing_store)) {
+      memory_tracker->ReleaseAllocation(allocation.backing_store);
+    }
     CHECK(FreePages(allocation.allocation_base, allocation.length));
   } else {
     isolate->array_buffer_allocator()->Free(allocation.allocation_base,
@@ -19065,17 +19056,13 @@ void JSArrayBuffer::FreeBackingStore(Isolate* isolate, Allocation allocation) {
   }
 }
 
-void JSArrayBuffer::Setup(Handle<JSArrayBuffer> array_buffer, Isolate* isolate,
-                          bool is_external, void* data, size_t allocated_length,
-                          SharedFlag shared) {
-  return Setup(array_buffer, isolate, is_external, data, allocated_length, data,
-               allocated_length, shared);
+void JSArrayBuffer::set_is_wasm_memory(bool is_wasm_memory) {
+  set_bit_field(IsWasmMemory::update(bit_field(), is_wasm_memory));
 }
 
 void JSArrayBuffer::Setup(Handle<JSArrayBuffer> array_buffer, Isolate* isolate,
-                          bool is_external, void* allocation_base,
-                          size_t allocation_length, void* data,
-                          size_t byte_length, SharedFlag shared) {
+                          bool is_external, void* data, size_t byte_length,
+                          SharedFlag shared, bool is_wasm_memory) {
   DCHECK_EQ(array_buffer->GetEmbedderFieldCount(),
             v8::ArrayBuffer::kEmbedderFieldCount);
   for (int i = 0; i < v8::ArrayBuffer::kEmbedderFieldCount; i++) {
@@ -19085,6 +19072,7 @@ void JSArrayBuffer::Setup(Handle<JSArrayBuffer> array_buffer, Isolate* isolate,
   array_buffer->set_is_external(is_external);
   array_buffer->set_is_neuterable(shared == SharedFlag::kNotShared);
   array_buffer->set_is_shared(shared == SharedFlag::kShared);
+  array_buffer->set_is_wasm_memory(is_wasm_memory);
 
   Handle<Object> heap_byte_length =
       isolate->factory()->NewNumberFromSize(byte_length);
@@ -19095,9 +19083,6 @@ void JSArrayBuffer::Setup(Handle<JSArrayBuffer> array_buffer, Isolate* isolate,
   // registration method below handles the case of registering a buffer that has
   // already been promoted.
   array_buffer->set_backing_store(data);
-
-  array_buffer->set_allocation_base(allocation_base);
-  array_buffer->set_allocation_length(allocation_length);
 
   if (data && !is_external) {
     isolate->heap()->RegisterNewArrayBuffer(*array_buffer);
@@ -19160,9 +19145,8 @@ Handle<JSArrayBuffer> JSTypedArray::MaterializeArrayBuffer(
 
   Handle<JSArrayBuffer> buffer(JSArrayBuffer::cast(typed_array->buffer()),
                                isolate);
-  // This code does not know how to materialize from a buffer with guard
-  // regions.
-  DCHECK(!buffer->has_guard_region());
+  // This code does not know how to materialize from wasm buffers.
+  DCHECK(!buffer->is_wasm_memory());
 
   void* backing_store =
       isolate->array_buffer_allocator()->AllocateUninitialized(
@@ -19176,8 +19160,6 @@ Handle<JSArrayBuffer> JSTypedArray::MaterializeArrayBuffer(
   // registration method below handles the case of registering a buffer that has
   // already been promoted.
   buffer->set_backing_store(backing_store);
-  buffer->set_allocation_base(backing_store);
-  buffer->set_allocation_length(NumberToSize(buffer->byte_length()));
   // RegisterNewArrayBuffer expects a valid length for adjusting counters.
   isolate->heap()->RegisterNewArrayBuffer(*buffer);
   memcpy(buffer->backing_store(),
@@ -19199,7 +19181,7 @@ Handle<JSArrayBuffer> JSTypedArray::GetBuffer() {
                                      GetIsolate());
   if (array_buffer->was_neutered() ||
       array_buffer->backing_store() != nullptr ||
-      array_buffer->has_guard_region()) {
+      array_buffer->is_wasm_memory()) {
     return array_buffer;
   }
   Handle<JSTypedArray> self(this);

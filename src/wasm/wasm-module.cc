@@ -340,8 +340,7 @@ Handle<JSArray> GetCustomSections(Isolate* isolate,
     }
     Handle<JSArrayBuffer> buffer = isolate->factory()->NewJSArrayBuffer();
     constexpr bool is_external = false;
-    JSArrayBuffer::Setup(buffer, isolate, is_external, memory, size, memory,
-                         size);
+    JSArrayBuffer::Setup(buffer, isolate, is_external, memory, size);
     DisallowHeapAllocation no_gc;  // for raw access to string bytes.
     Handle<SeqOneByteString> module_bytes(shared->module_bytes(), isolate);
     const byte* start =

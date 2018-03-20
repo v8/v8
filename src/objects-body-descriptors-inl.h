@@ -148,11 +148,11 @@ class JSFunction::BodyDescriptor final : public BodyDescriptorBase {
 class JSArrayBuffer::BodyDescriptor final : public BodyDescriptorBase {
  public:
   STATIC_ASSERT(kByteLengthOffset + kPointerSize == kBackingStoreOffset);
-  STATIC_ASSERT(kAllocationLengthOffset + kPointerSize == kBitFieldSlot);
+  STATIC_ASSERT(kBackingStoreOffset + kPointerSize == kBitFieldSlot);
   STATIC_ASSERT(kBitFieldSlot + kPointerSize == kSize);
 
   static bool IsValidSlot(HeapObject* obj, int offset) {
-    if (offset < kAllocationLengthOffset) return true;
+    if (offset < kBitFieldSlot) return true;
     if (offset < kSize) return false;
     return IsValidSlotImpl(obj, offset);
   }

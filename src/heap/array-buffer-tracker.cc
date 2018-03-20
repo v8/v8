@@ -55,9 +55,9 @@ void LocalArrayBufferTracker::Process(Callback callback) {
       void* allocation_base = old_buffer->allocation_base();
       DCHECK_NOT_NULL(allocation_base);
 
-      backing_stores_to_free->emplace_back(allocation_base,
-                                           old_buffer->allocation_length(),
-                                           old_buffer->allocation_mode());
+      backing_stores_to_free->emplace_back(
+          allocation_base, old_buffer->allocation_length(),
+          old_buffer->backing_store(), old_buffer->allocation_mode());
       it = array_buffers_.erase(it);
     } else {
       UNREACHABLE();

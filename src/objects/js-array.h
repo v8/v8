@@ -139,14 +139,8 @@ class JSArrayBuffer : public JSObject {
   // [backing_store]: backing memory for this array
   DECL_ACCESSORS(backing_store, void)
 
-  // [allocation_base]: the start of the memory allocation for this array,
-  // normally equal to backing_store
-  DECL_ACCESSORS(allocation_base, void)
-
-  // [allocation_length]: the size of the memory allocation for this array,
-  // normally equal to byte_length
   inline size_t allocation_length() const;
-  inline void set_allocation_length(size_t value);
+  inline void* allocation_base() const;
 
   inline uint32_t bit_field() const;
   inline void set_bit_field(uint32_t bits);
@@ -166,9 +160,6 @@ class JSArrayBuffer : public JSObject {
   inline bool is_shared();
   inline void set_is_shared(bool value);
 
-  inline bool has_guard_region() const;
-  inline void set_has_guard_region(bool value);
-
   inline bool is_growable();
   inline void set_is_growable(bool value);
 
@@ -181,13 +172,21 @@ class JSArrayBuffer : public JSObject {
   struct Allocation {
     using AllocationMode = ArrayBuffer::Allocator::AllocationMode;
 
-    Allocation(void* allocation_base, size_t length, AllocationMode mode)
-        : allocation_base(allocation_base), length(length), mode(mode) {}
+    Allocation(void* allocation_base, size_t length, void* backing_store,
+               AllocationMode mode)
+        : allocation_base(allocation_base),
+          length(length),
+          backing_store(backing_store),
+          mode(mode) {}
 
     void* allocation_base;
     size_t length;
+    void* backing_store;
     AllocationMode mode;
   };
+
+  // Returns whether the buffer is tracked by the WasmMemoryTracker.
+  inline bool is_wasm_memory() const;
 
   void FreeBackingStore();
   static void FreeBackingStore(Isolate* isolate, Allocation allocation);
@@ -195,12 +194,7 @@ class JSArrayBuffer : public JSObject {
   V8_EXPORT_PRIVATE static void Setup(
       Handle<JSArrayBuffer> array_buffer, Isolate* isolate, bool is_external,
       void* data, size_t allocated_length,
-      SharedFlag shared = SharedFlag::kNotShared);
-
-  V8_EXPORT_PRIVATE static void Setup(
-      Handle<JSArrayBuffer> array_buffer, Isolate* isolate, bool is_external,
-      void* allocation_base, size_t allocation_length, void* data,
-      size_t byte_length, SharedFlag shared = SharedFlag::kNotShared);
+      SharedFlag shared = SharedFlag::kNotShared, bool is_wasm_memory = false);
 
   // Returns false if array buffer contents could not be allocated.
   // In this case, |array_buffer| will not be set up.
@@ -217,10 +211,7 @@ class JSArrayBuffer : public JSObject {
   // The rest of the fields are not JSObjects, so they are not iterated over in
   // objects-body-descriptors-inl.h.
   static const int kBackingStoreOffset = kByteLengthOffset + kPointerSize;
-  static const int kAllocationBaseOffset = kBackingStoreOffset + kPointerSize;
-  static const int kAllocationLengthOffset =
-      kAllocationBaseOffset + kPointerSize;
-  static const int kBitFieldSlot = kAllocationLengthOffset + kSizetSize;
+  static const int kBitFieldSlot = kBackingStoreOffset + kPointerSize;
 #if V8_TARGET_LITTLE_ENDIAN || !V8_HOST_ARCH_64_BIT
   static const int kBitFieldOffset = kBitFieldSlot;
 #else
@@ -241,10 +232,12 @@ class JSArrayBuffer : public JSObject {
   class IsNeuterable : public BitField<bool, 2, 1> {};
   class WasNeutered : public BitField<bool, 3, 1> {};
   class IsShared : public BitField<bool, 4, 1> {};
-  class HasGuardRegion : public BitField<bool, 5, 1> {};
-  class IsGrowable : public BitField<bool, 6, 1> {};
+  class IsGrowable : public BitField<bool, 5, 1> {};
+  class IsWasmMemory : public BitField<bool, 6, 1> {};
 
  private:
+  void set_is_wasm_memory(bool is_wasm_memory);
+
   DISALLOW_IMPLICIT_CONSTRUCTORS(JSArrayBuffer);
 };
 

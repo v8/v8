@@ -1652,10 +1652,9 @@ MaybeHandle<WasmInstanceObject> InstanceBuilder::Build() {
   // Set up the globals for the new instance.
   //--------------------------------------------------------------------------
   WasmContext* wasm_context = instance->wasm_context()->get();
-  MaybeHandle<JSArrayBuffer> old_globals;
   uint32_t globals_size = module_->globals_size;
   if (globals_size > 0) {
-    const bool enable_guard_regions = false;
+    constexpr bool enable_guard_regions = false;
     Handle<JSArrayBuffer> global_buffer =
         NewArrayBuffer(isolate_, globals_size, enable_guard_regions);
     globals_ = global_buffer;
@@ -1708,8 +1707,9 @@ MaybeHandle<WasmInstanceObject> InstanceBuilder::Build() {
     Handle<JSArrayBuffer> memory = memory_.ToHandleChecked();
     memory->set_is_neuterable(false);
 
-    DCHECK_IMPLIES(use_trap_handler(),
-                   module_->is_asm_js() || memory->has_guard_region());
+    DCHECK_IMPLIES(use_trap_handler(), module_->is_asm_js() ||
+                                           memory->is_wasm_memory() ||
+                                           memory->backing_store() == nullptr);
   } else if (initial_pages > 0) {
     // Allocate memory if the initial size is more than 0 pages.
     memory_ = AllocateMemory(initial_pages);

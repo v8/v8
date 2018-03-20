@@ -71,7 +71,7 @@ class V8_EXPORT_PRIVATE WasmEngine {
 
   WasmCodeManager* code_manager() const { return code_manager_.get(); }
 
-  WasmAllocationTracker* allocation_tracker() { return &allocation_tracker_; }
+  WasmMemoryTracker* memory_tracker() { return &memory_tracker_; }
 
   // We register and unregister CancelableTaskManagers that run
   // isolate-dependent tasks. These tasks need to be shutdown if the isolate is
@@ -84,7 +84,7 @@ class V8_EXPORT_PRIVATE WasmEngine {
  private:
   CompilationManager compilation_manager_;
   std::unique_ptr<WasmCodeManager> code_manager_;
-  WasmAllocationTracker allocation_tracker_;
+  WasmMemoryTracker memory_tracker_;
 
   // Contains all CancelableTaskManagers that run tasks that are dependent
   // on the isolate.

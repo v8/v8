@@ -1005,25 +1005,23 @@ struct ManuallyExternalizedBuffer {
   Handle<JSArrayBuffer> buffer_;
   void* allocation_base_;
   size_t allocation_length_;
+  bool const should_free_;
 
   ManuallyExternalizedBuffer(JSArrayBuffer* buffer, Isolate* isolate)
       : isolate_(isolate),
         buffer_(buffer, isolate),
         allocation_base_(buffer->allocation_base()),
-        allocation_length_(buffer->allocation_length()) {
-    if (!buffer->has_guard_region()) {
+        allocation_length_(buffer->allocation_length()),
+        should_free_(!isolate_->wasm_engine()->memory_tracker()->IsWasmMemory(
+            buffer->backing_store())) {
+    if (!isolate_->wasm_engine()->memory_tracker()->IsWasmMemory(
+            buffer->backing_store())) {
       v8::Utils::ToLocal(buffer_)->Externalize();
     }
   }
   ~ManuallyExternalizedBuffer() {
-    if (!buffer_->has_guard_region()) {
-      if (buffer_->allocation_mode() ==
-          ArrayBuffer::Allocator::AllocationMode::kReservation) {
-        CHECK(v8::internal::FreePages(allocation_base_, allocation_length_));
-      } else {
-        isolate_->array_buffer_allocator()->Free(allocation_base_,
-                                                 allocation_length_);
-      }
+    if (should_free_) {
+      buffer_->FreeBackingStore();
     }
   }
 };
@@ -1081,18 +1079,22 @@ TEST(Run_WasmModule_Buffer_Externalized_GrowMemMemSize) {
   {
     Isolate* isolate = CcTest::InitIsolateOnce();
     HandleScope scope(isolate);
-    void* backing_store =
-        isolate->array_buffer_allocator()->Allocate(16 * kWasmPageSize);
-    Handle<JSArrayBuffer> buffer =
-        wasm::SetupArrayBuffer(isolate, backing_store, 16 * kWasmPageSize,
-                               backing_store, 16 * kWasmPageSize, false, false);
+#if V8_TARGET_ARCH_64_BIT
+    constexpr bool require_guard_regions = true;
+#else
+    constexpr bool require_guard_regions = false;
+#endif
+    Handle<JSArrayBuffer> buffer = wasm::NewArrayBuffer(
+        isolate, 16 * kWasmPageSize, require_guard_regions);
     Handle<WasmMemoryObject> mem_obj =
         WasmMemoryObject::New(isolate, buffer, 100);
-    v8::Utils::ToLocal(buffer)->Externalize();
+    auto const contents = v8::Utils::ToLocal(buffer)->Externalize();
     int32_t result = WasmMemoryObject::Grow(isolate, mem_obj, 0);
     CHECK_EQ(16, result);
-
-    isolate->array_buffer_allocator()->Free(backing_store, 16 * kWasmPageSize);
+    const JSArrayBuffer::Allocation allocation{
+        contents.AllocationBase(), contents.AllocationLength(), contents.Data(),
+        contents.AllocationMode()};
+    JSArrayBuffer::FreeBackingStore(isolate, allocation);
   }
   Cleanup();
 }
@@ -1103,14 +1105,19 @@ TEST(Run_WasmModule_Buffer_Externalized_Detach) {
     // https://bugs.chromium.org/p/chromium/issues/detail?id=731046
     Isolate* isolate = CcTest::InitIsolateOnce();
     HandleScope scope(isolate);
-    void* backing_store =
-        isolate->array_buffer_allocator()->Allocate(16 * kWasmPageSize);
-    Handle<JSArrayBuffer> buffer =
-        wasm::SetupArrayBuffer(isolate, backing_store, 16 * kWasmPageSize,
-                               backing_store, 16 * kWasmPageSize, false, false);
-    v8::Utils::ToLocal(buffer)->Externalize();
+#if V8_TARGET_ARCH_64_BIT
+    constexpr bool require_guard_regions = true;
+#else
+    constexpr bool require_guard_regions = false;
+#endif
+    Handle<JSArrayBuffer> buffer = wasm::NewArrayBuffer(
+        isolate, 16 * kWasmPageSize, require_guard_regions);
+    auto const contents = v8::Utils::ToLocal(buffer)->Externalize();
     wasm::DetachMemoryBuffer(isolate, buffer, true);
-    isolate->array_buffer_allocator()->Free(backing_store, 16 * kWasmPageSize);
+    const JSArrayBuffer::Allocation allocation{
+        contents.AllocationBase(), contents.AllocationLength(), contents.Data(),
+        contents.AllocationMode()};
+    JSArrayBuffer::FreeBackingStore(isolate, allocation);
   }
   Cleanup();
 }
