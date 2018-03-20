@@ -734,21 +734,29 @@ void LiftoffAssembler::CallNativeWasmCode(Address addr) {
 }
 
 void LiftoffAssembler::CallRuntime(Zone* zone, Runtime::FunctionId fid) {
-  BAILOUT("CallRuntime");
+  // Set context to zero.
+  TurboAssembler::Move(cp, zero_reg);
+  CallRuntimeDelayed(zone, fid);
 }
 
 void LiftoffAssembler::CallIndirect(wasm::FunctionSig* sig,
                                     compiler::CallDescriptor* call_descriptor,
                                     Register target) {
-  BAILOUT("CallIndirect");
+  if (target == no_reg) {
+    pop(at);
+    Call(at);
+  } else {
+    Call(target);
+  }
 }
 
 void LiftoffAssembler::AllocateStackSlot(Register addr, uint32_t size) {
-  BAILOUT("AllocateStackSlot");
+  addiu(sp, sp, -size);
+  TurboAssembler::Move(addr, sp);
 }
 
 void LiftoffAssembler::DeallocateStackSlot(uint32_t size) {
-  BAILOUT("DeallocateStackSlot");
+  addiu(sp, sp, size);
 }
 
 }  // namespace wasm
