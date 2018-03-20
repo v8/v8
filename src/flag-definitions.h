@@ -1067,6 +1067,9 @@ DEFINE_INT(testing_prng_seed, 42, "Seed used for threading test randomness")
 // mksnapshot.cc
 DEFINE_STRING(embedded_src, nullptr,
               "Path for the generated embedded data file. (mksnapshot only)")
+DEFINE_STRING(
+    embedded_variant, nullptr,
+    "Label to disambiguate symbols in embedded data file. (mksnapshot only)")
 DEFINE_STRING(startup_src, nullptr,
               "Write V8 startup as C++ src. (mksnapshot only)")
 DEFINE_STRING(startup_blob, nullptr,

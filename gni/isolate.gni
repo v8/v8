@@ -116,6 +116,11 @@ template("v8_isolate_run") {
       } else {
         use_snapshot = "false"
       }
+      if (v8_use_multi_snapshots) {
+        multi_snapshots = "1"
+      } else {
+        multi_snapshots = "0"
+      }
       if (v8_has_valgrind) {
         has_valgrind = "1"
       } else {
@@ -174,6 +179,8 @@ template("v8_isolate_run") {
         "target_arch=$target_arch",
         "--config-variable",
         "ubsan_vptr=$ubsan_vptr",
+        "--config-variable",
+        "v8_use_multi_snapshots=$multi_snapshots",
         "--config-variable",
         "v8_use_external_startup_data=$use_external_startup_data",
         "--config-variable",

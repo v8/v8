@@ -26,6 +26,10 @@ class SnapshotWriter {
   void SetEmbeddedFile(const char* embedded_cpp_file) {
     embedded_cpp_path_ = embedded_cpp_file;
   }
+
+  void SetEmbeddedVariant(const char* embedded_variant) {
+    embedded_variant_ = embedded_variant;
+  }
 #endif
 
   void SetSnapshotFile(const char* snapshot_cpp_file) {
@@ -123,8 +127,8 @@ class SnapshotWriter {
     FILE* fp = GetFileDescriptorOrDie(embedded_cpp_path_);
 
     WriteEmbeddedFilePrefix(fp);
-    WriteEmbeddedFileData(fp, blob);
-    WriteEmbeddedFileSuffix(fp);
+    WriteEmbeddedFileData(fp, blob, embedded_variant_);
+    WriteEmbeddedFileSuffix(fp, embedded_variant_);
 
     fclose(fp);
   }
@@ -138,19 +142,22 @@ class SnapshotWriter {
     fprintf(fp, "namespace {\n\n");
   }
 
-  static void WriteEmbeddedFileSuffix(FILE* fp) {
+  static void WriteEmbeddedFileSuffix(FILE* fp, const char* embedded_variant) {
     fprintf(fp, "}  // namespace\n\n");
-    fprintf(
-        fp,
-        "const uint8_t* DefaultEmbeddedBlob() { return v8_embedded_blob_; }\n");
     fprintf(fp,
-            "uint32_t DefaultEmbeddedBlobSize() { return "
-            "v8_embedded_blob_size_; }\n\n");
+            "const uint8_t* %sEmbeddedBlob() { return "
+            "v8_%s_embedded_blob_; }\n",
+            embedded_variant, embedded_variant);
+    fprintf(fp,
+            "uint32_t %sEmbeddedBlobSize() { return "
+            "v8_embedded_blob_size_; }\n\n",
+            embedded_variant);
     fprintf(fp, "}  // namespace internal\n");
     fprintf(fp, "}  // namespace v8\n");
   }
 
-  static void WriteEmbeddedFileData(FILE* fp, const i::EmbeddedData* blob) {
+  static void WriteEmbeddedFileData(FILE* fp, const i::EmbeddedData* blob,
+                                    const char* embedded_variant) {
     // Note: On some platforms (observed on mac64), inserting labels into the
     // .byte stream causes the compiler to reorder symbols, invalidating stored
     // offsets.
@@ -160,9 +167,11 @@ class SnapshotWriter {
     // present in the binary.
     // For now, the straight-forward solution seems to be to just emit a pure
     // .byte stream.
-    fprintf(fp, "V8_EMBEDDED_TEXT_HEADER(v8_embedded_blob_)\n");
+    fprintf(fp, "V8_EMBEDDED_TEXT_HEADER(v8_%s_embedded_blob_)\n",
+            embedded_variant);
     WriteBinaryContentsAsByteDirective(fp, blob->data(), blob->size());
-    fprintf(fp, "extern \"C\" const uint8_t v8_embedded_blob_[];\n");
+    fprintf(fp, "extern \"C\" const uint8_t v8_%s_embedded_blob_[];\n",
+            embedded_variant);
     fprintf(fp, "static const uint32_t v8_embedded_blob_size_ = %d;\n\n",
             blob->size());
   }
@@ -211,6 +220,7 @@ class SnapshotWriter {
 
 #ifdef V8_EMBEDDED_BUILTINS
   const char* embedded_cpp_path_ = nullptr;
+  const char* embedded_variant_ = "Default";
 #endif
   const char* snapshot_cpp_path_;
   const char* snapshot_blob_path_;
@@ -376,6 +386,8 @@ int main(int argc, char** argv) {
     if (i::FLAG_startup_blob) writer.SetStartupBlobFile(i::FLAG_startup_blob);
 #ifdef V8_EMBEDDED_BUILTINS
     if (i::FLAG_embedded_src) writer.SetEmbeddedFile(i::FLAG_embedded_src);
+    if (i::FLAG_embedded_variant)
+      writer.SetEmbeddedVariant(i::FLAG_embedded_variant);
 #endif
 
     std::unique_ptr<char> embed_script(
