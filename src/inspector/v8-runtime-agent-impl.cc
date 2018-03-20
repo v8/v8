@@ -30,6 +30,7 @@
 
 #include "src/inspector/v8-runtime-agent-impl.h"
 
+#include "src/base/platform/platform.h"
 #include "src/debug/debug-interface.h"
 #include "src/inspector/injected-script.h"
 #include "src/inspector/inspected-context.h"
@@ -606,6 +607,23 @@ Response V8RuntimeAgentImpl::globalLexicalScopeNames(
   for (size_t i = 0; i < names.Size(); ++i) {
     (*outNames)->addItem(toProtocolString(names.Get(i)));
   }
+  return Response::OK();
+}
+
+Response V8RuntimeAgentImpl::getIsolateId(String16* outIsolateId) {
+  char buf[40];
+  std::snprintf(buf, sizeof(buf), "%d.%p", v8::base::OS::GetCurrentProcessId(),
+                m_inspector->isolate());
+  *outIsolateId = buf;
+  return Response::OK();
+}
+
+Response V8RuntimeAgentImpl::getHeapUsage(double* out_usedSize,
+                                          double* out_totalSize) {
+  v8::HeapStatistics stats;
+  m_inspector->isolate()->GetHeapStatistics(&stats);
+  *out_usedSize = stats.used_heap_size();
+  *out_totalSize = stats.total_heap_size();
   return Response::OK();
 }
 

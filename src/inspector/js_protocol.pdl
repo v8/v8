@@ -1195,6 +1195,21 @@ domain Runtime
       # Exception details.
       optional ExceptionDetails exceptionDetails
 
+  # Returns the isolate id.
+  experimental command getIsolateId
+    returns
+      # The isolate id.
+      string id
+
+  # Returns the JavaScript heap usage.
+  # It is the total usage of the corresponding isolate not scoped to a particular Runtime.
+  experimental command getHeapUsage
+    returns
+      # Used heap size in bytes.
+      number usedSize
+      # Allocated heap size in bytes.
+      number totalSize
+
   # Returns properties of a given object. Object group of the result is inherited from the target
   # object.
   command getProperties
