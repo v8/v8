@@ -49,6 +49,24 @@ struct FieldAccess {
   MachineType machine_type;       // machine type of the field.
   WriteBarrierKind write_barrier_kind;  // write barrier hint.
 
+  FieldAccess()
+      : base_is_tagged(kTaggedBase),
+        offset(0),
+        type(Type::None()),
+        machine_type(MachineType::None()),
+        write_barrier_kind(kFullWriteBarrier) {}
+
+  FieldAccess(BaseTaggedness base_is_tagged, int offset, MaybeHandle<Name> name,
+              MaybeHandle<Map> map, Type* type, MachineType machine_type,
+              WriteBarrierKind write_barrier_kind)
+      : base_is_tagged(base_is_tagged),
+        offset(offset),
+        name(name),
+        map(map),
+        type(type),
+        machine_type(machine_type),
+        write_barrier_kind(write_barrier_kind) {}
+
   int tag() const { return base_is_tagged == kTaggedBase ? kHeapObjectTag : 0; }
 };
 
@@ -74,6 +92,21 @@ struct ElementAccess {
   Type* type;                     // type of the element.
   MachineType machine_type;       // machine type of the element.
   WriteBarrierKind write_barrier_kind;  // write barrier hint.
+
+  ElementAccess()
+      : base_is_tagged(kTaggedBase),
+        header_size(0),
+        type(Type::None()),
+        machine_type(MachineType::None()),
+        write_barrier_kind(kFullWriteBarrier) {}
+
+  ElementAccess(BaseTaggedness base_is_tagged, int header_size, Type* type,
+                MachineType machine_type, WriteBarrierKind write_barrier_kind)
+      : base_is_tagged(base_is_tagged),
+        header_size(header_size),
+        type(type),
+        machine_type(machine_type),
+        write_barrier_kind(write_barrier_kind) {}
 
   int tag() const { return base_is_tagged == kTaggedBase ? kHeapObjectTag : 0; }
 };
