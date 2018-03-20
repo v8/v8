@@ -338,7 +338,7 @@ void LiftoffAssembler::CacheState::Split(const CacheState& source) {
 // TODO(clemensh): Provide a reasonably sized buffer, based on wasm function
 // size.
 LiftoffAssembler::LiftoffAssembler(Isolate* isolate)
-    : TurboAssembler(isolate, nullptr, 0, CodeObjectRequired::kYes) {}
+    : TurboAssembler(isolate, nullptr, 0, CodeObjectRequired::kNo) {}
 
 LiftoffAssembler::~LiftoffAssembler() {
   if (num_locals_ > kInlineLocalTypes) {
