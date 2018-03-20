@@ -832,9 +832,10 @@ void JSFunction::JSFunctionVerify() {
 void SharedFunctionInfo::SharedFunctionInfoVerify() {
   CHECK(IsSharedFunctionInfo());
 
-  VerifyObjectField(kFunctionDataOffset);
+  VerifyObjectField(kCodeOffset);
   VerifyObjectField(kDebugInfoOffset);
   VerifyObjectField(kFeedbackMetadataOffset);
+  VerifyObjectField(kFunctionDataOffset);
   VerifyObjectField(kFunctionIdentifierOffset);
   VerifyObjectField(kNameOrScopeInfoOffset);
   VerifyObjectField(kOuterScopeInfoOffset);
@@ -849,8 +850,9 @@ void SharedFunctionInfo::SharedFunctionInfoVerify() {
   }
 
   Isolate* isolate = GetIsolate();
-  CHECK(HasCodeObject() || IsApiFunction() || HasBytecodeArray() ||
-        HasAsmWasmData() || HasBuiltinId() || HasPreParsedScopeData());
+  CHECK(function_data()->IsUndefined(isolate) || IsApiFunction() ||
+        HasBytecodeArray() || HasAsmWasmData() ||
+        HasLazyDeserializationBuiltinId() || HasPreParsedScopeData());
 
   CHECK(function_identifier()->IsUndefined(isolate) || HasBuiltinFunctionId() ||
         HasInferredName());

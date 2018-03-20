@@ -1209,6 +1209,7 @@ Handle<SharedFunctionInfo> FunctionTemplateInfo::GetOrCreateSharedFunctionInfo(
   } else {
     name_string = isolate->factory()->empty_string();
   }
+  Handle<Code> code = BUILTIN_CODE(isolate, HandleApiCall);
   bool is_constructor;
   FunctionKind function_kind;
   if (info->remove_prototype()) {
@@ -1218,14 +1219,14 @@ Handle<SharedFunctionInfo> FunctionTemplateInfo::GetOrCreateSharedFunctionInfo(
     is_constructor = true;
     function_kind = kNormalFunction;
   }
-  Handle<SharedFunctionInfo> result =
-      isolate->factory()->NewSharedFunctionInfoForApiFunction(
-          name_string, info, is_constructor, function_kind);
+  Handle<SharedFunctionInfo> result = isolate->factory()->NewSharedFunctionInfo(
+      name_string, code, is_constructor, function_kind);
   if (is_constructor) {
     result->SetConstructStub(*BUILTIN_CODE(isolate, JSConstructStubApi));
   }
 
   result->set_length(info->length());
+  result->set_api_func_data(*info);
   result->DontAdaptArguments();
   DCHECK(result->IsApiFunction());
 
@@ -3354,8 +3355,6 @@ void HeapObject::HeapObjectShortPrint(std::ostream& os) {  // NOLINT
       os << "<Code " << Code::Kind2String(code->kind());
       if (code->is_stub()) {
         os << " " << CodeStub::MajorName(CodeStub::GetMajorKey(code));
-      } else if (code->is_builtin()) {
-        os << " " << Builtins::name(code->builtin_index());
       }
       os << ">";
       break;
@@ -13872,7 +13871,7 @@ void SharedFunctionInfo::SetConstructStub(Code* code) {
     DCHECK(builtin_id == Builtins::kJSBuiltinsConstructStub ||
            !Builtins::IsLazy(builtin_id));
     // Builtins should use JSBuiltinsConstructStub.
-    DCHECK_NE(this->GetCode(), code);
+    DCHECK_NE(this->code(), code);
   }
 #endif
   set_construct_stub(code);

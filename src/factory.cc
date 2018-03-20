@@ -1589,7 +1589,7 @@ Handle<JSFunction> Factory::NewFunction(Handle<Map> map,
   function->initialize_properties();
   function->initialize_elements();
   function->set_shared(*info);
-  function->set_code(info->GetCode());
+  function->set_code(info->code());
   function->set_context(*context_or_undefined);
   function->set_feedback_cell(*many_closures_cell());
   int header_size;
@@ -1617,9 +1617,9 @@ Handle<JSFunction> Factory::NewFunction(const NewFunctionArgs& args) {
   // Create the SharedFunctionInfo.
   Handle<Context> context(isolate()->native_context());
   Handle<Map> map = args.GetMap(isolate());
-  Handle<SharedFunctionInfo> info = NewSharedFunctionInfo(
-      args.name_, args.maybe_code_, args.maybe_builtin_id_,
-      map->is_constructor(), kNormalFunction);
+  Handle<SharedFunctionInfo> info =
+      NewSharedFunctionInfo(args.name_, args.maybe_code_, map->is_constructor(),
+                            kNormalFunction, args.maybe_builtin_id_);
 
   // Proper language mode in shared function info will be set later.
   DCHECK(is_sloppy(info->language_mode()));
@@ -1628,6 +1628,7 @@ Handle<JSFunction> Factory::NewFunction(const NewFunctionArgs& args) {
 #ifdef DEBUG
   if (isolate()->bootstrapper()->IsActive()) {
     Handle<Code> code;
+    bool has_code = args.maybe_code_.ToHandle(&code);
     DCHECK(
         // During bootstrapping some of these maps could be not created yet.
         (*map == context->get(Context::STRICT_FUNCTION_MAP_INDEX)) ||
@@ -1638,8 +1639,8 @@ Handle<JSFunction> Factory::NewFunction(const NewFunctionArgs& args) {
              Context::STRICT_FUNCTION_WITH_READONLY_PROTOTYPE_MAP_INDEX)) ||
         // Check if it's a creation of an empty or Proxy function during
         // bootstrapping.
-        (args.maybe_builtin_id_ == Builtins::kEmptyFunction ||
-         args.maybe_builtin_id_ == Builtins::kProxyConstructor));
+        (has_code && (code->builtin_index() == Builtins::kEmptyFunction ||
+                      code->builtin_index() == Builtins::kProxyConstructor)));
   } else {
     DCHECK(
         (*map == *isolate()->sloppy_function_map()) ||
@@ -2547,9 +2548,10 @@ void Factory::ReinitializeJSGlobalProxy(Handle<JSGlobalProxy> object,
 
 Handle<SharedFunctionInfo> Factory::NewSharedFunctionInfoForLiteral(
     FunctionLiteral* literal, Handle<Script> script) {
+  Handle<Code> code = BUILTIN_CODE(isolate(), CompileLazy);
   FunctionKind kind = literal->kind();
-  Handle<SharedFunctionInfo> shared = NewSharedFunctionInfoForBuiltin(
-      literal->name(), Builtins::kCompileLazy, IsConstructable(kind), kind);
+  Handle<SharedFunctionInfo> shared =
+      NewSharedFunctionInfo(literal->name(), code, IsConstructable(kind), kind);
   SharedFunctionInfo::InitFromFunctionLiteral(shared, literal);
   SharedFunctionInfo::SetScript(shared, script, false);
   return shared;
@@ -2575,31 +2577,9 @@ Handle<JSMessageObject> Factory::NewJSMessageObject(
   return message_obj;
 }
 
-Handle<SharedFunctionInfo> Factory::NewSharedFunctionInfoForCode(
-    MaybeHandle<String> maybe_name, Handle<Code> code, bool is_constructor,
-    FunctionKind kind) {
-  return NewSharedFunctionInfo(maybe_name, code, Builtins::kNoBuiltinId,
-                               is_constructor, kind);
-}
-
-Handle<SharedFunctionInfo> Factory::NewSharedFunctionInfoForApiFunction(
-    MaybeHandle<String> maybe_name,
-    Handle<FunctionTemplateInfo> function_template_info, bool is_constructor,
-    FunctionKind kind) {
-  return NewSharedFunctionInfo(maybe_name, function_template_info,
-                               Builtins::kNoBuiltinId, is_constructor, kind);
-}
-
-Handle<SharedFunctionInfo> Factory::NewSharedFunctionInfoForBuiltin(
-    MaybeHandle<String> maybe_name, int builtin_index, bool is_constructor,
-    FunctionKind kind) {
-  return NewSharedFunctionInfo(maybe_name, MaybeHandle<Code>(), builtin_index,
-                               is_constructor, kind);
-}
-
 Handle<SharedFunctionInfo> Factory::NewSharedFunctionInfo(
-    MaybeHandle<String> maybe_name, MaybeHandle<HeapObject> maybe_function_data,
-    int maybe_builtin_index, bool is_constructor, FunctionKind kind) {
+    MaybeHandle<String> maybe_name, MaybeHandle<Code> maybe_code,
+    bool is_constructor, FunctionKind kind, int maybe_builtin_index) {
   // Function names are assumed to be flat elsewhere. Must flatten before
   // allocating SharedFunctionInfo to avoid GC seeing the uninitialized SFI.
   Handle<String> shared_name;
@@ -2617,20 +2597,16 @@ Handle<SharedFunctionInfo> Factory::NewSharedFunctionInfo(
     share->set_name_or_scope_info(
         has_shared_name ? *shared_name
                         : SharedFunctionInfo::kNoSharedNameSentinel);
-    Handle<HeapObject> function_data;
-    if (maybe_function_data.ToHandle(&function_data)) {
-      // If we pass function_data then we shouldn't pass a builtin index, and
-      // the function_data should not be code with a builtin.
-      DCHECK(!Builtins::IsBuiltinId(maybe_builtin_index));
-      DCHECK_IMPLIES(function_data->IsCode(),
-                     !Code::cast(*function_data)->is_builtin());
-      share->set_function_data(*function_data);
-    } else if (Builtins::IsBuiltinId(maybe_builtin_index)) {
-      DCHECK_NE(maybe_builtin_index, Builtins::kDeserializeLazy);
-      share->set_builtin_id(maybe_builtin_index);
-    } else {
-      share->set_builtin_id(Builtins::kIllegal);
+    Handle<Code> code;
+    if (!maybe_code.ToHandle(&code)) {
+      code = BUILTIN_CODE(isolate(), Illegal);
     }
+    Object* function_data = (Builtins::IsBuiltinId(maybe_builtin_index) &&
+                             Builtins::IsLazy(maybe_builtin_index))
+                                ? Smi::FromInt(maybe_builtin_index)
+                                : Object::cast(*undefined_value());
+    share->set_function_data(function_data, SKIP_WRITE_BARRIER);
+    share->set_code(*code);
     share->set_outer_scope_info(*the_hole_value());
     DCHECK(!Builtins::IsLazy(Builtins::kConstructedNonConstructable));
     Handle<Code> construct_stub =
@@ -3216,12 +3192,14 @@ NewFunctionArgs NewFunctionArgs::ForWasm(Handle<String> name, Handle<Code> code,
 
 // static
 NewFunctionArgs NewFunctionArgs::ForBuiltin(Handle<String> name,
-                                            Handle<Map> map, int builtin_id) {
+                                            Handle<Code> code, Handle<Map> map,
+                                            int builtin_id) {
   DCHECK(Builtins::IsBuiltinId(builtin_id));
 
   NewFunctionArgs args;
   args.name_ = name;
   args.maybe_map_ = map;
+  args.maybe_code_ = code;
   args.maybe_builtin_id_ = builtin_id;
   args.language_mode_ = LanguageMode::kStrict;
   args.prototype_mutability_ = MUTABLE;
@@ -3237,7 +3215,6 @@ NewFunctionArgs NewFunctionArgs::ForFunctionWithoutCode(
   NewFunctionArgs args;
   args.name_ = name;
   args.maybe_map_ = map;
-  args.maybe_builtin_id_ = Builtins::kIllegal;
   args.language_mode_ = language_mode;
   args.prototype_mutability_ = MUTABLE;
 
@@ -3248,13 +3225,14 @@ NewFunctionArgs NewFunctionArgs::ForFunctionWithoutCode(
 
 // static
 NewFunctionArgs NewFunctionArgs::ForBuiltinWithPrototype(
-    Handle<String> name, Handle<Object> prototype, InstanceType type,
-    int instance_size, int inobject_properties, int builtin_id,
-    MutableMode prototype_mutability) {
+    Handle<String> name, Handle<Code> code, Handle<Object> prototype,
+    InstanceType type, int instance_size, int inobject_properties,
+    int builtin_id, MutableMode prototype_mutability) {
   DCHECK(Builtins::IsBuiltinId(builtin_id));
 
   NewFunctionArgs args;
   args.name_ = name;
+  args.maybe_code_ = code;
   args.type_ = type;
   args.instance_size_ = instance_size;
   args.inobject_properties_ = inobject_properties;
@@ -3272,11 +3250,13 @@ NewFunctionArgs NewFunctionArgs::ForBuiltinWithPrototype(
 
 // static
 NewFunctionArgs NewFunctionArgs::ForBuiltinWithoutPrototype(
-    Handle<String> name, int builtin_id, LanguageMode language_mode) {
+    Handle<String> name, Handle<Code> code, int builtin_id,
+    LanguageMode language_mode) {
   DCHECK(Builtins::IsBuiltinId(builtin_id));
 
   NewFunctionArgs args;
   args.name_ = name;
+  args.maybe_code_ = code;
   args.maybe_builtin_id_ = builtin_id;
   args.language_mode_ = language_mode;
   args.prototype_mutability_ = MUTABLE;
@@ -3327,9 +3307,6 @@ Handle<Map> NewFunctionArgs::GetMap(Isolate* isolate) const {
   }
   UNREACHABLE();
 }
-
-#undef RETURN_OBJECT_UNLESS_RETRY
-#undef CALL_HEAP_FUNCTION
 
 }  // namespace internal
 }  // namespace v8

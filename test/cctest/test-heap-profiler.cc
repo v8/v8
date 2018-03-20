@@ -365,23 +365,29 @@ TEST(HeapSnapshotCodeObjects) {
   v8::String::Utf8Value anonymous_name(env->GetIsolate(), anonymous->GetName());
   CHECK_EQ(0, strcmp("", *anonymous_name));
 
-  // Find references to shared function info.
-  const v8::HeapGraphNode* compiled_sfi = GetProperty(
+  // Find references to code.
+  const v8::HeapGraphNode* compiled_code = GetProperty(
       env->GetIsolate(), compiled, v8::HeapGraphEdge::kInternal, "shared");
-  CHECK(compiled_sfi);
-  const v8::HeapGraphNode* lazy_sfi = GetProperty(
+  CHECK(compiled_code);
+  const v8::HeapGraphNode* lazy_code = GetProperty(
       env->GetIsolate(), lazy, v8::HeapGraphEdge::kInternal, "shared");
-  CHECK(lazy_sfi);
+  CHECK(lazy_code);
 
-  // TODO(leszeks): Check that there's bytecode on the compiled function, but
-  // not the lazy function.
+  // Check that there's no strong next_code_link. There might be a weak one
+  // but might be not, so we can't check that fact.
+  const v8::HeapGraphNode* code = GetProperty(
+      env->GetIsolate(), compiled_code, v8::HeapGraphEdge::kInternal, "code");
+  CHECK(code);
+  const v8::HeapGraphNode* next_code_link = GetProperty(
+      env->GetIsolate(), code, v8::HeapGraphEdge::kInternal, "code");
+  CHECK(!next_code_link);
 
-  // Verify that non-compiled function doesn't contain references to "x"
-  // literal, while compiled function does. The scope info is stored in
-  // FixedArray objects attached to the SharedFunctionInfo.
+  // Verify that non-compiled code doesn't contain references to "x"
+  // literal, while compiled code does. The scope info is stored in FixedArray
+  // objects attached to the SharedFunctionInfo.
   bool compiled_references_x = false, lazy_references_x = false;
-  for (int i = 0, count = compiled_sfi->GetChildrenCount(); i < count; ++i) {
-    const v8::HeapGraphEdge* prop = compiled_sfi->GetChild(i);
+  for (int i = 0, count = compiled_code->GetChildrenCount(); i < count; ++i) {
+    const v8::HeapGraphEdge* prop = compiled_code->GetChild(i);
     const v8::HeapGraphNode* node = prop->GetToNode();
     if (node->GetType() == v8::HeapGraphNode::kArray) {
       if (HasString(env->GetIsolate(), node, "x")) {
@@ -390,8 +396,8 @@ TEST(HeapSnapshotCodeObjects) {
       }
     }
   }
-  for (int i = 0, count = lazy_sfi->GetChildrenCount(); i < count; ++i) {
-    const v8::HeapGraphEdge* prop = lazy_sfi->GetChild(i);
+  for (int i = 0, count = lazy_code->GetChildrenCount(); i < count; ++i) {
+    const v8::HeapGraphEdge* prop = lazy_code->GetChild(i);
     const v8::HeapGraphNode* node = prop->GetToNode();
     if (node->GetType() == v8::HeapGraphNode::kArray) {
       if (HasString(env->GetIsolate(), node, "x")) {

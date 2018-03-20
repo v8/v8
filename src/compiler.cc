@@ -143,8 +143,7 @@ void CompilationJob::RecordUnoptimizedCompilationStats(Isolate* isolate) const {
   if (compilation_info()->has_bytecode_array()) {
     code_size = compilation_info()->bytecode_array()->SizeIncludingMetadata();
   } else {
-    DCHECK(compilation_info()->has_asm_wasm_data());
-    code_size = compilation_info()->asm_wasm_data()->Size();
+    code_size = compilation_info()->code()->SizeIncludingMetadata();
   }
 
   Counters* counters = isolate->counters();
@@ -297,14 +296,13 @@ void InstallUnoptimizedCode(CompilationInfo* compilation_info,
   Scope* outer_scope = compilation_info->scope()->GetOuterScopeWithContext();
   if (outer_scope) shared->set_outer_scope_info(*outer_scope->scope_info());
 
-  // We shouldn't have a code object, just bytecode or asm-wasm data.
-  DCHECK(compilation_info->code().is_null());
+  DCHECK(!compilation_info->code().is_null());
+  shared->set_code(*compilation_info->code());
   if (compilation_info->has_bytecode_array()) {
     DCHECK(!shared->HasBytecodeArray());  // Only compiled once.
     DCHECK(!compilation_info->has_asm_wasm_data());
     shared->set_bytecode_array(*compilation_info->bytecode_array());
-  } else {
-    DCHECK(compilation_info->has_asm_wasm_data());
+  } else if (compilation_info->has_asm_wasm_data()) {
     shared->set_asm_wasm_data(*compilation_info->asm_wasm_data());
   }
 
@@ -757,7 +755,7 @@ CompilationJob::Status FinalizeOptimizedCompilationJob(CompilationJob* job,
     PrintF(" because: %s]\n",
            GetBailoutReason(compilation_info->bailout_reason()));
   }
-  compilation_info->closure()->set_code(shared->GetCode());
+  compilation_info->closure()->set_code(shared->code());
   // Clear the InOptimizationQueue marker, if it exists.
   if (compilation_info->closure()->IsInOptimizationQueue()) {
     compilation_info->closure()->ClearOptimizationMarker();
@@ -1069,7 +1067,7 @@ bool Compiler::Compile(Handle<JSFunction> function, ClearExceptionFlag flag) {
 
   // Ensure shared function info is compiled.
   if (!shared_info->is_compiled() && !Compile(shared_info, flag)) return false;
-  Handle<Code> code = handle(shared_info->GetCode(), isolate);
+  Handle<Code> code = handle(shared_info->code(), isolate);
 
   // Allocate FeedbackVector for the JSFunction.
   JSFunction::EnsureFeedbackVector(function);
@@ -1111,8 +1109,7 @@ bool Compiler::CompileOptimized(Handle<JSFunction> function,
     // already if we are optimizing.
     DCHECK(!isolate->has_pending_exception());
     DCHECK(function->shared()->is_compiled());
-    DCHECK(function->shared()->IsInterpreted());
-    code = BUILTIN_CODE(isolate, InterpreterEntryTrampoline);
+    code = handle(function->shared()->code(), isolate);
   }
 
   // Install code on closure.

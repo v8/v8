@@ -9672,8 +9672,9 @@ Local<Function> debug::GetBuiltin(Isolate* v8_isolate, Builtin builtin) {
   }
 
   i::Handle<i::String> name = isolate->factory()->empty_string();
+  i::Handle<i::Code> code(isolate->builtins()->builtin(builtin_id));
   i::NewFunctionArgs args = i::NewFunctionArgs::ForBuiltinWithoutPrototype(
-      name, builtin_id, i::LanguageMode::kSloppy);
+      name, code, builtin_id, i::LanguageMode::kSloppy);
   i::Handle<i::JSFunction> fun = isolate->factory()->NewFunction(args);
 
   fun->shared()->DontAdaptArguments();

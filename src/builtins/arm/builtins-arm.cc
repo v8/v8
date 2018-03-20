@@ -1262,73 +1262,15 @@ void Builtins::Generate_InterpreterEnterBytecodeDispatch(MacroAssembler* masm) {
 }
 
 void Builtins::Generate_CompileLazyDeoptimizedCode(MacroAssembler* masm) {
-  // Set the code slot inside the JSFunction to CompileLazy.
-  __ Move(r2, BUILTIN_CODE(masm->isolate(), CompileLazy));
+  // Set the code slot inside the JSFunction to the trampoline to the
+  // interpreter entry.
+  __ ldr(r2, FieldMemOperand(r1, JSFunction::kSharedFunctionInfoOffset));
+  __ ldr(r2, FieldMemOperand(r2, SharedFunctionInfo::kCodeOffset));
   __ str(r2, FieldMemOperand(r1, JSFunction::kCodeOffset));
   __ RecordWriteField(r1, JSFunction::kCodeOffset, r2, r4, kLRHasNotBeenSaved,
                       kDontSaveFPRegs, OMIT_REMEMBERED_SET, OMIT_SMI_CHECK);
   // Jump to compile lazy.
   Generate_CompileLazy(masm);
-}
-
-static void GetSharedFunctionInfoCode(MacroAssembler* masm, Register sfi_data,
-                                      Register scratch1) {
-  // Figure out the SFI's code object.
-  Label done;
-  Label check_is_bytecode_array;
-  Label check_is_code;
-  Label check_is_fixed_array;
-  Label check_is_pre_parsed_scope_data;
-  Label check_is_function_template_info;
-
-  Register data_type = scratch1;
-
-  // IsSmi: Is builtin
-  __ JumpIfNotSmi(sfi_data, &check_is_bytecode_array);
-  __ Move(scratch1,
-          Operand(ExternalReference::builtins_address(masm->isolate())));
-  __ ldr(sfi_data, MemOperand::PointerAddressFromSmiKey(scratch1, sfi_data));
-  __ b(&done);
-
-  // Get map for subsequent checks.
-  __ bind(&check_is_bytecode_array);
-  __ ldr(data_type, FieldMemOperand(sfi_data, HeapObject::kMapOffset));
-  __ ldrh(data_type, FieldMemOperand(data_type, Map::kInstanceTypeOffset));
-
-  // IsBytecodeArray: Interpret bytecode
-  __ cmp(data_type, Operand(BYTECODE_ARRAY_TYPE));
-  __ b(ne, &check_is_code);
-  __ Move(sfi_data, BUILTIN_CODE(masm->isolate(), InterpreterEntryTrampoline));
-  __ b(&done);
-
-  // IsCode: Run code
-  __ bind(&check_is_code);
-  __ cmp(data_type, Operand(CODE_TYPE));
-  __ b(eq, &done);
-
-  // IsFixedArray: Instantiate using AsmWasmData,
-  __ bind(&check_is_fixed_array);
-  __ cmp(data_type, Operand(FIXED_ARRAY_TYPE));
-  __ b(ne, &check_is_pre_parsed_scope_data);
-  __ Move(sfi_data, BUILTIN_CODE(masm->isolate(), InstantiateAsmJs));
-  __ b(&done);
-
-  // IsPreParsedScopeData: Compile lazy
-  __ bind(&check_is_pre_parsed_scope_data);
-  __ cmp(data_type, Operand(TUPLE2_TYPE));
-  __ b(ne, &check_is_function_template_info);
-  __ Move(sfi_data, BUILTIN_CODE(masm->isolate(), CompileLazy));
-  __ b(&done);
-
-  // IsFunctionTemplateInfo: API call
-  __ bind(&check_is_function_template_info);
-  if (FLAG_debug_code) {
-    __ cmp(data_type, Operand(FUNCTION_TEMPLATE_INFO_TYPE));
-    __ Assert(eq, AbortReason::kInvalidSharedFunctionInfoData);
-  }
-  __ Move(sfi_data, BUILTIN_CODE(masm->isolate(), HandleApiCall));
-
-  __ bind(&done);
 }
 
 void Builtins::Generate_CompileLazy(MacroAssembler* masm) {
@@ -1353,15 +1295,13 @@ void Builtins::Generate_CompileLazy(MacroAssembler* masm) {
   // Is there an optimization marker or optimized code in the feedback vector?
   MaybeTailCallOptimizedCodeSlot(masm, feedback_vector, r4, r6, r5);
 
-  // We found no optimized code. Infer the code object needed for the SFI.
+  // We found no optimized code.
   Register entry = r4;
   __ ldr(entry,
          FieldMemOperand(closure, JSFunction::kSharedFunctionInfoOffset));
-  __ ldr(entry,
-         FieldMemOperand(entry, SharedFunctionInfo::kFunctionDataOffset));
-  GetSharedFunctionInfoCode(masm, entry, r5);
 
-  // If code entry points to anything other than CompileLazy, install that.
+  // If SFI points to anything other than CompileLazy, install that.
+  __ ldr(entry, FieldMemOperand(entry, SharedFunctionInfo::kCodeOffset));
   __ Move(r5, masm->CodeObject());
   __ cmp(entry, r5);
   __ b(eq, &gotta_call_runtime);
@@ -1431,9 +1371,25 @@ void Builtins::Generate_DeserializeLazy(MacroAssembler* masm) {
 
   {
     // If we've reached this spot, the target builtin has been deserialized and
-    // we simply need to copy it over to the target function.
+    // we simply need to copy it over. First to the shared function info.
 
     Register target_builtin = scratch1;
+    Register shared = scratch0;
+
+    __ ldr(shared,
+           FieldMemOperand(target, JSFunction::kSharedFunctionInfoOffset));
+
+    CHECK(r5 != target && r5 != scratch0 && r5 != scratch1);
+    CHECK(r9 != target && r9 != scratch0 && r9 != scratch1);
+
+    __ str(target_builtin,
+           FieldMemOperand(shared, SharedFunctionInfo::kCodeOffset));
+    __ mov(r9, target_builtin);  // Write barrier clobbers r9 below.
+    __ RecordWriteField(shared, SharedFunctionInfo::kCodeOffset, r9, r5,
+                        kLRHasNotBeenSaved, kDontSaveFPRegs,
+                        OMIT_REMEMBERED_SET, OMIT_SMI_CHECK);
+
+    // And second to the target function.
 
     __ str(target_builtin, FieldMemOperand(target, JSFunction::kCodeOffset));
     __ mov(r9, target_builtin);  // Write barrier clobbers r9 below.

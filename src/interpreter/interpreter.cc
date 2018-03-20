@@ -223,6 +223,8 @@ InterpreterCompilationJob::Status InterpreterCompilationJob::FinalizeJobImpl(
   }
 
   compilation_info()->SetBytecodeArray(bytecodes);
+  compilation_info()->SetCode(
+      BUILTIN_CODE(isolate, InterpreterEntryTrampoline));
   return SUCCEEDED;
 }
 

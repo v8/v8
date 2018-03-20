@@ -92,7 +92,7 @@ AbstractCode* SharedFunctionInfo::abstract_code() {
   if (HasBytecodeArray()) {
     return AbstractCode::cast(bytecode_array());
   } else {
-    return AbstractCode::cast(GetCode());
+    return AbstractCode::cast(code());
   }
 }
 
@@ -211,8 +211,7 @@ BIT_FIELD_ACCESSORS(SharedFunctionInfo, debugger_hints,
                     SharedFunctionInfo::HasReportedBinaryCoverageBit)
 
 void SharedFunctionInfo::DontAdaptArguments() {
-  // TODO(leszeks): Revise this DCHECK now that the code field is gone.
-  DCHECK(!HasCodeObject());
+  DCHECK(code()->kind() == Code::BUILTIN || code()->kind() == Code::STUB);
   set_internal_formal_parameter_count(kDontAdaptArgumentsSentinel);
 }
 
@@ -237,44 +236,23 @@ int SharedFunctionInfo::EndPosition() const {
   return info->EndPosition();
 }
 
-Code* SharedFunctionInfo::GetCode() const {
-  // ======
-  // NOTE: This chain of checks MUST be kept in sync with the equivalent CSA
-  // GetSharedFunctionInfoCode method in code-stub-assembler.cc, and the
-  // architecture-specific GetSharedFunctionInfoCode methods in builtins-*.cc.
-  // ======
-
-  Isolate* isolate = GetIsolate();
-  Object* data = function_data();
-  if (data->IsSmi()) {
-    // Holding a Smi means we are a builtin.
-    DCHECK(HasBuiltinId());
-    return isolate->builtins()->builtin(builtin_id());
-  } else if (data->IsBytecodeArray()) {
-    // Having a bytecode array means we are a compiled, interpreted function.
-    DCHECK(HasBytecodeArray());
-    return isolate->builtins()->builtin(Builtins::kInterpreterEntryTrampoline);
-  } else if (data->IsFixedArray()) {
-    // Having a fixed array means we are an asm.js/wasm function.
-    DCHECK(HasAsmWasmData());
-    return isolate->builtins()->builtin(Builtins::kInstantiateAsmJs);
-  } else if (data->IsPreParsedScopeData()) {
-    // Having pre-parsed scope data means we need to compile.
-    DCHECK(HasPreParsedScopeData());
-    return isolate->builtins()->builtin(Builtins::kCompileLazy);
-  } else if (data->IsFunctionTemplateInfo()) {
-    // Having a function template info means we are an API function.
-    DCHECK(IsApiFunction());
-    return isolate->builtins()->builtin(Builtins::kHandleApiCall);
-  } else if (data->IsCode()) {
-    // Having a code object means we should run it.
-    DCHECK(HasCodeObject());
-    return Code::cast(data);
-  }
-  UNREACHABLE();
+Code* SharedFunctionInfo::code() const {
+  return Code::cast(READ_FIELD(this, kCodeOffset));
 }
 
-bool SharedFunctionInfo::IsInterpreted() const { return HasBytecodeArray(); }
+void SharedFunctionInfo::set_code(Code* value, WriteBarrierMode mode) {
+  DCHECK(value->kind() != Code::OPTIMIZED_FUNCTION);
+  // If the SharedFunctionInfo has bytecode we should never mark it for lazy
+  // compile, since the bytecode is never flushed.
+  DCHECK(value != GetIsolate()->builtins()->builtin(Builtins::kCompileLazy) ||
+         !HasBytecodeArray());
+  WRITE_FIELD(this, kCodeOffset, value);
+  CONDITIONAL_WRITE_BARRIER(value->GetHeap(), this, kCodeOffset, value, mode);
+}
+
+bool SharedFunctionInfo::IsInterpreted() const {
+  return code()->is_interpreter_trampoline_builtin();
+}
 
 ScopeInfo* SharedFunctionInfo::scope_info() const {
   Object* maybe_scope_info = name_or_scope_info();
@@ -309,9 +287,8 @@ ACCESSORS(SharedFunctionInfo, outer_scope_info, HeapObject,
           kOuterScopeInfoOffset)
 
 bool SharedFunctionInfo::is_compiled() const {
-  Object* data = function_data();
-  return data != Smi::FromEnum(Builtins::kCompileLazy) &&
-         !data->IsPreParsedScopeData();
+  Builtins* builtins = GetIsolate()->builtins();
+  return code() != builtins->builtin(Builtins::kCompileLazy);
 }
 
 int SharedFunctionInfo::GetLength() const {
@@ -335,13 +312,18 @@ bool SharedFunctionInfo::HasDebugInfo() const {
   return has_debug_info;
 }
 
-bool SharedFunctionInfo::IsApiFunction() const {
+bool SharedFunctionInfo::IsApiFunction() {
   return function_data()->IsFunctionTemplateInfo();
 }
 
 FunctionTemplateInfo* SharedFunctionInfo::get_api_func_data() {
   DCHECK(IsApiFunction());
   return FunctionTemplateInfo::cast(function_data());
+}
+
+void SharedFunctionInfo::set_api_func_data(FunctionTemplateInfo* data) {
+  DCHECK(function_data()->IsUndefined(GetIsolate()));
+  set_function_data(data);
 }
 
 bool SharedFunctionInfo::HasBytecodeArray() const {
@@ -354,14 +336,13 @@ BytecodeArray* SharedFunctionInfo::bytecode_array() const {
 }
 
 void SharedFunctionInfo::set_bytecode_array(BytecodeArray* bytecode) {
-  DCHECK(function_data() == Smi::FromEnum(Builtins::kCompileLazy));
+  DCHECK(function_data()->IsUndefined(GetIsolate()));
   set_function_data(bytecode);
 }
 
 void SharedFunctionInfo::ClearBytecodeArray() {
-  DCHECK(function_data() == Smi::FromEnum(Builtins::kCompileLazy) ||
-         HasBytecodeArray());
-  set_builtin_id(Builtins::kCompileLazy);
+  DCHECK(function_data()->IsUndefined(GetIsolate()) || HasBytecodeArray());
+  set_function_data(GetHeap()->undefined_value());
 }
 
 bool SharedFunctionInfo::HasAsmWasmData() const {
@@ -374,31 +355,24 @@ FixedArray* SharedFunctionInfo::asm_wasm_data() const {
 }
 
 void SharedFunctionInfo::set_asm_wasm_data(FixedArray* data) {
-  DCHECK(function_data() == Smi::FromEnum(Builtins::kCompileLazy) ||
-         HasAsmWasmData());
+  DCHECK(function_data()->IsUndefined(GetIsolate()) || HasAsmWasmData());
   set_function_data(data);
 }
 
 void SharedFunctionInfo::ClearAsmWasmData() {
-  DCHECK(HasAsmWasmData());
-  set_builtin_id(Builtins::kCompileLazy);
+  DCHECK(function_data()->IsUndefined(GetIsolate()) || HasAsmWasmData());
+  set_function_data(GetHeap()->undefined_value());
 }
 
-bool SharedFunctionInfo::HasBuiltinId() const {
+bool SharedFunctionInfo::HasLazyDeserializationBuiltinId() const {
   return function_data()->IsSmi();
 }
 
-int SharedFunctionInfo::builtin_id() const {
-  DCHECK(HasBuiltinId());
+int SharedFunctionInfo::lazy_deserialization_builtin_id() const {
+  DCHECK(HasLazyDeserializationBuiltinId());
   int id = Smi::ToInt(function_data());
   DCHECK(Builtins::IsBuiltinId(id));
   return id;
-}
-
-void SharedFunctionInfo::set_builtin_id(int builtin_id) {
-  DCHECK(Builtins::IsBuiltinId(builtin_id));
-  DCHECK_NE(builtin_id, Builtins::kDeserializeLazy);
-  set_function_data(Smi::FromInt(builtin_id), SKIP_WRITE_BARRIER);
 }
 
 bool SharedFunctionInfo::HasPreParsedScopeData() const {
@@ -412,18 +386,13 @@ PreParsedScopeData* SharedFunctionInfo::preparsed_scope_data() const {
 
 void SharedFunctionInfo::set_preparsed_scope_data(
     PreParsedScopeData* preparsed_scope_data) {
-  DCHECK(function_data() == Smi::FromEnum(Builtins::kCompileLazy));
+  DCHECK(function_data()->IsUndefined(GetIsolate()));
   set_function_data(preparsed_scope_data);
 }
 
 void SharedFunctionInfo::ClearPreParsedScopeData() {
-  DCHECK(function_data() == Smi::FromEnum(Builtins::kCompileLazy) ||
-         HasPreParsedScopeData());
-  set_builtin_id(Builtins::kCompileLazy);
-}
-
-bool SharedFunctionInfo::HasCodeObject() const {
-  return function_data()->IsCode();
+  DCHECK(function_data()->IsUndefined(GetIsolate()) || HasPreParsedScopeData());
+  set_function_data(GetHeap()->undefined_value());
 }
 
 bool SharedFunctionInfo::HasBuiltinFunctionId() {

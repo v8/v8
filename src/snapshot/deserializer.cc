@@ -253,12 +253,6 @@ HeapObject* Deserializer<AllocatorT>::PostProcessNewObject(HeapObject* obj,
     bytecode_array->set_interrupt_budget(
         interpreter::Interpreter::InterruptBudget());
     bytecode_array->set_osr_loop_nesting_level(0);
-  } else if (obj->IsSharedFunctionInfo()) {
-    SharedFunctionInfo* shared = SharedFunctionInfo::cast(obj);
-    // TODO(leszeks): Maybe just serialize SFIs with the CompileLazy builtin id.
-    if (shared->function_data()->IsUndefined(isolate())) {
-      shared->set_function_data(Smi::FromEnum(Builtins::kCompileLazy));
-    }
   }
   // Check alignment.
   DCHECK_EQ(0, Heap::GetFillToAlign(obj->address(),

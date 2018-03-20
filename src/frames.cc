@@ -1916,7 +1916,6 @@ void JavaScriptFrame::Print(StringStream* accumulator,
   Code* code = nullptr;
   if (IsConstructor()) accumulator->Add("new ");
   accumulator->PrintFunction(function, receiver, &code);
-  accumulator->Add(" [%p]", function);
 
   // Get scope information for nicer output, if possible. If code is nullptr, or
   // doesn't contain scope info, scope_info will return 0 for the number of
