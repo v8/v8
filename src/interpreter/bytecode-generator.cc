@@ -804,39 +804,40 @@ class BytecodeGenerator::CurrentScope final {
 
 class BytecodeGenerator::FeedbackSlotCache : public ZoneObject {
  public:
-  typedef std::pair<TypeofMode, void*> Key;
-
   explicit FeedbackSlotCache(Zone* zone) : map_(zone) {}
 
-  void Put(TypeofMode typeof_mode, Variable* variable, FeedbackSlot slot) {
-    Key key = std::make_pair(typeof_mode, variable);
-    auto entry = std::make_pair(key, slot);
-    map_.insert(entry);
+  void Put(FeedbackSlotKind slot_kind, Variable* variable, FeedbackSlot slot) {
+    PutImpl(slot_kind, variable, slot);
   }
-  void Put(AstNode* node, FeedbackSlot slot) {
-    Key key = std::make_pair(NOT_INSIDE_TYPEOF, node);
-    auto entry = std::make_pair(key, slot);
-    map_.insert(entry);
+  void Put(FeedbackSlotKind slot_kind, AstNode* node, FeedbackSlot slot) {
+    PutImpl(slot_kind, node, slot);
   }
 
-  FeedbackSlot Get(TypeofMode typeof_mode, Variable* variable) const {
-    Key key = std::make_pair(typeof_mode, variable);
-    auto iter = map_.find(key);
-    if (iter != map_.end()) {
-      return iter->second;
-    }
-    return FeedbackSlot();
+  FeedbackSlot Get(FeedbackSlotKind slot_kind, Variable* variable) const {
+    return GetImpl(slot_kind, variable);
   }
-  FeedbackSlot Get(AstNode* node) const {
-    Key key = std::make_pair(NOT_INSIDE_TYPEOF, node);
-    auto iter = map_.find(key);
-    if (iter != map_.end()) {
-      return iter->second;
-    }
-    return FeedbackSlot();
+  FeedbackSlot Get(FeedbackSlotKind slot_kind, AstNode* node) const {
+    return GetImpl(slot_kind, node);
   }
 
  private:
+  typedef std::pair<FeedbackSlotKind, void*> Key;
+
+  void PutImpl(FeedbackSlotKind slot_kind, void* node, FeedbackSlot slot) {
+    Key key = std::make_pair(slot_kind, node);
+    auto entry = std::make_pair(key, slot);
+    map_.insert(entry);
+  }
+
+  FeedbackSlot GetImpl(FeedbackSlotKind slot_kind, void* node) const {
+    Key key = std::make_pair(slot_kind, node);
+    auto iter = map_.find(key);
+    if (iter != map_.end()) {
+      return iter->second;
+    }
+    return FeedbackSlot();
+  }
+
   ZoneMap<Key, FeedbackSlot> map_;
 };
 
@@ -2658,9 +2659,7 @@ void BytecodeGenerator::BuildVariableAssignment(
       break;
     }
     case VariableLocation::UNALLOCATED: {
-      // TODO(ishell): consider using FeedbackSlotCache for variables here.
-      FeedbackSlot slot =
-          feedback_spec()->AddStoreGlobalICSlot(language_mode());
+      FeedbackSlot slot = GetCachedStoreGlobalICSlot(language_mode(), variable);
       builder()->StoreGlobal(variable->raw_name(), feedback_index(slot));
       break;
     }
@@ -4963,23 +4962,42 @@ int BytecodeGenerator::feedback_index(FeedbackSlot slot) const {
 
 FeedbackSlot BytecodeGenerator::GetCachedLoadGlobalICSlot(
     TypeofMode typeof_mode, Variable* variable) {
-  FeedbackSlot slot = feedback_slot_cache()->Get(typeof_mode, variable);
+  FeedbackSlotKind slot_kind =
+      typeof_mode == INSIDE_TYPEOF
+          ? FeedbackSlotKind::kLoadGlobalInsideTypeof
+          : FeedbackSlotKind::kLoadGlobalNotInsideTypeof;
+  FeedbackSlot slot = feedback_slot_cache()->Get(slot_kind, variable);
   if (!slot.IsInvalid()) {
     return slot;
   }
   slot = feedback_spec()->AddLoadGlobalICSlot(typeof_mode);
-  feedback_slot_cache()->Put(typeof_mode, variable, slot);
+  feedback_slot_cache()->Put(slot_kind, variable, slot);
+  return slot;
+}
+
+FeedbackSlot BytecodeGenerator::GetCachedStoreGlobalICSlot(
+    LanguageMode language_mode, Variable* variable) {
+  FeedbackSlotKind slot_kind = is_strict(language_mode)
+                                   ? FeedbackSlotKind::kStoreGlobalStrict
+                                   : FeedbackSlotKind::kStoreGlobalSloppy;
+  FeedbackSlot slot = feedback_slot_cache()->Get(slot_kind, variable);
+  if (!slot.IsInvalid()) {
+    return slot;
+  }
+  slot = feedback_spec()->AddStoreGlobalICSlot(language_mode);
+  feedback_slot_cache()->Put(slot_kind, variable, slot);
   return slot;
 }
 
 FeedbackSlot BytecodeGenerator::GetCachedCreateClosureSlot(
     FunctionLiteral* literal) {
-  FeedbackSlot slot = feedback_slot_cache()->Get(literal);
+  FeedbackSlotKind slot_kind = FeedbackSlotKind::kCreateClosure;
+  FeedbackSlot slot = feedback_slot_cache()->Get(slot_kind, literal);
   if (!slot.IsInvalid()) {
     return slot;
   }
   slot = feedback_spec()->AddCreateClosureSlot();
-  feedback_slot_cache()->Put(literal, slot);
+  feedback_slot_cache()->Put(slot_kind, literal, slot);
   return slot;
 }
 
