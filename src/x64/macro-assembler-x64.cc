@@ -1144,15 +1144,19 @@ void TurboAssembler::MoveNumber(Register dst, double value) {
 
 void TurboAssembler::Move(XMMRegister dst, uint32_t src) {
   if (src == 0) {
-    Xorpd(dst, dst);
+    Xorps(dst, dst);
   } else {
+    unsigned nlz = base::bits::CountLeadingZeros(src);
+    unsigned ntz = base::bits::CountTrailingZeros(src);
     unsigned pop = base::bits::CountPopulation(src);
     DCHECK_NE(0u, pop);
-    if (pop == 32) {
+    if (pop + ntz + nlz == 32) {
       Pcmpeqd(dst, dst);
+      if (ntz) Pslld(dst, static_cast<byte>(ntz + nlz));
+      if (nlz) Psrld(dst, static_cast<byte>(nlz));
     } else {
       movl(kScratchRegister, Immediate(src));
-      Movq(dst, kScratchRegister);
+      Movd(dst, kScratchRegister);
     }
   }
 }
@@ -1165,14 +1169,10 @@ void TurboAssembler::Move(XMMRegister dst, uint64_t src) {
     unsigned ntz = base::bits::CountTrailingZeros(src);
     unsigned pop = base::bits::CountPopulation(src);
     DCHECK_NE(0u, pop);
-    if (pop == 64) {
+    if (pop + ntz + nlz == 64) {
       Pcmpeqd(dst, dst);
-    } else if (pop + ntz == 64) {
-      Pcmpeqd(dst, dst);
-      Psllq(dst, static_cast<byte>(ntz));
-    } else if (pop + nlz == 64) {
-      Pcmpeqd(dst, dst);
-      Psrlq(dst, static_cast<byte>(nlz));
+      if (ntz) Psllq(dst, static_cast<byte>(ntz + nlz));
+      if (nlz) Psrlq(dst, static_cast<byte>(nlz));
     } else {
       uint32_t lower = static_cast<uint32_t>(src);
       uint32_t upper = static_cast<uint32_t>(src >> 32);
