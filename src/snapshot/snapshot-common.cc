@@ -147,22 +147,19 @@ void Snapshot::EnsureBuiltinIsDeserialized(Isolate* isolate,
 
   int builtin_id = shared->lazy_deserialization_builtin_id();
 
-  // At this point, the builtins table should definitely have DeserializeLazy
-  // set at the position of the target builtin. Also, we should never lazily
-  // deserialize DeserializeLazy.
-
+  // We should never lazily deserialize DeserializeLazy.
   DCHECK_NE(Builtins::kDeserializeLazy, builtin_id);
-  DCHECK_EQ(Builtins::kDeserializeLazy,
-            isolate->builtins()->builtin(builtin_id)->builtin_index());
 
-  // The DeserializeLazy builtin tail-calls the deserialized builtin. This only
-  // works with JS-linkage.
-  DCHECK(Builtins::IsLazy(builtin_id));
-  DCHECK_EQ(Builtins::TFJ, Builtins::KindOf(builtin_id));
+  // Look up code from builtins list.
+  Code* code = isolate->builtins()->builtin(builtin_id);
 
-  Code* code = Snapshot::DeserializeBuiltin(isolate, builtin_id);
-  DCHECK_EQ(builtin_id, code->builtin_index());
-  DCHECK_EQ(code, isolate->builtins()->builtin(builtin_id));
+  // Deserialize if builtin is not on the list.
+  if (code->builtin_index() != builtin_id) {
+    DCHECK_EQ(code->builtin_index(), Builtins::kDeserializeLazy);
+    code = Snapshot::DeserializeBuiltin(isolate, builtin_id);
+    DCHECK_EQ(builtin_id, code->builtin_index());
+    DCHECK_EQ(code, isolate->builtins()->builtin(builtin_id));
+  }
   shared->set_code(code);
 }
 

@@ -136,7 +136,6 @@
 
   # https://crbug.com/v8/7543
   'test-debug/BreakPointJSBuiltin': [SKIP],
-  'test-debug/BreakPointBuiltin': [SKIP],
 }],  # ALWAYS
 
 ##############################################################################
