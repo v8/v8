@@ -203,8 +203,14 @@ void WasmCode::Disassemble(const char* name, Isolate* isolate,
 
 #ifdef ENABLE_DISASSEMBLER
 
-  size_t instruction_size =
-      std::min(constant_pool_offset_, safepoint_table_offset_);
+  size_t instruction_size = body_size;
+  if (constant_pool_offset_ && constant_pool_offset_ < instruction_size) {
+    instruction_size = constant_pool_offset_;
+  }
+  if (safepoint_table_offset_ && safepoint_table_offset_ < instruction_size) {
+    instruction_size = safepoint_table_offset_;
+  }
+  DCHECK_LT(0, instruction_size);
   os << "Instructions (size = " << instruction_size << ")\n";
   // TODO(mtrofin): rework the dependency on isolate and code in
   // Disassembler::Decode.

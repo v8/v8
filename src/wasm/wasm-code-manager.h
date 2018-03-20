@@ -164,7 +164,11 @@ class V8_EXPORT_PRIVATE WasmCode final {
         safepoint_table_offset_(safepoint_table_offset),
         handler_table_offset_(handler_table_offset),
         protected_instructions_(std::move(protected_instructions)),
-        tier_(tier) {}
+        tier_(tier) {
+    DCHECK_LE(safepoint_table_offset, instructions.size());
+    DCHECK_LE(constant_pool_offset, instructions.size());
+    DCHECK_LE(handler_table_offset, instructions.size());
+  }
 
   WasmCode(const WasmCode&) = delete;
   WasmCode& operator=(const WasmCode&) = delete;

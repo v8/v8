@@ -175,7 +175,6 @@ void DependentCode::copy(int from, int to) {
 
 INT_ACCESSORS(Code, instruction_size, kInstructionSizeOffset)
 INT_ACCESSORS(Code, handler_table_offset, kHandlerTableOffsetOffset)
-INT_ACCESSORS(Code, constant_pool_offset, kConstantPoolOffset)
 #define CODE_ACCESSORS(name, type, offset)           \
   ACCESSORS_CHECKED2(Code, name, type, offset, true, \
                      !GetHeap()->InNewSpace(value))
@@ -503,15 +502,24 @@ bool Code::is_stub() const { return kind() == STUB; }
 bool Code::is_optimized_code() const { return kind() == OPTIMIZED_FUNCTION; }
 bool Code::is_wasm_code() const { return kind() == WASM_FUNCTION; }
 
+int Code::constant_pool_offset() const {
+  if (!FLAG_enable_embedded_constant_pool) return instruction_size();
+  return READ_INT_FIELD(this, kConstantPoolOffset);
+}
+
+void Code::set_constant_pool_offset(int value) {
+  if (!FLAG_enable_embedded_constant_pool) return;
+  WRITE_INT_FIELD(this, kConstantPoolOffset, value);
+}
+
 Address Code::constant_pool() {
-  Address constant_pool = nullptr;
   if (FLAG_enable_embedded_constant_pool) {
     int offset = constant_pool_offset();
     if (offset < instruction_size()) {
-      constant_pool = FIELD_ADDR(this, kHeaderSize + offset);
+      return FIELD_ADDR(this, kHeaderSize + offset);
     }
   }
-  return constant_pool;
+  return nullptr;
 }
 
 Code* Code::GetCodeFromTargetAddress(Address address) {
