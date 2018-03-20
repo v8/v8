@@ -891,12 +891,8 @@ void InstructionSelector::InitializeCallBuffer(Node* call, CallBuffer* buffer,
               ? g.UseImmediate(callee)
               : call_use_fixed_target_reg
                     ? g.UseFixed(callee, kJavaScriptCallCodeStartRegister)
-#ifdef V8_EMBEDDED_BUILTINS
                     : is_tail_call ? g.UseUniqueRegister(callee)
                                    : g.UseRegister(callee));
-#else
-                    : g.UseRegister(callee));
-#endif
       break;
     case CallDescriptor::kCallAddress:
       buffer->instruction_args.push_back(

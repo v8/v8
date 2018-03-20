@@ -207,6 +207,7 @@ TF_BUILTIN(DebugBreakTrampoline, CodeStubAssembler) {
       CAST(LoadObjectField(shared, SharedFunctionInfo::kCodeOffset));
   // Use the ConstructTrampolineDescriptor because it passes new.target too in
   // case this is called during construct.
+  CSA_ASSERT(this, IsCode(code));
   ConstructTrampolineDescriptor descriptor(isolate());
   TailCallStub(descriptor, code, context, function, new_target, arg_count);
 }

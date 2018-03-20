@@ -133,9 +133,6 @@
   'test-serialize/StartupSerializerTwice': [SKIP],
   'test-serialize/StartupSerializerOnceRunScript': [SKIP],
   'test-serialize/StartupSerializerTwiceRunScript': [SKIP],
-
-  # https://crbug.com/v8/7543
-  'test-debug/BreakPointJSBuiltin': [SKIP],
 }],  # ALWAYS
 
 ##############################################################################
