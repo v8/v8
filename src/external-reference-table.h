@@ -50,12 +50,6 @@ class ExternalReferenceTable {
 
   static const char* ResolveSymbol(void* address);
 
-  static uint32_t OffsetOfEntry(uint32_t i) {
-    // Used in CodeAssembler::LookupExternalReference.
-    STATIC_ASSERT(offsetof(ExternalReferenceEntry, address) == 0);
-    return i * sizeof(ExternalReferenceEntry);
-  }
-
  private:
   struct ExternalReferenceEntry {
     Address address;

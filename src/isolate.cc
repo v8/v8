@@ -2586,6 +2586,8 @@ void Isolate::GlobalTearDown() {
 
 
 void Isolate::ClearSerializerData() {
+  delete external_reference_table_;
+  external_reference_table_ = nullptr;
   delete external_reference_map_;
   external_reference_map_ = nullptr;
 }
@@ -2672,9 +2674,6 @@ void Isolate::Deinit() {
 
   delete root_index_map_;
   root_index_map_ = nullptr;
-
-  delete external_reference_table_;
-  external_reference_table_ = nullptr;
 
   ClearSerializerData();
 }
@@ -2889,14 +2888,6 @@ void Isolate::PrepareEmbeddedBlobForSerialization() {
   embedded_blob_size_ = size;
 
   CreateOffHeapTrampolines(this);
-}
-
-// static
-int32_t Isolate::offset_from_roots_to_external_reference_table() {
-  int32_t isolate_to_roots = OFFSET_OF(Isolate, heap_.roots_);
-  int32_t isolate_to_external_reference_table =
-      OFFSET_OF(Isolate, external_reference_table_);
-  return isolate_to_external_reference_table - isolate_to_roots;
 }
 #endif  // V8_EMBEDDED_BUILTINS
 
