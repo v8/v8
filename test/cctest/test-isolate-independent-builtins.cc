@@ -22,8 +22,6 @@ namespace test_isolate_independent_builtins {
 
 #ifdef V8_EMBEDDED_BUILTINS
 UNINITIALIZED_TEST(VerifyBuiltinsIsolateIndependence) {
-  FLAG_stress_off_heap_code = false;  // Disable off-heap trampolines.
-
   v8::Isolate::CreateParams create_params;
   create_params.array_buffer_allocator = CcTest::array_buffer_allocator();
   v8::Isolate* v8_isolate = v8::Isolate::New(create_params);
