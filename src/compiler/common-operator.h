@@ -69,8 +69,9 @@ inline bool operator==(const BranchOperatorInfo& a,
 }
 
 V8_EXPORT_PRIVATE const BranchOperatorInfo& BranchOperatorInfoOf(
-    const Operator* const);
-V8_EXPORT_PRIVATE BranchHint BranchHintOf(const Operator* const);
+    const Operator* const) WARN_UNUSED_RESULT;
+V8_EXPORT_PRIVATE BranchHint BranchHintOf(const Operator* const)
+    WARN_UNUSED_RESULT;
 
 // Helper function for return nodes, because returns have a hidden value input.
 int ValueInputCountOfReturn(Operator const* const op);
@@ -105,9 +106,10 @@ size_t hast_value(DeoptimizeParameters p);
 
 std::ostream& operator<<(std::ostream&, DeoptimizeParameters p);
 
-DeoptimizeParameters const& DeoptimizeParametersOf(Operator const* const);
+DeoptimizeParameters const& DeoptimizeParametersOf(Operator const* const)
+    WARN_UNUSED_RESULT;
 
-IsSafetyCheck IsSafetyCheckOf(const Operator* op);
+IsSafetyCheck IsSafetyCheckOf(const Operator* op) WARN_UNUSED_RESULT;
 
 class SelectParameters final {
  public:
@@ -131,14 +133,16 @@ size_t hash_value(SelectParameters const& p);
 std::ostream& operator<<(std::ostream&, SelectParameters const& p);
 
 V8_EXPORT_PRIVATE SelectParameters const& SelectParametersOf(
-    const Operator* const);
+    const Operator* const) WARN_UNUSED_RESULT;
 
-V8_EXPORT_PRIVATE CallDescriptor const* CallDescriptorOf(const Operator* const);
+V8_EXPORT_PRIVATE CallDescriptor const* CallDescriptorOf(const Operator* const)
+    WARN_UNUSED_RESULT;
 
-V8_EXPORT_PRIVATE size_t ProjectionIndexOf(const Operator* const);
+V8_EXPORT_PRIVATE size_t ProjectionIndexOf(const Operator* const)
+    WARN_UNUSED_RESULT;
 
 V8_EXPORT_PRIVATE MachineRepresentation
-PhiRepresentationOf(const Operator* const);
+PhiRepresentationOf(const Operator* const) WARN_UNUSED_RESULT;
 
 // The {IrOpcode::kParameter} opcode represents an incoming parameter to the
 // function. This class bundles the index and a debug name for such operators.
@@ -157,8 +161,9 @@ class ParameterInfo final {
 
 std::ostream& operator<<(std::ostream&, ParameterInfo const&);
 
-V8_EXPORT_PRIVATE int ParameterIndexOf(const Operator* const);
-const ParameterInfo& ParameterInfoOf(const Operator* const);
+V8_EXPORT_PRIVATE int ParameterIndexOf(const Operator* const)
+    WARN_UNUSED_RESULT;
+const ParameterInfo& ParameterInfoOf(const Operator* const) WARN_UNUSED_RESULT;
 
 struct ObjectStateInfo final : std::pair<uint32_t, int> {
   ObjectStateInfo(uint32_t object_id, int size)
@@ -342,9 +347,9 @@ std::ostream& operator<<(std::ostream& os,
 
 Type* TypeGuardTypeOf(Operator const*) WARN_UNUSED_RESULT;
 
-int OsrValueIndexOf(Operator const*);
+int OsrValueIndexOf(Operator const*) WARN_UNUSED_RESULT;
 
-SparseInputMask SparseInputMaskOf(Operator const*);
+SparseInputMask SparseInputMaskOf(Operator const*) WARN_UNUSED_RESULT;
 
 ZoneVector<MachineType> const* MachineTypesOf(Operator const*)
     WARN_UNUSED_RESULT;
@@ -374,7 +379,8 @@ ArgumentsStateType ArgumentsStateTypeOf(Operator const*) WARN_UNUSED_RESULT;
 
 uint32_t ObjectIdOf(Operator const*);
 
-MachineRepresentation DeadValueRepresentationOf(Operator const*);
+MachineRepresentation DeadValueRepresentationOf(Operator const*)
+    WARN_UNUSED_RESULT;
 
 class IfValueParameters final {
  public:

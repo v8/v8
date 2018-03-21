@@ -76,7 +76,8 @@ size_t hash_value(FieldAccess const&);
 
 V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream&, FieldAccess const&);
 
-FieldAccess const& FieldAccessOf(const Operator* op) WARN_UNUSED_RESULT;
+V8_EXPORT_PRIVATE FieldAccess const& FieldAccessOf(const Operator* op)
+    WARN_UNUSED_RESULT;
 
 template <>
 void Operator1<FieldAccess>::PrintParameter(std::ostream& os,
@@ -123,7 +124,8 @@ V8_EXPORT_PRIVATE ElementAccess const& ElementAccessOf(const Operator* op)
 ExternalArrayType ExternalArrayTypeOf(const Operator* op) WARN_UNUSED_RESULT;
 
 // The ConvertReceiverMode is used as parameter by ConvertReceiver operators.
-ConvertReceiverMode ConvertReceiverModeOf(Operator const* op);
+ConvertReceiverMode ConvertReceiverModeOf(Operator const* op)
+    WARN_UNUSED_RESULT;
 
 // A the parameters for several Check nodes. The {feedback} parameter is
 // optional. If {feedback} references a valid CallIC slot and this MapCheck
@@ -362,11 +364,11 @@ ElementsTransition const& ElementsTransitionOf(const Operator* op)
 // Parameters for TransitionAndStoreElement, or
 // TransitionAndStoreNonNumberElement, or
 // TransitionAndStoreNumberElement.
-Handle<Map> DoubleMapParameterOf(const Operator* op);
-Handle<Map> FastMapParameterOf(const Operator* op);
+Handle<Map> DoubleMapParameterOf(const Operator* op) WARN_UNUSED_RESULT;
+Handle<Map> FastMapParameterOf(const Operator* op) WARN_UNUSED_RESULT;
 
 // Parameters for TransitionAndStoreNonNumberElement.
-Type* ValueTypeParameterOf(const Operator* op);
+Type* ValueTypeParameterOf(const Operator* op) WARN_UNUSED_RESULT;
 
 // A hint for speculative number operations.
 enum class NumberOperationHint : uint8_t {
@@ -381,7 +383,7 @@ size_t hash_value(NumberOperationHint);
 
 V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream&, NumberOperationHint);
 
-NumberOperationHint NumberOperationHintOf(const Operator* op)
+V8_EXPORT_PRIVATE NumberOperationHint NumberOperationHintOf(const Operator* op)
     WARN_UNUSED_RESULT;
 
 class NumberOperationParameters {

@@ -688,8 +688,8 @@ class IsCallMatcher final : public TestNodeMatcher {
 
   bool MatchAndExplain(Node* node, MatchResultListener* listener) const final {
     if (!TestNodeMatcher::MatchAndExplain(node, listener) ||
-        !PrintMatchAndExplain(OpParameter<const CallDescriptor*>(node->op()),
-                              "descriptor", descriptor_matcher_, listener)) {
+        !PrintMatchAndExplain(CallDescriptorOf(node->op()), "descriptor",
+                              descriptor_matcher_, listener)) {
       return false;
     }
     for (size_t i = 0; i < value_matchers_.size(); ++i) {
@@ -753,8 +753,8 @@ class IsTailCallMatcher final : public TestNodeMatcher {
 
   bool MatchAndExplain(Node* node, MatchResultListener* listener) const final {
     if (!TestNodeMatcher::MatchAndExplain(node, listener) ||
-        !PrintMatchAndExplain(OpParameter<CallDescriptor const*>(node->op()),
-                              "descriptor", descriptor_matcher_, listener)) {
+        !PrintMatchAndExplain(CallDescriptorOf(node->op()), "descriptor",
+                              descriptor_matcher_, listener)) {
       return false;
     }
     for (size_t i = 0; i < value_matchers_.size(); ++i) {
@@ -805,8 +805,8 @@ class IsSpeculativeBinopMatcher final : public TestNodeMatcher {
   bool MatchAndExplain(Node* node, MatchResultListener* listener) const final {
     return (TestNodeMatcher::MatchAndExplain(node, listener) &&
             // TODO(bmeurer): The type parameter is currently ignored.
-            PrintMatchAndExplain(OpParameter<NumberOperationHint>(node->op()),
-                                 "hints", hint_matcher_, listener) &&
+            PrintMatchAndExplain(NumberOperationHintOf(node->op()), "hints",
+                                 hint_matcher_, listener) &&
             PrintMatchAndExplain(NodeProperties::GetValueInput(node, 0), "lhs",
                                  lhs_matcher_, listener) &&
             PrintMatchAndExplain(NodeProperties::GetValueInput(node, 1), "rhs",
@@ -879,7 +879,7 @@ class IsLoadFieldMatcher final : public TestNodeMatcher {
 
   bool MatchAndExplain(Node* node, MatchResultListener* listener) const final {
     return (TestNodeMatcher::MatchAndExplain(node, listener) &&
-            PrintMatchAndExplain(OpParameter<FieldAccess>(node->op()), "access",
+            PrintMatchAndExplain(FieldAccessOf(node->op()), "access",
                                  access_matcher_, listener) &&
             PrintMatchAndExplain(NodeProperties::GetValueInput(node, 0), "base",
                                  base_matcher_, listener) &&
@@ -927,7 +927,7 @@ class IsStoreFieldMatcher final : public TestNodeMatcher {
 
   bool MatchAndExplain(Node* node, MatchResultListener* listener) const final {
     return (TestNodeMatcher::MatchAndExplain(node, listener) &&
-            PrintMatchAndExplain(OpParameter<FieldAccess>(node->op()), "access",
+            PrintMatchAndExplain(FieldAccessOf(node->op()), "access",
                                  access_matcher_, listener) &&
             PrintMatchAndExplain(NodeProperties::GetValueInput(node, 0), "base",
                                  base_matcher_, listener) &&
@@ -978,8 +978,8 @@ class IsLoadElementMatcher final : public TestNodeMatcher {
 
   bool MatchAndExplain(Node* node, MatchResultListener* listener) const final {
     return (TestNodeMatcher::MatchAndExplain(node, listener) &&
-            PrintMatchAndExplain(OpParameter<ElementAccess>(node->op()),
-                                 "access", access_matcher_, listener) &&
+            PrintMatchAndExplain(ElementAccessOf(node->op()), "access",
+                                 access_matcher_, listener) &&
             PrintMatchAndExplain(NodeProperties::GetValueInput(node, 0), "base",
                                  base_matcher_, listener) &&
             PrintMatchAndExplain(NodeProperties::GetValueInput(node, 1),
@@ -1033,8 +1033,8 @@ class IsStoreElementMatcher final : public TestNodeMatcher {
 
   bool MatchAndExplain(Node* node, MatchResultListener* listener) const final {
     return (TestNodeMatcher::MatchAndExplain(node, listener) &&
-            PrintMatchAndExplain(OpParameter<ElementAccess>(node->op()),
-                                 "access", access_matcher_, listener) &&
+            PrintMatchAndExplain(ElementAccessOf(node->op()), "access",
+                                 access_matcher_, listener) &&
             PrintMatchAndExplain(NodeProperties::GetValueInput(node, 0), "base",
                                  base_matcher_, listener) &&
             PrintMatchAndExplain(NodeProperties::GetValueInput(node, 1),
@@ -1056,66 +1056,65 @@ class IsStoreElementMatcher final : public TestNodeMatcher {
   const Matcher<Node*> control_matcher_;
 };
 
-#define LOAD_MATCHER(kLoad)                                                    \
-  class Is##kLoad##Matcher final : public TestNodeMatcher {                    \
-   public:                                                                     \
-    Is##kLoad##Matcher(const Matcher<LoadRepresentation>& rep_matcher,         \
-                       const Matcher<Node*>& base_matcher,                     \
-                       const Matcher<Node*>& index_matcher,                    \
-                       const Matcher<Node*>& effect_matcher,                   \
-                       const Matcher<Node*>& control_matcher)                  \
-        : TestNodeMatcher(IrOpcode::k##kLoad),                                 \
-          rep_matcher_(rep_matcher),                                           \
-          base_matcher_(base_matcher),                                         \
-          index_matcher_(index_matcher),                                       \
-          effect_matcher_(effect_matcher),                                     \
-          control_matcher_(control_matcher) {}                                 \
-                                                                               \
-    void DescribeTo(std::ostream* os) const final {                            \
-      TestNodeMatcher::DescribeTo(os);                                         \
-      *os << " whose rep (";                                                   \
-      rep_matcher_.DescribeTo(os);                                             \
-      *os << "), base (";                                                      \
-      base_matcher_.DescribeTo(os);                                            \
-      *os << "), index (";                                                     \
-      index_matcher_.DescribeTo(os);                                           \
-      *os << "), effect (";                                                    \
-      effect_matcher_.DescribeTo(os);                                          \
-      *os << ") and control (";                                                \
-      control_matcher_.DescribeTo(os);                                         \
-      *os << ")";                                                              \
-    }                                                                          \
-                                                                               \
-    bool MatchAndExplain(Node* node,                                           \
-                         MatchResultListener* listener) const final {          \
-      Node* effect_node = nullptr;                                             \
-      Node* control_node = nullptr;                                            \
-      if (NodeProperties::FirstEffectIndex(node) < node->InputCount()) {       \
-        effect_node = NodeProperties::GetEffectInput(node);                    \
-      }                                                                        \
-      if (NodeProperties::FirstControlIndex(node) < node->InputCount()) {      \
-        control_node = NodeProperties::GetControlInput(node);                  \
-      }                                                                        \
-      return (                                                                 \
-          TestNodeMatcher::MatchAndExplain(node, listener) &&                  \
-          PrintMatchAndExplain(OpParameter<LoadRepresentation>(node->op()),    \
-                               "rep", rep_matcher_, listener) &&               \
-          PrintMatchAndExplain(NodeProperties::GetValueInput(node, 0), "base", \
-                               base_matcher_, listener) &&                     \
-          PrintMatchAndExplain(NodeProperties::GetValueInput(node, 1),         \
-                               "index", index_matcher_, listener) &&           \
-          PrintMatchAndExplain(effect_node, "effect", effect_matcher_,         \
-                               listener) &&                                    \
-          PrintMatchAndExplain(control_node, "control", control_matcher_,      \
-                               listener));                                     \
-    }                                                                          \
-                                                                               \
-   private:                                                                    \
-    const Matcher<LoadRepresentation> rep_matcher_;                            \
-    const Matcher<Node*> base_matcher_;                                        \
-    const Matcher<Node*> index_matcher_;                                       \
-    const Matcher<Node*> effect_matcher_;                                      \
-    const Matcher<Node*> control_matcher_;                                     \
+#define LOAD_MATCHER(kLoad)                                                   \
+  class Is##kLoad##Matcher final : public TestNodeMatcher {                   \
+   public:                                                                    \
+    Is##kLoad##Matcher(const Matcher<LoadRepresentation>& rep_matcher,        \
+                       const Matcher<Node*>& base_matcher,                    \
+                       const Matcher<Node*>& index_matcher,                   \
+                       const Matcher<Node*>& effect_matcher,                  \
+                       const Matcher<Node*>& control_matcher)                 \
+        : TestNodeMatcher(IrOpcode::k##kLoad),                                \
+          rep_matcher_(rep_matcher),                                          \
+          base_matcher_(base_matcher),                                        \
+          index_matcher_(index_matcher),                                      \
+          effect_matcher_(effect_matcher),                                    \
+          control_matcher_(control_matcher) {}                                \
+                                                                              \
+    void DescribeTo(std::ostream* os) const final {                           \
+      TestNodeMatcher::DescribeTo(os);                                        \
+      *os << " whose rep (";                                                  \
+      rep_matcher_.DescribeTo(os);                                            \
+      *os << "), base (";                                                     \
+      base_matcher_.DescribeTo(os);                                           \
+      *os << "), index (";                                                    \
+      index_matcher_.DescribeTo(os);                                          \
+      *os << "), effect (";                                                   \
+      effect_matcher_.DescribeTo(os);                                         \
+      *os << ") and control (";                                               \
+      control_matcher_.DescribeTo(os);                                        \
+      *os << ")";                                                             \
+    }                                                                         \
+                                                                              \
+    bool MatchAndExplain(Node* node,                                          \
+                         MatchResultListener* listener) const final {         \
+      Node* effect_node = nullptr;                                            \
+      Node* control_node = nullptr;                                           \
+      if (NodeProperties::FirstEffectIndex(node) < node->InputCount()) {      \
+        effect_node = NodeProperties::GetEffectInput(node);                   \
+      }                                                                       \
+      if (NodeProperties::FirstControlIndex(node) < node->InputCount()) {     \
+        control_node = NodeProperties::GetControlInput(node);                 \
+      }                                                                       \
+      return (TestNodeMatcher::MatchAndExplain(node, listener) &&             \
+              PrintMatchAndExplain(LoadRepresentationOf(node->op()), "rep",   \
+                                   rep_matcher_, listener) &&                 \
+              PrintMatchAndExplain(NodeProperties::GetValueInput(node, 0),    \
+                                   "base", base_matcher_, listener) &&        \
+              PrintMatchAndExplain(NodeProperties::GetValueInput(node, 1),    \
+                                   "index", index_matcher_, listener) &&      \
+              PrintMatchAndExplain(effect_node, "effect", effect_matcher_,    \
+                                   listener) &&                               \
+              PrintMatchAndExplain(control_node, "control", control_matcher_, \
+                                   listener));                                \
+    }                                                                         \
+                                                                              \
+   private:                                                                   \
+    const Matcher<LoadRepresentation> rep_matcher_;                           \
+    const Matcher<Node*> base_matcher_;                                       \
+    const Matcher<Node*> index_matcher_;                                      \
+    const Matcher<Node*> effect_matcher_;                                     \
+    const Matcher<Node*> control_matcher_;                                    \
   };
 
 LOAD_MATCHER(Load)
@@ -1207,10 +1206,9 @@ class IsStackSlotMatcher final : public TestNodeMatcher {
   }
 
   bool MatchAndExplain(Node* node, MatchResultListener* listener) const final {
-    return (
-        TestNodeMatcher::MatchAndExplain(node, listener) &&
-        PrintMatchAndExplain(OpParameter<StackSlotRepresentation>(node->op()),
-                             "rep", rep_matcher_, listener));
+    return (TestNodeMatcher::MatchAndExplain(node, listener) &&
+            PrintMatchAndExplain(StackSlotRepresentationOf(node->op()), "rep",
+                                 rep_matcher_, listener));
   }
 
  private:
@@ -1280,8 +1278,8 @@ class IsLoadContextMatcher final : public TestNodeMatcher {
 
   bool MatchAndExplain(Node* node, MatchResultListener* listener) const final {
     return (TestNodeMatcher::MatchAndExplain(node, listener) &&
-            PrintMatchAndExplain(OpParameter<ContextAccess>(node->op()),
-                                 "access", access_matcher_, listener) &&
+            PrintMatchAndExplain(ContextAccessOf(node->op()), "access",
+                                 access_matcher_, listener) &&
             PrintMatchAndExplain(NodeProperties::GetContextInput(node),
                                  "context", context_matcher_, listener));
   }

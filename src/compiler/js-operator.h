@@ -260,7 +260,7 @@ size_t hash_value(ContextAccess const&);
 
 V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream&, ContextAccess const&);
 
-ContextAccess const& ContextAccessOf(Operator const*);
+V8_EXPORT_PRIVATE ContextAccess const& ContextAccessOf(Operator const*);
 
 // Defines the name and ScopeInfo for a new catch context. This is used as a
 // parameter by the JSCreateCatchContext operator.

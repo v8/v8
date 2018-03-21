@@ -45,7 +45,8 @@ class OptionalOperator final {
 // A Load needs a MachineType.
 typedef MachineType LoadRepresentation;
 
-LoadRepresentation LoadRepresentationOf(Operator const*);
+V8_EXPORT_PRIVATE LoadRepresentation LoadRepresentationOf(Operator const*)
+    WARN_UNUSED_RESULT;
 
 // A Store needs a MachineType and a WriteBarrierKind in order to emit the
 // correct write barrier.
@@ -71,13 +72,14 @@ size_t hash_value(StoreRepresentation);
 
 V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream&, StoreRepresentation);
 
-StoreRepresentation const& StoreRepresentationOf(Operator const*);
+V8_EXPORT_PRIVATE StoreRepresentation const& StoreRepresentationOf(
+    Operator const*) WARN_UNUSED_RESULT;
 
 // An UnalignedStore needs a MachineType.
 typedef MachineRepresentation UnalignedStoreRepresentation;
 
 UnalignedStoreRepresentation const& UnalignedStoreRepresentationOf(
-    Operator const*);
+    Operator const*) WARN_UNUSED_RESULT;
 
 class StackSlotRepresentation final {
  public:
@@ -101,11 +103,13 @@ size_t hash_value(StackSlotRepresentation);
 V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream&,
                                            StackSlotRepresentation);
 
-StackSlotRepresentation const& StackSlotRepresentationOf(Operator const* op);
+V8_EXPORT_PRIVATE StackSlotRepresentation const& StackSlotRepresentationOf(
+    Operator const* op) WARN_UNUSED_RESULT;
 
-MachineRepresentation AtomicStoreRepresentationOf(Operator const* op);
+MachineRepresentation AtomicStoreRepresentationOf(Operator const* op)
+    WARN_UNUSED_RESULT;
 
-MachineType AtomicOpRepresentationOf(Operator const* op);
+MachineType AtomicOpRepresentationOf(Operator const* op) WARN_UNUSED_RESULT;
 
 // Interface for building machine-level operators. These operators are
 // machine-level but machine-independent and thus define a language suitable
