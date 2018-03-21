@@ -26,6 +26,7 @@
 #include "src/wasm/function-body-decoder.h"
 #include "src/wasm/local-decl-encoder.h"
 #include "src/wasm/wasm-code-manager.h"
+#include "src/wasm/wasm-code-specialization.h"
 #include "src/wasm/wasm-external-refs.h"
 #include "src/wasm/wasm-interpreter.h"
 #include "src/wasm/wasm-js.h"
@@ -203,7 +204,10 @@ class TestingModuleBuilder {
   Address globals_start() { return reinterpret_cast<Address>(globals_data_); }
   void Link() {
     if (!linked_) {
-      native_module_->LinkAll();
+      Zone specialization_zone(isolate()->allocator(), ZONE_NAME);
+      CodeSpecialization code_specialization(isolate(), &specialization_zone);
+      code_specialization.RelocateDirectCalls(native_module_);
+      code_specialization.ApplyToWholeModule(native_module_);
       linked_ = true;
       native_module_->SetExecutable(true);
     }

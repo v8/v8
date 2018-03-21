@@ -16,7 +16,6 @@
 #include "src/globals.h"
 #include "src/macro-assembler.h"
 #include "src/objects-inl.h"
-#include "src/wasm/wasm-code-specialization.h"
 #include "src/wasm/wasm-module.h"
 #include "src/wasm/wasm-objects-inl.h"
 #include "src/wasm/wasm-objects.h"
@@ -576,14 +575,6 @@ Address NativeModule::GetLocalAddressFor(Handle<Code> code) {
       return trampoline_iter->second;
     }
   }
-}
-
-void NativeModule::LinkAll() {
-  Isolate* isolate = compiled_module()->GetIsolate();
-  Zone specialization_zone(isolate->allocator(), ZONE_NAME);
-  CodeSpecialization code_specialization(isolate, &specialization_zone);
-  code_specialization.RelocateDirectCalls(this);
-  code_specialization.ApplyToWholeModule(this);
 }
 
 Address NativeModule::AllocateForCode(size_t size) {

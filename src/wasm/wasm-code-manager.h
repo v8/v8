@@ -14,7 +14,6 @@
 #include "src/handles.h"
 #include "src/trap-handler/trap-handler.h"
 #include "src/vector.h"
-
 #include "src/wasm/module-compiler.h"
 
 namespace v8 {
@@ -244,7 +243,6 @@ class V8_EXPORT_PRIVATE NativeModule final {
   // For cctests, where we build both WasmModule and the runtime objects
   // on the fly, and bypass the instance builder pipeline.
   void ResizeCodeTableForTest(size_t);
-  void LinkAll();
 
   CompilationState* compilation_state() { return compilation_state_.get(); }
 
