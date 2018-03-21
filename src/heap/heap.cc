@@ -251,6 +251,12 @@ Heap::Heap()
   RememberUnmappedPage(nullptr, false);
 }
 
+size_t Heap::MaxReserved() {
+  const double kFactor = Page::kPageSize * 1.0 / Page::kAllocatableMemory;
+  return static_cast<size_t>(
+      (2 * max_semi_space_size_ + max_old_generation_size_) * kFactor);
+}
+
 size_t Heap::Capacity() {
   if (!HasBeenSetUp()) return 0;
 
@@ -1272,11 +1278,15 @@ void Heap::EnsureFillerObjectAtTop() {
 bool Heap::CollectGarbage(AllocationSpace space,
                           GarbageCollectionReason gc_reason,
                           const v8::GCCallbackFlags gc_callback_flags) {
-  // The VM is in the GC state until exiting this function.
-  VMState<GC> state(isolate());
-
   const char* collector_reason = nullptr;
   GarbageCollector collector = SelectGarbageCollector(space, &collector_reason);
+
+  if (!CanExpandOldGeneration(new_space()->Capacity())) {
+    InvokeOutOfMemoryCallback();
+  }
+
+  // The VM is in the GC state until exiting this function.
+  VMState<GC> state(isolate());
 
 #ifdef V8_ENABLE_ALLOCATION_TIMEOUT
   // Reset the allocation timeout, but make sure to allow at least a few

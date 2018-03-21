@@ -5972,6 +5972,91 @@ HEAP_TEST(Regress779503) {
   CcTest::heap()->delay_sweeper_tasks_for_testing_ = false;
 }
 
+struct OutOfMemoryState {
+  Heap* heap;
+  bool oom_triggered;
+  size_t old_generation_capacity_at_oom;
+  size_t memory_allocator_size_at_oom;
+};
+
+void OutOfMemoryCallback(void* raw_state) {
+  OutOfMemoryState* state = static_cast<OutOfMemoryState*>(raw_state);
+  Heap* heap = state->heap;
+  state->oom_triggered = true;
+  state->old_generation_capacity_at_oom = heap->OldGenerationCapacity();
+  state->memory_allocator_size_at_oom = heap->memory_allocator()->Size();
+  heap->IncreaseHeapLimitForDebugging();
+}
+
+size_t MemoryAllocatorSizeFromHeapCapacity(size_t capacity) {
+  // Size to capacity factor.
+  double factor = Page::kPageSize * 1.0 / Page::kAllocatableMemory;
+  // Some tables (e.g. deoptimization table) are allocated directly with the
+  // memory allocator. Allow some slack to account for them.
+  size_t slack = 1 * MB;
+  return static_cast<size_t>(capacity * factor) + slack;
+}
+
+UNINITIALIZED_TEST(OutOfMemorySmallObjects) {
+  const size_t kOldGenerationLimit = 300 * MB;
+  FLAG_max_old_space_size = kOldGenerationLimit / MB;
+  v8::Isolate::CreateParams create_params;
+  create_params.array_buffer_allocator = CcTest::array_buffer_allocator();
+  Isolate* isolate =
+      reinterpret_cast<Isolate*>(v8::Isolate::New(create_params));
+  Heap* heap = isolate->heap();
+  Factory* factory = isolate->factory();
+  OutOfMemoryState state;
+  state.heap = heap;
+  state.oom_triggered = false;
+  heap->SetOutOfMemoryCallback(OutOfMemoryCallback, &state);
+  {
+    HandleScope handle_scope(isolate);
+    while (!state.oom_triggered) {
+      factory->NewFixedArray(100);
+    }
+  }
+  CHECK_LE(state.old_generation_capacity_at_oom,
+           kOldGenerationLimit + heap->new_space()->Capacity());
+  CHECK_LE(kOldGenerationLimit, state.old_generation_capacity_at_oom +
+                                    heap->new_space()->Capacity());
+  CHECK_LE(
+      state.memory_allocator_size_at_oom,
+      MemoryAllocatorSizeFromHeapCapacity(state.old_generation_capacity_at_oom +
+                                          2 * heap->new_space()->Capacity()));
+  reinterpret_cast<v8::Isolate*>(isolate)->Dispose();
+}
+
+UNINITIALIZED_TEST(OutOfMemoryLargeObjects) {
+  const size_t kOldGenerationLimit = 300 * MB;
+  FLAG_max_old_space_size = kOldGenerationLimit / MB;
+  v8::Isolate::CreateParams create_params;
+  create_params.array_buffer_allocator = CcTest::array_buffer_allocator();
+  Isolate* isolate =
+      reinterpret_cast<Isolate*>(v8::Isolate::New(create_params));
+  Heap* heap = isolate->heap();
+  Factory* factory = isolate->factory();
+  OutOfMemoryState state;
+  state.heap = heap;
+  state.oom_triggered = false;
+  heap->SetOutOfMemoryCallback(OutOfMemoryCallback, &state);
+  const int kFixedArrayLength = 1000000;
+  {
+    HandleScope handle_scope(isolate);
+    while (!state.oom_triggered) {
+      factory->NewFixedArray(kFixedArrayLength);
+    }
+  }
+  CHECK_LE(state.old_generation_capacity_at_oom, kOldGenerationLimit);
+  CHECK_LE(kOldGenerationLimit, state.old_generation_capacity_at_oom +
+                                    FixedArray::SizeFor(kFixedArrayLength));
+  CHECK_LE(
+      state.memory_allocator_size_at_oom,
+      MemoryAllocatorSizeFromHeapCapacity(state.old_generation_capacity_at_oom +
+                                          2 * heap->new_space()->Capacity()));
+  reinterpret_cast<v8::Isolate*>(isolate)->Dispose();
+}
+
 }  // namespace heap
 }  // namespace internal
 }  // namespace v8
