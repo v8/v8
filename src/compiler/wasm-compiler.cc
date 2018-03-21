@@ -4681,7 +4681,8 @@ Handle<Code> CompileJSToWasmWrapper(Isolate* isolate, wasm::WasmModule* module,
       Pipeline::GenerateCodeForTesting(&info, isolate, incoming, &graph);
 #ifdef ENABLE_DISASSEMBLER
   if (FLAG_print_opt_code && !code.is_null()) {
-    OFStream os(stdout);
+    CodeTracer::Scope tracing_scope(isolate->GetCodeTracer());
+    OFStream os(tracing_scope.file());
     code->Disassemble(func_name.start(), os);
   }
 #endif
@@ -4814,7 +4815,8 @@ Handle<Code> CompileWasmToJSWrapper(
     code->set_deoptimization_data(*deopt_data);
 #ifdef ENABLE_DISASSEMBLER
     if (FLAG_print_opt_code && !code.is_null()) {
-      OFStream os(stdout);
+      CodeTracer::Scope tracing_scope(isolate->GetCodeTracer());
+      OFStream os(tracing_scope.file());
       code->Disassemble(func_name.start(), os);
     }
 #endif
@@ -4883,7 +4885,8 @@ Handle<Code> CompileWasmToWasmWrapper(Isolate* isolate, wasm::WasmCode* target,
       Pipeline::GenerateCodeForTesting(&info, isolate, incoming, &graph);
 #ifdef ENABLE_DISASSEMBLER
   if (FLAG_print_opt_code && !code.is_null()) {
-    OFStream os(stdout);
+    CodeTracer::Scope tracing_scope(isolate->GetCodeTracer());
+    OFStream os(tracing_scope.file());
     code->Disassemble(buffer.start(), os);
   }
 #endif
@@ -4948,7 +4951,8 @@ Handle<Code> CompileWasmInterpreterEntry(Isolate* isolate, uint32_t func_index,
                                             nullptr);
 #ifdef ENABLE_DISASSEMBLER
     if (FLAG_print_opt_code && !code.is_null()) {
-      OFStream os(stdout);
+      CodeTracer::Scope tracing_scope(isolate->GetCodeTracer());
+      OFStream os(tracing_scope.file());
       code->Disassemble(func_name.start(), os);
     }
 #endif
@@ -5014,7 +5018,8 @@ Handle<Code> CompileCWasmEntry(Isolate* isolate, wasm::FunctionSig* sig) {
       Pipeline::GenerateCodeForTesting(&info, isolate, incoming, &graph);
 #ifdef ENABLE_DISASSEMBLER
   if (FLAG_print_opt_code && !code.is_null()) {
-    OFStream os(stdout);
+    CodeTracer::Scope tracing_scope(isolate->GetCodeTracer());
+    OFStream os(tracing_scope.file());
     code->Disassemble(debug_name, os);
   }
 #endif

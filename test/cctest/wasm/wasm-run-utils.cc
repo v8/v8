@@ -389,7 +389,9 @@ Handle<Code> WasmFunctionWrapper::GetWrapperCode() {
     CHECK(!code_.is_null());
 #ifdef ENABLE_DISASSEMBLER
     if (FLAG_print_opt_code) {
-      OFStream os(stdout);
+      CodeTracer::Scope tracing_scope(isolate->GetCodeTracer());
+      OFStream os(tracing_scope.file());
+
       code_->Disassemble("wasm wrapper", os);
     }
 #endif

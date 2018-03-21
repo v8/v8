@@ -113,8 +113,10 @@ Code* BuiltinDeserializer::DeserializeBuiltin(int builtin_id) {
 
 #ifdef ENABLE_DISASSEMBLER
   if (FLAG_print_builtin_code) {
+    CodeTracer::Scope tracing_scope(isolate()->GetCodeTracer());
+    OFStream os(tracing_scope.file());
+
     DCHECK(isolate()->builtins()->is_initialized());
-    OFStream os(stdout);
     code->Disassemble(Builtins::name(builtin_id), os);
     os << std::flush;
   }
@@ -131,7 +133,9 @@ Code* BuiltinDeserializer::DeserializeHandler(Bytecode bytecode,
 
 #ifdef ENABLE_DISASSEMBLER
   if (FLAG_print_builtin_code) {
-    OFStream os(stdout);
+    CodeTracer::Scope tracing_scope(isolate()->GetCodeTracer());
+    OFStream os(tracing_scope.file());
+
     code->Disassemble(Bytecodes::ToString(bytecode), os);
     os << std::flush;
   }
