@@ -17096,12 +17096,22 @@ class StringTableNoAllocateKey : public StringTableKey {
       special_flattening_ = true;
       uint32_t hash_field = 0;
       if (one_byte_) {
-        one_byte_content_ = new uint8_t[length];
+        if (V8_LIKELY(length <=
+                      static_cast<int>(arraysize(one_byte_buffer_)))) {
+          one_byte_content_ = one_byte_buffer_;
+        } else {
+          one_byte_content_ = new uint8_t[length];
+        }
         String::WriteToFlat(string, one_byte_content_, 0, length);
         hash_field =
             StringHasher::HashSequentialString(one_byte_content_, length, seed);
       } else {
-        two_byte_content_ = new uint16_t[length];
+        if (V8_LIKELY(length <=
+                      static_cast<int>(arraysize(two_byte_buffer_)))) {
+          two_byte_content_ = two_byte_buffer_;
+        } else {
+          two_byte_content_ = new uint16_t[length];
+        }
         String::WriteToFlat(string, two_byte_content_, 0, length);
         hash_field =
             StringHasher::HashSequentialString(two_byte_content_, length, seed);
@@ -17119,9 +17129,9 @@ class StringTableNoAllocateKey : public StringTableKey {
 
   ~StringTableNoAllocateKey() {
     if (one_byte_) {
-      delete[] one_byte_content_;
+      if (one_byte_content_ != one_byte_buffer_) delete[] one_byte_content_;
     } else {
-      delete[] two_byte_content_;
+      if (two_byte_content_ != two_byte_buffer_) delete[] two_byte_content_;
     }
   }
 
@@ -17194,6 +17204,10 @@ class StringTableNoAllocateKey : public StringTableKey {
   union {
     uint8_t* one_byte_content_;
     uint16_t* two_byte_content_;
+  };
+  union {
+    uint8_t one_byte_buffer_[256];
+    uint16_t two_byte_buffer_[128];
   };
 };
 
