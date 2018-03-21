@@ -349,6 +349,17 @@ FPUCondition FlagsConditionToConditionCmpFPU(bool& predicate,
   UNREACHABLE();
 }
 
+void EmitWordLoadPoisoningIfNeeded(CodeGenerator* codegen,
+                                   InstructionCode opcode, Instruction* instr,
+                                   MipsOperandConverter& i) {
+  const MemoryAccessMode access_mode =
+      static_cast<MemoryAccessMode>(MiscField::decode(opcode));
+  if (access_mode == kMemoryAccessPoisoned) {
+    Register value = i.OutputRegister();
+    codegen->tasm()->And(value, value, kSpeculationPoisonRegister);
+  }
+}
+
 }  // namespace
 
 #define ASSEMBLE_ROUND_DOUBLE_TO_DOUBLE(mode)                                  \
@@ -1505,24 +1516,30 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     case kMipsLbu:
       __ lbu(i.OutputRegister(), i.MemoryOperand());
+      EmitWordLoadPoisoningIfNeeded(this, opcode, instr, i);
       break;
     case kMipsLb:
       __ lb(i.OutputRegister(), i.MemoryOperand());
+      EmitWordLoadPoisoningIfNeeded(this, opcode, instr, i);
       break;
     case kMipsSb:
       __ sb(i.InputOrZeroRegister(2), i.MemoryOperand());
       break;
     case kMipsLhu:
       __ lhu(i.OutputRegister(), i.MemoryOperand());
+      EmitWordLoadPoisoningIfNeeded(this, opcode, instr, i);
       break;
     case kMipsUlhu:
       __ Ulhu(i.OutputRegister(), i.MemoryOperand());
+      EmitWordLoadPoisoningIfNeeded(this, opcode, instr, i);
       break;
     case kMipsLh:
       __ lh(i.OutputRegister(), i.MemoryOperand());
+      EmitWordLoadPoisoningIfNeeded(this, opcode, instr, i);
       break;
     case kMipsUlh:
       __ Ulh(i.OutputRegister(), i.MemoryOperand());
+      EmitWordLoadPoisoningIfNeeded(this, opcode, instr, i);
       break;
     case kMipsSh:
       __ sh(i.InputOrZeroRegister(2), i.MemoryOperand());
@@ -1532,9 +1549,11 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     case kMipsLw:
       __ lw(i.OutputRegister(), i.MemoryOperand());
+      EmitWordLoadPoisoningIfNeeded(this, opcode, instr, i);
       break;
     case kMipsUlw:
       __ Ulw(i.OutputRegister(), i.MemoryOperand());
+      EmitWordLoadPoisoningIfNeeded(this, opcode, instr, i);
       break;
     case kMipsSw:
       __ sw(i.InputOrZeroRegister(2), i.MemoryOperand());
@@ -2937,7 +2956,14 @@ void CodeGenerator::AssembleArchBranch(Instruction* instr, BranchInfo* branch) {
 
 void CodeGenerator::AssembleBranchPoisoning(FlagsCondition condition,
                                             Instruction* instr) {
-  UNREACHABLE();
+  // TODO(jarin) Handle float comparisons (kUnordered[Not]Equal).
+  if (condition == kUnorderedEqual || condition == kUnorderedNotEqual) {
+    return;
+  }
+
+  // TODO(mips): insert instructions here that place 0 into the
+  // kSpeculationPoisonRegister if the negation of the condition is
+  // true.
 }
 
 void CodeGenerator::AssembleArchDeoptBranch(Instruction* instr,
@@ -3264,6 +3290,7 @@ void CodeGenerator::AssembleConstructFrame() {
     if (FLAG_code_comments) __ RecordComment("-- OSR entrypoint --");
     osr_pc_offset_ = __ pc_offset();
     shrink_slots -= osr_helper()->UnoptimizedFrameSlots();
+    InitializePoisonForLoadsIfNeeded();
   }
 
   const RegList saves = call_descriptor->CalleeSavedRegisters();

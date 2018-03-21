@@ -5248,7 +5248,9 @@ void TurboAssembler::ComputeCodeStartAddress(Register dst) {
   pop(ra);  // Restore ra
 }
 
-void TurboAssembler::ResetSpeculationPoisonRegister() { UNREACHABLE(); }
+void TurboAssembler::ResetSpeculationPoisonRegister() {
+  li(kSpeculationPoisonRegister, -1);
+}
 
 }  // namespace internal
 }  // namespace v8
