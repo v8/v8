@@ -67,25 +67,45 @@ void PatchTrampolineAndStubCalls(
     const WasmCode* original_code, const WasmCode* new_code,
     const std::unordered_map<Address, Address, AddressHasher>& reverse_lookup,
     FlushICache flush_icache) {
-  RelocIterator orig_it(
-      original_code->instructions(), original_code->reloc_info(),
-      original_code->constant_pool(), RelocInfo::kCodeTargetMask);
+  // Relocate everything in kApplyMask using this delta, and patch all code
+  // targets to call the new trampolines and stubs.
+  intptr_t delta =
+      new_code->instructions().start() - original_code->instructions().start();
   for (RelocIterator it(new_code->instructions(), new_code->reloc_info(),
-                        new_code->constant_pool(), RelocInfo::kCodeTargetMask);
-       !it.done(); it.next(), orig_it.next()) {
-    Address old_target = orig_it.rinfo()->target_address();
+                        new_code->constant_pool(),
+                        RelocInfo::kCodeTargetMask | RelocInfo::kApplyMask);
+       !it.done(); it.next()) {
+    bool relocate =
+        RelocInfo::ModeMask(it.rinfo()->rmode()) & RelocInfo::kApplyMask;
+    if (RelocInfo::IsCodeTarget(it.rinfo()->rmode())) {
+      Address target = it.rinfo()->target_address() - (relocate ? delta : 0);
 #if V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_S390X
-    auto found = reverse_lookup.find(old_target);
-    DCHECK(found != reverse_lookup.end());
-    Address new_target = found->second;
-#else
-    Address new_target = old_target;
+      auto found = reverse_lookup.find(target);
+      DCHECK(found != reverse_lookup.end());
+      target = found->second;
 #endif
-    it.rinfo()->set_target_address(new_target, SKIP_WRITE_BARRIER);
+      it.rinfo()->set_target_address(target, SKIP_WRITE_BARRIER);
+    } else {
+      it.rinfo()->apply(delta);
+    }
   }
   if (flush_icache) {
     Assembler::FlushICache(new_code->instructions().start(),
                            new_code->instructions().size());
+  }
+}
+
+void RelocateCode(WasmCode* code, const WasmCode* orig,
+                  FlushICache flush_icache) {
+  intptr_t delta = code->instructions().start() - orig->instructions().start();
+  for (RelocIterator it(code->instructions(), code->reloc_info(),
+                        code->constant_pool(), RelocInfo::kApplyMask);
+       !it.done(); it.next()) {
+    it.rinfo()->apply(delta);
+  }
+  if (flush_icache) {
+    Assembler::FlushICache(code->instructions().start(),
+                           code->instructions().size());
   }
 }
 
@@ -669,7 +689,9 @@ WasmCode* NativeModule::CloneLazyBuiltinInto(const WasmCode* code,
                                              uint32_t index,
                                              FlushICache flush_icache) {
   DCHECK_EQ(wasm::WasmCode::kLazyStub, code->kind());
-  WasmCode* ret = CloneCode(code, flush_icache);
+  DCHECK(code->IsAnonymous());
+  WasmCode* ret = CloneCode(code, kNoFlushICache);
+  RelocateCode(ret, code, flush_icache);
   code_table_[index] = ret;
   ret->index_ = Just(index);
   return ret;
@@ -706,20 +728,9 @@ WasmCode* NativeModule::CloneCode(const WasmCode* original_code,
       original_code->stack_slots(), original_code->safepoint_table_offset_,
       original_code->handler_table_offset_,
       original_code->protected_instructions_, original_code->tier(),
-      kNoFlushICache);
+      flush_icache);
   if (!ret->IsAnonymous()) {
     code_table_[ret->index()] = ret;
-  }
-  intptr_t delta =
-      ret->instructions().start() - original_code->instructions().start();
-  for (RelocIterator it(ret->instructions(), ret->reloc_info(),
-                        ret->constant_pool(), RelocInfo::kApplyMask);
-       !it.done(); it.next()) {
-    it.rinfo()->apply(delta);
-  }
-  if (flush_icache) {
-    Assembler::FlushICache(ret->instructions().start(),
-                           ret->instructions().size());
   }
   return ret;
 }
@@ -940,8 +951,7 @@ std::unique_ptr<NativeModule> NativeModule::Clone() {
         // the {anonymous_lazy_builtin} variable. All non-anonymous such stubs
         // are just cloned directly via {CloneLazyBuiltinInto} below.
         if (!original_code->IsAnonymous()) {
-          WasmCode* new_code =
-              ret->CloneLazyBuiltinInto(original_code, i, kNoFlushICache);
+          WasmCode* new_code = ret->CloneCode(original_code, kNoFlushICache);
           PatchTrampolineAndStubCalls(original_code, new_code, reverse_lookup,
                                       kFlushICache);
           break;
