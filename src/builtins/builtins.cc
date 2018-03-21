@@ -496,7 +496,6 @@ bool Builtins::IsIsolateIndependent(int index) {
     case kOrdinaryHasInstance:
     case kOrdinaryToPrimitive_Number:
     case kOrdinaryToPrimitive_String:
-    case kPromiseAll:
     case kPromiseCapabilityDefaultReject:
     case kPromiseCapabilityDefaultResolve:
     case kPromiseCatchFinally:

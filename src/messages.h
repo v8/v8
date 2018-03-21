@@ -695,6 +695,7 @@ class ErrorUtils : public AllStatic {
   T(TooManySpreads,                                                            \
     "Literal containing too many nested spreads (up to 65534 allowed)")        \
   T(TooManyVariables, "Too many variables declared (only 4194303 allowed)")    \
+  T(TooManyElementsInPromiseAll, "Too many elements passed to Promise.all")    \
   T(TypedArrayTooShort,                                                        \
     "Derived TypedArray constructor created an array which was too small")     \
   T(UnexpectedEOS, "Unexpected end of input")                                  \
