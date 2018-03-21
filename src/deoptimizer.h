@@ -14,7 +14,6 @@
 #include "src/deoptimize-reason.h"
 #include "src/feedback-vector.h"
 #include "src/frame-constants.h"
-#include "src/isolate.h"
 #include "src/macro-assembler.h"
 #include "src/source-position.h"
 #include "src/zone/zone-chunk-list.h"

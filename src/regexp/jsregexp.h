@@ -7,7 +7,6 @@
 
 #include "src/allocation.h"
 #include "src/assembler.h"
-#include "src/isolate.h"
 #include "src/objects/js-regexp.h"
 #include "src/regexp/regexp-ast.h"
 #include "src/regexp/regexp-macro-assembler.h"
