@@ -205,7 +205,7 @@ class StackTransferRecipe {
     DCHECK_EQ(kWasmI64, src.type());
     switch (src.loc()) {
       case VarState::kStack:
-        LoadI64HalfStackSlot(dst, 2 * index + (half == kLowWord ? 0 : 1));
+        LoadI64HalfStackSlot(dst, 2 * index - (half == kLowWord ? 0 : 1));
         break;
       case VarState::kRegister: {
         LiftoffRegister src_half =

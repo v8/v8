@@ -351,7 +351,7 @@ void LiftoffAssembler::Spill(uint32_t index, LiftoffRegister reg,
       break;
     case kWasmI64:
       mov(dst, reg.low_gp());
-      mov(liftoff::GetHalfStackSlot(2 * index + 1), reg.high_gp());
+      mov(liftoff::GetHalfStackSlot(2 * index - 1), reg.high_gp());
       break;
     case kWasmF32:
       movss(dst, reg.fp());
@@ -375,7 +375,7 @@ void LiftoffAssembler::Spill(uint32_t index, WasmValue value) {
       int32_t low_word = value.to_i64();
       int32_t high_word = value.to_i64() >> 32;
       mov(dst, Immediate(low_word));
-      mov(liftoff::GetHalfStackSlot(2 * index + 1), Immediate(high_word));
+      mov(liftoff::GetHalfStackSlot(2 * index - 1), Immediate(high_word));
       break;
     }
     default:
@@ -393,7 +393,7 @@ void LiftoffAssembler::Fill(LiftoffRegister reg, uint32_t index,
       break;
     case kWasmI64:
       mov(reg.low_gp(), src);
-      mov(reg.high_gp(), liftoff::GetHalfStackSlot(2 * index + 1));
+      mov(reg.high_gp(), liftoff::GetHalfStackSlot(2 * index - 1));
       break;
     case kWasmF32:
       movss(reg.fp(), src);
@@ -1000,7 +1000,7 @@ void LiftoffAssembler::PushCallerFrameSlot(const VarState& src,
         DCHECK_EQ(kLowWord, half);
         push(liftoff::GetHalfStackSlot(2 * src_index - 1));
       }
-      push(liftoff::GetHalfStackSlot(2 * src_index +
+      push(liftoff::GetHalfStackSlot(2 * src_index -
                                      (half == kLowWord ? 0 : 1)));
       break;
     case VarState::kRegister:
