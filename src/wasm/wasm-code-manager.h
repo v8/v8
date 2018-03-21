@@ -291,7 +291,7 @@ class V8_EXPORT_PRIVATE NativeModule final {
                          std::shared_ptr<ProtectedInstructions>,
                          bool is_liftoff);
   WasmCode* CloneCode(const WasmCode*);
-  bool CloneTrampolinesAndStubs(const NativeModule* other);
+  void CloneTrampolinesAndStubs(const NativeModule* other);
   WasmCode* Lookup(Address);
   Address GetLocalAddressFor(Handle<Code>);
   Address CreateTrampolineTo(Handle<Code>);
