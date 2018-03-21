@@ -230,32 +230,28 @@ bool Builtins::IsLazy(int index) {
   // TODO(wasm): Remove wasm builtins once immovability is no longer required.
   switch (index) {
     case kAbort:  // Required by wasm.
-    case kArrayFindLoopEagerDeoptContinuation:  // https://crbug.com/v8/6786.
-    case kArrayFindLoopLazyDeoptContinuation:   // https://crbug.com/v8/6786.
-    // https://crbug.com/v8/6786.
-    case kArrayFindLoopAfterCallbackLazyDeoptContinuation:
-    // https://crbug.com/v8/6786.
-    case kArrayFindIndexLoopEagerDeoptContinuation:
-    // https://crbug.com/v8/6786.
-    case kArrayFindIndexLoopLazyDeoptContinuation:
-    // https://crbug.com/v8/6786.
+    case kArrayEveryLoopEagerDeoptContinuation:
+    case kArrayEveryLoopLazyDeoptContinuation:
+    case kArrayFilterLoopEagerDeoptContinuation:
+    case kArrayFilterLoopLazyDeoptContinuation:
     case kArrayFindIndexLoopAfterCallbackLazyDeoptContinuation:
-    case kArrayForEachLoopEagerDeoptContinuation:  // https://crbug.com/v8/6786.
-    case kArrayForEachLoopLazyDeoptContinuation:   // https://crbug.com/v8/6786.
-    case kArrayMapLoopEagerDeoptContinuation:      // https://crbug.com/v8/6786.
-    case kArrayMapLoopLazyDeoptContinuation:       // https://crbug.com/v8/6786.
-    case kArrayEveryLoopEagerDeoptContinuation:    // https://crbug.com/v8/6786.
-    case kArrayEveryLoopLazyDeoptContinuation:     // https://crbug.com/v8/6786.
-    case kArrayFilterLoopEagerDeoptContinuation:   // https://crbug.com/v8/6786.
-    case kArrayFilterLoopLazyDeoptContinuation:    // https://crbug.com/v8/6786.
+    case kArrayFindIndexLoopEagerDeoptContinuation:
+    case kArrayFindIndexLoopLazyDeoptContinuation:
+    case kArrayFindLoopAfterCallbackLazyDeoptContinuation:
+    case kArrayFindLoopEagerDeoptContinuation:
+    case kArrayFindLoopLazyDeoptContinuation:
+    case kArrayForEachLoopEagerDeoptContinuation:
+    case kArrayForEachLoopLazyDeoptContinuation:
+    case kArrayMapLoopEagerDeoptContinuation:
+    case kArrayMapLoopLazyDeoptContinuation:
+    case kArrayReduceLoopEagerDeoptContinuation:
+    case kArrayReduceLoopLazyDeoptContinuation:
     case kArrayReducePreLoopEagerDeoptContinuation:
-    case kArrayReduceLoopEagerDeoptContinuation:   // https://crbug.com/v8/6786.
-    case kArrayReduceLoopLazyDeoptContinuation:    // https://crbug.com/v8/6786.
-    case kArrayReduceRightPreLoopEagerDeoptContinuation:
     case kArrayReduceRightLoopEagerDeoptContinuation:
     case kArrayReduceRightLoopLazyDeoptContinuation:
-    case kArraySomeLoopEagerDeoptContinuation:  // https://crbug.com/v8/6786.
-    case kArraySomeLoopLazyDeoptContinuation:   // https://crbug.com/v8/6786.
+    case kArrayReduceRightPreLoopEagerDeoptContinuation:
+    case kArraySomeLoopEagerDeoptContinuation:
+    case kArraySomeLoopLazyDeoptContinuation:
     case kAsyncGeneratorAwaitCaught:            // https://crbug.com/v8/6786.
     case kAsyncGeneratorAwaitUncaught:          // https://crbug.com/v8/6786.
     case kCompileLazy:
@@ -267,7 +263,7 @@ bool Builtins::IsLazy(int index) {
     case kInterpreterEnterBytecodeAdvance:
     case kInterpreterEnterBytecodeDispatch:
     case kInterpreterEntryTrampoline:
-    case kPromiseConstructorLazyDeoptContinuation:  // https://crbug/v8/6786.
+    case kPromiseConstructorLazyDeoptContinuation:
     case kRecordWrite:  // https://crbug.com/chromium/765301.
     case kThrowWasmTrapDivByZero:             // Required by wasm.
     case kThrowWasmTrapDivUnrepresentable:    // Required by wasm.
@@ -277,7 +273,9 @@ bool Builtins::IsLazy(int index) {
     case kThrowWasmTrapMemOutOfBounds:        // Required by wasm.
     case kThrowWasmTrapRemByZero:             // Required by wasm.
     case kThrowWasmTrapUnreachable:           // Required by wasm.
+    case kToBooleanLazyDeoptContinuation:
     case kToNumber:                           // Required by wasm.
+    case kTypedArrayConstructorLazyDeoptContinuation:
     case kWasmCompileLazy:                    // Required by wasm.
     case kWasmStackGuard:                     // Required by wasm.
       return false;
