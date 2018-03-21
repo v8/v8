@@ -526,12 +526,22 @@ bool Deserializer<AllocatorT>::ReadData(MaybeObject** current,
         EmbeddedData d = EmbeddedData::FromBlob(isolate->embedded_blob(),
                                                 isolate->embedded_blob_size());
         const uint8_t* address = d.InstructionStartOfBuiltin(builtin_index);
-        MaybeObject* o =
-            reinterpret_cast<MaybeObject*>(const_cast<uint8_t*>(address));
-        UnalignedCopy(current, &o);
-        CHECK_NOT_NULL(o);
+        CHECK_NOT_NULL(address);
 
-        current++;
+        if (RelocInfo::OffHeapTargetIsCodedSpecially()) {
+          Address location_of_branch_data = reinterpret_cast<Address>(current);
+          Assembler::deserialization_set_special_target_at(
+              location_of_branch_data,
+              Code::cast(HeapObject::FromAddress(current_object_address)),
+              const_cast<Address>(address));
+          location_of_branch_data += Assembler::kSpecialTargetSize;
+          current = reinterpret_cast<MaybeObject**>(location_of_branch_data);
+        } else {
+          MaybeObject* o =
+              reinterpret_cast<MaybeObject*>(const_cast<uint8_t*>(address));
+          UnalignedCopy(current, &o);
+          current++;
+        }
 #else
         UNREACHABLE();
 #endif

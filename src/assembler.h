@@ -497,6 +497,10 @@ class RelocInfo {
   // instructions).
   bool IsCodedSpecially();
 
+  // The static pendant to IsCodedSpecially, just for off-heap targets. Used
+  // during deserialization, when we don't actually have a RelocInfo handy.
+  static bool OffHeapTargetIsCodedSpecially();
+
   // If true, the pointer this relocation info refers to is an entry in the
   // constant pool, otherwise the pointer is embedded in the instruction stream.
   bool IsInConstantPool();

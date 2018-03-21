@@ -202,6 +202,17 @@ const int kLastChunkTagBits = 1;
 const int kLastChunkTagMask = 1;
 const int kLastChunkTag = 1;
 
+// static
+bool RelocInfo::OffHeapTargetIsCodedSpecially() {
+#if defined(V8_TARGET_ARCH_ARM) || defined(V8_TARGET_ARCH_ARM64) || \
+    defined(V8_TARGET_ARCH_X64) || defined(V8_TARGET_ARCH_IA32)
+  return false;
+#elif defined(V8_TARGET_ARCH_MIPS) || defined(V8_TARGET_ARCH_MIPS64) || \
+    defined(V8_TARGET_ARCH_PPC) || defined(V8_TARGET_ARCH_S390)
+  return true;
+#endif
+}
+
 void RelocInfo::set_wasm_context_reference(Address address,
                                            ICacheFlushMode icache_flush_mode) {
   DCHECK(IsWasmContextReference(rmode_));

@@ -843,7 +843,7 @@ void Serializer<AllocatorT>::ObjectSerializer::VisitOffHeapTarget(
   sink_->Put(kOffHeapTarget, "OffHeapTarget");
   sink_->PutInt(skip, "SkipB4OffHeapTarget");
   sink_->PutInt(host->builtin_index(), "builtin index");
-  bytes_processed_so_far_ += kPointerSize;
+  bytes_processed_so_far_ += rinfo->target_address_size();
 #else
   UNREACHABLE();
 #endif
