@@ -878,6 +878,12 @@ bool EffectControlLinearizer::TryWireInStateEffect(Node* node,
     case IrOpcode::kObjectIsInteger:
       result = LowerObjectIsInteger(node);
       break;
+    case IrOpcode::kNumberIsSafeInteger:
+      result = LowerNumberIsSafeInteger(node);
+      break;
+    case IrOpcode::kObjectIsSafeInteger:
+      result = LowerObjectIsSafeInteger(node);
+      break;
     case IrOpcode::kCheckFloat64Hole:
       result = LowerCheckFloat64Hole(node, frame_state);
       break;
@@ -2222,6 +2228,52 @@ Node* EffectControlLinearizer::LowerObjectIsInteger(Node* node) {
   Node* diff = __ Float64Sub(value, trunc);
   Node* check = __ Float64Equal(diff, __ Float64Constant(0));
   __ Goto(&done, check);
+
+  __ Bind(&done);
+  return done.PhiAt(0);
+}
+
+Node* EffectControlLinearizer::LowerNumberIsSafeInteger(Node* node) {
+  Node* number = node->InputAt(0);
+  Node* zero = __ Int32Constant(0);
+  auto done = __ MakeLabel(MachineRepresentation::kBit);
+
+  Node* trunc = BuildFloat64RoundTruncate(number);
+  Node* diff = __ Float64Sub(number, trunc);
+  Node* check = __ Float64Equal(diff, __ Float64Constant(0));
+  __ GotoIfNot(check, &done, zero);
+  Node* in_range = __ Float64LessThanOrEqual(
+      __ Float64Abs(trunc), __ Float64Constant(kMaxSafeInteger));
+  __ Goto(&done, in_range);
+
+  __ Bind(&done);
+  return done.PhiAt(0);
+}
+
+Node* EffectControlLinearizer::LowerObjectIsSafeInteger(Node* node) {
+  Node* object = node->InputAt(0);
+  Node* zero = __ Int32Constant(0);
+  Node* one = __ Int32Constant(1);
+
+  auto done = __ MakeLabel(MachineRepresentation::kBit);
+
+  // Check if {object} is a Smi.
+  __ GotoIf(ObjectIsSmi(object), &done, one);
+
+  // Check if {object} is a HeapNumber.
+  Node* value_map = __ LoadField(AccessBuilder::ForMap(), object);
+  __ GotoIfNot(__ WordEqual(value_map, __ HeapNumberMapConstant()), &done,
+               zero);
+
+  // {object} is a HeapNumber.
+  Node* value = __ LoadField(AccessBuilder::ForHeapNumberValue(), object);
+  Node* trunc = BuildFloat64RoundTruncate(value);
+  Node* diff = __ Float64Sub(value, trunc);
+  Node* check = __ Float64Equal(diff, __ Float64Constant(0));
+  __ GotoIfNot(check, &done, zero);
+  Node* in_range = __ Float64LessThanOrEqual(
+      __ Float64Abs(trunc), __ Float64Constant(kMaxSafeInteger));
+  __ Goto(&done, in_range);
 
   __ Bind(&done);
   return done.PhiAt(0);

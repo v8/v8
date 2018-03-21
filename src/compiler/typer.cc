@@ -2184,6 +2184,12 @@ Type* Typer::Visitor::TypeObjectIsFiniteNumber(Node* node) {
 
 Type* Typer::Visitor::TypeNumberIsInteger(Node* node) { UNREACHABLE(); }
 
+Type* Typer::Visitor::TypeObjectIsSafeInteger(Node* node) {
+  return Type::Boolean();
+}
+
+Type* Typer::Visitor::TypeNumberIsSafeInteger(Node* node) { UNREACHABLE(); }
+
 Type* Typer::Visitor::TypeObjectIsInteger(Node* node) {
   return Type::Boolean();
 }

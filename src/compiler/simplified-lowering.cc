@@ -2771,6 +2771,33 @@ class RepresentationSelector {
       case IrOpcode::kNumberIsFinite: {
         UNREACHABLE();
       }
+      case IrOpcode::kObjectIsSafeInteger: {
+        Type* const input_type = GetUpperBound(node->InputAt(0));
+        if (input_type->Is(type_cache_.kSafeInteger)) {
+          VisitUnop(node, UseInfo::None(), MachineRepresentation::kBit);
+          if (lower()) {
+            DeferReplacement(node, lowering->jsgraph()->Int32Constant(1));
+          }
+        } else if (!input_type->Maybe(Type::Number())) {
+          VisitUnop(node, UseInfo::Any(), MachineRepresentation::kBit);
+          if (lower()) {
+            DeferReplacement(node, lowering->jsgraph()->Int32Constant(0));
+          }
+        } else if (input_type->Is(Type::Number())) {
+          VisitUnop(node, UseInfo::TruncatingFloat64(),
+                    MachineRepresentation::kBit);
+          if (lower()) {
+            NodeProperties::ChangeOp(
+                node, lowering->simplified()->NumberIsSafeInteger());
+          }
+        } else {
+          VisitUnop(node, UseInfo::AnyTagged(), MachineRepresentation::kBit);
+        }
+        return;
+      }
+      case IrOpcode::kNumberIsSafeInteger: {
+        UNREACHABLE();
+      }
       case IrOpcode::kObjectIsInteger: {
         Type* const input_type = GetUpperBound(node->InputAt(0));
         if (input_type->Is(type_cache_.kSafeInteger)) {

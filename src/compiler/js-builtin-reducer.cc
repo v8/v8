@@ -684,17 +684,6 @@ Reduction JSBuiltinReducer::ReduceGlobalIsNaN(Node* node) {
   return NoChange();
 }
 
-// ES6 section 20.1.2.5 Number.isSafeInteger ( number )
-Reduction JSBuiltinReducer::ReduceNumberIsSafeInteger(Node* node) {
-  JSCallReduction r(node);
-  if (r.InputsMatchOne(type_cache_.kSafeInteger)) {
-    // Number.isInteger(x:safe-integer) -> #true
-    Node* value = jsgraph()->TrueConstant();
-    return Replace(value);
-  }
-  return NoChange();
-}
-
 // ES6 section 20.1.2.13 Number.parseInt ( string, radix )
 Reduction JSBuiltinReducer::ReduceNumberParseInt(Node* node) {
   JSCallReduction r(node);
@@ -876,9 +865,6 @@ Reduction JSBuiltinReducer::Reduce(Node* node) {
       return ReduceCollectionIteratorNext(
           node, OrderedHashMap::kEntrySize, factory()->empty_ordered_hash_map(),
           FIRST_MAP_ITERATOR_TYPE, LAST_MAP_ITERATOR_TYPE);
-      break;
-    case kNumberIsSafeInteger:
-      reduction = ReduceNumberIsSafeInteger(node);
       break;
     case kNumberParseInt:
       reduction = ReduceNumberParseInt(node);

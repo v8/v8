@@ -658,6 +658,8 @@ class V8_EXPORT_PRIVATE SimplifiedOperatorBuilder final
   const Operator* NumberIsFinite();
   const Operator* ObjectIsFiniteNumber();
   const Operator* NumberIsInteger();
+  const Operator* ObjectIsSafeInteger();
+  const Operator* NumberIsSafeInteger();
   const Operator* ObjectIsInteger();
 
   const Operator* ArgumentsFrame();

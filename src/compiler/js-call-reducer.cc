@@ -3428,6 +3428,8 @@ Reduction JSCallReducer::ReduceJSCall(Node* node,
       return ReduceNumberIsFinite(node);
     case Builtins::kNumberIsInteger:
       return ReduceNumberIsInteger(node);
+    case Builtins::kNumberIsSafeInteger:
+      return ReduceNumberIsSafeInteger(node);
     case Builtins::kNumberIsNaN:
       return ReduceNumberIsNaN(node);
     case Builtins::kMapPrototypeGet:
@@ -5911,6 +5913,19 @@ Reduction JSCallReducer::ReduceNumberIsInteger(Node* node) {
   }
   Node* input = NodeProperties::GetValueInput(node, 2);
   Node* value = graph()->NewNode(simplified()->ObjectIsInteger(), input);
+  ReplaceWithValue(node, value);
+  return Replace(value);
+}
+
+// ES #sec-number.issafeinteger
+Reduction JSCallReducer::ReduceNumberIsSafeInteger(Node* node) {
+  if (node->op()->ValueInputCount() < 3) {
+    Node* value = jsgraph()->FalseConstant();
+    ReplaceWithValue(node, value);
+    return Replace(value);
+  }
+  Node* input = NodeProperties::GetValueInput(node, 2);
+  Node* value = graph()->NewNode(simplified()->ObjectIsSafeInteger(), input);
   ReplaceWithValue(node, value);
   return Replace(value);
 }

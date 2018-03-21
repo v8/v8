@@ -313,6 +313,7 @@ Matcher<Node*> IsStoreElement(const Matcher<ElementAccess>& access_matcher,
 
 Matcher<Node*> IsObjectIsFiniteNumber(const Matcher<Node*>& value_matcher);
 Matcher<Node*> IsObjectIsInteger(const Matcher<Node*>& value_matcher);
+Matcher<Node*> IsObjectIsSafeInteger(const Matcher<Node*>& value_matcher);
 Matcher<Node*> IsObjectIsNaN(const Matcher<Node*>& value_matcher);
 Matcher<Node*> IsObjectIsReceiver(const Matcher<Node*>& value_matcher);
 Matcher<Node*> IsObjectIsSmi(const Matcher<Node*>& value_matcher);

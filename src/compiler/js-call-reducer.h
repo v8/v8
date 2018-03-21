@@ -152,6 +152,7 @@ class V8_EXPORT_PRIVATE JSCallReducer final : public AdvancedReducer {
 
   Reduction ReduceNumberIsFinite(Node* node);
   Reduction ReduceNumberIsInteger(Node* node);
+  Reduction ReduceNumberIsSafeInteger(Node* node);
   Reduction ReduceNumberIsNaN(Node* node);
 
   Reduction ReduceMapPrototypeHas(Node* node);

@@ -109,6 +109,8 @@ class V8_EXPORT_PRIVATE EffectControlLinearizer {
   Node* LowerObjectIsFiniteNumber(Node* node);
   Node* LowerNumberIsInteger(Node* node);
   Node* LowerObjectIsInteger(Node* node);
+  Node* LowerNumberIsSafeInteger(Node* node);
+  Node* LowerObjectIsSafeInteger(Node* node);
   Node* LowerArgumentsFrame(Node* node);
   Node* LowerArgumentsLength(Node* node);
   Node* LowerNewDoubleElements(Node* node);
