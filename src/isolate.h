@@ -1261,8 +1261,6 @@ class Isolate {
     return builtins_constants_table_builder_;
   }
 
-  static int32_t offset_from_roots_to_external_reference_table();
-
   const uint8_t* embedded_blob() const;
   uint32_t embedded_blob_size() const;
 #endif
