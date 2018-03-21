@@ -297,6 +297,11 @@
   'test-serialize/StartupSerializerTwiceRunScript': [SKIP],
 }],  # 'arch == mipsel or arch == mips'
 
+['(arch == mipsel or arch == mips64el or arch == mips or arch == mips64)', {
+  # Instruction scheduler not supported on MIPS.
+  'test-instruction-scheduler/DeoptInMiddleOfBasicBlock': [SKIP]
+}],  # 'arch == mipsel or arch == mips64el or arch == mips or arch == mips64'
+
 ##############################################################################
 ['arch == mips', {
   # Too slow with TF.
