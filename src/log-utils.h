@@ -83,7 +83,7 @@ class Log {
     void AppendCharacter(const char character);
 
     // Delegate insertion to the underlying {log_}.
-    // All appened srings are escaped to maintain one-line log entries.
+    // All appended strings are escaped to maintain one-line log entries.
     template <typename T>
     MessageBuilder& operator<<(T value) {
       log_->os_ << value;

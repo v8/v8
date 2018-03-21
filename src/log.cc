@@ -57,6 +57,16 @@ static const char* ComputeMarker(SharedFunctionInfo* shared,
   }
 }
 
+static const char* ComputeMarker(wasm::WasmCode* code) {
+  switch (code->kind()) {
+    case wasm::WasmCode::kFunction:
+      return code->is_liftoff() ? "" : "*";
+    case wasm::WasmCode::kInterpreterStub:
+      return "~";
+    default:
+      return "";
+  }
+}
 
 class CodeEventLogger::NameBuffer {
  public:
@@ -1110,8 +1120,16 @@ void Logger::CodeCreateEvent(CodeEventListener::LogEventsAndTags tag,
   if (name.is_empty()) {
     msg << "<unknown wasm>";
   } else {
-    msg << name.start();
+    msg.AppendStringPart(name.start(), name.length());
   }
+  // We have to add two extra fields that allow the tick processor to group
+  // events for the same wasm function, even if it gets compiled again. For
+  // normal JS functions, we use the shared function info. For wasm, the pointer
+  // to the native module + function index works well enough.
+  // TODO(herhut) Clean up the tick processor code instead.
+  void* tag_ptr =
+      reinterpret_cast<byte*>(code->native_module()) + code->index();
+  msg << kNext << tag_ptr << kNext << ComputeMarker(code);
   msg.WriteToLogFile();
 }
 
