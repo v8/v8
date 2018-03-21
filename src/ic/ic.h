@@ -9,6 +9,8 @@
 
 #include "src/factory.h"
 #include "src/feedback-vector.h"
+#include "src/ic/stub-cache.h"
+#include "src/isolate.h"
 #include "src/macro-assembler.h"
 #include "src/messages.h"
 #include "src/objects/map.h"

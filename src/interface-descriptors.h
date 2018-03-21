@@ -9,6 +9,7 @@
 
 #include "src/assembler.h"
 #include "src/globals.h"
+#include "src/isolate.h"
 #include "src/macro-assembler.h"
 
 namespace v8 {

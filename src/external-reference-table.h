@@ -7,6 +7,7 @@
 
 #include <vector>
 
+#include "src/accessors.h"
 #include "src/address-map.h"
 #include "src/builtins/builtins.h"
 #include "src/external-reference.h"

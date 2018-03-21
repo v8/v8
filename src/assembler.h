@@ -37,13 +37,17 @@
 
 #include <forward_list>
 #include <iosfwd>
+#include <map>
 
 #include "src/allocation.h"
+#include "src/contexts.h"
 #include "src/deoptimize-reason.h"
 #include "src/double.h"
 #include "src/external-reference.h"
+#include "src/flags.h"
 #include "src/globals.h"
 #include "src/label.h"
+#include "src/objects.h"
 #include "src/register-configuration.h"
 #include "src/reglist.h"
 

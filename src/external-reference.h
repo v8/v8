@@ -6,7 +6,6 @@
 #define V8_EXTERNAL_REFERENCE_H_
 
 #include "src/globals.h"
-#include "src/isolate.h"
 #include "src/runtime/runtime.h"
 
 namespace v8 {
@@ -16,6 +15,7 @@ class ApiFunction;
 namespace internal {
 
 class Isolate;
+class Page;
 class SCTableReference;
 class StatsCounter;
 
@@ -286,15 +286,7 @@ class ExternalReference BASE_EMBEDDED {
   explicit ExternalReference(void* address) : address_(address) {}
 
   static void* Redirect(Isolate* isolate, Address address_arg,
-                        Type type = ExternalReference::BUILTIN_CALL) {
-    ExternalReferenceRedirector* redirector =
-        reinterpret_cast<ExternalReferenceRedirector*>(
-            isolate->external_reference_redirector());
-    void* address = reinterpret_cast<void*>(address_arg);
-    void* answer =
-        (redirector == nullptr) ? address : (*redirector)(address, type);
-    return answer;
-  }
+                        Type type = ExternalReference::BUILTIN_CALL);
 
   void* address_;
 };

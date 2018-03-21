@@ -15,6 +15,7 @@
 #include "src/heap/heap.h"
 #include "src/ic/stub-cache.h"
 #include "src/interpreter/interpreter.h"
+#include "src/isolate.h"
 #include "src/objects-inl.h"
 #include "src/regexp/regexp-stack.h"
 #include "src/string-search.h"
@@ -211,6 +212,18 @@ void ExternalReference::set_redirector(
   DCHECK_NULL(isolate->external_reference_redirector());
   isolate->set_external_reference_redirector(
       reinterpret_cast<ExternalReferenceRedirectorPointer*>(redirector));
+}
+
+// static
+void* ExternalReference::Redirect(Isolate* isolate, Address address_arg,
+                                  Type type) {
+  ExternalReferenceRedirector* redirector =
+      reinterpret_cast<ExternalReferenceRedirector*>(
+          isolate->external_reference_redirector());
+  void* address = reinterpret_cast<void*>(address_arg);
+  void* answer =
+      (redirector == nullptr) ? address : (*redirector)(address, type);
+  return answer;
 }
 
 ExternalReference ExternalReference::stress_deopt_count(Isolate* isolate) {
