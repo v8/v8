@@ -1085,7 +1085,7 @@ Node* InterpreterAssembler::Construct(Node* target, Node* context,
     // constructor feedback collection inside of Ignition.
     Comment("call using ConstructArray builtin");
     Callable callable = CodeFactory::InterpreterPushArgsThenConstruct(
-        isolate(), InterpreterPushArgsMode::kJSFunction);
+        isolate(), InterpreterPushArgsMode::kArrayFunction);
     Node* code_target = HeapConstant(callable.code());
     var_result.Bind(CallStub(callable.descriptor(), code_target, context,
                              args.reg_count(), new_target, target,

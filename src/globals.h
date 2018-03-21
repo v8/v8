@@ -1201,7 +1201,7 @@ inline std::ostream& operator<<(std::ostream& os, FunctionKind kind) {
 }
 
 enum class InterpreterPushArgsMode : unsigned {
-  kJSFunction,
+  kArrayFunction,
   kWithFinalSpread,
   kOther
 };
@@ -1213,8 +1213,8 @@ inline size_t hash_value(InterpreterPushArgsMode mode) {
 inline std::ostream& operator<<(std::ostream& os,
                                 InterpreterPushArgsMode mode) {
   switch (mode) {
-    case InterpreterPushArgsMode::kJSFunction:
-      return os << "JSFunction";
+    case InterpreterPushArgsMode::kArrayFunction:
+      return os << "ArrayFunction";
     case InterpreterPushArgsMode::kWithFinalSpread:
       return os << "WithFinalSpread";
     case InterpreterPushArgsMode::kOther:
