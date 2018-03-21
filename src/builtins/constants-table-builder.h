@@ -5,8 +5,6 @@
 #ifndef V8_BUILTINS_CONSTANTS_TABLE_BUILDER_H_
 #define V8_BUILTINS_CONSTANTS_TABLE_BUILDER_H_
 
-#include <unordered_map>
-
 #include "src/allocation.h"
 #include "src/base/macros.h"
 #include "src/handles.h"
@@ -30,10 +28,6 @@ class BuiltinsConstantsTableBuilder final {
   // object, possibly adding the object to the table. Objects are deduplicated.
   uint32_t AddObject(Handle<Object> object);
 
-  // External references can also be added, and end up as a Foreign object in
-  // the constants table.
-  uint32_t AddExternalReference(ExternalReference reference);
-
   // Should be called after all affected code (e.g. builtins and bytecode
   // handlers) has been generated.
   void Finalize();
@@ -44,10 +38,6 @@ class BuiltinsConstantsTableBuilder final {
   // Maps objects to corresponding indices within the constants list.
   typedef IdentityMap<uint32_t, FreeStoreAllocationPolicy> ConstantsMap;
   ConstantsMap map_;
-
-  // Maps external references to corresponding indices within the constants
-  // list. Note that external references are also in map_ as Foreign objects.
-  std::unordered_map<Address, uint32_t> external_reference_map_;
 
   DISALLOW_COPY_AND_ASSIGN(BuiltinsConstantsTableBuilder)
 };
