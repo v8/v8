@@ -199,6 +199,7 @@ template("v8_static_library") {
     forward_variables_from(invoker, "*", [ "configs" ])
     configs += invoker.configs
     configs -= v8_remove_configs
+    configs -= [ "//build/config/compiler:thin_archive" ]
     configs += v8_add_configs
   }
 }
