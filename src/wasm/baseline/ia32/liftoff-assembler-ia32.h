@@ -873,19 +873,31 @@ void LiftoffAssembler::emit_cond_jump(Condition cond, Label* label,
 }
 
 namespace liftoff {
-inline void setcc_32(LiftoffAssembler* assm, Condition cond, Register dst) {
-  Register tmp_byte_reg = dst;
-  // Only the lower 4 registers can be addressed as 8-bit registers.
-  if (!dst.is_byte_register()) {
-    LiftoffRegList pinned = LiftoffRegList::ForRegs(dst);
-    // {GetUnusedRegister()} may insert move instructions to spill registers to
-    // the stack. This is OK because {mov} does not change the status flags.
-    tmp_byte_reg = assm->GetUnusedRegister(liftoff::kByteRegs, pinned).gp();
-  }
 
+// Get a temporary byte register, using {candidate} if possible.
+// Might spill, but always keeps status flags intact.
+inline Register GetTmpByteRegister(LiftoffAssembler* assm, Register candidate) {
+  if (candidate.is_byte_register()) return candidate;
+  LiftoffRegList pinned = LiftoffRegList::ForRegs(candidate);
+  // {GetUnusedRegister()} may insert move instructions to spill registers to
+  // the stack. This is OK because {mov} does not change the status flags.
+  return assm->GetUnusedRegister(liftoff::kByteRegs, pinned).gp();
+}
+
+// Setcc into dst register, given a scratch byte register (might be the same as
+// dst). Never spills.
+inline void setcc_32_no_spill(LiftoffAssembler* assm, Condition cond,
+                              Register dst, Register tmp_byte_reg) {
   assm->setcc(cond, tmp_byte_reg);
   assm->movzx_b(dst, tmp_byte_reg);
 }
+
+// Setcc into dst register (no contraints). Might spill.
+inline void setcc_32(LiftoffAssembler* assm, Condition cond, Register dst) {
+  Register tmp_byte_reg = GetTmpByteRegister(assm, dst);
+  setcc_32_no_spill(assm, cond, dst, tmp_byte_reg);
+}
+
 }  // namespace liftoff
 
 void LiftoffAssembler::emit_i32_eqz(Register dst, Register src) {
@@ -931,6 +943,10 @@ inline Condition cond_make_unsigned(Condition cond) {
 void LiftoffAssembler::emit_i64_set_cond(Condition cond, Register dst,
                                          LiftoffRegister lhs,
                                          LiftoffRegister rhs) {
+  // Get the tmp byte register out here, such that we don't conditionally spill
+  // (this cannot be reflected in the cache state).
+  Register tmp_byte_reg = liftoff::GetTmpByteRegister(this, dst);
+
   // For signed i64 comparisons, we still need to use unsigned comparison for
   // the low word (the only bit carrying signedness information is the MSB in
   // the high word).
@@ -945,11 +961,11 @@ void LiftoffAssembler::emit_i64_set_cond(Condition cond, Register dst,
   if (unsigned_cond != cond) {
     // If the condition predicate for the low differs from that for the high
     // word, emit a separete setcc sequence for the low word.
-    liftoff::setcc_32(this, unsigned_cond, dst);
+    liftoff::setcc_32_no_spill(this, unsigned_cond, dst, tmp_byte_reg);
     jmp(&cont);
   }
   bind(&setcc);
-  liftoff::setcc_32(this, cond, dst);
+  liftoff::setcc_32_no_spill(this, cond, dst, tmp_byte_reg);
   bind(&cont);
 }
 
@@ -959,8 +975,12 @@ void LiftoffAssembler::emit_f32_set_cond(Condition cond, Register dst,
   Label cont;
   Label not_nan;
 
+  // Get the tmp byte register out here, such that we don't conditionally spill
+  // (this cannot be reflected in the cache state).
+  Register tmp_byte_reg = liftoff::GetTmpByteRegister(this, dst);
+
   ucomiss(lhs, rhs);
-  // IF PF is one, one of the operands was Nan. This needs special handling.
+  // If PF is one, one of the operands was Nan. This needs special handling.
   j(parity_odd, &not_nan, Label::kNear);
   // Return 1 for f32.ne, 0 for all other cases.
   if (cond == not_equal) {
@@ -971,7 +991,7 @@ void LiftoffAssembler::emit_f32_set_cond(Condition cond, Register dst,
   jmp(&cont, Label::kNear);
   bind(&not_nan);
 
-  liftoff::setcc_32(this, cond, dst);
+  liftoff::setcc_32_no_spill(this, cond, dst, tmp_byte_reg);
   bind(&cont);
 }
 
