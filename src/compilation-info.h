@@ -55,6 +55,7 @@ class V8_EXPORT_PRIVATE CompilationInfo final {
     kSwitchJumpTableEnabled = 1 << 13,
     kGenerateSpeculationPoisonOnEntry = 1 << 14,
     kPoisonRegisterArguments = 1 << 15,
+    kAllocationFoldingEnabled = 1 << 16
   };
 
   // TODO(mtrofin): investigate if this might be generalized outside wasm, with
@@ -193,6 +194,11 @@ class V8_EXPORT_PRIVATE CompilationInfo final {
     bool enabled = GetFlag(kPoisonRegisterArguments);
     DCHECK_IMPLIES(enabled, has_untrusted_code_mitigations());
     return enabled;
+  }
+
+  void MarkAsAllocationFoldingEnabled() { SetFlag(kAllocationFoldingEnabled); }
+  bool is_allocation_folding_enabled() const {
+    return GetFlag(kAllocationFoldingEnabled);
   }
 
   // Code getters and setters.

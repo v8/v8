@@ -31,7 +31,10 @@ typedef uint32_t NodeId;
 // implicitly.
 class MemoryOptimizer final {
  public:
-  MemoryOptimizer(JSGraph* jsgraph, Zone* zone, LoadPoisoning load_poisoning);
+  enum class AllocationFolding { kDoAllocationFolding, kDontAllocationFolding };
+
+  MemoryOptimizer(JSGraph* jsgraph, Zone* zone, LoadPoisoning load_poisoning,
+                  AllocationFolding allocation_folding);
   ~MemoryOptimizer() {}
 
   void Optimize();
@@ -143,6 +146,7 @@ class MemoryOptimizer final {
   Zone* const zone_;
   GraphAssembler graph_assembler_;
   LoadPoisoning load_poisoning_;
+  AllocationFolding allocation_folding_;
 
   DISALLOW_IMPLICIT_CONSTRUCTORS(MemoryOptimizer);
 };

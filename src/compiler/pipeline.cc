@@ -805,6 +805,9 @@ PipelineCompilationJob::Status PipelineCompilationJob::PrepareJobImpl(
   if (FLAG_branch_load_poisoning) {
     compilation_info()->MarkAsPoisonLoads();
   }
+  if (FLAG_turbo_allocation_folding) {
+    compilation_info()->MarkAsAllocationFoldingEnabled();
+  }
   if (compilation_info()->closure()->feedback_cell()->map() ==
       isolate->heap()->one_closure_cell_map()) {
     compilation_info()->MarkAsFunctionContextSpecializing();
@@ -1446,10 +1449,13 @@ struct MemoryOptimizationPhase {
     trimmer.TrimGraph(roots.begin(), roots.end());
 
     // Optimize allocations and load/store operations.
-    MemoryOptimizer optimizer(data->jsgraph(), temp_zone,
-                              data->info()->is_poison_loads()
-                                  ? LoadPoisoning::kDoPoison
-                                  : LoadPoisoning::kDontPoison);
+    MemoryOptimizer optimizer(
+        data->jsgraph(), temp_zone,
+        data->info()->is_poison_loads() ? LoadPoisoning::kDoPoison
+                                        : LoadPoisoning::kDontPoison,
+        data->info()->is_allocation_folding_enabled()
+            ? MemoryOptimizer::AllocationFolding::kDoAllocationFolding
+            : MemoryOptimizer::AllocationFolding::kDontAllocationFolding);
     optimizer.Optimize();
   }
 };

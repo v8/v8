@@ -16,14 +16,16 @@ namespace internal {
 namespace compiler {
 
 MemoryOptimizer::MemoryOptimizer(JSGraph* jsgraph, Zone* zone,
-                                 LoadPoisoning load_poisoning)
+                                 LoadPoisoning load_poisoning,
+                                 AllocationFolding allocation_folding)
     : jsgraph_(jsgraph),
       empty_state_(AllocationState::Empty(zone)),
       pending_(zone),
       tokens_(zone),
       zone_(zone),
       graph_assembler_(jsgraph, nullptr, nullptr, zone),
-      load_poisoning_(load_poisoning) {}
+      load_poisoning_(load_poisoning),
+      allocation_folding_(allocation_folding) {}
 
 void MemoryOptimizer::Optimize() {
   EnqueueUses(graph()->start(), empty_state());
@@ -172,7 +174,8 @@ void MemoryOptimizer::VisitAllocateRaw(Node* node,
   Int32Matcher m(size);
   if (m.HasValue() && m.Value() < kMaxRegularHeapObjectSize) {
     int32_t const object_size = m.Value();
-    if (state->size() <= kMaxRegularHeapObjectSize - object_size &&
+    if (allocation_folding_ == AllocationFolding::kDoAllocationFolding &&
+        state->size() <= kMaxRegularHeapObjectSize - object_size &&
         state->group()->pretenure() == pretenure) {
       // We can fold this Allocate {node} into the allocation {group}
       // represented by the given {state}. Compute the upper bound for
