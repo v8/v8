@@ -56,6 +56,10 @@ CONFIGS = dict(
     '--no-lazy-inner-functions',
     '--suppress-asm-messages',
   ],
+  liftoff=[
+    '--liftoff',
+    '--suppress-asm-messages',
+  ],
   slow_path=[
     '--force-slow-path',
     '--suppress-asm-messages',
