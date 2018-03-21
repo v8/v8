@@ -14505,9 +14505,11 @@ void Code::Disassemble(const char* name, std::ostream& os, void* current_pc) {
     int safepoint_offset =
         has_safepoint_info() ? safepoint_table_offset() : size;
     int constant_pool_offset = this->constant_pool_offset();
+    int handler_offset = handler_table_offset() ? handler_table_offset() : size;
 
     // Stop before reaching any embedded tables
-    int code_size = Min(safepoint_offset, constant_pool_offset);
+    int code_size =
+        Min(handler_offset, Min(safepoint_offset, constant_pool_offset));
     os << "Instructions (size = " << code_size << ")\n";
     byte* begin = instruction_start();
     byte* end = begin + code_size;
