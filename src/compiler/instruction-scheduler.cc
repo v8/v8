@@ -6,6 +6,7 @@
 
 #include "src/base/adapters.h"
 #include "src/base/utils/random-number-generator.h"
+#include "src/isolate.h"
 
 namespace v8 {
 namespace internal {
