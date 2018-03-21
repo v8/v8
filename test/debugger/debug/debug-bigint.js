@@ -5,7 +5,7 @@
 // Flags: --harmony-bigint
 
 Debug = debug.Debug
-let exception = false;
+let exceptionThrown = false;
 
 Debug.setListener(function(event, exec_state, event_data, data) {
   if (event != Debug.DebugEvent.Break) return;
@@ -16,9 +16,9 @@ Debug.setListener(function(event, exec_state, event_data, data) {
     assertEquals("bigint", typeof(o.value()));
     assertEquals(42n, o.value());
   } catch (e) {
-    exception = e;
+    exceptionThrown = true;
   };
 });
 
 !function() { debugger; }();
-assertFalse(exception, "exception in listener")
+assertFalse(exceptionThrown, "exception in listener")
