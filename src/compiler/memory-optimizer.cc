@@ -15,13 +15,15 @@ namespace v8 {
 namespace internal {
 namespace compiler {
 
-MemoryOptimizer::MemoryOptimizer(JSGraph* jsgraph, Zone* zone)
+MemoryOptimizer::MemoryOptimizer(JSGraph* jsgraph, Zone* zone,
+                                 LoadPoisoning load_poisoning)
     : jsgraph_(jsgraph),
       empty_state_(AllocationState::Empty(zone)),
       pending_(zone),
       tokens_(zone),
       zone_(zone),
-      graph_assembler_(jsgraph, nullptr, nullptr, zone) {}
+      graph_assembler_(jsgraph, nullptr, nullptr, zone),
+      load_poisoning_(load_poisoning) {}
 
 void MemoryOptimizer::Optimize() {
   EnqueueUses(graph()->start(), empty_state());
@@ -348,12 +350,13 @@ void MemoryOptimizer::VisitLoadElement(Node* node,
   ElementAccess const& access = ElementAccessOf(node->op());
   Node* index = node->InputAt(1);
   node->ReplaceInput(1, ComputeIndex(access, index));
-  if (access.machine_type.representation() ==
-      MachineRepresentation::kTaggedPointer) {
-    NodeProperties::ChangeOp(node, machine()->Load(access.machine_type));
-  } else {
+  if (load_poisoning_ == LoadPoisoning::kDoPoison &&
+      access.machine_type.representation() !=
+          MachineRepresentation::kTaggedPointer) {
     NodeProperties::ChangeOp(node,
                              machine()->PoisonedLoad(access.machine_type));
+  } else {
+    NodeProperties::ChangeOp(node, machine()->Load(access.machine_type));
   }
   EnqueueUses(node, state);
 }
@@ -363,12 +366,13 @@ void MemoryOptimizer::VisitLoadField(Node* node, AllocationState const* state) {
   FieldAccess const& access = FieldAccessOf(node->op());
   Node* offset = jsgraph()->IntPtrConstant(access.offset - access.tag());
   node->InsertInput(graph()->zone(), 1, offset);
-  if (access.machine_type.representation() ==
-      MachineRepresentation::kTaggedPointer) {
-    NodeProperties::ChangeOp(node, machine()->Load(access.machine_type));
-  } else {
+  if (load_poisoning_ == LoadPoisoning::kDoPoison &&
+      access.machine_type.representation() !=
+          MachineRepresentation::kTaggedPointer) {
     NodeProperties::ChangeOp(node,
                              machine()->PoisonedLoad(access.machine_type));
+  } else {
+    NodeProperties::ChangeOp(node, machine()->Load(access.machine_type));
   }
   EnqueueUses(node, state);
 }

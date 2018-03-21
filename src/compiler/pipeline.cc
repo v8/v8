@@ -1472,7 +1472,10 @@ struct MemoryOptimizationPhase {
     trimmer.TrimGraph(roots.begin(), roots.end());
 
     // Optimize allocations and load/store operations.
-    MemoryOptimizer optimizer(data->jsgraph(), temp_zone);
+    MemoryOptimizer optimizer(data->jsgraph(), temp_zone,
+                              data->info()->is_poison_loads()
+                                  ? LoadPoisoning::kDoPoison
+                                  : LoadPoisoning::kDontPoison);
     optimizer.Optimize();
   }
 };
