@@ -1569,6 +1569,42 @@ TEST(BreakPointConditionBuiltin) {
   ExpectString("f(10)", "aaaaaaaaaaaaaaaaaaaa");
   CHECK_EQ(1, break_point_hit_count);
 
+  // === Test var-arg builtins ===
+  break_point_hit_count = 0;
+  builtin = CompileRun("String.fromCharCode").As<v8::Function>();
+  CompileRun("function f() { return String.fromCharCode(1, 2, 3); }");
+  CHECK_EQ(0, break_point_hit_count);
+
+  // Run with breakpoint.
+  bp = SetBreakPoint(builtin, 0, "arguments.length == 3 && arguments[1] == 2");
+  CompileRun("f(1, 2, 3)");
+  CHECK_EQ(1, break_point_hit_count);
+
+  // Run without breakpoints.
+  ClearBreakPoint(bp);
+  CompileRun("f(1, 2, 3)");
+  CHECK_EQ(1, break_point_hit_count);
+
+  // === Test rest arguments ===
+  break_point_hit_count = 0;
+  builtin = CompileRun("String.fromCharCode").As<v8::Function>();
+  CompileRun("function f(...args) { return String.fromCharCode(...args); }");
+  CHECK_EQ(0, break_point_hit_count);
+
+  // Run with breakpoint.
+  bp = SetBreakPoint(builtin, 0, "arguments.length == 3 && arguments[1] == 2");
+  CompileRun("f(1, 2, 3)");
+  CHECK_EQ(1, break_point_hit_count);
+
+  ClearBreakPoint(bp);
+  CompileRun("f(1, 3, 3)");
+  CHECK_EQ(1, break_point_hit_count);
+
+  // Run without breakpoints.
+  ClearBreakPoint(bp);
+  CompileRun("f(1, 2, 3)");
+  CHECK_EQ(1, break_point_hit_count);
+
   // === Test receiver ===
   break_point_hit_count = 0;
   builtin = CompileRun("String.prototype.repeat").As<v8::Function>();

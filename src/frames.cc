@@ -1014,10 +1014,18 @@ Code* JavaScriptFrame::unchecked_code() const {
 int JavaScriptFrame::GetNumberOfIncomingArguments() const {
   DCHECK(can_access_heap_objects() &&
          isolate()->heap()->gc_state() == Heap::NOT_IN_GC);
-
   return function()->shared()->internal_formal_parameter_count();
 }
 
+int OptimizedFrame::GetNumberOfIncomingArguments() const {
+  Code* code = LookupCode();
+  if (code->kind() == Code::BUILTIN) {
+    return static_cast<int>(
+        Memory::intptr_at(fp() + OptimizedBuiltinFrameConstants::kArgCOffset));
+  } else {
+    return JavaScriptFrame::GetNumberOfIncomingArguments();
+  }
+}
 
 Address JavaScriptFrame::GetCallerStackPointer() const {
   return fp() + StandardFrameConstants::kCallerSPOffset;

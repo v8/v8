@@ -848,6 +848,8 @@ class OptimizedFrame : public JavaScriptFrame {
  protected:
   inline explicit OptimizedFrame(StackFrameIteratorBase* iterator);
 
+  int GetNumberOfIncomingArguments() const override;
+
  private:
   friend class StackFrameIteratorBase;
 
