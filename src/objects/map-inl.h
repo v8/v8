@@ -666,6 +666,13 @@ ACCESSORS(Map, prototype_validity_cell, Object, kPrototypeValidityCellOffset)
 ACCESSORS(Map, constructor_or_backpointer, Object,
           kConstructorOrBackPointerOffset)
 
+bool Map::IsPrototypeValidityCellValid() const {
+  Object* validity_cell = prototype_validity_cell();
+  Object* value = validity_cell->IsSmi() ? Smi::cast(validity_cell)
+                                         : Cell::cast(validity_cell)->value();
+  return value == Smi::FromInt(Map::kPrototypeChainValid);
+}
+
 Object* Map::GetConstructor() const {
   Object* maybe_constructor = constructor_or_backpointer();
   // Follow any back pointers.

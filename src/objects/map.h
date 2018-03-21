@@ -580,6 +580,10 @@ class Map : public HeapObject {
   // prototype.
   DECL_ACCESSORS(prototype_validity_cell, Object)
 
+  // Returns true if prototype validity cell value represents "valid" prototype
+  // chain state.
+  inline bool IsPrototypeValidityCellValid() const;
+
   inline PropertyDetails GetLastDescriptorDetails() const;
 
   inline int LastAdded() const;

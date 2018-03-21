@@ -205,62 +205,6 @@ void TransitionsAccessor::Insert(Handle<Name> name, Handle<Map> target,
   ReplaceTransitions(*result);
 }
 
-void TransitionsAccessor::UpdateHandler(Name* name, Object* handler) {
-  if (map_->is_dictionary_map()) return;
-  switch (encoding()) {
-    case kPrototypeInfo:
-    case kUninitialized:
-      UNREACHABLE();
-      return;
-    case kWeakCell:
-    case kHandler:
-      DCHECK_EQ(GetSimpleTransition(), GetTargetFromRaw(handler));
-      ReplaceTransitions(handler);
-      return;
-    case kFullTransitionArray: {
-      PropertyAttributes attributes = name->IsPrivate() ? DONT_ENUM : NONE;
-      int transition = transitions()->Search(kData, name, attributes);
-      DCHECK_NE(kNotFound, transition);
-      DCHECK_EQ(transitions()->GetTarget(transition),
-                GetTargetFromRaw(handler));
-      transitions()->SetTarget(transition, handler);
-      return;
-    }
-  }
-}
-
-Object* TransitionsAccessor::SearchHandler(Name* name,
-                                           Handle<Map>* out_transition) {
-  switch (encoding()) {
-    case kPrototypeInfo:
-    case kUninitialized:
-    case kWeakCell:
-      return nullptr;
-    case kHandler: {
-      Object* raw_handler = StoreHandler::ValidHandlerOrNull(
-          raw_transitions_, name, out_transition);
-      if (raw_handler == nullptr) return raw_handler;
-      // Check transition key.
-      WeakCell* target_cell = StoreHandler::GetTransitionCell(raw_handler);
-      if (!IsMatchingMap(target_cell, name, kData, NONE)) return nullptr;
-      return raw_handler;
-    }
-
-    case kFullTransitionArray: {
-      int transition = transitions()->Search(kData, name, NONE);
-      if (transition == kNotFound) return nullptr;
-      Object* raw_handler = transitions()->GetRawTarget(transition);
-      if (raw_handler->IsStoreHandler()) {
-        return StoreHandler::ValidHandlerOrNull(raw_handler, name,
-                                                out_transition);
-      }
-      return nullptr;
-    }
-  }
-  UNREACHABLE();
-  return nullptr;  // Make GCC happy.
-}
-
 Map* TransitionsAccessor::SearchTransition(Name* name, PropertyKind kind,
                                            PropertyAttributes attributes) {
   DCHECK(name->IsUniqueName());

@@ -323,8 +323,7 @@ class StoreIC : public IC {
   // Update the inline cache and the global stub cache based on the
   // lookup result.
   void UpdateCaches(LookupIterator* lookup, Handle<Object> value,
-                    JSReceiver::StoreFromKeyed store_mode,
-                    MaybeHandle<Object> cached_handler);
+                    JSReceiver::StoreFromKeyed store_mode);
 
  private:
   Handle<Object> ComputeHandler(LookupIterator* lookup);

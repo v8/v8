@@ -135,12 +135,9 @@ class V8_EXPORT_PRIVATE LookupIterator final BASE_EMBEDDED {
       Isolate* isolate, Handle<Object> receiver, Handle<Object> key,
       bool* success, Configuration configuration = DEFAULT);
 
-  static LookupIterator ForTransitionHandler(Isolate* isolate,
-                                             Handle<Object> receiver,
-                                             Handle<Name> name,
-                                             Handle<Object> value,
-                                             MaybeHandle<Object> handler,
-                                             Handle<Map> transition_map);
+  static LookupIterator ForTransitionHandler(
+      Isolate* isolate, Handle<Object> receiver, Handle<Name> name,
+      Handle<Object> value, MaybeHandle<Map> maybe_transition_map);
 
   void Restart() {
     InterceptorState state = InterceptorState::kUninitialized;

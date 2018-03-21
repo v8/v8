@@ -202,28 +202,53 @@ Handle<Object> StoreHandler::StoreElementTransition(
   return handler;
 }
 
-Handle<Smi> StoreHandler::StoreTransition(Isolate* isolate,
-                                          Handle<Map> transition_map) {
-  int descriptor = transition_map->LastAdded();
-  Handle<DescriptorArray> descriptors(transition_map->instance_descriptors());
-  PropertyDetails details = descriptors->GetDetails(descriptor);
-  Representation representation = details.representation();
-  DCHECK(!representation.IsNone());
-
+Handle<Object> StoreHandler::StoreTransition(Isolate* isolate,
+                                             Handle<Map> transition_map) {
+  bool is_dictionary_map = transition_map->is_dictionary_map();
+#ifdef DEBUG
+  if (!is_dictionary_map) {
+    int descriptor = transition_map->LastAdded();
+    Handle<DescriptorArray> descriptors(transition_map->instance_descriptors());
+    PropertyDetails details = descriptors->GetDetails(descriptor);
+    if (descriptors->GetKey(descriptor)->IsPrivate()) {
+      DCHECK_EQ(DONT_ENUM, details.attributes());
+    } else {
+      DCHECK_EQ(NONE, details.attributes());
+    }
+    Representation representation = details.representation();
+    DCHECK(!representation.IsNone());
+  }
+#endif
   // Declarative handlers don't support access checks.
   DCHECK(!transition_map->is_access_check_needed());
 
-  DCHECK_EQ(kData, details.kind());
-  if (details.location() == PropertyLocation::kDescriptor) {
-    return TransitionToConstant(isolate, descriptor);
+  // Get validity cell value if it is necessary for the handler.
+  Handle<Object> validity_cell;
+  if (is_dictionary_map || !transition_map->IsPrototypeValidityCellValid()) {
+    validity_cell =
+        Map::GetOrCreatePrototypeChainValidityCell(transition_map, isolate);
+    if (validity_cell.is_null()) {
+      validity_cell = handle(Smi::FromInt(Map::kPrototypeChainValid), isolate);
+    }
   }
-  DCHECK_EQ(PropertyLocation::kField, details.location());
-  bool extend_storage =
-      Map::cast(transition_map->GetBackPointer())->UnusedPropertyFields() == 0;
 
-  FieldIndex index = FieldIndex::ForDescriptor(*transition_map, descriptor);
-  return TransitionToField(isolate, descriptor, index, representation,
-                           extend_storage);
+  if (is_dictionary_map) {
+    DCHECK(!transition_map->IsJSGlobalObjectMap());
+    Handle<StoreHandler> handler = isolate->factory()->NewStoreHandler(0);
+    // Store normal with enabled lookup on receiver.
+    int config = KindBits::encode(kNormal) | LookupOnReceiverBits::encode(true);
+    handler->set_smi_handler(Smi::FromInt(config));
+    handler->set_validity_cell(*validity_cell);
+    return handler;
+
+  } else {
+    // Ensure the transition map contains a valid prototype validity cell.
+    if (!validity_cell.is_null()) {
+      transition_map->set_prototype_validity_cell(*validity_cell);
+    }
+    Handle<WeakCell> cell = Map::WeakCellForMap(transition_map);
+    return cell;
+  }
 }
 
 // static

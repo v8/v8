@@ -1252,56 +1252,58 @@ bool StoreIC::LookupForWrite(LookupIterator* it, Handle<Object> value,
   Handle<JSObject> receiver = Handle<JSObject>::cast(object);
   DCHECK(!receiver->map()->is_deprecated());
 
-  for (; it->IsFound(); it->Next()) {
-    switch (it->state()) {
-      case LookupIterator::NOT_FOUND:
-      case LookupIterator::TRANSITION:
-        UNREACHABLE();
-      case LookupIterator::JSPROXY:
-        return true;
-      case LookupIterator::INTERCEPTOR: {
-        Handle<JSObject> holder = it->GetHolder<JSObject>();
-        InterceptorInfo* info = holder->GetNamedInterceptor();
-        if (it->HolderIsReceiverOrHiddenPrototype()) {
-          return !info->non_masking() && receiver.is_identical_to(holder) &&
-                 !info->setter()->IsUndefined(it->isolate());
-        } else if (!info->getter()->IsUndefined(it->isolate()) ||
-                   !info->query()->IsUndefined(it->isolate())) {
-          return false;
-        }
-        break;
-      }
-      case LookupIterator::ACCESS_CHECK:
-        if (it->GetHolder<JSObject>()->IsAccessCheckNeeded()) return false;
-        break;
-      case LookupIterator::ACCESSOR:
-        return !it->IsReadOnly();
-      case LookupIterator::INTEGER_INDEXED_EXOTIC:
-        return false;
-      case LookupIterator::DATA: {
-        if (it->IsReadOnly()) return false;
-        Handle<JSObject> holder = it->GetHolder<JSObject>();
-        if (receiver.is_identical_to(holder)) {
-          it->PrepareForDataProperty(value);
-          // The previous receiver map might just have been deprecated,
-          // so reload it.
-          update_receiver_map(receiver);
+  if (it->state() != LookupIterator::TRANSITION) {
+    for (; it->IsFound(); it->Next()) {
+      switch (it->state()) {
+        case LookupIterator::NOT_FOUND:
+        case LookupIterator::TRANSITION:
+          UNREACHABLE();
+        case LookupIterator::JSPROXY:
           return true;
+        case LookupIterator::INTERCEPTOR: {
+          Handle<JSObject> holder = it->GetHolder<JSObject>();
+          InterceptorInfo* info = holder->GetNamedInterceptor();
+          if (it->HolderIsReceiverOrHiddenPrototype()) {
+            return !info->non_masking() && receiver.is_identical_to(holder) &&
+                   !info->setter()->IsUndefined(it->isolate());
+          } else if (!info->getter()->IsUndefined(it->isolate()) ||
+                     !info->query()->IsUndefined(it->isolate())) {
+            return false;
+          }
+          break;
         }
+        case LookupIterator::ACCESS_CHECK:
+          if (it->GetHolder<JSObject>()->IsAccessCheckNeeded()) return false;
+          break;
+        case LookupIterator::ACCESSOR:
+          return !it->IsReadOnly();
+        case LookupIterator::INTEGER_INDEXED_EXOTIC:
+          return false;
+        case LookupIterator::DATA: {
+          if (it->IsReadOnly()) return false;
+          Handle<JSObject> holder = it->GetHolder<JSObject>();
+          if (receiver.is_identical_to(holder)) {
+            it->PrepareForDataProperty(value);
+            // The previous receiver map might just have been deprecated,
+            // so reload it.
+            update_receiver_map(receiver);
+            return true;
+          }
 
-        // Receiver != holder.
-        if (receiver->IsJSGlobalProxy()) {
-          PrototypeIterator iter(it->isolate(), receiver);
-          return it->GetHolder<Object>().is_identical_to(
-              PrototypeIterator::GetCurrent(iter));
+          // Receiver != holder.
+          if (receiver->IsJSGlobalProxy()) {
+            PrototypeIterator iter(it->isolate(), receiver);
+            return it->GetHolder<Object>().is_identical_to(
+                PrototypeIterator::GetCurrent(iter));
+          }
+
+          if (it->HolderIsReceiverOrHiddenPrototype()) return false;
+
+          if (it->ExtendingNonExtensible(receiver)) return false;
+          created_new_transition_ = it->PrepareTransitionToDataProperty(
+              receiver, value, NONE, store_mode);
+          return it->IsCacheableTransition();
         }
-
-        if (it->HolderIsReceiverOrHiddenPrototype()) return false;
-
-        if (it->ExtendingNonExtensible(receiver)) return false;
-        created_new_transition_ = it->PrepareTransitionToDataProperty(
-            receiver, value, NONE, store_mode);
-        return it->IsCacheableTransition();
       }
     }
   }
@@ -1388,19 +1390,15 @@ MaybeHandle<Object> StoreIC::Store(Handle<Object> object, Handle<Name> name,
   if (state() != UNINITIALIZED) {
     JSObject::MakePrototypesFast(object, kStartAtPrototype, isolate());
   }
-  MaybeHandle<Object> cached_handler;
-  Handle<Map> transition_map;
+  MaybeHandle<Map> maybe_transition_map;
   if (object->IsJSReceiver()) {
     name = isolate()->factory()->InternalizeName(name);
-    TransitionsAccessor transitions(receiver_map());
-    Object* maybe_handler = transitions.SearchHandler(*name, &transition_map);
-    if (maybe_handler != nullptr) {
-      cached_handler = MaybeHandle<Object>(maybe_handler, isolate());
-    }
+    maybe_transition_map =
+        TransitionsAccessor(receiver_map()).FindTransitionToDataProperty(name);
   }
 
   LookupIterator it = LookupIterator::ForTransitionHandler(
-      isolate(), object, name, value, cached_handler, transition_map);
+      isolate(), object, name, value, maybe_transition_map);
 
   bool use_ic = FLAG_use_ic;
 
@@ -1416,8 +1414,7 @@ MaybeHandle<Object> StoreIC::Store(Handle<Object> object, Handle<Name> name,
       use_ic = false;
     }
   }
-
-  if (use_ic) UpdateCaches(&it, value, store_mode, cached_handler);
+  if (use_ic) UpdateCaches(&it, value, store_mode);
 
   MAYBE_RETURN_NULL(
       Object::SetProperty(&it, value, language_mode(), store_mode));
@@ -1425,8 +1422,7 @@ MaybeHandle<Object> StoreIC::Store(Handle<Object> object, Handle<Name> name,
 }
 
 void StoreIC::UpdateCaches(LookupIterator* lookup, Handle<Object> value,
-                           JSReceiver::StoreFromKeyed store_mode,
-                           MaybeHandle<Object> cached_handler) {
+                           JSReceiver::StoreFromKeyed store_mode) {
   if (state() == UNINITIALIZED && !IsStoreGlobalIC()) {
     // This is the first time we execute this inline cache. Set the target to
     // the pre monomorphic stub to delay setting the monomorphic state.
@@ -1437,9 +1433,7 @@ void StoreIC::UpdateCaches(LookupIterator* lookup, Handle<Object> value,
   }
 
   Handle<Object> handler;
-  if (!cached_handler.is_null()) {
-    handler = cached_handler.ToHandleChecked();
-  } else if (LookupForWrite(lookup, value, store_mode)) {
+  if (LookupForWrite(lookup, value, store_mode)) {
     if (IsStoreGlobalIC()) {
       if (lookup->state() == LookupIterator::DATA &&
           lookup->GetReceiver().is_identical_to(lookup->GetHolder<Object>())) {
@@ -1470,16 +1464,17 @@ void StoreIC::UpdateCaches(LookupIterator* lookup, Handle<Object> value,
 Handle<Object> StoreIC::ComputeHandler(LookupIterator* lookup) {
   switch (lookup->state()) {
     case LookupIterator::TRANSITION: {
-      Handle<JSObject> holder = lookup->GetHolder<JSObject>();
-
       Handle<JSObject> store_target = lookup->GetStoreTarget<JSObject>();
       if (store_target->IsJSGlobalObject()) {
         TRACE_HANDLER_STATS(isolate(), StoreIC_StoreGlobalTransitionDH);
 
         if (receiver_map()->IsJSGlobalObject()) {
           DCHECK(IsStoreGlobalIC());
+#ifdef DEBUG
+          Handle<JSObject> holder = lookup->GetHolder<JSObject>();
           DCHECK_EQ(*lookup->GetReceiver(), *holder);
           DCHECK_EQ(*store_target, *holder);
+#endif
           return StoreHandler::StoreGlobal(isolate(),
                                            lookup->transition_cell());
         }
@@ -1491,31 +1486,13 @@ Handle<Object> StoreIC::ComputeHandler(LookupIterator* lookup) {
             isolate(), receiver_map(), store_target, smi_handler, cell);
         return handler;
       }
-      // Currently not handled by CompileStoreTransition.
-      if (!holder->HasFastProperties()) {
-        set_slow_stub_reason("transition from slow");
-        TRACE_HANDLER_STATS(isolate(), StoreIC_SlowStub);
-        return slow_stub();
-      }
+      // Dictionary-to-fast transitions are not expected and not supported.
+      DCHECK_IMPLIES(!lookup->transition_map()->is_dictionary_map(),
+                     !receiver_map()->is_dictionary_map());
 
       DCHECK(lookup->IsCacheableTransition());
-      Handle<Map> transition = lookup->transition_map();
 
-      Handle<Smi> smi_handler;
-      if (transition->is_dictionary_map()) {
-        TRACE_HANDLER_STATS(isolate(), StoreIC_StoreNormalDH);
-        smi_handler = StoreHandler::StoreNormal(isolate());
-      } else {
-        TRACE_HANDLER_STATS(isolate(), StoreIC_StoreTransitionDH);
-        smi_handler = StoreHandler::StoreTransition(isolate(), transition);
-      }
-
-      Handle<WeakCell> cell = Map::WeakCellForMap(transition);
-      Handle<Object> handler = StoreHandler::StoreThroughPrototype(
-          isolate(), receiver_map(), holder, smi_handler, cell);
-      TransitionsAccessor(receiver_map())
-          .UpdateHandler(*lookup->name(), *handler);
-      return handler;
+      return StoreHandler::StoreTransition(isolate(), lookup->transition_map());
     }
 
     case LookupIterator::INTERCEPTOR: {
