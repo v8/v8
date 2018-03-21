@@ -143,10 +143,6 @@ class V8_EXPORT_PRIVATE WasmCode final {
 
  private:
   friend class NativeModule;
-  friend class NativeModuleDeserializer;
-
-  // A constructor used just for implementing Lookup.
-  WasmCode(Address pc) : instructions_(pc, 0), index_(Nothing<uint32_t>()) {}
 
   WasmCode(Vector<byte> instructions,
            std::unique_ptr<const byte[]>&& reloc_info, size_t reloc_size,
@@ -172,9 +168,6 @@ class V8_EXPORT_PRIVATE WasmCode final {
     DCHECK_LE(handler_table_offset, instructions.size());
   }
 
-  WasmCode(const WasmCode&) = delete;
-  WasmCode& operator=(const WasmCode&) = delete;
-
   Vector<byte> instructions_;
   std::unique_ptr<const byte[]> reloc_info_;
   size_t reloc_size_ = 0;
@@ -191,6 +184,8 @@ class V8_EXPORT_PRIVATE WasmCode final {
   intptr_t trap_handler_index_ = -1;
   std::shared_ptr<ProtectedInstructions> protected_instructions_;
   Tier tier_;
+
+  DISALLOW_COPY_AND_ASSIGN(WasmCode);
 };
 
 // Return a textual description of the kind.
@@ -270,18 +265,7 @@ class V8_EXPORT_PRIVATE NativeModule final {
   friend class NativeModuleDeserializer;
   friend class NativeModuleModificationScope;
 
-  struct WasmCodeUniquePtrComparer {
-    bool operator()(const std::unique_ptr<WasmCode>& a,
-                    const std::unique_ptr<WasmCode>& b) {
-      DCHECK(a);
-      DCHECK(b);
-      return a->instructions().start() < b->instructions().start();
-    }
-  };
-
   static base::AtomicNumber<size_t> next_id_;
-  NativeModule(const NativeModule&) = delete;
-  NativeModule& operator=(const NativeModule&) = delete;
   NativeModule(uint32_t num_functions, uint32_t num_imports,
                bool can_request_more, VirtualMemory* vmem,
                WasmCodeManager* code_manager);
@@ -307,9 +291,9 @@ class V8_EXPORT_PRIVATE NativeModule final {
   Address GetLocalAddressFor(Handle<Code>);
   Address CreateTrampolineTo(Handle<Code>);
 
+  // Holds all allocated code objects, is maintained to be in ascending order
+  // according to the codes instruction start address to allow lookups.
   std::vector<std::unique_ptr<WasmCode>> owned_code_;
-
-  WasmCodeUniquePtrComparer owned_code_comparer_;
 
   std::vector<WasmCode*> code_table_;
   uint32_t num_imported_functions_;
@@ -333,6 +317,8 @@ class V8_EXPORT_PRIVATE NativeModule final {
   bool can_request_more_memory_;
   bool is_executable_ = false;
   int modification_scope_depth_ = 0;
+
+  DISALLOW_COPY_AND_ASSIGN(NativeModule);
 };
 
 class V8_EXPORT_PRIVATE WasmCodeManager final {
@@ -359,8 +345,6 @@ class V8_EXPORT_PRIVATE WasmCodeManager final {
  private:
   friend class NativeModule;
 
-  WasmCodeManager(const WasmCodeManager&) = delete;
-  WasmCodeManager& operator=(const WasmCodeManager&) = delete;
   void TryAllocate(size_t size, VirtualMemory*, void* hint = nullptr);
   bool Commit(Address, size_t);
   // Currently, we uncommit a whole module, so all we need is account
@@ -381,6 +365,8 @@ class V8_EXPORT_PRIVATE WasmCodeManager final {
 
   // TODO(mtrofin): remove the dependency on isolate.
   v8::Isolate* isolate_;
+
+  DISALLOW_COPY_AND_ASSIGN(WasmCodeManager);
 };
 
 // Within the scope, the native_module is writable and not executable.

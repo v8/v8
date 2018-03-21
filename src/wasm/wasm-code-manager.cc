@@ -32,6 +32,16 @@ namespace wasm {
 
 namespace {
 
+// Binary predicate to perform lookups in {NativeModule::owned_code_} with a
+// given address into a code object. Use with {std::upper_bound} for example.
+struct WasmCodeUniquePtrComparator {
+  bool operator()(Address pc, const std::unique_ptr<WasmCode>& code) const {
+    DCHECK_NOT_NULL(pc);
+    DCHECK_NOT_NULL(code);
+    return pc < code->instructions().start();
+  }
+};
+
 #if V8_TARGET_ARCH_X64
 #define __ masm->
 constexpr bool kModuleCanAllocateMoreMemory = false;
@@ -355,7 +365,8 @@ WasmCode* NativeModule::AddOwnedCode(
   // even if we end up with segmented memory, we may end up only with a few
   // large moves - if, for example, a new segment is below the current ones.
   auto insert_before = std::upper_bound(owned_code_.begin(), owned_code_.end(),
-                                        code, owned_code_comparer_);
+                                        ret->instructions().start(),
+                                        WasmCodeUniquePtrComparator());
   owned_code_.insert(insert_before, std::move(code));
   if (flush_icache) {
     Assembler::FlushICache(ret->instructions().start(),
@@ -649,10 +660,8 @@ Address NativeModule::AllocateForCode(size_t size) {
 
 WasmCode* NativeModule::Lookup(Address pc) {
   if (owned_code_.empty()) return nullptr;
-  // Make a fake WasmCode temp, to look into owned_code_
-  std::unique_ptr<WasmCode> temp(new WasmCode(pc));
-  auto iter = std::upper_bound(owned_code_.begin(), owned_code_.end(), temp,
-                               owned_code_comparer_);
+  auto iter = std::upper_bound(owned_code_.begin(), owned_code_.end(), pc,
+                               WasmCodeUniquePtrComparator());
   if (iter == owned_code_.begin()) return nullptr;
   --iter;
   WasmCode* candidate = (*iter).get();
