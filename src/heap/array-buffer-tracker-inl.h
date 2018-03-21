@@ -54,7 +54,7 @@ void LocalArrayBufferTracker::Free(Callback should_free) {
   for (TrackingData::iterator it = array_buffers_.begin();
        it != array_buffers_.end();) {
     JSArrayBuffer* buffer = reinterpret_cast<JSArrayBuffer*>(*it);
-    const size_t length = buffer->allocation_length();
+    const size_t length = buffer->byte_length()->Number();
     if (should_free(buffer)) {
       buffer->FreeBackingStore();
       it = array_buffers_.erase(it);
