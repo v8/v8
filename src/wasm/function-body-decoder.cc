@@ -959,8 +959,31 @@ bool PrintRawWasmCode(AccountingAllocator* allocator, const FunctionBody& body,
 
     os << RawOpcodeName(opcode) << ",";
 
-    for (unsigned j = 1; j < length; ++j) {
-      os << " 0x" << AsHex(i.pc()[j], 2) << ",";
+    if (opcode == kExprLoop || opcode == kExprIf || opcode == kExprBlock ||
+        opcode == kExprTry) {
+      DCHECK_EQ(2, length);
+
+      switch (i.pc()[1]) {
+#define CASE_LOCAL_TYPE(local_name, type_name) \
+  case kLocal##local_name:                     \
+    os << " kWasm" #type_name ",";             \
+    break;
+
+        CASE_LOCAL_TYPE(I32, I32)
+        CASE_LOCAL_TYPE(I64, I64)
+        CASE_LOCAL_TYPE(F32, F32)
+        CASE_LOCAL_TYPE(F64, F64)
+        CASE_LOCAL_TYPE(S128, S128)
+        CASE_LOCAL_TYPE(Void, Stmt)
+        default:
+          os << " 0x" << AsHex(i.pc()[1], 2) << ",";
+          break;
+      }
+#undef CASE_LOCAL_TYPE
+    } else {
+      for (unsigned j = 1; j < length; ++j) {
+        os << " 0x" << AsHex(i.pc()[j], 2) << ",";
+      }
     }
 
     switch (opcode) {
