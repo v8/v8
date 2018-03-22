@@ -883,8 +883,9 @@ bool DebugEvaluate::FunctionHasNoSideEffect(Handle<SharedFunctionInfo> info) {
     return true;
   } else {
     // Check built-ins against whitelist.
-    int builtin_index =
-        info->HasBuiltinId() ? info->builtin_id() : Builtins::kNoBuiltinId;
+    int builtin_index = info->HasLazyDeserializationBuiltinId()
+                            ? info->lazy_deserialization_builtin_id()
+                            : info->code()->builtin_index();
     DCHECK_NE(Builtins::kDeserializeLazy, builtin_index);
     if (Builtins::IsBuiltinId(builtin_index) &&
         BuiltinHasNoSideEffect(static_cast<Builtins::Name>(builtin_index))) {

@@ -203,7 +203,8 @@ TF_BUILTIN(DebugBreakTrampoline, CodeStubAssembler) {
 
   BIND(&tailcall_to_shared);
   // Tail call into code object on the SharedFunctionInfo.
-  TNode<Code> code = GetSharedFunctionInfoCode(shared);
+  TNode<Code> code =
+      CAST(LoadObjectField(shared, SharedFunctionInfo::kCodeOffset));
   // Use the ConstructTrampolineDescriptor because it passes new.target too in
   // case this is called during construct.
   CSA_ASSERT(this, IsCode(code));

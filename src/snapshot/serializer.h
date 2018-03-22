@@ -189,10 +189,17 @@ class Serializer : public SerializerDeserializer {
   bool SerializeBackReference(HeapObject* obj, HowToCode how_to_code,
                               WhereToPoint where_to_point, int skip);
 
+  // Determines whether the interpreter trampoline is replaced by CompileLazy.
+  enum BuiltinReferenceSerializationMode {
+    kDefault,
+    kCanonicalizeCompileLazy,
+  };
+
   // Returns true if the object was successfully serialized as a builtin
   // reference.
-  bool SerializeBuiltinReference(HeapObject* obj, HowToCode how_to_code,
-                                 WhereToPoint where_to_point, int skip);
+  bool SerializeBuiltinReference(
+      HeapObject* obj, HowToCode how_to_code, WhereToPoint where_to_point,
+      int skip, BuiltinReferenceSerializationMode mode = kDefault);
 
   // Returns true if the given heap object is a bytecode handler code object.
   bool ObjectIsBytecodeHandler(HeapObject* obj) const;

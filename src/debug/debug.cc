@@ -1404,7 +1404,7 @@ bool Debug::EnsureBreakInfo(Handle<SharedFunctionInfo> shared) {
       !Compiler::Compile(shared, Compiler::CLEAR_EXCEPTION)) {
     return false;
   }
-  if (shared->GetCode() ==
+  if (shared->code() ==
       isolate_->builtins()->builtin(Builtins::kDeserializeLazy)) {
     Snapshot::EnsureBuiltinIsDeserialized(isolate_, shared);
   }
@@ -1862,20 +1862,19 @@ void Debug::RunPromiseHook(PromiseHookType hook_type, Handle<JSPromise> promise,
           return;
         }
         last_frame_was_promise_builtin = false;
-        if (info->HasBuiltinId()) {
-          if (info->builtin_id() == Builtins::kAsyncFunctionPromiseCreate) {
-            type = debug::kDebugAsyncFunctionPromiseCreated;
-            last_frame_was_promise_builtin = true;
-          } else if (info->builtin_id() == Builtins::kPromisePrototypeThen) {
-            type = debug::kDebugPromiseThen;
-            last_frame_was_promise_builtin = true;
-          } else if (info->builtin_id() == Builtins::kPromisePrototypeCatch) {
-            type = debug::kDebugPromiseCatch;
-            last_frame_was_promise_builtin = true;
-          } else if (info->builtin_id() == Builtins::kPromisePrototypeFinally) {
-            type = debug::kDebugPromiseFinally;
-            last_frame_was_promise_builtin = true;
-          }
+        Handle<Code> code(info->code());
+        if (*code == *BUILTIN_CODE(isolate_, AsyncFunctionPromiseCreate)) {
+          type = debug::kDebugAsyncFunctionPromiseCreated;
+          last_frame_was_promise_builtin = true;
+        } else if (*code == *BUILTIN_CODE(isolate_, PromisePrototypeThen)) {
+          type = debug::kDebugPromiseThen;
+          last_frame_was_promise_builtin = true;
+        } else if (*code == *BUILTIN_CODE(isolate_, PromisePrototypeCatch)) {
+          type = debug::kDebugPromiseCatch;
+          last_frame_was_promise_builtin = true;
+        } else if (*code == *BUILTIN_CODE(isolate_, PromisePrototypeFinally)) {
+          type = debug::kDebugPromiseFinally;
+          last_frame_was_promise_builtin = true;
         }
       }
       it.Advance();

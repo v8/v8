@@ -12,8 +12,13 @@
 namespace v8 {
 namespace internal {
 
-StartupSerializer::StartupSerializer(Isolate* isolate)
-    : Serializer(isolate), can_be_rehashed_(true) {
+StartupSerializer::StartupSerializer(
+    Isolate* isolate,
+    v8::SnapshotCreator::FunctionCodeHandling function_code_handling)
+    : Serializer(isolate),
+      clear_function_code_(function_code_handling ==
+                           v8::SnapshotCreator::FunctionCodeHandling::kClear),
+      can_be_rehashed_(true) {
   InitializeCodeAddressMap();
 }
 
@@ -28,7 +33,13 @@ void StartupSerializer::SerializeObject(HeapObject* obj, HowToCode how_to_code,
   DCHECK(!ObjectIsBytecodeHandler(obj));  // Only referenced in dispatch table.
   DCHECK(!obj->IsJSFunction());
 
-  if (SerializeBuiltinReference(obj, how_to_code, where_to_point, skip)) {
+  if (clear_function_code() && obj->IsBytecodeArray()) {
+    obj = isolate()->heap()->undefined_value();
+  }
+
+  BuiltinReferenceSerializationMode mode =
+      clear_function_code() ? kCanonicalizeCompileLazy : kDefault;
+  if (SerializeBuiltinReference(obj, how_to_code, where_to_point, skip, mode)) {
     return;
   }
   if (SerializeHotObject(obj, how_to_code, where_to_point, skip)) return;

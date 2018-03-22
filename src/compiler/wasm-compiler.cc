@@ -1715,11 +1715,10 @@ Node* WasmGraphBuilder::BuildI32Ctz(Node* input) {
 }
 
 Node* WasmGraphBuilder::BuildI64Ctz(Node* input) {
-  return Unop(
-      wasm::kExprI64UConvertI32,
-      BuildBitCountingCall(
-          input, ExternalReference::wasm_word64_ctz(jsgraph()->isolate()),
-          MachineRepresentation::kWord64));
+  return Unop(wasm::kExprI64UConvertI32,
+              BuildBitCountingCall(input, ExternalReference::wasm_word64_ctz(
+                                              jsgraph()->isolate()),
+                                   MachineRepresentation::kWord64));
 }
 
 Node* WasmGraphBuilder::BuildI32Popcnt(Node* input) {
@@ -1729,11 +1728,10 @@ Node* WasmGraphBuilder::BuildI32Popcnt(Node* input) {
 }
 
 Node* WasmGraphBuilder::BuildI64Popcnt(Node* input) {
-  return Unop(
-      wasm::kExprI64UConvertI32,
-      BuildBitCountingCall(
-          input, ExternalReference::wasm_word64_popcnt(jsgraph()->isolate()),
-          MachineRepresentation::kWord64));
+  return Unop(wasm::kExprI64UConvertI32,
+              BuildBitCountingCall(input, ExternalReference::wasm_word64_popcnt(
+                                              jsgraph()->isolate()),
+                                   MachineRepresentation::kWord64));
 }
 
 Node* WasmGraphBuilder::BuildF32Trunc(Node* input) {
@@ -3205,7 +3203,7 @@ bool WasmGraphBuilder::BuildWasmToJSWrapper(
     Callable callable = CodeFactory::Call(isolate);
     args[pos++] = jsgraph()->HeapConstant(callable.code());
     args[pos++] = LoadImportData(index, kFunction, table);  // target callable.
-    args[pos++] = jsgraph()->Int32Constant(wasm_count);     // argument count
+    args[pos++] = jsgraph()->Int32Constant(wasm_count);  // argument count
     args[pos++] = jsgraph()->Constant(
         handle(isolate->heap()->undefined_value(), isolate));  // receiver
 
@@ -4781,38 +4779,40 @@ Handle<Code> CompileWasmToJSWrapper(
     }
   }
 
-  if (FLAG_trace_turbo_graph) {  // Simple textual RPO.
-    OFStream os(stdout);
-    os << "-- Graph after change lowering -- " << std::endl;
-    os << AsRPO(graph);
-  }
+    if (FLAG_trace_turbo_graph) {  // Simple textual RPO.
+      OFStream os(stdout);
+      os << "-- Graph after change lowering -- " << std::endl;
+      os << AsRPO(graph);
+    }
 
-  // Schedule and compile to machine code.
-  CallDescriptor* incoming = GetWasmCallDescriptor(&zone, sig);
-  if (machine.Is32()) {
-    incoming = GetI32WasmCallDescriptor(&zone, incoming);
-  }
+    // Schedule and compile to machine code.
+    CallDescriptor* incoming = GetWasmCallDescriptor(&zone, sig);
+    if (machine.Is32()) {
+      incoming = GetI32WasmCallDescriptor(&zone, incoming);
+    }
 
 #ifdef DEBUG
-  EmbeddedVector<char, 32> func_name;
-  static unsigned id = 0;
-  func_name.Truncate(SNPrintF(func_name, "wasm-to-js#%d", id++));
+    EmbeddedVector<char, 32> func_name;
+    static unsigned id = 0;
+    func_name.Truncate(SNPrintF(func_name, "wasm-to-js#%d", id++));
 #else
-  Vector<const char> func_name = CStrVector("wasm-to-js");
+    Vector<const char> func_name = CStrVector("wasm-to-js");
 #endif
 
-  CompilationInfo info(func_name, &zone, Code::WASM_TO_JS_FUNCTION);
-  Handle<Code> code = Pipeline::GenerateCodeForTesting(
-      &info, isolate, incoming, &graph, nullptr, source_position_table);
-  ValidateImportWrapperReferencesImmovables(code);
-  Handle<FixedArray> deopt_data = isolate->factory()->NewFixedArray(2, TENURED);
-  intptr_t loc = reinterpret_cast<intptr_t>(global_js_imports_table.location());
-  Handle<Object> loc_handle = isolate->factory()->NewHeapNumberFromBits(loc);
-  deopt_data->set(0, *loc_handle);
-  Handle<Object> index_handle = isolate->factory()->NewNumberFromInt(
-      OffsetForImportData(index, WasmGraphBuilder::kFunction));
-  deopt_data->set(1, *index_handle);
-  code->set_deoptimization_data(*deopt_data);
+    CompilationInfo info(func_name, &zone, Code::WASM_TO_JS_FUNCTION);
+    Handle<Code> code = Pipeline::GenerateCodeForTesting(
+        &info, isolate, incoming, &graph, nullptr, source_position_table);
+    ValidateImportWrapperReferencesImmovables(code);
+    Handle<FixedArray> deopt_data =
+        isolate->factory()->NewFixedArray(2, TENURED);
+    intptr_t loc =
+        reinterpret_cast<intptr_t>(global_js_imports_table.location());
+    Handle<Object> loc_handle = isolate->factory()->NewHeapNumberFromBits(loc);
+    deopt_data->set(0, *loc_handle);
+    Handle<Object> index_handle = isolate->factory()->NewNumberFromInt(
+        OffsetForImportData(index, WasmGraphBuilder::kFunction));
+    deopt_data->set(1, *index_handle);
+    code->set_deoptimization_data(*deopt_data);
 #ifdef ENABLE_DISASSEMBLER
     if (FLAG_print_opt_code && !code.is_null()) {
       CodeTracer::Scope tracing_scope(isolate->GetCodeTracer());
@@ -5029,6 +5029,7 @@ Handle<Code> CompileCWasmEntry(Isolate* isolate, wasm::FunctionSig* sig) {
 
 SourcePositionTable* WasmCompilationUnit::BuildGraphForWasmFunction(
     double* decode_ms) {
+
   base::ElapsedTimer decode_timer;
   if (FLAG_trace_wasm_decode_time) {
     decode_timer.Start();

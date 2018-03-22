@@ -53,7 +53,10 @@ void PartialSerializer::SerializeObject(HeapObject* obj, HowToCode how_to_code,
                                         WhereToPoint where_to_point, int skip) {
   DCHECK(!ObjectIsBytecodeHandler(obj));  // Only referenced in dispatch table.
 
-  if (SerializeBuiltinReference(obj, how_to_code, where_to_point, skip)) {
+  BuiltinReferenceSerializationMode mode =
+      startup_serializer_->clear_function_code() ? kCanonicalizeCompileLazy
+                                                 : kDefault;
+  if (SerializeBuiltinReference(obj, how_to_code, where_to_point, skip, mode)) {
     return;
   }
   if (SerializeHotObject(obj, how_to_code, where_to_point, skip)) return;
@@ -99,13 +102,6 @@ void PartialSerializer::SerializeObject(HeapObject* obj, HowToCode how_to_code,
       DCHECK_NOT_NULL(serialize_embedder_fields_.callback);
       embedder_field_holders_.push_back(jsobj);
     }
-  }
-
-  if (obj->IsJSFunction()) {
-    // Unconditionally reset the JSFunction to its SFI's code, since we can't
-    // serialize optimized code anyway.
-    JSFunction* closure = JSFunction::cast(obj);
-    closure->set_code(closure->shared()->GetCode());
   }
 
   CheckRehashability(obj);

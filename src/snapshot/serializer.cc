@@ -186,7 +186,7 @@ bool Serializer<AllocatorT>::SerializeBackReference(HeapObject* obj,
 template <class AllocatorT>
 bool Serializer<AllocatorT>::SerializeBuiltinReference(
     HeapObject* obj, HowToCode how_to_code, WhereToPoint where_to_point,
-    int skip) {
+    int skip, BuiltinReferenceSerializationMode mode) {
   if (!obj->IsCode()) return false;
 
   Code* code = Code::cast(obj);
@@ -197,6 +197,11 @@ bool Serializer<AllocatorT>::SerializeBuiltinReference(
          (how_to_code == kFromCode));
   DCHECK_LT(builtin_index, Builtins::builtin_count);
   DCHECK_LE(0, builtin_index);
+
+  if (mode == kCanonicalizeCompileLazy &&
+      code->is_interpreter_trampoline_builtin()) {
+    builtin_index = static_cast<int>(Builtins::kCompileLazy);
+  }
 
   if (FLAG_trace_serializer) {
     PrintF(" Encoding builtin reference: %s\n",

@@ -135,7 +135,8 @@ static StartupBlobs Serialize(v8::Isolate* isolate) {
   Isolate* internal_isolate = reinterpret_cast<Isolate*>(isolate);
   internal_isolate->heap()->CollectAllAvailableGarbage(
       i::GarbageCollectionReason::kTesting);
-  StartupSerializer ser(internal_isolate);
+  StartupSerializer ser(internal_isolate,
+                        v8::SnapshotCreator::FunctionCodeHandling::kClear);
   ser.SerializeStrongReferences();
 
   i::BuiltinSerializer builtin_serializer(internal_isolate, &ser);
@@ -375,7 +376,8 @@ static void PartiallySerializeContext(Vector<const byte>* startup_blob_out,
     env.Reset();
 
     SnapshotByteSink startup_sink;
-    StartupSerializer startup_serializer(isolate);
+    StartupSerializer startup_serializer(
+        isolate, v8::SnapshotCreator::FunctionCodeHandling::kClear);
     startup_serializer.SerializeStrongReferences();
 
     SnapshotByteSink partial_sink;
@@ -499,7 +501,8 @@ static void PartiallySerializeCustomContext(
     env.Reset();
 
     SnapshotByteSink startup_sink;
-    StartupSerializer startup_serializer(isolate);
+    StartupSerializer startup_serializer(
+        isolate, v8::SnapshotCreator::FunctionCodeHandling::kClear);
     startup_serializer.SerializeStrongReferences();
 
     SnapshotByteSink partial_sink;

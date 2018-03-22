@@ -32,7 +32,6 @@ namespace internal {
   V(kInvalidHandleScopeLevel, "Invalid HandleScope level")                     \
   V(kInvalidJumpTableIndex, "Invalid jump table index")                        \
   V(kInvalidRegisterFileInGenerator, "invalid register file in generator")     \
-  V(kInvalidSharedFunctionInfoData, "Invalid SharedFunctionInfo data")         \
   V(kMissingBytecodeArray, "Missing bytecode array from function")             \
   V(kObjectNotTagged, "The object is not tagged")                              \
   V(kObjectTagged, "The object is tagged")                                     \

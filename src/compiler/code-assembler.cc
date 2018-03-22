@@ -585,10 +585,6 @@ TNode<WordT> CodeAssembler::WordShr(SloppyTNode<WordT> value, int shift) {
   return (shift != 0) ? WordShr(value, IntPtrConstant(shift)) : value;
 }
 
-TNode<WordT> CodeAssembler::WordSar(SloppyTNode<WordT> value, int shift) {
-  return (shift != 0) ? WordSar(value, IntPtrConstant(shift)) : value;
-}
-
 TNode<Word32T> CodeAssembler::Word32Shr(SloppyTNode<Word32T> value, int shift) {
   return (shift != 0) ? Word32Shr(value, Int32Constant(shift)) : value;
 }

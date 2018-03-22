@@ -14,7 +14,9 @@ namespace internal {
 
 class StartupSerializer : public Serializer<> {
  public:
-  explicit StartupSerializer(Isolate* isolate);
+  StartupSerializer(
+      Isolate* isolate,
+      v8::SnapshotCreator::FunctionCodeHandling function_code_handling);
   ~StartupSerializer() override;
 
   // Serialize the current state of the heap.  The order is:
@@ -28,6 +30,7 @@ class StartupSerializer : public Serializer<> {
   int PartialSnapshotCacheIndex(HeapObject* o);
 
   bool can_be_rehashed() const { return can_be_rehashed_; }
+  bool clear_function_code() const { return clear_function_code_; }
   bool root_has_been_serialized(int root_index) const {
     return root_has_been_serialized_.test(root_index);
   }
@@ -69,6 +72,7 @@ class StartupSerializer : public Serializer<> {
 
   void CheckRehashability(HeapObject* obj);
 
+  const bool clear_function_code_;
   std::bitset<Heap::kStrongRootListLength> root_has_been_serialized_;
   PartialCacheIndexMap partial_cache_index_map_;
   std::vector<AccessorInfo*> accessor_infos_;
