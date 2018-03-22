@@ -2123,11 +2123,8 @@ TF_BUILTIN(ArrayFrom, ArrayPopulatorAssembler) {
     }
   }
 
-  // Since there's no iterator, items cannot be a Fast JS Array.
   BIND(&not_iterable);
   {
-    CSA_ASSERT(this, Word32BinaryNot(IsFastJSArray(array_like, context)));
-
     // Treat array_like as an array and try to get its length.
     length = ToLength_Inline(
         context, GetProperty(context, array_like, factory()->length_string()));
