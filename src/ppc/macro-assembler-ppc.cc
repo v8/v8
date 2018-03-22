@@ -2391,11 +2391,12 @@ void MacroAssembler::AndSmiLiteral(Register dst, Register src, Smi* smi,
 // Load a "pointer" sized value from the memory location
 void TurboAssembler::LoadP(Register dst, const MemOperand& mem,
                            Register scratch) {
+  DCHECK_EQ(mem.rb(), no_reg);
   int offset = mem.offset();
 
   if (!is_int16(offset)) {
     /* cannot use d-form */
-    DCHECK(scratch != no_reg);
+    DCHECK_EQ(scratch, no_reg);
     mov(scratch, Operand(offset));
     LoadPX(dst, MemOperand(mem.ra(), scratch));
   } else {

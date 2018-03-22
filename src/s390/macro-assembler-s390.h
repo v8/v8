@@ -989,10 +989,16 @@ class TurboAssembler : public Assembler {
     // High bits must be identical to fit into an 32-bit integer
     cgfr(value, value);
   }
-  void SmiUntag(Register reg) { SmiUntag(reg, reg); }
+  void SmiUntag(Register reg, int scale = 0) { SmiUntag(reg, reg, scale); }
 
-  void SmiUntag(Register dst, Register src) {
-    ShiftRightArithP(dst, src, Operand(kSmiShift));
+  void SmiUntag(Register dst, Register src, int scale = 0) {
+    if (scale > kSmiShift) {
+      ShiftLeftP(dst, src, Operand(scale - kSmiShift));
+    } else if (scale < kSmiShift) {
+      ShiftRightArithP(dst, src, Operand(kSmiShift - scale));
+    } else {
+      // do nothing
+    }
   }
 
   // Activation support.

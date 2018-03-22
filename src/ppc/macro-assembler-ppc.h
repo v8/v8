@@ -505,10 +505,18 @@ class TurboAssembler : public Assembler {
   void Move(Register dst, Register src, Condition cond = al);
   void Move(DoubleRegister dst, DoubleRegister src);
 
-  void SmiUntag(Register reg, RCBit rc = LeaveRC) { SmiUntag(reg, reg, rc); }
+  void SmiUntag(Register reg, RCBit rc = LeaveRC, int scale = 0) {
+    SmiUntag(reg, reg, rc, scale);
+  }
 
-  void SmiUntag(Register dst, Register src, RCBit rc = LeaveRC) {
-    ShiftRightArithImm(dst, src, kSmiShift, rc);
+  void SmiUntag(Register dst, Register src, RCBit rc = LeaveRC, int scale = 0) {
+    if (scale > kSmiShift) {
+      ShiftLeftImm(dst, src, Operand(scale - kSmiShift), rc);
+    } else if (scale < kSmiShift) {
+      ShiftRightArithImm(dst, src, kSmiShift - scale, rc);
+    } else {
+      // do nothing
+    }
   }
   // ---------------------------------------------------------------------------
   // Bit testing/extraction

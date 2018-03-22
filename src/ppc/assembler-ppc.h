@@ -450,7 +450,6 @@ class MemOperand BASE_EMBEDDED {
   explicit MemOperand(Register ra, Register rb);
 
   int32_t offset() const {
-    DCHECK(rb_ == no_reg);
     return offset_;
   }
 
