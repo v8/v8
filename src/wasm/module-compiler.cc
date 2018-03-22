@@ -113,10 +113,9 @@ class CompilationState {
       std::vector<std::unique_ptr<compiler::WasmCompilationUnit>>& units);
   std::unique_ptr<compiler::WasmCompilationUnit> GetNextCompilationUnit();
   std::unique_ptr<compiler::WasmCompilationUnit> GetNextExecutedUnit();
-  // Takes the {thrower} that contains information on whether compilation
-  // failed and a {notify} enum, which determines whether or not to notify
-  // listeners waiting on a compilation event callback.
-  void OnFinishedUnit(ErrorThrower* thrower, NotifyCompilationCallback notify);
+
+  void OnError(Handle<Object> error, NotifyCompilationCallback notify);
+  void OnFinishedUnit(NotifyCompilationCallback notify);
   void ScheduleUnitForFinishing(
       std::unique_ptr<compiler::WasmCompilationUnit>& unit);
 
@@ -147,7 +146,7 @@ class CompilationState {
  private:
   void StartCompilation(size_t num_functions);
 
-  void NotifyOnEvent(CompilationEvent event, ErrorThrower* thrower);
+  void NotifyOnEvent(CompilationEvent event, Handle<Object> error);
 
   Isolate* isolate_;
 
@@ -1179,8 +1178,7 @@ void FinishCompilationUnits(CompilationState* compilation_state,
     if (func_index < 0) break;
 
     // Update the compilation state.
-    compilation_state->OnFinishedUnit(thrower,
-                                      NotifyCompilationCallback::kNoNotify);
+    compilation_state->OnFinishedUnit(NotifyCompilationCallback::kNoNotify);
     DCHECK_IMPLIES(result == nullptr, thrower->error());
     if (result == nullptr) break;
   }
@@ -1485,20 +1483,19 @@ class FinishCompileTask : public CancelableTask {
       wasm::WasmCode* result =
           FinishCompilationUnit(compilation_state_, &thrower, &func_index);
 
-      // We need to read the value of the {thrower} object
-      // before calling {OnFinishedUnit}. The reason is
-      // that the {thrower} might be reset if callbacks are notified.
-      bool error_occurred = thrower.error();
+      if (thrower.error()) {
+        DCHECK_NULL(result);
+        USE(result);
+        Handle<Object> error = thrower.Reify();
+        compilation_state_->OnError(error, NotifyCompilationCallback::kNotify);
+        break;
+      }
 
-      if (func_index < 0 && !error_occurred) break;
-      DCHECK_IMPLIES(result == nullptr, error_occurred);
-      USE(result);
+      if (func_index < 0) break;
 
       // Update the compilation state, and possibly notify
       // threads waiting for events.
-      compilation_state_->OnFinishedUnit(&thrower,
-                                         NotifyCompilationCallback::kNotify);
-      if (error_occurred) break;
+      compilation_state_->OnFinishedUnit(NotifyCompilationCallback::kNotify);
 
       if (deadline < MonotonicallyIncreasingTimeInMs()) {
         // We reached the deadline. We reschedule this task and return
@@ -3048,7 +3045,7 @@ class AsyncCompileJob::PrepareAndStartCompile : public CompileStep {
       // on the current step we are in.
       AsyncCompileJob* job = job_;
       compilation_state->AddCallback(
-          [job](CompilationEvent event, Handle<Object> error_reason) {
+          [job](CompilationEvent event, Handle<Object> error) {
             switch (event) {
               case CompilationEvent::kFinishedBaselineCompilation:
                 if (job->DecrementAndCheckFinisherCount()) {
@@ -3056,7 +3053,10 @@ class AsyncCompileJob::PrepareAndStartCompile : public CompileStep {
                 }
                 return;
               case CompilationEvent::kFailedCompilation:
-                job->DoSync<CompileFailed>(error_reason);
+                DeferredHandleScope deferred(job->isolate());
+                error = handle(*error, job->isolate());
+                job->deferred_handles_.push_back(deferred.Detach());
+                job->DoSync<CompileFailed>(error);
                 return;
             }
             UNREACHABLE();
@@ -3483,28 +3483,24 @@ CompilationState::GetNextExecutedUnit() {
   return std::unique_ptr<compiler::WasmCompilationUnit>();
 }
 
-// TODO(kimanh): Fix semantics of function. Currently, if {notify} is set to
-// kNotify, the {thrower.Reify()} is called, which resets the thrower.
-// The reason is that we need to pass the error message on to the listener,
-// but at the same time we are not allowed to create ErrorThrower objects on
-// the heap. The created error however, can be passed on to a separate thread.
-void CompilationState::OnFinishedUnit(ErrorThrower* thrower,
-                                      NotifyCompilationCallback notify) {
-  if (thrower->error()) {
-    failed_ = true;
+void CompilationState::OnError(Handle<Object> error,
+                               NotifyCompilationCallback notify) {
+  failed_ = true;
+  CancelAndWait();
+  if (notify == NotifyCompilationCallback::kNotify) {
+    NotifyOnEvent(CompilationEvent::kFailedCompilation, error);
+  }
+}
+
+void CompilationState::OnFinishedUnit(NotifyCompilationCallback notify) {
+  DCHECK_GT(outstanding_units_, 0);
+  --outstanding_units_;
+
+  if (outstanding_units_ == 0) {
     CancelAndWait();
     if (notify == NotifyCompilationCallback::kNotify) {
-      NotifyOnEvent(CompilationEvent::kFailedCompilation, thrower);
-    }
-  } else {
-    DCHECK_GT(outstanding_units_, 0);
-    --outstanding_units_;
-
-    if (outstanding_units_ == 0) {
-      CancelAndWait();
-      if (notify == NotifyCompilationCallback::kNotify) {
-        NotifyOnEvent(CompilationEvent::kFinishedBaselineCompilation, thrower);
-      }
+      NotifyOnEvent(CompilationEvent::kFinishedBaselineCompilation,
+                    Handle<Object>::null());
     }
   }
 }
@@ -3579,19 +3575,9 @@ void CompilationState::StartCompilation(size_t num_functions) {
 }
 
 void CompilationState::NotifyOnEvent(CompilationEvent event,
-                                     ErrorThrower* thrower) {
-  Handle<Object> error_reason;
-  if (thrower->error()) {
-    error_reason = thrower->Reify();
-    DeferredHandleScope deferred(isolate_);
-    error_reason = Handle<Object>(*error_reason, isolate_);
-    deferred_handles_.push_back(deferred.Detach());
-  } else {
-    error_reason = Handle<Object>::null();
-  }
-
+                                     Handle<Object> error) {
   for (auto& callback_function : callbacks_) {
-    callback_function(event, error_reason);
+    callback_function(event, error);
   }
 }
 
