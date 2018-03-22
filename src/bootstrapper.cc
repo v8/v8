@@ -1638,9 +1638,8 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
 
     // Cache the array maps, needed by ArrayConstructorStub
     CacheInitialJSArrayMaps(native_context(), initial_map);
-    ArrayConstructorStub array_constructor_stub(isolate);
-    Handle<Code> code = array_constructor_stub.GetCode();
-    array_function->shared()->SetConstructStub(*code);
+    array_function->shared()->SetConstructStub(
+        *BUILTIN_CODE(isolate, JSBuiltinsConstructStub));
 
     // Set up %ArrayPrototype%.
     // The %ArrayPrototype% has TERMINAL_FAST_ELEMENTS_KIND in order to ensure

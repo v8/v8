@@ -1076,6 +1076,7 @@ static void Generate_InterpreterPushArgs(MacroAssembler* masm,
 void Builtins::Generate_InterpreterPushArgsThenCallImpl(
     MacroAssembler* masm, ConvertReceiverMode receiver_mode,
     InterpreterPushArgsMode mode) {
+  DCHECK(mode != InterpreterPushArgsMode::kArrayFunction);
   // ----------- S t a t e -------------
   //  -- rax : the number of arguments (not including the receiver)
   //  -- rbx : the address of the first argument to be pushed. Subsequent
@@ -1112,10 +1113,7 @@ void Builtins::Generate_InterpreterPushArgsThenCallImpl(
   // Call the target.
   __ PushReturnAddressFrom(kScratchRegister);  // Re-push return address.
 
-  if (mode == InterpreterPushArgsMode::kArrayFunction) {
-    // This should be unreachable.
-    __ int3();
-  } else if (mode == InterpreterPushArgsMode::kWithFinalSpread) {
+  if (mode == InterpreterPushArgsMode::kWithFinalSpread) {
     __ Jump(BUILTIN_CODE(masm->isolate(), CallWithSpread),
             RelocInfo::CODE_TARGET);
   } else {
@@ -1171,15 +1169,12 @@ void Builtins::Generate_InterpreterPushArgsThenConstructImpl(
   }
 
   if (mode == InterpreterPushArgsMode::kArrayFunction) {
-    // Tail call to the function-specific construct stub (still in the caller
+    // Tail call to the array construct stub (still in the caller
     // context at this point).
     __ AssertFunction(rdi);
-
-    __ movp(rcx, FieldOperand(rdi, JSFunction::kSharedFunctionInfoOffset));
-    __ movp(rcx, FieldOperand(rcx, SharedFunctionInfo::kConstructStubOffset));
-    __ leap(rcx, FieldOperand(rcx, Code::kHeaderSize));
     // Jump to the constructor function (rax, rbx, rdx passed on).
-    __ jmp(rcx);
+    ArrayConstructorStub array_constructor_stub(masm->isolate());
+    __ Jump(array_constructor_stub.GetCode(), RelocInfo::CODE_TARGET);
   } else if (mode == InterpreterPushArgsMode::kWithFinalSpread) {
     // Call the constructor (rax, rdx, rdi passed on).
     __ Jump(BUILTIN_CODE(masm->isolate(), ConstructWithSpread),
@@ -1816,13 +1811,11 @@ void Builtins::Generate_InternalArrayConstructor(MacroAssembler* masm) {
 void Builtins::Generate_ArrayConstructor(MacroAssembler* masm) {
   // ----------- S t a t e -------------
   //  -- rax    : argc
+  //  -- rdi    : array function
   //  -- rsp[0] : return address
   //  -- rsp[8] : last argument
   // -----------------------------------
   Label generic_array_code;
-
-  // Get the Array function.
-  __ LoadNativeContextSlot(Context::ARRAY_FUNCTION_INDEX, rdi);
 
   if (FLAG_debug_code) {
     // Initial map for the builtin Array functions should be maps.
@@ -1835,10 +1828,17 @@ void Builtins::Generate_ArrayConstructor(MacroAssembler* masm) {
     __ Check(equal, AbortReason::kUnexpectedInitialMapForArrayFunction);
   }
 
-  __ movp(rdx, rdi);
-  // Run the native code for the Array function called as a normal function.
-  // tail call a stub
+  // rbx is the AllocationSite - here undefined.
   __ LoadRoot(rbx, Heap::kUndefinedValueRootIndex);
+  // If rdx (new target) is undefined, then this is the 'Call' case, so move
+  // rdi (the constructor) to rdx.
+  Label call;
+  __ cmpp(rdx, rbx);
+  __ j(not_equal, &call);
+  __ movp(rdx, rdi);
+
+  // Run the native code for the Array function called as a normal function.
+  __ bind(&call);
   ArrayConstructorStub stub(masm->isolate());
   __ TailCallStub(&stub);
 }

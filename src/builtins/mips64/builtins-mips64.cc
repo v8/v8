@@ -82,12 +82,6 @@ void Builtins::Generate_AdaptorWithBuiltinExitFrame(MacroAssembler* masm) {
   AdaptorWithExitFrameType(masm, BUILTIN_EXIT);
 }
 
-// Load the built-in Array function from the current context.
-static void GenerateLoadArrayFunction(MacroAssembler* masm, Register result) {
-  // Load the Array function from the native context.
-  __ LoadNativeContextSlot(Context::ARRAY_FUNCTION_INDEX, result);
-}
-
 void Builtins::Generate_InternalArrayConstructor(MacroAssembler* masm) {
   // ----------- S t a t e -------------
   //  -- a0     : number of arguments
@@ -118,13 +112,11 @@ void Builtins::Generate_InternalArrayConstructor(MacroAssembler* masm) {
 void Builtins::Generate_ArrayConstructor(MacroAssembler* masm) {
   // ----------- S t a t e -------------
   //  -- a0     : number of arguments
+  //  -- a1     : array function
   //  -- ra     : return address
   //  -- sp[...]: constructor arguments
   // -----------------------------------
   Label generic_array_code;
-
-  // Get the Array function.
-  GenerateLoadArrayFunction(masm, a1);
 
   if (FLAG_debug_code) {
     // Initial map for the builtin Array functions should be maps.
@@ -132,15 +124,21 @@ void Builtins::Generate_ArrayConstructor(MacroAssembler* masm) {
     __ SmiTst(a2, a4);
     __ Assert(ne, AbortReason::kUnexpectedInitialMapForArrayFunction1, a4,
               Operand(zero_reg));
-    __ GetObjectType(a2, a3, a4);
+    __ GetObjectType(a2, t0, a4);
     __ Assert(eq, AbortReason::kUnexpectedInitialMapForArrayFunction2, a4,
               Operand(MAP_TYPE));
   }
 
-  // Run the native code for the Array function called as a normal function.
-  // Tail call a stub.
-  __ mov(a3, a1);
+  // a2 is the AllocationSite - here undefined.
   __ LoadRoot(a2, Heap::kUndefinedValueRootIndex);
+  // If a3 (new target) is undefined, then this is the 'Call' case, so move
+  // a1 (the constructor) to a3.
+  Label call;
+  __ Branch(&call, ne, a3, Operand(a2));
+  __ mov(a3, a1);
+
+  // Run the native code for the Array function called as a normal function.
+  __ bind(&call);
   ArrayConstructorStub stub(masm->isolate());
   __ TailCallStub(&stub);
 }
@@ -1072,6 +1070,7 @@ static void Generate_InterpreterPushArgs(MacroAssembler* masm,
 void Builtins::Generate_InterpreterPushArgsThenCallImpl(
     MacroAssembler* masm, ConvertReceiverMode receiver_mode,
     InterpreterPushArgsMode mode) {
+  DCHECK(mode != InterpreterPushArgsMode::kArrayFunction);
   // ----------- S t a t e -------------
   //  -- a0 : the number of arguments (not including the receiver)
   //  -- a2 : the address of the first argument to be pushed. Subsequent
@@ -1100,10 +1099,7 @@ void Builtins::Generate_InterpreterPushArgsThenCallImpl(
   }
 
   // Call the target.
-  if (mode == InterpreterPushArgsMode::kArrayFunction) {
-    // Unreachable code.
-    __ break_(0xCC);
-  } else if (mode == InterpreterPushArgsMode::kWithFinalSpread) {
+  if (mode == InterpreterPushArgsMode::kWithFinalSpread) {
     __ Jump(BUILTIN_CODE(masm->isolate(), CallWithSpread),
             RelocInfo::CODE_TARGET);
   } else {
@@ -1151,10 +1147,8 @@ void Builtins::Generate_InterpreterPushArgsThenConstructImpl(
 
     // Tail call to the function-specific construct stub (still in the caller
     // context at this point).
-    __ Ld(a4, FieldMemOperand(a1, JSFunction::kSharedFunctionInfoOffset));
-    __ Ld(a4, FieldMemOperand(a4, SharedFunctionInfo::kConstructStubOffset));
-    __ Daddu(at, a4, Operand(Code::kHeaderSize - kHeapObjectTag));
-    __ Jump(at);
+    ArrayConstructorStub array_constructor_stub(masm->isolate());
+    __ Jump(array_constructor_stub.GetCode(), RelocInfo::CODE_TARGET);
   } else if (mode == InterpreterPushArgsMode::kWithFinalSpread) {
     // Call the constructor with a0, a1, and a3 unmodified.
     __ Jump(BUILTIN_CODE(masm->isolate(), ConstructWithSpread),
