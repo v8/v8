@@ -184,7 +184,8 @@ void SimdScalarLowering::LowerGraph() {
   V(I8x16LtS)                     \
   V(I8x16LeS)                     \
   V(I8x16LtU)                     \
-  V(I8x16LeU)
+  V(I8x16LeU)                     \
+  V(S8x16Shuffle)
 
 MachineType SimdScalarLowering::MachineTypeFrom(SimdType simdType) {
   switch (simdType) {
@@ -1170,6 +1171,19 @@ void SimdScalarLowering::LowerNode(Node* node) {
             graph()->NewNode(machine()->Word32Xor(), rep_right[i], tmp2);
       }
       ReplaceNode(node, rep_node, num_lanes);
+      break;
+    }
+    case IrOpcode::kS8x16Shuffle: {
+      DCHECK_EQ(2, node->InputCount());
+      const uint8_t* shuffle = OpParameter<uint8_t*>(node->op());
+      Node** rep_left = GetReplacementsWithType(node->InputAt(0), rep_type);
+      Node** rep_right = GetReplacementsWithType(node->InputAt(1), rep_type);
+      Node** rep_node = zone()->NewArray<Node*>(16);
+      for (int i = 0; i < 16; i++) {
+        int lane = shuffle[i];
+        rep_node[i] = lane < 16 ? rep_left[lane] : rep_right[lane - 16];
+      }
+      ReplaceNode(node, rep_node, 16);
       break;
     }
     default: { DefaultLowering(node); }

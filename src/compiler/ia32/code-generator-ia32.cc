@@ -2995,6 +2995,51 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ vxorps(dst, dst, i.InputSimd128Register(2));
       break;
     }
+    case kIA32S8x16Shuffle: {
+      XMMRegister dst = i.OutputSimd128Register();
+      Register tmp = i.TempRegister(0);
+      // Prepare 16-byte boundary buffer for shuffle control mask
+      __ mov(tmp, esp);
+      __ movups(dst, i.InputOperand(0));
+      __ and_(esp, -16);
+      if (instr->InputCount() == 5) {  // only one input operand
+        for (int j = 4; j > 0; j--) {
+          uint32_t mask = i.InputUint32(j);
+          __ push(Immediate(mask));
+        }
+        __ Pshufb(dst, Operand(esp, 0));
+      } else {  // two input operands
+        DCHECK_EQ(6, instr->InputCount());
+        for (int j = 5; j > 1; j--) {
+          uint32_t lanes = i.InputUint32(j);
+          uint32_t mask = 0;
+          for (int k = 0; k < 32; k += 8) {
+            uint8_t lane = lanes >> k;
+            mask |= (lane < kSimd128Size ? lane : 0x80) << k;
+          }
+          __ push(Immediate(mask));
+        }
+        __ Pshufb(dst, Operand(esp, 0));
+        __ movups(kScratchDoubleReg, i.InputOperand(1));
+        for (int j = 5; j > 1; j--) {
+          uint32_t lanes = i.InputUint32(j);
+          uint32_t mask = 0;
+          for (int k = 0; k < 32; k += 8) {
+            uint8_t lane = lanes >> k;
+            mask |= (lane >= kSimd128Size ? (lane & 0xF) : 0x80) << k;
+          }
+          __ push(Immediate(mask));
+        }
+        __ Pshufb(kScratchDoubleReg, Operand(esp, 0));
+        __ por(dst, kScratchDoubleReg);
+      }
+      __ mov(esp, tmp);
+      break;
+    }
+    case kIA32S32x4Swizzle: {
+      __ Pshufd(i.OutputSimd128Register(), i.InputOperand(0), i.InputInt8(1));
+      break;
+    }
     case kIA32StackCheck: {
       ExternalReference const stack_limit =
           ExternalReference::address_of_stack_limit(__ isolate());

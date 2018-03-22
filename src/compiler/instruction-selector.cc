@@ -2421,13 +2421,13 @@ void InstructionSelector::VisitI8x16ShrS(Node* node) { UNIMPLEMENTED(); }
 void InstructionSelector::VisitI8x16ShrU(Node* node) { UNIMPLEMENTED(); }
 
 void InstructionSelector::VisitI8x16Mul(Node* node) { UNIMPLEMENTED(); }
+
+void InstructionSelector::VisitS8x16Shuffle(Node* node) { UNIMPLEMENTED(); }
 #endif  // !V8_TARGET_ARCH_ARM && !V8_TARGET_ARCH_ARM64 && !V8_TARGET_ARCH_MIPS
         // && !V8_TARGET_ARCH_MIPS64 && !V8_TARGET_ARCH_IA32
 
 #if !V8_TARGET_ARCH_ARM && !V8_TARGET_ARCH_ARM64 && !V8_TARGET_ARCH_MIPS && \
     !V8_TARGET_ARCH_MIPS64
-void InstructionSelector::VisitS8x16Shuffle(Node* node) { UNIMPLEMENTED(); }
-
 void InstructionSelector::VisitS1x4AnyTrue(Node* node) { UNIMPLEMENTED(); }
 
 void InstructionSelector::VisitS1x4AllTrue(Node* node) { UNIMPLEMENTED(); }

@@ -1967,6 +1967,43 @@ void InstructionSelector::VisitInt64AbsWithOverflow(Node* node) {
   UNREACHABLE();
 }
 
+void InstructionSelector::VisitS8x16Shuffle(Node* node) {
+  static const int kMaxSwizzleIndex = 15;
+  static const int kMaxShuffleIndex = 31;
+  const uint8_t* shuffle = OpParameter<uint8_t*>(node->op());
+  uint8_t mask = CanonicalizeShuffle(node);
+  uint8_t shuffle32x4[4];
+  IA32OperandGenerator g(this);
+  InstructionOperand output = g.DefineAsRegister(node);
+  InstructionOperand inputs[6];
+  InstructionOperand temps[1];
+  size_t input_count = 0;
+  Node* input0 = node->InputAt(0);
+  Node* input1 = node->InputAt(1);
+  if (mask == kMaxSwizzleIndex) {
+    if (TryMatch32x4Shuffle(shuffle, shuffle32x4)) {
+      Emit(kIA32S32x4Swizzle, output, g.Use(input0),
+           g.UseImmediate((shuffle32x4[0] & 3) | ((shuffle32x4[1] & 3) << 2) |
+                          ((shuffle32x4[2] & 3) << 4) |
+                          ((shuffle32x4[3] & 3) << 6)));
+      return;
+    }
+    // TODO(ia32): handle non 32x4 swizzles here
+    inputs[input_count++] = g.Use(input0);
+  } else {
+    DCHECK_EQ(kMaxShuffleIndex, mask);
+    USE(kMaxShuffleIndex);
+    inputs[input_count++] = g.Use(input0);
+    inputs[input_count++] = g.Use(input1);
+  }
+  inputs[input_count++] = g.UseImmediate(Pack4Lanes(shuffle, mask));
+  inputs[input_count++] = g.UseImmediate(Pack4Lanes(shuffle + 4, mask));
+  inputs[input_count++] = g.UseImmediate(Pack4Lanes(shuffle + 8, mask));
+  inputs[input_count++] = g.UseImmediate(Pack4Lanes(shuffle + 12, mask));
+  temps[0] = g.TempRegister();
+  Emit(kIA32S8x16Shuffle, 1, &output, input_count, inputs, 1, temps);
+}
+
 // static
 MachineOperatorBuilder::Flags
 InstructionSelector::SupportedMachineOperatorFlags() {
