@@ -68,6 +68,9 @@
       'V8 Linux64 - custom snapshot - debug builder': 'debug_x64_custom',
       'V8 Linux64 - internal snapshot': 'release_x64_internal',
       'V8 Linux64 - verify csa': 'release_x64_verify_csa',
+      # Jumbo.
+      'V8 Linux64 Jumbo': 'release_x64_jumbo',
+      'V8 Linux64 Jumbo - debug': 'debug_x64_jumbo',
       # Windows.
       'V8 Win32 - builder': 'release_x86_minimal_symbols',
       'V8 Win32 - debug builder': 'debug_x86_minimal_symbols',
@@ -211,6 +214,7 @@
       'v8_linux64_msan_rel': 'release_simulate_arm64_msan_minimal_symbols',
       'v8_linux64_sanitizer_coverage_rel':
           'release_x64_asan_minimal_symbols_coverage',
+      'v8_linux64_jumbo_rel': 'release_x64_jumbo_trybot',
       'v8_linux64_tsan_rel': 'release_x64_tsan_minimal_symbols',
       'v8_linux64_tsan_concurrent_marking_rel_ng':
           'release_x64_tsan_concurrent_marking_minimal_symbols',
@@ -414,6 +418,10 @@
       'release_bot', 'x64', 'coverage', 'gcc'],
     'release_x64_internal': [
       'release_bot', 'x64', 'swarming', 'v8_snapshot_internal'],
+    'release_x64_jumbo': [
+      'release_bot', 'x64', 'jumbo'],
+    'release_x64_jumbo_trybot': [
+      'release_trybot', 'x64', 'jumbo'],
     'release_x64_minimal_symbols': [
       'release_bot', 'x64', 'minimal_symbols', 'swarming'],
     'release_x64_no_snap': [
@@ -455,6 +463,8 @@
       'debug_bot', 'x64', 'fuchsia', 'swarming'],
     'debug_x64_gcc': [
       'debug_bot', 'x64', 'gcc'],
+    'debug_x64_jumbo': [
+      'debug_bot', 'x64', 'jumbo'],
     'debug_x64_minimal_symbols': [
       'debug_bot', 'x64', 'minimal_symbols', 'swarming'],
     'debug_x64_no_snap': [
@@ -606,6 +616,10 @@
 
     'hard_float': {
       'gn_args': 'arm_float_abi="hard"',
+    },
+
+    'jumbo': {
+      'gn_args': 'use_jumbo_build=true',
     },
 
     'lsan': {

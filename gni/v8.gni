@@ -62,7 +62,8 @@ if (v8_use_external_startup_data == "") {
 }
 
 if (v8_use_multi_snapshots == "") {
-  v8_use_multi_snapshots = v8_use_external_startup_data && !build_with_chromium
+  v8_use_multi_snapshots =
+      v8_use_external_startup_data && !build_with_chromium && !use_jumbo_build
 }
 
 if (v8_enable_backtrace == "") {
