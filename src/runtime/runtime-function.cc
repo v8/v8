@@ -112,12 +112,9 @@ RUNTIME_FUNCTION(Runtime_SetCode) {
     return isolate->heap()->exception();
   }
 
-  // Set the code, scope info, formal parameter count, and the length
+  // Set the function data, scope info, formal parameter count, and the length
   // of the target shared function info.
-  target_shared->set_code(source_shared->code());
-  if (source_shared->HasBytecodeArray()) {
-    target_shared->set_bytecode_array(source_shared->bytecode_array());
-  }
+  target_shared->set_function_data(source_shared->function_data());
   target_shared->set_length(source_shared->GetLength());
   target_shared->set_feedback_metadata(source_shared->feedback_metadata());
   target_shared->set_internal_formal_parameter_count(
@@ -141,8 +138,7 @@ RUNTIME_FUNCTION(Runtime_SetCode) {
   SharedFunctionInfo::SetScript(target_shared, source_script);
 
   // Set the code of the target function.
-  target->set_code(source_shared->code());
-
+  target->set_code(source_shared->GetCode());
   Handle<Context> context(source->context());
   target->set_context(*context);
 

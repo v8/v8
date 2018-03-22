@@ -260,6 +260,7 @@ bool Builtins::IsLazy(int index) {
     case kFunctionPrototypeHasInstance:  // https://crbug.com/v8/6786.
     case kHandleApiCall:
     case kIllegal:
+    case kInstantiateAsmJs:
     case kInterpreterEnterBytecodeAdvance:
     case kInterpreterEnterBytecodeDispatch:
     case kInterpreterEntryTrampoline:

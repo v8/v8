@@ -1683,9 +1683,6 @@ Reduction JSTypedLowering::ReduceJSCall(Node* node) {
       return NoChange();
     }
 
-    const int builtin_index = shared->code()->builtin_index();
-    const bool is_builtin = (builtin_index != -1);
-
     // Class constructors are callable, but [[Call]] will raise an exception.
     // See ES6 section 9.2.1 [[Call]] ( thisArgument, argumentsList ).
     if (IsClassConstructor(shared->kind())) return NoChange();
@@ -1729,9 +1726,11 @@ Reduction JSTypedLowering::ReduceJSCall(Node* node) {
           node, common()->Call(Linkage::GetStubCallDescriptor(
                     isolate(), graph()->zone(), callable.descriptor(),
                     1 + arity, flags)));
-    } else if (is_builtin && Builtins::HasCppImplementation(builtin_index)) {
+    } else if (shared->HasBuiltinId() &&
+               Builtins::HasCppImplementation(shared->builtin_id())) {
       // Patch {node} to a direct CEntryStub call.
-      ReduceBuiltin(isolate(), jsgraph(), node, builtin_index, arity, flags);
+      ReduceBuiltin(isolate(), jsgraph(), node, shared->builtin_id(), arity,
+                    flags);
     } else {
       // Patch {node} to a direct call.
       node->InsertInput(graph()->zone(), arity + 2, new_target);

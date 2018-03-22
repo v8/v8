@@ -732,15 +732,33 @@ StartupData SnapshotCreator::CreateBlob(
   i::SerializedHandleChecker handle_checker(isolate, &contexts);
   CHECK(handle_checker.CheckGlobalAndEternalHandles());
 
-  // Complete in-object slack tracking for all functions.
   i::HeapIterator heap_iterator(isolate->heap());
   while (i::HeapObject* current_obj = heap_iterator.next()) {
-    if (!current_obj->IsJSFunction()) continue;
-    i::JSFunction* fun = i::JSFunction::cast(current_obj);
-    fun->CompleteInobjectSlackTrackingIfActive();
+    // Complete in-object slack tracking for all functions.
+    if (current_obj->IsJSFunction()) {
+      i::JSFunction* fun = i::JSFunction::cast(current_obj);
+      fun->CompleteInobjectSlackTrackingIfActive();
+    }
+
+    // Clear out re-compilable data from all shared function infos. Any
+    // JSFunctions using these SFIs will have their code pointers reset by the
+    // partial serializer.
+    if (current_obj->IsSharedFunctionInfo() &&
+        function_code_handling == FunctionCodeHandling::kClear) {
+      i::SharedFunctionInfo* shared = i::SharedFunctionInfo::cast(current_obj);
+      if (shared->HasBytecodeArray()) {
+        shared->ClearBytecodeArray();
+      } else if (shared->HasAsmWasmData()) {
+        shared->ClearAsmWasmData();
+      } else if (shared->HasPreParsedScopeData()) {
+        shared->ClearPreParsedScopeData();
+      }
+      DCHECK(shared->HasCodeObject() || shared->HasBuiltinId() ||
+             shared->IsApiFunction());
+    }
   }
 
-  i::StartupSerializer startup_serializer(isolate, function_code_handling);
+  i::StartupSerializer startup_serializer(isolate);
   startup_serializer.SerializeStrongReferences();
 
   // Serialize each context with a new partial serializer.
@@ -9692,9 +9710,8 @@ Local<Function> debug::GetBuiltin(Isolate* v8_isolate, Builtin builtin) {
   }
 
   i::Handle<i::String> name = isolate->factory()->empty_string();
-  i::Handle<i::Code> code(isolate->builtins()->builtin(builtin_id));
   i::NewFunctionArgs args = i::NewFunctionArgs::ForBuiltinWithoutPrototype(
-      name, code, builtin_id, i::LanguageMode::kSloppy);
+      name, builtin_id, i::LanguageMode::kSloppy);
   i::Handle<i::JSFunction> fun = isolate->factory()->NewFunction(args);
 
   fun->shared()->DontAdaptArguments();

@@ -2279,7 +2279,7 @@ TEST(AllocateFunctionWithMapAndContext) {
   CHECK(!fun->has_prototype_slot());
   CHECK_EQ(*isolate->promise_capability_default_resolve_shared_fun(),
            fun->shared());
-  CHECK_EQ(isolate->promise_capability_default_resolve_shared_fun()->code(),
+  CHECK_EQ(isolate->promise_capability_default_resolve_shared_fun()->GetCode(),
            fun->code());
 }
 

@@ -189,6 +189,9 @@
 
   # BUG(v8:5193): Flaky.
   'test-cpu-profiler/TickEvents': [SKIP],
+
+  # BUG(v8:7587): Strange breakage on Mac.
+  'test-log-stack-tracer/PureJSStackTrace': [SKIP],
 }],  # 'asan == True'
 
 ##############################################################################

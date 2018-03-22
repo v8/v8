@@ -143,7 +143,8 @@ void CompilationJob::RecordUnoptimizedCompilationStats(Isolate* isolate) const {
   if (compilation_info()->has_bytecode_array()) {
     code_size = compilation_info()->bytecode_array()->SizeIncludingMetadata();
   } else {
-    code_size = compilation_info()->code()->SizeIncludingMetadata();
+    DCHECK(compilation_info()->has_asm_wasm_data());
+    code_size = compilation_info()->asm_wasm_data()->Size();
   }
 
   Counters* counters = isolate->counters();
@@ -192,10 +193,17 @@ void CompilationJob::RecordFunctionCompilation(
 
   Handle<SharedFunctionInfo> shared = compilation_info->shared_info();
   Handle<Script> script = parse_info()->script();
-  Handle<AbstractCode> abstract_code =
-      compilation_info->has_bytecode_array()
-          ? Handle<AbstractCode>::cast(compilation_info->bytecode_array())
-          : Handle<AbstractCode>::cast(compilation_info->code());
+  Handle<AbstractCode> abstract_code;
+  if (compilation_info->has_bytecode_array()) {
+    abstract_code =
+        Handle<AbstractCode>::cast(compilation_info->bytecode_array());
+  } else if (compilation_info->has_asm_wasm_data()) {
+    abstract_code =
+        Handle<AbstractCode>::cast(BUILTIN_CODE(isolate, InstantiateAsmJs));
+  } else {
+    DCHECK(!compilation_info->code().is_null());
+    abstract_code = Handle<AbstractCode>::cast(compilation_info->code());
+  }
 
   if (abstract_code.is_identical_to(BUILTIN_CODE(isolate, CompileLazy))) {
     return;
@@ -296,13 +304,14 @@ void InstallUnoptimizedCode(CompilationInfo* compilation_info,
   Scope* outer_scope = compilation_info->scope()->GetOuterScopeWithContext();
   if (outer_scope) shared->set_outer_scope_info(*outer_scope->scope_info());
 
-  DCHECK(!compilation_info->code().is_null());
-  shared->set_code(*compilation_info->code());
+  // We shouldn't have a code object, just bytecode or asm-wasm data.
+  DCHECK(compilation_info->code().is_null());
   if (compilation_info->has_bytecode_array()) {
     DCHECK(!shared->HasBytecodeArray());  // Only compiled once.
     DCHECK(!compilation_info->has_asm_wasm_data());
     shared->set_bytecode_array(*compilation_info->bytecode_array());
-  } else if (compilation_info->has_asm_wasm_data()) {
+  } else {
+    DCHECK(compilation_info->has_asm_wasm_data());
     shared->set_asm_wasm_data(*compilation_info->asm_wasm_data());
   }
 
@@ -755,7 +764,7 @@ CompilationJob::Status FinalizeOptimizedCompilationJob(CompilationJob* job,
     PrintF(" because: %s]\n",
            GetBailoutReason(compilation_info->bailout_reason()));
   }
-  compilation_info->closure()->set_code(shared->code());
+  compilation_info->closure()->set_code(shared->GetCode());
   // Clear the InOptimizationQueue marker, if it exists.
   if (compilation_info->closure()->IsInOptimizationQueue()) {
     compilation_info->closure()->ClearOptimizationMarker();
@@ -1067,7 +1076,7 @@ bool Compiler::Compile(Handle<JSFunction> function, ClearExceptionFlag flag) {
 
   // Ensure shared function info is compiled.
   if (!shared_info->is_compiled() && !Compile(shared_info, flag)) return false;
-  Handle<Code> code = handle(shared_info->code(), isolate);
+  Handle<Code> code = handle(shared_info->GetCode(), isolate);
 
   // Allocate FeedbackVector for the JSFunction.
   JSFunction::EnsureFeedbackVector(function);
@@ -1109,7 +1118,8 @@ bool Compiler::CompileOptimized(Handle<JSFunction> function,
     // already if we are optimizing.
     DCHECK(!isolate->has_pending_exception());
     DCHECK(function->shared()->is_compiled());
-    code = handle(function->shared()->code(), isolate);
+    DCHECK(function->shared()->IsInterpreted());
+    code = BUILTIN_CODE(isolate, InterpreterEntryTrampoline);
   }
 
   // Install code on closure.

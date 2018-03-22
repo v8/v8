@@ -859,6 +859,7 @@ class V8_EXPORT_PRIVATE CodeAssembler {
 
   TNode<WordT> WordShl(SloppyTNode<WordT> value, int shift);
   TNode<WordT> WordShr(SloppyTNode<WordT> value, int shift);
+  TNode<WordT> WordSar(SloppyTNode<WordT> value, int shift);
   TNode<IntPtrT> WordShr(TNode<IntPtrT> value, int shift) {
     return UncheckedCast<IntPtrT>(WordShr(static_cast<Node*>(value), shift));
   }

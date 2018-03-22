@@ -824,11 +824,6 @@ void LiveEdit::ReplaceFunctionCode(
       compile_info_wrapper.GetSharedFunctionInfo();
 
   if (shared_info->is_compiled()) {
-    // Take whatever code we can get from the new shared function info. We
-    // expect activations of neither the old bytecode, since the lowest
-    // activation is going to be restarted.
-    Handle<Code> old_code(shared_info->code());
-    Handle<Code> new_code(new_shared_info->code());
     // Clear old bytecode. This will trigger self-healing if we do not install
     // new bytecode.
     shared_info->ClearBytecodeArray();
@@ -1071,7 +1066,7 @@ void LiveEdit::ReplaceRefToNestedFunction(
   Handle<SharedFunctionInfo> subst_shared =
       UnwrapSharedFunctionInfoFromJSValue(subst_function_wrapper);
 
-  for (RelocIterator it(parent_shared->code()); !it.done(); it.next()) {
+  for (RelocIterator it(parent_shared->GetCode()); !it.done(); it.next()) {
     if (it.rinfo()->rmode() == RelocInfo::EMBEDDED_OBJECT) {
       if (it.rinfo()->target_object() == *orig_shared) {
         it.rinfo()->set_target_object(*subst_shared);

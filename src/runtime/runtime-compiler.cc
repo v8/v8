@@ -129,8 +129,8 @@ RUNTIME_FUNCTION(Runtime_InstantiateAsmJs) {
       return *result.ToHandleChecked();
     }
   }
-  // Remove wasm data, mark as broken for asm->wasm,
-  // replace code with CompileLazy, and return a smi 0 to indicate failure.
+  // Remove wasm data, mark as broken for asm->wasm, replace function code with
+  // CompileLazy, and return a smi 0 to indicate failure.
   if (function->shared()->HasAsmWasmData()) {
     function->shared()->ClearAsmWasmData();
   }
@@ -138,11 +138,6 @@ RUNTIME_FUNCTION(Runtime_InstantiateAsmJs) {
   DCHECK(function->code() ==
          isolate->builtins()->builtin(Builtins::kInstantiateAsmJs));
   function->set_code(isolate->builtins()->builtin(Builtins::kCompileLazy));
-  if (function->shared()->code() ==
-      isolate->builtins()->builtin(Builtins::kInstantiateAsmJs)) {
-    function->shared()->set_code(
-        isolate->builtins()->builtin(Builtins::kCompileLazy));
-  }
   return Smi::kZero;
 }
 
@@ -290,7 +285,7 @@ RUNTIME_FUNCTION(Runtime_CompileForOnStackReplacement) {
   }
 
   if (!function->IsOptimized()) {
-    function->set_code(function->shared()->code());
+    function->set_code(function->shared()->GetCode());
   }
   return nullptr;
 }
