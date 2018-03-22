@@ -1006,7 +1006,7 @@ v8_source_set("v8_nosnapshot") {
 
   if (use_jumbo_build == true) {
     jumbo_excluded_sources = [
-      # TODO(mostynb@opera.com): don't exclude these http://crbug.com/752428
+      # TODO(mostynb@vewd.com): don't exclude these http://crbug.com/752428
       # Generated source, contains same variable names as libraries.cc
       "$target_gen_dir/experimental-extras-libraries.cc",
       "$target_gen_dir/libraries.cc",
@@ -1051,7 +1051,7 @@ if (v8_use_snapshot && !v8_use_external_startup_data) {
 
     if (use_jumbo_build == true) {
       jumbo_excluded_sources = [
-        # TODO(mostynb@opera.com): don't exclude these http://crbug.com/752428
+        # TODO(mostynb@vewd.com): don't exclude these http://crbug.com/752428
         # Generated source, contains same variable names as libraries.cc
         "$target_gen_dir/experimental-extras-libraries.cc",
         "$target_gen_dir/libraries.cc",
@@ -1089,8 +1089,16 @@ if (v8_use_snapshot && v8_use_external_startup_data) {
 
     if (v8_enable_embedded_builtins) {
       sources += [ "$target_gen_dir/embedded.cc" ]
+
       if (v8_use_multi_snapshots) {
         sources += [ "$target_gen_dir/embedded_trusted.cc" ]
+
+        if (use_jumbo_build == true) {
+          jumbo_excluded_sources = [
+            # Duplicated symbols with embedded.cc
+            "$target_gen_dir/embedded_trusted.cc",
+          ]
+        }
       }
     }
 
@@ -1181,7 +1189,7 @@ v8_source_set("v8_initializers") {
 
   if (use_jumbo_build == true) {
     jumbo_excluded_sources = [
-      # TODO(mostynb@opera.com): don't exclude these http://crbug.com/752428
+      # TODO(mostynb@vewd.com): don't exclude these http://crbug.com/752428
       "src/builtins/builtins-async-iterator-gen.cc",
       "src/builtins/builtins-async-generator-gen.cc",
 
@@ -2288,7 +2296,7 @@ v8_source_set("v8_base") {
 
   if (use_jumbo_build == true) {
     jumbo_excluded_sources = [
-      # TODO(mostynb@opera.com): don't exclude these http://crbug.com/752428
+      # TODO(mostynb@vewd.com): don't exclude these http://crbug.com/752428
       "src/profiler/heap-snapshot-generator.cc",  # Macro clash in mman-linux.h
 
       # These source files take an unusually large amount of time to
@@ -2443,7 +2451,7 @@ v8_source_set("v8_base") {
     ]
     if (use_jumbo_build) {
       jumbo_excluded_sources += [
-        # TODO(mostynb@opera.com): fix this code so it doesn't need
+        # TODO(mostynb@vewd.com): fix this code so it doesn't need
         # to be excluded, see the comments inside.
         "src/arm64/instructions-arm64-constants.cc",
       ]
