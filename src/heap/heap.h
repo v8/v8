@@ -43,6 +43,7 @@ class BoilerplateDescription;
 class BytecodeArray;
 class CodeDataContainer;
 class DeoptimizationData;
+class ExternalReferenceTable;
 class HandlerTable;
 class IncrementalMarking;
 class JSArrayBuffer;
@@ -1091,6 +1092,10 @@ class Heap {
 
   // Generated code can embed this address to get access to the roots.
   Object** roots_array_start() { return roots_; }
+
+  static constexpr int roots_to_external_reference_table_offset() {
+    return kRootsExternalReferenceTableOffset;
+  }
 
   // Sets the stub_cache_ (only used when expanding the dictionary).
   void SetRootCodeStubs(SimpleNumberDictionary* value);
@@ -2398,6 +2403,13 @@ class Heap {
   Isolate* isolate_;
 
   Object* roots_[kRootListLength];
+
+  // This table is accessed from builtin code compiled into the snapshot, and
+  // thus its offset from roots_ must remain static. This is verified in
+  // Isolate::Init() using runtime checks.
+  static constexpr int kRootsExternalReferenceTableOffset =
+      kRootListLength * kPointerSize;
+  ExternalReferenceTable* external_reference_table_ = nullptr;
 
   size_t code_range_size_;
   size_t max_semi_space_size_;

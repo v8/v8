@@ -422,7 +422,6 @@ typedef std::vector<HeapObject*> DebugObjectCache;
   V(Relocatable*, relocatable_top, nullptr)                                   \
   V(DebugObjectCache*, string_stream_debug_object_cache, nullptr)             \
   V(Object*, string_stream_current_security_token, nullptr)                   \
-  V(ExternalReferenceTable*, external_reference_table, nullptr)               \
   V(const intptr_t*, api_external_references, nullptr)                        \
   V(AddressToIndexHashMap*, external_reference_map, nullptr)                  \
   V(HeapObjectToIndexHashMap*, root_index_map, nullptr)                       \
@@ -862,6 +861,14 @@ class Isolate {
   }
   ISOLATE_INIT_LIST(GLOBAL_ACCESSOR)
 #undef GLOBAL_ACCESSOR
+
+  ExternalReferenceTable* external_reference_table() const {
+    return heap_.external_reference_table_;
+  }
+
+  void set_external_reference_table(ExternalReferenceTable* v) {
+    heap_.external_reference_table_ = v;
+  }
 
 #define GLOBAL_ARRAY_ACCESSOR(type, name, length)                       \
   inline type* name() {                                                 \

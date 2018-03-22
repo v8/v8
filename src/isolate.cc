@@ -2586,8 +2586,6 @@ void Isolate::GlobalTearDown() {
 
 
 void Isolate::ClearSerializerData() {
-  delete external_reference_table_;
-  external_reference_table_ = nullptr;
   delete external_reference_map_;
   external_reference_map_ = nullptr;
 }
@@ -3097,6 +3095,10 @@ bool Isolate::Init(StartupDeserializer* des) {
   CHECK_EQ(static_cast<int>(
                OFFSET_OF(Isolate, heap_.external_memory_at_last_mark_compact_)),
            Internals::kExternalMemoryAtLastMarkCompactOffset);
+  CHECK_EQ(
+      static_cast<int>(OFFSET_OF(Isolate, heap_.external_reference_table_)),
+      Internals::kIsolateRootsOffset +
+          Heap::kRootsExternalReferenceTableOffset);
 
   {
     HandleScope scope(this);

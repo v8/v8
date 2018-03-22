@@ -5969,6 +5969,9 @@ void Heap::TearDown() {
     }
   }
 
+  delete external_reference_table_;
+  external_reference_table_ = nullptr;
+
   new_space()->RemoveAllocationObserver(idle_scavenge_observer_);
   delete idle_scavenge_observer_;
   idle_scavenge_observer_ = nullptr;
