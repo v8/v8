@@ -113,6 +113,7 @@ class CompilationState {
       std::vector<std::unique_ptr<compiler::WasmCompilationUnit>>& units);
   std::unique_ptr<compiler::WasmCompilationUnit> GetNextCompilationUnit();
   std::unique_ptr<compiler::WasmCompilationUnit> GetNextExecutedUnit();
+  bool HasCompilationUnitToFinish();
 
   void OnError(Handle<Object> error, NotifyCompilationCallback notify);
   void OnFinishedUnit(NotifyCompilationCallback notify);
@@ -123,7 +124,8 @@ class CompilationState {
   void OnBackgroundTaskStopped();
   void RestartBackgroundTasks();
   // Only one foreground thread (finisher) is allowed to run at a time.
-  void SetFinisherIsRunning(bool value);
+  // {SetFinisherIsRunning} returns whether the flag changed its state.
+  bool SetFinisherIsRunning(bool value);
   void ScheduleFinisherTask();
 
   bool CanAcceptWork() const { return executed_units_.CanAcceptWork(); }
@@ -1488,10 +1490,21 @@ class FinishCompileTask : public CancelableTask {
         USE(result);
         Handle<Object> error = thrower.Reify();
         compilation_state_->OnError(error, NotifyCompilationCallback::kNotify);
+        compilation_state_->SetFinisherIsRunning(false);
         break;
       }
 
-      if (func_index < 0) break;
+      if (func_index < 0) {
+        // It might happen that a background task just scheduled a unit to be
+        // finished, but did not start a finisher task since the flag was still
+        // set. Check for this case, and continue if there is more work.
+        compilation_state_->SetFinisherIsRunning(false);
+        if (compilation_state_->HasCompilationUnitToFinish() &&
+            compilation_state_->SetFinisherIsRunning(true)) {
+          continue;
+        }
+        break;
+      }
 
       // Update the compilation state, and possibly notify
       // threads waiting for events.
@@ -1505,10 +1518,6 @@ class FinishCompileTask : public CancelableTask {
         return;
       }
     }
-
-    // This task finishes without being rescheduled. Therefore we set the
-    // FinisherIsRunning flag to false.
-    compilation_state_->SetFinisherIsRunning(false);
   }
 
  private:
@@ -3483,6 +3492,11 @@ CompilationState::GetNextExecutedUnit() {
   return std::unique_ptr<compiler::WasmCompilationUnit>();
 }
 
+bool CompilationState::HasCompilationUnitToFinish() {
+  base::LockGuard<base::Mutex> guard(&result_mutex_);
+  return !executed_units_.IsEmpty();
+}
+
 void CompilationState::OnError(Handle<Object> error,
                                NotifyCompilationCallback notify) {
   failed_ = true;
@@ -3538,9 +3552,11 @@ void CompilationState::RestartBackgroundTasks() {
   }
 }
 
-void CompilationState::SetFinisherIsRunning(bool value) {
+bool CompilationState::SetFinisherIsRunning(bool value) {
   base::LockGuard<base::Mutex> guard(&result_mutex_);
+  if (finisher_is_running_ == value) return false;
   finisher_is_running_ = value;
+  return true;
 }
 
 void CompilationState::ScheduleFinisherTask() {
