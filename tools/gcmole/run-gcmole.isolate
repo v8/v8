@@ -18,6 +18,7 @@
       '../../src/',
       '../../test/cctest/',
       '../../testing/gtest/include/gtest/gtest_prod.h',
+      '../../third_party/googletest/src/googletest/include/gtest/gtest_prod.h',
       '../../third_party/icu/source/',
     ],
   },
