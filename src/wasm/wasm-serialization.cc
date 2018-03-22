@@ -24,6 +24,7 @@
 namespace v8 {
 namespace internal {
 namespace wasm {
+
 namespace {
 
 class Writer {
@@ -115,6 +116,29 @@ bool IsSupportedVersion(Isolate* isolate, const Vector<const byte> buffer) {
   WriteVersion(isolate, {version, kVersionSize});
   if (memcmp(buffer.start(), version, kVersionSize) == 0) return true;
   return false;
+}
+
+// On Intel, call sites are encoded as a displacement. For linking
+// and for serialization/deserialization, we want to store/retrieve
+// a tag (the function index). On Intel, that means accessing the
+// raw displacement. Everywhere else, that simply means accessing
+// the target address.
+void SetWasmCalleeTag(RelocInfo* rinfo, uint32_t tag) {
+#if V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_IA32
+  *(reinterpret_cast<uint32_t*>(rinfo->target_address_address())) = tag;
+#else
+  rinfo->set_target_address(reinterpret_cast<Address>(tag), SKIP_WRITE_BARRIER,
+                            SKIP_ICACHE_FLUSH);
+#endif
+}
+
+uint32_t GetWasmCalleeTag(RelocInfo* rinfo) {
+#if V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_IA32
+  return *(reinterpret_cast<uint32_t*>(rinfo->target_address_address()));
+#else
+  return static_cast<uint32_t>(
+      reinterpret_cast<size_t>(rinfo->target_address()));
+#endif
 }
 
 }  // namespace
