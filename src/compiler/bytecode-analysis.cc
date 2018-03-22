@@ -103,7 +103,7 @@ void UpdateInLiveness(Bytecode bytecode, BytecodeLivenessState& in_liveness,
     in_liveness.MarkRegisterLive(accessor.GetRegisterOperand(0).index());
     // Suspend additionally reads and returns the accumulator
     DCHECK(Bytecodes::ReadsAccumulator(bytecode));
-    in_liveness.MarkAccumulatorDead();
+    in_liveness.MarkAccumulatorLive();
     return;
   }
   if (bytecode == Bytecode::kResumeGenerator) {
