@@ -387,16 +387,16 @@ I32_SHIFTOP(shr, srlv)
 
 #undef I32_SHIFTOP
 
-#define UNIMPLEMENTED_I64_SHIFTOP(name)                                        \
+#define I64_SHIFTOP(name, instruction)                                         \
   void LiftoffAssembler::emit_i64_##name(LiftoffRegister dst,                  \
                                          LiftoffRegister src, Register amount, \
                                          LiftoffRegList pinned) {              \
-    BAILOUT("i64 shiftop");                                                    \
+    instruction(dst.gp(), src.gp(), amount);                                   \
   }
 
-UNIMPLEMENTED_I64_SHIFTOP(shl)
-UNIMPLEMENTED_I64_SHIFTOP(sar)
-UNIMPLEMENTED_I64_SHIFTOP(shr)
+I64_SHIFTOP(shl, dsllv)
+I64_SHIFTOP(sar, dsrav)
+I64_SHIFTOP(shr, dsrlv)
 
 #undef I32_SHIFTOP
 
