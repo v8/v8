@@ -1933,6 +1933,13 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
   Node* ElementOffsetFromIndex(Node* index, ElementsKind kind,
                                ParameterMode mode, int base_size = 0);
 
+  // Load a builtin's code from the builtin array in the isolate.
+  TNode<Code> LoadBuiltin(TNode<Smi> builtin_id);
+
+  // Figure out the SFI's code object using its data field.
+  TNode<Code> GetSharedFunctionInfoCode(
+      SloppyTNode<SharedFunctionInfo> shared_info);
+
   Node* AllocateFunctionWithMapAndContext(Node* map, Node* shared_info,
                                           Node* context);
 

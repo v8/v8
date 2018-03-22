@@ -1151,15 +1151,13 @@ void V8HeapExplorer::ExtractSharedFunctionInfoReferences(
   const char* name = nullptr;
   if (shared_name != heap_->empty_string()) {
     name = names_->GetName(shared_name);
-    TagObject(shared->code(), names_->GetFormatted("(code for %s)", name));
+    TagObject(shared->GetCode(), names_->GetFormatted("(code for %s)", name));
   } else {
-    TagObject(shared->code(), names_->GetFormatted("(%s code)",
-        Code::Kind2String(shared->code()->kind())));
+    TagObject(shared->GetCode(),
+              names_->GetFormatted(
+                  "(%s code)", Code::Kind2String(shared->GetCode()->kind())));
   }
 
-  SetInternalReference(obj, entry,
-                       "code", shared->code(),
-                       SharedFunctionInfo::kCodeOffset);
   if (shared->name_or_scope_info()->IsScopeInfo()) {
     TagObject(shared->name_or_scope_info(), "(function scope info)");
   }

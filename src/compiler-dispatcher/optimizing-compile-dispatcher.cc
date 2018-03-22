@@ -21,7 +21,7 @@ namespace {
 void DisposeCompilationJob(CompilationJob* job, bool restore_function_code) {
   if (restore_function_code) {
     Handle<JSFunction> function = job->compilation_info()->closure();
-    function->set_code(function->shared()->code());
+    function->set_code(function->shared()->GetCode());
     if (function->IsInOptimizationQueue()) {
       function->ClearOptimizationMarker();
     }

@@ -125,6 +125,10 @@ Code* Snapshot::DeserializeBuiltin(Isolate* isolate, int builtin_id) {
 void Snapshot::EnsureAllBuiltinsAreDeserialized(Isolate* isolate) {
   if (!FLAG_lazy_deserialization) return;
 
+  if (FLAG_trace_lazy_deserialization) {
+    PrintF("Forcing eager builtin deserialization\n");
+  }
+
   Builtins* builtins = isolate->builtins();
   for (int i = 0; i < Builtins::builtin_count; i++) {
     if (!Builtins::IsLazy(i)) continue;
@@ -141,11 +145,11 @@ void Snapshot::EnsureAllBuiltinsAreDeserialized(Isolate* isolate) {
 }
 
 // static
-void Snapshot::EnsureBuiltinIsDeserialized(Isolate* isolate,
-                                           Handle<SharedFunctionInfo> shared) {
+Code* Snapshot::EnsureBuiltinIsDeserialized(Isolate* isolate,
+                                            Handle<SharedFunctionInfo> shared) {
   DCHECK(FLAG_lazy_deserialization);
 
-  int builtin_id = shared->lazy_deserialization_builtin_id();
+  int builtin_id = shared->builtin_id();
 
   // We should never lazily deserialize DeserializeLazy.
   DCHECK_NE(Builtins::kDeserializeLazy, builtin_id);
@@ -160,7 +164,7 @@ void Snapshot::EnsureBuiltinIsDeserialized(Isolate* isolate,
     DCHECK_EQ(builtin_id, code->builtin_index());
     DCHECK_EQ(code, isolate->builtins()->builtin(builtin_id));
   }
-  shared->set_code(code);
+  return code;
 }
 
 // static

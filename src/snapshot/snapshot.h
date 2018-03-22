@@ -154,8 +154,8 @@ class Snapshot : public AllStatic {
   // initialized.
   static Code* DeserializeBuiltin(Isolate* isolate, int builtin_id);
   static void EnsureAllBuiltinsAreDeserialized(Isolate* isolate);
-  static void EnsureBuiltinIsDeserialized(Isolate* isolate,
-                                          Handle<SharedFunctionInfo> shared);
+  static Code* EnsureBuiltinIsDeserialized(Isolate* isolate,
+                                           Handle<SharedFunctionInfo> shared);
 
   // Deserializes a single given handler code object. Intended to be called at
   // runtime after the isolate has been fully initialized.

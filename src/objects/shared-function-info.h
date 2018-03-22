@@ -45,8 +45,8 @@ class SharedFunctionInfo : public HeapObject {
   inline String* Name() const;
   inline void SetName(String* name);
 
-  // [code]: Function code.
-  DECL_ACCESSORS(code, Code)
+  // Get the code object which represents the execution of this function.
+  inline Code* GetCode() const;
 
   // Get the abstract code associated with the function, which will either be
   // a Code object or a BytecodeArray.
@@ -147,11 +147,12 @@ class SharedFunctionInfo : public HeapObject {
   //  - a FunctionTemplateInfo to make benefit the API [IsApiFunction()].
   //  - a BytecodeArray for the interpreter [HasBytecodeArray()].
   //  - a FixedArray with Asm->Wasm conversion [HasAsmWasmData()].
-  //  - a Smi containing the builtin id [HasLazyDeserializationBuiltinId()]
+  //  - a Smi containing the builtin id [HasBuiltinId()]
   //  - a PreParsedScopeData for the parser [HasPreParsedScopeData()]
+  //  - a Code object otherwise [HasCodeObject()]
   DECL_ACCESSORS(function_data, Object)
 
-  inline bool IsApiFunction();
+  inline bool IsApiFunction() const;
   inline FunctionTemplateInfo* get_api_func_data();
   inline void set_api_func_data(FunctionTemplateInfo* data);
   inline bool HasBytecodeArray() const;
@@ -163,16 +164,20 @@ class SharedFunctionInfo : public HeapObject {
   inline void set_asm_wasm_data(FixedArray* data);
   inline void ClearAsmWasmData();
   // A brief note to clear up possible confusion:
-  // lazy_deserialization_builtin_id corresponds to the auto-generated
+  // builtin_id corresponds to the auto-generated
   // Builtins::Name id, while builtin_function_id corresponds to
   // BuiltinFunctionId (a manually maintained list of 'interesting' functions
   // mainly used during optimization).
-  inline bool HasLazyDeserializationBuiltinId() const;
-  inline int lazy_deserialization_builtin_id() const;
+  inline bool HasBuiltinId() const;
+  inline int builtin_id() const;
+  inline void set_builtin_id(int builtin_id);
   inline bool HasPreParsedScopeData() const;
   inline PreParsedScopeData* preparsed_scope_data() const;
   inline void set_preparsed_scope_data(PreParsedScopeData* data);
   inline void ClearPreParsedScopeData();
+  inline bool HasCodeObject() const;
+  inline Code* code_object() const;
+  inline void set_code_object();
 
   // [function identifier]: This field holds an additional identifier for the
   // function.
@@ -430,11 +435,11 @@ class SharedFunctionInfo : public HeapObject {
 // Layout description.
 #define SHARED_FUNCTION_INFO_FIELDS(V)        \
   /* Pointer fields. */                       \
-  V(kCodeOffset, kPointerSize)                \
+  V(kStartOfPointerFieldsOffset, 0)           \
+  V(kFunctionDataOffset, kPointerSize)        \
   V(kNameOrScopeInfoOffset, kPointerSize)     \
   V(kOuterScopeInfoOffset, kPointerSize)      \
   V(kConstructStubOffset, kPointerSize)       \
-  V(kFunctionDataOffset, kPointerSize)        \
   V(kScriptOffset, kPointerSize)              \
   V(kDebugInfoOffset, kPointerSize)           \
   V(kFunctionIdentifierOffset, kPointerSize)  \
@@ -459,7 +464,8 @@ class SharedFunctionInfo : public HeapObject {
 
   static const int kAlignedSize = POINTER_SIZE_ALIGN(kSize);
 
-  typedef FixedBodyDescriptor<kCodeOffset, kEndOfPointerFieldsOffset, kSize>
+  typedef FixedBodyDescriptor<kStartOfPointerFieldsOffset,
+                              kEndOfPointerFieldsOffset, kSize>
       BodyDescriptor;
   // No weak fields.
   typedef BodyDescriptor BodyDescriptorWeak;

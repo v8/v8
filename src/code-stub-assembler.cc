@@ -10778,13 +10778,98 @@ Node* CodeStubAssembler::IsPromiseHookEnabledOrDebugIsActive() {
   return Word32NotEqual(promise_hook_or_debug_is_active, Int32Constant(0));
 }
 
+TNode<Code> CodeStubAssembler::LoadBuiltin(TNode<Smi> builtin_id) {
+  CSA_ASSERT(this, SmiGreaterThanOrEqual(builtin_id, SmiConstant(0)));
+  CSA_ASSERT(this,
+             SmiLessThan(builtin_id, SmiConstant(Builtins::builtin_count)));
+
+  int const kSmiShiftBits = kSmiShiftSize + kSmiTagSize;
+  int index_shift = kPointerSizeLog2 - kSmiShiftBits;
+  TNode<WordT> table_index =
+      index_shift >= 0 ? WordShl(BitcastTaggedToWord(builtin_id), index_shift)
+                       : WordSar(BitcastTaggedToWord(builtin_id), -index_shift);
+
+  return CAST(
+      Load(MachineType::TaggedPointer(),
+           ExternalConstant(ExternalReference::builtins_address(isolate())),
+           table_index));
+}
+
+TNode<Code> CodeStubAssembler::GetSharedFunctionInfoCode(
+    SloppyTNode<SharedFunctionInfo> shared_info) {
+  TNode<Object> sfi_data =
+      LoadObjectField(shared_info, SharedFunctionInfo::kFunctionDataOffset);
+
+  TYPED_VARIABLE_DEF(Code, sfi_code, this);
+
+  Label done(this);
+  Label check_instance_type(this);
+
+  // IsSmi: Is builtin
+  GotoIf(TaggedIsNotSmi(sfi_data), &check_instance_type);
+  sfi_code = LoadBuiltin(CAST(sfi_data));
+  Goto(&done);
+
+  // Switch on data's instance type.
+  BIND(&check_instance_type);
+  TNode<Int32T> data_type = LoadInstanceType(CAST(sfi_data));
+
+  int32_t case_values[] = {BYTECODE_ARRAY_TYPE, CODE_TYPE, FIXED_ARRAY_TYPE,
+                           TUPLE2_TYPE};
+  Label check_is_bytecode_array(this);
+  Label check_is_code(this);
+  Label check_is_fixed_array(this);
+  Label check_is_pre_parsed_scope_data(this);
+  Label check_is_function_template_info(this);
+  Label* case_labels[] = {&check_is_bytecode_array, &check_is_code,
+                          &check_is_fixed_array,
+                          &check_is_pre_parsed_scope_data};
+  STATIC_ASSERT(arraysize(case_values) == arraysize(case_labels));
+  Switch(data_type, &check_is_function_template_info, case_values, case_labels,
+         arraysize(case_labels));
+
+  // IsBytecodeArray: Interpret bytecode
+  BIND(&check_is_bytecode_array);
+  DCHECK(!Builtins::IsLazy(Builtins::kInterpreterEntryTrampoline));
+  sfi_code = HeapConstant(BUILTIN_CODE(isolate(), InterpreterEntryTrampoline));
+  Goto(&done);
+
+  // IsCode: Run code
+  BIND(&check_is_code);
+  sfi_code = CAST(sfi_data);
+  Goto(&done);
+
+  // IsFixedArray: Instantiate using AsmWasmData,
+  BIND(&check_is_fixed_array);
+  DCHECK(!Builtins::IsLazy(Builtins::kInstantiateAsmJs));
+  sfi_code = HeapConstant(BUILTIN_CODE(isolate(), InstantiateAsmJs));
+  Goto(&done);
+
+  // IsPreParsedScopeData: Compile lazy
+  BIND(&check_is_pre_parsed_scope_data);
+  DCHECK(!Builtins::IsLazy(Builtins::kCompileLazy));
+  sfi_code = HeapConstant(BUILTIN_CODE(isolate(), CompileLazy));
+  Goto(&done);
+
+  // IsFunctionTemplateInfo: API call
+  BIND(&check_is_function_template_info);
+  // This is the default branch, so assert that we have the expected data type.
+  CSA_ASSERT(
+      this, Word32Equal(data_type, Int32Constant(FUNCTION_TEMPLATE_INFO_TYPE)));
+  DCHECK(!Builtins::IsLazy(Builtins::kHandleApiCall));
+  sfi_code = HeapConstant(BUILTIN_CODE(isolate(), HandleApiCall));
+  Goto(&done);
+
+  BIND(&done);
+  return sfi_code.value();
+}
+
 Node* CodeStubAssembler::AllocateFunctionWithMapAndContext(Node* map,
                                                            Node* shared_info,
                                                            Node* context) {
   CSA_SLOW_ASSERT(this, IsMap(map));
 
-  Node* const code =
-      LoadObjectField(shared_info, SharedFunctionInfo::kCodeOffset);
+  Node* const code = GetSharedFunctionInfoCode(shared_info);
 
   // TODO(ishell): All the callers of this function pass map loaded from
   // Context::STRICT_FUNCTION_WITHOUT_PROTOTYPE_MAP_INDEX. So we can remove

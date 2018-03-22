@@ -65,21 +65,20 @@ bool AreStdlibMembersValid(Isolate* isolate, Handle<JSReceiver> stdlib,
     Handle<Object> value = JSReceiver::GetDataProperty(stdlib, name);
     if (!value->IsNaN()) return false;
   }
-#define STDLIB_MATH_FUNC(fname, FName, ignore1, ignore2)                       \
-  if (members.Contains(wasm::AsmJsParser::StandardMember::kMath##FName)) {     \
-    members.Remove(wasm::AsmJsParser::StandardMember::kMath##FName);           \
-    Handle<Name> name(isolate->factory()->InternalizeOneByteString(            \
-        STATIC_CHAR_VECTOR(#fname)));                                          \
-    Handle<Object> value = StdlibMathMember(isolate, stdlib, name);            \
-    if (!value->IsJSFunction()) return false;                                  \
-    SharedFunctionInfo* shared = Handle<JSFunction>::cast(value)->shared();    \
-    if (shared->HasLazyDeserializationBuiltinId()) {                           \
-      if (shared->lazy_deserialization_builtin_id() != Builtins::kMath##FName) \
-        return false;                                                          \
-    } else if (shared->code() !=                                               \
-               isolate->builtins()->builtin(Builtins::kMath##FName)) {         \
-      return false;                                                            \
-    }                                                                          \
+#define STDLIB_MATH_FUNC(fname, FName, ignore1, ignore2)                    \
+  if (members.Contains(wasm::AsmJsParser::StandardMember::kMath##FName)) {  \
+    members.Remove(wasm::AsmJsParser::StandardMember::kMath##FName);        \
+    Handle<Name> name(isolate->factory()->InternalizeOneByteString(         \
+        STATIC_CHAR_VECTOR(#fname)));                                       \
+    Handle<Object> value = StdlibMathMember(isolate, stdlib, name);         \
+    if (!value->IsJSFunction()) return false;                               \
+    SharedFunctionInfo* shared = Handle<JSFunction>::cast(value)->shared(); \
+    if (!shared->HasBuiltinId() ||                                          \
+        shared->builtin_id() != Builtins::kMath##FName) {                   \
+      return false;                                                         \
+    }                                                                       \
+    DCHECK_EQ(shared->GetCode(),                                            \
+              isolate->builtins()->builtin(Builtins::kMath##FName));        \
   }
   STDLIB_MATH_FUNCTION_LIST(STDLIB_MATH_FUNC)
 #undef STDLIB_MATH_FUNC
@@ -302,7 +301,6 @@ CompilationJob::Status AsmJsCompilationJob::FinalizeJobImpl(Isolate* isolate) {
   result->set(kWasmDataCompiledModule, *compiled);
   result->set(kWasmDataUsesBitSet, *uses_bitset);
   compilation_info()->SetAsmWasmData(result);
-  compilation_info()->SetCode(BUILTIN_CODE(isolate, InstantiateAsmJs));
 
   RecordHistograms(isolate);
   ReportCompilationSuccess(parse_info()->script(),
