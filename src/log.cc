@@ -505,6 +505,8 @@ void JitLogger::LogRecordedBuffer(AbstractCode* code,
   memset(&event, 0, sizeof(event));
   event.type = JitCodeEvent::CODE_ADDED;
   event.code_start = code->instruction_start();
+  event.code_type =
+      code->IsCode() ? JitCodeEvent::JIT_CODE : JitCodeEvent::BYTE_CODE;
   event.code_len = code->instruction_size();
   Handle<SharedFunctionInfo> shared_function_handle;
   if (shared && shared->script()->IsScript()) {
@@ -521,6 +523,7 @@ void JitLogger::LogRecordedBuffer(const wasm::WasmCode* code, const char* name,
   JitCodeEvent event;
   memset(&event, 0, sizeof(event));
   event.type = JitCodeEvent::CODE_ADDED;
+  event.code_type = JitCodeEvent::JIT_CODE;
   event.code_start = code->instructions().start();
   event.code_len = code->instructions().length();
   event.name.str = name;
@@ -533,6 +536,8 @@ void JitLogger::CodeMoveEvent(AbstractCode* from, Address to) {
 
   JitCodeEvent event;
   event.type = JitCodeEvent::CODE_MOVED;
+  event.code_type =
+      from->IsCode() ? JitCodeEvent::JIT_CODE : JitCodeEvent::BYTE_CODE;
   event.code_start = from->instruction_start();
   event.code_len = from->instruction_size();
 

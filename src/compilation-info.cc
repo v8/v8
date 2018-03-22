@@ -62,6 +62,13 @@ CompilationInfo::CompilationInfo(Vector<const char> debug_name, Zone* zone,
   if (code_kind == Code::BYTECODE_HANDLER && has_untrusted_code_mitigations()) {
     SetFlag(CompilationInfo::kGenerateSpeculationPoisonOnEntry);
   }
+#if ENABLE_GDB_JIT_INTERFACE
+#if DEBUG
+  if (code_kind == Code::BUILTIN || code_kind == Code::STUB) {
+    MarkAsSourcePositionsEnabled();
+  }
+#endif
+#endif
 }
 
 CompilationInfo::CompilationInfo(Vector<const char> debug_name,

@@ -163,6 +163,13 @@ Code* BuiltinDeserializer::DeserializeBuiltinRaw(int builtin_id) {
   Code* code = Code::cast(o);
   Assembler::FlushICache(code->instruction_start(), code->instruction_size());
 
+  PROFILE(isolate(), CodeCreateEvent(CodeEventListener::BUILTIN_TAG,
+                                     AbstractCode::cast(code),
+                                     Builtins::name(builtin_id)));
+  LOG_CODE_EVENT(isolate(),
+                 CodeLinePosInfoRecordEvent(
+                     code->instruction_start(),
+                     ByteArray::cast(code->source_position_table())));
   return code;
 }
 
@@ -187,6 +194,13 @@ Code* BuiltinDeserializer::DeserializeHandlerRaw(Bytecode bytecode,
   Code* code = Code::cast(o);
   Assembler::FlushICache(code->instruction_start(), code->instruction_size());
 
+  const char* handler_name =
+      isolate()->interpreter()->LookupNameOfBytecodeHandler(code);
+  if (handler_name == nullptr) {
+    handler_name = "UnknownBytecodeHadler";
+  }
+  PROFILE(isolate(), CodeCreateEvent(CodeEventListener::HANDLER_TAG,
+                                     AbstractCode::cast(code), handler_name));
   return code;
 }
 
