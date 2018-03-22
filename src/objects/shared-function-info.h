@@ -246,6 +246,11 @@ class SharedFunctionInfo : public HeapObject {
   // Indicates that the function has been reported for binary code coverage.
   DECL_BOOLEAN_ACCESSORS(has_reported_binary_coverage)
 
+  // Id assigned to the function for debugging.
+  // This could also be implemented as a weak hash table.
+  inline int debugging_id() const;
+  inline void set_debugging_id(int value);
+
   // The function's name if it is non-empty, otherwise the inferred name.
   String* DebugName();
 
@@ -508,10 +513,13 @@ class SharedFunctionInfo : public HeapObject {
   V(ComputedHasNoSideEffectBit, bool, 1, _)    \
   V(DebugIsBlackboxedBit, bool, 1, _)          \
   V(ComputedDebugIsBlackboxedBit, bool, 1, _)  \
-  V(HasReportedBinaryCoverageBit, bool, 1, _)
+  V(HasReportedBinaryCoverageBit, bool, 1, _)  \
+  V(DebuggingIdBits, int, 20, _)
 
   DEFINE_BIT_FIELDS(DEBUGGER_HINTS_BIT_FIELDS)
 #undef DEBUGGER_HINTS_BIT_FIELDS
+
+  static const int kNoDebuggingId = 0;
 
   // Indicates that this function uses a super property (or an eval that may
   // use a super property).

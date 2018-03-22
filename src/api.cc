@@ -9448,8 +9448,8 @@ bool debug::Script::SetBreakpoint(v8::Local<v8::String> condition,
   i::Handle<i::Script> script = Utils::OpenHandle(this);
   i::Isolate* isolate = script->GetIsolate();
   int offset = GetSourceOffset(*location);
-  if (!isolate->debug()->SetBreakpoint(script, Utils::OpenHandle(*condition),
-                                       &offset, id)) {
+  if (!isolate->debug()->SetBreakPointForScript(
+          script, Utils::OpenHandle(*condition), &offset, id)) {
     return false;
   }
   *location = GetSourceLocation(offset);
@@ -9856,6 +9856,35 @@ int64_t debug::GetNextRandomInt64(v8::Isolate* v8_isolate) {
   return reinterpret_cast<i::Isolate*>(v8_isolate)
       ->random_number_generator()
       ->NextInt64();
+}
+
+int debug::GetDebuggingId(v8::Local<v8::Function> function) {
+  i::JSReceiver* callable = *v8::Utils::OpenHandle(*function);
+  if (!callable->IsJSFunction()) return i::SharedFunctionInfo::kNoDebuggingId;
+  i::JSFunction* fun = i::JSFunction::cast(callable);
+  i::SharedFunctionInfo* shared = fun->shared();
+  int id = shared->debugging_id();
+  if (id == i::SharedFunctionInfo::kNoDebuggingId) {
+    id = shared->GetHeap()->NextDebuggingId();
+    shared->set_debugging_id(id);
+  }
+  DCHECK_NE(i::SharedFunctionInfo::kNoDebuggingId, id);
+  return id;
+}
+
+bool debug::SetFunctionBreakpoint(v8::Local<v8::Function> function,
+                                  v8::Local<v8::String> condition,
+                                  BreakpointId* id) {
+  i::Handle<i::JSReceiver> callable = Utils::OpenHandle(*function);
+  if (!callable->IsJSFunction()) return false;
+  i::Handle<i::JSFunction> jsfunction =
+      i::Handle<i::JSFunction>::cast(callable);
+  i::Isolate* isolate = jsfunction->GetIsolate();
+  i::Handle<i::String> condition_string =
+      condition.IsEmpty() ? isolate->factory()->empty_string()
+                          : Utils::OpenHandle(*condition);
+  return isolate->debug()->SetBreakpointForFunction(jsfunction,
+                                                    condition_string, id);
 }
 
 Local<String> CpuProfileNode::GetFunctionName() const {

@@ -506,6 +506,11 @@ v8::MaybeLocal<v8::Value> EvaluateGlobal(v8::Isolate* isolate,
                                          v8::Local<v8::String> source,
                                          bool throw_on_side_effect);
 
+int GetDebuggingId(v8::Local<v8::Function> function);
+
+bool SetFunctionBreakpoint(v8::Local<v8::Function> function,
+                           v8::Local<v8::String> condition, BreakpointId* id);
+
 }  // namespace debug
 }  // namespace v8
 

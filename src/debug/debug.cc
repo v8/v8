@@ -607,7 +607,7 @@ bool Debug::SetBreakPoint(Handle<JSFunction> function,
 
   // Make sure the function is compiled and has set up the debug info.
   Handle<SharedFunctionInfo> shared(function->shared());
-  if (!EnsureBreakInfo(shared)) return true;
+  if (!EnsureBreakInfo(shared)) return false;
   PrepareFunctionForBreakPoints(shared);
   Handle<DebugInfo> debug_info(shared->GetDebugInfo());
   // Source positions starts with zero.
@@ -627,8 +627,11 @@ bool Debug::SetBreakPoint(Handle<JSFunction> function,
 }
 
 bool Debug::SetBreakPointForScript(Handle<Script> script,
-                                   Handle<BreakPoint> break_point,
-                                   int* source_position) {
+                                   Handle<String> condition,
+                                   int* source_position, int* id) {
+  *id = ++thread_local_.last_breakpoint_id_;
+  Handle<BreakPoint> break_point =
+      isolate_->factory()->NewBreakPoint(*id, condition);
   if (script->type() == Script::TYPE_WASM) {
     Handle<WasmCompiledModule> compiled_module(
         WasmCompiledModule::cast(script->wasm_compiled_module()), isolate_);
@@ -741,12 +744,13 @@ void Debug::ClearBreakPoint(Handle<BreakPoint> break_point) {
   }
 }
 
-bool Debug::SetBreakpoint(Handle<Script> script, Handle<String> condition,
-                          int* offset, int* id) {
+bool Debug::SetBreakpointForFunction(Handle<JSFunction> function,
+                                     Handle<String> condition, int* id) {
   *id = ++thread_local_.last_breakpoint_id_;
   Handle<BreakPoint> breakpoint =
       isolate_->factory()->NewBreakPoint(*id, condition);
-  return SetBreakPointForScript(script, breakpoint, offset);
+  int source_position = 0;
+  return SetBreakPoint(function, breakpoint, &source_position);
 }
 
 void Debug::RemoveBreakpoint(int id) {

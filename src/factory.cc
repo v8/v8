@@ -2641,6 +2641,7 @@ Handle<SharedFunctionInfo> Factory::NewSharedFunctionInfo(
       FixedArrayOfWeakCells::Add(noscript_shared_function_infos(), share);
   isolate()->heap()->set_noscript_shared_function_infos(*new_noscript_list);
 
+  DCHECK_EQ(SharedFunctionInfo::kNoDebuggingId, share->debugging_id());
 #ifdef VERIFY_HEAP
   share->SharedFunctionInfoVerify();
 #endif

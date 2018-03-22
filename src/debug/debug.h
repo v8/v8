@@ -242,15 +242,14 @@ class Debug {
   // Break point handling.
   bool SetBreakPoint(Handle<JSFunction> function,
                      Handle<BreakPoint> break_point, int* source_position);
-  bool SetBreakPointForScript(Handle<Script> script,
-                              Handle<BreakPoint> break_point,
-                              int* source_position);
   void ClearBreakPoint(Handle<BreakPoint> break_point);
   void ChangeBreakOnException(ExceptionBreakType type, bool enable);
   bool IsBreakOnException(ExceptionBreakType type);
 
-  bool SetBreakpoint(Handle<Script> script, Handle<String> condition,
-                     int* offset, int* id);
+  bool SetBreakPointForScript(Handle<Script> script, Handle<String> condition,
+                              int* source_position, int* id);
+  bool SetBreakpointForFunction(Handle<JSFunction> function,
+                                Handle<String> condition, int* id);
   void RemoveBreakpoint(int id);
 
   // Find breakpoints from the debug info and the break location and check

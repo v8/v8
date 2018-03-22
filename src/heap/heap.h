@@ -279,6 +279,7 @@ using v8::MemoryPressureLevel;
   V(Smi, stack_limit, StackLimit)                                              \
   V(Smi, real_stack_limit, RealStackLimit)                                     \
   V(Smi, last_script_id, LastScriptId)                                         \
+  V(Smi, last_debugging_id, LastDebuggingId)                                   \
   V(Smi, hash_seed, HashSeed)                                                  \
   /* To distinguish the function templates, so that we can find them in the */ \
   /* function cache of the native context. */                                  \
@@ -890,6 +891,7 @@ class Heap {
   inline uint32_t HashSeed();
 
   inline int NextScriptId();
+  inline int NextDebuggingId();
   inline int GetNextTemplateSerialNumber();
 
   void SetSerializedObjects(FixedArray* objects);

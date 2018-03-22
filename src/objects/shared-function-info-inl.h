@@ -209,6 +209,8 @@ BIT_FIELD_ACCESSORS(SharedFunctionInfo, debugger_hints,
 BIT_FIELD_ACCESSORS(SharedFunctionInfo, debugger_hints,
                     has_reported_binary_coverage,
                     SharedFunctionInfo::HasReportedBinaryCoverageBit)
+BIT_FIELD_ACCESSORS(SharedFunctionInfo, debugger_hints, debugging_id,
+                    SharedFunctionInfo::DebuggingIdBits)
 
 void SharedFunctionInfo::DontAdaptArguments() {
   DCHECK(code()->kind() == Code::BUILTIN || code()->kind() == Code::STUB);

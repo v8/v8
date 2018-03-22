@@ -668,12 +668,19 @@ uint32_t Heap::HashSeed() {
 
 int Heap::NextScriptId() {
   int last_id = last_script_id()->value();
-  if (last_id == Smi::kMaxValue) {
-    last_id = 1;
-  } else {
-    last_id++;
-  }
+  if (last_id == Smi::kMaxValue) last_id = v8::UnboundScript::kNoScriptId;
+  last_id++;
   set_last_script_id(Smi::FromInt(last_id));
+  return last_id;
+}
+
+int Heap::NextDebuggingId() {
+  int last_id = last_debugging_id()->value();
+  if (last_id == SharedFunctionInfo::DebuggingIdBits::kMax) {
+    last_id = SharedFunctionInfo::kNoDebuggingId;
+  }
+  last_id++;
+  set_last_debugging_id(Smi::FromInt(last_id));
   return last_id;
 }
 

@@ -3237,12 +3237,12 @@ TEST(PauseInScript) {
           .ToLocalChecked();
 
   // Set breakpoint in the script.
-  i::Handle<i::BreakPoint> break_point =
-      isolate->factory()->NewBreakPoint(0, isolate->factory()->empty_string());
-  int position = 0;
   i::Handle<i::Script> i_script(
       i::Script::cast(v8::Utils::OpenHandle(*script)->shared()->script()));
-  isolate->debug()->SetBreakPointForScript(i_script, break_point, &position);
+  i::Handle<i::String> condition = isolate->factory()->empty_string();
+  int position = 0;
+  int id;
+  isolate->debug()->SetBreakPointForScript(i_script, condition, &position, &id);
   break_point_hit_count = 0;
 
   v8::Local<v8::Value> r = script->Run(context).ToLocalChecked();
