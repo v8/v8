@@ -877,8 +877,12 @@ void GlobalHandles::PendingPhantomCallback::Invoke(Isolate* isolate) {
   callback_ = nullptr;
   callback(data);
   if (node_ != nullptr) {
-    // Transition to second pass state.
-    DCHECK(node_->state() == Node::FREE);
+    // Transition to second pass. It is required that the first pass callback
+    // resets the handle using |v8::PersistentBase::Reset|. Also see comments on
+    // |v8::WeakCallbackInfo|.
+    CHECK_WITH_MSG(Node::FREE == node_->state(),
+                   "Handle not reset in first callback. See comments on "
+                   "|v8::WeakCallbackInfo|.");
     node_ = nullptr;
   }
 }
