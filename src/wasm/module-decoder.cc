@@ -1244,10 +1244,14 @@ class ModuleDecoderImpl : public Decoder {
       case kLocalF64:
         return kWasmF64;
       default:
-        if (IsWasm() && FLAG_experimental_wasm_simd) {
+        if (IsWasm()) {
           switch (t) {
             case kLocalS128:
-              return kWasmS128;
+              if (FLAG_experimental_wasm_simd) return kWasmS128;
+              break;
+            case kLocalAnyRef:
+              if (FLAG_experimental_wasm_anyref) return kWasmAnyRef;
+              break;
             default:
               break;
           }

@@ -241,6 +241,9 @@ struct BlockTypeOperand {
       case kLocalS128:
         *result = kWasmS128;
         return true;
+      case kLocalAnyRef:
+        *result = kWasmAnyRef;
+        return true;
       default:
         *result = kWasmVar;
         return false;
