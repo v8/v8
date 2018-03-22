@@ -202,6 +202,26 @@ class WasmCodeManager;
 // WasmCodeManager::Commit.
 class V8_EXPORT_PRIVATE NativeModule final {
  public:
+  // Helper class to selectively clone and patch code from a
+  // {source_native_module} into a {cloning_native_module}.
+  class CloneCodeHelper {
+   public:
+    explicit CloneCodeHelper(NativeModule* source_native_module,
+                             NativeModule* cloning_native_module);
+
+    void SelectForCloning(int32_t code_index);
+
+    void CloneAndPatchCode(bool patch_stub_to_stub_calls);
+
+   private:
+    void PatchStubToStubCalls();
+
+    NativeModule* source_native_module_;
+    NativeModule* cloning_native_module_;
+    std::vector<uint32_t> selection_;
+    std::unordered_map<Address, Address, AddressHasher> reverse_lookup_;
+  };
+
   std::unique_ptr<NativeModule> Clone();
 
   WasmCode* AddCode(const CodeDesc& desc, uint32_t frame_count, uint32_t index,
