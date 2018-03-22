@@ -576,7 +576,7 @@ bool NativeModuleDeserializer::ReadCode() {
       code_buffer, std::move(reloc_info), reloc_size, Just(index_),
       WasmCode::kFunction, constant_pool_offset, stack_slot_count,
       safepoint_table_offset, handler_table_offset, protected_instructions,
-      tier, kNoFlushICache);
+      tier, WasmCode::kNoFlushICache);
   native_module_->code_table_[index_] = ret;
 
   // now relocate the code

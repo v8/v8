@@ -66,7 +66,7 @@ const bool kModuleCanAllocateMoreMemory = true;
 void PatchTrampolineAndStubCalls(
     const WasmCode* original_code, const WasmCode* new_code,
     const std::unordered_map<Address, Address, AddressHasher>& reverse_lookup,
-    FlushICache flush_icache) {
+    WasmCode::FlushICache flush_icache) {
   // Relocate everything in kApplyMask using this delta, and patch all code
   // targets to call the new trampolines and stubs.
   intptr_t delta =
@@ -96,7 +96,7 @@ void PatchTrampolineAndStubCalls(
 }
 
 void RelocateCode(WasmCode* code, const WasmCode* orig,
-                  FlushICache flush_icache) {
+                  WasmCode::FlushICache flush_icache) {
   intptr_t delta = code->instructions().start() - orig->instructions().start();
   for (RelocIterator it(code->instructions(), code->reloc_info(),
                         code->constant_pool(), RelocInfo::kApplyMask);
@@ -362,7 +362,7 @@ WasmCode* NativeModule::AddOwnedCode(
     uint32_t stack_slots, size_t safepoint_table_offset,
     size_t handler_table_offset,
     std::shared_ptr<ProtectedInstructions> protected_instructions,
-    WasmCode::Tier tier, FlushICache flush_icache) {
+    WasmCode::Tier tier, WasmCode::FlushICache flush_icache) {
   // both allocation and insertion in owned_code_ happen in the same critical
   // section, thus ensuring owned_code_'s elements are rarely if ever moved.
   base::LockGuard<base::Mutex> lock(&allocation_mutex_);
@@ -454,7 +454,7 @@ WasmCode* NativeModule::AddAnonymousCode(Handle<Code> code,
                    code->handler_table_offset(),  // handler_table_offset
                    protected_instructions,        // protected_instructions
                    WasmCode::kOther,              // kind
-                   kNoFlushICache);               // flush_icache
+                   WasmCode::kNoFlushICache);     // flush_icache
   intptr_t delta = ret->instructions().start() - code->instruction_start();
   int mask = RelocInfo::kApplyMask | RelocInfo::kCodeTargetMask |
              RelocInfo::ModeMask(RelocInfo::EMBEDDED_OBJECT);
@@ -500,7 +500,7 @@ WasmCode* NativeModule::AddCode(
       std::move(reloc_info), static_cast<size_t>(desc.reloc_size), Just(index),
       WasmCode::kFunction, desc.instr_size - desc.constant_pool_size,
       frame_slots, safepoint_table_offset, handler_table_offset,
-      std::move(protected_instructions), tier, kNoFlushICache);
+      std::move(protected_instructions), tier, WasmCode::kNoFlushICache);
 
   code_table_[index] = ret;
   // TODO(mtrofin): this is a copy and paste from Code::CopyFrom.
@@ -561,8 +561,8 @@ Address NativeModule::CreateTrampolineTo(Handle<Code> code) {
                                      0,   // safepoint_table_offset
                                      0,   // handler_table_offset
                                      {},  // protected_instructions
-                                     WasmCode::kOther,  // tier
-                                     kFlushICache);     // flush_icache
+                                     WasmCode::kOther,         // tier
+                                     WasmCode::kFlushICache);  // flush_icache
   Address ret = wasm_code->instructions().start();
   trampolines_.emplace(std::make_pair(dest, ret));
   return ret;
@@ -685,20 +685,19 @@ WasmCode* NativeModule::Lookup(Address pc) {
   return nullptr;
 }
 
-WasmCode* NativeModule::CloneLazyBuiltinInto(const WasmCode* code,
-                                             uint32_t index,
-                                             FlushICache flush_icache) {
+WasmCode* NativeModule::CloneLazyBuiltinInto(
+    const WasmCode* code, uint32_t index, WasmCode::FlushICache flush_icache) {
   DCHECK_EQ(wasm::WasmCode::kLazyStub, code->kind());
   DCHECK(code->IsAnonymous());
-  WasmCode* ret = CloneCode(code, kNoFlushICache);
+  WasmCode* ret = CloneCode(code, WasmCode::kNoFlushICache);
   RelocateCode(ret, code, flush_icache);
   code_table_[index] = ret;
   ret->index_ = Just(index);
   return ret;
 }
 
-void NativeModule::CloneTrampolinesAndStubs(const NativeModule* other,
-                                            FlushICache flush_icache) {
+void NativeModule::CloneTrampolinesAndStubs(
+    const NativeModule* other, WasmCode::FlushICache flush_icache) {
   for (auto& pair : other->trampolines_) {
     Address key = pair.first;
     Address local =
@@ -714,7 +713,7 @@ void NativeModule::CloneTrampolinesAndStubs(const NativeModule* other,
 }
 
 WasmCode* NativeModule::CloneCode(const WasmCode* original_code,
-                                  FlushICache flush_icache) {
+                                  WasmCode::FlushICache flush_icache) {
   std::unique_ptr<byte[]> reloc_info;
   if (original_code->reloc_info().size() > 0) {
     reloc_info.reset(new byte[original_code->reloc_info().size()]);
@@ -915,7 +914,7 @@ std::unique_ptr<NativeModule> NativeModule::Clone() {
 
   // Clone trampolines and stubs. They are later patched, so no icache flush
   // needed yet.
-  ret->CloneTrampolinesAndStubs(this, kNoFlushICache);
+  ret->CloneTrampolinesAndStubs(this, WasmCode::kNoFlushICache);
 
   std::unordered_map<Address, Address, AddressHasher> reverse_lookup;
   for (auto& pair : trampolines_) {
@@ -938,7 +937,7 @@ std::unique_ptr<NativeModule> NativeModule::Clone() {
     WasmCode* new_stub = pair.second;
     WasmCode* old_stub = stubs_.find(pair.first)->second;
     PatchTrampolineAndStubCalls(old_stub, new_stub, reverse_lookup,
-                                kFlushICache);
+                                WasmCode::kFlushICache);
   }
 
   WasmCode* anonymous_lazy_builtin = nullptr;
@@ -951,23 +950,26 @@ std::unique_ptr<NativeModule> NativeModule::Clone() {
         // the {anonymous_lazy_builtin} variable. All non-anonymous such stubs
         // are just cloned directly via {CloneLazyBuiltinInto} below.
         if (!original_code->IsAnonymous()) {
-          WasmCode* new_code = ret->CloneCode(original_code, kNoFlushICache);
+          WasmCode* new_code =
+              ret->CloneCode(original_code, WasmCode::kNoFlushICache);
           PatchTrampolineAndStubCalls(original_code, new_code, reverse_lookup,
-                                      kFlushICache);
+                                      WasmCode::kFlushICache);
           break;
         }
         if (anonymous_lazy_builtin == nullptr) {
-          WasmCode* new_code = ret->CloneCode(original_code, kNoFlushICache);
+          WasmCode* new_code =
+              ret->CloneCode(original_code, WasmCode::kNoFlushICache);
           PatchTrampolineAndStubCalls(original_code, new_code, reverse_lookup,
-                                      kFlushICache);
+                                      WasmCode::kFlushICache);
           anonymous_lazy_builtin = new_code;
         }
         ret->code_table_[i] = anonymous_lazy_builtin;
       } break;
       case WasmCode::kFunction: {
-        WasmCode* new_code = ret->CloneCode(original_code, kNoFlushICache);
+        WasmCode* new_code =
+            ret->CloneCode(original_code, WasmCode::kNoFlushICache);
         PatchTrampolineAndStubCalls(original_code, new_code, reverse_lookup,
-                                    kFlushICache);
+                                    WasmCode::kFlushICache);
       } break;
       default:
         UNREACHABLE();

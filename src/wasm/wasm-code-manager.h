@@ -85,8 +85,6 @@ class V8_EXPORT_PRIVATE DisjointAllocationPool final {
 using ProtectedInstructions =
     std::vector<trap_handler::ProtectedInstructionData>;
 
-enum FlushICache : bool { kFlushICache = true, kNoFlushICache = false };
-
 class V8_EXPORT_PRIVATE WasmCode final {
  public:
   enum Kind {
@@ -139,6 +137,8 @@ class V8_EXPORT_PRIVATE WasmCode final {
   void Disassemble(const char* name, Isolate* isolate, std::ostream& os) const;
 
   ~WasmCode();
+
+  enum FlushICache : bool { kFlushICache = true, kNoFlushICache = false };
 
  private:
   friend class NativeModule;
@@ -236,7 +236,7 @@ class V8_EXPORT_PRIVATE NativeModule final {
   // TODO(mtrofin): perhaps we can do exactly that - either before or after
   // this change.
   WasmCode* CloneLazyBuiltinInto(const WasmCode* code, uint32_t index,
-                                 FlushICache);
+                                 WasmCode::FlushICache);
 
   bool SetExecutable(bool executable);
 
@@ -282,9 +282,10 @@ class V8_EXPORT_PRIVATE NativeModule final {
                          uint32_t stack_slots, size_t safepoint_table_offset,
                          size_t handler_table_offset,
                          std::shared_ptr<ProtectedInstructions>, WasmCode::Tier,
-                         FlushICache);
-  WasmCode* CloneCode(const WasmCode*, FlushICache);
-  void CloneTrampolinesAndStubs(const NativeModule* other, FlushICache);
+                         WasmCode::FlushICache);
+  WasmCode* CloneCode(const WasmCode*, WasmCode::FlushICache);
+  void CloneTrampolinesAndStubs(const NativeModule* other,
+                                WasmCode::FlushICache);
   WasmCode* Lookup(Address);
   Address GetLocalAddressFor(Handle<Code>);
   Address CreateTrampolineTo(Handle<Code>);
