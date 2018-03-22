@@ -115,9 +115,9 @@ ArrayBuffer::Allocator::AllocationMode JSArrayBuffer::allocation_mode() const {
 
 bool JSArrayBuffer::is_wasm_memory() const {
   bool const is_wasm_memory = IsWasmMemory::decode(bit_field());
-  DCHECK(backing_store() == nullptr ||
-         GetIsolate()->wasm_engine()->memory_tracker()->IsWasmMemory(
-             backing_store()) == is_wasm_memory);
+  DCHECK_EQ(is_wasm_memory,
+            GetIsolate()->wasm_engine()->memory_tracker()->IsWasmMemory(
+                backing_store()));
   return is_wasm_memory;
 }
 

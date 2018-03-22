@@ -31,12 +31,13 @@ class WasmMemoryTracker {
                           void* buffer_start, size_t buffer_length);
 
   struct AllocationData {
-    void* const allocation_base = nullptr;
-    size_t const allocation_length = 0;
-    void* const buffer_start = nullptr;
-    size_t const buffer_length = 0;
+    void* allocation_base = nullptr;
+    size_t allocation_length = 0;
+    void* buffer_start = nullptr;
+    size_t buffer_length = 0;
 
    private:
+    AllocationData() = default;
     AllocationData(void* allocation_base, size_t allocation_length,
                    void* buffer_start, size_t buffer_length)
         : allocation_base(allocation_base),
@@ -68,7 +69,21 @@ class WasmMemoryTracker {
   // buffer is not tracked.
   const AllocationData* FindAllocationData(const void* buffer_start);
 
+  // Empty WebAssembly memories are all backed by a shared inaccessible
+  // reservation. This method creates this store or returns the existing one if
+  // already created.
+  void* GetEmptyBackingStore(void** allocation_base, size_t* allocation_length);
+
+  bool IsEmptyBackingStore(const void* buffer_start) const;
+
+  // Checks if a buffer points to a Wasm memory and if so does any necessary
+  // work to reclaim the buffer. If this function returns false, the caller must
+  // free the buffer manually.
+  bool FreeMemoryIfIsWasmMemory(const void* buffer_start);
+
  private:
+  AllocationData InternalReleaseAllocation(const void* buffer_start);
+
   // Clients use a two-part process. First they "reserve" the address space,
   // which signifies an intent to actually allocate it. This determines whether
   // doing the allocation would put us over our limit. Once there is a
@@ -88,6 +103,11 @@ class WasmMemoryTracker {
   // Track Wasm memory allocation information. This is keyed by the start of the
   // buffer, rather than by the start of the allocation.
   std::unordered_map<const void*, AllocationData> allocations_;
+
+  // Empty backing stores still need to be backed by mapped pages when using
+  // trap handlers. Because this could eat up address space quickly, we keep a
+  // shared backing store here.
+  AllocationData empty_backing_store_;
 
   DISALLOW_COPY_AND_ASSIGN(WasmMemoryTracker);
 };

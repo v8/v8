@@ -371,6 +371,7 @@ Handle<JSArrayBuffer> GrowMemoryBuffer(Isolate* isolate,
       new_size > kMaxInt) {
     return Handle<JSArrayBuffer>::null();
   }
+  // Try to adjust the permissions and reuse the old backing store
   if (((use_trap_handler && !old_buffer->is_external() &&
         new_size < old_buffer->allocation_length()) ||
        old_size == new_size) &&
@@ -379,6 +380,8 @@ Handle<JSArrayBuffer> GrowMemoryBuffer(Isolate* isolate,
     if (old_size != new_size) {
       // If adjusting permissions fails, propagate error back to return
       // failure to grow.
+      DCHECK(!isolate->wasm_engine()->memory_tracker()->IsEmptyBackingStore(
+          old_mem_start));
       if (!i::SetPermissions(old_mem_start, new_size,
                              PageAllocator::kReadWrite)) {
         return Handle<JSArrayBuffer>::null();
@@ -396,6 +399,8 @@ Handle<JSArrayBuffer> GrowMemoryBuffer(Isolate* isolate,
         wasm::SetupArrayBuffer(isolate, backing_store, new_size, is_external);
     return new_buffer;
   } else {
+    // We couldn't reuse the old backing store, so create a new one and copy the
+    // old contents in.
     Handle<JSArrayBuffer> new_buffer;
     new_buffer = wasm::NewArrayBuffer(isolate, new_size, use_trap_handler);
     if (new_buffer.is_null() || old_size == 0) return new_buffer;

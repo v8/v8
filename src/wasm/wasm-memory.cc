@@ -12,7 +12,18 @@ namespace v8 {
 namespace internal {
 namespace wasm {
 
+void* TryAllocateBackingStore(WasmMemoryTracker* memory_tracker, size_t size,
+                              bool require_guard_regions,
+                              void** allocation_base,
+                              size_t* allocation_length);
+
 WasmMemoryTracker::~WasmMemoryTracker() {
+  if (empty_backing_store_.allocation_base != nullptr) {
+    CHECK(FreePages(empty_backing_store_.allocation_base,
+                    empty_backing_store_.allocation_length));
+    InternalReleaseAllocation(empty_backing_store_.buffer_start);
+  }
+
   // All reserved address space should be released before the allocation tracker
   // is destroyed.
   DCHECK_EQ(reserved_address_space_, 0u);
@@ -24,9 +35,9 @@ bool WasmMemoryTracker::ReserveAddressSpace(size_t num_bytes) {
 // regions, which is currently only supported on 64-bit systems. On other
 // platforms, we always fall back on bounds checks.
 #if V8_TARGET_ARCH_64_BIT
-  static constexpr size_t kAddressSpaceLimit = 0x10000000000L;  // 1 TiB
+  constexpr size_t kAddressSpaceLimit = 0x10000000000L;  // 1 TiB
 #else
-  static constexpr size_t kAddressSpaceLimit = 0x80000000;  // 2 GiB
+  constexpr size_t kAddressSpaceLimit = 0x80000000;  // 2 GiB
 #endif
 
   size_t const old_count = reserved_address_space_.fetch_add(num_bytes);
@@ -65,6 +76,14 @@ void WasmMemoryTracker::RegisterAllocation(void* allocation_base,
 
 WasmMemoryTracker::AllocationData WasmMemoryTracker::ReleaseAllocation(
     const void* buffer_start) {
+  if (IsEmptyBackingStore(buffer_start)) {
+    return AllocationData();
+  }
+  return InternalReleaseAllocation(buffer_start);
+}
+
+WasmMemoryTracker::AllocationData WasmMemoryTracker::InternalReleaseAllocation(
+    const void* buffer_start) {
   base::LockGuard<base::Mutex> scope_lock(&mutex_);
 
   auto find_result = allocations_.find(buffer_start);
@@ -84,11 +103,6 @@ WasmMemoryTracker::AllocationData WasmMemoryTracker::ReleaseAllocation(
   UNREACHABLE();
 }
 
-bool WasmMemoryTracker::IsWasmMemory(const void* buffer_start) {
-  base::LockGuard<base::Mutex> scope_lock(&mutex_);
-  return allocations_.find(buffer_start) != allocations_.end();
-}
-
 const WasmMemoryTracker::AllocationData* WasmMemoryTracker::FindAllocationData(
     const void* buffer_start) {
   base::LockGuard<base::Mutex> scope_lock(&mutex_);
@@ -99,7 +113,51 @@ const WasmMemoryTracker::AllocationData* WasmMemoryTracker::FindAllocationData(
   return nullptr;
 }
 
-void* TryAllocateBackingStore(Isolate* isolate, size_t size,
+bool WasmMemoryTracker::IsWasmMemory(const void* buffer_start) {
+  base::LockGuard<base::Mutex> scope_lock(&mutex_);
+  return allocations_.find(buffer_start) != allocations_.end();
+}
+
+void* WasmMemoryTracker::GetEmptyBackingStore(void** allocation_base,
+                                              size_t* allocation_length) {
+  if (empty_backing_store_.allocation_base == nullptr) {
+    constexpr size_t buffer_length = 0;
+    const bool require_guard_regions = trap_handler::IsTrapHandlerEnabled();
+    void* local_allocation_base;
+    size_t local_allocation_length;
+    void* buffer_start = TryAllocateBackingStore(
+        this, buffer_length, require_guard_regions, &local_allocation_base,
+        &local_allocation_length);
+
+    empty_backing_store_ =
+        AllocationData(local_allocation_base, local_allocation_length,
+                       buffer_start, buffer_length);
+  }
+  *allocation_base = empty_backing_store_.allocation_base;
+  *allocation_length = empty_backing_store_.allocation_length;
+  return empty_backing_store_.buffer_start;
+}
+
+bool WasmMemoryTracker::IsEmptyBackingStore(const void* buffer_start) const {
+  return buffer_start == empty_backing_store_.buffer_start;
+}
+
+bool WasmMemoryTracker::FreeMemoryIfIsWasmMemory(const void* buffer_start) {
+  if (IsEmptyBackingStore(buffer_start)) {
+    // We don't need to do anything for the empty backing store, because this
+    // will be freed when WasmMemoryTracker shuts down. Return true so callers
+    // will not try to free the buffer on their own.
+    return true;
+  }
+  if (IsWasmMemory(buffer_start)) {
+    const AllocationData allocation = ReleaseAllocation(buffer_start);
+    CHECK(FreePages(allocation.allocation_base, allocation.allocation_length));
+    return true;
+  }
+  return false;
+}
+
+void* TryAllocateBackingStore(WasmMemoryTracker* memory_tracker, size_t size,
                               bool require_guard_regions,
                               void** allocation_base,
                               size_t* allocation_length) {
@@ -108,15 +166,14 @@ void* TryAllocateBackingStore(Isolate* isolate, size_t size,
 #endif
   // We always allocate the largest possible offset into the heap, so the
   // addressable memory after the guard page can be made inaccessible.
-  *allocation_length = require_guard_regions
-                           ? RoundUp(kWasmMaxHeapOffset, CommitPageSize())
-                           : base::bits::RoundUpToPowerOfTwo32(RoundUp(
-                                 static_cast<uint32_t>(size), kWasmPageSize));
+  *allocation_length =
+      require_guard_regions
+          ? RoundUp(kWasmMaxHeapOffset, CommitPageSize())
+          : RoundUp(
+                base::bits::RoundUpToPowerOfTwo32(static_cast<uint32_t>(size)),
+                kWasmPageSize);
   DCHECK_GE(*allocation_length, size);
   DCHECK_GE(*allocation_length, kWasmPageSize);
-
-  WasmMemoryTracker* const memory_tracker =
-      isolate->wasm_engine()->memory_tracker();
 
   // Let the WasmMemoryTracker know we are going to reserve a bunch of
   // address space.
@@ -135,11 +192,10 @@ void* TryAllocateBackingStore(Isolate* isolate, size_t size,
   void* memory = *allocation_base;
 
   // Make the part we care about accessible.
-  CHECK(SetPermissions(memory, RoundUp(size, kWasmPageSize),
-                       PageAllocator::kReadWrite));
-
-  reinterpret_cast<v8::Isolate*>(isolate)
-      ->AdjustAmountOfExternalAllocatedMemory(size);
+  if (size > 0) {
+    CHECK(SetPermissions(memory, RoundUp(size, kWasmPageSize),
+                         PageAllocator::kReadWrite));
+  }
 
   memory_tracker->RegisterAllocation(*allocation_base, *allocation_length,
                                      memory, size);
@@ -172,12 +228,16 @@ Handle<JSArrayBuffer> NewArrayBuffer(Isolate* isolate, size_t size,
     return Handle<JSArrayBuffer>::null();
   }
 
-  void* allocation_base = nullptr;  // Set by TryAllocateBackingStore
-  size_t allocation_length = 0;     // Set by TryAllocateBackingStore
-  // Do not reserve memory till non zero memory is encountered.
-  void* memory = (size == 0) ? nullptr
+  WasmMemoryTracker* memory_tracker = isolate->wasm_engine()->memory_tracker();
+
+  // Set by TryAllocateBackingStore or GetEmptyBackingStore
+  void* allocation_base = nullptr;
+  size_t allocation_length = 0;
+
+  void* memory = (size == 0) ? memory_tracker->GetEmptyBackingStore(
+                                   &allocation_base, &allocation_length)
                              : TryAllocateBackingStore(
-                                   isolate, size, require_guard_regions,
+                                   memory_tracker, size, require_guard_regions,
                                    &allocation_base, &allocation_length);
 
   if (size > 0 && memory == nullptr) {
@@ -191,6 +251,9 @@ Handle<JSArrayBuffer> NewArrayBuffer(Isolate* isolate, size_t size,
     DCHECK_EQ(0, bytes[i]);
   }
 #endif
+
+  reinterpret_cast<v8::Isolate*>(isolate)
+      ->AdjustAmountOfExternalAllocatedMemory(size);
 
   constexpr bool is_external = false;
   return SetupArrayBuffer(isolate, memory, size, is_external, shared);

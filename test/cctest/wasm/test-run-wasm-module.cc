@@ -1091,9 +1091,10 @@ TEST(Run_WasmModule_Buffer_Externalized_GrowMemMemSize) {
     auto const contents = v8::Utils::ToLocal(buffer)->Externalize();
     int32_t result = WasmMemoryObject::Grow(isolate, mem_obj, 0);
     CHECK_EQ(16, result);
+    constexpr bool is_wasm_memory = true;
     const JSArrayBuffer::Allocation allocation{
         contents.AllocationBase(), contents.AllocationLength(), contents.Data(),
-        contents.AllocationMode()};
+        contents.AllocationMode(), is_wasm_memory};
     JSArrayBuffer::FreeBackingStore(isolate, allocation);
   }
   Cleanup();
@@ -1114,9 +1115,10 @@ TEST(Run_WasmModule_Buffer_Externalized_Detach) {
         isolate, 16 * kWasmPageSize, require_guard_regions);
     auto const contents = v8::Utils::ToLocal(buffer)->Externalize();
     wasm::DetachMemoryBuffer(isolate, buffer, true);
+    constexpr bool is_wasm_memory = true;
     const JSArrayBuffer::Allocation allocation{
         contents.AllocationBase(), contents.AllocationLength(), contents.Data(),
-        contents.AllocationMode()};
+        contents.AllocationMode(), is_wasm_memory};
     JSArrayBuffer::FreeBackingStore(isolate, allocation);
   }
   Cleanup();

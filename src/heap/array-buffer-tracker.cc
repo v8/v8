@@ -57,7 +57,8 @@ void LocalArrayBufferTracker::Process(Callback callback) {
 
       backing_stores_to_free->emplace_back(
           allocation_base, old_buffer->allocation_length(),
-          old_buffer->backing_store(), old_buffer->allocation_mode());
+          old_buffer->backing_store(), old_buffer->allocation_mode(),
+          old_buffer->is_wasm_memory());
       it = array_buffers_.erase(it);
     } else {
       UNREACHABLE();
