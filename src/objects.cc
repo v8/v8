@@ -16365,7 +16365,7 @@ Handle<Derived> HashTable<Derived, Shape>::New(
                      ? at_least_space_for
                      : ComputeCapacity(at_least_space_for);
   if (capacity > HashTable::kMaxCapacity) {
-    v8::internal::Heap::FatalProcessOutOfMemory("invalid table size", true);
+    isolate->heap()->FatalProcessOutOfMemory("invalid table size");
   }
   return NewInternal(isolate, capacity, pretenure);
 }
@@ -18123,7 +18123,7 @@ Handle<Derived> OrderedHashTable<Derived, entrysize>::Allocate(
   // field of this object.
   capacity = base::bits::RoundUpToPowerOfTwo32(Max(kMinCapacity, capacity));
   if (capacity > kMaxCapacity) {
-    v8::internal::Heap::FatalProcessOutOfMemory("invalid table size", true);
+    isolate->heap()->FatalProcessOutOfMemory("invalid table size");
   }
   int num_buckets = capacity / kLoadFactor;
   Handle<FixedArray> backing_store = isolate->factory()->NewFixedArrayWithMap(

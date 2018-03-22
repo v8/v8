@@ -1279,7 +1279,7 @@ void WriteToFile(FILE* file, const v8::FunctionCallbackInfo<v8::Value>& args) {
     int n = static_cast<int>(fwrite(*str, sizeof(**str), str.length(), file));
     if (n != str.length()) {
       printf("Error in fwrite\n");
-      Shell::Exit(1);
+      base::OS::ExitProcess(1);
     }
   }
 }
@@ -1501,7 +1501,7 @@ void Shell::QuitOnce(v8::FunctionCallbackInfo<v8::Value>* args) {
   CleanupWorkers();
   args->GetIsolate()->Exit();
   OnExit(args->GetIsolate());
-  Exit(exit_code);
+  base::OS::ExitProcess(exit_code);
 }
 
 
@@ -1625,7 +1625,7 @@ void Shell::MapCounters(v8::Isolate* isolate, const char* name) {
       (counters_file_ == nullptr) ? nullptr : counters_file_->memory();
   if (memory == nullptr) {
     printf("Could not map counters file %s\n", name);
-    Exit(1);
+    base::OS::ExitProcess(1);
   }
   counters_ = static_cast<CounterCollection*>(memory);
   isolate->SetCounterFunction(LookupCounter);
@@ -2467,7 +2467,7 @@ void SourceGroup::Execute(Isolate* isolate) {
     Local<String> source = ReadFile(isolate, arg);
     if (source.IsEmpty()) {
       printf("Error reading '%s'\n", arg);
-      Shell::Exit(1);
+      base::OS::ExitProcess(1);
     }
     Shell::options.script_executed = true;
     if (!Shell::ExecuteString(isolate, source, file_name, Shell::kNoPrintResult,
@@ -2478,7 +2478,7 @@ void SourceGroup::Execute(Isolate* isolate) {
     }
   }
   if (exception_was_thrown != Shell::options.expected_to_throw) {
-    Shell::Exit(1);
+    base::OS::ExitProcess(1);
   }
 }
 

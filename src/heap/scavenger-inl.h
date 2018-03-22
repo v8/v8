@@ -139,7 +139,7 @@ void Scavenger::EvacuateObjectDefault(Map* map, HeapObjectReference** slot,
   // If promotion failed, we try to copy the object to the other semi-space
   if (SemiSpaceCopyObject(map, slot, object, object_size)) return;
 
-  FatalProcessOutOfMemory("Scavenger: semi-space copy\n");
+  heap()->FatalProcessOutOfMemory("Scavenger: semi-space copy");
 }
 
 void Scavenger::EvacuateThinString(Map* map, HeapObject** slot,

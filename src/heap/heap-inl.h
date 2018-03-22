@@ -270,7 +270,7 @@ AllocationResult Heap::AllocateWeakFixedArray(int length,
 AllocationResult Heap::AllocateRawFixedArray(int length,
                                              PretenureFlag pretenure) {
   if (length < 0 || length > FixedArray::kMaxLength) {
-    v8::internal::Heap::FatalProcessOutOfMemory("invalid array length", true);
+    FatalProcessOutOfMemory("invalid array length");
   }
   return AllocateRawArray(FixedArray::SizeFor(length), pretenure);
 }
@@ -278,7 +278,7 @@ AllocationResult Heap::AllocateRawFixedArray(int length,
 AllocationResult Heap::AllocateRawWeakFixedArray(int length,
                                                  PretenureFlag pretenure) {
   if (length < 0 || length > WeakFixedArray::kMaxLength) {
-    v8::internal::Heap::FatalProcessOutOfMemory("invalid array length", true);
+    FatalProcessOutOfMemory("invalid array length");
   }
   return AllocateRawArray(WeakFixedArray::SizeFor(length), pretenure);
 }

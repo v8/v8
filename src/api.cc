@@ -308,18 +308,21 @@ static ScriptOrigin GetScriptOriginForScript(i::Isolate* isolate,
 
 // --- E x c e p t i o n   B e h a v i o r ---
 
-
-void i::FatalProcessOutOfMemory(const char* location) {
-  i::V8::FatalProcessOutOfMemory(location, false);
+void i::FatalProcessOutOfMemory(i::Isolate* isolate, const char* location) {
+  i::V8::FatalProcessOutOfMemory(isolate, location, false);
 }
 
 // When V8 cannot allocate memory FatalProcessOutOfMemory is called. The default
 // OOM error handler is called and execution is stopped.
-void i::V8::FatalProcessOutOfMemory(const char* location, bool is_heap_oom) {
-  i::Isolate* isolate = i::Isolate::Current();
+void i::V8::FatalProcessOutOfMemory(i::Isolate* isolate, const char* location,
+                                    bool is_heap_oom) {
   char last_few_messages[Heap::kTraceRingBufferSize + 1];
   char js_stacktrace[Heap::kStacktraceBufferSize + 1];
   i::HeapStats heap_stats;
+
+  if (isolate == nullptr) {
+    isolate = Isolate::Current();
+  }
 
   if (isolate == nullptr) {
     // On a background thread -> we cannot retrieve memory information from the
@@ -394,7 +397,7 @@ void i::V8::FatalProcessOutOfMemory(const char* location, bool is_heap_oom) {
     PrintF("\n<--- Last few GCs --->\n%s\n", first_newline);
     PrintF("\n<--- JS stacktrace --->\n%s\n", js_stacktrace);
   }
-  Utils::ReportOOMFailure(location, is_heap_oom);
+  Utils::ReportOOMFailure(isolate, location, is_heap_oom);
   // If the fatal error handler returns, we stop execution.
   FATAL("API fatal error handler returned after process out of memory");
 }
@@ -416,8 +419,8 @@ void Utils::ReportApiFailure(const char* location, const char* message) {
   isolate->SignalFatalError();
 }
 
-void Utils::ReportOOMFailure(const char* location, bool is_heap_oom) {
-  i::Isolate* isolate = i::Isolate::Current();
+void Utils::ReportOOMFailure(i::Isolate* isolate, const char* location,
+                             bool is_heap_oom) {
   OOMErrorCallback oom_callback = isolate->oom_behavior();
   if (oom_callback == nullptr) {
     // TODO(wfh): Remove this fallback once Blink is setting OOM handler. See
@@ -7752,7 +7755,7 @@ Local<ArrayBuffer> v8::ArrayBuffer::New(Isolate* isolate, size_t byte_length) {
   // TODO(jbroman): It may be useful in the future to provide a MaybeLocal
   // version that throws an exception or otherwise does not crash.
   if (!i::JSArrayBuffer::SetupAllocatingData(obj, i_isolate, byte_length)) {
-    i::FatalProcessOutOfMemory("v8::ArrayBuffer::New");
+    i::FatalProcessOutOfMemory(i_isolate, "v8::ArrayBuffer::New");
   }
   return Utils::ToLocal(obj);
 }
@@ -7971,7 +7974,7 @@ Local<SharedArrayBuffer> v8::SharedArrayBuffer::New(Isolate* isolate,
   // version that throws an exception or otherwise does not crash.
   if (!i::JSArrayBuffer::SetupAllocatingData(obj, i_isolate, byte_length, true,
                                              i::SharedFlag::kShared)) {
-    i::FatalProcessOutOfMemory("v8::SharedArrayBuffer::New");
+    i::FatalProcessOutOfMemory(i_isolate, "v8::SharedArrayBuffer::New");
   }
   return Utils::ToLocalShared(obj);
 }

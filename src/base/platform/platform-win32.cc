@@ -493,6 +493,13 @@ int OS::GetCurrentThreadId() {
   return static_cast<int>(::GetCurrentThreadId());
 }
 
+void OS::ExitProcess(int exit_code) {
+  // Use TerminateProcess avoid races between isolate threads and
+  // static destructors.
+  fflush(stdout);
+  fflush(stderr);
+  TerminateProcess(GetCurrentProcess(), exit_code);
+}
 
 // ----------------------------------------------------------------------------
 // Win32 console output.

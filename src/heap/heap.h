@@ -680,8 +680,7 @@ class Heap {
   template <typename T>
   static inline bool IsOneByte(T t, int chars);
 
-  static void FatalProcessOutOfMemory(const char* location,
-                                      bool is_heap_oom = false);
+  void FatalProcessOutOfMemory(const char* location);
 
   V8_EXPORT_PRIVATE static bool RootIsImmortalImmovable(int root_index);
 

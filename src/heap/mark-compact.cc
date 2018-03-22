@@ -1604,8 +1604,8 @@ class EvacuateNewSpaceVisitor final : public EvacuateVisitorBase {
     AllocationResult allocation =
         local_allocator_->Allocate(OLD_SPACE, size_in_bytes, alignment);
     if (allocation.IsRetry()) {
-      v8::internal::Heap::FatalProcessOutOfMemory(
-          "MarkCompactCollector: semi-space copy, fallback in old gen", true);
+      heap_->FatalProcessOutOfMemory(
+          "MarkCompactCollector: semi-space copy, fallback in old gen");
     }
     return allocation;
   }
@@ -2394,7 +2394,7 @@ void MinorMarkCompactCollector::Evacuate() {
   {
     TRACE_GC(heap()->tracer(), GCTracer::Scope::MINOR_MC_EVACUATE_REBALANCE);
     if (!heap()->new_space()->Rebalance()) {
-      FatalProcessOutOfMemory("NewSpace::Rebalance");
+      heap()->FatalProcessOutOfMemory("NewSpace::Rebalance");
     }
   }
 
@@ -3608,7 +3608,7 @@ void MarkCompactCollector::Evacuate() {
   {
     TRACE_GC(heap()->tracer(), GCTracer::Scope::MC_EVACUATE_REBALANCE);
     if (!heap()->new_space()->Rebalance()) {
-      FatalProcessOutOfMemory("NewSpace::Rebalance");
+      heap()->FatalProcessOutOfMemory("NewSpace::Rebalance");
     }
   }
 

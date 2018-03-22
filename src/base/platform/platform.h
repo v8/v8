@@ -245,6 +245,8 @@ class V8_BASE_EXPORT OS {
 
   static int GetCurrentThreadId();
 
+  static void ExitProcess(int exit_code);
+
  private:
   // These classes use the private memory management API below.
   friend class MemoryMappedFile;

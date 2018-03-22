@@ -124,7 +124,8 @@ class Utils {
     if (!condition) Utils::ReportApiFailure(location, message);
     return condition;
   }
-  static void ReportOOMFailure(const char* location, bool is_heap_oom);
+  static void ReportOOMFailure(v8::internal::Isolate* isolate,
+                               const char* location, bool is_heap_oom);
 
   static inline Local<Context> ToLocal(
       v8::internal::Handle<v8::internal::Context> obj);

@@ -2979,7 +2979,7 @@ bool Isolate::Init(StartupDeserializer* des) {
   // SetUp the object heap.
   DCHECK(!heap_.HasBeenSetUp());
   if (!heap_.SetUp()) {
-    V8::FatalProcessOutOfMemory("heap setup");
+    V8::FatalProcessOutOfMemory(this, "heap setup");
     return false;
   }
 
@@ -3007,7 +3007,7 @@ bool Isolate::Init(StartupDeserializer* des) {
   }
 
   if (!setup_delegate_->SetupHeap(&heap_)) {
-    V8::FatalProcessOutOfMemory("heap object creation");
+    V8::FatalProcessOutOfMemory(this, "heap object creation");
     return false;
   }
 

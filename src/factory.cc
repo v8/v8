@@ -41,30 +41,30 @@ namespace internal {
     return Handle<TYPE>(TYPE::cast(__object__), ISOLATE); \
   }
 
-#define CALL_HEAP_FUNCTION(ISOLATE, FUNCTION_CALL, TYPE)                      \
-  do {                                                                        \
-    AllocationResult __allocation__ = FUNCTION_CALL;                          \
-    Object* __object__ = nullptr;                                             \
-    RETURN_OBJECT_UNLESS_RETRY(ISOLATE, TYPE)                                 \
-    /* Two GCs before panicking.  In newspace will almost always succeed. */  \
-    for (int __i__ = 0; __i__ < 2; __i__++) {                                 \
-      (ISOLATE)->heap()->CollectGarbage(                                      \
-          __allocation__.RetrySpace(),                                        \
-          GarbageCollectionReason::kAllocationFailure);                       \
-      __allocation__ = FUNCTION_CALL;                                         \
-      RETURN_OBJECT_UNLESS_RETRY(ISOLATE, TYPE)                               \
-    }                                                                         \
-    (ISOLATE)->counters()->gc_last_resort_from_handles()->Increment();        \
-    (ISOLATE)->heap()->CollectAllAvailableGarbage(                            \
-        GarbageCollectionReason::kLastResort);                                \
-    {                                                                         \
-      AlwaysAllocateScope __scope__(ISOLATE);                                 \
-      __allocation__ = FUNCTION_CALL;                                         \
-    }                                                                         \
-    RETURN_OBJECT_UNLESS_RETRY(ISOLATE, TYPE)                                 \
-    /* TODO(1181417): Fix this. */                                            \
-    v8::internal::Heap::FatalProcessOutOfMemory("CALL_AND_RETRY_LAST", true); \
-    return Handle<TYPE>();                                                    \
+#define CALL_HEAP_FUNCTION(ISOLATE, FUNCTION_CALL, TYPE)                     \
+  do {                                                                       \
+    AllocationResult __allocation__ = FUNCTION_CALL;                         \
+    Object* __object__ = nullptr;                                            \
+    RETURN_OBJECT_UNLESS_RETRY(ISOLATE, TYPE)                                \
+    /* Two GCs before panicking.  In newspace will almost always succeed. */ \
+    for (int __i__ = 0; __i__ < 2; __i__++) {                                \
+      (ISOLATE)->heap()->CollectGarbage(                                     \
+          __allocation__.RetrySpace(),                                       \
+          GarbageCollectionReason::kAllocationFailure);                      \
+      __allocation__ = FUNCTION_CALL;                                        \
+      RETURN_OBJECT_UNLESS_RETRY(ISOLATE, TYPE)                              \
+    }                                                                        \
+    (ISOLATE)->counters()->gc_last_resort_from_handles()->Increment();       \
+    (ISOLATE)->heap()->CollectAllAvailableGarbage(                           \
+        GarbageCollectionReason::kLastResort);                               \
+    {                                                                        \
+      AlwaysAllocateScope __scope__(ISOLATE);                                \
+      __allocation__ = FUNCTION_CALL;                                        \
+    }                                                                        \
+    RETURN_OBJECT_UNLESS_RETRY(ISOLATE, TYPE)                                \
+    /* TODO(1181417): Fix this. */                                           \
+    (ISOLATE)->heap()->FatalProcessOutOfMemory("CALL_AND_RETRY_LAST");       \
+    return Handle<TYPE>();                                                   \
   } while (false)
 
 template<typename T>
@@ -3307,6 +3307,9 @@ Handle<Map> NewFunctionArgs::GetMap(Isolate* isolate) const {
   }
   UNREACHABLE();
 }
+
+#undef RETURN_OBJECT_UNLESS_RETRY
+#undef CALL_HEAP_FUNCTION
 
 }  // namespace internal
 }  // namespace v8

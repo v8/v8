@@ -5903,6 +5903,34 @@ UNINITIALIZED_TEST(ReinitializeStringHashSeed) {
   }
 }
 
+const int kHeapLimit = 100 * MB;
+Isolate* oom_isolate = nullptr;
+
+void OOMCallback(const char* location, bool is_heap_oom) {
+  Heap* heap = oom_isolate->heap();
+  size_t kSlack = heap->new_space()->Capacity();
+  CHECK_LE(heap->OldGenerationCapacity(), kHeapLimit + kSlack);
+  CHECK_LE(heap->memory_allocator()->Size(), heap->MaxReserved() + kSlack);
+  base::OS::ExitProcess(0);
+}
+
+UNINITIALIZED_TEST(OutOfMemory) {
+  FLAG_max_old_space_size = kHeapLimit / MB;
+  v8::Isolate::CreateParams create_params;
+  create_params.array_buffer_allocator = CcTest::array_buffer_allocator();
+  v8::Isolate* isolate = v8::Isolate::New(create_params);
+  Isolate* i_isolate = reinterpret_cast<Isolate*>(isolate);
+  oom_isolate = i_isolate;
+  isolate->SetOOMErrorHandler(OOMCallback);
+  {
+    Factory* factory = i_isolate->factory();
+    HandleScope handle_scope(i_isolate);
+    while (true) {
+      factory->NewFixedArray(100);
+    }
+  }
+}
+
 HEAP_TEST(Regress779503) {
   // The following regression test ensures that the Scavenger does not allocate
   // over invalid slots. More specific, the Scavenger should not sweep a page

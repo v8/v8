@@ -1553,7 +1553,7 @@ bool Heap::ReserveSpace(Reservation* reservations, std::vector<Address>* maps) {
         // so that we cannot allocate space to deserialize the initial heap.
         if (!deserialization_complete_) {
           V8::FatalProcessOutOfMemory(
-              "insufficient memory to create an Isolate");
+              isolate(), "insufficient memory to create an Isolate");
         }
         if (space == NEW_SPACE) {
           CollectGarbage(NEW_SPACE, GarbageCollectionReason::kDeserializer);
@@ -1582,7 +1582,7 @@ void Heap::EnsureFromSpaceIsCommitted() {
 
   // Committing memory to from space failed.
   // Memory is exhausted and we will die.
-  V8::FatalProcessOutOfMemory("Committing semi space failed.");
+  FatalProcessOutOfMemory("Committing semi space failed.");
 }
 
 
@@ -2604,7 +2604,7 @@ AllocationResult Heap::AllocateHeapNumber(MutableMode mode,
 
 AllocationResult Heap::AllocateBigInt(int length, PretenureFlag pretenure) {
   if (length < 0 || length > BigInt::kMaxLength) {
-    v8::internal::Heap::FatalProcessOutOfMemory("invalid BigInt length", true);
+    FatalProcessOutOfMemory("invalid BigInt length");
   }
   int size = BigInt::SizeFor(length);
   AllocationSpace space = SelectSpace(pretenure);
@@ -2909,7 +2909,7 @@ AllocationResult Heap::AllocateSmallOrderedHashMap(int capacity,
 
 AllocationResult Heap::AllocateByteArray(int length, PretenureFlag pretenure) {
   if (length < 0 || length > ByteArray::kMaxLength) {
-    v8::internal::Heap::FatalProcessOutOfMemory("invalid array length", true);
+    FatalProcessOutOfMemory("invalid array length");
   }
   int size = ByteArray::SizeFor(length);
   AllocationSpace space = SelectSpace(pretenure);
@@ -2932,7 +2932,7 @@ AllocationResult Heap::AllocateBytecodeArray(int length,
                                              int parameter_count,
                                              FixedArray* constant_pool) {
   if (length < 0 || length > BytecodeArray::kMaxLength) {
-    v8::internal::Heap::FatalProcessOutOfMemory("invalid array length", true);
+    FatalProcessOutOfMemory("invalid array length");
   }
   // Bytecode array is pretenured, so constant pool array should be to.
   DCHECK(!InNewSpace(constant_pool));
@@ -4070,7 +4070,7 @@ AllocationResult Heap::AllocateUninitializedFixedDoubleArray(
 AllocationResult Heap::AllocateRawFixedDoubleArray(int length,
                                                    PretenureFlag pretenure) {
   if (length < 0 || length > FixedDoubleArray::kMaxLength) {
-    v8::internal::Heap::FatalProcessOutOfMemory("invalid array length", true);
+    FatalProcessOutOfMemory("invalid array length");
   }
   int size = FixedDoubleArray::SizeFor(length);
   AllocationSpace space = SelectSpace(pretenure);
@@ -6211,8 +6211,8 @@ void Heap::CompactRetainedMaps(ArrayList* retained_maps) {
   if (new_length != length) retained_maps->SetLength(new_length);
 }
 
-void Heap::FatalProcessOutOfMemory(const char* location, bool is_heap_oom) {
-  v8::internal::V8::FatalProcessOutOfMemory(location, is_heap_oom);
+void Heap::FatalProcessOutOfMemory(const char* location) {
+  v8::internal::V8::FatalProcessOutOfMemory(isolate(), location, true);
 }
 
 #ifdef DEBUG
