@@ -38,7 +38,8 @@ class ProfilerListener : public CodeEventListener {
                        AbstractCode* code, SharedFunctionInfo* shared,
                        Name* script_name, int line, int column) override;
   void CodeCreateEvent(CodeEventListener::LogEventsAndTags tag,
-                       wasm::WasmCode* code, wasm::WasmName name) override;
+                       const wasm::WasmCode* code,
+                       wasm::WasmName name) override;
 
   void CodeMovingGCEvent() override {}
   void CodeMoveEvent(AbstractCode* from, Address to) override;

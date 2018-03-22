@@ -136,6 +136,9 @@ class V8_EXPORT_PRIVATE WasmCode final {
   void Print(Isolate* isolate) const;
   void Disassemble(const char* name, Isolate* isolate, std::ostream& os) const;
 
+  static bool ShouldBeLogged(Isolate* isolate);
+  void LogCode(Isolate* isolate) const;
+
   ~WasmCode();
 
   enum FlushICache : bool { kFlushICache = true, kNoFlushICache = false };

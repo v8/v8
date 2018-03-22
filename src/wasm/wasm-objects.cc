@@ -183,6 +183,8 @@ Handle<WasmModuleObject> WasmModuleObject::New(
   Handle<WeakCell> link_to_module =
       isolate->factory()->NewWeakCell(module_object);
   compiled_module->set_weak_wasm_module(*link_to_module);
+
+  compiled_module->LogWasmCodes(isolate);
   return module_object;
 }
 
@@ -1543,6 +1545,8 @@ bool WasmCompiledModule::SetBreakPoint(
 }
 
 void WasmCompiledModule::LogWasmCodes(Isolate* isolate) {
+  if (!wasm::WasmCode::ShouldBeLogged(isolate)) return;
+
   wasm::NativeModule* native_module = GetNativeModule();
   if (native_module == nullptr) return;
   const uint32_t number_of_codes = native_module->FunctionCount();
@@ -1551,15 +1555,7 @@ void WasmCompiledModule::LogWasmCodes(Isolate* isolate) {
     for (uint32_t i = 0; i < number_of_codes; i++) {
       wasm::WasmCode* code = native_module->GetCode(i);
       if (code == nullptr) continue;
-      int name_length;
-      Handle<String> name(
-          WasmSharedModuleData::GetFunctionName(isolate, shared_handle, i));
-      auto cname = name->ToCString(AllowNullsFlag::DISALLOW_NULLS,
-                                   RobustnessFlag::ROBUST_STRING_TRAVERSAL,
-                                   &name_length);
-      wasm::WasmName wasm_name(cname.get(), name_length);
-      PROFILE(isolate, CodeCreateEvent(CodeEventListener::FUNCTION_TAG, code,
-                                       wasm_name));
+      code->LogCode(isolate);
     }
   }
 }

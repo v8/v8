@@ -455,7 +455,10 @@ void WasmFunctionCompiler::Build(const byte* start, const byte* end) {
       isolate()->counters(), builder_->runtime_exception_support(),
       builder_->lower_simd());
   unit.ExecuteCompilation();
-  unit.FinishCompilation(&thrower);
+  wasm::WasmCode* wasm_code = unit.FinishCompilation(&thrower);
+  if (wasm::WasmCode::ShouldBeLogged(isolate())) {
+    wasm_code->LogCode(isolate());
+  }
   CHECK(!thrower.error());
   if (trap_handler::IsTrapHandlerEnabled()) {
     UnpackAndRegisterProtectedInstructions(isolate(), native_module);

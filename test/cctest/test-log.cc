@@ -699,7 +699,7 @@ TEST(Issue539892) {
    private:
     void LogRecordedBuffer(i::AbstractCode* code, i::SharedFunctionInfo* shared,
                            const char* name, int length) override {}
-    void LogRecordedBuffer(i::wasm::WasmCode* code, const char* name,
+    void LogRecordedBuffer(const i::wasm::WasmCode* code, const char* name,
                            int length) override {}
   } code_event_logger;
   SETUP_FLAGS();

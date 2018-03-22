@@ -571,6 +571,8 @@ const wasm::WasmCode* LazyCompilationOrchestrator::CompileFunction(
   unit.ExecuteCompilation();
   wasm::WasmCode* wasm_code = unit.FinishCompilation(&thrower);
 
+  if (wasm::WasmCode::ShouldBeLogged(isolate)) wasm_code->LogCode(isolate);
+
   // If there is a pending error, something really went wrong. The module was
   // verified before starting execution with lazy compilation.
   // This might be OOM, but then we cannot continue execution anyway.

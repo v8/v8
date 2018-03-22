@@ -118,7 +118,7 @@ class CodeAddressMap : public CodeEventLogger {
     address_to_name_map_.Insert(code->address(), name, length);
   }
 
-  void LogRecordedBuffer(wasm::WasmCode* code, const char* name,
+  void LogRecordedBuffer(const wasm::WasmCode* code, const char* name,
                          int length) override {
     UNREACHABLE();
   }

@@ -235,8 +235,8 @@ void PerfJitLogger::LogRecordedBuffer(AbstractCode* abstract_code,
   WriteJitCodeLoadEntry(code_pointer, code_size, code_name, length);
 }
 
-void PerfJitLogger::LogRecordedBuffer(wasm::WasmCode* code, const char* name,
-                                      int length) {
+void PerfJitLogger::LogRecordedBuffer(const wasm::WasmCode* code,
+                                      const char* name, int length) {
   base::LockGuard<base::RecursiveMutex> guard_file(file_mutex_.Pointer());
 
   if (perf_output_handle_ == nullptr) return;

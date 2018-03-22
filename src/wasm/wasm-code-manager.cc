@@ -221,6 +221,49 @@ bool WasmCode::HasTrapHandlerIndex() const { return trap_handler_index_ >= 0; }
 
 void WasmCode::ResetTrapHandlerIndex() { trap_handler_index_ = -1; }
 
+bool WasmCode::ShouldBeLogged(Isolate* isolate) {
+  return isolate->logger()->is_logging_code_events() ||
+         isolate->is_profiling() || FLAG_print_wasm_code || FLAG_print_code;
+}
+
+void WasmCode::LogCode(Isolate* isolate) const {
+  DCHECK(ShouldBeLogged(isolate));
+  if (native_module()->compiled_module()->has_shared() && index_.IsJust()) {
+    uint32_t index = this->index();
+    Handle<WasmSharedModuleData> shared_handle(
+        native_module()->compiled_module()->shared(), isolate);
+    int name_length;
+    Handle<String> name(
+        WasmSharedModuleData::GetFunctionName(isolate, shared_handle, index));
+    auto cname =
+        name->ToCString(AllowNullsFlag::DISALLOW_NULLS,
+                        RobustnessFlag::ROBUST_STRING_TRAVERSAL, &name_length);
+    PROFILE(isolate,
+            CodeCreateEvent(CodeEventListener::FUNCTION_TAG, this,
+                            {cname.get(), static_cast<size_t>(name_length)}));
+
+#ifdef ENABLE_DISASSEMBLER
+    if (FLAG_print_code || FLAG_print_wasm_code) {
+      // TODO(wasm): Use proper log files, here and elsewhere.
+      OFStream os(stdout);
+      os << "--- Wasm " << (is_liftoff() ? "liftoff" : "turbofan")
+         << " code ---\n";
+      this->Disassemble(cname.get(), isolate, os);
+      os << "--- End code ---\n";
+    }
+#endif
+
+    MaybeHandle<ByteArray> src_pos = native_module_->compiled_module()
+                                         ->source_positions()
+                                         ->GetValue<ByteArray>(isolate, index);
+    if (!src_pos.is_null()) {
+      LOG_CODE_EVENT(isolate,
+                     CodeLinePosInfoRecordEvent(this->instructions().start(),
+                                                *src_pos.ToHandleChecked()));
+    }
+  }
+}
+
 void WasmCode::Print(Isolate* isolate) const {
   OFStream os(stdout);
   Disassemble(nullptr, isolate, os);

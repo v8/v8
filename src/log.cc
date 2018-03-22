@@ -57,7 +57,7 @@ static const char* ComputeMarker(SharedFunctionInfo* shared,
   }
 }
 
-static const char* ComputeMarker(wasm::WasmCode* code) {
+static const char* ComputeMarker(const wasm::WasmCode* code) {
   switch (code->kind()) {
     case wasm::WasmCode::kFunction:
       return code->is_liftoff() ? "" : "*";
@@ -214,7 +214,7 @@ void CodeEventLogger::CodeCreateEvent(CodeEventListener::LogEventsAndTags tag,
 }
 
 void CodeEventLogger::CodeCreateEvent(LogEventsAndTags tag,
-                                      wasm::WasmCode* code,
+                                      const wasm::WasmCode* code,
                                       wasm::WasmName name) {
   name_buffer_->Init(tag);
   if (name.is_empty()) {
@@ -251,7 +251,7 @@ class PerfBasicLogger : public CodeEventLogger {
  private:
   void LogRecordedBuffer(AbstractCode* code, SharedFunctionInfo* shared,
                          const char* name, int length) override;
-  void LogRecordedBuffer(wasm::WasmCode* code, const char* name,
+  void LogRecordedBuffer(const wasm::WasmCode* code, const char* name,
                          int length) override;
   void WriteLogRecordedBuffer(uintptr_t address, int size, const char* name,
                               int name_length);
@@ -313,8 +313,8 @@ void PerfBasicLogger::LogRecordedBuffer(AbstractCode* code, SharedFunctionInfo*,
                          code->instruction_size(), name, length);
 }
 
-void PerfBasicLogger::LogRecordedBuffer(wasm::WasmCode* code, const char* name,
-                                        int length) {
+void PerfBasicLogger::LogRecordedBuffer(const wasm::WasmCode* code,
+                                        const char* name, int length) {
   WriteLogRecordedBuffer(
       reinterpret_cast<uintptr_t>(code->instructions().start()),
       code->instructions().length(), name, length);
@@ -337,7 +337,7 @@ class LowLevelLogger : public CodeEventLogger {
  private:
   void LogRecordedBuffer(AbstractCode* code, SharedFunctionInfo* shared,
                          const char* name, int length) override;
-  void LogRecordedBuffer(wasm::WasmCode* code, const char* name,
+  void LogRecordedBuffer(const wasm::WasmCode* code, const char* name,
                          int length) override;
 
   // Low-level profiling event structures.
@@ -435,8 +435,8 @@ void LowLevelLogger::LogRecordedBuffer(AbstractCode* code, SharedFunctionInfo*,
       code->instruction_size());
 }
 
-void LowLevelLogger::LogRecordedBuffer(wasm::WasmCode* code, const char* name,
-                                       int length) {
+void LowLevelLogger::LogRecordedBuffer(const wasm::WasmCode* code,
+                                       const char* name, int length) {
   CodeCreateStruct event;
   event.name_size = length;
   event.code_address = code->instructions().start();
@@ -486,7 +486,7 @@ class JitLogger : public CodeEventLogger {
  private:
   void LogRecordedBuffer(AbstractCode* code, SharedFunctionInfo* shared,
                          const char* name, int length) override;
-  void LogRecordedBuffer(wasm::WasmCode* code, const char* name,
+  void LogRecordedBuffer(const wasm::WasmCode* code, const char* name,
                          int length) override;
 
   JitCodeEventHandler code_event_handler_;
@@ -516,7 +516,7 @@ void JitLogger::LogRecordedBuffer(AbstractCode* code,
   code_event_handler_(&event);
 }
 
-void JitLogger::LogRecordedBuffer(wasm::WasmCode* code, const char* name,
+void JitLogger::LogRecordedBuffer(const wasm::WasmCode* code, const char* name,
                                   int length) {
   JitCodeEvent event;
   memset(&event, 0, sizeof(event));
@@ -1110,7 +1110,7 @@ void Logger::CodeCreateEvent(CodeEventListener::LogEventsAndTags tag,
 }
 
 void Logger::CodeCreateEvent(CodeEventListener::LogEventsAndTags tag,
-                             wasm::WasmCode* code, wasm::WasmName name) {
+                             const wasm::WasmCode* code, wasm::WasmName name) {
   if (!is_logging_code_events()) return;
   if (!FLAG_log_code || !log_->IsEnabled()) return;
   Log::MessageBuilder msg(log_);

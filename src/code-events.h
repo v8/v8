@@ -70,7 +70,7 @@ class CodeEventListener {
   virtual void CodeCreateEvent(LogEventsAndTags tag, AbstractCode* code,
                                SharedFunctionInfo* shared, Name* source,
                                int line, int column) = 0;
-  virtual void CodeCreateEvent(LogEventsAndTags tag, wasm::WasmCode* code,
+  virtual void CodeCreateEvent(LogEventsAndTags tag, const wasm::WasmCode* code,
                                wasm::WasmName name) = 0;
   virtual void CallbackEvent(Name* name, Address entry_point) = 0;
   virtual void GetterCallbackEvent(Name* name, Address entry_point) = 0;
@@ -122,7 +122,7 @@ class CodeEventDispatcher {
     CODE_EVENT_DISPATCH(
         CodeCreateEvent(tag, code, shared, source, line, column));
   }
-  void CodeCreateEvent(LogEventsAndTags tag, wasm::WasmCode* code,
+  void CodeCreateEvent(LogEventsAndTags tag, const wasm::WasmCode* code,
                        wasm::WasmName name) {
     CODE_EVENT_DISPATCH(CodeCreateEvent(tag, code, name));
   }

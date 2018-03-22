@@ -5150,12 +5150,7 @@ void WasmCompilationUnit::ExecuteCompilation() {
   TimedHistogramScope wasm_compile_function_time_scope(timed_histogram);
 
   if (FLAG_trace_wasm_compiler) {
-    if (func_name_.start() != nullptr) {
-      PrintF("Compiling wasm function %d:'%.*s'\n\n", func_index(),
-             func_name_.length(), func_name_.start());
-    } else {
-      PrintF("Compiling wasm function %d:<unnamed>\n\n", func_index());
-    }
+    PrintF("Compiling wasm function %d\n\n", func_index());
   }
 
   switch (mode_) {
@@ -5307,32 +5302,11 @@ wasm::WasmCode* WasmCompilationUnit::FinishTurbofanCompilation(
            codegen_ms);
   }
 
-  PROFILE(isolate_,
-          CodeCreateEvent(CodeEventListener::FUNCTION_TAG, code, func_name_));
-
   Handle<ByteArray> source_positions =
       tf_.job_->compilation_info()->wasm_code_desc()->source_positions_table;
 
   native_module_->compiled_module()->source_positions()->set(func_index_,
                                                              *source_positions);
-
-#ifdef ENABLE_DISASSEMBLER
-  // Note: only do this after setting source positions, as this will be
-  // accessed and printed here.
-  if (FLAG_print_code || FLAG_print_wasm_code) {
-    // TODO(wasm): Use proper log files, here and elsewhere.
-    PrintF("--- Native Wasm code ---\n");
-    code->Print(isolate_);
-    PrintF("--- End code ---\n");
-  }
-#endif
-
-  // TODO(mtrofin): this should probably move up in the common caller,
-  // once liftoff has source positions. Until then, we'd need to handle
-  // undefined values, which is complicating the code.
-  LOG_CODE_EVENT(isolate_,
-                 CodeLinePosInfoRecordEvent(code->instructions().start(),
-                                            *source_positions));
   return code;
 }
 
@@ -5344,31 +5318,13 @@ wasm::WasmCode* WasmCompilationUnit::FinishLiftoffCompilation(
   Handle<ByteArray> source_positions =
       liftoff_.source_position_table_builder_.ToSourcePositionTable(isolate_);
 
-  // TODO(herhut) Consider lifting it to FinishCompilation.
   native_module_->compiled_module()->source_positions()->set(func_index_,
                                                              *source_positions);
   wasm::WasmCode* code = native_module_->AddCode(
       desc, liftoff_.asm_.GetTotalFrameSlotCount(), func_index_,
       liftoff_.safepoint_table_offset_, 0, std::move(protected_instructions_),
       wasm::WasmCode::kLiftoff);
-  PROFILE(isolate_,
-          CodeCreateEvent(CodeEventListener::FUNCTION_TAG, code, func_name_));
-#ifdef ENABLE_DISASSEMBLER
-  if (FLAG_print_code || FLAG_print_wasm_code) {
-    // TODO(wasm): Use proper log files, here and elsewhere.
-    OFStream os(stdout);
-    os << "--- Wasm liftoff code ---\n";
-    EmbeddedVector<char, 64> func_name;
-    if (func_name_.start() != nullptr) {
-      SNPrintF(func_name, "#%d:%.*s", func_index(), func_name_.length(),
-               func_name_.start());
-    } else {
-      SNPrintF(func_name, "wasm#%d", func_index());
-    }
-    code->Disassemble(func_name.start(), isolate_, os);
-    os << "--- End code ---\n";
-  }
-#endif
+
   return code;
 }
 

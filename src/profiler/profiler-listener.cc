@@ -113,7 +113,7 @@ void ProfilerListener::CodeCreateEvent(CodeEventListener::LogEventsAndTags tag,
 }
 
 void ProfilerListener::CodeCreateEvent(CodeEventListener::LogEventsAndTags tag,
-                                       wasm::WasmCode* code,
+                                       const wasm::WasmCode* code,
                                        wasm::WasmName name) {
   CodeEventsContainer evt_rec(CodeEventRecord::CODE_CREATION);
   CodeCreateEventRecord* rec = &evt_rec.CodeCreateEventRecord_;
