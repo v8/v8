@@ -1149,7 +1149,7 @@ TEST(BreakPointConstructorBuiltin) {
   v8::Local<v8::Function> builtin;
   i::Handle<i::BreakPoint> bp;
 
-  // === Test constructor builtin (for ones with normal construct stubs) ===
+  // === Test Promise constructor ===
   break_point_hit_count = 0;
   builtin = CompileRun("Promise").As<v8::Function>();
   ExpectString("(new Promise(()=>{})).toString()", "[object Promise]");
@@ -1163,6 +1163,38 @@ TEST(BreakPointConstructorBuiltin) {
   // Run without breakpoints.
   ClearBreakPoint(bp);
   ExpectString("(new Promise(()=>{})).toString()", "[object Promise]");
+  CHECK_EQ(1, break_point_hit_count);
+
+  // === Test Object constructor ===
+  break_point_hit_count = 0;
+  builtin = CompileRun("Object").As<v8::Function>();
+  CompileRun("new Object()");
+  CHECK_EQ(0, break_point_hit_count);
+
+  // Run with breakpoint.
+  bp = SetBreakPoint(builtin, 0);
+  CompileRun("new Object()");
+  CHECK_EQ(1, break_point_hit_count);
+
+  // Run without breakpoints.
+  ClearBreakPoint(bp);
+  CompileRun("new Object()");
+  CHECK_EQ(1, break_point_hit_count);
+
+  // === Test Number constructor ===
+  break_point_hit_count = 0;
+  builtin = CompileRun("Number").As<v8::Function>();
+  CompileRun("new Number()");
+  CHECK_EQ(0, break_point_hit_count);
+
+  // Run with breakpoint.
+  bp = SetBreakPoint(builtin, 0);
+  CompileRun("new Number()");
+  CHECK_EQ(1, break_point_hit_count);
+
+  // Run without breakpoints.
+  ClearBreakPoint(bp);
+  CompileRun("new Number()");
   CHECK_EQ(1, break_point_hit_count);
 
   SetDebugEventListener(env->GetIsolate(), nullptr);
