@@ -1246,6 +1246,24 @@ int OS::ActivationFrameAlignment() {
 #endif
 }
 
+#if (defined(_WIN32) || defined(_WIN64))
+void EnsureConsoleOutputWin32() {
+  UINT new_flags =
+      SEM_FAILCRITICALERRORS | SEM_NOGPFAULTERRORBOX | SEM_NOOPENFILEERRORBOX;
+  UINT existing_flags = SetErrorMode(new_flags);
+  SetErrorMode(existing_flags | new_flags);
+#if defined(_MSC_VER)
+  _CrtSetReportMode(_CRT_WARN, _CRTDBG_MODE_DEBUG | _CRTDBG_MODE_FILE);
+  _CrtSetReportFile(_CRT_WARN, _CRTDBG_FILE_STDERR);
+  _CrtSetReportMode(_CRT_ASSERT, _CRTDBG_MODE_DEBUG | _CRTDBG_MODE_FILE);
+  _CrtSetReportFile(_CRT_ASSERT, _CRTDBG_FILE_STDERR);
+  _CrtSetReportMode(_CRT_ERROR, _CRTDBG_MODE_DEBUG | _CRTDBG_MODE_FILE);
+  _CrtSetReportFile(_CRT_ERROR, _CRTDBG_FILE_STDERR);
+  _set_error_mode(_OUT_TO_STDERR);
+#endif  // defined(_MSC_VER)
+}
+#endif  // (defined(_WIN32) || defined(_WIN64))
+
 // ----------------------------------------------------------------------------
 // Win32 thread support.
 

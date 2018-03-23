@@ -361,6 +361,8 @@ void WriteEmbeddedFile(v8::SnapshotCreator* creator, SnapshotWriter* writer) {
 }  // namespace
 
 int main(int argc, char** argv) {
+  v8::base::EnsureConsoleOutput();
+
   // Make mksnapshot runs predictable to create reproducible snapshots.
   i::FLAG_predictable = true;
 
