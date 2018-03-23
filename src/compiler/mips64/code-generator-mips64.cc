@@ -1315,6 +1315,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ Dror(i.OutputRegister(), i.InputRegister(0), i.InputOperand(1));
       break;
     case kMips64Tst:
+      __ And(kScratchReg, i.InputRegister(0), i.InputOperand(1));
       // Pseudo-instruction used for cmp/branch. No opcode emitted here.
       break;
     case kMips64Cmp:
@@ -3103,8 +3104,7 @@ void AssembleBranchToLabels(CodeGenerator* gen, TurboAssembler* tasm,
 
   if (instr->arch_opcode() == kMips64Tst) {
     cc = FlagsConditionToConditionTst(condition);
-    __ And(at, i.InputRegister(0), i.InputOperand(1));
-    __ Branch(tlabel, cc, at, Operand(zero_reg));
+    __ Branch(tlabel, cc, kScratchReg, Operand(zero_reg));
   } else if (instr->arch_opcode() == kMips64Dadd ||
              instr->arch_opcode() == kMips64Dsub) {
     cc = FlagsConditionToConditionOvf(condition);
@@ -3189,9 +3189,83 @@ void CodeGenerator::AssembleBranchPoisoning(FlagsCondition condition,
     return;
   }
 
-  // TODO(mips64): insert instructions here that place 0 into the
-  // kSpeculationPoisonRegister if the negation of the condition is
-  // true.
+  MipsOperandConverter i(this, instr);
+  condition = NegateFlagsCondition(condition);
+
+  switch (instr->arch_opcode()) {
+    case kMips64Cmp: {
+      __ LoadZeroOnCondition(kSpeculationPoisonRegister, i.InputRegister(0),
+                             i.InputOperand(1),
+                             FlagsConditionToConditionCmp(condition));
+    }
+      return;
+    case kMips64Tst: {
+      switch (condition) {
+        case kEqual:
+          __ LoadZeroIfConditionZero(kSpeculationPoisonRegister, kScratchReg);
+          break;
+        case kNotEqual:
+          __ LoadZeroIfConditionNotZero(kSpeculationPoisonRegister,
+                                        kScratchReg);
+          break;
+        default:
+          UNREACHABLE();
+      }
+    }
+      return;
+    case kMips64Dadd:
+    case kMips64Dsub: {
+      // Check for overflow creates 1 or 0 for result.
+      __ dsrl32(kScratchReg, i.OutputRegister(), 31);
+      __ srl(at, i.OutputRegister(), 31);
+      __ xor_(at, kScratchReg, at);
+      switch (condition) {
+        case kOverflow:
+          __ LoadZeroIfConditionNotZero(kSpeculationPoisonRegister, at);
+          break;
+        case kNotOverflow:
+          __ LoadZeroIfConditionZero(kSpeculationPoisonRegister, at);
+          break;
+        default:
+          UNSUPPORTED_COND(instr->arch_opcode(), condition);
+      }
+    }
+      return;
+    case kMips64DaddOvf:
+    case kMips64DsubOvf: {
+      // Overflow occurs if overflow register is negative
+      __ Slt(kScratchReg2, kScratchReg, zero_reg);
+      switch (condition) {
+        case kOverflow:
+          __ LoadZeroIfConditionNotZero(kSpeculationPoisonRegister,
+                                        kScratchReg2);
+          break;
+        case kNotOverflow:
+          __ LoadZeroIfConditionZero(kSpeculationPoisonRegister, kScratchReg2);
+          break;
+        default:
+          UNSUPPORTED_COND(instr->arch_opcode(), condition);
+      }
+    }
+      return;
+    case kMips64MulOvf: {
+      // Overflow occurs if overflow register is not zero
+      switch (condition) {
+        case kOverflow:
+          __ LoadZeroIfConditionNotZero(kSpeculationPoisonRegister,
+                                        kScratchReg);
+          break;
+        case kNotOverflow:
+          __ LoadZeroIfConditionZero(kSpeculationPoisonRegister, kScratchReg);
+          break;
+        default:
+          UNSUPPORTED_COND(instr->arch_opcode(), condition);
+      }
+    }
+      return;
+    default:
+      break;
+  }
 }
 
 void CodeGenerator::AssembleArchDeoptBranch(Instruction* instr,
@@ -3286,21 +3360,10 @@ void CodeGenerator::AssembleArchBoolean(Instruction* instr,
 
   if (instr->arch_opcode() == kMips64Tst) {
     cc = FlagsConditionToConditionTst(condition);
-    if (instr->InputAt(1)->IsImmediate() &&
-        base::bits::IsPowerOfTwo(i.InputOperand(1).immediate())) {
-      uint16_t pos =
-          base::bits::CountTrailingZeros64(i.InputOperand(1).immediate());
-      __ Dext(result, i.InputRegister(0), pos, 1);
-      if (cc == eq) {
-        __ xori(result, result, 1);
-      }
+    if (cc == eq) {
+      __ Sltu(result, kScratchReg, 1);
     } else {
-      __ And(kScratchReg, i.InputRegister(0), i.InputOperand(1));
-      if (cc == eq) {
-        __ Sltu(result, kScratchReg, 1);
-      } else {
-        __ Sltu(result, zero_reg, kScratchReg);
-      }
+      __ Sltu(result, zero_reg, kScratchReg);
     }
     return;
   } else if (instr->arch_opcode() == kMips64Dadd ||

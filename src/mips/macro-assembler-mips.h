@@ -461,8 +461,12 @@ class TurboAssembler : public Assembler {
 
   DEFINE_INSTRUCTION(Slt);
   DEFINE_INSTRUCTION(Sltu);
+  DEFINE_INSTRUCTION(Sle);
+  DEFINE_INSTRUCTION(Sleu);
   DEFINE_INSTRUCTION(Sgt);
   DEFINE_INSTRUCTION(Sgtu);
+  DEFINE_INSTRUCTION(Sge);
+  DEFINE_INSTRUCTION(Sgeu);
 
   // MIPS32 R2 instruction macro.
   DEFINE_INSTRUCTION(Ror);
@@ -562,6 +566,11 @@ class TurboAssembler : public Assembler {
   void Movn(Register rd, Register rs, Register rt);
   void Movt(Register rd, Register rs, uint16_t cc = 0);
   void Movf(Register rd, Register rs, uint16_t cc = 0);
+
+  void LoadZeroIfConditionNotZero(Register dest, Register condition);
+  void LoadZeroIfConditionZero(Register dest, Register condition);
+  void LoadZeroOnCondition(Register rd, Register rs, const Operand& rt,
+                           Condition cond);
 
   void Clz(Register rd, Register rs);
   void Ctz(Register rd, Register rs);
