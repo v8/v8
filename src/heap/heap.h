@@ -1396,7 +1396,9 @@ class Heap {
   // ===========================================================================
 
   // Returns the maximum amount of memory reserved for the heap.
-  size_t MaxReserved();
+  size_t MaxReserved() {
+    return 2 * max_semi_space_size_ + max_old_generation_size_;
+  }
   size_t MaxSemiSpaceSize() { return max_semi_space_size_; }
   size_t InitialSemiSpaceSize() { return initial_semispace_size_; }
   size_t MaxOldGenerationSize() { return max_old_generation_size_; }
@@ -2064,6 +2066,10 @@ class Heap {
   bool always_allocate() { return always_allocate_scope_count_.Value() != 0; }
 
   bool CanExpandOldGeneration(size_t size);
+
+  bool IsCloseToOutOfMemory(size_t slack) {
+    return OldGenerationCapacity() + slack >= MaxOldGenerationSize();
+  }
 
   bool ShouldExpandOldGenerationOnSlowAllocation();
 
