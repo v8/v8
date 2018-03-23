@@ -151,8 +151,6 @@ class AsyncCompileJob {
 
   void StartBackgroundTask();
 
-  void RestartBackgroundTasks();
-
   // Switches to the compilation step {Step} and starts a foreground task to
   // execute it.
   template <typename Step, typename... Args>
@@ -191,8 +189,6 @@ class AsyncCompileJob {
 
   std::shared_ptr<v8::TaskRunner> foreground_task_runner_;
   std::shared_ptr<v8::TaskRunner> background_task_runner_;
-  // The number of background tasks which stopped executing within a step.
-  base::AtomicNumber<int32_t> stopped_tasks_{0};
 
   // For async compilation the AsyncCompileJob is the only finisher. For
   // streaming compilation also the AsyncStreamingProcessor has to finish before

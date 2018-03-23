@@ -2918,15 +2918,6 @@ void AsyncCompileJob::StartBackgroundTask() {
       base::make_unique<CompileTask>(this, false));
 }
 
-void AsyncCompileJob::RestartBackgroundTasks() {
-  int num_restarts = stopped_tasks_.Value();
-  stopped_tasks_.Decrement(num_restarts);
-
-  for (int i = 0; i < num_restarts; ++i) {
-    StartBackgroundTask();
-  }
-}
-
 template <typename Step, typename... Args>
 void AsyncCompileJob::DoAsync(Args&&... args) {
   NextStep<Step>(std::forward<Args>(args)...);
