@@ -1118,6 +1118,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
       TNode<Context> native_context);
   Node* IsFeedbackCell(Node* object);
   Node* IsFeedbackVector(Node* object);
+  Node* IsContext(Node* object);
   Node* IsFixedArray(Node* object);
   Node* IsFixedArraySubclass(Node* object);
   Node* IsFixedArrayWithKind(Node* object, ElementsKind kind);

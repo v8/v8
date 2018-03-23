@@ -775,11 +775,9 @@ void ObjectStatsCollectorImpl::RecordVirtualCodeDetails(Code* code) {
 
 void ObjectStatsCollectorImpl::RecordVirtualContext(Context* context) {
   if (context->IsNativeContext()) {
-    RecordSimpleVirtualObjectStats(nullptr, context,
-                                   ObjectStats::NATIVE_CONTEXT_TYPE);
+    RecordObjectStats(context, NATIVE_CONTEXT_TYPE, context->Size());
   } else if (context->IsFunctionContext()) {
-    RecordSimpleVirtualObjectStats(nullptr, context,
-                                   ObjectStats::FUNCTION_CONTEXT_TYPE);
+    RecordObjectStats(context, FUNCTION_CONTEXT_TYPE, context->Size());
   } else {
     RecordSimpleVirtualObjectStats(nullptr, context,
                                    ObjectStats::OTHER_CONTEXT_TYPE);

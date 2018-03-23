@@ -1241,7 +1241,7 @@ Reduction JSCreateLowering::ReduceJSCreateFunctionContext(Node* node) {
       default:
         UNREACHABLE();
     }
-    a.AllocateArray(context_length, map);
+    a.AllocateContext(context_length, map);
     a.Store(AccessBuilder::ForContextSlot(Context::CLOSURE_INDEX), closure);
     a.Store(AccessBuilder::ForContextSlot(Context::PREVIOUS_INDEX), context);
     a.Store(AccessBuilder::ForContextSlot(Context::EXTENSION_INDEX), extension);
@@ -1276,7 +1276,7 @@ Reduction JSCreateLowering::ReduceJSCreateWithContext(Node* node) {
 
   AllocationBuilder a(jsgraph(), extension, control);
   STATIC_ASSERT(Context::MIN_CONTEXT_SLOTS == 4);  // Ensure fully covered.
-  a.AllocateArray(Context::MIN_CONTEXT_SLOTS, factory()->with_context_map());
+  a.AllocateContext(Context::MIN_CONTEXT_SLOTS, factory()->with_context_map());
   a.Store(AccessBuilder::ForContextSlot(Context::CLOSURE_INDEX), closure);
   a.Store(AccessBuilder::ForContextSlot(Context::PREVIOUS_INDEX), context);
   a.Store(AccessBuilder::ForContextSlot(Context::EXTENSION_INDEX), extension);
@@ -1308,8 +1308,8 @@ Reduction JSCreateLowering::ReduceJSCreateCatchContext(Node* node) {
 
   AllocationBuilder a(jsgraph(), extension, control);
   STATIC_ASSERT(Context::MIN_CONTEXT_SLOTS == 4);  // Ensure fully covered.
-  a.AllocateArray(Context::MIN_CONTEXT_SLOTS + 1,
-                  factory()->catch_context_map());
+  a.AllocateContext(Context::MIN_CONTEXT_SLOTS + 1,
+                    factory()->catch_context_map());
   a.Store(AccessBuilder::ForContextSlot(Context::CLOSURE_INDEX), closure);
   a.Store(AccessBuilder::ForContextSlot(Context::PREVIOUS_INDEX), context);
   a.Store(AccessBuilder::ForContextSlot(Context::EXTENSION_INDEX), extension);
@@ -1338,7 +1338,7 @@ Reduction JSCreateLowering::ReduceJSCreateBlockContext(Node* node) {
 
     AllocationBuilder a(jsgraph(), effect, control);
     STATIC_ASSERT(Context::MIN_CONTEXT_SLOTS == 4);  // Ensure fully covered.
-    a.AllocateArray(context_length, factory()->block_context_map());
+    a.AllocateContext(context_length, factory()->block_context_map());
     a.Store(AccessBuilder::ForContextSlot(Context::CLOSURE_INDEX), closure);
     a.Store(AccessBuilder::ForContextSlot(Context::PREVIOUS_INDEX), context);
     a.Store(AccessBuilder::ForContextSlot(Context::EXTENSION_INDEX), extension);

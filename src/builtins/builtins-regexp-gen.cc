@@ -26,7 +26,7 @@ using compiler::Node;
 
 Node* RegExpBuiltinsAssembler::AllocateRegExpResult(Node* context, Node* length,
                                                     Node* index, Node* input) {
-  CSA_ASSERT(this, IsFixedArray(context));
+  CSA_ASSERT(this, IsContext(context));
   CSA_ASSERT(this, TaggedIsSmi(index));
   CSA_ASSERT(this, TaggedIsSmi(length));
   CSA_ASSERT(this, IsString(input));
