@@ -798,11 +798,10 @@ class V8_EXPORT_PRIVATE Factory final {
   // Allocates a new SharedFunctionInfo object.
   Handle<SharedFunctionInfo> NewSharedFunctionInfoForApiFunction(
       MaybeHandle<String> maybe_name,
-      Handle<FunctionTemplateInfo> function_template_info, bool is_constructor,
-      FunctionKind kind);
+      Handle<FunctionTemplateInfo> function_template_info, FunctionKind kind);
 
   Handle<SharedFunctionInfo> NewSharedFunctionInfoForBuiltin(
-      MaybeHandle<String> name, int builtin_index, bool is_constructor,
+      MaybeHandle<String> name, int builtin_index,
       FunctionKind kind = kNormalFunction);
 
   Handle<SharedFunctionInfo> NewSharedFunctionInfoForLiteral(
@@ -916,8 +915,7 @@ class V8_EXPORT_PRIVATE Factory final {
 
   Handle<SharedFunctionInfo> NewSharedFunctionInfo(
       MaybeHandle<String> name, MaybeHandle<HeapObject> maybe_function_data,
-      int maybe_builtin_index, bool is_constructor,
-      FunctionKind kind = kNormalFunction);
+      int maybe_builtin_index, FunctionKind kind = kNormalFunction);
 };
 
 // Utility class to simplify argument handling around JSFunction creation.

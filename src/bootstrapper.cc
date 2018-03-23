@@ -356,27 +356,21 @@ void Bootstrapper::DetachGlobal(Handle<Context> env) {
 
 namespace {
 
-// Non-construct case.
 V8_NOINLINE Handle<SharedFunctionInfo> SimpleCreateSharedFunctionInfo(
     Isolate* isolate, Builtins::Name builtin_id, Handle<String> name, int len) {
-  const bool kNotConstructor = false;
   Handle<SharedFunctionInfo> shared =
-      isolate->factory()->NewSharedFunctionInfoForBuiltin(
-          name, builtin_id, kNotConstructor, kNormalFunction);
+      isolate->factory()->NewSharedFunctionInfoForBuiltin(name, builtin_id,
+                                                          kNormalFunction);
   shared->set_internal_formal_parameter_count(len);
   shared->set_length(len);
   return shared;
 }
 
-// Construct case.
-V8_NOINLINE Handle<SharedFunctionInfo>
-SimpleCreateConstructorSharedFunctionInfo(Isolate* isolate,
-                                          Builtins::Name builtin_id,
-                                          Handle<String> name, int len) {
-  const bool kIsConstructor = true;
+V8_NOINLINE Handle<SharedFunctionInfo> SimpleCreateBuiltinSharedFunctionInfo(
+    Isolate* isolate, Builtins::Name builtin_id, Handle<String> name, int len) {
   Handle<SharedFunctionInfo> shared =
-      isolate->factory()->NewSharedFunctionInfoForBuiltin(
-          name, builtin_id, kIsConstructor, kNormalFunction);
+      isolate->factory()->NewSharedFunctionInfoForBuiltin(name, builtin_id,
+                                                          kNormalFunction);
   shared->SetConstructStub(*BUILTIN_CODE(isolate, JSBuiltinsConstructStub));
   shared->set_internal_formal_parameter_count(len);
   shared->set_length(len);
@@ -2245,7 +2239,7 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
   }
 
   {
-    Handle<SharedFunctionInfo> info = SimpleCreateConstructorSharedFunctionInfo(
+    Handle<SharedFunctionInfo> info = SimpleCreateBuiltinSharedFunctionInfo(
         isolate, Builtins::kPromiseGetCapabilitiesExecutor,
         factory->empty_string(), 2);
     native_context()->set_promise_get_capabilities_executor_shared_fun(*info);

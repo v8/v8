@@ -1219,8 +1219,8 @@ Handle<SharedFunctionInfo> FunctionTemplateInfo::GetOrCreateSharedFunctionInfo(
     function_kind = kNormalFunction;
   }
   Handle<SharedFunctionInfo> result =
-      isolate->factory()->NewSharedFunctionInfoForApiFunction(
-          name_string, info, is_constructor, function_kind);
+      isolate->factory()->NewSharedFunctionInfoForApiFunction(name_string, info,
+                                                              function_kind);
   if (is_constructor) {
     result->SetConstructStub(*BUILTIN_CODE(isolate, JSConstructStubApi));
   }

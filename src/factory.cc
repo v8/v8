@@ -1618,8 +1618,7 @@ Handle<JSFunction> Factory::NewFunction(const NewFunctionArgs& args) {
   Handle<Context> context(isolate()->native_context());
   Handle<Map> map = args.GetMap(isolate());
   Handle<SharedFunctionInfo> info = NewSharedFunctionInfo(
-      args.name_, args.maybe_code_, args.maybe_builtin_id_,
-      map->is_constructor(), kNormalFunction);
+      args.name_, args.maybe_code_, args.maybe_builtin_id_, kNormalFunction);
 
   // Proper language mode in shared function info will be set later.
   DCHECK(is_sloppy(info->language_mode()));
@@ -2549,7 +2548,7 @@ Handle<SharedFunctionInfo> Factory::NewSharedFunctionInfoForLiteral(
     FunctionLiteral* literal, Handle<Script> script) {
   FunctionKind kind = literal->kind();
   Handle<SharedFunctionInfo> shared = NewSharedFunctionInfoForBuiltin(
-      literal->name(), Builtins::kCompileLazy, IsConstructable(kind), kind);
+      literal->name(), Builtins::kCompileLazy, kind);
   SharedFunctionInfo::InitFromFunctionLiteral(shared, literal);
   SharedFunctionInfo::SetScript(shared, script, false);
   return shared;
@@ -2577,22 +2576,20 @@ Handle<JSMessageObject> Factory::NewJSMessageObject(
 
 Handle<SharedFunctionInfo> Factory::NewSharedFunctionInfoForApiFunction(
     MaybeHandle<String> maybe_name,
-    Handle<FunctionTemplateInfo> function_template_info, bool is_constructor,
-    FunctionKind kind) {
+    Handle<FunctionTemplateInfo> function_template_info, FunctionKind kind) {
   return NewSharedFunctionInfo(maybe_name, function_template_info,
-                               Builtins::kNoBuiltinId, is_constructor, kind);
+                               Builtins::kNoBuiltinId, kind);
 }
 
 Handle<SharedFunctionInfo> Factory::NewSharedFunctionInfoForBuiltin(
-    MaybeHandle<String> maybe_name, int builtin_index, bool is_constructor,
-    FunctionKind kind) {
+    MaybeHandle<String> maybe_name, int builtin_index, FunctionKind kind) {
   return NewSharedFunctionInfo(maybe_name, MaybeHandle<Code>(), builtin_index,
-                               is_constructor, kind);
+                               kind);
 }
 
 Handle<SharedFunctionInfo> Factory::NewSharedFunctionInfo(
     MaybeHandle<String> maybe_name, MaybeHandle<HeapObject> maybe_function_data,
-    int maybe_builtin_index, bool is_constructor, FunctionKind kind) {
+    int maybe_builtin_index, FunctionKind kind) {
   // Function names are assumed to be flat elsewhere. Must flatten before
   // allocating SharedFunctionInfo to avoid GC seeing the uninitialized SFI.
   Handle<String> shared_name;
