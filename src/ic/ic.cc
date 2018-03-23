@@ -1679,13 +1679,14 @@ Handle<Object> StoreIC::ComputeHandler(LookupIterator* lookup) {
 }
 
 void KeyedStoreIC::UpdateStoreElement(Handle<Map> receiver_map,
-                                      KeyedAccessStoreMode store_mode) {
+                                      KeyedAccessStoreMode store_mode,
+                                      bool receiver_was_cow) {
   MapHandles target_receiver_maps;
   TargetMaps(&target_receiver_maps);
   if (target_receiver_maps.empty()) {
     Handle<Map> monomorphic_map =
         ComputeTransitionedMap(receiver_map, store_mode);
-    store_mode = GetNonTransitioningStoreMode(store_mode);
+    store_mode = GetNonTransitioningStoreMode(store_mode, receiver_was_cow);
     Handle<Object> handler = StoreElementHandler(monomorphic_map, store_mode);
     return ConfigureVectorState(Handle<Name>(), monomorphic_map, handler);
   }
@@ -1718,7 +1719,7 @@ void KeyedStoreIC::UpdateStoreElement(Handle<Map> receiver_map,
       // If the "old" and "new" maps are in the same elements map family, or
       // if they at least come from the same origin for a transitioning store,
       // stay MONOMORPHIC and use the map for the most generic ElementsKind.
-      store_mode = GetNonTransitioningStoreMode(store_mode);
+      store_mode = GetNonTransitioningStoreMode(store_mode, receiver_was_cow);
       Handle<Object> handler =
           StoreElementHandler(transitioned_receiver_map, store_mode);
       ConfigureVectorState(Handle<Name>(), transitioned_receiver_map, handler);
@@ -1762,7 +1763,7 @@ void KeyedStoreIC::UpdateStoreElement(Handle<Map> receiver_map,
 
   // Make sure all polymorphic handlers have the same store mode, otherwise the
   // megamorphic stub must be used.
-  store_mode = GetNonTransitioningStoreMode(store_mode);
+  store_mode = GetNonTransitioningStoreMode(store_mode, receiver_was_cow);
   if (old_store_mode != STANDARD_STORE) {
     if (store_mode == STANDARD_STORE) {
       store_mode = old_store_mode;
@@ -1977,12 +1978,8 @@ static KeyedAccessStoreMode GetStoreMode(Handle<JSObject> receiver,
         receiver->map()->has_fixed_typed_array_elements() && oob_access) {
       return STORE_NO_TRANSITION_IGNORE_OUT_OF_BOUNDS;
     }
-    Heap* heap = receiver->GetHeap();
-    if (receiver->elements()->map() == heap->fixed_cow_array_map()) {
-      return STORE_NO_TRANSITION_HANDLE_COW;
-    } else {
-      return STANDARD_STORE;
-    }
+    return receiver->elements()->IsCowArray() ? STORE_NO_TRANSITION_HANDLE_COW
+                                              : STANDARD_STORE;
   }
 }
 
@@ -2066,6 +2063,9 @@ MaybeHandle<Object> KeyedStoreIC::Store(Handle<Object> object,
   }
 
   DCHECK(store_handle.is_null());
+  bool receiver_was_cow =
+      object->IsJSArray() &&
+      Handle<JSArray>::cast(object)->elements()->IsCowArray();
   ASSIGN_RETURN_ON_EXCEPTION(isolate(), store_handle,
                              Runtime::SetObjectProperty(isolate(), object, key,
                                                         value, language_mode()),
@@ -2084,7 +2084,7 @@ MaybeHandle<Object> KeyedStoreIC::Store(Handle<Object> object,
           // prototype chain does have dictionary elements. This ensures that
           // other non-dictionary receivers in the polymorphic case benefit
           // from fast path keyed stores.
-          UpdateStoreElement(old_receiver_map, store_mode);
+          UpdateStoreElement(old_receiver_map, store_mode, receiver_was_cow);
         } else {
           set_slow_stub_reason("dictionary or proxy prototype");
         }
@@ -2140,11 +2140,12 @@ void StoreInArrayLiteralIC::Store(Handle<JSArray> array, Handle<Object> index,
   }
 
   Handle<Map> old_array_map(array->map(), isolate());
+  bool array_was_cow = array->elements()->IsCowArray();
   StoreOwnElement(array, index, value);
 
   if (index->IsSmi()) {
     DCHECK(!old_array_map->is_abandoned_prototype_map());
-    UpdateStoreElement(old_array_map, store_mode);
+    UpdateStoreElement(old_array_map, store_mode, array_was_cow);
   } else {
     set_slow_stub_reason("index out of Smi range");
   }

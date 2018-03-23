@@ -216,14 +216,26 @@ static inline bool IsCOWHandlingStoreMode(KeyedAccessStoreMode store_mode) {
 }
 
 static inline KeyedAccessStoreMode GetNonTransitioningStoreMode(
-    KeyedAccessStoreMode store_mode) {
-  if (store_mode >= STORE_NO_TRANSITION_IGNORE_OUT_OF_BOUNDS) {
-    return store_mode;
+    KeyedAccessStoreMode store_mode, bool receiver_was_cow) {
+  switch (store_mode) {
+    case STORE_AND_GROW_NO_TRANSITION_HANDLE_COW:
+    case STORE_AND_GROW_TRANSITION_TO_OBJECT:
+    case STORE_AND_GROW_TRANSITION_TO_DOUBLE:
+      store_mode = STORE_AND_GROW_NO_TRANSITION_HANDLE_COW;
+      break;
+    case STANDARD_STORE:
+    case STORE_TRANSITION_TO_OBJECT:
+    case STORE_TRANSITION_TO_DOUBLE:
+      store_mode =
+          receiver_was_cow ? STORE_NO_TRANSITION_HANDLE_COW : STANDARD_STORE;
+      break;
+    case STORE_NO_TRANSITION_IGNORE_OUT_OF_BOUNDS:
+    case STORE_NO_TRANSITION_HANDLE_COW:
+      break;
   }
-  if (store_mode >= STORE_AND_GROW_NO_TRANSITION_HANDLE_COW) {
-    return STORE_AND_GROW_NO_TRANSITION_HANDLE_COW;
-  }
-  return STANDARD_STORE;
+  DCHECK(!IsTransitionStoreMode(store_mode));
+  DCHECK_IMPLIES(receiver_was_cow, IsCOWHandlingStoreMode(store_mode));
+  return store_mode;
 }
 
 
