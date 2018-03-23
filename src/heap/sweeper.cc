@@ -78,16 +78,18 @@ class Sweeper::SweeperTask final : public CancelableTask {
   void RunInternal() final {
     TRACE_BACKGROUND_GC(tracer_,
                         GCTracer::BackgroundScope::MC_BACKGROUND_SWEEPING);
-    DCHECK_GE(space_to_start_, FIRST_PAGED_SPACE);
-    DCHECK_LE(space_to_start_, LAST_PAGED_SPACE);
-    const int offset = space_to_start_ - FIRST_PAGED_SPACE;
-    const int num_spaces = LAST_PAGED_SPACE - FIRST_PAGED_SPACE + 1;
+    DCHECK_GE(space_to_start_, FIRST_GROWABLE_PAGED_SPACE);
+    DCHECK_LE(space_to_start_, LAST_GROWABLE_PAGED_SPACE);
+    const int offset = space_to_start_ - FIRST_GROWABLE_PAGED_SPACE;
+    const int num_spaces =
+        LAST_GROWABLE_PAGED_SPACE - FIRST_GROWABLE_PAGED_SPACE + 1;
     for (int i = 0; i < num_spaces; i++) {
-      const int space_id = FIRST_PAGED_SPACE + ((i + offset) % num_spaces);
+      const int space_id =
+          FIRST_GROWABLE_PAGED_SPACE + ((i + offset) % num_spaces);
       // Do not sweep code space concurrently.
       if (static_cast<AllocationSpace>(space_id) == CODE_SPACE) continue;
-      DCHECK_GE(space_id, FIRST_PAGED_SPACE);
-      DCHECK_LE(space_id, LAST_PAGED_SPACE);
+      DCHECK_GE(space_id, FIRST_GROWABLE_PAGED_SPACE);
+      DCHECK_LE(space_id, LAST_GROWABLE_PAGED_SPACE);
       sweeper_->SweepSpaceFromTask(static_cast<AllocationSpace>(space_id));
     }
     num_sweeping_tasks_->Decrement(1);

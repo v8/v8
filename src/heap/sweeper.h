@@ -123,7 +123,7 @@ class Sweeper {
   class IterabilityTask;
   class SweeperTask;
 
-  static const int kNumberOfSweepingSpaces = LAST_PAGED_SPACE + 1;
+  static const int kNumberOfSweepingSpaces = LAST_GROWABLE_PAGED_SPACE + 1;
   static const int kMaxSweeperTasks = 3;
 
   template <typename Callback>
@@ -159,11 +159,12 @@ class Sweeper {
   void MakeIterable(Page* page);
 
   bool IsValidIterabilitySpace(AllocationSpace space) {
-    return space == NEW_SPACE;
+    return space == NEW_SPACE || space == RO_SPACE;
   }
 
   bool IsValidSweepingSpace(AllocationSpace space) {
-    return space >= FIRST_PAGED_SPACE && space <= LAST_PAGED_SPACE;
+    return space >= FIRST_GROWABLE_PAGED_SPACE &&
+           space <= LAST_GROWABLE_PAGED_SPACE;
   }
 
   Heap* const heap_;

@@ -523,20 +523,21 @@ typedef bool (*WeakSlotCallbackWithHeap)(Heap* heap, Object** pointer);
 // NOTE: SpaceIterator depends on AllocationSpace enumeration values being
 // consecutive.
 enum AllocationSpace {
+  // TODO(v8:7464): Actually map this space's memory as read-only.
+  RO_SPACE,    // Immortal, immovable and immutable objects,
   NEW_SPACE,   // Semispaces collected with copying collector.
   OLD_SPACE,   // May contain pointers to new space.
   CODE_SPACE,  // No pointers to new space, marked executable.
   MAP_SPACE,   // Only and all map objects.
   LO_SPACE,    // Promoted large objects.
-  // TODO(v8:7464): Actually map this space's memory as read-only.
-  RO_SPACE,  // Immortal, immovable and immutable objects.
 
-  FIRST_SPACE = NEW_SPACE,
-  LAST_SPACE = RO_SPACE,
-  FIRST_PAGED_SPACE = OLD_SPACE,
-  LAST_PAGED_SPACE = MAP_SPACE
+  FIRST_SPACE = RO_SPACE,
+  LAST_SPACE = LO_SPACE,
+  FIRST_GROWABLE_PAGED_SPACE = OLD_SPACE,
+  LAST_GROWABLE_PAGED_SPACE = MAP_SPACE
 };
 constexpr int kSpaceTagSize = 4;
+STATIC_ASSERT(FIRST_SPACE == 0);
 
 enum AllocationAlignment { kWordAligned, kDoubleAligned, kDoubleUnaligned };
 
