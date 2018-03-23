@@ -325,7 +325,7 @@ class Typer::Visitor : public Reducer {
   static Type* NumberLessThanOrEqualTyper(Type*, Type*, Typer*);
   static Type* ReferenceEqualTyper(Type*, Type*, Typer*);
   static Type* SameValueTyper(Type*, Type*, Typer*);
-  static Type* StringFromCharCodeTyper(Type*, Typer*);
+  static Type* StringFromSingleCharCodeTyper(Type*, Typer*);
   static Type* StringFromCodePointTyper(Type*, Typer*);
 
   Reduction UpdateType(Node* node, Type* current) {
@@ -1962,7 +1962,7 @@ Type* Typer::Visitor::TypeStringLessThanOrEqual(Node* node) {
   return Type::Boolean();
 }
 
-Type* Typer::Visitor::StringFromCharCodeTyper(Type* type, Typer* t) {
+Type* Typer::Visitor::StringFromSingleCharCodeTyper(Type* type, Typer* t) {
   return Type::String();
 }
 
@@ -1986,8 +1986,8 @@ Type* Typer::Visitor::TypeStringCodePointAt(Node* node) {
   return Type::Range(0.0, String::kMaxCodePoint, zone());
 }
 
-Type* Typer::Visitor::TypeStringFromCharCode(Node* node) {
-  return TypeUnaryOp(node, StringFromCharCodeTyper);
+Type* Typer::Visitor::TypeStringFromSingleCharCode(Node* node) {
+  return TypeUnaryOp(node, StringFromSingleCharCodeTyper);
 }
 
 Type* Typer::Visitor::TypeStringFromCodePoint(Node* node) {

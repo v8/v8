@@ -57,11 +57,9 @@ class V8_EXPORT_PRIVATE TypedOptimization final
   Reduction ReduceTypeOf(Node* node);
   Reduction ReduceToBoolean(Node* node);
 
-  Reduction TryReduceStringComparisonOfCharAtAndConstant(Node* comparison,
-                                                         Node* from_char_code,
-                                                         Node* constant,
-                                                         bool inverted);
-  Reduction TryReduceStringComparisonOfCharAtAndStringToConstant(
+  Reduction TryReduceStringComparisonOfStringFromSingleCharCode(
+      Node* comparison, Node* from_char_code, Node* constant, bool inverted);
+  Reduction TryReduceStringComparisonOfStringFromSingleCharCodeToConstant(
       Node* comparison, Handle<String> string, bool inverted);
   const Operator* NumberComparisonFor(const Operator* op);
 

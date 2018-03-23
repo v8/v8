@@ -525,7 +525,7 @@ TF_BUILTIN(StringCharAt, StringBuiltinsAssembler) {
   TNode<Int32T> code = StringCharCodeAt(receiver, position);
 
   // And return the single character string with only that {code}
-  TNode<String> result = StringFromCharCode(code);
+  TNode<String> result = StringFromSingleCharCode(code);
   Return(result);
 }
 
@@ -586,7 +586,7 @@ TF_BUILTIN(StringFromCharCode, CodeStubAssembler) {
     Node* code32 = TruncateTaggedToWord32(context, code);
     TNode<Int32T> code16 =
         Signed(Word32And(code32, Int32Constant(String::kMaxUtf16CodeUnit)));
-    Node* result = StringFromCharCode(code16);
+    Node* result = StringFromSingleCharCode(code16);
     arguments.PopAndReturn(result);
   }
 
@@ -682,7 +682,7 @@ TF_BUILTIN(StringPrototypeCharAt, StringBuiltinsAssembler) {
                    [this](TNode<String> string, TNode<IntPtrT> length,
                           TNode<IntPtrT> index) {
                      TNode<Int32T> code = StringCharCodeAt(string, index);
-                     return StringFromCharCode(code);
+                     return StringFromSingleCharCode(code);
                    });
 }
 

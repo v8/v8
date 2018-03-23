@@ -4888,7 +4888,7 @@ TNode<Int32T> CodeStubAssembler::StringCharCodeAt(SloppyTNode<String> string,
   return var_result.value();
 }
 
-TNode<String> CodeStubAssembler::StringFromCharCode(TNode<Int32T> code) {
+TNode<String> CodeStubAssembler::StringFromSingleCharCode(TNode<Int32T> code) {
   VARIABLE(var_result, MachineRepresentation::kTagged);
 
   // Check if the {code} is a one-byte char code.
@@ -5086,7 +5086,7 @@ TNode<String> CodeStubAssembler::SubString(TNode<String> string,
   BIND(&single_char);
   {
     TNode<Int32T> char_code = StringCharCodeAt(string, from);
-    var_result = StringFromCharCode(char_code);
+    var_result = StringFromSingleCharCode(char_code);
     Goto(&end);
   }
 
@@ -5462,7 +5462,7 @@ TNode<String> CodeStubAssembler::StringFromCodePoint(TNode<Int32T> codepoint,
 
   BIND(&if_isword16);
   {
-    var_result.Bind(StringFromCharCode(codepoint));
+    var_result.Bind(StringFromSingleCharCode(codepoint));
     Goto(&return_result);
   }
 

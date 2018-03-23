@@ -420,7 +420,7 @@ TEST_F(JSCallReducerTest, MathMaxWithTwoArguments) {
 // -----------------------------------------------------------------------------
 // String.fromCharCode
 
-TEST_F(JSCallReducerTest, StringFromCharCodeWithNumber) {
+TEST_F(JSCallReducerTest, StringFromSingleCharCodeWithNumber) {
   Node* function = StringFunction("fromCharCode");
 
   Node* effect = graph()->start();
@@ -433,10 +433,11 @@ TEST_F(JSCallReducerTest, StringFromCharCodeWithNumber) {
   Reduction r = Reduce(call);
 
   ASSERT_TRUE(r.Changed());
-  EXPECT_THAT(r.replacement(), IsStringFromCharCode(IsSpeculativeToNumber(p0)));
+  EXPECT_THAT(r.replacement(),
+              IsStringFromSingleCharCode(IsSpeculativeToNumber(p0)));
 }
 
-TEST_F(JSCallReducerTest, StringFromCharCodeWithPlainPrimitive) {
+TEST_F(JSCallReducerTest, StringFromSingleCharCodeWithPlainPrimitive) {
   Node* function = StringFunction("fromCharCode");
 
   Node* effect = graph()->start();
@@ -449,7 +450,8 @@ TEST_F(JSCallReducerTest, StringFromCharCodeWithPlainPrimitive) {
   Reduction r = Reduce(call);
 
   ASSERT_TRUE(r.Changed());
-  EXPECT_THAT(r.replacement(), IsStringFromCharCode(IsSpeculativeToNumber(p0)));
+  EXPECT_THAT(r.replacement(),
+              IsStringFromSingleCharCode(IsSpeculativeToNumber(p0)));
 }
 
 // -----------------------------------------------------------------------------

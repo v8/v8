@@ -1100,7 +1100,7 @@ void Verifier::Visitor::Check(Node* node, const AllNodes& all) {
       CheckValueInputIs(node, 1, Type::Unsigned32());
       CheckTypeIs(node, Type::UnsignedSmall());
       break;
-    case IrOpcode::kStringFromCharCode:
+    case IrOpcode::kStringFromSingleCharCode:
       // Number -> String
       CheckValueInputIs(node, 0, Type::Number());
       CheckTypeIs(node, Type::String());

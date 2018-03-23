@@ -4917,7 +4917,7 @@ Reduction JSCallReducer::ReduceStringPrototypeCharAt(Node* node) {
   Node* value = effect =
       graph()->NewNode(simplified()->StringCharCodeAt(), receiver, masked_index,
                        effect, control);
-  value = graph()->NewNode(simplified()->StringFromCharCode(), value);
+  value = graph()->NewNode(simplified()->StringFromSingleCharCode(), value);
 
   ReplaceWithValue(node, value, effect, control);
   return Replace(value);
@@ -4971,7 +4971,7 @@ Reduction JSCallReducer::ReduceStringPrototypeToUpperCaseIntl(Node* node) {
 
 #endif  // V8_INTL_SUPPORT
 
-// ES6 section 21.1.2.1 String.fromCharCode ( ...codeUnits )
+// ES #sec-string.fromcharcode
 Reduction JSCallReducer::ReduceStringFromCharCode(Node* node) {
   DCHECK_EQ(IrOpcode::kJSCall, node->opcode());
   CallParameters const& p = CallParametersOf(node->op());
@@ -4988,7 +4988,8 @@ Reduction JSCallReducer::ReduceStringFromCharCode(Node* node) {
                                           p.feedback()),
         input, effect, control);
 
-    Node* value = graph()->NewNode(simplified()->StringFromCharCode(), input);
+    Node* value =
+        graph()->NewNode(simplified()->StringFromSingleCharCode(), input);
     ReplaceWithValue(node, value, effect);
     return Replace(value);
   }

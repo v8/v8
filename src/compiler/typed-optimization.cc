@@ -366,13 +366,13 @@ const Operator* TypedOptimization::NumberComparisonFor(const Operator* op) {
   UNREACHABLE();
 }
 
-Reduction
-TypedOptimization::TryReduceStringComparisonOfCharAtAndStringToConstant(
-    Node* comparison, Handle<String> string, bool inverted) {
+Reduction TypedOptimization::
+    TryReduceStringComparisonOfStringFromSingleCharCodeToConstant(
+        Node* comparison, Handle<String> string, bool inverted) {
   switch (comparison->opcode()) {
     case IrOpcode::kStringEqual:
       if (string->length() != 1) {
-        // String.fromCharCode(x) == "" is always false.
+        // String.fromCharCode(x) always has length 1.
         return Replace(jsgraph()->BooleanConstant(false));
       }
       break;
@@ -394,15 +394,16 @@ TypedOptimization::TryReduceStringComparisonOfCharAtAndStringToConstant(
 // Try to reduces a string comparison of the form
 // String.fromCharCode(x) {comparison} {constant} if inverted is false,
 // and {constant} {comparison} String.fromCharCode(x) if inverted is true.
-Reduction TypedOptimization::TryReduceStringComparisonOfCharAtAndConstant(
+Reduction
+TypedOptimization::TryReduceStringComparisonOfStringFromSingleCharCode(
     Node* comparison, Node* from_char_code, Node* constant, bool inverted) {
-  DCHECK_EQ(IrOpcode::kStringFromCharCode, from_char_code->opcode());
+  DCHECK_EQ(IrOpcode::kStringFromSingleCharCode, from_char_code->opcode());
   HeapObjectMatcher m(constant);
   if (!m.HasValue() || !m.Value()->IsString()) return NoChange();
   Handle<String> string = Handle<String>::cast(m.Value());
 
   // Check if comparison can be resolved statically.
-  Reduction red = TryReduceStringComparisonOfCharAtAndStringToConstant(
+  Reduction red = TryReduceStringComparisonOfStringFromSingleCharCodeToConstant(
       comparison, string, inverted);
   if (red.Changed()) return red;
 
@@ -438,8 +439,8 @@ Reduction TypedOptimization::ReduceStringComparison(Node* node) {
          IrOpcode::kStringLessThanOrEqual == node->opcode());
   Node* const lhs = NodeProperties::GetValueInput(node, 0);
   Node* const rhs = NodeProperties::GetValueInput(node, 1);
-  if (lhs->opcode() == IrOpcode::kStringFromCharCode) {
-    if (rhs->opcode() == IrOpcode::kStringFromCharCode) {
+  if (lhs->opcode() == IrOpcode::kStringFromSingleCharCode) {
+    if (rhs->opcode() == IrOpcode::kStringFromSingleCharCode) {
       Node* left = NodeProperties::GetValueInput(lhs, 0);
       Node* right = NodeProperties::GetValueInput(rhs, 0);
       Type* left_type = NodeProperties::GetType(left);
@@ -463,11 +464,12 @@ Reduction TypedOptimization::ReduceStringComparison(Node* node) {
       ReplaceWithValue(node, equal);
       return Replace(equal);
     } else {
-      return TryReduceStringComparisonOfCharAtAndConstant(node, lhs, rhs,
-                                                          false);
+      return TryReduceStringComparisonOfStringFromSingleCharCode(node, lhs, rhs,
+                                                                 false);
     }
-  } else if (rhs->opcode() == IrOpcode::kStringFromCharCode) {
-    return TryReduceStringComparisonOfCharAtAndConstant(node, rhs, lhs, true);
+  } else if (rhs->opcode() == IrOpcode::kStringFromSingleCharCode) {
+    return TryReduceStringComparisonOfStringFromSingleCharCode(node, rhs, lhs,
+                                                               true);
   }
   return NoChange();
 }

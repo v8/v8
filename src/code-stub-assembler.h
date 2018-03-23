@@ -1219,7 +1219,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
   TNode<Int32T> StringCharCodeAt(SloppyTNode<String> string,
                                  SloppyTNode<IntPtrT> index);
   // Return the single character string with only {code}.
-  TNode<String> StringFromCharCode(TNode<Int32T> code);
+  TNode<String> StringFromSingleCharCode(TNode<Int32T> code);
 
   // Return a new string object which holds a substring containing the range
   // [from,to[ of string.  |from| and |to| are expected to be tagged.

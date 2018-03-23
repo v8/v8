@@ -559,7 +559,7 @@ class V8_EXPORT_PRIVATE SimplifiedOperatorBuilder final
   const Operator* StringLessThanOrEqual();
   const Operator* StringCharCodeAt();
   const Operator* StringCodePointAt(UnicodeEncoding encoding);
-  const Operator* StringFromCharCode();
+  const Operator* StringFromSingleCharCode();
   const Operator* StringFromCodePoint(UnicodeEncoding encoding);
   const Operator* StringIndexOf();
   const Operator* StringLength();
