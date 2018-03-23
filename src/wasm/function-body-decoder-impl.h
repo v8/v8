@@ -605,6 +605,7 @@ struct ControlWithNamedConstructors : public ControlBase<Value> {
   F(I64Const, Value* result, int64_t value)                                    \
   F(F32Const, Value* result, float value)                                      \
   F(F64Const, Value* result, double value)                                     \
+  F(RefNull, Value* result)                                                    \
   F(Drop, const Value& value)                                                  \
   F(DoReturn, Vector<Value> values, bool implicit)                             \
   F(GetLocal, Value* result, const LocalIndexOperand<validate>& operand)       \
@@ -707,6 +708,13 @@ class WasmDecoder : public Decoder {
         case kLocalF64:
           type = kWasmF64;
           break;
+        case kLocalAnyRef:
+          if (FLAG_experimental_wasm_anyref) {
+            type = kWasmAnyRef;
+            break;
+          }
+          decoder->error(decoder->pc() - 1, "invalid local type");
+          return false;
         case kLocalS128:
           if (FLAG_experimental_wasm_simd) {
             type = kWasmS128;
@@ -1003,6 +1011,9 @@ class WasmDecoder : public Decoder {
         ImmI64Operand<validate> operand(decoder, pc);
         return 1 + operand.length;
       }
+      case kExprRefNull: {
+        return 1;
+      }
       case kExprGrowMemory:
       case kExprMemorySize: {
         MemoryIndexOperand<validate> operand(decoder, pc);
@@ -1095,6 +1106,7 @@ class WasmDecoder : public Decoder {
       case kExprI64Const:
       case kExprF32Const:
       case kExprF64Const:
+      case kExprRefNull:
       case kExprMemorySize:
         return {0, 1};
       case kExprCallFunction: {
@@ -1678,6 +1690,13 @@ class WasmFullDecoder : public WasmDecoder<validate> {
             auto* value = Push(kWasmF64);
             CALL_INTERFACE_IF_REACHABLE(F64Const, value, operand.value);
             len = 1 + operand.length;
+            break;
+          }
+          case kExprRefNull: {
+            CHECK_PROTOTYPE_OPCODE(anyref);
+            auto* value = Push(kWasmAnyRef);
+            CALL_INTERFACE_IF_REACHABLE(RefNull, value);
+            len = 1;
             break;
           }
           case kExprGetLocal: {
@@ -2400,6 +2419,10 @@ class WasmFullDecoder : public WasmDecoder<validate> {
     if (WasmOpcodes::IsSignExtensionOpcode(opcode)) {
       RET_ON_PROTOTYPE_OPCODE(se);
     }
+    if (WasmOpcodes::IsAnyRefOpcode(opcode)) {
+      RET_ON_PROTOTYPE_OPCODE(anyref);
+    }
+
     switch (sig->parameter_count()) {
       case 1: {
         auto val = Pop(0, sig->GetParam(0));

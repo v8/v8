@@ -1952,6 +1952,9 @@ static void TestBuildGraphForSimpleExpression(WasmOpcode opcode) {
   // TODO(gdeepti): Enable this test for sign extension opcodes when lowering
   // is enabled.
   if (WasmOpcodes::IsSignExtensionOpcode(opcode)) return;
+  // TODO(ahaas): Enable this test for anyref opcodes when code generation for
+  // them is implemented.
+  if (WasmOpcodes::IsAnyRefOpcode(opcode)) return;
   // Enable all optional operators.
   compiler::CommonOperatorBuilder common(&zone);
   compiler::MachineOperatorBuilder machine(

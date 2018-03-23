@@ -235,6 +235,10 @@ class WasmGraphBuildingInterface {
     result->node = builder_->Float64Constant(value);
   }
 
+  void RefNull(Decoder* decoder, Value* result) {
+    result->node = builder_->HeapConstant(Handle<HeapObject>::null());
+  }
+
   void Drop(Decoder* decoder, const Value& value) {}
 
   void DoReturn(Decoder* decoder, Vector<Value> values, bool implicit) {

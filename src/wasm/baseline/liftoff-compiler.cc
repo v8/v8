@@ -828,6 +828,8 @@ class LiftoffCompiler {
     __ PushRegister(kWasmF64, reg);
   }
 
+  void RefNull(Decoder* decoder, Value* result) { UNIMPLEMENTED(); }
+
   void Drop(Decoder* decoder, const Value& value) {
     __ DropStackSlot(&__ cache_state()->stack_state.back());
     __ cache_state()->stack_state.pop_back();

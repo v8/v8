@@ -66,7 +66,8 @@ using WasmName = Vector<const char>;
   V(I32Const, 0x41, _)         \
   V(I64Const, 0x42, _)         \
   V(F32Const, 0x43, _)         \
-  V(F64Const, 0x44, _)
+  V(F64Const, 0x44, _)         \
+  V(RefNull, 0xd0, _)
 
 // Load memory expressions.
 #define FOREACH_LOAD_MEM_OPCODE(V) \
@@ -231,7 +232,9 @@ using WasmName = Vector<const char>;
   V(I32SExtendI16, 0xc1, i_i)     \
   V(I64SExtendI8, 0xc2, l_l)      \
   V(I64SExtendI16, 0xc3, l_l)     \
-  V(I64SExtendI32, 0xc4, l_l)
+  V(I64SExtendI32, 0xc4, l_l)     \
+  V(RefIsNull, 0xd1, i_r)         \
+  V(RefEq, 0xd2, i_rr)
 
 // For compatibility with Asm.js.
 #define FOREACH_ASMJS_COMPAT_OPCODE(V) \
@@ -246,26 +249,26 @@ using WasmName = Vector<const char>;
   V(F64Atan2, 0xcd, d_dd)              \
   V(F64Pow, 0xce, d_dd)                \
   V(F64Mod, 0xcf, d_dd)                \
-  V(I32AsmjsDivS, 0xd0, i_ii)          \
-  V(I32AsmjsDivU, 0xd1, i_ii)          \
-  V(I32AsmjsRemS, 0xd2, i_ii)          \
-  V(I32AsmjsRemU, 0xd3, i_ii)          \
-  V(I32AsmjsLoadMem8S, 0xd4, i_i)      \
-  V(I32AsmjsLoadMem8U, 0xd5, i_i)      \
-  V(I32AsmjsLoadMem16S, 0xd6, i_i)     \
-  V(I32AsmjsLoadMem16U, 0xd7, i_i)     \
-  V(I32AsmjsLoadMem, 0xd8, i_i)        \
-  V(F32AsmjsLoadMem, 0xd9, f_i)        \
-  V(F64AsmjsLoadMem, 0xda, d_i)        \
-  V(I32AsmjsStoreMem8, 0xdb, i_ii)     \
-  V(I32AsmjsStoreMem16, 0xdc, i_ii)    \
-  V(I32AsmjsStoreMem, 0xdd, i_ii)      \
-  V(F32AsmjsStoreMem, 0xde, f_if)      \
-  V(F64AsmjsStoreMem, 0xdf, d_id)      \
-  V(I32AsmjsSConvertF32, 0xe0, i_f)    \
-  V(I32AsmjsUConvertF32, 0xe1, i_f)    \
-  V(I32AsmjsSConvertF64, 0xe2, i_d)    \
-  V(I32AsmjsUConvertF64, 0xe3, i_d)
+  V(I32AsmjsDivS, 0xd3, i_ii)          \
+  V(I32AsmjsDivU, 0xd4, i_ii)          \
+  V(I32AsmjsRemS, 0xd5, i_ii)          \
+  V(I32AsmjsRemU, 0xd6, i_ii)          \
+  V(I32AsmjsLoadMem8S, 0xd7, i_i)      \
+  V(I32AsmjsLoadMem8U, 0xd8, i_i)      \
+  V(I32AsmjsLoadMem16S, 0xd9, i_i)     \
+  V(I32AsmjsLoadMem16U, 0xda, i_i)     \
+  V(I32AsmjsLoadMem, 0xdb, i_i)        \
+  V(F32AsmjsLoadMem, 0xdc, f_i)        \
+  V(F64AsmjsLoadMem, 0xdd, d_i)        \
+  V(I32AsmjsStoreMem8, 0xde, i_ii)     \
+  V(I32AsmjsStoreMem16, 0xdf, i_ii)    \
+  V(I32AsmjsStoreMem, 0xe0, i_ii)      \
+  V(F32AsmjsStoreMem, 0xe1, f_if)      \
+  V(F64AsmjsStoreMem, 0xe2, d_id)      \
+  V(I32AsmjsSConvertF32, 0xe3, i_f)    \
+  V(I32AsmjsUConvertF32, 0xe4, i_f)    \
+  V(I32AsmjsSConvertF64, 0xe5, i_d)    \
+  V(I32AsmjsUConvertF64, 0xe6, i_d)
 
 #define FOREACH_SIMD_0_OPERAND_OPCODE(V) \
   V(F32x4Splat, 0xfd00, s_f)             \
@@ -531,7 +534,9 @@ using WasmName = Vector<const char>;
   V(v_il, kWasmStmt, kWasmI32, kWasmI64)           \
   V(l_il, kWasmI64, kWasmI32, kWasmI64)            \
   V(i_iii, kWasmI32, kWasmI32, kWasmI32, kWasmI32) \
-  V(l_ill, kWasmI64, kWasmI32, kWasmI64, kWasmI64)
+  V(l_ill, kWasmI64, kWasmI32, kWasmI64, kWasmI64) \
+  V(i_r, kWasmI32, kWasmAnyRef)                    \
+  V(i_rr, kWasmI32, kWasmAnyRef, kWasmAnyRef)
 
 #define FOREACH_SIMD_SIGNATURE(V)          \
   V(s_s, kWasmS128, kWasmS128)             \
@@ -725,6 +730,7 @@ class V8_EXPORT_PRIVATE WasmOpcodes {
   static bool IsPrefixOpcode(WasmOpcode opcode);
   static bool IsControlOpcode(WasmOpcode opcode);
   static bool IsSignExtensionOpcode(WasmOpcode opcode);
+  static bool IsAnyRefOpcode(WasmOpcode opcode);
   // Check whether the given opcode always jumps, i.e. all instructions after
   // this one in the current block are dead. Returns false for |end|.
   static bool IsUnconditionalJump(WasmOpcode opcode);
@@ -769,6 +775,8 @@ class V8_EXPORT_PRIVATE WasmOpcodes {
         return MachineType::Float32();
       case kWasmF64:
         return MachineType::Float64();
+      case kWasmAnyRef:
+        return MachineType::TaggedPointer();
       case kWasmS128:
         return MachineType::Simd128();
       case kWasmStmt:
@@ -790,6 +798,8 @@ class V8_EXPORT_PRIVATE WasmOpcodes {
         return kWasmF32;
       case MachineRepresentation::kFloat64:
         return kWasmF64;
+      case MachineRepresentation::kTaggedPointer:
+        return kWasmAnyRef;
       case MachineRepresentation::kSimd128:
         return kWasmS128;
       default:
@@ -807,6 +817,8 @@ class V8_EXPORT_PRIVATE WasmOpcodes {
         return 'f';
       case kWasmF64:
         return 'd';
+      case kWasmAnyRef:
+        return 'r';
       case kWasmS128:
         return 's';
       case kWasmStmt:
@@ -828,6 +840,8 @@ class V8_EXPORT_PRIVATE WasmOpcodes {
         return "f32";
       case kWasmF64:
         return "f64";
+      case kWasmAnyRef:
+        return "ref";
       case kWasmS128:
         return "s128";
       case kWasmStmt:
