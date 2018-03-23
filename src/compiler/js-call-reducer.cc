@@ -3465,6 +3465,8 @@ Reduction JSCallReducer::ReduceJSCall(Node* node,
 #endif  // V8_INTL_SUPPORT
     case Builtins::kStringFromCharCode:
       return ReduceStringFromCharCode(node);
+    case Builtins::kStringFromCodePoint:
+      return ReduceStringFromCodePoint(node);
     case Builtins::kStringPrototypeIterator:
       return ReduceStringPrototypeIterator(node);
     case Builtins::kStringIteratorPrototypeNext:
@@ -4996,6 +4998,33 @@ Reduction JSCallReducer::ReduceStringFromCharCode(Node* node) {
   return NoChange();
 }
 
+// ES #sec-string.fromcodepoint
+Reduction JSCallReducer::ReduceStringFromCodePoint(Node* node) {
+  DCHECK_EQ(IrOpcode::kJSCall, node->opcode());
+  CallParameters const& p = CallParametersOf(node->op());
+  if (p.speculation_mode() == SpeculationMode::kDisallowSpeculation) {
+    return NoChange();
+  }
+  if (node->op()->ValueInputCount() == 3) {
+    Node* effect = NodeProperties::GetEffectInput(node);
+    Node* control = NodeProperties::GetControlInput(node);
+    Node* input = NodeProperties::GetValueInput(node, 2);
+
+    input = effect = graph()->NewNode(simplified()->CheckSmi(p.feedback()),
+                                      input, effect, control);
+
+    input = effect =
+        graph()->NewNode(simplified()->CheckBounds(p.feedback()), input,
+                         jsgraph()->Constant(0x10FFFF + 1), effect, control);
+
+    Node* value = graph()->NewNode(
+        simplified()->StringFromSingleCodePoint(UnicodeEncoding::UTF32), input);
+    ReplaceWithValue(node, value, effect);
+    return Replace(value);
+  }
+  return NoChange();
+}
+
 Reduction JSCallReducer::ReduceStringPrototypeIterator(Node* node) {
   CallParameters const& p = CallParametersOf(node->op());
   if (p.speculation_mode() == SpeculationMode::kDisallowSpeculation) {
@@ -5044,7 +5073,8 @@ Reduction JSCallReducer::ReduceStringIteratorPrototypeNext(Node* node) {
           simplified()->StringCodePointAt(UnicodeEncoding::UTF16), string,
           index, etrue0, if_true0);
       vtrue0 = graph()->NewNode(
-          simplified()->StringFromCodePoint(UnicodeEncoding::UTF16), codepoint);
+          simplified()->StringFromSingleCodePoint(UnicodeEncoding::UTF16),
+          codepoint);
 
       // Update iterator.[[NextIndex]]
       Node* char_length =

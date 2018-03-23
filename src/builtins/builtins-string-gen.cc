@@ -2305,7 +2305,7 @@ TF_BUILTIN(StringIteratorPrototypeNext, StringBuiltinsAssembler) {
   {
     UnicodeEncoding encoding = UnicodeEncoding::UTF16;
     TNode<Int32T> ch = LoadSurrogatePairAt(string, length, position, encoding);
-    TNode<String> value = StringFromCodePoint(ch, encoding);
+    TNode<String> value = StringFromSingleCodePoint(ch, encoding);
     var_value.Bind(value);
     TNode<IntPtrT> length = LoadStringLengthAsWord(value);
     StoreObjectFieldNoWriteBarrier(iterator, JSStringIterator::kNextIndexOffset,

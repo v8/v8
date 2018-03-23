@@ -326,7 +326,7 @@ class Typer::Visitor : public Reducer {
   static Type* ReferenceEqualTyper(Type*, Type*, Typer*);
   static Type* SameValueTyper(Type*, Type*, Typer*);
   static Type* StringFromSingleCharCodeTyper(Type*, Typer*);
-  static Type* StringFromCodePointTyper(Type*, Typer*);
+  static Type* StringFromSingleCodePointTyper(Type*, Typer*);
 
   Reduction UpdateType(Node* node, Type* current) {
     if (NodeProperties::IsTyped(node)) {
@@ -1966,7 +1966,7 @@ Type* Typer::Visitor::StringFromSingleCharCodeTyper(Type* type, Typer* t) {
   return Type::String();
 }
 
-Type* Typer::Visitor::StringFromCodePointTyper(Type* type, Typer* t) {
+Type* Typer::Visitor::StringFromSingleCodePointTyper(Type* type, Typer* t) {
   return Type::String();
 }
 
@@ -1990,8 +1990,8 @@ Type* Typer::Visitor::TypeStringFromSingleCharCode(Node* node) {
   return TypeUnaryOp(node, StringFromSingleCharCodeTyper);
 }
 
-Type* Typer::Visitor::TypeStringFromCodePoint(Node* node) {
-  return TypeUnaryOp(node, StringFromCodePointTyper);
+Type* Typer::Visitor::TypeStringFromSingleCodePoint(Node* node) {
+  return TypeUnaryOp(node, StringFromSingleCodePointTyper);
 }
 
 Type* Typer::Visitor::TypeStringIndexOf(Node* node) {

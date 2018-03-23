@@ -827,8 +827,8 @@ bool EffectControlLinearizer::TryWireInStateEffect(Node* node,
     case IrOpcode::kStringFromSingleCharCode:
       result = LowerStringFromSingleCharCode(node);
       break;
-    case IrOpcode::kStringFromCodePoint:
-      result = LowerStringFromCodePoint(node);
+    case IrOpcode::kStringFromSingleCodePoint:
+      result = LowerStringFromSingleCodePoint(node);
       break;
     case IrOpcode::kStringIndexOf:
       result = LowerStringIndexOf(node);
@@ -3067,7 +3067,7 @@ Node* EffectControlLinearizer::LowerStringToUpperCaseIntl(Node* node) {
 
 #endif  // V8_INTL_SUPPORT
 
-Node* EffectControlLinearizer::LowerStringFromCodePoint(Node* node) {
+Node* EffectControlLinearizer::LowerStringFromSingleCodePoint(Node* node) {
   Node* value = node->InputAt(0);
   Node* code = value;
 

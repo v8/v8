@@ -560,7 +560,7 @@ class V8_EXPORT_PRIVATE SimplifiedOperatorBuilder final
   const Operator* StringCharCodeAt();
   const Operator* StringCodePointAt(UnicodeEncoding encoding);
   const Operator* StringFromSingleCharCode();
-  const Operator* StringFromCodePoint(UnicodeEncoding encoding);
+  const Operator* StringFromSingleCodePoint(UnicodeEncoding encoding);
   const Operator* StringIndexOf();
   const Operator* StringLength();
   const Operator* StringToLowerCaseIntl();

@@ -121,6 +121,7 @@ class V8_EXPORT_PRIVATE JSCallReducer final : public AdvancedReducer {
 #endif  // V8_INTL_SUPPORT
 
   Reduction ReduceStringFromCharCode(Node* node);
+  Reduction ReduceStringFromCodePoint(Node* node);
   Reduction ReduceStringPrototypeIterator(Node* node);
   Reduction ReduceStringIteratorPrototypeNext(Node* node);
   Reduction ReduceStringPrototypeConcat(Node* node,

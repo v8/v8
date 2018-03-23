@@ -2364,7 +2364,7 @@ class RepresentationSelector {
                   MachineRepresentation::kTaggedPointer);
         return;
       }
-      case IrOpcode::kStringFromCodePoint: {
+      case IrOpcode::kStringFromSingleCodePoint: {
         VisitUnop(node, UseInfo::TruncatingWord32(),
                   MachineRepresentation::kTaggedPointer);
         return;

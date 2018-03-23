@@ -1105,7 +1105,7 @@ void Verifier::Visitor::Check(Node* node, const AllNodes& all) {
       CheckValueInputIs(node, 0, Type::Number());
       CheckTypeIs(node, Type::String());
       break;
-    case IrOpcode::kStringFromCodePoint:
+    case IrOpcode::kStringFromSingleCodePoint:
       // (Unsigned32) -> String
       CheckValueInputIs(node, 0, Type::Number());
       CheckTypeIs(node, Type::String());

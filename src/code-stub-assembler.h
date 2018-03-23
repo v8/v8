@@ -1246,8 +1246,8 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
                                  Variable* var_right, Node* right_instance_type,
                                  Label* did_something);
 
-  TNode<String> StringFromCodePoint(TNode<Int32T> codepoint,
-                                    UnicodeEncoding encoding);
+  TNode<String> StringFromSingleCodePoint(TNode<Int32T> codepoint,
+                                          UnicodeEncoding encoding);
 
   // Type conversion helpers.
   enum class BigIntHandling { kConvertToNumber, kThrow };

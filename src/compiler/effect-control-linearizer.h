@@ -126,7 +126,7 @@ class V8_EXPORT_PRIVATE EffectControlLinearizer {
   Node* LowerStringToLowerCaseIntl(Node* node);
   Node* LowerStringToUpperCaseIntl(Node* node);
   Node* LowerStringFromSingleCharCode(Node* node);
-  Node* LowerStringFromCodePoint(Node* node);
+  Node* LowerStringFromSingleCodePoint(Node* node);
   Node* LowerStringIndexOf(Node* node);
   Node* LowerStringSubstring(Node* node);
   Node* LowerStringLength(Node* node);

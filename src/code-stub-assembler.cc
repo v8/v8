@@ -5451,8 +5451,8 @@ TNode<String> CodeStubAssembler::StringAdd(Node* context, TNode<String> left,
   return result.value();
 }
 
-TNode<String> CodeStubAssembler::StringFromCodePoint(TNode<Int32T> codepoint,
-                                                     UnicodeEncoding encoding) {
+TNode<String> CodeStubAssembler::StringFromSingleCodePoint(
+    TNode<Int32T> codepoint, UnicodeEncoding encoding) {
   VARIABLE(var_result, MachineRepresentation::kTagged, EmptyStringConstant());
 
   Label if_isword16(this), if_isword32(this), return_result(this);
