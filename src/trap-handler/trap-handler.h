@@ -41,20 +41,17 @@ struct ProtectedInstructionData {
 
 const int kInvalidIndex = -1;
 
-/// Adjusts the base code pointer.
-void UpdateHandlerDataCodePointer(int index, void* base);
-
 /// Adds the handler data to the place where the signal handler will find it.
 ///
 /// This returns a number that can be used to identify the handler data to
-/// UpdateHandlerDataCodePointer and ReleaseHandlerData, or -1 on failure.
+/// ReleaseHandlerData, or -1 on failure.
 int RegisterHandlerData(void* base, size_t size,
                         size_t num_protected_instructions,
                         const ProtectedInstructionData* protected_instructions);
 
 /// Removes the data from the master list and frees any memory, if necessary.
-/// TODO(mtrofin): once FLAG_wasm_jit_to_native is not needed, we can switch
-/// to using size_t for index and not need kInvalidIndex.
+/// TODO(mtrofin): We can switch to using size_t for index and not need
+/// kInvalidIndex.
 void ReleaseHandlerData(int index);
 
 #if V8_OS_WIN

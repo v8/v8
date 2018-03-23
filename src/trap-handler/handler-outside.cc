@@ -135,15 +135,6 @@ CodeProtectionInfo* CreateHandlerData(
   return data;
 }
 
-void UpdateHandlerDataCodePointer(int index, void* base) {
-  MetadataLock lock;
-  if (static_cast<size_t>(index) >= gNumCodeObjects) {
-    abort();
-  }
-  CodeProtectionInfo* data = gCodeObjects[index].code_info;
-  data->base = base;
-}
-
 int RegisterHandlerData(
     void* base, size_t size, size_t num_protected_instructions,
     const ProtectedInstructionData* protected_instructions) {
