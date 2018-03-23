@@ -214,7 +214,7 @@
       'v8_linux64_msan_rel': 'release_simulate_arm64_msan_minimal_symbols',
       'v8_linux64_sanitizer_coverage_rel':
           'release_x64_asan_minimal_symbols_coverage',
-      'v8_linux64_jumbo_rel': 'release_x64_jumbo_trybot',
+      'v8_linux64_jumbo_compile_rel': 'release_x64_jumbo_trybot',
       'v8_linux64_tsan_rel': 'release_x64_tsan_minimal_symbols',
       'v8_linux64_tsan_concurrent_marking_rel_ng':
           'release_x64_tsan_concurrent_marking_minimal_symbols',
