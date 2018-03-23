@@ -655,29 +655,30 @@ TNode<IntPtrT> CodeStubAssembler::ConvertToRelativeIndex(
   return result.value();
 }
 
-Node* CodeStubAssembler::SmiMod(Node* a, Node* b) {
-  VARIABLE(var_result, MachineRepresentation::kTagged);
+TNode<Number> CodeStubAssembler::SmiMod(SloppyTNode<Smi> a,
+                                        SloppyTNode<Smi> b) {
+  TVARIABLE(Number, var_result);
   Label return_result(this, &var_result),
       return_minuszero(this, Label::kDeferred),
       return_nan(this, Label::kDeferred);
 
   // Untag {a} and {b}.
-  a = SmiToInt32(a);
-  b = SmiToInt32(b);
+  TNode<Int32T> int_a = SmiToInt32(a);
+  TNode<Int32T> int_b = SmiToInt32(b);
 
   // Return NaN if {b} is zero.
-  GotoIf(Word32Equal(b, Int32Constant(0)), &return_nan);
+  GotoIf(Word32Equal(int_b, Int32Constant(0)), &return_nan);
 
   // Check if {a} is non-negative.
   Label if_aisnotnegative(this), if_aisnegative(this, Label::kDeferred);
-  Branch(Int32LessThanOrEqual(Int32Constant(0), a), &if_aisnotnegative,
+  Branch(Int32LessThanOrEqual(Int32Constant(0), int_a), &if_aisnotnegative,
          &if_aisnegative);
 
   BIND(&if_aisnotnegative);
   {
     // Fast case, don't need to check any other edge cases.
-    Node* r = Int32Mod(a, b);
-    var_result.Bind(SmiFromInt32(r));
+    TNode<Int32T> r = Int32Mod(int_a, int_b);
+    var_result = SmiFromInt32(r);
     Goto(&return_result);
   }
 
@@ -687,14 +688,14 @@ Node* CodeStubAssembler::SmiMod(Node* a, Node* b) {
       // Check if {a} is kMinInt and {b} is -1 (only relevant if the
       // kMinInt is actually representable as a Smi).
       Label join(this);
-      GotoIfNot(Word32Equal(a, Int32Constant(kMinInt)), &join);
-      GotoIf(Word32Equal(b, Int32Constant(-1)), &return_minuszero);
+      GotoIfNot(Word32Equal(int_a, Int32Constant(kMinInt)), &join);
+      GotoIf(Word32Equal(int_b, Int32Constant(-1)), &return_minuszero);
       Goto(&join);
       BIND(&join);
     }
 
     // Perform the integer modulus operation.
-    Node* r = Int32Mod(a, b);
+    TNode<Int32T> r = Int32Mod(int_a, int_b);
 
     // Check if {r} is zero, and if so return -0, because we have to
     // take the sign of the left hand side {a}, which is negative.
@@ -702,20 +703,20 @@ Node* CodeStubAssembler::SmiMod(Node* a, Node* b) {
 
     // The remainder {r} can be outside the valid Smi range on 32bit
     // architectures, so we cannot just say SmiFromInt32(r) here.
-    var_result.Bind(ChangeInt32ToTagged(r));
+    var_result = ChangeInt32ToTagged(r);
     Goto(&return_result);
   }
 
   BIND(&return_minuszero);
-  var_result.Bind(MinusZeroConstant());
+  var_result = MinusZeroConstant();
   Goto(&return_result);
 
   BIND(&return_nan);
-  var_result.Bind(NanConstant());
+  var_result = NanConstant();
   Goto(&return_result);
 
   BIND(&return_result);
-  return TNode<Object>::UncheckedCast(var_result.value());
+  return var_result.value();
 }
 
 TNode<Number> CodeStubAssembler::SmiMul(SloppyTNode<Smi> a,

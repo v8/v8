@@ -294,7 +294,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
   TNode<Smi> SmiMax(SloppyTNode<Smi> a, SloppyTNode<Smi> b);
   TNode<Smi> SmiMin(SloppyTNode<Smi> a, SloppyTNode<Smi> b);
   // Computes a % b for Smi inputs a and b; result is not necessarily a Smi.
-  Node* SmiMod(Node* a, Node* b);
+  TNode<Number> SmiMod(SloppyTNode<Smi> a, SloppyTNode<Smi> b);
   // Computes a * b for Smi inputs a and b; result is not necessarily a Smi.
   TNode<Number> SmiMul(SloppyTNode<Smi> a, SloppyTNode<Smi> b);
   // Tries to computes dividend / divisor for Smi inputs; branching to bailout
