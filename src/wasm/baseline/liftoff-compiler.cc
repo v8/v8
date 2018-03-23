@@ -1080,8 +1080,12 @@ class LiftoffCompiler {
       return false;
     }
 
+    // TODO(eholk): This adds protected instruction information for the jump
+    // instruction we are about to generate. It would be better to just not add
+    // protected instruction info when the pc is 0.
     Label* trap_label = AddOutOfLineTrap(
-        decoder->position(), Builtins::kThrowWasmTrapMemOutOfBounds);
+        decoder->position(), Builtins::kThrowWasmTrapMemOutOfBounds,
+        env_->use_trap_handler ? __ pc_offset() : 0);
 
     if (statically_oob) {
       __ emit_jump(trap_label);
