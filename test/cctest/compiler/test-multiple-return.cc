@@ -128,15 +128,6 @@ std::unique_ptr<wasm::NativeModule> AllocateNativeModule(Isolate* isolate,
   std::unique_ptr<wasm::NativeModule> module =
       isolate->wasm_engine()->code_manager()->NewNativeModule(code_size, 1, 0,
                                                               false);
-
-  // TODO(mstarzinger): Remove the WasmCompiledModule here as soon as source
-  // positions are stored in the WasmCode directly.
-  Handle<WasmCompiledModule> compiled_module = Handle<WasmCompiledModule>::cast(
-      isolate->factory()->NewStruct(WASM_COMPILED_MODULE_TYPE, TENURED));
-  Handle<FixedArray> source_positions =
-      isolate->factory()->NewFixedArray(1, TENURED);
-  compiled_module->set_source_positions(*source_positions);
-  module->SetCompiledModule(compiled_module);
   return module;
 }
 

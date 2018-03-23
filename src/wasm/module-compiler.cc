@@ -738,8 +738,7 @@ const wasm::WasmCode* LazyCompilationOrchestrator::CompileDirectCall(
     SeqOneByteString* module_bytes = caller_module->shared()->module_bytes();
     uint32_t caller_func_index = wasm_caller->index();
     SourcePositionTableIterator source_pos_iterator(
-        Handle<ByteArray>(ByteArray::cast(
-            caller_module->source_positions()->get(caller_func_index))));
+        wasm_caller->source_positions());
 
     const byte* func_bytes =
         module_bytes->GetChars() + caller_module->shared()

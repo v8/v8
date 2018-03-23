@@ -451,7 +451,6 @@ class WasmCompiledModule : public Struct {
   V(kPrevInstanceOffset, kPointerSize)          \
   V(kOwningInstanceOffset, kPointerSize)        \
   V(kWasmModuleOffset, kPointerSize)            \
-  V(kSourcePositionsOffset, kPointerSize)       \
   V(kNativeModuleOffset, kPointerSize)          \
   V(kLazyCompileDataOffset, kPointerSize)       \
   V(kUseTrapHandlerOffset, kPointerSize)        \
@@ -500,7 +499,6 @@ class WasmCompiledModule : public Struct {
   WCM_CONST_OBJECT(WasmCompiledModule, prev_instance)
   WCM_WEAK_LINK(WasmInstanceObject, owning_instance)
   WCM_WEAK_LINK(WasmModuleObject, wasm_module)
-  WCM_OBJECT(FixedArray, source_positions)
   WCM_OBJECT(Foreign, native_module)
   WCM_OBJECT(FixedArray, lazy_compile_data)
   // TODO(mstarzinger): Make {use_trap_handler} smaller.

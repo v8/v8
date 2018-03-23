@@ -1285,24 +1285,39 @@ void Logger::CodeMoveEvent(AbstractCode* from, Address to) {
   MoveEventInternal(CodeEventListener::CODE_MOVE_EVENT, from->address(), to);
 }
 
-void Logger::CodeLinePosInfoRecordEvent(Address code_start,
-                                        ByteArray* source_position_table) {
-  if (jit_logger_) {
-    void* jit_handler_data = jit_logger_->StartCodePosInfoEvent();
-    for (SourcePositionTableIterator iter(source_position_table); !iter.done();
-         iter.Advance()) {
+namespace {
+
+void CodeLinePosEvent(JitLogger* jit_logger, Address code_start,
+                      SourcePositionTableIterator& iter) {
+  if (jit_logger) {
+    void* jit_handler_data = jit_logger->StartCodePosInfoEvent();
+    for (; !iter.done(); iter.Advance()) {
       if (iter.is_statement()) {
-        jit_logger_->AddCodeLinePosInfoEvent(
+        jit_logger->AddCodeLinePosInfoEvent(
             jit_handler_data, iter.code_offset(),
             iter.source_position().ScriptOffset(),
             JitCodeEvent::STATEMENT_POSITION);
       }
-      jit_logger_->AddCodeLinePosInfoEvent(
-          jit_handler_data, iter.code_offset(),
-          iter.source_position().ScriptOffset(), JitCodeEvent::POSITION);
+      jit_logger->AddCodeLinePosInfoEvent(jit_handler_data, iter.code_offset(),
+                                          iter.source_position().ScriptOffset(),
+                                          JitCodeEvent::POSITION);
     }
-    jit_logger_->EndCodePosInfoEvent(code_start, jit_handler_data);
+    jit_logger->EndCodePosInfoEvent(code_start, jit_handler_data);
   }
+}
+
+}  // namespace
+
+void Logger::CodeLinePosInfoRecordEvent(Address code_start,
+                                        ByteArray* source_position_table) {
+  SourcePositionTableIterator iter(source_position_table);
+  CodeLinePosEvent(jit_logger_, code_start, iter);
+}
+
+void Logger::CodeLinePosInfoRecordEvent(
+    Address code_start, Vector<const byte> source_position_table) {
+  SourcePositionTableIterator iter(source_position_table);
+  CodeLinePosEvent(jit_logger_, code_start, iter);
 }
 
 void Logger::CodeNameEvent(Address addr, int pos, const char* code_name) {

@@ -1260,10 +1260,6 @@ Handle<WasmCompiledModule> WasmCompiledModule::New(
     compiled_module->GetNativeModule()->SetCompiledModule(weak_link);
   }
 
-  int function_count = static_cast<int>(module->functions.size());
-  Handle<FixedArray> source_positions =
-      isolate->factory()->NewFixedArray(function_count, TENURED);
-  compiled_module->set_source_positions(*source_positions);
   // TODO(mtrofin): copy the rest of the specialization parameters over.
   // We're currently OK because we're only using defaults.
   return compiled_module;
@@ -1278,7 +1274,6 @@ Handle<WasmCompiledModule> WasmCompiledModule::Clone(
   ret->set_weak_native_context(module->weak_native_context());
   ret->set_export_wrappers(module->export_wrappers());
   ret->set_weak_wasm_module(module->weak_wasm_module());
-  ret->set_source_positions(module->source_positions());
   ret->set_native_module(module->native_module());
   if (module->has_lazy_compile_data()) {
     ret->set_lazy_compile_data(module->lazy_compile_data());

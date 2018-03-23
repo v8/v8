@@ -253,13 +253,9 @@ void WasmCode::LogCode(Isolate* isolate) const {
     }
 #endif
 
-    MaybeHandle<ByteArray> src_pos = native_module_->compiled_module()
-                                         ->source_positions()
-                                         ->GetValue<ByteArray>(isolate, index);
-    if (!src_pos.is_null()) {
-      LOG_CODE_EVENT(isolate,
-                     CodeLinePosInfoRecordEvent(this->instructions().start(),
-                                                *src_pos.ToHandleChecked()));
+    if (!source_positions().is_empty()) {
+      LOG_CODE_EVENT(isolate, CodeLinePosInfoRecordEvent(instructions().start(),
+                                                         source_positions()));
     }
   }
 }
@@ -295,21 +291,15 @@ void WasmCode::Disassemble(const char* name, Isolate* isolate,
                        instructions().start() + instruction_size, nullptr);
   os << "\n";
 
-  // Anonymous functions don't have source positions.
-  if (!IsAnonymous()) {
-    Object* source_positions_or_undef =
-        native_module_->compiled_module()->source_positions()->get(index());
-    if (!source_positions_or_undef->IsUndefined(isolate)) {
-      os << "Source positions:\n pc offset  position\n";
-      for (SourcePositionTableIterator it(
-               ByteArray::cast(source_positions_or_undef));
-           !it.done(); it.Advance()) {
-        os << std::setw(10) << std::hex << it.code_offset() << std::dec
-           << std::setw(10) << it.source_position().ScriptOffset()
-           << (it.is_statement() ? "  statement" : "") << "\n";
-      }
-      os << "\n";
+  if (!source_positions().is_empty()) {
+    os << "Source positions:\n pc offset  position\n";
+    for (SourcePositionTableIterator it(source_positions()); !it.done();
+         it.Advance()) {
+      os << std::setw(10) << std::hex << it.code_offset() << std::dec
+         << std::setw(10) << it.source_position().ScriptOffset()
+         << (it.is_statement() ? "  statement" : "") << "\n";
     }
+    os << "\n";
   }
 
   os << "RelocInfo (size = " << reloc_size_ << ")\n";
@@ -454,15 +444,7 @@ NativeModule::NativeModule(uint32_t num_functions, uint32_t num_imports,
 void NativeModule::ResizeCodeTableForTest(size_t last_index) {
   size_t new_size = last_index + 1;
   if (new_size > FunctionCount()) {
-    Isolate* isolate = compiled_module()->GetIsolate();
     code_table_.resize(new_size);
-    int grow_by = static_cast<int>(new_size) -
-                  compiled_module()->source_positions()->length();
-    Handle<FixedArray> source_positions(compiled_module()->source_positions(),
-                                        isolate);
-    source_positions = isolate->factory()->CopyFixedArrayAndGrow(
-        source_positions, grow_by, TENURED);
-    compiled_module()->set_source_positions(*source_positions);
   }
 }
 
@@ -478,6 +460,7 @@ uint32_t NativeModule::FunctionCount() const {
 WasmCode* NativeModule::AddOwnedCode(
     Vector<const byte> orig_instructions,
     std::unique_ptr<const byte[]> reloc_info, size_t reloc_size,
+    std::unique_ptr<const byte[]> source_pos, size_t source_pos_size,
     Maybe<uint32_t> index, WasmCode::Kind kind, size_t constant_pool_offset,
     uint32_t stack_slots, size_t safepoint_table_offset,
     size_t handler_table_offset,
@@ -495,9 +478,9 @@ WasmCode* NativeModule::AddOwnedCode(
          orig_instructions.size());
   std::unique_ptr<WasmCode> code(new WasmCode(
       {executable_buffer, orig_instructions.size()}, std::move(reloc_info),
-      reloc_size, this, index, kind, constant_pool_offset, stack_slots,
-      safepoint_table_offset, handler_table_offset,
-      std::move(protected_instructions), tier));
+      reloc_size, std::move(source_pos), source_pos_size, this, index, kind,
+      constant_pool_offset, stack_slots, safepoint_table_offset,
+      handler_table_offset, std::move(protected_instructions), tier));
   WasmCode* ret = code.get();
 
   // TODO(mtrofin): We allocate in increasing address order, and
@@ -519,8 +502,6 @@ WasmCode* NativeModule::AddCodeCopy(Handle<Code> code, WasmCode::Kind kind,
   WasmCode* ret = AddAnonymousCode(code, kind);
   code_table_[index] = ret;
   ret->index_ = Just(index);
-  compiled_module()->source_positions()->set(static_cast<int>(index),
-                                             code->source_position_table());
   return ret;
 }
 
@@ -555,6 +536,12 @@ WasmCode* NativeModule::AddAnonymousCode(Handle<Code> code,
     reloc_info.reset(new byte[code->relocation_size()]);
     memcpy(reloc_info.get(), code->relocation_start(), code->relocation_size());
   }
+  std::unique_ptr<byte[]> source_pos;
+  Handle<ByteArray> source_pos_table(code->SourcePositionTable());
+  if (source_pos_table->length() > 0) {
+    source_pos.reset(new byte[source_pos_table->length()]);
+    source_pos_table->copy_out(0, source_pos.get(), source_pos_table->length());
+  }
   std::shared_ptr<ProtectedInstructions> protected_instructions(
       new ProtectedInstructions(0));
   Vector<const byte> orig_instructions(
@@ -566,8 +553,10 @@ WasmCode* NativeModule::AddAnonymousCode(Handle<Code> code,
       AddOwnedCode(orig_instructions,      // instructions
                    std::move(reloc_info),  // reloc_info
                    static_cast<size_t>(code->relocation_size()),  // reloc_size
-                   Nothing<uint32_t>(),                           // index
-                   kind,                                          // kind
+                   std::move(source_pos),  // source positions
+                   static_cast<size_t>(source_pos_table->length()),
+                   Nothing<uint32_t>(),           // index
+                   kind,                          // kind
                    code->constant_pool_offset(),  // constant_pool_offset
                    stack_slots,                   // stack_slots
                    safepoint_table_offset,        // safepoint_table_offset
@@ -607,19 +596,26 @@ WasmCode* NativeModule::AddCode(
     const CodeDesc& desc, uint32_t frame_slots, uint32_t index,
     size_t safepoint_table_offset, size_t handler_table_offset,
     std::unique_ptr<ProtectedInstructions> protected_instructions,
-    WasmCode::Tier tier) {
+    Handle<ByteArray> source_pos_table, WasmCode::Tier tier) {
   std::unique_ptr<byte[]> reloc_info;
   if (desc.reloc_size) {
     reloc_info.reset(new byte[desc.reloc_size]);
     memcpy(reloc_info.get(), desc.buffer + desc.buffer_size - desc.reloc_size,
            desc.reloc_size);
   }
+  std::unique_ptr<byte[]> source_pos;
+  if (source_pos_table->length() > 0) {
+    source_pos.reset(new byte[source_pos_table->length()]);
+    source_pos_table->copy_out(0, source_pos.get(), source_pos_table->length());
+  }
   TurboAssembler* origin = reinterpret_cast<TurboAssembler*>(desc.origin);
   WasmCode* ret = AddOwnedCode(
       {desc.buffer, static_cast<size_t>(desc.instr_size)},
-      std::move(reloc_info), static_cast<size_t>(desc.reloc_size), Just(index),
-      WasmCode::kFunction, desc.instr_size - desc.constant_pool_size,
-      frame_slots, safepoint_table_offset, handler_table_offset,
+      std::move(reloc_info), static_cast<size_t>(desc.reloc_size),
+      std::move(source_pos), static_cast<size_t>(source_pos_table->length()),
+      Just(index), WasmCode::kFunction,
+      desc.instr_size - desc.constant_pool_size, frame_slots,
+      safepoint_table_offset, handler_table_offset,
       std::move(protected_instructions), tier, WasmCode::kNoFlushICache);
 
   code_table_[index] = ret;
@@ -674,6 +670,8 @@ Address NativeModule::CreateTrampolineTo(Handle<Code> code) {
   WasmCode* wasm_code = AddOwnedCode(instructions,           // instructions
                                      nullptr,                // reloc_info
                                      0,                      // reloc_size
+                                     nullptr,                // source_pos
+                                     0,                      // source_pos_size
                                      Nothing<uint32_t>(),    // index
                                      WasmCode::kTrampoline,  // kind
                                      0,   // constant_pool_offset
@@ -840,9 +838,16 @@ WasmCode* NativeModule::CloneCode(const WasmCode* original_code,
     memcpy(reloc_info.get(), original_code->reloc_info().start(),
            original_code->reloc_info().size());
   }
+  std::unique_ptr<byte[]> source_pos;
+  if (original_code->source_positions().size() > 0) {
+    source_pos.reset(new byte[original_code->source_positions().size()]);
+    memcpy(source_pos.get(), original_code->source_positions().start(),
+           original_code->source_positions().size());
+  }
   WasmCode* ret = AddOwnedCode(
       original_code->instructions(), std::move(reloc_info),
-      original_code->reloc_info().size(), original_code->index_,
+      original_code->reloc_info().size(), std::move(source_pos),
+      original_code->source_positions().size(), original_code->index_,
       original_code->kind(), original_code->constant_pool_offset_,
       original_code->stack_slots(), original_code->safepoint_table_offset_,
       original_code->handler_table_offset_,

@@ -44,10 +44,7 @@ int AdvanceSourcePositionTableIterator(SourcePositionTableIterator& iterator,
 class PatchDirectCallsHelper {
  public:
   PatchDirectCallsHelper(NativeModule* native_module, const WasmCode* code)
-      : source_pos_it(ByteArray::cast(
-            native_module->compiled_module()->source_positions()->get(
-                static_cast<int>(code->index())))),
-        decoder(nullptr, nullptr) {
+      : source_pos_it(code->source_positions()), decoder(nullptr, nullptr) {
     uint32_t func_index = code->index();
     WasmCompiledModule* comp_mod = native_module->compiled_module();
     func_bytes =

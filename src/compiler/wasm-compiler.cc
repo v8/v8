@@ -5292,7 +5292,9 @@ wasm::WasmCode* WasmCompilationUnit::FinishTurbofanCompilation(
       func_index_,
       tf_.job_->compilation_info()->wasm_code_desc()->safepoint_table_offset,
       tf_.job_->compilation_info()->wasm_code_desc()->handler_table_offset,
-      std::move(protected_instructions_), wasm::WasmCode::kTurbofan);
+      std::move(protected_instructions_),
+      tf_.job_->compilation_info()->wasm_code_desc()->source_positions_table,
+      wasm::WasmCode::kTurbofan);
   if (!code) return code;
   if (FLAG_trace_wasm_decode_time) {
     double codegen_ms = codegen_timer.Elapsed().InMillisecondsF();
@@ -5301,11 +5303,6 @@ wasm::WasmCode* WasmCompilationUnit::FinishTurbofanCompilation(
            codegen_ms);
   }
 
-  Handle<ByteArray> source_positions =
-      tf_.job_->compilation_info()->wasm_code_desc()->source_positions_table;
-
-  native_module_->compiled_module()->source_positions()->set(func_index_,
-                                                             *source_positions);
   return code;
 }
 
@@ -5317,12 +5314,10 @@ wasm::WasmCode* WasmCompilationUnit::FinishLiftoffCompilation(
   Handle<ByteArray> source_positions =
       liftoff_.source_position_table_builder_.ToSourcePositionTable(isolate_);
 
-  native_module_->compiled_module()->source_positions()->set(func_index_,
-                                                             *source_positions);
   wasm::WasmCode* code = native_module_->AddCode(
       desc, liftoff_.asm_.GetTotalFrameSlotCount(), func_index_,
       liftoff_.safepoint_table_offset_, 0, std::move(protected_instructions_),
-      wasm::WasmCode::kLiftoff);
+      source_positions, wasm::WasmCode::kLiftoff);
 
   return code;
 }

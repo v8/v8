@@ -1450,7 +1450,6 @@ void WasmCompiledModule::WasmCompiledModuleVerify() {
   VerifyObjectField(kPrevInstanceOffset);
   VerifyObjectField(kOwningInstanceOffset);
   VerifyObjectField(kWasmModuleOffset);
-  VerifyObjectField(kSourcePositionsOffset);
   VerifyObjectField(kNativeModuleOffset);
   VerifyObjectField(kLazyCompileDataOffset);
   VerifyObjectField(kUseTrapHandlerOffset);
