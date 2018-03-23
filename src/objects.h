@@ -412,16 +412,6 @@ const int kStubMinorKeyBits = kSmiValueSize - kStubMajorKeyBits - 1;
   V(SCOPE_INFO_TYPE)                                            \
   V(TRANSITION_ARRAY_TYPE)                                      \
                                                                 \
-  V(BLOCK_CONTEXT_TYPE)                                         \
-  V(CATCH_CONTEXT_TYPE)                                         \
-  V(DEBUG_EVALUATE_CONTEXT_TYPE)                                \
-  V(EVAL_CONTEXT_TYPE)                                          \
-  V(FUNCTION_CONTEXT_TYPE)                                      \
-  V(MODULE_CONTEXT_TYPE)                                        \
-  V(NATIVE_CONTEXT_TYPE)                                        \
-  V(SCRIPT_CONTEXT_TYPE)                                        \
-  V(WITH_CONTEXT_TYPE)                                          \
-                                                                \
   V(CELL_TYPE)                                                  \
   V(CODE_DATA_CONTAINER_TYPE)                                   \
   V(FEEDBACK_CELL_TYPE)                                         \
@@ -774,16 +764,7 @@ enum InstanceType : uint16_t {
   DESCRIPTOR_ARRAY_TYPE,
   HASH_TABLE_TYPE,
   SCOPE_INFO_TYPE,
-  TRANSITION_ARRAY_TYPE,
-  BLOCK_CONTEXT_TYPE,  // FIRST_CONTEXT_TYPE
-  CATCH_CONTEXT_TYPE,
-  DEBUG_EVALUATE_CONTEXT_TYPE,
-  EVAL_CONTEXT_TYPE,
-  FUNCTION_CONTEXT_TYPE,
-  MODULE_CONTEXT_TYPE,
-  NATIVE_CONTEXT_TYPE,
-  SCRIPT_CONTEXT_TYPE,
-  WITH_CONTEXT_TYPE,  // LAST_FIXED_ARRAY_TYPE, LAST_CONTEXT_TYPE
+  TRANSITION_ARRAY_TYPE,  // LAST_FIXED_ARRAY_TYPE
 
   // Misc.
   CELL_TYPE,
@@ -866,10 +847,7 @@ enum InstanceType : uint16_t {
   LAST_FUNCTION_TYPE = JS_FUNCTION_TYPE,
   // Boundaries for testing if given HeapObject is a subclass of FixedArray.
   FIRST_FIXED_ARRAY_TYPE = FIXED_ARRAY_TYPE,
-  LAST_FIXED_ARRAY_TYPE = WITH_CONTEXT_TYPE,
-  // Boundaries for testing if given HeapObject is a Context
-  FIRST_CONTEXT_TYPE = BLOCK_CONTEXT_TYPE,
-  LAST_CONTEXT_TYPE = WITH_CONTEXT_TYPE,
+  LAST_FIXED_ARRAY_TYPE = TRANSITION_ARRAY_TYPE,
   // Boundaries for testing if given HeapObject is a subclass of Microtask.
   FIRST_MICROTASK_TYPE = CALLABLE_TASK_TYPE,
   LAST_MICROTASK_TYPE = PROMISE_RESOLVE_THENABLE_JOB_TASK_TYPE,

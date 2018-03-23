@@ -80,39 +80,48 @@ void Context::set_native_context(Context* context) {
 }
 
 bool Context::IsNativeContext() const {
-  return map()->instance_type() == NATIVE_CONTEXT_TYPE;
+  Map* map = this->map();
+  return map == map->GetHeap()->native_context_map();
 }
 
 bool Context::IsFunctionContext() const {
-  return map()->instance_type() == FUNCTION_CONTEXT_TYPE;
+  Map* map = this->map();
+  return map == map->GetHeap()->function_context_map();
 }
 
 bool Context::IsCatchContext() const {
-  return map()->instance_type() == CATCH_CONTEXT_TYPE;
+  Map* map = this->map();
+  return map == map->GetHeap()->catch_context_map();
 }
 
 bool Context::IsWithContext() const {
-  return map()->instance_type() == WITH_CONTEXT_TYPE;
+  Map* map = this->map();
+  return map == map->GetHeap()->with_context_map();
 }
 
 bool Context::IsDebugEvaluateContext() const {
-  return map()->instance_type() == DEBUG_EVALUATE_CONTEXT_TYPE;
+  Map* map = this->map();
+  return map == map->GetHeap()->debug_evaluate_context_map();
 }
 
 bool Context::IsBlockContext() const {
-  return map()->instance_type() == BLOCK_CONTEXT_TYPE;
+  Map* map = this->map();
+  return map == map->GetHeap()->block_context_map();
 }
 
 bool Context::IsModuleContext() const {
-  return map()->instance_type() == MODULE_CONTEXT_TYPE;
+  Map* map = this->map();
+  return map == map->GetHeap()->module_context_map();
 }
 
 bool Context::IsEvalContext() const {
-  return map()->instance_type() == EVAL_CONTEXT_TYPE;
+  Map* map = this->map();
+  return map == map->GetHeap()->eval_context_map();
 }
 
 bool Context::IsScriptContext() const {
-  return map()->instance_type() == SCRIPT_CONTEXT_TYPE;
+  Map* map = this->map();
+  return map == map->GetHeap()->script_context_map();
 }
 
 bool Context::HasSameSecurityTokenAs(Context* that) const {

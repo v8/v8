@@ -2134,10 +2134,8 @@ Node* CodeStubAssembler::StoreFixedArrayElement(Node* object, Node* index_node,
                                                 int additional_offset,
                                                 ParameterMode parameter_mode) {
   CSA_SLOW_ASSERT(
-      this,
-      Word32Or(IsHashTable(object),
-               Word32Or(IsFixedArray(object),
-                        Word32Or(IsPropertyArray(object), IsContext(object)))));
+      this, Word32Or(IsHashTable(object),
+                     Word32Or(IsFixedArray(object), IsPropertyArray(object))));
   CSA_SLOW_ASSERT(this, MatchesParameterMode(index_node, parameter_mode));
   DCHECK(barrier_mode == SKIP_WRITE_BARRIER ||
          barrier_mode == UPDATE_WRITE_BARRIER);
@@ -2652,7 +2650,7 @@ TNode<String> CodeStubAssembler::NewConsString(Node* context, TNode<Smi> length,
                                                TNode<String> left,
                                                TNode<String> right,
                                                AllocationFlags flags) {
-  CSA_ASSERT(this, IsContext(context));
+  CSA_ASSERT(this, IsFixedArray(context));
   // Added string can be a cons string.
   Comment("Allocating ConsString");
   Node* left_instance_type = LoadInstanceType(left);
@@ -4552,13 +4550,6 @@ Node* CodeStubAssembler::IsJSArrayIterator(Node* object) {
 
 Node* CodeStubAssembler::IsJSAsyncGeneratorObject(Node* object) {
   return HasInstanceType(object, JS_ASYNC_GENERATOR_OBJECT_TYPE);
-}
-
-Node* CodeStubAssembler::IsContext(Node* object) {
-  Node* instance_type = LoadInstanceType(object);
-  return Word32And(
-      Int32GreaterThanOrEqual(instance_type, Int32Constant(FIRST_CONTEXT_TYPE)),
-      Int32LessThanOrEqual(instance_type, Int32Constant(LAST_CONTEXT_TYPE)));
 }
 
 Node* CodeStubAssembler::IsFixedArray(Node* object) {
