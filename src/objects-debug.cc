@@ -124,6 +124,15 @@ void HeapObject::HeapObjectVerify() {
     case BOILERPLATE_DESCRIPTION_TYPE:
     case FIXED_ARRAY_TYPE:
     case SCOPE_INFO_TYPE:
+    case BLOCK_CONTEXT_TYPE:
+    case CATCH_CONTEXT_TYPE:
+    case DEBUG_EVALUATE_CONTEXT_TYPE:
+    case EVAL_CONTEXT_TYPE:
+    case FUNCTION_CONTEXT_TYPE:
+    case MODULE_CONTEXT_TYPE:
+    case NATIVE_CONTEXT_TYPE:
+    case SCRIPT_CONTEXT_TYPE:
+    case WITH_CONTEXT_TYPE:
       FixedArray::cast(this)->FixedArrayVerify();
       break;
     case WEAK_FIXED_ARRAY_TYPE:

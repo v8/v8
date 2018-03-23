@@ -1118,6 +1118,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
       TNode<Context> native_context);
   Node* IsFeedbackCell(Node* object);
   Node* IsFeedbackVector(Node* object);
+  Node* IsContext(Node* object);
   Node* IsFixedArray(Node* object);
   Node* IsFixedArraySubclass(Node* object);
   Node* IsFixedArrayWithKind(Node* object, ElementsKind kind);
@@ -1180,7 +1181,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
   Node* IsSymbol(Node* object);
   Node* IsUndetectableMap(Node* map);
   Node* IsWeakCell(Node* object);
-  Node* IsZeroOrFixedArray(Node* object);
+  Node* IsZeroOrContext(Node* object);
 
   inline Node* IsSharedFunctionInfo(Node* object) {
     return IsSharedFunctionInfoMap(LoadMap(object));

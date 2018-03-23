@@ -2134,8 +2134,10 @@ Node* CodeStubAssembler::StoreFixedArrayElement(Node* object, Node* index_node,
                                                 int additional_offset,
                                                 ParameterMode parameter_mode) {
   CSA_SLOW_ASSERT(
-      this, Word32Or(IsHashTable(object),
-                     Word32Or(IsFixedArray(object), IsPropertyArray(object))));
+      this,
+      Word32Or(IsHashTable(object),
+               Word32Or(IsFixedArray(object),
+                        Word32Or(IsPropertyArray(object), IsContext(object)))));
   CSA_SLOW_ASSERT(this, MatchesParameterMode(index_node, parameter_mode));
   DCHECK(barrier_mode == SKIP_WRITE_BARRIER ||
          barrier_mode == UPDATE_WRITE_BARRIER);
@@ -2438,12 +2440,12 @@ TNode<String> CodeStubAssembler::AllocateSeqOneByteString(
   return CAST(result);
 }
 
-Node* CodeStubAssembler::IsZeroOrFixedArray(Node* object) {
+Node* CodeStubAssembler::IsZeroOrContext(Node* object) {
   Label out(this);
   VARIABLE(var_result, MachineRepresentation::kWord32, Int32Constant(1));
 
   GotoIf(WordEqual(object, SmiConstant(0)), &out);
-  GotoIf(IsFixedArray(object), &out);
+  GotoIf(IsContext(object), &out);
 
   var_result.Bind(Int32Constant(0));
   Goto(&out);
@@ -2455,7 +2457,7 @@ Node* CodeStubAssembler::IsZeroOrFixedArray(Node* object) {
 TNode<String> CodeStubAssembler::AllocateSeqOneByteString(
     Node* context, TNode<Smi> length, AllocationFlags flags) {
   Comment("AllocateSeqOneByteString");
-  CSA_SLOW_ASSERT(this, IsZeroOrFixedArray(context));
+  CSA_SLOW_ASSERT(this, IsZeroOrContext(context));
   VARIABLE(var_result, MachineRepresentation::kTagged);
 
   // Compute the SeqOneByteString size and check if it fits into new space.
@@ -2524,7 +2526,7 @@ TNode<String> CodeStubAssembler::AllocateSeqTwoByteString(
 
 TNode<String> CodeStubAssembler::AllocateSeqTwoByteString(
     Node* context, TNode<Smi> length, AllocationFlags flags) {
-  CSA_SLOW_ASSERT(this, IsZeroOrFixedArray(context));
+  CSA_SLOW_ASSERT(this, IsZeroOrContext(context));
   Comment("AllocateSeqTwoByteString");
   VARIABLE(var_result, MachineRepresentation::kTagged);
 
@@ -2650,7 +2652,7 @@ TNode<String> CodeStubAssembler::NewConsString(Node* context, TNode<Smi> length,
                                                TNode<String> left,
                                                TNode<String> right,
                                                AllocationFlags flags) {
-  CSA_ASSERT(this, IsFixedArray(context));
+  CSA_ASSERT(this, IsContext(context));
   // Added string can be a cons string.
   Comment("Allocating ConsString");
   Node* left_instance_type = LoadInstanceType(left);
@@ -4550,6 +4552,13 @@ Node* CodeStubAssembler::IsJSArrayIterator(Node* object) {
 
 Node* CodeStubAssembler::IsJSAsyncGeneratorObject(Node* object) {
   return HasInstanceType(object, JS_ASYNC_GENERATOR_OBJECT_TYPE);
+}
+
+Node* CodeStubAssembler::IsContext(Node* object) {
+  Node* instance_type = LoadInstanceType(object);
+  return Word32And(
+      Int32GreaterThanOrEqual(instance_type, Int32Constant(FIRST_CONTEXT_TYPE)),
+      Int32LessThanOrEqual(instance_type, Int32Constant(LAST_CONTEXT_TYPE)));
 }
 
 Node* CodeStubAssembler::IsFixedArray(Node* object) {
