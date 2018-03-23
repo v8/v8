@@ -371,11 +371,12 @@ Handle<JSArrayBuffer> GrowMemoryBuffer(Isolate* isolate,
       new_size > kMaxInt) {
     return Handle<JSArrayBuffer>::null();
   }
-  // Try to adjust the permissions and reuse the old backing store
-  if (((use_trap_handler && !old_buffer->is_external() &&
-        new_size < old_buffer->allocation_length()) ||
-       old_size == new_size) &&
-      old_size != 0) {
+  // Reusing the backing store from externalized buffers causes problems with
+  // Blink's array buffers. The connection between the two is lost, which can
+  // lead to Blink not knowing about the other reference to the buffer and
+  // freeing it too early.
+  if (!old_buffer->is_external() && old_size != 0 &&
+      ((new_size < old_buffer->allocation_length()) || old_size == new_size)) {
     DCHECK_NOT_NULL(old_buffer->backing_store());
     if (old_size != new_size) {
       // If adjusting permissions fails, propagate error back to return
