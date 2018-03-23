@@ -190,6 +190,9 @@ class JSArrayBuffer : public JSObject {
   // Returns whether the buffer is tracked by the WasmMemoryTracker.
   inline bool is_wasm_memory() const;
 
+  // Sets whether the buffer is tracked by the WasmMemoryTracker.
+  void set_is_wasm_memory(bool is_wasm_memory);
+
   void FreeBackingStore();
   static void FreeBackingStore(Isolate* isolate, Allocation allocation);
 
@@ -238,8 +241,6 @@ class JSArrayBuffer : public JSObject {
   class IsWasmMemory : public BitField<bool, 6, 1> {};
 
  private:
-  void set_is_wasm_memory(bool is_wasm_memory);
-
   DISALLOW_IMPLICIT_CONSTRUCTORS(JSArrayBuffer);
 };
 

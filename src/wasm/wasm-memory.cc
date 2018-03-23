@@ -280,6 +280,7 @@ void DetachMemoryBuffer(Isolate* isolate, Handle<JSArrayBuffer> buffer,
   }
 
   DCHECK(buffer->is_external());
+  buffer->set_is_wasm_memory(false);
   buffer->set_is_neuterable(true);
   buffer->Neuter();
 }
