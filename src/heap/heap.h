@@ -575,13 +575,7 @@ class Heap {
 
   enum FindMementoMode { kForRuntime, kForGC };
 
-  enum HeapState {
-    NOT_IN_GC,
-    SCAVENGE,
-    MARK_COMPACT,
-    MINOR_MARK_COMPACT,
-    TEAR_DOWN
-  };
+  enum HeapState { NOT_IN_GC, SCAVENGE, MARK_COMPACT, MINOR_MARK_COMPACT };
 
   using PretenuringFeedbackMap = std::unordered_map<AllocationSite*, size_t>;
 
