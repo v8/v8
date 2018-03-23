@@ -270,13 +270,6 @@ bool NeedsImplicitReceiver(Handle<SharedFunctionInfo> shared_info) {
   }
 }
 
-bool IsNonConstructible(Handle<SharedFunctionInfo> shared_info) {
-  DisallowHeapAllocation no_gc;
-  Isolate* const isolate = shared_info->GetIsolate();
-  Code* const construct_stub = shared_info->construct_stub();
-  return construct_stub == *BUILTIN_CODE(isolate, ConstructedNonConstructable);
-}
-
 }  // namespace
 
 // Determines whether the call target of the given call {node} is statically
@@ -402,7 +395,7 @@ Reduction JSInliner::ReduceJSCall(Node* node) {
 
   // Constructor must be constructable.
   if (node->opcode() == IrOpcode::kJSConstruct &&
-      IsNonConstructible(shared_info)) {
+      !IsConstructable(shared_info->kind())) {
     TRACE("Not inlining %s into %s because constructor is not constructable.\n",
           shared_info->DebugName()->ToCString().get(),
           info_->shared_info()->DebugName()->ToCString().get());

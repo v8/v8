@@ -2484,6 +2484,7 @@ void Builtins::Generate_ConstructFunction(MacroAssembler* masm) {
   //  -- rdx : the new target (checked to be a constructor)
   //  -- rdi : the constructor to call (checked to be a JSFunction)
   // -----------------------------------
+  __ AssertConstructor(rdi);
   __ AssertFunction(rdi);
 
   // Calling convention for function specific ConstructStubs require
@@ -2505,6 +2506,7 @@ void Builtins::Generate_ConstructBoundFunction(MacroAssembler* masm) {
   //  -- rdx : the new target (checked to be a constructor)
   //  -- rdi : the constructor to call (checked to be a JSBoundFunction)
   // -----------------------------------
+  __ AssertConstructor(rdi);
   __ AssertBoundFunction(rdi);
 
   // Push the [[BoundArguments]] onto the stack.
@@ -2539,15 +2541,16 @@ void Builtins::Generate_Construct(MacroAssembler* masm) {
   Label non_constructor, non_proxy;
   __ JumpIfSmi(rdi, &non_constructor, Label::kNear);
 
-  // Dispatch based on instance type.
-  __ CmpObjectType(rdi, JS_FUNCTION_TYPE, rcx);
-  __ j(equal, BUILTIN_CODE(masm->isolate(), ConstructFunction),
-       RelocInfo::CODE_TARGET);
-
   // Check if target has a [[Construct]] internal method.
+  __ movq(rcx, FieldOperand(rdi, HeapObject::kMapOffset));
   __ testb(FieldOperand(rcx, Map::kBitFieldOffset),
            Immediate(Map::IsConstructorBit::kMask));
   __ j(zero, &non_constructor, Label::kNear);
+
+  // Dispatch based on instance type.
+  __ CmpInstanceType(rcx, JS_FUNCTION_TYPE);
+  __ j(equal, BUILTIN_CODE(masm->isolate(), ConstructFunction),
+       RelocInfo::CODE_TARGET);
 
   // Only dispatch to bound functions after checking whether they are
   // constructors.

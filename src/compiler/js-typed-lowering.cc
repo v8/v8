@@ -1528,7 +1528,12 @@ Reduction JSTypedLowering::ReduceJSConstructForwardVarargs(Node* node) {
   Node* new_target = NodeProperties::GetValueInput(node, arity + 1);
 
   // Check if {target} is a JSFunction.
-  if (target_type->Is(Type::Function())) {
+  if (target_type->IsHeapConstant() &&
+      target_type->AsHeapConstant()->Value()->IsJSFunction()) {
+    // Only optimize [[Construct]] here if {function} is a Constructor.
+    Handle<JSFunction> function =
+        Handle<JSFunction>::cast(target_type->AsHeapConstant()->Value());
+    if (!function->IsConstructor()) return NoChange();
     // Patch {node} to an indirect call via ConstructFunctionForwardVarargs.
     Callable callable = CodeFactory::ConstructFunctionForwardVarargs(isolate());
     node->RemoveInput(arity + 1);
@@ -1568,6 +1573,9 @@ Reduction JSTypedLowering::ReduceJSConstruct(Node* node) {
     const int builtin_index = shared->construct_stub()->builtin_index();
     const bool is_builtin = (builtin_index != -1);
 
+    // Only optimize [[Construct]] here if {function} is a Constructor.
+    if (!function->IsConstructor()) return NoChange();
+
     CallDescriptor::Flags flags = CallDescriptor::kNeedsFrameState;
 
     if (is_builtin && Builtins::HasCppImplementation(builtin_index) &&
@@ -1600,23 +1608,6 @@ Reduction JSTypedLowering::ReduceJSConstruct(Node* node) {
                     isolate(), graph()->zone(), callable.descriptor(),
                     1 + arity, flags)));
     }
-    return Changed(node);
-  }
-
-  // Check if {target} is a JSFunction.
-  if (target_type->Is(Type::Function())) {
-    // Patch {node} to an indirect call via the ConstructFunction builtin.
-    Callable callable = CodeFactory::ConstructFunction(isolate());
-    node->RemoveInput(arity + 1);
-    node->InsertInput(graph()->zone(), 0,
-                      jsgraph()->HeapConstant(callable.code()));
-    node->InsertInput(graph()->zone(), 2, new_target);
-    node->InsertInput(graph()->zone(), 3, jsgraph()->Constant(arity));
-    node->InsertInput(graph()->zone(), 4, jsgraph()->UndefinedConstant());
-    NodeProperties::ChangeOp(
-        node, common()->Call(Linkage::GetStubCallDescriptor(
-                  isolate(), graph()->zone(), callable.descriptor(), 1 + arity,
-                  CallDescriptor::kNeedsFrameState)));
     return Changed(node);
   }
 

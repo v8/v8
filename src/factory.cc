@@ -2625,11 +2625,7 @@ Handle<SharedFunctionInfo> Factory::NewSharedFunctionInfo(
       share->set_builtin_id(Builtins::kIllegal);
     }
     share->set_outer_scope_info(*the_hole_value());
-    DCHECK(!Builtins::IsLazy(Builtins::kConstructedNonConstructable));
-    Handle<Code> construct_stub =
-        is_constructor ? isolate()->builtins()->JSConstructStubGeneric()
-                       : BUILTIN_CODE(isolate(), ConstructedNonConstructable);
-    share->SetConstructStub(*construct_stub);
+    share->SetConstructStub(*isolate()->builtins()->JSConstructStubGeneric());
     share->set_script(*undefined_value(), SKIP_WRITE_BARRIER);
     share->set_debug_info(Smi::kZero, SKIP_WRITE_BARRIER);
     share->set_function_identifier(*undefined_value(), SKIP_WRITE_BARRIER);

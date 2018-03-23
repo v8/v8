@@ -13807,10 +13807,8 @@ void SharedFunctionInfo::InitFromFunctionLiteral(
   //  shared_info->set_kind(lit->kind());
   // FunctionKind must have already been set.
   DCHECK(lit->kind() == shared_info->kind());
-  if (!IsConstructable(lit->kind())) {
-    shared_info->SetConstructStub(
-        *BUILTIN_CODE(shared_info->GetIsolate(), ConstructedNonConstructable));
-  }
+  DCHECK_EQ(*shared_info->GetIsolate()->builtins()->JSConstructStubGeneric(),
+            shared_info->construct_stub());
   shared_info->set_needs_home_object(lit->scope()->NeedsHomeObject());
   shared_info->set_function_literal_id(lit->function_literal_id());
   DCHECK_IMPLIES(lit->requires_instance_fields_initializer(),
