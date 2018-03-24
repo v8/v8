@@ -100,7 +100,7 @@ class V8_EXPORT_PRIVATE WasmCode final {
   // kOther is used if we have WasmCode that is neither
   // liftoff- nor turbofan-compiled, i.e. if Kind is
   // not a kFunction.
-  enum Tier : int32_t { kLiftoff, kTurbofan, kOther };
+  enum Tier : int8_t { kLiftoff, kTurbofan, kOther };
 
   Vector<byte> instructions() const { return instructions_; }
   Vector<const byte> reloc_info() const {

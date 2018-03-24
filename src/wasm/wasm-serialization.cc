@@ -351,7 +351,6 @@ void NativeModuleSerializer::BufferCodeInAllocatedScratch(
   writer.Write(code->tier());
   // next is the code, which we have to reloc.
   Address serialized_code_start = writer.current_buffer().start();
-  DCHECK(IsAddressAligned(serialized_code_start, 4));
   // write the code and everything else
   writer.WriteVector(code->instructions());
   writer.WriteVector(code->reloc_info());
