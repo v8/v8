@@ -1686,7 +1686,7 @@ class EvacuateRecordOnlyVisitor final : public HeapObjectVisitor {
 
   inline bool Visit(HeapObject* object, int size) {
     RecordMigratedSlotVisitor visitor(heap_->mark_compact_collector());
-    object->IterateBody(&visitor);
+    object->IterateBodyFast(&visitor);
     return true;
   }
 
@@ -3715,7 +3715,7 @@ class ToSpaceUpdatingItem : public UpdatingItem {
       HeapObject* object = HeapObject::FromAddress(cur);
       Map* map = object->map();
       int size = object->SizeFromMap(map);
-      object->IterateBody(map, size, &visitor);
+      object->IterateBodyFast(map, size, &visitor);
       cur += size;
     }
   }
