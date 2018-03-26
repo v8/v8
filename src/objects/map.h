@@ -38,7 +38,6 @@ namespace internal {
   V(JSFunction)            \
   V(JSObject)              \
   V(JSObjectFast)          \
-  V(JSRegExp)              \
   V(JSWeakCollection)      \
   V(Map)                   \
   V(NativeContext)         \

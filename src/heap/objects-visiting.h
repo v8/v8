@@ -40,7 +40,6 @@ class JSWeakCollection;
   V(JSArrayBuffer)               \
   V(JSFunction)                  \
   V(JSObject)                    \
-  V(JSRegExp)                    \
   V(JSWeakCollection)            \
   V(Map)                         \
   V(Oddball)                     \
