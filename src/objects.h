@@ -1750,19 +1750,18 @@ class HeapObject: public Object {
   // If it's not performance critical iteration use the non-templatized
   // version.
   void IterateBody(ObjectVisitor* v);
-  void IterateBody(InstanceType type, int object_size, ObjectVisitor* v);
+  void IterateBody(Map* map, int object_size, ObjectVisitor* v);
 
   template <typename ObjectVisitor>
   inline void IterateBodyFast(ObjectVisitor* v);
 
   template <typename ObjectVisitor>
-  inline void IterateBodyFast(InstanceType type, int object_size,
-                              ObjectVisitor* v);
+  inline void IterateBodyFast(Map* map, int object_size, ObjectVisitor* v);
 
   // Returns true if the object contains a tagged value at given offset.
   // It is used for invalid slots filtering. If the offset points outside
   // of the object or to the map word, the result is UNDEFINED (!!!).
-  bool IsValidSlot(int offset);
+  bool IsValidSlot(Map* map, int offset);
 
   // Returns the heap object's size in bytes
   inline int Size() const;
@@ -3444,6 +3443,11 @@ class JSFunction: public JSObject {
 
   // Returns if this function has been compiled to native code yet.
   inline bool is_compiled();
+
+  static int GetHeaderSize(bool function_has_prototype_slot) {
+    return function_has_prototype_slot ? JSFunction::kSizeWithPrototype
+                                       : JSFunction::kSizeWithoutPrototype;
+  }
 
   // Prints the name of the function using PrintF.
   void PrintName(FILE* out = stdout);

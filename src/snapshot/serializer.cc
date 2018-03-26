@@ -667,12 +667,12 @@ void Serializer<AllocatorT>::ObjectSerializer::SerializeContent(Map* map,
     // For code objects, output raw bytes first.
     OutputCode(size);
     // Then iterate references via reloc info.
-    object_->IterateBody(map->instance_type(), size, this);
+    object_->IterateBody(map, size, this);
     // Finally skip to the end.
     serializer_->FlushSkip(SkipTo(object_->address() + size));
   } else {
     // For other objects, iterate references first.
-    object_->IterateBody(map->instance_type(), size, this);
+    object_->IterateBody(map, size, this);
     // Then output data payload, if any.
     OutputRawData(object_->address() + size);
   }

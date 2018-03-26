@@ -1443,16 +1443,14 @@ class EvacuateVisitorBase : public HeapObjectVisitor {
       base->heap_->CopyBlock(dst_addr, src_addr, size);
       if (mode != MigrationMode::kFast)
         base->ExecuteMigrationObservers(dest, src, dst, size);
-      dst->IterateBodyFast(dst->map()->instance_type(), size,
-                           base->record_visitor_);
+      dst->IterateBodyFast(dst->map(), size, base->record_visitor_);
     } else if (dest == CODE_SPACE) {
       DCHECK_CODEOBJECT_SIZE(size, base->heap_->code_space());
       base->heap_->CopyBlock(dst_addr, src_addr, size);
       Code::cast(dst)->Relocate(dst_addr - src_addr);
       if (mode != MigrationMode::kFast)
         base->ExecuteMigrationObservers(dest, src, dst, size);
-      dst->IterateBodyFast(dst->map()->instance_type(), size,
-                           base->record_visitor_);
+      dst->IterateBodyFast(dst->map(), size, base->record_visitor_);
     } else {
       DCHECK_OBJECT_SIZE(size);
       DCHECK(dest == NEW_SPACE);
@@ -1771,7 +1769,7 @@ void MarkCompactCollector::ProcessTopOptimizedFrame(ObjectVisitor* visitor) {
     if (it.frame()->type() == StackFrame::OPTIMIZED) {
       Code* code = it.frame()->LookupCode();
       if (!code->CanDeoptAt(it.frame()->pc())) {
-        Code::BodyDescriptor::IterateBody(code, visitor);
+        Code::BodyDescriptor::IterateBody(code->map(), code, visitor);
       }
       return;
     }
@@ -3717,7 +3715,7 @@ class ToSpaceUpdatingItem : public UpdatingItem {
       HeapObject* object = HeapObject::FromAddress(cur);
       Map* map = object->map();
       int size = object->SizeFromMap(map);
-      object->IterateBody(map->instance_type(), size, &visitor);
+      object->IterateBody(map, size, &visitor);
       cur += size;
     }
   }

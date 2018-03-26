@@ -1341,8 +1341,7 @@ int JSObject::GetHeaderSize(InstanceType type,
     case JS_BOUND_FUNCTION_TYPE:
       return JSBoundFunction::kSize;
     case JS_FUNCTION_TYPE:
-      return function_has_prototype_slot ? JSFunction::kSizeWithPrototype
-                                         : JSFunction::kSizeWithoutPrototype;
+      return JSFunction::GetHeaderSize(function_has_prototype_slot);
     case JS_VALUE_TYPE:
       return JSValue::kSize;
     case JS_DATE_TYPE:
@@ -3479,27 +3478,24 @@ void HeapObject::Iterate(ObjectVisitor* v) { IterateFast<ObjectVisitor>(v); }
 
 void HeapObject::IterateBody(ObjectVisitor* v) {
   Map* m = map();
-  IterateBodyFast<ObjectVisitor>(m->instance_type(), SizeFromMap(m), v);
+  IterateBodyFast<ObjectVisitor>(m, SizeFromMap(m), v);
 }
 
-
-void HeapObject::IterateBody(InstanceType type, int object_size,
-                             ObjectVisitor* v) {
-  IterateBodyFast<ObjectVisitor>(type, object_size, v);
+void HeapObject::IterateBody(Map* map, int object_size, ObjectVisitor* v) {
+  IterateBodyFast<ObjectVisitor>(map, object_size, v);
 }
 
 
 struct CallIsValidSlot {
   template <typename BodyDescriptor>
-  static bool apply(HeapObject* obj, int offset, int) {
-    return BodyDescriptor::IsValidSlot(obj, offset);
+  static bool apply(Map* map, HeapObject* obj, int offset, int) {
+    return BodyDescriptor::IsValidSlot(map, obj, offset);
   }
 };
 
-
-bool HeapObject::IsValidSlot(int offset) {
+bool HeapObject::IsValidSlot(Map* map, int offset) {
   DCHECK_NE(0, offset);
-  return BodyDescriptorApply<CallIsValidSlot, bool>(map()->instance_type(),
+  return BodyDescriptorApply<CallIsValidSlot, bool>(map->instance_type(), map,
                                                     this, offset, 0);
 }
 

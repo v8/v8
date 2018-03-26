@@ -245,7 +245,7 @@ class ConcurrentMarkingVisitor final
     DCHECK(length->IsSmi());
     int size = FixedArray::SizeFor(Smi::ToInt(length));
     VisitMapPointer(object, object->map_slot());
-    FixedArray::BodyDescriptor::IterateBody(object, size, this);
+    FixedArray::BodyDescriptor::IterateBody(map, object, size, this);
     return size;
   }
 
@@ -266,7 +266,7 @@ class ConcurrentMarkingVisitor final
     if (!ShouldVisit(object)) return 0;
     int size = BytecodeArray::BodyDescriptorWeak::SizeOf(map, object);
     VisitMapPointer(object, object->map_slot());
-    BytecodeArray::BodyDescriptorWeak::IterateBody(object, size, this);
+    BytecodeArray::BodyDescriptorWeak::IterateBody(map, object, size, this);
     object->MakeOlder();
     return size;
   }
@@ -275,7 +275,7 @@ class ConcurrentMarkingVisitor final
     if (!ShouldVisit(object)) return 0;
     int size = AllocationSite::BodyDescriptorWeak::SizeOf(map, object);
     VisitMapPointer(object, object->map_slot());
-    AllocationSite::BodyDescriptorWeak::IterateBody(object, size, this);
+    AllocationSite::BodyDescriptorWeak::IterateBody(map, object, size, this);
     return size;
   }
 
@@ -283,7 +283,7 @@ class ConcurrentMarkingVisitor final
     if (!ShouldVisit(object)) return 0;
     int size = CodeDataContainer::BodyDescriptorWeak::SizeOf(map, object);
     VisitMapPointer(object, object->map_slot());
-    CodeDataContainer::BodyDescriptorWeak::IterateBody(object, size, this);
+    CodeDataContainer::BodyDescriptorWeak::IterateBody(map, object, size, this);
     return size;
   }
 
@@ -291,7 +291,7 @@ class ConcurrentMarkingVisitor final
     if (!ShouldVisit(object)) return 0;
     int size = JSFunction::BodyDescriptorWeak::SizeOf(map, object);
     VisitMapPointer(object, object->map_slot());
-    JSFunction::BodyDescriptorWeak::IterateBody(object, size, this);
+    JSFunction::BodyDescriptorWeak::IterateBody(map, object, size, this);
     return size;
   }
 
@@ -317,7 +317,7 @@ class ConcurrentMarkingVisitor final
     if (!ShouldVisit(object)) return 0;
     int size = Context::BodyDescriptorWeak::SizeOf(map, object);
     VisitMapPointer(object, object->map_slot());
-    Context::BodyDescriptorWeak::IterateBody(object, size, this);
+    Context::BodyDescriptorWeak::IterateBody(map, object, size, this);
     return size;
   }
 
@@ -325,7 +325,7 @@ class ConcurrentMarkingVisitor final
     if (!ShouldVisit(array)) return 0;
     VisitMapPointer(array, array->map_slot());
     int size = TransitionArray::BodyDescriptor::SizeOf(map, array);
-    TransitionArray::BodyDescriptor::IterateBody(array, size, this);
+    TransitionArray::BodyDescriptor::IterateBody(map, array, size, this);
     weak_objects_->transition_arrays.Push(task_id_, array);
     return size;
   }
@@ -405,7 +405,7 @@ class ConcurrentMarkingVisitor final
     SlotSnapshottingVisitor visitor(&slot_snapshot_);
     visitor.VisitPointer(object,
                          reinterpret_cast<Object**>(object->map_slot()));
-    T::BodyDescriptor::IterateBody(object, size, &visitor);
+    T::BodyDescriptor::IterateBody(map, object, size, &visitor);
     return slot_snapshot_;
   }
   ConcurrentMarking::MarkingWorklist::View shared_;

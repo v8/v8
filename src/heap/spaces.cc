@@ -1930,7 +1930,7 @@ void PagedSpace::Verify(ObjectVisitor* visitor) {
 
       // All the interior pointers should be contained in the heap.
       int size = object->Size();
-      object->IterateBody(map->instance_type(), size, visitor);
+      object->IterateBody(map, size, visitor);
       CHECK(object->address() + size <= top);
       end_of_previous_object = object->address() + size;
     }
@@ -2382,7 +2382,7 @@ void NewSpace::Verify() {
       // All the interior pointers should be contained in the heap.
       VerifyPointersVisitor visitor;
       int size = object->Size();
-      object->IterateBody(map->instance_type(), size, &visitor);
+      object->IterateBody(map, size, &visitor);
 
       current += size;
     } else {
@@ -3473,7 +3473,7 @@ void LargeObjectSpace::Verify() {
     // Byte arrays and strings don't have interior pointers.
     if (object->IsAbstractCode()) {
       VerifyPointersVisitor code_visitor;
-      object->IterateBody(map->instance_type(), object->Size(), &code_visitor);
+      object->IterateBody(map, object->Size(), &code_visitor);
     } else if (object->IsFixedArray()) {
       FixedArray* array = FixedArray::cast(object);
       for (int j = 0; j < array->length(); j++) {

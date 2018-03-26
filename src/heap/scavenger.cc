@@ -103,7 +103,7 @@ void Scavenger::IterateAndScavengePromotedObject(HeapObject* target, int size) {
       is_compacting_ &&
       heap()->incremental_marking()->atomic_marking_state()->IsBlack(target);
   IterateAndScavengePromotedObjectsVisitor visitor(heap(), this, record_slots);
-  target->IterateBody(target->map()->instance_type(), size, &visitor);
+  target->IterateBody(target->map(), size, &visitor);
 }
 
 void Scavenger::AddPageToSweeperIfNecessary(MemoryChunk* page) {
