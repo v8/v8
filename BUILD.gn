@@ -3042,7 +3042,7 @@ group("v8_archive") {
 
 group("v8_fuzzers") {
   testonly = true
-  deps = [
+  data_deps = [
     ":v8_simple_json_fuzzer",
     ":v8_simple_multi_return_fuzzer",
     ":v8_simple_parser_fuzzer",

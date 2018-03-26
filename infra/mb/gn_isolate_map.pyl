@@ -27,4 +27,8 @@
     "label": "//tools/gcmole:v8_run_gcmole",
     "type": "script",
   },
+  "unittests": {
+    "label": "//test/unittests:unittests",
+    "type": "script",
+  },
 }
