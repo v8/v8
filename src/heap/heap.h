@@ -870,8 +870,9 @@ class Heap {
                                   bool is_isolate_locked);
   void CheckMemoryPressure();
 
-  void SetOutOfMemoryCallback(v8::debug::OutOfMemoryCallback callback,
-                              void* data);
+  void AddNearHeapLimitCallback(v8::NearHeapLimitCallback, void* data);
+  void RemoveNearHeapLimitCallback(v8::NearHeapLimitCallback callback,
+                                   size_t heap_limit);
 
   double MonotonicallyIncreasingTimeInMs();
 
@@ -942,28 +943,11 @@ class Heap {
     return memory_pressure_level_.Value() != MemoryPressureLevel::kNone;
   }
 
-  size_t HeapLimitForDebugging() {
-    const size_t kDebugHeapSizeFactor = 4;
-    size_t max_limit = std::numeric_limits<size_t>::max() / 4;
-    return Min(max_limit,
-               initial_max_old_generation_size_ * kDebugHeapSizeFactor);
-  }
-
-  void IncreaseHeapLimitForDebugging() {
-    max_old_generation_size_ =
-        Max(max_old_generation_size_, HeapLimitForDebugging());
-  }
-
-  void RestoreOriginalHeapLimit() {
+  void RestoreHeapLimit(size_t heap_limit) {
     // Do not set the limit lower than the live size + some slack.
     size_t min_limit = SizeOfObjects() + SizeOfObjects() / 4;
     max_old_generation_size_ =
-        Min(max_old_generation_size_,
-            Max(initial_max_old_generation_size_, min_limit));
-  }
-
-  bool IsHeapLimitIncreasedForDebugging() {
-    return max_old_generation_size_ == HeapLimitForDebugging();
+        Min(max_old_generation_size_, Max(heap_limit, min_limit));
   }
 
   // ===========================================================================
@@ -1939,7 +1923,7 @@ class Heap {
 
   void CollectGarbageOnMemoryPressure();
 
-  void InvokeOutOfMemoryCallback();
+  bool InvokeNearHeapLimitCallback();
 
   void ComputeFastPromotionMode(double survival_rate);
 
@@ -2435,8 +2419,8 @@ class Heap {
   // and reset by a mark-compact garbage collection.
   base::AtomicValue<MemoryPressureLevel> memory_pressure_level_;
 
-  v8::debug::OutOfMemoryCallback out_of_memory_callback_;
-  void* out_of_memory_callback_data_;
+  std::vector<std::pair<v8::NearHeapLimitCallback, void*> >
+      near_heap_limit_callbacks_;
 
   // For keeping track of context disposals.
   int contexts_disposed_;

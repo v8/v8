@@ -123,8 +123,11 @@ bool AllFramesOnStackAreBlackboxed(Isolate* isolate);
  * \param data the parameter provided during callback installation.
  */
 typedef void (*OutOfMemoryCallback)(void* data);
-void SetOutOfMemoryCallback(Isolate* isolate, OutOfMemoryCallback callback,
-                            void* data);
+
+V8_DEPRECATED("Use v8::Isolate::AddNearHeapLimitCallback",
+              void SetOutOfMemoryCallback(Isolate* isolate,
+                                          OutOfMemoryCallback callback,
+                                          void* data));
 
 /**
  * Native wrapper around v8::internal::Script object.

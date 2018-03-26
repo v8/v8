@@ -26882,27 +26882,6 @@ THREADED_TEST(GlobalAccessorInfo) {
   CompileRun("for (var i = 0; i < 10; i++) prop");
 }
 
-UNINITIALIZED_TEST(IncreaseHeapLimitForDebugging) {
-  v8::Isolate::CreateParams create_params;
-  create_params.constraints.set_max_old_space_size(16);
-  create_params.array_buffer_allocator = CcTest::array_buffer_allocator();
-  v8::Isolate* isolate = v8::Isolate::New(create_params);
-  i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
-  {
-    size_t limit_before = i_isolate->heap()->MaxOldGenerationSize();
-    CHECK_EQ(16 * i::MB, limit_before);
-    CHECK(!isolate->IsHeapLimitIncreasedForDebugging());
-    isolate->IncreaseHeapLimitForDebugging();
-    CHECK(isolate->IsHeapLimitIncreasedForDebugging());
-    size_t limit_after = i_isolate->heap()->MaxOldGenerationSize();
-    CHECK_EQ(4 * 16 * i::MB, limit_after);
-    isolate->RestoreOriginalHeapLimit();
-    CHECK(!isolate->IsHeapLimitIncreasedForDebugging());
-    CHECK_EQ(limit_before, i_isolate->heap()->MaxOldGenerationSize());
-  }
-  isolate->Dispose();
-}
-
 TEST(DeterministicRandomNumberGeneration) {
   v8::HandleScope scope(CcTest::isolate());
 

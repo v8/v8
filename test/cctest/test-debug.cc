@@ -6254,10 +6254,11 @@ TEST(DebugStepOverFunctionWithCaughtException) {
   CHECK_EQ(4, break_point_hit_count);
 }
 
-bool out_of_memory_callback_called = false;
-void OutOfMemoryCallback(void* data) {
-  out_of_memory_callback_called = true;
-  reinterpret_cast<v8::Isolate*>(data)->IncreaseHeapLimitForDebugging();
+bool near_heap_limit_callback_called = false;
+size_t NearHeapLimitCallback(void* data, size_t current_heap_limit,
+                             size_t initial_heap_limit) {
+  near_heap_limit_callback_called = true;
+  return initial_heap_limit + 10u * i::MB;
 }
 
 UNINITIALIZED_TEST(DebugSetOutOfMemoryListener) {
@@ -6270,14 +6271,14 @@ UNINITIALIZED_TEST(DebugSetOutOfMemoryListener) {
     v8::Isolate::Scope i_scope(isolate);
     v8::HandleScope scope(isolate);
     LocalContext context(isolate);
-    v8::debug::SetOutOfMemoryCallback(isolate, OutOfMemoryCallback,
-                                      reinterpret_cast<void*>(isolate));
-    CHECK(!out_of_memory_callback_called);
+    isolate->AddNearHeapLimitCallback(NearHeapLimitCallback, nullptr);
+    CHECK(!near_heap_limit_callback_called);
     // The following allocation fails unless the out-of-memory callback
     // increases the heap limit.
     int length = 10 * i::MB / i::kPointerSize;
     i_isolate->factory()->NewFixedArray(length, i::TENURED);
-    CHECK(out_of_memory_callback_called);
+    CHECK(near_heap_limit_callback_called);
+    isolate->RemoveNearHeapLimitCallback(NearHeapLimitCallback, 0);
   }
   isolate->Dispose();
 }

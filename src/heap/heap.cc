@@ -161,8 +161,6 @@ Heap::Heap()
       survived_last_scavenge_(0),
       always_allocate_scope_count_(0),
       memory_pressure_level_(MemoryPressureLevel::kNone),
-      out_of_memory_callback_(nullptr),
-      out_of_memory_callback_data_(nullptr),
       contexts_disposed_(0),
       number_of_disposed_maps_(0),
       new_space_(nullptr),
@@ -1174,7 +1172,7 @@ void Heap::CollectAllAvailableGarbage(GarbageCollectionReason gc_reason) {
   // hope that eventually there will be no weak callbacks invocations.
   // Therefore stop recollecting after several attempts.
   if (gc_reason == GarbageCollectionReason::kLastResort) {
-    InvokeOutOfMemoryCallback();
+    InvokeNearHeapLimitCallback();
   }
   RuntimeCallTimerScope runtime_timer(
       isolate(), RuntimeCallCounterId::kGC_Custom_AllAvailableGarbage);
@@ -1282,7 +1280,7 @@ bool Heap::CollectGarbage(AllocationSpace space,
   GarbageCollector collector = SelectGarbageCollector(space, &collector_reason);
 
   if (!CanExpandOldGeneration(new_space()->Capacity())) {
-    InvokeOutOfMemoryCallback();
+    InvokeNearHeapLimitCallback();
   }
 
   // The VM is in the GC state until exiting this function.
@@ -4682,16 +4680,43 @@ void Heap::MemoryPressureNotification(MemoryPressureLevel level,
   }
 }
 
-void Heap::SetOutOfMemoryCallback(v8::debug::OutOfMemoryCallback callback,
-                                  void* data) {
-  out_of_memory_callback_ = callback;
-  out_of_memory_callback_data_ = data;
+void Heap::AddNearHeapLimitCallback(v8::NearHeapLimitCallback callback,
+                                    void* data) {
+  const size_t kMaxCallbacks = 100;
+  CHECK_LT(near_heap_limit_callbacks_.size(), kMaxCallbacks);
+  for (auto callback_data : near_heap_limit_callbacks_) {
+    CHECK_NE(callback_data.first, callback);
+  }
+  near_heap_limit_callbacks_.push_back(std::make_pair(callback, data));
 }
 
-void Heap::InvokeOutOfMemoryCallback() {
-  if (out_of_memory_callback_) {
-    out_of_memory_callback_(out_of_memory_callback_data_);
+void Heap::RemoveNearHeapLimitCallback(v8::NearHeapLimitCallback callback,
+                                       size_t heap_limit) {
+  for (size_t i = 0; i < near_heap_limit_callbacks_.size(); i++) {
+    if (near_heap_limit_callbacks_[i].first == callback) {
+      near_heap_limit_callbacks_.erase(near_heap_limit_callbacks_.begin() + i);
+      if (heap_limit) {
+        RestoreHeapLimit(heap_limit);
+      }
+      return;
+    }
   }
+  UNREACHABLE();
+}
+
+bool Heap::InvokeNearHeapLimitCallback() {
+  if (near_heap_limit_callbacks_.size() > 0) {
+    v8::NearHeapLimitCallback callback =
+        near_heap_limit_callbacks_.back().first;
+    void* data = near_heap_limit_callbacks_.back().second;
+    size_t heap_limit = callback(data, max_old_generation_size_,
+                                 initial_max_old_generation_size_);
+    if (heap_limit > max_old_generation_size_) {
+      max_old_generation_size_ = heap_limit;
+      return true;
+    }
+  }
+  return false;
 }
 
 void Heap::CollectCodeStatistics() {

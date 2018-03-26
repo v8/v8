@@ -5983,13 +5983,14 @@ struct OutOfMemoryState {
   size_t memory_allocator_size_at_oom;
 };
 
-void OutOfMemoryCallback(void* raw_state) {
+size_t NearHeapLimitCallback(void* raw_state, size_t current_heap_limit,
+                             size_t initial_heap_limit) {
   OutOfMemoryState* state = static_cast<OutOfMemoryState*>(raw_state);
   Heap* heap = state->heap;
   state->oom_triggered = true;
   state->old_generation_capacity_at_oom = heap->OldGenerationCapacity();
   state->memory_allocator_size_at_oom = heap->memory_allocator()->Size();
-  heap->IncreaseHeapLimitForDebugging();
+  return initial_heap_limit + 100 * MB;
 }
 
 size_t MemoryAllocatorSizeFromHeapCapacity(size_t capacity) {
@@ -6017,7 +6018,7 @@ UNINITIALIZED_TEST(OutOfMemorySmallObjects) {
   OutOfMemoryState state;
   state.heap = heap;
   state.oom_triggered = false;
-  heap->SetOutOfMemoryCallback(OutOfMemoryCallback, &state);
+  heap->AddNearHeapLimitCallback(NearHeapLimitCallback, &state);
   {
     HandleScope handle_scope(isolate);
     while (!state.oom_triggered) {
@@ -6051,7 +6052,7 @@ UNINITIALIZED_TEST(OutOfMemoryLargeObjects) {
   OutOfMemoryState state;
   state.heap = heap;
   state.oom_triggered = false;
-  heap->SetOutOfMemoryCallback(OutOfMemoryCallback, &state);
+  heap->AddNearHeapLimitCallback(NearHeapLimitCallback, &state);
   const int kFixedArrayLength = 1000000;
   {
     HandleScope handle_scope(isolate);

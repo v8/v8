@@ -180,8 +180,7 @@ void V8Debugger::enable() {
   if (m_enableCount++) return;
   v8::HandleScope scope(m_isolate);
   v8::debug::SetDebugDelegate(m_isolate, this);
-  v8::debug::SetOutOfMemoryCallback(m_isolate, &V8Debugger::v8OOMCallback,
-                                    this);
+  m_isolate->AddNearHeapLimitCallback(&V8Debugger::nearHeapLimitCallback, this);
   v8::debug::ChangeBreakOnException(m_isolate, v8::debug::NoBreakOnException);
   m_pauseOnExceptionsState = v8::debug::NoBreakOnException;
 }
@@ -195,8 +194,9 @@ void V8Debugger::disable() {
   m_pauseOnAsyncCall = false;
   m_wasmTranslation.Clear();
   v8::debug::SetDebugDelegate(m_isolate, nullptr);
-  v8::debug::SetOutOfMemoryCallback(m_isolate, nullptr, nullptr);
-  m_isolate->RestoreOriginalHeapLimit();
+  m_isolate->RemoveNearHeapLimitCallback(&V8Debugger::nearHeapLimitCallback,
+                                         m_originalHeapLimit);
+  m_originalHeapLimit = 0;
 }
 
 bool V8Debugger::isPausedInContextGroup(int contextGroupId) const {
@@ -489,14 +489,26 @@ void V8Debugger::handleProgramBreak(
   m_scheduledAssertBreak = false;
 }
 
-void V8Debugger::v8OOMCallback(void* data) {
+namespace {
+
+size_t HeapLimitForDebugging(size_t initial_heap_limit) {
+  const size_t kDebugHeapSizeFactor = 4;
+  size_t max_limit = std::numeric_limits<size_t>::max() / 4;
+  return std::min(max_limit, initial_heap_limit * kDebugHeapSizeFactor);
+}
+
+}  // anonymous namespace
+
+size_t V8Debugger::nearHeapLimitCallback(void* data, size_t current_heap_limit,
+                                         size_t initial_heap_limit) {
   V8Debugger* thisPtr = static_cast<V8Debugger*>(data);
-  thisPtr->m_isolate->IncreaseHeapLimitForDebugging();
+  thisPtr->m_originalHeapLimit = current_heap_limit;
   thisPtr->m_scheduledOOMBreak = true;
   v8::Local<v8::Context> context = thisPtr->m_isolate->GetEnteredContext();
   DCHECK(!context.IsEmpty());
   thisPtr->setPauseOnNextStatement(
       true, thisPtr->m_inspector->contextGroupId(context));
+  return HeapLimitForDebugging(initial_heap_limit);
 }
 
 void V8Debugger::ScriptCompiled(v8::Local<v8::debug::Script> script,

@@ -8834,19 +8834,14 @@ void Isolate::SetRAILMode(RAILMode rail_mode) {
 }
 
 void Isolate::IncreaseHeapLimitForDebugging() {
-  i::Isolate* isolate = reinterpret_cast<i::Isolate*>(this);
-  isolate->heap()->IncreaseHeapLimitForDebugging();
+  // No-op.
 }
 
 void Isolate::RestoreOriginalHeapLimit() {
-  i::Isolate* isolate = reinterpret_cast<i::Isolate*>(this);
-  isolate->heap()->RestoreOriginalHeapLimit();
+  // No-op.
 }
 
-bool Isolate::IsHeapLimitIncreasedForDebugging() {
-  i::Isolate* isolate = reinterpret_cast<i::Isolate*>(this);
-  return isolate->heap()->IsHeapLimitIncreasedForDebugging();
-}
+bool Isolate::IsHeapLimitIncreasedForDebugging() { return false; }
 
 void Isolate::SetJitCodeEventHandler(JitCodeEventOptions options,
                                      JitCodeEventHandler event_handler) {
@@ -8894,6 +8889,18 @@ CALLBACK_SETTER(WasmInstanceCallback, ExtensionCallback, wasm_instance_callback)
 
 CALLBACK_SETTER(WasmCompileStreamingCallback, ApiImplementationCallback,
                 wasm_compile_streaming_callback)
+
+void Isolate::AddNearHeapLimitCallback(v8::NearHeapLimitCallback callback,
+                                       void* data) {
+  i::Isolate* isolate = reinterpret_cast<i::Isolate*>(this);
+  isolate->heap()->AddNearHeapLimitCallback(callback, data);
+}
+
+void Isolate::RemoveNearHeapLimitCallback(v8::NearHeapLimitCallback callback,
+                                          size_t heap_limit) {
+  i::Isolate* isolate = reinterpret_cast<i::Isolate*>(this);
+  isolate->heap()->RemoveNearHeapLimitCallback(callback, heap_limit);
+}
 
 bool Isolate::IsDead() {
   i::Isolate* isolate = reinterpret_cast<i::Isolate*>(this);
@@ -9217,9 +9224,7 @@ void debug::SetBreakPointsActive(Isolate* v8_isolate, bool is_active) {
 
 void debug::SetOutOfMemoryCallback(Isolate* isolate,
                                    OutOfMemoryCallback callback, void* data) {
-  i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
-  ENTER_V8_NO_SCRIPT_NO_EXCEPTION(i_isolate);
-  i_isolate->heap()->SetOutOfMemoryCallback(callback, data);
+  // No-op.
 }
 
 void debug::PrepareStep(Isolate* v8_isolate, StepAction action) {

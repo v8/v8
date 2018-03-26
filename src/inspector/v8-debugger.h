@@ -135,7 +135,8 @@ class V8Debugger : public v8::debug::DebugDelegate {
   void clearContinueToLocation();
   bool shouldContinueToCurrentLocation();
 
-  static void v8OOMCallback(void* data);
+  static size_t nearHeapLimitCallback(void* data, size_t current_heap_limit,
+                                      size_t initial_heap_limit);
   static void terminateExecutionCompletedCallback(v8::Isolate* isolate);
 
   void handleProgramBreak(
@@ -189,6 +190,7 @@ class V8Debugger : public v8::debug::DebugDelegate {
   int m_enableCount;
   int m_breakpointsActiveCount = 0;
   int m_ignoreScriptParsedEventsCounter;
+  size_t m_originalHeapLimit = 0;
   bool m_scheduledOOMBreak = false;
   bool m_scheduledAssertBreak = false;
   int m_targetContextGroupId = 0;
