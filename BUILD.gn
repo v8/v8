@@ -2679,6 +2679,8 @@ v8_component("v8_libbase") {
 
   public_configs = [ ":libbase_config" ]
 
+  data = []
+
   defines = []
 
   if (is_component_build) {
@@ -2767,6 +2769,77 @@ v8_component("v8_libbase") {
       "winmm.lib",
       "ws2_32.lib",
     ]
+
+    if (is_component_build) {
+      # TODO(machenbach): Move the original out of src/base in order to depend
+      # on it.
+      # Copy the VS runtime DLLs into the isolate so that they don't have to be
+      # preinstalled on the target machine. The debug runtimes have a "d" at
+      # the end.
+      if (is_debug) {
+        vcrt_suffix = "d"
+      } else {
+        vcrt_suffix = ""
+      }
+
+      # These runtime files are copied to the output directory by the
+      # vs_toolchain script that runs as part of toolchain configuration.
+      data += [
+        "$root_out_dir/msvcp140${vcrt_suffix}.dll",
+        "$root_out_dir/vccorlib140${vcrt_suffix}.dll",
+        "$root_out_dir/vcruntime140${vcrt_suffix}.dll",
+
+        # Universal Windows 10 CRT files
+        "$root_out_dir/api-ms-win-core-console-l1-1-0.dll",
+        "$root_out_dir/api-ms-win-core-datetime-l1-1-0.dll",
+        "$root_out_dir/api-ms-win-core-debug-l1-1-0.dll",
+        "$root_out_dir/api-ms-win-core-errorhandling-l1-1-0.dll",
+        "$root_out_dir/api-ms-win-core-file-l1-1-0.dll",
+        "$root_out_dir/api-ms-win-core-file-l1-2-0.dll",
+        "$root_out_dir/api-ms-win-core-file-l2-1-0.dll",
+        "$root_out_dir/api-ms-win-core-handle-l1-1-0.dll",
+        "$root_out_dir/api-ms-win-core-heap-l1-1-0.dll",
+        "$root_out_dir/api-ms-win-core-interlocked-l1-1-0.dll",
+        "$root_out_dir/api-ms-win-core-libraryloader-l1-1-0.dll",
+        "$root_out_dir/api-ms-win-core-localization-l1-2-0.dll",
+        "$root_out_dir/api-ms-win-core-memory-l1-1-0.dll",
+        "$root_out_dir/api-ms-win-core-namedpipe-l1-1-0.dll",
+        "$root_out_dir/api-ms-win-core-processenvironment-l1-1-0.dll",
+        "$root_out_dir/api-ms-win-core-processthreads-l1-1-0.dll",
+        "$root_out_dir/api-ms-win-core-processthreads-l1-1-1.dll",
+        "$root_out_dir/api-ms-win-core-profile-l1-1-0.dll",
+        "$root_out_dir/api-ms-win-core-rtlsupport-l1-1-0.dll",
+        "$root_out_dir/api-ms-win-core-string-l1-1-0.dll",
+        "$root_out_dir/api-ms-win-core-synch-l1-1-0.dll",
+        "$root_out_dir/api-ms-win-core-synch-l1-2-0.dll",
+        "$root_out_dir/api-ms-win-core-sysinfo-l1-1-0.dll",
+        "$root_out_dir/api-ms-win-core-timezone-l1-1-0.dll",
+        "$root_out_dir/api-ms-win-core-util-l1-1-0.dll",
+        "$root_out_dir/api-ms-win-crt-conio-l1-1-0.dll",
+        "$root_out_dir/api-ms-win-crt-convert-l1-1-0.dll",
+        "$root_out_dir/api-ms-win-crt-environment-l1-1-0.dll",
+        "$root_out_dir/api-ms-win-crt-filesystem-l1-1-0.dll",
+        "$root_out_dir/api-ms-win-crt-heap-l1-1-0.dll",
+        "$root_out_dir/api-ms-win-crt-locale-l1-1-0.dll",
+        "$root_out_dir/api-ms-win-crt-math-l1-1-0.dll",
+        "$root_out_dir/api-ms-win-crt-multibyte-l1-1-0.dll",
+        "$root_out_dir/api-ms-win-crt-private-l1-1-0.dll",
+        "$root_out_dir/api-ms-win-crt-process-l1-1-0.dll",
+        "$root_out_dir/api-ms-win-crt-runtime-l1-1-0.dll",
+        "$root_out_dir/api-ms-win-crt-stdio-l1-1-0.dll",
+        "$root_out_dir/api-ms-win-crt-string-l1-1-0.dll",
+        "$root_out_dir/api-ms-win-crt-time-l1-1-0.dll",
+        "$root_out_dir/api-ms-win-crt-utility-l1-1-0.dll",
+        "$root_out_dir/ucrtbase${vcrt_suffix}.dll",
+      ]
+      if (is_asan) {
+        if (current_cpu == "x64") {
+          data += [ "$clang_base_path/lib/clang/$clang_version/lib/windows/clang_rt.asan_dynamic-x86_64.dll" ]
+        } else {
+          data += [ "$clang_base_path/lib/clang/$clang_version/lib/windows/clang_rt.asan_dynamic-i386.dll" ]
+        }
+      }
+    }
   }
 
   # TODO(jochen): Add support for qnx, freebsd, openbsd, netbsd, and solaris.
