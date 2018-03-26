@@ -275,6 +275,10 @@ test(function stringCodePointAt() {
   assertSame(undefined, "äϠ�".codePointAt(1 + 4294967295));
 }, 10);
 
+test(function stringFromCharCode() {
+  assertEquals("！", String.fromCharCode(0x10FF01));
+}, 2);
+
 test(function int32Mod() {
   assertEquals(-0, -2147483648 % (-1));
 });

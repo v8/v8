@@ -409,6 +409,15 @@ TypedOptimization::TryReduceStringComparisonOfStringFromSingleCharCode(
 
   const Operator* comparison_op = NumberComparisonFor(comparison->op());
   Node* from_char_code_repl = NodeProperties::GetValueInput(from_char_code, 0);
+  Type* from_char_code_repl_type = NodeProperties::GetType(from_char_code_repl);
+  if (!from_char_code_repl_type->Is(type_cache_.kUint16)) {
+    // Convert to signed int32 to satisfy type of {NumberBitwiseAnd}.
+    from_char_code_repl =
+        graph()->NewNode(simplified()->NumberToInt32(), from_char_code_repl);
+    from_char_code_repl = graph()->NewNode(
+        simplified()->NumberBitwiseAnd(), from_char_code_repl,
+        jsgraph()->Constant(std::numeric_limits<uint16_t>::max()));
+  }
   Node* constant_repl = jsgraph()->Constant(string->Get(0));
 
   Node* number_comparison = nullptr;
