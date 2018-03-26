@@ -1,0 +1,30 @@
+# Copyright 2018 the V8 project authors. All rights reserved.
+# Use of this source code is governed by a BSD-style license that can be
+# found in the LICENSE file.
+
+# gn_isolate_map.pyl - A mapping of Ninja build target names to GN labels and
+# test type classifications for the tests that are run on the bots.
+#
+# This file is based on testing/buildbot/gn_isolate_map.pyl for Chromium, but
+# is covering V8 stand-alone tests instead.
+# See https://cs.chromium.org/chromium/src/testing/buildbot/gn_isolate_map.pyl
+# for more detailed documentation.
+
+{
+  "All": {
+    "label": "//:All",
+    "type": "script",
+  },
+  "check-static-initializers": {
+    "label": "//tools:v8_check_static_initializers",
+    "type": "script",
+  },
+  "jsfunfuzz": {
+    "label": "//tools/jsfunfuzz:v8_jsfunfuzz",
+    "type": "script",
+  },
+  "run-gcmole": {
+    "label": "//tools/gcmole:v8_run_gcmole",
+    "type": "script",
+  },
+}
