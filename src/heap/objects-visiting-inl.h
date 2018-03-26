@@ -71,17 +71,22 @@ void HeapVisitor<ResultType, ConcreteVisitor>::VisitMapPointer(
       host, reinterpret_cast<Object**>(map));
 }
 
-#define VISIT(type)                                                 \
-  template <typename ResultType, typename ConcreteVisitor>          \
-  ResultType HeapVisitor<ResultType, ConcreteVisitor>::Visit##type( \
-      Map* map, type* object) {                                     \
-    ConcreteVisitor* visitor = static_cast<ConcreteVisitor*>(this); \
-    if (!visitor->ShouldVisit(object)) return ResultType();         \
-    int size = type::BodyDescriptor::SizeOf(map, object);           \
-    if (visitor->ShouldVisitMapPointer())                           \
-      visitor->VisitMapPointer(object, object->map_slot());         \
-    type::BodyDescriptor::IterateBody(map, object, size, visitor);  \
-    return static_cast<ResultType>(size);                           \
+#define VISIT(type)                                                            \
+  template <typename ResultType, typename ConcreteVisitor>                     \
+  ResultType HeapVisitor<ResultType, ConcreteVisitor>::Visit##type(            \
+      Map* map, type* object) {                                                \
+    ConcreteVisitor* visitor = static_cast<ConcreteVisitor*>(this);            \
+    if (!visitor->ShouldVisit(object)) return ResultType();                    \
+    if (!visitor->AllowDefaultJSObjectVisit()) {                               \
+      DCHECK_WITH_MSG(!map->IsJSObjectMap(),                                   \
+                      "Implement custom visitor for new JSObject subclass in " \
+                      "concurrent marker");                                    \
+    }                                                                          \
+    int size = type::BodyDescriptor::SizeOf(map, object);                      \
+    if (visitor->ShouldVisitMapPointer())                                      \
+      visitor->VisitMapPointer(object, object->map_slot());                    \
+    type::BodyDescriptor::IterateBody(map, object, size, visitor);             \
+    return static_cast<ResultType>(size);                                      \
   }
 TYPED_VISITOR_ID_LIST(VISIT)
 #undef VISIT

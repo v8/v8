@@ -91,6 +91,8 @@ class ConcurrentMarkingVisitor final
     return marking_state_.GreyToBlack(object);
   }
 
+  bool AllowDefaultJSObjectVisit() { return false; }
+
   void ProcessStrongHeapObject(HeapObject* host, Object** slot,
                                HeapObject* heap_object) {
     MarkObject(heap_object);
@@ -163,18 +165,19 @@ class ConcurrentMarkingVisitor final
   // ===========================================================================
 
   int VisitJSObject(Map* map, JSObject* object) {
-    int size = JSObject::BodyDescriptor::SizeOf(map, object);
-    int used_size = map->UsedInstanceSize();
-    DCHECK_LE(used_size, size);
-    DCHECK_GE(used_size, JSObject::kHeaderSize);
-    const SlotSnapshot& snapshot = MakeSlotSnapshot(map, object, used_size);
-    if (!ShouldVisit(object)) return 0;
-    VisitPointersInSnapshot(object, snapshot);
-    return size;
+    return VisitJSObjectSubclass(map, object);
   }
 
   int VisitJSObjectFast(Map* map, JSObject* object) {
-    return VisitJSObject(map, object);
+    return VisitJSObjectSubclass(map, object);
+  }
+
+  int VisitJSArrayBuffer(Map* map, JSArrayBuffer* object) {
+    return VisitJSObjectSubclass(map, object);
+  }
+
+  int VisitWasmInstanceObject(Map* map, WasmInstanceObject* object) {
+    return VisitJSObjectSubclass(map, object);
   }
 
   int VisitJSApiObject(Map* map, JSObject* object) {
@@ -183,6 +186,17 @@ class ConcurrentMarkingVisitor final
       bailout_.Push(object);
     }
     return 0;
+  }
+
+  int VisitJSFunction(Map* map, JSFunction* object) {
+    int size = JSFunction::BodyDescriptorWeak::SizeOf(map, object);
+    int used_size = map->UsedInstanceSize();
+    DCHECK_LE(used_size, size);
+    DCHECK_GE(used_size, JSObject::kHeaderSize);
+    const SlotSnapshot& snapshot = MakeSlotSnapshotWeak(map, object, used_size);
+    if (!ShouldVisit(object)) return 0;
+    VisitPointersInSnapshot(object, snapshot);
+    return size;
   }
 
   // ===========================================================================
@@ -284,14 +298,6 @@ class ConcurrentMarkingVisitor final
     int size = CodeDataContainer::BodyDescriptorWeak::SizeOf(map, object);
     VisitMapPointer(object, object->map_slot());
     CodeDataContainer::BodyDescriptorWeak::IterateBody(map, object, size, this);
-    return size;
-  }
-
-  int VisitJSFunction(Map* map, JSFunction* object) {
-    if (!ShouldVisit(object)) return 0;
-    int size = JSFunction::BodyDescriptorWeak::SizeOf(map, object);
-    VisitMapPointer(object, object->map_slot());
-    JSFunction::BodyDescriptorWeak::IterateBody(map, object, size, this);
     return size;
   }
 
@@ -399,13 +405,32 @@ class ConcurrentMarkingVisitor final
   };
 
   template <typename T>
+  int VisitJSObjectSubclass(Map* map, T* object) {
+    int size = T::BodyDescriptor::SizeOf(map, object);
+    int used_size = map->UsedInstanceSize();
+    DCHECK_LE(used_size, size);
+    DCHECK_GE(used_size, T::kHeaderSize);
+    const SlotSnapshot& snapshot = MakeSlotSnapshot(map, object, used_size);
+    if (!ShouldVisit(object)) return 0;
+    VisitPointersInSnapshot(object, snapshot);
+    return size;
+  }
+
+  template <typename T>
   const SlotSnapshot& MakeSlotSnapshot(Map* map, T* object, int size) {
-    // TODO(ulan): Iterate only the existing fields and skip slack at the end
-    // of the object.
     SlotSnapshottingVisitor visitor(&slot_snapshot_);
     visitor.VisitPointer(object,
                          reinterpret_cast<Object**>(object->map_slot()));
     T::BodyDescriptor::IterateBody(map, object, size, &visitor);
+    return slot_snapshot_;
+  }
+
+  template <typename T>
+  const SlotSnapshot& MakeSlotSnapshotWeak(Map* map, T* object, int size) {
+    SlotSnapshottingVisitor visitor(&slot_snapshot_);
+    visitor.VisitPointer(object,
+                         reinterpret_cast<Object**>(object->map_slot()));
+    T::BodyDescriptorWeak::IterateBody(map, object, size, &visitor);
     return slot_snapshot_;
   }
   ConcurrentMarking::MarkingWorklist::View shared_;
