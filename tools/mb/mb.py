@@ -233,10 +233,6 @@ class MetaBuildWrapper(object):
 
     self.args = parser.parse_args(argv)
 
-    # TODO(machenbach): This prepares passing swarming targets to isolate on the
-    # infra side.
-    self.args.swarming_targets_file = None
-
   def DumpInputFiles(self):
 
     def DumpContentsOfFilePassedTo(arg_name, path):
