@@ -1170,6 +1170,9 @@ void SharedFunctionInfo::SharedFunctionInfoPrint(std::ostream& os) {  // NOLINT
   } else {
     os << "<no-shared-name>";
   }
+  if (HasInferredName()) {
+    os << "\n - inferred name: " << Brief(inferred_name());
+  }
   os << "\n - kind: " << kind();
   if (needs_home_object()) {
     os << "\n - needs_home_object";
