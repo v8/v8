@@ -191,11 +191,10 @@ class PredictablePlatform : public Platform {
     return platform_->GetForegroundTaskRunner(isolate);
   }
 
-  void CallOnWorkerThread(Task* task) override {
+  void CallOnWorkerThread(std::unique_ptr<Task> task) override {
     // It's not defined when background tasks are being executed, so we can just
     // execute them right away.
     task->Run();
-    delete task;
   }
 
   void CallOnForegroundThread(v8::Isolate* isolate, Task* task) override {

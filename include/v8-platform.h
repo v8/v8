@@ -363,8 +363,7 @@ class Platform {
    * thread the task will be run on.
    */
   V8_DEPRECATE_SOON(
-      "ExpectedRuntime is deprecated, use CallOnWorkerThread(Task*) "
-      "instead.",
+      "ExpectedRuntime is deprecated, use CallOnWorkerThread() instead.",
       virtual void CallOnBackgroundThread(Task* task,
                                           ExpectedRuntime expected_runtime)) {
     // An implementation needs to be provided here because this is called by the
@@ -381,17 +380,18 @@ class Platform {
    * TODO(gab): Make pure virtual when all embedders override this instead of
    * CallOnBackgroundThread().
    */
-  virtual void CallOnWorkerThread(Task* task) {
-    CallOnBackgroundThread(task, kShortRunningTask);
+  virtual void CallOnWorkerThread(std::unique_ptr<Task> task) {
+    CallOnBackgroundThread(task.release(), kShortRunningTask);
   }
 
   /**
    * Schedules a task that blocks the main thread to be invoked with
    * high-priority on a worker thread.
    */
-  virtual void CallBlockingTaskOnWorkerThread(Task* task) {
-    // TODO(gab): Make pure-virtual when all embedders override this.
-    CallOnWorkerThread(task);
+  virtual void CallBlockingTaskOnWorkerThread(std::unique_ptr<Task> task) {
+    // Embedders may optionally override this to process these tasks in a high
+    // priority pool.
+    CallOnWorkerThread(std::move(task));
   }
 
   /**

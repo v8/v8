@@ -44,8 +44,8 @@ class MockPlatform final : public TestPlatform {
     task_runner_->PostTask(std::unique_ptr<Task>(task));
   }
 
-  void CallOnWorkerThread(v8::Task* task) override {
-    task_runner_->PostTask(std::unique_ptr<Task>(task));
+  void CallOnWorkerThread(std::unique_ptr<v8::Task> task) override {
+    task_runner_->PostTask(std::move(task));
   }
 
   bool IdleTasksEnabled(v8::Isolate* isolate) override { return false; }

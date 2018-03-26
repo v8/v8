@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef V8_LIBPLATFORM_DEFAULT_BACKGROUND_TASK_RUNNER_H_
-#define V8_LIBPLATFORM_DEFAULT_BACKGROUND_TASK_RUNNER_H_
+#ifndef V8_LIBPLATFORM_DEFAULT_WORKER_THREADS_TASK_RUNNER_H_
+#define V8_LIBPLATFORM_DEFAULT_WORKER_THREADS_TASK_RUNNER_H_
 
 #include "include/v8-platform.h"
 #include "src/libplatform/task-queue.h"
@@ -14,12 +14,12 @@ namespace platform {
 class Thread;
 class WorkerThread;
 
-class V8_PLATFORM_EXPORT DefaultBackgroundTaskRunner
+class V8_PLATFORM_EXPORT DefaultWorkerThreadsTaskRunner
     : public NON_EXPORTED_BASE(TaskRunner) {
  public:
-  DefaultBackgroundTaskRunner(uint32_t thread_pool_size);
+  DefaultWorkerThreadsTaskRunner(uint32_t thread_pool_size);
 
-  ~DefaultBackgroundTaskRunner();
+  ~DefaultWorkerThreadsTaskRunner();
 
   void Terminate();
 
@@ -42,4 +42,4 @@ class V8_PLATFORM_EXPORT DefaultBackgroundTaskRunner
 
 }  // namespace platform
 }  // namespace v8
-#endif  // V8_LIBPLATFORM_DEFAULT_BACKGROUND_TASK_RUNNER_H_
+#endif  // V8_LIBPLATFORM_DEFAULT_WORKER_THREADS_TASK_RUNNER_H_

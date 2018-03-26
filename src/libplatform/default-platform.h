@@ -26,7 +26,7 @@ namespace platform {
 class Thread;
 class WorkerThread;
 class DefaultForegroundTaskRunner;
-class DefaultBackgroundTaskRunner;
+class DefaultWorkerThreadsTaskRunner;
 class DefaultPageAllocator;
 
 class V8_PLATFORM_EXPORT DefaultPlatform : public NON_EXPORTED_BASE(Platform) {
@@ -60,7 +60,7 @@ class V8_PLATFORM_EXPORT DefaultPlatform : public NON_EXPORTED_BASE(Platform) {
       v8::Isolate* isolate) override;
   std::shared_ptr<TaskRunner> GetWorkerThreadsTaskRunner(
       v8::Isolate* isolate) override;
-  void CallOnWorkerThread(Task* task) override;
+  void CallOnWorkerThread(std::unique_ptr<Task> task) override;
   void CallOnForegroundThread(v8::Isolate* isolate, Task* task) override;
   void CallDelayedOnForegroundThread(Isolate* isolate, Task* task,
                                      double delay_in_seconds) override;
@@ -78,7 +78,7 @@ class V8_PLATFORM_EXPORT DefaultPlatform : public NON_EXPORTED_BASE(Platform) {
   base::Mutex lock_;
   int thread_pool_size_;
   IdleTaskSupport idle_task_support_;
-  std::shared_ptr<DefaultBackgroundTaskRunner> background_task_runner_;
+  std::shared_ptr<DefaultWorkerThreadsTaskRunner> worker_threads_task_runner_;
   std::map<v8::Isolate*, std::shared_ptr<DefaultForegroundTaskRunner>>
       foreground_task_runner_map_;
 

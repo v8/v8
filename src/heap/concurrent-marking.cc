@@ -8,6 +8,7 @@
 #include <unordered_map>
 
 #include "include/v8config.h"
+#include "src/base/template-utils.h"
 #include "src/heap/gc-tracer.h"
 #include "src/heap/heap-inl.h"
 #include "src/heap/heap.h"
@@ -612,9 +613,10 @@ void ConcurrentMarking::ScheduleTasks() {
       task_state_[i].preemption_request.SetValue(false);
       is_pending_[i] = true;
       ++pending_task_count_;
-      Task* task = new Task(heap_->isolate(), this, &task_state_[i], i);
+      auto task =
+          base::make_unique<Task>(heap_->isolate(), this, &task_state_[i], i);
       cancelable_id_[i] = task->id();
-      V8::GetCurrentPlatform()->CallOnWorkerThread(task);
+      V8::GetCurrentPlatform()->CallOnWorkerThread(std::move(task));
     }
   }
   DCHECK_EQ(task_count_, pending_task_count_);

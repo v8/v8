@@ -7,6 +7,7 @@
 #include <algorithm>
 
 #include "src/base/macros.h"
+#include "src/base/template-utils.h"
 #include "src/counters.h"
 #include "src/heap/incremental-marking.h"
 #include "src/isolate.h"
@@ -94,8 +95,8 @@ void StoreBuffer::FlipStoreBuffers() {
 
   if (!task_running_ && FLAG_concurrent_store_buffer) {
     task_running_ = true;
-    Task* task = new Task(heap_->isolate(), this);
-    V8::GetCurrentPlatform()->CallOnWorkerThread(task);
+    V8::GetCurrentPlatform()->CallOnWorkerThread(
+        base::make_unique<Task>(heap_->isolate(), this));
   }
 }
 

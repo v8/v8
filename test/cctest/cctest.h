@@ -690,8 +690,8 @@ class TestPlatform : public v8::Platform {
     return old_platform_->GetWorkerThreadsTaskRunner(isolate);
   }
 
-  void CallOnWorkerThread(v8::Task* task) override {
-    old_platform_->CallOnWorkerThread(task);
+  void CallOnWorkerThread(std::unique_ptr<v8::Task> task) override {
+    old_platform_->CallOnWorkerThread(std::move(task));
   }
 
   void CallOnForegroundThread(v8::Isolate* isolate, v8::Task* task) override {

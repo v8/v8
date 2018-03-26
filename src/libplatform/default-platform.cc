@@ -14,8 +14,8 @@
 #include "src/base/platform/platform.h"
 #include "src/base/platform/time.h"
 #include "src/base/sys-info.h"
-#include "src/libplatform/default-background-task-runner.h"
 #include "src/libplatform/default-foreground-task-runner.h"
+#include "src/libplatform/default-worker-threads-task-runner.h"
 
 namespace v8 {
 namespace platform {
@@ -96,7 +96,7 @@ DefaultPlatform::DefaultPlatform(
 
 DefaultPlatform::~DefaultPlatform() {
   base::LockGuard<base::Mutex> guard(&lock_);
-  if (background_task_runner_) background_task_runner_->Terminate();
+  if (worker_threads_task_runner_) worker_threads_task_runner_->Terminate();
   for (auto it : foreground_task_runner_map_) {
     it.second->Terminate();
   }
@@ -114,9 +114,9 @@ void DefaultPlatform::SetThreadPoolSize(int thread_pool_size) {
 
 void DefaultPlatform::EnsureBackgroundTaskRunnerInitialized() {
   base::LockGuard<base::Mutex> guard(&lock_);
-  if (!background_task_runner_) {
-    background_task_runner_ =
-        std::make_shared<DefaultBackgroundTaskRunner>(thread_pool_size_);
+  if (!worker_threads_task_runner_) {
+    worker_threads_task_runner_ =
+        std::make_shared<DefaultWorkerThreadsTaskRunner>(thread_pool_size_);
   }
 }
 
@@ -196,11 +196,11 @@ std::shared_ptr<TaskRunner> DefaultPlatform::GetForegroundTaskRunner(
 std::shared_ptr<TaskRunner> DefaultPlatform::GetWorkerThreadsTaskRunner(
     v8::Isolate*) {
   EnsureBackgroundTaskRunnerInitialized();
-  return background_task_runner_;
+  return worker_threads_task_runner_;
 }
 
-void DefaultPlatform::CallOnWorkerThread(Task* task) {
-  GetWorkerThreadsTaskRunner(nullptr)->PostTask(std::unique_ptr<Task>(task));
+void DefaultPlatform::CallOnWorkerThread(std::unique_ptr<Task> task) {
+  GetWorkerThreadsTaskRunner(nullptr)->PostTask(std::move(task));
 }
 
 void DefaultPlatform::CallOnForegroundThread(v8::Isolate* isolate, Task* task) {
