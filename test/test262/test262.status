@@ -475,12 +475,6 @@
   'built-ins/TypedArrays/ctors/buffer-arg/buffer-arg-bufferbyteoffset-throws-from-modulo-element-size': [FAIL],
   'built-ins/TypedArrays/ctors/buffer-arg/buffer-arg-byteoffset-throws-from-modulo-element-size': [FAIL],
 
-  # https://bugs.chromium.org/p/v8/issues/detail?id=7512
-  'built-ins/TypedArrays/ctors/typedarray-arg/typedarray-arg-other-ctor-buffer-ctor-custom-species-proto-from-ctor-realm': [FAIL],
-  'built-ins/TypedArrays/ctors/typedarray-arg/typedarray-arg-same-ctor-buffer-ctor-species-custom-proto-from-ctor-realm': [FAIL],
-  'built-ins/TypedArrays/ctors-bigint/typedarray-arg/typedarray-arg-other-ctor-buffer-ctor-custom-species-proto-from-ctor-realm': [FAIL],
-  'built-ins/TypedArrays/ctors-bigint/typedarray-arg/typedarray-arg-same-ctor-buffer-ctor-species-custom-proto-from-ctor-realm': [FAIL],
-
 ######################## NEEDS INVESTIGATION ###########################
 
   # These test failures are specific to the intl402 suite and need investigation

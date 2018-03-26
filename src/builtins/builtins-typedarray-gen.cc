@@ -122,6 +122,8 @@ TF_BUILTIN(TypedArrayInitialize, TypedArrayBuiltinsAssembler) {
   TNode<Smi> length = CAST(Parameter(Descriptor::kLength));
   TNode<Smi> element_size = CAST(Parameter(Descriptor::kElementSize));
   Node* initialize = Parameter(Descriptor::kInitialize);
+  TNode<JSReceiver> buffer_constructor =
+      CAST(Parameter(Descriptor::kBufferConstructor));
   TNode<Context> context = CAST(Parameter(Descriptor::kContext));
 
   CSA_ASSERT(this, TaggedIsPositiveSmi(length));
@@ -135,6 +137,7 @@ TF_BUILTIN(TypedArrayInitialize, TypedArrayBuiltinsAssembler) {
 
   Label setup_holder(this), allocate_on_heap(this), aligned(this),
       allocate_elements(this), allocate_off_heap(this),
+      allocate_off_heap_custom_constructor(this),
       allocate_off_heap_no_init(this), attach_buffer(this), done(this);
   TVARIABLE(IntPtrT, var_total_size);
 
@@ -144,8 +147,15 @@ TF_BUILTIN(TypedArrayInitialize, TypedArrayBuiltinsAssembler) {
   SetupTypedArray(holder, length, byte_offset, byte_length);
 
   TNode<Map> fixed_typed_map = LoadMapForType(holder);
+
+  // If target and new_target for the buffer differ, allocate off-heap.
+  TNode<JSFunction> default_constructor = CAST(LoadContextElement(
+      LoadNativeContext(context), Context::ARRAY_BUFFER_FUN_INDEX));
+  GotoIfNot(WordEqual(buffer_constructor, default_constructor),
+            &allocate_off_heap_custom_constructor);
+
+  // For buffers with byte_length over the threshold, allocate off-heap.
   GotoIf(TaggedIsNotSmi(byte_length), &allocate_off_heap);
-  // The goto above ensures that byte_length is a Smi.
   TNode<Smi> smi_byte_length = CAST(byte_length);
   GotoIf(SmiGreaterThan(smi_byte_length,
                         SmiConstant(V8_TYPED_ARRAY_MAX_SIZE_IN_HEAP)),
@@ -260,11 +270,17 @@ TF_BUILTIN(TypedArrayInitialize, TypedArrayBuiltinsAssembler) {
   BIND(&allocate_off_heap);
   {
     GotoIf(IsFalse(initialize), &allocate_off_heap_no_init);
-
-    Node* buffer_constructor = LoadContextElement(
-        LoadNativeContext(context), Context::ARRAY_BUFFER_FUN_INDEX);
     var_buffer = CAST(ConstructJS(CodeFactory::Construct(isolate()), context,
-                                  buffer_constructor, byte_length));
+                                  default_constructor, byte_length));
+    Goto(&attach_buffer);
+  }
+
+  BIND(&allocate_off_heap_custom_constructor);
+  {
+    var_buffer =
+        CAST(CallStub(CodeFactory::Construct(isolate()), context,
+                      default_constructor, buffer_constructor, Int32Constant(1),
+                      UndefinedConstant(), byte_length));
     Goto(&attach_buffer);
   }
 
@@ -310,8 +326,10 @@ void TypedArrayBuiltinsAssembler::ConstructByLength(TNode<Context> context,
   GotoIf(SmiLessThan(smi_converted_length, SmiConstant(0)), &invalid_length);
 
   Node* initialize = TrueConstant();
+  TNode<JSFunction> default_constructor = CAST(LoadContextElement(
+      LoadNativeContext(context), Context::ARRAY_BUFFER_FUN_INDEX));
   CallBuiltin(Builtins::kTypedArrayInitialize, context, holder,
-              converted_length, element_size, initialize);
+              converted_length, element_size, initialize, default_constructor);
   Goto(&done);
 
   BIND(&invalid_length);
@@ -507,14 +525,7 @@ void TypedArrayBuiltinsAssembler::ConstructByTypedArray(
   BIND(&construct);
   {
     ConstructByArrayLike(context, holder, typed_array, source_length.value(),
-                         element_size);
-    TNode<Object> proto = GetProperty(context, buffer_constructor.value(),
-                                      PrototypeStringConstant());
-    // TODO(petermarshall): Correct for realm as per 9.1.14 step 4.
-    TNode<JSArrayBuffer> buffer = LoadObjectField<JSArrayBuffer>(
-        holder, JSArrayBufferView::kBufferOffset);
-    CallRuntime(Runtime::kInternalSetPrototype, context, buffer, proto);
-
+                         element_size, buffer_constructor.value());
     Goto(&done);
   }
 
@@ -554,16 +565,16 @@ TNode<BoolT> TypedArrayBuiltinsAssembler::ByteLengthIsValid(
 void TypedArrayBuiltinsAssembler::ConstructByArrayLike(
     TNode<Context> context, TNode<JSTypedArray> holder,
     TNode<HeapObject> array_like, TNode<Object> initial_length,
-    TNode<Smi> element_size) {
-  Node* initialize = FalseConstant();
-
+    TNode<Smi> element_size, TNode<JSReceiver> buffer_constructor) {
   Label invalid_length(this), fill(this), fast_copy(this), done(this);
 
   // The caller has looked up length on array_like, which is observable.
   TNode<Smi> length = ToSmiLength(initial_length, context, &invalid_length);
 
+  Node* initialize = FalseConstant();
   CallBuiltin(Builtins::kTypedArrayInitialize, context, holder, length,
-              element_size, initialize);
+              element_size, initialize, buffer_constructor);
+
   GotoIf(SmiNotEqual(length, SmiConstant(0)), &fill);
   Goto(&done);
 
@@ -624,8 +635,11 @@ void TypedArrayBuiltinsAssembler::ConstructByIterable(
   TNode<JSArray> array_like = CAST(
       CallBuiltin(Builtins::kIterableToList, context, iterable, iterator_fn));
   TNode<Object> initial_length = LoadJSArrayLength(array_like);
+
+  TNode<JSFunction> default_constructor = CAST(LoadContextElement(
+      LoadNativeContext(context), Context::ARRAY_BUFFER_FUN_INDEX));
   ConstructByArrayLike(context, holder, array_like, initial_length,
-                       element_size);
+                       element_size, default_constructor);
 }
 
 TF_BUILTIN(TypedArrayBaseConstructor, TypedArrayBuiltinsAssembler) {
@@ -698,8 +712,10 @@ TF_BUILTIN(CreateTypedArray, TypedArrayBuiltinsAssembler) {
       TNode<Object> initial_length =
           GetProperty(context, arg1, LengthStringConstant());
 
+      TNode<JSFunction> default_constructor = CAST(LoadContextElement(
+          LoadNativeContext(context), Context::ARRAY_BUFFER_FUN_INDEX));
       ConstructByArrayLike(context, result, array_like, initial_length,
-                           element_size);
+                           element_size, default_constructor);
       Goto(&return_result);
     }
 

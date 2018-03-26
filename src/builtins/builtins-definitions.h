@@ -1096,7 +1096,8 @@ namespace internal {
                                                                                \
   /* TypedArray */                                                             \
   TFS(IterableToList, kIterable, kIteratorFn)                                  \
-  TFS(TypedArrayInitialize, kHolder, kLength, kElementSize, kInitialize)       \
+  TFS(TypedArrayInitialize, kHolder, kLength, kElementSize, kInitialize,       \
+      kBufferConstructor)                                                      \
   TFS(TypedArrayInitializeWithBuffer, kHolder, kLength, kBuffer, kElementSize, \
       kByteOffset)                                                             \
   /* ES #sec-typedarray-constructors */                                        \
