@@ -4,6 +4,7 @@
 
 import("//build/config/android/config.gni")
 import("//build/config/arm.gni")
+import("//build/config/clang/clang.gni")
 import("//build/config/dcheck_always_on.gni")
 import("//build/config/host_byteorder.gni")
 import("//build/config/jumbo.gni")
@@ -2845,6 +2846,10 @@ v8_component("v8_libbase") {
         }
       }
     }
+  }
+
+  if (is_tsan && !build_with_chromium) {
+    data += [ "tools/sanitizers/tsan_suppressions.txt" ]
   }
 
   # TODO(jochen): Add support for qnx, freebsd, openbsd, netbsd, and solaris.
