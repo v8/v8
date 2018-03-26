@@ -251,17 +251,11 @@ class ConcurrentMarkingVisitor final
   // ===========================================================================
 
   int VisitFixedArray(Map* map, FixedArray* object) {
-    // The synchronized_length() function checks that the length is a Smi.
-    // This is not necessarily the case if the array is being left-trimmed.
-    Object* length = object->unchecked_synchronized_length();
-    if (!ShouldVisit(object)) return 0;
-    // The cached length must be the actual length as the array is not black.
-    // Left trimming marks the array black before over-writing the length.
-    DCHECK(length->IsSmi());
-    int size = FixedArray::SizeFor(Smi::ToInt(length));
-    VisitMapPointer(object, object->map_slot());
-    FixedArray::BodyDescriptor::IterateBody(map, object, size, this);
-    return size;
+    return VisitLeftTrimmableArray(map, object);
+  }
+
+  int VisitFixedDoubleArray(Map* map, FixedDoubleArray* object) {
+    return VisitLeftTrimmableArray(map, object);
   }
 
   // ===========================================================================
@@ -414,6 +408,21 @@ class ConcurrentMarkingVisitor final
     const SlotSnapshot& snapshot = MakeSlotSnapshot(map, object, used_size);
     if (!ShouldVisit(object)) return 0;
     VisitPointersInSnapshot(object, snapshot);
+    return size;
+  }
+
+  template <typename T>
+  int VisitLeftTrimmableArray(Map* map, T* object) {
+    // The synchronized_length() function checks that the length is a Smi.
+    // This is not necessarily the case if the array is being left-trimmed.
+    Object* length = object->unchecked_synchronized_length();
+    if (!ShouldVisit(object)) return 0;
+    // The cached length must be the actual length as the array is not black.
+    // Left trimming marks the array black before over-writing the length.
+    DCHECK(length->IsSmi());
+    int size = T::SizeFor(Smi::ToInt(length));
+    VisitMapPointer(object, object->map_slot());
+    T::BodyDescriptor::IterateBody(map, object, size, this);
     return size;
   }
 

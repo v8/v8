@@ -3027,8 +3027,9 @@ FixedArrayBase* Heap::LeftTrimFixedArray(FixedArrayBase* object,
                                          int elements_to_trim) {
   CHECK_NOT_NULL(object);
   DCHECK(CanMoveObjectStart(object));
-  DCHECK(!object->IsFixedTypedArrayBase());
-  DCHECK(!object->IsByteArray());
+  // Add custom visitor to concurrent marker if new left-trimmable type
+  // is added.
+  DCHECK(object->IsFixedArray() || object->IsFixedDoubleArray());
   const int element_size = object->IsFixedArray() ? kPointerSize : kDoubleSize;
   const int bytes_to_trim = elements_to_trim * element_size;
   Map* map = object->map();
