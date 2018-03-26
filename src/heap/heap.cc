@@ -5846,6 +5846,8 @@ bool Heap::SetUp() {
 
   write_protect_code_memory_ = FLAG_write_protect_code_memory;
 
+  external_reference_table_.Init(isolate_);
+
   return true;
 }
 
@@ -5979,9 +5981,6 @@ void Heap::TearDown() {
       PrintMaxNewSpaceSizeReached();
     }
   }
-
-  delete external_reference_table_;
-  external_reference_table_ = nullptr;
 
   new_space()->RemoveAllocationObserver(idle_scavenge_observer_);
   delete idle_scavenge_observer_;

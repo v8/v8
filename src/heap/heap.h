@@ -18,6 +18,7 @@
 #include "src/allocation.h"
 #include "src/assert-scope.h"
 #include "src/base/atomic-utils.h"
+#include "src/external-reference-table.h"
 #include "src/globals.h"
 #include "src/heap-symbols.h"
 #include "src/objects.h"
@@ -43,7 +44,6 @@ class BoilerplateDescription;
 class BytecodeArray;
 class CodeDataContainer;
 class DeoptimizationData;
-class ExternalReferenceTable;
 class HandlerTable;
 class IncrementalMarking;
 class JSArrayBuffer;
@@ -1093,6 +1093,11 @@ class Heap {
 
   // Generated code can embed this address to get access to the roots.
   Object** roots_array_start() { return roots_; }
+
+  ExternalReferenceTable* external_reference_table() {
+    DCHECK(external_reference_table_.is_initialized());
+    return &external_reference_table_;
+  }
 
   static constexpr int roots_to_external_reference_table_offset() {
     return kRootsExternalReferenceTableOffset;
@@ -2404,7 +2409,7 @@ class Heap {
   // Isolate::Init() using runtime checks.
   static constexpr int kRootsExternalReferenceTableOffset =
       kRootListLength * kPointerSize;
-  ExternalReferenceTable* external_reference_table_ = nullptr;
+  ExternalReferenceTable external_reference_table_;
 
   size_t code_range_size_;
   size_t max_semi_space_size_;

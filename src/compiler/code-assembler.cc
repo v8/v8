@@ -275,23 +275,17 @@ TNode<ExternalReference> CodeAssembler::LookupExternalReference(
   uint32_t index = v.index();
 
   // Generate code to load from the external reference table.
-  // TODO(jgruber,v8:6666): If the external reference points within the isolate,
-  // we could return kRootPointer + offset without loading through the table.
 
-  TNode<IntPtrT> roots_ptr = LoadRootsPointer();
-
-  static const int roots_to_isolate_offset =
+  const intptr_t roots_to_external_reference_offset =
+      Heap::roots_to_external_reference_table_offset()
 #ifdef V8_TARGET_ARCH_X64
-      Heap::roots_to_external_reference_table_offset() - kRootRegisterBias;
-#else
-      Heap::roots_to_external_reference_table_offset();
+      - kRootRegisterBias
 #endif
+      + ExternalReferenceTable::OffsetOfEntry(index);
 
-  Node* external_refs_ptr = Load(MachineType::Pointer(), roots_ptr,
-                                 IntPtrConstant(roots_to_isolate_offset));
   return UncheckedCast<ExternalReference>(
-      Load(MachineType::Pointer(), external_refs_ptr,
-           IntPtrConstant(ExternalReferenceTable::OffsetOfEntry(index))));
+      Load(MachineType::Pointer(), LoadRootsPointer(),
+           IntPtrConstant(roots_to_external_reference_offset)));
 }
 #endif  // V8_EMBEDDED_BUILTINS
 

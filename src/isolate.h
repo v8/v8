@@ -71,7 +71,6 @@ class DescriptorLookupCache;
 class EmptyStatement;
 class EternalHandles;
 class ExternalCallbackScope;
-class ExternalReferenceTable;
 class Factory;
 class HandleScopeImplementer;
 class HeapObjectToIndexHashMap;
@@ -861,14 +860,6 @@ class Isolate {
   }
   ISOLATE_INIT_LIST(GLOBAL_ACCESSOR)
 #undef GLOBAL_ACCESSOR
-
-  ExternalReferenceTable* external_reference_table() const {
-    return heap_.external_reference_table_;
-  }
-
-  void set_external_reference_table(ExternalReferenceTable* v) {
-    heap_.external_reference_table_ = v;
-  }
 
 #define GLOBAL_ARRAY_ACCESSOR(type, name, length)                       \
   inline type* name() {                                                 \

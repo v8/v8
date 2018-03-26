@@ -328,9 +328,7 @@ class SerializedData {
 
   void AllocateData(uint32_t size);
 
-  static uint32_t ComputeMagicNumber(Isolate* isolate) {
-    return ComputeMagicNumber(ExternalReferenceTable::instance(isolate));
-  }
+  static uint32_t ComputeMagicNumber(Isolate* isolate);
 
   void SetMagicNumber(Isolate* isolate) {
     SetHeaderValue(kMagicNumberOffset, ComputeMagicNumber(isolate));

@@ -22,7 +22,7 @@ void Deserializer<AllocatorT>::Initialize(Isolate* isolate) {
   DCHECK_NOT_NULL(isolate);
   isolate_ = isolate;
   DCHECK_NULL(external_reference_table_);
-  external_reference_table_ = ExternalReferenceTable::instance(isolate);
+  external_reference_table_ = isolate->heap()->external_reference_table();
 #ifdef DEBUG
   // Count the number of external references registered through the API.
   num_api_references_ = 0;

@@ -22,8 +22,6 @@ class Isolate;
 // hashmaps in ExternalReferenceEncoder and ExternalReferenceDecoder.
 class ExternalReferenceTable {
  public:
-  static ExternalReferenceTable* instance(Isolate* isolate);
-
   // For the nullptr ref, see the constructor.
   static constexpr int kSpecialReferenceCount = 1;
   static constexpr int kExternalReferenceCount =
@@ -49,6 +47,8 @@ class ExternalReferenceTable {
   Address address(uint32_t i) { return refs_[i].address; }
   const char* name(uint32_t i) { return refs_[i].name; }
 
+  bool is_initialized() const { return is_initialized_; }
+
   static const char* ResolveSymbol(void* address);
 
   static uint32_t OffsetOfEntry(uint32_t i) {
@@ -56,6 +56,9 @@ class ExternalReferenceTable {
     STATIC_ASSERT(offsetof(ExternalReferenceEntry, address) == 0);
     return i * sizeof(ExternalReferenceEntry);
   }
+
+  ExternalReferenceTable() {}
+  void Init(Isolate* isolate);
 
  private:
   struct ExternalReferenceEntry {
@@ -67,8 +70,6 @@ class ExternalReferenceTable {
         : address(address), name(name) {}
   };
 
-  explicit ExternalReferenceTable(Isolate* isolate);
-
   void Add(Address address, const char* name, int* index);
 
   void AddReferences(Isolate* isolate, int* index);
@@ -79,6 +80,8 @@ class ExternalReferenceTable {
   void AddStubCache(Isolate* isolate, int* index);
 
   ExternalReferenceEntry refs_[kSize];
+  bool is_initialized_ = false;
+
   DISALLOW_COPY_AND_ASSIGN(ExternalReferenceTable);
 };
 

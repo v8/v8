@@ -104,7 +104,7 @@ void WriteVersion(Isolate* isolate, Vector<byte> buffer) {
   DCHECK_GE(buffer.size(), kVersionSize);
   Writer writer(buffer);
   writer.Write(SerializedData::ComputeMagicNumber(
-      ExternalReferenceTable::instance(isolate)));
+      isolate->heap()->external_reference_table()));
   writer.Write(Version::Hash());
   writer.Write(static_cast<uint32_t>(CpuFeatures::SupportedFeatures()));
   writer.Write(FlagList::Hash());
@@ -211,7 +211,7 @@ NativeModuleSerializer::NativeModuleSerializer(Isolate* isolate,
   DCHECK_NOT_NULL(native_module_);
   // TODO(mtrofin): persist the export wrappers. Ideally, we'd only persist
   // the unique ones, i.e. the cache.
-  ExternalReferenceTable* table = ExternalReferenceTable::instance(isolate_);
+  ExternalReferenceTable* table = isolate_->heap()->external_reference_table();
   for (uint32_t i = 0; i < table->size(); ++i) {
     Address addr = table->address(i);
     reference_table_lookup_.insert(std::make_pair(addr, i));
@@ -584,7 +584,7 @@ bool NativeModuleDeserializer::ReadCode() {
       case RelocInfo::RUNTIME_ENTRY: {
         uint32_t tag = GetWasmCalleeTag(iter.rinfo());
         Address address =
-            ExternalReferenceTable::instance(isolate_)->address(tag);
+            isolate_->heap()->external_reference_table()->address(tag);
         iter.rinfo()->set_target_runtime_entry(address, SKIP_WRITE_BARRIER,
                                                SKIP_ICACHE_FLUSH);
         break;

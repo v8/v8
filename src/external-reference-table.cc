@@ -24,17 +24,7 @@ namespace internal {
 BUILTIN_LIST_C(FORWARD_DECLARE)
 #undef FORWARD_DECLARE
 
-ExternalReferenceTable* ExternalReferenceTable::instance(Isolate* isolate) {
-  ExternalReferenceTable* external_reference_table =
-      isolate->external_reference_table();
-  if (external_reference_table == nullptr) {
-    external_reference_table = new ExternalReferenceTable(isolate);
-    isolate->set_external_reference_table(external_reference_table);
-  }
-  return external_reference_table;
-}
-
-ExternalReferenceTable::ExternalReferenceTable(Isolate* isolate) {
+void ExternalReferenceTable::Init(Isolate* isolate) {
   int index = 0;
 
   // nullptr is preserved through serialization/deserialization.
@@ -45,6 +35,7 @@ ExternalReferenceTable::ExternalReferenceTable(Isolate* isolate) {
   AddIsolateAddresses(isolate, &index);
   AddAccessors(isolate, &index);
   AddStubCache(isolate, &index);
+  is_initialized_ = true;
 
   CHECK_EQ(kSize, index);
 }

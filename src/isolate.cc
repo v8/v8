@@ -31,7 +31,6 @@
 #include "src/debug/debug.h"
 #include "src/deoptimizer.h"
 #include "src/elements.h"
-#include "src/external-reference-table.h"
 #include "src/frames-inl.h"
 #include "src/ic/stub-cache.h"
 #include "src/instruction-stream.h"
