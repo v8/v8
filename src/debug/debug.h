@@ -700,9 +700,9 @@ class ReturnValueScope {
 // Stack allocated class for disabling break.
 class DisableBreak BASE_EMBEDDED {
  public:
-  explicit DisableBreak(Debug* debug)
+  explicit DisableBreak(Debug* debug, bool disable = true)
       : debug_(debug), previous_break_disabled_(debug->break_disabled_) {
-    debug_->break_disabled_ = true;
+    debug_->break_disabled_ = disable;
   }
   ~DisableBreak() {
     debug_->break_disabled_ = previous_break_disabled_;
@@ -732,10 +732,10 @@ class SuppressDebug BASE_EMBEDDED {
 class NoSideEffectScope {
  public:
   NoSideEffectScope(Isolate* isolate, bool disallow_side_effects)
-      : isolate_(isolate),
-        old_needs_side_effect_check_(isolate->needs_side_effect_check()) {
-    isolate->set_needs_side_effect_check(old_needs_side_effect_check_ ||
-                                         disallow_side_effects);
+      : isolate_(isolate) {
+    // NoSideEffectScope is not re-entrant if already enabled.
+    CHECK(!isolate->needs_side_effect_check());
+    isolate->set_needs_side_effect_check(disallow_side_effects);
     isolate->debug()->UpdateHookOnFunctionCall();
     isolate->debug()->side_effect_check_failed_ = false;
   }
@@ -743,7 +743,6 @@ class NoSideEffectScope {
 
  private:
   Isolate* isolate_;
-  bool old_needs_side_effect_check_;
   DISALLOW_COPY_AND_ASSIGN(NoSideEffectScope);
 };
 

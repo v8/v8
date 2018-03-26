@@ -2388,7 +2388,7 @@ NoSideEffectScope::~NoSideEffectScope() {
     isolate_->Throw(*isolate_->factory()->NewEvalError(
         MessageTemplate::kNoSideEffectDebugEvaluate));
   }
-  isolate_->set_needs_side_effect_check(old_needs_side_effect_check_);
+  isolate_->set_needs_side_effect_check(false);
   isolate_->debug()->UpdateHookOnFunctionCall();
   isolate_->debug()->side_effect_check_failed_ = false;
 }

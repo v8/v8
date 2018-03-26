@@ -24,6 +24,9 @@ namespace internal {
 MaybeHandle<Object> DebugEvaluate::Global(Isolate* isolate,
                                           Handle<String> source,
                                           bool throw_on_side_effect) {
+  // Disable breaks in side-effect free mode.
+  DisableBreak disable_break_scope(isolate->debug(), throw_on_side_effect);
+
   Handle<Context> context = isolate->native_context();
   ScriptOriginOptions origin_options(false, true);
   MaybeHandle<SharedFunctionInfo> maybe_function_info =

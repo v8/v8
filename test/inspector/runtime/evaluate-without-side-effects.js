@@ -4,8 +4,19 @@
 
 let {session, contextGroup, Protocol} = InspectorTest.start("Tests that Runtime.evaluate can run without side effects.");
 
+session.setupScriptMap();
+contextGroup.addScript(`
+    function f() {
+      return 2;
+    } //# sourceURL=test.js`);
 Protocol.Runtime.enable();
 Protocol.Debugger.enable();
+
+Protocol.Debugger.onPaused(message => {
+  InspectorTest.log("paused");
+  Protocol.Debugger.resume();
+});
+
 (async function() {
   InspectorTest.log("Test throwOnSideEffect: false");
   InspectorTest.logMessage(await Protocol.Runtime.evaluate({
@@ -22,6 +33,19 @@ Protocol.Debugger.enable();
   InspectorTest.log("Test expression without side-effect, with throwOnSideEffect: true");
   InspectorTest.logMessage(await Protocol.Runtime.evaluate({
     expression: "x * 2",
+    throwOnSideEffect: true
+  }));
+
+  InspectorTest.log("Test that debug break triggers without throwOnSideEffect");
+  await Protocol.Debugger.setBreakpointByUrl({ url: 'test.js', lineNumber: 2 });
+  InspectorTest.logMessage(await Protocol.Runtime.evaluate({
+    expression: "f()",
+    throwOnSideEffect: false
+  }));
+
+  InspectorTest.log("Test that debug break does not trigger with throwOnSideEffect");
+  InspectorTest.logMessage(await Protocol.Runtime.evaluate({
+    expression: "f()",
     throwOnSideEffect: true
   }));
 

@@ -48,3 +48,26 @@ Test expression without side-effect, with throwOnSideEffect: true
         }
     }
 }
+Test that debug break triggers without throwOnSideEffect
+paused
+{
+    id : <messageId>
+    result : {
+        result : {
+            description : 2
+            type : number
+            value : 2
+        }
+    }
+}
+Test that debug break does not trigger with throwOnSideEffect
+{
+    id : <messageId>
+    result : {
+        result : {
+            description : 2
+            type : number
+            value : 2
+        }
+    }
+}
