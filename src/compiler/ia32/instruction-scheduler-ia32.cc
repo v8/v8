@@ -109,6 +109,8 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kAVXF32x4Neg:
     case kSSEF32x4Add:
     case kAVXF32x4Add:
+    case kSSEF32x4AddHoriz:
+    case kAVXF32x4AddHoriz:
     case kSSEF32x4Sub:
     case kAVXF32x4Sub:
     case kSSEF32x4Mul:
@@ -136,6 +138,8 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kAVXI32x4ShrS:
     case kSSEI32x4Add:
     case kAVXI32x4Add:
+    case kSSEI32x4AddHoriz:
+    case kAVXI32x4AddHoriz:
     case kSSEI32x4Sub:
     case kAVXI32x4Sub:
     case kSSEI32x4Mul:
@@ -175,6 +179,8 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kAVXI16x8Add:
     case kSSEI16x8AddSaturateS:
     case kAVXI16x8AddSaturateS:
+    case kSSEI16x8AddHoriz:
+    case kAVXI16x8AddHoriz:
     case kSSEI16x8Sub:
     case kAVXI16x8Sub:
     case kSSEI16x8SubSaturateS:

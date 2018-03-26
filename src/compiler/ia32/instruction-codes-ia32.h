@@ -127,6 +127,8 @@ namespace compiler {
   V(AVXF32x4Neg)                   \
   V(SSEF32x4Add)                   \
   V(AVXF32x4Add)                   \
+  V(SSEF32x4AddHoriz)              \
+  V(AVXF32x4AddHoriz)              \
   V(SSEF32x4Sub)                   \
   V(AVXF32x4Sub)                   \
   V(SSEF32x4Mul)                   \
@@ -154,6 +156,8 @@ namespace compiler {
   V(AVXI32x4ShrS)                  \
   V(SSEI32x4Add)                   \
   V(AVXI32x4Add)                   \
+  V(SSEI32x4AddHoriz)              \
+  V(AVXI32x4AddHoriz)              \
   V(SSEI32x4Sub)                   \
   V(AVXI32x4Sub)                   \
   V(SSEI32x4Mul)                   \
@@ -193,6 +197,8 @@ namespace compiler {
   V(AVXI16x8Add)                   \
   V(SSEI16x8AddSaturateS)          \
   V(AVXI16x8AddSaturateS)          \
+  V(SSEI16x8AddHoriz)              \
+  V(AVXI16x8AddHoriz)              \
   V(SSEI16x8Sub)                   \
   V(AVXI16x8Sub)                   \
   V(SSEI16x8SubSaturateS)          \

@@ -1607,8 +1607,6 @@ void RunBinaryLaneOpTest(
   }
 }
 
-#if V8_TARGET_ARCH_ARM || V8_TARGET_ARCH_ARM64 || V8_TARGET_ARCH_X64 || \
-    V8_TARGET_ARCH_MIPS || V8_TARGET_ARCH_MIPS64
 WASM_SIMD_TEST(I32x4AddHoriz) {
   RunBinaryLaneOpTest<int32_t>(lower_simd, kExprI32x4AddHoriz, {{1, 5, 9, 13}});
 }
@@ -1622,8 +1620,6 @@ WASM_SIMD_TEST(F32x4AddHoriz) {
   RunBinaryLaneOpTest<float>(lower_simd, kExprF32x4AddHoriz,
                              {{1.0f, 5.0f, 9.0f, 13.0f}});
 }
-#endif  // V8_TARGET_ARCH_ARM || V8_TARGET_ARCH_ARM64 || V8_TARGET_ARCH_X64 ||
-        // V8_TARGET_ARCH_MIPS || V8_TARGET_ARCH_MIPS64
 
 #if V8_TARGET_ARCH_ARM || V8_TARGET_ARCH_ARM64 || V8_TARGET_ARCH_MIPS || \
     V8_TARGET_ARCH_MIPS64 || V8_TARGET_ARCH_IA32
