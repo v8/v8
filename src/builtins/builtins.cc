@@ -195,12 +195,12 @@ Address Builtins::CppEntryOf(int index) {
 }
 
 // static
-bool Builtins::IsBuiltin(Code* code) {
+bool Builtins::IsBuiltin(const Code* code) {
   return Builtins::IsBuiltinId(code->builtin_index());
 }
 
 // static
-bool Builtins::IsOffHeapBuiltin(Code* code) {
+bool Builtins::IsOffHeapBuiltin(const Code* code) {
 #ifdef V8_EMBEDDED_BUILTINS
   return Builtins::IsBuiltinId(code->builtin_index()) &&
          Builtins::IsOffHeapSafe(code->builtin_index());

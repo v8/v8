@@ -26,8 +26,7 @@ Code* InstructionStream::TryLookupCode(Isolate* isolate, Address address) {
 #ifdef V8_EMBEDDED_BUILTINS
   if (!PcIsOffHeap(isolate, address)) return nullptr;
 
-  EmbeddedData d = EmbeddedData::FromBlob(isolate->embedded_blob(),
-                                          isolate->embedded_blob_size());
+  EmbeddedData d = EmbeddedData::FromBlob();
 
   int l = 0, r = Builtins::builtin_count;
   while (l < r) {

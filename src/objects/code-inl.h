@@ -224,7 +224,7 @@ void Code::set_next_code_link(Object* value) {
   code_data_container()->set_next_code_link(value);
 }
 
-int Code::InstructionSize() {
+int Code::InstructionSize() const {
 #ifdef V8_EMBEDDED_BUILTINS
   if (Builtins::IsOffHeapBuiltin(this)) return OffHeapInstructionSize();
 #endif
@@ -235,7 +235,7 @@ byte* Code::instruction_start() const {
   return const_cast<byte*>(FIELD_ADDR_CONST(this, kHeaderSize));
 }
 
-Address Code::InstructionStart() {
+Address Code::InstructionStart() const {
 #ifdef V8_EMBEDDED_BUILTINS
   if (Builtins::IsOffHeapBuiltin(this)) return OffHeapInstructionStart();
 #endif
@@ -246,7 +246,7 @@ byte* Code::instruction_end() const {
   return instruction_start() + instruction_size();
 }
 
-Address Code::InstructionEnd() {
+Address Code::InstructionEnd() const {
 #ifdef V8_EMBEDDED_BUILTINS
   if (Builtins::IsOffHeapBuiltin(this)) return OffHeapInstructionEnd();
 #endif
@@ -503,7 +503,7 @@ bool Code::is_optimized_code() const { return kind() == OPTIMIZED_FUNCTION; }
 bool Code::is_wasm_code() const { return kind() == WASM_FUNCTION; }
 
 int Code::constant_pool_offset() const {
-  if (!FLAG_enable_embedded_constant_pool) return instruction_size();
+  if (!FLAG_enable_embedded_constant_pool) return InstructionSize();
   return READ_INT_FIELD(this, kConstantPoolOffset);
 }
 
@@ -512,11 +512,11 @@ void Code::set_constant_pool_offset(int value) {
   WRITE_INT_FIELD(this, kConstantPoolOffset, value);
 }
 
-Address Code::constant_pool() {
+Address Code::constant_pool() const {
   if (FLAG_enable_embedded_constant_pool) {
     int offset = constant_pool_offset();
-    if (offset < instruction_size()) {
-      return FIELD_ADDR(this, kHeaderSize + offset);
+    if (offset < InstructionSize()) {
+      return InstructionStart() + offset;
     }
   }
   return nullptr;

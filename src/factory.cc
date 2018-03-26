@@ -1877,6 +1877,7 @@ Handle<Code> Factory::NewOffHeapTrampolineFor(Handle<Code> code,
   result->set_handler_table_offset(code->handler_table_offset());
   result->code_data_container()->set_kind_specific_flags(
       code->code_data_container()->kind_specific_flags());
+  result->set_constant_pool_offset(code->constant_pool_offset());
   if (code->has_safepoint_info()) {
     result->set_safepoint_table_offset(code->safepoint_table_offset());
   }

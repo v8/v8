@@ -63,9 +63,9 @@ class Code : public HeapObject {
   // this may from instruction_size in that this will return the size of the
   // off-heap instruction stream rather than the on-heap trampoline located
   // at instruction_start.
-  inline int InstructionSize();
+  inline int InstructionSize() const;
 #ifdef V8_EMBEDDED_BUILTINS
-  int OffHeapInstructionSize();
+  int OffHeapInstructionSize() const;
 #endif
 
   // [relocation_info]: Code relocation information
@@ -182,7 +182,7 @@ class Code : public HeapObject {
   inline void set_is_exception_caught(bool flag);
 
   // [constant_pool]: The constant pool for this function.
-  inline Address constant_pool();
+  inline Address constant_pool() const;
 
   // Get the safepoint entry for the given pc.
   SafepointEntry GetSafepointEntry(Address pc);
@@ -219,9 +219,9 @@ class Code : public HeapObject {
   // Returns the address of the first instruction. For off-heap code objects
   // this differs from instruction_start (which would point to the off-heap
   // trampoline instead).
-  inline Address InstructionStart();
+  inline Address InstructionStart() const;
 #ifdef V8_EMBEDDED_BUILTINS
-  Address OffHeapInstructionStart();
+  Address OffHeapInstructionStart() const;
 #endif
 
   // Returns the address right after the last instruction.
@@ -230,9 +230,9 @@ class Code : public HeapObject {
   // Returns the address right after the last instruction. For off-heap code
   // objects this differs from instruction_end (which would point to the
   // off-heap trampoline instead).
-  inline Address InstructionEnd();
+  inline Address InstructionEnd() const;
 #ifdef V8_EMBEDDED_BUILTINS
-  Address OffHeapInstructionEnd();
+  Address OffHeapInstructionEnd() const;
 #endif
 
   // Returns the size of the instructions, padding, relocation and unwinding

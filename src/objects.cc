@@ -14000,31 +14000,25 @@ SafepointEntry Code::GetSafepointEntry(Address pc) {
 }
 
 #ifdef V8_EMBEDDED_BUILTINS
-int Code::OffHeapInstructionSize() {
+int Code::OffHeapInstructionSize() const {
   DCHECK(Builtins::IsOffHeapBuiltin(this));
-  Isolate* isolate = GetIsolate();
-  if (isolate->embedded_blob() == nullptr) return instruction_size();
-  EmbeddedData d = EmbeddedData::FromBlob(isolate->embedded_blob(),
-                                          isolate->embedded_blob_size());
+  if (Isolate::CurrentEmbeddedBlob() == nullptr) return instruction_size();
+  EmbeddedData d = EmbeddedData::FromBlob();
   return d.InstructionSizeOfBuiltin(builtin_index());
 }
 
-Address Code::OffHeapInstructionStart() {
+Address Code::OffHeapInstructionStart() const {
   DCHECK(Builtins::IsOffHeapBuiltin(this));
-  Isolate* isolate = GetIsolate();
-  if (isolate->embedded_blob() == nullptr) return instruction_start();
-  EmbeddedData d = EmbeddedData::FromBlob(isolate->embedded_blob(),
-                                          isolate->embedded_blob_size());
+  if (Isolate::CurrentEmbeddedBlob() == nullptr) return instruction_start();
+  EmbeddedData d = EmbeddedData::FromBlob();
   return reinterpret_cast<Address>(
       const_cast<uint8_t*>(d.InstructionStartOfBuiltin(builtin_index())));
 }
 
-Address Code::OffHeapInstructionEnd() {
+Address Code::OffHeapInstructionEnd() const {
   DCHECK(Builtins::IsOffHeapBuiltin(this));
-  Isolate* isolate = GetIsolate();
-  if (isolate->embedded_blob() == nullptr) return instruction_end();
-  EmbeddedData d = EmbeddedData::FromBlob(isolate->embedded_blob(),
-                                          isolate->embedded_blob_size());
+  if (Isolate::CurrentEmbeddedBlob() == nullptr) return instruction_end();
+  EmbeddedData d = EmbeddedData::FromBlob();
   return reinterpret_cast<Address>(
       const_cast<uint8_t*>(d.InstructionStartOfBuiltin(builtin_index()) +
                            d.InstructionSizeOfBuiltin(builtin_index())));
@@ -14520,10 +14514,10 @@ void Code::Disassemble(const char* name, std::ostream& os, void* current_pc) {
   os << "compiler = " << (is_turbofanned() ? "turbofan" : "unknown") << "\n";
   os << "address = " << static_cast<const void*>(this) << "\n";
 
-  os << "Body (size = " << instruction_size() << ")\n";
+  os << "Body (size = " << InstructionSize() << ")\n";
   {
     Isolate* isolate = GetIsolate();
-    int size = instruction_size();
+    int size = InstructionSize();
     int safepoint_offset =
         has_safepoint_info() ? safepoint_table_offset() : size;
     int constant_pool_offset = this->constant_pool_offset();
@@ -14533,7 +14527,7 @@ void Code::Disassemble(const char* name, std::ostream& os, void* current_pc) {
     int code_size =
         Min(handler_offset, Min(safepoint_offset, constant_pool_offset));
     os << "Instructions (size = " << code_size << ")\n";
-    byte* begin = instruction_start();
+    byte* begin = InstructionStart();
     byte* end = begin + code_size;
     Disassembler::Decode(isolate, &os, begin, end, this, current_pc);
 
@@ -14574,7 +14568,7 @@ void Code::Disassemble(const char* name, std::ostream& os, void* current_pc) {
     os << "Safepoints (size = " << table.size() << ")\n";
     for (unsigned i = 0; i < table.length(); i++) {
       unsigned pc_offset = table.GetPcOffset(i);
-      os << static_cast<const void*>(instruction_start() + pc_offset) << "  ";
+      os << static_cast<const void*>(InstructionStart() + pc_offset) << "  ";
       os << std::setw(6) << std::hex << pc_offset << "  " << std::setw(4);
       int trampoline_pc = table.GetTrampolinePcOffset(i);
       print_pc(os, trampoline_pc);

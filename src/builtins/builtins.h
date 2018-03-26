@@ -111,10 +111,10 @@ class Builtins {
 
   // True, iff the given code object is a builtin. Note that this does not
   // necessarily mean that its kind is Code::BUILTIN.
-  static bool IsBuiltin(Code* code);
+  static bool IsBuiltin(const Code* code);
 
   // True, iff the given code object is a builtin with off-heap code.
-  static bool IsOffHeapBuiltin(Code* code);
+  static bool IsOffHeapBuiltin(const Code* code);
 
   // Returns true iff the given builtin can be lazy-loaded from the snapshot.
   // This is true in general for most builtins with the exception of a few

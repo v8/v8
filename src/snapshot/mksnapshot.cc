@@ -353,8 +353,7 @@ v8::StartupData WarmUpSnapshotDataBlob(v8::SnapshotCreator* snapshot_creator,
 void WriteEmbeddedFile(v8::SnapshotCreator* creator, SnapshotWriter* writer) {
   i::Isolate* isolate = reinterpret_cast<i::Isolate*>(creator->GetIsolate());
   isolate->PrepareEmbeddedBlobForSerialization();
-  i::EmbeddedData embedded_blob = i::EmbeddedData::FromBlob(
-      isolate->embedded_blob(), isolate->embedded_blob_size());
+  i::EmbeddedData embedded_blob = i::EmbeddedData::FromBlob();
   writer->WriteEmbedded(&embedded_blob);
 }
 #endif  // V8_EMBEDDED_BUILTINS

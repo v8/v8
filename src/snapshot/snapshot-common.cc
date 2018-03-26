@@ -394,7 +394,9 @@ EmbeddedData EmbeddedData::FromIsolate(Isolate* isolate) {
   return {blob, blob_size};
 }
 
-EmbeddedData EmbeddedData::FromBlob(const uint8_t* data, uint32_t size) {
+EmbeddedData EmbeddedData::FromBlob() {
+  const uint8_t* data = Isolate::CurrentEmbeddedBlob();
+  uint32_t size = Isolate::CurrentEmbeddedBlobSize();
   DCHECK_NOT_NULL(data);
   DCHECK_LT(0, size);
   return {data, size};

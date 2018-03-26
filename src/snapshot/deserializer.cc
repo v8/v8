@@ -524,8 +524,7 @@ bool Deserializer<AllocatorT>::ReadData(MaybeObject** current,
             reinterpret_cast<Address>(current) + skip);
 
         CHECK_NOT_NULL(isolate->embedded_blob());
-        EmbeddedData d = EmbeddedData::FromBlob(isolate->embedded_blob(),
-                                                isolate->embedded_blob_size());
+        EmbeddedData d = EmbeddedData::FromBlob();
         const uint8_t* address = d.InstructionStartOfBuiltin(builtin_index);
         CHECK_NOT_NULL(address);
 

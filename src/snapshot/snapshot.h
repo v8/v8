@@ -83,7 +83,7 @@ class BuiltinSnapshotData final : public SnapshotData {
 class EmbeddedData final {
  public:
   static EmbeddedData FromIsolate(Isolate* isolate);
-  static EmbeddedData FromBlob(const uint8_t* data, uint32_t size);
+  static EmbeddedData FromBlob();
 
   const uint8_t* data() const { return data_; }
   uint32_t size() const { return size_; }

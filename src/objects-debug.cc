@@ -966,8 +966,8 @@ void CodeDataContainer::CodeDataContainerVerify() {
 }
 
 void Code::CodeVerify() {
-  CHECK_LE(constant_pool_offset(), instruction_size());
-  CHECK(IsAligned(reinterpret_cast<intptr_t>(instruction_start()),
+  CHECK_LE(constant_pool_offset(), InstructionSize());
+  CHECK(IsAligned(reinterpret_cast<intptr_t>(InstructionStart()),
                   kCodeAlignment));
   relocation_info()->ObjectVerify();
   Address last_gc_pc = nullptr;

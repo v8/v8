@@ -1268,6 +1268,10 @@ class Isolate {
     return builtins_constants_table_builder_;
   }
 
+  static const uint8_t* CurrentEmbeddedBlob();
+  static uint32_t CurrentEmbeddedBlobSize();
+
+  // TODO(jgruber): Remove these in favor of the static methods above.
   const uint8_t* embedded_blob() const;
   uint32_t embedded_blob_size() const;
 #endif
@@ -1647,6 +1651,8 @@ class Isolate {
   // Used during builtins compilation to build the builtins constants table,
   // which is stored on the root list prior to serialization.
   BuiltinsConstantsTableBuilder* builtins_constants_table_builder_ = nullptr;
+
+  void SetEmbeddedBlob(const uint8_t* blob, uint32_t blob_size);
 
   const uint8_t* embedded_blob_ = nullptr;
   uint32_t embedded_blob_size_ = 0;
