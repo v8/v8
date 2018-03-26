@@ -87,7 +87,7 @@ class CodeGenerator final : public GapResolver::Assembler {
                          JumpOptimizationInfo* jump_opt,
                          std::vector<trap_handler::ProtectedInstructionData>*
                              protected_instructions,
-                         LoadPoisoning load_poisoning);
+                         PoisoningMitigationLevel poisoning_enabled);
 
   // Generate native code. After calling AssembleCode, call FinalizeCode to
   // produce the actual code object. If an error occurs during either phase,
@@ -155,10 +155,12 @@ class CodeGenerator final : public GapResolver::Assembler {
   // predecessor blocks ends with a masking branch.
   void TryInsertBranchPoisoning(const InstructionBlock* block);
 
-  // Initializes the masking register.
-  // Eventually, this should be always threaded through from the caller
-  // (in the proplogue) or from a callee (after a call).
-  void InitializePoisonForLoadsIfNeeded();
+  // Initializes the masking register in the prologue of a function.
+  void InitializeSpeculationPoison();
+  // Reset the masking register during execution of a function.
+  void ResetSpeculationPoison();
+  // Generates a mask from the pc passed in {kJavaScriptCallCodeStartRegister}.
+  void GenerateSpeculationPoisonFromCodeStartRegister();
 
   // Assemble code for the specified instruction.
   CodeGenResult AssembleInstruction(Instruction* instr,
@@ -205,10 +207,6 @@ class CodeGenerator final : public GapResolver::Assembler {
   // because this code has already been deoptimized and needs to be unlinked
   // from the JS functions referring it.
   void BailoutIfDeoptimized();
-
-  // Generates a mask which can be used to poison values when we detect
-  // the code is executing speculatively.
-  void GenerateSpeculationPoison();
 
   // Generates code to poison the stack pointer and implicit register arguments
   // like the context register and the function register.
@@ -418,7 +416,7 @@ class CodeGenerator final : public GapResolver::Assembler {
   SourcePositionTableBuilder source_position_table_builder_;
   std::vector<trap_handler::ProtectedInstructionData>* protected_instructions_;
   CodeGenResult result_;
-  LoadPoisoning load_poisoning_;
+  PoisoningMitigationLevel poisoning_enabled_;
 };
 
 }  // namespace compiler

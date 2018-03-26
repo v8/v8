@@ -345,8 +345,8 @@ class PipelineData {
         codegen_zone(), frame(), linkage, sequence(), info(), isolate(),
         osr_helper_, start_source_position_, jump_optimization_info_,
         protected_instructions_,
-        info()->is_poison_loads() ? LoadPoisoning::kDoPoison
-                                  : LoadPoisoning::kDontPoison);
+        info()->is_poison_loads() ? PoisoningMitigationLevel::kOn
+                                  : PoisoningMitigationLevel::kOff);
   }
 
   void BeginPhaseKind(const char* phase_kind_name) {
@@ -1451,8 +1451,8 @@ struct MemoryOptimizationPhase {
     // Optimize allocations and load/store operations.
     MemoryOptimizer optimizer(
         data->jsgraph(), temp_zone,
-        data->info()->is_poison_loads() ? LoadPoisoning::kDoPoison
-                                        : LoadPoisoning::kDontPoison,
+        data->info()->is_poison_loads() ? PoisoningMitigationLevel::kOn
+                                        : PoisoningMitigationLevel::kOff,
         data->info()->is_allocation_folding_enabled()
             ? MemoryOptimizer::AllocationFolding::kDoAllocationFolding
             : MemoryOptimizer::AllocationFolding::kDontAllocationFolding);
@@ -1534,9 +1534,6 @@ struct InstructionSelectionPhase {
         data->info()->switch_jump_table_enabled()
             ? InstructionSelector::kEnableSwitchJumpTable
             : InstructionSelector::kDisableSwitchJumpTable,
-        data->info()->is_generating_speculation_poison_on_entry()
-            ? InstructionSelector::kEnableSpeculationPoison
-            : InstructionSelector::kDisableSpeculationPoison,
         data->info()->is_source_positions_enabled()
             ? InstructionSelector::kAllSourcePositions
             : InstructionSelector::kCallSourcePositions,
@@ -1547,8 +1544,8 @@ struct InstructionSelectionPhase {
         data->isolate()->serializer_enabled()
             ? InstructionSelector::kEnableSerialization
             : InstructionSelector::kDisableSerialization,
-        data->info()->is_poison_loads() ? LoadPoisoning::kDoPoison
-                                        : LoadPoisoning::kDontPoison);
+        data->info()->is_poison_loads() ? PoisoningMitigationLevel::kOn
+                                        : PoisoningMitigationLevel::kOff);
     if (!selector.SelectInstructions()) {
       data->set_compilation_failed();
     }
@@ -1965,10 +1962,15 @@ bool PipelineImpl::OptimizeGraph(Linkage* linkage) {
 Handle<Code> Pipeline::GenerateCodeForCodeStub(
     Isolate* isolate, CallDescriptor* call_descriptor, Graph* graph,
     Schedule* schedule, Code::Kind kind, const char* debug_name,
-    uint32_t stub_key, int32_t builtin_index, JumpOptimizationInfo* jump_opt) {
+    uint32_t stub_key, int32_t builtin_index, JumpOptimizationInfo* jump_opt,
+    PoisoningMitigationLevel poisoning_enabled) {
   CompilationInfo info(CStrVector(debug_name), graph->zone(), kind);
   info.set_builtin_index(builtin_index);
   info.set_stub_key(stub_key);
+
+  if (poisoning_enabled == PoisoningMitigationLevel::kOn) {
+    info.MarkAsPoisonLoads();
+  }
 
   // Construct a pipeline for scheduling and code generation.
   ZoneStats zone_stats(isolate->allocator());
@@ -2194,13 +2196,12 @@ bool PipelineImpl::SelectInstructions(Linkage* linkage) {
 
   // Allocate registers.
   if (call_descriptor->HasRestrictedAllocatableRegisters()) {
-    auto registers = call_descriptor->AllocatableRegisters();
+    RegList registers = call_descriptor->AllocatableRegisters();
     DCHECK_LT(0, NumRegs(registers));
     std::unique_ptr<const RegisterConfiguration> config;
     config.reset(RegisterConfiguration::RestrictGeneralRegisters(registers));
     AllocateRegisters(config.get(), call_descriptor, run_verifier);
   } else if (data->info()->is_poison_loads()) {
-    CHECK(InstructionSelector::SupportsSpeculationPoisoning());
     AllocateRegisters(RegisterConfiguration::Poisoning(), call_descriptor,
                       run_verifier);
   } else {

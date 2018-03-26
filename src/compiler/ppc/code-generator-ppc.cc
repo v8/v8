@@ -833,7 +833,7 @@ void CodeGenerator::BailoutIfDeoptimized() {
   __ Jump(code, RelocInfo::CODE_TARGET, ne, cr0);
 }
 
-void CodeGenerator::GenerateSpeculationPoison() {
+void CodeGenerator::GenerateSpeculationPoisonFromCodeStartRegister() {
   Register scratch = kScratchReg;
 
   Label current_pc;
@@ -1148,6 +1148,10 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
               Operand(offset.offset()));
       break;
     }
+    case kArchPoisonOnSpeculationWord:
+      __ and_(i.OutputRegister(), i.InputRegister(0),
+              kSpeculationPoisonRegister);
+      break;
     case kPPC_And:
       if (HasRegisterInput(instr, 1)) {
         __ and_(i.OutputRegister(), i.InputRegister(0), i.InputRegister(1),
@@ -2256,7 +2260,7 @@ void CodeGenerator::AssembleConstructFrame() {
     if (FLAG_code_comments) __ RecordComment("-- OSR entrypoint --");
     osr_pc_offset_ = __ pc_offset();
     shrink_slots -= osr_helper()->UnoptimizedFrameSlots();
-    InitializePoisonForLoadsIfNeeded();
+    ResetSpeculationPoison();
   }
 
   const RegList double_saves = call_descriptor->CalleeSavedFPRegisters();

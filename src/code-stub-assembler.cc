@@ -1678,9 +1678,9 @@ TNode<Object> CodeStubAssembler::LoadWeakCellValue(
   return value;
 }
 
-Node* CodeStubAssembler::LoadFixedArrayElement(Node* object, Node* index_node,
-                                               int additional_offset,
-                                               ParameterMode parameter_mode) {
+Node* CodeStubAssembler::LoadFixedArrayElement(
+    Node* object, Node* index_node, int additional_offset,
+    ParameterMode parameter_mode, LoadSensitivity needs_poisoning) {
   CSA_SLOW_ASSERT(this, IntPtrGreaterThanOrEqual(
                             ParameterToIntPtr(index_node, parameter_mode),
                             IntPtrConstant(0)));
@@ -1688,7 +1688,7 @@ Node* CodeStubAssembler::LoadFixedArrayElement(Node* object, Node* index_node,
       FixedArray::kHeaderSize + additional_offset - kHeapObjectTag;
   Node* offset = ElementOffsetFromIndex(index_node, HOLEY_ELEMENTS,
                                         parameter_mode, header_size);
-  return Load(MachineType::AnyTagged(), object, offset);
+  return Load(MachineType::AnyTagged(), object, offset, needs_poisoning);
 }
 
 TNode<RawPtrT> CodeStubAssembler::LoadFixedTypedArrayBackingStore(

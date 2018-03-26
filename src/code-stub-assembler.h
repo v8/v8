@@ -599,13 +599,21 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
                                   Label* if_cleared = nullptr);
 
   // Load an array element from a FixedArray.
+  Node* LoadFixedArrayElement(
+      Node* object, Node* index, int additional_offset = 0,
+      ParameterMode parameter_mode = INTPTR_PARAMETERS,
+      LoadSensitivity needs_poisoning = LoadSensitivity::kSafe);
   Node* LoadFixedArrayElement(Node* object, Node* index,
-                              int additional_offset = 0,
-                              ParameterMode parameter_mode = INTPTR_PARAMETERS);
-  Node* LoadFixedArrayElement(Node* object, int index,
-                              int additional_offset = 0) {
+                              LoadSensitivity needs_poisoning) {
+    return LoadFixedArrayElement(object, index, 0, INTPTR_PARAMETERS,
+                                 needs_poisoning);
+  }
+  Node* LoadFixedArrayElement(
+      Node* object, int index, int additional_offset = 0,
+      LoadSensitivity needs_poisoning = LoadSensitivity::kSafe) {
     return LoadFixedArrayElement(object, IntPtrConstant(index),
-                                 additional_offset);
+                                 additional_offset, INTPTR_PARAMETERS,
+                                 needs_poisoning);
   }
   // Load an array element from a FixedArray, untag it and return it as Word32.
   Node* LoadAndUntagToWord32FixedArrayElement(

@@ -1119,6 +1119,7 @@ class IsStoreElementMatcher final : public TestNodeMatcher {
 
 LOAD_MATCHER(Load)
 LOAD_MATCHER(UnalignedLoad)
+LOAD_MATCHER(PoisonedLoad)
 
 #define STORE_MATCHER(kStore)                                                 \
   class Is##kStore##Matcher final : public TestNodeMatcher {                  \
@@ -1970,6 +1971,16 @@ Matcher<Node*> IsLoad(const Matcher<LoadRepresentation>& rep_matcher,
                                        effect_matcher, control_matcher));
 }
 
+Matcher<Node*> IsPoisonedLoad(const Matcher<LoadRepresentation>& rep_matcher,
+                              const Matcher<Node*>& base_matcher,
+                              const Matcher<Node*>& index_matcher,
+                              const Matcher<Node*>& effect_matcher,
+                              const Matcher<Node*>& control_matcher) {
+  return MakeMatcher(new IsPoisonedLoadMatcher(rep_matcher, base_matcher,
+                                               index_matcher, effect_matcher,
+                                               control_matcher));
+}
+
 Matcher<Node*> IsUnalignedLoad(const Matcher<LoadRepresentation>& rep_matcher,
                                const Matcher<Node*>& base_matcher,
                                const Matcher<Node*>& index_matcher,
@@ -2023,10 +2034,6 @@ Matcher<Node*> IsLoadContext(const Matcher<ContextAccess>& access_matcher,
 
 Matcher<Node*> IsParameter(const Matcher<int> index_matcher) {
   return MakeMatcher(new IsParameterMatcher(index_matcher));
-}
-
-Matcher<Node*> IsSpeculationPoison() {
-  return MakeMatcher(new TestNodeMatcher(IrOpcode::kSpeculationPoison));
 }
 
 Matcher<Node*> IsLoadFramePointer() {
@@ -2192,6 +2199,7 @@ IS_UNOP_MATCHER(Word32Ctz)
 IS_UNOP_MATCHER(Word32Popcnt)
 IS_UNOP_MATCHER(Word32ReverseBytes)
 IS_UNOP_MATCHER(SpeculativeToNumber)
+IS_UNOP_MATCHER(PoisonOnSpeculationTagged)
 #undef IS_UNOP_MATCHER
 
 // Special-case Bitcast operators which are disabled when ENABLE_VERIFY_CSA is

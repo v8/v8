@@ -53,7 +53,7 @@ class V8_EXPORT_PRIVATE CompilationInfo final {
     kLoopPeelingEnabled = 1 << 11,
     kUntrustedCodeMitigations = 1 << 12,
     kSwitchJumpTableEnabled = 1 << 13,
-    kGenerateSpeculationPoisonOnEntry = 1 << 14,
+    kCalledWithCodeStartRegister = 1 << 14,
     kPoisonRegisterArguments = 1 << 15,
     kAllocationFoldingEnabled = 1 << 16
   };
@@ -179,20 +179,19 @@ class V8_EXPORT_PRIVATE CompilationInfo final {
     return GetFlag(kSwitchJumpTableEnabled);
   }
 
-  bool is_generating_speculation_poison_on_entry() const {
-    bool enabled = GetFlag(kGenerateSpeculationPoisonOnEntry);
-    DCHECK_IMPLIES(enabled, has_untrusted_code_mitigations());
+  bool called_with_code_start_register() const {
+    bool enabled = GetFlag(kCalledWithCodeStartRegister);
     return enabled;
   }
 
   void MarkAsPoisoningRegisterArguments() {
     DCHECK(has_untrusted_code_mitigations());
-    SetFlag(kGenerateSpeculationPoisonOnEntry);
     SetFlag(kPoisonRegisterArguments);
   }
   bool is_poisoning_register_arguments() const {
     bool enabled = GetFlag(kPoisonRegisterArguments);
     DCHECK_IMPLIES(enabled, has_untrusted_code_mitigations());
+    DCHECK_IMPLIES(enabled, called_with_code_start_register());
     return enabled;
   }
 

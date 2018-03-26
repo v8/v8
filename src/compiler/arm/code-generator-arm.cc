@@ -639,7 +639,7 @@ void CodeGenerator::BailoutIfDeoptimized() {
   __ Jump(code, RelocInfo::CODE_TARGET, ne);
 }
 
-void CodeGenerator::GenerateSpeculationPoison() {
+void CodeGenerator::GenerateSpeculationPoisonFromCodeStartRegister() {
   UseScratchRegisterScope temps(tasm());
   Register scratch = temps.Acquire();
 
@@ -1742,6 +1742,10 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ isb(SY);
       break;
     }
+    case kArchPoisonOnSpeculationWord:
+      __ and_(i.OutputRegister(0), i.InputRegister(0),
+              Operand(kSpeculationPoisonRegister));
+      break;
     case kArmF32x4Splat: {
       int src_code = i.InputFloatRegister(0).code();
       __ vdup(Neon32, i.OutputSimd128Register(),
@@ -2944,7 +2948,7 @@ void CodeGenerator::AssembleConstructFrame() {
     if (FLAG_code_comments) __ RecordComment("-- OSR entrypoint --");
     osr_pc_offset_ = __ pc_offset();
     shrink_slots -= osr_helper()->UnoptimizedFrameSlots();
-    InitializePoisonForLoadsIfNeeded();
+    ResetSpeculationPoison();
   }
 
   const RegList saves = call_descriptor->CalleeSavedRegisters();

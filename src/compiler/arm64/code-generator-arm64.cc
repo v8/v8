@@ -572,7 +572,7 @@ void CodeGenerator::BailoutIfDeoptimized() {
   __ Bind(&not_deoptimized);
 }
 
-void CodeGenerator::GenerateSpeculationPoison() {
+void CodeGenerator::GenerateSpeculationPoisonFromCodeStartRegister() {
   UseScratchRegisterScope temps(tasm());
   Register scratch = temps.AcquireX();
 
@@ -1590,6 +1590,10 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ Dsb(FullSystem, BarrierAll);
       __ Isb();
       break;
+    case kArchPoisonOnSpeculationWord:
+      __ And(i.OutputRegister(0), i.InputRegister(0),
+             Operand(kSpeculationPoisonRegister));
+      break;
     case kWord32AtomicLoadInt8:
       ASSEMBLE_ATOMIC_LOAD_INTEGER(Ldarb);
       __ Sxtb(i.OutputRegister(0), i.OutputRegister(0));
@@ -2393,7 +2397,7 @@ void CodeGenerator::AssembleConstructFrame() {
       if (FLAG_code_comments) __ RecordComment("-- OSR entrypoint --");
       osr_pc_offset_ = __ pc_offset();
       shrink_slots -= osr_helper()->UnoptimizedFrameSlots();
-      InitializePoisonForLoadsIfNeeded();
+      ResetSpeculationPoison();
     }
 
     if (info()->IsWasm() && shrink_slots > 128) {

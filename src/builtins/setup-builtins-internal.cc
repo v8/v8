@@ -114,8 +114,9 @@ Code* BuildWithCodeStubAssemblerJS(Isolate* isolate, int32_t builtin_index,
   Zone zone(isolate->allocator(), ZONE_NAME, segment_size);
   const int argc_with_recv =
       (argc == SharedFunctionInfo::kDontAdaptArgumentsSentinel) ? 0 : argc + 1;
-  compiler::CodeAssemblerState state(isolate, &zone, argc_with_recv,
-                                     Code::BUILTIN, name, builtin_index);
+  compiler::CodeAssemblerState state(
+      isolate, &zone, argc_with_recv, Code::BUILTIN, name,
+      PoisoningMitigationLevel::kOff, builtin_index);
   generator(&state);
   Handle<Code> code = compiler::CodeAssembler::GenerateCode(&state);
   PostBuildProfileAndTracing(isolate, *code, name);
@@ -141,7 +142,8 @@ Code* BuildWithCodeStubAssemblerCS(Isolate* isolate, int32_t builtin_index,
   // Ensure descriptor is already initialized.
   DCHECK_LE(0, descriptor.GetRegisterParameterCount());
   compiler::CodeAssemblerState state(isolate, &zone, descriptor, Code::BUILTIN,
-                                     name, result_size, 0, builtin_index);
+                                     name, PoisoningMitigationLevel::kOff,
+                                     result_size, 0, builtin_index);
   generator(&state);
   Handle<Code> code = compiler::CodeAssembler::GenerateCode(&state);
   PostBuildProfileAndTracing(isolate, *code, name);

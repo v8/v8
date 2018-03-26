@@ -219,7 +219,7 @@ void InstructionSelector::VisitLoad(Node* node) {
   }
 
   if (node->opcode() == IrOpcode::kPoisonedLoad &&
-      load_poisoning_ == LoadPoisoning::kDoPoison) {
+      poisoning_enabled == PoisoningMitigationLevel::kOn) {
     opcode |= MiscField::encode(kMemoryAccessPoisoned);
   }
 
@@ -2227,9 +2227,6 @@ InstructionSelector::AlignmentRequirements() {
   return MachineOperatorBuilder::AlignmentRequirements::
       FullUnalignedAccessSupport();
 }
-
-// static
-bool InstructionSelector::SupportsSpeculationPoisoning() { return true; }
 
 }  // namespace compiler
 }  // namespace internal

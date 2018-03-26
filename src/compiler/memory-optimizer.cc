@@ -16,7 +16,7 @@ namespace internal {
 namespace compiler {
 
 MemoryOptimizer::MemoryOptimizer(JSGraph* jsgraph, Zone* zone,
-                                 LoadPoisoning load_poisoning,
+                                 PoisoningMitigationLevel poisoning_enabled,
                                  AllocationFolding allocation_folding)
     : jsgraph_(jsgraph),
       empty_state_(AllocationState::Empty(zone)),
@@ -24,7 +24,7 @@ MemoryOptimizer::MemoryOptimizer(JSGraph* jsgraph, Zone* zone,
       tokens_(zone),
       zone_(zone),
       graph_assembler_(jsgraph, nullptr, nullptr, zone),
-      load_poisoning_(load_poisoning),
+      poisoning_enabled_(poisoning_enabled),
       allocation_folding_(allocation_folding) {}
 
 void MemoryOptimizer::Optimize() {
@@ -353,7 +353,7 @@ void MemoryOptimizer::VisitLoadElement(Node* node,
   ElementAccess const& access = ElementAccessOf(node->op());
   Node* index = node->InputAt(1);
   node->ReplaceInput(1, ComputeIndex(access, index));
-  if (load_poisoning_ == LoadPoisoning::kDoPoison &&
+  if (poisoning_enabled_ == PoisoningMitigationLevel::kOn &&
       access.machine_type.representation() !=
           MachineRepresentation::kTaggedPointer) {
     NodeProperties::ChangeOp(node,
@@ -369,7 +369,7 @@ void MemoryOptimizer::VisitLoadField(Node* node, AllocationState const* state) {
   FieldAccess const& access = FieldAccessOf(node->op());
   Node* offset = jsgraph()->IntPtrConstant(access.offset - access.tag());
   node->InsertInput(graph()->zone(), 1, offset);
-  if (load_poisoning_ == LoadPoisoning::kDoPoison &&
+  if (poisoning_enabled_ == PoisoningMitigationLevel::kOn &&
       access.machine_type.representation() !=
           MachineRepresentation::kTaggedPointer) {
     NodeProperties::ChangeOp(node,

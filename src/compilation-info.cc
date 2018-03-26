@@ -42,6 +42,7 @@ CompilationInfo::CompilationInfo(Zone* zone, Isolate* isolate,
   optimization_id_ = isolate->NextOptimizationId();
   dependencies_.reset(new CompilationDependencies(isolate, zone));
 
+  SetFlag(kCalledWithCodeStartRegister);
   if (FLAG_function_context_specialization) MarkAsFunctionContextSpecializing();
   if (FLAG_turbo_splitting) MarkAsSplittingEnabled();
   if (!FLAG_turbo_disable_switch_jump_table) SetFlag(kSwitchJumpTableEnabled);
@@ -59,8 +60,8 @@ CompilationInfo::CompilationInfo(Vector<const char> debug_name, Zone* zone,
                                  Code::Kind code_kind)
     : CompilationInfo(debug_name, static_cast<AbstractCode::Kind>(code_kind),
                       zone) {
-  if (code_kind == Code::BYTECODE_HANDLER && has_untrusted_code_mitigations()) {
-    SetFlag(CompilationInfo::kGenerateSpeculationPoisonOnEntry);
+  if (code_kind == Code::BYTECODE_HANDLER) {
+    SetFlag(CompilationInfo::kCalledWithCodeStartRegister);
   }
 #if ENABLE_GDB_JIT_INTERFACE
 #if DEBUG

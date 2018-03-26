@@ -25,10 +25,10 @@ InstructionSelector::InstructionSelector(
     InstructionSequence* sequence, Schedule* schedule,
     SourcePositionTable* source_positions, Frame* frame,
     EnableSwitchJumpTable enable_switch_jump_table,
-    EnableSpeculationPoison enable_speculation_poison,
     SourcePositionMode source_position_mode, Features features,
     EnableScheduling enable_scheduling,
-    EnableSerialization enable_serialization, LoadPoisoning load_poisoning)
+    EnableSerialization enable_serialization,
+    PoisoningMitigationLevel poisoning_enabled)
     : zone_(zone),
       linkage_(linkage),
       sequence_(sequence),
@@ -50,8 +50,7 @@ InstructionSelector::InstructionSelector(
       enable_scheduling_(enable_scheduling),
       enable_serialization_(enable_serialization),
       enable_switch_jump_table_(enable_switch_jump_table),
-      enable_speculation_poison_(enable_speculation_poison),
-      load_poisoning_(load_poisoning),
+      poisoning_enabled_(poisoning_enabled),
       frame_(frame),
       instruction_selection_failed_(false) {
   instructions_.reserve(node_count);
@@ -1002,7 +1001,7 @@ void InstructionSelector::InitializeCallBuffer(Node* call, CallBuffer* buffer,
       // If we do load poisoning and the linkage uses the poisoning register,
       // then we request the input in memory location, and during code
       // generation, we move the input to the register.
-      if (load_poisoning_ == LoadPoisoning::kDoPoison &&
+      if (poisoning_enabled_ != PoisoningMitigationLevel::kOff &&
           unallocated.HasFixedRegisterPolicy()) {
         int reg = unallocated.fixed_register_index();
         if (reg == kSpeculationPoisonRegister.code()) {
@@ -1619,8 +1618,11 @@ void InstructionSelector::VisitNode(Node* node) {
       return MarkAsFloat64(node), VisitFloat64InsertLowWord32(node);
     case IrOpcode::kFloat64InsertHighWord32:
       return MarkAsFloat64(node), VisitFloat64InsertHighWord32(node);
-    case IrOpcode::kSpeculationPoison:
-      return VisitSpeculationPoison(node);
+    case IrOpcode::kPoisonOnSpeculationTagged:
+      return MarkAsReference(node), VisitPoisonOnSpeculationTagged(node);
+    case IrOpcode::kPoisonOnSpeculationWord:
+      return MarkAsRepresentation(MachineType::PointerRepresentation(), node),
+             VisitPoisonOnSpeculationWord(node);
     case IrOpcode::kStackSlot:
       return VisitStackSlot(node);
     case IrOpcode::kLoadStackPointer:
@@ -1949,12 +1951,20 @@ void InstructionSelector::VisitNode(Node* node) {
   }
 }
 
-void InstructionSelector::VisitSpeculationPoison(Node* node) {
-  CHECK(enable_speculation_poison_ == kEnableSpeculationPoison);
-  OperandGenerator g(this);
-  Emit(kArchNop, g.DefineAsLocation(node, LinkageLocation::ForRegister(
-                                              kSpeculationPoisonRegister.code(),
-                                              MachineType::UintPtr())));
+void InstructionSelector::VisitPoisonOnSpeculationWord(Node* node) {
+  if (poisoning_enabled_ != PoisoningMitigationLevel::kOff) {
+    OperandGenerator g(this);
+    Node* input_node = NodeProperties::GetValueInput(node, 0);
+    InstructionOperand input = g.UseRegister(input_node);
+    InstructionOperand output = g.DefineSameAsFirst(node);
+    Emit(kArchPoisonOnSpeculationWord, output, input);
+  } else {
+    EmitIdentity(node);
+  }
+}
+
+void InstructionSelector::VisitPoisonOnSpeculationTagged(Node* node) {
+  VisitPoisonOnSpeculationWord(node);
 }
 
 void InstructionSelector::VisitLoadStackPointer(Node* node) {
@@ -2713,33 +2723,31 @@ void InstructionSelector::VisitReturn(Node* ret) {
 
 void InstructionSelector::VisitBranch(Node* branch, BasicBlock* tbranch,
                                       BasicBlock* fbranch) {
-  LoadPoisoning poisoning =
-      IsSafetyCheckOf(branch->op()) == IsSafetyCheck::kSafetyCheck
-          ? load_poisoning_
-          : LoadPoisoning::kDontPoison;
+  bool update_poison =
+      IsSafetyCheckOf(branch->op()) == IsSafetyCheck::kSafetyCheck &&
+      poisoning_enabled_ == PoisoningMitigationLevel::kOn;
   FlagsContinuation cont =
-      FlagsContinuation::ForBranch(kNotEqual, tbranch, fbranch, poisoning);
+      FlagsContinuation::ForBranch(kNotEqual, tbranch, fbranch, update_poison);
   VisitWordCompareZero(branch, branch->InputAt(0), &cont);
 }
 
 void InstructionSelector::VisitDeoptimizeIf(Node* node) {
   DeoptimizeParameters p = DeoptimizeParametersOf(node->op());
-  LoadPoisoning poisoning = p.is_safety_check() == IsSafetyCheck::kSafetyCheck
-                                ? load_poisoning_
-                                : LoadPoisoning::kDontPoison;
+  bool update_poison = p.is_safety_check() == IsSafetyCheck::kSafetyCheck &&
+                       poisoning_enabled_ == PoisoningMitigationLevel::kOn;
   FlagsContinuation cont = FlagsContinuation::ForDeoptimize(
       kNotEqual, p.kind(), p.reason(), p.feedback(), node->InputAt(1),
-      poisoning);
+      update_poison);
   VisitWordCompareZero(node, node->InputAt(0), &cont);
 }
 
 void InstructionSelector::VisitDeoptimizeUnless(Node* node) {
   DeoptimizeParameters p = DeoptimizeParametersOf(node->op());
-  LoadPoisoning poisoning = p.is_safety_check() == IsSafetyCheck::kSafetyCheck
-                                ? load_poisoning_
-                                : LoadPoisoning::kDontPoison;
+  bool update_poison = p.is_safety_check() == IsSafetyCheck::kSafetyCheck &&
+                       poisoning_enabled_ == PoisoningMitigationLevel::kOn;
   FlagsContinuation cont = FlagsContinuation::ForDeoptimize(
-      kEqual, p.kind(), p.reason(), p.feedback(), node->InputAt(1), poisoning);
+      kEqual, p.kind(), p.reason(), p.feedback(), node->InputAt(1),
+      update_poison);
   VisitWordCompareZero(node, node->InputAt(0), &cont);
 }
 

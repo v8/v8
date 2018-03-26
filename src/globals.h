@@ -1511,6 +1511,9 @@ enum class HeapObjectReferenceType {
   STRONG,
 };
 
+enum class PoisoningMitigationLevel { kOff, kOn };
+enum class LoadSensitivity { kSafe, kNeedsPoisoning };
+
 }  // namespace internal
 }  // namespace v8
 

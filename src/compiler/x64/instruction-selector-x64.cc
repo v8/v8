@@ -309,7 +309,7 @@ void InstructionSelector::VisitLoad(Node* node) {
   if (node->opcode() == IrOpcode::kProtectedLoad) {
     code |= MiscField::encode(kMemoryAccessProtected);
   } else if (node->opcode() == IrOpcode::kPoisonedLoad) {
-    CHECK_EQ(load_poisoning_, LoadPoisoning::kDoPoison);
+    CHECK_EQ(poisoning_enabled_, PoisoningMitigationLevel::kOn);
     code |= MiscField::encode(kMemoryAccessPoisoned);
   }
   Emit(code, 1, outputs, input_count, inputs);
@@ -500,7 +500,6 @@ void InstructionSelector::VisitWord32And(Node* node) {
 void InstructionSelector::VisitWord64And(Node* node) {
   VisitBinop(this, node, kX64And);
 }
-
 
 void InstructionSelector::VisitWord32Or(Node* node) {
   VisitBinop(this, node, kX64Or32);
@@ -2630,9 +2629,6 @@ InstructionSelector::AlignmentRequirements() {
   return MachineOperatorBuilder::AlignmentRequirements::
       FullUnalignedAccessSupport();
 }
-
-// static
-bool InstructionSelector::SupportsSpeculationPoisoning() { return true; }
 
 }  // namespace compiler
 }  // namespace internal

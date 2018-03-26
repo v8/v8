@@ -2508,6 +2508,7 @@ void TurboAssembler::ComputeCodeStartAddress(Register dst) {
 }
 
 void TurboAssembler::ResetSpeculationPoisonRegister() {
+  // TODO(tebbi): Perhaps, we want to put an lfence here.
   Set(kSpeculationPoisonRegister, -1);
 }
 

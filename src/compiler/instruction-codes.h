@@ -70,6 +70,7 @@ enum class RecordWriteMode { kValueIsMap, kValueIsPointer, kValueIsAny };
   V(ArchTruncateDoubleToI)                \
   V(ArchStoreWithWriteBarrier)            \
   V(ArchStackSlot)                        \
+  V(ArchPoisonOnSpeculationWord)          \
   V(Word32AtomicLoadInt8)                 \
   V(Word32AtomicLoadUint8)                \
   V(Word32AtomicLoadInt16)                \

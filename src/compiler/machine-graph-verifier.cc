@@ -113,6 +113,7 @@ class MachineRepresentationInferrer {
           case IrOpcode::kWord32AtomicLoad:
           case IrOpcode::kLoad:
           case IrOpcode::kProtectedLoad:
+          case IrOpcode::kPoisonedLoad:
             representation_vector_[node->id()] = PromoteRepresentation(
                 LoadRepresentationOf(node->op()).representation());
             break;
@@ -120,7 +121,6 @@ class MachineRepresentationInferrer {
           case IrOpcode::kLoadFramePointer:
           case IrOpcode::kLoadParentFramePointer:
           case IrOpcode::kLoadRootsPointer:
-          case IrOpcode::kSpeculationPoison:
             representation_vector_[node->id()] =
                 MachineType::PointerRepresentation();
             break;
@@ -175,6 +175,7 @@ class MachineRepresentationInferrer {
           case IrOpcode::kChangeInt32ToTagged:
           case IrOpcode::kChangeUint32ToTagged:
           case IrOpcode::kBitcastWordToTagged:
+          case IrOpcode::kPoisonOnSpeculationTagged:
             representation_vector_[node->id()] = MachineRepresentation::kTagged;
             break;
           case IrOpcode::kExternalConstant:
@@ -182,6 +183,7 @@ class MachineRepresentationInferrer {
                 MachineType::PointerRepresentation();
             break;
           case IrOpcode::kBitcastTaggedToWord:
+          case IrOpcode::kPoisonOnSpeculationWord:
             representation_vector_[node->id()] =
                 MachineType::PointerRepresentation();
             break;
@@ -332,10 +334,12 @@ class MachineRepresentationChecker {
             break;
           case IrOpcode::kBitcastWordToTagged:
           case IrOpcode::kBitcastWordToTaggedSigned:
+          case IrOpcode::kPoisonOnSpeculationWord:
             CheckValueInputRepresentationIs(
                 node, 0, MachineType::PointerRepresentation());
             break;
           case IrOpcode::kBitcastTaggedToWord:
+          case IrOpcode::kPoisonOnSpeculationTagged:
             CheckValueInputIsTagged(node, 0);
             break;
           case IrOpcode::kTruncateFloat64ToWord32:
@@ -462,6 +466,7 @@ class MachineRepresentationChecker {
             break;
           case IrOpcode::kLoad:
           case IrOpcode::kWord32AtomicLoad:
+          case IrOpcode::kPoisonedLoad:
             CheckValueInputIsTaggedOrPointer(node, 0);
             CheckValueInputRepresentationIs(
                 node, 1, MachineType::PointerRepresentation());

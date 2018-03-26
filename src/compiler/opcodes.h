@@ -611,7 +611,8 @@
   V(Float64ExtractHighWord32)    \
   V(Float64InsertLowWord32)      \
   V(Float64InsertHighWord32)     \
-  V(SpeculationPoison)           \
+  V(PoisonOnSpeculationTagged)   \
+  V(PoisonOnSpeculationWord)     \
   V(LoadStackPointer)            \
   V(LoadFramePointer)            \
   V(LoadParentFramePointer)      \

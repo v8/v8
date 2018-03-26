@@ -44,9 +44,10 @@ InstructionSelectorTest::Stream InstructionSelectorTest::StreamBuilder::Build(
   InstructionSelector selector(test_->zone(), node_count, &linkage, &sequence,
                                schedule, &source_position_table, nullptr,
                                InstructionSelector::kEnableSwitchJumpTable,
-                               InstructionSelector::kEnableSpeculationPoison,
                                source_position_mode, features,
-                               InstructionSelector::kDisableScheduling);
+                               InstructionSelector::kDisableScheduling,
+                               InstructionSelector::kDisableSerialization,
+                               PoisoningMitigationLevel::kOn);
   selector.SelectInstructions();
   if (FLAG_trace_turbo) {
     OFStream out(stdout);

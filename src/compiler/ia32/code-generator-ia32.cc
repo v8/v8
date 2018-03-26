@@ -549,7 +549,7 @@ void CodeGenerator::BailoutIfDeoptimized() {
   __ j(not_zero, code, RelocInfo::CODE_TARGET);
 }
 
-void CodeGenerator::GenerateSpeculationPoison() {
+void CodeGenerator::GenerateSpeculationPoisonFromCodeStartRegister() {
   __ push(eax);  // Push eax so we can use it as a scratch register.
 
   // Set a mask which has all bits set in the normal case, but has all
@@ -1112,6 +1112,10 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     case kIA32Popcnt:
       __ Popcnt(i.OutputRegister(), i.InputOperand(0));
+      break;
+    case kArchPoisonOnSpeculationWord:
+      DCHECK_EQ(i.OutputRegister(), i.InputRegister(0));
+      __ and_(i.InputRegister(0), kSpeculationPoisonRegister);
       break;
     case kLFence:
       __ lfence();
@@ -3535,7 +3539,7 @@ void CodeGenerator::AssembleConstructFrame() {
     if (FLAG_code_comments) __ RecordComment("-- OSR entrypoint --");
     osr_pc_offset_ = __ pc_offset();
     shrink_slots -= osr_helper()->UnoptimizedFrameSlots();
-    InitializePoisonForLoadsIfNeeded();
+    ResetSpeculationPoison();
   }
 
   const RegList saves = call_descriptor->CalleeSavedRegisters();

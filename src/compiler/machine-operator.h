@@ -600,9 +600,9 @@ class V8_EXPORT_PRIVATE MachineOperatorBuilder final
   const Operator* StackSlot(int size, int alignment = 0);
   const Operator* StackSlot(MachineRepresentation rep, int alignment = 0);
 
-  // Returns a value which can be used as a mask to poison values when executing
-  // speculatively.
-  const Operator* SpeculationPoison();
+  // Destroy value by masking when misspeculating.
+  const Operator* PoisonOnSpeculationTagged();
+  const Operator* PoisonOnSpeculationWord();
 
   // Access to the machine stack.
   const Operator* LoadStackPointer();

@@ -740,18 +740,21 @@ class V8_EXPORT_PRIVATE CodeAssembler {
   // Access to the stack pointer
   Node* LoadStackPointer();
 
-  // Poison mask for speculation.
-  Node* SpeculationPoison();
+  // Poison |value| on speculative paths.
+  TNode<Object> PoisonOnSpeculationTagged(SloppyTNode<Object> value);
+  TNode<WordT> PoisonOnSpeculationWord(SloppyTNode<WordT> value);
 
   // Load raw memory location.
-  Node* Load(MachineType rep, Node* base);
+  Node* Load(MachineType rep, Node* base,
+             LoadSensitivity needs_poisoning = LoadSensitivity::kSafe);
   template <class Type>
   TNode<Type> Load(MachineType rep, TNode<RawPtr<Type>> base) {
     DCHECK(
         IsSubtype(rep.representation(), MachineRepresentationOf<Type>::value));
     return UncheckedCast<Type>(Load(rep, static_cast<Node*>(base)));
   }
-  Node* Load(MachineType rep, Node* base, Node* offset);
+  Node* Load(MachineType rep, Node* base, Node* offset,
+             LoadSensitivity needs_poisoning = LoadSensitivity::kSafe);
   Node* AtomicLoad(MachineType rep, Node* base, Node* offset);
 
   // Load a value from the root array.
@@ -1107,6 +1110,7 @@ class V8_EXPORT_PRIVATE CodeAssembler {
   void UnregisterCallGenerationCallbacks();
 
   bool Word32ShiftIsSafe() const;
+  PoisoningMitigationLevel poisoning_enabled() const;
 
  private:
   // These two don't have definitions and are here only for catching use cases
@@ -1251,13 +1255,15 @@ class V8_EXPORT_PRIVATE CodeAssemblerState {
   // TODO(rmcilroy): move result_size to the CallInterfaceDescriptor.
   CodeAssemblerState(Isolate* isolate, Zone* zone,
                      const CallInterfaceDescriptor& descriptor, Code::Kind kind,
-                     const char* name, size_t result_size = 1,
-                     uint32_t stub_key = 0,
+                     const char* name,
+                     PoisoningMitigationLevel poisoning_enabled,
+                     size_t result_size = 1, uint32_t stub_key = 0,
                      int32_t builtin_index = Builtins::kNoBuiltinId);
 
   // Create with JSCall linkage.
   CodeAssemblerState(Isolate* isolate, Zone* zone, int parameter_count,
                      Code::Kind kind, const char* name,
+                     PoisoningMitigationLevel poisoning_enabled,
                      int32_t builtin_index = Builtins::kNoBuiltinId);
 
   ~CodeAssemblerState();
@@ -1279,8 +1285,9 @@ class V8_EXPORT_PRIVATE CodeAssemblerState {
 
   CodeAssemblerState(Isolate* isolate, Zone* zone,
                      CallDescriptor* call_descriptor, Code::Kind kind,
-                     const char* name, uint32_t stub_key,
-                     int32_t builtin_index);
+                     const char* name,
+                     PoisoningMitigationLevel poisoning_enabled,
+                     uint32_t stub_key, int32_t builtin_index);
 
   std::unique_ptr<RawMachineAssembler> raw_assembler_;
   Code::Kind kind_;

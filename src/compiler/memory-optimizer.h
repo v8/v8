@@ -33,7 +33,8 @@ class MemoryOptimizer final {
  public:
   enum class AllocationFolding { kDoAllocationFolding, kDontAllocationFolding };
 
-  MemoryOptimizer(JSGraph* jsgraph, Zone* zone, LoadPoisoning load_poisoning,
+  MemoryOptimizer(JSGraph* jsgraph, Zone* zone,
+                  PoisoningMitigationLevel poisoning_enabled,
                   AllocationFolding allocation_folding);
   ~MemoryOptimizer() {}
 
@@ -145,7 +146,7 @@ class MemoryOptimizer final {
   ZoneQueue<Token> tokens_;
   Zone* const zone_;
   GraphAssembler graph_assembler_;
-  LoadPoisoning load_poisoning_;
+  PoisoningMitigationLevel poisoning_enabled_;
   AllocationFolding allocation_folding_;
 
   DISALLOW_IMPLICIT_CONSTRUCTORS(MemoryOptimizer);

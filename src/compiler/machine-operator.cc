@@ -221,7 +221,6 @@ MachineType AtomicOpRepresentationOf(Operator const* op) {
   V(Float64ExtractHighWord32, Operator::kNoProperties, 1, 0, 1)           \
   V(Float64InsertLowWord32, Operator::kNoProperties, 2, 0, 1)             \
   V(Float64InsertHighWord32, Operator::kNoProperties, 2, 0, 1)            \
-  V(SpeculationPoison, Operator::kNoProperties, 0, 0, 1)                  \
   V(LoadStackPointer, Operator::kNoProperties, 0, 0, 1)                   \
   V(LoadFramePointer, Operator::kNoProperties, 0, 0, 1)                   \
   V(LoadParentFramePointer, Operator::kNoProperties, 0, 0, 1)             \
@@ -669,6 +668,22 @@ struct MachineOperatorGlobalCache {
   };
   BitcastTaggedToWordOperator kBitcastTaggedToWord;
 
+  struct PoisonOnSpeculationTagged : public Operator {
+    PoisonOnSpeculationTagged()
+        : Operator(IrOpcode::kPoisonOnSpeculationTagged,
+                   Operator::kEliminatable | Operator::kNoWrite,
+                   "PoisonOnSpeculationTagged", 1, 1, 1, 1, 1, 0) {}
+  };
+  PoisonOnSpeculationTagged kPoisonOnSpeculationTagged;
+
+  struct PoisonOnSpeculationWord : public Operator {
+    PoisonOnSpeculationWord()
+        : Operator(IrOpcode::kPoisonOnSpeculationWord,
+                   Operator::kEliminatable | Operator::kNoWrite,
+                   "PoisonOnSpeculationWord", 1, 1, 1, 1, 1, 0) {}
+  };
+  PoisonOnSpeculationWord kPoisonOnSpeculationWord;
+
   struct SpeculationFenceOperator : public Operator {
     SpeculationFenceOperator()
         : Operator(IrOpcode::kSpeculationFence, Operator::kNoThrow,
@@ -967,6 +982,14 @@ const Operator* MachineOperatorBuilder::Word32AtomicXor(MachineType rep) {
   ATOMIC_TYPE_LIST(XOR)
 #undef XOR
   UNREACHABLE();
+}
+
+const Operator* MachineOperatorBuilder::PoisonOnSpeculationTagged() {
+  return &cache_.kPoisonOnSpeculationTagged;
+}
+
+const Operator* MachineOperatorBuilder::PoisonOnSpeculationWord() {
+  return &cache_.kPoisonOnSpeculationWord;
 }
 
 const Operator* MachineOperatorBuilder::Word64AtomicAdd(MachineType rep) {

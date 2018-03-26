@@ -42,10 +42,8 @@ class FlagsContinuation final {
   static FlagsContinuation ForBranch(FlagsCondition condition,
                                      BasicBlock* true_block,
                                      BasicBlock* false_block,
-                                     LoadPoisoning masking) {
-    FlagsMode mode = masking == LoadPoisoning::kDoPoison
-                         ? kFlags_branch_and_poison
-                         : kFlags_branch;
+                                     bool update_poison) {
+    FlagsMode mode = update_poison ? kFlags_branch_and_poison : kFlags_branch;
     return FlagsContinuation(mode, condition, true_block, false_block);
   }
 
@@ -57,15 +55,11 @@ class FlagsContinuation final {
   }
 
   // Creates a new flags continuation for an eager deoptimization exit.
-  static FlagsContinuation ForDeoptimize(FlagsCondition condition,
-                                         DeoptimizeKind kind,
-                                         DeoptimizeReason reason,
-                                         VectorSlotPair const& feedback,
-                                         Node* frame_state,
-                                         LoadPoisoning masking) {
-    FlagsMode mode = masking == LoadPoisoning::kDoPoison
-                         ? kFlags_deoptimize_and_poison
-                         : kFlags_deoptimize;
+  static FlagsContinuation ForDeoptimize(
+      FlagsCondition condition, DeoptimizeKind kind, DeoptimizeReason reason,
+      VectorSlotPair const& feedback, Node* frame_state, bool update_poison) {
+    FlagsMode mode =
+        update_poison ? kFlags_deoptimize_and_poison : kFlags_deoptimize;
     return FlagsContinuation(mode, condition, kind, reason, feedback,
                              frame_state);
   }
@@ -257,24 +251,20 @@ class V8_EXPORT_PRIVATE InstructionSelector final {
     kDisableSwitchJumpTable,
     kEnableSwitchJumpTable
   };
-  enum EnableSpeculationPoison {
-    kDisableSpeculationPoison,
-    kEnableSpeculationPoison
-  };
 
   InstructionSelector(
       Zone* zone, size_t node_count, Linkage* linkage,
       InstructionSequence* sequence, Schedule* schedule,
       SourcePositionTable* source_positions, Frame* frame,
       EnableSwitchJumpTable enable_switch_jump_table,
-      EnableSpeculationPoison enable_speculation_poison,
       SourcePositionMode source_position_mode = kCallSourcePositions,
       Features features = SupportedFeatures(),
       EnableScheduling enable_scheduling = FLAG_turbo_instruction_scheduling
                                                ? kEnableScheduling
                                                : kDisableScheduling,
       EnableSerialization enable_serialization = kDisableSerialization,
-      LoadPoisoning poisoning = LoadPoisoning::kDontPoison);
+      PoisoningMitigationLevel poisoning_enabled =
+          PoisoningMitigationLevel::kOff);
 
   // Visit code for the entire graph with the included schedule.
   bool SelectInstructions();
@@ -380,9 +370,6 @@ class V8_EXPORT_PRIVATE InstructionSelector final {
   static MachineOperatorBuilder::Flags SupportedMachineOperatorFlags();
 
   static MachineOperatorBuilder::AlignmentRequirements AlignmentRequirements();
-
-  // TODO(jarin) This is temporary until the poisoning is universally supported.
-  static bool SupportsSpeculationPoisoning();
 
   // ===========================================================================
   // ============ Architecture-independent graph covering methods. =============
@@ -686,8 +673,8 @@ class V8_EXPORT_PRIVATE InstructionSelector final {
   EnableScheduling enable_scheduling_;
   EnableSerialization enable_serialization_;
   EnableSwitchJumpTable enable_switch_jump_table_;
-  EnableSpeculationPoison enable_speculation_poison_;
-  LoadPoisoning load_poisoning_;
+
+  PoisoningMitigationLevel poisoning_enabled_;
   Frame* frame_;
   bool instruction_selection_failed_;
 };

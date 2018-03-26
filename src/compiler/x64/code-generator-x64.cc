@@ -618,7 +618,7 @@ void CodeGenerator::BailoutIfDeoptimized() {
   __ j(not_zero, code, RelocInfo::CODE_TARGET);
 }
 
-void CodeGenerator::GenerateSpeculationPoison() {
+void CodeGenerator::GenerateSpeculationPoisonFromCodeStartRegister() {
   // Set a mask which has all bits set in the normal case, but has all
   // bits cleared if we are speculatively executing the wrong PC.
   __ ComputeCodeStartAddress(rbx);
@@ -823,6 +823,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
             __ RequiredStackSizeForCallerSaved(fp_mode_, kReturnRegister0);
         frame_access_state()->IncreaseSPDelta(bytes / kPointerSize);
       }
+      // TODO(tebbi): Do we need an lfence here?
       break;
     }
     case kArchJmp:
@@ -919,6 +920,10 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ bind(ool->exit());
       break;
     }
+    case kArchPoisonOnSpeculationWord:
+      DCHECK_EQ(i.OutputRegister(), i.InputRegister(0));
+      __ andq(i.InputRegister(0), kSpeculationPoisonRegister);
+      break;
     case kLFence:
       __ lfence();
       break;
@@ -3136,7 +3141,7 @@ void CodeGenerator::AssembleConstructFrame() {
     if (FLAG_code_comments) __ RecordComment("-- OSR entrypoint --");
     osr_pc_offset_ = __ pc_offset();
     shrink_slots -= static_cast<int>(osr_helper()->UnoptimizedFrameSlots());
-    InitializePoisonForLoadsIfNeeded();
+    ResetSpeculationPoison();
   }
 
   const RegList saves = call_descriptor->CalleeSavedRegisters();

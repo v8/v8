@@ -3113,7 +3113,10 @@ Handle<Code> GenerateBytecodeHandler(Isolate* isolate, Bytecode bytecode,
   InterpreterDispatchDescriptor descriptor(isolate);
   compiler::CodeAssemblerState state(
       isolate, &zone, descriptor, Code::BYTECODE_HANDLER,
-      Bytecodes::ToString(bytecode), Bytecodes::ReturnCount(bytecode));
+      Bytecodes::ToString(bytecode),
+      FLAG_untrusted_code_mitigations ? PoisoningMitigationLevel::kOn
+                                      : PoisoningMitigationLevel::kOff,
+      Bytecodes::ReturnCount(bytecode));
 
   switch (bytecode) {
 #define CALL_GENERATOR(Name, ...)                     \
@@ -3183,9 +3186,11 @@ Handle<Code> GenerateDeserializeLazyHandler(Isolate* isolate,
   }
 
   InterpreterDispatchDescriptor descriptor(isolate);
-  compiler::CodeAssemblerState state(isolate, &zone, descriptor,
-                                     Code::BYTECODE_HANDLER, debug_name.c_str(),
-                                     return_count);
+  compiler::CodeAssemblerState state(
+      isolate, &zone, descriptor, Code::BYTECODE_HANDLER, debug_name.c_str(),
+      FLAG_untrusted_code_mitigations ? PoisoningMitigationLevel::kOn
+                                      : PoisoningMitigationLevel::kOff,
+      return_count);
 
   DeserializeLazyAssembler::Generate(&state, operand_scale);
   Handle<Code> code = compiler::CodeAssembler::GenerateCode(&state);

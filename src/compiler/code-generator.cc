@@ -43,7 +43,7 @@ CodeGenerator::CodeGenerator(
     base::Optional<OsrHelper> osr_helper, int start_source_position,
     JumpOptimizationInfo* jump_opt,
     std::vector<trap_handler::ProtectedInstructionData>* protected_instructions,
-    LoadPoisoning load_poisoning)
+    PoisoningMitigationLevel poisoning_enabled)
     : zone_(codegen_zone),
       isolate_(isolate),
       frame_access_state_(nullptr),
@@ -75,7 +75,7 @@ CodeGenerator::CodeGenerator(
       source_position_table_builder_(info->SourcePositionRecordingMode()),
       protected_instructions_(protected_instructions),
       result_(kSuccess),
-      load_poisoning_(load_poisoning) {
+      poisoning_enabled_(poisoning_enabled) {
   for (int i = 0; i < code->InstructionBlockCount(); ++i) {
     new (&labels_[i]) Label;
   }
@@ -168,18 +168,7 @@ void CodeGenerator::AssembleCode() {
     BailoutIfDeoptimized();
   }
 
-  // Initialize {kSpeculationPoisonRegister} either by comparing the expected
-  // with the actual call target, or by unconditionally using {-1} initially.
-  // Masking register arguments with it only makes sense in the first case.
-  if (info->is_generating_speculation_poison_on_entry()) {
-    tasm()->RecordComment("-- Prologue: generate speculation poison --");
-    GenerateSpeculationPoison();
-    if (info->is_poisoning_register_arguments()) {
-      AssembleRegisterArgumentPoisoning();
-    }
-  } else {
-    InitializePoisonForLoadsIfNeeded();
-  }
+  InitializeSpeculationPoison();
 
   // Define deoptimization literals for all inlined functions.
   DCHECK_EQ(0u, deoptimization_literals_.size());
@@ -679,7 +668,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleInstruction(
 
   // TODO(jarin) We should thread the flag through rather than set it.
   if (instr->IsCall()) {
-    InitializePoisonForLoadsIfNeeded();
+    ResetSpeculationPoison();
   }
 
   return kSuccess;
@@ -1190,8 +1179,25 @@ DeoptimizationExit* CodeGenerator::AddDeoptimizationExit(
   return exit;
 }
 
-void CodeGenerator::InitializePoisonForLoadsIfNeeded() {
-  if (load_poisoning_ == LoadPoisoning::kDoPoison) {
+void CodeGenerator::InitializeSpeculationPoison() {
+  if (poisoning_enabled_ == PoisoningMitigationLevel::kOff) return;
+
+  // Initialize {kSpeculationPoisonRegister} either by comparing the expected
+  // with the actual call target, or by unconditionally using {-1} initially.
+  // Masking register arguments with it only makes sense in the first case.
+  if (info()->called_with_code_start_register()) {
+    tasm()->RecordComment("-- Prologue: generate speculation poison --");
+    GenerateSpeculationPoisonFromCodeStartRegister();
+    if (info()->is_poisoning_register_arguments()) {
+      AssembleRegisterArgumentPoisoning();
+    }
+  } else {
+    ResetSpeculationPoison();
+  }
+}
+
+void CodeGenerator::ResetSpeculationPoison() {
+  if (poisoning_enabled_ != PoisoningMitigationLevel::kOff) {
     tasm()->ResetSpeculationPoisonRegister();
   }
 }

@@ -2652,7 +2652,7 @@ LifetimePosition RegisterAllocator::FindOptimalSplitPos(LifetimePosition start,
                                                         LifetimePosition end) {
   int start_instr = start.ToInstructionIndex();
   int end_instr = end.ToInstructionIndex();
-  DCHECK(start_instr <= end_instr);
+  DCHECK_LE(start_instr, end_instr);
 
   // We have no choice
   if (start_instr == end_instr) return end;
