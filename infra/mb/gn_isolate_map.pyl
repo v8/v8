@@ -19,8 +19,16 @@
     "label": "//test/benchmarks:v8_benchmarks",
     "type": "script",
   },
+  "bot_default": {
+    "label": "//test:v8_bot_default",
+    "type": "script",
+  },
   "check-static-initializers": {
     "label": "//tools:v8_check_static_initializers",
+    "type": "script",
+  },
+  "d8_default": {
+    "label": "//test:v8_d8_default",
     "type": "script",
   },
   "mjsunit": {
@@ -31,12 +39,24 @@
     "label": "//test/mozilla:v8_mozilla",
     "type": "script",
   },
+  "optimize_for_size": {
+    "label": "//test:v8_optimize_for_size",
+    "type": "script",
+  },
+  "perf": {
+    "label": "//test:v8_perf",
+    "type": "script",
+  },
   "jsfunfuzz": {
     "label": "//tools/jsfunfuzz:v8_jsfunfuzz",
     "type": "script",
   },
   "run-gcmole": {
     "label": "//tools/gcmole:v8_run_gcmole",
+    "type": "script",
+  },
+  "run-num-fuzzer": {
+    "label": "//test:v8_run_num_fuzzer",
     "type": "script",
   },
   "test262": {
