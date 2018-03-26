@@ -46,6 +46,7 @@ DELETE_FROM_GITIGNORE = [ "/base",
 # Node.js requires only a single header file from gtest to build V8.
 # Both jinja2 and markupsafe are required to generate part of the inspector.
 ADD_TO_GITIGNORE = [ "/third_party/googletest/*",
+                     "!/third_party/googletest/BUILD.gn",
                      "!/third_party/googletest/src",
                      "/third_party/googletest/src/*",
                      "!/third_party/googletest/src/googletest",
