@@ -4,6 +4,26 @@
 
 import("../../gni/isolate.gni")
 
+group("v8_test262") {
+  testonly = true
+
+  data_deps = [
+    "../..:d8",
+    "../../tools:v8_testrunner",
+  ]
+
+  data = [
+    "data/",
+    "detachArrayBuffer.js",
+    "harness/",
+    "harness-adapt.js",
+    "harness-agent.js",
+    "test262.status",
+    "testcfg.py",
+    "local-tests/",
+  ]
+}
+
 if (v8_test_isolation_mode != "noop") {
   action("archive_test262") {
     visibility = [ ":*" ]

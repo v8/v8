@@ -8,6 +8,19 @@ import("../gni/v8.gni")
 group("gn_all") {
   testonly = true
 
+  data_deps = [
+    "benchmarks:v8_benchmarks",
+    "intl:v8_intl",
+    "fuzzer:v8_fuzzer",
+    "message:v8_message",
+    "mjsunit:v8_mjsunit",
+    "mozilla:v8_mozilla",
+    "preparser:v8_preparser",
+    "test262:v8_test262",
+    "wasm-spec-tests:v8_wasm_spec_tests",
+    "webkit:v8_webkit",
+  ]
+
   deps = [
     ":default_tests",
     "inspector:inspector-test",
