@@ -27,6 +27,10 @@
 #include "src/base/timezone-cache.h"
 #include "src/base/utils/random-number-generator.h"
 
+#if defined(_MSC_VER)
+#include <crtdbg.h>  // NOLINT
+#endif               // defined(_MSC_VER)
+
 // Extra functions for MinGW. Most of these are the _s functions which are in
 // the Microsoft Visual Studio C++ CRT.
 #ifdef __MINGW32__

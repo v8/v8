@@ -46,9 +46,6 @@
 #include <unistd.h>  // NOLINT
 #else
 #include <windows.h>  // NOLINT
-#if defined(_MSC_VER)
-#include <crtdbg.h>  // NOLINT
-#endif               // defined(_MSC_VER)
 #endif               // !defined(_WIN32) && !defined(_WIN64)
 
 #ifndef DCHECK
