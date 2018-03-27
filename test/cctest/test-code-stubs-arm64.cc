@@ -64,7 +64,6 @@ ConvertDToIFunc MakeConvertDToIFuncTrampoline(Isolate* isolate,
   // Save registers make sure they don't get clobbered.
   int source_reg_offset = kDoubleSize;
   int reg_num = 0;
-  queue.Queue(xzr);  // Push xzr to maintain sp alignment.
   for (; reg_num < Register::kNumRegisters; ++reg_num) {
     if (RegisterConfiguration::Default()->IsAllocatableGeneralCode(reg_num)) {
       Register reg = Register::from_code(reg_num);
