@@ -68,7 +68,8 @@ declare_args() {
 
   # Enable embedded builtins.
   # TODO(jgruber,v8:6666): Support ia32 and maybe MSVC.
-  v8_enable_embedded_builtins = v8_current_cpu != "x86" && (!is_win || is_clang)
+  # TODO(jgruber,v8:6666): Re-enable after the M67 branch point.
+  v8_enable_embedded_builtins = false
 
   # Enable code-generation-time checking of types in the CodeStubAssembler.
   v8_enable_verify_csa = false
