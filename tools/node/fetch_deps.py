@@ -37,7 +37,6 @@ GCLIENT_SOLUTION = [
       "v8/third_party/catapult"               : None,
       "v8/third_party/colorama/src"           : None,
       "v8/third_party/instrumented_libraries" : None,
-      "v8/tools/gyp"                          : None,
       "v8/tools/luci-go"                      : None,
       "v8/tools/swarming_client"              : None,
     },
