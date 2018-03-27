@@ -219,7 +219,7 @@ void InstructionSelector::VisitLoad(Node* node) {
   }
 
   if (node->opcode() == IrOpcode::kPoisonedLoad &&
-      poisoning_enabled == PoisoningMitigationLevel::kOn) {
+      poisoning_enabled_ == PoisoningMitigationLevel::kOn) {
     opcode |= MiscField::encode(kMemoryAccessPoisoned);
   }
 
