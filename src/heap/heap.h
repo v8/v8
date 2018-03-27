@@ -2018,11 +2018,6 @@ class Heap {
 
   bool MaximumSizeScavenge() { return maximum_size_scavenges_ > 0; }
 
-  bool IsIneffectiveMarkCompact(size_t old_generation_size,
-                                double mutator_utilization);
-  void CheckIneffectiveMarkCompact(size_t old_generation_size,
-                                   double mutator_utilization);
-
   // ===========================================================================
   // Growing strategy. =========================================================
   // ===========================================================================
@@ -2485,10 +2480,6 @@ class Heap {
 
   // How many gc happened.
   unsigned int gc_count_;
-
-  // The number of Mark-Compact garbage collections that are considered as
-  // ineffective. See IsIneffectiveMarkCompact() predicate.
-  int consecutive_ineffective_mark_compacts_;
 
   static const uintptr_t kMmapRegionMask = 0xFFFFFFFFu;
   uintptr_t mmap_region_base_;

@@ -5934,41 +5934,6 @@ UNINITIALIZED_TEST(OutOfMemory) {
   }
 }
 
-UNINITIALIZED_TEST(OutOfMemoryIneffectiveGC) {
-  if (!FLAG_detect_ineffective_gcs_near_heap_limit) return;
-  if (FLAG_stress_incremental_marking) return;
-#ifdef VERIFY_HEAP
-  if (FLAG_verify_heap) return;
-#endif
-
-  FLAG_max_old_space_size = kHeapLimit / MB;
-  v8::Isolate::CreateParams create_params;
-  create_params.array_buffer_allocator = CcTest::array_buffer_allocator();
-  v8::Isolate* isolate = v8::Isolate::New(create_params);
-  Isolate* i_isolate = reinterpret_cast<Isolate*>(isolate);
-  oom_isolate = i_isolate;
-  isolate->SetOOMErrorHandler(OOMCallback);
-  Factory* factory = i_isolate->factory();
-  Heap* heap = i_isolate->heap();
-  heap->CollectAllGarbage(Heap::kNoGCFlags, GarbageCollectionReason::kTesting);
-  {
-    HandleScope scope(i_isolate);
-    while (heap->PromotedSpaceSizeOfObjects() <
-           heap->MaxOldGenerationSize() * 0.85) {
-      factory->NewFixedArray(100, TENURED);
-    }
-    {
-      int initial_ms_count = heap->ms_count();
-      while (heap->ms_count() < initial_ms_count + 10) {
-        HandleScope inner_scope(i_isolate);
-        factory->NewFixedArray(100, TENURED);
-      }
-      CHECK_GE(heap->tracer()->AverageMarkCompactMutatorUtilization(), 0.4);
-    }
-  }
-  isolate->Dispose();
-}
-
 HEAP_TEST(Regress779503) {
   // The following regression test ensures that the Scavenger does not allocate
   // over invalid slots. More specific, the Scavenger should not sweep a page

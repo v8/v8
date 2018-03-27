@@ -698,8 +698,6 @@ DEFINE_BOOL(concurrent_sweeping, true, "use concurrent sweeping")
 DEFINE_BOOL(parallel_compaction, true, "use parallel compaction")
 DEFINE_BOOL(parallel_pointer_update, true,
             "use parallel pointer update during compaction")
-DEFINE_BOOL(detect_ineffective_gcs_near_heap_limit, true,
-            "trigger out-of-memory failure to avoid GC storm near heap limit")
 DEFINE_BOOL(trace_incremental_marking, false,
             "trace progress of the incremental marking")
 DEFINE_BOOL(trace_stress_marking, false, "trace stress marking progress")
