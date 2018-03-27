@@ -573,6 +573,8 @@ TEST(DisasmIa320) {
   {
     if (CpuFeatures::IsSupported(SSE4_1)) {
       CpuFeatureScope scope(&assm, SSE4_1);
+      __ pblendw(xmm5, xmm1, 5);
+      __ pblendw(xmm5, Operand(edx, 4), 5);
       __ pextrb(eax, xmm0, 1);
       __ pextrb(Operand(edx, 4), xmm0, 1);
       __ pextrw(eax, xmm0, 1);
@@ -689,6 +691,8 @@ TEST(DisasmIa320) {
       __ vpshuflw(xmm5, Operand(edx, 4), 5);
       __ vpshufd(xmm5, xmm1, 5);
       __ vpshufd(xmm5, Operand(edx, 4), 5);
+      __ vpblendw(xmm5, xmm1, xmm0, 5);
+      __ vpblendw(xmm5, xmm1, Operand(edx, 4), 5);
       __ vpextrb(eax, xmm0, 1);
       __ vpextrb(Operand(edx, 4), xmm0, 1);
       __ vpextrw(eax, xmm0, 1);

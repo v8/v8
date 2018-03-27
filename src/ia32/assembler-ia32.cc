@@ -2725,6 +2725,17 @@ void Assembler::pshufd(XMMRegister dst, Operand src, uint8_t shuffle) {
   EMIT(shuffle);
 }
 
+void Assembler::pblendw(XMMRegister dst, Operand src, uint8_t mask) {
+  DCHECK(IsEnabled(SSE4_1));
+  EnsureSpace ensure_space(this);
+  EMIT(0x66);
+  EMIT(0x0F);
+  EMIT(0x3A);
+  EMIT(0x0E);
+  emit_sse_operand(dst, src);
+  EMIT(mask);
+}
+
 void Assembler::pextrb(Operand dst, XMMRegister src, int8_t offset) {
   DCHECK(IsEnabled(SSE4_1));
   EnsureSpace ensure_space(this);
@@ -2957,6 +2968,12 @@ void Assembler::vpshuflw(XMMRegister dst, Operand src, uint8_t shuffle) {
 void Assembler::vpshufd(XMMRegister dst, Operand src, uint8_t shuffle) {
   vinstr(0x70, dst, xmm0, src, k66, k0F, kWIG);
   EMIT(shuffle);
+}
+
+void Assembler::vpblendw(XMMRegister dst, XMMRegister src1, Operand src2,
+                         uint8_t mask) {
+  vinstr(0x0E, dst, src1, src2, k66, k0F3A, kWIG);
+  EMIT(mask);
 }
 
 void Assembler::vpextrb(Operand dst, XMMRegister src, int8_t offset) {

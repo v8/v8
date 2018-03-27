@@ -819,6 +819,13 @@ int DisassemblerIA32::AVXInstruction(byte* data) {
     int mod, regop, rm, vvvv = vex_vreg();
     get_modrm(*current, &mod, &regop, &rm);
     switch (opcode) {
+      case 0x0E:
+        AppendToBuffer("vpblendw %s,%s,", NameOfXMMRegister(regop),
+                       NameOfXMMRegister(vvvv));
+        current += PrintRightXMMOperand(current);
+        AppendToBuffer(",%d", *reinterpret_cast<uint8_t*>(current));
+        current++;
+        break;
       case 0x14:
         AppendToBuffer("vpextrb ");
         current += PrintRightOperand(current);
@@ -1961,6 +1968,14 @@ int DisassemblerIA32::InstructionDecode(v8::internal::Vector<char> out_buffer,
                              NameOfXMMRegister(rm),
                              static_cast<int>(imm8));
               data += 2;
+            } else if (*data == 0x0E) {
+              data++;
+              int mod, regop, rm;
+              get_modrm(*data, &mod, &regop, &rm);
+              AppendToBuffer("pblendw %s,", NameOfXMMRegister(regop));
+              data += PrintRightXMMOperand(data);
+              AppendToBuffer(",%d", *reinterpret_cast<uint8_t*>(data));
+              data++;
             } else if (*data == 0x14) {
               data++;
               int mod, regop, rm;

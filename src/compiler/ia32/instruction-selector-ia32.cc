@@ -1793,6 +1793,7 @@ VISIT_ATOMIC_BINOP(Xor)
   V(S128Xor)
 
 #define SIMD_INT_UNOP_LIST(V) \
+  V(F32x4SConvertI32x4)       \
   V(I32x4Neg)                 \
   V(I16x8Neg)                 \
   V(I8x16Neg)
@@ -1829,6 +1830,16 @@ void InstructionSelector::VisitF32x4ExtractLane(Node* node) {
     Emit(kAVXF32x4ExtractLane, g.DefineAsRegister(node), operand0, operand1);
   } else {
     Emit(kSSEF32x4ExtractLane, g.DefineSameAsFirst(node), operand0, operand1);
+  }
+}
+
+void InstructionSelector::VisitF32x4UConvertI32x4(Node* node) {
+  IA32OperandGenerator g(this);
+  InstructionOperand operand0 = g.UseRegister(node->InputAt(0));
+  if (IsSupported(AVX)) {
+    Emit(kAVXF32x4UConvertI32x4, g.DefineAsRegister(node), operand0);
+  } else {
+    Emit(kSSEF32x4UConvertI32x4, g.DefineSameAsFirst(node), operand0);
   }
 }
 

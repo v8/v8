@@ -1131,6 +1131,11 @@ class Assembler : public AssemblerBase {
   }
   void pshufd(XMMRegister dst, Operand src, uint8_t shuffle);
 
+  void pblendw(XMMRegister dst, XMMRegister src, uint8_t mask) {
+    pblendw(dst, Operand(src), mask);
+  }
+  void pblendw(XMMRegister dst, Operand src, uint8_t mask);
+
   void pextrb(Register dst, XMMRegister src, int8_t offset) {
     pextrb(Operand(dst), src, offset);
   }
@@ -1438,6 +1443,12 @@ class Assembler : public AssemblerBase {
     vpshufd(dst, Operand(src), shuffle);
   }
   void vpshufd(XMMRegister dst, Operand src, uint8_t shuffle);
+
+  void vpblendw(XMMRegister dst, XMMRegister src1, XMMRegister src2,
+                uint8_t mask) {
+    vpblendw(dst, src1, Operand(src2), mask);
+  }
+  void vpblendw(XMMRegister dst, XMMRegister src1, Operand src2, uint8_t mask);
 
   void vpextrb(Register dst, XMMRegister src, int8_t offset) {
     vpextrb(Operand(dst), src, offset);
