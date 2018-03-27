@@ -75,8 +75,9 @@ TF_BUILTIN(GrowFastSmiOrObjectElements, CodeStubAssembler) {
 
 TF_BUILTIN(NewArgumentsElements, CodeStubAssembler) {
   Node* frame = Parameter(Descriptor::kFrame);
-  Node* length = SmiToIntPtr(Parameter(Descriptor::kLength));
-  Node* mapped_count = SmiToIntPtr(Parameter(Descriptor::kMappedCount));
+  TNode<IntPtrT> length = SmiToIntPtr(Parameter(Descriptor::kLength));
+  TNode<IntPtrT> mapped_count =
+      SmiToIntPtr(Parameter(Descriptor::kMappedCount));
 
   // Check if we can allocate in new space.
   ElementsKind kind = PACKED_ELEMENTS;
@@ -104,9 +105,7 @@ TF_BUILTIN(NewArgumentsElements, CodeStubAssembler) {
       // The elements might be used to back mapped arguments. In that case fill
       // the mapped elements (i.e. the first {mapped_count}) with the hole, but
       // make sure not to overshoot the {length} if some arguments are missing.
-      Node* number_of_holes =
-          SelectConstant(IntPtrLessThan(mapped_count, length), mapped_count,
-                         length, MachineType::PointerRepresentation());
+      TNode<IntPtrT> number_of_holes = IntPtrMin(mapped_count, length);
       Node* the_hole = TheHoleConstant();
 
       // Fill the first elements up to {number_of_holes} with the hole.

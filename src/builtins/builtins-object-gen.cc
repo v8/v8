@@ -141,14 +141,15 @@ Node* ObjectBuiltinsAssembler::ConstructDataDescriptor(Node* context,
 
 Node* ObjectBuiltinsAssembler::IsSpecialReceiverMap(SloppyTNode<Map> map) {
   CSA_SLOW_ASSERT(this, IsMap(map));
-  Node* is_special = IsSpecialReceiverInstanceType(LoadMapInstanceType(map));
+  TNode<BoolT> is_special =
+      IsSpecialReceiverInstanceType(LoadMapInstanceType(map));
   uint32_t mask =
       Map::HasNamedInterceptorBit::kMask | Map::IsAccessCheckNeededBit::kMask;
   USE(mask);
   // Interceptors or access checks imply special receiver.
   CSA_ASSERT(this,
-             SelectConstant(IsSetWord32(LoadMapBitField(map), mask), is_special,
-                            Int32Constant(1), MachineRepresentation::kWord32));
+             SelectConstant<BoolT>(IsSetWord32(LoadMapBitField(map), mask),
+                                   is_special, Int32TrueConstant()));
   return is_special;
 }
 

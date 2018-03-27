@@ -17,14 +17,17 @@ namespace internal {
 
 using compiler::CodeAssemblerState;
 using compiler::Node;
+using compiler::TNode;
+using compiler::SloppyTNode;
 
 //////////////////// Private helpers.
 
 // Loads dataX field from the DataHandler object.
-Node* AccessorAssembler::LoadHandlerDataField(Node* handler, int data_index) {
+TNode<Object> AccessorAssembler::LoadHandlerDataField(
+    SloppyTNode<DataHandler> handler, int data_index) {
 #ifdef DEBUG
-  Node* handler_map = LoadMap(handler);
-  Node* instance_type = LoadMapInstanceType(handler_map);
+  TNode<Map> handler_map = LoadMap(handler);
+  TNode<Int32T> instance_type = LoadMapInstanceType(handler_map);
 #endif
   CSA_ASSERT(this,
              Word32Or(InstanceTypeEqual(instance_type, LOAD_HANDLER_TYPE),
@@ -467,11 +470,10 @@ void AccessorAssembler::HandleLoadICSmiHandlerCase(
 
     // Context is stored either in data2 or data3 field depending on whether
     // the access check is enabled for this handler or not.
-    Node* context_cell = Select(
+    TNode<Object> context_cell = Select<Object>(
         IsSetWord<LoadHandler::DoAccessCheckOnReceiverBits>(handler_word),
         [=] { return LoadHandlerDataField(handler, 3); },
-        [=] { return LoadHandlerDataField(handler, 2); },
-        MachineRepresentation::kTagged);
+        [=] { return LoadHandlerDataField(handler, 2); });
 
     Node* context = LoadWeakCellValueUnchecked(context_cell);
     Node* foreign =
@@ -1303,11 +1305,10 @@ void AccessorAssembler::HandleStoreICProtoHandler(
 
       // Context is stored either in data2 or data3 field depending on whether
       // the access check is enabled for this handler or not.
-      Node* context_cell = Select(
+      TNode<Object> context_cell = Select<Object>(
           IsSetWord<LoadHandler::DoAccessCheckOnReceiverBits>(handler_word),
           [=] { return LoadHandlerDataField(handler, 3); },
-          [=] { return LoadHandlerDataField(handler, 2); },
-          MachineRepresentation::kTagged);
+          [=] { return LoadHandlerDataField(handler, 2); });
 
       Node* context = LoadWeakCellValueUnchecked(context_cell);
 

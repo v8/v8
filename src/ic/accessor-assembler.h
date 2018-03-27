@@ -18,7 +18,11 @@ class ExitPoint;
 
 class AccessorAssembler : public CodeStubAssembler {
  public:
-  typedef compiler::Node Node;
+  using Node = compiler::Node;
+  template <class T>
+  using TNode = compiler::TNode<T>;
+  template <class T>
+  using SloppyTNode = compiler::SloppyTNode<T>;
 
   explicit AccessorAssembler(compiler::CodeAssemblerState* state)
       : CodeStubAssembler(state) {}
@@ -85,7 +89,8 @@ class AccessorAssembler : public CodeStubAssembler {
   void LoadIC_BytecodeHandler(const LoadICParameters* p, ExitPoint* exit_point);
 
   // Loads dataX field from the DataHandler object.
-  Node* LoadHandlerDataField(Node* handler, int data_index);
+  TNode<Object> LoadHandlerDataField(SloppyTNode<DataHandler> handler,
+                                     int data_index);
 
  protected:
   struct StoreICParameters : public LoadICParameters {

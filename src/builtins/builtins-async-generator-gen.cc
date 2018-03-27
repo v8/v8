@@ -29,13 +29,13 @@ class AsyncGeneratorBuiltinsAssembler : public AsyncBuiltinsAssembler {
       : AsyncBuiltinsAssembler(state) {}
 
   inline Node* TaggedIsAsyncGenerator(Node* tagged_object) {
-    Node* if_notsmi = TaggedIsNotSmi(tagged_object);
-    return Select(if_notsmi,
-                  [=]() {
-                    return HasInstanceType(tagged_object,
-                                           JS_ASYNC_GENERATOR_OBJECT_TYPE);
-                  },
-                  [=]() { return if_notsmi; }, MachineRepresentation::kBit);
+    TNode<BoolT> if_notsmi = TaggedIsNotSmi(tagged_object);
+    return Select<BoolT>(if_notsmi,
+                         [=] {
+                           return HasInstanceType(
+                               tagged_object, JS_ASYNC_GENERATOR_OBJECT_TYPE);
+                         },
+                         [=] { return if_notsmi; });
   }
   inline Node* LoadGeneratorState(Node* const generator) {
     return LoadObjectField(generator, JSGeneratorObject::kContinuationOffset);

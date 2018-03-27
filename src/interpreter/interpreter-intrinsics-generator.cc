@@ -20,6 +20,7 @@ namespace internal {
 namespace interpreter {
 
 using compiler::Node;
+using compiler::TNode;
 
 class IntrinsicsGenerator {
  public:
@@ -132,23 +133,21 @@ Node* IntrinsicsGenerator::CompareInstanceType(Node* object, int type,
 }
 
 Node* IntrinsicsGenerator::IsInstanceType(Node* input, int type) {
-  Node* result =
-      __ Select(__ TaggedIsSmi(input), [=] { return __ FalseConstant(); },
-                [=] {
-                  return __ SelectBooleanConstant(
-                      CompareInstanceType(input, type, kInstanceTypeEqual));
-                },
-                MachineRepresentation::kTagged);
+  TNode<Oddball> result = __ Select<Oddball>(
+      __ TaggedIsSmi(input), [=] { return __ FalseConstant(); },
+      [=] {
+        return __ SelectBooleanConstant(
+            CompareInstanceType(input, type, kInstanceTypeEqual));
+      });
   return result;
 }
 
 Node* IntrinsicsGenerator::IsJSReceiver(
     const InterpreterAssembler::RegListNodePair& args, Node* context) {
   Node* input = __ LoadRegisterFromRegisterList(args, 0);
-  Node* result = __ Select(
+  TNode<Oddball> result = __ Select<Oddball>(
       __ TaggedIsSmi(input), [=] { return __ FalseConstant(); },
-      [=] { return __ SelectBooleanConstant(__ IsJSReceiver(input)); },
-      MachineRepresentation::kTagged);
+      [=] { return __ SelectBooleanConstant(__ IsJSReceiver(input)); });
   return result;
 }
 

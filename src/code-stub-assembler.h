@@ -353,47 +353,47 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
              Node* extra_node4 = nullptr, const char* extra_node4_name = "",
              Node* extra_node5 = nullptr, const char* extra_node5_name = "");
 
-  Node* Select(SloppyTNode<BoolT> condition, const NodeGenerator& true_body,
-               const NodeGenerator& false_body, MachineRepresentation rep);
   template <class A, class F, class G>
   TNode<A> Select(SloppyTNode<BoolT> condition, const F& true_body,
-                  const G& false_body, MachineRepresentation rep) {
-    return UncheckedCast<A>(Select(
+                  const G& false_body) {
+    return UncheckedCast<A>(SelectImpl(
         condition,
         [&]() -> Node* { return base::implicit_cast<TNode<A>>(true_body()); },
         [&]() -> Node* { return base::implicit_cast<TNode<A>>(false_body()); },
-        rep));
+        MachineRepresentationOf<A>::value));
   }
 
-  Node* SelectConstant(Node* condition, Node* true_value, Node* false_value,
-                       MachineRepresentation rep);
   template <class A>
   TNode<A> SelectConstant(TNode<BoolT> condition, TNode<A> true_value,
-                          TNode<A> false_value, MachineRepresentation rep) {
-    return UncheckedCast<A>(
-        SelectConstant(condition, static_cast<Node*>(true_value),
-                       static_cast<Node*>(false_value), rep));
+                          TNode<A> false_value) {
+    return Select<A>(condition, [=] { return true_value; },
+                     [=] { return false_value; });
   }
 
-  Node* SelectInt32Constant(Node* condition, int true_value, int false_value);
-  Node* SelectIntPtrConstant(Node* condition, int true_value, int false_value);
-  Node* SelectBooleanConstant(Node* condition);
+  TNode<Int32T> SelectInt32Constant(SloppyTNode<BoolT> condition,
+                                    int true_value, int false_value);
+  TNode<IntPtrT> SelectIntPtrConstant(SloppyTNode<BoolT> condition,
+                                      int true_value, int false_value);
+  TNode<Oddball> SelectBooleanConstant(SloppyTNode<BoolT> condition);
   template <class A>
   TNode<A> SelectTaggedConstant(SloppyTNode<BoolT> condition,
                                 TNode<A> true_value,
                                 SloppyTNode<A> false_value) {
     static_assert(std::is_base_of<Object, A>::value, "not a tagged type");
-    return SelectConstant(condition, true_value, false_value,
-                          MachineRepresentation::kTagged);
+    return SelectConstant<A>(condition, true_value, false_value);
   }
-  Node* SelectSmiConstant(Node* condition, Smi* true_value, Smi* false_value);
-  Node* SelectSmiConstant(Node* condition, int true_value, Smi* false_value) {
+  TNode<Smi> SelectSmiConstant(SloppyTNode<BoolT> condition, Smi* true_value,
+                               Smi* false_value);
+  TNode<Smi> SelectSmiConstant(SloppyTNode<BoolT> condition, int true_value,
+                               Smi* false_value) {
     return SelectSmiConstant(condition, Smi::FromInt(true_value), false_value);
   }
-  Node* SelectSmiConstant(Node* condition, Smi* true_value, int false_value) {
+  TNode<Smi> SelectSmiConstant(SloppyTNode<BoolT> condition, Smi* true_value,
+                               int false_value) {
     return SelectSmiConstant(condition, true_value, Smi::FromInt(false_value));
   }
-  Node* SelectSmiConstant(Node* condition, int true_value, int false_value) {
+  TNode<Smi> SelectSmiConstant(SloppyTNode<BoolT> condition, int true_value,
+                               int false_value) {
     return SelectSmiConstant(condition, Smi::FromInt(true_value),
                              Smi::FromInt(false_value));
   }
@@ -564,7 +564,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
   // Load the EnumLength of a Map.
   Node* LoadMapEnumLength(SloppyTNode<Map> map);
   // Load the back-pointer of a Map.
-  Node* LoadMapBackPointer(SloppyTNode<Map> map);
+  TNode<Object> LoadMapBackPointer(SloppyTNode<Map> map);
   // Load the identity hash of a JSRececiver.
   TNode<IntPtrT> LoadJSReceiverIdentityHash(SloppyTNode<Object> receiver,
                                             Label* if_no_hash = nullptr);
@@ -1135,7 +1135,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
   Node* IsFixedTypedArray(Node* object);
   Node* IsFunctionWithPrototypeSlotMap(Node* map);
   Node* IsHashTable(Node* object);
-  Node* IsHeapNumber(Node* object);
+  TNode<BoolT> IsHeapNumber(Node* object);
   Node* IsIndirectStringInstanceType(Node* instance_type);
   Node* IsJSArrayBuffer(Node* object);
   Node* IsJSArrayInstanceType(Node* instance_type);
@@ -1172,7 +1172,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
   Node* IsNumberDictionary(Node* object);
   Node* IsOneByteStringInstanceType(Node* instance_type);
   Node* IsPrimitiveInstanceType(Node* instance_type);
-  Node* IsPrivateSymbol(Node* object);
+  TNode<BoolT> IsPrivateSymbol(Node* object);
   Node* IsPromiseCapability(Node* object);
   Node* IsPropertyArray(Node* object);
   Node* IsPropertyCell(Node* object);
@@ -1181,7 +1181,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
                                               SloppyTNode<Map> map);
   Node* IsSequentialStringInstanceType(Node* instance_type);
   Node* IsShortExternalStringInstanceType(Node* instance_type);
-  Node* IsSpecialReceiverInstanceType(Node* instance_type);
+  TNode<BoolT> IsSpecialReceiverInstanceType(Node* instance_type);
   Node* IsSpecialReceiverMap(Node* map);
   Node* IsStringInstanceType(Node* instance_type);
   Node* IsString(Node* object);
@@ -1763,7 +1763,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
   // used for a property store or deletion.
   void CheckForAssociatedProtector(Node* name, Label* if_protector);
 
-  Node* LoadReceiverMap(Node* receiver);
+  TNode<Map> LoadReceiverMap(SloppyTNode<Object> receiver);
 
   // Emits keyed sloppy arguments load. Returns either the loaded value.
   Node* LoadKeyedSloppyArguments(Node* receiver, Node* key, Label* bailout) {
@@ -2056,6 +2056,9 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
   TNode<String> AllocateConsString(Heap::RootListIndex map_root_index,
                                    TNode<Smi> length, TNode<String> first,
                                    TNode<String> second, AllocationFlags flags);
+
+  Node* SelectImpl(TNode<BoolT> condition, const NodeGenerator& true_body,
+                   const NodeGenerator& false_body, MachineRepresentation rep);
 
   // Implements DescriptorArray::number_of_entries.
   // Returns an untagged int32.

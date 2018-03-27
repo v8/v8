@@ -1185,16 +1185,14 @@ Node* RegExpBuiltinsAssembler::RegExpInitialize(Node* const context,
   CSA_ASSERT(this, IsJSRegExp(regexp));
 
   // Normalize pattern.
-  Node* const pattern = Select<Object>(
+  TNode<Object> const pattern = Select<Object>(
       IsUndefined(maybe_pattern), [=] { return EmptyStringConstant(); },
-      [=] { return ToString_Inline(context, maybe_pattern); },
-      MachineRepresentation::kTagged);
+      [=] { return ToString_Inline(context, maybe_pattern); });
 
   // Normalize flags.
-  Node* const flags = Select<Object>(
+  TNode<Object> const flags = Select<Object>(
       IsUndefined(maybe_flags), [=] { return EmptyStringConstant(); },
-      [=] { return ToString_Inline(context, maybe_flags); },
-      MachineRepresentation::kTagged);
+      [=] { return ToString_Inline(context, maybe_flags); });
 
   // Initialize.
 

@@ -333,8 +333,7 @@ TNode<Object> BaseCollectionsAssembler::AllocateJSCollection(
                         [=] {
                           return AllocateJSCollectionSlow(context, constructor,
                                                           new_target);
-                        },
-                        MachineRepresentation::kTagged);
+                        });
 }
 
 TNode<Object> BaseCollectionsAssembler::AllocateJSCollectionFast(
@@ -456,7 +455,7 @@ TNode<IntPtrT> BaseCollectionsAssembler::EstimatedInitialSize(
   return Select<IntPtrT>(
       is_fast_jsarray,
       [=] { return SmiUntag(LoadFastJSArrayLength(CAST(initial_entries))); },
-      [=] { return IntPtrConstant(0); }, MachineType::PointerRepresentation());
+      [=] { return IntPtrConstant(0); });
 }
 
 void BaseCollectionsAssembler::GotoIfNotJSReceiver(Node* const obj,
@@ -494,8 +493,7 @@ TNode<Object> BaseCollectionsAssembler::LoadAndNormalizeFixedArrayElement(
     TNode<Object> elements, TNode<IntPtrT> index) {
   TNode<Object> element = CAST(LoadFixedArrayElement(elements, index));
   return Select<Object>(IsTheHole(element), [=] { return UndefinedConstant(); },
-                        [=] { return element; },
-                        MachineRepresentation::kTagged);
+                        [=] { return element; });
 }
 
 TNode<Object> BaseCollectionsAssembler::LoadAndNormalizeFixedDoubleArrayElement(

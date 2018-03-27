@@ -1294,8 +1294,7 @@ TF_BUILTIN(TypedArrayPrototypeSlice, TypedArrayBuiltinsAssembler) {
                   [=] {
                     return SmiTag(ConvertToRelativeIndex(
                         context, end, SmiUntag(source_length)));
-                  },
-                  MachineRepresentation::kTagged);
+                  });
 
   // Create a result array by invoking TypedArraySpeciesCreate.
   TNode<Smi> count = SmiMax(SmiSub(end_index, start_index), SmiConstant(0));

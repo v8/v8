@@ -1468,10 +1468,9 @@ class StringMatchSearchAssembler : public StringBuiltinsAssembler {
       RegExpBuiltinsAssembler regexp_asm(state());
 
       Node* const receiver_string = ToString_Inline(context, receiver);
-      Node* const pattern = Select(
+      TNode<Object> const pattern = Select<Object>(
           IsUndefined(maybe_regexp), [=] { return EmptyStringConstant(); },
-          [=] { return ToString_Inline(context, maybe_regexp); },
-          MachineRepresentation::kTagged);
+          [=] { return ToString_Inline(context, maybe_regexp); });
 
       // Create RegExp
       // TODO(pwong): This could be factored out as a helper (RegExpCreate) that
@@ -1732,10 +1731,9 @@ TF_BUILTIN(StringPrototypeSplit, StringBuiltinsAssembler) {
   // String and integer conversions.
 
   Node* const subject_string = ToString_Inline(context, receiver);
-  Node* const limit_number =
-      Select(IsUndefined(limit), [=]() { return NumberConstant(kMaxUInt32); },
-             [=]() { return ToUint32(context, limit); },
-             MachineRepresentation::kTagged);
+  TNode<Number> const limit_number = Select<Number>(
+      IsUndefined(limit), [=] { return NumberConstant(kMaxUInt32); },
+      [=] { return ToUint32(context, limit); });
   Node* const separator_string = ToString_Inline(context, separator);
 
   // Shortcut for {limit} == 0.
