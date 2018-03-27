@@ -217,7 +217,7 @@ void Generate_JSConstructStubGeneric(MacroAssembler* masm,
     // -----------------------------------
 
     __ mov(ebx, FieldOperand(edi, JSFunction::kSharedFunctionInfoOffset));
-    __ test(FieldOperand(ebx, SharedFunctionInfo::kCompilerHintsOffset),
+    __ test(FieldOperand(ebx, SharedFunctionInfo::kFlagsOffset),
             Immediate(SharedFunctionInfo::IsDerivedConstructorBit::kMask));
     __ j(not_zero, &not_create_implicit_receiver);
 
@@ -338,7 +338,7 @@ void Generate_JSConstructStubGeneric(MacroAssembler* masm,
     __ bind(&other_result);
     __ mov(ebx, Operand(ebp, ConstructFrameConstants::kConstructorOffset));
     __ mov(ebx, FieldOperand(ebx, JSFunction::kSharedFunctionInfoOffset));
-    __ test(FieldOperand(ebx, SharedFunctionInfo::kCompilerHintsOffset),
+    __ test(FieldOperand(ebx, SharedFunctionInfo::kFlagsOffset),
             Immediate(SharedFunctionInfo::IsClassConstructorBit::kMask));
 
     if (restrict_constructor_return) {
@@ -2124,7 +2124,7 @@ void Builtins::Generate_CallFunction(MacroAssembler* masm,
   // Check that the function is not a "classConstructor".
   Label class_constructor;
   __ mov(edx, FieldOperand(edi, JSFunction::kSharedFunctionInfoOffset));
-  __ test(FieldOperand(edx, SharedFunctionInfo::kCompilerHintsOffset),
+  __ test(FieldOperand(edx, SharedFunctionInfo::kFlagsOffset),
           Immediate(SharedFunctionInfo::IsClassConstructorBit::kMask));
   __ j(not_zero, &class_constructor);
 
@@ -2134,7 +2134,7 @@ void Builtins::Generate_CallFunction(MacroAssembler* masm,
   __ mov(esi, FieldOperand(edi, JSFunction::kContextOffset));
   // We need to convert the receiver for non-native sloppy mode functions.
   Label done_convert;
-  __ test(FieldOperand(edx, SharedFunctionInfo::kCompilerHintsOffset),
+  __ test(FieldOperand(edx, SharedFunctionInfo::kFlagsOffset),
           Immediate(SharedFunctionInfo::IsNativeBit::kMask |
                     SharedFunctionInfo::IsStrictBit::kMask));
   __ j(not_zero, &done_convert);

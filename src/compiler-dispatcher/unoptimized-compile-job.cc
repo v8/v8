@@ -193,7 +193,7 @@ void UnoptimizedCompileJob::PrepareOnMainThread(Isolate* isolate) {
   }
   parse_info_->set_hash_seed(isolate->heap()->HashSeed());
   parse_info_->set_is_named_expression(shared_->is_named_expression());
-  parse_info_->set_compiler_hints(shared_->compiler_hints());
+  parse_info_->set_function_flags(shared_->flags());
   parse_info_->set_start_position(shared_->StartPosition());
   parse_info_->set_end_position(shared_->EndPosition());
   parse_info_->set_unicode_cache(unicode_cache_.get());

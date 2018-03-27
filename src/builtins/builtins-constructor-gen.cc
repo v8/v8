@@ -99,13 +99,12 @@ TF_BUILTIN(FastNewClosure, ConstructorBuiltinsAssembler) {
 
   // The calculation of |function_map_index| must be in sync with
   // SharedFunctionInfo::function_map_index().
-  Node* const compiler_hints = LoadObjectField(
-      shared_function_info, SharedFunctionInfo::kCompilerHintsOffset,
-      MachineType::Uint32());
-  Node* const function_map_index =
-      IntPtrAdd(DecodeWordFromWord32<SharedFunctionInfo::FunctionMapIndexBits>(
-                    compiler_hints),
-                IntPtrConstant(Context::FIRST_FUNCTION_MAP_INDEX));
+  Node* const flags =
+      LoadObjectField(shared_function_info, SharedFunctionInfo::kFlagsOffset,
+                      MachineType::Uint32());
+  Node* const function_map_index = IntPtrAdd(
+      DecodeWordFromWord32<SharedFunctionInfo::FunctionMapIndexBits>(flags),
+      IntPtrConstant(Context::FIRST_FUNCTION_MAP_INDEX));
   CSA_ASSERT(this, UintPtrLessThanOrEqual(
                        function_map_index,
                        IntPtrConstant(Context::LAST_FUNCTION_MAP_INDEX)));

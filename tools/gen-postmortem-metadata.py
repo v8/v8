@@ -269,7 +269,7 @@ extras_accessors = [
     'SharedFunctionInfo, start_position_and_type, int, kStartPositionAndTypeOffset',
     'SharedFunctionInfo, end_position, int, kEndPositionOffset',
     'SharedFunctionInfo, internal_formal_parameter_count, int, kFormalParameterCountOffset',
-    'SharedFunctionInfo, compiler_hints, int, kCompilerHintsOffset',
+    'SharedFunctionInfo, flags, int, kFlagsOffset',
     'SharedFunctionInfo, length, int, kLengthOffset',
     'SlicedString, parent, String, kParentOffset',
     'Code, instruction_start, uintptr_t, kHeaderSize',

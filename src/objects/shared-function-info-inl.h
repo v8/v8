@@ -54,7 +54,7 @@ INT_ACCESSORS(SharedFunctionInfo, raw_start_position_and_type,
               kStartPositionAndTypeOffset)
 INT_ACCESSORS(SharedFunctionInfo, function_token_position,
               kFunctionTokenPositionOffset)
-INT_ACCESSORS(SharedFunctionInfo, compiler_hints, kCompilerHintsOffset)
+INT_ACCESSORS(SharedFunctionInfo, flags, kFlagsOffset)
 
 bool SharedFunctionInfo::HasSharedName() const {
   Object* value = name_or_scope_info();
@@ -96,21 +96,20 @@ AbstractCode* SharedFunctionInfo::abstract_code() {
   }
 }
 
-BIT_FIELD_ACCESSORS(SharedFunctionInfo, compiler_hints, is_wrapped,
+BIT_FIELD_ACCESSORS(SharedFunctionInfo, flags, is_wrapped,
                     SharedFunctionInfo::IsWrappedBit)
-BIT_FIELD_ACCESSORS(SharedFunctionInfo, compiler_hints, allows_lazy_compilation,
+BIT_FIELD_ACCESSORS(SharedFunctionInfo, flags, allows_lazy_compilation,
                     SharedFunctionInfo::AllowLazyCompilationBit)
-BIT_FIELD_ACCESSORS(SharedFunctionInfo, compiler_hints,
-                    has_duplicate_parameters,
+BIT_FIELD_ACCESSORS(SharedFunctionInfo, flags, has_duplicate_parameters,
                     SharedFunctionInfo::HasDuplicateParametersBit)
-BIT_FIELD_ACCESSORS(SharedFunctionInfo, compiler_hints, is_declaration,
+BIT_FIELD_ACCESSORS(SharedFunctionInfo, flags, is_declaration,
                     SharedFunctionInfo::IsDeclarationBit)
 
-BIT_FIELD_ACCESSORS(SharedFunctionInfo, compiler_hints, native,
+BIT_FIELD_ACCESSORS(SharedFunctionInfo, flags, native,
                     SharedFunctionInfo::IsNativeBit)
-BIT_FIELD_ACCESSORS(SharedFunctionInfo, compiler_hints, is_asm_wasm_broken,
+BIT_FIELD_ACCESSORS(SharedFunctionInfo, flags, is_asm_wasm_broken,
                     SharedFunctionInfo::IsAsmWasmBrokenBit)
-BIT_FIELD_ACCESSORS(SharedFunctionInfo, compiler_hints,
+BIT_FIELD_ACCESSORS(SharedFunctionInfo, flags,
                     requires_instance_fields_initializer,
                     SharedFunctionInfo::RequiresInstanceFieldsInitializer)
 
@@ -119,12 +118,12 @@ bool SharedFunctionInfo::optimization_disabled() const {
 }
 
 BailoutReason SharedFunctionInfo::disable_optimization_reason() const {
-  return DisabledOptimizationReasonBits::decode(compiler_hints());
+  return DisabledOptimizationReasonBits::decode(flags());
 }
 
 LanguageMode SharedFunctionInfo::language_mode() {
   STATIC_ASSERT(LanguageModeSize == 2);
-  return construct_language_mode(IsStrictBit::decode(compiler_hints()));
+  return construct_language_mode(IsStrictBit::decode(flags()));
 }
 
 void SharedFunctionInfo::set_language_mode(LanguageMode language_mode) {
@@ -132,40 +131,40 @@ void SharedFunctionInfo::set_language_mode(LanguageMode language_mode) {
   // We only allow language mode transitions that set the same language mode
   // again or go up in the chain:
   DCHECK(is_sloppy(this->language_mode()) || is_strict(language_mode));
-  int hints = compiler_hints();
+  int hints = flags();
   hints = IsStrictBit::update(hints, is_strict(language_mode));
-  set_compiler_hints(hints);
+  set_flags(hints);
   UpdateFunctionMapIndex();
 }
 
 FunctionKind SharedFunctionInfo::kind() const {
-  return FunctionKindBits::decode(compiler_hints());
+  return FunctionKindBits::decode(flags());
 }
 
 void SharedFunctionInfo::set_kind(FunctionKind kind) {
-  int hints = compiler_hints();
+  int hints = flags();
   hints = FunctionKindBits::update(hints, kind);
   hints = IsClassConstructorBit::update(hints, IsClassConstructor(kind));
   hints = IsDerivedConstructorBit::update(hints, IsDerivedConstructor(kind));
-  set_compiler_hints(hints);
+  set_flags(hints);
   UpdateFunctionMapIndex();
 }
 
 bool SharedFunctionInfo::needs_home_object() const {
-  return NeedsHomeObjectBit::decode(compiler_hints());
+  return NeedsHomeObjectBit::decode(flags());
 }
 
 void SharedFunctionInfo::set_needs_home_object(bool value) {
-  int hints = compiler_hints();
+  int hints = flags();
   hints = NeedsHomeObjectBit::update(hints, value);
-  set_compiler_hints(hints);
+  set_flags(hints);
   UpdateFunctionMapIndex();
 }
 
 int SharedFunctionInfo::function_map_index() const {
   // Note: Must be kept in sync with the FastNewClosure builtin.
-  int index = Context::FIRST_FUNCTION_MAP_INDEX +
-              FunctionMapIndexBits::decode(compiler_hints());
+  int index =
+      Context::FIRST_FUNCTION_MAP_INDEX + FunctionMapIndexBits::decode(flags());
   DCHECK_LE(index, Context::LAST_FUNCTION_MAP_INDEX);
   return index;
 }
@@ -176,7 +175,7 @@ void SharedFunctionInfo::set_function_map_index(int index) {
   DCHECK_LE(Context::FIRST_FUNCTION_MAP_INDEX, index);
   DCHECK_LE(index, Context::LAST_FUNCTION_MAP_INDEX);
   index -= Context::FIRST_FUNCTION_MAP_INDEX;
-  set_compiler_hints(FunctionMapIndexBits::update(compiler_hints(), index));
+  set_flags(FunctionMapIndexBits::update(flags(), index));
 }
 
 void SharedFunctionInfo::clear_padding() {

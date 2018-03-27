@@ -24,7 +24,7 @@ ParseInfo::ParseInfo(AccountingAllocator* zone_allocator)
       unicode_cache_(nullptr),
       stack_limit_(0),
       hash_seed_(0),
-      compiler_hints_(0),
+      function_flags_(0),
       start_position_(0),
       end_position_(0),
       parameters_end_pos_(kNoSourcePosition),
@@ -52,7 +52,7 @@ ParseInfo::ParseInfo(Handle<SharedFunctionInfo> shared)
   set_wrapped_as_function(shared->is_wrapped());
   set_allow_lazy_parsing(FLAG_lazy_inner_functions);
   set_is_named_expression(shared->is_named_expression());
-  set_compiler_hints(shared->compiler_hints());
+  set_function_flags(shared->flags());
   set_start_position(shared->StartPosition());
   set_end_position(shared->EndPosition());
   function_literal_id_ = shared->function_literal_id();
@@ -117,7 +117,7 @@ ParseInfo* ParseInfo::AllocateWithoutScript(Handle<SharedFunctionInfo> shared) {
   p->set_toplevel(shared->is_toplevel());
   p->set_allow_lazy_parsing(FLAG_lazy_inner_functions);
   p->set_is_named_expression(shared->is_named_expression());
-  p->set_compiler_hints(shared->compiler_hints());
+  p->set_function_flags(shared->flags());
   p->set_start_position(shared->StartPosition());
   p->set_end_position(shared->EndPosition());
   p->function_literal_id_ = shared->function_literal_id();
@@ -147,16 +147,16 @@ ParseInfo* ParseInfo::AllocateWithoutScript(Handle<SharedFunctionInfo> shared) {
 DeclarationScope* ParseInfo::scope() const { return literal()->scope(); }
 
 bool ParseInfo::is_declaration() const {
-  return SharedFunctionInfo::IsDeclarationBit::decode(compiler_hints_);
+  return SharedFunctionInfo::IsDeclarationBit::decode(function_flags_);
 }
 
 FunctionKind ParseInfo::function_kind() const {
-  return SharedFunctionInfo::FunctionKindBits::decode(compiler_hints_);
+  return SharedFunctionInfo::FunctionKindBits::decode(function_flags_);
 }
 
 bool ParseInfo::requires_instance_fields_initializer() const {
   return SharedFunctionInfo::RequiresInstanceFieldsInitializer::decode(
-      compiler_hints_);
+      function_flags_);
 }
 
 void ParseInfo::InitFromIsolate(Isolate* isolate) {

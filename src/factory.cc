@@ -2641,8 +2641,8 @@ Handle<SharedFunctionInfo> Factory::NewSharedFunctionInfo(
     share->set_raw_start_position_and_type(0);
     share->set_raw_end_position(0);
     share->set_function_token_position(0);
-    // All compiler hints default to false or 0.
-    share->set_compiler_hints(0);
+    // All flags default to false or 0.
+    share->set_flags(0);
     share->set_kind(kind);
 
     share->clear_padding();

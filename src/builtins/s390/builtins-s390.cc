@@ -279,8 +279,7 @@ void Generate_JSConstructStubGeneric(MacroAssembler* masm,
     // -----------------------------------
 
     __ LoadP(r6, FieldMemOperand(r3, JSFunction::kSharedFunctionInfoOffset));
-    __ LoadlW(r6,
-              FieldMemOperand(r6, SharedFunctionInfo::kCompilerHintsOffset));
+    __ LoadlW(r6, FieldMemOperand(r6, SharedFunctionInfo::kFlagsOffset));
     __ TestBitMask(r6, SharedFunctionInfo::IsDerivedConstructorBit::kMask, r0);
     __ bne(&not_create_implicit_receiver);
 
@@ -405,8 +404,7 @@ void Generate_JSConstructStubGeneric(MacroAssembler* masm,
       // Throw if constructor function is a class constructor
       __ LoadP(r6, MemOperand(fp, ConstructFrameConstants::kConstructorOffset));
       __ LoadP(r6, FieldMemOperand(r6, JSFunction::kSharedFunctionInfoOffset));
-      __ LoadlW(r6,
-                FieldMemOperand(r6, SharedFunctionInfo::kCompilerHintsOffset));
+      __ LoadlW(r6, FieldMemOperand(r6, SharedFunctionInfo::kFlagsOffset));
       __ TestBitMask(r6, SharedFunctionInfo::IsClassConstructorBit::kMask, r0);
       __ beq(&use_receiver);
     } else {
@@ -2071,7 +2069,7 @@ void Builtins::Generate_CallFunction(MacroAssembler* masm,
   // Check that the function is not a "classConstructor".
   Label class_constructor;
   __ LoadP(r4, FieldMemOperand(r3, JSFunction::kSharedFunctionInfoOffset));
-  __ LoadlW(r5, FieldMemOperand(r4, SharedFunctionInfo::kCompilerHintsOffset));
+  __ LoadlW(r5, FieldMemOperand(r4, SharedFunctionInfo::kFlagsOffset));
   __ TestBitMask(r5, SharedFunctionInfo::IsClassConstructorBit::kMask, r0);
   __ bne(&class_constructor);
 

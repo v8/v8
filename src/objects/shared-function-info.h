@@ -293,9 +293,8 @@ class SharedFunctionInfo : public HeapObject {
   // Is this function a top-level function (scripts, evals).
   DECL_BOOLEAN_ACCESSORS(is_toplevel)
 
-  // Bit field containing various information collected by the compiler to
-  // drive optimization.
-  DECL_INT_ACCESSORS(compiler_hints)
+  // [flags] Bit field containing various flags about the function.
+  DECL_INT_ACCESSORS(flags)
 
   // Indicates if this function can be lazy compiled.
   DECL_BOOLEAN_ACCESSORS(allows_lazy_compilation)
@@ -459,7 +458,7 @@ class SharedFunctionInfo : public HeapObject {
   V(kStartPositionAndTypeOffset, kInt32Size)  \
   V(kEndPositionOffset, kInt32Size)           \
   V(kFunctionTokenPositionOffset, kInt32Size) \
-  V(kCompilerHintsOffset, kInt32Size)         \
+  V(kFlagsOffset, kInt32Size)                 \
   /* Total size. */                           \
   V(kSize, 0)
 
@@ -484,8 +483,8 @@ class SharedFunctionInfo : public HeapObject {
   DEFINE_BIT_FIELDS(START_POSITION_AND_TYPE_BIT_FIELDS)
 #undef START_POSITION_AND_TYPE_BIT_FIELDS
 
-// Bit positions in |compiler_hints|.
-#define COMPILER_HINTS_BIT_FIELDS(V, _)                  \
+// Bit positions in |flags|.
+#define FLAGS_BIT_FIELDS(V, _)                           \
   V(IsNativeBit, bool, 1, _)                             \
   V(IsStrictBit, bool, 1, _)                             \
   V(IsWrappedBit, bool, 1, _)                            \
@@ -501,8 +500,8 @@ class SharedFunctionInfo : public HeapObject {
   V(DisabledOptimizationReasonBits, BailoutReason, 4, _) \
   V(RequiresInstanceFieldsInitializer, bool, 1, _)
 
-  DEFINE_BIT_FIELDS(COMPILER_HINTS_BIT_FIELDS)
-#undef COMPILER_HINTS_BIT_FIELDS
+  DEFINE_BIT_FIELDS(FLAGS_BIT_FIELDS)
+#undef FLAGS_BIT_FIELDS
 
   // Bailout reasons must fit in the DisabledOptimizationReason bitfield.
   STATIC_ASSERT(BailoutReason::kLastErrorMessage <=
