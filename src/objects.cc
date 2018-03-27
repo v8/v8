@@ -17065,20 +17065,28 @@ Handle<String> StringTable::LookupKey(Isolate* isolate, StringTableKey* key) {
   table = StringTable::CautiousShrink(table);
   // Adding new string. Grow table if needed.
   table = StringTable::EnsureCapacity(table, 1);
+  isolate->heap()->SetRootStringTable(*table);
 
+  return AddKeyNoResize(isolate, key);
+}
+
+Handle<String> StringTable::AddKeyNoResize(Isolate* isolate,
+                                           StringTableKey* key) {
+  Handle<StringTable> table = isolate->factory()->string_table();
+  DCHECK(table->HasSufficientCapacityToAdd(1));
   // Create string object.
   Handle<String> string = key->AsHandle(isolate);
   // There must be no attempts to internalize strings that could throw
   // InvalidStringLength error.
   CHECK(!string.is_null());
   DCHECK(string->HasHashCode());
+  DCHECK_EQ(table->FindEntry(key), kNotFound);
 
   // Add the new string and return it along with the string table.
-  entry = table->FindInsertionEntry(key->Hash());
+  int entry = table->FindInsertionEntry(key->Hash());
   table->set(EntryToIndex(entry), *string);
   table->ElementAdded();
 
-  isolate->heap()->SetRootStringTable(*table);
   return Handle<String>::cast(string);
 }
 

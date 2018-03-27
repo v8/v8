@@ -102,9 +102,10 @@ void ObjectDeserializer::CommitPostProcessedObjects() {
   StringTable::EnsureCapacityForDeserialization(
       isolate(), static_cast<int>(new_internalized_strings().size()));
   for (Handle<String> string : new_internalized_strings()) {
+    DisallowHeapAllocation no_gc;
     StringTableInsertionKey key(*string);
     DCHECK_NULL(StringTable::ForwardStringIfExists(isolate(), &key, *string));
-    StringTable::LookupKey(isolate(), &key);
+    StringTable::AddKeyNoResize(isolate(), &key);
   }
 
   Heap* heap = isolate()->heap();

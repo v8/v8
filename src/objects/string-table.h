@@ -61,6 +61,7 @@ class StringTable : public HashTable<StringTable, StringTableShape> {
   V8_EXPORT_PRIVATE static Handle<String> LookupString(Isolate* isolate,
                                                        Handle<String> key);
   static Handle<String> LookupKey(Isolate* isolate, StringTableKey* key);
+  static Handle<String> AddKeyNoResize(Isolate* isolate, StringTableKey* key);
   static String* ForwardStringIfExists(Isolate* isolate, StringTableKey* key,
                                        String* string);
 
@@ -78,7 +79,7 @@ class StringTable : public HashTable<StringTable, StringTableShape> {
 
   DECL_CAST(StringTable)
 
-  static const int kMaxEmptyFactor = 16;
+  static const int kMaxEmptyFactor = 8;
   static const int kMinCapacity = 2048;
   static const int kMinShrinkCapacity = kMinCapacity;
 
