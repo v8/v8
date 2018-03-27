@@ -2796,11 +2796,17 @@ class VerifySmisVisitor : public RootVisitor {
 };
 
 // Space iterator for iterating over all the paged spaces of the heap: Map
-// space, old space, code space and cell space.  Returns
-// each space in turn, and null when it is done.
+// space, old space, code space and optionally read only space. Returns each
+// space in turn, and null when it is done.
 class V8_EXPORT_PRIVATE PagedSpaces BASE_EMBEDDED {
  public:
-  explicit PagedSpaces(Heap* heap) : heap_(heap), counter_(OLD_SPACE) {}
+  enum class SpacesSpecifier { kSweepablePagedSpaces, kAllPagedSpaces };
+
+  explicit PagedSpaces(Heap* heap, SpacesSpecifier specifier =
+                                       SpacesSpecifier::kSweepablePagedSpaces)
+      : heap_(heap),
+        counter_(specifier == SpacesSpecifier::kAllPagedSpaces ? RO_SPACE
+                                                               : OLD_SPACE) {}
   PagedSpace* next();
 
  private:

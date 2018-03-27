@@ -6352,6 +6352,10 @@ void Heap::RecordWritesIntoCode(Code* code) {
 
 PagedSpace* PagedSpaces::next() {
   switch (counter_++) {
+    case RO_SPACE:
+      // skip NEW_SPACE
+      counter_++;
+      return heap_->read_only_space();
     case OLD_SPACE:
       return heap_->old_space();
     case CODE_SPACE:
