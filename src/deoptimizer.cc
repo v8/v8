@@ -1363,6 +1363,8 @@ void Deoptimizer::DoComputeConstructStubFrame(TranslatedFrame* translated_frame,
 //                TO
 //    |          ....           |
 //    +-------------------------+
+//    | arg padding (arch dept) |<- at most 1*kPointerSize
+//    +-------------------------+
 //    |     builtin param 0     |<- FrameState input value n becomes
 //    +-------------------------+
 //    |           ...           |
@@ -1384,7 +1386,13 @@ void Deoptimizer::DoComputeConstructStubFrame(TranslatedFrame* translated_frame,
 //    |          ...            |   to map a FrameState's 0..n-1 inputs to
 //    +-------------------------+   the builtin's n input register params.
 //    | builtin input GPR regn  |
-//    |-------------------------|<- spreg
+//    +-------------------------+
+//    | reg padding (arch dept) |
+//    +-------------------------+
+//    | res padding (arch dept) |<- only if {is_topmost}; result is pop'd by
+//    +-------------------------+<- kNotifyDeopt ASM stub and moved to acc
+//    |      result  value      |<- reg, as ContinueToBuiltin stub expects.
+//    +-------------------------+<- spreg
 //
 void Deoptimizer::DoComputeBuiltinContinuation(
     TranslatedFrame* translated_frame, int frame_index,
